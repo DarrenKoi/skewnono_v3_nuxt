@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
 
-const { toolType, fab, fabs, favorites, navigateToToolType, navigateToFab, toggleFab } = useNavigation()
+const { toolType, fabs, favorites, navigateToToolType, navigateToFab, toggleFab } = useNavigation()
 const { toolTypes } = useToolData()
 
 const SIDEBAR_COLLAPSED_KEY = 'skewnono:fabSidebar.collapsed'
@@ -30,8 +30,7 @@ const fabNames = computed(() => extractFabNames(semRows.value ?? []))
 const fabItems = computed(() => fabNames.value.map(name => ({
   id: name,
   label: name,
-  active: fabs.value.includes(name),
-  primary: fab.value === name
+  active: fabs.value.includes(name)
 })))
 
 // 일반 클릭 = 단독 선택(기존 습관 유지), Cmd/Ctrl+클릭 = 추가·제거.
@@ -184,12 +183,9 @@ const activeToolLabel = computed(() =>
         v-for="item in fabItems"
         :key="item.id"
         class="group/fab relative flex items-center rounded-lg transition-all duration-200 w-full"
-        :class="[
-          item.active
-            ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-fab-active'
-            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800',
-          item.active && !item.primary ? 'opacity-85' : ''
-        ]"
+        :class="item.active
+          ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-fab-active'
+          : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
       >
         <button
           :aria-label="sidebarCollapsed ? item.label : undefined"
