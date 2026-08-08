@@ -715,15 +715,9 @@ const filteredRows = computed(() => {
     .map(({ row }) => row)
 })
 
-const filteredRowCount = computed(() => filteredRows.value.length)
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredRowCount.value / pageSizeNumber.value)))
-const pageStart = computed(() => filteredRowCount.value === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1)
-const pageEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, filteredRowCount.value))
-const pagedRows = computed(() => {
-  const startIndex = (currentPage.value - 1) * pageSizeNumber.value
-
-  return filteredRows.value.slice(startIndex, startIndex + pageSizeNumber.value)
-})
+const {
+  total: filteredRowCount, pageCount, pageStart, pageEnd, pagedRows
+} = usePagedRows(filteredRows, pageSizeNumber, currentPage)
 
 const pageSizeOptions = [
   { label: '12개', value: '12' },

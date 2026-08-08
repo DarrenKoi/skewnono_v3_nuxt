@@ -201,14 +201,9 @@ watch(cacheKey, () => {
   currentPage.value = 1
 })
 
-const pageCount = computed(() => Math.max(1, Math.ceil(recipes.value.length / PAGE_SIZE)))
-const pageStart = computed(
-  () => recipes.value.length === 0 ? 0 : ((currentPage.value - 1) * PAGE_SIZE) + 1
-)
-const pageEnd = computed(() => Math.min(currentPage.value * PAGE_SIZE, recipes.value.length))
-const pagedRecipes = computed(
-  () => recipes.value.slice((currentPage.value - 1) * PAGE_SIZE, currentPage.value * PAGE_SIZE)
-)
+const {
+  pageCount, pageStart, pageEnd, pagedRows: pagedRecipes
+} = usePagedRows(recipes, PAGE_SIZE, currentPage)
 
 // 열은 응답의 eqp_ids 순서를 그대로 따릅니다. cells가 같은 순서로 0채움되어
 // 오므로 인덱스로 바로 꽂습니다 — 백엔드가 길이를 보장합니다.

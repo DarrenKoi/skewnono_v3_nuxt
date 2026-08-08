@@ -128,23 +128,14 @@ const refinedRows = computed(() => {
   return filteredRows.value.filter(row => matchesRecipeQuery(row.recipe_name.toLowerCase(), tokens))
 })
 
+const pageSizeOptions = PAGE_SIZE_OPTIONS
+
 const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
 const filteredCount = computed(() => filteredRows.value.length)
 const refinedCount = computed(() => refinedRows.value.length)
-const pageCount = computed(() => Math.max(1, Math.ceil(refinedCount.value / pageSizeNumber.value)))
-const pageStart = computed(() => refinedCount.value === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1)
-const pageEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, refinedCount.value))
-
-const pagedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSizeNumber.value
-  return refinedRows.value.slice(start, start + pageSizeNumber.value)
-})
-
-const pageSizeOptions = [
-  { label: '25 / page', value: '25' },
-  { label: '50 / page', value: '50' },
-  { label: '100 / page', value: '100' }
-]
+const { pageCount, pageStart, pageEnd, pagedRows } = usePagedRows(
+  refinedRows, pageSizeNumber, currentPage
+)
 
 // Fab/scope rides in the mono eyebrow; the <h1> stays the fixed page name so
 // the header never renames itself per fab (DESIGN.md §7.8).

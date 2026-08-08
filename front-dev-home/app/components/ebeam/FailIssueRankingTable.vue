@@ -165,17 +165,13 @@ const tableSlots = computed(() =>
   Object.fromEntries(Object.entries(slots).filter(([name]) => name !== 'title-extra'))
 )
 
+const pageSizeOptions = PAGE_SIZE_OPTIONS
+
 const search = ref('')
 const pageSize = ref('25')
 const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
 const page = ref(1)
 const sorting = ref<SortingState>([{ id: props.defaultSortId, desc: true }])
-
-const pageSizeOptions = [
-  { label: '25 / page', value: '25' },
-  { label: '50 / page', value: '50' },
-  { label: '100 / page', value: '100' }
-]
 
 // 헤더에 배경을 주지 않는 이유는 RecipeTatFleetTable.vue의 같은 블록에 있습니다:
 // sticky 헤더가 이미 테마 surface 위에 앉아 있습니다. 타입은 .sk-label에 맡깁니다.
@@ -214,20 +210,9 @@ const sortedRows = computed(() => {
   })
 })
 
-const pageCount = computed(
-  () => Math.max(1, Math.ceil(sortedRows.value.length / pageSizeNumber.value))
+const { pageCount, pageStart, pageEnd, pagedRows } = usePagedRows(
+  sortedRows, pageSizeNumber, page
 )
-const pageStart = computed(
-  () => sortedRows.value.length === 0 ? 0 : ((page.value - 1) * pageSizeNumber.value) + 1
-)
-const pageEnd = computed(
-  () => Math.min(page.value * pageSizeNumber.value, sortedRows.value.length)
-)
-
-const pagedRows = computed(() => {
-  const start = (page.value - 1) * pageSizeNumber.value
-  return sortedRows.value.slice(start, start + pageSizeNumber.value)
-})
 
 // Reset to page 1 on any user filter/sort change or when the parent
 // signals scope change via resetKey.
