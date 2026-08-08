@@ -157,121 +157,40 @@
           </UCard>
         </div>
 
-        <!-- Table -->
-        <div class="dashboard-surface rounded-[var(--sk-r-card)] px-3.5 py-3">
-          <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-wrap items-center gap-2">
-              <h3 class="sk-title">
-                Ranked recipes
-              </h3>
-              <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                {{ filteredRankingRows.length.toLocaleString() }} / {{ rankingRows.length.toLocaleString() }}
-              </span>
-              <span
-                v-if="rankingLimit && rankingRows.length >= rankingLimit"
-                class="font-mono text-[10px] text-amber-600 dark:text-amber-400"
-              >capped at {{ rankingLimit.toLocaleString() }}</span>
-              <EbeamRecipeStatusInlineSummary :items="tatSummaryItems" />
-            </div>
-            <div class="flex items-center gap-2">
-              <UInput
-                v-model="tableSearch"
-                size="xs"
-                placeholder="Search recipe / class…"
-                icon="i-lucide-search"
-                class="w-[14rem]"
-              />
-              <USelect
-                v-model="pageSize"
-                class="w-[6.5rem]"
-                size="xs"
-                :items="pageSizeOptions"
-              />
-              <UTooltip text="클립보드 복사">
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="outline"
-                  icon="i-lucide-clipboard"
-                  aria-label="표를 클립보드에 복사"
-                  :disabled="sortedRankingRows.length === 0"
-                  @click="copyRankingTable"
-                />
-              </UTooltip>
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-download"
-                label="CSV 다운로드"
-                :disabled="sortedRankingRows.length === 0"
-                @click="downloadRankingCsv"
-              />
-            </div>
-          </div>
-
-          <UTable
-            v-model:sorting="sorting"
-            :columns="columns"
-            :data="pagedRows"
-            :sorting-options="{ enableMultiSort: false, enableSortingRemoval: false }"
-            sticky="header"
-            :ui="tableUi"
-          >
-            <template
-              v-for="id in sortableColumnIds"
-              :key="id"
-              #[`${id}-header`]="{ column }"
-            >
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                class="-mx-2 -my-1 h-6 px-2 text-[11px] font-medium text-(--sk-ink-muted) hover:text-(--sk-ink)"
-                :trailing-icon="getSortIcon(column.getIsSorted())"
-                @click="column.toggleSorting(column.getIsSorted() === 'asc')"
-              >
-                {{ column.columnDef.header }}
-              </UButton>
-            </template>
-
-            <template #actions-cell="{ row }">
-              <EbeamRecipeRowActions
-                :tool-type="toolType"
-                :fab-segment="fabSegment"
-                :fab-names="row.original.fab_names ?? []"
-                :recipe-name="row.original.recipe_name"
-              />
-            </template>
-          </UTable>
-
-          <div class="mt-2 flex items-center justify-between text-xs text-(--sk-ink-muted)">
-            <span class="tabular-nums">
-              Page {{ currentPage }} / {{ pageCount }}
-              <span class="ml-2 text-(--sk-ink-muted)">
-                {{ pageStart }}–{{ pageEnd }} of {{ filteredRankingRows.length.toLocaleString() }}
-              </span>
-            </span>
-            <div class="flex gap-1">
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-chevron-left"
-                :disabled="currentPage <= 1"
-                @click="currentPage -= 1"
-              />
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                trailing-icon="i-lucide-chevron-right"
-                :disabled="currentPage >= pageCount"
-                @click="currentPage += 1"
-              />
-            </div>
-          </div>
-        </div>
+        <!-- Table. The bar chart above reads this table's sort and its
+             sorted rows, so that view comes back out via update:state rather
+             than being recomputed here. -->
+        <!-- @vue-generic {RecipeTatRow} -->
+        <EbeamFailIssueRankingTable
+          title="Ranked recipes"
+          search-placeholder="Search recipe / class…"
+          csv-label="CSV 다운로드"
+          :summary-items="tatSummaryItems"
+          :rows="rankingRows"
+          :columns="columns"
+          :sortable-ids="sortableColumnIds"
+          default-sort-id="total_meastime"
+          :reset-key="cacheKey"
+          :search-predicate="rankingSearchPredicate"
+          @update:state="onTableState"
+          @download="downloadRankingCsv"
+          @copy="copyRankingTable"
+        >
+          <template #title-extra>
+            <span
+              v-if="rankingLimit && rankingRows.length >= rankingLimit"
+              class="font-mono text-[10px] text-amber-600 dark:text-amber-400"
+            >capped at {{ rankingLimit.toLocaleString() }}</span>
+          </template>
+          <template #actions-cell="{ row }">
+            <EbeamRecipeRowActions
+              :tool-type="toolType"
+              :fab-segment="fabSegment"
+              :fab-names="row.original.fab_names ?? []"
+              :recipe-name="row.original.recipe_name"
+            />
+          </template>
+        </EbeamFailIssueRankingTable>
       </template>
     </template>
   </div>
@@ -297,6 +216,7 @@ import {
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
+import type { RankingTableState } from '~/utils/rankingTable'
 
 const props = defineProps<{
   fabs: string[]
@@ -500,26 +420,12 @@ const trendOption = computed<EChartsOption>(() => ({
 useEchart(trendEl, trendOption, { exportName: 'daily-tat-trend' })
 
 // Table
-
-const tableSearch = ref('')
-const pageSize = ref('25')
-const pageSizeNumber = computed(() => Number.parseInt(pageSize.value, 10))
-const currentPage = ref(1)
-
-const pageSizeOptions = [
-  { label: '25 / page', value: '25' },
-  { label: '50 / page', value: '50' },
-  { label: '100 / page', value: '100' }
-]
-
-const filteredRankingRows = computed(() => {
-  const q = tableSearch.value.trim().toLowerCase()
-  if (!q) return rankingRows.value
-  return rankingRows.value.filter(row =>
-    row.recipe_name.toLowerCase().includes(q)
-    || row.class_name.toLowerCase().includes(q)
-    || row.full_name.toLowerCase().includes(q))
-})
+//
+// Search, sort, pagination and CSV live in EbeamFailIssueRankingTable. What
+// stays here is only what the bar chart below also needs: the active sort and
+// the rows in the order the table shows them, both mirrored back out of the
+// component. Recomputing either locally would let the chart and the table
+// disagree, which is exactly what the shared-sort design prevents.
 
 const sortableColumnIds = ['meas_counts', 'avg_meastime', 'total_meastime'] as const
 type SortableColumnId = typeof sortableColumnIds[number]
@@ -527,39 +433,19 @@ type SortableColumnId = typeof sortableColumnIds[number]
 const sorting = ref<SortingState>([
   { id: 'total_meastime', desc: true }
 ])
+const sortedRankingRows = ref<RecipeTatRow[]>([])
+const tableSearch = ref('')
 
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
+const onTableState = (state: RankingTableState<RecipeTatRow>) => {
+  tableSearch.value = state.search
+  sorting.value = state.sorting
+  sortedRankingRows.value = state.sortedRows
 }
 
-const sortedRankingRows = computed(() => {
-  const current = sorting.value[0]
-  if (!current) return filteredRankingRows.value
-  const id = current.id as SortableColumnId
-  const dir = current.desc ? -1 : 1
-  return [...filteredRankingRows.value].sort((a, b) => (a[id] - b[id]) * dir)
-})
-
-const pageCount = computed(
-  () => Math.max(1, Math.ceil(sortedRankingRows.value.length / pageSizeNumber.value))
-)
-const pageStart = computed(
-  () => sortedRankingRows.value.length === 0 ? 0 : ((currentPage.value - 1) * pageSizeNumber.value) + 1
-)
-const pageEnd = computed(
-  () => Math.min(currentPage.value * pageSizeNumber.value, sortedRankingRows.value.length)
-)
-
-const pagedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSizeNumber.value
-  return sortedRankingRows.value.slice(start, start + pageSizeNumber.value)
-})
-
-watch([tableSearch, pageSize, cacheKey, sorting], () => {
-  currentPage.value = 1
-})
+const rankingSearchPredicate = (row: RecipeTatRow, term: string) =>
+  row.recipe_name.toLowerCase().includes(term)
+  || row.class_name.toLowerCase().includes(term)
+  || row.full_name.toLowerCase().includes(term)
 
 // Bar chart — the table's leading rows, drawn (horizontal)
 //
@@ -677,14 +563,6 @@ const columns: TableColumn<RecipeTatRow>[] = [
     }
   }
 ]
-
-// 헤더에 배경을 주지 않는 이유는 RecipeTatFleetTable.vue의 같은 블록에 있습니다:
-// sticky 헤더가 이미 테마 surface 위에 앉아 있습니다. 타입은 .sk-label에 맡깁니다.
-const tableUi = {
-  tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
-  td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',
-  th: 'py-2 px-3 sk-label'
-}
 
 const exportFileName = computed(() => {
   const today = todayStamp()

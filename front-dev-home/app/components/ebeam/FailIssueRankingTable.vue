@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-surface rounded-2xl px-3.5 py-3">
+  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-3.5 py-3">
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2">
         <h3 class="sk-title">
@@ -8,6 +8,9 @@
         <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
           {{ filteredRows.length.toLocaleString() }} / {{ rows.length.toLocaleString() }}
         </span>
+        <!-- Badges that only one panel needs (e.g. the TAT view's server-side
+             row cap) go here rather than becoming another prop. -->
+        <slot name="title-extra" />
         <EbeamRecipeStatusInlineSummary
           v-if="summaryItems?.length"
           :items="summaryItems"
@@ -43,7 +46,7 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-download"
-          label="CSV"
+          :label="csvLabel"
           :disabled="sortedRows.length === 0"
           @click="emitDownload"
         />
@@ -76,9 +79,11 @@
       </template>
 
       <!-- Forward parent-provided cell slots (e.g. #actions-cell) so panels
-           can add per-row controls without widening this component's API. -->
+           can add per-row controls without widening this component's API.
+           `title-extra` is ours and renders in the header, so it must not be
+           handed to UTable as well. -->
       <template
-        v-for="(_, name) in $slots"
+        v-for="(_, name) in tableSlots"
         :key="name"
         #[name]="slotProps"
       >
@@ -122,6 +127,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { RecipeStatusSummaryItem } from '~/utils/recipeStatusSummary'
+import type { RankingTableState } from '~/utils/rankingTable'
 
 // Generic ranking table — Align (by eqp_id) and Meas (by recipe) panels
 // share the same pagination/sort/search/CSV machinery and only differ in
@@ -139,12 +145,25 @@ const props = defineProps<{
   // the parent so the search columns can stay typed per panel.
   searchPredicate: (row: T, term: string) => boolean
   resetKey?: unknown
+  csvLabel?: string
 }>()
 
 const emit = defineEmits<{
-  download: [rows: T[]]
-  copy: [rows: T[]]
+  'download': [rows: T[]]
+  'copy': [rows: T[]]
+  // See RankingTableState — panels that render beside the table need the view
+  // it is showing, not just the rows they handed in.
+  'update:state': [state: RankingTableState<T>]
 }>()
+
+const csvLabel = computed(() => props.csvLabel ?? 'CSV')
+
+// `title-extra` is ours and renders in the header, so it must not also be
+// handed to UTable by the passthrough below.
+const slots = useSlots()
+const tableSlots = computed(() =>
+  Object.fromEntries(Object.entries(slots).filter(([name]) => name !== 'title-extra'))
+)
 
 const search = ref('')
 const pageSize = ref('25')
@@ -158,10 +177,12 @@ const pageSizeOptions = [
   { label: '100 / page', value: '100' }
 ]
 
+// 헤더에 배경을 주지 않는 이유는 RecipeTatFleetTable.vue의 같은 블록에 있습니다:
+// sticky 헤더가 이미 테마 surface 위에 앉아 있습니다. 타입은 .sk-label에 맡깁니다.
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-1.5 px-3 whitespace-nowrap overflow-hidden text-ellipsis tabular-nums sk-value',
-  th: 'py-2 px-3 sk-label bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 sk-label'
 }
 
 const getSortIcon = (direction: false | 'asc' | 'desc') => {
@@ -213,6 +234,18 @@ const pagedRows = computed(() => {
 watch([search, pageSize, sorting, () => props.resetKey], () => {
   page.value = 1
 })
+
+// `immediate` so a listening parent is populated on first render rather than
+// staying empty until the user touches a sort header.
+watch(
+  [search, sorting, sortedRows],
+  ([term, sort, rows]) => emit('update:state', {
+    search: term,
+    sorting: sort,
+    sortedRows: rows
+  }),
+  { immediate: true }
+)
 
 const emitDownload = () => {
   emit('download', sortedRows.value)
