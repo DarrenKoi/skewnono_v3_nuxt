@@ -84,7 +84,7 @@ tool_type 도메인 확장에는 정면으로 영향을 받습니다(§5 참조)
 | 항목 | 결정 |
 | --- | --- |
 | 백엔드 레이아웃 | `ebeam/<feature>/` 로 평탄화 (`hitachi/`, `cdsem/` 중간 폴더 제거) |
-| 벤더 축 표현 | `<feature>/providers/<adapter>/` 하위 폴더. 단위는 벤더가 아니라 **어댑터가 담당하는 범위** — `hitachi/`(cdsem+hvsem), `veritysem/`, `provision/` |
+| tool 축 표현 | `<feature>/providers/<family>/` 하위 폴더. 단위는 벤더가 아니라 **장비 패밀리** — `veritysem/`, `provision/`. `hitachi/`(cdsem+hvsem)는 기존 코드를 유지하는 예외 |
 | 개명 시점 | 즉시 실행 |
 | AMAT tool_type | `veritysem`, `provision` (하이픈 없음) |
 | `veritysem` 적용 범위 | 백엔드 슬러그 · tool_type · 프론트 라우트 · 활동 로그 슬러그 전부 |
@@ -153,30 +153,37 @@ back_dev_home/ebeam/
 `mock.py` 이므로, 이를 벤더 폴더로 옮기면 해당 feature 가 레지스트리에서
 사라지고 `get_data_provider()` 와 헬스 엔드포인트가 깨집니다.
 
-### 4.4 하위 폴더의 단위는 "어댑터가 담당하는 범위"
+### 4.4 하위 폴더의 단위는 tool family
 
-하위 폴더를 벤더로 자를지 tool family 로 자를지가 갈립니다. 결론은 **어느
-쪽도 아니고, 하나의 오피스 어댑터가 덮는 범위**입니다.
+**기본 단위는 장비 패밀리입니다.** 벤더가 아닙니다.
 
-| 폴더 | 덮는 계열 | 이유 |
-| --- | --- | --- |
-| `hitachi/` | `cdsem` + `hvsem` | 현재 어댑터가 이미 `tool_slug` 를 인자로 받아 두 계열을 서빙합니다. 오피스 키는 계열별로 갈라져 있지만(`v3_df_ppid_storage_cdsem` / `_hvsem`) 어댑터 안에서 분기합니다 |
-| `veritysem/` | `veritysem` | 소스가 확인되지 않았고, 두 계열이 따로 확인될 가능성이 높습니다 |
-| `provision/` | `provision` | 위와 같습니다 |
+| 폴더 | 덮는 계열 |
+| --- | --- |
+| `hitachi/` | `cdsem` + `hvsem` (예외 — 아래 참조) |
+| `veritysem/` | `veritysem` |
+| `provision/` | `provision` |
 
-AMAT 을 `amat/` 하나로 묶지 않는 이유는 **readiness 표현** 때문입니다.
-VeritySEM 소스는 확인됐는데 Provision 은 아직인 상황에서, `amat/office.py`
-하나로는 "둘 다 연계된 척"하거나 "둘 다 막는 것" 중 하나밖에 못 합니다.
-파일 존재가 곧 스위치라는 이 저장소의 규약(§6.2 8단계)은 그 파일이 덮는
-범위가 실제 연계 단위와 일치할 때만 정확합니다.
+VeritySEM 과 Provision 은 **아예 다른 형태의 데이터를 가집니다**
+(user-confirmed 2026-08-09). 같은 AMAT 이라는 이유로 한 어댑터에 묶을 근거가
+없습니다. 벤더는 `sem_list` 의 `vendor_nm` 과 화면 표기에 쓰이는 라벨이지,
+데이터 형태를 결정하는 축이 아닙니다.
 
-나중에 두 계열이 같은 소스를 쓰는 것으로 확인되면 `amat/` 하나로 합칠 수
-있습니다. `contracts.py` 가 공유되므로 합치는 비용은 낮습니다. 반대 방향
-(하나를 둘로 쪼개기)이 더 비싸므로 쪼갠 상태에서 출발합니다.
+`hitachi/` 하나가 두 계열을 덮고 있는 것은 규칙이 아니라 **우연**입니다.
+CD-SEM 과 HV-SEM 이 마침 겹치는 부분이 많아 하나의 어댑터로 처리할 수 있었을
+뿐입니다(오피스 키조차 `v3_df_ppid_storage_cdsem` / `_hvsem` 로 갈라져 있고
+어댑터 안에서 분기합니다). 이미 동작하는 코드이므로 그대로 두지만, 새 계열을
+붙일 때 따라야 할 본보기는 아닙니다. 두 계열이 나중에 갈라지면 그때 `hitachi/`
+를 `cdsem/` · `hvsem/` 로 쪼갭니다.
 
-두 축의 개수가 다르다는 점을 기억합니다 — 벤더는 2개(어댑터를 가르는 축),
-tool family 는 4개(URL·명부를 가르는 축)입니다. 벤더를 feature 위에 두면 이
-두 축이 한 경로에 뭉개집니다.
+패밀리 단위가 주는 두 번째 이득은 **readiness 표현**입니다. `amat/office.py`
+하나로는 VeritySEM 만 연계되고 Provision 은 아직인 상태를 표현할 수 없어,
+"둘 다 연계된 척"하거나 "둘 다 막는 것" 중 하나밖에 못 합니다. 파일 존재가 곧
+스위치라는 이 저장소의 규약(§6.2 8단계)은 그 파일이 덮는 범위가 실제 연계
+단위와 일치할 때만 정확합니다.
+
+두 축의 개수가 다르다는 점을 기억합니다 — 벤더는 2개(라벨의 축), tool family
+는 4개(데이터·URL·명부의 축)입니다. 벤더를 feature 위에 두면 이 두 축이 한
+경로에 뭉개집니다.
 
 ### 4.5 어댑터 디스패처
 
@@ -192,9 +199,10 @@ def _adapter(name: str):
     없는 기간이 몇 달 단위이므로, 같은 폴백을 쓰면 사무실에서 조작된 mock
     데이터를 진짜처럼 몇 달간 보여주게 됩니다.
 
-    name 은 tool_slug 에서 온 어댑터 이름입니다 — cdsem/hvsem -> "hitachi",
-    veritysem -> "veritysem", provision -> "provision". 이 매핑은
-    ebeam/_tool_specs.py 가 유일한 원천입니다.
+    name 은 tool_slug 에서 온 어댑터 이름입니다. 기본은 항등 매핑이고
+    (veritysem -> "veritysem", provision -> "provision"), cdsem/hvsem 만
+    "hitachi" 로 합쳐지는 예외입니다. 이 매핑은 ebeam/_tool_specs.py 가
+    유일한 원천입니다.
     """
     module = f"{__package__}.{name}.office"
     try:
@@ -226,8 +234,10 @@ import 가 깨진 어댑터"를 구분하는 것이 이 패턴의 핵심이며, 
 | `provision` | `provision` | AMAT | `provision/` |
 
 벤더(2개)와 어댑터 폴더(3개)의 개수가 다릅니다. 벤더는 `sem_list` 의
-`vendor_nm` 과 화면 표기에 쓰이고, 어댑터 폴더는 오피스 연계 단위입니다.
-둘을 같은 것으로 다루지 않습니다.
+`vendor_nm` 과 화면 표기에 쓰이는 **라벨**이고, 어댑터 폴더는 오피스 연계
+단위입니다. 둘을 같은 것으로 다루지 않습니다. 어댑터 폴더가 4개가 아니라
+3개인 것은 `hitachi/` 예외 하나 때문이며(§4.4), 그 예외가 사라지면 4개가
+됩니다.
 
 AMAT 계열은 **슬러그 = tool_type = 프론트 라우트가 한 문자열**입니다.
 이중 표기(`cdsem` ↔ `cd-sem`)는 Hitachi 레거시로만 남습니다. 제품명이
