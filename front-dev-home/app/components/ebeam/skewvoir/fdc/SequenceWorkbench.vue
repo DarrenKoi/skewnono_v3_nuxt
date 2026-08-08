@@ -51,9 +51,14 @@
            language — it hardcodes `aria-pressed`, a toggle-button semantic that is
            invalid on `role="tab"`, and these are real tabs wired to a tabpanel
            below with roving-tabindex arrow keys. views/TimeSeries.vue made the
-           same call for the same reason. Sizing stays at SkNavPill's md tier, not
-           that view's lg: the lens switch there picks the view, these pick a
-           variant of the view you are already in. -->
+           same call for the same reason.
+
+           Rejecting the component does NOT mean copying its look: these take the
+           `sk-nav-pill` ROLE CLASSES from main.css, so a pill retone reaches them
+           without anyone remembering they exist. (They restated the geometry in
+           utilities until 2026-08-09 — the same drift TimeSeries had.) Sizing is
+           the md tier, not that view's lg: the lens switch there picks the view,
+           these pick a variant of the view you are already in. -->
       <section class="dashboard-surface flex flex-wrap items-center rounded-(--sk-r-card) px-3 py-2.5">
         <div
           role="tablist"
@@ -68,10 +73,8 @@
             :tabindex="viewMode === 'matrix' ? 0 : -1"
             :aria-selected="viewMode === 'matrix'"
             aria-controls="fdc-matrix-panel"
-            class="inline-flex items-center gap-2 rounded-(--sk-r-nav) border px-4 py-2 text-sm transition-colors"
-            :class="viewMode === 'matrix'
-              ? 'border-(--sk-ink) bg-(--sk-ink) font-semibold text-(--sk-ink-fg)'
-              : 'border-(--sk-border) bg-transparent font-medium text-(--sk-ink-muted) hover:bg-(--sk-muted-surface) hover:text-(--sk-ink)'"
+            class="sk-nav-pill sk-nav-pill--md"
+            :class="viewMode === 'matrix' ? 'sk-nav-pill--active' : 'sk-nav-pill--rest'"
             @click="selectView('matrix')"
           >
             <UIcon
@@ -87,10 +90,8 @@
             :tabindex="viewMode === 'individual' ? 0 : -1"
             :aria-selected="viewMode === 'individual'"
             aria-controls="fdc-individual-panel"
-            class="inline-flex items-center gap-2 rounded-(--sk-r-nav) border px-4 py-2 text-sm transition-colors"
-            :class="viewMode === 'individual'
-              ? 'border-(--sk-ink) bg-(--sk-ink) font-semibold text-(--sk-ink-fg)'
-              : 'border-(--sk-border) bg-transparent font-medium text-(--sk-ink-muted) hover:bg-(--sk-muted-surface) hover:text-(--sk-ink)'"
+            class="sk-nav-pill sk-nav-pill--md"
+            :class="viewMode === 'individual' ? 'sk-nav-pill--active' : 'sk-nav-pill--rest'"
             @click="selectView('individual')"
           >
             <UIcon
