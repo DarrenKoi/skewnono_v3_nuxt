@@ -1366,8 +1366,13 @@ worktree 에는 gitignored 파일이 없으므로 병합만으로는 메인 체�
 옛 경로에 있던 `office.py` 가 남습니다. 이것들은 아무도 import 하지 않는
 고아입니다.
 
+`.gitignore` 는 `office.py` 와 `--force` 가 남기는 `office.py.bak` 을 **둘 다**
+무시하므로(`back_dev_home/**/providers/**/office.py{,.bak}`), 찾을 때도 둘 다
+찾아야 합니다. `-name "office.py"` 만 쓰면 `.bak` 이 옛 경로에 남습니다.
+
 ```bash
-find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -name "office.py" 2>/dev/null
+find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem \
+  \( -name "office.py" -o -name "office.py.bak" \) 2>/dev/null
 ```
 
 출력이 있으면 새 경로로 옮깁니다. 예:
@@ -1389,10 +1394,13 @@ find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -type d -empty -delet
 `.scratch/` 에 다음을 남깁니다 — 사무실 체크아웃에도 같은 고아 `office.py`
 문제가 있고, **거기서는 앱이 부팅에 실패합니다**(옛 경로를 import 하므로).
 
+작성한 문서: [`.scratch/2026-08-09-ebeam-flattening-office-handover.md`](../../../.scratch/2026-08-09-ebeam-flattening-office-handover.md)
+
 ```text
 [사무실 필독] ebeam 평탄화 후 첫 pull 시
 1. git pull
-2. find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -name "office.py"
+2. find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem \
+     \( -name "office.py" -o -name "office.py.bak" \)
 3. 나온 파일을 back_dev_home/ebeam/<feature>/providers/ 로 옮긴다
 4. .venv/bin/python -m scripts.sync_office_adapters   # STALE 여부 확인
 5. 부팅 로그에서 STALE office.py 경고가 없는지 확인
