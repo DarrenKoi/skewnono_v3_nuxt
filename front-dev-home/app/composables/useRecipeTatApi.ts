@@ -1,8 +1,10 @@
 import { joinApiPath } from '~/utils/apiPath'
-import type { ToolType } from '~/utils/toolType'
+import type { SEM_TOOL_TYPES } from '~/utils/toolType'
 
-/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
-export type RecipeTatToolType = ToolType
+// recipe-tat is Hitachi-only (back_dev_home/ebeam/hitachi/recipe_tat) — no
+// AMAT adapter exists or is planned, so this stays narrower than the full
+// ToolType registry on purpose. @deprecated name kept for call sites.
+export type RecipeTatToolType = (typeof SEM_TOOL_TYPES)[number]
 
 export interface RecipeTatRow {
   rank: number

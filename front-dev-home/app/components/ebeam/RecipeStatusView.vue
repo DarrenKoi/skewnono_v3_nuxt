@@ -42,7 +42,7 @@
           v-model:include-today="includeToday"
           :fabs="fabs"
           :tool-label="toolLabel"
-          :tool-type="toolType"
+          :tool-type="recipeTatToolType"
         />
         <EbeamFailIssueView
           v-else
@@ -63,13 +63,20 @@
 
 <script setup lang="ts">
 import type { FailIssueToolType } from '~/composables/useFailIssueApi'
+import type { RecipeTatToolType } from '~/composables/useRecipeTatApi'
 import { matchFeatureFromPath } from '~/utils/features'
 
-defineProps<{
+const props = defineProps<{
   fabs: string[]
   toolLabel: string
   toolType: FailIssueToolType
 }>()
+
+// recipe-tat is Hitachi-only (no AMAT adapter) while FailIssueToolType covers
+// the full ToolType registry — narrow here, at the one place this view
+// forwards its shared toolType prop into EbeamRecipeTatView's narrower prop.
+const recipeTatToolType = computed<RecipeTatToolType>(() =>
+  props.toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem')
 
 type RecipeStatusTab = 'tat' | 'align' | 'meas'
 

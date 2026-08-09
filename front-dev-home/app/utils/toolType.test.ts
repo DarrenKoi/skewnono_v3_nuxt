@@ -22,6 +22,11 @@ test('classifyToolType keeps an unrelated model unclassified', () => {
 test('AMAT tool types carry no hyphen', () => {
   assert.equal(classifyToolType('PROVISION_10'), 'provision')
   assert.ok(TOOL_TYPES.includes('veritysem'))
+  // Regression guard: TOOL_TYPES is the source ToolType is derived from, so a
+  // future edit that reintroduces the old hyphenated literal here widens
+  // ToolType right along with it and the compiler says nothing — only a
+  // runtime check on the array's contents catches that.
+  assert.equal((TOOL_TYPES as readonly string[]).indexOf('verity-sem'), -1)
 })
 
 test('toolSlug maps every tool type to its backend slug', () => {

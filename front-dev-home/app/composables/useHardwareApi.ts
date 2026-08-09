@@ -1,8 +1,10 @@
 import { joinApiPath } from '~/utils/apiPath'
-import type { ToolType } from '~/utils/toolType'
+import type { SEM_TOOL_TYPES } from '~/utils/toolType'
 
-/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
-export type HardwareToolType = ToolType
+// hardware is Hitachi-only (back_dev_home/ebeam/hitachi/hardware) — no AMAT
+// adapter exists or is planned, so this stays narrower than the full
+// ToolType registry on purpose. @deprecated name kept for call sites.
+export type HardwareToolType = (typeof SEM_TOOL_TYPES)[number]
 export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'mdc' | 'sce' | 'bm-pm' | 'sharpness'
 export type HardwareMetricTone = 'neutral' | 'ok' | 'warning' | 'bad'
 export type HardwareMetricValue = string | number | boolean | null
