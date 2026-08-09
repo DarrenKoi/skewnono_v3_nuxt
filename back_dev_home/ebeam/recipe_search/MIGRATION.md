@@ -474,7 +474,7 @@ Two things an office adapter must not break:
 
 ## Verify
 
-    SKEWNONO_RECIPE_SEARCH_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_search
+    SKEWNONO_RECIPE_SEARCH_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/recipe_search
 
 ## 502 진단 (`/recipe-detail`)
 

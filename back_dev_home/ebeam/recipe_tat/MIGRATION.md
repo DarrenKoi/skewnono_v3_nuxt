@@ -35,7 +35,7 @@ exact match / aggregation needs `.keyword`). Connection via `OPENSEARCH_HOST`
 
 Every `data.py`/provider function takes `fab_names: tuple[str, ...] | None`
 (the multi-fab sidebar selection) rather than a single `fab_name: str |
-None`. The shared `back_dev_home/ebeam/hitachi/_office_meas_hist.filter_clauses`
+None`. The shared `back_dev_home/ebeam/_office_meas_hist.filter_clauses`
 turns that tuple into the OpenSearch filter: one selected fab still emits a
 single `term` clause on `fab_name.keyword` (byte-identical to the
 pre-multi-fab query), and 2+ selected fabs emit one `terms` clause — a
@@ -464,11 +464,11 @@ all the assembler's job. 사무실 어댑터가 "그 장비가 실제로 돈 레
 Standalone smoke test (prints anchor + per-tool summary/ranking/trend;
 loads `.env` itself, needs OpenSearch reachable):
 
-    .venv/bin/python -m back_dev_home.ebeam.hitachi.recipe_tat.providers.office
+    .venv/bin/python -m back_dev_home.ebeam.recipe_tat.providers.office
 
 Contract gate (`.env` loaded by `back_dev_home/conftest.py`):
 
-    SKEWNONO_RECIPE_TAT_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_tat
+    SKEWNONO_RECIPE_TAT_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/recipe_tat
 
 Both run from the repo root. Every contract case should pass once
 OpenSearch (`meas_hist_*` + `ebeam_tas_lot_hist`) and Redis (`device_desc`) are

@@ -95,7 +95,7 @@ response = requests.get(url, params=..., timeout=(3, 7))
 ## 2. reader 활성화
 
 ```bash
-cd back_dev_home/ebeam/hitachi/live_alarm/providers
+cd back_dev_home/ebeam/live_alarm/providers
 cp office_example.py office.py
 ```
 

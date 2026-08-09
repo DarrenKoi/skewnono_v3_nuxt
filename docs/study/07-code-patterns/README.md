@@ -34,7 +34,7 @@ import { useState } from 'nuxt/app'
 import { computed, readonly } from 'vue'
 
 export type Category = 'ebeam' | 'thickness'
-export type ToolType = 'cd-sem' | 'hv-sem' | 'verity-sem' | 'provision'
+export type ToolType = 'cd-sem' | 'hv-sem' | 'veritysem' | 'provision'
 export type Fab = 'all' | 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
 
 export interface NavigationState {
@@ -200,7 +200,7 @@ onMounted(() => {
 
 - navigation store 동기화 + 재사용 가능한 View 컴포넌트에 props 전달
 - 실제 데이터 fetch, 테이블 렌더링은 View 컴포넌트가 담당
-- 같은 View를 `hv-sem`, `verity-sem`, `provision` 페이지에서 props만 바꿔 재사용
+- 같은 View를 `hv-sem`, `veritysem`, `provision` 페이지에서 props만 바꿔 재사용
 
 ### 4.2 View Component가 fetch를 수행
 

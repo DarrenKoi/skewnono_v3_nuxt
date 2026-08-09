@@ -14,8 +14,9 @@
 
 - Handler: `routes.py` → `data.get_lateral_recipe(tool_type, fab_name,
   recipe_name)`. `tool_slug` is `cdsem`/`hvsem`, resolved to `ToolType`
-  (`"cd-sem"`/`"hv-sem"`) via `resolve_tool_type_from_slug` in
-  `ebeam/hitachi/_tool_specs.py`; `fab_name` comes from the optional
+  (`"cd-sem"`/`"hv-sem"`) via `resolve_sem_tool_type` in
+  `ebeam/_slug_routes.py` — it accepts only `SEM_TOOL_SLUGS`, so an AMAT slug
+  is a `400` rather than a fabricated fleet; `fab_name` comes from the optional
   `?fab_name=` query param (uppercased, `None` if blank); `recipe_name` comes
   from the `?recipe_name=` query param and is **required** (400 if
   missing/blank — `routes.py` returns
@@ -128,4 +129,4 @@
 
 ## Verify
 
-    SKEWNONO_LATERAL_RECIPE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/lateral_recipe
+    SKEWNONO_LATERAL_RECIPE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/lateral_recipe

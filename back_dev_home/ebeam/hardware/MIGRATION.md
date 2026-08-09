@@ -172,7 +172,7 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
 
 - Handler: `routes.py` → `data.get_hardware_service(tool_slug, service,
   eqp_id, fab_name, start, end)`. `tool_slug` is validated against
-  `VALID_TOOL_SLUGS` and `service` against `VALID_SERVICES` before the data
+  `SEM_TOOL_SLUGS` and `service` against `VALID_SERVICES` before the data
   call; both 400 early on invalid input, so the provider never sees an
   invalid `tool_slug`/`service`. `eqp_id` is `None` when the route segment is
   empty or the literal placeholder `"_"`. `start`/`end` default to a 30-day
@@ -223,4 +223,4 @@ prefix marks that owner split: `bsm/mock.py` feeds the hardware BSM tab,
 
 ## Verify
 
-    SKEWNONO_HARDWARE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/hardware
+    SKEWNONO_HARDWARE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hardware

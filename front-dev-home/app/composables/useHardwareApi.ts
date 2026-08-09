@@ -1,7 +1,7 @@
 import { joinApiPath } from '~/utils/apiPath'
 import type { SEM_TOOL_TYPES } from '~/utils/toolType'
 
-// hardware is Hitachi-only (back_dev_home/ebeam/hitachi/hardware) — no AMAT
+// hardware is Hitachi-only (back_dev_home/ebeam/hardware) — no AMAT
 // adapter exists or is planned, so this stays narrower than the full
 // ToolType registry on purpose. @deprecated name kept for call sites.
 export type HardwareToolType = (typeof SEM_TOOL_TYPES)[number]

@@ -36,8 +36,7 @@ docstring.
 - **일곱 개**를 구현합니다: 기존 다섯 개에 더해 `write_weekly_snapshot`,
   `sweep_weekly_snapshots`. 뒤의 두 개는 스케줄러가 부르며 화면이 부르지
   않습니다.
-- **External importer — do not break this.** `back_dev_home/ebeam/hitachi/
-  _analytics.py`'s `lot_metadata()` lazily imports `get_device_desc` and
+- **External importer — do not break this.** `back_dev_home/ebeam/_analytics.py`'s `lot_metadata()` lazily imports `get_device_desc` and
   `get_r3_device_grp` from `device_statistics.data` (the switch you are
   implementing here) — it powers Recipe TAT's device quick-filter chips.
   Once office is selected, `lot_metadata()` will read office data
@@ -45,8 +44,7 @@ docstring.
   returning the same row shapes (`lot_cd`, `fac_id`, `prod_catg_cd`,
   `tech_nm` are the fields it actually reads).
 - **Do NOT touch `providers/mock.py`'s `_lot_index` export or the recipe_tat
-  import that reads it.** `back_dev_home/ebeam/hitachi/recipe_tat/
-  providers/mock.py` imports `_lot_index` directly from
+  import that reads it.** `back_dev_home/ebeam/recipe_tat/providers/mock.py` imports `_lot_index` directly from
   `device_statistics.providers.mock` — NOT from `device_statistics.data` —
   by design. That import intentionally bypasses this office switch: Recipe
   TAT's own mock provider needs a mock lot pool regardless of which
@@ -446,4 +444,4 @@ open 화면(`recipe_search`)이 그 경로를 쓰는 이유는 사용자가 **�
 
 ## Verify
 
-    SKEWNONO_DEVICE_STATISTICS_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/cdsem/device_statistics
+    SKEWNONO_DEVICE_STATISTICS_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/device_statistics

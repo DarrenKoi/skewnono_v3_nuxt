@@ -22,7 +22,10 @@ python index.py
 
 Via WSGI (production-style): the repo-root `index.py` exposes `app` and `application` at module level and is imported by `wsgi.ini` as `module = index` + `callable = application`. `uwsgi --ini wsgi.ini` (or an equivalent `gunicorn index:application`) will serve the same Flask app.
 
-Health check: `GET http://localhost:5000/api/health/services`
+Health check: `GET http://localhost:5050/api/health/services`
+
+Phase 1 serves on **5050**, not 5000 — macOS AirPlay Receiver holds 5000. `PORT`
+overrides it. (Phase 2, the company localhost server, is the one on 5000.)
 
 ## Frontend integration
 
@@ -30,7 +33,7 @@ Run Nuxt with the proxy target pointing here:
 
 ```bash
 cd ../front-dev-home
-NUXT_API_TARGET=http://localhost:5000 npm run dev
+NUXT_API_TARGET=http://localhost:5050 npm run dev
 ```
 
 Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.

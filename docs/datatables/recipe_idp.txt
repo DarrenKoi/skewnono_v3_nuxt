@@ -226,7 +226,7 @@ dnumber_removed -> bool: 데이터 전송 제외 여부 (office 확인 2026-07-2
     즉 이 표의 Mother_Para 는 지금 **한 화면에서만 도달 가능**합니다. 적재
     쪽에서 cdsem_idp_ver.parameters 에 이 플래그를 함께 실어 주는 것이 가장
     직접적인 해결이며, 후보 정리는
-    back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md 의 "mother_para
+    back_dev_home/ebeam/device_statistics/MIGRATION.md 의 "mother_para
     출처" 절에 있습니다.
 
 ★ Region = wafer_mp_info.P_No (office 확인 2026-07-28) — 두 table 을 잇는 정수
@@ -523,7 +523,7 @@ idp_image_info 의 img_* 값은 모두 **8자, 확장자 없음**, {kind}{stage}
 2. **조건 파일은 `.` 로 시작하는 숨김 디렉터리 안에 있습니다.** IMMP0001.jpeg 는
    파일이고 .IMMP0001.jpeg/ 는 그 옆의 디렉터리입니다. msr_image 가 2026-07-24 에
    이미 확인한 것과 같은 구조라서 msr_image/paths.py 의 cond_path() 를 그대로
-   재사용합니다(back_dev_home/ebeam/hitachi/recipe_search/rawfiles.py).
+   재사용합니다(back_dev_home/ebeam/recipe_search/rawfiles.py).
 3. **img_add2 는 앞 두 글자 PR 을 EN 으로 바꿔** AF/PR 조건 파일 이름이 됩니다.
    앞 두 글자는 항상 PR 입니다.
 4. **img_meas2 는 그대로 씁니다.** PRMS0000 자체가 AMP 파일 이름이며 EN 으로

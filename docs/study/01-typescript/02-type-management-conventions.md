@@ -109,7 +109,7 @@
 예시는 다음과 같습니다.
 
 ```ts
-export const TOOL_TYPES = ['cd-sem', 'hv-sem', 'verity-sem', 'provision'] as const
+export const TOOL_TYPES = ['cd-sem', 'hv-sem', 'veritysem', 'provision'] as const
 
 export type ToolType = typeof TOOL_TYPES[number]
 ```

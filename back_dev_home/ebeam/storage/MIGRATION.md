@@ -12,7 +12,8 @@
 ## Endpoint: GET /api/<tool_slug>/storage
 
 - Handler: `routes.py` → `data.get_storage(tool_slug, fab_names)`. `tool_slug`
-  is validated against `VALID_TOOL_SLUGS` (400 if invalid) before the data
+  is validated against `SEM_TOOL_SLUGS` (400 if invalid — an AMAT slug is
+  refused, not answered with fabricated rows) before the data
   call. `fab_names` comes from a comma-separated `?fab_name=` query param, split
   and trimmed into a list (`[]` when absent). The left-sidebar selection is a
   `fab_name` (e.g. `M16A`, `R3`, `R4`), so storage filters on the DataFrame's
@@ -124,13 +125,13 @@
 
 First copy the tracked skeleton to the gitignored runnable adapter:
 
-    cp back_dev_home/ebeam/hitachi/storage/providers/office_example.py \
-       back_dev_home/ebeam/hitachi/storage/providers/office.py
+    cp back_dev_home/ebeam/storage/providers/office_example.py \
+       back_dev_home/ebeam/storage/providers/office.py
 
 Smoke test (prints row counts + a sample per tool; loads `.env` itself):
 
-    .venv/bin/python -m back_dev_home.ebeam.hitachi.storage.providers.office
+    .venv/bin/python -m back_dev_home.ebeam.storage.providers.office
 
 Contract gate (`.env` loaded by `back_dev_home/conftest.py`):
 
-    SKEWNONO_STORAGE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/storage
+    SKEWNONO_STORAGE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/storage

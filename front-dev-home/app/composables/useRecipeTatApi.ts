@@ -1,7 +1,7 @@
 import { joinApiPath } from '~/utils/apiPath'
 import type { SEM_TOOL_TYPES } from '~/utils/toolType'
 
-// recipe-tat is Hitachi-only (back_dev_home/ebeam/hitachi/recipe_tat) — no
+// recipe-tat is Hitachi-only (back_dev_home/ebeam/recipe_tat) — no
 // AMAT adapter exists or is planned, so this stays narrower than the full
 // ToolType registry on purpose. @deprecated name kept for call sites.
 export type RecipeTatToolType = (typeof SEM_TOOL_TYPES)[number]
@@ -179,7 +179,7 @@ const buildQuery = (params: RecipeTatQuery) => {
 }
 
 // Path-slug is the backend's source of truth for tool_type — see
-// back_dev_home/ebeam/hitachi/_tool_specs.py's SLUG_TO_TOOL_TYPE.
+// back_dev_home/ebeam/_tool_specs.py's SLUG_TO_TOOL_TYPE.
 // The ?tool_type= query param is informational and ignored by the route,
 // so calling /cdsem/* from the HV-SEM page silently returns CD-SEM data.
 // toolSlug now comes from ~/utils/toolType via Nuxt auto-import.

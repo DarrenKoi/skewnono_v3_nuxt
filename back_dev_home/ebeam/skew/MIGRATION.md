@@ -10,7 +10,7 @@
 ## Endpoint: GET /api/<tool_slug>/skew/check
 
 - Handler: `routes.py` → `data.get_skew_check(tool_slug, fab_name,
-  recipe_id)`. `tool_slug` is validated against `VALID_TOOL_SLUGS` (400 if
+  recipe_id)`. `tool_slug` is validated against `SEM_TOOL_SLUGS` (400 if
   not `cdsem`/`hvsem`) before the data call. `fab_name` is a required query
   param (`?fab_name=...`, 400 if missing); `recipe_id` is an optional query
   param.
@@ -61,4 +61,4 @@
 
 ## Verify
 
-    SKEWNONO_SKEW_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/skew
+    SKEWNONO_SKEW_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/skew

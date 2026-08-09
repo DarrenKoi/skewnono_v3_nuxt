@@ -14,10 +14,12 @@
   `/<tool_slug>/pm-planning/fleet`, auto-discovered and mounted under
   `/api` by `back_dev_home/__init__.py`'s `routes.py`-rglob loop (there is
   no per-slug blueprint registration — one blueprint handles every slug at
-  request time). `tool_slug` must be one of the two registered slugs in
-  `back_dev_home/ebeam/hitachi/_tool_specs.py`'s `VALID_TOOL_SLUGS`
-  (`"cdsem"`, `"hvsem"`); anything else is a `400` (`tool_slug must be
-  'cdsem' or 'hvsem'"`) before `data.py` is ever called.
+  request time). `tool_slug` must be in
+  `back_dev_home/ebeam/_tool_specs.py`'s `SEM_TOOL_SLUGS`
+  (`"cdsem"`, `"hvsem"`) — NOT `VALID_TOOL_SLUGS`, which also holds the AMAT
+  families this feature has no adapter for. Anything else is a `400` from
+  `_slug_routes.bad_tool_slug_response()` before `data.py` is ever called;
+  the message is derived from the registry, not hard-coded.
 - **CD-SEM only.** Even though `hvsem` is a valid slug elsewhere in this
   codebase, `routes.py` explicitly rejects it here with a second `400`
   (`"pm-planning is available for CD-SEM only"`) before checking `fab_name`.
@@ -169,4 +171,4 @@
 
 ## Verify
 
-    SKEWNONO_PM_PLANNING_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/pm_planning
+    SKEWNONO_PM_PLANNING_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/pm_planning

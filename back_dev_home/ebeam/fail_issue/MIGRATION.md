@@ -19,7 +19,7 @@
   or Phase 1/2 numbers will disagree.
 - OpenSearch plumbing (client, composite walker, lot_id↔lot_cd bridge,
   device catalogs, shared anchor) lives in the TRACKED module
-  `back_dev_home/ebeam/hitachi/_office_meas_hist.py` — recipe_tat's office
+  `back_dev_home/ebeam/_office_meas_hist.py` — recipe_tat's office
   adapter uses the same module, so after pulling this template both
   `office.py` copies (fail_issue AND recipe_tat) must be re-`cp`'d from
   their templates in the same deploy.
@@ -415,4 +415,4 @@ office 스왑 직후에는 위 "대조 절차"를 손으로 대신 돌리십시�
 
 ## Verify
 
-    SKEWNONO_FAIL_ISSUE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/hitachi/fail_issue
+    SKEWNONO_FAIL_ISSUE_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/fail_issue
