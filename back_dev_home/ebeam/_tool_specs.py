@@ -5,7 +5,7 @@ equipment pools. Tool family comes from the model code's SERIES PREFIX --
 CG/GT are CD-SEM, TP is HV-SEM (user-confirmed 2026-07-24), VERITYSEM/
 VERITY_SEM is AMAT VeritySEM, PROVISION is AMAT Provision -- which is what
 `model_to_tool_type()` below and `classifyToolType()` in
-`front-dev-home/app/composables/useSemListApi.ts` both apply.
+`front-dev-home/app/utils/toolType.ts` both apply.
 
 Neither list in `TOOL_SPECS` is a classifier. `eqp_models` used to be one,
 and that was a bug: it holds codes invented so the mocks could fabricate
@@ -25,7 +25,8 @@ so the mocks can fabricate plausible-looking ids.
 This is precisely why `sem_list` is the roster of record. An eqp_id is a
 lookup key, not a description: resolve a tool through its sem_list row and
 classify from that row's `eqp_model_cd` (`model_to_tool_type()`, mirrored by
-`classifyToolType()` in useSemListApi.ts). Never parse the id itself -- see
+`classifyToolType()` in front-dev-home/app/utils/toolType.ts). Never parse
+the id itself -- see
 `lateral_recipe/providers/office_example.py`, which takes versions from its
 own index but the tool roster from `sem_list.data.get_sem_list()` for the
 same reason.
@@ -114,7 +115,7 @@ SEM_TOOL_TYPES: frozenset[ToolType] = frozenset({"cd-sem", "hv-sem"})
 # office tools by invented data: any real series member the mock never
 # imagined resolved to None and was dropped from both tabs. Prefixes are the
 # vendor's own series split (user-confirmed 2026-07-24) and match
-# `classifyToolType()` in front-dev-home/app/composables/useSemListApi.ts.
+# `classifyToolType()` in front-dev-home/app/utils/toolType.ts.
 _TOOL_TYPE_BY_PREFIX: tuple[tuple[str, ToolType], ...] = (
     ("CG", "cd-sem"),
     ("GT", "cd-sem"),

@@ -79,7 +79,8 @@ FAB_SUFFIXES = ["A", "B", "C"]
 # Fleet identity is keyed on the TOOL FAMILY, not the vendor. Both families in
 # scope today are Hitachi: CD-SEM is the CG/GT-series, HV-SEM is the TP-series.
 # AMAT enters only as VeritySEM/Provision, which are their own tool types
-# (`classifyToolType` in useSemListApi.ts) rather than HV-SEM, and are deferred
+# (`classifyToolType` in front-dev-home/app/utils/toolType.ts) rather than
+# HV-SEM, and are deferred
 # to 2027. Models and eqp_id prefixes mirror TOOL_SPECS in _tool_specs.py.
 CDSEM_MODELS = ["CG6300", "CG6320", "CG6340", "CG6360", "CG6380", "GT2000", "GT2000S"]
 CDSEM_EQP_PREFIXES = ["ECXDX", "ECDX", "HCDX"]
