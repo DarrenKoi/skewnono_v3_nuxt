@@ -61,7 +61,7 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
     |   |   |   `-- data.py      # Phase 1 mock; swap surface for Phase 2/3
     |   |   `-- device_statistics/   # feature: recipe + device stats (CD-SEM only)
     |   |       |-- __init__.py      # re-exports `bp`
-    |   |       |-- routes.py        # Blueprint("cdsem_device_statistics") — /api/cdsem/device-statistics/*
+    |   |       |-- routes.py        # Blueprint("device_statistics") — /api/cdsem/device-statistics/*
     |   |       |-- data.py
     |   |       `-- statistics.py
     |   `-- hvsem/               # tool: HV-SEM (namespace; sub-features below)

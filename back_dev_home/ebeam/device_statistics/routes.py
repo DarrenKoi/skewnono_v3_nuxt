@@ -9,7 +9,7 @@ from back_dev_home.ebeam.device_statistics.data import (
     get_weekly_trend_data,
 )
 
-bp = Blueprint("cdsem_device_statistics", __name__)
+bp = Blueprint("device_statistics", __name__)
 
 
 @bp.get("/cdsem/device-statistics/r3-device-grp")

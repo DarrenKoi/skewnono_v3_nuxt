@@ -4,7 +4,7 @@ from .._tool_specs import VALID_TOOL_SLUGS
 from .data import get_storage, get_ppid_unavailable
 
 
-bp = Blueprint("hitachi_storage", __name__)
+bp = Blueprint("storage", __name__)
 
 
 def _parse_fab_names() -> list[str]:
