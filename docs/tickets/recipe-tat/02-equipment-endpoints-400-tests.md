@@ -9,4 +9,4 @@
 **Status:** done (2026-08-09) — 65ce7bd4 — 4개 경로(fail-issue 쌍둥이 포함)
 
 - [ ] Both equipment endpoints assert 400 on an unknown `tool_slug`
-- [ ] Tests live in `back_dev_home/ebeam/hitachi/recipe_tat/tests/` or the cross-feature `tests/` suite, matching where the existing 400 assertion lives
+- [ ] Tests live in `back_dev_home/ebeam/recipe_tat/tests/` or the cross-feature `tests/` suite, matching where the existing 400 assertion lives

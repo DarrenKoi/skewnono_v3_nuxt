@@ -11,4 +11,4 @@
 - [ ] The image-suffix constant has one home, imported by all three backends
 - [ ] `EquipmentGridRow` and `_transport()` results are NamedTuples; no positional unpacking remains
 - [ ] `ReviewEntry.image` is derived (or removed) with consumers updated; the hand-maintained invariant is gone
-- [ ] Provider contract suites stay green (`pytest back_dev_home/msr_file back_dev_home/ebeam/hitachi/recipe_search -q`)
+- [ ] Provider contract suites stay green (`pytest back_dev_home/msr_file back_dev_home/ebeam/recipe_search -q`)

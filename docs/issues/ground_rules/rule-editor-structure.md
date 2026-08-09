@@ -116,7 +116,7 @@ pages/ebeam/cd-sem/device-statistics/measurement-rules.vue   ← 라우트(§7)
 - **"저장"** 은 별개: `saveRules(fab, draft.cells, draft.thresholds, note)` → 새 버전(D12). 저장 후 캐시 `refresh()`.
 - threshold 는 `applied` 안에서 상수처럼 주입되며 what-if draft 에 없다(D18) — composable 분기 단순.
 
-## 6. 백엔드 (`back_dev_home/ebeam/cdsem/device_statistics/rules.py`)
+## 6. 백엔드 (`back_dev_home/ebeam/device_statistics/providers/rules.py`)
 
 feature-sliced 관례(routes ↔ data 분리). Phase 1 은 in-memory mock, Phase 2/3 은 동일 시그니처로 DB 교체.
 
