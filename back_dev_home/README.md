@@ -53,23 +53,26 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
     |   `-- data.py
     |-- ebeam/                   # tool family: groups all e-beam tools
     |   |-- __init__.py          # namespace only — no Blueprint
-    |   |-- cdsem/               # tool: CD-SEM (namespace; sub-features below)
-    |   |   |-- __init__.py      # namespace only — no Blueprint
-    |   |   |-- storage/         # feature: per-tool storage inventory
-    |   |   |   |-- __init__.py  # re-exports `bp`
-    |   |   |   |-- routes.py    # Blueprint("cdsem_storage") — /api/cdsem/storage*
-    |   |   |   `-- data.py      # Phase 1 mock; swap surface for Phase 2/3
-    |   |   `-- device_statistics/   # feature: recipe + device stats (CD-SEM only)
-    |   |       |-- __init__.py      # re-exports `bp`
-    |   |       |-- routes.py        # Blueprint("device_statistics") — /api/cdsem/device-statistics/*
-    |   |       |-- data.py
-    |   |       `-- statistics.py
-    |   `-- hvsem/               # tool: HV-SEM (namespace; sub-features below)
-    |       |-- __init__.py      # namespace only — no Blueprint
-    |       `-- storage/         # feature: per-tool storage inventory
-    |           |-- __init__.py  # re-exports `bp`
-    |           |-- routes.py    # Blueprint("hvsem_storage") — /api/hvsem/storage*
-    |           `-- data.py      # currently identical to cdsem; differentiate later
+    |   |-- _tool_specs.py       # slug <-> tool_type <-> vendor <-> adapter-folder registry (see below)
+    |   |-- __fixtures__/        # tool_type_cases.json — shared by the Python and TS classifiers
+    |   |-- storage/             # feature: per-tool storage inventory (all four tool slugs)
+    |   |   |-- __init__.py      # re-exports `bp`
+    |   |   |-- routes.py        # Blueprint("storage") — /api/<tool_slug>/storage*
+    |   |   |-- contracts.py     # response shape, provider-independent
+    |   |   |-- data.py          # provider dispatch (see get_data_provider())
+    |   |   `-- providers/       # mock.py (Phase 1) + office_example.py (Phase 2/3 template)
+    |   |-- device_statistics/   # feature: recipe + device stats (CD-SEM only, path hardcoded)
+    |   |   |-- __init__.py      # re-exports `bp`
+    |   |   |-- routes.py        # Blueprint("device_statistics") — /api/cdsem/device-statistics/*
+    |   |   |-- contracts.py
+    |   |   |-- data.py
+    |   |   `-- providers/
+    |   |-- hardware/            # feature: per-tab providers (bm_pm, bsm, fdc, mdc, reso_center, sce, sharpness)
+    |   |   |-- routes.py        # Blueprint("ebeam_hardware") — /api/<tool_slug>/hardware/<eqp_id>/<service>
+    |   |   `-- providers/<tab>/ # each tab is its own mock.py + office_example.py pair
+    |   `-- <other features>/    # fail_issue, lateral_recipe, live_alarm, pm_planning,
+    |                            # recipe_search, recipe_tat, skew — same
+    |                            # routes.py/contracts.py/data.py/providers/ shape
     |-- sem_list/                # feature: cross-tool SEM list
     |   |-- __init__.py          # re-exports `bp`
     |   |-- routes.py            # GET /api/sem-list
@@ -78,29 +81,74 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
     `-- README.md
 ```
 
+Every `ebeam/<feature>/` folder sits directly under `ebeam/` — there is no
+vendor or tool folder above it (`ebeam/hitachi/...`, `ebeam/cdsem/...` no
+longer exist; the layout was flattened so a feature slug is the single,
+globally-unique name the office-adapter registry keys on — see
+[`docs/back-end/vendor-onboarding.md`](../docs/back-end/vendor-onboarding.md)
+§2 for why a vendor-above-feature folder would make the app fail to boot).
+Whether a feature covers one tool slug or all four is a routing choice inside
+`routes.py` (`<tool_slug>` URL converter vs. a hardcoded path segment), not a
+folder-location choice — see "Adding a new e-beam tool feature" below.
+
 ## Office migration (Phase 2)
 
-Provider-backed features keep `routes.py` and `data.py` unchanged. Implement the
-real source in the feature's `providers/office.py`, normalize its result to
-`contracts.py`, then select it with `SKEWNONO_DATA_PROVIDER=office` or a feature
-override. For storage, use `SKEWNONO_STORAGE_PROVIDER=office`; this selects the
-office adapter for both `/api/<tool_slug>/storage` and
-`/api/<tool_slug>/ppid-unavailable`. Keep the function interfaces and response
-shapes stable.
+Provider-backed features keep `routes.py`, `data.py`, and `contracts.py`
+unchanged — the real source is implemented in the feature's
+`providers/office.py`, normalized to `contracts.py`, and selected at runtime.
+The rules for **which** provider answers a request (mode vs. per-feature
+readiness, `SKEWNONO_DATA_PROVIDER` vs. `SKEWNONO_<FEATURE>_PROVIDER`) are in
+[`docs/back-end/provider-selection.md`](../docs/back-end/provider-selection.md);
+the interface contract each `providers/office.py` must satisfy is in
+[`docs/back-end/office-data-adapters.md`](../docs/back-end/office-data-adapters.md).
+This README does not restate either — as a concrete example, `storage` is
+selected with `SKEWNONO_STORAGE_PROVIDER=office` and covers both
+`/api/<tool_slug>/storage` and `/api/<tool_slug>/ppid-unavailable`.
 
 ## Adding a new e-beam tool feature
 
-The `ebeam/` layer has three kinds of folders:
+Every `ebeam/<feature>/` folder sits flat under `ebeam/` — there is no vendor
+or per-tool folder above it. What varies per feature is **routing**, not
+**location**:
 
-- `ebeam/hitachi/<feature>/` — features shared across CD-SEM and HV-SEM (Hitachi tool family). Routes use Flask's `<tool_slug>` URL converter and produce both `/api/cdsem/<feature>/...` and `/api/hvsem/<feature>/...` endpoints from a single source of truth. Per-tool constants live in `ebeam/hitachi/_tool_specs.py`.
-- `ebeam/cdsem/<feature>/`, `ebeam/hvsem/<feature>/` — features that exist for one tool only (e.g. `cdsem/device_statistics/`). Each sub-feature folder is its own Blueprint.
+- Features that apply to every tool slug (`cdsem`, `hvsem`, `veritysem`,
+  `provision`) use Flask's `<tool_slug>` URL converter and validate against
+  `VALID_TOOL_SLUGS` from `ebeam/_tool_specs.py` — e.g. `storage`'s
+  `@bp.get("/<tool_slug>/storage")`.
+- Features scoped to CD/HV-SEM only (not AMAT) check membership in
+  `SEM_TOOL_TYPES` from the same module.
+- Features that exist for exactly one tool hardcode that tool's path segment
+  instead of taking a `<tool_slug>` — e.g. `device_statistics`'s
+  `@bp.get("/cdsem/device-statistics/...")`.
+
+`ebeam/_tool_specs.py` is the single source of truth for slug ↔ tool_type ↔
+vendor ↔ adapter-folder (`SLUG_TO_TOOL_TYPE`, `TOOL_TYPE_TO_VENDOR`,
+`SLUG_TO_ADAPTER`) and for the CD/HV-only scope (`SEM_TOOL_TYPES`). Read its
+module docstring before classifying a tool by anything other than
+`model_to_tool_type()` — `eqp_models`/`eqp_prefixes` are mock fodder, not
+classifiers.
 
 To add a new feature:
 
-1. Decide whether it is shared (most common) or tool-specific. Most CD-SEM features will eventually need an HV-SEM equivalent — start in `hitachi/` unless the data shape genuinely diverges.
-2. Create `back_dev_home/ebeam/<scope>/<feature>/` with `__init__.py`, `routes.py`, `data.py`.
-3. In `routes.py`, declare `bp = Blueprint("<scope>_<feature>", __name__)` — the prefix keeps Blueprint names globally unique. For shared features, use `bp = Blueprint("hitachi_<feature>", __name__)`.
+1. Decide the routing scope per the bullets above (all four tool slugs, CD/HV
+   only, or one tool hardcoded).
+2. Create `back_dev_home/ebeam/<feature>/` with `__init__.py` (re-exporting
+   `bp`), `routes.py`, `data.py`, `contracts.py`, and `providers/{mock,office_example}.py`
+   — see [`docs/back-end/vendor-onboarding.md`](../docs/back-end/vendor-onboarding.md)
+   for the full onboarding procedure and why a feature name must be globally
+   unique (the office-adapter registry fails to boot on a duplicate).
+3. In `routes.py`, declare `bp = Blueprint("<feature>", __name__)`. Flask
+   only requires Blueprint names to be unique across the whole app; run
+   `grep -rn "Blueprint(" back_dev_home/` first to confirm no collision.
+   Existing blueprints are not yet consistent — some still carry an
+   `ebeam_` prefix left over from before the folder layout was flattened
+   (`ebeam_hardware`, `ebeam_fail_issue`, …); new features should use the
+   bare feature name.
 4. URL paths inside `routes.py`:
-   - Shared: `@bp.get("/<tool_slug>/<feature>/...")`, validate `tool_slug` against `VALID_TOOL_SLUGS`.
-   - Tool-specific: `@bp.get("/<tool>/<feature>/...")` with the tool name baked in.
-5. The blueprint loader in `back_dev_home/__init__.py` discovers any `routes.py` under the package and registers it under `/api`. No manual registration is needed.
+   - All-slug: `@bp.get("/<tool_slug>/<feature>/...")`, validate `tool_slug`
+     against `VALID_TOOL_SLUGS`.
+   - Single-tool: `@bp.get("/<tool>/<feature>/...")` with the tool name baked
+     in.
+5. The blueprint loader in `back_dev_home/__init__.py` discovers any
+   `routes.py` under the package (skipping `_`-prefixed folders) and
+   registers it under `/api`. No manual registration is needed.
