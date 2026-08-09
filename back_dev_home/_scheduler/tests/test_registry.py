@@ -52,7 +52,7 @@ def test_no_two_jobs_share_a_fire_instant(triggers):
     # Cron fires at an exact instant, so two jobs written minute=0 start
     # TOGETHER, not "around" the hour.
     slots = []
-    for name, trigger in triggers.items():
+    for trigger in triggers.values():
         fields = {f.name: str(f) for f in trigger.fields}
         slots.append(
             (fields.get("day_of_week"), fields.get("hour"), fields.get("minute"))

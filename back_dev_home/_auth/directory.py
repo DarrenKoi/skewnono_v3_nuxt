@@ -296,7 +296,7 @@ def lookup_members(user_ids: Iterable[str]) -> dict[str, Member]:
         logger.warning("member directory unreachable for %d users: %s", len(wanted), exc)
         return members
 
-    for user_id, raw in zip(wanted, raw_values):
+    for user_id, raw in zip(wanted, raw_values, strict=True):
         if raw is None:
             # No directory row — ordinary for contractors and service accounts.
             continue

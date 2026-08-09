@@ -121,8 +121,9 @@ Backend, from the repo root (CPython 3.14 venv; no activation step needed):
 
 ```bash
 .venv/bin/python index.py                              # Flask on :5050, hot-reloads at home
-.venv/bin/python -m pytest -q                          # full suite (~2180 tests, ~72 s)
+.venv/bin/python -m pytest -q                          # full suite (~3040 tests, ~115 s)
 .venv/bin/python -m pytest back_dev_home/<feature> -q  # one feature
+.venv/bin/python -m ruff check .                       # static gate, ~0.02 s — must be clean
 ```
 
 (The device-statistics weekly-snapshot tests dominate that runtime: each one

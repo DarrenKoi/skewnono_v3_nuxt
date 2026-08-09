@@ -191,21 +191,18 @@ def _stage_c_concurrency(
     results: dict[int, tuple[float, int]] = {}
     for n in fanouts:
         scoped = replace(cfg, ftp_concurrency=n)
-        ok = 0
-        failed: list[str] = []
-
-        def on_file(name: str, fetched: Any, error: str | None) -> None:
-            nonlocal ok
-            if fetched is not None:
-                ok += 1
-            else:
-                failed.append(f"{name}: {error}")
+        # Built per iteration by a factory rather than closing over loop-local
+        # names: `download_all` happens to call back synchronously, so the late
+        # binding is harmless today, but it is one `asyncio` away from every
+        # fan-out writing into the last iteration's counters.
+        on_file, tally = _make_file_collector()
 
         started = time.monotonic()
         office.download_all(
             eqp_ip, class_name, msr, list(names), on_file, concurrency=n, _config=scoped
         )
         elapsed = time.monotonic() - started
+        ok, failed = tally()
         results[n] = (elapsed, ok)
         per_conn = -(-len(names) // n)  # ceil: the busiest connection's share
         line = (f"   n={n:2d}  {elapsed:6.2f}s total   {elapsed / max(1, ok):5.2f}s/image"
@@ -215,6 +212,31 @@ def _stage_c_concurrency(
         for f in failed[:3]:
             print(f"       FAIL {f}")
     return results
+
+
+def _make_file_collector() -> tuple[Any, Any]:
+    """One fresh ``(on_file, tally)`` pair per fan-out round.
+
+    ``download_all`` reports each file through a callback. Defining that
+    callback inside the loop would close over the loop's own counters, so a
+    round's totals live in whatever the last iteration happened to leave —
+    correct only because the current adapter calls back synchronously.
+    Handing out a fresh pair keeps each round's numbers its own.
+    """
+    ok = 0
+    failed: list[str] = []
+
+    def on_file(name: str, fetched: Any, error: str | None) -> None:
+        nonlocal ok
+        if fetched is not None:
+            ok += 1
+        else:
+            failed.append(f"{name}: {error}")
+
+    def tally() -> tuple[int, list[str]]:
+        return ok, failed
+
+    return on_file, tally
 
 
 def _stage_d_minio(office: Any, cfg: ImageConfig, locator: ImageLocator, rounds: int) -> float | None:

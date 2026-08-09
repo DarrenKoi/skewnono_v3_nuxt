@@ -408,7 +408,7 @@ def test_weekly_series_is_not_a_straight_line(trend):
         next(r for r in trend[d]["all_summary"] if r["lot_cd"] == "R000")["para_all"]
         for d in dates
     ]
-    deltas = [b - a for a, b in zip(series, series[1:])]
+    deltas = [b - a for a, b in zip(series, series[1:], strict=False)]
     assert len(set(deltas)) > 1, "주차 증분이 전부 같습니다 (흔들림 없음)"
 
 
