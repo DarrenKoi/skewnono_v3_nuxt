@@ -74,7 +74,7 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 룰은 코드 상수가 아니라 사용자가 입력·수정하는 도메인 객체이며, 룰을 벗어나는 정도가 [[lot-health-signal]]의 입력입니다. 상세 모델·결정은 `docs/issues/ground_rules/`(grilling-log · rule-editor-structure) 참조.
 
-**편집 권한과 위치**: 룰·어노테이션 편집은 **인증된 엔지니어 누구나** `device-statistics/measurement-rules` 페이지에서 수행하며, SSO 신원 추적 + 버전 이력 + rollback 으로 무결성을 확보합니다(ADR 0004 — ADR 0003 의 관리자 전용을 supersede). seed 룰과 read/write/history/rollback API 는 `back_dev_home/ebeam/cdsem/device_statistics/rules.py` 에 위치하고, swap pattern 으로 Phase 2/3 DB-backed 교체됩니다.
+**편집 권한과 위치**: 룰·어노테이션 편집은 **인증된 엔지니어 누구나** `device-statistics/measurement-rules` 페이지에서 수행하며, SSO 신원 추적 + 버전 이력 + rollback 으로 무결성을 확보합니다(ADR 0004 — ADR 0003 의 관리자 전용을 supersede). seed 룰은 `back_dev_home/ebeam/device_statistics/providers/rules.py` 에 있고, feature 밖에서는 `device_statistics.data` 의 `get_rules()` 로만 읽습니다. 앱 내 편집 저장(save/history/rollback)은 이후 **하지 않기로 결정**했습니다(grilling-log D12) — 룰은 그 파일을 직접 고쳐 배포하고 git 이력이 곧 버전 이력이며, office 어댑터도 같은 seed 를 반환합니다(user-confirmed 2026-08-04). 따라서 이 문단의 SSO 편집 권한 서술은 ADR 0004 당시의 계획이고 현재 구현이 아닙니다.
 
 ### Product Family (Core / Pool제 / VG·RTC·Cubic)
 

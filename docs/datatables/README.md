@@ -19,7 +19,7 @@
 | --- | --- | --- | --- |
 | `members.txt` | Redis hash `members` | `_auth` (사용자 이름·소속, `GET /api/me`) | 구현완료(스키마 user-confirmed, 실행 검증 대기) |
 | `sem_list.txt` | Redis `v3_df_sem_avail` + `v3_df_sem_version` | `sem_list` | 연결 |
-| `storage_ppid.txt` | Redis `v3_df_ppid_storage_{cdsem,hvsem}` + `v3_hitachi_sem_ppid_not_avail` | `ebeam/hitachi/storage` | 연결 |
+| `storage_ppid.txt` | Redis `v3_df_ppid_storage_{cdsem,hvsem}` + `v3_hitachi_sem_ppid_not_avail` | `ebeam/storage` | 연결 |
 | `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe` | 연결 |
 | `ebeam_tas_lot_hist.txt` | OpenSearch `ebeam_tas_lot_hist` | `recipe_tat`, `fail_issue` (lot_id↔lot_cd 다리), `device_statistics`(M fab 공정 스텝) | 연결(device_statistics 제외) |
 | `device_desc.txt` | Redis `device_desc` | `recipe_tat`, `fail_issue`, `device_statistics` | 연결 |

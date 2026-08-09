@@ -1,8 +1,9 @@
 import { useState } from 'nuxt/app'
 import { computed, readonly } from 'vue'
 import { NO_FAB, hasFab, canonicalFabList } from '~/utils/fab'
+import type { ToolType } from '~/utils/toolType'
 
-export type ToolType = 'cd-sem' | 'hv-sem' | 'verity-sem' | 'provision'
+export type { ToolType }
 // Fab holds a fab_name value from the Flask sem-list response (e.g. "R3", "R4", "M16B").
 // NO_FAB ('all') is reserved as an internal "no fab selected" sentinel and is never rendered
 // in the sidebar; utils/fab resolves it to R3 wherever a URL needs a fab segment.

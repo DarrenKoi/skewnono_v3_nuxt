@@ -1,6 +1,10 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { SEM_TOOL_TYPES } from '~/utils/toolType'
 
-export type HardwareToolType = 'cd-sem' | 'hv-sem'
+// hardware is Hitachi-only (back_dev_home/ebeam/hardware) — no AMAT
+// adapter exists or is planned, so this stays narrower than the full
+// ToolType registry on purpose. @deprecated name kept for call sites.
+export type HardwareToolType = (typeof SEM_TOOL_TYPES)[number]
 export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'mdc' | 'sce' | 'bm-pm' | 'sharpness'
 export type HardwareMetricTone = 'neutral' | 'ok' | 'warning' | 'bad'
 export type HardwareMetricValue = string | number | boolean | null
@@ -54,8 +58,7 @@ export interface HardwareQuery {
   end?: string
 }
 
-const toolSlug = (toolType: HardwareToolType): 'cdsem' | 'hvsem' =>
-  toolType === 'hv-sem' ? 'hvsem' : 'cdsem'
+// toolSlug now comes from ~/utils/toolType via Nuxt auto-import.
 
 export const useHardwareApi = () => {
   const config = useRuntimeConfig()

@@ -57,7 +57,7 @@ export const rankableFabRows = <T extends { fab: string }>(
 //   - `home` is retired: `/` stopped being ranked (page_to_feature returns
 //     None for it). Its label is needed only until the rows already written
 //     under it age out of the 30-day ranking window — after that it can go.
-//   - `cdsem`, `hvsem`, `provision`, `verity_sem`, `thickness` are fallback
+//   - `cdsem`, `hvsem`, `provision`, `veritysem`, `thickness` are fallback
 //     slugs, not retired ones: any e-beam page with no explicit _PAGE_RULES
 //     entry still falls back to its tool segment (page_to_feature's bottom
 //     branch), and any non-ebeam page with no rule falls back to its first
@@ -65,7 +65,18 @@ export const rankableFabRows = <T extends { fab: string }>(
 //     pages (e.g. /thickness) and are pinned by
 //     test_unknown_pages_fall_back_to_a_derived_slug. Their labels are
 //     PERMANENT — deleting them on a 30-day clock makes the ranking render
-//     `Cdsem` / `Verity Sem` the next time an unmapped page is visited.
+//     `Cdsem` / `Veritysem` the next time an unmapped page is visited.
+//   - `verity_sem` is a THIRD case: Task 6 renamed the frontend route from
+//     /ebeam/verity-sem/... to /ebeam/veritysem/..., which shifted the
+//     fallback slug a live page produces from "verity_sem" to "veritysem"
+//     (see _TOOL_SEGMENT_SLUGS / the tool-fallback branch in
+//     feature_map.py). Unlike recipe-tat/fail-issue, there is no redirect
+//     stub for the old path — Task 6 was a plain `git mv`, and the old URL
+//     404s. `verity_sem` still shows up because the router's afterEach
+//     beacon fires on the raw path regardless of route match, so a
+//     bookmark or link nobody updated still logs a hit — so its label stays
+//     PERMANENT for the same reason as the two above, not because the page
+//     is current.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',
@@ -93,7 +104,8 @@ const FEATURE_LABELS: Record<string, string> = {
   storage: 'Storage',
   thickness: 'Thickness Metrology',
   tool_inventory: '장비 상태',
-  verity_sem: 'VeritySEM'
+  verity_sem: 'VeritySEM',
+  veritysem: 'VeritySEM'
 }
 
 export const activityFeatureLabel = (feature: string | null | undefined): string => {

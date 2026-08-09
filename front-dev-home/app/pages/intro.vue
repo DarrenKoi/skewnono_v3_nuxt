@@ -686,7 +686,7 @@ const pageGuides: PageGuide[] = [
   {
     id: 'coming-soon',
     title: '준비 중 페이지',
-    path: '/thickness, /ebeam/verity-sem, /ebeam/provision',
+    path: '/thickness, /ebeam/veritysem, /ebeam/provision',
     icon: 'i-lucide-construction',
     section: 'common',
     purpose: '아직 기능이 확정되지 않은 영역을 표시합니다.',

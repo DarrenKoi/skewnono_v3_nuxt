@@ -36,7 +36,7 @@ payload 구조
     }
 
 SummaryRow 는 계약 그대로입니다 —
-back_dev_home/ebeam/cdsem/device_statistics/contracts.py.
+back_dev_home/ebeam/device_statistics/contracts.py.
 네 버킷의 정의는 docs/datatables/planstep_r3.txt 의 "화면의 네 버킷" 절입니다.
 
 summary 만 담고 rcp_info 는 담지 않습니다 — 의도입니다
@@ -57,7 +57,7 @@ recipe 단위 상세(*_rcp_info)는 스냅샷에 넣지 않습니다.
 주 1회(월요일) 아래 함수 하나만 호출하면 됩니다. 읽기 쪽과 payload 형태가 갈라지지
 않도록 **생성도 office 어댑터가 책임집니다.**
 
-    from back_dev_home.ebeam.cdsem.device_statistics.providers.office import (
+    from back_dev_home.ebeam.device_statistics.providers.office import (
         write_weekly_snapshot,
     )
     write_weekly_snapshot()          # 이번 주 월요일 키로 적재

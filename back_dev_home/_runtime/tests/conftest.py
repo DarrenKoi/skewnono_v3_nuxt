@@ -55,8 +55,8 @@ def wired(fake_tree):
     return fake_tree(
         {
             "sem_list": ["mock.py", "office.py"],
-            "ebeam/hitachi/storage": ["mock.py", "office.py"],
+            "ebeam/storage": ["mock.py", "office.py"],
             "chat": ["mock.py", "office_example.py"],
-            "ebeam/hitachi/skew": ["mock.py", "office_example.py"],
+            "ebeam/skew": ["mock.py", "office_example.py"],
         }
     )

@@ -25,9 +25,9 @@ from unittest.mock import MagicMock
 from flask import Flask
 
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.ebeam.hitachi.storage import data
-from back_dev_home.ebeam.hitachi.storage.providers import mock as mock_provider
-from back_dev_home.ebeam.hitachi.storage.routes import bp
+from back_dev_home.ebeam.storage import data
+from back_dev_home.ebeam.storage.providers import mock as mock_provider
+from back_dev_home.ebeam.storage.routes import bp
 from tests._office_state import (
     MISSING_ADAPTER_MESSAGE,
     fake_office_adapter,

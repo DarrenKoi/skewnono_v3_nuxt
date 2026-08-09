@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from back_dev_home._core.request_args import resolve_fab_name
+from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from back_dev_home.meas_hist.data import (
     DEFAULT_LIMIT,
     ToolType,
@@ -12,12 +13,34 @@ from back_dev_home.meas_hist.data import (
 
 bp = Blueprint("meas_hist", __name__)
 
-VALID_TOOL_TYPES: tuple[ToolType, ...] = ("cd-sem", "hv-sem")
+# 하드코딩하지 않습니다. 계열이 늘어나면 레지스트리만 고칩니다.
+VALID_TOOL_TYPES: frozenset[str] = frozenset(SLUG_TO_TOOL_TYPE.values())
+
+
+class _UnknownToolType(Exception):
+    pass
 
 
 def _resolve_tool_type() -> ToolType | None:
+    """미지정이면 None(= 전체), 미지의 값이면 예외.
+
+    둘을 같은 None 으로 뭉개면 'veritysem 으로 필터했는데 전 장비가 나오는'
+    조용한 오답이 됩니다. 400 이 정답입니다.
+    """
     raw = (request.args.get("tool_type") or "").strip().lower()
-    return raw if raw in VALID_TOOL_TYPES else None
+    if not raw:
+        return None
+    if raw not in VALID_TOOL_TYPES:
+        raise _UnknownToolType(raw)
+    return raw  # type: ignore[return-value]
+
+
+@bp.errorhandler(_UnknownToolType)
+def _reject_unknown_tool_type(exc: _UnknownToolType):
+    return jsonify({
+        "error": f"unknown tool_type {exc.args[0]!r}; "
+                 f"expected one of {sorted(VALID_TOOL_TYPES)}"
+    }), 400
 
 
 def _resolve_recipe_name() -> str | None:

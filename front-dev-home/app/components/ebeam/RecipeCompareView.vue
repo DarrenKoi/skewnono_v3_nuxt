@@ -203,7 +203,7 @@ import {
   spansFabs
 } from '~/utils/recipeCompare'
 import { fetchParamDetailsChunked, slotsOf } from '~/composables/useRecipeParamDetail'
-import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
+import { toolSlug as toBackendSlug } from '~/utils/toolType'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
 import { recipesForCompare } from '~/utils/recipeSelection'
 import { recipePairKey, recipePairSetKey } from '~/utils/recipePair'

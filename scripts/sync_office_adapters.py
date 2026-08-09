@@ -134,7 +134,7 @@ def discover() -> list[Adapter]:
 def resolve(adapters: list[Adapter], query: str) -> list[Adapter]:
     """Match a user-typed name against slugs, allowing any unique suffix.
 
-    So "storage", "hitachi/storage" and the full slug all select the same
+    So "storage", "ebeam/storage" and the full slug all select the same
     adapter, while an ambiguous stem raises instead of guessing.
     """
     needle = query.strip().strip("/").lower()

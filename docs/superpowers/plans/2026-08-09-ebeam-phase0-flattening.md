@@ -28,10 +28,16 @@ git worktree add ../skewnono-ebeam-phase0 -b work/ebeam-phase0
 cd ../skewnono-ebeam-phase0
 ```
 
-- [ ] **Step 2: 프론트 의존성 연결**
+- [ ] **Step 2: gitignored 의존성 연결**
+
+`.venv/` 와 `node_modules/` 는 둘 다 gitignored 이므로 **worktree 에는
+존재하지 않습니다.** 링크를 걸지 않으면 이 계획의 모든 테스트 명령이
+`No such file or directory` 로 죽습니다.
 
 ```bash
-ln -s ../../skewnono_v3_nuxt/front-dev-home/node_modules front-dev-home/node_modules
+ln -s /Users/daeyoung/Codes/skewnono_v3_nuxt/.venv .venv
+ln -s /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home/node_modules \
+      front-dev-home/node_modules
 ```
 
 - [ ] **Step 3: 기준선 측정**
@@ -45,10 +51,18 @@ worktree 에는 gitignored `office.py` 가 없으므로 메인 체크아웃과 s
 수가 다릅니다. 이후 모든 검증은 **passed + skipped 합계**로 비교합니다.
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -3 && npm run typecheck 2>&1 | tail -3 && cd ..
+cd front-dev-home && npm test 2>&1 | tail -6 && npm run typecheck 2>&1 | tail -4 && cd ..
 ```
 
-기대: 프론트 테스트 통과, typecheck 0 errors. 숫자를 적어 둡니다.
+기대: 프론트 테스트 통과, typecheck 0 errors.
+
+**2026-08-09 실측 기준선** (이 worktree 에서 측정 완료):
+
+| 대상 | 값 |
+| --- | --- |
+| 백엔드 | 2954 passed + 7 skipped = **2961** (+ 11 subtests) |
+| 프론트 | **1333** pass, 0 fail |
+| typecheck | 0 errors |
 
 ---
 
@@ -1352,8 +1366,13 @@ worktree 에는 gitignored 파일이 없으므로 병합만으로는 메인 체�
 옛 경로에 있던 `office.py` 가 남습니다. 이것들은 아무도 import 하지 않는
 고아입니다.
 
+`.gitignore` 는 `office.py` 와 `--force` 가 남기는 `office.py.bak` 을 **둘 다**
+무시하므로(`back_dev_home/**/providers/**/office.py{,.bak}`), 찾을 때도 둘 다
+찾아야 합니다. `-name "office.py"` 만 쓰면 `.bak` 이 옛 경로에 남습니다.
+
 ```bash
-find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -name "office.py" 2>/dev/null
+find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem \
+  \( -name "office.py" -o -name "office.py.bak" \) 2>/dev/null
 ```
 
 출력이 있으면 새 경로로 옮깁니다. 예:
@@ -1375,10 +1394,13 @@ find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -type d -empty -delet
 `.scratch/` 에 다음을 남깁니다 — 사무실 체크아웃에도 같은 고아 `office.py`
 문제가 있고, **거기서는 앱이 부팅에 실패합니다**(옛 경로를 import 하므로).
 
+작성한 문서: [`.scratch/2026-08-09-ebeam-flattening-office-handover.md`](../../../.scratch/2026-08-09-ebeam-flattening-office-handover.md)
+
 ```text
 [사무실 필독] ebeam 평탄화 후 첫 pull 시
 1. git pull
-2. find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -name "office.py"
+2. find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem \
+     \( -name "office.py" -o -name "office.py.bak" \)
 3. 나온 파일을 back_dev_home/ebeam/<feature>/providers/ 로 옮긴다
 4. .venv/bin/python -m scripts.sync_office_adapters   # STALE 여부 확인
 5. 부팅 로그에서 STALE office.py 경고가 없는지 확인

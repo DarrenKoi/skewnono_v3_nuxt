@@ -37,7 +37,7 @@ const features: FeatureTab[] = [
   { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', enabledToolTypes: ['cd-sem', 'hv-sem'] }
 ]
 
-const toolTypes: ToolType[] = ['cd-sem', 'hv-sem', 'verity-sem', 'provision']
+const toolTypes: ToolType[] = ['cd-sem', 'hv-sem', 'veritysem', 'provision']
 
 const routeToolType = computed<ToolType | null>(() => {
   const [, category, toolType] = route.path.split('/')

@@ -99,7 +99,8 @@ assumption).
 - Backend responses converted to dict/dataframe shape before returning JSON
 
 ### Feature-sliced Backend Layout
-- Each Nuxt feature tab has a matching folder under `back_dev_home/`. Most are top-level (`sem_list/`, `msr_file/`, `msr_image/`, `afm/`, `meas_hist/`, `chat/`, …); the e-beam tabs nest by vendor — `ebeam/hitachi/<feature>/` (`storage`, `skew`, `recipe_tat`, `recipe_search`, `pm_planning`, `fail_issue`, `hardware`, `lateral_recipe`, `live_alarm`) and `ebeam/cdsem/device_statistics/`.
+- Each Nuxt feature tab has a matching folder under `back_dev_home/`. Most are top-level (`sem_list/`, `msr_file/`, `msr_image/`, `afm/`, `meas_hist/`, `chat/`, …); the e-beam tabs sit **flat** under `ebeam/<feature>/` — `storage`, `skew`, `recipe_tat`, `recipe_search`, `pm_planning`, `fail_issue`, `hardware`, `lateral_recipe`, `live_alarm`, `device_statistics`. There is **no vendor or tool-family folder in the path**: `_runtime/office_registry.py` identifies a feature by its directory name alone and refuses to boot on a duplicate, so `ebeam/amat/storage/` beside `ebeam/hitachi/storage/` is not untidy, it is an app that does not start.
+- **Tool family is a `providers/` axis, never a path axis.** The registry of families (slug ↔ tool_type ↔ vendor ↔ adapter folder) is `back_dev_home/ebeam/_tool_specs.py`; a family-specific adapter goes under `<feature>/providers/<family>/`, the shape `hardware/providers/` already uses. Read [`docs/back-end/vendor-onboarding.md`](docs/back-end/vendor-onboarding.md) before wiring a new tool family into a feature — it carries the 8-step procedure and the reasons behind each rule.
 - Underscore-prefixed folders (`_runtime/`, `_auth/`, `_core/`, `_logging/`,
   `_scheduler/`, `_spa/`) are shared plumbing, **not** features — the app
   factory skips them.
@@ -225,6 +226,7 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 | `verify` | Launch/drive recipe for the running app (Flask + Nuxt), identities, browser checks |
 | `home-to-office` | Audit features against the mock→office provider convention before conveying work |
 | `generate-mock` | Scaffold a mock data composable for a new endpoint |
+| `add-vendor` | Wire a new e-beam tool family (VeritySEM, Provision, …) into a feature — rules in `docs/back-end/vendor-onboarding.md` |
 
 ### Issue tracker
 

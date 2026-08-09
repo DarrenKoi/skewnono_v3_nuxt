@@ -48,9 +48,20 @@ here:
   "On"/"Off". This mock emits the normalized form directly. Pending tools
   have no `available` at all.
 * the fleet carries no `tool_type` column — it is derived from `eqp_model_cd`.
-  Note the two classifiers disagree: backend `_tool_specs.model_to_tool_type`
-  returns None for AMAT models, while frontend `classifyToolType` resolves
-  all four tool types. The 미연결 screen uses the frontend one.
+  Backend `_tool_specs.model_to_tool_type` and frontend `classifyToolType`
+  both resolve all four tool types (cd-sem/hv-sem/veritysem/provision) and
+  are kept in agreement by a shared fixture (see `_tool_specs.py`). "CD/HV
+  only" is expressed by naming the scope — `in SEM_TOOL_TYPES` when the code
+  holds a tool_type, `in SEM_TOOL_SLUGS` when it holds a URL slug — never by
+  a `None` check, since a resolved AMAT tool would wrongly pass that.
+  Note that the CD/HV-scoped ebeam features do NOT each re-filter this roster
+  by `SEM_TOOL_TYPES`: several (`storage`, `lateral_recipe`) select rows with
+  `model_to_tool_type(...) == tool_type` for the single requested family, and
+  the scope is enforced one level up, by their routes refusing any slug
+  outside `SEM_TOOL_SLUGS` with a 400. Both spellings are correct; what is
+  wrong is a route that lets an AMAT slug reach an `== tool_type` filter,
+  because that filter then happily matches the AMAT rows below and answers
+  200 with fabricated data for a family that has no adapter.
 
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
@@ -76,7 +87,8 @@ FAB_SUFFIXES = ["A", "B", "C"]
 # Fleet identity is keyed on the TOOL FAMILY, not the vendor. Both families in
 # scope today are Hitachi: CD-SEM is the CG/GT-series, HV-SEM is the TP-series.
 # AMAT enters only as VeritySEM/Provision, which are their own tool types
-# (`classifyToolType` in useSemListApi.ts) rather than HV-SEM, and are deferred
+# (`classifyToolType` in front-dev-home/app/utils/toolType.ts) rather than
+# HV-SEM, and are deferred
 # to 2027. Models and eqp_id prefixes mirror TOOL_SPECS in _tool_specs.py.
 CDSEM_MODELS = ["CG6300", "CG6320", "CG6340", "CG6360", "CG6380", "GT2000", "GT2000S"]
 CDSEM_EQP_PREFIXES = ["ECXDX", "ECDX", "HCDX"]
@@ -84,12 +96,13 @@ CDSEM_EQP_PREFIXES = ["ECXDX", "ECDX", "HCDX"]
 HVSEM_MODELS = ["TP3000", "TP3500", "TP4000", "TP4500"]
 HVSEM_EQP_PREFIXES = ["PCD", "MCD", "ACD", "VCD"]
 
-# AMAT tools, deferred to 2027. They belong in the inventory but are NOT
-# CD/HV-SEM, so backend `model_to_tool_type()` returns None and the
-# tool-scoped ebeam views filter them out. The 미연결 screen is the
-# exception: it groups by the FRONTEND classifier, which resolves these to
-# 'verity-sem' / 'provision', and shows them under their own filter chip —
-# their firewall requests get filed too, just not this year. Kept rare here
+# AMAT tools, deferred to 2027. They belong in the inventory and both
+# classifiers resolve them (to 'veritysem' / 'provision'), but they are NOT
+# CD/HV-SEM, so the tool-scoped ebeam views never show them: those routes only
+# accept `SEM_TOOL_SLUGS` (cdsem/hvsem) and answer 400 to an AMAT slug, so the
+# rows below are never selected there. The 미연결 screen is the exception: it groups
+# by tool type too, but shows AMAT under its own filter chip — their
+# firewall requests get filed too, just not this year. Kept rare here
 # because at the old ~50% they crowded the CD/HV-SEM pages down to half a
 # fleet. The prefix pool is unverified; nothing classifies by prefix (it only
 # builds eqp_ids), so it is cosmetic.

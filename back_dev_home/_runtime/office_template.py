@@ -71,7 +71,7 @@ class Adapter:
 
     template: Path
     target: Path
-    slug: str  # e.g. "ebeam/hitachi/storage" or "ebeam/hitachi/hardware/fdc"
+    slug: str  # e.g. "ebeam/storage" or "ebeam/hardware/fdc"
 
     @property
     def name(self) -> str:
@@ -86,7 +86,7 @@ def discover(root: Path | None = None) -> list[Adapter]:
     for template in backend.rglob("office_example.py"):
         relative = template.relative_to(backend).parent
         # Drop the "providers" segment so slugs read as feature paths:
-        # ebeam/hitachi/hardware/providers/fdc -> ebeam/hitachi/hardware/fdc
+        # ebeam/hardware/providers/fdc -> ebeam/hardware/fdc
         parts = [part for part in relative.parts if part != "providers"]
         adapters.append(Adapter(
             template=template,

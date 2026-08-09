@@ -165,7 +165,7 @@ mother_para 출처 — 미해결 (2026-08-04)
   실려 오는지 보고, 없으면 경고 로그를 남기고 이 버킷을 **비웁니다** (규칙을
   그대로 적용한 결과입니다 — only_normal 로 슬쩍 대체하면 요약은 숫자를 내는데
   health 는 판정할 파라미터가 없어 0/0 이 되는, 두 표면이 어긋난 화면이 됩니다).
-  해결 후보는 back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md 참고.
+  해결 후보는 back_dev_home/ebeam/device_statistics/MIGRATION.md 참고.
 
 주의 — mock 과 다른 점
 

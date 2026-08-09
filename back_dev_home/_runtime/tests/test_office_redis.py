@@ -36,7 +36,7 @@ from back_dev_home._runtime.office_redis import (
 )
 # The live_alarm suite already owns an in-memory Redis double; a second copy
 # here would be one more thing to keep honest.
-from back_dev_home.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
+from back_dev_home.ebeam.live_alarm.tests.fake_redis import FakeRedis
 
 # Everything these tests read from or write into the process environment.
 CONNECTION_VARS = ("REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD", "OPENSEARCH_HOST")

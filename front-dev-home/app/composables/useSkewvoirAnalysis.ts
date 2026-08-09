@@ -71,11 +71,14 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // holds an msr the primary family cannot resolve. Search spans both families,
   // so a curated set may legitimately mix them — the analysis resolves against
   // both instead of excluding the other family's picks (the old behavior, which
-  // surfaced as a "이 장비군 검색 결과에 없어 제외되었습니다" alert).
-  const otherToolType: MeasHistToolType = ws.toolType === 'cd-sem' ? 'hv-sem' : 'cd-sem'
+  // surfaced as a "이 장비군 검색 결과에 없어 제외되었습니다" alert). Only
+  // CD-SEM/HV-SEM have a pair (otherSemFamily); an AMAT family has none, so this
+  // whole second fetch never fires for it — the old ternary silently paired
+  // every non-CD-SEM family (veritysem, provision, ...) with 'cd-sem'.
+  const otherToolType: MeasHistToolType | null = otherSemFamily(ws.toolType)
   const { data: otherHist, execute: loadOtherHist } = useAsyncData<MeasHistResponse>(
-    `skewvoir-meas-hist:${otherToolType}`,
-    () => fetchMeasHist({ toolType: otherToolType }),
+    `skewvoir-meas-hist:${otherToolType ?? 'none'}`,
+    () => fetchMeasHist({ toolType: otherToolType as MeasHistToolType }),
     {
       immediate: false,
       default: () => ({ tool_type: otherToolType, fab_name: null, recipe_name: null, total: 0, rows: [] }),
@@ -85,10 +88,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
 
   // One-shot trigger: fires only once the PRIMARY history has answered (an
   // empty primary list would otherwise call every id unresolved and fetch the
-  // other family on every screen), and never re-fires after it has fired.
+  // other family on every screen), and never re-fires after it has fired. Never
+  // fires at all when the family has no pair (otherToolType is null) — there is
+  // no "other family" to resolve unmatched picks against.
   const otherHistWanted = ref(false)
   watch([() => ws.msrList.value, rows], ([list, primary]) => {
-    if (otherHistWanted.value || primary.length === 0) return
+    if (otherToolType === null || otherHistWanted.value || primary.length === 0) return
     const known = new Set(primary.map(r => r.msr))
     if (list.some(id => !known.has(id))) {
       otherHistWanted.value = true

@@ -51,18 +51,18 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 | api_tokens | SKEWNONO_API_TOKENS_PROVIDER | api_tokens/contracts.py | api_tokens/MIGRATION.md | 구현완료 | - |
 | access_control | SKEWNONO_ACCESS_CONTROL_PROVIDER | access_control/contracts.py | access_control/MIGRATION.md | 구현완료 | - |
 | health | SKEWNONO_HEALTH_PROVIDER | health/contracts.py | health/MIGRATION.md | 구현완료 | - |
-| device_statistics | SKEWNONO_DEVICE_STATISTICS_PROVIDER | ebeam/cdsem/device_statistics/contracts.py | ebeam/cdsem/device_statistics/MIGRATION.md | mock | - |
-| pm_planning | SKEWNONO_PM_PLANNING_PROVIDER | ebeam/hitachi/pm_planning/contracts.py | ebeam/hitachi/pm_planning/MIGRATION.md | mock | - |
-| recipe_search | SKEWNONO_RECIPE_SEARCH_PROVIDER | ebeam/hitachi/recipe_search/contracts.py | ebeam/hitachi/recipe_search/MIGRATION.md | 구현완료(부분) | - |
-| lateral_recipe | SKEWNONO_LATERAL_RECIPE_PROVIDER | ebeam/hitachi/lateral_recipe/contracts.py | ebeam/hitachi/lateral_recipe/MIGRATION.md | 구현완료 | - |
+| device_statistics | SKEWNONO_DEVICE_STATISTICS_PROVIDER | ebeam/device_statistics/contracts.py | ebeam/device_statistics/MIGRATION.md | mock | - |
+| pm_planning | SKEWNONO_PM_PLANNING_PROVIDER | ebeam/pm_planning/contracts.py | ebeam/pm_planning/MIGRATION.md | mock | - |
+| recipe_search | SKEWNONO_RECIPE_SEARCH_PROVIDER | ebeam/recipe_search/contracts.py | ebeam/recipe_search/MIGRATION.md | 구현완료(부분) | - |
+| lateral_recipe | SKEWNONO_LATERAL_RECIPE_PROVIDER | ebeam/lateral_recipe/contracts.py | ebeam/lateral_recipe/MIGRATION.md | 구현완료 | - |
 | sem_list | SKEWNONO_SEM_LIST_PROVIDER | sem_list/contracts.py | sem_list/MIGRATION.md | office | 2026-07-20 |
-| hardware | SKEWNONO_HARDWARE_PROVIDER | ebeam/hitachi/hardware/contracts.py | ebeam/hitachi/hardware/MIGRATION.md | mock | - |
-| skew | SKEWNONO_SKEW_PROVIDER | ebeam/hitachi/skew/contracts.py | ebeam/hitachi/skew/MIGRATION.md | 보류 | - |
-| storage | SKEWNONO_STORAGE_PROVIDER | ebeam/hitachi/storage/contracts.py | ebeam/hitachi/storage/MIGRATION.md | office | 2026-07-21 |
+| hardware | SKEWNONO_HARDWARE_PROVIDER | ebeam/hardware/contracts.py | ebeam/hardware/MIGRATION.md | mock | - |
+| skew | SKEWNONO_SKEW_PROVIDER | ebeam/skew/contracts.py | ebeam/skew/MIGRATION.md | 보류 | - |
+| storage | SKEWNONO_STORAGE_PROVIDER | ebeam/storage/contracts.py | ebeam/storage/MIGRATION.md | office | 2026-07-21 |
 | meas_hist | SKEWNONO_MEAS_HIST_PROVIDER | meas_hist/contracts.py | meas_hist/MIGRATION.md | 구현완료 | - |
 | afm | SKEWNONO_AFM_PROVIDER | afm/contracts.py | afm/MIGRATION.md | 보류 | - |
-| recipe_tat | SKEWNONO_RECIPE_TAT_PROVIDER | ebeam/hitachi/recipe_tat/contracts.py | ebeam/hitachi/recipe_tat/MIGRATION.md | 구현완료 | - |
-| fail_issue | SKEWNONO_FAIL_ISSUE_PROVIDER | ebeam/hitachi/fail_issue/contracts.py | ebeam/hitachi/fail_issue/MIGRATION.md | 구현완료 | - |
+| recipe_tat | SKEWNONO_RECIPE_TAT_PROVIDER | ebeam/recipe_tat/contracts.py | ebeam/recipe_tat/MIGRATION.md | 구현완료 | - |
+| fail_issue | SKEWNONO_FAIL_ISSUE_PROVIDER | ebeam/fail_issue/contracts.py | ebeam/fail_issue/MIGRATION.md | 구현완료 | - |
 | msr_file | SKEWNONO_MSR_FILE_PROVIDER | msr_file/contracts.py | msr_file/MIGRATION.md | 구현완료(부분) | - |
 
 (모든 계약/MIGRATION 경로는 `back_dev_home/` 기준 상대 경로입니다.)

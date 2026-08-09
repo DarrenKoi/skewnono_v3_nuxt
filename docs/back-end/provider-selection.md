@@ -3,7 +3,8 @@
 이 문서는 `back_dev_home/<feature>/providers/{mock,office}.py` 중 무엇이 실제로 응답을
 만드는지가 어떻게 결정되는지를 설명합니다. adapter 구현 규칙은
 [`docs/back-end/office-data-adapters.md`](office-data-adapters.md), 환경 간 전달 절차는
-[`docs/swap-strategy.md`](../swap-strategy.md)가 기준입니다.
+[`docs/swap-strategy.md`](../swap-strategy.md)가 기준입니다. 새 장비 계열을 붙일 때의
+폴더 규약과 절차는 [`vendor-onboarding.md`](vendor-onboarding.md)가 다룹니다.
 
 ## 1. 두 개의 독립된 질문
 

@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { SEM_TOOL_TYPES } from '~/utils/toolType'
 
 export interface StorageRow {
   eqp_id: string
@@ -37,7 +38,8 @@ export interface PpidUnavailableSnapshot {
 
 // Storage is now namespaced per ebeam tool (matches back_dev_home/ebeam/<tool>/storage/).
 // Frontend ToolType uses kebab-case ('cd-sem'); backend folders use no-hyphen ('cdsem').
-export type StorageTool = 'cd-sem' | 'hv-sem'
+// Hitachi-only feature, narrower than the full ToolType registry on purpose.
+export type StorageTool = (typeof SEM_TOOL_TYPES)[number]
 
 const TOOL_TO_BACKEND_SLUG: Record<StorageTool, string> = {
   'cd-sem': 'cdsem',

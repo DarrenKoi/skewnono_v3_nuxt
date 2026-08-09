@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyToolType } from './toolType.ts'
+import { classifyToolType, toolSlug, TOOL_TYPES, SEM_TOOL_TYPES, otherSemFamily } from './toolType.ts'
 
 test('classifyToolType recognizes both VeritySEM prefixes case-insensitively', () => {
   for (const model of [
@@ -11,10 +11,42 @@ test('classifyToolType recognizes both VeritySEM prefixes case-insensitively', (
     'Verity_SEM_5',
     'verity_sem_5'
   ]) {
-    assert.equal(classifyToolType(model), 'verity-sem', model)
+    assert.equal(classifyToolType(model), 'veritysem', model)
   }
 })
 
 test('classifyToolType keeps an unrelated model unclassified', () => {
   assert.equal(classifyToolType('ZZ9000'), null)
+})
+
+test('AMAT tool types carry no hyphen', () => {
+  assert.equal(classifyToolType('PROVISION_10'), 'provision')
+  assert.ok(TOOL_TYPES.includes('veritysem'))
+  // Regression guard: TOOL_TYPES is the source ToolType is derived from, so a
+  // future edit that reintroduces the old hyphenated literal here widens
+  // ToolType right along with it and the compiler says nothing — only a
+  // runtime check on the array's contents catches that.
+  assert.equal((TOOL_TYPES as readonly string[]).indexOf('verity-sem'), -1)
+})
+
+test('toolSlug maps every tool type to its backend slug', () => {
+  assert.equal(toolSlug('cd-sem'), 'cdsem')
+  assert.equal(toolSlug('hv-sem'), 'hvsem')
+  assert.equal(toolSlug('veritysem'), 'veritysem')
+  assert.equal(toolSlug('provision'), 'provision')
+})
+
+test('SEM_TOOL_TYPES names the CD/HV-only scope explicitly', () => {
+  assert.deepEqual([...SEM_TOOL_TYPES], ['cd-sem', 'hv-sem'])
+})
+
+test('otherSemFamily pairs CD-SEM and HV-SEM', () => {
+  assert.equal(otherSemFamily('cd-sem'), 'hv-sem')
+  assert.equal(otherSemFamily('hv-sem'), 'cd-sem')
+})
+
+test('otherSemFamily has no answer outside the SEM pair', () => {
+  // 삼항으로 짜면 veritysem 이 조용히 cd-sem 이 되어 엉뚱한 계열을 붙인다.
+  assert.equal(otherSemFamily('veritysem'), null)
+  assert.equal(otherSemFamily('provision'), null)
 })

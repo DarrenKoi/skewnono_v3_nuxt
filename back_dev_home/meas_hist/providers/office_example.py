@@ -5,7 +5,7 @@
 Unlike recipe_tat/fail_issue (pure aggregations), this feature returns RAW
 rows: the skewvoir search stack and RecipeMeasHistView list individual
 measurement executions. Connection plumbing, the lot_id<->lot_cd bridge, and
-the shared anchor come from ``back_dev_home/ebeam/hitachi/_office_meas_hist.py``
+the shared anchor come from ``back_dev_home/ebeam/_office_meas_hist.py``
 (see its docstring for the data layout and the KST-as-UTC timezone contract).
 
 tool_type=None is the DEFAULT skewvoir request, not an edge case: the 검색 UI
@@ -62,7 +62,7 @@ switch, no env var needed — and run the Verify command in MIGRATION.md.
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from back_dev_home.ebeam.hitachi._office_meas_hist import (
+from back_dev_home.ebeam._office_meas_hist import (
     ALL_INDICES as _ALL_INDICES,
     EQP_ID_KW as _EQP_KW,
     FAB_NAME_KW as _FAB_KW,

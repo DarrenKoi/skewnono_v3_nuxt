@@ -1,7 +1,9 @@
 import { joinApiPath } from '~/utils/apiPath'
 import { normalizeFab } from '~/utils/fab'
+import type { ToolType } from '~/utils/toolType'
 
-export type LateralRecipeToolType = 'cd-sem' | 'hv-sem'
+/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
+export type LateralRecipeToolType = ToolType
 
 export interface LateralRecipeRow {
   eqp_id: string
@@ -38,11 +40,6 @@ export interface LateralRecipeParams {
   recipeName: string
 }
 
-const TOOL_TO_BACKEND_SLUG: Record<LateralRecipeToolType, string> = {
-  'cd-sem': 'cdsem',
-  'hv-sem': 'hvsem'
-}
-
 const inFlight = new Map<string, Promise<LateralRecipeResponse>>()
 
 export const useLateralRecipeApi = () => {
@@ -50,7 +47,7 @@ export const useLateralRecipeApi = () => {
   const base = config.public.apiBase
 
   const fetchLateralRecipe = async (params: LateralRecipeParams): Promise<LateralRecipeResponse> => {
-    const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
+    const slug = toolSlug(params.toolType)
     const fabName = normalizeFab(params.fabName)
     const recipeName = params.recipeName.trim()
     const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${recipeName}`

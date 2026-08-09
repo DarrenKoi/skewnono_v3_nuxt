@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from back_dev_home.ebeam.hitachi import _office_meas_hist, _office_search
+from back_dev_home.ebeam import _office_meas_hist, _office_search
 from back_dev_home.meas_hist.providers import office_example
 
 

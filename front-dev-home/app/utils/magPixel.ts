@@ -75,7 +75,7 @@ export const scanTimeFactor = (pixels: number): number | null =>
 // ── Series (CG / GT) ────────────────────────────────────────────────────────
 //
 // MAG 범위가 계열마다 다르다. 판정은 반드시 모델코드 **접두사**로 한다 —
-// back_dev_home/ebeam/hitachi/_tool_specs.py의 model_to_tool_type()과
+// back_dev_home/ebeam/_tool_specs.py의 model_to_tool_type()과
 // utils/toolType.ts의 classifyToolType()이 쓰는 방식이다.
 // TOOL_SPECS.eqp_models 목록은 mock 재료이지 분류기가 아니다: 그 목록으로
 // 분류했다가 목록에 없는 실장비 8대가 오피스 화면에서 조용히 사라진 적이

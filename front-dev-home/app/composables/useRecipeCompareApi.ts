@@ -55,10 +55,7 @@ export interface RecipeCompareParams {
   recipes: CompareRecipeRef[]
 }
 
-const TOOL_TO_BACKEND_SLUG: Record<RecipeSearchToolType, string> = {
-  'cd-sem': 'cdsem',
-  'hv-sem': 'hvsem'
-}
+// toolSlug now comes from ~/utils/toolType via Nuxt auto-import.
 
 const inFlightCompares = new Map<string, Promise<RecipeCompareResponse>>()
 
@@ -67,7 +64,7 @@ export const useRecipeCompareApi = () => {
   const base = config.public.apiBase
 
   const fetchCompare = async (params: RecipeCompareParams): Promise<RecipeCompareResponse> => {
-    const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
+    const slug = toolSlug(params.toolType)
     // Trim before the filter AND before the wire: filtering on `.trim()` while
     // sending the raw name lets a padded name reach the backend, where it fails
     // to match a registry key that the untrimmed name never had. It also splits

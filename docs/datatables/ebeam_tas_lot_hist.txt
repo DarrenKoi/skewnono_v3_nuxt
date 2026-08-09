@@ -61,7 +61,7 @@ recipe_tat 과 같은 이유로 device-statistics 의 device 목록(r3-device-gr
 device-desc 응답)도 이 index 로 거릅니다 — Redis 카탈로그는 폐기된 lot_cd 까지
 담고 있으므로, 최근 90일 창(아래 스텝 조회와 같은 창)의 unique lot_cd 와
 교집합을 취해 "현재 생산 중" 만 목록에 남깁니다. 구현은
-back_dev_home/ebeam/cdsem/device_statistics/providers/office_example.py 의
+back_dev_home/ebeam/device_statistics/providers/office_example.py 의
 _active_lot_cds 입니다. meas_hist 화면의 device 목록과 같은 원천이라 두 화면의
 집합이 어긋나지 않습니다. 60일(recipe_tat)과 90일(device-statistics)은 근거가
 달라 상수를 공유하지 않습니다.
@@ -102,7 +102,7 @@ M fab 경로는 다음과 같습니다.
 스텝 정렬 — 공정 접두사 순서 (user-confirmed 2026-07-30)
 
 순서 field 가 없으므로 oper_det_desc 앞머리의 공정 접두사로 정렬합니다. 확정된
-순서는 다음이며, 구현은 back_dev_home/ebeam/cdsem/device_statistics/oper_order.py
+순서는 다음이며, 구현은 back_dev_home/ebeam/device_statistics/oper_order.py
 (`OPER_PREFIX_ORDER`, `sort_oper_descs`)에 있습니다.
 
     ISO, CW, BG, MBO, BLC, POM, PRW, NW, GT, CBL,

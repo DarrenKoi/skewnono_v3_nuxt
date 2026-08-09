@@ -342,6 +342,6 @@ endpoints:
           description: "{ <date>: <RecipeBuckets without rcp_info> }"
 
 notes:
-  - Phase 1 generator (back_dev_home/ebeam/cdsem/device_statistics/data.py + statistics.py) seeds 2000 R3 rows and 2000 M-fab rows; the trend window is 8 weekly points ending at BASE_TIME = 2026-04-01.
+  - Phase 1 generator (back_dev_home/ebeam/device_statistics/data.py + providers/statistics.py) seeds 2000 R3 rows and 2000 M-fab rows; the trend window is 8 weekly points ending at BASE_TIME = 2026-04-01.
   - recipe-statistics / recipe-trend share the same generator. Reducing the `points` arg on the home generator would break per-(lot, date) determinism — preserve the full window in office implementations and slice by date string.
   - The frontend recipe-trend query filters dates client-side for now; office can keep the same shape or add server-side filtering without changing the response.

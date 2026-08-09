@@ -1,7 +1,9 @@
 import { joinApiPath } from '~/utils/apiPath'
 import { canonicalFabList } from '~/utils/fab'
+import type { ToolType } from '~/utils/toolType'
 
-export type RecipeSearchToolType = 'cd-sem' | 'hv-sem'
+/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
+export type RecipeSearchToolType = ToolType
 
 export interface RecipeSearchRow {
   recipe_name: string
@@ -98,14 +100,8 @@ export interface RecipeDetailResponse {
   timestamp: string
 }
 
-export const TOOL_TO_BACKEND_SLUG: Record<RecipeSearchToolType, string> = {
-  'cd-sem': 'cdsem',
-  'hv-sem': 'hvsem'
-}
-
-/** `'hv-sem' -> 'hvsem'`. One table; the raw-folder endpoints need it too. */
-export const toolSlug = (toolType: RecipeSearchToolType): string =>
-  TOOL_TO_BACKEND_SLUG[toolType]
+// toolSlug now comes from ~/utils/toolType via Nuxt auto-import (registry's
+// version); this file no longer declares its own.
 
 const inFlightRecipeLists = new Map<string, Promise<RecipeSearchResponse>>()
 const inFlightRecipeDetails = new Map<string, Promise<RecipeDetailResponse>>()
@@ -115,7 +111,7 @@ export const useRecipeSearchApi = () => {
   const base = config.public.apiBase
 
   const fetchRecipeList = async (params: RecipeSearchParams): Promise<RecipeSearchResponse> => {
-    const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
+    const slug = toolSlug(params.toolType)
     const fabKey = canonicalFabList(params.fabNames ?? []).join(',')
     const cacheKey = `${params.toolType}:${fabKey || 'ALL'}`
     const existing = inFlightRecipeLists.get(cacheKey)
@@ -137,7 +133,7 @@ export const useRecipeSearchApi = () => {
   }
 
   const fetchRecipeDetail = async (params: RecipeDetailParams): Promise<RecipeDetailResponse> => {
-    const slug = TOOL_TO_BACKEND_SLUG[params.toolType]
+    const slug = toolSlug(params.toolType)
     const fabName = normalizeFab(params.fabName)
     const recipeName = params.recipeName.trim()
     const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${recipeName}`

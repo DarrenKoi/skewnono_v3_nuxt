@@ -19,7 +19,7 @@
 - `composables/useFavorites.ts` — 어디서도 `import`되지 않음
 - `composables/useRecent.ts` — 어디서도 `import`되지 않음
 - `stores/navigation.ts`의 `recent` 상태 + `addRecent` 액션
-- `pages/ebeam/{cd-sem,hv-sem,verity-sem,provision}/[fab]/index.vue` 4개 파일의 `addRecent(next)` 호출
+- `pages/ebeam/{cd-sem,hv-sem,veritysem,provision}/[fab]/index.vue` 4개 파일의 `addRecent(next)` 호출
 
 흥미로운 점은 `recent`가 단순히 안 쓰인 게 아니라 **쓰이긴 하지만 읽히지 않았다**는 것입니다. 4개의 fab 페이지가 이동할 때마다 충실히 `addRecent`를 호출했지만, 그 결과를 화면에 보여줄 코드는 한 줄도 없었습니다. `pages/index.vue`의 "Recent" 카드는 단순히 `"No recent activity"`라는 하드코딩된 문자열만 표시하고 있었습니다.
 

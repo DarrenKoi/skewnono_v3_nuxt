@@ -230,7 +230,7 @@ if __name__ == "__main__":
     # are imported HERE only, to find a real (msr, class, eqp_ip) to probe.
     from minio_handler import MinioObject
 
-    from back_dev_home.ebeam.hitachi._office_meas_hist import ALL_INDICES, search, text
+    from back_dev_home.ebeam._office_meas_hist import ALL_INDICES, search, text
 
     body = {
         "query": {"bool": {"filter": [

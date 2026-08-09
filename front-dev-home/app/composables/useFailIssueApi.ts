@@ -1,6 +1,8 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { ToolType } from '~/utils/toolType'
 
-export type FailIssueToolType = 'cd-sem' | 'hv-sem'
+/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
+export type FailIssueToolType = ToolType
 
 export interface FailIssueSummary {
   tool_type: FailIssueToolType
@@ -216,8 +218,7 @@ const buildQuery = (params: FailIssueQuery) => {
 // Path slug carries tool_type (unlike recipe-tat which serves both tools
 // from /cdsem/...). Fail-issue keeps cdsem and hvsem as separate paths so
 // the office swap can route the two indexes independently if needed.
-const toolSlug = (toolType: FailIssueToolType): 'cdsem' | 'hvsem' =>
-  toolType === 'hv-sem' ? 'hvsem' : 'cdsem'
+// toolSlug now comes from ~/utils/toolType via Nuxt auto-import.
 
 export const useFailIssueApi = () => {
   const config = useRuntimeConfig()

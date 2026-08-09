@@ -49,7 +49,7 @@ from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Literal
 
-from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
+from back_dev_home.ebeam._tool_specs import SEM_TOOL_TYPES, ToolType, model_to_tool_type
 from back_dev_home.meas_hist.contracts import (
     MeasHistFacetsResponse,
     MeasHistFacetValue,
@@ -266,7 +266,16 @@ def _build_row(
 
 @lru_cache(maxsize=1)
 def _eligible_sem_rows() -> tuple[SemListRow, ...]:
-    return tuple(row for row in get_sem_list() if model_to_tool_type(row["eqp_model_cd"]) is not None)
+    """CD-SEM / HV-SEM 장비만. AMAT 은 measurement 소스가 없다.
+
+    예전에는 `model_to_tool_type(...) is not None` 이었다. 그때는 분류기가
+    AMAT 에 None 을 돌려주어 결과가 같았지만, 그것은 의도가 아니라 우연이었다.
+    분류기가 AMAT 을 해석하게 된 지금 그 표현은 없는 측정 이력을 지어낸다.
+    """
+    return tuple(
+        row for row in get_sem_list()
+        if model_to_tool_type(row["eqp_model_cd"]) in SEM_TOOL_TYPES
+    )
 
 
 @lru_cache(maxsize=1)

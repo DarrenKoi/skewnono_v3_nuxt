@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from back_dev_home._runtime.office_redis import load_env_file
-from back_dev_home.ebeam.hitachi.hardware.providers.fdc import office_example
+from back_dev_home.ebeam.hardware.providers.fdc import office_example
 from ops_store import OSIndex, OSSearch, create_client
 
 
@@ -309,7 +309,7 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
 
     print("\n  --- calling the adapter itself ---")
     try:
-        from back_dev_home.ebeam.hitachi.hardware.providers.fdc import (  # type: ignore
+        from back_dev_home.ebeam.hardware.providers.fdc import (  # type: ignore
             office as live,
         )
     except ImportError:

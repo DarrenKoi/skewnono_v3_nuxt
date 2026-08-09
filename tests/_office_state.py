@@ -20,7 +20,7 @@ Two ways to cope, and this module offers both:
 
 Mind the two key spaces, which name the same feature differently because they
 answer different questions. `has_office_adapter` takes a **repo path** under
-back_dev_home ("ebeam/hitachi/storage") because it stats a file. The state
+back_dev_home ("ebeam/storage") because it stats a file. The state
 helpers take the dispatcher **slug** ("storage") — the `providers/` parent
 directory name, which is what `SKEWNONO_<FEATURE>_PROVIDER` and the registry
 key on, and is globally unique by construction (`office_registry._discover`).
@@ -54,7 +54,7 @@ def has_office_adapter(feature_path: str) -> bool:
     """True when `back_dev_home/<feature_path>/providers/office.py` exists.
 
     `feature_path` is the slug-ish path under back_dev_home, e.g. "sem_list"
-    or "ebeam/hitachi/storage".
+    or "ebeam/storage".
     """
     return (_BACKEND / feature_path / "providers" / "office.py").is_file()
 

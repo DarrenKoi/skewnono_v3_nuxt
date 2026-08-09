@@ -253,7 +253,7 @@
 <script setup lang="ts">
 import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { MsrFileResponse, FdcParamSummary, FdcStatus } from '~/composables/useMsrFileApi'
-import type { HardwarePayload } from '~/composables/useHardwareApi'
+import type { HardwarePayload, HardwareToolType } from '~/composables/useHardwareApi'
 import type { FdcTrendPoint, FdcTrendSeries } from '~/components/ebeam/skewvoir/FdcTimeSeriesChart.vue'
 import type { FdcScatterPoint } from '~/components/ebeam/skewvoir/FdcScatter.vue'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
@@ -486,8 +486,12 @@ watch([hardwareEqp, () => props.toolType], async ([eqp, toolType]) => {
   }
   hwPending.value = true
   try {
+    // hardware is Hitachi-only (no AMAT adapter) while MeasHistToolType
+    // covers the full ToolType registry — narrow here, at the one place
+    // this view forwards its shared toolType prop into fetchService.
+    const hardwareToolType: HardwareToolType = toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
     hardware.value = await fetchService({
-      toolType,
+      toolType: hardwareToolType,
       service: 'fdc',
       eqpId: eqp,
       fabName: fabForEqp.value

@@ -305,7 +305,7 @@ const load = async () => {
 const GROUP_LABELS: Array<{ value: PendingToolGroup, label: string }> = [
   { value: 'cd-sem', label: 'CD-SEM' },
   { value: 'hv-sem', label: 'HV-SEM' },
-  { value: 'verity-sem', label: 'VeritySEM' },
+  { value: 'veritysem', label: 'VeritySEM' },
   { value: 'provision', label: 'Provision' },
   { value: UNCLASSIFIED, label: '미분류' }
 ]

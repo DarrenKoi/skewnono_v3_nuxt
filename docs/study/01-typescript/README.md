@@ -53,7 +53,7 @@ interface EbeamToolRow {
 
 ```ts
 // 리터럴 유니온 — 허용되는 값을 미리 제한
-export type ToolType = 'cd-sem' | 'hv-sem' | 'verity-sem' | 'provision'
+export type ToolType = 'cd-sem' | 'hv-sem' | 'veritysem' | 'provision'
 
 // 함수 인자에서 실수로 오타가 나면 컴파일러가 잡아줌
 function setToolType(t: ToolType) { /* ... */ }
@@ -73,7 +73,7 @@ export type EbeamToolInventoryResponse = Record<ToolType, EbeamToolRow[]>
 // 내부적으로는 {
 //   'cd-sem': EbeamToolRow[],
 //   'hv-sem': EbeamToolRow[],
-//   'verity-sem': EbeamToolRow[],
+//   'veritysem': EbeamToolRow[],
 //   'provision': EbeamToolRow[]
 // } 와 같음
 
@@ -170,7 +170,7 @@ Python 비교: `a.b.c if a and a.b else None` → `a?.b?.c`
 ## 9. `as` 타입 단언(type assertion)
 
 ```ts
-const match = route.match(/\/ebeam\/(cd-sem|hv-sem|verity-sem|provision)/)
+const match = route.match(/\/ebeam\/(cd-sem|hv-sem|veritysem|provision)/)
 return match ? match[1] as ToolType : null
 //                        ^^^^^^^^^
 //                        "나는 이 문자열이 ToolType임을 보증한다"

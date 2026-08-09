@@ -334,11 +334,11 @@ def test_the_request_url_uses_the_resolved_base(fixture_root, monkeypatch):
 
 def test_capture_writes_one_fixture_per_endpoint(fixture_root):
     failures = capture_fixtures.capture(
-        [("ebeam/hitachi/storage", "storage-cdsem.json", "/api/cdsem/storage")],
+        [("ebeam/storage", "storage-cdsem.json", "/api/cdsem/storage")],
         fetch=lambda url: {"rows": [{"ppid": "P1"}]},
     )
 
-    written = fixture_root / "ebeam/hitachi/storage/__fixtures__/storage-cdsem.json"
+    written = fixture_root / "ebeam/storage/__fixtures__/storage-cdsem.json"
     assert failures == []
     assert json.loads(written.read_text(encoding="utf-8")) == {"rows": [{"ppid": "P1"}]}
 
@@ -545,17 +545,46 @@ def test_no_two_endpoints_share_an_api_path():
     assert len(paths) == len(set(paths))
 
 
+# Individual files that are NOT captured HTTP-endpoint snapshots, so their
+# absence from ENDPOINTS does not mean a feature slipped past the shape
+# guard unnoticed -- there is no endpoint to capture in the first place.
+# Keyed on the FILE, not its parent __fixtures__ dir: a directory-level
+# exemption would silently cover a future real endpoint snapshot dropped
+# into the same folder, which is exactly the blind spot this guard exists
+# to catch.
+#
+# `back_dev_home/ebeam/__fixtures__/tool_type_cases.json` is a hand-written
+# contract consumed directly by `back_dev_home/ebeam/tests/
+# test_tool_type_parity.py` and `front-dev-home/app/utils/
+# toolTypeParity.test.ts` (pytest and node --test reading the same JSON), not
+# a mock-server response. Add to this set only for the same reason: a file
+# with nothing `capture_fixtures.py` could ever have produced.
+NON_ENDPOINT_FIXTURE_FILES: frozenset[Path] = frozenset({
+    BACKEND / "ebeam" / "__fixtures__" / "tool_type_cases.json",
+})
+
+
 def test_no_feature_with_fixtures_is_exempt_from_the_shape_guard():
     """A feature with frozen fixtures but no ENDPOINTS entry is invisible to
     check_contract — it looks covered and is not.
 
     pm_planning and skew were exactly that until their endpoints were added;
     both need a required fab_name, which is why they were easy to skip. If this
-    fails, add the endpoint to ENDPOINTS rather than relaxing the assertion.
+    fails, add the endpoint to ENDPOINTS rather than relaxing the assertion
+    -- unless the new fixture file isn't an endpoint snapshot at all, in
+    which case it belongs in NON_ENDPOINT_FIXTURE_FILES above, not here.
     """
     listed = {feature for feature, _n, _p in capture_fixtures.ENDPOINTS}
     with_fixtures = {
-        str(d.parent.relative_to(BACKEND)) for d in BACKEND.rglob("__fixtures__")
+        str(d.parent.relative_to(BACKEND))
+        for d in BACKEND.rglob("__fixtures__")
+        # rglob, not iterdir: a feature may nest its fixtures in a
+        # subdirectory (e.g. chat/__fixtures__/knowledge/*.json) with
+        # nothing directly under __fixtures__/ itself. iterdir() alone made
+        # such a feature invisible to this guard entirely.
+        if any(
+            f for f in d.rglob("*.json") if f not in NON_ENDPOINT_FIXTURE_FILES
+        )
     }
 
     assert sorted(with_fixtures - listed) == []

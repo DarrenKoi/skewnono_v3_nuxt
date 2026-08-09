@@ -292,13 +292,13 @@ def test_a_missing_template_is_not_a_stub(tmp_path):
 @pytest.mark.parametrize("slug", [
     # A dispatcher, not a data adapter: it must be copied or the hardware page
     # stays on mock at the office with nothing saying so.
-    "ebeam/hitachi/hardware",
+    "ebeam/hardware",
     # Live-verified at the office, so a stub verdict here is definitely wrong.
     "sem_list",
-    "ebeam/hitachi/storage",
+    "ebeam/storage",
     # Real, but deliberately leaves ONE export raising — the case the
     # every-export rule exists for.
-    "ebeam/hitachi/recipe_tat",
+    "ebeam/recipe_tat",
 ])
 def test_the_implemented_adapters_in_the_tree_are_not_stubs(slug):
     """Live canary: a false positive here silently leaves a feature on mock."""
@@ -330,22 +330,22 @@ def test_no_real_template_is_called_a_stub_without_saying_so():
 def named(checkout):
     return checkout({
         "sem_list": IMPLEMENTED,
-        "ebeam/hitachi/storage": IMPLEMENTED,
-        "ebeam/hitachi/hardware/providers/fdc": IMPLEMENTED,
-        "ebeam/cdsem/fdc": IMPLEMENTED,
+        "ebeam/storage": IMPLEMENTED,
+        "ebeam/hardware/providers/fdc": IMPLEMENTED,
+        "ebeam/fdc": IMPLEMENTED,
     })
 
 
 def test_the_full_slug_resolves(named):
-    assert [a.slug for a in sync.resolve(sync.discover(), "ebeam/hitachi/storage")] == [
-        "ebeam/hitachi/storage"
+    assert [a.slug for a in sync.resolve(sync.discover(), "ebeam/storage")] == [
+        "ebeam/storage"
     ]
 
 
-@pytest.mark.parametrize("query", ["storage", "hitachi/storage", "/Storage/", " storage "])
+@pytest.mark.parametrize("query", ["storage", "ebeam/storage", "/Storage/", " storage "])
 def test_any_unique_suffix_resolves(named, query):
     assert [a.slug for a in sync.resolve(sync.discover(), query)] == [
-        "ebeam/hitachi/storage"
+        "ebeam/storage"
     ]
 
 
@@ -365,19 +365,19 @@ def test_an_ambiguous_suffix_refuses_to_guess(named):
 
     message = str(exit_info.value)
     assert "ambiguous" in message
-    assert "ebeam/cdsem/fdc" in message
-    assert "ebeam/hitachi/hardware/fdc" in message
+    assert "ebeam/fdc" in message
+    assert "ebeam/hardware/fdc" in message
 
 
 def test_a_longer_path_disambiguates(named):
     assert [a.slug for a in sync.resolve(sync.discover(), "hardware/fdc")] == [
-        "ebeam/hitachi/hardware/fdc"
+        "ebeam/hardware/fdc"
     ]
 
 
 def test_an_exact_slug_wins_over_its_own_suffix_matches(checkout):
     """A feature literally named `fdc` must not be reported as ambiguous."""
-    checkout({"fdc": IMPLEMENTED, "ebeam/hitachi/hardware/providers/fdc": IMPLEMENTED})
+    checkout({"fdc": IMPLEMENTED, "ebeam/hardware/providers/fdc": IMPLEMENTED})
 
     assert [a.slug for a in sync.resolve(sync.discover(), "fdc")] == ["fdc"]
 
@@ -397,8 +397,8 @@ def test_git_ignores_an_office_py(checkout):
 
 def test_git_ignores_a_per_tab_office_py(checkout):
     """The per-tab shape needs its own .gitignore rule to be covered."""
-    root = checkout({"ebeam/hitachi/hardware/providers/fdc": IMPLEMENTED})
-    assert sync.git_ignores(_target(root, "ebeam/hitachi/hardware/providers/fdc"))
+    root = checkout({"ebeam/hardware/providers/fdc": IMPLEMENTED})
+    assert sync.git_ignores(_target(root, "ebeam/hardware/providers/fdc"))
 
 
 def test_git_does_not_ignore_the_template(checkout):
@@ -408,7 +408,7 @@ def test_git_does_not_ignore_the_template(checkout):
 
 @pytest.mark.parametrize("relative", [
     "back_dev_home/sem_list/providers/office.py",
-    "back_dev_home/ebeam/hitachi/hardware/providers/fdc/office.py",
+    "back_dev_home/ebeam/hardware/providers/fdc/office.py",
 ])
 def test_this_repo_ignores_every_shape_of_office_py(relative):
     """Against the REAL .gitignore, not the fixture's reduction of it.
@@ -868,10 +868,10 @@ def test_the_cli_reuses_the_runtime_adapter_type():
 def test_discover_drops_the_providers_segment_from_the_slug(checkout):
     checkout({
         "sem_list": IMPLEMENTED,
-        "ebeam/hitachi/hardware/providers/fdc": IMPLEMENTED,
+        "ebeam/hardware/providers/fdc": IMPLEMENTED,
     })
 
-    assert [a.slug for a in sync.discover()] == ["ebeam/hitachi/hardware/fdc", "sem_list"]
+    assert [a.slug for a in sync.discover()] == ["ebeam/hardware/fdc", "sem_list"]
 
 
 def test_discover_pairs_each_template_with_its_office_py(checkout):

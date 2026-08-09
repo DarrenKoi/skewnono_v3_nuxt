@@ -79,3 +79,16 @@ def test_row_eqp_ip_is_dotted_quad():
     assert len(parts) == 4 and all(p.isdigit() for p in parts), (
         f"eqp_ip {row['eqp_ip']!r} is not a dotted-quad IPv4 address"
     )
+
+
+def test_meas_hist_fleet_excludes_amat_tools_deliberately():
+    """AMAT 은 measurement 소스가 없으므로 mock 도 지어내지 않는다.
+
+    분류기가 AMAT 을 해석하기 시작한 뒤에도 이 제외가 유지되어야 한다.
+    """
+    from back_dev_home.ebeam._tool_specs import model_to_tool_type
+    from back_dev_home.meas_hist.providers.mock import _eligible_sem_rows
+
+    tool_types = {model_to_tool_type(row["eqp_model_cd"]) for row in _eligible_sem_rows()}
+    assert tool_types <= {"cd-sem", "hv-sem"}
+    assert tool_types  # 비어 있으면 필터가 전부를 지운 것

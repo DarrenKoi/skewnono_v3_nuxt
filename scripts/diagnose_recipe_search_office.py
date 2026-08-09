@@ -65,8 +65,8 @@ from back_dev_home._runtime import office_template
 from back_dev_home._runtime.office_redis import load_env_file, redis_client
 
 
-_PACKAGE = "back_dev_home.ebeam.hitachi.recipe_search.providers"
-_SLUG = "ebeam/hitachi/recipe_search"
+_PACKAGE = "back_dev_home.ebeam.recipe_search.providers"
+_SLUG = "ebeam/recipe_search"
 
 _TOOL_TYPE = {"cdsem": "cd-sem", "hvsem": "hv-sem"}
 
@@ -266,7 +266,7 @@ def _check_roster(adapter: ModuleType, eqp_ids: list[str]) -> None:
 def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) -> None:
     _rule("3. meas_hist — the fallback, and the source the 502 message names")
 
-    from back_dev_home.ebeam.hitachi._office_search import aggregate, fetch_hits, query
+    from back_dev_home.ebeam._office_search import aggregate, fetch_hits, query
 
     index = adapter._MEAS_HIST_INDEX[_TOOL_TYPE[family]]
 
