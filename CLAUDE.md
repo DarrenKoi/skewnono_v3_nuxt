@@ -58,7 +58,7 @@ Which adapter answers is the logical AND of two independent questions:
 
 So **the `cp` that creates an adapter is the same act that switches it on** — there is no activation list to maintain. `SKEWNONO_<FEATURE>_PROVIDER` overrides one feature either way (`=office` with no adapter refuses to boot); `SKEWNONO_DATA_PROVIDER=mock` is a whole-instance kill switch. Inspect what actually resolved via `GET /api/health/providers` or the boot log.
 
-Full rules — site-detection order, the `/api/health/providers` carve-out, `EDITED` copies, and the features with more than one swap surface (`chat`, `msr_file`, `msr_image`) — are in [`docs/back-end/provider-selection.md`](docs/back-end/provider-selection.md). Per-feature specifics live in each `<feature>/MIGRATION.md`.
+Full rules — site-detection order, the `/api/health/providers` carve-out, `EDITED` copies, the features with more than one swap surface (`chat`, `msr_file`, `msr_image`), and the cross-feature pairings that must resolve together (`storage`'s office adapter joins against `sem_list`, so `validate_env()` refuses the mismatch at boot) — are in [`docs/back-end/provider-selection.md`](docs/back-end/provider-selection.md). Per-feature specifics live in each `<feature>/MIGRATION.md`.
 
 ### Office DB knowledge lands in TWO places, always
 
@@ -184,8 +184,6 @@ Playwright MCP by hand; see the `verify` skill.
 - Git-based workflow with separated workspaces per phase (home vs. office cannot sync directly)
 - Flask backend is only accessible on company network
 - Production secured within private cloud (no public internet exposure)
-- Architecture prioritizes clean separation and maintainability over immediate feature complexity
-- Extensible design: support incremental page/feature additions without major refactoring
 
 ### Deployment (Phase 3)
 

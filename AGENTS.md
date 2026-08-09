@@ -68,9 +68,10 @@ From `front-dev-home/`:
 Backend (run from the repo root):
 - `python3 -m venv .venv`: create a local virtual environment.
 - `.venv/bin/python -m pip install -r back_dev_home/requirements.txt`: install Flask backend dependencies.
-- `.venv/bin/python -m pip install -r back_dev_home/requirements-dev.txt`: same plus pytest, for running tests.
+- `.venv/bin/python -m pip install -r back_dev_home/requirements-dev.txt`: same plus pytest and ruff, for running the gates.
 - `.venv/bin/python index.py`: start the Flask dev server on `http://localhost:5050`.
-- `.venv/bin/python -m pytest tests back_dev_home -q`: run the backend test suite.
+- `.venv/bin/python -m ruff check .`: run the Python static gate (~0.02 s).
+- `.venv/bin/python -m pytest tests back_dev_home -q`: run the backend test suite (~2 min).
 - `uwsgi --ini wsgi.ini`: serve via uWSGI (production-style).
 
 Environment notes:
@@ -100,16 +101,20 @@ Environment notes:
 
 ## Testing Guidelines
 Both workspaces have a working test runner, and `.github/workflows/ci.yml` gates
-both on every push: a `pytest` job for the backend and a `typecheck + test` job
-for the frontend. `npm run lint` is deliberately not gated yet, because `main`
-still carries pre-existing lint errors in untouched files.
+both on every push: a `lint + pytest` job for the backend and a
+`typecheck + test` job for the frontend. The backend job runs `ruff check .`
+**before** pytest, and its name says so on purpose — while it was called
+`pytest`, a ruff break that stopped pytest from ever running was reported for a
+week as "pytest Failed". Frontend `npm run lint` is deliberately not gated yet,
+because `main` still carries pre-existing lint errors in untouched files.
 
 Backend — pytest on CPython 3.14, installed from `back_dev_home/requirements-dev.txt`
 (kept out of `requirements.txt` so the Phase 3 production install ships no test
 runner). Always run from the repo root, in the `python -m pytest` form: `-m` is
 what puts the repo root on `sys.path` so tests can import `back_dev_home.*`.
 
-- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~2090 tests, ~9 s). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
+- `.venv/bin/python -m ruff check .`: the Python static gate (~0.02 s), scoped to pyflakes `F` plus the core `E4`/`E7`/`E9` and `B` rules. Run it first — CI does, and it is the cheapest way to catch a symbol renamed in one place and not another.
+- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~3040 tests, ~115 s — budget the two minutes; the device-statistics weekly-snapshot tests each build a real 4000-lot payload). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
 - `.venv/bin/python -m pytest -q`: identical collection. Root `pyproject.toml` sets `testpaths = ["tests", "back_dev_home"]`, so the bare form and the explicit one are interchangeable.
 - `.venv/bin/python -m pytest back_dev_home/<feature> -q`: one feature, against whichever provider currently resolves (mock at home).
 - `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q`: the Phase 2 office gate. Run it at the office after `cp back_dev_home/<feature>/providers/office_example.py back_dev_home/<feature>/providers/office.py`. Without that copy the run fails loudly with a `RuntimeError` naming the exact `cp` command — it never silently falls back to mock, so a green run really did exercise the office adapter.
