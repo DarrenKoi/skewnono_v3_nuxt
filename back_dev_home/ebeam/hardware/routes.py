@@ -11,7 +11,7 @@ from back_dev_home.ebeam.hardware.contracts import VALID_SERVICES
 from back_dev_home.ebeam.hardware.data import get_hardware_service
 
 
-bp = Blueprint("ebeam_hardware", __name__)
+bp = Blueprint("hardware", __name__)
 
 # Anchor matches the mock generators so the default 30-day window lines up
 # with the data they fabricate.

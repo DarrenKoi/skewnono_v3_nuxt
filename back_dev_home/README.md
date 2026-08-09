@@ -71,7 +71,7 @@ Nitro proxies `/api/*` to Flask. The frontend composables are unchanged.
     |   |   |-- data.py
     |   |   `-- providers/
     |   |-- hardware/            # feature: per-tab providers (bm_pm, bsm, fdc, mdc, reso_center, sce, sharpness)
-    |   |   |-- routes.py        # Blueprint("ebeam_hardware") — /api/<tool_slug>/hardware/<eqp_id>/<service>
+    |   |   |-- routes.py        # Blueprint("hardware") — /api/<tool_slug>/hardware/<eqp_id>/<service>
     |   |   `-- providers/<tab>/ # each tab is its own mock.py + office_example.py pair
     |   `-- <other features>/    # fail_issue, lateral_recipe, live_alarm, pm_planning,
     |                            # recipe_search, recipe_tat, skew — same
@@ -118,8 +118,11 @@ or per-tool folder above it. What varies per feature is **routing**, not
   `provision`) use Flask's `<tool_slug>` URL converter and validate against
   `VALID_TOOL_SLUGS` from `ebeam/_tool_specs.py` — e.g. `storage`'s
   `@bp.get("/<tool_slug>/storage")`.
-- Features scoped to CD/HV-SEM only (not AMAT) check membership in
-  `SEM_TOOL_TYPES` from the same module.
+- Features scoped to CD/HV-SEM only (not AMAT) validate with
+  `is_sem_tool_slug()` / `resolve_sem_tool_type()` from
+  `ebeam/_slug_routes.py`, which check `SEM_TOOL_SLUGS`. **Every e-beam
+  feature is in this group today** — none has an AMAT adapter, so an AMAT
+  slug gets a 400 rather than a fabricated mock row.
 - Features that exist for exactly one tool hardcode that tool's path segment
   instead of taking a `<tool_slug>` — e.g. `device_statistics`'s
   `@bp.get("/cdsem/device-statistics/...")`.
@@ -143,10 +146,11 @@ To add a new feature:
 3. In `routes.py`, declare `bp = Blueprint("<feature>", __name__)`. Flask
    only requires Blueprint names to be unique across the whole app; run
    `grep -rn "Blueprint(" back_dev_home/` first to confirm no collision.
-   Existing blueprints are not yet consistent — some still carry an
-   `ebeam_` prefix left over from before the folder layout was flattened
-   (`ebeam_hardware`, `ebeam_fail_issue`, …); new features should use the
-   bare feature name.
+   Every blueprint is named after its feature directory — `storage`,
+   `hardware`, `device_statistics` — with no vendor or `ebeam_` prefix.
+   Nothing resolves by blueprint name (no `url_for`, no `request.endpoint`
+   dispatch), so the name's only job is to say which feature a route
+   belongs to when it shows up in a traceback or a route dump.
 4. URL paths inside `routes.py`:
    - All-slug: `@bp.get("/<tool_slug>/<feature>/...")`, validate `tool_slug`
      against `VALID_TOOL_SLUGS`.

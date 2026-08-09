@@ -10,7 +10,7 @@
 ## Endpoint: GET /api/&lt;tool_slug&gt;/pm-planning/fleet
 
 - This route is slug-parameterized: `routes.py` registers a single
-  Blueprint (`ebeam_pm_planning`) with the route path
+  Blueprint (`pm_planning`) with the route path
   `/<tool_slug>/pm-planning/fleet`, auto-discovered and mounted under
   `/api` by `back_dev_home/__init__.py`'s `routes.py`-rglob loop (there is
   no per-slug blueprint registration — one blueprint handles every slug at

@@ -13,7 +13,7 @@ from back_dev_home.ebeam.recipe_tat.data import (
 )
 
 
-bp = Blueprint("ebeam_recipe_tat", __name__)
+bp = Blueprint("recipe_tat", __name__)
 
 @bp.get("/<tool_slug>/recipe-tat/ranking")
 def recipe_tat_ranking(tool_slug: str):

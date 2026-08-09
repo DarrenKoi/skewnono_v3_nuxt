@@ -30,7 +30,7 @@ from back_dev_home.msr_image.paths import validate_segment, validate_tool_ip
 from back_dev_home.msr_image.preview import preview_bytes, wants_preview
 
 
-bp = Blueprint("ebeam_recipe_search", __name__)
+bp = Blueprint("recipe_search", __name__)
 
 # Compare fans one parameter out across every selected recipe, so the
 # param-detail body is a LIST. As N separate GETs this would trip the

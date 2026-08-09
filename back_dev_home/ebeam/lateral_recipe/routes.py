@@ -8,7 +8,7 @@ from back_dev_home.ebeam._slug_routes import (
 from back_dev_home.ebeam.lateral_recipe.data import get_lateral_recipe
 
 
-bp = Blueprint("ebeam_lateral_recipe", __name__)
+bp = Blueprint("lateral_recipe", __name__)
 
 
 @bp.get("/<tool_slug>/recipe-search/lateral")

@@ -6,7 +6,7 @@ from back_dev_home.ebeam._slug_routes import (
 )
 from back_dev_home.ebeam.skew.data import get_skew_check
 
-bp = Blueprint("ebeam_skew", __name__)
+bp = Blueprint("skew", __name__)
 
 
 def _arg(name: str) -> str | None:

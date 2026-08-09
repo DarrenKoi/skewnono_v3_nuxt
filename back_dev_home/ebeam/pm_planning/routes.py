@@ -8,7 +8,7 @@ from back_dev_home.ebeam._slug_routes import (
 from back_dev_home.ebeam.pm_planning.data import get_pm_planning_fleet
 
 
-bp = Blueprint("ebeam_pm_planning", __name__)
+bp = Blueprint("pm_planning", __name__)
 
 
 @bp.get("/<tool_slug>/pm-planning/fleet")

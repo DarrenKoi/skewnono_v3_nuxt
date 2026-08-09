@@ -14,7 +14,7 @@ from back_dev_home.ebeam.fail_issue.data import (
 )
 
 
-bp = Blueprint("ebeam_fail_issue", __name__)
+bp = Blueprint("fail_issue", __name__)
 
 @bp.get("/<tool_slug>/fail-issue/summary")
 def fail_issue_summary(tool_slug: str):

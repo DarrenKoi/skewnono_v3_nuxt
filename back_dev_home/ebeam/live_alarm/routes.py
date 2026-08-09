@@ -7,7 +7,7 @@ from back_dev_home.ebeam._slug_routes import (
 from back_dev_home.ebeam.live_alarm.data import get_board
 
 
-bp = Blueprint("ebeam_live_alarm", __name__)
+bp = Blueprint("live_alarm", __name__)
 
 
 @bp.get("/<tool_slug>/live-alarm")
