@@ -70,10 +70,13 @@ export const rankableFabRows = <T extends { fab: string }>(
 //     /ebeam/verity-sem/... to /ebeam/veritysem/..., which shifted the
 //     fallback slug a live page produces from "verity_sem" to "veritysem"
 //     (see _TOOL_SEGMENT_SLUGS / the tool-fallback branch in
-//     feature_map.py). `verity_sem` now arrives only from the retired
-//     hyphenated path — still resolved on purpose, for beacons that beat a
-//     redirect or bookmarks nobody updated — so its label stays PERMANENT
-//     for the same reason as the two above, not because the page is current.
+//     feature_map.py). Unlike recipe-tat/fail-issue, there is no redirect
+//     stub for the old path — Task 6 was a plain `git mv`, and the old URL
+//     404s. `verity_sem` still shows up because the router's afterEach
+//     beacon fires on the raw path regardless of route match, so a
+//     bookmark or link nobody updated still logs a hit — so its label stays
+//     PERMANENT for the same reason as the two above, not because the page
+//     is current.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',

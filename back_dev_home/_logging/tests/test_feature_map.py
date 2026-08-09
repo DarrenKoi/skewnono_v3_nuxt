@@ -242,11 +242,12 @@ def test_unknown_pages_fall_back_to_a_derived_slug():
 
 
 def test_the_retired_hyphenated_verity_sem_path_still_resolves():
-    """/ebeam/verity-sem/... was the pre-Task-6 route; rows already written
+    """The pre-Task-6 route must keep resolving to its historical slug.
 
-    under its "verity_sem" fallback slug must keep resolving the same way
-    even after the route itself was renamed to /ebeam/veritysem/... — the
-    slug vocabulary is append-only (see feature_map.py module docstring).
+    /ebeam/verity-sem/... was renamed to /ebeam/veritysem/... in Task 6, but
+    rows already written under the "verity_sem" fallback slug must keep
+    resolving the same way — the slug vocabulary is append-only (see
+    feature_map.py module docstring).
     """
     assert page_to_feature("/ebeam/verity-sem/M14/unmapped-page") == "verity_sem"
 
