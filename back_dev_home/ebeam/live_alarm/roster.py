@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from back_dev_home.ebeam._tool_specs import ToolType, model_to_tool_type
+from back_dev_home.ebeam._tool_specs import SEM_TOOL_TYPES, ToolType, model_to_tool_type
 from back_dev_home.sem_list.contracts import SemListRow
 
 
@@ -72,9 +72,13 @@ def build_index(rows: Iterable[SemListRow]) -> RosterIndex:
         fab = norm(row.get("fab_name"))
         fac = norm(row.get("fac_id"))
         eqp = norm(row.get("eqp_id"))
-        # None for AMAT VeritySEM/Provision, which are not on this board.
+        # The alarm feed is Hitachi-only (CD-SEM/HV-SEM); AMAT veritysem/
+        # provision tools have no alarm board here, so they are excluded on
+        # purpose rather than because the classifier used to return None for
+        # them. `in SEM_TOOL_TYPES` states that intent directly instead of
+        # riding on the classifier's old None-for-AMAT behavior.
         tool_type = model_to_tool_type(row.get("eqp_model_cd", ""))
-        if not (fab and tool_type is not None):
+        if not (fab and tool_type in SEM_TOOL_TYPES):
             continue
 
         if eqp:

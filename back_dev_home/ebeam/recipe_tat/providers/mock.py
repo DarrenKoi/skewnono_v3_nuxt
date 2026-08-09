@@ -74,7 +74,7 @@ from back_dev_home.ebeam._analytics import (
     lot_metadata,
     parse_iso_date,
 )
-from back_dev_home.ebeam._tool_specs import model_to_tool_type
+from back_dev_home.ebeam._tool_specs import SEM_TOOL_TYPES, model_to_tool_type
 from back_dev_home.ebeam.recipe_tat.contracts import (
     DailyTrendPoint,
     DeviceRow,
@@ -213,7 +213,12 @@ def _tool_fleet() -> dict[ToolType, tuple[dict, ...]]:
     for eqp_id in sorted(roster):                 # 정렬 = 결정론
         row = roster[eqp_id]
         tool_type = model_to_tool_type(row["eqp_model_cd"])
-        if tool_type is None:                     # AMAT VeritySEM/Provision — 2027년 이후
+        # 이 fleet 은 CD-SEM/HV-SEM 전용 뷰다 — AMAT veritysem/provision 용
+        # recipe-TAT 데이터 소스가 없고 이 계획에서 추가하지도 않으므로,
+        # 분류가 됐다고 해서 fleet 딕셔너리에 새 키를 지어내지 않는다.
+        # `is None` 은 분류기가 AMAT 에 None 을 돌려주던 시절의 우연한
+        # 표현이었다 — 지금은 SEM_TOOL_TYPES 로 의도를 고정한다.
+        if tool_type not in SEM_TOOL_TYPES:
             continue
         cells.setdefault((tool_type, row["fab_name"]), []).append(row)
 

@@ -70,8 +70,11 @@ def test_unrostered_equipment_has_no_placement():
 
 
 def test_amat_tools_are_not_placed():
-    # model_to_tool_type returns None for VeritySEM/Provision. Placing them
-    # would put an AMAT alarm on a Hitachi board.
+    # model_to_tool_type now classifies VERITYSEM_5 as "veritysem" instead of
+    # returning None, but the roster is Hitachi-only (cd-sem/hv-sem) by
+    # design, so build_index filters on SEM_TOOL_TYPES membership and AMAT
+    # tools still get no placement. Placing them would put an AMAT alarm on
+    # a Hitachi board.
     assert roster.build_index(ROWS).placement_of("VS9001") is None
 
 
