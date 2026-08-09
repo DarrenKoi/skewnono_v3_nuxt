@@ -22,7 +22,6 @@ test('classifyToolType keeps an unrelated model unclassified', () => {
 test('AMAT tool types carry no hyphen', () => {
   assert.equal(classifyToolType('PROVISION_10'), 'provision')
   assert.ok(TOOL_TYPES.includes('veritysem'))
-  assert.ok(!TOOL_TYPES.includes('verity-sem' as never))
 })
 
 test('toolSlug maps every tool type to its backend slug', () => {

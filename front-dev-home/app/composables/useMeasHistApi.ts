@@ -1,7 +1,9 @@
 import { joinApiPath } from '~/utils/apiPath'
 import { normalizeFab } from '~/utils/fab'
+import type { ToolType } from '~/utils/toolType'
 
-export type MeasHistToolType = 'cd-sem' | 'hv-sem'
+/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
+export type MeasHistToolType = ToolType
 
 export interface MeasHistRow {
   id: string

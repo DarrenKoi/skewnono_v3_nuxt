@@ -32,7 +32,7 @@ export const CATEGORY_TO_TOOL_TYPE: Record<SkewvoirCategory, MeasHistToolType> =
 // for the two families skewvoir indexes. Local copy because categoryOfModel
 // is not the same function as classifyToolType: it returns
 // SkewvoirCategory | null and returns null for VeritySEM/Provision, which
-// classifyToolType resolves to 'verity-sem' / 'provision'. A mechanical
+// classifyToolType resolves to 'veritysem' / 'provision'. A mechanical
 // import swap would therefore be a behavior regression (AMAT models would
 // start passing as a skewvoir category); unifying them needs a narrowing
 // map, not an import, and is tracked separately.

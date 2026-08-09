@@ -159,7 +159,7 @@ test('the fab hub is one identity across every tool family', () => {
     resolvePageIdentity('/ebeam/cd-sem/M14', {}),
     resolvePageIdentity('/ebeam/hv-sem/R3', {}),
     resolvePageIdentity('/ebeam/provision/R3', {}),
-    resolvePageIdentity('/ebeam/verity-sem/M14', {})
+    resolvePageIdentity('/ebeam/veritysem/M14', {})
   ])
 
   assert.equal(identities.size, 1)

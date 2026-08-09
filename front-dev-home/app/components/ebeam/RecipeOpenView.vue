@@ -233,7 +233,7 @@ import type {
   RecipeDetailResponse,
   RecipeSearchToolType
 } from '~/composables/useRecipeSearchApi'
-import { toolSlug as toBackendSlug } from '~/composables/useRecipeSearchApi'
+import { toolSlug as toBackendSlug } from '~/utils/toolType'
 import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import {
   fetchParamDetails,

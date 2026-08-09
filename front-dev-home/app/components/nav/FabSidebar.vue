@@ -52,7 +52,7 @@ const countsByToolType = computed(() => {
 const TOOL_SHORT: Record<ToolType, string> = {
   'cd-sem': 'CD',
   'hv-sem': 'HV',
-  'verity-sem': 'VS',
+  'veritysem': 'VS',
   'provision': 'PR'
 }
 

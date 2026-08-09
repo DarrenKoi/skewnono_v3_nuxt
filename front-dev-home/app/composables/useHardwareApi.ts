@@ -1,6 +1,8 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { ToolType } from '~/utils/toolType'
 
-export type HardwareToolType = 'cd-sem' | 'hv-sem'
+/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
+export type HardwareToolType = ToolType
 export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'mdc' | 'sce' | 'bm-pm' | 'sharpness'
 export type HardwareMetricTone = 'neutral' | 'ok' | 'warning' | 'bad'
 export type HardwareMetricValue = string | number | boolean | null
@@ -54,8 +56,7 @@ export interface HardwareQuery {
   end?: string
 }
 
-const toolSlug = (toolType: HardwareToolType): 'cdsem' | 'hvsem' =>
-  toolType === 'hv-sem' ? 'hvsem' : 'cdsem'
+// toolSlug now comes from ~/utils/toolType via Nuxt auto-import.
 
 export const useHardwareApi = () => {
   const config = useRuntimeConfig()

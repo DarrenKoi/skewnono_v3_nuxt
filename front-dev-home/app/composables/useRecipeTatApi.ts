@@ -1,6 +1,8 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { ToolType } from '~/utils/toolType'
 
-export type RecipeTatToolType = 'cd-sem' | 'hv-sem'
+/** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
+export type RecipeTatToolType = ToolType
 
 export interface RecipeTatRow {
   rank: number
@@ -178,8 +180,7 @@ const buildQuery = (params: RecipeTatQuery) => {
 // back_dev_home/ebeam/hitachi/_tool_specs.py's SLUG_TO_TOOL_TYPE.
 // The ?tool_type= query param is informational and ignored by the route,
 // so calling /cdsem/* from the HV-SEM page silently returns CD-SEM data.
-const toolSlug = (toolType: RecipeTatToolType): 'cdsem' | 'hvsem' =>
-  toolType === 'hv-sem' ? 'hvsem' : 'cdsem'
+// toolSlug now comes from ~/utils/toolType via Nuxt auto-import.
 
 export const useRecipeTatApi = () => {
   const config = useRuntimeConfig()
