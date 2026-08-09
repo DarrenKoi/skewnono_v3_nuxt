@@ -225,6 +225,7 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 | `verify` | Launch/drive recipe for the running app (Flask + Nuxt), identities, browser checks |
 | `home-to-office` | Audit features against the mock→office provider convention before conveying work |
 | `generate-mock` | Scaffold a mock data composable for a new endpoint |
+| `add-vendor` | Wire a new e-beam tool family (VeritySEM, Provision, …) into a feature — rules in `docs/back-end/vendor-onboarding.md` |
 
 ### Issue tracker
 

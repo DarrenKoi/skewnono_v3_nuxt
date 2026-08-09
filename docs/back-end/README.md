@@ -7,6 +7,7 @@
 | [api-tokens.md](api-tokens.md) | API 엔드포인트와 사용자/토큰의 관계, 인증 경로, 로깅 흐름 |
 | [office-data-adapters.md](office-data-adapters.md) | Phase 2 데이터 adapter seam, 피처별 연결 명세, 사무실 LLM 프롬프트 |
 | [provider-selection.md](provider-selection.md) | mock/office adapter 선택 규칙, site 감지 순서, 환경 변수 우선순위 |
+| [vendor-onboarding.md](vendor-onboarding.md) | 신규 장비 계열(VeritySEM/Provision)을 붙이는 레이아웃 규약과 Phase 1 8단계 |
 
 ## 어떤 내용을 여기에 두는가
 

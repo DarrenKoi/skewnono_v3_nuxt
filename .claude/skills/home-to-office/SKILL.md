@@ -9,7 +9,8 @@ allowed-tools: Read, Grep, Glob, Bash, Edit, Write
 
 Audit one or more `back_dev_home/` features against the provider convention
 (rules: `docs/back-end/provider-selection.md`, adapter guidance:
-`docs/back-end/office-data-adapters.md`)
+`docs/back-end/office-data-adapters.md`, tool-family sub-adapters:
+`docs/back-end/vendor-onboarding.md`)
 so that everything created or modified at home is office-ready: folder
 structure, contracts, gates, and the GLM 5.2 prompt.
 
@@ -58,6 +59,8 @@ has none. Audit the **template**, not `office.py`.
 | 9 | Gate green | `.venv/bin/pytest back_dev_home/<feature> -q` passes |
 | 10 | Office switch wired | `cp providers/office_example.py providers/office.py`, then `SKEWNONO_<KEY>_PROVIDER=office .venv/bin/pytest back_dev_home/<feature> -q` fails with NotImplementedError — anything else means the template/switch is broken. Leave the copied `office.py` in place (it is gitignored) or delete it after. |
 | 11 | office.py untracked | `git check-ignore back_dev_home/<feature>/providers/office.py` matches, AND `git ls-files` does NOT list it — the real adapter must never be tracked |
+| 12 | Sub-adapter folders | For every `providers/<sub>/` sub-folder (per-tab like `hardware/providers/fdc/`, or per tool family like `providers/veritysem/`): it has both `mock.py` and `office_example.py`, no tracked `office.py`, and the feature-level `providers/{mock,office_example}.py` still exist — moving those into a sub-folder erases the feature from `office_registry` |
+| 13 | Sub-adapter dispatch | The feature-level dispatcher resolves sub-folders by name and guards on `exc.name`. Fallback policy must match the feature's kind: per-tab adapters fall back to that tab's mock, **tool-family adapters raise 501** — see `docs/back-end/vendor-onboarding.md` §3.4 |
 
 ## 3. Fix or report
 
