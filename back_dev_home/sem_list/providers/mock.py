@@ -50,10 +50,18 @@ here:
 * the fleet carries no `tool_type` column — it is derived from `eqp_model_cd`.
   Backend `_tool_specs.model_to_tool_type` and frontend `classifyToolType`
   both resolve all four tool types (cd-sem/hv-sem/veritysem/provision) and
-  are kept in agreement by a shared fixture (see `_tool_specs.py`). CD/HV
-  scoped screens filter to `SEM_TOOL_TYPES` membership, not a `None` check —
-  do not reintroduce `model_to_tool_type(...) is not None` as a stand-in for
-  that filter, since a resolved AMAT tool would then wrongly pass it.
+  are kept in agreement by a shared fixture (see `_tool_specs.py`). "CD/HV
+  only" is expressed by naming the scope — `in SEM_TOOL_TYPES` when the code
+  holds a tool_type, `in SEM_TOOL_SLUGS` when it holds a URL slug — never by
+  a `None` check, since a resolved AMAT tool would wrongly pass that.
+  Note that the CD/HV-scoped ebeam features do NOT each re-filter this roster
+  by `SEM_TOOL_TYPES`: several (`storage`, `lateral_recipe`) select rows with
+  `model_to_tool_type(...) == tool_type` for the single requested family, and
+  the scope is enforced one level up, by their routes refusing any slug
+  outside `SEM_TOOL_SLUGS` with a 400. Both spellings are correct; what is
+  wrong is a route that lets an AMAT slug reach an `== tool_type` filter,
+  because that filter then happily matches the AMAT rows below and answers
+  200 with fabricated data for a family that has no adapter.
 
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
@@ -90,8 +98,9 @@ HVSEM_EQP_PREFIXES = ["PCD", "MCD", "ACD", "VCD"]
 
 # AMAT tools, deferred to 2027. They belong in the inventory and both
 # classifiers resolve them (to 'veritysem' / 'provision'), but they are NOT
-# CD/HV-SEM, so the tool-scoped ebeam views (which filter by SEM_TOOL_TYPES
-# membership) filter them out. The 미연결 screen is the exception: it groups
+# CD/HV-SEM, so the tool-scoped ebeam views never show them: those routes only
+# accept `SEM_TOOL_SLUGS` (cdsem/hvsem) and answer 400 to an AMAT slug, so the
+# rows below are never selected there. The 미연결 screen is the exception: it groups
 # by tool type too, but shows AMAT under its own filter chip — their
 # firewall requests get filed too, just not this year. Kept rare here
 # because at the old ~50% they crowded the CD/HV-SEM pages down to half a

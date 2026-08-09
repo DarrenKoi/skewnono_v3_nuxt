@@ -90,14 +90,23 @@ version -> string: 장비 SW version. 숫자와 문자가 섞인 자유 형식 �
 3. TP 계열(HV-SEM) 장비는 **HITACHI** 입니다. 홈 mock 데이터와 프론트 fixture
    일부에 AMAT 으로 적힌 곳이 있는데 그것은 잘못된 값입니다. 실데이터를 기준으로
    판단합니다.
-4. tool_type(cd-sem / hv-sem)은 이 명부에 컬럼으로 없습니다. eqp_model_cd 로
-   판별합니다 — CG/GT 계열은 cd-sem, TP 계열은 hv-sem
-   (back_dev_home/ebeam/hitachi/_tool_specs.py 의 model_to_tool_type).
+4. tool_type 은 이 명부에 컬럼으로 없습니다. eqp_model_cd 의 **계열 접두사**로
+   판별합니다 — CG/GT 는 cd-sem, TP 는 hv-sem, VERITYSEM/VERITY_SEM 은
+   veritysem, PROVISION 은 provision
+   (back_dev_home/ebeam/_tool_specs.py 의 model_to_tool_type).
+   모델 코드 목록이 아니라 접두사입니다. 목록으로 판별하던 시절, 목록에 없던
+   실장비 8대가 "PPID 미접속 장비" 패널에서 조용히 사라졌습니다(2026-07-24).
 5. VeritySEM / Provision 은 v3_df_sem_list 에 포함됩니다
-   (user-confirmed 2026-07-30). 백엔드 model_to_tool_type() 은 이 모델들에
-   None 을 반환하지만 프론트 classifyToolType() 은 verity-sem / provision 으로
-   해석합니다. 미연결 장비 화면은 프론트 분류기를 사용하므로 이 장비들도
-   자기 필터 chip 아래에 표시됩니다.
+   (user-confirmed 2026-07-30). 백엔드 model_to_tool_type() 과 프론트
+   classifyToolType() 은 **둘 다** 이 모델들을 'veritysem' / 'provision' 으로
+   해석합니다. 하이픈 표기('verity-sem')는 쓰지 않습니다 — 슬러그·tool_type·
+   프론트 라우트가 모두 같은 한 문자열입니다. 미연결 장비 화면은 이 장비들도
+   자기 필터 chip 아래에 표시합니다.
+6. CD/HV 전용 화면(storage, lateral_recipe, recipe_tat, ...)은 AMAT 계열을
+   담지 않습니다. `/api/<tool_slug>/...` 라우트가 SEM_TOOL_SLUGS
+   (cdsem, hvsem) 밖의 슬러그를 400 으로 거절하므로, AMAT 어댑터가 생기기
+   전까지 그 화면들에 AMAT 장비가 나타날 경로는 없습니다. 어댑터를 붙이는
+   절차는 docs/back-end/vendor-onboarding.md 입니다.
 
 연결 설정
 
