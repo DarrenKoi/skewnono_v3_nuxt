@@ -1,26 +1,40 @@
-import type { ToolType } from '~/stores/navigation'
-
 /**
- * Tool type from an equipment model code, or null for a model we do not know.
+ * 프론트의 tool_type 단일 원천.
  *
- * Lives in utils rather than beside `useSemListApi` because it is a pure
- * function that `pendingToolMatrix.ts` needs at runtime, and `npm test` runs
- * `node --test` with no bundler — a runtime `~/composables/…` import would not
- * resolve. Callers are unaffected: nothing imports this explicitly, they all
- * reach it through Nuxt auto-import, which covers utils and composables alike.
+ * 백엔드 `back_dev_home/ebeam/_tool_specs.py` 의 거울입니다. `model_to_tool_type()`
+ * 는 AMAT 계열을 `veritysem` / `provision` (하이픈 없음) 으로 분류하고, 여기의
+ * `classifyToolType` 도 동일한 값을 돌려줍니다 — 두 분류기는 지금 일치합니다.
  *
- * Note this DISAGREES with the backend's `_tool_specs.model_to_tool_type()`,
- * which returns None for the two AMAT families. Reconciling the two is real
- * work, tracked separately.
+ * utils 에 있는 이유: `pendingToolMatrix.ts` 가 런타임에 쓰는 순수 함수인데
+ * `npm test` 는 번들러 없이 `node --test` 로 돌기 때문에 `~/composables/…`
+ * 임포트는 해석되지 않습니다. 호출부는 Nuxt auto-import 로 그대로 씁니다.
+ *
+ * AMAT 계열(veritysem/provision)에는 하이픈이 없습니다. 제품명이 한 단어이고,
+ * 슬러그·tool_type·라우트가 같은 문자열이면 매핑 테이블이 생기지 않습니다.
+ * 이중 표기는 Hitachi 레거시(cdsem ↔ cd-sem)로만 남습니다.
  */
+export const TOOL_TYPES = ['cd-sem', 'hv-sem', 'veritysem', 'provision'] as const
+
+export type ToolType = (typeof TOOL_TYPES)[number]
+
+/** CD/HV 전용 화면이 담는 범위. 'AMAT 이 아닌 것' 으로 흉내내지 않습니다. */
+export const SEM_TOOL_TYPES = ['cd-sem', 'hv-sem'] as const satisfies readonly ToolType[]
+
+const TOOL_SLUGS: Record<ToolType, string> = {
+  'cd-sem': 'cdsem',
+  'hv-sem': 'hvsem',
+  'veritysem': 'veritysem',
+  'provision': 'provision'
+}
+
+/** 백엔드 `/api/<tool_slug>/…` 에 들어가는 슬러그. */
+export const toolSlug = (toolType: ToolType): string => TOOL_SLUGS[toolType]
+
 export const classifyToolType = (eqpModelCd: string): ToolType | null => {
-  if (eqpModelCd.startsWith('CG') || eqpModelCd.startsWith('GT')) return 'cd-sem'
-  if (eqpModelCd.startsWith('TP')) return 'hv-sem'
-  const normalizedModel = eqpModelCd.toUpperCase()
-  if (
-    normalizedModel.startsWith('VERITYSEM')
-    || normalizedModel.startsWith('VERITY_SEM')
-  ) return 'verity-sem'
-  if (eqpModelCd.startsWith('PROVISION')) return 'provision'
+  const model = eqpModelCd.trim().toUpperCase()
+  if (model.startsWith('CG') || model.startsWith('GT')) return 'cd-sem'
+  if (model.startsWith('TP')) return 'hv-sem'
+  if (model.startsWith('VERITYSEM') || model.startsWith('VERITY_SEM')) return 'veritysem'
+  if (model.startsWith('PROVISION')) return 'provision'
   return null
 }

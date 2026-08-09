@@ -38,7 +38,7 @@ test('groupOf resolves all four tool types and falls back to unclassified', () =
   assert.equal(groupOf(tool('A', 'CG6380', 'M16A')), 'cd-sem')
   assert.equal(groupOf(tool('B', 'GT2000', 'M16A')), 'cd-sem')
   assert.equal(groupOf(tool('C', 'TP4000', 'M14B')), 'hv-sem')
-  assert.equal(groupOf(tool('D', 'VERITYSEM_4', 'M16A')), 'verity-sem')
+  assert.equal(groupOf(tool('D', 'VERITYSEM_4', 'M16A')), 'veritysem')
   assert.equal(groupOf(tool('E', 'PROVISION_10', 'M11A')), 'provision')
   // A model the company installs next year. This bucket is the only thing
   // keeping a new tool type from vanishing off the arrivals screen.
@@ -72,7 +72,7 @@ test('countByGroup counts every group present', () => {
   assert.equal(counts.get('cd-sem'), 2)
   assert.equal(counts.get('hv-sem'), 1)
   assert.equal(counts.get('unclassified'), 1)
-  assert.equal(counts.get('verity-sem'), undefined)
+  assert.equal(counts.get('veritysem'), undefined)
 })
 
 test('filterByGroup with all returns everything unchanged', () => {
