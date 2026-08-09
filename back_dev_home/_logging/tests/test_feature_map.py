@@ -179,7 +179,7 @@ def test_no_registered_route_still_needs_the_fallback():
         ("/ebeam/cd-sem/M14", "tool_inventory"),
         ("/ebeam/hv-sem/R3", "tool_inventory"),
         ("/ebeam/provision/R3", "tool_inventory"),
-        ("/ebeam/verity-sem/M14", "tool_inventory"),
+        ("/ebeam/veritysem/M14", "tool_inventory"),
         # Standalone pages.
         ("/tool-roster", "sem_list"),
         ("/afm/HVM1", "afm"),
@@ -237,8 +237,18 @@ def test_unknown_pages_fall_back_to_a_derived_slug():
     would be a confident wrong answer instead of a vague one.
     """
     assert page_to_feature("/thickness") == "thickness"
-    assert page_to_feature("/ebeam/verity-sem/M14/unmapped-page") == "verity_sem"
+    assert page_to_feature("/ebeam/veritysem/M14/unmapped-page") == "veritysem"
     assert page_to_feature("/ebeam/cd-sem/M14/unmapped-page") == "cdsem"
+
+
+def test_the_retired_hyphenated_verity_sem_path_still_resolves():
+    """/ebeam/verity-sem/... was the pre-Task-6 route; rows already written
+
+    under its "verity_sem" fallback slug must keep resolving the same way
+    even after the route itself was renamed to /ebeam/veritysem/... — the
+    slug vocabulary is append-only (see feature_map.py module docstring).
+    """
+    assert page_to_feature("/ebeam/verity-sem/M14/unmapped-page") == "verity_sem"
 
 
 def test_bare_ebeam_is_not_the_tool_inventory_page():
