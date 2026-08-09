@@ -90,11 +90,20 @@ class HostSpec:
 
     Both run over a single FTP connection that is opened once, reused for the
     listing and every RETR, then closed.
+
+    ``user``/``password`` override the downloader's credentials for this host
+    alone; ``None`` (the default) means "use the downloader's". One fleet is not
+    always one account -- a run spanning two vendors' tools spans two logins,
+    and the credential is a property of the host, not of the run. Leave them
+    unset when the fleet shares an account, which stays the common case and
+    needs no change at any call site.
     """
 
     host: str
     files: list[str] = field(default_factory=list)
     listings: list[ListDir] = field(default_factory=list)
+    user: str | None = None
+    password: str | None = None
 
 
 @dataclass(slots=True)
@@ -128,10 +137,16 @@ class UploadSpec:
     The upload counterpart to ``HostSpec``: ``files`` are uploaded over a single
     FTP connection that is opened once, reused for every STOR, then closed.
     There is no listing analogue — upload destinations are always explicit.
+
+    ``user``/``password`` are the per-host override, same contract as
+    ``HostSpec``'s. Kept symmetric on purpose: a fleet that needs two accounts
+    to read needs the same two to write.
     """
 
     host: str
     files: list[UploadFile] = field(default_factory=list)
+    user: str | None = None
+    password: str | None = None
 
 
 @dataclass(slots=True)
@@ -560,15 +575,24 @@ class FtpFleetDownloader:
 
     # ── concurrent orchestration (private) ──────────────────────────────────
     @contextmanager
-    def _session(self, host: str) -> Iterator[FTP]:
-        """One connected, logged-in FTP session for ``host``, closed on exit.
+    def _session(self, spec: "HostSpec | UploadSpec") -> Iterator[FTP]:
+        """One connected, logged-in FTP session for ``spec.host``, closed on exit.
 
         Shared open/login/passive setup for both the download and listing
         workers, so a host is always reached the same way.
+
+        Takes the whole spec rather than a bare host string because the
+        credential now travels with the host: ``spec.user``/``spec.password``
+        win when set, and fall back to the downloader's own pair otherwise.
+        The fallback is what keeps every existing single-account call site
+        working untouched.
         """
         with FTP(timeout=self.connect_timeout) as ftp:
-            ftp.connect(host=host, port=self.port, timeout=self.connect_timeout)
-            ftp.login(user=self.user, passwd=self.password)
+            ftp.connect(host=spec.host, port=self.port, timeout=self.connect_timeout)
+            ftp.login(
+                user=spec.user or self.user,
+                passwd=spec.password or self.password,
+            )
             ftp.set_pasv(self.passive)
             yield ftp
 
@@ -680,7 +704,7 @@ class FtpFleetDownloader:
         files: list[FileResult] = []
         failures: list[HostFailure] = []
         try:
-            with self._session(spec.host) as ftp:
+            with self._session(spec) as ftp:
                 for remote_path in self._resolve_paths(ftp, spec, failures):
                     # Abandoned at host_timeout: stop pulling. The gate already
                     # blocks the callback, but leaving the loop also hands the
@@ -707,7 +731,7 @@ class FtpFleetDownloader:
         paths: list[str] = []
         failures: list[HostFailure] = []
         try:
-            with self._session(spec.host) as ftp:
+            with self._session(spec) as ftp:
                 for listing in spec.listings:
                     try:
                         names = ftp.nlst(listing.remote_dir)
@@ -743,7 +767,7 @@ class FtpFleetDownloader:
         sizes: list[FileSize] = []
         failures: list[HostFailure] = []
         try:
-            with self._session(spec.host) as ftp:
+            with self._session(spec) as ftp:
                 # SIZE is only reliable in binary mode: RFC 3659 lets a server
                 # report a different (line-ending-adjusted) count for an
                 # ASCII-mode SIZE than the bytes a binary RETR transfers, so we
@@ -792,7 +816,7 @@ class FtpFleetDownloader:
         results: list[UploadResult] = []
         failures: list[HostFailure] = []
         try:
-            with self._session(spec.host) as ftp:
+            with self._session(spec) as ftp:
                 for item in spec.files:
                     try:
                         ftp.storbinary(f"STOR {item.remote_path}", BytesIO(item.data))

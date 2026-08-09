@@ -10,6 +10,12 @@ its own environment and raises `KeyError` → 500 without them. Set both on the
 proxy host; nothing in `office.py` needs editing. Full context:
 [`back_dev_home/msr_image/MIGRATION.md`](../../../msr_image/MIGRATION.md).
 
+Those two are the **fleet default**, not the only account available. Since
+2026-08-10 a `HostSpec` may carry its own `user`/`password` covering one host,
+which is how a fleet spanning two vendors' tools gets two logins. Every tool
+this adapter reaches today shares the Hitachi account, so nothing here passes
+them yet — wire them in when a non-Hitachi family arrives, not before.
+
 Also worth knowing: this adapter builds **one spec per host** — every file for
 a tool rides a single connection — and does not set `host_timeout`, so it keeps
 the library default (60s direct / 45s proxy) no matter how many raw files a

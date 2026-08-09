@@ -284,11 +284,18 @@ report = dl.download(specs)                 # same call as direct mode
 ```
 
 Notes:
-- **Security:** equipment FTP credentials stay on the proxy host in
+- **Security:** the fleet's equipment FTP credentials stay on the proxy host in
   `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD`; they are not part of the
   client POST body. File bytes still cross the HTTP hop, so run the proxy behind
   **HTTPS** and set `FTP_PROXY_TOKEN` (the proxy enforces `Authorization:
   Bearer <token>`).
+- **Per-host credentials:** one fleet is not always one account. `HostSpec` and
+  `UploadSpec` carry optional `user`/`password` overriding the downloader's for
+  that host alone, so a run spanning two vendors' tools spans two logins. Only
+  an override is serialized — a host on the shared account sends no credential
+  key at all, and an entry arriving without one falls back to the proxy's
+  environment. That fallback is what lets the two halves deploy in either
+  order.
 - **Seam-clean config:** proxy location/auth are module constants in
   `proxy_downloader.py` (`PROXY_URL`, `PROXY_TOKEN`), **not** constructor args —
   that keeps the client constructor signature identical to the direct

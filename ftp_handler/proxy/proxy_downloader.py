@@ -133,8 +133,24 @@ __all__ = [
 # nothing transport-specific. The firewalled client box reaches the proxy at
 # PROXY_URL; set PROXY_TOKEN to the bearer-token string if the proxy enforces
 # auth (leave None for the trusted single-user, no-auth case).
-PROXY_URL = "http://advanced-cd-sem-applications-fileloader-webapp.aipp01.skhynix.com"
+PROXY_URL = "http://skewnono-scheduler1-webapp.aipp01.skhynix.com"
 PROXY_TOKEN = None
+
+
+def _credentials_to_wire(spec: "HostSpec | UploadSpec") -> dict:
+    """The per-host credential OVERRIDE, or nothing at all when it is unset.
+
+    The shared fleet account still never crosses this hop — it lives in the
+    proxy host's own environment (``FTP_PROXY_FTP_USER``). Only a spec that
+    deliberately names a different account serializes one, so a fleet on one
+    account produces byte-identical payloads to before this field existed.
+    """
+    override = {}
+    if spec.user is not None:
+        override["user"] = spec.user
+    if spec.password is not None:
+        override["password"] = spec.password
+    return override
 
 
 def _spec_to_wire(spec: HostSpec) -> dict:
@@ -145,6 +161,7 @@ def _spec_to_wire(spec: HostSpec) -> dict:
             {"remote_dir": ld.remote_dir, "pattern": ld.pattern}
             for ld in spec.listings
         ],
+        **_credentials_to_wire(spec),
     }
 
 
@@ -160,6 +177,7 @@ def _upload_spec_to_wire(spec: UploadSpec) -> dict:
             }
             for item in spec.files
         ],
+        **_credentials_to_wire(spec),
     }
 
 

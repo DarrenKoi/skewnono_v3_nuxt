@@ -36,6 +36,22 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 동일 이유로 `recipe_search`의 office 어댑터도 같은 프록시를 쓰므로, 1번을
 하지 않으면 함께 실패합니다.
 
+프록시 위치도 바뀌었습니다 — `proxy_downloader.py`의 `PROXY_URL`이
+`skewnono-scheduler1-webapp.aipp01.skhynix.com`을 가리킵니다. 블루프린트가
+그 앱에 마운트되어 있으므로 위 환경변수 두 개는 **그 앱의 프로세스 환경**에
+들어갑니다(uWSGI라면 그 앱 `wsgi.ini`의 `env =` 줄).
+
+### 계열이 섞이면 — 장비별 계정 (2026-08-10)
+
+위 두 환경변수는 **플릿 기본값**이지 유일한 계정이 아닙니다. `HostSpec`
+(그리고 `UploadSpec`)이 자기 `user`/`password`를 실으면 그 호스트만 다른
+계정으로 로그인합니다. 안 실은 호스트는 프록시 환경변수를 그대로 씁니다.
+
+지금 이 어댑터가 닿는 장비는 전부 Hitachi 공용 계정(`hitachi`/`hid`)이라
+아무것도 싣지 않으며, 그래서 요청 본문은 이 필드가 생기기 전과 바이트 단위로
+동일합니다. AMAT 계열(VeritySEM/Provision)을 붙일 때 그 장비의 spec 에만
+계정을 넣으십시오 — `_TOOL_FTP_*` 를 계열별로 나누는 작업이 함께 필요합니다.
+
 ## 규칙
 
 - 먼저 추적 스켈레톤을 복사한 뒤 그 복사본에서만 작업합니다:

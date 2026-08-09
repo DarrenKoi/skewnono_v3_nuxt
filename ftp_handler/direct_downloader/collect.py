@@ -52,6 +52,11 @@ def build_host_specs(fleet: list[dict]) -> list[HostSpec]:
            "listings": [{"remote_dir": "/MEAS", "pattern": "*.dat"}]},
           ...
         ]
+
+    Optional per-entry ``user``/``password`` override the downloader's
+    credentials for that host alone -- for a fleet spanning two vendors' tools,
+    where one account does not open every door. Omit them and the host uses the
+    downloader's pair, which is what every existing config already does.
     """
     specs: list[HostSpec] = []
     for entry in fleet:
@@ -64,6 +69,8 @@ def build_host_specs(fleet: list[dict]) -> list[HostSpec]:
                 host=entry["host"],
                 files=list(entry.get("files", [])),
                 listings=listings,
+                user=entry.get("user"),
+                password=entry.get("password"),
             )
         )
     return specs

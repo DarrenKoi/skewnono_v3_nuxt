@@ -207,8 +207,8 @@ client PC ──HTTP──> Flask proxy ──FTP──> equipment servers
 
 **서버 절반** (방화벽 없는 호스트에서) — 블루프린트를 마운트하거나 단독 실행한다.
 신뢰하는 단일 사용자라면 인증 없이(`FTP_PROXY_TOKEN` 미설정) 쓰고, 포트만 신뢰할 수
-없는 네트워크에 노출하지 않으면 된다. 장비 FTP 계정은 클라이언트 요청에 싣지 않고
-프록시 호스트의 `FTP_PROXY_FTP_USER`, `FTP_PROXY_FTP_PASSWORD` 환경 변수로 둔다:
+없는 네트워크에 노출하지 않으면 된다. 플릿의 장비 FTP 계정은 클라이언트 요청에 싣지
+않고 프록시 호스트의 `FTP_PROXY_FTP_USER`, `FTP_PROXY_FTP_PASSWORD` 환경 변수로 둔다:
 
 ```python
 import os
@@ -218,6 +218,16 @@ os.environ["FTP_PROXY_FTP_PASSWORD"] = "ftppass"
 
 from ftp_handler.proxy.flask_proxy import ftp_proxy_sknn_v3   # 또는 create_app()
 app.register_blueprint(ftp_proxy_sknn_v3)
+```
+
+플릿 하나가 계정 하나인 것은 아니다. 계열이 섞여 계정이 갈리는 경우에는 그 호스트의
+spec 에만 계정을 실으면 되고, 나머지는 위 환경 변수를 그대로 쓴다:
+
+```python
+specs = [
+    HostSpec("10.0.0.1", files=["/log"]),                       # 공용 계정
+    HostSpec("10.0.0.9", files=["/log"], user="u2", password="p2"),  # 이 장비만
+]
 ```
 
 **클라이언트 절반** — direct 다운로더와 동일하고, import만 다르다. 프록시 위치/토큰은

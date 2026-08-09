@@ -38,8 +38,10 @@ used by the host app:
 
 Auth: if env FTP_PROXY_TOKEN is set, requests must carry
 ``Authorization: Bearer <token>`` or get 401. Always serve behind HTTPS in
-production — file bytes cross this connection. Equipment FTP credentials stay
-on the proxy host in ``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD``.
+production — file bytes cross this connection. The fleet's equipment FTP
+credentials stay on the proxy host in ``FTP_PROXY_FTP_USER`` /
+``FTP_PROXY_FTP_PASSWORD``; a spec may override them per host by sending
+``user``/``password`` in its wire entry, for a fleet that spans accounts.
 
 Standalone run (without an existing app):
     pip install flask
@@ -97,6 +99,12 @@ def _spec_from_wire(entry: dict) -> HostSpec:
         host=entry["host"],
         files=list(entry.get("files", [])),
         listings=listings,
+        # `.get`, never `[...]`: a client that predates per-host credentials
+        # sends no such key, and that host must still resolve to the proxy's
+        # own FTP_PROXY_FTP_USER rather than 500. Deploy order between the two
+        # halves is not something this blueprint gets to dictate.
+        user=entry.get("user"),
+        password=entry.get("password"),
     )
 
 
@@ -110,7 +118,12 @@ def _upload_spec_from_wire(entry: dict) -> UploadSpec:
         )
         for item in entry.get("files", [])
     ]
-    return UploadSpec(host=entry["host"], files=files)
+    return UploadSpec(
+        host=entry["host"],
+        files=files,
+        user=entry.get("user"),
+        password=entry.get("password"),
+    )
 
 
 def _unauthorized():
@@ -126,11 +139,16 @@ def _unauthorized():
 def _downloader_from(body: dict) -> FtpFleetDownloader:
     """Build the FtpFleetDownloader from the request body's tuning.
 
-    FTP credentials come from the proxy host's environment and never cross the
-    client HTTP hop. The remaining tuning comes from the client so proxy-side
-    behavior matches the direct adapter. host_timeout default 45s stays under
-    the host app's harakiri=60 so the downloader's own backstop fires before
-    uWSGI kills the request. See ADR 0001.
+    The FLEET's FTP credentials come from the proxy host's environment and never
+    cross the client HTTP hop. They are the default, not the only source: a spec
+    may carry a per-host ``user``/``password`` override (see
+    ``_spec_from_wire``) for a fleet spanning accounts, and that one does travel
+    in the body. Hosts on the shared account send nothing.
+
+    The remaining tuning comes from the client so proxy-side behavior matches
+    the direct adapter. host_timeout default 45s stays under the host app's
+    harakiri=60 so the downloader's own backstop fires before uWSGI kills the
+    request. See ADR 0001.
     """
     return FtpFleetDownloader(
         user=os.environ["FTP_PROXY_FTP_USER"],

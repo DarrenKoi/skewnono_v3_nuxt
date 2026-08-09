@@ -54,9 +54,11 @@ ftp_handler/
 - **`flask_proxy.py`** (서버): FTP egress가 허용된 곳에서 실행된다. Flask
   블루프린트(`/download_sknn_v3`, `/list_dirs_sknn_v3`, `/size_dirs_sknn_v3`,
   `/upload_sknn_v3`, `/healthz_sknn_v3`),
-  선택적 `FTP_PROXY_TOKEN`. 장비 FTP 계정은 서버 환경 변수
+  선택적 `FTP_PROXY_TOKEN`. 플릿의 장비 FTP 계정은 서버 환경 변수
   `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD`에서 읽고, 실제 FTP는
-  `FtpFleetDownloader`를 재사용한다.
+  `FtpFleetDownloader`를 재사용한다. spec 이 `user`/`password`를 실으면 그
+  호스트만 다른 계정으로 로그인하고(계열이 섞인 플릿), 안 실으면 환경 변수를
+  그대로 쓴다.
 - **`proxy_downloader.py`** (클라이언트): 패키지가 이 모듈의 `FtpFleetDownloader`를
   re-export 한다 — `direct_downloader`와 같은 이름·같은 데이터클래스를 HTTP로
   제공한다. 스펙을 배치로 묶어 동시에 POST 하며, `on_file`은 로컬에서 실행된다.

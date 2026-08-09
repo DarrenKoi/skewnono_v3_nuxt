@@ -898,6 +898,44 @@ def test_the_credentials_never_reach_the_request_body(monkeypatch):
     assert "hid" not in repr(body), "the password leaked through some other key"
 
 
+def test_a_per_host_credential_override_does_reach_the_body(monkeypatch):
+    """A spec's OWN credentials ARE serialized — that is what they are for.
+
+    Added upstream 2026-08-10: one fleet is not one account, so a HostSpec may
+    name the account for its host and only that host. Necessary once a run
+    spans two vendors' tools, since the proxy's single environment pair cannot
+    express two logins.
+    """
+    fake = FakeRequests({"files": [], "failures": []})
+    monkeypatch.setattr(proxy, "requests", fake)
+    proxy.FtpFleetDownloader(user="hitachi", password="hid").download(
+        [direct.HostSpec("h", user="amat", password="other")]
+    )
+    entry = fake.posts[0]["json"]["specs"][0]
+    assert entry["user"] == "amat"
+    assert entry["password"] == "other"
+
+
+def test_an_override_on_one_host_does_not_leak_the_fleet_account(monkeypatch):
+    """The fleet account stays off the wire even when a sibling host overrides.
+
+    The regression this guards is a plausible implementation, not a silly one:
+    filling every spec in from ``self.user`` would produce identical logins and
+    identical bytes on disk, while quietly putting the shared account back into
+    every request body and undoing the 2026-08-09 sync. ABSENCE of the key for
+    the non-overriding host is the contract — not an empty string, not a null.
+    """
+    fake = FakeRequests({"files": [], "failures": []})
+    monkeypatch.setattr(proxy, "requests", fake)
+    proxy.FtpFleetDownloader(user="hitachi", password="hid").download(
+        [direct.HostSpec("shared"), direct.HostSpec("other", user="amat", password="x")]
+    )
+    body = fake.posts[0]["json"]
+    shared = next(e for e in body["specs"] if e["host"] == "shared")
+    assert "user" not in shared and "password" not in shared
+    assert "hid" not in repr(body), "the fleet password leaked"
+
+
 @pytest.mark.parametrize(
     "method,path",
     [("download", "/download_sknn_v3"), ("list_dirs", "/list_dirs_sknn_v3"),
