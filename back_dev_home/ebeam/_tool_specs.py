@@ -129,10 +129,12 @@ def model_to_tool_type(eqp_model_cd: str) -> ToolType | None:
     """Classify a model code, or None when it belongs to no known family.
 
     Its frontend counterpart is `classifyToolType()` in
-    front-dev-home/app/utils/toolType.ts. The two must agree, but nothing
-    enforces that yet -- the shared __fixtures__/tool_type_cases.json contract
-    test arrives with Task 9 of the Phase 0 plan, and until then the TS side
-    still returns the hyphenated 'verity-sem'.
+    front-dev-home/app/utils/toolType.ts. The two must agree, and it is
+    enforced: both read the same `back_dev_home/ebeam/__fixtures__/
+    tool_type_cases.json`, via `back_dev_home/ebeam/tests/
+    test_tool_type_parity.py` on this side and `front-dev-home/app/utils/
+    toolTypeParity.test.ts` on the frontend side. Add a case there, not just
+    a prefix here, when a new series shows up.
 
     None now means genuinely unknown. It used to double as "an AMAT tool",
     and callers that wanted "CD/HV only" wrote `is not None` -- those must

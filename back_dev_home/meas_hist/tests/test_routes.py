@@ -34,6 +34,16 @@ def test_absent_tool_type_still_means_everything(client, path):
     assert client.get(path).status_code == 200
 
 
+@pytest.mark.parametrize("path", [
+    "/api/meas-hist",
+    "/api/meas-hist/search",
+    "/api/meas-hist/facets",
+])
+def test_empty_tool_type_still_means_everything(client, path):
+    """`tool_type=` (파라미터는 있으나 값이 빈 문자열)도 미지정과 같은 '전체'다."""
+    assert client.get(f"{path}?tool_type=").status_code == 200
+
+
 def test_known_tool_types_are_accepted(client):
     for value in ("cd-sem", "hv-sem"):
         assert client.get(f"/api/meas-hist?tool_type={value}").status_code == 200

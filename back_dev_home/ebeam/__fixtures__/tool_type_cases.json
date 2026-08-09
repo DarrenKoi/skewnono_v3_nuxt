@@ -1,0 +1,20 @@
+{
+  "_comment": "프론트 classifyToolType 과 백엔드 model_to_tool_type 이 함께 읽는 유일한 계약. 한쪽만 고치면 양쪽 테스트 중 하나가 깨진다.",
+  "cases": [
+    { "model": "CG6300", "expected": "cd-sem" },
+    { "model": "CG6380", "expected": "cd-sem" },
+    { "model": "GT2000", "expected": "cd-sem" },
+    { "model": "GT2000S", "expected": "cd-sem" },
+    { "model": "TP4000", "expected": "hv-sem" },
+    { "model": "TP3500", "expected": "hv-sem" },
+    { "model": "VERITYSEM_4", "expected": "veritysem" },
+    { "model": "VeritySEM_5", "expected": "veritysem" },
+    { "model": "VERITY_SEM_5", "expected": "veritysem" },
+    { "model": "verity_sem_4", "expected": "veritysem" },
+    { "model": "PROVISION_10", "expected": "provision" },
+    { "model": "provision_20", "expected": "provision" },
+    { "model": "  CG6300  ", "expected": "cd-sem" },
+    { "model": "ZZ9000", "expected": null },
+    { "model": "", "expected": null }
+  ]
+}

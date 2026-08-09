@@ -48,9 +48,12 @@ here:
   "On"/"Off". This mock emits the normalized form directly. Pending tools
   have no `available` at all.
 * the fleet carries no `tool_type` column — it is derived from `eqp_model_cd`.
-  Note the two classifiers disagree: backend `_tool_specs.model_to_tool_type`
-  returns None for AMAT models, while frontend `classifyToolType` resolves
-  all four tool types. The 미연결 screen uses the frontend one.
+  Backend `_tool_specs.model_to_tool_type` and frontend `classifyToolType`
+  both resolve all four tool types (cd-sem/hv-sem/veritysem/provision) and
+  are kept in agreement by a shared fixture (see `_tool_specs.py`). CD/HV
+  scoped screens filter to `SEM_TOOL_TYPES` membership, not a `None` check —
+  do not reintroduce `model_to_tool_type(...) is not None` as a stand-in for
+  that filter, since a resolved AMAT tool would then wrongly pass it.
 
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
@@ -84,12 +87,12 @@ CDSEM_EQP_PREFIXES = ["ECXDX", "ECDX", "HCDX"]
 HVSEM_MODELS = ["TP3000", "TP3500", "TP4000", "TP4500"]
 HVSEM_EQP_PREFIXES = ["PCD", "MCD", "ACD", "VCD"]
 
-# AMAT tools, deferred to 2027. They belong in the inventory but are NOT
-# CD/HV-SEM, so backend `model_to_tool_type()` returns None and the
-# tool-scoped ebeam views filter them out. The 미연결 screen is the
-# exception: it groups by the FRONTEND classifier, which resolves these to
-# 'verity-sem' / 'provision', and shows them under their own filter chip —
-# their firewall requests get filed too, just not this year. Kept rare here
+# AMAT tools, deferred to 2027. They belong in the inventory and both
+# classifiers resolve them (to 'veritysem' / 'provision'), but they are NOT
+# CD/HV-SEM, so the tool-scoped ebeam views (which filter by SEM_TOOL_TYPES
+# membership) filter them out. The 미연결 screen is the exception: it groups
+# by tool type too, but shows AMAT under its own filter chip — their
+# firewall requests get filed too, just not this year. Kept rare here
 # because at the old ~50% they crowded the CD/HV-SEM pages down to half a
 # fleet. The prefix pool is unverified; nothing classifies by prefix (it only
 # builds eqp_ids), so it is cosmetic.

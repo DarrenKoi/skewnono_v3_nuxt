@@ -545,20 +545,35 @@ def test_no_two_endpoints_share_an_api_path():
     assert len(paths) == len(set(paths))
 
 
+
+# __fixtures__ dirs that are NOT captured HTTP-endpoint snapshots, so an
+# absent ENDPOINTS entry does not mean a feature slipped past the shape
+# guard unnoticed -- there is no endpoint to capture in the first place.
+# `back_dev_home/ebeam/__fixtures__/tool_type_cases.json` is a hand-written
+# contract consumed directly by `back_dev_home/ebeam/tests/
+# test_tool_type_parity.py` and `front-dev-home/app/utils/
+# toolTypeParity.test.ts` (pytest and node --test reading the same JSON), not
+# a mock-server response. Add to this set only for the same reason: a
+# __fixtures__ dir with nothing `capture_fixtures.py` could ever produce.
+NON_ENDPOINT_FIXTURE_DIRS: frozenset[str] = frozenset({"ebeam"})
+
+
 def test_no_feature_with_fixtures_is_exempt_from_the_shape_guard():
     """A feature with frozen fixtures but no ENDPOINTS entry is invisible to
     check_contract — it looks covered and is not.
 
     pm_planning and skew were exactly that until their endpoints were added;
     both need a required fab_name, which is why they were easy to skip. If this
-    fails, add the endpoint to ENDPOINTS rather than relaxing the assertion.
+    fails, add the endpoint to ENDPOINTS rather than relaxing the assertion
+    -- unless the new fixture isn't an endpoint snapshot at all, in which case
+    it belongs in NON_ENDPOINT_FIXTURE_DIRS above, not here.
     """
     listed = {feature for feature, _n, _p in capture_fixtures.ENDPOINTS}
     with_fixtures = {
         str(d.parent.relative_to(BACKEND)) for d in BACKEND.rglob("__fixtures__")
     }
 
-    assert sorted(with_fixtures - listed) == []
+    assert sorted(with_fixtures - listed - NON_ENDPOINT_FIXTURE_DIRS) == []
 
 
 def test_every_listed_api_path_starts_at_the_api_prefix():
