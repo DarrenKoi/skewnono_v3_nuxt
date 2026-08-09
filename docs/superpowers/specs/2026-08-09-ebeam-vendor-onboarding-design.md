@@ -88,7 +88,7 @@ tool_type 도메인 확장에는 정면으로 영향을 받습니다(§5 참조)
 | 개명 시점 | 즉시 실행 |
 | AMAT tool_type | `veritysem`, `provision` (하이픈 없음) |
 | `veritysem` 적용 범위 | 백엔드 슬러그 · tool_type · 프론트 라우트 · 활동 로그 슬러그 전부 |
-| 어댑터 미작성 시 | 사무실 모드에서 **501 명시적 거절** (mock 폴백 금지) |
+| 어댑터 미작성 시 | 사무실 모드에서 **501 명시적 거절** (mock 폴백 금지). 501 은 예외 타입이 정합니다 — §4.5 |
 | 결과물 | `docs/back-end/vendor-onboarding.md` + `.claude/skills/add-vendor/` |
 
 ## 4. 설계 1 — 레이아웃
@@ -194,7 +194,7 @@ CD-SEM 과 HV-SEM 이 마침 겹치는 부분이 많아 하나의 어댑터로 �
 def _adapter(name: str):
     """providers/<adapter>/office.py 를 import 합니다.
 
-    없으면 501 을 발생시킵니다. hardware 의 _tab() 은 mock 으로 폴백하지만,
+    없으면 AdapterNotWired 를 발생시킵니다. hardware 의 _tab() 은 mock 으로 폴백하지만,
     탭은 원래 존재하는 것이고 미완인 기간이 짧습니다. 신규 계열은 어댑터가
     없는 기간이 몇 달 단위이므로, 같은 폴백을 쓰면 사무실에서 조작된 mock
     데이터를 진짜처럼 몇 달간 보여주게 됩니다.
@@ -210,8 +210,22 @@ def _adapter(name: str):
     except ModuleNotFoundError as exc:
         if exc.name != module:
             raise  # 어댑터 내부의 진짜 의존성 누락
-    raise AdapterNotWired(name)
+    raise AdapterNotWired(_FEATURE, name)
 ```
+
+**501 은 `raise` 문이 정하는 것이 아니라 예외의 기반 클래스가 정합니다.**
+`back_dev_home/__init__.py` 의 JSON 에러 핸들러는 `HTTPException` 만 그
+상태 코드로 내보내고, **정확히** `RuntimeError` 인 것만 503, 그 하위
+클래스(주석이 `NotImplementedError` 를 명시합니다)는 500 으로 처리합니다.
+따라서 `AdapterNotWired` 는 `werkzeug.exceptions.NotImplemented` 를
+상속해야 하고, 맨 `NotImplementedError` 를 던지면 501 이 아니라 **500** 이
+되어 "미배선" 이라는 정보가 사라집니다.
+
+인자도 두 개입니다(`feature`, `family`). `HTTPException` 은 첫 인자를
+`description` 으로 받아 본문에 그대로 싣기 때문에, `AdapterNotWired(name)`
+로 던지면 501 본문이 `"veritysem"` 한 단어가 됩니다. 정의 위치와 전문은
+[`docs/back-end/vendor-onboarding.md`](../../back-end/vendor-onboarding.md)
+§3.4~§3.5 가 기준입니다.
 
 `exc.name` 가드는 그대로 유지합니다. "아직 만들지 않은 어댑터"와 "만들었는데
 import 가 깨진 어댑터"를 구분하는 것이 이 패턴의 핵심이며, 이 구분이 없으면
@@ -326,7 +340,7 @@ feature 추가는 Phase 1 의 반복이 됩니다.
 | 2 | 스키마 기록 | `docs/datatables/<source>.txt` | 출처 표기 필수 — `office 확인 YYYY-MM-DD` / `user-confirmed` / `OFFICE-VERIFY` |
 | 3 | mock 작성 | `providers/<adapter>/mock.py` | `sem_list` 의 `vendor_nm='AMAT'` row 에서 **파생**합니다. 독립 생성 금지 |
 | 4 | 템플릿 작성 | `providers/<adapter>/office_example.py` | 추적되는 템플릿. 사무실에서 `cp` 할 대상 |
-| 5 | 디스패처 배선 | `providers/{mock,office_example}.py` 의 `_adapter()` | 폴백 대신 501. `exc.name` 가드 유지 |
+| 5 | 디스패처 배선 | `providers/{mock,office_example}.py` 의 `_adapter()` | 폴백 대신 `AdapterNotWired`(= `werkzeug.exceptions.NotImplemented` 상속 → 501). `exc.name` 가드 유지 |
 | 6 | 문서 갱신 | `<feature>/MIGRATION.md` | 엔드포인트 · 계약 · mock 동작 · 오피스 소스 4항목 |
 | 7 | 테스트 | `tests/test_contract.py`, `test_office_template.py` | 어댑터를 파라미터로 추가 |
 | 8 | 사무실 연결 | `cp office_example.py office.py` | 이 복사가 곧 스위치입니다. `/api/health/providers` 로 확인 |
@@ -335,13 +349,21 @@ feature 추가는 Phase 1 의 반복이 됩니다.
 
 1. **명부는 하나입니다.** 어떤 벤더의 어떤 feature 든 장비 identity 는
    `sem_list` 에서만 옵니다. `eqp_id` 를 파싱해 벤더나 계열을 판정하는 코드는
-   금지입니다. `_tool_specs.py` 가 기록한 대로, prefix 를 분류기로 쓴 결과
-   실장비 8대가 조용히 사라진 사고가 있었습니다.
+   금지입니다. `_tool_specs.py` 가 기록한 대로, 사고의 원인은 prefix 가 아니라
+   **`eqp_models` 목록**이었습니다 — 그 목록은 mock 이 그럴듯한 행을 지어내려고
+   만든 재료인데 그것으로 실장비를 분류했고, 목록에 없던 실장비 8대가 두 탭에서
+   조용히 사라졌습니다(2026-07-24). 같은 파일이 `eqp_prefixes` 도 분류기가 아님을
+   명시합니다(user-confirmed 2026-07-22): `MCD` 하나가 CD-SEM · HV-SEM ·
+   VeritySEM · Provision 에 모두 걸칩니다. 분류는 **모델 코드의 계열 접두사**로
+   하고, 장비 identity 는 `sem_list` 행에서 옵니다.
 2. **사실은 두 곳에 기록합니다.** 사무실 DB 에 대해 새로 알게 된 것은
    `docs/datatables/*.txt` 와 해당 `mock.py` docstring 양쪽에 적습니다.
    한쪽만 갱신하면 다음 홈 세션이 그것을 반박합니다.
 3. **없는 것은 없다고 말합니다.** 어댑터 미작성은 빈 배열도 mock 도 아닌
-   501 입니다.
+   501 입니다(`AdapterNotWired`, §4.5). 이는 Phase 1 작업이며 현재 저장소에는
+   정의도 사용처도 없습니다. 지금 CD/HV 전용 라우트가 AMAT 슬러그에 답하는
+   것은 `SEM_TOOL_SLUGS` 검증에 의한 **400** 이고, 이는 기존 오류 계약 그대로
+   입니다.
 
 ## 7. 결과물
 
