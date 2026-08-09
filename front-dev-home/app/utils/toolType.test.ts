@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyToolType, toolSlug, TOOL_TYPES, SEM_TOOL_TYPES } from './toolType.ts'
+import { classifyToolType, toolSlug, TOOL_TYPES, SEM_TOOL_TYPES, otherSemFamily } from './toolType.ts'
 
 test('classifyToolType recognizes both VeritySEM prefixes case-insensitively', () => {
   for (const model of [
@@ -38,4 +38,15 @@ test('toolSlug maps every tool type to its backend slug', () => {
 
 test('SEM_TOOL_TYPES names the CD/HV-only scope explicitly', () => {
   assert.deepEqual([...SEM_TOOL_TYPES], ['cd-sem', 'hv-sem'])
+})
+
+test('otherSemFamily pairs CD-SEM and HV-SEM', () => {
+  assert.equal(otherSemFamily('cd-sem'), 'hv-sem')
+  assert.equal(otherSemFamily('hv-sem'), 'cd-sem')
+})
+
+test('otherSemFamily has no answer outside the SEM pair', () => {
+  // 삼항으로 짜면 veritysem 이 조용히 cd-sem 이 되어 엉뚱한 계열을 붙인다.
+  assert.equal(otherSemFamily('veritysem'), null)
+  assert.equal(otherSemFamily('provision'), null)
 })

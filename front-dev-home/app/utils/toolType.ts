@@ -38,3 +38,16 @@ export const classifyToolType = (eqpModelCd: string): ToolType | null => {
   if (model.startsWith('PROVISION')) return 'provision'
   return null
 }
+
+/**
+ * CD-SEM ↔ HV-SEM 의 짝. 그 밖에는 짝이 없으므로 null 입니다.
+ *
+ * skewvoir 의 "다른 SEM 계열 이력도 함께 조회" 는 두 계열만 있을 때 성립하는
+ * 개념입니다. 삼항(`x === 'cd-sem' ? 'hv-sem' : 'cd-sem'`)으로 쓰면 AMAT 계열이
+ * 조용히 'cd-sem' 이 되어 엉뚱한 계열의 데이터를 나란히 그립니다.
+ */
+export const otherSemFamily = (toolType: ToolType): ToolType | null => {
+  if (toolType === 'cd-sem') return 'hv-sem'
+  if (toolType === 'hv-sem') return 'cd-sem'
+  return null
+}
