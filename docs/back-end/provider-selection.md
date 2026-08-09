@@ -80,3 +80,28 @@ python -m scripts.sync_office_adapters <feature>
 | `msr_file`, `msr_image` | FTP / MinIO 핸들러 |
 
 해당 피처는 각자의 `MIGRATION.md`를 확인합니다.
+
+## 7. 피처 사이의 provider 의존
+
+피처는 서로 독립적으로 해석되지만, 일부 office adapter는 **다른 피처의
+dispatcher를 통해 그 피처의 데이터를 읽습니다.** 이 경우 두 피처의 provider가
+같아야 합니다.
+
+| 피처 | 의존 대상 | 이유 |
+| --- | --- | --- |
+| `storage` | `sem_list` | office adapter가 모든 행을 `eqp_ip`로 live sem_list와 조인합니다 |
+
+`storage=office` + `sem_list=mock` 조합은 **오류를 내지 않습니다.** 조인 양쪽의
+`eqp_ip`가 서로 다른 출처라 한 건도 매칭되지 않고, 스토리지 표가 200 응답과 함께
+빈 채로 렌더링됩니다. 로그에도 아무것도 남지 않습니다.
+
+이 조합은 환경 변수 없이도 발생합니다. 사무실에서 `storage`의 adapter만 `cp`하고
+`sem_list`의 것을 빠뜨리면, presence 감지가 각각을 독립적으로 해석하여 정확히 이
+상태가 됩니다.
+
+그래서 `_runtime/data_provider.py`의 `_OFFICE_DEPENDENCIES` 표가 이 쌍을 선언하고,
+`validate_env()`가 **해석된 결과**를 기준으로 검사하여 부팅을 거부합니다. 에러
+메시지는 어느 쌍이 어긋났는지와 `cp` 명령을 함께 출력합니다.
+
+규칙이 adapter가 아니라 이 표에 있는 이유는 `office.py`가 gitignore 대상이기
+때문입니다. adapter 안에만 있는 규칙은 기계 한 대에만 존재하는 규칙입니다.

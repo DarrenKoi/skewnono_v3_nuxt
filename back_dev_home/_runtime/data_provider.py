@@ -42,6 +42,23 @@ _LAZY_SUB_PROVIDER_ENVS = frozenset({
     "SKEWNONO_CHAT_SCOPE_PROVIDER",
 })
 
+# Features whose OFFICE adapter reads another feature's data through that
+# feature's own dispatcher — so the two must resolve to the same provider.
+#
+# storage is the one case today: its office.py joins every row against the live
+# ``sem_list`` by ``eqp_ip``, because the storage collection pipeline writes
+# fac-level fab names (``M16``) that the sidebar's fab_name filter (``M16A``)
+# never matches. With storage=office and sem_list=mock the two sides of that
+# join come from different universes: no IP matches, every row falls back, and
+# the 스토리지 table renders EMPTY behind a 200 with nothing in the log.
+#
+# Declared here rather than checked inside the adapter because office.py is a
+# gitignored copy — a rule that lives only there is a rule that ships to
+# exactly one machine.
+_OFFICE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    "storage": ("sem_list",),
+}
+
 
 class FeatureResolution(NamedTuple):
     """One row of the boot log and of /api/health/providers."""
@@ -175,6 +192,49 @@ def resolve_all() -> list[FeatureResolution]:
     return [_resolve(slug, mode) for slug in sorted(features())]
 
 
+def _mismatched_office_dependency(
+    resolved: dict[str, DataProvider],
+) -> RuntimeError | None:
+    """The first office feature whose declared dependency is still on mock.
+
+    Checked against what actually RESOLVED, not against the environment: the
+    dangerous pairing is reachable with no env var at all. At the office,
+    ``cp``ing storage's adapter without sem_list's gives storage=office (its
+    office.py exists) and sem_list=mock (its office.py does not) — presence
+    detection resolves each independently, exactly as designed, and the join
+    silently empties.
+    """
+    for feature, dependencies in sorted(_OFFICE_DEPENDENCIES.items()):
+        if resolved.get(feature) != "office":
+            continue
+        for dependency in dependencies:
+            if resolved.get(dependency) == "office":
+                continue
+            known = features()
+            if dependency not in known:
+                # A declared dependency that is not a feature is a typo in the
+                # table above, not a deployment mistake — say so plainly rather
+                # than printing a cp command for a directory that isn't there.
+                return RuntimeError(
+                    f"_OFFICE_DEPENDENCIES names {dependency!r} as a "
+                    f"dependency of {feature}, but no such feature exists. "
+                    f"Known features: {', '.join(sorted(known))}."
+                )
+            directory = repo_path(known[dependency])
+            return RuntimeError(
+                f"{feature} resolves to 'office' but {dependency} resolves to "
+                f"'{resolved.get(dependency)}'. {feature}'s office adapter "
+                f"joins against {dependency}'s live data, so this pairing "
+                f"serves an EMPTY table behind a 200 rather than an error.\n"
+                f"Put {dependency} on office too:\n"
+                f"  cp {directory}/providers/office_example.py "
+                f"{directory}/providers/office.py\n"
+                f"Or put {feature} back on mock with "
+                f"{_feature_env_name(feature)}=mock."
+            )
+    return None
+
+
 def validate_env() -> None:
     """Refuse to start when an explicit ``=office`` cannot be honored.
 
@@ -186,6 +246,12 @@ def validate_env() -> None:
     ``_resolve`` enforces the same rule per feature; this sweeps every
     variable up front so a misconfigured feature fails at boot rather than
     when someone first opens its page.
+
+    Then the same principle one step out: a feature can be perfectly
+    configured on its own and still be unable to answer honestly because a
+    feature it JOINS AGAINST is on mock. Those pairings
+    (``_OFFICE_DEPENDENCIES``) are checked against the resolved table, after
+    the per-variable sweep, so the more specific error wins when both apply.
     """
     ready = office_ready()
     for name in sorted(os.environ):
@@ -208,3 +274,9 @@ def validate_env() -> None:
         slug = name[len(_PREFIX):-len(_SUFFIX)].lower()
         if slug not in ready:
             raise _unhonorable(slug, name)
+
+    mismatch = _mismatched_office_dependency(
+        {row.feature: row.provider for row in resolve_all()}
+    )
+    if mismatch is not None:
+        raise mismatch

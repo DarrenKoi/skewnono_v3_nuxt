@@ -69,6 +69,13 @@
   appear there, not just R3.
 - Notes: an empty result (`[]`) is valid — a tool type with no matching
   sem_list entries returns no rows, not an error.
+- **This adapter cannot run against a mock sem_list.** The join above is what
+  makes that pairing dangerous: mock IPs never match office IPs, so every row
+  falls back and the table renders empty behind a 200, with nothing in the
+  log. `_OFFICE_DEPENDENCIES` in `_runtime/data_provider.py` declares the pair
+  and `validate_env()` now refuses to boot on it — so at the office, `cp`
+  sem_list's adapter too, not just this one. See
+  `docs/back-end/provider-selection.md` §7.
 
 ## Endpoint: GET /api/<tool_slug>/ppid-unavailable
 

@@ -282,3 +282,64 @@ def test_validate_env_rejects_invalid_lazy_chat_selector(
 
     with pytest.raises(RuntimeError, match=env_name):
         data_provider.validate_env()
+
+
+# ------------------------------------------- cross-feature office dependencies
+#
+# storage's office adapter joins every row against the live sem_list by
+# eqp_ip. Pairing it with a mock sem_list is the one misconfiguration that
+# produces no error at all: the join matches nothing, and the table renders
+# empty behind a 200.
+
+def _storage_only_tree(fake_tree):
+    """storage has an office adapter; sem_list does not — the cp-one-of-two slip."""
+    return fake_tree(
+        {
+            "sem_list": ["mock.py", "office_example.py"],
+            "ebeam/storage": ["mock.py", "office.py"],
+        }
+    )
+
+
+def test_validate_env_refuses_office_storage_against_a_mock_sem_list(
+    monkeypatch, fake_tree
+):
+    _storage_only_tree(fake_tree)
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+
+    with pytest.raises(RuntimeError) as exc:
+        data_provider.validate_env()
+
+    message = str(exc.value)
+    # Both sides named, so the message says which pairing is wrong...
+    assert "storage" in message
+    assert "sem_list" in message
+    # ...and carries the fix, the same shape as the missing-adapter error.
+    assert "cp back_dev_home/sem_list/providers/office_example.py" in message
+
+
+def test_forcing_sem_list_to_mock_is_refused_too(monkeypatch, wired):
+    """Both adapters present, but sem_list explicitly demoted — same hazard."""
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_SEM_LIST_PROVIDER", "mock")
+
+    with pytest.raises(RuntimeError, match="sem_list"):
+        data_provider.validate_env()
+
+
+def test_storage_on_mock_needs_no_office_sem_list(monkeypatch, fake_tree):
+    """The dependency is a property of the OFFICE adapter only.
+
+    A home instance runs storage's mock, which builds its own fleet — nothing
+    joins, so nothing can silently empty.
+    """
+    _storage_only_tree(fake_tree)
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
+
+    data_provider.validate_env()  # must not raise
+
+
+def test_both_on_office_is_the_supported_pairing(monkeypatch, wired):
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+
+    data_provider.validate_env()  # must not raise
