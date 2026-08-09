@@ -575,13 +575,17 @@ def test_no_feature_with_fixtures_is_exempt_from_the_shape_guard():
     which case it belongs in NON_ENDPOINT_FIXTURE_FILES above, not here.
     """
     listed = {feature for feature, _n, _p in capture_fixtures.ENDPOINTS}
-    fixture_files = {
-        f
+    with_fixtures = {
+        str(d.parent.relative_to(BACKEND))
         for d in BACKEND.rglob("__fixtures__")
-        for f in d.iterdir()
-        if f.is_file()
-    } - NON_ENDPOINT_FIXTURE_FILES
-    with_fixtures = {str(f.parent.parent.relative_to(BACKEND)) for f in fixture_files}
+        # rglob, not iterdir: a feature may nest its fixtures in a
+        # subdirectory (e.g. chat/__fixtures__/knowledge/*.json) with
+        # nothing directly under __fixtures__/ itself. iterdir() alone made
+        # such a feature invisible to this guard entirely.
+        if any(
+            f for f in d.rglob("*.json") if f not in NON_ENDPOINT_FIXTURE_FILES
+        )
+    }
 
     assert sorted(with_fixtures - listed) == []
 

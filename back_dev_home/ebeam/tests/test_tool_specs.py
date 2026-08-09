@@ -13,7 +13,7 @@ carried CG/GT/TP codes outside that list and vanished from the
 "PPID 미접속 장비" panel while the Redis hash had them all along.
 
 The rule is the vendor's series prefix (user-confirmed 2026-07-24), which is
-what `classifyToolType()` in `front-dev-home/app/composables/useSemListApi.ts`
+what `classifyToolType()` in `front-dev-home/app/utils/toolType.ts`
 has always used:
 
     CG*, GT* -> cd-sem      TP* -> hv-sem
