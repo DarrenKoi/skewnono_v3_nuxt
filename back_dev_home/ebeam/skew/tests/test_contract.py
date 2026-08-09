@@ -85,6 +85,24 @@ def test_skew_matrices_are_symmetric_with_a_zero_diagonal():
     _assert_matrix(payload["fleet_today"]["matrix"], "fleet_today.matrix")
 
 
+def test_the_payload_echoes_the_fab_it_was_asked_about():
+    # Provider-independent: the client fires one request per fab and files the
+    # response under the fab it asked for, so an adapter that echoed anything
+    # else renders one fab's matrix under another's heading.
+    #
+    # This is the fab_name end of the fab_name/fac_id split, and skew is now
+    # fab_name throughout (routes -> data -> contracts -> mock). storage is the
+    # precedent for why it must be the REQUESTED key: its upstream frame
+    # carried fac-level names (`M16` for `M16A`), so trusting the frame's own
+    # column emptied every fab but R3. Echoing the argument is what makes that
+    # class of mistake impossible here.
+    assert _payload()["fab_name"] == FAB_NAME
+    # Same law on the fallback path — an unknown fab still names itself rather
+    # than answering with a blank or a default fab.
+    unknown = data.get_skew_check(TOOL_SLUG, UNKNOWN_FAB, None)
+    assert unknown["fab_name"] == UNKNOWN_FAB
+
+
 def test_matrix_tools_are_drawn_from_the_advertised_roster():
     # `tools` is the fleet the UI labels the axes with. A matrix naming an
     # eqp_id outside it renders an unlabelled row wherever the data came from.
@@ -109,9 +127,6 @@ def test_mock_serves_a_populated_fixture_for_its_known_fab():
     assert payload["available"] is True
     assert payload["tools"], "the R3 fixture must advertise a fleet"
     assert payload["occupied_cells"], "the R3 fixture must advertise cells"
-    # Deliberately no assertion on the fab_name echo: skew still has a pending
-    # fab_name/fac_id cleanup, and pinning the echoed value here would cement
-    # whichever key the mock happens to use today.
 
 
 def test_mock_unknown_fab_is_available_false_not_an_error():
