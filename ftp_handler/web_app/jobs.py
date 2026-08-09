@@ -27,9 +27,9 @@ When you do NOT need this:
   ``BackgroundJobs`` when a request must KICK OFF a run and return before it
   finishes.
 
-    from ftp_handler.ftp_fleet_jobs import BackgroundJobs, create_jobs_blueprint
-    from ftp_handler.ftp_fleet_downloader import FtpFleetDownloader, save_to_dir
-    from ftp_handler.eqp_ftp_collect import build_host_specs
+    from ftp_handler.web_app import BackgroundJobs, create_jobs_blueprint
+    from ftp_handler.direct_downloader import FtpFleetDownloader, save_to_dir
+    from ftp_handler.direct_downloader import build_host_specs
 
     jobs = BackgroundJobs()                      # one fleet run at a time
 

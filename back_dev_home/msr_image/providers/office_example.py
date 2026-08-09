@@ -49,12 +49,58 @@ def _test_config() -> ImageConfig:
     return load_config({})
 
 
-def _downloader(cfg: ImageConfig) -> FtpFleetDownloader:
+# Per-image budget used to size a download job's host_timeout. Two RETRs per
+# image (the image itself and its cond sidecar) against a tool FTP serving
+# multi-MB TIFFs. OFFICE-VERIFY: a guess until a real warm job is timed.
+_SECONDS_PER_IMAGE = 5.0
+
+# Default ceiling on that scaling for the PROXY transport only. The proxy host's
+# uWSGI kills a request at harakiri=75s (ftp_handler/proxy/wsgi.ini), and one
+# request carries a BATCH of up to request_batch specs -- so a budget above
+# harakiri does not buy a longer download, it gets every spec in the batch
+# killed at once. Staying under it means a job too big for the proxy degrades
+# to ordinary per-host failures, which the frontend already retries per image.
+# Raise this together with harakiri (both are office-side), never alone.
+_PROXY_HOST_TIMEOUT_CAP = 60.0
+_VIA_PROXY = system() == "Windows"
+
+
+def _host_timeout(cfg: ImageConfig, images_per_connection: int = 1) -> float:
+    """How long one connection may run before the fleet gives up on it.
+
+    Leaving this at the library default was a live bug, not a tuning nit. The
+    default is 60s (45s through the proxy) no matter how much work the
+    connection was handed, so a warm job big enough to need longer was abandoned
+    MID-TRANSFER -- and an abandoned worker keeps running, so its ``on_file``
+    went on writing into the job registry and into the pairing state that
+    ``download_all`` flushes once ``download()`` has returned. ftp_handler now
+    gates the callback shut on abandonment, which stops the corruption; scaling
+    the budget here is what stops the abandonment.
+
+    ``ftp_host_timeout`` is the floor -- it covers a single fetch or a listing.
+    Past that the budget grows with the files actually queued on the connection.
+    Growing it does not weaken dead-tool detection: ``ftp_timeout`` bounds every
+    socket op, so an offline tool still fails in seconds either way.
+
+    The growth is capped, because the proxy transport has a hard ceiling its
+    uWSGI enforces (see ``_PROXY_HOST_TIMEOUT_CAP``). ``ftp_host_timeout_max``
+    overrides the cap on either transport; 0 means uncapped.
+    """
+    budget = max(cfg.ftp_host_timeout, _SECONDS_PER_IMAGE * max(1, images_per_connection))
+    cap = cfg.ftp_host_timeout_max or (_PROXY_HOST_TIMEOUT_CAP if _VIA_PROXY else 0.0)
+    # The floor wins over the cap: a cap below it would mean the operator asked
+    # for two contradictory things, and shrinking a single fetch's budget is not
+    # what a proxy-batch ceiling is for.
+    return max(cfg.ftp_host_timeout, min(budget, cap)) if cap else budget
+
+
+def _downloader(cfg: ImageConfig, images_per_connection: int = 1) -> FtpFleetDownloader:
     return FtpFleetDownloader(
         user=cfg.ftp_user,
         password=cfg.ftp_password,
         port=cfg.ftp_port,
         connect_timeout=cfg.ftp_timeout,
+        host_timeout=_host_timeout(cfg, images_per_connection),
     )
 
 
@@ -116,6 +162,8 @@ def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6,
     cfg = _config or load_config()
     n = max(1, min(concurrency, cfg.ftp_concurrency))
     chunks = [c for c in (names[i::n] for i in range(n)) if c]
+    # The busiest connection is what the per-host budget has to cover.
+    per_connection = max((len(c) for c in chunks), default=1)
 
     specs: list[HostSpec] = []
     name_of_image: dict[str, str] = {}
@@ -158,7 +206,7 @@ def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6,
             else:  # cond of a failed image; keep waiting for prev's own cond
                 pending[idx] = prev
 
-    report = _downloader(cfg).download(specs, on_file=stream)
+    report = _downloader(cfg, per_connection).download(specs, on_file=stream)
 
     for img, data in pending.values():  # last image per chunk, cond missing
         emit(img, data, None)

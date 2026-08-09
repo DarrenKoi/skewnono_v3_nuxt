@@ -93,6 +93,89 @@ def test_download_all_reports_each(monkeypatch):
     assert all(ok and err is None for _, ok, err in seen)
 
 
+def _last_downloader_kwargs(monkeypatch, run) -> dict:
+    FakeFleet.instances.clear()
+    monkeypatch.setattr(office, "FtpFleetDownloader", FakeFleet)
+    run()
+    assert FakeFleet.instances, "the template never built a downloader"
+    return FakeFleet.instances[-1].kw
+
+
+def test_single_fetch_uses_the_configured_host_timeout_floor(monkeypatch):
+    cfg = office._test_config()
+    kw = _last_downloader_kwargs(
+        monkeypatch,
+        lambda: office.fetch_image(
+            ImageLocator("10.0.0.1", "ADI", "MSR_1", "shot03.tif"), _config=cfg
+        ),
+    )
+    assert kw["host_timeout"] == cfg.ftp_host_timeout
+
+
+def test_download_all_scales_host_timeout_with_files_per_connection(monkeypatch):
+    """A job big enough to outlive the library's flat 60s default used to be
+    abandoned mid-transfer, and an abandoned worker keeps calling back. The
+    budget has to follow the work queued on the busiest connection."""
+    cfg = office._test_config()
+    names = [f"shot{i:03d}.jpeg" for i in range(120)]  # 20 per connection at n=6
+    kw = _last_downloader_kwargs(
+        monkeypatch,
+        lambda: office.download_all(
+            "10.0.0.1", "ADI", "MSR_1", names,
+            on_file=lambda n, f, e: None, concurrency=6, _config=cfg,
+        ),
+    )
+    assert kw["host_timeout"] == office._SECONDS_PER_IMAGE * 20
+    assert kw["host_timeout"] > cfg.ftp_host_timeout
+
+
+def test_the_proxy_transport_caps_the_budget_under_uwsgi_harakiri(monkeypatch):
+    """One proxy request carries a BATCH of specs and its uWSGI kills the whole
+    request at harakiri=75s (ftp_handler/proxy/wsgi.ini). A budget above that
+    does not buy a longer download — it gets every spec in the batch killed at
+    once, which is worse than the single-host timeout it was meant to avoid."""
+    monkeypatch.setattr(office, "_VIA_PROXY", True)
+    cfg = office._test_config()
+    assert office._host_timeout(cfg, 200) == office._PROXY_HOST_TIMEOUT_CAP
+    assert office._PROXY_HOST_TIMEOUT_CAP < 75.0, "must stay under wsgi.ini harakiri"
+
+
+def test_the_direct_transport_is_uncapped(monkeypatch):
+    """The cloud deploy talks to the tools directly — no uWSGI request wrapping
+    the transfer, so nothing kills a long connection from outside."""
+    monkeypatch.setattr(office, "_VIA_PROXY", False)
+    cfg = office._test_config()
+    assert office._host_timeout(cfg, 200) == office._SECONDS_PER_IMAGE * 200
+
+
+def test_an_explicit_max_overrides_the_transport_default(monkeypatch):
+    monkeypatch.setattr(office, "_VIA_PROXY", True)
+    cfg = office.load_config({"SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX": "300"})
+    assert office._host_timeout(cfg, 200) == 300.0
+
+
+def test_a_cap_below_the_floor_never_shrinks_a_single_fetch(monkeypatch):
+    """Contradictory settings must not make one image's budget smaller than the
+    floor an operator explicitly configured for single fetches and listings."""
+    monkeypatch.setattr(office, "_VIA_PROXY", True)
+    cfg = office.load_config(
+        {"SKEWNONO_TOOL_FTP_HOST_TIMEOUT": "90", "SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX": "30"}
+    )
+    assert office._host_timeout(cfg, 1) == 90.0
+
+
+def test_small_job_keeps_the_floor_rather_than_shrinking_below_it(monkeypatch):
+    cfg = office._test_config()
+    kw = _last_downloader_kwargs(
+        monkeypatch,
+        lambda: office.download_all(
+            "10.0.0.1", "ADI", "MSR_1", ["a.jpeg", "b.jpeg"],
+            on_file=lambda n, f, e: None, concurrency=6, _config=cfg,
+        ),
+    )
+    assert kw["host_timeout"] == cfg.ftp_host_timeout
+
+
 def test_download_all_missing_cond_still_reports_image(monkeypatch):
     import ftplib
 

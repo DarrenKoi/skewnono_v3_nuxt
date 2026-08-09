@@ -64,12 +64,19 @@ def test_a_trailing_slash_on_the_directory_never_doubles_the_separator():
     assert _normalize_listing(["a.dat"], "/MEAS/") == ["/MEAS/a.dat"]
 
 
-def test_a_relative_multi_segment_name_is_reduced_to_its_basename():
-    """``sub/d.dat`` does not start with ``/`` so only the basename survives
-    and it is re-anchored on the listed directory — the subfolder is LOST.
-    Pinned as a real limitation: NLST recursion is not supported here, and a
-    caller that needs it must list the subfolder explicitly."""
-    assert _normalize_listing(["sub/d.dat"], "/MEAS") == ["/MEAS/d.dat"]
+def test_a_relative_multi_segment_name_keeps_its_subfolder():
+    """``sub/d.dat`` is re-anchored on the listed directory WITH its subfolder
+    intact. Until the 2026-08-09 upstream sync only the basename survived, so a
+    recursive NLST silently produced ``/MEAS/d.dat`` — a path that either 550s
+    or, worse, resolves to a different file that happens to share the name."""
+    assert _normalize_listing(["sub/d.dat"], "/MEAS") == ["/MEAS/sub/d.dat"]
+
+
+def test_a_relative_name_already_qualified_by_the_listed_dir_is_not_doubled():
+    """Some servers answer NLST with the full path minus its leading slash.
+    Re-anchoring that blindly would yield ``/MEAS/MEAS/d.dat``, so the
+    normalizer detects the case where the name already carries the root."""
+    assert _normalize_listing(["MEAS/d.dat"], "/MEAS") == ["/MEAS/d.dat"]
 
 
 def test_the_glob_matches_the_basename_not_the_whole_path():
@@ -565,6 +572,45 @@ def test_a_raising_on_file_sink_fails_only_that_file(fleet):
     assert report.failures[0].remote_path == "/x/a.dat"
 
 
+def test_on_file_cannot_fire_after_download_returns(monkeypatch):
+    """The property ``msr_image``'s office adapter depends on.
+
+    ``host_timeout`` abandons a host's FUTURE, but nothing can kill its thread —
+    ``shutdown(wait=False)`` just stops waiting. ``download_all`` then flushes
+    its leftover image/cond pairing state and finishes the job the moment
+    ``download()`` returns, so a straggling callback would mutate the dict being
+    iterated (``RuntimeError: dictionary changed size during iteration``, which
+    marks the whole warm job errored) or double-count a file into the registry
+    (``done > total``). The downloader gates each host's callback shut on
+    abandonment, and every gate before returning.
+    """
+    import threading
+
+    monkeypatch.setattr(direct, "FTP", FakeFTP)
+    released = threading.Event()
+    seen: list[str] = []
+    original = direct.FtpFleetDownloader._fetch_one
+
+    def stall_on_first(self, ftp, host, remote_path, on_file, files, failures):
+        if remote_path.endswith("a.dat"):
+            released.wait(2.0)
+        return original(self, ftp, host, remote_path, on_file, files, failures)
+
+    monkeypatch.setattr(direct.FtpFleetDownloader, "_fetch_one", stall_on_first)
+    fleet = direct.FtpFleetDownloader(user="u", password="p", host_timeout=0.05)
+    try:
+        report = fleet.download(
+            [direct.HostSpec("10.0.0.1", files=["/x/a.dat", "/x/c.dat", "/x/d.dat"])],
+            on_file=lambda h, p, d: seen.append(p),
+        )
+        assert report.ng == 1 and seen == []
+        released.set()
+        time.sleep(0.3)  # the abandoned thread runs on; it must stay silent
+    finally:
+        released.set()
+    assert seen == [], "a callback escaped after download() returned"
+
+
 def test_list_dirs_consults_listings_only_and_ignores_fixed_files(fleet):
     """You list to DISCOVER unknown paths; the fixed ones are already known,
     so echoing them back would double-count them on the follow-up download."""
@@ -833,15 +879,23 @@ def test_the_default_http_timeout_covers_a_whole_batch_worked_serially():
     assert client.http_timeout == 45.0 * 5 + 30.0
 
 
-def test_the_credentials_ride_in_the_request_body_to_the_proxy(monkeypatch):
-    """Documented, and load-bearing for a security review: the firewalled
-    client sends the FTP user/password to the proxy on every POST, so the
-    proxy channel is as sensitive as the credentials themselves."""
+def test_the_credentials_never_reach_the_request_body(monkeypatch):
+    """The FTP credentials do NOT cross the client→proxy hop.
+
+    They used to: every POST carried ``user``/``password`` in its JSON, and the
+    cloud deploy is http-only (no TLS to hide them) — so the shared equipment
+    account sat in plaintext in each request and in any proxy log that records
+    bodies. The 2026-08-09 upstream sync moved them to the proxy host's
+    ``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD`` environment. The client
+    constructor still ACCEPTS them so its signature matches the direct adapter
+    (the ``FleetTransport`` seam); they are simply not serialized.
+    """
     fake = FakeRequests({"files": [], "failures": []})
     monkeypatch.setattr(proxy, "requests", fake)
     proxy.FtpFleetDownloader(user="hitachi", password="hid").download([direct.HostSpec("h")])
     body = fake.posts[0]["json"]
-    assert body["user"] == "hitachi" and body["password"] == "hid"
+    assert "user" not in body and "password" not in body
+    assert "hid" not in repr(body), "the password leaked through some other key"
 
 
 @pytest.mark.parametrize(

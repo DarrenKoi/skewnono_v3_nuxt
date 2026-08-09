@@ -1,19 +1,20 @@
-"""HTTP-proxy FTP downloader — the client half, drop-in for ftp_fleet_downloader.
+"""HTTP-proxy FTP downloader — the client half, drop-in for the direct downloader.
 
 For a PC that CANNOT reach the equipment FTP servers directly (firewalled) but
-CAN reach the Flask proxy (``ftp_handler/ftp_flask_proxy.py``) on a firewall-free
-host. Exposes the SAME public names as ftp_fleet_downloader, so a call site
-swaps with one import line and nothing else changes. This downloader satisfies
-the ``FleetTransport`` seam declared in ftp_fleet_downloader (both ``download``
-and ``list_dirs``); a conformance test asserts both adapters keep matching it::
+CAN reach the Flask proxy (``ftp_handler/proxy/flask_proxy.py``) on a firewall-free
+host. Exposes the SAME public names as ``direct_downloader.fleet_downloader``, so a
+call site swaps with one import line and nothing else changes. This downloader
+satisfies the ``FleetTransport`` seam declared in ``fleet_downloader`` (both
+``download`` and ``list_dirs``); a conformance test asserts both adapters keep
+matching it::
 
     # direct FTP (no firewall in the way):
-    from ftp_fleet_downloader import FtpFleetDownloader, HostSpec, ListDir
+    from ftp_handler.direct_downloader import FtpFleetDownloader, HostSpec, ListDir
     # via the proxy (firewalled client):
-    from ftp_flask_downloader import FtpFleetDownloader, HostSpec, ListDir
+    from ftp_handler.proxy import FtpFleetDownloader, HostSpec, ListDir
 
 The dataclasses (HostSpec, ListDir, DownloadReport, FileResult, HostFailure,
-HostListing, ListingReport) are re-exported from ftp_fleet_downloader, so
+HostListing, ListingReport) are re-exported from ``direct_downloader.fleet_downloader``, so
 report.grouped(), report.failure_ratio, to_specs(), and your on_file handler
 behave identically under either transport. Within one consistent import context
 they are the *same class objects*; the transport itself is duck-typed (specs are
@@ -30,6 +31,10 @@ site swaps the import line and passes nothing transport-specific. Edit these at
 the top of this file for your deployment:
     PROXY_URL    e.g. "https://proxy.host:8080"   (default the SEM fileloader webapp)
     PROXY_TOKEN  bearer-token string the proxy enforces, or None for no auth
+
+The proxy host reads the equipment FTP credentials from
+``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD``. They are never serialized
+into the client's HTTP request body.
 
 Run: pip install requests
 """
@@ -159,7 +164,7 @@ def _upload_spec_to_wire(spec: UploadSpec) -> dict:
 
 
 class FtpFleetDownloader:
-    """Same surface as ftp_fleet_downloader.FtpFleetDownloader, over HTTP.
+    """Same surface as direct_downloader.FtpFleetDownloader, over HTTP.
 
     The proxy *location* (``PROXY_URL``) and *auth* (``PROXY_TOKEN``) are module
     constants at the top of this file, NOT constructor args — they're deployment
@@ -316,8 +321,6 @@ class FtpFleetDownloader:
 
     def _tuning(self) -> dict:
         return {
-            "user": self.user,
-            "password": self.password,
             "port": self.port,
             "max_concurrency": self.max_concurrency,
             "connect_timeout": self.connect_timeout,
@@ -338,7 +341,7 @@ class FtpFleetDownloader:
         """POST ``payload`` to ``path`` and return the parsed JSON, or raise.
 
         Paths carry the ``_sknn_v3`` suffix to avoid collisions with routes
-        already mounted on the host Flask app — must match ftp_flask_proxy.py.
+        already mounted on the host Flask app — must match flask_proxy.py.
         """
         resp = requests.post(
             f"{self.proxy_url}{path}",
@@ -496,7 +499,7 @@ def download_fleet(
     on_file: OnFile | None = None,
     **kwargs: object,
 ) -> DownloadReport:
-    """One-call wrapper, mirroring ftp_fleet_downloader.download_fleet."""
+    """One-call wrapper, mirroring direct_downloader.download_fleet."""
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.download(specs, on_file=on_file)
 
@@ -508,7 +511,7 @@ def list_fleet(
     password: str,
     **kwargs: object,
 ) -> ListingReport:
-    """One-call wrapper, mirroring ftp_fleet_downloader.list_fleet."""
+    """One-call wrapper, mirroring direct_downloader.list_fleet."""
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.list_dirs(specs)
 
@@ -520,7 +523,7 @@ def size_fleet(
     password: str,
     **kwargs: object,
 ) -> SizingReport:
-    """One-call wrapper, mirroring ftp_fleet_downloader.size_fleet."""
+    """One-call wrapper, mirroring direct_downloader.size_fleet."""
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.size_dirs(specs)
 
@@ -532,6 +535,6 @@ def upload_fleet(
     password: str,
     **kwargs: object,
 ) -> UploadReport:
-    """One-call wrapper, mirroring ftp_fleet_downloader.upload_fleet."""
+    """One-call wrapper, mirroring direct_downloader.upload_fleet."""
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.upload(specs)

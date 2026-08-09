@@ -25,6 +25,25 @@ def _normalize_listing(
     for name in names:
         base = name.rsplit("/", 1)[-1]
         if pattern is None or fnmatch.fnmatch(base, pattern):
-            full = name if name.startswith("/") else f"{remote_dir.rstrip('/')}/{base}"
+            if name.startswith("/"):
+                full = name
+            else:
+                remote_root = remote_dir.rstrip("/")
+                relative_name = name.lstrip("/")
+                relative_root = remote_root.lstrip("/")
+                if (
+                    relative_root
+                    and (
+                        relative_name == relative_root
+                        or relative_name.startswith(f"{relative_root}/")
+                    )
+                ):
+                    full = (
+                        f"/{relative_name}"
+                        if remote_root.startswith("/")
+                        else relative_name
+                    )
+                else:
+                    full = f"{remote_root}/{relative_name}"
             out.append(full)
     return out

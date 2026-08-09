@@ -267,14 +267,16 @@ app.register_blueprint(ftp_proxy_sknn_v3)   # adds /download_sknn_v3, /healthz_s
 **Or run it standalone** (on the firewall-free host):
 ```bash
 pip install flask
-# PowerShell: $env:FTP_PROXY_TOKEN="secret"
+# PowerShell:
+# $env:FTP_PROXY_FTP_USER="ftpuser"
+# $env:FTP_PROXY_FTP_PASSWORD="ftppass"
+# $env:FTP_PROXY_TOKEN="secret"
 python ftp_flask_proxy.py                  # serves 0.0.0.0:8080
 ```
 
 **Use the client** (on the firewalled PC):
 ```bash
 pip install requests
-# PowerShell: $env:FTP_PROXY_URL="https://proxy.host:8080"; $env:FTP_PROXY_TOKEN="secret"
 ```
 ```python
 dl = FtpFleetDownloader(user="ftpuser", password="ftppass", max_concurrency=48)
@@ -282,9 +284,11 @@ report = dl.download(specs)                 # same call as direct mode
 ```
 
 Notes:
-- **Security:** the FTP password and file bytes cross the HTTP hop — run the
-  proxy behind **HTTPS** and set `FTP_PROXY_TOKEN` (the proxy enforces
-  `Authorization: Bearer <token>`).
+- **Security:** equipment FTP credentials stay on the proxy host in
+  `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD`; they are not part of the
+  client POST body. File bytes still cross the HTTP hop, so run the proxy behind
+  **HTTPS** and set `FTP_PROXY_TOKEN` (the proxy enforces `Authorization:
+  Bearer <token>`).
 - **Seam-clean config:** proxy location/auth are module constants in
   `proxy_downloader.py` (`PROXY_URL`, `PROXY_TOKEN`), **not** constructor args —
   that keeps the client constructor signature identical to the direct

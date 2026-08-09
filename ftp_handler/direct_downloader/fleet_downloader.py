@@ -342,7 +342,7 @@ class FleetTransport(Protocol):
     """The interchange seam between the two FTP deployment paths.
 
     Two adapters satisfy it: the direct ``FtpFleetDownloader`` (this module,
-    real FTP) and the HTTP-proxy ``FtpFleetDownloader`` (``ftp_flask_downloader``,
+    real FTP) and the HTTP-proxy ``FtpFleetDownloader`` (``proxy.proxy_downloader``,
     same surface over HTTP). A call site swaps one import line between them and
     nothing else changes — that swap is the whole point of the seam.
 
@@ -362,6 +362,60 @@ class FleetTransport(Protocol):
     def size_dirs(self, specs: list[HostSpec]) -> SizingReport: ...
 
     def upload(self, specs: list[UploadSpec]) -> UploadReport: ...
+
+
+class _FileGate:
+    """A one-way gate around one host's ``on_file`` callback.
+
+    ``shutdown(wait=False)`` cannot kill a worker thread, so a host abandoned at
+    ``host_timeout`` keeps running — and, in streaming mode, keeps calling back
+    into caller state that ``download`` has already reported as failed. A caller
+    that reasonably assumes "download returned, so my callback is done" then
+    races its own results: mutating the dict it is iterating, or counting the
+    same file twice.
+
+    So each host gets a gate. ``download`` closes it when that host is abandoned
+    and closes every gate before returning. ``close`` takes the same lock
+    ``__call__`` holds, so it cannot return while a callback is mid-flight:
+    **once ``download`` returns, no ``on_file`` is running and none will start.**
+
+    That lock is deliberate and it has a cost: ``close`` waits out a callback
+    that is already running, so a slow sink (a stalled MinIO PUT) delays the
+    abandonment by up to one callback. The cheaper design — a bare flag, no lock
+    — only promises that no callback *starts* after close, which is not the
+    promise the caller needs: a callback already inside the flag check still
+    lands in the middle of the caller's cleanup, which is the exact corruption
+    this exists to prevent. Bound the wait with a timeout inside your sink if
+    that matters; a partial guarantee here would be worse than none, because it
+    reads like a guarantee.
+
+    Collect mode (``on_file=None``) needs no gate — an abandoned worker there
+    fills a ``files`` list that is discarded, touching nothing the caller holds.
+    """
+
+    __slots__ = ("_on_file", "_lock", "_closed")
+
+    def __init__(self, on_file: OnFile) -> None:
+        self._on_file = on_file
+        self._lock = threading.Lock()
+        self._closed = False
+
+    @property
+    def closed(self) -> bool:
+        # Read without the lock: the worker loop uses this only to stop early,
+        # and the gate itself is what makes the guarantee. Racing it costs at
+        # most one extra file fetched, never an escaped callback.
+        return self._closed
+
+    def __call__(self, host: str, remote_path: str, data: bytes) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            self._on_file(host, remote_path, data)
+
+    def close(self) -> None:
+        with self._lock:
+            self._closed = True
 
 
 class FtpFleetDownloader:
@@ -425,10 +479,25 @@ class FtpFleetDownloader:
         already runs its own asyncio loop. Pass ``on_file`` to stream-process
         each file and keep RAM bounded; omit it to collect all bytes into the
         report.
+
+        ``on_file`` never fires after this returns. A host abandoned at
+        ``host_timeout`` leaves a thread running that no API can kill, so each
+        host's callback goes through a ``_FileGate`` that is closed when that
+        host is abandoned and, unconditionally, before returning — see
+        ``_FileGate`` for why a caller cannot be left racing its own results.
         """
-        files, failures = self._run_fleet(
-            specs, lambda spec: self._host_worker(spec, on_file)
-        )
+        gates = [_FileGate(on_file) for _ in specs] if on_file is not None else None
+        try:
+            files, failures = self._run_fleet(
+                specs,
+                lambda spec, idx: self._host_worker(
+                    spec, gates[idx] if gates is not None else None
+                ),
+                on_abandon=(lambda idx: gates[idx].close()) if gates is not None else None,
+            )
+        finally:
+            for gate in gates or ():
+                gate.close()
         return DownloadReport(files=files, failures=failures)
 
     def list_dirs(self, specs: list[HostSpec]) -> ListingReport:
@@ -444,7 +513,9 @@ class FtpFleetDownloader:
         Same concurrency, timeout, per-host failure isolation, and
         event-loop-free safety as ``download``.
         """
-        listings, failures = self._run_fleet(specs, self._list_worker)
+        listings, failures = self._run_fleet(
+            specs, lambda spec, _idx: self._list_worker(spec)
+        )
         return ListingReport(listings=listings, failures=failures)
 
     def size_dirs(self, specs: list[HostSpec]) -> SizingReport:
@@ -464,7 +535,9 @@ class FtpFleetDownloader:
         A file whose ``SIZE`` fails or is unsupported is recorded in
         ``failures``, never counted as zero bytes.
         """
-        sizes, failures = self._run_fleet(specs, self._size_worker)
+        sizes, failures = self._run_fleet(
+            specs, lambda spec, _idx: self._size_worker(spec)
+        )
         return SizingReport(files=sizes, failures=failures)
 
     def upload(self, specs: list[UploadSpec]) -> UploadReport:
@@ -480,7 +553,9 @@ class FtpFleetDownloader:
         RAM is the sum of all queued upload data; for a large push, send it in
         chunks of specs rather than one giant call.
         """
-        results, failures = self._run_fleet(specs, self._upload_worker)
+        results, failures = self._run_fleet(
+            specs, lambda spec, _idx: self._upload_worker(spec)
+        )
         return UploadReport(results=results, failures=failures)
 
     # ── concurrent orchestration (private) ──────────────────────────────────
@@ -500,7 +575,9 @@ class FtpFleetDownloader:
     def _run_fleet(
         self,
         specs: list[HostSpec],
-        worker: "Callable[[HostSpec], tuple[list, list[HostFailure]]]",
+        worker: "Callable[[HostSpec, int], tuple[list, list[HostFailure]]]",
+        *,
+        on_abandon: "Callable[[int], None] | None" = None,
     ) -> tuple[list, list[HostFailure]]:
         """Fan ``worker`` out across ``specs`` on a thread pool and aggregate.
 
@@ -508,9 +585,16 @@ class FtpFleetDownloader:
         ``ThreadPoolExecutor`` sized to ``max_concurrency`` caps simultaneous
         connections; every host is backstopped by ``host_timeout``; a raise from
         one host never aborts its siblings (partial success is the normal case).
-        ``worker`` runs blocking in a pool thread and returns
-        ``(ok_items, failures)``; what's in ``ok_items`` is the caller's business
-        (``FileResult`` or ``HostListing``).
+        ``worker`` is called as ``worker(spec, idx)``, runs blocking in a pool
+        thread, and returns ``(ok_items, failures)``; what's in ``ok_items`` is
+        the caller's business (``FileResult`` or ``HostListing``). ``idx`` is the
+        spec's position, so a caller can key per-host state (``download`` keys
+        its ``_FileGate``s by it) without matching on ``spec.host`` — several
+        specs may name the SAME host to fan one host's files over n connections.
+
+        ``on_abandon(idx)`` fires when that spec is given up on at
+        ``host_timeout``. Its thread is still running and cannot be killed, so
+        this is the caller's only chance to stop trusting it.
 
         ``host_timeout`` is measured from when each host's worker *starts*
         running, not from submit — so a host queued behind a full pool isn't
@@ -536,7 +620,7 @@ class FtpFleetDownloader:
             # measured from here, not from when the future was submitted.
             with started_lock:
                 started[idx] = time.monotonic()
-            return worker(spec)
+            return worker(spec, idx)
 
         ok: list = []
         failures: list[HostFailure] = []
@@ -563,6 +647,11 @@ class FtpFleetDownloader:
                 try:
                     host_ok, host_failures = future.result(timeout=remaining)
                 except FutureTimeoutError:
+                    # The thread survives this; only the caller's trust in it
+                    # ends here. Cut it off BEFORE recording the failure, so a
+                    # host reported as failed can no longer emit successes.
+                    if on_abandon is not None:
+                        on_abandon(idx)
                     failures.append(
                         HostFailure(
                             host=spec.host,
@@ -593,6 +682,12 @@ class FtpFleetDownloader:
         try:
             with self._session(spec.host) as ftp:
                 for remote_path in self._resolve_paths(ftp, spec, failures):
+                    # Abandoned at host_timeout: stop pulling. The gate already
+                    # blocks the callback, but leaving the loop also hands the
+                    # tool its FTP connection back instead of holding it for
+                    # files whose bytes nobody will look at.
+                    if getattr(on_file, "closed", False):
+                        break
                     self._fetch_one(ftp, spec.host, remote_path, on_file, files, failures)
         except all_errors as exc:
             # connect / login / quit failed — no file got a chance.
@@ -792,7 +887,7 @@ def specs_from_hosts(
         report = FtpFleetDownloader(user=u, password=p).list_dirs(specs)
 
     For per-host configuration that differs, build from JSON with
-    ``eqp_ftp_collect.build_host_specs`` instead.
+    ``collect.build_host_specs`` instead.
     """
     return [
         HostSpec(host=host, files=list(files or []), listings=list(listings or []))

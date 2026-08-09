@@ -7,6 +7,35 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 가져오는 relay 역할만 수행하며, 어떤 OpenSearch 인덱스도 조회하지 않습니다.
 캐시 계층만 MinIO를 사용합니다.
 
+## ⚠ 2026-08-09 이후 첫 office 배포에서 반드시 할 일
+
+`ftp_handler` vendored 사본을 upstream(`flask_modules`)과 동기화하면서
+**깨지는 변경 하나**가 들어왔습니다. 아래 두 가지를 하지 않으면 Windows(사내
+로컬 PC) 경로가 부팅부터 실패합니다.
+
+1. **프록시 호스트에 장비 FTP 자격증명 환경변수를 설정하십시오.**
+
+   ```text
+   FTP_PROXY_FTP_USER=<장비 FTP 계정>
+   FTP_PROXY_FTP_PASSWORD=<비밀번호>
+   ```
+
+   이전에는 클라이언트가 매 POST 본문에 `user`/`password`를 실어 보냈습니다.
+   클라우드는 http-only 라 TLS 가 가리지도 못했고, 본문을 남기는 프록시 로그가
+   있었다면 공용 장비 계정이 평문으로 적재됩니다. 이제 프록시가
+   `os.environ[...]`로 직접 읽으므로, **환경변수가 없으면 `KeyError` → 500**
+   입니다. 클라이언트 생성자는 여전히 `user`/`password`를 받습니다(direct
+   어댑터와 시그니처를 맞추는 `FleetTransport` seam) — 다만 직렬화하지 않을
+   뿐이라 `office.py` 는 고칠 필요가 없습니다.
+2. **`office.py`를 다시 복사하십시오** — `cp providers/office_example.py
+   providers/office.py`. `office.py`는 gitignore 대상이라 `git pull`이
+   갱신하지 않는데, 이번에 템플릿의 `_downloader`/`_host_timeout`이 바뀌었습니다.
+   복사하지 않으면 옛 코드가 200을 계속 돌려주며 `host_timeout` 수정이 적용되지
+   않습니다(부팅 로그의 `STALE office.py` 경고를 확인하십시오).
+
+동일 이유로 `recipe_search`의 office 어댑터도 같은 프록시를 쓰므로, 1번을
+하지 않으면 함께 실패합니다.
+
 ## 규칙
 
 - 먼저 추적 스켈레톤을 복사한 뒤 그 복사본에서만 작업합니다:
@@ -64,6 +93,30 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
   로 판별합니다. 왕복 1회는 body 와 stat 을 함께 주는 minio_handler 호출이
   있어야 가능한데, 해당 패키지는 vendored 라 `flask_modules` 와 동시에
   고쳐야 하므로 보류했습니다.
+- **`host_timeout` 을 명시합니다** (2026-08-09). 이전에는 ftp_handler 기본값
+  (direct 60초 / proxy 45초)을 그대로 썼는데, 이 값은 그 연결에 몇 개를
+  걸었는지와 무관한 상수입니다. 그래서 큰 warm job 은 **전송 중에** 포기되었고,
+  포기된 워커 스레드는 죽지 않으므로 `on_file` 이 job registry 와
+  `download_all` 이 `download()` 반환 뒤에 flush 하는 pairing 상태에 계속
+  써 넣었습니다 → `RuntimeError: dictionary changed size during iteration`
+  으로 잡 전체가 error 가 되거나 `done > total` 이 됩니다. 이제
+  `_host_timeout()` 이 가장 바쁜 연결의 이미지 수 × `_SECONDS_PER_IMAGE`
+  (5초, **OFFICE-VERIFY** — 실제 warm job 계측 전까지는 추정치)로 예산을
+  키우고, `SKEWNONO_TOOL_FTP_HOST_TIMEOUT` 이 하한입니다. 크게 잡아도
+  안전합니다 — 죽은 장비는 `ftp_timeout`(8초)이 소켓 단위로 걸러냅니다.
+  ftp_handler 쪽에도 짝이 되는 방어가 들어갔습니다: 포기된 호스트의
+  `on_file` 은 게이트가 닫혀 더 이상 호출되지 않으며, `download()` 가
+  반환한 시점에는 콜백이 실행 중이지도, 앞으로 실행되지도 않습니다.
+- **proxy 경로에는 상한이 있습니다.** 프록시 요청 1건은 스펙 여러 개(batch)를
+  싣고 있고, 프록시 호스트의 uWSGI 는 `harakiri=75`초에 요청을 통째로 죽입니다
+  (`ftp_handler/proxy/wsgi.ini`, 그 파일 주석도 "host_timeout 을 올리면 이 값도
+  같이 올려라"라고 적고 있습니다). 그래서 예산을 harakiri 위로 올리면 다운로드가
+  길어지는 게 아니라 **배치 전체가 한꺼번에 죽습니다** — 호스트 하나가 타임아웃
+  되는 것보다 나쁩니다. `_PROXY_HOST_TIMEOUT_CAP`(60초)이 이를 막고, direct
+  (클라우드) 경로는 요청을 감싸는 uWSGI 가 없으므로 무제한입니다. proxy 에서
+  더 큰 잡이 필요하면 `SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX` 와 `wsgi.ini` 의
+  `harakiri` 를 **반드시 함께** 올리십시오. 상한에 걸린 잡은 평범한 호스트
+  실패로 떨어지고, 프론트는 이미지별 재시도로 이미 이를 흡수합니다.
 - 경로 조립은 `paths.py`(`image_dir`/`image_path`/`cond_path`)가 전담하며,
   office 어댑터는 이를 그대로 재사용합니다. `_ROOT`(`/HITACHI/DEVICE/HD`)가
   실제 장비 경로와 다르면 `paths.py`를 함께 확인해야 합니다.
@@ -79,7 +132,9 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 | `SKEWNONO_TOOL_FTP_PASSWORD` | 장비 FTP 비밀번호 | `hid` |
 | `SKEWNONO_TOOL_FTP_PORT` | FTP 포트 | `21` |
 | `SKEWNONO_TOOL_FTP_CONCURRENCY` | `download_all`의 최대 동시 연결 수 | `6` |
-| `SKEWNONO_TOOL_FTP_TIMEOUT` | 연결/응답 타임아웃(초) | `8.0` |
+| `SKEWNONO_TOOL_FTP_TIMEOUT` | 연결/응답 타임아웃(초); 소켓 작업 단위 상한이라 죽은 장비 탐지는 이 값이 담당 | `8.0` |
+| `SKEWNONO_TOOL_FTP_HOST_TIMEOUT` | 연결 1개가 통째로 포기되기까지의 하한(초). `download_all`은 그 연결에 실제로 걸린 이미지 수만큼 이 값을 키웁니다 | `60.0` |
+| `SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX` | 위 확장의 상한(초). `0`은 무제한. 미설정 시 proxy(Windows) 경로만 `60.0`, direct(클라우드) 경로는 무제한 | `0.0` |
 | `SKEWNONO_TOOL_SUBNETS` | 허용 서브넷 CIDR 목록(쉼표 구분); SSRF 가드용 IP 검증에 사용 | 빈 값(제한 없음) |
 | `SKEWNONO_IMAGE_CACHE_BUCKET` | MinIO 캐시 버킷 | 없음(office에서 필수 설정) |
 | `SKEWNONO_IMAGE_CACHE_PREFIX` | MinIO 캐시 오브젝트 키 prefix | `image_cache/` |

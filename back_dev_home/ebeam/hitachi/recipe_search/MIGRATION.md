@@ -1,5 +1,23 @@
 # recipe_search — office migration
 
+## ⚠ Required before the first office deploy after 2026-08-09
+
+This feature's office adapter drives the same vendored `ftp_handler` proxy
+transport as `msr_image`, and that transport stopped sending the equipment FTP
+credentials in the request body (they were plaintext over an http-only hop).
+The proxy host now reads `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD` from
+its own environment and raises `KeyError` → 500 without them. Set both on the
+proxy host; nothing in `office.py` needs editing. Full context:
+[`back_dev_home/msr_image/MIGRATION.md`](../../../msr_image/MIGRATION.md).
+
+Also worth knowing: this adapter builds **one spec per host** — every file for
+a tool rides a single connection — and does not set `host_timeout`, so it keeps
+the library default (60s direct / 45s proxy) no matter how many raw files a
+request asks for. That is a clean failure rather than corruption, because
+`download()` runs in collect mode with no `on_file` writing into caller state,
+but a large raw-folder fetch can hit it. `msr_image` scales its budget by
+files-per-connection; do the same here if a real request is seen timing out.
+
 ## Rules
 
 - Edit ONLY `providers/office.py`. Never touch `routes.py`, `data.py`, or

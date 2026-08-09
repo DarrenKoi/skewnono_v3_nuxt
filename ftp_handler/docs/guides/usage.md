@@ -207,9 +207,15 @@ client PC ──HTTP──> Flask proxy ──FTP──> equipment servers
 
 **서버 절반** (방화벽 없는 호스트에서) — 블루프린트를 마운트하거나 단독 실행한다.
 신뢰하는 단일 사용자라면 인증 없이(`FTP_PROXY_TOKEN` 미설정) 쓰고, 포트만 신뢰할 수
-없는 네트워크에 노출하지 않으면 된다:
+없는 네트워크에 노출하지 않으면 된다. 장비 FTP 계정은 클라이언트 요청에 싣지 않고
+프록시 호스트의 `FTP_PROXY_FTP_USER`, `FTP_PROXY_FTP_PASSWORD` 환경 변수로 둔다:
 
 ```python
+import os
+
+os.environ["FTP_PROXY_FTP_USER"] = "ftpuser"
+os.environ["FTP_PROXY_FTP_PASSWORD"] = "ftppass"
+
 from ftp_handler.proxy.flask_proxy import ftp_proxy_sknn_v3   # 또는 create_app()
 app.register_blueprint(ftp_proxy_sknn_v3)
 ```
@@ -226,6 +232,10 @@ from ftp_handler.proxy import FtpFleetDownloader, HostSpec, ListDir, save_to_dir
 dl = FtpFleetDownloader(user="u", password="p")   # 프록시 위치는 PROXY_URL 상수
 report = dl.download(specs, on_file=save_to_dir(r"C:\eqp"))  # on_file은 로컬에서 실행
 ```
+
+proxy adapter의 `user` / `password` 인자는 direct adapter와 같은 생성자
+시그니처를 유지하기 위해 받지만 HTTP body에는 넣지 않는다. 실제 FTP 로그인에는
+프록시 호스트 환경 변수의 계정을 사용한다.
 
 데이터클래스(`HostSpec`, `DownloadReport`, …)는 direct 다운로더의 것과 동일한
 객체라서 `report.grouped()`, `to_specs()` 등이 똑같이 동작한다. copy-out: 이 쌍에

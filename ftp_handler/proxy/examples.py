@@ -36,8 +36,9 @@ def example_run_the_proxy_server() -> None:
 
     기존 Flask 앱에 블루프린트를 붙이거나 단독으로 실행한다. 인증 없음: 신뢰하는
     단일 사용자뿐이라 FTP_PROXY_TOKEN은 설정하지 않으며 모든 요청이 그대로 통과한다.
-    다만 포트가 신뢰할 수 없는 네트워크에 노출되지 않게만 하라(FTP 비밀번호와 파일
-    바이트가 이 연결을 평문으로 오간다).
+    장비 FTP 계정은 프록시 호스트의 FTP_PROXY_FTP_USER /
+    FTP_PROXY_FTP_PASSWORD 환경 변수로 설정한다. 다만 포트가 신뢰할 수 없는
+    네트워크에 노출되지 않게만 하라(파일 바이트가 이 연결을 평문으로 오간다).
 
         from ftp_handler.proxy.flask_proxy import ftp_proxy_sknn_v3
         app.register_blueprint(ftp_proxy_sknn_v3)
@@ -54,6 +55,8 @@ def example_download_through_proxy() -> None:
     인자가 아니다 — 그래야 생성자 시그니처가 direct 다운로더와 똑같아서 import 한
     줄만 바꿔도 깨지지 않는다). 토큰 없음: 프록시는 인증 없이 동작한다. on_file은
     여전히 여기 클라이언트에서 실행되므로 save_to_dir는 파일을 로컬 PC에 떨군다.
+    user/password 인자는 direct와 같은 호출 모양을 유지하지만 HTTP body로 보내지
+    않으며, 실제 로그인은 프록시 호스트의 환경 변수 계정을 사용한다.
 
         # proxy_downloader.py 상단에서 한 번만 편집:
         # PROXY_URL = "http://proxy.host:8080"

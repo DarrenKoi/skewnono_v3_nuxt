@@ -1,13 +1,14 @@
 """Single-server FTP client — one connection, reused for many operations.
 
-The fleet downloader (``ftp_fleet_downloader.py``) is built for fanning out
-across hundreds of hosts concurrently. This is its small sibling: one host, one
-blocking connection, the four operations you reach for from a notebook or an
-ad-hoc script — list a directory, download a file, upload a file, remove a file.
+The fleet downloader (``direct_downloader/fleet_downloader.py``) is built for
+fanning out across hundreds of hosts concurrently. This is its small sibling:
+one host, one blocking connection, the four operations you reach for from a
+notebook or an ad-hoc script — list a directory, download a file, upload a
+file, remove a file.
 
 Use it as a context manager so the connection is opened once and always closed::
 
-    from ftp_handler.ftp_client import FtpClient
+    from ftp_handler.core import FtpClient
 
     with FtpClient(host="10.0.0.1", user="ftpuser", password="ftppass") as ftp:
         names = ftp.list_dir("/MEAS", pattern="*.dat")   # discover

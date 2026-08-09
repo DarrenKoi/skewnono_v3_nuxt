@@ -26,6 +26,20 @@ class ImageConfig:
     ftp_port: int = 21
     ftp_concurrency: int = 6
     ftp_timeout: float = 8.0
+    # Backstop for a tool that connects and then stalls mid-transfer. NOT the
+    # dead-tool knob -- ftp_timeout bounds every socket op, so an offline tool
+    # still fails in seconds no matter how large this is. It only has to be
+    # bigger than a healthy connection's real work, which is why download_all
+    # scales it by the number of files on the connection instead of using this
+    # value flat (see providers/office_example.py:_host_timeout).
+    ftp_host_timeout: float = 60.0
+    # Ceiling for that scaling, because the HTTP-proxy transport has a hard one:
+    # the proxy host's uWSGI kills a request at harakiri (75s in
+    # ftp_handler/proxy/wsgi.ini, whose own comment says to raise it in lockstep
+    # with host_timeout). A budget above harakiri gets the whole BATCH of specs
+    # killed by uWSGI -- strictly worse than the single-host timeout it was
+    # meant to avoid. 0 means uncapped, which is right for the direct transport.
+    ftp_host_timeout_max: float = 0.0
     allowed_subnets: list[str] = field(default_factory=list)
     cache_dir: str = "var/image_cache"
     cache_bucket: str | None = None
@@ -46,6 +60,8 @@ def load_config(env: Mapping[str, str] | None = None) -> ImageConfig:
         ftp_port=_int(env, "SKEWNONO_TOOL_FTP_PORT", 21),
         ftp_concurrency=_int(env, "SKEWNONO_TOOL_FTP_CONCURRENCY", 6),
         ftp_timeout=_float(env, "SKEWNONO_TOOL_FTP_TIMEOUT", 8.0),
+        ftp_host_timeout=_float(env, "SKEWNONO_TOOL_FTP_HOST_TIMEOUT", 60.0),
+        ftp_host_timeout_max=_float(env, "SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX", 0.0),
         allowed_subnets=subnets,
         cache_dir=env.get("IMAGE_CACHE_DIR", "").strip() or "var/image_cache",
         cache_bucket=env.get("SKEWNONO_IMAGE_CACHE_BUCKET", "").strip() or None,
