@@ -128,8 +128,11 @@ _TOOL_TYPE_BY_PREFIX: tuple[tuple[str, ToolType], ...] = (
 def model_to_tool_type(eqp_model_cd: str) -> ToolType | None:
     """Classify a model code, or None when it belongs to no known family.
 
-    Mirrors `classifyToolType()` in front-dev-home/app/utils/toolType.ts;
-    the two are pinned together by __fixtures__/tool_type_cases.json.
+    Its frontend counterpart is `classifyToolType()` in
+    front-dev-home/app/utils/toolType.ts. The two must agree, but nothing
+    enforces that yet -- the shared __fixtures__/tool_type_cases.json contract
+    test arrives with Task 9 of the Phase 0 plan, and until then the TS side
+    still returns the hyphenated 'verity-sem'.
 
     None now means genuinely unknown. It used to double as "an AMAT tool",
     and callers that wanted "CD/HV only" wrote `is not None` -- those must
