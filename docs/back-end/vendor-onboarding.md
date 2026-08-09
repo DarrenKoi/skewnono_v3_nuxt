@@ -140,6 +140,19 @@ import 가 깨진 어댑터"를 구분하는 것이 이 패턴의 핵심이며, 
 배선된 어댑터의 import 실패가 조용히 mock 으로 강등됩니다.
 
 ```python
+# back_dev_home/ebeam/_adapters.py — 아래 §3.5
+from werkzeug.exceptions import NotImplemented as NotImplementedHTTP
+
+
+class AdapterNotWired(NotImplementedHTTP):
+    def __init__(self, feature: str, family: str) -> None:
+        super().__init__(
+            f"{feature} 의 {family} 계열은 아직 사무실 어댑터가 없습니다 "
+            f"(providers/{family}/office.py 미작성)."
+        )
+
+
+# <feature>/providers/office_example.py
 def _adapter(name: str):
     module = f"{__package__}.{name}.office"
     try:
@@ -147,8 +160,12 @@ def _adapter(name: str):
     except ModuleNotFoundError as exc:
         if exc.name != module:
             raise  # 어댑터 내부의 진짜 의존성 누락
-    raise AdapterNotWired(name)
+    raise AdapterNotWired(_FEATURE, name)
 ```
+
+`__init__` 이 문장을 조립하는 것은 장식이 아닙니다. `HTTPException` 은 첫 인자를
+`description` 으로 받아 응답 본문에 그대로 싣기 때문에, `AdapterNotWired(name)`
+로 던지면 501 본문이 `"veritysem"` 한 단어가 되어 무엇이 왜 없는지 알 수 없습니다.
 
 **501 로 나가게 하려면 예외 타입을 골라야 합니다.** `back_dev_home/__init__.py`
 의 JSON 에러 핸들러는 `HTTPException` 만 그 상태 코드로 내보내고, 정확히
@@ -157,8 +174,19 @@ def _adapter(name: str):
 `werkzeug.exceptions.NotImplemented` 를 상속시킵니다. 맨 `NotImplementedError`
 를 던지면 500 이 되어 "미배선"이라는 정보가 사라집니다.
 
-집(mock 모드)에서는 이 예외가 발생하지 않습니다. 계열별 `mock.py` 는 항상
-존재하기 때문입니다.
+**이 정책은 `office_example.py` 쪽 디스패처만의 것입니다.** `providers/mock.py`
+도 같은 이름의 `_adapter()` 를 갖지만, 계열별 `mock.py` 는 8단계 중 3단계에서
+항상 먼저 만들어져 없을 수가 없습니다. 그래서 집(mock 모드)에서는 이 예외가
+발생하지 않습니다.
+
+### 3.5 `AdapterNotWired` 는 한 곳에만 정의합니다
+
+정의 위치는 **`back_dev_home/ebeam/_adapters.py`** 입니다. `_office_meas_hist.py`
+· `_office_search.py` 와 같은 자리이고, 밑줄 접두사가 blueprint 스캔에서 빠지게
+해 줍니다. feature 마다 자기 것을 두면 상속 대상이 갈려 어떤 feature 는 501,
+어떤 feature 는 500 을 답하게 됩니다. 이 파일은 **지금 만들지 않습니다** —
+현재 저장소에는 정의도 사용처도 없으며, 첫 계열 어댑터를 붙이는 작업(§4 5단계)
+에서 함께 만듭니다.
 
 ## 4. Phase 1 — feature × 계열마다 반복하는 8단계
 
@@ -172,14 +200,13 @@ def _adapter(name: str):
 | 2 | 스키마 기록 | `docs/datatables/<source>.txt` | 소스 이름과 스키마는 이 단계에서 확정합니다. 확인 전이면 전부 `OFFICE-VERIFY` 로 표기합니다 |
 | 3 | mock 작성 | `providers/<family>/mock.py` | `sem_list` 의 해당 `vendor_nm` row 에서 **파생**합니다. 장비 목록을 독립 생성하지 않습니다 |
 | 4 | 템플릿 작성 | `providers/<family>/office_example.py` | 추적되는 템플릿. 사무실에서 `cp` 할 대상입니다 |
-| 5 | 디스패처 배선 | `providers/{mock,office_example}.py` 의 `_adapter()` | 폴백 대신 501. `exc.name` 가드 유지 (§3.4) |
+| 5 | 디스패처 배선 | `providers/{mock,office_example}.py` 의 `_adapter()` | 두 파일 모두 feature 레벨에 남깁니다. **501 정책은 `office_example.py` 쪽만** — `mock.py` 는 3단계에서 이미 만든 `<family>/mock.py` 를 해석할 뿐입니다. 양쪽 다 `exc.name` 가드 유지 (§3.4) |
 | 6 | 문서 갱신 | `<feature>/MIGRATION.md` | 엔드포인트 · 계약 · mock 동작 · 오피스 소스 4항목 |
 | 7 | 테스트 | `tests/test_contract.py`, `tests/test_office_template.py` | 새 계열을 파라미터로 추가합니다 |
 | 8 | 사무실 연결 | `cp office_example.py office.py` | 이 복사가 곧 스위치입니다. `GET /api/health/providers` 로 확인합니다 |
 
-2단계의 소스 이름에 대해: AMAT 계열의 오피스 키 이름과 스키마는 **아직 아무것도
-알려지지 않았습니다.** 추측한 키 이름을 코드나 문서에 사실처럼 적지 않고,
-확인 전까지 `OFFICE-VERIFY` 로 표기합니다.
+AMAT 계열의 오피스 키 이름과 스키마는 **아직 아무것도 알려지지 않았습니다.**
+2단계에서 추측한 이름을 사실처럼 적지 말고 `OFFICE-VERIFY` 로 표기합니다.
 
 ## 5. 불변식 세 가지
 
@@ -192,11 +219,15 @@ def _adapter(name: str):
 기록되어 있듯, `eqp_models` 를 분류기로 쓴 결과 — 그 목록은 mock 이 그럴듯한
 row 를 만들려고 지어낸 코드 모음입니다 — 목록에 없던 **실장비 8대가 조용히
 사라졌습니다**(2026-07-24). 필터링되어 비워진 결과도 유효한 응답이므로 아무
-오류도 나지 않았습니다. `eqp_prefixes` 도 분류기가 아닙니다. `MCD` 하나가
-CD-SEM · HV-SEM · VeritySEM · Provision 에 걸쳐 있습니다.
+오류도 나지 않았습니다. `eqp_prefixes` — **`eqp_id` 의 접두사** — 도 분류기가
+아닙니다. `MCD` 하나가 CD-SEM · HV-SEM · VeritySEM · Provision 에 걸쳐 있어
+장비 계열을 담고 있지 않기 때문입니다.
 
 계열은 `sem_list` row 의 `eqp_model_cd` 를 `model_to_tool_type()` 에 넣어
-판정합니다.
+판정합니다. 이 함수 역시 접두사로 판정하지만, 그 접두사는 `eqp_id` 가 아니라
+**모델 코드의 시리즈 접두사**입니다(`_tool_specs.py` 의
+`_TOOL_TYPE_BY_PREFIX` — `CG`/`GT`/`TP`/`VERITYSEM`/`PROVISION`). 두 접두사는
+이름만 같을 뿐 다른 것이며, 금지되는 것은 앞의 것입니다.
 
 ### 5.2 사무실 DB 사실은 두 곳에 기록합니다
 

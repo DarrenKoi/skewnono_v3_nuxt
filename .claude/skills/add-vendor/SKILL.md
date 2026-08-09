@@ -40,8 +40,11 @@ contract makes the contract follow the mock.
       family mock. Never create `office.py` at home.
 - [ ] **5. 디스패처 배선** — add `_adapter()` to
       `<feature>/providers/{mock,office_example}.py` (keep both files at the
-      feature level). 501 instead of a mock fallback; keep the `exc.name`
-      guard. Copy the shape from
+      feature level). The 501 policy belongs to the `office_example.py`
+      dispatcher alone — the `mock.py` one just resolves the
+      `<family>/mock.py` written in step 3. `AdapterNotWired` lives in
+      `back_dev_home/ebeam/_adapters.py`, created with the first family and
+      never per feature. Keep the `exc.name` guard. Copy the shape from
       `back_dev_home/ebeam/hardware/providers/office_example.py`'s `_tab()`,
       then change the fallback policy.
 - [ ] **6. 문서 갱신** — `<feature>/MIGRATION.md`: endpoint, contract, mock
