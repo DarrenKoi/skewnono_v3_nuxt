@@ -117,6 +117,17 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
   더 큰 잡이 필요하면 `SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX` 와 `wsgi.ini` 의
   `harakiri` 를 **반드시 함께** 올리십시오. 상한에 걸린 잡은 평범한 호스트
   실패로 떨어지고, 프론트는 이미지별 재시도로 이미 이를 흡수합니다.
+- **계측 스크립트로 위 추정치를 실측하십시오** —
+  `.venv/bin/python -m scripts.measure_msr_image_ftp`. 장비에는 아무것도 쓰지
+  않습니다(A~C는 읽기 전용, D는 `--minio` 옵트인이며 `<prefix>_measure/` 에
+  썼다가 스스로 지웁니다). locator 를 안 주면 meas_hist 최신 문서에서 스스로
+  찾습니다. 네 가지에 답합니다: ①connect+login 비용 → 커넥션 풀링을 만들
+  가치가 있는가 ②이미지당 전송 시간 → `_SECONDS_PER_IMAGE = 5.0` 이 맞는가
+  ③`ftp_concurrency = 6` 이 실제로 더 빠른가 ④MinIO PUT 비용 → 업로드
+  파이프라이닝이 값어치를 하는가. 마지막에 소스에 그대로 넣을 수 있는 형태로
+  상수를 출력하며, 추천값이 프록시 한계를 넘으면 숫자 대신 경고를 냅니다.
+  결과를 이 문서에 남기고 `OFFICE-VERIFY` 를 `office 확인 YYYY-MM-DD` 로
+  바꾸십시오.
 - 경로 조립은 `paths.py`(`image_dir`/`image_path`/`cond_path`)가 전담하며,
   office 어댑터는 이를 그대로 재사용합니다. `_ROOT`(`/HITACHI/DEVICE/HD`)가
   실제 장비 경로와 다르면 `paths.py`를 함께 확인해야 합니다.
