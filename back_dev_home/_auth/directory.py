@@ -296,7 +296,22 @@ def lookup_members(user_ids: Iterable[str]) -> dict[str, Member]:
         logger.warning("member directory unreachable for %d users: %s", len(wanted), exc)
         return members
 
-    for user_id, raw in zip(wanted, raw_values, strict=True):
+    if len(raw_values) != len(wanted):
+        # hmget answers one value per requested field, always — a short list is
+        # a store-side surprise, not a set of users without rows. Warned about
+        # rather than raised (strict=True): rule one of this module is that a
+        # directory failure never costs a caller their page, and
+        # `activity/routes.py` states outright that lookup_members never
+        # raises. A ValueError here would turn a Redis oddity into a 500 on the
+        # admin activity log, which is the one screen that needs to keep
+        # working when the store is misbehaving.
+        logger.warning(
+            "member directory returned %d values for %d requested fields; "
+            "the tail will be missing names",
+            len(raw_values),
+            len(wanted),
+        )
+    for user_id, raw in zip(wanted, raw_values, strict=False):
         if raw is None:
             # No directory row — ordinary for contractors and service accounts.
             continue

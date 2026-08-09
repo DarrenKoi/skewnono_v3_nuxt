@@ -67,6 +67,7 @@ import argparse
 import os
 import statistics
 import sys
+import threading
 import time
 from dataclasses import replace
 from typing import Any
@@ -217,24 +218,35 @@ def _stage_c_concurrency(
 def _make_file_collector() -> tuple[Any, Any]:
     """One fresh ``(on_file, tally)`` pair per fan-out round.
 
-    ``download_all`` reports each file through a callback. Defining that
-    callback inside the loop would close over the loop's own counters, so a
-    round's totals live in whatever the last iteration happened to leave —
-    correct only because the current adapter calls back synchronously.
-    Handing out a fresh pair keeps each round's numbers its own.
+    Two reasons, and the second is not hypothetical.
+
+    Defining the callback inside the loop would close over the loop's own
+    counters, so a round's totals would live in whatever the last iteration
+    happened to leave. A fresh pair keeps each round's numbers its own.
+
+    And the counter needs a lock. ``download_all`` splits the file list into n
+    HostSpecs and ``fleet_downloader.download`` builds **one ``_FileGate`` per
+    spec** (fleet_downloader.py:489) — each gate serializes only its own host,
+    so n worker threads call this callback CONCURRENTLY. ``ok += 1`` is a
+    read-modify-write: a lost update here understates the success count of
+    exactly the fan-out stage C exists to measure, and it gets more likely as
+    n grows, which biases the very comparison being made.
     """
+    lock = threading.Lock()
     ok = 0
     failed: list[str] = []
 
     def on_file(name: str, fetched: Any, error: str | None) -> None:
         nonlocal ok
-        if fetched is not None:
-            ok += 1
-        else:
-            failed.append(f"{name}: {error}")
+        with lock:
+            if fetched is not None:
+                ok += 1
+            else:
+                failed.append(f"{name}: {error}")
 
     def tally() -> tuple[int, list[str]]:
-        return ok, failed
+        with lock:
+            return ok, list(failed)
 
     return on_file, tally
 

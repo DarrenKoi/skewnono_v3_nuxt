@@ -51,13 +51,16 @@ def test_every_job_is_registered():
 def test_no_two_jobs_share_a_fire_instant(triggers):
     # Cron fires at an exact instant, so two jobs written minute=0 start
     # TOGETHER, not "around" the hour.
-    slots = []
-    for trigger in triggers.values():
+    # Keyed by slot rather than counted, so a failure names the colliding jobs.
+    # The bare count told you two jobs overlapped but not which two — and the
+    # job that has to move is the whole point of the test failing.
+    slots: dict[tuple[str | None, ...], list[str]] = {}
+    for name, trigger in triggers.items():
         fields = {f.name: str(f) for f in trigger.fields}
-        slots.append(
-            (fields.get("day_of_week"), fields.get("hour"), fields.get("minute"))
-        )
-    assert len(set(slots)) == len(slots), f"two jobs share a fire instant: {slots}"
+        slot = (fields.get("day_of_week"), fields.get("hour"), fields.get("minute"))
+        slots.setdefault(slot, []).append(name)
+    collisions = {slot: names for slot, names in slots.items() if len(names) > 1}
+    assert not collisions, f"two jobs share a fire instant: {collisions}"
 
 
 # The two host-maintenance jobs run just after midnight by design, so they are
