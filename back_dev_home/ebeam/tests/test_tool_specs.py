@@ -26,6 +26,7 @@ Home: .venv/bin/pytest back_dev_home/ebeam/tests
 import pytest
 
 from back_dev_home.ebeam._tool_specs import (
+    SEM_TOOL_SLUGS,
     SEM_TOOL_TYPES,
     SLUG_TO_ADAPTER,
     SLUG_TO_TOOL_TYPE,
@@ -139,6 +140,27 @@ def test_hitachi_is_the_only_adapter_covering_two_families():
 def test_sem_tool_types_excludes_amat():
     """CD/HV 전용 화면이 무엇을 담는지 명시적으로 이름 붙인 집합."""
     assert SEM_TOOL_TYPES == frozenset({"cd-sem", "hv-sem"})
+
+
+def test_sem_tool_slugs_is_the_slug_axis_of_sem_tool_types():
+    assert SEM_TOOL_SLUGS == frozenset({"cdsem", "hvsem"})
+
+
+def test_sem_tool_slugs_is_derived_not_hand_written():
+    """레지스트리에 계열이 추가돼도 손대지 않아야 정확하게 유지됩니다.
+
+    손으로 적힌 목록이었다면 새 계열이 들어올 때 이 집합만 조용히 낡습니다 --
+    그리고 그 결과가 CD/HV 전용 라우트의 200 + 지어낸 행입니다.
+    """
+    assert SEM_TOOL_SLUGS == frozenset(
+        slug for slug, tool_type in SLUG_TO_TOOL_TYPE.items()
+        if tool_type in SEM_TOOL_TYPES
+    )
+
+
+def test_amat_slugs_are_not_sem_tool_slugs():
+    assert "veritysem" not in SEM_TOOL_SLUGS
+    assert "provision" not in SEM_TOOL_SLUGS
 
 
 def test_amat_slugs_resolve_from_slug():

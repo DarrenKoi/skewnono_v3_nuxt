@@ -1,9 +1,7 @@
 from flask import Blueprint, jsonify
 
-from back_dev_home.ebeam._analytics_routes import (
-    bad_tool_slug_response,
-    resolve_analytics_scope,
-)
+from back_dev_home.ebeam._analytics_routes import resolve_analytics_scope
+from back_dev_home.ebeam._slug_routes import bad_tool_slug_response
 from back_dev_home.ebeam.recipe_tat.data import (
     get_anchor_time,
     get_daily_trend,

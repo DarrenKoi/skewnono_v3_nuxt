@@ -5,6 +5,10 @@ from back_dev_home._core.request_args import (
     resolve_fab_names,
 )
 from back_dev_home._logging.activity import promote_request_fab_names
+from back_dev_home.ebeam._slug_routes import (
+    bad_tool_slug_response,
+    resolve_sem_tool_type,
+)
 from back_dev_home.ebeam.recipe_search import param_info
 from back_dev_home.ebeam.recipe_search.contracts import (
     CompareRequestItem,
@@ -28,11 +32,6 @@ from back_dev_home.msr_image.preview import preview_bytes, wants_preview
 
 bp = Blueprint("ebeam_recipe_search", __name__)
 
-TOOL_BY_SLUG: dict[str, ToolType] = {
-    "cdsem": "cd-sem",
-    "hvsem": "hv-sem"
-}
-
 # Compare fans one parameter out across every selected recipe, so the
 # param-detail body is a LIST. As N separate GETs this would trip the
 # 20 requests / 5 s per-user limit on /api/* the moment a user compared more
@@ -54,7 +53,7 @@ _MAX_ALIGN_POINTS = 200
 
 
 def _resolve_tool_type(tool_slug: str) -> ToolType | None:
-    return TOOL_BY_SLUG.get(tool_slug.strip().lower())
+    return resolve_sem_tool_type(tool_slug)
 
 
 def _error(exc: MsrImageError):
@@ -109,7 +108,7 @@ def _resolve_recipe_request(tool_slug: str, *, needs_parameter: bool):
     """
     tool_type = _resolve_tool_type(tool_slug)
     if not tool_type:
-        return None, (jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400)
+        return None, bad_tool_slug_response()
 
     recipe_name = (request.args.get("recipe_name") or "").strip()
     parameter = (request.args.get("parameter") or "").strip()
@@ -153,7 +152,7 @@ def _handle_msr_image_error(exc: MsrImageError):
 def recipe_search_recipes(tool_slug: str):
     tool_type = _resolve_tool_type(tool_slug)
     if not tool_type:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
 
     fab_names = resolve_fab_names()
     promote_request_fab_names(*fab_names)
@@ -164,7 +163,7 @@ def recipe_search_recipes(tool_slug: str):
 def recipe_search_recipe_detail(tool_slug: str):
     tool_type = _resolve_tool_type(tool_slug)
     if not tool_type:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
 
     recipe_name = (request.args.get("recipe_name") or "").strip()
     if not recipe_name:
@@ -254,7 +253,7 @@ def recipe_search_param_info(tool_slug: str):
 def recipe_search_compare(tool_slug: str):
     tool_type = _resolve_tool_type(tool_slug)
     if not tool_type:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
 
     payload = request.get_json(silent=True) or {}
     raw_recipes = payload.get("recipes")
@@ -285,7 +284,7 @@ def recipe_search_param_detail(tool_slug: str):
     ``_MAX_PARAM_ITEMS``.
     """
     if not _resolve_tool_type(tool_slug):
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
 
     payload = request.get_json(silent=True) or {}
     items = payload.get("items")
@@ -339,7 +338,7 @@ def recipe_search_align_detail(tool_slug: str):
     the popup shows them together, and ten GETs would trip the rate limit.
     """
     if not _resolve_tool_type(tool_slug):
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
     try:
         locator = _validated_locator(request.args.to_dict())
     except MsrImageError as exc:
@@ -370,7 +369,7 @@ def recipe_search_recipe_image(tool_slug: str):
     stored on this host — FTP to memory to response.
     """
     if not _resolve_tool_type(tool_slug):
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
     name = (request.args.get("name") or "").strip()
     # Same cap msr_image applies — an unbounded name is an unbounded FTP path.
     if len(name) > 256:

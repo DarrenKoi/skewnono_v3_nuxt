@@ -1,21 +1,20 @@
 from flask import Blueprint, jsonify
 
 from back_dev_home._core.request_args import resolve_fab_name
-from back_dev_home.ebeam._tool_specs import VALID_TOOL_SLUGS
+from back_dev_home.ebeam._slug_routes import (
+    bad_tool_slug_response,
+    is_sem_tool_slug,
+)
 from back_dev_home.ebeam.pm_planning.data import get_pm_planning_fleet
 
 
 bp = Blueprint("ebeam_pm_planning", __name__)
 
 
-def _bad_slug_response():
-    return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
-
-
 @bp.get("/<tool_slug>/pm-planning/fleet")
 def pm_planning_fleet(tool_slug: str):
-    if tool_slug not in VALID_TOOL_SLUGS:
-        return _bad_slug_response()
+    if not is_sem_tool_slug(tool_slug):
+        return bad_tool_slug_response()
     if tool_slug != "cdsem":
         return jsonify({"error": "pm-planning is available for CD-SEM only"}), 400
 

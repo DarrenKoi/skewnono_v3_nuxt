@@ -3,7 +3,10 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 
 from back_dev_home._core.request_args import resolve_fab_name
-from back_dev_home.ebeam._tool_specs import VALID_TOOL_SLUGS
+from back_dev_home.ebeam._slug_routes import (
+    bad_tool_slug_response,
+    is_sem_tool_slug,
+)
 from back_dev_home.ebeam.hardware.contracts import VALID_SERVICES
 from back_dev_home.ebeam.hardware.data import get_hardware_service
 
@@ -43,8 +46,8 @@ def _resolve_window() -> tuple[datetime, datetime]:
 
 @bp.get("/<tool_slug>/hardware/<eqp_id>/<service>")
 def hardware_service(tool_slug: str, eqp_id: str, service: str):
-    if tool_slug not in VALID_TOOL_SLUGS:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+    if not is_sem_tool_slug(tool_slug):
+        return bad_tool_slug_response()
     if service not in VALID_SERVICES:
         allowed = ", ".join(repr(s) for s in sorted(VALID_SERVICES))
         return jsonify({"error": f"service must be one of {allowed}"}), 400

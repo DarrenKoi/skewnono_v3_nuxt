@@ -5,12 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from flask import jsonify, request
+from flask import request
 
-from back_dev_home.ebeam._tool_specs import (
-    ToolType,
-    resolve_tool_type_from_slug,
-)
+from back_dev_home.ebeam._slug_routes import resolve_sem_tool_type
+from back_dev_home.ebeam._tool_specs import ToolType
 
 
 DEFAULT_DAYS = 14
@@ -49,7 +47,7 @@ def resolve_analytics_scope(
     tool_slug: str,
     anchor_time: datetime,
 ) -> AnalyticsRequestScope | None:
-    tool_type = resolve_tool_type_from_slug(tool_slug)
+    tool_type = resolve_sem_tool_type(tool_slug)
     if tool_type is None:
         return None
 
@@ -83,7 +81,3 @@ def resolve_analytics_scope(
             if part.strip()
         )[:MAX_COMPARE_EQPS],
     )
-
-
-def bad_tool_slug_response():
-    return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400

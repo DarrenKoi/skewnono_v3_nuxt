@@ -110,6 +110,23 @@ SLUG_TO_ADAPTER: dict[ToolSlug, str] = {
 # 표현은 조용히 의미가 바뀝니다. 의도를 이름으로 고정합니다.
 SEM_TOOL_TYPES: frozenset[ToolType] = frozenset({"cd-sem", "hv-sem"})
 
+# `SEM_TOOL_TYPES` 를 슬러그 축으로 옮긴 것. URL 의 `<tool_slug>` 를 검증하는
+# 쪽이 쓰는 집합입니다.
+#
+# 존재 이유: CD/HV 만 제공하는 기능이 `VALID_TOOL_SLUGS` 로 검증하면, 레지스트리에
+# 계열이 추가되는 순간 그 기능들이 조용히 AMAT 슬러그를 받아들입니다. mock 은
+# `model_to_tool_type(...) == tool_type` 으로 fleet 을 고르므로 요청은 400 이 아니라
+# 200 + 지어낸 행으로 응답하고 — 어댑터가 없는 계열이 "데이터가 있는 것처럼" 보입니다
+# (집에서는 채워진 화면, 사무실에서는 빈 화면). 어댑터가 없는 계열은 지어낸 데이터가
+# 아니라 거절로 답해야 합니다.
+#
+# 손으로 적지 않고 위의 두 맵에서 파생합니다. 계열이 늘어도 이 집합은 저절로
+# 정확하게 유지됩니다.
+SEM_TOOL_SLUGS: frozenset[str] = frozenset(
+    slug for slug, tool_type in SLUG_TO_TOOL_TYPE.items()
+    if tool_type in SEM_TOOL_TYPES
+)
+
 # Tool family is the model code's SERIES PREFIX, not a fixed list of codes.
 # `eqp_models` above is mock fodder, so classifying against it judged real
 # office tools by invented data: any real series member the mock never

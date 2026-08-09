@@ -1,6 +1,9 @@
 from flask import Blueprint, jsonify, request
 
-from back_dev_home.ebeam._tool_specs import resolve_tool_type_from_slug
+from back_dev_home.ebeam._slug_routes import (
+    bad_tool_slug_response,
+    resolve_sem_tool_type,
+)
 from back_dev_home.ebeam.live_alarm.data import get_board
 
 
@@ -9,9 +12,9 @@ bp = Blueprint("ebeam_live_alarm", __name__)
 
 @bp.get("/<tool_slug>/live-alarm")
 def live_alarm_board(tool_slug: str):
-    tool_type = resolve_tool_type_from_slug(tool_slug)
+    tool_type = resolve_sem_tool_type(tool_slug)
     if tool_type is None:
-        return jsonify(error=f"unknown tool slug: {tool_slug}"), 400
+        return bad_tool_slug_response()
 
     raw = request.args.get("fab_name") or ""
     fab_names = tuple(part.strip().upper() for part in raw.split(",") if part.strip())

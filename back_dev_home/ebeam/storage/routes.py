@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from .._tool_specs import VALID_TOOL_SLUGS
+from .._slug_routes import bad_tool_slug_response, is_sem_tool_slug
 from .data import get_storage, get_ppid_unavailable
 
 
@@ -13,14 +13,14 @@ def _parse_fab_names() -> list[str]:
 
 
 def _validate_slug(tool_slug: str) -> str | None:
-    return tool_slug if tool_slug in VALID_TOOL_SLUGS else None
+    return tool_slug if is_sem_tool_slug(tool_slug) else None
 
 
 @bp.get("/<tool_slug>/storage")
 def storage(tool_slug: str):
     slug = _validate_slug(tool_slug)
     if not slug:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
 
     rows = get_storage(slug, _parse_fab_names())
     return jsonify(rows)
@@ -30,7 +30,7 @@ def storage(tool_slug: str):
 def ppid_unavailable(tool_slug: str):
     slug = _validate_slug(tool_slug)
     if not slug:
-        return jsonify({"error": "tool_slug must be 'cdsem' or 'hvsem'"}), 400
+        return bad_tool_slug_response()
 
     rows = get_ppid_unavailable(slug, _parse_fab_names())
     return jsonify(rows)
