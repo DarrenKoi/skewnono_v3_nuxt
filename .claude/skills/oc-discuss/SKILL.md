@@ -59,13 +59,26 @@ D=$(mktemp -d)
 } > "$D/r1.txt"
 
 OC=.claude/skills/_opencode/oc.sh
-SID=$("$OC" --tier <tier> --label round1 < "$D/r1.txt" 2>&1 >"$D/r1.out" \
-      | sed -n 's/^OC_SESSION=//p')
-cat "$D/r1.out"; echo "SID=$SID"
+SIDFILE="${TMPDIR:-/tmp}/oc-discuss-session"
+"$OC" --tier <tier> --label round1 < "$D/r1.txt" 2>&1 >"$D/r1.out" \
+  | tee /dev/stderr | sed -n 's/^OC_SESSION=//p' > "$SIDFILE"
+cat "$D/r1.out"; echo "SID=$(cat "$SIDFILE")"
 ```
 
-The `2>&1 >file` order matters: it sends stderr (carrying `OC_SESSION=`) down
-the pipe while stdout goes to the file.
+Two things about that invocation are load-bearing:
+
+- The `2>&1 >file` **order** sends stderr (which carries `OC_SESSION=`) down
+  the pipe while stdout goes to the file. Reversing it captures the wrong
+  stream.
+- The session id goes to a **file**, not a shell variable. Each command block a
+  skill runs is a separate shell, so a `SID=$(...)` set here would be empty by
+  the next step — and `oc.sh` would then start a brand-new session while
+  appearing to succeed, which is precisely the silent drift this skill exists
+  to prevent. (`oc.sh` rejects an empty `--session`, so the failure is loud
+  rather than silent, but only if you pass the variable at all.)
+
+If two debates run at once they would share `$SIDFILE`; use a distinct
+filename per debate when that happens.
 
 ### 3. Rounds 2–3 — rebut or concede, point by point
 
@@ -85,8 +98,14 @@ answers the weak objections is theatre.
   echo "already gave. Under 300 words."
 } > "$D/r2.txt"
 
+SID="$(cat "${TMPDIR:-/tmp}/oc-discuss-session")"
+[ -n "$SID" ] || { echo "no session id from round 1 -- do not continue blind"; exit 1; }
 "$OC" --tier <tier> --session "$SID" --label round2 < "$D/r2.txt"
 ```
+
+Re-read `$SID` from the file in **every** round, and stop if it is empty. A
+round that runs without it is not round 2 of a debate; it is a fresh model
+being shown a rebuttal to an argument it never made.
 
 Stop when the exchange converges — when the model drops its objections, or
 both sides restate rather than advance. **Three rounds is the ceiling, not the
@@ -115,7 +134,9 @@ Rules for the verdict:
 - **Disputed is a real outcome.** Do not resolve a genuine disagreement by
   splitting the difference. Name what evidence would settle it — often a probe
   script or an office run.
-- **Report cost** if the debate ran to three `heavy` rounds. `oc.sh` prints it.
+- **Report elapsed time** if the debate ran to three `heavy` rounds; `oc.sh`
+  prints it per round. Cost is not in that output — check `opencode stats` if
+  the user asks.
 
 ### 5. Record the debate
 

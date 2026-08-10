@@ -52,8 +52,8 @@ If that is empty, ask what to look at rather than reviewing the whole repo.
 Per `models.md`. **Default to `heavy` (kimi-k3)** — this is a tool-using task
 (the model greps for existing helpers, which is the whole point of the reuse
 lens), and `models.md` records why that shape does not get the `medium`
-default. Drop to `medium` or `light` only for a small, bounded cleanup. Say
-which tier and why before spending.
+default. Drop to `medium` only for a small, bounded cleanup; do not use
+`light`. Say which tier and why before spending.
 
 ### 3. Run the pass
 
@@ -94,7 +94,9 @@ Go through the findings and sort them into three buckets, out loud:
 - **Hand off** — anything labelled BEHAVIOUR-CHANGE, or that looks like a bug.
   Those belong to `oc-review`, not here.
 
-Then apply the first bucket with `Edit`, in the main tree.
+Then apply the first bucket with `Edit`. If the fixes span more than one file,
+do it in an isolated `git worktree` per `CLAUDE.md`, not in the shared main
+tree; a single-file fix stays where it is.
 
 ### 5. Record the run
 
@@ -112,6 +114,11 @@ not:
 .venv/bin/python -m ruff check .
 .venv/bin/python -m pytest back_dev_home/<touched feature> -q
 ```
+
+`.venv/` and `node_modules/` are gitignored and therefore **absent in a fresh
+worktree**. Run these from the main checkout, or point at its interpreter
+(`/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python`), rather than
+concluding the tooling is broken.
 
 For frontend edits, `npm run typecheck` and `npm run lint` from
 `front-dev-home/`. Run the full suite if the change reached shared plumbing.

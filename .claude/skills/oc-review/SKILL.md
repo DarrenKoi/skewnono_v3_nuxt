@@ -83,7 +83,7 @@ SMELLS=.claude/skills/_opencode/smells.md
   echo "Read these for the repo's documented standards: CLAUDE.md, DESIGN.md,"
   echo "and any MIGRATION.md under a feature folder the diff touches."
   echo
-  echo "=== SMELL BASELINE (you cannot read this file yourself) ==="
+  echo "=== SMELL BASELINE (apply this exactly; do not substitute your own) ==="
   cat "$SMELLS"
   echo "=== END BASELINE ==="
   echo
@@ -109,14 +109,21 @@ SMELLS=.claude/skills/_opencode/smells.md
 
 OC=.claude/skills/_opencode/oc.sh
 "$OC" --tier <tier> --label standards < "$D/standards.txt" > "$D/standards.out" 2> "$D/standards.err" &
+P1=$!
 "$OC" --tier <tier> --label spec      < "$D/spec.txt"      > "$D/spec.out"      2> "$D/spec.err" &
-wait
-echo "=== STANDARDS ==="; cat "$D/standards.out"; tail -3 "$D/standards.err"
-echo "=== SPEC ===";      cat "$D/spec.out";      tail -3 "$D/spec.err"
+P2=$!
+# Capture each job's status separately: a bare `wait` yields only the last
+# one's, and then a failed axis is indistinguishable from a clean one.
+wait $P1; S1=$?
+wait $P2; S2=$?
+echo "=== STANDARDS (exit $S1) ==="; cat "$D/standards.out"; [ $S1 -ne 0 ] && tail -6 "$D/standards.err"
+echo "=== SPEC (exit $S2) ===";      cat "$D/spec.out";      [ $S2 -ne 0 ] && tail -6 "$D/spec.err"
 ```
 
-If an axis exits non-zero, report that axis as failed with the reason from its
-`.err` file. Do not present a one-axis review as if both had run.
+A non-zero axis must be reported as **failed**, quoting the reason from its
+`.err` file — never as an axis that found nothing. Exit 124 is a timeout (rerun
+with a higher `OC_TIMEOUT`), 1 is a provider or empty-reply failure. Do not
+present a one-axis review as if both had run.
 
 ### 5. Report
 
@@ -152,9 +159,14 @@ acted on, and record a failed run too.
 ### 7. Applying fixes
 
 opencode runs read-only (`--agent plan`), so nothing has been changed. If the
-user wants findings fixed, Claude applies them with `Edit` in the main tree,
-then commits with **explicit pathspecs only** — never `git add -A` — per
-`CLAUDE.md`, because other agent sessions share this working tree.
+user wants findings fixed, Claude applies them with `Edit` and commits with
+**explicit pathspecs only** — never `git add -A` — per `CLAUDE.md`, because
+other agent sessions share this working tree.
+
+A review usually yields fixes across several files, which is exactly the case
+`CLAUDE.md` routes into an isolated `git worktree`. Single-file fixes stay in
+the main tree; anything wider gets a worktree first, and it is torn down in the
+same session once the work is merged.
 
 ## Failure modes to avoid
 

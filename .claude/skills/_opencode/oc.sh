@@ -54,15 +54,32 @@ LABEL="opencode"
 # review on kimi-k3). The point is to bound a hang, not to rush a real run.
 OC_TIMEOUT="${OC_TIMEOUT:-900}"
 
+# ${2:-} rather than $2: with `set -u`, a flag given without a value would
+# otherwise die on an unbound variable and exit 1, which the caller cannot tell
+# apart from a provider failure.
+need_value() {
+  [ -n "$2" ] || { echo "oc.sh: $1 needs a value" >&2; exit 2; }
+}
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --tier)    TIER="$2";    shift 2 ;;
-    --model)   MODEL="$2";   shift 2 ;;
-    --session) SESSION="$2"; shift 2 ;;
-    --label)   LABEL="$2";   shift 2 ;;
+    --tier)    need_value "$1" "${2:-}"; TIER="$2";    shift 2 ;;
+    --model)   need_value "$1" "${2:-}"; MODEL="$2";   shift 2 ;;
+    --session) need_value "$1" "${2:-}"; SESSION="$2"; shift 2 ;;
+    --label)   need_value "$1" "${2:-}"; LABEL="$2";   shift 2 ;;
     *) echo "oc.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+# An empty --session is rejected above rather than ignored. Silently dropping it
+# would start a FRESH session while the caller believed it was continuing one --
+# for oc-discuss that means round 2 argues with a model that never saw round 1,
+# and reports success.
+case "$OC_TIMEOUT" in
+  ''|*[!0-9]*)
+    echo "oc.sh: OC_TIMEOUT must be a whole number of seconds, got '$OC_TIMEOUT'" >&2
+    exit 2 ;;
+esac
 
 # Tier -> model. models.md carries the *reasoning* for the mapping; this is
 # only the lookup.
@@ -80,15 +97,29 @@ if [ -z "$MODEL" ]; then
   exit 2
 fi
 
-PROMPT_FILE="$(mktemp -t oc_prompt)"
-OUT="$(mktemp -t oc_out)"
-ERR="$(mktemp -t oc_err)"
+# The explicit XXXXXX suffix keeps this working under GNU coreutils as well as
+# BSD/macOS mktemp; without it GNU errors out, every path below ends up empty,
+# and the script misreports the cause as "empty prompt on stdin".
+PROMPT_FILE="$(mktemp -t oc_prompt.XXXXXX)"
+OUT="$(mktemp -t oc_out.XXXXXX)"
+ERR="$(mktemp -t oc_err.XXXXXX)"
 # Presence of this file is the watchdog's own record that it fired. Inferring a
 # timeout from exit status alone cannot distinguish our SIGTERM from opencode
 # exiting 143 for its own reasons, which would skip the Zen retry on what was
 # really a provider failure.
-TIMEOUT_FLAG="$(mktemp -t oc_timeout)"
-trap 'rm -f "$PROMPT_FILE" "$OUT" "$ERR" "$TIMEOUT_FLAG"' EXIT
+TIMEOUT_FLAG="$(mktemp -t oc_timeout.XXXXXX)"
+WATCHDOG=""
+
+# INT/TERM as well as EXIT. On a bare EXIT trap, a Ctrl-C or a parent killing a
+# slow run leaves the watchdog subshell orphaned; OC_TIMEOUT seconds later it
+# fires `kill` at a PID the OS may have recycled onto an unrelated process.
+cleanup() {
+  [ -n "$WATCHDOG" ] && kill "$WATCHDOG" 2>/dev/null
+  rm -f "$PROMPT_FILE" "$OUT" "$ERR" "$TIMEOUT_FLAG"
+}
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
 # mktemp *creates* the file, and its existence is the signal, so clear it now.
 # attempt() clears it again before each try; this covers the path where
 # is_timeout is consulted before any attempt runs.
@@ -151,13 +182,14 @@ attempt() {
   # SIGKILL escalation matters because a single SIGTERM is not a guarantee:
   # if the CLI stalls inside its own signal handler, `wait` would block
   # forever -- the exact hang the watchdog exists to prevent.
+  # Kill first, flag second: flagging before the kill means a run that finishes
+  # in the gap is reported as a timeout and its (expensive) reply thrown away.
   ( sleep "$OC_TIMEOUT"
-    touch "$TIMEOUT_FLAG"
-    kill -TERM "$pid" 2>/dev/null
+    kill -TERM "$pid" 2>/dev/null && touch "$TIMEOUT_FLAG"
     sleep 10
     kill -KILL "$pid" 2>/dev/null
   ) >/dev/null 2>&1 &
-  local watchdog=$!
+  WATCHDOG=$!
 
   # 2>/dev/null suppresses bash's own "Terminated: 15" job notice when the
   # watchdog kills opencode; that notice is noise in a skill's transcript and
@@ -165,8 +197,9 @@ attempt() {
   wait "$pid" 2>/dev/null
   local status=$?
 
-  kill "$watchdog" 2>/dev/null
-  wait "$watchdog" 2>/dev/null
+  kill "$WATCHDOG" 2>/dev/null
+  wait "$WATCHDOG" 2>/dev/null
+  WATCHDOG=""
   return $status
 }
 
@@ -186,50 +219,66 @@ fail_timeout() {
   exit 124
 }
 
-attempt "opencode-go/$MODEL"
-STATUS=$?
-USED="opencode-go/$MODEL"
+# One provider, end to end: run it, and if it comes back successful-but-empty,
+# retry once before giving up on it.
+#
+# The empty case is worth a retry rather than a failure. Measured on both
+# glm-5.2 and kimi-k3: a tool-using run ends with an empty final step (reason
+# "unknown", 0 tokens) while every tool call succeeded. It is transient.
+#
+# Returns 0 success | 124 timeout | 3 empty twice | other = opencode's status.
+# `is_timeout` is only consulted when the run actually failed: opencode exiting
+# 0 with a full reply is a success even if the watchdog was mid-flight.
+try_provider() {
+  local qualified="$1"
+  local st
 
-is_timeout && fail_timeout "$USED"
+  attempt "$qualified"; st=$?
+  [ $st -ne 0 ] && is_timeout && return 124
+  [ $st -ne 0 ] && return $st
+
+  if [ ! -s "$OUT" ]; then
+    echo "[$LABEL] empty final message from $qualified; retrying once" >&2
+    attempt "$qualified"; st=$?
+    [ $st -ne 0 ] && is_timeout && return 124
+    [ $st -ne 0 ] && return $st
+    [ -s "$OUT" ] || return 3
+  fi
+  return 0
+}
+
+USED="opencode-go/$MODEL"
+try_provider "$USED"
+STATUS=$?
+[ $STATUS -eq 124 ] && fail_timeout "$USED"
 
 GO_DIAG=""
 if [ $STATUS -ne 0 ]; then
-  GO_DIAG="$(diagnose)"
+  # An empty reply is a failure of this provider like any other, so it falls
+  # through to Zen rather than dead-ending on Go.
+  if [ $STATUS -eq 3 ]; then
+    GO_DIAG="empty final message twice"
+  else
+    GO_DIAG="$(diagnose)"
+  fi
   echo "[$LABEL] opencode-go failed: $GO_DIAG" >&2
   echo "[$LABEL] retrying on Zen" >&2
-  attempt "opencode/$MODEL"
-  STATUS=$?
+
   USED="opencode/$MODEL"
-  is_timeout && fail_timeout "$USED"
+  try_provider "$USED"
+  STATUS=$?
+  [ $STATUS -eq 124 ] && fail_timeout "$USED"
 fi
 
 if [ $STATUS -ne 0 ]; then
+  local_diag="$(diagnose)"
+  [ $STATUS -eq 3 ] && local_diag="empty final message twice"
   {
     echo "[$LABEL] FAILED on both providers for model '$MODEL'."
     echo "[$LABEL]   opencode-go: $GO_DIAG"
-    echo "[$LABEL]   opencode:    $(diagnose)"
+    echo "[$LABEL]   opencode:    $local_diag"
     echo "[$LABEL] Not downgrading to another tier -- rerun with an explicit --model."
   } >&2
-  exit 1
-fi
-
-# A zero exit with no text is the dangerous case: the caller would format an
-# empty review as if the model had found nothing wrong.
-#
-# This is common enough to be worth one retry rather than one failure. Measured
-# on both glm-5.2 and kimi-k3: a tool-using run ends with an empty final step
-# (reason "unknown", 0 tokens) while every tool call succeeded. It is transient,
-# so the same prompt usually answers on the second try.
-if [ ! -s "$OUT" ]; then
-  echo "[$LABEL] empty final message from $USED; retrying once" >&2
-  attempt "$USED"
-  STATUS=$?
-  is_timeout && fail_timeout "$USED"
-fi
-
-if [ ! -s "$OUT" ]; then
-  echo "[$LABEL] returned no text twice (empty final message). Last reason: $(diagnose)" >&2
-  echo "[$LABEL] Treating as failure rather than reporting an empty review." >&2
   exit 1
 fi
 

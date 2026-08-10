@@ -213,9 +213,7 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
   `bento_agents.md`) must stay byte-identical to their upstream, generated
   `openwiki/` pages get rewritten by the refresh job, `.remember/`,
   `.scratch/` and `.superpowers/` are scratch, and `.claude/skills/**` is
-  agent-facing instruction text rather than teammate-facing docs — it is also
-  the one tree written in English on purpose, so the Korean rule below would
-  fight it.
+  agent-facing instruction text rather than teammate-facing docs.
 - Use markdownlint `MD060` `compact` table style for every Markdown table.
 - Write `docs/` and study Markdown in Korean when it is intended for teammate sharing.
 - Use formal Korean sentence endings such as `~입니다.` and `~합니다.` consistently in those documents.

@@ -36,11 +36,13 @@ running them rather than by reading docs.
 | `glm-5.2` | works | **unreliable** | Two failures out of two: once an unrelated hallucinated document, once an empty final message |
 | `gpt-5.6-luna` | works | untested at length | Fine for short bounded prompts |
 
-**Consequence: `oc-review` and `oc-simplify` default to `heavy`, not `medium`.**
-A review is a tool-using task — the model runs `git diff`, greps, and reads
-files — and that is exactly where `glm-5.2` fell over here. The `medium` tier
-remains correct for its stated complexity band, but is not currently
-trustworthy for delegated review work.
+**Consequence: all three `oc-*` skills default to `heavy`, not `medium`, and
+none of them drop to `light`.** A review, a simplify pass, and a debate round
+are all tool-using tasks — the model runs `git diff`, greps, and reads files —
+and that is exactly where `glm-5.2` fell over here. The `medium` tier remains
+correct for its stated complexity band, but is not currently trustworthy for
+delegated review work; `light` is untested at that length and is not a floor
+any `oc-*` skill should use.
 
 This is a measurement, not a verdict on the model, and it is cheap to recheck:
 run `oc.sh --tier medium` on a bounded review and see whether it answers. If it
@@ -82,8 +84,10 @@ back to a *different* model — a review that quietly ran on a weaker tier than
 you were told is worse than one that visibly did not run. Rerun with an
 explicit `--model` if you want a substitute.
 
-`oc.sh` prints the cost of each call to stderr. Reviews are cheap relative to
-an office trip, but a `heavy` debate over several rounds is not free.
+`oc.sh` prints the elapsed time of each call to stderr, not its cost — the
+default output format carries no token accounting. For spend, use
+`opencode stats`. Reviews are cheap relative to an office trip, but a `heavy`
+debate over several rounds is not free.
 
 ## Notes
 
@@ -95,5 +99,6 @@ an office trip, but a `heavy` debate over several rounds is not free.
   tiers above were each verified to respond on `opencode-go/`.
 - Everything runs under `--agent plan`, which opencode enforces as read-only:
   it will run `git diff` and read files, but refuses to write. Findings come
-  back as text and get applied by Claude, in the main tree, under the normal
-  explicit-pathspec commit rules.
+  back as text and get applied by Claude, under the normal explicit-pathspec
+  commit rules — and in a `git worktree` when the fixes span more than one
+  file, per `CLAUDE.md`.
