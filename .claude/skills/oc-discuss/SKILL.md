@@ -19,8 +19,10 @@ rounds are what create pressure: the model has to defend its critique against a
 rebuttal, and Claude has to either answer the critique or concede it. Positions
 that survive that are worth more than positions nobody attacked.
 
-Use `heavy` (kimi-k3) for architecture, provider design, and anything touching
-the mock→office swap. `medium` is fine for a scoped implementation choice.
+**Default to `heavy` (kimi-k3).** A debate round is a tool-using task — the
+prompts below tell the model to inspect the repo — and `models.md` records that
+shape failing on `medium`. Use `medium` only for a purely conceptual question
+where the model needs to read nothing.
 
 ## Process
 
@@ -115,7 +117,15 @@ Rules for the verdict:
   script or an office run.
 - **Report cost** if the debate ran to three `heavy` rounds. `oc.sh` prints it.
 
-### 5. Then act
+### 5. Record the debate
+
+Write it to `docs/opencode/YYYY-MM-DD-<title>.md` following
+`.claude/skills/_opencode/logging.md`, quoting the model's objections verbatim
+and keeping the three-way verdict intact, then run `npm run lint:md` from the
+repo root. The "I was wrong" section is the part worth having on disk months
+later, so do not compress it away.
+
+### 6. Then act
 
 The verdict is input to a decision, not the decision. Recommend a course, note
 what the user should weigh, and wait for their call before implementing

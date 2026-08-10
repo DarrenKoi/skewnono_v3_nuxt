@@ -49,12 +49,11 @@ If that is empty, ask what to look at rather than reviewing the whole repo.
 
 ### 2. Pick a tier and announce it
 
-Per `models.md`. **Default to `heavy` (kimi-k3)**: this is a tool-using task
+Per `models.md`. **Default to `heavy` (kimi-k3)** — this is a tool-using task
 (the model greps for existing helpers, which is the whole point of the reuse
-lens), and the measured-reliability table records `glm-5.2` failing on that
-shape. Drop to `medium` or `light` only for a small, bounded cleanup, and check
-the reply is a real analysis before acting on it. Say which tier and why before
-spending.
+lens), and `models.md` records why that shape does not get the `medium`
+default. Drop to `medium` or `light` only for a small, bounded cleanup. Say
+which tier and why before spending.
 
 ### 3. Run the pass
 
@@ -97,7 +96,14 @@ Go through the findings and sort them into three buckets, out loud:
 
 Then apply the first bucket with `Edit`, in the main tree.
 
-### 5. Verify, then report
+### 5. Record the run
+
+Write a summary to `docs/opencode/YYYY-MM-DD-<title>.md` following
+`.claude/skills/_opencode/logging.md`, quoting the model's findings verbatim
+and recording the applied/declined/handed-off split, then run
+`npm run lint:md` from the repo root.
+
+### 6. Verify, then report
 
 A quality pass that changes behaviour is a failed quality pass, so prove it did
 not:

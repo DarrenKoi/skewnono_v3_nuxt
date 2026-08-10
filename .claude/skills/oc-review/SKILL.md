@@ -41,11 +41,9 @@ A bad ref or an empty diff fails here, not inside two paid model calls.
 
 ### 2. Pick a tier and announce it
 
-**Default to `heavy` (kimi-k3).** A review is a tool-using task, and the
-measured-reliability table in `models.md` records `glm-5.2` failing on exactly
-that shape — once with an unrelated hallucinated document, once with an empty
-final message. Use `medium` only for a genuinely small diff, and check the
-output is a real review before reporting it.
+**Default to `heavy` (kimi-k3)** — see the measured-reliability table in
+`models.md` for why a tool-using review does not get the `medium` default its
+size would suggest. Use `medium` only for a genuinely small diff.
 
 Still judge complexity, apply the escalation rule, and say so in one line
 before running:
@@ -144,7 +142,14 @@ Do **not** merge or rerank the two axes into one list. A change can pass
 Standards and fail Spec, and reporting them together lets one mask the other.
 End with one line per axis: finding count and the worst item within that axis.
 
-### 6. Applying fixes
+### 6. Record the run
+
+Write a summary to `docs/opencode/YYYY-MM-DD-<title>.md` following
+`.claude/skills/_opencode/logging.md`, quoting both axes verbatim, then run
+`npm run lint:md` from the repo root. Do this **whether or not** findings were
+acted on, and record a failed run too.
+
+### 7. Applying fixes
 
 opencode runs read-only (`--agent plan`), so nothing has been changed. If the
 user wants findings fixed, Claude applies them with `Edit` in the main tree,

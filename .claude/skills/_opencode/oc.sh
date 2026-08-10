@@ -177,16 +177,20 @@ is_timeout() { [ -f "$TIMEOUT_FLAG" ]; }
 echo "[$LABEL] model=$MODEL${TIER:+ (tier=$TIER)}${SESSION:+ session=$SESSION} timeout=${OC_TIMEOUT}s" >&2
 STARTED=$SECONDS
 
+# Single home for the timeout exit, so the two call sites cannot drift apart.
+fail_timeout() {
+  echo "[$LABEL] timed out after ${OC_TIMEOUT}s on $1." >&2
+  echo "[$LABEL] Not retrying -- a timeout is not a provider fault, so the" >&2
+  echo "[$LABEL] same prompt would just be waited on twice." >&2
+  echo "[$LABEL] Raise the ceiling with OC_TIMEOUT=<seconds> if the task is genuinely long." >&2
+  exit 124
+}
+
 attempt "opencode-go/$MODEL"
 STATUS=$?
 USED="opencode-go/$MODEL"
 
-if is_timeout; then
-  echo "[$LABEL] timed out after ${OC_TIMEOUT}s on $USED." >&2
-  echo "[$LABEL] Not retrying on Zen -- a timeout is not a provider fault." >&2
-  echo "[$LABEL] Raise the ceiling with OC_TIMEOUT=<seconds> if the task is genuinely long." >&2
-  exit 124
-fi
+is_timeout && fail_timeout "$USED"
 
 GO_DIAG=""
 if [ $STATUS -ne 0 ]; then
@@ -196,11 +200,7 @@ if [ $STATUS -ne 0 ]; then
   attempt "opencode/$MODEL"
   STATUS=$?
   USED="opencode/$MODEL"
-
-  if is_timeout; then
-    echo "[$LABEL] timed out after ${OC_TIMEOUT}s on $USED." >&2
-    exit 124
-  fi
+  is_timeout && fail_timeout "$USED"
 fi
 
 if [ $STATUS -ne 0 ]; then
@@ -214,11 +214,21 @@ if [ $STATUS -ne 0 ]; then
 fi
 
 # A zero exit with no text is the dangerous case: the caller would format an
-# empty review as if the model had found nothing wrong. Measured: some models
-# end a tool-using run with an empty final step (reason "unknown", 0 tokens),
-# so this is a real path, not a defensive nicety.
+# empty review as if the model had found nothing wrong.
+#
+# This is common enough to be worth one retry rather than one failure. Measured
+# on both glm-5.2 and kimi-k3: a tool-using run ends with an empty final step
+# (reason "unknown", 0 tokens) while every tool call succeeded. It is transient,
+# so the same prompt usually answers on the second try.
 if [ ! -s "$OUT" ]; then
-  echo "[$LABEL] returned no text (empty final message). Reason: $(diagnose)" >&2
+  echo "[$LABEL] empty final message from $USED; retrying once" >&2
+  attempt "$USED"
+  STATUS=$?
+  is_timeout && fail_timeout "$USED"
+fi
+
+if [ ! -s "$OUT" ]; then
+  echo "[$LABEL] returned no text twice (empty final message). Last reason: $(diagnose)" >&2
   echo "[$LABEL] Treating as failure rather than reporting an empty review." >&2
   exit 1
 fi

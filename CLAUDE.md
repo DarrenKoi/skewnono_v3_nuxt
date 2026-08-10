@@ -211,8 +211,11 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 - Deliberately **not** linted, so do not widen the glob to reach them: vendored
   copies (`ftp_handler/`, `minio_handler/`, `ops_store/`, `ops_index_mgmt/`,
   `bento_agents.md`) must stay byte-identical to their upstream, generated
-  `openwiki/` pages get rewritten by the refresh job, and `.remember/`,
-  `.scratch/` and `.superpowers/` are scratch.
+  `openwiki/` pages get rewritten by the refresh job, `.remember/`,
+  `.scratch/` and `.superpowers/` are scratch, and `.claude/skills/**` is
+  agent-facing instruction text rather than teammate-facing docs — it is also
+  the one tree written in English on purpose, so the Korean rule below would
+  fight it.
 - Use markdownlint `MD060` `compact` table style for every Markdown table.
 - Write `docs/` and study Markdown in Korean when it is intended for teammate sharing.
 - Use formal Korean sentence endings such as `~입니다.` and `~합니다.` consistently in those documents.
@@ -227,6 +230,15 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 | `home-to-office` | Audit features against the mock→office provider convention before conveying work |
 | `generate-mock` | Scaffold a mock data composable for a new endpoint |
 | `add-vendor` | Wire a new e-beam tool family (VeritySEM, Provision, …) into a feature — rules in `docs/back-end/vendor-onboarding.md` |
+| `oc-review` | Two-axis review (Standards + Spec) of a diff, delegated to an opencode model, then reconciled against Claude's own reading |
+| `oc-simplify` | Quality-only pass (reuse, simplification, efficiency, altitude) delegated to an opencode model; Claude applies the edits |
+| `oc-discuss` | Debate a decision with an opencode model over up to three rounds, ending in AGREED / DISPUTED / I-WAS-WRONG |
+
+The three `oc-*` skills share `.claude/skills/_opencode/` (`oc.sh`, the tier
+table in `models.md`, the smell baseline, and the `docs/opencode/` logging
+format). That folder has no `SKILL.md`, so it is not itself a skill. Every
+`oc-*` run leaves a record under `docs/opencode/`; opencode always runs
+read-only, so Claude applies any resulting edits.
 
 ### Issue tracker
 

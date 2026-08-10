@@ -1,9 +1,11 @@
 # Smell baseline
 
 The fixed baseline the Standards axis always carries, from Fowler,
-_Refactoring_ ch.3. Paste this file into the opencode prompt verbatim — the
-delegated model has no access to this repo's skill files and cannot read it
-otherwise.
+_Refactoring_ ch.3. Paste this file into the opencode prompt verbatim.
+
+The model *could* read it — `--agent plan` grants read access to the whole
+repo — but pasting makes the baseline part of the instruction rather than one
+more file it might or might not open, and keeps the axis reproducible.
 
 Two rules bind it:
 
