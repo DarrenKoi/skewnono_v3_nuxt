@@ -143,7 +143,8 @@ test('rules present but EVERY recipe gray is no-verdict, not green', () => {
 })
 
 // --- exempt jobs (_WCDU / _FCDU / _FULL user-confirmed 2026-08-04,
-//     _HALF / _BCDU / _MTX user-confirmed 2026-08-05) ---
+//     _HALF / _BCDU / _MTX user-confirmed 2026-08-05,
+//     토큰 뒤에 꼬리가 붙는 "_BCDU_NEW" user-confirmed 2026-08-11) ---
 
 test('isExemptJob matches ANY _*CDU job, not a fixed list', () => {
   assert.equal(isExemptJob('RCP-R000-001_WCDU'), true)
@@ -164,17 +165,27 @@ test('isExemptJob matches the named non-CDU jobs, case-insensitive', () => {
   assert.equal(isExemptJob('RCP-R000-001_mtx'), true)
 })
 
-test('isExemptJob anchors at the end and does not over-match', () => {
-  // 접미사가 아니라 중간에 있으면 판정 대상입니다.
-  assert.equal(isExemptJob('RCP_FULL-R000-001'), false)
-  assert.equal(isExemptJob('RCP_HALF-R000-001'), false)
-  assert.equal(isExemptJob('RCP_WCDU-R000-001'), false)
+test('isExemptJob matches the token anywhere, not only at the end', () => {
+  // 실물에 있는 이름입니다 — 토큰 뒤에 꼬리가 더 붙습니다
+  // (user-confirmed 2026-08-11). 끝에 고정하던 시절 이 이름이 정상 recipe 로
+  // 새어 나갔습니다.
+  assert.equal(isExemptJob('RCP-R000-001_BCDU_NEW'), true)
+  assert.equal(isExemptJob('RCP-R000-001_bcdu_new'), true)
+  assert.equal(isExemptJob('RCP-R000-001_FULL_REV2'), true)
+  assert.equal(isExemptJob('RCP-R000-001_HALF_OLD'), true)
+  // 이름 앞·중간에 있어도 같은 job 입니다 — 가리키는 것은 위치가 아니라 토큰입니다.
+  assert.equal(isExemptJob('RCP_FULL-R000-001'), true)
+  assert.equal(isExemptJob('RCP_WCDU-R000-001'), true)
+})
+
+test('isExemptJob still needs the leading underscore and does not over-match', () => {
   assert.equal(isExemptJob('RCP-R000-001'), false)
   assert.equal(isExemptJob(''), false)
-  // "CDU" 로 끝나도 앞의 밑줄이 없으면 특수 job 이 아닙니다 — 이름 한복판에서
-  // 우연히 끝나는 경우까지 먹으면 정상 recipe 가 조용히 분석에서 빠집니다.
+  // 앞의 밑줄이 없으면 특수 job 이 아닙니다 — 이 경계까지 놓으면 이름 안에서
+  // 우연히 만들어진 글자 조합에 정상 recipe 가 조용히 분석에서 빠집니다.
   assert.equal(isExemptJob('RCP-R000-001CDU'), false)
   assert.equal(isExemptJob('RCP-R000-001MTX'), false)
+  assert.equal(isExemptJob('RCP-FULL-R000-001'), false)
 })
 
 test('exempt recipes leave BOTH the numerator and the denominator', () => {

@@ -116,12 +116,18 @@ from back_dev_home.ebeam.device_statistics.para_buckets import (
 # 인 것이 핵심입니다.
 _SAMPLE_SUFFIX = re.compile(r"(_S|SE)$", re.IGNORECASE)
 
-# 특수 측정 job 접미사. CDU 는 **목록이 아니라 패턴**입니다 — 앞 글자는 어떤
+# 특수 측정 job 토큰. CDU 는 **목록이 아니라 패턴**입니다 — 앞 글자는 어떤
 # map 을 재는지를 뜻할 뿐이라(W=wafer, F=field, B=…) 종류가 늘 수 있고, 실제로
 # _WCDU/_FCDU 만 적어 두었더니 _BCDU 가 새어 나왔습니다 (user-confirmed
 # 2026-08-05). _FULL/_HALF/_MTX 는 CDU 가 아닌 별개 job 이라 이름으로 답니다.
-# 프론트엔드 lotHealth.EXEMPT_JOB_SUFFIX 와 같은 식이어야 합니다.
-_EXEMPT_JOB_SUFFIX = re.compile(r"(_[A-Z]*CDU|_FULL|_HALF|_MTX)$", re.IGNORECASE)
+#
+# 끝에 고정하지 **않습니다** — 실물에 "_BCDU_NEW" 처럼 토큰 뒤에 꼬리가 더 붙는
+# 이름이 있습니다 (user-confirmed 2026-08-11). 이 job 을 가리키는 것은 이름의
+# 위치가 아니라 토큰 자체입니다. 앞의 밑줄만은 남깁니다 — 그 경계까지 놓으면
+# 이름 안에서 우연히 만들어진 글자 조합에 정상 recipe 가 조용히 빠집니다.
+#
+# 프론트엔드 lotHealth.EXEMPT_JOB_TOKEN 과 같은 식이어야 합니다.
+_EXEMPT_JOB_TOKEN = re.compile(r"(_[A-Z]*CDU|_FULL|_HALF|_MTX)", re.IGNORECASE)
 
 
 def is_sample_recipe(recipe_id: str) -> bool:
@@ -130,7 +136,7 @@ def is_sample_recipe(recipe_id: str) -> bool:
 
 
 def is_exempt_job(recipe_id: str) -> bool:
-    """recipe 이름이 특수 측정 job 접미사로 끝나는가.
+    """recipe 이름에 특수 측정 job 토큰이 들어 있는가.
 
     프론트엔드 ``lotHealth.isExemptJob`` 과 **같은 정규식**입니다. 이 표면에서도
     공개 함수인 이유는 소비처가 둘이기 때문입니다 — 이름을 만드는
@@ -140,7 +146,7 @@ def is_exempt_job(recipe_id: str) -> bool:
     튜플은 mock 이 만들어 볼 표본일 뿐이고, 판정 기준은 패턴입니다 — 표본에
     없는 "_BCDU" 도 걸러야 하기 때문입니다.
     """
-    return bool(_EXEMPT_JOB_SUFFIX.search((recipe_id or "").strip()))
+    return bool(_EXEMPT_JOB_TOKEN.search((recipe_id or "").strip()))
 
 
 def ends_with_pure_cd(oper_desc: str) -> bool:
@@ -271,7 +277,7 @@ _RECIPE_BASES = (
 _SAMPLE_RATIO = 0.25
 
 # 만들어 볼 특수 측정 job 접미사 **표본**입니다 — 판정 기준이 아닙니다.
-# 기준은 :data:`_EXEMPT_JOB_SUFFIX` 패턴이고, 여기 있는 것은 그 패턴이 집에서
+# 기준은 :data:`_EXEMPT_JOB_TOKEN` 패턴이고, 여기 있는 것은 그 패턴이 집에서
 # 실제로 지나가도록 이름을 찍어 내기 위한 목록입니다.
 #
 # _BCDU 가 들어 있는 이유가 그 구분을 말해 줍니다. 이 이름은 어느 열거 목록에도
@@ -283,9 +289,18 @@ _SAMPLE_RATIO = 0.25
 # outlierDetect 가 중앙값 기준선과 초과 목록에서 뺍니다 — mock 이 이 이름을
 # 만들지 않으면 그 두 경로가 집에서 한 번도 실행되지 않습니다.
 #
+# "_BCDU_NEW" 는 토큰 **뒤에 꼬리가 붙는** 실물 이름입니다 (user-confirmed
+# 2026-08-11). 표본에 넣어 두는 이유는 앞의 여섯과 다릅니다 — 다른 이름들은
+# 토큰으로 끝나므로 끝에 고정한 옛 규칙으로도 잡혔고, 그래서 집에서는
+# :data:`_EXEMPT_JOB_TOKEN` 이 "끝" 이 아니라 "어디든" 을 본다는 사실이 한 번도
+# 관찰되지 않았습니다. 이 이름 하나가 그 경로를 매 lot 에서 실행시킵니다.
+#
 # _WCDU/_FCDU/_FULL user-confirmed 2026-08-04,
-# _HALF/_BCDU/_MTX user-confirmed 2026-08-05.
-_JUDGE_EXEMPT_SUFFIXES = ("_WCDU", "_FCDU", "_BCDU", "_FULL", "_HALF", "_MTX")
+# _HALF/_BCDU/_MTX user-confirmed 2026-08-05,
+# _BCDU_NEW user-confirmed 2026-08-11.
+_JUDGE_EXEMPT_SUFFIXES = (
+    "_WCDU", "_FCDU", "_BCDU", "_FULL", "_HALF", "_MTX", "_BCDU_NEW",
+)
 
 # 특수 측정 job 의 비율. 0.10 이었다가 **0.03** 으로 내렸습니다 — "16 point 를
 # 넘는 파라미터는 전체 파라미터의 2~5% 이고, 그것이 recipe 의 3% 에 몰려 있다"

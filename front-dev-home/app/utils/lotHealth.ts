@@ -60,9 +60,9 @@ export interface LotVerdict {
 export const recipeKey = (lotCd: string, recipeId: string): string =>
   `${lotCd}\u0000${recipeId}`
 
-// 특수 측정 job. recipe 이름이 이 접미사로 끝나면 CDU·full/half-map 측정 job
-// 입니다. 웨이퍼를 통째로 훑는 것이 목적이라 **측정 규모가 정상 recipe 와 다른
-// 차원**이고, 그래서 두 분석 모두에서 빠집니다.
+// 특수 측정 job. recipe 이름에 이 토큰이 **들어 있으면** CDU·full/half-map 측정
+// job 입니다. 웨이퍼를 통째로 훑는 것이 목적이라 **측정 규모가 정상 recipe 와
+// 다른 차원**이고, 그래서 두 분석 모두에서 빠집니다.
 //
 //   판정(cap) — gray(판정 보류 — 분모에 남아 coverage 를 낮춤)와 달리 분자·분모
 //               **모두**에서 빠집니다. 애초에 판정 범위 밖인 recipe 입니다.
@@ -76,11 +76,21 @@ export const recipeKey = (lotCd: string, recipeId: string): string =>
 // 그대로 새어 나왔습니다 — 접미사를 열거하는 방식 자체가 틀린 모양이었습니다.
 // _FULL/_HALF/_MTX 는 CDU 가 아닌 별개의 job 이라 계속 이름으로 답니다
 // (_MTX user-confirmed 2026-08-05).
-const EXEMPT_JOB_SUFFIX = /(_[A-Z]*CDU|_FULL|_HALF|_MTX)$/i
+//
+// **끝에 고정하지 않습니다** — 실물에 "_BCDU_NEW" 처럼 토큰 뒤에 꼬리가 더
+// 붙는 이름이 있습니다 (user-confirmed 2026-08-11). 이름의 끝을 보는 규칙은 그
+// 이름을 정상 recipe 로 흘려보냈습니다. 이 job 을 가리키는 것은 이름의 위치가
+// 아니라 토큰 자체이므로, 토큰이 어디에 있든 잡습니다.
+//
+// 방향을 이렇게 잡은 이유는 두 오판의 값이 다르기 때문입니다. 놓치면(under-match)
+// 웨이퍼 전면 job 의 큰 point_count 가 중앙값 기준선에 섞여 정상 recipe 의 진짜
+// 과다 측정을 가립니다. 넘겨 잡으면(over-match) recipe 한 건이 판정 범위에서
+// 빠지고 툴팁의 특수 job 건수에 잡혀 눈에 보입니다 — 조용히 틀리지 않습니다.
+const EXEMPT_JOB_TOKEN = /(_[A-Z]*CDU|_FULL|_HALF|_MTX)/i
 
-/** recipe 가 분석 범위 밖의 특수 job("_*CDU"/_FULL/_HALF/_MTX)인가. */
+/** recipe 이름에 특수 job 토큰("_*CDU"/_FULL/_HALF/_MTX)이 들어 있는가. */
 export const isExemptJob = (recipeId: string): boolean =>
-  EXEMPT_JOB_SUFFIX.test((recipeId || '').trim())
+  EXEMPT_JOB_TOKEN.test((recipeId || '').trim())
 
 /**
  * recipe-params 를 선택된 버킷의 범위로 좁힙니다 — **두 축을 한 번에**.

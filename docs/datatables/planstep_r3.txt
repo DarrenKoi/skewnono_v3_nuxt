@@ -48,14 +48,16 @@ docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 
   eqp_id -> string: 장비 ID.
   recipe_id -> string: recipe 식별자. **다른 DB 의 full_name 과 동일한 값**입니다 —
                        cdsem_idp_ver.full_name 과 이 값으로 조인합니다.
-                       이름이 "_*CDU"(패턴 — _WCDU/_FCDU/_BCDU …) 또는
-                       "_FULL"/"_HALF"/"_MTX" 로 끝나면 CDU·full/half-map·
+                       이름에 "_*CDU"(패턴 — _WCDU/_FCDU/_BCDU …) 또는
+                       "_FULL"/"_HALF"/"_MTX" 가 **들어 있으면** CDU·full/half-map·
                        matrix 측정 job 으로, 계측 룰 판정 범위와 point_count
                        outlier 기준선 양쪽에서 제외됩니다. CDU 는 목록이 아니라
                        패턴인 것이 중요합니다 — 앞 글자는 어떤 map 을 재는지를
-                       뜻할 뿐이라 종류가 늘 수 있습니다
+                       뜻할 뿐이라 종류가 늘 수 있습니다. 위치도 끝으로 고정되어
+                       있지 않습니다 — "_BCDU_NEW" 처럼 꼬리가 더 붙습니다
                        (_WCDU/_FCDU/_FULL user-confirmed 2026-08-04,
-                       _HALF/_BCDU/_MTX user-confirmed 2026-08-05
+                       _HALF/_BCDU/_MTX user-confirmed 2026-08-05,
+                       _BCDU_NEW user-confirmed 2026-08-11
                        — recipe_params.txt).
   bak_eqp_yn -> string: "Y" | "N". 백업 장비 지정 여부입니다.
   bak_eqp_id_lval -> string: 백업 장비 목록을 슬래시로 이어붙인 문자열입니다.

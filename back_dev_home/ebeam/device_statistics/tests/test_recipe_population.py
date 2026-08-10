@@ -319,10 +319,10 @@ def test_judge_exempt_suffixes_are_present_in_the_pool():
     대역한다는 원칙(CLAUDE.md)입니다.
     """
     # lot 여러 개를 훑습니다. 2026-08-10 에 특수 측정 job 비율이 10% -> 3% 로
-    # 내려가면서(실물이 그렇습니다 — recipe 의 3%) 한 lot 의 190여 건에는 접미사
-    # 여섯 개가 다 나오지 않게 됐습니다. 확인하려는 것은 "한 lot 안에 여섯 개가
-    # 다 있다" 가 아니라 "mock 이 여섯 개를 모두 만들어 낸다" 이므로, 표본을
-    # 넓히는 것이 맞고 기대를 줄이는 것은 틀립니다.
+    # 내려가면서(실물이 그렇습니다 — recipe 의 3%) 한 lot 의 190여 건에는 접미사가
+    # 다 나오지 않게 됐습니다. 확인하려는 것은 "한 lot 안에 전부 있다" 가 아니라
+    # "mock 이 전부 만들어 낸다" 이므로, 표본을 넓히는 것이 맞고 기대를 줄이는
+    # 것은 틀립니다.
     expected = set(_JUDGE_EXEMPT_SUFFIXES)
     present = {
         suffix
@@ -358,8 +358,14 @@ def test_is_exempt_job_is_a_pattern_not_the_generation_list():
     for name in ("RCP-R000-001_BCDU", "RCP-R000-001_XCDU", "RCP-R000-001_CDU"):
         assert is_exempt_job(name), name
 
-    # 끝에 고정입니다 — 이름 한복판의 CDU 나 밑줄 없는 CDU 는 정상 recipe 입니다.
-    for name in ("RCP_WCDU-R000-001", "RCP-R000-001CDU", "RCP-R000-001"):
+    # 끝에 고정하지 않습니다 — 실물에 "_BCDU_NEW" 처럼 토큰 뒤에 꼬리가 붙는
+    # 이름이 있고(user-confirmed 2026-08-11), 끝을 보던 규칙은 그것을 정상
+    # recipe 로 흘려보냈습니다. 위치가 아니라 토큰이 이 job 을 가리킵니다.
+    for name in ("RCP-R000-001_BCDU_NEW", "RCP-R000-001_FULL_REV2", "RCP_WCDU-R000-001"):
+        assert is_exempt_job(name), name
+
+    # 앞의 밑줄까지 놓지는 않습니다 — 밑줄 없는 CDU/MTX 는 정상 recipe 입니다.
+    for name in ("RCP-R000-001CDU", "RCP-FULL-R000-001", "RCP-R000-001"):
         assert not is_exempt_job(name), name
 
 

@@ -143,9 +143,10 @@ para_* 는 측정 파라미터만 셉니다 (user-confirmed 2026-08-10)
   recipe 의 3%** 에 몰려 있습니다. 즉 그 3% 의 recipe 는 파라미터가 거의 전부
   16 을 넘고, 나머지 97% 의 recipe 에는 그런 파라미터가 아예 없습니다.
 
-  그 3% 는 웨이퍼 전면을 훑는 특수 측정 job 입니다 — recipe 이름이
-  "_*CDU"/"_FULL"/"_HALF"/"_MTX" 로 끝나는 것들이고(recipe_params.txt), 파라미터당
-  point 수가 정상 recipe 와 자릿수부터 다릅니다.
+  그 3% 는 웨이퍼 전면을 훑는 특수 측정 job 입니다 — recipe 이름에
+  "_*CDU"/"_FULL"/"_HALF"/"_MTX" 가 들어 있는 것들이고(끝이 아니라 포함입니다 —
+  "_BCDU_NEW" 처럼 꼬리가 붙습니다; recipe_params.txt), 파라미터당 point 수가
+  정상 recipe 와 자릿수부터 다릅니다.
 
   따라서 para_over_16 구간은 **대부분의 recipe 에서 비어 있는 것이 정상**입니다.
   화면이 그 빈 구간을 "값이 0" 으로 그리지 않고 아예 그리지 않는 이유가 이것입니다.
