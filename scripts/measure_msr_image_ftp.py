@@ -70,12 +70,24 @@ import sys
 import threading
 import time
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
-from back_dev_home._runtime.office_redis import load_env_file
-from back_dev_home.msr_image.config import ImageConfig, load_config
-from back_dev_home.msr_image.contracts import ImageLocator
-from back_dev_home.msr_image.paths import image_dir, validate_tool_ip
+# Make `back_dev_home` importable however this file was started. `python -m
+# scripts.measure_msr_image_ftp` puts the working directory on sys.path and
+# happens to work from the repo root; `python scripts/measure_msr_image_ftp.py`
+# puts scripts/ there instead and fails on the very first import below. Both
+# forms get typed, and the by-path one is what a file manager, an IDE "run
+# this file" button, and tab completion all produce -- so support it rather
+# than explaining it. check_ftp_proxy.py already does the same.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
+from back_dev_home.msr_image.config import ImageConfig, load_config  # noqa: E402
+from back_dev_home.msr_image.contracts import ImageLocator  # noqa: E402
+from back_dev_home.msr_image.paths import image_dir, validate_tool_ip  # noqa: E402
 
 # Office settings, in the file, so this script runs with no .env at all.
 #
