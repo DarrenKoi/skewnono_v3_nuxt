@@ -107,7 +107,7 @@ def _discover() -> tuple[str, str, str]:
     Imported lazily: OpenSearch is an office-only dependency and an explicit
     --eqp-ip run should not need it at all.
     """
-    from back_dev_home.ebeam.hitachi._office_meas_hist import ALL_INDICES, search, text
+    from back_dev_home.ebeam._office_meas_hist import ALL_INDICES, search, text
 
     body = {
         "query": {"bool": {"filter": [
@@ -403,6 +403,14 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    # Stages B and C take minutes, and this is run at the office where the
+    # operator is watching for signs of life. Block buffering (which is what
+    # Python picks the moment output is piped or tee'd to a file) would hold
+    # every line until a stage finished, so a working run and a hung one look
+    # identical. It also reorders output against stderr, which is unbuffered:
+    # a traceback then appears ABOVE the lines that were printed before it.
+    sys.stdout.reconfigure(line_buffering=True)
+
     if not os.environ.get("OPENSEARCH_HOST"):
         load_env_file("OPENSEARCH_HOST")
 
@@ -420,7 +428,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.eqp_ip and args.class_name and args.msr:
         eqp_ip, class_name, msr = args.eqp_ip, args.class_name, args.msr
     else:
-        eqp_ip, class_name, msr = _discover()
+        print("discovering a target from meas_hist (needs OpenSearch)...")
+        try:
+            eqp_ip, class_name, msr = _discover()
+        except SystemExit:
+            raise
+        except Exception as exc:  # noqa: BLE001 - the message matters, not the type
+            # Discovery is a convenience, not the measurement. Failing it with a
+            # raw traceback reads as "the script is broken" when the usual cause
+            # is simply that OpenSearch is not reachable from this box.
+            raise SystemExit(
+                f"could not discover a target: {type(exc).__name__}: {exc}\n"
+                "Pass a locator explicitly to skip OpenSearch entirely:\n"
+                "    --eqp-ip 10.1.2.3 --class-name ADI --msr <MSR>"
+            ) from exc
     print(f"target: eqp_ip={eqp_ip!r} class_name={class_name!r} msr={msr!r}")
     print(f"ftp dir: {image_dir(class_name, msr)!r}")
 
