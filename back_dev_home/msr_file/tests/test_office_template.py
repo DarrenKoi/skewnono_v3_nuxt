@@ -393,3 +393,71 @@ def test_health_scales_by_the_shared_bad_threshold():
     response = office_example.build_response(_MSR, _parent(), _payload())
     worst = max(s["drift_sigma"] for s in response["fdc_params"])
     assert response["health"] == round(min(1.0, worst / FDC_BAD_SIGMA), 3)
+
+
+def _hvsem_rec(**overrides) -> dict:
+    """HV-SEM 한 점의 여러 이미지 — 01..04 컬럼을 갖는 행."""
+    rec = {
+        "sequence": 1,
+        "chip_number": "12",
+        "dnum_group": "1",
+        "mp_number": 1,
+        "parameter": "CD_TOP",
+        "cd_value": 42.0,
+        "no_of_mp_image": 4,
+        "mp_image_name_01": "S04_M0004-01MP-U.jpeg",
+        "mp_image_name_02": "S04_M0004-01MP-T.jpeg",
+        "mp_image_name_03": "S04_M0004-01MP-M.jpeg",
+        "mp_image_name_04": "S04_M0004-01MP-L.jpeg",
+    }
+    rec.update(overrides)
+    return rec
+
+
+def test_image_trio_stays_self_consistent_when_the_first_column_is_blank():
+    """빈 mp_image_name 01 옆에 3장짜리 목록이 놓이던 자리입니다.
+
+    OFFICE-VERIFY (2026-08-10): 이 형태는 관측된 적이 없으나 예외 상황으로
+    가능하다고 봅니다. 세 필드를 한 목록에서 파생시켜 어긋날 수 없게 합니다.
+    """
+    row = office_example._row("MSR-X", _hvsem_rec(mp_image_name_01=""))
+
+    assert row["mp_image_names"] == [
+        "S04_M0004-01MP-T.jpeg",
+        "S04_M0004-01MP-M.jpeg",
+        "S04_M0004-01MP-L.jpeg",
+    ]
+    # 대표 이미지는 목록의 첫 원소입니다 — "" 를 내보내면 화면은 이미지를
+    # 들고 있으면서 "대표 이미지 없음" 을 보여 줍니다.
+    assert row["mp_image_name_01"] == "S04_M0004-01MP-T.jpeg"
+    # 개수는 실제로 보여 줄 수 있는 장수와 같습니다 (원시 컬럼은 4 였습니다).
+    assert row["no_of_mp_image"] == len(row["mp_image_names"]) == 3
+
+
+def test_image_trio_is_unchanged_for_a_well_formed_row():
+    row = office_example._row("MSR-X", _hvsem_rec())
+    assert row["no_of_mp_image"] == 4
+    assert row["mp_image_name_01"] == "S04_M0004-01MP-U.jpeg"
+    assert len(row["mp_image_names"]) == 4
+
+
+def test_disagreeing_image_columns_are_named_in_the_log(caplog):
+    """원시 값을 조용히 버리지 않습니다 — 응답당 한 줄로 남깁니다."""
+    payload = _payload()
+    payload["df_result_data"] = [_hvsem_rec(mp_image_name_01="")]
+
+    with caplog.at_level(logging.WARNING):
+        response = office_example.build_response(_MSR, _parent(), payload)
+
+    assert response["rows"][0]["no_of_mp_image"] == 3
+    assert any("mp_image columns that disagree" in r.message for r in caplog.records)
+
+
+def test_a_well_formed_payload_logs_no_image_warning(caplog):
+    payload = _payload()
+    payload["df_result_data"] = [_hvsem_rec()]
+
+    with caplog.at_level(logging.WARNING):
+        office_example.build_response(_MSR, _parent(), payload)
+
+    assert not any("mp_image columns that disagree" in r.message for r in caplog.records)

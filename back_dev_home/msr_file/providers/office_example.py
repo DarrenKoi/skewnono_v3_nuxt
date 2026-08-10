@@ -214,8 +214,23 @@ def _mp_image_names(rec: dict[str, Any]) -> list[str]:
     return [name for _, name in sorted(named)]
 
 
+def _mp_image_fields_disagree(rec: dict[str, Any], names: list[str]) -> bool:
+    """Did the row's raw image columns disagree with the derived list?
+
+    Either the stored count differs from the number of populated name columns,
+    or ``mp_image_name 01`` is blank while a later column is not. Neither has
+    been observed (OFFICE-VERIFY, 2026-08-10) — this exists so that if it does
+    happen, the log names it instead of the page quietly showing one number and
+    a differently-sized list.
+    """
+    if _int(rec.get("no_of_mp_image")) != len(names):
+        return True
+    return bool(names) and not _text(rec.get("mp_image_name_01"))
+
+
 def _row(msr: str, rec: dict[str, Any]) -> MsrFileRow:
     meas_kind = _text(rec.get("meas_kind")) or None
+    image_names = _mp_image_names(rec)
     return MsrFileRow(
         msr=msr,
         sequence=_int(rec.get("sequence")),
@@ -229,9 +244,21 @@ def _row(msr: str, rec: dict[str, Any]) -> MsrFileRow:
         mp_number=_int(rec.get("mp_number"), default=-1),
         parameter=_text(rec.get("parameter")),
         cd_value=_float_or_none(rec.get("cd_value")),
-        no_of_mp_image=_int(rec.get("no_of_mp_image")),
-        mp_image_name_01=_text(rec.get("mp_image_name_01")),
-        mp_image_names=_mp_image_names(rec),
+        # All three derived from ONE list, like the mock. They used to be read
+        # independently — the first two straight off their raw columns, the
+        # list through _mp_image_names (which drops empties and re-sorts by NN)
+        # — so a row with a blank `mp_image_name 01` but populated 02..04 would
+        # emit mp_image_name_01="" beside a 3-element list, and no_of_mp_image
+        # could disagree with len(mp_image_names). The page would then say
+        # "no representative image" while holding images it could show.
+        #
+        # OFFICE-VERIFY: a blank 01 with later columns populated has never been
+        # observed, but is considered possible as an exceptional case
+        # (2026-08-10). The raw values are not dropped silently — build_response
+        # logs a row count when they disagreed.
+        no_of_mp_image=len(image_names),
+        mp_image_name_01=image_names[0] if image_names else "",
+        mp_image_names=image_names,
         meas_condition_mag=_int(rec.get("meas_condition_mag")),
         meas_condition_vac=_int(rec.get("meas_condition_vac")),
         meas_condition_pixel=_text(rec.get("meas_condition_pixel")),
@@ -408,8 +435,27 @@ def build_response(
         or _text(payload.get("exe_detail_info", {}).get("class") if isinstance(payload.get("exe_detail_info"), dict) else "")
         or _text(parent.get("class_name"))
     )
-    rows = [_row(msr, rec) for rec in _records(payload.get("df_result_data"))]
+    records = _records(payload.get("df_result_data"))
+    rows = [_row(msr, rec) for rec in records]
     sequences = sorted({row["sequence"] for row in rows})
+
+    # The image trio is derived from one list so the three can never disagree
+    # (see _row). Counting the rows whose RAW columns disagreed keeps the
+    # diagnostic the old independent reads gave away for free: once per
+    # response, not once per row, because a large MSR would drown the log.
+    inconsistent = sum(
+        1
+        for rec, row in zip(records, rows, strict=True)
+        if _mp_image_fields_disagree(rec, row["mp_image_names"])
+    )
+    if inconsistent:
+        _log.warning(
+            "msr_file %s: %d of %d rows had mp_image columns that disagree with "
+            "the populated `mp_image_name NN` set (blank 01, or no_of_mp_image "
+            "off) — the response reports the derived list. OFFICE-VERIFY: this "
+            "shape had never been observed as of 2026-08-10.",
+            msr, inconsistent, len(rows),
+        )
 
     fixed_fdc, dynamic_fdc, fdc_params = _fdc(payload)
     # One row is one measurement and dynamic_fdc holds that measurement's tool

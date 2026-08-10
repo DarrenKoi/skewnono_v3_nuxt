@@ -304,7 +304,15 @@ there can be either more or less.
   화면 계약은 2026-08-08 부터 **컬럼 전부**를 `mp_image_names` 목록(NN 순서)으로
   내려보내며, `mp_image_name_01` 은 대표 1장으로 유지됩니다(항상 목록의 첫
   원소). 2026-08-08 이전에는 대표 1장만 실어 스큐보아가 HV-SEM 의 나머지
-  이미지를 볼 수 없었습니다. 장비 FTP 이미지 목록 대조
+  이미지를 볼 수 없었습니다.
+
+  세 필드(no_of_mp_image / mp_image_name_01 / mp_image_names)는 어댑터에서
+  **한 목록으로부터 파생**합니다. 원시 컬럼을 따로따로 읽으면 `mp_image_name
+  01` 이 비고 02 부터 채워진 행에서 셋이 어긋나, 화면이 이미지를 들고 있으면서
+  "대표 이미지 없음" 을 보여 줍니다. OFFICE-VERIFY: 빈 01 은 관측된 적이
+  없으나 예외 상황으로 가능하다고 봅니다(2026-08-10). 원시 값이 파생값과
+  달랐던 행 수는 응답당 한 줄로 WARNING 에 남깁니다 — 관측되면 그 로그가
+  근거가 됩니다. 장비 FTP 이미지 목록 대조
   (docs/datatables/msr_image_ftp.txt)도 같은 컬럼 전부를 훑습니다.
 
   프론트엔드는 이 목록을 utils/msrRows.ts 의 rowImageNames() 로만 읽습니다 —
