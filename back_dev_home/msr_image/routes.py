@@ -9,12 +9,12 @@ from flask import Blueprint, Response, current_app, jsonify, request
 from back_dev_home.msr_image import data
 from back_dev_home.msr_image.cache import cache_key, make_cache
 from back_dev_home.msr_image.config import load_config
-from back_dev_home.msr_image.contracts import ImageListResponse, ImageLocator
+from back_dev_home.msr_image.contracts import FetchedImage, ImageListResponse, ImageLocator
 from back_dev_home.msr_image.errors import MsrImageError
 from back_dev_home.msr_image.jobs import make_registry
 from back_dev_home.msr_image.paths import validate_locator, validate_segment, validate_tool_ip
 from back_dev_home.msr_image.preview import to_preview, wants_preview
-from back_dev_home.msr_image.single_flight import fetch_gate
+from back_dev_home.msr_image.single_flight import single_flight
 
 bp = Blueprint("msr_image", __name__)
 
@@ -172,25 +172,30 @@ def serve_image_route():
             fetched = cache.get(locator)
             if fetched is None:
                 # One visit to the tool per image, however many requests want
-                # it. The re-read INSIDE the gate is what makes this a dedup
-                # rather than a queue: the browser's own 2.5s/5s retries and a
-                # second viewer all land here while the first fetch is still
-                # running, and they must consume its result instead of opening
-                # their own session. Keyed on the ORIGINAL (preview=False)
-                # because a preview and a download of the same image are one
-                # tool visit; the TIFF->WebP conversion below is our CPU, not
-                # the tool's, and stays outside the gate.
+                # it: the browser's own 2.5s/5s retries and a second viewer all
+                # land here while the first fetch is still running, and they
+                # consume its result instead of opening their own session.
+                # Keyed on the ORIGINAL (preview=False) because a preview and a
+                # download of the same image are one tool visit; the TIFF->WebP
+                # conversion below is our CPU, not the tool's, and stays
+                # outside.
                 #
-                # When the fetch below RAISES, the gate re-raises that same
-                # error in the waiters queued behind it — the cache stays empty
-                # on failure, so their re-read cannot save them and they would
-                # otherwise queue up for their own turn at a sick tool. It is
-                # the real exception, so the except below maps it as usual.
-                with fetch_gate(cache_key(locator)):
-                    fetched = cache.get(locator)
-                    if fetched is None:
-                        fetched = data.fetch_image(locator)
-                        cache.put(locator, fetched)
+                # The re-read below is the leader's, not a waiter's: an attempt
+                # that finished a moment ago has already filled the cache. And
+                # when the fetch RAISES, single_flight re-raises that same
+                # error in the waiters — the cache stays empty on failure, so
+                # they would otherwise queue up for their own turn at a sick
+                # tool. It is the real exception, so the except below maps it
+                # as usual.
+                def visit_tool() -> FetchedImage:
+                    hit = cache.get(locator)
+                    if hit is not None:
+                        return hit
+                    got = data.fetch_image(locator)
+                    cache.put(locator, got)
+                    return got
+
+                fetched = single_flight(cache_key(locator), visit_tool)
             if preview:
                 rendition = to_preview(fetched)
                 if rendition.content_type != fetched.content_type:
