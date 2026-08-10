@@ -240,6 +240,30 @@ def test_fdc_raw_passthrough_but_catalog_only_summaries(response):
     assert "MysteryDyn" not in names
 
 
+def test_zero_sigma_param_summarizes_without_dividing_by_zero():
+    """VT and ESCdV are constant set-point channels (sigma 0.0 in the catalog).
+
+    The golden fixture never mentions them, so this is the one place the
+    zero-sigma branch is exercised. A real office pickle DOES carry them --
+    without the guard, build_response raises ZeroDivisionError for the whole
+    MSR, not just that one summary row.
+    """
+    payload = _payload()
+    payload["dynamic_fdc"] = {
+        "1": {"VT": 1200.0, "ESCdV": 2500.0},
+        "2": {"VT": 1200.0, "ESCdV": 2499.0},
+        "3": {"VT": 1201.0, "ESCdV": 2500.0},
+    }
+    response = office_example.build_response(_MSR, _parent(), payload)
+
+    by_name = {s["name"]: s for s in response["fdc_params"]}
+    assert by_name["VT"]["drift_sigma"] == 0.0
+    assert by_name["ESCdV"]["drift_sigma"] == 0.0
+    assert by_name["VT"]["status"] == "ok"
+    # The raw values still pass through untouched -- charts lose nothing.
+    assert response["dynamic_fdc"]["3"]["VT"] == 1201.0
+
+
 def test_health_is_derived_from_worst_drift(response):
     assert 0.0 <= response["health"] <= 1.0
     worst = max(s["drift_sigma"] for s in response["fdc_params"])

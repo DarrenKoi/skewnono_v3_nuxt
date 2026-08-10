@@ -366,7 +366,10 @@ def _fdc(
             continue
         mean = fmean(values)
         std = pstdev(values) if len(values) > 1 else 0.0
-        drift_sigma = round(abs(mean - spec.nominal) / spec.sigma, 2)
+        # A constant channel (sigma 0 -- VT, ESCdV) has no noise scale to
+        # measure drift in; it also cannot drift, so its abnormality is 0 by
+        # definition. Mirrors the same guard in mock.py's _fdc_series().
+        drift_sigma = 0.0 if spec.sigma == 0 else round(abs(mean - spec.nominal) / spec.sigma, 2)
         summaries.append(FdcParamSummary(
             name=name,
             category=spec.category,
