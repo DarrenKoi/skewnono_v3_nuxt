@@ -180,6 +180,12 @@ def serve_image_route():
                 # because a preview and a download of the same image are one
                 # tool visit; the TIFF->WebP conversion below is our CPU, not
                 # the tool's, and stays outside the gate.
+                #
+                # When the fetch below RAISES, the gate re-raises that same
+                # error in the waiters queued behind it — the cache stays empty
+                # on failure, so their re-read cannot save them and they would
+                # otherwise queue up for their own turn at a sick tool. It is
+                # the real exception, so the except below maps it as usual.
                 with fetch_gate(cache_key(locator)):
                     fetched = cache.get(locator)
                     if fetched is None:

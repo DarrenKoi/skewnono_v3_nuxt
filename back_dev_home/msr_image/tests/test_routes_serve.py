@@ -404,6 +404,62 @@ def test_concurrent_gets_for_one_image_make_one_tool_visit(tmp_path, monkeypatch
     assert calls == ["shot.jpeg"], f"the tool was visited {len(calls)} times"
 
 
+def test_concurrent_gets_still_make_one_visit_when_the_fetch_fails(tmp_path, monkeypatch):
+    """The failure path must dedup too — it is the path that matters most.
+
+    A failed fetch writes no cache entry, so the re-read inside the gate cannot
+    save the waiters: without sharing the leader's error each of them would take
+    its own turn at a sick tool, SERIALLY, so the k-th waiter's request lives
+    k x host_timeout — long enough for harakiri to take the whole worker. One
+    visit, and every request gets the real error's status.
+    """
+    import threading
+    import time
+
+    from flask import Flask
+
+    from back_dev_home.msr_image import data, routes
+    from back_dev_home.msr_image.errors import SourceUnavailable
+
+    monkeypatch.setenv("SKEWNONO_MSR_IMAGE_PROVIDER", "mock")
+    monkeypatch.setenv("IMAGE_CACHE_DIR", str(tmp_path))
+
+    calls: list[str] = []
+    calls_guard = threading.Lock()
+
+    def failing_fetch(locator):
+        with calls_guard:
+            calls.append(locator.name)
+        time.sleep(0.15)  # long enough for the others to be queued behind it
+        raise SourceUnavailable("tool is not answering")
+
+    monkeypatch.setattr(data, "fetch_image", failing_fetch)
+
+    app = Flask(__name__)
+    app.register_blueprint(routes.bp, url_prefix="/api")
+
+    url = "/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name=shot.jpeg"
+    statuses: list[int] = []
+    codes: list[str] = []
+    statuses_guard = threading.Lock()
+
+    def hit():
+        r = app.test_client().get(url)
+        with statuses_guard:
+            statuses.append(r.status_code)
+            codes.append(r.get_json()["code"])
+
+    threads = [threading.Thread(target=hit) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert calls == ["shot.jpeg"], f"the tool was visited {len(calls)} times"
+    assert statuses == [503, 503, 503]
+    assert codes == ["office_source_unavailable"] * 3
+
+
 def test_concurrent_gets_for_different_images_both_fetch(tmp_path, monkeypatch):
     """The gate must be per image. A global one would serialise a gallery."""
     import threading

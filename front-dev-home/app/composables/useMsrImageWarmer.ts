@@ -86,8 +86,10 @@ const runWarm = async (
  * a cache hit, so there is no failed request for the browser to log. See
  * utils/imageWarm.ts for why hiding the error client-side is not an option.
  *
- * The job still outlives navigation: a refusal or a stuck job resolves to
- * 'gaveup' rather than holding a panel forever.
+ * A refusal (429) is retried with backoff and the panel keeps holding, since
+ * the tool being busy is exactly when a cold GET storm must not happen. No
+ * job can hold a panel forever even so: WARM_CEILING_MS bounds the total
+ * wait — retries included — and anything past it resolves to 'gaveup'.
  */
 export const useMsrImageWarmer = (
   ctx: ComputedRef<FocusImageCtx>,

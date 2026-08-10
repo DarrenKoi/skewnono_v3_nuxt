@@ -4,6 +4,10 @@ The gate only provides mutual exclusion; the DEDUP comes from the caller
 re-reading the cache inside it (see test_routes_serve). Both halves are needed
 — exclusion alone would serialise the waiters and still send every one of them
 to the tool, which is slower AND no lighter.
+
+The same is true of the failure path, and there the re-read cannot help: a
+failed fetch caches nothing, so the leader's exception is handed to the waiters
+already queued behind it instead.
 """
 
 import threading
@@ -11,15 +15,14 @@ import time
 
 import pytest
 
-from back_dev_home.msr_image import single_flight
-from back_dev_home.msr_image.single_flight import _locks, fetch_gate
+from back_dev_home.msr_image.single_flight import _attempts, fetch_gate
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    _locks.clear()
+    _attempts.clear()
     yield
-    _locks.clear()
+    _attempts.clear()
 
 
 def test_the_same_key_is_held_by_one_thread_at_a_time():
@@ -76,12 +79,13 @@ def test_the_registry_does_not_grow():
     for i in range(50):
         with fetch_gate(f"img-{i}"):
             pass
-    assert _locks == {}
+    assert _attempts == {}
 
 
-def test_a_waiter_keeps_the_entry_alive_while_it_waits():
-    """Dropping the entry while someone still waits would hand the next
-    arrival a DIFFERENT lock object, and the exclusion would be lost."""
+def test_the_entry_lives_exactly_as_long_as_the_attempt():
+    """It must be published while the leader is inside — that is what makes a
+    concurrent arrival a waiter rather than a second visitor to the tool — and
+    gone the moment the leader returns, so the next arrival starts fresh."""
     holder_in = threading.Event()
     release = threading.Event()
 
@@ -93,35 +97,87 @@ def test_a_waiter_keeps_the_entry_alive_while_it_waits():
     t = threading.Thread(target=holder)
     t.start()
     holder_in.wait(timeout=2.0)
-    assert "img-a" in _locks
+    assert "img-a" in _attempts
     release.set()
     t.join()
-    assert _locks == {}
+    assert _attempts == {}
 
 
-def test_a_failed_acquire_undoes_the_registry_claim_without_releasing():
-    """If lock.acquire() itself raises (e.g. a KeyboardInterrupt delivered
-    while blocked), the registry claim made just before it must be undone —
-    otherwise the entry, and its count, leak forever and the "last participant
-    deletes the entry" invariant breaks. This must NOT be fixed by moving
-    acquire() inside the existing try/finally: that finally calls
-    lock.release(), which would raise "release unlocked lock" on a lock this
-    thread never acquired, masking the original exception."""
+def test_the_leaders_failure_is_raised_in_the_waiters():
+    """Without this each waiter would find the cache still empty and take its
+    own turn at the sick tool — serially, so the k-th waiter waits k fetches."""
+    leader_in = threading.Event()
+    boom = RuntimeError("tool blew up")
+    seen: list[BaseException | None] = []
+    seen_guard = threading.Lock()
 
-    class _BoomError(Exception):
-        pass
+    def leader() -> None:
+        with pytest.raises(RuntimeError):
+            with fetch_gate("img-a"):
+                leader_in.set()
+                time.sleep(0.05)
+                raise boom
 
-    class _ExplodingLock:
-        def acquire(self) -> None:
-            raise _BoomError("acquire blew up")
+    def waiter() -> None:
+        try:
+            with fetch_gate("img-a"):
+                pass
+        except BaseException as exc:  # noqa: BLE001 - recording, not handling
+            with seen_guard:
+                seen.append(exc)
+        else:
+            with seen_guard:
+                seen.append(None)
 
-        def release(self) -> None:
-            raise AssertionError("release must not be called: acquire never succeeded")
+    lead = threading.Thread(target=leader)
+    lead.start()
+    leader_in.wait(timeout=2.0)
+    waiters = [threading.Thread(target=waiter) for _ in range(3)]
+    for w in waiters:
+        w.start()
+    for t in (lead, *waiters):
+        t.join()
 
-    single_flight._locks["img-a"] = (_ExplodingLock(), 0)
+    # The real object, so the route's per-error status mapping still applies.
+    assert seen == [boom, boom, boom]
 
-    with pytest.raises(_BoomError):
+
+def test_a_failure_is_not_remembered_for_the_next_arrival():
+    """A tool that recovers must not stay broken because we cached its error."""
+    with pytest.raises(RuntimeError):
         with fetch_gate("img-a"):
-            pass  # pragma: no cover - never reached
+            raise RuntimeError("tool blew up")
 
-    assert _locks == {}
+    entered = False
+    with fetch_gate("img-a"):
+        entered = True
+    assert entered
+
+
+def test_an_interrupt_in_the_leader_is_not_shared():
+    """A KeyboardInterrupt is about the leader's own thread dying, not about
+    the tool, so a waiter must be free to run its body (and re-read the cache)
+    rather than inherit it."""
+    leader_in = threading.Event()
+    ran: list[bool] = []
+
+    def leader() -> None:
+        with pytest.raises(KeyboardInterrupt):
+            with fetch_gate("img-a"):
+                leader_in.set()
+                time.sleep(0.05)
+                raise KeyboardInterrupt
+
+    def waiter() -> None:
+        with fetch_gate("img-a"):
+            ran.append(True)
+
+    lead = threading.Thread(target=leader)
+    lead.start()
+    leader_in.wait(timeout=2.0)
+    w = threading.Thread(target=waiter)
+    w.start()
+    for t in (lead, w):
+        t.join()
+
+    assert ran == [True]
