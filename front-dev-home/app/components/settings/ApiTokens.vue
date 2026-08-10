@@ -108,7 +108,10 @@
       title="Token created"
     >
       <template #body>
-        <div class="space-y-3">
+        <div
+          ref="plaintextBody"
+          class="space-y-3"
+        >
           <UAlert
             color="warning"
             variant="soft"
@@ -141,6 +144,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { ApiTokenRow } from '~/composables/useApiTokens'
+import { copyTextToClipboard } from '~/utils/csvDownload'
 
 const { tokens, pending, error, create, revoke } = useApiTokens()
 const toast = useToast()
@@ -159,6 +163,7 @@ const creatingBusy = ref(false)
 const showingPlaintext = ref(false)
 const plaintext = ref('')
 const copied = ref(false)
+const plaintextBody = ref<HTMLElement | null>(null)
 
 const revokingId = ref<string | null>(null)
 
@@ -182,16 +187,22 @@ const confirmCreate = async () => {
   }
 }
 
+// copyTextToClipboard, not navigator.clipboard: the Clipboard API is
+// secure-context only and production is served over plain http://, where
+// `navigator.clipboard` is undefined. The util carries the execCommand
+// fallback. Its hidden textarea goes inside the modal because the dialog
+// traps focus — appending to document.body would let the focus guard pull
+// focus back before the copy command runs.
 const copyPlaintext = async () => {
-  try {
-    await navigator.clipboard.writeText(plaintext.value)
-    copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 1500)
-  } catch {
+  const ok = await copyTextToClipboard(plaintext.value, plaintextBody.value ?? undefined)
+  if (!ok) {
     toast.add({ title: 'Clipboard unavailable', description: 'Copy the token manually.', color: 'warning' })
+    return
   }
+  copied.value = true
+  setTimeout(() => {
+    copied.value = false
+  }, 1500)
 }
 
 const dismissPlaintext = () => {

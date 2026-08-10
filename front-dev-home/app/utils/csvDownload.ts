@@ -45,7 +45,15 @@ export const downloadCsv = (
 // Copy plain text with the same fallback used by table exports. Clipboard API
 // access can be unavailable outside HTTPS/localhost, so keep the legacy path
 // for office deployments that still run over an internal HTTP address.
-export const copyTextToClipboard = async (text: string): Promise<boolean> => {
+//
+// `container` places the fallback's hidden textarea somewhere other than
+// <body>. Callers inside a modal must pass an element within the dialog:
+// the dialog traps focus, so a textarea parked on <body> gets focus yanked
+// back by the focus guard before execCommand('copy') reads the selection.
+export const copyTextToClipboard = async (
+  text: string,
+  container?: HTMLElement
+): Promise<boolean> => {
   if (!import.meta.client) return false
 
   if (navigator.clipboard?.writeText) {
@@ -57,17 +65,18 @@ export const copyTextToClipboard = async (text: string): Promise<boolean> => {
     }
   }
 
+  const host = container ?? document.body
   try {
     const textarea = document.createElement('textarea')
     textarea.value = text
     textarea.style.position = 'fixed'
     textarea.style.top = '-9999px'
     textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
+    host.appendChild(textarea)
     textarea.focus()
     textarea.select()
     const ok = document.execCommand('copy')
-    document.body.removeChild(textarea)
+    host.removeChild(textarea)
     return ok
   } catch {
     return false
