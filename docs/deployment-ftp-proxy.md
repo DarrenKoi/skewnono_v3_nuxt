@@ -95,17 +95,30 @@ spec 에 실어 보내며, 그 경우에도 여기 설정은 나머지 장비를
 uwsgi --ini wsgi.ini      # 또는 운영 중인 프로세스 재시작
 ```
 
-## 5. 검증 — 반드시 두 가지를 모두 확인합니다
+## 5. 검증 — 반드시 세 가지를 모두 확인합니다
+
+5.1 과 5.2 는 스크립트 하나가 대신합니다. 사무실 PC 에서 **사내망 안에서**
+실행하십시오(`aipp01` 은 집에서 이름 해석이 되지 않습니다).
+
+```bash
+.venv/bin/python -m scripts.check_ftp_proxy          # macOS/Linux
+.venv\Scripts\python -m scripts.check_ftp_proxy      # 사무실 Windows PC
+```
+
+주소는 `proxy_downloader.py` 의 `PROXY_URL` 을 그대로 읽으므로 인자가 필요
+없습니다. 다른 곳을 찌르려면 `--url`, 토큰을 쓰는 배포라면 `--token` 입니다.
+장비에 접속하지 않으니 몇 번을 돌려도 안전합니다.
+
+> curl 을 직접 쓰신다면 PowerShell 에서는 반드시 **`curl.exe`** 로 부르십시오.
+> `curl` 은 `Invoke-WebRequest` 의 별칭이라 `-X`/`-d` 가 전혀 다르게 해석됩니다.
+> 스크립트를 권하는 이유가 이것입니다.
 
 ### 5.1 살아 있는가
 
-```bash
-curl http://skewnono-scheduler1-webapp.aipp01.skhynix.com/healthz_sknn_v3
-```
-
-`{"status": "ok"}` 가 나와야 합니다. 다만 이것은 **크리덴셜이 없어도 통과합니다** —
-`healthz` 는 다운로더를 만들지 않기 때문입니다. 살아 있다는 것 외에는 아무것도
-증명하지 못합니다.
+`GET /healthz_sknn_v3` 가 `{"status": "ok"}` 를 돌려주어야 합니다. 다만 이것은
+**크리덴셜이 없어도 통과합니다** — `healthz` 는 다운로더를 만들지 않기 때문입니다.
+살아 있다는 것 외에는 아무것도 증명하지 못하며, 실제로 모든 요청이 500 인 프록시도
+여기서는 `ok` 라고 답합니다.
 
 ### 5.2 환경 변수가 실제로 읽히는가 (원격)
 
@@ -113,17 +126,14 @@ curl http://skewnono-scheduler1-webapp.aipp01.skhynix.com/healthz_sknn_v3
 그대로 통과하므로, 4.4 의 환경 변수만 정확히 검사합니다. 호스트 셸 없이
 확인할 수 있는 유일한 항목입니다.
 
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' \
-  -X POST -H 'Content-Type: application/json' -d '{"specs":[]}' \
-  http://skewnono-scheduler1-webapp.aipp01.skhynix.com/download_sknn_v3
-```
+`FTP_PROXY_PORT` 로 띄운 실제 프록시를 상대로 세 경로(연결 불가 / `500` / `200`)를
+모두 검증해 두었습니다.
 
 | 응답 | 의미 |
 | --- | --- |
 | `200` (`{"failures":[],"files":[]}`) | 두 환경 변수가 설정되어 있습니다 |
 | `500` | 둘 중 하나 이상이 없습니다 (`os.environ[...]` 의 `KeyError`) |
-| `401` | `FTP_PROXY_TOKEN` 이 설정되어 있습니다 — 헤더를 붙여 다시 보내십시오 |
+| `401` | `FTP_PROXY_TOKEN` 이 설정되어 있습니다 — `--token` 을 붙이십시오 |
 
 ### 5.3 어떤 버전이 올라갔는가
 
