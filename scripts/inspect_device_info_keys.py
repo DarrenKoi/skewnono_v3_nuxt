@@ -1,14 +1,14 @@
 """Check the office Redis device catalogs ``device_desc`` and ``r3_device_grp``.
 
 Purpose: verify the two catalog-shaped inputs behind the **cdsem
-device_statistics** office adapter (`providers/office_example.py`) — the same two
+device_statistics** office adapter (`providers/office_example.py`) - the same two
 keys `_office_meas_hist.py` feeds recipe_tat / fail_issue from. This script
 answers, from the office, what each key actually contains and which contract it
 can feed.
 
 The split is **user-confirmed (2026-07-31)**: ``device_desc`` carries the M-fab
 (양산) catalog, ``r3_device_grp`` carries R3 (연구개발). These are the
-*initial-setup* catalogs — device-statistics extracts device codes out of them
+*initial-setup* catalogs - device-statistics extracts device codes out of them
 per request, rather than reading a per-request table.
 
 Each key is still scored against BOTH contracts anyway, and fab coverage is
@@ -51,13 +51,27 @@ import argparse
 import sys
 from dataclasses import dataclass, field
 
-from back_dev_home._runtime.office_redis import (
+from pathlib import Path
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime.office_redis import (  # noqa: E402
     STORE_ERRORS,
     read_dataframe,
     redis_client,
     redis_text,
 )
-from back_dev_home.ebeam.device_statistics.contracts import (
+from back_dev_home.ebeam.device_statistics.contracts import (  # noqa: E402
     DeviceDescRow,
     R3DeviceGrpRow,
 )
@@ -66,13 +80,13 @@ from back_dev_home.ebeam.device_statistics.contracts import (
 # the column-inventory printer and the byte formatter, and a second copy would
 # drift from it. `scripts` is a namespace package, so `-m` from the repo root
 # makes this import work (same pattern as check_contract -> capture_fixtures).
-from scripts.inspect_redis_key import _human_bytes, describe_dataframe
+from scripts.inspect_redis_key import _human_bytes, describe_dataframe  # noqa: E402
 
 
 DEFAULT_KEYS = ("device_desc", "r3_device_grp")
 
 # User-confirmed 2026-07-31: which fabs each key is supposed to carry. Checked
-# rather than assumed — the script's job is to catch the case where the key name
+# rather than assumed - the script's job is to catch the case where the key name
 # and the contents disagree, which is precisely what a silent assumption hides.
 # Matched on the fac_id's leading character (M11/M12/... vs R3/R4).
 EXPECTED_FABS = {
@@ -80,7 +94,7 @@ EXPECTED_FABS = {
     "r3_device_grp": ("R", "R3 연구개발"),
 }
 
-# Fields the contracts declare but the office does NOT store — `id` is a
+# Fields the contracts declare but the office does NOT store - `id` is a
 # row identifier the mock synthesizes (e.g. "M11-TP"), so counting it as a
 # missing office column would understate every fit score.
 SYNTHESIZED = frozenset({"id"})
@@ -92,7 +106,7 @@ SYNTHESIZED = frozenset({"id"})
 PLACEHOLDER_TEXT = ("None", "none", "NONE", "nan", "NaN", "NULL", "null", "")
 
 # Fields `back_dev_home/ebeam/_analytics.py`'s `lot_metadata()` reads
-# off device_statistics.data — Recipe TAT's device quick-filter chips break if
+# off device_statistics.data - Recipe TAT's device quick-filter chips break if
 # the office source cannot supply them (device_statistics/MIGRATION.md).
 EXTERNAL_IMPORTER_FIELDS = ("lot_cd", "fac_id", "prod_catg_cd", "tech_nm")
 
@@ -173,7 +187,7 @@ def _fit(df, spec: ContractSpec) -> tuple[list[str], list[tuple[str, str]], list
 
 
 def report_contract_fit(df, key: str) -> None:
-    """Score the key against both contracts — this is what names the mapping."""
+    """Score the key against both contracts - this is what names the mapping."""
     print("\n  contract fit (office column -> device_statistics contract):")
     scores = []
     for spec in CONTRACTS:
@@ -214,7 +228,7 @@ def report_placeholders(df) -> None:
         series = df[name]
         nulls = int(series.isna().sum())
         # No dtype guard: pandas 3 gives text columns dtype `str`, not `object`
-        # (and a parquet round-trip — what the office actually serves — keeps
+        # (and a parquet round-trip - what the office actually serves - keeps
         # `str`), so an `is object` check silently scored every text column as
         # clean and defeated this entire report. `isin` on a numeric or datetime
         # column simply matches nothing, which is the correct answer there.
@@ -224,7 +238,7 @@ def report_placeholders(df) -> None:
 
     print('\n  placeholder cells (adapter must normalize both kinds to ""):')
     if not rows:
-        print("    (none — no NaN and no literal 'None'/'' in any column)")
+        print("    (none - no NaN and no literal 'None'/'' in any column)")
         return
     print(f"    {'column':<24} {'NaN/None':>9} {'literal str':>12}")
     print(f"    {'-' * 24} {'-' * 9} {'-' * 12}")
@@ -235,11 +249,11 @@ def report_placeholders(df) -> None:
 
 
 def report_fab_coverage(df, key: str) -> None:
-    """Which fabs this key carries — the actual test of the hvm/rnd split."""
+    """Which fabs this key carries - the actual test of the hvm/rnd split."""
     column = next((c for c in ("fac_id", "fab_name", "fab_id") if c in df.columns), None)
     print("\n  fab coverage:")
     if column is None:
-        print("    (no fac_id / fab_name / fab_id column — cannot tell)")
+        print("    (no fac_id / fab_name / fab_id column - cannot tell)")
         return
     counts = df[column].value_counts(dropna=False)
     print(f"    by {column}: {len(counts):,} distinct value(s)")
@@ -248,7 +262,7 @@ def report_fab_coverage(df, key: str) -> None:
     if column != "fac_id":
         print(
             f"    NOTE: filter key is {column!r}, not fac_id. fab_name is the "
-            "canonical granular key elsewhere in this repo — record which one "
+            "canonical granular key elsewhere in this repo - record which one "
             "device_statistics should filter on."
         )
 
@@ -282,12 +296,12 @@ def inspect_key(client, name: str, rows: int, unique_cols: list[str]):
 
     _rule(f"KEY {name!r}  (redis type: {kind})")
     if kind == "none":
-        print("  MISSING — no such key. List what does exist with:")
+        print("  MISSING - no such key. List what does exist with:")
         print("      .venv/bin/python -m scripts.inspect_redis_key --pattern '*device*'")
         return None
 
     if kind != "string":
-        print(f"  size: {kind} (not a string — a serialized DataFrame is a string key)")
+        print(f"  size: {kind} (not a string - a serialized DataFrame is a string key)")
         print("  Inspect it with: .venv/bin/python -m scripts.inspect_redis_key " + name)
         return None
 
@@ -297,7 +311,7 @@ def inspect_key(client, name: str, rows: int, unique_cols: list[str]):
     try:
         df = read_dataframe(raw, name)
     except LookupError as err:
-        print(f"\n  not a DataFrame — {err}")
+        print(f"\n  not a DataFrame - {err}")
         return None
 
     describe_dataframe(df, name, rows, unique_cols)
@@ -330,12 +344,12 @@ def report_cross_key(frames: dict) -> None:
                 "and union them, never treat one as a superset."
             )
     else:
-        print("  lot_cd overlap: needs two readable keys with a lot_cd column — skipped.")
+        print("  lot_cd overlap: needs two readable keys with a lot_cd column - skipped.")
 
     print("\n  fields recipe_tat's lot_metadata() reads (MIGRATION.md external importer):")
     for wanted in EXTERNAL_IMPORTER_FIELDS:
         holders = [k for k, df in frames.items() if df is not None and wanted in df.columns]
-        status = ", ".join(holders) if holders else "NOWHERE — lot_metadata() would lose this field"
+        status = ", ".join(holders) if holders else "NOWHERE - lot_metadata() would lose this field"
         print(f"    {wanted:<16} {status}")
 
 

@@ -21,12 +21,27 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 
-from back_dev_home._runtime.office_redis import load_env_file
-from back_dev_home.ebeam.recipe_tat.providers.office import (  # type: ignore[attr-defined]
+import sys
+from pathlib import Path
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
+from back_dev_home.ebeam.recipe_tat.providers.office import (  # type: ignore[attr-defined]  # noqa: E402
     _INDEX,
     get_anchor_time,
 )
-from ops_store import OSSearch, create_client
+from ops_store import OSSearch, create_client  # noqa: E402
 
 
 def main() -> None:
@@ -68,7 +83,7 @@ def main() -> None:
         # Raw _source timestamps (newest first): the KST sanity check. The
         # adapter assumes KST wall-clock WITHOUT an offset ("2026-07-22
         # 10:30:00" or "2026-07-22T10:30:00"). A trailing "Z"/"+09:00" or an
-        # epoch number here breaks that assumption — daily buckets would then
+        # epoch number here breaks that assumption - daily buckets would then
         # be UTC days (KST days split at 09:00), and the histogram/range
         # would need time_zone handling instead.
         sample = search.search_raw({

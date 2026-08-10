@@ -25,17 +25,17 @@ from typing import Any, Callable
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # 픽스처 트리의 뿌리. 테스트가 tmp_path 로 갈아끼우므로 함수 안에서
-# 모듈 전역을 읽습니다 — 기본 인자로 굳히면 monkeypatch 가 먹지 않습니다.
+# 모듈 전역을 읽습니다 - 기본 인자로 굳히면 monkeypatch 가 먹지 않습니다.
 BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 
-# 댁(Phase 1) Flask 는 :5050 입니다 — :5000 은 macOS AirPlay 와 충돌합니다.
+# 댁(Phase 1) Flask 는 :5050 입니다 - :5000 은 macOS AirPlay 와 충돌합니다.
 # 사무실(Phase 2) Flask 는 :5000 이므로 포트는 고정할 수 없습니다. index.py
 # 와 같은 PORT 노브를 읽어, 두 위치에서 코드 수정 없이 겨냥합니다.
 DEFAULT_PORT = 5050
 
 
 # (feature_dir, fixture_name, "/api/<path>") tuples. 쿼리 파라미터가 있는
-# 엔드포인트는 명시적으로 적습니다 — 픽스처는 "기본 호출 + 대표적 필터"
+# 엔드포인트는 명시적으로 적습니다 - 픽스처는 "기본 호출 + 대표적 필터"
 # 두 가지 경우를 모두 캡처해 사무실 측 형태 검증의 폭을 넓힙니다.
 ENDPOINTS: list[tuple[str, str, str]] = [
     # sem_list
@@ -120,7 +120,7 @@ def fixture_path(feature_dir: str, fixture_name: str) -> Path:
 
 
 def display_path(path: Path) -> str:
-    """Repo-relative when possible — 테스트는 픽스처 뿌리를 tmp_path 로 옮깁니다."""
+    """Repo-relative when possible - 테스트는 픽스처 뿌리를 tmp_path 로 옮깁니다."""
     try:
         return str(path.relative_to(REPO_ROOT))
     except ValueError:
@@ -160,7 +160,7 @@ def capture(
 ) -> list[str]:
     """Write one fixture per endpoint; return the API paths that failed.
 
-    `fetch` 를 주입 가능하게 둔 이유는 테스트뿐입니다 — 이 스크립트가 실제
+    `fetch` 를 주입 가능하게 둔 이유는 테스트뿐입니다 - 이 스크립트가 실제
     픽스처를 덮어쓰는 유일한 경로이므로, 라이브 Flask 없이도 쓰기 경로를
     검증할 수 있어야 합니다. `None` 은 실제 HTTP 입니다.
     """
@@ -178,7 +178,7 @@ def capture(
             failures.append(path)
             continue
 
-        # 응답을 받은 뒤에 만듭니다 — 실패한 엔드포인트나 오타 난 feature_dir
+        # 응답을 받은 뒤에 만듭니다 - 실패한 엔드포인트나 오타 난 feature_dir
         # 이 빈 __fixtures__/ 디렉터리를 남기면 안 됩니다.
         target.parent.mkdir(parents=True, exist_ok=True)
         truncated = _truncate(payload)

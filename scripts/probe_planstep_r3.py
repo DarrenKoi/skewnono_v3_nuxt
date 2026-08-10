@@ -15,7 +15,7 @@ Every hop is a place the chain can quietly break, so each gets its own stage:
 a documented field that is absent, a `text` mapping that makes `term` match
 nothing, a `_BASE` suffix convention that does not hold for every product, a
 recipe_id with no IDP document, a `parameters` blob shaped differently than the
-contract needs. A stage that fails prints what it found and keeps going — the
+contract needs. A stage that fails prints what it found and keeps going - the
 point is one report covering the whole path, not the first error.
 
 Run FROM THE REPO ROOT at the office (config self-loads from
@@ -40,13 +40,27 @@ import argparse
 import sys
 from typing import Any
 
-from back_dev_home._runtime.office_redis import (
+from pathlib import Path
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime.office_redis import (  # noqa: E402
     STORE_ERRORS,
     load_env_file,
     read_dataframe,
     redis_client,
 )
-from ops_store import OSIndex, OSSearch, create_client
+from ops_store import OSIndex, OSSearch, create_client  # noqa: E402
 
 
 INDEX = "sknn-planstep-r3"
@@ -56,7 +70,7 @@ IDP_INDEX = "cdsem_idp_ver"
 RND_KEY = "r3_device_grp"
 
 # Documented 2026-07-30. Presence and mapping type of each is what stage [1]
-# checks — a field documented here but missing in the mapping is the finding.
+# checks - a field documented here but missing in the mapping is the finding.
 DOCUMENTED_FIELDS = (
     "det_fac_id",
     "prod_id",
@@ -83,7 +97,7 @@ ENUM_FIELDS = ("det_fac_id", "main_oper_yn", "skip_yn", "bak_eqp_yn", "eqp_grp_i
 NUMERIC_FIELDS = ("oper_seq", "samp_seq")
 
 # user-confirmed 2026-07-31: "Y" means SKIPPED, exactly as the field name reads.
-# The field has THREE values — "Y", "N", and blank — so "is this step measured"
+# The field has THREE values - "Y", "N", and blank - so "is this step measured"
 # is `!= "Y"`, never `== "N"`. (An earlier note claiming "Y" meant "currently
 # measuring" was withdrawn; docs/datatables/planstep_r3.txt has the history.)
 SKIPPED = "Y"
@@ -109,7 +123,7 @@ def _properties(client: Any, index: str) -> dict[str, Any]:
 
 
 def _agg_field(props: dict[str, Any], name: str) -> str:
-    """The field name usable for term/terms — `.keyword` only when needed.
+    """The field name usable for term/terms - `.keyword` only when needed.
 
     The repo's standing trap (docs/datatables/README.md 표기 규칙): an analyzed
     `text` field matches nothing under `term` and cannot be aggregated, so it
@@ -124,7 +138,7 @@ def _agg_field(props: dict[str, Any], name: str) -> str:
 
 
 def stage_mapping(client: Any, props: dict[str, Any]) -> None:
-    _rule(f"[1] {INDEX} — exists, size, mapping")
+    _rule(f"[1] {INDEX} - exists, size, mapping")
 
     exists = OSIndex(client=client, index=INDEX).exists()
     print(f"  exists (index or alias): {exists}")
@@ -142,7 +156,7 @@ def stage_mapping(client: Any, props: dict[str, Any]) -> None:
         spec = props.get(name)
         if spec is None:
             missing.append(name)
-            print(f"  {name:<20} {'ABSENT':<14} —")
+            print(f"  {name:<20} {'ABSENT':<14} -")
             continue
         print(f"  {name:<20} {str(spec.get('type')):<14} {_agg_field(props, name)}")
 
@@ -161,7 +175,7 @@ def stage_values(search: OSSearch, props: dict[str, Any]) -> None:
 
     for name in ENUM_FIELDS:
         if name not in props:
-            print(f"\n  {name}: ABSENT — skipped")
+            print(f"\n  {name}: ABSENT - skipped")
             continue
         field = _agg_field(props, name)
         result = search.aggregate({"v": {"terms": {"field": field, "size": 25}}})
@@ -181,7 +195,7 @@ def stage_values(search: OSSearch, props: dict[str, Any]) -> None:
             # The whole reason the adapter tests `!= "Y"` rather than `== "N"`:
             # a third, blank value exists. Docs missing the field entirely never
             # appear in a terms agg, so the gap against the index total is the
-            # only way to count them — and it is exactly the population a
+            # only way to count them - and it is exactly the population a
             # `== "N"` filter would silently drop.
             total = OSSearch(client=search.client, index=INDEX).count().get("count")
             if isinstance(total, int) and total > bucketed:
@@ -193,7 +207,7 @@ def stage_values(search: OSSearch, props: dict[str, Any]) -> None:
 
     for name in NUMERIC_FIELDS:
         if name not in props:
-            print(f"\n  {name}: ABSENT — skipped")
+            print(f"\n  {name}: ABSENT - skipped")
             continue
         stats = search.aggregate({"s": {"stats": {"field": name}}})
         s = stats.get("aggregations", {}).get("s", {})
@@ -219,7 +233,7 @@ def stage_values(search: OSSearch, props: dict[str, Any]) -> None:
     if suspect:
         print(
             "      MISMATCH: an offset/Z is present. Times will be 9 hours off "
-            "unless the adapter handles it — record this in the datatable doc."
+            "unless the adapter handles it - record this in the datatable doc."
         )
     elif hits:
         print("      -> no offset, matches the KST wall-clock convention.")
@@ -235,7 +249,7 @@ def stage_prod_id_bridge(search: OSSearch, props: dict[str, Any], limit: int) ->
     _rule("[3] prod_id <-> lot_cd bridge")
 
     if "prod_id" not in props:
-        print("  prod_id ABSENT — bridge cannot be checked.")
+        print("  prod_id ABSENT - bridge cannot be checked.")
         return []
 
     field = _agg_field(props, "prod_id")
@@ -252,7 +266,7 @@ def stage_prod_id_bridge(search: OSSearch, props: dict[str, Any], limit: int) ->
     )
     others = [p for p in prod_ids if not p.endswith(PROD_ID_SUFFIX)]
     if others:
-        print(f"  OTHER suffixes present ({len(others):,}) — e.g. {', '.join(others[:8])}")
+        print(f"  OTHER suffixes present ({len(others):,}) - e.g. {', '.join(others[:8])}")
         print("      -> stripping only '_BASE' would silently drop these products.")
 
     derived = {p[: -len(PROD_ID_SUFFIX)] if p.endswith(PROD_ID_SUFFIX) else p for p in prod_ids}
@@ -264,7 +278,7 @@ def stage_prod_id_bridge(search: OSSearch, props: dict[str, Any], limit: int) ->
         client = redis_client()
         raw = client.get(RND_KEY.encode())
         if raw is None:
-            print(f"\n  Redis {RND_KEY!r}: MISSING — cannot compare lot_cd vocabulary.")
+            print(f"\n  Redis {RND_KEY!r}: MISSING - cannot compare lot_cd vocabulary.")
             return prod_ids[:limit]
         df = read_dataframe(raw, RND_KEY)
     except (RuntimeError, LookupError, *STORE_ERRORS) as err:
@@ -299,7 +313,7 @@ def stage_steps_per_device(search: OSSearch, props: dict[str, Any], prod_ids: li
     _rule("[4] steps per device, and the skip_yn == 'Y' subset")
 
     if not prod_ids:
-        print("  no prod_id values sampled — skipped.")
+        print("  no prod_id values sampled - skipped.")
         return []
 
     field = _agg_field(props, "prod_id")
@@ -312,7 +326,7 @@ def stage_steps_per_device(search: OSSearch, props: dict[str, Any], prod_ids: li
 
         measured = "?"
         if skip_field:
-            # `must_not term "Y"` rather than `term "N"` — the adapter's rule.
+            # `must_not term "Y"` rather than `term "N"` - the adapter's rule.
             # A positive match on "N" would exclude the blank-valued steps,
             # which is the bug this probe exists to make visible.
             measured_query = {
@@ -348,7 +362,7 @@ def stage_steps_per_device(search: OSSearch, props: dict[str, Any], prod_ids: li
             if missing_recipe:
                 print(
                     f"      NOTE: {missing_recipe} measuring step(s) have no recipe_id "
-                    "— the idp_ver join has nothing to key on for those."
+                    "- the idp_ver join has nothing to key on for those."
                 )
         else:
             print(f"\n  {prod_id}: {total:,} step(s) (skip_yn absent, no subset)")
@@ -361,11 +375,11 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
     _rule(f"[5] recipe_id -> {IDP_INDEX}.full_name join (parameter counts)")
 
     if not recipes:
-        print("  no measured recipe_id sampled — skipped.")
+        print("  no measured recipe_id sampled - skipped.")
         return
 
     if not OSIndex(client=client, index=IDP_INDEX).exists():
-        print(f"  {IDP_INDEX} does not exist or is not visible — skipped.")
+        print(f"  {IDP_INDEX} does not exist or is not visible - skipped.")
         return
 
     props = _properties(client, IDP_INDEX)
@@ -376,7 +390,7 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
 
     resolved = 0
     for recipe in dict.fromkeys(recipes[:limit]):
-        # Newest version only — pulling full version history per recipe is what
+        # Newest version only - pulling full version history per recipe is what
         # idp_ver.txt warns blows up the payload.
         #
         # `raw_data` IS pulled whole here, unlike in the adapter, which narrows
@@ -436,7 +450,7 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
             if keys and all("_" not in str(k) for k in keys):
                 print(
                     "      NOTE: every key is a bare word with no suffix, so there is\n"
-                    "            no per-parameter identity — the outlier and\n"
+                    "            no per-parameter identity - the outlier and\n"
                     "            bloated-recipe views lose their input (idp_ver.txt)."
                 )
         else:
@@ -457,7 +471,7 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
 def _report_order(params: Any, order: Any) -> None:
     """`parameters_list` is the MEASURED order; `parameters` key order is not.
 
-    Confirmed 2026-08-10 that the two disagree — a recipe came back as
+    Confirmed 2026-08-10 that the two disagree - a recipe came back as
     ``{'EDGE': 10, 'LEVEL': 4, 'WAFER': 10}`` with
     ``['WAFER', 'LEVEL', 'EDGE']``. The adapter reorders by the list, so what
     this prints is whether that reordering is doing anything: if the two ever
@@ -490,7 +504,7 @@ def _report_order(params: Any, order: Any) -> None:
 
 
 def _report_raw_data(raw: Any) -> None:
-    """`raw_data` carries Mother_Para — the flag device-statistics needs.
+    """`raw_data` carries Mother_Para - the flag device-statistics needs.
 
     The adapter narrows `_source` to `raw_data.Parameter` /
     `raw_data.Mother_Para`, so those two paths have to exist and the flag has
@@ -561,7 +575,7 @@ def main(argv: list[str] | None = None) -> int:
 
     stage_mapping(client, props)
     if not props:
-        print("\nNo mapping properties resolved — stopping.")
+        print("\nNo mapping properties resolved - stopping.")
         return 2
 
     stage_values(search, props)

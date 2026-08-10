@@ -8,7 +8,7 @@ device_statistics' process-step source splits by fab family:
 The M-fab branch differs from R3 in ways that each break a different
 assumption, so each gets a stage:
 
-* there is **no sequence field** — no oper_seq/samp_seq to sort by, and
+* there is **no sequence field** - no oper_seq/samp_seq to sort by, and
   RecipeInfoRow demands both, so something has to fill them;
 * `lot_cd` is stored directly, with no `prod_id` / `_BASE` suffix to strip;
 * the step name lives in `oper_det_desc`, not `oper_desc`;
@@ -40,17 +40,31 @@ import argparse
 import sys
 from typing import Any
 
-from back_dev_home._runtime.office_redis import load_env_file
-from back_dev_home.ebeam.device_statistics.oper_order import (
+from pathlib import Path
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
+from back_dev_home.ebeam.device_statistics.oper_order import (  # noqa: E402
     oper_prefix,
     sort_oper_descs,
     unknown_prefixes,
 )
-from ops_store import OSIndex, OSSearch, create_client
+from ops_store import OSIndex, OSSearch, create_client  # noqa: E402
 
-# Shared with the R3 probe rather than duplicated — the `.keyword` resolution in
+# Shared with the R3 probe rather than duplicated - the `.keyword` resolution in
 # particular is the trap both scripts have to get right (see that module).
-from scripts.probe_planstep_r3 import IDP_INDEX, _agg_field, _properties, _rule, stage_idp_join
+from scripts.probe_planstep_r3 import IDP_INDEX, _agg_field, _properties, _rule, stage_idp_join  # noqa: E402
 
 
 INDEX = "ebeam_tas_lot_hist"
@@ -92,10 +106,10 @@ def _window_query(days: int, fab: str | None, fab_field: str) -> dict[str, Any]:
 
 
 def stage_mapping(client: Any, props: dict[str, Any]) -> None:
-    _rule(f"[1] {INDEX} — exists, size, mapping")
+    _rule(f"[1] {INDEX} - exists, size, mapping")
 
     if not OSIndex(client=client, index=INDEX).exists():
-        print("  index/alias NOT found — nothing else can run.")
+        print("  index/alias NOT found - nothing else can run.")
         return
 
     total = OSSearch(client=client, index=INDEX).count().get("count")
@@ -108,7 +122,7 @@ def stage_mapping(client: Any, props: dict[str, Any]) -> None:
         spec = props.get(name)
         if spec is None:
             missing.append(name)
-            print(f"  {name:<18} {'ABSENT':<14} —")
+            print(f"  {name:<18} {'ABSENT':<14} -")
             continue
         print(f"  {name:<18} {str(spec.get('type')):<14} {_agg_field(props, name)}")
 
@@ -146,7 +160,7 @@ def stage_window(search: OSSearch, props: dict[str, Any], days: int, fab: str | 
 
     for name in ENUM_FIELDS:
         if name not in props:
-            print(f"\n  {name}: ABSENT — skipped")
+            print(f"\n  {name}: ABSENT - skipped")
             continue
         field = _agg_field(props, name)
         result = search.aggregate(
@@ -207,7 +221,7 @@ def stage_window(search: OSSearch, props: dict[str, Any], days: int, fab: str | 
         and (src[TIME_FIELD].endswith("Z") or "+" in src[TIME_FIELD])
     ]
     if suspect:
-        print(f"      NOTE: {TIME_FIELD} carries an offset/Z ({suspect[0]!r}) — the repo")
+        print(f"      NOTE: {TIME_FIELD} carries an offset/Z ({suspect[0]!r}) - the repo")
         print("            convention is offset-less KST. Record the difference.")
 
 
@@ -219,7 +233,7 @@ def stage_steps_per_device(
 
     for required in ("lot_cd", "oper_det_desc"):
         if required not in props:
-            print(f"  {required} ABSENT — cannot build the step list.")
+            print(f"  {required} ABSENT - cannot build the step list.")
             return []
 
     fab_field = _agg_field(props, "fab_id") if "fab_id" in props else "fab_id"
@@ -310,7 +324,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--days", type=int, default=DEFAULT_DAYS,
-                        help=f"Window in days (default: {DEFAULT_DAYS} — the confirmed 3 months).")
+                        help=f"Window in days (default: {DEFAULT_DAYS} - the confirmed 3 months).")
     parser.add_argument("--fab", default=None, help="Narrow to one fab_id (e.g. M14).")
     parser.add_argument("--devices", type=int, default=3,
                         help="lot_cd values to break down (default: 3).")
@@ -330,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
 
     stage_mapping(client, props)
     if not props:
-        print("\nNo mapping properties resolved — stopping.")
+        print("\nNo mapping properties resolved - stopping.")
         return 2
 
     stage_window(search, props, args.days, args.fab)

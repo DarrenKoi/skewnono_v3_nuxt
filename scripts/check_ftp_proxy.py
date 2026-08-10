@@ -43,6 +43,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
 
 # Read the deployment's proxy location from the code that actually uses it, so
 # this script can never drift from where requests really go.

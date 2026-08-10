@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if skipped_stub:
         print(
-            f"\nSkipped {len(skipped_stub)} not-yet-implemented template(s) — copying\n"
+            f"\nSkipped {len(skipped_stub)} not-yet-implemented template(s) - copying\n"
             f"these would switch a working mock page to a 500:\n  "
             + "\n  ".join(skipped_stub)
             + "\n(Use --include-stubs when you start wiring one.)"
@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
             + "\nInspect: python -m scripts.sync_office_adapters --diff <name>"
         )
     if warnings:
-        print("\nWARNING: git does NOT ignore these — office.py must stay untracked:")
+        print("\nWARNING: git does NOT ignore these - office.py must stay untracked:")
         for path in warnings:
             print(f"  {path}")
     if (created or refreshed) and not args.dry_run:

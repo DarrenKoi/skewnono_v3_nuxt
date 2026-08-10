@@ -11,7 +11,7 @@ tries them in order, so a 502 means both declined::
 
 The message the browser shows names source 2 ("No document in meas_hist_cdsem
 has full_name=..."), which is the expected state for any recipe that has never
-been measured — source 1 exists precisely to serve those. So the useful
+been measured - source 1 exists precisely to serve those. So the useful
 question is almost never "why is meas_hist empty" but "why did the registry
 decline", and this script walks every step of both sources until one of them
 produces an answer or all of them have been ruled out.
@@ -19,7 +19,7 @@ produces an answer or all of them have been ruled out.
 It diagnoses the DEPLOYED adapter, not the template: it imports
 ``providers/office.py`` when that file exists, because that is the code
 actually serving requests. A copy left behind by an older ``git pull`` has no
-registry path at all — stage 0 catches that outright, since no amount of
+registry path at all - stage 0 catches that outright, since no amount of
 correct Redis data helps an adapter that never reads it.
 
 Run FROM THE REPO ROOT at the office (reads REDIS_* / OPENSEARCH_* from
@@ -33,7 +33,7 @@ Stages 1-4 write nothing and open no FTP session: they are read-only against
 Redis and OpenSearch, and locating the file is the step that 502s.
 
 ``--fetch`` adds stages 5-6, which go past locating into the office_utils
-surface itself — download the ``.idp``, parse it FROM BYTES, and run one
+surface itself - download the ``.idp``, parse it FROM BYTES, and run one
 parameter's slots through the five raw readers::
 
     .venv/bin/python -m scripts.diagnose_recipe_search_office "1/AC_M2_TAT" --fetch
@@ -41,7 +41,7 @@ parameter's slots through the five raw readers::
 
 Those two are opt-in because they dial the measuring tool. They exist for the
 2026-08-05 change: the adapter stopped writing the ``.idp`` to a temp file on
-the strength of ``combined_idp_info`` accepting bytes — user-confirmed, but
+the strength of ``combined_idp_info`` accepting bytes - user-confirmed, but
 never executed at the office and untestable from home. Stage 5 parses the same
 bytes both ways and reports whether they agree, so the claim is checked by a
 command instead of by a user hitting a 502. If it turns out to be wrong,
@@ -61,8 +61,21 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-from back_dev_home._runtime import office_template
-from back_dev_home._runtime.office_redis import load_env_file, redis_client
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime import office_template  # noqa: E402
+from back_dev_home._runtime.office_redis import load_env_file, redis_client  # noqa: E402
 
 
 _PACKAGE = "back_dev_home.ebeam.recipe_search.providers"
@@ -99,14 +112,14 @@ def _load_adapter() -> tuple[ModuleType, str]:
     """Import the deployed office.py, or fall back to the tracked template.
 
     Returns ``(module, state)``. Diagnosing the template when no usable copy
-    exists is still worth doing — it proves the Redis/OpenSearch data is or is
-    not in the shape the adapter wants — but the caller has to say so, because
+    exists is still worth doing - it proves the Redis/OpenSearch data is or is
+    not in the shape the adapter wants - but the caller has to say so, because
     a passing run against the template does not mean the endpoint works.
 
     BROKEN is its own state rather than an unhandled traceback because it is a
     real and recoverable office condition, not a bug in this script: a copy
     left behind by an older ``git pull`` can reference names that the tracked
-    ``mock.py`` beside it has since dropped. That is worse than a 502 — the
+    ``mock.py`` beside it has since dropped. That is worse than a 502 - the
     blueprint auto-discovery imports every ``routes.py`` at app-factory time,
     so the whole backend fails to boot rather than one endpoint failing.
     """
@@ -126,7 +139,7 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
     _rule("0. Which adapter is deployed?")
 
     if state == BROKEN:
-        _bad("providers/office.py cannot be imported — the BACKEND WILL NOT BOOT.")
+        _bad("providers/office.py cannot be imported - the BACKEND WILL NOT BOOT.")
         _info("Blueprints are auto-discovered at app-factory time, so this is a")
         _info("startup failure, not a per-endpoint one. It means the copy predates")
         _info("a change to the tracked modules beside it. Refresh it:")
@@ -135,7 +148,7 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
         return hasattr(adapter, "_locate_via_redis")
 
     if state == MISSING:
-        _bad("providers/office.py does not exist — this feature is serving MOCK data.")
+        _bad("providers/office.py does not exist - this feature is serving MOCK data.")
         _info("Nothing below reflects what the endpoint returns. To go live:")
         _info("  python -m scripts.sync_office_adapters recipe_search")
         _info("Continuing against the tracked template so the data can still be checked.")
@@ -152,7 +165,7 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
                 _info("The template moved ahead and this copy still runs. Refresh it:")
                 _info("  python -m scripts.sync_office_adapters recipe_search")
             else:
-                _info(f"providers/office.py is {detail} — hand-edited, left alone.")
+                _info(f"providers/office.py is {detail} - hand-edited, left alone.")
             break
 
     # The decisive check, independent of git: does this code have the registry
@@ -162,7 +175,7 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
     if has_registry:
         _ok("It has the Redis registry path (_locate_via_redis).")
     else:
-        _bad("It has NO Redis registry path — it only ever queries meas_hist.")
+        _bad("It has NO Redis registry path - it only ever queries meas_hist.")
         _info("This alone explains a 502 on any recipe that has never been measured.")
         _info("  python -m scripts.sync_office_adapters recipe_search")
     return has_registry
@@ -173,7 +186,7 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
 
 def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> list[str]:
     """Walk the catalog and both registry hashes. Returns the eqp_ids found."""
-    _rule("1. Redis — catalog and recipe-location registry")
+    _rule("1. Redis - catalog and recipe-location registry")
 
     client = redis_client()
     client.ping()
@@ -182,13 +195,13 @@ def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> lis
     catalog_key = f"v3_{family}_unique_rcp_list"
     fields = client.hkeys(catalog_key)
     if not fields:
-        _bad(f"{catalog_key} is empty or absent — the recipe-list job has not run.")
+        _bad(f"{catalog_key} is empty or absent - the recipe-list job has not run.")
         return []
     decoded = sorted(_text(field) for field in fields)
     _ok(f"{catalog_key} holds {len(decoded)} fab(s): {', '.join(decoded)}")
 
     if fab.lower() not in decoded:
-        _bad(f"fab field {fab.lower()!r} is NOT one of them — check the fab spelling.")
+        _bad(f"fab field {fab.lower()!r} is NOT one of them - check the fab spelling.")
         _info("Fields are lowercase here; the screen and routes use uppercase.")
         return []
 
@@ -209,7 +222,7 @@ def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> lis
     eqp_ids: list[str] = []
     for key, label in ((loc_key, "[idw, idp] paths"), (tools_key, "tool list")):
         if not client.exists(key):
-            _bad(f"{key} does not exist — this fab has no {label} registry at all.")
+            _bad(f"{key} does not exist - this fab has no {label} registry at all.")
             _info("Every recipe in this fab therefore falls through to meas_hist.")
             continue
         raw = client.hget(key, recipe)
@@ -222,7 +235,7 @@ def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> lis
         parsed = adapter._parse_str_list(raw)
         if key == loc_key:
             if len(parsed) < 2:
-                _bad(f"{key} entry is {parsed} — needs 2 entries, read positionally.")
+                _bad(f"{key} entry is {parsed} - needs 2 entries, read positionally.")
             else:
                 _ok(f"{key} -> idw={parsed[0]!r} idp={parsed[1]!r}")
         else:
@@ -238,7 +251,7 @@ def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> lis
 
 
 def _check_roster(adapter: ModuleType, eqp_ids: list[str]) -> None:
-    _rule("2. sem_list roster — eqp_id -> eqp_ip (FTP dials an IP, not an id)")
+    _rule("2. sem_list roster - eqp_id -> eqp_ip (FTP dials an IP, not an id)")
 
     if not eqp_ids:
         _info("skipped: stage 1 found no tool list to resolve.")
@@ -257,14 +270,14 @@ def _check_roster(adapter: ModuleType, eqp_ids: list[str]) -> None:
         _ok("download order (available tools first): "
             + ", ".join(f"{eqp_id}@{eqp_ip}" for eqp_id, eqp_ip in resolved))
     else:
-        _bad("no tool resolves to an IP — the registry path bails here.")
+        _bad("no tool resolves to an IP - the registry path bails here.")
 
 
 # ── stage 3: OpenSearch fallback ─────────────────────────────────────────
 
 
 def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) -> None:
-    _rule("3. meas_hist — the fallback, and the source the 502 message names")
+    _rule("3. meas_hist - the fallback, and the source the 502 message names")
 
     from back_dev_home.ebeam._office_search import aggregate, fetch_hits, query
 
@@ -286,7 +299,7 @@ def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) ->
         return
 
     _bad(f"{index} has no document with full_name={recipe!r} for fab {fab!r}.")
-    _info("This is the sentence the browser shows. On its own it is NORMAL — a "
+    _info("This is the sentence the browser shows. On its own it is NORMAL - a "
           "recipe that was never measured has no run to derive a path from.")
 
     # Split the miss: wrong fab, wrong recipe spelling, or genuinely unmeasured.
@@ -295,7 +308,7 @@ def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) ->
         size=1, sort=[{"timestamp": "desc"}], source=["fab_name", "timestamp"],
     )
     if any_fab:
-        _bad(f"but it EXISTS under fab {any_fab[0].get('fab_name')!r} — the "
+        _bad(f"but it EXISTS under fab {any_fab[0].get('fab_name')!r} - the "
              f"fab filter is what excluded it.")
         return
 
@@ -307,7 +320,7 @@ def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) ->
         None,
     ).get("names", {}).get("buckets", [])
     if buckets:
-        _bad("no exact match, but these look close — compare the spelling:")
+        _bad("no exact match, but these look close - compare the spelling:")
         for bucket in buckets:
             _info(f"{bucket['key']}  ({bucket['doc_count']} docs)")
     else:
@@ -320,7 +333,7 @@ def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) ->
 
 
 def _check_verdict(adapter: ModuleType, family: str, fab: str, recipe: str) -> None:
-    _rule("4. Verdict — what /recipe-detail would do with this exact request")
+    _rule("4. Verdict - what /recipe-detail would do with this exact request")
 
     try:
         locations = adapter._locate_idp(_TOOL_TYPE[family], recipe, fab)
@@ -328,16 +341,16 @@ def _check_verdict(adapter: ModuleType, family: str, fab: str, recipe: str) -> N
         _bad("502 upstream_data_error. The browser would show:")
         _info(str(exc))
         return
-    except Exception as exc:  # noqa: BLE001 — a diagnosis must not itself crash
+    except Exception as exc:  # noqa: BLE001 - a diagnosis must not itself crash
         _bad(f"{type(exc).__name__}: {exc}")
         return
 
-    _ok(f"located — {len(locations)} tool candidate(s), tried in this order:")
+    _ok(f"located - {len(locations)} tool candidate(s), tried in this order:")
     for location in locations:
         _info(f"{location.eqp_id or '?'} @ {location.eqp_ip}  "
               f"{adapter._idp_remote_path(location)}")
     _info("Locating succeeded, so a 502 now would come from the FTP download "
-          "instead — add --fetch to carry on into it.")
+          "instead - add --fetch to carry on into it.")
 
 
 # ── stage 5: download and parse, the step --fetch adds ───────────────────
@@ -354,7 +367,7 @@ def _check_fetch(
 
     ``combined_idp_info`` accepting bytes is user-confirmed but had never been
     executed when the adapter stopped writing its temp file, so this stage
-    parses TWICE — once from bytes, once through the escape hatch's temp file —
+    parses TWICE - once from bytes, once through the escape hatch's temp file -
     and reports whether the two agree. That comparison is the whole reason the
     stage exists: if bytes are rejected or quietly return something different,
     it says so here instead of on a user's screen as a 502.
@@ -364,14 +377,14 @@ def _check_fetch(
     try:
         locations = adapter._locate_idp(_TOOL_TYPE[family], recipe, fab)
         data, location = adapter._download_first(locations)
-    except Exception as exc:  # noqa: BLE001 — a diagnosis must not itself crash
+    except Exception as exc:  # noqa: BLE001 - a diagnosis must not itself crash
         _bad(f"{type(exc).__name__}: {exc}")
         _info("The download failed, so nothing below can run. "
               "scripts/probe_recipe_ftp.py explores the FTP tree itself.")
         return None
 
     _ok(f"downloaded {len(data)} bytes from {location.eqp_id or '?'} "
-        f"@ {location.eqp_ip} — nothing was written to disk.")
+        f"@ {location.eqp_ip} - nothing was written to disk.")
     _info(f"first 16 bytes: {data[:16].hex(' ')}")
 
     label = f"{location.idp_stem}.idp"
@@ -382,14 +395,14 @@ def _check_fetch(
         _info("If this is a TypeError or an encoding error, the parser wants a "
               "path after all. Set SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 in "
               "back_dev_home/.env, restart Flask to restore the temp file, and "
-              "tell home — docs/datatables/recipe_idp.txt records the opposite.")
+              "tell home - docs/datatables/recipe_idp.txt records the opposite.")
         return None
 
     _ok("combined_idp_info(bytes) returned the three documented tables:")
     for name, frame in frames.items():
         _info(f"{name}: {len(frame)} rows x {len(frame.columns)} cols")
     if _is_home_standin("office_utils.read_idp_info"):
-        _bad("but this is the HOME STAND-IN — every value above is fabricated. "
+        _bad("but this is the HOME STAND-IN - every value above is fabricated. "
              "Run this at the office for it to mean anything.")
 
     _compare_with_tempfile(adapter, data, label, frames)
@@ -413,7 +426,7 @@ def _is_home_standin(module_name: str) -> bool:
     It IMPORTS rather than reading ``sys.modules``: the adapter imports these
     modules inside the functions that use them, so a stage that asks before
     calling one would read an empty ``sys.modules`` and wrongly report office
-    data. Importing is safe — both modules are import-side-effect-free.
+    data. Importing is safe - both modules are import-side-effect-free.
     """
     try:
         return bool(getattr(importlib.import_module(module_name), "IS_HOME_STANDIN", False))
@@ -435,7 +448,7 @@ def _compare_with_tempfile(
         via_path = adapter._parse_idp(data, label)
     except Exception as exc:  # noqa: BLE001
         _info(f"(the temp-file fallback itself raised {type(exc).__name__}: "
-              f"{exc} — the bytes path above is the only one that works)")
+              f"{exc} - the bytes path above is the only one that works)")
         return
     finally:
         if previous is None:
@@ -449,12 +462,12 @@ def _compare_with_tempfile(
     ]
     if differing and _is_home_standin("office_utils.read_idp_info"):
         _info("(the home stand-in fabricates from whatever it is handed, so "
-              "bytes and a path necessarily differ here — this comparison only "
+              "bytes and a path necessarily differ here - this comparison only "
               "means something at the office.)")
         return
     if not differing:
         _ok("parsing the same bytes through a temp file gives an IDENTICAL "
-            "result — the disk write really was unnecessary.")
+            "result - the disk write really was unnecessary.")
         return
 
     _bad(f"bytes and path DISAGREE on: {', '.join(differing)}.")
@@ -484,12 +497,12 @@ def _check_readers(
     _rule("6. Raw-folder readers (--fetch)")
 
     if _is_home_standin("office_utils.idp_amp_reader"):
-        _bad("the HOME STAND-IN is installed — the settings below are "
+        _bad("the HOME STAND-IN is installed - the settings below are "
              "fabricated and their FIELD NAMES are placeholders (AMP_FIELD_1).")
 
     rows = frames.get("idp_image_info")
     if rows is None or rows.empty:
-        _bad("idp_image_info is empty — no parameter to follow into the folder.")
+        _bad("idp_image_info is empty - no parameter to follow into the folder.")
         return
 
     wanted = (parameter or "").strip()
@@ -526,7 +539,7 @@ def _check_readers(
                 sample = ", ".join(
                     f"{r['key']}={r['value']}" for r in block["rows"][:3]
                 )
-                _info(f"{key}: {len(block['rows'])} rows — {sample}")
+                _info(f"{key}: {len(block['rows'])} rows - {sample}")
         for image in response.get("images", []):
             cond = image.get("cond")
             _info(f"image {image.get('slot')}={image.get('name')}: "
@@ -577,7 +590,7 @@ def main() -> int:
     else:
         _rule("1-2. Redis registry")
         _info("skipped: this adapter cannot read it. Refresh it first, then "
-              "re-run — the Redis data is very likely fine.")
+              "re-run - the Redis data is very likely fine.")
 
     _check_meas_hist(adapter, args.tool, fab, recipe)
     _check_verdict(adapter, args.tool, fab, recipe)

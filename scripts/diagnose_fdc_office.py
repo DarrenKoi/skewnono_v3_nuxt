@@ -1,19 +1,19 @@
 """Diagnose why the office FDC tab returns no data from OpenSearch.
 
 The adapter is a chain of assumptions, and every link fails the same way from
-the UI — an empty chart. This walks the chain one link at a time and prints
+the UI - an empty chart. This walks the chain one link at a time and prints
 what it finds, so a single run says WHICH assumption is wrong:
 
   0. providers/fdc/office.py exists and matches the tracked template
-     (a stale copy predating a fix has bitten us before — see the recipe_tat
+     (a stale copy predating a fix has bitten us before - see the recipe_tat
      single-point collapse)
   1. OPENSEARCH_* config is loaded
   2. the cluster is reachable
-  3. the alias `network_fdc_cdsem` EXISTS — and if not, what fdc-ish
+  3. the alias `network_fdc_cdsem` EXISTS - and if not, what fdc-ish
      aliases do exist (`network_sharpness_cdsem` turned out to be a
      design-doc name that was never real, so this is not paranoia)
   4. the index has documents at all
-  5. what a raw document actually looks like — real field names, verbatim
+  5. what a raw document actually looks like - real field names, verbatim
   6. how `eqp_id` is mapped (text+.keyword vs bare keyword)
   7. which eqp_id values exist, queried BOTH ways
   8. the real timestamp span and spelling (offset or not)
@@ -38,9 +38,22 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from back_dev_home._runtime.office_redis import load_env_file
-from back_dev_home.ebeam.hardware.providers.fdc import office_example
-from ops_store import OSIndex, OSSearch, create_client
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
+from back_dev_home.ebeam.hardware.providers.fdc import office_example  # noqa: E402
+from ops_store import OSIndex, OSSearch, create_client  # noqa: E402
 
 
 INDEX = office_example.INDEX
@@ -57,7 +70,7 @@ def _fail(label: str, exc: Exception) -> None:
 
 
 def check_adapter_copy() -> None:
-    _rule("[0] providers/fdc/office.py — present? same as the template?")
+    _rule("[0] providers/fdc/office.py - present? same as the template?")
     template = Path(office_example.__file__)
     live = template.with_name("office.py")
     if not live.exists():
@@ -136,7 +149,7 @@ def check_documents(search: OSSearch) -> None:
         raw = search.search_raw({"size": 1})
         hits = raw.get("hits", {}).get("hits", [])
         if not hits:
-            print("  no documents at all — ingestion has not populated this index.")
+            print("  no documents at all - ingestion has not populated this index.")
             return
         source = hits[0].get("_source", {})
         print(f"  field names present: {sorted(source)}")
@@ -165,28 +178,28 @@ def check_eqp_id_mapping(client: Any) -> None:
                 print(f"  [{name}] {field:<10}: {spec}")
             eqp = props.get("eqp_id", {})
             if "keyword" in eqp.get("fields", {}):
-                print(f"  >> eqp_id is text with a .keyword subfield — the "
+                print(f"  >> eqp_id is text with a .keyword subfield - the "
                       f"adapter's {EQP_ID_KW!r} is CORRECT.")
             elif eqp.get("type") == "keyword":
-                print(f"  >> eqp_id is a BARE keyword — {EQP_ID_KW!r} matches "
+                print(f"  >> eqp_id is a BARE keyword - {EQP_ID_KW!r} matches "
                       "NOTHING. Drop the .keyword suffix.")
             else:
                 print(f"  >> eqp_id is {eqp.get('type')!r} with no keyword "
-                      "subfield — it cannot be exact-matched as a term at all.")
+                      "subfield - it cannot be exact-matched as a term at all.")
             # timestamp type decides the range/sort field (TS_FIELD). This is the
             # prime suspect when eqp_id already resolves but the pull is empty.
             ts = props.get("timestamp", {})
             ts_type = ts.get("type")
             if ts_type == "date":
-                print(f"  >> timestamp is a date — the adapter's bare "
+                print(f"  >> timestamp is a date - the adapter's bare "
                       f"{TS_FIELD!r} range/sort is CORRECT.")
             elif ts_type == "text":
                 print("  >> timestamp is TEXT, not date. The bare-field range "
-                      "under-matches AND the sort errors on fielddata — set "
+                      "under-matches AND the sort errors on fielddata - set "
                       "TS_FIELD = 'timestamp.keyword' in fdc/office_example.py. "
                       "THIS is the likely empty-pull cause.")
             else:
-                print(f"  >> timestamp type is {ts_type!r} — unexpected; "
+                print(f"  >> timestamp type is {ts_type!r} - unexpected; "
                       "inspect the raw spec printed above.")
             break
     except Exception as exc:
@@ -242,7 +255,7 @@ def check_timestamps(search: OSSearch) -> None:
             ts = hit.get("_source", {}).get("timestamp")
             flag = ""
             if isinstance(ts, str) and (ts.endswith("Z") or "+" in ts):
-                flag = "   <<< CARRIES AN OFFSET — window slides 9h"
+                flag = "   <<< CARRIES AN OFFSET - window slides 9h"
             print(f"    {ts!r}{flag}")
     except Exception as exc:
         _fail("sorted search_raw", exc)
@@ -258,11 +271,11 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
                               "lte": end.isoformat()}}},
     ]
     # Narrow one clause at a time: whichever addition drops the count to zero
-    # is the clause that is wrong. This is THE decisive test —
+    # is the clause that is wrong. This is THE decisive test -
     #   "eqp_id only" > 0 and "both" == 0  -> the time clause is at fault
     #   "eqp_id only" == 0                 -> the eqp_id clause is at fault
-    #     (field-name mismatch — mapping is bare keyword while the adapter
-    #      sends .keyword — or this tool has no FDC data)
+    #     (field-name mismatch - mapping is bare keyword while the adapter
+    #      sends .keyword - or this tool has no FDC data)
     # The last probe ranges on timestamp.keyword: if "both" (bare TS_FIELD) is
     # zero but this one is > 0, timestamp is TEXT and the fix is
     # TS_FIELD = "timestamp.keyword".
@@ -295,7 +308,7 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
 
     # What the ROUTE computes for a real browser request, which is not what
     # this script computes above. HardwareView sends `new Date().toISOString()`
-    # — UTC with a Z — and routes._parse_iso strips the Z and keeps the naive
+    # - UTC with a Z - and routes._parse_iso strips the Z and keeps the naive
     # UTC clock, while stored timestamps are offset-less KST. The window the
     # office actually queries is therefore 9 hours early.
     print("\n  --- what the ROUTE computes for a browser request ---")
@@ -305,7 +318,7 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
           f"{(browser_end - timedelta(days=days)).isoformat()} .. "
           f"{browser_end.isoformat()}   (9h early)")
     print("    If the two rows above return different counts, the UTC/KST")
-    print("    skew is real — but it clips 9h, it cannot empty 30 days.")
+    print("    skew is real - but it clips 9h, it cannot empty 30 days.")
 
     print("\n  --- calling the adapter itself ---")
     try:
@@ -316,7 +329,7 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
         # ImportError, not ModuleNotFoundError: an absent office.py surfaces as
         # "cannot import name 'office'" from the package, which is a plain
         # ImportError and would otherwise crash the run at its last step.
-        print("  providers/fdc/office.py not importable — see [0].")
+        print("  providers/fdc/office.py not importable - see [0].")
         return
     try:
         docs = live.build_fdc_docs(tool, None, start, end)
@@ -332,7 +345,7 @@ def main() -> None:
     tool = sys.argv[1] if len(sys.argv) > 1 else "MCD018"
     days = int(sys.argv[2]) if len(sys.argv) > 2 else 30
 
-    print(f"FDC office diagnosis — index={INDEX!r} tool={tool!r} window={days}d")
+    print(f"FDC office diagnosis - index={INDEX!r} tool={tool!r} window={days}d")
     check_adapter_copy()
     check_config()
 

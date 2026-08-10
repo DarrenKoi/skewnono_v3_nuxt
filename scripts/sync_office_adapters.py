@@ -71,6 +71,10 @@ BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 # app and tests use, and `from scripts import ...` must keep working.
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
 
 from back_dev_home._runtime import office_template  # noqa: E402
 from back_dev_home._runtime.office_template import (  # noqa: E402
@@ -113,7 +117,7 @@ def status_of(adapter: Adapter) -> str:
 
 
 def reset_cache() -> None:
-    """Drop the memoized statuses. Tests only — one CLI run classifies once.
+    """Drop the memoized statuses. Tests only - one CLI run classifies once.
 
     Mirrors ``office_registry.reset_cache()``; the CLI itself classifies each
     adapter once per run and never needs to invalidate.

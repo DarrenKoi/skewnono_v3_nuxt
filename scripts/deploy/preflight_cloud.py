@@ -1,7 +1,7 @@
 """Will this bundle boot? Run this on the cloud host BEFORE starting uwsgi.
 
 `wsgi.ini` sets `need-app = true`, so every boot problem surfaces as a uwsgi
-crash log — a poor diagnostic on a host with a slow iteration loop. This
+crash log - a poor diagnostic on a host with a slow iteration loop. This
 script turns each of those failures into one line naming the remedy.
 
 Run it TWICE:
@@ -12,7 +12,7 @@ Run it TWICE:
     python preflight.py                                  # after
 
 The first pass proves the transfer landed at the right path with the right
-layout — the failure with the most confusing symptoms, because the app still
+layout - the failure with the most confusing symptoms, because the app still
 returns HTTP 200 while silently running with auth off, no SPA, and mock data.
 The second proves the dependency install completed.
 
@@ -29,7 +29,7 @@ from pathlib import Path
 
 CLOUD_PREFIX = Path("/project/workSpace")
 
-# (import name, pip name) — the two differ often enough to be worth pairing,
+# (import name, pip name) - the two differ often enough to be worth pairing,
 # because the remedy the operator needs is the pip name.
 RUNTIME_PACKAGES = (
     ("flask", "Flask"),
@@ -58,7 +58,7 @@ def check_layout(root: Path) -> list[str]:
     env_py = root / "back_dev_home" / "_runtime" / "env.py"
     if not env_py.is_file():
         failures.append(
-            f"MISSING {env_py} — back_dev_home/ did not survive the transfer."
+            f"MISSING {env_py} - back_dev_home/ did not survive the transfer."
         )
     elif env_py.resolve().parents[2] != root.resolve():
         # spa_dir() is parents[2] / front-dev-home / .output / public.
@@ -70,7 +70,7 @@ def check_layout(root: Path) -> list[str]:
     index_html = root / "front-dev-home" / ".output" / "public" / "index.html"
     if not index_html.is_file():
         failures.append(
-            f"MISSING {index_html} — the SPA is absent; every page returns 404."
+            f"MISSING {index_html} - the SPA is absent; every page returns 404."
         )
 
     for name in ("index.py", "wsgi.ini"):
@@ -80,7 +80,7 @@ def check_layout(root: Path) -> list[str]:
     if not root.resolve().is_relative_to(CLOUD_PREFIX):
         failures.append(
             f"PATH bundle is at {root.resolve()}, not under {CLOUD_PREFIX}. "
-            "is_cloud() will be False: no SPA mount, mock data, and — worst — "
+            "is_cloud() will be False: no SPA mount, mock data, and - worst - "
             "the LOCAL identity provider, which falls back to the admin id "
             "'local-dev' for any caller with no LASTUSER cookie. "
             f"Move the bundle so it sits under {CLOUD_PREFIX}."
@@ -126,7 +126,7 @@ def check_versions(root: Path) -> tuple[list[str], list[str]]:
 
     The cloud image preinstalls part of our dependency set, and `pip install -r`
     upgrades a preinstalled package only when its version violates a specifier
-    we actually wrote down. So every floor that matters has to be declared —
+    we actually wrote down. So every floor that matters has to be declared -
     and then verified here, because the install can still be defeated: an
     offline mirror without the release, a permission error on a root-owned
     site-packages, or a system copy shadowing the venv on sys.path. All three
@@ -148,7 +148,7 @@ def check_versions(root: Path) -> tuple[list[str], list[str]]:
     for pip_name, constraints in _parse_requirements(body):
         installed = _installed_version(pip_name)
         if installed is None:
-            continue  # absent — check_imports() already names it
+            continue  # absent - check_imports() already names it
 
         unmet = [c for c in constraints if not _satisfies(installed, c)]
         if not unmet:
@@ -165,7 +165,7 @@ def check_versions(root: Path) -> tuple[list[str], list[str]]:
         )
         symptom = VERSION_SYMPTOMS.get(pip_name)
         if symptom:
-            message += f" — {symptom}"
+            message += f" - {symptom}"
         failures.append(message)
 
     return failures, notes
@@ -203,7 +203,7 @@ def _installed_version(pip_name: str) -> str | None:
 
 
 def _installed_location(pip_name: str) -> str | None:
-    """Where the distribution actually lives — the tell for a shadowing copy."""
+    """Where the distribution actually lives - the tell for a shadowing copy."""
     try:
         return str(metadata.distribution(pip_name).locate_file(""))
     except Exception:
@@ -212,7 +212,7 @@ def _installed_location(pip_name: str) -> str | None:
 
 def _version_tuple(version: str) -> tuple[int, ...]:
     """`2.5.0` -> (2, 5, 0). Trailing non-digits are dropped per component, so
-    a pre-release like `2.0.0rc1` reads as (2, 0, 0) — close enough to compare
+    a pre-release like `2.0.0rc1` reads as (2, 0, 0) - close enough to compare
     against an integer floor, and never the reason a deploy is blocked."""
     parts = []
     for component in re.split(r"[.\-_+]", version):
@@ -247,21 +247,21 @@ def _satisfies(installed: str, constraint: tuple[str, str]) -> bool:
 def check_config(root: Path) -> tuple[list[str], list[str]]:
     """Check the .env settings that decide the deploy. Returns (failures, warnings).
 
-    Most of the file stays uninspected — preflight has no standing to judge it
-    — but two settings are checkable here and undiagnosable later:
+    Most of the file stays uninspected - preflight has no standing to judge it
+    - but two settings are checkable here and undiagnosable later:
 
     * SKEWNONO_SECRET_KEY decides whether create_app() raises on the cloud, and
       a preflight that passes while uwsgi boot-loops (reason visible only in
       uwsgi logs) is the silent-blank-window failure this script exists to
       prevent. Same rule as create_app(): blank counts as absent.
-    * SKEWNONO_LOG_ENV decides WHICH logging alias this host writes — see
+    * SKEWNONO_LOG_ENV decides WHICH logging alias this host writes - see
       _check_logging_target for why a valid value can still be a deploy bug.
     """
     env_path = root / "back_dev_home" / ".env"
     if not env_path.is_file():
         return (
             [
-                f"MISSING {env_path} — create_app() calls load_dotenv on this path; "
+                f"MISSING {env_path} - create_app() calls load_dotenv on this path; "
                 "without it the app boots unconfigured."
             ],
             [],
@@ -274,7 +274,7 @@ def check_config(root: Path) -> tuple[list[str], list[str]]:
     failures = []
     if not values.get("SKEWNONO_SECRET_KEY", ""):
         failures.append(
-            f"SKEWNONO_SECRET_KEY not set in {env_path} — create_app() refuses "
+            f"SKEWNONO_SECRET_KEY not set in {env_path} - create_app() refuses "
             "to start on the cloud without it (it signs the "
             "self-identification session). Set any non-empty value."
         )
@@ -291,7 +291,7 @@ def _check_logging_target(
 
     The failure this exists for is not a crash. `SKEWNONO_LOG_ENV=local` is a
     perfectly valid value, so resolve_logging_target() accepts it, the shipper
-    installs, and every request is indexed — into `skewnono_logging_local`.
+    installs, and every request is indexed - into `skewnono_logging_local`.
     The production alias just stays empty, /admin-logs reads the local one
     back, and nothing anywhere reports a problem. That cost a cloud deploy's
     activity history on 2026-08-03, and no amount of documentation would have
@@ -315,7 +315,7 @@ def _check_logging_target(
 
     if log_env == "local":
         failures.append(
-            f"SKEWNONO_LOG_ENV=local in {env_path} — that is the office-PC "
+            f"SKEWNONO_LOG_ENV=local in {env_path} - that is the office-PC "
             "target. Activity would land in the `skewnono_logging_local` alias "
             "(shorter ISM retention), production `skewnono_logging` would stay "
             "empty, and /admin-logs would read the local alias back, so nothing "
@@ -324,14 +324,14 @@ def _check_logging_target(
     elif log_env and log_env != "production":
         failures.append(
             f"SKEWNONO_LOG_ENV={log_env!r} in {env_path} is neither 'local' nor "
-            "'production' — resolve_logging_target() raises "
+            "'production' - resolve_logging_target() raises "
             "LoggingConfigurationError inside create_app() and uwsgi boot-loops. "
             "Set SKEWNONO_LOG_ENV=production."
         )
     elif not log_env and password:
         failures.append(
             f"SKEWNONO_LOG_ENV not set in {env_path} while OPENSEARCH_PASSWORD is "
-            "— install_opensearch_logging() gets that far and then raises "
+            "- install_opensearch_logging() gets that far and then raises "
             "LoggingConfigurationError, so create_app() dies at boot. "
             "Set SKEWNONO_LOG_ENV=production."
         )
@@ -351,7 +351,7 @@ def _check_logging_target(
 
     if disabled:
         warnings.append(
-            f"OPENSEARCH_LOGGING_DISABLED is on in {env_path} — the write kill "
+            f"OPENSEARCH_LOGGING_DISABLED is on in {env_path} - the write kill "
             "switch. Activity is dropped for as long as it stays set."
         )
 
@@ -363,7 +363,7 @@ def env_file_values(env_path: Path) -> dict[str, str] | None:
 
     A hand-rolled scan rather than python-dotenv: this script may only import
     what the cloud image alone supplies, and it must degrade to a report on a
-    broken host — an unreadable file is a different failure that load_dotenv
+    broken host - an unreadable file is a different failure that load_dotenv
     will surface at boot, so it is not this check's call to guess at. Hence
     None rather than an empty dict, which would read as "nothing is set" and
     manufacture verdicts about a file nobody managed to read.
@@ -421,7 +421,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     root = args.root
 
-    print(f"SKEWNONO cloud preflight — {root}\n")
+    print(f"SKEWNONO cloud preflight - {root}\n")
 
     failures = check_layout(root)
     import_failures, notes = check_imports()
@@ -440,15 +440,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  ok   {len(roster)} office adapter(s): {', '.join(roster)}")
     else:
         warnings.append(
-            "No providers/office.py found — every feature will serve mock data."
+            "No providers/office.py found - every feature will serve mock data."
         )
 
     # recipe open imports the 사내 IDP parser lazily, so its absence never
-    # fails boot or preflight imports — it surfaces as a 500 on the first
+    # fails boot or preflight imports - it surfaces as a 500 on the first
     # recipe-open request. Warn rather than fail: only that feature needs it.
     if not (root / "office_utils" / "read_idp_info.py").is_file():
         warnings.append(
-            f"{root / 'office_utils' / 'read_idp_info.py'} missing — recipe "
+            f"{root / 'office_utils' / 'read_idp_info.py'} missing - recipe "
             "open will fail at the parse step (the FTP fetch succeeds, then "
             "combined_idp_info is unimportable). Re-pack with an office_utils/ "
             "at the repo root, or copy the folder onto the host."
@@ -458,13 +458,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  WARN {warning}")
 
     if not failures:
-        print("\nPASS — uwsgi should start. Next: uwsgi --ini wsgi.ini")
+        print("\nPASS - uwsgi should start. Next: uwsgi --ini wsgi.ini")
         return 0
 
     print("")
     for failure in failures:
         print(f"  FAIL {failure}")
-    print(f"\nFAIL — {len(failures)} blocking problem(s). Do not start uwsgi yet.")
+    print(f"\nFAIL - {len(failures)} blocking problem(s). Do not start uwsgi yet.")
     return 1
 
 

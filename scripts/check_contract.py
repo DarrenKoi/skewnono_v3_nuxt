@@ -8,14 +8,14 @@
 3. 배열의 첫 행 키 집합이 픽스처의 첫 행과 일치합니다.
 4. 각 키의 값 타입(파이썬 기본 타입)이 픽스처와 일치합니다.
 
-값의 동등성은 보지 않습니다 — 모의와 실 데이터는 값이 다른 것이 정상입니다.
+값의 동등성은 보지 않습니다 - 모의와 실 데이터는 값이 다른 것이 정상입니다.
 구조만 봅니다.
 
 사용법:
     python -m scripts.check_contract              # 기본 :5050
     PORT=5000 python -m scripts.check_contract    # Flask 를 :5000 으로 띄운 경우
 
-포트는 Flask 를 어떻게 띄웠는지에 맞춥니다 — index.py 기본값도 :5050 입니다.
+포트는 Flask 를 어떻게 띄웠는지에 맞춥니다 - index.py 기본값도 :5050 입니다.
 """
 
 from __future__ import annotations
@@ -29,9 +29,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 # capture_fixtures.py 와 엔드포인트 목록·포트 해석·픽스처 경로·fetch 를 모두
-# 공유합니다 — 두 스크립트가 같은 서버의 같은 파일을 보아야 비교가 의미 있습니다.
+# 공유합니다 - 두 스크립트가 같은 서버의 같은 파일을 보아야 비교가 의미 있습니다.
 # 리포 뿌리를 넣어 `python scripts/check_contract.py` 로 직접 실행해도
-# `scripts` 패키지로 한 번만 import 되게 합니다 — 최상위 `capture_fixtures`
+# `scripts` 패키지로 한 번만 import 되게 합니다 - 최상위 `capture_fixtures`
 # 로 import 하면 모듈이 두 벌 생겨 테스트의 monkeypatch 가 새 나갑니다.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.capture_fixtures import (  # noqa: E402
@@ -92,7 +92,7 @@ def _diff_shape(expected: Any, actual: Any, path: str = "$") -> list[str]:
         if not actual:
             issues.append(f"{path}: 실제 배열이 비어 있어 행 형태를 비교할 수 없습니다")
             return issues
-        # 첫 행끼리 비교 — 동질 배열 가정
+        # 첫 행끼리 비교 - 동질 배열 가정
         issues.extend(_diff_shape(expected[0], actual[0], f"{path}[0]"))
         return issues
 
@@ -103,7 +103,7 @@ def _diff_shape(expected: Any, actual: Any, path: str = "$") -> list[str]:
 class Outcome:
     """One endpoint's verdict.
 
-    `skip` 은 통과도 실패도 아닙니다 — 픽스처가 없는 엔드포인트는 분모에서
+    `skip` 은 통과도 실패도 아닙니다 - 픽스처가 없는 엔드포인트는 분모에서
     빠지므로, "28 / 28 통과" 가 실제로는 두 피처를 건너뛴 결과일 수 있습니다.
     그 사실이 요약에 드러나야 하므로 상태를 세 가지로 구분합니다.
     """
@@ -120,11 +120,11 @@ def check_endpoints(
 ) -> Iterator[Outcome]:
     """Compare every endpoint against its fixture, yielding as it goes.
 
-    제너레이터인 이유는 CLI 가 결과를 한 줄씩 흘려 보여주기 때문입니다 —
+    제너레이터인 이유는 CLI 가 결과를 한 줄씩 흘려 보여주기 때문입니다 -
     응답이 30초씩 걸리는 사무실 Flask 를 상대로 마지막에 몰아 찍으면
     어디서 멈췄는지 알 수 없습니다. `fetch=None` 은 실제 HTTP 이며, 주입은
     라이브 Flask 없이 이 오케스트레이션(픽스처 누락 → skip, 응답 실패 →
-    fail)을 테스트하려는 것입니다 — 기본 인자로 굳히지 않는 이유는 main()
+    fail)을 테스트하려는 것입니다 - 기본 인자로 굳히지 않는 이유는 main()
     경로도 `_fetch` monkeypatch 로 검증할 수 있어야 하기 때문입니다.
     """
     fetch = fetch or _fetch

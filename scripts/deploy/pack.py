@@ -9,14 +9,14 @@ Two properties of this repository shape everything here.
 
 **Depth is load-bearing.** _runtime/env.py defines is_cloud() as "does this
 file resolve under /project/workSpace" and spa_dir() as parents[2]/
-front-dev-home/.output/public. Cloud mode — auth blueprint, SPA mount, office
-site detection — is a property of the filesystem path, not of configuration.
+front-dev-home/.output/public. Cloud mode - auth blueprint, SPA mount, office
+site detection - is a property of the filesystem path, not of configuration.
 A re-nested bundle loses all three while still answering HTTP 200.
 
 **The files that matter most are untracked.** providers/office.py,
 minio_handler/minio_config.py and back_dev_home/.env are gitignored by design,
 so this reads the working tree. A git-archive approach would produce a bundle
-that boots cleanly and serves mock data in production — the worst available
+that boots cleanly and serves mock data in production - the worst available
 failure mode, because nothing announces it.
 """
 
@@ -32,7 +32,7 @@ from pathlib import Path
 
 try:
     # Running as `python scripts/deploy/pack.py` puts THIS file's directory on
-    # sys.path, not the repo root, so the package spelling is unavailable —
+    # sys.path, not the repo root, so the package spelling is unavailable -
     # while pytest imports `scripts.deploy.pack` and has only the package
     # spelling. Both invocations are real, so both are handled.
     from scripts.deploy.preflight_cloud import env_file_values
@@ -41,7 +41,7 @@ except ModuleNotFoundError:
 
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
 # Only ops_store, minio_handler, ftp_handler and office_utils are actually
-# imported by the app — office_utils via recipe_search's deferred import (the
+# imported by the app - office_utils via recipe_search's deferred import (the
 # 사내 IDP parser behind recipe open; without it every recipe-open request
 # fails after the FTP fetch). ops_index_mgmt (index-creation tooling) is
 # deliberately absent.
@@ -58,7 +58,7 @@ INCLUDED_ROOTS = (
 PRUNE_DIRS = frozenset({"__pycache__", "tests", ".pytest_cache", ".ruff_cache"})
 
 # File suffixes removed anywhere. .md covers 22 MIGRATION.md files plus
-# READMEs — office-migration notes with no runtime role.
+# READMEs - office-migration notes with no runtime role.
 PRUNE_SUFFIXES = (".pyc", ".pyo", ".md", ".log")
 
 # Exact file names removed anywhere.
@@ -69,7 +69,7 @@ def prunes_by_name(name: str) -> bool:
     """Prune decision for a single directory entry, from its name alone.
 
     Deliberately name-only. The walk is top-down, so pruning a directory by
-    name is enough — nothing below it is ever visited. Anything that consults
+    name is enough - nothing below it is ever visited. Anything that consults
     ancestors would inherit whatever the bundle happens to be checked out
     under, which is not ours to interpret.
     """
@@ -132,7 +132,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     add(
         "spa_built",
         spa_index.is_file(),
-        f"{spa_index} missing — run: npm --prefix front-dev-home run build",
+        f"{spa_index} missing - run: npm --prefix front-dev-home run build",
         True,
     )
 
@@ -140,13 +140,13 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     add(
         "env_present",
         env_path.is_file(),
-        f"{env_path} missing — create_app() load_dotenv()s this path",
+        f"{env_path} missing - create_app() load_dotenv()s this path",
         True,
     )
 
     # The one .env value pack has standing to judge. Everything else in that
     # file is content this script has no opinion on (see
-    # test_preflight_does_not_inspect_env_values) — but SKEWNONO_LOG_ENV is
+    # test_preflight_does_not_inspect_env_values) - but SKEWNONO_LOG_ENV is
     # not content, it is a property of the MACHINE, and back_dev_home is
     # copied wholesale, so packing here sends this office PC's value to the
     # cloud. That is how a cloud deploy came to run with `local` on
@@ -156,7 +156,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     add(
         "logging_target",
         log_env in ("production", ""),
-        f"{env_path} sets SKEWNONO_LOG_ENV={log_env} — that is this machine's "
+        f"{env_path} sets SKEWNONO_LOG_ENV={log_env} - that is this machine's "
         "own logging target and the bundle is for the cloud. Activity would go "
         "to the `skewnono_logging_local` alias, production `skewnono_logging` "
         "would stay empty, and /admin-logs would read the same wrong alias "
@@ -169,7 +169,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     add(
         "requirements_present",
         reqs.is_file(),
-        f"{reqs} missing — nothing to pip install on the cloud",
+        f"{reqs} missing - nothing to pip install on the cloud",
         True,
     )
 
@@ -188,7 +188,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     add(
         "build_fresh",
         build_fresh,
-        "the built SPA is older than front-dev-home/app/ — rebuild, or you "
+        "the built SPA is older than front-dev-home/app/ - rebuild, or you "
         "will ship yesterday's UI",
         False,
     )
@@ -197,7 +197,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     add(
         "office_adapters",
         bool(adapters),
-        "no providers/office.py found — every feature will serve mock data",
+        "no providers/office.py found - every feature will serve mock data",
         False,
     )
 
@@ -209,12 +209,12 @@ def blocking_failures(checks: list[Check]) -> list[Check]:
 
 
 def _ignore(directory: str, names: list[str]) -> set[str]:
-    """shutil.copytree callback — drop pruned entries during the walk.
+    """shutil.copytree callback - drop pruned entries during the walk.
 
     Matches on the entry NAME only. copytree passes `directory` as an absolute
     source path, so joining it and testing every component would prune the
     whole tree whenever the checkout lives under a directory called `tests`,
-    `__pycache__`, or similar — a real office-PC path, not a hypothetical.
+    `__pycache__`, or similar - a real office-PC path, not a hypothetical.
     """
     del directory  # the walk is top-down; ancestors are already decided
     return {name for name in names if prunes_by_name(name)}
@@ -222,7 +222,7 @@ def _ignore(directory: str, names: list[str]) -> set[str]:
 
 # The Nuxt build output is already exactly what should ship, and it is opaque
 # to our naming rules: a content file could legitimately be called tests/ or
-# end in .md, and pruning it would break the SPA silently — the page would
+# end in .md, and pruning it would break the SPA silently - the page would
 # 404 an asset at runtime with nothing failing at pack time. So it is copied
 # verbatim. Everything else goes through should_prune().
 VERBATIM_ROOTS = frozenset({"front-dev-home/.output/public"})
@@ -266,12 +266,12 @@ def verify_bundle(dest: Path) -> list[str]:
         failures.append(f"missing {index_html}")
 
     # office_utils is gitignored (like providers/office.py), so a checkout that
-    # never had it packs a bundle where recipe open 500s on the parse step —
+    # never had it packs a bundle where recipe open 500s on the parse step -
     # with copy_bundle silently skipping the absent root. Catch it here.
     idp_parser = dest / "office_utils" / "read_idp_info.py"
     if not idp_parser.is_file():
         failures.append(
-            f"missing {idp_parser} — recipe open needs the 사내 IDP parser; "
+            f"missing {idp_parser} - recipe open needs the 사내 IDP parser; "
             "office_utils/ was absent (or empty) in the working tree"
         )
 
@@ -289,7 +289,7 @@ RUNBOOK = """# Deploy this bundle
 
    The path matters: `is_cloud()` tests whether `back_dev_home/_runtime/env.py`
    resolves under `/project/workSpace`. Anywhere else and the app starts with
-   no SSO auth, no SPA mount, and mock data — while still answering HTTP 200.
+   no SSO auth, no SPA mount, and mock data - while still answering HTTP 200.
 
    This folder carries credentials (`back_dev_home/.env`,
    `minio_handler/minio_config.py`). It is mode 700 here, but `scp -r` without
@@ -308,7 +308,7 @@ RUNBOOK = """# Deploy this bundle
 
        pip install -r back_dev_home/requirements.txt
 
-4. Run preflight again. Every runtime import comes from requirements.txt —
+4. Run preflight again. Every runtime import comes from requirements.txt -
    identity is the LASTUSER cookie, so nothing here needs the cloud image:
 
        python preflight.py
@@ -322,8 +322,8 @@ RUNBOOK = """# Deploy this bundle
        curl -b "LASTUSER=<admin empno>" localhost:5000/api/health/providers
 
    This endpoint deliberately bypasses the provider swap mechanism, so it is
-   the honest answer to whether office mode is on. It is admin-only — it
-   discloses the site, mode and every feature's provider — so an uncookied
+   the honest answer to whether office mode is on. It is admin-only - it
+   discloses the site, mode and every feature's provider - so an uncookied
    call gets a 403 rather than the table.
 
 `MANIFEST.txt` records what this bundle contains and any warnings raised
@@ -383,9 +383,9 @@ def write_manifest(dest, repo_root, checks, file_count, stamp) -> Path:
         f"files:       {file_count}",
         f"size:        {total_bytes / 1_048_576:.1f} MiB",
         "",
-        f"office adapters ({len(adapters)}) — these features serve real data:",
+        f"office adapters ({len(adapters)}) - these features serve real data:",
     ]
-    lines += [f"  {name}" for name in adapters] or ["  (none — all mock)"]
+    lines += [f"  {name}" for name in adapters] or ["  (none - all mock)"]
 
     lines += ["", f"warnings at pack time ({len(warnings)}):"]
     lines += [f"  {c.name}: {c.message}" for c in warnings] or ["  (none)"]
@@ -437,7 +437,7 @@ def main(argv: list[str] | None = None) -> int:
 
     failures = blocking_failures(checks)
     if failures:
-        print(f"\nFAIL — {len(failures)} blocking problem(s); nothing written.")
+        print(f"\nFAIL - {len(failures)} blocking problem(s); nothing written.")
         return 1
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
@@ -459,7 +459,7 @@ def main(argv: list[str] | None = None) -> int:
 
     problems = verify_bundle(dest)
     if problems:
-        print("\nFAIL — the bundle written is not well formed:")
+        print("\nFAIL - the bundle written is not well formed:")
         for problem in problems:
             print(f"  {problem}")
         return 1
@@ -470,7 +470,7 @@ def main(argv: list[str] | None = None) -> int:
     os.chmod(dest, 0o700)
 
     warned = [c for c in checks if not c.ok]
-    print(f"\nPASS — {file_count} files -> {dest}")
+    print(f"\nPASS - {file_count} files -> {dest}")
     if warned:
         print(f"  {len(warned)} warning(s) recorded in MANIFEST.txt:")
         for check in warned:

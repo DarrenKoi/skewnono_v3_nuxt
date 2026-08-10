@@ -83,6 +83,10 @@ from typing import Any
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
 
 from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
 from back_dev_home.msr_image.config import ImageConfig, load_config  # noqa: E402

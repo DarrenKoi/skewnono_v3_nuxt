@@ -17,7 +17,7 @@ After execution, inspect the module variables directly in PyCharm:
 
 Whatever this prints belongs in TWO places (CLAUDE.md): the schema of record in
 ``docs/datatables/<source>.txt`` AND the feature's ``providers/mock.py``
-docstring. Mark what a run proved with ``office 확인 YYYY-MM-DD`` — a fact whose
+docstring. Mark what a run proved with ``office 확인 YYYY-MM-DD`` - a fact whose
 provenance is missing gets re-litigated by the next session.
 
 Read-only: this script only ever issues SCAN / TYPE / GET / size / sample
@@ -26,7 +26,22 @@ commands. It never writes, expires, or deletes a key.
 
 from __future__ import annotations
 
-from back_dev_home._runtime.office_redis import (
+import sys
+from pathlib import Path
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime.office_redis import (  # noqa: E402
     STORE_ERRORS,
     read_dataframe,
     redis_client,
@@ -98,7 +113,7 @@ def _first_sample(series) -> str:
 
 
 def describe_dataframe(df, key: str, rows: int, unique_cols: list[str]) -> None:
-    """Print the column inventory — the part that gets copied into the docs."""
+    """Print the column inventory - the part that gets copied into the docs."""
     import pandas as pd
 
     pd.set_option("display.max_columns", None)
@@ -188,7 +203,7 @@ if __name__ == "__main__":
         except LookupError as err:
             # Not a DataFrame. Plain text is the common alternative (a timestamp,
             # a JSON blob, a counter), so leave raw visible and show a preview.
-            print(f"\n  not a DataFrame — {err}")
+            print(f"\n  not a DataFrame - {err}")
             try:
                 text = raw.decode("utf-8")
             except UnicodeDecodeError:

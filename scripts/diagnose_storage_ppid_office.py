@@ -33,8 +33,22 @@ import sys
 from collections import Counter
 from datetime import datetime
 
-from back_dev_home._runtime.office_redis import redis_client
-from back_dev_home.ebeam._tool_specs import (
+from pathlib import Path
+# Make `back_dev_home` importable however this file was started. `-m` puts the
+# working directory on sys.path and works from the repo root; running the file
+# by path puts scripts/ there instead and fails on the first import below. Both
+# forms get typed -- a file manager, an IDE "run this file" button and tab
+# completion all produce the by-path one -- so support both.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+# Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
+# because -m imports the package first; running this file by path does not,
+# and would then die on the ANSI code page. One line covers both.
+import scripts  # noqa: E402,F401
+
+from back_dev_home._runtime.office_redis import redis_client  # noqa: E402
+from back_dev_home.ebeam._tool_specs import (  # noqa: E402
     _TOOL_TYPE_BY_PREFIX,
     SLUG_TO_TOOL_TYPE,
     model_to_tool_type,
