@@ -51,8 +51,13 @@ from ftp_handler.proxy.proxy_downloader import PROXY_TOKEN, PROXY_URL  # noqa: E
 HEALTH_PATH = "/healthz_sknn_v3"
 DOWNLOAD_PATH = "/download_sknn_v3"
 
+# Prints the resolved path as well as the answer: "the copy I edited" and "the
+# copy the app imports" are different questions, and a deploy that updated the
+# wrong directory looks identical to one that did not run at all.
 VERSION_PROBE = (
-    'python -c "from ftp_handler.direct_downloader import HostSpec; '
+    'python -c "import ftp_handler; '
+    "from ftp_handler.direct_downloader import HostSpec; "
+    "print('path:', ftp_handler.__file__); "
     "print('per-host credentials:', 'user' in HostSpec.__dataclass_fields__)\""
 )
 
@@ -172,9 +177,11 @@ def main(argv: list[str] | None = None) -> int:
     # skipped -- by then the symptom is an authentication error on one vendor's
     # tools, which reads like a credential problem, not a deploy problem.
     print()
-    print("남은 검사 — 프록시 호스트의 셸에서 직접 실행해야 합니다:")
-    print(f"    cd <PYTHONPATH> && {VERSION_PROBE}")
-    print("    (<PYTHONPATH> 는 그 앱 wsgi.ini 의 pythonpath 값입니다)")
+    print("남은 검사 — 프록시 호스트(사무실 PC 아님)의 셸에서 실행해야 합니다:")
+    print("    grep pythonpath <그 앱의 wsgi.ini>      # 경로 확인")
+    print("    cd <나온 경로>")
+    print(f"    {VERSION_PROBE}")
+    print("  True 면 장비별 계정이 동작합니다. path: 가 위 경로와 같은지도 보십시오.")
     print("절차 전체: docs/deployment-ftp-proxy.md")
 
     return 0 if all(results) else 1

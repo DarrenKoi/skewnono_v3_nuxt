@@ -141,15 +141,22 @@ uwsgi --ini wsgi.ini      # 또는 운영 중인 프로세스 재시작
 물어봅니다. 3절에서 적어 둔 커밋이 실제로 올라갔는지 확인하는 단계입니다.
 
 ```bash
-cd <PYTHONPATH> && python -c "
-from ftp_handler.direct_downloader import HostSpec
-f = HostSpec.__dataclass_fields__
-print('per-host credentials:', 'user' in f and 'password' in f)
-"
+cd <PYTHONPATH>
+python -c "import ftp_handler; from ftp_handler.direct_downloader import HostSpec; print('path:', ftp_handler.__file__); print('per-host credentials:', 'user' in HostSpec.__dataclass_fields__)"
 ```
 
-2026-08-10 이후 버전이라면 `True` 입니다. `False` 라면 복사가 닿지 않았거나
-4.3 의 `__pycache__` 가 남아 있는 것입니다.
+앱이 venv 로 돈다면 그 venv 인터프리터로 실행하십시오 — 다른 인터프리터는 다른
+`sys.path` 를 봅니다.
+
+| 출력 | 의미 |
+| --- | --- |
+| `True` | 2026-08-10 이후 코드 — 장비별 계정이 동작합니다 |
+| `False` | 복사가 닿지 않았거나 4.3 의 `__pycache__` 가 남아 있습니다 |
+| `ModuleNotFoundError` | 경로가 틀렸습니다 — 4.1 을 다시 확인하십시오 |
+
+`path:` 를 함께 찍는 이유가 있습니다. **어느 사본이 실제로 import 되는지**를
+알려주므로, 복사는 제대로 했는데 앱이 다른 디렉터리를 보고 있어 갱신이 반영되지
+않는 경우가 바로 드러납니다. 4.1 에서 확인한 경로와 같은지 대조하십시오.
 
 이 항목만은 **원격에서 확인할 수단이 없습니다.** `healthz` 가 버전을 싣지 않고,
 장비별 계정이 무시되는지 여부는 실제 장비에 붙어봐야 드러나기 때문입니다.
