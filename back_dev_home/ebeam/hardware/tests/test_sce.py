@@ -204,3 +204,23 @@ def test_normalize_entry_keeps_blocks_and_drops_unknown():
     }
     out = office_example._normalize_entry(entry)
     assert set(out.keys()) == {"FileInfo", "SemCond", "Coefficients"}
+
+
+def test_office_coefficients_are_coerced_to_floats():
+    """자매 계열(bsm/reso_center)은 이미 _as_float 를 거치는데 sce 만 원본을
+    그대로 넘겼습니다.
+
+    이 인덱스들은 측정값을 float 또는 숫자 문자열로 저장하므로, 문자열로 온
+    커브가 `values: list[float]` 계약에 문자열인 채로 도달했습니다. mock 은
+    반올림된 float 만 내보내므로 집에서는 볼 수 없습니다.
+    """
+    from back_dev_home.ebeam.hardware.providers.sce import office_example
+
+    out = office_example._normalize_coefficients([
+        {"index": 1, "values": ["1.5", 2, "bad", None]},
+        {"index": 0, "values": [0.25]},
+    ])
+
+    assert [c["index"] for c in out] == [0, 1]      # index 순 정렬 유지
+    assert out[1]["values"] == [1.5, 2.0, None, None]
+    assert all(isinstance(v, float) or v is None for c in out for v in c["values"])

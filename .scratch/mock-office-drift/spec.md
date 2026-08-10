@@ -43,9 +43,9 @@ Status: needs-triage
 | 03 | `fail_issue` | ~~`avg_fail_ratio` 분모~~ **완료** — 전체 행으로 나눔(mock 이 옳음) | done |
 | 04 | `recipe_tat`, `fail_issue` | ~~`total_executions` 규약~~ **완료** — 실행 수와 평균 분모를 분리 | done |
 | 05 | `msr_file` | `health` 가 두 개의 무관한 공식 | 정책(의도적일 수 있음) |
-| 06 | `storage` | 고아 IP 행 — 집에서는 내보내고 사무실에서는 버림, 두 docstring 이 서로 반대를 선언 | 정책 |
+| 06 | `storage` | ~~고아 IP 행~~ **완료** — 잡음으로 확정, mock 도 버림 | done |
 | 07 | `msr_file` | `mp_image_name_01` / `no_of_mp_image` 가 `mp_image_names` 와 분리 | 정책 |
-| 08 | 여러 곳 | 반올림·None·정렬 tie-break 등 표시상 차이 묶음 | 정책(낮음) |
+| 08 | 여러 곳 | ~~표시상 차이 묶음~~ **완료** — 3건 수정, 1건 오탐, 2건 의도적 유지 | done |
 | 09 | 여러 곳 | ~~자명한 기계적 수정 묶음~~ **완료** — 7건 수정, 2건 오탐 | done |
 
 ## 검증 수준에 관한 정직한 표기

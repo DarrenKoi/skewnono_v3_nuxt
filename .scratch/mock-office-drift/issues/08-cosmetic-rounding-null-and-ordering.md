@@ -1,13 +1,52 @@
 # 반올림 · None · 정렬 tie-break 표시 차이 묶음
 
 Type: bug
-Status: needs-triage
+Status: done
 우선순위: 낮음 (크래시 없음, 값이 조금 다르거나 순서가 다름)
-검증: 에이전트 보고(미확인) — 착수 전 원본 대조 필요
+검증: **확인함** (전 항목 원본 대조 완료 2026-08-10)
 
 여러 feature 에 흩어진 소소한 드리프트입니다. 각각은 작지만 전부 "집에서 본
 화면과 사무실 화면이 미묘하게 다르다" 로 이어집니다. 한 번에 훑는 편이
 효율적이라 묶었습니다.
+
+## 결과 (2026-08-10)
+
+전 항목을 원본에서 확인한 결과 **3건 수정, 1건 오탐, 2건은 의도적이라 유지**
+입니다. (타임스탬프 `Z`→`+09:00` 과 mdc 정렬, get_devices tie-break 은 09번에서
+이미 처리했습니다.)
+
+### 고친 것
+
+- **`hardware`/sce `Coefficients[].values`** — `_as_float` 로 강제. 자매 계열
+  bsm·reso_center 는 이미 같은 헬퍼를 거치는데 sce 만 원본 리스트를 그대로
+  넘겨, 숫자 문자열로 저장된 커브가 `list[float]` 계약에 문자열인 채로
+  도달할 수 있었습니다.
+- **`device_statistics` `generated_at`** — office 도 `timespec="seconds"`.
+  같은 필드가 두 provider 에서 다른 길이의 문자열이었습니다.
+- **`sample_eqp_ids` / `sample_lot_cds`** (recipe_tat·fail_issue) — mock 이
+  빈도 상위를 고른 뒤 표시용으로 정렬하도록 바꿨습니다. 겉보기엔 양쪽 다
+  `sorted` 라 같아 보이지만, office 는 `terms(size=N)` 으로 **빈도 상위 N개를
+  먼저 추린** 다음 정렬합니다 — 정렬 순서가 아니라 **후보 집합**이 달랐고,
+  그래서 같은 데이터에 서로 다른 장비가 예시로 떴습니다.
+
+### 오탐
+
+- **`recipe_search` 중복 제거** — mock 의 recipe 이름에 `{index+1:05d}` running
+  suffix 가 들어가 중복이 구조적으로 불가능합니다. office 의 `_unique` 는
+  상류의 `*_unique_rcp_list` 약속을 싸게 지키는 방어일 뿐, 드리프트가 아닙니다.
+
+### 유지 (의도적)
+
+- **반올림 자릿수** (reso_center·bsm·sce) — office 는 반올림하지 않고 원값을
+  보존합니다. 계약(`RecordValue`)이 임의의 float 을 허용하므로 office 쪽이
+  옳습니다. 표시 자릿수는 렌더 시점의 관심사이지 어댑터가 데이터를 버릴
+  이유가 아닙니다. 화면에 2자리가 필요하면 프런트에서 포맷해야 합니다.
+- **`lateral_recipe` `versions[]` 의미** — "보유 장비가 있는 버전만" 이 아니라
+  "존재한 모든 버전" 이 office 의 의도이고 주석에 근거가 적혀 있습니다
+  (이력이 계속 탐색 가능해야 함). mock 을 맞추려면 버전 이력 생성기를
+  다시 설계해야 해서, 판단이 필요한 건으로 남깁니다.
+
+## 원래 서술 (참고)
 
 ## 반올림 / None 처리
 

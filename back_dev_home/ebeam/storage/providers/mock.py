@@ -179,8 +179,10 @@ def get_storage(
 # PPID not available: tools whose recipe/ppid endpoint could not be reached.
 # Office source: Redis hash 'v3_hitachi_sem_ppid_not_avail',
 #   hget(key, "%Y%m%d") -> not_avail_ip_list (list[str] of eqp_ip), kept 30 days.
-# Only IPs are stored, so each IP is joined against sem_list to enrich; IPs with
-# no sem_list match surface as orphan rows (IP only).
+# Only IPs are stored, so each IP is joined against sem_list to enrich. An IP
+# with no sem_list match is DROPPED, matching the office adapter — such an IP is
+# leftover cruft in the company system DB, not a roster gap worth surfacing
+# (user-confirmed 2026-08-10).
 # ---------------------------------------------------------------------------
 
 
@@ -226,12 +228,11 @@ def _generate_ppid_snapshots(tool_slug: ToolSlug, seed: int = 43) -> dict[str, l
         for offset in range(start, start + duration):
             snapshots[_ymd(latest - timedelta(days=offset))].append(row["eqp_ip"])
 
-    # A few orphan IPs absent from sem_list (e.g. decommissioned but still failing).
-    for idx in range(3):
-        orphan_ip = f"177.{200 + idx}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
-        streak = rng.randint(1, 6)
-        for offset in range(streak):
-            snapshots[_ymd(latest - timedelta(days=offset))].append(orphan_ip)
+    # 로스터에 없는 IP(고아)는 만들지 않습니다. user-confirmed 2026-08-10:
+    # 사무실에서 그런 IP 는 신호가 아니라 사내 시스템 DB 에 남은 찌꺼기이고,
+    # office 어댑터도 sem_list 매칭이 없으면 행을 버립니다. 예전에는 여기서
+    # 일부러 3개를 만들어 eqp_id="" 행으로 내보냈기 때문에, 집에서만 존재하는
+    # "로스터 공백 신호" 를 화면이 다루게 돼 있었습니다.
 
     return snapshots
 
@@ -270,7 +271,11 @@ def get_ppid_unavailable(
         eqp_id = match["eqp_id"] if match else ""
         eqp_model_cd = match["eqp_model_cd"] if match else ""
 
-        # A fab_name filter drops orphan rows (they have no fab_name to match).
+        # No sem_list match -> drop, like the office adapter. 위 스냅샷
+        # 생성기가 고아를 만들지 않으므로 평소에는 걸리지 않지만, 로스터가
+        # 줄어들면(장비 폐기) 여기가 두 provider 를 같은 답으로 유지합니다.
+        if match is None:
+            continue
         if normalized and fab_name.upper() not in normalized:
             continue
 

@@ -74,6 +74,7 @@ value_count(meastime) 양쪽에서 빠집니다. 따라서 집에서는 아래 g
 
 import bisect
 import random
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
@@ -537,6 +538,18 @@ def _filter_rows(
     )
 
 
+def _top_sample(counts: "Counter[str]", pool: int) -> list[str]:
+    """빈도 상위 ``pool`` 개를 고른 뒤 표시용으로 사전순 정렬해 5개까지.
+
+    office 의 ``terms(size=pool)`` + ``sorted(...)[:5]`` 와 같은 규칙입니다.
+    OpenSearch 의 terms 는 빈도 내림차순으로 상위 N 개를 주고 어댑터가 그것을
+    다시 사전순으로 늘어놓으므로, "전체를 사전순 정렬해 앞 5개" 와는 후보
+    집합부터 다릅니다. 동률은 이름으로 갈라 결정론을 유지합니다.
+    """
+    top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:pool]
+    return sorted(name for name, _ in top)[:5]
+
+
 def get_ranking(
     tool_type: ToolType,
     fab_names: tuple[str, ...] | None,
@@ -556,14 +569,14 @@ def get_ranking(
             "full_name": row["full_name"],
             "meas_counts": 0,
             "total_meastime": 0,
-            "lot_cds": set(),
-            "eqp_ids": set(),
+            "lot_cds": Counter(),
+            "eqp_ids": Counter(),
             "fabs": set()
         })
         bucket["meas_counts"] += 1
         bucket["total_meastime"] += row["meastime"]
-        bucket["lot_cds"].add(row["lot_cd"])
-        bucket["eqp_ids"].add(row["eqp_id"])
+        bucket["lot_cds"][row["lot_cd"]] += 1
+        bucket["eqp_ids"][row["eqp_id"]] += 1
         bucket["fabs"].add(str(row["fab_name"]).upper())
 
     ranked = sorted(
@@ -581,8 +594,13 @@ def get_ranking(
         avg = round(total / meas_counts, 2) if meas_counts else 0.0
         # Cap the example lists so the JSON response stays compact even when
         # a recipe ran on many lots.
-        sample_lots = sorted(bucket["lot_cds"])[:5]
-        sample_eqps = sorted(bucket["eqp_ids"])[:5]
+        # 빈도 상위 5개를 고른 뒤 표시용으로 정렬합니다 — office 의
+        # terms(size: 5) + sorted 와 같은 규칙입니다. 예전에는 전체를 사전순
+        # 정렬해 앞 5개를 잘랐기 때문에, 같은 데이터에 대해 두 provider 가
+        # 서로 다른 장비를 예시로 보여 줬습니다(정렬 순서가 아니라 후보
+        # 집합 자체가 달랐습니다).
+        sample_lots = _top_sample(bucket["lot_cds"], 25)
+        sample_eqps = _top_sample(bucket["eqp_ids"], 5)
 
         out.append({
             "rank": index + 1,

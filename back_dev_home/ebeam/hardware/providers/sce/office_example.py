@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import pickle
 from datetime import datetime
+import math
 from typing import Any
 
 from back_dev_home._runtime.office_redis import redis_client
@@ -87,6 +88,25 @@ def _parse_fab_blob(raw: bytes, fab: str) -> dict[str, Any]:
     return value
 
 
+def _as_float(value: Any) -> float | None:
+    """Coerce a source cell (float OR numeric string) to a finite float.
+
+    Same contract as the bsm / reso_center helpers of the same name.
+    """
+    if isinstance(value, bool):  # bool is an int subclass — never a measurement
+        return None
+    if isinstance(value, (int, float)):
+        parsed = float(value)
+    elif isinstance(value, str):
+        try:
+            parsed = float(value.strip())
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed if math.isfinite(parsed) else None
+
+
 def _normalize_coefficients(raw: Any) -> list[dict]:
     """Source curve → the mock's ``[{'index': int, 'values': [...]}]`` list.
 
@@ -115,7 +135,13 @@ def _normalize_coefficients(raw: Any) -> list[dict]:
             continue
         if not isinstance(vals, (list, tuple)):
             continue
-        out.append({"index": index, "values": list(vals)})
+        # Coerce, do not pass through. The sibling bsm / reso_center adapters
+        # run every source cell through _as_float because these indices store
+        # measurements as float OR numeric string; sce alone forwarded the raw
+        # list, so a stringified curve would reach a `values: list[float]`
+        # contract as strings and only misbehave at render time. The mock emits
+        # rounded floats, so home can never show this.
+        out.append({"index": index, "values": [_as_float(v) for v in vals]})
     out.sort(key=lambda c: c["index"])
     return out
 

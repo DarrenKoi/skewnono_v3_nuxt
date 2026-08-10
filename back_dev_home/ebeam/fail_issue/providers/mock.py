@@ -47,6 +47,7 @@ no fab filter at all.
 """
 
 import random
+from collections import Counter
 from datetime import timedelta
 from functools import lru_cache
 
@@ -338,6 +339,17 @@ def get_daily_trend(
     ]
 
 
+def _top_sample(counts: "Counter[str]") -> list[str]:
+    """빈도 상위 5개를 고른 뒤 표시용으로 사전순 정렬.
+
+    office 의 ``terms(field=eqp_id, size=5)`` + ``sorted`` 와 같은 규칙입니다 —
+    전체를 사전순 정렬해 앞 5개를 자르면 후보 집합부터 달라집니다. 동률은
+    이름으로 갈라 결정론을 유지합니다.
+    """
+    top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:5]
+    return sorted(name for name, _ in top)
+
+
 def get_align_ranking(
     tool_type: ToolType,
     fab_names: tuple[str, ...] | None,
@@ -357,14 +369,14 @@ def get_align_ranking(
             "full_name": row["full_name"],
             "exec_count": 0,
             "align_fail_count": 0,
-            "eqp_ids": set(),
+            "eqp_ids": Counter(),
             "fabs": set()
         })
         bucket["exec_count"] += 1
         bucket["fabs"].add(str(row["fab_name"]).upper())
         if _is_align_fail(row):
             bucket["align_fail_count"] += 1
-            bucket["eqp_ids"].add(row["eqp_id"])
+            bucket["eqp_ids"][row["eqp_id"]] += 1
 
     ranked = sorted(
         # Filter out recipes with zero fails so this stays a triage table.
@@ -389,7 +401,7 @@ def get_align_ranking(
             "exec_count": exec_count,
             "align_fail_count": fail_count,
             "align_fail_rate": rate,
-            "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5],
+            "sample_eqp_ids": _top_sample(bucket["eqp_ids"]),
             "fab_names": sorted(bucket["fabs"])
         })
 
@@ -416,7 +428,7 @@ def get_meas_ranking(
             "exec_count": 0,
             "meas_fail_count": 0,
             "fail_ratio_sum": 0.0,
-            "eqp_ids": set(),
+            "eqp_ids": Counter(),
             "fabs": set()
         })
         bucket["exec_count"] += 1
@@ -424,7 +436,7 @@ def get_meas_ranking(
         bucket["fabs"].add(str(row["fab_name"]).upper())
         if _is_meas_fail(row):
             bucket["meas_fail_count"] += 1
-            bucket["eqp_ids"].add(row["eqp_id"])
+            bucket["eqp_ids"][row["eqp_id"]] += 1
 
     ranked = sorted(
         (b for b in grouped.values() if b["meas_fail_count"] > 0),
@@ -450,7 +462,7 @@ def get_meas_ranking(
             "meas_fail_count": fail_count,
             "meas_fail_rate": rate,
             "avg_fail_ratio": avg_ratio,
-            "sample_eqp_ids": sorted(bucket["eqp_ids"])[:5],
+            "sample_eqp_ids": _top_sample(bucket["eqp_ids"]),
             "fab_names": sorted(bucket["fabs"])
         })
 

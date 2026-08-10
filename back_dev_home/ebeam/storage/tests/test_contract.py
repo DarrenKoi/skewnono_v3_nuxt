@@ -40,3 +40,16 @@ def test_get_storage_filters_by_fab_name():
     assert {row["fab_name"] for row in filtered} == {target}
     # A filter matching one fab_name must not leak sibling fabs under the same fac.
     assert len(filtered) < len(everything) or len(fab_names) == 1
+
+
+def test_ppid_unavailable_never_emits_a_row_without_an_equipment():
+    """로스터에 없는 IP 는 신호가 아니라 사내 DB 의 찌꺼기입니다.
+
+    user-confirmed 2026-08-10. office 어댑터는 sem_list 매칭이 없으면 행을
+    버리는데 mock 은 일부러 고아 IP 3개를 만들어 eqp_id="" 행으로 내보냈고,
+    두 docstring 이 서로 반대 규칙을 선언하고 있었습니다.
+    """
+    rows = data.get_ppid_unavailable("cdsem")["rows"]
+    assert rows, "mock 이 행을 하나도 내지 않았습니다"
+    assert all(row["eqp_id"] for row in rows)
+    assert all(row["fab_name"] for row in rows)

@@ -493,3 +493,23 @@ def test_summary_average_excludes_rows_without_a_measurement_time(monkeypatch):
     assert summary["total_executions"] == 4          # 측정은 4번 실행됐습니다
     assert summary["total_tat_seconds"] == 800
     assert summary["avg_meastime"] == 400.0          # 4 로 나눴다면 200.0
+
+
+def test_sample_eqp_ids_are_the_most_frequent_not_the_alphabetically_first():
+    """office 는 terms(size=5) 로 빈도 상위를 고른 뒤 사전순으로 늘어놓습니다.
+
+    mock 이 전체를 사전순 정렬해 앞 5개를 자르던 동안에는, 정렬 순서가 아니라
+    **후보 집합 자체**가 달라 두 provider 가 서로 다른 장비를 예시로 보여
+    줬습니다.
+    """
+    from collections import Counter
+
+    from back_dev_home.ebeam.recipe_tat.providers.mock import _top_sample
+
+    counts = Counter({"ZZZ001": 50, "AAA001": 1, "AAA002": 1, "MMM001": 40})
+    # 빈도 상위 2개(ZZZ001, MMM001)를 고른 뒤 사전순으로 표시합니다.
+    assert _top_sample(counts, 2) == ["MMM001", "ZZZ001"]
+    # 사전순 앞 5개였다면 AAA001/AAA002 가 들어갔을 것입니다.
+    assert "AAA001" not in _top_sample(counts, 2)
+    # 동률은 이름으로 갈라 결정론을 유지합니다.
+    assert _top_sample(Counter({"B": 1, "A": 1}), 1) == ["A"]

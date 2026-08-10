@@ -1360,7 +1360,9 @@ def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
     bucket = _live_bucket(_resolve_lots(None), include_recipes=False)
     return {
         "date": anchor,
-        "generated_at": datetime.now(KST).isoformat(),
+        # timespec="seconds", matching snapshot_store.py. 마이크로초까지
+        # 찍으면 같은 필드가 두 provider 에서 다른 길이의 문자열이 됩니다.
+        "generated_at": datetime.now(KST).isoformat(timespec="seconds"),
         "summaries": {
             name: bucket[f"{name}_summary"]  # type: ignore[literal-required]
             for name in RCP_BUCKETS
