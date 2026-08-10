@@ -359,3 +359,37 @@ def test_office_copy_stays_in_sync_with_template():
         reason="office.py is created at the office from office_example.py",
     )
     assert callable(office.get_msr_file)
+
+
+def test_caller_supplied_total_images_wins_over_the_parent_row():
+    """호출자 인자가 이기고 부모 행이 fallback — mock 의 우선순위입니다.
+
+    반대로 돼 있어서, skewvoir UI 가 선택한 행의 total_images 를 넘겨도 부모
+    조회가 조용히 덮어썼습니다. 인자를 받는 함수가 그 인자를 무시하면
+    사무실에서만 장식이 됩니다.
+    """
+    parent = {**_parent(), "total_images": 40.0}
+
+    assert office_example.build_response(
+        _MSR, parent, _payload(), total_images=7
+    )["total_images"] == 7
+    # 인자가 없으면 부모 행이 답입니다.
+    assert office_example.build_response(
+        _MSR, parent, _payload()
+    )["total_images"] == 40
+
+
+def test_health_scales_by_the_shared_bad_threshold():
+    """office 의 health 는 _fdc_status 의 bad 임계값으로 나눕니다.
+
+    복제된 리터럴이던 3.5 를 상수로 올렸습니다 — 임계값을 조정하면 health 가
+    조용히 어긋나던 자리입니다.
+    """
+    from back_dev_home.msr_file.providers.mock import FDC_BAD_SIGMA, _fdc_status
+
+    assert _fdc_status(FDC_BAD_SIGMA) == "bad"
+    assert _fdc_status(FDC_BAD_SIGMA - 0.01) != "bad"
+
+    response = office_example.build_response(_MSR, _parent(), _payload())
+    worst = max(s["drift_sigma"] for s in response["fdc_params"])
+    assert response["health"] == round(min(1.0, worst / FDC_BAD_SIGMA), 3)

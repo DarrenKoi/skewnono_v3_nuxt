@@ -76,6 +76,7 @@ from back_dev_home.msr_file.contracts import (
 # from mock.py so Phase 1/2 can never disagree on what the numbers mean.
 from back_dev_home.msr_file.providers.mock import (
     DYNAMIC_FDC_SPECS,
+    FDC_BAD_SIGMA,
     FDC_CATEGORY_LABELS,
     _fdc_status,
     _summaries,
@@ -438,7 +439,7 @@ def build_response(
     # drift, scaled so 3.5 sigma (the "bad" threshold) saturates to 1.0 — the
     # same [0, 1] reading the mock's synthetic scalar feeds the UI.
     worst = max((s["drift_sigma"] for s in fdc_params), default=0.0)
-    health = round(min(1.0, worst / 3.5), 3)
+    health = round(min(1.0, worst / FDC_BAD_SIGMA), 3)
 
     exe_raw = payload.get("exe_detail_info")
     exe_raw = exe_raw if isinstance(exe_raw, dict) else {}
@@ -450,7 +451,21 @@ def build_response(
         # and _find_parent returns the whole _source — so the tool address the
         # msr_image FTP session needs rides along at no extra query.
         eqp_ip=_text(parent.get("eqp_ip")),
-        total_images=_int(parent.get("total_images"), default=total_images or 0),
+        # The caller's value wins when it gave one, with the parent row as the
+        # fallback -- the mock's precedence. This used to be the other way
+        # round, so the skewvoir UI could pass total_images from the row it had
+        # selected and have the parent lookup silently override it, making the
+        # parameter decorative office-side and load-bearing at home.
+        # The caller's value wins when it gave one, with the parent row as the
+        # fallback -- the mock's precedence. This used to be the other way
+        # round, so the skewvoir UI could pass total_images from the row it had
+        # selected and have the parent lookup silently override it, making the
+        # parameter decorative office-side and load-bearing at home.
+        total_images=(
+            total_images
+            if total_images is not None
+            else _int(parent.get("total_images"), default=0)
+        ),
         sequence_count=sequences[-1] if sequences else 0,
         health=health,
         parameters=_param_summaries(rows),

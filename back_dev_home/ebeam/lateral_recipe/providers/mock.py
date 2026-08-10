@@ -66,7 +66,13 @@ __all__ = [
 # tab empty, which is a view worth keeping populated in the Phase 1 fixture.
 UNMEASURED_READY_RATIO = 0.35
 RECIPE_VERSION_RANGE = (1, 7)
-RECIPE_GENERATED_AT_BASE = datetime(2026, 5, 20, 9, 0, tzinfo=timezone.utc)
+
+# The office index stores KST wall clock with no offset, so the office adapter
+# emits an explicit +09:00 — see this module's header, which warns that tagging
+# the same instant `Z` renders 12:00 KST as 21:00 in a KST browser. The helper
+# below used to do exactly that, contradicting the header a few lines above it.
+KST = timezone(timedelta(hours=9))
+RECIPE_GENERATED_AT_BASE = datetime(2026, 5, 20, 9, 0, tzinfo=KST)
 
 
 def _seed(*values: str | None) -> int:
@@ -74,8 +80,8 @@ def _seed(*values: str | None) -> int:
     return int(digest[:12], 16)
 
 
-def _iso_z(dt: datetime) -> str:
-    return dt.isoformat().replace("+00:00", "Z")
+def _iso_kst(dt: datetime) -> str:
+    return dt.astimezone(KST).isoformat()
 
 
 def _version_generated_at(
@@ -87,7 +93,7 @@ def _version_generated_at(
     version_age_days = RECIPE_VERSION_RANGE[1] - version
     jitter_minutes = _seed(tool_type, fab_name, recipe_name, str(version)) % (12 * 60)
     generated_at = RECIPE_GENERATED_AT_BASE - timedelta(days=version_age_days * 5, minutes=jitter_minutes)
-    return _iso_z(generated_at)
+    return _iso_kst(generated_at)
 
 
 @lru_cache(maxsize=1)

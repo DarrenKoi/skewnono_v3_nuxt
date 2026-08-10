@@ -444,3 +444,18 @@ def test_recipe_class_is_derived_from_the_recipe_name():
     for row in get_recipe_params(["R000"]):
         expected = "Sample" if is_sample_recipe(row["recipe_id"]) else "Main"
         assert row["recipe_class"] == expected, row["recipe_id"]
+
+
+def test_memory_class_auto_survives_a_none_prod_catg_cd():
+    """prod_catg_cd 는 R3 카탈로그에만 있으므로 M-fab lot 은 None 으로 옵니다.
+
+    office 어댑터는 (prod_catg_cd or "") 로 이미 막고 있었는데 mock 쪽은 맨
+    .upper() 라 AttributeError 가 날 수 있었습니다.
+    """
+    from back_dev_home.ebeam.device_statistics.providers.recipe_params import (
+        _memory_class_auto,
+    )
+
+    assert _memory_class_auto(None) == "unknown"
+    assert _memory_class_auto("") == "unknown"
+    assert _memory_class_auto("dram") == "DRAM"

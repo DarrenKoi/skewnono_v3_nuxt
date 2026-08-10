@@ -129,7 +129,9 @@ EXEMPT_JOB_POINT_SCALE = 8
 
 
 def _memory_class_auto(prod_catg_cd: str) -> str:
-    c = prod_catg_cd.upper()
+    # (x or "") like the office adapter: prod_catg_cd is R3-only, so an M-fab
+    # lot can arrive with None and a bare .upper() would AttributeError.
+    c = (prod_catg_cd or "").upper()
     if c == "DRAM":
         return "DRAM"
     if c in ("NAND", "FLASH"):

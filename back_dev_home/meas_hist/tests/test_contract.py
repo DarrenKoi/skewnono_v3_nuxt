@@ -118,3 +118,15 @@ def test_search_terms_are_stripped_before_matching():
     padded = data.search_meas_hist(recipe=[f"  {term}  "])["rows"]
     assert padded == exact
     assert padded
+
+
+def test_row_id_is_the_msr_on_every_provider():
+    """이 모듈 헤더의 규칙("id = msr")이자 office 어댑터가 내보내는 값입니다.
+
+    mock 이 합성 id("msr_000239")를 쓰던 탓에 같은 행을 두 provider 가 다른
+    키로 식별했습니다 — 화면이 id 로 행을 짚으면 집↔사무실에서 다른 것을
+    가리킵니다.
+    """
+    rows = data.search_meas_hist()["rows"]
+    assert rows
+    assert all(row["id"] == row["msr"] for row in rows)

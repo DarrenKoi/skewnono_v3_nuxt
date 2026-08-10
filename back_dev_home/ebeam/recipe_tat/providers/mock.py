@@ -684,7 +684,10 @@ def get_devices(
         }
         for lot_cd, entry in sorted(
             bucket.items(),
-            key=lambda kv: kv[1]["total_meastime"],
+            # exec_count breaks the tie, matching the office adapter and
+            # _shape.py. total_meastime alone left equal-TAT devices in dict
+            # order, so the two providers ranked them differently.
+            key=lambda kv: (kv[1]["total_meastime"], kv[1]["exec_count"]),
             reverse=True
         )
     ]

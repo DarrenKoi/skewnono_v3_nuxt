@@ -102,3 +102,22 @@ def test_mock_roster_is_populated_and_deterministic():
     assert response["versions"], "the mock's seeded RNG always generates versions"
     # No datetime.now() in the mock's response path — byte-identical per call.
     assert _response() == response
+
+
+def test_generated_at_carries_an_explicit_kst_offset():
+    """이 모듈 헤더가 +09:00 을 규칙으로 못박고 9시간 오류를 경고합니다.
+
+    office 어댑터는 +09:00 을 내보내는데 mock 은 같은 시각을 `Z` 로 태깅해,
+    KST 브라우저에서 12:00 이 21:00 으로 그려졌습니다.
+    """
+    response = _response()
+    stamps = [
+        row["recipe_generated_at"]
+        for row in response["rows"]
+        if row["recipe_generated_at"]
+    ]
+    stamps += [v["generated_at"] for v in response["versions"] if v["generated_at"]]
+    assert stamps, "no timestamp to check"
+    for stamp in stamps:
+        assert stamp.endswith("+09:00"), stamp
+        assert "Z" not in stamp

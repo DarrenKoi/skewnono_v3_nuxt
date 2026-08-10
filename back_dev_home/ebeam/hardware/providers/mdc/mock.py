@@ -122,4 +122,9 @@ def build_mdc_history(
         for cond in conds:
             stepped = values[cond] + rng.gauss(0.0, 0.0012)
             values[cond] = min(_BAND_HI, max(_BAND_LO, stepped))
+    # Same key the office adapter re-sorts on, and the line every sibling
+    # family (bsm, reso_center, sharpness, fdc) already carries. Without it the
+    # per-moment order here is whatever _conditions_for produced, so the two
+    # providers handed the page different sequences for identical data.
+    records.sort(key=lambda r: (r["timestamp"], r["beam_condition"]))
     return records

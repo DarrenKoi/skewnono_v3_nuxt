@@ -448,3 +448,14 @@ def test_ranking_rows_carry_contributing_fabs():
 def test_single_fab_ranking_tags_that_fab_only():
     rows = data.get_ranking("cd-sem", ("R3",), None, None, limit=5)
     assert all(row["fab_names"] == ["R3"] for row in rows)
+
+
+def test_get_devices_breaks_ties_on_exec_count():
+    """office 와 _shape.py 는 (total_meastime, exec_count) 쌍으로 정렬합니다.
+
+    mock 만 total_meastime 단독이라 TAT 가 같은 device 들이 dict 순서로 남았고,
+    두 provider 의 순위가 달라졌습니다.
+    """
+    rows = data.get_devices("cd-sem", None, None, None)
+    keys = [(row["total_meastime"], row["exec_count"]) for row in rows]
+    assert keys == sorted(keys, reverse=True)

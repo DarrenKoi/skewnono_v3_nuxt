@@ -598,8 +598,14 @@ def _health(msr: str) -> float:
     return round(raw * raw, 3)
 
 
+# The drift at which a parameter is "bad". Named rather than written twice:
+# office_example.py scales `health` by this same number, and as a copied literal
+# a retune here would silently desync health there.
+FDC_BAD_SIGMA = 3.5
+
+
 def _fdc_status(drift_sigma: float) -> str:
-    if drift_sigma >= 3.5:
+    if drift_sigma >= FDC_BAD_SIGMA:
         return "bad"
     if drift_sigma >= 2.0:
         return "warning"

@@ -121,3 +121,21 @@ def test_broken_tab_adapter_propagates_instead_of_falling_back(monkeypatch):
     monkeypatch.setattr(office_example, "import_module", fake_import)
     with pytest.raises(ModuleNotFoundError, match="ops_store"):
         office_example._tab("fdc")
+
+
+def test_mdc_history_is_sorted_like_the_office_adapter():
+    """office 는 (timestamp, beam_condition) 으로 재정렬합니다.
+
+    자매 계열(bsm/reso_center/sharpness/fdc) 은 모두 mock 쪽에도 같은 줄을
+    갖고 있는데 mdc 만 빠져 있어, 한 시각 안의 조건 순서가 두 provider 에서
+    달랐습니다.
+    """
+    from datetime import datetime, timedelta
+
+    from back_dev_home.ebeam.hardware.providers.mdc import mock as mdc_mock
+
+    end = datetime(2026, 5, 20, 9, 0)
+    records = mdc_mock.build_mdc_history("MCD018", end - timedelta(days=60), end)
+    assert records
+    keys = [(r["timestamp"], r["beam_condition"]) for r in records]
+    assert keys == sorted(keys)

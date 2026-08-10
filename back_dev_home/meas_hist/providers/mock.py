@@ -102,7 +102,7 @@ SYNTH_ROW_COUNT_RANGE = (8, 20)
 # random sequence or on sem_list seed changes elsewhere in the repository.
 MOCK_SEARCH_FIXTURES: tuple[MeasHistRow, ...] = (
     MeasHistRow(
-        id="msr_search_cdsem",
+        id="20260509_ADI_CD_BIAS_001_6LD257421_ECXDX925",
         fac_id="M11",
         fab_name="M11A",
         vendor_nm="HITACHI",
@@ -129,7 +129,7 @@ MOCK_SEARCH_FIXTURES: tuple[MeasHistRow, ...] = (
         idw_name="/Recipe/ADI/ADI_CD_BIAS_001.idw"
     ),
     MeasHistRow(
-        id="msr_search_hvsem",
+        id="20260509_CNT_CONTACT_CHECK_001_RKPB240012_MCD018",
         fac_id="M14",
         fab_name="M14B",
         vendor_nm="AMAT",
@@ -236,7 +236,10 @@ def _build_row(
     msr = _make_msr(date_str, recipe_name, lot_id, eqp["eqp_id"])
 
     return MeasHistRow(
-        id=f"msr_{index:06d}",
+        # id IS the msr -- the datatable rule this module's own header states
+        # ("id = msr") and what the office adapter emits. A synthetic
+        # "msr_000239" made the two providers key the same row differently.
+        id=msr,
         fac_id=eqp["fac_id"],
         fab_name=eqp["fab_name"],
         vendor_nm=eqp["vendor_nm"],
