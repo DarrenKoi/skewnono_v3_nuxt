@@ -32,7 +32,7 @@ office 쪽 코드를 다시 배포해야 합니다.
 
 반환 컬럼은 전부 대문자이고, `UTC9` 만 `datetime64[us]`, `RAWID` 만 `int`,
 나머지는 전부 `str` 입니다. 전체 목록과 dtype 은
-[`docs/datatables/live_alarm_board.txt`](../../../../docs/datatables/live_alarm_board.txt)
+[`docs/datatables/live_alarm_board.txt`](../../../docs/datatables/live_alarm_board.txt)
 에 있습니다. 여기 적힌 것보다 컬럼이 많아도 무해합니다 — `normalize.py` 는
 이름으로 찾아 읽습니다.
 

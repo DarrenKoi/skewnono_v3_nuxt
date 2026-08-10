@@ -41,6 +41,9 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 그 앱에 마운트되어 있으므로 위 환경변수 두 개는 **그 앱의 프로세스 환경**에
 들어갑니다(uWSGI라면 그 앱 `wsgi.ini`의 `env =` 줄).
 
+프록시 절반은 skewnono 번들에 실려가지 않으므로 따로 올려야 합니다. 전체 절차는
+[`docs/deployment-ftp-proxy.md`](../../docs/deployment-ftp-proxy.md) 입니다.
+
 ### 계열이 섞이면 — 장비별 계정 (2026-08-10)
 
 위 두 환경변수는 **플릿 기본값**이지 유일한 계정이 아닙니다. `HostSpec`

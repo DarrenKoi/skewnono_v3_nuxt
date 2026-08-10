@@ -4,6 +4,10 @@
 현재 목표는 **실현 가능성 확인(feasibility) 배포**이므로, mock 데이터를 서빙하는
 번들이라도 정상 기동하면 성공으로 간주합니다.
 
+`msr_image` 와 `recipe_search` 의 FTP 는 별도 호스트의 프록시를 거치며, 그 서버
+절반은 이 번들에 실려가지 않습니다. `ftp_handler` 가 바뀐 배포라면
+[`deployment-ftp-proxy.md`](deployment-ftp-proxy.md) 를 함께 수행하십시오.
+
 ## 1. 전체 흐름
 
 ```bash

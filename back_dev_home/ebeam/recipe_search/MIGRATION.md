@@ -8,7 +8,9 @@ credentials in the request body (they were plaintext over an http-only hop).
 The proxy host now reads `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD` from
 its own environment and raises `KeyError` → 500 without them. Set both on the
 proxy host; nothing in `office.py` needs editing. Full context:
-[`back_dev_home/msr_image/MIGRATION.md`](../../../msr_image/MIGRATION.md).
+[`back_dev_home/msr_image/MIGRATION.md`](../../msr_image/MIGRATION.md); the
+proxy host's own deploy procedure is
+[`docs/deployment-ftp-proxy.md`](../../../docs/deployment-ftp-proxy.md).
 
 Those two are the **fleet default**, not the only account available. Since
 2026-08-10 a `HostSpec` may carry its own `user`/`password` covering one host,
