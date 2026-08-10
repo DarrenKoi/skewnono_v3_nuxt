@@ -57,6 +57,15 @@ def list_images(eqp_ip: str, class_name: str, msr: str) -> list[str]:
     # fallback stays exercised at home. Every 3rd shot expands to an HV-SEM
     # suffixed pair (2026-08-08) so suffixed names exist in the home listing;
     # the request path treats names as opaque either way.
+    #
+    # Deliberately absent: the hidden `.{name}` cond sidecar DIRECTORIES that a
+    # real tool's listing carries (office 확인 2026-08-10). This function stands
+    # in for the whole provider, so it returns POST-filter names — what
+    # list_images promises its caller — and the office adapter is the only place
+    # that ever sees a raw listing. The filter those entries defeat is pinned
+    # instead by tests/test_office_template.py, whose fake listing does carry
+    # them; it has to, because they end in `.jpeg` and an extension-only filter
+    # hands them back as images that then 550 on RETR.
     names: list[str] = []
     for i in range(1, count + 1):
         ext = "tif" if i % 4 == 0 else "jpeg"

@@ -114,11 +114,19 @@ def list_images(eqp_ip, class_name, msr, _config: ImageConfig | None = None) -> 
     # to paths RETR accepts). The contract here is BASENAMES — the frontend
     # sends the basename back as `name`, and fetch_image rebuilds the full
     # path via image_path(). So basename them here.
+    #
+    # The dot check is NOT tidiness (office 확인 2026-08-10). Each image's cond
+    # sidecar lives in a hidden DIRECTORY named after it — `foo.jpeg`'s cond is
+    # `.foo.jpeg/cond.txt` (see cond_path in ../paths.py). That directory ends
+    # in `.jpeg` too, so an extension filter alone hands it back as an image,
+    # and the first RETR against it gets a 550 the adapter reports as
+    # ImageNotFound. Every image in a real folder has one, so this doubled the
+    # listing and made every other entry unfetchable.
     return [
         PurePosixPath(p).name
         for listing in report.listings
         for p in listing.paths
-        if p.lower().endswith(_IMAGE_EXTS)
+        if p.lower().endswith(_IMAGE_EXTS) and not PurePosixPath(p).name.startswith(".")
     ]
 
 

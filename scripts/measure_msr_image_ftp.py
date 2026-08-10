@@ -165,9 +165,22 @@ def _stage_b_serial(
     print("\n── B. per-image cold fetch (fresh login each) ────────────────")
     durations: list[float] = []
     total_bytes = 0
+    failed = 0
     for name in names:
         started = time.monotonic()
-        fetched = office.fetch_image(ImageLocator(eqp_ip, class_name, msr, name), _config=cfg)
+        try:
+            fetched = office.fetch_image(
+                ImageLocator(eqp_ip, class_name, msr, name), _config=cfg
+            )
+        except Exception as exc:  # noqa: BLE001 - one bad file is data, not an abort
+            # A measurement run must survive a file the tool will not serve.
+            # Aborting throws away every timing already collected and forces a
+            # whole new run per bad file -- and each run costs real minutes
+            # against a real tool. Report it and keep going; the verdict block
+            # is computed from whatever succeeded.
+            failed += 1
+            print(f"   {name[:44]:44s}  SKIP  {type(exc).__name__}: {exc}")
+            continue
         elapsed = time.monotonic() - started
         durations.append(elapsed)
         total_bytes += len(fetched.data)
@@ -175,6 +188,14 @@ def _stage_b_serial(
         rate = (len(fetched.data) / transfer / 1e6) if transfer > 0 else float("inf")
         print(f"   {name[:44]:44s} {elapsed:6.2f}s  {len(fetched.data) / 1e6:6.2f} MB"
               f"  ({rate:5.1f} MB/s excl. login, cond={'y' if fetched.cond else 'n'})")
+    if failed:
+        print(f"   {failed} of {len(names)} could not be fetched — listing and RETR "
+              f"disagree about what exists")
+    if not durations:
+        raise SystemExit(
+            "every image failed to fetch — nothing to measure. The listing "
+            "returned names the tool will not serve; check list_images's filter."
+        )
     return durations, total_bytes
 
 

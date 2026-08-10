@@ -14,6 +14,12 @@ cond 는 이미지 1장당 1개인 숨김 사이드카입니다. 파일이 아�
 폴더** 안에 cond.txt 로 들어 있습니다 — /dir/foo.jpeg 의 cond 는
 /dir/.foo.jpeg/cond.txt 입니다. 이미지와 cond 를 항상 쌍으로 요청합니다.
 
+  ⚠ 그 숨김 폴더가 **디렉터리 목록에 그대로 나옵니다** (office 확인 2026-08-10).
+    이름이 .foo.jpeg 라 확장자로는 이미지와 구분되지 않습니다. 즉 목록을 확장자로만
+    거르면 이미지 개수가 두 배가 되고, 그 절반은 RETR 시 550 을 돌려줍니다
+    (디렉터리이므로). 목록 필터는 확장자와 **점 시작 여부를 함께** 봐야 합니다.
+    최초 발견: 실측 스크립트 B 단계가 .S12_A0001-01AP.jpeg 에서 ImageNotFound.
+
 class_name 과 msr 은 meas_hist 문서의 같은 이름 field 에서 옵니다
 (docs/datatables/meas_hist.txt).
 

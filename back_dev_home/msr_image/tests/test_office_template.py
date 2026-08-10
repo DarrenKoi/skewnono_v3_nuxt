@@ -23,9 +23,24 @@ class FakeFleet:
     def list_dirs(self, specs):
         # Real listings return FULL remote paths, not basenames. Tools mix JPEG
         # previews with TIFF originals; both must survive the filter.
+        #
+        # The dot-prefixed entries are the hidden cond sidecar DIRECTORIES the
+        # tool really serves, one per image (office 확인 2026-08-10). They were
+        # missing from this fake, which is why an extension-only filter looked
+        # correct at home: they end in `.jpeg` too, so they pass an extension
+        # test and then 550 on RETR. A fake tidier than the tool hides exactly
+        # this class of bug.
         spec = specs[0]
         base = spec.listings[0].remote_dir.rstrip("/")
-        paths = [f"{base}/shot01.jpeg", f"{base}/shot02.jpeg", f"{base}/shot03.tif", f"{base}/notes.txt"]
+        paths = [
+            f"{base}/shot01.jpeg",
+            f"{base}/.shot01.jpeg",
+            f"{base}/shot02.jpeg",
+            f"{base}/.shot02.jpeg",
+            f"{base}/shot03.tif",
+            f"{base}/.shot03.tif",
+            f"{base}/notes.txt",
+        ]
         return SimpleNamespace(
             listings=[SimpleNamespace(host=spec.host, paths=paths)], failures=[]
         )

@@ -7,6 +7,22 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 가져오는 relay 역할만 수행하며, 어떤 OpenSearch 인덱스도 조회하지 않습니다.
 캐시 계층만 MinIO를 사용합니다.
 
+## ⚠ 2026-08-10 — cond 숨김 폴더가 목록 필터를 통과하던 버그
+
+`list_images` 가 확장자만 보고 걸렀는데, cond 사이드카는 `.{이미지명}` 이라는
+**숨김 디렉터리**라 `.jpeg` 로 끝납니다. 그래서 이미지 목록이 두 배로 부풀고 그
+절반은 RETR 시 550 을 돌려줬습니다(디렉터리이므로). 갤러리에서는 절반이 깨진
+썸네일로, 실측 스크립트에서는 `ImageNotFound: .S12_A0001-01AP.jpeg` 로 드러났습니다.
+
+집에서 잡히지 않은 이유는 mock 이 실물보다 정돈돼 있었기 때문입니다 — 테스트의 가짜
+listing 에 숨김 폴더가 없었습니다. 지금은 들어 있습니다.
+
+**`office.py` 를 다시 복사하십시오** — 수정이 `office_example.py` 에 있습니다:
+
+```powershell
+.venv\Scripts\python -m scripts.sync_office_adapters msr_image
+```
+
 ## ⚠ 2026-08-09 이후 첫 office 배포에서 반드시 할 일
 
 `ftp_handler` vendored 사본을 upstream(`flask_modules`)과 동기화하면서
