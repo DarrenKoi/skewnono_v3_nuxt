@@ -107,7 +107,25 @@ curl http://skewnono-scheduler1-webapp.aipp01.skhynix.com/healthz_sknn_v3
 `healthz` 는 다운로더를 만들지 않기 때문입니다. 살아 있다는 것 외에는 아무것도
 증명하지 못합니다.
 
-### 5.2 어떤 버전이 올라갔는가
+### 5.2 환경 변수가 실제로 읽히는가 (원격)
+
+빈 spec 리스트를 보냅니다. 장비에는 접속하지 않으면서 `_downloader_from()` 은
+그대로 통과하므로, 4.4 의 환경 변수만 정확히 검사합니다. 호스트 셸 없이
+확인할 수 있는 유일한 항목입니다.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST -H 'Content-Type: application/json' -d '{"specs":[]}' \
+  http://skewnono-scheduler1-webapp.aipp01.skhynix.com/download_sknn_v3
+```
+
+| 응답 | 의미 |
+| --- | --- |
+| `200` (`{"failures":[],"files":[]}`) | 두 환경 변수가 설정되어 있습니다 |
+| `500` | 둘 중 하나 이상이 없습니다 (`os.environ[...]` 의 `KeyError`) |
+| `401` | `FTP_PROXY_TOKEN` 이 설정되어 있습니다 — 헤더를 붙여 다시 보내십시오 |
+
+### 5.3 어떤 버전이 올라갔는가
 
 `healthz` 는 버전을 알려주지 않고 호스트에는 git 이 없으므로, 코드에 직접
 물어봅니다. 3절에서 적어 둔 커밋이 실제로 올라갔는지 확인하는 단계입니다.
@@ -123,6 +141,10 @@ print('per-host credentials:', 'user' in f and 'password' in f)
 2026-08-10 이후 버전이라면 `True` 입니다. `False` 라면 복사가 닿지 않았거나
 4.3 의 `__pycache__` 가 남아 있는 것입니다.
 
+이 항목만은 **원격에서 확인할 수단이 없습니다.** `healthz` 가 버전을 싣지 않고,
+장비별 계정이 무시되는지 여부는 실제 장비에 붙어봐야 드러나기 때문입니다.
+호스트 셸에서 위 한 줄을 반드시 돌리십시오.
+
 ## 6. 조용한 실패 모드
 
 이 배포에서 나오는 고장은 대부분 **에러를 내지 않습니다.** 미리 알고 보지 않으면
@@ -130,8 +152,8 @@ print('per-host credentials:', 'user' in f and 'password' in f)
 
 | 증상 | 원인 | 확인 |
 | --- | --- | --- |
-| 모든 FTP 요청이 500 | 4.4 환경 변수 누락 | 프록시 로그의 `KeyError` |
-| 장비별 계정이 무시됨 | 서버 절반이 옛 버전 | 5.2 probe 가 `False` |
+| 모든 FTP 요청이 500 | 4.4 환경 변수 누락 | 5.2 가 `500` |
+| 장비별 계정이 무시됨 | 서버 절반이 옛 버전 | 5.3 probe 가 `False` |
 | 파일이 바뀌었는데 동작은 옛것 | 옛 `.pyc` 재사용 | 4.3 재실행 |
 | 큰 요청만 실패 | `host_timeout` > `harakiri` | 7절 |
 
@@ -141,7 +163,7 @@ print('per-host credentials:', 'user' in f and 'password' in f)
 
 이 방향은 의도된 설계입니다 — `_spec_from_wire` 가 `.get()` 이라 구버전
 클라이언트가 신버전 프록시에 붙어도 500 이 나지 않습니다. 덕분에 양쪽 배포 순서를
-자유롭게 잡을 수 있지만, **대가로 버전 불일치가 조용해집니다.** 그래서 5.2 가
+자유롭게 잡을 수 있지만, **대가로 버전 불일치가 조용해집니다.** 그래서 5.3 이
 선택이 아니라 필수입니다.
 
 ## 7. `host_timeout` 과 `harakiri` 는 함께 움직입니다
