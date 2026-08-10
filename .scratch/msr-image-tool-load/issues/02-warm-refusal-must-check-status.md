@@ -66,3 +66,14 @@ Nuxt 가 주는 두 에러 모양(`err.statusCode`, `err.response.status`)을 �
 봅니다. status 추출은 `httpStatus()` 로 분리해 Nuxt 의 두 모양(`err.statusCode`,
 `err.response.status`)을 덮었고, 같은 헬퍼를 이슈 04 의 `unknown_job`(404) 판별도
 씁니다. 사다리·jitter·상한은 그대로입니다.
+
+### 리뷰 반영
+
+같은 논리를 `isJobGone` 에도 적용했습니다. 처음에는 `404 || unknown_job` 이라
+한쪽 축만으로도 참이 됐는데, 그러면 프록시나 잘못 mount 된 라우트가 낸 404 하나가
+"job 이 죽었다" 로 읽혀 이슈 04 가 막으려던 폭주를 그대로 엽니다. 지금은 두 축을
+함께 봅니다.
+
+`httpStatus` 는 `app/utils/httpError.ts` 로 옮겼습니다. `useMsrFileApi` 의
+`statusOf` 가 같은 두 모양 조회를 이미 하고 있었고, 이름만 다른 같은 개념이
+둘 있을 이유가 없습니다.

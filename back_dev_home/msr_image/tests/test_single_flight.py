@@ -58,42 +58,44 @@ def test_one_fetch_serves_every_caller_that_asked_at_once():
     assert got == ["bytes"] * 4  # and everybody got its result
 
 
-def test_the_waiters_do_not_queue_up_behind_each_other():
-    """The k-th waiter must not pay for the k-1 waiters ahead of it.
+def test_the_waiters_are_all_released_at_once():
+    """No waiter is gated behind another one's turn.
 
-    Waking them one at a time to re-read the cache themselves put a MinIO round
-    trip each in front of the next — on top of a fetch that may already have
-    run to ftp_host_timeout, under a harakiri only twice that.
+    This is why the leader hands over its RESULT. Handing over the turn
+    instead — a lock passed from waiter to waiter, each re-reading the cache
+    before it lets the next one go — put a MinIO round trip in front of every
+    later waiter, on top of a fetch that may already have run to
+    ftp_host_timeout, under a harakiri only twice that.
+
+    A property test, not a regression test: the handoff version took a
+    ``with`` block rather than a callable, so no test written against this
+    signature can be run against it.
     """
     leader_in = threading.Event()
     release = threading.Event()
-    per_caller = 0.05
+    # Fails if the waiters trickle out instead of leaving together.
+    all_out = threading.Barrier(3, timeout=0.5)
 
     def fetch() -> str:
         leader_in.set()
         release.wait(timeout=2.0)
         return "bytes"
 
-    def caller() -> None:
+    def waiter() -> None:
         single_flight("img-a", fetch)
-        time.sleep(per_caller)  # stands in for the waiter's own cache read
+        all_out.wait()
 
-    lead = threading.Thread(target=caller)
+    lead = threading.Thread(target=single_flight, args=("img-a", fetch))
     lead.start()
     leader_in.wait(timeout=2.0)
-    waiters = [threading.Thread(target=caller) for _ in range(3)]
+    waiters = [threading.Thread(target=waiter) for _ in range(3)]
     for w in waiters:
         w.start()
-
-    started = time.monotonic()
     release.set()
     for t in (lead, *waiters):
         t.join()
-    elapsed = time.monotonic() - started
 
-    # Handed over: the three run their tail concurrently, so ~1 x per_caller.
-    # Woken one at a time it would be ~4 x. Half the gap is the threshold.
-    assert elapsed < per_caller * 2.5
+    assert not all_out.broken
 
 
 def test_different_keys_do_not_block_each_other():

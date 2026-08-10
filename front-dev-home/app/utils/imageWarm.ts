@@ -12,6 +12,9 @@
 // images into the cache, THEN let the <img> ask for one. imageRetry.ts stays
 // as the safety net for everything this gate cannot cover.
 
+// Relative (not `~/`) so this module stays importable by `npm test`.
+import { httpStatus } from './httpError.ts'
+
 /** How often the warm job is polled while it runs. */
 export const WARM_POLL_MS = 600
 
@@ -63,14 +66,6 @@ export const WARM_RETRY_DELAYS_MS = [1000, 2000, 4000] as const
  * `$fetch` as one. Callers treat 0 as "budget spent, give up". */
 export const remainingBudgetMs = (elapsedMs: number): number =>
   Math.max(0, WARM_CEILING_MS - elapsedMs)
-
-/** The HTTP status a rejected $fetch carries, whatever shape Nuxt hands us, or
- * `undefined` when it never reached a server (network error, abort). Both
- * shapes are real — see the same pair in useMsrFileApi.ts. */
-export const httpStatus = (err: unknown): number | undefined => {
-  const e = err as { response?: { status?: number }, statusCode?: number } | null
-  return e?.response?.status ?? e?.statusCode
-}
 
 /** The `code` a rejected $fetch carries, whatever shape Nuxt hands us. */
 export const warmErrorCode = (err: unknown): string | undefined =>
@@ -131,9 +126,14 @@ export const warmRetryDelayMs = (
 }
 
 /** A poll failure meaning the job is gone for good rather than that the
- * network hiccupped. Only `poll_job_route`'s 404 says that (routes.py). */
+ * network hiccupped. Only `poll_job_route`'s 404 says that (routes.py), and it
+ * says it on both axes — so both are required, for the same reason
+ * `isWarmRefusal` requires both. A bare 404 from anywhere else (a proxy, a
+ * mis-mounted route) is a fault on OUR side, not evidence the job died, and
+ * treating it as the latter releases the panel into the cold-GET storm this
+ * retry loop exists to prevent. */
 const isJobGone = (err: unknown): boolean =>
-  httpStatus(err) === 404 || warmErrorCode(err) === 'unknown_job'
+  httpStatus(err) === 404 && warmErrorCode(err) === 'unknown_job'
 
 /**
  * How long to wait before polling again, or `null` to give up.

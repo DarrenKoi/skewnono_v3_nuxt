@@ -82,11 +82,10 @@ export const useMsrImageApi = () => {
   // 425/429/5xx, so without it a rate-limited poll is re-sent underneath us —
   // doubling the wall time the budget just sized, and hiding the very failure
   // the caller's own policy is there to classify.
-  const budgeted = (timeoutMs?: number) =>
-    timeoutMs === undefined ? { retry: 0 as const } : { retry: 0 as const, timeout: timeoutMs }
+  const budgeted = (timeoutMs: number) => ({ retry: 0 as const, timeout: timeoutMs })
 
   const startDownloadAll = async (
-    eqp_ip: string, class_name: string, msr: string, names?: string[], timeoutMs?: number
+    eqp_ip: string, class_name: string, msr: string, names: string[] | undefined, timeoutMs: number
   ) => {
     const res = await $fetch<{ job_id: string }>(joinApiPath(base, '/msr-images'), {
       method: 'POST',
@@ -98,7 +97,7 @@ export const useMsrImageApi = () => {
     return res.job_id
   }
 
-  const pollJob = async (job_id: string, timeoutMs?: number) =>
+  const pollJob = async (job_id: string, timeoutMs: number) =>
     await $fetch<DownloadJobStatus>(
       `${joinApiPath(base, '/msr-images')}/${encodeURIComponent(job_id)}`,
       budgeted(timeoutMs)

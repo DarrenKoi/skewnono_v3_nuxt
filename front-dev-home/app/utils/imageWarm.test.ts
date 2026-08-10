@@ -173,7 +173,22 @@ test('a job that is gone for good ends the wait', () => {
   // Nothing will ever fill this cache: re-polling forever would hold the panel
   // for a job that no longer exists.
   assert.equal(pollRetryDelayMs(jobGone, 0, 0, 0.5), null)
-  assert.equal(pollRetryDelayMs({ response: { status: 404 }, data: {} }, 0, 0, 0.5), null)
+  assert.equal(
+    pollRetryDelayMs({ response: { status: 404 }, data: { code: 'unknown_job' } }, 0, 0, 0.5),
+    null
+  )
+})
+
+test('a bare 404 is our fault, not proof the job died', () => {
+  // Both axes, for the same reason isWarmRefusal needs both: a 404 from a
+  // proxy or a mis-mounted route says nothing about the job, and treating it
+  // as a dead job releases the panel into the storm this loop prevents.
+  assert.equal(pollRetryDelayMs({ statusCode: 404, data: {} }, 0, 0, 0.5), WARM_RETRY_DELAYS_MS[0])
+  // And the code without the status is not poll_job_route answering either.
+  assert.equal(
+    pollRetryDelayMs({ data: { code: 'unknown_job' } }, 0, 0, 0.5),
+    WARM_RETRY_DELAYS_MS[0]
+  )
 })
 
 test('consecutive poll failures walk the same ladder and then stop', () => {

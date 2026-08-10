@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import { httpStatus } from '~/utils/httpError'
 
 // The cross-MSR compatibility signature is extracted STRUCTURALLY from
 // MsrFileResponse — every field the signature reads (recipe identity, per-param
@@ -158,11 +159,6 @@ const inFlight = new Map<string, Promise<MsrFileResponse>>()
 const MAX_RETRIES = 4
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
-const statusOf = (err: unknown): number | undefined => {
-  const e = err as { response?: { status?: number }, statusCode?: number }
-  return e?.response?.status ?? e?.statusCode
-}
-
 export const useMsrFileApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
@@ -185,7 +181,7 @@ export const useMsrFileApi = () => {
           return await $fetch<MsrFileResponse>(joinApiPath(base, '/msr-file'), { query })
         } catch (err) {
           // Retry only on rate-limit, with exponential backoff inside the 5s window.
-          if (statusOf(err) === 429 && i < MAX_RETRIES) {
+          if (httpStatus(err) === 429 && i < MAX_RETRIES) {
             await sleep(700 * 2 ** i)
             continue
           }
@@ -227,7 +223,7 @@ export const useMsrFileApi = () => {
           )
           return res.results
         } catch (err) {
-          if (statusOf(err) === 429 && i < MAX_RETRIES) {
+          if (httpStatus(err) === 429 && i < MAX_RETRIES) {
             await sleep(700 * 2 ** i)
             continue
           }
