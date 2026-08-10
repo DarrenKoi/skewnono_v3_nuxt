@@ -1,6 +1,6 @@
 import type { ComputedRef } from 'vue'
 import type { FocusImageCtx } from '~/composables/useFocusImageCtx'
-import { WARM_POLL_MS, type WarmStatus, nextWarmState } from '~/utils/imageWarm'
+import { WARM_POLL_MS, type WarmStatus, nextWarmState, warmRetryDelayMs } from '~/utils/imageWarm'
 
 /** What to warm: the scope `id` names the unit (the active parameter) and
  * `names` its image files. The id — not the name list — keys the store, so
@@ -31,7 +31,13 @@ const IDLE: WarmState = { status: 'idle', done: 0, total: 0 }
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
-/** POST the job, then poll it to completion, writing progress into `state`. */
+/** POST the job, then poll it to completion, writing progress into `state`.
+ *
+ * A refused POST (the 2-job cap) is WAITED OUT rather than surfaced. Giving up
+ * used to look harmless — the per-image cold GET still runs — but that path has
+ * no session budget at all, so releasing the whole panel at the exact moment
+ * the tool is saturated is what turns a cap into a stampede. Everything else
+ * (dead tool, expired job) still gives up: waiting would not improve it. */
 const runWarm = async (
   state: WarmState,
   api: ReturnType<typeof useMsrImageApi>,
@@ -39,21 +45,28 @@ const runWarm = async (
   names: string[]
 ) => {
   const startedAt = Date.now()
-  try {
-    const jobId = await api.startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr, names)
-    for (;;) {
-      await sleep(WARM_POLL_MS)
-      const poll = await api.pollJob(jobId)
-      state.done = poll.done
-      state.total = poll.total
-      state.status = nextWarmState(poll, Date.now() - startedAt)
-      if (state.status !== 'warming') return
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const jobId = await api.startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr, names)
+      for (;;) {
+        await sleep(WARM_POLL_MS)
+        const poll = await api.pollJob(jobId)
+        state.done = poll.done
+        state.total = poll.total
+        state.status = nextWarmState(poll, Date.now() - startedAt)
+        if (state.status !== 'warming') return
+      }
+    } catch (err) {
+      // `attempt` counts POST refusals, and a refusal means no job was created
+      // — so the retry re-POSTs rather than resuming a poll. There is no
+      // job_id to resume.
+      const delay = warmRetryDelayMs(err, attempt, Date.now() - startedAt, Math.random())
+      if (delay === null) {
+        state.status = 'gaveup'
+        return
+      }
+      await sleep(delay)
     }
-  } catch {
-    // A refused POST (429 at the 2-job cap), an expired job, a dead tool. Not
-    // worth surfacing: it only means "stop waiting", and the per-image request
-    // path — cache-miss fetch plus auto-retry — still runs and may well win.
-    state.status = 'gaveup'
   }
 }
 
