@@ -52,10 +52,17 @@ class MinioImageCache:
     def _key(self, locator: ImageLocator, preview: bool = False) -> str:
         # Objects live at {self.prefix}{cache_key}; the client is a passthrough
         # (use_prefix(None) in _default_client), so this is the sole prefix
-        # source. If office MinIO requires objects under a configured user
-        # namespace (e.g. "user/2067928/"), set SKEWNONO_IMAGE_CACHE_PREFIX to
-        # the FULL prefix (e.g. "user/2067928/image_cache/") -- this method
-        # applies it and the client adds nothing on top.
+        # source. The office scopes credentials to a user namespace, and that
+        # namespace has to be spelled out here because the client contributes
+        # nothing (user-confirmed 2026-08-10):
+        #
+        #     SKEWNONO_IMAGE_CACHE_BUCKET=user
+        #     SKEWNONO_IMAGE_CACHE_PREFIX=2067928/image_cache/
+        #
+        # `user` is the BUCKET, not the first key segment. This comment used to
+        # offer "user/2067928/image_cache/" as the prefix, which writes to
+        # user/user/2067928/... -- outside the credentials' scope, so MinIO
+        # answers AccessDenied rather than quietly misfiling the cache.
         return f"{self.prefix}{cache_key(locator, preview=preview)}"
 
     def has(self, locator: ImageLocator, *, preview: bool = False) -> bool:
