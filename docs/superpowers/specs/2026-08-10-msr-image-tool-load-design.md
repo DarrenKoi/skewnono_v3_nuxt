@@ -75,10 +75,18 @@ path — cache-miss fetch plus auto-retry — still runs and may well win"*). �
 
 `runWarm` 의 실패 처리를 **거부(429)와 그 외**로 나눕니다.
 
-- **429** — `gaveup` 이 아니라 `warming` 을 유지한 채 jittered backoff 후 POST 를
-  다시 시도합니다. 이미지는 계속 보류되므로 cold GET 이 나가지 않습니다.
-- **그 외 오류**(죽은 장비, 만료된 job) — 지금처럼 `gaveup`. 기다려도 나아질 것이
-  없는 상태이므로 사용자를 붙잡지 않습니다.
+- **429 이면서 본문 `code === "too_many_jobs"`** — `gaveup` 이 아니라 `warming` 을
+  유지한 채 jittered backoff 후 POST 를 다시 시도합니다. 이미지는 계속 보류되므로
+  cold GET 이 나가지 않습니다.
+- **그 외 오류**(죽은 장비, 만료된 job, 그리고 **rate-limit 429**) — 지금처럼
+  `gaveup`. 기다려도 나아질 것이 없거나, 재시도가 상황을 악화시키는 경우입니다.
+
+**상태 코드만으로 판별하면 안 됩니다.** `/api/*` 에는 20 req/5s 애플리케이션 전역
+rate limit 이 걸려 있고 그것도 429 를 반환합니다. warm 폴링이 600 ms 간격이므로
+이미지 GET 과 겹치면 실제로 도달할 수 있는 한도이며, 그 429 에 재시도로 답하면
+이미 제한당한 클라이언트가 요청을 더 보내는 꼴이 됩니다. job 상한 거부만
+`{"error": "too many active downloads", "code": "too_many_jobs"}` 를 실어 보내므로
+(`routes.py:272`), 그 `code` 가 유일하게 안전한 판별자입니다.
 
 두 경우를 가르는 근거가 다릅니다. 429 는 **일시적이고 자가 해소되는** 상태(앞선
 job 이 끝나면 슬롯이 납니다)인 반면, 나머지는 그렇지 않습니다.
