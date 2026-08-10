@@ -72,8 +72,13 @@
           <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span class="sk-field-label">{{ text.paraDist }}</span>
             <div class="flex flex-wrap items-center gap-3">
+              <!-- 이 모달 어디에도 나타나지 않는 구간은 범례에서도 뺍니다
+                   (presentParaKeys). 범례가 색을 소개했는데 아래 recipe 카드
+                   어느 막대에도 그 색이 없으면, 읽는 사람은 "내가 못 찾은 건가"
+                   를 먼저 의심하게 됩니다. para_over_16 처럼 대부분의 recipe 에서
+                   비는 구간이 생기고 나서 실제로 문제가 됐습니다. -->
               <span
-                v-for="key in paraOrder"
+                v-for="key in presentParaKeys"
                 :key="key"
                 class="inline-flex items-center gap-1.5 font-mono text-[13px] text-(--sk-ink-muted)"
               >
@@ -316,6 +321,22 @@ const sortedRecipes = computed(() => sortSteps(lotRecipes.value, recipeSort.valu
 // recipe 의 막대가 똑같이 꽉 차 보입니다. lot 안에서 서로 비교되도록 최대값을
 // 공유합니다.
 const maxRecipeParaTotal = computed(() => Math.max(0, ...lotRecipes.value.map(r => r.para_all)))
+
+// 이 모달에서 실제로 그려지는 구간만. 위 lot 막대와 아래 recipe 카드가 모두
+// 이 범례를 씁니다.
+//
+// lot 행의 값 하나로 판정할 수 있습니다 — lot 값은 recipe 값의 합이고 개수는
+// 음수가 될 수 없으므로, `lot > 0` 은 곧 "적어도 한 recipe 가 이 구간을 가진다"
+// 입니다. recipe 를 따로 훑을 필요가 없습니다.
+//
+// 그래서 이 필터가 걸리는 경우는 생각보다 드뭅니다. recipe 100~200 개를 합치면
+// 어느 구간이든 하나쯤은 채워지기 때문입니다. 자주 비는 것은 **recipe 카드
+// 하나하나**이고, 그쪽은 StackedBar 가 0 인 조각을 아예 그리지 않는 것으로
+// 이미 처리됩니다. 여기서 지우는 것은 "이 lot 전체에 16 point 초과 파라미터가
+// 한 개도 없다" 는 경우뿐입니다.
+const presentParaKeys = computed(() =>
+  paraOrder.filter(key => (props.row?.[key] ?? 0) > 0)
+)
 
 // 파일의 행 순서는 화면의 카드 순서입니다 — 표와 파일을 나란히 놓고 읽을 수
 // 있어야 하므로 sortedRecipes 를 그대로 넘깁니다. 정렬 칩을 바꾸면 내려받는
