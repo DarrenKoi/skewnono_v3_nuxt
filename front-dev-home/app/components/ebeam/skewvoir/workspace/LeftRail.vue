@@ -223,6 +223,7 @@
 <script setup lang="ts">
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
+import { copyTextToClipboard } from '~/utils/csvDownload'
 import { recipeDetailRoute } from '~/utils/recipeView'
 import { removeFromSet, clearToFocus } from '~/utils/skewvoirAnalysis/setEditing'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
@@ -279,11 +280,14 @@ const openRecipe = () => {
 // toast body IS the copy-it-yourself fallback.
 const copyToastUi = { description: 'break-all' }
 
+// copyTextToClipboard, not navigator.clipboard: the Clipboard API is
+// secure-context only and production is served over plain http://, where
+// `navigator.clipboard` is undefined. The util carries the execCommand
+// fallback that keeps this working there.
 const copyToClipboard = async (text: string, okTitle: string) => {
-  try {
-    await navigator.clipboard.writeText(text)
+  if (await copyTextToClipboard(text)) {
     toast.add({ title: okTitle, description: text, icon: 'i-lucide-clipboard-check', color: 'success', ui: copyToastUi })
-  } catch {
+  } else {
     toast.add({ title: '복사하지 못했습니다', description: text, icon: 'i-lucide-triangle-alert', color: 'warning', ui: copyToastUi })
   }
 }

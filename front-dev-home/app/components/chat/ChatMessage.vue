@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatMessage, FeedbackInput } from '~/composables/useChatApi'
 import { renderChatMarkdown } from '~/utils/chatMarkdown'
+import { copyTextToClipboard } from '~/utils/csvDownload'
 import { formatRelativeTime } from '~/utils/relativeTime'
 
 const props = defineProps<{
@@ -28,14 +29,15 @@ const time = computed(() =>
 )
 
 const copied = ref(false)
+// copyTextToClipboard, not navigator.clipboard: the Clipboard API is
+// secure-context only and production is served over plain http://, where
+// `navigator.clipboard` is undefined. The util carries the execCommand
+// fallback. On the rare remaining failure we stay silent — the message text
+// is right there on screen to select by hand.
 const copy = async () => {
-  try {
-    await navigator.clipboard.writeText(props.message.content)
-    copied.value = true
-    setTimeout(() => (copied.value = false), 1400)
-  } catch {
-    // Clipboard unavailable (e.g. insecure context) — silently no-op.
-  }
+  if (!(await copyTextToClipboard(props.message.content))) return
+  copied.value = true
+  setTimeout(() => (copied.value = false), 1400)
 }
 
 const submitFeedback = (input: FeedbackInput) => {
