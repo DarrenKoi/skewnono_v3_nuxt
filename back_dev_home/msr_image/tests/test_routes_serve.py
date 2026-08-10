@@ -350,3 +350,94 @@ def test_list_rejects_unknown_ext(client):
     r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=png")
     assert r.status_code == 400
     assert "ext" in r.get_json()["error"]
+
+
+def test_concurrent_gets_for_one_image_make_one_tool_visit(tmp_path, monkeypatch):
+    """The load this whole change exists to remove.
+
+    Two requests for the same uncached image must cost the tool ONE session.
+    The fetch is made slow on purpose: with a fast one the second request would
+    find the cache already filled and pass even without the gate.
+    """
+    import threading
+    import time
+
+    from flask import Flask
+
+    from back_dev_home.msr_image import data, routes
+    from back_dev_home.msr_image.contracts import FetchedImage
+
+    monkeypatch.setenv("SKEWNONO_MSR_IMAGE_PROVIDER", "mock")
+    monkeypatch.setenv("IMAGE_CACHE_DIR", str(tmp_path))
+
+    calls: list[str] = []
+    calls_guard = threading.Lock()
+
+    def slow_fetch(locator):
+        with calls_guard:
+            calls.append(locator.name)
+        time.sleep(0.15)
+        return FetchedImage(b"bytes", "image/jpeg", "mag=1")
+
+    monkeypatch.setattr(data, "fetch_image", slow_fetch)
+
+    app = Flask(__name__)
+    app.register_blueprint(routes.bp, url_prefix="/api")
+
+    url = "/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name=shot.jpeg"
+    statuses: list[int] = []
+    statuses_guard = threading.Lock()
+
+    def hit():
+        # A client per thread: Flask's test client is not shared-safe.
+        r = app.test_client().get(url)
+        with statuses_guard:
+            statuses.append(r.status_code)
+
+    threads = [threading.Thread(target=hit) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert statuses == [200, 200]
+    assert calls == ["shot.jpeg"], f"the tool was visited {len(calls)} times"
+
+
+def test_concurrent_gets_for_different_images_both_fetch(tmp_path, monkeypatch):
+    """The gate must be per image. A global one would serialise a gallery."""
+    import threading
+
+    from flask import Flask
+
+    from back_dev_home.msr_image import data, routes
+    from back_dev_home.msr_image.contracts import FetchedImage
+
+    monkeypatch.setenv("SKEWNONO_MSR_IMAGE_PROVIDER", "mock")
+    monkeypatch.setenv("IMAGE_CACHE_DIR", str(tmp_path))
+
+    calls: list[str] = []
+    calls_guard = threading.Lock()
+
+    def counting_fetch(locator):
+        with calls_guard:
+            calls.append(locator.name)
+        return FetchedImage(b"bytes", "image/jpeg", None)
+
+    monkeypatch.setattr(data, "fetch_image", counting_fetch)
+
+    app = Flask(__name__)
+    app.register_blueprint(routes.bp, url_prefix="/api")
+
+    def hit(name: str):
+        app.test_client().get(
+            f"/api/msr-image?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&name={name}"
+        )
+
+    threads = [threading.Thread(target=hit, args=(n,)) for n in ("a.jpeg", "b.jpeg")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert sorted(calls) == ["a.jpeg", "b.jpeg"]
