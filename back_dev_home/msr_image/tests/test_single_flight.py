@@ -11,6 +11,7 @@ import time
 
 import pytest
 
+from back_dev_home.msr_image import single_flight
 from back_dev_home.msr_image.single_flight import _locks, fetch_gate
 
 
@@ -95,4 +96,32 @@ def test_a_waiter_keeps_the_entry_alive_while_it_waits():
     assert "img-a" in _locks
     release.set()
     t.join()
+    assert _locks == {}
+
+
+def test_a_failed_acquire_undoes_the_registry_claim_without_releasing():
+    """If lock.acquire() itself raises (e.g. a KeyboardInterrupt delivered
+    while blocked), the registry claim made just before it must be undone —
+    otherwise the entry, and its count, leak forever and the "last participant
+    deletes the entry" invariant breaks. This must NOT be fixed by moving
+    acquire() inside the existing try/finally: that finally calls
+    lock.release(), which would raise "release unlocked lock" on a lock this
+    thread never acquired, masking the original exception."""
+
+    class _BoomError(Exception):
+        pass
+
+    class _ExplodingLock:
+        def acquire(self) -> None:
+            raise _BoomError("acquire blew up")
+
+        def release(self) -> None:
+            raise AssertionError("release must not be called: acquire never succeeded")
+
+    single_flight._locks["img-a"] = (_ExplodingLock(), 0)
+
+    with pytest.raises(_BoomError):
+        with fetch_gate("img-a"):
+            pass  # pragma: no cover - never reached
+
     assert _locks == {}

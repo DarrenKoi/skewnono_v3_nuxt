@@ -42,6 +42,18 @@ _locks: dict[str, tuple[threading.Lock, int]] = {}
 _registry_guard = threading.Lock()
 
 
+def _leave(key: str) -> None:
+    """Undo one participant's claim on ``key``, dropping the entry once the
+    last holder/waiter is gone. Shared by the acquire-failure path and the
+    normal exit path — both leave in exactly the same way."""
+    with _registry_guard:
+        held, waiting = _locks[key]
+        if waiting <= 1:
+            del _locks[key]
+        else:
+            _locks[key] = (held, waiting - 1)
+
+
 @contextmanager
 def fetch_gate(key: str) -> Iterator[None]:
     """Serialise callers sharing ``key``; release and clean up on the way out."""
@@ -49,14 +61,17 @@ def fetch_gate(key: str) -> Iterator[None]:
         lock, waiting = _locks.get(key, (threading.Lock(), 0))
         _locks[key] = (lock, waiting + 1)
 
-    lock.acquire()
+    try:
+        lock.acquire()
+    except BaseException:
+        # Never acquired the lock, so there is nothing to release — but we
+        # did register as a waiter above, and that claim must be undone or
+        # the entry (and its count) leaks forever.
+        _leave(key)
+        raise
+
     try:
         yield
     finally:
         lock.release()
-        with _registry_guard:
-            held, waiting = _locks[key]
-            if waiting <= 1:
-                del _locks[key]
-            else:
-                _locks[key] = (held, waiting - 1)
+        _leave(key)
