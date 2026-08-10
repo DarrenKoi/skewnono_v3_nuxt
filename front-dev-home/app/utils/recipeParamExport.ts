@@ -15,7 +15,7 @@
 import type { IdpImageInfoRow, IdpLocator } from '../composables/useRecipeSearchApi.ts'
 import type { ParamDetail, ParamImage, SettingBlock } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS } from './recipeView.ts'
-import { downloadBlob } from './csvDownload.ts'
+import { createWorkbook, writeWorkbook } from './xlsx.ts'
 
 // Relative `.ts` specifier, not the `~` alias, for the same reason
 // `recipeCompare.ts` uses one: `node --test` cannot resolve `~`, but resolves
@@ -222,7 +222,6 @@ const IMAGE_BOX = { width: 320, height: 240 }
 const ANCHOR_ROW_POINTS = 190
 /** The widest any sheet here gets is AF_PR's three columns. */
 const SHEET_COLUMNS = 3
-const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 /**
  * Write the workbook, embedding each placement's actual picture.
@@ -240,9 +239,7 @@ export async function downloadParamWorkbook(
   filename: string,
   resolveImageUrl: (name: string) => string
 ): Promise<void> {
-  const mod = await import('exceljs')
-  const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod
-  const book = new ExcelJS.Workbook()
+  const book = await createWorkbook()
 
   let imageWorksheet: ReturnType<typeof book.addWorksheet> | null = null
   for (const sheet of workbook.sheets) {
@@ -285,6 +282,5 @@ export async function downloadParamWorkbook(
     }
   }
 
-  const buffer = await book.xlsx.writeBuffer()
-  downloadBlob(filename, new Blob([buffer], { type: XLSX_MIME }))
+  await writeWorkbook(book, filename)
 }

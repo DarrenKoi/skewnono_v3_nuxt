@@ -3,6 +3,7 @@ import type { ParamDetail, SettingBlock, SettingRow } from '../composables/useRe
 import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
 import { imageVariantLabel } from './imageKind.ts'
 import { recipePairKey } from './recipePair.ts'
+import { createWorkbook, writeWorkbook, type WorkbookSheet } from './xlsx.ts'
 
 // Relative `.ts` specifiers, not the `~` alias: `node --test` cannot resolve
 // `~`, but it does resolve these, and `nuxt typecheck` accepts them (verified
@@ -281,11 +282,6 @@ export interface ValueBucket {
   isOutlier: boolean
 }
 
-export interface WorkbookSheet {
-  name: string
-  rows: (string | number)[][]
-}
-
 export interface CompareWorkbook {
   sheets: WorkbookSheet[]
 }
@@ -374,9 +370,7 @@ export async function downloadCompareWorkbook(
   filename: string,
   imageBlock?: CompareImageBlock
 ): Promise<void> {
-  const mod = await import('exceljs')
-  const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod
-  const book = new ExcelJS.Workbook()
+  const book = await createWorkbook()
 
   for (const sheet of workbook.sheets) {
     const ws = book.addWorksheet(sheet.name.slice(0, 31))
@@ -395,16 +389,7 @@ export async function downloadCompareWorkbook(
     }
   }
 
-  const buffer = await book.xlsx.writeBuffer()
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
+  await writeWorkbook(book, filename)
 }
 
 export function groupFieldValues(pairs: { label: string, value: string }[]): ValueBucket[] {
