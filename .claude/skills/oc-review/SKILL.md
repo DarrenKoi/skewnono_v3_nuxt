@@ -41,13 +41,23 @@ A bad ref or an empty diff fails here, not inside two paid model calls.
 
 ### 2. Pick a tier and announce it
 
-Judge complexity from the file count and what the diff touches, apply the
-escalation rule in `models.md`, and say so in one line before running:
+**Default to `heavy` (kimi-k3).** A review is a tool-using task, and the
+measured-reliability table in `models.md` records `glm-5.2` failing on exactly
+that shape — once with an unrelated hallucinated document, once with an empty
+final message. Use `medium` only for a genuinely small diff, and check the
+output is a real review before reporting it.
 
-> 14 files, touches `sem_list/providers/` → escalating to `heavy` (kimi-k3)
+Still judge complexity, apply the escalation rule, and say so in one line
+before running:
+
+> 14 files, touches `sem_list/providers/` → `heavy` (kimi-k3)
 
 Discount generated churn: a 400-line `openwiki/` refresh is not complexity.
 If the user named a model, use it and skip the rubric.
+
+Expect a heavy review to take **2–4 minutes per axis**. That is normal, not a
+hang; `oc.sh` bounds it at `OC_TIMEOUT` (default 900s) and exits 124 if
+exceeded.
 
 ### 3. Identify the spec source
 

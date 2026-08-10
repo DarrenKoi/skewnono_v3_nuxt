@@ -49,9 +49,12 @@ If that is empty, ask what to look at rather than reviewing the whole repo.
 
 ### 2. Pick a tier and announce it
 
-Per `models.md`. Quality passes tolerate a lower tier than correctness
-reviews — `medium` is the sensible default, and `light` is fine for a
-single-file cleanup. Say which and why before spending.
+Per `models.md`. **Default to `heavy` (kimi-k3)**: this is a tool-using task
+(the model greps for existing helpers, which is the whole point of the reuse
+lens), and the measured-reliability table records `glm-5.2` failing on that
+shape. Drop to `medium` or `light` only for a small, bounded cleanup, and check
+the reply is a real analysis before acting on it. Say which tier and why before
+spending.
 
 ### 3. Run the pass
 

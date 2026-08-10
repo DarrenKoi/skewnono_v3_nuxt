@@ -24,6 +24,31 @@ Override with an explicit model when the user names one:
 echo "$PROMPT" | .claude/skills/_opencode/oc.sh --model kimi-k3 --label standards
 ```
 
+## Measured reliability (2026-08-10)
+
+The tiers above describe *how much capability a task deserves*. This section
+describes *what actually works*, which is not the same thing, and was found by
+running them rather than by reading docs.
+
+| Model | Simple prompt | Tool-using review | Notes |
+| --- | --- | --- | --- |
+| `kimi-k3` | works | **works** | 137s and 194s on single-file reviews; findings were specific and correct |
+| `glm-5.2` | works | **unreliable** | Two failures out of two: once an unrelated hallucinated document, once an empty final message |
+| `gpt-5.6-luna` | works | untested at length | Fine for short bounded prompts |
+
+**Consequence: `oc-review` and `oc-simplify` default to `heavy`, not `medium`.**
+A review is a tool-using task — the model runs `git diff`, greps, and reads
+files — and that is exactly where `glm-5.2` fell over here. The `medium` tier
+remains correct for its stated complexity band, but is not currently
+trustworthy for delegated review work.
+
+This is a measurement, not a verdict on the model, and it is cheap to recheck:
+run `oc.sh --tier medium` on a bounded review and see whether it answers. If it
+does so reliably, restore `medium` as the review default and update this table.
+
+`oc.sh` refuses to print an empty reply (it exits non-zero instead), so a
+silent version of this failure cannot reach a report as "no findings".
+
 ## Escalation rule
 
 Move **up one tier** when the diff touches any of these, regardless of size:
