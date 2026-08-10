@@ -593,7 +593,25 @@ def _spm_dict(msr: str) -> SpmDict:
 
 
 def _health(msr: str) -> float:
-    """Per-MSR abnormality in [0, 1]; squared so most MSRs sit near nominal."""
+    """Per-MSR abnormality in [0, 1]; squared so most MSRs sit near nominal.
+
+    이 값의 눈금은 office 와 **다릅니다 — 두 숫자를 비교하지 마십시오.**
+
+    방향부터 반대입니다. 여기서 health 는 독립 시드에서 나와 아래 FDC 드리프트를
+    **만드는 입력**이고, office 는 관측된 드리프트에서 health 를 **파생**합니다
+    (`worst_drift / FDC_BAD_SIGMA`). mock 은 실제 드리프트를 알 수 없으므로 이
+    방향 자체는 불가피합니다.
+
+    그래서 같은 숫자가 다른 심각도를 뜻합니다: 여기서 health 0.5 는 office 공식
+    으로 환산하면 약 3.33σ 이고 office 는 그 드리프트에 0.95 를 줍니다. 집에서
+    본 임계값을 사무실 화면의 근거로 삼으면 안 됩니다.
+
+    OFFICE-VERIFY (2026-08-10): 두 눈금을 맞출지는 사무실에서 실제 분포를 본 뒤
+    정합니다. 집에서는 그럴듯한 값이면 충분하다는 판단이라 지금은 통일하지
+    않습니다 (.scratch/mock-office-drift/issues/05). 맞추기로 한다면, 여기서 뽑은
+    health 로 드리프트를 만든 뒤 **office 와 같은 공식으로 health 를 다시 계산**
+    하는 형태가 됩니다 — 그러면 두 provider 가 한 정의를 공유합니다.
+    """
     raw = (_seed(msr, 7919) % 1000) / 1000.0
     return round(raw * raw, 3)
 

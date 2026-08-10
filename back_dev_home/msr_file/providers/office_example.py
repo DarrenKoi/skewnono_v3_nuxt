@@ -482,8 +482,16 @@ def build_response(
             len(expected - actual), len(actual - expected),
         )
     # Office health is DERIVED from the telemetry it summarizes: the worst
-    # drift, scaled so 3.5 sigma (the "bad" threshold) saturates to 1.0 — the
-    # same [0, 1] reading the mock's synthetic scalar feeds the UI.
+    # drift, scaled so FDC_BAD_SIGMA (the "bad" threshold) saturates to 1.0.
+    #
+    # Same [0, 1] RANGE as the mock's scalar, but NOT the same SCALE — the two
+    # numbers are not comparable, and neither is a check on the other. Here
+    # health is an OUTPUT of the drift; in mock.py it is an independent seed
+    # that PRODUCES the drift, because home cannot know real telemetry. A mock
+    # health of 0.5 works out to ~3.33 sigma, which this formula would score
+    # 0.95. See mock.py's `_health` docstring and
+    # .scratch/mock-office-drift/issues/05 — OFFICE-VERIFY, deliberately left
+    # un-unified until the real distribution is seen at the office.
     worst = max((s["drift_sigma"] for s in fdc_params), default=0.0)
     health = round(min(1.0, worst / FDC_BAD_SIGMA), 3)
 

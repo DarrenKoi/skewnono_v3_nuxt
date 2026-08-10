@@ -1,6 +1,6 @@
 # mock↔office 파생값 드리프트 — 남은 판단 대기 건
 
-Status: needs-triage
+Status: 09건 중 8건 완료 · 05 는 사무실 확인 대기
 작성: 2026-08-10
 
 ## 배경
@@ -42,7 +42,7 @@ Status: needs-triage
 | 02 | `recipe_tat`, `fail_issue` | ~~`prod_catg_cd` vs `tech_nm`~~ **완료** — M계열 우선(`tech_nm`) | done |
 | 03 | `fail_issue` | ~~`avg_fail_ratio` 분모~~ **완료** — 전체 행으로 나눔(mock 이 옳음) | done |
 | 04 | `recipe_tat`, `fail_issue` | ~~`total_executions` 규약~~ **완료** — 실행 수와 평균 분모를 분리 | done |
-| 05 | `msr_file` | `health` 가 두 개의 무관한 공식 | 정책(의도적일 수 있음) |
+| 05 | `msr_file` | `health` 두 공식 — **보류(OFFICE-VERIFY)**, 눈금 차이를 양쪽 코드에 명시 | deferred |
 | 06 | `storage` | ~~고아 IP 행~~ **완료** — 잡음으로 확정, mock 도 버림 | done |
 | 07 | `msr_file` | ~~`mp_image_*` 분리~~ **완료** — 한 목록에서 파생 + 불일치 경고 | done |
 | 08 | 여러 곳 | ~~표시상 차이 묶음~~ **완료** — 3건 수정, 1건 오탐, 2건 의도적 유지 | done |

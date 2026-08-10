@@ -395,8 +395,15 @@ def test_health_scales_by_the_shared_bad_threshold():
     assert response["health"] == round(min(1.0, worst / FDC_BAD_SIGMA), 3)
 
 
-def _hvsem_rec(**overrides) -> dict:
-    """HV-SEM 한 점의 여러 이미지 — 01..04 컬럼을 갖는 행."""
+def _hvsem_raw(**overrides) -> dict:
+    """HV-SEM 한 점의 여러 이미지 — pickle 이 주는 그대로의 **공백형** 컬럼.
+
+    ``"mp_image_name 01"`` 은 underscore 가 아니라 공백입니다
+    (docs/datatables/msr_file_pickle.txt "컬럼 이름 정규화"). ``_records()``
+    가 소문자+공백→underscore 로 바꾸는 경계 위쪽이므로, build_response 를
+    거치는 테스트는 공백형으로 넣어야 그 정규화까지 함께 밟습니다 — 골든
+    픽스처 ``_payload()`` 도 같은 이유로 공백형입니다.
+    """
     rec = {
         "sequence": 1,
         "chip_number": "12",
@@ -405,13 +412,21 @@ def _hvsem_rec(**overrides) -> dict:
         "parameter": "CD_TOP",
         "cd_value": 42.0,
         "no_of_mp_image": 4,
-        "mp_image_name_01": "S04_M0004-01MP-U.jpeg",
-        "mp_image_name_02": "S04_M0004-01MP-T.jpeg",
-        "mp_image_name_03": "S04_M0004-01MP-M.jpeg",
-        "mp_image_name_04": "S04_M0004-01MP-L.jpeg",
+        "mp_image_name 01": "S04_M0004-01MP-U.jpeg",
+        "mp_image_name 02": "S04_M0004-01MP-T.jpeg",
+        "mp_image_name 03": "S04_M0004-01MP-M.jpeg",
+        "mp_image_name 04": "S04_M0004-01MP-L.jpeg",
     }
     rec.update(overrides)
     return rec
+
+
+def _hvsem_rec(**overrides) -> dict:
+    """``_hvsem_raw`` 를 ``_records()`` 로 정규화한 것 — ``_row()`` 가 받는 형태."""
+    raw = _hvsem_raw()
+    normalized = office_example._records([raw])[0]
+    normalized.update(overrides)
+    return normalized
 
 
 def test_image_trio_stays_self_consistent_when_the_first_column_is_blank():
@@ -444,7 +459,7 @@ def test_image_trio_is_unchanged_for_a_well_formed_row():
 def test_disagreeing_image_columns_are_named_in_the_log(caplog):
     """원시 값을 조용히 버리지 않습니다 — 응답당 한 줄로 남깁니다."""
     payload = _payload()
-    payload["df_result_data"] = [_hvsem_rec(mp_image_name_01="")]
+    payload["df_result_data"] = [_hvsem_raw(**{"mp_image_name 01": ""})]
 
     with caplog.at_level(logging.WARNING):
         response = office_example.build_response(_MSR, _parent(), payload)
@@ -455,7 +470,7 @@ def test_disagreeing_image_columns_are_named_in_the_log(caplog):
 
 def test_a_well_formed_payload_logs_no_image_warning(caplog):
     payload = _payload()
-    payload["df_result_data"] = [_hvsem_rec()]
+    payload["df_result_data"] = [_hvsem_raw()]
 
     with caplog.at_level(logging.WARNING):
         office_example.build_response(_MSR, _parent(), payload)
