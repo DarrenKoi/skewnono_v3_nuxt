@@ -318,12 +318,17 @@ def test_judge_exempt_suffixes_are_present_in_the_pool():
     outlierDetect)가 집에서 한 번도 실행되지 않습니다 — mock 이 office 를
     대역한다는 원칙(CLAUDE.md)입니다.
     """
+    # lot 여러 개를 훑습니다. 2026-08-10 에 특수 측정 job 비율이 10% -> 3% 로
+    # 내려가면서(실물이 그렇습니다 — recipe 의 3%) 한 lot 의 190여 건에는 접미사
+    # 여섯 개가 다 나오지 않게 됐습니다. 확인하려는 것은 "한 lot 안에 여섯 개가
+    # 다 있다" 가 아니라 "mock 이 여섯 개를 모두 만들어 낸다" 이므로, 표본을
+    # 넓히는 것이 맞고 기대를 줄이는 것은 틀립니다.
     expected = set(_JUDGE_EXEMPT_SUFFIXES)
-    population = build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     present = {
         suffix
+        for lot_cd in (f"R{index:03d}" for index in range(12))
+        for r in build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
         for suffix in expected
-        for r in population
         if r["recipe_id"].endswith(suffix)
     }
     assert present == expected, present

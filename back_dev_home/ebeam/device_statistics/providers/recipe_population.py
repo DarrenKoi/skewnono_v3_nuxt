@@ -105,7 +105,10 @@ import re
 from typing import TypedDict
 
 from back_dev_home.ebeam.device_statistics.oper_order import OPER_PREFIX_ORDER
-from back_dev_home.ebeam.device_statistics.para_buckets import PARA_BUCKETS
+from back_dev_home.ebeam.device_statistics.para_buckets import (
+    OVERFLOW_BUCKET,
+    PARA_BUCKETS,
+)
 
 
 # ── 분류 규칙 (office_example.py 와 동일) ──────────────────────────────────
@@ -283,7 +286,16 @@ _SAMPLE_RATIO = 0.25
 # _WCDU/_FCDU/_FULL user-confirmed 2026-08-04,
 # _HALF/_BCDU/_MTX user-confirmed 2026-08-05.
 _JUDGE_EXEMPT_SUFFIXES = ("_WCDU", "_FCDU", "_BCDU", "_FULL", "_HALF", "_MTX")
-_JUDGE_EXEMPT_RATIO = 0.10
+
+# 특수 측정 job 의 비율. 0.10 이었다가 **0.03** 으로 내렸습니다 — "16 point 를
+# 넘는 파라미터는 전체 파라미터의 2~5% 이고, 그것이 recipe 의 3% 에 몰려 있다"
+# (user-confirmed 2026-08-10). 그 3% 가 곧 이 job 들입니다: 웨이퍼 전면을 훑으므로
+# 파라미터당 point 수가 정상 recipe 와 자릿수부터 다릅니다.
+#
+# 이 비율이 곧 para_over_16 이 채워지는 recipe 의 비율입니다(_apply_sweep_jobs).
+# 예전에는 0.10 에 더해 PARA_RANGES 가 recipe 마다 0~3 을 따로 뿌려서, 집에서는
+# recipe 의 약 75% 가 16 초과 파라미터를 갖고 있었습니다 — 실물의 25배입니다.
+_JUDGE_EXEMPT_RATIO = 0.03
 
 _OPER_PREFIXES = (
     "ETCH", "DEPO", "LITH", "IMPL", "CLEAN", "ANNL", "INSP", "MEAS",
@@ -324,7 +336,14 @@ PARA_RANGES = {
     "para_9": (6, 28),
     "para_13": (8, 34),
     "para_16": (1, 10),
-    "para_over_16": (0, 3),
+    # 보통 recipe 에는 16 point 를 넘는 파라미터가 **없습니다.** 이 구간을 채우는
+    # 것은 특수 측정 job 뿐이고, 그것은 :func:`_apply_sweep_jobs` 가 이름을 보고
+    # 나중에 넣습니다 (user-confirmed 2026-08-10 — 전체 파라미터의 2~5%,
+    # recipe 의 3%).
+    #
+    # (0, 0) 이 낭비처럼 보이지만 **난수 호출 한 번을 유지**합니다. 여기서 호출을
+    # 빼면 풀 뒷부분 recipe 가 전부 다른 값으로 다시 태어납니다(_recipe_name 주석).
+    "para_over_16": (0, 0),
 }
 
 SKIPPED_RATIO = 0.15
@@ -506,8 +525,41 @@ def _identity_pool(lot_cd: str) -> list[RecipeIdentity]:
             **{f"mother_{key}": 0 for key in _PARA_KEYS},
         })  # type: ignore[typeddict-item]
 
+    _apply_sweep_jobs(pool)
     _assign_mother_counts(pool, lot_cd)
     return pool
+
+
+# 특수 측정 job 에서도 16 point **이하**로 남는 파라미터의 비중. 배율이 8배라도
+# point 가 1~2 인 LEVEL 계열은 8~16 에 머물기 때문에 전부가 넘지는 않습니다
+# (recipe_params 의 EXEMPT_JOB_POINT_SCALE × TYPICAL_POINTS 를 계산해 보면
+# 그렇습니다). 그 몫을 가장 낮은 구간에 남깁니다 — 0 으로 만들면 "이 job 은
+# 파라미터가 전부 16 을 넘는다" 는, 확인되지 않은 더 강한 주장이 됩니다.
+_SWEEP_JOB_RESIDUAL = 0.15
+
+
+def _apply_sweep_jobs(pool: list[RecipeIdentity]) -> None:
+    """특수 측정 job 의 파라미터를 ``para_over_16`` 으로 옮깁니다 (제자리 수정).
+
+    **난수를 쓰지 않습니다.** 이미 만들어진 개수를 옮기기만 하므로 풀의 다른 값은
+    한 바이트도 움직이지 않습니다 (:func:`_assign_mother_counts` 와 같은 이유).
+
+    대상을 :func:`is_exempt_job` 으로 고르는 것이 요점입니다 — 같은 판정을
+    ``recipe_params`` 가 point 수에 배율을 걸 때, 프론트엔드가 판정 범위에서 뺄 때
+    씁니다. 세 표면이 같은 recipe 를 가리켜야 "요약은 16 초과가 많다는데 상세에는
+    그런 파라미터가 없는" 화면이 생기지 않습니다.
+    """
+    for identity in pool:
+        if not is_exempt_job(identity["recipe_id"]):
+            continue
+        total = sum(identity[key] for key in _PARA_KEYS)  # type: ignore[literal-required]
+        if total <= 0:
+            continue
+        residual = max(1, round(total * _SWEEP_JOB_RESIDUAL))
+        for key in _PARA_KEYS:
+            identity[key] = 0  # type: ignore[literal-required]
+        identity["para_5"] = residual
+        identity[OVERFLOW_BUCKET] = total - residual  # type: ignore[literal-required]
 
 
 def _assign_mother_counts(pool: list[RecipeIdentity], lot_cd: str) -> None:

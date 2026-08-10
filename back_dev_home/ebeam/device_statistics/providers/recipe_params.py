@@ -234,7 +234,11 @@ def _build_recipe(
     family = rng.choice(FAMILIES)
     phase = rng.choice(PHASES)
     bloated = rng.random() < 0.08       # ~8% of recipes over-parameterized
-    over_measured = rng.random() < 0.05  # ~5% with a point-count outlier
+    # 1% 입니다(예전 5%). 16 point 를 넘는 파라미터가 있는 recipe 는 전체의 3%
+    # 뿐이고 그 대부분은 아래 exempt_job 이므로(user-confirmed 2026-08-10),
+    # "정상 recipe 안의 외톨이 과다측정" 은 그보다 더 드물어야 합니다. lot 당
+    # recipe 가 100~200 개라 1% 여도 outlier 경로는 매 lot 에서 실행됩니다.
+    over_measured = rng.random() < 0.01  # ~1% with a point-count outlier
     parameters = _build_parameters(
         rng,
         bloated,
