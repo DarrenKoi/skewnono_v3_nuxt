@@ -7,6 +7,7 @@ import {
   WARM_RETRY_DELAYS_MS,
   jittered,
   warmErrorCode,
+  isWarmRefusal,
   warmRetryDelayMs,
   pollRetryDelayMs,
   remainingBudgetMs
@@ -96,7 +97,29 @@ test('the job-cap refusal is recognised through the FetchError body', () => {
 test('a rate-limit 429 carries no job code, so it is NOT a refusal', () => {
   // Same status, opposite response: retrying a throttled client sends more.
   assert.equal(warmErrorCode(rateLimited), undefined)
+  assert.equal(isWarmRefusal(rateLimited), false)
   assert.equal(warmRetryDelayMs(rateLimited, 0, 0, 0.5), null)
+})
+
+// The refusal is a 429 AND the body code — either axis alone is a guess. The
+// code alone is what shipped, and the reason this test exists is that the very
+// argument for the code check ("not every 429 is the same 429") says the
+// converse too: not every `too_many_jobs` would be a 429 if some future path
+// put that code on a 5xx.
+test('the refusal needs BOTH the status and the code', () => {
+  assert.equal(isWarmRefusal(refusal), true)
+  assert.equal(isWarmRefusal({ response: { status: 429 }, data: { code: 'too_many_jobs' } }), true)
+
+  // The code on anything but a 429 is not the job cap answering.
+  assert.equal(isWarmRefusal({ statusCode: 500, data: { code: 'too_many_jobs' } }), false)
+  assert.equal(isWarmRefusal({ response: { status: 503 }, data: { code: 'too_many_jobs' } }), false)
+  // No status at all: the request never reached a server (network, abort).
+  assert.equal(isWarmRefusal({ data: { code: 'too_many_jobs' } }), false)
+})
+
+test('only a real refusal earns a retry', () => {
+  assert.equal(warmRetryDelayMs({ statusCode: 500, data: { code: 'too_many_jobs' } }, 0, 0, 0.5), null)
+  assert.equal(warmRetryDelayMs({ data: { code: 'too_many_jobs' } }, 0, 0, 0.5), null)
 })
 
 test('a refusal retries on the configured backoff ladder', () => {

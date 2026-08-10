@@ -72,14 +72,22 @@ export const httpStatus = (err: unknown): number | undefined => {
   return e?.response?.status ?? e?.statusCode
 }
 
-/** The `code` a rejected $fetch carries, whatever shape Nuxt hands us.
- *
- * Status alone cannot decide this. `/api/*` has an application-wide 20 req/5s
- * limit that also answers 429, and warm polling at 600ms can reach it — but
- * only the job-cap refusal carries `too_many_jobs` (routes.py). Retrying the
- * other 429 would have a throttled client send more. */
+/** The `code` a rejected $fetch carries, whatever shape Nuxt hands us. */
 export const warmErrorCode = (err: unknown): string | undefined =>
   (err as { data?: { code?: string } })?.data?.code
+
+/** Was this the warm job being turned away by its own cap — the one failure
+ * that clears on its own, and so the one worth waiting out?
+ *
+ * BOTH axes are required, and each rules out a different impostor. Status
+ * alone is not enough: `/api/*` has an application-wide 20 req/5s limit that
+ * also answers 429, and warm polling at 600ms can reach it, but retrying THAT
+ * has a throttled client send more. The code alone is not enough either, by
+ * the same argument read backwards — a code is only as specific as the paths
+ * that emit it, and nothing stops a future 5xx from carrying this one. Today
+ * only routes.py's job-cap branch does, and it is a 429. */
+export const isWarmRefusal = (err: unknown): boolean =>
+  httpStatus(err) === 429 && warmErrorCode(err) === 'too_many_jobs'
 
 /** `baseMs` spread over +/-25%. `rand` is a caller-supplied [0,1) so the
  * policy stays a pure function; the caller passes Math.random(). Several
@@ -118,7 +126,7 @@ export const warmRetryDelayMs = (
   elapsedMs: number,
   rand: number
 ): number | null => {
-  if (warmErrorCode(err) !== 'too_many_jobs') return null
+  if (!isWarmRefusal(err)) return null
   return ladderDelayMs(attempt, elapsedMs, rand)
 }
 
