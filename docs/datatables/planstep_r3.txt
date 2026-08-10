@@ -167,8 +167,30 @@ mother_para 출처 — 미해결 (2026-08-04)
   health 는 판정할 파라미터가 없어 0/0 이 되는, 두 표면이 어긋난 화면이 됩니다).
   해결 후보는 back_dev_home/ebeam/device_statistics/MIGRATION.md 참고.
 
+한 device 의 문서 수 — 2000건을 넘습니다 (office 확인 2026-08-10)
+
+device RJ1B(prod_id "RJ1B_BASE")가 어댑터의 2000건 상한에 걸려 화면에
+upstream_data_error 로 떨어졌습니다. 즉 **한 device 의 plan step 문서는 최소
+2000건** 입니다.
+
+이 숫자가 "device 당 recipe 100~200" 과 어긋나 보이는 것이 요점입니다. 이 index 의
+문서 1건은 **측정 recipe 가 아니라 plan step** 이고, 한 device 의 공정 계획에는
+skip_yn == "Y" 인 스텝과 같은 recipe 를 재사용하는 스텝이 함께 들어 있어 문서 수가
+recipe 수보다 한 자리수 배 많습니다. mock(providers/recipe_population.py)은 스텝과
+recipe 를 1:1 로 만들어 device 당 175~200 개만 내므로, 이 축에서 mock 은 실물보다
+열 배 좁습니다.
+
+어댑터의 상한은 2000 -> 10000(OpenSearch `index.max_result_window` 기본값)으로
+올렸습니다. 단발 search 로 가져올 수 있는 천장이 거기라 **숫자를 더 올리는 것으로는
+다음 번을 넘길 수 없고**, 10000 을 치면 search_after 페이지네이션이 필요합니다.
+
+아직 모르는 것: 실제 최대 문서 수, 그리고 2000+ 가 정상 계획 크기인지 아니면
+(oper_seq, samp_seq) 가 중복 적재된 것인지. `scripts/probe_planstep_r3` 의 [4]
+단계가 device 별 문서 수를 출력하므로 사무실에서 한 번 확인하십시오.
+
 주의 — mock 과 다른 점
 
+- **문서 수 규모**: 위 절 참고. mock 은 device 당 175~200 스텝, 실물은 2000+ 입니다.
 - **skip_yn 값 도메인**: 이 index 는 "Y"/"N"/**빈 값** 세 가지이고,
   mock(providers/statistics.py)은 과거 "Yes"/"No" 두 가지만 생성했습니다. mock 은
   2026-07-30 에 "Y"/"N" 으로, 2026-07-31 에 빈 값까지 섞도록 맞췄습니다 — 빈 값을
@@ -191,6 +213,8 @@ OFFICE-VERIFY
 - prod_id 에서 "_BASE" 를 떼어낸 값이 r3_device_grp.lot_cd 어휘와 실제로 겹치는지.
   ("_BASE" 외의 접미사가 존재하는지 포함.)
 - chg_tm 이 정말 offset 없이 저장되는지(Z 나 +09:00 이 붙으면 9시간 어긋납니다).
-- 한 device 의 스텝 수 / 전체 문서 수 — recipe-statistics 의 payload 규모 판단용.
+- 한 device 의 **최대** 문서 수 — 2000+ 라는 하한만 확인됐습니다(위 절). 10000 을
+  넘는 device 가 있으면 단발 search 로는 못 가져오므로 페이지네이션이 필요합니다.
+- 2000+ 문서가 정상 계획 크기인지, (oper_seq, samp_seq) 중복 적재인지.
 
     .venv/bin/python -m scripts.probe_planstep_r3

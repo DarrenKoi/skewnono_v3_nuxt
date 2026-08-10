@@ -281,6 +281,15 @@ _EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
 # 하한 175 는 궤적의 최저 배율(0.58)을 곱해도 recipe 수가 **100 아래로 내려가지
 # 않도록** 잡은 값이고, 상한 200 은 배율 1.0 일 때 200 을 넘지 않도록 한 값입니다.
 # device 당 recipe 100~200 이 확인된 도메인이기 때문입니다 (D22).
+#
+# 실물과 좁은 지점 — 이 풀은 **스텝 1개 = recipe 1개** 입니다. office 의
+# sknn-planstep-r3 은 문서 1건이 recipe 가 아니라 plan step 이고, 한 device 가
+# 2000건을 넘습니다 (office 확인 2026-08-10 — RJ1B 가 어댑터 상한을 쳤습니다;
+# docs/datatables/planstep_r3.txt). 차이는 skip 되는 스텝과 같은 recipe 를 여러
+# 스텝에서 재사용하는 몫입니다. 그래서 recipe 수는 이 값으로 맞지만 **스텝 수는
+# 실물의 1/10** 이고, 스텝 규모에 좌우되는 것(어댑터의 조회 상한, payload 크기)은
+# 집에서 한 번도 관찰되지 않습니다. 1:n 로 벌리려면 rng 호출 수가 바뀌어 풀 전체가
+# 다른 값으로 다시 태어나므로(_recipe_name 주석), 별도 작업으로 다뤄야 합니다.
 POOL_RANGE = (175, 200)
 
 PARA_RANGES = {

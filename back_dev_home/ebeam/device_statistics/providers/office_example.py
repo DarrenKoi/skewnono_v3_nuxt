@@ -212,8 +212,26 @@ SKIPPED = "Y"
 # 돌았다") 일부러 상수를 공유하지 않습니다 — ebeam_tas_lot_hist.txt.
 MFAB_WINDOW_DAYS = 90
 
-# 한 device 의 스텝 수 상한. 넘으면 조용히 자르지 않고 실패시킵니다.
-MAX_STEPS_PER_DEVICE = 2000
+# 한 device 의 R3 plan step 문서 수 상한. 넘으면 조용히 자르지 않고 실패시킵니다.
+#
+# 2000 이었다가 10000 으로 올렸습니다 — RJ1B 가 실제로 2000 을 쳤습니다
+# (office 확인 2026-08-10, 화면에 upstream_data_error 로 노출). 2000 은 mock 의
+# device 당 recipe 175~200 감각으로 잡은 값인데, 이 index 의 문서는 **측정 recipe
+# 가 아니라 plan step** 이라 한 자리수 배는 많습니다 (planstep_r3.txt).
+#
+# 10000 은 임의의 숫자가 아니라 OpenSearch ``index.max_result_window`` 기본값
+# 입니다. ``fetch_hits`` 는 search_after 없는 단발 질의라 이 값을 넘는 ``size``
+# 는 응답이 잘리는 게 아니라 질의 자체가 거부됩니다. 따라서 **여기서 숫자를 더
+# 올리는 것으로는 다음 번을 넘길 수 없고**, 그때는 search_after 페이지네이션이
+# 필요합니다 (아래 _r3_steps 의 예외 메시지가 그 사실을 안내합니다).
+_RESULT_WINDOW = 10_000
+MAX_STEPS_PER_DEVICE = _RESULT_WINDOW
+
+# M-fab 스텝 이름(unique oper_det_desc) terms agg 의 size 상한. R3 의 문서 수
+# 상한과 **다른 양** 이라 상수를 나눠 둡니다 — 예전에는 하나를 공유해서, R3 쪽
+# 사정으로 숫자를 올리면 M-fab 집계 버킷까지 같이 부풀었습니다. 90일 창의 unique
+# 스텝 이름은 수백 규모입니다 (ebeam_tas_lot_hist.txt).
+MAX_MFAB_STEP_NAMES = 2000
 
 # para_* 버킷은 **point 수**입니다 (타입 코드가 아닙니다 — idp_ver.txt).
 PARA_POINT_BUCKETS = (16, 13, 9, 5)
@@ -513,7 +531,10 @@ def _r3_steps(lot_cd: str) -> list[dict[str, Any]]:
         raise LookupError(
             f"Device {lot_cd!r} hit the {MAX_STEPS_PER_DEVICE}-step cap in "
             f"{PLANSTEP_INDEX!r}. A truncated step list understates every "
-            "para_* total; raise MAX_STEPS_PER_DEVICE or check ingestion."
+            "para_* total. This cap is already OpenSearch's max_result_window, "
+            "so raising it alone will make the query fail outright — page with "
+            "search_after, or check ingestion for duplicate step documents "
+            "(scripts/probe_planstep_r3 stage [4] prints the real count)."
         )
     return [
         {
@@ -544,7 +565,7 @@ def _mfab_steps(lot_cd: str) -> list[dict[str, Any]]:
     )
     aggs = {
         "steps": {
-            "terms": {"field": OPER_DET_DESC_KW, "size": MAX_STEPS_PER_DEVICE},
+            "terms": {"field": OPER_DET_DESC_KW, "size": MAX_MFAB_STEP_NAMES},
             "aggs": {
                 "latest": {
                     "top_hits": {
@@ -564,7 +585,20 @@ def _mfab_steps(lot_cd: str) -> list[dict[str, Any]]:
             {"range": {LOT_HIST_TIME_F: {"gte": floor}}},
         ]),
     )
-    buckets = result.get("steps", {}).get("buckets", [])
+    steps_agg = result.get("steps", {})
+    buckets = steps_agg.get("buckets", [])
+    # terms agg 도 R3 경로와 같은 방침으로 잘림을 실패로 만듭니다. 여기서는
+    # 버킷 수를 세는 대신 ``sum_other_doc_count`` 를 봅니다 — 이 값이 곧
+    # "size 밖으로 밀려난 문서 수" 라서, 스텝 수가 정확히 상한과 같을 때
+    # 멀쩡한 응답을 실패로 오인하지 않습니다.
+    dropped = _as_int(steps_agg.get("sum_other_doc_count"))
+    if dropped:
+        raise LookupError(
+            f"Device {lot_cd!r} exceeded the {MAX_MFAB_STEP_NAMES}-step-name cap "
+            f"in {LOT_HIST_INDEX!r} ({dropped:,} measurement doc(s) fell outside "
+            "the returned buckets). A truncated step list understates every "
+            "para_* total; raise MAX_MFAB_STEP_NAMES or check ingestion."
+        )
 
     steps: list[dict[str, Any]] = []
     for bucket in buckets:
