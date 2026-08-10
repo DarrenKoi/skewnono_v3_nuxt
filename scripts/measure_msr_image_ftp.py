@@ -64,6 +64,7 @@ batch rather than buying time.
 from __future__ import annotations
 
 import argparse
+import os
 import statistics
 import sys
 import threading
@@ -75,6 +76,38 @@ from back_dev_home._runtime.office_redis import load_env_file
 from back_dev_home.msr_image.config import ImageConfig, load_config
 from back_dev_home.msr_image.contracts import ImageLocator
 from back_dev_home.msr_image.paths import image_dir, validate_tool_ip
+
+# Office settings, in the file, so this script runs with no .env at all.
+#
+# Chasing a measurement across a .env that may or may not be read cost more of
+# an office visit than the measurement itself. Every value here is already
+# committed elsewhere in this public repo -- the tool account in .env.example
+# ("사내 관례, 비기밀"), the cache location in msr_image/MIGRATION.md and
+# docs/datatables/msr_file_pickle.txt -- so writing them here reveals nothing
+# new. It only removes a dependency from a script that is run by hand, once, on
+# a machine whose environment nobody wants to debug at that moment.
+#
+# Precedence stays ordinary: these are the BASELINE, a real environment
+# variable overrides one, and a command-line flag overrides that. So a machine
+# with a correct .env behaves exactly as before.
+#
+# NOT here, and cannot be: the MinIO access/secret keys. They live in
+# minio_handler/minio_config.py, which is gitignored precisely because they are
+# secret. Stage D still needs that file to be filled in on the machine.
+_BUILTIN_ENV = {
+    # All Hitachi tools share one FTP account.
+    "SKEWNONO_TOOL_FTP_USER": "hitachi",
+    "SKEWNONO_TOOL_FTP_PASSWORD": "hid",
+    "SKEWNONO_TOOL_FTP_PORT": "21",
+    # Confirmed 2.0x over n=1 by this script on 2026-08-10.
+    "SKEWNONO_TOOL_FTP_CONCURRENCY": "6",
+    "SKEWNONO_TOOL_FTP_TIMEOUT": "8",
+    # `user` is the BUCKET; `2067928/` is the key prefix inside it. Folding the
+    # bucket into the prefix writes outside the credentials' scope and MinIO
+    # answers AccessDenied.
+    "SKEWNONO_IMAGE_CACHE_BUCKET": "user",
+    "SKEWNONO_IMAGE_CACHE_PREFIX": "2067928/image_cache/",
+}
 
 # Big enough that no stage is ever cut short by the backstop it is trying to
 # measure. Every stage here is bounded by --images instead.
@@ -512,7 +545,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"target: eqp_ip={eqp_ip!r} class_name={class_name!r} msr={msr!r}")
     print(f"ftp dir: {image_dir(class_name, msr)!r}")
 
-    cfg = load_config()
+    # _BUILTIN_ENV is the baseline and os.environ wins over it, so a machine
+    # with a correct .env is unaffected and a machine with none still runs.
+    cfg = load_config({**_BUILTIN_ENV, **os.environ})
     validate_tool_ip(eqp_ip, cfg.allowed_subnets)
     # Nothing may be abandoned mid-measurement: an abandoned host yields a
     # failure, not a duration, which would bias every average toward fast files.
