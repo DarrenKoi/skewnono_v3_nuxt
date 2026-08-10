@@ -1,8 +1,41 @@
 # DeviceRow 의 prod_catg_cd / tech_nm 우선순위가 mock 과 office 에서 반대다
 
 Type: bug
-Status: needs-triage
-검증: 에이전트 보고(미확인) — 착수 전 원본 대조 필요
+Status: done
+검증: **확인함** (원본 대조 완료 2026-08-10)
+
+## 결정 (user-confirmed 2026-08-10) — M계열(양산) 우선
+
+01 번과 같은 결정입니다. 겹치는 `lot_cd` 는 **`tech_nm` 이 이깁니다**.
+
+## 고친 것
+
+`recipe_tat` 과 `fail_issue` 의 office 어댑터에서 조인 순서를 뒤집었습니다:
+
+```python
+tech_nm = catalog.get(lot_cd, {}).get("tech_nm") or None
+prod_catg_cd = None if tech_nm else (r3.get(lot_cd) or None)
+```
+
+이제 mock 의 `_analytics.lot_metadata()`(device_desc 가 r3 엔트리를 통째로
+덮어써 `tech_nm` 이 이기는 형태)와 같은 답을 냅니다. office 쪽의
+`"" → None` 정규화는 유지했습니다 — 그쪽이 옳습니다.
+
+## 테스트
+
+`recipe_tat/tests/test_office_template.py` 에 겹치는 lot 을 지어 넣어
+`tech_nm` 이 살아남는지 고정했습니다. `fail_issue` 의 같은 두 줄은 문자열이
+동일해 함께 바뀌었으나 별도 테스트는 없습니다 — 집계 형태가 달라 픽스처를
+따로 만들어야 해서, 검토로만 확인했습니다.
+
+## 남은 것
+
+01 번과 같은 OFFICE-VERIFY(겹치는 lot 의 실재 여부)를 공유합니다. 이 결정을
+`_office_meas_hist.py` 의 공용 헬퍼로 올리는 일은 하지 않았습니다 — 지금은
+두 어댑터에 같은 두 줄이 복제돼 있고, 세 번째 소비자가 생기면 그때가
+올릴 시점입니다.
+
+## 원래 서술 (참고)
 
 ## 배경
 

@@ -39,7 +39,9 @@ Aggregation shapes per endpoint:
                   rows only) + ``top_hits``. Zero-fail groups are dropped in
                   Python — a triage table, not a full recipe listing.
 * meas-ranking  — same, keyed on the fail_ratio range, plus
-                  ``avg(fail_ratio)`` over the FULL group (not just fails).
+                  ``sum(fail_ratio)`` over the FULL group (not just fails),
+                  divided by the group's doc_count — see the comment there for
+                  why this is not the ``avg`` aggregation.
 * devices       — composite over ``lot_id.keyword`` with align/meas filter
                   sub-aggs, rolled up per lot_cd through the bridge, joined
                   with the exactly-one metadata rule (R3 ``prod_catg_cd`` vs
@@ -130,7 +132,9 @@ _ALIGN_NA_FILTER = {"term": {_ALIGN_KW: "NA"}}
 _MEAS_FAIL_FILTER = {"range": {"fail_ratio": {"gt": MEAS_FAIL_THRESHOLD}}}
 
 
-def _rate(count: int, total: int) -> float:
+def _rate(count: float, total: int) -> float:
+    # float 도 받습니다 — avg_fail_ratio 가 sum(fail_ratio)/doc_count 로
+    # 같은 나눗셈을 씁니다.
     return round(count / total, 4) if total else 0.0
 
 
@@ -373,7 +377,17 @@ def get_meas_ranking(
         },
         # Over the FULL group, not just the failing subset (mock parity —
         # MIGRATION.md: "do not average only the fail rows").
-        "ratio": {"avg": {"field": "fail_ratio"}},
+        #
+        # sum + divide by doc_count, NOT `avg`. OpenSearch's `avg` divides by
+        # the documents that HAVE the field, but the row path coerces a missing
+        # fail_ratio to 0.0 (`normalize_fail_ratio`; the contract types it as a
+        # plain float) — so `avg` would drop a row the table shows as 0.0% and
+        # the card would stop being the average of what the user can see. The
+        # mock divides by every row in the group for the same reason.
+        #
+        # This is the OPPOSITE call from meastime, deliberately: 0 seconds is
+        # not a real measurement time, so that average excludes its blanks.
+        "ratio_sum": {"sum": {"field": "fail_ratio"}},
     }
     buckets = _ranked_recipe_buckets(tool_type, clauses, fail_sub_aggs, limit)
 
@@ -391,8 +405,9 @@ def get_meas_ranking(
                 exec_count=exec_count,
                 meas_fail_count=fail_count,
                 meas_fail_rate=_rate(fail_count, exec_count),
-                avg_fail_ratio=round(
-                    float(bucket.get("ratio", {}).get("value") or 0.0), 4
+                avg_fail_ratio=_rate(
+                    float(bucket.get("ratio_sum", {}).get("value") or 0.0),
+                    exec_count,
                 ),
                 sample_eqp_ids=_sample_eqp_ids(bucket),
                 fab_names=_bucket_fab_names(bucket),
@@ -441,9 +456,15 @@ def get_devices(
 
     rows: list[DeviceRow] = []
     for lot_cd, agg in rolled.items():
-        # Exactly one of the pair: R3/R&D -> prod_catg_cd, M-fab -> tech_nm.
-        prod_catg_cd = r3.get(lot_cd)
-        tech_nm = None if prod_catg_cd else (catalog.get(lot_cd, {}).get("tech_nm") or None)
+        # Exactly one of the pair: M-fab -> tech_nm, R3/R&D -> prod_catg_cd.
+        #
+        # M-fab WINS when a lot_cd sits in both catalogs (user-confirmed
+        # 2026-08-10): device_desc reflects what the device is now. This used
+        # to test prod_catg_cd first, so an overlapping lot showed a
+        # product-category chip at the office and a tech-node chip at home —
+        # the mock's lot_metadata() lets device_desc overwrite the r3 entry.
+        tech_nm = catalog.get(lot_cd, {}).get("tech_nm") or None
+        prod_catg_cd = None if tech_nm else (r3.get(lot_cd) or None)
         rows.append(
             DeviceRow(
                 lot_cd=lot_cd,

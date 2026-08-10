@@ -447,9 +447,15 @@ def get_devices(
 
     rows: list[DeviceRow] = []
     for lot_cd, agg in rolled.items():
-        # Exactly one of the pair: R3/R&D -> prod_catg_cd, M-fab -> tech_nm.
-        prod_catg_cd = r3.get(lot_cd)
-        tech_nm = None if prod_catg_cd else (catalog.get(lot_cd, {}).get("tech_nm") or None)
+        # Exactly one of the pair: M-fab -> tech_nm, R3/R&D -> prod_catg_cd.
+        #
+        # M-fab WINS when a lot_cd sits in both catalogs (user-confirmed
+        # 2026-08-10): device_desc reflects what the device is now. This used
+        # to test prod_catg_cd first, so an overlapping lot showed a
+        # product-category chip at the office and a tech-node chip at home —
+        # the mock's lot_metadata() lets device_desc overwrite the r3 entry.
+        tech_nm = catalog.get(lot_cd, {}).get("tech_nm") or None
+        prod_catg_cd = None if tech_nm else (r3.get(lot_cd) or None)
         rows.append(
             DeviceRow(
                 lot_cd=lot_cd,

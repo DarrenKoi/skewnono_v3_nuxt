@@ -38,15 +38,15 @@ Status: needs-triage
 
 | NN | 대상 | 무엇이 갈리는가 | 성격 |
 | --- | --- | --- | --- |
-| 01 | `device_statistics` | office 어댑터가 **자기 자신과** 모순 — `_lot_index` 는 r3 우선, `ctn_desc` 조인은 hvm 우선 | 자기모순 + 정책 |
-| 02 | `recipe_tat`, `fail_issue` | `DeviceRow.prod_catg_cd` vs `tech_nm` — 카탈로그 겹칠 때 우선순위가 mock 과 반대 | 정책 |
-| 03 | `fail_issue` | `avg_fail_ratio` 분모 — 전체 행 vs 필드를 가진 문서만 | 정책 |
-| 04 | `recipe_tat`, `fail_issue` | `total_executions` — `doc_count` vs `value_count(meastime)` 가 한 파일 안에서 혼용 | 정책 |
+| 01 | `device_statistics` | ~~자기모순 + 우선순위~~ **완료** — M계열 우선으로 통일 | done |
+| 02 | `recipe_tat`, `fail_issue` | ~~`prod_catg_cd` vs `tech_nm`~~ **완료** — M계열 우선(`tech_nm`) | done |
+| 03 | `fail_issue` | ~~`avg_fail_ratio` 분모~~ **완료** — 전체 행으로 나눔(mock 이 옳음) | done |
+| 04 | `recipe_tat`, `fail_issue` | ~~`total_executions` 규약~~ **완료** — 실행 수와 평균 분모를 분리 | done |
 | 05 | `msr_file` | `health` 가 두 개의 무관한 공식 | 정책(의도적일 수 있음) |
 | 06 | `storage` | 고아 IP 행 — 집에서는 내보내고 사무실에서는 버림, 두 docstring 이 서로 반대를 선언 | 정책 |
 | 07 | `msr_file` | `mp_image_name_01` / `no_of_mp_image` 가 `mp_image_names` 와 분리 | 정책 |
 | 08 | 여러 곳 | 반올림·None·정렬 tie-break 등 표시상 차이 묶음 | 정책(낮음) |
-| 09 | 여러 곳 | 어느 쪽이 옳은지 자명한 기계적 수정 묶음 | ready-for-agent |
+| 09 | 여러 곳 | ~~자명한 기계적 수정 묶음~~ **완료** — 7건 수정, 2건 오탐 | done |
 
 ## 검증 수준에 관한 정직한 표기
 

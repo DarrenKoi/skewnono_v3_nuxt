@@ -43,3 +43,34 @@ def test_summary_rates_divide_by_documents_not_by_meastime(monkeypatch):
     assert summary["align_fail_rate"] == 0.1   # 10/100 — 90 으로 나눴다면 0.1111
     assert summary["meas_fail_rate"] == 0.05   # 5/100  — 90 으로 나눴다면 0.0556
     assert captured["aggs"]["execs"] == {"value_count": {"field": "timestamp"}}
+
+
+def test_avg_fail_ratio_divides_by_every_row_in_the_group(monkeypatch):
+    """평균은 표에 보이는 것의 평균이어야 합니다.
+
+    OpenSearch 의 avg 는 필드를 **가진** 문서로만 나누는데, 행 경로는 결측
+    fail_ratio 를 normalize_fail_ratio 로 0.0 으로 강제합니다 — 계약 타입도
+    plain float 입니다. 그래서 avg 는 표가 0.0% 로 보여 주는 행을 빼 버렸고,
+    카드가 "보이는 것의 평균" 이기를 그만뒀습니다. mock 은 전체 행으로
+    나눕니다.
+
+    meastime 과는 반대 판단입니다: 0초짜리 측정은 실재하지 않으므로 그쪽
+    평균은 결측을 분모에서 뺍니다.
+    """
+    def fake_ranked(tool_type, clauses, sub_aggs, limit):
+        assert sub_aggs["ratio_sum"] == {"sum": {"field": "fail_ratio"}}
+        return [{
+            "key": {"group": "ADI/ADI_CD_BIAS_001"},
+            "doc_count": 4,                       # 실행 4건
+            "fail": {"doc_count": 1, "eqps": {"buckets": []}},
+            "ratio_sum": {"value": 80.0},         # 그중 fail_ratio 합이 80
+        }]
+
+    monkeypatch.setattr(office_example, "_ranked_recipe_buckets", fake_ranked)
+    monkeypatch.setattr(office_example, "_bucket_fab_names", lambda b: [])
+
+    rows = office_example.get_meas_ranking("cd-sem", None, "2026-08-01", "2026-08-10")
+
+    # 80 / 4 = 20.0. avg 였다면 값을 가진 문서 수로 나눠 더 컸을 것입니다.
+    assert rows[0]["avg_fail_ratio"] == 20.0
+    assert rows[0]["exec_count"] == 4

@@ -463,15 +463,23 @@ def _lot_meta() -> dict[str, dict[str, str]]:
     ``prod_catg_cd`` 는 R3 카탈로그에만 있습니다. M-fab device 는 원천에 값이
     없으므로 ""로 두고 ``memory_class_auto`` 를 "unknown"(수동 분류, D7)으로
     떨어뜨립니다 — mock 처럼 임의로 고르면 실물이 모르는 값을 가르치게 됩니다.
+
+    겹치는 ``lot_cd`` 는 **M-fab 이 이깁니다** (user-confirmed 2026-08-10) —
+    바로 위 ``_lot_index`` 와 같은 순서입니다. 예전에는 이 함수만 hvm 을 먼저
+    넣어 r3 이 이기는 바람에, 두 카탈로그에 모두 있는 lot 이 ``fac_id`` 는
+    M-fab 행에서(그래서 ``_is_r3`` 가 M 으로 라우팅) ``ctn_desc`` /
+    ``prod_catg_cd`` 는 R3 행에서 가져오는 잡종이 됐습니다. 한 파일 안의 두
+    함수가 서로 반대 순서였고, mock 은 양쪽 다 M 우선이라 집에서는 재현되지
+    않았습니다 — mock 의 두 생성기는 같은 lot_cd 를 함께 만들지 않습니다.
     """
     meta: dict[str, dict[str, str]] = {}
-    for row in _hvm_rows():
-        meta[row["lot_cd"]] = {"ctn_desc": row["ctn_desc"], "prod_catg_cd": ""}
     for row in _r3_rows():
         meta[row["lot_cd"]] = {
             "ctn_desc": row["ctn_desc"],
             "prod_catg_cd": row["prod_catg_cd"],
         }
+    for row in _hvm_rows():
+        meta[row["lot_cd"]] = {"ctn_desc": row["ctn_desc"], "prod_catg_cd": ""}
     return meta
 
 

@@ -191,3 +191,27 @@ def test_summary_counts_executions_by_document_not_by_meastime(monkeypatch):
     # 두 집계가 서로 다른 필드를 세는지 고정합니다.
     assert captured["aggs"]["docs"] == {"value_count": {"field": "timestamp"}}
     assert captured["aggs"]["measured"] == {"value_count": {"field": "meastime"}}
+
+
+def test_overlapping_lot_cd_shows_the_m_fab_tech_node(monkeypatch):
+    """두 카탈로그에 모두 있는 lot 은 M-fab 이 이깁니다.
+
+    user-confirmed 2026-08-10. 예전에는 prod_catg_cd 를 먼저 보는 바람에
+    같은 lot 이 집에서는 기술 노드 칩으로, 사무실에서는 제품 카테고리 칩으로
+    보였습니다 — mock 의 _analytics.lot_metadata() 는 device_desc 가 r3
+    엔트리를 통째로 덮어써서 tech_nm 이 이깁니다.
+    """
+    monkeypatch.setattr(
+        office_example, "_composite_buckets",
+        lambda *a, **k: [{"key": {"group": "R00124001"}, "doc_count": 3,
+                          "tat": {"value": 900}}],
+    )
+    monkeypatch.setattr(office_example, "_lot_id_to_lot_cd", lambda: {"R00124001": "R001"})
+    # 겹치는 lot_cd — 양쪽 카탈로그에 모두 있습니다.
+    monkeypatch.setattr(office_example, "_r3_device_grp", lambda: {"R001": "DRAM"})
+    monkeypatch.setattr(office_example, "_device_desc", lambda: {"R001": {"tech_nm": "TP"}})
+
+    rows = office_example.get_devices("cd-sem", None, "2026-08-01", "2026-08-10")
+
+    assert rows[0]["tech_nm"] == "TP"
+    assert rows[0]["prod_catg_cd"] is None

@@ -1,8 +1,37 @@
 # device_statistics office 어댑터가 카탈로그 조인에서 자기 자신과 모순된다
 
 Type: bug
-Status: needs-triage
+Status: done
 검증: **확인함** (원본 대조)
+
+## 결정 (user-confirmed 2026-08-10) — M계열(양산) 우선
+
+`device_desc` 가 device 의 현재 상태를 반영하므로, 겹치는 `lot_cd` 는 M-fab 이
+이깁니다. mock 은 `_lot_index` 와 `_lot_ctn_desc` 양쪽에서 이미 이 순서였고,
+office 의 `_lot_index` 도 그랬습니다 — `_lot_meta` 하나만 반대였습니다.
+
+## 고친 것
+
+`_lot_meta()` 를 r3 → hvm 순서로 뒤집어 `_lot_index()` 와 일치시켰습니다.
+이제 겹치는 lot 은 `fac_id`·`ctn_desc`·`prod_catg_cd` 를 모두 같은 카탈로그
+(M-fab)에서 가져옵니다. M-fab device 는 원천에 `prod_catg_cd` 가 없으므로 ""
+이고 `memory_class_auto` 는 "unknown"(수동 분류, D7)으로 떨어집니다 — 겹치는
+lot 이 R3 의 값을 잃는 것은 M-fab 으로 판정한다는 결정의 직접적 귀결입니다.
+
+## 테스트
+
+`tests/test_office_template.py` 를 새로 만들어 두 함수가 같은 카탈로그로
+해석되는지 고정했습니다. mock 의 두 생성기는 같은 `lot_cd` 를 함께 만들지
+않으므로, 겹치는 상황은 테스트가 직접 지어 넣습니다.
+
+## 남은 OFFICE-VERIFY
+
+겹치는 `lot_cd` 가 실물에 **실제로 존재하는지**는 여전히 미확인입니다. 없다면
+이 수정은 자기모순 정리로만 의미가 있고 우선순위 결정은 무의미합니다.
+확인하려면 두 카탈로그의 `lot_cd` 집합 교집합 크기를 사무실에서 한 번 재면
+됩니다.
+
+## 원래 서술 (참고)
 
 ## 배경
 
