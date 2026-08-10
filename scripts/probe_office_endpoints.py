@@ -27,6 +27,12 @@ Run FROM THE OFFICE NETWORK (the base URL does not resolve from home):
     .venv/bin/python -m scripts.probe_office_endpoints
     .venv\\Scripts\\python -m scripts.probe_office_endpoints   # office Windows PC
 
+For a local home/mock Flask server, opt in to its intentional fallback
+identity so the strict office no-token check does not stop the sweep:
+
+    .venv/bin/python -m scripts.probe_office_endpoints \\
+        --base-url http://localhost:5050 --allow-implicit-identity
+
 The token is NOT an argument: mint one in the web UI (settings -> API tokens)
 and export it, the same way the documented Python snippet expects:
 
@@ -82,7 +88,7 @@ AUTH_PROBE_PATH = "/api/account/api-tokens"
 # The catalog's auth labels. Kept in sync with the `auth` field of
 # ApiEndpoint in app/data/apiCatalog.ts. Strings are Korean because that is
 # what the page shows; the script compares against these exact values.
-AUTH_TOKEN_OK = "\ud1a0\ud0a0 \uac00\ub2a5"          # '토큰 가능'
+AUTH_TOKEN_OK = "\ud1a0\ud070 \uac00\ub2a5"          # '토큰 가능'
 AUTH_ADMIN_ONLY = "\uad00\ub9ac\uc790"                  # '관리자'
 AUTH_HUMAN_ONLY = "\uc0ac\ub78c \uc138\uc158\ub9cc"    # '사람 세션만'
 
@@ -137,6 +143,10 @@ CATALOG: list[dict[str, Any]] = [
      "example": {"path": "/cdsem/recipe-search/align-detail",
                  "query": {"eqp_ip": "10.1.2.3", "class_name": "CLS",
                            "idw": "IDW_A", "idp": "IDP_B", "p_numbers": "1,2"}}},
+    {"method": "GET", "path": "/api/{tool_slug}/recipe-search/recipe-image", "auth": AUTH_TOKEN_OK,
+     "example": {"path": "/cdsem/recipe-search/recipe-image",
+                 "query": {"eqp_ip": "10.1.2.3", "class_name": "CLS",
+                           "idw": "IDW_A", "idp": "IDP_B", "name": "IMMP0004.jpeg"}}},
     {"method": "GET", "path": "/api/{tool_slug}/recipe-search/lateral", "auth": AUTH_TOKEN_OK,
      "example": {"path": "/cdsem/recipe-search/lateral",
                  "query": {"recipe_name": "RCP_001"}}},
@@ -262,7 +272,10 @@ def _query_from(example: dict[str, Any]) -> dict[str, str] | None:
     return {k: str(v) for k, v in q.items()}
 
 
-def _do_auth_probe(requests: Any, base: str, token: str, timeout: float) -> list[str]:
+def _do_auth_probe(
+    requests: Any, base: str, token: str, timeout: float, *,
+    allow_implicit_identity: bool = False,
+) -> list[str]:
     """Three-state token check: no token -> 401, junk -> 401, real -> 200.
 
     Returns a list of finding strings; empty means the probe passed. The
@@ -295,7 +308,9 @@ def _do_auth_probe(requests: Any, base: str, token: str, timeout: float) -> list
             "    Run from the office network; verify the app is up and\n"
             "    --base-url points at it (default is the production host)."
         ) from None
-    if r1.status_code != 401:
+    if r1.status_code == 200 and allow_implicit_identity:
+        print("      no-token   OK    200 (implicit local development identity)")
+    elif r1.status_code != 401:
         findings.append(
             f"no-token leg: expected 401, got HTTP {r1.status_code}"
         )
@@ -484,6 +499,11 @@ def main(argv: list[str] | None = None) -> int:
         "--admin", action="store_true",
         help="also exercise admin-only endpoints (activity/summary, admin/logs)",
     )
+    parser.add_argument(
+        "--allow-implicit-identity", action="store_true",
+        help="allow the home/mock server's no-token 200 fallback identity; "
+             "keep disabled for office auth verification",
+    )
     args = parser.parse_args(argv)
 
     _print_alive()
@@ -508,7 +528,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"base URL: {base}")
     print(f"token:    {args.token[:7]}... (redacted)")
 
-    auth_findings = _do_auth_probe(requests, base, args.token, args.timeout)
+    auth_findings = _do_auth_probe(
+        requests, base, args.token, args.timeout,
+        allow_implicit_identity=args.allow_implicit_identity,
+    )
     if auth_findings:
         print("\nauth probe FAILED -- not running the catalog sweep:")
         for f in auth_findings:
