@@ -30,6 +30,7 @@ surface from `device_statistics.data` (the provider switch), not this file
 directly.
 """
 
+import hashlib
 import random
 from typing import Literal
 
@@ -164,12 +165,27 @@ def _memory_class_auto(prod_catg_cd: str) -> str:
     return "unknown"  # Tech / Advanced / absent → 수동 (D7)
 
 
+# Dummy·Align 이 붙는 recipe 비율. rng 가 아니라 이름 digest 로 고르므로 이 값을
+# 바꿔도 다른 파라미터 값은 한 바이트도 움직이지 않습니다. 파이썬 hash() 는
+# PYTHONHASHSEED 로 실행마다 달라져 쓸 수 없습니다.
+#
+# OFFICE-VERIFY: "가끔" 의 실제 비율은 확인된 바 없습니다 (user-confirmed
+# 2026-08-10 은 "일부 recipe 에 가끔" 까지입니다).
+HELPER_PARAM_RATIO = 0.20
+
+
+def _has_helper_params(recipe_id: str) -> bool:
+    """이 recipe 에 Dummy·Align 이 붙는가."""
+    digest = hashlib.sha256(f"helpers:{recipe_id}".encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % 100 < HELPER_PARAM_RATIO * 100
+
+
 def _build_parameters(
     rng: random.Random,
     bloated: bool,
     over_measured: bool,
     exempt_job: bool = False,
-    sample_recipe: bool = False,
+    helpers: bool = False,
 ) -> list[ParameterRow]:
     params: list[ParameterRow] = []
 
@@ -196,26 +212,32 @@ def _build_parameters(
     if over_measured and params:
         params[-1] = {"name": "EDGE_R", "point_count": rng.randint(40, 60), "mother": False}
 
-    # Sample recipe 에는 DUMMY·ALIGN 이 붙습니다 (user-confirmed 2026-08-05).
-    # 이것이 있어야 두 제외 경로가 집에서 실제로 실행됩니다 — 없으면 규칙을
-    # 지워도 화면이 그대로라 회귀가 조용히 통과합니다.
-    #
-    # Sample 에만 다는 것은 확인된 사례가 거기이기 때문입니다. 실물에서 이
-    # 이름들이 Main recipe 에도 있는지는 OFFICE-VERIFY 이고, 프론트엔드의
-    # outlier 제외는 recipe 종류를 보지 않으므로 어디에 있든 똑같이 걸립니다.
-    #
-    # point_count 는 rng 가 아니라 **고정값**입니다. 여기서 난수를 한 번이라도
-    # 더 굴리면 rng 가 lot 단위로 공유되므로 뒤따르는 recipe 의 파라미터가 전부
-    # 다른 값으로 다시 태어납니다(_mark_mothers 의 같은 주의).
-    if sample_recipe:
-        for name, point_count in NON_MEASUREMENT_PARAMS:
-            params.append({"name": name, "point_count": point_count, "mother": False})
-
-    # 특수 측정 job 은 마지막에 통째로 배율만 먹입니다 — 이름·개수·순서는 그대로
-    # 두어야 위 난수 순서가 한 칸도 밀리지 않습니다.
+    # 특수 측정 job 은 배율만 먹입니다 — 이름·개수·순서는 그대로 두어야 위 난수
+    # 순서가 한 칸도 밀리지 않습니다. 아래 Dummy/Align 을 **붙이기 전에** 거는
+    # 것이 중요합니다: 배율이 걸리면 Align 3 이 24 가 되어, "1~3" 이라는 실물
+    # 사실도 "비측정 파라미터는 16 을 넘지 않는다" 도 함께 깨집니다.
     if exempt_job:
         for param in params:
             param["point_count"] *= EXEMPT_JOB_POINT_SCALE
+
+    # Dummy·Align 은 recipe 마다 늘 있는 것이 아니라 **가끔** 나타나고, 나타날
+    # 때는 측정 순서의 **맨 앞**에 옵니다 (user-confirmed 2026-08-10). 정렬은
+    # 측정보다 먼저 하는 준비 작업이라 순서가 곧 그 뜻이고, para_* 집계도 그
+    # 위치로 걸러냅니다 (para_buckets.measurement_parameters).
+    #
+    # 2026-08-05~2026-08-10 에는 Sample recipe 에만, 그것도 **맨 뒤**에 붙였습니다.
+    # 위치가 뒤집혀 있었으므로 위치 기반 규칙이라면 아무것도 걸러지지 않았을
+    # 자리입니다.
+    #
+    # 붙일 recipe 를 rng 가 아니라 이름 digest 로 고르는 것이 요점입니다 — 여기서
+    # 난수를 한 번이라도 더 굴리면 lot 단위로 공유되는 rng 가 밀려 뒤따르는
+    # recipe 의 파라미터가 전부 다른 값으로 다시 태어납니다(_mark_mothers 의 같은
+    # 주의). point_count 도 같은 이유로 고정값입니다.
+    #
+    # OFFICE-VERIFY: "가끔" 의 실제 비율은 확인된 바 없습니다.
+    if helpers:
+        for name, point_count in reversed(NON_MEASUREMENT_PARAMS):
+            params.insert(0, {"name": name, "point_count": point_count, "mother": False})
 
     return params
 
@@ -271,7 +293,7 @@ def _build_recipe(
         bloated,
         over_measured,
         is_exempt_job(identity["recipe_id"]),
-        recipe_class == "Sample",
+        _has_helper_params(identity["recipe_id"]),
     )
     # mother 보유 여부는 identity 가 정합니다 — recipe-statistics 의 mother_normal
     # 버킷 멤버십과 같은 원천이어야 두 표면이 갈라지지 않습니다.

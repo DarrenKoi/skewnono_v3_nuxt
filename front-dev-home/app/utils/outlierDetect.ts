@@ -64,6 +64,31 @@ export const isOutlierExemptParam = (name: string): boolean => {
   return NON_MEASUREMENT_PARAMS.some(word => up.startsWith(word) || up.endsWith(word))
 }
 
+/**
+ * 파라미터 목록에서 **맨 앞의** Dummy/Align 만 떼어 냅니다.
+ *
+ * 이 둘은 recipe 마다 늘 있는 것이 아니라 가끔 나타나고, 나타날 때는 측정
+ * 순서의 맨 앞에 옵니다 (user-confirmed 2026-08-10) — 정렬은 측정보다 먼저 하는
+ * 준비 작업이니 순서가 곧 그 뜻입니다. 그래서 판정이 이름만이 아니라 "이름 +
+ * 맨 앞" 입니다.
+ *
+ * 이름만 보면 뒤쪽에 있는 **진짜 측정 파라미터**까지 지웁니다 — 이름이 "ALIGN"
+ * 으로 끝나는 CD 파라미터가 있으면 그렇습니다. 그 손실은 예외가 아니라 중앙값이
+ * 조금 달라지는 것으로만 나타나 발견이 늦습니다.
+ *
+ * 연속된 것을 전부 떼는 이유는 Dummy 와 Align 이 함께 올 때 둘 다 앞에 있기
+ * 때문입니다. 백엔드 ``para_buckets.measurement_parameters`` 와 같은 규칙입니다.
+ */
+export const dropLeadingHelperParams = <T extends { name: string }>(
+  parameters: readonly T[]
+): T[] => {
+  let index = 0
+  while (index < parameters.length && isOutlierExemptParam(parameters[index]!.name)) {
+    index += 1
+  }
+  return parameters.slice(index)
+}
+
 export interface PointOutlier {
   recipe_id: string
   name: string
@@ -95,7 +120,7 @@ export const detectDeviceOutliers = (
   // 두 소비처가 이 배열 하나만 읽는 것이 그 보장입니다.
   const judged = recipes
     .filter(r => !isExemptJob(r.recipe_id))
-    .map(r => ({ ...r, parameters: r.parameters.filter(p => !isOutlierExemptParam(p.name)) }))
+    .map(r => ({ ...r, parameters: dropLeadingHelperParams(r.parameters) }))
   const allPoints = judged.flatMap(r => r.parameters.map(p => p.point_count))
   const med = median(allPoints)
   const threshold = med * multiplier

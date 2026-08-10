@@ -45,10 +45,13 @@ test('no outliers → every recipe unflagged, counts zero', () => {
 test('an exempt PARAMETER is labelled, so a big unflagged number reads as intentional', () => {
   const recipes = [{
     ...recipe('A', []),
+    // 준비용 파라미터는 측정 순서의 **맨 앞**에 옵니다 (user-confirmed
+    // 2026-08-10). 예전 fixture 는 이것을 뒤에 두었는데, 위치 규칙에서는
+    // 뒤에 있는 것이 곧 "측정 파라미터" 라는 뜻입니다.
     parameters: [
-      { name: 'WAFER_CD', point_count: 5 },
-      { name: 'Align', point_count: 40 },
-      { name: 'Dummy', point_count: 1 }
+      { name: 'Align', point_count: 3 },
+      { name: 'Dummy', point_count: 1 },
+      { name: 'WAFER_CD', point_count: 5 }
     ]
   }]
   const drill = toOutlierDrill('R000', '', recipes, detectDeviceOutliers(recipes))
@@ -58,7 +61,7 @@ test('an exempt PARAMETER is labelled, so a big unflagged number reads as intent
   assert.equal(align.flagged, false)
   assert.equal(align.note, '분석 제외')
   // 값은 감추지 않습니다 — 이유만 답니다.
-  assert.equal(align.point_count, 40)
+  assert.equal(align.point_count, 3)
 
   assert.equal(params.find(p => p.name === 'Dummy')!.note, '분석 제외')
   // 정상 파라미터는 꼬리표가 없습니다.

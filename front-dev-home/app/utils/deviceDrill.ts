@@ -2,7 +2,7 @@
 // prescriptive (cap-violation) surfaces normalize into DrillDevice so a single
 // slideover renders both. Adapters are pure + unit-tested.
 import { isExemptJob } from './lotHealth.ts'
-import { isOutlierExemptParam } from './outlierDetect.ts'
+import { dropLeadingHelperParams } from './outlierDetect.ts'
 import type { RecipeInput, LotHealth } from './ruleEngine'
 import type { DeviceOutlierResult } from './outlierDetect'
 
@@ -58,13 +58,19 @@ export const toOutlierDrill = (
 ): DrillDevice => {
   const flaggedKey = new Set(result.outliers.map(o => `${o.recipe_id} ${o.name}`))
   const drillRecipes: DrillRecipe[] = recipes.map((r) => {
+    // "분석 제외" 꼬리표는 **detectDeviceOutliers 가 실제로 뺀 것**과 같아야
+    // 합니다. 이름만 보면(예전 방식) 목록 뒤쪽의 CD_ALIGN 같은 진짜 측정
+    // 파라미터에까지 "분석 제외" 가 붙는데, 기준선 쪽은 그것을 세고 있어서 한
+    // 화면이 두 가지 이야기를 하게 됩니다 (user-confirmed 2026-08-10: 준비용은
+    // 목록 맨 앞의 것뿐입니다).
+    const measured = new Set(dropLeadingHelperParams(r.parameters).map(p => p.name))
     const parameters: DrillParameter[] = r.parameters.map((p) => {
       const flagged = flaggedKey.has(`${r.recipe_id} ${p.name}`)
       // 제외된 파라미터는 flagged 가 될 수 없으므로 두 꼬리표가 부딪히지
-      // 않습니다 — detectDeviceOutliers 가 같은 술어로 이미 걸러 냈습니다.
+      // 않습니다 — detectDeviceOutliers 가 같은 규칙으로 이미 걸러 냈습니다.
       const note = flagged
         ? `> ${result.threshold}`
-        : isOutlierExemptParam(p.name) ? EXEMPT_PARAM_NOTE : undefined
+        : measured.has(p.name) ? undefined : EXEMPT_PARAM_NOTE
       return { name: p.name, point_count: p.point_count, flagged, note }
     })
     const flagged_count = parameters.filter(p => p.flagged).length

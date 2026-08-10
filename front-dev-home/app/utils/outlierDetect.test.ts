@@ -176,8 +176,8 @@ test('excluding them keeps the baseline on real measurements', () => {
 // 돌립니다. 주석은 규칙을 지웠을 때 깨지지 않지만, 이 대조는 깨집니다.
 test('excluding them keeps small helper params from lowering the baseline', () => {
   const points: Array<[string, number]> = [['?1', 1], ['?2', 3], ['?3', 3], ['?4', 3]]
-  const measured: Array<[string, number]> =
-    [['WAFER_CD', 6], ['EDGE_L', 6], ['LEVEL_1', 6], ['OVL_X', 11]]
+  const measured: Array<[string, number]>
+    = [['WAFER_CD', 6], ['EDGE_L', 6], ['LEVEL_1', 6], ['OVL_X', 11]]
 
   const excluded = detectDeviceOutliers([
     namedRecipe('A', measured),
@@ -202,4 +202,26 @@ test('a recipe of nothing but non-measurement params contributes no baseline', (
   const r = detectDeviceOutliers([namedRecipe('A', [['Dummy', 9], ['Align', 9]])])
   assert.equal(r.median, 0)
   assert.equal(r.outlier_count, 0)
+})
+
+// 위치 규칙 (user-confirmed 2026-08-10). 맨 앞의 것만 준비용이고, 뒤에 있는
+// 것은 이름이 같아 보여도 진짜 측정 파라미터입니다.
+test('a trailing ALIGN-suffixed parameter is measured, not stripped', () => {
+  const r = detectDeviceOutliers([
+    namedRecipe('A', [['Align', 3], ['WAFER_CD', 6], ['EDGE_L', 6], ['CD_ALIGN', 30]])
+  ])
+  // 맨 앞 Align 만 빠지고 CD_ALIGN 은 남습니다 — 중앙값 6, 문턱 12, 30 은 outlier.
+  assert.equal(r.median, 6)
+  assert.equal(r.outlier_count, 1)
+  assert.equal(r.outliers[0]?.name, 'CD_ALIGN')
+})
+
+test('leading helpers are stripped as a run, not one at a time', () => {
+  const r = detectDeviceOutliers([
+    namedRecipe('A', [['Dummy', 1], ['Align', 3], ['WAFER_CD', 6], ['EDGE_L', 6]])
+  ])
+  // 둘 다 빠져야 중앙값이 6 입니다. 하나만 빼면 [3, 6, 6] 이라 중앙값이 6 으로
+  // 같아 보이지만, 파라미터가 하나 더 남아 있다는 사실이 다릅니다.
+  assert.equal(r.median, 6)
+  assert.deepEqual(r.outliers, [])
 })

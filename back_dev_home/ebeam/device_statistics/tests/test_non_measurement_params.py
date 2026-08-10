@@ -15,15 +15,14 @@
    입니다 — 2026-08-10 에 Align 의 실물 값(1~3)이 확인되면서 방향이 뒤집혔습니다.
 """
 
-import statistics
 
-from back_dev_home.ebeam.device_statistics.para_buckets import is_measurement_param
+from back_dev_home.ebeam.device_statistics.para_buckets import (
+    has_non_measurement_name,
+    measurement_parameters,
+)
 from back_dev_home.ebeam.device_statistics.providers import mock
 from back_dev_home.ebeam.device_statistics.providers.recipe_params import (
     NON_MEASUREMENT_PARAMS,
-)
-from back_dev_home.ebeam.device_statistics.providers.recipe_population import (
-    is_exempt_job,
 )
 
 
@@ -37,6 +36,14 @@ _SAMPLE_LOTS = [f"R{index:03X}" for index in range(12)]
 def _parameters():
     rows = mock.get_recipe_params(_SAMPLE_LOTS)
     return rows, [param for row in rows for param in row["parameters"]]
+
+
+def _measured(row):
+    """이 recipe 에서 통계에 들어가는 파라미터 — 맨 앞의 준비용을 뺀 나머지."""
+    kept = measurement_parameters(
+        {param["name"]: param["point_count"] for param in row["parameters"]}
+    )
+    return [param for param in row["parameters"] if param["name"] in kept]
 
 
 def test_dummy_and_align_measure_one_to_three_points():
@@ -56,54 +63,60 @@ def test_no_over_16_parameter_is_a_non_measurement_one():
     _, params = _parameters()
     offenders = {
         param["name"] for param in params
-        if param["point_count"] > 16 and not is_measurement_param(param["name"])
+        if param["point_count"] > 16 and has_non_measurement_name(param["name"])
     }
     assert not offenders, offenders
 
 
-def test_dropping_the_exclusion_would_create_false_outliers():
-    """제외 규칙을 지웠을 때 실제로 무언가 달라지는가.
+def test_helper_parameters_always_come_first_in_a_recipe():
+    """준비용 파라미터가 목록 **맨 앞**에 있어야 위치 규칙이 작동합니다.
 
-    달라지지 않으면 그 규칙은 지워도 집에서 아무 테스트도 깨지지 않습니다.
-    Dummy·Align 이 작은 값이라 **기준선을 끌어내리는** 쪽으로 작용하므로,
-    확인할 것은 "문턱이 내려가 그 사이에 걸리는 측정 파라미터가 있는가" 입니다.
+    이 테스트가 여기 있는 이유는 이 mock 이 2026-08-10 까지 Dummy·Align 을
+    **맨 뒤**에 붙이고 있었기 때문입니다. 위치 규칙에서 뒤에 붙은 것은 곧
+    "측정 파라미터" 라는 뜻이라, 그 상태로는 백엔드도 프론트엔드도 아무것도
+    걸러 내지 못하면서 테스트는 전부 통과합니다.
+
+    앞선 판(2026-08-10 오전)의 이 자리 테스트는 "제외를 지우면 중앙값이
+    내려간다" 였는데, 준비용 파라미터가 recipe 의 20% 에만 2개씩 붙는 지금
+    분포에서는 중앙값이 움직이지 않습니다. 통계량으로 규칙의 생사를 확인하는
+    것은 비율이 조금만 바뀌어도 흔들려서, 위치라는 **구조**를 직접 봅니다.
     """
     rows, _ = _parameters()
-    judged = [row for row in rows if not is_exempt_job(row["recipe_id"])]
-    kept = [
-        param["point_count"]
-        for row in judged for param in row["parameters"]
-        if is_measurement_param(param["name"])
-    ]
-    everything = [
-        param["point_count"] for row in judged for param in row["parameters"]
-    ]
-
-    with_rule = statistics.median(kept) * _OUTLIER_MULTIPLIER
-    without_rule = statistics.median(everything) * _OUTLIER_MULTIPLIER
-    assert without_rule < with_rule, (
-        f"제외를 지워도 문턱이 그대로입니다 ({with_rule}). 규칙이 아무 일도 하지 "
-        "않는 상태라, 지워도 회귀가 조용히 통과합니다."
-    )
-    false_positives = sum(1 for value in kept if without_rule < value <= with_rule)
-    assert false_positives > 0, (
-        "문턱은 내려가는데 그 구간에 걸리는 측정 파라미터가 없습니다 — "
-        "제외 규칙을 지워도 화면의 outlier 수는 그대로입니다."
+    with_helpers = 0
+    for row in rows:
+        names = [param["name"] for param in row["parameters"]]
+        helper_positions = [
+            index for index, name in enumerate(names)
+            if has_non_measurement_name(name)
+        ]
+        if not helper_positions:
+            continue
+        with_helpers += 1
+        assert helper_positions == list(range(len(helper_positions))), (
+            f"{row['recipe_id']} 의 준비용 파라미터가 앞이 아닙니다: {names}"
+        )
+    assert with_helpers > 0, (
+        "준비용 파라미터를 가진 recipe 가 하나도 없습니다 — 위치 규칙이 "
+        "집에서 한 번도 실행되지 않습니다."
     )
 
 
-def test_dummy_violates_the_sample_cap_on_its_own():
-    # Sample 셀의 _other cap 은 0 이라 point 1 이면 곧바로 위반입니다. 판정
-    # 면제가 빠지면 위반 수가 눈에 띄게 늘어야 합니다.
-    assert dict(NON_MEASUREMENT_PARAMS)["Dummy"] >= 1
+def test_helper_parameters_are_not_on_every_recipe():
+    """가끔 나타납니다 (user-confirmed 2026-08-10) — 늘 있는 것이 아닙니다."""
+    rows, _ = _parameters()
+    with_helpers = sum(
+        1 for row in rows
+        if any(has_non_measurement_name(param["name"]) for param in row["parameters"])
+    )
+    share = with_helpers / len(rows)
+    assert 0.05 <= share <= 0.45, f"{share:.0%} of recipes carry helper parameters"
 
 
 def test_over_16_parameters_stay_in_the_office_band():
     """16 초과 파라미터는 전체의 2~5% (user-confirmed 2026-08-10)."""
     _, params = _parameters()
-    measured = [
-        param for param in params if is_measurement_param(param["name"])
-    ]
+    rows_all, _ = _parameters()
+    measured = [param for row in rows_all for param in _measured(row)]
     over = [param for param in measured if param["point_count"] > 16]
     share = len(over) / len(measured) * 100
     assert 1.5 <= share <= 6.0, f"{share:.1f}% of parameters exceed 16 points"
@@ -119,8 +132,7 @@ def test_over_16_recipes_stay_rare():
     with_over = sum(
         1 for row in rows
         if any(
-            param["point_count"] > 16 and is_measurement_param(param["name"])
-            for param in row["parameters"]
+            param["point_count"] > 16 for param in _measured(row)
         )
     )
     share = with_over / len(rows) * 100

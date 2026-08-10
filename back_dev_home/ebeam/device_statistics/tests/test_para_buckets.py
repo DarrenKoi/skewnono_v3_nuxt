@@ -12,7 +12,8 @@ from back_dev_home.ebeam.device_statistics.para_buckets import (
     PARA_BUCKETS,
     bucket_for,
     count_points,
-    is_measurement_param,
+    has_non_measurement_name,
+    measurement_parameters,
     para_block,
 )
 
@@ -99,17 +100,39 @@ def test_contract_declares_exactly_these_buckets():
         assert not stale, f"{row_type.__name__} still declares {stale}"
 
 
-def test_non_measurement_parameters_are_not_counted():
-    """Dummy·Align 은 "얼마나 많이 쟀는가" 의 답에 들어가지 않습니다.
+def test_leading_non_measurement_parameters_are_not_counted():
+    """맨 앞의 Dummy·Align 은 "얼마나 많이 쟀는가" 의 답에서 빠집니다.
 
-    point 수는 1~3 이라 어차피 para_5 로 갈 뿐이지만, 그렇다고 세면 para_all 이
+    point 수가 1~3 이라 어차피 para_5 로 갈 뿐이지만, 그렇다고 세면 para_all 이
     실물보다 커지고 그 차이는 예외가 아니라 "합계가 조금 크다" 로만 나타납니다
     (user-confirmed 2026-08-10).
     """
-    counts = count_points({"WAFER": 10, "Dummy": 1, "Align": 3})
+    counts = count_points({"Dummy": 1, "Align": 3, "WAFER": 10})
     assert counts["para_5"] == 0
     assert counts["para_13"] == 1
     assert para_block(counts)["para_all"] == 1
+
+
+def test_a_trailing_align_is_a_measurement_parameter():
+    """규칙은 이름만이 아니라 **이름 + 맨 앞** 입니다 (user-confirmed 2026-08-10).
+
+    이름만 보면 목록 뒤쪽의 진짜 측정 파라미터까지 지워지고, 그 손실은 para
+    합계가 조금 작아지는 것으로만 나타납니다.
+    """
+    kept = measurement_parameters({"Align": 3, "WAFER": 10, "CD_ALIGN": 12})
+    assert list(kept) == ["WAFER", "CD_ALIGN"]
+
+
+def test_a_leading_run_is_stripped_not_just_one():
+    # Dummy 와 Align 이 함께 오면 둘 다 앞에 있습니다. 문자 그대로 한 개만
+    # 빼면 두 번째가 통계에 남습니다.
+    kept = measurement_parameters({"Dummy": 1, "Align": 3, "WAFER": 10})
+    assert list(kept) == ["WAFER"]
+
+
+def test_nothing_is_stripped_when_the_list_starts_with_a_measurement():
+    kept = measurement_parameters({"WAFER": 10, "Dummy": 1})
+    assert list(kept) == ["WAFER", "Dummy"]
 
 
 def test_the_name_rule_matches_the_frontend_affix_form():
@@ -117,6 +140,6 @@ def test_the_name_rule_matches_the_frontend_affix_form():
     # 참, 한복판에 우연히 든 것은 거짓. 실물 표기가 "Dummy"/"Align" 이라 대소문자
     # 도 무시해야 합니다.
     for name in ("Dummy", "align", "ALIGN_X", "X_Align", "DUMMY_2"):
-        assert not is_measurement_param(name), name
+        assert has_non_measurement_name(name), name
     for name in ("WAFER", "EDGE_R", "REALIGNMENT_X", "OVL_X"):
-        assert is_measurement_param(name), name
+        assert not has_non_measurement_name(name), name

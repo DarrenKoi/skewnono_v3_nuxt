@@ -22,6 +22,9 @@ import pytest
 from back_dev_home._core.contract_check import assert_matches
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.device_statistics import data
+from back_dev_home.ebeam.device_statistics.para_buckets import (
+    has_non_measurement_name,
+)
 from back_dev_home.ebeam.device_statistics.contracts import (
     DeviceDescRow,
     MeasActivityRow,
@@ -147,8 +150,15 @@ def test_parameter_order_is_the_recipe_order_not_alphabetical():
             f"정렬로 덮였을 수 있습니다: {names}"
         )
         if _is_mock():
-            # mock 은 WAFER → LEVEL → EDGE → OTHER 순으로 만듭니다.
-            assert names[0].startswith("WAFER"), names
+            # mock 은 WAFER → LEVEL → EDGE → OTHER 순으로 만듭니다. 단 준비용
+            # 파라미터(Dummy·Align)가 있으면 그것이 **맨 앞**입니다
+            # (user-confirmed 2026-08-10) — 정렬은 측정보다 먼저 하니까요.
+            # 그래서 확인할 것은 "첫 칸이 WAFER" 가 아니라 "첫 **측정**
+            # 파라미터가 WAFER" 입니다.
+            measured = [
+                name for name in names if not has_non_measurement_name(name)
+            ]
+            assert measured and measured[0].startswith("WAFER"), names
 
 
 def test_exempt_jobs_measure_at_a_different_scale():
