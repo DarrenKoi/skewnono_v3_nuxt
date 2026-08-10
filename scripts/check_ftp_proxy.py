@@ -1,4 +1,4 @@
-"""Check the FTP proxy host after a deploy — reachable, configured, current.
+"""Check the FTP proxy host after a deploy - reachable, configured, current.
 
 The proxy's server half (`ftp_handler/proxy/flask_proxy.py`) lives on a
 different machine than skewnono and is deployed by hand, so "did my change
@@ -9,7 +9,7 @@ POST with the right quoting:
     .venv/bin/python -m scripts.check_ftp_proxy
     .venv\\Scripts\\python -m scripts.check_ftp_proxy     # office Windows PC
 
-Run it from the office network — `aipp01` does not resolve from home.
+Run it from the office network - `aipp01` does not resolve from home.
 
 Nothing here touches a measuring tool. The download probe deliberately sends an
 EMPTY spec list: the route builds its downloader (reading the proxy's
@@ -67,7 +67,7 @@ def _headers(token: str | None) -> dict:
 
 
 def _check_health(requests, base: str, token: str | None, timeout: float) -> bool:
-    print("[1/3] healthz — 프록시가 살아 있는가")
+    print("[1/3] healthz - 프록시가 살아 있는가")
     try:
         response = requests.get(
             base + HEALTH_PATH, headers=_headers(token), timeout=timeout
@@ -79,14 +79,14 @@ def _check_health(requests, base: str, token: str | None, timeout: float) -> boo
 
     if response.status_code == 200:
         print(f"      OK    {response.text.strip()[:80]}")
-        print("      (크리덴셜이 없어도 통과하는 검사입니다 — 2단계가 본론입니다.)")
+        print("      (크리덴셜이 없어도 통과하는 검사입니다 - 2단계가 본론입니다.)")
         return True
     print(f"      FAIL  HTTP {response.status_code}")
     return False
 
 
 def _check_env(requests, base: str, token: str | None, timeout: float) -> bool:
-    print("[2/3] download(빈 specs) — 프록시 호스트에 FTP 환경 변수가 있는가")
+    print("[2/3] download(빈 specs) - 프록시 호스트에 FTP 환경 변수가 있는가")
     try:
         response = requests.post(
             base + DOWNLOAD_PATH,
@@ -102,11 +102,11 @@ def _check_env(requests, base: str, token: str | None, timeout: float) -> bool:
         print(f"      OK    {response.text.strip()[:80]}")
         return True
     if response.status_code == 500:
-        print("      FAIL  HTTP 500 — FTP_PROXY_FTP_USER / FTP_PROXY_FTP_PASSWORD 누락")
+        print("      FAIL  HTTP 500 - FTP_PROXY_FTP_USER / FTP_PROXY_FTP_PASSWORD 누락")
         print("      프록시 호스트의 wsgi.ini 에 env= 두 줄을 넣고 재기동하십시오.")
         return False
     if response.status_code == 401:
-        print("      FAIL  HTTP 401 — 프록시가 FTP_PROXY_TOKEN 을 요구합니다.")
+        print("      FAIL  HTTP 401 - 프록시가 FTP_PROXY_TOKEN 을 요구합니다.")
         print("      --token <값> 을 붙여 다시 실행하십시오.")
         return False
     print(f"      FAIL  HTTP {response.status_code}: {response.text.strip()[:120]}")
@@ -122,7 +122,7 @@ def _check_client_version() -> bool:
     if supported:
         print("      OK    장비별 크리덴셜 지원 (2026-08-10 이후)")
     else:
-        print("      FAIL  장비별 크리덴셜 미지원 — git pull 이 필요합니다.")
+        print("      FAIL  장비별 크리덴셜 미지원 - git pull 이 필요합니다.")
     return supported
 
 
@@ -169,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     if all(results):
         print("원격에서 확인 가능한 항목은 모두 통과했습니다.")
     else:
-        print(f"{results.count(False)}건 실패 — 위 안내를 따르십시오.")
+        print(f"{results.count(False)}건 실패 - 위 안내를 따르십시오.")
 
     # Always printed, pass or fail: the server half's version is the one thing
     # this script cannot reach, and a stale one fails silently rather than
@@ -177,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     # skipped -- by then the symptom is an authentication error on one vendor's
     # tools, which reads like a credential problem, not a deploy problem.
     print()
-    print("남은 검사 — 프록시 호스트(사무실 PC 아님)의 셸에서 실행해야 합니다:")
+    print("남은 검사 - 프록시 호스트(사무실 PC 아님)의 셸에서 실행해야 합니다:")
     print("    grep pythonpath <그 앱의 wsgi.ini>      # 경로 확인")
     print("    cd <나온 경로>")
     print(f"    {VERSION_PROBE}")

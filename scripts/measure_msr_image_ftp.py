@@ -119,7 +119,7 @@ def _discover() -> tuple[str, str, str]:
     }
     hits = search(ALL_INDICES).search_raw(body).get("hits", {}).get("hits", [])
     if not hits:
-        raise SystemExit("no meas_hist doc carries both eqp_ip and msr — check ingestion")
+        raise SystemExit("no meas_hist doc carries both eqp_ip and msr - check ingestion")
     src = hits[0].get("_source", {})
     return text(src.get("eqp_ip")), text(src.get("class_name")), text(src.get("msr"))
 
@@ -155,7 +155,7 @@ def _stage_b_serial(
     office: Any, cfg: ImageConfig, eqp_ip: str, class_name: str, msr: str,
     names: list[str], login: float,
 ) -> tuple[list[float], int]:
-    """Time ``fetch_image`` per image — the real cold-GET path.
+    """Time ``fetch_image`` per image - the real cold-GET path.
 
     This is what a browser waits on when the cache misses: a fresh downloader,
     a fresh login, then the image and its cond sidecar. Subtracting the Stage A
@@ -189,11 +189,11 @@ def _stage_b_serial(
         print(f"   {name[:44]:44s} {elapsed:6.2f}s  {len(fetched.data) / 1e6:6.2f} MB"
               f"  ({rate:5.1f} MB/s excl. login, cond={'y' if fetched.cond else 'n'})")
     if failed:
-        print(f"   {failed} of {len(names)} could not be fetched — listing and RETR "
+        print(f"   {failed} of {len(names)} could not be fetched - listing and RETR "
               f"disagree about what exists")
     if not durations:
         raise SystemExit(
-            "every image failed to fetch — nothing to measure. The listing "
+            "every image failed to fetch - nothing to measure. The listing "
             "returned names the tool will not serve; check list_images's filter."
         )
     return durations, total_bytes
@@ -247,7 +247,7 @@ def _make_file_collector() -> tuple[Any, Any]:
 
     And the counter needs a lock. ``download_all`` splits the file list into n
     HostSpecs and ``fleet_downloader.download`` builds **one ``_FileGate`` per
-    spec** (fleet_downloader.py:489) — each gate serializes only its own host,
+    spec** (fleet_downloader.py:489) - each gate serializes only its own host,
     so n worker threads call this callback CONCURRENTLY. ``ok += 1`` is a
     read-modify-write: a lost update here understates the success count of
     exactly the fan-out stage C exists to measure, and it gets more likely as
@@ -283,7 +283,16 @@ def _stage_d_minio(office: Any, cfg: ImageConfig, locator: ImageLocator, rounds:
     from back_dev_home.msr_image.minio_cache import MinioImageCache
 
     if not cfg.cache_bucket:
-        print("   SKIP: SKEWNONO_IMAGE_CACHE_BUCKET is not set")
+        # The one stage that cannot be satisfied from the repo: the bucket name
+        # is an office fact. Say what to set rather than only that something is
+        # missing -- this stage is the whole reason --minio exists, and a bare
+        # SKIP reads as "not applicable" when it means "not configured".
+        print("   SKIP: SKEWNONO_IMAGE_CACHE_BUCKET is not set, so there is no")
+        print("         cache to time. Set it in back_dev_home/.env, re-run:")
+        print("           SKEWNONO_IMAGE_CACHE_BUCKET=<office MinIO bucket>")
+        print(f"           SKEWNONO_IMAGE_CACHE_PREFIX={cfg.cache_prefix}")
+        print("         Writes land under a separate <prefix>_measure/ and are")
+        print("         deleted before this returns; nothing else is touched.")
         return None
     fetched = office.fetch_image(locator, _config=cfg)
     prefix = cfg.cache_prefix.rstrip("/") + "_measure/"
@@ -297,12 +306,12 @@ def _stage_d_minio(office: Any, cfg: ImageConfig, locator: ImageLocator, rounds:
             print(f"   round {i + 1}/{rounds}: {samples[-1] * 1000:7.1f} ms"
                   f"  ({len(fetched.data) / 1e6:.2f} MB)")
     finally:
-        # purge(0) sweeps the whole measure prefix — every object under it was
+        # purge(0) sweeps the whole measure prefix - every object under it was
         # written by this run, seconds ago.
         try:
             removed = cache.purge(ttl_hours=0)
             print(f"   cleaned up {removed} object(s) under {prefix}")
-        except Exception as exc:  # noqa: BLE001 — cleanup must not mask a result
+        except Exception as exc:  # noqa: BLE001 - cleanup must not mask a result
             print(f"   WARNING: could not clean {prefix}: {exc}")
     return statistics.median(samples)
 
@@ -315,7 +324,7 @@ def _verdict(
     concurrency: dict[int, tuple[float, int]], minio: float | None,
     names: int, via_proxy: bool,
 ) -> None:
-    print("\n══ verdict ═══════════════════════════════════════════════════")
+    print("\n== verdict ===================================================")
 
     # Size the budget from the fan-out PRODUCTION actually uses, not from
     # whichever level happened to win: host_timeout is computed against
@@ -345,7 +354,7 @@ def _verdict(
                   f" under the {cap:g}s cap")
             if cap >= _PROXY_HARAKIRI:
                 print(f"   WARNING: the cap ({cap:g}s) is at/above uWSGI harakiri"
-                      f" ({_PROXY_HARAKIRI:g}s) — raise harakiri in wsgi.ini FIRST")
+                      f" ({_PROXY_HARAKIRI:g}s) - raise harakiri in wsgi.ini FIRST")
 
         ordered = sorted(concurrency)
         if len(ordered) > 1:
@@ -365,7 +374,7 @@ def _verdict(
                 print(f"   -> no meaningful difference (best {best_gain:.2f}x, need"
                       f" >{_MIN_MEANINGFUL_GAIN:g}x to call it). Fan-out is not"
                       f" paying off on this tool, but {names} images may be too few"
-                      f" to show it — re-run with --images {max(24, names * 4)}"
+                      f" to show it - re-run with --images {max(24, names * 4)}"
                       f" before changing ftp_concurrency.")
             elif best_n < cfg.ftp_concurrency:
                 print(f"   -> the tool stops rewarding fan-out at n={best_n};"
@@ -477,7 +486,7 @@ def main(argv: list[str] | None = None) -> int:
     listing_elapsed = time.monotonic() - listing_started
     print(f"listing: {len(all_names)} images in {listing_elapsed:.2f}s")
     if not all_names:
-        print("nothing to measure — the tool dir served no images")
+        print("nothing to measure - the tool dir served no images")
         return 1
     names = all_names[: args.images]
     print(f"measuring {len(names)} of them")
