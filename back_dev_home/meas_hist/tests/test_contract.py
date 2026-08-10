@@ -92,3 +92,29 @@ def test_meas_hist_fleet_excludes_amat_tools_deliberately():
     tool_types = {model_to_tool_type(row["eqp_model_cd"]) for row in _eligible_sem_rows()}
     assert tool_types <= {"cd-sem", "hv-sem"}
     assert tool_types  # 비어 있으면 필터가 전부를 지운 것
+
+
+# ---------------------------------------------------------------------------
+# 공백뿐인 검색어 — office 의 _wildcard_or 는 strip 후 버리는데 mock 은
+# 그대로 들고 있었습니다. 같은 `?recipe=%20` 이 집에서는 0건, 사무실에서는
+# 보존 기간 전체를 돌려줬습니다.
+
+
+@pytest.mark.parametrize("blank", [" ", "   ", "\t", "\n"])
+def test_whitespace_only_search_term_is_dropped_not_matched(blank):
+    baseline = data.search_meas_hist()["rows"]
+    assert data.search_meas_hist(recipe=[blank])["rows"] == baseline
+    assert data.search_meas_hist(q=[blank])["rows"] == baseline
+
+
+def test_search_terms_are_stripped_before_matching():
+    """office 는 "  abc  " 로 "abc" 를 찾습니다 — mock 도 그래야 합니다."""
+    rows = data.search_meas_hist()["rows"]
+    if not rows:
+        pytest.skip("mock returned no rows to derive a term from")
+    term = rows[0]["recipe_name"]
+
+    exact = data.search_meas_hist(recipe=[term])["rows"]
+    padded = data.search_meas_hist(recipe=[f"  {term}  "])["rows"]
+    assert padded == exact
+    assert padded

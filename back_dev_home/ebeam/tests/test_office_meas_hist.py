@@ -531,3 +531,66 @@ def test_composite_buckets_rejects_a_repeated_after_key(monkeypatch):
             {},
             None,
         )
+
+
+# ---------------------------------------------------------------------------
+# 날짜 경계 파싱 — 잘못된 bound 하나가 엔드포인트 전체를 500 으로 만들지
+# 않아야 합니다. mock 은 _analytics.parse_iso_date 로 이미 이렇게 동작하는데
+# office 쪽에는 대응물이 없어, 집에서는 멀쩡한 질의가 사무실에서만 터졌습니다.
+
+
+@pytest.mark.parametrize("value", ["2026-13-01", "2026-02-30", "not-a-date", "20260101", "  "])
+def test_iso_date_or_none_drops_unparseable_bounds(value):
+    assert _office_meas_hist.iso_date_or_none(value) is None
+
+
+@pytest.mark.parametrize("value", ["2026-08-10", "2026-01-01"])
+def test_iso_date_or_none_keeps_real_dates(value):
+    assert _office_meas_hist.iso_date_or_none(value) == value
+
+
+def test_range_clause_omits_a_malformed_bound_instead_of_raising():
+    """`date.fromisoformat` 가 프로세스 안에서 ValueError 를 던지던 자리입니다.
+
+    filter_clauses 를 거치는 recipe_tat / fail_issue 의 모든 엔드포인트가
+    ?end_date=2026-13-01 하나로 500 이 됐습니다 — OpenSearch 에 닿기도 전에
+    터지므로 질의 오류가 아니라 어댑터 오류였습니다.
+    """
+    clause = _office_meas_hist._range_clause("2026-08-01", "2026-13-01")
+    bounds = clause["range"][_office_meas_hist.TIME_FIELD]
+    assert bounds["gte"] == "2026-08-01"
+    assert "lt" not in bounds
+
+
+def test_range_clause_still_includes_the_whole_end_day():
+    clause = _office_meas_hist._range_clause("2026-08-01", "2026-08-10")
+    bounds = clause["range"][_office_meas_hist.TIME_FIELD]
+    assert bounds["gte"] == "2026-08-01"
+    assert bounds["lt"] == "2026-08-11"
+
+
+def test_filter_clauses_survives_a_malformed_bound():
+    clauses = _office_meas_hist.filter_clauses(["M16A"], "garbage", "2026-08-10")
+    bounds = clauses[0]["range"][_office_meas_hist.TIME_FIELD]
+    assert "gte" not in bounds
+    assert bounds["lt"] == "2026-08-11"
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("2026-13-01", "2026-08-10"),
+        ("2026-08-01", "nope"),
+        (None, "2026-08-10"),
+        ("2026-08-10", "2026-08-01"),  # 뒤집힌 범위 — mock 의 backfill 도 거부합니다
+    ],
+)
+def test_histogram_bounds_refuses_an_unusable_range(start, end):
+    assert _office_meas_hist.histogram_bounds(start, end) is None
+
+
+def test_histogram_bounds_returns_extended_bounds_for_a_real_range():
+    assert _office_meas_hist.histogram_bounds("2026-08-01", "2026-08-10") == {
+        "min": "2026-08-01",
+        "max": "2026-08-10",
+    }

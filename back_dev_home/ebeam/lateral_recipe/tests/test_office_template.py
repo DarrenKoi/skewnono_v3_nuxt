@@ -147,3 +147,71 @@ def test_version_equipment_ids_match_roster_case_insensitively(monkeypatch):
 
     assert response["ready_count"] == 1
     assert response["rows"][0]["recipe_version"] == 301
+
+
+def test_measured_tool_is_ready_when_there_is_no_version_doc_at_all(monkeypatch):
+    """IDP 버전 문서가 하나도 없어도 측정 이력은 보유를 증명합니다.
+
+    측정-도구 병합 전체가 `if generated_at_by_version:` 아래 있었던 탓에,
+    30일치 실행 이력이 있는데 버전 문서가 없는 레시피는 모든 장비를 미보유로
+    보고했습니다 — 이 어댑터의 docstring 이 불가능하다고 적어 둔 결과입니다.
+    귀속할 버전이 없으므로 recipe_version 은 None 이고, 화면에는 그 전용
+    버킷(utils/lateralVersionGroups.ts 의 UNKNOWN_VERSION_KEY)이 있습니다.
+    """
+    monkeypatch.setattr(office_example, "_version_docs", lambda *_args: [])
+    monkeypatch.setattr(
+        office_example,
+        "_roster",
+        lambda *_args: [_sem_row(index) for index in range(1, 6)],
+    )
+    monkeypatch.setattr(
+        office_example,
+        "_measured_eqp_ids",
+        lambda *_args: {"ECXDX002", "ECXDX004"},
+        raising=False,
+    )
+
+    response = office_example.get_lateral_recipe("cd-sem", "R3", "RWEAXXX/R")
+
+    assert response["ready_count"] == 2
+    by_id = {row["eqp_id"]: row for row in response["rows"]}
+    assert by_id["ECXDX002"]["recipe_ready"] is True
+    assert by_id["ECXDX002"]["recipe_version"] is None
+    assert by_id["ECXDX002"]["recipe_generated_at"] is None
+    assert by_id["ECXDX001"]["recipe_ready"] is False
+    # 버전 문서가 없으므로 버전 이력은 비어 있고, 카드의 최신 버전도 없습니다.
+    assert response["versions"] == []
+    assert response["latest_recipe_version"] is None
+
+
+def test_ready_count_never_disagrees_with_the_rows(monkeypatch):
+    """카드의 숫자는 표에서 셀 수 있는 것과 항상 같아야 합니다."""
+    monkeypatch.setattr(
+        office_example,
+        "_version_docs",
+        lambda *_args: [{
+            "version": 12,
+            "modified": "2026-07-23T09:00:00",
+            "eqp_id": ["ECXDX001"],
+        }],
+    )
+    monkeypatch.setattr(
+        office_example,
+        "_roster",
+        lambda *_args: [_sem_row(index) for index in range(1, 6)],
+    )
+    monkeypatch.setattr(
+        office_example,
+        "_measured_eqp_ids",
+        lambda *_args: {"ECXDX003"},
+        raising=False,
+    )
+
+    response = office_example.get_lateral_recipe("cd-sem", "R3", "RWEAXXX/R")
+
+    assert response["ready_count"] == sum(
+        1 for row in response["rows"] if row["recipe_ready"]
+    )
+    # 측정으로만 알려진 장비는 최신 버전으로 채워집니다 (버전이 존재할 때).
+    by_id = {row["eqp_id"]: row for row in response["rows"]}
+    assert by_id["ECXDX003"]["recipe_version"] == 12

@@ -163,3 +163,47 @@ def test_a_nat_updt_dt_normalizes_to_blank_not_the_string_nat():
     rows = office._select_pending(roster, _connected([]))
 
     assert rows[0]["updt_dt"] == ""
+
+
+def _normalizable(rows: list[dict]) -> pd.DataFrame:
+    """`_roster` 에 `_normalize` 가 추가로 요구하는 두 컬럼을 더한 것입니다."""
+    df = _roster([{"available": "on", "version": "1.2.3", **row} for row in rows])
+    return df.assign(
+        available=[row.get("available", "on") for row in rows],
+        version=[row.get("version", "1.2.3") for row in rows],
+    )
+
+
+# ---------------------------------------------------------------------------
+# NaN 셀 — parquet 의 미할당 값입니다. mock 은 "" 밖에 낼 수 없으므로 집에서는
+# 이 분기가 보이지 않습니다.
+
+
+def test_unassigned_cells_become_blank_not_the_string_nan():
+    """`_to_text` 의 맨 `str()` 은 NaN 을 리터럴 "nan" 으로 만들었습니다.
+
+    `_normalize_pending` 은 필드마다 이 가드를 이미 걸고 있었고, 그 docstring
+    이 'a fake "nan" value must never appear' 라고 못박고 있습니다 — 정작
+    주 경로인 `_normalize` 만 빠져 있었습니다. 새어 나가면 roster.norm("nan")
+    이 "NAN" 이라는 유령 fab 을 만들고, storage 의 fleet 이 IP "nan" 으로
+    키를 잡습니다.
+    """
+    roster = _normalizable([{"eqp_id": "ECDX100"}])
+    for column in ("fac_id", "eqp_model_cd", "eqp_grp_id", "eqp_ip", "fab_name"):
+        roster.loc[0, column] = None
+
+    row = office._normalize(roster)[0]
+
+    assert row["fac_id"] == ""
+    assert row["eqp_model_cd"] == ""
+    assert row["eqp_grp_id"] == ""
+    assert row["eqp_ip"] == ""
+    assert row["fab_name"] == ""
+    assert "nan" not in repr(row).lower()
+
+
+def test_surrounding_whitespace_is_stripped_from_identity_fields():
+    roster = _normalizable([{"eqp_id": "  ECDX100 ", "fab_name": " M16A "}])
+    row = office._normalize(roster)[0]
+    assert row["eqp_id"] == "ECDX100"
+    assert row["fab_name"] == "M16A"

@@ -71,6 +71,7 @@ from back_dev_home.ebeam._office_meas_hist import (
     composite_buckets as _composite_buckets,
     device_desc as _device_desc,
     filter_clauses as _filter_clauses,
+    histogram_bounds as _histogram_bounds,
     get_anchor_time,
     lot_id_to_lot_cd as _lot_id_to_lot_cd,
     lot_ids_for_lot_cd as _lot_ids_for_lot_cd,
@@ -211,9 +212,13 @@ def get_daily_trend(
         "min_doc_count": 0,
     }
     # Zero-fill the whole requested range so the trend chart has a continuous
-    # x-axis (mirrors the mock's backfill). extended_bounds needs both ends.
-    if start_date and end_date:
-        histogram["extended_bounds"] = {"min": start_date, "max": end_date}
+    # x-axis (mirrors the mock's backfill). histogram_bounds returns None
+    # unless both ends parse and are the right way round -- the mock's backfill
+    # is gated the same way, and a raw unparseable bound here is an OpenSearch
+    # parse error rather than a missing zero-fill.
+    bounds = _histogram_bounds(start_date, end_date)
+    if bounds is not None:
+        histogram["extended_bounds"] = bounds
 
     aggs = {
         "by_day": {

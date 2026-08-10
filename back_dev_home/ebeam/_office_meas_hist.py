@@ -98,6 +98,50 @@ LOT_ID_KW = "lot_id.keyword"         # device roll-ups + lot_cd drill-down
 EQP_MODEL_CD_KW = "eqp_model_cd.keyword"
 
 
+def iso_date_or_none(value: str | None) -> str | None:
+    """``value`` when it is a real ``yyyy-MM-dd`` date, else ``None``.
+
+    The mocks route every bound through ``_analytics.parse_iso_date``, which
+    returns None on garbage and so simply drops the filter. The office side had
+    no equivalent, and both ways it consumes a bound failed loudly on
+    ``?start_date=2026-13-01``: ``date.fromisoformat`` below raises ValueError
+    in-process, and a raw bound in ``gte`` / ``extended_bounds`` makes
+    OpenSearch answer with a parse error. Either way one malformed query
+    parameter 500s an endpoint that answers fine at home.
+
+    Dropping an unparseable bound rather than rejecting it is the parity
+    choice: it is what the mocks already do. Validating at the route and
+    answering 400 would be better API behavior, but that is a contract change
+    for both providers, not a home/office divergence fix.
+
+    Round-tripping through ``isoformat()`` rather than just parsing is
+    deliberate: since 3.11 ``date.fromisoformat`` also accepts basic forms like
+    ``20260101``, which would sail through a bare try/except and then be
+    rejected by OpenSearch anyway, because every bound below is sent under
+    ``"format": "yyyy-MM-dd"``. Only the canonical spelling is safe to forward.
+    """
+    if not value:
+        return None
+    try:
+        parsed = date.fromisoformat(value)
+    except (ValueError, TypeError):
+        return None
+    return value if parsed.isoformat() == value else None
+
+
+def histogram_bounds(start_date: str | None, end_date: str | None) -> dict[str, str] | None:
+    """``extended_bounds`` for a day histogram, or None when unusable.
+
+    Mirrors the mocks' backfill guard, which needs both ends to parse and to be
+    the right way round before it will zero-fill.
+    """
+    start = iso_date_or_none(start_date)
+    end = iso_date_or_none(end_date)
+    if start is None or end is None or start > end:
+        return None
+    return {"min": start, "max": end}
+
+
 def _range_clause(start_date: str | None, end_date: str | None) -> dict[str, Any]:
     """Inclusive-day range on ``timestamp``.
 
@@ -105,11 +149,13 @@ def _range_clause(start_date: str | None, end_date: str | None) -> dict[str, Any
     ``lt end+1day`` so the whole of ``end_date`` is included — matching the
     mocks, which compare the ``YYYY-MM-DD`` slice with ``<=``.
     """
+    start = iso_date_or_none(start_date)
+    end = iso_date_or_none(end_date)
     bounds: dict[str, Any] = {"format": "yyyy-MM-dd"}
-    if start_date:
-        bounds["gte"] = start_date
-    if end_date:
-        end_excl = date.fromisoformat(end_date) + timedelta(days=1)
+    if start:
+        bounds["gte"] = start
+    if end:
+        end_excl = date.fromisoformat(end) + timedelta(days=1)
         bounds["lt"] = end_excl.isoformat()
     return {"range": {TIME_FIELD: bounds}}
 

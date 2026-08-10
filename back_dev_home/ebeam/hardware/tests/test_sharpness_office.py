@@ -411,3 +411,55 @@ def test_hvsem_never_reaches_the_office_adapter_at_all(monkeypatch):
     assert_matches(payload, HardwarePayload)
     assert payload["available"] is False
     assert "CD-SEM" in payload["summary"]
+
+
+# ---------------------------------------------------------------------------
+# SEM_Cond_No 의 타입 — 정렬 키이자 조건 선택기의 절반입니다. mock 은 언제나
+# int 를 내보내므로 집에서는 이 분기를 밟을 수 없습니다.
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [(7, 7), ("7", 7), ("7.0", 7), (7.0, 7)],
+)
+def test_validate_coerces_sem_cond_no_to_int(stored, expected):
+    condition = {**RAW_HIT["beam_condition"], "SEM_Cond_No": stored}
+    out = office._validate(_hit(beam_condition=condition), "MCD018", IP)
+    assert out["beam_condition"]["SEM_Cond_No"] == expected
+    assert isinstance(out["beam_condition"]["SEM_Cond_No"], int)
+
+
+def test_validate_leaves_the_rest_of_the_condition_untouched():
+    condition = {**RAW_HIT["beam_condition"], "SEM_Cond_No": "3"}
+    out = office._validate(_hit(beam_condition=condition), "MCD018", IP)
+    assert out["beam_condition"] == {**condition, "SEM_Cond_No": 3}
+
+
+def test_validate_rejects_a_non_numeric_sem_cond_no():
+    condition = {**RAW_HIT["beam_condition"], "SEM_Cond_No": "HR0800"}
+    with pytest.raises(ValueError, match="SEM_Cond_No"):
+        office._validate(_hit(beam_condition=condition), "MCD018", IP)
+
+
+def test_docs_with_a_stringified_cond_no_still_sort_numerically(monkeypatch, office_roster):
+    """혼합 타입이 정렬에서 TypeError 를 내던 자리입니다.
+
+    같은 초를 공유하는 조건쌍 문서들이 str 과 int 로 섞여 들어오면
+    `'<' not supported between 'str' and 'int'` 로 탭 전체가 500 이 됐습니다.
+    "10" 이 "5" 앞에 오는 사전식 정렬도 함께 막습니다.
+    """
+    same_second = RAW_HIT["timestamp"]
+    hits = [
+        _hit(beam_condition={**RAW_HIT["beam_condition"], "SEM_Cond_No": "10"}),
+        _hit(beam_condition={**RAW_HIT["beam_condition"], "SEM_Cond_No": 5}),
+        _hit(beam_condition={**RAW_HIT["beam_condition"], "SEM_Cond_No": "7"}),
+    ]
+    office_roster([_sem_row()])
+    monkeypatch.setattr(office, "fetch_hits", lambda *a, **k: hits)
+
+    docs = office.build_network_sharpness_docs(
+        "MCD018", "M16A", ANCHOR - timedelta(days=30), ANCHOR
+    )
+
+    assert [d["beam_condition"]["SEM_Cond_No"] for d in docs] == [5, 7, 10]
+    assert {d["timestamp"] for d in docs} == {same_second}

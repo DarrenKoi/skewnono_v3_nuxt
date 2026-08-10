@@ -227,6 +227,12 @@ def get_meas_activity(fac_id: str) -> list[MeasActivityRow]:
     """
     wanted = fac_id.strip().upper()
     rows: list[DeviceDescRow] | list[R3DeviceGrpRow]
+    # 빈 fab 은 빈 순위입니다 — office 어댑터와 같은 판단입니다. 이 가드가
+    # 없으면 get_device_desc([""]) 의 빈-토큰 경로로 떨어져 M-fab 전체 행이
+    # 돌아왔고, 프런트가 빈 fab 을 보내는 버그가 집에서는 fab 을 가로지르는
+    # 순위로, 사무실에서는 빈 화면으로 서로 다르게 보였습니다.
+    if not wanted:
+        return []
     if wanted.startswith("R"):
         rows = [r for r in get_r3_device_grp() if r["fac_id"].strip().upper() == wanted]
     else:

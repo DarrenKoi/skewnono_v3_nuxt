@@ -256,28 +256,43 @@ def get_lateral_recipe(
     # when the IDP version document's eqp_id list is empty or stale. Measurement
     # history does not carry the IDP version, so only fill missing tools with the
     # newest version discovered above; explicit version assignments still win.
+    measured = _measured_eqp_ids(tool_type, fab_name, recipe_name)
     if generated_at_by_version:
         latest_version = max(generated_at_by_version)
-        for eqp_id in _measured_eqp_ids(tool_type, fab_name, recipe_name):
+        for eqp_id in measured:
             version_by_eqp.setdefault(eqp_id, latest_version)
+
+    # ... and when there is no version document AT ALL, the measurement still
+    # proves it. Gating the whole merge on `generated_at_by_version` dropped
+    # these tools, so a recipe with 30 days of executions but no IDP version
+    # doc reported every tool as 미보유 — the outcome this docstring calls
+    # impossible. There is no version to attribute them to, so they are ready
+    # with recipe_version=None; the page keeps a dedicated bucket for exactly
+    # that (UNKNOWN_VERSION_KEY in utils/lateralVersionGroups.ts), which sorts
+    # below the versioned groups.
+    ready_without_version = measured - set(version_by_eqp)
 
     rows: list[LateralRecipeRow] = []
     ready_by_version: dict[int, int] = {}
     ready_count = 0
     for sem in _roster(tool_type, fab_name):
-        version = version_by_eqp.get(_eqp_key(sem["eqp_id"]))
-        # Not listed under any version means not ready. A tool absent from
-        # both eqp_id and not_found_eqp_id ("never evaluated") lands here too
-        # — recipe_ready is a bool, so there is nowhere else for it to go.
-        if version is not None:
+        eqp_key = _eqp_key(sem["eqp_id"])
+        version = version_by_eqp.get(eqp_key)
+        # Not listed under any version, and never seen measuring it, means not
+        # ready. A tool absent from both eqp_id and not_found_eqp_id ("never
+        # evaluated") lands here too — recipe_ready is a bool, so there is
+        # nowhere else for it to go.
+        ready = version is not None or eqp_key in ready_without_version
+        if ready:
             ready_count += 1
+        if version is not None:
             ready_by_version[version] = ready_by_version.get(version, 0) + 1
         rows.append(LateralRecipeRow(
             eqp_id=sem["eqp_id"],
             eqp_model_cd=sem["eqp_model_cd"],
             vendor_nm=sem["vendor_nm"],
             available=sem["available"],
-            recipe_ready=version is not None,
+            recipe_ready=ready,
             recipe_version=version,
             recipe_generated_at=(
                 generated_at_by_version.get(version) if version is not None else None

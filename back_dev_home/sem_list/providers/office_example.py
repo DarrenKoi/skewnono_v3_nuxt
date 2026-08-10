@@ -114,13 +114,19 @@ def _normalize(df: pd.DataFrame) -> list[SemListRow]:
             )
         rows.append(
             SemListRow(
-                fac_id=_to_text(rec["fac_id"]),
-                eqp_id=_to_text(rec["eqp_id"]),
-                eqp_model_cd=_to_text(rec["eqp_model_cd"]),
-                eqp_grp_id=_to_text(rec["eqp_grp_id"]),
+                # _text_or_blank, not _to_text: an unassigned parquet cell is
+                # NaN, which bare str() turns into the literal "nan". The mock
+                # can only ever emit "", so the difference is invisible at home
+                # while a phantom "nan" fab reaches roster.build_index and a
+                # fleet entry gets keyed under IP "nan" downstream. This is the
+                # same guard _normalize_pending already applies field by field.
+                fac_id=_text_or_blank(rec["fac_id"]),
+                eqp_id=_text_or_blank(rec["eqp_id"]),
+                eqp_model_cd=_text_or_blank(rec["eqp_model_cd"]),
+                eqp_grp_id=_text_or_blank(rec["eqp_grp_id"]),
                 vendor_nm=vendor,
-                eqp_ip=_to_text(rec["eqp_ip"]),
-                fab_name=_to_text(rec["fab_name"]),
+                eqp_ip=_text_or_blank(rec["eqp_ip"]),
+                fab_name=_text_or_blank(rec["fab_name"]),
                 updt_dt=_as_iso_string(rec["updt_dt"]),
                 available=available,
                 version=_text_or_blank(rec["version"]),

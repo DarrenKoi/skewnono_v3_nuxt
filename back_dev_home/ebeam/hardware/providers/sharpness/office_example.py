@@ -203,9 +203,30 @@ def _validate(doc: dict[str, Any], eqp_id: str, ip: str) -> dict[str, Any]:
                 f"{value!r}; expected a non-empty object."
             )
 
-    # Normalize only the field the sort below and the dispatcher read, so a
+    # Normalize the fields the sort below and the dispatcher read, so a
     # stringified None never reaches the page as literal "None" text.
-    return {**doc, "timestamp": timestamp}
+    #
+    # SEM_Cond_No is coerced to int because the sort key and the page's
+    # condition selector both compare it. The index is not guaranteed to store
+    # it numerically -- the sibling bsm and reso_center adapters defend against
+    # exactly this mixed float/numeric-string shape with _as_float -- and a
+    # window mixing int and str docs would raise TypeError in the sort, 500ing
+    # the whole tab. The mock only ever emits int, so home tests cannot see it.
+    cond_no = condition["SEM_Cond_No"]
+    if not isinstance(cond_no, int):
+        try:
+            cond_no = int(float(_text(cond_no)))
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"{INDEX}: doc for {eqp_id!r} at {timestamp} has "
+                f"beam_condition SEM_Cond_No={cond_no!r}; expected a number."
+            ) from None
+
+    return {
+        **doc,
+        "timestamp": timestamp,
+        "beam_condition": {**condition, "SEM_Cond_No": cond_no},
+    }
 
 
 def _check_cap(hits: list[dict[str, Any]], eqp_id: str) -> None:
@@ -266,8 +287,8 @@ def build_network_sharpness_docs(
     # NUMERIC, matching sharpness/mock.py. This used to coerce with str(), which
     # sorts "10" before "5" — so a two-digit SEM_Cond_No made the two providers
     # emit different orders for identical data, defeating the very purpose of
-    # this line. _validate() has already coerced SEM_Cond_No to an int, so the
-    # str() was not guarding against a None or a stringified value either.
+    # this line. _validate() coerces SEM_Cond_No to an int, so the key is
+    # numeric on both sides and a stringified value cannot reach here.
     docs.sort(key=lambda d: (d["timestamp"], d["beam_condition"]["SEM_Cond_No"]))
     return docs
 

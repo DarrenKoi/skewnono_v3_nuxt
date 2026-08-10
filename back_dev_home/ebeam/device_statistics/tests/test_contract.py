@@ -93,6 +93,15 @@ def test_meas_activity_unknown_fab_is_empty():
     assert data.get_meas_activity("does-not-exist") == []
 
 
+@pytest.mark.parametrize("blank", ["", "   ", "\t"])
+def test_meas_activity_blank_fab_is_empty(blank):
+    # 빈 fab 도 마찬가지입니다. mock 에는 이 가드가 없어 get_device_desc([""])
+    # 의 빈-토큰 경로로 떨어졌고, M-fab 전체 행이 하나의 순위로 돌아왔습니다 —
+    # office 는 같은 입력에 빈 배열을 주므로, 프런트가 빈 fab 을 보내는 버그가
+    # 집에서는 fab 을 가로지르는 순위로, 사무실에서는 빈 화면으로 보였습니다.
+    assert data.get_meas_activity(blank) == []
+
+
 def test_recipe_params_matches_contract():
     # Narrowed to a single lot_cd — an unfiltered call fans out over every
     # known lot (thousands) and is not a real usage pattern; the frontend

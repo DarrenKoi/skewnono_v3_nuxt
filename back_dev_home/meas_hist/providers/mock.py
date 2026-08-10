@@ -537,8 +537,15 @@ def search_meas_hist(
     eq_set = {v.upper() for v in (eq or [])}
     lot_set = {v.upper() for v in (lot or [])}
     msr_set = set(msr or [])
-    recipe_terms = [v for v in (recipe or []) if v]
-    q_terms = [v for v in (q or []) if v]
+    # Strip before testing AND before matching, mirroring the office's
+    # _wildcard_or. Testing raw truthiness kept a whitespace-only term, which
+    # matched almost nothing here while the office dropped it and answered with
+    # the whole retention window -- the same `?recipe=%20` returning ~0 rows at
+    # home and everything at the office. Stripping the term itself matters too:
+    # the office searches "abc" given "  abc  ", so an untrimmed mock diverges
+    # on any pasted value carrying whitespace.
+    recipe_terms = [t for v in (recipe or []) if (t := v.strip())]
+    q_terms = [t for v in (q or []) if (t := v.strip())]
 
     rows: list[MeasHistRow] = []
     if not out_of_retention:
