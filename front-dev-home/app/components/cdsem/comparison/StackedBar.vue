@@ -6,7 +6,7 @@
     role="img"
   >
     <div
-      v-for="seg in segments"
+      v-for="seg in visibleSegments"
       :key="seg.key"
       class="stack-bar__seg"
       :style="{ flex: seg.flex, background: seg.color }"
@@ -95,6 +95,18 @@ const segments = computed(() => {
     }
   })
 })
+
+// 개수가 0 인 구간은 **그리지 않습니다.** `.stack-bar__seg` 는 min-width 2px 에
+// 1px 구분선을 갖고 있어서, flex: 0 인 조각도 3px 짜리 색 블록으로 남습니다.
+//
+// 버킷이 넷이던 동안에는 이 함정이 드러나지 않았습니다 — mock 의 _scaled 가 0 을
+// 1 로 올려 어떤 구간도 비지 않았고, 실물에서도 정확 일치 정의라 0 인 구간이
+// 흔치 않았습니다. 2026-08-10 에 para_over_16 이 생기면서 사정이 뒤집혔습니다:
+// point 수가 16 을 넘는 파라미터는 드물어 대부분의 recipe 에서 이 구간이 0 이고,
+// 그때마다 막대 왼쪽 끝에 **아무것도 뜻하지 않는 3px 짜리 가장 어두운 색**이
+// 붙습니다. 하필 램프에서 가장 어두운 칸이라 "파라미터가 가장 많은 구간" 으로
+// 읽힙니다 — 빈 정보가 아니라 틀린 정보입니다.
+const visibleSegments = computed(() => segments.value.filter(seg => seg.value > 0))
 
 const emptyFlex = computed(() => {
   if (props.normalize || !props.maxTotal) return 0

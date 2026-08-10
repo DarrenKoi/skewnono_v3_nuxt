@@ -161,6 +161,15 @@
               :max-total="maxParaTotal"
             />
             <div class="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-1">
+              <!-- 값이 0 인 구간도 **자리를 지킵니다.** 행마다 칸 수가 달라지면
+                   lot 끼리 눈으로 비교할 수 없게 되기 때문입니다. para_over_16 은
+                   대부분의 lot 에서 0 이지만, 그 0 자체가 "16 point 를 넘는
+                   파라미터가 없다" 는 정보입니다. 막대(StackedBar)는 반대로 0 인
+                   구간을 그리지 않습니다 — 거기서는 폭이 곧 값이라 2px 짜리 조각이
+                   없는 값을 있는 것처럼 보이게 하기 때문입니다.
+
+                   `?? 0` — 2026-08-10 이전 주차 스냅샷에는 이 키가 아예 없어서
+                   그대로 두면 숫자 자리가 빈 칸으로 렌더됩니다. -->
               <span
                 v-for="key in paraOrder"
                 :key="key"
@@ -171,7 +180,7 @@
                   class="h-2 w-2 rounded-[2px]"
                   :style="{ background: paraPalette[key] }"
                 />
-                {{ row[key] }}
+                {{ row[key] ?? 0 }}
               </span>
             </div>
           </div>
