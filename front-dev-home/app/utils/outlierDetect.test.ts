@@ -150,8 +150,13 @@ test('DUMMY and ALIGN never appear as outliers, however many points they carry',
   assert.deepEqual(r.outliers, [])
 })
 
-// 이 둘을 빼는 진짜 이유는 기준선입니다 — 남겨 두면 중앙값이 끌려 올라가
-// 정상 파라미터의 진짜 과다 측정이 문턱 아래로 숨습니다.
+// 이 둘을 빼는 진짜 이유는 기준선입니다. 기준선은 **양쪽으로** 흔들릴 수 있고,
+// 아래 두 테스트가 각각 한 방향입니다.
+//
+// 실물에서 일어나는 것은 두 번째(끌어내림)입니다 — Dummy·Align 의 실물 point
+// 수는 1~3 입니다 (user-confirmed 2026-08-10). 그래서 이 규칙이 막는 것은
+// "가려짐" 이 아니라 **오검출** 입니다. 첫 번째 테스트가 쓰는 40 은 규칙이
+// 값의 크기에 기대지 않는다는 것을 보이기 위한 합성값입니다.
 test('excluding them keeps the baseline on real measurements', () => {
   const r = detectDeviceOutliers([
     namedRecipe('A', [['WAFER_CD', 5], ['EDGE_L', 5], ['LEVEL_1', 5]]),
@@ -162,6 +167,35 @@ test('excluding them keeps the baseline on real measurements', () => {
   assert.equal(r.threshold, 10)
   assert.equal(r.outlier_count, 1)
   assert.equal(r.outliers[0]?.name, 'OVL_X')
+})
+
+// 실물 방향. Dummy·Align 이 1~3 이라 남겨 두면 중앙값이 **내려가고** 문턱도
+// 함께 내려가, 정상 범위의 파라미터가 outlier 로 잡힙니다.
+//
+// 반대 상황을 주석으로 적어 두는 대신 **같은 값을 이름만 바꿔** 한 번 더
+// 돌립니다. 주석은 규칙을 지웠을 때 깨지지 않지만, 이 대조는 깨집니다.
+test('excluding them keeps small helper params from lowering the baseline', () => {
+  const points: Array<[string, number]> = [['?1', 1], ['?2', 3], ['?3', 3], ['?4', 3]]
+  const measured: Array<[string, number]> =
+    [['WAFER_CD', 6], ['EDGE_L', 6], ['LEVEL_1', 6], ['OVL_X', 11]]
+
+  const excluded = detectDeviceOutliers([
+    namedRecipe('A', measured),
+    namedRecipe('B', points.map(([, v], i) => [i === 0 ? 'Dummy' : `Align_${i}`, v]))
+  ])
+  assert.equal(excluded.median, 6)
+  assert.equal(excluded.threshold, 12)
+  assert.equal(excluded.outlier_count, 0, 'OVL_X 11 은 문턱 12 아래라 정상입니다')
+
+  // 같은 숫자, 제외되지 않는 이름. 규칙이 없을 때 무슨 일이 나는지가 이것입니다.
+  const counted = detectDeviceOutliers([
+    namedRecipe('A', measured),
+    namedRecipe('B', points.map(([, v], i) => [`HELPER_${i}`, v]))
+  ])
+  assert.equal(counted.median, 4.5)
+  assert.equal(counted.threshold, 9)
+  assert.equal(counted.outlier_count, 1)
+  assert.equal(counted.outliers[0]?.name, 'OVL_X', '없던 outlier 가 생깁니다')
 })
 
 test('a recipe of nothing but non-measurement params contributes no baseline', () => {

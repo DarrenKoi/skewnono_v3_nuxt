@@ -120,6 +120,17 @@ para_all 까지 0 이 되고, 화면의 100% 누적 막대는 빈 칸이 됩니�
 경계는 코드 한 곳에 있습니다: `back_dev_home/ebeam/device_statistics/para_buckets.py`
 (프론트엔드 거울은 `app/utils/paraTrendSeries.ts` 의 PARA_KEYS).
 
+para_* 는 측정 파라미터만 셉니다 (user-confirmed 2026-08-10)
+
+  Dummy 와 Align 은 CD 를 재는 파라미터가 아니라(recipe_params.txt) point 수가
+  1~3 이며, "얼마나 많이 쟀는가" 의 답에 들어가지 않습니다. 따라서 para_* 버킷
+  집계에서 빠집니다. 아래 "16 초과는 2~5%" 도 이 둘을 빼고 센 값입니다.
+
+  거르는 자리는 para_buckets.is_measurement_param 하나입니다. count_points 가
+  point 수가 아니라 **{이름: point 수}** 를 받는 것이 그래서입니다 — 이름을 안
+  받으면 부르는 쪽이 거르기를 잊을 수 있고, 그 실수는 예외가 아니라 "para 합계가
+  조금 크다" 로만 나타납니다.
+
 16 point 초과는 드물고 몰려 있습니다 (user-confirmed 2026-08-10)
 
   16 point 를 넘는 파라미터는 **전체 파라미터의 2~5%** 이고, 그것이 **전체

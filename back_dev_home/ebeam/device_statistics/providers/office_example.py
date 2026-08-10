@@ -1174,7 +1174,8 @@ def _recipe_row(
         "skip_yn": step["skip_yn"],
         "chg_tm": step["chg_tm"],
         "ctn_desc": step["oper_desc"],
-        **para_block(count_points(params.values())),
+        # 이름째로 넘깁니다 — count_points 가 Dummy/Align 을 거릅니다.
+        **para_block(count_points(params)),
     }
 
 

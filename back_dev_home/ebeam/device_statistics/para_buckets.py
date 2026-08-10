@@ -64,11 +64,42 @@ def bucket_for(point_count: int) -> str:
     return OVERFLOW_BUCKET
 
 
-def count_points(point_counts: object) -> dict[str, int]:
-    """point 수의 나열 -> 버킷별 파라미터 개수 (모든 버킷 키를 채웁니다)."""
+# CD 측정량을 논하는 자리에 낄 수 없는 파라미터 이름 (user-confirmed 2026-08-05).
+# 대문자로 적은 것은 **비교용 정규형**입니다 — 실물 표기는 "Dummy"/"Align" 처럼
+# 첫 글자만 대문자입니다. 어느 표기로 와도 걸려야 하므로 비교 전에 올립니다.
+#
+# 프론트엔드 ``outlierDetect.isOutlierExemptParam`` 과 **같은 규칙**입니다
+# (이름이 그 낱말로 시작하거나 끝나면 참, 한복판에 우연히 든 것은 거짓).
+_NON_MEASUREMENT_WORDS = ("DUMMY", "ALIGN")
+
+
+def is_measurement_param(name: str) -> bool:
+    """이 파라미터가 "얼마나 많이 쟀는가" 에 포함되는가.
+
+    Dummy 는 자리를 채우는 placeholder 이고 Align 은 정렬(addressing)용이라
+    측정이 아니라 측정을 위한 준비입니다 — 둘 다 point 수가 1~3 이며 통계에
+    들어가면 안 됩니다 (user-confirmed 2026-08-10). 실물의 "16 초과는 전체
+    파라미터의 2~5%" 라는 수치도 이 둘을 빼고 센 것입니다.
+    """
+    upper = (name or "").strip().upper()
+    return not any(
+        upper.startswith(word) or upper.endswith(word)
+        for word in _NON_MEASUREMENT_WORDS
+    )
+
+
+def count_points(parameters: Mapping[str, int]) -> dict[str, int]:
+    """``{이름: point 수}`` -> 버킷별 파라미터 개수 (모든 버킷 키를 채웁니다).
+
+    **이름을 받는 것이 요점입니다.** point 수만 받으면 호출하는 쪽이 비측정
+    파라미터를 거르는 것을 잊을 수 있고, 그 실수는 예외가 아니라 "para 합계가
+    조금 크다" 로만 나타납니다. 거르는 자리를 여기 하나로 두어 mock 과 office
+    가 같은 모집단을 세게 합니다.
+    """
     counts = {name: 0 for name in PARA_BUCKETS}
-    for point_count in point_counts:  # type: ignore[union-attr]
-        counts[bucket_for(int(point_count))] += 1
+    for name, point_count in parameters.items():
+        if is_measurement_param(name):
+            counts[bucket_for(int(point_count))] += 1
     return counts
 
 

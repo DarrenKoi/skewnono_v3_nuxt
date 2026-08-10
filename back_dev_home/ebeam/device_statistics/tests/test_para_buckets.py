@@ -12,6 +12,7 @@ from back_dev_home.ebeam.device_statistics.para_buckets import (
     PARA_BUCKETS,
     bucket_for,
     count_points,
+    is_measurement_param,
     para_block,
 )
 
@@ -44,7 +45,7 @@ def test_the_confirmed_office_recipe_is_no_longer_all_zero():
     # office 확인 2026-08-10 — 이 recipe 가 정확 일치 정의에서는 세 파라미터
     # 모두 16/13/9/5 밖이라 para_all = 0 이었습니다. 구간 정의로 바뀐 이유가
     # 바로 이것이므로, 그 회귀를 여기서 잡습니다.
-    counts = count_points({"EDGE": 10, "LEVEL": 4, "WAFER": 10}.values())
+    counts = count_points({"EDGE": 10, "LEVEL": 4, "WAFER": 10})
     assert counts["para_13"] == 2
     assert counts["para_5"] == 1
     assert counts["para_9"] == counts["para_16"] == counts["para_over_16"] == 0
@@ -54,7 +55,7 @@ def test_the_confirmed_office_recipe_is_no_longer_all_zero():
 def test_every_bucket_key_is_always_present():
     # 값이 0 인 버킷을 빠뜨리면 화면이 그 구간을 그리지 않고, 누적 막대가
     # recipe 마다 다른 칸 수로 나옵니다.
-    counts = count_points([])
+    counts = count_points({})
     assert set(counts) == set(PARA_BUCKETS)
     block = para_block({})
     for name in PARA_BUCKETS:
@@ -67,12 +68,14 @@ def test_para_all_is_the_parameter_total():
     # 구간이 전체를 덮으므로 "총 개수" 와 "버킷 합" 은 같은 값입니다 — 정확
     # 일치 시절 idp_ver.txt 에 열려 있던 질문이 여기서 닫힙니다.
     points = [1, 5, 6, 9, 10, 13, 14, 16, 17, 100]
-    block = para_block(count_points(points))
+    block = para_block(count_points({f"P{i}": v for i, v in enumerate(points)}))
     assert block["para_all"] == len(points)
 
 
 def test_percentages_total_100():
-    block = para_block(count_points([1, 6, 10, 14, 17]))
+    block = para_block(count_points(
+        {"WAFER": 1, "LEVEL": 6, "EDGE": 10, "OVL_X": 14, "EDGE_R": 17}
+    ))
     total = sum(block[f"{name}_percent"] for name in PARA_BUCKETS)
     assert total == pytest.approx(100.0)
 
@@ -94,3 +97,26 @@ def test_contract_declares_exactly_these_buckets():
             and f.removesuffix("_percent") not in PARA_BUCKETS
         }
         assert not stale, f"{row_type.__name__} still declares {stale}"
+
+
+def test_non_measurement_parameters_are_not_counted():
+    """Dummy·Align 은 "얼마나 많이 쟀는가" 의 답에 들어가지 않습니다.
+
+    point 수는 1~3 이라 어차피 para_5 로 갈 뿐이지만, 그렇다고 세면 para_all 이
+    실물보다 커지고 그 차이는 예외가 아니라 "합계가 조금 크다" 로만 나타납니다
+    (user-confirmed 2026-08-10).
+    """
+    counts = count_points({"WAFER": 10, "Dummy": 1, "Align": 3})
+    assert counts["para_5"] == 0
+    assert counts["para_13"] == 1
+    assert para_block(counts)["para_all"] == 1
+
+
+def test_the_name_rule_matches_the_frontend_affix_form():
+    # outlierDetect.isOutlierExemptParam 과 같은 규칙 — 낱말로 시작하거나 끝나면
+    # 참, 한복판에 우연히 든 것은 거짓. 실물 표기가 "Dummy"/"Align" 이라 대소문자
+    # 도 무시해야 합니다.
+    for name in ("Dummy", "align", "ALIGN_X", "X_Align", "DUMMY_2"):
+        assert not is_measurement_param(name), name
+    for name in ("WAFER", "EDGE_R", "REALIGNMENT_X", "OVL_X"):
+        assert is_measurement_param(name), name

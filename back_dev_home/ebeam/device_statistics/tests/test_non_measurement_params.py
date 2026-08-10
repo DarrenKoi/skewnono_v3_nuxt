@@ -8,26 +8,28 @@
    합니다. 실제로 2026-08-10 이전에는 recipe 의 75% 가 16 초과 파라미터를
    갖고 있었고(실물의 25배), 아무 테스트도 그것을 말해 주지 않았습니다.
 
-2. Align 이 outlier 회귀를 살려 두는가 — outlierDetect 의 문턱은
-   ``2 × 중앙값`` 입니다. Align 의 point 수가 그 아래로 내려가면 "Dummy·Align 을
-   outlier 집계에서 뺀다" 는 규칙을 **지워도** 집의 테스트가 조용히 통과합니다.
-   Align 은 16 이하여야 하고(실물 사실) 동시에 문턱보다는 커야 하는데, 이 둘
-   사이가 좁아서 한쪽만 보고 값을 만지면 다른 쪽이 깨집니다.
+2. Dummy·Align 제외 규칙의 회귀 — outlierDetect 의 문턱은 ``2 × 중앙값``
+   입니다. 둘의 point 수가 1~3 이라 제외를 지우면 중앙값이 **내려가고** 문턱도
+   따라 내려가, 정상 범위의 파라미터가 outlier 로 잡힙니다. 규칙이 막는 것은
+   "큰 값이 기준선을 끌어올려 진짜 과다측정을 가리는 것" 이 아니라 **오검출**
+   입니다 — 2026-08-10 에 Align 의 실물 값(1~3)이 확인되면서 방향이 뒤집혔습니다.
 """
 
 import statistics
 
+from back_dev_home.ebeam.device_statistics.para_buckets import is_measurement_param
 from back_dev_home.ebeam.device_statistics.providers import mock
 from back_dev_home.ebeam.device_statistics.providers.recipe_params import (
     NON_MEASUREMENT_PARAMS,
+)
+from back_dev_home.ebeam.device_statistics.providers.recipe_population import (
+    is_exempt_job,
 )
 
 
 # outlierDetect.DEFAULT_OUTLIER_MULTIPLIER 와 같은 값입니다. 프론트엔드 상수라
 # import 할 수 없어 적어 두고, 어긋나면 아래 회귀 테스트가 먼저 깨집니다.
 _OUTLIER_MULTIPLIER = 2
-
-_NON_MEASUREMENT_NAMES = {name for name, _ in NON_MEASUREMENT_PARAMS}
 
 _SAMPLE_LOTS = [f"R{index:03X}" for index in range(12)]
 
@@ -37,27 +39,56 @@ def _parameters():
     return rows, [param for row in rows for param in row["parameters"]]
 
 
-def test_align_does_not_exceed_16_points():
+def test_dummy_and_align_measure_one_to_three_points():
     # user-confirmed 2026-08-10. 40 이던 시절에는 정확 일치 버킷이라 아무
     # 버킷에도 안 들어가 보이지 않았고, 구간 버킷으로 바뀌자마자 Sample recipe
     # 25% 가 통째로 para_over_16 을 갖게 됐습니다.
-    align = dict(NON_MEASUREMENT_PARAMS)["Align"]
-    assert align <= 16, align
+    for name, point_count in NON_MEASUREMENT_PARAMS:
+        assert 1 <= point_count <= 3, (name, point_count)
 
 
-def test_align_still_clears_the_outlier_threshold():
-    """Align 이 문턱 위에 있어야 outlier 제외 규칙의 회귀가 살아 있습니다."""
+def test_no_over_16_parameter_is_a_non_measurement_one():
+    """16 초과 신호는 **측정 파라미터 이름**이 날라야 합니다.
+
+    통계에서 빠지는 이름이 통계를 만드는 모순을 막습니다 — Align 40 이 정확히
+    그 상태였습니다.
+    """
     _, params = _parameters()
-    measured = [
-        param["point_count"] for param in params
-        if param["name"] not in _NON_MEASUREMENT_NAMES
+    offenders = {
+        param["name"] for param in params
+        if param["point_count"] > 16 and not is_measurement_param(param["name"])
+    }
+    assert not offenders, offenders
+
+
+def test_dropping_the_exclusion_would_create_false_outliers():
+    """제외 규칙을 지웠을 때 실제로 무언가 달라지는가.
+
+    달라지지 않으면 그 규칙은 지워도 집에서 아무 테스트도 깨지지 않습니다.
+    Dummy·Align 이 작은 값이라 **기준선을 끌어내리는** 쪽으로 작용하므로,
+    확인할 것은 "문턱이 내려가 그 사이에 걸리는 측정 파라미터가 있는가" 입니다.
+    """
+    rows, _ = _parameters()
+    judged = [row for row in rows if not is_exempt_job(row["recipe_id"])]
+    kept = [
+        param["point_count"]
+        for row in judged for param in row["parameters"]
+        if is_measurement_param(param["name"])
     ]
-    threshold = statistics.median(measured) * _OUTLIER_MULTIPLIER
-    align = dict(NON_MEASUREMENT_PARAMS)["Align"]
-    assert align > threshold, (
-        f"Align({align}) 이 outlier 문턱({threshold}) 아래로 내려갔습니다. "
-        "이 상태에서는 Dummy·Align 제외 규칙을 지워도 테스트가 조용히 통과합니다 "
-        "— 값을 올릴 수는 없으므로(16 이하가 실물) 회귀 설계를 다시 보십시오."
+    everything = [
+        param["point_count"] for row in judged for param in row["parameters"]
+    ]
+
+    with_rule = statistics.median(kept) * _OUTLIER_MULTIPLIER
+    without_rule = statistics.median(everything) * _OUTLIER_MULTIPLIER
+    assert without_rule < with_rule, (
+        f"제외를 지워도 문턱이 그대로입니다 ({with_rule}). 규칙이 아무 일도 하지 "
+        "않는 상태라, 지워도 회귀가 조용히 통과합니다."
+    )
+    false_positives = sum(1 for value in kept if without_rule < value <= with_rule)
+    assert false_positives > 0, (
+        "문턱은 내려가는데 그 구간에 걸리는 측정 파라미터가 없습니다 — "
+        "제외 규칙을 지워도 화면의 outlier 수는 그대로입니다."
     )
 
 
@@ -71,7 +102,7 @@ def test_over_16_parameters_stay_in_the_office_band():
     """16 초과 파라미터는 전체의 2~5% (user-confirmed 2026-08-10)."""
     _, params = _parameters()
     measured = [
-        param for param in params if param["name"] not in _NON_MEASUREMENT_NAMES
+        param for param in params if is_measurement_param(param["name"])
     ]
     over = [param for param in measured if param["point_count"] > 16]
     share = len(over) / len(measured) * 100
@@ -88,8 +119,7 @@ def test_over_16_recipes_stay_rare():
     with_over = sum(
         1 for row in rows
         if any(
-            param["point_count"] > 16
-            and param["name"] not in _NON_MEASUREMENT_NAMES
+            param["point_count"] > 16 and is_measurement_param(param["name"])
             for param in row["parameters"]
         )
     )
