@@ -59,6 +59,17 @@ OFFICE-VERIFY 이며, 가동률 기준 임계값을 이 mock 의 점유율에 �
 Multi-fab filtering (`fab_names`) is a case-insensitive set union — a row
 passes if its `fab_name` matches ANY entry; an empty tuple or `None` means
 no fab filter at all.
+
+알려진 값 영역 공백 — meastime 결측
+이 모듈은 자체 행 생성기를 쓰고 msr_check 열을 의도적으로 갖지 않으므로,
+"meastime 이 없는 실행" 이라는 상태를 만들어 내지 못합니다. 사무실 인덱스는
+msr_check == "Yes" 인 문서에만 meastime 을 갖고(user-confirmed 2026-08-10,
+docs/datatables/meas_hist.txt), 그런 문서는 sum(meastime) 과
+value_count(meastime) 양쪽에서 빠집니다. 따라서 집에서는 아래 get_summary 의
+두 분모(전체 실행 수 vs meastime 있는 수)가 항상 같은 값이고, 둘을 뒤바꿔
+써도 드러나지 않습니다 — 그 구분은 테스트가 행을 직접 지어 넣어 지킵니다.
+결측을 fixture 에 도입하려면 장비 speed 스칼라와 tat_index 임계값 튜닝을
+함께 다시 봐야 합니다(위 문단들 참조).
 """
 
 import bisect
@@ -600,7 +611,14 @@ def get_summary(
 
     total_executions = len(rows)
     total_tat_seconds = sum(row["meastime"] for row in rows)
-    avg_meastime = round(total_tat_seconds / total_executions, 2) if total_executions else 0.0
+    # The average divides by rows that HAVE a measurement time, not by all
+    # executions. The office index omits `meastime` when msr_check != "Yes"
+    # (user-confirmed 2026-08-10) and the mock mirrors that as meastime == 0,
+    # so counting those rows in the denominator would drag the average down by
+    # exactly the missing share -- while `total_executions` above still counts
+    # them, because a measurement whose MSR file never landed still ran.
+    measured = sum(1 for row in rows if row["meastime"])
+    avg_meastime = round(total_tat_seconds / measured, 2) if measured else 0.0
     total_recipes = len({(row["class_name"], row["recipe_name"]) for row in rows})
 
     return {

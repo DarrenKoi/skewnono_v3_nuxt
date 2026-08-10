@@ -215,6 +215,17 @@ def _build_row(
     timestamp = end_time
 
     msr_check: Literal["Yes", "No"] = "No" if rng.random() < 0.08 else "Yes"
+    if msr_check == "No":
+        # meastime exists ONLY where msr_check == "Yes" (user-confirmed
+        # 2026-08-10). The office document simply has no such field, and the
+        # adapter's `_int(src.get("meastime"))` lands it as 0 -- so 0 is the
+        # faithful row-level stand-in, and it keeps the row out of an
+        # office-side `value_count(meastime)` the same way the real gap does.
+        #
+        # Zeroed AFTER the draw above, on purpose: `start_time` keeps a real
+        # measurement window (the office keeps its start/end too), and the rng
+        # stream is untouched, so no downstream value shifts.
+        meastime = 0
     align_fail: Literal["Pass", "Fail", "NA"] = rng.choices(
         ("Pass", "Fail", "NA"),
         weights=(0.82, 0.12, 0.06),

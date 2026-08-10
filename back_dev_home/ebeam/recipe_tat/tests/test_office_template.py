@@ -151,3 +151,43 @@ def test_get_equipment_compare_short_circuits_on_an_empty_selection(monkeypatch)
     assert payload["eqp_ids"] == []
     assert payload["trends"] == []
     assert payload["recipes"] == []
+
+
+from datetime import datetime as _datetime
+
+
+def test_summary_counts_executions_by_document_not_by_meastime(monkeypatch):
+    """실행 건수와 평균 분모는 서로 다른 숫자입니다.
+
+    meastime 은 msr_check == "Yes" 인 문서에만 있습니다(user-confirmed
+    2026-08-10). 한 변수가 두 자리를 겸하던 탓에 요약 카드가 doc_count 로
+    그려지는 자기 트렌드 차트보다 작게 나왔습니다.
+    """
+    captured = {}
+
+    def fake_aggregate(index, aggs, query):
+        captured["aggs"] = aggs
+        return {
+            "tat": {"value": 9000},
+            "docs": {"value": 100},      # 실행 100건
+            "measured": {"value": 90},   # 그중 10건은 msr_check != "Yes"
+            "recipes": {"value": 7},
+        }
+
+    monkeypatch.setattr(office_example, "_aggregate", fake_aggregate)
+    # get_anchor_time 은 클러스터에 max(timestamp) 를 묻습니다.
+    monkeypatch.setattr(
+        office_example, "get_anchor_time", lambda: _datetime(2026, 8, 10, 9, 0)
+    )
+
+    summary = office_example.get_summary("cd-sem", None, "2026-08-01", "2026-08-10")
+
+    # 카드는 문서를 셉니다 — 측정이 실행된 이상 raw data 유무와 무관합니다.
+    assert summary["total_executions"] == 100
+    # 평균은 meastime 이 있는 문서로만 나눕니다. 100 으로 나눴다면 90.0 입니다.
+    assert summary["avg_meastime"] == 100.0
+    assert summary["total_tat_seconds"] == 9000
+
+    # 두 집계가 서로 다른 필드를 세는지 고정합니다.
+    assert captured["aggs"]["docs"] == {"value_count": {"field": "timestamp"}}
+    assert captured["aggs"]["measured"] == {"value_count": {"field": "meastime"}}

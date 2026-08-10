@@ -78,7 +78,24 @@ ALL_INDICES = ",".join(INDEX.values())
 
 # Time / metric fields (both are proper numeric/date types — no .keyword).
 TIME_FIELD = "timestamp"   # date: drives the range filter, histogram, anchor
-MEAS_FIELD = "meastime"    # long (seconds): recipe-TAT metric; every doc has one
+# long (seconds). NOT present on every document: meastime exists only where
+# msr_check == "Yes" (user-confirmed 2026-08-10). This comment used to claim
+# "every doc has one", which made value_count(meastime) look interchangeable
+# with a document count — it is not, and the two disagreed on live data while
+# agreeing on every mock row. See DOC_COUNT_AGG below.
+MEAS_FIELD = "meastime"
+
+# "How many documents are in scope", as an aggregation.
+#
+# `aggregate()` returns only the `aggregations` object, so `hits.total` is not
+# available to callers. Counting TIME_FIELD is exact rather than approximate:
+# `filter_clauses` always includes a `range` on it, and a range query only
+# matches documents that HAVE the field, so every document in scope carries a
+# timestamp by construction.
+#
+# Use this — never value_count(MEAS_FIELD) — wherever the number means
+# "executions". An execution whose MSR file never landed still ran.
+DOC_COUNT_AGG: dict[str, Any] = {"value_count": {"field": TIME_FIELD}}
 
 # Exact-match / aggregation fields go through their .keyword sub-fields.
 FULL_NAME_KW = "full_name.keyword"   # class_name/recipe_name composite group key

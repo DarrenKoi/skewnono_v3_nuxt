@@ -17,7 +17,9 @@ needs the raw rows — every endpoint is a server-side aggregation over
 * ranking      — composite over ``full_name.keyword`` (the class/recipe
                  composite), ``sum(meastime)`` + ``top_hits`` per bucket.
 * summary      — ``sum(meastime)`` + ``cardinality(full_name.keyword)`` +
-                 ``value_count(meastime)`` over the same filter.
+                 TWO counts over the same filter: documents (executions) and
+                 ``value_count(meastime)`` (the average's denominator). They
+                 differ because meastime exists only where msr_check is "Yes".
 * daily-trend  — ``date_histogram`` (calendar day) with ``extended_bounds``
                  so empty days are zero-filled, matching the mock.
 * anchor       — ``max(timestamp)`` across both aliases: the date-picker
@@ -51,6 +53,7 @@ from back_dev_home.ebeam._office_meas_hist import (
     aggregate as _aggregate,
     composite_buckets as _composite_buckets,
     device_desc as _device_desc,
+    DOC_COUNT_AGG as _DOC_COUNT_AGG,
     filter_clauses as _filter_clauses,
     histogram_bounds as _histogram_bounds,
     get_anchor_time,
@@ -321,15 +324,26 @@ def get_summary(
 
     aggs = {
         "tat": {"sum": {"field": _MEAS_F}},
-        "execs": {"value_count": {"field": _MEAS_F}},
+        # Two counts on purpose. One variable served both uses, and each use
+        # wants the other number:
+        #   docs     = executions. meastime is absent when msr_check != "Yes"
+        #              (user-confirmed 2026-08-10), so value_count(meastime)
+        #              under-reported the card against its own trend chart,
+        #              which counts documents.
+        #   measured = the average's denominator. Dividing the meastime sum by
+        #              documents that contributed no meastime drags the average
+        #              down by exactly the missing share.
+        "docs": _DOC_COUNT_AGG,
+        "measured": {"value_count": {"field": _MEAS_F}},
         "recipes": {"cardinality": {"field": _FULL_KW}},
     }
     result = _aggregate(_INDEX[tool_type], aggs, _query(clauses))
 
     total_tat = int(result.get("tat", {}).get("value") or 0)
-    total_executions = int(result.get("execs", {}).get("value") or 0)
+    total_executions = int(result.get("docs", {}).get("value") or 0)
+    measured = int(result.get("measured", {}).get("value") or 0)
     total_recipes = int(result.get("recipes", {}).get("value") or 0)
-    avg = round(total_tat / total_executions, 2) if total_executions else 0.0
+    avg = round(total_tat / measured, 2) if measured else 0.0
 
     return SummaryPayload(
         tool_type=tool_type,

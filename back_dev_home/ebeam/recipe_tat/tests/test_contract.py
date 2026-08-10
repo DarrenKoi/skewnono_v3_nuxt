@@ -6,6 +6,8 @@ Office: SKEWNONO_RECIPE_TAT_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam
 
 from datetime import timedelta
 
+import pytest
+
 from back_dev_home._core.contract_check import assert_matches
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.recipe_tat import data
@@ -459,3 +461,35 @@ def test_get_devices_breaks_ties_on_exec_count():
     rows = data.get_devices("cd-sem", None, None, None)
     keys = [(row["total_meastime"], row["exec_count"]) for row in rows]
     assert keys == sorted(keys, reverse=True)
+
+
+def test_summary_average_excludes_rows_without_a_measurement_time(monkeypatch):
+    """실행 건수는 전부 세고, 평균은 meastime 이 있는 행으로만 나눕니다.
+
+    office 는 meastime 이 msr_check == "Yes" 인 문서에만 있어(user-confirmed
+    2026-08-10) value_count 로 자연히 그렇게 되고, 같은 값을 두 자리에 쓰면
+    평균이 결측 비율만큼 낮아집니다.
+
+    이 mock 의 fixture 는 아직 결측을 만들지 않으므로(모듈 docstring 의
+    "알려진 값 영역 공백" 참조) 행을 직접 지어 넣어 두 분모를 가릅니다.
+    """
+    if get_data_provider("recipe_tat") != "mock":
+        pytest.skip("office 는 같은 규칙을 집계에서 강제합니다 — 여기선 mock 만")
+
+    from back_dev_home.ebeam.recipe_tat.providers import mock
+
+    crafted = tuple(
+        {
+            "class_name": "ADI",
+            "recipe_name": "ADI_CD_BIAS_001",
+            "meastime": meastime,
+        }
+        for meastime in (300, 500, 0, 0)  # 실행 4건, 그중 2건은 MSR 미착
+    )
+    monkeypatch.setattr(mock, "_filter_rows", lambda *a, **k: crafted)
+
+    summary = data.get_summary("cd-sem", None, None, None)
+
+    assert summary["total_executions"] == 4          # 측정은 4번 실행됐습니다
+    assert summary["total_tat_seconds"] == 800
+    assert summary["avg_meastime"] == 400.0          # 4 로 나눴다면 200.0

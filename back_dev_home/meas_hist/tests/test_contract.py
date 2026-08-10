@@ -130,3 +130,21 @@ def test_row_id_is_the_msr_on_every_provider():
     rows = data.search_meas_hist()["rows"]
     assert rows
     assert all(row["id"] == row["msr"] for row in rows)
+
+
+def test_meastime_exists_only_where_msr_check_is_yes():
+    """office 인덱스는 msr_check == "Yes" 인 문서에만 meastime 을 갖습니다.
+
+    user-confirmed 2026-08-10. 실물에는 필드가 아예 없고 office 어댑터의
+    _int(src.get("meastime")) 가 0 으로 강제하므로, mock 도 0 을 내보내야
+    "meastime 결측" 이라는 값 영역이 집에 존재하게 됩니다. mock 이 전부
+    채우던 동안에는 value_count(meastime) 와 doc_count 가 집에서 영원히
+    같아서, 두 숫자를 뒤바꿔 쓴 집계 버그가 보이지 않았습니다.
+    """
+    rows = data.search_meas_hist()["rows"]
+    assert rows
+    measured = {row["msr"] for row in rows if row["meastime"]}
+    checked = {row["msr"] for row in rows if row["msr_check"] == "Yes"}
+    assert measured == checked
+    # 결측이 실제로 생성되는지 — 없으면 이 테스트가 아무것도 지키지 않습니다.
+    assert len(rows) > len(checked) > 0

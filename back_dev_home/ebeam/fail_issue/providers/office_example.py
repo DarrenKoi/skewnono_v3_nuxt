@@ -26,7 +26,8 @@ Fail criteria (identical to the mock, pinned by the YAML contract
 
 Aggregation shapes per endpoint:
 
-* summary       — one filtered query: ``value_count(meastime)`` (executions)
+* summary       — one filtered query: a document count (executions; NOT
+                  ``value_count(meastime)``, which omits msr_check != "Yes")
                   + ``filter`` sub-aggs for align-fail/align-NA/meas-fail +
                   ``cardinality`` for equipment/recipes; ``distinct_lots``
                   walks in-scope lot_ids and maps them through the bridge.
@@ -65,11 +66,11 @@ from back_dev_home.ebeam._office_meas_hist import (
     FULL_NAME_KW as _FULL_KW,
     INDEX as _INDEX,
     LOT_ID_KW as _LOT_ID_KW,
-    MEAS_FIELD as _MEAS_F,
     TIME_FIELD as _TIME_F,
     aggregate as _aggregate,
     composite_buckets as _composite_buckets,
     device_desc as _device_desc,
+    DOC_COUNT_AGG as _DOC_COUNT_AGG,
     filter_clauses as _filter_clauses,
     histogram_bounds as _histogram_bounds,
     get_anchor_time,
@@ -160,7 +161,15 @@ def get_summary(
     clauses = _filter_clauses(fab_names, start_date, end_date, lot_ids)
 
     aggs = {
-        "execs": {"value_count": {"field": _MEAS_F}},
+        # Documents, NOT value_count(meastime). This number is both the
+        # execution count and the denominator of every rate below, while the
+        # numerators are filter doc_counts that include every matching
+        # document. meastime is absent when msr_check != "Yes" (user-confirmed
+        # 2026-08-10), so the old denominator excluded documents whose failures
+        # the numerators still counted — inflating both rates, and doing it
+        # worst exactly where problems cluster, since a missing MSR file is
+        # itself a failure signal.
+        "execs": _DOC_COUNT_AGG,
         "align_fail": {"filter": _ALIGN_FAIL_FILTER},
         "align_na": {"filter": _ALIGN_NA_FILTER},
         "meas_fail": {"filter": _MEAS_FAIL_FILTER},
