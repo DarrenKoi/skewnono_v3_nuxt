@@ -49,9 +49,28 @@ export const warmProgressLabel = (done: number, total: number): string =>
     ? `이미지를 준비하는 중입니다. ${done}/${total}`
     : '이미지를 준비하는 중입니다.'
 
-/** Waits before re-POSTing a refused warm job, in order. Sized so the whole
- * ladder fits inside WARM_CEILING_MS with polling time to spare. */
+/** Waits before retrying, in order. One ladder for both the refused POST and
+ * the failed poll, so a second budget can never drift from this one. Sized so
+ * the whole ladder fits inside WARM_CEILING_MS with polling time to spare. */
 export const WARM_RETRY_DELAYS_MS = [1000, 2000, 4000] as const
+
+/** What is left of the ceiling — and therefore the longest a warm request may
+ * take. Handed to `$fetch` as its timeout, which is what makes WARM_CEILING_MS
+ * an actual ceiling: before this it was only ever checked BETWEEN responses,
+ * so a POST or poll that simply never answered held the panel indefinitely.
+ *
+ * Clamped at 0 rather than going negative — a negative timeout would reach
+ * `$fetch` as one. Callers treat 0 as "budget spent, give up". */
+export const remainingBudgetMs = (elapsedMs: number): number =>
+  Math.max(0, WARM_CEILING_MS - elapsedMs)
+
+/** The HTTP status a rejected $fetch carries, whatever shape Nuxt hands us, or
+ * `undefined` when it never reached a server (network error, abort). Both
+ * shapes are real — see the same pair in useMsrFileApi.ts. */
+export const httpStatus = (err: unknown): number | undefined => {
+  const e = err as { response?: { status?: number }, statusCode?: number } | null
+  return e?.response?.status ?? e?.statusCode
+}
 
 /** The `code` a rejected $fetch carries, whatever shape Nuxt hands us.
  *
@@ -68,19 +87,10 @@ export const warmErrorCode = (err: unknown): string | undefined =>
 export const jittered = (baseMs: number, rand: number): number =>
   Math.round(baseMs * (0.75 + rand * 0.5))
 
-/**
- * How long to wait before re-POSTing, or `null` to give up.
- *
- * `null` releases the held images to the cold-GET path, which is the old
- * behaviour — so every `null` here is a decision to accept that load.
- */
-export const warmRetryDelayMs = (
-  err: unknown,
-  attempt: number,
-  elapsedMs: number,
-  rand: number
-): number | null => {
-  if (warmErrorCode(err) !== 'too_many_jobs') return null
+/** The ladder rung for `attempt`, or `null` when there is none left or the
+ * ceiling would swallow the wait. Shared by the POST and poll policies below;
+ * they differ only in WHICH errors get here. */
+const ladderDelayMs = (attempt: number, elapsedMs: number, rand: number): number | null => {
   // Indexing past the ladder yields undefined, which IS the "stop" signal —
   // one check instead of a separate length guard, and no non-null assertion.
   const base = WARM_RETRY_DELAYS_MS[attempt]
@@ -90,4 +100,57 @@ export const warmRetryDelayMs = (
   // panel for nothing.
   if (elapsedMs + delay >= WARM_CEILING_MS) return null
   return delay
+}
+
+/**
+ * How long to wait before re-POSTing, or `null` to give up.
+ *
+ * `null` releases the held images to the cold-GET path, which is the old
+ * behaviour — so every `null` here is a decision to accept that load.
+ *
+ * A failed POST created no job, so there is nothing to wait for unless the
+ * failure was the job cap itself, which clears on its own. That is why this is
+ * an allowlist of one code while the poll policy below is a denylist.
+ */
+export const warmRetryDelayMs = (
+  err: unknown,
+  attempt: number,
+  elapsedMs: number,
+  rand: number
+): number | null => {
+  if (warmErrorCode(err) !== 'too_many_jobs') return null
+  return ladderDelayMs(attempt, elapsedMs, rand)
+}
+
+/** A poll failure meaning the job is gone for good rather than that the
+ * network hiccupped. Only `poll_job_route`'s 404 says that (routes.py). */
+const isJobGone = (err: unknown): boolean =>
+  httpStatus(err) === 404 || warmErrorCode(err) === 'unknown_job'
+
+/**
+ * How long to wait before polling again, or `null` to give up.
+ *
+ * The mirror image of the POST policy, and deliberately so: by the time we are
+ * polling, the job EXISTS and is already reading the tool on our behalf. A
+ * rate-limit 429 (600ms polling plus the gallery's image GETs can reach the
+ * /api/* 20 req/5s limit) or a momentary proxy error says nothing about that
+ * job. Giving up there releases every held <img> into unbudgeted cold GETs at
+ * the one moment the tool is provably busy — the amplifier this whole feature
+ * exists to remove, re-entered through a different door.
+ *
+ * So the default is to ask again, and only a job that is definitively gone
+ * ends the wait. `attempt` counts CONSECUTIVE failures: a successful poll
+ * resets it, so a long job is not killed by an unlucky spread of hiccups.
+ *
+ * Re-POSTing here would be wrong twice over — the running job keeps its
+ * `max_jobs` slot, and the new one is a second visit to the tool.
+ */
+export const pollRetryDelayMs = (
+  err: unknown,
+  attempt: number,
+  elapsedMs: number,
+  rand: number
+): number | null => {
+  if (isJobGone(err)) return null
+  return ladderDelayMs(attempt, elapsedMs, rand)
 }

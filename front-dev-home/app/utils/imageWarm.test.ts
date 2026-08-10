@@ -7,7 +7,9 @@ import {
   WARM_RETRY_DELAYS_MS,
   jittered,
   warmErrorCode,
-  warmRetryDelayMs
+  warmRetryDelayMs,
+  pollRetryDelayMs,
+  remainingBudgetMs
 } from './imageWarm.ts'
 
 describe('nextWarmState', () => {
@@ -124,4 +126,53 @@ test('jitter stays inside +/-25% and moves with rand', () => {
   assert.equal(jittered(1000, 0), 750)
   assert.equal(jittered(1000, 0.5), 1000)
   assert.equal(jittered(1000, 1), 1250)
+})
+
+// Pure-logic tests for the POLL failure policy, which is the opposite of the
+// POST one. A POST that fails created no job, so there is nothing to wait for.
+// A poll that fails is asking about a job that EXISTS and is already reading
+// the tool — giving up there releases the panel into unbudgeted cold GETs at
+// the one moment the tool is provably busy on our behalf.
+
+const jobGone = { statusCode: 404, data: { code: 'unknown_job' } }
+
+test('a rate-limited poll keeps waiting instead of releasing the panel', () => {
+  // 600ms polling plus the gallery's image GETs can reach the /api/* 20 req/5s
+  // limit. The job is still running; the answer is to ask again, not to storm.
+  assert.equal(pollRetryDelayMs(rateLimited, 0, 0, 0.5), WARM_RETRY_DELAYS_MS[0])
+})
+
+test('a transient network failure on a poll keeps waiting too', () => {
+  assert.equal(pollRetryDelayMs(new Error('network down'), 0, 0, 0.5), WARM_RETRY_DELAYS_MS[0])
+})
+
+test('a job that is gone for good ends the wait', () => {
+  // Nothing will ever fill this cache: re-polling forever would hold the panel
+  // for a job that no longer exists.
+  assert.equal(pollRetryDelayMs(jobGone, 0, 0, 0.5), null)
+  assert.equal(pollRetryDelayMs({ response: { status: 404 }, data: {} }, 0, 0, 0.5), null)
+})
+
+test('consecutive poll failures walk the same ladder and then stop', () => {
+  assert.equal(pollRetryDelayMs(rateLimited, 1, 0, 0.5), WARM_RETRY_DELAYS_MS[1])
+  assert.equal(pollRetryDelayMs(rateLimited, 2, 0, 0.5), WARM_RETRY_DELAYS_MS[2])
+  assert.equal(pollRetryDelayMs(rateLimited, WARM_RETRY_DELAYS_MS.length, 0, 0.5), null)
+})
+
+test('the poll ladder is bounded by the SAME ceiling, not a second one', () => {
+  assert.equal(pollRetryDelayMs(rateLimited, 0, WARM_CEILING_MS, 0.5), null)
+  assert.equal(pollRetryDelayMs(rateLimited, 2, WARM_CEILING_MS - 1000, 0.5), null)
+})
+
+// The ceiling is only a ceiling if it also bounds a request that never answers
+// — WARM_CEILING_MS is documented as "longest the panel holds an image back",
+// and before this it was only ever checked between responses.
+
+test('the remaining budget is what a request may take, and never goes negative', () => {
+  assert.equal(remainingBudgetMs(0), WARM_CEILING_MS)
+  assert.equal(remainingBudgetMs(1000), WARM_CEILING_MS - 1000)
+  assert.equal(remainingBudgetMs(WARM_CEILING_MS), 0)
+  // A budget past the ceiling is spent, not owed: a negative timeout would be
+  // handed straight to $fetch.
+  assert.equal(remainingBudgetMs(WARM_CEILING_MS * 2), 0)
 })

@@ -1,6 +1,13 @@
 import type { ComputedRef } from 'vue'
 import type { FocusImageCtx } from '~/composables/useFocusImageCtx'
-import { WARM_POLL_MS, type WarmStatus, nextWarmState, warmRetryDelayMs } from '~/utils/imageWarm'
+import {
+  WARM_POLL_MS,
+  type WarmStatus,
+  nextWarmState,
+  pollRetryDelayMs,
+  remainingBudgetMs,
+  warmRetryDelayMs
+} from '~/utils/imageWarm'
 
 /** What to warm: the scope `id` names the unit (the active parameter) and
  * `names` its image files. The id — not the name list — keys the store, so
@@ -36,8 +43,21 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
  * A refused POST (the 2-job cap) is WAITED OUT rather than surfaced. Giving up
  * used to look harmless — the per-image cold GET still runs — but that path has
  * no session budget at all, so releasing the whole panel at the exact moment
- * the tool is saturated is what turns a cap into a stampede. Everything else
- * (dead tool, expired job) still gives up: waiting would not improve it. */
+ * the tool is saturated is what turns a cap into a stampede.
+ *
+ * The two failure paths are handled SEPARATELY because their premises differ.
+ * A POST that fails created no job, so there is nothing to wait for and only
+ * the self-clearing cap is worth retrying. A poll that fails is asking about a
+ * job that exists and is already reading the tool, so the failure says nothing
+ * about whether waiting will pay off — only a job that is definitively gone
+ * ends the wait. One shared `try` used to collapse both into "give up", which
+ * let a single rate-limited poll release the panel mid-job.
+ *
+ * Every request is capped at the REMAINING ceiling budget, so a call that
+ * never answers cannot hold the panel past WARM_CEILING_MS. Aborting a POST
+ * can leave a job the server already created running unattended — it still
+ * fills the shared cache, and it only happens at the point we were about to
+ * give up anyway. */
 const runWarm = async (
   state: WarmState,
   api: ReturnType<typeof useMsrImageApi>,
@@ -45,27 +65,48 @@ const runWarm = async (
   names: string[]
 ) => {
   const startedAt = Date.now()
-  for (let attempt = 0; ; attempt++) {
+  const elapsed = () => Date.now() - startedAt
+  const giveUp = () => {
+    state.status = 'gaveup'
+  }
+
+  for (let postAttempt = 0; ; postAttempt++) {
+    let jobId: string
+    const postBudget = remainingBudgetMs(elapsed())
+    if (postBudget === 0) return giveUp()
     try {
-      const jobId = await api.startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr, names)
-      for (;;) {
-        await sleep(WARM_POLL_MS)
-        const poll = await api.pollJob(jobId)
-        state.done = poll.done
-        state.total = poll.total
-        state.status = nextWarmState(poll, Date.now() - startedAt)
-        if (state.status !== 'warming') return
-      }
+      jobId = await api.startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr, names, postBudget)
     } catch (err) {
-      // `attempt` counts POST refusals, and a refusal means no job was created
-      // — so the retry re-POSTs rather than resuming a poll. There is no
-      // job_id to resume.
-      const delay = warmRetryDelayMs(err, attempt, Date.now() - startedAt, Math.random())
-      if (delay === null) {
-        state.status = 'gaveup'
-        return
-      }
+      // `postAttempt` counts POST refusals, and a refusal means no job was
+      // created — so the retry re-POSTs rather than resuming a poll. There is
+      // no job_id to resume.
+      const delay = warmRetryDelayMs(err, postAttempt, elapsed(), Math.random())
+      if (delay === null) return giveUp()
       await sleep(delay)
+      continue
+    }
+
+    // From here a job exists. Never re-POST: the running one keeps its
+    // max_jobs slot, so a second job is a second visit to the tool for files
+    // the first is already fetching.
+    for (let pollFailures = 0; ;) {
+      await sleep(WARM_POLL_MS)
+      const pollBudget = remainingBudgetMs(elapsed())
+      if (pollBudget === 0) return giveUp()
+      let poll
+      try {
+        poll = await api.pollJob(jobId, pollBudget)
+      } catch (err) {
+        const delay = pollRetryDelayMs(err, pollFailures++, elapsed(), Math.random())
+        if (delay === null) return giveUp()
+        await sleep(delay)
+        continue
+      }
+      pollFailures = 0 // consecutive, so a long job survives scattered hiccups
+      state.done = poll.done
+      state.total = poll.total
+      state.status = nextWarmState(poll, elapsed())
+      if (state.status !== 'warming') return
     }
   }
 }
@@ -87,9 +128,11 @@ const runWarm = async (
  * utils/imageWarm.ts for why hiding the error client-side is not an option.
  *
  * A refusal (429) is retried with backoff and the panel keeps holding, since
- * the tool being busy is exactly when a cold GET storm must not happen. No
- * job can hold a panel forever even so: WARM_CEILING_MS bounds the total
- * wait — retries included — and anything past it resolves to 'gaveup'.
+ * the tool being busy is exactly when a cold GET storm must not happen, and a
+ * poll that fails while the job runs is retried for the same reason. No job
+ * can hold a panel forever even so: WARM_CEILING_MS bounds the total wait —
+ * retries and unanswered requests included — and anything past it resolves to
+ * 'gaveup'.
  */
 export const useMsrImageWarmer = (
   ctx: ComputedRef<FocusImageCtx>,
