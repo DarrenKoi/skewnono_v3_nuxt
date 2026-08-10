@@ -376,14 +376,21 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
 
     resolved = 0
     for recipe in dict.fromkeys(recipes[:limit]):
-        # Exactly the shape the adapter must use: newest version only, and only
-        # the parameters source. Pulling full version history per recipe is what
+        # Newest version only — pulling full version history per recipe is what
         # idp_ver.txt warns blows up the payload.
+        #
+        # `raw_data` IS pulled whole here, unlike in the adapter, which narrows
+        # it to two field paths. The probe samples a handful of recipes and its
+        # job is to report the blob's real shape; the adapter runs over 100-200
+        # recipes per device and must not.
         body = {
             "size": 1,
             "query": {"term": {name_field: recipe}},
             "sort": [{"version": "desc"}],
-            "_source": ["full_name", "version", "modified", "parameters"],
+            "_source": [
+                "full_name", "version", "modified",
+                "parameters", "parameters_list", "raw_data",
+            ],
         }
         hits = search.search_raw(body).get("hits", {}).get("hits", [])
         if not hits:
@@ -435,6 +442,9 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
         else:
             print(f"      value: {str(params)[:160]}")
 
+        _report_order(params, src.get("parameters_list"))
+        _report_raw_data(src.get("raw_data"))
+
     print(f"\n  resolved {resolved}/{len(list(dict.fromkeys(recipes[:limit])))} sampled recipe(s)")
     if resolved:
         print(
@@ -442,6 +452,85 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
             "     ({name, point_count}) and to RecipeInfoRow's para_16/13/9/5.\n"
             "     Record the blob's real structure in docs/datatables/idp_ver.txt."
         )
+
+
+def _report_order(params: Any, order: Any) -> None:
+    """`parameters_list` is the MEASURED order; `parameters` key order is not.
+
+    Confirmed 2026-08-10 that the two disagree — a recipe came back as
+    ``{'EDGE': 10, 'LEVEL': 4, 'WAFER': 10}`` with
+    ``['WAFER', 'LEVEL', 'EDGE']``. The adapter reorders by the list, so what
+    this prints is whether that reordering is doing anything: if the two ever
+    agree everywhere, the extra field is redundant and worth simplifying away.
+    """
+    if order is None:
+        print("      parameters_list: ABSENT -> order falls back to the dict's keys")
+        return
+    if not isinstance(order, list):
+        print(f"      parameters_list: {type(order).__name__} (expected list) {str(order)[:120]}")
+        return
+
+    print(f"      parameters_list ({len(order)}): {', '.join(map(str, order[:14]))}")
+    if not isinstance(params, dict):
+        return
+    if list(map(str, order)) == list(map(str, params)):
+        print("      -> same order as parameters' keys for this recipe")
+    else:
+        print(
+            "      -> DIFFERENT from parameters' key order. The list wins "
+            "(measured order); using the dict's order buries WAFER."
+        )
+    missing = [name for name in map(str, order) if name not in set(map(str, params))]
+    extra = [name for name in map(str, params) if name not in set(map(str, order))]
+    if missing or extra:
+        print(
+            f"      -> MISMATCHED MEMBERSHIP: only in list {missing[:6]}, "
+            f"only in parameters {extra[:6]}"
+        )
+
+
+def _report_raw_data(raw: Any) -> None:
+    """`raw_data` carries Mother_Para — the flag device-statistics needs.
+
+    The adapter narrows `_source` to `raw_data.Parameter` /
+    `raw_data.Mother_Para`, so those two paths have to exist and the flag has
+    to be a real bool. `bool("False")` is True, so a string-typed flag would
+    turn EVERY parameter into a mother; printing the Python type is how that
+    gets caught before the screen lies.
+    """
+    if raw is None:
+        print("      raw_data: ABSENT -> mother_normal cannot be filled from this index")
+        return
+
+    print(f"      raw_data type: {type(raw).__name__}")
+    row = None
+    if isinstance(raw, list):
+        print(f"      raw_data length: {len(raw)}")
+        row = raw[0] if raw and isinstance(raw[0], dict) else None
+    elif isinstance(raw, dict):
+        print(f"      raw_data keys: {sorted(map(str, raw))[:14]}")
+        first = next(iter(raw.values()), None)
+        row = first if isinstance(first, dict) else None
+
+    if not isinstance(row, dict):
+        print(f"      first element: {str(raw)[:200]}")
+        print("      -> shape not recognised. Adapter's _raw_data_rows needs a branch.")
+        return
+
+    print(f"      row keys: {sorted(map(str, row))}")
+    for name in ("Mother_Para", "mother_para", "mother"):
+        if name in row:
+            value = row[name]
+            print(f"      {name} = {value!r} (type {type(value).__name__})")
+            if not isinstance(value, bool):
+                print(
+                    "      -> NOT a Python bool. A naive cast makes every parameter\n"
+                    "         a mother (bool('False') is True). Record the real type\n"
+                    "         in idp_ver.txt and check the adapter's _flag covers it."
+                )
+            break
+    else:
+        print("      -> no Mother_Para key on this row. mother_normal stays empty.")
 
 
 def main(argv: list[str] | None = None) -> int:

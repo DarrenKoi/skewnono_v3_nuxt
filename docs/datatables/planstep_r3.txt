@@ -150,22 +150,26 @@ Step" 으로, mother_normal 을 "skip 되지 않은 순수 CD 스텝" 으로 적
 mother 파라미터를 전혀 보지 않았습니다. 두 버킷은 같은 스텝 필터를 공유하며
 mother 로만 갈립니다.
 
-mother_para 출처 — 미해결 (2026-08-04)
+mother_para 출처 — 해결됨 (office 확인 2026-08-10)
 
   Mother_Para 는 **파라미터 1개당 bool** 입니다 (docs/datatables/recipe_idp.txt,
-  office 확인 2026-07-28). 문제는 그 값이 있는 곳입니다:
+  office 확인 2026-07-28). 오래 열려 있던 문제는 그 값이 어디 있느냐였고,
+  2026-08-10 에 닫혔습니다:
 
+    cdsem_idp_ver.raw_data     -> parameter 별 row. **Mother_Para 가 여기 있습니다**
     cdsem_idp_ver.parameters   -> {name: point_count}. mother 를 담을 자리가 없음
-    장비 FTP 의 {idp_name}.idp -> Mother_Para 가 있는 유일한 확인된 출처
-                                  (recipe 1건당 파일 1개)
+    장비 FTP 의 {idp_name}.idp -> 같은 값의 원본 (recipe 1건당 파일 1개)
 
-  device-statistics 는 device 4000개 × recipe 100~200개 규모라 FTP 경로로는
-  실시간 조회가 불가능합니다. 따라서 사무실에서 mother_normal 을 켜려면 먼저
-  이 출처를 해결해야 합니다. 어댑터는 그때까지 parameters blob 에 플래그가
-  실려 오는지 보고, 없으면 경고 로그를 남기고 이 버킷을 **비웁니다** (규칙을
-  그대로 적용한 결과입니다 — only_normal 로 슬쩍 대체하면 요약은 숫자를 내는데
-  health 는 판정할 파라미터가 없어 0/0 이 되는, 두 표면이 어긋난 화면이 됩니다).
-  해결 후보는 back_dev_home/ebeam/device_statistics/MIGRATION.md 참고.
+  2026-08-04 기록은 FTP 파일이 "유일한 확인된 출처" 라고 적었습니다. 틀렸습니다 —
+  같은 index 의 다른 field 를 아무도 열어 보지 않았을 뿐입니다. device 4000개 ×
+  recipe 100~200개 규모에서 FTP 를 못 쓰는 것은 그대로이지만, 이제 그 경로가
+  필요 없습니다. 자세한 형태와 payload 주의는 docs/datatables/idp_ver.txt 의
+  "raw_data — mother 의 출처" 절에 있습니다.
+
+  어댑터는 플래그를 **읽지 못한 경우**와 **읽었는데 True 가 하나도 없는 경우**에
+  각각 다른 경고를 남기고, 두 경우 모두 이 버킷을 비웁니다 (규칙을 그대로 적용한
+  결과입니다 — only_normal 로 슬쩍 대체하면 요약은 숫자를 내는데 health 는 판정할
+  파라미터가 없어 0/0 이 되는, 두 표면이 어긋난 화면이 됩니다).
 
 한 device 의 문서 수 — 2000건을 넘습니다 (office 확인 2026-08-10)
 

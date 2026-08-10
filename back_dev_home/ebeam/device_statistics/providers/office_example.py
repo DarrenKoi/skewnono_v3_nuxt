@@ -636,20 +636,48 @@ def _steps_for(lot_cd: str, fac_id: str) -> list[dict[str, Any]]:
 _IDP_CHUNK = 500
 
 
-# mother 플래그가 실릴 수 있는 key 이름. 적재 쪽 표기가 확정되지 않아 세 가지를
-# 모두 봅니다 — idp 원본 컬럼명은 ``Mother_Para`` 입니다
-# (docs/datatables/recipe_idp.txt L182, office 확인 2026-07-28).
-_MOTHER_KEYS = ("mother", "Mother_Para", "mother_para")
+# mother 플래그가 실릴 수 있는 key 이름. idp 원본 컬럼명은 ``Mother_Para`` 입니다
+# (docs/datatables/recipe_idp.txt, office 확인 2026-07-28). 나머지 두 개는 적재
+# 쪽이 이름을 바꿨을 때를 위한 관용입니다.
+_MOTHER_KEYS = ("Mother_Para", "mother_para", "mother")
+
+# raw_data row 에서 parameter 이름이 실린 key. idp 원본 컬럼명은 ``Parameter``.
+_PARAM_NAME_KEYS = ("Parameter", "parameter", "name")
+
+# raw_data 가 .idp 의 세 table 을 통째로 감싼 형태일 때 mother 가 든 table.
+_IDP_IMAGE_TABLE = "idp_image_info"
+
+# top_hits 가 내려받을 field.
+#
+# ``raw_data`` 를 **통째로 받으면 안 됩니다** — recipe 1건의 parameter 표 전체이고
+# device 당 recipe 100~200 개가 곱해집니다 (idp_ver.txt 의 payload 주의는 이 blob
+# 에도 그대로 적용됩니다). object array 에 대한 ``_source`` 필터는 배열 구조를
+# 유지한 채 안쪽 field 만 남기므로, 필요한 두 컬럼만 이름으로 집습니다.
+#
+# ``raw_data.idp_image_info.*`` 를 함께 넣어 두는 것은 blob 이 세 table 을 감싼
+# 형태일 경우를 위한 보험입니다 — 매칭되지 않는 include 는 비용이 없습니다.
+_IDP_SOURCE = [
+    "parameters",
+    "parameters_list",
+    "raw_data.Parameter",
+    "raw_data.Mother_Para",
+    f"raw_data.{_IDP_IMAGE_TABLE}.Parameter",
+    f"raw_data.{_IDP_IMAGE_TABLE}.Mother_Para",
+]
 
 
 def _normalize_parameters(blob: Any) -> tuple[dict[str, int], set[str]]:
     """``parameters`` blob -> ``({name: point_count}, {mother 인 name})``.
 
-    확인된 형태는 dict[str, int] 입니다(user-confirmed 2026-07-30) — 그 형태에는
-    **mother 플래그가 실릴 자리가 없어** 두 번째 값이 항상 빈 집합입니다. list
-    분기는 적재 쪽이 ``[{name, point_count, ...}, ...]`` 로 바뀌었을 때를 위한
-    관용이며, 그 경우에만 :data:`_MOTHER_KEYS` 중 하나에서 mother 를 읽습니다.
-    둘 다 아니면 빈 dict 가 되어 para_* 가 0 이 됩니다.
+    확인된 형태는 dict[str, int] 입니다 — key 가 parameter 이름, value 가 측정
+    **point 수**입니다 (user-confirmed 2026-07-30, 2026-08-10 재확인:
+    ``{'EDGE': 10, 'LEVEL': 4, 'WAFER': 10}``). 이 형태에는 mother 플래그가 실릴
+    자리가 없으므로 두 번째 값은 빈 집합이고, mother 는 ``raw_data`` 에서
+    :func:`_mother_names` 가 읽습니다.
+
+    list 분기는 적재 쪽이 ``[{name, point_count, ...}, ...]`` 로 바뀌었을 때를
+    위한 관용이며, 그 경우에만 :data:`_MOTHER_KEYS` 중 하나에서 mother 를
+    읽습니다. 둘 다 아니면 빈 dict 가 되어 para_* 가 0 이 됩니다.
     """
     if isinstance(blob, dict):
         params: dict[str, int] = {}
@@ -668,10 +696,141 @@ def _normalize_parameters(blob: Any) -> tuple[dict[str, int], set[str]]:
             if not key:
                 continue
             params[key] = _as_int(entry.get("point_count"))
-            if any(bool(entry.get(flag)) for flag in _MOTHER_KEYS):
+            if any(_flag(entry.get(name)) for name in _MOTHER_KEYS):
                 mothers.add(key)
         return params, mothers
     return {}, set()
+
+
+def _ordered_parameters(params: dict[str, int], order: Any) -> dict[str, int]:
+    """``parameters`` 를 ``parameters_list`` 의 **측정 순서**로 재배열합니다.
+
+    ``parameters`` dict 의 key 순서는 측정 순서가 **아닙니다** (office 확인
+    2026-08-10). 같은 recipe 가 ``parameters = {'EDGE': 10, 'LEVEL': 4,
+    'WAFER': 10}`` 이면서 ``parameters_list = ['WAFER', 'LEVEL', 'EDGE']`` 로
+    옵니다 — 즉 dict 순서를 그대로 쓰면 **WAFER 가 목록 맨 아래**로 갑니다.
+    2026-08-05 에 "dict 의 key 순서가 곧 recipe 가 적어 둔 순서" 라고 보고
+    정렬만 걷어냈던 것은 절반만 맞았습니다: 정렬하지 말아야 한다는 것은 맞고,
+    순서의 출처가 이 dict 라는 것은 틀렸습니다.
+
+    ``parameters_list`` 에 없는 parameter 는 버리지 않고 원래 순서대로 뒤에
+    붙입니다 — 두 field 가 어긋날 때 화면에서 파라미터가 사라지는 편이
+    순서가 조금 어긋나는 것보다 나쁩니다.
+    """
+    if not isinstance(order, (list, tuple)):
+        return params
+    names = [name for name in (_text(value) for value in order) if name]
+    if not names:
+        return params
+
+    ordered = {name: params[name] for name in dict.fromkeys(names) if name in params}
+    trailing = {name: pc for name, pc in params.items() if name not in ordered}
+    if trailing:
+        _LOG.debug(
+            "device_statistics: %d parameter(s) absent from parameters_list — "
+            "appended in source order", len(trailing),
+        )
+    ordered.update(trailing)
+    return ordered
+
+
+def _flag(value: Any) -> bool | None:
+    """bool 로 읽습니다. 읽을 수 없으면 **추측하지 않고** None.
+
+    문자열을 그냥 ``bool()`` 에 넣으면 안 됩니다 — ``bool("False")`` 는 True
+    입니다. recipe_search 가 ``Addressing``/``dnumber_removed`` 에서 겪은 함정과
+    같은 것으로(recipe_idp.txt), 틀린 값을 넣느니 모른다고 하는 편이 낫습니다.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    label = _text(value).lower()
+    if label in ("true", "t", "y", "yes", "1"):
+        return True
+    if label in ("false", "f", "n", "no", "0"):
+        return False
+    return None
+
+
+def _column_values(column: Any) -> dict[str, Any]:
+    """column 지향 blob 의 한 컬럼 -> ``{행 index: 값}``."""
+    if isinstance(column, dict):
+        return {_text(index): value for index, value in column.items()}
+    if isinstance(column, list):
+        return {str(index): value for index, value in enumerate(column)}
+    return {}
+
+
+def _raw_data_rows(blob: Any) -> list[dict[str, Any]] | None:
+    """``raw_data`` -> row dict 목록. 알아볼 수 없는 형태면 None.
+
+    확인된 형태는 **row dict 의 list** 입니다 (user-confirmed 2026-08-10)::
+
+        [{"Parameter": "WAFER", "Mother_Para": True, ...}, ...]
+
+    나머지 분기는 적재 쪽 표기가 바뀌었을 때를 위한 관용입니다. 형태를 위치가
+    아니라 **key 이름으로** 판별하는 것은 recipe_search 의 ``_normalize_frames``
+    와 같은 이유입니다 — 순서로 추측하면 조용히 틀립니다.
+    """
+    if isinstance(blob, list):
+        return [entry for entry in blob if isinstance(entry, dict)] or None
+    if not isinstance(blob, dict) or not blob:
+        return None
+
+    # .idp 의 세 table 을 감싼 형태 — mother 는 idp_image_info 안에 있습니다.
+    if _IDP_IMAGE_TABLE in blob:
+        return _raw_data_rows(blob[_IDP_IMAGE_TABLE])
+
+    mother_key = next((key for key in _MOTHER_KEYS if key in blob), "")
+    if mother_key:
+        # column 지향 (``DataFrame.to_dict()``) — {컬럼: {행 index: 값}}.
+        name_key = next((key for key in _PARAM_NAME_KEYS if key in blob), "")
+        names = _column_values(blob.get(name_key)) if name_key else {}
+        return [
+            {"Parameter": names.get(index), mother_key: value}
+            for index, value in _column_values(blob[mother_key]).items()
+        ] or None
+
+    # parameter 이름이 key 이고 값이 그 parameter 의 detail dict.
+    return [
+        {"Parameter": _text(name), **entry}
+        for name, entry in blob.items()
+        if isinstance(entry, dict)
+    ] or None
+
+
+def _mother_names(raw_data: Any) -> set[str] | None:
+    """``raw_data`` -> mother 인 parameter 이름 집합. **판별 불가면 None**.
+
+    빈 집합과 None 은 다릅니다 — 빈 집합은 "읽었고 mother 가 없다", None 은
+    "이 문서에서는 mother 를 읽을 수 없다" 입니다. mother_normal 버킷은 두 경우
+    모두 비지만 원인이 정반대라, 이 구분이 곧 :func:`_idp_parameters` 가 어느
+    경고를 남길지입니다.
+    """
+    rows = _raw_data_rows(raw_data)
+    if rows is None:
+        return None
+
+    mothers: set[str] = set()
+    readable = False
+    for row in rows:
+        flag: bool | None = None
+        for key in _MOTHER_KEYS:
+            if key in row:
+                flag = _flag(row[key])
+                break
+        if flag is None:
+            continue
+        readable = True
+        if not flag:
+            continue
+        name = next(
+            (n for n in (_text(row.get(key)) for key in _PARAM_NAME_KEYS) if n), ""
+        )
+        if name:
+            mothers.add(name)
+    return mothers if readable else None
 
 
 def _idp_parameters(
@@ -682,26 +841,29 @@ def _idp_parameters(
 
     recipe 마다 질의를 날리면 device 하나에 100~200 왕복이 됩니다. terms 집계 +
     ``top_hits(size=1, sort=version desc)`` 로 **device 당 1회**로 줄이고
-    ``_source`` 를 parameters 로 제한합니다 — 이 두 제한은 선택이 아니라
+    ``_source`` 를 :data:`_IDP_SOURCE` 로 제한합니다 — 이 두 제한은 선택이 아니라
     필수입니다(idp_ver.txt payload 주의).
 
-    ★ OFFICE-VERIFY (미해결) — mother_para 의 출처
+    세 field 를 읽고 각각 다른 것을 답합니다 (office 확인 2026-08-10):
 
-      두 번째 반환값이 ``None`` 이면 **이 index 에서 mother 를 판별할 수 없다**는
-      뜻이고, 그때 mother_normal 버킷은 비게 됩니다(멤버 조건이 "mother 를 가진
-      recipe" 이므로 규칙을 그대로 적용한 결과입니다).
+      parameters       {이름: point 수}. para_16/13/9/5 의 입력입니다.
+      parameters_list  **측정 순서**의 이름 목록. parameters 의 key 순서는 측정
+                       순서가 아니므로 화면 순서는 이쪽이 정합니다.
+      raw_data         parameter 별 row. ``Mother_Para`` 가 여기 있습니다.
 
-      현재 상태가 그렇습니다. ``cdsem_idp_ver.parameters`` 의 확인된 형태는
-      ``{name: point_count}`` 라 mother 플래그를 담을 자리가 없고,
-      ``Mother_Para`` 가 확인된 곳은 **장비 FTP 의 ``.idp`` 원본 파일**뿐입니다
-      (docs/datatables/recipe_idp.txt — recipe 1건당 파일 1개를
-      ``office_utils/read_idp_info.py`` 로 파싱). device 4000개 × recipe
-      100~200개 규모에서는 그 경로로 조회할 수 없습니다.
+    ★ mother_para 의 출처 — 해결됨 (office 확인 2026-08-10)
 
-      그래서 이 함수는 blob 이 list 형태로 바뀌어 플래그를 실어 주면 그대로 읽고,
-      아니면 **경고를 남기고** degrade 합니다. 조용히 같아지면 화면이 "mother
-      view 가 동작한다" 고 거짓말하므로, 로그가 유일한 방어선입니다. 해결
-      방향은 MIGRATION.md 의 "mother_para 출처" 절에 있습니다.
+      오랫동안 ``Mother_Para`` 는 **장비 FTP 의 ``.idp`` 원본 파일**에서만 읽을 수
+      있다고 보았고(recipe_idp.txt), device 4000개 × recipe 100~200개 규모에서는
+      그 경로를 쓸 수 없어 mother_normal 버킷을 비워 두고 있었습니다. 실제로는 이
+      index 의 ``raw_data`` 에 같은 값이 실려 있습니다 — recipe_search 의
+      recipe-open 이 FTP 파싱의 대안으로 쓰는 것과 같은 blob 입니다.
+
+      두 번째 반환값이 ``None`` 이면 여전히 **판별 불가**(그 blob 에서 플래그를
+      찾지 못함)이고, 그때만 mother_normal 이 원인 불명으로 빕니다. 빈 dict 는
+      다른 뜻입니다 — 읽었는데 mother 인 recipe 가 하나도 없다는 뜻이고, 그것도
+      정상은 아니므로 별도 경고를 남깁니다. 조용히 같아지면 화면이 "mother view
+      가 동작한다" 고 거짓말하므로 두 경우를 가르는 것이 요점입니다.
     """
     unique = [rid for rid in dict.fromkeys(recipe_ids) if rid]
     if not unique:
@@ -709,6 +871,7 @@ def _idp_parameters(
 
     out: dict[str, dict[str, int]] = {}
     mothers_out: dict[str, set[str]] = {}
+    readable = 0
     for start in range(0, len(unique), _IDP_CHUNK):
         chunk = unique[start:start + _IDP_CHUNK]
         aggs = {
@@ -719,7 +882,7 @@ def _idp_parameters(
                         "top_hits": {
                             "size": 1,
                             "sort": [{"version": "desc"}],
-                            "_source": ["parameters"],
+                            "_source": _IDP_SOURCE,
                         }
                     }
                 },
@@ -732,22 +895,43 @@ def _idp_parameters(
             hits = bucket.get("latest", {}).get("hits", {}).get("hits", [])
             if not hits:
                 continue
-            blob = hits[0].get("_source", {}).get("parameters")
+            source = hits[0].get("_source", {})
             recipe_id = _text(bucket.get("key"))
-            out[recipe_id], mothers = _normalize_parameters(blob)
+            params, list_mothers = _normalize_parameters(source.get("parameters"))
+            out[recipe_id] = _ordered_parameters(
+                params, source.get("parameters_list")
+            )
+            # raw_data 가 정본입니다. list 형태 parameters 가 플래그를 실어 준
+            # 경우만 그 값으로 물러섭니다.
+            mothers = _mother_names(source.get("raw_data"))
+            if mothers is None and list_mothers:
+                mothers = list_mothers
+            if mothers is None:
+                continue
+            readable += 1
             if mothers:
                 mothers_out[recipe_id] = mothers
 
-    if not mothers_out:
-        # 한 recipe 도 mother 를 실어 오지 않았습니다 — "mother 가 없는 device"
-        # 가 아니라 **판별 자체가 불가능**한 상태입니다. 위 OFFICE-VERIFY 참고.
+    if not readable:
+        # 한 recipe 에서도 플래그를 **찾지 못했습니다** — "mother 가 없는 device"
+        # 가 아니라 판별 자체가 불가능한 상태입니다.
         _LOG.warning(
-            "device_statistics: no Mother_Para on any of %d recipe(s) in %r — "
-            "the mother_normal bucket will be EMPTY. The flag lives in the "
-            "tool-FTP .idp file, not this index; see MIGRATION.md 'mother_para 출처'.",
-            len(unique), IDP_INDEX,
+            "device_statistics: could not read Mother_Para for any of %d recipe(s) "
+            "in %r — the mother_normal bucket will be EMPTY. Fetched %s; if the "
+            "flag moved, fix _IDP_SOURCE and _raw_data_rows together "
+            "(scripts/probe_planstep_r3 stage [5] prints raw_data's real shape).",
+            len(unique), IDP_INDEX, _IDP_SOURCE,
         )
         return out, None
+    if not mothers_out:
+        # 위와 정반대의 상태 — 읽히기는 했는데 전부 False 입니다. recipe 마다
+        # mother 가 보통 1개는 있으므로(recipe_idp.txt) 이것도 정상은 아닙니다.
+        _LOG.warning(
+            "device_statistics: Mother_Para readable on %d of %d recipe(s) in %r "
+            "but NOT ONE is True — the mother_normal bucket will be EMPTY. Check "
+            "whether the flag is being ingested as a string ('False'/'N').",
+            readable, len(unique), IDP_INDEX,
+        )
     return out, mothers_out
 
 
@@ -934,14 +1118,15 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
             # "mother view 가 동작한다" 고 거짓말하는 것보다 낫습니다. 판별
             # 불가는 위 _idp_parameters 가 로그로 알립니다.
             mothers = (mothers_by_recipe or {}).get(recipe_id, set())
-            # **원본 순서 그대로** 냅니다 (user-confirmed 2026-08-05). 이 dict 의
-            # key 순서는 recipe 가 파라미터를 적어 둔 순서이고, 그 순서 자체가
-            # 정보입니다 — WAFER 계열이 맨 앞에 오는 것이 관례이고 엔지니어가
-            # drill 을 위에서부터 읽습니다. 예전에는 여기서 이름순으로 정렬해
-            # "WAFER" 가 알파벳상 거의 끝이라 **가장 중요한 파라미터가 목록
-            # 맨 아래로** 밀려 있었습니다. json.loads 와 dict 는 삽입 순서를
-            # 지키므로 정렬만 걷어내면 OpenSearch _source 의 순서가 그대로
-            # 화면까지 옵니다.
+            # 여기서 정렬하지 않습니다 — 순서 자체가 정보입니다. WAFER 계열이
+            # 맨 앞에 오는 것이 관례이고 엔지니어가 drill 을 위에서부터 읽는데,
+            # 예전에는 이름순으로 정렬해 "WAFER" 가 알파벳상 거의 끝이라 **가장
+            # 중요한 파라미터가 목록 맨 아래로** 밀려 있었습니다.
+            #
+            # 그 순서를 정하는 것은 ``parameters`` dict 의 key 순서가 아니라
+            # ``parameters_list`` 이며, 재배열은 _ordered_parameters 가 이미
+            # 끝냈습니다 (office 확인 2026-08-10 — 두 field 의 순서가 실제로
+            # 다릅니다). 여기는 그 순서를 **그대로 흘려보내기만** 합니다.
             parameters: list[ParameterRow] = [
                 {
                     "name": name,
@@ -1327,17 +1512,22 @@ if __name__ == "__main__":
         )
 
     # mother 를 실제로 조회해서 넘깁니다 — 기본값으로 부르면 mother_normal 이
-    # 늘 0 으로 나와, 진단이 "출처 미해결" 을 "이 device 에 mother 가 없음" 처럼
+    # 늘 0 으로 나와, 진단이 "읽지 못했다" 를 "이 device 에 mother 가 없음" 처럼
     # 보여 줍니다.
     _, mothers_by_recipe = _idp_parameters([s["recipe_id"] for s in steps])
     members = _bucket_members(steps, mothers_by_recipe)
     print("\n  버킷별 스텝 수:")
     for name in RCP_BUCKETS:
         print(f"    {name:<14} {len(members[name]):>5}")
-    if not mothers_by_recipe:
+    if mothers_by_recipe is None:
         print(
-            "    NOTE: 어느 recipe 에서도 Mother_Para 를 읽지 못해 mother_normal "
-            "이 0 입니다 — 출처 미해결 (MIGRATION.md 'mother_para 출처')."
+            "    NOTE: 어느 recipe 에서도 Mother_Para 를 **읽지 못해** "
+            f"mother_normal 이 0 입니다. 내려받은 field: {_IDP_SOURCE}"
+        )
+    elif not mothers_by_recipe:
+        print(
+            "    NOTE: Mother_Para 는 읽혔는데 True 인 recipe 가 하나도 없어 "
+            "mother_normal 이 0 입니다 — 문자열('False')로 적재되고 있는지 확인."
         )
 
     params = get_recipe_params([lot_cd])

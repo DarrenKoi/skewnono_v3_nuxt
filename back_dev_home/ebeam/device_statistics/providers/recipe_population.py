@@ -76,12 +76,25 @@ recipe_params 의 parameters 는 서로 다른 모듈이 각자 난수로 만들
 recipe 에 mother 가 있는가" 를 두 곳에서 따로 정하면 *para 합계는 줄었는데
 health 는 그대로*인, 오류 없이 조용히 어긋나는 화면이 됩니다.
 
+사무실 출처는 ``cdsem_idp_ver`` 의 **``raw_data``** 입니다 — parameter 별 row 에
+``Mother_Para`` 가 실려 있습니다 (office 확인 2026-08-10, docs/datatables/
+idp_ver.txt). 2026-08-04 까지 이 자리에는 "사무실 원천 미해결" 이라고 적혀
+있었는데, ``parameters`` 만 열어 보고 판단한 오진이었습니다.
+
 OFFICE-VERIFY: mother 발생률(여기서는 recipe 의 약 85%가 보유, 보유 시 각 bin 의
-25~45%)은 실물에서 확인된 바 없습니다. 사무실에서는 **원천 자체가 미해결**입니다
-— ``cdsem_idp_ver.parameters`` 는 ``{name: point_count}`` 라 mother 플래그를 담을
-자리가 없고, ``Mother_Para`` 가 확인된 곳은 장비 FTP 의 ``.idp`` 원본 파일뿐입니다
-(recipe 1건당 파일 1개라 device 4000개 규모로는 조회 불가). MIGRATION.md 의
-"mother_para 출처" 절을 보십시오.
+25~45%)은 실물에서 확인된 바 없습니다.
+
+이 mock 이 실물보다 좁은 지점 둘 — 사무실 경로에서만 나는 사고를 집에서 재현하지
+못하는 자리입니다.
+
+  1. ``mother`` 를 처음부터 **bool** 로 만듭니다. index 쪽이 문자열("False")로
+     적재되어 있으면 순진한 캐스팅이 모든 파라미터를 mother 로 만드는데
+     (``bool("False")`` 는 True), 그 사고는 여기서 절대 재현되지 않습니다.
+     office adapter 의 ``_flag`` 와 그 단위 테스트가 그 자리를 대신합니다.
+  2. 파라미터를 **이미 측정 순서대로** 냅니다(WAFER -> LEVEL -> EDGE). 실물은
+     ``parameters`` dict 의 key 순서가 측정 순서가 아니고 ``parameters_list``
+     가 따로 순서를 싣습니다 — 그래서 "재배열" 이라는 단계 자체가 집에는
+     없습니다 (idp_ver.txt "순서는 parameters_list 가 정합니다").
 
 Internal module: 이 feature 밖에서는 device_statistics.data 를 통해 쓰십시오.
 """
