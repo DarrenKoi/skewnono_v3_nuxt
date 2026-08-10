@@ -1,6 +1,6 @@
 # 04 — 폴링 실패 한 번이 살아 있는 job 을 버리고 패널을 푼다
 
-Status: ready-for-agent
+Status: resolved
 
 ## 문제
 
@@ -83,3 +83,12 @@ POST 재시도와 폴링 재시도를 분리합니다. 지금은 `attempt` 하�
 - `front-dev-home/app/composables/useMsrImageWarmer.ts` — `runWarm`
 - `back_dev_home/msr_image/routes.py` — `poll_job_route` (404 `unknown_job` 만)
 - 설계: `docs/superpowers/specs/2026-08-10-msr-image-tool-load-design.md` §2.1, §4.1
+
+## Answer
+
+`9a9d1bff` — POST 재시도와 폴링 재시도를 분리했습니다. `pollRetryDelayMs` 는
+기본이 재시도이고 `isJobGone`(404 / `unknown_job`)일 때만 `null` 입니다. 연속
+실패로 세고 성공하면 0 으로 되돌립니다. 사다리와 예산은 기존 상수를 공유합니다.
+
+`runWarm` 은 이제 POST 루프와 폴링 루프가 각자의 `try` 를 가지며, job 이 생긴
+뒤로는 절대 재-POST 하지 않습니다.

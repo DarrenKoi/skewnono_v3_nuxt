@@ -1,6 +1,6 @@
 # 01 — single_flight: 대기자를 한 명씩 깨우지 말고 한꺼번에 깨운다
 
-Status: ready-for-agent
+Status: resolved
 
 ## 문제
 
@@ -66,3 +66,18 @@ attempt 를 unpublish 하므로, 이전 시도의 대기자가 아직 본문에 
 
 - 설계: `docs/superpowers/specs/2026-08-10-msr-image-tool-load-design.md` §4.2
 - 판정 이력: `.superpowers/sdd/2026-08-10-msr-image-tool-load/progress.md`
+
+## Answer
+
+`56738207` — `with fetch_gate(key):` 를 `single_flight(key, fetch)` 로 바꿨습니다.
+선두만 `fetch` 를 실행하고 완료 `Event` 로 대기자 전원을 동시에 깨워 결과(또는
+예외)를 그대로 건넵니다. 대기자는 캐시를 다시 읽지 않으므로 "대기는 fetch 1회로
+bounded" 가 이제 참이고, 게이트 타임아웃을 두지 않는다는 판정의 근거도 성립합니다.
+
+예상대로 프리미티브 모양이 바뀌었습니다 — 컨텍스트 매니저로는 "본문을 건너뛰고
+선두의 결과를 돌려준다" 를 표현할 수 없습니다. `routes.py` 의 재조회는 선두의
+것으로 남았습니다(직전 시도가 이미 캐시를 채웠을 수 있으므로).
+
+부수 효과로 상호 배제라는 성질이 사라졌고, docstring 의 "Serialise callers" 주장도
+같이 사라졌습니다. 필요하지 않았던 성질입니다 — 합치는 대상은 차례가 아니라 장비
+방문입니다.

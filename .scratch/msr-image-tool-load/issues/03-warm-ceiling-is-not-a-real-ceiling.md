@@ -1,6 +1,6 @@
 # 03 — WARM_CEILING_MS 가 실제 상한이 아니다
 
-Status: ready-for-agent
+Status: resolved
 
 ## 문제
 
@@ -61,3 +61,17 @@ state.status = nextWarmState(poll, Date.now() - startedAt)
 - `front-dev-home/app/utils/imageWarm.ts` — `WARM_CEILING_MS`, `nextWarmState`
 - `front-dev-home/app/composables/useMsrImageWarmer.ts` — `runWarm`
 - `front-dev-home/app/composables/useMsrImageApi.ts` — `startDownloadAll`, `pollJob`
+
+## Answer
+
+`9a9d1bff` — 1번안을 택했습니다. `remainingBudgetMs(elapsed)` 가 남은 예산을
+계산해 `startDownloadAll`/`pollJob` 의 `$fetch` timeout 으로 넘어가므로, 상한은
+`WARM_CEILING_MS` 하나로 유지되고 버려진 요청도 함께 끊깁니다.
+
+2번안(전체 race)은 단독으로는 채택하지 않았습니다. POST 를 중도 포기해도 서버가
+이미 만든 job 은 `max_jobs` 슬롯을 계속 먹으므로, 포기한 클라이언트가 남의 warm 을
+막습니다. 1번안에서도 그 창은 남지만 예산이 끝나는 시점에만 열리고, 그 job 이 받은
+파일은 공유 캐시에 그대로 남습니다.
+
+`retry: 0` 을 함께 지정했습니다. ofetch 는 GET 을 기본 1회 재시도하므로, 그러지
+않으면 timeout 된 호출이 우리 모르게 다시 나가 예산이 요청 하나만큼 어긋납니다.

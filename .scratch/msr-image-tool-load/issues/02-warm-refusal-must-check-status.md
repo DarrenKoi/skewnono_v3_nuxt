@@ -1,6 +1,6 @@
 # 02 — warm 거부 판별이 HTTP status 를 보지 않는다
 
-Status: ready-for-agent
+Status: resolved
 
 ## 문제
 
@@ -59,3 +59,10 @@ Nuxt 가 주는 두 에러 모양(`err.statusCode`, `err.response.status`)을 �
 
 - 설계: `docs/superpowers/specs/2026-08-10-msr-image-tool-load-design.md` §4.1
 - 거부 응답 본문: `back_dev_home/msr_image/routes.py` (job 상한 분기)
+
+## Answer
+
+`5398f41f` — `isWarmRefusal(err)` 가 status 429 와 본문 `too_many_jobs` 를 함께
+봅니다. status 추출은 `httpStatus()` 로 분리해 Nuxt 의 두 모양(`err.statusCode`,
+`err.response.status`)을 덮었고, 같은 헬퍼를 이슈 04 의 `unknown_job`(404) 판별도
+씁니다. 사다리·jitter·상한은 그대로입니다.
