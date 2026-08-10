@@ -76,3 +76,21 @@ msr_image 어댑터를 직접 실행하면(python -m ...providers.office) minio_
 df_result_data 에 적힌 mp_image_name 집합과 장비 FTP 가 실제로 서빙하는 목록을
 대조합니다. pickle 이름은 확장자가 없을 수 있고 대소문자가 다를 수 있으므로 stem
 매칭까지 시도합니다. 장비에만 있고 pickle 에 없는 파일(extra)은 보통 정상입니다.
+
+실측 타이밍 (office 확인 2026-08-10, scripts.measure_msr_image_ftp)
+
+  connect + login  : 94 ms   (중앙값)
+  cold fetch 1장   : 133 ms  (login 94 + 이미지·cond 전송 39)
+  download_all 1장 : 0.20 s  (동시성 6)
+  동시성 6 vs 1    : 2.0배
+
+  성격이 예상과 반대입니다. 이미지는 작고 링크는 빨라서 **비용의 71%가 전송이 아니라
+  login** 입니다. "장비가 multi-MB TIFF 를 서빙하니 1장에 수 초" 라는 가정으로
+  잡았던 _SECONDS_PER_IMAGE = 5.0 은 12배 과대했고, 실측 후 0.4 로 내렸습니다.
+
+  따라서 이 경로의 최적화 레버는 전송 속도가 아니라 **세션 재사용**입니다. 지금은
+  이미지 1장마다 새 세션을 열어 매번 94 ms 를 냅니다.
+
+  TIFF 가 섞인 MSR 은 아직 이 측정에 포함되지 않았습니다 — 위 숫자는 측정에 쓰인
+  MSR 의 파일 구성에 대한 값입니다. OFFICE-VERIFY: TIFF 비중이 높은 MSR 에서 전송
+  비중이 얼마나 오르는지.

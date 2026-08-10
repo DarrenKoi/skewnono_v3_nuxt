@@ -50,9 +50,19 @@ def _test_config() -> ImageConfig:
 
 
 # Per-image budget used to size a download job's host_timeout. Two RETRs per
-# image (the image itself and its cond sidecar) against a tool FTP serving
-# multi-MB TIFFs. OFFICE-VERIFY: a guess until a real warm job is timed.
-_SECONDS_PER_IMAGE = 5.0
+# image (the image itself and its cond sidecar).
+#
+# office 확인 2026-08-10 (scripts.measure_msr_image_ftp against a real tool):
+# 0.20 s per image inside download_all at the configured concurrency, x2
+# headroom. The previous 5.0 was reasoned from "multi-MB TIFFs" and ran 12x
+# generous -- the images are small and the link is fast, so nearly the whole
+# cost of a cold fetch is the LOGIN, not the transfer (94 ms of 133 ms).
+#
+# Being generous was never wrong output, only slow failure: this is a backstop,
+# so an oversized one merely holds a genuinely stalled connection for minutes
+# before giving up. Detecting a dead tool is ftp_timeout's job and was never
+# affected by this number.
+_SECONDS_PER_IMAGE = 0.4
 
 # Default ceiling on that scaling for the PROXY transport only. The proxy host's
 # uWSGI kills a request at harakiri=75s (ftp_handler/proxy/wsgi.ini), and one
@@ -61,6 +71,11 @@ _SECONDS_PER_IMAGE = 5.0
 # killed at once. Staying under it means a job too big for the proxy degrades
 # to ordinary per-host failures, which the frontend already retries per image.
 # Raise this together with harakiri (both are office-side), never alone.
+#
+# What the cap actually costs, now that _SECONDS_PER_IMAGE is measured: at
+# 0.4 s/image this ceiling is reached at ~150 images on one connection, where
+# the old 5.0 hit it at 12. The cap stopped being the binding constraint on
+# real jobs the moment the per-image number became real.
 _PROXY_HOST_TIMEOUT_CAP = 60.0
 _VIA_PROXY = system() == "Windows"
 

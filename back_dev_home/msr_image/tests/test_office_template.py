@@ -130,9 +130,18 @@ def test_single_fetch_uses_the_configured_host_timeout_floor(monkeypatch):
 def test_download_all_scales_host_timeout_with_files_per_connection(monkeypatch):
     """A job big enough to outlive the library's flat 60s default used to be
     abandoned mid-transfer, and an abandoned worker keeps calling back. The
-    budget has to follow the work queued on the busiest connection."""
+    budget has to follow the work queued on the busiest connection.
+
+    The job size is DERIVED from the per-image constant rather than written as
+    a literal. It used to be 120 names (20 per connection), which outgrew the
+    floor only because _SECONDS_PER_IMAGE was a 5.0 guess; measuring it at the
+    office (2026-08-10) dropped it to 0.4 and that scenario silently stopped
+    reaching the branch it names. Deriving the count means the next revision of
+    the constant cannot quietly turn this into a test of the floor.
+    """
     cfg = office._test_config()
-    names = [f"shot{i:03d}.jpeg" for i in range(120)]  # 20 per connection at n=6
+    per_connection = int(cfg.ftp_host_timeout / office._SECONDS_PER_IMAGE) + 50
+    names = [f"shot{i:04d}.jpeg" for i in range(per_connection * 6)]
     kw = _last_downloader_kwargs(
         monkeypatch,
         lambda: office.download_all(
@@ -140,7 +149,7 @@ def test_download_all_scales_host_timeout_with_files_per_connection(monkeypatch)
             on_file=lambda n, f, e: None, concurrency=6, _config=cfg,
         ),
     )
-    assert kw["host_timeout"] == office._SECONDS_PER_IMAGE * 20
+    assert kw["host_timeout"] == office._SECONDS_PER_IMAGE * per_connection
     assert kw["host_timeout"] > cfg.ftp_host_timeout
 
 
@@ -166,7 +175,10 @@ def test_the_direct_transport_is_uncapped(monkeypatch):
 def test_an_explicit_max_overrides_the_transport_default(monkeypatch):
     monkeypatch.setattr(office, "_VIA_PROXY", True)
     cfg = office.load_config({"SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX": "300"})
-    assert office._host_timeout(cfg, 200) == 300.0
+    # Enough images that the raw budget exceeds the explicit max, so the max is
+    # what binds. Derived from the constant for the same reason as above.
+    images = int(300 / office._SECONDS_PER_IMAGE) + 100
+    assert office._host_timeout(cfg, images) == 300.0
 
 
 def test_a_cap_below_the_floor_never_shrinks_a_single_fetch(monkeypatch):
