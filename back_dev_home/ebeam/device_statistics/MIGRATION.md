@@ -190,9 +190,9 @@ docstring.
   ```
 
   `RecipeInfoRow`/`SummaryRow` are the per-recipe and per-lot-aggregate row
-  shapes — see `contracts.py` for the full field lists (19 and 14 fields
-  respectively; both carry the four `para_16`/`para_13`/`para_9`/`para_5`
-  counts plus their `_percent` siblings).
+  shapes — see `contracts.py` for the full field lists (22 and 17 fields
+  respectively; both carry the five ranged `para_*` counts plus their
+  `_percent` siblings — `para_buckets.py` owns the boundaries).
 - Mock behavior: buckets recipes into 4 categories per lot per date
   (`all`, `only_normal`, `mother_normal`, `only_sample`), each with its own
   recipe-count range (widest for `all`, narrowest for `only_sample`), and

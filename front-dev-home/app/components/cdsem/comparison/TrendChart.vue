@@ -99,6 +99,7 @@ const trendData = computed(() =>
 // ramp is a single hue by design (see healthTokens), which makes shape the
 // thing that separates two lines where they cross.
 const SYMBOLS: Record<ParaKey, string> = {
+  para_over_16: 'pin',
   para_16: 'circle',
   para_13: 'rect',
   para_9: 'triangle',

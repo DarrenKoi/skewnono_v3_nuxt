@@ -34,10 +34,11 @@ docs/datatables/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt 입니다.
 - R3 실물의 한 문서는 (prod_id, oper_seq, samp_seq) 스텝 1건이고 lot_cd 컬럼이
   아예 없습니다. 여기서는 계약(RecipeInfoRow)대로 lot_cd 를 직접 들고 있습니다.
 - 스텝 이름 field 이름이 다릅니다 — R3 는 oper_desc, M fab 은 oper_det_desc.
-- para_16/13/9/5 는 어느 스텝 소스에도 없는 값입니다. 실제로는 recipe_id 를
+- para_* 는 어느 스텝 소스에도 없는 값입니다. 실제로는 recipe_id 를
   cdsem_idp_ver.full_name 과 조인해 최신 version 의 parameters blob 에서
-  집계해야 하며, 그 blob 의 내부 구조는 아직 확인되지 않았습니다
-  (OFFICE-VERIFY). 여기서는 그냥 난수로 만듭니다.
+  집계합니다 — 그 blob 은 {이름: point 수} 이고(office 확인 2026-08-10),
+  point 수를 다섯 **구간**으로 나눈 것이 para_* 입니다(para_buckets.py).
+  여기서는 구간별 개수를 그냥 난수로 만듭니다.
 - R3 실물 필드명은 fac_id 가 아니라 det_fac_id 이고(M fab 은 fab_id/fab_name),
   계약에 대응이 없는 main_oper_id / main_oper_yn / bak_eqp_yn /
   bak_eqp_id_lval / eqp_grp_id / reticle_id 가 더 있습니다.
@@ -99,6 +100,10 @@ import random
 from datetime import timedelta
 from functools import lru_cache
 
+from back_dev_home.ebeam.device_statistics.para_buckets import (
+    PARA_BUCKETS,
+    para_block,
+)
 from back_dev_home.ebeam.device_statistics.contracts import (
     RecipeInfoRow,
     SummaryRow,
@@ -192,12 +197,6 @@ def _to_recipe_row(
     recipe_id / oper_desc / skip_yn 은 모집단이 정합니다 — 이 셋이 버킷 분류의
     입력이자 recipe-params 와의 조인 키라, 여기서 다시 뽑으면 두 표면이 어긋납니다.
     """
-    para_16 = identity["para_16"]
-    para_13 = identity["para_13"]
-    para_9 = identity["para_9"]
-    para_5 = identity["para_5"]
-    para_all = para_16 + para_13 + para_9 + para_5
-
     return {
         "lot_cd": lot_cd,
         "fac_id": fac_id,
@@ -219,15 +218,7 @@ def _to_recipe_row(
             f"{rng.randint(0, 59):02d}:{rng.randint(0, 59):02d}"
         ),
         "ctn_desc": identity["step_ctn_desc"],
-        "para_all": para_all,
-        "para_16": para_16,
-        "para_13": para_13,
-        "para_9": para_9,
-        "para_5": para_5,
-        "para_16_percent": _percent(para_16, para_all),
-        "para_13_percent": _percent(para_13, para_all),
-        "para_9_percent": _percent(para_9, para_all),
-        "para_5_percent": _percent(para_5, para_all),
+        **para_block({key: identity[key] for key in PARA_BUCKETS}),
     }
 
 
@@ -241,23 +232,9 @@ def _to_mother_row(row: RecipeInfoRow, identity: RecipeIdentity) -> RecipeInfoRo
     recipe_id 는 그대로이므로 recipe-params 와의 조인은 유지됩니다. 이 버킷에서
     "같은 recipe 인데 para 가 작다" 는 것이 곧 mother view 의 정의입니다.
     """
-    para_16 = identity["mother_para_16"]
-    para_13 = identity["mother_para_13"]
-    para_9 = identity["mother_para_9"]
-    para_5 = identity["mother_para_5"]
-    para_all = para_16 + para_13 + para_9 + para_5
-
     return {
         **row,
-        "para_all": para_all,
-        "para_16": para_16,
-        "para_13": para_13,
-        "para_9": para_9,
-        "para_5": para_5,
-        "para_16_percent": _percent(para_16, para_all),
-        "para_13_percent": _percent(para_13, para_all),
-        "para_9_percent": _percent(para_9, para_all),
-        "para_5_percent": _percent(para_5, para_all),
+        **para_block({key: identity[f"mother_{key}"] for key in PARA_BUCKETS}),
     }
 
 
@@ -301,12 +278,6 @@ def _summarize(
     ctn_desc: str,
     recipes: list[RecipeInfoRow]
 ) -> SummaryRow:
-    para_16 = sum(r["para_16"] for r in recipes)
-    para_13 = sum(r["para_13"] for r in recipes)
-    para_9 = sum(r["para_9"] for r in recipes)
-    para_5 = sum(r["para_5"] for r in recipes)
-    para_all = para_16 + para_13 + para_9 + para_5
-
     total_recipe = len(recipes)
     # 측정 중인 recipe 수. "Y" 가 skip 이므로 그 외 전부(빈 값 포함)를 셉니다 —
     # `== "N"` 으로 세면 빈 값 스텝이 빠져 운용 레시피수가 조용히 작아집니다.
@@ -315,15 +286,9 @@ def _summarize(
     return {
         "lot_cd": lot_cd,
         "fac_id": fac_id,
-        "para_all": para_all,
-        "para_16": para_16,
-        "para_13": para_13,
-        "para_9": para_9,
-        "para_5": para_5,
-        "para_16_percent": _percent(para_16, para_all),
-        "para_13_percent": _percent(para_13, para_all),
-        "para_9_percent": _percent(para_9, para_all),
-        "para_5_percent": _percent(para_5, para_all),
+        **para_block({
+            key: sum(r[key] for r in recipes) for key in PARA_BUCKETS
+        }),
         "ctn_desc": ctn_desc,
         "total_recipe": total_recipe,
         "avail_recipe": avail_recipe,

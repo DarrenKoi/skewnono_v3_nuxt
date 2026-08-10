@@ -16,6 +16,11 @@ const row = (lot: string, p16: number, p13: number, p9: number, p5: number): Par
   lot_cd: lot, para_16: p16, para_13: p13, para_9: p9, para_5: p5
 })
 
+// NOTE: `row()` deliberately omits `para_over_16`, so every fixture below is a
+// pre-2026-08-10 weekly snapshot — the shape the trend view still reads for up
+// to eight weeks after the range split. The bucket has to read as 0 there, not
+// as `undefined` poisoning the totals.
+
 // Two dates, two lots. LOT_B is absent on the second date on purpose.
 const trend: ParaTrendInput = {
   dates: ['2026-07-20', '2026-07-27'],
@@ -72,7 +77,7 @@ test('a series is never rescaled to its own maximum', () => {
 
 // --- stack total ---
 
-test('totals equal the sum of the four paras', () => {
+test('totals equal the sum of every bucket', () => {
   const { totals } = extractParaTrend(trend, 'all_summary', 'LOT_A')
   assert.deepEqual(totals, [100, 111])
 })
@@ -90,10 +95,10 @@ test('a missing date is a gap, not a zero', () => {
   assert.deepEqual(series.find(s => s.key === 'para_16')!.values, [1, null])
 })
 
-test('an unknown lot yields no data but keeps four series', () => {
+test('an unknown lot yields no data but keeps one series per bucket', () => {
   const out = extractParaTrend(trend, 'all_summary', 'LOT_NOPE')
   assert.equal(out.hasData, false)
-  assert.equal(out.series.length, 4)
+  assert.equal(out.series.length, PARA_KEYS.length)
   assert.deepEqual(out.series[0]!.values, [null, null])
 })
 
@@ -105,7 +110,7 @@ test('null trend, null lot and unknown bucket are all handled', () => {
   ]) {
     assert.equal(out.hasData, false)
     assert.deepEqual(out.dates, [])
-    assert.equal(out.series.length, 4)
+    assert.equal(out.series.length, PARA_KEYS.length)
   }
 
   // An unknown bucket still has dates — it just has no rows in them.
@@ -123,7 +128,10 @@ test('reads the bucket it is asked for', () => {
 
 test('series come back in PARA_KEYS order, heaviest first', () => {
   const { series } = extractParaTrend(trend, 'all_summary', 'LOT_A')
-  assert.deepEqual(series.map(s => s.key), ['para_16', 'para_13', 'para_9', 'para_5'])
+  assert.deepEqual(
+    series.map(s => s.key),
+    ['para_over_16', 'para_16', 'para_13', 'para_9', 'para_5']
+  )
 })
 
 test('PARA_KEYS matches the token module paraOrder', () => {
@@ -135,9 +143,42 @@ test('PARA_KEYS matches the token module paraOrder', () => {
 
 // --- labels / ticks ---
 
-test('labels shorten para_16 to p16', () => {
-  assert.equal(paraLabel('para_16'), 'p16')
-  assert.equal(paraLabel('para_5'), 'p5')
+test('labels name the RANGE, not the bucket key', () => {
+  // `p16` read as "16 points". Since 2026-08-10 the bucket is 13 < x <= 16, so
+  // the old label asserted a boundary that is no longer true.
+  assert.equal(paraLabel('para_16'), '14–16')
+  assert.equal(paraLabel('para_5'), '≤5')
+  assert.equal(paraLabel('para_over_16'), '>16')
+})
+
+test('every bucket has a label and none repeat', () => {
+  const labels = PARA_KEYS.map(paraLabel)
+  assert.equal(labels.filter(Boolean).length, PARA_KEYS.length)
+  assert.equal(new Set(labels).size, PARA_KEYS.length)
+})
+
+// --- pre-split snapshots ---
+
+test('a snapshot without para_over_16 reads it as 0, not NaN', () => {
+  // The fixtures have no such key. If it were read straight through, `totals`
+  // would be NaN for every date and the stacked area would vanish silently.
+  const { series, totals } = extractParaTrend(trend, 'all_summary', 'LOT_A')
+  assert.deepEqual(series.find(s => s.key === 'para_over_16')!.values, [0, 0])
+  assert.deepEqual(totals, [100, 111])
+})
+
+test('a snapshot WITH para_over_16 counts it in the total', () => {
+  const withOver: ParaTrendInput = {
+    dates: ['2026-08-10'],
+    trend: {
+      '2026-08-10': {
+        all_summary: [{ ...row('LOT_A', 10, 20, 30, 40), para_over_16: 5 }]
+      }
+    }
+  }
+  const { series, totals } = extractParaTrend(withOver, 'all_summary', 'LOT_A')
+  assert.deepEqual(series.find(s => s.key === 'para_over_16')!.values, [5])
+  assert.deepEqual(totals, [105])
 })
 
 test('ticks render MM/DD and pass through anything else', () => {

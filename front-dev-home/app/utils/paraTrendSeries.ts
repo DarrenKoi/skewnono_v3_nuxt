@@ -11,9 +11,30 @@
 // Deliberately free of framework imports so it runs under `node --test` with
 // Node's type stripping, like the rest of app/utils.
 
-export const PARA_KEYS = ['para_16', 'para_13', 'para_9', 'para_5'] as const
+// Highest measurement density first — the stacked area and the colour ramp both
+// read top-down in this order.
+//
+// These are RANGES of point count, not exact values (backend
+// `para_buckets.py` owns the boundaries; this is the mirrored copy that exists
+// only because the two sides are different languages):
+//
+//   para_over_16  16 < x        para_16  13 < x <= 16    para_13  9 < x <= 13
+//   para_9        5 < x <= 9    para_5   x <= 5
+//
+// Every parameter lands in exactly one, so the five sum to `para_all` and the
+// five percentages always total 100.
+export const PARA_KEYS = ['para_over_16', 'para_16', 'para_13', 'para_9', 'para_5'] as const
 
 export type ParaKey = typeof PARA_KEYS[number]
+
+/** Range label for a bucket key — `p16` would now be a lie about the boundary. */
+const PARA_LABELS: Record<ParaKey, string> = {
+  para_over_16: '>16',
+  para_16: '14–16',
+  para_13: '10–13',
+  para_9: '6–9',
+  para_5: '≤5'
+}
 
 /**
  * The structural minimum of `SummaryRow` this module reads. Declared locally
@@ -26,6 +47,12 @@ export interface ParaCounts {
   para_13: number
   para_9: number
   para_5: number
+  /**
+   * Optional on purpose. Weekly snapshots written before 2026-08-10 have no
+   * such key, and the trend view reads up to eight weeks back — treating a
+   * missing bucket as `undefined` would poison every total with `NaN`.
+   */
+  para_over_16?: number
 }
 
 /** Structural minimum of `RecipeTrendResponse`. */
@@ -36,7 +63,7 @@ export interface ParaTrendInput {
 
 export interface ParaTrendSeries {
   key: ParaKey
-  /** Short form used for the direct end-label on each line: `p16`, `p13`, … */
+  /** Range label used for the direct end-label on each line: `14–16`, `>16`, … */
   label: string
   /** One entry per date; `null` marks a date this lot has no row for. */
   values: Array<number | null>
@@ -44,14 +71,17 @@ export interface ParaTrendSeries {
 
 export interface ParaTrendData {
   dates: string[]
-  /** Always four series in `PARA_KEYS` order, even when empty. */
+  /** Always one series per `PARA_KEYS` entry, in that order, even when empty. */
   series: ParaTrendSeries[]
-  /** para_16+13+9+5 per date — the top edge of the stacked area. */
+  /** Sum of every bucket per date — the top edge of the stacked area. */
   totals: Array<number | null>
   hasData: boolean
 }
 
-export const paraLabel = (key: ParaKey): string => key.replace('para_', 'p')
+export const paraLabel = (key: ParaKey): string => PARA_LABELS[key]
+
+/** A bucket's count, reading a pre-2026-08-10 snapshot's missing key as 0. */
+const paraValue = (row: ParaCounts, key: ParaKey): number => row[key] ?? 0
 
 const emptySeries = (): ParaTrendSeries[] =>
   PARA_KEYS.map(key => ({ key, label: paraLabel(key), values: [] }))
@@ -82,11 +112,11 @@ export const extractParaTrend = (
   const series = PARA_KEYS.map(key => ({
     key,
     label: paraLabel(key),
-    values: rows.map(row => (row ? row[key] : null))
+    values: rows.map(row => (row ? paraValue(row, key) : null))
   }))
 
   const totals = rows.map(row =>
-    row ? PARA_KEYS.reduce((sum, key) => sum + row[key], 0) : null
+    row ? PARA_KEYS.reduce((sum, key) => sum + paraValue(row, key), 0) : null
   )
 
   return { dates, series, totals, hasData: rows.some(row => row !== null) }

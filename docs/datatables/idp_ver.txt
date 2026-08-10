@@ -87,32 +87,38 @@ parameters blob 구조 (user-confirmed 2026-07-30)
 
   RecipeParamsRow.parameters   -> [{"name": k, "point_count": v}, ...]
                                   dict entry 1개 = ParameterRow 1개입니다.
-  RecipeInfoRow.para_16/13/9/5 -> **value(point 수)별 파라미터 개수**입니다.
-                                  para_16 = value 가 16 인 entry 수, para_13 은 13,
-                                  para_9 은 9, para_5 은 5. para_all 은 그 합입니다.
-                                  확인된 예시값 13, 16 이 실제로 para_13 / para_16
-                                  버킷에 정확히 대응합니다.
+  RecipeInfoRow.para_*         -> **value(point 수)의 구간별 파라미터 개수**입니다
+                                  (2026-08-10 합의). 이름의 숫자는 구간의 상한입니다.
 
-즉 para_* 는 **파라미터 타입별 개수가 아니라 point 수별 개수**입니다. "para_16" 이
-타입 코드처럼 보이지만 16 은 측정 point 수이며, 타입(WAFER / LEVEL / EDGE /
-EDGE_EX / OTHER)과는 다른 축이므로 섞으면 안 됩니다.
+                                      x <= 5        para_5
+                                      5 < x <= 9    para_9
+                                      9 < x <= 13   para_13
+                                      13 < x <= 16  para_16
+                                      16 < x        para_over_16
 
-value 가 16/13/9/5 가 아닌 entry 가 있으면 그 개수는 어느 para_* 버킷에도 들어가지
-않습니다. para_all 을 "전체 파라미터 수" 로 쓸지 "네 버킷의 합" 으로 쓸지는 그
-잔여분이 실제로 있는지에 달려 있습니다 — OFFICE-VERIFY.
+                                  다섯 구간이 point 수 전체를 덮으므로 **모든
+                                  파라미터가 정확히 한 버킷**에 들어갑니다.
+                                  para_all 은 그 합이자 파라미터 총 개수입니다.
 
-★ 잔여분은 실제로 있습니다 (office 확인 2026-08-10). 확인된 실물 한 건이
+즉 para_* 는 **파라미터 타입별 개수가 아니라 point 수 구간별 개수**입니다.
+"para_16" 이 타입 코드처럼 보이지만 16 은 측정 point 수의 상한이며,
+타입(WAFER / LEVEL / EDGE / EDGE_EX / OTHER)과는 다른 축이므로 섞으면 안 됩니다.
+
+정정 이력 (2026-08-10) — 그 전까지는 point 수가 **정확히** 16/13/9/5 인 것만
+셌습니다. 확인된 실물 한 건이
 
     {"EDGE": 10, "LEVEL": 4, "WAFER": 10}
 
-  입니다. 셋 다 16/13/9/5 밖이라 이 recipe 는 **para_16 = para_13 = para_9 =
-  para_5 = para_all = 0** 입니다. 값이 point 수라는 것은 재확인되었으므로
-  (2026-08-10) 이것은 읽는 쪽의 버그가 아니라 정의의 결과입니다.
+으로 나오면서 그 정의가 무너졌습니다. 세 값 모두 네 숫자 밖이라 이 recipe 는
+para_all 까지 0 이 되고, 화면의 100% 누적 막대는 빈 칸이 됩니다. 값이 point 수라는
+것은 같은 날 재확인되었으므로 읽는 쪽의 버그가 아니라 정의의 문제였습니다.
 
-  남은 질문은 도메인 쪽입니다 — 실물 point 수 분포에서 16/13/9/5 가 얼마나
-  자주 나오는가. 대부분이 밖이면 화면의 100% 누적 막대가 대부분 비게 되고,
-  그때는 네 버킷 자체를 다시 정해야 합니다. 어댑터의 `_para_counts` 가 남기는
-  "outside PARA_POINT_BUCKETS" debug 로그가 그 비율을 셉니다.
+구간으로 바꾸면서 오래 열려 있던 질문 하나도 닫혔습니다 — para_all 을 "전체
+파라미터 수" 로 쓸지 "버킷 합" 으로 쓸지. 구간이 전체를 덮으므로 **두 값은 이제
+같습니다.**
+
+경계는 코드 한 곳에 있습니다: `back_dev_home/ebeam/device_statistics/para_buckets.py`
+(프론트엔드 거울은 `app/utils/paraTrendSeries.ts` 의 PARA_KEYS).
 
 순서는 parameters_list 가 정합니다 (office 확인 2026-08-10)
 
@@ -157,6 +163,11 @@ mother_normal 버킷을 비워 두고 있었습니다. recipe-search 의 recipe-
   bool 이지만(recipe_idp.txt), 적재를 거치며 문자열이 되었을 수 있습니다.
   ``bool("False")`` 가 True 라서 그냥 캐스팅하면 **모든 parameter 가 mother** 가
   됩니다. 어댑터의 `_flag` 는 알려진 표기만 받고 나머지는 "모름"으로 둡니다.
+
+★ 주차 스냅샷 호환 — 2026-08-10 이전에 쓰인 주차 스냅샷에는 para_over_16 키가
+  없습니다. 트렌드 화면은 8주 전까지 거슬러 읽으므로, 없는 키는 **0 으로** 읽어야
+  합니다(그대로 더하면 합계가 통째로 NaN 이 됩니다). 프론트엔드 세 곳이 그렇게
+  하고 있고 테스트가 그 경로를 잡고 있습니다.
 
 OFFICE-VERIFY — key 의 세분도. 확인된 예시 key 가 "WAFER", "EDGE" 처럼 타입 단어
 그대로였습니다. key 가 항상 이 타입 수준이면 파라미터 개별 이름이 없다는 뜻이고,

@@ -128,7 +128,7 @@ recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷�
                  "CD(BENDING)" 이 확인된 예입니다 (user-confirmed 2026-08-05).
                  판별 규칙이 꼬리의 길이를 가정하지 않는 것이 그래서 중요합니다.
   mother_normal  only_normal 과 **같은 스텝 필터**를 쓰고, 거기서 **mother
-                 파라미터를 1개 이상 가진 recipe** 만 남깁니다. para_16/13/9/5
+                 파라미터를 1개 이상 가진 recipe** 만 남깁니다. para_* 구간
                  집계도 mother 파라만 셉니다.
                  이 버킷은 스텝을 더 좁히는 것이 아니라 **한 단계 아래(파라미터)로
                  들어갑니다** — CONTEXT.md 의 "mother_normal = Main(Mother 파라

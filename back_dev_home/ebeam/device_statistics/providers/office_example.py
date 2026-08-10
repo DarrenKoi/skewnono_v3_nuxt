@@ -109,8 +109,9 @@ OFFICE-VERIFY 목록
    조용히 0건이 됩니다.
 3. ``parameters`` key 세분도 — key 가 "WAFER"/"EDGE" 처럼 타입 단어뿐이면
    outlier·bloated recipe 뷰가 입력을 잃습니다 (idp_ver.txt).
-4. ``para_all`` 정의 — 여기서는 **네 버킷의 합**입니다(mock 과 동일, 퍼센트 합이
-   100 이 되도록). 16/13/9/5 밖의 point 수는 로그로만 남습니다.
+4. ``para_all`` 은 **파라미터 총 개수**입니다. 2026-08-10 에 버킷이 정확 일치에서
+   구간으로 바뀌면서 다섯 구간이 전체를 덮게 되어, "총 개수" 와 "버킷 합" 이 같은
+   값이 되었습니다 — 예전의 잔여분 로그는 셀 것이 없어 사라졌습니다.
 5. ``phase`` — ctn_desc 의 "p-EV" 는 계약 Literal 에 없어 None 이 됩니다.
 6. M-fab ``oper_seq``/``samp_seq`` 는 원천에 없어 접두사 rank 로 합성합니다.
 """
@@ -138,6 +139,11 @@ from back_dev_home.ebeam.device_statistics.contracts import (
     RuleVersion,
     SummaryRow,
     TrendBucket,
+)
+from back_dev_home.ebeam.device_statistics.para_buckets import (
+    PARA_BUCKETS,
+    count_points,
+    para_block,
 )
 from back_dev_home.ebeam.device_statistics.oper_order import (
     sort_key as _oper_sort_key,
@@ -233,8 +239,8 @@ MAX_STEPS_PER_DEVICE = _RESULT_WINDOW
 # 스텝 이름은 수백 규모입니다 (ebeam_tas_lot_hist.txt).
 MAX_MFAB_STEP_NAMES = 2000
 
-# para_* 버킷은 **point 수**입니다 (타입 코드가 아닙니다 — idp_ver.txt).
-PARA_POINT_BUCKETS = (16, 13, 9, 5)
+# para_* 버킷은 **point 수의 구간**입니다 (타입 코드가 아닙니다 — idp_ver.txt).
+# 경계와 이름은 para_buckets.py 한 곳에 있습니다 — mock 두 표면과 공유합니다.
 
 RCP_BUCKETS = ("all", "only_normal", "mother_normal", "only_sample")
 
@@ -846,7 +852,7 @@ def _idp_parameters(
 
     세 field 를 읽고 각각 다른 것을 답합니다 (office 확인 2026-08-10):
 
-      parameters       {이름: point 수}. para_16/13/9/5 의 입력입니다.
+      parameters       {이름: point 수}. para_* 구간 집계의 입력입니다.
       parameters_list  **측정 순서**의 이름 목록. parameters 의 key 순서는 측정
                        순서가 아니므로 화면 순서는 이쪽이 정합니다.
       raw_data         parameter 별 row. ``Mother_Para`` 가 여기 있습니다.
@@ -933,30 +939,6 @@ def _idp_parameters(
             readable, len(unique), IDP_INDEX,
         )
     return out, mothers_out
-
-
-def _para_counts(params: dict[str, int]) -> dict[str, int]:
-    """point 수별 파라미터 개수 -> para_16/13/9/5 와 그 합.
-
-    ``para_all`` 은 **네 버킷의 합**입니다. 전체 파라미터 수로 두면 네 퍼센트의
-    합이 100 이 되지 않아 화면의 100% 누적 막대가 어긋납니다(mock 과 같은 정의).
-    16/13/9/5 밖의 point 수는 어느 버킷에도 들어가지 않으므로 잔여분은 로그로만
-    남깁니다 — OFFICE-VERIFY #4.
-    """
-    counts = {f"para_{n}": 0 for n in PARA_POINT_BUCKETS}
-    leftover = 0
-    for point_count in params.values():
-        if point_count in PARA_POINT_BUCKETS:
-            counts[f"para_{point_count}"] += 1
-        else:
-            leftover += 1
-    counts["para_all"] = sum(counts[f"para_{n}"] for n in PARA_POINT_BUCKETS)
-    if leftover:
-        _LOG.debug(
-            "device_statistics: %d parameter(s) outside %s — not counted in para_all",
-            leftover, PARA_POINT_BUCKETS,
-        )
-    return counts
 
 
 def _percent(part: int, total: int) -> float:
@@ -1180,8 +1162,6 @@ def _recipe_row(
     step: dict[str, Any],
     params: dict[str, int],
 ) -> RecipeInfoRow:
-    counts = _para_counts(params)
-    para_all = counts["para_all"]
     return {
         "lot_cd": lot_cd,
         "fac_id": fac_id,
@@ -1194,15 +1174,7 @@ def _recipe_row(
         "skip_yn": step["skip_yn"],
         "chg_tm": step["chg_tm"],
         "ctn_desc": step["oper_desc"],
-        "para_all": para_all,
-        "para_16": counts["para_16"],
-        "para_13": counts["para_13"],
-        "para_9": counts["para_9"],
-        "para_5": counts["para_5"],
-        "para_16_percent": _percent(counts["para_16"], para_all),
-        "para_13_percent": _percent(counts["para_13"], para_all),
-        "para_9_percent": _percent(counts["para_9"], para_all),
-        "para_5_percent": _percent(counts["para_5"], para_all),
+        **para_block(count_points(params.values())),
     }
 
 
@@ -1212,25 +1184,14 @@ def _summarize(
     ctn_desc: str,
     recipes: list[RecipeInfoRow],
 ) -> SummaryRow:
-    para_16 = sum(row["para_16"] for row in recipes)
-    para_13 = sum(row["para_13"] for row in recipes)
-    para_9 = sum(row["para_9"] for row in recipes)
-    para_5 = sum(row["para_5"] for row in recipes)
-    para_all = para_16 + para_13 + para_9 + para_5
     total_recipe = len(recipes)
     avail_recipe = sum(1 for row in recipes if _is_measuring(row["skip_yn"]))
     return {
         "lot_cd": lot_cd,
         "fac_id": fac_id,
-        "para_all": para_all,
-        "para_16": para_16,
-        "para_13": para_13,
-        "para_9": para_9,
-        "para_5": para_5,
-        "para_16_percent": _percent(para_16, para_all),
-        "para_13_percent": _percent(para_13, para_all),
-        "para_9_percent": _percent(para_9, para_all),
-        "para_5_percent": _percent(para_5, para_all),
+        **para_block({
+            key: sum(row[key] for row in recipes) for key in PARA_BUCKETS
+        }),
         "ctn_desc": ctn_desc,
         "total_recipe": total_recipe,
         "avail_recipe": avail_recipe,

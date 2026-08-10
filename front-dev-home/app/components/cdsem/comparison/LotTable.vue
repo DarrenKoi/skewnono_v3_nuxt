@@ -552,7 +552,7 @@ const lotTable = () => {
   const headers = [
     'lot_cd', 'fac_id', 'stage', 'health', 'violation_recipes',
     'judged_recipes', 'total_recipes', 'coverage',
-    'para_16', 'para_13', 'para_9', 'para_5', 'para_total',
+    ...paraOrder, 'para_total',
     'avail_recipe', 'total_recipe', 'point_median', 'outlier_count', 'ctn_desc'
   ]
   // 프로파일이 없는 lot 은 0 이 아니라 빈 칸으로 나갑니다 — 표의 "—" 와 같은 뜻이고,
@@ -560,7 +560,7 @@ const lotTable = () => {
   const rows = orderedRows.value.map(r => [
     r.lot_cd, r.fac_id, r.dev_stage, r.verdict.health ?? '', r.verdict.violation_recipes,
     r.verdict.judged_recipes, r.verdict.total_recipes, r.verdict.coverage.toFixed(3),
-    r.para_16, r.para_13, r.para_9, r.para_5, paraTotal(r),
+    ...paraOrder.map(key => r[key] ?? 0), paraTotal(r),
     r.avail_recipe, r.total_recipe,
     r.point_median ?? '', r.outlier_count ?? '',
     r.ctn_desc

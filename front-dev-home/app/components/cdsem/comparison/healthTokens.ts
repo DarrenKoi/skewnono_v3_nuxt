@@ -70,9 +70,10 @@ export const healthBadgeStyle = (health: HealthLevel, isDark: boolean) => {
   }
 }
 
-// Parameter category palette — an ORDINAL ramp, not four categorical hues.
-// para_16 → para_5 is an ordered measurement-density scale, so a single warm
-// hue (45°, the --sk-accent family) carries identity through lightness alone.
+// Parameter category palette — an ORDINAL ramp, not five categorical hues.
+// para_over_16 → para_5 is an ordered measurement-density scale, so a single
+// warm hue (45°, the --sk-accent family) carries identity through lightness
+// alone.
 //
 // The previous palette swept four hues (32/65/100/165) and was *declared* a
 // "heaviest → lightest" gradient, but its lightness ran 0.62 → 0.72 → 0.66 →
@@ -85,21 +86,29 @@ export const healthBadgeStyle = (health: HealthLevel, isDark: boolean) => {
 // rather than by luck. Both steps pass every check in the dataviz palette
 // validator (--ordinal) against --sk-surface in their respective modes.
 // Keep the adjacent ΔL ≥ 0.06 if you retune — paraTrendSeries.test.ts asserts it.
+//
+// The 2026-08-10 range split added a fifth bucket. The ramp was RESPACED
+// between the same two endpoints rather than extended past them: pushing a new
+// darkest step below 0.40 (light) / 0.52 (dark) would have left the validated
+// contrast window, and in dark mode a step that dark stops separating from the
+// surface. Five steps across the same span still clear the ΔL floor.
 export const paraColors = {
-  para_16: 'oklch(0.40 0.115 45)', // darkest — most parameters
-  para_13: 'oklch(0.52 0.135 45)',
-  para_9: 'oklch(0.64 0.130 45)',
+  para_over_16: 'oklch(0.40 0.110 45)', // darkest — most parameters
+  para_16: 'oklch(0.49 0.128 45)',
+  para_13: 'oklch(0.58 0.135 45)',
+  para_9: 'oklch(0.67 0.128 45)',
   para_5: 'oklch(0.76 0.100 45)' // lightest — fewest parameters
 } as const
 
 export const paraColorsDark = {
-  para_16: 'oklch(0.52 0.135 45)',
-  para_13: 'oklch(0.63 0.145 45)',
-  para_9: 'oklch(0.74 0.115 45)',
+  para_over_16: 'oklch(0.52 0.135 45)',
+  para_16: 'oklch(0.60 0.145 45)',
+  para_13: 'oklch(0.68 0.145 45)',
+  para_9: 'oklch(0.77 0.115 45)',
   para_5: 'oklch(0.85 0.080 45)'
 } as const
 
-export const paraOrder = ['para_16', 'para_13', 'para_9', 'para_5'] as const
+export const paraOrder = ['para_over_16', 'para_16', 'para_13', 'para_9', 'para_5'] as const
 
 // classifyHealth / healthThresholds / healthOrder 는 여기 없습니다.
 //

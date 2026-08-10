@@ -450,7 +450,7 @@ const stdDev = (xs: number[]) => {
   return Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / (xs.length - 1))
 }
 
-const stackTotals = computed(() => sortedRows.value.map(r => r.para_16 + r.para_13 + r.para_9 + r.para_5))
+const stackTotals = computed(() => sortedRows.value.map(paraTotal))
 const availRecipeValues = computed(() => sortedRows.value.map(r => r.avail_recipe))
 
 const avgStackTotal = computed(() => mean(stackTotals.value))

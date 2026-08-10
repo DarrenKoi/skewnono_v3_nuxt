@@ -3,15 +3,20 @@ import { joinApiPath } from '~/utils/apiPath'
 export interface SummaryRow {
   lot_cd: string
   fac_id: string
+  // Point-count RANGES, not exact values — backend `para_buckets.py` owns the
+  // boundaries (>16 / 14–16 / 10–13 / 6–9 / ≤5). The five cover the whole
+  // domain, so they sum to `para_all` and the percentages total 100.
   para_all: number
   para_16: number
   para_13: number
   para_9: number
   para_5: number
+  para_over_16: number
   para_16_percent: number
   para_13_percent: number
   para_9_percent: number
   para_5_percent: number
+  para_over_16_percent: number
   ctn_desc: string
   total_recipe: number
   avail_recipe: number
@@ -30,15 +35,20 @@ export interface RecipeInfoRow {
   skip_yn: string
   chg_tm: string
   ctn_desc: string
+  // Point-count RANGES, not exact values — backend `para_buckets.py` owns the
+  // boundaries (>16 / 14–16 / 10–13 / 6–9 / ≤5). The five cover the whole
+  // domain, so they sum to `para_all` and the percentages total 100.
   para_all: number
   para_16: number
   para_13: number
   para_9: number
   para_5: number
+  para_over_16: number
   para_16_percent: number
   para_13_percent: number
   para_9_percent: number
   para_5_percent: number
+  para_over_16_percent: number
 }
 
 export type SummaryBucketKey

@@ -262,9 +262,19 @@ export interface LotHealthFields {
 /** 표가 다루는 행의 최종 형태. 네 곳에서 따로 선언하지 말고 이걸 쓰십시오. */
 export type HealthAugmentedRow = SummaryRow & LotHealthFields
 
-/** para_16+13+9+5. 서버의 `para_all` 과 같은 값이며, 계약이 그렇게 정의합니다. */
-export const paraTotal = (row: Pick<SummaryRow, 'para_16' | 'para_13' | 'para_9' | 'para_5'>): number =>
-  row.para_16 + row.para_13 + row.para_9 + row.para_5
+/**
+ * 다섯 구간 버킷의 합. 서버의 `para_all` 과 같은 값이며, 계약이 그렇게
+ * 정의합니다 — 구간이 point 수 전체를 덮으므로 이 값은 파라미터 총 개수이기도
+ * 합니다.
+ *
+ * `para_over_16` 을 `?? 0` 으로 읽는 것은 2026-08-10 이전에 쓰인 주차 스냅샷에
+ * 그 키가 없기 때문입니다. 트렌드 화면은 8주 전까지 거슬러 읽으므로, 없는 키를
+ * 그대로 더하면 합계가 통째로 NaN 이 됩니다.
+ */
+export const paraTotal = (
+  row: Pick<SummaryRow, 'para_16' | 'para_13' | 'para_9' | 'para_5'> & { para_over_16?: number }
+): number =>
+  (row.para_over_16 ?? 0) + row.para_16 + row.para_13 + row.para_9 + row.para_5
 
 /** 요약 행 + 판정. */
 export const augmentRow = (

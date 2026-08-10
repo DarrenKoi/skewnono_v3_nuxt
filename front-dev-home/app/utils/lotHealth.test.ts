@@ -336,8 +336,9 @@ test('stage comes from the lot-level ctn_desc', () => {
 
 const summaryRow = (ctn_desc: string, para_16 = 10) => ({
   lot_cd: 'R000', fac_id: 'R3', ctn_desc,
-  para_all: para_16 + 6, para_16, para_13: 3, para_9: 2, para_5: 1,
+  para_all: para_16 + 10, para_16, para_13: 3, para_9: 2, para_5: 1, para_over_16: 4,
   para_16_percent: 0, para_13_percent: 0, para_9_percent: 0, para_5_percent: 0,
+  para_over_16_percent: 0,
   total_recipe: 10, avail_recipe: 8, avail_recipe_percent: 80
 })
 
@@ -355,8 +356,15 @@ test('augmentRow preserves the original row fields', () => {
   assert.equal(row.dev_stage, 'Pool')
 })
 
-test('paraTotal sums the four tiers', () => {
-  assert.equal(paraTotal(summaryRow('EV lot', 42)), 42 + 3 + 2 + 1)
+test('paraTotal sums every range bucket', () => {
+  assert.equal(paraTotal(summaryRow('EV lot', 42)), 4 + 42 + 3 + 2 + 1)
+})
+
+test('paraTotal treats a pre-split row (no para_over_16) as 0 there', () => {
+  // Weekly snapshots written before 2026-08-10 have four buckets. Adding an
+  // absent key straight through would make the whole total NaN.
+  const { para_over_16: _dropped, ...preSplit } = summaryRow('EV lot', 42)
+  assert.equal(paraTotal(preSplit), 42 + 3 + 2 + 1)
 })
 
 test('within one colour the worse ratio comes first', () => {

@@ -105,6 +105,7 @@ import re
 from typing import TypedDict
 
 from back_dev_home.ebeam.device_statistics.oper_order import OPER_PREFIX_ORDER
+from back_dev_home.ebeam.device_statistics.para_buckets import PARA_BUCKETS
 
 
 # ── 분류 규칙 (office_example.py 와 동일) ──────────────────────────────────
@@ -189,14 +190,16 @@ class RecipeIdentity(TypedDict):
     eqp_id: str
     skip_yn: str
     step_ctn_desc: str
-    para_16: int
-    para_13: int
-    para_9: int
     para_5: int
-    mother_para_16: int
-    mother_para_13: int
-    mother_para_9: int
+    para_9: int
+    para_13: int
+    para_16: int
+    para_over_16: int
     mother_para_5: int
+    mother_para_9: int
+    mother_para_13: int
+    mother_para_16: int
+    mother_para_over_16: int
 
 
 # ── 이름 어휘 ────────────────────────────────────────────────────────────
@@ -305,11 +308,23 @@ _EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
 # 다른 값으로 다시 태어나므로(_recipe_name 주석), 별도 작업으로 다뤄야 합니다.
 POOL_RANGE = (175, 200)
 
+# 버킷별 파라미터 개수. 키는 point 수 **구간**이고 경계는 para_buckets.py 가
+# 정합니다 — 2026-08-10 에 "정확히 16/13/9/5" 에서 구간으로 바뀌었습니다.
+#
+# 분포는 recipe_params.py 의 TYPICAL_POINTS(WAFER 9~13, LEVEL 1~4, EDGE 6~14,
+# OTHER 1~8)가 실제로 만들어 내는 모양을 따릅니다. 두 표면이 각자 난수를 굴리므로
+# 값까지 같아질 수는 없지만, **모양이 반대이면** 요약과 상세가 서로 다른 이야기를
+# 하는 화면이 됩니다 — 예전 값(para_16 이 가장 큼)은 구간 해석에서 "대부분의
+# 파라미터가 14~16 point" 라는 뜻이 되어 상세 화면과 정면으로 어긋났습니다.
+#
+# para_over_16 의 하한이 0 인 것은 의도입니다. 이 버킷이 비는 recipe 가 있어야
+# 화면의 "구간 하나가 0" 경로가 집에서 실행됩니다.
 PARA_RANGES = {
-    "para_16": (10, 50),
-    "para_13": (6, 32),
-    "para_9": (3, 16),
-    "para_5": (1, 9),
+    "para_5": (4, 20),
+    "para_9": (6, 28),
+    "para_13": (8, 34),
+    "para_16": (1, 10),
+    "para_over_16": (0, 3),
 }
 
 SKIPPED_RATIO = 0.15
@@ -337,7 +352,9 @@ _MOTHER_RECIPE_RATIO = 0.85
 # 함께 쓰므로 mother 는 소수입니다 (OFFICE-VERIFY — 실물 비중 미확인).
 MOTHER_SHARE = (0.25, 0.45)
 
-_PARA_KEYS = ("para_16", "para_13", "para_9", "para_5")
+# 계약·office 어댑터와 같은 목록을 씁니다. 여기서 따로 적어 두면 버킷이
+# 늘 때 한쪽만 늘어납니다.
+_PARA_KEYS = PARA_BUCKETS
 
 
 # ── 주차별 궤적 ──────────────────────────────────────────────────────────
@@ -480,17 +497,14 @@ def _identity_pool(lot_cd: str) -> list[RecipeIdentity]:
             "eqp_id": f"{rng.choice(_EQP_FAMILIES)}-{rng.randint(1, 24):02d}",
             "skip_yn": _skip_yn(rng),
             "step_ctn_desc": f"{oper_prefix} step",
-            "para_16": rng.randint(*PARA_RANGES["para_16"]),
-            "para_13": rng.randint(*PARA_RANGES["para_13"]),
-            "para_9": rng.randint(*PARA_RANGES["para_9"]),
-            "para_5": rng.randint(*PARA_RANGES["para_5"]),
-            # 바로 아래 별도 rng 가 채웁니다. 여기서 굴리면 위 난수 순서가 밀려
-            # 풀 전체가 다른 값으로 다시 태어납니다 (_MOTHER_SALT 주석 참고).
-            "mother_para_16": 0,
-            "mother_para_13": 0,
-            "mother_para_9": 0,
-            "mother_para_5": 0,
-        })
+            # 버킷 목록을 손으로 적지 않고 돌립니다 — 버킷이 늘 때 여기와
+            # 아래 mother 초기화가 따로 놀 수 없게 하기 위해서입니다.
+            **{key: rng.randint(*PARA_RANGES[key]) for key in _PARA_KEYS},
+            # mother 는 바로 아래 별도 rng 가 채웁니다. 여기서 굴리면 위 난수
+            # 순서가 밀려 풀 전체가 다른 값으로 다시 태어납니다
+            # (_MOTHER_SALT 주석 참고).
+            **{f"mother_{key}": 0 for key in _PARA_KEYS},
+        })  # type: ignore[typeddict-item]
 
     _assign_mother_counts(pool, lot_cd)
     return pool
@@ -515,7 +529,14 @@ def _assign_mother_counts(pool: list[RecipeIdentity], lot_cd: str) -> None:
 
 
 def _scaled(value: int, factor: float, jitter: float) -> int:
-    """파라미터 개수에 주차 배율 + 약간의 흔들림. 최소 1 은 유지합니다."""
+    """파라미터 개수에 주차 배율 + 약간의 흔들림.
+
+    **0 은 0 으로 둡니다.** 비어 있는 버킷(보통 para_over_16)을 1 로 올리면
+    "구간 하나가 0" 인 화면이 집에서 한 번도 나오지 않습니다. 0 이 아닌 값만
+    최소 1 을 지킵니다 — 배율 때문에 있던 파라미터가 사라지면 안 됩니다.
+    """
+    if value <= 0:
+        return 0
     return max(1, round(value * factor * jitter))
 
 

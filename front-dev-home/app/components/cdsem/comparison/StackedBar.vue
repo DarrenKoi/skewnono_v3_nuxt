@@ -36,14 +36,19 @@ import { paraTotal } from '~/utils/lotHealth'
 // (WAFER/LEVEL/EDGE/…) 상한을 recipe 단위로 봅니다. 티어로 되돌릴 방법이 없어,
 // 지어내지 않고 뺐습니다. cap 위반은 이제 health/violations 열이 말합니다.
 //
-// row 는 para 네 칸만 요구하는 **구조적** 타입입니다. lot 요약 한 행이든 recipe
-// 한 줄이든 같은 막대를 그려야 하고, 두 벌로 나뉘면 색이나 서열이 갈라집니다.
+// row 는 para 버킷 칸만 요구하는 **구조적** 타입입니다. lot 요약 한 행이든
+// recipe 한 줄이든 같은 막대를 그려야 하고, 두 벌로 나뉘면 색이나 서열이
+// 갈라집니다.
+//
+// para_over_16 이 optional 인 것은 2026-08-10 이전 주차 스냅샷에 그 키가 없기
+// 때문입니다 — 없으면 그 구간이 0 인 막대로 그려집니다.
 const props = withDefaults(defineProps<{
   row: {
     para_16: number
     para_13: number
     para_9: number
     para_5: number
+    para_over_16?: number
   }
   /** 스크린 리더가 읽을 이름 — lot_cd 또는 recipe_id. */
   label?: string
@@ -77,14 +82,18 @@ const total = computed(() => paraTotal(props.row))
 const segments = computed(() => {
   const r = props.row
   const sum = total.value
-  return paraOrder.map(key => ({
-    key,
-    label: key,
-    value: r[key],
-    color: palette.value[key],
-    flex: r[key],
-    share: sum > 0 ? r[key] / sum : 0
-  }))
+  return paraOrder.map((key) => {
+    // `?? 0` — pre-2026-08-10 weekly snapshots carry no para_over_16.
+    const value = r[key] ?? 0
+    return {
+      key,
+      label: key,
+      value,
+      color: palette.value[key],
+      flex: value,
+      share: sum > 0 ? value / sum : 0
+    }
+  })
 })
 
 const emptyFlex = computed(() => {
@@ -95,7 +104,7 @@ const emptyFlex = computed(() => {
 const ariaLabel = computed(() => {
   const r = props.row
   const name = props.label ? `${props.label} ` : ''
-  return `${name}parameter stack — para_16:${r.para_16}, para_13:${r.para_13}, para_9:${r.para_9}, para_5:${r.para_5}`
+  return `${name}parameter stack — ${paraOrder.map(key => `${key}:${r[key] ?? 0}`).join(', ')}`
 })
 </script>
 

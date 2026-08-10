@@ -91,7 +91,9 @@ son 파라미터는 mother 와 **같은 image** 에서 자기 cd_value 를 얻�
 시간(TAT)을 움직이는 것은 mother 수입니다. 그래서 comparison 화면의
 mother_normal 버킷은 이 플래그로 파라미터를 좁혀서
 
-  - para_16/13/9/5 (Lot 요약의 "para 분포"·"para 합계")
+  - para_* 구간 버킷 (Lot 요약의 "para 분포"·"para 합계") —
+    point 수를 다섯 구간(>16 / 14~16 / 10~13 / 6~9 / <=5)으로 나눈 개수입니다
+    (2026-08-10 합의, docs/datatables/idp_ver.txt)
   - 계측 룰 검증 (health / violations / 판정 범위)
   - 측정 프로파일 (중앙값 / outlier)
 
