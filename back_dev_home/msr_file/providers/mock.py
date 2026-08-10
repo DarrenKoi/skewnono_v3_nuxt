@@ -432,6 +432,25 @@ class FdcSpec(NamedTuple):
     category: str
     gain: float
 
+    @property
+    def is_constant(self) -> bool:
+        """A setpoint channel (VT, ESCdV): sigma 0, so no noise scale."""
+        return self.sigma == 0
+
+    def drift_sigma(self, mean: float) -> float:
+        """How far `mean` sits off nominal, in units of run-to-run noise.
+
+        Lives here rather than in each provider because office_example.py
+        already imports this catalog and `_fdc_status` as cross-phase single
+        sources -- the formula joining them belongs in the same place. A
+        constant channel has no noise scale to measure drift in, and cannot
+        drift anyway, so its abnormality is 0 by definition rather than a
+        division by zero.
+        """
+        if self.is_constant:
+            return 0.0
+        return round(abs(mean - self.nominal) / self.sigma, 2)
+
 
 DYNAMIC_FDC_SPECS: dict[str, FdcSpec] = {
     "Brightness": FdcSpec(128.0, 3.0, "DN", "image", 20.0),
@@ -984,9 +1003,7 @@ def _build_fdc(
 
         mean = fmean(values)
         std = pstdev(values) if len(values) > 1 else 0.0
-        # A constant channel (sigma 0) has no noise scale to measure drift in;
-        # it also cannot drift, so its abnormality is 0 by definition.
-        drift_sigma = 0.0 if spec.sigma == 0 else round(abs(mean - spec.nominal) / spec.sigma, 2)
+        drift_sigma = spec.drift_sigma(mean)
         summaries.append(FdcParamSummary(
             name=name,
             category=spec.category,

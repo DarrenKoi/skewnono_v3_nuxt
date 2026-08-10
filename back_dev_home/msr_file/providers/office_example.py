@@ -355,21 +355,24 @@ def _fdc(
             if clean:
                 dynamic_fdc[str(seq)] = clean
 
+    # One pass over the sequences, keyed by param, instead of re-walking every
+    # sequence per cataloged param. Order is not kept: the summary stats below
+    # (mean/std/min/max) are all order-invariant, so sorting here would be dead
+    # work that also implies `values` is a time series when nothing treats it
+    # as one. Sort at the point of use if a slope metric is ever added.
+    by_name: dict[str, list[float]] = {}
+    for params in dynamic_fdc.values():
+        for name, value in params.items():
+            by_name.setdefault(name, []).append(value)
+
     summaries: list[FdcParamSummary] = []
     for name, spec in DYNAMIC_FDC_SPECS.items():
-        values = [
-            params[name]
-            for _, params in sorted(dynamic_fdc.items(), key=lambda kv: _int(kv[0]))
-            if name in params
-        ]
+        values = by_name.get(name)
         if not values:
             continue
         mean = fmean(values)
         std = pstdev(values) if len(values) > 1 else 0.0
-        # A constant channel (sigma 0 -- VT, ESCdV) has no noise scale to
-        # measure drift in; it also cannot drift, so its abnormality is 0 by
-        # definition. Mirrors the same guard in mock.py's _fdc_series().
-        drift_sigma = 0.0 if spec.sigma == 0 else round(abs(mean - spec.nominal) / spec.sigma, 2)
+        drift_sigma = spec.drift_sigma(mean)
         summaries.append(FdcParamSummary(
             name=name,
             category=spec.category,

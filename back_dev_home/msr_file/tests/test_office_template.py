@@ -19,6 +19,7 @@ import pytest
 from back_dev_home._core.contract_check import assert_matches
 from back_dev_home.msr_file.contracts import MsrFileResponse
 from back_dev_home.msr_file.providers import office_example
+from back_dev_home.msr_file.providers.mock import DYNAMIC_FDC_SPECS
 
 
 _MSR = "20260701_ADI_CD_BIAS_001_RAEA240031_ECXDX123"
@@ -244,8 +245,8 @@ def test_zero_sigma_param_summarizes_without_dividing_by_zero():
     """VT and ESCdV are constant set-point channels (sigma 0.0 in the catalog).
 
     The golden fixture never mentions them, so this is the one place the
-    zero-sigma branch is exercised. A real office pickle DOES carry them --
-    without the guard, build_response raises ZeroDivisionError for the whole
+    zero-sigma branch is exercised end-to-end. A real office pickle DOES carry
+    them -- unguarded, build_response raises ZeroDivisionError for the whole
     MSR, not just that one summary row.
     """
     payload = _payload()
@@ -260,8 +261,23 @@ def test_zero_sigma_param_summarizes_without_dividing_by_zero():
     assert by_name["VT"]["drift_sigma"] == 0.0
     assert by_name["ESCdV"]["drift_sigma"] == 0.0
     assert by_name["VT"]["status"] == "ok"
-    # The raw values still pass through untouched -- charts lose nothing.
-    assert response["dynamic_fdc"]["3"]["VT"] == 1201.0
+
+
+def test_drift_sigma_is_single_sourced_from_the_catalog():
+    """Both providers must derive drift_sigma from FdcSpec, not hand-roll it.
+
+    The ZeroDivisionError above existed because mock.py grew the zero-sigma
+    guard and office_example.py's copy of the formula did not. Pinning the
+    shared method here means the next edit cannot desync the two again.
+    """
+    spec = DYNAMIC_FDC_SPECS["Brightness"]  # nominal 128.0, sigma 3.0
+    assert spec.drift_sigma(134.0) == 2.0
+    assert spec.drift_sigma(122.0) == 2.0  # symmetric: direction does not matter
+    assert not spec.is_constant
+
+    constant = DYNAMIC_FDC_SPECS["VT"]
+    assert constant.is_constant
+    assert constant.drift_sigma(9999.0) == 0.0
 
 
 def test_health_is_derived_from_worst_drift(response):
