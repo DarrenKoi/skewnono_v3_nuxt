@@ -54,7 +54,7 @@ READING THE RESULT
 The verdict block at the end prints the constants as they would be written in
 source, with the headroom already applied. Copy them into
 ``office_example.py`` / the env, and replace the ``OFFICE-VERIFY`` mark with
-``office 확인 YYYY-MM-DD``. If a recommendation exceeds the proxy ceiling the
+``office confirmed YYYY-MM-DD``. If a recommendation exceeds the proxy ceiling the
 block says so rather than printing a number that cannot be deployed: the proxy
 host's uWSGI kills a request at ``harakiri`` (75s, ftp_handler/proxy/wsgi.ini),
 and one request carries a whole BATCH of specs, so a budget above it loses the
@@ -98,7 +98,7 @@ _PROXY_HARAKIRI = 75.0
 _MIN_MEANINGFUL_GAIN = 1.15
 
 
-# ── target discovery ──────────────────────────────────────────────────────
+# -- target discovery ------------------------------------------------------
 
 
 def _discover() -> tuple[str, str, str]:
@@ -124,7 +124,7 @@ def _discover() -> tuple[str, str, str]:
     return text(src.get("eqp_ip")), text(src.get("class_name")), text(src.get("msr"))
 
 
-# ── stages ────────────────────────────────────────────────────────────────
+# -- stages ----------------------------------------------------------------
 
 
 def _stage_a_login(office: Any, cfg: ImageConfig, eqp_ip: str, rounds: int) -> float:
@@ -135,7 +135,7 @@ def _stage_a_login(office: Any, cfg: ImageConfig, eqp_ip: str, rounds: int) -> f
     while the NLST that fails costs one round trip instead of a file. The
     failure is the expected outcome, so it is not reported as an error.
     """
-    print("\n── A. connect + login ────────────────────────────────────────")
+    print("\n-- A. connect + login ----------------------------------------")
     HostSpec, ListDir = office.HostSpec, office.ListDir
     samples: list[float] = []
     for i in range(rounds):
@@ -162,7 +162,7 @@ def _stage_b_serial(
     login median is what separates "the tool is slow" from "we reconnect too
     much".
     """
-    print("\n── B. per-image cold fetch (fresh login each) ────────────────")
+    print("\n-- B. per-image cold fetch (fresh login each) ----------------")
     durations: list[float] = []
     total_bytes = 0
     failed = 0
@@ -209,7 +209,7 @@ def _stage_c_concurrency(
     number measured is the number the adapter will actually produce, including
     its image/cond pairing work.
     """
-    print("\n── C. concurrency scaling (download_all) ─────────────────────")
+    print("\n-- C. concurrency scaling (download_all) ---------------------")
     results: dict[int, tuple[float, int]] = {}
     for n in fanouts:
         scoped = replace(cfg, ftp_concurrency=n)
@@ -279,7 +279,7 @@ def _stage_d_minio(office: Any, cfg: ImageConfig, locator: ImageLocator, rounds:
     failed run cannot leave anything the nightly purge would count as a cached
     image, and deletes the key itself on the way out.
     """
-    print("\n── D. MinIO cache PUT (inline in the FTP worker today) ───────")
+    print("\n-- D. MinIO cache PUT (inline in the FTP worker today) -------")
     from back_dev_home.msr_image.minio_cache import MinioImageCache
 
     if not cfg.cache_bucket:
@@ -316,7 +316,7 @@ def _stage_d_minio(office: Any, cfg: ImageConfig, locator: ImageLocator, rounds:
     return statistics.median(samples)
 
 
-# ── verdict ───────────────────────────────────────────────────────────────
+# -- verdict ---------------------------------------------------------------
 
 
 def _verdict(
@@ -404,10 +404,10 @@ def _verdict(
             print("   -> low payoff: the PUT is cheap next to the fetch")
 
     print("\nRecord what you keep in back_dev_home/msr_image/MIGRATION.md and replace"
-          "\nthe OFFICE-VERIFY mark with `office 확인 YYYY-MM-DD`.")
+          "\nthe OFFICE-VERIFY mark with `office confirmed YYYY-MM-DD`.")
 
 
-# ── main ──────────────────────────────────────────────────────────────────
+# -- main ------------------------------------------------------------------
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -431,15 +431,39 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _make_stdout_live() -> None:
+    """Best-effort line buffering. Never the reason a measurement does not run.
+
+    Stages B and C take minutes and the operator is watching for signs of life.
+    Block buffering -- what Python picks the moment output is piped or tee'd --
+    holds every line until a stage ends, so a working run and a hung one look
+    identical, and it reorders output against unbuffered stderr so a traceback
+    lands ABOVE the lines printed before it.
+
+    All of that is a nicety. `reconfigure` is absent on some stdout objects
+    (IDE consoles, capture harnesses substitute their own) and raises on a
+    detached stream, and an unguarded call here would abort the script before
+    it printed a single character -- turning a cosmetic improvement into "the
+    command does nothing in my terminal". Degrade silently instead.
+    """
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is None:
+        return
+    try:
+        reconfigure(line_buffering=True)
+    except (ValueError, OSError):
+        pass
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-    # Stages B and C take minutes, and this is run at the office where the
-    # operator is watching for signs of life. Block buffering (which is what
-    # Python picks the moment output is piped or tee'd to a file) would hold
-    # every line until a stage finished, so a working run and a hung one look
-    # identical. It also reorders output against stderr, which is unbuffered:
-    # a traceback then appears ABOVE the lines that were printed before it.
-    sys.stdout.reconfigure(line_buffering=True)
+    _make_stdout_live()
+    # First line out, before any import that could fail. It proves the process
+    # started and reached this point, and it names the stream encoding -- the
+    # one property that differs between an IDE console (UTF-8) and a Windows
+    # terminal (the ANSI code page), which is what made an earlier failure look
+    # like "the same command works in one window and not the other".
+    print(f"python {sys.version.split()[0]}  stdout={sys.stdout.encoding}")
 
     if not os.environ.get("OPENSEARCH_HOST"):
         load_env_file("OPENSEARCH_HOST")
