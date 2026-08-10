@@ -64,7 +64,6 @@ batch rather than buying time.
 from __future__ import annotations
 
 import argparse
-import os
 import statistics
 import sys
 import threading
@@ -425,6 +424,13 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
                    help="comma-separated concurrency levels for stage C (default: 1,3,6)")
     p.add_argument("--minio", action="store_true",
                    help="also time a cache PUT (writes under <prefix>_measure/, then deletes)")
+    # Stage D is the one stage that can be blocked by configuration rather than
+    # by the tool, and finding that out costs a whole run. These let it be
+    # forced from the command line when the .env is unavailable or in doubt.
+    p.add_argument("--cache-bucket", default="",
+                   help="override SKEWNONO_IMAGE_CACHE_BUCKET for stage D (office: user)")
+    p.add_argument("--cache-prefix", default="",
+                   help="override SKEWNONO_IMAGE_CACHE_PREFIX (office: 2067928/image_cache/)")
     p.add_argument("--direct", action="store_true", help="force direct FTP even on Windows")
     p.add_argument("--skip-serial", action="store_true",
                    help="skip stage B (it costs one login per image)")
@@ -465,8 +471,15 @@ def main(argv: list[str] | None = None) -> int:
     # like "the same command works in one window and not the other".
     print(f"python {sys.version.split()[0]}  stdout={sys.stdout.encoding}")
 
-    if not os.environ.get("OPENSEARCH_HOST"):
-        load_env_file("OPENSEARCH_HOST")
+    # Unconditionally, and NOT gated on OPENSEARCH_HOST being absent. That gate
+    # was wrong: load_config() below reads every SKEWNONO_TOOL_FTP_* and
+    # SKEWNONO_IMAGE_CACHE_* value from this same .env, so a shell that already
+    # exported OPENSEARCH_HOST skipped the file entirely and silently took the
+    # built-in defaults for all of them -- cache_bucket=None among them, which
+    # is exactly what made stage D report "not set" on a machine whose .env
+    # sets it. load_dotenv does not override values already in the environment,
+    # so loading always is strictly safer than loading sometimes.
+    load_env_file("OPENSEARCH_HOST")
 
     if args.direct:
         # office_example picks its transport at import time from the platform;
@@ -504,6 +517,15 @@ def main(argv: list[str] | None = None) -> int:
     # Nothing may be abandoned mid-measurement: an abandoned host yields a
     # failure, not a duration, which would bias every average toward fast files.
     cfg = replace(cfg, ftp_host_timeout=_MEASURE_HOST_TIMEOUT, ftp_host_timeout_max=_MEASURE_HOST_TIMEOUT)
+    if args.cache_bucket:
+        cfg = replace(cfg, cache_bucket=args.cache_bucket)
+    if args.cache_prefix:
+        cfg = replace(cfg, cache_prefix=args.cache_prefix)
+    if args.minio:
+        # Printed before any FTP work: stage D runs LAST, and discovering there
+        # that the cache was never configured wastes the whole run.
+        print(f"cache: bucket={cfg.cache_bucket!r} prefix={cfg.cache_prefix!r}"
+              f"{'' if cfg.cache_bucket else '   <-- stage D will SKIP'}")
 
     listing_started = time.monotonic()
     all_names = office.list_images(eqp_ip, class_name, msr, _config=cfg)
