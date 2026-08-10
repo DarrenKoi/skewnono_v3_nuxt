@@ -48,3 +48,46 @@ export const warmProgressLabel = (done: number, total: number): string =>
   total > 0
     ? `이미지를 준비하는 중입니다. ${done}/${total}`
     : '이미지를 준비하는 중입니다.'
+
+/** Waits before re-POSTing a refused warm job, in order. Sized so the whole
+ * ladder fits inside WARM_CEILING_MS with polling time to spare. */
+export const WARM_RETRY_DELAYS_MS = [1000, 2000, 4000] as const
+
+/** The `code` a rejected $fetch carries, whatever shape Nuxt hands us.
+ *
+ * Status alone cannot decide this. `/api/*` has an application-wide 20 req/5s
+ * limit that also answers 429, and warm polling at 600ms can reach it — but
+ * only the job-cap refusal carries `too_many_jobs` (routes.py). Retrying the
+ * other 429 would have a throttled client send more. */
+export const warmErrorCode = (err: unknown): string | undefined =>
+  (err as { data?: { code?: string } })?.data?.code
+
+/** `baseMs` spread over +/-25%. `rand` is a caller-supplied [0,1) so the
+ * policy stays a pure function; the caller passes Math.random(). Several
+ * users refused in the same instant must not retry in lockstep. */
+export const jittered = (baseMs: number, rand: number): number =>
+  Math.round(baseMs * (0.75 + rand * 0.5))
+
+/**
+ * How long to wait before re-POSTing, or `null` to give up.
+ *
+ * `null` releases the held images to the cold-GET path, which is the old
+ * behaviour — so every `null` here is a decision to accept that load.
+ */
+export const warmRetryDelayMs = (
+  err: unknown,
+  attempt: number,
+  elapsedMs: number,
+  rand: number
+): number | null => {
+  if (warmErrorCode(err) !== 'too_many_jobs') return null
+  // Indexing past the ladder yields undefined, which IS the "stop" signal —
+  // one check instead of a separate length guard, and no non-null assertion.
+  const base = WARM_RETRY_DELAYS_MS[attempt]
+  if (base === undefined) return null
+  const delay = jittered(base, rand)
+  // Checked before sleeping: waiting 4s only to then give up would hold the
+  // panel for nothing.
+  if (elapsedMs + delay >= WARM_CEILING_MS) return null
+  return delay
+}
