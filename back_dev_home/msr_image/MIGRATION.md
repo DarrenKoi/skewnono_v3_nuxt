@@ -43,13 +43,13 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 
 ## 장비 부하 — 무엇이 세션을 여는가 (2026-08-10)
 
-장비 FTP 는 엔지니어들과 나눠 쓰는 희소 자원이므로, 세션 수가 곧 우리가 지불하는
-비용입니다. 두 경로가 장비에 접속합니다.
+장비 FTP 는 엔지니어들과 나눠 쓰는 희소 자원이므로, 어느 순간에 우리가 쥐고 있는
+동시 세션 슬롯 수가 곧 우리가 지불하는 비용입니다. 두 경로가 장비에 접속합니다.
 
 | 경로 | 예산 |
 | --- | --- |
 | warm job (`download_all`) | Redis 로 워커 간 `max_jobs` x `ftp_concurrency` |
-| cold GET (`fetch_image`) | 이미지별 single-flight 게이트 (프로세스 내) |
+| cold GET (`fetch_image`) | 이미지별 single-flight (프로세스 내) |
 
 cold GET 은 예산이 없었고 같은 파일에 대한 동시 요청마다 세션을 열었습니다. 이제
 `single_flight.single_flight(key, fetch)` 가 캐시키별로 묶습니다 — 선두만 `fetch`

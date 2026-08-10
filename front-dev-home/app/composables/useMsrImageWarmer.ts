@@ -89,8 +89,16 @@ const runWarm = async (
     // From here a job exists. Never re-POST: the running one keeps its
     // max_jobs slot, so a second job is a second visit to the tool for files
     // the first is already fetching.
+    //
+    // A retry's backoff REPLACES the next poll interval rather than preceding
+    // it. Sleeping both would make one retry cost delay + WARM_POLL_MS while
+    // the ladder's ceiling check counted only `delay` — so the panel could
+    // outlive the ceiling by a poll interval, which is what this budget exists
+    // to stop.
+    let wait = WARM_POLL_MS
     for (let pollFailures = 0; ;) {
-      await sleep(WARM_POLL_MS)
+      await sleep(wait)
+      wait = WARM_POLL_MS // reset here, not in the for-update: `continue` runs that
       const pollBudget = remainingBudgetMs(elapsed())
       if (pollBudget === 0) return giveUp()
       let poll
@@ -99,7 +107,7 @@ const runWarm = async (
       } catch (err) {
         const delay = pollRetryDelayMs(err, pollFailures++, elapsed(), Math.random())
         if (delay === null) return giveUp()
-        await sleep(delay)
+        wait = delay
         continue
       }
       pollFailures = 0 // consecutive, so a long job survives scattered hiccups
