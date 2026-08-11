@@ -1,9 +1,16 @@
 """Pack the working tree into a folder ready to copy to /project/workSpace.
 
-Run FROM THE REPO ROOT, at the office, after building the frontend:
+Run at the office, after building the frontend. Both invocation forms work
+(scripts/README.md section 1):
 
     npm --prefix front-dev-home run build
-    .venv/bin/python scripts/deploy/pack.py
+    .venv/bin/python -m scripts.deploy.pack        # module form
+    .venv/bin/python scripts/deploy/pack.py        # path form
+
+What gets packed is the CURRENT DIRECTORY, not this file's own checkout - the
+point is to ship the tree the operator has in front of them, gitignored files
+and all. `--repo-root` names it explicitly for anyone who ran the command from
+somewhere else.
 
 Two properties of this repository shape everything here.
 
@@ -30,14 +37,24 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-try:
-    # Running as `python scripts/deploy/pack.py` puts THIS file's directory on
-    # sys.path, not the repo root, so the package spelling is unavailable -
-    # while pytest imports `scripts.deploy.pack` and has only the package
-    # spelling. Both invocations are real, so both are handled.
-    from scripts.deploy.preflight_cloud import env_file_values
-except ModuleNotFoundError:
-    from preflight_cloud import env_file_values
+# The bootstrap from scripts/README.md section 1, one level deeper because this
+# file sits in scripts/deploy/ rather than scripts/.
+#
+# `-m` puts the working directory on sys.path; running the file BY PATH puts
+# scripts/deploy/ there instead, so without this the first repo import dies with
+# ModuleNotFoundError. The by-path form is what a file manager, an IDE's run
+# button and tab completion all produce.
+#
+# `import scripts` looks redundant next to the path insert and is not: it is
+# what applies scripts/__init__.py's UTF-8 stdout fix. The `-m` form imports the
+# package on its own, the path form never does, and this line is what makes the
+# two behave the same on a Korean Windows console with output redirected.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
+
+from scripts.deploy.preflight_cloud import env_file_values  # noqa: E402
 
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
 # Only ops_store, minio_handler, ftp_handler and office_utils are actually
@@ -416,9 +433,31 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="promote every advisory check to blocking",
     )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=None,
+        help="tree to pack (default: the current directory)",
+    )
     args = parser.parse_args(argv)
 
-    repo_root = Path.cwd()
+    # Rule 4: prove the process is alive, and name the encoding, before any of
+    # the slow work. When the same command behaves differently in two windows,
+    # this line is what tells them apart.
+    print(f"python {sys.version.split()[0]}  stdout={sys.stdout.encoding}")
+
+    repo_root = (args.repo_root or Path.cwd()).resolve()
+
+    # Rule 6: say what is wrong and what to do about it. Without this, running
+    # from the wrong directory printed four separate blocking failures, each
+    # naming a path under that wrong directory - which reads as a broken repo
+    # rather than a mislaid `cd`.
+    if not (repo_root / "back_dev_home").is_dir():
+        print(f"\nFAIL - {repo_root} is not a skewnono checkout.")
+        print("  Pack runs against the CURRENT DIRECTORY. Either cd to the")
+        print("  repo root, or name it:")
+        print(f"      python -m scripts.deploy.pack --repo-root {_REPO_ROOT}")
+        return 1
 
     if args.build:
         print("building the frontend...")

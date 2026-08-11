@@ -433,6 +433,43 @@ def test_main_locks_down_the_bundle_folder(tmp_path, monkeypatch):
     assert stat.S_IMODE(bundle.stat().st_mode) == 0o700
 
 
+def test_main_packs_the_named_root_from_a_foreign_cwd(tmp_path, monkeypatch):
+    """`--repo-root` is what makes the by-path invocation usable.
+
+    Double-clicking the file, or running it via an absolute path from a home
+    directory, leaves cwd somewhere unrelated. Before this flag the only
+    remedy was to know that cwd - never mentioned in the output - was the
+    thing being packed.
+    """
+    repo = _make_repo(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    out = tmp_path / "out"
+
+    assert pack.main(["--out", str(out), "--repo-root", str(repo)]) == 0
+
+    bundle = next(out.iterdir())
+    assert (bundle / "back_dev_home" / "_runtime" / "env.py").is_file()
+
+
+def test_main_rejects_a_cwd_that_is_not_a_checkout(tmp_path, monkeypatch, capsys):
+    """One line naming the cause, not four naming its symptoms.
+
+    Running from the wrong directory used to emit a blocking failure per
+    missing root, each quoting a path under that wrong directory - which reads
+    as a broken repo rather than a mislaid `cd`.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    assert pack.main(["--out", str(tmp_path / "out")]) == 1
+
+    out = capsys.readouterr().out
+    assert "not a skewnono checkout" in out
+    assert "--repo-root" in out
+    assert "spa_built" not in out, "symptom-level checks must not run at all"
+
+
 def test_ignore_callback_is_not_poisoned_by_the_checkout_path():
     """copytree passes an ABSOLUTE source dir. If the prune decision consulted
     ancestors, a checkout living under any directory named `tests` (or
