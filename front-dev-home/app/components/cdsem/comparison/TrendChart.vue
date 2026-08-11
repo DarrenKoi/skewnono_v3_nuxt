@@ -190,7 +190,7 @@ const option = computed<EChartsOption>(() => {
       symbolSize: 8,
       itemStyle: { color: pal[s.key] },
       // Stacked: a 2px stroke in the surface colour separates adjacent bands so
-      // two neighbouring steps of one hue never bleed into each other.
+      // two neighbouring steps of the cool-to-warm ramp never bleed into each other.
       // Lines: the stroke IS the series.
       lineStyle: stacked
         ? { width: 2, color: surface.value.surface }

@@ -357,6 +357,7 @@ Rules:
 
 1. Focus on ONE component at a time; reference it by its name here (`meta-bar`, `sk-chip`, `dashboard-surface`).
 2. Never inline hex — every color routes through a `--sk-*` token. If a needed color has no token, add the token to this document first, then to `main.css`.
+   Exception: ECharts-theme palette values may be used unchanged only for corresponding SVG/canvas chart marks and matching DOM data marks, so one data series keeps one color across its representations.
 3. New selected states must pass the BLACK/TERRACOTTA litmus test before any styling begins.
 4. New radii must come from the 4-step scale; new text sizes from the Tailwind scale with the 12px floor.
 5. When in doubt about emphasis: one weight step up (400→500→600→700) before any color change.

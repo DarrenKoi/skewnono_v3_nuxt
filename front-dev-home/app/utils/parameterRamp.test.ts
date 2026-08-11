@@ -12,11 +12,26 @@ const themeNames = ECHART_THEME_OPTIONS
   .map(option => option.value)
   .filter((value): value is EchartThemeName => value !== 'default')
 
+const EXPECTED_PARAMETER_RAMP_ANCHORS = {
+  vintage: ['#61a0a8', '#d87c7c'],
+  dark: ['#4992ff', '#ff6e76'],
+  macarons: ['#5ab1ef', '#c05050'],
+  infographic: ['#60C0DD', '#C1232B'],
+  shine: ['#0098d9', '#c12e34'],
+  roma: ['#6699FF', '#E01F54'],
+  matlab: ['#0072BD', '#A2142F']
+} as const satisfies Record<EchartThemeName, readonly [string, string]>
+
 const parameterRamp = async () => {
   const loaded = await import('./parameterRamp.ts').catch(() => null)
   assert.ok(loaded, 'parameter ramp module must exist')
   return loaded
 }
+
+test('every real theme keeps its approved parameter-ramp anchors', async () => {
+  const { PARAMETER_RAMP_ANCHORS } = await parameterRamp()
+  assert.deepEqual(PARAMETER_RAMP_ANCHORS, EXPECTED_PARAMETER_RAMP_ANCHORS)
+})
 
 test('every real theme has anchors taken from its own series palette', async () => {
   const { PARAMETER_RAMP_ANCHORS } = await parameterRamp()
