@@ -175,13 +175,12 @@ const imageNames = computed(() => {
   return row ? rowImageNames(row) : []
 })
 
-const variantIndex = ref(0)
-watch(
-  () => `${site.value?.chip ?? ''}#${site.value?.sequence ?? ''}`,
-  () => {
-    variantIndex.value = 0
-  }
-)
+// Shared with the SEM Image panel and the gallery viewer: one remembered
+// suffix per recipe+parameter (2026-08-11), so stepping between sites keeps the
+// depth the reviewer picked. Derived, not reset — see
+// composables/useSkewvoirVariantMemory.ts.
+const variantKey = useSkewvoirVariantKey(props.analysis)
+const variantIndex = useSkewvoirVariantIndex(imageNames, variantKey)
 
 const imageName = computed(() => imageNames.value[variantIndex.value] ?? imageNames.value[0] ?? null)
 

@@ -257,8 +257,7 @@ const measuredRow = computed(() => {
 })
 
 // A point's image files: one on CD-SEM, several stem-suffixed on HV-SEM
-// (user-confirmed 2026-08-08). The selection is per-point — moving to another
-// point (or parameter/MSR) starts back at the first image.
+// (user-confirmed 2026-08-08).
 const imageNames = computed(() => (measuredRow.value ? rowImageNames(measuredRow.value) : []))
 
 // How a multi-image point renders: 'single' (one image + variant chips) or
@@ -277,13 +276,15 @@ const displayMode = usePersistedState<'single' | 'all'>(
 const showAllGrid = computed(() =>
   displayMode.value === 'all' && imageNames.value.length > 1 && !!focusCtx.value.eqp_ip)
 
-const variantIndex = ref(0)
-watch(
-  () => `${focusCtx.value.msr}|${props.analysis.activeParam.value}|${measuredRow.value?.sequence ?? ''}`,
-  () => {
-    variantIndex.value = 0
-  }
-)
+// WHICH sub-image shows, remembered per recipe+parameter (2026-08-11). This
+// replaced a `ref(0)` reset on every msr/parameter/point change: which suffixes
+// a point even has is a property of the recipe's targeting setup for that
+// parameter, so a reviewer comparing one depth across a wafer was re-picking it
+// on every site. Nothing resets it here — the index is DERIVED from this
+// point's names, so a point without the remembered suffix falls back to its
+// first image on its own.
+const variantKey = useSkewvoirVariantKey(props.analysis)
+const variantIndex = useSkewvoirVariantIndex(imageNames, variantKey)
 
 const measuredName = computed(() => imageNames.value[variantIndex.value] ?? imageNames.value[0] ?? null)
 

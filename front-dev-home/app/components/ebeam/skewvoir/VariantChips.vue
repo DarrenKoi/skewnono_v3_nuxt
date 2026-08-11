@@ -33,15 +33,18 @@
 // thing to triplicate: every keyboard, focus or aria fix would otherwise have
 // to be made three times or silently not be.
 //
-// WHAT THIS DOES NOT OWN: when to show at all, and when to reset. Both are
-// context-specific — the dashboard hides the bar in 전체 mode while its outer
-// header still gates on `names.length > 1`, and each host resets its index on
-// a different change (point/parameter/MSR vs. the focused entry). Those stay
-// with the caller; only the bar is shared.
+// WHAT THIS DOES NOT OWN: when to show at all, and where the index comes from.
+// Showing is context-specific — the dashboard hides the bar in 전체 mode while
+// its outer header still gates on `names.length > 1`. The index is now the
+// shared per-recipe+parameter memory (composables/useSkewvoirVariantMemory.ts),
+// which every host binds through the same writable computed; before 2026-08-11
+// each host instead owned a `ref(0)` and reset it on a different change, which
+// is the behaviour that memory replaced.
 import { imageVariantLabel } from '~/utils/imageKind'
 
 defineProps<{ names: string[] }>()
 
-/** Index into `names`. The host owns it, so the host controls the reset. */
+/** Index into `names`. Bound by the host — normally to the remembered-variant
+ * computed, which re-resolves it whenever `names` changes. */
 const index = defineModel<number>({ required: true })
 </script>

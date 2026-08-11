@@ -111,6 +111,7 @@
       :eqp_ip="focusCtx.eqp_ip"
       :class_name="focusCtx.class_name"
       :msr="focusCtx.msr"
+      :variant-key="variantKey"
       @update:index="viewerIndex = $event"
       @close="viewerOpen = false"
       @move-to-site="onMoveToSite"
@@ -140,6 +141,10 @@ const { imageUrl } = useMsrImageApi()
 // Empty strings (never undefined) when the focus row hasn't resolved yet —
 // callers gate on `focusCtx.eqp_ip` before building a URL/job.
 const focusCtx = useFocusImageCtx(props.analysis)
+
+// Scope for the viewer's remembered sub-image pick. Resolved here because the
+// viewer takes review entries, which carry a parameter but not the recipe.
+const variantKey = useSkewvoirVariantKey(props.analysis)
 
 // A card's image URL, or null when there is nothing to point at (no file on
 // the row, or the focus row has not resolved a tool yet). One function so the

@@ -208,6 +208,10 @@ const props = defineProps<{
   eqp_ip: string
   class_name: string
   msr: string
+  /** recipe+parameter scope for the remembered sub-image pick. Passed in rather
+   * than derived here because this viewer takes review entries, not the
+   * analysis context that knows the recipe. Null disables the memory. */
+  variantKey: string | null
 }>()
 const emit = defineEmits<{
   'close': []
@@ -220,14 +224,14 @@ const { fetchImageWithCond, imageUrl } = useMsrImageApi()
 
 const entry = computed<ReviewEntry | null>(() => props.entries[props.index] ?? null)
 
-// One point, several sub-images on HV-SEM (-U/-T/-M/-L, 2026-08-08). The
-// selection is per-entry: stepping to another site starts back at the first.
-const variantIndex = ref(0)
-watch(
-  () => `${entry.value?.chip ?? ''}#${entry.value?.sequence ?? ''}`,
-  () => {
-    variantIndex.value = 0
-  }
+// One point, several sub-images on HV-SEM (-U/-T/-M/-L, 2026-08-08). The pick
+// is REMEMBERED per recipe+parameter (2026-08-11) and shared with the SEM Image
+// panel and the site drawer, so arrowing through the review queue holds the
+// depth the reviewer chose. Derived from the entry's own names, so an entry
+// lacking that suffix falls back to its first image without a reset watcher.
+const variantIndex = useSkewvoirVariantIndex(
+  () => entry.value?.images ?? [],
+  () => props.variantKey
 )
 
 // The selected variant, falling back to the entry's representative image when
