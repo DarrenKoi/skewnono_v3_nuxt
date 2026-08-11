@@ -7,7 +7,7 @@
 // test_recipe_name_order_differs_from_process_order).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { byOperSeq, byRecipeId, sortSteps, stepComparator } from './recipeStepSort.ts'
+import { byOperSeq, byRecipeId, sortSteps, stepComparator, stepKey } from './recipeStepSort.ts'
 
 const step = (recipe_id: string, oper_seq: number, samp_seq = 1) =>
   ({ recipe_id, oper_seq, samp_seq })
@@ -37,6 +37,31 @@ test('이름순은 oper_seq 를 무시한다 — 두 정렬이 갈리는 지점'
   const rows = [step('AAA_CD', 90), step('ZZZ_CD', 10), step('MMM_CD', 50)]
   assert.deepEqual(ids(sortSteps(rows, 'recipe')), ['AAA_CD', 'MMM_CD', 'ZZZ_CD'])
   assert.deepEqual(ids(sortSteps(rows, 'oper')), ['ZZZ_CD', 'MMM_CD', 'AAA_CD'])
+})
+
+test('이름순 동률은 oper_seq -> samp_seq 로 갈린다 — 같은 recipe 를 여러 스텝이 쓰므로', () => {
+  // 한 device 가 같은 측정 recipe 를 여러 공정에서 돌립니다. 동률 키가 없으면 이
+  // 정렬은 입력 순서에만 기대고, 그 순서는 버킷을 바꾸면 달라질 수 있습니다.
+  const rows = [step('ADI/LINE_CD', 46, 5), step('ADI/LINE_CD', 4, 2), step('ADI/LINE_CD', 4, 1)]
+  const sorted = sortSteps(rows, 'recipe')
+  assert.deepEqual(sorted.map(r => [r.oper_seq, r.samp_seq]), [[4, 1], [4, 2], [46, 5]])
+  assert.deepEqual(sortSteps([...rows].reverse(), 'recipe'), sorted)
+})
+
+test('stepKey 는 같은 recipe 를 쓰는 두 스텝을 갈라낸다 — v-for :key 의 계약', () => {
+  // recipe_id 를 :key 로 쓰면 Vue 가 두 카드를 하나로 접어 스텝이 사라집니다
+  // ("Duplicate keys found during update"). 사무실 데이터에서 실제로 났습니다.
+  const shared = [step('ADI/LINE_CD', 4, 2), step('ADI/LINE_CD', 46, 5)]
+  const keys = shared.map(stepKey)
+
+  assert.equal(new Set(keys).size, 2)
+  assert.equal(new Set(shared.map(r => r.recipe_id)).size, 1)
+})
+
+test('stepKey 는 samp_seq 만 다른 스텝도 갈라낸다', () => {
+  // R3 문서 1건이 (prod_id, oper_seq, samp_seq) 이므로 samp_seq 가 키에 있어야
+  // 같은 공정의 sample 측정 두 건이 한 장으로 접히지 않습니다.
+  assert.notEqual(stepKey(step('ADI/LINE_CD', 4, 1)), stepKey(step('ADI/LINE_CD', 4, 2)))
 })
 
 test('stepComparator 는 키에 맞는 비교 함수를 준다', () => {

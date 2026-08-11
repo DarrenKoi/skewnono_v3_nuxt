@@ -21,6 +21,27 @@ export type RecipeSortKey = 'oper' | 'recipe'
 type SortableStep = Pick<RecipeInfoRow, 'oper_seq' | 'samp_seq' | 'recipe_id'>
 
 /**
+ * 목록 한 줄의 정체성 — `v-for` 의 `:key` 로 쓰는 값입니다.
+ *
+ * **recipe_id 가 아닙니다.** 한 device 는 같은 측정 recipe 를 여러 공정에서
+ * 돌리므로 recipe_id 는 lot 안에서 반복됩니다. R3 는 문서 1건이
+ * `(prod_id, oper_seq, samp_seq)` 이고, M 계열은 스텝 이름마다 최신 recipe_id 를
+ * 붙이는 집계라 한 recipe 가 두 스텝에 걸립니다
+ * (back_dev_home/.../office_example.py `_r3_steps` / `_mfab_steps`).
+ *
+ * recipe_id 를 키로 쓰던 동안 Vue 가 두 카드를 하나로 접어 **스텝이 조용히
+ * 사라졌습니다** ("Duplicate keys found during update"). 집의 mock 이 그때
+ * recipe_id 를 lot 안에서 유일하게 만들고 있어 이 경로가 한 번도 재현되지
+ * 않았습니다 — 지금은 재현합니다
+ * (providers/recipe_population.py `_apply_shared_recipes`).
+ *
+ * 뒤에 recipe_id 를 붙여 두는 것은 devtools 에서 키를 사람이 읽기 위해서입니다.
+ * 앞의 두 값만으로 이미 유일합니다.
+ */
+export const stepKey = (step: SortableStep): string =>
+  `${step.oper_seq}/${step.samp_seq}/${step.recipe_id}`
+
+/**
  * 공정순. 동률은 samp_seq -> recipe_id 로 갈라집니다.
  *
  * R3 에서 스텝의 정체성은 (oper_seq, samp_seq) 이므로 samp_seq 가 두 번째 키여야
@@ -36,9 +57,18 @@ export const byOperSeq = (a: SortableStep, b: SortableStep): number =>
   || a.samp_seq - b.samp_seq
   || a.recipe_id.localeCompare(b.recipe_id)
 
-/** recipe 이름순. recipe_id 는 lot 안에서 유일하므로 추가 동률 키가 없습니다. */
+/**
+ * recipe 이름순. 동률은 oper_seq -> samp_seq 로 갈라집니다.
+ *
+ * 같은 recipe 를 쓰는 스텝이 여럿이라 **동률이 실제로 생깁니다** (`stepKey` 주석).
+ * 동률 키가 없던 동안 이 정렬은 입력 순서에만 기대고 있었고, 그 순서는 버킷을
+ * 바꾸거나 API 를 다시 받으면 달라질 수 있는 값입니다 — CSV 를 두 번 받아 나란히
+ * 비교할 수 없게 됩니다.
+ */
 export const byRecipeId = (a: SortableStep, b: SortableStep): number =>
   a.recipe_id.localeCompare(b.recipe_id)
+  || a.oper_seq - b.oper_seq
+  || a.samp_seq - b.samp_seq
 
 /** 정렬 키에 해당하는 비교 함수. */
 export const stepComparator = (key: RecipeSortKey) =>

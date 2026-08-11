@@ -48,6 +48,15 @@ docs/datatables/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 스텝" 
   eqp_id -> string: 장비 ID.
   recipe_id -> string: recipe 식별자. **다른 DB 의 full_name 과 동일한 값**입니다 —
                        cdsem_idp_ver.full_name 과 이 값으로 조인합니다.
+                       **한 device 안에서 반복됩니다** — 같은 측정 recipe 를 여러
+                       스텝이 함께 씁니다 (office 확인 2026-08-11: lot 상세 화면이
+                       recipe_id 를 목록 키로 쓰다가 Vue 의 "Duplicate keys found
+                       during update" 를 냈습니다). 즉 recipe_id 는 **조인 키이지
+                       행의 정체성이 아닙니다** — 행 1건의 정체성은 이 문서 맨 위가
+                       말하는 (prod_id, oper_seq, samp_seq) 입니다. device 당 재사용
+                       비율은 아직 확인되지 않았습니다 (OFFICE-VERIFY; mock 은
+                       스텝의 4% 를 재사용으로 만듭니다 —
+                       recipe_population.SHARED_RECIPE_RATIO).
                        이름이 "_*CDU"(패턴 — _WCDU/_FCDU/_BCDU …) 또는
                        "_FULL"/"_HALF"/"_MTX" 로 끝나면 CDU·full/half-map·
                        matrix 측정 job 으로, 계측 룰 판정 범위와 point_count
@@ -180,9 +189,12 @@ upstream_data_error 로 떨어졌습니다. 즉 **한 device 의 plan step 문�
 이 숫자가 "device 당 recipe 100~200" 과 어긋나 보이는 것이 요점입니다. 이 index 의
 문서 1건은 **측정 recipe 가 아니라 plan step** 이고, 한 device 의 공정 계획에는
 skip_yn == "Y" 인 스텝과 같은 recipe 를 재사용하는 스텝이 함께 들어 있어 문서 수가
-recipe 수보다 한 자리수 배 많습니다. mock(providers/recipe_population.py)은 스텝과
-recipe 를 1:1 로 만들어 device 당 175~200 개만 내므로, 이 축에서 mock 은 실물보다
-열 배 좁습니다.
+recipe 수보다 한 자리수 배 많습니다. mock(providers/recipe_population.py)은 device 당
+175~200 스텝만 내므로, **문서 수** 축에서 mock 은 여전히 실물보다 열 배 좁습니다.
+다만 **재사용 자체**는 2026-08-11 부터 재현합니다 — 스텝의 4%(SHARED_RECIPE_RATIO)가
+앞 스텝의 recipe_id 를 그대로 씁니다. 그전까지 mock 은 스텝과 recipe 를 1:1 로 만들어
+"recipe_id 가 device 안에서 유일하다" 는 실물에 없는 불변식을 가르쳤고, 프론트엔드가
+그 위에 목록 키를 올렸습니다(위 recipe_id field 설명).
 
 어댑터의 상한은 2000 -> 10000(OpenSearch `index.max_result_window` 기본값)으로
 올렸습니다. 단발 search 로 가져올 수 있는 천장이 거기라 **숫자를 더 올리는 것으로는
@@ -214,6 +226,10 @@ subfield 를 써야 합니다(prod_id.keyword, recipe_id.keyword 등). 실제 ma
 OFFICE-VERIFY
 
 - 각 field 의 실제 mapping 타입(text vs keyword)과 int/long 여부.
+- device 당 **recipe 재사용 비율** — 몇 %의 스텝이 다른 스텝과 recipe_id 를 공유하는지,
+  그리고 한 recipe 가 최대 몇 스텝에 걸리는지. 반복이 있다는 사실만 확인됐습니다.
+  mock 은 "한 recipe 당 최대 2 스텝, 스텝의 4%" 로 두었으므로, 실물이 3 스텝 이상을
+  허용하면 그 값을 넓혀야 합니다.
 - prod_id 에서 "_BASE" 를 떼어낸 값이 r3_device_grp.lot_cd 어휘와 실제로 겹치는지.
   ("_BASE" 외의 접미사가 존재하는지 포함.)
 - chg_tm 이 정말 offset 없이 저장되는지(Z 나 +09:00 이 붙으면 9시간 어긋납니다).

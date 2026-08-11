@@ -54,6 +54,23 @@ def test_recipe_ids_join_between_statistics_and_params(trend):
     assert stat_ids == param_ids
 
 
+def test_recipe_params_holds_one_row_per_recipe(trend):
+    """이 표면은 스텝이 아니라 **recipe** 단위입니다.
+
+    원천이 cdsem_idp_ver 이고 거기서는 full_name(=recipe_id) 하나에 파라미터가 한
+    벌뿐입니다. 스텝 단위로 내보내면 같은 recipe 의 파라미터가 두 벌 실려, 화면이
+    recipe_id 로 조인할 때 어느 쪽이 진짜인지 알 수 없습니다.
+    """
+    rows = get_recipe_params(LOTS)
+    keys = [(r["lot_cd"], r["recipe_id"]) for r in rows]
+
+    assert keys
+    assert len(keys) == len(set(keys))
+    # 그러면서도 스텝 수보다는 적어야 합니다 — 공유가 실제로 일어났다는 뜻입니다.
+    latest = list(trend)[-1]
+    assert len(keys) < len(trend[latest]["all_rcp_info"])
+
+
 def test_recipe_id_carries_no_bucket_suffix(trend):
     """접미사 없는 id — 실물이 그렇습니다(statistics.py 모듈 docstring)."""
     latest = list(trend)[-1]
@@ -121,27 +138,103 @@ def test_oper_desc_has_the_office_shape(lot_cd):
         assert oper_prefix(desc) is not None, desc
 
 
+# ── 스텝 정체성 vs 조인 키 ────────────────────────────────────────────────
+#
+# 이 절이 지키는 것은 "행 1건 = 스텝 1건, recipe_id 는 그 위를 가로지르는 조인
+# 키" 라는 구분입니다. 예전 mock 은 recipe_id 를 lot 안에서 유일하게 만들어 두
+# 축을 하나로 보이게 했고, 프론트엔드가 recipe_id 를 ``v-for`` 의 :key 로 쓰다가
+# 사무실 데이터에서 카드가 조용히 사라졌습니다.
+
 @pytest.mark.parametrize("lot_cd", LOTS)
-def test_recipe_id_is_unique_within_a_lot(lot_cd):
-    """조인 키이므로 lot 안에서 유일해야 합니다 — 겹치면 파라미터가 섞입니다."""
+def test_step_identity_is_unique_within_a_lot(lot_cd):
+    """행의 정체성은 ``(oper_seq, samp_seq)`` — R3 문서 1건의 정체성과 같습니다."""
+    population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    steps = [(r["oper_seq"], r["samp_seq"]) for r in population]
+
+    assert len(steps) == len(set(steps))
+
+
+@pytest.mark.parametrize("lot_cd", LOTS)
+def test_some_steps_share_a_recipe(lot_cd):
+    """**모든 lot** 에 같은 recipe 를 쓰는 스텝이 있어야 합니다.
+
+    한 lot 만 걸려도 되는 것이 아니라 전부여야 합니다 — 집에서 아무 lot 이나
+    열어도 프론트엔드의 공유 경로(:key, 정렬 동률, CSV 의 반복 블록)가 그려지도록
+    하는 것이 이 mock 변경의 목적이기 때문입니다.
+    """
     population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     recipe_ids = [r["recipe_id"] for r in population]
 
-    assert len(recipe_ids) == len(set(recipe_ids))
+    assert len(set(recipe_ids)) < len(recipe_ids)
 
 
-def test_only_normal_and_only_sample_ids_do_not_collide(trend):
-    """예전 ``bucket[:3]`` 은 두 버킷을 똑같이 "ONL" 로 잘라 id 가 겹쳤습니다.
+@pytest.mark.parametrize("lot_cd", LOTS)
+def test_shared_recipe_steps_agree_on_recipe_fields_and_differ_on_step_fields(lot_cd):
+    """같은 recipe 를 쓰는 두 스텝은 para 블록이 같고 스텝 field 는 다릅니다.
 
-    이제 두 버킷은 같은 모집단의 부분집합이므로, 겹치는 id 는 **같은 recipe** 를
-    가리켜야 합니다 — 서로 다른 데이터를 든 동명이인이면 안 됩니다.
+    실물에서 ``para_*`` 는 recipe 의 파라미터를 센 값이라(office_example
+    ``_recipe_row``) 두 스텝이 같을 수밖에 없습니다. 반대로 oper_*/eqp_id 까지
+    같아지면 그것은 재사용이 아니라 행이 복제된 것입니다.
+    """
+    population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    by_recipe: dict[str, list] = {}
+    for row in population:
+        by_recipe.setdefault(row["recipe_id"], []).append(row)
+
+    shared = [rows for rows in by_recipe.values() if len(rows) > 1]
+    assert shared
+
+    para_fields = [
+        key for key in shared[0][0]
+        if key.startswith("para_") or key.startswith("mother_para_")
+    ]
+    for rows in shared:
+        first, *rest = rows
+        for row in rest:
+            for field in para_fields:
+                assert row[field] == first[field], field
+            assert (row["oper_seq"], row["samp_seq"]) != (first["oper_seq"], first["samp_seq"])
+
+
+def test_shared_recipe_survives_into_the_bucket_rows(trend):
+    """버킷 행에서도 두 스텝이 **두 행으로** 남아야 합니다.
+
+    statistics 의 행 캐시를 recipe_id 로 잡으면 뒤 스텝이 앞 스텝의 행으로 접혀
+    oper_desc·eqp_id 가 조용히 사라집니다 (``_bucketed_recipe_rows``).
     """
     latest = list(trend)[-1]
-    normal = {r["recipe_id"]: r for r in trend[latest]["only_normal_rcp_info"]}
-    sample = {r["recipe_id"]: r for r in trend[latest]["only_sample_rcp_info"]}
+    rows = trend[latest]["all_rcp_info"]
 
-    for recipe_id in set(normal) & set(sample):
-        assert normal[recipe_id] == sample[recipe_id]
+    by_recipe: dict[tuple[str, str], list] = {}
+    for row in rows:
+        by_recipe.setdefault((row["lot_cd"], row["recipe_id"]), []).append(row)
+
+    shared = [group for group in by_recipe.values() if len(group) > 1]
+    assert shared, "all 버킷에 공유 recipe 가 없으면 이 회귀가 검증되지 않습니다"
+
+    for group in shared:
+        steps = {(r["oper_seq"], r["samp_seq"]) for r in group}
+        assert len(steps) == len(group)
+
+
+def test_only_normal_and_only_sample_rows_do_not_collide(trend):
+    """예전 ``bucket[:3]`` 은 두 버킷을 똑같이 "ONL" 로 잘라 id 가 겹쳤습니다.
+
+    이제 두 버킷은 같은 모집단의 부분집합이므로, 겹치는 **스텝**은 같은 행이어야
+    합니다 — 서로 다른 데이터를 든 동명이인이면 안 됩니다. recipe_id 가 아니라
+    스텝으로 맞추는 이유는 한 recipe 가 여러 스텝에 걸리기 때문입니다.
+    """
+    # lot_cd 가 키에 있어야 합니다 — 이 fixture 는 lot 4개를 한 번에 담고 있어
+    # (oper_seq, samp_seq) 만으로는 다른 lot 의 스텝끼리 부딪칩니다.
+    def by_step(rows):
+        return {(r["lot_cd"], r["oper_seq"], r["samp_seq"]): r for r in rows}
+
+    latest = list(trend)[-1]
+    normal = by_step(trend[latest]["only_normal_rcp_info"])
+    sample = by_step(trend[latest]["only_sample_rcp_info"])
+
+    for step in set(normal) & set(sample):
+        assert normal[step] == sample[step]
 
 
 # ── 버킷은 한 모집단 위의 필터 ────────────────────────────────────────────

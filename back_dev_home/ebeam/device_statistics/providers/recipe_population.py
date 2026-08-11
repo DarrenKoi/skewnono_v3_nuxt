@@ -310,15 +310,28 @@ _EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
 # 않도록** 잡은 값이고, 상한 200 은 배율 1.0 일 때 200 을 넘지 않도록 한 값입니다.
 # device 당 recipe 100~200 이 확인된 도메인이기 때문입니다 (D22).
 #
-# 실물과 좁은 지점 — 이 풀은 **스텝 1개 = recipe 1개** 입니다. office 의
-# sknn-planstep-r3 은 문서 1건이 recipe 가 아니라 plan step 이고, 한 device 가
-# 2000건을 넘습니다 (office 확인 2026-08-10 — RJ1B 가 어댑터 상한을 쳤습니다;
-# docs/datatables/planstep_r3.txt). 차이는 skip 되는 스텝과 같은 recipe 를 여러
-# 스텝에서 재사용하는 몫입니다. 그래서 recipe 수는 이 값으로 맞지만 **스텝 수는
-# 실물의 1/10** 이고, 스텝 규모에 좌우되는 것(어댑터의 조회 상한, payload 크기)은
-# 집에서 한 번도 관찰되지 않습니다. 1:n 로 벌리려면 rng 호출 수가 바뀌어 풀 전체가
-# 다른 값으로 다시 태어나므로(_recipe_name 주석), 별도 작업으로 다뤄야 합니다.
+# 실물과 좁은 지점 — 이 풀의 크기는 **스텝 수**이고, 그중 몇 건은
+# :func:`_apply_shared_recipes` 가 같은 recipe 로 묶어 recipe 수를 스텝 수보다
+# 작게 만듭니다. office 의 sknn-planstep-r3 은 문서 1건이 recipe 가 아니라 plan
+# step 이고, 한 device 가 2000건을 넘습니다 (office 확인 2026-08-10 — RJ1B 가
+# 어댑터 상한을 쳤습니다; docs/datatables/planstep_r3.txt). 차이는 skip 되는 스텝과
+# 같은 recipe 를 여러 스텝에서 재사용하는 몫입니다. 재사용은 이제 재현하지만 **스텝
+# 수는 여전히 실물의 1/10** 이므로, 스텝 규모에 좌우되는 것(어댑터의 조회 상한,
+# payload 크기)은 집에서 관찰되지 않습니다.
 POOL_RANGE = (175, 200)
+
+# 같은 recipe 를 다른 스텝에서 다시 쓰는 비율.
+#
+# 실물에서 한 device 의 plan step 은 recipe 보다 많습니다 — 위 주석의 "재사용하는
+# 몫" 이 이것입니다. 비율 자체는 확인되지 않았고(OFFICE-VERIFY), 0.04 는 lot 당
+# 175~200 스텝에서 7~8 쌍이 나와 **모든 lot 에서 공유 경로가 반드시 한 번은
+# 그려지도록** 고른 값입니다.
+#
+# 이 재사용이 없던 동안 mock 은 "recipe_id 가 lot 안에서 유일하다" 는 실물에 없는
+# 불변식을 가르쳤고, 프론트엔드가 그 위에 올라섰습니다 — lot 상세 팝업이
+# recipe_id 를 ``v-for`` 의 :key 로 써서, 사무실 데이터에서 카드가 조용히 한 장씩
+# 사라졌습니다 (Vue "Duplicate keys found during update").
+SHARED_RECIPE_RATIO = 0.04
 
 # 버킷별 파라미터 개수. 키는 point 수 **구간**이고 경계는 para_buckets.py 가
 # 정합니다 — 2026-08-10 에 "정확히 16/13/9/5" 에서 구간으로 바뀌었습니다.
@@ -352,6 +365,10 @@ BLANK_SKIP_YN_RATIO = 0.15
 # 정체성 풀 seed 를 주차 seed 와 갈라놓는 salt. 주차별 rng 와 섞이면 풀이 주차마다
 # 달라져 recipe_id 안정성이 깨집니다.
 _IDENTITY_SALT = 90001
+
+# recipe 재사용 쌍을 고르는 rng 를 정체성 rng 와 갈라놓는 salt. _MOTHER_SALT 와
+# 같은 이유입니다 — 공유 쌍을 정체성 루프 안에서 굴리면 풀 전체가 다시 태어납니다.
+_SHARED_SALT = 5150
 
 # mother 파라 개수를 만드는 rng 를 정체성 rng 와 갈라놓는 salt.
 #
@@ -471,9 +488,12 @@ def _recipe_name(rng: random.Random, lot_cd: str, idx: int) -> str:
     rng 호출 수를 바꾸지 않습니다 — 호출 수가 달라지면 풀의 뒤쪽 recipe 전부가
     다른 값으로 다시 태어나, 결정론에 기대는 화면·테스트가 통째로 흔들립니다.
 
-    lot_cd 를 이름에 남겨 recipe_id 가 lot 안에서 유일하도록 둡니다. 실물은 한
-    recipe 가 여러 device 에 걸릴 수 있으므로 이 유일성은 mock 이 실물보다 좁은
-    지점입니다 (OFFICE-VERIFY — 공유 비율 미확인).
+    lot_cd 를 이름에 남겨 **여기서 찍히는** 이름이 lot 안에서 유일하도록 둡니다.
+    다만 그것이 곧 "lot 안에서 recipe_id 가 유일하다" 는 뜻은 아닙니다 —
+    :func:`_apply_shared_recipes` 가 뒤에서 일부 스텝의 이름을 앞 스텝의 것으로
+    덮어써, 한 recipe 가 여러 스텝에 걸리는 실물 모습을 만듭니다. lot 을 가로지르는
+    공유(한 recipe 가 여러 device 에 걸리는 것)는 아직 재현하지 않습니다
+    (OFFICE-VERIFY — 비율 미확인).
     """
     digest = _name_digest(lot_cd, idx)
     class_name = _RECIPE_CLASSES[digest % len(_RECIPE_CLASSES)]
@@ -580,6 +600,59 @@ def _assign_mother_counts(pool: list[RecipeIdentity], lot_cd: str) -> None:
             identity[f"mother_{key}"] = count  # type: ignore[literal-required]
 
 
+def _shared_recipe_pairs(lot_cd: str, pool_size: int) -> list[tuple[int, int]]:
+    """``(원본 스텝, 같은 recipe 를 다시 쓰는 스텝)`` 인덱스 쌍.
+
+    **풀 크기만으로 정해집니다 — 주차와 무관합니다.** 그래야 이번 주에 한 recipe 를
+    공유하던 두 스텝이 다음 주에도 그대로 공유합니다. 주차는 :func:`build_population`
+    에서 "borrower 가 이번 주 계획에 들어왔는가" 로만 걸립니다. donor < borrower 로
+    두므로 borrower 가 들어와 있으면 donor 도 반드시 들어와 있습니다.
+
+    donor 는 언제나 borrower **앞의** 스텝입니다. 실물에서 재사용은 "앞 공정에서
+    쓰던 recipe 를 뒤 공정에서 또 쓴다" 이지 두 스텝이 동시에 태어나는 것이 아니고,
+    그 방향이 위의 "borrower 가 있으면 donor 도 있다" 를 공짜로 보장합니다.
+    """
+    if pool_size < 2:
+        return []
+
+    rng = random.Random(_identity_seed(lot_cd) ^ _SHARED_SALT)
+    borrowers = sorted(
+        rng.sample(range(1, pool_size), round(pool_size * SHARED_RECIPE_RATIO))
+    )
+    # donor 는 borrower 앞에서 고르고, 이미 borrower 인 스텝은 피합니다 — 빌린 이름을
+    # 다시 빌려주면 세 스텝이 한 recipe 를 쓰게 되어 비율이 조용히 커집니다.
+    taken = set(borrowers)
+    pairs: list[tuple[int, int]] = []
+    for borrower in borrowers:
+        candidates = [i for i in range(borrower) if i not in taken]
+        if not candidates:
+            continue
+        pairs.append((rng.choice(candidates), borrower))
+    return pairs
+
+
+def _apply_shared_recipes(rows: list[RecipeIdentity], pairs: list[tuple[int, int]]) -> None:
+    """재사용 스텝에 원본의 **recipe 유래 field** 를 복사합니다 (제자리 수정).
+
+    **난수를 쓰지 않습니다** (:func:`_apply_sweep_jobs` 와 같은 이유). 쌍은 이미
+    :func:`_shared_recipe_pairs` 가 별도 rng 로 골라 두었습니다.
+
+    복사 범위가 이 함수의 요점입니다. 실물에서 ``para_*`` 는 스텝의 성질이 아니라
+    **recipe 의 파라미터를 센 값**이므로(office_example ``_recipe_row`` 가
+    ``params_by_recipe[recipe_id]`` 를 셉니다), 같은 recipe 를 쓰는 두 스텝은 para
+    블록이 완전히 같습니다. 반대로 oper_*·eqp_id·skip_yn 은 스텝의 것이라 다릅니다.
+    ``is_sample_recipe``·``is_exempt_job`` 은 recipe_id 만 보므로 복사와 함께
+    자동으로 따라옵니다 — 두 스텝이 다른 버킷 규칙을 타는 모순이 생기지 않습니다.
+
+    lot 요약의 ``para_all`` 은 그만큼 겹쳐 세어집니다. 실물이 그렇습니다 —
+    office ``_summarize`` 도 스텝 행을 그대로 더합니다.
+    """
+    copied = ("recipe_id", *_PARA_KEYS, *(f"mother_{key}" for key in _PARA_KEYS))
+    for donor, borrower in pairs:
+        for key in copied:
+            rows[borrower][key] = rows[donor][key]  # type: ignore[literal-required]
+
+
 def _scaled(value: int, factor: float, jitter: float) -> int:
     """파라미터 개수에 주차 배율 + 약간의 흔들림.
 
@@ -634,6 +707,18 @@ def build_population(
             # mother > total 은 계약 위반이고, 화면에서는 100% 넘는 막대가 됩니다.
             row[f"mother_{key}"] = min(total, _scaled(mother, para_scale, jitter)) if mother else 0
         scaled.append(row)  # type: ignore[arg-type]
+
+    # 배율을 **먹인 뒤에** 공유를 적용합니다. 앞에서 하면 두 스텝이 서로 다른
+    # jitter 를 맞아 같은 recipe 인데 para 블록이 갈라집니다 — 실물에서는 한 recipe
+    # 의 파라미터를 두 번 센 값이라 반드시 같습니다.
+    _apply_shared_recipes(
+        scaled,
+        [
+            (donor, borrower)
+            for donor, borrower in _shared_recipe_pairs(lot_cd, len(pool))
+            if borrower < len(scaled)
+        ],
+    )
 
     return scaled
 
