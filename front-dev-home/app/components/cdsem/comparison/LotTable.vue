@@ -380,11 +380,12 @@ import { LOT_SORT, type LotSortKey } from '~/utils/lotSort'
 import type { HealthLevel } from '~/utils/ruleEngine'
 import type { Profiled } from '~/utils/deviceProfile'
 import {
-  healthBadgeStyle, healthStripeColor, healthSwatches,
-  paraColors, paraColorsDark, paraOrder
+  healthBadgeStyle, healthStripeColor, healthSwatches
 } from './healthTokens'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { todayStamp } from '~/utils/dateTime'
+import { buildParameterRamp } from '~/utils/parameterRamp'
+import { PARA_KEYS } from '~/utils/paraTrendSeries'
 
 const props = defineProps<{
   rows: Profiled<HealthAugmentedRow>[]
@@ -430,7 +431,9 @@ const subtitle = computed(() => view.value === 'cards' ? text.subtitleCards : te
 
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
-const paraPalette = computed(() => isDark.value ? paraColorsDark : paraColors)
+const paraOrder = PARA_KEYS
+const { resolvedThemeName } = useEchartsTheme()
+const paraPalette = computed(() => buildParameterRamp(resolvedThemeName.value))
 
 // Shared box for the outlier count so the alert and zero states can't drift apart.
 const countPill = 'inline-flex h-6 min-w-8 items-center justify-center rounded px-1.5 font-mono text-[13px] font-semibold tabular-nums'

@@ -1,4 +1,4 @@
-// Pure-logic tests for paraTrendSeries + the para palette ramp. Zero deps:
+// Pure-logic tests for paraTrendSeries. Zero deps:
 //   node --test app/utils/paraTrendSeries.test.ts        (Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -6,9 +6,6 @@ import {
   PARA_KEYS, extractParaTrend, formatTrendTick, paraLabel,
   type ParaCounts, type ParaTrendInput
 } from './paraTrendSeries.ts'
-import {
-  paraColors, paraColorsDark, paraOrder
-} from '../components/cdsem/comparison/healthTokens.ts'
 
 // --- fixtures ---
 
@@ -134,13 +131,6 @@ test('series come back in PARA_KEYS order, heaviest first', () => {
   )
 })
 
-test('PARA_KEYS matches the token module paraOrder', () => {
-  // Two modules name the same ordering: this one (alias-free, for node --test)
-  // and healthTokens (imported by the components). Drift would repaint the
-  // stack out of order, so pin them together.
-  assert.deepEqual([...PARA_KEYS], [...paraOrder])
-})
-
 // --- labels / ticks ---
 
 test('labels name the RANGE, not the bucket key', () => {
@@ -184,45 +174,4 @@ test('a snapshot WITH para_over_16 counts it in the total', () => {
 test('ticks render MM/DD and pass through anything else', () => {
   assert.equal(formatTrendTick('2026-07-20'), '07/20')
   assert.equal(formatTrendTick('week 3'), 'week 3')
-})
-
-// --- palette ramp ---
-
-// para_16 -> para_5 is an ordinal scale, so identity rides on LIGHTNESS. The
-// previous palette declared itself a "heaviest -> lightest" ramp while running
-// L 0.62 -> 0.72 -> 0.66 -> 0.62, which put para_13 and para_9 at dE 10.2 in
-// normal vision and dE 3.1 under protanopia. These assertions are what stops
-// that from silently happening again.
-const OKLCH = /^oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)$/
-
-const parse = (value: string) => {
-  const m = OKLCH.exec(value)
-  assert.ok(m, `expected an oklch() literal, got ${value}`)
-  return { L: Number(m[1]), C: Number(m[2]), H: Number(m[3]) }
-}
-
-for (const [name, ramp] of [['paraColors', paraColors], ['paraColorsDark', paraColorsDark]] as const) {
-  test(`${name} is a single hue`, () => {
-    const hues = PARA_KEYS.map(k => parse(ramp[k]).H)
-    assert.equal(new Set(hues).size, 1, `${name} must not sweep hues: ${hues.join(', ')}`)
-  })
-
-  test(`${name} lightness increases monotonically para_16 -> para_5`, () => {
-    const ls = PARA_KEYS.map(k => parse(ramp[k]).L)
-    for (let i = 1; i < ls.length; i++) {
-      assert.ok(ls[i]! > ls[i - 1]!, `${name} L must rise: ${ls.join(' -> ')}`)
-    }
-  })
-
-  test(`${name} adjacent steps stay at least 0.06 apart`, () => {
-    const ls = PARA_KEYS.map(k => parse(ramp[k]).L)
-    for (let i = 1; i < ls.length; i++) {
-      const gap = ls[i]! - ls[i - 1]!
-      assert.ok(gap >= 0.06 - 1e-9, `${name} gap ${i} is ${gap.toFixed(3)}, below the 0.06 floor`)
-    }
-  })
-}
-
-test('the two ramps cover the same keys', () => {
-  assert.deepEqual(Object.keys(paraColors).sort(), Object.keys(paraColorsDark).sort())
 })

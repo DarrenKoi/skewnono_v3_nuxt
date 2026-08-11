@@ -53,13 +53,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useColorMode } from '#imports'
 import type { EChartsOption } from 'echarts'
 import type { TopLevelFormatterParams } from 'echarts/types/dist/shared'
-import { paraColors, paraColorsDark } from './healthTokens'
 import type { SummaryBucketKey, RecipeTrendResponse } from '~/composables/useRecipeStatisticsApi'
 import { extractParaTrend, formatTrendTick, type ParaKey } from '~/utils/paraTrendSeries'
 import { CHART_AXIS_LABEL, CHART_LEGEND_LABEL } from '~/utils/chartType'
+import { buildParameterRamp } from '~/utils/parameterRamp'
 
 type TrendMode = 'lines' | 'stacked'
 
@@ -85,9 +84,8 @@ const modeTabs: Array<{ value: TrendMode, label: string }> = [
 
 const mode = ref<TrendMode>('lines')
 
-const colorMode = useColorMode()
-const { surface } = useEchartsTheme()
-const palette = computed(() => colorMode.value === 'dark' ? paraColorsDark : paraColors)
+const { resolvedThemeName, surface } = useEchartsTheme()
+const palette = computed(() => buildParameterRamp(resolvedThemeName.value))
 
 const chartEl = ref<HTMLDivElement | null>(null)
 
@@ -96,7 +94,7 @@ const trendData = computed(() =>
 )
 
 // A distinct symbol per series, so identity never rests on colour alone. The
-// ramp is a single hue by design (see healthTokens), which makes shape the
+// ramp is a theme-derived cool-to-warm ramp, which makes shape the
 // thing that separates two lines where they cross.
 const SYMBOLS: Record<ParaKey, string> = {
   para_over_16: 'pin',

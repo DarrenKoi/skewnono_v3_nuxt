@@ -248,7 +248,9 @@ import type {
   SummaryBucketKey
 } from '~/composables/useRecipeStatisticsApi'
 
-import { healthBadgeStyle, healthStripeColor, paraColors, paraColorsDark, paraOrder } from './healthTokens'
+import { healthBadgeStyle, healthStripeColor } from './healthTokens'
+import { buildParameterRamp } from '~/utils/parameterRamp'
+import { PARA_KEYS } from '~/utils/paraTrendSeries'
 
 const props = defineProps<{
   row: HealthAugmentedRow | null
@@ -292,7 +294,9 @@ const modalUi = {
 
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
-const paraPalette = computed(() => isDark.value ? paraColorsDark : paraColors)
+const paraOrder = PARA_KEYS
+const { resolvedThemeName } = useEchartsTheme()
+const paraPalette = computed(() => buildParameterRamp(resolvedThemeName.value))
 
 const lotRecipes = computed<RecipeInfoRow[]>(() => {
   const lotCd = props.row?.lot_cd

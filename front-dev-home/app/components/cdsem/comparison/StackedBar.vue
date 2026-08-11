@@ -27,8 +27,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useColorMode } from '#imports'
-import { paraColors, paraColorsDark, paraOrder } from './healthTokens'
+import { buildParameterRamp } from '~/utils/parameterRamp'
+import { PARA_KEYS } from '~/utils/paraTrendSeries'
 import { paraTotal } from '~/utils/lotHealth'
 
 // cap 초과 줄무늬는 없어졌습니다. 그 줄무늬는 프런트엔드 mock 의 para 티어별 cap
@@ -73,9 +73,9 @@ const props = withDefaults(defineProps<{
 // 막대에서 값을 켜게 되면 이 값을 prop 으로 올려야 합니다.
 const VALUE_MIN_SHARE = 0.04
 
-const colorMode = useColorMode()
-
-const palette = computed(() => colorMode.value === 'dark' ? paraColorsDark : paraColors)
+const paraOrder = PARA_KEYS
+const { resolvedThemeName } = useEchartsTheme()
+const palette = computed(() => buildParameterRamp(resolvedThemeName.value))
 
 const total = computed(() => paraTotal(props.row))
 

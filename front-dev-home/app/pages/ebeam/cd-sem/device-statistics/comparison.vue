@@ -232,8 +232,9 @@ import type { RecipeInput } from '~/utils/ruleEngine'
 import { buildDeviceOutliers, groupRecipesByLot, attachProfile, type Profiled } from '~/utils/deviceProfile'
 import { toOutlierDrill, type DrillDevice } from '~/utils/deviceDrill'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import { paraColors, paraColorsDark, paraOrder } from '~/components/cdsem/comparison/healthTokens'
 import { CHART_AXIS_LABEL, CHART_LEGEND_LABEL } from '~/utils/chartType'
+import { buildParameterRamp } from '~/utils/parameterRamp'
+import { PARA_KEYS } from '~/utils/paraTrendSeries'
 
 definePageMeta({
   hideFabSidebar: true
@@ -244,6 +245,8 @@ const { fetchRecipeStatistics, fetchRecipeTrend } = useRecipeStatisticsApi()
 const { fetchRecipeParams } = useDeviceStatisticsApi()
 const { fetchRulesForFabs } = useMeasurementRulesApi()
 const colorMode = useColorMode()
+const paraOrder = PARA_KEYS
+const { resolvedThemeName } = useEchartsTheme()
 
 const { selectedDeviceLots: selectedLots } = useDeviceCart()
 
@@ -520,9 +523,9 @@ const baseDataZoom = [
 // come from the theme.
 const chartInk = computed(() => colorMode.value === 'dark' ? '#e4e4e7' : '#27272a')
 
-// Same para palette as the table's StackedBar cells (dark-aware), so the
+// Same theme-derived para palette as the table's StackedBar cells, so the
 // stacked chart, table, and detail modal all read as one color system.
-const paraPalette = computed(() => colorMode.value === 'dark' ? paraColorsDark : paraColors)
+const paraPalette = computed(() => buildParameterRamp(resolvedThemeName.value))
 
 const sigmaLineStyle = computed(() => ({
   type: 'dotted' as const,
