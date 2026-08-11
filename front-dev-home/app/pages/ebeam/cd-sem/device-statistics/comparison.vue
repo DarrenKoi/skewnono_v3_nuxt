@@ -197,6 +197,7 @@
 
         <CdsemComparisonLotTable
           :rows="profiledRows"
+          :sort="selectedSort"
           @select-lot="openLotDetail"
           @open-outliers="openOutlierDrill"
         />
@@ -226,6 +227,7 @@ import {
   augmentRow, buildLotVerdicts, paraTotal, recipeKey, scopeRecipesToBucket,
   type HealthAugmentedRow, type RuleSet
 } from '~/utils/lotHealth'
+import { sortLots, type LotSortKey } from '~/utils/lotSort'
 import type { RecipeInput } from '~/utils/ruleEngine'
 import { buildDeviceOutliers, groupRecipesByLot, attachProfile, type Profiled } from '~/utils/deviceProfile'
 import { toOutlierDrill, type DrillDevice } from '~/utils/deviceDrill'
@@ -296,20 +298,15 @@ const bucketOptions: BucketOption[] = [
 
 const selectedBucket = ref<SummaryBucketKey>('all_summary')
 
-type SortKey = 'default' | 'paraStack' | 'availRecipe'
-
 const sortOptions = [
   { label: '이름순', value: 'default' },
   { label: '파라미터', value: 'paraStack' },
   { label: '운용 레시피수', value: 'availRecipe' }
 ] as const
 
-const selectedSort = ref<SortKey>('default')
-
-const sortMetric: Record<Exclude<SortKey, 'default'>, (r: SummaryRow) => number> = {
-  paraStack: paraTotal,
-  availRecipe: r => r.avail_recipe
-}
+// 이 칩은 막대 차트만의 것이 아닙니다 — 아래 Lot 요약도 같은 축으로 다시
+// 늘어섭니다(`:sort` prop). 정렬 규칙 자체는 utils/lotSort 에 한 벌만 있습니다.
+const selectedSort = ref<LotSortKey>('default')
 
 const [
   { data, pending, error },
@@ -432,13 +429,7 @@ const profiledRows = computed<Profiled<HealthAugmentedRow>[]>(() =>
   augmentedRows.value.map(row => attachProfile(row, deviceOutliers.value.get(row.lot_cd)))
 )
 
-const sortedRows = computed<SummaryRow[]>(() => {
-  if (selectedSort.value === 'default') {
-    return [...rows.value].sort((a, b) => a.lot_cd.localeCompare(b.lot_cd))
-  }
-  const get = sortMetric[selectedSort.value]
-  return [...rows.value].sort((a, b) => get(b) - get(a))
-})
+const sortedRows = computed<SummaryRow[]>(() => sortLots(rows.value, selectedSort.value))
 
 const lotLabels = computed(() => sortedRows.value.map(row => row.lot_cd))
 
