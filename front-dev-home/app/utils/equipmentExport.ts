@@ -11,6 +11,10 @@
  */
 import type { WorkbookSheet } from './xlsx.ts'
 import type {
+  FailIssueEquipmentRow,
+  FailIssueEquipmentCompareResponse
+} from '~/composables/useFailIssueApi'
+import type {
   RecipeTatEquipmentRow,
   RecipeTatEquipmentCompareResponse
 } from '~/composables/useRecipeTatApi'
@@ -96,6 +100,107 @@ export function buildTatEquipmentWorkbook(
           const point = compare.trends
             .find(series => series.eqp_id === id)?.points[dayIndex]
           return [point?.total_meastime ?? 0, point?.exec_count ?? 0]
+        })
+      ])
+    ]
+  })
+
+  return sheets
+}
+
+export type FailSection = 'align' | 'meas'
+
+/** 0..1 비율을 소수 둘째 자리 퍼센트 **숫자**로. 문자열로 내면 스프레드시트가
+ *  다시 숫자로 바꿔야 합니다. */
+const asPercent = (rate: number) => Number((rate * 100).toFixed(2))
+
+export interface FailEquipmentWorkbookInput {
+  /** 플릿 표에 실제로 보이는 행(검색·정렬 적용 후). */
+  equipments: FailIssueEquipmentRow[]
+  /** 장비를 고르지 않았으면 null. */
+  compare: FailIssueEquipmentCompareResponse | null
+  /** 보고 있는 축. 응답은 둘 다 담고 있지만 파일에는 이쪽만 나갑니다. */
+  section: FailSection
+}
+
+export function buildFailEquipmentWorkbook(
+  input: FailEquipmentWorkbookInput
+): WorkbookSheet[] {
+  const isAlign = input.section === 'align'
+  const axis = isAlign ? 'align' : 'meas'
+
+  const sheets: WorkbookSheet[] = [{
+    name: '장비',
+    rows: [
+      [
+        'eqp_id', 'fab', 'model', 'exec_count',
+        `${axis}_fail_count`, `${axis}_fail_rate_pct`, 'recipe_count'
+      ],
+      ...input.equipments.map(row => [
+        row.eqp_id,
+        row.fab_name,
+        row.eqp_model_cd,
+        row.exec_count,
+        isAlign ? row.align_fail_count : row.meas_fail_count,
+        asPercent(isAlign ? row.align_fail_rate : row.meas_fail_rate),
+        row.recipe_count
+      ])
+    ]
+  }]
+
+  const compare = input.compare
+  if (!compare) return sheets
+
+  const eqpIds = compare.eqp_ids
+
+  // 화면이 활성 축으로 다시 정렬하므로 파일도 같은 순서여야 합니다. 백엔드
+  // 순서는 두 축의 합이라 어느 탭에서도 그대로는 맞지 않습니다.
+  const recipes = [...compare.recipes].sort((a, b) =>
+    (isAlign ? b.total_align_fail_count : b.total_meas_fail_count)
+    - (isAlign ? a.total_align_fail_count : a.total_meas_fail_count))
+
+  sheets.push({
+    name: '레시피',
+    rows: [
+      [
+        'full_name', 'total_exec_count', `total_${axis}_fail_count`,
+        ...eqpIds.flatMap(id => [
+          `${id}_exec_count`, `${id}_${axis}_fail_count`, `${id}_${axis}_fail_rate_pct`
+        ])
+      ],
+      ...recipes.map(recipe => [
+        recipe.full_name,
+        recipe.total_exec_count,
+        isAlign ? recipe.total_align_fail_count : recipe.total_meas_fail_count,
+        ...eqpIds.flatMap((_, index) => {
+          const cell = recipe.cells[index]
+          if (!cell || cell.exec_count === 0) return [0, 0, BLANK]
+          const fails = isAlign ? cell.align_fail_count : cell.meas_fail_count
+          return [cell.exec_count, fails, asPercent(fails / cell.exec_count)]
+        })
+      ])
+    ]
+  })
+
+  const dates = compare.trends[0]?.points.map(point => point.date) ?? []
+
+  sheets.push({
+    name: '일별추이',
+    rows: [
+      [
+        'date',
+        ...eqpIds.flatMap(id => [`${id}_exec_count`, `${id}_${axis}_fail_count`])
+      ],
+      ...dates.map((date, dayIndex) => [
+        date,
+        ...eqpIds.flatMap((id) => {
+          const point = compare.trends
+            .find(series => series.eqp_id === id)?.points[dayIndex]
+          if (!point) return [0, 0]
+          return [
+            point.exec_count,
+            isAlign ? point.align_fail_count : point.meas_fail_count
+          ]
         })
       ])
     ]

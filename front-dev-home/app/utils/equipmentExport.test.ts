@@ -1,7 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildTatEquipmentWorkbook } from './equipmentExport.ts'
+import {
+  buildFailEquipmentWorkbook,
+  buildTatEquipmentWorkbook
+} from './equipmentExport.ts'
+import type {
+  FailIssueEquipmentRow,
+  FailIssueEquipmentCompareResponse
+} from '~/composables/useFailIssueApi'
 import type {
   RecipeTatEquipmentRow,
   RecipeTatEquipmentCompareResponse
@@ -145,4 +152,171 @@ test('열 순서는 플릿 표가 아니라 응답의 eqp_ids 를 따른다', ()
   const sheet = sheets.find(s => s.name === '레시피')!
 
   assert.equal(sheet.rows[0]![2], 'TP-1203_meas_counts')
+})
+
+// 지수·구간까지 채워둡니다 — 시트에 나오지 않아야 한다는 것이 이 테스트가
+// 지키는 성질입니다.
+const failEquipment = (
+  eqpId: string,
+  over: Partial<FailIssueEquipmentRow> = {}
+): FailIssueEquipmentRow => ({
+  eqp_id: eqpId,
+  fab_name: 'M14',
+  eqp_model_cd: 'TP-5000',
+  exec_count: 430,
+  align_fail_count: 12,
+  align_fail_rate: 0.0279,
+  align_expected: 9.4,
+  align_index: 1.28,
+  align_index_low: 1.02,
+  align_index_high: 1.61,
+  meas_fail_count: 4,
+  meas_fail_rate: 0.0093,
+  meas_expected: 6.1,
+  meas_index: 0.66,
+  meas_index_low: 0.21,
+  meas_index_high: 1.54,
+  recipe_count: 12,
+  top_recipe: 'QC/FAST_001',
+  top_recipe_share: 0.42,
+  ...over
+})
+
+const failCompare = (
+  over: Partial<FailIssueEquipmentCompareResponse> = {}
+): FailIssueEquipmentCompareResponse => ({
+  tool_type: 'cd-sem',
+  fab_names: ['M14'],
+  start_date: '2026-08-01',
+  end_date: '2026-08-02',
+  eqp_ids: ['TP-1203', 'TP-1204'],
+  trends: [
+    {
+      eqp_id: 'TP-1203',
+      points: [
+        { date: '2026-08-01', exec_count: 100, align_fail_count: 3, meas_fail_count: 1 },
+        { date: '2026-08-02', exec_count: 330, align_fail_count: 9, meas_fail_count: 3 }
+      ]
+    },
+    {
+      eqp_id: 'TP-1204',
+      points: [
+        { date: '2026-08-01', exec_count: 40, align_fail_count: 1, meas_fail_count: 0 },
+        { date: '2026-08-02', exec_count: 0, align_fail_count: 0, meas_fail_count: 0 }
+      ]
+    }
+  ],
+  recipes: [
+    {
+      class_name: 'QC',
+      recipe_name: 'FAST_001',
+      full_name: 'QC/FAST_001',
+      total_exec_count: 300,
+      total_align_fail_count: 3,
+      total_meas_fail_count: 9,
+      cells: [
+        { eqp_id: 'TP-1203', exec_count: 200, align_fail_count: 2, meas_fail_count: 6 },
+        { eqp_id: 'TP-1204', exec_count: 100, align_fail_count: 1, meas_fail_count: 3 }
+      ]
+    },
+    {
+      class_name: 'ADI',
+      recipe_name: 'SLOW_002',
+      full_name: 'ADI/SLOW_002',
+      total_exec_count: 40,
+      total_align_fail_count: 10,
+      total_meas_fail_count: 1,
+      cells: [
+        { eqp_id: 'TP-1203', exec_count: 40, align_fail_count: 10, meas_fail_count: 1 },
+        { eqp_id: 'TP-1204', exec_count: 0, align_fail_count: 0, meas_fail_count: 0 }
+      ]
+    }
+  ],
+  ...over
+})
+
+test('fail 장비 시트에 지수·구간·신호 열이 없다', () => {
+  const [sheet] = buildFailEquipmentWorkbook({
+    equipments: [failEquipment('TP-1203')],
+    compare: null,
+    section: 'align'
+  })
+
+  assert.deepEqual(sheet!.rows[0], [
+    'eqp_id', 'fab', 'model', 'exec_count',
+    'align_fail_count', 'align_fail_rate_pct', 'recipe_count'
+  ])
+  assert.deepEqual(sheet!.rows[1], ['TP-1203', 'M14', 'TP-5000', 430, 12, 2.79, 12])
+})
+
+test('section 이 meas 면 align 숫자가 파일에 나오지 않는다', () => {
+  const [sheet] = buildFailEquipmentWorkbook({
+    equipments: [failEquipment('TP-1203')],
+    compare: null,
+    section: 'meas'
+  })
+
+  assert.deepEqual(sheet!.rows[0], [
+    'eqp_id', 'fab', 'model', 'exec_count',
+    'meas_fail_count', 'meas_fail_rate_pct', 'recipe_count'
+  ])
+  assert.deepEqual(sheet!.rows[1], ['TP-1203', 'M14', 'TP-5000', 430, 4, 0.93, 12])
+})
+
+test('fail 레시피 시트는 활성 축 내림차순이고 미실행 비율은 빈 칸이다', () => {
+  const sheets = buildFailEquipmentWorkbook({
+    equipments: [failEquipment('TP-1203'), failEquipment('TP-1204')],
+    compare: failCompare(),
+    section: 'align'
+  })
+  const sheet = sheets.find(s => s.name === '레시피')!
+
+  assert.deepEqual(sheet.rows[0], [
+    'full_name', 'total_exec_count', 'total_align_fail_count',
+    'TP-1203_exec_count', 'TP-1203_align_fail_count', 'TP-1203_align_fail_rate_pct',
+    'TP-1204_exec_count', 'TP-1204_align_fail_count', 'TP-1204_align_fail_rate_pct'
+  ])
+  // align 은 ADI/SLOW_002(10건) > QC/FAST_001(3건) 이라 응답 순서와 반대입니다.
+  assert.deepEqual(sheet.rows[1], ['ADI/SLOW_002', 40, 10, 40, 10, 25, 0, 0, ''])
+  assert.deepEqual(sheet.rows[2], ['QC/FAST_001', 300, 3, 200, 2, 1, 100, 1, 1])
+})
+
+test('fail 레시피 정렬은 section 을 따른다', () => {
+  const sheets = buildFailEquipmentWorkbook({
+    equipments: [failEquipment('TP-1203')],
+    compare: failCompare(),
+    section: 'meas'
+  })
+  const sheet = sheets.find(s => s.name === '레시피')!
+
+  // meas 는 QC/FAST_001(9건) > ADI/SLOW_002(1건).
+  assert.equal(sheet.rows[1]![0], 'QC/FAST_001')
+  assert.equal(sheet.rows[2]![0], 'ADI/SLOW_002')
+})
+
+test('fail 일별추이 시트는 활성 축만 낸다', () => {
+  const sheets = buildFailEquipmentWorkbook({
+    equipments: [failEquipment('TP-1203'), failEquipment('TP-1204')],
+    compare: failCompare(),
+    section: 'align'
+  })
+  const sheet = sheets.find(s => s.name === '일별추이')!
+
+  assert.deepEqual(sheet.rows[0], [
+    'date',
+    'TP-1203_exec_count', 'TP-1203_align_fail_count',
+    'TP-1204_exec_count', 'TP-1204_align_fail_count'
+  ])
+  assert.deepEqual(sheet.rows[1], ['2026-08-01', 100, 3, 40, 1])
+  assert.deepEqual(sheet.rows[2], ['2026-08-02', 330, 9, 0, 0])
+})
+
+test('장비를 고르지 않으면 fail 도 장비 시트 하나뿐이다', () => {
+  const sheets = buildFailEquipmentWorkbook({
+    equipments: [failEquipment('TP-1203')],
+    compare: null,
+    section: 'align'
+  })
+
+  assert.deepEqual(sheets.map(s => s.name), ['장비'])
 })
