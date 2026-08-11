@@ -33,6 +33,12 @@ Index -> ebeam_tas_lot_hist
   eqp_id       -> string: 장비 ID.
   recipe_id    -> string: recipe 식별자. 다른 DB 의 full_name 과 동일 체계이므로
                           cdsem_idp_ver.full_name 과 조인할 수 있습니다.
+                          **lot 안에서 반복됩니다** — device-statistics 의 M 계열
+                          경로는 oper_det_desc 마다 최신 recipe_id 를 붙이므로,
+                          한 recipe 가 여러 스텝 이름에 걸립니다. R3 쪽과 같은
+                          성질이며 근거는 planstep_r3.txt 의 recipe_id 설명에
+                          있습니다 (office 확인 2026-08-11). recipe_id 는 조인
+                          키이지 행의 정체성이 아닙니다.
 
 주의: **이 index 에는 공정 순서(sequence)가 없습니다.** R3 의 sknn-planstep-r3 는
 oper_seq / samp_seq 를 갖지만 여기에는 대응 field 가 없습니다. 따라서 M fab 스텝은

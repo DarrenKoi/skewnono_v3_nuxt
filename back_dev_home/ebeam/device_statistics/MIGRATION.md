@@ -205,6 +205,14 @@ docstring.
   `point_index`, so reducing `points` shifts which index is "latest" and
   changes that date's generated values, breaking the deterministic-per-date
   guarantee documented on `get_weekly_trend_data`.
+- **A `RecipeInfoRow` is a step, not a recipe.** Its identity is
+  `(oper_seq, samp_seq)` — the identity of one `sknn-planstep-r3` document.
+  `recipe_id` repeats within a lot because several steps run the same
+  measurement recipe, so it is a join key only; keying rows or UI lists on it
+  silently collapses steps. The mock reproduces the reuse
+  (`recipe_population.SHARED_RECIPE_RATIO`, ~4% of steps), and steps sharing a
+  recipe carry an identical `para_*` block because office derives those counts
+  from the recipe's parameters, not from the step.
 - Office data source: the **latest** weekly point is computed live from the
   step sources (R3 `sknn-planstep-r3` by `prod_id = lot_cd + "_BASE"`, M-fab
   `ebeam_tas_lot_hist` over the last 90 days), joined to `cdsem_idp_ver` for
@@ -270,7 +278,10 @@ docstring.
   (`EDGE_EX` > `EDGE` > `WAFER` > `LEVEL` > everything else = `OTHER`).
 - Office data source: the same step sources as `recipe-statistics`, one row
   per distinct `recipe_id`, with `parameters` from `cdsem_idp_ver`'s newest
-  version. `recipe_class` / `family` / `phase` / `memory_class_auto` are
+  version. The mock matches that grain: it walks the step population but
+  emits the first row per `recipe_id` only, so a recipe reused by two steps
+  still has exactly one parameter set — `cdsem_idp_ver` holds one blob per
+  `full_name`. `recipe_class` / `family` / `phase` / `memory_class_auto` are
   derived, not stored — the derivation table is in
   `docs/datatables/recipe_params.txt` "사무실 파생 규칙".
 - Notes: **huge-payload endpoint**, same shape of concern as

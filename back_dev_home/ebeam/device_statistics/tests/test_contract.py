@@ -32,6 +32,7 @@ from back_dev_home.ebeam.device_statistics.contracts import (
     RecipeParamsRow,
     RuleVersion,
     TrendBucket,
+    step_key,
 )
 from back_dev_home.ebeam.device_statistics.providers.recipe_population import (
     is_exempt_job,
@@ -119,6 +120,13 @@ def test_recipe_params_matches_contract():
     for row in rows:
         assert row["lot_cd"] == lot_cd
         assert all(param["point_count"] >= 0 for param in row["parameters"])
+
+    # 이 표면은 **recipe 단위**입니다 — 원천 cdsem_idp_ver 이 full_name 하나에
+    # 파라미터 한 벌만 들고 있기 때문입니다. 프론트엔드가 recipe_id 로 Map 을
+    # 만들어 조인하므로(utils/lotParamExport.ts), 두 행이 오면 뒤엣것이 조용히
+    # 앞엣것을 덮습니다. 어느 provider 가 답하든 지켜야 하는 계약입니다.
+    keys = [(row["lot_cd"], row["recipe_id"]) for row in rows]
+    assert len(keys) == len(set(keys)), "recipe_id 가 lot 안에서 중복된 행이 있습니다"
 
     if _is_mock():
         # Every mock lot has fabricated recipes behind it; a real lot can have
@@ -234,6 +242,17 @@ def test_weekly_trend_data_matches_contract():
         for summary in bucket["all_summary"]:
             assert summary["lot_cd"] == lot_cd
             assert summary["avail_recipe"] <= summary["total_recipe"]
+
+    # 행 1건 = 스텝 1건. 화면이 이 행들을 목록으로 그리며 `contracts.step_key` 를
+    # ``v-for`` 의 :key 로 쓰므로(프론트엔드 utils/recipeStepSort.recipeStepKey),
+    # 같은 lot 안에 같은 스텝이 두 번 오면 Vue 가 카드를 접어 스텝이 사라집니다.
+    # recipe_id 로는 검사하지 않습니다 — 그것은 여러 스텝이 공유하는 조인 키입니다.
+    for bucket in trend.values():
+        for name, rows in bucket.items():
+            if not name.endswith("_rcp_info"):
+                continue
+            steps = [(row["lot_cd"], *step_key(row)) for row in rows]
+            assert len(steps) == len(set(steps)), f"{name} 에 중복된 스텝이 있습니다"
 
     if _is_mock():
         # Byte-identical per (lot_cd, date_index) from the seeded generator, so

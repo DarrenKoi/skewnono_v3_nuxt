@@ -352,10 +352,19 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
         )
         rng = random.Random(_seed_for(lot_cd, 4242))
         mother_rng = random.Random(_seed_for(lot_cd, 4242) ^ _MOTHER_MARK_SALT)
+        # 모집단은 스텝 단위인데 이 표면은 **recipe 단위**입니다 — 실물의 원천이
+        # cdsem_idp_ver 이고 거기서는 full_name(=recipe_id) 하나에 파라미터 한 벌뿐
+        # 이기 때문입니다. 여러 스텝이 같은 recipe 를 쓰면 그 파라미터는 한 벌입니다.
+        seen: set[str] = set()
         for idx, identity in enumerate(population):
-            rows.append(
-                _build_recipe(rng, mother_rng, identity, lot_cd, fac_id, prod_catg_cd, idx)
-            )
+            # 중복도 **일단 만듭니다.** 건너뛰면 rng 호출 수가 줄어 뒤따르는 recipe 의
+            # 파라미터가 전부 다른 값으로 태어납니다 (_MOTHER_MARK_SALT 주석과 같은
+            # 이유). 버리는 것은 만든 다음입니다.
+            row = _build_recipe(rng, mother_rng, identity, lot_cd, fac_id, prod_catg_cd, idx)
+            if row["recipe_id"] in seen:
+                continue
+            seen.add(row["recipe_id"])
+            rows.append(row)
     return rows
 
 

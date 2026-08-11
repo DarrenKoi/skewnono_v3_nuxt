@@ -107,6 +107,7 @@ from back_dev_home.ebeam.device_statistics.para_buckets import (
 from back_dev_home.ebeam.device_statistics.contracts import (
     RecipeInfoRow,
     SummaryRow,
+    step_key,
 )
 from back_dev_home.ebeam.device_statistics.providers.recipe_population import (
     RecipeIdentity,
@@ -255,17 +256,22 @@ def _bucketed_recipe_rows(
 
     mother_normal 만 자기 행을 따로 만듭니다 — 같은 recipe 라도 이 버킷에서는
     para_* 가 mother 기준이라 다른 세 버킷과 행 객체를 공유할 수 없습니다.
+
+    캐시 키가 recipe_id 가 **아닌** 것이 중요합니다. 한 recipe 는 여러 스텝에서
+    재사용되므로(recipe_population `_apply_shared_recipes`), recipe_id 로 캐시하면
+    두 스텝이 한 행으로 접혀 뒤 스텝의 oper_*·eqp_id 가 조용히 사라집니다. 행 1건의
+    정체성은 계약이 정의하는 ``contracts.step_key`` 입니다.
     """
     population = build_population(lot_cd, point_index, points)
-    rows_by_id = {
-        identity["recipe_id"]: _to_recipe_row(rng, identity, lot_cd, fac_id, date_key)
+    rows_by_step = {
+        step_key(identity): _to_recipe_row(rng, identity, lot_cd, fac_id, date_key)
         for identity in population
     }
     return {
         bucket: [
-            _to_mother_row(rows_by_id[identity["recipe_id"]], identity)
+            _to_mother_row(rows_by_step[step_key(identity)], identity)
             if bucket == "mother_normal"
-            else rows_by_id[identity["recipe_id"]]
+            else rows_by_step[step_key(identity)]
             for identity in members
         ]
         for bucket, members in bucket_members(population).items()

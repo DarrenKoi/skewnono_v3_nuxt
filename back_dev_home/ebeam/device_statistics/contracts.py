@@ -7,7 +7,8 @@ and providers/mock.py can share one typed source of truth.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from collections.abc import Mapping
+from typing import Any, Literal, TypedDict
 
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "DeviceDescRow",
     "MeasActivityRow",
     "RecipeInfoRow",
+    "step_key",
     "SummaryRow",
     "TrendBucket",
     "ParameterRow",
@@ -87,6 +89,25 @@ class RecipeInfoRow(TypedDict):
     para_9_percent: float
     para_5_percent: float
     para_over_16_percent: float
+
+
+def step_key(row: Mapping[str, Any]) -> tuple[int, int]:
+    """``RecipeInfoRow`` 한 건의 정체성 — **한 lot 안에서** 유일합니다.
+
+    실물 문서 1건이 (prod_id, oper_seq, samp_seq) 스텝이므로
+    (docs/datatables/planstep_r3.txt), lot 을 고정하면 (oper_seq, samp_seq) 가 곧
+    행의 정체성입니다. lot 을 가로지르는 목록에서는 부르는 쪽이 lot_cd 를 앞에
+    붙입니다 — lot 은 정체성의 일부가 아니라 그것을 담는 범위입니다.
+
+    ``recipe_id`` 는 여기에 **없습니다.** 여러 스텝이 같은 측정 recipe 를 쓰므로
+    그것은 cdsem_idp_ver 로 건너가는 조인 키이지 행의 정체성이 아닙니다. 이 구분이
+    무너지면 목록이 카드를 접어 스텝이 조용히 사라집니다 — 프론트엔드의 짝은
+    ``front-dev-home/app/utils/recipeStepSort.ts`` 의 ``recipeStepKey`` 입니다.
+
+    ``RecipeInfoRow`` 와 mock 의 ``RecipeIdentity`` 둘 다 받도록 Mapping 을
+    받습니다. 두 TypedDict 는 서로 하위 타입이 아니지만 이 두 key 는 공통입니다.
+    """
+    return row["oper_seq"], row["samp_seq"]
 
 
 class SummaryRow(TypedDict):
