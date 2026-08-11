@@ -10,8 +10,14 @@
       stats-label="가용성으로 필터"
       @select-stat="onSelectStat"
     >
-      <template #toggle>
-        <EbeamEquipmentStatusSubTabs />
+      <!-- 갈 곳이 하나뿐이면 토글이 아닙니다. 스토리지가 없는 계열에서는 슬롯을
+           아예 넘기지 않습니다 — 내용만 비우면 MetaBar 의 $slots.toggle 은
+           그대로 참이라 구분선만 남습니다. -->
+      <template
+        v-if="hasStorageView(toolType)"
+        #toggle
+      >
+        <EbeamEquipmentStatusSubTabs :tool-type="toolType" />
       </template>
     </EbeamMetaBar>
 
@@ -180,6 +186,7 @@ import type { ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { hasStorageView } from '~/utils/toolType'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
 

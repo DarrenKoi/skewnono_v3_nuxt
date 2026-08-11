@@ -7,8 +7,10 @@
       cadence="매일 04:30"
       :stats="metaStats"
     >
+      <!-- 이 화면이 떠 있다는 것 자체가 스토리지 라우트가 있는 계열이라는 뜻이라
+           ToolInventoryView 쪽과 달리 조건이 필요 없습니다. -->
       <template #toggle>
-        <EbeamEquipmentStatusSubTabs />
+        <EbeamEquipmentStatusSubTabs :tool-type="toolType" />
       </template>
     </EbeamMetaBar>
 

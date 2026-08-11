@@ -20,6 +20,17 @@ export type ToolType = (typeof TOOL_TYPES)[number]
 /** CD/HV 전용 화면이 담는 범위. 'AMAT 이 아닌 것' 으로 흉내내지 않습니다. */
 export const SEM_TOOL_TYPES = ['cd-sem', 'hv-sem'] as const satisfies readonly ToolType[]
 
+/**
+ * `<fab>/storage` 라우트를 가진 계열.
+ *
+ * 페이지는 `pages/ebeam/{cd-sem,hv-sem}/[fab]/storage/` 에만 있습니다. AMAT
+ * 계열에는 없으므로, 장비 상태 서브탭이 이 값을 보지 않고 스토리지 링크를
+ * 그리면 라우터가 매칭에 실패해 VUE_ROUTER_R0004 경고만 남기고 아무 데도
+ * 가지 않습니다. 라우트 유무가 곧 이 술어의 정의입니다.
+ */
+export const hasStorageView = (toolType: ToolType): boolean =>
+  (SEM_TOOL_TYPES as readonly ToolType[]).includes(toolType)
+
 const TOOL_SLUGS: Record<ToolType, string> = {
   'cd-sem': 'cdsem',
   'hv-sem': 'hvsem',

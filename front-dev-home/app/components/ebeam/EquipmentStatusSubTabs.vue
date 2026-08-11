@@ -28,6 +28,9 @@
 </template>
 
 <script setup lang="ts">
+import type { ToolType } from '~/utils/toolType'
+import { hasStorageView } from '~/utils/toolType'
+
 const SUB_TABS = [
   { value: 'list', label: '장비 리스트', icon: 'i-lucide-server' },
   { value: 'storage', label: '스토리지', icon: 'i-lucide-hard-drive' }
@@ -35,14 +38,27 @@ const SUB_TABS = [
 
 type SubTabValue = typeof SUB_TABS[number]['value']
 
+// 어느 계열인지는 경로에서 되짚지 않고 부모가 넘깁니다 — ToolInventoryView 와
+// StorageView 는 이미 toolType 을 들고 있고, 경로를 다시 파싱하면 라우트 구조가
+// 바뀔 때마다 같이 깨집니다.
+const props = defineProps<{ toolType: ToolType }>()
+
 const route = useRoute()
 
 const isStorage = computed(() => route.path.includes('/storage'))
 const basePath = computed(() => isStorage.value ? route.path.replace(/\/storage(\/.*)?$/, '') : route.path)
 const active = computed<SubTabValue>(() => isStorage.value ? 'storage' : 'list')
 
+// 링크를 그릴지 말지는 라우트가 있느냐로 정합니다. AMAT 계열에는 스토리지
+// 페이지가 없어서, 무조건 그리면 클릭이 아무 데도 가지 않고 라우터 경고만
+// 남습니다. 탭을 지우는 판단 자체는 이 컴포넌트가 집니다 — 링크의 주인이
+// 여기라서, 호출부가 무엇을 넘기든 없는 라우트로는 링크하지 않습니다.
+const availableTabs = computed(() =>
+  SUB_TABS.filter(tab => tab.value !== 'storage' || hasStorageView(props.toolType))
+)
+
 const options = computed(() =>
-  SUB_TABS.map(tab => ({
+  availableTabs.value.map(tab => ({
     ...tab,
     to: tab.value === 'storage' ? `${basePath.value}/storage` : basePath.value
   }))
