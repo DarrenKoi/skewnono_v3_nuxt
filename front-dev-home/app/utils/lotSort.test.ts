@@ -2,12 +2,13 @@
 // Run: node --test app/utils/lotSort.test.ts
 //
 // 여기서 지키는 것은 **한 칩이 두 표면을 같은 순서로 만든다**는 규칙입니다 —
-// 막대 차트는 이 비교 함수로 배열을 정렬하고, Lot 요약 표는 LOT_SORT_COLUMN 이
-// 가리키는 열로 정렬합니다. 둘이 갈라지는 자리는 동률과 열 id 두 곳뿐이라,
-// 테스트도 그 둘을 겨냥합니다.
+// 막대 차트는 sortLots 로 배열을 정렬하고, Lot 요약 표는 LOT_SORT 의 `column`
+// 이 가리키는 열로 정렬합니다. 둘이 갈라지는 자리는 동률과 열 id 두 곳이고,
+// 열 id 가 실재하는지는 LotTable 이 타입으로 확인하므로(chipSorting) 여기서는
+// 동률과 대응 자체를 겨냥합니다.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { LOT_SORT_COLUMN, lotComparator, sortLots } from './lotSort.ts'
+import { LOT_SORT, sortLots } from './lotSort.ts'
 import { paraTotal } from './lotHealth.ts'
 
 const lot = (lot_cd: string, para_5: number, avail_recipe: number) =>
@@ -49,22 +50,13 @@ test('파라미터 정렬은 다섯 구간 합을 본다 — para_5 하나가 �
   assert.deepEqual(ids(sortLots([narrow, wide], 'paraStack')), ['wide', 'narrow'])
 })
 
-test('LOT_SORT_COLUMN 은 세 칩 모두에 열을 준다 — 비교 함수와 같은 방향으로', () => {
-  // 없는 칩이나 어긋난 방향이면 표만 조용히 다른 순서가 됩니다.
-  assert.deepEqual(LOT_SORT_COLUMN.default, { id: 'lot_cd', desc: false })
-  assert.deepEqual(LOT_SORT_COLUMN.paraStack, { id: 'para_total', desc: true })
-  assert.deepEqual(LOT_SORT_COLUMN.availRecipe, { id: 'avail_recipe', desc: true })
-
-  const rows = [lot('A', 1, 1), lot('B', 9, 9)]
-  for (const key of ['default', 'paraStack', 'availRecipe'] as const) {
-    const first = sortLots(rows, key)[0]!
-    const descending = LOT_SORT_COLUMN[key].desc
-    assert.equal(first.lot_cd, descending ? 'B' : 'A', key)
-  }
-})
-
-test('비교 함수는 정렬 없이도 직접 쓸 수 있다', () => {
-  const cmp = lotComparator('availRecipe')
-  assert.ok(cmp(lot('A', 0, 9), lot('B', 0, 1)) < 0)
-  assert.ok(cmp(lot('A', 0, 1), lot('B', 0, 9)) > 0)
+test('세 칩이 모두 표의 열을 하나씩 가리킨다', () => {
+  // 정렬 방향은 여기 적힌 desc 하나에서 나옵니다(비교 함수도 이것을 읽습니다).
+  // 이 표가 고정하는 것은 **어느 열이냐** 입니다 — 열 이름이 조용히 바뀌면
+  // 칩만 눌리고 표는 그대로가 됩니다. 그 열이 실재하는지는 LotTable 의
+  // chipSorting 이 타입으로 확인합니다.
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(LOT_SORT).map(([key, spec]) => [key, spec.column])),
+    { default: 'lot_cd', paraStack: 'para_total', availRecipe: 'avail_recipe' }
+  )
 })

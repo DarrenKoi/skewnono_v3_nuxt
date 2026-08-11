@@ -376,7 +376,7 @@ import { useColorMode } from '#imports'
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import { paraTotal, verdictSortValue, type HealthAugmentedRow, type LotVerdict } from '~/utils/lotHealth'
-import { LOT_SORT_COLUMN, type LotSortKey } from '~/utils/lotSort'
+import { LOT_SORT, type LotSortKey } from '~/utils/lotSort'
 import type { HealthLevel } from '~/utils/ruleEngine'
 import type { Profiled } from '~/utils/deviceProfile'
 import {
@@ -490,18 +490,6 @@ const healthSortValue = (r: HealthAugmentedRow) => verdictSortValue(r.verdict)
 const profileSortValue = (key: 'point_median' | 'outlier_count') =>
   (r: Profiled<HealthAugmentedRow>) => r[key] ?? -1
 
-// 정렬 상태는 칩이 정합니다. `immediate` 로 첫 그림부터 맞추는 것이 요점입니다 —
-// 예전 기본값(health 오름차순)으로 시작하면 칩은 "이름순" 인데 표는 health 순인
-// 상태로 화면이 열려, 바로 위 막대 차트와 순서가 어긋난 채로 보입니다.
-//
-// 카드·표·CSV 세 표면이 모두 이 ref 하나를 읽으므로(orderedRows / UTable), 여기
-// 한 곳만 몰면 셋이 함께 따라옵니다.
-const sorting = ref<SortingState>([{ ...LOT_SORT_COLUMN[props.sort] }])
-
-watch(() => props.sort, (key) => {
-  sorting.value = [{ ...LOT_SORT_COLUMN[key] }]
-})
-
 const columns: TableColumn<Profiled<HealthAugmentedRow>>[] = [
   { accessorKey: 'lot_cd', header: 'lot', size: 120 },
   { id: 'stage', accessorFn: r => r.dev_stage, header: 'stage', size: 72 },
@@ -524,6 +512,27 @@ const sortableColumnIds = [
   'para_total', 'avail_recipe', 'total_recipe',
   'point_median', 'outlier_count', 'ctn_desc'
 ] as const
+
+// 칩이 가리키는 열이 **이 표에 실제로 있는지**는 여기서만 알 수 있습니다. 아래
+// `columnId` 한 줄이 그것을 컴파일 시점에 확인합니다 — 열 id 를 바꾸면 타입
+// 오류가 나고, 그 확인이 없으면 TanStack 이 모르는 id 를 조용히 무시해 칩만
+// 눌리고 표는 그대로인, 이 기능이 없애려던 바로 그 상태로 돌아갑니다.
+const chipSorting = (key: LotSortKey): SortingState => {
+  const columnId: typeof sortableColumnIds[number] = LOT_SORT[key].column
+  return [{ id: columnId, desc: LOT_SORT[key].desc }]
+}
+
+// 정렬 상태는 칩이 정합니다. 첫 그림부터 맞추는 것이 요점입니다 — 예전
+// 기본값(health 오름차순)으로 시작하면 칩은 "이름순" 인데 표는 health 순인
+// 상태로 화면이 열려, 바로 위 막대 차트와 순서가 어긋난 채로 보입니다.
+//
+// 카드·표·CSV 세 표면이 모두 이 ref 하나를 읽으므로(orderedRows / UTable), 여기
+// 한 곳만 몰면 셋이 함께 따라옵니다.
+const sorting = ref<SortingState>(chipSorting(props.sort))
+
+watch(() => props.sort, (key) => {
+  sorting.value = chipSorting(key)
+})
 
 const getSortIcon = (direction: false | 'asc' | 'desc') => {
   if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'

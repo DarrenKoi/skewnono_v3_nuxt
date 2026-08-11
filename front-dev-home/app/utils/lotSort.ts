@@ -25,15 +25,38 @@ import type { SummaryRow } from '~/composables/useRecipeStatisticsApi'
  */
 export type LotSortKey = 'default' | 'paraStack' | 'availRecipe'
 
-/** 정렬에 필요한 최소 행. 요약 행과 그 파생(Profiled 등)이 모두 만족합니다. */
-type SortableLot = Pick<
-  SummaryRow, 'lot_cd' | 'avail_recipe' | 'para_16' | 'para_13' | 'para_9' | 'para_5'
-> & { para_over_16?: number }
+/**
+ * 정렬에 필요한 최소 행. 요약 행과 그 파생(Profiled 등)이 모두 만족합니다.
+ *
+ * para 구간은 이름을 다시 적지 않고 `paraTotal` 의 인자 타입을 그대로 씁니다 —
+ * 구간이 늘면(2026-08-10 의 para_over_16 처럼) 고칠 곳이 그 함수 하나입니다.
+ */
+type SortableLot = Parameters<typeof paraTotal>[0] & Pick<SummaryRow, 'lot_cd' | 'avail_recipe'>
 
-const metric: Record<Exclude<LotSortKey, 'default'>, (row: SortableLot) => number> = {
-  paraStack: paraTotal,
-  availRecipe: row => row.avail_recipe
-}
+/**
+ * 칩 하나가 정하는 것 전부 — 무엇을 재는가, 어느 쪽이 위인가, 표의 어느 열인가.
+ *
+ * 셋을 한 자리에 적는 것이 요점입니다. 방향을 비교 함수와 열 상태에 따로 두면
+ * 칩 하나를 오름차순으로 바꿀 때 한쪽만 고쳐도 아무 데서도 오류가 나지 않고,
+ * 차트와 표가 반대로 늘어선 화면만 남습니다.
+ *
+ * `value: null` 은 값이 아니라 이름으로 세운다는 뜻입니다.
+ *
+ * `column` 은 Lot 요약 표(TanStack)의 열 id 입니다. 표는 자체 정렬 기능을 이미
+ * 갖고 있으므로 행을 미리 정렬해 넘기는 대신 **그 상태를 칩으로 몹니다** —
+ * 그래야 카드·표·CSV 세 표면이 지금처럼 `sorting` 한 곳만 읽는 구조로 남고,
+ * 열 머리글을 눌러 칩에 없는 축(health·outlier …)으로 파고드는 길도 열려
+ * 있습니다. 없는 열 id 를 주면 표가 조용히 정렬을 멈추므로, LotTable 이
+ * 자기 열 목록에 대고 이 id 를 컴파일 시점에 확인합니다.
+ */
+export const LOT_SORT = {
+  default: { value: null, desc: false, column: 'lot_cd' },
+  paraStack: { value: paraTotal, desc: true, column: 'para_total' },
+  availRecipe: { value: (row: SortableLot) => row.avail_recipe, desc: true, column: 'avail_recipe' }
+} as const satisfies Record<
+  LotSortKey,
+  { value: ((row: SortableLot) => number) | null, desc: boolean, column: string }
+>
 
 /**
  * 칩 하나에 대응하는 비교 함수.
@@ -44,31 +67,14 @@ const metric: Record<Exclude<LotSortKey, 'default'>, (row: SortableLot) => numbe
  * 없습니다. para 합계가 같은 lot 이 흔하다는 점(버킷이 좁을수록 흔합니다)을
  * 생각하면, 동률 규칙이 없으면 칩을 눌러 놓고도 위아래 순서가 어긋납니다.
  */
-export const lotComparator = <T extends SortableLot>(key: LotSortKey) => {
-  if (key === 'default') {
-    return (a: T, b: T) => a.lot_cd.localeCompare(b.lot_cd)
-  }
-  const get = metric[key]
-  return (a: T, b: T) => get(b) - get(a) || a.lot_cd.localeCompare(b.lot_cd)
+const lotComparator = <T extends SortableLot>(key: LotSortKey) => {
+  const byName = (a: T, b: T) => a.lot_cd.localeCompare(b.lot_cd)
+  const { value, desc } = LOT_SORT[key]
+  if (!value) return byName
+  const direction = desc ? -1 : 1
+  return (a: T, b: T) => direction * (value(a) - value(b)) || byName(a, b)
 }
 
 /** 원본을 건드리지 않고 정렬된 사본을 돌려줍니다. */
 export const sortLots = <T extends SortableLot>(rows: T[], key: LotSortKey): T[] =>
   [...rows].sort(lotComparator(key))
-
-/**
- * 칩 → Lot 요약 표의 열 정렬 상태.
- *
- * 표는 자체 정렬 기능(TanStack `sorting`)을 이미 갖고 있으므로, 행을 미리
- * 정렬해 넘기는 대신 **그 상태를 칩으로 몹니다**. 그래야 카드·표·CSV 세 표면이
- * 지금처럼 `sorting` 한 곳만 읽는 구조로 남고, 사용자가 열 머리글을 눌러
- * 이름·health·outlier 등 칩에 없는 축으로 더 파고드는 길도 그대로 열려 있습니다.
- *
- * 여기 적힌 열 id 는 LotTable 의 `columns` 와 같아야 합니다 — 없는 id 를 주면
- * 표가 조용히 정렬을 하지 않습니다. 그래서 테스트가 이 대응을 고정합니다.
- */
-export const LOT_SORT_COLUMN: Record<LotSortKey, { id: string, desc: boolean }> = {
-  default: { id: 'lot_cd', desc: false },
-  paraStack: { id: 'para_total', desc: true },
-  availRecipe: { id: 'avail_recipe', desc: true }
-}
