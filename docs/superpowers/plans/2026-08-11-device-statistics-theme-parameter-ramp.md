@@ -70,13 +70,19 @@ import {
   type EchartThemeName
 } from './echartsThemes.ts'
 import { PARA_KEYS } from './paraTrendSeries.ts'
-import { buildParameterRamp, PARAMETER_RAMP_ANCHORS } from './parameterRamp.ts'
 
 const themeNames = ECHART_THEME_OPTIONS
   .map(option => option.value)
   .filter((value): value is EchartThemeName => value !== 'default')
 
-test('every real theme has anchors taken from its own series palette', () => {
+const parameterRamp = async () => {
+  const loaded = await import('./parameterRamp.ts').catch(() => null)
+  assert.ok(loaded, 'parameter ramp module must exist')
+  return loaded
+}
+
+test('every real theme has anchors taken from its own series palette', async () => {
+  const { PARAMETER_RAMP_ANCHORS } = await parameterRamp()
   for (const name of themeNames) {
     const palette = getEchartThemePalette(name).map(color => color.toLowerCase())
     const [low, high] = PARAMETER_RAMP_ANCHORS[name]
@@ -85,7 +91,8 @@ test('every real theme has anchors taken from its own series palette', () => {
   }
 })
 
-test('every ramp maps the cool end to para_5 and the warm end to para_over_16', () => {
+test('every ramp maps the cool end to para_5 and the warm end to para_over_16', async () => {
+  const { buildParameterRamp, PARAMETER_RAMP_ANCHORS } = await parameterRamp()
   for (const name of themeNames) {
     const ramp = buildParameterRamp(name)
     const [low, high] = PARAMETER_RAMP_ANCHORS[name]
@@ -96,7 +103,8 @@ test('every ramp maps the cool end to para_5 and the warm end to para_over_16', 
   }
 })
 
-test('MATLAB ramp uses deterministic 25 percent RGB steps', () => {
+test('MATLAB ramp uses deterministic 25 percent RGB steps', async () => {
+  const { buildParameterRamp } = await parameterRamp()
   assert.deepEqual(buildParameterRamp('matlab'), {
     para_over_16: '#a2142f',
     para_16: '#7a2c53',
@@ -106,7 +114,8 @@ test('MATLAB ramp uses deterministic 25 percent RGB steps', () => {
   })
 })
 
-test('Default follows MATLAB in light mode and Dark in dark mode', () => {
+test('Default follows MATLAB in light mode and Dark in dark mode', async () => {
+  const { buildParameterRamp } = await parameterRamp()
   assert.deepEqual(
     buildParameterRamp(resolveEchartThemeName('default', 'light')),
     buildParameterRamp('matlab')
@@ -122,7 +131,8 @@ test('Default follows MATLAB in light mode and Dark in dark mode', () => {
 
 Run: `cd front-dev-home && node --test app/utils/parameterRamp.test.ts`
 
-Expected: FAIL with `ERR_MODULE_NOT_FOUND` for `app/utils/parameterRamp.ts`.
+Expected: FAIL with `AssertionError: parameter ramp module must exist`. RED는 module
+loader error가 아니라 아직 없는 동작을 명시한 assertion으로 실패해야 합니다.
 
 - [ ] **Step 3: 테마별 anchor와 RGB 보간 함수를 구현합니다**
 
