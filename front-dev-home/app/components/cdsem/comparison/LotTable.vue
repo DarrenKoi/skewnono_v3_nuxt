@@ -371,11 +371,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useColorMode } from '#imports'
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import { paraTotal, verdictSortValue, type HealthAugmentedRow, type LotVerdict } from '~/utils/lotHealth'
+import { LOT_SORT_COLUMN, type LotSortKey } from '~/utils/lotSort'
 import type { HealthLevel } from '~/utils/ruleEngine'
 import type { Profiled } from '~/utils/deviceProfile'
 import {
@@ -387,6 +388,13 @@ import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
   rows: Profiled<HealthAugmentedRow>[]
+  /**
+   * 페이지 상단 "정렬" 칩. 이 표의 정렬 상태를 **몹니다** — 칩을 누르면 위쪽
+   * 막대 차트와 이 표가 같은 축으로 함께 늘어섭니다. 열 머리글을 누르면 칩에
+   * 없는 축(health·outlier·판정 범위 …)으로 더 파고들 수 있고, 그다음 칩을
+   * 다시 누르면 칩 쪽이 이깁니다.
+   */
+  sort: LotSortKey
 }>()
 
 const emit = defineEmits<{
@@ -411,7 +419,7 @@ const text = {
   pointMedian: '측정점 중앙값',
   paraDist: 'para 분포',
   outlier: 'outlier',
-  sortNote: 'health 순 정렬 · 판정 없음은 항상 마지막'
+  sortNote: '위 정렬 칩을 따릅니다 · 표 보기에서 열 머리글로 다른 축 정렬'
 } as const
 
 const healthLevels: HealthLevel[] = ['red', 'yellow', 'green']
@@ -482,7 +490,17 @@ const healthSortValue = (r: HealthAugmentedRow) => verdictSortValue(r.verdict)
 const profileSortValue = (key: 'point_median' | 'outlier_count') =>
   (r: Profiled<HealthAugmentedRow>) => r[key] ?? -1
 
-const sorting = ref<SortingState>([{ id: 'health', desc: false }])
+// 정렬 상태는 칩이 정합니다. `immediate` 로 첫 그림부터 맞추는 것이 요점입니다 —
+// 예전 기본값(health 오름차순)으로 시작하면 칩은 "이름순" 인데 표는 health 순인
+// 상태로 화면이 열려, 바로 위 막대 차트와 순서가 어긋난 채로 보입니다.
+//
+// 카드·표·CSV 세 표면이 모두 이 ref 하나를 읽으므로(orderedRows / UTable), 여기
+// 한 곳만 몰면 셋이 함께 따라옵니다.
+const sorting = ref<SortingState>([{ ...LOT_SORT_COLUMN[props.sort] }])
+
+watch(() => props.sort, (key) => {
+  sorting.value = [{ ...LOT_SORT_COLUMN[key] }]
+})
 
 const columns: TableColumn<Profiled<HealthAugmentedRow>>[] = [
   { accessorKey: 'lot_cd', header: 'lot', size: 120 },
