@@ -13,9 +13,9 @@
         />
         <span class="font-mono font-semibold text-(--sk-ink)">{{ row.eqp_id }}</span>
         <span class="text-(--sk-ink-muted)">
-          {{ row.exec_count.toLocaleString() }} runs ·
-          {{ formatSecondsCompact(row.total_meastime) }} ·
-          {{ row.recipe_count }} recipes
+          측정 {{ row.exec_count.toLocaleString() }} ·
+          레시피 {{ row.recipe_count }} ·
+          총 {{ formatSecondsCompact(row.total_meastime) }}
         </span>
       </span>
     </div>
@@ -88,15 +88,6 @@
                 @click="copyMatrix"
               />
             </UTooltip>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-download"
-              label="CSV"
-              :disabled="recipes.length === 0"
-              @click="downloadMatrixCsv"
-            />
           </div>
         </div>
 
@@ -142,12 +133,12 @@ import {
   formatSecondsAsDuration,
   formatSecondsCompact,
   useRecipeTatApi,
+  type RecipeTatEquipmentCompareResponse,
   type RecipeTatEquipmentRecipeRow,
   type RecipeTatEquipmentRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
-import { todayStamp } from '~/utils/dateTime'
+import { copyTableToClipboard } from '~/utils/csvDownload'
 
 const props = defineProps<{
   toolType: RecipeTatToolType
@@ -155,6 +146,13 @@ const props = defineProps<{
   dateRange: { start: string, end: string }
   eqpIds: string[]
   rows: RecipeTatEquipmentRow[]
+}>()
+
+// 통합 워크북은 플릿 행(부모가 가짐)과 이 응답을 한 파일에 담아야 합니다.
+// 부모가 캐시 키를 다시 조립해 훔쳐보는 대신 올려보냅니다 — 키 문자열이 두
+// 곳에 살면 한쪽이 바뀔 때 조용히 빈 시트가 나옵니다.
+const emit = defineEmits<{
+  loaded: [RecipeTatEquipmentCompareResponse | null]
 }>()
 
 const { fetchRecipeTatEquipmentCompare } = useRecipeTatApi()
@@ -190,6 +188,8 @@ const { data, status } = await useAsyncData(
   () => fetchRecipeTatEquipmentCompare(queryParams.value),
   { watch: [cacheKey] }
 )
+
+watch(data, value => emit('loaded', value ?? null), { immediate: true })
 
 const trends = computed(() => data.value?.trends ?? [])
 const recipes = computed(() => data.value?.recipes ?? [])
@@ -301,7 +301,7 @@ const columns = computed<TableColumn<RecipeTatEquipmentRecipeRow>[]>(() => [
 
 // 매트릭스 내보내기
 
-// 화면은 한 칸에 "건수 · 시간"을 합쳐 보여주지만, CSV는 장비마다 두 열로
+// 화면은 한 칸에 "건수 · 시간"을 합쳐 보여주지만, 복사는 장비마다 두 열로
 // 풉니다 — 합쳐진 문자열은 스프레드시트에서 다시 쪼개야 하는 값입니다.
 const matrixTable = () => {
   const eqpIds = data.value?.eqp_ids ?? []
@@ -322,17 +322,7 @@ const matrixTable = () => {
   }
 }
 
-const exportFileName = computed(() => {
-  const fab = (props.fabs.join('+') || 'all').toLowerCase()
-  return `${props.toolType}-${fab}-recipe-tat-equipment-compare-${todayStamp()}.csv`
-})
-
 const toast = useToast()
-
-const downloadMatrixCsv = () => {
-  const { headers, data: rows } = matrixTable()
-  downloadCsv(exportFileName.value, headers, rows)
-}
 
 const copyMatrix = async () => {
   const { headers, data: rows } = matrixTable()

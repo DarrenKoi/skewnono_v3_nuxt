@@ -14,12 +14,10 @@
     <template v-else>
       <EbeamRecipeTatFleetTable
         :rows="equipmentRows"
-        :percentiles="percentiles"
-        :peer-group-comparable="peerGroupComparable"
         :selected="selected"
         :max-selected="MAX_COMPARE_EQPS"
         @update:selected="selected = $event"
-        @download="downloadFleetCsv"
+        @download="downloadFleetExcel"
         @copy="copyFleetTable"
       />
 
@@ -30,6 +28,7 @@
         :date-range="dateRange"
         :eqp-ids="selected"
         :rows="selectedRows"
+        @loaded="comparePayload = $event"
       />
       <div
         v-else
@@ -54,15 +53,13 @@
 import { MAX_COMPARE_EQPS } from '~/utils/analyticsLimits'
 import {
   useRecipeTatApi,
+  type RecipeTatEquipmentCompareResponse,
   type RecipeTatEquipmentRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
-import {
-  equipmentSignals,
-  isPeerGroupComparable,
-  SIGNAL_META
-} from '~/utils/equipmentSignals'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/csvDownload'
+import { buildTatEquipmentWorkbook } from '~/utils/equipmentExport'
+import { downloadWorkbook } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
@@ -101,63 +98,43 @@ watch(cacheKey, () => {
 })
 
 const equipmentRows = computed(() => data.value?.equipments ?? [])
-const percentiles = computed(() => data.value?.fleet.percentiles ?? {})
-
-// 배지는 또래 집단이 한 fab일 때만 장비를 가리킵니다. 응답이 에코하는
-// `fab_names`가 아니라 **실제로 돌아온 행**의 fab을 세는 이유는, fab 없이
-// 조회하면(= 설계 3.5절의 사무실 확인 절차) 에코가 빈 목록인 채로 데이터는
-// 전 fab을 덮기 때문입니다. 선택한 fab 중 한 곳에 측정이 하나도 없어
-// 결과적으로 한 fab만 남는 경우도 행을 세는 쪽이 맞습니다.
-const peerGroupComparable = computed(() => isPeerGroupComparable(equipmentRows.value))
 
 const selectedRows = computed(
   () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))
 )
 
+// 비교 패널이 올려보내는 응답. 장비 선택이 비면 패널이 언마운트되므로
+// 여기서 직접 비웁니다 — 그러지 않으면 이전 선택의 시트가 파일에 남습니다.
+const comparePayload = ref<RecipeTatEquipmentCompareResponse | null>(null)
+watch(selected, (value) => {
+  if (value.length === 0) comparePayload.value = null
+})
+
 // 내보내기 -------------------------------------------------------------------
 
-// 초·비율은 화면 표기(1h 12m, 62.1%)가 아니라 원시 수치로 냅니다 — 스프레드시트로
-// 가는 값은 다시 계산될 것이므로, 사람이 읽기 좋은 포맷은 여기서 손해입니다.
-// 열 이름에 단위를 붙여 무엇으로 읽어야 하는지만 못 박습니다.
-const fleetTable = (rows: RecipeTatEquipmentRow[]) => ({
-  headers: [
-    'eqp_id', 'fab', 'model', 'exec_count', 'total_meastime_sec',
-    'occupancy_pct', 'avg_meastime_sec', 'recipe_count', 'tat_index', 'signals'
-  ],
-  // 배지는 화면과 같은 판정을 따릅니다. 또래 집단이 섞였으면 화면에서도
-  // 비어 있으므로 CSV도 비웁니다 — 표에 없는 판정을 파일로만 내보내면
-  // 그 파일이 화면보다 더 단정적으로 읽힙니다.
-  data: rows.map(row => [
-    row.eqp_id,
-    row.fab_name,
-    row.eqp_model_cd,
-    row.exec_count,
-    row.total_meastime,
-    (row.occupancy * 100).toFixed(1),
-    Math.round(row.avg_meastime),
-    row.recipe_count,
-    row.tat_index === null ? '' : row.tat_index.toFixed(2),
-    (peerGroupComparable.value ? equipmentSignals(row, percentiles.value) : [])
-      .map(signal => SIGNAL_META[signal].label)
-      .join(' | ')
-  ])
-})
+// 화면·클립보드·파일이 같은 열을 쓰도록 `장비` 시트 하나에서 다 끌어옵니다.
+// 열 목록을 두 벌 두면 한쪽만 고쳐지고, 그 어긋남은 파일을 열기 전까지
+// 보이지 않습니다.
+const equipmentSheet = (rows: RecipeTatEquipmentRow[]) =>
+  buildTatEquipmentWorkbook({ equipments: rows, compare: null })[0]!
 
 const exportFileName = computed(() => {
   const fab = (props.fabs.join('+') || 'all').toLowerCase()
-  return `${props.toolType}-${fab}-recipe-tat-equipments-${todayStamp()}.csv`
+  return `${props.toolType}-${fab}-recipe-tat-equipments-${todayStamp()}.xlsx`
 })
 
 const toast = useToast()
 
-const downloadFleetCsv = (rows: RecipeTatEquipmentRow[]) => {
-  const { headers, data } = fleetTable(rows)
-  downloadCsv(exportFileName.value, headers, data)
+const downloadFleetExcel = async (rows: RecipeTatEquipmentRow[]) => {
+  await downloadWorkbook(
+    exportFileName.value,
+    buildTatEquipmentWorkbook({ equipments: rows, compare: comparePayload.value })
+  )
 }
 
 const copyFleetTable = async (rows: RecipeTatEquipmentRow[]) => {
-  const { headers, data } = fleetTable(rows)
-  const ok = await copyTableToClipboard(headers, data)
+  const sheet = equipmentSheet(rows)
+  const ok = await copyTableToClipboard(sheet.rows[0] as string[], sheet.rows.slice(1))
   toast.add(
     ok
       ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
