@@ -30,6 +30,8 @@
         :eqp-ids="selected"
         :rows="selectedRows"
         :section="section"
+        :anchor-date="anchorDate"
+        :include-today="includeToday"
         @loaded="comparePayload = $event"
       />
       <div
@@ -69,6 +71,10 @@ const props = defineProps<{
   toolType: FailIssueToolType
   dateRange: { start: string, end: string }
   section: 'align' | 'meas'
+  // 헤더의 「오늘 데이터」 토글. 여기서는 쓰지 않고 비교 패널로 통과만
+  // 시킵니다 — 플릿 표와 Excel은 전 기간을 유지합니다(설계 Non-goals).
+  anchorDate?: string
+  includeToday: boolean
 }>()
 
 const { fetchEquipments } = useFailIssueApi()

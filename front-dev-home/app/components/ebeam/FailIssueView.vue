@@ -39,6 +39,18 @@
           </span>
         </div>
       </template>
+
+      <!-- 「데이터 기준」 배지 바로 오른쪽. 세 뷰 모드가 공유하는 표시 설정이라
+           특정 차트 카드가 아니라 헤더가 제자리입니다. align/meas 카드 헤더에
+           하나씩 두던 것을 여기 한 개로 합쳤습니다. -->
+      <template #actions>
+        <USwitch
+          v-model="includeToday"
+          size="sm"
+          label="오늘 데이터"
+          class="shrink-0"
+        />
+      </template>
     </EbeamMetaBar>
 
     <!-- Device picker (디바이스별 mode only) -->
@@ -57,6 +69,8 @@
       :tool-type="toolType"
       :date-range="dateRange"
       :section="section"
+      :anchor-date="summary?.anchor_date"
+      :include-today="includeToday"
     />
 
     <!-- 디바이스별 mode without a selection: prompt -->
@@ -139,12 +153,6 @@
                     {{ chartOption.label }}
                   </button>
                 </div>
-                <USwitch
-                  v-model="includeToday"
-                  size="sm"
-                  label="오늘 데이터"
-                  class="shrink-0"
-                />
               </div>
             </div>
           </template>
@@ -194,12 +202,6 @@
                     {{ chartOption.label }}
                   </button>
                 </div>
-                <USwitch
-                  v-model="includeToday"
-                  size="sm"
-                  label="오늘 데이터"
-                  class="shrink-0"
-                />
               </div>
             </div>
           </template>

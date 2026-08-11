@@ -139,6 +139,7 @@ import {
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
 import { copyTableToClipboard } from '~/utils/csvDownload'
+import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 
 const props = defineProps<{
   toolType: RecipeTatToolType
@@ -146,6 +147,8 @@ const props = defineProps<{
   dateRange: { start: string, end: string }
   eqpIds: string[]
   rows: RecipeTatEquipmentRow[]
+  anchorDate?: string
+  includeToday: boolean
 }>()
 
 // 통합 워크북은 플릿 행(부모가 가짐)과 이 응답을 한 파일에 담아야 합니다.
@@ -194,6 +197,19 @@ watch(data, value => emit('loaded', value ?? null), { immediate: true })
 const trends = computed(() => data.value?.trends ?? [])
 const recipes = computed(() => data.value?.recipes ?? [])
 
+// 헤더의 「오늘 데이터」 토글이 실제로 무언가를 거르는 유일한 지점입니다.
+// `emit('loaded')` 는 필터 이전의 `data` 를 올려보내므로 Excel 의 「일별추이」
+// 시트는 전 기간을 유지합니다 — 한 파일 안에서 시트마다 기준일이 달라지는
+// 쪽이 더 나쁩니다.
+//
+// x축 dates 와 series 를 반드시 **둘 다** 여기서 파생시켜야 합니다. 한쪽만
+// 거르면 축과 데이터가 하루씩 어긋나고, 그 어긋남은 차트가 조용히 잘못된
+// 날짜에 값을 찍는 형태로만 드러납니다.
+const visibleTrends = computed(() => trends.value.map(series => ({
+  ...series,
+  points: filterRecipeStatusTrendPoints(series.points, props.anchorDate, props.includeToday)
+})))
+
 // 트렌드 오버레이
 
 const trendEl = ref<HTMLDivElement | null>(null)
@@ -209,7 +225,7 @@ type ChartType = typeof CHART_TYPES[number]['value']
 const chartType = ref<ChartType>('line')
 
 const trendOption = computed<EChartsOption>(() => {
-  const dates = trends.value[0]?.points.map(point => point.date) ?? []
+  const dates = visibleTrends.value[0]?.points.map(point => point.date) ?? []
   const isBar = chartType.value === 'bar'
   return {
     // 막대에서는 세로선 포인터가 어느 막대를 짚었는지 흐립니다 — 그 칸 전체를
@@ -218,7 +234,7 @@ const trendOption = computed<EChartsOption>(() => {
     legend: {
       top: 0,
       textStyle: { fontSize: 10 },
-      data: trends.value.map(series => series.eqp_id)
+      data: visibleTrends.value.map(series => series.eqp_id)
     },
     grid: { left: 8, right: 24, top: 32, bottom: 28, containLabel: true },
     xAxis: {
@@ -238,7 +254,7 @@ const trendOption = computed<EChartsOption>(() => {
     //
     // 막대는 쌓지 않고 나란히 둡니다(기본 grouped). 장비끼리 비교하려고
     // 고른 화면이라 합계를 보여주는 stack은 여기서 답이 아닙니다.
-    series: trends.value.map((series) => {
+    series: visibleTrends.value.map((series) => {
       const color = colorByEqpId.value.get(series.eqp_id)
       const data = series.points.map(point => point.total_meastime)
       if (isBar) {

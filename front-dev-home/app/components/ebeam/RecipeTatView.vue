@@ -39,6 +39,19 @@
           </span>
         </div>
       </template>
+
+      <!-- 「데이터 기준」 배지 바로 오른쪽. 세 뷰 모드가 공유하는 표시 설정이라
+           특정 차트 카드가 아니라 헤더가 제자리입니다. 뷰 모드·로딩·빈 상태와
+           무관하게 항상 렌더합니다 — 상태에 따라 사라지면 이 줄의 폭이
+           흔들립니다. -->
+      <template #actions>
+        <USwitch
+          v-model="includeToday"
+          size="sm"
+          label="오늘 데이터"
+          class="shrink-0"
+        />
+      </template>
     </EbeamMetaBar>
 
     <!-- Device picker (디바이스별 mode only) -->
@@ -56,6 +69,8 @@
       :fabs="fabs"
       :tool-type="toolType"
       :date-range="dateRange"
+      :anchor-date="summary?.anchor_date"
+      :include-today="includeToday"
     />
 
     <!-- 디바이스별 mode without a selection: prompt instead of dashboard -->
@@ -122,22 +137,14 @@
 
           <UCard class="dashboard-surface">
             <template #header>
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2">
-                  <UIcon
-                    name="i-lucide-trending-up"
-                    class="h-4 w-4 text-(--sk-ink-muted)"
-                  />
-                  <h3 class="sk-title">
-                    Daily TAT trend
-                  </h3>
-                </div>
-                <USwitch
-                  v-model="includeToday"
-                  size="sm"
-                  label="오늘 데이터"
-                  class="shrink-0"
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-trending-up"
+                  class="h-4 w-4 text-(--sk-ink-muted)"
                 />
+                <h3 class="sk-title">
+                  Daily TAT trend
+                </h3>
               </div>
             </template>
             <div
