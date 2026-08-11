@@ -31,8 +31,9 @@ The request path and change implications are detailed in [runtime architecture](
 
 ## Backend feature domains
 
-- `back_dev_home/ebeam/hitachi/`: shared CD-SEM/HV-SEM features such as storage and hardware.
-- `back_dev_home/ebeam/cdsem/device_statistics/`: lot/recipe/parameter analytics and rule seed data.
+- `back_dev_home/ebeam/`: flat shared e-beam features such as storage and hardware, with `_tool_specs.py` and `_slug_routes.py` providing shared tool-family/slug behavior.
+- `back_dev_home/ebeam/device_statistics/`: lot/recipe/parameter analytics and rule seed data.
+- `back_dev_home/ebeam/__fixtures__/tool_type_cases.json`: shared backend/frontend tool-type parity fixture.
 - `back_dev_home/meas_hist/`: Skewvoir measurement discovery, search, facets, parent metadata, derived image-failure ratio, and equipment IP handoff.
 - `back_dev_home/msr_file/`: detailed MSR rows, summaries, FDC/alignment, and geometry.
 - `back_dev_home/msr_image/`: measurement-image listing/serving, safe async cache-fill jobs, memory/Redis job registries, disk/MinIO caches, purge scheduling, and a tracked tool-FTP adapter; Skewvoir consumes it, while local office activation and representative verification remain incomplete.
@@ -75,7 +76,7 @@ These packages [support office integrations](integrations/integration-points.md)
 - `front-dev-home/app/**/*.test.ts`: pure frontend tests run by Node.
 - `docs/api-contracts/`: human-readable API schemas; useful primary evidence but verify against current routes/contracts.
 - `back_dev_home/**/__fixtures__/`: frozen response structures where present.
-- `.github/workflows/ci.yml`: active frontend typecheck/test and backend Ruff/full-pytest CI.
+- `.github/workflows/ci.yml`: active frontend typecheck/test and backend Ruff/full-pytest CI; frontend lint/build and Markdown lint remain manual checks.
 
 See [testing guidance](testing/guidance.md) before choosing a verification command.
 

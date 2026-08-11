@@ -1,7 +1,7 @@
 ---
 type: Architecture Guide
 title: Runtime Architecture
-description: Architecture of the SKEWNONO Nuxt SPA and Flask API, including request flow, dynamic Blueprint registration, data-provider switching, security middleware, and production SPA serving.
+description: Architecture of the SKEWNONO Nuxt SPA and Flask API, including request flow, dynamic Blueprint registration, data-provider switching, security middleware, shared scheduled jobs, and production SPA serving.
 resource: back_dev_home/__init__.py
 tags: [architecture, nuxt, flask, api, providers]
 ---
@@ -46,9 +46,9 @@ Frontend state uses Nuxt built-ins rather than Pinia. `app/stores/navigation.ts`
 8. In cloud mode, registers SPA serving.
 9. Installs one application-wide per-user/IP API rate-limit budget.
 
-Automatic route discovery makes a feature self-registering, but every discovered module is imported at startup. A broken import or a `routes.py` without `bp` prevents the entire app from booting. After route and limiter setup, `create_app()` also starts the [measurement-image cache](../integrations/integration-points.md#measurement-image-delivery-and-cache) purge scheduler. Under multi-process serving this creates one idempotent nightly sweep per worker, not one cluster-wide scheduler.
+Automatic route discovery makes a feature self-registering, but every discovered module is imported at startup. A broken import or a `routes.py` without `bp` prevents the entire app from booting. After route and limiter setup, `create_app()` starts the shared `_scheduler` runtime. uWSGI worker 1—or the Werkzeug reloader child in development—is elected to register five KST cron jobs: nightly uWSGI touch-reload and log retention, weekly Device Statistics snapshot write and sweep, and the [measurement-image cache purge](../integrations/integration-points.md#measurement-image-delivery-and-cache). APScheduler keeps no persistent job store, so missed runs while the service is down are not replayed. Office jobs use renewable Redis skip-if-held locks to protect worker-recycle overlap and Redis-backed run records; home uses no-op locks and memory records. Admins inspect newest-first `start`/`end`/`error`/`skip`/`missed` records through `GET /api/health/jobs`, and `SKEWNONO_SCHEDULER_ENABLED=0` disables startup for tests (`back_dev_home/_scheduler/`, `health/routes.py`).
 
-Shared CD-SEM/HV-SEM features belong under `back_dev_home/ebeam/hitachi/<feature>/`; genuinely tool-specific behavior belongs under `ebeam/cdsem/` or `ebeam/hvsem/`. `back_dev_home/README.md` documents this scope decision.
+Shared e-beam features now belong under the flat `back_dev_home/ebeam/<feature>/` layout; shared infrastructure such as `_tool_specs.py` and `_slug_routes.py` centralizes tool-family and slug behavior, while genuinely tool-specific behavior remains constrained by those registries. `back_dev_home/README.md` documents this scope decision.
 
 ## Provider seam and contracts
 
@@ -62,7 +62,7 @@ Site detection prefers `SKEWNONO_SITE`, then treats the path-derived cloud deplo
 
 The dispatcher calls `providers/mock.py` or the ignored, machine-local `providers/office.py`. Home authors maintain tracked `providers/office_example.py`; office engineers use the [adapter setup and synchronization workflow](../operations/runbook.md#incremental-office-migration) to create or refresh local copies, then verify them against local sources. `_runtime/office_template.py` classifies each copy as `MISSING`, `SYNCED`, `STALE`, or `EDITED` from current and recent Git templates. Boot warns only when a running copy is provably stale; locally edited copies are preserved without warning because their ignored changes may be intentional and unique. Freshness diagnosis is best-effort and never blocks startup.
 
-`create_app()` rejects invalid provider values and any explicit feature `=office` that cannot be honored, then logs every feature's provider and reason through `skewnono.providers`. The same resolution is exposed by `GET /api/health/providers`, which reads runtime state directly rather than through the swappable health provider. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
+`create_app()` rejects invalid provider values, any explicit feature `=office` that cannot be honored, and declared cross-feature office mismatches such as `storage=office` with `sem_list=mock`; the latter would otherwise produce an empty storage join behind a successful response. It then logs every feature's provider and reason through `skewnono.providers`. The same resolution is exposed by `GET /api/health/providers`, which reads runtime state directly rather than through the swappable health provider. Routes and frontend composables retain the same shape, while runtime `TypedDict` validation in `_core/contract_check.py` allows extra office document fields but rejects missing required keys or wrong nested types.
 
 This architecture [depends on integration adapters](../integrations/integration-points.md) without allowing transport details to leak into product routes. `_runtime/office_redis.py` now centralizes environment loading, one cached fail-fast Redis pool per process, and parquet-first DataFrame decoding; feature adapters still own normalization. Missing upstream data generally becomes JSON `502 upstream_data_error`, while configuration and backing-service failures become JSON `503` responses. Activity and admin-log readers deliberately use endpoint-specific `activity_query_failed` and `log_query_failed` 503 contracts rather than falling back to mock or empty data; asynchronous log delivery instead drops on failure and exposes diagnostics through `/api/health/logging`. Subclassed programming errors such as `KeyError` and `NotImplementedError` intentionally remain 500s.
 

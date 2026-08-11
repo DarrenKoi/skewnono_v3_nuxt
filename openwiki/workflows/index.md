@@ -6,4 +6,4 @@ description: "Files and subdirectories in Workflows."
 
 # Files
 
-- [Key Application and Engineering Workflows](key-workflows.md) - End-to-end paths for Device Statistics, pending-tool firewall requests, recipe and hardware operations, live alarms, Skewvoir, AFM, chat, and provider-backed feature migration.
+- [Key Application and Engineering Workflows](key-workflows.md) - End-to-end paths for multi-FAB navigation, equipment analytics, Device Statistics, recipe and hardware operations, live alarms, Skewvoir images, chat RAG, and provider-backed feature migration.

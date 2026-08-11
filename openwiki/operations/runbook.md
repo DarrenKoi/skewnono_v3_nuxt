@@ -1,7 +1,7 @@
 ---
 type: Operations Runbook
 title: Development and Deployment Runbook
-description: Practical commands and diagnostics for identity, configuration, office adapters, overlay packaging, and running the SKEWNONO Nuxt and Flask application across home, office, and cloud modes.
+description: Practical commands and diagnostics for identity, configuration, office adapters, scheduled jobs, live alarms, image previews, overlay packaging, and SKEWNONO home, office, and cloud operation.
 resource: index.py
 tags: [operations, runbook, deployment, configuration, troubleshooting]
 ---
@@ -47,7 +47,11 @@ Check backing services through `GET /api/health/services` and resolved feature p
 | Logging target | `SKEWNONO_LOG_ENV` | Required as `local` or `production` when OpenSearch logging credentials are configured; selects the shared writer/reader alias |
 | Logging kill switch | `OPENSEARCH_LOGGING_DISABLED` | `1`, `true`, or `yes` skips the asynchronous log shipper without changing reader/provider selection |
 | Chat gateway | `CHAT_BASE_URL` | Public OpenRouter default is usable in mock mode but blocked in office mode |
+| Chat runtime | `SKEWNONO_CHAT_RUNTIME` | `direct`; use `agent` only with a tool-capable model and prepared knowledge source |
+| Chat page gate | `SKEWNONO_CHAT_UNDER_DEVELOPMENT` | Defaults on in cloud; `0` launches the page but does not authorize APIs |
 | Extra blocked chat hosts | `CHAT_BLOCKED_HOSTS` | Comma-separated additions to the built-in office blocklist |
+| Scheduler startup | `SKEWNONO_SCHEDULER_ENABLED` | Enabled; false-like values disable scheduled jobs |
+| Image-cache retention | `IMAGE_CACHE_TTL_HOURS` | `72`; the external safety sweep must match |
 
 Use the tracked `back_dev_home/.env.example` as the non-secret template and copy it to the ignored `back_dev_home/.env` for local values. Never inspect or document live `.env` values. Configuration exists under backend/frontend environment files, but setup documentation should refer only to variable names and trusted secret-management procedures.
 
@@ -86,9 +90,9 @@ At every startup, `skewnono.providers` logs the detected site, effective mode, o
 
 ## Live alarm office deployment
 
-Live alarm has two independent local adapters. First copy `back_dev_home/ebeam/hitachi/live_alarm/writer/` to the external scheduler service, create its ignored `office.py`, configure fab alarm addresses and `LIVE_ALARM_REDIS_*`, and register `run_once` every 15 seconds on the dedicated fast executor with the lock and misfire settings in `live_alarm/MIGRATION.md`. The scheduler-side and Flask-side clients must use Redis DB 0.
+Live alarm has one machine-local swap surface and no external writer or scheduler. Implement `office_utils.live_alarm.get_ebeam_metrology_alarms(fac_id)` with an upstream timeout shorter than the 20-second Redis lock TTL, then copy `back_dev_home/ebeam/live_alarm/providers/office_example.py` to the ignored `providers/office.py`. The source must return the unfiltered facility alarm rows; application normalization selects Hitachi ALIDs `9006`, `9007`, and `9035`.
 
-Confirm `skewnono:live_alarm:*` keys and that each `meta.polled_at` advances before copying `providers/office_example.py` to Flask's ignored `providers/office.py`. Restart Flask, confirm `live_alarm` through `/api/health/providers`, then inspect the endpoint's `feed_status`: `stale` means the registered writer heartbeat stopped; `not_configured` means the fab is absent from the writer address map. The writer is portable by design and must not import `back_dev_home`; reader/writer member compatibility is pinned by `test_written_members_are_readable_by_the_reader`.
+Restart Flask and confirm `live_alarm` through `/api/health/providers`. Open a representative single- and multi-FAB board, then inspect `skewnono:live_alarm:*` and the response fields: `live` means every configured facility was fetched successfully within 90 seconds; `stale` means at least one facility has no recent successful fetch, so check for `live_alarm refresh failed`; `not_configured` means none of the selected FABs has that tool type in SEM-list. Nonzero `unmatched_count` identifies alarm equipment absent from the roster, while `not_configured_fabs` reports only the missing subset when other selected FABs can still render. Demand refresh is capped at one upstream call per distinct facility per 20 seconds, regardless of viewer count; selected sibling FABs that share a facility reuse the same call and Redis board. Follow `back_dev_home/ebeam/live_alarm/MIGRATION.md` for the source schema and verification procedure.
 
 ## Recipe IDP office probe
 
@@ -129,7 +133,7 @@ curl localhost:5000/api/health/providers
 
 Path and directory depth are runtime configuration: `_runtime/env.py` recognizes cloud mode only below `/project/workSpace`, and SPA lookup assumes the packaged depth. An extra wrapper directory or another installation path can leave the process returning HTTP while silently selecting the local fallback identity, disabling SPA mounting, and selecting the wrong provider mode. The standard-library-only preflight catches these layout errors, requires the permanent `index.py` and `wsgi.ini`, reports that identity comes from the `LASTUSER` cookie, and verifies that `back_dev_home/.env` chooses a nonblank `SKEWNONO_SECRET_KEY` before uWSGI can enter a boot loop.
 
-`wsgi.ini` exposes HTTP on `0.0.0.0:5000`, with four processes, two threads per process, 60-second harakiri, and worker recycle after 1,000 requests. The SPA uses relative `/api`, so the feasibility and production hostnames can use the same bundle. Current deployment URLs are HTTP-only; follow `docs/deployment.md` rather than enabling secure-cookie/HSTS settings that would break those sessions. The [architecture overview](../architecture/overview.md#deployment-modes) explains the underlying mode coupling.
+`wsgi.ini` exposes HTTP on `0.0.0.0:5000`, with four processes, four threads per process, 120-second harakiri, and worker recycle after 1,000 requests. The SPA uses relative `/api`, so the feasibility and production hostnames can use the same bundle. Current deployment URLs are HTTP-only; follow `docs/deployment.md` rather than enabling secure-cookie/HSTS settings that would break those sessions. The [architecture overview](../architecture/overview.md#deployment-modes) explains the underlying mode coupling.
 
 ## Pre-deployment checks
 
@@ -138,18 +142,30 @@ Path and directory depth are runtime configuration: `_runtime/env.py` recognizes
 cd front-dev-home
 npm run typecheck
 npm test
-npm run lint
-npm run build
+npm run lint       # manual; not an active root CI gate
+npm run build      # manual; not an active root CI gate
 
 # Backend, from root
 .venv/bin/ruff check .
 .venv/bin/python -m pytest tests back_dev_home -q
 
-# Documentation
+# Documentation (manual)
 npm run lint:md
 ```
 
-For a provider migration, rerun the feature contract gate with its office override. See [testing guidance](../testing/guidance.md).
+For a provider migration, rerun the feature contract gate with its office override. For measurement-image changes, also run the focused single-flight, route, and warmer-policy suites listed in [testing guidance](../testing/guidance.md#feature-contract-gates). See [testing guidance](../testing/guidance.md).
+
+## Measurement-image load verification
+
+The image feature has two distinct load controls: warm jobs are bounded by the Redis-backed `max_jobs`/FTP-concurrency policy, while cold GETs deduplicate concurrent requests only within each process through the per-cache-key single-flight gate. Do not add a second warm job while polling an existing one, and do not treat an ordinary polling failure as proof that the job is gone; the warmer retries transient failures within its remaining ceiling and only releases the panel for a definitive `404`/`unknown_job` or exhausted budget. A refused POST is retryable only when it is `429` with `too_many_jobs`.
+
+Before office activation or after FTP/proxy changes, run the measurement probe against representative equipment and compare login, transfer, concurrency, proxy-cap, and cache-write timings rather than changing timeout/concurrency constants from guesses:
+
+```bash
+.venv/bin/python -m scripts.measure_msr_image_ftp
+```
+
+Verify the tracked adapter is copied to the ignored `back_dev_home/msr_image/providers/office.py`, restart Flask so provider discovery is refreshed, and confirm `/api/health/providers` plus representative gallery original/preview responses. Use `SKEWNONO_MSR_IMAGE_PROVIDER=mock` as the narrow rollback if the office adapter is unhealthy; use the broader `SKEWNONO_DATA_PROVIDER=mock` only when all non-overridden office adapters must be disabled. The external cache sweep must retain the same `IMAGE_CACHE_TTL_HOURS` (72 by default).
 
 ## OpenSearch logging rollout and diagnosis
 
@@ -183,11 +199,15 @@ Dynamic Blueprint discovery imports every non-private `routes.py`. Inspect the t
 
 ### Application refuses to start for provider configuration
 
-The app validates provider settings before registering routes. Invalid values fail immediately. A feature-specific `SKEWNONO_<FEATURE>_PROVIDER=office` also fails when its ignored `providers/office.py` is absent; use the copy command in the error or remove the override. Duplicate feature directory slugs and office adapters without mock siblings also fail registry validation.
+The app validates provider settings before registering routes. Invalid values fail immediately. A feature-specific `SKEWNONO_<FEATURE>_PROVIDER=office` also fails when its ignored `providers/office.py` is absent; use the copy command in the error or remove the override. The boot validator also rejects `storage=office` when `sem_list` resolves to mock; copy the SEM-list office adapter too, or force storage back to mock. Duplicate feature directory slugs and office adapters without mock siblings also fail registry validation.
 
 ### Office feature is unexpectedly mock or returns NotImplementedError
 
 Query `GET /api/health/providers` or inspect the startup table first. In office mode, reason `no providers/office.py` means the machine-local adapter is absent; use the setup/sync workflow, restart, and rerun its contract gate. A selected adapter that raises `NotImplementedError` remains intentionally unwired; remove that stub copy or use a feature-specific mock override while diagnosing it. Hardware is the exception: its feature-level adapter dispatches each tab separately, and a missing nested tab `office.py` falls back to that tab's mock with an INFO log.
+
+### Storage refuses to boot with an office adapter
+
+If startup reports that `storage=office` cannot use `sem_list=mock`, copy or implement `back_dev_home/sem_list/providers/office.py` and restart, or set `SKEWNONO_STORAGE_PROVIDER=mock` as a rollback. The validator prevents a silent empty storage join caused by different roster universes.
 
 ### Office feature returns JSON 502 or 503
 
@@ -199,11 +219,11 @@ The chat egress guard rejected `CHAT_BASE_URL` because its host matches a built-
 
 ### Measurement images fail or receive 429
 
-All endpoints named `msr_image.*` are limiter-exempt. A `400 invalid_tool_ip` points to an invalid IPv4 address or `SKEWNONO_TOOL_SUBNETS` mismatch; unsafe class, MSR, and image-name path segments are also rejected before FTP access. `429 too_many_jobs` means the configured active-job cap was reached. The tracked office adapter selects the HTTP-proxy downloader on Windows and direct FTP elsewhere, but real office operation still requires an ignored `msr_image/providers/office.py`, a distinct MinIO cache prefix, and representative source verification. Gallery polling exposes whole-job listing errors separately from per-file failures; TIFF originals intentionally render as download links. Keep the external Airflow cache sweep's retention equal to `IMAGE_CACHE_TTL_HOURS` (168 hours by default); changing only the app window defeats the sweep's role as an app-downtime safety net.
+All endpoints named `msr_image.*` are limiter-exempt. A `400 invalid_tool_ip` points to an invalid IPv4 address or `SKEWNONO_TOOL_SUBNETS` mismatch; unsafe class, MSR, and image-name path segments are also rejected before FTP access. `429 too_many_jobs` means the configured active-job cap was reached. The tracked office adapter selects the HTTP-proxy downloader on Windows and direct FTP elsewhere, but real office operation still requires an ignored `msr_image/providers/office.py`, a distinct MinIO cache prefix, and representative source verification. Display URLs add `preview=1` for inline TIFF-to-WebP rendering while original-download URLs omit it; conversion failure falls back to original bytes. Original bytes and previews use separate cache keys, and only successful actual WebP conversions are cached as previews. Keep the external Airflow cache sweep equal to `IMAGE_CACHE_TTL_HOURS` (72 hours by default); changing only the app window defeats its app-downtime safety role. Run `scripts/measure_msr_image_ftp.py` before changing `_SECONDS_PER_IMAGE` or proxy-timeout assumptions; its login, transfer, fan-out, and optional MinIO PUT measurements are still `OFFICE-VERIFY`, not certified defaults.
 
 ### Rate limits or local state behave inconsistently across workers
 
-The application-wide limiter uses shared Redis in office mode when `REDIS_HOST` is configured, with bounded connection timeouts and a per-process memory fallback; home or unconfigured runs use `memory://`. A fallback event restores availability but makes rate budgets worker-local again, so diagnose Redis before trusting enforcement totals. Measurement-image jobs independently use Redis only when the selected provider is office and `REDIS_HOST` is configured; otherwise they use process memory. Multi-worker office deployment therefore needs Redis to prevent valid polls reaching another worker as `404 unknown_job`. Job TTL and maximum-active settings are enforced, although Redis admission is a soft cross-worker guard rather than a fully atomic global cap. The app starts one idempotent image-cache purge scheduler per process.
+The application-wide limiter uses shared Redis in office mode when `REDIS_HOST` is configured, with bounded connection timeouts and a per-process memory fallback; home or unconfigured runs use `memory://`. A fallback event restores availability but makes rate budgets worker-local again, so diagnose Redis before trusting enforcement totals. Measurement-image jobs independently use Redis only when the selected provider is office and `REDIS_HOST` is configured; otherwise they use process memory. Multi-worker office deployment therefore needs Redis to prevent valid polls reaching another worker as `404 unknown_job`. Job TTL and maximum-active settings are enforced, although Redis admission is a soft cross-worker guard rather than a fully atomic global cap. Scheduled maintenance is registered only by the elected shared scheduler process; office task locks protect against overlap during worker recycling.
 
 ### Icons disappear in the office network
 

@@ -1,7 +1,7 @@
 ---
 type: Domain Guide
 title: Product and Metrology Concepts
-description: Canonical engineering summary of SKEWNONO metrology language, Device Statistics rules, Skewvoir review semantics, CD-SEM Mag/Pixel setup constraints, AFM analysis, and cross-cutting product surfaces.
+description: Canonical engineering summary of SKEWNONO metrology language, FAB and recipe identity, equipment analytics, Device Statistics rules, Skewvoir review semantics, Mag/Pixel setup, AFM, and chat.
 resource: CONTEXT.md
 tags: [domain, metrology, device-statistics, skewvoir, afm]
 ---
@@ -36,6 +36,18 @@ A **lot health signal** rolls recipe violations into green/yellow/red using edit
 
 This domain [depends on stable provider contracts](../architecture/overview.md#provider-seam-and-contracts) because office migration must preserve the parameter-level evidence required by the rule engine.
 
+## Equipment identity and tool families
+
+The SEM-list is the roster of record. `eqp_id` is a lookup key, not a tool-family classifier: `_tool_specs.py` classifies model-code series prefixes into four canonical families—`cdsem`/`cd-sem`, `hvsem`/`hv-sem`, `veritysem`/`veritysem`, and `provision`/`provision`. The canonical VeritySEM product and route spelling is `veritysem`; `verity_sem` remains only as a historical activity label. CD/HV-only routes reject AMAT slugs rather than fabricating rows.
+
+This identity model [drives the Tool Roster workflow](../workflows/key-workflows.md#tool-roster-and-firewall-requests) and [supports storage's SEM-list join](../integrations/integration-points.md#sem-list-redis-adapter).
+
+## Equipment analytics
+
+Recipe TAT and fail issue compare equipment only after accounting for each tool's recipe mix. Recipe TAT's **TAT index** is actual total TAT divided by expected TAT for that tool's recipe mix; too few executions produce `null`, meaning unevaluated. **Measurement occupancy** is time occupied by measurements, not MES uptime. Fail issue independently computes observed/expected **Align** and **Meas** indices; one execution may contribute to both. Each fail index is all-or-nothing with a Byar 95% interval, and insufficient expected failures make the index and interval `null` rather than healthy.
+
+Equipment badges combine absolute and peer-relative evidence. Fail badges additionally require the confidence interval to lie wholly above or below expected. When returned equipment spans multiple FABs, peer badges are suppressed because the mixed peer group is confounded. These concepts [surface through the equipment analytics workflow](../workflows/key-workflows.md#recipe-tat-and-fail-issue-equipment-analytics); exact fields and thresholds live in `docs/api-contracts/recipe-tat.yaml`, `docs/api-contracts/fail-issue.yaml`, and the feature `MIGRATION.md` files.
+
 ## Skewvoir review model
 
 A **review candidate** is one MSR measurement execution. A questionable parameter, site, image, or equipment condition is **review evidence**, not a separate top-level candidate.
@@ -68,9 +80,20 @@ The integrated AFM area organizes measurements by tool and file, then exposes po
 
 ## Chat and cross-cutting administration
 
-The chat surface stores per-user threads and forwards conversation history to an OpenAI-compatible completion endpoint. It currently is ordinary conversational completion; repository plans for retrieval and tool calling are future design, not active runtime behavior.
+The chat surface stores per-user threads and supports either direct OpenAI-compatible completion or a bounded retrieval agent. Agent mode exposes only configured, available read-only manual, meeting, email, and report tools; scope classification may refuse unsupported requests or send only the supported portion. Synthetic retrieval is implemented, but office knowledge retrieval, authoritative group/FAB scope resolution, and office thread storage remain separate activation work. The [chat workflow](../workflows/key-workflows.md#chat) and [LLM integration](../integrations/integration-points.md#llm-gateway-and-retrieval-runtime) define those boundaries.
 
 Access control, activity analytics, API tokens, and admin logs are shared operational domains. Authentication [secures the runtime](../architecture/overview.md#identity-authorization-and-observability); token calls are visible in logs but excluded from human usage scoring. These workflows rely on provider-backed persistence and observability described in [integration points](../integrations/integration-points.md).
+
+## Change guardrails
+
+- Keep lot as the Device Statistics outer axis and fab as its closed scope.
+- Do not collapse raw parameters back into point-count bins for rule evaluation.
+- Keep official cohorts immutable from exploratory selection controls.
+- Call insufficient evidence “unevaluated”; do not imply normality.
+- Treat MSR as the review unit and lower-level signals as evidence.
+- Preserve URL-state semantics for shared analytical artifacts.
+- Verify changes against `CONTEXT.md`, relevant ADRs, API contracts, and [testing guidance](../testing/guidance.md).
+ [secures the runtime](../architecture/overview.md#identity-authorization-and-observability); token calls are visible in logs but excluded from human usage scoring. These workflows rely on provider-backed persistence and observability described in [integration points](../integrations/integration-points.md).
 
 ## Change guardrails
 
