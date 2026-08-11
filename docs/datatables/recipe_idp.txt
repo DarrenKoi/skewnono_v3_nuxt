@@ -126,7 +126,7 @@ Coordinate_X -> float64: chip 기준 X 좌표
 Coordinate_Y -> float64: chip 기준 Y 좌표
 P_No -> int64: point 번호
 D_No -> int64: d-number(detail point) 번호
-Diff -> bool: differential 측정 여부
+Diff -> str 이지만 API bool: differential 측정 여부 (`"0"` 확인 2026-08-11)
 Rel -> bool: relative move 적용 여부
 Rel_MoveX -> float64: relative move X offset
 Rel_MoveY -> float64: relative move Y offset
@@ -150,8 +150,17 @@ img_meas2 -> int64: **P_No 와 같은 값** (user-confirmed 2026-07-27)
 
   그래서 office adapter 의 `_records` 는 이제 contracts.py 가 선언한 타입으로
   **변환**합니다(신뢰하지 않습니다). 변환 불가한 값은 None 이 되고 (table,
-  column) 당 warning 한 줄이 남습니다. bool 만은 문자열에서 추론하지 않습니다 —
-  `bool("False")` 가 True 라서, 틀린 값을 넣느니 비우는 편이 낫습니다.
+  column) 당 warning 한 줄이 남습니다. bool 문자열은 임의로 추론하지
+  않지만, 파서가 쓰는 정확한 이진 sentinel `"0"` / `"1"` 만 False / True 로
+  변환합니다. `bool("False")` 가 True 라서 `"False"` 같은 단어는 여전히
+  비우고 warning 을 남깁니다.
+
+  OFFICE-CONFIRMED 2026-08-11: `wafer_mp_info.Diff` 의 원본 cell 이 문자열
+  `"0"`으로 왔습니다. API adapter 는 이 이진 sentinel 을 False 로 변환하고,
+  화면이 사용하는 bool contract 를 그대로 유지합니다. 대응하는 `"1"` -> True
+  변환도 지원하지만,
+  `"1"`이 실제 cell 에서 확인된 것은 아니므로 OFFICE-VERIFY 입니다. `Rel`의
+  실제 문자열 표현도 아직 OFFICE-VERIFY 입니다.
 
   이 사고가 어떻게 드러났는지 기록해 둡니다. 응답은 200 이었고 백엔드는 아무
   것도 로그하지 않았습니다. 브라우저에서 `.toFixed(3)` 가

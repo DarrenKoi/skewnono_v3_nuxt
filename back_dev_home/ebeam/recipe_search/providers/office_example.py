@@ -48,7 +48,7 @@ the same one lateral check makes. Only on the meas_hist path is it avoidable,
 because there the measurement row already names the tool that ran the recipe,
 so the host it must be readable from is the host we just proved ran it.
 
-Column names *and dtypes* are the contract, not a convenience — see
+Column names and response types are the contract, not a convenience — see
 ``docs/datatables/recipe_idp.txt``, which is the schema of record for all three
 tables and for this module's three known traps: ``wafer_align_info`` uses
 dot-columns (``Chip.X``, ``P.No``); ``img_meas2`` means different things in
@@ -56,10 +56,11 @@ dot-columns (``Chip.X``, ``P.No``); ``img_meas2`` means different things in
 ``idp_image_info``'s ``Addressing``, ``Mother_Para`` and ``dnumber_removed``
 are ``bool`` (office 확인 2026-07-28) — until then they were documented as a
 ``"Yes"``/``"No"`` string, a parameter name and an int64 count, and the screen
-was built on all three guesses. ``_scalar`` below turns the parser's
-``numpy.bool_`` into a Python ``bool``, so no coercion belongs here: if the
-parser's shape ever changes, it should break loudly rather than be normalised
-into plausible-looking wrong data.
+was built on all three guesses. The parser's dtypes are not reliable, so
+``_scalar`` and ``_coerce`` normalize cells to the response contract. Exact
+binary text sentinels (``"0"``/``"1"``) are accepted for booleans; ambiguous
+words such as ``"False"`` are rejected and logged rather than interpreted via
+Python truthiness.
 
 WRITING THIS AT HOME: ``office_utils`` exists only on office machines, so a
 gitignored stand-in of the same name sits at the repo root matching its
@@ -1162,9 +1163,10 @@ def _coerce(value: Any, declared: Any, table: str, column: str, seen: set) -> An
     because a 4000-row frame with one bad column would otherwise write 4000
     identical warnings.
 
-    ``bool`` is deliberately NOT inferred from text: ``bool("False")`` is
-    True, and those three flags colour the screen. An unrecognised bool is
-    dropped like any other unconvertible value.
+    ``bool`` is deliberately NOT inferred from arbitrary text: ``bool("False")``
+    is True, and those flags colour the screen. The parser's exact binary text
+    sentinels ``"0"`` and ``"1"`` are unambiguous and normalized explicitly;
+    any other non-bool value is dropped like an unconvertible value.
     """
     if value is None or declared not in (int, float, bool, str):
         return value
@@ -1173,6 +1175,8 @@ def _coerce(value: Any, declared: Any, table: str, column: str, seen: set) -> An
         # satisfy the int branch and pass silently into a numeric column.
         return value if declared is bool else _coerce_fail(table, column, value, seen)
     if declared is bool:
+        if isinstance(value, str) and value in ("0", "1"):
+            return value == "1"
         return _coerce_fail(table, column, value, seen)
     if declared is str:
         return value if isinstance(value, str) else str(value)

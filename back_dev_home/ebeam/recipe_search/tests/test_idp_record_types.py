@@ -145,8 +145,30 @@ def test_one_log_line_per_column_not_per_row():
     assert len(coordinate_warnings) == 1
 
 
-def test_bools_are_not_inferred_from_strings():
-    """`bool("False")` is True — the one coercion that must NOT be attempted.
+def test_binary_string_bool_values_become_bools():
+    """Exact binary text sentinels have an unambiguous bool meaning.
+
+    The exact office failure was Diff="0" on 2026-08-11.  Keeping both binary
+    values in one row proves the normalization is semantic, not a one-off
+    special case that merely suppresses that warning.
+    """
+    frame = pd.DataFrame([{
+        "ChipNo_X": 1, "ChipNo_Y": 2, "Coordinate_X": 1.5, "Coordinate_Y": 2.5,
+        "P_No": 3, "D_No": -1, "Diff": "0", "Rel": "1",
+        "Rel_MoveX": 0.1, "Rel_MoveY": 0.2, "Coordinate_X_r": 1.6,
+        "Coordinate_Y_r": 2.7, "Parameter": "CD1", "img_meas2": 3,
+    }])
+
+    rows = office_example._records(
+        frame, WaferMpInfoRow.__annotations__, "wafer_mp_info"
+    )
+
+    assert rows[0]["Diff"] is False
+    assert rows[0]["Rel"] is True
+
+
+def test_bool_words_are_not_inferred_from_strings():
+    """`bool("False")` is True — ambiguous words must NOT use truthiness.
 
     idp_image_info's three flags drive colour on screen. Turning the string
     "False" into True would be worse than leaving the field alone, so an
