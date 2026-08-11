@@ -13,9 +13,9 @@
         />
         <span class="font-mono font-semibold text-(--sk-ink)">{{ row.eqp_id }}</span>
         <span class="text-(--sk-ink-muted)">
-          {{ row.exec_count.toLocaleString() }} runs ·
-          {{ chipFailCount(row).toLocaleString() }} fails ·
-          {{ formatRate(chipFailRate(row)) }}
+          측정 {{ row.exec_count.toLocaleString() }} ·
+          레시피 {{ row.recipe_count }} ·
+          실패 {{ chipFailCount(row).toLocaleString() }}
         </span>
       </span>
     </div>
@@ -101,15 +101,6 @@
                 @click="copyMatrix"
               />
             </UTooltip>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-download"
-              label="CSV"
-              :disabled="sortedRecipes.length === 0"
-              @click="downloadMatrixCsv"
-            />
           </div>
         </div>
 
@@ -154,12 +145,12 @@ import type { TableColumn } from '@nuxt/ui'
 import {
   formatRate,
   useFailIssueApi,
+  type FailIssueEquipmentCompareResponse,
   type FailIssueEquipmentRecipeRow,
   type FailIssueEquipmentRow,
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
-import { todayStamp } from '~/utils/dateTime'
+import { copyTableToClipboard } from '~/utils/csvDownload'
 
 const props = defineProps<{
   toolType: FailIssueToolType
@@ -168,6 +159,13 @@ const props = defineProps<{
   eqpIds: string[]
   rows: FailIssueEquipmentRow[]
   section: 'align' | 'meas'
+}>()
+
+// 통합 워크북은 플릿 행(부모가 가짐)과 이 응답을 한 파일에 담아야 합니다.
+// 부모가 캐시 키를 다시 조립해 훔쳐보는 대신 올려보냅니다 — 키 문자열이 두
+// 곳에 살면 한쪽이 바뀔 때 조용히 빈 시트가 나옵니다.
+const emit = defineEmits<{
+  loaded: [FailIssueEquipmentCompareResponse | null]
 }>()
 
 const { fetchEquipmentCompare } = useFailIssueApi()
@@ -195,8 +193,6 @@ const chartType = ref<ChartType>('line')
 
 const chipFailCount = (row: FailIssueEquipmentRow) =>
   props.section === 'align' ? row.align_fail_count : row.meas_fail_count
-const chipFailRate = (row: FailIssueEquipmentRow) =>
-  props.section === 'align' ? row.align_fail_rate : row.meas_fail_rate
 
 // 칩 점 색과 트렌드 라인 색이 같은 eqp_id에 대해 어긋나지 않도록 하나의
 // 인덱스에서만 파생시킵니다. eqpIds(요청 순서)가 정준입니다 — API가 이
@@ -229,6 +225,8 @@ const { data, status } = await useAsyncData(
   () => fetchEquipmentCompare(queryParams.value),
   { watch: [cacheKey] }
 )
+
+watch(data, value => emit('loaded', value ?? null), { immediate: true })
 
 const trends = computed(() => data.value?.trends ?? [])
 const recipes = computed(() => data.value?.recipes ?? [])
@@ -358,7 +356,7 @@ const columns = computed<TableColumn<FailIssueEquipmentRecipeRow>[]>(() => [
 
 // 매트릭스 내보내기
 
-// 화면은 한 칸에 "fail/exec (비율)"을 합쳐 보여주지만, CSV는 장비마다 세 열로
+// 화면은 한 칸에 "fail/exec (비율)"을 합쳐 보여주지만, 복사는 장비마다 세 열로
 // 풉니다 — 합쳐진 문자열은 스프레드시트에서 다시 쪼개야 하는 값입니다.
 // 축(align/meas)은 화면과 같은 것만 냅니다.
 const matrixTable = () => {
@@ -389,18 +387,7 @@ const matrixTable = () => {
   }
 }
 
-const exportFileName = computed(() => {
-  const fab = (props.fabs.join('+') || 'all').toLowerCase()
-  return `${props.toolType}-${fab}-fail-issue-equipment-compare`
-    + `-${props.section}-${todayStamp()}.csv`
-})
-
 const toast = useToast()
-
-const downloadMatrixCsv = () => {
-  const { headers, data: rows } = matrixTable()
-  downloadCsv(exportFileName.value, headers, rows)
-}
 
 const copyMatrix = async () => {
   const { headers, data: rows } = matrixTable()

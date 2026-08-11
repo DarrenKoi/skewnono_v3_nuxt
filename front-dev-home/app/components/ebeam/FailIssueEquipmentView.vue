@@ -14,13 +14,11 @@
     <template v-else>
       <EbeamFailIssueFleetTable
         :rows="equipmentRows"
-        :percentiles="percentiles"
-        :peer-group-comparable="peerGroupComparable"
         :selected="selected"
         :max-selected="MAX_COMPARE_EQPS"
         :section="section"
         @update:selected="selected = $event"
-        @download="downloadFleetCsv"
+        @download="downloadFleetExcel"
         @copy="copyFleetTable"
       />
 
@@ -32,6 +30,7 @@
         :eqp-ids="selected"
         :rows="selectedRows"
         :section="section"
+        @loaded="comparePayload = $event"
       />
       <div
         v-else
@@ -54,17 +53,15 @@
 
 <script setup lang="ts">
 import { MAX_COMPARE_EQPS } from '~/utils/analyticsLimits'
-import { isPeerGroupComparable } from '~/utils/equipmentSignals'
-import {
-  FAIL_SIGNAL_META,
-  failEquipmentSignals
-} from '~/utils/failEquipmentSignals'
 import {
   useFailIssueApi,
+  type FailIssueEquipmentCompareResponse,
   type FailIssueEquipmentRow,
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/csvDownload'
+import { buildFailEquipmentWorkbook } from '~/utils/equipmentExport'
+import { downloadWorkbook } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{
@@ -106,82 +103,55 @@ watch(cacheKey, () => {
 })
 
 const equipmentRows = computed(() => data.value?.equipments ?? [])
-const percentiles = computed(() => data.value?.fleet.percentiles ?? {})
-
-// 배지는 또래 집단이 한 fab일 때만 장비를 가리킵니다. 응답이 에코하는
-// `fab_names`가 아니라 **실제로 돌아온 행**의 fab을 세는 이유는, fab 없이
-// 조회하면 에코가 빈 목록인 채로 데이터는 전 fab을 덮기 때문입니다. 선택한
-// fab 중 한 곳에 측정이 하나도 없어 결과적으로 한 fab만 남는 경우도 행을
-// 세는 쪽이 맞습니다.
-const peerGroupComparable = computed(() => isPeerGroupComparable(equipmentRows.value))
 
 const selectedRows = computed(
   () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))
 )
+
+// 비교 패널이 올려보내는 응답. 선택이 바뀔 때마다 즉시 비웁니다 — 패널이
+// 언마운트되는 빈 선택 케이스만 비우면, A→B로 장비를 교체하는 경우(패널은
+// 계속 떠 있고 useAsyncData의 data는 새 fetch가 끝나기 전까지 이전 값을
+// 들고 있음) 새 응답이 도착하기 전까지 comparePayload가 이전 선택의
+// 시트를 그대로 물고 있다가 그 사이 Excel 버튼을 누르면 장비 시트와
+// 레시피/일별추이 시트가 서로 다른 선택을 담은 파일이 나갑니다. 여기서
+// 즉시 비우면 그 창에서 내려받은 파일은 장비 시트만 담아 진실하고, 자식이
+// 새 데이터를 emit하는 즉시 다시 채워집니다.
+const comparePayload = ref<FailIssueEquipmentCompareResponse | null>(null)
+watch(selected, () => {
+  comparePayload.value = null
+})
 
 // 내보내기 -------------------------------------------------------------------
 
 // 표와 같은 축(align/meas)만 냅니다. 응답은 두 축을 다 담고 있지만, 보고 있는
 // 탭과 다른 열이 섞여 나오면 파일만 보고는 어느 축인지 알 수 없습니다.
 // 대신 파일명과 열 이름에 축을 박습니다.
-const fleetTable = (rows: FailIssueEquipmentRow[]) => {
-  const isAlign = props.section === 'align'
-  const prefix = isAlign ? 'align' : 'meas'
-  return {
-    headers: [
-      'eqp_id', 'fab', 'model', 'exec_count',
-      `${prefix}_fail_count`, `${prefix}_fail_rate_pct`, `${prefix}_expected`,
-      `${prefix}_index`, `${prefix}_index_low`, `${prefix}_index_high`,
-      'recipe_count', 'signals'
-    ],
-    // 배지는 화면과 같은 판정을 따릅니다. 또래 집단이 섞였으면 화면에서도
-    // 비어 있으므로 CSV도 비웁니다 — 표에 없는 판정을 파일로만 내보내면
-    // 그 파일이 화면보다 더 단정적으로 읽힙니다.
-    data: rows.map((row) => {
-      const signalInput = {
-        index: isAlign ? row.align_index : row.meas_index,
-        index_low: isAlign ? row.align_index_low : row.meas_index_low,
-        index_high: isAlign ? row.align_index_high : row.meas_index_high,
-        recipe_count: row.recipe_count,
-        top_recipe_share: row.top_recipe_share
-      }
-      return [
-        row.eqp_id,
-        row.fab_name,
-        row.eqp_model_cd,
-        row.exec_count,
-        isAlign ? row.align_fail_count : row.meas_fail_count,
-        ((isAlign ? row.align_fail_rate : row.meas_fail_rate) * 100).toFixed(2),
-        (isAlign ? row.align_expected : row.meas_expected).toFixed(1),
-        signalInput.index === null ? '' : signalInput.index.toFixed(2),
-        signalInput.index_low === null ? '' : signalInput.index_low.toFixed(2),
-        signalInput.index_high === null ? '' : signalInput.index_high.toFixed(2),
-        row.recipe_count,
-        (peerGroupComparable.value
-          ? failEquipmentSignals(signalInput, percentiles.value)
-          : []
-        ).map(signal => FAIL_SIGNAL_META[signal].label).join(' | ')
-      ]
-    })
-  }
-}
+//
+// 화면·클립보드·파일이 같은 열을 쓰도록 `장비` 시트 하나에서 다 끌어옵니다.
+const equipmentSheet = (rows: FailIssueEquipmentRow[]) =>
+  buildFailEquipmentWorkbook({
+    equipments: rows, compare: null, section: props.section
+  })[0]!
 
 const exportFileName = computed(() => {
   const fab = (props.fabs.join('+') || 'all').toLowerCase()
   return `${props.toolType}-${fab}-fail-issue-equipments`
-    + `-${props.section}-${todayStamp()}.csv`
+    + `-${props.section}-${todayStamp()}.xlsx`
 })
 
 const toast = useToast()
 
-const downloadFleetCsv = (rows: FailIssueEquipmentRow[]) => {
-  const { headers, data } = fleetTable(rows)
-  downloadCsv(exportFileName.value, headers, data)
+const downloadFleetExcel = async (rows: FailIssueEquipmentRow[]) => {
+  await downloadWorkbook(exportFileName.value, buildFailEquipmentWorkbook({
+    equipments: rows,
+    compare: comparePayload.value,
+    section: props.section
+  }))
 }
 
 const copyFleetTable = async (rows: FailIssueEquipmentRow[]) => {
-  const { headers, data } = fleetTable(rows)
-  const ok = await copyTableToClipboard(headers, data)
+  const sheet = equipmentSheet(rows)
+  const ok = await copyTableToClipboard(sheet.rows[0] as string[], sheet.rows.slice(1))
   toast.add(
     ok
       ? { title: '클립보드에 복사됨', icon: 'i-lucide-check', color: 'success' }
