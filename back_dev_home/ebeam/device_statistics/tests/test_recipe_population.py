@@ -9,6 +9,7 @@ recipe-params 의 교집합이 0건이었습니다.
 
 import pytest
 
+from back_dev_home.ebeam.device_statistics.contracts import step_key
 from back_dev_home.ebeam.device_statistics.oper_order import oper_prefix
 from back_dev_home.ebeam.device_statistics.providers import office_example
 from back_dev_home.ebeam.device_statistics.providers.recipe_params import (
@@ -16,6 +17,7 @@ from back_dev_home.ebeam.device_statistics.providers.recipe_params import (
 )
 from back_dev_home.ebeam.device_statistics.providers.recipe_population import (
     POOL_RANGE,
+    SHARED_RECIPE_FIELDS,
     _JUDGE_EXEMPT_SUFFIXES,
     bucket_members,
     build_population,
@@ -149,7 +151,7 @@ def test_oper_desc_has_the_office_shape(lot_cd):
 def test_step_identity_is_unique_within_a_lot(lot_cd):
     """행의 정체성은 ``(oper_seq, samp_seq)`` — R3 문서 1건의 정체성과 같습니다."""
     population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
-    steps = [(r["oper_seq"], r["samp_seq"]) for r in population]
+    steps = [step_key(r) for r in population]
 
     assert len(steps) == len(set(steps))
 
@@ -184,16 +186,14 @@ def test_shared_recipe_steps_agree_on_recipe_fields_and_differ_on_step_fields(lo
     shared = [rows for rows in by_recipe.values() if len(rows) > 1]
     assert shared
 
-    para_fields = [
-        key for key in shared[0][0]
-        if key.startswith("para_") or key.startswith("mother_para_")
-    ]
+    # 코드가 복사하는 목록을 그대로 읽습니다 — 여기서 prefix 로 다시 세면 복사
+    # 목록이 늘거나 줄 때 검사가 조용히 어긋납니다.
     for rows in shared:
         first, *rest = rows
         for row in rest:
-            for field in para_fields:
+            for field in SHARED_RECIPE_FIELDS:
                 assert row[field] == first[field], field
-            assert (row["oper_seq"], row["samp_seq"]) != (first["oper_seq"], first["samp_seq"])
+            assert step_key(row) != step_key(first)
 
 
 def test_shared_recipe_survives_into_the_bucket_rows(trend):
@@ -213,8 +213,7 @@ def test_shared_recipe_survives_into_the_bucket_rows(trend):
     assert shared, "all 버킷에 공유 recipe 가 없으면 이 회귀가 검증되지 않습니다"
 
     for group in shared:
-        steps = {(r["oper_seq"], r["samp_seq"]) for r in group}
-        assert len(steps) == len(group)
+        assert len({step_key(r) for r in group}) == len(group)
 
 
 def test_only_normal_and_only_sample_rows_do_not_collide(trend):
@@ -227,7 +226,7 @@ def test_only_normal_and_only_sample_rows_do_not_collide(trend):
     # lot_cd 가 키에 있어야 합니다 — 이 fixture 는 lot 4개를 한 번에 담고 있어
     # (oper_seq, samp_seq) 만으로는 다른 lot 의 스텝끼리 부딪칩니다.
     def by_step(rows):
-        return {(r["lot_cd"], r["oper_seq"], r["samp_seq"]): r for r in rows}
+        return {(r["lot_cd"], *step_key(r)): r for r in rows}
 
     latest = list(trend)[-1]
     normal = by_step(trend[latest]["only_normal_rcp_info"])

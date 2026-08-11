@@ -167,10 +167,10 @@
 
                  카드 한 장 = **스텝 한 건**이므로 :key 도 스텝의 정체성이어야
                  합니다. recipe_id 는 여러 스텝이 함께 쓰는 조인 키라 키로 쓰면
-                 카드가 접혀 사라집니다 (utils/recipeStepSort.ts stepKey). -->
+                 카드가 접혀 사라집니다 (utils/recipeStepSort.ts recipeStepKey). -->
             <div
               v-for="recipe in sortedRecipes"
-              :key="stepKey(recipe)"
+              :key="recipeStepKey(recipe)"
               class="flex flex-wrap items-start gap-x-5 gap-y-3 rounded-xl bg-(--sk-surface) px-4 py-3 ring-1 ring-(--sk-border-soft)"
               :class="{ 'opacity-60': recipe.para_all === 0 }"
             >
@@ -241,7 +241,7 @@ import type { RecipeInput } from '~/utils/ruleEngine'
 import { LOT_PARAM_HEADERS, buildLotParamRows, lotParamFileName } from '~/utils/lotParamExport'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { CHIP_BASE, chipClass } from '~/utils/chipClass'
-import { sortSteps, stepKey, type RecipeSortKey } from '~/utils/recipeStepSort'
+import { sortSteps, recipeStepKey, type RecipeSortKey } from '~/utils/recipeStepSort'
 import type {
   RecipeInfoRow,
   RecipeTrendResponse,

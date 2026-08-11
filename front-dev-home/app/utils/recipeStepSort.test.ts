@@ -7,10 +7,10 @@
 // test_recipe_name_order_differs_from_process_order).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { byOperSeq, byRecipeId, sortSteps, stepComparator, stepKey } from './recipeStepSort.ts'
+import { byOperSeq, byRecipeId, recipeStepKey, sortSteps, stepComparator } from './recipeStepSort.ts'
 
 const step = (recipe_id: string, oper_seq: number, samp_seq = 1) =>
-  ({ recipe_id, oper_seq, samp_seq })
+  ({ lot_cd: 'R000', recipe_id, oper_seq, samp_seq })
 
 const ids = (rows: { recipe_id: string }[]) => rows.map(r => r.recipe_id)
 
@@ -48,20 +48,34 @@ test('이름순 동률은 oper_seq -> samp_seq 로 갈린다 — 같은 recipe �
   assert.deepEqual(sortSteps([...rows].reverse(), 'recipe'), sorted)
 })
 
-test('stepKey 는 같은 recipe 를 쓰는 두 스텝을 갈라낸다 — v-for :key 의 계약', () => {
+test('recipeStepKey 는 같은 recipe 를 쓰는 두 스텝을 갈라낸다 — v-for :key 의 계약', () => {
   // recipe_id 를 :key 로 쓰면 Vue 가 두 카드를 하나로 접어 스텝이 사라집니다
   // ("Duplicate keys found during update"). 사무실 데이터에서 실제로 났습니다.
   const shared = [step('ADI/LINE_CD', 4, 2), step('ADI/LINE_CD', 46, 5)]
-  const keys = shared.map(stepKey)
+  const keys = shared.map(recipeStepKey)
 
   assert.equal(new Set(keys).size, 2)
   assert.equal(new Set(shared.map(r => r.recipe_id)).size, 1)
 })
 
-test('stepKey 는 samp_seq 만 다른 스텝도 갈라낸다', () => {
+test('recipeStepKey 는 samp_seq 만 다른 스텝도 갈라낸다', () => {
   // R3 문서 1건이 (prod_id, oper_seq, samp_seq) 이므로 samp_seq 가 키에 있어야
   // 같은 공정의 sample 측정 두 건이 한 장으로 접히지 않습니다.
-  assert.notEqual(stepKey(step('ADI/LINE_CD', 4, 1)), stepKey(step('ADI/LINE_CD', 4, 2)))
+  assert.notEqual(recipeStepKey(step('X', 4, 1)), recipeStepKey(step('X', 4, 2)))
+})
+
+test('recipeStepKey 는 recipe_id 가 바뀌어도 같은 스텝을 같은 키로 본다', () => {
+  // M 계열 경로는 스텝 이름마다 *최신* recipe_id 를 붙이므로 같은 스텝의
+  // recipe_id 가 조회 시점에 따라 바뀝니다. 키가 그것을 따라가면 정체성이
+  // 그대로인 카드를 Vue 가 버리고 다시 만듭니다.
+  assert.equal(recipeStepKey(step('OLD/NAME', 4, 2)), recipeStepKey(step('NEW/NAME', 4, 2)))
+})
+
+test('recipeStepKey 는 lot 이 다르면 갈라진다 — 호출 범위를 가정하지 않는다', () => {
+  assert.notEqual(
+    recipeStepKey({ lot_cd: 'R000', oper_seq: 4, samp_seq: 2 }),
+    recipeStepKey({ lot_cd: 'R001', oper_seq: 4, samp_seq: 2 })
+  )
 })
 
 test('stepComparator 는 키에 맞는 비교 함수를 준다', () => {

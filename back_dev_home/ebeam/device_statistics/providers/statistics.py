@@ -107,6 +107,7 @@ from back_dev_home.ebeam.device_statistics.para_buckets import (
 from back_dev_home.ebeam.device_statistics.contracts import (
     RecipeInfoRow,
     SummaryRow,
+    step_key,
 )
 from back_dev_home.ebeam.device_statistics.providers.recipe_population import (
     RecipeIdentity,
@@ -222,16 +223,6 @@ def _to_recipe_row(
     }
 
 
-def _step_key(identity: RecipeIdentity) -> tuple[int, int]:
-    """스텝 1건의 정체성 — 실물 문서의 정체성과 같습니다.
-
-    R3 문서 1건이 (prod_id, oper_seq, samp_seq) 이므로(이 모듈 docstring),
-    한 lot 안에서는 (oper_seq, samp_seq) 가 곧 행의 정체성입니다. recipe_id 는
-    **조인 키이지 정체성이 아닙니다** — 여러 스텝이 같은 recipe 를 씁니다.
-    """
-    return identity["oper_seq"], identity["samp_seq"]
-
-
 def _to_mother_row(row: RecipeInfoRow, identity: RecipeIdentity) -> RecipeInfoRow:
     """mother_normal 버킷용 행 — 같은 recipe 인데 ``para_*`` 만 mother 기준입니다.
 
@@ -269,19 +260,18 @@ def _bucketed_recipe_rows(
     캐시 키가 recipe_id 가 **아닌** 것이 중요합니다. 한 recipe 는 여러 스텝에서
     재사용되므로(recipe_population `_apply_shared_recipes`), recipe_id 로 캐시하면
     두 스텝이 한 행으로 접혀 뒤 스텝의 oper_*·eqp_id 가 조용히 사라집니다. 행 1건의
-    정체성은 이 모듈 docstring 이 말하는 대로 스텝, 즉 ``(oper_seq, samp_seq)``
-    입니다.
+    정체성은 계약이 정의하는 ``contracts.step_key`` 입니다.
     """
     population = build_population(lot_cd, point_index, points)
     rows_by_step = {
-        _step_key(identity): _to_recipe_row(rng, identity, lot_cd, fac_id, date_key)
+        step_key(identity): _to_recipe_row(rng, identity, lot_cd, fac_id, date_key)
         for identity in population
     }
     return {
         bucket: [
-            _to_mother_row(rows_by_step[_step_key(identity)], identity)
+            _to_mother_row(rows_by_step[step_key(identity)], identity)
             if bucket == "mother_normal"
-            else rows_by_step[_step_key(identity)]
+            else rows_by_step[step_key(identity)]
             for identity in members
         ]
         for bucket, members in bucket_members(population).items()
