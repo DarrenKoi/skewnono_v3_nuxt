@@ -37,8 +37,8 @@ export interface WaferMpInfoRow {
   Coordinate_Y: number
   P_No: number
   D_No: number
-  Diff: boolean
-  Rel: boolean
+  Diff: boolean | null
+  Rel: boolean | null
   Rel_MoveX: number
   Rel_MoveY: number
   Coordinate_X_r: number
@@ -68,13 +68,13 @@ export interface IdpImageInfoRow {
   Last_SEQ: number
   Region: number
   image_add3: string
-  Addressing: boolean
+  Addressing: boolean | null
   /** True when this row's own parameter is a mother — sons measure from its image. */
-  Mother_Para: boolean
-  Double_Addressing: boolean
+  Mother_Para: boolean | null
+  Double_Addressing: boolean | null
   Meas_Counting: number
   /** True when the parameter's data is suppressed and never reaches the legacy system. */
-  dnumber_removed: boolean
+  dnumber_removed: boolean | null
 }
 
 /**

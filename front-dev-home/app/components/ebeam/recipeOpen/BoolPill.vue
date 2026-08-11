@@ -4,16 +4,19 @@
     :class="isOk
       ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
       : 'bg-(--sk-border-soft) text-(--sk-ink-subtle)'"
-  >{{ value ? 'True' : 'False' }}</span>
+  >{{ label }}</span>
 </template>
 
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
-  value: boolean
+  value: boolean | null
   okWhen?: boolean
 }>(), {
   okWhen: true
 })
 
 const isOk = computed(() => props.value === props.okWhen)
+const label = computed(() => props.value === null
+  ? '—'
+  : props.value ? 'True' : 'False')
 </script>
