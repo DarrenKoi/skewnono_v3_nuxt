@@ -103,11 +103,17 @@ const selectedRows = computed(
   () => equipmentRows.value.filter(row => selected.value.includes(row.eqp_id))
 )
 
-// 비교 패널이 올려보내는 응답. 장비 선택이 비면 패널이 언마운트되므로
-// 여기서 직접 비웁니다 — 그러지 않으면 이전 선택의 시트가 파일에 남습니다.
+// 비교 패널이 올려보내는 응답. 선택이 바뀔 때마다 즉시 비웁니다 — 패널이
+// 언마운트되는 빈 선택 케이스만 비우면, A→B로 장비를 교체하는 경우(패널은
+// 계속 떠 있고 useAsyncData의 data는 새 fetch가 끝나기 전까지 이전 값을
+// 들고 있음) 새 응답이 도착하기 전까지 comparePayload가 이전 선택의
+// 시트를 그대로 물고 있다가 그 사이 Excel 버튼을 누르면 장비 시트와
+// 레시피/일별추이 시트가 서로 다른 선택을 담은 파일이 나갑니다. 여기서
+// 즉시 비우면 그 창에서 내려받은 파일은 장비 시트만 담아 진실하고, 자식이
+// 새 데이터를 emit하는 즉시 다시 채워집니다.
 const comparePayload = ref<RecipeTatEquipmentCompareResponse | null>(null)
-watch(selected, (value) => {
-  if (value.length === 0) comparePayload.value = null
+watch(selected, () => {
+  comparePayload.value = null
 })
 
 // 내보내기 -------------------------------------------------------------------
