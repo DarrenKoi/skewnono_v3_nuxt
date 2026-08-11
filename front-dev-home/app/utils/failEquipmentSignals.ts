@@ -29,8 +29,7 @@ import { isNarrowMix } from './equipmentSignals.ts'
 // 끄는 규칙이며, 그 논거는 `./equipmentSignals.ts` 에 한 번만 적혀 있습니다.
 // 여기서 재수출하지 않습니다 — 재수출은 함수 하나에 auto-import 이름을 둘
 // 만들고, Nuxt 가 그중 하나를 조용히 고르게 만듭니다. 이 배지 정책을 쓰는
-// 화면은 `RecipeTatEquipmentView.vue` 가 하듯 `~/utils/equipmentSignals` 에서
-// 직접 가져다 씁니다.
+// 화면들은 `~/utils/equipmentSignals` 에서 직접 가져다 씁니다.
 
 export interface FailEquipmentSignalInput {
   index: number | null
