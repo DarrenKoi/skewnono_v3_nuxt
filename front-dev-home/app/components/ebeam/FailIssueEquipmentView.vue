@@ -60,7 +60,7 @@ import {
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
 import { copyTableToClipboard } from '~/utils/csvDownload'
-import { buildFailEquipmentWorkbook } from '~/utils/equipmentExport'
+import { buildFailEquipmentWorkbook, exportEquipmentRows } from '~/utils/equipmentExport'
 import { downloadWorkbook } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 
@@ -141,9 +141,14 @@ const exportFileName = computed(() => {
 
 const toast = useToast()
 
+// `rows` 는 화면에 보이는 행(검색·정렬 적용 후)입니다. 검색으로 걸러진 장비가
+// 선택돼 있으면 `장비` 시트에서만 그 행이 빠져, 한 파일 안에서 두 시트가 서로
+// 다른 장비 집합을 말하게 됩니다 — `exportEquipmentRows` 가 그 행을 뒤에
+// 덧붙입니다. 클립보드 복사는 표 하나를 그대로 옮기는 용도라 보정하지
+// 않습니다: 거기엔 어긋날 두 번째 시트가 없습니다.
 const downloadFleetExcel = async (rows: FailIssueEquipmentRow[]) => {
   await downloadWorkbook(exportFileName.value, buildFailEquipmentWorkbook({
-    equipments: rows,
+    equipments: exportEquipmentRows(rows, equipmentRows.value, selected.value),
     compare: comparePayload.value,
     section: props.section
   }))

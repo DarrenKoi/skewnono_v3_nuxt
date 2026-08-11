@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 
 import {
   buildFailEquipmentWorkbook,
-  buildTatEquipmentWorkbook
+  buildTatEquipmentWorkbook,
+  exportEquipmentRows
 } from './equipmentExport.ts'
 import type {
   FailIssueEquipmentRow,
@@ -319,4 +320,58 @@ test('장비를 고르지 않으면 fail 도 장비 시트 하나뿐이다', () 
   })
 
   assert.deepEqual(sheets.map(s => s.name), ['장비'])
+})
+
+// exec_count 0 — 파생값은 장비 시트에서도 빈 칸
+
+test('실행이 없는 장비는 평균이 0 이 아니라 빈 칸이다', () => {
+  const [sheet] = buildTatEquipmentWorkbook({
+    equipments: [equipment('TP-1203', {
+      exec_count: 0, total_meastime: 0, avg_meastime: 0, recipe_count: 0
+    })],
+    compare: null
+  })
+
+  // 실행수와 총 TAT 은 0 이 참입니다 — 정말 0 초를 돌았습니다. 평균만
+  // 정의되지 않습니다.
+  assert.deepEqual(sheet!.rows[1], ['TP-1203', 'M14', 'TP-5000', 0, 0, '', 0])
+})
+
+test('실행이 없는 장비는 실패율이 0 이 아니라 빈 칸이다', () => {
+  const [sheet] = buildFailEquipmentWorkbook({
+    equipments: [failEquipment('TP-1203', {
+      exec_count: 0, align_fail_count: 0, align_fail_rate: 0, recipe_count: 0
+    })],
+    compare: null,
+    section: 'align'
+  })
+
+  assert.deepEqual(sheet!.rows[1], ['TP-1203', 'M14', 'TP-5000', 0, 0, '', 0])
+})
+
+// exportEquipmentRows — 검색으로 걸러진 선택 장비
+
+test('검색에 걸러진 선택 장비를 장비 시트에 덧붙인다', () => {
+  const all = [equipment('TP-1203'), equipment('TP-1204'), equipment('TP-1205')]
+  const visible = [all[0]!] // "1203" 으로 검색한 상태
+
+  const rows = exportEquipmentRows(visible, all, ['TP-1203', 'TP-1204'])
+
+  // 보이는 행이 먼저, 걸러진 선택 행이 뒤. 선택되지 않은 TP-1205 는 빠집니다.
+  assert.deepEqual(rows.map(r => r.eqp_id), ['TP-1203', 'TP-1204'])
+})
+
+test('걸러진 선택이 없으면 보이는 배열을 그대로 돌려준다', () => {
+  const all = [equipment('TP-1203'), equipment('TP-1204')]
+  const visible = [all[0]!, all[1]!]
+
+  // 같은 배열 참조여야 합니다 — 매번 새 배열을 만들면 이 값을 지켜보는
+  // computed 가 이유 없이 다시 계산됩니다.
+  assert.equal(exportEquipmentRows(visible, all, ['TP-1203']), visible)
+})
+
+test('선택하지 않은 장비는 검색에 걸러져도 덧붙이지 않는다', () => {
+  const all = [equipment('TP-1203'), equipment('TP-1204')]
+
+  assert.deepEqual(exportEquipmentRows([all[0]!], all, []).map(r => r.eqp_id), ['TP-1203'])
 })

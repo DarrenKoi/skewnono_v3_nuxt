@@ -21,7 +21,34 @@ import type {
 
 // 미실행 칸의 파생값(평균·비율)은 0 이 아니라 빈 칸입니다. 0 은 "돌았는데
 // 평균이 0초"로 읽히고, 그건 이 표가 절대 말해서는 안 되는 문장입니다.
+// 이 규칙은 `레시피` 시트의 칸뿐 아니라 `장비` 시트의 행에도 적용됩니다 —
+// exec_count 가 0 인 장비의 평균·실패율도 같은 이유로 빈 칸입니다. 화면은
+// 0 을 그리지만, 화면에는 옆 칸에 실행수 0 이 함께 보이고 파일에는 그 문맥이
+// 열 하나 건너에 있습니다.
 const BLANK = ''
+
+/**
+ * 내보낼 `장비` 시트의 행.
+ *
+ * `visible` 은 화면에 보이는 행(검색·정렬 적용 후)이고, 선택된 장비 중
+ * 검색에 걸러진 것이 있으면 뒤에 덧붙입니다. 그러지 않으면 한 파일 안에서
+ * `장비` 시트는 필터를 반영하고 `레시피`·`일별추이` 시트는 선택 전체를 담아,
+ * 두 시트가 서로 다른 장비 집합을 말하게 됩니다.
+ *
+ * 순서: 보이는 행이 먼저(화면 순서 그대로), 걸러진 선택 행이 뒤. 걸러진 행을
+ * 화면 순서에 끼워 넣으면 화면과 대조할 수 없는 순서가 됩니다.
+ */
+export function exportEquipmentRows<T extends { eqp_id: string }>(
+  visible: T[],
+  all: T[],
+  selected: string[]
+): T[] {
+  const shown = new Set(visible.map(row => row.eqp_id))
+  const missing = all.filter(
+    row => selected.includes(row.eqp_id) && !shown.has(row.eqp_id)
+  )
+  return missing.length ? [...visible, ...missing] : visible
+}
 
 const EQUIPMENT_HEADERS = [
   'eqp_id', 'fab', 'model', 'exec_count',
@@ -48,7 +75,7 @@ export function buildTatEquipmentWorkbook(
         row.eqp_model_cd,
         row.exec_count,
         row.total_meastime,
-        row.avg_meastime,
+        row.exec_count === 0 ? BLANK : row.avg_meastime,
         row.recipe_count
       ])
     ]
@@ -142,7 +169,9 @@ export function buildFailEquipmentWorkbook(
         row.eqp_model_cd,
         row.exec_count,
         isAlign ? row.align_fail_count : row.meas_fail_count,
-        asPercent(isAlign ? row.align_fail_rate : row.meas_fail_rate),
+        row.exec_count === 0
+          ? BLANK
+          : asPercent(isAlign ? row.align_fail_rate : row.meas_fail_rate),
         row.recipe_count
       ])
     ]
