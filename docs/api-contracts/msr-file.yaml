@@ -190,7 +190,7 @@ endpoints:
     example_request: "GET /api/msr-file?msr=MSR123&class_name=ADI&total_images=40"
   - path: /api/msr-files
     method: POST
-    description: Batch sibling of /msr-file. The AnalyzePanel multi-selects MSRs; one request per MSR trips the 20-req/5s rate limit, so the whole selection collapses into ONE request. Not-found MSRs are silently skipped; results preserve request order.
+    description: Batch sibling of /msr-file. The AnalyzePanel multi-selects MSRs; one request per MSR can exhaust the 50-req/5s rate limit, so the whole selection collapses into ONE request. Not-found MSRs are silently skipped; results preserve request order.
     request_body:
       items:
         type: array

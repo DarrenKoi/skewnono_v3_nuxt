@@ -21,7 +21,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const { identity, isAnonymous, refresh } = useIdentity()
 
-  // One fetch per session, not per navigation: /api/* allows 20 requests per
+  // One fetch per session, not per navigation: /api/* allows 50 requests per
   // 5 seconds and this runs on every route change.
   if (identity.value === null) await refresh()
 

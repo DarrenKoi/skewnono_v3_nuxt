@@ -4,7 +4,7 @@
  * One `useState` cell shared by the route middleware, the identify page and
  * anything greeting the user by name. The middleware runs on every navigation,
  * so a per-caller fetch would put a request in front of each one — and `/api/*`
- * is rate-limited to 20 requests per 5 seconds.
+ * is rate-limited to 50 requests per 5 seconds.
  *
  * Deliberately NOT persisted. The identity's real home is the Flask session
  * cookie; a localStorage copy could disagree with it after the session expires

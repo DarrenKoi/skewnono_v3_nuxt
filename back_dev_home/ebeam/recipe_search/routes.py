@@ -33,10 +33,9 @@ from back_dev_home.msr_image.preview import preview_bytes, wants_preview
 bp = Blueprint("recipe_search", __name__)
 
 # Compare fans one parameter out across every selected recipe, so the
-# param-detail body is a LIST. As N separate GETs this would trip the
-# 20 requests / 5 s per-user limit on /api/* the moment a user compared more
-# than a handful of recipes; as one POST it is one request. Same cap the
-# compare endpoint already applies.
+# param-detail body is a LIST. As N separate GETs a large comparison could
+# exhaust the shared 50 requests / 5 s per-user budget on /api/*; as one POST
+# it is one request. Same cap the compare endpoint already applies.
 #
 # One name, one value: param-info builds items against the same ceiling, and a
 # second literal here would let the two drift.

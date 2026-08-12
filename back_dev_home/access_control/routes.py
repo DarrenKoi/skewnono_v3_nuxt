@@ -26,7 +26,7 @@ def _store_unavailable_503(action: str):
 
 
 # One combined read: the admin page needs all three at once, and separate
-# calls would eat into the 20-req/5s per-user rate budget.
+# calls would eat into the 50-req/5s per-user rate budget.
 @bp.get("/admin/access")
 @require_admin
 def access_overview():

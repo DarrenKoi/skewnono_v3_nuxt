@@ -1021,8 +1021,8 @@ def get_param_detail(
     """Settings and image names for each requested (recipe, parameter).
 
     List-shaped because compare fans out across recipes and ``/api/*`` allows
-    only 20 requests per 5 s per user — as N separate calls a 20-recipe compare
-    would trip the limit on the first cell a user looked at.
+    only 50 requests per 5 s per user — as N separate calls a large comparison
+    could exhaust the shared budget on the first cell a user looked at.
     """
     stage_of = {slot["key"]: slot["stage"] for slot in IMAGE_SLOTS}
     out: list[ParamDetailResponse] = []

@@ -136,8 +136,8 @@ export interface ParamDetailRequestItem {
  * Fetch settings for one or more (recipe, parameter) pairs in ONE request.
  *
  * List-shaped because compare fans one parameter out across every selected
- * recipe, and `/api/*` allows 20 requests per 5 s per user — as N separate GETs
- * a 20-recipe compare would trip the limit on the first cell a user looked at.
+ * recipe, and `/api/*` allows 50 requests per 5 s per user — as N separate GETs
+ * a large comparison could exhaust the shared budget on its first cell.
  */
 export function fetchParamDetails(
   toolSlug: string,

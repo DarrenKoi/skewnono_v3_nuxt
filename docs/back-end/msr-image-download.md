@@ -223,14 +223,14 @@ def download_msr(base, token, row, out_dir, *, ext=None) -> tuple[int, int]:
 
 ## 10. rate limit
 
-`/api/*`는 사용자당 **20 요청 / 5초**의 앱 전체 공유 예산을 가지지만,
+`/api/*`는 사용자당 **50 요청 / 5초**의 앱 전체 공유 예산을 가지지만,
 `msr_image` 블루프린트(`/api/msr-images`, `/api/msr-image`,
 `/api/msr-images/<job_id>`)는 이 예산에서 **면제**되어 있습니다. 갤러리
 UI가 이미지 하나마다 GET을 날리는 흐름을 그대로 지원하기 위한 조치이며,
 스크립트로 수십~수백 개의 이미지를 받아도 이 예산과는 무관합니다.
 
 예산을 실제로 소비하는 것은 4단계 흐름의 **1번, `/api/meas-hist/search`
-뿐**입니다. 검색을 반복 호출하는 루프를 짤 때만 20 req/5s를 신경 쓰면
+뿐**입니다. 검색을 반복 호출하는 루프를 짤 때만 50 req/5s를 신경 쓰면
 됩니다. 이 면제는 회귀 테스트로 고정되어 있습니다
 (`tests/test_rate_limit.py:61`,
 `test_msr_image_stays_exempt_from_the_application_budget`).

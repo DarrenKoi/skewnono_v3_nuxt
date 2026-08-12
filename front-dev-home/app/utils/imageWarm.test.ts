@@ -160,8 +160,8 @@ test('jitter stays inside +/-25% and moves with rand', () => {
 const jobGone = { statusCode: 404, data: { code: 'unknown_job' } }
 
 test('a rate-limited poll keeps waiting instead of releasing the panel', () => {
-  // 600ms polling plus the gallery's image GETs can reach the /api/* 20 req/5s
-  // limit. The job is still running; the answer is to ask again, not to storm.
+  // A generic/proxy 429 says nothing about the already-running job. The answer
+  // is to ask again, not to release every held image into a cold-fetch storm.
   assert.equal(pollRetryDelayMs(rateLimited, 0, 0, 0.5), WARM_RETRY_DELAYS_MS[0])
 })
 

@@ -75,12 +75,12 @@ export const warmErrorCode = (err: unknown): string | undefined =>
  * that clears on its own, and so the one worth waiting out?
  *
  * BOTH axes are required, and each rules out a different impostor. Status
- * alone is not enough: `/api/*` has an application-wide 20 req/5s limit that
- * also answers 429, and warm polling at 600ms can reach it, but retrying THAT
- * has a throttled client send more. The code alone is not enough either, by
- * the same argument read backwards — a code is only as specific as the paths
- * that emit it, and nothing stops a future 5xx from carrying this one. Today
- * only routes.py's job-cap branch does, and it is a 429. */
+ * alone is not enough: a reverse proxy or another throttle can also answer
+ * 429, and retrying THAT has a throttled client send more. The code alone is
+ * not enough either, by the same argument read backwards — a code is only as
+ * specific as the paths that emit it, and nothing stops a future 5xx from
+ * carrying this one. Today only routes.py's job-cap branch does, and it is a
+ * 429. */
 export const isWarmRefusal = (err: unknown): boolean =>
   httpStatus(err) === 429 && warmErrorCode(err) === 'too_many_jobs'
 
@@ -140,9 +140,8 @@ const isJobGone = (err: unknown): boolean =>
  *
  * The mirror image of the POST policy, and deliberately so: by the time we are
  * polling, the job EXISTS and is already reading the tool on our behalf. A
- * rate-limit 429 (600ms polling plus the gallery's image GETs can reach the
- * /api/* 20 req/5s limit) or a momentary proxy error says nothing about that
- * job. Giving up there releases every held <img> into unbudgeted cold GETs at
+ * generic throttle/proxy 429 or a momentary proxy error says nothing about
+ * that job. Giving up there releases every held <img> into unbudgeted cold GETs at
  * the one moment the tool is provably busy — the amplifier this whole feature
  * exists to remove, re-entered through a different door.
  *

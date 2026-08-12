@@ -108,7 +108,7 @@ provider to parse it.
   (`@require_admin`). One combined read — `data.list_exceptions()` +
   `data.list_denied()` + the `BLOCKED_PREFIX` constant — because the admin
   page needs all three at once and separate calls would eat into the
-  20-req/5s per-user rate budget.
+  50-req/5s per-user rate budget.
 - Contract: `AccessOverviewResponse` (the wire shape `routes.py` builds;
   `contracts.py` also models the two list rows and the rule block
   separately since the contract test checks `list_exceptions`/

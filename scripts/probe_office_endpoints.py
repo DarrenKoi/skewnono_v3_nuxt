@@ -39,7 +39,7 @@ and export it, the same way the documented Python snippet expects:
     set SKEWNONO_TOKEN=skn_...        # cmd
     export SKEWNONO_TOKEN=skn_...     # bash
 
-Rate limit is 20 per 5 seconds per user (back_dev_home/__init__.py). This
+Rate limit is 50 per 5 seconds per user (back_dev_home/__init__.py). This
 script sleeps just over 5s between the auth probe and the sweep and paces
 the sweep itself so its own burst cannot 429 itself. A 429 is still retried
 once with backoff, because a real user hitting the app at the same time is
@@ -240,7 +240,7 @@ def _fetch_with_retry(requests: Any, url: str, *, token: str | None,
                       timeout: float, attempts: int = 2) -> Any:
     """One request, retrying only 429. Other statuses return to the caller.
 
-    429 is the rate limit the app documents (20 per 5 seconds per user). This
+    429 is the rate limit the app documents (50 per 5 seconds per user). This
     script paces itself, but a concurrent browser session at the office can
     still exhaust the shared budget; one retry with backoff covers that
     without masking a real problem (5xx, 401, 404 are not retried).
@@ -493,7 +493,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--pace", type=float, default=0.3,
         help="seconds between catalog requests (default 0.3, to stay under "
-             "the 20-per-5s rate limit)",
+             "the 50-per-5s rate limit)",
     )
     parser.add_argument(
         "--admin", action="store_true",

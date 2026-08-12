@@ -365,7 +365,7 @@ const recipeRowsForBucket = computed<RecipeInfoRow[]>(() => {
 //
 // watch 대상이 문자열인 것이 중요합니다. computed 가 배열을 돌려주면 매번 새
 // identity 라 useAsyncData 의 Object.is 비교가 항상 달라지고, bucket 을 누를
-// 때마다 fab 6개 룰을 전부 다시 받습니다 (/api 는 20 req / 5 s 제한).
+// 때마다 fab 6개 룰을 전부 다시 받습니다 (/api 는 50 req / 5 s 제한).
 const selectedFabKey = computed(() =>
   [...new Set(rows.value.map(r => r.fac_id))].sort().join(',')
 )

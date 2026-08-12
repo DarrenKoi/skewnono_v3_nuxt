@@ -199,7 +199,7 @@ export const useMsrFileApi = () => {
   }
 
   // Fetch a whole selection in ONE request via the batch endpoint. This replaces
-  // the old per-MSR fan-out that tripped the 20-req/5s rate limit and left the
+  // the old per-MSR fan-out that tripped the 50-req/5s rate limit and left the
   // panel stuck loading; a 200-MSR pick is now a single rate-limit slot.
   // The backend skips not-found MSRs, so we re-key by `msr` and preserve the
   // requested order.

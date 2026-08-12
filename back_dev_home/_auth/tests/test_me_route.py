@@ -2,7 +2,7 @@
 
 It answers three separate questions in one round trip — who am I, may I see
 admin surfaces, and what is my name — because the alternative is three requests
-against a 20-per-5s rate limit on the first paint of every page.
+against the shared 50-per-5s rate limit on the first paint of every page.
 """
 
 import json

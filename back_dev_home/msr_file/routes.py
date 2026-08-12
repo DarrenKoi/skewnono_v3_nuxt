@@ -33,7 +33,7 @@ def msr_files_bulk():
     """Batch sibling of /msr-file.
 
     The skewvoir AnalyzePanel multi-selects MSRs; one request per MSR trips the
-    per-user rate limit (20/5s in back_dev_home/__init__.py) and leaves the panel
+    per-user rate limit (50/5s in back_dev_home/__init__.py) and leaves the panel
     stuck "loading". Collapsing the whole selection into a single request makes a
     200-MSR pick cost ONE rate-limit slot instead of 200.
 

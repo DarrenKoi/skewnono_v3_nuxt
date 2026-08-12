@@ -20,7 +20,7 @@ from ._runtime.env import is_cloud
 
 def _rate_limit_key() -> str:
     # Every cookie-less cloud caller shares the literal `anonymous` id, so
-    # keying on it would pool the whole fab into ONE 20-req budget the day a
+    # keying on it would pool the whole fab into ONE 50-req budget the day a
     # proxy config strips LASTUSER — turning that quiet misconfiguration into
     # a site-wide 429 storm. Those callers get per-address buckets instead
     # (real addresses once SKEWNONO_TRUST_PROXY is on behind nginx).
@@ -34,7 +34,7 @@ def _rate_limit_storage() -> dict:
     """Limiter storage kwargs: in-process at home, shared Redis at the office.
 
     memory:// counters are per-process, which under Phase 3's multi-worker
-    uwsgi turns "20 per 5 seconds" into "20 per worker, nondeterministically"
+    uwsgi turns "50 per 5 seconds" into "50 per worker, nondeterministically"
     — and lets a client rotating cookie values mint a fresh bucket per worker
     it happens to hit. Office mode points the limiter at the Redis the
     adapters already use; an unreachable Redis degrades to the per-worker
@@ -61,18 +61,18 @@ def _install_rate_limit(app: Flask) -> None:
     from flask_limiter import Limiter
 
     # 5/5s was so tight that any page mounting 2+ composables + a user pill
-    # click would 429. 20/5s still catches runaway loops but tolerates
+    # click would 429. 50/5s still catches runaway loops but tolerates
     # normal interactive navigation.
     #
     # application_limits, not default_limits: one budget per user shared
     # across ALL /api routes, which is the contract CLAUDE.md documents.
-    # default_limits would give each route its own 20/5s window — a runaway
-    # loop rotating across N endpoints would run at N×20 req/5s and never
+    # default_limits would give each route its own 50/5s window — a runaway
+    # loop rotating across N endpoints would run at N×50 req/5s and never
     # 429 — and would leave application_limits_exempt_when inert (it only
     # applies to application limits).
     limiter = Limiter(
         key_func=_rate_limit_key,
-        application_limits=["20 per 5 seconds"],
+        application_limits=["50 per 5 seconds"],
         application_limits_exempt_when=lambda: not request.path.startswith("/api/"),
         **_rate_limit_storage(),
     )

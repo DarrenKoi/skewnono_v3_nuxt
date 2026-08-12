@@ -132,8 +132,8 @@ file is normal rather than an error.
 
 READ-ONLY, by design (user-confirmed 2026-07-30). This screen shows recipe
 settings; there is no write mode. Every route is a read — the two POSTs take a
-list body only because ``/api/*`` allows 20 requests per 5 s and a 20-recipe
-compare would trip that as separate GETs. **Nothing is written anywhere**:
+list body only because ``/api/*`` allows 50 requests per 5 s and separate GETs
+would spend one shared budget slot per recipe. **Nothing is written anywhere**:
 neither to the tool — these are live metrology recipes — nor to the Flask host,
 since ``combined_idp_info`` accepts bytes as well as a path (user-confirmed
 2026-08-05), the same as the five raw readers. The temp file this module kept

@@ -4,16 +4,16 @@ Three contracts pinned here, each of which has silently not held before:
 
 - The budget is application-wide, not per-route. ``default_limits`` gives every
   route its own window, so a runaway loop rotating across N endpoints ran at
-  N x 20 req/5s and never 429'd — while CLAUDE.md documented a single shared
+  N x 50 req/5s and never 429'd — while CLAUDE.md documented a single shared
   budget. ``application_limits`` is what makes the documented contract real
   (and what makes ``application_limits_exempt_when`` meaningful at all).
 
 - Anonymous callers do not share a bucket. Every cookie-less cloud caller
   carries the literal `anonymous` id; keyed on it, a proxy config that strips
-  LASTUSER would pool the whole fab into one 20-req budget and the app would
+  LASTUSER would pool the whole fab into one 50-req budget and the app would
   drown in 429s on first paint.
 
-- Storage follows mode. memory:// counters are per-process (20 per *worker*
+- Storage follows mode. memory:// counters are per-process (50 per *worker*
   under Phase 3 uwsgi); office mode points at the shared Redis instead, with
   the in-memory fallback so an unreachable Redis degrades rather than fails.
 
@@ -46,11 +46,11 @@ def client():
 
 def test_the_budget_is_shared_across_endpoints_not_per_route(client):
     """Interleaving two endpoints is the discriminating probe: per-route
-    windows would sit at 10/20 each and wave the 21st request through."""
+    windows would sit below 50 each and wave the 51st request through."""
     client.set_cookie("LASTUSER", "7770001")
 
     statuses = []
-    for i in range(20):
+    for i in range(50):
         path = "/api/me" if i % 2 == 0 else "/api/health/providers"
         statuses.append(client.get(path).status_code)
 
@@ -64,7 +64,7 @@ def test_msr_image_stays_exempt_from_the_application_budget(client):
     budget either — the /api/me probe at the end is what catches that."""
     client.set_cookie("LASTUSER", "7770002")
 
-    statuses = [client.get("/api/msr-images").status_code for _ in range(22)]
+    statuses = [client.get("/api/msr-images").status_code for _ in range(52)]
 
     assert 429 not in statuses
     assert client.get("/api/me").status_code == 200

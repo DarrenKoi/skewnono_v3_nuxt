@@ -312,8 +312,8 @@ const toolSlug = computed(() => toBackendSlug(props.toolType))
  *
  * CompareMatrix and CompareGrouping both scope to a single (parameter, slot)
  * pair, so a cell needs N files rather than the N x M cross-product. As N
- * separate GETs this would trip the 20 req / 5 s per-user limit on /api/*; as
- * one POST it is one request.
+ * separate GETs this could exhaust the shared 50 req / 5 s per-user budget on
+ * /api/*; as one POST it is one request.
  */
 const cellDetails = ref<(CompareParamDetail | null)[]>([])
 const detailCache = new Map<string, CompareParamDetail>()
