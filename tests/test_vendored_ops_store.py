@@ -714,6 +714,62 @@ def test_upsert_sends_doc_as_upsert_while_update_does_not():
     assert client.bodies[1]["doc_as_upsert"] is True
 
 
+def test_single_document_writes_normalize_only_when_asked():
+    """The single-document writers take the same opt-in ``normalize`` flag as
+    ``bulk_index``, so a hand-built dict holding a ``datetime`` or ``NaN`` no
+    longer has to be coerced at the call site."""
+    class WriteClient:
+        def __init__(self):
+            self.bodies = []
+
+        def index(self, **kwargs):
+            self.bodies.append(kwargs["body"])
+            return {}
+
+        def update(self, **kwargs):
+            self.bodies.append(kwargs["body"])
+            return {}
+
+    client = WriteClient()
+    service = OSDoc(client=client, index="idx")
+    document = {"when": datetime(2026, 1, 2, 3, 4), "score": float("nan")}
+    service.index(document, normalize=True)
+    service.update("x", document, normalize=True)
+    service.upsert("x", document, normalize=True)
+
+    normalized = {"when": "2026-01-02T03:04:00", "score": None}
+    assert client.bodies[0] == normalized
+    assert client.bodies[1] == {"doc": normalized}
+    assert client.bodies[2] == {"doc": normalized, "doc_as_upsert": True}
+
+
+def test_single_document_writes_pass_values_through_untouched_by_default():
+    """Defaulting to ``normalize=True`` would rewrite what lands in ``_source``
+    for every existing caller, so the raw object must still reach the client."""
+    class WriteClient:
+        def __init__(self):
+            self.bodies = []
+
+        def index(self, **kwargs):
+            self.bodies.append(kwargs["body"])
+            return {}
+
+        def update(self, **kwargs):
+            self.bodies.append(kwargs["body"])
+            return {}
+
+    client = WriteClient()
+    service = OSDoc(client=client, index="idx")
+    when = datetime(2026, 1, 2, 3, 4)
+    service.index({"when": when})
+    service.update("x", {"when": when})
+    service.upsert("x", {"when": when})
+
+    assert client.bodies[0] == {"when": when}
+    assert client.bodies[1] == {"doc": {"when": when}}
+    assert client.bodies[2] == {"doc": {"when": when}, "doc_as_upsert": True}
+
+
 # ── alias / rollover introspection ───────────────────────────────────────────
 
 

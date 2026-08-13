@@ -151,12 +151,19 @@ class OSDoc(OSBase):
         *,
         doc_id: str | None = None,
         index: str | None = None,
+        normalize: bool = False,
         refresh: str | None = None,
     ) -> dict[str, Any]:
+        """Index a single document.
+
+        Set ``normalize=True`` to coerce non-JSON values (datetimes, Decimals,
+        NaN, numpy scalars) via :func:`normalize_document` before sending.
+        """
+
         name = self._resolve_index(index)
         kwargs: dict[str, Any] = {
             "index": name,
-            "body": dict(document),
+            "body": normalize_document(document) if normalize else dict(document),
         }
         if doc_id is not None:
             kwargs["id"] = doc_id
@@ -238,13 +245,21 @@ class OSDoc(OSBase):
         document: Mapping[str, Any],
         *,
         index: str | None = None,
+        normalize: bool = False,
         refresh: str | None = None,
     ) -> dict[str, Any]:
+        """Partially update a document.
+
+        Set ``normalize=True`` to coerce non-JSON values (datetimes, Decimals,
+        NaN, numpy scalars) via :func:`normalize_document` before sending.
+        """
+
         name = self._resolve_index(index)
+        source = normalize_document(document) if normalize else dict(document)
         kwargs: dict[str, Any] = {
             "index": name,
             "id": doc_id,
-            "body": {"doc": dict(document)},
+            "body": {"doc": source},
         }
         if refresh is not None:
             kwargs["refresh"] = refresh
@@ -256,13 +271,21 @@ class OSDoc(OSBase):
         document: Mapping[str, Any],
         *,
         index: str | None = None,
+        normalize: bool = False,
         refresh: str | None = None,
     ) -> dict[str, Any]:
+        """Update a document, inserting it when the id does not exist yet.
+
+        Set ``normalize=True`` to coerce non-JSON values (datetimes, Decimals,
+        NaN, numpy scalars) via :func:`normalize_document` before sending.
+        """
+
         name = self._resolve_index(index)
+        source = normalize_document(document) if normalize else dict(document)
         kwargs: dict[str, Any] = {
             "index": name,
             "id": doc_id,
-            "body": {"doc": dict(document), "doc_as_upsert": True},
+            "body": {"doc": source, "doc_as_upsert": True},
         }
         if refresh is not None:
             kwargs["refresh"] = refresh
