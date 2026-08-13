@@ -27,7 +27,7 @@ NUXT_API_TARGET=http://localhost:5050 npm run dev
 
 Current defaults are Flask `5050` and Nuxt `3000`. Use the Nitro `/api` proxy; do not build frontend URLs from backend hosts. On Windows, activate `.venv\Scripts\activate` and prefer `npm.cmd` if PowerShell blocks `npm.ps1`.
 
-Check backing services through `GET /api/health/services` and resolved feature providers through `GET /api/health/providers`. The latter returns `site`, effective `mode`, and one `{feature, provider, reason}` row per discovered feature. Local identity defaults to a development user; do not infer cloud authentication behavior from local mode.
+Check backing services through `GET /api/health/services` and resolved feature providers through `GET /api/health/providers`. The latter returns `site`, effective `mode`, and one `{feature, provider, reason}` row per discovered feature. API calls share one per-user/IP limiter budget of `50 per 5 seconds`; identity bucketing avoids pooling cookie-less cloud callers under the literal `anonymous`, and office mode stores counters in shared Redis with an in-memory fallback. `msr_image` serving remains exempt because galleries fan out image requests. Local identity defaults to a development user; do not infer cloud authentication behavior from local mode.
 
 ## Configuration model
 
@@ -51,6 +51,7 @@ Check backing services through `GET /api/health/services` and resolved feature p
 | Chat page gate | `SKEWNONO_CHAT_UNDER_DEVELOPMENT` | Defaults on in cloud; `0` launches the page but does not authorize APIs |
 | Extra blocked chat hosts | `CHAT_BLOCKED_HOSTS` | Comma-separated additions to the built-in office blocklist |
 | Scheduler startup | `SKEWNONO_SCHEDULER_ENABLED` | Enabled; false-like values disable scheduled jobs |
+| API request budget | Flask limiter | One shared per-user/IP budget of `50 per 5 seconds` for `/api/*`; `msr_image` serving is exempt |
 | Image-cache retention | `IMAGE_CACHE_TTL_HOURS` | `72`; the external safety sweep must match |
 
 Use the tracked `back_dev_home/.env.example` as the non-secret template and copy it to the ignored `back_dev_home/.env` for local values. Never inspect or document live `.env` values. Configuration exists under backend/frontend environment files, but setup documentation should refer only to variable names and trusted secret-management procedures.
@@ -112,10 +113,14 @@ Build and package the client-only SPA from the office working tree:
 
 ```bash
 npm --prefix front-dev-home run build
+.venv/bin/python -m scripts.deploy.pack
+# The equivalent path form is also supported:
 .venv/bin/python scripts/deploy/pack.py
+# From another working directory, name the checkout explicitly:
+.venv/bin/python -m scripts.deploy.pack --repo-root /path/to/skewnono_v3_nuxt
 ```
 
-The default artifact is an **overlay bundle** under `dist/`: it deliberately excludes the permanent cloud-root `index.py` and `wsgi.ini`, which must already exist under `/project/workSpace`. Packaging reads the working tree rather than `git archive`, so ignored `providers/office.py`, `back_dev_home/.env`, and `minio_handler/minio_config.py` are retained. It also writes `preflight.py`, `DEPLOY.md`, and `MANIFEST.txt`; the manifest records source provenance, dirty state, adapter roster, and pack-time warnings. Use `--strict` only when every advisory should block packaging; the current feasibility deployment permits a runnable mock-backed overlay. See `docs/deployment.md` for the authoritative transfer procedure.
+The packer operates on the current directory by default, not on the directory containing `pack.py`; `--repo-root` is the safe form for file-manager, IDE, or foreign-CWD launches. It rejects a non-checkout before running detailed bundle checks and prints the Python/stdout encoding used for diagnostics. The default artifact is an **overlay bundle** under `dist/`: it deliberately excludes the permanent cloud-root `index.py` and `wsgi.ini`, which must already exist under `/project/workSpace`. Packaging reads the working tree rather than `git archive`, so ignored `providers/office.py`, `back_dev_home/.env`, and `minio_handler/minio_config.py` are retained. It also writes `preflight.py`, `DEPLOY.md`, and `MANIFEST.txt`; the manifest records source provenance, dirty state, adapter roster, and pack-time warnings. Use `--strict` only when every advisory should block packaging; the current feasibility deployment permits a runnable mock-backed overlay. See `docs/deployment.md` for the authoritative transfer procedure.
 
 Overlay the bundle's contents directly onto the existing `/project/workSpace` without deleting its permanent root boot files. Restore restrictive permissions because transfer may discard them, then preflight both before and after dependency installation:
 
