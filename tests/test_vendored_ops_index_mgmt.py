@@ -1,7 +1,6 @@
 """Characterization tests for the vendored ``ops_index_mgmt`` provisioning scripts.
 
-``ops_index_mgmt`` is the fourth package ``openwiki/testing/guidance.md`` flags
-as having no package-local tests. Every module in it is a one-shot setup script
+``ops_index_mgmt`` is the fourth vendored package with no package-local tests. Every module in it is a one-shot setup script
 for an OpenSearch index family, and each one is built the same way: pure
 ``build_*`` functions that assemble request bodies, plus an ``ensure_*`` step
 that guards against clobbering an index that already exists.

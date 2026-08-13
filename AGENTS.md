@@ -162,13 +162,3 @@ has mid-edit.
 
 - **Remove the worktree as soon as the work is pushed to `main`** — the last two commands above are part of the task, not cleanup for later. Confirm with `git worktree list` that only the main tree remains.
 - `work/<task>` is scaffolding for the worktree, not a feature branch; it is deleted on merge, so this does not contradict "developed directly on `main`" above.
-
-<!-- OPENWIKI:START -->
-
-## OpenWiki
-
-This repository uses OpenWiki for recurring code documentation. Start with `openwiki/quickstart.md`, then follow its links to architecture, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
-
-The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
-
-<!-- OPENWIKI:END -->

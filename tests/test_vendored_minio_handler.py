@@ -2,8 +2,8 @@
 
 ``minio_handler`` is one of the office swap surfaces for the file/image
 features (``msr_file`` fetches its pickle from MinIO; ``msr_image`` caches
-fetched images there), and it shipped with no package-local tests at all —
-the gap ``openwiki/testing/guidance.md`` calls out. These tests pin the
+fetched images there), and it shipped with no package-local tests at all.
+These tests pin the
 **current** behaviour of the pure logic so a future edit to the upstream
 ``flask_modules`` copy can be diffed against something.
 

@@ -87,7 +87,7 @@ SPA 경로가 어긋납니다.
 | --- | --- |
 | `index.py`, `wsgi.ini` | 기존 `/project/workSpace`에 영구 보관하는 기동 파일입니다. |
 | `ops_index_mgmt/` | 인덱스 생성 도구로, 런타임에 사용되지 않습니다. |
-| `docs/`, `openwiki/` | 문서이며 런타임 역할이 없습니다. |
+| `docs/` | 문서이며 런타임 역할이 없습니다. |
 | `__pycache__/`, `tests/`, `conftest.py`, `*.md` | 실행에 불필요합니다. |
 
 클라우드용 `preflight.py`는 오버레이가 끝난 최종 `/project/workSpace`에서

@@ -15,7 +15,7 @@ def test_includes_the_vendored_packages_the_app_imports():
 
 def test_excludes_packages_the_app_never_imports():
     """afm_data_platform is 1.8MB of spec; ops_index_mgmt is index tooling."""
-    for name in ("afm_data_platform", "ops_index_mgmt", "docs", "openwiki"):
+    for name in ("afm_data_platform", "ops_index_mgmt", "docs"):
         assert name not in pack.INCLUDED_ROOTS
 
 

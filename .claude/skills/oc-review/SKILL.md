@@ -50,7 +50,7 @@ before running:
 
 > 14 files, touches `sem_list/providers/` → `heavy` (kimi-k3)
 
-Discount generated churn: a 400-line `openwiki/` refresh is not complexity.
+Discount generated churn: a 400-line vendored-package resync is not complexity.
 If the user named a model, use it and skip the rubric.
 
 Expect a heavy review to take **2–4 minutes per axis**. That is normal, not a
@@ -174,4 +174,4 @@ same session once the work is merged.
 - Presenting an empty axis as a clean bill of health. `oc.sh` exits non-zero on
   empty output precisely so this cannot happen quietly.
 - Grading against a spec you inferred from the diff being graded.
-- Burning `heavy` on a diff that is mostly generated `openwiki/` churn.
+- Burning `heavy` on a diff that is mostly generated or vendored churn.

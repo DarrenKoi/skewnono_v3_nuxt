@@ -74,7 +74,7 @@ State the tier and the reason before running, in one line:
 > 14 files, touches `sem_list/providers/` → escalating to `heavy` (kimi-k3)
 
 The user can then interrupt and downgrade. Do not silently pick `heavy` on a
-large diff that is entirely generated `openwiki/` churn.
+large diff that is entirely generated or vendored churn.
 
 ## Provider fallback
 

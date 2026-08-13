@@ -4,7 +4,7 @@
 ``msr_image``'s office adapter drives ``FtpFleetDownloader`` (direct on Linux,
 HTTP-proxy on the firewalled Windows client) to pull images and their
 ``cond.txt`` sidecars off the tool FTP servers. It shipped with no
-package-local tests — the gap ``openwiki/testing/guidance.md`` names.
+package-local tests.
 
 These pin **current** behaviour, not a redesign. Two things dominate:
 

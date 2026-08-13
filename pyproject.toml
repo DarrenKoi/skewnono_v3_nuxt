@@ -6,7 +6,7 @@
 # or `[build-system]` table here would make pip/uv/hatch treat the repo as a
 # distribution and try to build it; a tool table carries no such effect.
 #
-# The backend run documented in openwiki/ and docs/ is:
+# The backend run documented in docs/ is:
 #
 #   .venv/bin/python -m pytest tests back_dev_home -q
 #
@@ -34,7 +34,7 @@ testpaths = ["tests", "back_dev_home"]
 # `scripts`, `ops_store` and `ftp_handler`. That resolves only because the repo
 # root ends up on `sys.path`, which two independent mechanisms arrange:
 #
-#   1. `python -m pytest` — the form used throughout docs/ and openwiki/ — puts
+#   1. `python -m pytest` — the form used throughout docs/ — puts
 #      the CWD on `sys.path` as a plain side effect of `-m`.
 #   2. `prepend` import mode walks up from a test module past every consecutive
 #      `__init__.py` (`tests/__init__.py`, plus one in each `back_dev_home/**/

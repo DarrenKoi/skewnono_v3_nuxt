@@ -210,8 +210,7 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
   office source drops are content, not authored docs.
 - Deliberately **not** linted, so do not widen the glob to reach them: vendored
   copies (`ftp_handler/`, `minio_handler/`, `ops_store/`, `ops_index_mgmt/`,
-  `bento_agents.md`) must stay byte-identical to their upstream, generated
-  `openwiki/` pages get rewritten by the refresh job, `.remember/`,
+  `bento_agents.md`) must stay byte-identical to their upstream, `.remember/`,
   `.scratch/` and `.superpowers/` are scratch, and `.claude/skills/**` is
   agent-facing instruction text rather than teammate-facing docs.
 - Use markdownlint `MD060` `compact` table style for every Markdown table.
@@ -249,13 +248,3 @@ Triage uses the five canonical label names as status values. See `docs/agents/tr
 ### Domain docs
 
 This is a single-context repository with `CONTEXT.md` and `docs/adr/` at the root. See `docs/agents/domain.md`.
-
-<!-- OPENWIKI:START -->
-
-## OpenWiki
-
-This repository uses OpenWiki for recurring code documentation. Start with `openwiki/quickstart.md`, then follow its links to architecture, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
-
-The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
-
-<!-- OPENWIKI:END -->

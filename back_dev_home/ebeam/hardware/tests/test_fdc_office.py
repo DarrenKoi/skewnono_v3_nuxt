@@ -8,8 +8,7 @@ is wrong — company data is unreachable from home by design.
 
 Why this file exists: the only FDC office artifacts before it were
 `scripts/diagnose_fdc_office.py` and `scripts/diagnose_fdc_standalone.py`,
-and `openwiki/testing/guidance.md` says outright those are "not substitutes
-for contract tests". The dispatcher already refuses to fall back to mock when
+and a diagnostic script is not a substitute for a contract test. The dispatcher already refuses to fall back to mock when
 a wired adapter breaks (`test_contract.py`), so an FDC adapter that
 mis-validates or mis-orders is guaranteed to reach the page — nothing
 downstream second-guesses it.

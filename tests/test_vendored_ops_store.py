@@ -3,9 +3,8 @@
 ``ops_store`` is the OpenSearch half of the office data layer: every office
 adapter that reads an index goes through ``OSSearch``, the production log
 handler writes through ``OSDoc.bulk``, and ``ops_index_mgmt/*.py`` provisions
-indices through ``OSIndex``. It shipped with no package-local tests — the gap
-``openwiki/testing/guidance.md`` names alongside ``minio_handler`` and
-``ftp_handler``.
+indices through ``OSIndex``. It shipped with no package-local tests, the same
+gap as ``minio_handler`` and ``ftp_handler``.
 
 These pin **current** behaviour of the pure logic: query-body assembly, hit
 extraction, scroll pagination, JSON normalization, and the bulk-conflict
