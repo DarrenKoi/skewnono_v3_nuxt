@@ -59,16 +59,11 @@ export const buildLotParamRows = (
 }
 
 /**
- * `R0A8_only_normal_params.csv`.
- *
- * 버킷 키의 "_summary" 꼬리는 뗍니다. 그 꼬리는 API 응답에서 요약 표면을
- * 가리키는 이름인데, 이 파일은 요약이 아니라 그 아래 파라미터 명세입니다 —
- * `R0A8_all_summary_params.csv` 는 파일 이름이 스스로를 잘못 소개하는 꼴입니다.
- *
- * lot 코드는 office 값이라 파일명으로 쓰기 전에 씻어 냅니다
- * (recipeParamExport.paramExportFilename 과 같은 이유).
+ * 내보내기 파일 이름. `flagged` 는 화면이 초과만 보여 주는 상태에서 받은
+ * 파일이라는 표시입니다 — 행 수는 파일을 열어야 보이므로 이름이 말합니다.
  */
-export const lotParamFileName = (lotCd: string, bucket: string): string => {
+export const lotParamFileName = (lotCd: string, bucket: string, flagged = false): string => {
   const safe = (value: string) => (value || 'unknown').replace(/[^\w.-]+/g, '_')
-  return `${safe(lotCd)}_${safe(bucket.replace(/_summary$/, ''))}_params.csv`
+  const suffix = flagged ? '_flagged' : ''
+  return `${safe(lotCd)}_${safe(bucket.replace(/_summary$/, ''))}_params${suffix}.csv`
 }

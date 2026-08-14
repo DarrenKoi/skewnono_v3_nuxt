@@ -113,3 +113,11 @@ test('filename drops the bucket key\'s _summary tail', () => {
   // 꼬리가 아니라 중간에 있으면 건드리지 않습니다.
   assert.equal(lotParamFileName('R0A8', 'summary_x'), 'R0A8_summary_x_params.csv')
 })
+
+test('초과만 상태의 내보내기는 파일 이름으로 구별된다', () => {
+  // 같은 lot·같은 버킷에서 두 번 내려받으면 전체 파일과 초과 파일이 한
+  // 폴더에 섞입니다. 행 수는 파일을 열어야 보이므로 이름이 말해야 합니다.
+  assert.equal(lotParamFileName('R123', 'only_normal_summary'), 'R123_only_normal_params.csv')
+  assert.equal(lotParamFileName('R123', 'only_normal_summary', true), 'R123_only_normal_params_flagged.csv')
+  assert.equal(lotParamFileName('R123', 'only_normal_summary', false), 'R123_only_normal_params.csv')
+})

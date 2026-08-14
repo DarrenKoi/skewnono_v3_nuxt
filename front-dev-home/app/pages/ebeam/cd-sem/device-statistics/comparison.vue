@@ -209,6 +209,7 @@
           :recipe-params="selectedLotParams"
           :trend="trend ?? null"
           :drill="selectedLotDrill"
+          :outlier="selectedLotRow ? deviceOutliers.get(selectedLotRow.lot_cd) ?? null : null"
         />
         <EbeamDevstatDrillSlideover
           v-model:open="drillOpen"

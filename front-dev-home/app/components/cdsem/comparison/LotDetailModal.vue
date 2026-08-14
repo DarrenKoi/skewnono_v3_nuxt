@@ -64,6 +64,21 @@
                 {{ text.recipeRatio }}
                 <span class="sk-field-value">{{ row.avail_recipe }} / {{ row.total_recipe }}</span>
               </span>
+              <span
+                v-if="outlier && outlier.outlier_count > 0"
+                class="sk-field-label"
+              >
+                {{ text.outlierCount }}
+                <span class="sk-field-value font-semibold text-rose-700 dark:text-rose-300">{{ outlier.outlier_count }}</span>
+              </span>
+              <span
+                v-if="outlier && outlier.median > 0"
+                class="sk-field-label"
+                :title="text.baselineHint"
+              >
+                {{ text.baseline }}
+                <span class="sk-field-value">{{ outlier.median }} · &gt; {{ outlier.threshold }}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -110,13 +125,35 @@
               recipe
             </p>
             <span class="sk-field-name">{{ row.lot_cd }}</span>
-            <span class="sk-field-label">{{ lotRecipes.length }}건</span>
+            <span class="sk-field-label">{{ visibleCards.length }}건</span>
 
             <!-- 화면은 recipe 단위 카드지만, 엑셀로 가져가고 싶은 것은 그
                  아래 파라미터까지 편 표입니다 — 스텝·recipe_id·파라미터·측정
                  point 한 줄씩. 그래서 카드를 그대로 옮기지 않고 한 단계 더
                  편 표를 내보냅니다. -->
             <div class="ml-auto flex items-center gap-2">
+              <div
+                v-if="flaggedCards > 0"
+                role="radiogroup"
+                :aria-label="text.filterLabel"
+                class="flex items-center gap-1.5"
+              >
+                <button
+                  v-for="option in filterOptions"
+                  :key="option.value"
+                  type="button"
+                  role="radio"
+                  :aria-checked="filter === option.value"
+                  :class="[CHIP_BASE, chipClass(filter === option.value)]"
+                  @click="filter = option.value"
+                >
+                  {{ option.label }}
+                  <span
+                    v-if="option.value === 'flagged'"
+                    class="tabular-nums opacity-70"
+                  >{{ flaggedCards }}</span>
+                </button>
+              </div>
               <div
                 role="radiogroup"
                 aria-label="recipe 정렬"
@@ -159,11 +196,11 @@
           </div>
 
           <div
-            v-if="stepCards.length > 0"
+            v-if="visibleCards.length > 0"
             class="space-y-2"
           >
             <CdsemComparisonStepOutlierCard
-              v-for="card in stepCards"
+              v-for="card in visibleCards"
               :key="recipeStepKey(card.step)"
               :card="card"
               :max-total="maxRecipeParaTotal"
@@ -179,7 +216,7 @@
             v-else
             class="py-2 text-center sk-body text-(--sk-ink-muted)"
           >
-            {{ text.recipeEmpty }}
+            {{ filter === 'flagged' ? text.emptyFlagged : text.recipeEmpty }}
           </p>
         </div>
       </div>
@@ -205,8 +242,9 @@ import type {
 import { healthBadgeStyle, healthStripeColor } from './healthTokens'
 import { buildParameterRamp } from '~/utils/parameterRamp'
 import { PARA_KEYS } from '~/utils/paraTrendSeries'
-import { buildStepOutliers } from '~/utils/lotOutlierSteps'
+import { buildStepOutliers, filterStepOutliers, flaggedStepCount, type StepFilter } from '~/utils/lotOutlierSteps'
 import type { DrillDevice } from '~/utils/deviceDrill'
+import type { DeviceOutlierResult } from '~/utils/outlierDetect'
 
 const props = defineProps<{
   row: HealthAugmentedRow | null
@@ -227,6 +265,8 @@ const props = defineProps<{
    * 같습니다: 화면 하나가 두 경로로 같은 사실을 계산하면 언젠가 갈립니다.
    */
   drill: DrillDevice | null
+  /** 이 lot 의 중앙값·문턱·초과 총계. 초과 개수와 그 기준선은 같은 화면에 있어야 합니다. */
+  outlier: DeviceOutlierResult | null
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -234,7 +274,6 @@ const open = defineModel<boolean>('open', { required: true })
 const text = {
   recipeEmpty: '이 lot 의 recipe 가 현재 bucket 에 없습니다.',
   noRules: '룰 없음',
-  noParams: '파라미터 없음',
   violations: '위반',
   grayRecipes: '판정 제외',
   recipeRatio: '운용 / 전체 recipe',
@@ -243,7 +282,14 @@ const text = {
   copyHint: '파라미터 표를 클립보드에 복사 (엑셀에 붙여넣기)',
   // M 계열은 원천에 순서 field 가 없어 oper_seq/samp_seq 를 공정 접두사 순위로
   // 합성합니다 — 화면 표기 의무 (docs/datatables/ebeam_tas_lot_hist.txt ★).
-  seqCaveat: 'M 계열 fab 의 oper_seq · samp_seq 는 합성값으로, 실제 운영 공정 순서를 반영하지 않습니다.'
+  seqCaveat: 'M 계열 fab 의 oper_seq · samp_seq 는 합성값으로, 실제 운영 공정 순서를 반영하지 않습니다.',
+  outlierCount: '과다 측정',
+  baseline: '중앙값 · 문턱',
+  baselineHint: '이 디바이스가 이 버킷에서 재는 모든 파라미터 point 수의 중앙값과, '
+    + '그 2배인 초과 문턱입니다. CDU 계열·FULL/HALF/MTX job 과 선두 Dummy/Align 파라미터는 '
+    + '기준선에서도 초과 판정에서도 빠집니다.',
+  filterLabel: 'recipe 필터',
+  emptyFlagged: '이 lot 에는 초과로 잡힌 recipe 가 없습니다.'
 } as const
 
 // title 은 prop 으로 계속 넘깁니다 — Reka 의 DialogTitle 이 대화상자의 접근
@@ -291,6 +337,19 @@ const sortedRecipes = computed(() => sortSteps(lotRecipes.value, recipeSort.valu
 // 그대로 카드 순서가 됩니다.
 const stepCards = computed(() => buildStepOutliers(sortedRecipes.value, props.drill))
 
+// 필터는 **페이지가 갖습니다**. 진입점이 초기 상태를 정하기 때문입니다 — 행을
+// 누르면 전체, outlier 배지를 누르면 초과만 (D1). 모달이 자기 안에 두면 배지로
+// 들어온 사람에게 한 번 더 클릭을 시키게 됩니다.
+const filter = defineModel<StepFilter>('filter', { default: 'all' })
+
+const visibleCards = computed(() => filterStepOutliers(stepCards.value, filter.value))
+const flaggedCards = computed(() => flaggedStepCount(stepCards.value))
+
+const filterOptions = [
+  { label: '전체', value: 'all' },
+  { label: '초과만', value: 'flagged' }
+] as const satisfies readonly { label: string, value: StepFilter }[]
+
 // 카드마다 막대를 제 합계로 정규화하면 파라미터 3개짜리 recipe 와 40개짜리
 // recipe 의 막대가 똑같이 꽉 차 보입니다. lot 안에서 서로 비교되도록 최대값을
 // 공유합니다.
@@ -312,17 +371,23 @@ const presentParaKeys = computed(() =>
   paraOrder.filter(key => (props.row?.[key] ?? 0) > 0)
 )
 
-// 파일의 행 순서는 화면의 카드 순서입니다 — 표와 파일을 나란히 놓고 읽을 수
-// 있어야 하므로 sortedRecipes 를 그대로 넘깁니다. 정렬 칩을 바꾸면 내려받는
-// 파일의 순서도 함께 바뀌는 것이 의도입니다.
-const paramRows = computed(() => buildLotParamRows(sortedRecipes.value, props.recipeParams))
+// 파일은 화면이 보여 주는 것을 그대로 담습니다 — 정렬도, 필터도. 버튼 옆의
+// `N행` 이 무엇을 받는지 미리 말해 주고, 파일 이름의 _flagged 가 받은 뒤에도
+// 말해 줍니다.
+const paramRows = computed(() =>
+  buildLotParamRows(visibleCards.value.map(card => card.step), props.recipeParams)
+)
 const paramRowCount = computed(() => paramRows.value.length)
 
 const headers = [...LOT_PARAM_HEADERS]
 
 const downloadParamTable = () => {
   if (!props.row) return
-  downloadCsv(lotParamFileName(props.row.lot_cd, props.bucket), headers, paramRows.value)
+  downloadCsv(
+    lotParamFileName(props.row.lot_cd, props.bucket, filter.value === 'flagged'),
+    headers,
+    paramRows.value
+  )
 }
 
 const toast = useToast()
