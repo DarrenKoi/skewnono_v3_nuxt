@@ -109,6 +109,11 @@ DUMMY/Align) 도 같습니다.
 
 ## 후속 작업 (이번 브랜치 범위 밖)
 
+**이관됨 (2026-08-15).** 1·3순위는 `.scratch/sk-bad-sweep/` 스펙과 티켓으로
+옮겼습니다 — 이 스펙이 `shipped` 라 여기 남겨 두면 스윕 대상에서 빠집니다.
+2순위(`exempt` 가지)는 코드 작업이 아니라 룰 데이터 결정 대기라 이관하지
+않았습니다. 아래는 판단 근거로 남깁니다.
+
 1. **(1순위) live-live 마크업 중복.** `StepOutlierCard.vue` 와 `DrillSlideover.vue`
    가 초과 배지 클래스와 파라미터 행 마크업 약 25줄을 각자 들고 있습니다.
    `DrillSlideover` 쪽은 `ComplianceTable.vue`(cap 위반 화면)에서 **살아서
