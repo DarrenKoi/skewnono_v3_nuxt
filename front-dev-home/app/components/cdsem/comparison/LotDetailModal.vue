@@ -201,11 +201,11 @@
           >
             <CdsemComparisonStepOutlierCard
               v-for="card in visibleCards"
-              :key="recipeStepKey(card.step)"
+              :key="card.key"
               :card="card"
               :max-total="maxRecipeParaTotal"
-              :expanded="expandedSteps.has(recipeStepKey(card.step))"
-              @toggle="toggleStep(recipeStepKey(card.step))"
+              :expanded="expandedSteps.has(card.key)"
+              @toggle="toggleStep(card.key)"
             />
 
             <p class="sk-caption px-1">
@@ -232,7 +232,7 @@ import type { RecipeInput } from '~/utils/ruleEngine'
 import { LOT_PARAM_HEADERS, buildLotParamRows, lotParamFileName } from '~/utils/lotParamExport'
 import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
 import { CHIP_BASE, chipClass } from '~/utils/chipClass'
-import { sortSteps, recipeStepKey, type RecipeSortKey } from '~/utils/recipeStepSort'
+import { sortSteps, type RecipeSortKey } from '~/utils/recipeStepSort'
 import type {
   RecipeInfoRow,
   RecipeTrendResponse,

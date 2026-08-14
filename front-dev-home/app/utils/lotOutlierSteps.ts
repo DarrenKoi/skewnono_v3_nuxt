@@ -14,15 +14,16 @@
 // (deviceDrill.ts), 그 규칙에는 분석 제외 층이 둘이나 있습니다. 여기서 다시
 // 판정하면 그 테스트가 지키던 것이 풀립니다.
 //
-// 값 import 는 없습니다(타입만) — 그래도 node --test 가 이 파일을 직접 부르므로
-// 런타임 의존은 계속 두지 않습니다.
+// 값 import 는 recipeStepKey 하나뿐입니다 — 그래도 node --test 가 이 파일을
+// 직접 부르므로 확장자를 명시해 번들러 없이도 풀리게 합니다.
 import type { RecipeInfoRow } from '~/composables/useRecipeStatisticsApi'
 import type { DrillDevice, DrillRecipe } from './deviceDrill'
+import { recipeStepKey } from './recipeStepSort.ts'
 
 export type StepFilter = 'all' | 'flagged'
 
 /** 조인에 필요한 최소 field. 테스트가 전체 행을 짓지 않아도 되게 좁힙니다. */
-type JoinableStep = Pick<RecipeInfoRow, 'recipe_id'>
+type JoinableStep = Pick<RecipeInfoRow, 'recipe_id' | 'lot_cd' | 'oper_seq' | 'samp_seq'>
 
 export interface StepOutlier<T extends JoinableStep = RecipeInfoRow> {
   /** 카드가 그리는 스텝. grain 의 주인입니다. */
@@ -31,6 +32,12 @@ export interface StepOutlier<T extends JoinableStep = RecipeInfoRow> {
   drill: DrillRecipe | null
   /** 이 lot 안에서 같은 recipe_id 를 쓰는 스텝 수. 2 이상이면 화면이 말합니다. */
   stepSpan: number
+  /**
+   * 카드의 `v-for` 키이자 펼침 상태 키. 조인 시점에 한 번 계산해 두 쓰임이
+   * 어긋날 수 없게 합니다. `recipe_id` 는 일부러 넣지 않습니다 — 이유는
+   * recipeStepSort.ts 의 `recipeStepKey` docstring 을 보십시오.
+   */
+  key: string
 }
 
 /**
@@ -50,7 +57,8 @@ export const buildStepOutliers = <T extends JoinableStep>(
   return steps.map(step => ({
     step,
     drill: byRecipe.get(step.recipe_id) ?? null,
-    stepSpan: span.get(step.recipe_id) ?? 1
+    stepSpan: span.get(step.recipe_id) ?? 1,
+    key: recipeStepKey(step)
   }))
 }
 

@@ -7,6 +7,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildStepOutliers, filterStepOutliers, flaggedStepCount } from './lotOutlierSteps.ts'
+import { recipeStepKey } from './recipeStepSort.ts'
 import type { DrillDevice, DrillRecipe } from './deviceDrill'
 
 const step = (recipe_id: string, oper_seq: number, samp_seq = 1) =>
@@ -40,6 +41,15 @@ test('recipe_id 로 스텝에 outlier 를 붙인다', () => {
   assert.equal(a.drill, null)
   const b = cards.find(c => c.step.recipe_id === 'B')!
   assert.equal(b.drill?.flagged_count, 1)
+})
+
+test('카드의 key 는 recipeStepKey 와 같고, 같은 recipe_id 를 쓰는 두 스텝은 서로 다른 key 를 받는다', () => {
+  const steps = [step('SHARED', 10), step('SHARED', 40)]
+  const cards = buildStepOutliers(steps, null)
+
+  assert.equal(cards[0]!.key, recipeStepKey(steps[0]!))
+  assert.equal(cards[1]!.key, recipeStepKey(steps[1]!))
+  assert.notEqual(cards[0]!.key, cards[1]!.key)
 })
 
 test('한 recipe 가 두 스텝에 걸리면 카드 두 장이 남고 stepSpan 이 2 다', () => {
