@@ -69,7 +69,7 @@
                 class="sk-field-label"
               >
                 {{ text.outlierCount }}
-                <span class="sk-field-value font-semibold text-rose-700 dark:text-rose-300">{{ outlier.outlier_count }}</span>
+                <span class="sk-field-value font-semibold text-(--sk-bad)">{{ outlier.outlier_count }}</span>
               </span>
               <span
                 v-if="outlier && outlier.median > 0"
@@ -132,8 +132,11 @@
                  point 한 줄씩. 그래서 카드를 그대로 옮기지 않고 한 단계 더
                  편 표를 내보냅니다. -->
             <div class="ml-auto flex items-center gap-2">
+              <!-- filter === 'flagged' 도 조건에 넣습니다 — 초과 0 인 상태로
+                   '초과만' 이 열리면(오늘은 도달 불가하지만) 이 칩이 없으면
+                   전체로 돌아올 컨트롤이 사라집니다. -->
               <div
-                v-if="flaggedCards > 0"
+                v-if="flaggedCardCount > 0 || filter === 'flagged'"
                 role="radiogroup"
                 :aria-label="text.filterLabel"
                 class="flex items-center gap-1.5"
@@ -151,7 +154,7 @@
                   <span
                     v-if="option.value === 'flagged'"
                     class="tabular-nums opacity-70"
-                  >{{ flaggedCards }}</span>
+                  >{{ flaggedCardCount }}</span>
                 </button>
               </div>
               <div
@@ -343,7 +346,7 @@ const stepCards = computed(() => buildStepOutliers(sortedRecipes.value, props.dr
 const filter = defineModel<StepFilter>('filter', { default: 'all' })
 
 const visibleCards = computed(() => filterStepOutliers(stepCards.value, filter.value))
-const flaggedCards = computed(() => flaggedStepCount(stepCards.value))
+const flaggedCardCount = computed(() => flaggedStepCount(stepCards.value))
 
 const filterOptions = [
   { label: '전체', value: 'all' },

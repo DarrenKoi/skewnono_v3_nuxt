@@ -6,7 +6,7 @@
 // 총계를 카드에서 세지 않는다는 것.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildStepOutliers, filterStepOutliers, flaggedStepCount } from './lotOutlierSteps.ts'
+import { buildStepOutliers, filterStepOutliers, flaggedStepCount, isFlaggedStep } from './lotOutlierSteps.ts'
 import { recipeStepKey } from './recipeStepSort.ts'
 import type { DrillDevice, DrillRecipe } from './deviceDrill'
 
@@ -108,4 +108,14 @@ test('분석 제외 job 은 초과가 아니므로 초과만 필터에서 빠진
 
   assert.equal(cards[0]!.drill?.exempt, true)
   assert.equal(filterStepOutliers(cards, 'flagged').length, 0)
+})
+
+test('isFlaggedStep 은 drill 없음/미초과/초과 세 경우를 구분한다', () => {
+  const noDrill = buildStepOutliers([step('A', 10)], null)[0]!
+  const unflagged = buildStepOutliers([step('B', 10)], device([drillRecipe('B', 0)]))[0]!
+  const flagged = buildStepOutliers([step('C', 10)], device([drillRecipe('C', 1)]))[0]!
+
+  assert.equal(isFlaggedStep(noDrill), false)
+  assert.equal(isFlaggedStep(unflagged), false)
+  assert.equal(isFlaggedStep(flagged), true)
 })

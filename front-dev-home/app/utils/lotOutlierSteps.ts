@@ -62,13 +62,16 @@ export const buildStepOutliers = <T extends JoinableStep>(
   }))
 }
 
+/** 이 카드가 초과로 잡혔는가. 세 곳(필터·집계·카드)이 같은 술어를 봐야 화면과 숫자가 갈리지 않습니다. */
+export const isFlaggedStep = (card: StepOutlier<JoinableStep>): boolean => card.drill?.flagged === true
+
 /** 화면 필터. 'flagged' 는 초과가 걸린 recipe 의 스텝만 남깁니다. */
 export const filterStepOutliers = <T extends JoinableStep>(
   cards: StepOutlier<T>[],
   filter: StepFilter
 ): StepOutlier<T>[] =>
-  filter === 'flagged' ? cards.filter(card => card.drill?.flagged === true) : cards
+  filter === 'flagged' ? cards.filter(isFlaggedStep) : cards
 
 /** 초과가 걸린 **카드** 수. 파라미터 수도, recipe 수도 아닙니다. */
 export const flaggedStepCount = (cards: StepOutlier<JoinableStep>[]): number =>
-  cards.filter(card => card.drill?.flagged === true).length
+  cards.filter(isFlaggedStep).length

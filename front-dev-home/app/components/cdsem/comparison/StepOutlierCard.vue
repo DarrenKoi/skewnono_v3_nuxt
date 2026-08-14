@@ -2,7 +2,7 @@
   <div
     class="overflow-hidden rounded-xl bg-(--sk-surface) ring-1"
     :class="[
-      flagged ? 'ring-rose-200 dark:ring-rose-900/60' : 'ring-(--sk-border-soft)',
+      flagged ? 'ring-(--sk-bad-border)' : 'ring-(--sk-border-soft)',
       step.para_all === 0 ? 'opacity-60' : ''
     ]"
   >
@@ -48,7 +48,7 @@
           >{{ EXEMPT_BADGE }}</span>
           <span
             v-else-if="flagged"
-            class="sk-badge sk-badge-lg bg-rose-100 font-bold text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+            class="sk-badge bg-(--sk-bad-soft) font-bold text-(--sk-bad) ring-1 ring-(--sk-bad-border) ring-inset"
           >초과 {{ card.drill?.flagged_count }}</span>
 
           <!-- 같은 recipe 가 스텝 여럿에서 돕니다. 말해 두지 않으면 같은 배지가
@@ -64,7 +64,7 @@
       <div class="w-50 flex-none">
         <div class="mb-1.5 flex items-baseline justify-between gap-2">
           <span class="sk-field-label">para 분포</span>
-          <span class="sk-field-value text-[15px] font-semibold text-(--sk-ink)">{{ step.para_all }}</span>
+          <span class="sk-field-value font-semibold text-(--sk-ink)">{{ step.para_all }}</span>
         </div>
         <CdsemComparisonStackedBar
           v-if="step.para_all > 0"
@@ -94,11 +94,11 @@
         v-for="param in card.drill.parameters"
         :key="param.name"
         class="px-4 py-1.5"
-        :class="param.flagged ? 'bg-rose-100/50 dark:bg-rose-950/30' : ''"
+        :class="param.flagged ? 'bg-(--sk-bad-soft)' : ''"
       >
         <div class="flex max-w-2xl items-center gap-3">
-          <span class="min-w-0 flex-1 font-mono text-[15px] text-(--sk-ink)">{{ param.name }}</span>
-          <span class="w-16 flex-none text-right font-mono text-base font-semibold tabular-nums text-(--sk-ink)">{{ param.point_count }}</span>
+          <span class="sk-field-name min-w-0 flex-1">{{ param.name }}</span>
+          <span class="sk-field-value w-16 flex-none text-right font-semibold text-(--sk-ink)">{{ param.point_count }}</span>
           <span class="w-28 flex-none text-right sk-field-label tabular-nums">{{ param.note ?? '' }}</span>
         </div>
       </div>
@@ -108,7 +108,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { StepOutlier } from '~/utils/lotOutlierSteps'
+import { isFlaggedStep, type StepOutlier } from '~/utils/lotOutlierSteps'
 
 // 판정하지 않는 카드입니다. flagged 도 note 도 toOutlierDrill 이 이미 정한
 // 값을 그대로 읽습니다 (utils/deviceDrill.ts) — 여기서 다시 계산하면 그쪽
@@ -129,6 +129,6 @@ const SPAN_TITLE = '같은 recipe 를 여러 공정 스텝에서 돌립니다. �
   + '각 스텝 카드에 같은 값이 붙습니다 — 중복 집계가 아닙니다.'
 
 const step = computed(() => props.card.step)
-const flagged = computed(() => props.card.drill?.flagged === true)
+const flagged = computed(() => isFlaggedStep(props.card))
 const expandable = computed(() => (props.card.drill?.parameters.length ?? 0) > 0)
 </script>
