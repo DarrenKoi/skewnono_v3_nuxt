@@ -227,15 +227,30 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 | `home-to-office` | Audit features against the mock→office provider convention before conveying work |
 | `generate-mock` | Scaffold a mock data composable for a new endpoint |
 | `add-vendor` | Wire a new e-beam tool family (VeritySEM, Provision, …) into a feature — rules in `docs/back-end/vendor-onboarding.md` |
+
+### Global skills that read this repo: the `oc-*` family
+
+| Skill | Use for |
+| --- | --- |
 | `oc-review` | Two-axis review (Standards + Spec) of a diff, delegated to an opencode model, then reconciled against Claude's own reading |
 | `oc-simplify` | Quality-only pass (reuse, simplification, efficiency, altitude) delegated to an opencode model; Claude applies the edits |
 | `oc-discuss` | Debate a decision with an opencode model over up to three rounds, ending in AGREED / DISPUTED / I-WAS-WRONG |
 
-The three `oc-*` skills share `.claude/skills/_opencode/` (`oc.sh`, the tier
-table in `models.md`, the smell baseline, and the `docs/opencode/` logging
-format). That folder has no `SKILL.md`, so it is not itself a skill. Every
-`oc-*` run leaves a record under `docs/opencode/`; opencode always runs
-read-only, so Claude applies any resulting edits.
+These three are installed **globally** at `~/.claude/skills/`, not in this
+repo, so they work in any project. They share `~/.claude/skills/_opencode/`
+(`oc.sh`, the tier table in `models.md`, the Fowler smell baseline, and the
+logging format); that folder has no `SKILL.md`, so it is not itself a skill.
+
+Everything SKEWNONO-specific they need lives in **`.claude/oc-project.md`** —
+the escalation surfaces, the extra smells (mock/office formula drift and
+friends), the reuse hotspots, the constraints an outside model cannot infer,
+the verify commands, and the logging destination. Keep it current the way
+`CLAUDE.md` is kept current: the skills read it, and a stale overlay sends a
+delegated reviewer at the wrong surfaces. The file's contract is
+`~/.claude/skills/_opencode/project-overlay.md`.
+
+Every `oc-*` run leaves a record under `docs/opencode/`; opencode always runs
+read-only (`--agent plan`), so Claude applies any resulting edits.
 
 ### Issue tracker
 
