@@ -8,8 +8,8 @@ name to a model and handles provider fallback.
 
 | Tier | Model | Reach for it when |
 | --- | --- | --- |
-| `heavy` | `kimi-k3` | More than ~10 changed files, cross-feature contracts, security or auth logic, concurrency, or anything touching the mock→office swap |
-| `medium` | `glm-5.2` | The common case: one feature slice, roughly 3–10 files, ordinary application logic |
+| `heavy` | `glm-5.3` | More than ~10 changed files, cross-feature contracts, security or auth logic, concurrency, or anything touching the mock→office swap |
+| `medium` | `deepseek-v4-pro` | The common case: one feature slice, roughly 3–10 files, ordinary application logic |
 | `light` | `gpt-5.6-luna` | A single file, docs, tests, renames, formatting, or a mechanical change |
 
 Invoke by tier, not by model id, so the mapping stays in one place:
@@ -24,32 +24,39 @@ Override with an explicit model when the user names one:
 echo "$PROMPT" | .claude/skills/_opencode/oc.sh --model kimi-k3 --label standards
 ```
 
-## Measured reliability (2026-08-10)
+## Measured reliability (2026-08-15)
 
 The tiers above describe *how much capability a task deserves*. This section
 describes *what actually works*, which is not the same thing, and was found by
 running them rather than by reading docs.
 
-| Model | Simple prompt | Tool-using review | Notes |
+The probe is a bounded review of one real commit that **requires** three tool
+calls (`git show --stat`, `git show`, one full file read) and ends with a
+falsifiable demand: *name one file you read that was not in the diff*. A model
+that answered from the prompt alone cannot fill that last field correctly, so
+the check does not depend on judging whether the prose sounds plausible.
+
+| Model | Tool-using review | Elapsed | Notes |
 | --- | --- | --- | --- |
-| `kimi-k3` | works | **works** | 137s and 194s on single-file reviews; findings were specific and correct |
-| `glm-5.2` | works | **unreliable** | Two failures out of two: once an unrelated hallucinated document, once an empty final message |
-| `gpt-5.6-luna` | works | untested at length | Fine for short bounded prompts |
+| `glm-5.3` | **works** | 68s on Go | Every `main.css` line number it cited verified exactly; ran `node --test` unprompted and reported 19/19 |
+| `deepseek-v4-pro` | **works** | 83s on Go | Same citations verified; also reasoned correctly about a non-generic predicate being contravariant-safe against generic callers |
+| `kimi-k3` | works | 137–194s | Measured 2026-08-10, the previous `heavy`. Still fine, just slower than `glm-5.3` here |
+| `glm-5.2` | **unreliable** | — | 2026-08-10: two failures out of two, once a hallucinated unrelated document, once an empty final message. Retired from the tier table |
+| `gpt-5.6-luna` | untested at length | — | Fine for short bounded prompts |
 
-**Consequence: all three `oc-*` skills default to `heavy`, not `medium`, and
-none of them drop to `light`.** A review, a simplify pass, and a debate round
-are all tool-using tasks — the model runs `git diff`, greps, and reads files —
-and that is exactly where `glm-5.2` fell over here. The `medium` tier remains
-correct for its stated complexity band, but is not currently trustworthy for
-delegated review work; `light` is untested at that length and is not a floor
-any `oc-*` skill should use.
+**Consequence: the blanket "always default to `heavy`" workaround is lifted.**
+It existed for one reason — `glm-5.2` died on exactly the tool-using shape every
+`oc-*` skill produces — and the model that caused it is no longer in the table.
+`medium` is now a measured-working tier, so the skills pick a tier by the
+complexity rubric again. `light` is still untested at review length and is still
+not a floor any `oc-*` skill should choose on its own.
 
-This is a measurement, not a verdict on the model, and it is cheap to recheck:
-run `oc.sh --tier medium` on a bounded review and see whether it answers. If it
-does so reliably, restore `medium` as the review default and update this table.
+Recheck is cheap and the probe is reusable: point the prompt above at any recent
+commit, run it under `--model <candidate>`, then *verify the line numbers it
+cites* rather than reading the report for tone.
 
 `oc.sh` refuses to print an empty reply (it exits non-zero instead), so a
-silent version of this failure cannot reach a report as "no findings".
+silent version of the `glm-5.2` failure cannot reach a report as "no findings".
 
 ## Escalation rule
 
@@ -71,7 +78,7 @@ Escalation is one step only: `light` → `medium` → `heavy` → `heavy`.
 
 State the tier and the reason before running, in one line:
 
-> 14 files, touches `sem_list/providers/` → escalating to `heavy` (kimi-k3)
+> 14 files, touches `sem_list/providers/` → escalating to `heavy` (glm-5.3)
 
 The user can then interrupt and downgrade. Do not silently pick `heavy` on a
 large diff that is entirely generated or vendored churn.
@@ -84,6 +91,26 @@ back to a *different* model — a review that quietly ran on a weaker tier than
 you were told is worse than one that visibly did not run. Rerun with an
 explicit `--model` if you want a substitute.
 
+**Go first is deliberate and the two catalogues are not the same.** Go carries
+the open-weight models; Zen carries those *plus* the Claude, Gemini and GPT
+families. So the retry is only a real safety net for an id that exists on both,
+and choosing a model means choosing its fallback story too:
+
+| Model | Go | Zen | What a Go failure means |
+| --- | --- | --- | --- |
+| `deepseek-v4-pro` (`medium`) | yes | yes | retried on Zen, same model |
+| `gpt-5.6-luna` (`light`) | yes | yes | retried on Zen, same model |
+| `glm-5.3` (`heavy`) | yes | **no** | the Zen retry cannot succeed — the run just fails |
+| `kimi-k3`, `kimi-k2.7-code`, `grok-4.5`, `minimax-m3`, `qwen3.6-plus`, `deepseek-v4-flash`, `glm-5.2` | yes | yes | retried on Zen |
+| `qwen3.8-max`, `qwen3.7-max`, `mimo-v2.5-pro`, `hy3` | yes | **no** | no fallback |
+| Claude / Gemini / `gpt-5.x` (except `-luna`) | **no** | yes | wastes one guaranteed-failed Go attempt first |
+
+The Go-only `heavy` tier is an accepted trade: `glm-5.3` was the fastest
+verified reviewer in the probe above, and `oc.sh` fails loudly rather than
+silently substituting, so a lost fallback costs a visible rerun and never a
+review you were misled about. Rerun with `--model kimi-k3` — which *is* on both
+— if Go is down.
+
 `oc.sh` prints the elapsed time of each call to stderr, not its cost — the
 default output format carries no token accounting. For spend, use
 `opencode stats`. Reviews are cheap relative to an office trip, but a `heavy`
@@ -95,8 +122,15 @@ debate over several rounds is not free.
   "2x usage", meaning a doubled allowance — which is why `light` is the
   cheap tier rather than an expensive one.
 - `opencode models` lists the full catalogue, not what the account is entitled
-  to. Several ids there answer `Model is disabled` at call time. The three
-  tiers above were each verified to respond on `opencode-go/`.
+  to, and it does **not** distinguish the two providers' coverage in a way you
+  can eyeball. Several ids answer `Model is disabled` at call time. Derive the
+  coverage table above with:
+
+  ```bash
+  opencode models | grep -E '^(opencode-go|opencode)/' | sort
+  ```
+
+  The three tiers above were each verified to respond on `opencode-go/`.
 - Everything runs under `--agent plan`, which opencode enforces as read-only:
   it will run `git diff` and read files, but refuses to write. Findings come
   back as text and get applied by Claude, under the normal explicit-pathspec

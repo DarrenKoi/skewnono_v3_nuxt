@@ -85,8 +85,8 @@ esac
 # only the lookup.
 if [ -n "$TIER" ]; then
   case "$TIER" in
-    heavy)  MODEL="kimi-k3" ;;
-    medium) MODEL="glm-5.2" ;;
+    heavy)  MODEL="glm-5.3" ;;
+    medium) MODEL="deepseek-v4-pro" ;;
     light)  MODEL="gpt-5.6-luna" ;;
     *) echo "oc.sh: unknown tier '$TIER' (want heavy|medium|light)" >&2; exit 2 ;;
   esac

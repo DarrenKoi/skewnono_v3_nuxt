@@ -49,11 +49,11 @@ If that is empty, ask what to look at rather than reviewing the whole repo.
 
 ### 2. Pick a tier and announce it
 
-Per `models.md`. **Default to `heavy` (kimi-k3)** — this is a tool-using task
-(the model greps for existing helpers, which is the whole point of the reuse
-lens), and `models.md` records why that shape does not get the `medium`
-default. Drop to `medium` only for a small, bounded cleanup; do not use
-`light`. Say which tier and why before spending.
+Per `models.md`. `medium` (deepseek-v4-pro) fits an ordinary cleanup; go
+`heavy` (glm-5.3) for a wide or cross-feature one. Do not use `light` — this is
+a tool-using task (the model greps for existing helpers, which is the whole
+point of the reuse lens) and `light` is untested at that length. Say which tier
+and why before spending.
 
 ### 3. Run the pass
 

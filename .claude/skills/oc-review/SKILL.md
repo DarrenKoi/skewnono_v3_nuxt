@@ -41,14 +41,15 @@ A bad ref or an empty diff fails here, not inside two paid model calls.
 
 ### 2. Pick a tier and announce it
 
-**Default to `heavy` (kimi-k3)** — see the measured-reliability table in
-`models.md` for why a tool-using review does not get the `medium` default its
-size would suggest. Use `medium` only for a genuinely small diff.
+Judge complexity by the rubric in `models.md`, apply the escalation rule, and
+say so in one line before running:
 
-Still judge complexity, apply the escalation rule, and say so in one line
-before running:
+> 14 files, touches `sem_list/providers/` → `heavy` (glm-5.3)
 
-> 14 files, touches `sem_list/providers/` → `heavy` (kimi-k3)
+`medium` (deepseek-v4-pro) is the honest default for an ordinary one-feature
+diff — it was measured on a tool-using review, which is why the old blanket
+"always `heavy`" rule is gone. Do not drop to `light` for a review; it is
+untested at that length.
 
 Discount generated churn: a 400-line vendored-package resync is not complexity.
 If the user named a model, use it and skip the rubric.

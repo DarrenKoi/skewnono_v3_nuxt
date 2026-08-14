@@ -33,7 +33,7 @@ paraphrased finding.
 
 - 실행일: YYYY-MM-DD
 - 스킬: oc-review | oc-simplify | oc-discuss
-- 모델: opencode-go/kimi-k3 (tier=heavy)
+- 모델: opencode-go/glm-5.3 (tier=heavy)
 - 대상: <diff 범위, 파일, 또는 논의 주제>
 - 소요: <초> · 세션: ses_...
 

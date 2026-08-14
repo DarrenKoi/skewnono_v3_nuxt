@@ -19,10 +19,11 @@ rounds are what create pressure: the model has to defend its critique against a
 rebuttal, and Claude has to either answer the critique or concede it. Positions
 that survive that are worth more than positions nobody attacked.
 
-**Default to `heavy` (kimi-k3).** A debate round is a tool-using task — the
-prompts below tell the model to inspect the repo — and `models.md` records that
-shape failing on `medium`. Use `medium` only for a purely conceptual question
-where the model needs to read nothing.
+**Default to `heavy` (glm-5.3).** Not for reliability — `medium`
+(deepseek-v4-pro) is measured working on tool-using tasks — but because a debate
+is the one `oc-*` shape where the model's job is to *attack* a position across
+several rounds. Weak opposition is worse than no opposition: it produces an
+AGREED that nobody earned. Drop to `medium` for a small, bounded question.
 
 ## Process
 
