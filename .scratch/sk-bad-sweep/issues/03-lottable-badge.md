@@ -1,6 +1,6 @@
 # 03 — Lot 표의 outlier 배지를 토큰으로 옮긴다
 
-Status: open
+Status: resolved
 Spec: [`../spec.md`](../spec.md)
 Blocked by: 01
 

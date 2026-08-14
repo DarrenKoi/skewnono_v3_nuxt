@@ -1,6 +1,6 @@
 # 01 — `--sk-bad` hover 값을 정의한다
 
-Status: open
+Status: resolved
 Spec: [`../spec.md`](../spec.md) · 결정: D1
 
 클릭 가능한 "나쁨" 요소에 쓸 hover 값이 시스템에 없습니다. 지금 그 자리를 raw

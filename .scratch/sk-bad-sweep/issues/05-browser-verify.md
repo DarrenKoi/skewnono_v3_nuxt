@@ -1,6 +1,6 @@
 # 05 — 브라우저 확인 (두 화면)
 
-Status: open
+Status: resolved
 Spec: [`../spec.md`](../spec.md)
 Blocked by: 02, 03
 

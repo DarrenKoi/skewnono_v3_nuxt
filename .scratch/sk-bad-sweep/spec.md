@@ -1,9 +1,31 @@
 # 나쁨(빨강)을 하나의 토큰 계열로 모으기 — `--sk-bad` 스윕
 
-Status: open
+Status: open (드리프트 수정 완료 — 티켓 04 조사만 남음)
 작성일: 2026-08-15
+브라우저 확인: 2026-08-15 (device-statistics + measurement-rules, 라이트·다크,
+hover 실측, 콘솔 오류·경고 0건)
 발단: `.scratch/lot-outlier-merge/spec.md` 의 후속 작업 1·3순위
 토론 기록: `docs/opencode/2026-08-15-lot-outlier-merge-duplication-discuss.md`
+
+## 확인된 것 (2026-08-15)
+
+브라우저에서 computed style 로 실측한 값입니다 — 클래스 문자열이 아니라 실제
+렌더링 결과입니다.
+
+| 확인 | 라이트 | 다크 |
+| --- | --- | --- |
+| 표 배지 / 모달 배지 (같은 계열인가) | `soft` + `bad` 양쪽 동일 | 동일 |
+| 표 배지 hover | `oklch(0.89 0.07 30)` = 토큰 | `oklch(0.38 0.08 28)` = 토큰 |
+| 슬라이드오버 위반 배지 | `soft` + `bad`, 26px 유지 | 동일 |
+| 슬라이드오버 flagged 카드 tint | `--sk-bad-tint` | 동일 |
+| 파라미터 행 크기 (모달 13/14 · 슬라이드오버 15/16) | 유지 | 유지 |
+
+부수 효과로 고쳐진 것: 모달의 `분석 제외` 배지가 이제 Spoqa(sans) 로 그려집니다.
+`StepOutlierCard` 사본에 `font-sans` 가 빠져 있어 한글이 JetBrains Mono 로 나오고
+있었습니다 — 공유 컴포넌트가 `DrillSlideover` 쪽 값을 가져오면서 함께 풀렸습니다.
+
+`DrillSlideover` 의 `분석 제외` 배지는 화면에 나타나지 않았습니다. 토론 기록이
+"구성상 도달 불가능" 이라고 적은 그 가지이며, 이번 확인이 그것을 재확인했습니다.
 
 ## 배경
 

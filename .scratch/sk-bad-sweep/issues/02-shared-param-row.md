@@ -1,6 +1,6 @@
 # 02 — 면제 문구와 파라미터 행을 두 컴포넌트가 함께 쓰게 한다
 
-Status: open
+Status: resolved
 Spec: [`../spec.md`](../spec.md) · 결정: D2
 Blocked by: 01
 
