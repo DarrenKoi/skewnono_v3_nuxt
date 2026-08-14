@@ -199,22 +199,18 @@
           :rows="profiledRows"
           :sort="selectedSort"
           @select-lot="openLotDetail"
-          @open-outliers="openOutlierDrill"
+          @open-outliers="openLotOutliers"
         />
         <CdsemComparisonLotDetailModal
           v-model:open="lotModalOpen"
+          v-model:filter="lotModalFilter"
           :row="selectedLotRow"
           :bucket="selectedBucket"
           :recipe-rows="recipeRowsForBucket"
           :recipe-params="selectedLotParams"
-          :trend="trend ?? null"
           :drill="selectedLotDrill"
-          :outlier="selectedLotRow ? deviceOutliers.get(selectedLotRow.lot_cd) ?? null : null"
-        />
-        <EbeamDevstatDrillSlideover
-          v-model:open="drillOpen"
-          :device="activeDrill"
-          highlight-label="초과"
+          :outlier="selectedLotOutlier"
+          :trend="trend ?? null"
         />
       </div>
     </template>
@@ -233,6 +229,7 @@ import { sortLots, type LotSortKey } from '~/utils/lotSort'
 import type { RecipeInput } from '~/utils/ruleEngine'
 import { buildDeviceOutliers, groupRecipesByLot, attachProfile, type Profiled } from '~/utils/deviceProfile'
 import { toOutlierDrill, type DrillDevice } from '~/utils/deviceDrill'
+import type { StepFilter } from '~/utils/lotOutlierSteps'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { CHART_AXIS_LABEL, CHART_LEGEND_LABEL } from '~/utils/chartType'
 import { buildParameterRamp } from '~/utils/parameterRamp'
@@ -639,51 +636,55 @@ useEchart(availRecipeEl, availRecipeOption)
 const lotModalOpen = ref(false)
 const selectedLotRow = ref<HealthAugmentedRow | null>(null)
 
+// 필터의 초기 상태를 **진입점이** 정합니다 (D1). 행을 눌러 들어온 사람은 "이
+// device 가 무엇을 재는가" 를 물었고, outlier 배지를 눌러 들어온 사람은 "무엇이
+// 규칙을 어겼는가" 를 물었습니다 — 클릭이 이미 말한 것을 화면이 되묻지 않습니다.
+const lotModalFilter = ref<StepFilter>('all')
+
 const openLotDetail = (row: HealthAugmentedRow) => {
   selectedLotRow.value = row
+  lotModalFilter.value = 'all'
   lotModalOpen.value = true
 }
 
-// 모달의 CSV 내보내기가 쓰는 파라미터. drill 과 **같은 map** 에서 꺼냅니다 —
-// 이미 버킷 범위로 좁혀진 recipesByLot 이라, 파일이 화면의 health·outlier 와
-// 다른 모집단을 말할 수 없습니다. 열려 있는 lot 것만 넘겨 모달은 좁히는 일을
-// 하지 않습니다.
+// 표의 outlier 배지. 예전에는 별도 슬라이드오버를 열었습니다 — 같은 lot 의 같은
+// 버킷 범위의 같은 recipe 를 다른 열로 한 번 더 그리는 화면이라, 스텝과 초과
+// recipe 를 대조하려면 두 오버레이를 왕복해야 했습니다.
+const openLotOutliers = (lot_cd: string) => {
+  const row = profiledRows.value.find(r => r.lot_cd === lot_cd)
+  if (!row) return
+  selectedLotRow.value = row
+  lotModalFilter.value = 'flagged'
+  lotModalOpen.value = true
+}
+
+// 모달의 CSV 내보내기가 쓰는 파라미터. 이미 버킷 범위로 좁혀진 recipesByLot 에서
+// 꺼내므로, 파일이 화면의 health·outlier 와 다른 모집단을 말할 수 없습니다.
 const selectedLotParams = computed<RecipeInput[]>(() => {
   const lotCd = selectedLotRow.value?.lot_cd
   return lotCd ? recipesByLot.value.get(lotCd) ?? [] : []
 })
 
+const selectedLotOutlier = computed(() => {
+  const lotCd = selectedLotRow.value?.lot_cd
+  return lotCd ? deviceOutliers.value.get(lotCd) ?? null : null
+})
+
 // 모달이 그리는 outlier. 슬라이드오버가 쓰던 것과 **같은 어댑터**입니다 —
-// 화면이 둘로 갈렸을 때 두 벌로 계산하지 않으려고 만든 것이 toOutlierDrill
-// 이므로, 화면을 하나로 합치면서 그것을 버릴 이유가 없습니다.
+// 분석 제외 꼬리표 두 층과 dropLeadingHelperParams 정합성이 여기 들어 있고
+// utils/deviceDrill.test.ts 가 그것을 지킵니다.
 const selectedLotDrill = computed<DrillDevice | null>(() => {
   const lotCd = selectedLotRow.value?.lot_cd
   if (!lotCd) return null
   const recipes = recipesByLot.value.get(lotCd) ?? []
-  const result = deviceOutliers.value.get(lotCd)
+  const result = selectedLotOutlier.value
   return result ? toOutlierDrill(lotCd, recipes[0]?.ctn_desc ?? '', recipes, result) : null
 })
 
-const drillOpen = ref(false)
-const activeDrill = ref<DrillDevice | null>(null)
-
-const openOutlierDrill = (lot_cd: string) => {
-  const recipes = recipesByLot.value.get(lot_cd) ?? []
-  const result = deviceOutliers.value.get(lot_cd)
-  if (!result) return
-  activeDrill.value = toOutlierDrill(lot_cd, recipes[0]?.ctn_desc ?? '', recipes, result)
-  drillOpen.value = true
-}
-
-// 버킷이 바뀌면 열려 있던 두 오버레이를 모두 닫습니다 — 둘 다 버킷 범위의
-// 숫자를 들고 있어서, 열어 둔 채로 두면 이전 버킷의 값을 계속 보여줍니다.
-//
-// drill 은 예전에 일부러 열어 두었습니다("기준선이 디바이스가 측정하는 모든
-// 파라미터라 버킷이 바뀌어도 보여줄 것이 안 변한다"). 2026-08-04 부터 중앙값·
-// outlier 도 버킷 범위로 계산하므로 그 전제가 더는 참이 아닙니다.
+// 버킷이 바뀌면 열려 있던 모달을 닫습니다 — 중앙값·초과까지 버킷 범위로
+// 계산하므로(2026-08-04) 열어 둔 채로 두면 이전 버킷의 숫자를 계속 보여 줍니다.
 watch(selectedBucket, () => {
   lotModalOpen.value = false
-  drillOpen.value = false
 })
 
 const goBack = async () => {

@@ -405,8 +405,8 @@ const emit = defineEmits<{
 
 const text = {
   title: 'Lot 요약',
-  subtitleCards: '카드를 클릭하면 recipe 상세와 추이를, outlier 를 클릭하면 과다 측정 파라미터를 확인합니다.',
-  subtitleTable: '행을 클릭하면 recipe 상세와 추이를, outlier 를 클릭하면 과다 측정 파라미터를 확인합니다.',
+  subtitleCards: '카드를 클릭하면 recipe 상세와 추이를, outlier 를 클릭하면 같은 팝업이 초과 recipe 만 추려 열립니다.',
+  subtitleTable: '행을 클릭하면 recipe 상세와 추이를, outlier 를 클릭하면 같은 팝업이 초과 recipe 만 추려 열립니다.',
   noProfile: '이 lot 의 recipe 파라미터를 불러오지 못했습니다',
   empty: '표시할 lot 이 없습니다. 다른 bucket 을 선택해 보세요.',
   copy: '클립보드 복사',
