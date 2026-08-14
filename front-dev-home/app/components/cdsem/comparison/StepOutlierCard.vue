@@ -39,17 +39,15 @@
             samp_seq <span class="sk-field-value">{{ step.samp_seq }}</span>
           </span>
 
-          <!-- 설계상 웨이퍼 전면을 훑는 job 입니다. 이 배지가 없으면 큰 숫자가
-               초과 표시 없이 놓인 것이 규칙 고장으로 읽힙니다. -->
-          <span
+          <EbeamDevstatDrillFlagBadge
             v-if="card.drill?.exempt"
-            class="sk-badge bg-(--sk-muted-surface) font-semibold text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset"
-            :title="EXEMPT_TITLE"
-          >{{ EXEMPT_BADGE }}</span>
-          <span
+            variant="exempt"
+          />
+          <EbeamDevstatDrillFlagBadge
             v-else-if="flagged"
-            class="sk-badge bg-(--sk-bad-soft) font-bold text-(--sk-bad) ring-1 ring-(--sk-bad-border) ring-inset"
-          >초과 {{ card.drill?.flagged_count }}</span>
+            variant="flagged"
+            :count="card.drill?.flagged_count"
+          />
 
           <!-- 같은 recipe 가 스텝 여럿에서 돕니다. 말해 두지 않으면 같은 배지가
                카드 두 장에 붙은 것이 중복 집계로 읽힙니다. -->
@@ -83,26 +81,11 @@
       </div>
     </component>
 
-    <!-- 표가 아니라 라벨 달린 행입니다 — 열이 셋뿐이고 헤더도 없어서 <table>
-         이 주는 정렬 이점보다 작은 글자의 대가가 큽니다 (DrillSlideover 에서
-         같은 이유로 같은 모양을 씁니다). -->
-    <div
+    <EbeamDevstatDrillParamRows
       v-if="expanded && card.drill"
-      class="border-t border-(--sk-border)"
-    >
-      <div
-        v-for="param in card.drill.parameters"
-        :key="param.name"
-        class="px-4 py-1.5"
-        :class="param.flagged ? 'bg-(--sk-bad-soft)' : ''"
-      >
-        <div class="flex max-w-2xl items-center gap-3">
-          <span class="sk-field-name min-w-0 flex-1">{{ param.name }}</span>
-          <span class="sk-field-value w-16 flex-none text-right font-semibold text-(--sk-ink)">{{ param.point_count }}</span>
-          <span class="w-28 flex-none text-right sk-field-label tabular-nums">{{ param.note ?? '' }}</span>
-        </div>
-      </div>
-    </div>
+      :parameters="card.drill.parameters"
+      dense
+    />
   </div>
 </template>
 
@@ -122,9 +105,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{ toggle: [] }>()
 
-const EXEMPT_BADGE = '분석 제외'
-const EXEMPT_TITLE = 'CDU 계열(_*CDU)·full/half-map·matrix 측정 job(_FULL/_HALF/_MTX)입니다. '
-  + '설계상 측정 규모가 정상 recipe 와 달라 중앙값 기준선과 초과 판정에서 모두 빠집니다.'
 const SPAN_TITLE = '같은 recipe 를 여러 공정 스텝에서 돌립니다. 초과는 recipe 단위 사실이라 '
   + '각 스텝 카드에 같은 값이 붙습니다 — 중복 집계가 아닙니다.'
 

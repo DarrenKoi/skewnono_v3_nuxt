@@ -46,8 +46,19 @@ export interface DrillDevice {
   flagged_param_count: number
 }
 
-/** DUMMY·ALIGN 행의 꼬리표. recipe 층의 '분석 제외' 배지와 같은 말을 씁니다. */
-const EXEMPT_PARAM_NOTE = '분석 제외'
+/**
+ * 분석 범위 밖이라는 말. **recipe 층 배지와 파라미터 행 꼬리표가 같은 문자열을
+ * 씁니다** — 한 화면에서 위아래로 붙어 나오므로 다른 말을 쓰면 두 가지 제외가
+ * 있는 것으로 읽힙니다.
+ *
+ * 문구가 규칙 옆에 사는 이유는 이것이 `isExemptJob` 이 무엇을 뺐는지 설명하는
+ * 문장이기 때문입니다. 화면에 두면 규칙이 바뀌어도 설명은 그대로 남습니다.
+ */
+export const EXEMPT_LABEL = '분석 제외'
+
+/** 배지의 tooltip. 어떤 job 이, 왜 기준선과 판정 **양쪽**에서 빠지는지. */
+export const EXEMPT_TITLE = 'CDU 계열(_*CDU)·full/half-map·matrix 측정 job(_FULL/_HALF/_MTX)입니다. '
+  + '설계상 측정 규모가 정상 recipe 와 달라 중앙값 기준선과 초과 판정에서 모두 빠집니다.'
 
 /** Descriptive adapter — within-device point-count outliers (Plan 1). */
 export const toOutlierDrill = (
@@ -70,7 +81,7 @@ export const toOutlierDrill = (
       // 않습니다 — detectDeviceOutliers 가 같은 규칙으로 이미 걸러 냈습니다.
       const note = flagged
         ? `> ${result.threshold}`
-        : measured.has(p.name) ? undefined : EXEMPT_PARAM_NOTE
+        : measured.has(p.name) ? undefined : EXEMPT_LABEL
       return { name: p.name, point_count: p.point_count, flagged, note }
     })
     const flagged_count = parameters.filter(p => p.flagged).length
