@@ -105,6 +105,27 @@ DUMMY/Align) 도 같습니다.
   그대로 두고, 페이지의 **수신부만** 바꿉니다.
 - 추이 차트(`TrendChart`) 와 para 분포 막대. 지금 자리 그대로입니다.
 
+## 후속 작업 (이번 브랜치 범위 밖)
+
+1. **(1순위) live-live 마크업 중복.** `StepOutlierCard.vue` 와 `DrillSlideover.vue`
+   가 초과 배지 클래스와 파라미터 행 마크업 약 25줄을 각자 들고 있습니다.
+   `DrillSlideover` 쪽은 `ComplianceTable.vue`(cap 위반 화면)에서 **살아서
+   렌더링**되므로 진짜 중복입니다. 한쪽에 넣은 수정이 다른 쪽에 닿지 않는 것은
+   이 저장소가 이미 여러 번 겪은 실패 양식입니다. 추출하려면 양쪽이 같은 모듈을
+   import 해야 하고, 그러면 이번 브랜치의 브라우저 확인 목록이 다루지 않는
+   measurement-rules 화면이 딸려 들어옵니다 — 그래서 미룹니다.
+2. **(2순위) 도달 불가능해진 `exempt` 가지.** `deviceDrill.ts` 에서 `exempt` 를
+   세팅하는 것은 `toOutlierDrill` 뿐이고 `toViolationDrill` 은 세팅하지 않습니다.
+   이번 브랜치가 `toOutlierDrill → DrillSlideover` 경로를 끊었으므로
+   `DrillSlideover` 의 `v-if="recipe.exempt"` 배지는 남은 호출처에 대해
+   렌더링될 수 없습니다. 죽은 것은 그 템플릿 가지 하나뿐입니다 — `toOutlierDrill`
+   어댑터 자체는 모달의 `selectedLotDrill` 이 계속 씁니다. 지우기 전에 판정(cap)이
+   CDU/FULL/HALF/MTX job 을 면제해야 하는지를 먼저 결정해야 하는데, 그것은
+   룰 데이터의 결정이지 리팩터링이 아닙니다.
+
+토론 기록은 `docs/opencode/2026-08-15-lot-outlier-merge-duplication-discuss.md`
+입니다.
+
 ## 완료 조건
 
 1. 표의 행을 누르면 모달이 `전체` 로 열리고, 초과가 있는 스텝 카드에 `초과 N`
