@@ -56,6 +56,7 @@ All colors are defined as light/dark pairs on `:root` and `.dark` and must be co
 ### Semantic
 - **OK** (`--sk-ok` / `-soft` / `-border` — `oklch(0.62 0.13 145)` / `oklch(0.78 0.14 150)`): Connected, healthy. Soft fills sit on muted-surface; borders at 32% alpha so badges read as labels, not buttons.
 - **Bad** (`--sk-bad` family — `oklch(0.58 0.18 28)` / `oklch(0.72 0.17 28)`): Down, error.
+- **Bad · hover** (`--sk-bad-soft-hover` — `oklch(0.89 0.07 30)` / `oklch(0.38 0.08 28)`): The `-soft` fill when a bad-state element is *clickable*. Light moves away from the page (darker), dark moves away from the canvas (lighter) — the direction the rest of the system hovers. The step is L ±0.05–0.06, calibrated to the `rose-100 → rose-200` distance it replaced, because that is the change users have actually been seeing. **Only `--sk-bad` has a hover value**, because it is the one status family with a clickable member (the outlier badge in `LotTable.vue`). Do not add `--sk-ok-*-hover` / `--sk-warn-*-hover` speculatively — an unused token is one nobody knows has never been looked at.
 - **Warn** (`--sk-warn` family — `oklch(0.70 0.15 75)` / `oklch(0.80 0.15 78)`): Degraded.
 - **On pill** (`--sk-on-bg`/`--sk-on-fg` — `#d9f5e8`/`#0f5132` / `#052e16`/`#bbf7d0`): Equipment running state, via `.sk-pill-on`.
 - **Off pill** (`--sk-off-bg`/`--sk-off-fg` — warm gray pair): Idle/maintenance, via `.sk-pill-off`.
