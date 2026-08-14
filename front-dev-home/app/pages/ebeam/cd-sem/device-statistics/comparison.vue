@@ -208,6 +208,7 @@
           :recipe-rows="recipeRowsForBucket"
           :recipe-params="selectedLotParams"
           :trend="trend ?? null"
+          :drill="selectedLotDrill"
         />
         <EbeamDevstatDrillSlideover
           v-model:open="drillOpen"
@@ -649,6 +650,17 @@ const openLotDetail = (row: HealthAugmentedRow) => {
 const selectedLotParams = computed<RecipeInput[]>(() => {
   const lotCd = selectedLotRow.value?.lot_cd
   return lotCd ? recipesByLot.value.get(lotCd) ?? [] : []
+})
+
+// 모달이 그리는 outlier. 슬라이드오버가 쓰던 것과 **같은 어댑터**입니다 —
+// 화면이 둘로 갈렸을 때 두 벌로 계산하지 않으려고 만든 것이 toOutlierDrill
+// 이므로, 화면을 하나로 합치면서 그것을 버릴 이유가 없습니다.
+const selectedLotDrill = computed<DrillDevice | null>(() => {
+  const lotCd = selectedLotRow.value?.lot_cd
+  if (!lotCd) return null
+  const recipes = recipesByLot.value.get(lotCd) ?? []
+  const result = deviceOutliers.value.get(lotCd)
+  return result ? toOutlierDrill(lotCd, recipes[0]?.ctn_desc ?? '', recipes, result) : null
 })
 
 const drillOpen = ref(false)

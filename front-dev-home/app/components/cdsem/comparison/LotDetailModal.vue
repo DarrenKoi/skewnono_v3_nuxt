@@ -159,63 +159,17 @@
           </div>
 
           <div
-            v-if="sortedRecipes.length > 0"
+            v-if="stepCards.length > 0"
             class="space-y-2"
           >
-            <!-- 10열 표를 카드로. recipe_id 가 제목, oper_desc 는 잘리지 않고,
-                 seq 는 라벨 달린 메타 줄, para 분포는 오른쪽 블록입니다.
-
-                 카드 한 장 = **스텝 한 건**이므로 :key 도 스텝의 정체성이어야
-                 합니다. recipe_id 는 여러 스텝이 함께 쓰는 조인 키라 키로 쓰면
-                 카드가 접혀 사라집니다 (utils/recipeStepSort.ts recipeStepKey). -->
-            <div
-              v-for="recipe in sortedRecipes"
-              :key="recipeStepKey(recipe)"
-              class="flex flex-wrap items-start gap-x-5 gap-y-3 rounded-xl bg-(--sk-surface) px-4 py-3 ring-1 ring-(--sk-border-soft)"
-              :class="{ 'opacity-60': recipe.para_all === 0 }"
-            >
-              <!-- 카드의 주어는 **스텝(oper_desc)** 입니다. recipe_id 가 아닙니다 —
-                   이 목록을 읽는 질문이 "이 device 는 어느 공정에서 무엇을 재는가"
-                   이고, recipe 이름은 그 스텝을 재는 job 의 이름일 뿐이기 때문입니다.
-                   그래서 headline 은 .sk-card-id(카드가 다루는 대상), recipe_id 는
-                   한 단계 아래 .sk-field-value 로 내려갑니다. -->
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span class="sk-card-id">{{ recipe.oper_desc || '—' }}</span>
-                  <span class="sk-field-label">
-                    oper_seq <span class="sk-field-value font-semibold text-(--sk-ink)">{{ recipe.oper_seq }}</span>
-                  </span>
-                </div>
-                <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span class="sk-field-value">{{ recipe.recipe_id }}</span>
-                  <span class="sk-badge bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ recipe.oper_id }}</span>
-                  <span class="sk-field-label">
-                    samp_seq <span class="sk-field-value">{{ recipe.samp_seq }}</span>
-                  </span>
-                </div>
-              </div>
-
-              <div class="w-50 flex-none">
-                <div class="mb-1.5 flex items-baseline justify-between gap-2">
-                  <span class="sk-field-label">{{ text.paraDist }}</span>
-                  <span class="sk-field-value text-[15px] font-semibold text-(--sk-ink)">{{ recipe.para_all }}</span>
-                </div>
-                <CdsemComparisonStackedBar
-                  v-if="recipe.para_all > 0"
-                  :row="recipe"
-                  :label="recipe.recipe_id"
-                  :height="18"
-                  :normalize="false"
-                  :max-total="maxRecipeParaTotal"
-                />
-                <p
-                  v-else
-                  class="sk-field-label"
-                >
-                  {{ text.noParams }}
-                </p>
-              </div>
-            </div>
+            <CdsemComparisonStepOutlierCard
+              v-for="card in stepCards"
+              :key="recipeStepKey(card.step)"
+              :card="card"
+              :max-total="maxRecipeParaTotal"
+              :expanded="expandedSteps.has(recipeStepKey(card.step))"
+              @toggle="toggleStep(recipeStepKey(card.step))"
+            />
 
             <p class="sk-caption px-1">
               {{ text.seqCaveat }}
@@ -251,6 +205,8 @@ import type {
 import { healthBadgeStyle, healthStripeColor } from './healthTokens'
 import { buildParameterRamp } from '~/utils/parameterRamp'
 import { PARA_KEYS } from '~/utils/paraTrendSeries'
+import { buildStepOutliers } from '~/utils/lotOutlierSteps'
+import type { DrillDevice } from '~/utils/deviceDrill'
 
 const props = defineProps<{
   row: HealthAugmentedRow | null
@@ -265,6 +221,12 @@ const props = defineProps<{
    */
   recipeParams: RecipeInput[]
   trend: RecipeTrendResponse | null
+  /**
+   * 이 lot 의 과다 측정 결과 — 페이지가 toOutlierDrill 로 만든 것입니다.
+   * 모달이 직접 판정하지 않는 이유는 recipeParams 를 좁히지 않는 이유와
+   * 같습니다: 화면 하나가 두 경로로 같은 사실을 계산하면 언젠가 갈립니다.
+   */
+  drill: DrillDevice | null
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -325,6 +287,10 @@ const recipeSort = ref<RecipeSortKey>('oper')
 // 확인됩니다(그 파일의 주석 참고).
 const sortedRecipes = computed(() => sortSteps(lotRecipes.value, recipeSort.value))
 
+// 정렬 -> 조인 순서입니다. buildStepOutliers 는 순서를 보존하므로 정렬 칩이
+// 그대로 카드 순서가 됩니다.
+const stepCards = computed(() => buildStepOutliers(sortedRecipes.value, props.drill))
+
 // 카드마다 막대를 제 합계로 정규화하면 파라미터 3개짜리 recipe 와 40개짜리
 // recipe 의 막대가 똑같이 꽉 차 보입니다. lot 안에서 서로 비교되도록 최대값을
 // 공유합니다.
@@ -369,4 +335,21 @@ const copyParamTable = async () => {
       : { title: '복사에 실패했습니다', icon: 'i-lucide-x', color: 'error' }
   )
 }
+
+// 펼침 상태의 키는 카드의 키와 같아야 합니다 — recipe_id 로 잡으면 같은
+// recipe 를 쓰는 두 스텝이 함께 펼쳐집니다(그리고 접힙니다).
+const expandedSteps = ref<Set<string>>(new Set())
+
+const toggleStep = (key: string) => {
+  const next = new Set(expandedSteps.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedSteps.value = next
+}
+
+// lot 이 바뀌면 모두 접습니다. 모달은 unmount 되지 않으므로 두면 이전 lot 의
+// 펼침이 남습니다.
+watch(() => props.row?.lot_cd, () => {
+  expandedSteps.value = new Set()
+})
 </script>
