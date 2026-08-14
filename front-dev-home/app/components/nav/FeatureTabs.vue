@@ -14,6 +14,9 @@ const isEbeamRoute = useEbeamRoute()
 // cannot be reachable from the header while rendering no tabs.
 const isInfoRoute = computed(() => isHeaderInfoPath(route.path))
 
+// The tabs and the 실험실 menu appear in exactly the same places — one composable decides.
+const isToolScoped = useToolScopedRoute()
+
 type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'live-alarm' | 'device-statistics' | 'skewvoir' | 'skew-check'
 
 type FeatureTab = {
@@ -92,7 +95,7 @@ const isFeatureEnabled = (feature: FeatureTab) => {
 
 <template>
   <nav
-    v-if="isEbeamRoute || isInfoRoute"
+    v-if="isToolScoped"
     aria-label="Feature navigation"
     class="flex gap-1 min-w-0 overflow-x-auto"
   >

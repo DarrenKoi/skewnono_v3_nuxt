@@ -8,9 +8,17 @@ import { headerLinksIn, isHeaderLinkActive } from '~/utils/headerNav'
 // of eight unlabelled icons in the header; the icons had to be hovered to be read, and two
 // of them collided with icons the feature tabs already used. One labelled trigger with a
 // named menu behind it costs one click and removes both problems.
+//
+// Every row here asks something of a CD-SEM or HV-SEM tool, so the trigger is drawn only
+// where a tool is in scope — the same rule as the feature tabs. On the landing hub the
+// visitor is still choosing a tool, and a menu of that tool's instruments would be answering
+// a question they have not asked yet. (API 리스트 moved to App 정보 for the same reason: it
+// lists this app's endpoints, not a tool's, so it must stay reachable from the hub.)
 
 const route = useRoute()
 const nav = useNavigationStore()
+
+const isToolScoped = useToolScopedRoute()
 
 const open = ref(false)
 const links = headerLinksIn('lab')
@@ -45,6 +53,7 @@ const hasActiveLink = computed(() => links.some(isActive))
        edge of the header — centred, the 실험실 panel would hang over 계정 and read as
        belonging to it. -->
   <UPopover
+    v-if="isToolScoped"
     v-model:open="open"
     :content="{ align: 'end' }"
   >

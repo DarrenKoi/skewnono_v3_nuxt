@@ -28,6 +28,14 @@ test('실험실 rows explain themselves, 계정 rows do not need to', () => {
   assert.ok(headerLinksIn('account').length > 0)
 })
 
+test('API 리스트 sits in App 정보, not 실험실', () => {
+  // 실험실 is drawn only where a CD-SEM/HV-SEM tool is in scope (useToolScopedRoute), and the
+  // endpoint list asks nothing of a tool — left in 실험실 it would be unreachable from the hub.
+  const endpoints = HEADER_LINKS.find(link => link.to === '/endpoints')!
+  assert.equal(endpoints.group, 'account')
+  assert.equal(isHeaderInfoPath('/endpoints'), true)
+})
+
 test('채팅 is the only separated row, and it is last in 실험실', () => {
   // 앞의 셋은 조회·계산 도구, 채팅은 대화형 — 구분선이 그 성격 차이를 그립니다.
   const lab = headerLinksIn('lab')

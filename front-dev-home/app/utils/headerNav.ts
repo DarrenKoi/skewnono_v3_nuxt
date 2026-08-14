@@ -13,7 +13,9 @@
 // it: `group` decides which menu draws it, never whether it is derived from.
 
 /** Which of the two header menus draws this entry.
- *  `lab` — 실험실: 조회·계산 도구. `account` — 계정: 사용자 자신에 관한 페이지. */
+ *  `lab` — 실험실: CD-SEM/HV-SEM 장비를 대상으로 하는 조회·계산 도구. 장비를 고르기 전인
+ *  랜딩 허브에서는 메뉴 자체가 그려지지 않습니다 (`useToolScopedRoute`).
+ *  `account` — App 정보: 앱 자신과 호출자에 관한 페이지. 장비와 무관하므로 어디서나 보입니다. */
 export type HeaderMenuGroup = 'lab' | 'account'
 
 export interface HeaderLink {
@@ -24,8 +26,8 @@ export interface HeaderLink {
   label: string
   group: HeaderMenuGroup
   // The 실험실 rows are two-line: each tool needs a word about what it answers, because the
-  // labels alone ('API 리스트', 'Mag/Pixel 가이드') do not say. The 계정 rows are single-line
-  // — '세팅' needs no gloss — so the field is optional rather than filled with filler.
+  // labels alone ('Mag/Pixel 가이드', '라이브 알람') do not say. The App 정보 rows are
+  // single-line — '세팅' needs no gloss — so the field is optional rather than filled with filler.
   description?: string
   // Only for `to: null` entries: the path fragment that marks this link as the current page.
   // It lives on the record so a dynamic link's identity and its active test stay together —
@@ -45,11 +47,14 @@ export const HEADER_LINKS: HeaderLink[] = [
   // (search)는 'Recipe 검색' 텍스트 필 안에 있어, 라벨을 항상 함께 그리는
   // 실험실 메뉴 항목과는 헷갈리지 않습니다.
   { to: '/mag-pixel', icon: 'i-lucide-scan-search', label: 'Mag/Pixel 가이드', group: 'lab', description: '패턴이 들어오는 최대 배율 계산' },
-  { to: '/endpoints', icon: 'i-lucide-plug', label: 'API 리스트', group: 'lab', description: '엔드포인트 응답 직접 확인' },
   { to: null, icon: 'i-lucide-radio', label: '라이브 알람', group: 'lab', description: '실시간 알람 보드', activeMatch: '/live-alarm' },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅', group: 'lab', description: '데이터에 대해 물어보기', separated: true },
 
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '앱 소개', group: 'account' },
+  // API 리스트 lists this app's own endpoints — it asks nothing of a CD-SEM or HV-SEM tool,
+  // so it belongs with the pages about the app rather than in 실험실. Being here also keeps
+  // it reachable on the landing hub, where the 실험실 trigger is not drawn at all.
+  { to: '/endpoints', icon: 'i-lucide-plug', label: 'API 리스트', group: 'account' },
   // activity, not bar-chart-3: 기능 탭의 '디바이스 통계'가 이미 bar-chart-3 입니다.
   // 같은 아이콘이 헤더 안에서 두 곳을 가리키면 아이콘이 식별자 역할을 못 합니다.
   { to: '/activity', icon: 'i-lucide-activity', label: '사용 통계', group: 'account' },
