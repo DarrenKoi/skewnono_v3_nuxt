@@ -1,33 +1,9 @@
-<script setup lang="ts">
-import type { HeaderLink } from '~/utils/headerNav'
-import { useNavigationStore } from '~/stores/navigation'
-import { buildFabSegment } from '~/utils/fab'
-import { HEADER_LINKS } from '~/utils/headerNav'
-
-const route = useRoute()
-const nav = useNavigationStore()
-
-const ACTIVE_CLASS = 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 shadow-sm sk-nav-accent'
-
-// live-alarm is fab-scoped, so the top-nav icon jumps to the remembered
-// tool/fab selection (default cd-sem / R3 before any ebeam visit). Uses the
-// full fabs list, not just the primary, so a multi-fab selection survives
-// the URL round-trip instead of collapsing to fabs[0]. Only cd-sem and
-// hv-sem have this board.
-const liveAlarmTarget = computed(() => {
-  const tt = nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem'
-  return `/ebeam/${tt}/${buildFabSegment(nav.fabs.value)}/live-alarm`
-})
-
-const linkTarget = (link: HeaderLink) => link.to ?? liveAlarmTarget.value
-
-const isLinkActive = (link: HeaderLink) =>
-  link.to === null
-    ? !!link.activeMatch && route.path.includes(link.activeMatch)
-    : route.path === link.to || route.path.startsWith(`${link.to}/`)
-</script>
-
 <template>
+  <!-- Right side: two labelled menus, not a row of icons. The eight icons that used to sit
+       here were a second, unlabelled hierarchy beside the feature tabs — same line, no way
+       to tell a fab-scoped feature from a global page, and two icons duplicated across the
+       two groups. 실험실 holds the tools, 계정 holds the caller and their own pages; both
+       draw their rows from utils/headerNav, the one list the feature tabs also read. -->
   <UHeader>
     <template #left>
       <NuxtLink
@@ -41,18 +17,8 @@ const isLinkActive = (link: HeaderLink) =>
     <NavFeatureTabs />
 
     <template #right>
-      <NavIdentityPill />
-      <UButton
-        v-for="link in HEADER_LINKS"
-        :key="link.label"
-        :to="linkTarget(link)"
-        :icon="link.icon"
-        color="neutral"
-        variant="ghost"
-        :aria-label="link.label"
-        :aria-current="isLinkActive(link) ? 'page' : undefined"
-        :class="isLinkActive(link) ? ACTIVE_CLASS : undefined"
-      />
+      <NavLabMenu />
+      <NavAccountMenu />
     </template>
   </UHeader>
 </template>

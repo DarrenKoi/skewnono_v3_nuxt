@@ -1,9 +1,9 @@
 // Pure-logic tests for headerNav. Run: node --test app/utils/headerNav.test.ts
-// The invariant: the header's icon row and the pages that keep the feature tabs are one
+// The invariant: the header's menus and the pages that keep the feature tabs are one
 // list, so a page cannot be reachable from the header while rendering no tabs.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { HEADER_LINKS, HEADER_INFO_PATHS, isHeaderInfoPath } from './headerNav.ts'
+import { HEADER_LINKS, HEADER_INFO_PATHS, headerLinksIn, isHeaderInfoPath, isHeaderLinkActive } from './headerNav.ts'
 
 test('every header link has an icon and a label', () => {
   for (const link of HEADER_LINKS) {
@@ -12,7 +12,49 @@ test('every header link has an icon and a label', () => {
   }
 })
 
-test('the info paths are exactly the fixed targets of the icon row', () => {
+test('the two menus partition the list — no entry is dropped by its group', () => {
+  // This is the whole reason `group` is a field rather than two exported arrays. If a menu
+  // could hold a link the derivation below never sees, the header would offer a page whose
+  // feature tabs vanish — the bug this file exists to prevent, in its 2026-08 form.
+  const grouped = [...headerLinksIn('lab'), ...headerLinksIn('account')]
+  assert.equal(grouped.length, HEADER_LINKS.length)
+  assert.deepEqual(new Set(grouped), new Set(HEADER_LINKS))
+})
+
+test('실험실 rows explain themselves, 계정 rows do not need to', () => {
+  for (const link of headerLinksIn('lab')) {
+    assert.ok(link.description, `${link.label} is a two-line lab row with no description`)
+  }
+  assert.ok(headerLinksIn('account').length > 0)
+})
+
+test('채팅 is the only separated row, and it is last in 실험실', () => {
+  // 앞의 셋은 조회·계산 도구, 채팅은 대화형 — 구분선이 그 성격 차이를 그립니다.
+  const lab = headerLinksIn('lab')
+  assert.deepEqual(lab.filter(link => link.separated).map(link => link.label), ['채팅'])
+  assert.equal(lab.at(-1)?.label, '채팅')
+})
+
+test('no header icon repeats, and none collides with 디바이스 통계', () => {
+  // bar-chart-3 belonged to both 사용 통계 and the 디바이스 통계 feature tab, which made the
+  // icon useless as an identifier; 사용 통계 moved to activity.
+  const icons = HEADER_LINKS.map(link => link.icon)
+  assert.equal(new Set(icons).size, icons.length)
+  assert.ok(!icons.includes('i-lucide-bar-chart-3'))
+})
+
+test('isHeaderLinkActive matches fixed paths by prefix and dynamic ones by fragment', () => {
+  const chat = HEADER_LINKS.find(link => link.to === '/chat')!
+  assert.equal(isHeaderLinkActive(chat, '/chat'), true)
+  assert.equal(isHeaderLinkActive(chat, '/chat/42'), true)
+  assert.equal(isHeaderLinkActive(chat, '/chatroom'), false)
+
+  const liveAlarm = HEADER_LINKS.find(link => link.to === null)!
+  assert.equal(isHeaderLinkActive(liveAlarm, '/ebeam/cd-sem/r3/live-alarm'), true)
+  assert.equal(isHeaderLinkActive(liveAlarm, '/ebeam/cd-sem/r3'), false)
+})
+
+test('the info paths are exactly the fixed targets of the menus', () => {
   // Derived, not hand-maintained — this is what makes the two lists impossible to drift.
   assert.deepEqual(
     HEADER_INFO_PATHS,
@@ -21,8 +63,8 @@ test('the info paths are exactly the fixed targets of the icon row', () => {
 })
 
 test('/chat is reachable from the header and keeps its tabs', () => {
-  // The regression this list exists to prevent: /chat is reachable only from its header
-  // icon, so losing the tabs there left no way back to the main pages.
+  // The regression this list exists to prevent: /chat is reachable only from the header
+  // menu, so losing the tabs there left no way back to the main pages.
   assert.ok(HEADER_LINKS.some(link => link.to === '/chat'))
   assert.equal(isHeaderInfoPath('/chat'), true)
 })
