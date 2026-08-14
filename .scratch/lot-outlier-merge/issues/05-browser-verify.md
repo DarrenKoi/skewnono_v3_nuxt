@@ -1,6 +1,6 @@
 # 05 — 브라우저 확인 · 병합 · 워크트리 정리
 
-Status: open
+Status: resolved
 Plan: [`../plan.md`](../plan.md) · Spec: [`../spec.md`](../spec.md)
 Blocked by: 04
 

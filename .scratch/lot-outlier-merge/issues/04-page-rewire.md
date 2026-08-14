@@ -1,6 +1,6 @@
 # 04 — outlier 배지를 모달로 돌리고 슬라이드오버를 뗀다
 
-Status: open
+Status: resolved
 Plan: [`../plan.md`](../plan.md) · Spec: [`../spec.md`](../spec.md)
 Blocked by: 03
 

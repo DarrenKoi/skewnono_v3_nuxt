@@ -1,6 +1,6 @@
 # 01 — 스텝 × outlier 조인 순수 함수
 
-Status: open
+Status: resolved
 Plan: [`../plan.md`](../plan.md) · Spec: [`../spec.md`](../spec.md)
 
 모달 카드는 **스텝** grain 이고 outlier 정보는 **recipe** grain 입니다

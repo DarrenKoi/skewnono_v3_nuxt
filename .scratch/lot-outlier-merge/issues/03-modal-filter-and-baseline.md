@@ -1,6 +1,6 @@
 # 03 — 전체 / 초과만 토글과 기준선 표시
 
-Status: open
+Status: resolved
 Plan: [`../plan.md`](../plan.md) · Spec: [`../spec.md`](../spec.md)
 Blocked by: 02
 

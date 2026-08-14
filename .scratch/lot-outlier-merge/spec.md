@@ -1,7 +1,9 @@
 # Lot 상세 팝업에 outlier 정보 합치기
 
-Status: ready-for-agent
+Status: shipped
 작성일: 2026-08-15
+브라우저 확인: 2026-08-15 (전체/초과만, 다중 스텝 recipe, CSV 파일명, 다크 모드,
+measurement-rules 회귀 포함 — 콘솔 오류·경고 0건)
 대상 화면: `/ebeam/cd-sem/device-statistics/comparison` (디바이스 비교) 의 Lot 요약
 
 ## 배경
@@ -122,6 +124,17 @@ DUMMY/Align) 도 같습니다.
    어댑터 자체는 모달의 `selectedLotDrill` 이 계속 씁니다. 지우기 전에 판정(cap)이
    CDU/FULL/HALF/MTX job 을 면제해야 하는지를 먼저 결정해야 하는데, 그것은
    룰 데이터의 결정이지 리팩터링이 아닙니다.
+
+3. **(3순위) `LotTable.vue` 의 raw rose outlier 배지.** 모달 쪽 초과 표시는 이번에
+   `--sk-bad` 계열로 옮겼지만, 그 모달을 여는 **표의 배지**는 아직
+   `bg-rose-100 … dark:bg-rose-950/50` 입니다 (`LotTable.vue` 200행·346행).
+   이번 브랜치가 만든 드리프트가 아니라 원래 있던 것이고, 함께 걷어내지 않은
+   이유는 **hover 상태에 답이 없기 때문**입니다 — `hover:bg-rose-200` /
+   `dark:hover:bg-rose-950/80` 에 대응하는 `--sk-bad` 토큰이 `main.css` 에 없고,
+   `DESIGN.md` 규칙 7 은 문서가 먼저 바뀌고 같은 변경에서 `main.css` 가 따라온다고
+   못박습니다. 기능 브랜치 끝에서 hover 토큰을 즉흥으로 만드는 것은 디자인
+   시스템이 빨강에 대한 네 번째 의견을 얻는 방식입니다. 토큰을 먼저 정한 뒤
+   `--sk-bad` 스윕과 함께 처리합니다.
 
 토론 기록은 `docs/opencode/2026-08-15-lot-outlier-merge-duplication-discuss.md`
 입니다.

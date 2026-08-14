@@ -1,6 +1,6 @@
 # 02 — 스텝 카드에 초과 배지와 파라미터 펼침
 
-Status: open
+Status: resolved
 Plan: [`../plan.md`](../plan.md) · Spec: [`../spec.md`](../spec.md)
 Blocked by: 01
 
