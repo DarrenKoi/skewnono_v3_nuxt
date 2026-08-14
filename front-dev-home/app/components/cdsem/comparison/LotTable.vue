@@ -197,7 +197,7 @@
             <button
               v-else-if="row.outlier_count > 0"
               type="button"
-              class="inline-flex h-8 min-w-13 items-center justify-center gap-1 rounded-lg bg-rose-100 px-2.5 font-mono text-base font-bold tabular-nums text-rose-700 transition-colors hover:bg-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-950/80"
+              class="inline-flex h-8 min-w-13 items-center justify-center gap-1 rounded-lg bg-(--sk-bad-soft) px-2.5 font-mono text-base font-bold tabular-nums text-(--sk-bad) transition-colors hover:bg-(--sk-bad-soft-hover)"
               :aria-label="`${row.lot_cd} outlier ${row.outlier_count}건 자세히`"
               @click.stop="emit('open-outliers', row.lot_cd)"
             >
@@ -343,7 +343,7 @@
             :aria-label="`${row.original.lot_cd} outlier ${row.original.outlier_count}건 자세히`"
             @click.stop="emit('open-outliers', row.original.lot_cd)"
           >
-            <span :class="[countPill, 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300']">
+            <span :class="[countPill, 'bg-(--sk-bad-soft) text-(--sk-bad)']">
               {{ row.original.outlier_count }}
             </span>
             <UIcon
