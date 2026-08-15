@@ -5,11 +5,8 @@
 
 import type { ApiEndpoint, ApiMethod } from '~/data/apiCatalog'
 
-export const methodColor = (method: ApiMethod): 'primary' | 'success' | 'error' => {
-  if (method === 'POST') return 'success'
-  if (method === 'DELETE') return 'error'
-  return 'primary'
-}
+export const methodColor = (method: ApiMethod): 'primary' | 'success' =>
+  method === 'POST' ? 'success' : 'primary'
 
 export const toQueryString = (query?: Record<string, string>): string => {
   if (!query) return ''
@@ -24,10 +21,6 @@ export const curlExample = (endpoint: ApiEndpoint): string => {
   -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify(endpoint.example.body)}' \\
-  "${url}"`
-  }
-  if (endpoint.method === 'DELETE') {
-    return `curl -X DELETE -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
   "${url}"`
   }
   return `curl -H "Authorization: Bearer $SKEWNONO_TOKEN" \\
