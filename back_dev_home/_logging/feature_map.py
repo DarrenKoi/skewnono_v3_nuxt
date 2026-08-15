@@ -62,6 +62,12 @@ _FEATURE_RULES: tuple[tuple[str, str], ...] = tuple(
     ("/api/account/api-tokens", "api_tokens"),
     ("/api/activity",           "activity"),
     ("/api/admin/logs",         "admin_logs"),
+    # Its own slug rather than "skewvoir", even though the share button there is
+    # the only caller today: the endpoint is not skewvoir-specific, and folding
+    # it in would make skewvoir's activity counts include traffic from whatever
+    # page adopts short links next. Required rather than optional — the fallback
+    # would emit the dashed "short-links".
+    ("/api/short-links",        "short_links"),
 )
 
 

@@ -272,35 +272,53 @@ const openRecipe = () => {
   window.open(router.resolve(route).href, '_blank', 'noopener')
 }
 
-// What we copy is a share URL (or a summary carrying one), and its msr ids
-// — `20260509_ADI_CD_BIAS_ABC123_STD_00001_KPB266344_ECDX285` — offer the
-// browser no break opportunity, so the default toast runs them past its right
-// edge and silently clips the middle of the link. break-all, same as the msr id
-// in ReadinessModal. This matters most on the failure path below, where the
-// toast body IS the copy-it-yourself fallback.
+// The FAILURE toast is the copy-it-yourself fallback, so it has to carry the
+// whole text — and msr ids like `20260509_ADI_CD_BIAS_ABC123_STD_00001_
+// KPB266344_ECDX285` offer the browser no break opportunity, so without
+// break-all the toast runs them past its right edge and silently clips the
+// middle. Same treatment as the msr id in ReadinessModal.
 const copyToastUi = { description: 'break-all' }
 
 // copyTextToClipboard, not navigator.clipboard: the Clipboard API is
 // secure-context only and production is served over plain http://, where
 // `navigator.clipboard` is undefined. The util carries the execCommand
 // fallback that keeps this working there.
+//
+// The SUCCESS toast deliberately does NOT echo what was copied. It used to, and
+// with a comparison set that meant a wall of text — the summary plus a URL
+// carrying every msr id in full — covering the charts the engineer had just
+// come back to read. A confirmation only has to confirm; the text is already on
+// the clipboard, which is where it was wanted.
 const copyToClipboard = async (text: string, okTitle: string) => {
   if (await copyTextToClipboard(text)) {
-    toast.add({ title: okTitle, description: text, icon: 'i-lucide-clipboard-check', color: 'success', ui: copyToastUi })
+    toast.add({ title: okTitle, icon: 'i-lucide-clipboard-check', color: 'success' })
   } else {
     toast.add({ title: '복사하지 못했습니다', description: text, icon: 'i-lucide-triangle-alert', color: 'warning', ui: copyToastUi })
   }
 }
 
-const share = () => copyToClipboard(props.ws.shareUrl(), '링크가 복사되었습니다')
+const route = useRoute()
+const { createShortLink } = useShortLink()
 
-// Selection facts as paste-ready text (messenger / report hand-off).
-const copySummary = () => {
+// A `/s/<code>` link when the shortener answers, the full URL when it does not.
+// Never a failure: the user asked for a link, and the long one still works.
+const linkToShare = async () => (await createShortLink(route.fullPath)) ?? props.ws.shareUrl()
+
+const share = async () => copyToClipboard(await linkToShare(), '링크가 복사되었습니다')
+
+// Selection facts as paste-ready text (messenger / report hand-off). The link
+// rides along shortened for the same reason it does in `share` — in a set the
+// URL was by far the longest line of the summary. The count is in the title
+// because it is the one fact the (now bodyless) toast cannot otherwise convey:
+// that the summary describes the FOCUS msr, out of several selected.
+const copySummary = async () => {
   const sel = props.ws.selection.value
   if (!sel) return
   copyToClipboard(
-    formatSelectionSummary(sel, props.analysis.activeParamLabel.value, props.ws.shareUrl()),
-    '요약이 복사되었습니다'
+    formatSelectionSummary(sel, props.analysis.activeParamLabel.value, await linkToShare()),
+    isSet.value
+      ? `요약이 복사되었습니다 · 세트 ${setChips.value.length}개 중 focus`
+      : '요약이 복사되었습니다'
   )
 }
 
