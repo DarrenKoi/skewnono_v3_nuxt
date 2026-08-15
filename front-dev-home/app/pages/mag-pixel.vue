@@ -119,8 +119,12 @@ const resetInputs = () => {
  *
  *  미리보기는 요청값이 아니라 실제 FOV를 그리므로 그림은 옳다 — 고칠 것은
  *  그림이 아니라 침묵이다. 요청과 실현이 다를 때만 한 줄로 밝힌다.
- *  recommend()가 필요 FOV **이상**인 배율만 고르므로 실현값은 항상 요청값
- *  이상이고, 따라서 문구는 "넓게"로 단정해도 된다. */
+ *
+ *  문구가 "적용할 수 있는 배율이 없어"라고 말하되 성립하지 않는다고는 말하지
+ *  않는 이유: 배율은 정상적으로 선택됐고, 없는 것은 요청 비율에 **딱 맞는**
+ *  배율뿐이다. 아무 배율도 없는 경우는 reason='no-mag'로 따로 보고된다
+ *  (그때는 result가 null이라 이 줄이 아예 뜨지 않는다). 두 상황을 같은 말로
+ *  적으면 정상 동작이 실패로 읽힌다. */
 const marginRealised = computed(() => {
   const r = result.value
   if (r == null || r.mag === null) return null
@@ -310,10 +314,10 @@ const calcInput = computed<CalcInput>(() => ({
                   v-if="marginRealised"
                   class="mt-1.5 sk-meta leading-relaxed"
                 >
-                  배율이 이산값이라
-                  <span class="font-semibold text-(--sk-ink)">{{ marginRealised.mag }}</span>에서는
-                  실제 <span class="font-semibold text-(--sk-ink)">{{ marginRealised.actual }}%</span>가
-                  잡힙니다 — 요청한 {{ marginRealised.requested }}%보다 넓습니다.
+                  {{ marginRealised.requested }}%를 그대로 적용할 수 있는 배율이 없어
+                  <span class="font-semibold text-(--sk-ink)">{{ marginRealised.mag }}</span>로
+                  잡힙니다 — 실제 마진은
+                  <span class="font-semibold text-(--sk-ink)">{{ marginRealised.actual }}%</span>입니다.
                 </p>
               </div>
             </div>
