@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  setBaseline, buildTrendSeries, placeTrendPoints, distinctEqpIds,
+  setBaseline, recipeBaselines, buildTrendSeries, placeTrendPoints, distinctEqpIds,
   buildSetDistributionGroups, buildToolSkew, distinctToolCount,
   setParamOptions, setIntegrity, buildSequenceSeries, sequenceAxisBounds, formatChip,
   type TrendRowInput, type TrendFileInput, type TrendPoint, type DistFileInput,
@@ -9,8 +9,14 @@ import {
 } from './timeSeries.ts'
 import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 
-const row = (msr: string, eqpId: string, timestamp: string): TrendRowInput =>
-  ({ msr, label: `${eqpId} · ${timestamp}`, eqpId, timestamp })
+const row = (msr: string, eqpId: string, timestamp: string, recipeName = 'RCP_A'): TrendRowInput =>
+  ({ msr, label: `${eqpId} · ${timestamp}`, eqpId, timestamp, recipeName })
+
+/** A TrendPoint stub for the skew tests: only eqpId, mean and recipeName are
+ *  read, and defaulting the recipe keeps the single-recipe cases (which are the
+ *  ordinary ones) as short as they were before recipes entered the math. */
+const pt = (eqpId: string, mean: number, recipeName = 'RCP_A'): TrendPoint =>
+  ({ eqpId, mean, recipeName } as TrendPoint)
 
 const file = (parameter: string, mean: number, min: number, max: number, std: number): TrendFileInput =>
   ({ parameters: [{ parameter, count: 9, mean, std, min, max, unit: 'nm' }] })
@@ -69,6 +75,31 @@ test('residual baseline shifts value AND both band edges by the same amount', ()
   assert.equal(mid.min, 18) // raw statistic preserved, NOT shifted
   assert.equal(mid.max, 24) // raw statistic preserved, NOT shifted
   assert.equal(mid.std, 2) // raw statistic preserved, NOT shifted
+})
+
+test('residual baseline centers each measurement on ITS OWN recipe', () => {
+  // RCP_B sits 100 above RCP_A. Against a set-wide median every RCP_B point
+  // would read as a huge deviation; against its own recipe it reads as the
+  // ordinary spread it is.
+  const rows = [
+    row('m1', 'TP01', '2026-07-01T10:00:00', 'RCP_A'),
+    row('m2', 'TP02', '2026-07-02T10:00:00', 'RCP_A'),
+    row('m3', 'TP03', '2026-07-03T10:00:00', 'RCP_B'),
+    row('m4', 'TP04', '2026-07-04T10:00:00', 'RCP_B')
+  ]
+  const files = new Map([
+    ['m1', file('WAFER', 10, 9, 11, 1)],
+    ['m2', file('WAFER', 14, 13, 15, 1)],
+    ['m3', file('WAFER', 110, 109, 111, 1)],
+    ['m4', file('WAFER', 114, 113, 115, 1)]
+  ])
+  const out = buildTrendSeries(rows, files, 'WAFER', { baseline: 'resid', config: DEFAULT_METHOD_CONFIG })
+  const at = (msr: string) => out.find(p => p.msr === msr)!
+  assert.equal(at('m1').value, -2) // RCP_A median 12
+  assert.equal(at('m2').value, 2)
+  assert.equal(at('m3').value, -2) // RCP_B median 112 — same shape, own level
+  assert.equal(at('m4').value, 2)
+  assert.equal(at('m3').mean, 110) // raw statistic preserved
 })
 
 test('measurements whose file lacks the parameter are dropped', () => {
@@ -191,53 +222,108 @@ test('buildSetDistributionGroups drops a measurement with no measured site', () 
   assert.deepEqual(out.map(g => g.label), ['TP01 · 2026-07-01T10:00:00'])
 })
 
-test('buildToolSkew groups by equipment, offsets against the set baseline', () => {
-  const points = [
-    { eqpId: 'TP01', mean: 10 }, { eqpId: 'TP01', mean: 12 },
-    { eqpId: 'TP02', mean: 30 }
-  ] as TrendPoint[]
-  const out = buildToolSkew(points, 20)
-  const tp01 = out.find(r => r.eqpId === 'TP01')!
+test('buildToolSkew groups by equipment, offsets against the recipe baseline', () => {
+  // One recipe, so its baseline is the median of [10, 12, 30] = 12 and the math
+  // is the plain set-wide centering it always was.
+  const points = [pt('TP01', 10), pt('TP01', 12), pt('TP02', 30)]
+  const out = buildToolSkew(points)
+  const tp01 = out.rows.find(r => r.eqpId === 'TP01')!
   assert.equal(tp01.n, 2)
   assert.equal(tp01.mean, 11)
-  assert.equal(tp01.offset, -9)
-  assert.equal(tp01.sigma, Math.sqrt(2)) // sample std of [10, 12]
+  assert.equal(tp01.offset, -1) // mean(10-12, 12-12)
+  assert.equal(tp01.sigma, Math.sqrt(2)) // sample std of the centered values
+  assert.equal(out.recipes, 1)
+  assert.equal(out.contrastRecipes, 1)
 })
 
 test('buildToolSkew reports sigma null for a single-measurement tool', () => {
   // sampleStd returns 0 for n<2; rendering that reads as "no variation" when
   // the truth is "not estimable".
-  const points = [{ eqpId: 'TP01', mean: 10 }, { eqpId: 'TP02', mean: 30 }] as TrendPoint[]
-  const out = buildToolSkew(points, 20)
-  assert.ok(out.every(r => r.n === 1))
-  assert.ok(out.every(r => r.sigma === null))
+  const out = buildToolSkew([pt('TP01', 10), pt('TP02', 30)])
+  assert.ok(out.rows.every(r => r.n === 1))
+  assert.ok(out.rows.every(r => r.sigma === null))
 })
 
 test('buildToolSkew sorts by absolute offset, most-skewed tool first', () => {
-  const points = [
-    { eqpId: 'NEAR', mean: 21 }, { eqpId: 'FAR', mean: 40 }, { eqpId: 'MID', mean: 14 }
-  ] as TrendPoint[]
-  assert.deepEqual(buildToolSkew(points, 20).map(r => r.eqpId), ['FAR', 'MID', 'NEAR'])
+  const points = [pt('NEAR', 21), pt('FAR', 40), pt('MID', 14)]
+  assert.deepEqual(buildToolSkew(points).rows.map(r => r.eqpId), ['FAR', 'MID', 'NEAR'])
 })
 
 test('buildToolSkew produces NO rows for a single-tool set', () => {
   // An offset against a baseline the tool itself defines is not a comparison.
   // The spec requires no row at all — the panel says 단일 장비 instead.
-  const points = [{ eqpId: 'TP01', mean: 10 }, { eqpId: 'TP01', mean: 20 }] as TrendPoint[]
-  assert.deepEqual(buildToolSkew(points, 15), [])
+  assert.deepEqual(buildToolSkew([pt('TP01', 10), pt('TP01', 20)]).rows, [])
 })
 
 test('buildToolSkew on an empty set returns no rows', () => {
-  assert.deepEqual(buildToolSkew([], Number.NaN), [])
+  assert.deepEqual(buildToolSkew([]).rows, [])
+})
+
+test('buildToolSkew centers WITHIN recipe, so a recipe level shift is not tool skew', () => {
+  // Both tools ran both recipes and agree perfectly inside each. RCP_B simply
+  // sits 100 higher. A set-wide median would have called every RCP_B
+  // measurement +100 skewed; within-recipe centering calls it what it is: zero.
+  const points = [
+    pt('TP01', 10, 'RCP_A'), pt('TP02', 10, 'RCP_A'),
+    pt('TP01', 110, 'RCP_B'), pt('TP02', 110, 'RCP_B')
+  ]
+  const out = buildToolSkew(points)
+  assert.equal(out.recipes, 2)
+  assert.equal(out.contrastRecipes, 2)
+  assert.ok(out.rows.every(r => r.offset === 0))
+})
+
+test('buildToolSkew refuses to produce rows when recipe is fully confounded with tool', () => {
+  // Each recipe run by exactly one tool: "TP02 reads higher" and "RCP_B reads
+  // higher" are the same sentence about the same two numbers. Centering within
+  // recipe would return two 0.000 rows, which reads as perfect agreement
+  // between tools that were never compared — so there are no rows at all.
+  const out = buildToolSkew([pt('TP01', 10, 'RCP_A'), pt('TP02', 30, 'RCP_B')])
+  assert.equal(out.recipes, 2)
+  assert.equal(out.contrastRecipes, 0)
+  assert.deepEqual(out.rows, [])
+})
+
+test('buildToolSkew estimates from the crossed recipes only, and nulls the tool that has none', () => {
+  // RCP_A is crossed (TP01 + TP02). RCP_B is TP03 alone, so TP03 has no
+  // comparison to be offset from and must not be handed a 0.
+  const points = [
+    pt('TP01', 10, 'RCP_A'), pt('TP02', 14, 'RCP_A'),
+    pt('TP03', 99, 'RCP_B')
+  ]
+  const out = buildToolSkew(points)
+  assert.equal(out.contrastRecipes, 1)
+  const tp03 = out.rows.find(r => r.eqpId === 'TP03')!
+  assert.equal(tp03.offset, null)
+  assert.equal(tp03.recipes, 0)
+  assert.equal(tp03.mean, 99) // the raw mean is still a fact worth showing
+  const tp01 = out.rows.find(r => r.eqpId === 'TP01')!
+  assert.equal(tp01.offset, -2) // RCP_A median is 12
+  assert.equal(tp01.recipes, 1)
+})
+
+test('buildToolSkew sorts the unestimable tools last, not as if their offset were zero', () => {
+  const points = [
+    pt('CROSSED_A', 10, 'RCP_A'), pt('CROSSED_B', 14, 'RCP_A'),
+    pt('ALONE', 99, 'RCP_B')
+  ]
+  assert.equal(buildToolSkew(points).rows.at(-1)!.eqpId, 'ALONE')
+})
+
+test('recipeBaselines gives each recipe its own median', () => {
+  const bases = recipeBaselines([
+    pt('TP01', 10, 'RCP_A'), pt('TP02', 20, 'RCP_A'), pt('TP03', 30, 'RCP_A'),
+    pt('TP01', 100, 'RCP_B')
+  ])
+  assert.equal(bases.get('RCP_A'), 20)
+  assert.equal(bases.get('RCP_B'), 100)
 })
 
 test('distinctToolCount lets the panel tell "one tool" apart from "no data"', () => {
   // Both cases give buildToolSkew an empty array, but they need different copy.
-  assert.equal(distinctToolCount([{ eqpId: 'TP01', mean: 10 }] as TrendPoint[]), 1)
+  assert.equal(distinctToolCount([pt('TP01', 10)]), 1)
   assert.equal(distinctToolCount([]), 0)
-  assert.equal(distinctToolCount([
-    { eqpId: 'TP01', mean: 10 }, { eqpId: 'TP02', mean: 20 }
-  ] as TrendPoint[]), 2)
+  assert.equal(distinctToolCount([pt('TP01', 10), pt('TP02', 20)]), 2)
 })
 
 const optFile = (params: string[], mpRows: { parameter: string, mp_number: number, sequence: number }[]): OptionFileInput =>

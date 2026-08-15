@@ -24,6 +24,10 @@ export interface TrendRowInput {
   label: string
   eqpId: string
   timestamp: string
+  /** The recipe this measurement ran under. Load-bearing, not decoration: it is
+   *  the grouping key for the baseline, because a measured value is a response
+   *  to a CONDITION and the recipe is what fixes that condition. */
+  recipeName: string
 }
 
 /** The MsrFile facts a trend point needs. */
@@ -35,6 +39,7 @@ export interface TrendPoint {
   msr: string
   label: string
   eqpId: string
+  recipeName: string
   /** Epoch ms, or null when the timestamp could not be parsed. */
   ts: number | null
   // Raw statistics — never baseline-shifted.
@@ -58,7 +63,7 @@ export interface BuildTrendOptions {
   config: MethodConfig
 }
 
-/** Median of the set's measurement means — the `세트 기준`.
+/** Median of a group's measurement means — the `기준`.
  *
  *  Sorts defensively: quantileSorted indexes without sorting (its contract says
  *  "caller pre-sorts"), so an unsorted caller gets a confident wrong number. */
@@ -66,6 +71,27 @@ export const setBaseline = (means: number[]): number => {
   const sorted = means.filter(v => Number.isFinite(v)).sort((a, b) => a - b)
   if (sorted.length === 0) return Number.NaN
   return quantileSorted(sorted, 0.5)
+}
+
+/** One baseline per recipe, rather than one for the whole set.
+ *
+ *  Recipe fixes the measurement condition — mag, pixel, vac, method, what
+ *  feature is even being measured — so measurements under different recipes sit
+ *  at different levels for reasons that have nothing to do with the tools. A
+ *  single set-wide median inherits that level difference and then hands it to
+ *  the 잔차 display and every tool offset as if it were signal.
+ *
+ *  Centering WITHIN recipe removes the recipe level and leaves what varies
+ *  underneath it. When the set holds one recipe this returns that one median, so
+ *  the ordinary single-recipe set behaves exactly as it did before. */
+export const recipeBaselines = (points: readonly TrendPoint[]): Map<string, number> => {
+  const byRecipe = new Map<string, number[]>()
+  for (const p of points) {
+    const list = byRecipe.get(p.recipeName)
+    if (list) list.push(p.mean)
+    else byRecipe.set(p.recipeName, [p.mean])
+  }
+  return new Map([...byRecipe].map(([recipe, means]) => [recipe, setBaseline(means)]))
 }
 
 const parseTs = (timestamp: string): number | null => {
@@ -87,6 +113,7 @@ export const buildTrendSeries = (
       msr: row.msr,
       label: row.label,
       eqpId: row.eqpId,
+      recipeName: row.recipeName,
       ts: parseTs(row.timestamp),
       mean: summary.mean,
       min: summary.min,
@@ -109,14 +136,18 @@ export const buildTrendSeries = (
     return a.ts - b.ts
   })
 
-  const base = opts.baseline === 'resid' ? setBaseline(raw.map(p => p.mean)) : 0
-  const shift = Number.isFinite(base) ? base : 0
-  const points = raw.map(p => ({
-    ...p,
-    value: p.mean - shift,
-    bandLo: p.min - shift,
-    bandHi: p.max - shift
-  }))
+  // Per-recipe, so a residual is a distance from measurements taken the same
+  // way. A set-wide shift would make a recipe's level difference look like a
+  // deviation of every measurement that ran the other recipe.
+  const bases = opts.baseline === 'resid' ? recipeBaselines(raw) : null
+  const shiftOf = (p: TrendPoint): number => {
+    const base = bases?.get(p.recipeName)
+    return base != null && Number.isFinite(base) ? base : 0
+  }
+  const points = raw.map((p) => {
+    const shift = shiftOf(p)
+    return { ...p, value: p.mean - shift, bandLo: p.min - shift, bandHi: p.max - shift }
+  })
 
   // No peer judgement on an unnamed settling MP: comparing one measurement's
   // warm-up shot against another's says nothing about either wafer.
@@ -227,14 +258,32 @@ export const buildSetDistributionGroups = (
 
 export interface ToolSkewRow {
   eqpId: string
-  /** Measurements this tool contributed to the set. */
+  /** Measurements this tool contributed to the set, across every recipe. */
   n: number
-  /** Mean of this tool's measurement means (raw). */
+  /** Mean of this tool's measurement means (raw, across every recipe). */
   mean: number
-  /** mean - 세트 기준. */
-  offset: number
-  /** Sample std across this tool's means; null when n < 2 (not estimable). */
+  /** Mean of this tool's within-recipe centered values, over the recipes that
+   *  carry a tool contrast. `null` when this tool ran only recipes no other
+   *  tool ran — there is nothing to be offset FROM, and a number there would be
+   *  a recipe difference wearing a tool's name. */
+  offset: number | null
+  /** Sample std across the centered values behind `offset`; null under 2. */
   sigma: number | null
+  /** How many recipes the offset was estimated from. 0 ⇔ offset is null. */
+  recipes: number
+}
+
+export interface ToolSkewResult {
+  /** Sorted most-skewed first; empty for a single-tool or empty set, and empty
+   *  when recipe and tool are fully confounded (see `contrastRecipes`). */
+  rows: ToolSkewRow[]
+  /** Distinct recipes among the points. */
+  recipes: number
+  /** Recipes whose measurements span 2+ tools. Only those can separate a tool
+   *  difference from a recipe difference, so `recipes > 1 && contrastRecipes
+   *  === 0` is the fully-confounded set: every recipe was run by exactly one
+   *  tool, and no arithmetic can tell the two apart. */
+  contrastRecipes: number
 }
 
 /** Distinct equipment in the set. The panel needs this to tell "one tool"
@@ -243,43 +292,85 @@ export interface ToolSkewRow {
 export const distinctToolCount = (points: readonly TrendPoint[]): number =>
   new Set(points.map(p => p.eqpId)).size
 
-/** Per-equipment offset from the set baseline.
+/** Per-equipment offset, with the recipe's contribution removed.
  *
  *  Reads the RAW `mean`, so the rows are identical in raw and residual mode —
- *  an offset is already a delta. No verdict or status is produced: with a
- *  hand-picked set spanning recipes, an offset is not attributable enough to
- *  grade.
+ *  an offset is already a delta. No verdict or status is produced: even a clean
+ *  offset from a hand-picked set is not attributable enough to grade.
  *
- *  A single-tool set yields NO rows. Its baseline is that tool's own median, so
- *  the "offset" would be a number about nothing — a row reading ≈0 invites the
- *  conclusion that the tool agrees with its peers when it has none. */
-export const buildToolSkew = (
-  points: readonly TrendPoint[],
-  baseline: number
-): ToolSkewRow[] => {
-  if (distinctToolCount(points) < 2) return []
-
-  const byTool = new Map<string, number[]>()
+ *  Two things make an offset meaningless rather than merely noisy, and both
+ *  produce NO row rather than a number:
+ *
+ *  1. A single-tool set. Its baseline is that tool's own median, so the offset
+ *     would be a number about nothing — a row reading ≈0 invites the conclusion
+ *     that the tool agrees with its peers when it has none.
+ *  2. Recipe fully confounded with tool: every recipe run by exactly one tool.
+ *     Then "this tool differs by +2.5nm" and "this recipe differs by +2.5nm"
+ *     are the SAME statement about the same numbers, and no arithmetic here can
+ *     separate them. Centering within recipe collapses every offset to exactly
+ *     0 in that case — an answer that reads as perfect agreement, which is the
+ *     most misleading output available. `contrastRecipes: 0` says it instead.
+ *
+ *  What survives is the partially-crossed set: some recipe was run by 2+ tools,
+ *  so within THAT recipe the tools are comparable. The offset uses only those
+ *  recipes; a tool present in none of them gets `offset: null`, not a zero. */
+export const buildToolSkew = (points: readonly TrendPoint[]): ToolSkewResult => {
+  const byRecipe = new Map<string, TrendPoint[]>()
   for (const p of points) {
-    const list = byTool.get(p.eqpId)
-    if (list) list.push(p.mean)
-    else byTool.set(p.eqpId, [p.mean])
+    const list = byRecipe.get(p.recipeName)
+    if (list) list.push(p)
+    else byRecipe.set(p.recipeName, [p])
+  }
+
+  // A recipe carries a tool contrast only if 2+ tools ran it.
+  const contrast = new Set(
+    [...byRecipe]
+      .filter(([, group]) => new Set(group.map(p => p.eqpId)).size >= 2)
+      .map(([recipe]) => recipe)
+  )
+  const result = { recipes: byRecipe.size, contrastRecipes: contrast.size }
+
+  if (distinctToolCount(points) < 2 || contrast.size === 0) return { ...result, rows: [] }
+
+  const bases = recipeBaselines(points)
+
+  // `all` feeds the 평균 column — a raw fact about the tool, true across every
+  // recipe. `centered` feeds the offset, and only the contrast recipes may
+  // contribute to it.
+  const byTool = new Map<string, { all: number[], centered: number[], recipes: Set<string> }>()
+  for (const p of points) {
+    let acc = byTool.get(p.eqpId)
+    if (!acc) {
+      acc = { all: [], centered: [], recipes: new Set() }
+      byTool.set(p.eqpId, acc)
+    }
+    acc.all.push(p.mean)
+    const base = bases.get(p.recipeName)
+    if (contrast.has(p.recipeName) && base != null && Number.isFinite(base)) {
+      acc.centered.push(p.mean - base)
+      acc.recipes.add(p.recipeName)
+    }
   }
 
   const rows: ToolSkewRow[] = []
-  for (const [eqpId, means] of byTool) {
-    const m = meanOf(means)
+  for (const [eqpId, acc] of byTool) {
     rows.push({
       eqpId,
-      n: means.length,
-      mean: m,
-      offset: m - baseline,
-      sigma: means.length > 1 ? sampleStd(means) : null
+      n: acc.all.length,
+      mean: meanOf(acc.all),
+      offset: acc.centered.length ? meanOf(acc.centered) : null,
+      sigma: acc.centered.length > 1 ? sampleStd(acc.centered) : null,
+      recipes: acc.recipes.size
     })
   }
 
-  rows.sort((a, b) => Math.abs(b.offset) - Math.abs(a.offset))
-  return rows
+  // Most-skewed first, with the unestimable tools last rather than sorted as if
+  // their offset were zero.
+  rows.sort((a, b) => {
+    if (a.offset == null || b.offset == null) return (a.offset == null ? 1 : 0) - (b.offset == null ? 1 : 0)
+    return Math.abs(b.offset) - Math.abs(a.offset)
+  })
+  return { ...result, rows }
 }
 
 /** The MsrFile facts the parameter selector needs: which parameters exist, and
@@ -343,10 +434,10 @@ export const setParamOptions = (
   return options
 }
 
-/** A resolved set row plus the recipe, for the confounding badge. */
-export interface IntegrityRowInput extends TrendRowInput {
-  recipeName: string
-}
+/** A resolved set row. Identical to TrendRowInput now that the recipe is part
+ *  of every trend row (it groups the baseline, not just the badge). Kept as a
+ *  name so setIntegrity's signature still says what it reads. */
+export type IntegrityRowInput = TrendRowInput
 
 export interface SetIntegrity {
   /** Ids in the URL `msrs`. */

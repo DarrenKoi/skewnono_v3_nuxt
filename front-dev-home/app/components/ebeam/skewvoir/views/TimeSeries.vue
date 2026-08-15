@@ -297,12 +297,13 @@
           zoomable
         />
 
-        <!-- No `.length` guard: buildToolSkew returns [] for BOTH “one tool” and
-             “no data”, and only the panel (which also gets toolCount) can tell
-             those apart. -->
+        <!-- No `.length` guard: buildToolSkew returns no rows for “one tool”,
+             “no data” AND “recipe fully confounded with tool”, and only the
+             panel (which also gets toolCount and the recipe counts) can tell
+             those three apart. -->
         <EbeamSkewvoirTimeseriesToolSkewPanel
           v-else-if="ws.tsView.value === 'skew'"
-          :rows="analysis.toolSkewRows.value"
+          :skew="analysis.toolSkew.value"
           :tool-count="analysis.toolCount.value"
           :unit="analysis.activeUnit.value"
         />
@@ -401,19 +402,35 @@ const AXIS_OPTIONS: readonly { value: TsAxisMode, label: string, hint: string }[
   { value: 'eqp', label: '장비', hint: '장비별 열로 모아 배치합니다.' }
 ]
 
+const integrity = computed(() => props.analysis.integrity.value)
+
+// What the residual is measured FROM. With one recipe in the set it is the
+// set-wide median, as before; with more, each measurement is centered on its
+// own recipe's median so a residual is a distance from measurements taken the
+// same way rather than from a mixture of conditions.
+const baselineLabel = computed(() => (integrity.value.recipeCount > 1 ? 'recipe별 기준' : '세트 기준'))
+
 // `원시값` read as jargon for "the number before we did something to it", which
 // is not what this toggle offers: the choice is between the measured value and
-// its distance from the set's median. `측정값` names the thing itself and pairs
-// cleanly with `잔차` — 측정값을 볼 것인가, 세트 기준과의 잔차를 볼 것인가.
-const BASELINE_OPTIONS: readonly { value: TsBaseline, label: string, hint: string }[] = [
+// its distance from the baseline. `측정값` names the thing itself and pairs
+// cleanly with `잔차` — 측정값을 볼 것인가, 기준과의 잔차를 볼 것인가.
+//
+// The hint names which baseline, and so has to be computed: a static
+// "세트 기준(측정 평균들의 중앙값)" would describe the wrong arithmetic for
+// every mixed-recipe set.
+const BASELINE_OPTIONS = computed<readonly { value: TsBaseline, label: string, hint: string }[]>(() => [
   { value: 'raw', label: '측정값', hint: '측정된 값을 그대로 표시합니다.' },
-  { value: 'resid', label: '잔차', hint: '세트 기준(측정 평균들의 중앙값) 대비 차이를 표시합니다.' }
-]
+  {
+    value: 'resid',
+    label: '잔차',
+    hint: integrity.value.recipeCount > 1
+      ? 'recipe별 기준(같은 recipe 측정 평균들의 중앙값) 대비 차이를 표시합니다.'
+      : '세트 기준(측정 평균들의 중앙값) 대비 차이를 표시합니다.'
+  }
+])
 
 const tabId = (lens: TsView): string => `ts-lens-${lens}-tab`
 const panelId = (lens: TsView): string => `ts-lens-${lens}-panel`
-
-const integrity = computed(() => props.analysis.integrity.value)
 
 // How many measurements the lenses actually have to work with — the wider of
 // the two derivations, mirroring what each lens draws from.
@@ -525,7 +542,7 @@ const activeMeta = computed(() => {
     return `${props.analysis.distributionGroups.value.length}개 측정 · ${param}${missingParamMeta.value}${thin}`
   }
   if (props.ws.tsView.value === 'skew') {
-    return `${props.analysis.toolCount.value}개 장비 · 세트 기준 대비${missingParamMeta.value}`
+    return `${props.analysis.toolCount.value}개 장비 · ${baselineLabel.value} 대비${missingParamMeta.value}`
   }
   // The min/max band is not drawn under the eqp axis, so the meta must not
   // claim it is.

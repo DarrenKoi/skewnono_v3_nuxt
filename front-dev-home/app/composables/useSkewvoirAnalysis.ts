@@ -22,7 +22,6 @@ import {
   buildToolSkew,
   buildTrendSeries,
   distinctToolCount,
-  setBaseline,
   setIntegrity,
   setParamOptions,
   type TrendPoint
@@ -587,9 +586,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     { baseline: ws.tsBaseline.value, config: anomalyCfg.value }
   ))
 
-  // 세트 기준 — the median of the set's measurement means, in raw units.
-  const setBaselineValue = computed(() => setBaseline(trendPoints.value.map(p => p.mean)))
-
   // One box per measurement, from the site rows already loaded in setFiles.
   const distributionGroups = computed(() => buildSetDistributionGroups(
     trendRowInputs.value, setFiles.value, activeParam.value
@@ -601,8 +597,10 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     trendRowInputs.value, setFiles.value, activeParam.value
   ))
 
-  // Per-equipment offset from 세트 기준 (empty for a single-tool set).
-  const toolSkewRows = computed(() => buildToolSkew(trendPoints.value, setBaselineValue.value))
+  // Per-equipment offset with the recipe level removed, plus the counts the
+  // panel needs to tell "no rows because one tool" from "no rows because recipe
+  // and tool are the same fact here".
+  const toolSkew = computed(() => buildToolSkew(trendPoints.value))
 
   // Set-aware parameter list with coverage, for the Time-Series parameter picker.
   const paramOptions = computed(() => setParamOptions(trendRowInputs.value, setFiles.value))
@@ -611,7 +609,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const integrity = computed(() => setIntegrity(ws.msrList.value, trendRowInputs.value, setFiles.value))
 
   // Distinct equipment in the trend — lets the skew panel tell "one tool" apart
-  // from "no data", both of which yield no toolSkewRows.
+  // from "no data", both of which yield no skew rows.
   const toolCount = computed(() => distinctToolCount(trendPoints.value))
 
   // Watch/abnormal counts across the curated trend, for the panel meta.
@@ -775,10 +773,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     setFiles,
     setPending,
     trendPoints,
-    setBaselineValue,
     distributionGroups,
     sequenceGroups,
-    toolSkewRows,
+    toolSkew,
     toolCount,
     paramOptions,
     integrity,
