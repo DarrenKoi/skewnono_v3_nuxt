@@ -93,60 +93,50 @@
       />
     </template>
 
-    <!-- ── SET scope: existing focus-only X/Y view (Task 10 replaces later) ──── -->
+    <!-- ── SET scope: Across-MSR Outcome — one MSR is one point ─────────────── -->
     <template v-else>
-      <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
-        <span class="sk-eyebrow">X</span>
-        <USelect
-          v-model="paramX"
-          :items="params"
-          size="xs"
-          class="min-w-[9rem]"
-        />
-        <UIcon
-          name="i-lucide-x"
-          class="h-3 w-3 text-(--sk-ink-subtle)"
-        />
-        <span class="sk-eyebrow">Y</span>
-        <USelect
-          v-model="paramY"
-          :items="params"
-          size="xs"
-          class="min-w-[9rem]"
-        />
+      <div
+        v-if="!axes.length"
+        class="dashboard-surface flex h-72 items-center justify-center sk-body"
+      >
+        비교할 측정이 아직 없습니다.
       </div>
 
-      <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <template v-else>
+        <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
+          <span class="sk-eyebrow">X</span>
+          <USelect
+            v-model="axisXId"
+            :items="axisItems"
+            size="xs"
+            class="min-w-[13rem]"
+          />
+          <UIcon
+            name="i-lucide-x"
+            class="h-3 w-3 text-(--sk-ink-subtle)"
+          />
+          <span class="sk-eyebrow">Y</span>
+          <USelect
+            v-model="axisYId"
+            :items="axisItems"
+            size="xs"
+            class="min-w-[13rem]"
+          />
+        </div>
+
+        <EbeamSkewvoirFactorAcrossMsrSummary :result="acrossMsr" />
+
         <EbeamSkewvoirPanelFrame
-          title="Parameter Correlation"
-          :meta="`${paramX} × ${paramY}`"
+          title="Across-MSR Outcome"
+          :meta="`MSR ${acrossMsr.points.length}건 · 장비 ${acrossMsr.strata.length}대`"
           icon="i-lucide-scatter-chart"
         >
-          <EbeamSkewvoirCorrelationScatter
-            :points="setRelationship.points"
-            :param-x="paramX"
-            :param-y="paramY"
-            :unit-x="unitOf(paramX)"
-            :unit-y="unitOf(paramY)"
-            :readiness-reason="setRelationship.reason"
+          <EbeamSkewvoirFactorAcrossMsrScatter
+            :result="acrossMsr"
+            @select="analysis.setFocusedMsr"
           />
         </EbeamSkewvoirPanelFrame>
-
-        <EbeamSkewvoirPanelFrame
-          v-model="distModeSet"
-          title="Distribution"
-          :meta="paramY"
-          :toggles="['Hist', 'Box', 'Violin']"
-          icon="i-lucide-bar-chart-3"
-        >
-          <EbeamSkewvoirDistributionChart
-            :rows="analysis.siteRows.value"
-            :parameter="paramY"
-            :unit="unitOf(paramY)"
-            :mode="distModeSet"
-          />
-        </EbeamSkewvoirPanelFrame>
-      </div>
+      </template>
     </template>
   </div>
 </template>
@@ -158,6 +148,8 @@ import type { DistributionGroup } from '~/components/ebeam/skewvoir/Distribution
 import { analyzeSpatial } from '~/utils/skewvoirAnalysis/spatial'
 import { isNamedParam } from '~/utils/skewvoirAnalysis/paramOrder'
 import { buildCdCdRelationship, buildCdFdcRelationship } from '~/utils/skewvoirAnalysis/relationships'
+import type { AcrossMsrIdentity } from '~/utils/skewvoirAnalysis/acrossMsr'
+import { acrossMsrAxes, buildAcrossMsrOutcome } from '~/utils/skewvoirAnalysis/acrossMsr'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -173,23 +165,48 @@ const unitOf = (param: string) =>
 const fdcUnitOf = (name: string) =>
   props.analysis.focusFile.value?.fdc_params.find(p => p.name === name)?.unit ?? ''
 
-// ── SET-scope state (existing view, unchanged) ──────────────────────────────
-const paramX = ref('')
-const paramY = ref('')
-const distModeSet = ref('Hist')
+// ── SET-scope state: Across-MSR Outcome ─────────────────────────────────────
+// The row unit here is the MSR, not the site — so the axes are the per-MSR
+// FEATURES (level / spread / coverage / failure / spatial / FDC), read off the
+// shared feature table rather than recomputed. `analysis.featureRegistry` is the
+// column dictionary; acrossMsrAxes flattens it into plottable columns.
+const axes = computed(() => acrossMsrAxes(props.analysis.featureRegistry.value))
+const axisItems = computed(() => axes.value.map(a => ({ label: a.label, value: a.id })))
 
-watch(params, (list) => {
-  if (!list.includes(paramX.value)) paramX.value = list[0] ?? ''
-  if (!list.includes(paramY.value)) paramY.value = list[1] ?? list[0] ?? ''
+const axisXId = ref('')
+const axisYId = ref('')
+
+// Defaults name the question this mode exists to ask: does the CD outcome move
+// with a tool-side predictor? So Y is the CD level (the outcome) and X is the
+// first FDC channel when the set carries one, falling back to CD spread.
+watch(axes, (list) => {
+  const ids = list.map(a => a.id)
+  if (!ids.includes(axisYId.value)) axisYId.value = ids.includes('level') ? 'level' : (ids[0] ?? '')
+  if (!ids.includes(axisXId.value)) {
+    const fdc = list.find(a => a.family === 'fixed_fdc' || a.family === 'dynamic_fdc')
+    axisXId.value = fdc?.id ?? (ids.find(id => id !== axisYId.value) ?? ids[0] ?? '')
+  }
 }, { immediate: true })
 
-const setRelationship = computed(() =>
-  buildCdCdRelationship(
-    props.analysis.siteRows.value,
-    paramX.value,
-    paramY.value
-  )
-)
+const axisById = (id: string) => axes.value.find(a => a.id === id) ?? null
+
+// Tool + label per MSR come from the already-loaded meas_hist rows — the same
+// eqp_id the Time-Series tool colors are ranked over, so one tool wears one
+// color across the workspace.
+const msrIdentity = computed(() => {
+  const map = new Map<string, AcrossMsrIdentity>()
+  for (const [msr, row] of props.analysis.rowByMsr.value) {
+    map.set(msr, { eqpId: row.eqp_id, label: props.analysis.msrLabel(msr) })
+  }
+  return map
+})
+
+const acrossMsr = computed(() => buildAcrossMsrOutcome(
+  props.analysis.featureRows.value,
+  axisById(axisXId.value),
+  axisById(axisYId.value),
+  msrIdentity.value
+))
 
 // ── SINGLE-scope explorer state ─────────────────────────────────────────────
 const distMode = ref('Hist')
