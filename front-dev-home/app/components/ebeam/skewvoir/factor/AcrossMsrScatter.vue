@@ -33,9 +33,9 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { AcrossMsrResult, AcrossMsrPoint } from '~/utils/skewvoirAnalysis/acrossMsr'
+import { pooledFitLine } from '~/utils/skewvoirAnalysis/acrossMsr'
 import { rankToolColors, toolLegendChips } from '~/utils/skewvoirAnalysis/toolColors'
 import { SK_SITE_OVERFLOW } from '~/utils/chartPalette'
-import { fitLine } from '~/utils/stats'
 import { nearestPoint } from '~/utils/chartNearest'
 
 // One MSR is one point. The pairing, the coefficients and the per-tool
@@ -90,13 +90,10 @@ const byTool = computed(() => {
 const UNNAMED_LABEL = '장비 미상'
 const unnamed = computed(() => props.result.points.filter(p => !p.eqpId))
 
-// The pooled OLS line is drawn ONLY when the pooled coefficient was actually
-// published. With a suppressed coefficient (too few MSRs, a constant axis) a
-// fitted line would assert exactly the trend the summary just declined to state.
-const pooledFit = computed<[number, number][]>(() => {
-  if (props.result.pooled.reason !== null) return []
-  return fitLine(props.result.points.map(p => [p.x, p.y] as [number, number])) ?? []
-})
+// The publish-or-withhold rule for the trend line lives in acrossMsr.ts beside
+// the coefficient's own gate, where it is tested — a line is a claim, and this
+// chart must not be the place that decides which claims get made.
+const pooledFit = computed<[number, number][]>(() => pooledFitLine(props.result))
 
 const ariaLabel = computed(() => {
   const { pooled, points, x, y } = props.result

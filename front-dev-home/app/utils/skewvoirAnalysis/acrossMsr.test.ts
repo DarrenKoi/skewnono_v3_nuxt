@@ -2,7 +2,7 @@
 // Pure-logic tests — run: cd front-dev-home && node --test app/utils/skewvoirAnalysis/acrossMsr.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { acrossMsrAxes, acrossMsrAxisValue, buildAcrossMsrOutcome } from './acrossMsr.ts'
+import { acrossMsrAxes, acrossMsrAxisValue, buildAcrossMsrOutcome, pooledFitLine } from './acrossMsr.ts'
 import type { FeatureDefinition, MsrFeatureRow, DerivedValue, DynamicFdcSummary } from './features.ts'
 
 // ---------------------------------------------------------------------------
@@ -246,4 +246,42 @@ test('a point whose measurement carries no tool id forms no stratum', () => {
   assert.equal(out.points.length, 3)
   assert.deepEqual(out.strata, [])
   assert.equal(out.pooled.pearson, 1)
+})
+
+// ---------------------------------------------------------------------------
+// pooledFitLine — the trend line lives or dies by the coefficient's own gate
+// ---------------------------------------------------------------------------
+
+test('the pooled fit line spans the drawn x-range when the coefficient was published', () => {
+  const out = buildAcrossMsrOutcome(
+    rowsOf([['M1', 1, 2], ['M2', 2, 4], ['M3', 3, 6]]),
+    AX_LEVEL, AX_SPREAD,
+    identityOf([['M1', 'TP01'], ['M2', 'TP01'], ['M3', 'TP01']])
+  )
+  assert.equal(out.pooled.reason, null)
+  // y = 2x exactly, so the endpoints are the maths, not a re-run of the impl.
+  assert.deepEqual(pooledFitLine(out), [[1, 2], [3, 6]])
+})
+
+test('a suppressed correlation draws no fit line', () => {
+  // Two MSRs is below MIN_CORRELATION_N, so `correlate` withholds the
+  // coefficient. A line through the points would state exactly the claim the
+  // suppression refused to make.
+  const out = buildAcrossMsrOutcome(
+    rowsOf([['M1', 1, 2], ['M2', 2, 4]]),
+    AX_LEVEL, AX_SPREAD,
+    identityOf([['M1', 'TP01'], ['M2', 'TP02']])
+  )
+  assert.notEqual(out.pooled.reason, null)
+  assert.deepEqual(pooledFitLine(out), [])
+})
+
+test('an unfittable set draws no fit line even when the coefficient published', () => {
+  // Every x identical: there is no slope to fit, and `fitLine` returns null.
+  const out = buildAcrossMsrOutcome(
+    rowsOf([['M1', 5, 2], ['M2', 5, 4], ['M3', 5, 6]]),
+    AX_LEVEL, AX_SPREAD,
+    identityOf([['M1', 'TP01'], ['M2', 'TP01'], ['M3', 'TP01']])
+  )
+  assert.deepEqual(pooledFitLine(out), [])
 })
