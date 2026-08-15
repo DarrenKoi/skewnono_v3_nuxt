@@ -75,10 +75,15 @@ export interface ParamMatrixOptions {
 }
 
 /** category code → Korean label, taken from the backend's own labelling rather
- * than a hardcoded map, so a new office category needs no frontend change. */
-const labelsByCategory = (fdcParams: FdcParamSummary[]): Map<string, string> => {
+ * than a hardcoded map, so a new office category needs no frontend change.
+ * First NON-EMPTY label wins, so a blank `category_label` falls through to the
+ * caller's `?? category` code fallback rather than rendering an empty header.
+ *
+ * Exported because the set-scope matrix (fdcSet.ts) groups by the same rule —
+ * two copies would let the two FDC screens label one category differently. */
+export const fdcCategoryLabels = (fdcParams: FdcParamSummary[]): Map<string, string> => {
   const out = new Map<string, string>()
-  for (const p of fdcParams) if (!out.has(p.category)) out.set(p.category, p.category_label)
+  for (const p of fdcParams) if (p.category_label && !out.has(p.category)) out.set(p.category, p.category_label)
   return out
 }
 
@@ -114,7 +119,7 @@ export const buildParamMatrix = (
 ): ParamMatrixModel => {
   const sequences = model.sequences
   const cdParam = model.parameter
-  const labels = labelsByCategory(source.fdc_params)
+  const labels = fdcCategoryLabels(source.fdc_params)
 
   const cdCell: MatrixCell = {
     param: cdParam,
