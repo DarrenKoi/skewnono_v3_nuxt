@@ -16,7 +16,7 @@ import type {
   DerivedValue,
   DynamicFdcSummary
 } from './features.ts'
-import { pearson, spearman } from '../stats.ts'
+import { fitLine, pearson, spearman } from '../stats.ts'
 
 /** One selectable X or Y column. `label`/`unit` come from the feature registry
  *  verbatim — this module never invents a unit. */
@@ -227,4 +227,19 @@ export const buildAcrossMsrOutcome = (
     .map(([eqpId, pairs]) => ({ eqpId, ...correlate(pairs) }))
 
   return { x, y, points, pooled, strata, droppedN }
+}
+
+/** The pooled trend line, as the two endpoints of a segment spanning the drawn
+ *  x-range. Empty when there is no line to honestly draw.
+ *
+ *  A fit line IS a claim about the relationship, so it lives or dies by the same
+ *  gate the coefficient does: when `correlate` withheld the number and gave a
+ *  reason, a line through the same points would state exactly the claim the
+ *  suppression refused to make — louder than the number would have, because a
+ *  line reads as a trend without any `n` beside it. This decision sits here
+ *  rather than in the chart so it is tested, and so the two FDC/CD screens
+ *  cannot answer it differently. */
+export const pooledFitLine = (result: AcrossMsrResult): [number, number][] => {
+  if (result.pooled.reason !== null) return []
+  return fitLine(result.points.map(p => [p.x, p.y] as [number, number])) ?? []
 }
