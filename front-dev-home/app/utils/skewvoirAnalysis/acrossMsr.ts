@@ -243,3 +243,16 @@ export const pooledFitLine = (result: AcrossMsrResult): [number, number][] => {
   if (result.pooled.reason !== null) return []
   return fitLine(result.points.map(p => [p.x, p.y] as [number, number])) ?? []
 }
+
+/** Does this axis pairing involve an FDC channel?
+ *
+ *  The `데모 데이터` marker hangs off this (benchmark research §7.3): the mock
+ *  biases CD and FDC with one shared per-MSR scalar, so any pairing that
+ *  reaches into FDC inherits a correlation the generator put there. Answered
+ *  from the axis FAMILY rather than from an id prefix, so a future FDC family
+ *  is covered without touching the marker. */
+export const hasFdcAxis = (pair: {
+  x: Pick<AcrossMsrAxis, 'family'> | null
+  y: Pick<AcrossMsrAxis, 'family'> | null
+}): boolean =>
+  [pair.x, pair.y].some(a => a?.family === 'fixed_fdc' || a?.family === 'dynamic_fdc')

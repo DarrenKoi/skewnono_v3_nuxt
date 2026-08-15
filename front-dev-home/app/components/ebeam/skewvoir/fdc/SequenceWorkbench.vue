@@ -130,6 +130,9 @@
             @select="onSelect"
             @drill="drillTo"
           />
+          <!-- Every cell here is an FDC channel's correlation against CD, which
+               is exactly the pairing the mock fabricates. -->
+          <EbeamSkewvoirDemoDataNote class="mt-2" />
         </EbeamSkewvoirPanelFrame>
 
         <section

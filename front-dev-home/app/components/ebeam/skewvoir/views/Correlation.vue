@@ -25,6 +25,10 @@
 
       <EbeamSkewvoirFactorRelationshipSummary :result="relationship" />
 
+      <!-- The pair reaches into FDC, so at home its correlation is the mock's
+           shared health scalar showing through rather than a tool signal. -->
+      <EbeamSkewvoirDemoDataNote v-if="query.yKind === 'fdc'" />
+
       <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <EbeamSkewvoirPanelFrame
           title="Paired Scatter"
@@ -126,6 +130,8 @@
 
         <EbeamSkewvoirFactorAcrossMsrSummary :result="acrossMsr" />
 
+        <EbeamSkewvoirDemoDataNote v-if="hasFdcAxis(acrossMsr)" />
+
         <EbeamSkewvoirPanelFrame
           title="Across-MSR Outcome"
           :meta="`MSR ${acrossMsr.points.length}건 · 장비 ${acrossMsr.strata.length}대`"
@@ -149,7 +155,7 @@ import { analyzeSpatial } from '~/utils/skewvoirAnalysis/spatial'
 import { isNamedParam } from '~/utils/skewvoirAnalysis/paramOrder'
 import { buildCdCdRelationship, buildCdFdcRelationship } from '~/utils/skewvoirAnalysis/relationships'
 import type { AcrossMsrIdentity } from '~/utils/skewvoirAnalysis/acrossMsr'
-import { acrossMsrAxes, buildAcrossMsrOutcome } from '~/utils/skewvoirAnalysis/acrossMsr'
+import { acrossMsrAxes, buildAcrossMsrOutcome, hasFdcAxis } from '~/utils/skewvoirAnalysis/acrossMsr'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 

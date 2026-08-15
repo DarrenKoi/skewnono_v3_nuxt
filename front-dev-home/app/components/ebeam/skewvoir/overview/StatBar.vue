@@ -32,20 +32,6 @@
 
     <span class="h-8 w-px bg-(--sk-border-soft)" />
 
-    <!-- {param} 평균 -->
-    <div class="flex flex-col gap-0.5">
-      <span class="truncate sk-label">{{ param }} 평균</span>
-      <span class="font-mono text-base font-bold tabular-nums text-(--sk-ink)">
-        {{ summary ? summary.mean.toFixed(2) : '—' }}<span class="text-xs font-medium text-(--sk-ink-muted)"> {{ unit }}</span>
-        <span
-          v-if="summary"
-          class="text-xs font-medium text-(--sk-ink-muted)"
-        > · 3σ <span class="text-(--sk-ink)">{{ (summary.std * 3).toFixed(2) }}</span></span>
-      </span>
-    </div>
-
-    <span class="h-8 w-px bg-(--sk-border-soft)" />
-
     <!-- Align -->
     <div class="flex min-w-0 flex-col items-start gap-1">
       <span class="sk-label">Align</span>
@@ -65,13 +51,20 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 
+// The strip states the MEASUREMENT's outcome — how much of it landed, how much
+// of it looks wrong, and how it aligned. The parameter's statistics belong to
+// the CDU card below it, which is why the mean/3σ cell that used to sit here is
+// gone rather than duplicated.
+//
+// It was not merely redundant: this cell read `activeSummary`, the backend's
+// pre-rounded `mean` (3 decimal places), while the card computes from the raw
+// rows. On a real measurement that showed as 평균 29.57 here against 29.58 on
+// the card — one screen, one word, two numbers. In a metrology tool that costs
+// more trust than the cell ever bought.
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
 const ov = computed(() => props.analysis.activeOverview.value)
 const cov = computed(() => ov.value.coverage)
-const param = computed(() => props.analysis.activeParamLabel.value)
-const unit = computed(() => props.analysis.activeUnit.value)
-const summary = computed(() => props.analysis.activeSummary.value)
 const align = computed(() => {
   const a = props.analysis.focusFile.value?.alignment
   const methods = a ? Object.values(a.offset).map(o => o[0]) : []

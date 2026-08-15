@@ -5,7 +5,8 @@ from flask import Blueprint, current_app, jsonify, request
 from back_dev_home._auth.admin import require_admin
 from back_dev_home._auth.errors import error_json
 from back_dev_home._logging.opensearch_handler import installed_handler
-from back_dev_home._runtime.data_provider import get_mode, resolve_all
+from back_dev_home._runtime.data_provider import get_data_provider, get_mode, resolve_all
+from back_dev_home._runtime.office_registry import features
 from back_dev_home._runtime.site import detect_site
 from back_dev_home.health.data import get_services_health
 
@@ -58,6 +59,37 @@ def providers_health():
             "features": [row._asdict() for row in resolve_all()],
         }
     )
+
+
+@bp.get("/health/data-mode")
+def data_mode():
+    """Is ONE named feature serving generated data right now?
+
+    Open to every user, unlike its sibling /health/providers, and the split is
+    the reason both exist. The providers table enumerates every backend feature
+    with the deployment reason each resolved the way it did — that is admin
+    material. This answers a single question about a single feature the caller
+    already names, and the answer is something a user reading a chart is
+    entitled to: whether the numbers in front of them came out of a generator.
+
+    The frontend needs it because a home mock can fabricate a relationship that
+    does not exist in the fab — CD and FDC are both biased by one per-MSR
+    `health` scalar, so their correlation is an artifact of the generator (see
+    docs/issues/skewvoir/analysis-drilldown-benchmark-research.md §7.3). A
+    screen that draws that correlation has to say so, and it cannot say so
+    behind an admin gate.
+
+    Unknown feature is a 404 rather than a default: answering "mock" for a typo
+    would paint a demo warning over real data, and answering "office" would
+    hide one over generated data. Both are worse than no answer.
+    """
+    feature = (request.args.get("feature") or "").strip()
+    if not feature:
+        return error_json("bad_request", "feature query param is required")
+    if feature not in features():
+        return error_json("not_found", f"unknown feature: {feature}", 404)
+
+    return jsonify({"feature": feature, "provider": get_data_provider(feature)})
 
 
 @bp.get("/health/logging")

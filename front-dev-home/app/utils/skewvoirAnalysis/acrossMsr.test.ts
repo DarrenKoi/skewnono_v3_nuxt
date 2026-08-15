@@ -2,7 +2,7 @@
 // Pure-logic tests — run: cd front-dev-home && node --test app/utils/skewvoirAnalysis/acrossMsr.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { acrossMsrAxes, acrossMsrAxisValue, buildAcrossMsrOutcome, pooledFitLine } from './acrossMsr.ts'
+import { acrossMsrAxes, acrossMsrAxisValue, buildAcrossMsrOutcome, hasFdcAxis, pooledFitLine } from './acrossMsr.ts'
 import type { FeatureDefinition, MsrFeatureRow, DerivedValue, DynamicFdcSummary } from './features.ts'
 
 // ---------------------------------------------------------------------------
@@ -284,4 +284,26 @@ test('an unfittable set draws no fit line even when the coefficient published', 
     identityOf([['M1', 'TP01'], ['M2', 'TP01'], ['M3', 'TP01']])
   )
   assert.deepEqual(pooledFitLine(out), [])
+})
+
+// ---------------------------------------------------------------------------
+// hasFdcAxis — does this pairing involve an FDC channel?
+// ---------------------------------------------------------------------------
+
+const AX_FIXED = { id: 'fixed_fdc.Vacc', label: 'Vacc', unit: 'V', family: 'fixed_fdc' as const }
+const AX_DYNAMIC = { id: 'dynamic_fdc.StigmaX#mean', label: 'StigmaX 평균', unit: 'nm', family: 'dynamic_fdc' as const }
+
+test('a CD-only pairing involves no FDC channel', () => {
+  assert.equal(hasFdcAxis({ x: AX_LEVEL, y: AX_SPREAD }), false)
+})
+
+test('either axis being FDC makes it an FDC pairing', () => {
+  assert.equal(hasFdcAxis({ x: AX_LEVEL, y: AX_FIXED }), true)
+  assert.equal(hasFdcAxis({ x: AX_DYNAMIC, y: AX_SPREAD }), true)
+  assert.equal(hasFdcAxis({ x: AX_FIXED, y: AX_DYNAMIC }), true)
+})
+
+test('an unset axis cannot make a pairing an FDC one', () => {
+  assert.equal(hasFdcAxis({ x: null, y: null }), false)
+  assert.equal(hasFdcAxis({ x: AX_FIXED, y: null }), true)
 })
