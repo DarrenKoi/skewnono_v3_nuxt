@@ -69,34 +69,56 @@
          markup around it.
 
          Hidden while loading and while there is nothing to show: an empty tab
-         strip over a spinner offers a choice that does nothing. -->
+         strip over a spinner offers a choice that does nothing.
+
+         It sits on its own `dashboard-surface` card, titled, exactly like the
+         파라미터 control above it — and for the same reason that one grew a
+         panel. A bare pill row on the page background read as loose furniture
+         between two cards, so the page's TWO controls (which parameter,
+         which question) were styled as if only one of them mattered. Matching
+         the card makes them a pair; the pill vs. chip difference INSIDE the
+         cards is then free to carry its real meaning (view change vs. data
+         narrowing) instead of being confused with "one of these is a
+         control and one isn't". -->
     <div
       v-if="lensTabsVisible"
-      ref="lensTabsEl"
-      role="tablist"
-      aria-label="Time-Series 보기"
-      class="inline-flex w-fit items-center gap-1.5"
-      @keydown="onLensKeydown"
+      class="dashboard-surface flex flex-col gap-2 rounded-(--sk-r-card) px-3 py-2.5"
     >
-      <button
-        v-for="lens in LENSES"
-        :id="tabId(lens.value)"
-        :key="lens.value"
-        type="button"
-        role="tab"
-        :tabindex="ws.tsView.value === lens.value ? 0 : -1"
-        :aria-selected="ws.tsView.value === lens.value"
-        :aria-controls="panelId(lens.value)"
-        class="sk-nav-pill sk-nav-pill--lg"
-        :class="ws.tsView.value === lens.value ? 'sk-nav-pill--active' : 'sk-nav-pill--rest'"
-        @click="ws.setTsView(lens.value)"
+      <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <h3 class="sk-panel-title">
+          보기
+        </h3>
+        <p class="sk-hint">
+          아래 패널이 답할 질문을 고릅니다.
+        </p>
+      </div>
+      <div
+        ref="lensTabsEl"
+        role="tablist"
+        aria-label="Time-Series 보기"
+        class="inline-flex w-fit items-center gap-1.5"
+        @keydown="onLensKeydown"
       >
-        <UIcon
-          :name="lens.icon"
-          class="size-[18px] shrink-0"
-        />
-        {{ lens.label }}
-      </button>
+        <button
+          v-for="lens in LENSES"
+          :id="tabId(lens.value)"
+          :key="lens.value"
+          type="button"
+          role="tab"
+          :tabindex="ws.tsView.value === lens.value ? 0 : -1"
+          :aria-selected="ws.tsView.value === lens.value"
+          :aria-controls="panelId(lens.value)"
+          class="sk-nav-pill sk-nav-pill--lg"
+          :class="ws.tsView.value === lens.value ? 'sk-nav-pill--active' : 'sk-nav-pill--rest'"
+          @click="ws.setTsView(lens.value)"
+        >
+          <UIcon
+            :name="lens.icon"
+            class="size-[18px] shrink-0"
+          />
+          {{ lens.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Recipe mixing qualifies a NUMBER, not the page, so it is stated next to
