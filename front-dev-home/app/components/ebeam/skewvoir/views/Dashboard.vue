@@ -10,6 +10,15 @@
       <EbeamSkewvoirDashboardConditions :analysis="analysis" />
     </div>
 
+    <!-- CDU 지표 (level / spread / shape) beside the decomposition of what did
+         NOT get measured. They sit together because they answer the same
+         question in two halves: how good is the number, and how much of the
+         wafer is behind it. -->
+    <div class="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+      <EbeamSkewvoirOverviewCduCard :analysis="analysis" />
+      <EbeamSkewvoirOverviewFailureCauses :analysis="analysis" />
+    </div>
+
     <!-- Parameter navigator — switching it syncs every panel below -->
     <EbeamSkewvoirDashboardParamNav :analysis="analysis" />
 

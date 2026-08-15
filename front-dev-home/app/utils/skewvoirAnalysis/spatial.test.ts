@@ -158,3 +158,14 @@ test('single-MSR path never derives a cross-wafer / cross-site σ', () => {
   // No field named like a wafer-to-wafer / site sigma may exist anywhere.
   assert.ok(!/sigma|crosswafer|wafertowafer/i.test(JSON.stringify(r)))
 })
+
+test('failure sites carry the same notch-anchored sector the measured sites do', () => {
+  const rows = [
+    row({ sequence: 1, chip_number: '1, 0', stage_coordinate: '160000000,150000000', cd_value: 100 }),
+    row({ sequence: 2, chip_number: '0, -1', stage_coordinate: '150000000,140000000', cd_value: null, mp_number: -1 }),
+    row({ sequence: 3, chip_number: '9, 9', stage_coordinate: 'not-a-coordinate', cd_value: null, mp_number: -1 })
+  ]
+  const r = analyzeSpatial(rows, 'CD_TOP', geo())
+  assert.equal(r.failures.find(f => f.sequence === 2)!.sector, 'S')
+  assert.equal(r.failures.find(f => f.sequence === 3)!.sector, null, 'an unplaceable failure has no sector')
+})

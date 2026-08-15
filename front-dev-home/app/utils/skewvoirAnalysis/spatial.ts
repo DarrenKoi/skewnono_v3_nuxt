@@ -58,6 +58,10 @@ export interface SpatialFailureSite {
   chip: string
   chipXY: [number, number] | null
   posMm: [number, number] | null
+  /** Same notch-anchored compass sector the measured sites carry, so a caller
+   * can ask WHERE the failures sit without re-deriving the wheel. null when the
+   * stage coordinate did not parse. */
+  sector: string | null
 }
 
 /** One radial bin, within-wafer. `spread` is the IQR (q3 − q1) of the bin's own
@@ -140,7 +144,10 @@ export interface SpatialOptions {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-const SECTOR_LABEL: Record<string, string> = {
+// Exported so anything that groups BY sector (the failure decomposition on the
+// 측정 개요 card) prints the same Korean label the sector profile does, instead
+// of a second translation table that can drift from this one.
+export const SECTOR_LABEL: Record<string, string> = {
   E: '우측(E)',
   N: '상단(N)',
   W: '좌측(W)',
@@ -275,7 +282,8 @@ export const analyzeSpatial = (
       sequence: r.sequence,
       chip: r.chip_number,
       chipXY: parseChipXY(r.chip_number),
-      posMm: pos
+      posMm: pos,
+      sector: pos ? sectorOf(pos[0], pos[1], notch) : null
     }
   })
 
