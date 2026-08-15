@@ -32,6 +32,28 @@ export const quantileSorted = (sorted: number[], p: number): number => {
   return sorted[lo]! + (pos - lo) * (sorted[hi]! - sorted[lo]!)
 }
 
+// NaN on empty, exactly like `mean` — an empty set has no centre, and a 0 here
+// would be read as "the CD is 0 nm". Built on quantileSorted (R-7) so median and
+// the quartiles beside it in iqrFences come from ONE interpolation rule; at p=0.5
+// R-7 is the textbook median (middle value, or the average of the middle two).
+export const median = (values: number[]): number =>
+  quantileSorted([...values].sort((a, b) => a - b), 0.5)
+
+// Median absolute deviation, RAW (median of |x − median|) — no scaling applied,
+// so this is the textbook definition a caller can reason about. For a spread that
+// stands next to a sample sigma, multiply by MAD_TO_SIGMA.
+export const medianAbsoluteDeviation = (values: number[]): number => {
+  const m = median(values)
+  if (!Number.isFinite(m)) return Number.NaN
+  return median(values.map(v => Math.abs(v - m)))
+}
+
+// Normal-consistency constant: for Gaussian data, MAD * 1.4826 estimates sigma,
+// which is what makes "sigma vs MAD" a readable comparison rather than a constant
+// 0.67x offset the reader has to correct for in their head. Same constant
+// radialAnalysis.ts already scales its residual MAD by.
+export const MAD_TO_SIGMA = 1.4826
+
 export interface IqrFences {
   q1: number
   q3: number

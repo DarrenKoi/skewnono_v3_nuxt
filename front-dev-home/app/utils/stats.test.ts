@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mean, sampleStd, quantileSorted, iqrFences, pearson, spearman, linearFit, fitLine } from './stats.ts'
+import { mean, sampleStd, quantileSorted, iqrFences, pearson, spearman, linearFit, fitLine, median, medianAbsoluteDeviation, MAD_TO_SIGMA } from './stats.ts'
 
 const close = (a: number, b: number, eps = 1e-9) =>
   assert.ok(Math.abs(a - b) < eps, `${a} !== ${b}`)
@@ -99,4 +99,43 @@ test('fitLine ignores non-finite pairs when locating the endpoints', () => {
   const seg = fitLine([[0, 1], [1, 3], [2, 5], [3, 7], [Number.NaN, 99], [Infinity, -1]])!
   close(seg[0][0], 0)
   close(seg[1][0], 3)
+})
+
+test('median of empty is NaN, not 0 — the same "no centre" rule as mean', () => {
+  assert.ok(Number.isNaN(median([])))
+})
+
+test('median averages the two middle values on an even count', () => {
+  close(median([4, 1, 3, 2]), 2.5)
+  close(median([1, 2, 3]), 2)
+})
+
+test('median ignores a wild value the mean cannot', () => {
+  // Worked example: four CDs near 100 and one blown reading.
+  close(median([99, 100, 101, 102, 900]), 101)
+  close(mean([99, 100, 101, 102, 900]), 260.4)
+})
+
+test('median does not mutate the caller array', () => {
+  const values = [3, 1, 2]
+  median(values)
+  assert.deepEqual(values, [3, 1, 2])
+})
+
+test('medianAbsoluteDeviation is the median of |x - median|', () => {
+  // median = 3; deviations = [2, 1, 0, 1, 2]; median of those = 1.
+  close(medianAbsoluteDeviation([1, 2, 3, 4, 5]), 1)
+  assert.ok(Number.isNaN(medianAbsoluteDeviation([])))
+})
+
+test('medianAbsoluteDeviation stays put when sampleStd is dragged by one outlier', () => {
+  const clean = [99, 100, 101, 102, 103]
+  const spiked = [99, 100, 101, 102, 900]
+  close(medianAbsoluteDeviation(clean), 1)
+  close(medianAbsoluteDeviation(spiked), 1)
+  assert.ok(sampleStd(spiked) > sampleStd(clean) * 100)
+})
+
+test('MAD_TO_SIGMA is the normal-consistency constant radialAnalysis already uses', () => {
+  assert.equal(MAD_TO_SIGMA, 1.4826)
 })

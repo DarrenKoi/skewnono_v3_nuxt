@@ -1,4 +1,4 @@
-import { quantileSorted } from './stats.ts'
+import { quantileSorted, median, MAD_TO_SIGMA } from './stats.ts'
 
 export type RadialModel = 'none' | 'linear' | 'quadratic' | 'cubic'
 export type RadialBandMode = 'none' | 'iqr' | 'confidence' | 'prediction'
@@ -157,11 +157,6 @@ const quadraticForm = (row: number[], matrix: number[][]): number => {
   return Math.max(0, sum)
 }
 
-const median = (values: number[]): number => {
-  const sorted = [...values].sort((a, b) => a - b)
-  return quantileSorted(sorted, 0.5)
-}
-
 const radialBins = (samples: RadialSample[], requested?: number): RadialBin[] => {
   if (samples.length === 0) return []
   const radii = samples.map(sample => sample.radius)
@@ -316,7 +311,7 @@ export const analyzeRadialProfile = (
   const df = samples.length - parameterCount
   const residualVariance = df > 0 ? sse / df : null
   const residualMedian = median(residuals)
-  const residualMad = 1.4826 * median(residuals.map(residual => Math.abs(residual - residualMedian)))
+  const residualMad = MAD_TO_SIGMA * median(residuals.map(residual => Math.abs(residual - residualMedian)))
   const r2 = total > 0 ? 1 - sse / total : null
   const adjustedR2 = r2 != null && df > 0
     ? 1 - (1 - r2) * ((samples.length - 1) / df)
