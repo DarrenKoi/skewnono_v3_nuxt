@@ -4,10 +4,19 @@
       <span class="sk-eyebrow">CDU 지표</span>
       <span class="truncate sk-label">{{ paramLabel }}<span v-if="unit"> · {{ unit }}</span></span>
       <!-- Valid N rides in the header, not in a corner: every spread below is
-           only as trustworthy as the sample it came from. -->
-      <span class="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
-        유효 N <span class="font-bold text-(--sk-ink)">{{ metrics.n }}</span>
-        <span v-if="metrics.missing > 0"> · 결측 <span class="text-(--sk-bad)">{{ metrics.missing }}</span></span>
+           only as trustworthy as the sample it came from.
+
+           The words are 11px chrome; the counts are not. DESIGN.md holds a hard
+           floor — "a data value never renders below 12px" — and N is the value
+           the whole card leans on, so it takes .sk-value-num rather than
+           inheriting the label's size. -->
+      <span class="ml-auto flex shrink-0 items-baseline gap-1">
+        <span class="sk-label">유효 N</span>
+        <span class="sk-value-num font-bold">{{ metrics.n }}</span>
+        <template v-if="metrics.missing > 0">
+          <span class="sk-label">· 결측</span>
+          <span class="sk-value-num text-(--sk-bad)">{{ metrics.missing }}</span>
+        </template>
       </span>
     </div>
 

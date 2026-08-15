@@ -2,10 +2,23 @@
   <div class="dashboard-surface flex flex-col gap-1.5 rounded-(--sk-r-card) px-4 py-2.5">
     <div class="flex items-baseline gap-2">
       <span class="sk-eyebrow">실패 원인</span>
-      <span class="sk-label">{{ breakdown.sites.measured }}/{{ breakdown.sites.total }} site 측정</span>
-      <span class="ml-auto shrink-0 font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
-        <span :class="breakdown.failedCount > 0 ? 'font-bold text-(--sk-bad)' : 'text-(--sk-ink)'">실패 {{ breakdown.failedCount }}</span>
-        <span v-if="breakdown.unknownCount > 0"> · 미상 {{ breakdown.unknownCount }}</span>
+      <!-- Counts take .sk-value-num, words take .sk-label: DESIGN.md's floor is
+           that a data value never renders below 12px, and these counts are the
+           header's content rather than its chrome. -->
+      <span class="flex items-baseline gap-1">
+        <span class="sk-value-num">{{ breakdown.sites.measured }}/{{ breakdown.sites.total }}</span>
+        <span class="sk-label">site 측정</span>
+      </span>
+      <span class="ml-auto flex shrink-0 items-baseline gap-1">
+        <span class="sk-label">실패</span>
+        <span
+          class="sk-value-num"
+          :class="breakdown.failedCount > 0 ? 'font-bold text-(--sk-bad)' : ''"
+        >{{ breakdown.failedCount }}</span>
+        <template v-if="breakdown.unknownCount > 0">
+          <span class="sk-label">· 미상</span>
+          <span class="sk-value-num">{{ breakdown.unknownCount }}</span>
+        </template>
       </span>
     </div>
 
@@ -36,9 +49,26 @@
           class="font-mono text-xs font-bold"
           :class="clustering.verdict === 'clustered' ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
         >{{ clustering.verdict === 'clustered' ? '군집' : '분산' }}</span>
-        <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
-          {{ clustering.sectors.map(s => `${s.label} ${s.count}`).join(' · ') }}
-          <span v-if="clustering.unplaced > 0"> · 좌표 없음 {{ clustering.unplaced }}</span>
+        <!-- The verdict is a display rule, not a test, so the per-sector counts
+             it was derived from are always rendered beside it. Sector name is a
+             label, the count is a value — split so the count clears the 12px
+             floor instead of inheriting the label's size. -->
+        <span class="flex flex-wrap items-baseline gap-x-1">
+          <template
+            v-for="(s, i) in clustering.sectors"
+            :key="s.label"
+          >
+            <span
+              v-if="i > 0"
+              class="sk-label"
+            >·</span>
+            <span class="sk-label">{{ s.label }}</span>
+            <span class="sk-value-num">{{ s.count }}</span>
+          </template>
+          <template v-if="clustering.unplaced > 0">
+            <span class="sk-label">· 좌표 없음</span>
+            <span class="sk-value-num">{{ clustering.unplaced }}</span>
+          </template>
         </span>
       </template>
       <span
