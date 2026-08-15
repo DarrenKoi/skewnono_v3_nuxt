@@ -38,18 +38,23 @@
               class="min-w-28 px-2 py-1.5 text-left align-bottom"
             >
               <span class="block truncate sk-label">{{ run.label }}</span>
+              <!-- These counts are DATA VALUES, so they sit at the 12px floor
+                   (DESIGN.md, the sub-12px rule). 10px is the eyebrow tier and
+                   is for chrome that names things, never for a number the user
+                   came to read. The "이상 없음" placeholder rides the same size
+                   so the three states read as one row. -->
               <span class="mt-0.5 flex flex-wrap items-center gap-1">
                 <span
                   v-if="run.bad"
-                  class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-1.5 font-mono text-[10px] text-(--sk-bad)"
+                  class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-1.5 font-mono text-xs tabular-nums text-(--sk-bad)"
                 >이상 {{ run.bad }}</span>
                 <span
                   v-if="run.warning"
-                  class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-1.5 font-mono text-[10px] text-(--sk-warn)"
+                  class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-1.5 font-mono text-xs tabular-nums text-(--sk-warn)"
                 >주의 {{ run.warning }}</span>
                 <span
                   v-if="!run.bad && !run.warning"
-                  class="font-mono text-[10px] text-(--sk-ink-subtle)"
+                  class="font-mono text-xs text-(--sk-ink-subtle)"
                 >이상 없음</span>
               </span>
             </th>
