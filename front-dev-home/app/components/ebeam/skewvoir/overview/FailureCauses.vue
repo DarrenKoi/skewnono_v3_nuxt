@@ -9,12 +9,19 @@
         <span class="sk-value-num">{{ breakdown.sites.measured }}/{{ breakdown.sites.total }}</span>
         <span class="sk-label">site 측정</span>
       </span>
+      <!-- These count CAUSES, not sites: failedCount is how many of the four
+           reasons came back failed. The StatBar directly above counts failed
+           SITES, so an unqualified "실패 n" here reads as a contradiction of it
+           (1 failed site can trip 2 causes). The unit is named for that reason —
+           the two numbers are both right and must not look like one number
+           disagreeing with itself. -->
       <span class="ml-auto flex shrink-0 items-baseline gap-1">
-        <span class="sk-label">실패</span>
+        <span class="sk-label">해당 원인</span>
         <span
           class="sk-value-num"
           :class="breakdown.failedCount > 0 ? 'font-bold text-(--sk-bad)' : ''"
         >{{ breakdown.failedCount }}</span>
+        <span class="sk-label">/ 4</span>
         <template v-if="breakdown.unknownCount > 0">
           <span class="sk-label">· 미상</span>
           <span class="sk-value-num">{{ breakdown.unknownCount }}</span>
