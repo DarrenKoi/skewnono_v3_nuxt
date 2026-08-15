@@ -37,6 +37,12 @@
           <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
           <span class="font-mono text-sm font-bold tabular-nums text-(--sk-ink)">{{ cell.value }}</span>
         </div>
+        <!-- basis-full so the guide wraps onto its own row instead of competing
+             with the numbers for horizontal space. -->
+        <span
+          v-if="line.hint"
+          class="basis-full sk-label"
+        >{{ line.hint }}</span>
       </template>
       <span
         v-else
@@ -74,7 +80,9 @@ const signed = (value: number, digits: number) => `${value >= 0 ? '+' : ''}${for
 
 interface Cell { label: string, value: string }
 
-const lines = computed<{ key: string, label: string, cells: Cell[], reason: string }[]>(() => {
+/** `hint` is how to READ the cells beside it — rendered only when there are
+ * cells, since a reading guide for "평가 불가" is noise. */
+const lines = computed<{ key: string, label: string, cells: Cell[], hint?: string, reason: string }[]>(() => {
   const level = metrics.value.level
   const spread = metrics.value.spread
   return [
@@ -98,12 +106,16 @@ const lines = computed<{ key: string, label: string, cells: Cell[], reason: stri
         ? [
             { label: 'σ', value: formatFixed(spread.std, 3) },
             { label: '3σ', value: formatFixed(spread.threeSigma, 3) },
-            // Scaled to a sigma so the two stand on one axis: MAD far below σ
-            // means a few extreme sites, not a wide wafer.
-            { label: 'MAD(σ환산)', value: formatFixed(spread.madSigma, 3) },
+            // MAD scaled to a sigma so the two stand on one axis. The label says
+            // what the number MEANS to the reader, not how it was computed —
+            // the method lives in cdu.ts's `madSigma`.
+            { label: 'σ(이상치 제외)', value: formatFixed(spread.madSigma, 3) },
             { label: 'range', value: formatFixed(spread.range, 3) }
           ]
         : [],
+      // The diagnostic is the GAP between the two sigmas, which no single cell
+      // label can carry — so the card says it outright.
+      hint: 'σ와 σ(이상치 제외) 가 비슷하면 웨이퍼 전체가 넓은 것이고, σ(이상치 제외) 가 훨씬 작으면 몇 개 site 가 σ 를 부풀린 것입니다.',
       reason: '산포를 정의하려면 측정 site 가 2개 이상 필요합니다.'
     },
     {
