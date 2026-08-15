@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { cellVerdict, scanTimeFactor, type MagPixelRow } from '~/utils/magPixel'
+import { cellVerdict, scanTimeFactor, magLabel, PIXEL_SETTINGS, type MagPixelRow } from '~/utils/magPixel'
 
 const props = defineProps<{
   rows: MagPixelRow[]
@@ -13,7 +13,11 @@ const props = defineProps<{
   recommendedPixels: number | null
 }>()
 
-const visiblePixels = computed(() => props.showWide ? [512, 1024, 2048, 4096] : [512, 1024])
+/** 목록은 PIXEL_SETTINGS에서 읽는다 — 여기에 리터럴을 복제해 두면 설정이
+ *  늘어날 때 '전체 4열'만 조용히 옛 목록을 보여준다. 좁은 뷰는 실사용 두 단계. */
+const visiblePixels = computed(() =>
+  props.showWide ? [...PIXEL_SETTINGS] : PIXEL_SETTINGS.slice(0, 2)
+)
 
 /** CD가 들어와야 px/CD 열을 붙인다 — CD 없이는 판정할 값이 없다. */
 const hasVerdict = computed(() => props.requiredFovNm !== null)
@@ -73,8 +77,6 @@ const pxPerCdClass = (row: MagPixelRow, pixels: number) => {
     ? 'text-(--sk-ok) font-bold'
     : 'text-(--sk-ok)'
 }
-
-const magLabel = (mag: number) => mag >= 1000 ? `${mag / 1000}K` : String(mag)
 </script>
 
 <template>

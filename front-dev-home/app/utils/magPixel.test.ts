@@ -3,8 +3,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   fovUm, fovNm, parsePixelSetting, pixelSizeNm, pxPerCd, scanTimeFactor,
-  seriesFromModel, magRange, buildMagPixelTable, SERIES_MODEL,
-  requiredFovNm, recommend, cellVerdict, marginSensitivity, pixelGuidance,
+  seriesFromModel, magRange, buildMagPixelTable, SERIES_MODEL, magLabel,
+  requiredFovNm, actualMarginNm, recommend, cellVerdict, marginSensitivity, pixelGuidance,
   MARGIN_PRESETS, DEFAULT_MARGIN, DEFAULT_MIN_PX_PER_CD,
   edgeIntensity, samplePixelNm, edgeWindowHalfNm, edgeStrip, edgeComparePair,
   SEM_EDGE_WIDTH_NM, SEM_LEVELS
@@ -140,6 +140,18 @@ test('the GT tail above 500K is the confirmed 100K ladder', () => {
   )
 })
 
+test('magLabel keeps every mag in K so one ladder has one name', () => {
+  // 1M으로 접지 않는 것이 이 함수의 전부다 — GT 상단이 600K..900K로 이어지는데
+  // 마지막 칸만 1M이면 캡션과 참조표가 같은 값을 다르게 부른다 (실제로 그랬다).
+  assert.equal(magLabel(1_000_000), '1000K')
+  assert.equal(magLabel(900_000), '900K')
+  assert.equal(magLabel(450_000), '450K')
+  assert.equal(magLabel(1000), '1K')
+  assert.equal(magLabel(null), '—')
+  // 계열 전 구간이 K 표기로 떨어진다 — 1000 미만 배율은 존재하지 않는다.
+  for (const mag of magRange('GT')) assert.match(magLabel(mag), /^\d+K$/)
+})
+
 test('buildMagPixelTable emits one row per mag with all four pixel settings', () => {
   const rows = buildMagPixelTable('CG')
   assert.equal(rows.length, 23)
@@ -239,6 +251,20 @@ test('cellVerdict separates an FOV failure from a pixel failure', () => {
   assert.equal(cellVerdict(180_000, 512, 40, req, 8), 'over-fov')
   assert.equal(cellVerdict(150_000, 512, 40, req, 8), 'ok')
   assert.equal(cellVerdict(20_000, 512, 40, req, 8), 'under-pixel')
+})
+
+test('actualMarginNm derives the real margin from the chosen FOV, clamped at zero', () => {
+  // 이산 배율이라 실제 FOV는 필요 FOV보다 넓다 → 실제 마진 > 요청 마진.
+  assert.equal(actualMarginNm(1000, 800), 100)
+  assert.equal(actualMarginNm(1000, 1000), 0)
+  // span이 FOV를 넘는 성립 불가 조합에서도 음수 마진은 그릴 수 없다.
+  assert.equal(actualMarginNm(800, 1000), 0)
+})
+
+test('actualMarginNm inverts requiredFovNm at the exact-fit boundary', () => {
+  const span = 8 * 45
+  const fov = requiredFovNm(8, 45, 0.10)!
+  near(actualMarginNm(fov, span) / fov, 0.10)
 })
 
 test('marginSensitivity shows the staircase across every preset', () => {

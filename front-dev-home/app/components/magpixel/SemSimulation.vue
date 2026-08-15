@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  scanTimeFactor, edgeComparePair, edgeWindowHalfNm, edgeStrip,
+  scanTimeFactor, edgeComparePair, edgeWindowHalfNm, edgeStrip, actualMarginNm,
   SEM_EDGE_WIDTH_NM, SEM_LEVELS
 } from '~/utils/magPixel'
 
@@ -12,14 +12,12 @@ const props = defineProps<{
   nmPerPx: number
 }>()
 
-/** The chosen magnification's FOV is the smallest available one that is at
- *  least the required FOV, and magnifications are discrete — so the real
- *  margin is usually WIDER than the ratio the user asked for. Derive it from
- *  the actual span (pixels × nmPerPx recovers the FOV this preview draws)
- *  so the drawing always matches the numbers printed next to it. */
+/** pixels × nmPerPx recovers the FOV this preview draws; the margin is derived
+ *  from the actual span via actualMarginNm() — same helper as the schematic and
+ *  the recommendation panel, so all three agree with the printed numbers. */
 const fovNm = computed(() => props.pixels * props.nmPerPx)
 const spanNm = computed(() => props.patternCount * props.pitchNm)
-const marginNm = computed(() => Math.max(0, (fovNm.value - spanNm.value) / 2))
+const marginNm = computed(() => actualMarginNm(fovNm.value, spanNm.value))
 const insetPct = computed(() => (fovNm.value > 0 ? (marginNm.value / fovNm.value) * 100 : 0))
 const bandPct = computed(() => Math.max(0, 100 - 2 * insetPct.value))
 const unitPct = computed(() => 100 / props.patternCount)

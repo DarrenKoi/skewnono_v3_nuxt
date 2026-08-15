@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { fovNm, marginSensitivity, pixelGuidance, type CalcInput, type Recommendation } from '~/utils/magPixel'
+import {
+  fovNm, marginSensitivity, pixelGuidance, magLabel, actualMarginNm,
+  type CalcInput, type Recommendation
+} from '~/utils/magPixel'
 
 const props = defineProps<{
   rec: Recommendation
@@ -27,15 +30,13 @@ const verdictLabel = computed(() => ({
   error: '성립하지 않음'
 }[guidance.value.tone]))
 
-const magLabel = (mag: number | null) => mag === null ? '—' : `${mag / 1000}K`
-
-/** 선택된 배율의 FOV는 필요 FOV 이상인 가장 작은 이산값이라 실제 마진은 대개
- *  요청 비율보다 넓다. 요청값이 아니라 실제 span에서 역산해야 그림·표와 어긋나지 않는다. */
-const marginNm = computed(() => {
-  if (recFovNm.value === null) return null
-  const span = props.calc.patternCount * props.rec.effectivePitchNm
-  return Math.max(0, (recFovNm.value - span) / 2)
-})
+/** 실제 마진은 요청 비율이 아니라 실제 span에서 역산한다 — 근거는
+ *  actualMarginNm()에 있고, 모식도·시뮬레이션도 같은 함수를 쓴다. */
+const marginNm = computed(() =>
+  recFovNm.value === null
+    ? null
+    : actualMarginNm(recFovNm.value, props.calc.patternCount * props.rec.effectivePitchNm)
+)
 
 const marginPctLabel = computed(() =>
   recFovNm.value && marginNm.value !== null

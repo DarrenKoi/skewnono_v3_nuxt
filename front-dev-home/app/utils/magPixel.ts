@@ -123,6 +123,18 @@ export const SERIES_MODEL: Readonly<Record<MagSeries, string>> = {
 export const magRange = (series: MagSeries): readonly number[] =>
   series === 'GT' ? MAG_GT : MAG_CG
 
+/**
+ * 배율의 화면 표기. **항상 K 단위**이고 1M으로 접지 않는다 — GT 상단이
+ * 600K·700K·800K·900K로 이어지므로 마지막 한 칸만 1M이 되면 같은 수열이 두
+ * 이름으로 불린다(user-confirmed 2026-08-16). 최저 배율이 1000이라 K 미만
+ * 구간은 존재하지 않는다.
+ *
+ * 화면 어디서든 이 함수만 쓴다: 참조표는 1000K, 캡션은 1M으로 적혀 한 화면이
+ * 스스로와 어긋난 적이 있다.
+ */
+export const magLabel = (mag: number | null): string =>
+  mag === null ? '—' : `${mag / 1000}K`
+
 export interface MagPixelCell {
   pixels: number
   nmPerPx: number
@@ -191,6 +203,19 @@ export const requiredFovNm = (
   if (marginRatio < 0 || marginRatio >= 0.5) return null
   return (patternCount * pitchNm) / (1 - 2 * marginRatio)
 }
+
+/**
+ * 실제로 남은 각 변의 여유 마진(nm) — requiredFovNm()의 역방향이다.
+ *
+ * 배율이 이산값이라 선택된 FOV는 "필요 FOV 이상인 가장 작은 값"이고, 따라서
+ * 실제 마진은 대개 사용자가 요청한 비율보다 **넓다**. 그림·표·추천 패널이
+ * 저마다 요청 비율로 그리면 서로 어긋나므로, 셋 다 실제 span에서 역산한다.
+ *
+ * span이 FOV보다 크면(성립하지 않는 조합) 0으로 클램프한다 — 음수 마진은
+ * 그릴 수 없고, 그 실패는 reason으로 따로 보고된다.
+ */
+export const actualMarginNm = (fovNm: number, spanNm: number): number =>
+  Math.max(0, (fovNm - spanNm) / 2)
 
 export type CellVerdict = 'ok' | 'under-pixel' | 'over-fov'
 
@@ -436,6 +461,12 @@ export interface PixelGuidance {
  * 답하는 질문은 "512로 되나, 1024로 올려야 하나"이므로 결론과 근거를 함께 낸다.
  */
 export const pixelGuidance = (rec: Recommendation, minPxPerCd: number): PixelGuidance => {
+  // 문안이 "512"·"4096"을 문자열로 들고 있으면 PIXEL_SETTINGS가 늘거나 줄 때
+  // 화면만 조용히 거짓말을 한다. BASE_PIXELS(스캔 시간 기준점)가 아니라 설정
+  // 목록의 양끝에서 읽는다 — 여기서 필요한 뜻은 "가장 낮은/높은 설정"이다.
+  const minPixels = PIXEL_SETTINGS[0]
+  const maxPixels = PIXEL_SETTINGS[PIXEL_SETTINGS.length - 1]
+  const nextPixels = PIXEL_SETTINGS[1] ?? minPixels
   if (rec.reason === 'no-mag') {
     return {
       tone: 'error',
@@ -447,20 +478,20 @@ export const pixelGuidance = (rec: Recommendation, minPxPerCd: number): PixelGui
     return {
       tone: 'error',
       headline: '픽셀이 부족합니다',
-      detail: `${(rec.mag ?? 0).toLocaleString()}×에서는 4096 px로도 기준 ${minPxPerCd} px/CD에 미달합니다. 패턴 수를 줄이거나 기준을 재검토하세요.`
+      detail: `${(rec.mag ?? 0).toLocaleString()}×에서는 ${maxPixels} px로도 기준 ${minPxPerCd} px/CD에 미달합니다. 패턴 수를 줄이거나 기준을 재검토하세요.`
     }
   }
   const ratio = rec.pxPerCd ?? 0
-  if (rec.pixels === 512) {
+  if (rec.pixels === minPixels) {
     return {
       tone: 'ok',
-      headline: '512로 충분합니다',
-      detail: `${ratio.toFixed(1)} px/CD로, 기준 ${minPxPerCd}의 ${(ratio / minPxPerCd).toFixed(1)}배입니다. 1024로 올리면 스캔 시간만 4배가 됩니다.`
+      headline: `${minPixels}로 충분합니다`,
+      detail: `${ratio.toFixed(1)} px/CD로, 기준 ${minPxPerCd}의 ${(ratio / minPxPerCd).toFixed(1)}배입니다. ${nextPixels}로 올리면 스캔 시간만 ${(scanTimeFactor(nextPixels) ?? 1) / (scanTimeFactor(minPixels) ?? 1)}배가 됩니다.`
     }
   }
   return {
     tone: 'warn',
     headline: `${rec.pixels} px가 필요합니다`,
-    detail: `512로는 기준 ${minPxPerCd} px/CD에 미달합니다. 스캔 시간 ×${rec.scanFactor ?? '—'}를 감수해야 합니다.`
+    detail: `${minPixels}로는 기준 ${minPxPerCd} px/CD에 미달합니다. 스캔 시간 ×${rec.scanFactor ?? '—'}를 감수해야 합니다.`
   }
 }

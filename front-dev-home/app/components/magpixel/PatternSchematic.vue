@@ -2,6 +2,8 @@
 // 두 제약을 각각 담당하는 2단 구성이다.
 //   ① 전체 FOV      — 패턴 N개 + 마진이 들어오는가 (FOV 제약)
 //   ② Pitch 1개 확대 — CD에 픽셀이 몇 개 얹히는가 (픽셀 제약)
+import { actualMarginNm } from '~/utils/magPixel'
+
 const props = defineProps<{
   cdNm: number
   pitchNm: number
@@ -10,11 +12,11 @@ const props = defineProps<{
   nmPerPx: number
 }>()
 
-/** 선택된 배율의 FOV는 필요 FOV 이상인 가장 작은 이산값이라, 실제 마진은
- *  대개 사용자가 지정한 비율보다 넓다. 요청 비율이 아니라 실제 span에서
- *  마진을 역산해야 그림이 헤더의 FOV와 항상 일치한다. */
+/** 마진은 요청 비율이 아니라 실제 span에서 역산해야 그림이 헤더의 FOV와 항상
+ *  일치한다 — 근거는 actualMarginNm()에 있고, 추천 패널·시뮬레이션도 같은
+ *  함수를 쓴다. */
 const spanNm = computed(() => props.patternCount * props.pitchNm)
-const marginNm = computed(() => Math.max(0, (props.fovNm - spanNm.value) / 2))
+const marginNm = computed(() => actualMarginNm(props.fovNm, spanNm.value))
 const marginPct = computed(() => (props.fovNm > 0 ? (marginNm.value / props.fovNm) * 100 : 0))
 const bandPct = computed(() => Math.max(0, 100 - 2 * marginPct.value))
 

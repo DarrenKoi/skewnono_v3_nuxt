@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  buildMagPixelTable, fovNm, recommend, magRange, MARGIN_PRESETS, DEFAULT_MARGIN,
+  buildMagPixelTable, fovNm, recommend, magRange, magLabel, MARGIN_PRESETS, DEFAULT_MARGIN,
   DEFAULT_MIN_PX_PER_CD, DEFAULT_PATTERN_COUNT, SERIES_MODEL,
   type CalcInput, type MagSeries
 } from '~/utils/magPixel'
@@ -40,16 +40,15 @@ const thresholdValue = computed(() => numOrNull(minPxPerCd.value) ?? DEFAULT_MIN
 const rows = computed(() => buildMagPixelTable(series.value))
 
 /** 계열마다 배율 구간이 다르다 — GT는 500K 위로 5단을 더 갖는다. 캡션을
- *  고정 문자열로 두면 GT를 고른 순간 거짓말이 되므로 실제 표에서 읽는다. */
-const magStepLabel = (mag: number) =>
-  mag >= 1_000_000 ? `${mag / 1_000_000}M` : `${mag / 1000}K`
-
+ *  고정 문자열로 두면 GT를 고른 순간 거짓말이 되므로 실제 표에서 읽는다.
+ *  라벨은 참조표와 같은 magLabel()을 쓴다 — 이 캡션만 1M으로 접었던 탓에
+ *  한 화면에서 같은 배율이 "1M"과 "1000K"로 동시에 불렸다. */
 const seriesRangeLabel = computed(() => {
   const range = magRange(series.value)
   const first = range[0]
   const last = range[range.length - 1]
   if (first == null || last == null) return ''
-  return `${magStepLabel(first)}–${magStepLabel(last)} · ${range.length}단`
+  return `${magLabel(first)}–${magLabel(last)} · ${range.length}단`
 })
 
 /** CD가 없으면 판정하지 않고 순수 참조표로 둔다. */
@@ -59,8 +58,18 @@ const pitchError = computed(() =>
     : null
 )
 
+/** 패턴 수가 0·음수·소수면 requiredFovNm()이 null을 내고 화면 절반이 이유 없이
+ *  사라진다. pitchError와 같은 자리에서 이유를 말해준다 — 빈 칸은 기본값
+ *  8로 대체되므로 오류가 아니다. 소수를 막는 이유는 계산은 2.5주기로 하면서
+ *  모식도는 Array.from({length: 2.5})라 2개만 그려 그림과 숫자가 어긋나서다. */
+const patternError = computed(() => {
+  const n = numOrNull(patternCount.value)
+  if (n === null) return null
+  return n > 0 && Number.isInteger(n) ? null : '패턴 수는 1 이상의 정수여야 합니다.'
+})
+
 const result = computed(() => {
-  if (cdValue.value == null || cdValue.value <= 0 || pitchError.value) return null
+  if (cdValue.value == null || cdValue.value <= 0 || pitchError.value || patternError.value) return null
   return recommend({
     series: series.value,
     cdNm: cdValue.value,
@@ -72,16 +81,18 @@ const result = computed(() => {
 })
 
 const marginLabel = (r: number) => `${Math.round(r * 100)}%`
-const magLabel = (mag: number | null) => mag === null ? '—' : `${mag / 1000}K`
 
 /** 입력이 예시 그대로인 동안에만 배지를 띄운다 — 한 글자라도 바꾼 순간부터는
- *  사용자의 입력이므로 "예시"라고 부르면 거짓말이 된다. */
+ *  사용자의 입력이므로 "예시"라고 부르면 거짓말이 된다. 기준 px/CD도 포함한다:
+ *  마진과 같은 성격의 필터인데 이것만 빠져 있어, 슬라이더로 합격선을 옮겨
+ *  표의 ●/✗를 다시 가른 뒤에도 배지가 "예시"라고 남아 있었다. */
 const isExample = computed(() =>
   series.value === EXAMPLE.series
   && cdValue.value === EXAMPLE.cdNm
   && pitchValue.value === EXAMPLE.pitchNm
   && patternValue.value === EXAMPLE.patternCount
   && marginRatio.value === EXAMPLE.marginRatio
+  && thresholdValue.value === DEFAULT_MIN_PX_PER_CD
 )
 
 /** 배지의 ×는 "예시를 지운다"는 뜻이므로 CD·Pitch만 비운다. 계열·패턴 수·마진은
@@ -162,9 +173,14 @@ const calcInput = computed<CalcInput>(() => ({
         </template>
       </EbeamMetaBar>
 
+      <!-- 앞 문장은 예시가 살아 있을 때만 참이다. v-if 없이 두었더니 ×로 예시를
+           지운 뒤에도 "채워져 있습니다"라고 남았다. 뒷 문장(잠정 기준)은 입력과
+           무관한 사실이라 언제나 선다. -->
       <p class="mt-2 pl-0.5 sk-meta">
-        예시 입력이 채워져 있습니다 — 값을 바꾸면 즉시 다시 계산됩니다. 기준 px/CD
-        {{ DEFAULT_MIN_PX_PER_CD }}은 표준안 확정 전까지 잠정값입니다.
+        <template v-if="isExample">
+          예시 입력이 채워져 있습니다 — 값을 바꾸면 즉시 다시 계산됩니다.
+        </template>
+        기준 px/CD {{ DEFAULT_MIN_PX_PER_CD }}은 표준안 확정 전까지 잠정값입니다.
       </p>
     </div>
 
@@ -311,7 +327,14 @@ const calcInput = computed<CalcInput>(() => ({
           </div>
 
           <p
-            v-if="pitchError"
+            v-if="patternError"
+            class="mt-3 rounded-[var(--sk-r-sidebar)] border border-(--sk-bad-border) bg-(--sk-bad-soft) px-3 py-2 text-xs text-(--sk-bad)"
+          >
+            {{ patternError }}
+          </p>
+
+          <p
+            v-else-if="pitchError"
             class="mt-3 rounded-[var(--sk-r-sidebar)] border border-(--sk-bad-border) bg-(--sk-bad-soft) px-3 py-2 text-xs text-(--sk-bad)"
           >
             {{ pitchError }}
