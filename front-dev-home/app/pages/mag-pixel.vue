@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
-  buildMagPixelTable, fovNm, recommend, magRange, magLabel, MARGIN_PRESETS, DEFAULT_MARGIN,
+  buildMagPixelTable, fovNm, recommend, magRange, magLabel, actualMarginNm,
+  MARGIN_PRESETS, DEFAULT_MARGIN,
   DEFAULT_MIN_PX_PER_CD, DEFAULT_PATTERN_COUNT, SERIES_MODEL,
   type CalcInput, type MagSeries
 } from '~/utils/magPixel'
@@ -110,6 +111,27 @@ const resetInputs = () => {
   marginRatio.value = EXAMPLE.marginRatio
   minPxPerCd.value = DEFAULT_MIN_PX_PER_CD
 }
+
+/** 배율이 23단 이산값이라 요청 마진이 그대로 실현되지 않는다 — 5%는 필요 FOV
+ *  400 nm를 부르지만 그 위 후보(350K = 385.7 nm)가 못 미쳐 300K(450 nm)로
+ *  떨어지고, 10%의 답도 같은 300K다. 그래서 칩을 눌러도 미리보기가 그대로인
+ *  구간이 생기고, 사용자는 그것을 고장으로 읽는다(실제 신고 2026-08-16).
+ *
+ *  미리보기는 요청값이 아니라 실제 FOV를 그리므로 그림은 옳다 — 고칠 것은
+ *  그림이 아니라 침묵이다. 요청과 실현이 다를 때만 한 줄로 밝힌다.
+ *  recommend()가 필요 FOV **이상**인 배율만 고르므로 실현값은 항상 요청값
+ *  이상이고, 따라서 문구는 "넓게"로 단정해도 된다. */
+const marginRealised = computed(() => {
+  const r = result.value
+  if (r == null || r.mag === null) return null
+  const fov = fovNm(r.mag)
+  if (fov === null || fov <= 0) return null
+  const actual = Math.round(
+    (actualMarginNm(fov, patternValue.value * r.effectivePitchNm) / fov) * 100
+  )
+  const requested = Math.round(marginRatio.value * 100)
+  return actual === requested ? null : { requested, actual, mag: magLabel(r.mag) }
+})
 
 /** 메타바가 페이지의 답을 한 줄로 든다 — 필요 FOV → 추천 배율 → 픽셀 → 합격 여부
  *  순서로, 사용자가 실제로 읽는 순서 그대로다. */
@@ -271,15 +293,28 @@ const calcInput = computed<CalcInput>(() => ({
               <span class="w-[92px] flex-none pt-1 sk-label">
                 여유 마진 <span class="font-normal text-(--sk-ink-subtle)">각 변</span>
               </span>
-              <div class="flex flex-wrap gap-1.5">
-                <SkChip
-                  v-for="m in MARGIN_PRESETS"
-                  :key="m"
-                  size="sm"
-                  :label="marginLabel(m)"
-                  :active="marginRatio === m"
-                  @click="marginRatio = m"
-                />
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap gap-1.5">
+                  <SkChip
+                    v-for="m in MARGIN_PRESETS"
+                    :key="m"
+                    size="sm"
+                    :label="marginLabel(m)"
+                    :active="marginRatio === m"
+                    @click="marginRatio = m"
+                  />
+                </div>
+                <!-- 눌렀는데 그림이 그대로인 이유를 누른 자리에서 답한다. 이
+                     한 줄이 없으면 계단 구간(5%↔10%)이 고장으로 읽힌다. -->
+                <p
+                  v-if="marginRealised"
+                  class="mt-1.5 sk-meta leading-relaxed"
+                >
+                  배율이 이산값이라
+                  <span class="font-semibold text-(--sk-ink)">{{ marginRealised.mag }}</span>에서는
+                  실제 <span class="font-semibold text-(--sk-ink)">{{ marginRealised.actual }}%</span>가
+                  잡힙니다 — 요청한 {{ marginRealised.requested }}%보다 넓습니다.
+                </p>
               </div>
             </div>
 
