@@ -329,10 +329,7 @@ const selectedApiGroup = computed<ApiGroup>(() =>
                 </div>
               </dl>
 
-              <div
-                v-if="endpoint.auth !== '사람 세션만'"
-                class="mt-4 grid gap-3"
-              >
+              <div class="mt-4 grid gap-3">
                 <div class="overflow-hidden rounded-md bg-zinc-50 dark:bg-zinc-900">
                   <div class="border-b border-(--sk-border) px-3 py-2 sk-label">
                     curl
@@ -346,12 +343,6 @@ const selectedApiGroup = computed<ApiGroup>(() =>
                   <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ pythonExample(endpoint) }}</code></pre>
                 </div>
               </div>
-              <p
-                v-else
-                class="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-(--sk-ink-muted) dark:bg-zinc-900"
-              >
-                이 endpoint는 브라우저 세션 전용입니다. Settings의 API Tokens 화면에서 발급/폐기를 수행하십시오.
-              </p>
             </article>
           </div>
         </section>

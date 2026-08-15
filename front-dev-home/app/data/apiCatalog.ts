@@ -28,7 +28,10 @@ export type ApiEndpoint = {
   summary: string
   args: ApiArg[]
   response: string
-  auth: '토큰 가능' | '사람 세션만' | '관리자'
+  // No session-only variant: the catalog documents what a script can call.
+  // Browser-only surfaces (token 발급/폐기) are explained in `authNotes` and
+  // `tokenSteps` instead, where the reader is being told to open Settings.
+  auth: '토큰 가능' | '관리자'
   example: ApiExample
 }
 
@@ -581,49 +584,18 @@ export const apiGroups: ApiGroup[] = [
     ]
   },
   {
-    name: '계정, 활동, 운영',
-    description: 'API token 관리, 사용자 활동 통계, 운영 로그 조회 endpoint입니다.',
+    name: '계정, 운영',
+    description: '내 API token 조회와 관리자용 활동 통계, 운영 로그 조회 endpoint입니다.',
     icon: 'i-lucide-shield-check',
     endpoints: [
       {
         method: 'GET',
         path: '/api/account/api-tokens',
-        summary: '내 API token 목록을 반환합니다.',
+        summary: '내 API token 목록을 반환합니다. 발급과 폐기는 Settings 화면에서만 가능합니다.',
         args: [],
         response: '{ tokens: ApiTokenView[] }',
         auth: '토큰 가능',
         example: { path: '/account/api-tokens' }
-      },
-      {
-        method: 'POST',
-        path: '/api/account/api-tokens',
-        summary: '새 API token을 발급합니다. 토큰 인증으로는 호출할 수 없습니다.',
-        args: [
-          { name: 'label', kind: 'body', required: true, note: '토큰 용도를 구분할 이름' }
-        ],
-        response: '{ token: ApiTokenView, plaintext: string }',
-        auth: '사람 세션만',
-        example: { path: '/account/api-tokens', body: { label: 'my-script' } }
-      },
-      {
-        method: 'DELETE',
-        path: '/api/account/api-tokens/{token_id}',
-        summary: '내 API token을 폐기합니다. 토큰 인증으로는 호출할 수 없습니다.',
-        args: [
-          { name: 'token_id', kind: 'path', required: true, note: '폐기할 token의 ID (GET 목록의 id)' }
-        ],
-        response: '{ revoked: string }',
-        auth: '사람 세션만',
-        example: { path: '/account/api-tokens/<token_id>' }
-      },
-      {
-        method: 'GET',
-        path: '/api/activity/me',
-        summary: '현재 사용자 활동 요약을 반환합니다.',
-        args: [],
-        response: 'ActivityMeResponse',
-        auth: '토큰 가능',
-        example: { path: '/activity/me' }
       },
       {
         method: 'GET',
