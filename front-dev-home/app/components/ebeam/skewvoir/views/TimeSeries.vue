@@ -3,7 +3,8 @@
        to the FDC 분석 view: it plots measurement ORDER, which is a different
        axis from this view's across-measurement trend, not a narrower one.
 
-       Reading order: 무결성 → 파라미터 → 렌즈 → 활성 차트 → Sequence Trend. -->
+       Reading order: 무결성 → 파라미터 → 렌즈 → 조건 경고 → 활성 차트 →
+       Sequence Trend. -->
   <div
     v-if="analysis.scope.value === 'set'"
     class="space-y-3"
@@ -33,23 +34,6 @@
       :model-value="analysis.activeParam.value"
       @update:model-value="ws.setParam($event)"
     />
-
-    <!-- Recipe mixing confounds the skew lens: an offset between two tools that
-         ran different recipes is not attributable to the tools.
-
-         On its own line rather than trailing the parameter chips: a warning
-         wrapped into the middle of a chip flow reads as one more parameter, and
-         it moves every time the list rewraps. -->
-    <p
-      v-if="integrity.recipeCount > 1"
-      class="flex w-fit items-center gap-1.5 rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2.5 py-1.5 text-sm text-(--sk-warn)"
-    >
-      <UIcon
-        name="i-lucide-triangle-alert"
-        class="size-4 shrink-0"
-      />
-      recipe {{ integrity.recipeCount }}종 혼재 · 장비 차이로 해석하기 어렵습니다.
-    </p>
 
     <!-- Lens switch — the primary control on this page: it decides which of the
          three questions (추이 / 분포 / 장비 skew) the whole panel below answers.
@@ -114,6 +98,28 @@
         {{ lens.label }}
       </button>
     </div>
+
+    <!-- Recipe mixing qualifies a NUMBER, not the page, so it is stated next to
+         the number: between the lens switch and the panel it applies to, rather
+         than above the switch where it read as a property of the whole set.
+
+         A tool's measured response is a response to a measurement CONDITION —
+         recipe fixes mag, pixel, vac, method and site layout — so two tools that
+         ran different recipes differ even when the tools are identical. That
+         misattribution only happens in a view that invites a tool-to-tool
+         reading: the skew lens, and the trend lens under the 장비 axis. Under
+         추이/분포 the same mixing shows up as a level offset the reader can see
+         in the chart, and claiming 장비 차이 there is simply false. -->
+    <p
+      v-if="recipeMixWarning"
+      class="flex w-fit items-center gap-1.5 rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2.5 py-1.5 text-sm text-(--sk-warn)"
+    >
+      <UIcon
+        name="i-lucide-triangle-alert"
+        class="size-4 shrink-0"
+      />
+      recipe {{ integrity.recipeCount }}종 혼재 · 장비 간 차이에 recipe 차이가 섞여 있습니다.
+    </p>
 
     <!-- The tab strip is conditional, so the panel only claims to be its tabpanel
          while that tab actually exists — a dangling aria-labelledby is worse than
@@ -404,6 +410,22 @@ const hasComparableSetData = computed(() => comparableCount.value >= 2)
 
 const lensTabsVisible = computed(() =>
   !props.analysis.setPending.value && hasComparableSetData.value
+)
+
+// Views whose numbers are attributed to a tool: the skew lens (every row is a
+// per-tool offset from the set baseline) and the trend lens under the 장비 axis
+// (measurements are collected into per-tool columns to be read against each
+// other). These are the two places recipe mixing turns into a claim about
+// hardware that the data does not support.
+const toolAttributionView = computed(() =>
+  props.ws.tsView.value === 'skew'
+  || (props.ws.tsView.value === 'trend' && props.ws.tsAxis.value === 'eqp')
+)
+
+// Shares `lensTabsVisible`'s gate so the warning never qualifies a spinner or
+// the empty state — there is no number on screen to be wrong yet.
+const recipeMixWarning = computed(() =>
+  lensTabsVisible.value && integrity.value.recipeCount > 1 && toolAttributionView.value
 )
 
 const lensTabsEl = ref<HTMLElement | null>(null)
