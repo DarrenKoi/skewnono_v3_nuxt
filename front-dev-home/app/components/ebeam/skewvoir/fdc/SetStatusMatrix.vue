@@ -125,8 +125,14 @@ defineProps<{ matrix: FdcSetMatrix }>()
 // FdcPanel.vue / BmPmTables.vue / ReadinessModal.vue already use. `ok` stays
 // unfilled — a green wash on the majority of cells would drown out the few that
 // need reading, and DESIGN.md's table rule is to keep tables quiet.
+//
+// `ok` keeps FULL ink all the same. Not filling the cell is a background
+// decision; the drift σ inside it is still the value the user came to read, and
+// DESIGN.md is explicit that muted ink is for labels only (`--sk-ink-muted`:
+// "never data values"). Quieting the majority of the numbers would hand the
+// table's own content the treatment reserved for its chrome.
 const TONE: Record<FdcStatus, string> = {
-  ok: 'text-(--sk-ink-muted)',
+  ok: 'text-(--sk-ink)',
   warning: 'bg-(--sk-warn-soft) text-(--sk-warn)',
   bad: 'bg-(--sk-bad-soft) text-(--sk-bad)'
 }
