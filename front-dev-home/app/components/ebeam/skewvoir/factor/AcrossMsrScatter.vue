@@ -34,6 +34,7 @@
 import type { EChartsOption } from 'echarts'
 import type { AcrossMsrResult, AcrossMsrPoint } from '~/utils/skewvoirAnalysis/acrossMsr'
 import { rankToolColors, toolLegendChips } from '~/utils/skewvoirAnalysis/toolColors'
+import { SK_SITE_OVERFLOW } from '~/utils/chartPalette'
 import { fitLine } from '~/utils/stats'
 import { nearestPoint } from '~/utils/chartNearest'
 
@@ -49,8 +50,22 @@ const sk = useChartPalette()
 // Ranked over the DRAWN points, not the loaded set: a measurement dropped for a
 // missing axis value must not spend an identity color (same rule as
 // TimeSeriesChart, one tool never wears two colors across the workspace).
-const toolColor = computed(() => rankToolColors(props.result.points.map(p => p.eqpId)))
-const legendChips = computed(() => toolLegendChips(toolColor.value))
+//
+// `''` is the module's "this measurement has no tool identity" sentinel, not a
+// tool. buildAcrossMsrOutcome already refuses to build a stratum from it — so
+// ranking it here would give a tool that does not exist a palette color and an
+// empty-labelled legend chip, and the chart would show a group the stratified
+// table declines to name. Filtered at the source of BOTH the ranking and the
+// grouping; the points themselves still draw, under UNNAMED_LABEL below.
+const namedIds = computed(() => props.result.points.map(p => p.eqpId).filter(Boolean))
+const toolColor = computed(() => rankToolColors(namedIds.value))
+const legendChips = computed(() => {
+  const chips = toolLegendChips(toolColor.value)
+  // Appended, never ranked in: the unnamed group is an absence of identity, so
+  // it sits after every named tool rather than competing with them for a slot.
+  if (unnamed.value.length) chips.push({ label: UNNAMED_LABEL, color: SK_SITE_OVERFLOW })
+  return chips
+})
 
 const axisName = (axis: { label: string, unit: string } | null): string => {
   if (!axis) return ''
@@ -62,9 +77,18 @@ const axisName = (axis: { label: string, unit: string } | null): string => {
 const byTool = computed(() => {
   const groups = new Map<string, AcrossMsrPoint[]>()
   for (const id of toolColor.value.keys()) groups.set(id, [])
-  for (const p of props.result.points) groups.get(p.eqpId)?.push(p)
+  for (const p of props.result.points) {
+    if (!p.eqpId) continue
+    groups.get(p.eqpId)?.push(p)
+  }
   return groups
 })
+
+// Measurements whose meas-hist row could not be resolved (a deep-linked msr, a
+// row outside the loaded history). They are real measurements and stay on the
+// chart, but under a named neutral rather than borrowing a tool's color.
+const UNNAMED_LABEL = '장비 미상'
+const unnamed = computed(() => props.result.points.filter(p => !p.eqpId))
 
 // The pooled OLS line is drawn ONLY when the pooled coefficient was actually
 // published. With a suppressed coefficient (too few MSRs, a constant axis) a
@@ -117,6 +141,15 @@ const option = computed<EChartsOption>(() => ({
       itemStyle: { color: toolColor.value.get(eqpId), opacity: 0.85 },
       data: points.map(point => ({ value: [point.x, point.y] as [number, number], point }))
     })),
+    ...(unnamed.value.length
+      ? [{
+          type: 'scatter' as const,
+          name: UNNAMED_LABEL,
+          symbolSize: 9,
+          itemStyle: { color: SK_SITE_OVERFLOW, opacity: 0.85 },
+          data: unnamed.value.map(point => ({ value: [point.x, point.y] as [number, number], point }))
+        }]
+      : []),
     {
       type: 'line' as const,
       smooth: false,

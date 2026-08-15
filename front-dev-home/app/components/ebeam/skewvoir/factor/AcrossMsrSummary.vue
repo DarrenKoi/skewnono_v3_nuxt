@@ -133,8 +133,13 @@ import { rankToolColors } from '~/utils/skewvoirAnalysis/toolColors'
 const props = defineProps<{ result: AcrossMsrResult }>()
 
 // Same ranking input as the scatter (the DRAWN points), so a tool's swatch here
-// is the same color as its dots there.
-const toolColor = computed(() => rankToolColors(props.result.points.map(p => p.eqpId)))
+// is the same color as its dots there. `''` — the "no tool identity" sentinel —
+// is filtered for the same reason it is filtered there, and it has to be
+// filtered in BOTH: a phantom entry shifts every named tool's rank by one, so
+// dropping it on one side alone would paint one tool two different colors.
+const toolColor = computed(() =>
+  rankToolColors(props.result.points.map(p => p.eqpId).filter(Boolean))
+)
 
 const fmt = (v: number | null) => (v == null ? '—' : v.toFixed(3))
 
