@@ -169,21 +169,113 @@ Evidence pack은 새 데이터 계약 없이 가능하면서 업계 표준 소�
 신규 API 계약 없이 가능한 것부터 정렬했습니다. 계약이 필요한 항목은 벤치마크
 연구 §10의 준비도 표가 그대로 적용됩니다.
 
-| 순위 | 항목 | 화면 | 전제 |
-| --- | --- | --- | --- |
-| 1 | set 범위 reference median / signed delta / coverage map | 위치 비교 | 로드된 set 파일로 충분 |
-| 2 | Across-MSR Outcome mode(Task 10) | 상관 / 분포 | set 파일 파라미터 요약 + FdcParamSummary로 시작 |
-| 3 | CDU 지표 카드와 실패 원인 분해 | 측정 개요 | MsrParamSummary 재배치 |
-| 4 | same-site over time image strip | 이미지 갤러리 | 호환 그룹 site key |
-| 5 | set 범위 run×채널 FDC 상태 비교 | FDC | 수신 중인 FdcParamSummary |
-| 6 | Evidence pack 내보내기 | 신규 | 기존 내보내기 유틸 |
-| 7 | BM/PM event band, 다중 lane | Time-Series, SPC | backend event 계약 |
-| 8 | I-MR/EWMA, Cp/Cpk, tool matching | SPC | baseline·spec·reference artifact 계약 |
+아래 순서는 2026-08-16 코드 대조(§6) 이후의 것입니다. 판단 기준은 "데이터가
+응답에 있는가"가 아니라 **"그 데이터를 다루는 파생 계층까지 있는가"**입니다.
+`utils/skewvoirAnalysis/` 에 이미 검증된 파생이 있는 항목은 UI 배선만 남으므로
+훨씬 쌉니다.
+
+| 순위 | 항목 | 화면 | 전제 | 상태 |
+| --- | --- | --- | --- | --- |
+| 1 | set 범위 run×채널 FDC 상태 비교 | FDC | 수신 중인 `FdcParamSummary`, 파생 없음 | 착수 |
+| 2 | Across-MSR Outcome mode(Task 10) | 상관 / 분포 | `features.ts` 파생이 이미 완성·미사용 | 착수 |
+| 3 | CDU 지표 카드와 실패 원인 분해 | 측정 개요 | `rows` 에서 median/MAD 계산 | 착수 |
+| 4 | set 범위 reference median / signed delta / coverage map | 위치 비교 | 파생 추출 + heat 대칭 스케일 선행 | 보류 |
+| 5 | Evidence pack 내보내기(Excel 한정) | 신규 | `utils/xlsx.ts` | 보류 |
+| 6 | same-site over time image strip | 이미지 갤러리 | 호환 그룹 site key + 이미지 warm 비용 | 보류 |
+| 7 | BM/PM event band, 다중 lane | Time-Series, SPC | backend event 계약 | 계약 대기 |
+| 8 | I-MR/EWMA, Cp/Cpk, tool matching | SPC | baseline·spec·reference artifact 계약 | 계약 대기 |
 
 1~6까지는 현재 데이터 계약으로 구현할 수 있고, 7~8은 연구 문서의 P2~P3와
 같은 조건에서 진행합니다.
 
-## 6. 유지 항목
+## 6. 코드 대조로 확인한 사실 (2026-08-16)
+
+§3~§5의 "신규 계약 불필요" 판정을 구현 코드에 대조했습니다. 대체로 유지되었고
+세 가지가 달라졌습니다.
+
+확인한 전제는 다음과 같습니다.
+
+| 확인 사항 | 결과 |
+| --- | --- |
+| set 전체가 full payload로 로드되는가 | 예. `POST /api/msr-files` 가 MSR마다 전체 `MsrFileResponse` 를 반환하고(`total=len(rows)`, 페이지네이션 없음) `useSkewvoirAnalysis` 의 `setFiles: Map<msr, MsrFileResponse>` 에 담깁니다 |
+| `MsrParamSummary` 에 median/MAD가 있는가 | 아니요. `count, mean, std, min, max, unit` 뿐입니다 |
+| 실패 원인 필드는 어디 있는가 | `MeasHistRow` 의 `msr_check`, `align_fail`, `fail_images`, `fail_ratio` — 이미 로드되어 있습니다 |
+| per-MSR feature 테이블이 있는가 | 있고, 아무도 쓰지 않습니다 (`utils/skewvoirAnalysis/features.ts`) |
+
+### 6.1 정정 — Across-MSR은 계산이 아니라 UI 배선입니다
+
+§3.5는 "set 파일 파라미터 요약 + `FdcParamSummary` 로 시작"이라 했지만, 그 파생은
+이미 끝나 있습니다. `features.ts` 가 로드된 MSR마다 `level / spread / coverage /
+failure / spatial / fixed_fdc.* / dynamic_fdc.*` 을 `DerivedValue`(값 + n +
+missing + transform + 출처 + version)로 만들고, `dynamic_fdc` 의 sequence grain은
+MSR grain으로 안전하게 축약되어 있습니다. `useSkewvoirAnalysis` 가 `featureRows` /
+`featureRegistry` 로 노출하지만 **렌더링하는 컴포넌트가 하나도 없습니다.**
+
+다만 `FdcParamSummary` 의 `drift_sigma` / `status` 는 registry에 없으므로, 축으로
+쓰려면 feature family로 정식 추가해야 합니다. 컴포넌트에서 `fdc_params` 를 직접
+읽으면 provenance가 끊깁니다.
+
+### 6.2 정정 — CDU 카드는 재배치가 아니라 신규 계산입니다
+
+§3.1의 "`MsrParamSummary` 재배치만으로 대부분 충족"은 성립하지 않습니다. median과
+MAD가 그 응답에 없습니다. 대신 `rows` 가 잘리지 않고 전부 오므로 `cd_value` 에서
+클라이언트 계산이 가능합니다 — API 변경은 여전히 불필요하지만 `utils/stats.ts`
+확장이 필요합니다. 반대로 shape(center-edge delta)는 `features.ts` 의 `spatial`
+feature와 `spatial.ts` 에 이미 있어 공짜입니다.
+
+실패 분해는 §3.1이 출처를 짚지 않았는데, **백엔드에 요청할 것이 없습니다.**
+MSR 단위 사유는 `MeasHistRow` 에, 사이트 단위 결측은 `cd_value === null` 과
+`measurement_score` 에 이미 있습니다. `fail_ratio` 는 이미 퍼센트이고
+(4.57 = 4.57%), `align_fail === 'NA'` 는 실패가 아니라 미상입니다.
+
+### 6.3 정정 — Evidence pack의 PDF는 근거가 없습니다
+
+§4는 "기존 내보내기 유틸(`xlsx.ts`, `csvDownload.ts`)로 충분"이라 했지만 이는
+Excel에만 해당합니다. `utils/xlsx.ts` 는 exceljs 동적 import 기반이고 이미지
+삽입 경로까지 주석으로 안내하지만, **PDF 라이브러리는 저장소에 없습니다.**
+범위를 Excel로 좁히거나 인쇄 스타일시트로 대체해야 합니다.
+
+## 7. 보류 항목의 착수 조건
+
+우선순위 1~3은 착수했습니다. 나머지는 아래 조건이 정리되면 그대로 집을 수 있습니다.
+
+### 7.1 위치 비교 세 map (우선순위 4)
+
+데이터는 충분합니다. 사이트별 누적 루프가 `PositionStack.vue` 안에 지역 computed로
+이미 있습니다. 착수 전에 세 가지가 필요합니다.
+
+- **`WaferHeatChart` 의 대칭 스케일 옵션.** 현재 visualMap은 데이터의 min/max로
+  범위를 잡으므로, signed delta를 그대로 넘기면 0이 색의 중앙이 아니게 되어
+  **부호 방향을 거짓말합니다.**
+- **파생 추출.** 누적 로직을 `utils/skewvoirAnalysis/` 로 옮기고 `*.test.ts` 짝을
+  붙입니다. 판정 근거가 되는 map을 테스트 없는 컴포넌트 안에 두는 것은 이 폴더의
+  관행에서 벗어납니다.
+- **정책 결정(미결):** reference median의 모집단에 focus MSR을 포함할지 제외할지.
+  포함하면 focus가 자기 기준선을 오염시킵니다 — Time-Series baseline에서 이미 한 번
+  고친 함정과 같은 종류입니다.
+
+### 7.2 Evidence pack (우선순위 5)
+
+범위를 **Excel 한정**으로 확정하고 시작합니다(§6.3). 이미지 삽입이 필요하므로
+`downloadWorkbook()` 한 줄 경로가 아니라 `createWorkbook()` + 자체 루프 +
+`writeWorkbook()` 을 씁니다. 행 조립 로직은 `xlsx.ts` 가 아니라 순수 빌더 모듈에
+두어야 `node --test` 로 검증됩니다.
+
+### 7.3 same-site over time image strip (우선순위 6)
+
+계산은 쉽습니다 — canonical site key는 `compatibility.ts` 에, 각 MSR의 `eqp_ip` 와
+`class_name` 은 `setFiles` 에 있습니다. **비싼 것은 이미지 경로입니다.**
+`useMsrImageWarmer` 는 (MSR, 활성 파라미터) 단위로 warm하고 사무실에서는 FTP를 타며
+425/429/503 백오프 체인을 갖습니다. set 전체를 warm하면 tool 부하 stampede입니다.
+따라서 strip은 개수를 제한하고(예: 6~8개) 사용자가 명시적으로 요청할 때만 지연
+로드해야 합니다.
+
+### 7.4 계약 대기 (우선순위 7~8)
+
+판정 그대로 유지합니다. BM/PM event band와 다중 lane은 backend event 계약이,
+I-MR/EWMA·Cp/Cpk·tool matching은 승인·동결된 baseline과 spec 계약이 먼저입니다.
+
+## 8. 유지 항목
 
 다음은 격차가 아니라 연구 문서의 권장을 따르고 있으므로 그대로 유지합니다.
 
