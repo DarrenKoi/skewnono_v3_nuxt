@@ -71,7 +71,11 @@
             :picked-tool="picked"
             :halo-label="haloLabel"
           />
-          <EbeamPmTuneTuneTargets
+          <!-- File is pmTune/Targets.vue, NOT pmTune/TuneTargets.vue: Nuxt's
+               auto-import collapses the repeated word at the segment boundary
+               (PmTune + TuneTargets -> PmTuneTargets), so the longer file name
+               would leave this tag rendering silently empty. -->
+          <EbeamPmTuneTargets
             :report="report"
             :has-group="primary !== null"
             :tools="labelRefs"
@@ -204,7 +208,13 @@ const excluded = computed(() =>
 
 // Default pick: the tool freshest out of PM (its tuning window is now), then
 // the worst-excluded tool, then the roster head — see pickDefaultTool.
-watch([pmTools, excluded], () => {
+//
+// Gated on the pm payload having ARRIVED: the two requests race, and running
+// the default off the tttm payload alone would pick the excluded-tool fallback
+// and then stick with it (a set pick is never overwritten) even though the PM
+// dates the rule actually wants were a moment away.
+watch([pmFleet, excluded], () => {
+  if (!pmFleet.value) return
   if (picked.value && pmTools.value.some(t => t.eqp_id === picked.value)) return
   picked.value = pickDefaultTool(
     pmTools.value.map(t => ({ eqp_id: t.eqp_id, post_pm_at: t.gate.post_pm_at })),
