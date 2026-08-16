@@ -7,6 +7,15 @@ features; this module implements the mock behavior documented in
 MIGRATION.md and is never imported directly except by `data.py`'s switch.
 The future office implementation should keep the same public function and
 TypedDict shape while replacing this generator with real data access.
+
+The roster comes from sem_list, not from fabricated ids: the pm-tune page
+joins this payload with tttm/check by eqp_id, and tttm's mock already
+derives its fleet from sem_list. A previous version of this module invented
+a fixed 8-tool `{PREFIX}-{FAB}-{NN}` fleet, which intersected that join down
+to zero tools at home. Deduplicated by eqp_id because sem_list's mock rolls
+ids at random (~10 of its 300 rows collide) and eqp_id keys everything here.
+A fab with no CD-SEM rows in sem_list answers an EMPTY `tools` list — real
+fabs are `M14A`/`R3`-style names; a bare `M14` matches nothing.
 """
 
 import hashlib
@@ -15,7 +24,7 @@ import random
 import statistics
 from datetime import datetime, timedelta, timezone
 
-from back_dev_home.ebeam._tool_specs import TOOL_SPECS
+from back_dev_home.ebeam._tool_specs import model_to_tool_type
 from back_dev_home.ebeam.hardware.providers.bm_pm.mock import build_bm_pm_data
 from back_dev_home.ebeam.hardware.providers.pm_gate_bsm_mock import (
     build_bsm_data,
@@ -34,6 +43,7 @@ from back_dev_home.ebeam.pm_planning.contracts import (
     ScanAxis,
     ToolBlock,
 )
+from back_dev_home.sem_list.providers.mock import get_sem_list
 
 
 __all__ = ["BEAM_CONDITIONS", "AXES", "DEFAULTS", "get_pm_planning_fleet"]
@@ -48,8 +58,6 @@ DEFAULTS = {
 }
 
 _CONSENSUS_BASE = {"500V": 16.0, "800V": 16.0}
-_FLEET_SIZE = 8
-_CD_PREFIXES = tuple(TOOL_SPECS["cdsem"]["eqp_prefixes"])
 
 NOW = datetime(2026, 5, 24, 9, 0, tzinfo=timezone.utc)
 FETCHED_AT = NOW.isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -61,14 +69,22 @@ def _seed_for(text: str) -> int:
 
 
 def _fleet_eqp_ids(fab_name: str) -> list[str]:
-    """Build a deterministic CD-SEM tool pool for a fab."""
-    rng = random.Random(_seed_for(f"fleet::{fab_name.upper()}"))
-    fab = fab_name.upper()
-    ids = [
-        f"{_CD_PREFIXES[i % len(_CD_PREFIXES)]}-{fab}-{i + 1:02d}"
-        for i in range(_FLEET_SIZE)
-    ]
-    rng.shuffle(ids)
+    """The fab's CD-SEM roster, straight from sem_list (same law as tttm's mock)."""
+    target = fab_name.strip().upper()
+    seen: set[str] = set()
+    ids: list[str] = []
+    # Sorted by eqp_id so the roster order is a property of the fab, not of
+    # sem_list's row order.
+    for row in sorted(get_sem_list(), key=lambda r: r["eqp_id"]):
+        eqp_id = row["eqp_id"]
+        if eqp_id in seen:
+            continue
+        if row["fab_name"].strip().upper() != target:
+            continue
+        if model_to_tool_type(row["eqp_model_cd"]) != "cd-sem":
+            continue
+        seen.add(eqp_id)
+        ids.append(eqp_id)
     return ids
 
 
@@ -213,12 +229,12 @@ def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
 
 
 if __name__ == "__main__":
-    a = get_pm_planning_fleet("M14")
-    b = get_pm_planning_fleet("M14")
+    a = get_pm_planning_fleet("R3")
+    b = get_pm_planning_fleet("R3")
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True), (
         "fleet snapshot is not deterministic"
     )
-    assert len(a["tools"]) == _FLEET_SIZE
+    assert a["tools"], "R3 must hold CD-SEM rows in sem_list"
     for tool in a["tools"]:
         assert len(tool["cells"]) == len(BEAM_CONDITIONS) * len(AXES)
         assert tool["gate"]["verdict"] in ("up", "hold")

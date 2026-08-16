@@ -1,0 +1,1184 @@
+{
+  "tool_type": "cd-sem",
+  "fab_name": "R3",
+  "fetched_at": "2026-05-24T09:00:00Z",
+  "anchor_date": "2026-05-24",
+  "beam_conditions": [
+    "500V",
+    "800V"
+  ],
+  "axes": [
+    "X",
+    "Y"
+  ],
+  "defaults": {
+    "focus_n": 3,
+    "advisory_threshold": {
+      "500V": 0.3,
+      "800V": 0.4
+    }
+  },
+  "consensus": [
+    {
+      "beam": "500V",
+      "axis": "X",
+      "consensus": 15.977
+    },
+    {
+      "beam": "500V",
+      "axis": "Y",
+      "consensus": 16.091
+    },
+    {
+      "beam": "800V",
+      "axis": "X",
+      "consensus": 15.979
+    },
+    {
+      "beam": "800V",
+      "axis": "Y",
+      "consensus": 15.977
+    }
+  ],
+  "tools": [
+    {
+      "eqp_id": "ECDX172",
+      "gate": {
+        "cd_monitoring_value": 15.955,
+        "cd_spec_lower": 15.54,
+        "cd_spec_upper": 16.54,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.969,
+        "bsm_noise_avg": 6.798,
+        "post_pm_at": "",
+        "prev_post_delta": 0.05,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.133,
+          "current_value": 15.867,
+          "median": 15.977,
+          "gap": -0.11
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.113,
+          "current_value": 16.113,
+          "median": 16.091,
+          "gap": 0.022
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.43,
+          "current_value": 15.57,
+          "median": 15.979,
+          "gap": -0.409
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.154,
+          "current_value": 16.154,
+          "median": 15.977,
+          "gap": 0.177
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-20",
+          "mdc": 1.0041,
+          "bsm_sharpness_avg": 7.908
+        },
+        {
+          "epoch_start": "2026-01-05",
+          "mdc": 1.0067,
+          "bsm_sharpness_avg": 7.996
+        },
+        {
+          "epoch_start": "2026-03-11",
+          "mdc": 1.0073,
+          "bsm_sharpness_avg": 7.942
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECDX261",
+      "gate": {
+        "cd_monitoring_value": 16.022,
+        "cd_spec_lower": 15.42,
+        "cd_spec_upper": 16.42,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.97,
+        "bsm_noise_avg": 6.756,
+        "post_pm_at": "2026-05-12T17:00",
+        "prev_post_delta": -0.179,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.129,
+          "current_value": 15.871,
+          "median": 15.977,
+          "gap": -0.106
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.16,
+          "current_value": 16.16,
+          "median": 16.091,
+          "gap": 0.069
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.01,
+          "current_value": 15.99,
+          "median": 15.979,
+          "gap": 0.011
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.051,
+          "current_value": 15.949,
+          "median": 15.977,
+          "gap": -0.028
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-09",
+          "mdc": 0.9887,
+          "bsm_sharpness_avg": 7.992
+        },
+        {
+          "epoch_start": "2026-01-17",
+          "mdc": 0.9852,
+          "bsm_sharpness_avg": 7.978
+        },
+        {
+          "epoch_start": "2026-03-09",
+          "mdc": 0.9884,
+          "bsm_sharpness_avg": 7.917
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECDX350",
+      "gate": {
+        "cd_monitoring_value": 15.861,
+        "cd_spec_lower": 15.42,
+        "cd_spec_upper": 16.42,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.925,
+        "bsm_noise_avg": 6.79,
+        "post_pm_at": "2026-05-15T21:30",
+        "prev_post_delta": 0.089,
+        "mdc_changed": true,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.049,
+          "current_value": 15.951,
+          "median": 15.977,
+          "gap": -0.026
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": -0.11,
+          "current_value": 15.89,
+          "median": 16.091,
+          "gap": -0.201
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": 0.012,
+          "current_value": 16.012,
+          "median": 15.979,
+          "gap": 0.033
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.048,
+          "current_value": 16.048,
+          "median": 15.977,
+          "gap": 0.071
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-14",
+          "mdc": 0.9939,
+          "bsm_sharpness_avg": 7.998
+        },
+        {
+          "epoch_start": "2026-01-12",
+          "mdc": 0.9971,
+          "bsm_sharpness_avg": 7.903
+        },
+        {
+          "epoch_start": "2026-03-16",
+          "mdc": 0.9949,
+          "bsm_sharpness_avg": 7.934
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECDX614",
+      "gate": {
+        "cd_monitoring_value": 15.864,
+        "cd_spec_lower": 15.4,
+        "cd_spec_upper": 16.4,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.936,
+        "bsm_noise_avg": 6.835,
+        "post_pm_at": "2026-05-17T00:45",
+        "prev_post_delta": -0.122,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.202,
+          "current_value": 15.798,
+          "median": 15.977,
+          "gap": -0.179
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.068,
+          "current_value": 16.068,
+          "median": 16.091,
+          "gap": -0.023
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.164,
+          "current_value": 15.836,
+          "median": 15.979,
+          "gap": -0.143
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.033,
+          "current_value": 15.967,
+          "median": 15.977,
+          "gap": -0.01
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-11",
+          "mdc": 1.003,
+          "bsm_sharpness_avg": 7.976
+        },
+        {
+          "epoch_start": "2026-01-07",
+          "mdc": 1.0015,
+          "bsm_sharpness_avg": 7.971
+        },
+        {
+          "epoch_start": "2026-03-24",
+          "mdc": 1.0004,
+          "bsm_sharpness_avg": 7.916
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECDX729",
+      "gate": {
+        "cd_monitoring_value": 15.861,
+        "cd_spec_lower": 15.5,
+        "cd_spec_upper": 16.5,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.997,
+        "bsm_noise_avg": 6.768,
+        "post_pm_at": "2026-05-16T16:15",
+        "prev_post_delta": 0.082,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.067,
+          "current_value": 16.067,
+          "median": 15.977,
+          "gap": 0.09
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.097,
+          "current_value": 16.097,
+          "median": 16.091,
+          "gap": 0.006
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.021,
+          "current_value": 15.979,
+          "median": 15.979,
+          "gap": 0.0
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.071,
+          "current_value": 15.929,
+          "median": 15.977,
+          "gap": -0.048
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-13",
+          "mdc": 1.0041,
+          "bsm_sharpness_avg": 7.966
+        },
+        {
+          "epoch_start": "2026-01-17",
+          "mdc": 1.0003,
+          "bsm_sharpness_avg": 7.93
+        },
+        {
+          "epoch_start": "2026-03-19",
+          "mdc": 1.0041,
+          "bsm_sharpness_avg": 7.994
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECDX891",
+      "gate": {
+        "cd_monitoring_value": 16.02,
+        "cd_spec_lower": 15.54,
+        "cd_spec_upper": 16.54,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.904,
+        "bsm_noise_avg": 6.778,
+        "post_pm_at": "2026-05-21T09:45",
+        "prev_post_delta": -0.012,
+        "mdc_changed": true,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.022,
+          "current_value": 16.022,
+          "median": 15.977,
+          "gap": 0.045
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": -0.097,
+          "current_value": 15.903,
+          "median": 16.091,
+          "gap": -0.188
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": 0.005,
+          "current_value": 16.005,
+          "median": 15.979,
+          "gap": 0.026
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.149,
+          "current_value": 15.851,
+          "median": 15.977,
+          "gap": -0.126
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-20",
+          "mdc": 1.0045,
+          "bsm_sharpness_avg": 7.99
+        },
+        {
+          "epoch_start": "2026-01-21",
+          "mdc": 1.0051,
+          "bsm_sharpness_avg": 7.992
+        },
+        {
+          "epoch_start": "2026-03-14",
+          "mdc": 1.0028,
+          "bsm_sharpness_avg": 7.987
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECXDX382",
+      "gate": {
+        "cd_monitoring_value": 15.949,
+        "cd_spec_lower": 15.51,
+        "cd_spec_upper": 16.51,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.923,
+        "bsm_noise_avg": 6.77,
+        "post_pm_at": "2026-04-21T19:15",
+        "prev_post_delta": 0.061,
+        "mdc_changed": true,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.011,
+          "current_value": 16.011,
+          "median": 15.977,
+          "gap": 0.034
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.091,
+          "current_value": 16.091,
+          "median": 16.091,
+          "gap": 0.0
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": 0.215,
+          "current_value": 16.215,
+          "median": 15.979,
+          "gap": 0.236
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.075,
+          "current_value": 16.075,
+          "median": 15.977,
+          "gap": 0.098
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-25",
+          "mdc": 0.9998,
+          "bsm_sharpness_avg": 7.917
+        },
+        {
+          "epoch_start": "2026-01-09",
+          "mdc": 1.0032,
+          "bsm_sharpness_avg": 7.943
+        },
+        {
+          "epoch_start": "2026-03-05",
+          "mdc": 1.0026,
+          "bsm_sharpness_avg": 7.901
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECXDX630",
+      "gate": {
+        "cd_monitoring_value": 15.881,
+        "cd_spec_lower": 15.54,
+        "cd_spec_upper": 16.54,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.982,
+        "bsm_noise_avg": 6.833,
+        "post_pm_at": "2026-05-14T15:45",
+        "prev_post_delta": -0.028,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.483,
+          "current_value": 16.483,
+          "median": 15.977,
+          "gap": 0.506
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": -0.288,
+          "current_value": 15.712,
+          "median": 16.091,
+          "gap": -0.379
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.177,
+          "current_value": 15.823,
+          "median": 15.979,
+          "gap": -0.156
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.054,
+          "current_value": 15.946,
+          "median": 15.977,
+          "gap": -0.031
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-21",
+          "mdc": 0.9949,
+          "bsm_sharpness_avg": 7.918
+        },
+        {
+          "epoch_start": "2026-01-08",
+          "mdc": 0.9984,
+          "bsm_sharpness_avg": 7.923
+        },
+        {
+          "epoch_start": "2026-03-18",
+          "mdc": 1.0014,
+          "bsm_sharpness_avg": 7.929
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECXDX800",
+      "gate": {
+        "cd_monitoring_value": 15.588,
+        "cd_spec_lower": 15.46,
+        "cd_spec_upper": 16.46,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.93,
+        "bsm_noise_avg": 6.769,
+        "post_pm_at": "",
+        "prev_post_delta": -0.001,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.091,
+          "current_value": 16.091,
+          "median": 15.977,
+          "gap": 0.114
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": -0.056,
+          "current_value": 15.944,
+          "median": 16.091,
+          "gap": -0.147
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": 0.117,
+          "current_value": 16.117,
+          "median": 15.979,
+          "gap": 0.138
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.134,
+          "current_value": 15.866,
+          "median": 15.977,
+          "gap": -0.111
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-05",
+          "mdc": 0.9996,
+          "bsm_sharpness_avg": 7.99
+        },
+        {
+          "epoch_start": "2026-01-12",
+          "mdc": 1.0022,
+          "bsm_sharpness_avg": 7.919
+        },
+        {
+          "epoch_start": "2026-03-20",
+          "mdc": 1.002,
+          "bsm_sharpness_avg": 7.986
+        }
+      ]
+    },
+    {
+      "eqp_id": "ECXDX877",
+      "gate": {
+        "cd_monitoring_value": 15.883,
+        "cd_spec_lower": 15.57,
+        "cd_spec_upper": 16.57,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.95,
+        "bsm_noise_avg": 6.731,
+        "post_pm_at": "2026-03-14T01:00",
+        "prev_post_delta": -0.037,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.074,
+          "current_value": 16.074,
+          "median": 15.977,
+          "gap": 0.097
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": -0.012,
+          "current_value": 15.988,
+          "median": 16.091,
+          "gap": -0.103
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.104,
+          "current_value": 15.896,
+          "median": 15.979,
+          "gap": -0.083
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.194,
+          "current_value": 16.194,
+          "median": 15.977,
+          "gap": 0.217
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-21",
+          "mdc": 0.996,
+          "bsm_sharpness_avg": 7.999
+        },
+        {
+          "epoch_start": "2026-01-12",
+          "mdc": 0.9932,
+          "bsm_sharpness_avg": 7.949
+        },
+        {
+          "epoch_start": "2026-03-14",
+          "mdc": 0.991,
+          "bsm_sharpness_avg": 7.922
+        }
+      ]
+    },
+    {
+      "eqp_id": "HCDX131",
+      "gate": {
+        "cd_monitoring_value": 15.766,
+        "cd_spec_lower": 15.41,
+        "cd_spec_upper": 16.41,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.986,
+        "bsm_noise_avg": 6.779,
+        "post_pm_at": "2026-05-19T22:45",
+        "prev_post_delta": 0.054,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.266,
+          "current_value": 16.266,
+          "median": 15.977,
+          "gap": 0.289
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.108,
+          "current_value": 16.108,
+          "median": 16.091,
+          "gap": 0.017
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": 0.062,
+          "current_value": 16.062,
+          "median": 15.979,
+          "gap": 0.083
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.036,
+          "current_value": 15.964,
+          "median": 15.977,
+          "gap": -0.013
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-07",
+          "mdc": 1.0019,
+          "bsm_sharpness_avg": 7.933
+        },
+        {
+          "epoch_start": "2026-01-16",
+          "mdc": 1.0055,
+          "bsm_sharpness_avg": 7.934
+        },
+        {
+          "epoch_start": "2026-03-20",
+          "mdc": 1.0017,
+          "bsm_sharpness_avg": 7.902
+        }
+      ]
+    },
+    {
+      "eqp_id": "HCDX169",
+      "gate": {
+        "cd_monitoring_value": 16.143,
+        "cd_spec_lower": 15.58,
+        "cd_spec_upper": 16.58,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.966,
+        "bsm_noise_avg": 6.815,
+        "post_pm_at": "2026-05-04T08:30",
+        "prev_post_delta": 0.024,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.178,
+          "current_value": 15.822,
+          "median": 15.977,
+          "gap": -0.155
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.112,
+          "current_value": 16.112,
+          "median": 16.091,
+          "gap": 0.021
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": 0.457,
+          "current_value": 16.457,
+          "median": 15.979,
+          "gap": 0.478
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.107,
+          "current_value": 15.893,
+          "median": 15.977,
+          "gap": -0.084
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-19",
+          "mdc": 1.0015,
+          "bsm_sharpness_avg": 7.99
+        },
+        {
+          "epoch_start": "2026-01-21",
+          "mdc": 0.9997,
+          "bsm_sharpness_avg": 7.931
+        },
+        {
+          "epoch_start": "2026-03-19",
+          "mdc": 1.0005,
+          "bsm_sharpness_avg": 7.923
+        }
+      ]
+    },
+    {
+      "eqp_id": "HCDX176",
+      "gate": {
+        "cd_monitoring_value": 15.834,
+        "cd_spec_lower": 15.56,
+        "cd_spec_upper": 16.56,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.963,
+        "bsm_noise_avg": 6.813,
+        "post_pm_at": "",
+        "prev_post_delta": -0.039,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.053,
+          "current_value": 15.947,
+          "median": 15.977,
+          "gap": -0.03
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": -0.158,
+          "current_value": 15.842,
+          "median": 16.091,
+          "gap": -0.249
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.089,
+          "current_value": 15.911,
+          "median": 15.979,
+          "gap": -0.068
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.006,
+          "current_value": 16.006,
+          "median": 15.977,
+          "gap": 0.029
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-09",
+          "mdc": 1.0048,
+          "bsm_sharpness_avg": 7.956
+        },
+        {
+          "epoch_start": "2026-01-07",
+          "mdc": 1.0068,
+          "bsm_sharpness_avg": 7.943
+        },
+        {
+          "epoch_start": "2026-03-13",
+          "mdc": 1.0107,
+          "bsm_sharpness_avg": 7.944
+        }
+      ]
+    },
+    {
+      "eqp_id": "HCDX293",
+      "gate": {
+        "cd_monitoring_value": 16.243,
+        "cd_spec_lower": 15.6,
+        "cd_spec_upper": 16.6,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.892,
+        "bsm_noise_avg": 6.766,
+        "post_pm_at": "2026-04-02T18:15",
+        "prev_post_delta": 0.037,
+        "mdc_changed": true,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.023,
+          "current_value": 15.977,
+          "median": 15.977,
+          "gap": 0.0
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.194,
+          "current_value": 16.194,
+          "median": 16.091,
+          "gap": 0.103
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.044,
+          "current_value": 15.956,
+          "median": 15.979,
+          "gap": -0.023
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": -0.023,
+          "current_value": 15.977,
+          "median": 15.977,
+          "gap": 0.0
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-25",
+          "mdc": 1.0012,
+          "bsm_sharpness_avg": 7.923
+        },
+        {
+          "epoch_start": "2026-01-19",
+          "mdc": 1.003,
+          "bsm_sharpness_avg": 7.943
+        },
+        {
+          "epoch_start": "2026-03-10",
+          "mdc": 1.0007,
+          "bsm_sharpness_avg": 7.981
+        }
+      ]
+    },
+    {
+      "eqp_id": "HCDX439",
+      "gate": {
+        "cd_monitoring_value": 16.056,
+        "cd_spec_lower": 15.59,
+        "cd_spec_upper": 16.59,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 8.002,
+        "bsm_noise_avg": 6.736,
+        "post_pm_at": "2026-05-18T05:00",
+        "prev_post_delta": -0.12,
+        "mdc_changed": false,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": 0.078,
+          "current_value": 16.078,
+          "median": 15.977,
+          "gap": 0.101
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": -0.063,
+          "current_value": 15.937,
+          "median": 16.091,
+          "gap": -0.154
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": 0.11,
+          "current_value": 16.11,
+          "median": 15.979,
+          "gap": 0.131
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.072,
+          "current_value": 16.072,
+          "median": 15.977,
+          "gap": 0.095
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-06",
+          "mdc": 0.9872,
+          "bsm_sharpness_avg": 7.977
+        },
+        {
+          "epoch_start": "2026-01-04",
+          "mdc": 0.9889,
+          "bsm_sharpness_avg": 7.952
+        },
+        {
+          "epoch_start": "2026-03-05",
+          "mdc": 0.9863,
+          "bsm_sharpness_avg": 7.939
+        }
+      ]
+    },
+    {
+      "eqp_id": "HCDX582",
+      "gate": {
+        "cd_monitoring_value": 15.855,
+        "cd_spec_lower": 15.53,
+        "cd_spec_upper": 16.53,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.919,
+        "bsm_noise_avg": 6.801,
+        "post_pm_at": "2026-05-09T09:45",
+        "prev_post_delta": -0.015,
+        "mdc_changed": true,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.033,
+          "current_value": 15.967,
+          "median": 15.977,
+          "gap": -0.01
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.093,
+          "current_value": 16.093,
+          "median": 16.091,
+          "gap": 0.002
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.067,
+          "current_value": 15.933,
+          "median": 15.979,
+          "gap": -0.046
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.048,
+          "current_value": 16.048,
+          "median": 15.977,
+          "gap": 0.071
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-17",
+          "mdc": 0.9983,
+          "bsm_sharpness_avg": 7.988
+        },
+        {
+          "epoch_start": "2026-01-15",
+          "mdc": 0.9949,
+          "bsm_sharpness_avg": 7.904
+        },
+        {
+          "epoch_start": "2026-03-09",
+          "mdc": 0.9961,
+          "bsm_sharpness_avg": 7.909
+        }
+      ]
+    },
+    {
+      "eqp_id": "HCDX733",
+      "gate": {
+        "cd_monitoring_value": 16.117,
+        "cd_spec_lower": 15.52,
+        "cd_spec_upper": 16.52,
+        "cd_in_spec": true,
+        "bsm_in_spec": true,
+        "bsm_sharpness_avg": 7.942,
+        "bsm_noise_avg": 6.822,
+        "post_pm_at": "2026-05-07T17:45",
+        "prev_post_delta": -0.068,
+        "mdc_changed": true,
+        "verdict": "up"
+      },
+      "cells": [
+        {
+          "beam": "500V",
+          "axis": "X",
+          "skew": -0.05,
+          "current_value": 15.95,
+          "median": 15.977,
+          "gap": -0.027
+        },
+        {
+          "beam": "500V",
+          "axis": "Y",
+          "skew": 0.137,
+          "current_value": 16.137,
+          "median": 16.091,
+          "gap": 0.046
+        },
+        {
+          "beam": "800V",
+          "axis": "X",
+          "skew": -0.142,
+          "current_value": 15.858,
+          "median": 15.979,
+          "gap": -0.121
+        },
+        {
+          "beam": "800V",
+          "axis": "Y",
+          "skew": 0.117,
+          "current_value": 16.117,
+          "median": 15.977,
+          "gap": 0.14
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch_start": "2025-11-09",
+          "mdc": 1.0059,
+          "bsm_sharpness_avg": 7.972
+        },
+        {
+          "epoch_start": "2026-01-08",
+          "mdc": 1.0047,
+          "bsm_sharpness_avg": 7.904
+        },
+        {
+          "epoch_start": "2026-03-17",
+          "mdc": 1.0007,
+          "bsm_sharpness_avg": 7.909
+        }
+      ]
+    }
+  ]
+}

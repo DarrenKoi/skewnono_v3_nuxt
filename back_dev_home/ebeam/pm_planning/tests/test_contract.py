@@ -27,7 +27,10 @@ from back_dev_home.ebeam.pm_planning.contracts import FleetPayload
 # fab_name copied from routes.py's own call shape (a plain query-string
 # fab_name, upper/lower-cased by the mock — see pm_planning_fleet() in
 # routes.py, which just forwards request.args["fab_name"] unchanged).
-FAB_NAME = "M14"
+# R3 because the roster now comes from sem_list, and R3 is a fab that
+# actually holds CD-SEM rows there ("M14" alone holds none — sem_list
+# fabs are M14A/M14B/M14C).
+FAB_NAME = "R3"
 
 
 def _is_mock() -> bool:
@@ -83,6 +86,29 @@ def test_mock_derives_cd_in_spec_from_the_window():
         assert gate["cd_in_spec"] == (
             gate["cd_spec_lower"] <= gate["cd_monitoring_value"] <= gate["cd_spec_upper"]
         )
+
+
+def test_mock_roster_is_the_sem_list_fleet():
+    if not _is_mock():
+        # Mock-only: an office adapter reads the real roster, and what frame it
+        # joins against is its own business. At home, though, sem_list is the
+        # ONE fleet every feature stands on — pm-tune joins this payload with
+        # tttm/check by eqp_id, and tttm's mock already derives its roster from
+        # sem_list. A pm_planning mock that fabricates its own ids intersects
+        # that join down to zero tools.
+        pytest.skip("the roster source is only specified for the mock")
+
+    from back_dev_home.ebeam._tool_specs import model_to_tool_type
+    from back_dev_home.sem_list.providers.mock import get_sem_list
+
+    expected = sorted({
+        row["eqp_id"]
+        for row in get_sem_list()
+        if row["fab_name"].strip().upper() == FAB_NAME
+        and model_to_tool_type(row["eqp_model_cd"]) == "cd-sem"
+    })
+    fleet = data.get_pm_planning_fleet(FAB_NAME)
+    assert sorted(tool["eqp_id"] for tool in fleet["tools"]) == expected
 
 
 def test_mock_fleet_is_a_complete_frozen_snapshot():

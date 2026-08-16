@@ -101,13 +101,18 @@
       tools: list[ToolBlock]
   ```
 
-- Mock behavior: `providers/mock.py` builds a deterministic **8-tool**
-  CD-SEM fleet for the given `fab_name`, seeded per-value via `_seed_for`
-  (an md5-digest-derived RNG seed keyed on strings like
-  `f"fleet::{fab.upper()}"`, `f"cells::{eqp_id}"`, `f"gate::{eqp_id}"`,
-  `f"epoch::{eqp_id}"`) — same `fab_name` always yields byte-identical
-  output within a process (see the module's own `__main__` determinism
-  assertion). `NOW`/`FETCHED_AT` are frozen constants
+- Mock behavior: `providers/mock.py` reads the fab's CD-SEM roster
+  **from sem_list** (`sem_list/providers/mock.get_sem_list()`, filtered by
+  `fab_name` + `model_to_tool_type == "cd-sem"`, deduplicated by `eqp_id`,
+  sorted) — the same law tttm's mock follows, because the pm-tune page
+  joins this payload with `tttm/check` by `eqp_id` and a fabricated roster
+  intersects that join down to zero tools. A fab with no CD-SEM rows in
+  sem_list answers an **empty** `tools` list (real fab names are
+  `M14A`/`R3`-style; a bare `M14` matches nothing). Per-tool values are
+  seeded via `_seed_for` (an md5-digest-derived RNG seed keyed on strings
+  like `f"cells::{eqp_id}"`, `f"gate::{eqp_id}"`, `f"epoch::{eqp_id}"`) —
+  same `fab_name` always yields byte-identical output within a process
+  (see the module's own `__main__` determinism assertion). `NOW`/`FETCHED_AT` are frozen constants
   (`2026-05-24T09:00:00Z`), not wall-clock time, so `fetched_at` and
   `anchor_date` never drift between calls or across mock/parity runs.
   Per tool:
@@ -134,7 +139,7 @@
     start in `[0.990, 1.010]`.
   - **`consensus`** (fleet-level, computed by `_apply_fleet_median` after
     all tools are built): per `(beam, axis)`, the **median of that cell's
-    `current_value` across all 8 tools in the fleet** — not a fixed
+    `current_value` across all tools in the fleet** — not a fixed
     constant — then every tool's `cells[i]["median"]`/`["gap"]` is
     rewritten in place against that just-computed fleet median (`gap =
     current_value - median`). This is why `cells` cannot be validated
@@ -145,9 +150,9 @@
   sharpness/noise averages; per-tool PM job history (most recent
   completed PM's job_end); per-tool MDC epoch history -->
 - Notes:
-  - **No huge-payload concern** — a fleet snapshot is capped at 8 tools ×
-    4 cells regardless of `fab_name`, unlike device_statistics's
-    lot-fan-out endpoints.
+  - **No huge-payload concern** — a fleet snapshot is one fab's CD-SEM
+    roster (≤ ~18 tools in the mock's sem_list) × 4 cells, unlike
+    device_statistics's lot-fan-out endpoints.
   - Ranking, threshold filtering, and bottom-N tool selection are
     explicitly **client-side** concerns (per this feature's own contract
     docstring) — the backend ships raw per-cell values plus `defaults`
@@ -163,11 +168,11 @@
     directly). `hardware/providers/bm_pm/mock.py`/`pm_gate_bsm_mock.py`/
     `spec_range_mock.py` are consumed **by** this mock, not consumers of
     it, so nothing needs cross-feature care here.
-  - The parity harness pins both `/api/cdsem/pm-planning/fleet` (`200`,
-    `?fab_name=D8` appended by `_parity_snapshot/capture.py`'s
-    endpoint-specific handling) and `/api/hvsem/pm-planning/fleet` (`400`,
-    the CD-SEM-only rejection) — the `400` case is still valid parity
-    (identical status+body before/after the seam cut), not a bug to fix.
+  - Parity checks should pin both `/api/cdsem/pm-planning/fleet` (`200`,
+    with a `fab_name` that exists in sem_list, e.g. `R3`) and
+    `/api/hvsem/pm-planning/fleet` (`400`, the CD-SEM-only rejection) —
+    the `400` case is still valid parity (identical status+body before/
+    after the seam cut), not a bug to fix.
 
 ## Verify
 

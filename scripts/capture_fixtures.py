@@ -80,9 +80,11 @@ ENDPOINTS: list[tuple[str, str, str]] = [
     ("ebeam/recipe_tat", "daily-trend-cdsem.json", "/api/cdsem/recipe-tat/daily-trend"),
     ("ebeam/recipe_tat", "devices-cdsem.json", "/api/cdsem/recipe-tat/devices"),
 
-    # hitachi pm-planning (CD-SEM only; fab_name is required, not defaulted)
-    ("ebeam/pm_planning", "fleet-cdsem-m14.json",
-     "/api/cdsem/pm-planning/fleet?fab_name=M14"),
+    # hitachi pm-planning (CD-SEM only; fab_name is required, not defaulted).
+    # R3, not M14: the roster comes from sem_list, whose fab names are
+    # M14A-style - a bare M14 would capture an empty fleet.
+    ("ebeam/pm_planning", "fleet-cdsem-r3.json",
+     "/api/cdsem/pm-planning/fleet?fab_name=R3"),
 
     # hitachi skew (fab_name required; recipe_id optional but pinned so the
     # captured shape stays the recipe-scoped one)
