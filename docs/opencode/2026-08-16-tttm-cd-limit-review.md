@@ -161,6 +161,28 @@ Standards 1·2·3·4 는 코드를 직접 확인한 뒤 모두 사실로 확인�
 현재 화면은 최소한 이 사실을 숨기지는 않습니다 — knob 캡션이
 "CD 68 nm 셀에서는 0.227 nm" 라고 직접 말하고, 셀마다 "기준 N nm" 을 표시합니다.
 
+#### 결론 (2026-08-16, 사용자 확정)
+
+> "0.20 is a monitor wafer figure, let it scale"
+
+**해석 1 채택.** 동작 변경은 없습니다 — 구현이 이미 그 해석이었습니다. 바꾼 것은
+그 사실이 기록되지 않아 다음 사람이 "0.20 을 넘겼으니 버그"라고 읽을 수 있었던
+자리들입니다.
+
+| 자리 | 갱신 내용 |
+| --- | --- |
+| `contracts.py` `ToleranceRange` | docstring 신설 — 이 nm 은 모니터 wafer 기준값이며 클라이언트가 셀 CD 로 환산한다는 것, 그리고 knob max 의 실효값 표 |
+| `MIGRATION.md` | office adapter 용 절 신설 — `max` 를 절대 상한으로 읽고 0.20 에서 자르는 "수정"이 바로 기각된 동작임을 명시 |
+| `providers/mock.py` | 0.24 nm 짝이 "0.20 상한 초과"라던 설명이 이제 거짓이므로 정정 (knob 눈금의 약 54% 구간에서 red, 전체 travel 에서는 통과) |
+| `.scratch/tttm-cd-limit/spec.md` | R7 로 확정 기록 |
+
+`mock.py` 정정이 이 결정의 실제 부작용입니다. 예전 문구는 "full travel 에서
+실패하는 짝이 하나 있어야 tolerance 컨트롤에 negative state 가 보인다"였는데,
+상한이 함께 비례하면 그 짝은 full travel 에서 통과합니다. 데이터를 올리는 대신
+문구를 고쳤습니다 — 0.424 nm 를 넘기는 짝은 자기 PM/BM 한계(0.318 nm)도 넘기게
+되어, 바로 다음 bullet 이 가르치려는 "tolerance ≠ action limit" 대비가 무너지기
+때문입니다.
+
 ### 두 축이 모두 놓친 것
 
 - `.scratch/tttm-cd-limit/spec.md` 는 이 리뷰를 위해 방금 만든 문서입니다.
@@ -175,4 +197,4 @@ Standards 1·2·3·4 는 코드를 직접 확인한 뒤 모두 사실로 확인�
 | 축 | 발견 수 | 최악 항목 |
 | --- | --- | --- |
 | Standards | HARD 0건 · JUDGEMENT 4건 | null CD 경로가 집에서 실행되지 않음 (고침) |
-| Spec | 6건 (미완 1 · scope creep 3 · 오구현 2) | 0.20 nm 상한이 실효적으로 지켜지지 않음 (사용자 결정 대기) |
+| Spec | 6건 (미완 1 · scope creep 3 · 오구현 2) | 0.20 nm 상한이 실효적으로 지켜지지 않음 → 2026-08-16 사용자 확정으로 해소 (비례가 맞음, 문서만 갱신) |

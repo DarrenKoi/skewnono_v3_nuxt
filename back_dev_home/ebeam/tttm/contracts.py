@@ -117,6 +117,25 @@ class MdcHistoryEntry(TypedDict):
 
 
 class ToleranceRange(TypedDict):
+    """The N배화 tolerance knob's travel, in MONITOR-WAFER nanometres.
+
+    These are not absolute nanometres, and reading them as absolute is the
+    mistake this docstring exists to prevent. The client converts the knob to a
+    fraction of the fab's action limit (CD의 1%) at the 15 nm monitor wafer, then
+    applies that fraction against each cell's OWN measured CD — so the effective
+    allowance scales with pattern size, exactly as the action limit does.
+
+    Worked example at `max`: 0.20 nm is 1.333x the action limit, which is
+    0.20 nm on the monitor wafer, 0.424 nm at a 31.8 nm CD, and 0.907 nm at
+    68 nm. A cell can therefore pass a pair well above 0.20 nm without any
+    ceiling having been violated.
+
+    user-confirmed 2026-08-16, twice and in two directions: `max` stays 0.20
+    (do not raise it to Kawada 2009's ±0.25), AND 0.20 is itself a monitor-wafer
+    figure that scales rather than an absolute cap. Both answers are needed —
+    the first alone reads as "0.20 is a hard limit", which it is not.
+    """
+
     min: float
     max: float
     step: float
@@ -130,7 +149,9 @@ class TttmCheckPayload(TypedDict):
     fetched_at: str
     summary: str
     tools: list[ToolRef]
-    current_tolerance: float  # default 0.05 (nm)
+    # Both are MONITOR-WAFER nm, scaled per cell by the client — see
+    # ToleranceRange's docstring before treating either as an absolute limit.
+    current_tolerance: float  # default 0.05 (nm at the 15 nm monitor wafer)
     tolerance_range: ToleranceRange  # {min:0.01, max:0.20, step:0.005}
     occupied_cells: list[CellSkew]
     production_corroboration: ProductionCorroboration

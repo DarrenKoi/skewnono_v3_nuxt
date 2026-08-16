@@ -87,6 +87,28 @@ saying on screen that it assumed it.
 것은 우리 쪽 확장이며 공장이 말한 바가 아닙니다. 그래서 프론트엔드는 그 값을
 limit 이 아니라 지수(index)로 표기합니다.
 
+## `tolerance_range` 는 절대 nm 이 아닙니다
+
+`current_tolerance` 와 `tolerance_range` 가 실어 보내는 nm 은 **15 nm 모니터
+wafer 기준값**입니다. 클라이언트는 이 값을 그 CD 에서의 action limit 대비
+비율로 바꾼 뒤, 셀마다 그 셀의 실제 CD 로 되돌려 적용합니다. 즉 허용치는
+패턴 크기에 비례해 커집니다.
+
+| knob | 지수 | CD 15 nm | CD 31.8 nm | CD 68 nm |
+| --- | --- | --- | --- | --- |
+| 0.05 nm | 0.33× | 0.050 nm | 0.106 nm | 0.227 nm |
+| 0.20 nm | 1.33× | 0.200 nm | 0.424 nm | 0.907 nm |
+
+그래서 `max` 가 0.20 이어도 **0.20 nm 를 넘는 장비쌍이 통과할 수 있으며, 그것은
+상한 위반이 아닙니다**. 이 표를 보지 않고 `max` 를 절대 상한으로 읽으면 셀별
+실효 허용치를 0.20 에서 잘라내는 "수정"을 하게 되는데, 그것이 바로 사용자가
+기각한 동작입니다.
+
+user-confirmed 2026-08-16, 두 방향 모두: `max` 는 0.20 을 유지하고(Kawada 2009 의
+±0.25 로 올리지 않음), 동시에 그 0.20 자체가 모니터 wafer 기준값이라 비례해서
+커집니다. 두 답이 함께 있어야 합니다 — 앞의 것만 남기면 "0.20 은 절대 한계"로
+읽히고, 그것은 사실이 아닙니다.
+
 ## Verify
 
     SKEWNONO_TTTM_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/tttm

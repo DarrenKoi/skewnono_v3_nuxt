@@ -24,13 +24,20 @@ flatten them by accident:
 - **The last tool of the roster is the drifted one.** It sits furthest from
   consensus and carries the widest pairwise skews; the tight cluster is what
   the N배화 recommendation is built from.
-- **One pair exceeds `tolerance_range.max`** — the first tool against the
-  drifted one in the `-Y-` cell, pinned at 0.24 nm against the 0.20 nm
-  ceiling. Without it the knob at full travel passes everything and the
-  tolerance control looks like it has no negative state. That cell is
+- **One pair fails over most of the knob's travel** — the first tool against
+  the drifted one in the `-Y-` cell, pinned at 0.24 nm. Without it the
+  tolerance control has no visible negative state at all. That cell is
   `direct`/`High` on purpose, so the failure reads as real rather than as
   low-confidence noise, and it is the Y axis only — an axis-specific drift is
   more plausible than a uniform one.
+
+  The knob is CD-relative, so "fails" is not a comparison against 0.20 nm.
+  0.24 nm in a 31.8 nm CD cell is 0.755x the action limit, and the knob spans
+  0.067x–1.333x, so the pair shows red from 0.010 to about 0.113 nm — roughly
+  54% of the slider — and passes above that. It deliberately does NOT fail at
+  full travel: with the ceiling scaling too, a pair that failed at 1.333x
+  would also be past its own PM/BM limit, which would collapse the very
+  distinction the next bullet exists to teach.
 - **The drifted tool's row is entirely null in the predicted cell.** That is
   the "no overlapping measurement" case the frontend must not place on the
   fleet map; see `utils/fleetMap.ts`.
@@ -46,11 +53,12 @@ flatten them by accident:
   time it runs is at the office. Its bias scale is the smallest of the four,
   so the cell does not quietly dismantle the N배화 recommendation the rest of
   the payload is built around.
-- **The over-tolerance pair is still INSIDE its own PM/BM limit.** 0.24 nm
-  exceeds the 0.20 nm tolerance ceiling but sits under that cell's 0.318 nm
-  action limit. The contrast is the point: the tolerance knob is a matching
-  goal for N배화, the action limit is fab policy about one tool against
-  consensus, and a fixture at smaller CDs would teach them as one number.
+- **The over-tolerance pair is still INSIDE its own PM/BM limit.** At the
+  default knob 0.24 nm is over the cell's 0.106 nm allowance yet under its
+  0.318 nm action limit. The contrast is the point: the tolerance knob is a
+  matching goal for N배화, the action limit is fab policy about one tool
+  against consensus, and a fixture at smaller CDs would teach them as one
+  number.
 - **`consensus_deviation` is kept inside ±0.15 nm**, the fab's tool management
   limit — a tool outside it goes to PM/BM (user-confirmed 2026-08-16). The
   widest is the drifted tool at -0.13, so the demo fleet is "all in spec, but
