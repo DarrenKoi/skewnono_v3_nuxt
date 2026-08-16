@@ -21,11 +21,18 @@ them by accident:
 - **EQP05's row is entirely null in `bc2-X-50-100-e7`.** That is the
   "no overlapping measurement" case the frontend must not place on the fleet
   map; see `utils/fleetMap.ts`.
-- **The three cells sit at three different CDs** (32.4 / 31.8 / 68.0 nm), and
-  `bc2` is in a different `cd_band` from the other two on purpose. The PM/BM
-  limit is 1% of CD, so those cells carry limits of 0.324 / 0.318 / 0.680 nm —
-  spread wide enough that a screen quietly reusing one absolute limit is
-  visibly wrong rather than plausibly close.
+- **The measured cells sit at three different CDs** (32.4 / 31.8 / 68.0 nm),
+  and `bc2` is in a different `cd_band` from the other two on purpose. The
+  PM/BM limit is 1% of CD, so those cells carry limits of 0.324 / 0.318 /
+  0.680 nm — spread wide enough that a screen quietly reusing one absolute
+  limit is visibly wrong rather than plausibly close.
+- **`bc3-X-lt25-e7` has `median_cd_nm: null`.** The office may return skew
+  statistics with no CD beside them, and the client has a whole assumed-CD
+  path for that (`resolveNominalCd` → monitor wafer, captions saying it
+  assumed). Without a null here that path is dead code at home and the first
+  time it runs is at the office. Its skews keep 01/02/04 inside the default
+  knob so adding it does not quietly dismantle the N배화 recommendation the
+  rest of the fixture is built around.
 - **The over-tolerance pair is still INSIDE its own PM/BM limit.** EQP01↔EQP05
   at 0.24 nm exceeds the 0.20 nm tolerance ceiling but sits under that cell's
   0.318 nm action limit. The contrast is the point: the tolerance knob is a

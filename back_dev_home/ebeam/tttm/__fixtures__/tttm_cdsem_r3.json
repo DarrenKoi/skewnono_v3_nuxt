@@ -4,7 +4,7 @@
   "recipe_id": "CD_MON_16",
   "available": true,
   "fetched_at": "2026-05-31T14:30:00",
-  "summary": "R3 CD-SEM 장비 그룹 5대 · 점유 셀 3개(직접 2 · 예측 1) 기준 추천입니다.",
+  "summary": "R3 CD-SEM 장비 그룹 5대 · 점유 셀 4개(직접 3 · 예측 1) 기준 추천입니다.",
   "tools": [
     {
       "eqp_id": "EQP01",
@@ -209,6 +209,66 @@
           ]
         ]
       }
+    },
+    {
+      "cell_id": "bc3-X-lt25-e7",
+      "beam_condition": "BC3",
+      "axis": "X",
+      "cd_band": "<25",
+      "median_cd_nm": null,
+      "mdc_epoch": "e7",
+      "tier": "direct",
+      "confidence": "Med",
+      "labels": [
+        "CD 미기록"
+      ],
+      "direct_skew_matrix": {
+        "tools": [
+          "EQP01",
+          "EQP02",
+          "EQP03",
+          "EQP04",
+          "EQP05"
+        ],
+        "values": [
+          [
+            0,
+            0.015,
+            0.075,
+            0.02,
+            0.09
+          ],
+          [
+            0.015,
+            0,
+            0.07,
+            0.025,
+            0.085
+          ],
+          [
+            0.075,
+            0.07,
+            0,
+            0.065,
+            0.1
+          ],
+          [
+            0.02,
+            0.025,
+            0.065,
+            0,
+            0.08
+          ],
+          [
+            0.09,
+            0.085,
+            0.1,
+            0.08,
+            0
+          ]
+        ]
+      },
+      "predicted_skew_matrix": null
     }
   ],
   "production_corroboration": {
