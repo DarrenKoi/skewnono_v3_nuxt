@@ -75,10 +75,19 @@ export const useTttmApi = () => {
       { query: { fab_name: fabName, ...(recipeId ? { recipe_id: recipeId } : {}) } }
     )
 
-  const useTttmCheck = (toolType: string, fabName: string, recipeId?: string) =>
+  // `recipeId` is a getter, not a plain string, because the user picks it in the
+  // page: a value baked into the key at call time would never refetch. The key
+  // deliberately omits the recipe so one cache entry per (tool, fab) is reused
+  // and re-fetched, rather than accumulating one entry per recipe ever viewed.
+  const useTttmCheck = (
+    toolType: string,
+    fabName: string,
+    recipeId?: () => string | null | undefined
+  ) =>
     useAsyncData(
-      `tttm-check:${toolType}:${fabName}:${recipeId ?? 'all'}`,
-      () => fetchTttmCheck(toolType, fabName, recipeId)
+      `tttm-check:${toolType}:${fabName}`,
+      () => fetchTttmCheck(toolType, fabName, recipeId?.() ?? undefined),
+      recipeId ? { watch: [recipeId] } : {}
     )
 
   return { fetchTttmCheck, useTttmCheck }

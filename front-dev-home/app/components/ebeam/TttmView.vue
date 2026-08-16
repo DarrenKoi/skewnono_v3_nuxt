@@ -21,6 +21,16 @@
     </div>
 
     <template v-else>
+      <EbeamTttmFleetPicker
+        :tools="payload.tools"
+        :selected="selectedTools"
+        :recipe-id="recipeId"
+        :recipe-names="recipeNames"
+        :recipes-pending="recipesPending"
+        @update:selected="onSelectedTools"
+        @update:recipe-id="onRecipe"
+      />
+
       <div class="dashboard-surface rounded-2xl p-4">
         <EbeamTttmToleranceKnob
           v-model="tolerance"
@@ -31,31 +41,31 @@
       <EbeamTttmRecommendationCard
         :primary="primary"
         :others="others"
-        :tools="payload.tools"
+        :tools="visibleTools"
       />
 
       <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
 
       <EbeamTttmPairMatrix
-        :cells="payload.occupied_cells"
-        :tools="payload.tools"
+        :cells="visibleCells"
+        :tools="visibleTools"
         :tolerance="tolerance"
       />
 
       <EbeamTttmFleetStatus
-        :fleet="payload.fleet_today"
-        :tools="payload.tools"
+        :fleet="visibleFleet"
+        :tools="visibleTools"
       />
       <EbeamTttmFleetMap
-        :fleet="payload.fleet_today"
-        :tools="payload.tools"
+        :fleet="visibleFleet"
+        :tools="visibleTools"
         :tolerance="tolerance"
       />
       <EbeamTttmTrendChart
-        :trend="payload.trend"
-        :markers="payload.epoch_markers"
+        :trend="visibleTrend"
+        :markers="visibleMarkers"
       />
-      <EbeamTttmMdcTimeline :history="payload.mdc_history" />
+      <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
     </template>
   </div>
 </template>
@@ -63,11 +73,74 @@
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from '~/utils/tttmGrouping'
+import { subsetSkewMatrix, rebaseDeviations, resolveSelection } from '~/utils/tttmFleetSubset'
+import type { SkewCondition, FleetToday } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
+const settings = useTttmSettings()
+const scoped = computed(() => settings.read(props.toolType, props.fab))
+const recipeId = computed(() => scoped.value.recipeId)
+
 const { useTttmCheck } = useTttmApi()
-const { data: payload, pending } = useTttmCheck(props.toolType, props.fab)
+const { data: payload, pending } = useTttmCheck(props.toolType, props.fab, () => recipeId.value)
+
+// Recipe catalogue for the picker. Its own request, so a slow catalogue never
+// delays the skew payload the page is actually about.
+const { fetchRecipeList } = useRecipeSearchApi()
+const { data: recipeList, pending: recipesPending } = useAsyncData(
+  `tttm-recipes:${props.toolType}:${props.fab}`,
+  () => fetchRecipeList({ toolType: props.toolType as 'cd-sem' | 'hv-sem', fabNames: [props.fab] })
+)
+const recipeNames = computed(() =>
+  [...new Set((recipeList.value?.rows ?? []).map(row => row.recipe_name))].sort()
+)
+
+const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
+// Stored selection resolved against the fleet the server actually returned:
+// empty means all, and ids that no longer exist are dropped.
+const selectedTools = computed(() => resolveSelection(allToolIds.value, scoped.value.tools))
+
+const onSelectedTools = (next: string[]) => settings.setTools(props.toolType, props.fab, next)
+const onRecipe = (next: string | null) => settings.setRecipe(props.toolType, props.fab, next)
+
+const visibleTools = computed(() =>
+  (payload.value?.tools ?? []).filter(t => selectedTools.value.includes(t.eqp_id))
+)
+
+// Pairwise data narrows exactly; consensus has to be RE-BASED on the kept
+// subset, because the server computed it against the whole fleet's median.
+const visibleCells = computed<SkewCondition[]>(() =>
+  (payload.value?.occupied_cells ?? []).map(cell => ({
+    ...cell,
+    direct_skew_matrix: cell.direct_skew_matrix
+      ? subsetSkewMatrix(cell.direct_skew_matrix, selectedTools.value)
+      : null,
+    predicted_skew_matrix: cell.predicted_skew_matrix
+      ? subsetSkewMatrix(cell.predicted_skew_matrix, selectedTools.value)
+      : null
+  }))
+)
+
+const visibleFleet = computed<FleetToday>(() => ({
+  matrix: subsetSkewMatrix(
+    payload.value?.fleet_today.matrix ?? { tools: [], values: [] },
+    selectedTools.value
+  ),
+  consensus_deviation: rebaseDeviations(
+    payload.value?.fleet_today.consensus_deviation ?? [],
+    selectedTools.value
+  )
+}))
+
+const inSelection = (eqp: string) => selectedTools.value.includes(eqp)
+const visibleTrend = computed(() => (payload.value?.trend ?? []).filter(p => inSelection(p.eqp_id)))
+const visibleMarkers = computed(() =>
+  (payload.value?.epoch_markers ?? []).filter(m => inSelection(m.eqp_id))
+)
+const visibleMdcHistory = computed(() =>
+  (payload.value?.mdc_history ?? []).filter(m => inSelection(m.eqp_id))
+)
 
 const tolerance = ref(0.05)
 watch(payload, (p) => {
@@ -76,7 +149,7 @@ watch(payload, (p) => {
 
 // occupied cells → GroupCell[] (direct matrix preferred, else predicted).
 const groupCells = computed<GroupCell[]>(() =>
-  (payload.value?.occupied_cells ?? [])
+  visibleCells.value
     .map((c) => {
       const matrix = c.direct_skew_matrix ?? c.predicted_skew_matrix
       return matrix ? { tier: c.tier, confidence: c.confidence, matrix } : null
@@ -94,8 +167,8 @@ const others = computed(() =>
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
 const metaStats = computed<MetaBarStat[]>(() => [
-  { key: 'tools', label: '장비 그룹', value: payload.value?.tools.length ?? 0, tone: 'neutral' },
-  { key: 'cells', label: '점유 셀', value: payload.value?.occupied_cells.length ?? 0, tone: 'neutral' },
+  { key: 'tools', label: '장비 그룹', value: visibleTools.value.length, tone: 'neutral' },
+  { key: 'cells', label: '점유 셀', value: visibleCells.value.length, tone: 'neutral' },
   { key: 'n', label: '최대 N배화', value: primary.value?.n ?? 0, tone: 'ok' }
 ])
 </script>
