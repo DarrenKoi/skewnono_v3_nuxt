@@ -343,11 +343,17 @@ const chartOption = computed<EChartsOption>(() => {
       },
       // A tightly-matched group is a tight CLUSTER by construction, so its
       // labels collide exactly where the map is most worth reading. Shift them
-      // apart rather than hiding any — a dropped label reads as a tool that is
-      // not in the fleet at all. No visible effect on the 5-tool mock, where
-      // the points are already far enough apart; it is the 10-12 tool fleets
-      // the office actually runs that need it.
-      labelLayout: { moveOverlap: 'shiftY' }
+      // apart first, and drop whatever still will not fit.
+      //
+      // `shiftY` alone was the previous rule, on the argument that a dropped
+      // label reads as a tool that is not in the fleet. That holds at five
+      // tools. At the seventeen R3 actually has, shifting cannot find the room
+      // and the cluster renders as a stack of overlapping ids — which does not
+      // name a single tool either, and additionally makes the chart look
+      // broken. Hiding is the better failure: the ring already says how many
+      // tools are in the group, the red points and the connector carry the
+      // finding, and hovering any point names it.
+      labelLayout: { moveOverlap: 'shiftY', hideOverlap: true }
     }]
   }
 })
