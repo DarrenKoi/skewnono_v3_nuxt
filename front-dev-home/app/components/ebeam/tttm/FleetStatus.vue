@@ -15,6 +15,21 @@
             class="absolute inset-y-0 left-1/2 w-px"
             :style="{ background: 'var(--sk-border)' }"
           />
+          <!-- The measurement floor, drawn faintly: inside this band a tool is
+               not distinguishable from consensus, so the bar means nothing. -->
+          <div
+            v-for="edge in floorEdges"
+            :key="`floor-${edge}`"
+            class="absolute inset-y-1 w-px"
+            :style="{ left: `${edge}%`, background: 'var(--sk-border)' }"
+          />
+          <!-- The PM/BM action limit. This is the line that decides something. -->
+          <div
+            v-for="edge in actionEdges"
+            :key="`action-${edge}`"
+            class="absolute inset-y-0 w-px"
+            :style="{ left: `${edge}%`, background: 'var(--sk-bad)', opacity: 0.45 }"
+          />
           <div
             class="absolute inset-y-0.5 rounded"
             :style="barStyle(d.deviation)"
@@ -22,18 +37,23 @@
         </div>
         <span
           class="w-16 text-right tabular-nums"
-          :style="{ color: Math.abs(d.deviation) > 0.05 ? 'var(--sk-bad)' : 'var(--sk-ink)' }"
+          :style="{ color: overLimit(d.deviation) ? 'var(--sk-bad)' : 'var(--sk-ink)' }"
         >{{ d.deviation >= 0 ? '+' : '' }}{{ d.deviation.toFixed(3) }}</span>
       </div>
     </div>
     <p class="mt-2 text-[11px] text-(--sk-ink-subtle)">
-      잔차 = tool − consensus(기준값). 0 = 장비 그룹 합의와 일치.
+      잔차 = tool − consensus(중앙값). 0 = 장비 그룹 합의와 일치.
+      <span :style="{ color: 'var(--sk-bad)' }">빨간 선 ±{{ PM_BM_ACTION_LIMIT_NM.toFixed(2) }} nm</span>
+      = 이 밖으로 나가면 PM/BM 대상입니다. 안쪽 옅은 선
+      ±{{ MEASUREMENT_FLOOR_NM.toFixed(2) }} nm 는 시험 자체의 불확도라,
+      그보다 작은 차이는 구별 불가입니다.
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { toolLabels } from '~/utils/toolLabels'
+import { PM_BM_ACTION_LIMIT_NM, MEASUREMENT_FLOOR_NM } from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
@@ -43,18 +63,32 @@ const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
 const labels = computed(() => toolLabels(props.tools))
 const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
+// The action limit is always on the scale, so the red line cannot fall off the
+// end of the track on a well-matched fleet and leave the bars looking unbounded.
 const maxAbs = computed(() =>
-  Math.max(0.05, ...props.fleet.consensus_deviation.map(d => Math.abs(d.deviation)))
+  Math.max(
+    PM_BM_ACTION_LIMIT_NM * 1.15,
+    ...props.fleet.consensus_deviation.map(d => Math.abs(d.deviation))
+  )
 )
 const sorted = computed(() =>
   [...props.fleet.consensus_deviation].sort((a, b) => a.deviation - b.deviation)
 )
 
+// Track positions (%) of a symmetric ±limit pair, measured from the centre line.
+const edgesFor = (limit: number) => {
+  const half = (limit / maxAbs.value) * 50
+  return [50 - half, 50 + half]
+}
+const actionEdges = computed(() => edgesFor(PM_BM_ACTION_LIMIT_NM))
+const floorEdges = computed(() => edgesFor(MEASUREMENT_FLOOR_NM))
+
+const overLimit = (dev: number) => Math.abs(dev) > PM_BM_ACTION_LIMIT_NM
+
 // Bar grows from the center line toward the sign direction.
 const barStyle = (dev: number) => {
   const half = (Math.abs(dev) / maxAbs.value) * 50
-  const ok = Math.abs(dev) <= 0.05
-  const bg = ok ? 'var(--sk-ok)' : 'var(--sk-bad)'
+  const bg = overLimit(dev) ? 'var(--sk-bad)' : 'var(--sk-ok)'
   return dev >= 0
     ? { left: '50%', width: `${half}%`, background: bg }
     : { right: '50%', width: `${half}%`, background: bg }

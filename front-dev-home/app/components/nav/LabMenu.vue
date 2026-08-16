@@ -23,23 +23,35 @@ const isToolScoped = useToolScopedRoute()
 const open = ref(false)
 const links = headerLinksIn('lab')
 
-// live-alarm is fab-scoped, so the row jumps to the remembered tool/fab selection
-// (default cd-sem / R3 before any ebeam visit). Uses the full fabs list, not just the
-// primary, so a multi-fab selection survives the URL round-trip instead of collapsing to
-// fabs[0]. Only cd-sem and hv-sem have this board.
+// The fab-scoped rows jump to the remembered tool/fab selection (default cd-sem / R3
+// before any ebeam visit). They use the full fabs list, not just the primary, so a
+// multi-fab selection survives the URL round-trip instead of collapsing to fabs[0].
+//
+// 라이브 알람 follows the remembered tool type (cd-sem and hv-sem both have that board);
+// TTTM is cd-sem only, gated that way in useNavigation, so it pins its own.
 const liveAlarmToolType = computed(() => nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem')
+const TTTM_TOOL_TYPE = 'cd-sem'
 
-const liveAlarmTarget = computed(() =>
-  `/ebeam/${liveAlarmToolType.value}/${buildFabSegment(nav.fabs.value)}/live-alarm`)
+const toolTypeFor = (link: HeaderLink) =>
+  link.scope === 'tttm' ? TTTM_TOOL_TYPE : liveAlarmToolType.value
 
-// The one row whose destination moves under the user, so the row says where it goes.
+// Resolved per row rather than per menu: this used to return the live-alarm target for
+// ANY `to: null` link, which was correct only while there was exactly one of them.
+// `scope` doubles as the route's last segment, which holds for both rows today
+// ('live-alarm', 'tttm'). Give a future scope a name that is also its segment, or split
+// the two apart here rather than letting the link quietly point at nothing.
+const linkTarget = (link: HeaderLink) =>
+  link.to ?? `/ebeam/${toolTypeFor(link)}/${buildFabSegment(nav.fabs.value)}/${link.scope}`
+
+// These rows' destinations move under the user, so each says where it goes.
 // buildFabSegment's fallback is R3; this must show the same fab the link actually uses.
-const liveAlarmScope = computed(() => {
+const fabsLabel = computed(() => {
   const fabs = canonicalFabList(nav.fabs.value)
-  return `${liveAlarmToolType.value.toUpperCase()} · ${(fabs.length > 0 ? fabs : [DEFAULT_FAB]).join(', ')}`
+  return (fabs.length > 0 ? fabs : [DEFAULT_FAB]).join(', ')
 })
 
-const linkTarget = (link: HeaderLink) => link.to ?? liveAlarmTarget.value
+const scopeLabel = (link: HeaderLink) =>
+  `${toolTypeFor(link).toUpperCase()} · ${fabsLabel.value}`
 
 const isActive = (link: HeaderLink) => isHeaderLinkActive(link, route.path)
 
@@ -100,7 +112,7 @@ const hasActiveLink = computed(() => links.some(isActive))
               v-if="link.to === null"
               #note
             >
-              <span class="lab-scope">{{ liveAlarmScope }}</span>
+              <span class="lab-scope">{{ scopeLabel(link) }}</span>
             </template>
           </NavHeaderMenuItem>
         </nav>

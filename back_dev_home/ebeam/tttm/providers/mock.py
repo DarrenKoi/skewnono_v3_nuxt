@@ -26,6 +26,18 @@ OFFICE-VERIFY: every number here is fabricated. Real pairwise skew magnitudes
 and the true spread across cells are unknown until an office run — item 3 of
 `docs/research/2026-08-16-skew-tttm-feasibility.md` section 6.
 
+`consensus_deviation` is deliberately kept inside **±0.15 nm**, the fab's tool
+management limit — a tool outside it goes to PM/BM (user-confirmed 2026-08-16).
+The widest here is EQP05 at -0.13, so the demo fleet is "all in spec, but one
+tool is close to the edge" rather than "one tool already needs PM". The
+frontend draws that limit from `utils/tttmLimits.ts`; if these values are ever
+pushed past it, the screen turns that tool red and says PM/BM, so move them
+knowing what you are asserting.
+
+OFFICE-VERIFY: `consensus` is assumed to be the **median** (the fab states the
+rule against a median). The office adapter must not use a mean — one drifted
+tool would drag the reference and shift every other tool's deviation.
+
 Known departure from reality, left as-is: `fleet_today.matrix` is not consistent
 with `fleet_today.consensus_deviation` (e.g. EQP03 at +0.09 and EQP05 at -0.13
 imply a ~0.22 nm gap, while the matrix says 0.08). The two are independent

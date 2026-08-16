@@ -34,6 +34,10 @@ export interface HeaderLink {
   // splitting them across headerNav and the menu components would reintroduce the drift this
   // file exists to prevent.
   activeMatch?: string
+  // Only for `to: null` entries: which fab-scoped target the menu builds for this row.
+  // Required once there is more than one dynamic row — LabMenu used to treat `to: null` as
+  // "this is 라이브 알람", so a second one would have silently pointed at the alarm board.
+  scope?: 'live-alarm' | 'tttm'
   // Draw a hairline above this row. 채팅 is the only user: the rows above it are things you
   // look up or compute, and it is a conversation — same menu, different kind, so the eye is
   // given the seam rather than left to find it.
@@ -47,7 +51,12 @@ export const HEADER_LINKS: HeaderLink[] = [
   // (search)는 'Recipe 검색' 텍스트 필 안에 있어, 라벨을 항상 함께 그리는
   // 실험실 메뉴 항목과는 헷갈리지 않습니다.
   { to: '/mag-pixel', icon: 'i-lucide-scan-search', label: 'Mag/Pixel 가이드', group: 'lab', description: '패턴이 들어오는 최대 배율 계산' },
-  { to: null, icon: 'i-lucide-radio', label: '라이브 알람', group: 'lab', description: '실시간 알람 보드', activeMatch: '/live-alarm' },
+  { to: null, icon: 'i-lucide-radio', label: '라이브 알람', group: 'lab', description: '실시간 알람 보드', activeMatch: '/live-alarm', scope: 'live-alarm' },
+  // 실험실 rather than a feature tab: the estimator behind this page is not validated yet
+  // (docs/research/2026-08-16-skew-tttm-feasibility.md), and 실험실 already means "계산 도구,
+  // 아직 확정 아님". A feature tab would claim more than the numbers currently support.
+  // CD-SEM only, so unlike 라이브 알람 it does not follow the remembered tool type.
+  { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교', activeMatch: '/tttm', scope: 'tttm' },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅', group: 'lab', description: '데이터에 대해 물어보기', separated: true },
 
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '앱 소개', group: 'account' },

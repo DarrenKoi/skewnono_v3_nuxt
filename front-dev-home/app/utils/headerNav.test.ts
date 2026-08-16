@@ -83,13 +83,24 @@ test('/tool-roster is reached from the landing page, not the header', () => {
   assert.equal(isHeaderInfoPath('/tool-roster'), false)
 })
 
-test('the fab-scoped live-alarm link is not an info path', () => {
-  // Its target is computed per remembered tool/fab and lands inside /ebeam, where the tabs
-  // come from isEbeamRoute instead.
+test('the fab-scoped links are not info paths', () => {
+  // Their targets are computed per remembered tool/fab and land inside /ebeam, where the
+  // tabs come from isEbeamRoute instead.
   const dynamic = HEADER_LINKS.filter(link => link.to === null)
-  assert.equal(dynamic.length, 1)
-  assert.equal(dynamic[0]?.label, '라이브 알람')
+  assert.deepEqual(dynamic.map(link => link.label), ['라이브 알람', '장비간 스큐(TTTM)'])
   assert.ok(!HEADER_INFO_PATHS.includes(null as unknown as string))
+})
+
+test('every fab-scoped link carries the two fields LabMenu needs', () => {
+  // `scope` builds the target and `activeMatch` recognises the current page. LabMenu used
+  // to hardcode the live-alarm target for ANY `to: null` row, so a second dynamic row
+  // without these would have silently pointed at the alarm board.
+  for (const link of HEADER_LINKS.filter(link => link.to === null)) {
+    assert.ok(link.scope, `${link.label} needs a scope`)
+    assert.ok(link.activeMatch, `${link.label} needs an activeMatch`)
+    // LabMenu appends `scope` as the route's last segment, so the two must agree.
+    assert.equal(link.activeMatch, `/${link.scope}`, `${link.label}: scope must match its route segment`)
+  }
 })
 
 test('every info path is an absolute top-level path, listed once', () => {
