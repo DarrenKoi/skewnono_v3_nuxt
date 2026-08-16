@@ -1,6 +1,5 @@
 import type { ToolType } from '~/stores/navigation'
 import { DEFAULT_FAB, fabSegment, parseFabSegment } from '~/utils/fab'
-import { isSingleFabFeature, matchFeatureFromPath } from '~/utils/features'
 
 // Every [fab] page's shared boilerplate: parse the (possibly multi) URL segment,
 // seed the store, and keep it synced. Replaces the copy-pasted
@@ -9,31 +8,28 @@ import { isSingleFabFeature, matchFeatureFromPath } from '~/utils/features'
 export const useFabRoute = (toolType: ToolType) => {
   const route = useRoute()
   const router = useRouter()
-  const { setToolType, setFabs } = useNavigation()
+  const { setToolType, setFabs, singleFabPage } = useNavigation()
 
   const parsed = computed(() => parseFabSegment(route.params.fab as string | string[] | undefined))
 
   // Single-fab pages (tttm, pm-tune) collapse a multi-fab segment to the
   // primary: the URL is normalized (replace, so Back does not bounce through
   // the multi form) and the store keeps only the fab the page actually shows.
-  // The sidebar already refuses to BUILD multi-fab URLs on these pages
-  // (useNavigation.singleFabPage); this is the safety net for hand-typed URLs
-  // and links carried over from multi-fab pages.
-  const singleFab = computed(() => {
-    const feature = matchFeatureFromPath(route.path)
-    return feature !== '' && isSingleFabFeature(feature)
-  })
-  const fabs = computed(() => (singleFab.value ? parsed.value.slice(0, 1) : parsed.value))
+  // The sidebar already refuses to BUILD multi-fab URLs on these pages — the
+  // predicate is useNavigation's `singleFabPage`, shared rather than re-derived
+  // here; this is the safety net for hand-typed URLs and links carried over
+  // from multi-fab pages.
+  const fabs = computed(() => (singleFabPage.value ? parsed.value.slice(0, 1) : parsed.value))
   const primaryFab = computed(() => fabs.value[0] ?? DEFAULT_FAB)
   const fabsKey = computed(() => fabs.value.join(','))
 
   const normalizeUrl = () => {
-    if (!singleFab.value || parsed.value.length <= 1) return
-    const raw = route.params.fab
-    const segment = Array.isArray(raw) ? raw.join(',') : String(raw ?? '')
-    if (!segment) return
+    if (!singleFabPage.value || parsed.value.length <= 1 || route.name == null) return
+    // Rebuilt from params rather than by string surgery on route.path, so the
+    // rewrite cannot silently no-op if the segment shape ever changes.
     router.replace({
-      path: route.path.replace(`/${segment}/`, `/${fabSegment(primaryFab.value)}/`),
+      name: route.name,
+      params: { ...route.params, fab: fabSegment(primaryFab.value) },
       query: route.query
     })
   }

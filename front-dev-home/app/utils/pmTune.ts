@@ -37,8 +37,12 @@ export interface AdmissionReport {
   inGroup: boolean
   /** Every occupied cell admits the tool (vacuously true for a member). */
   admitted: boolean
-  /** What N becomes if the tool is (or stays) in: n for a member, n+1 otherwise. */
-  prospectiveN: number
+  /**
+   * Cells still blocking admission (0 for a member). The report carries its
+   * own headline number: two cards render "미충족 셀 N개", and two independent
+   * `filter(!admitted).length` copies is how they start disagreeing.
+   */
+  blockedCells: number
   /** Non-member only: per-cell tuning targets, worst first. */
   cells: CellAdmission[]
 }
@@ -90,20 +94,24 @@ export const admissionReport = (
       eqp_id: eqpId,
       inGroup: true,
       admitted: true,
-      prospectiveN: group.length,
+      blockedCells: 0,
       cells: []
     }
   }
 
   const members = group.filter(member => member !== eqpId)
   const cells = ranked.map((row): CellAdmission => {
-    const self = row.matrix.tools.indexOf(eqpId)
+    // Index map per cell, same shape as tttmGrouping's alignSkewMatrix — not
+    // for speed at this fleet size, but so the three modules that walk a
+    // matrix by tool name all do it the same way.
+    const at = new Map(row.matrix.tools.map((eqp, index) => [eqp, index]))
+    const self = at.get(eqpId) ?? -1
     let worst: PairReading | null = null
     let failingPairs = 0
     const unmeasured: string[] = []
 
     for (const member of members) {
-      const other = row.matrix.tools.indexOf(member)
+      const other = at.get(member) ?? -1
       const skew = self < 0 ? null : row.matrix.values[self]?.[other]
       if (other < 0 || !isMeasured(skew)) {
         unmeasured.push(member)
@@ -133,10 +141,10 @@ export const admissionReport = (
     eqp_id: eqpId,
     inGroup: false,
     admitted: cells.length > 0 && cells.every(row => row.admitted),
-    prospectiveN: group.length + 1,
+    blockedCells: cells.filter(row => !row.admitted).length,
     // Worst first, by how far past its own cell's allowance the blocking pair
     // sits — the same CD-relative ranking every tttm surface uses. Cells with
     // nothing measured sort last: no evidence cannot outrank evidence.
-    cells: [...cells].sort((a, b) => (b.worst?.index ?? -1) - (a.worst?.index ?? -1))
+    cells: cells.sort((a, b) => (b.worst?.index ?? -1) - (a.worst?.index ?? -1))
   }
 }

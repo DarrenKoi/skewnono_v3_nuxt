@@ -1,6 +1,6 @@
 import type { ToolType, Fab } from '~/stores/navigation'
 import { useNavigationStore } from '~/stores/navigation'
-import { isFablessFeature, isSingleFabFeature, matchFeatureFromPath } from '~/utils/features'
+import { featureSupportsToolType, isFablessFeature, isSingleFabFeature, matchFeatureFromPath } from '~/utils/features'
 import { NO_FAB, fabSegment, buildFabSegment, toggleFabInList } from '~/utils/fab'
 
 export const useNavigation = () => {
@@ -8,20 +8,9 @@ export const useNavigation = () => {
   const route = useRoute()
   const router = useRouter()
 
-  const featureEnabledForToolType = (feature: string, toolType: ToolType) => {
-    if (
-      feature === 'storage'
-      || feature === 'recipe-search'
-      || feature === 'recipe-status'
-      || feature === 'hardware'
-      || feature === 'live-alarm'
-      || feature === 'skewvoir'
-    ) return toolType === 'cd-sem' || toolType === 'hv-sem'
-    if (feature === 'device-statistics') return toolType === 'cd-sem'
-    if (feature === 'tttm') return toolType === 'cd-sem'
-    if (feature === 'pm-tune') return toolType === 'cd-sem'
-    return false
-  }
+  // Which feature exists for which tool family lives in utils/features'
+  // FEATURE_TOOL_TYPES — this is a lookup, not a policy.
+  const featureEnabledForToolType = featureSupportsToolType
 
   const currentFeature = () => matchFeatureFromPath(route.path)
 
@@ -82,10 +71,7 @@ export const useNavigation = () => {
   // reads this to drop its multi-select affordances, and toggleFab degrades to
   // plain single-fab navigation so a Cmd/Ctrl+click cannot build a multi-fab
   // URL these pages would immediately collapse (useFabRoute redirects it).
-  const singleFabPage = computed(() => {
-    const feature = matchFeatureFromPath(route.path)
-    return feature !== '' && isSingleFabFeature(feature)
-  })
+  const singleFabPage = computed(() => isSingleFabFeature(currentFeature()))
 
   // Checkbox path: add/remove one fab, stay on the current feature, keep its
   // query params. Same-URL guard: toggleFabInList may return the list unchanged

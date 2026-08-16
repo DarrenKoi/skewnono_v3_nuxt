@@ -2,10 +2,7 @@
 //   node --test app/utils/pmPlanning.test.ts        (Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  maxAxisSkew, rankFocusTargets, gateVerdict,
-  type ToolCells, type GateInputs
-} from './pmPlanning.ts'
+import { maxAxisSkew, rankFocusTargets, type ToolCells } from './pmPlanning.ts'
 
 const cells = (sx500: number, sy500: number, sx800: number, sy800: number): ToolCells['cells'] => [
   { beam: '500V', axis: 'X', skew: sx500, current_value: 16 + sx500, median: 16, gap: sx500 },
@@ -33,7 +30,6 @@ test('rankFocusTargets gates by threshold then takes bottom-N, sorted desc', () 
   const ranked = rankFocusTargets(tools, '500V', 0.40, 3)
 
   assert.deepEqual(ranked.map(r => r.eqp_id), ['T1', 'T2', 'T3'])
-  assert.deepEqual(ranked.map(r => r.nominated), [true, true, true])
   assert.equal(ranked[0]?.score, 0.62)
   assert.equal(ranked[0]?.axis, 'X')
 })
@@ -54,11 +50,4 @@ test('rankFocusTargets returns empty when the whole fleet is inside the line', (
     { eqp_id: 'T2', cells: cells(0.20, 0.1, 0.1, 0.1) }
   ]
   assert.deepEqual(rankFocusTargets(tools, '500V', 0.40, 3), [])
-})
-
-test('gateVerdict is up only when both CD and BSM are in spec', () => {
-  const base: GateInputs = { cd_in_spec: true, bsm_in_spec: true }
-  assert.equal(gateVerdict(base), 'up')
-  assert.equal(gateVerdict({ cd_in_spec: false, bsm_in_spec: true }), 'hold')
-  assert.equal(gateVerdict({ cd_in_spec: true, bsm_in_spec: false }), 'hold')
 })

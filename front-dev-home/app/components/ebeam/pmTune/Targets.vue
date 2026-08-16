@@ -8,11 +8,11 @@
         v-if="report && !report.inGroup"
         class="sk-badge"
         :class="report.admitted ? 'bg-(--sk-ok-soft) text-(--sk-ink)' : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
-      >{{ report.admitted ? '지금 기준 진입 가능' : `미충족 셀 ${blockedCells}개` }}</span>
+      >{{ report.admitted ? '지금 기준 진입 가능' : `미충족 셀 ${report.blockedCells}개` }}</span>
     </div>
 
     <p
-      v-if="!hasGroup"
+      v-if="n === 0"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
       현재 tolerance에서는 N배화 그룹 자체가 만들어지지 않아, 진입 목표를 정의할 기준이 없습니다.
@@ -27,8 +27,8 @@
 
     <template v-else-if="report.inGroup">
       <p class="mt-2 sk-body leading-relaxed">
-        <strong class="font-mono">{{ pickedLabel }}</strong> 는 이미 1차 그룹
-        {{ report.prospectiveN }}대의 구성원입니다. PM 후에도 모든 점유 셀에서 각 구성원과
+        <strong class="font-mono">{{ labelFor(report.eqp_id) }}</strong> 는 이미 1차 그룹
+        {{ n }}대의 구성원입니다. PM 후에도 모든 점유 셀에서 각 구성원과
         tolerance 안쪽을 유지하는 것이 목표입니다 — 여기서 벗어나면 N이 줄어듭니다.
       </p>
     </template>
@@ -104,16 +104,11 @@ import { toolLabels } from '~/utils/toolLabels'
 
 const props = defineProps<{
   report: AdmissionReport | null
-  /** True when a primary group exists at all — a null report means two things. */
-  hasGroup: boolean
+  /** The primary group's size; 0 = no group exists (a null report means two things). */
+  n: number
   tools: { eqp_id: string, label: string }[]
-  pickedLabel: string
 }>()
 
 const labels = computed(() => toolLabels(props.tools))
 const labelFor = (eqp: string) => labels.value.labelFor(eqp)
-
-const blockedCells = computed(() =>
-  props.report?.cells.filter(row => !row.admitted).length ?? 0
-)
 </script>

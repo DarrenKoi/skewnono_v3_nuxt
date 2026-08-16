@@ -1,3 +1,5 @@
+import type { ToolType } from './toolType'
+
 // Single source of truth for the ebeam feature slugs that appear after the tool-type segment
 // in a URL like `/ebeam/{toolType}/.../{feature}`. Used to detect the active feature and to
 // strip / append feature segments when rewriting URLs.
@@ -49,6 +51,27 @@ export const SINGLE_FAB_FEATURES = new Set<FeatureSlug>(['tttm', 'pm-tune'])
 export const isSingleFabFeature = (feature: string): feature is FeatureSlug => {
   return SINGLE_FAB_FEATURES.has(feature as FeatureSlug)
 }
+
+// Which tool families each feature exists for — the ONE statement of the fact.
+// useNavigation's enablement gate and LabMenu's link targets both derive from
+// it. It used to live as an if-chain in useNavigation plus a hardcoded
+// `scope === 'tttm' || scope === 'pm-tune'` in LabMenu, and forgetting the
+// second copy when adding a cd-sem-only page would build menu links to URLs
+// with no page behind them.
+export const FEATURE_TOOL_TYPES: Record<FeatureSlug, readonly ToolType[]> = {
+  'storage': ['cd-sem', 'hv-sem'],
+  'recipe-search': ['cd-sem', 'hv-sem'],
+  'recipe-status': ['cd-sem', 'hv-sem'],
+  'hardware': ['cd-sem', 'hv-sem'],
+  'live-alarm': ['cd-sem', 'hv-sem'],
+  'device-statistics': ['cd-sem'],
+  'skewvoir': ['cd-sem', 'hv-sem'],
+  'tttm': ['cd-sem'],
+  'pm-tune': ['cd-sem']
+}
+
+export const featureSupportsToolType = (feature: string, toolType: ToolType): boolean =>
+  FEATURE_TOOL_TYPES[feature as FeatureSlug]?.includes(toolType) ?? false
 
 export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {
   const match = path.match(FEATURE_SLUG_REGEX)

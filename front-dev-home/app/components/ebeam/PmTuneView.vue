@@ -9,8 +9,12 @@
       :stats="metaStats"
     />
 
+    <!-- Gated on the tttm half only: the map and targets can paint as soon as
+         the matrices arrive, and the pm-fed cards (picker, gate, ranking)
+         degrade cleanly while their request is still in flight. AND-ing both
+         made the fast payload wait for the slow one. -->
     <AppLoadingState
-      v-if="pending"
+      v-if="tttmPending"
       title="Fleet 데이터를 불러오는 중입니다."
     />
     <div
@@ -33,6 +37,7 @@
         <EbeamPmTuneToolPicker
           :rows="pickerRows"
           :picked="picked"
+          :pending="pmPending"
           @update:picked="picked = $event"
         />
 
@@ -48,7 +53,7 @@
               1차 그룹 <span class="sk-value-num">{{ primary.n }}</span>대의 구성원 — 유지가 목표.
             </template>
             <template v-else-if="report">
-              미충족 셀 <span class="sk-value-num">{{ blockedCellCount }}</span>개 ·
+              미충족 셀 <span class="sk-value-num">{{ report.blockedCells }}</span>개 ·
               최대 조정 <span class="sk-value-num">{{ maxRequiredNm.toFixed(3) }}</span> nm
               → 진입 시 그룹 <span class="sk-value-num">{{ primary.n }}→{{ primary.n + 1 }}</span>대.
             </template>
@@ -77,16 +82,15 @@
                would leave this tag rendering silently empty. -->
           <EbeamPmTuneTargets
             :report="report"
-            :has-group="primary !== null"
+            :n="primary?.n ?? 0"
             :tools="labelRefs"
-            :picked-label="pickedLabel"
           />
         </div>
 
         <div class="grid items-stretch gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
           <EbeamPmTuneGateCard
             :gate="pickedGate"
-            :picked-label="pickedLabel"
+            :eqp-id="picked"
           />
           <EbeamPmTuneFocusRanking
             :tools="pmTools"
@@ -133,7 +137,6 @@ const { data: pmFleet, pending: pmPending } = useAsyncData<FleetResponse | null>
   () => props.fab ? fetchPmPlanningFleet(props.fab) : Promise.resolve(null)
 )
 
-const pending = computed(() => tttmPending.value || pmPending.value)
 const pmTools = computed(() => pmFleet.value?.tools ?? [])
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
@@ -144,6 +147,13 @@ const picked = ref<string | null>(null)
 // The working basis: TTTM's selection, plus the picked tool when the user
 // picked one the TTTM page had deselected — its admission question is exactly
 // what this page exists to answer, so it must be in the matrices.
+//
+// A caller-side union on purpose, NOT foldable into resolveSelection:
+// resolveSelection treats an empty `selected` as "all", so
+// resolveSelection(all, [...scoped.tools, picked]) would collapse the basis to
+// the single picked tool whenever the TTTM page has no explicit selection.
+// Pinning would have to be an explicit third parameter there; until a second
+// caller needs it, it stays here.
 const basis = computed(() => {
   const p = picked.value
   if (!p || !allToolIds.value.includes(p) || selection.value.includes(p)) return selection.value
@@ -213,7 +223,12 @@ const excluded = computed(() =>
 // the default off the tttm payload alone would pick the excluded-tool fallback
 // and then stick with it (a set pick is never overwritten) even though the PM
 // dates the rule actually wants were a moment away.
-watch([pmFleet, excluded], () => {
+//
+// `excluded` is read inside the callback, not watched: it exists only for the
+// no-PM-date-anywhere fallback, and making it a source would force the full
+// excludedTools() scan eagerly on every tolerance/cell change to guard a
+// branch that almost never runs.
+watch(pmFleet, () => {
   if (!pmFleet.value) return
   if (picked.value && pmTools.value.some(t => t.eqp_id === picked.value)) return
   picked.value = pickDefaultTool(
@@ -226,9 +241,6 @@ const report = computed(() =>
   picked.value ? admissionReport(picked.value, primary.value?.tools ?? [], rankedCells.value) : null
 )
 
-const blockedCellCount = computed(() =>
-  report.value?.cells.filter(row => !row.admitted).length ?? 0
-)
 const maxRequiredNm = computed(() =>
   Math.max(0, ...(report.value?.cells.map(row => row.requiredNm) ?? []))
 )
@@ -260,7 +272,6 @@ const pickerRows = computed(() => {
 const pickedGate = computed(() =>
   pmTools.value.find(t => t.eqp_id === picked.value)?.gate ?? null
 )
-const pickedLabel = computed(() => picked.value ?? '—')
 
 // Focus-ranking knobs, seeded from the pm_planning defaults then tunable.
 const beamConditions = computed<BeamCondition[]>(() => pmFleet.value?.beam_conditions ?? ['500V', '800V'])

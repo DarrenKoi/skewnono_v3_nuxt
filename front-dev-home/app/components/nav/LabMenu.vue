@@ -2,7 +2,7 @@
 import type { HeaderLink } from '~/utils/headerNav'
 import { useNavigationStore } from '~/stores/navigation'
 import { buildFabSegment, canonicalFabList, DEFAULT_FAB } from '~/utils/fab'
-import { isSingleFabFeature } from '~/utils/features'
+import { FEATURE_TOOL_TYPES, isSingleFabFeature, type FeatureSlug } from '~/utils/features'
 import { headerLinksIn, isHeaderLinkActive } from '~/utils/headerNav'
 
 // 실험실 — the tools that are not tied to a feature tab. Before 2026-08-15 these were four
@@ -31,15 +31,17 @@ const links = headerLinksIn('lab')
 // immediately collapse a multi segment anyway and the label below must not promise
 // fabs the page will drop.
 //
-// 라이브 알람 follows the remembered tool type (cd-sem and hv-sem both have that board);
-// TTTM and PM-Tune are cd-sem only, gated that way in useNavigation, so they pin their own.
-const liveAlarmToolType = computed(() => nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem')
-const CD_SEM_ONLY_TOOL_TYPE = 'cd-sem'
-
-const toolTypeFor = (link: HeaderLink) =>
-  link.scope === 'tttm' || link.scope === 'pm-tune'
-    ? CD_SEM_ONLY_TOOL_TYPE
-    : liveAlarmToolType.value
+// Which tool families a row's page exists for comes from FEATURE_TOOL_TYPES —
+// the remembered tool type is kept when the page supports it (라이브 알람 on
+// both SEM boards), else the row pins the page's first family (TTTM and
+// PM-Tune are cd-sem only). One table, not a per-row `||` chain that has to be
+// extended alongside it.
+const toolTypeFor = (link: HeaderLink) => {
+  const supported = link.scope ? FEATURE_TOOL_TYPES[link.scope as FeatureSlug] : undefined
+  const remembered = nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem'
+  if (!supported) return remembered
+  return supported.includes(remembered) ? remembered : supported[0] ?? remembered
+}
 
 const fabsFor = (link: HeaderLink) => {
   const fabs = canonicalFabList(nav.fabs.value)

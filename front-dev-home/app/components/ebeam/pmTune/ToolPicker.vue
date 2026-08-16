@@ -27,7 +27,7 @@
             :class="row.verdict === 'up' ? 'bg-(--sk-ok)' : 'bg-(--sk-bad)'"
             :title="row.verdict === 'up' ? 'Up gate 통과' : 'Hold'"
           />
-          <span class="min-w-0 flex-1 truncate sk-value-num">{{ labelFor(row.eqp_id) }}</span>
+          <span class="min-w-0 flex-1 truncate sk-value-num">{{ row.eqp_id }}</span>
           <span
             v-if="row.inGroup"
             class="sk-badge bg-(--sk-ok-soft) text-(--sk-ink)"
@@ -43,14 +43,12 @@
       v-if="!rows.length"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
-      이 FAB의 CD-SEM roster가 비어 있습니다.
+      {{ pending ? 'Roster를 불러오는 중입니다.' : '이 FAB의 CD-SEM roster가 비어 있습니다.' }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { toolLabels } from '~/utils/toolLabels'
-
 export interface PickerRow {
   eqp_id: string
   verdict: 'up' | 'hold'
@@ -60,15 +58,14 @@ export interface PickerRow {
   inGroup: boolean
 }
 
-const props = defineProps<{
+defineProps<{
   rows: PickerRow[]
   picked: string | null
+  /** The pm request is still in flight — an empty list is not yet an empty fab. */
+  pending?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:picked': [eqpId: string]
 }>()
-
-const labels = computed(() => toolLabels(props.rows.map(r => ({ eqp_id: r.eqp_id, label: r.eqp_id }))))
-const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 </script>

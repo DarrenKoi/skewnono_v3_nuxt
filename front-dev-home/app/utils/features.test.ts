@@ -6,8 +6,10 @@ import {
   FEATURE_SLUGS,
   FEATURE_SLUG_REGEX,
   FEATURE_SLUG_SUFFIX_REGEX,
+  FEATURE_TOOL_TYPES,
   FABLESS_FEATURES,
   SINGLE_FAB_FEATURES,
+  featureSupportsToolType,
   isFablessFeature,
   isSingleFabFeature,
   matchFeatureFromPath
@@ -134,4 +136,23 @@ test('a single-fab feature is a real slug and never fabless — the two sets con
     assert.ok(FEATURE_SLUGS.includes(slug), `${slug} is single-fab but not a feature slug`)
     assert.ok(!FABLESS_FEATURES.has(slug), `${slug} cannot be both single-fab and fabless`)
   }
+})
+
+test('every live slug declares its tool families, non-empty', () => {
+  // The table gates navigation AND builds menu links; a slug missing from it
+  // would make its page unreachable from the tool-type switcher.
+  assert.deepEqual(Object.keys(FEATURE_TOOL_TYPES).sort(), [...FEATURE_SLUGS].sort())
+  for (const [slug, toolTypes] of Object.entries(FEATURE_TOOL_TYPES)) {
+    assert.ok(toolTypes.length > 0, `${slug} supports no tool type`)
+  }
+})
+
+test('featureSupportsToolType answers for live slugs and unknown strings alike', () => {
+  assert.equal(featureSupportsToolType('storage', 'cd-sem'), true)
+  assert.equal(featureSupportsToolType('storage', 'hv-sem'), true)
+  assert.equal(featureSupportsToolType('pm-tune', 'cd-sem'), true)
+  assert.equal(featureSupportsToolType('pm-tune', 'hv-sem'), false)
+  assert.equal(featureSupportsToolType('tttm', 'hv-sem'), false)
+  assert.equal(featureSupportsToolType('storage', 'veritysem'), false)
+  assert.equal(featureSupportsToolType('not-a-feature', 'cd-sem'), false)
 })

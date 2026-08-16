@@ -6,7 +6,7 @@
 
     <template v-if="gate">
       <div class="mt-2 flex flex-wrap items-center gap-2">
-        <span class="sk-card-id text-[18px]">{{ pickedLabel }}</span>
+        <span class="sk-card-id text-[18px]">{{ eqpId }}</span>
         <span
           class="sk-badge"
           :class="gate.verdict === 'up' ? 'bg-(--sk-ok-soft) text-(--sk-ink)' : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
@@ -59,6 +59,7 @@ import { formatSignedNm } from '~/utils/tttmLimits'
 
 defineProps<{
   gate: GateBlock | null
-  pickedLabel: string
+  /** The picked tool's id; only rendered when `gate` (found from it) exists. */
+  eqpId: string | null
 }>()
 </script>

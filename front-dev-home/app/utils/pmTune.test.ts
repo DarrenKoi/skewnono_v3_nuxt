@@ -38,7 +38,7 @@ test('admissionReport: a failing member pair becomes a per-cell tuning target', 
   assert.ok(report)
   assert.equal(report.inGroup, false)
   assert.equal(report.admitted, false)
-  assert.equal(report.prospectiveN, 3)
+  assert.equal(report.blockedCells, 1)
   assert.equal(report.cells.length, 1)
 
   const row = report.cells[0]!
@@ -56,7 +56,7 @@ test('admissionReport: a group member is already admitted, with nothing to tune'
   assert.ok(report)
   assert.equal(report.inGroup, true)
   assert.equal(report.admitted, true)
-  assert.equal(report.prospectiveN, 2)
+  assert.equal(report.blockedCells, 0)
   assert.deepEqual(report.cells, [])
 })
 

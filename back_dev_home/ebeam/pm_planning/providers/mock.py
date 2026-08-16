@@ -23,8 +23,8 @@ import json
 import random
 import statistics
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 
-from back_dev_home.ebeam._tool_specs import model_to_tool_type
 from back_dev_home.ebeam.hardware.providers.bm_pm.mock import build_bm_pm_data
 from back_dev_home.ebeam.hardware.providers.pm_gate_bsm_mock import (
     build_bsm_data,
@@ -44,6 +44,7 @@ from back_dev_home.ebeam.pm_planning.contracts import (
     ToolBlock,
 )
 from back_dev_home.sem_list.providers.mock import get_sem_list
+from back_dev_home.sem_list.roster import fleet_rows
 
 
 __all__ = ["BEAM_CONDITIONS", "AXES", "DEFAULTS", "get_pm_planning_fleet"]
@@ -69,23 +70,9 @@ def _seed_for(text: str) -> int:
 
 
 def _fleet_eqp_ids(fab_name: str) -> list[str]:
-    """The fab's CD-SEM roster, straight from sem_list (same law as tttm's mock)."""
-    target = fab_name.strip().upper()
-    seen: set[str] = set()
-    ids: list[str] = []
-    # Sorted by eqp_id so the roster order is a property of the fab, not of
-    # sem_list's row order.
-    for row in sorted(get_sem_list(), key=lambda r: r["eqp_id"]):
-        eqp_id = row["eqp_id"]
-        if eqp_id in seen:
-            continue
-        if row["fab_name"].strip().upper() != target:
-            continue
-        if model_to_tool_type(row["eqp_model_cd"]) != "cd-sem":
-            continue
-        seen.add(eqp_id)
-        ids.append(eqp_id)
-    return ids
+    """The fab's CD-SEM roster — the shared law in sem_list/roster.py."""
+    rows = fleet_rows(get_sem_list(), fab_name=fab_name, tool_type="cd-sem")
+    return [row["eqp_id"] for row in rows]
 
 
 def _tool_cells(eqp_id: str) -> list[CellSkew]:
@@ -131,6 +118,14 @@ def _epoch_history(eqp_id: str) -> list[EpochPoint]:
     return points
 
 
+# Cached because build_bsm_data synthesizes the tool's ENTIRE daily/weekly/
+# monthly BSM payload (~8 ms of statistics per call) so this can read two
+# floats — measured at ~99.8% of a fleet request, ×17 tools on R3. Both leaf
+# readers are deterministic (frozen NOW, seeded RNG) and return immutable
+# values, so caching is safe where caching the payload dict would not be
+# (_apply_fleet_median mutates it in place). Same @lru_cache-on-mock-generator
+# pattern as device_statistics / recipe_tat.
+@lru_cache(maxsize=None)
 def _latest_daily_bsm(eqp_id: str) -> tuple[float, float]:
     """Return most-recent daily BSM sharpness/noise averages."""
     bsm = build_bsm_data(eqp_id)
@@ -146,6 +141,7 @@ def _latest_daily_bsm(eqp_id: str) -> tuple[float, float]:
     return (float(latest["sharpness_avg"]), float(latest["noise_avg"]))
 
 
+@lru_cache(maxsize=None)
 def _latest_pm_at(eqp_id: str) -> str | None:
     """Return most-recent completed PM job_end from the BM/PM mock."""
     data = build_bm_pm_data(eqp_id, NOW)

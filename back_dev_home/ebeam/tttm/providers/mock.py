@@ -88,10 +88,7 @@ from datetime import date, timedelta
 from statistics import median
 from typing import NamedTuple
 
-from back_dev_home.ebeam._tool_specs import (
-    SLUG_TO_TOOL_TYPE,
-    model_to_tool_type,
-)
+from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from back_dev_home.ebeam.tttm.contracts import (
     CellSkew,
     ConsensusDeviation,
@@ -105,6 +102,7 @@ from back_dev_home.ebeam.tttm.contracts import (
     TttmCheckPayload,
 )
 from back_dev_home.sem_list.providers.mock import get_sem_list
+from back_dev_home.sem_list.roster import fleet_rows
 
 
 # Frozen "today" — the mock is a demo, and a payload whose dates move with the
@@ -159,38 +157,20 @@ def _seed(tool_slug: str, fab_name: str, recipe_id: str | None) -> int:
 
 
 def _fleet(tool_slug: str, fab_name: str) -> list[ToolRef]:
-    """The fab's roster for this tool family, straight from sem_list."""
+    """The fab's roster for this tool family, straight from sem_list.
+
+    The roster law itself (fab_name-not-fac_id, dedupe by eqp_id, sorted so
+    "the last tool is the drifted one" is a stable property of the fab) lives
+    in sem_list/roster.py — pm_planning's mock derives the SAME fleet from it,
+    and the pm-tune page joins the two payloads by eqp_id.
+    """
     tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
     if tool_type is None:
         return []
-    target = fab_name.strip().upper()
-    rows = [
-        row for row in get_sem_list()
-        # fab_name, not fac_id: fac_id is fac-level (`M16` for `M16A`) and
-        # would fold three fabs into one roster. See the fab_name/fac_id note
-        # in tests/test_contract.py.
-        if row["fab_name"].strip().upper() == target
-        and model_to_tool_type(row["eqp_model_cd"]) == tool_type
+    return [
+        ToolRef(eqp_id=row["eqp_id"], label=row["eqp_id"], eqp_model_cd=row["eqp_model_cd"])
+        for row in fleet_rows(get_sem_list(), fab_name=fab_name, tool_type=tool_type)
     ]
-    # Deduplicated by eqp_id, because eqp_id INDEXES the skew matrix: a roster
-    # naming the same tool twice yields two identical axes, and the client's
-    # clique grouping would then report a tool as matching itself. The mock
-    # roster really does collide (sem_list rolls ids at random — 10 of its 300
-    # rows share an id with another), and an office roster joined across two
-    # frames can just as easily hand back a tool twice.
-    seen: set[str] = set()
-    fleet: list[ToolRef] = []
-    # Sorted by eqp_id so "the last tool is the drifted one" is a stable
-    # property of the fab rather than of sem_list's row order.
-    for row in sorted(rows, key=lambda r: r["eqp_id"]):
-        eqp_id = row["eqp_id"]
-        if eqp_id in seen:
-            continue
-        seen.add(eqp_id)
-        fleet.append(
-            ToolRef(eqp_id=eqp_id, label=eqp_id, eqp_model_cd=row["eqp_model_cd"])
-        )
-    return fleet
 
 
 def _biases(rng: random.Random, fleet: list[ToolRef]) -> dict[str, float]:
