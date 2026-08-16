@@ -1,16 +1,21 @@
 <template>
-  <div class="dashboard-surface rounded-2xl p-5">
-    <p class="text-xs text-(--sk-ink-subtle)">
-      장비별 skew 트렌드 · BM/PM 마커
-    </p>
+  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <p class="sk-title">
+        skew 트렌드 · BM/PM 마커
+      </p>
+      <span
+        v-if="span"
+        class="sk-meta"
+      >{{ span }}</span>
+    </div>
     <div
       ref="el"
-      class="mt-3 h-64 w-full"
+      class="mt-2 h-64 w-full"
     />
-    <div class="mt-2 flex flex-wrap gap-3 sk-meta">
-      <span>● hard = MDC 변경(epoch 리셋)</span>
-      <span>○ soft = BM/PM(MDC 불변)</span>
-    </div>
+    <p class="mt-1.5 sk-field-label">
+      ● hard = MDC 변경(epoch 리셋) · ○ soft = BM/PM(MDC 불변)
+    </p>
   </div>
 </template>
 
@@ -21,6 +26,15 @@ import type { TrendPoint, EpochMarker } from '~/composables/useTttmApi'
 const props = defineProps<{ trend: TrendPoint[], markers: EpochMarker[] }>()
 
 const el = ref<HTMLDivElement | null>(null)
+
+// The window the series actually cover, from the data rather than from a
+// hardcoded "최근 5주": the payload decides how far back the trend goes, and a
+// caption that names a span the data does not have is worse than none.
+const span = computed(() => {
+  const dates = [...new Set(props.trend.map(p => p.date))].sort()
+  if (dates.length < 2) return ''
+  return `${dates[0]} ~ ${dates[dates.length - 1]}`
+})
 
 const byTool = computed(() => {
   const map = new Map<string, TrendPoint[]>()

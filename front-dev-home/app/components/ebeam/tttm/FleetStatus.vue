@@ -1,16 +1,19 @@
 <template>
-  <div class="dashboard-surface rounded-2xl p-5">
-    <p class="text-xs text-(--sk-ink-subtle)">
-      오늘 장비 그룹 skew 현황
-    </p>
-    <div class="mt-3 space-y-2">
+  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <p class="sk-title">
+        오늘 consensus 잔차
+      </p>
+      <span class="sk-meta">PM/BM 한계 ±{{ actionLimit.toFixed(3) }} nm</span>
+    </div>
+    <div class="mt-3.5 space-y-1.5">
       <div
         v-for="d in sorted"
         :key="d.eqp_id"
         class="flex items-center gap-3 text-sm"
       >
-        <span class="w-24 text-(--sk-ink-muted)">{{ labelFor(d.eqp_id) }}</span>
-        <div class="flex-1 relative h-4">
+        <span class="w-24 shrink-0 font-mono text-xs text-(--sk-ink-muted)">{{ labelFor(d.eqp_id) }}</span>
+        <div class="flex-1 relative h-3.5 rounded-[var(--sk-r-sidebar)] bg-(--sk-muted-surface)">
           <div
             class="absolute inset-y-0 left-1/2 w-px"
             :style="{ background: 'var(--sk-border)' }"
@@ -36,18 +39,19 @@
           />
         </div>
         <span
-          class="w-16 text-right tabular-nums"
+          class="w-16 shrink-0 text-right font-mono text-xs tabular-nums"
           :style="{ color: overLimit(d.deviation) ? 'var(--sk-bad)' : 'var(--sk-ink)' }"
-        >{{ d.deviation >= 0 ? '+' : '' }}{{ d.deviation.toFixed(3) }}</span>
+        >{{ d.deviation >= 0 ? '+' : '−' }}{{ Math.abs(d.deviation).toFixed(3) }}</span>
       </div>
     </div>
-    <p class="mt-2 text-[11px] text-(--sk-ink-subtle)">
-      잔차 = tool − consensus(중앙값). 0 = 장비 그룹 합의와 일치.
-      <span :style="{ color: 'var(--sk-bad)' }">빨간 선 ±{{ actionLimit.toFixed(2) }} nm</span>
-      = 이 밖으로 나가면 PM/BM 대상입니다 ({{ cdBasis }}).
-      안쪽 옅은 선
-      ±{{ MEASUREMENT_FLOOR_NM.toFixed(2) }} nm 는 시험 자체의 불확도라,
-      그보다 작은 차이는 구별 불가입니다.
+    <p class="mt-3 sk-field-label leading-relaxed">
+      잔차 = tool − consensus(중앙값). {{ verdict }}
+      <EbeamTttmCaptionMore>
+        <span :style="{ color: 'var(--sk-bad)' }">빨간 선 ±{{ actionLimit.toFixed(3) }} nm</span>
+        밖으로 나가면 PM/BM 대상입니다 ({{ cdBasis }}). 안쪽 옅은 선
+        ±{{ MEASUREMENT_FLOOR_NM.toFixed(2) }} nm 는 시험 자체의 불확도라, 그보다
+        작은 차이는 구별 불가입니다.
+      </EbeamTttmCaptionMore>
     </p>
   </div>
 </template>
@@ -103,6 +107,18 @@ const actionEdges = computed(() => edgesFor(actionLimit.value))
 const floorEdges = computed(() => edgesFor(MEASUREMENT_FLOOR_NM))
 
 const overLimit = (dev: number) => Math.abs(dev) > actionLimit.value
+
+// The reading, said once so it does not have to be re-derived by eye from five
+// bars. Counting rather than naming: which tools are out is already legible in
+// the rows above, but "any at all?" is the question this card is asked first.
+const verdict = computed(() => {
+  const total = props.fleet.consensus_deviation.length
+  const out = props.fleet.consensus_deviation.filter(d => overLimit(d.deviation)).length
+  if (total === 0) return '표시할 장비가 없습니다.'
+  return out === 0
+    ? `${total}대 모두 PM/BM 한계 안.`
+    : `${total}대 중 ${out}대가 PM/BM 한계 밖.`
+})
 
 // Bar grows from the center line toward the sign direction.
 const barStyle = (dev: number) => {

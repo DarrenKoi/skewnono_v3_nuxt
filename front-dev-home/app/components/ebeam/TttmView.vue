@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <EbeamMetaBar
       :eyebrow="`${toolLabel} · ${fab}`"
       title="장비간 스큐 관리"
@@ -20,54 +20,101 @@
       {{ payload?.summary ?? '데이터가 없습니다.' }}
     </div>
 
-    <template v-else>
-      <EbeamTttmFleetPicker
-        :tools="payload.tools"
-        :selected="selectedTools"
-        :recipe-id="recipeId"
-        :recipe-names="recipeNames"
-        :recipes-pending="recipesPending"
-        @update:selected="onSelectedTools"
-        @update:recipe-id="onRecipe"
-      />
-
-      <div class="dashboard-surface rounded-2xl p-4">
-        <EbeamTttmToleranceKnob
-          v-model="tolerance"
+    <div
+      v-else
+      class="grid items-start gap-3 xl:grid-cols-[392px_minmax(0,1fr)]"
+    >
+      <!-- 조작 레일 — 스크롤해도 따라옵니다. 결과 쪽에는 컨트롤이 하나도 없고,
+           레일에는 결과가 하나도 없습니다. -->
+      <div class="flex flex-col gap-3 xl:sticky xl:top-2">
+        <EbeamTttmScopePanel
+          :tools="payload.tools"
+          :selected="selectedTools"
+          :deviations="fleetDeviations"
+          :recipe-id="recipeId"
+          :recipe-names="recipeNames"
+          :recipes-pending="recipesPending"
+          :tolerance="tolerance"
           :range="payload.tolerance_range"
           :tolerance-index="toleranceIndex"
+          @update:selected="onSelectedTools"
+          @update:recipe-id="onRecipe"
+          @update:tolerance="tolerance = $event"
         />
+
+        <!-- What the knob and the picks currently cost, in one line. The
+             numbers all appear again below in their own cards; this is the
+             roll-up that makes dragging the slider legible without scrolling
+             the results column to find out what moved. -->
+        <div class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5">
+          <p class="sk-title">
+            이 설정에서
+          </p>
+          <p class="mt-1.5 sk-field-label leading-relaxed">
+            <!-- "셀 합계" is load-bearing: the matrix card below reports the
+                 failing pairs of ONE cell, and the two numbers differ by design.
+                 Unlabelled they read as the same count disagreeing with itself. -->
+            점유 셀 {{ rankedCells.length }}개 · 불합격 장비쌍 {{ failingPairs }}쌍 (셀 합계)
+            <template v-if="worstCell?.worstPair">
+              · 최악 {{ worstCell.worstPair.skewNm.toFixed(3) }} nm ({{ cellLabel(worstCell.cell) }})
+            </template>
+          </p>
+        </div>
       </div>
 
-      <EbeamTttmRecommendationCard
-        :primary="primary"
-        :others="others"
-        :tools="visibleTools"
-      />
+      <!-- 결과 — 판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로, 근거가 위에서
+           아래로 한 번씩만 나옵니다. -->
+      <div class="flex min-w-0 flex-col gap-3">
+        <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <EbeamTttmRecommendationCard
+            :primary="primary"
+            :others="others"
+            :tools="visibleTools"
+          />
+          <EbeamTttmExcludedTools
+            :excluded="excluded"
+            :has-group="primary !== null"
+            :tools="visibleTools"
+            :deviations="visibleDeviations"
+            :action-limit="fleetActionLimit"
+            :markers="visibleMarkers"
+          />
+        </div>
 
-      <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
+        <div class="grid gap-3 2xl:grid-cols-2">
+          <EbeamTttmFleetMap
+            :fleet="visibleFleet"
+            :tools="visibleTools"
+            :tolerance-index="toleranceIndex"
+          />
+          <EbeamTttmCellSeverityList
+            :cells="rankedCells"
+            :tools="visibleTools"
+          />
+        </div>
 
-      <EbeamTttmPairMatrix
-        :cells="visibleCells"
-        :tools="visibleTools"
-        :tolerance-index="toleranceIndex"
-      />
+        <EbeamTttmPairMatrix
+          :cells="rankedCells"
+          :tools="visibleTools"
+        />
 
-      <EbeamTttmFleetStatus
-        :fleet="visibleFleet"
-        :tools="visibleTools"
-      />
-      <EbeamTttmFleetMap
-        :fleet="visibleFleet"
-        :tools="visibleTools"
-        :tolerance-index="toleranceIndex"
-      />
-      <EbeamTttmTrendChart
-        :trend="visibleTrend"
-        :markers="visibleMarkers"
-      />
-      <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
-    </template>
+        <div class="grid gap-3 2xl:grid-cols-2">
+          <EbeamTttmFleetStatus
+            :fleet="visibleFleet"
+            :tools="visibleTools"
+          />
+          <EbeamTttmTrendChart
+            :trend="visibleTrend"
+            :markers="visibleMarkers"
+          />
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2">
+          <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
+          <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -79,7 +126,13 @@ import {
   type GroupCell,
   type NbaGroup
 } from '~/utils/tttmGrouping'
-import { fractionOfLimit, resolveNominalCd, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
+import {
+  actionLimitNm,
+  fractionOfLimit,
+  resolveNominalCd,
+  MONITOR_WAFER_CD_NM
+} from '~/utils/tttmLimits'
+import { cellLabel, excludedTools, rankCells, type CellInput } from '~/utils/tttmCells'
 import { subsetSkewMatrix, rebaseDeviations, resolveSelection } from '~/utils/tttmFleetSubset'
 import { preferredMatrix, type SkewCondition, type FleetToday } from '~/composables/useTttmApi'
 
@@ -144,6 +197,22 @@ const visibleFleet = computed<FleetToday>(() => ({
   median_cd_nm: payload.value?.fleet_today.median_cd_nm ?? null
 }))
 
+// Two deviation maps, and the difference matters. The PICKER shows the payload's
+// own fleet-wide numbers, because a tool that is not selected has no re-based
+// value to show and the picker is where the selection gets decided; everything
+// below the picker reads the re-based ones.
+const fleetDeviations = computed<Record<string, number>>(() =>
+  Object.fromEntries(
+    (payload.value?.fleet_today.consensus_deviation ?? []).map(d => [d.eqp_id, d.deviation])
+  )
+)
+const visibleDeviations = computed<Record<string, number>>(() =>
+  Object.fromEntries(visibleFleet.value.consensus_deviation.map(d => [d.eqp_id, d.deviation]))
+)
+const fleetActionLimit = computed(() =>
+  actionLimitNm(resolveNominalCd(visibleFleet.value.median_cd_nm).nm)
+)
+
 const inSelection = (eqp: string) => selectedTools.value.includes(eqp)
 const visibleTrend = computed(() => (payload.value?.trend ?? []).filter(p => inSelection(p.eqp_id)))
 const visibleMarkers = computed(() =>
@@ -169,23 +238,45 @@ const toleranceIndex = computed(() =>
   fractionOfLimit(tolerance.value, MONITOR_WAFER_CD_NM)
 )
 
-// occupied cells → GroupCell[] (direct matrix preferred, else predicted).
-// Each carries its own CD, already resolved: a cell whose median CD is null
-// falls back to the monitor wafer here rather than inside the engine.
+// Cells reduced to the one matrix each reads through, then ranked once for the
+// three surfaces that need them — the matrix tabs, the severity bars and the
+// exclusion card. Ranking in each component instead is how two of them end up
+// disagreeing about which cell is worst.
+// Built field by field rather than spread: CellInput is deliberately narrower
+// than SkewCondition — it carries the ONE matrix the cell reads through, so no
+// surface downstream can quietly re-pick between the direct and predicted tiers.
+const cellInputs = computed<CellInput[]>(() =>
+  visibleCells.value.flatMap((c) => {
+    const matrix = preferredMatrix(c)
+    if (!matrix) return []
+    return [{
+      cell_id: c.cell_id,
+      beam_condition: c.beam_condition,
+      axis: c.axis,
+      cd_band: c.cd_band,
+      median_cd_nm: c.median_cd_nm,
+      tier: c.tier,
+      confidence: c.confidence,
+      labels: c.labels,
+      matrix
+    }]
+  })
+)
+const rankedCells = computed(() => rankCells(cellInputs.value, toleranceIndex.value))
+const worstCell = computed(() => rankedCells.value[0] ?? null)
+const failingPairs = computed(() =>
+  rankedCells.value.reduce((sum, c) => sum + c.failingPairs, 0)
+)
+
+// The grouping engine needs each cell's CD already resolved: a cell whose median
+// CD is null falls back to the monitor wafer here rather than inside the engine.
 const groupCells = computed<GroupCell[]>(() =>
-  visibleCells.value
-    .map((c) => {
-      const matrix = preferredMatrix(c)
-      return matrix
-        ? {
-            tier: c.tier,
-            confidence: c.confidence,
-            matrix,
-            cdNm: resolveNominalCd(c.median_cd_nm).nm
-          }
-        : null
-    })
-    .filter((c): c is GroupCell => c !== null)
+  rankedCells.value.map(c => ({
+    tier: c.cell.tier,
+    confidence: c.cell.confidence,
+    matrix: c.matrix,
+    cdNm: c.cd.nm
+  }))
 )
 
 const groups = computed<NbaGroup[]>(() =>
@@ -195,11 +286,14 @@ const primary = computed(() => pickPrimary(groups.value))
 const others = computed(() =>
   groups.value.filter(g => g !== primary.value).sort((a, b) => b.n - a.n)
 )
+const excluded = computed(() =>
+  excludedTools(selectedTools.value, primary.value?.tools ?? [], rankedCells.value)
+)
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
 const metaStats = computed<MetaBarStat[]>(() => [
-  { key: 'tools', label: '장비 그룹', value: visibleTools.value.length, tone: 'neutral' },
-  { key: 'cells', label: '점유 셀', value: visibleCells.value.length, tone: 'neutral' },
-  { key: 'n', label: '최대 N배화', value: primary.value?.n ?? 0, tone: 'ok' }
+  { key: 'tools', label: '선택 장비', value: visibleTools.value.length, tone: 'neutral' },
+  { key: 'cells', label: '점유 셀', value: rankedCells.value.length, tone: 'neutral' },
+  { key: 'n', label: 'N배화', value: primary.value?.n ?? 0, tone: 'ok' }
 ])
 </script>

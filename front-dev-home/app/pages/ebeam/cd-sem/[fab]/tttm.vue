@@ -1,5 +1,7 @@
 <template>
-  <div class="space-y-3">
+  <!-- 1440px 밀집 예외 (DESIGN.md §Layout): 왼쪽 392px 조작 레일 + 오른쪽 결과라는
+       리스트-플러스-상세 성격이라 Mag/Pixel 가이드와 같은 폭을 씁니다. -->
+  <div class="mx-auto w-full max-w-[1440px] space-y-3">
     <NavFabScopeNotice
       :fabs="fabs"
       :primary-fab="primaryFab"

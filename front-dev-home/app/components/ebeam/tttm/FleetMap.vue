@@ -1,11 +1,11 @@
 <template>
-  <div class="dashboard-surface rounded-2xl p-5">
+  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <p class="text-xs text-(--sk-ink-subtle)">
-        장비 그룹 배치도 · 서로의 skew 거리를 2D로 펼친 지도
+      <p class="sk-title">
+        장비 그룹 배치도
       </p>
       <p
-        class="text-[11px] tabular-nums"
+        class="font-mono text-[11px] tabular-nums"
         :style="{ color: stress.color }"
       >
         stress {{ map.stress.toFixed(3) }} · {{ stress.text }}
@@ -19,11 +19,11 @@
     <div
       v-if="map.points.length"
       ref="el"
-      class="mt-3 mx-auto aspect-square w-full max-w-sm"
+      class="mt-2 mx-auto aspect-square w-full max-w-md"
     />
     <p
       v-else
-      class="mt-3 text-sm text-(--sk-ink-muted)"
+      class="mt-3 sk-body text-(--sk-ink-muted)"
     >
       배치할 수 있는 장비가 2대 미만이라 지도를 그리지 않습니다.
     </p>
@@ -32,24 +32,25 @@
       v-if="map.detached.length"
       class="mt-3 flex flex-wrap items-center gap-2"
     >
-      <span class="text-[11px] text-(--sk-ink-subtle)">지도에서 제외:</span>
+      <span class="sk-field-label">지도에서 제외:</span>
       <span
         v-for="eqp in map.detached"
         :key="eqp"
-        class="rounded-(--sk-r-chip) px-1.5 py-0.5 text-[11px] bg-(--sk-chip-bg) text-(--sk-chip-text)"
+        class="rounded-[var(--sk-r-chip)] bg-(--sk-chip-bg) px-1.5 py-0.5 font-mono text-xs text-(--sk-chip-text)"
       >{{ labelFor(eqp) }}</span>
-      <span class="text-[11px] text-(--sk-ink-subtle)">
+      <span class="sk-field-label">
         — 다른 장비와 겹치는 측정이 없어 거리를 정의할 수 없습니다.
       </span>
     </div>
 
-    <p class="mt-2 text-[11px] text-(--sk-ink-subtle)">
-      축에는 단위가 없습니다. <strong>점 사이의 거리만</strong> 의미가 있으며, 회전·반전해도
-      같은 지도입니다. 점 크기는 나머지 장비까지의 평균 skew(Score)이고, 빨강은
-      <strong>오늘 장비 그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
-      {{ thresholdBasis }} 밖인 장비입니다. N배화 그룹 판정은 점유 셀
-      전체를 교차한 결과라 이 지도와 다를 수 있으므로, 그쪽은 위 추천 카드를
-      보십시오.
+    <p class="mt-1.5 sk-field-label leading-relaxed">
+      점 사이 거리만 의미가 있습니다. 점 크기 = 평균 skew(Score).
+      <EbeamTttmCaptionMore>
+        축에는 단위가 없고 회전·반전해도 같은 지도입니다. 빨강은 <strong>오늘 장비
+          그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
+        {{ thresholdBasis }} 밖인 장비이며, N배화 판정은 점유 셀 전체를 교차한
+        결과라 이 지도와 다를 수 있습니다 — 그쪽은 위 추천 카드를 보십시오.
+      </EbeamTttmCaptionMore>
     </p>
   </div>
 </template>
