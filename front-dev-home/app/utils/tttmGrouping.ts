@@ -9,6 +9,12 @@ export interface SkewMatrix {
   values: (number | null)[][]
 }
 
+// "This pair was actually measured." Declared beside the type that permits the
+// hole, because more than one engine has to ask the question and they must not
+// answer it differently — `buildAdjacency` below and `retainComplete` in
+// fleetMap.ts previously spelled it two ways, which disagreed on NaN.
+export const isMeasured = (v: number | null | undefined): v is number => Number.isFinite(v)
+
 export type Confidence = 'High' | 'Med' | 'Low'
 export type Tier = 'direct' | 'predicted'
 
@@ -53,7 +59,7 @@ export function buildAdjacency(matrix: SkewMatrix, tolerance: ToleranceNm): bool
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
       const v = matrix.values[i]?.[j]
-      const tttm = v !== null && v !== undefined && v <= tolerance
+      const tttm = isMeasured(v) && v <= tolerance
       adj[i]![j] = tttm
       adj[j]![i] = tttm
     }

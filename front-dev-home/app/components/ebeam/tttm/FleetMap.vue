@@ -6,9 +6,9 @@
       </p>
       <p
         class="text-[11px] tabular-nums"
-        :style="{ color: stressTone }"
+        :style="{ color: stress.color }"
       >
-        stress {{ map.stress.toFixed(3) }} · {{ stressVerdict }}
+        stress {{ map.stress.toFixed(3) }} · {{ stress.text }}
       </p>
     </div>
 
@@ -17,7 +17,7 @@
          drawn longer horizontally than vertically and every distance on a map
          whose whole point is distance would be misread. -->
     <div
-      v-if="map.points.length >= 2"
+      v-if="map.points.length"
       ref="el"
       class="mt-3 mx-auto aspect-square w-full max-w-sm"
     />
@@ -36,7 +36,7 @@
       <span
         v-for="eqp in map.detached"
         :key="eqp"
-        class="rounded px-1.5 py-0.5 text-[11px] bg-(--sk-chip-bg) text-(--sk-chip-text)"
+        class="rounded-(--sk-r-chip) px-1.5 py-0.5 text-[11px] bg-(--sk-chip-bg) text-(--sk-chip-text)"
       >{{ labelFor(eqp) }}</span>
       <span class="text-[11px] text-(--sk-ink-subtle)">
         — 다른 장비와 겹치는 측정이 없어 거리를 정의할 수 없습니다.
@@ -46,8 +46,10 @@
     <p class="mt-2 text-[11px] text-(--sk-ink-subtle)">
       축에는 단위가 없습니다. <strong>점 사이의 거리만</strong> 의미가 있으며, 회전·반전해도
       같은 지도입니다. 점 크기는 나머지 장비까지의 평균 skew(Score)이고, 빨강은
-      가장 가까운 장비마저 허용오차 {{ tolerance.toFixed(3) }} nm 밖이라
-      어느 N배화 그룹에도 들어가지 못하는 장비입니다.
+      <strong>오늘 장비 그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
+      {{ tolerance.toFixed(3) }} nm 밖인 장비입니다. N배화 그룹 판정은 점유 셀
+      전체를 교차한 결과라 이 지도와 다를 수 있으므로, 그쪽은 위 추천 카드를
+      보십시오.
     </p>
   </div>
 </template>
@@ -73,43 +75,49 @@ const labelFor = (eqp: string) => props.tools.find(t => t.eqp_id === eqp)?.label
 
 // Stress-1 reading, on the conventional Kruskal bands. Said out loud because a
 // 2D map of non-Euclidean distances can be badly wrong while still looking
-// tidy, and the reader has no other cue that it is.
-const stressVerdict = computed(() => {
+// tidy, and the reader has no other cue that it is. Text and tone come from one
+// ladder so the wording and the color can never disagree about which band it is.
+const stress = computed(() => {
   const s = map.value.stress
-  if (s < 0.05) return '거리 재현 우수'
-  if (s < 0.10) return '양호'
-  if (s < 0.20) return '보통 — 위치는 참고만'
-  return '나쁨 — 아래 쌍별 행렬을 보십시오'
-})
-const stressTone = computed(() => {
-  const s = map.value.stress
-  if (s < 0.10) return 'var(--sk-ink-subtle)'
-  return s < 0.20 ? 'var(--sk-ink-muted)' : 'var(--sk-bad)'
+  if (s < 0.05) return { text: '거리 재현 우수', color: 'var(--sk-ink-subtle)' }
+  if (s < 0.10) return { text: '양호', color: 'var(--sk-ink-subtle)' }
+  if (s < 0.20) return { text: '보통 — 위치는 참고만', color: 'var(--sk-ink-muted)' }
+  return { text: '나쁨 — 아래 쌍별 행렬을 보십시오', color: 'var(--sk-bad)' }
 })
 
 // One square domain shared by both axes. MDS distances are only readable if the
 // two axes are on the SAME scale — letting ECharts fit each axis independently
 // would stretch one direction and silently misstate every gap on the chart.
 const domain = computed(() => {
-  const xs = map.value.points.map(p => p.x)
-  const ys = map.value.points.map(p => p.y)
-  if (!xs.length) return { min: -1, max: 1 }
-  const cx = (Math.min(...xs) + Math.max(...xs)) / 2
-  const cy = (Math.min(...ys) + Math.max(...ys)) / 2
-  const half = Math.max(
-    Math.max(...xs) - Math.min(...xs),
-    Math.max(...ys) - Math.min(...ys)
-  ) / 2 || 0.1
-  const pad = half * 1.35
-  return {
-    min: Math.min(cx, cy) - pad,
-    max: Math.max(cx, cy) + pad
-  }
+  // Pool both coordinates: the output is a single square window containing
+  // every point, so there is nothing to gain by tracking the axes separately.
+  const all = map.value.points.flatMap(p => [p.x, p.y])
+  if (!all.length) return { min: -1, max: 1 }
+  const lo = Math.min(...all)
+  const hi = Math.max(...all)
+  const centre = (lo + hi) / 2
+  const pad = ((hi - lo) / 2 || 0.1) * 1.35
+  return { min: centre - pad, max: centre + pad }
 })
+
+// The datum tuple, named once. Spelling it inline at each formatter is how the
+// meaning of `value[3]` gets lost.
+type FleetValue = [x: number, y: number, score: number, nearest: number]
+interface FleetDatum { name: string, value: FleetValue }
 
 const chartOption = computed<EChartsOption>(() => {
   const points = map.value.points
   const maxScore = Math.max(...points.map(p => p.score), 1e-9)
+  // A factory, not one shared object: both axes must stay identical for the
+  // square domain to mean anything, but handing ECharts the same reference
+  // twice is asking for trouble in its option merge.
+  const axis = () => ({
+    type: 'value' as const,
+    min: domain.value.min,
+    max: domain.value.max,
+    axisLabel: { show: false },
+    splitLine: { lineStyle: { color: sk.value.muted, opacity: 0.25 } }
+  })
 
   return {
     // Equal insets on all four sides, so the square box yields a square plot
@@ -118,46 +126,40 @@ const chartOption = computed<EChartsOption>(() => {
     tooltip: {
       trigger: 'item',
       formatter: (p: unknown) => {
-        const d = (p as { data: { name: string, value: [number, number, number, number] } }).data
-        return `${labelFor(d.name)}<br/>최근접 ${d.value[3].toFixed(3)} nm`
-          + `<br/>Score(평균) ${d.value[2].toFixed(3)} nm`
+        const { name, value } = (p as { data: FleetDatum }).data
+        return `${labelFor(name)}<br/>최근접 ${value[3].toFixed(3)} nm`
+          + `<br/>Score(평균) ${value[2].toFixed(3)} nm`
       }
     },
-    xAxis: {
-      type: 'value',
-      min: domain.value.min,
-      max: domain.value.max,
-      axisLabel: { show: false },
-      splitLine: { lineStyle: { color: sk.value.muted, opacity: 0.25 } }
-    },
-    yAxis: {
-      type: 'value',
-      min: domain.value.min,
-      max: domain.value.max,
-      axisLabel: { show: false },
-      splitLine: { lineStyle: { color: sk.value.muted, opacity: 0.25 } }
-    },
+    xAxis: axis(),
+    yAxis: axis(),
     series: [{
       type: 'scatter',
       data: points.map(p => ({
         name: p.eqp_id,
         value: [p.x, p.y, p.score, p.nearest],
-        // Red = this tool has NO partner inside the tolerance, so it cannot join
-        // any N배화 group. Compared against `nearest` rather than `score`
-        // because the tolerance is a pairwise spec — see FleetPoint.nearest.
+        // Red = no partner inside the tolerance IN THIS MATRIX. Compared
+        // against `nearest`, not `score`, because the tolerance is a pairwise
+        // spec — see FleetPoint.nearest.
+        //
+        // Deliberately NOT the same statement as "belongs to no N배화 group":
+        // that comes from tttmGrouping's AND-fold across every occupied cell,
+        // while fleet_today.matrix is one matrix. They coincide in the mock
+        // only because it reuses cell bc1-X-25-50-e7's values, and the office
+        // adapter owes us no such thing. The caption says which one this is.
         itemStyle: { color: p.nearest > props.tolerance ? SK_STATE.bad : sk.value.series }
       })),
       // Area, not radius, tracks the score — a radius-encoded circle overstates
       // a large value by its square.
       symbolSize: (v: unknown) => {
-        const score = (v as [number, number, number, number])[2]
+        const score = (v as FleetValue)[2]
         return 12 + Math.sqrt(score / maxScore) * 22
       },
       label: {
         show: true,
         position: 'bottom',
         distance: 6,
-        formatter: (p: unknown) => labelFor((p as { data: { name: string } }).data.name),
+        formatter: (p: unknown) => labelFor((p as { data: FleetDatum }).data.name),
         color: sk.value.ink,
         fontSize: 11
       },
@@ -167,7 +169,7 @@ const chartOption = computed<EChartsOption>(() => {
       // not in the fleet at all. No visible effect on the 5-tool mock, where
       // the points are already far enough apart; it is the 10-12 tool fleets
       // the office actually runs that need it.
-      labelLayout: { moveOverlap: 'shiftY', hideOverlap: false }
+      labelLayout: { moveOverlap: 'shiftY' }
     }]
   }
 })

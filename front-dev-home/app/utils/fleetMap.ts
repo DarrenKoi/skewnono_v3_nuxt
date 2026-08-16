@@ -17,7 +17,11 @@
 // between points do. `orientDeterministically` below pins one of the many
 // equally-correct orientations so the chart does not flip between renders.
 
-import type { SkewMatrix } from './tttmGrouping'
+// Explicit .ts on both: these are VALUE imports, so `node --test`'s type
+// stripping has to resolve them at runtime (the extensionless form only worked
+// while this was a type-only import, which is erased before Node ever sees it).
+import { isMeasured, type SkewMatrix } from './tttmGrouping.ts'
+import { mean } from './stats.ts'
 
 export interface FleetPoint {
   eqp_id: string
@@ -53,14 +57,16 @@ export interface FleetMapResult {
 // sizes involved (a fab holds ~5-12 CD-SEMs) and keeps the file dependency-free,
 // which matters here: the cloud numpy incident is why this project does not add
 // a numeric dependency for something it can do in 40 lines.
-function jacobiEigen(input: number[][], sweeps = 100): { values: number[], vectors: number[][] } {
+const MAX_SWEEPS = 100
+
+function jacobiEigen(input: number[][]): { values: number[], vectors: number[][] } {
   const n = input.length
   const m = input.map(row => [...row])
   const v: number[][] = Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
   )
 
-  for (let sweep = 0; sweep < sweeps; sweep++) {
+  for (let sweep = 0; sweep < MAX_SWEEPS; sweep++) {
     let off = 0
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) off += m[i]![j]! ** 2
@@ -115,28 +121,33 @@ function jacobiEigen(input: number[][], sweeps = 100): { values: number[], vecto
 // maximum-complete-submatrix is NP-hard and pointless at n ≈ 10. Dropped tools
 // come back as `detached` so the UI can say they were left out and why, rather
 // than silently showing a smaller fleet than the user has.
-function retainComplete(values: (number | null)[][]): number[] {
+function retainComplete(values: (number | null)[][]): { keep: number[], dropped: Set<number> } {
   const n = values.length
-  const keep = new Set<number>(Array.from({ length: n }, (_, i) => i))
+  const live = new Set<number>(Array.from({ length: n }, (_, i) => i))
 
-  const nullCount = (i: number) =>
-    [...keep].filter(j => j !== i && !Number.isFinite(values[i]?.[j] ?? null)).length
+  const holeCount = (i: number) => {
+    let holes = 0
+    for (const j of live) if (j !== i && !isMeasured(values[i]?.[j])) holes++
+    return holes
+  }
 
+  const dropped = new Set<number>()
   for (;;) {
     let worst = -1
     let worstCount = 0
-    for (const i of keep) {
-      const c = nullCount(i)
+    for (const i of live) {
+      const c = holeCount(i)
       if (c > worstCount) {
         worstCount = c
         worst = i
       }
     }
     if (worst < 0) break
-    keep.delete(worst)
+    live.delete(worst)
+    dropped.add(worst)
   }
 
-  return [...keep].sort((a, b) => a - b)
+  return { keep: [...live].sort((a, b) => a - b), dropped }
 }
 
 // MDS coordinates are arbitrary up to sign, and an unpinned sign makes the chart
@@ -161,11 +172,12 @@ function orientDeterministically(coords: number[][]): void {
  * nothing a label does not.
  */
 export function fleetMap(matrix: SkewMatrix): FleetMapResult {
-  const keep = retainComplete(matrix.values)
-  const detached = matrix.tools.filter((_, i) => !keep.includes(i))
+  const { keep, dropped } = retainComplete(matrix.values)
   const n = keep.length
 
   if (n < 2) return { points: [], detached: [...matrix.tools], stress: 0 }
+
+  const detached = matrix.tools.filter((_, i) => dropped.has(i))
 
   // Distances of the retained submatrix, symmetrized: the contract promises
   // symmetry but an office adapter joining two sources could break it, and
@@ -181,8 +193,8 @@ export function fleetMap(matrix: SkewMatrix): FleetMapResult {
 
   // Double-centre the squared distances: B = -1/2 · J D² J.
   const sq = d.map(row => row.map(x => x * x))
-  const rowMean = sq.map(row => row.reduce((s, x) => s + x, 0) / n)
-  const grand = rowMean.reduce((s, x) => s + x, 0) / n
+  const rowMean = sq.map(mean)
+  const grand = mean(rowMean)
   const b = sq.map((row, i) =>
     row.map((x, j) => -0.5 * (x - rowMean[i]! - rowMean[j]! + grand))
   )
@@ -217,13 +229,18 @@ export function fleetMap(matrix: SkewMatrix): FleetMapResult {
   }
   const stress = den > 0 ? Math.sqrt(num / den) : 0
 
-  const points: FleetPoint[] = keep.map((toolIdx, i) => ({
-    eqp_id: matrix.tools[toolIdx] ?? String(toolIdx),
-    x: coords[i]![0]!,
-    y: coords[i]![1]!,
-    score: d[i]!.reduce((s, x) => s + x, 0) / (n - 1),
-    nearest: Math.min(...d[i]!.filter((_, j) => j !== i))
-  }))
+  const points: FleetPoint[] = keep.map((toolIdx, i) => {
+    // Drop the zero diagonal first: it is this tool's distance to itself, and
+    // leaving it in would drag `score` down and make `nearest` always 0.
+    const others = d[i]!.filter((_, j) => j !== i)
+    return {
+      eqp_id: matrix.tools[toolIdx] ?? String(toolIdx),
+      x: coords[i]![0]!,
+      y: coords[i]![1]!,
+      score: mean(others),
+      nearest: Math.min(...others)
+    }
+  })
 
   return { points, detached, stress }
 }
