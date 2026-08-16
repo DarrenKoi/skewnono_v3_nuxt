@@ -130,7 +130,11 @@ const visibleFleet = computed<FleetToday>(() => ({
   consensus_deviation: rebaseDeviations(
     payload.value?.fleet_today.consensus_deviation ?? [],
     selectedTools.value
-  )
+  ),
+  // Unchanged by subsetting: the CD is a property of what was measured, not of
+  // which tools the user chose to look at. Deselecting tools re-bases the
+  // deviations but must not move the limit they are judged against.
+  median_cd_nm: payload.value?.fleet_today.median_cd_nm ?? null
 }))
 
 const inSelection = (eqp: string) => selectedTools.value.includes(eqp)

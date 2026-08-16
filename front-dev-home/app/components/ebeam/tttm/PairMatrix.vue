@@ -15,6 +15,14 @@
           class="px-1.5 py-0.5 rounded text-xs"
           :style="tierStyle(cell.tier)"
         >{{ cell.tier === 'direct' ? '직접' : '예측' }} · {{ cell.confidence }}</span>
+        <!-- The measured CD, because it is what sets this cell's PM/BM limit.
+             Two cells in the same cd_band can still carry limits 2x apart. -->
+        <span class="text-xs text-(--sk-ink-muted)">
+          <template v-if="cell.median_cd_nm">
+            CD {{ cell.median_cd_nm.toFixed(1) }} nm · 한계 {{ limitOf(cell).toFixed(3) }} nm
+          </template>
+          <template v-else>CD 미상 · 모니터 wafer 가정</template>
+        </span>
         <span
           v-for="l in cell.labels"
           :key="l"
@@ -63,6 +71,7 @@
 
 <script setup lang="ts">
 import { toolLabels } from '~/utils/toolLabels'
+import { actionLimitNm, fractionOfLimit, resolveNominalCd } from '~/utils/tttmLimits'
 import type { SkewCondition, ToolRef } from '~/composables/useTttmApi'
 import type { SkewMatrix } from '~/utils/tttmGrouping'
 
@@ -90,10 +99,19 @@ const cellStyle = (v: number | null, i: number, j: number) => {
     : { background: 'var(--sk-bad-soft)', color: 'var(--sk-bad)' }
 }
 
+// This cell's PM/BM action limit, from the CD actually measured in it.
+const limitOf = (cell: SkewCondition) => actionLimitNm(resolveNominalCd(cell.median_cd_nm).nm)
+
 const pairTitle = (cell: SkewCondition, i: number, j: number, v: number | null) => {
   if (i === j || v === null) return ''
   const m = matrixOf(cell)
   const state = v <= props.tolerance ? 'TTTM' : 'tolerance 초과'
+  // The fraction is what ranks pairs ACROSS cells: 0.24 nm at a 15 nm CD and
+  // 0.24 nm at 68 nm are the same nanometres and nowhere near the same problem.
+  const cd = resolveNominalCd(cell.median_cd_nm)
+  const index = fractionOfLimit(v, cd.nm)
+  const basis = cd.assumed ? ' · CD 가정' : ''
   return `${m.tools[i]} · ${m.tools[j]} = ${v.toFixed(3)} nm (${state})`
+    + ` · 한계 대비 ${index.toFixed(2)}배${basis}`
 }
 </script>

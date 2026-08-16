@@ -48,6 +48,48 @@ export const MONITOR_WAFER_CD_NM = 15
 export const actionLimitNm = (nominalCdNm: number) =>
   PM_BM_ACTION_LIMIT_RATIO * nominalCdNm
 
+/** A CD to draw limits against, and whether it was measured or assumed. */
+export interface NominalCd {
+  nm: number
+  /** true = no CD in the payload, so MONITOR_WAFER_CD_NM stood in for it. */
+  assumed: boolean
+}
+
+/**
+ * Resolve the CD a limit should be drawn against.
+ *
+ * `median_cd_nm` is nullable across the whole contract — an office adapter
+ * with no CD alongside its skew statistics returns null rather than inventing
+ * one — so every screen needs the same fallback, and every screen needs to say
+ * it fell back. Returning `assumed` rather than just a number is what stops a
+ * caller from rendering the monitor wafer's 0.15 nm as if it had been measured.
+ *
+ * A non-positive CD is treated as missing: the contract forbids it (see
+ * `test_fleet_today_median_cd_is_positive_when_present`), and dividing by 1%
+ * of zero would silently pass every tool instead of failing loudly.
+ */
+export const resolveNominalCd = (medianCdNm: number | null | undefined): NominalCd =>
+  typeof medianCdNm === 'number' && medianCdNm > 0
+    ? { nm: medianCdNm, assumed: false }
+    : { nm: MONITOR_WAFER_CD_NM, assumed: true }
+
+/**
+ * A skew expressed as a fraction of its own cell's action limit — 1.0 sits
+ * exactly on the limit.
+ *
+ * This is the index that makes recipes at different pattern sizes comparable:
+ * 0.24 nm is alarming at a 15 nm CD (1.6x the limit) and unremarkable at 68 nm
+ * (0.35x), so raw nanometres cannot be ranked across recipes at all. Combining
+ * several recipes means taking the WORST fraction, not the largest nm.
+ *
+ * Caveat worth keeping in view: the 1% ratio is fab policy for ONE TOOL against
+ * consensus. Applying it to a pairwise skew is our extension — which is why
+ * this returns an index to rank by, and the screens do not paint a pair red for
+ * crossing 1.0 the way FleetStatus does for a single tool.
+ */
+export const fractionOfLimit = (skewNm: number, nominalCdNm: number) =>
+  skewNm / actionLimitNm(nominalCdNm)
+
 /**
  * ±0.05 nm — the self-ABBA measurement uncertainty reported by Kawada 2009,
  * whose authors are our tool vendor (Hitachi High-Tech).

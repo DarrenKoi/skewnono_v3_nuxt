@@ -61,8 +61,49 @@ def _assert_matrix(block, label: str) -> None:
             )
 
 
+def _band_bounds(band: str) -> tuple[float, float]:
+    """(low, high) in nm for a `cd_band` label. High is exclusive."""
+    if band.startswith("<"):
+        return 0.0, float(band[1:])
+    if band.startswith(">="):
+        return float(band[2:]), float("inf")
+    low, _, high = band.partition("-")
+    return float(low), float(high)
+
+
 def test_tttm_check_matches_contract():
     assert_matches(_payload(), TttmCheckPayload)
+
+
+def test_median_cd_agrees_with_the_band_it_is_filed_under():
+    # Provider-independent cross-field law. `cd_band` buckets the cell and
+    # `median_cd_nm` is the median of the same rows, so a median outside its own
+    # band means the two were computed over different row sets — which is
+    # exactly the mistake an office adapter makes when it takes the band from
+    # one frame and the CD from another.
+    #
+    # It matters because the CD, not the band, sets the PM/BM action limit
+    # (1% of CD). A cell mis-filed by band still renders, just against a limit
+    # drawn for the wrong pattern size, so nothing looks broken.
+    payload = _payload()
+    for cell in payload["occupied_cells"]:
+        median = cell["median_cd_nm"]
+        if median is None:
+            continue  # nullable by contract: no CD came back with the stats
+        low, high = _band_bounds(cell["cd_band"])
+        assert median > 0, f"{cell['cell_id']}: a CD must be positive"
+        assert low <= median < high, (
+            f"{cell['cell_id']}: median_cd_nm {median} is outside its "
+            f"cd_band {cell['cd_band']}"
+        )
+
+
+def test_fleet_today_median_cd_is_positive_when_present():
+    # The frontend divides by 1% of this to normalise skew, so a zero or
+    # negative CD produces an infinite or inverted limit rather than an error.
+    median = _payload()["fleet_today"]["median_cd_nm"]
+    if median is not None:
+        assert median > 0
 
 
 def test_current_tolerance_sits_inside_its_own_range():

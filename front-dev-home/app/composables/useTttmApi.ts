@@ -8,6 +8,8 @@ export interface SkewCondition {
   beam_condition: string
   axis: 'X' | 'Y'
   cd_band: string
+  /** Median measured CD (nm) behind this cell; null when none came back. */
+  median_cd_nm: number | null
   mdc_epoch: string
   tier: Tier
   confidence: Confidence
@@ -25,6 +27,8 @@ export interface ProductionCorroboration {
 export interface FleetToday {
   matrix: SkewMatrix
   consensus_deviation: { eqp_id: string, deviation: number }[]
+  /** Median measured CD (nm) behind today's fleet numbers; null when unknown. */
+  median_cd_nm: number | null
 }
 
 export interface TrendPoint { eqp_id: string, date: string, skew: number }

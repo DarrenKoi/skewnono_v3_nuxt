@@ -39,6 +39,7 @@
       "beam_condition": "BC1",
       "axis": "X",
       "cd_band": "25-50",
+      "median_cd_nm": 32.4,
       "mdc_epoch": "e7",
       "tier": "direct",
       "confidence": "High",
@@ -96,6 +97,7 @@
       "beam_condition": "BC1",
       "axis": "Y",
       "cd_band": "25-50",
+      "median_cd_nm": 31.8,
       "mdc_epoch": "e7",
       "tier": "direct",
       "confidence": "High",
@@ -153,6 +155,7 @@
       "beam_condition": "BC2",
       "axis": "X",
       "cd_band": "50-100",
+      "median_cd_nm": 68.0,
       "mdc_epoch": "e7",
       "tier": "predicted",
       "confidence": "Low",
@@ -294,7 +297,8 @@
         "eqp_id": "EQP05",
         "deviation": -0.13
       }
-    ]
+    ],
+    "median_cd_nm": 15.1
   },
   "trend": [
     {

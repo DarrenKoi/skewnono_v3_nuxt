@@ -21,6 +21,17 @@ them by accident:
 - **EQP05's row is entirely null in `bc2-X-50-100-e7`.** That is the
   "no overlapping measurement" case the frontend must not place on the fleet
   map; see `utils/fleetMap.ts`.
+- **The three cells sit at three different CDs** (32.4 / 31.8 / 68.0 nm), and
+  `bc2` is in a different `cd_band` from the other two on purpose. The PM/BM
+  limit is 1% of CD, so those cells carry limits of 0.324 / 0.318 / 0.680 nm —
+  spread wide enough that a screen quietly reusing one absolute limit is
+  visibly wrong rather than plausibly close.
+- **The over-tolerance pair is still INSIDE its own PM/BM limit.** EQP01↔EQP05
+  at 0.24 nm exceeds the 0.20 nm tolerance ceiling but sits under that cell's
+  0.318 nm action limit. The contrast is the point: the tolerance knob is a
+  matching goal for N배화, the action limit is fab policy about one tool
+  against consensus, and a fixture at smaller CDs would teach them as one
+  number.
 
 OFFICE-VERIFY: every number here is fabricated. Real pairwise skew magnitudes
 and the true spread across cells are unknown until an office run — item 3 of
@@ -30,9 +41,11 @@ and the true spread across cells are unknown until an office run — item 3 of
 management limit — a tool outside it goes to PM/BM (user-confirmed 2026-08-16).
 The widest here is EQP05 at -0.13, so the demo fleet is "all in spec, but one
 tool is close to the edge" rather than "one tool already needs PM". The
-frontend draws that limit from `utils/tttmLimits.ts`; if these values are ever
-pushed past it, the screen turns that tool red and says PM/BM, so move them
-knowing what you are asserting.
+frontend derives that limit as 1% of `fleet_today.median_cd_nm` (15.1 nm here,
+the monitor wafer → 0.151 nm) rather than from a constant, so **raising the
+fleet CD raises the limit too**. If these deviations are ever pushed past it,
+the screen turns that tool red and says PM/BM, so move them knowing what you
+are asserting — and if you move the CD instead, you have moved the line.
 
 OFFICE-VERIFY: `consensus` is assumed to be the **median** (the fab states the
 rule against a median). The office adapter must not use a mean — one drifted
@@ -65,7 +78,11 @@ def _empty_payload(tool_slug: str, fab_name: str, recipe_id: str | None) -> Tttm
         "tolerance_range": {"min": 0.01, "max": 0.2, "step": 0.005},
         "occupied_cells": [],
         "production_corroboration": {"level": "low", "note": "TTTM 미반영", "detail": []},
-        "fleet_today": {"matrix": {"tools": [], "values": []}, "consensus_deviation": []},
+        "fleet_today": {
+            "matrix": {"tools": [], "values": []},
+            "consensus_deviation": [],
+            "median_cd_nm": None,
+        },
         "trend": [],
         "epoch_markers": [],
         "mdc_history": [],

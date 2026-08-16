@@ -33,6 +33,20 @@ class CellSkew(TypedDict):
     beam_condition: str
     axis: Axis
     cd_band: str  # one of "<25" | "25-50" | "50-100" | "100-200" | ">=200"
+    # Median measured CD (nm) over the MSR rows this cell was built from, or
+    # None when no CD came back with the skew statistics.
+    #
+    # This is the field that makes cells at different pattern sizes comparable.
+    # The fab's tool-management limit is a RATIO of CD (1% — the familiar
+    # ±0.15 nm is that ratio at the 15 nm monitor wafer), so a screen drawing
+    # one absolute nm line across every cell is wrong by the CD ratio, roughly
+    # 4x too strict in the 50-100 band. `cd_band` cannot stand in for it: a
+    # band is a bucket, and 50-100 alone spans a 2x range of limits.
+    #
+    # Must fall inside `cd_band` when both are present — tests/test_contract.py
+    # enforces that, because a median outside its own band means the two were
+    # derived from different row sets.
+    median_cd_nm: float | None
     mdc_epoch: str
     tier: Tier
     confidence: Confidence
@@ -60,6 +74,14 @@ class ConsensusDeviation(TypedDict):
 class FleetToday(TypedDict):
     matrix: SkewMatrixBlock
     consensus_deviation: list[ConsensusDeviation]
+    # Median measured CD (nm) behind today's fleet numbers, or None if unknown.
+    #
+    # Unlike `CellSkew.median_cd_nm` this is a whole-fleet aggregate, so it only
+    # means anything when today's measurements sit at one pattern size — which
+    # is the normal case, because the daily fleet check runs the monitor wafer.
+    # That is also where ±0.15 nm comes from: 1% of a ~15 nm CD. Under a recipe
+    # filter it becomes that recipe's CD, and the PM/BM line moves with it.
+    median_cd_nm: float | None
 
 
 class TrendPoint(TypedDict):

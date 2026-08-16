@@ -44,8 +44,14 @@
     <p class="mt-2 text-[11px] text-(--sk-ink-subtle)">
       잔차 = tool − consensus(중앙값). 0 = 장비 그룹 합의와 일치.
       <span :style="{ color: 'var(--sk-bad)' }">빨간 선 ±{{ actionLimit.toFixed(2) }} nm</span>
-      = 이 밖으로 나가면 PM/BM 대상입니다 (CD {{ MONITOR_WAFER_CD_NM }} nm 모니터 기준 ·
-      기준은 CD의 {{ (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0) }}%라 패턴이 크면 한계도 커집니다).
+      = 이 밖으로 나가면 PM/BM 대상입니다 (기준은 CD의
+      {{ (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0) }}%이며,
+      <template v-if="cd.assumed">
+        이 데이터에는 CD가 없어 모니터 wafer {{ cd.nm }} nm 를 가정했습니다
+      </template>
+      <template v-else>
+        측정 CD 중앙값 {{ cd.nm.toFixed(1) }} nm 기준입니다
+      </template>).
       안쪽 옅은 선
       ±{{ MEASUREMENT_FLOOR_NM.toFixed(2) }} nm 는 시험 자체의 불확도라,
       그보다 작은 차이는 구별 불가입니다.
@@ -55,17 +61,18 @@
 
 <script setup lang="ts">
 import { toolLabels } from '~/utils/toolLabels'
-import { actionLimitNm, MONITOR_WAFER_CD_NM, PM_BM_ACTION_LIMIT_RATIO, MEASUREMENT_FLOOR_NM } from '~/utils/tttmLimits'
+import { actionLimitNm, resolveNominalCd, PM_BM_ACTION_LIMIT_RATIO, MEASUREMENT_FLOOR_NM } from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
 
-// INTERIM: the action limit is 1% of CD, but `fleet_today` carries no CD, so
-// this assumes the monitor wafer (15 nm → 0.15 nm) — the CD the rule was quoted
-// at. It is right for the monitor wafer and too strict for anything larger.
-// Correct fix is a nominal CD in the contract; until then the caption says
-// which CD the line is drawn for rather than implying it is universal.
-const actionLimit = computed(() => actionLimitNm(MONITOR_WAFER_CD_NM))
+// The action limit is 1% of the CD actually measured, so this line moves with
+// the recipe rather than sitting at a fixed 0.15 nm. `median_cd_nm` is nullable
+// by contract; when it is null we fall back to the monitor wafer and the
+// caption below says so, because a drawn-but-assumed limit that reads as
+// measured is the failure this replaced.
+const cd = computed(() => resolveNominalCd(props.fleet.median_cd_nm))
+const actionLimit = computed(() => actionLimitNm(cd.value.nm))
 
 // Rebuilt when the payload swaps the fleet; destructuring at setup would pin
 // the first fab's labels for the life of the component.
