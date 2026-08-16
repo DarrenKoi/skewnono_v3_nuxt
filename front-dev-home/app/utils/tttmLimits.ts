@@ -86,9 +86,46 @@ export const resolveNominalCd = (medianCdNm: number | null | undefined): Nominal
  * consensus. Applying it to a pairwise skew is our extension — which is why
  * this returns an index to rank by, and the screens do not paint a pair red for
  * crossing 1.0 the way FleetStatus does for a single tool.
+ *
+ * That caveat is a naming rule too. Pairwise surfaces say "CD 대비 N×" and must
+ * NOT say 한계 (limit): PairMatrix said 한계 for one commit, which asserted a
+ * pairwise threshold the fab never stated. 한계 belongs to FleetStatus alone,
+ * where the rule really is one tool against consensus.
  */
 export const fractionOfLimit = (skewNm: number, nominalCdNm: number) =>
   skewNm / actionLimitNm(nominalCdNm)
+
+/**
+ * The worst pair in a skew matrix, as a CD-normalised index. `null` when the
+ * matrix has no measured pair at all.
+ *
+ * This is the ranking key. A cell's severity is its WORST pair, not its
+ * average: a group is only as matched as its loosest member, so averaging
+ * would let one bad pair hide behind four good ones.
+ *
+ * The same reduction is what combines several recipes later — each recipe
+ * reduces to its worst normalised pair, then the recipes reduce by max. That
+ * is why this takes a matrix rather than living inside the component: the
+ * recipe-level version is this function applied one level up.
+ *
+ * Reads the upper triangle only. The matrix is symmetric by contract, so
+ * scanning both halves would double the work to reach the same maximum.
+ */
+export const worstFractionOfLimit = (
+  values: (number | null)[][],
+  nominalCdNm: number
+): number | null => {
+  let worst: number | null = null
+  for (let row = 0; row < values.length; row++) {
+    for (let col = row + 1; col < (values[row]?.length ?? 0); col++) {
+      const skew = values[row]?.[col]
+      if (typeof skew !== 'number') continue // null = pair not TTTM-able
+      const index = fractionOfLimit(skew, nominalCdNm)
+      if (worst === null || index > worst) worst = index
+    }
+  }
+  return worst
+}
 
 /**
  * ±0.05 nm — the self-ABBA measurement uncertainty reported by Kawada 2009,

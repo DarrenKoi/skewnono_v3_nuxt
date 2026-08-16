@@ -1,11 +1,24 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-5 space-y-5">
-    <p class="text-xs text-(--sk-ink-subtle)">
-      장비쌍 스큐 행렬 (TTTM 근거 · 셀별)
-    </p>
+    <div class="space-y-1">
+      <p class="text-xs text-(--sk-ink-subtle)">
+        장비쌍 스큐 행렬 (TTTM 근거 · 셀별)
+      </p>
+      <p class="text-[11px] text-(--sk-ink-subtle)">
+        셀은 <strong>CD 대비 지수</strong>가 큰 순서로 정렬했습니다. 지수는
+        해당 셀 최악 장비쌍의 스큐를 그 셀 CD의
+        {{ (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0) }}%로 나눈 값이라,
+        패턴 크기가 다른 셀끼리도 비교할 수 있습니다 — nm 값만으로는 비교가
+        되지 않습니다. 합격/불합격 선은 위의 tolerance 이며,
+        <strong>이 지수는 순위를 매길 뿐 판정하지 않습니다</strong>
+        (CD의 {{ (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0) }}% 규칙은 장비
+        1대를 consensus 와 비교하는 공장 기준이고, 장비쌍에 적용하는 것은
+        아직 확인되지 않은 확장입니다).
+      </p>
+    </div>
 
     <div
-      v-for="cell in cells"
+      v-for="cell in rankedCells"
       :key="cell.cell_id"
       class="space-y-2"
     >
@@ -15,14 +28,21 @@
           class="px-1.5 py-0.5 rounded text-xs"
           :style="tierStyle(cell.tier)"
         >{{ cell.tier === 'direct' ? '직접' : '예측' }} · {{ cell.confidence }}</span>
-        <!-- The measured CD, because it is what sets this cell's PM/BM limit.
-             Two cells in the same cd_band can still carry limits 2x apart. -->
+        <!-- The measured CD and this cell's rank index. NOT labelled 한계
+             (limit): the CD ratio is the fab's rule for one tool against
+             consensus, so calling the pairwise number a limit would assert
+             something the fab never said. It is stated as an index, in the
+             units it actually has — a multiple of CD's 1%. -->
         <span class="text-xs text-(--sk-ink-muted)">
-          <template v-if="cell.median_cd_nm">
-            CD {{ cell.median_cd_nm.toFixed(1) }} nm · 한계 {{ limitOf(cell).toFixed(3) }} nm
-          </template>
-          <template v-else>CD 미상 · 모니터 wafer 가정</template>
+          <template v-if="cell.median_cd_nm">CD {{ cell.median_cd_nm.toFixed(1) }} nm</template>
+          <template v-else>CD 미상 · 모니터 wafer {{ MONITOR_WAFER_CD_NM }} nm 가정</template>
         </span>
+        <span
+          v-if="indexOf(cell) !== null"
+          class="px-1.5 py-0.5 rounded text-xs tabular-nums"
+          :style="{ background: 'var(--sk-muted-surface)', color: 'var(--sk-ink-muted)' }"
+          :title="`이 셀 최악 장비쌍 ÷ (CD의 ${(PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0)}%)`"
+        >CD 대비 {{ indexOf(cell)!.toFixed(2) }}×</span>
         <span
           v-for="l in cell.labels"
           :key="l"
@@ -71,7 +91,13 @@
 
 <script setup lang="ts">
 import { toolLabels } from '~/utils/toolLabels'
-import { actionLimitNm, fractionOfLimit, resolveNominalCd } from '~/utils/tttmLimits'
+import {
+  fractionOfLimit,
+  worstFractionOfLimit,
+  resolveNominalCd,
+  MONITOR_WAFER_CD_NM,
+  PM_BM_ACTION_LIMIT_RATIO
+} from '~/utils/tttmLimits'
 import type { SkewCondition, ToolRef } from '~/composables/useTttmApi'
 import type { SkewMatrix } from '~/utils/tttmGrouping'
 
@@ -99,8 +125,22 @@ const cellStyle = (v: number | null, i: number, j: number) => {
     : { background: 'var(--sk-bad-soft)', color: 'var(--sk-bad)' }
 }
 
-// This cell's PM/BM action limit, from the CD actually measured in it.
-const limitOf = (cell: SkewCondition) => actionLimitNm(resolveNominalCd(cell.median_cd_nm).nm)
+// This cell's CD-normalised severity: its worst pair over the cell's own CD
+// ratio. null when the cell has no measured pair to rank on.
+const indexOf = (cell: SkewCondition) =>
+  worstFractionOfLimit(matrixOf(cell).values, resolveNominalCd(cell.median_cd_nm).nm)
+
+// THE ranking. Cells are shown worst-first by the CD-normalised index, not by
+// raw nm and not in payload order — which is the whole point of carrying a CD:
+// a 0.13 nm pair at a 68 nm CD outranks nothing, while the same 0.13 nm on the
+// monitor wafer is most of the way to the fab's limit. Sorting by nm would put
+// them in the wrong order and sorting by payload order ignores severity.
+//
+// Cells with no measured pair sort last: they carry no evidence, so they
+// cannot be "better" than a cell that does.
+const rankedCells = computed(() =>
+  [...props.cells].sort((a, b) => (indexOf(b) ?? -1) - (indexOf(a) ?? -1))
+)
 
 const pairTitle = (cell: SkewCondition, i: number, j: number, v: number | null) => {
   if (i === j || v === null) return ''
@@ -108,10 +148,11 @@ const pairTitle = (cell: SkewCondition, i: number, j: number, v: number | null) 
   const state = v <= props.tolerance ? 'TTTM' : 'tolerance 초과'
   // The fraction is what ranks pairs ACROSS cells: 0.24 nm at a 15 nm CD and
   // 0.24 nm at 68 nm are the same nanometres and nowhere near the same problem.
+  // Named "CD 대비", never "한계 대비" — see the header comment.
   const cd = resolveNominalCd(cell.median_cd_nm)
   const index = fractionOfLimit(v, cd.nm)
-  const basis = cd.assumed ? ' · CD 가정' : ''
+  const basis = cd.assumed ? ' · CD 가정값' : ''
   return `${m.tools[i]} · ${m.tools[j]} = ${v.toFixed(3)} nm (${state})`
-    + ` · 한계 대비 ${index.toFixed(2)}배${basis}`
+    + ` · CD 대비 ${index.toFixed(2)}×${basis}`
 }
 </script>

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   actionLimitNm,
   fractionOfLimit,
+  worstFractionOfLimit,
   resolveNominalCd,
   MONITOR_WAFER_CD_NM,
   PM_BM_ACTION_LIMIT_RATIO
@@ -74,4 +75,72 @@ test('fractionOfLimit: combining recipes means the worst fraction, not the large
   )
   assert.equal(worstByNm.skewNm, 0.5)
   assert.equal(worstByIndex.skewNm, 0.2)
+})
+
+// --- worstFractionOfLimit: the ranking key -----------------------------------
+
+const symmetric = (upper: Record<string, number | null>, n: number) => {
+  const values: (number | null)[][] = Array.from({ length: n }, () =>
+    Array.from({ length: n }, () => null as number | null)
+  )
+  for (let i = 0; i < n; i++) values[i]![i] = 0
+  for (const [key, v] of Object.entries(upper)) {
+    const [i, j] = key.split('-').map(Number) as [number, number]
+    values[i]![j] = v
+    values[j]![i] = v
+  }
+  return values
+}
+
+test('worstFractionOfLimit: takes the worst pair, not the average', () => {
+  // A group is only as matched as its loosest pair. Averaging would let the
+  // one bad pair hide behind the three good ones and rank this cell as clean.
+  const values = symmetric({ '0-1': 0.02, '0-2': 0.02, '1-2': 0.30 }, 3)
+  const worst = worstFractionOfLimit(values, 15)
+  assert.equal(worst, fractionOfLimit(0.30, 15))
+  assert.ok(worst! > 1)
+})
+
+test('worstFractionOfLimit: skips null pairs rather than scoring them as zero', () => {
+  // null means "this pair has no shared data", not "these tools match
+  // perfectly". Treating it as 0 would rank an unmeasured cell as the best one.
+  const values = symmetric({ '0-1': null, '0-2': 0.08, '1-2': null }, 3)
+  assert.equal(worstFractionOfLimit(values, 15), fractionOfLimit(0.08, 15))
+})
+
+test('worstFractionOfLimit: a matrix with no measured pair is null, not 0', () => {
+  assert.equal(worstFractionOfLimit(symmetric({ '0-1': null }, 2), 15), null)
+  assert.equal(worstFractionOfLimit([], 15), null)
+})
+
+test('worstFractionOfLimit: ranks cells that raw nm ranks backwards', () => {
+  // The finding this whole change exists for. The 68 nm cell has the LARGER
+  // skew in nanometres and the SMALLER problem, so a nm-ordered list shows the
+  // wrong cell first.
+  const monitor = symmetric({ '0-1': 0.13 }, 2)
+  const largePattern = symmetric({ '0-1': 0.30 }, 2)
+
+  const monitorIndex = worstFractionOfLimit(monitor, 15)!
+  const largeIndex = worstFractionOfLimit(largePattern, 68)!
+
+  assert.ok(0.13 < 0.30, 'raw nm puts the large-pattern cell first')
+  assert.ok(monitorIndex > largeIndex, 'the index puts the monitor cell first')
+
+  const ranked = [
+    { cd: 68, values: largePattern },
+    { cd: 15, values: monitor }
+  ].sort((a, b) =>
+    (worstFractionOfLimit(b.values, b.cd) ?? -1) - (worstFractionOfLimit(a.values, a.cd) ?? -1)
+  )
+  assert.equal(ranked[0]!.cd, 15)
+})
+
+test('worstFractionOfLimit: unmeasured cells sort last under the ranking rule', () => {
+  // The -1 sentinel PairMatrix uses: a cell carrying no evidence must not
+  // outrank a cell that does merely because its index is null.
+  const cells = [
+    { id: 'empty', index: worstFractionOfLimit(symmetric({ '0-1': null }, 2), 15) },
+    { id: 'measured', index: worstFractionOfLimit(symmetric({ '0-1': 0.01 }, 2), 15) }
+  ].sort((a, b) => (b.index ?? -1) - (a.index ?? -1))
+  assert.deepEqual(cells.map(c => c.id), ['measured', 'empty'])
 })
