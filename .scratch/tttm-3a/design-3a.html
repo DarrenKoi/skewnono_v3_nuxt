@@ -1,0 +1,269 @@
+<!-- SPEC: TTTM 개선안 3a — 장비간 스큐 관리 최종안.
+     Source: claude.ai/design project cad32336, file "TTTM 개선안.dc.html", section "Turn 3".
+     This is the design of record for the /ebeam/cd-sem/<fab>/tttm page.
+     CSS custom properties here map 1:1 onto the repo's --sk-* tokens
+     (--surface -> --sk-surface, --ink-muted -> --sk-ink-muted, --r-card -> --sk-r-card, ...).
+     Fixed pixel widths are the design's 1440px canvas; the repo renders them responsively. -->
+<section data-screen-label="Turn 3" style="--canvas:oklch(0.96 0.012 80);--surface:oklch(0.99 0.006 80);--muted:oklch(0.97 0.01 80);--border:oklch(0.91 0.014 80);--border-soft:oklch(0.94 0.01 80);--nav-bg:oklch(0.97 0.01 80 / 0.82);--nav-border:oklch(0.90 0.014 80);--ink:#15110D;--ink-fg:#F8F4EC;--ink-muted:oklch(0.47 0.014 60);--ink-subtle:oklch(0.66 0.012 70);--brand:#C75A3C;--brand-fg:#FFF7F1;--brand-soft:#F3DCD2;--brand-ink:#8A3D27;--accent:oklch(0.58 0.13 35);--accent-soft:oklch(0.95 0.025 60);--accent-tint:oklch(0.58 0.13 35 / 0.06);--ok:oklch(0.62 0.13 145);--ok-soft:oklch(0.94 0.05 145);--bad:oklch(0.58 0.18 28);--bad-soft:oklch(0.94 0.04 30);--bad-tint:oklch(0.58 0.18 28 / 0.06);--warn:oklch(0.70 0.15 75);--warn-soft:oklch(0.94 0.06 85);--paper:0 1px 0 rgba(0,0,0,.02), 0 8px 22px -18px rgba(0,0,0,.18);--r-sidebar:6px;--r-chip:8px;--r-nav:10px;--r-card:14px;font-family:'Spoqa Han Sans Neo','Public Sans','Apple SD Gothic Neo','Malgun Gothic','Segoe UI',sans-serif;color:var(--ink);padding:40px 44px 36px;border-bottom:1px solid rgba(0,0,0,.08)">
+
+  <div style="display:flex;align-items:baseline;gap:10px;margin:0 0 6px">
+    <a href="#t3" style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;padding:3px 7px;background:var(--ink);color:var(--ink-fg);border-radius:4px">3</a>
+    <span style="font-size:13px;font-weight:600">완성본 — <a href="#1b">1b</a> 컨트롤 레일 + <a href="#2a">2a</a> 그룹 드롭다운, 앱 셸 포함</span>
+  </div>
+  <p style="margin:0 0 22px;font-size:12px;line-height:1.5;color:rgba(0,0,0,.5);max-width:900px">R3 CD-SEM 18대 중 5대 선택(HCDX392 포함) 상태. 레일은 조작만, 오른쪽은 결과만 담고, 근거는 위에서 아래로 판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로 한 번씩만 나옵니다.</p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+  <div id="3a" style="flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px">
+    <div style="display:flex;align-items:baseline;gap:8px;font-size:11px;color:rgba(0,0,0,.55)">
+      <a href="#3a" style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;padding:3px 7px;background:rgba(0,0,0,.08);color:var(--ink);border-radius:5px">3a</a>
+      장비간 스큐 관리 · 최종안
+    </div>
+    <div style="width:1440px;background:var(--surface);border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden">
+
+      <header style="display:flex;align-items:center;gap:16px;height:64px;padding:0 24px;background:var(--nav-bg);border-bottom:1px solid var(--nav-border)">
+        <div style="display:flex;align-items:center;gap:12px;flex:none">
+          <svg width="36" height="36" viewBox="0 0 32 32" shape-rendering="geometricPrecision" aria-hidden="true"><rect width="32" height="32" rx="5" fill="#FAFAFA"/><rect x="0.8" y="0.8" width="30.4" height="30.4" rx="4.5" fill="none" stroke="#18181B" stroke-width="1.6"/><line x1="9" y1="24" x2="18" y2="8" stroke="#18181B" stroke-width="3.2" stroke-linecap="square"/><line x1="16" y1="24" x2="25" y2="8" stroke="var(--accent)" stroke-width="3.2" stroke-linecap="square"/></svg>
+          <span style="font-size:18px;font-weight:600;letter-spacing:-0.01em">SKEWNONO</span>
+        </div>
+        <nav aria-label="Feature navigation" style="display:flex;gap:4px">
+          <a href="#3a" style="padding:6px 12px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);white-space:nowrap">장비 상태</a>
+          <a href="#3a" style="padding:6px 12px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);white-space:nowrap">Recipe 현황</a>
+          <a href="#3a" style="padding:6px 12px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);white-space:nowrap">Recipe 검색</a>
+          <a href="#3a" style="padding:6px 12px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);white-space:nowrap">H/W 관리</a>
+          <a href="#3a" style="padding:6px 12px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);white-space:nowrap">디바이스 통계</a>
+          <a href="#3a" style="padding:6px 12px;font-size:13px;font-weight:600;border:1px solid var(--ink);border-radius:var(--r-nav);background:var(--ink);color:var(--ink-fg);box-shadow:inset 0 -2px 0 0 var(--accent);white-space:nowrap">TTTM</a>
+          <a href="#3a" style="padding:6px 12px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);white-space:nowrap">스큐보아</a>
+        </nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+          <span style="padding:6px 12px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);white-space:nowrap">실험실</span>
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:5px 10px 5px 5px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--r-nav);color:var(--ink-muted);box-shadow:inset 0 -2px 0 0 var(--accent);white-space:nowrap"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--ink);color:var(--ink-fg);font-size:11px;font-weight:700">DK</span>계정</span>
+        </div>
+      </header>
+
+      <div style="display:flex;gap:20px;padding-right:32px;background:var(--canvas)">
+        <aside style="width:64px;flex:none;margin:16px 0 16px 20px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card);overflow:hidden;display:flex;flex-direction:column;align-self:flex-start">
+          <div style="padding:10px 8px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:center;color:var(--ink-muted)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></div>
+          <nav style="padding:6px;display:flex;flex-direction:column;gap:4px">
+            <button type="button" aria-pressed="true" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:var(--ink);color:var(--ink-fg);font-size:11px;font-weight:600;font-family:inherit;box-shadow:inset 2px 0 0 0 var(--accent)">CD</button>
+            <button type="button" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:transparent;color:var(--ink-muted);font-size:11px;font-weight:600;font-family:inherit">HV</button>
+            <button type="button" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:transparent;color:var(--ink-subtle);font-size:11px;font-weight:600;font-family:inherit">VS</button>
+            <button type="button" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:transparent;color:var(--ink-subtle);font-size:11px;font-weight:600;font-family:inherit">PR</button>
+          </nav>
+          <div style="border-top:1px solid var(--border-soft)"></div>
+          <nav style="padding:6px;display:flex;flex-direction:column;gap:4px">
+            <button type="button" aria-pressed="true" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:var(--ink);color:var(--ink-fg);font-size:11px;font-weight:600;font-family:inherit;box-shadow:inset 2px 0 0 0 var(--accent)">R3</button>
+            <button type="button" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:transparent;color:var(--ink-muted);font-size:11px;font-weight:600;font-family:inherit">R4</button>
+            <button type="button" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:transparent;color:var(--ink-muted);font-size:11px;font-weight:600;font-family:inherit">M14A</button>
+            <button type="button" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:transparent;color:var(--ink-muted);font-size:11px;font-weight:600;font-family:inherit">M16A</button>
+            <button type="button" style="border:0;padding:8px 0;border-radius:var(--r-sidebar);background:transparent;color:var(--ink-muted);font-size:11px;font-weight:600;font-family:inherit">M16B</button>
+          </nav>
+        </aside>
+
+        <main style="flex:1;min-width:0;padding:24px 0 32px;display:flex;flex-direction:column;gap:12px">
+
+          <div style="display:flex;align-items:stretch;padding:6px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+            <div style="flex:none;display:flex;flex-direction:column;justify-content:center;padding:6px 16px 6px 12px">
+              <p style="margin:0;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)">CD-SEM · R3</p>
+              <h1 style="margin:0;font-size:18px;font-weight:800;line-height:1.25;letter-spacing:-0.01em;white-space:nowrap">장비간 스큐 관리</h1>
+            </div>
+            <p style="display:flex;align-items:center;flex:1;min-width:0;margin:0;padding:0 16px;font-size:12px;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Recipe가 점유하는 셀에서 서로 잘 맞는(N배화) 측정 장비 조합을 추천합니다.</p>
+            <div style="display:flex;align-items:center;gap:8px;padding-right:4px">
+              <div style="display:inline-flex;align-items:stretch">
+                <div style="display:flex;flex-direction:column;justify-content:center;padding:2px 16px;border-left:1px solid var(--border-soft);border-right:1px solid var(--border-soft)">
+                  <span style="font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-0.02em;font-variant-numeric:tabular-nums">5</span>
+                  <span style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)">선택 장비</span>
+                </div>
+                <div style="display:flex;flex-direction:column;justify-content:center;padding:2px 16px;border-right:1px solid var(--border-soft)">
+                  <span style="font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-0.02em;font-variant-numeric:tabular-nums">4</span>
+                  <span style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)">점유 셀</span>
+                </div>
+                <div style="display:flex;flex-direction:column;justify-content:center;padding:2px 16px;border-right:1px solid var(--border-soft)">
+                  <span style="font-size:24px;font-weight:700;line-height:1.05;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:var(--ok)">4</span>
+                  <span style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)">N배화</span>
+                </div>
+              </div>
+              <div style="display:inline-flex;align-items:center;gap:8px;padding:5px 10px 5px 8px;border-radius:var(--r-nav);border:1px solid var(--border-soft);background:var(--muted)">
+                <span style="width:8px;height:8px;border-radius:9999px;background:var(--accent)"></span>
+                <span style="display:flex;flex-direction:column;line-height:1.15"><span style="font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">데이터 기준</span><span style="font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap">2026-05-31 14:30 · <span style="color:var(--accent)">1주 윈도우</span></span></span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;align-items:flex-start">
+
+            <div style="width:392px;flex:none;display:flex;flex-direction:column;gap:12px">
+              <div style="padding:16px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+                <p style="margin:0;font-size:16px;font-weight:700">비교 범위</p>
+                <p style="margin:4px 0 0;font-size:14px;color:var(--ink-muted)">고른 장비와 recipe 로 다시 계산합니다. 이 설정은 이 브라우저에 저장됩니다.</p>
+
+                <p style="margin:16px 0 6px;font-size:11px;font-weight:600;color:var(--ink-muted)">장비 · 모델 그룹</p>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <button type="button" aria-expanded="false" style="display:flex;align-items:center;gap:8px;width:100%;white-space:nowrap;height:36px;padding:0 10px 0 12px;border:1px solid var(--brand);border-radius:var(--r-chip);background:var(--brand);color:var(--brand-fg);font-family:inherit;font-size:14px;font-weight:600">CG6300<span style="font-family:'JetBrains Mono',monospace;font-size:13px;opacity:.85">2/7</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="m6 9 6 6 6-6"/></svg></button>
+                  <button type="button" aria-expanded="false" style="display:flex;align-items:center;gap:8px;width:100%;white-space:nowrap;height:36px;padding:0 10px 0 12px;border:1px solid var(--brand);border-radius:var(--r-chip);background:var(--brand);color:var(--brand-fg);font-family:inherit;font-size:14px;font-weight:600">CG6340<span style="font-family:'JetBrains Mono',monospace;font-size:13px;opacity:.85">2/6</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="m6 9 6 6 6-6"/></svg></button>
+                  <button type="button" aria-expanded="false" style="display:flex;align-items:center;gap:8px;width:100%;white-space:nowrap;height:36px;padding:0 10px 0 12px;border:1px solid var(--brand);border-radius:var(--r-chip);background:var(--brand);color:var(--brand-fg);font-family:inherit;font-size:14px;font-weight:600">GT2000<span style="font-family:'JetBrains Mono',monospace;font-size:13px;opacity:.85">1/5</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="m6 9 6 6 6-6"/></svg></button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+                  <span style="font-size:13px;color:var(--ink-subtle)">18대 중 5대 선택</span>
+                  <button type="button" style="margin-left:auto;border:0;background:none;padding:0;font-family:inherit;font-size:13px;color:var(--ink-muted);text-decoration:underline;text-underline-offset:2px">기본값으로</button>
+                </div>
+
+                <p style="margin:18px 0 6px;font-size:11px;font-weight:600;color:var(--ink-muted)">RECIPE</p>
+                <span style="display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border:1px solid var(--border);border-radius:var(--r-nav);overflow:hidden">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink-muted)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  <span style="font-size:14px;color:var(--ink-subtle);white-space:nowrap">recipe 이름 검색 — 비우면 전체</span>
+                  <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-subtle);white-space:nowrap">50,412건</span>
+                </span>
+
+                <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border-soft)">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between">
+                    <span style="font-size:11px;font-weight:600;color:var(--ink-muted)">TOLERANCE</span>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums">0.050 nm · 0.33×</span>
+                  </div>
+                  <input type="range" min="0.01" max="0.2" step="0.005" value="0.05" style="width:100%;margin-top:8px;accent-color:var(--brand)" />
+                  <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-subtle)"><span>0.01</span><span>0.20</span></div>
+                  <p style="margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--ink-muted)">모니터 wafer 15.1 nm 기준.
+                    <details style="display:inline"><summary style="display:inline;color:var(--accent)">자세히</summary><span style="display:block;margin-top:6px;color:var(--ink-subtle)">N배화 판정은 셀마다 그 셀의 CD로 환산해서 적용하므로, 패턴이 크면 허용치도 같은 비율로 넓어집니다 — 예: CD 68 nm 셀에서는 0.225 nm.</span></details>
+                  </p>
+                </div>
+              </div>
+
+              <div style="padding:14px 16px;border:1px solid var(--border);background:var(--muted);border-radius:var(--r-card)">
+                <p style="margin:0;font-size:13px;font-weight:600">이 설정에서</p>
+                <p style="margin:6px 0 0;font-size:13px;line-height:1.6;color:var(--ink-muted)">점유 셀 4개 · 불합격 장비쌍 4쌍 · 최악 0.240 nm (BC1·Y)</p>
+              </div>
+            </div>
+
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+
+              <div style="display:flex;gap:12px;align-items:stretch">
+                <div style="flex:1;min-width:0;padding:18px 22px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+                  <p style="margin:0;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)">1차 추천 · 최대 N배화</p>
+                  <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px">
+                    <span style="font-size:36px;font-weight:700;line-height:1;letter-spacing:-0.02em;font-variant-numeric:tabular-nums">4대</span>
+                    <span style="font-size:16px;font-weight:600;color:var(--ink-muted)">가 현재 tolerance에서 서로 N배화됩니다</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
+                    <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ok);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600">ECDX204</span>
+                    <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ok);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600">ECDX731</span>
+                    <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ok);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600">ECXDX118</span>
+                    <span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ok);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600">ECXDX556</span>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:24px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft)">
+                    <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:var(--ink-subtle)">최약 장비쌍</span><span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums">0.048 nm · CD 대비 0.32×</span></span>
+                    <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:var(--ink-subtle)">신뢰도</span><span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--warn)">Med · 예측 tier 포함</span></span>
+                    <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;color:var(--ink-subtle)">다른 후보</span><span style="font-size:14px;color:var(--ink-muted)">N=3 그룹 2개</span></span>
+                  </div>
+                </div>
+                <div style="width:320px;flex:none;padding:18px 20px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card);background-image:linear-gradient(var(--bad-tint),var(--bad-tint))">
+                  <p style="margin:0;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted)">그룹에서 빠진 장비</p>
+                  <p style="margin:6px 0 0;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;letter-spacing:-0.01em">HCDX392</p>
+                  <p style="margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--ink-muted)">BC1·Y 셀에서 ECDX204 와 <strong style="color:var(--bad)">0.240 nm</strong> — tolerance 0.105 nm 초과. 잔차 −0.130 nm 로 PM/BM 한계 ±0.151 nm 안쪽.</p>
+                  <p style="margin:8px 0 0;font-size:13px;color:var(--ink-subtle)">2026-05-28 PM + MDC 변경 (epoch 리셋)</p>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div style="padding:16px 20px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><p style="margin:0;font-size:13px;font-weight:600">장비 그룹 배치도</p><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-subtle)">stress 0.031 · 우수</span></div>
+                  <svg viewBox="0 0 420 290" style="width:100%;margin-top:8px">
+                    <g stroke="var(--border-soft)"><line x1="12" y1="78" x2="408" y2="78"/><line x1="12" y1="145" x2="408" y2="145"/><line x1="12" y1="212" x2="408" y2="212"/><line x1="112" y1="14" x2="112" y2="276"/><line x1="210" y1="14" x2="210" y2="276"/><line x1="308" y1="14" x2="308" y2="276"/></g>
+                    <ellipse cx="316" cy="146" rx="86" ry="66" fill="var(--ok-soft)" opacity=".7"/>
+                    <text x="316" y="62" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ok)">N배화 그룹 · 4대</text>
+                    <circle cx="296" cy="124" r="12" fill="var(--ok)"/><text x="296" y="110" text-anchor="middle" font-size="11" fill="var(--ink)">ECDX204</text>
+                    <circle cx="268" cy="166" r="12" fill="var(--ok)"/><text x="258" y="192" text-anchor="middle" font-size="11" fill="var(--ink)">ECDX731</text>
+                    <circle cx="314" cy="148" r="12" fill="var(--ok)"/><text x="334" y="146" font-size="11" fill="var(--ink)">ECXDX118</text>
+                    <circle cx="362" cy="180" r="14" fill="var(--ok)"/><text x="362" y="208" text-anchor="middle" font-size="11" fill="var(--ink)">ECXDX556</text>
+                    <circle cx="70" cy="140" r="19" fill="var(--bad)"/><text x="70" y="174" text-anchor="middle" font-size="11" fill="var(--ink)">HCDX392</text>
+                    <line x1="89" y1="139" x2="277" y2="127" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="5 4"/>
+                    <text x="182" y="122" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="11" fill="var(--bad)">0.240 nm</text>
+                  </svg>
+                  <p style="margin:6px 0 0;font-size:12px;color:var(--ink-muted)">점 사이 거리만 의미가 있습니다. 점 크기 = 평균 skew(Score).
+                    <details style="display:inline"><summary style="display:inline;color:var(--accent)">자세히</summary><span style="display:block;margin-top:6px;line-height:1.5;color:var(--ink-subtle)">축에는 단위가 없고 회전·반전해도 같은 지도입니다. 빨강은 오늘 장비 그룹 행렬 기준으로 가장 가까운 장비마저 허용오차 0.050 nm 밖인 장비이며, N배화 판정은 점유 셀 전체를 교차한 결과라 이 지도와 다를 수 있습니다.</span></details>
+                  </p>
+                </div>
+
+                <div style="padding:16px 20px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><p style="margin:0;font-size:13px;font-weight:600">셀별 최악 장비쌍</p><span style="font-size:12px;color:var(--ink-muted)">CD 대비 지수 순</span></div>
+                  <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
+                    <div style="display:flex;align-items:center;gap:10px"><span style="width:126px;font-size:13px">BC1 · Y · 31.8 nm</span><div style="flex:1;height:10px;border-radius:var(--r-sidebar);background:var(--muted);position:relative"><div style="position:absolute;inset:0 25% 0 0;border-radius:var(--r-sidebar);background:var(--bad)"></div><div style="position:absolute;top:-4px;bottom:-4px;left:33%;width:2px;background:var(--brand)"></div></div><span style="width:102px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--bad)">0.240 / 0.105</span></div>
+                    <div style="display:flex;align-items:center;gap:10px"><span style="width:126px;font-size:13px">BC3 · X · CD 가정</span><div style="flex:1;height:10px;border-radius:var(--r-sidebar);background:var(--muted);position:relative"><div style="position:absolute;inset:0 30% 0 0;border-radius:var(--r-sidebar);background:var(--bad)"></div><div style="position:absolute;top:-4px;bottom:-4px;left:33%;width:2px;background:var(--brand)"></div></div><span style="width:102px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--bad)">0.105 / 0.050</span></div>
+                    <div style="display:flex;align-items:center;gap:10px"><span style="width:126px;font-size:13px">BC1 · X · 32.4 nm</span><div style="flex:1;height:10px;border-radius:var(--r-sidebar);background:var(--muted);position:relative"><div style="position:absolute;inset:0 48% 0 0;border-radius:var(--r-sidebar);background:var(--bad)"></div><div style="position:absolute;top:-4px;bottom:-4px;left:33%;width:2px;background:var(--brand)"></div></div><span style="width:102px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--bad)">0.169 / 0.107</span></div>
+                    <div style="display:flex;align-items:center;gap:10px"><span style="width:126px;font-size:13px">BC2 · X · 68.0 nm</span><div style="flex:1;height:10px;border-radius:var(--r-sidebar);background:var(--muted);position:relative"><div style="position:absolute;inset:0 91% 0 0;border-radius:var(--r-sidebar);background:var(--ok)"></div><div style="position:absolute;top:-4px;bottom:-4px;left:33%;width:2px;background:var(--brand)"></div></div><span style="width:102px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums">0.062 / 0.225</span></div>
+                  </div>
+                  <p style="margin:14px 0 0;font-size:12px;color:var(--ink-muted)">막대 = 그 셀의 최악 장비쌍, 세로선 = tolerance. 셋은 HCDX392 때문에 넘습니다.
+                    <details style="display:inline"><summary style="display:inline;color:var(--accent)">자세히</summary><span style="display:block;margin-top:6px;line-height:1.5;color:var(--ink-subtle)">지수는 최악 장비쌍 스큐를 그 셀 CD의 1%로 나눈 값이라 패턴 크기가 다른 셀끼리 비교할 수 있습니다. 순위를 매길 뿐 판정하지 않습니다 — 합격선은 tolerance 입니다.</span></details>
+                  </p>
+                </div>
+              </div>
+
+              <div style="padding:16px 20px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <p style="margin:0;font-size:13px;font-weight:600">장비쌍 스큐 행렬</p>
+                  <span style="display:inline-flex;align-items:center;height:20px;padding-inline:6px;border-radius:var(--r-sidebar);background:var(--muted);font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink-muted)">불합격 4쌍</span>
+                  <span style="margin-left:auto;font-size:12px;color:var(--ink-muted)">CD 31.8 nm · 기준 0.105 nm · 직접 · High</span>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:12px">
+                  <button type="button" aria-pressed="true" style="height:30px;padding:0 12px;border:1px solid var(--ink);border-radius:var(--r-nav);background:var(--ink);color:var(--ink-fg);font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap">BC1 · Y · 0.75×</button>
+                  <button type="button" style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-nav);background:transparent;color:var(--ink-muted);font-family:inherit;font-size:13px;white-space:nowrap">BC3 · X · 0.70×</button>
+                  <button type="button" style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-nav);background:transparent;color:var(--ink-muted);font-family:inherit;font-size:13px;white-space:nowrap">BC1 · X · 0.52×</button>
+                  <button type="button" style="height:30px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-nav);background:transparent;color:var(--ink-muted);font-family:inherit;font-size:13px;white-space:nowrap">BC2 · X · 0.09×</button>
+                </div>
+                <table style="margin-top:12px;border-collapse:separate;border-spacing:3px;font-family:'JetBrains Mono',monospace;font-size:13px;font-variant-numeric:tabular-nums;text-align:center">
+                  <thead><tr><th></th><th style="padding:4px 8px;font-size:11px;font-weight:600;color:var(--ink-muted)">ECDX204</th><th style="padding:4px 8px;font-size:11px;font-weight:600;color:var(--ink-muted)">ECDX731</th><th style="padding:4px 8px;font-size:11px;font-weight:600;color:var(--ink-muted)">ECXDX118</th><th style="padding:4px 8px;font-size:11px;font-weight:600;color:var(--ink-muted)">ECXDX556</th><th style="padding:4px 8px;font-size:11px;font-weight:600;color:var(--ink-muted)">HCDX392</th></tr></thead>
+                  <tbody>
+                    <tr><th style="padding-right:8px;text-align:right;font-size:11px;font-weight:600;color:var(--ink-muted)">ECDX204</th><td style="color:var(--ink-subtle)">—</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.027</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.018</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.049</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.240</td></tr>
+                    <tr><th style="padding-right:8px;text-align:right;font-size:11px;font-weight:600;color:var(--ink-muted)">ECDX731</th><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.027</td><td style="color:var(--ink-subtle)">—</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.031</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.076</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.128</td></tr>
+                    <tr><th style="padding-right:8px;text-align:right;font-size:11px;font-weight:600;color:var(--ink-muted)">ECXDX118</th><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.018</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.031</td><td style="color:var(--ink-subtle)">—</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.054</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.157</td></tr>
+                    <tr><th style="padding-right:8px;text-align:right;font-size:11px;font-weight:600;color:var(--ink-muted)">ECXDX556</th><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.049</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.076</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--ok-soft);color:var(--ink);font-weight:600">0.054</td><td style="color:var(--ink-subtle)">—</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.193</td></tr>
+                    <tr><th style="padding-right:8px;text-align:right;font-size:11px;font-weight:600;color:var(--ink-muted)">HCDX392</th><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.240</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.128</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.157</td><td style="padding:5px 10px;border-radius:var(--r-sidebar);background:var(--bad-soft);color:var(--bad);font-weight:700">0.193</td><td style="color:var(--ink-subtle)">—</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div style="padding:16px 20px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><p style="margin:0;font-size:13px;font-weight:600">오늘 consensus 잔차</p><span style="font-size:12px;color:var(--ink-muted)">PM/BM 한계 ±0.151 nm</span></div>
+                  <div style="display:flex;flex-direction:column;gap:6px;margin-top:14px">
+                    <div style="display:flex;align-items:center;gap:12px"><span style="width:88px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-muted)">HCDX392</span><div style="flex:1;position:relative;height:14px;background:var(--muted);border-radius:var(--r-sidebar)"><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--border)"></div><div style="position:absolute;top:0;bottom:0;left:0.4%;width:1px;background:var(--bad);opacity:.5"></div><div style="position:absolute;top:0;bottom:0;left:99.6%;width:1px;background:var(--bad);opacity:.5"></div><div style="position:absolute;top:2px;bottom:2px;right:50%;width:43.4%;border-radius:4px;background:var(--bad)"></div></div><span style="width:56px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--bad)">−0.130</span></div>
+                    <div style="display:flex;align-items:center;gap:12px"><span style="width:88px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-muted)">ECDX731</span><div style="flex:1;position:relative;height:14px;background:var(--muted);border-radius:var(--r-sidebar)"><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--border)"></div><div style="position:absolute;top:2px;bottom:2px;right:50%;width:6%;border-radius:4px;background:var(--ok)"></div></div><span style="width:56px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums">−0.018</span></div>
+                    <div style="display:flex;align-items:center;gap:12px"><span style="width:88px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-muted)">ECDX204</span><div style="flex:1;position:relative;height:14px;background:var(--muted);border-radius:var(--r-sidebar)"><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--border)"></div><div style="position:absolute;top:2px;bottom:2px;left:50%;width:1px;background:var(--ok)"></div></div><span style="width:56px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums">+0.000</span></div>
+                    <div style="display:flex;align-items:center;gap:12px"><span style="width:88px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-muted)">ECXDX118</span><div style="flex:1;position:relative;height:14px;background:var(--muted);border-radius:var(--r-sidebar)"><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--border)"></div><div style="position:absolute;top:2px;bottom:2px;left:50%;width:1.7%;border-radius:4px;background:var(--ok)"></div></div><span style="width:56px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums">+0.005</span></div>
+                    <div style="display:flex;align-items:center;gap:12px"><span style="width:88px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-muted)">ECXDX556</span><div style="flex:1;position:relative;height:14px;background:var(--muted);border-radius:var(--r-sidebar)"><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--border)"></div><div style="position:absolute;top:2px;bottom:2px;left:50%;width:14%;border-radius:4px;background:var(--ok)"></div></div><span style="width:56px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums">+0.042</span></div>
+                  </div>
+                  <p style="margin:12px 0 0;font-size:12px;color:var(--ink-muted)">잔차 = tool − consensus(중앙값). 5대 모두 PM/BM 한계 안.
+                    <details style="display:inline"><summary style="display:inline;color:var(--accent)">자세히</summary><span style="display:block;margin-top:6px;line-height:1.5;color:var(--ink-subtle)">빨간 선 밖으로 나가면 PM/BM 대상입니다. 기준은 CD의 1%이며 측정 CD 중앙값 15.1 nm 기준입니다. 안쪽 옅은 선 ±0.05 nm 는 시험 자체의 불확도라, 그보다 작은 차이는 구별 불가입니다.</span></details>
+                  </p>
+                </div>
+
+                <div style="padding:16px 20px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><p style="margin:0;font-size:13px;font-weight:600">skew 트렌드 · BM/PM 마커</p><span style="font-size:12px;color:var(--ink-muted)">최근 5주</span></div>
+                  <svg viewBox="0 0 600 210" style="width:100%;margin-top:12px">
+                    <g stroke="var(--border-soft)"><line x1="40" y1="20" x2="588" y2="20"/><line x1="40" y1="66" x2="588" y2="66"/><line x1="40" y1="112" x2="588" y2="112"/><line x1="40" y1="158" x2="588" y2="158"/></g>
+                    <g font-family="'JetBrains Mono',monospace" font-size="11" fill="var(--ink-muted)"><text x="34" y="24" text-anchor="end">0.05</text><text x="34" y="70" text-anchor="end">0.00</text><text x="34" y="116" text-anchor="end">-0.05</text><text x="34" y="162" text-anchor="end">-0.10</text></g>
+                    <polyline fill="none" stroke="var(--ok)" stroke-width="2" points="40,70 177,60 314,68 451,62 588,66"/>
+                    <polyline fill="none" stroke="var(--ok)" stroke-width="2" points="40,84 177,92 314,82 451,88 588,86"/>
+                    <polyline fill="none" stroke="var(--ok)" stroke-width="2" points="40,62 177,54 314,64 451,58 588,60"/>
+                    <polyline fill="none" stroke="var(--ok)" stroke-width="2" points="40,30 177,38 314,26 451,34 588,28"/>
+                    <polyline fill="none" stroke="var(--bad)" stroke-width="2.5" points="40,182 177,172 314,178 451,168 588,186"/>
+                    <circle cx="519" cy="177" r="6" fill="var(--bad)"/><text x="519" y="203" text-anchor="middle" font-size="11" fill="var(--bad)" font-family="'JetBrains Mono',monospace">PM</text>
+                    <g font-family="'JetBrains Mono',monospace" font-size="11" fill="var(--ink-muted)"><text x="40" y="203">05-03</text><text x="177" y="203" text-anchor="middle">05-10</text><text x="314" y="203" text-anchor="middle">05-17</text><text x="451" y="203" text-anchor="middle">05-24</text><text x="588" y="203" text-anchor="end">05-31</text></g>
+                  </svg>
+                  <p style="margin:6px 0 0;font-size:12px;color:var(--ink-muted)">● hard = MDC 변경(epoch 리셋) · ○ soft = BM/PM(MDC 불변)</p>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:12px">
+                <details style="flex:1;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)"><summary style="display:flex;align-items:center;gap:8px;padding:12px 16px;font-size:13px;font-weight:600">MDC 이력 (빔 조건 × 축)<span style="margin-left:auto;font-weight:400;font-size:12px;color:var(--ink-muted)">HCDX392 · 2건</span></summary></details>
+                <details style="flex:1;border:1px solid var(--border);background:var(--surface);box-shadow:var(--paper);border-radius:var(--r-card)"><summary style="display:flex;align-items:center;gap:8px;padding:12px 16px;font-size:13px;font-weight:600">양산 정합도 (참고)<span style="margin-left:auto;font-weight:400;font-size:12px;color:var(--ink-muted)">중간 · TTTM 미반영</span></summary></details>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:rgba(0,0,0,.5)">다음에 해볼 것: "레일을 스크롤에 고정해줘" · "행렬을 4개 셀 히트맵 한 장으로" · "HCDX392 해제 상태 화면도 보여줘"</p>
+</section>
+

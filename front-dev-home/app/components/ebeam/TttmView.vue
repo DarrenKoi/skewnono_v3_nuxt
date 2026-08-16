@@ -34,13 +34,20 @@
           :recipe-id="recipeId"
           :recipe-names="recipeNames"
           :recipes-pending="recipesPending"
-          :tolerance="tolerance"
-          :range="payload.tolerance_range"
-          :tolerance-index="toleranceIndex"
           @update:selected="onSelectedTools"
           @update:recipe-id="onRecipe"
-          @update:tolerance="tolerance = $event"
-        />
+        >
+          <!-- Slotted, not passed down: the knob fires on every drag frame, and
+               a prop through ScopePanel would re-render all seven model-group
+               dropdowns with it. -->
+          <template #tolerance>
+            <EbeamTttmToleranceKnob
+              v-model="tolerance"
+              :range="payload.tolerance_range"
+              :tolerance-index="toleranceIndex"
+            />
+          </template>
+        </EbeamTttmScopePanel>
 
         <!-- What the knob and the picks currently cost, in one line. The
              numbers all appear again below in their own cards; this is the
@@ -132,9 +139,15 @@ import {
   resolveNominalCd,
   MONITOR_WAFER_CD_NM
 } from '~/utils/tttmLimits'
-import { cellLabel, excludedTools, rankCells, type CellInput } from '~/utils/tttmCells'
+import {
+  applyTolerance,
+  cellLabel,
+  excludedTools,
+  scoreCells,
+  type CellInput
+} from '~/utils/tttmCells'
 import { subsetSkewMatrix, rebaseDeviations, resolveSelection } from '~/utils/tttmFleetSubset'
-import { preferredMatrix, type SkewCondition, type FleetToday } from '~/composables/useTttmApi'
+import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
@@ -170,16 +183,29 @@ const visibleTools = computed(() =>
 
 // Pairwise data narrows exactly; consensus has to be RE-BASED on the kept
 // subset, because the server computed it against the whole fleet's median.
-const visibleCells = computed<SkewCondition[]>(() =>
-  (payload.value?.occupied_cells ?? []).map(cell => ({
-    ...cell,
-    direct_skew_matrix: cell.direct_skew_matrix
-      ? subsetSkewMatrix(cell.direct_skew_matrix, selectedTools.value)
-      : null,
-    predicted_skew_matrix: cell.predicted_skew_matrix
-      ? subsetSkewMatrix(cell.predicted_skew_matrix, selectedTools.value)
-      : null
-  }))
+// Pick the tier FIRST, then subset only the survivor. Subsetting both matrices
+// and choosing afterwards narrowed one that was about to be discarded, and left
+// an intermediate that was neither the API's `SkewCondition` nor the engine's
+// `CellInput` for a second computed to re-copy field by field.
+//
+// Equivalent because `preferredMatrix` is `direct ?? predicted` and subsetting
+// never turns a matrix into null: pick-then-subset and subset-then-pick reach
+// the same matrix.
+const cellInputs = computed<CellInput[]>(() =>
+  (payload.value?.occupied_cells ?? []).flatMap((c) => {
+    const matrix = preferredMatrix(c)
+    if (!matrix) return []
+    return [{
+      cell_id: c.cell_id,
+      beam_condition: c.beam_condition,
+      axis: c.axis,
+      median_cd_nm: c.median_cd_nm,
+      tier: c.tier,
+      confidence: c.confidence,
+      labels: c.labels,
+      matrix: subsetSkewMatrix(matrix, selectedTools.value)
+    }]
+  })
 )
 
 const visibleFleet = computed<FleetToday>(() => ({
@@ -238,31 +264,15 @@ const toleranceIndex = computed(() =>
   fractionOfLimit(tolerance.value, MONITOR_WAFER_CD_NM)
 )
 
-// Cells reduced to the one matrix each reads through, then ranked once for the
-// three surfaces that need them — the matrix tabs, the severity bars and the
-// exclusion card. Ranking in each component instead is how two of them end up
-// disagreeing about which cell is worst.
-// Built field by field rather than spread: CellInput is deliberately narrower
-// than SkewCondition — it carries the ONE matrix the cell reads through, so no
-// surface downstream can quietly re-pick between the direct and predicted tiers.
-const cellInputs = computed<CellInput[]>(() =>
-  visibleCells.value.flatMap((c) => {
-    const matrix = preferredMatrix(c)
-    if (!matrix) return []
-    return [{
-      cell_id: c.cell_id,
-      beam_condition: c.beam_condition,
-      axis: c.axis,
-      cd_band: c.cd_band,
-      median_cd_nm: c.median_cd_nm,
-      tier: c.tier,
-      confidence: c.confidence,
-      labels: c.labels,
-      matrix
-    }]
-  })
-)
-const rankedCells = computed(() => rankCells(cellInputs.value, toleranceIndex.value))
+// Scored once for the three surfaces that read cells — the matrix tabs, the
+// severity bars and the exclusion card. Ranking inside each component instead is
+// how two of them end up disagreeing about which cell is worst.
+//
+// Split in two on purpose: `scoreCells` does the matrix walks and the sort and
+// depends on the SELECTION, while `applyTolerance` is the thin part that moves
+// with the knob. A drag therefore re-runs only the second half.
+const scoredCells = computed(() => scoreCells(cellInputs.value))
+const rankedCells = computed(() => applyTolerance(scoredCells.value, toleranceIndex.value))
 const worstCell = computed(() => rankedCells.value[0] ?? null)
 const failingPairs = computed(() =>
   rankedCells.value.reduce((sum, c) => sum + c.failingPairs, 0)
@@ -270,8 +280,10 @@ const failingPairs = computed(() =>
 
 // The grouping engine needs each cell's CD already resolved: a cell whose median
 // CD is null falls back to the monitor wafer here rather than inside the engine.
+// Reads the SCORED list, not the ranked one — nothing here depends on the knob,
+// so hanging it off the per-frame half would rebuild it on every drag frame.
 const groupCells = computed<GroupCell[]>(() =>
-  rankedCells.value.map(c => ({
+  scoredCells.value.map(c => ({
     tier: c.cell.tier,
     confidence: c.cell.confidence,
     matrix: c.matrix,

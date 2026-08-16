@@ -2,23 +2,18 @@
   <!-- Folded, and a <details> rather than the hand-rolled toggle this used to
        be: it sits beside the MDC history as one of two reference panels, and
        two panels that fold the same way should fold with the same mechanism. -->
-  <details class="group dashboard-surface rounded-[var(--sk-r-card)]">
-    <summary
-      class="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
-    >
-      <UIcon
-        name="i-lucide-chevron-right"
-        class="h-3.5 w-3.5 text-(--sk-ink-muted) transition-transform duration-150 group-open:rotate-90"
-      />
-      <span class="sk-title">양산 정합도 (참고)</span>
+  <EbeamTttmFoldPanel
+    title="양산 정합도 (참고)"
+    meta="TTTM 미반영"
+  >
+    <template #badge>
       <span
         class="sk-signal-badge"
         :style="levelStyle"
       >{{ levelLabel }}</span>
-      <span class="ml-auto sk-meta">TTTM 미반영</span>
-    </summary>
+    </template>
 
-    <div class="space-y-1 border-t border-(--sk-border-soft) px-4 py-3">
+    <div class="space-y-1">
       <p class="sk-field-label">
         {{ corroboration.note }}
       </p>
@@ -42,7 +37,7 @@
         다른 Wafer 분포 중첩이라 Wafer 산포와 엉켜 N배화 판정에는 쓰지 않습니다.
       </p>
     </div>
-  </details>
+  </EbeamTttmFoldPanel>
 </template>
 
 <script setup lang="ts">

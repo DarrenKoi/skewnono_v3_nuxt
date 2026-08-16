@@ -2,11 +2,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  applyTolerance,
   barFraction,
   cellLabel,
   countFailingPairs,
   excludedTools,
   rankCells,
+  scoreCells,
   worstPairOf,
   TOLERANCE_MARK,
   type CellInput
@@ -21,7 +23,6 @@ const cell = (over: Partial<CellInput> = {}): CellInput => ({
   cell_id: 'bc1-Y',
   beam_condition: 'BC1',
   axis: 'Y',
-  cd_band: '25-50',
   median_cd_nm: 15,
   tier: 'direct',
   confidence: 'High',
@@ -47,6 +48,74 @@ test('worstPairOf: names both tools, not just the number', () => {
 test('worstPairOf: an entirely unmeasured cell yields null, not zero', () => {
   const empty = matrix([[0, null], [null, 0]], ['A', 'B'])
   assert.equal(worstPairOf(empty, 15), null)
+  assert.equal(worstPairOf(matrix([], []), 15), null)
+  // The diagonal is 0 by contract and must not be mistaken for a measured pair
+  // in a matrix that has none.
+  assert.equal(worstPairOf(matrix([[0]], ['A']), 15), null)
+})
+
+// The four tests below moved here from tttmLimits.test.ts when worstPairOf
+// replaced worstFractionOfLimit. They pin the ranking rule, not the function.
+
+test('worstPairOf: takes the worst pair, not the average', () => {
+  // A group is only as matched as its loosest pair. Averaging would let the one
+  // bad pair hide behind the two good ones and rank this cell as clean.
+  const values = matrix([
+    [0, 0.02, 0.02],
+    [0.02, 0, 0.30],
+    [0.02, 0.30, 0]
+  ])
+  const worst = worstPairOf(values, 15)
+  assert.equal(worst?.skewNm, 0.30)
+  assert.ok((worst?.index ?? 0) > 1)
+})
+
+test('worstPairOf: skips null pairs rather than scoring them as zero', () => {
+  // null means "this pair has no shared data", not "these tools match
+  // perfectly". Treating it as 0 would rank an unmeasured cell as the best one.
+  const values = matrix([
+    [0, null, 0.08],
+    [null, 0, null],
+    [0.08, null, 0]
+  ])
+  assert.equal(worstPairOf(values, 15)?.skewNm, 0.08)
+})
+
+test('worstPairOf: a NaN pair is skipped, not ranked', () => {
+  // With a `typeof v === "number"` gate this returned NaN, which then (a)
+  // passed the `severity !== null` guard, (b) rendered as "CD 대비 NaN×", and
+  // (c) made the sort comparator return NaN, so the ordering of the whole list
+  // became implementation-defined. isMeasured is Number.isFinite for this.
+  const values = matrix([
+    [0, Number.NaN, 0.06],
+    [Number.NaN, 0, null],
+    [0.06, null, 0]
+  ])
+  const worst = worstPairOf(values, 15)
+  assert.equal(Number.isNaN(worst?.index as number), false)
+  assert.equal(worst?.skewNm, 0.06)
+})
+
+test('applyTolerance: worstExceeds is the one comparison four surfaces share', () => {
+  // The bar colour, the value colour, the 초과 wording and the failing count are
+  // four statements of this single test; computing it per call site is how they
+  // start disagreeing.
+  const [tight] = applyTolerance(scoreCells([cell()]), 0.1) // 0.015 nm at CD 15
+  const [loose] = applyTolerance(scoreCells([cell()]), 2.0) // 0.300 nm at CD 15
+  assert.equal(tight?.worstExceeds, true)
+  assert.equal(loose?.worstExceeds, false)
+  // And it agrees with the count beside it: the worst pair is over iff any is.
+  assert.ok((tight?.failingPairs ?? 0) > 0)
+  assert.equal(loose?.failingPairs, 0)
+})
+
+test('scoreCells: every field it returns survives a tolerance change untouched', () => {
+  // The split exists so a slider drag re-runs only applyTolerance. If this ever
+  // fails, something tolerance-dependent leaked into the memoised half.
+  const cells = [cell(), cell({ cell_id: 'bc2-X', median_cd_nm: 68 })]
+  assert.deepEqual(scoreCells(cells), scoreCells(cells))
+  const ranked = (t: number) => rankCells(cells, t).map(r => [r.cell.cell_id, r.severity])
+  assert.deepEqual(ranked(0.1), ranked(2.0))
 })
 
 test('countFailingPairs: counts the upper triangle once, not twice', () => {
@@ -141,6 +210,25 @@ test('excludedTools: no group means nothing to be excluded FROM', () => {
   // statement has no referent, and a card listing all five tools would be a lie
   // dressed as a finding.
   assert.deepEqual(excludedTools(['A', 'B', 'C'], [], rankCells([cell()], 0.33)), [])
+})
+
+test('excludedTools: a tool can be excluded while every pair it HAS is in tolerance', () => {
+  // The case the exclusion card must not describe as "tolerance 초과". N배화
+  // needs a measured, in-tolerance pair with EVERY member, so C is dropped for
+  // the missing B pair even though its 0.02 with A passes comfortably. Callers
+  // compare blocker.skewNm against thresholdNm rather than assuming a breach.
+  const sparse = cell({
+    matrix: matrix([
+      [0, 0.02, 0.02],
+      [0.02, 0, null],
+      [0.02, null, 0]
+    ])
+  })
+  const ranked = rankCells([sparse], 1.0) // threshold 0.15 nm at CD 15
+  const [c] = excludedTools(['A', 'B', 'C'], ['A', 'B'], ranked)
+  assert.equal(c?.eqp_id, 'C')
+  assert.equal(c?.blocker?.skewNm, 0.02)
+  assert.ok((c?.blocker?.skewNm ?? 0) <= (c?.thresholdNm ?? 0))
 })
 
 test('excludedTools: a tool with no measured pair against the group still appears', () => {

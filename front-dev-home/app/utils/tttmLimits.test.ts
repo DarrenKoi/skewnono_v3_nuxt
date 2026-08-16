@@ -3,9 +3,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   actionLimitNm,
+  formatSignedNm,
   fractionOfLimit,
-  worstFractionOfLimit,
-  maxMeasuredPair,
   isMeasured,
   resolveNominalCd,
   MONITOR_WAFER_CD_NM,
@@ -79,80 +78,12 @@ test('fractionOfLimit: combining recipes means the worst fraction, not the large
   assert.equal(worstByIndex.skewNm, 0.2)
 })
 
-// --- worstFractionOfLimit: the ranking key -----------------------------------
-
-const symmetric = (upper: Record<string, number | null>, n: number) => {
-  const values: (number | null)[][] = Array.from({ length: n }, () =>
-    Array.from({ length: n }, () => null as number | null)
-  )
-  for (let i = 0; i < n; i++) values[i]![i] = 0
-  for (const [key, v] of Object.entries(upper)) {
-    const [i, j] = key.split('-').map(Number) as [number, number]
-    values[i]![j] = v
-    values[j]![i] = v
-  }
-  return values
-}
-
-test('worstFractionOfLimit: takes the worst pair, not the average', () => {
-  // A group is only as matched as its loosest pair. Averaging would let the
-  // one bad pair hide behind the three good ones and rank this cell as clean.
-  const values = symmetric({ '0-1': 0.02, '0-2': 0.02, '1-2': 0.30 }, 3)
-  const worst = worstFractionOfLimit(values, 15)
-  assert.equal(worst, fractionOfLimit(0.30, 15))
-  assert.ok(worst! > 1)
-})
-
-test('worstFractionOfLimit: skips null pairs rather than scoring them as zero', () => {
-  // null means "this pair has no shared data", not "these tools match
-  // perfectly". Treating it as 0 would rank an unmeasured cell as the best one.
-  const values = symmetric({ '0-1': null, '0-2': 0.08, '1-2': null }, 3)
-  assert.equal(worstFractionOfLimit(values, 15), fractionOfLimit(0.08, 15))
-})
-
-test('worstFractionOfLimit: a matrix with no measured pair is null, not 0', () => {
-  assert.equal(worstFractionOfLimit(symmetric({ '0-1': null }, 2), 15), null)
-  assert.equal(worstFractionOfLimit([], 15), null)
-})
-
-test('worstFractionOfLimit: ranks cells that raw nm ranks backwards', () => {
-  // The finding this whole change exists for. The 68 nm cell has the LARGER
-  // skew in nanometres and the SMALLER problem, so a nm-ordered list shows the
-  // wrong cell first.
-  const monitor = symmetric({ '0-1': 0.13 }, 2)
-  const largePattern = symmetric({ '0-1': 0.30 }, 2)
-
-  const monitorIndex = worstFractionOfLimit(monitor, 15)!
-  const largeIndex = worstFractionOfLimit(largePattern, 68)!
-
-  assert.ok(0.13 < 0.30, 'raw nm puts the large-pattern cell first')
-  assert.ok(monitorIndex > largeIndex, 'the index puts the monitor cell first')
-
-  const ranked = [
-    { cd: 68, values: largePattern },
-    { cd: 15, values: monitor }
-  ].sort((a, b) =>
-    (worstFractionOfLimit(b.values, b.cd) ?? -1) - (worstFractionOfLimit(a.values, a.cd) ?? -1)
-  )
-  assert.equal(ranked[0]!.cd, 15)
-})
-
-test('worstFractionOfLimit: unmeasured cells sort last under the ranking rule', () => {
-  // The -1 sentinel PairMatrix uses: a cell carrying no evidence must not
-  // outrank a cell that does merely because its index is null.
-  const cells = [
-    { id: 'empty', index: worstFractionOfLimit(symmetric({ '0-1': null }, 2), 15) },
-    { id: 'measured', index: worstFractionOfLimit(symmetric({ '0-1': 0.01 }, 2), 15) }
-  ].sort((a, b) => (b.index ?? -1) - (a.index ?? -1))
-  assert.deepEqual(cells.map(c => c.id), ['measured', 'empty'])
-})
-
 // --- the measured gate ------------------------------------------------------
 
 test('isMeasured: NaN and Infinity are NOT measured', () => {
   // The whole reason this predicate is exported rather than re-spelled: a
   // hand-rolled `typeof v === "number"` accepts NaN, and `typeof NaN` IS
-  // "number". worstFractionOfLimit briefly spelled it that way.
+  // "number". The old worstFractionOfLimit briefly spelled it that way.
   assert.equal(isMeasured(0.12), true)
   assert.equal(isMeasured(0), true)
   assert.equal(isMeasured(null), false)
@@ -163,26 +94,19 @@ test('isMeasured: NaN and Infinity are NOT measured', () => {
   assert.equal(typeof Number.NaN === 'number', true)
 })
 
-test('worstFractionOfLimit: a NaN pair is skipped, not ranked', () => {
-  // With the old `typeof` gate this returned NaN, which then (a) passed the
-  // `severity !== null` guard in PairMatrix, (b) rendered as "CD 대비 NaN×",
-  // and (c) made the sort comparator return NaN, so the ordering of the whole
-  // list became implementation-defined.
-  const values: (number | null)[][] = [
-    [0, Number.NaN, 0.06],
-    [Number.NaN, 0, null],
-    [0.06, null, 0]
-  ]
-  const worst = worstFractionOfLimit(values, 15)
-  assert.equal(Number.isNaN(worst as number), false)
-  assert.equal(worst, fractionOfLimit(0.06, 15))
-})
+// The ranking-key tests that used to sit here moved to tttmCells.test.ts when
+// `worstFractionOfLimit` and `maxMeasuredPair` were replaced by `worstPairOf`.
+// They were moved rather than deleted: the rules they pin (worst not average,
+// null is not zero, NaN is not a ranking, unmeasured sorts last) are properties
+// of the ranking itself, not of the function that happened to implement it.
 
-test('maxMeasuredPair: upper triangle only, nulls skipped, null when empty', () => {
-  assert.equal(maxMeasuredPair([[0, 0.02, 0.12], [0.02, 0, 0.1], [0.12, 0.1, 0]]), 0.12)
-  assert.equal(maxMeasuredPair([[0, null], [null, 0]]), null)
-  assert.equal(maxMeasuredPair([]), null)
-  // The diagonal is 0 by contract and must not be mistaken for a measured pair
-  // in a matrix that has none.
-  assert.equal(maxMeasuredPair([[0]]), null)
+test('formatSignedNm: the minus is U+2212, so the column stays aligned', () => {
+  // A hyphen is narrower and rides higher than '+', which visibly ragged a
+  // tabular column of residuals. One of the three inline copies had also
+  // dropped the glyph entirely on negatives.
+  assert.equal(formatSignedNm(0.042), '+0.042')
+  assert.equal(formatSignedNm(-0.13), '−0.130')
+  assert.equal(formatSignedNm(0), '+0.000')
+  assert.equal(formatSignedNm(-0.13).charCodeAt(0), 0x2212)
+  assert.equal(formatSignedNm(-0.0123, 4), '−0.0123')
 })

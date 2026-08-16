@@ -8,24 +8,42 @@
     </p>
 
     <template v-if="lead">
-      <p class="mt-1.5 font-mono text-[22px] font-bold leading-tight tracking-[-0.01em] text-(--sk-ink)">
+      <!-- `.sk-card-id` is the role — mono/700/1.2/−0.01em/tabular/ink — at the
+           22px the detail-header variant of that tier uses; the role classes sit
+           in `@layer components` so a call-site size utility wins cleanly. -->
+      <p class="mt-1.5 sk-card-id text-[22px]">
         {{ labelFor(lead.eqp_id) }}
       </p>
 
       <!-- Why it is out, in the units the decision was made in. The blocking
            pair is against a GROUP MEMBER, never this tool's worst pair overall —
-           see excludedTools() in utils/tttmCells. -->
+           see excludedTools() in utils/tttmCells.
+
+           Three cases, and they must not be collapsed. A tool can be excluded
+           WITHOUT exceeding anything: N배화 needs a measured, in-tolerance pair
+           with EVERY member (tttmGrouping's buildAdjacency demands isMeasured),
+           so one missing pair drops it while every pair it does have passes.
+           Printing "초과" there asserts a violation the data does not show. -->
       <p class="mt-2 sk-field-label leading-relaxed">
         <template v-if="lead.blocker && lead.cell">
           {{ cellLabel(lead.cell) }} 셀에서 {{ labelFor(lead.blocker.b) }} 와
-          <strong class="font-mono text-(--sk-bad)">{{ lead.blocker.skewNm.toFixed(3) }} nm</strong>
-          — tolerance {{ lead.thresholdNm.toFixed(3) }} nm 초과.
+          <strong
+            class="font-mono"
+            :class="lead.exceeds ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
+          >{{ lead.blocker.skewNm.toFixed(3) }} nm</strong>
+          <template v-if="lead.exceeds">
+            — tolerance {{ lead.thresholdNm.toFixed(3) }} nm 초과.
+          </template>
+          <template v-else>
+            — tolerance {{ lead.thresholdNm.toFixed(3) }} nm 안쪽이지만, 그룹 안에
+            겹치는 측정이 없는 장비가 있어 함께 묶이지 않았습니다.
+          </template>
         </template>
         <template v-else>
           그룹 안의 어떤 장비와도 겹치는 측정이 없어 N배화를 판정할 수 없습니다.
         </template>
         <template v-if="leadDeviation !== null">
-          잔차 {{ signed(leadDeviation) }} nm 로 PM/BM 한계 ±{{ actionLimit.toFixed(3) }} nm
+          잔차 {{ formatSignedNm(leadDeviation) }} nm 로 PM/BM 한계 ±{{ actionLimit.toFixed(3) }} nm
           {{ Math.abs(leadDeviation) > actionLimit ? '초과' : '안쪽' }}.
         </template>
       </p>
@@ -52,7 +70,7 @@
         <span
           v-for="t in rest"
           :key="t.eqp_id"
-          class="rounded-[var(--sk-r-chip)] bg-(--sk-bad-soft) px-2 py-0.5 font-mono text-xs text-(--sk-bad)"
+          class="sk-signal-badge bg-(--sk-bad-soft) px-2 font-mono text-(--sk-bad)"
           :title="pairTitle(t)"
         >{{ labelFor(t.eqp_id) }}</span>
       </div>
@@ -74,6 +92,7 @@
 
 <script setup lang="ts">
 import { cellLabel, type ExcludedTool } from '~/utils/tttmCells'
+import { formatSignedNm } from '~/utils/tttmLimits'
 import { toolLabels } from '~/utils/toolLabels'
 import type { EpochMarker, ToolRef } from '~/composables/useTttmApi'
 
@@ -113,8 +132,6 @@ const leadEpoch = computed(() => {
     .filter(m => m.eqp_id === eqp)
     .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null
 })
-
-const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(3)}`
 
 const pairTitle = (t: ExcludedTool) =>
   t.blocker && t.cell

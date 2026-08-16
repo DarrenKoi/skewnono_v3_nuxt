@@ -28,7 +28,7 @@
             class="absolute inset-y-0 left-0 rounded-[var(--sk-r-sidebar)]"
             :style="{
               width: `${barFraction(row.worstPair.skewNm, row.thresholdNm) * 100}%`,
-              background: row.worstPair.skewNm > row.thresholdNm ? 'var(--sk-bad)' : 'var(--sk-ok)'
+              background: row.worstExceeds ? 'var(--sk-bad)' : 'var(--sk-ok)'
             }"
           />
           <div
@@ -39,9 +39,7 @@
 
         <span
           class="w-[104px] shrink-0 text-right font-mono text-xs tabular-nums"
-          :class="row.worstPair && row.worstPair.skewNm > row.thresholdNm
-            ? 'text-(--sk-bad)'
-            : 'text-(--sk-ink)'"
+          :class="row.worstExceeds ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
           :title="row.worstPair
             ? `${labelFor(row.worstPair.a)} · ${labelFor(row.worstPair.b)}`
             : '측정된 장비쌍 없음'"
@@ -82,9 +80,7 @@ const percent = ACTION_LIMIT_PERCENT
 const labels = computed(() => toolLabels(props.tools))
 const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
-const over = computed(() =>
-  props.cells.filter(c => c.worstPair && c.worstPair.skewNm > c.thresholdNm)
-)
+const over = computed(() => props.cells.filter(c => c.worstExceeds))
 const overCount = computed(() => over.value.length)
 
 // Name the tool only when it is in EVERY failing cell's worst pair. Otherwise

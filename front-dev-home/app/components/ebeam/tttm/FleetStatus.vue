@@ -41,7 +41,7 @@
         <span
           class="w-16 shrink-0 text-right font-mono text-xs tabular-nums"
           :style="{ color: overLimit(d.deviation) ? 'var(--sk-bad)' : 'var(--sk-ink)' }"
-        >{{ d.deviation >= 0 ? '+' : '−' }}{{ Math.abs(d.deviation).toFixed(3) }}</span>
+        >{{ formatSignedNm(d.deviation) }}</span>
       </div>
     </div>
     <p class="mt-3 sk-field-label leading-relaxed">
@@ -58,7 +58,13 @@
 
 <script setup lang="ts">
 import { toolLabels } from '~/utils/toolLabels'
-import { actionLimitNm, resolveNominalCd, ACTION_LIMIT_PERCENT, MEASUREMENT_FLOOR_NM } from '~/utils/tttmLimits'
+import {
+  actionLimitNm,
+  formatSignedNm,
+  resolveNominalCd,
+  ACTION_LIMIT_PERCENT,
+  MEASUREMENT_FLOOR_NM
+} from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()

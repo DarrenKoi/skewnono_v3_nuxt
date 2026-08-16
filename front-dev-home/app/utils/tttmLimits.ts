@@ -135,51 +135,30 @@ export const fractionOfLimit = (skewNm: number, nominalCdNm: number) =>
 export const effectiveToleranceNm = (index: ToleranceIndex, cdNm: number) =>
   index * actionLimitNm(cdNm)
 
-/**
- * The largest measured value in a symmetric matrix's upper triangle, or `null`
- * when nothing was measured.
+/*
+ * `maxMeasuredPair` and `worstFractionOfLimit` used to live here: an
+ * upper-triangle max, and that max divided by the cell's action limit.
  *
- * Upper triangle only: the matrix is symmetric by contract, so scanning both
- * halves doubles the work to reach the same maximum.
+ * Both are gone, replaced by `worstPairOf` in tttmCells, which returns the same
+ * index WITH the two tool names attached. That is not a convenience — every
+ * screen quotes the pair it is reporting, so a bare number meant each caller
+ * walked the matrix a second time to find out whose it was, and the ranking key
+ * and the names beside it were then two independent answers to one question.
+ * Do not reintroduce a nameless variant; take `.index` off the pair.
  */
-export const maxMeasuredPair = (values: (number | null)[][]): number | null => {
-  let worst: number | null = null
-  for (let row = 0; row < values.length; row++) {
-    const cols = values[row]
-    if (!cols) continue
-    for (let col = row + 1; col < cols.length; col++) {
-      const skew = cols[col]
-      if (!isMeasured(skew)) continue // null = pair not TTTM-able
-      if (worst === null || skew > worst) worst = skew
-    }
-  }
-  return worst
-}
 
 /**
- * The worst pair in a skew matrix, as a CD-normalised index. `null` when the
- * matrix has no measured pair at all.
+ * A signed nanometre reading, as every TTTM surface prints one.
  *
- * This is the ranking key. A cell's severity is its WORST pair, not its
- * average: a group is only as matched as its loosest member, so averaging
- * would let one bad pair hide behind four good ones.
- *
- * The same reduction is what combines several recipes later — each recipe
- * reduces to its worst normalised pair, then the recipes reduce by max. That
- * is why this takes a matrix rather than living inside the component: the
- * recipe-level version is this function applied one level up.
- *
- * One CD divides every pair here, so the max is taken first and normalised
- * once rather than dividing inside the loop — same answer, and it leaves the
- * matrix scan reusable as `maxMeasuredPair`.
+ * U+2212 MINUS SIGN, not the hyphen a keyboard produces: these sit in mono
+ * tabular columns beside `+`, and the hyphen is narrower and rides higher, so a
+ * column of residuals renders ragged. Three surfaces spelled this out inline —
+ * the picker rows, the exclusion card and the residual track — and the third
+ * had already drifted to `'+' : ''`, dropping the sign glyph entirely on
+ * negatives in the one place the column has to line up.
  */
-export const worstFractionOfLimit = (
-  values: (number | null)[][],
-  nominalCdNm: number
-): number | null => {
-  const worst = maxMeasuredPair(values)
-  return worst === null ? null : fractionOfLimit(worst, nominalCdNm)
-}
+export const formatSignedNm = (nm: number, digits = 3) =>
+  `${nm >= 0 ? '+' : '−'}${Math.abs(nm).toFixed(digits)}`
 
 /**
  * ±0.05 nm — the self-ABBA measurement uncertainty reported by Kawada 2009,

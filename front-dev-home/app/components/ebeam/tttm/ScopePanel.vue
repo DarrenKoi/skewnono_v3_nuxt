@@ -22,7 +22,7 @@
         multiple
         ignore-filter
         :reset-search-term-on-select="false"
-        :items="group.tools.map(t => t.eqp_id)"
+        :items="idsIn(group)"
         :search-input="group.tools.length > 6 ? { placeholder: 'eqp_id 검색…' } : false"
         :ui="{ itemTrailingIcon: 'hidden' }"
         color="neutral"
@@ -54,7 +54,7 @@
             v-if="deviations[item] !== undefined"
             class="ml-auto font-mono text-xs tabular-nums text-(--sk-ink-muted)"
             title="장비 그룹 전체 기준 consensus 잔차"
-          >{{ signed(deviations[item]!) }}</span>
+          >{{ formatSignedNm(deviations[item]!) }}</span>
           <span
             v-else
             class="ml-auto sk-signal-badge bg-(--sk-bad-soft) text-(--sk-bad)"
@@ -73,7 +73,7 @@
               variant="soft"
               icon="i-lucide-list-checks"
               :disabled="pickedIn(group).length === group.tools.length"
-              @click="applyGroup(group, group.tools.map(t => t.eqp_id))"
+              @click="applyGroup(group, idsIn(group))"
             >
               {{ group.model }} 전체
             </UButton>
@@ -140,19 +140,20 @@
       </template>
     </p>
 
+    <!-- The knob arrives as a slot rather than through three props and an emit.
+         Relaying it cost nothing to write and everything to drag: a prop that
+         changes on every `input` event re-renders THIS component, and with it
+         every model-group `USelectMenu` below — at ~60 fps, for a control that
+         needs no state from here at all. Slotted, the panel simply hosts it. -->
     <div class="mt-4 border-t border-(--sk-border-soft) pt-3.5">
-      <EbeamTttmToleranceKnob
-        :model-value="tolerance"
-        :range="range"
-        :tolerance-index="toleranceIndex"
-        @update:model-value="emit('update:tolerance', $event)"
-      />
+      <slot name="tolerance" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { filterByTerm } from '~/utils/hardwareCompare'
+import { formatSignedNm } from '~/utils/tttmLimits'
 import { groupToolsByModel, orderSelection, type ToolGroup } from '~/utils/tttmToolGroups'
 import type { ToolRef } from '~/composables/useTttmApi'
 
@@ -173,23 +174,34 @@ const props = defineProps<{
   recipeId: string | null
   recipeNames: string[]
   recipesPending: boolean
-  tolerance: number
-  range: { min: number, max: number, step: number }
-  toleranceIndex: number
 }>()
 
 const emit = defineEmits<{
   (e: 'update:selected', value: string[]): void
   (e: 'update:recipeId', value: string | null): void
-  (e: 'update:tolerance', value: number): void
 }>()
 
 const fleetIds = computed(() => props.tools.map(t => t.eqp_id))
 const groups = computed(() => groupToolsByModel(props.tools))
 
-const isSelected = (eqp: string) => props.selected.includes(eqp)
-const pickedIn = (group: ToolGroup<ToolRef>) =>
-  group.tools.map(t => t.eqp_id).filter(isSelected)
+// Set-backed, and the per-group id lists and picks are computed once per
+// selection change rather than per render: `pickedIn` feeds both a
+// `:model-value` and a label, so an array rebuilt in the template handed every
+// USelectMenu a new identity on each pass and re-rendered the whole menu
+// subtree. A fab runs up to 18 tools across ~7 model groups.
+const selectedSet = computed(() => new Set(props.selected))
+const isSelected = (eqp: string) => selectedSet.value.has(eqp)
+
+const groupIds = computed(() =>
+  new Map(groups.value.map(g => [g.model, g.tools.map(t => t.eqp_id)]))
+)
+const groupPicks = computed(() =>
+  new Map(
+    groups.value.map(g => [g.model, (groupIds.value.get(g.model) ?? []).filter(isSelected)])
+  )
+)
+const idsIn = (group: ToolGroup<ToolRef>) => groupIds.value.get(group.model) ?? []
+const pickedIn = (group: ToolGroup<ToolRef>) => groupPicks.value.get(group.model) ?? []
 
 // "Everything selected" is stored as an empty list, so a tool added to the fleet
 // later shows up instead of being excluded by a selection saved before it
@@ -233,13 +245,18 @@ const overflowed = computed(() => matchCount.value > RECIPE_LIMIT)
 // even when the search box is narrowing 50,000 names down to a hundred.
 const recipeItems = computed(() => [ALL_RECIPES, ...matched.value.slice(0, RECIPE_LIMIT)])
 
-const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(3)}`
-
 // A group with nothing picked stays outlined; any pick fills it with the brand,
 // which is DESIGN.md's FILTER role (`sk-chip`) — these narrow the data on this
 // page rather than navigating anywhere.
+//
+// The `[&_svg]` reach is for the chevron: NuxtUI gives the trailing icon its own
+// dimmed colour rather than letting it inherit, so on the terracotta fill it
+// renders near-black — legible enough in light mode to miss, and clearly wrong
+// in dark. `--sk-brand-fg` does not invert (brand is dark in both themes), so
+// one value is right for both.
 const triggerClass = (group: ToolGroup<ToolRef>) =>
   pickedIn(group).length
     ? 'bg-(--sk-brand) text-(--sk-brand-fg) ring-(--sk-brand) hover:bg-(--sk-brand)'
+    + ' [&_svg]:text-(--sk-brand-fg)'
     : ''
 </script>

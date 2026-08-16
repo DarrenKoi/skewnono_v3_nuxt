@@ -5,7 +5,7 @@
         장비 그룹 배치도
       </p>
       <p
-        class="font-mono text-[11px] tabular-nums"
+        class="font-mono text-xs tabular-nums"
         :style="{ color: stress.color }"
       >
         stress {{ map.stress.toFixed(3) }} · {{ stress.text }}
@@ -36,7 +36,7 @@
       <span
         v-for="eqp in map.detached"
         :key="eqp"
-        class="rounded-[var(--sk-r-chip)] bg-(--sk-chip-bg) px-1.5 py-0.5 font-mono text-xs text-(--sk-chip-text)"
+        class="sk-signal-badge bg-(--sk-chip-bg) font-mono text-(--sk-chip-text)"
       >{{ labelFor(eqp) }}</span>
       <span class="sk-field-label">
         — 다른 장비와 겹치는 측정이 없어 거리를 정의할 수 없습니다.

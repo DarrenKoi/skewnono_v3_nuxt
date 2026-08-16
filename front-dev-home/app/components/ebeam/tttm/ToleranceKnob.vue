@@ -20,7 +20,10 @@
       class="mt-2 w-full accent-(--sk-brand)"
       @input="onInput"
     >
-    <div class="flex justify-between font-mono text-[11px] tabular-nums text-(--sk-ink-subtle)">
+    <!-- 12px, not the 11px micro-label tier: these are the knob's endpoints —
+         data values — and DESIGN.md's floor is that a value never renders
+         below 12px. -->
+    <div class="flex justify-between font-mono text-xs tabular-nums text-(--sk-ink-subtle)">
       <span>{{ range.min.toFixed(2) }}</span>
       <span>{{ range.max.toFixed(2) }}</span>
     </div>

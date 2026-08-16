@@ -16,18 +16,26 @@ import {
   fractionOfLimit,
   isMeasured,
   resolveNominalCd,
-  worstFractionOfLimit,
   type NominalCd,
   type ToleranceIndex
 } from './tttmLimits.ts'
 import type { Confidence, SkewMatrix, Tier } from './tttmGrouping.ts'
 
-/** One occupied cell, already reduced to the single matrix it reads through. */
+/**
+ * One occupied cell, already reduced to the single matrix it reads through.
+ *
+ * Restated here rather than imported from `composables/useTttmApi`: a util that
+ * imports a composable inverts the layering, and this shape is deliberately
+ * narrower than `SkewCondition` — it carries the ONE matrix the cell reads
+ * through, so nothing downstream can quietly re-pick between the direct and
+ * predicted tiers. Narrower means narrower: a `SkewCondition` field nobody here
+ * reads does not get mirrored in, or the seam decays into a second copy of the
+ * API contract. `cd_band` was mirrored in and read by no one; it is gone.
+ */
 export interface CellInput {
   cell_id: string
   beam_condition: string
   axis: string
-  cd_band: string
   median_cd_nm: number | null
   tier: Tier
   confidence: Confidence
@@ -44,7 +52,8 @@ export interface PairReading {
   index: number
 }
 
-export interface RankedCell {
+/** Everything about a cell that the tolerance knob cannot change. */
+export interface ScoredCell {
   cell: CellInput
   matrix: SkewMatrix
   cd: NominalCd
@@ -52,19 +61,31 @@ export interface RankedCell {
   severity: number | null
   /** The pair that severity came from, so the number on screen has names attached. */
   worstPair: PairReading | null
+}
+
+/** A scored cell plus what the knob's current position costs it. */
+export interface RankedCell extends ScoredCell {
   /** What the current knob costs THIS cell, in its own nanometres. */
   thresholdNm: number
   /** Pairs over that threshold. The count the header chip reports. */
   failingPairs: number
+  /**
+   * Whether the worst pair is actually over the line.
+   *
+   * Lives here rather than being re-derived at each call site: the bar colour,
+   * the value colour, the 초과 wording and the failing count are four
+   * statements of one comparison, and four copies is how they start disagreeing
+   * after any one of them is tuned.
+   */
+  worstExceeds: boolean
 }
 
 /**
  * The worst measured pair in a cell, with both tool names.
  *
- * `maxMeasuredPair` in tttmLimits answers the same question without the names;
- * this one exists because every 3a surface quotes the pair ("BC1·Y 셀에서
- * ECDX204 와 0.240 nm"), and a number whose partner is unnamed cannot be acted
- * on. Upper triangle only — the matrix is symmetric by contract.
+ * Every surface quotes the pair ("BC1·Y 셀에서 ECDX204 와 0.240 nm"), and a
+ * number whose partner is unnamed cannot be acted on. Upper triangle only — the
+ * matrix is symmetric by contract.
  */
 export const worstPairOf = (matrix: SkewMatrix, cdNm: number): PairReading | null => {
   let worst: PairReading | null = null
@@ -110,26 +131,49 @@ export const countFailingPairs = (matrix: SkewMatrix, thresholdNm: number): numb
  * Cells with nothing measured sort last: they carry no evidence, so they cannot
  * be "better" than a cell that does.
  *
- * The ORDER deliberately does not depend on the tolerance — only `thresholdNm`
- * and `failingPairs` do. Dragging the slider must not resort the tab strip under
- * the cursor.
+ * The tolerance is deliberately absent, and that is the point of the split:
+ * every value here survives a slider drag untouched, so the caller memoises
+ * this once and re-runs only `applyTolerance` per frame. Keeping the sort out
+ * here is also what guarantees the matrix tab strip never reorders under the
+ * cursor mid-drag.
  */
-export const rankCells = (cells: readonly CellInput[], tolerance: ToleranceIndex): RankedCell[] =>
+export const scoreCells = (cells: readonly CellInput[]): ScoredCell[] =>
   cells
-    .map((cell): RankedCell => {
+    .map((cell): ScoredCell => {
       const cd = resolveNominalCd(cell.median_cd_nm)
-      const thresholdNm = effectiveToleranceNm(tolerance, cd.nm)
+      const worstPair = worstPairOf(cell.matrix, cd.nm)
       return {
         cell,
         matrix: cell.matrix,
         cd,
-        severity: worstFractionOfLimit(cell.matrix.values, cd.nm),
-        worstPair: worstPairOf(cell.matrix, cd.nm),
-        thresholdNm,
-        failingPairs: countFailingPairs(cell.matrix, thresholdNm)
+        // Taken off the pair rather than walking the matrix a second time: one
+        // CD divides every value here, so max-then-normalise and
+        // normalise-then-max agree by construction — and this way the ranking
+        // key and the names printed beside it are provably the same pair.
+        severity: worstPair?.index ?? null,
+        worstPair
       }
     })
     .sort((a, b) => (b.severity ?? -1) - (a.severity ?? -1))
+
+/** The thin per-frame half: what the knob's current position costs each cell. */
+export const applyTolerance = (
+  scored: readonly ScoredCell[],
+  tolerance: ToleranceIndex
+): RankedCell[] =>
+  scored.map((row) => {
+    const thresholdNm = effectiveToleranceNm(tolerance, row.cd.nm)
+    return {
+      ...row,
+      thresholdNm,
+      failingPairs: countFailingPairs(row.matrix, thresholdNm),
+      worstExceeds: row.worstPair !== null && row.worstPair.skewNm > thresholdNm
+    }
+  })
+
+/** Both halves, for callers with no drag to optimise (and for the tests). */
+export const rankCells = (cells: readonly CellInput[], tolerance: ToleranceIndex): RankedCell[] =>
+  applyTolerance(scoreCells(cells), tolerance)
 
 /** `BC1 · Y` — the cell's identity without its CD band, for tabs and prose. */
 export const cellLabel = (cell: CellInput) => `${cell.beam_condition} · ${cell.axis}`
@@ -163,6 +207,17 @@ export interface ExcludedTool {
   cell: CellInput | null
   /** That cell's threshold, so the card can say what the pair exceeded. */
   thresholdNm: number
+  /**
+   * Whether the blocker actually broke the tolerance.
+   *
+   * FALSE IS A REAL CASE, and the card must not word it as a violation. N배화
+   * needs a measured, in-tolerance pair with EVERY member — `buildAdjacency`
+   * requires `isMeasured` — so one missing pair drops a tool while every pair
+   * it does have passes comfortably. Reported here rather than left to the
+   * caller because "excluded" and "over tolerance" are different events and the
+   * component had already conflated them once.
+   */
+  exceeds: boolean
 }
 
 /**
@@ -213,7 +268,13 @@ export const excludedTools = (
         }
       }
 
-      return { eqp_id: eqp, blocker, cell, thresholdNm }
+      return {
+        eqp_id: eqp,
+        blocker,
+        cell,
+        thresholdNm,
+        exceeds: blocker !== null && blocker.skewNm > thresholdNm
+      }
     })
     .sort((a, b) => (b.blocker?.index ?? -1) - (a.blocker?.index ?? -1))
 }

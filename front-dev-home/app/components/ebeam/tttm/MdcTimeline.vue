@@ -3,19 +3,11 @@
        already suspect a tool, not something read on the way past — and left
        open it puts a six-column table between the trend chart and the bottom of
        the page every single visit. -->
-  <details class="group dashboard-surface rounded-[var(--sk-r-card)]">
-    <summary
-      class="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden"
-    >
-      <UIcon
-        name="i-lucide-chevron-right"
-        class="h-3.5 w-3.5 text-(--sk-ink-muted) transition-transform duration-150 group-open:rotate-90"
-      />
-      <span class="sk-title">MDC 이력 (빔 조건 × 축)</span>
-      <span class="ml-auto sk-meta">{{ caption }}</span>
-    </summary>
-
-    <div class="border-t border-(--sk-border-soft) px-4 py-3">
+  <EbeamTttmFoldPanel
+    title="MDC 이력 (빔 조건 × 축)"
+    :meta="caption"
+  >
+    <template #default>
       <table
         v-if="history.length"
         class="w-full text-sm"
@@ -67,7 +59,7 @@
               class="py-1 text-right font-mono text-xs tabular-nums"
               :style="{ color: h.new_value - h.old_value >= 0 ? 'var(--sk-ok)' : 'var(--sk-bad)' }"
             >
-              {{ (h.new_value - h.old_value >= 0 ? '+' : '') + (h.new_value - h.old_value).toFixed(4) }}
+              {{ formatSignedNm(h.new_value - h.old_value, 4) }}
             </td>
           </tr>
         </tbody>
@@ -78,11 +70,12 @@
       >
         기록된 MDC 변경이 없습니다.
       </p>
-    </div>
-  </details>
+    </template>
+  </EbeamTttmFoldPanel>
 </template>
 
 <script setup lang="ts">
+import { formatSignedNm } from '~/utils/tttmLimits'
 import type { MdcHistoryEntry } from '~/composables/useTttmApi'
 
 const props = defineProps<{ history: MdcHistoryEntry[] }>()
