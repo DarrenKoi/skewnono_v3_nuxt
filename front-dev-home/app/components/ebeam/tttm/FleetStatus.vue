@@ -44,14 +44,7 @@
     <p class="mt-2 text-[11px] text-(--sk-ink-subtle)">
       잔차 = tool − consensus(중앙값). 0 = 장비 그룹 합의와 일치.
       <span :style="{ color: 'var(--sk-bad)' }">빨간 선 ±{{ actionLimit.toFixed(2) }} nm</span>
-      = 이 밖으로 나가면 PM/BM 대상입니다 (기준은 CD의
-      {{ (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0) }}%이며,
-      <template v-if="cd.assumed">
-        이 데이터에는 CD가 없어 모니터 wafer {{ cd.nm }} nm 를 가정했습니다
-      </template>
-      <template v-else>
-        측정 CD 중앙값 {{ cd.nm.toFixed(1) }} nm 기준입니다
-      </template>).
+      = 이 밖으로 나가면 PM/BM 대상입니다 ({{ cdBasis }}).
       안쪽 옅은 선
       ±{{ MEASUREMENT_FLOOR_NM.toFixed(2) }} nm 는 시험 자체의 불확도라,
       그보다 작은 차이는 구별 불가입니다.
@@ -73,6 +66,16 @@ const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
 // measured is the failure this replaced.
 const cd = computed(() => resolveNominalCd(props.fleet.median_cd_nm))
 const actionLimit = computed(() => actionLimitNm(cd.value.nm))
+
+// Built here rather than as `<template v-if>` branches in the caption: those
+// branches are block elements to the formatter, so it broke them onto their own
+// lines and the rendered sentence picked up a space before the closing paren.
+const percent = computed(() => (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0))
+const cdBasis = computed(() =>
+  cd.value.assumed
+    ? `기준은 CD의 ${percent.value}%인데 이 데이터에는 CD가 없어 모니터 wafer ${cd.value.nm} nm 를 가정했습니다`
+    : `기준은 CD의 ${percent.value}%이며, 측정 CD 중앙값 ${cd.value.nm.toFixed(1)} nm 기준입니다`
+)
 
 // Rebuilt when the payload swaps the fleet; destructuring at setup would pin
 // the first fab's labels for the life of the component.
