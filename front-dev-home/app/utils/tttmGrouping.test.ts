@@ -1,7 +1,8 @@
 // Pure-logic tests — run with: npm test  (node --test, Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildAdjacency, maximalCliques, type SkewMatrix, type Tier, type Confidence, groupFromCells, pickPrimary, toleranceIndexFromNm, effectiveToleranceNm, type GroupCell, type NbaGroup } from './tttmGrouping.ts'
+import { buildAdjacency, maximalCliques, type SkewMatrix, type Tier, type Confidence, groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from './tttmGrouping.ts'
+import { effectiveToleranceNm, fractionOfLimit } from './tttmLimits.ts'
 
 const m: SkewMatrix = {
   tools: ['A', 'B', 'C'],
@@ -138,17 +139,17 @@ test('groupFromCells: throws when cells have mismatched tool order', () => {
 
 // --- CD-relative tolerance ---------------------------------------------------
 
-test('toleranceIndexFromNm / effectiveToleranceNm: round-trip at the quoting CD', () => {
+test('fractionOfLimit / effectiveToleranceNm: round-trip at the quoting CD', () => {
   // The knob's nm is quoted at the monitor wafer, so converting there and back
   // must be the identity. If this drifts, every nm on screen is a different
   // number from the one the engine used.
-  const index = toleranceIndexFromNm(0.05, 15)
+  const index = fractionOfLimit(0.05, 15)
   assert.ok(Math.abs(index - 1 / 3) < 1e-12)
   assert.ok(Math.abs(effectiveToleranceNm(index, 15) - 0.05) < 1e-12)
 })
 
 test('effectiveToleranceNm: the same index costs a large-CD cell more nm', () => {
-  const index = toleranceIndexFromNm(0.05, 15)
+  const index = fractionOfLimit(0.05, 15)
   assert.ok(Math.abs(effectiveToleranceNm(index, 68) - 0.68 / 3) < 1e-12)
   assert.ok(effectiveToleranceNm(index, 68) > effectiveToleranceNm(index, 15))
 })

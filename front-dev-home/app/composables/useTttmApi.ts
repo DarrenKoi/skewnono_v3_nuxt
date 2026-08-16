@@ -20,6 +20,17 @@ export interface SkewCondition {
   predicted_skew_matrix: SkewMatrix | null
 }
 
+/**
+ * The matrix a cell should be read through: measured beats modelled.
+ *
+ * Both tiers are independently nullable, so the preference order is a rule and
+ * not a formality. It was stated twice with different null handling — a `!`
+ * assertion in PairMatrix and a filter in TttmView — which is one definition
+ * too many for a rule that decides which numbers the screen shows.
+ */
+export const preferredMatrix = (cell: SkewCondition): SkewMatrix | null =>
+  cell.direct_skew_matrix ?? cell.predicted_skew_matrix
+
 export interface ProductionCorroboration {
   level: 'high' | 'mid' | 'low'
   note: string

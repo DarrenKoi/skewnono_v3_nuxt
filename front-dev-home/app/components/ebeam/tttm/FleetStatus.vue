@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { toolLabels } from '~/utils/toolLabels'
-import { actionLimitNm, resolveNominalCd, PM_BM_ACTION_LIMIT_RATIO, MEASUREMENT_FLOOR_NM } from '~/utils/tttmLimits'
+import { actionLimitNm, resolveNominalCd, ACTION_LIMIT_PERCENT, MEASUREMENT_FLOOR_NM } from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
@@ -67,14 +67,14 @@ const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
 const cd = computed(() => resolveNominalCd(props.fleet.median_cd_nm))
 const actionLimit = computed(() => actionLimitNm(cd.value.nm))
 
-// Built here rather than as `<template v-if>` branches in the caption: those
-// branches are block elements to the formatter, so it broke them onto their own
-// lines and the rendered sentence picked up a space before the closing paren.
-const percent = computed(() => (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0))
+// Built as a string rather than as `<template v-if>` branches in the caption:
+// those are block elements to the formatter, so it breaks them onto their own
+// lines and the rendered sentence picks up a stray space before the closing
+// paren. FleetMap's `thresholdBasis` exists for the same reason.
 const cdBasis = computed(() =>
   cd.value.assumed
-    ? `기준은 CD의 ${percent.value}%인데 이 데이터에는 CD가 없어 모니터 wafer ${cd.value.nm} nm 를 가정했습니다`
-    : `기준은 CD의 ${percent.value}%이며, 측정 CD 중앙값 ${cd.value.nm.toFixed(1)} nm 기준입니다`
+    ? `기준은 CD의 ${ACTION_LIMIT_PERCENT}%인데 이 데이터에는 CD가 없어 모니터 wafer ${cd.value.nm} nm 를 가정했습니다`
+    : `기준은 CD의 ${ACTION_LIMIT_PERCENT}%이며, 측정 CD 중앙값 ${cd.value.nm.toFixed(1)} nm 기준입니다`
 )
 
 // Rebuilt when the payload swaps the fleet; destructuring at setup would pin

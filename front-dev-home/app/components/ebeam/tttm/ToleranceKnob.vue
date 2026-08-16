@@ -32,8 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { effectiveToleranceNm } from '~/utils/tttmGrouping'
-import { MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
+import { effectiveToleranceNm, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
 
 defineProps<{
   modelValue: number

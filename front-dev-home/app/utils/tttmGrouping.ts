@@ -9,47 +9,23 @@
 // large-pattern cell to a standard twice as strict as the small one, for no
 // stated reason. Each cell is judged against its own CD instead.
 
-import { actionLimitNm, fractionOfLimit } from './tttmLimits.ts'
+// All CD-ratio arithmetic — the index type, the nm conversion, the measured
+// predicate — lives in tttmLimits, so a component never imports one half of
+// the concept from here and the other half from there.
+import {
+  effectiveToleranceNm,
+  fractionOfLimit,
+  isMeasured,
+  type ToleranceIndex
+} from './tttmLimits.ts'
 
 export type ToleranceNm = number
-
-/**
- * A tolerance in units of "× (CD의 1%)". 1.0 lets a pair skew by the full fab
- * action limit for its own pattern size.
- *
- * Converted from the payload's nm knob by `toleranceIndexFromNm` — the server
- * still speaks nanometres, and this is the boundary where that stops.
- */
-export type ToleranceIndex = number
-
-/**
- * Read the payload's nm tolerance as a CD-relative index.
- *
- * The knob's nm value is taken at the MONITOR WAFER CD, because that is the CD
- * every figure in this feature was quoted at. So the default 0.05 nm reads as
- * "a third of the action limit", and it means that at every pattern size rather
- * than only at 15 nm.
- */
-export const toleranceIndexFromNm = (
-  toleranceNm: ToleranceNm,
-  monitorCdNm: number
-): ToleranceIndex => fractionOfLimit(toleranceNm, monitorCdNm)
-
-/** What that index costs one specific cell, back in nanometres, for display. */
-export const effectiveToleranceNm = (index: ToleranceIndex, cdNm: number): ToleranceNm =>
-  index * actionLimitNm(cdNm)
 
 export interface SkewMatrix {
   tools: string[]
   // Symmetric, diagonal 0. null = the pair has no data (never TTTM).
   values: (number | null)[][]
 }
-
-// "This pair was actually measured." Declared beside the type that permits the
-// hole, because more than one engine has to ask the question and they must not
-// answer it differently — `buildAdjacency` below and `retainComplete` in
-// fleetMap.ts previously spelled it two ways, which disagreed on NaN.
-export const isMeasured = (v: number | null | undefined): v is number => Number.isFinite(v)
 
 export type Confidence = 'High' | 'Med' | 'Low'
 export type Tier = 'direct' | 'predicted'
@@ -177,24 +153,34 @@ export function groupFromCells(cells: GroupCell[], tolerance: ToleranceIndex): N
 
   const { confidence, tier } = inheritConfidence(cells)
 
-  // The worst cell for a given pair, measured as a CD-relative index, reported
-  // with the nanometres it came from so the two always describe one pair.
-  const worst = (i: number, j: number): { index: number, nm: number } => {
-    let out = { index: 0, nm: 0 }
-    for (const cell of cells) {
-      const v = cell.matrix.values[i]?.[j]
-      if (!isMeasured(v)) continue
-      const index = fractionOfLimit(v, cell.cdNm)
-      if (index > out.index) out = { index, nm: v }
+  // The worst cell for every pair, as a CD-relative index carrying the
+  // nanometres it came from so the two always describe the same pair.
+  //
+  // Built once here rather than per pair inside the clique loop below: cliques
+  // overlap, so a shared pair would be re-scanned across every clique that
+  // contains it, and the number of maximal cliques grows as 3^(n/3). At today's
+  // 5-tool fleets that is microseconds either way; the reason to pay it once is
+  // that the cost stops being a function of the clique count.
+  const worst: { index: number, nm: number }[][] = Array.from(
+    { length: n },
+    () => Array.from({ length: n }, () => ({ index: 0, nm: 0 }))
+  )
+  for (const cell of cells) {
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const v = cell.matrix.values[i]?.[j]
+        if (!isMeasured(v)) continue
+        const index = fractionOfLimit(v, cell.cdNm)
+        if (index > worst[i]![j]!.index) worst[i]![j] = worst[j]![i] = { index, nm: v }
+      }
     }
-    return out
   }
 
   return maximalCliques(inter).map((clique): NbaGroup => {
     let weakest = { index: 0, nm: 0 }
     for (let a = 0; a < clique.length; a++) {
       for (let b = a + 1; b < clique.length; b++) {
-        const pair = worst(clique[a]!, clique[b]!)
+        const pair = worst[clique[a]!]![clique[b]!]!
         if (pair.index > weakest.index) weakest = pair
       }
     }

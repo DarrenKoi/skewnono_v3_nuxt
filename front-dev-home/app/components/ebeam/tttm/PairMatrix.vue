@@ -98,14 +98,15 @@
 <script setup lang="ts">
 import { toolLabels } from '~/utils/toolLabels'
 import {
+  ACTION_LIMIT_PERCENT,
+  effectiveToleranceNm,
   fractionOfLimit,
   worstFractionOfLimit,
   resolveNominalCd,
-  PM_BM_ACTION_LIMIT_RATIO,
   type NominalCd
 } from '~/utils/tttmLimits'
-import { effectiveToleranceNm, type SkewMatrix } from '~/utils/tttmGrouping'
-import type { SkewCondition, ToolRef } from '~/composables/useTttmApi'
+import type { SkewMatrix } from '~/utils/tttmGrouping'
+import { preferredMatrix, type SkewCondition, type ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{
   cells: SkewCondition[]
@@ -114,24 +115,21 @@ const props = defineProps<{
   toleranceIndex: number
 }>()
 
-/**
- * A cell with everything derived from its CD resolved once.
- *
- * The CD fallback used to be re-walked per cell by the threshold, the severity
- * and every tooltip; deriving it here means one resolution per cell per render
- * and, more usefully, makes it impossible for two of those to disagree.
- */
-interface RankedCell {
+/** A cell with everything derived from its CD resolved once. */
+interface ScoredCell {
   cell: SkewCondition
   matrix: SkewMatrix
   cd: NominalCd
   /** Worst pair as a CD-relative index; null when nothing was measured. */
   severity: number | null
-  /** The knob converted into this cell's own nanometres. */
+}
+
+/** A scored cell plus what the current knob costs it, in its own nanometres. */
+interface RankedCell extends ScoredCell {
   threshold: number
 }
 
-const percent = computed(() => (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0))
+const percent = ACTION_LIMIT_PERCENT
 
 // THE ranking. Cells are shown worst-first by the CD-normalised index, not by
 // raw nm and not in payload order — which is the whole point of carrying a CD:
@@ -141,20 +139,29 @@ const percent = computed(() => (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0))
 //
 // Cells with no measured pair sort last: they carry no evidence, so they
 // cannot be "better" than a cell that does.
-const rankedCells = computed<RankedCell[]>(() =>
+//
+// Deliberately does NOT depend on the tolerance: neither the severity nor the
+// order changes when the knob moves, so folding the threshold in here would
+// re-scan every matrix and re-sort on every frame of a slider drag to produce
+// the identical ordering.
+const scoredCells = computed<ScoredCell[]>(() =>
   props.cells
-    .map((cell): RankedCell => {
-      const matrix = (cell.direct_skew_matrix ?? cell.predicted_skew_matrix)!
+    .map((cell): ScoredCell => {
+      // Non-null: TttmView only passes cells that have a matrix, and a cell
+      // without one has no pairs to render anyway.
+      const matrix = preferredMatrix(cell)!
       const cd = resolveNominalCd(cell.median_cd_nm)
-      return {
-        cell,
-        matrix,
-        cd,
-        severity: worstFractionOfLimit(matrix.values, cd.nm),
-        threshold: effectiveToleranceNm(props.toleranceIndex, cd.nm)
-      }
+      return { cell, matrix, cd, severity: worstFractionOfLimit(matrix.values, cd.nm) }
     })
     .sort((a, b) => (b.severity ?? -1) - (a.severity ?? -1))
+)
+
+// The only part that moves with the knob.
+const rankedCells = computed<RankedCell[]>(() =>
+  scoredCells.value.map(scored => ({
+    ...scored,
+    threshold: effectiveToleranceNm(props.toleranceIndex, scored.cd.nm)
+  }))
 )
 
 // The prefix is derived from the fleet's own labels, not the literal

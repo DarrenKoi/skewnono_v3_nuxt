@@ -5,6 +5,8 @@ import {
   actionLimitNm,
   fractionOfLimit,
   worstFractionOfLimit,
+  maxMeasuredPair,
+  isMeasured,
   resolveNominalCd,
   MONITOR_WAFER_CD_NM,
   PM_BM_ACTION_LIMIT_RATIO
@@ -143,4 +145,44 @@ test('worstFractionOfLimit: unmeasured cells sort last under the ranking rule', 
     { id: 'measured', index: worstFractionOfLimit(symmetric({ '0-1': 0.01 }, 2), 15) }
   ].sort((a, b) => (b.index ?? -1) - (a.index ?? -1))
   assert.deepEqual(cells.map(c => c.id), ['measured', 'empty'])
+})
+
+// --- the measured gate ------------------------------------------------------
+
+test('isMeasured: NaN and Infinity are NOT measured', () => {
+  // The whole reason this predicate is exported rather than re-spelled: a
+  // hand-rolled `typeof v === "number"` accepts NaN, and `typeof NaN` IS
+  // "number". worstFractionOfLimit briefly spelled it that way.
+  assert.equal(isMeasured(0.12), true)
+  assert.equal(isMeasured(0), true)
+  assert.equal(isMeasured(null), false)
+  assert.equal(isMeasured(undefined), false)
+  assert.equal(isMeasured(Number.NaN), false)
+  assert.equal(isMeasured(Number.POSITIVE_INFINITY), false)
+  // The spelling that caused the bug, pinned so the difference is visible.
+  assert.equal(typeof Number.NaN === 'number', true)
+})
+
+test('worstFractionOfLimit: a NaN pair is skipped, not ranked', () => {
+  // With the old `typeof` gate this returned NaN, which then (a) passed the
+  // `severity !== null` guard in PairMatrix, (b) rendered as "CD 대비 NaN×",
+  // and (c) made the sort comparator return NaN, so the ordering of the whole
+  // list became implementation-defined.
+  const values: (number | null)[][] = [
+    [0, Number.NaN, 0.06],
+    [Number.NaN, 0, null],
+    [0.06, null, 0]
+  ]
+  const worst = worstFractionOfLimit(values, 15)
+  assert.equal(Number.isNaN(worst as number), false)
+  assert.equal(worst, fractionOfLimit(0.06, 15))
+})
+
+test('maxMeasuredPair: upper triangle only, nulls skipped, null when empty', () => {
+  assert.equal(maxMeasuredPair([[0, 0.02, 0.12], [0.02, 0, 0.1], [0.12, 0.1, 0]]), 0.12)
+  assert.equal(maxMeasuredPair([[0, null], [null, 0]]), null)
+  assert.equal(maxMeasuredPair([]), null)
+  // The diagonal is 0 by contract and must not be mistaken for a measured pair
+  // in a matrix that has none.
+  assert.equal(maxMeasuredPair([[0]]), null)
 })

@@ -59,8 +59,7 @@ import type { EChartsOption } from 'echarts'
 import { fleetMap } from '~/utils/fleetMap'
 import { SK_STATE } from '~/utils/chartPalette'
 import { toolLabels } from '~/utils/toolLabels'
-import { effectiveToleranceNm } from '~/utils/tttmGrouping'
-import { resolveNominalCd } from '~/utils/tttmLimits'
+import { effectiveToleranceNm, resolveNominalCd } from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{
@@ -76,9 +75,8 @@ const props = defineProps<{
 const cd = computed(() => resolveNominalCd(props.fleet.median_cd_nm))
 const thresholdNm = computed(() => effectiveToleranceNm(props.toleranceIndex, cd.value.nm))
 
-// Built as a string, not as `<template v-if>` branches in the caption: those
-// are block elements to the formatter, which breaks them onto their own lines
-// and leaves a stray space in the rendered sentence.
+// A string rather than `<template v-if>` branches in the caption — see the
+// note on FleetStatus's `cdBasis` for why.
 const thresholdBasis = computed(() => {
   const basis = cd.value.assumed ? ' 가정' : ''
   return `${thresholdNm.value.toFixed(3)} nm`

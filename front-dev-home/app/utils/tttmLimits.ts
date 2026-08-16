@@ -40,6 +40,42 @@ export const PM_BM_ACTION_LIMIT_RATIO = 0.01
 export const MONITOR_WAFER_CD_NM = 15
 
 /**
+ * The ratio as a percent label, for captions that say "CD의 1%".
+ *
+ * Derived rather than typed as "1" so the number on screen cannot drift from
+ * the constant it claims to describe. Two components had computed this
+ * identically before it lived here.
+ */
+export const ACTION_LIMIT_PERCENT = (PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0)
+
+/**
+ * "This value was actually measured."
+ *
+ * Lives here rather than beside `SkewMatrix` in tttmGrouping because
+ * tttmGrouping imports THIS module — putting the predicate there and reaching
+ * back for it would make the two files circular, and the copy that got made to
+ * avoid that reach is what this comment exists to prevent.
+ *
+ * `Number.isFinite`, never `typeof v === 'number'`: those disagree on NaN, and
+ * a NaN that survives the gate propagates into a sort comparator (which then
+ * returns NaN and orders arbitrarily) and onto the screen as "NaN×".
+ * fleetMap's `retainComplete` and grouping's `buildAdjacency` once spelled this
+ * two ways for exactly that reason; `worstFractionOfLimit` briefly made it
+ * three.
+ */
+export const isMeasured = (v: number | null | undefined): v is number => Number.isFinite(v)
+
+/**
+ * A tolerance in units of "× (CD의 1%)". 1.0 lets a pair skew by the full fab
+ * action limit for its own pattern size.
+ *
+ * The server's `tolerance_range` is still nanometres; `fractionOfLimit` against
+ * MONITOR_WAFER_CD_NM is the one conversion, and TttmView is the one place it
+ * happens.
+ */
+export type ToleranceIndex = number
+
+/**
  * The action limit in nm for a given nominal CD.
  *
  * `PM_BM_ACTION_LIMIT_RATIO * MONITOR_WAFER_CD_NM` reproduces the familiar
@@ -95,6 +131,31 @@ export const resolveNominalCd = (medianCdNm: number | null | undefined): Nominal
 export const fractionOfLimit = (skewNm: number, nominalCdNm: number) =>
   skewNm / actionLimitNm(nominalCdNm)
 
+/** What a CD-relative tolerance costs one cell, back in nanometres. */
+export const effectiveToleranceNm = (index: ToleranceIndex, cdNm: number) =>
+  index * actionLimitNm(cdNm)
+
+/**
+ * The largest measured value in a symmetric matrix's upper triangle, or `null`
+ * when nothing was measured.
+ *
+ * Upper triangle only: the matrix is symmetric by contract, so scanning both
+ * halves doubles the work to reach the same maximum.
+ */
+export const maxMeasuredPair = (values: (number | null)[][]): number | null => {
+  let worst: number | null = null
+  for (let row = 0; row < values.length; row++) {
+    const cols = values[row]
+    if (!cols) continue
+    for (let col = row + 1; col < cols.length; col++) {
+      const skew = cols[col]
+      if (!isMeasured(skew)) continue // null = pair not TTTM-able
+      if (worst === null || skew > worst) worst = skew
+    }
+  }
+  return worst
+}
+
 /**
  * The worst pair in a skew matrix, as a CD-normalised index. `null` when the
  * matrix has no measured pair at all.
@@ -108,23 +169,16 @@ export const fractionOfLimit = (skewNm: number, nominalCdNm: number) =>
  * is why this takes a matrix rather than living inside the component: the
  * recipe-level version is this function applied one level up.
  *
- * Reads the upper triangle only. The matrix is symmetric by contract, so
- * scanning both halves would double the work to reach the same maximum.
+ * One CD divides every pair here, so the max is taken first and normalised
+ * once rather than dividing inside the loop — same answer, and it leaves the
+ * matrix scan reusable as `maxMeasuredPair`.
  */
 export const worstFractionOfLimit = (
   values: (number | null)[][],
   nominalCdNm: number
 ): number | null => {
-  let worst: number | null = null
-  for (let row = 0; row < values.length; row++) {
-    for (let col = row + 1; col < (values[row]?.length ?? 0); col++) {
-      const skew = values[row]?.[col]
-      if (typeof skew !== 'number') continue // null = pair not TTTM-able
-      const index = fractionOfLimit(skew, nominalCdNm)
-      if (worst === null || index > worst) worst = index
-    }
-  }
-  return worst
+  const worst = maxMeasuredPair(values)
+  return worst === null ? null : fractionOfLimit(worst, nominalCdNm)
 }
 
 /**

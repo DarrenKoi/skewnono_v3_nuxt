@@ -76,13 +76,12 @@ import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import {
   groupFromCells,
   pickPrimary,
-  toleranceIndexFromNm,
   type GroupCell,
   type NbaGroup
 } from '~/utils/tttmGrouping'
-import { resolveNominalCd, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
+import { fractionOfLimit, resolveNominalCd, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
 import { subsetSkewMatrix, rebaseDeviations, resolveSelection } from '~/utils/tttmFleetSubset'
-import type { SkewCondition, FleetToday } from '~/composables/useTttmApi'
+import { preferredMatrix, type SkewCondition, type FleetToday } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
@@ -162,8 +161,12 @@ watch(payload, (p) => {
 // The knob is nanometres because the server's tolerance_range is; grouping is
 // CD-relative. This is the one place that conversion happens, so every surface
 // below argues in the same units.
+//
+// Read at the monitor-wafer CD, because that is the CD every figure in this
+// feature was quoted at: the default 0.05 nm becomes "a third of the action
+// limit", and means that at every pattern size rather than only at 15 nm.
 const toleranceIndex = computed(() =>
-  toleranceIndexFromNm(tolerance.value, MONITOR_WAFER_CD_NM)
+  fractionOfLimit(tolerance.value, MONITOR_WAFER_CD_NM)
 )
 
 // occupied cells → GroupCell[] (direct matrix preferred, else predicted).
@@ -172,7 +175,7 @@ const toleranceIndex = computed(() =>
 const groupCells = computed<GroupCell[]>(() =>
   visibleCells.value
     .map((c) => {
-      const matrix = c.direct_skew_matrix ?? c.predicted_skew_matrix
+      const matrix = preferredMatrix(c)
       return matrix
         ? {
             tier: c.tier,

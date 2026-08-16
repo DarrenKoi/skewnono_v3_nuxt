@@ -20,7 +20,8 @@
 // Explicit .ts on both: these are VALUE imports, so `node --test`'s type
 // stripping has to resolve them at runtime (the extensionless form only worked
 // while this was a type-only import, which is erased before Node ever sees it).
-import { isMeasured, type SkewMatrix } from './tttmGrouping.ts'
+import type { SkewMatrix } from './tttmGrouping.ts'
+import { isMeasured } from './tttmLimits.ts'
 import { mean } from './stats.ts'
 
 export interface FleetPoint {
