@@ -154,3 +154,9 @@ back_dev_home/msr_image/providers/office.py
 # No leading slash, so this matches at any depth -- front-dev-home/test-results/
 # and any future workspace's included.
 test-results/
+
+# Vendor/publisher PDFs dropped under docs/research/ for reference. This repo is
+# PUBLIC so the office can pull it anonymously, and the papers we read (e.g. the
+# SPIE Kawada 2009 CD-matching paper) are paywalled — cite them by DOI in the
+# Markdown instead of redistributing the file.
+docs/research/*.pdf
