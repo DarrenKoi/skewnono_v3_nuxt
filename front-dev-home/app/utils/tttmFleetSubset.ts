@@ -18,6 +18,7 @@
 // mean.
 
 import { median } from './stats.ts'
+import { alignSkewMatrix } from './tttmGrouping.ts'
 import type { SkewMatrix } from './tttmGrouping.ts'
 
 export interface DeviationRow {
@@ -25,19 +26,20 @@ export interface DeviationRow {
   deviation: number
 }
 
-/** Keep only `keep`'s tools, preserving the matrix's own ordering. */
+/**
+ * Keep only `keep`'s tools, preserving the matrix's own ordering.
+ *
+ * Ordering by the MATRIX rather than by the argument is deliberate: a caller
+ * passing ids in some other order must not be able to transpose the values
+ * against their own labels. Reach for `alignSkewMatrix` — in tttmGrouping, next
+ * to the fold whose invariant it satisfies — when you need the opposite:
+ * several matrices forced into one shared basis. The difference is not
+ * cosmetic, and it is why both exist: `align` can introduce all-null tools,
+ * `subset` provably cannot.
+ */
 export const subsetSkewMatrix = (matrix: SkewMatrix, keep: readonly string[]): SkewMatrix => {
   const wanted = new Set(keep)
-  const kept = matrix.tools
-    .map((eqp, index) => ({ eqp, index }))
-    .filter(({ eqp }) => wanted.has(eqp))
-
-  return {
-    tools: kept.map(({ eqp }) => eqp),
-    values: kept.map(({ index: row }) =>
-      kept.map(({ index: col }) => matrix.values[row]?.[col] ?? null)
-    )
-  }
+  return alignSkewMatrix(matrix, matrix.tools.filter(eqp => wanted.has(eqp)))
 }
 
 /**
@@ -69,10 +71,16 @@ export const resolveSelection = (
   available: readonly string[],
   selected: readonly string[]
 ): string[] => {
-  if (selected.length === 0) return [...available]
+  // De-duplicated because the result is used as a TOOL BASIS by
+  // `alignSkewMatrix`, where a repeated id becomes a repeated row and column —
+  // a matrix that reports a tool's skew against itself as if against a peer.
+  // Not hypothetical: sem_list's fleet carries a handful of duplicate eqp_ids,
+  // and this feature's tool list is built from the same physical fleet.
+  const fleet = [...new Set(available)]
+  if (selected.length === 0) return fleet
   const wanted = new Set(selected)
-  const kept = available.filter(eqp => wanted.has(eqp))
+  const kept = fleet.filter(eqp => wanted.has(eqp))
   // Every stored id is gone (fleet replaced, or a stale fab's selection):
   // fall back to showing the fleet rather than an empty screen.
-  return kept.length > 0 ? kept : [...available]
+  return kept.length > 0 ? kept : fleet
 }

@@ -57,13 +57,23 @@
           <p class="sk-title">
             이 설정에서
           </p>
-          <p class="mt-1.5 sk-field-label leading-relaxed">
+          <!-- `.sk-meta` for the sentence and `.sk-value-num` for each number,
+               per DESIGN.md §Colors' litmus — "value → ink; label → ink-muted".
+               This line was entirely `.sk-field-label`, i.e. ink-SUBTLE, which
+               the same section reserves for disabled/de-emphasised text; the
+               three numbers it exists to report were the faintest thing on the
+               rail, and fainter than the identical count in the picker above.
+               Both classes sit at 12px, so the numerals gain ink and tabular
+               figures without breaking the line's rhythm. -->
+          <p class="mt-1.5 sk-meta leading-relaxed">
             <!-- "셀 합계" is load-bearing: the matrix card below reports the
                  failing pairs of ONE cell, and the two numbers differ by design.
                  Unlabelled they read as the same count disagreeing with itself. -->
-            점유 셀 {{ rankedCells.length }}개 · 불합격 장비쌍 {{ failingPairs }}쌍 (셀 합계)
+            점유 셀 <span class="sk-value-num">{{ rankedCells.length }}</span>개 ·
+            불합격 장비쌍 <span class="sk-value-num">{{ failingPairs }}</span>쌍 (셀 합계)
             <template v-if="worstCell?.worstPair">
-              · 최악 {{ worstCell.worstPair.skewNm.toFixed(3) }} nm ({{ cellLabel(worstCell.cell) }})
+              · 최악 <span class="sk-value-num">{{ worstCell.worstPair.skewNm.toFixed(3) }}</span> nm
+              ({{ cellLabel(worstCell.cell) }})
             </template>
           </p>
         </div>
@@ -93,6 +103,8 @@
             :fleet="visibleFleet"
             :tools="visibleTools"
             :tolerance-index="toleranceIndex"
+            :group-tools="primary?.tools"
+            :blocked-pair="blockedPair"
           />
           <EbeamTttmCellSeverityList
             :cells="rankedCells"
@@ -107,8 +119,9 @@
 
         <div class="grid gap-3 2xl:grid-cols-2">
           <EbeamTttmFleetStatus
-            :fleet="visibleFleet"
+            :deviations="visibleFleet.consensus_deviation"
             :tools="visibleTools"
+            :cd="fleetCd"
           />
           <EbeamTttmTrendChart
             :trend="visibleTrend"
@@ -128,6 +141,7 @@
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import {
+  alignSkewMatrix,
   groupFromCells,
   pickPrimary,
   type GroupCell,
@@ -203,7 +217,13 @@ const cellInputs = computed<CellInput[]>(() =>
       tier: c.tier,
       confidence: c.confidence,
       labels: c.labels,
-      matrix: subsetSkewMatrix(matrix, selectedTools.value)
+      // ALIGNED, not merely subsetted. `groupFromCells` folds the cells together
+      // by positional index and throws unless every cell carries the same tool
+      // list in the same order — which nothing upstream promises. The throw
+      // would land inside this computed, blanking the page rather than a card.
+      // One shared basis makes the invariant true by construction, and a tool
+      // missing from a cell arrives as nulls, which is what it is.
+      matrix: alignSkewMatrix(matrix, selectedTools.value)
     }]
   })
 )
@@ -235,9 +255,13 @@ const fleetDeviations = computed<Record<string, number>>(() =>
 const visibleDeviations = computed<Record<string, number>>(() =>
   Object.fromEntries(visibleFleet.value.consensus_deviation.map(d => [d.eqp_id, d.deviation]))
 )
-const fleetActionLimit = computed(() =>
-  actionLimitNm(resolveNominalCd(visibleFleet.value.median_cd_nm).nm)
-)
+// Resolved ONCE, for both cards that draw the PM/BM limit. `FleetStatus` used
+// to re-resolve it from the same `fleet` prop while `ExcludedTools` took it as
+// a prop from here — one number reached the screen by two mechanisms, so a
+// change to the fallback would have moved the limit on one card and not the
+// other, and the two sit two rows apart quoting each other's ±.
+const fleetCd = computed(() => resolveNominalCd(visibleFleet.value.median_cd_nm))
+const fleetActionLimit = computed(() => actionLimitNm(fleetCd.value.nm))
 
 const inSelection = (eqp: string) => selectedTools.value.includes(eqp)
 const visibleTrend = computed(() => (payload.value?.trend ?? []).filter(p => inSelection(p.eqp_id)))
@@ -301,6 +325,19 @@ const others = computed(() =>
 const excluded = computed(() =>
   excludedTools(selectedTools.value, primary.value?.tools ?? [], rankedCells.value)
 )
+
+// The one blocked pair the map annotates: the lead exclusion's blocker, which
+// is the same pair `ExcludedTools` explains in words two cards up. Drawn only
+// when it actually breached the tolerance — a tool excluded merely for a
+// MISSING measurement has a blocker that passed, and a red "0.0xx nm" line
+// through the map would assert a violation the number disproves.
+// Handed on whole rather than copied field by field: re-spelling `a`/`b`/
+// `skewNm` here would be a second place `PairReading`'s field names live, so a
+// rename would still compile and silently drop the annotation.
+const blockedPair = computed(() => {
+  const lead = excluded.value[0]
+  return lead?.exceeds ? lead.blocker : null
+})
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
 const metaStats = computed<MetaBarStat[]>(() => [

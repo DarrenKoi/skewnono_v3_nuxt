@@ -61,30 +61,51 @@ import { toolLabels } from '~/utils/toolLabels'
 import {
   actionLimitNm,
   formatSignedNm,
-  resolveNominalCd,
   ACTION_LIMIT_PERCENT,
-  MEASUREMENT_FLOOR_NM
+  MEASUREMENT_FLOOR_NM,
+  type NominalCd
 } from '~/utils/tttmLimits'
-import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
+import type { DeviationRow } from '~/utils/tttmFleetSubset'
+import type { ToolRef } from '~/composables/useTttmApi'
 
-const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
+const props = defineProps<{
+  /**
+   * Consensus residuals for the visible selection, already re-based.
+   *
+   * The one field of `FleetToday` this card reads. It used to take the whole
+   * object and then resolve its own CD from `median_cd_nm`; now that the CD
+   * arrives resolved, holding the rest would just be a wider dependency than
+   * the card has — and would leave one prop carrying a `median_cd_nm` that
+   * another prop already answers.
+   */
+  deviations: DeviationRow[]
+  tools: ToolRef[]
+  /**
+   * The CD this card's limit is drawn against, resolved by the parent.
+   *
+   * Passed rather than re-resolved here: `ExcludedTools` quotes the same
+   * ±limit, and deriving it independently on both cards is how one of them
+   * ends up quoting a different number than the other after a change to the
+   * fallback. The parent resolves once; both cards read that one answer.
+   */
+  cd: NominalCd
+}>()
 
-// The action limit is 1% of the CD actually measured, so this line moves with
-// the recipe rather than sitting at a fixed 0.15 nm. `median_cd_nm` is nullable
-// by contract; when it is null we fall back to the monitor wafer and the
-// caption below says so, because a drawn-but-assumed limit that reads as
-// measured is the failure this replaced.
-const cd = computed(() => resolveNominalCd(props.fleet.median_cd_nm))
-const actionLimit = computed(() => actionLimitNm(cd.value.nm))
+// 1% of the CD actually measured, so this line moves with the recipe rather
+// than sitting at a fixed 0.15 nm. `median_cd_nm` is nullable by contract; when
+// it is null the parent falls back to the monitor wafer and `cd.assumed` says
+// so in the caption, because a drawn-but-assumed limit that reads as measured
+// is the failure this replaced.
+const actionLimit = computed(() => actionLimitNm(props.cd.nm))
 
 // Built as a string rather than as `<template v-if>` branches in the caption:
 // those are block elements to the formatter, so it breaks them onto their own
 // lines and the rendered sentence picks up a stray space before the closing
 // paren. FleetMap's `thresholdBasis` exists for the same reason.
 const cdBasis = computed(() =>
-  cd.value.assumed
-    ? `기준은 CD의 ${ACTION_LIMIT_PERCENT}%인데 이 데이터에는 CD가 없어 모니터 wafer ${cd.value.nm} nm 를 가정했습니다`
-    : `기준은 CD의 ${ACTION_LIMIT_PERCENT}%이며, 측정 CD 중앙값 ${cd.value.nm.toFixed(1)} nm 기준입니다`
+  props.cd.assumed
+    ? `기준은 CD의 ${ACTION_LIMIT_PERCENT}%인데 이 데이터에는 CD가 없어 모니터 wafer ${props.cd.nm} nm 를 가정했습니다`
+    : `기준은 CD의 ${ACTION_LIMIT_PERCENT}%이며, 측정 CD 중앙값 ${props.cd.nm.toFixed(1)} nm 기준입니다`
 )
 
 // Rebuilt when the payload swaps the fleet; destructuring at setup would pin
@@ -97,11 +118,11 @@ const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 const maxAbs = computed(() =>
   Math.max(
     actionLimit.value * 1.15,
-    ...props.fleet.consensus_deviation.map(d => Math.abs(d.deviation))
+    ...props.deviations.map(d => Math.abs(d.deviation))
   )
 )
 const sorted = computed(() =>
-  [...props.fleet.consensus_deviation].sort((a, b) => a.deviation - b.deviation)
+  [...props.deviations].sort((a, b) => a.deviation - b.deviation)
 )
 
 // Track positions (%) of a symmetric ±limit pair, measured from the centre line.
@@ -118,8 +139,8 @@ const overLimit = (dev: number) => Math.abs(dev) > actionLimit.value
 // bars. Counting rather than naming: which tools are out is already legible in
 // the rows above, but "any at all?" is the question this card is asked first.
 const verdict = computed(() => {
-  const total = props.fleet.consensus_deviation.length
-  const out = props.fleet.consensus_deviation.filter(d => overLimit(d.deviation)).length
+  const total = props.deviations.length
+  const out = props.deviations.filter(d => overLimit(d.deviation)).length
   if (total === 0) return '표시할 장비가 없습니다.'
   return out === 0
     ? `${total}대 모두 PM/BM 한계 안.`

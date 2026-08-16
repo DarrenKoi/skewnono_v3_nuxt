@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm test  (node --test, Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildAdjacency, maximalCliques, type SkewMatrix, type Tier, type Confidence, groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from './tttmGrouping.ts'
+import { alignSkewMatrix, buildAdjacency, maximalCliques, type SkewMatrix, type Tier, type Confidence, groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from './tttmGrouping.ts'
 import { effectiveToleranceNm, fractionOfLimit } from './tttmLimits.ts'
 
 const m: SkewMatrix = {
@@ -204,4 +204,82 @@ test('pickPrimary: equal N ranks on the index, even when nm says otherwise', () 
   ]
   // C,D has the smaller nm and the worse match. The index must win.
   assert.equal(pickPrimary(g)!.tools.join(','), 'A,B')
+})
+
+const alignFixture: SkewMatrix = {
+  tools: ['A', 'B', 'C', 'D'],
+  values: [
+    [0, 0.02, 0.12, null],
+    [0.02, 0, 0.10, 0.04],
+    [0.12, 0.10, 0, 0.11],
+    [null, 0.04, 0.11, 0]
+  ]
+}
+
+// --- alignSkewMatrix ---------------------------------------------------------
+// The opposite contract to subsetSkewMatrix: the ARGUMENT dictates the order,
+// because its job is to put several cells into one basis so `groupFromCells`
+// can fold them by positional index.
+
+test('alignSkewMatrix: the argument dictates the order, not the matrix', () => {
+  const out = alignSkewMatrix(alignFixture, ['C', 'A'])
+  assert.deepEqual(out.tools, ['C', 'A'])
+  // Values must travel with their labels, not stay where they were.
+  assert.deepEqual(out.values, [[0, 0.12], [0.12, 0]])
+})
+
+test('alignSkewMatrix: a tool the matrix lacks becomes an all-null row and column', () => {
+  const out = alignSkewMatrix(alignFixture, ['A', 'GHOST', 'B'])
+  assert.deepEqual(out.tools, ['A', 'GHOST', 'B'])
+  assert.deepEqual(out.values, [
+    [0, null, 0.02],
+    [null, null, null],
+    [0.02, null, 0]
+  ])
+})
+
+test('alignSkewMatrix: existing nulls survive alignment as nulls', () => {
+  const out = alignSkewMatrix(alignFixture, ['A', 'D'])
+  assert.deepEqual(out.values, [[0, null], [null, 0]])
+})
+
+// The regression this function exists for. Two cells whose tool lists differ —
+// contract-legal, since `SkewMatrixBlock` promises only that `tools` indexes
+// `values` — used to reach `groupFromCells` unaligned and throw, inside a
+// computed consumed during render.
+test('alignSkewMatrix: cells with differing tool lists survive groupFromCells', () => {
+  const cellA: SkewMatrix = { tools: ['A', 'B'], values: [[0, 0.01], [0.01, 0]] }
+  // Same fleet, different order, and one tool this cell never measured.
+  const cellB: SkewMatrix = { tools: ['B', 'A'], values: [[0, 0.02], [0.02, 0]] }
+  const basis = ['A', 'B', 'C']
+
+  assert.throws(
+    () => groupFromCells(
+      [
+        { tier: 'direct', confidence: 'High', matrix: cellA, cdNm: 15 },
+        { tier: 'direct', confidence: 'High', matrix: cellB, cdNm: 15 }
+      ],
+      1
+    ),
+    /same tool list/
+  )
+
+  const groups = groupFromCells(
+    [
+      { tier: 'direct', confidence: 'High', matrix: alignSkewMatrix(cellA, basis), cdNm: 15 },
+      { tier: 'direct', confidence: 'High', matrix: alignSkewMatrix(cellB, basis), cdNm: 15 }
+    ],
+    1
+  )
+  // A and B pass in both cells; C was never measured, so it joins nothing
+  // rather than crashing the page.
+  const best = groups.find(g => g.n === 2)
+  assert.ok(best, 'A and B should still group')
+  assert.deepEqual([...best.tools].sort(), ['A', 'B'])
+  // C may come back as a singleton clique — that is what "matches nobody"
+  // looks like. What must not happen is C being folded into a real group.
+  assert.ok(
+    !groups.some(g => g.n >= 2 && g.tools.includes('C')),
+    'C has no measured pair, so it cannot join a group'
+  )
 })

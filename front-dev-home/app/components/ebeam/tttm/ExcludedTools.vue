@@ -67,10 +67,18 @@
         class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-(--sk-border-soft) pt-3"
       >
         <span class="sk-field-label">함께 빠짐</span>
+        <!-- `.sk-badge`, not `.sk-signal-badge`. The signal badge's 11px is
+             sanctioned for a label that NAMES a category ("측정 없음", a level),
+             but an eqp_id is a data value — §Semantic type classes lists ID
+             under `.sk-value` — and the line that does not move is that a value
+             never renders below 12px. This card is on the row-card tier, whose
+             floor is 13px, and `.sk-badge` is the shape documented for exactly
+             this job: the mono tag beside a card headline holding an identifier.
+             It brings its own mono family and padding. -->
         <span
           v-for="t in rest"
           :key="t.eqp_id"
-          class="sk-signal-badge bg-(--sk-bad-soft) px-2 font-mono text-(--sk-bad)"
+          class="sk-badge bg-(--sk-bad-soft) text-(--sk-bad)"
           :title="pairTitle(t)"
         >{{ labelFor(t.eqp_id) }}</span>
       </div>

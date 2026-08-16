@@ -43,6 +43,13 @@ test('subsetSkewMatrix: unknown ids are ignored rather than inventing rows', () 
   assert.deepEqual(out.values, [[0]])
 })
 
+test('resolveSelection: duplicate fleet ids collapse, so the basis has no repeats', () => {
+  // sem_list's fleet carries a handful of duplicate eqp_ids, and a repeated id
+  // in the basis becomes a repeated row/column in every aligned matrix.
+  assert.deepEqual(resolveSelection(['A', 'B', 'A'], []), ['A', 'B'])
+  assert.deepEqual(resolveSelection(['A', 'B', 'A'], ['A']), ['A'])
+})
+
 const devs = [
   { eqp_id: 'A', deviation: -0.01 },
   { eqp_id: 'B', deviation: 0.01 },

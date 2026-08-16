@@ -36,7 +36,7 @@
       <span
         v-for="eqp in map.detached"
         :key="eqp"
-        class="sk-signal-badge bg-(--sk-chip-bg) font-mono text-(--sk-chip-text)"
+        class="sk-badge bg-(--sk-chip-bg) text-(--sk-chip-text)"
       >{{ labelFor(eqp) }}</span>
       <span class="sk-field-label">
         — 다른 장비와 겹치는 측정이 없어 거리를 정의할 수 없습니다.
@@ -50,15 +50,21 @@
           그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
         {{ thresholdBasis }} 밖인 장비이며, N배화 판정은 점유 셀 전체를 교차한
         결과라 이 지도와 다를 수 있습니다 — 그쪽은 위 추천 카드를 보십시오.
+        초록 테두리는 그 <strong>N배화 그룹</strong>이라 위치가 아니라 판정으로
+        그려집니다. 그래서 테두리 안에 있는데 빨간 점이거나, 가까이 있는데 테두리
+        밖인 장비가 나올 수 있고, 그것이 두 계산이 갈라진 지점입니다.
       </EbeamTttmCaptionMore>
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { EChartsOption } from 'echarts'
+import type { EChartsOption, SeriesOption } from 'echarts'
 import { fleetMap } from '~/utils/fleetMap'
+import { mean } from '~/utils/stats'
 import { SK_STATE } from '~/utils/chartPalette'
+import { CHART_AXIS_LABEL } from '~/utils/chartType'
+import type { PairReading } from '~/utils/tttmCells'
 import { toolLabels } from '~/utils/toolLabels'
 import { effectiveToleranceNm, resolveNominalCd } from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
@@ -68,6 +74,30 @@ const props = defineProps<{
   tools: ToolRef[]
   /** CD-relative; converted against THIS matrix's own CD below, not against nm. */
   toleranceIndex: number
+  /**
+   * The 1차 추천 group's members, drawn as a boundary over the scatter.
+   *
+   * The card is titled 장비 그룹 배치도 and until now drew no 그룹 — only
+   * coloured points — so the reader had to hold the recommendation card in
+   * their head and match ids by eye.
+   *
+   * Note this deliberately mixes two computations, exactly as the design does:
+   * the POSITIONS come from `fleet_today.matrix` (one matrix) while MEMBERSHIP
+   * comes from the AND-fold across every occupied cell. They can disagree, and
+   * a member can sit visually apart from its group. The caption already says
+   * so, and the boundary is drawn from membership rather than from the
+   * geometry, so it never invents a group the fold did not find.
+   */
+  groupTools?: string[]
+  /**
+   * The blocking pair to annotate — which two tools produced the worst blocked
+   * skew, and how large it was. Drawn as the dashed connector in the design.
+   *
+   * The reading itself, not a restatement of its fields: the same object the
+   * exclusion card explains in words, so the two cannot describe different
+   * pairs.
+   */
+  blockedPair?: PairReading | null
 }>()
 
 // fleet_today carries its own CD, so the map's red rule scales the same way the
@@ -124,6 +154,130 @@ const domain = computed(() => {
 type FleetValue = [x: number, y: number, score: number, nearest: number]
 interface FleetDatum { name: string, value: FleetValue }
 
+const pointAt = computed(() => new Map(map.value.points.map(p => [p.eqp_id, p])))
+
+/**
+ * The circle enclosing the group's mappable members, in DATA space.
+ *
+ * A circle rather than a hull because both axes already share one domain and
+ * the box is `aspect-square` (see the template), so one data unit is the same
+ * number of pixels horizontally and vertically — which is the whole reason the
+ * map is readable as distance. Under that construction a data-space circle
+ * lands as a pixel circle, and no per-axis correction is needed.
+ *
+ * Members the map dropped (`map.detached` — a tool sharing no measurement with
+ * anyone has no defined distance, so MDS cannot place it) are simply not
+ * enclosed. Under two enclosable members there is no region to draw.
+ */
+const groupHalo = computed(() => {
+  const members = (props.groupTools ?? [])
+    .map(eqp => pointAt.value.get(eqp))
+    .filter(p => p !== undefined)
+  if (members.length < 2) return null
+
+  const cx = mean(members.map(p => p.x))
+  const cy = mean(members.map(p => p.y))
+  const reach = Math.max(...members.map(p => Math.hypot(p.x - cx, p.y - cy)))
+  // Padding is proportional so the ring clears the symbols at any zoom, with a
+  // floor for the degenerate case of members sitting on top of each other.
+  const span = domain.value.max - domain.value.min
+  return { cx, cy, r: reach * 1.25 + span * 0.06, n: members.length }
+})
+
+/** The blocked pair as map coordinates, when both ends were placed. */
+const blockedLink = computed(() => {
+  const pair = props.blockedPair
+  if (!pair) return null
+  const a = pointAt.value.get(pair.a)
+  const b = pointAt.value.get(pair.b)
+  if (!a || !b) return null
+  return { a, b, skewNm: pair.skewNm }
+})
+
+/**
+ * What sits UNDER the scatter: the group boundary and the blocked-pair link.
+ *
+ * Both are `silent`, so they never intercept a hover meant for a point, and
+ * both are omitted entirely when their inputs are absent — an empty group or an
+ * unplaceable endpoint draws nothing rather than a degenerate ring at the
+ * origin.
+ */
+const backdrop = computed<SeriesOption[]>(() => {
+  const out: SeriesOption[] = []
+  const halo = groupHalo.value
+
+  if (halo) {
+    out.push({
+      type: 'custom',
+      silent: true,
+      z: 1,
+      // One datum, one renderItem call. The shape is computed in PIXELS on
+      // every render rather than baked once, which is what keeps it aligned
+      // through the host ResizeObserver's re-layout.
+      data: [[halo.cx, halo.cy]],
+      renderItem: (_params: unknown, api: unknown) => {
+        const { coord } = api as { coord: (d: number[]) => number[] }
+        const centre = coord([halo.cx, halo.cy])
+        const edge = coord([halo.cx + halo.r, halo.cy])
+        const cx = centre[0] ?? 0
+        const cy = centre[1] ?? 0
+        const r = Math.abs((edge[0] ?? 0) - cx)
+        return {
+          type: 'group',
+          children: [
+            {
+              type: 'circle',
+              shape: { cx, cy, r },
+              // Alpha over the canvas rather than a fixed soft token, so the
+              // ring reads the same weight on the warm paper and in dark mode.
+              style: {
+                fill: SK_STATE.ok,
+                opacity: 0.12,
+                stroke: SK_STATE.ok,
+                lineWidth: 1,
+                lineDash: [4, 4]
+              }
+            },
+            {
+              type: 'text',
+              style: {
+                text: `N배화 그룹 · ${halo.n}대`,
+                x: cx,
+                y: cy - r - 6,
+                textAlign: 'center',
+                textVerticalAlign: 'bottom',
+                fill: SK_STATE.ok,
+                ...CHART_AXIS_LABEL
+              }
+            }
+          ]
+        }
+      }
+    })
+  }
+
+  const link = blockedLink.value
+  if (link) {
+    out.push({
+      type: 'lines',
+      coordinateSystem: 'cartesian2d',
+      silent: true,
+      z: 2,
+      data: [{ coords: [[link.a.x, link.a.y], [link.b.x, link.b.y]] }],
+      lineStyle: { color: SK_STATE.bad, width: 1.5, type: [5, 4], opacity: 0.9 },
+      label: {
+        show: true,
+        position: 'middle',
+        formatter: `${link.skewNm.toFixed(3)} nm`,
+        color: SK_STATE.bad,
+        ...CHART_AXIS_LABEL
+      }
+    })
+  }
+
+  return out
+})
+
 const chartOption = computed<EChartsOption>(() => {
   const points = map.value.points
   const maxScore = Math.max(...points.map(p => p.score), 1e-9)
@@ -152,7 +306,7 @@ const chartOption = computed<EChartsOption>(() => {
     },
     xAxis: axis(),
     yAxis: axis(),
-    series: [{
+    series: [...backdrop.value, {
       type: 'scatter',
       data: points.map(p => ({
         name: p.eqp_id,
@@ -180,7 +334,12 @@ const chartOption = computed<EChartsOption>(() => {
         distance: 6,
         formatter: (p: unknown) => labelFor((p as { data: FleetDatum }).data.name),
         color: sk.value.ink,
-        fontSize: 11
+        // From `chartType`, not hand-written. DESIGN.md §The row-card tier:
+        // ECharts paints to a canvas where the sk-* classes cannot reach, so
+        // `utils/chartType.ts` restates the floor for that one context and
+        // "every chart on these screens reads from it". These labels are
+        // eqp_ids — data values — and were sitting at 11px, under the floor.
+        ...CHART_AXIS_LABEL
       },
       // A tightly-matched group is a tight CLUSTER by construction, so its
       // labels collide exactly where the map is most worth reading. Shift them

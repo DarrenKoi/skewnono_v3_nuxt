@@ -27,6 +27,46 @@ export interface SkewMatrix {
   values: (number | null)[][]
 }
 
+/**
+ * Re-express a matrix in an exact tool basis: `order` becomes the output's
+ * `tools`, verbatim, and a tool absent from `matrix` gets an all-null row and
+ * column.
+ *
+ * This is the remedy for the throw in `groupFromCells` below, and it lives
+ * beside it on purpose — the fold aligns cells BY POSITIONAL INDEX and refuses
+ * to run unless every cell's tool list matches `cells[0]` exactly, so whoever
+ * hits that error has to be able to find this from the throw site.
+ *
+ * Nothing upstream guarantees the invariant. The backend contract
+ * (`SkewMatrixBlock`) promises only that `tools` indexes both axes of `values`;
+ * a null means "this pair has no data in this cell", so an office adapter
+ * returning a per-cell tool list is contract-legal. The mock builds every cell
+ * through one helper, so the home suite passes either way and the throw would
+ * first appear at the office — inside a computed consumed during render, which
+ * blanks the whole page rather than one card.
+ *
+ * Filling with nulls is the honest answer rather than a workaround: a tool with
+ * no data in a cell is exactly what `isMeasured` rejects, so `buildAdjacency`
+ * declines to link it and it surfaces as "겹치는 측정이 없어" — which is what
+ * actually happened.
+ *
+ * The basis is the CALLER's choice, which is why this does not simply run
+ * inside `groupFromCells`. Only the caller knows the user's tool selection, and
+ * an engine inventing a basis of its own (the union, say) would silently
+ * readmit tools the user had deselected.
+ */
+export const alignSkewMatrix = (matrix: SkewMatrix, order: readonly string[]): SkewMatrix => {
+  // -1 for a tool this matrix does not carry, so both lookups below miss and
+  // the cell falls through to null.
+  const at = new Map(matrix.tools.map((eqp, index) => [eqp, index]))
+  const rows = order.map(eqp => at.get(eqp) ?? -1)
+
+  return {
+    tools: [...order],
+    values: rows.map(row => rows.map(col => matrix.values[row]?.[col] ?? null))
+  }
+}
+
 export type Confidence = 'High' | 'Med' | 'Low'
 export type Tier = 'direct' | 'predicted'
 
