@@ -43,6 +43,12 @@
           :style="{ background: 'var(--sk-muted-surface)', color: 'var(--sk-ink-muted)' }"
           :title="`이 셀 최악 장비쌍 ÷ (CD의 ${(PM_BM_ACTION_LIMIT_RATIO * 100).toFixed(0)}%)`"
         >CD 대비 {{ indexOf(cell)!.toFixed(2) }}×</span>
+        <!-- What the knob costs THIS cell. Two cells at different CDs pass
+             different nm at the same slider position, so the number the
+             colouring uses has to be visible per cell. -->
+        <span class="text-xs text-(--sk-ink-subtle)">
+          기준 {{ thresholdOf(cell).toFixed(3) }} nm
+        </span>
         <span
           v-for="l in cell.labels"
           :key="l"
@@ -76,7 +82,7 @@
                 v-for="(v, j) in row"
                 :key="j"
                 class="p-1 text-center rounded"
-                :style="cellStyle(v, i, j)"
+                :style="cellStyle(cell, v, i, j)"
                 :title="pairTitle(cell, i, j, v)"
               >
                 {{ i === j ? '—' : (v === null ? '·' : v.toFixed(3)) }}
@@ -99,9 +105,14 @@ import {
   PM_BM_ACTION_LIMIT_RATIO
 } from '~/utils/tttmLimits'
 import type { SkewCondition, ToolRef } from '~/composables/useTttmApi'
-import type { SkewMatrix } from '~/utils/tttmGrouping'
+import { effectiveToleranceNm, type SkewMatrix } from '~/utils/tttmGrouping'
 
-const props = defineProps<{ cells: SkewCondition[], tools: ToolRef[], tolerance: number }>()
+const props = defineProps<{
+  cells: SkewCondition[]
+  tools: ToolRef[]
+  /** CD-relative, not nm — each cell converts it against its own CD below. */
+  toleranceIndex: number
+}>()
 
 const matrixOf = (cell: SkewCondition): SkewMatrix =>
   (cell.direct_skew_matrix ?? cell.predicted_skew_matrix)!
@@ -117,9 +128,14 @@ const tierStyle = (tier: string) =>
     ? { background: 'var(--sk-ok-soft)', color: 'var(--sk-ok)' }
     : { background: 'var(--sk-muted-surface)', color: 'var(--sk-ink-muted)' }
 
-const cellStyle = (v: number | null, i: number, j: number) => {
+// The knob converted into THIS cell's nanometres. The same slider position is a
+// different nm allowance per cell, because the cells sit at different CDs.
+const thresholdOf = (cell: SkewCondition) =>
+  effectiveToleranceNm(props.toleranceIndex, resolveNominalCd(cell.median_cd_nm).nm)
+
+const cellStyle = (cell: SkewCondition, v: number | null, i: number, j: number) => {
   if (i === j || v === null) return { color: 'var(--sk-ink-subtle)' }
-  const tttm = v <= props.tolerance
+  const tttm = v <= thresholdOf(cell)
   return tttm
     ? { background: 'var(--sk-ok-soft)', color: 'var(--sk-ok)', fontWeight: 600 }
     : { background: 'var(--sk-bad-soft)', color: 'var(--sk-bad)' }
@@ -145,7 +161,7 @@ const rankedCells = computed(() =>
 const pairTitle = (cell: SkewCondition, i: number, j: number, v: number | null) => {
   if (i === j || v === null) return ''
   const m = matrixOf(cell)
-  const state = v <= props.tolerance ? 'TTTM' : 'tolerance 초과'
+  const state = v <= thresholdOf(cell) ? 'TTTM' : 'tolerance 초과'
   // The fraction is what ranks pairs ACROSS cells: 0.24 nm at a 15 nm CD and
   // 0.24 nm at 68 nm are the same nanometres and nowhere near the same problem.
   // Named "CD 대비", never "한계 대비" — see the header comment.
