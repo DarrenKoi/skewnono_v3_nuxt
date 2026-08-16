@@ -4,7 +4,15 @@
       :fabs="fabs"
       :primary-fab="primaryFab"
     />
+    <!-- Keyed on the fab so a fab switch REMOUNTS rather than reusing the view.
+         TttmView reads props.fab once at setup — useTttmCheck bakes it into the
+         useAsyncData key, and useTttmSettings resolves the per-fab scope from
+         it — so a reused instance would keep serving the previous fab's payload
+         and write the new fab's picks into the old fab's saved settings. Nuxt
+         already remounts here in practice; the key is what stops that from
+         being an accident this page silently depends on. -->
     <EbeamTttmView
+      :key="primaryFab"
       :fab="primaryFab"
       tool-label="CD-SEM"
       tool-type="cd-sem"
