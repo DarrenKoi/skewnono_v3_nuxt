@@ -24,7 +24,7 @@ test('the slug list is the live set, with the merged legacy routes excluded', ()
     'live-alarm',
     'device-statistics',
     'skewvoir',
-    'skew-check'
+    'tttm'
   ])
   // recipe-tat / fail-issue merged into recipe-status and are redirected by
   // route middleware before any layout reads route.path, so listing them would
@@ -56,7 +56,7 @@ test('matchFeatureFromPath keeps matching past deeper sub-routes', () => {
 })
 
 test('matchFeatureFromPath distinguishes the two skew- slugs', () => {
-  assert.equal(matchFeatureFromPath('/ebeam/cdsem/r3/skew-check'), 'skew-check')
+  assert.equal(matchFeatureFromPath('/ebeam/cdsem/r3/tttm'), 'tttm')
   assert.equal(matchFeatureFromPath('/ebeam/cdsem/skewvoir'), 'skewvoir')
 })
 
@@ -103,7 +103,7 @@ test('isFablessFeature answers for live slugs and unknown strings alike', () => 
   assert.equal(isFablessFeature('skewvoir'), true)
   assert.equal(isFablessFeature('storage'), false)
   assert.equal(isFablessFeature('recipe-search'), false)
-  assert.equal(isFablessFeature('skew-check'), false)
+  assert.equal(isFablessFeature('tttm'), false)
   assert.equal(isFablessFeature('not-a-feature'), false)
   assert.equal(isFablessFeature(''), false)
 })

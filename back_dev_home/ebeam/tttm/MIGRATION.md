@@ -1,4 +1,4 @@
-# skew — office migration
+# tttm — office migration
 
 ## Rules
 
@@ -7,19 +7,19 @@
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
-## Endpoint: GET /api/<tool_slug>/skew/check
+## Endpoint: GET /api/<tool_slug>/tttm/check
 
-- Handler: `routes.py` → `data.get_skew_check(tool_slug, fab_name,
+- Handler: `routes.py` → `data.get_tttm_check(tool_slug, fab_name,
   recipe_id)`. `tool_slug` is validated against `SEM_TOOL_SLUGS` (400 if
   not `cdsem`/`hvsem`) before the data call. `fab_name` is a required query
   param (`?fab_name=...`, 400 if missing); `recipe_id` is an optional query
   param.
-- Contract: `SkewCheckPayload` (large nested tree — see `contracts.py` for
+- Contract: `TttmCheckPayload` (large nested tree — see `contracts.py` for
   the full `ToolRef`/`CellSkew`/`SkewMatrixBlock`/`ProductionCorroboration`/
   `FleetToday`/`TrendPoint`/`EpochMarker`/`MdcHistoryEntry` definitions) —
 
   ```python
-  class SkewCheckPayload(TypedDict):
+  class TttmCheckPayload(TypedDict):
       tool_slug: ToolSlug
       fab_name: str
       recipe_id: str | None
@@ -39,9 +39,9 @@
   ```
 
 - Mock behavior: serves a static, deterministic fixture file per
-  `tool_slug`/`fab_name` pair from `__fixtures__/skew_{tool_slug}_{fab_name.lower()}.json`
-  (only `skew_cdsem_r3.json` exists today). If the fixture file is missing,
-  `get_skew_check` returns an `available: false` empty payload (`tools: []`,
+  `tool_slug`/`fab_name` pair from `__fixtures__/tttm_{tool_slug}_{fab_name.lower()}.json`
+  (only `tttm_cdsem_r3.json` exists today). If the fixture file is missing,
+  `get_tttm_check` returns an `available: false` empty payload (`tools: []`,
   `occupied_cells: []`, all list fields empty, `current_tolerance: 0.05`,
   `production_corroboration.level: "low"`) with a Korean "no mock data for
   this fleet" summary — this is the "unknown fab" case, not an error.
@@ -61,4 +61,4 @@
 
 ## Verify
 
-    SKEWNONO_SKEW_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/skew
+    SKEWNONO_TTTM_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/tttm

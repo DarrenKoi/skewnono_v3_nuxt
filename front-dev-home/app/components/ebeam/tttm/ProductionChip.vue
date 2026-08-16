@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ProductionCorroboration } from '~/composables/useSkewCheckApi'
+import type { ProductionCorroboration } from '~/composables/useTttmApi'
 
 const props = defineProps<{ corroboration: ProductionCorroboration }>()
 const open = ref(false)

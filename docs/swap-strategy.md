@@ -27,7 +27,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 2026-07-15 기준 route module은 19개입니다. 이 중 mock/office provider seam이 준비된
 피처는 `sem_list`, `ebeam/storage`, `ebeam/hardware`,
-`ebeam/skew` 네 개입니다.
+`ebeam/tttm` 네 개입니다.
 
 나머지 피처는 기존 `data.py`에서 mock 구현을 `providers/mock.py`로 이동하고,
 `contracts.py`와 `providers/office.py`를 추가해야 합니다. 모든 폴더에 빈 office adapter를

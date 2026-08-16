@@ -4,7 +4,7 @@
       :fabs="fabs"
       :primary-fab="primaryFab"
     />
-    <EbeamSkewCheckView
+    <EbeamTttmView
       :fab="primaryFab"
       tool-label="CD-SEM"
       tool-type="cd-sem"

@@ -51,12 +51,12 @@ def fake_tree(tmp_path, monkeypatch):
 
 @pytest.fixture
 def wired(fake_tree):
-    """sem_list + storage have an office adapter; chat + skew do not."""
+    """sem_list + storage have an office adapter; chat + tttm do not."""
     return fake_tree(
         {
             "sem_list": ["mock.py", "office.py"],
             "ebeam/storage": ["mock.py", "office.py"],
             "chat": ["mock.py", "office_example.py"],
-            "ebeam/skew": ["mock.py", "office_example.py"],
+            "ebeam/tttm": ["mock.py", "office_example.py"],
         }
     )

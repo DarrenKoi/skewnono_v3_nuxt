@@ -132,7 +132,7 @@
     "slug": "live_alarm"
   },
   {
-    "path": "/ebeam/cd-sem/M14/skew-check",
+    "path": "/ebeam/cd-sem/M14/tttm",
     "query": {},
     "slug": "skew_check"
   },

@@ -86,8 +86,8 @@ ENDPOINTS: list[tuple[str, str, str]] = [
 
     # hitachi skew (fab_name required; recipe_id optional but pinned so the
     # captured shape stays the recipe-scoped one)
-    ("ebeam/skew", "skew_cdsem_r3.json",
-     "/api/cdsem/skew/check?fab_name=R3&recipe_id=CD_MON_16"),
+    ("ebeam/tttm", "tttm_cdsem_r3.json",
+     "/api/cdsem/tttm/check?fab_name=R3&recipe_id=CD_MON_16"),
 
     # hitachi hardware (equipment-first path; tool_slug + eqp_id + service)
     ("ebeam/hardware", "hardware-bsm.json",

@@ -1,6 +1,6 @@
 """Tests for provider-backed features that follow the sem_list dispatch seam.
 
-Requires `hardware` and `skew` office adapters. Both `providers/office.py`
+Requires `hardware` and `tttm` office adapters. Both `providers/office.py`
 files are gitignored (created at the office with
 `cp office_example.py office.py`), so on a checkout without them this module
 SKIPS rather than failing collection — a missing adapter is the documented
@@ -18,7 +18,7 @@ import pytest
 
 from tests._office_state import has_office_adapter
 
-_REQUIRED = ("ebeam/hardware", "ebeam/skew")
+_REQUIRED = ("ebeam/hardware", "ebeam/tttm")
 _missing = [feature for feature in _REQUIRED if not has_office_adapter(feature)]
 if _missing:
     pytest.skip(
@@ -31,15 +31,15 @@ if _missing:
 from back_dev_home.ebeam.hardware import data as hardware_data
 from back_dev_home.ebeam.hardware.providers import mock as hardware_mock
 from back_dev_home.ebeam.hardware.providers import office as hardware_office
-from back_dev_home.ebeam.skew import data as skew_data
-from back_dev_home.ebeam.skew.providers import mock as skew_mock
-from back_dev_home.ebeam.skew.providers import office as skew_office
+from back_dev_home.ebeam.tttm import data as tttm_data
+from back_dev_home.ebeam.tttm.providers import mock as tttm_mock
+from back_dev_home.ebeam.tttm.providers import office as tttm_office
 
 
 _PROVIDER_ENV_NAMES = (
     "SKEWNONO_DATA_PROVIDER",
     "SKEWNONO_HARDWARE_PROVIDER",
-    "SKEWNONO_SKEW_PROVIDER",
+    "SKEWNONO_TTTM_PROVIDER",
 )
 
 
@@ -61,11 +61,11 @@ class ProviderEnvironmentTestCase(unittest.TestCase):
 
 
 class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
-    def test_global_office_provider_selects_hardware_and_skew_adapters(self):
+    def test_global_office_provider_selects_hardware_and_tttm_adapters(self):
         os.environ["SKEWNONO_DATA_PROVIDER"] = "office"
         now = datetime(2026, 7, 15, tzinfo=timezone.utc)
         hardware_payload = {"source": "hardware-office"}
-        skew_payload = {"source": "skew-office"}
+        tttm_payload = {"source": "tttm-office"}
 
         with (
             patch.object(
@@ -74,10 +74,10 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 return_value=hardware_payload,
             ) as load_hardware,
             patch.object(
-                skew_office,
-                "get_skew_check",
-                return_value=skew_payload,
-            ) as load_skew,
+                tttm_office,
+                "get_tttm_check",
+                return_value=tttm_payload,
+            ) as load_tttm,
         ):
             self.assertIs(
                 hardware_data.get_hardware_service(
@@ -86,22 +86,22 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 hardware_payload,
             )
             self.assertIs(
-                skew_data.get_skew_check("cdsem", "R3", "RECIPE-1"),
-                skew_payload,
+                tttm_data.get_tttm_check("cdsem", "R3", "RECIPE-1"),
+                tttm_payload,
             )
 
         load_hardware.assert_called_once_with(
             "cdsem", "bsm", "ECDX123", "M16A", now, now
         )
-        load_skew.assert_called_once_with("cdsem", "R3", "RECIPE-1")
+        load_tttm.assert_called_once_with("cdsem", "R3", "RECIPE-1")
 
     def test_feature_mock_override_wins_over_global_office_provider(self):
         os.environ["SKEWNONO_DATA_PROVIDER"] = "office"
         os.environ["SKEWNONO_HARDWARE_PROVIDER"] = "mock"
-        os.environ["SKEWNONO_SKEW_PROVIDER"] = "mock"
+        os.environ["SKEWNONO_TTTM_PROVIDER"] = "mock"
         now = datetime(2026, 7, 15, tzinfo=timezone.utc)
         hardware_payload = {"source": "hardware-mock"}
-        skew_payload = {"source": "skew-mock"}
+        tttm_payload = {"source": "tttm-mock"}
 
         with (
             patch.object(
@@ -110,9 +110,9 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 return_value=hardware_payload,
             ),
             patch.object(
-                skew_mock,
-                "get_skew_check",
-                return_value=skew_payload,
+                tttm_mock,
+                "get_tttm_check",
+                return_value=tttm_payload,
             ),
         ):
             self.assertIs(
@@ -122,8 +122,8 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 hardware_payload,
             )
             self.assertIs(
-                skew_data.get_skew_check("cdsem", "R3", None),
-                skew_payload,
+                tttm_data.get_tttm_check("cdsem", "R3", None),
+                tttm_payload,
             )
 
 

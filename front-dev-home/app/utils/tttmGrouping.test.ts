@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm test  (node --test, Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildAdjacency, maximalCliques, type SkewMatrix, type Tier, type Confidence, groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from './skewGrouping.ts'
+import { buildAdjacency, maximalCliques, type SkewMatrix, type Tier, type Confidence, groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from './tttmGrouping.ts'
 
 const m: SkewMatrix = {
   tools: ['A', 'B', 'C'],

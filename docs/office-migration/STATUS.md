@@ -57,7 +57,7 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 | lateral_recipe | SKEWNONO_LATERAL_RECIPE_PROVIDER | ebeam/lateral_recipe/contracts.py | ebeam/lateral_recipe/MIGRATION.md | 구현완료 | - |
 | sem_list | SKEWNONO_SEM_LIST_PROVIDER | sem_list/contracts.py | sem_list/MIGRATION.md | office | 2026-07-20 |
 | hardware | SKEWNONO_HARDWARE_PROVIDER | ebeam/hardware/contracts.py | ebeam/hardware/MIGRATION.md | mock | - |
-| skew | SKEWNONO_SKEW_PROVIDER | ebeam/skew/contracts.py | ebeam/skew/MIGRATION.md | 보류 | - |
+| tttm | SKEWNONO_TTTM_PROVIDER | ebeam/tttm/contracts.py | ebeam/tttm/MIGRATION.md | 보류 | - |
 | storage | SKEWNONO_STORAGE_PROVIDER | ebeam/storage/contracts.py | ebeam/storage/MIGRATION.md | office | 2026-07-21 |
 | meas_hist | SKEWNONO_MEAS_HIST_PROVIDER | meas_hist/contracts.py | meas_hist/MIGRATION.md | 구현완료 | - |
 | afm | SKEWNONO_AFM_PROVIDER | afm/contracts.py | afm/MIGRATION.md | 보류 | - |
@@ -69,7 +69,7 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 
 ## 비고
 
-- **afm과 skew는 이번 버전에서 전환하지 않습니다(보류).** 두 화면은 랜딩
+- **afm과 tttm(구 skew)은 이번 버전에서 전환하지 않습니다(보류).** 두 화면은 랜딩
   페이지에서 감춰져 있고 차기 SKEWNONO 버전에서 열 예정이므로, office 어댑터
   구현도 office 연결 점검(`/home-to-office` 감사, `office_example.py` 채우기)도
   대상에서 제외합니다. 표에 행을 남겨 두는 이유는 기능이 사라진 것이 아니라

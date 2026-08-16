@@ -1,5 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
-import type { SkewMatrix, Confidence, Tier } from '~/utils/skewGrouping'
+import type { SkewMatrix, Confidence, Tier } from '~/utils/tttmGrouping'
 
 export interface ToolRef { eqp_id: string, label: string }
 
@@ -44,7 +44,7 @@ export interface MdcHistoryEntry {
   new_value: number
 }
 
-export interface SkewCheckPayload {
+export interface TttmCheckPayload {
   tool_slug: string
   fab_name: string
   recipe_id: string | null
@@ -65,21 +65,21 @@ export interface SkewCheckPayload {
 // Frontend tool-type 'cd-sem' maps to backend tool_slug 'cdsem'.
 const toSlug = (toolType: string) => toolType.replace('-', '')
 
-export const useSkewCheckApi = () => {
+export const useTttmApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  const fetchSkewCheck = (toolType: string, fabName: string, recipeId?: string) =>
-    $fetch<SkewCheckPayload>(
-      joinApiPath(base, `/${toSlug(toolType)}/skew/check`),
+  const fetchTttmCheck = (toolType: string, fabName: string, recipeId?: string) =>
+    $fetch<TttmCheckPayload>(
+      joinApiPath(base, `/${toSlug(toolType)}/tttm/check`),
       { query: { fab_name: fabName, ...(recipeId ? { recipe_id: recipeId } : {}) } }
     )
 
-  const useSkewCheck = (toolType: string, fabName: string, recipeId?: string) =>
+  const useTttmCheck = (toolType: string, fabName: string, recipeId?: string) =>
     useAsyncData(
-      `skew-check:${toolType}:${fabName}:${recipeId ?? 'all'}`,
-      () => fetchSkewCheck(toolType, fabName, recipeId)
+      `tttm-check:${toolType}:${fabName}:${recipeId ?? 'all'}`,
+      () => fetchTttmCheck(toolType, fabName, recipeId)
     )
 
-  return { fetchSkewCheck, useSkewCheck }
+  return { fetchTttmCheck, useTttmCheck }
 }

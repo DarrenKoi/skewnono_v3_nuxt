@@ -421,7 +421,7 @@ PORT=5000 .venv/bin/python -m scripts.check_contract
 
 | 상태 | 피처 |
 | --- | --- |
-| provider 선택 준비 | `sem_list`, `ebeam/storage`, `ebeam/hardware`, `ebeam/skew` |
+| provider 선택 준비 | `sem_list`, `ebeam/storage`, `ebeam/hardware`, `ebeam/tttm` |
 | 기존 `data.py` 구현 분리 필요 | `access_control`, `activity`, `admin_logs`, `afm`, `announcements`, `api_tokens`, `device_statistics`, `fail_issue`, `pm_planning`, `recipe_search`, `recipe_tat`, `lateral_recipe`, `health`, `meas_hist`, `msr_file` |
 
 모든 폴더에 빈 `office.py`부터 만들지 않습니다. 각 피처는 다음 순서로 전환합니다.

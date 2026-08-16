@@ -91,7 +91,7 @@ class ToleranceRange(TypedDict):
     step: float
 
 
-class SkewCheckPayload(TypedDict):
+class TttmCheckPayload(TypedDict):
     tool_slug: ToolSlug
     fab_name: str
     recipe_id: str | None

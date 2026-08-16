@@ -62,8 +62,8 @@
 </template>
 
 <script setup lang="ts">
-import type { SkewCondition, ToolRef } from '~/composables/useSkewCheckApi'
-import type { SkewMatrix } from '~/utils/skewGrouping'
+import type { SkewCondition, ToolRef } from '~/composables/useTttmApi'
+import type { SkewMatrix } from '~/utils/tttmGrouping'
 
 const props = defineProps<{ cells: SkewCondition[], tools: ToolRef[], tolerance: number }>()
 

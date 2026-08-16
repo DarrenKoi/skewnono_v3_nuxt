@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FleetToday, ToolRef } from '~/composables/useSkewCheckApi'
+import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
 

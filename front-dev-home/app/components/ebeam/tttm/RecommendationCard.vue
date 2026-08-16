@@ -51,8 +51,8 @@
 </template>
 
 <script setup lang="ts">
-import type { NbaGroup } from '~/utils/skewGrouping'
-import type { ToolRef } from '~/composables/useSkewCheckApi'
+import type { NbaGroup } from '~/utils/tttmGrouping'
+import type { ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{
   primary: NbaGroup | null

@@ -12,7 +12,7 @@ export const FEATURE_SLUGS = [
   'live-alarm',
   'device-statistics',
   'skewvoir',
-  'skew-check'
+  'tttm'
 ] as const
 
 export type FeatureSlug = typeof FEATURE_SLUGS[number]

@@ -100,7 +100,7 @@ def test_office_mode_flips_only_features_with_an_adapter(monkeypatch, wired):
     assert data_provider.get_data_provider("storage") == "office"
     # No office.py -> mock, silently. A blanket office default would 500 these.
     assert data_provider.get_data_provider("chat") == "mock"
-    assert data_provider.get_data_provider("skew") == "mock"
+    assert data_provider.get_data_provider("tttm") == "mock"
 
 
 def test_mock_mode_ignores_present_adapters(monkeypatch, wired):
@@ -159,12 +159,12 @@ def test_office_without_an_adapter_raises_off_the_app_factory_path(
 
 def test_the_two_paths_give_the_identical_message(monkeypatch, wired):
     """validate_env() and get_data_provider() must not drift on diagnosis."""
-    monkeypatch.setenv("SKEWNONO_SKEW_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_TTTM_PROVIDER", "office")
 
     with pytest.raises(RuntimeError) as boot_exc:
         data_provider.validate_env()
     with pytest.raises(RuntimeError) as request_exc:
-        data_provider.get_data_provider("skew")
+        data_provider.get_data_provider("tttm")
 
     assert str(boot_exc.value) == str(request_exc.value)
 
@@ -211,7 +211,7 @@ def test_resolve_all_reports_provider_and_reason(monkeypatch, wired):
     monkeypatch.setenv("SKEWNONO_STORAGE_PROVIDER", "mock")
     by_feature = {r.feature: r for r in data_provider.resolve_all()}
 
-    assert set(by_feature) == {"sem_list", "storage", "chat", "skew"}
+    assert set(by_feature) == {"sem_list", "storage", "chat", "tttm"}
     assert by_feature["sem_list"].provider == "office"
     assert by_feature["sem_list"].reason == "providers/office.py found"
     assert by_feature["chat"].provider == "mock"

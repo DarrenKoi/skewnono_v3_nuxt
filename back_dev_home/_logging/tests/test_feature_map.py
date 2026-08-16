@@ -165,6 +165,9 @@ def test_no_registered_route_still_needs_the_fallback():
         # Fab is a variable segment; both tools share page slugs.
         ("/ebeam/cd-sem/M14/storage", "storage"),
         ("/ebeam/hv-sem/M11/hardware", "hardware"),
+        # Renamed skew-check → tttm (2026-08-16). Both paths keep the ORIGINAL
+        # slug, because renaming a written slug splits the historical series.
+        ("/ebeam/cd-sem/R3/tttm", "skew_check"),
         ("/ebeam/cd-sem/R3/skew-check", "skew_check"),
         ("/ebeam/cd-sem/M15/pm-planning", "pm_planning"),
         # Fabless ebeam pages.

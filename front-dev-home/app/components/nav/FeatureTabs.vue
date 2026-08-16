@@ -17,7 +17,7 @@ const isInfoRoute = computed(() => isHeaderInfoPath(route.path))
 // The tabs and the 실험실 menu appear in exactly the same places — one composable decides.
 const isToolScoped = useToolScopedRoute()
 
-type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'live-alarm' | 'device-statistics' | 'skewvoir' | 'skew-check'
+type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'live-alarm' | 'device-statistics' | 'skewvoir' | 'tttm'
 
 type FeatureTab = {
   label: string
@@ -34,9 +34,9 @@ const features: FeatureTab[] = [
   // 라이브 알람 is reachable via the icon-only header button (AppHeader), like /chat —
   // no feature tab. Keep 'live-alarm' in activeFeature so no tab highlights on that page.
   { label: '디바이스 통계', routeValue: 'device-statistics', icon: 'i-lucide-bar-chart-3', enabledToolTypes: ['cd-sem'] },
-  // 스큐 관리 (skew-check) is hidden from the nav while its design is reworked.
+  // TTTM (tttm) is hidden from the nav while its design is reworked.
   // The route and page still exist and remain reachable by URL.
-  // { label: '스큐 관리', routeValue: 'skew-check', icon: 'i-lucide-git-compare', enabledToolTypes: ['cd-sem'] },
+  // { label: 'TTTM', routeValue: 'tttm', icon: 'i-lucide-git-compare', enabledToolTypes: ['cd-sem'] },
   { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', enabledToolTypes: ['cd-sem', 'hv-sem'] }
 ]
 
@@ -60,7 +60,7 @@ const activeFeature = computed<FeatureRouteValue | null>(() => {
   if (path.includes('/hardware')) return 'hardware'
   if (path.includes('/live-alarm')) return 'live-alarm'
   if (path.includes('/device-statistics')) return 'device-statistics'
-  if (path.includes('/skew-check')) return 'skew-check'
+  if (path.includes('/tttm')) return 'tttm'
   if (path.includes('/skewvoir')) return 'skewvoir'
   return 'index'
 })

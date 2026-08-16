@@ -205,6 +205,27 @@ _피할 표현_: 선택 세트, 비교 세트
 
 **uniformity 지표 (✅ 확정 — dual-metric)**: acceptance 는 **3σ 와 range(max−min) 두 지표가 각자의 허용오차를 동시에 만족**할 때만 통과합니다(둘 중 하나라도 넘으면 기각). 두 지표는 서로 다른 것을 지킵니다 — **3σ 는 산포의 *형태*** 를, **range 는 *극단 포인트*(에지·코너)** 를 보호. gap 은 LOWO 교차검증에서 두 지표 각각으로 계산하므로 tolerance 도 `3σ_tolerance`·`range_tolerance` 둘이 필요합니다 — v1 에서는 **엔지니어가 조정하는 per-recipe knob**(단일 tolerance 객체에 두 필드, full-set 대비 % 기본값)이며, [[계측-룰]]처럼 admin 게이트로 두지 않습니다(이 페이지는 cross-team 신호가 아니라 개인 분석 surface 이기 때문). 한 wafer 에서 두 지표가 크게 엇갈리면 **불량 포인트 신호**로도 읽습니다.
 
+### TTTM (Tool-to-Tool Matching, 장비 간 매칭)
+
+**장비들이 하드웨어적으로 서로 얼마나 맞춰져 있는가**를 분석하는 것. 매칭이 잘 되어
+있을수록 **어느 장비로 측정하든 측정 신뢰도가 높아지므로**, 특정 장비에 물량을 묶을
+필요가 없어져 양산(mass production)에 직접 도움이 됩니다 (user-confirmed 2026-08-16).
+즉 TTTM 은 계측 정밀도의 문제이면서 동시에 **생산 유연성의 문제**입니다.
+
+**"스큐(skew)" 라고 부르지 않습니다.** 이 저장소에서 skew 는 제품 이름(SKEWNONO)과
+[[스큐보아]]에도 쓰이는 넓은 말이라, 장비 간 매칭이라는 특정 분석을 가리키기에는
+모호합니다. 화면 이름·문서·대화 모두 **TTTM** 을 씁니다. 두 장비의 측정값 차이
+그 자체(단위 nm, 부호 있음)를 가리킬 때만 skew 를 씁니다 — TTTM 은 활동이고 skew 는
+그 활동이 재는 양입니다.
+
+측정 절차는 우리가 정하는 것이 아니라 표준이 있습니다 — SEMATECH/ISMI CD-SEM Unified
+Specification 의 **ABBA 시험**이며, 벤더(Hitachi High-Tech)가 그 불확도를 정량화한
+논문이 `docs/research/` 에 있습니다. 자세한 것은
+`docs/research/2026-08-16-skew-tttm-feasibility.md`.
+
+관련 개념: **N배화** — 허용오차 안에서 서로 매칭되는 장비들의 최대 집합(maximal
+clique). N배화된 그룹이 클수록 그 그룹 안에서는 장비를 바꿔 가며 측정해도 됩니다.
+
 ## Flagged ambiguities
 
 - **"Pool" — stage 인가 product family 인가 (✅ 해소)**: 이전 모델은 "Pool제" 를 [[phase]](구 Device Stage) 의 한 값으로 다뤘으나, [[product-family]]로 확정 — phase 와 직교. mock `data.py:64` 의 `DEV_PHASES` 가 `Pool` 을 phase 토큰에 섞어 둔 것은 추후 데이터 정비 시 분리 대상.

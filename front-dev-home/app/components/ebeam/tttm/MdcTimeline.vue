@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import type { MdcHistoryEntry } from '~/composables/useSkewCheckApi'
+import type { MdcHistoryEntry } from '~/composables/useTttmApi'
 
 const props = defineProps<{ history: MdcHistoryEntry[] }>()
 const sorted = computed(() => [...props.history].sort((a, b) => b.date.localeCompare(a.date)))

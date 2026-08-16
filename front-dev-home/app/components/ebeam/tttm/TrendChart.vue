@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { TrendPoint, EpochMarker } from '~/composables/useSkewCheckApi'
+import type { TrendPoint, EpochMarker } from '~/composables/useTttmApi'
 
 const props = defineProps<{ trend: TrendPoint[], markers: EpochMarker[] }>()
 

@@ -22,47 +22,47 @@
 
     <template v-else>
       <div class="dashboard-surface rounded-2xl p-4">
-        <EbeamSkewCheckToleranceKnob
+        <EbeamTttmToleranceKnob
           v-model="tolerance"
           :range="payload.tolerance_range"
         />
       </div>
 
-      <EbeamSkewCheckRecommendationCard
+      <EbeamTttmRecommendationCard
         :primary="primary"
         :others="others"
         :tools="payload.tools"
       />
 
-      <EbeamSkewCheckProductionChip :corroboration="payload.production_corroboration" />
+      <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
 
-      <EbeamSkewCheckPairMatrix
+      <EbeamTttmPairMatrix
         :cells="payload.occupied_cells"
         :tools="payload.tools"
         :tolerance="tolerance"
       />
 
-      <EbeamSkewCheckFleetStatus
+      <EbeamTttmFleetStatus
         :fleet="payload.fleet_today"
         :tools="payload.tools"
       />
-      <EbeamSkewCheckTrendChart
+      <EbeamTttmTrendChart
         :trend="payload.trend"
         :markers="payload.epoch_markers"
       />
-      <EbeamSkewCheckMdcTimeline :history="payload.mdc_history" />
+      <EbeamTttmMdcTimeline :history="payload.mdc_history" />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import { groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from '~/utils/skewGrouping'
+import { groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from '~/utils/tttmGrouping'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
-const { useSkewCheck } = useSkewCheckApi()
-const { data: payload, pending } = useSkewCheck(props.toolType, props.fab)
+const { useTttmCheck } = useTttmApi()
+const { data: payload, pending } = useTttmCheck(props.toolType, props.fab)
 
 const tolerance = ref(0.05)
 watch(payload, (p) => {

@@ -1,7 +1,7 @@
-"""Contract gate for skew. Runs against the ACTIVE provider via data.py.
+"""Contract gate for tttm. Runs against the ACTIVE provider via data.py.
 
-Home:   .venv/bin/pytest back_dev_home/ebeam/skew
-Office: SKEWNONO_SKEW_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/skew
+Home:   .venv/bin/pytest back_dev_home/ebeam/tttm
+Office: SKEWNONO_TTTM_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/tttm
 
 providers/office_example.py is still a stub, so the office command above fails
 with its NotImplementedError rather than a contract violation — that is the
@@ -19,30 +19,30 @@ fixture per (tool_slug, fab_name) and falls back to an `available: false`
 payload with every list empty — MIGRATION.md calls that the "unknown fab" case,
 not an error, and the office adapter is specified to do the same. So the office
 run must not be red merely because R3 has no skew statistics yet; the
-availability assumptions are fenced behind get_data_provider("skew") == "mock".
+availability assumptions are fenced behind get_data_provider("tttm") == "mock".
 """
 
 import pytest
 
 from back_dev_home._core.contract_check import assert_matches
 from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.ebeam.skew import data
-from back_dev_home.ebeam.skew.contracts import SkewCheckPayload
+from back_dev_home.ebeam.tttm import data
+from back_dev_home.ebeam.tttm.contracts import TttmCheckPayload
 
 
 TOOL_SLUG = "cdsem"
-# The fab the mock ships a fixture for (__fixtures__/skew_cdsem_r3.json).
+# The fab the mock ships a fixture for (__fixtures__/tttm_cdsem_r3.json).
 FAB_NAME = "R3"
 # Deliberately absent from __fixtures__: the documented "unknown fab" case.
 UNKNOWN_FAB = "ZZZ-NOT-A-FAB"
 
 
 def _is_mock() -> bool:
-    return get_data_provider("skew") == "mock"
+    return get_data_provider("tttm") == "mock"
 
 
-def _payload() -> SkewCheckPayload:
-    return data.get_skew_check(TOOL_SLUG, FAB_NAME, None)
+def _payload() -> TttmCheckPayload:
+    return data.get_tttm_check(TOOL_SLUG, FAB_NAME, None)
 
 
 def _assert_matrix(block, label: str) -> None:
@@ -61,8 +61,8 @@ def _assert_matrix(block, label: str) -> None:
             )
 
 
-def test_skew_check_matches_contract():
-    assert_matches(_payload(), SkewCheckPayload)
+def test_tttm_check_matches_contract():
+    assert_matches(_payload(), TttmCheckPayload)
 
 
 def test_current_tolerance_sits_inside_its_own_range():
@@ -99,7 +99,7 @@ def test_the_payload_echoes_the_fab_it_was_asked_about():
     assert _payload()["fab_name"] == FAB_NAME
     # Same law on the fallback path — an unknown fab still names itself rather
     # than answering with a blank or a default fab.
-    unknown = data.get_skew_check(TOOL_SLUG, UNKNOWN_FAB, None)
+    unknown = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None)
     assert unknown["fab_name"] == UNKNOWN_FAB
 
 
@@ -118,7 +118,7 @@ def test_matrix_tools_are_drawn_from_the_advertised_roster():
 def test_mock_serves_a_populated_fixture_for_its_known_fab():
     if not _is_mock():
         # Mock-only below. `available` and the size of the fixture are
-        # properties of __fixtures__/skew_cdsem_r3.json; at the office the same
+        # properties of __fixtures__/tttm_cdsem_r3.json; at the office the same
         # fab legitimately answers `available: false` with every list empty
         # until real statistics exist for it.
         pytest.skip(f"a populated {FAB_NAME} fleet is a mock fixture")
@@ -136,8 +136,8 @@ def test_mock_unknown_fab_is_available_false_not_an_error():
         # but reaching that branch requires the company network.
         pytest.skip("the unknown-fab fallback is a missing-fixture branch")
 
-    payload = data.get_skew_check(TOOL_SLUG, UNKNOWN_FAB, None)
-    assert_matches(payload, SkewCheckPayload)
+    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None)
+    assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     assert payload["tools"] == []
     assert payload["occupied_cells"] == []

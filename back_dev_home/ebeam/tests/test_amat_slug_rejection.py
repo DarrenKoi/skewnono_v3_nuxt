@@ -22,7 +22,7 @@ EXPECTED_ERROR = {"error": "tool_slug must be 'cdsem' or 'hvsem'"}
 
 # (path template, HTTP method). `{slug}` 만 치환합니다.
 CD_HV_ONLY_ROUTES: tuple[tuple[str, str], ...] = (
-    ("/api/{slug}/skew/check?fab_name=R3", "GET"),
+    ("/api/{slug}/tttm/check?fab_name=R3", "GET"),
     ("/api/{slug}/hardware/ECXDX101/vacuum", "GET"),
     ("/api/{slug}/pm-planning/fleet?fab_name=R3", "GET"),
     ("/api/{slug}/live-alarm?fab_name=R3", "GET"),

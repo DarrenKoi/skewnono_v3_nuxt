@@ -68,7 +68,7 @@ const IDENTITY_RULES = [
   '/storage',
   '/hardware',
   '/live-alarm',
-  '/skew-check',
+  '/tttm',
   '/pm-planning',
   '/skewvoir',
   TOOL_INVENTORY_PATH,

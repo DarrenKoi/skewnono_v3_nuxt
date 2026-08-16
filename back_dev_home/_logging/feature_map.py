@@ -33,7 +33,13 @@ _TOOL_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("ppid-unavailable",  "storage"),   # StorageView side panel
     ("hardware",          "hardware"),
     ("live-alarm",        "live_alarm"),
-    ("skew",              "skew_check"),
+    # The page was renamed skew-check → tttm on 2026-08-16, but the SLUG stays
+    # `skew_check` per this module's rule: renaming a written slug splits the
+    # historical series, and both paths must resolve to the same one. Rename it
+    # only after confirming at the office that the series is in fact empty —
+    # the page has been hidden from the nav, so it probably is.
+    ("tttm",              "skew_check"),
+    ("skew",              "skew_check"),   # pre-rename API path
     ("pm-planning",       "pm_planning"),
 )
 
@@ -118,7 +124,8 @@ _PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("storage",                 "storage"),
     ("hardware",                "hardware"),
     ("live-alarm",              "live_alarm"),
-    ("skew-check",              "skew_check"),
+    ("tttm",                    "skew_check"),   # renamed 2026-08-16; slug kept
+    ("skew-check",              "skew_check"),   # pre-rename page path
     ("pm-planning",             "pm_planning"),
     # Legacy routes; middleware redirects them to recipe-status, but a beacon
     # that beats the redirect must still land on the right slug.
