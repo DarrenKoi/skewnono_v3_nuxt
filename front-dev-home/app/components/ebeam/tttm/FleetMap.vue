@@ -58,6 +58,7 @@
 import type { EChartsOption } from 'echarts'
 import { fleetMap } from '~/utils/fleetMap'
 import { SK_STATE } from '~/utils/chartPalette'
+import { toolLabels } from '~/utils/toolLabels'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{
@@ -71,7 +72,8 @@ const sk = useChartPalette()
 
 const map = computed(() => fleetMap(props.fleet.matrix))
 
-const labelFor = (eqp: string) => props.tools.find(t => t.eqp_id === eqp)?.label ?? eqp
+const labels = computed(() => toolLabels(props.tools))
+const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
 // Stress-1 reading, on the conventional Kruskal bands. Said out loud because a
 // 2D map of non-Euclidean distances can be badly wrong while still looking

@@ -51,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import { toolLabels } from '~/utils/toolLabels'
 import type { NbaGroup } from '~/utils/tttmGrouping'
 import type { ToolRef } from '~/composables/useTttmApi'
 
@@ -60,8 +61,8 @@ const props = defineProps<{
   tools: ToolRef[]
 }>()
 
-const labelFor = (eqp: string) =>
-  props.tools.find(t => t.eqp_id === eqp)?.label ?? eqp
+const labels = computed(() => toolLabels(props.tools))
+const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
 const confColor = computed(() => {
   if (!props.primary) return 'var(--sk-ink)'

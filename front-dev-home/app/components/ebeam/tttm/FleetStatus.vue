@@ -33,11 +33,15 @@
 </template>
 
 <script setup lang="ts">
+import { toolLabels } from '~/utils/toolLabels'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fleet: FleetToday, tools: ToolRef[] }>()
 
-const labelFor = (eqp: string) => props.tools.find(t => t.eqp_id === eqp)?.label ?? eqp
+// Rebuilt when the payload swaps the fleet; destructuring at setup would pin
+// the first fab's labels for the life of the component.
+const labels = computed(() => toolLabels(props.tools))
+const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
 const maxAbs = computed(() =>
   Math.max(0.05, ...props.fleet.consensus_deviation.map(d => Math.abs(d.deviation)))

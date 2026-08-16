@@ -62,6 +62,7 @@
 </template>
 
 <script setup lang="ts">
+import { toolLabels } from '~/utils/toolLabels'
 import type { SkewCondition, ToolRef } from '~/composables/useTttmApi'
 import type { SkewMatrix } from '~/utils/tttmGrouping'
 
@@ -70,8 +71,11 @@ const props = defineProps<{ cells: SkewCondition[], tools: ToolRef[], tolerance:
 const matrixOf = (cell: SkewCondition): SkewMatrix =>
   (cell.direct_skew_matrix ?? cell.predicted_skew_matrix)!
 
-const shortLabel = (eqp: string) =>
-  props.tools.find(t => t.eqp_id === eqp)?.label?.replace('CD-SEM ', '') ?? eqp
+// The prefix is derived from the fleet's own labels, not the literal
+// 'CD-SEM ' this used to strip — that quietly stopped shortening for any other
+// tool family.
+const labels = computed(() => toolLabels(props.tools))
+const shortLabel = (eqp: string) => labels.value.shortLabel(eqp)
 
 const tierStyle = (tier: string) =>
   tier === 'direct'
