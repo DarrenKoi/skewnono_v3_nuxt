@@ -113,17 +113,34 @@ columns : value (examples)
                     장비 스큐" 는 **틀립니다** — 나중에 측정한 장비는 이미
                     변화한 시료를 봅니다.
 
-                    현업의 대응이 A-B-B'-A' 측정 순서입니다. 장비 A→B 로 한 번,
-                    이어서 B'→A' 로 되돌아오게 측정하면 순서에 선형인 성분이
-                    상쇄되어 장비 차이만 남습니다. 스큐 분석은 이 순서를
-                    복원할 수 있어야 하며, 순서는 meas_hist 의 start_time 과
-                    exe_detail_info 의 wafer_id 로 잡습니다(같은 wafer_id 를
-                    시간순으로 정렬).
+                    현업의 대응이 ABBA 시험이며, 이것은 우리 관행이 아니라
+                    SEMATECH/ISMI 의 CD-SEM Unified Specification(2008)이
+                    정의한 표준 절차입니다. Kawada 등, Proc. SPIE 7272, 72720Y
+                    (2009) 가 그 불확도를 정량화했습니다 — 제1저자가 Hitachi
+                    High-Tech 소속이므로 우리 함대의 벤더 방법론입니다.
+
+                    ★ 같은 점을 네 번 재는 것이 아닙니다. feature set 이
+                    2개입니다.
+                      슬롯1 = 장비A, recipe R1, feature set 1 (fresh)
+                      슬롯2 = 장비B, recipe R1, feature set 1 (2회차)
+                      슬롯3 = 장비B, recipe R2, feature set 2 (fresh)
+                      슬롯4 = 장비A, recipe R2, feature set 2 (2회차)
+                    3번이 아직 빔을 맞지 않은 새 feature 라는 점이 핵심이며,
+                    그래서 각 장비가 "먼저"와 "나중" 역할을 한 번씩 맡습니다.
+                    각 쌍 안에서 feature set 효과가 상쇄되므로 측정 위치
+                    차이까지 함께 제거되고, carryover 가 선형이라는 가정이
+                    필요 없습니다("두 set 에서 carryover 가 같다"만 필요).
+
+                    스큐 분석은 이 순서를 복원할 수 있어야 하며, 순서는
+                    meas_hist 의 start_time 과 exe_detail_info 의 wafer_id 로
+                    잡습니다(같은 wafer_id 를 시간순으로 정렬).
 
                     OFFICE-VERIFY: (1) e-beam 영향의 크기(nm/재측정)와 그것이
                     포화하는지(1회차→2회차 변화가 2회차→3회차보다 큰지),
-                    (2) A-B-B'-A' 로 측정된 세트가 meas_hist 에 실제로 남아
-                    자동 판별 가능한지.
+                    (2) ABBA 로 측정된 세트가 meas_hist 에 실제로 남아 자동
+                    판별 가능한지 — 특히 슬롯3의 "다른 feature set" 이 별도
+                    recipe_name 으로 나타나는지 아니면 같은 recipe 안의 다른
+                    측정점인지. 이것이 판별 알고리즘을 가릅니다.
 
                     ※ mock 은 아직 이 성질을 재현하지 않습니다. msr_file
                     providers/mock.py 는 재측정 순서 개념 자체가 없어, 같은
