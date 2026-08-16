@@ -12,7 +12,8 @@ export const FEATURE_SLUGS = [
   'live-alarm',
   'device-statistics',
   'skewvoir',
-  'tttm'
+  'tttm',
+  'pm-tune'
 ] as const
 
 export type FeatureSlug = typeof FEATURE_SLUGS[number]
@@ -35,6 +36,18 @@ export const FABLESS_FEATURES = new Set<FeatureSlug>(['device-statistics', 'skew
 
 export const isFablessFeature = (feature: string): feature is FeatureSlug => {
   return FABLESS_FEATURES.has(feature as FeatureSlug)
+}
+
+// Features whose page holds exactly ONE fab. tttm and pm-tune argue from one
+// fab's fleet (a skew matrix / an N배화 group is per-fab by construction), so a
+// multi-fab URL has no meaning there: the sidebar's multi-select affordances are
+// disabled on these pages and useFabRoute collapses a multi-fab segment to the
+// primary. Disjoint from FABLESS_FEATURES by definition — a page must read the
+// URL fab to pin it.
+export const SINGLE_FAB_FEATURES = new Set<FeatureSlug>(['tttm', 'pm-tune'])
+
+export const isSingleFabFeature = (feature: string): feature is FeatureSlug => {
+  return SINGLE_FAB_FEATURES.has(feature as FeatureSlug)
 }
 
 export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {

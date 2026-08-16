@@ -2,6 +2,7 @@
 import type { HeaderLink } from '~/utils/headerNav'
 import { useNavigationStore } from '~/stores/navigation'
 import { buildFabSegment, canonicalFabList, DEFAULT_FAB } from '~/utils/fab'
+import { isSingleFabFeature } from '~/utils/features'
 import { headerLinksIn, isHeaderLinkActive } from '~/utils/headerNav'
 
 // 실험실 — the tools that are not tied to a feature tab. Before 2026-08-15 these were four
@@ -24,34 +25,41 @@ const open = ref(false)
 const links = headerLinksIn('lab')
 
 // The fab-scoped rows jump to the remembered tool/fab selection (default cd-sem / R3
-// before any ebeam visit). They use the full fabs list, not just the primary, so a
-// multi-fab selection survives the URL round-trip instead of collapsing to fabs[0].
+// before any ebeam visit). Multi-fab-capable rows use the full fabs list so a multi-fab
+// selection survives the URL round-trip; single-fab pages (tttm, pm-tune — see
+// SINGLE_FAB_FEATURES) get the primary fab only, because their useFabRoute would
+// immediately collapse a multi segment anyway and the label below must not promise
+// fabs the page will drop.
 //
 // 라이브 알람 follows the remembered tool type (cd-sem and hv-sem both have that board);
-// TTTM is cd-sem only, gated that way in useNavigation, so it pins its own.
+// TTTM and PM-Tune are cd-sem only, gated that way in useNavigation, so they pin their own.
 const liveAlarmToolType = computed(() => nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem')
-const TTTM_TOOL_TYPE = 'cd-sem'
+const CD_SEM_ONLY_TOOL_TYPE = 'cd-sem'
 
 const toolTypeFor = (link: HeaderLink) =>
-  link.scope === 'tttm' ? TTTM_TOOL_TYPE : liveAlarmToolType.value
+  link.scope === 'tttm' || link.scope === 'pm-tune'
+    ? CD_SEM_ONLY_TOOL_TYPE
+    : liveAlarmToolType.value
+
+const fabsFor = (link: HeaderLink) => {
+  const fabs = canonicalFabList(nav.fabs.value)
+  const resolved = fabs.length > 0 ? fabs : [DEFAULT_FAB]
+  return link.scope && isSingleFabFeature(link.scope) ? resolved.slice(0, 1) : resolved
+}
 
 // Resolved per row rather than per menu: this used to return the live-alarm target for
 // ANY `to: null` link, which was correct only while there was exactly one of them.
-// `scope` doubles as the route's last segment, which holds for both rows today
-// ('live-alarm', 'tttm'). Give a future scope a name that is also its segment, or split
-// the two apart here rather than letting the link quietly point at nothing.
+// `scope` doubles as the route's last segment, which holds for every row today
+// ('live-alarm', 'tttm', 'pm-tune'). Give a future scope a name that is also its
+// segment, or split the two apart here rather than letting the link quietly point at
+// nothing.
 const linkTarget = (link: HeaderLink) =>
-  link.to ?? `/ebeam/${toolTypeFor(link)}/${buildFabSegment(nav.fabs.value)}/${link.scope}`
+  link.to ?? `/ebeam/${toolTypeFor(link)}/${buildFabSegment(fabsFor(link))}/${link.scope}`
 
-// These rows' destinations move under the user, so each says where it goes.
-// buildFabSegment's fallback is R3; this must show the same fab the link actually uses.
-const fabsLabel = computed(() => {
-  const fabs = canonicalFabList(nav.fabs.value)
-  return (fabs.length > 0 ? fabs : [DEFAULT_FAB]).join(', ')
-})
-
+// These rows' destinations move under the user, so each says where it goes — the same
+// fab list the link actually uses, single-fab rows included.
 const scopeLabel = (link: HeaderLink) =>
-  `${toolTypeFor(link).toUpperCase()} · ${fabsLabel.value}`
+  `${toolTypeFor(link).toUpperCase()} · ${fabsFor(link).join(', ')}`
 
 const isActive = (link: HeaderLink) => isHeaderLinkActive(link, route.path)
 

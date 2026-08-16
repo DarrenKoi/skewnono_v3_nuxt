@@ -1,6 +1,6 @@
 import type { ToolType, Fab } from '~/stores/navigation'
 import { useNavigationStore } from '~/stores/navigation'
-import { isFablessFeature, matchFeatureFromPath } from '~/utils/features'
+import { isFablessFeature, isSingleFabFeature, matchFeatureFromPath } from '~/utils/features'
 import { NO_FAB, fabSegment, buildFabSegment, toggleFabInList } from '~/utils/fab'
 
 export const useNavigation = () => {
@@ -19,6 +19,7 @@ export const useNavigation = () => {
     ) return toolType === 'cd-sem' || toolType === 'hv-sem'
     if (feature === 'device-statistics') return toolType === 'cd-sem'
     if (feature === 'tttm') return toolType === 'cd-sem'
+    if (feature === 'pm-tune') return toolType === 'cd-sem'
     return false
   }
 
@@ -77,10 +78,23 @@ export const useNavigation = () => {
     router.push(`/ebeam/${toolType}/${fabSegment(fab)}`)
   }
 
+  // Whether the current page pins a single fab (tttm, pm-tune). The sidebar
+  // reads this to drop its multi-select affordances, and toggleFab degrades to
+  // plain single-fab navigation so a Cmd/Ctrl+click cannot build a multi-fab
+  // URL these pages would immediately collapse (useFabRoute redirects it).
+  const singleFabPage = computed(() => {
+    const feature = matchFeatureFromPath(route.path)
+    return feature !== '' && isSingleFabFeature(feature)
+  })
+
   // Checkbox path: add/remove one fab, stay on the current feature, keep its
   // query params. Same-URL guard: toggleFabInList may return the list unchanged
   // (last-fab removal), in which case there is nothing to route to.
   const toggleFab = (fab: Fab) => {
+    if (singleFabPage.value) {
+      navigateToFab(fab)
+      return
+    }
     const current = store.fabs.value
     const next = toggleFabInList(current, fab)
     if (next.join(',') === current.join(',')) return
@@ -104,6 +118,7 @@ export const useNavigation = () => {
     toolTypeHref,
     navigateToToolType,
     navigateToFab,
-    toggleFab
+    toggleFab,
+    singleFabPage
   }
 }

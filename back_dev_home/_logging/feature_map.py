@@ -126,7 +126,8 @@ _PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("live-alarm",              "live_alarm"),
     ("tttm",                    "skew_check"),   # renamed 2026-08-16; slug kept
     ("skew-check",              "skew_check"),   # pre-rename page path
-    ("pm-planning",             "pm_planning"),
+    ("pm-tune",                 "pm_planning"),  # renamed 2026-08-17; slug kept
+    ("pm-planning",             "pm_planning"),  # pre-rename page path
     # Legacy routes; middleware redirects them to recipe-status, but a beacon
     # that beats the redirect must still land on the right slug.
     ("recipe-tat",              "recipe_tat"),

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
 
-const { toolType, fabs, favorites, navigateToToolType, navigateToFab, toggleFab } = useNavigation()
+const { toolType, fabs, favorites, navigateToToolType, navigateToFab, toggleFab, singleFabPage } = useNavigation()
 const { toolTypes } = useToolData()
 
 const SIDEBAR_COLLAPSED_KEY = 'skewnono:fabSidebar.collapsed'
@@ -34,8 +34,10 @@ const fabItems = computed(() => fabNames.value.map(name => ({
 })))
 
 // 일반 클릭 = 단독 선택(기존 습관 유지), Cmd/Ctrl+클릭 = 추가·제거.
+// 단일 FAB 페이지(tttm, pm-tune)에서는 다중 선택이 의미가 없으므로 Cmd/Ctrl 도
+// 단독 선택으로 동작하고, 아래 체크박스 affordance 자체가 그려지지 않습니다.
 const onFabClick = (event: MouseEvent, id: string) => {
-  if (event.metaKey || event.ctrlKey) toggleFab(id)
+  if (!singleFabPage.value && (event.metaKey || event.ctrlKey)) toggleFab(id)
   else navigateToFab(id)
 }
 
@@ -190,7 +192,9 @@ const activeToolLabel = computed(() =>
         <button
           :aria-label="sidebarCollapsed ? item.label : undefined"
           :aria-pressed="item.active"
-          :title="sidebarCollapsed ? `${item.label} (Cmd/Ctrl+클릭: 추가 선택)` : undefined"
+          :title="sidebarCollapsed
+            ? (singleFabPage ? item.label : `${item.label} (Cmd/Ctrl+클릭: 추가 선택)`)
+            : undefined"
           type="button"
           class="flex items-center flex-1 min-w-0 cursor-pointer"
           :class="sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-1.5'"
@@ -206,7 +210,7 @@ const activeToolLabel = computed(() =>
           >{{ item.label }}</span>
         </button>
         <button
-          v-if="!sidebarCollapsed"
+          v-if="!sidebarCollapsed && !singleFabPage"
           type="button"
           role="checkbox"
           :aria-checked="item.active"

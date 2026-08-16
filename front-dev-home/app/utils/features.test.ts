@@ -7,7 +7,9 @@ import {
   FEATURE_SLUG_REGEX,
   FEATURE_SLUG_SUFFIX_REGEX,
   FABLESS_FEATURES,
+  SINGLE_FAB_FEATURES,
   isFablessFeature,
+  isSingleFabFeature,
   matchFeatureFromPath
 } from './features.ts'
 
@@ -24,7 +26,8 @@ test('the slug list is the live set, with the merged legacy routes excluded', ()
     'live-alarm',
     'device-statistics',
     'skewvoir',
-    'tttm'
+    'tttm',
+    'pm-tune'
   ])
   // recipe-tat / fail-issue merged into recipe-status and are redirected by
   // route middleware before any layout reads route.path, so listing them would
@@ -111,5 +114,24 @@ test('isFablessFeature answers for live slugs and unknown strings alike', () => 
 test('every fabless entry is a real slug', () => {
   for (const slug of FABLESS_FEATURES) {
     assert.ok(FEATURE_SLUGS.includes(slug), `${slug} is fabless but not a feature slug`)
+  }
+})
+
+test('the single-fab set is exactly the two lab pages that pin one fab', () => {
+  assert.deepEqual([...SINGLE_FAB_FEATURES].sort(), ['pm-tune', 'tttm'])
+})
+
+test('isSingleFabFeature answers for live slugs and unknown strings alike', () => {
+  assert.equal(isSingleFabFeature('tttm'), true)
+  assert.equal(isSingleFabFeature('pm-tune'), true)
+  assert.equal(isSingleFabFeature('storage'), false)
+  assert.equal(isSingleFabFeature('not-a-feature'), false)
+  assert.equal(isSingleFabFeature(''), false)
+})
+
+test('a single-fab feature is a real slug and never fabless — the two sets contradict', () => {
+  for (const slug of SINGLE_FAB_FEATURES) {
+    assert.ok(FEATURE_SLUGS.includes(slug), `${slug} is single-fab but not a feature slug`)
+    assert.ok(!FABLESS_FEATURES.has(slug), `${slug} cannot be both single-fab and fabless`)
   }
 })

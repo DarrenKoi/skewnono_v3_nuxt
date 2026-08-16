@@ -72,9 +72,16 @@
     "slug": "hardware"
   },
   {
+    "path": "/ebeam/cd-sem/R3/pm-tune",
+    "query": {},
+    "slug": "pm_planning",
+    "comment": "Renamed pm-planning -> pm-tune (2026-08-17); slug kept so the series stays continuous"
+  },
+  {
     "path": "/ebeam/cd-sem/M14/pm-planning",
     "query": {},
-    "slug": "pm_planning"
+    "slug": "pm_planning",
+    "comment": "Pre-rename page path; must share pm-tune's identity"
   },
   {
     "path": "/ebeam/cd-sem/pm-planning",

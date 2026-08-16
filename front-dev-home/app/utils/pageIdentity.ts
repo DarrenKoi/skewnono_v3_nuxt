@@ -69,6 +69,7 @@ const IDENTITY_RULES = [
   '/hardware',
   '/live-alarm',
   '/tttm',
+  '/pm-tune',
   '/pm-planning',
   '/skewvoir',
   TOOL_INVENTORY_PATH,
@@ -85,9 +86,12 @@ const IDENTITY_RULES = [
 ]
 
 // Distinct routes the backend gives ONE slug, so they must share one identity.
-// /tool-roster is the page; /sem-list is its historical alias.
+// /tool-roster is the page; /sem-list is its historical alias. /pm-planning is
+// pm-tune's pre-rename path (2026-08-17): the backend keeps the pm_planning
+// slug for both, so the two must collapse here too.
 const IDENTITY_ALIASES: Record<string, string> = {
-  '/sem-list': '/tool-roster'
+  '/sem-list': '/tool-roster',
+  '/pm-planning': '/pm-tune'
 }
 
 const firstValue = (raw: unknown): string | null => {

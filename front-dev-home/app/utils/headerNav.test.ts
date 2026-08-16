@@ -87,7 +87,7 @@ test('the fab-scoped links are not info paths', () => {
   // Their targets are computed per remembered tool/fab and land inside /ebeam, where the
   // tabs come from isEbeamRoute instead.
   const dynamic = HEADER_LINKS.filter(link => link.to === null)
-  assert.deepEqual(dynamic.map(link => link.label), ['라이브 알람', '장비간 스큐(TTTM)'])
+  assert.deepEqual(dynamic.map(link => link.label), ['라이브 알람', '장비간 스큐(TTTM)', 'PM 튜닝(PM-Tune)'])
   assert.ok(!HEADER_INFO_PATHS.includes(null as unknown as string))
 })
 

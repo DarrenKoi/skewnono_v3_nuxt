@@ -37,7 +37,7 @@ export interface HeaderLink {
   // Only for `to: null` entries: which fab-scoped target the menu builds for this row.
   // Required once there is more than one dynamic row — LabMenu used to treat `to: null` as
   // "this is 라이브 알람", so a second one would have silently pointed at the alarm board.
-  scope?: 'live-alarm' | 'tttm'
+  scope?: 'live-alarm' | 'tttm' | 'pm-tune'
   // Draw a hairline above this row. 채팅 is the only user: the rows above it are things you
   // look up or compute, and it is a conversation — same menu, different kind, so the eye is
   // given the seam rather than left to find it.
@@ -57,6 +57,10 @@ export const HEADER_LINKS: HeaderLink[] = [
   // 아직 확정 아님". A feature tab would claim more than the numbers currently support.
   // CD-SEM only, so unlike 라이브 알람 it does not follow the remembered tool type.
   { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교', activeMatch: '/tttm', scope: 'tttm' },
+  // TTTM 옆자리: TTTM 이 "어느 장비끼리 맞는가"를 답하고, 이 페이지는 그 답을 받아
+  // "PM 창에서 어떻게 튜닝하면 그 그룹에 들어가는가"를 답합니다. TTTM 과 같은 이유로
+  // 실험실이고(추정기 미검증), 같은 이유로 CD-SEM 전용입니다.
+  { to: null, icon: 'i-lucide-wrench', label: 'PM 튜닝(PM-Tune)', group: 'lab', description: 'PM 때 그룹에 맞춰 튜닝할 목표 제시', activeMatch: '/pm-tune', scope: 'pm-tune' },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅', group: 'lab', description: '데이터에 대해 물어보기', separated: true },
 
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '앱 소개', group: 'account' },
