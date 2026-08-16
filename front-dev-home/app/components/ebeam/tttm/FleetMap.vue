@@ -98,6 +98,19 @@ const props = defineProps<{
    * pairs.
    */
   blockedPair?: PairReading | null
+  /**
+   * One tool to visually anchor — pm-tune's picked tool, the one in (or fresh
+   * out of) its PM window. Drawn as an ink ring around its point plus a bold
+   * label, never a recolor: red already means "no partner inside tolerance",
+   * and overloading it would make the pick look like a finding.
+   */
+  pickedTool?: string | null
+  /**
+   * Overrides the halo's `N배화 그룹 · {n}대` caption — pm-tune writes the
+   * prospective form (`… → {n+1}대 (튜닝 시)`). The ring itself still encloses
+   * only the CURRENT members; only the words change.
+   */
+  haloLabel?: string
 }>()
 
 // fleet_today carries its own CD, so the map's red rule scales the same way the
@@ -241,7 +254,7 @@ const backdrop = computed<SeriesOption[]>(() => {
             {
               type: 'text',
               style: {
-                text: `N배화 그룹 · ${halo.n}대`,
+                text: props.haloLabel ?? `N배화 그룹 · ${halo.n}대`,
                 x: cx,
                 y: cy - r - 6,
                 textAlign: 'center',
@@ -320,7 +333,18 @@ const chartOption = computed<EChartsOption>(() => {
         // while fleet_today.matrix is one matrix. They coincide in the mock
         // only because it reuses cell bc1-X-25-50-e7's values, and the office
         // adapter owes us no such thing. The caption says which one this is.
-        itemStyle: { color: p.nearest > thresholdNm.value ? SK_STATE.bad : sk.value.series }
+        itemStyle: {
+          color: p.nearest > thresholdNm.value ? SK_STATE.bad : sk.value.series,
+          // The picked tool gets an ink RING, orthogonal to the red/series
+          // color: the fill keeps saying what the tolerance says, the ring
+          // says which point the page is currently arguing about.
+          ...(p.eqp_id === props.pickedTool
+            ? { borderColor: sk.value.ink, borderWidth: 2 }
+            : {})
+        },
+        ...(p.eqp_id === props.pickedTool
+          ? { label: { fontWeight: 700 as const } }
+          : {})
       })),
       // Area, not radius, tracks the score — a radius-encoded circle overstates
       // a large value by its square.
