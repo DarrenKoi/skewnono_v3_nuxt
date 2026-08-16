@@ -1,4 +1,36 @@
-"""Phase-1 skew mock provider — serves a deterministic fixture per fab."""
+"""Phase-1 TTTM mock provider — serves a deterministic fixture per fab.
+
+The fixture IS the mock data: there is no generator here, and
+`scripts/capture_fixtures.py` merely round-trips this provider's own output, so
+`__fixtures__/tttm_<slug>_<fab>.json` is edited by hand and is the thing to
+change when the demo should show a different situation.
+
+Deliberate properties of `tttm_cdsem_r3.json`, so a later edit does not flatten
+them by accident:
+
+- **EQP05 is the drifted tool.** It sits furthest from consensus and carries the
+  widest pairwise skews. The 01/02/04 cluster is what the N배화 recommendation
+  is built from.
+- **One pair exceeds `tolerance_range.max`** — EQP01↔EQP05 in cell
+  `bc1-Y-25-50-e7` is 0.24 nm against a 0.20 nm ceiling. Without it the demo
+  could never show a failing pair, because the knob at full travel passed
+  everything; the tolerance control looked like it had no negative state.
+  The cell is `direct`/`High` on purpose, so the failure reads as real rather
+  than as low-confidence noise, and it is the Y axis only — an axis-specific
+  drift is more plausible than a uniform one.
+- **EQP05's row is entirely null in `bc2-X-50-100-e7`.** That is the
+  "no overlapping measurement" case the frontend must not place on the fleet
+  map; see `utils/fleetMap.ts`.
+
+OFFICE-VERIFY: every number here is fabricated. Real pairwise skew magnitudes
+and the true spread across cells are unknown until an office run — item 3 of
+`docs/research/2026-08-16-skew-tttm-feasibility.md` section 6.
+
+Known departure from reality, left as-is: `fleet_today.matrix` is not consistent
+with `fleet_today.consensus_deviation` (e.g. EQP03 at +0.09 and EQP05 at -0.13
+imply a ~0.22 nm gap, while the matrix says 0.08). The two are independent
+views in the contract, and no screen cross-checks them today.
+"""
 
 import json
 from pathlib import Path

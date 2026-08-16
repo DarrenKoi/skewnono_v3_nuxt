@@ -6,14 +6,33 @@
   "fetched_at": "2026-05-31T14:30:00",
   "summary": "R3 CD-SEM 장비 그룹 5대 · 점유 셀 3개(직접 2 · 예측 1) 기준 추천입니다.",
   "tools": [
-    { "eqp_id": "EQP01", "label": "CD-SEM 01" },
-    { "eqp_id": "EQP02", "label": "CD-SEM 02" },
-    { "eqp_id": "EQP03", "label": "CD-SEM 03" },
-    { "eqp_id": "EQP04", "label": "CD-SEM 04" },
-    { "eqp_id": "EQP05", "label": "CD-SEM 05" }
+    {
+      "eqp_id": "EQP01",
+      "label": "CD-SEM 01"
+    },
+    {
+      "eqp_id": "EQP02",
+      "label": "CD-SEM 02"
+    },
+    {
+      "eqp_id": "EQP03",
+      "label": "CD-SEM 03"
+    },
+    {
+      "eqp_id": "EQP04",
+      "label": "CD-SEM 04"
+    },
+    {
+      "eqp_id": "EQP05",
+      "label": "CD-SEM 05"
+    }
   ],
   "current_tolerance": 0.05,
-  "tolerance_range": { "min": 0.01, "max": 0.2, "step": 0.005 },
+  "tolerance_range": {
+    "min": 0.01,
+    "max": 0.2,
+    "step": 0.005
+  },
   "occupied_cells": [
     {
       "cell_id": "bc1-X-25-50-e7",
@@ -25,13 +44,49 @@
       "confidence": "High",
       "labels": [],
       "direct_skew_matrix": {
-        "tools": ["EQP01", "EQP02", "EQP03", "EQP04", "EQP05"],
+        "tools": [
+          "EQP01",
+          "EQP02",
+          "EQP03",
+          "EQP04",
+          "EQP05"
+        ],
         "values": [
-          [0.0, 0.02, 0.12, 0.03, 0.18],
-          [0.02, 0.0, 0.1, 0.04, 0.16],
-          [0.12, 0.1, 0.0, 0.11, 0.08],
-          [0.03, 0.04, 0.11, 0.0, 0.15],
-          [0.18, 0.16, 0.08, 0.15, 0.0]
+          [
+            0.0,
+            0.02,
+            0.12,
+            0.03,
+            0.18
+          ],
+          [
+            0.02,
+            0.0,
+            0.1,
+            0.04,
+            0.16
+          ],
+          [
+            0.12,
+            0.1,
+            0.0,
+            0.11,
+            0.08
+          ],
+          [
+            0.03,
+            0.04,
+            0.11,
+            0.0,
+            0.15
+          ],
+          [
+            0.18,
+            0.16,
+            0.08,
+            0.15,
+            0.0
+          ]
         ]
       },
       "predicted_skew_matrix": null
@@ -46,13 +101,49 @@
       "confidence": "High",
       "labels": [],
       "direct_skew_matrix": {
-        "tools": ["EQP01", "EQP02", "EQP03", "EQP04", "EQP05"],
+        "tools": [
+          "EQP01",
+          "EQP02",
+          "EQP03",
+          "EQP04",
+          "EQP05"
+        ],
         "values": [
-          [0.0, 0.03, 0.14, 0.04, 0.2],
-          [0.03, 0.0, 0.13, 0.045, 0.19],
-          [0.14, 0.13, 0.0, 0.12, 0.09],
-          [0.04, 0.045, 0.12, 0.0, 0.17],
-          [0.2, 0.19, 0.09, 0.17, 0.0]
+          [
+            0.0,
+            0.03,
+            0.14,
+            0.04,
+            0.24
+          ],
+          [
+            0.03,
+            0.0,
+            0.13,
+            0.045,
+            0.19
+          ],
+          [
+            0.14,
+            0.13,
+            0.0,
+            0.12,
+            0.09
+          ],
+          [
+            0.04,
+            0.045,
+            0.12,
+            0.0,
+            0.17
+          ],
+          [
+            0.24,
+            0.19,
+            0.09,
+            0.17,
+            0.0
+          ]
         ]
       },
       "predicted_skew_matrix": null
@@ -65,16 +156,54 @@
       "mdc_epoch": "e7",
       "tier": "predicted",
       "confidence": "Low",
-      "labels": ["대역 외삽"],
+      "labels": [
+        "대역 외삽"
+      ],
       "direct_skew_matrix": null,
       "predicted_skew_matrix": {
-        "tools": ["EQP01", "EQP02", "EQP03", "EQP04", "EQP05"],
+        "tools": [
+          "EQP01",
+          "EQP02",
+          "EQP03",
+          "EQP04",
+          "EQP05"
+        ],
         "values": [
-          [0.0, 0.03, 0.13, 0.04, null],
-          [0.03, 0.0, 0.12, 0.045, null],
-          [0.13, 0.12, 0.0, 0.11, null],
-          [0.04, 0.045, 0.11, 0.0, null],
-          [null, null, null, null, 0.0]
+          [
+            0.0,
+            0.03,
+            0.13,
+            0.04,
+            null
+          ],
+          [
+            0.03,
+            0.0,
+            0.12,
+            0.045,
+            null
+          ],
+          [
+            0.13,
+            0.12,
+            0.0,
+            0.11,
+            null
+          ],
+          [
+            0.04,
+            0.045,
+            0.11,
+            0.0,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            0.0
+          ]
         ]
       }
     }
@@ -83,47 +212,169 @@
     "level": "mid",
     "note": "TTTM 미반영",
     "detail": [
-      { "pair": "EQP01·EQP02", "overlap": 0.86 },
-      { "pair": "EQP01·EQP04", "overlap": 0.78 },
-      { "pair": "EQP02·EQP04", "overlap": 0.74 }
+      {
+        "pair": "EQP01·EQP02",
+        "overlap": 0.86
+      },
+      {
+        "pair": "EQP01·EQP04",
+        "overlap": 0.78
+      },
+      {
+        "pair": "EQP02·EQP04",
+        "overlap": 0.74
+      }
     ]
   },
   "fleet_today": {
     "matrix": {
-      "tools": ["EQP01", "EQP02", "EQP03", "EQP04", "EQP05"],
+      "tools": [
+        "EQP01",
+        "EQP02",
+        "EQP03",
+        "EQP04",
+        "EQP05"
+      ],
       "values": [
-        [0.0, 0.02, 0.12, 0.03, 0.18],
-        [0.02, 0.0, 0.1, 0.04, 0.16],
-        [0.12, 0.1, 0.0, 0.11, 0.08],
-        [0.03, 0.04, 0.11, 0.0, 0.15],
-        [0.18, 0.16, 0.08, 0.15, 0.0]
+        [
+          0.0,
+          0.02,
+          0.12,
+          0.03,
+          0.18
+        ],
+        [
+          0.02,
+          0.0,
+          0.1,
+          0.04,
+          0.16
+        ],
+        [
+          0.12,
+          0.1,
+          0.0,
+          0.11,
+          0.08
+        ],
+        [
+          0.03,
+          0.04,
+          0.11,
+          0.0,
+          0.15
+        ],
+        [
+          0.18,
+          0.16,
+          0.08,
+          0.15,
+          0.0
+        ]
       ]
     },
     "consensus_deviation": [
-      { "eqp_id": "EQP01", "deviation": -0.01 },
-      { "eqp_id": "EQP02", "deviation": 0.01 },
-      { "eqp_id": "EQP03", "deviation": 0.09 },
-      { "eqp_id": "EQP04", "deviation": 0.0 },
-      { "eqp_id": "EQP05", "deviation": -0.13 }
+      {
+        "eqp_id": "EQP01",
+        "deviation": -0.01
+      },
+      {
+        "eqp_id": "EQP02",
+        "deviation": 0.01
+      },
+      {
+        "eqp_id": "EQP03",
+        "deviation": 0.09
+      },
+      {
+        "eqp_id": "EQP04",
+        "deviation": 0.0
+      },
+      {
+        "eqp_id": "EQP05",
+        "deviation": -0.13
+      }
     ]
   },
   "trend": [
-    { "eqp_id": "EQP01", "date": "2026-05-24", "skew": 0.0 },
-    { "eqp_id": "EQP01", "date": "2026-05-27", "skew": 0.01 },
-    { "eqp_id": "EQP01", "date": "2026-05-31", "skew": -0.01 },
-    { "eqp_id": "EQP03", "date": "2026-05-24", "skew": 0.05 },
-    { "eqp_id": "EQP03", "date": "2026-05-27", "skew": 0.06 },
-    { "eqp_id": "EQP03", "date": "2026-05-31", "skew": 0.09 },
-    { "eqp_id": "EQP05", "date": "2026-05-24", "skew": -0.04 },
-    { "eqp_id": "EQP05", "date": "2026-05-28", "skew": -0.12 },
-    { "eqp_id": "EQP05", "date": "2026-05-31", "skew": -0.13 }
+    {
+      "eqp_id": "EQP01",
+      "date": "2026-05-24",
+      "skew": 0.0
+    },
+    {
+      "eqp_id": "EQP01",
+      "date": "2026-05-27",
+      "skew": 0.01
+    },
+    {
+      "eqp_id": "EQP01",
+      "date": "2026-05-31",
+      "skew": -0.01
+    },
+    {
+      "eqp_id": "EQP03",
+      "date": "2026-05-24",
+      "skew": 0.05
+    },
+    {
+      "eqp_id": "EQP03",
+      "date": "2026-05-27",
+      "skew": 0.06
+    },
+    {
+      "eqp_id": "EQP03",
+      "date": "2026-05-31",
+      "skew": 0.09
+    },
+    {
+      "eqp_id": "EQP05",
+      "date": "2026-05-24",
+      "skew": -0.04
+    },
+    {
+      "eqp_id": "EQP05",
+      "date": "2026-05-28",
+      "skew": -0.12
+    },
+    {
+      "eqp_id": "EQP05",
+      "date": "2026-05-31",
+      "skew": -0.13
+    }
   ],
   "epoch_markers": [
-    { "eqp_id": "EQP05", "date": "2026-05-28", "kind": "hard", "mdc_changed": true, "label": "PM + MDC 변경 (epoch 리셋)" },
-    { "eqp_id": "EQP03", "date": "2026-05-27", "kind": "soft", "mdc_changed": false, "label": "BM (MDC 불변)" }
+    {
+      "eqp_id": "EQP05",
+      "date": "2026-05-28",
+      "kind": "hard",
+      "mdc_changed": true,
+      "label": "PM + MDC 변경 (epoch 리셋)"
+    },
+    {
+      "eqp_id": "EQP03",
+      "date": "2026-05-27",
+      "kind": "soft",
+      "mdc_changed": false,
+      "label": "BM (MDC 불변)"
+    }
   ],
   "mdc_history": [
-    { "eqp_id": "EQP05", "beam_condition": "BC1", "axis": "X", "date": "2026-05-28", "old_value": 1.0012, "new_value": 1.0007 },
-    { "eqp_id": "EQP05", "beam_condition": "BC1", "axis": "Y", "date": "2026-05-28", "old_value": 1.0009, "new_value": 1.0005 }
+    {
+      "eqp_id": "EQP05",
+      "beam_condition": "BC1",
+      "axis": "X",
+      "date": "2026-05-28",
+      "old_value": 1.0012,
+      "new_value": 1.0007
+    },
+    {
+      "eqp_id": "EQP05",
+      "beam_condition": "BC1",
+      "axis": "Y",
+      "date": "2026-05-28",
+      "old_value": 1.0009,
+      "new_value": 1.0005
+    }
   ]
 }
