@@ -46,6 +46,11 @@
         :fleet="payload.fleet_today"
         :tools="payload.tools"
       />
+      <EbeamTttmFleetMap
+        :fleet="payload.fleet_today"
+        :tools="payload.tools"
+        :tolerance="tolerance"
+      />
       <EbeamTttmTrendChart
         :trend="payload.trend"
         :markers="payload.epoch_markers"
