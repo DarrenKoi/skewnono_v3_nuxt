@@ -35,6 +35,7 @@
         <EbeamTttmToleranceKnob
           v-model="tolerance"
           :range="payload.tolerance_range"
+          :tolerance-index="toleranceIndex"
         />
       </div>
 
@@ -49,7 +50,7 @@
       <EbeamTttmPairMatrix
         :cells="visibleCells"
         :tools="visibleTools"
-        :tolerance="tolerance"
+        :tolerance-index="toleranceIndex"
       />
 
       <EbeamTttmFleetStatus
@@ -59,7 +60,7 @@
       <EbeamTttmFleetMap
         :fleet="visibleFleet"
         :tools="visibleTools"
-        :tolerance="tolerance"
+        :tolerance-index="toleranceIndex"
       />
       <EbeamTttmTrendChart
         :trend="visibleTrend"
@@ -72,7 +73,14 @@
 
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import { groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from '~/utils/tttmGrouping'
+import {
+  groupFromCells,
+  pickPrimary,
+  toleranceIndexFromNm,
+  type GroupCell,
+  type NbaGroup
+} from '~/utils/tttmGrouping'
+import { resolveNominalCd, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
 import { subsetSkewMatrix, rebaseDeviations, resolveSelection } from '~/utils/tttmFleetSubset'
 import type { SkewCondition, FleetToday } from '~/composables/useTttmApi'
 
@@ -151,18 +159,34 @@ watch(payload, (p) => {
   if (p) tolerance.value = p.current_tolerance
 }, { immediate: true })
 
+// The knob is nanometres because the server's tolerance_range is; grouping is
+// CD-relative. This is the one place that conversion happens, so every surface
+// below argues in the same units.
+const toleranceIndex = computed(() =>
+  toleranceIndexFromNm(tolerance.value, MONITOR_WAFER_CD_NM)
+)
+
 // occupied cells → GroupCell[] (direct matrix preferred, else predicted).
+// Each carries its own CD, already resolved: a cell whose median CD is null
+// falls back to the monitor wafer here rather than inside the engine.
 const groupCells = computed<GroupCell[]>(() =>
   visibleCells.value
     .map((c) => {
       const matrix = c.direct_skew_matrix ?? c.predicted_skew_matrix
-      return matrix ? { tier: c.tier, confidence: c.confidence, matrix } : null
+      return matrix
+        ? {
+            tier: c.tier,
+            confidence: c.confidence,
+            matrix,
+            cdNm: resolveNominalCd(c.median_cd_nm).nm
+          }
+        : null
     })
     .filter((c): c is GroupCell => c !== null)
 )
 
 const groups = computed<NbaGroup[]>(() =>
-  groupFromCells(groupCells.value, tolerance.value).filter(g => g.n >= 2)
+  groupFromCells(groupCells.value, toleranceIndex.value).filter(g => g.n >= 2)
 )
 const primary = computed(() => pickPrimary(groups.value))
 const others = computed(() =>

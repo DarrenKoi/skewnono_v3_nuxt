@@ -34,11 +34,18 @@ flatten them by accident:
 - **The drifted tool's row is entirely null in the predicted cell.** That is
   the "no overlapping measurement" case the frontend must not place on the
   fleet map; see `utils/fleetMap.ts`.
-- **The three cells sit at three different CDs** (32.4 / 31.8 / 68.0 nm), and
-  the third is in a different `cd_band` from the other two on purpose. The
+- **The measured cells sit at three different CDs** (32.4 / 31.8 / 68.0 nm),
+  and the third is in a different `cd_band` from the other two on purpose. The
   PM/BM limit is 1% of CD, so those cells carry limits of 0.324 / 0.318 /
   0.680 nm — spread wide enough that a screen quietly reusing one absolute
   limit is visibly wrong rather than plausibly close.
+- **`bc3-X-lt25-e7` has `median_cd_nm: null`.** The office may return skew
+  statistics with no CD beside them, and the client has a whole assumed-CD
+  path for that (`resolveNominalCd` → monitor wafer, captions saying it
+  assumed). Without a null here that path is dead code at home and the first
+  time it runs is at the office. Its bias scale is the smallest of the four,
+  so the cell does not quietly dismantle the N배화 recommendation the rest of
+  the payload is built around.
 - **The over-tolerance pair is still INSIDE its own PM/BM limit.** 0.24 nm
   exceeds the 0.20 nm tolerance ceiling but sits under that cell's 0.318 nm
   action limit. The contrast is the point: the tolerance knob is a matching
@@ -113,11 +120,13 @@ class _CellSpec(NamedTuple):
     beam_condition: str
     axis: str
     cd_band: str
-    median_cd_nm: float
+    # None is a real case, not a gap — see the `bc3` bullet in the module
+    # docstring.
+    median_cd_nm: float | None
     mdc_epoch: str
     tier: str
     confidence: str
-    # Multiplies every tool's bias in this cell, so the cells are not three
+    # Multiplies every tool's bias in this cell, so the cells are not four
     # copies of one matrix.
     bias_scale: float
 
@@ -126,6 +135,11 @@ _CELLS: tuple[_CellSpec, ...] = (
     _CellSpec("bc1-X-25-50-e7", "BC1", "X", "25-50", 32.4, "e7", "direct", "High", 0.9),
     _CellSpec("bc1-Y-25-50-e7", "BC1", "Y", "25-50", 31.8, "e7", "direct", "High", 1.1),
     _CellSpec("bc2-X-50-100-e7", "BC2", "X", "50-100", 68.0, "e7", "predicted", "Med", 1.0),
+    # The null-CD cell. Its bias scale is the smallest of the four, so the
+    # cell the client judges against the strictest (assumed) limit is also the
+    # one carrying the tightest skews — an unknown CD narrows the recommendation
+    # rather than deleting it.
+    _CellSpec("bc3-X-lt25-e7", "BC3", "X", "<25", None, "e7", "direct", "Med", 0.6),
 )
 
 

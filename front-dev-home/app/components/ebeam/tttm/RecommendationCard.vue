@@ -17,8 +17,12 @@
         >{{ labelFor(t) }}</span>
         <span class="ml-1 text-sm text-(--sk-ink-muted)">N = {{ primary.n }}</span>
       </div>
+      <!-- Index first, nm second: the index is what ordered these groups, so
+           leading with the nm would put the number that did NOT decide the
+           ranking where the reader trusts it most. -->
       <p class="mt-2 text-sm text-(--sk-ink-muted)">
-        최약 장비쌍 스큐 {{ primary.weakestPairSkew.toFixed(3) }} nm ·
+        최약 장비쌍 CD 대비 {{ primary.weakestPairIndex.toFixed(2) }}×
+        (해당 셀 {{ primary.weakestPairSkew.toFixed(3) }} nm) ·
         신뢰도 <span :style="{ color: confColor }">{{ primary.confidence }}</span>
         <span v-if="primary.tier === 'predicted'"> · 예측 tier</span>
       </p>

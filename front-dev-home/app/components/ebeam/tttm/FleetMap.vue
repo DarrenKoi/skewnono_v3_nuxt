@@ -47,7 +47,7 @@
       축에는 단위가 없습니다. <strong>점 사이의 거리만</strong> 의미가 있으며, 회전·반전해도
       같은 지도입니다. 점 크기는 나머지 장비까지의 평균 skew(Score)이고, 빨강은
       <strong>오늘 장비 그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
-      {{ tolerance.toFixed(3) }} nm 밖인 장비입니다. N배화 그룹 판정은 점유 셀
+      {{ thresholdBasis }} 밖인 장비입니다. N배화 그룹 판정은 점유 셀
       전체를 교차한 결과라 이 지도와 다를 수 있으므로, 그쪽은 위 추천 카드를
       보십시오.
     </p>
@@ -59,13 +59,31 @@ import type { EChartsOption } from 'echarts'
 import { fleetMap } from '~/utils/fleetMap'
 import { SK_STATE } from '~/utils/chartPalette'
 import { toolLabels } from '~/utils/toolLabels'
+import { effectiveToleranceNm } from '~/utils/tttmGrouping'
+import { resolveNominalCd } from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{
   fleet: FleetToday
   tools: ToolRef[]
-  tolerance: number
+  /** CD-relative; converted against THIS matrix's own CD below, not against nm. */
+  toleranceIndex: number
 }>()
+
+// fleet_today carries its own CD, so the map's red rule scales the same way the
+// cells do. Using the raw nm knob here would judge the fleet matrix at the
+// monitor wafer's standard no matter what was actually measured.
+const cd = computed(() => resolveNominalCd(props.fleet.median_cd_nm))
+const thresholdNm = computed(() => effectiveToleranceNm(props.toleranceIndex, cd.value.nm))
+
+// Built as a string, not as `<template v-if>` branches in the caption: those
+// are block elements to the formatter, which breaks them onto their own lines
+// and leaves a stray space in the rendered sentence.
+const thresholdBasis = computed(() => {
+  const basis = cd.value.assumed ? ' 가정' : ''
+  return `${thresholdNm.value.toFixed(3)} nm`
+    + ` (CD 대비 ${props.toleranceIndex.toFixed(2)}× · 이 행렬의 CD ${cd.value.nm.toFixed(1)} nm${basis})`
+})
 
 const el = ref<HTMLDivElement | null>(null)
 const sk = useChartPalette()
@@ -149,7 +167,7 @@ const chartOption = computed<EChartsOption>(() => {
         // while fleet_today.matrix is one matrix. They coincide in the mock
         // only because it reuses cell bc1-X-25-50-e7's values, and the office
         // adapter owes us no such thing. The caption says which one this is.
-        itemStyle: { color: p.nearest > props.tolerance ? SK_STATE.bad : sk.value.series }
+        itemStyle: { color: p.nearest > thresholdNm.value ? SK_STATE.bad : sk.value.series }
       })),
       // Area, not radius, tracks the score — a radius-encoded circle overstates
       // a large value by its square.

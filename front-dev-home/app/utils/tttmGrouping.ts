@@ -1,7 +1,43 @@
-// Pure, dependency-free skew-grouping engine. The server sends raw pairwise
-// skew matrices; the client computes N배화 (= maximal cliques) at a tolerance.
+// Pure skew-grouping engine (its one import, tttmLimits, is pure too). The
+// server sends raw pairwise skew matrices; the client computes N배화
+// (= maximal cliques) at a tolerance.
+//
+// The tolerance the GROUPING uses is CD-relative, not nanometres. Cells sit at
+// different pattern sizes and the matching requirement scales with pattern
+// size, so intersecting cliques from a 32 nm cell and a 68 nm cell against one
+// absolute nm number compares quantities that are not comparable — it holds the
+// large-pattern cell to a standard twice as strict as the small one, for no
+// stated reason. Each cell is judged against its own CD instead.
+
+import { actionLimitNm, fractionOfLimit } from './tttmLimits.ts'
 
 export type ToleranceNm = number
+
+/**
+ * A tolerance in units of "× (CD의 1%)". 1.0 lets a pair skew by the full fab
+ * action limit for its own pattern size.
+ *
+ * Converted from the payload's nm knob by `toleranceIndexFromNm` — the server
+ * still speaks nanometres, and this is the boundary where that stops.
+ */
+export type ToleranceIndex = number
+
+/**
+ * Read the payload's nm tolerance as a CD-relative index.
+ *
+ * The knob's nm value is taken at the MONITOR WAFER CD, because that is the CD
+ * every figure in this feature was quoted at. So the default 0.05 nm reads as
+ * "a third of the action limit", and it means that at every pattern size rather
+ * than only at 15 nm.
+ */
+export const toleranceIndexFromNm = (
+  toleranceNm: ToleranceNm,
+  monitorCdNm: number
+): ToleranceIndex => fractionOfLimit(toleranceNm, monitorCdNm)
+
+/** What that index costs one specific cell, back in nanometres, for display. */
+export const effectiveToleranceNm = (index: ToleranceIndex, cdNm: number): ToleranceNm =>
+  index * actionLimitNm(cdNm)
 
 export interface SkewMatrix {
   tools: string[]
@@ -71,12 +107,31 @@ export interface GroupCell {
   tier: Tier
   confidence: Confidence
   matrix: SkewMatrix // use direct_skew_matrix ?? predicted_skew_matrix at the call site
+  /**
+   * The CD (nm) this cell was measured at — already resolved, so a cell with no
+   * median CD arrives carrying the monitor-wafer fallback rather than a null
+   * this engine would have to interpret. Use `resolveNominalCd().nm`.
+   */
+  cdNm: number
 }
 
 export interface NbaGroup {
   tools: string[]
   n: number
-  weakestPairSkew: number // max pairwise skew inside the group, across all cells
+  /**
+   * The group's worst pair as a CD-relative index — the ranking key, and the
+   * only cross-cell comparable measure of how well the group matches.
+   */
+  weakestPairIndex: number
+  /**
+   * That same worst pair in nanometres, from the cell that produced it.
+   *
+   * NOT the max nm across cells, which is what this used to be: with cells at
+   * different CDs the largest nm and the worst match are frequently different
+   * pairs, and reporting one while ranking by the other puts a number on screen
+   * that does not explain the ordering.
+   */
+  weakestPairSkew: number
   confidence: Confidence // weakest among contributing cells
   tier: Tier // 'predicted' if any contributing cell is predicted
 }
@@ -94,7 +149,7 @@ function inheritConfidence(cells: GroupCell[]): { confidence: Confidence, tier: 
   return { confidence, tier }
 }
 
-export function groupFromCells(cells: GroupCell[], tolerance: ToleranceNm): NbaGroup[] {
+export function groupFromCells(cells: GroupCell[], tolerance: ToleranceIndex): NbaGroup[] {
   if (cells.length === 0) return []
   const tools = cells[0]!.matrix.tools
   const n = tools.length
@@ -109,47 +164,62 @@ export function groupFromCells(cells: GroupCell[], tolerance: ToleranceNm): NbaG
     }
   }
 
-  // Intersect adjacency: a pair is TTTM only if <= tolerance in EVERY cell.
+  // Intersect adjacency: a pair is TTTM only if it passes in EVERY cell — but
+  // "passes" is now that cell's OWN nm threshold, derived from its CD. A 68 nm
+  // cell gets a wider allowance than a 32 nm one because its limit really is
+  // wider, not because we relaxed the standard for it.
   const inter: boolean[][] = Array.from({ length: n }, () => Array<boolean>(n).fill(true))
   for (let i = 0; i < n; i++) inter[i]![i] = false
   for (const cell of cells) {
-    const adj = buildAdjacency(cell.matrix, tolerance)
+    const adj = buildAdjacency(cell.matrix, effectiveToleranceNm(tolerance, cell.cdNm))
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (!adj[i]![j]) inter[i]![j] = false
   }
 
   const { confidence, tier } = inheritConfidence(cells)
 
-  // Worst (max) pairwise skew across all cells, for a given index pair.
-  const worst = (i: number, j: number): number => {
-    let w = 0
+  // The worst cell for a given pair, measured as a CD-relative index, reported
+  // with the nanometres it came from so the two always describe one pair.
+  const worst = (i: number, j: number): { index: number, nm: number } => {
+    let out = { index: 0, nm: 0 }
     for (const cell of cells) {
       const v = cell.matrix.values[i]?.[j]
-      if (v !== null && v !== undefined) w = Math.max(w, v)
+      if (!isMeasured(v)) continue
+      const index = fractionOfLimit(v, cell.cdNm)
+      if (index > out.index) out = { index, nm: v }
     }
-    return w
+    return out
   }
 
   return maximalCliques(inter).map((clique): NbaGroup => {
-    let weakest = 0
-    for (let a = 0; a < clique.length; a++)
-      for (let b = a + 1; b < clique.length; b++)
-        weakest = Math.max(weakest, worst(clique[a]!, clique[b]!))
+    let weakest = { index: 0, nm: 0 }
+    for (let a = 0; a < clique.length; a++) {
+      for (let b = a + 1; b < clique.length; b++) {
+        const pair = worst(clique[a]!, clique[b]!)
+        if (pair.index > weakest.index) weakest = pair
+      }
+    }
     return {
       tools: clique.map(idx => tools[idx]!),
       n: clique.length,
-      weakestPairSkew: Number(weakest.toFixed(6)),
+      weakestPairIndex: Number(weakest.index.toFixed(6)),
+      weakestPairSkew: Number(weakest.nm.toFixed(6)),
       confidence,
       tier
     }
   })
 }
 
-// max N → smaller weakest-pair skew → higher confidence.
+// max N → smaller weakest-pair INDEX → higher confidence.
+//
+// The tie-break is the index rather than the nanometres: two groups whose worst
+// pairs sit in cells at different CDs are not ranked by nm at all, and ranking
+// by nm would prefer whichever group happened to be measured on the finer
+// pattern regardless of how well its tools actually match.
 export function pickPrimary(groups: NbaGroup[]): NbaGroup | null {
   if (groups.length === 0) return null
   return [...groups].sort((a, b) => {
     if (b.n !== a.n) return b.n - a.n
-    if (a.weakestPairSkew !== b.weakestPairSkew) return a.weakestPairSkew - b.weakestPairSkew
+    if (a.weakestPairIndex !== b.weakestPairIndex) return a.weakestPairIndex - b.weakestPairIndex
     return CONF_RANK[b.confidence] - CONF_RANK[a.confidence]
   })[0]!
 }
