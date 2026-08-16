@@ -15,7 +15,7 @@ def _empty_payload(tool_slug: str, fab_name: str, recipe_id: str | None) -> Skew
         "recipe_id": recipe_id,
         "available": False,
         "fetched_at": "",
-        "summary": f"{fab_name} {tool_slug} 함대의 스큐 mock 데이터가 아직 없습니다.",
+        "summary": f"{fab_name} {tool_slug} 장비 그룹의 스큐 mock 데이터가 아직 없습니다.",
         "tools": [],
         "current_tolerance": 0.05,
         "tolerance_range": {"min": 0.01, "max": 0.2, "step": 0.005},

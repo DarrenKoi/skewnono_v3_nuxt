@@ -85,7 +85,7 @@ export const iqrFences = (values: number[]): IqrFences | null => {
 - **`pearson`은 n≥3 요구, 아니면 `null`**(가짜 0 안 만듦). `spearman`은 순위에 대한 Pearson(동순위 평균 보정).
 - **`iqrFences`(Tukey 1.5×IQR)는 whisker 렌더링 전용 — 이상치 판정이 아님.** 주석에 명시.
 
-## 3. 박스플롯 — 함대가 작을 땐 fencing을 끈다
+## 3. 박스플롯 — 장비 그룹이 작을 땐 fencing을 끈다
 
 `utils/boxplotStats.ts`:
 
@@ -103,7 +103,7 @@ export const boxStats = (values: number[]): BoxStats | null => {
 }
 ```
 
-**대조 포인트**: `boxStats`는 min/max에 **진짜 극값**을 씁니다(fencing 없음). `iqrFences`와 정반대 정책입니다. 왜? 하드웨어 함대는 장비가 4~6대뿐이라, 1.5×IQR fencing을 걸면 **실재하는 장비가 이상치로 숨겨집니다.** 데이터 규모와 도메인이 정책을 뒤집는 예입니다.
+**대조 포인트**: `boxStats`는 min/max에 **진짜 극값**을 씁니다(fencing 없음). `iqrFences`와 정반대 정책입니다. 왜? 하드웨어 장비 그룹은 장비가 4~6대뿐이라, 1.5×IQR fencing을 걸면 **실재하는 장비가 이상치로 숨겨집니다.** 데이터 규모와 도메인이 정책을 뒤집는 예입니다.
 
 ## 4. 웨이퍼 좌표 모델 — `utils/waferGeometry.ts`
 

@@ -117,7 +117,7 @@ columns : value (examples)
                     SEMATECH/ISMI 의 CD-SEM Unified Specification(2008)이
                     정의한 표준 절차입니다. Kawada 등, Proc. SPIE 7272, 72720Y
                     (2009) 가 그 불확도를 정량화했습니다 — 제1저자가 Hitachi
-                    High-Tech 소속이므로 우리 함대의 벤더 방법론입니다.
+                    High-Tech 소속이므로 우리 장비의 벤더 방법론입니다.
 
                     ★ 같은 점을 네 번 재는 것이 아닙니다. feature set 이
                     2개입니다.

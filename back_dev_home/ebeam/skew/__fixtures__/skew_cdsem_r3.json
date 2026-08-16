@@ -4,7 +4,7 @@
   "recipe_id": "CD_MON_16",
   "available": true,
   "fetched_at": "2026-05-31T14:30:00",
-  "summary": "R3 CD-SEM 함대 5대 · 점유 셀 3개(직접 2 · 예측 1) 기준 추천입니다.",
+  "summary": "R3 CD-SEM 장비 그룹 5대 · 점유 셀 3개(직접 2 · 예측 1) 기준 추천입니다.",
   "tools": [
     { "eqp_id": "EQP01", "label": "CD-SEM 01" },
     { "eqp_id": "EQP02", "label": "CD-SEM 02" },

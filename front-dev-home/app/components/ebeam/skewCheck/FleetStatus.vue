@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-surface rounded-2xl p-5">
     <p class="text-xs text-(--sk-ink-subtle)">
-      오늘 함대 skew 현황
+      오늘 장비 그룹 skew 현황
     </p>
     <div class="mt-3 space-y-2">
       <div
@@ -27,7 +27,7 @@
       </div>
     </div>
     <p class="mt-2 text-[11px] text-(--sk-ink-subtle)">
-      잔차 = tool − consensus(기준값). 0 = 함대 합의와 일치.
+      잔차 = tool − consensus(기준값). 0 = 장비 그룹 합의와 일치.
     </p>
   </div>
 </template>

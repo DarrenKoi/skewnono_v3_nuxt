@@ -89,7 +89,7 @@ const others = computed(() =>
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
 const metaStats = computed<MetaBarStat[]>(() => [
-  { key: 'tools', label: '함대', value: payload.value?.tools.length ?? 0, tone: 'neutral' },
+  { key: 'tools', label: '장비 그룹', value: payload.value?.tools.length ?? 0, tone: 'neutral' },
   { key: 'cells', label: '점유 셀', value: payload.value?.occupied_cells.length ?? 0, tone: 'neutral' },
   { key: 'n', label: '최대 N배화', value: primary.value?.n ?? 0, tone: 'ok' }
 ])
