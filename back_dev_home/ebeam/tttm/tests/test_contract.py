@@ -14,12 +14,13 @@ not TTTM-able" rather than zero skew. The client's N배화 (maximal-clique)
 grouping reads the matrix under exactly those rules, so an adapter that breaks
 them produces silently wrong groups.
 
-What is NOT provider-independent is that a fab HAS data. The mock serves one
-fixture per (tool_slug, fab_name) and falls back to an `available: false`
-payload with every list empty — MIGRATION.md calls that the "unknown fab" case,
-not an error, and the office adapter is specified to do the same. So the office
-run must not be red merely because R3 has no skew statistics yet; the
-availability assumptions are fenced behind get_data_provider("tttm") == "mock".
+What is NOT provider-independent is that a fab HAS data. The mock derives its
+roster from `sem_list` for the requested fab and falls back to an
+`available: false` payload with every list empty when that fab holds fewer than
+two tools of the family — MIGRATION.md calls that the "unknown fab" case, not
+an error, and the office adapter is specified to do the same. So the office run
+must not be red merely because R3 has no skew statistics yet; the availability
+assumptions are fenced behind get_data_provider("tttm") == "mock".
 """
 
 import pytest
@@ -31,9 +32,9 @@ from back_dev_home.ebeam.tttm.contracts import TttmCheckPayload
 
 
 TOOL_SLUG = "cdsem"
-# The fab the mock ships a fixture for (__fixtures__/tttm_cdsem_r3.json).
+# A fab with a real CD-SEM fleet in sem_list (18 tools).
 FAB_NAME = "R3"
-# Deliberately absent from __fixtures__: the documented "unknown fab" case.
+# In no fleet at all: the documented "unknown fab" case.
 UNKNOWN_FAB = "ZZZ-NOT-A-FAB"
 
 
@@ -156,26 +157,68 @@ def test_matrix_tools_are_drawn_from_the_advertised_roster():
         assert deviation["eqp_id"] in roster
 
 
-def test_mock_serves_a_populated_fixture_for_its_known_fab():
+def test_the_roster_names_each_tool_once():
+    # eqp_id INDEXES the matrix, so a roster naming a tool twice produces two
+    # identical axes and the client's clique grouping reports a tool as
+    # matching itself. sem_list's mock really does collide (it rolls ids at
+    # random), and an office roster joined across two frames can hand back a
+    # duplicate just as easily — so this is a law for both providers.
+    ids = [tool["eqp_id"] for tool in _payload()["tools"]]
+    assert len(ids) == len(set(ids)), f"duplicate eqp_id in the roster: {ids}"
+
+
+def test_every_advertised_tool_carries_a_model_code():
+    # The picker groups its chips by eqp_model_cd; a blank one is filed under
+    # 기타 rather than dropped, but an adapter that omits the key entirely
+    # breaks the group row itself.
+    for tool in _payload()["tools"]:
+        assert tool["eqp_model_cd"] is not None
+
+
+def test_mock_derives_its_fleet_from_sem_list():
     if not _is_mock():
-        # Mock-only below. `available` and the size of the fixture are
-        # properties of __fixtures__/tttm_cdsem_r3.json; at the office the same
-        # fab legitimately answers `available: false` with every list empty
-        # until real statistics exist for it.
-        pytest.skip(f"a populated {FAB_NAME} fleet is a mock fixture")
+        # Mock-only: at the office the roster comes from the skew statistics
+        # themselves, and a tool that has not been measured legitimately never
+        # appears even though sem_list knows about it.
+        pytest.skip("deriving the roster from sem_list is a mock property")
+
+    from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE, model_to_tool_type
+    from back_dev_home.sem_list.providers.mock import get_sem_list
 
     payload = _payload()
     assert payload["available"] is True
-    assert payload["tools"], "the R3 fixture must advertise a fleet"
-    assert payload["occupied_cells"], "the R3 fixture must advertise cells"
+    assert payload["occupied_cells"], "a populated fab must advertise cells"
+
+    expected = {
+        row["eqp_id"] for row in get_sem_list()
+        if row["fab_name"].upper() == FAB_NAME
+        and model_to_tool_type(row["eqp_model_cd"]) == SLUG_TO_TOOL_TYPE[TOOL_SLUG]
+    }
+    # Equality, not containment: the point of deriving from sem_list is that
+    # the skew screen offers the SAME tools every other screen shows for this
+    # fab. A subset would silently hide a tool from comparison.
+    assert {tool["eqp_id"] for tool in payload["tools"]} == expected
+
+
+def test_mock_a_fab_with_one_tool_is_not_a_comparison():
+    if not _is_mock():
+        pytest.skip("the one-tool fleet is a mock roster property")
+
+    # HV-SEM in M10B holds a single tool in sem_list. One tool has no pairwise
+    # skew at all, so the payload must say unavailable rather than ship a 1x1
+    # matrix the frontend would render as a comparison of nothing.
+    payload = data.get_tttm_check("hvsem", "M10B", None)
+    assert_matches(payload, TttmCheckPayload)
+    assert payload["available"] is False
+    assert payload["tools"] == []
 
 
 def test_mock_unknown_fab_is_available_false_not_an_error():
     if not _is_mock():
-        # Mock-only: the fallback is "fixture file missing". The office adapter
-        # is specified to answer the same shape for a fab with no statistics,
-        # but reaching that branch requires the company network.
-        pytest.skip("the unknown-fab fallback is a missing-fixture branch")
+        # Mock-only: the fallback is "no tool of this family in that fab". The
+        # office adapter is specified to answer the same shape for a fab with
+        # no statistics, but reaching that branch requires the company network.
+        pytest.skip("the unknown-fab fallback is an empty-roster branch")
 
     payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None)
     assert_matches(payload, TttmCheckPayload)

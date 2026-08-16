@@ -1,7 +1,9 @@
 import { joinApiPath } from '~/utils/apiPath'
 import type { SkewMatrix, Confidence, Tier } from '~/utils/tttmGrouping'
 
-export interface ToolRef { eqp_id: string, label: string }
+// `eqp_model_cd` is the raw sem_list model code (CG6300, TP4500, …). The fleet
+// picker groups its chips by it — see utils/tttmToolGroups.
+export interface ToolRef { eqp_id: string, label: string, eqp_model_cd: string }
 
 export interface SkewCondition {
   cell_id: string

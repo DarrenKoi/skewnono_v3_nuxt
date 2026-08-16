@@ -38,18 +38,20 @@
       raw: NotRequired[dict[str, object]]
   ```
 
-- Mock behavior: serves a static, deterministic fixture file per
-  `tool_slug`/`fab_name` pair from `__fixtures__/tttm_{tool_slug}_{fab_name.lower()}.json`
-  (only `tttm_cdsem_r3.json` exists today). If the fixture file is missing,
-  `get_tttm_check` returns an `available: false` empty payload (`tools: []`,
-  `occupied_cells: []`, all list fields empty, `current_tolerance: 0.05`,
-  `production_corroboration.level: "low"`) with a Korean "no mock data for
-  this fleet" summary — this is the "unknown fab" case, not an error.
-  `recipe_id` from the query string always overrides whatever value is
-  baked into the fixture (`payload["recipe_id"] = recipe_id or
-  payload.get("recipe_id")`) — a `None` query param falls back to the
-  fixture's own value rather than clearing it. The server never computes
-  N배화 (maximal-clique) grouping; it only serves raw per-cell pairwise skew
+- Mock behavior: generates a deterministic payload per
+  `tool_slug`/`fab_name`/`recipe_id`, seeded by crc32 of those three. The
+  roster is **`sem_list` filtered to that fab and tool family**, deduplicated
+  by `eqp_id` — the same physical tools every other screen shows for the fab,
+  not an invented one. `__fixtures__/tttm_cdsem_r3.json` is no longer an
+  input; it is a captured sample of this generator's output
+  (`scripts/capture_fixtures.py`). A fab holding fewer than two tools of the
+  family (or none at all) returns an `available: false` empty payload
+  (`tools: []`, `occupied_cells: []`, all list fields empty,
+  `current_tolerance: 0.05`, `production_corroboration.level: "low"`) with a
+  Korean summary saying which of the two it was — this is the "unknown fab"
+  case, not an error. `recipe_id` is echoed and also seeds the numbers, so
+  picking a recipe visibly recomputes. The server never computes N배화
+  (maximal-clique) grouping; it only serves raw per-cell pairwise skew
   matrices and lets the client derive groupings.
 - Office data source: <!-- OFFICE: real pairwise skew statistics per cell (beam_condition × axis × cd_band × mdc_epoch), median measured CD per cell and for today's fleet, tolerance config, production overlap corroboration, fleet-today consensus, trend history, MDC change epochs -->
 - Notes: `fetched_at` is volatile (stamp-at-request-time) and should be
@@ -58,6 +60,11 @@
   a cell with no data for a given tier is `None`, not an empty matrix.
   `SkewMatrixBlock.values` is symmetric with a zero diagonal; a `null` cell
   means that tool pair is not TTTM-able (no shared data), not zero skew.
+  Every `ToolRef` owes an `eqp_model_cd` (raw `sem_list` model code — `CG6300`,
+  `TP4500`, …): the picker groups its chips by it, so an adapter that omits it
+  flattens an 18-tool fab into one unreadable chip row. `eqp_id` must be
+  unique across `tools` — it indexes the matrix axes, and a repeat makes a
+  tool appear to match itself.
 
 ## `median_cd_nm` — what the office adapter owes
 

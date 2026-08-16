@@ -19,6 +19,15 @@ EpochKind = Literal["hard", "soft"]
 class ToolRef(TypedDict):
     eqp_id: str
     label: str
+    # Model code as sem_list carries it (e.g. "CG6300", "TP4500").
+    #
+    # The picker groups its chips by this, because a fab holds up to ~18
+    # CD-SEMs and matching tools by series is how a skew comparison is
+    # actually scoped — the useful selection is rarely an arbitrary subset.
+    # It is the raw code, not a family label: `model_to_tool_type()` answers
+    # "cd-sem" for every CG and GT alike, so classifying here would collapse
+    # the very distinction the grouping exists to show.
+    eqp_model_cd: str
 
 
 class SkewMatrixBlock(TypedDict):
