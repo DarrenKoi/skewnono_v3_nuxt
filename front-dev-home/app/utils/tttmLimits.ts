@@ -19,19 +19,34 @@
 // tools match each other.
 
 /**
- * ±0.15 nm from the fleet median. Beyond this the tool is sent to PM/BM.
+ * The fab's tool-management rule, as a FRACTION OF CD.
  *
- * user-confirmed 2026-08-16: "in the fab, we manage the tools running inside
- * +-0.15nm from median. If a tool bigger than that, should go through the
- * PM/BM."
+ * user-confirmed 2026-08-16, in two parts:
+ *   - "we manage the tools running inside +-0.15nm from median. If a tool
+ *     bigger than that, should go through the PM/BM."
+ *   - "모니터 wafer는 15nm에서 +-0.15를 기준으로 함."
  *
- * OFFICE-VERIFY: whether this limit is fixed in nm or scales with the measured
- * pattern's CD. The same conversation raised that a larger pattern should
- * tolerate a larger skew, which would make this a ratio rather than a constant.
- * Treat the value as the absolute limit for the current monitor pattern until
- * that is settled.
+ * 0.15 nm at a 15 nm CD is exactly 1%, and the same conversation established
+ * that the limit scales with pattern size. So the ratio is the rule and the
+ * 0.15 nm figure is just its value on the monitor wafer.
+ *
+ * This matters because the scaling is large: at 50 nm the limit is 0.50 nm and
+ * at 100 nm it is 1.0 nm, both far outside the tolerance knob's 0.01–0.20 nm
+ * range. A screen that applies 0.15 nm everywhere is wrong by the CD ratio.
  */
-export const PM_BM_ACTION_LIMIT_NM = 0.15
+export const PM_BM_ACTION_LIMIT_RATIO = 0.01
+
+/** The CD the ±0.15 nm figure was quoted at (the monitor wafer). */
+export const MONITOR_WAFER_CD_NM = 15
+
+/**
+ * The action limit in nm for a given nominal CD.
+ *
+ * `PM_BM_ACTION_LIMIT_RATIO * MONITOR_WAFER_CD_NM` reproduces the familiar
+ * 0.15 nm, which is the check to run when this looks wrong.
+ */
+export const actionLimitNm = (nominalCdNm: number) =>
+  PM_BM_ACTION_LIMIT_RATIO * nominalCdNm
 
 /**
  * ±0.05 nm — the self-ABBA measurement uncertainty reported by Kawada 2009,
