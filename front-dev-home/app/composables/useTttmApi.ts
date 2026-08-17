@@ -65,6 +65,8 @@ export interface TttmCheckPayload {
   tool_slug: string
   fab_name: string
   recipe_id: string | null
+  /** The one measured feature these numbers are about; null = all folded. */
+  parameter: string | null
   available: boolean
   fetched_at: string
   summary: string
@@ -86,26 +88,51 @@ export const useTttmApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  const fetchTttmCheck = (toolType: string, fabName: string, recipeId?: string) =>
+  // `parameter` is only sent alongside a recipe: the server answers 400 to a
+  // parameter on its own, because the same parameter name in another recipe
+  // measures a different feature. Dropping it here rather than letting the
+  // request fail keeps a stale stored parameter from breaking the page while
+  // the user has no recipe picked.
+  const fetchTttmCheck = (
+    toolType: string,
+    fabName: string,
+    recipeId?: string,
+    parameter?: string
+  ) =>
     $fetch<TttmCheckPayload>(
       joinApiPath(base, `/${toSlug(toolType)}/tttm/check`),
-      { query: { fab_name: fabName, ...(recipeId ? { recipe_id: recipeId } : {}) } }
+      {
+        query: {
+          fab_name: fabName,
+          ...(recipeId ? { recipe_id: recipeId } : {}),
+          ...(recipeId && parameter ? { parameter } : {})
+        }
+      }
     )
 
-  // `recipeId` is a getter, not a plain string, because the user picks it in the
-  // page: a value baked into the key at call time would never refetch. The key
-  // deliberately omits the recipe so one cache entry per (tool, fab) is reused
-  // and re-fetched, rather than accumulating one entry per recipe ever viewed.
+  // `recipeId`/`parameter` are getters, not plain strings, because the user
+  // picks them in the page: a value baked into the key at call time would never
+  // refetch. The key deliberately omits both so one cache entry per (tool, fab)
+  // is reused and re-fetched, rather than accumulating one entry per scope ever
+  // viewed.
   const useTttmCheck = (
     toolType: string,
     fabName: string,
-    recipeId?: () => string | null | undefined
-  ) =>
-    useAsyncData(
+    recipeId?: () => string | null | undefined,
+    parameter?: () => string | null | undefined
+  ) => {
+    const sources = [recipeId, parameter].filter(Boolean) as (() => unknown)[]
+    return useAsyncData(
       `tttm-check:${toolType}:${fabName}`,
-      () => fetchTttmCheck(toolType, fabName, recipeId?.() ?? undefined),
-      recipeId ? { watch: [recipeId] } : {}
+      () => fetchTttmCheck(
+        toolType,
+        fabName,
+        recipeId?.() ?? undefined,
+        parameter?.() ?? undefined
+      ),
+      sources.length ? { watch: sources } : {}
     )
+  }
 
   return { fetchTttmCheck, useTttmCheck }
 }

@@ -34,6 +34,10 @@
           :recipe-id="recipeId"
           :recipe-names="recipeNames"
           :recipes-pending="recipesPending"
+          :parameter="parameter"
+          :parameter-names="parameterNames"
+          :parameters-pending="parametersPending"
+          @update:parameter="onParameter"
           @update:selected="onSelectedTools"
           @update:recipe-id="onRecipe"
         >
@@ -165,31 +169,33 @@ import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
-const settings = useTttmSettings()
-const scoped = computed(() => settings.read(props.toolType, props.fab))
-const recipeId = computed(() => scoped.value.recipeId)
+// The comparison scope and its two catalogues, shared verbatim with pm-tune —
+// see useTttmScope for why this is one composable rather than wiring per page.
+const {
+  scoped,
+  recipeId,
+  parameter,
+  recipeNames,
+  recipesPending,
+  parameterNames,
+  parametersPending,
+  onSelectedTools,
+  onRecipe,
+  onParameter
+} = useTttmScope(props.toolType, props.fab)
 
 const { useTttmCheck } = useTttmApi()
-const { data: payload, pending } = useTttmCheck(props.toolType, props.fab, () => recipeId.value)
-
-// Recipe catalogue for the picker. Its own request, so a slow catalogue never
-// delays the skew payload the page is actually about.
-const { fetchRecipeList } = useRecipeSearchApi()
-const { data: recipeList, pending: recipesPending } = useAsyncData(
-  `tttm-recipes:${props.toolType}:${props.fab}`,
-  () => fetchRecipeList({ toolType: props.toolType as 'cd-sem' | 'hv-sem', fabNames: [props.fab] })
-)
-const recipeNames = computed(() =>
-  [...new Set((recipeList.value?.rows ?? []).map(row => row.recipe_name))].sort()
+const { data: payload, pending } = useTttmCheck(
+  props.toolType,
+  props.fab,
+  () => recipeId.value,
+  () => parameter.value
 )
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
 // Stored selection resolved against the fleet the server actually returned:
 // empty means all, and ids that no longer exist are dropped.
 const selectedTools = computed(() => resolveSelection(allToolIds.value, scoped.value.tools))
-
-const onSelectedTools = (next: string[]) => settings.setTools(props.toolType, props.fab, next)
-const onRecipe = (next: string | null) => settings.setRecipe(props.toolType, props.fab, next)
 
 const visibleTools = computed(() =>
   (payload.value?.tools ?? []).filter(t => selectedTools.value.includes(t.eqp_id))

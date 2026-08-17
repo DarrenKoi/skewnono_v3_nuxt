@@ -100,11 +100,40 @@ export interface RecipeDetailResponse {
   timestamp: string
 }
 
+/**
+ * Tier 0 of the recipe read endpoints — every idp_image_info row of one recipe,
+ * no tool I/O. The cheap tier on purpose: `amp`/`af_pr` cost up to five FTP
+ * reads per occurrence off the measuring tool itself, and listing parameters
+ * must not pay that.
+ *
+ * `rows` is one image DEFINITION each, so a parameter can occupy several rows —
+ * `distinct_parameters` is the count a user actually means, carried so callers
+ * do not have to dedupe to get it right.
+ */
+export interface ParameterListResponse {
+  recipe_id: string
+  fab_name: string | null
+  tool_type: RecipeSearchToolType
+  locator: IdpLocator
+  total_rows: number
+  distinct_parameters: number
+  mother_rows: number
+  addressing_rows: number
+  rows: IdpImageInfoRow[]
+}
+
+export interface RecipeParametersParams {
+  toolType: RecipeSearchToolType
+  fabName?: string
+  recipeName: string
+}
+
 // toolSlug now comes from ~/utils/toolType via Nuxt auto-import (registry's
 // version); this file no longer declares its own.
 
 const inFlightRecipeLists = new Map<string, Promise<RecipeSearchResponse>>()
 const inFlightRecipeDetails = new Map<string, Promise<RecipeDetailResponse>>()
+const inFlightRecipeParameters = new Map<string, Promise<ParameterListResponse>>()
 
 export const useRecipeSearchApi = () => {
   const config = useRuntimeConfig()
@@ -158,8 +187,40 @@ export const useRecipeSearchApi = () => {
     return await request
   }
 
+  // Tier 0 — the parameter catalogue of one recipe. Same in-flight dedup as the
+  // two above: the TTTM and pm-tune rails both mount a parameter picker against
+  // the same (recipe, fab), and /api/* is rate-limited to 50 req / 5 s.
+  const fetchRecipeParameters = async (
+    params: RecipeParametersParams
+  ): Promise<ParameterListResponse> => {
+    const slug = toolSlug(params.toolType)
+    const fabName = normalizeFab(params.fabName)
+    const recipeName = params.recipeName.trim()
+    const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${recipeName}`
+    const existing = inFlightRecipeParameters.get(cacheKey)
+
+    if (existing) {
+      return await existing
+    }
+
+    const query = {
+      recipe_name: recipeName,
+      ...(fabName ? { fab_name: fabName } : {})
+    }
+    const request = $fetch<ParameterListResponse>(
+      joinApiPath(base, `/${slug}/recipe-search/parameters`),
+      { query }
+    ).finally(() => {
+      inFlightRecipeParameters.delete(cacheKey)
+    })
+
+    inFlightRecipeParameters.set(cacheKey, request)
+    return await request
+  }
+
   return {
     fetchRecipeDetail,
-    fetchRecipeList
+    fetchRecipeList,
+    fetchRecipeParameters
   }
 }

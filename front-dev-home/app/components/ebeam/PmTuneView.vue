@@ -29,11 +29,34 @@
       class="grid items-start gap-3 xl:grid-cols-[392px_minmax(0,1fr)]"
     >
       <!-- 조작 레일 — TTTM 과 같은 규칙: 레일에는 결과가 없고, 결과 쪽에는
-           컨트롤이 없습니다. 이 페이지의 컨트롤은 "어느 장비를 튜닝하는가"
-           하나뿐이고, 그룹의 정의(장비 선택·recipe·tolerance)는 TTTM 페이지의
-           저장된 설정을 그대로 읽습니다 — 두 실험실 페이지가 서로 다른 그룹을
-           말하기 시작하면 어느 쪽도 믿을 수 없게 됩니다. -->
+           컨트롤이 없습니다. 이 페이지의 컨트롤은 "무엇을 비교하는가"(recipe ·
+           parameter)와 "어느 장비를 튜닝하는가" 둘이고, 앞의 둘은 TTTM 페이지와
+           같은 저장 설정에 씁니다 — 한쪽에서 바꾸면 다른 쪽도 같이 바뀝니다.
+           두 실험실 페이지가 서로 다른 그룹을 말하기 시작하면 어느 쪽도 믿을 수
+           없게 되므로, 공유가 곧 안전장치입니다. 장비 선택·tolerance 는 여전히
+           TTTM 쪽 컨트롤입니다. -->
       <div class="flex flex-col gap-3 xl:sticky xl:top-2">
+        <div class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
+          <p class="sk-panel-title">
+            비교 대상
+          </p>
+          <p class="mt-1 sk-hint">
+            어떤 recipe 의 어떤 측정 항목으로 비교할지 고릅니다. TTTM 페이지와 같은
+            설정을 씁니다.
+          </p>
+          <EbeamScopeRecipe
+            class="mt-4"
+            :recipe-id="recipeId"
+            :recipe-names="recipeNames"
+            :recipes-pending="recipesPending"
+            :parameter="parameter"
+            :parameter-names="parameterNames"
+            :parameters-pending="parametersPending"
+            @update:recipe-id="onRecipe"
+            @update:parameter="onParameter"
+          />
+        </div>
+
         <EbeamPmTuneToolPicker
           :rows="pickerRows"
           :picked="picked"
@@ -59,7 +82,14 @@
             </template>
           </p>
           <p class="mt-1.5 sk-field-label leading-relaxed">
-            그룹 기준(장비 선택·recipe·tolerance)은 TTTM 페이지의 설정을 따릅니다.
+            <template v-if="parameter">
+              측정 항목 <span class="sk-value-num">{{ parameter }}</span> 기준입니다 ·
+              장비 선택·tolerance 는 TTTM 페이지의 설정을 따릅니다.
+            </template>
+            <template v-else>
+              측정 항목 전체를 합친 기준입니다 · 장비 선택·tolerance 는 TTTM 페이지의
+              설정을 따릅니다.
+            </template>
           </p>
         </div>
       </div>
@@ -121,13 +151,30 @@ import type { BeamCondition } from '~/utils/pmPlanning'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
-// The group's inputs are TTTM's persisted settings, read-only here — this page
-// adds exactly one control (the picked tool) on top of them.
-const settings = useTttmSettings()
-const scoped = computed(() => settings.read(props.toolType, props.fab))
+// The group's inputs are the SHARED lab scope — the same persisted entry the
+// TTTM page reads, through the same composable. Recipe and parameter are now
+// editable from here as well as from there, and editing either here edits it
+// there: the two pages are meant to describe ONE group, so a scope this page
+// could only read was a scope the user had to leave the page to change.
+const {
+  scoped,
+  recipeId,
+  parameter,
+  recipeNames,
+  recipesPending,
+  parameterNames,
+  parametersPending,
+  onRecipe,
+  onParameter
+} = useTttmScope(props.toolType, props.fab)
 
 const { useTttmCheck } = useTttmApi()
-const { data: payload, pending: tttmPending } = useTttmCheck(props.toolType, props.fab, () => scoped.value.recipeId)
+const { data: payload, pending: tttmPending } = useTttmCheck(
+  props.toolType,
+  props.fab,
+  () => recipeId.value,
+  () => parameter.value
+)
 
 // The gate/PM half, from pm_planning. Independent request: a slow gate payload
 // must not delay the map, and vice versa.
