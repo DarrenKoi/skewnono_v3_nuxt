@@ -3,8 +3,16 @@ import {
   buildCascadedOptions,
   CATEGORY_TO_TOOL_TYPE,
   pruneCascadedFilters,
+  reconcileCascadedFilters,
   type SkewvoirCategory
 } from '~/utils/measHistCascade'
+import {
+  emptyMeasHistFilters,
+  hasAnyMeasHistFilter,
+  hasNoMeasHistPicks,
+  normalizeStoredMeasHistFilters,
+  serializeMeasHistFilters
+} from '~/utils/measHistFilters'
 import { parseMeasHistQuery, resolveDateRange, stripDateTokens } from '~/utils/measHistQuery'
 import { shiftIsoDate } from '../utils/dateTime.ts'
 import {
@@ -78,7 +86,8 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   // Session state, not persisted: a reload starts clean. The curated selection
   // next door earns its localStorage (usePersistedState) by being a set the
   // user assembled deliberately; a result page is just the last thing the
-  // backend said.
+  // backend said. The dropdown picks are the one exception below — they are
+  // authored the same way the selection is, so they persist too.
   const key = (name: string) => `meas-hist-search:${toolType}:${name}`
 
   const queryText = useState(key('query-text'), () => '')
@@ -91,9 +100,21 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     end: anchor.value
   }))
 
-  const filters = useState<MeasHistFilters>(
+  // The only persisted slice of the session. Which fab, family, model and
+  // tools a person searches is a standing description of the fleet they own,
+  // so it survives a reload; the date window inside the same object does not
+  // (see measHistFilters.ts for why absolute dates must not be restored).
+  // Keyed per toolType like the selection beside it, so the CD-SEM and HV-SEM
+  // landings keep their own.
+  const filters = usePersistedState<MeasHistFilters>(
     key('filters'),
-    () => ({ fab: [], category: [], model: [], eq: [], from: '', to: '' })
+    `skewnono:skewvoir.search-filters.${toolType}`,
+    {
+      default: emptyMeasHistFilters,
+      normalize: normalizeStoredMeasHistFilters,
+      serialize: serializeMeasHistFilters,
+      isEmpty: hasNoMeasHistPicks
+    }
   )
 
   // Cascaded dropdown options: FAB stays the full facet list (top of the
@@ -108,6 +129,32 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
     )
     return { fab: facets.value.fab, ...cascaded }
   })
+
+  // Restored picks have to face the cascade too. The prune at the bottom of
+  // this file runs only when the user *changes* a dropdown, so a model or eq
+  // that fell out of retention between visits would survive in storage forever
+  // and silently zero every search under a filter chip that still looks valid.
+  // This watcher re-checks whenever the option universe itself moves — the
+  // facets arriving at mount, and sem_list landing afterwards and narrowing the
+  // cascade further.
+  //
+  // reconcileCascadedFilters rather than the single-pass prune below: only a
+  // restored set can have two stale levels at once, and only the top-down walk
+  // keeps a valid EQ pick when the model above it is the thing that died.
+  //
+  // Gated on the facets having actually arrived — while they load, every option
+  // list is empty, and reconciling against that would wipe the very picks we
+  // just restored. Redundant with the watcher below on a user edit, but
+  // harmlessly so: it returns null when nothing changed, and it never searches.
+  watch([facets, semRows], () => {
+    if (facetsPending.value || facets.value.model.length === 0) return
+    const reconciled = reconcileCascadedFilters(
+      filters.value,
+      { model: facets.value.model, eq: facets.value.eq },
+      semRows.value
+    )
+    if (reconciled) filters.value = reconciled
+  }, { immediate: true })
 
   // Chips render as you type — no round-trip needed to see how a token was read.
   const parsed = computed(() => parseMeasHistQuery(queryText.value, known.value))
@@ -124,14 +171,7 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   // False until the first search runs — drives the "type something" empty state.
   const searched = useState(key('searched'), () => false)
 
-  const hasActiveFilters = computed(() =>
-    filters.value.fab.length > 0
-    || filters.value.category.length > 0
-    || filters.value.model.length > 0
-    || filters.value.eq.length > 0
-    || Boolean(filters.value.from)
-    || Boolean(filters.value.to)
-  )
+  const hasActiveFilters = computed(() => hasAnyMeasHistFilter(filters.value))
 
   const hasMore = computed(() => rows.value.length < Math.min(total.value, 10000))
 
@@ -267,8 +307,10 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   // over all `total` hits. Clearing it is what 더 보기 is for.
   const sortIsPartial = computed(() => isReordered(sort.value) && hasMore.value)
 
+  // Clears the storage key as well as the state: an all-empty set is what
+  // usePersistedState treats as "nothing to remember" (isEmpty above).
   const resetFilters = () => {
-    filters.value = { fab: [], category: [], model: [], eq: [], from: '', to: '' }
+    filters.value = emptyMeasHistFilters()
   }
 
   // A 기간 dropdown edit is "last write wins": it must not merely set

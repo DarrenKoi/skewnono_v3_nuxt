@@ -1,7 +1,11 @@
 // Pure-logic tests — run with: npm --prefix front-dev-home test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildCascadedOptions, pruneCascadedFilters } from './measHistCascade.ts'
+import {
+  buildCascadedOptions,
+  pruneCascadedFilters,
+  reconcileCascadedFilters
+} from './measHistCascade.ts'
 import type { SemListRow } from '~/composables/useSemListApi'
 
 const sem = (eqp_id: string, eqp_model_cd: string, fab_name: string): SemListRow => ({
@@ -111,6 +115,60 @@ test('prune returns null when nothing changed', () => {
   const options = buildCascadedOptions(FACETS, FLEET, NO_PICKS)
   const filters = { fab: [], category: [], model: ['CG6300'], eq: ['ECDX999'], from: '', to: '' }
   assert.equal(pruneCascadedFilters(filters, options), null)
+})
+
+// Restored (localStorage) picks are the only case where two cascade levels can
+// go stale at once, and single-pass pruning compounds the damage there.
+test('reconcile keeps a still-valid eq when the model above it died', () => {
+  const filters = {
+    fab: ['R3'],
+    category: ['CD-SEM'],
+    // A model that no longer has documents in the retention window.
+    model: ['CG9999'],
+    eq: ['ECDX100'],
+    from: '',
+    to: ''
+  }
+
+  // Judged against one snapshot, the dead model narrows the eq list to nothing
+  // and takes the perfectly valid ECDX100 with it.
+  const singlePass = pruneCascadedFilters(filters, buildCascadedOptions(FACETS, FLEET, filters))
+  assert.deepEqual(singlePass?.eq, [])
+
+  // Top-down, the model is dropped first and the eq is judged against the
+  // widened list it leaves behind.
+  const reconciled = reconcileCascadedFilters(filters, FACETS, FLEET)
+  assert.ok(reconciled)
+  assert.deepEqual(reconciled.model, [])
+  assert.deepEqual(reconciled.eq, ['ECDX100'])
+  assert.deepEqual(reconciled.fab, ['R3'])
+  assert.deepEqual(reconciled.category, ['CD-SEM'])
+})
+
+test('reconcile still drops an eq the surviving cascade does not offer', () => {
+  const filters = {
+    fab: [],
+    category: ['HV-SEM'],
+    model: [],
+    eq: ['ECDX100', 'PCD300'],
+    from: '',
+    to: ''
+  }
+  const reconciled = reconcileCascadedFilters(filters, FACETS, FLEET)
+  assert.ok(reconciled)
+  assert.deepEqual(reconciled.eq, ['PCD300'])
+})
+
+test('reconcile returns null when every pick is still offered', () => {
+  const filters = {
+    fab: ['R3'],
+    category: ['CD-SEM'],
+    model: ['CG6300'],
+    eq: ['ECDX100'],
+    from: '',
+    to: ''
+  }
+  assert.equal(reconcileCascadedFilters(filters, FACETS, FLEET), null)
 })
 
 // The FAB picks come from the meas-hist facets endpoint (OpenSearch) while fab_name comes

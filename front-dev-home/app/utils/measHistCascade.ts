@@ -140,3 +140,36 @@ export const pruneCascadedFilters = <T extends { model: string[], eq: string[] }
   if (model.length === filters.model.length && eq.length === filters.eq.length) return null
   return { ...filters, model, eq }
 }
+
+// Same job as pruneCascadedFilters, but walking the cascade top-down instead of
+// judging every level against one snapshot of the options.
+//
+// The difference only shows when picks at TWO levels are stale at once, which
+// a live dropdown session cannot produce (each edit leaves the level above it
+// valid) but RESTORED picks can: a 장비 모델 that has aged out of the retention
+// window narrows the EQ list to nothing, so a single pass deletes the user's
+// still-perfectly-good EQ pick as collateral. Dropping the dead model first and
+// rebuilding the options judges the EQ against the list it actually belongs to.
+//
+// Returns null when nothing changed, same contract as the single-pass prune.
+export const reconcileCascadedFilters = <T extends CascadeSelections & { eq: string[] }>(
+  filters: T,
+  facets: { model: MeasHistFacetValue[], eq: MeasHistFacetValue[] },
+  semRows: SemListRow[]
+): T | null => {
+  const asPicked = buildCascadedOptions(facets, semRows, filters)
+  const offeredModels = new Set(asPicked.model.map(o => o.value))
+  const model = filters.model.filter(value => offeredModels.has(value))
+
+  // Rebuild only when the model pick actually moved. The common case — every
+  // pick still valid — must stay a single cascade build.
+  const modelChanged = model.length !== filters.model.length
+  const withLiveModels = modelChanged
+    ? buildCascadedOptions(facets, semRows, { ...filters, model })
+    : asPicked
+  const offeredEqs = new Set(withLiveModels.eq.map(o => o.value))
+  const eq = filters.eq.filter(value => offeredEqs.has(value))
+
+  if (!modelChanged && eq.length === filters.eq.length) return null
+  return { ...filters, model, eq }
+}

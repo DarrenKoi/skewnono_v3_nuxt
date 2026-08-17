@@ -103,12 +103,7 @@ const periodPresets = computed(() => {
   ]
 })
 
-const hasActive = computed(() =>
-  props.filters.fab.length > 0
-  || props.filters.category.length > 0
-  || props.filters.model.length > 0
-  || props.filters.eq.length > 0
-  || Boolean(props.filters.from)
-  || Boolean(props.filters.to)
-)
+// Same predicate the composable's hasActiveFilters uses — shared so the 초기화
+// button and the search state can never disagree about what counts as active.
+const hasActive = computed(() => hasAnyMeasHistFilter(props.filters))
 </script>
