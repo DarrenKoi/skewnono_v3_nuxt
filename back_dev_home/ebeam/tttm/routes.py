@@ -21,5 +21,15 @@ def tttm_check(tool_slug: str):
     fab_name = _arg("fab_name")
     if fab_name is None:
         return jsonify({"error": "fab_name is required"}), 400
-    payload = get_tttm_check(tool_slug, fab_name, _arg("recipe_id"))
+    recipe_id = _arg("recipe_id")
+    parameter = _arg("parameter")
+    # A parameter name is a row of ONE recipe's idp_image_info, and the same
+    # name in another recipe measures a different feature — so "this parameter,
+    # across every recipe" is not a question with an answer. Refused rather than
+    # ignored: a silently dropped filter returns a group verdict under a
+    # parameter heading the server never applied, and nothing about that
+    # response looks wrong to the client.
+    if parameter is not None and recipe_id is None:
+        return jsonify({"error": "parameter requires recipe_id"}), 400
+    payload = get_tttm_check(tool_slug, fab_name, recipe_id, parameter)
     return jsonify(payload)

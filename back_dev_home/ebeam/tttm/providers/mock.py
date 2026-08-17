@@ -70,8 +70,20 @@ flatten them by accident:
 - **A fab with fewer than two tools answers `available: false`.** One tool is
   not a comparison, and the frontend's picker refuses to drop below two
   anyway; some HV-SEM fabs really do hold a single tool.
-- **The seed includes `recipe_id`**, so picking a recipe visibly recomputes —
-  which is what the picker promises. The numbers move; the shape does not.
+- **The seed includes `recipe_id` AND `parameter`**, so picking either visibly
+  recomputes — which is what the pickers promise. The numbers move; the shape
+  does not. There is no parameter catalogue here: the mock never checks that a
+  parameter belongs to the recipe, because at the office the filter is a WHERE
+  on real MSR rows and an unknown parameter simply matches nothing. What the
+  mock has to stand in for is the consequence — that narrowing to one measured
+  feature can move a tool in or out of the N배화 group — and it does that by
+  re-seeding rather than by pretending to know the feature list.
+
+OFFICE-VERIFY: that per-parameter skew statistics exist at the grain the office
+adapter needs. `parameter` is specified against `idp_image_info.Parameter` (the
+recipe-search catalogue), but whether the skew source can be sliced by it — or
+only by the (beam_condition, axis, cd_band) cell it already carries — is
+unconfirmed until an office run.
 
 OFFICE-VERIFY: every number here is fabricated. Real pairwise skew magnitudes
 and the true spread across cells are unknown until an office run — item 3 of
@@ -149,10 +161,17 @@ _CELLS: tuple[_CellSpec, ...] = (
 )
 
 
-def _seed(tool_slug: str, fab_name: str, recipe_id: str | None) -> int:
+def _seed(
+    tool_slug: str, fab_name: str, recipe_id: str | None, parameter: str | None
+) -> int:
     # crc32, not hash(): PYTHONHASHSEED is randomised per process, so hash()
     # would hand a different fleet to every worker and to every restart.
-    key = f"{tool_slug}|{fab_name.upper()}|{recipe_id or ''}"
+    #
+    # The separator is what keeps the parts from bleeding into each other:
+    # without it recipe "AB" + parameter "C" and recipe "A" + parameter "BC"
+    # would seed identically, so picking a different parameter would sometimes
+    # visibly do nothing.
+    key = f"{tool_slug}|{fab_name.upper()}|{recipe_id or ''}|{parameter or ''}"
     return zlib.crc32(key.encode("utf-8"))
 
 
@@ -350,12 +369,14 @@ def _unavailable(
     tool_slug: str,
     fab_name: str,
     recipe_id: str | None,
+    parameter: str | None,
     summary: str,
 ) -> TttmCheckPayload:
     return {
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
         "fab_name": fab_name,
         "recipe_id": recipe_id,
+        "parameter": parameter,
         "available": False,
         "fetched_at": "",
         "summary": summary,
@@ -379,6 +400,7 @@ def get_tttm_check(
     tool_slug: str,
     fab_name: str,
     recipe_id: str | None,
+    parameter: str | None,
 ) -> TttmCheckPayload:
     fleet = _fleet(tool_slug, fab_name)
     if not fleet:
@@ -386,6 +408,7 @@ def get_tttm_check(
             tool_slug,
             fab_name,
             recipe_id,
+            parameter,
             f"{fab_name} 에는 이 계열의 장비가 없습니다.",
         )
     if len(fleet) < 2:
@@ -393,10 +416,11 @@ def get_tttm_check(
             tool_slug,
             fab_name,
             recipe_id,
+            parameter,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
         )
 
-    seed = _seed(tool_slug, fab_name, recipe_id)
+    seed = _seed(tool_slug, fab_name, recipe_id, parameter)
     biases = _biases(random.Random(seed), fleet)
     ids = [tool["eqp_id"] for tool in fleet]
 
@@ -413,6 +437,7 @@ def get_tttm_check(
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
         "fab_name": fab_name,
         "recipe_id": recipe_id,
+        "parameter": parameter,
         "available": True,
         "fetched_at": _FETCHED_AT,
         "summary": (

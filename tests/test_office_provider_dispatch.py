@@ -86,7 +86,7 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 hardware_payload,
             )
             self.assertIs(
-                tttm_data.get_tttm_check("cdsem", "R3", "RECIPE-1"),
+                tttm_data.get_tttm_check("cdsem", "R3", "RECIPE-1", "Para_13"),
                 tttm_payload,
             )
 
@@ -122,7 +122,7 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 hardware_payload,
             )
             self.assertIs(
-                tttm_data.get_tttm_check("cdsem", "R3", None),
+                tttm_data.get_tttm_check("cdsem", "R3", None, None),
                 tttm_payload,
             )
 

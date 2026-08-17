@@ -145,6 +145,18 @@ class TttmCheckPayload(TypedDict):
     tool_slug: ToolSlug
     fab_name: str
     recipe_id: str | None
+    # The measured feature this whole payload is about. None = every parameter
+    # the recipe filter left standing, folded together as before.
+    #
+    # Only meaningful INSIDE a recipe: a parameter name ("Para_13") is a row of
+    # one recipe's idp_image_info, and the same name in another recipe measures
+    # something else entirely. routes.py refuses `parameter` without
+    # `recipe_id` for exactly that reason — the PAIR is the key, not the name.
+    #
+    # It narrows the ROWS the pairwise skew is computed from, which is why it
+    # can change a group verdict rather than merely relabel one: two tools that
+    # agree once every feature is folded together can disagree on one feature.
+    parameter: str | None
     available: bool
     fetched_at: str
     summary: str

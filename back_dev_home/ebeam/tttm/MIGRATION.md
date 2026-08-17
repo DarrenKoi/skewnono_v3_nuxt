@@ -10,10 +10,21 @@
 ## Endpoint: GET /api/<tool_slug>/tttm/check
 
 - Handler: `routes.py` → `data.get_tttm_check(tool_slug, fab_name,
-  recipe_id)`. `tool_slug` is validated against `SEM_TOOL_SLUGS` (400 if
-  not `cdsem`/`hvsem`) before the data call. `fab_name` is a required query
-  param (`?fab_name=...`, 400 if missing); `recipe_id` is an optional query
-  param.
+  recipe_id, parameter)`. `tool_slug` is validated against `SEM_TOOL_SLUGS`
+  (400 if not `cdsem`/`hvsem`) before the data call. `fab_name` is a required
+  query param (`?fab_name=...`, 400 if missing); `recipe_id` and `parameter`
+  are optional query params.
+- **`parameter` narrows the rows, and only inside a recipe.** It names one
+  measured feature of `recipe_id` (a `Parameter` value of that recipe's
+  `idp_image_info` — the same catalogue `GET
+  /api/<slug>/recipe-search/parameters` lists). The office adapter filters the
+  MSR rows it computes pairwise skew from down to that feature; `None` means
+  fold every feature together, the pre-existing behaviour. The route refuses
+  `parameter` without `recipe_id` with a 400 before the data call, because the
+  same parameter name in another recipe measures something else — so the
+  adapter may assume that a non-null `parameter` arrives with a `recipe_id`.
+  Echo **both** back on the payload, including on the `available: false`
+  branch: the client files the response under the pair it asked for.
 - Contract: `TttmCheckPayload` (large nested tree — see `contracts.py` for
   the full `ToolRef`/`CellSkew`/`SkewMatrixBlock`/`ProductionCorroboration`/
   `FleetToday`/`TrendPoint`/`EpochMarker`/`MdcHistoryEntry` definitions) —
@@ -23,6 +34,7 @@
       tool_slug: ToolSlug
       fab_name: str
       recipe_id: str | None
+      parameter: str | None        # one measured feature of recipe_id
       available: bool
       fetched_at: str
       summary: str
@@ -39,7 +51,9 @@
   ```
 
 - Mock behavior: generates a deterministic payload per
-  `tool_slug`/`fab_name`/`recipe_id`, seeded by crc32 of those three. The
+  `tool_slug`/`fab_name`/`recipe_id`/`parameter`, seeded by crc32 of those
+  four (pipe-separated, so `recipe_id` and `parameter` cannot bleed into one
+  another). The
   roster is **`sem_list` filtered to that fab and tool family**, deduplicated
   by `eqp_id` — the same physical tools every other screen shows for the fab,
   not an invented one. `__fixtures__/tttm_cdsem_r3.json` is no longer an
@@ -49,8 +63,10 @@
   (`tools: []`, `occupied_cells: []`, all list fields empty,
   `current_tolerance: 0.05`, `production_corroboration.level: "low"`) with a
   Korean summary saying which of the two it was — this is the "unknown fab"
-  case, not an error. `recipe_id` is echoed and also seeds the numbers, so
-  picking a recipe visibly recomputes. The server never computes N배화
+  case, not an error. `recipe_id` and `parameter` are echoed and also seed the
+  numbers, so picking either visibly recomputes — the mock has no parameter
+  catalogue of its own and stands in for the office's row filtering by moving
+  the numbers, which is the property the UI depends on. The server never computes N배화
   (maximal-clique) grouping; it only serves raw per-cell pairwise skew
   matrices and lets the client derive groupings.
 - Office data source: <!-- OFFICE: real pairwise skew statistics per cell (beam_condition × axis × cd_band × mdc_epoch), median measured CD per cell and for today's fleet, tolerance config, production overlap corroboration, fleet-today consensus, trend history, MDC change epochs -->

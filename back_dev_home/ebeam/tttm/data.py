@@ -12,6 +12,7 @@ def get_tttm_check(
     tool_slug: str,
     fab_name: str,
     recipe_id: str | None,
+    parameter: str | None,
 ) -> TttmCheckPayload:
     if get_data_provider("tttm") == "office":
         from back_dev_home.ebeam.tttm.providers.office import (
@@ -22,4 +23,8 @@ def get_tttm_check(
             get_tttm_check as load_tttm_check,
         )
 
-    return load_tttm_check(tool_slug, fab_name, recipe_id)
+    # Positional and undefaulted, deliberately: office.py is a gitignored COPY
+    # of office_example.py, so a copy made before this axis existed would
+    # otherwise keep serving 200s computed over every parameter while the UI
+    # labelled them with the one the user picked. A TypeError says so instead.
+    return load_tttm_check(tool_slug, fab_name, recipe_id, parameter)

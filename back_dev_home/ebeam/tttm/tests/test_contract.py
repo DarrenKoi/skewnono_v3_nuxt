@@ -36,6 +36,11 @@ TOOL_SLUG = "cdsem"
 FAB_NAME = "R3"
 # In no fleet at all: the documented "unknown fab" case.
 UNKNOWN_FAB = "ZZZ-NOT-A-FAB"
+# Any recipe/parameter pair: the mock folds both into its seed rather than
+# holding a catalogue, and the office adapter filters real rows by them. The
+# contract laws here hold for whatever the pair names.
+RECIPE_ID = "CDSEM_R3_METAL1_CD"
+PARAMETER = "Para_13"
 
 
 def _is_mock() -> bool:
@@ -43,7 +48,7 @@ def _is_mock() -> bool:
 
 
 def _payload() -> TttmCheckPayload:
-    return data.get_tttm_check(TOOL_SLUG, FAB_NAME, None)
+    return data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, None)
 
 
 def _assert_matrix(block, label: str) -> None:
@@ -141,7 +146,7 @@ def test_the_payload_echoes_the_fab_it_was_asked_about():
     assert _payload()["fab_name"] == FAB_NAME
     # Same law on the fallback path — an unknown fab still names itself rather
     # than answering with a blank or a default fab.
-    unknown = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None)
+    unknown = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, None)
     assert unknown["fab_name"] == UNKNOWN_FAB
 
 
@@ -207,7 +212,7 @@ def test_mock_a_fab_with_one_tool_is_not_a_comparison():
     # HV-SEM in M10B holds a single tool in sem_list. One tool has no pairwise
     # skew at all, so the payload must say unavailable rather than ship a 1x1
     # matrix the frontend would render as a comparison of nothing.
-    payload = data.get_tttm_check("hvsem", "M10B", None)
+    payload = data.get_tttm_check("hvsem", "M10B", None, None)
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     assert payload["tools"] == []
@@ -220,8 +225,21 @@ def test_mock_unknown_fab_is_available_false_not_an_error():
         # no statistics, but reaching that branch requires the company network.
         pytest.skip("the unknown-fab fallback is an empty-roster branch")
 
-    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None)
+    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, None)
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     assert payload["tools"] == []
     assert payload["occupied_cells"] == []
+
+
+def test_the_payload_echoes_the_parameter_it_was_asked_about():
+    # Same law as the fab echo above, and for the same reason: the client files
+    # the response under the (recipe, parameter) it asked for. The parameter is
+    # what the grouping verdict is ABOUT — "these tools agree on this feature" —
+    # so a payload echoing a different parameter labels one feature's group
+    # with another feature's name, and nothing about it looks wrong.
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, RECIPE_ID, PARAMETER)
+    assert payload["recipe_id"] == RECIPE_ID
+    assert payload["parameter"] == PARAMETER
+    # The unfiltered case says so explicitly rather than omitting the key.
+    assert _payload()["parameter"] is None
