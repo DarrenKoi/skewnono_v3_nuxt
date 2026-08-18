@@ -12,6 +12,13 @@ from flask import Flask
 from back_dev_home.ebeam.recipe_search import routes
 
 
+# The recipe used throughout is a real catalogue name in `class/recipe` form
+# that the mock can locate. It used to be "RCP_001" — a bare name with no class,
+# the one shape the office is CONFIRMED to refuse (it keys on full_name), so this
+# whole tier-1/tier-2 route suite was exercising a recipe that could never have
+# opened at the office. `providers/mock.py _is_locatable` refuses it at home too
+# now, which is what surfaced it.
+
 @pytest.fixture()
 def client():
     app = Flask(__name__)
@@ -21,7 +28,7 @@ def client():
 
 def _listing(client):
     return client.get(
-        "/api/cdsem/recipe-search/parameters?recipe_name=RCP_001"
+        "/api/cdsem/recipe-search/parameters?recipe_name=RACE/DEAE_ABC123_PROD_00001"
     ).get_json()
 
 
@@ -33,7 +40,7 @@ def _any_parameter(client):
 
 
 def test_parameters_returns_row_and_parameter_counts(client):
-    response = client.get("/api/cdsem/recipe-search/parameters?recipe_name=RCP_001")
+    response = client.get("/api/cdsem/recipe-search/parameters?recipe_name=RACE/DEAE_ABC123_PROD_00001")
     assert response.status_code == 200
     body = response.get_json()
     assert body["total_rows"] == len(body["rows"])
@@ -57,7 +64,7 @@ def test_measurement_points_returns_only_the_named_parameter(client):
     parameter = _any_parameter(client)
     response = client.get(
         "/api/cdsem/recipe-search/measurement-points"
-        f"?recipe_name=RCP_001&parameter={parameter}"
+        f"?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter={parameter}"
     )
     assert response.status_code == 200
     body = response.get_json()
@@ -67,7 +74,7 @@ def test_measurement_points_returns_only_the_named_parameter(client):
 
 def test_measurement_points_requires_a_parameter(client):
     response = client.get(
-        "/api/cdsem/recipe-search/measurement-points?recipe_name=RCP_001"
+        "/api/cdsem/recipe-search/measurement-points?recipe_name=RACE/DEAE_ABC123_PROD_00001"
     )
     assert response.status_code == 400
 
@@ -75,7 +82,7 @@ def test_measurement_points_requires_a_parameter(client):
 def test_measurement_points_404s_on_a_parameter_the_recipe_lacks(client):
     response = client.get(
         "/api/cdsem/recipe-search/measurement-points"
-        "?recipe_name=RCP_001&parameter=Para_does_not_exist"
+        "?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter=Para_does_not_exist"
     )
     assert response.status_code == 404
 
@@ -90,7 +97,7 @@ def test_param_info_returns_an_occurrence_per_row(client):
 
     response = client.get(
         "/api/cdsem/recipe-search/param-info"
-        f"?recipe_name=RCP_001&parameter={parameter}"
+        f"?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter={parameter}"
     )
     assert response.status_code == 200
     body = response.get_json()
@@ -102,7 +109,7 @@ def test_param_info_include_narrows_the_response(client):
     parameter = _any_parameter(client)
     response = client.get(
         "/api/cdsem/recipe-search/param-info"
-        f"?recipe_name=RCP_001&parameter={parameter}&include=amp"
+        f"?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter={parameter}&include=amp"
     )
     assert response.status_code == 200
     occurrence = response.get_json()["occurrences"][0]
@@ -115,7 +122,7 @@ def test_param_info_rejects_an_unknown_include_part(client):
     parameter = _any_parameter(client)
     response = client.get(
         "/api/cdsem/recipe-search/param-info"
-        f"?recipe_name=RCP_001&parameter={parameter}&include=beam"
+        f"?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter={parameter}&include=beam"
     )
     assert response.status_code == 400
 
@@ -123,7 +130,7 @@ def test_param_info_rejects_an_unknown_include_part(client):
 def test_param_info_404s_on_a_parameter_the_recipe_lacks(client):
     response = client.get(
         "/api/cdsem/recipe-search/param-info"
-        "?recipe_name=RCP_001&parameter=Para_does_not_exist"
+        "?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter=Para_does_not_exist"
     )
     assert response.status_code == 404
 
@@ -133,7 +140,7 @@ def test_param_info_requires_recipe_name_and_parameter(client):
         "/api/cdsem/recipe-search/param-info?parameter=Para_1"
     ).status_code == 400
     assert client.get(
-        "/api/cdsem/recipe-search/param-info?recipe_name=RCP_001"
+        "/api/cdsem/recipe-search/param-info?recipe_name=RACE/DEAE_ABC123_PROD_00001"
     ).status_code == 400
 
 
@@ -152,19 +159,19 @@ def test_param_info_turns_an_unreachable_tool_into_503(client, monkeypatch):
     monkeypatch.setattr(routes, "get_param_detail", boom)
     response = client.get(
         "/api/cdsem/recipe-search/param-info"
-        f"?recipe_name=RCP_001&parameter={parameter}"
+        f"?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter={parameter}"
     )
     assert response.status_code == 503
 
 
 @pytest.mark.parametrize("path", [
-    "/api/cdsem/recipe-search/parameters?recipe_name=RCP_001",
-    "/api/cdsem/recipe-search/measurement-points?recipe_name=RCP_001&parameter=P",
-    "/api/cdsem/recipe-search/param-info?recipe_name=RCP_001&parameter=P",
+    "/api/cdsem/recipe-search/parameters?recipe_name=RACE/DEAE_ABC123_PROD_00001",
+    "/api/cdsem/recipe-search/measurement-points?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter=P",
+    "/api/cdsem/recipe-search/param-info?recipe_name=RACE/DEAE_ABC123_PROD_00001&parameter=P",
     # recipe-detail predates this change and had NO guard: locating the .idp is
     # I/O at the office, so an unreachable tool escaped as a 500 traceback on
     # the feature's most-used endpoint. The blueprint errorhandler covers it.
-    "/api/cdsem/recipe-search/recipe-detail?recipe_name=RCP_001",
+    "/api/cdsem/recipe-search/recipe-detail?recipe_name=RACE/DEAE_ABC123_PROD_00001",
 ])
 def test_an_unreachable_tool_is_503_on_every_recipe_route(client, monkeypatch, path):
     from back_dev_home.msr_image.errors import SourceUnavailable

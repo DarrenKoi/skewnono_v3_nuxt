@@ -830,6 +830,19 @@ def _raw_data_rows(blob: Any) -> list[dict[str, Any]] | None:
     ] or None
 
 
+def _row_is_mother(row: Any) -> bool:
+    """이 row 하나가 mother 를 뜻하는가. 읽을 수 없으면 False.
+
+    `_mother_names` 가 이름 집합을 만들 때 쓰는 판정과 같은 것을 row 단위로
+    떼어낸 것입니다 — `_param_regions` 가 mother row 를 우선하려면 같은 질문을
+    같은 방식으로 물어야 하고, 두 곳이 각자 판정하면 그 순간 다시 어긋납니다.
+    """
+    for key in _MOTHER_KEYS:
+        if key in row:
+            return _flag(row[key]) is True
+    return False
+
+
 def _mother_names(raw_data: Any) -> set[str] | None:
     """``raw_data`` -> mother 인 parameter 이름 집합. **판별 불가면 None**.
 
@@ -890,6 +903,8 @@ def _param_regions(raw_data: Any) -> dict[str, int]:
         return {}
 
     regions: dict[str, int] = {}
+    # 이름별로 "mother 인 row 에서 Region 을 이미 읽었다" 는 표시입니다.
+    mother_rows: set[str] = set()
     for row in rows:
         raw = next((row[key] for key in _REGION_KEYS if key in row), None)
         if raw is None:
@@ -902,14 +917,24 @@ def _param_regions(raw_data: Any) -> dict[str, int]:
         # 이 표면의 단위는 parameter 이므로 **먼저 나온 것**을 씁니다 — 측정 순서가
         # 곧 SEQ 순서이니 앞선 row 가 그 parameter 를 처음 재는 자리입니다.
         #
-        # OFFICE-VERIFY — 이 규칙은 `_mother_names` 와 다릅니다. 그쪽은 "한 row
-        # 라도 mother 면 mother", 이쪽은 "첫 row 의 Region" 이라, 한 parameter 가
-        # Region 2 에서는 son 이고 Region 5 에서는 mother 인 경우 프론트엔드에는
-        # {mother: True, region: 2} 라는, 어느 row 에도 없는 짝이 갑니다.
-        # 한 parameter 의 Mother_Para 가 row 마다 실제로 달라지는지는 사무실에서
-        # 확인해야 합니다 — 안 달라진다면 지금 코드로 충분하고, 달라진다면 두
-        # 값을 같은 row 에서 함께 읽어야 합니다. 추측으로 한쪽을 바꾸면 진짜
-        # mother 를 잃을 수 있어 그대로 두고 표시만 남깁니다.
+        # 단, **mother 인 row 가 우선입니다**. `_mother_names` 는 "한 row 라도
+        # mother 면 mother" 로 읽으므로, 첫 row 의 Region 을 그대로 쓰면 Region 2
+        # 에서는 son 이고 Region 5 에서는 mother 인 parameter 가 프론트엔드에
+        # {mother: True, region: 2} 라는, 어느 row 에도 없는 짝으로 갑니다. 그러면
+        # `groupCaps` 에서 그 이름이 region 2 의 cap 을 가로채고, 정작 region 5 의
+        # son 들은 mother 를 못 찾아 자기 cap 으로 되돌아갑니다.
+        #
+        # mother row 를 우선하면 두 값이 항상 같은 row 에서 나오므로 그 짝이
+        # 생기지 않습니다. 어느 쪽 규칙이 옳은지 — 한 parameter 의 Mother_Para 가
+        # row 마다 실제로 달라지는지 — 는 여전히 OFFICE-VERIFY 이지만, 답이 어느
+        # 쪽이든 이 코드가 만들어 내는 짝은 실재하는 row 하나를 가리킵니다.
+        if name and _row_is_mother(row) and name not in mother_rows:
+            mother_rows.add(name)
+            try:
+                regions[name] = int(str(raw).strip())
+            except (TypeError, ValueError):
+                regions.pop(name, None)
+            continue
         if name and name not in regions:
             # `_as_int` 를 쓰지 않습니다 — 그 함수는 못 읽으면 0 을 돌려주는데,
             # 0 은 "모름" 이 아니라 **멀쩡한 group id** 입니다. Region 이

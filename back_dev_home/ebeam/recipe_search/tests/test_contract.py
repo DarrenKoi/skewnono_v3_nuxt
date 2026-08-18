@@ -223,11 +223,63 @@ def test_office_catalog_union_preserves_provenance(monkeypatch):
 
 
 def test_mock_compare_cross_fab_recipes_differ():
+    # A real catalogue name, locatable in BOTH fabs. The invented
+    # "SAME/NAME_ABC123_STD_00001" fell in the ~1-in-5 slice the mock now
+    # reports as having no derivable .idp location — which is the point of that
+    # slice existing (providers/mock.py `_is_locatable`).
     payload = mock.get_recipe_compare_data("cd-sem", [
-        {"recipe_name": "SAME/NAME_ABC123_STD_00001", "fab_name": "R3"},
-        {"recipe_name": "SAME/NAME_ABC123_STD_00001", "fab_name": "M16B"},
+        {"recipe_name": "RACE/DEAE_ABC123_PROD_00001", "fab_name": "R3"},
+        {"recipe_name": "RACE/DEAE_ABC123_PROD_00001", "fab_name": "M16B"},
     ])
     assert payload["fab_names"] == ["R3", "M16B"]
     assert [r["fab_name"] for r in payload["recipes"]] == ["R3", "M16B"]
     # Same name, different fab => genuinely different generated tables.
     assert payload["recipes"][0]["parameters"] != payload["recipes"][1]["parameters"]
+
+
+# ── recipe open can FAIL at home, the way it fails at the office ─────────────
+
+
+def test_mock_refuses_a_bare_recipe_name_the_way_the_office_does():
+    """`recipe_id` is the `class/recipe` full_name; the bare half names nothing.
+
+    Confirmed office behaviour, not a mock invention: the location sources key
+    on full_name, so a caller that dropped the class gets a LookupError -> 502.
+    Home used to answer a confident 200 for the bare half, which is how the
+    `recipeView.ts` class-name defect reached the office on 2026-08-18 with every
+    home test green.
+    """
+    with pytest.raises(LookupError, match="No .idp location"):
+        mock.get_recipe_open_data("DEAE_ABC123_PROD_00001", "R3", "cd-sem")
+
+
+def test_mock_refuses_a_well_formed_recipe_it_cannot_locate():
+    # The never-measured, never-registered slice. Its SIZE is fabricated
+    # (OFFICE-VERIFY); its existence is not — the catalogue lists every recipe
+    # that exists and only some have a derivable .idp location.
+    rows = [r["recipe_name"] for r in mock.get_recipe_catalog("cd-sem", ["R3"])["rows"]]
+    unlocatable = [n for n in rows if not mock._is_locatable(n, "R3", "cd-sem")]
+    assert unlocatable, "the mock must be able to produce the office's refusal"
+    with pytest.raises(LookupError, match="never been measured"):
+        mock.get_recipe_open_data(unlocatable[0], "R3", "cd-sem")
+
+
+def test_mock_locatability_is_stable_for_a_given_recipe():
+    # A mock that failed at random would be untestable and would teach nothing.
+    name = "RACE/DEAE_ABC123_PROD_00001"
+    first = mock.get_recipe_open_data(name, "R3", "cd-sem")
+    second = mock.get_recipe_open_data(name, "R3", "cd-sem")
+    assert first["idp_image_info"] == second["idp_image_info"]
+    assert all(
+        mock._is_locatable(name, "R3", "cd-sem") for _ in range(5)
+    )
+
+
+def test_mock_locatability_is_per_fab():
+    # The office registry is one hash PER FAB, so a recipe located in one fab
+    # says nothing about another — the mock seeds on the fab for that reason.
+    rows = [r["recipe_name"] for r in mock.get_recipe_catalog("cd-sem", ["R3"])["rows"]]
+    assert any(
+        mock._is_locatable(n, "R3", "cd-sem") != mock._is_locatable(n, "M16B", "cd-sem")
+        for n in rows[:200]
+    )

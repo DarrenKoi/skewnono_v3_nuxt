@@ -194,3 +194,41 @@ def test_source_asks_for_every_field_the_readers_need():
     # raw_data 를 통째로 받으면 device 당 recipe 100~200 개에 parameter 표가
     # 곱해집니다 — 그 실수를 되돌리지 못하게 못 박아 둡니다.
     assert "raw_data" not in oe._IDP_SOURCE
+
+
+def test_the_mother_row_decides_the_region_a_repeated_parameter_reports():
+    """mother 여부와 Region 은 반드시 같은 row 에서 나와야 합니다.
+
+    `_mother_names` 는 "한 row 라도 mother 면 mother" 로 읽습니다. Region 을
+    무조건 첫 row 에서 읽으면, Region 2 에서는 son 이고 Region 5 에서는 mother 인
+    parameter 가 {mother: True, region: 2} 로 나갑니다 — 어느 row 에도 없는
+    짝입니다. 프론트엔드의 `groupCaps` 는 그 이름에게 region 2 의 cap 을 주고,
+    정작 region 5 의 son 들은 mother 를 못 찾아 자기 cap 으로 되돌아갑니다.
+    """
+    rows = [
+        {"Parameter": "WAFER", "Region": 2, "Mother_Para": False},
+        {"Parameter": "WAFER", "Region": 5, "Mother_Para": True},
+    ]
+    assert oe._mother_names(rows) == {"WAFER"}
+    assert oe._param_regions(rows) == {"WAFER": 5}
+
+
+def test_a_never_mother_parameter_still_reports_its_first_region():
+    # mother row 우선 규칙이 기존 "먼저 나온 것" 규칙을 대체하지는 않습니다.
+    rows = [
+        {"Parameter": "CELL_SP", "Region": 3, "Mother_Para": False},
+        {"Parameter": "CELL_SP", "Region": 7, "Mother_Para": False},
+    ]
+    assert oe._param_regions(rows) == {"CELL_SP": 3}
+
+
+def test_an_unreadable_region_is_absent_not_group_zero():
+    """0 은 "모름" 이 아니라 멀쩡한 group id 입니다.
+
+    사내 파서가 숫자를 문자열로 준 전례가 있어("52.676", 2026-08-05) Region 이
+    "2.0" 이나 "" 로 올 수 있고, 그때 0 을 코이면 그 recipe 의 파라미터가 전부
+    한 그룹으로 뭉쳐 서로 남의 mother cap 을 물려받습니다.
+    """
+    for bad in ("2.0", "", "N/A", None):
+        rows = [{"Parameter": "WAFER", "Region": bad, "Mother_Para": True}]
+        assert "WAFER" not in oe._param_regions(rows), bad

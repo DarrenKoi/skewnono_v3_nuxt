@@ -1137,15 +1137,80 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
     return svg.encode("utf-8"), "image/svg+xml"
 
 
+# ~1 in this many well-formed recipes has no derivable .idp location.
+#
+# OFFICE-VERIFY: the RATIO is fabricated. What is not fabricated is that the
+# slice exists and is not small — the office locates a recipe's .idp from the
+# Redis registry (`v3_{cdsem,hvsem}_rcp_loc_{fab}`) or, failing that, from a
+# meas_hist run, and a catalogue recipe that has neither has no location at all
+# (recipe_search/providers/office_example.py). The catalogue is ~50,000 names
+# per fab and only a fraction of them have ever been measured.
+_UNLOCATABLE_ONE_IN = 5
+
+
+def _is_locatable(recipe_id: str, fab_name: str, tool_category: str) -> bool:
+    """Can this recipe's .idp be found at all? Deterministic per recipe.
+
+    The mock's stand-in for the office's two location sources. It exists because
+    home had NO failing path here: this module answered a full, confident 200 for
+    any string it was handed, so every screen that opens a recipe was written and
+    tested against a backend that cannot fail, and the first real answer arrived
+    at the office as a 502. That is the shape recorded in
+    `docs/opencode/2026-08-16-tttm-cd-limit-review.md` — a client branch built for
+    an office error, with no way to reach it from a home session.
+
+    Two rules, of very different provenance:
+
+    * **A bare recipe name is never locatable.** Confirmed, not invented: the
+      office keys on `full_name`, the `class/recipe` form, and the bare half
+      names something the registry and meas_hist both miss. Every name this mock
+      generates carries the slash (`_recipe_name`), so a caller arriving without
+      one has dropped the class somewhere — which is exactly the defect found in
+      `recipeView.ts` on 2026-08-18, where the office 502'd and home did not.
+    * **One in `_UNLOCATABLE_ONE_IN` well-formed names has no location.** The
+      never-measured, never-registered slice. The ratio is the guess here; its
+      existence is not.
+
+    Seeded by (recipe, fab, family) so a recipe that opens once opens every time
+    — a mock that failed at random would be untestable and would teach nobody
+    anything.
+    """
+    if "/" not in recipe_id:
+        return False
+    key = f"{recipe_id}|{fab_name}|{tool_category}".encode()
+    return int(hashlib.sha1(key).hexdigest()[:8], 16) % _UNLOCATABLE_ONE_IN != 0
+
+
 def get_recipe_open_data(
     recipe_id: str | None = None,
     fab_name: str | None = None,
     tool_category: str | None = None
 ) -> RecipeDetailResponse:
-    """Generate all three recipe-open tables for one recipe."""
+    """Generate all three recipe-open tables for one recipe.
+
+    Raises:
+        LookupError: this recipe has no derivable .idp location — see
+            `_is_locatable`. The route layer turns a bare LookupError into a
+            502, the same answer the office gives.
+    """
     resolved_recipe_id = recipe_id or "DUMMY_RECIPE_001"
     resolved_fab_name = fab_name or "R3"
     resolved_tool_category = tool_category or "cd-sem"
+
+    # Only a recipe the caller actually NAMED is checked. With no `recipe_id`
+    # this is the placeholder path ("DUMMY_RECIPE_001"), which is not a claim
+    # about any real recipe and has no location question to answer.
+    if recipe_id and not _is_locatable(
+        resolved_recipe_id, resolved_fab_name, resolved_tool_category
+    ):
+        raise LookupError(
+            f"No .idp location for recipe {resolved_recipe_id!r} in fab "
+            f"{resolved_fab_name!r}. A recipe that exists in the catalog but has "
+            "never been measured has no .idp location to derive — recipe open "
+            "needs one run, or an entry in the Redis recipe registry. "
+            "(mock: providers/mock.py _is_locatable)"
+        )
+
     rng = random.Random(_seed_for_values(resolved_recipe_id, resolved_fab_name, resolved_tool_category))
 
     idp_rows = generate_idp_image_info(rng=rng)
