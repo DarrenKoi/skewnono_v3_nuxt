@@ -45,18 +45,28 @@ _LAZY_SUB_PROVIDER_ENVS = frozenset({
 # Features whose OFFICE adapter reads another feature's data through that
 # feature's own dispatcher — so the two must resolve to the same provider.
 #
-# storage is the one case today: its office.py joins every row against the live
-# ``sem_list`` by ``eqp_ip``, because the storage collection pipeline writes
-# fac-level fab names (``M16``) that the sidebar's fab_name filter (``M16A``)
-# never matches. With storage=office and sem_list=mock the two sides of that
-# join come from different universes: no IP matches, every row falls back, and
-# the 스토리지 table renders EMPTY behind a 200 with nothing in the log.
+# storage joins every row against the live ``sem_list`` by ``eqp_ip``, because
+# the storage collection pipeline writes fac-level fab names (``M16``) that the
+# sidebar's fab_name filter (``M16A``) never matches. With storage=office and
+# sem_list=mock the two sides of that join come from different universes: no IP
+# matches, every row falls back, and the 스토리지 table renders EMPTY behind a
+# 200 with nothing in the log.
 #
-# Declared here rather than checked inside the adapter because office.py is a
+# pm_planning and tttm take their ROSTER from sem_list (``sem_list/roster.py``'s
+# ``fleet_rows``) and then look every tool up in meas_hist by ``eqp_id``. On a
+# mock roster those ids are fabricated, so no run is ever found: both pages
+# answer 200 with an empty fleet. Worse than storage's case, in fact — the
+# pm-tune screen JOINS the two payloads by ``eqp_id``, so a mock roster on one
+# side and a real one on the other intersects to nothing while each response
+# looks individually fine.
+#
+# Declared here rather than checked inside the adapters because office.py is a
 # gitignored copy — a rule that lives only there is a rule that ships to
 # exactly one machine.
 _OFFICE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    "pm_planning": ("sem_list",),
     "storage": ("sem_list",),
+    "tttm": ("sem_list",),
 }
 
 

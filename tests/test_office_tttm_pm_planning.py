@@ -1,0 +1,486 @@
+"""The tttm and pm_planning office ADAPTERS, exercised at home against doubles.
+
+These two templates are the only office adapters that COMPUTE rather than
+reshape: pairwise tool skew, recipe-centred offsets, MDC epoch boundaries, a
+fleet-relative spec window. Every other adapter's bugs are shape bugs that
+`tests/test_office_adapter_parity.py` or the office run itself would catch;
+these have arithmetic that is wrong silently and only at the office, where the
+feedback loop is a plane ride long.
+
+So the sources are replaced by doubles and the maths is checked here. What is
+faked is exactly the three network boundaries — the run index (`recent_runs`),
+the object store (`load_points`), and the roster/MDC/maintenance reads. Nothing
+inside the adapters is stubbed, so the estimator, the epoch filter, the matrix
+construction and the contract assembly all run for real.
+
+Home skip rule: none. Both modules import cleanly without company access (their
+network calls are all inside functions), which is the property that makes this
+file possible — see `project_importorskip_hides_broken_office_tests`, the
+failure mode where an office-gated test file silently collects nothing.
+
+Run:  .venv/bin/python -m pytest tests/test_office_tttm_pm_planning.py
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta, timezone
+
+import pytest
+
+from back_dev_home._core.contract_check import assert_matches
+from back_dev_home.ebeam._office_mdc import MdcChange
+from back_dev_home.ebeam._office_msr_cd import Point, RunRef, RunSet
+from back_dev_home.ebeam.pm_planning.contracts import FleetPayload
+from back_dev_home.ebeam.pm_planning.providers import office_example as pm_office
+from back_dev_home.ebeam.tttm.contracts import TttmCheckPayload
+from back_dev_home.ebeam.tttm.providers import office_example as tttm_office
+
+
+KST = timezone(timedelta(hours=9))
+ANCHOR = datetime(2026, 5, 31, 14, 0, tzinfo=KST)
+
+# Three tools with a known truth: B reads 0.10 nm high and C 0.20 nm low. Every
+# assertion about a skew below is that truth read back out of the estimator.
+TOOLS = ("ECXDX001", "ECXDX002", "ECXDX003")
+BIAS = {"ECXDX001": 0.0, "ECXDX002": 0.10, "ECXDX003": -0.20}
+BASE_CD = 32.0  # sits in the 25-50 band, like the mock's measured cells
+
+
+def _roster_rows(eqp_ids=TOOLS, fab_name="R3", model="CG6300"):
+    """sem_list rows in the shape `fleet_rows` filters."""
+    return [
+        {
+            "eqp_id": eqp_id,
+            "eqp_model_cd": model,
+            "fab_name": fab_name,
+            "fac_id": "R3",
+            "vendor_nm": "HITACHI",
+        }
+        for eqp_id in eqp_ids
+    ]
+
+
+def _points(eqp_id: str, *, parameters=("CD_X", "CD_Y"), vac=500, cd=None):
+    """A run's measured sites: 5 per parameter, scattered around the tool's CD.
+
+    Five points per parameter, not one, because collapsing a run to a median is
+    the property under test in `test_a_run_is_one_sample_not_hundreds`.
+    """
+    value = BASE_CD + BIAS.get(eqp_id, 0.0) if cd is None else cd
+    return tuple(
+        Point(
+            parameter=parameter,
+            # Symmetric scatter, so the median is exactly `value` and an
+            # assertion can be an equality rather than an approximation.
+            cd_value=value + offset,
+            vac=vac,
+            mag=250030,
+            chip=f"{index},0",
+            mp=index + 1,
+            method="Width",
+            object_type="Line",
+        )
+        for parameter in parameters
+        for index, offset in enumerate((-0.2, -0.1, 0.0, 0.1, 0.2))
+    )
+
+
+def _runs(eqp_ids=TOOLS, recipes=("ADI/R1", "ADI/R2"), days=6):
+    """`days` runs per tool per recipe, one a day, oldest first."""
+    out = []
+    for eqp_id in eqp_ids:
+        for recipe in recipes:
+            for back in range(days):
+                at = ANCHOR - timedelta(days=back)
+                out.append(
+                    RunRef(
+                        msr=f"{at:%Y%m%d}_{recipe.split('/')[-1]}_{eqp_id}",
+                        eqp_id=eqp_id,
+                        recipe_name=recipe.split("/")[-1],
+                        full_name=recipe,
+                        lot_id=f"LOT{back:03d}",
+                        at=at,
+                        pkl=f"pkl/{eqp_id}/{recipe}/{back}",
+                    )
+                )
+    return tuple(out)
+
+
+@pytest.fixture
+def sources(monkeypatch):
+    """Patch the three network boundaries of BOTH adapters at once.
+
+    Returns a mutable dict the test edits before calling the adapter, so each
+    case reads as "these are the measurements, this is the payload" rather than
+    as a stack of monkeypatch calls.
+    """
+    # pm_planning filters meas_hist down to the fab's CD-monitoring recipe, and
+    # which recipe that is has no office source — it is an env knob. Point it at
+    # a recipe the doubles actually carry, which exercises the knob too.
+    monkeypatch.setenv("SKEWNONO_CD_MONITOR_RECIPE", "ADI/R1")
+
+    state: dict = {
+        "roster": _roster_rows(),
+        "runs": _runs(),
+        "points": _points,
+        "mdc": [],
+        "maintenance": {},
+        "bsm": {},
+    }
+
+    def fake_recent_runs(tool_type, fab_name, eqp_ids, start, end, *, recipe=None, per_tool=12):
+        keep = [
+            run
+            for run in state["runs"]
+            if run.eqp_id in eqp_ids
+            and start <= run.at <= end
+            and (recipe is None or recipe in (run.full_name, run.recipe_name))
+        ]
+        return RunSet(tuple(keep), ())
+
+    def fake_load_points(pkl: str):
+        eqp_id = pkl.split("/")[1]
+        return state["points"](eqp_id)
+
+    for module in (tttm_office, pm_office):
+        monkeypatch.setattr(module, "get_sem_list", lambda: state["roster"])
+        monkeypatch.setattr(module, "get_anchor_time", lambda: ANCHOR)
+        monkeypatch.setattr(module, "recent_runs", fake_recent_runs)
+        monkeypatch.setattr(module, "load_points", fake_load_points)
+        monkeypatch.setattr(module, "mdc_changes", lambda *a, **k: state["mdc"])
+
+    monkeypatch.setattr(
+        tttm_office, "maintenance_events", lambda *a, **k: state["maintenance"]
+    )
+    monkeypatch.setattr(
+        pm_office, "maintenance_events", lambda *a, **k: state["maintenance"]
+    )
+    monkeypatch.setattr(pm_office, "_bsm_by_tool", lambda *a, **k: state["bsm"])
+    return state
+
+
+# ── tttm ──────────────────────────────────────────────────────────────────
+
+
+def test_tttm_payload_matches_the_contract(sources):
+    assert_matches(tttm_office.get_tttm_check("cdsem", "R3", None, None), TttmCheckPayload)
+
+
+def test_tttm_recovers_the_pairwise_skew_it_was_given(sources):
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    assert payload["available"] is True
+    cells = payload["occupied_cells"]
+    assert cells, "three tools running two shared recipes must occupy cells"
+
+    cell = cells[0]
+    assert cell["tier"] == "direct", "a recipe both tools ran is direct evidence"
+    assert cell["confidence"] == "High", "6 runs/tool is above HIGH_CONFIDENCE_RUNS"
+    block = cell["direct_skew_matrix"]
+    assert block is not None
+    index = {eqp_id: i for i, eqp_id in enumerate(block["tools"])}
+
+    # The truth injected in BIAS, read back out: |0.10 - 0.00|, |0.00 - -0.20|,
+    # |0.10 - -0.20|. Exact, because the fake scatter is symmetric.
+    assert block["values"][index["ECXDX001"]][index["ECXDX002"]] == pytest.approx(0.10)
+    assert block["values"][index["ECXDX001"]][index["ECXDX003"]] == pytest.approx(0.20)
+    assert block["values"][index["ECXDX002"]][index["ECXDX003"]] == pytest.approx(0.30)
+
+
+def test_tttm_matrices_are_symmetric_with_a_zero_diagonal(sources):
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    blocks = [payload["fleet_today"]["matrix"]]
+    for cell in payload["occupied_cells"]:
+        blocks += [b for b in (cell["direct_skew_matrix"], cell["predicted_skew_matrix"]) if b]
+    for block in blocks:
+        size = len(block["tools"])
+        for row in range(size):
+            assert len(block["values"][row]) == size
+            assert block["values"][row][row] == 0
+            for col in range(row):
+                assert block["values"][row][col] == block["values"][col][row]
+
+
+def test_tttm_median_cd_stays_inside_the_band_it_is_filed_under(sources):
+    # The cross-field law tests/test_contract.py enforces: band and median must
+    # come from ONE row set. Derived from the same values here by construction,
+    # and asserted so a future edit cannot separate them.
+    for cell in tttm_office.get_tttm_check("cdsem", "R3", None, None)["occupied_cells"]:
+        assert cell["cd_band"] == "25-50"
+        assert 25.0 <= cell["median_cd_nm"] < 50.0
+
+
+def test_a_run_is_one_sample_not_hundreds(sources):
+    """Ten points per parameter must weigh the same as two.
+
+    The pseudo-replication guard, stated as a behaviour: if the adapter pooled
+    raw points instead of collapsing each run to a median, doubling the points
+    of one tool would move its offset. It must not.
+    """
+    baseline = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    def fat_points(eqp_id: str):
+        return _points(eqp_id) * 4  # same distribution, 4x the rows
+
+    sources["points"] = fat_points
+    fattened = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    assert [cell["cell_id"] for cell in fattened["occupied_cells"]] == [
+        cell["cell_id"] for cell in baseline["occupied_cells"]
+    ]
+    for fat, thin in zip(fattened["occupied_cells"], baseline["occupied_cells"]):
+        assert fat["direct_skew_matrix"] == thin["direct_skew_matrix"]
+
+
+def test_a_recipe_only_one_tool_ran_yields_no_skew_rather_than_zero(sources):
+    """The `contrastRecipes === 0` refusal, which is the worst way to be wrong.
+
+    Give every tool its OWN recipe: centring each against itself would report
+    0.000 for every pair, which reads as a perfectly matched fleet. The adapter
+    must decline instead.
+    """
+    sources["runs"] = (
+        _runs(("ECXDX001",), ("ADI/ONLY_A",))
+        + _runs(("ECXDX002",), ("ADI/ONLY_B",))
+        + _runs(("ECXDX003",), ("ADI/ONLY_C",))
+    )
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    assert_matches(payload, TttmCheckPayload)
+    assert payload["occupied_cells"] == []
+    for row in payload["fleet_today"]["matrix"]["values"]:
+        assert all(value in (0.0, None) for value in row)
+
+
+def test_an_unresolvable_axis_empties_the_cells_and_says_so(sources):
+    """Caveat 1 of the module docstring, as behaviour rather than prose."""
+    sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_13",))
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    assert_matches(payload, TttmCheckPayload)
+    assert payload["available"] is True, "the fleet view still works"
+    assert payload["occupied_cells"] == [], "no axis, no cell — never a default X"
+    assert "측정 방향" in payload["summary"]
+    # The axis-free parts of the payload must survive: that is the whole reason
+    # this degrades instead of erroring.
+    assert payload["fleet_today"]["consensus_deviation"]
+    assert payload["trend"]
+
+
+def test_an_mdc_change_cuts_the_comparison_window(sources):
+    """Rule 3: nothing before the fab's last MDC edit may enter a cell."""
+    cutoff = (ANCHOR - timedelta(days=2)).date()
+    sources["mdc"] = [
+        MdcChange(
+            eqp_id="ECXDX002",
+            condition="500V_HR_0Deg",
+            beam_condition="500V_HR",
+            axis="X",
+            on=cutoff,
+            old_value=1.0041,
+            new_value=1.0032,
+        )
+    ]
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    epochs = {cell["mdc_epoch"] for cell in payload["occupied_cells"]}
+    labelled = f"e{cutoff:%Y%m%d}"
+    assert labelled in epochs, "the X cells must be filed under the new epoch"
+    # Y is untouched by a 0Deg edit, so it keeps the open epoch.
+    by_axis = {cell["axis"]: cell["mdc_epoch"] for cell in payload["occupied_cells"]}
+    assert by_axis["X"] == labelled
+    assert by_axis["Y"] == "e0"
+
+    assert payload["mdc_history"], "the edit is shown to the engineer"
+    assert any(m["kind"] == "hard" for m in payload["epoch_markers"])
+
+
+def test_tttm_echoes_the_triple_it_was_asked_about_on_every_branch(sources):
+    asked = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    assert (asked["fab_name"], asked["recipe_id"], asked["parameter"]) == (
+        "R3", "ADI/R1", "CD_X",
+    )
+    # ... including where there is nothing to answer with.
+    sources["roster"] = _roster_rows(eqp_ids=("ECXDX001",))
+    lonely = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    assert lonely["available"] is False
+    assert (lonely["fab_name"], lonely["recipe_id"], lonely["parameter"]) == (
+        "R3", "ADI/R1", "CD_X",
+    )
+    assert lonely["tools"] == []
+
+
+def test_a_parameter_filter_narrows_the_rows(sources):
+    """One feature, not a relabelling: the X cell survives and Y disappears."""
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    assert {cell["axis"] for cell in payload["occupied_cells"]} == {"X"}
+
+
+def test_an_unknown_fab_is_available_false_not_an_error(sources):
+    sources["roster"] = _roster_rows(fab_name="M16A")
+    payload = tttm_office.get_tttm_check("cdsem", "ZZZ-NOT-A-FAB", None, None)
+    assert_matches(payload, TttmCheckPayload)
+    assert payload["available"] is False
+    assert payload["tools"] == []
+    assert payload["fab_name"] == "ZZZ-NOT-A-FAB"
+
+
+def test_the_roster_names_each_tool_once(sources):
+    # sem_list really does hand back duplicate eqp_ids (~10 of 300 mock rows),
+    # and a repeated id would give the matrix two identical axes.
+    sources["roster"] = _roster_rows() + _roster_rows(eqp_ids=("ECXDX002",))
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    ids = [tool["eqp_id"] for tool in payload["tools"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_matrix_axes_stay_inside_the_advertised_roster(sources):
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    roster = {tool["eqp_id"] for tool in payload["tools"]}
+    assert set(payload["fleet_today"]["matrix"]["tools"]) <= roster
+    for deviation in payload["fleet_today"]["consensus_deviation"]:
+        assert deviation["eqp_id"] in roster
+    for cell in payload["occupied_cells"]:
+        for block in (cell["direct_skew_matrix"], cell["predicted_skew_matrix"]):
+            if block is not None:
+                assert set(block["tools"]) <= roster
+
+
+def test_current_tolerance_sits_inside_its_own_range(sources):
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    bounds = payload["tolerance_range"]
+    assert bounds["min"] <= payload["current_tolerance"] <= bounds["max"]
+    assert bounds["step"] > 0
+
+
+# ── pm_planning ───────────────────────────────────────────────────────────
+
+
+def _bsm(eqp_ids=TOOLS, sharpness=8.00, noise=6.28):
+    return {
+        eqp_id: [(ANCHOR - timedelta(days=back), sharpness, noise) for back in range(3)]
+        for eqp_id in eqp_ids
+    }
+
+
+def test_pm_payload_matches_the_contract(sources):
+    sources["bsm"] = _bsm()
+    assert_matches(pm_office.get_pm_planning_fleet("R3"), FleetPayload)
+
+
+def test_pm_cells_are_keyed_on_the_advertised_grid(sources):
+    sources["bsm"] = _bsm()
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    beams, axes = set(fleet["beam_conditions"]), set(fleet["axes"])
+    for tool in fleet["tools"]:
+        seen = set()
+        for cell in tool["cells"]:
+            assert (cell["beam"], cell["axis"]) not in seen
+            seen.add((cell["beam"], cell["axis"]))
+            assert cell["beam"] in beams and cell["axis"] in axes
+    for cell in fleet["consensus"]:
+        assert cell["beam"] in beams and cell["axis"] in axes
+
+
+def test_pm_gap_is_measured_against_the_fleet_median(sources):
+    sources["bsm"] = _bsm()
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    consensus = {(c["beam"], c["axis"]): c["consensus"] for c in fleet["consensus"]}
+    # BIAS is 0.0 / +0.10 / -0.20, so the fleet median is the unbiased tool.
+    assert consensus[("500V", "X")] == pytest.approx(BASE_CD)
+
+    gaps = {
+        tool["eqp_id"]: {(c["beam"], c["axis"]): c["gap"] for c in tool["cells"]}
+        for tool in fleet["tools"]
+    }
+    assert gaps["ECXDX002"][("500V", "X")] == pytest.approx(0.10)
+    assert gaps["ECXDX003"][("500V", "X")] == pytest.approx(-0.20)
+    for tool in fleet["tools"]:
+        for cell in tool["cells"]:
+            assert cell["skew"] == cell["gap"], "one signed distance, not two"
+
+
+def test_pm_spec_window_is_ordered_and_fleet_relative(sources):
+    sources["bsm"] = _bsm()
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    for tool in fleet["tools"]:
+        gate = tool["gate"]
+        assert gate["cd_spec_lower"] <= gate["cd_spec_upper"]
+        # Docstring note 2: the window is the fleet median ±1%, the fab's
+        # stated action limit — not the mock's fabricated ±0.5 nm.
+        width = gate["cd_spec_upper"] - gate["cd_spec_lower"]
+        assert width == pytest.approx(2 * BASE_CD * pm_office.ACTION_LIMIT_RATIO, abs=0.01)
+
+
+def test_pm_a_tool_with_no_measurement_holds(sources):
+    """An absent reading is not a passed one."""
+    sources["bsm"] = _bsm()
+    sources["runs"] = _runs(eqp_ids=("ECXDX001", "ECXDX002"))
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    silent = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX003")
+    assert silent["gate"]["verdict"] == "hold"
+    assert silent["gate"]["cd_in_spec"] is False
+    assert silent["cells"] == []
+
+
+def test_pm_bsm_outlier_is_judged_against_the_fleet_not_a_fixed_band(sources):
+    """Docstring note 3: the mock's absolute band would hold the whole fab."""
+    readings = _bsm()
+    # Every tool sits at the real doc's Ave. Noise (6.277), which is OUTSIDE
+    # spec_range_mock's 6.65-6.95. A fleet-relative test must pass them all.
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    sources["bsm"] = readings
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    assert all(tool["gate"]["bsm_in_spec"] for tool in fleet["tools"])
+
+    # Now move one tool far off its siblings: it alone must fail.
+    readings["ECXDX003"] = [(ANCHOR, 8.00, 9.50)]
+    sources["bsm"] = readings
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    verdicts = {t["eqp_id"]: t["gate"]["bsm_in_spec"] for t in fleet["tools"]}
+    assert verdicts["ECXDX003"] is False
+    assert verdicts["ECXDX001"] is True
+
+
+def test_pm_a_fab_with_no_roster_is_empty_not_an_error(sources):
+    sources["roster"] = _roster_rows(fab_name="M16A")
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    assert_matches(fleet, FleetPayload)
+    assert fleet["tools"] == []
+    assert fleet["consensus"] == []
+    assert fleet["fab_name"] == "R3"
+
+
+def test_pm_and_tttm_agree_on_the_roster(sources):
+    """pm-tune joins the two payloads BY eqp_id — a divergence empties the page."""
+    sources["bsm"] = _bsm()
+    pm_ids = {tool["eqp_id"] for tool in pm_office.get_pm_planning_fleet("R3")["tools"]}
+    tttm_ids = {
+        tool["eqp_id"]
+        for tool in tttm_office.get_tttm_check("cdsem", "R3", None, None)["tools"]
+    }
+    assert pm_ids == tttm_ids
+
+
+def test_pm_epoch_history_carries_the_edit_that_opened_it(sources):
+    sources["bsm"] = _bsm()
+    when = date(2026, 5, 20)
+    sources["mdc"] = [
+        MdcChange(
+            eqp_id="ECXDX001",
+            condition="500V_HR_0Deg",
+            beam_condition="500V_HR",
+            axis="X",
+            on=when,
+            old_value=1.0041,
+            new_value=1.0032,
+        )
+    ]
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    edited = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX001")
+    untouched = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX002")
+
+    assert edited["gate"]["mdc_changed"] is True
+    assert untouched["gate"]["mdc_changed"] is False
+    assert edited["epoch_history"] == [
+        {"epoch_start": when.isoformat(), "mdc": 1.0032, "bsm_sharpness_avg": 8.0}
+    ]
+    assert untouched["epoch_history"] == []
