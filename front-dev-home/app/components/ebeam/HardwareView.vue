@@ -355,11 +355,15 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
           </div>
         </template>
 
-        <!-- Equipment rows — click to switch the detail pane -->
+        <!-- Equipment rows — click to switch the detail pane.
+             Keyed with the list position, not the bare eqp_id: sem_list repeats
+             an eqp_id (10 of 300 rows), and two of those pairs sit in ONE fab —
+             R3 lists ECDX729/GT2000 twice — so an id key collides after the fab
+             filter and every re-filter orphans a row in the DOM. -->
         <div class="flex-1 overflow-auto">
           <button
-            v-for="row in searchedRows"
-            :key="row.eqp_id"
+            v-for="(row, rowAt) in searchedRows"
+            :key="`${row.eqp_id}#${rowAt}`"
             type="button"
             class="flex w-full items-start gap-2.5 border-b border-l-2 border-zinc-100 px-3.5 py-3 text-left transition-colors dark:border-zinc-800/60"
             :class="row.eqp_id === selectedToolId
