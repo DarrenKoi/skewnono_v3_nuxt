@@ -111,6 +111,8 @@ from back_dev_home.ebeam.recipe_search.contracts import (
     RecipeDetailResponse,
     RecipeSearchResponse,
     RecipeSearchRow,
+    RegistryCheckResponse,
+    RegistryCheckResult,
     SettingBlock,
     ToolType,
     WaferAlignInfoRow,
@@ -127,9 +129,12 @@ __all__ = [
     "RecipeDetailResponse",
     "RecipeSearchResponse",
     "RecipeSearchRow",
+    "RegistryCheckResponse",
+    "RegistryCheckResult",
     "ToolType",
     "WaferAlignInfoRow",
     "WaferMpInfoRow",
+    "check_recipe_registry",
     "fetch_recipe_image",
     "get_align_detail",
     "get_param_detail",
@@ -1179,6 +1184,74 @@ def _is_locatable(recipe_id: str, fab_name: str, tool_category: str) -> bool:
         return False
     key = f"{recipe_id}|{fab_name}|{tool_category}".encode()
     return int(hashlib.sha1(key).hexdigest()[:8], 16) % _UNLOCATABLE_ONE_IN != 0
+
+
+# ~1 in this many LOCATABLE recipes is placeable only from measurement history,
+# not from the Redis recipe registry.
+#
+# OFFICE-VERIFY: the RATIO is fabricated. The STRUCTURE is not — office_example
+# `_locate_idp` tries `_locate_via_redis` first and falls back to
+# `_locate_via_meas_hist`, so registry-backed is a strict subset of locatable,
+# and the gap between them is whatever the registry job has not covered.
+_REGISTRY_MISS_ONE_IN = 3
+
+
+def _is_in_registry(recipe_id: str, fab_name: str, tool_category: str) -> bool:
+    """Can the Redis recipe registry alone place this recipe's .idp?
+
+    The narrower half of `_is_locatable`, and narrower on purpose: the office
+    answers this from two hash reads, without the meas_hist query, so a True
+    here means the recipe is fully Redis-backed rather than merely reachable.
+    That distinction is the whole point of the endpoint — the frontend unlocks
+    recipe-open and compare on it, and a recipe only a measurement run can
+    place must not be promoted on the strength of the run having happened.
+
+    Seeded independently of `_is_locatable` but ANDed with it, so the subset
+    relation holds for every input rather than for most of them.
+    """
+    if not _is_locatable(recipe_id, fab_name, tool_category):
+        return False
+    key = f"registry|{recipe_id}|{fab_name}|{tool_category}".encode()
+    return int(hashlib.sha1(key).hexdigest()[:8], 16) % _REGISTRY_MISS_ONE_IN != 0
+
+
+def check_recipe_registry(
+    tool_type: ToolType,
+    recipes: Sequence[CompareRequestItem],
+) -> RegistryCheckResponse:
+    """Registry membership for a batch of (recipe, fab) pairs.
+
+    Batched for the same reason compare is: /api/* is rate-limited to 50
+    requests / 5 s per user, and the caller asks about a whole page of search
+    results at once.
+
+    The reasons are worded as the office's would be — a caller that only ever
+    sees "not in registry" at home cannot tell a missing key from a missing
+    field, and those two mean very different things at the office.
+    """
+    results: list[RegistryCheckResult] = []
+    for item in recipes:
+        recipe_name = str(item.get("recipe_name") or "").strip()
+        fab_name = str(item.get("fab_name") or "").strip().upper()
+        if "/" not in recipe_name:
+            reason = (
+                f"{recipe_name!r} has no class prefix, so the registry cannot "
+                "supply the FTP class directory"
+            )
+        elif not _is_in_registry(recipe_name, fab_name, tool_type):
+            reason = (
+                f"the {fab_name or 'unknown'} recipe registry names no location "
+                f"for {recipe_name!r}"
+            )
+        else:
+            reason = ""
+        results.append({
+            "recipe_name": recipe_name,
+            "fab_name": fab_name,
+            "in_registry": not reason,
+            "reason": reason,
+        })
+    return {"tool_type": tool_type, "results": results}
 
 
 def get_recipe_open_data(

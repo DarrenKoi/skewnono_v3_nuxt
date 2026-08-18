@@ -164,6 +164,60 @@ export const toRecipeSearchResults = (
   return results
 }
 
+/** One `registry-check` answer, as the backend returns it. */
+export interface RegistryCheckResult {
+  recipe_name: string
+  fab_name: string
+  in_registry: boolean
+  reason: string
+}
+
+/**
+ * The (fab, recipe) pairs a registry-check confirmed, as lookup keys.
+ *
+ * Keyed on the PAIR because a recipe name is not unique across fabs — the same
+ * name registered in R3 and absent from M16B is the normal case, and a
+ * name-only key would unlock the second on the strength of the first.
+ */
+export const registryBackedKeys = (
+  results: RegistryCheckResult[]
+): string[] => results
+  .filter(result => result.in_registry)
+  .map(result => recipePairKey(result.fab_name, result.recipe_name))
+
+/**
+ * Re-tag fallback rows the Redis registry turned out to know.
+ *
+ * A row's `source` answers "what is this recipe backed by", and the search
+ * table could only ever infer that from which STORE returned the name — the
+ * daily catalog list or the measurement-history probe. Those are different
+ * questions: the catalog hash and the location registry are written by
+ * different upstream jobs, so a recipe can be missing from the list and still
+ * be fully placeable from Redis. Once the backend has answered the real
+ * question for a row, that answer replaces the inference.
+ *
+ * Only ever an upgrade. A row the registry declines keeps `opensearch` and the
+ * conservative capabilities that go with it, so an unanswered or failed check
+ * leaves the table exactly as it was.
+ *
+ * Returns the input array unchanged when nothing was promoted, so a caller
+ * watching the result does not see a new identity on every recheck.
+ */
+export const promoteVerifiedResults = (
+  results: RecipeSearchResult[],
+  backedKeys: ReadonlySet<string>
+): RecipeSearchResult[] => {
+  if (!backedKeys.size) return results
+  let changed = false
+  const next = results.map((row) => {
+    if (row.source === 'redis') return row
+    if (!backedKeys.has(recipePairKey(row.fab_name, row.recipe_name))) return row
+    changed = true
+    return { ...row, source: 'redis' as const }
+  })
+  return changed ? next : results
+}
+
 export const shouldProbeRecipeFallback = (input: {
   canSearch: boolean
   catalogPending: boolean

@@ -51,6 +51,7 @@ files-per-connection; do the same here if a real request is seen timing out.
 | `/align-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
 | `/recipe-image` | tool FTP raw folder (bytes) | wired, unverified on real data |
 | `/compare` | — | mock (re-exported) |
+| `/registry-check` | Redis recipe registry (2 `hget` per recipe) | wired, unverified on real data |
 
 **The "compare is derived from open" invariant is knowingly broken office-side
 right now.** `/recipe-detail` returns parsed IDP data while `/compare` returns
@@ -455,6 +456,38 @@ production equipment.
   should preserve that invariant (compare output for a recipe should be
   derivable from / consistent with that recipe's `/recipe-detail` output)
   rather than hitting a separate data path that could drift.
+
+## Endpoint: POST /api/\<tool_slug\>/recipe-search/registry-check
+
+`check_recipe_registry(tool_type, recipes) -> RegistryCheckResponse` — one
+result per requested `(recipe_name, fab_name)`, **positionally**, since the same
+name legitimately appears under two fabs.
+
+The office adapter calls `_locate_via_redis` and **must not** call
+`_locate_idp`. That is the whole contract:
+
+- `_locate_via_redis` answers "the registry can place this recipe", from
+  `v3_{family}_rcp_loc_{fab}` and `v3_{family}_tools_in_rcp_{fab}` — two hash
+  reads, no OpenSearch. Registry-backed is a strict **subset** of locatable.
+- `_locate_idp` also falls back to measurement history. An adapter that used it
+  would report `in_registry: true` for a recipe only a measurement RUN can
+  place, and the frontend would unlock 열어 보기 and compare on that basis.
+
+`reason` carries `_locate_via_redis`'s own bail note, joined the way
+`_locate_idp` joins it into its 502, and is empty exactly when `in_registry` is
+true. It is the only way a home or cloud caller can tell "this fab has no
+registry hash" from "the hash does not name this recipe".
+
+**Why the endpoint exists.** The frontend was inferring recipe capability from
+membership in the daily catalog list (`/recipes`). The catalog hash and the
+location registry are written by different upstream jobs, so the inference is
+wrong in both directions: a registered recipe absent from the list had
+recipe-open refused for no reason, and a listed recipe that has never run nor
+been registered had it offered and then 502'd. This asks the registry the
+question the inference was standing in for.
+
+**Cost.** Two `hget`s per recipe plus one `_eqp_ip_index()` — ttl-cached, so a
+200-recipe batch pays the sem_list roster once, not 200 times.
 
 ## Endpoints: the tiered reads (2026-08-02) — no adapter work
 

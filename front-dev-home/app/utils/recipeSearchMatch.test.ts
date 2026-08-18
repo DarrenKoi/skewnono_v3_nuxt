@@ -6,7 +6,9 @@ import {
   matchesRecipeQuery,
   matchingHistoryPairs,
   normalizeRecipeNameSnapshot,
+  promoteVerifiedResults,
   rankRecipeMatches,
+  registryBackedKeys,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
   toRecipeSearchResults,
@@ -381,4 +383,44 @@ test('view state keeps an empty query idle while the catalog is pending', () => 
     fallbackFailed: false,
     fallbackTruncated: false
   }), 'idle')
+})
+
+// ── registry check: the row's source stops being an inference ─────────────
+
+const fallbackRow = (recipe: string, fab: string) =>
+  ({ recipe_name: recipe, fab_name: fab, source: 'opensearch' as const })
+
+test('registryBackedKeys keeps only the confirmed pairs', () => {
+  assert.deepEqual(registryBackedKeys([
+    { recipe_name: 'ADI/A', fab_name: 'R3', in_registry: true, reason: '' },
+    { recipe_name: 'ADI/B', fab_name: 'R3', in_registry: false, reason: 'no entry' }
+  ]), ['R3|ADI/A'])
+})
+
+test('a confirmed fallback row is promoted to redis', () => {
+  const rows = [fallbackRow('ADI/A', 'R3'), fallbackRow('ADI/B', 'R3')]
+  const promoted = promoteVerifiedResults(rows, new Set(['R3|ADI/A']))
+  assert.deepEqual(promoted.map(row => row.source), ['redis', 'opensearch'])
+})
+
+test('promotion is per (recipe, fab) pair, never per name', () => {
+  // The same name registered in R3 and absent from M16B is the normal case.
+  const rows = [fallbackRow('ADI/A', 'R3'), fallbackRow('ADI/A', 'M16B')]
+  const promoted = promoteVerifiedResults(rows, new Set(['R3|ADI/A']))
+  assert.deepEqual(promoted.map(row => [row.fab_name, row.source]), [
+    ['R3', 'redis'],
+    ['M16B', 'opensearch']
+  ])
+})
+
+test('promotion never downgrades a redis row', () => {
+  const rows = [{ recipe_name: 'ADI/A', fab_name: 'R3', source: 'redis' as const }]
+  assert.equal(promoteVerifiedResults(rows, new Set()), rows)
+  assert.equal(promoteVerifiedResults(rows, new Set(['R3|ADI/A']))[0]!.source, 'redis')
+})
+
+test('promoting nothing returns the same array identity', () => {
+  const rows = [fallbackRow('ADI/A', 'R3')]
+  assert.equal(promoteVerifiedResults(rows, new Set()), rows)
+  assert.equal(promoteVerifiedResults(rows, new Set(['R3|ADI/OTHER'])), rows)
 })

@@ -330,6 +330,26 @@ export const apiGroups: ApiGroup[] = [
         }
       },
       {
+        method: 'POST',
+        path: '/api/{tool_slug}/recipe-search/registry-check',
+        summary: 'Redis 레시피 레지스트리가 각 recipe의 .idp 위치를 아는지 확인합니다. 일간 갱신되는 /recipes 목록에 없다는 이유로 열어 보기를 막지 않기 위한 확인용입니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          {
+            name: 'recipes',
+            kind: 'body',
+            required: true,
+            note: '[{ recipe_name, fab_name }] — 최대 200건. 응답 results는 요청과 같은 순서입니다'
+          }
+        ],
+        response: 'RegistryCheckResponse',
+        auth: '토큰 가능',
+        example: {
+          path: '/cdsem/recipe-search/registry-check',
+          body: { recipes: [{ recipe_name: 'ADI/RCP_001', fab_name: 'R3' }] }
+        }
+      },
+      {
         method: 'GET',
         path: '/api/{tool_slug}/recipe-search/align-detail',
         summary: 'wafer align point별 이미지, 빔 조건, AF/PR 설정을 한 번에 반환합니다.',

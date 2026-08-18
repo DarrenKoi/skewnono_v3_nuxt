@@ -25,6 +25,8 @@ __all__ = [
     "RecipeDetailResponse",
     "RecipeSearchResponse",
     "RecipeSearchRow",
+    "RegistryCheckResponse",
+    "RegistryCheckResult",
     "SettingBlock",
     "SettingRow",
     "ToolType",
@@ -249,6 +251,43 @@ class RecipeCompareResponse(TypedDict):
     # single ``fab_name`` now that the request body carries one fab per recipe.
     fab_names: list[str]
     recipes: list[CompareRecipe]
+
+
+# ── registry check (2026-08-19) ───────────────────────────────────────────
+#
+# "Is this recipe backed by the Redis recipe registry?", asked one recipe at a
+# time instead of inferred from the daily catalog list.
+#
+# The catalog hash (``v3_{family}_unique_rcp_list``) and the location registry
+# (``v3_{family}_rcp_loc_{fab}`` + ``v3_{family}_tools_in_rcp_{fab}``) are
+# written by different upstream jobs, so membership in one does not imply
+# membership in the other. The frontend was using the first as a proxy for the
+# second — a recipe absent from the catalog list was assumed unopenable — and
+# the proxy is wrong in both directions: a registered recipe missing from the
+# list had recipe-open refused for no reason, and a listed recipe that has
+# never run nor been registered had it offered and then 502'd.
+#
+# This endpoint asks the registry the question the proxy was standing in for.
+# It is deliberately narrower than "can recipe-open succeed": ``_locate_idp``
+# also falls back to measurement history, and a recipe only meas_hist can place
+# is NOT reported here. Registry-backed is a strict subset of locatable, which
+# is what makes a True answer safe to treat as "fully Redis-backed".
+
+
+class RegistryCheckResult(TypedDict):
+    recipe_name: str
+    fab_name: str
+    in_registry: bool
+    # Why the registry declined, empty when it did not. The office adapter
+    # already writes one bail reason per failed step for the log; carrying it
+    # to the caller matters because from outside the office a log line is not
+    # evidence anybody has.
+    reason: str
+
+
+class RegistryCheckResponse(TypedDict):
+    tool_type: ToolType
+    results: list[RegistryCheckResult]
 
 
 # ── tiered read endpoints (spec 2026-08-02) ───────────────────────────────

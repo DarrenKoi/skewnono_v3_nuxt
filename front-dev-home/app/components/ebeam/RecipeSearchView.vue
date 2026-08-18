@@ -8,7 +8,9 @@ import {
   matchesRecipeQuery,
   matchingHistoryPairs,
   normalizeRecipeNameSnapshot,
+  promoteVerifiedResults,
   rankRecipeMatches,
+  registryBackedKeys,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
   toRecipeSearchResults,
@@ -17,6 +19,7 @@ import {
   type RecipeSearchResult
 } from '~/utils/recipeSearchMatch'
 import { buildFabSegment } from '~/utils/fab'
+import { recipePairKey } from '~/utils/recipePair'
 
 const props = defineProps<{
   fabs: string[]
@@ -30,7 +33,7 @@ const fabSegment = computed(() => buildFabSegment(props.fabs))
 
 const DEFAULT_PAGE_SIZE = '50'
 
-const { fetchRecipeList } = useRecipeSearchApi()
+const { checkRecipeRegistry, fetchRecipeList } = useRecipeSearchApi()
 const {
   recentSearches,
   recordRecentSearch,
@@ -73,7 +76,13 @@ const { data, pending, error, refresh } = await useAsyncData(
   {
     watch: [cacheKey],
     default: emptyResponse,
-    getCachedData: payloadCache
+    // NOT payloadCache: `getCachedData` is consulted on every execute, refresh
+    // included (Nuxt's `granularCachedData`, on by default), so a plain
+    // payload read makes `refresh()` resolve the stale catalog without a
+    // request — a Redis Retry button that cannot retry. The catalog is the one
+    // list on this page a user has a reason to re-ask for: it is rebuilt daily
+    // upstream, and a rebuild that lands mid-session is invisible otherwise.
+    getCachedData: payloadCacheOnInitial
   }
 )
 
@@ -106,14 +115,34 @@ const fallbackTruncated = ref(false)
 const redisResults = computed(() =>
   toRecipeSearchResults(redisMatchedRows.value, 'redis')
 )
+// (fab, recipe) pairs the backend confirmed the Redis registry can place, and
+// the pairs already asked about whatever the answer was. Two sets rather than a
+// map because "not yet asked" and "asked, declined" must not collapse: the
+// first is retried on the next page, the second never is.
+const registryBacked = ref(new Set<string>())
+const registryAsked = ref(new Set<string>())
+
 const fallbackResults = computed(() =>
-  toRecipeSearchResults(historyMatches.value, 'opensearch')
+  promoteVerifiedResults(
+    toRecipeSearchResults(historyMatches.value, 'opensearch'),
+    registryBacked.value
+  )
 )
 const filteredRows = computed(() =>
   activeRecipeResults(redisResults.value, fallbackResults.value)
 )
-const activeSource = computed(() =>
-  redisResults.value.length ? 'redis' : fallbackResults.value.length ? 'opensearch' : null
+// Read off the ROWS rather than off which store answered. Once a fallback row
+// has been verified against the registry it is Redis-backed, and a header that
+// still said "OpenSearch fallback" would contradict the row's own badge.
+const activeSource = computed(() => {
+  const rows = filteredRows.value
+  if (!rows.length) return null
+  return rows.every(row => row.source === 'redis') ? 'redis' : 'opensearch'
+})
+const promotedCount = computed(() =>
+  redisResults.value.length
+    ? 0
+    : fallbackResults.value.filter(row => row.source === 'redis').length
 )
 
 // In-table filter: live-narrows the coarse top-bar matches (AND composition),
@@ -312,6 +341,72 @@ watch(historyProbeKey, (key) => {
 
 onBeforeUnmount(() => clearTimeout(historyProbeTimer))
 
+// --- 레지스트리 확인 --------------------------------------------------------
+// A fallback row's capabilities were an inference: the daily catalog list did
+// not carry this name, so the row was tagged `opensearch` and refused 열어
+// 보기. But the catalog hash and the .idp location registry are separate Redis
+// keys written by separate upstream jobs — a recipe can be absent from the
+// list and still be fully placeable from Redis. Ask the registry about the
+// rows actually on screen and let the answer replace the inference.
+//
+// Scoped to the current page rather than the whole result set: one POST per
+// page turn stays inside the 50 req / 5 s budget, and a row nobody has
+// scrolled to has no capability to unlock yet.
+const REGISTRY_CHECK_DEBOUNCE_MS = 200
+const REGISTRY_CHECK_MAX_ITEMS = 200
+
+const unverifiedRows = computed(() =>
+  pagedRows.value.filter(row =>
+    row.source === 'opensearch'
+    && !registryAsked.value.has(recipePairKey(row.fab_name, row.recipe_name))
+  )
+)
+const unverifiedKey = computed(() =>
+  unverifiedRows.value
+    .map(row => recipePairKey(row.fab_name, row.recipe_name))
+    .join(',')
+)
+
+let registryCheckTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(unverifiedKey, (key) => {
+  clearTimeout(registryCheckTimer)
+  if (!key) return
+
+  const targets = unverifiedRows.value
+    .slice(0, REGISTRY_CHECK_MAX_ITEMS)
+    .map(row => ({ recipe_name: row.recipe_name, fab_name: row.fab_name }))
+
+  registryCheckTimer = setTimeout(async () => {
+    try {
+      const response = await checkRecipeRegistry({
+        toolType: props.toolType,
+        recipes: targets
+      })
+      // Replaced rather than mutated: two Sets read by a computed, and a
+      // reassignment is the one form that cannot depend on collection-proxy
+      // instrumentation to be seen.
+      const asked = new Set(registryAsked.value)
+      for (const target of targets) {
+        asked.add(recipePairKey(target.fab_name, target.recipe_name))
+      }
+      const backed = new Set(registryBacked.value)
+      for (const backedKey of registryBackedKeys(response.results)) {
+        backed.add(backedKey)
+      }
+      registryAsked.value = asked
+      registryBacked.value = backed
+    } catch {
+      // Deliberately leaves these pairs UNASKED. A check that never answered
+      // must not read as "the registry declined" — that would refuse 열어
+      // 보기 permanently on the strength of one failed request. The next page
+      // turn asks again.
+    }
+  }, REGISTRY_CHECK_DEBOUNCE_MS)
+}, { immediate: true })
+
+onBeforeUnmount(() => clearTimeout(registryCheckTimer))
+
 const viewState = computed(() => resolveRecipeSearchViewState({
   canSearch: canSearch.value,
   catalogPending: pending.value,
@@ -341,6 +436,10 @@ const fallbackPartial = computed(() =>
 )
 
 const fallbackNoticeText = computed(() => {
+  if (promotedCount.value) {
+    // The count is the actionable half: those rows open, the rest do not.
+    return `OpenSearch fallback 결과 중 ${promotedCount.value}건은 Redis 레지스트리로 확인되어 열어 보기가 가능합니다.`
+  }
   if (activeSource.value === 'opensearch') {
     return fallbackPartial.value
       ? 'OpenSearch fallback 일부 결과를 표시합니다.'
@@ -570,8 +669,11 @@ const openMeasHist = (row: RecipeSearchResult) => {
                 />
                 {{ fallbackNoticeText }}
               </span>
+              <!-- Offered on every fallback, not only on a Redis ERROR. The
+                   common miss is a clean 200 whose list predates the recipe,
+                   and that case had no way back to the catalog at all. -->
               <UButton
-                v-if="error && !pending"
+                v-if="!pending"
                 size="xs"
                 color="neutral"
                 variant="ghost"

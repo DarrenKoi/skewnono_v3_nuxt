@@ -1,5 +1,6 @@
 import { joinApiPath } from '~/utils/apiPath'
 import { canonicalFabList } from '~/utils/fab'
+import type { RegistryCheckResult } from '~/utils/recipeSearchMatch'
 import type { ToolType } from '~/utils/toolType'
 
 /** @deprecated 이름만 유지. 새 코드는 ToolType 을 직접 씁니다. */
@@ -128,6 +129,16 @@ export interface RecipeParametersParams {
   recipeName: string
 }
 
+export interface RegistryCheckParams {
+  toolType: RecipeSearchToolType
+  recipes: Array<{ recipe_name: string, fab_name: string }>
+}
+
+export interface RegistryCheckResponse {
+  tool_type: RecipeSearchToolType
+  results: RegistryCheckResult[]
+}
+
 // toolSlug now comes from ~/utils/toolType via Nuxt auto-import (registry's
 // version); this file no longer declares its own.
 
@@ -218,7 +229,35 @@ export const useRecipeSearchApi = () => {
     return await request
   }
 
+  /**
+   * Which of these recipes the Redis recipe registry can place, one request
+   * for the batch.
+   *
+   * Not deduped or cached here: the caller asks about rows it has just decided
+   * are unanswered, so a second call for the same pair is a caller bug rather
+   * than a race two components lost. POST because the batch is a body, and
+   * because 50 GETs would spend the whole 50 req / 5 s budget on one question.
+   */
+  const checkRecipeRegistry = async (
+    params: RegistryCheckParams
+  ): Promise<RegistryCheckResponse> => {
+    const slug = toolSlug(params.toolType)
+    return await $fetch<RegistryCheckResponse>(
+      joinApiPath(base, `/${slug}/recipe-search/registry-check`),
+      {
+        method: 'POST',
+        body: {
+          recipes: params.recipes.map(recipe => ({
+            recipe_name: recipe.recipe_name.trim(),
+            fab_name: normalizeFab(recipe.fab_name)
+          }))
+        }
+      }
+    )
+  }
+
   return {
+    checkRecipeRegistry,
     fetchRecipeDetail,
     fetchRecipeList,
     fetchRecipeParameters

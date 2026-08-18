@@ -167,6 +167,7 @@ from back_dev_home.msr_image.errors import SourceUnavailable
 from back_dev_home.ebeam.recipe_search.contracts import (
     AlignDetailResponse,
     AlignPoint,
+    CompareRequestItem,
     IdpImageInfoRow,
     IdpLocator,
     ParamDetailRequestItem,
@@ -174,6 +175,8 @@ from back_dev_home.ebeam.recipe_search.contracts import (
     RecipeDetailResponse,
     RecipeSearchResponse,
     RecipeSearchRow,
+    RegistryCheckResponse,
+    RegistryCheckResult,
     SettingBlock,
     SettingRow,
     ToolType,
@@ -192,6 +195,7 @@ from back_dev_home.ebeam.recipe_search.providers.mock import (
 
 
 __all__ = [
+    "check_recipe_registry",
     "fetch_recipe_image",
     "get_align_detail",
     "get_param_detail",
@@ -684,6 +688,43 @@ def _locate_idp(
             + "; ".join(notes)
             + "."
         ) from exc
+
+
+def check_recipe_registry(
+    tool_type: ToolType,
+    recipes: Sequence[CompareRequestItem],
+) -> RegistryCheckResponse:
+    """Registry membership for a batch of (recipe, fab) pairs. No meas_hist.
+
+    Deliberately `_locate_via_redis` and NOT `_locate_idp`: the caller asks
+    this to decide whether a recipe is fully Redis-backed, and `_locate_idp`
+    would answer yes for a recipe only a measurement run can place. It is also
+    what keeps the endpoint cheap enough to ask about a page of search results
+    at once — two `hget`s per recipe and no OpenSearch query.
+
+    The registry's own bail reason is returned rather than logged only. It is
+    the same text `_locate_idp` folds into its 502, and it is the difference
+    between "this fab has no registry hash at all" and "the hash does not name
+    this recipe" — a distinction nobody outside the office can otherwise draw.
+
+    `_eqp_ip_index()` is consulted (through `_locate_via_redis`) and is
+    ttl-cached, so a batch pays for the sem_list roster once, not per recipe.
+    """
+    results: list[RegistryCheckResult] = []
+    for item in recipes:
+        recipe_name = str(item.get("recipe_name") or "").strip()
+        fab_name = str(item.get("fab_name") or "").strip().upper()
+        notes: list[str] = []
+        located = _locate_via_redis(tool_type, recipe_name, fab_name or None, notes)
+        results.append({
+            "recipe_name": recipe_name,
+            "fab_name": fab_name,
+            "in_registry": bool(located),
+            # Joined the way _locate_idp joins them; empty on success, where
+            # _locate_via_redis appends nothing.
+            "reason": "; ".join(notes),
+        })
+    return {"tool_type": tool_type, "results": results}
 
 
 def _idp_remote_path(location: _IdpLocation) -> str:

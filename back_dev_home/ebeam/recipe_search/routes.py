@@ -17,6 +17,7 @@ from back_dev_home.ebeam.recipe_search.contracts import (
 )
 from back_dev_home.ebeam.recipe_search.data import (
     ToolType,
+    check_recipe_registry,
     fetch_recipe_image,
     get_align_detail,
     get_param_detail,
@@ -49,6 +50,12 @@ _LOCATOR_SEGMENTS = ("class_name", "idw", "idp")
 # ceiling on what a client can make the backend ask a tool for, not a limit any
 # real recipe approaches.
 _MAX_ALIGN_POINTS = 200
+
+# Both POST bodies that carry a recipe LIST share this ceiling. Compare fans
+# FTP work out per recipe and registry-check does two Redis reads per recipe,
+# so the two are nowhere near equally expensive — they share a cap because it
+# is a ceiling on request SIZE, and one number is one thing to reason about.
+_MAX_RECIPE_ITEMS = 200
 
 
 def _resolve_tool_type(tool_slug: str) -> ToolType | None:
@@ -117,6 +124,35 @@ def _resolve_recipe_request(tool_slug: str, *, needs_parameter: bool):
         return None, (jsonify({"error": "parameter is required"}), 400)
 
     return (tool_type, recipe_name, parameter, resolve_fab_name()), None
+
+
+def _recipe_items():
+    """The `{"recipes": [{recipe_name, fab_name}, ...]}` body, validated.
+
+    Returns ``(items, None)`` or ``(None, coded_response)``. Shared by compare
+    and registry-check rather than copied into the second: the two bodies are
+    the same body, and a validation rule that lives in two places is a rule
+    that ends up applying in one.
+    """
+    payload = request.get_json(silent=True) or {}
+    raw_recipes = payload.get("recipes")
+    if not isinstance(raw_recipes, list) or not raw_recipes:
+        return None, (jsonify({"error": "recipes must be a non-empty list"}), 400)
+    if len(raw_recipes) > _MAX_RECIPE_ITEMS:
+        return None, (jsonify({
+            "error": f"recipes exceeds the {_MAX_RECIPE_ITEMS}-recipe limit"
+        }), 400)
+
+    recipes: list[CompareRequestItem] = []
+    for item in raw_recipes:
+        if not isinstance(item, dict):
+            return None, (jsonify({"error": "recipes items must be objects"}), 400)
+        name = str(item.get("recipe_name") or "").strip()
+        if not name:
+            return None, (jsonify({"error": "recipes items need a recipe_name"}), 400)
+        fab = str(item.get("fab_name") or "").strip().upper()
+        recipes.append({"recipe_name": name, "fab_name": fab})
+    return recipes, None
 
 
 def _parameter_missing(parameter: str):
@@ -254,25 +290,38 @@ def recipe_search_compare(tool_slug: str):
     if not tool_type:
         return bad_tool_slug_response()
 
-    payload = request.get_json(silent=True) or {}
-    raw_recipes = payload.get("recipes")
-    if not isinstance(raw_recipes, list) or not raw_recipes:
-        return jsonify({"error": "recipes must be a non-empty list"}), 400
-    if len(raw_recipes) > 200:
-        return jsonify({"error": "recipes exceeds the 200-recipe limit"}), 400
-
-    recipes: list[CompareRequestItem] = []
-    for item in raw_recipes:
-        if not isinstance(item, dict):
-            return jsonify({"error": "recipes items must be objects"}), 400
-        name = str(item.get("recipe_name") or "").strip()
-        if not name:
-            return jsonify({"error": "recipes items need a recipe_name"}), 400
-        fab = str(item.get("fab_name") or "").strip().upper()
-        recipes.append({"recipe_name": name, "fab_name": fab})
+    recipes, failed = _recipe_items()
+    if failed:
+        return failed
 
     promote_request_fab_names(*(item["fab_name"] for item in recipes))
     return jsonify(get_recipe_compare_data(tool_type, recipes))
+
+
+@bp.post("/<tool_slug>/recipe-search/registry-check")
+def recipe_search_registry_check(tool_slug: str):
+    """Is each of these recipes backed by the Redis recipe registry?
+
+    The frontend used catalog-list membership as a proxy for this, because the
+    search table is built from that list and nothing else could be asked. The
+    proxy is wrong in both directions — the catalog hash and the location
+    registry are written by different upstream jobs — so the recipes it refused
+    to open included ones the office could have opened.
+
+    POST rather than GET for the reason compare is: the caller asks about a
+    page of results at once, and 50 GETs would spend the whole 50 req / 5 s
+    budget on a question worth one request.
+    """
+    tool_type = _resolve_tool_type(tool_slug)
+    if not tool_type:
+        return bad_tool_slug_response()
+
+    recipes, failed = _recipe_items()
+    if failed:
+        return failed
+
+    promote_request_fab_names(*(item["fab_name"] for item in recipes))
+    return jsonify(check_recipe_registry(tool_type, recipes))
 
 
 @bp.post("/<tool_slug>/recipe-search/param-detail")

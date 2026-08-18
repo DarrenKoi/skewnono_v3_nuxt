@@ -14,6 +14,7 @@ from back_dev_home.ebeam.recipe_search.contracts import (
     IdpLocator,
     ParamDetailRequestItem,
     ParamDetailResponse,
+    RegistryCheckResponse,
 )
 from back_dev_home.ebeam.recipe_search.providers.mock import (
     RecipeCompareResponse,
@@ -25,6 +26,7 @@ from back_dev_home.ebeam.recipe_search.providers.mock import (
 
 __all__ = [
     "ToolType",
+    "check_recipe_registry",
     "fetch_recipe_image",
     "get_align_detail",
     "get_param_detail",
@@ -55,6 +57,13 @@ def get_recipe_open_data(
     tool_category: str | None = None,
 ) -> RecipeDetailResponse:
     return _provider().get_recipe_open_data(recipe_id, fab_name, tool_category)
+
+
+def check_recipe_registry(
+    tool_type: ToolType,
+    recipes: Sequence[CompareRequestItem],
+) -> RegistryCheckResponse:
+    return _provider().check_recipe_registry(tool_type, recipes)
 
 
 def get_recipe_compare_data(
