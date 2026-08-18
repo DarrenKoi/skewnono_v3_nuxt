@@ -47,6 +47,7 @@ import logging
 import os
 import re
 from collections.abc import Iterable, Sequence
+from fnmatch import fnmatch
 from datetime import datetime
 from functools import lru_cache
 from statistics import median
@@ -471,26 +472,40 @@ _AXIS_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 
 
 @lru_cache(maxsize=1)
-def _axis_overrides() -> dict[str, str]:
-    """``SKEWNONO_AXIS_PARAM_MAP="Para_13=X,Para_14=Y"`` parsed once.
+def _axis_overrides() -> tuple[dict[str, str], tuple[tuple[str, str], ...]]:
+    """``SKEWNONO_AXIS_PARAM_MAP`` parsed once, as (exact names, glob patterns).
 
-    The escape hatch exists because a fab's parameter names are a fab's
-    business: ``Para_13`` says nothing about direction, and no pattern will
-    ever recover it. One env var beats a code change at the office, and beats
-    guessing — see ``resolve_axis``.
+    Accepts both forms in one comma-separated list::
+
+        SKEWNONO_AXIS_PARAM_MAP="*_HOR=X,*_VER=Y,Para_13=X"
+
+    A glob earns its place because the direction really is in the parameter
+    name, but the naming is highly varied across recipes and fabs
+    (user-confirmed 2026-08-18) — so a fab that would need forty exact entries
+    usually needs two or three patterns. Exact names still win over globs, so a
+    single odd parameter can be corrected without disturbing the family rule.
     """
-    raw = os.environ.get(AXIS_ENV_VAR, "")
-    mapping: dict[str, str] = {}
-    for item in raw.split(","):
+    exact: dict[str, str] = {}
+    globs: list[tuple[str, str]] = []
+    for item in os.environ.get(AXIS_ENV_VAR, "").split(","):
         name, _, axis = item.partition("=")
-        axis = axis.strip().upper()
-        if name.strip() and axis in ("X", "Y"):
-            mapping[name.strip().casefold()] = axis
-    return mapping
+        name, axis = name.strip(), axis.strip().upper()
+        if not name or axis not in ("X", "Y"):
+            continue
+        if any(char in name for char in "*?["):
+            globs.append((name.casefold(), axis))
+        else:
+            exact[name.casefold()] = axis
+    return exact, tuple(globs)
 
 
 def resolve_axis(parameter: str) -> str | None:
     """``"X"`` / ``"Y"`` for a measured feature, or None when unknowable.
+
+    Three sources in order: an exact env mapping, an env glob, then the
+    built-in token patterns. The env comes first because the built-in table is
+    a guess about a vocabulary that varies per fab, and the fab's own answer
+    must be able to overrule it rather than merely fill its gaps.
 
     None is a real answer and callers must honor it by DROPPING the rows, not
     by defaulting to ``"X"``. The contract's ``Axis`` is a two-value Literal
@@ -504,9 +519,13 @@ def resolve_axis(parameter: str) -> str | None:
     name = parameter.strip()
     if not name:
         return None
-    override = _axis_overrides().get(name.casefold())
+    exact, globs = _axis_overrides()
+    override = exact.get(name.casefold())
     if override:
         return override
+    for pattern, axis in globs:
+        if fnmatch(name.casefold(), pattern):
+            return axis
     for pattern, axis in _AXIS_PATTERNS:
         if pattern.search(name):
             return axis
@@ -515,19 +534,28 @@ def resolve_axis(parameter: str) -> str | None:
 
 MONITOR_RECIPE_ENV_VAR = "SKEWNONO_CD_MONITOR_RECIPE"
 
-# What the fab calls its tool-to-tool monitor wafer recipe is not recorded
-# anywhere we can read from home (docs/datatables has no CD_MONITORING source),
-# so this is a starting guess, overridable without a code change. The office
-# adapters' __main__ diagnostics print the recipe names they actually saw so
-# the right value is one run away.
-DEFAULT_MONITOR_RECIPE = "QC"
+# CD monitoring is not one recipe. Each fab runs its own, under its own name,
+# and the names differ per fab — but they all begin ``CD_MONITOR``
+# (user-confirmed 2026-08-18). They run periodically on the same tool with the
+# same recipe, so the runs are ordinary meas_hist documents and need no separate
+# source: this prefix over ``meas_hist_{cdsem,hvsem}`` finds them.
+#
+# So the default is a DISCOVERY rule, not a guess to be replaced. The env var
+# stays for the fab that names one differently, or to pin a single recipe when
+# a fab runs several and they should not be pooled.
+DEFAULT_MONITOR_RECIPE = "CD_MONITOR*"
 
 
 def monitor_recipe_pattern() -> str:
-    """The recipe (or class) name that identifies the CD-monitoring run.
+    """The recipe name pattern that identifies a CD-monitoring run.
 
-    OFFICE-VERIFY. Set ``SKEWNONO_CD_MONITOR_RECIPE`` to the real one; the
-    default matches this repo's mock vocabulary (``class_name == "QC"``,
-    ``QC_DAILY_MATCH_007``) and is almost certainly not what the fab uses.
+    Matched case-insensitively against ``recipe_name``, ``full_name`` and
+    ``class_name`` (see ``_recipe_clause``); a value containing ``*`` is a
+    wildcard, so the default matches ``CD_MONITOR_M14A_001`` and its
+    per-fab siblings alike.
+
+    Override with ``SKEWNONO_CD_MONITOR_RECIPE`` to pin one exact recipe — worth
+    doing if a fab runs several monitor recipes at different pattern sizes,
+    because pooling those would average two CDs into one gate reading.
     """
     return os.environ.get(MONITOR_RECIPE_ENV_VAR, "").strip() or DEFAULT_MONITOR_RECIPE

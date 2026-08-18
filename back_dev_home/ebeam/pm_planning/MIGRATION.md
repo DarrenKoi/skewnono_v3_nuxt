@@ -200,17 +200,30 @@
 
 ## 사무실에서 먼저 할 일
 
-`SKEWNONO_CD_MONITOR_RECIPE` 를 실제 모니터링 recipe 로 맞춰야 합니다. 어느
-recipe 가 CD_MONITORING 인지 기록된 곳이 없어 기본값은 이 저장소 mock 의
-어휘(`QC`)입니다. staged 진단의 2단계가 그 fab 이 실제로 돌린 recipe 이름을
-출력합니다.
+CD 모니터링 recipe 는 **보통 그대로 두면 됩니다.** fab 마다 recipe 이름이
+다르지만 모두 `CD_MONITOR` 로 시작하고(user-confirmed 2026-08-18) 같은 장비에서
+주기적으로 도는 일반 측정이라, 기본 `CD_MONITOR*` wildcard 가 meas_hist 에서
+그대로 찾아냅니다. `SKEWNONO_CD_MONITOR_RECIPE` 는 두 경우에만 씁니다 — 접두사를
+벗어난 이름을 쓰는 fab, 또는 **패턴 크기가 다른 모니터 recipe 를 여러 개 도는**
+fab(그대로 두면 서로 다른 CD 가 gate 값 하나로 평균됩니다).
+
+정말 손대야 하는 것은 `SKEWNONO_AXIS_PARAM_MAP` 입니다. staged 진단의 2단계가
+prefix 로 찾은 recipe 를, 3단계가 그 fab 의 parameter 어휘 전체와 방향 해석
+결과를 출력합니다.
 
     .venv/bin/python -m back_dev_home.ebeam.pm_planning.providers.office R3
 
-3단계는 parameter 이름에서 측정 방향(X/Y)을 읽을 수 있는지 보여 줍니다. 읽을 수
-없는 이름은 그 행이 `cells` 에서 **버려지므로**(기본값 "X" 를 넣지 않습니다)
-`SKEWNONO_AXIS_PARAM_MAP` 으로 매핑하십시오. 자세한 이유는 tttm/MIGRATION.md
-의 같은 절에 있습니다.
+방향은 parameter 이름에 들어 있지만 이름 짓는 방식이 recipe·fab 마다 매우
+다양합니다(user-confirmed 2026-08-18). 읽을 수 없는 이름은 그 행이 `cells` 에서
+**버려지므로**(기본값 "X" 를 넣지 않습니다) 매핑해 주어야 합니다. 환경변수는
+glob 을 받으므로 보통 패턴 두세 개로 끝납니다 — 진단이 붙여 넣을 수 있는 한 줄을
+만들어 줍니다.
+
+    SKEWNONO_AXIS_PARAM_MAP="*_HOR=X,*_VER=Y,Para_13=X"
+
+CD 모니터링 recipe 의 parameter 도 다른 측정에서 쓰는 평범한 이름들이므로
+(user-confirmed 2026-08-18) 이 표 하나가 pm-tune 과 tttm 양쪽을 커버합니다.
+자세한 이유는 tttm/MIGRATION.md 의 같은 절에 있습니다.
 
 ## Verify
 

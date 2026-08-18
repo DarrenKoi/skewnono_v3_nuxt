@@ -21,8 +21,11 @@ OFFICE-VERIFY — the Up gate's two spec inputs are FABRICATED here, and the
 office adapter deliberately does NOT reuse them:
 
 * `spec_range_mock.get_cd_monitoring_spec` invents a per-tool target ±0.5 nm.
-  No CD_MONITORING source exists in docs/datatables at all — not the recipe
-  name, not the spec window. The office adapter derives the window as the
+  The office has no ingested spec window either. It DOES have the measurement:
+  each fab runs its own CD-monitoring recipe, all of them named `CD_MONITOR*`
+  (user-confirmed 2026-08-18), periodically on the same tool — so the office
+  adapter finds the runs in meas_hist by that prefix and reads real CDs. What
+  is missing is only the WINDOW to judge them against. The office adapter derives the window as the
   fleet's own median ±1 %, because 1 % of CD is the only spec rule this repo
   actually knows (user-confirmed 2026-08-16: the familiar ±0.15 nm at the 15 nm
   monitor wafer IS that ratio). So `cd_in_spec` means "agrees with its

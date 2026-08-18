@@ -982,14 +982,20 @@ if __name__ == "__main__":  # pragma: no cover
     obs, drops = _observations(found.runs, param)
     print(f"  {len(obs)} observations; dropped={drops}")
     if drops["no_axis"]:
+        # Across EVERY run, not a sample: the naming varies per recipe, so a
+        # three-run peek would send you back for a second pass.
         names = sorted({
             point.parameter
-            for run in found.runs[:3]
+            for run in found.runs
             for point in load_points(run.pkl)
             if point.parameter and resolve_axis(point.parameter) is None
         })
-        print(f"  ★ parameters with no resolvable direction: {names[:12]}")
-        print(f"    Fix with {AXIS_ENV_VAR}=" + ",".join(f"{n}=X" for n in names[:3]))
+        print(f"  ★ {len(names)} parameter(s) with no resolvable direction:")
+        for name in names:
+            print(f"      {name}")
+        print("    Paste this into back_dev_home/.env, correcting each axis:")
+        print(f"    {AXIS_ENV_VAR}=" + ",".join(f"{n}=X" for n in names))
+        print("    A glob covers a family in one entry, e.g. *_HOR=X,*_VER=Y")
     print(f"  beams: {sorted({o.beam for o in obs})}  axes: {sorted({o.axis for o in obs})}")
 
     print("\n--- 4. epochs + cells ---")

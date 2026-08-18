@@ -17,7 +17,8 @@ eqp_model_cd -> string: 장비 모델. 예: CG6300, CG6380, TP4000, VERITYSEM_5
 lot_cd -> string: 디바이스/개발 lot 코드. R3/R4는 r3_device_grp, M fab은 device_desc 형식을 따름
 lot_id -> string: 실제 측정 lot ID. lot_cd + 숫자 suffix로 생성. 예: RAEA240031, 4MJ240882
 class_name -> string: recipe class 또는 layer group. 예: ADI, AEI, OVL, GATE, CNT, QC, DEF, EDGE
-recipe_name -> string: recipe 파일명 기준 이름. 예: ADI_CD_BIAS_001, QC_DAILY_MATCH_007
+recipe_name -> string: recipe 파일명 기준 이름. 예: ADI_CD_BIAS_001, CD_MONITOR_DAILY_007
+                       (CD_MONITOR* 는 CD 모니터링 recipe 접두사 — 아래 절 참고)
 full_name -> string: class_name/recipe_name 조합. 예: ADI/ADI_CD_BIAS_001
 timestamp -> datetime64[ns]: 측정 대표 시각. 화면 정렬 기준으로 쓰며 보통 end_time과 같은 값
 start_time -> datetime64[ns]: 측정 시작 시각
@@ -219,12 +220,27 @@ msr_check = "Yes" 로 거르는 이유: MSR 파일이 안 떨어진 실행은 �
 (recipe_tat 는 그것도 셉니다) pickle 이 없어 CD 가 없습니다. 걸러 두지 않으면
 확정적으로 헛되는 MinIO GET 이 됩니다.
 
-★ CD_MONITORING recipe 의 이름은 이 문서에도, 이 폴더 어디에도 없습니다.
-  pm_planning 의 Up gate 는 "그 장비의 CD 모니터링 측정값"을 물어보는데, 어느
-  recipe 가 그것인지 집에서는 알 방법이 없습니다(mock 은 값과 스펙 창을 모두
-  지어냅니다). 그래서 어댑터는 SKEWNONO_CD_MONITOR_RECIPE 환경변수로 recipe 를
-  받습니다. 기본값 "QC" 는 이 저장소 mock 의 어휘이며 팹의 것이 아닙니다.
-  사무실에서 확인하는 방법:
+CD 모니터링 recipe (user-confirmed 2026-08-18)
+
+  CD 모니터링은 recipe **한 개가 아닙니다.** fab 마다 자기 recipe 를 쓰고 이름도
+  fab 마다 다릅니다. 다만 이름은 모두 **`CD_MONITOR` 로 시작합니다.**
+
+  별도 소스는 필요 없습니다. 이 recipe 들은 같은 장비에서 같은 recipe 로
+  **주기적으로 도는 일반 측정**이므로, 그 실행은 meas_hist_cdsem /
+  meas_hist_hvsem 의 평범한 문서로 남습니다. 따라서 이 인덱스에 이름 접두사
+  필터를 걸면 그대로 찾힙니다.
+
+  office 어댑터의 기본값이 곧 그 규칙입니다 — `CD_MONITOR*` 를
+  recipe_name/full_name/class_name 의 .keyword 에 case_insensitive wildcard 로
+  겁니다(_office_msr_cd._recipe_clause). **바꿔야 하는 값이 아니라 발견 규칙**
+  이므로, 보통은 환경변수를 건드리지 않아도 동작합니다.
+
+  SKEWNONO_CD_MONITOR_RECIPE 를 쓰는 경우는 둘뿐입니다.
+    1) 어느 fab 이 접두사 규칙을 벗어난 이름을 쓰는 경우.
+    2) 한 fab 이 **패턴 크기가 다른 모니터 recipe 를 여러 개** 도는 경우.
+       그대로 두면 서로 다른 CD 가 gate 값 하나로 평균되므로, recipe 하나를
+       정확히 지정해 고정하십시오.
+
+  확인:
     .venv/bin/python -m back_dev_home.ebeam.pm_planning.providers.office R3
-  2단계가 그 fab 이 실제로 돌린 recipe 이름을 출력합니다. 이름을 확인하면
-  **이 문서에 먼저 적고** 환경변수를 맞추십시오.
+  2단계가 그 fab 이 실제로 돌린 recipe 이름과 매칭된 실행 수를 출력합니다.

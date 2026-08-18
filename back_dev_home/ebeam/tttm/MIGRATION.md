@@ -142,7 +142,16 @@ user-confirmed 2026-08-16, 두 방향 모두: `max` 는 0.20 을 유지하고(Ka
 | 환경변수 | 무엇을 정하는가 | 안 맞으면 |
 | --- | --- | --- |
 | `SKEWNONO_AXIS_PARAM_MAP` | 어느 parameter 가 X 이고 어느 것이 Y 인지 | `occupied_cells` 가 **빈 채로** 돌아옵니다. summary 가 그 이유를 한국어로 말합니다 |
-| (tttm 은 recipe 를 사용자가 고르므로 `SKEWNONO_CD_MONITOR_RECIPE` 는 pm_planning 전용입니다) | — | — |
+
+(`SKEWNONO_CD_MONITOR_RECIPE` 는 pm_planning 전용입니다 — tttm 은 recipe 를
+사용자가 고릅니다.)
+
+방향은 parameter 이름에 들어 있으나 이름 짓는 방식이 recipe·fab 마다 **매우
+다양합니다**(user-confirmed 2026-08-18). 그래서 내장 정규식표만으로는 부족하고,
+환경변수는 **glob 을 받습니다** — 정확한 이름 40개 대신 보통 패턴 두세 개입니다.
+정확한 이름이 glob 을 이기므로 예외 하나만 따로 고칠 수 있습니다.
+
+    SKEWNONO_AXIS_PARAM_MAP="*_HOR=X,*_VER=Y,Para_13=X"
 
 측정 방향은 pickle 에도 meas_hist 에도 없습니다(`docs/datatables/msr_file_pickle.txt`
 참고). 어댑터는 parameter **이름**에서 되찾고, 읽을 수 없으면 그 행을 **버립니다**.

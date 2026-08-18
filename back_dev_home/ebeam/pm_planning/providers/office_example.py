@@ -23,13 +23,16 @@ wants one aggregation over ~18 tools rather than 18 round trips.
 ★ THREE THINGS THE MOCK KNOWS THAT THE OFFICE DOES NOT. Read these before
 reading a number off this screen.
 
-1. **Which recipe is "CD monitoring" is not recorded anywhere we can read.**
-   ``docs/datatables`` has no CD_MONITORING source; ``spec_range_mock`` invents
-   both the value and its window. This adapter reads the fab's monitor runs out
-   of meas_hist by recipe name, and that name comes from
-   ``SKEWNONO_CD_MONITOR_RECIPE``. Until it is set to the real one, the fleet is
-   whatever ``"QC"`` happens to match. ``__main__`` prints the recipe names the
-   fab actually ran, so the right value is one command away.
+1. **CD monitoring is several recipes, found by prefix — not a configured
+   name.** Each fab runs its own under its own name, and they all begin
+   ``CD_MONITOR`` (user-confirmed 2026-08-18). They run periodically on the same
+   tool with the same recipe, so their executions are ordinary meas_hist
+   documents needing no separate source, and the default ``CD_MONITOR*``
+   wildcard finds them. ``SKEWNONO_CD_MONITOR_RECIPE`` therefore usually needs
+   no setting; reach for it only when a fab names one outside the prefix, or
+   when a fab runs SEVERAL monitor recipes at different pattern sizes and
+   pooling them would average two CDs into one gate reading. ``__main__``
+   stage 2 prints what matched.
 
 2. **The CD spec window is DERIVED, not ingested.** ``spec_range_mock`` uses a
    fabricated ±0.5 nm per tool. Here the window is the fleet's own median ±1%,
@@ -56,9 +59,10 @@ follows meas_hist ingestion, where the mock freezes both at
 OFFICE-VERIFY (check these once, on the first office run — the staged
 ``__main__`` below prints what it actually found for every one of them):
 
-* Which recipe is the CD-monitoring run (``SKEWNONO_CD_MONITOR_RECIPE``). There
-  is no source for this anywhere in ``docs/datatables``; the default is this
-  repo's mock vocabulary. Stage 2 lists the recipe names the fab really ran.
+* That this fab's CD-monitoring recipes really do start with ``CD_MONITOR``,
+  and that there is only ONE pattern size among the ones that matched. Stage 2
+  lists what the prefix found; if two monitor recipes measure different CDs,
+  pin one with ``SKEWNONO_CD_MONITOR_RECIPE``.
 * The index aliases ``beam_shape_cdsem`` and ``fab_inform_notes``, and that
   exact matches go through ``.keyword`` sub-fields with ``fab_name``
   upper-cased. A term query on an analyzed parent matches NOTHING and answers
@@ -721,29 +725,34 @@ if __name__ == "__main__":  # pragma: no cover
         sys.exit(1)
 
     print("\n--- 3. CD values + axis split (the pickles) ---")
-    sample_run = found.runs[-1]
-    sample_points = load_points(sample_run.pkl)
-    resolved = {
-        name: resolve_axis(name)
-        for name in sorted({p.parameter for p in sample_points if p.parameter})
-    }
-    print(
-        f"  sample run {sample_run.msr}: {len(sample_points)} points, "
-        f"{len(resolved)} named parameters"
-    )
-    print(f"  axis resolution: {resolved}")
+    # Every run in the window, not one sample: the direction is in the
+    # parameter NAME and the naming varies per recipe and per fab, so the map
+    # can only be written once the whole vocabulary is on screen.
+    vocabulary: dict[str, int] = {}
+    beams: set[str] = set()
+    for run in found.runs:
+        for point in load_points(run.pkl):
+            beams.add(beam_label(point.vac))
+            if point.parameter:
+                vocabulary[point.parameter] = vocabulary.get(point.parameter, 0) + 1
+    resolved = {name: resolve_axis(name) for name in sorted(vocabulary)}
+    print(f"  {len(found.runs)} runs, {len(vocabulary)} distinct named parameters")
+    for name in sorted(vocabulary):
+        print(f"    {name:<28} n={vocabulary[name]:<6} axis={resolved[name]}")
+    print(f"  beams seen: {sorted(beams)}")
+
     unresolved = [name for name, axis in resolved.items() if axis is None]
     if unresolved:
         print(
-            f"  ★ {len(unresolved)} parameter(s) have no resolvable direction, "
-            "so their rows are DROPPED from `cells`."
+            f"\n  ★ {len(unresolved)} parameter(s) have no resolvable direction, "
+            "so their rows are DROPPED from `cells` (never defaulted to X)."
         )
+        print("    Paste this into back_dev_home/.env, correcting each axis:")
         print(
-            f"    Fix with {AXIS_ENV_VAR}="
-            + ",".join(f"{name}=X" for name in unresolved[:3])
-            + ",..."
+            f"    {AXIS_ENV_VAR}="
+            + ",".join(f"{name}=X" for name in unresolved)
         )
-    print(f"  beams seen: {sorted({beam_label(p.vac) for p in sample_points})}")
+        print("    A glob covers a family in one entry, e.g. *_HOR=X,*_VER=Y")
 
     print("\n--- 4. BSM / PM / MDC ---")
     readings = _bsm_by_tool(fab_arg, ids, window_start, anchor_at)

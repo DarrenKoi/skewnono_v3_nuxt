@@ -20,7 +20,7 @@
 | `members.txt` | Redis hash `members` | `_auth` (사용자 이름·소속, `GET /api/me`) | 구현완료(스키마 user-confirmed, 실행 검증 대기) |
 | `sem_list.txt` | Redis `v3_df_sem_avail` + `v3_df_sem_version` | `sem_list` | 연결 |
 | `storage_ppid.txt` | Redis `v3_df_ppid_storage_{cdsem,hvsem}` + `v3_hitachi_sem_ppid_not_avail` | `ebeam/storage` | 연결 |
-| `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe`, `ebeam/tttm`, `ebeam/pm_planning` | 연결 |
+| `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe`, `ebeam/tttm`, `ebeam/pm_planning`(CD 모니터링 recipe 포함) | 연결 |
 | `ebeam_tas_lot_hist.txt` | OpenSearch `ebeam_tas_lot_hist` | `recipe_tat`, `fail_issue` (lot_id↔lot_cd 다리), `device_statistics`(M fab 공정 스텝) | 연결(device_statistics 제외) |
 | `device_desc.txt` | Redis `device_desc` | `recipe_tat`, `fail_issue`, `device_statistics` | 연결 |
 | `r3_device_grp.txt` | Redis `r3_device_grp` | 위와 동일 (R3/R&D) | 연결 |
@@ -56,14 +56,12 @@
 아래는 화면은 있으나 office 어댑터가 mock 을 그대로 재사용하는 부분입니다. 새 소스를
 찾으면 해당 문서부터 채워야 합니다.
 
-- **CD_MONITORING recipe 이름** — `pm_planning` 의 Up gate 가 읽어야 하는
-  모니터링 측정이 어느 recipe 인지 기록된 곳이 없습니다. office 어댑터는
-  `SKEWNONO_CD_MONITOR_RECIPE` 환경변수로 받으며, 기본값은 팹의 것이 아닙니다.
-  확인 절차는 `meas_hist.txt` 의 tttm/pm_planning 절에 있습니다.
 - **측정 방향(X/Y)** — `tttm` 과 `pm_planning` 의 계약이 요구하는 axis 를 담은
-  컬럼이 pickle 에도 meas_hist 에도 없습니다. 지금은 parameter 이름에서
-  되찾고, 실패하면 그 행을 버립니다(기본값을 넣지 않습니다). 자세한 내용은
-  `msr_file_pickle.txt` 의 해당 절.
+  컬럼이 pickle 에도 meas_hist 에도 없습니다. 방향은 parameter **이름**에
+  들어 있으나 이름 짓는 방식이 recipe·fab 마다 매우 다양하므로
+  (user-confirmed 2026-08-18), `SKEWNONO_AXIS_PARAM_MAP`(glob 지원)으로
+  채웁니다. 못 채우면 그 행을 **버립니다** — 기본값을 넣지 않습니다.
+  자세한 내용은 `msr_file_pickle.txt` 의 해당 절.
 - **CD 스펙 창과 BSM 합격 밴드** — `pm_planning` 의 mock 이 쓰는
   `spec_range_mock` 의 숫자는 지어낸 값입니다. office 어댑터는 장비 그룹의
   중앙값 ±1 %(팹이 밝힌 action limit)와 장비 그룹 상대 MAD 이상치 검정으로

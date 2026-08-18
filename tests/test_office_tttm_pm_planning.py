@@ -24,6 +24,7 @@ Run:  .venv/bin/python -m pytest tests/test_office_tttm_pm_planning.py
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from fnmatch import fnmatch
 
 import pytest
 
@@ -112,6 +113,23 @@ def _runs(eqp_ids=TOOLS, recipes=("ADI/R1", "ADI/R2"), days=6):
                     )
                 )
     return tuple(out)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_axis_map():
+    """Clear the process-wide axis-map cache around every test.
+
+    `_axis_overrides` is `lru_cache(maxsize=1)` over a function taking no
+    arguments, so the FIRST call in a process fixes the mapping for the rest of
+    it — correct in production (the env is read once at boot) but it makes test
+    order load-bearing here, and an ordering-dependent suite is one that passes
+    until someone adds a test above yours.
+    """
+    from back_dev_home.ebeam._office_msr_cd import _axis_overrides
+
+    _axis_overrides.cache_clear()
+    yield
+    _axis_overrides.cache_clear()
 
 
 @pytest.fixture
@@ -784,3 +802,69 @@ def test_missing_and_unrecorded_values_do_not_reach_the_payload(sources):
         assert cell["beam_condition"] == "500V"
         assert cell["median_cd_nm"] == pytest.approx(BASE_CD, abs=0.25)
     assert payload["raw"]["dropped"]["no_cd"] > 0
+
+
+# ── the office facts confirmed 2026-08-18 ─────────────────────────────────
+
+
+def test_the_monitor_recipe_default_is_a_discovery_rule(monkeypatch):
+    """CD monitoring is several recipes found by prefix, not one configured name.
+
+    Each fab runs its own under its own name and they all start with
+    CD_MONITOR (user-confirmed 2026-08-18), so the default has to FIND them
+    rather than stand in for one. A default that matched a single literal name
+    would answer 200 with an empty fleet at every fab but one.
+    """
+    from back_dev_home.ebeam import _office_msr_cd as shared
+
+    monkeypatch.delenv(shared.MONITOR_RECIPE_ENV_VAR, raising=False)
+    pattern = shared.monitor_recipe_pattern()
+    assert "*" in pattern, "the default must be a wildcard, not a literal name"
+
+    clause = shared._recipe_clause(pattern)
+    kinds = {next(iter(term)) for term in clause["bool"]["should"]}
+    assert kinds == {"wildcard"}
+    fields = {
+        field
+        for term in clause["bool"]["should"]
+        for field in term["wildcard"]
+    }
+    # All three identities, because different callers hold different ones.
+    assert fields == {"full_name.keyword", "recipe_name.keyword", "class_name.keyword"}
+    for term in clause["bool"]["should"]:
+        # .keyword sub-fields are analyzed-text traps otherwise, and the fab's
+        # casing is not something we get to assume.
+        assert next(iter(term["wildcard"].values()))["case_insensitive"] is True
+
+    # A per-fab name really does match the prefix.
+    assert fnmatch("CD_MONITOR_M14A_001".casefold(), pattern.casefold())
+
+
+def test_an_axis_glob_covers_a_family(monkeypatch):
+    """The direction is in the name, but the naming varies widely per fab.
+
+    A fab needing forty exact entries normally needs two or three patterns, so
+    the map takes globs. An exact name still wins, so one odd parameter can be
+    corrected without disturbing the family rule.
+    """
+    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+
+    monkeypatch.setenv(AXIS_ENV_VAR, "*_HOR=X,*_VER=Y,GATE_HOR=Y")
+    assert resolve_axis("TOP_HOR") == "X"
+    assert resolve_axis("BOT_VER") == "Y"
+    # Exact beats glob, even when they disagree.
+    assert resolve_axis("GATE_HOR") == "Y"
+    # Still no guessing for a name nothing matches.
+    assert resolve_axis("Para_13") is None
+    # The built-in table still fills gaps the env did not cover.
+    assert resolve_axis("CD_X") == "X"
+
+
+def test_the_axis_map_never_invents_a_direction(monkeypatch):
+    """A malformed entry is ignored, not coerced into an axis."""
+    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+
+    monkeypatch.setenv(AXIS_ENV_VAR, "Para_13=Z,Para_14=,=X,Para_15=y")
+    assert resolve_axis("Para_13") is None, "Z is not an axis"
+    assert resolve_axis("Para_14") is None, "a blank axis is not an axis"
+    assert resolve_axis("Para_15") == "Y", "lowercase is accepted"

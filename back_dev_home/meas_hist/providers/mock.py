@@ -87,7 +87,17 @@ RECIPE_CATALOG: dict[str, tuple[str, ...]] = {
     "OVL": ("OVL_BOX_001", "OVL_AIM_002"),
     "GATE": ("GATE_PITCH_001", "GATE_HEIGHT_002", "GATE_PITCH_MON_ABC123_ENG_00009"),
     "CNT": ("CNT_HOLE_001", "CNT_DEPTH_002", "CNT_CONTACT_CHECK_ABC123_QUAL_00008"),
-    "QC": ("QC_DAILY_MATCH_001", "QC_DAILY_MATCH_007", "QC_DAILY_MATCH_ABC123_PROD_00007"),
+    # CD_MONITOR_* is the office's real CD-monitoring vocabulary: each fab runs
+    # its own recipe under its own name, and they all start with CD_MONITOR
+    # (user-confirmed 2026-08-18). pm_planning's office adapter finds them by
+    # that prefix, so home has to carry at least one or the default discovery
+    # rule matches nothing here.
+    #
+    # RENAMED in place rather than appended. The tuple length is load-bearing:
+    # every generated row downstream draws from a seeded RNG, so adding an
+    # entry re-rolls each later value and rewrites unrelated fixtures. Renaming
+    # keeps the stream identical and only changes the string.
+    "QC": ("QC_DAILY_MATCH_001", "CD_MONITOR_DAILY_007", "QC_DAILY_MATCH_ABC123_PROD_00007"),
     "DEF": ("DEF_REVIEW_001",),
     "EDGE": ("EDGE_PROFILE_001", "EDGE_PROFILE_SCAN_ABC123_STD_00010")
 }
