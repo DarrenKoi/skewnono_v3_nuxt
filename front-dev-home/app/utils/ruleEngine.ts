@@ -34,17 +34,34 @@ export interface RuleCell {
   name_overrides: NameOverride[]
 }
 
-/**
- * `mother` — 이 파라미터 자신이 mother 인가 (idp 의 `Mother_Para`). son 은
- * mother 와 같은 image 에서 자기 cd_value 를 얻으므로 측정 시간(TAT)을 움직이는
- * 것은 mother 수입니다. mother_normal 버킷이 이 플래그로 좁혀집니다
- * (lotHealth.scopeRecipesToBucket).
- *
- * optional 인 것은 이 엔진 자체가 mother 를 보지 않기 때문입니다 — 좁히기는
- * 호출자가 미리 끝내고 들어옵니다. 룰 검증 테스트가 파라미터를 손으로 만들 때
- * 이 필드를 쓰지 않아도 되게 두었습니다.
- */
-export interface Parameter { name: string, point_count: number, mother?: boolean }
+export interface Parameter {
+  name: string
+  point_count: number
+  /**
+   * 이 파라미터 자신이 mother 인가 (idp 의 `Mother_Para`). son 은 mother 와 같은
+   * image 에서 자기 cd_value 를 얻으므로 측정 시간(TAT)을 움직이는 것은 mother
+   * 수입니다. mother_normal 버킷이 이 플래그로 좁혀집니다
+   * (lotHealth.scopeRecipesToBucket).
+   *
+   * optional 인 것은 룰 검증 테스트가 파라미터를 손으로 만들 때 이 필드를 쓰지
+   * 않아도 되게 두었기 때문입니다. 없으면 son 으로 봅니다.
+   */
+  mother?: boolean
+  /**
+   * 이 파라미터가 속한 **image definition 묶음**(idp 의
+   * `idp_image_info.Region`). 같은 region 인 파라미터들이 한 SEQ 그룹이고, 그
+   * 안에서 `mother` 인 하나가 image 의 주인, 나머지는 son 입니다
+   * (user-confirmed 2026-08-18). 화면에 "1/8, 2/8, 3/8" 으로 보이는 그 묶음이며,
+   * 분모는 `Last_SEQ` 입니다.
+   *
+   * 판정이 이 값을 보는 이유는 아래 `groupCaps` 에 적어 두었습니다.
+   *
+   * optional 인 것은 원천에서 **읽지 못할 수 있기** 때문입니다 — 그때는
+   * `undefined`/`null` 이고, 묶을 근거가 없으므로 파라미터마다 자기 cap 으로
+   * 판정합니다(2026-08-18 이전과 같은 동작).
+   */
+  region?: number | null
+}
 
 /** One recipe as it arrives from the backend (recipe-params dataset). */
 export interface RecipeInput {
@@ -129,6 +146,52 @@ export const capFor = (param: Parameter, cell: RuleCell): number | null => {
   return cell.caps._other
 }
 
+// =================== 그룹 cap — SEQ 묶음 (user-confirmed 2026-08-18) ===================
+
+/**
+ * region -> **그 그룹 mother 의 cap**. mother 가 없는 region 은 아예 넣지 않습니다.
+ *
+ * 왜 필요한가. idp 의 한 `Region` 은 image definition 1개이고, 화면에 "1/8,
+ * 2/8, 3/8 …" 으로 보이는 그 묶음입니다. 그 안에서 `Mother_Para` 인 하나가
+ * image 의 주인이고 son 들은 **그 image 에서** 자기 cd_value 를 꺼냅니다 — 즉
+ * 그룹 전체가 한 번의 측정이며, son 을 재는 데 드는 point 는 따로 없습니다.
+ *
+ * 그래서 son 을 자기 이름의 타입 cap 으로 재면 틀립니다. WAFER mother 가 13
+ * point 로 허용되면 같은 image 를 쓰는 CELL_SP·LWR 도 13 이어야 하는데, 이름이
+ * OTHER 라는 이유로 `_other`(9)에 걸려 **고칠 수 없는 위반**이 무더기로
+ * 잡혔습니다. 룰 자체는 한 번도 바뀐 적이 없고(WAFER 13 / LEVEL 4 는 전 셀
+ * 공통), 틀린 것은 "무엇을 무엇으로 재는가" 였습니다.
+ *
+ * 물려받는 것이 면제보다 나은 이유는 이빨이 남기 때문입니다 — LEVEL(4) mother
+ * 의 son 이 13 이면 여전히 위반입니다. 그룹이 통째로 판정 밖으로 나가지 않습니다.
+ *
+ * `Map` 에 **없음**과 값이 `null`은 다릅니다: 없음은 "이 그룹에 mother 가 없다
+ * (물려줄 것이 없음)", `null` 은 "mother 의 cap 이 무제한이며 son 도 무제한".
+ */
+export const groupCaps = (params: Parameter[], cell: RuleCell): Map<number, number | null> => {
+  const caps = new Map<number, number | null>()
+  for (const p of params) {
+    if (!p.mother || p.region == null) continue
+    // 한 region 에 mother 가 둘 이상이면 **먼저 나온 것**을 씁니다. 측정 순서가
+    // 곧 SEQ 순서이므로 앞선 쪽이 그 image 의 머리입니다.
+    if (!caps.has(p.region)) caps.set(p.region, capFor(p, cell))
+  }
+  return caps
+}
+
+/**
+ * 이 파라미터를 실제로 재는 cap. mother 와 "묶일 곳이 없는" 파라미터는 자기
+ * cap 이고, son 은 자기 그룹 mother 의 cap 입니다.
+ */
+export const effectiveCap = (
+  param: Parameter,
+  cell: RuleCell,
+  caps: Map<number, number | null>
+): number | null => {
+  if (param.mother || param.region == null) return capFor(param, cell)
+  return caps.has(param.region) ? caps.get(param.region)! : capFor(param, cell)
+}
+
 // =================== Cell resolution (D8 / D14) ===================
 
 export interface MergedRecipe extends Omit<RecipeInput, 'memory_class_auto'> {
@@ -209,8 +272,11 @@ export const evaluateRecipe = (recipe: MergedRecipe, res: CellResolution): Recip
       results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, violation: false }))
     }
   }
+  // son 은 mother 와 같은 image 를 쓰므로 자기 타입 cap 이 아니라 그룹 mother 의
+  // cap 으로 잽니다 (groupCaps 참고).
+  const caps = groupCaps(recipe.parameters, res.cell)
   const results = recipe.parameters.map((p): ParamResult => {
-    const cap = capFor(p, res.cell)
+    const cap = effectiveCap(p, res.cell, caps)
     return { name: p.name, point_count: p.point_count, type: deriveType(p.name), cap, violation: typeof cap === 'number' && p.point_count > cap }
   })
   const violation_params = results.filter(r => r.violation)

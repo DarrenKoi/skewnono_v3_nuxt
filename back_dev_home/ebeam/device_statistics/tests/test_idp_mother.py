@@ -14,10 +14,15 @@ from back_dev_home.ebeam.device_statistics.providers import office_example as oe
 # ────────────────────── raw_data -> mother 이름 ──────────────────────
 
 # 확인된 형태 (user-confirmed 2026-08-10): row dict 의 list.
+#
+# ``Region`` 은 image definition 묶음입니다 (user-confirmed 2026-08-18) — 세 row 가
+# 같은 Region 1 이므로 한 SEQ 그룹이고, 화면에는 "1/3, 2/3, 3/3" 으로 보입니다.
+# WAFER 가 그 image 의 주인(Mother_Para)이고 LEVEL·EDGE 는 같은 image 에서 자기
+# cd_value 를 꺼내는 son 입니다.
 _ROWS = [
-    {"Parameter": "WAFER", "Mother_Para": True, "SEQ": 1},
-    {"Parameter": "LEVEL", "Mother_Para": False, "SEQ": 2},
-    {"Parameter": "EDGE", "Mother_Para": False, "SEQ": 3},
+    {"Parameter": "WAFER", "Mother_Para": True, "SEQ": 1, "Region": 1},
+    {"Parameter": "LEVEL", "Mother_Para": False, "SEQ": 2, "Region": 1},
+    {"Parameter": "EDGE", "Mother_Para": False, "SEQ": 3, "Region": 1},
 ]
 
 
@@ -78,6 +83,72 @@ def test_blob_wrapping_the_three_idp_tables():
         "wafer_align_info": [{"P.No": 1}],
     }
     assert oe._mother_names(blob) == {"WAFER"}
+
+
+# ────────────────────── raw_data -> Region (SEQ 그룹) ──────────────────────
+#
+# Region 이 없으면 프론트엔드의 판정이 파라미터마다 자기 cap 으로 돌아가고,
+# WAFER(13) mother 의 son 이 이름 때문에 _other(9)에 걸려 고칠 수 없는 위반이
+# 됩니다 (utils/ruleEngine.groupCaps). mock 은 이 묶음을 늘 온전히 만들어 내므로
+# "원천이 Region 을 안 준다" 는 경우를 재현하지 못합니다 — 그 자리가 여기입니다.
+
+
+def test_reads_region_from_the_confirmed_row_list():
+    assert oe._param_regions(_ROWS) == {"WAFER": 1, "LEVEL": 1, "EDGE": 1}
+
+
+def test_missing_region_is_an_empty_dict_not_a_guess():
+    # 묶을 근거가 없으면 묶지 않습니다. 순서로 추측하면 son 에게 엉뚱한 mother 의
+    # cap 이 가고, 그 차이는 예외가 아니라 위반 수로만 나타납니다.
+    rows = [{"Parameter": name, "Mother_Para": False} for name in ("WAFER", "LEVEL")]
+    assert oe._param_regions(rows) == {}
+    assert oe._param_regions(None) == {}
+    assert oe._param_regions([]) == {}
+
+
+def test_region_survives_a_string_typed_ingest():
+    # Mother_Para 가 문자열로 실려 온 전례가 있으므로 Region 도 그럴 수 있습니다.
+    rows = [{"Parameter": "WAFER", "Region": "2"}]
+    assert oe._param_regions(rows) == {"WAFER": 2}
+
+
+def test_first_row_wins_when_a_parameter_repeats():
+    # 한 row 는 image definition 1개이므로 같은 Parameter 가 여러 row 에 나올 수
+    # 있습니다 (recipe_idp.txt). 이 표면의 단위는 parameter 라 먼저 나온 것을 씁니다.
+    rows = [
+        {"Parameter": "WAFER", "Region": 1},
+        {"Parameter": "WAFER", "Region": 4},
+    ]
+    assert oe._param_regions(rows) == {"WAFER": 1}
+
+
+def test_region_from_a_column_oriented_blob():
+    # 이 형태는 _raw_data_rows 가 row 를 **다시 조립**하므로, Region 을 함께 싣지
+    # 않으면 이 형태의 문서만 조용히 묶음을 잃습니다.
+    blob = {
+        "Parameter": {"0": "WAFER", "1": "LEVEL"},
+        "Mother_Para": {"0": True, "1": False},
+        "Region": {"0": 1, "1": 1},
+    }
+    assert oe._param_regions(blob) == {"WAFER": 1, "LEVEL": 1}
+    assert oe._mother_names(blob) == {"WAFER"}
+
+
+def test_region_from_a_blob_keyed_by_parameter_name():
+    blob = {
+        "WAFER": {"Mother_Para": True, "Region": 1},
+        "EDGE": {"Mother_Para": False, "Region": 2},
+    }
+    assert oe._param_regions(blob) == {"WAFER": 1, "EDGE": 2}
+
+
+def test_region_from_the_blob_wrapping_the_three_idp_tables():
+    blob = {
+        "idp_image_info": _ROWS,
+        "wafer_mp_info": [{"P_No": 1}],
+        "wafer_align_info": [{"P.No": 1}],
+    }
+    assert oe._param_regions(blob) == {"WAFER": 1, "LEVEL": 1, "EDGE": 1}
 
 
 # ────────────────────── parameters_list -> 측정 순서 ──────────────────────

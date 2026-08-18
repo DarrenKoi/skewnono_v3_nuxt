@@ -433,8 +433,8 @@ recipe open 화면(`recipe_search`)이 그 경로를 쓰는 것은 사용자가 
 어댑터의 현재 동작 (`providers/office_example.py`):
 
 1. `_IDP_SOURCE` 가 `raw_data` 를 **통째로가 아니라** `raw_data.Parameter` /
-   `raw_data.Mother_Para` 두 경로로만 내려받습니다. 통째로 받으면 recipe 1건의
-   parameter 표에 device 당 recipe 100~200 개가 곱해집니다.
+   `raw_data.Mother_Para` / `raw_data.Region` 세 경로로만 내려받습니다. 통째로
+   받으면 recipe 1건의 parameter 표에 device 당 recipe 100~200 개가 곱해집니다.
 2. `_raw_data_rows` 가 blob 을 row 목록으로 펴고 `_mother_names` 가 플래그를
    읽습니다. 확인된 형태는 row dict 의 list 이고, 나머지 분기(column 지향,
    이름-key, 세 table 을 감싼 형태)는 적재 표기가 바뀌었을 때를 위한 관용입니다.
@@ -447,6 +447,37 @@ recipe open 화면(`recipe_search`)이 그 경로를 쓰는 것은 사용자가 
 보여주는데 프론트엔드의 health 는 판정할 파라미터가 없어 0/0 이 되어, 한 표의
 열들이 서로 다른 답을 하는 화면이 됩니다. 빈 버킷은 눈에 보이고, 이유는 로그가
 말합니다.
+
+## Region — SEQ 그룹의 키 (user-confirmed 2026-08-18)
+
+`Mother_Para` 와 **같은 row** 에 `Region` 이 있고, 그것이 son 을 mother 밑에 묶는
+근거입니다. 같은 `Region` 인 파라미터들이 한 image definition 을 공유하며 화면에는
+"1/8, 2/8, 3/8 …" 으로 보입니다(분모는 `Last_SEQ`). 그 안의 `Mother_Para` 하나가
+image 의 주인이고 나머지는 son 입니다.
+
+프론트엔드의 계측 룰 판정이 이 묶음을 씁니다 — son 은 mother 와 같은 image 에서
+자기 cd_value 를 꺼내므로 **자기 이름의 타입 cap 이 아니라 mother 의 cap** 으로
+잽니다 (`front-dev-home/app/utils/ruleEngine.ts` 의 `groupCaps`/`effectiveCap`).
+이것이 없으면 WAFER(13) mother 의 son 인 `CELL_SP`·`LWR` 이 이름이 OTHER 라는
+이유로 `_other`(9)에 걸려, recipe 를 고쳐서 없앨 수 없는 위반이 무더기로 잡힙니다.
+룰 자체(WAFER 13 / LEVEL 4)는 전 셀 공통이고 바뀐 적이 없습니다.
+
+어댑터에서 이 값을 나르는 자리는 세 곳이며 **함께** 움직여야 합니다.
+
+| 자리 | 하는 일 |
+| --- | --- |
+| `_IDP_SOURCE` | `raw_data.Region` 을 내려받습니다. 빠지면 아래 둘이 볼 것이 없습니다 |
+| `_raw_data_rows` | column 지향 blob 을 row 로 되조립할 때 Region 컬럼도 함께 실습니다 |
+| `_param_regions` | row 목록에서 `{이름: Region}` 을 읽습니다. 판별 불가는 빈 dict |
+
+`_mother_names` 와 달리 "판별 불가" 를 `None` 으로 구분하지 않습니다 — Region 이
+없으면 프론트엔드가 예전 판정(파라미터별 자기 cap)으로 되돌아가는 안전한 기본값이
+있기 때문입니다. 대신 한 recipe 에서도 Region 을 못 읽으면 **경고를 남깁니다**:
+화면은 오류 없이 위반 수만 부풀므로 로그가 유일한 신호입니다.
+
+**남은 확인** — `Region` 이 실제로 이 index 의 `raw_data` 에 실려 있는지
+(`_param_regions` 는 없으면 조용히 빈 dict 이고, 위 경고가 그때 뜹니다). 그리고
+한 묶음의 크기 — 관찰된 예는 8개인데 mock 은 `MOTHER_SHARE` 때문에 2~4 개입니다.
 
 **남은 확인** — `Mother_Para` 가 index 에도 진짜 bool 로 실려 있는지. 파서 쪽은
 bool 이 확인되었지만(`docs/datatables/recipe_idp.txt`) 적재를 거치며 문자열이

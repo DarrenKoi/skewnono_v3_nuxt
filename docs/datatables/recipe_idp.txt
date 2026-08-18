@@ -223,8 +223,20 @@ dnumber_removed -> bool: 데이터 전송 제외 여부 (office 확인 2026-07-2
   얻습니다. 그래서 son 은 자기 image 를 따로 갖지 않아도 되고, img_* 슬롯이
   parameter 수보다 적게 나올 수 있습니다.
 
-  OFFICE-VERIFY: "보통 SEQ = 1" 이 불변식인지 경향인지는 recipe 여러 건을 봐야
-  합니다. 불변식이 아니면 화면에서 son 을 mother 밑에 묶는 UI 는 쓸 수 없습니다.
+  ★★ son 을 mother 밑에 묶는 근거는 SEQ 가 아니라 **Region** 입니다
+     (user-confirmed 2026-08-18). 같은 Region 인 row 들이 한 SEQ 그룹이고 —
+     화면의 "1/8, 2/8, 3/8 …", 분모는 Last_SEQ — 그 안에서 Mother_Para 인 하나가
+     그 image 의 주인입니다.
+
+         Parameter   Mother_Para   Region
+         WAFER       True          1
+         CELL_SP     False         1
+         LWR         False         1
+
+     그래서 "보통 SEQ = 1" 이 불변식이냐는 물음은 묶기에는 필요하지 않습니다 —
+     Region 이 같은지만 보면 되고, 그 값은 mother 와 같은 row 에 있습니다.
+     device-statistics 가 이 묶음으로 son 에게 mother 의 cap 을 물려줍니다
+     (docs/datatables/recipe_params.txt 의 "SEQ 그룹" 절).
 
   ★ 소비처가 둘입니다 (2026-08-04) — recipe open 화면 말고도
     **device-statistics 의 mother_normal 버킷**이 이 값을 필요로 합니다

@@ -67,7 +67,7 @@ parameters 를 버리고 보유/버전만 보지만, device-statistics 는 param
 - 따라서 질의는 recipe 당 `full_name.keyword` term + `version` desc 정렬 + `size: 1` 로
   좁히고, `_source` 도 필요한 field 로 제한합니다 — `parameters`,
   `parameters_list`, 그리고 `raw_data` 는 **통째로가 아니라** `raw_data.Parameter` /
-  `raw_data.Mother_Para` 두 경로만.
+  `raw_data.Mother_Para` / `raw_data.Region` 세 경로만.
 
 주의 — payload. device 1개가 recipe 를 100~200개 가지므로(docs/datatables/
 recipe_params.txt), recipe 마다 parameters blob 을 받으면 위 "200건이면 응답이
@@ -178,10 +178,17 @@ parameter 별 상세 row 가 담긴 object 이고, **``Mother_Para`` 가 여기 
 확인된 형태는 row dict 의 list 입니다.
 
     raw_data = [
-      {"Parameter": "WAFER", "Mother_Para": True,  "SEQ": 1, ...},
-      {"Parameter": "LEVEL", "Mother_Para": False, "SEQ": 2, ...},
+      {"Parameter": "WAFER", "Mother_Para": True,  "SEQ": 1, "Region": 1, ...},
+      {"Parameter": "LEVEL", "Mother_Para": False, "SEQ": 2, "Region": 1, ...},
       ...
     ]
+
+**``Region`` 도 여기 있고, 그것이 SEQ 그룹의 키입니다** (user-confirmed
+2026-08-18). 같은 Region 인 row 들이 한 image definition 을 공유하며 화면에는
+"1/8, 2/8, 3/8 …" 으로 보입니다. device-statistics 는 이 묶음으로 son 에게 mother
+의 cap 을 물려줍니다 — 없으면 WAFER(13) mother 의 son 인 CELL_SP·LWR 이 이름이
+OTHER 라는 이유로 _other(9)에 걸려 고칠 수 없는 위반이 됩니다
+(docs/datatables/recipe_params.txt 의 "SEQ 그룹" 절).
 
 이것으로 오래 열려 있던 문제가 닫힙니다. 그전까지 ``Mother_Para`` 는 장비 FTP 의
 ``.idp`` 원본 파일에서만 읽을 수 있다고 보았고(recipe_idp.txt), device 4000개 ×
@@ -191,8 +198,8 @@ mother_normal 버킷을 비워 두고 있었습니다. recipe-search 의 recipe-
 
 ★ 통째로 받으면 안 됩니다. recipe 1건의 parameter 표 전체이고 device 당 recipe
   100~200 개가 곱해집니다 — 위 payload 주의가 그대로 적용됩니다. 어댑터는
-  ``_source`` 를 ``raw_data.Parameter`` / ``raw_data.Mother_Para`` 두 경로로
-  좁혀 배열 구조만 유지한 채 두 컬럼만 받습니다.
+  ``_source`` 를 ``raw_data.Parameter`` / ``raw_data.Mother_Para`` /
+  ``raw_data.Region`` 세 경로로 좁혀 배열 구조만 유지한 채 세 컬럼만 받습니다.
 
 ★ bool 로 실려 오는지 확인이 필요합니다 (OFFICE-VERIFY). ``.idp`` 파서 쪽은 진짜
   bool 이지만(recipe_idp.txt), 적재를 거치며 문자열이 되었을 수 있습니다.

@@ -170,6 +170,19 @@ class ParameterRow(TypedDict):
     # 프론트엔드는 mother_normal 버킷에서 이 플래그로 파라미터를 걸러 계측 룰을
     # 검증하고 outlier 기준선을 잡습니다 (utils/lotHealth.scopeRecipesToBucket).
     mother: bool
+    # 이 파라미터가 속한 image definition 묶음 (idp_image_info.Region —
+    # user-confirmed 2026-08-18). 같은 region = 한 SEQ 그룹이고, 화면에
+    # "1/8, 2/8, 3/8" 으로 보이는 그 묶음입니다(분모는 Last_SEQ).
+    #
+    # 그룹 안에서 mother 인 하나가 image 의 주인이고 나머지는 son 입니다. 그룹
+    # 전체가 **한 번의 측정**이므로 프론트엔드의 계측 룰 판정은 son 을 자기 이름의
+    # 타입 cap 이 아니라 mother 의 cap 으로 잽니다 (ruleEngine.groupCaps). 이 값이
+    # 없으면 WAFER(13) mother 의 son 인 CELL_SP·LWR 이 이름이 OTHER 라는 이유로
+    # _other(9)에 걸려, recipe 를 고쳐서 없앨 수 없는 위반이 무더기로 잡힙니다.
+    #
+    # None 은 "이 문서에서 Region 을 읽지 못했다" 입니다 — 묶을 근거가 없으므로
+    # 프론트엔드가 파라미터마다 자기 cap 으로 판정합니다(2026-08-18 이전 동작).
+    region: int | None
 
 
 class RecipeParamsRow(TypedDict):

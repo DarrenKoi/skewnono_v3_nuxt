@@ -38,6 +38,9 @@ from back_dev_home.ebeam.device_statistics.contracts import (
     ParameterRow,
     RecipeParamsRow,
 )
+from back_dev_home.ebeam.device_statistics.para_buckets import (
+    has_non_measurement_name,
+)
 from back_dev_home.ebeam.device_statistics.providers.recipe_population import (
     MOTHER_SHARE,
     RecipeIdentity,
@@ -190,9 +193,12 @@ def _build_parameters(
     params: list[ParameterRow] = []
 
     def add(name: str, lo: int, hi: int) -> None:
-        # mother 는 _mark_mothers 가 나중에 켭니다 — 여기서 굴리면 아래 난수 순서가
-        # 밀려 기존 point_count 가 전부 다른 값이 됩니다.
-        params.append({"name": name, "point_count": rng.randint(lo, hi), "mother": False})
+        # mother·region 은 _assign_regions 가 나중에 채웁니다 — 여기서 굴리면 아래
+        # 난수 순서가 밀려 기존 point_count 가 전부 다른 값이 됩니다.
+        params.append({
+            "name": name, "point_count": rng.randint(lo, hi),
+            "mother": False, "region": None,
+        })
 
     add(rng.choice(WAFER_NAMES), *TYPICAL_POINTS["WAFER"])
     for name in rng.sample(LEVEL_NAMES, rng.randint(1, 4)):
@@ -210,7 +216,10 @@ def _build_parameters(
     # over_measured recipe: push ONE EDGE param far above its peers so both the
     # within-device outlier detector and the R3 EDGE cap flag it.
     if over_measured and params:
-        params[-1] = {"name": "EDGE_R", "point_count": rng.randint(40, 60), "mother": False}
+        params[-1] = {
+            "name": "EDGE_R", "point_count": rng.randint(40, 60),
+            "mother": False, "region": None,
+        }
 
     # 특수 측정 job 은 배율만 먹입니다 — 이름·개수·순서는 그대로 두어야 위 난수
     # 순서가 한 칸도 밀리지 않습니다. 아래 Dummy/Align 을 **붙이기 전에** 거는
@@ -237,15 +246,56 @@ def _build_parameters(
     # OFFICE-VERIFY: "가끔" 의 실제 비율은 확인된 바 없습니다.
     if helpers:
         for name, point_count in reversed(NON_MEASUREMENT_PARAMS):
-            params.insert(0, {"name": name, "point_count": point_count, "mother": False})
+            params.insert(0, {
+                "name": name, "point_count": point_count,
+                "mother": False, "region": None,
+            })
 
     return params
 
 
-def _mark_mothers(
-    params: list[ParameterRow], has_mother: bool, mother_rng: random.Random
+def _assign_regions(
+    params: list[ParameterRow],
+    has_mother: bool,
+    mother_rng: random.Random,
+    force_head_last: bool = False,
 ) -> None:
-    """``parameters`` 중 mother 인 것을 켭니다 (제자리 수정).
+    """``parameters`` 를 **image definition 묶음**(region)으로 갈라, 각 묶음의 머리를
+    mother 로 켭니다 (제자리 수정).
+
+    실물에서 idp 의 한 ``Region`` 이 image definition 1개이고, 같은 region 인
+    파라미터들이 한 SEQ 그룹입니다 — 화면의 "1/8, 2/8, 3/8 …" 이 그 묶음이고
+    그 안의 ``Mother_Para`` 하나가 image 의 주인, 나머지는 son 입니다
+    (user-confirmed 2026-08-18). son 은 mother 와 **같은 image** 에서 자기 cd_value
+    를 꺼내므로, 프론트엔드의 계측 룰 판정은 son 을 자기 이름의 타입 cap 이 아니라
+    그 묶음 mother 의 cap 으로 잽니다 (ruleEngine.groupCaps).
+
+    그래서 mother 를 **흩어 놓으면 안 됩니다.** 2026-08-18 이전에는 index 를
+    무작위로 골라 켰고, 그러면 "mother 가 자기 묶음의 머리" 라는 성질이 없어 son 을
+    mother 에 이어 붙일 방법 자체가 없습니다. 묶음을 연속 구간으로 잡는 것은
+    파라미터 순서가 곧 측정 순서(= SEQ 순서)이기 때문입니다
+    (docs/datatables/recipe_params.txt).
+
+    ★ **son 의 point 수는 mother 를 따라가지 않고, 다만 넘지 않습니다.**
+
+      실물 문서 1건이 ``{'EDGE': 10, 'LEVEL': 4, 'WAFER': 10}`` 이고 그 WAFER 가
+      mother, LEVEL 이 son 입니다 (docs/datatables/idp_ver.txt) — son 이 mother
+      보다 **적게** 잰 경우입니다. 반대로 묶음이 통째로 같은 값인 경우(WAFER 13 에
+      son 도 13)도 실물에 있습니다 (user-confirmed 2026-08-18). 둘 중 하나로
+      고정하면 없는 규칙을 지어내는 셈이라, 뽑은 값을 그대로 두고 **머리보다 큰
+      값만 머리에 맞춰 내립니다**.
+
+      내리는 이유는 그러지 않으면 mock 이 거짓을 가르치기 때문입니다. 묶음의
+      경계가 난수라 EDGE(6~14) son 이 LEVEL(1~4) mother 밑에 자주 들어가고, 그러면
+      물려받은 cap 4 를 넘겨 **집에서만 존재하는 위반**이 무더기로 잡힙니다. 실물
+      에서 son 은 mother 의 image 안에서 재므로 그 image 가 주는 point 보다 많이
+      잴 수 없고, 따라서 son 위반은 mother 가 이미 자기 cap 을 넘었을 때나
+      나타납니다.
+
+      OFFICE-VERIFY: "son ≤ mother" 는 확인된 문서 1건과 "같은 image 를 쓴다" 는
+      사실에서 따라오는 **추론**입니다. son 이 한 site 에서 여러 값을 재어 mother
+      보다 point 가 많아지는 형태라면 틀립니다. 판정 자체는 어느 쪽이든 옳게
+      동작하므로(넘으면 위반), 틀렸을 때 잃는 것은 mock 의 사실성뿐입니다.
 
     ``has_mother`` 는 :func:`recipe_population.build_population` 이 만든
     identity 가 정합니다 — 이 표면이 따로 굴리면 안 됩니다. recipe-statistics 의
@@ -253,16 +303,54 @@ def _mark_mothers(
     어긋나면 **버킷에는 있는데 mother 파라가 하나도 없는 recipe** 가 생기고
     프론트엔드의 health 가 조용히 0/0(판정 없음)으로 떨어집니다.
 
-    ``mother_rng`` 를 따로 받는 이유도 같습니다 — 위 point_count 를 뽑는 rng 를
-    여기서 더 굴리면 뒤따르는 recipe 의 파라미터 값이 전부 달라집니다.
+    region 은 ``has_mother`` 와 **무관하게** 붙입니다 — 실물의 Region 은 mother 를
+    읽을 수 있는지와 상관없이 존재하고, mother 없는 묶음에서 프론트엔드가 각자 자기
+    cap 으로 되돌아가는 경로가 집에서 실제로 실행되어야 합니다.
+
+    ``mother_rng`` 를 따로 받는 이유는 위 point_count 를 뽑는 rng 를 여기서 더
+    굴리면 뒤따르는 recipe 의 파라미터 값이 전부 달라지기 때문입니다.
+
+    ``force_head_last`` 는 마지막 파라미터를 반드시 묶음의 머리로 둡니다 —
+    over_measured recipe 가 심어 둔 EDGE_R 과다측정이 son 이 되면 mother 의 큰
+    cap 뒤로 숨어, outlier·cap 두 신호가 함께 사라집니다.
     """
-    if not has_mother or not params:
+    # Dummy·Align 은 측정 파라미터가 아니라 image 묶음에 들지 않습니다. 맨 앞의
+    # 연속된 것만 걷어내는 것은 para_buckets.measurement_parameters 와 같은
+    # 규칙입니다 — 목록 뒤쪽의 "CD_ALIGN" 같은 진짜 측정 파라미터는 남깁니다.
+    start = 0
+    while start < len(params) and has_non_measurement_name(params[start]["name"]):
+        params[start]["region"] = None
+        start += 1
+
+    body = len(params) - start
+    if body <= 0:
         return
-    # son 이 mother 의 image 를 함께 쓰므로 mother 는 소수입니다. 최소 1개는
-    # 반드시 켜야 has_mother 가 참이라는 identity 의 말과 일치합니다.
-    count = max(1, round(len(params) * mother_rng.uniform(*MOTHER_SHARE)))
-    for index in mother_rng.sample(range(len(params)), min(count, len(params))):
-        params[index]["mother"] = True
+
+    # 묶음 개수 = mother 개수 (묶음마다 머리가 하나). son 이 mother 의 image 를 함께
+    # 쓰므로 mother 는 소수이고, 따라서 한 묶음에 여럿이 들어갑니다.
+    #
+    # OFFICE-VERIFY: 실물에서 관찰된 묶음 하나는 8개짜리("1/8 … 8/8")로 이 비중이
+    # 만드는 2~4 보다 큽니다. MOTHER_SHARE 는 recipe_population 과 **공유하는**
+    # 값이라 여기서만 넓히면 두 표면의 mother 수가 갈라집니다.
+    group_count = min(body, max(1, round(body * mother_rng.uniform(*MOTHER_SHARE))))
+    heads = {start}
+    if group_count > 1:
+        heads.update(mother_rng.sample(range(start + 1, len(params)), group_count - 1))
+    if force_head_last:
+        heads.add(len(params) - 1)
+
+    region = 0
+    head_points = 0
+    for index in range(start, len(params)):
+        if index in heads:
+            region += 1
+            params[index]["mother"] = has_mother
+            head_points = params[index]["point_count"]
+        else:
+            # son 은 머리의 image 안에서 재므로 그보다 많이 잴 수 없습니다.
+            # 자르기만 하므로 rng 는 한 번도 더 굴리지 않습니다.
+            params[index]["point_count"] = min(params[index]["point_count"], head_points)
+        params[index]["region"] = region
 
 
 def _build_recipe(
@@ -297,7 +385,10 @@ def _build_recipe(
     )
     # mother 보유 여부는 identity 가 정합니다 — recipe-statistics 의 mother_normal
     # 버킷 멤버십과 같은 원천이어야 두 표면이 갈라지지 않습니다.
-    _mark_mothers(parameters, mother_para_all(identity) > 0, mother_rng)
+    _assign_regions(
+        parameters, mother_para_all(identity) > 0, mother_rng,
+        force_head_last=over_measured,
+    )
 
     return {
         "lot_cd": lot_cd,

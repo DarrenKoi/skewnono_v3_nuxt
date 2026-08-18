@@ -658,6 +658,11 @@ _MOTHER_KEYS = ("Mother_Para", "mother_para", "mother")
 # raw_data row 에서 parameter 이름이 실린 key. idp 원본 컬럼명은 ``Parameter``.
 _PARAM_NAME_KEYS = ("Parameter", "parameter", "name")
 
+# image definition 묶음이 실릴 수 있는 key 이름. idp 원본 컬럼명은 ``Region``
+# 입니다 (docs/datatables/recipe_idp.txt). 같은 Region = 한 SEQ 그룹이고, 그 안의
+# Mother_Para 하나가 image 의 주인입니다 (user-confirmed 2026-08-18).
+_REGION_KEYS = ("Region", "region")
+
 # raw_data 가 .idp 의 세 table 을 통째로 감싼 형태일 때 mother 가 든 table.
 _IDP_IMAGE_TABLE = "idp_image_info"
 
@@ -675,8 +680,10 @@ _IDP_SOURCE = [
     "parameters_list",
     "raw_data.Parameter",
     "raw_data.Mother_Para",
+    "raw_data.Region",
     f"raw_data.{_IDP_IMAGE_TABLE}.Parameter",
     f"raw_data.{_IDP_IMAGE_TABLE}.Mother_Para",
+    f"raw_data.{_IDP_IMAGE_TABLE}.Region",
 ]
 
 
@@ -801,8 +808,17 @@ def _raw_data_rows(blob: Any) -> list[dict[str, Any]] | None:
         # column 지향 (``DataFrame.to_dict()``) — {컬럼: {행 index: 값}}.
         name_key = next((key for key in _PARAM_NAME_KEYS if key in blob), "")
         names = _column_values(blob.get(name_key)) if name_key else {}
+        # Region 도 함께 실어야 합니다 — 여기서 흘리면 이 형태의 문서만 SEQ 그룹을
+        # 잃고, 그 손실은 예외가 아니라 "이 문서에서만 son 이 자기 cap 으로 잡힌다"
+        # 로 조용히 나타납니다.
+        region_key = next((key for key in _REGION_KEYS if key in blob), "")
+        regions = _column_values(blob[region_key]) if region_key else {}
         return [
-            {"Parameter": names.get(index), mother_key: value}
+            {
+                "Parameter": names.get(index),
+                mother_key: value,
+                **({region_key: regions[index]} if index in regions else {}),
+            }
             for index, value in _column_values(blob[mother_key]).items()
         ] or None
 
@@ -847,11 +863,58 @@ def _mother_names(raw_data: Any) -> set[str] | None:
     return mothers if readable else None
 
 
+def _param_regions(raw_data: Any) -> dict[str, int]:
+    """``raw_data`` -> ``{parameter 이름: Region}``. 읽을 수 없으면 빈 dict.
+
+    한 ``Region`` 은 image definition 1개이고, 같은 Region 인 파라미터들이 한 SEQ
+    그룹입니다 — 화면의 "1/8, 2/8, 3/8 …" 이 그 묶음이고 그 안의 ``Mother_Para``
+    하나가 image 의 주인, 나머지는 son 입니다 (user-confirmed 2026-08-18).
+
+    프론트엔드의 계측 룰 판정이 이 값을 씁니다: son 은 mother 와 같은 image 에서
+    자기 cd_value 를 꺼내므로 자기 이름의 타입 cap 이 아니라 **그 묶음 mother 의
+    cap** 으로 잽니다 (utils/ruleEngine.groupCaps). 이 값이 비면 판정은 파라미터
+    마다 자기 cap 으로 돌아가고, WAFER(13) mother 의 son 인 CELL_SP·LWR 이 이름이
+    OTHER 라는 이유로 ``_other``(9)에 걸려 **고칠 수 없는 위반**이 됩니다.
+
+    :func:`_mother_names` 와 달리 "판별 불가" 를 ``None`` 으로 구분하지 않습니다 —
+    Region 이 없으면 프론트엔드가 예전 판정(파라미터별 자기 cap)으로 되돌아가는
+    안전한 기본값이 있고, 판별 불가의 경고는 이미 mother 쪽이 냅니다. 두 값은 같은
+    row 에서 오므로 한쪽이 안 읽히면 다른 쪽도 대개 안 읽힙니다.
+
+    ``Region`` 은 wafer_mp_info 의 ``P_No`` 와 같은 값이며 recipe 안에서만 뜻이
+    있습니다 (docs/datatables/recipe_idp.txt) — recipe 를 가로질러 비교하지
+    마십시오.
+    """
+    rows = _raw_data_rows(raw_data)
+    if rows is None:
+        return {}
+
+    regions: dict[str, int] = {}
+    for row in rows:
+        raw = next((row[key] for key in _REGION_KEYS if key in row), None)
+        if raw is None:
+            continue
+        name = next(
+            (n for n in (_text(row.get(key)) for key in _PARAM_NAME_KEYS) if n), ""
+        )
+        # 같은 parameter 가 여러 row(=여러 image definition)에 나올 수 있습니다
+        # (recipe_idp.txt: "img_* 5개의 주인은 row 이며 Parameter 가 아닙니다").
+        # 이 표면의 단위는 parameter 이므로 **먼저 나온 것**을 씁니다 — 측정 순서가
+        # 곧 SEQ 순서이니 앞선 row 가 그 parameter 를 처음 재는 자리입니다.
+        if name and name not in regions:
+            regions[name] = _as_int(raw)
+    return regions
+
+
 def _idp_parameters(
     recipe_ids: list[str]
-) -> tuple[dict[str, dict[str, int]], dict[str, set[str]] | None]:
-    """recipe_id -> ``{parameter_name: point_count}`` (최신 version 1건) 과
-    recipe_id -> ``{mother 인 parameter 이름}``.
+) -> tuple[
+    dict[str, dict[str, int]],
+    dict[str, set[str]] | None,
+    dict[str, dict[str, int]],
+]:
+    """recipe_id -> ``{parameter_name: point_count}`` (최신 version 1건),
+    recipe_id -> ``{mother 인 parameter 이름}``, recipe_id -> ``{이름: Region}``.
 
     recipe 마다 질의를 날리면 device 하나에 100~200 왕복이 됩니다. terms 집계 +
     ``top_hits(size=1, sort=version desc)`` 로 **device 당 1회**로 줄이고
@@ -863,7 +926,11 @@ def _idp_parameters(
       parameters       {이름: point 수}. para_* 구간 집계의 입력입니다.
       parameters_list  **측정 순서**의 이름 목록. parameters 의 key 순서는 측정
                        순서가 아니므로 화면 순서는 이쪽이 정합니다.
-      raw_data         parameter 별 row. ``Mother_Para`` 가 여기 있습니다.
+      raw_data         parameter 별 row. ``Mother_Para`` 와 ``Region`` 이 여기
+                       있습니다. Region 은 image definition 묶음(SEQ 그룹)이며,
+                       프론트엔드가 son 에게 mother 의 cap 을 물려줄 때 쓰는
+                       유일한 근거입니다 (user-confirmed 2026-08-18,
+                       :func:`_param_regions`).
 
     ★ mother_para 의 출처 — 해결됨 (office 확인 2026-08-10)
 
@@ -881,10 +948,11 @@ def _idp_parameters(
     """
     unique = [rid for rid in dict.fromkeys(recipe_ids) if rid]
     if not unique:
-        return {}, None
+        return {}, None, {}
 
     out: dict[str, dict[str, int]] = {}
     mothers_out: dict[str, set[str]] = {}
+    regions_out: dict[str, dict[str, int]] = {}
     readable = 0
     for start in range(0, len(unique), _IDP_CHUNK):
         chunk = unique[start:start + _IDP_CHUNK]
@@ -915,9 +983,13 @@ def _idp_parameters(
             out[recipe_id] = _ordered_parameters(
                 params, source.get("parameters_list")
             )
+            raw_data = source.get("raw_data")
+            regions = _param_regions(raw_data)
+            if regions:
+                regions_out[recipe_id] = regions
             # raw_data 가 정본입니다. list 형태 parameters 가 플래그를 실어 준
             # 경우만 그 값으로 물러섭니다.
-            mothers = _mother_names(source.get("raw_data"))
+            mothers = _mother_names(raw_data)
             if mothers is None and list_mothers:
                 mothers = list_mothers
             if mothers is None:
@@ -936,7 +1008,7 @@ def _idp_parameters(
             "(scripts/probe_planstep_r3 stage [5] prints raw_data's real shape).",
             len(unique), IDP_INDEX, _IDP_SOURCE,
         )
-        return out, None
+        return out, None, regions_out
     if not mothers_out:
         # 위와 정반대의 상태 — 읽히기는 했는데 전부 False 입니다. recipe 마다
         # mother 가 보통 1개는 있으므로(recipe_idp.txt) 이것도 정상은 아닙니다.
@@ -946,7 +1018,19 @@ def _idp_parameters(
             "whether the flag is being ingested as a string ('False'/'N').",
             readable, len(unique), IDP_INDEX,
         )
-    return out, mothers_out
+    if not regions_out:
+        # Region 이 없으면 프론트엔드의 판정이 파라미터마다 자기 cap 으로 돌아가고,
+        # WAFER(13) mother 의 son 인 CELL_SP·LWR 이 이름 때문에 _other 에 걸려
+        # **고칠 수 없는 위반**이 됩니다. 화면은 오류 없이 위반 수만 부풀므로
+        # 로그가 유일한 신호입니다.
+        _LOG.warning(
+            "device_statistics: no Region on any of %d recipe(s) in %r — SEQ "
+            "groups are unavailable, so son parameters will be judged against "
+            "their own type cap instead of their mother's. Fetched %s; if the "
+            "column moved, fix _IDP_SOURCE and _param_regions together.",
+            len(unique), IDP_INDEX, _IDP_SOURCE,
+        )
+    return out, mothers_out, regions_out
 
 
 def _percent(part: int, total: int) -> float:
@@ -1091,7 +1175,7 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
         memory_class = _memory_class_auto(prod_catg_cd)
 
         steps = _steps_for(lot_cd, fac_id)
-        params_by_recipe, mothers_by_recipe = _idp_parameters(
+        params_by_recipe, mothers_by_recipe, regions_by_recipe = _idp_parameters(
             [s["recipe_id"] for s in steps]
         )
 
@@ -1117,11 +1201,16 @@ def get_recipe_params(lot_cds: list[str] | None = None) -> list[RecipeParamsRow]
             # ``parameters_list`` 이며, 재배열은 _ordered_parameters 가 이미
             # 끝냈습니다 (office 확인 2026-08-10 — 두 field 의 순서가 실제로
             # 다릅니다). 여기는 그 순서를 **그대로 흘려보내기만** 합니다.
+            # Region 은 image definition 묶음(SEQ 그룹)입니다. 못 읽으면 None 이고,
+            # 그때 프론트엔드는 파라미터마다 자기 cap 으로 판정합니다 — 묶을 근거가
+            # 없는데 임의로 묶으면 son 에게 엉뚱한 mother 의 cap 이 갑니다.
+            regions = regions_by_recipe.get(recipe_id, {})
             parameters: list[ParameterRow] = [
                 {
                     "name": name,
                     "point_count": point_count,
                     "mother": name in mothers,
+                    "region": regions.get(name),
                 }
                 for name, point_count in params_by_recipe.get(recipe_id, {}).items()
             ]
@@ -1233,7 +1322,7 @@ def _live_bucket(lot_cds: list[str], include_recipes: bool) -> TrendBucket:
             continue
         ctn_desc = meta.get(lot_cd, {}).get("ctn_desc", "")
         steps = _steps_for(lot_cd, fac_id)
-        params_by_recipe, mothers_by_recipe = _idp_parameters(
+        params_by_recipe, mothers_by_recipe, _ = _idp_parameters(
             [s["recipe_id"] for s in steps]
         )
 
@@ -1486,7 +1575,7 @@ if __name__ == "__main__":
     # mother 를 실제로 조회해서 넘깁니다 — 기본값으로 부르면 mother_normal 이
     # 늘 0 으로 나와, 진단이 "읽지 못했다" 를 "이 device 에 mother 가 없음" 처럼
     # 보여 줍니다.
-    _, mothers_by_recipe = _idp_parameters([s["recipe_id"] for s in steps])
+    _, mothers_by_recipe, _regions = _idp_parameters([s["recipe_id"] for s in steps])
     members = _bucket_members(steps, mothers_by_recipe)
     print("\n  버킷별 스텝 수:")
     for name in RCP_BUCKETS:

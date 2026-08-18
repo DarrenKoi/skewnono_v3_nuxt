@@ -325,3 +325,84 @@ test('D17 evaluateLot threads thresholds through to health', () => {
   assert.equal(evaluateLot('R3K-12', recipes, [coreEarlyDram]).health, 'red')
   assert.equal(evaluateLot('R3K-12', recipes, [coreEarlyDram], undefined, { yellow_at: 0.6, red_at: 0.8 }).health, 'green')
 })
+
+// --- SEQ group (region): son 은 mother 의 cap 을 물려받습니다 (user-confirmed 2026-08-18) ---
+// idp 의 한 Region 은 image definition 1개이고, 그 안에서 Mother_Para=True 인
+// parameter 1개가 mother, 나머지는 son 입니다. son 은 mother 와 **같은 image** 에서
+// 자기 cd_value 를 얻으므로 자기 이름의 타입 cap 이 아니라 mother 의 cap 을 씁니다.
+const seqRecipe = (params: Array<{ name: string, point_count: number, mother?: boolean, region?: number | null }>) =>
+  recipe({ parameters: params.map(p => ({ mother: false, ...p })) })
+
+test('SEQ group: son 이 mother(WAFER 13) 의 cap 을 물려받아 13 이 위반이 아니다', () => {
+  // 실물 관찰: WAFER 1/8, CELL_SP 2/8, LWR 3/8 이 같은 Region 이고 모두 13 point.
+  const r = seqRecipe([
+    { name: 'WAFER', point_count: 13, mother: true, region: 1 },
+    { name: 'CELL_SP', point_count: 13, region: 1 },
+    { name: 'LWR', point_count: 13, region: 1 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.deepEqual(res.violation_params.map(p => p.name), [])
+  assert.deepEqual(res.results.map(p => p.cap), [13, 13, 13])
+})
+
+test('SEQ group: 물려받은 cap 에도 이빨이 있다 — LEVEL(4) mother 의 son 은 13 이면 위반', () => {
+  const r = seqRecipe([
+    { name: 'LEVEL_1', point_count: 4, mother: true, region: 2 },
+    { name: 'CELL_SP', point_count: 13, region: 2 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.deepEqual(res.violation_params.map(p => p.name), ['CELL_SP'])
+  assert.equal(res.results[1]?.cap, 4)
+})
+
+test('SEQ group: mother 의 면제(cap=null)도 son 에게 이어진다', () => {
+  // Sample 셀의 WAFER/WF affix override 는 cap=null(무제한)입니다. 이 override 는
+  // OTHER 타입에만 걸리므로(D9) mother 이름을 'CD_WF' 로 둡니다 — 'WAFER_CD' 는
+  // 타입이 WAFER 라 타입 cap 13 이 이깁니다.
+  const r = recipe({
+    recipe_class: 'Sample',
+    parameters: [
+      { name: 'CD_WF', point_count: 40, mother: true, region: 1 },
+      { name: 'CELL_SP', point_count: 40, mother: false, region: 1 }
+    ]
+  })
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [sampleDram]))
+  assert.deepEqual(res.violation_params.map(p => p.name), [])
+})
+
+test('SEQ group: region 이 다르면 물려받지 않는다', () => {
+  const r = seqRecipe([
+    { name: 'WAFER', point_count: 13, mother: true, region: 1 },
+    { name: 'CELL_SP', point_count: 13, region: 2 } // 다른 image — 스스로 잽니다
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.deepEqual(res.violation_params.map(p => p.name), ['CELL_SP'])
+})
+
+test('SEQ group: mother 가 없는 region 은 각자 자기 cap 으로 판정한다', () => {
+  const r = seqRecipe([
+    { name: 'WAFER', point_count: 13, region: 3 },
+    { name: 'CELL_SP', point_count: 13, region: 3 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.deepEqual(res.violation_params.map(p => p.name), ['CELL_SP'])
+})
+
+test('SEQ group: region 이 없는(판별 불가) 파라미터는 예전 그대로 자기 cap', () => {
+  const r = seqRecipe([
+    { name: 'WAFER', point_count: 13, mother: true },
+    { name: 'CELL_SP', point_count: 13 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.deepEqual(res.violation_params.map(p => p.name), ['CELL_SP'])
+})
+
+test('SEQ group: mother 자신은 언제나 자기 cap 으로 판정한다', () => {
+  const r = seqRecipe([
+    { name: 'CELL_SP', point_count: 13, mother: true, region: 1 }, // _other 9
+    { name: 'LWR', point_count: 13, region: 1 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  // mother 가 자기 cap 을 넘었으므로 둘 다 위반입니다 (son 은 물려받은 9 를 넘음).
+  assert.deepEqual(res.violation_params.map(p => p.name), ['CELL_SP', 'LWR'])
+})

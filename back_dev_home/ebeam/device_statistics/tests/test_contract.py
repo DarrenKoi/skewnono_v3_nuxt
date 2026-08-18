@@ -169,6 +169,90 @@ def test_parameter_order_is_the_recipe_order_not_alphabetical():
             assert measured and measured[0].startswith("WAFER"), names
 
 
+def test_region_groups_have_at_most_one_mother_and_are_contiguous():
+    """``region`` 은 image definition 묶음(SEQ 그룹)이고 mother 는 그 머리입니다.
+
+    프론트엔드의 계측 룰 판정이 이 구조에 그대로 기댑니다 — son 을 자기 이름의
+    타입 cap 이 아니라 **그 묶음 mother 의 cap** 으로 잽니다
+    (utils/ruleEngine.groupCaps, user-confirmed 2026-08-18). 그래서 지켜야 할 것이
+    둘입니다.
+
+      묶음마다 mother 는 최대 하나   둘이면 어느 cap 을 물려줄지가 순서에 달리고,
+                                     그 차이는 예외가 아니라 "위반 수가 조금 다르다"
+                                     로만 나타납니다.
+      묶음은 연속 구간               파라미터 순서가 곧 측정 순서(SEQ 순서)입니다.
+                                     흩어져 있으면 화면의 "1/8, 2/8 …" 이 성립하지
+                                     않습니다.
+
+    어느 provider 가 답하든 걸리는 계약입니다.
+    """
+    rows = data.get_recipe_params([_sample_lot_cd()])
+    if not rows:
+        pytest.skip("no recipe rows for this lot")
+
+    for row in rows:
+        seen: list[int] = []
+        mothers: dict[int, int] = {}
+        for param in row["parameters"]:
+            region = param["region"]
+            if region is None:
+                # 묶을 근거가 없는 파라미터(비측정 파라미터, 또는 원천에서 Region
+                # 을 읽지 못한 문서)입니다 — 프론트엔드가 자기 cap 으로 판정합니다.
+                continue
+            if not seen or seen[-1] != region:
+                assert region not in seen, (
+                    f"{row['recipe_id']} 의 region {region} 이 끊겼다 다시 나옵니다 "
+                    f"— 묶음은 연속 구간이어야 합니다"
+                )
+                seen.append(region)
+            if param["mother"]:
+                mothers[region] = mothers.get(region, 0) + 1
+                assert mothers[region] == 1, (
+                    f"{row['recipe_id']} 의 region {region} 에 mother 가 둘 이상입니다"
+                )
+
+        if _is_mock():
+            # mock 은 묶음의 **머리**를 mother 로 켭니다. mother 가 하나라도 있는
+            # recipe 라면 모든 묶음에 머리가 있어야 합니다 — 일부 묶음만 머리가
+            # 없으면 그 묶음의 son 들이 조용히 예전 판정(자기 cap)으로 돌아갑니다.
+            if mothers:
+                assert set(mothers) == set(seen), (
+                    f"{row['recipe_id']}: mother 없는 묶음이 섞였습니다 "
+                    f"{sorted(set(seen) - set(mothers))}"
+                )
+
+
+def test_sons_never_out_measure_their_region_head():
+    """son 은 머리의 image 안에서 재므로 그보다 많이 잴 수 없습니다.
+
+    이 성질이 깨지면 mock 이 **집에서만 존재하는 위반**을 만듭니다 — 물려받은
+    cap 을 son 이 넘어 위반으로 잡히는데, 실물에서는 mother 가 이미 자기 cap 을
+    넘었을 때나 일어나는 일입니다.
+
+    OFFICE-VERIFY 인 추론이므로 mock 에만 겁니다 (근거는 recipe_params 의
+    ``_assign_regions`` docstring). office 어댑터는 원천 값을 그대로 냅니다 —
+    사무실 데이터가 이 추론을 깨면 그 사실 자체가 알아야 할 정보입니다.
+    """
+    if not _is_mock():
+        pytest.skip("office 어댑터는 원천 point 수를 그대로 냅니다")
+
+    rows = data.get_recipe_params([_sample_lot_cd()])
+    assert rows
+    for row in rows:
+        head_points: dict[int, int] = {}
+        for param in row["parameters"]:
+            region = param["region"]
+            if region is None:
+                continue
+            if region not in head_points:
+                head_points[region] = param["point_count"]
+                continue
+            assert param["point_count"] <= head_points[region], (
+                f"{row['recipe_id']} 의 {param['name']} 이 자기 묶음의 머리보다 "
+                f"많이 쟀습니다 ({param['point_count']} > {head_points[region]})"
+            )
+
+
 def test_exempt_jobs_measure_at_a_different_scale():
     """특수 측정 job(_WCDU/_FCDU/_FULL/_HALF)은 정상 recipe 보다 훨씬 크게 잽니다.
 

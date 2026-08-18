@@ -41,6 +41,10 @@ parameters 원소
 name -> string: 파라미터 이름. 타입은 longest-prefix(EDGE_EX > EDGE > WAFER > LEVEL)로 파생되며, 그 외는 OTHER 입니다.
 point_count -> int: 해당 파라미터의 측정 point 수입니다.
 mother -> bool: 이 파라미터 자신이 mother 인지입니다 (idp 의 Mother_Para, office 확인 2026-07-28).
+region -> int|null: 이 파라미터가 속한 image definition 묶음입니다 (idp 의
+                    idp_image_info.Region, user-confirmed 2026-08-18). 같은 region
+                    이 한 SEQ 그룹입니다 — 아래 "SEQ 그룹" 절을 보십시오.
+                    null 은 "이 문서에서 Region 을 읽지 못했다" 입니다.
 
 측정이 아닌 파라미터 — Dummy / Align (user-confirmed 2026-08-05)
 
@@ -84,6 +88,55 @@ mother -> bool: 이 파라미터 자신이 mother 인지입니다 (idp 의 Mothe
 
 이름 매칭은 룰 데이터의 affix 와 같은 의미입니다: 그 낱말로 시작하거나 끝나면
 해당, 이름 한복판에 우연히 든 것은 제외.
+
+SEQ 그룹 — region 컬럼 (user-confirmed 2026-08-18)
+
+idp 의 한 Region 은 **image definition 1개**이고, 같은 Region 인 파라미터들이 한
+SEQ 그룹입니다. 화면에 "1/8, 2/8, 3/8 …" 으로 보이는 그 묶음이며 분모는 Last_SEQ
+입니다. 그룹 안에서 Mother_Para 인 하나가 그 image 의 주인(mother)이고, 나머지는
+son 입니다.
+
+    Parameter   Mother_Para   Region   화면
+    WAFER       True          1        1/8
+    CELL_SP     False         1        2/8
+    LWR         False         1        3/8
+    …
+
+son 은 mother 와 **같은 image** 에서 자기 cd_value 를 꺼내므로, 그룹 전체가 한
+번의 측정입니다 — son 을 재는 데 드는 point 는 따로 없습니다.
+
+★ 그래서 계측 룰 판정이 son 을 **mother 의 cap** 으로 잽니다.
+
+  WAFER 13 / LEVEL 4 는 모든 룰 셀에 공통이고 바뀐 적이 없습니다
+  (providers/rules.py 의 _MAIN_COMMON). 그런데 2026-08-18 이전의 판정은 파라미터
+  이름만 보고 cap 을 골랐기 때문에, WAFER(13) mother 의 son 인 CELL_SP·LWR 이
+  이름이 OTHER 라는 이유로 _other(9)에 걸려 **위반**으로 잡혔습니다. 룰이 틀린
+  것이 아니라 "무엇을 무엇으로 재는가" 가 틀렸고, 그 위반은 recipe 를 고쳐서
+  없앨 수 있는 종류가 아니라 고칠 수 있는 진짜 위반을 밀어냅니다.
+
+  물려받는 것이지 면제가 아닙니다 — LEVEL(4) mother 의 son 이 13 이면 여전히
+  위반입니다. 그룹이 통째로 판정 밖으로 나가면 그것대로 신호를 잃습니다.
+  구현은 프론트엔드 utils/ruleEngine.ts 의 groupCaps / effectiveCap 한 곳입니다.
+
+  region 이 null 인 파라미터는 묶을 근거가 없으므로 예전처럼 자기 cap 으로
+  판정합니다. 순서로 추측하지 않습니다 — 추측이 틀리면 son 에게 엉뚱한 mother 의
+  cap 이 가고, 그 차이는 예외가 아니라 위반 수로만 나타납니다.
+
+★ son 의 point 수는 mother 를 따라가지 않고, 다만 넘지 않습니다.
+
+  실물 문서 1건이 {'EDGE': 10, 'LEVEL': 4, 'WAFER': 10} 이고 그 WAFER 가 mother,
+  LEVEL 이 son 입니다 (idp_ver.txt) — son 이 mother 보다 **적게** 잰 경우입니다.
+  반대로 묶음이 통째로 같은 값인 경우(WAFER 13 에 son 도 13)도 있습니다
+  (user-confirmed 2026-08-18). 둘 중 하나가 규칙인 것이 아니라 둘 다 나타납니다.
+
+  OFFICE-VERIFY: "son ≤ mother" 는 확인된 문서 1건과 "같은 image 를 쓴다" 는
+  사실에서 따라오는 **추론**입니다. son 이 한 site 에서 여러 값을 재어 mother 보다
+  point 가 많아지는 형태라면 틀립니다. 판정은 어느 쪽이든 옳게 동작하므로
+  (넘으면 위반), 틀렸을 때 잃는 것은 mock 의 사실성뿐입니다.
+
+  OFFICE-VERIFY: 관찰된 묶음 하나는 8개짜리인데, mock 의 묶음은 MOTHER_SHARE
+  (0.25~0.45)가 정하므로 2~4 개입니다. 그 비중은 recipe_population 과 공유하는
+  값이라 한쪽만 넓히면 두 표면의 mother 수가 갈라집니다.
 
 mother 컬럼 — 무엇에 쓰이는가 (user-confirmed 2026-08-04)
 
@@ -231,7 +284,17 @@ Mock 생성 규칙
    Sample 에만 붙이는 것은 확인된 사례가 거기이기 때문입니다(Main recipe 에도
    있는지는 OFFICE-VERIFY). 프론트엔드의 outlier 제외는 recipe 종류를 보지 않으므로
    어디에 있든 똑같이 걸립니다.
-6. 약 85% recipe 만 mother 파라를 갖고(보유 시 파라미터의 25~45%), 나머지 15% 는
+6. 파라미터를 **연속 구간**으로 갈라 region(SEQ 그룹)을 붙이고, 각 구간의 머리를
+   mother 로 켭니다. 묶음 개수 = mother 개수입니다. 2026-08-18 이전에는 index 를
+   무작위로 골라 mother 를 켰는데, 그러면 "mother 가 자기 묶음의 머리" 라는 성질이
+   없어 son 을 mother 에 이어 붙일 방법 자체가 없습니다. son 의 point 수는 머리보다
+   크면 머리에 맞춰 내립니다(위 OFFICE-VERIFY 참고) — 그러지 않으면 묶음 경계가
+   난수라 EDGE(6~14) son 이 LEVEL(1~4) mother 밑에 자주 들어가, **집에서만 존재하는
+   위반**이 무더기로 잡힙니다. 비측정 파라미터(Dummy·Align)는 region 이 null 이고,
+   mother 가 없는 recipe 도 region 은 붙습니다 — 실물의 Region 은 mother 를 읽을 수
+   있는지와 무관하게 존재하고, 프론트엔드가 "머리 없는 묶음" 에서 자기 cap 으로
+   되돌아가는 경로가 집에서 실제로 실행되어야 합니다.
+7. 약 85% recipe 만 mother 파라를 갖고(보유 시 파라미터의 25~45%), 나머지 15% 는
    mother 가 없어 mother_normal 버킷에서 빠집니다 — "recipe 도 좁힌다" 는 규칙이
    집에서 실제로 실행되게 하려는 것입니다. 이 비율은 OFFICE-VERIFY 입니다(실물
    미확인). mother 보유 여부는 recipe-statistics 의 버킷 멤버십과 **같은 원천**
