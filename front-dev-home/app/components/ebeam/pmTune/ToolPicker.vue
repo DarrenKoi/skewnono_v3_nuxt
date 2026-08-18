@@ -1,54 +1,86 @@
 <template>
-  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-4 py-3.5">
-    <p class="sk-title">
+  <div>
+    <p class="mb-1.5 sk-label">
       튜닝할 장비
     </p>
-    <p class="mt-1 sk-field-label leading-relaxed">
-      PM 창(직후)의 장비가 기본 선택됩니다 — 하드웨어를 만질 기회는 PM 때뿐이라,
-      이 페이지의 질문은 항상 "지금 이 장비를 어디까지 맞출 것인가"입니다.
-    </p>
 
-    <ul class="mt-2.5 space-y-0.5">
-      <li
-        v-for="row in rows"
-        :key="row.eqp_id"
-      >
-        <button
-          type="button"
-          class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-(--sk-muted-surface)"
-          :class="row.eqp_id === picked ? 'bg-(--sk-muted-surface) ring-1 ring-(--sk-accent)' : ''"
-          :aria-pressed="row.eqp_id === picked"
-          @click="emit('update:picked', row.eqp_id)"
+    <USelectMenu
+      :model-value="picked ?? ''"
+      :items="ids"
+      :search-input="rows.length > 6 ? { placeholder: 'eqp_id 검색…' } : false"
+      :loading="pending"
+      :disabled="!rows.length"
+      :ui="{ content: MENU_CONTENT, itemTrailingIcon: 'hidden' }"
+      icon="i-lucide-wrench"
+      color="neutral"
+      variant="outline"
+      class="w-full"
+      @update:model-value="emit('update:picked', String($event))"
+    >
+      <template #default>
+        <span
+          v-if="pickedRow"
+          class="flex min-w-0 flex-1 items-center gap-2"
         >
-          <!-- The dot restates the Up gate, not group membership — the two are
-               different verdicts and the badge beside carries the second. -->
           <span
             class="h-2 w-2 shrink-0 rounded-full"
-            :class="row.verdict === 'up' ? 'bg-(--sk-ok)' : 'bg-(--sk-bad)'"
-            :title="row.verdict === 'up' ? 'Up gate 통과' : 'Hold'"
+            :class="pickedRow.verdict === 'up' ? 'bg-(--sk-ok)' : 'bg-(--sk-bad)'"
+            :title="pickedRow.verdict === 'up' ? 'Up gate 통과' : 'Hold'"
           />
-          <span class="min-w-0 flex-1 truncate sk-value-num">{{ row.eqp_id }}</span>
+          <span class="truncate sk-value-num">{{ pickedRow.eqp_id }}</span>
+        </span>
+        <span
+          v-else
+          class="sk-field-label"
+        >{{ pending ? 'Roster를 불러오는 중입니다' : '장비 없음' }}</span>
+      </template>
+
+      <!-- The dot restates the Up gate, not group membership — the two are
+           different verdicts and the badge on the trailing side carries the
+           second. -->
+      <template #item-leading="{ item }">
+        <span
+          class="h-2 w-2 shrink-0 rounded-full"
+          :class="byId[item]?.verdict === 'up' ? 'bg-(--sk-ok)' : 'bg-(--sk-bad)'"
+          :title="byId[item]?.verdict === 'up' ? 'Up gate 통과' : 'Hold'"
+        />
+      </template>
+
+      <template #item-trailing="{ item }">
+        <span class="ml-auto flex shrink-0 items-center gap-1.5">
           <span
-            v-if="row.inGroup"
+            v-if="byId[item]?.inGroup"
             class="sk-badge bg-(--sk-ok-soft) text-(--sk-ink)"
           >그룹</span>
-          <span class="shrink-0 font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-            {{ row.postPmAt ? `PM ${row.postPmAt.slice(0, 10)}` : 'PM 이력 없음' }}
+          <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
+            {{ pmLabel(byId[item]) }}
           </span>
-        </button>
-      </li>
-    </ul>
+        </span>
+      </template>
+    </USelectMenu>
 
-    <p
-      v-if="!rows.length"
-      class="mt-2 sk-body text-(--sk-ink-muted)"
-    >
-      {{ pending ? 'Roster를 불러오는 중입니다.' : '이 FAB의 CD-SEM roster가 비어 있습니다.' }}
+    <p class="mt-1.5 sk-field-label leading-relaxed">
+      <template v-if="pickedRow">
+        {{ pmLabel(pickedRow) }} · {{ pickedRow.inGroup ? '1차 그룹 구성원' : '그룹 밖' }}
+      </template>
+      <template v-else-if="!pending && !rows.length">
+        이 FAB 의 CD-SEM roster 가 비어 있습니다.
+      </template>
+      <template v-else>
+        PM 창(직후)의 장비가 기본 선택됩니다 — 하드웨어를 만질 기회는 PM 때뿐입니다.
+      </template>
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
+// A dropdown rather than the standing list this was as a rail card: the control
+// moved into the scope bar, where the page's controls occupy one row and an
+// 18-row list would be the tallest thing on the screen. Every fact a row carried
+// — Up gate, group membership, last PM — is still on the row, now inside the
+// menu, and the picked row repeats it in the caption so the collapsed state is
+// never a bare id.
+
 export interface PickerRow {
   eqp_id: string
   verdict: 'up' | 'hold'
@@ -58,7 +90,7 @@ export interface PickerRow {
   inGroup: boolean
 }
 
-defineProps<{
+const props = defineProps<{
   rows: PickerRow[]
   picked: string | null
   /** The pm request is still in flight — an empty list is not yet an empty fab. */
@@ -68,4 +100,24 @@ defineProps<{
 const emit = defineEmits<{
   'update:picked': [eqpId: string]
 }>()
+
+// The menu widens past its trigger: the trigger is one cell of the scope bar,
+// and an eqp_id plus its PM date and 그룹 badge does not fit in it. Same rule as
+// the recipe picker beside it — the popper floats over the results below, where
+// the space already exists.
+const MENU_CONTENT = 'w-auto min-w-full max-w-[min(26rem,calc(100vw-2rem))]'
+
+const ids = computed(() => props.rows.map(r => r.eqp_id))
+// Keyed lookup rather than a `.find()` inside the slots: the leading and
+// trailing slots each render once per visible row, so a linear scan there is
+// quadratic in the roster.
+const byId = computed<Record<string, PickerRow>>(() =>
+  Object.fromEntries(props.rows.map(r => [r.eqp_id, r]))
+)
+const pickedRow = computed(() => (props.picked ? byId.value[props.picked] ?? null : null))
+
+// "PM 이력 없음" is a different fact from an old PM date and must not render as
+// a blank — a tool that has never been PM'd is exactly the one worth noticing.
+const pmLabel = (row?: PickerRow) =>
+  row?.postPmAt ? `PM ${row.postPmAt.slice(0, 10)}` : 'PM 이력 없음'
 </script>

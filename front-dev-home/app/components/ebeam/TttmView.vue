@@ -9,167 +9,163 @@
       :stats="metaStats"
     />
 
+    <!-- The scope bar renders WHATEVER the payload says, including `available:
+         false`, and it renders while the payload is still in flight. It used to
+         be a side rail sharing a `v-else` with the results, so an empty answer
+         took the controls down with it — and the commonest cause of an empty
+         answer is the scope itself (a recipe with no pair, a parameter nobody
+         measured, a stored pick that no longer applies). The one control that
+         could fix it was the one thing removed from the screen. Only the RESULTS
+         collapse now. -->
+    <EbeamScopeBar
+      :tools="payload?.tools ?? []"
+      :selected="selectedTools"
+      :deviations="fleetDeviations"
+      :pending="pending"
+      @update:selected="onSelectedTools"
+      @update:recipe-id="onRecipe"
+      @update:parameter="onParameter"
+    >
+      <!-- The picker is mounted HERE rather than passed through the bar, the
+           same way pm-tune mounts it. Both pages therefore hand ScopeRecipe its
+           props directly from useTttmScope, so the two lab pages cannot drift in
+           what they give it. -->
+      <template #recipe>
+        <EbeamScopeRecipe
+          :recipe-id="recipeId"
+          :recipe-names="recipeNames"
+          :recipes-pending="recipesPending"
+          :recipes-without-a-pair="recipesWithoutAPair"
+          :parameter="parameter"
+          :parameter-names="parameterNames"
+          :parameters-pending="parametersPending"
+          :parameters-error="parametersError"
+          @update:recipe-id="onRecipe"
+          @update:parameter="onParameter"
+        />
+      </template>
+
+      <!-- Slotted, not passed down: the knob fires on every drag frame, and a
+           prop through ScopeBar would re-render all seven model-group dropdowns
+           with it. -->
+      <template #trailing>
+        <EbeamTttmToleranceKnob
+          v-if="payload"
+          v-model="tolerance"
+          :range="payload.tolerance_range"
+          :tolerance-index="toleranceIndex"
+        />
+      </template>
+    </EbeamScopeBar>
+
+    <!-- 결과 — 판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로, 근거가 위에서 아래로
+         한 번씩만 나옵니다. 비교 대상이 정해지기 전에는 아무것도 그리지 않습니다. -->
+    <!-- The gate is the RECIPE alone. The server does answer without one (it
+         folds every measured recipe together), but that answer is a fleet-wide
+         average nobody asked for, and it renders identically to a deliberately
+         scoped one — so the page would be quoting a comparison the user never
+         chose. Parameter stays optional on purpose: its list is resolved through
+         recipe-open over FTP, so requiring it would let an unreachable tool lock
+         the page shut. -->
+    <AppEmptyState
+      v-if="!scopeReady"
+      title="비교 대상을 선택하세요."
+      description="위 비교 대상에서 recipe 를 고르면 그 recipe 가 점유한 셀로 장비간 스큐를 계산합니다."
+      hint="parameter 는 선택 사항입니다 — 비워 두면 그 recipe 의 측정 항목을 모두 합쳐 판정합니다."
+      icon="i-lucide-mouse-pointer-click"
+    />
+
     <AppLoadingState
-      v-if="pending"
+      v-else-if="pending"
       title="장비간 스큐 데이터를 불러오는 중입니다."
     />
-    <!-- The rail renders WHATEVER the payload says, including `available:
-         false`. It used to be inside the same `v-else` as the results, so an
-         empty answer took the controls down with it — and the commonest cause
-         of an empty answer is the scope itself (a recipe with no pair, a
-         parameter nobody measured, a stored pick that no longer applies). The
-         one control that could fix it was the one thing removed from the
-         screen. Only the RESULTS column collapses now. -->
+
+    <!-- The shared empty-state shell, not a hand-rolled card: an unavailable
+         payload is a legitimate answer ("nothing to compare"), which is the same
+         shape of event AppEmptyState already owns. -->
+    <AppEmptyState
+      v-else-if="!payload?.available"
+      title="비교할 결과가 없습니다."
+      :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
+      hint="위에서 recipe · parameter · 장비를 바꾸어 다시 계산하실 수 있습니다."
+      icon="i-lucide-scale"
+    />
+
     <div
       v-else
-      class="grid items-start gap-3 xl:grid-cols-[392px_minmax(0,1fr)]"
+      class="flex min-w-0 flex-col gap-3"
     >
-      <!-- 조작 레일 — 스크롤해도 따라옵니다. 결과 쪽에는 컨트롤이 하나도 없고,
-           레일에는 결과가 하나도 없습니다. -->
-      <div class="flex flex-col gap-3 xl:sticky xl:top-2">
-        <EbeamTttmScopePanel
-          :tools="payload?.tools ?? []"
-          :selected="selectedTools"
-          :deviations="fleetDeviations"
-          @update:parameter="onParameter"
-          @update:selected="onSelectedTools"
-          @update:recipe-id="onRecipe"
-        >
-          <!-- The picker is mounted HERE rather than passed through the panel,
-               the same way pm-tune mounts it. Both pages therefore hand
-               ScopeRecipe its props directly from useTttmScope, so the two lab
-               pages cannot drift in what they give it. -->
-          <template #recipe>
-            <EbeamScopeRecipe
-              :recipe-id="recipeId"
-              :recipe-names="recipeNames"
-              :recipes-pending="recipesPending"
-              :recipes-without-a-pair="recipesWithoutAPair"
-              :parameter="parameter"
-              :parameter-names="parameterNames"
-              :parameters-pending="parametersPending"
-              :parameters-error="parametersError"
-              @update:recipe-id="onRecipe"
-              @update:parameter="onParameter"
-            />
+      <!-- What the knob and the picks currently cost, in one line. The numbers
+           all appear again below in their own cards; this is the roll-up that
+           makes dragging the slider legible without hunting for what moved, so
+           it sits directly under the bar the slider is in. -->
+      <div class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5">
+        <!-- `.sk-meta` for the sentence and `.sk-value-num` for each number, per
+             DESIGN.md §Colors' litmus — "value → ink; label → ink-muted". -->
+        <p class="sk-meta leading-relaxed">
+          <span class="sk-title">이 설정에서</span> —
+          <!-- "셀 합계" is load-bearing: the matrix card below reports the
+               failing pairs of ONE cell, and the two numbers differ by design.
+               Unlabelled they read as the same count disagreeing with itself. -->
+          점유 셀 <span class="sk-value-num">{{ rankedCells.length }}</span>개 ·
+          불합격 장비쌍 <span class="sk-value-num">{{ failingPairs }}</span>쌍 (셀 합계)
+          <template v-if="worstCell?.worstPair">
+            · 최악 <span class="sk-value-num">{{ worstCell.worstPair.skewNm.toFixed(3) }}</span> nm
+            ({{ cellLabel(worstCell.cell) }})
           </template>
-
-          <!-- Slotted, not passed down: the knob fires on every drag frame, and
-               a prop through ScopePanel would re-render all seven model-group
-               dropdowns with it. -->
-          <template #tolerance>
-            <EbeamTttmToleranceKnob
-              v-if="payload"
-              v-model="tolerance"
-              :range="payload.tolerance_range"
-              :tolerance-index="toleranceIndex"
-            />
-          </template>
-        </EbeamTttmScopePanel>
-
-        <!-- What the knob and the picks currently cost, in one line. The
-             numbers all appear again below in their own cards; this is the
-             roll-up that makes dragging the slider legible without scrolling
-             the results column to find out what moved. -->
-        <!-- Hidden rather than zeroed when nothing was computed: "점유 셀 0개 ·
-             불합격 0쌍" reads as a clean result, which is the opposite of what
-             an unavailable payload means. -->
-        <div
-          v-if="payload?.available"
-          class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5"
-        >
-          <p class="sk-title">
-            이 설정에서
-          </p>
-          <!-- `.sk-meta` for the sentence and `.sk-value-num` for each number,
-               per DESIGN.md §Colors' litmus — "value → ink; label → ink-muted".
-               This line was entirely `.sk-field-label`, i.e. ink-SUBTLE, which
-               the same section reserves for disabled/de-emphasised text; the
-               three numbers it exists to report were the faintest thing on the
-               rail, and fainter than the identical count in the picker above.
-               Both classes sit at 12px, so the numerals gain ink and tabular
-               figures without breaking the line's rhythm. -->
-          <p class="mt-1.5 sk-meta leading-relaxed">
-            <!-- "셀 합계" is load-bearing: the matrix card below reports the
-                 failing pairs of ONE cell, and the two numbers differ by design.
-                 Unlabelled they read as the same count disagreeing with itself. -->
-            점유 셀 <span class="sk-value-num">{{ rankedCells.length }}</span>개 ·
-            불합격 장비쌍 <span class="sk-value-num">{{ failingPairs }}</span>쌍 (셀 합계)
-            <template v-if="worstCell?.worstPair">
-              · 최악 <span class="sk-value-num">{{ worstCell.worstPair.skewNm.toFixed(3) }}</span> nm
-              ({{ cellLabel(worstCell.cell) }})
-            </template>
-          </p>
-        </div>
+        </p>
       </div>
 
-      <!-- 결과 — 판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로, 근거가 위에서
-           아래로 한 번씩만 나옵니다. -->
-      <div class="flex min-w-0 flex-col gap-3">
-        <!-- The shared empty-state shell, not a hand-rolled card: an
-             unavailable payload is a legitimate answer ("nothing to compare"),
-             which is the same shape of event AppEmptyState already owns. -->
-        <AppEmptyState
-          v-if="!payload?.available"
-          title="비교할 결과가 없습니다."
-          :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
-          hint="왼쪽에서 recipe · parameter · 장비를 바꾸어 다시 계산하실 수 있습니다."
-          icon="i-lucide-scale"
+      <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <EbeamTttmRecommendationCard
+          :primary="primary"
+          :others="others"
+          :tools="visibleTools"
         />
+        <EbeamTttmExcludedTools
+          :excluded="excluded"
+          :has-group="primary !== null"
+          :tools="visibleTools"
+          :deviations="visibleDeviations"
+          :action-limit="fleetActionLimit"
+          :markers="visibleMarkers"
+        />
+      </div>
 
-        <template v-else>
-          <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <EbeamTttmRecommendationCard
-              :primary="primary"
-              :others="others"
-              :tools="visibleTools"
-            />
-            <EbeamTttmExcludedTools
-              :excluded="excluded"
-              :has-group="primary !== null"
-              :tools="visibleTools"
-              :deviations="visibleDeviations"
-              :action-limit="fleetActionLimit"
-              :markers="visibleMarkers"
-            />
-          </div>
+      <div class="grid gap-3 2xl:grid-cols-2">
+        <EbeamTttmFleetMap
+          :fleet="visibleFleet"
+          :tools="visibleTools"
+          :tolerance-index="toleranceIndex"
+          :group-tools="primary?.tools"
+          :blocked-pair="blockedPair"
+        />
+        <EbeamTttmCellSeverityList
+          :cells="rankedCells"
+          :tools="visibleTools"
+        />
+      </div>
 
-          <div class="grid gap-3 2xl:grid-cols-2">
-            <EbeamTttmFleetMap
-              :fleet="visibleFleet"
-              :tools="visibleTools"
-              :tolerance-index="toleranceIndex"
-              :group-tools="primary?.tools"
-              :blocked-pair="blockedPair"
-            />
-            <EbeamTttmCellSeverityList
-              :cells="rankedCells"
-              :tools="visibleTools"
-            />
-          </div>
+      <EbeamTttmPairMatrix
+        :cells="rankedCells"
+        :tools="visibleTools"
+      />
 
-          <EbeamTttmPairMatrix
-            :cells="rankedCells"
-            :tools="visibleTools"
-          />
+      <div class="grid gap-3 2xl:grid-cols-2">
+        <EbeamTttmFleetStatus
+          :deviations="visibleFleet.consensus_deviation"
+          :tools="visibleTools"
+          :cd="fleetCd"
+        />
+        <EbeamTttmTrendChart
+          :trend="visibleTrend"
+          :markers="visibleMarkers"
+        />
+      </div>
 
-          <div class="grid gap-3 2xl:grid-cols-2">
-            <EbeamTttmFleetStatus
-              :deviations="visibleFleet.consensus_deviation"
-              :tools="visibleTools"
-              :cd="fleetCd"
-            />
-            <EbeamTttmTrendChart
-              :trend="visibleTrend"
-              :markers="visibleMarkers"
-            />
-          </div>
-
-          <div class="grid gap-3 md:grid-cols-2">
-            <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
-            <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
-          </div>
-        </template>
+      <div class="grid gap-3 md:grid-cols-2">
+        <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
+        <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
       </div>
     </div>
   </div>
@@ -226,6 +222,12 @@ const { data: payload, pending } = useTttmCheck(
   () => recipeId.value,
   () => parameter.value
 )
+
+// The request still fires without a recipe, and must: the tool roster the scope
+// bar's model-group dropdowns are built from arrives on this payload, so gating
+// the FETCH would leave the user nothing to pick from. Only the results are
+// gated — see the empty state above.
+const scopeReady = computed(() => Boolean(recipeId.value))
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
 // Stored selection resolved against the fleet the server actually returned:
@@ -284,10 +286,10 @@ const visibleFleet = computed<FleetToday>(() => ({
   median_cd_nm: payload.value?.fleet_today.median_cd_nm ?? null
 }))
 
-// Two deviation maps, and the difference matters. The PICKER shows the payload's
-// own fleet-wide numbers, because a tool that is not selected has no re-based
-// value to show and the picker is where the selection gets decided; everything
-// below the picker reads the re-based ones.
+// Two deviation maps, and the difference matters. The SCOPE BAR shows the
+// payload's own fleet-wide numbers, because a tool that is not selected has no
+// re-based value to show and the bar is where the selection gets decided;
+// everything below the bar reads the re-based ones.
 const fleetDeviations = computed<Record<string, number>>(() =>
   Object.fromEntries(
     (payload.value?.fleet_today.consensus_deviation ?? []).map(d => [d.eqp_id, d.deviation])
@@ -381,9 +383,15 @@ const blockedPair = computed(() => {
 })
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
-const metaStats = computed<MetaBarStat[]>(() => [
-  { key: 'tools', label: '선택 장비', value: visibleTools.value.length, tone: 'neutral' },
-  { key: 'cells', label: '점유 셀', value: rankedCells.value.length, tone: 'neutral' },
-  { key: 'n', label: 'N배화', value: primary.value?.n ?? 0, tone: 'ok' }
-])
+// Empty while the scope is unset, so the bar does not headline "N배화 0" as a
+// finding. MetaBar drops the whole stat strip on an empty array, and a zero
+// there reads as a computed verdict rather than as "nothing computed yet".
+const metaStats = computed<MetaBarStat[]>(() => {
+  if (!scopeReady.value) return []
+  return [
+    { key: 'tools', label: '선택 장비', value: visibleTools.value.length, tone: 'neutral' },
+    { key: 'cells', label: '점유 셀', value: rankedCells.value.length, tone: 'neutral' },
+    { key: 'n', label: 'N배화', value: primary.value?.n ?? 0, tone: 'ok' }
+  ]
+})
 </script>

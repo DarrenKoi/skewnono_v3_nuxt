@@ -93,7 +93,7 @@ export const useTttmSettings = () => {
   const setParameter = (toolType: string, fabName: string, parameter: string | null) => {
     const current = read(toolType, fabName)
     // No recipe, no parameter — refused rather than clamped, the same way
-    // ScopePanel refuses to drop below two tools.
+    // ScopeBar refuses to drop below two tools.
     if (!current.recipeId) return
     write(toolType, fabName, { ...current, parameter })
   }

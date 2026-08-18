@@ -9,148 +9,159 @@
       :stats="metaStats"
     />
 
-    <!-- Gated on the tttm half only: the map and targets can paint as soon as
-         the matrices arrive, and the pm-fed cards (picker, gate, ranking)
-         degrade cleanly while their request is still in flight. AND-ing both
-         made the fast payload wait for the slow one. -->
-    <AppLoadingState
-      v-if="tttmPending"
-      title="Fleet 데이터를 불러오는 중입니다."
-    />
-    <!-- The rail renders even on `available: false` — same rule as TttmView,
-         and the same reason: the scope IS the commonest cause of an empty
-         answer, so taking the recipe picker off the screen leaves the user with
-         no way back. Only the results column collapses. -->
-    <div
-      v-else
-      class="grid items-start gap-3 xl:grid-cols-[392px_minmax(0,1fr)]"
-    >
-      <!-- 조작 레일 — TTTM 과 같은 규칙: 레일에는 결과가 없고, 결과 쪽에는
-           컨트롤이 없습니다. 이 페이지의 컨트롤은 "무엇을 비교하는가"(recipe ·
-           parameter)와 "어느 장비를 튜닝하는가" 둘이고, 앞의 둘은 TTTM 페이지와
-           같은 저장 설정에 씁니다 — 한쪽에서 바꾸면 다른 쪽도 같이 바뀝니다.
-           두 실험실 페이지가 서로 다른 그룹을 말하기 시작하면 어느 쪽도 믿을 수
-           없게 되므로, 공유가 곧 안전장치입니다. 장비 선택·tolerance 는 여전히
-           TTTM 쪽 컨트롤입니다. -->
-      <div class="flex flex-col gap-3 xl:sticky xl:top-2">
-        <div class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
-          <p class="sk-panel-title">
-            비교 대상
-          </p>
-          <p class="mt-1 sk-hint">
-            어떤 recipe 의 어떤 측정 항목으로 비교할지 고릅니다. TTTM 페이지와 같은
-            설정을 씁니다.
-          </p>
-          <EbeamScopeRecipe
-            class="mt-4"
-            :recipe-id="recipeId"
-            :recipe-names="recipeNames"
-            :recipes-pending="recipesPending"
-            :parameter="parameter"
-            :parameter-names="parameterNames"
-            :parameters-pending="parametersPending"
-            :parameters-error="parametersError"
-            :recipes-without-a-pair="recipesWithoutAPair"
-            @update:recipe-id="onRecipe"
-            @update:parameter="onParameter"
-          />
-        </div>
+    <!-- The scope bar renders even on `available: false`, and while the payload
+         is in flight — same rule as TttmView, and the same reason: the scope IS
+         the commonest cause of an empty answer, so taking the recipe picker off
+         the screen would leave the user with no way back.
 
+         The bar is the SAME component and the same persisted entry as the TTTM
+         page, tools included. Tool selection used to be readable here and
+         editable only there, which is the exact complaint that made recipe and
+         parameter editable from this page: a scope you have to leave the page to
+         change is a scope you cannot work with. Editing either here edits it
+         there — the two pages are meant to describe ONE group, so sharing is the
+         safeguard, not a shortcut. -->
+    <EbeamScopeBar
+      :tools="payload?.tools ?? []"
+      :selected="selection"
+      :deviations="fleetDeviations"
+      :pending="tttmPending"
+      @update:selected="onSelectedTools"
+      @update:recipe-id="onRecipe"
+      @update:parameter="onParameter"
+    >
+      <template #recipe>
+        <EbeamScopeRecipe
+          :recipe-id="recipeId"
+          :recipe-names="recipeNames"
+          :recipes-pending="recipesPending"
+          :recipes-without-a-pair="recipesWithoutAPair"
+          :parameter="parameter"
+          :parameter-names="parameterNames"
+          :parameters-pending="parametersPending"
+          :parameters-error="parametersError"
+          @update:recipe-id="onRecipe"
+          @update:parameter="onParameter"
+        />
+      </template>
+
+      <!-- 튜닝 대상은 비교 대상이 아닙니다 — 어느 장비를 만질 것인가는 이 페이지
+           전용이고, 비교 대상은 TTTM 과 공유하는 설정입니다. 같은 바 안에서 선으로
+           갈라 둡니다. -->
+      <template #trailing>
         <EbeamPmTuneToolPicker
           :rows="pickerRows"
           :picked="picked"
           :pending="pmPending"
           @update:picked="picked = $event"
         />
+      </template>
+    </EbeamScopeBar>
 
-        <!-- Hidden when there is no comparison behind it: "그룹이 없어 판정할
-             수 없습니다" restates the empty state the results column already
-             carries, in the rail that is supposed to hold controls. -->
-        <div
-          v-if="payload?.available"
-          class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5"
-        >
-          <p class="sk-title">
-            이 장비는
-          </p>
-          <p class="mt-1.5 sk-meta leading-relaxed">
-            <template v-if="!primary">
-              그룹이 없어 판정할 수 없습니다.
-            </template>
-            <template v-else-if="report?.inGroup">
-              1차 그룹 <span class="sk-value-num">{{ primary.n }}</span>대의 구성원 — 유지가 목표.
-            </template>
-            <template v-else-if="report">
-              미충족 셀 <span class="sk-value-num">{{ report.blockedCells }}</span>개 ·
-              최대 조정 <span class="sk-value-num">{{ maxRequiredNm.toFixed(3) }}</span> nm
-              → 진입 시 그룹 <span class="sk-value-num">{{ primary.n }}→{{ primary.n + 1 }}</span>대.
-            </template>
-          </p>
-          <p class="mt-1.5 sk-field-label leading-relaxed">
-            <template v-if="parameter">
-              측정 항목 <span class="sk-value-num">{{ parameter }}</span> 기준입니다 ·
-              장비 선택·tolerance 는 TTTM 페이지의 설정을 따릅니다.
-            </template>
-            <template v-else>
-              측정 항목 전체를 합친 기준입니다 · 장비 선택·tolerance 는 TTTM 페이지의
-              설정을 따릅니다.
-            </template>
-          </p>
-        </div>
+    <!-- 결과 — 지도·목표 → gate → 다음 후보 순. -->
+    <!-- Same gate as TTTM, and deliberately the same one: the two pages describe
+         one group from one scope, so a recipe that opens the results on one page
+         must open them on the other. Recipe only — the parameter's list is
+         resolved through recipe-open over FTP, so requiring it would let an
+         unreachable tool lock the page shut. -->
+    <AppEmptyState
+      v-if="!scopeReady"
+      title="비교 대상을 선택하세요."
+      description="위 비교 대상에서 recipe 를 고르면 그 recipe 기준으로 N배화 그룹과 튜닝 목표를 계산합니다."
+      hint="parameter 는 선택 사항입니다 — 비워 두면 그 recipe 의 측정 항목을 모두 합쳐 판정합니다. 이 설정은 TTTM 페이지와 공유합니다."
+      icon="i-lucide-mouse-pointer-click"
+    />
+
+    <!-- Gated on the tttm half only: the map and targets can paint as soon as
+         the matrices arrive, and the pm-fed cards degrade cleanly while their
+         request is still in flight. AND-ing both made the fast payload wait for
+         the slow one. -->
+    <AppLoadingState
+      v-else-if="tttmPending"
+      title="Fleet 데이터를 불러오는 중입니다."
+    />
+
+    <!-- The shared empty-state shell, not a hand-rolled card: an unavailable
+         payload is a legitimate answer ("nothing to compare"), which is the same
+         shape of event AppEmptyState already owns. -->
+    <AppEmptyState
+      v-else-if="!payload?.available"
+      title="튜닝 목표를 낼 수 없습니다."
+      :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
+      hint="위에서 recipe · parameter 를 바꾸어 다시 계산하실 수 있습니다."
+      icon="i-lucide-scale"
+    />
+
+    <div
+      v-else
+      class="flex min-w-0 flex-col gap-3"
+    >
+      <!-- The roll-up of what the current pick costs, directly under the bar
+           that sets it. The numbers all appear again in the cards below; this
+           line is what makes changing the picked tool legible without hunting
+           for what moved. -->
+      <div class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5">
+        <p class="sk-meta leading-relaxed">
+          <span class="sk-title">이 장비는</span> —
+          <template v-if="!primary">
+            그룹이 없어 판정할 수 없습니다.
+          </template>
+          <template v-else-if="report?.inGroup">
+            1차 그룹 <span class="sk-value-num">{{ primary.n }}</span>대의 구성원 — 유지가 목표.
+          </template>
+          <template v-else-if="report">
+            미충족 셀 <span class="sk-value-num">{{ report.blockedCells }}</span>개 ·
+            최대 조정 <span class="sk-value-num">{{ maxRequiredNm.toFixed(3) }}</span> nm
+            → 진입 시 그룹 <span class="sk-value-num">{{ primary.n }}→{{ primary.n + 1 }}</span>대.
+          </template>
+        </p>
+        <p class="mt-1.5 sk-field-label leading-relaxed">
+          <template v-if="parameter">
+            측정 항목 <span class="sk-value-num">{{ parameter }}</span> 기준입니다 ·
+            tolerance 는 TTTM 페이지의 설정을 따릅니다.
+          </template>
+          <template v-else>
+            측정 항목 전체를 합친 기준입니다 · tolerance 는 TTTM 페이지의 설정을 따릅니다.
+          </template>
+        </p>
       </div>
 
-      <!-- 결과 — 지도·목표 → gate → 다음 후보 순. -->
-      <div class="flex min-w-0 flex-col gap-3">
-        <!-- The shared empty-state shell, not a hand-rolled card: an
-             unavailable payload is a legitimate answer ("nothing to compare"),
-             which is the same shape of event AppEmptyState already owns. -->
-        <AppEmptyState
-          v-if="!payload?.available"
-          title="튜닝 목표를 낼 수 없습니다."
-          :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
-          hint="왼쪽에서 recipe · parameter 를 바꾸어 다시 계산하실 수 있습니다."
-          icon="i-lucide-scale"
+      <div class="grid gap-3 2xl:grid-cols-2">
+        <EbeamTttmFleetMap
+          :fleet="visibleFleet"
+          :tools="visibleTools"
+          :tolerance-index="toleranceIndex"
+          :group-tools="primary?.tools"
+          :blocked-pair="blockedPair"
+          :picked-tool="picked"
+          :halo-label="haloLabel"
         />
+        <!-- File is pmTune/Targets.vue, NOT pmTune/TuneTargets.vue: Nuxt's
+             auto-import collapses the repeated word at the segment boundary
+             (PmTune + TuneTargets -> PmTuneTargets), so the longer file name
+             would leave this tag rendering silently empty. -->
+        <EbeamPmTuneTargets
+          :report="report"
+          :n="primary?.n ?? 0"
+          :tools="labelRefs"
+        />
+      </div>
 
-        <template v-else>
-          <div class="grid gap-3 2xl:grid-cols-2">
-            <EbeamTttmFleetMap
-              :fleet="visibleFleet"
-              :tools="visibleTools"
-              :tolerance-index="toleranceIndex"
-              :group-tools="primary?.tools"
-              :blocked-pair="blockedPair"
-              :picked-tool="picked"
-              :halo-label="haloLabel"
-            />
-            <!-- File is pmTune/Targets.vue, NOT pmTune/TuneTargets.vue: Nuxt's
-                 auto-import collapses the repeated word at the segment boundary
-                 (PmTune + TuneTargets -> PmTuneTargets), so the longer file name
-                 would leave this tag rendering silently empty. -->
-            <EbeamPmTuneTargets
-              :report="report"
-              :n="primary?.n ?? 0"
-              :tools="labelRefs"
-            />
-          </div>
-
-          <div class="grid items-stretch gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <EbeamPmTuneGateCard
-              :gate="pickedGate"
-              :eqp-id="picked"
-            />
-            <EbeamPmTuneFocusRanking
-              :tools="pmTools"
-              :beam-conditions="beamConditions"
-              :focus-n="focusN"
-              :threshold="threshold"
-              :picked="picked"
-              @update:focus-n="focusN = $event"
-              @update:threshold="setThreshold"
-              @pick="picked = $event"
-            />
-          </div>
-        </template>
+      <div class="grid items-stretch gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <EbeamPmTuneGateCard
+          :gate="pickedGate"
+          :eqp-id="picked"
+        />
+        <EbeamPmTuneFocusRanking
+          :tools="pmTools"
+          :beam-conditions="beamConditions"
+          :focus-n="focusN"
+          :threshold="threshold"
+          :picked="picked"
+          @update:focus-n="focusN = $event"
+          @update:threshold="setThreshold"
+          @pick="picked = $event"
+        />
       </div>
     </div>
   </div>
@@ -170,10 +181,10 @@ import type { BeamCondition } from '~/utils/pmPlanning'
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
 // The group's inputs are the SHARED lab scope — the same persisted entry the
-// TTTM page reads, through the same composable. Recipe and parameter are now
-// editable from here as well as from there, and editing either here edits it
-// there: the two pages are meant to describe ONE group, so a scope this page
-// could only read was a scope the user had to leave the page to change.
+// TTTM page reads, through the same composable. Tools, recipe and parameter are
+// all editable from here as well as from there, and editing any of them here
+// edits it there: the two pages are meant to describe ONE group, so a scope this
+// page could only read was a scope the user had to leave the page to change.
 const {
   scoped,
   recipeId,
@@ -184,6 +195,7 @@ const {
   parameterNames,
   parametersPending,
   parametersError,
+  onSelectedTools,
   onRecipe,
   onParameter
 } = useTttmScope(props.toolType, props.fab)
@@ -195,6 +207,11 @@ const { data: payload, pending: tttmPending } = useTttmCheck(
   () => recipeId.value,
   () => parameter.value
 )
+
+// The request fires without a recipe, and must: the tool roster the scope bar's
+// model-group dropdowns are built from arrives on this payload. Only the results
+// are gated — see the empty state above.
+const scopeReady = computed(() => Boolean(recipeId.value))
 
 // The gate/PM half, from pm_planning. Independent request: a slow gate payload
 // must not delay the map, and vice versa.
@@ -208,6 +225,15 @@ const pmTools = computed(() => pmFleet.value?.tools ?? [])
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
 const selection = computed(() => resolveSelection(allToolIds.value, scoped.value.tools))
+
+// The payload's own fleet-wide residuals, for the scope bar's dropdown rows —
+// the same rule TttmView follows: a tool that is not selected has no re-based
+// value to show, and this is the control where the selection gets decided.
+const fleetDeviations = computed<Record<string, number>>(() =>
+  Object.fromEntries(
+    (payload.value?.fleet_today.consensus_deviation ?? []).map(d => [d.eqp_id, d.deviation])
+  )
+)
 
 const picked = ref<string | null>(null)
 
@@ -354,7 +380,10 @@ const setThreshold = ({ beam, value }: { beam: BeamCondition, value: number }) =
 }
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
+// Empty while the scope is unset — a "N배화 0" headline is a computed verdict,
+// and nothing has been computed yet. MetaBar drops the strip on an empty array.
 const metaStats = computed<MetaBarStat[]>(() => {
+  if (!scopeReady.value) return []
   const holdCount = pmTools.value.filter(t => t.gate.verdict === 'hold').length
   return [
     { key: 'n', label: 'N배화', value: primary.value?.n ?? 0, tone: 'ok' },

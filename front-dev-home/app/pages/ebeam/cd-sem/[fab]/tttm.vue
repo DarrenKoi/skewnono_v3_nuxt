@@ -1,6 +1,8 @@
 <template>
-  <!-- 1440px 밀집 예외 (DESIGN.md §Layout): 왼쪽 392px 조작 레일 + 오른쪽 결과라는
-       리스트-플러스-상세 성격이라 Mag/Pixel 가이드와 같은 폭을 씁니다. -->
+  <!-- 1440px 밀집 예외 (DESIGN.md §Layout): 조작 레일이 상단 비교 대상 바로 바뀐
+       뒤에도 폭은 그대로입니다 — 근거가 레일이 아니라 결과 쪽으로 옮겨갔을 뿐입니다.
+       2단 카드 쌍이 네 줄이라 1280px 로 좁히면 pairwise 행렬이 1080px 화면 밖으로
+       밀립니다. -->
   <div class="mx-auto w-full max-w-[1440px] space-y-3">
     <NavFabScopeNotice
       :fabs="fabs"
