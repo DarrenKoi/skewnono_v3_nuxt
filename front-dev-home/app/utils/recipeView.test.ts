@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   recipeTableUi, IMAGE_SLOTS, EMPTY_SLOT, isEmptySlot,
-  formatSettingValue, recipeDetailRoute, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
+  formatSettingValue, recipeDetailRoute, recipeDetailId, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
   readRecipeNameQuery, readRecipeSourceQuery, readRecipeOwnerFabQuery, formatRecipeTimestamp,
   isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain, formatFixed
 } from './recipeView.ts'
@@ -162,6 +162,41 @@ test('recipeDetailRoute omits fab_name when no owner is given', () => {
 test('recipeDetailRoute uppercases the owner fab regardless of input casing', () => {
   const route = recipeDetailRoute('cd-sem', 'r3', 'open', 'A', 'redis', 'm16b')
   assert.equal(route.query.fab_name, 'M16B')
+})
+
+// --- the identifier the detail screens are addressed by ---
+
+test('recipeDetailId qualifies an analytics ranking row with its class', () => {
+  // A recipe-tat / fail-issue row as the backend sends it: the two names are
+  // separate fields there, and only `full_name` is the key recipe_search knows.
+  assert.equal(
+    recipeDetailId({ recipe_name: 'GATE_CD_045', full_name: 'GATE/GATE_CD_045' }),
+    'GATE/GATE_CD_045'
+  )
+})
+
+test('recipeDetailId passes a recipe-search row through unchanged', () => {
+  // recipe_search's own rows carry no `full_name` — their `recipe_name`
+  // already IS `class/recipe`, so there is nothing to qualify.
+  assert.equal(recipeDetailId({ recipe_name: 'ADI/ADI_CD_BIAS_001' }), 'ADI/ADI_CD_BIAS_001')
+})
+
+test('recipeDetailId falls back to the bare name when full_name is absent', () => {
+  // Preferable to routing to an empty recipe_name: the bare name at least
+  // reaches meas-hist, which matches either field.
+  assert.equal(recipeDetailId({ recipe_name: 'GATE_CD_045', full_name: '' }), 'GATE_CD_045')
+  assert.equal(recipeDetailId({ recipe_name: 'GATE_CD_045', full_name: null }), 'GATE_CD_045')
+  assert.equal(recipeDetailId({ recipe_name: '  GATE_CD_045  ' }), 'GATE_CD_045')
+})
+
+test('a ranking row routed to 열어 보기 carries the class-qualified name', () => {
+  // The regression this file exists to hold. Handing the BARE `recipe_name`
+  // here is a fabricated 200 against the mock and a 502 at the office: the
+  // adapter takes the class from the prefix and term-matches
+  // `full_name.keyword`, so an unqualified name locates no .idp at all.
+  const row = { recipe_name: 'GATE_CD_045', full_name: 'GATE/GATE_CD_045' }
+  const route = recipeDetailRoute('cd-sem', 'R3,M16B', 'open', recipeDetailId(row), 'redis', 'M16B')
+  assert.equal(route.query.recipe_name, 'GATE/GATE_CD_045')
 })
 
 test('OpenSearch cannot construct an unsupported open detail route', () => {

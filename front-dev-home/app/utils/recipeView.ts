@@ -169,6 +169,38 @@ export const recipeDetailRoute = (
   }
 }
 
+/**
+ * The recipe identifier the three detail screens are addressed by.
+ *
+ * `recipe_search` knows a recipe by ONE name and it is the class-qualified one:
+ * its catalog rows carry `recipe_name = "ADI/ADI_CD_BIAS_001"`, which is
+ * character-for-character meas_hist's `full_name` (docs/datatables/meas_hist.txt).
+ * That is why `RecipeSearchRow` has no separate `full_name` field — there is
+ * nothing there to separate.
+ *
+ * The analytics rankings (recipe-tat, fail-issue) DO split the two: their rows
+ * carry a bare `recipe_name` beside a qualified `full_name`, because they
+ * aggregate over `full_name.keyword` and show the class in its own column. A
+ * row from those tables therefore has to be qualified before it can address a
+ * detail screen — handing over the bare half means:
+ *
+ *   * open — the office adapter takes the FTP class directory from the prefix
+ *     (`_class_name`), so an unqualified name makes the Redis registry decline;
+ *     the meas_hist fallback then term-matches `full_name.keyword` against a
+ *     string that field never holds. No candidate .idp, a bare `LookupError`,
+ *     and the app factory turns that into a **502 upstream_data_error**.
+ *   * lateral — the same term on `full_name.keyword`; answers empty.
+ *   * meas-hist — the one that survives, because it matches EITHER field.
+ *
+ * None of which the mock can catch: `get_recipe_open_data` seeds an RNG off
+ * whatever string it is handed and fabricates a recipe around it, so a bare
+ * name is a green 200 at home and a 502 at the office.
+ */
+export const recipeDetailId = (row: {
+  recipe_name: string
+  full_name?: string | null
+}): string => (row.full_name ?? '').trim() || row.recipe_name.trim()
+
 export interface RecipeRowAction {
   screen: RecipeDetailScreen
   label: string

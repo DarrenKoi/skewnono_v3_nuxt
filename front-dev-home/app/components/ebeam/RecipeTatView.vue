@@ -185,6 +185,7 @@
               :fab-segment="fabSegment"
               :fab-names="row.original.fab_names ?? []"
               :recipe-name="row.original.recipe_name"
+              :full-name="row.original.full_name"
             />
           </template>
         </EbeamFailIssueRankingTable>
