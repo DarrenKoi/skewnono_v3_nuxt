@@ -150,6 +150,38 @@ TOLERANCE_RANGE: ToleranceRange = {"min": 0.01, "max": 0.2, "step": 0.005}
 DEFAULT_TOLERANCE = 0.05
 
 
+class TttmRecipeRow(TypedDict):
+    """One recipe this fab has actually MEASURED, and how much evidence it has.
+
+    Not a catalogue entry. The recipe registry in Redis lists every recipe that
+    exists, and on this screen a recipe nobody ran carries no information at
+    all — picking one can only ever answer "no data". So the picker is fed from
+    measurement history instead, and each row says how much history there is.
+    """
+
+    # The value to hand back as `?recipe_id=`. The `class/recipe` full_name
+    # where the source carries one, because that is also the key the axis map
+    # scopes by and the identity `recent_runs` contrasts within — a picker
+    # offering a bare recipe_name would name something the rest of the pipeline
+    # keys differently.
+    recipe_id: str
+    fab_name: str
+    runs: int
+    # Distinct tools that ran it. ONE means no pair exists, so no direct skew
+    # can come out of it however many runs there are — the client dims those
+    # rather than letting the user pick a recipe that cannot answer.
+    tools: int
+
+
+class TttmRecipeList(TypedDict):
+    tool_slug: ToolSlug
+    fab_name: str
+    fetched_at: str
+    # Descending by evidence (tools, then runs), so the recipes that can
+    # actually support a comparison sort to the top of the picker.
+    rows: list[TttmRecipeRow]
+
+
 class TttmCheckPayload(TypedDict):
     tool_slug: ToolSlug
     fab_name: str

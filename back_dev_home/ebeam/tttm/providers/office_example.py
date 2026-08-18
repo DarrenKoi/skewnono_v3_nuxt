@@ -108,7 +108,17 @@ from typing import Any, NamedTuple
 
 from back_dev_home.ebeam._office_bm_pm import maintenance_events
 from back_dev_home.ebeam._office_mdc import MdcChange, changes as mdc_changes
-from back_dev_home.ebeam._office_meas_hist import get_anchor_time
+from back_dev_home.ebeam._office_meas_hist import (
+    EQP_ID_KW,
+    FAB_NAME_KW,
+    FULL_NAME_KW,
+    INDEX,
+    TIME_FIELD,
+    composite_buckets,
+    get_anchor_time,
+    query as _query,
+    text as _text,
+)
 from back_dev_home.ebeam._office_msr_cd import (
     RunRef,
     beam_label,
@@ -131,12 +141,14 @@ from back_dev_home.ebeam.tttm.contracts import (
     ToolRef,
     TrendPoint,
     TttmCheckPayload,
+    TttmRecipeList,
+    TttmRecipeRow,
 )
 from back_dev_home.sem_list.data import get_sem_list
 from back_dev_home.sem_list.roster import fleet_rows
 
 
-__all__ = ["get_tttm_check"]
+__all__ = ["get_tttm_check", "get_tttm_recipes"]
 
 _LOG = logging.getLogger(__name__)
 
@@ -1027,3 +1039,78 @@ if __name__ == "__main__":  # pragma: no cover
           f"trend={len(result['trend'])} markers={len(result['epoch_markers'])}")
     print(f"  fleet_today.median_cd_nm={result['fleet_today']['median_cd_nm']}")
     print(f"  summary: {result['summary']}")
+
+
+# ── the picker's recipe list ──────────────────────────────────────────────
+
+# Only a run whose MSR landed can contribute CD values, and this list exists to
+# offer recipes the check can actually answer for — so it filters exactly the
+# way `recent_runs` does. A picker scoped more loosely than the payload it
+# drives offers recipes that then come back empty.
+_RECIPES_MSR_CHECK_KW = "msr_check.keyword"
+
+
+def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
+    """Recipes this fab has MEASURED, with the evidence behind each.
+
+    Deliberately NOT the Redis recipe registry (`v3_*_unique_rcp_list`), which
+    recipe-search reads. That registry lists every recipe that EXISTS; on this
+    screen a recipe nobody ran carries no information, and offering it can only
+    ever answer "no data". The measured set is a fraction of the catalogue and
+    is the only part worth showing here.
+
+    One composite walk, not a `terms` agg: a fab's recipe count is unbounded, and
+    `terms` truncates at `size` silently. `cardinality` on the tool axis is
+    approximate by design, but it is approximate at cardinalities far above the
+    ~20 tools a fab holds, so the "can this recipe support a pair at all"
+    question it answers here is exact in practice.
+    """
+    tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
+    fab = fab_name.strip().upper()
+    fetched_at = get_anchor_time().isoformat(timespec="seconds")
+    if tool_type is None:
+        return TttmRecipeList(
+            tool_slug=tool_slug,  # type: ignore[typeddict-item]
+            fab_name=fab_name,
+            fetched_at=fetched_at,
+            rows=[],
+        )
+
+    anchor = get_anchor_time()
+    start = anchor - timedelta(days=WINDOW_DAYS)
+    clauses: list[dict[str, Any]] = [
+        {"term": {FAB_NAME_KW: fab}},
+        {"term": {_RECIPES_MSR_CHECK_KW: "Yes"}},
+        {
+            "range": {
+                TIME_FIELD: {
+                    "gte": start.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "lte": anchor.strftime("%Y-%m-%dT%H:%M:%S"),
+                }
+            }
+        },
+    ]
+    buckets = composite_buckets(
+        INDEX[tool_type],
+        FULL_NAME_KW,
+        {"tools": {"cardinality": {"field": EQP_ID_KW}}},
+        _query(clauses),
+    )
+
+    rows = [
+        TttmRecipeRow(
+            recipe_id=recipe_id,
+            fab_name=fab,
+            runs=int(bucket.get("doc_count", 0)),
+            tools=int(bucket.get("tools", {}).get("value", 0)),
+        )
+        for bucket in buckets
+        if (recipe_id := _text(bucket.get("key", {}).get("group")))
+    ]
+    rows.sort(key=lambda row: (-row["tools"], -row["runs"], row["recipe_id"]))
+    return TttmRecipeList(
+        tool_slug=tool_slug,  # type: ignore[typeddict-item]
+        fab_name=fab_name,
+        fetched_at=fetched_at,
+        rows=rows,
+    )

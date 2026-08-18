@@ -1,4 +1,5 @@
 import { useRecipeSearchApi } from '~/composables/useRecipeSearchApi'
+import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
 import type { ToolType } from '~/utils/toolType'
 
@@ -21,14 +22,31 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   const recipeId = computed(() => scoped.value.recipeId)
   const parameter = computed(() => scoped.value.parameter)
 
-  const { fetchRecipeList, fetchRecipeParameters } = useRecipeSearchApi()
+  const { fetchRecipeParameters } = useRecipeSearchApi()
+  const { fetchTttmRecipes } = useTttmApi()
 
+  // Sourced from measurement history, NOT recipe-search's Redis catalogue. The
+  // catalogue lists every recipe that exists; here a recipe nobody ran carries
+  // no information at all, so offering it can only waste a click on "no data".
+  // The measured set is also far smaller, which is what makes this picker
+  // usable where the 50,000-name catalogue needed a search box.
   const { data: recipeList, pending: recipesPending } = useAsyncData(
     `tttm-recipes:${toolType}:${fabName}`,
-    () => fetchRecipeList({ toolType: toolType as ToolType, fabNames: [fabName] })
+    () => fetchTttmRecipes(toolType, fabName)
   )
+  // Already sorted by evidence server-side (tools, then runs), and that order
+  // is kept: the recipes that can actually support a comparison come first.
+  // Re-sorting alphabetically here would throw that away.
   const recipeNames = computed(() =>
-    [...new Set((recipeList.value?.rows ?? []).map(row => row.recipe_name))].sort()
+    (recipeList.value?.rows ?? []).map(row => row.recipe_id)
+  )
+  /** Recipes only ONE tool measured — pickable, but they cannot yield a pair. */
+  const recipesWithoutAPair = computed(() =>
+    new Set(
+      (recipeList.value?.rows ?? [])
+        .filter(row => row.tools < 2)
+        .map(row => row.recipe_id)
+    )
   )
 
   // Keyed on (toolType, fab) with the recipe WATCHED rather than baked into the
@@ -61,6 +79,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     recipeId,
     parameter,
     recipeNames,
+    recipesWithoutAPair,
     recipesPending,
     parameterNames,
     parametersPending,

@@ -89,6 +89,32 @@
   unique across `tools` — it indexes the matrix axes, and a repeat makes a
   tool appear to match itself.
 
+## Endpoint: GET /api/&lt;tool_slug&gt;/tttm/recipes
+
+- Handler: `routes.py` → `data.get_tttm_recipes(tool_slug, fab_name)`. Same
+  slug and `fab_name` rules as `/tttm/check` — a picker scoped differently from
+  the payload it drives offers recipes the check then finds nothing for.
+- Contract: `TttmRecipeList` — `{tool_slug, fab_name, fetched_at, rows}` where
+  each row is `{recipe_id, fab_name, runs, tools}`.
+- **Sourced from measurement history, NOT the Redis recipe registry.**
+  `recipe-search` reads `v3_{cdsem,hvsem}_unique_rcp_list`, which lists every
+  recipe that EXISTS. On this screen a recipe nobody ran carries no information
+  at all — picking it can only answer "no data" — so the picker is fed from
+  `meas_hist_{cdsem,hvsem}` instead, filtered exactly the way `recent_runs`
+  filters (`fab_name`, `msr_check == "Yes"`, the same window). The measured set
+  is also far smaller than the catalogue, which is what makes the picker usable.
+- `recipe_id` is the `class/recipe` **full_name** where the source carries one,
+  because that is the key the axis map scopes by and the identity
+  `recent_runs` contrasts within. A picker offering a bare `recipe_name` would
+  name something the rest of the pipeline keys differently.
+- `tools` is the distinct tool count: **1 means no pair exists**, so no direct
+  skew can come out of that recipe however many runs it has. Rows come back
+  sorted by `(tools desc, runs desc, recipe_id)` and the client keeps that
+  order, so the recipes that can actually support a comparison are on top.
+- Office: one `composite` walk over `full_name.keyword` with a
+  `cardinality(eqp_id.keyword)` sub-aggregation — not `terms`, which truncates
+  at `size` silently and whose per-bucket totals are approximate.
+
 ## `median_cd_nm` — what the office adapter owes
 
 `CellSkew.median_cd_nm` and `FleetToday.median_cd_nm` carry the median measured

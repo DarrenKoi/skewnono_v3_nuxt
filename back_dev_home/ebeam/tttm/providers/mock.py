@@ -116,6 +116,8 @@ from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
     CellSkew,
+    TttmRecipeList,
+    TttmRecipeRow,
     ConsensusDeviation,
     EpochMarker,
     MdcHistoryEntry,
@@ -473,3 +475,55 @@ def get_tttm_check(
         "epoch_markers": _markers(fleet),
         "mdc_history": _mdc_history(fleet),
     }
+
+
+def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
+    """Recipes this fab has MEASURED, derived from the meas_hist mock.
+
+    Home stands in for the office rule rather than inventing a list: the office
+    reads the same fact out of `meas_hist_{cdsem,hvsem}`, and the mock reads it
+    out of the same feature's mock universe. A hand-written list here would
+    make the picker offer recipes the check has no rows for — which is the very
+    failure sourcing from measurement history exists to remove.
+
+    Imported lazily because meas_hist's mock builds its whole universe on first
+    touch, and the check endpoint has no reason to pay for that.
+    """
+    from back_dev_home.meas_hist.providers.mock import get_meas_hist
+
+    tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
+    fab = fab_name.strip().upper()
+    if tool_type is None:
+        return TttmRecipeList(
+            tool_slug=tool_slug,  # type: ignore[typeddict-item]
+            fab_name=fab_name,
+            fetched_at=_FETCHED_AT,
+            rows=[],
+        )
+
+    runs: dict[str, int] = {}
+    tools: dict[str, set[str]] = {}
+    for row in get_meas_hist(tool_type=tool_type, fab_name=fab)["rows"]:
+        # full_name where present, for the same reason the office uses it: it
+        # is what the axis map scopes by and what runs are contrasted within.
+        recipe_id = row.get("full_name") or row["recipe_name"]
+        runs[recipe_id] = runs.get(recipe_id, 0) + 1
+        tools.setdefault(recipe_id, set()).add(row["eqp_id"])
+
+    rows = [
+        TttmRecipeRow(
+            recipe_id=recipe_id,
+            fab_name=fab,
+            runs=count,
+            tools=len(tools[recipe_id]),
+        )
+        for recipe_id, count in runs.items()
+    ]
+    # Most evidence first, name as the tiebreak so the order is stable.
+    rows.sort(key=lambda r: (-r["tools"], -r["runs"], r["recipe_id"]))
+    return TttmRecipeList(
+        tool_slug=tool_slug,  # type: ignore[typeddict-item]
+        fab_name=fab_name,
+        fetched_at=_FETCHED_AT,
+        rows=rows,
+    )

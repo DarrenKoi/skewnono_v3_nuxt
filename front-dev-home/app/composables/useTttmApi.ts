@@ -5,6 +5,23 @@ import type { SkewMatrix, Confidence, Tier } from '~/utils/tttmGrouping'
 // picker groups its chips by it — see utils/tttmToolGroups.
 export interface ToolRef { eqp_id: string, label: string, eqp_model_cd: string }
 
+/** One recipe this fab has actually measured, with the evidence behind it. */
+export interface TttmRecipeRow {
+  /** Pass back as `recipe_id`; the `class/recipe` full name where there is one. */
+  recipe_id: string
+  fab_name: string
+  runs: number
+  /** Distinct tools that ran it. 1 means no pair exists, so no direct skew. */
+  tools: number
+}
+
+export interface TttmRecipeList {
+  tool_slug: string
+  fab_name: string
+  fetched_at: string
+  rows: TttmRecipeRow[]
+}
+
 export interface SkewCondition {
   cell_id: string
   beam_condition: string
@@ -134,5 +151,16 @@ export const useTttmApi = () => {
     )
   }
 
-  return { fetchTttmCheck, useTttmCheck }
+  // The picker's source. Deliberately NOT recipe-search's catalogue: that
+  // lists every recipe that EXISTS, and on these screens a recipe nobody ran
+  // can only ever answer "no data". `runs`/`tools` come back so the picker can
+  // rank by evidence and mark the recipes only one tool measured — those can
+  // never produce a pair, however many runs they have.
+  const fetchTttmRecipes = (toolType: string, fabName: string) =>
+    $fetch<TttmRecipeList>(
+      joinApiPath(base, `/${toSlug(toolType)}/tttm/recipes`),
+      { query: { fab_name: fabName } }
+    )
+
+  return { fetchTttmCheck, useTttmCheck, fetchTttmRecipes }
 }

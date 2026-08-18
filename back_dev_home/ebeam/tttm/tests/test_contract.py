@@ -28,7 +28,7 @@ import pytest
 from back_dev_home._core.contract_check import assert_matches
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.tttm import data
-from back_dev_home.ebeam.tttm.contracts import TttmCheckPayload
+from back_dev_home.ebeam.tttm.contracts import TttmCheckPayload, TttmRecipeList
 
 
 TOOL_SLUG = "cdsem"
@@ -243,3 +243,61 @@ def test_the_payload_echoes_the_parameter_it_was_asked_about():
     assert payload["parameter"] == PARAMETER
     # The unfiltered case says so explicitly rather than omitting the key.
     assert _payload()["parameter"] is None
+
+
+def test_recipe_list_matches_contract():
+    assert_matches(data.get_tttm_recipes(TOOL_SLUG, FAB_NAME), TttmRecipeList)
+
+
+def test_every_offered_recipe_has_evidence_behind_it():
+    # The whole point of sourcing this list from measurement history rather
+    # than the recipe catalogue: a row that exists must have been measured, so
+    # picking it cannot answer "no data". True of both providers.
+    payload = data.get_tttm_recipes(TOOL_SLUG, FAB_NAME)
+    for row in payload["rows"]:
+        assert row["runs"] >= 1, f"{row['recipe_id']} is offered with no runs"
+        assert row["tools"] >= 1, f"{row['recipe_id']} is offered with no tools"
+        assert row["recipe_id"], "a recipe must name itself"
+
+
+def test_recipe_list_is_ordered_by_evidence():
+    # The picker keeps server order, so the recipes that can actually support a
+    # comparison have to come first — a recipe only one tool ran can never
+    # produce a direct pair however many runs it has.
+    rows = data.get_tttm_recipes(TOOL_SLUG, FAB_NAME)["rows"]
+    keys = [(-row["tools"], -row["runs"], row["recipe_id"]) for row in rows]
+    assert keys == sorted(keys)
+
+
+def test_recipe_list_names_each_recipe_once():
+    rows = data.get_tttm_recipes(TOOL_SLUG, FAB_NAME)["rows"]
+    ids = [row["recipe_id"] for row in rows]
+    assert len(ids) == len(set(ids)), f"duplicate recipe_id: {ids}"
+
+
+def test_an_unknown_fab_offers_no_recipes():
+    payload = data.get_tttm_recipes(TOOL_SLUG, UNKNOWN_FAB)
+    assert_matches(payload, TttmRecipeList)
+    assert payload["rows"] == []
+    assert payload["fab_name"] == UNKNOWN_FAB
+
+
+def test_mock_recipe_list_is_exactly_what_meas_hist_measured():
+    if not _is_mock():
+        # Mock-only: the office reads the same fact from meas_hist_* directly.
+        # At home the two must agree exactly, because a picker offering a
+        # recipe the check has no rows for is the failure this endpoint exists
+        # to remove.
+        pytest.skip("the mock's measured set is meas_hist's, by construction")
+
+    from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
+    from back_dev_home.meas_hist.providers.mock import get_meas_hist
+
+    measured = {
+        row.get("full_name") or row["recipe_name"]
+        for row in get_meas_hist(
+            tool_type=SLUG_TO_TOOL_TYPE[TOOL_SLUG], fab_name=FAB_NAME
+        )["rows"]
+    }
+    offered = {row["recipe_id"] for row in data.get_tttm_recipes(TOOL_SLUG, FAB_NAME)["rows"]}
+    assert offered == measured

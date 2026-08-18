@@ -84,3 +84,30 @@ class TestTttmCheckScopeArgs(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTttmRecipesRoute(unittest.TestCase):
+    """GET /api/<slug>/tttm/recipes — the shared pm-tune / TTTM picker source."""
+
+    def setUp(self):
+        app = Flask(__name__)
+        app.register_blueprint(bp, url_prefix="/api")
+        self.client = app.test_client()
+
+    def test_it_answers_the_fab_it_was_asked_about(self):
+        response = self.client.get(f"/api/cdsem/tttm/recipes?fab_name={FAB}")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["fab_name"], FAB)
+        self.assertEqual(payload["tool_slug"], "cdsem")
+
+    def test_fab_name_is_required(self):
+        # Same rule as /tttm/check, and for the same reason: a fab-less recipe
+        # list would be the union across every fab, and picking one of those
+        # recipes gives the check nothing to find in the fab actually on screen.
+        response = self.client.get("/api/cdsem/tttm/recipes")
+        self.assertEqual(response.status_code, 400)
+
+    def test_an_unknown_tool_slug_is_refused(self):
+        response = self.client.get(f"/api/nope/tttm/recipes?fab_name={FAB}")
+        self.assertEqual(response.status_code, 400)
