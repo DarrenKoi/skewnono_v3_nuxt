@@ -68,6 +68,7 @@ from back_dev_home.ebeam._tool_specs import ToolType
 
 __all__ = [
     "AXIS_ENV_VAR",
+    "as_float",
     "CD_BANDS",
     "MONITOR_RECIPE_ENV_VAR",
     "Point",
@@ -219,7 +220,12 @@ def recent_runs(
     recipe: str | None = None,
     per_tool: int = DEFAULT_RUNS_PER_TOOL,
 ) -> RunSet:
-    """The most recent ``per_tool`` runs of each tool, newest first.
+    """The most recent ``per_tool`` runs of each tool, OLDEST first.
+
+    The query sorts descending (that is how "most recent N" is selected); the
+    result is then re-sorted ascending, because every caller reads it as a
+    series — a before/after split around a PM, a daily trend. Callers that want
+    the latest run take the last element.
 
     One aggregation, not one search per tool: a 20-tool fab would otherwise be
     20 round trips before the first pickle is even opened. ``terms`` over
@@ -324,7 +330,15 @@ class Point(NamedTuple):
     object_type: str
 
 
-def _as_float(value: Any) -> float | None:
+def as_float(value: Any) -> float | None:
+    """A source cell as a finite float, or None.
+
+    Shared rather than re-derived per adapter: the office sources mix floats
+    with numeric strings inside one array (``[6.069593, '6.118456', ...]``), and
+    two copies of this coercion are two places for NaN handling to diverge.
+    ``bool`` is excluded explicitly — it is an ``int`` subclass, so ``True``
+    would otherwise coerce to a measurement of 1.0.
+    """
     if isinstance(value, bool):
         return None
     try:
@@ -334,8 +348,11 @@ def _as_float(value: Any) -> float | None:
     return result if result == result and abs(result) != float("inf") else None
 
 
+_as_float = as_float
+
+
 def _as_int(value: Any) -> int:
-    result = _as_float(value)
+    result = as_float(value)
     return int(result) if result is not None else 0
 
 

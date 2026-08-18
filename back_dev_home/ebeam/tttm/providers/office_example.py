@@ -66,6 +66,29 @@ pickles, LRU-cached). That is fine for a lab page and will not scale to a fleet
 dashboard — section 5.1 of the feasibility note is the fix, and until it exists
 raising either constant multiplies MinIO GETs directly.
 
+OFFICE-VERIFY (check these once, on the first office run — the staged
+``__main__`` below prints what it actually found for every one of them):
+
+* The index aliases are ``meas_hist_cdsem`` / ``meas_hist_hvsem``
+  (``_office_meas_hist.INDEX``) and the MDC archive is under
+  ``hitachi_sem/cdsem/mdc_setting`` (``_office_mdc.MDC_MINIO_BASE``).
+* Exact matches go through ``.keyword`` sub-fields, and ``fab_name`` is matched
+  upper-cased. If any of these is mapped as a bare ``keyword``, the suffix must
+  be dropped — a term query on an analyzed parent matches NOTHING and answers
+  200 with an empty fleet.
+* ``0Deg``/``90Deg`` really is the measurement direction and not the image
+  rotation (feasibility note section 6, item 4). If it is rotation, every
+  cell's ``axis`` means something else; the fix is one line in
+  ``_office_mdc.split_condition``.
+* A QC/matching recipe that every tool runs actually exists. Item 1 of that
+  same checklist, and the most important of them: without one, no pair is
+  ``direct`` and the whole grid is bridged estimates.
+* The parameter names carry a resolvable direction. They usually will not
+  (``Para_13`` cannot), which is what ``SKEWNONO_AXIS_PARAM_MAP`` is for.
+* Real pairwise skew magnitudes. Every number the mock ships is fabricated, so
+  the first office run is also the first evidence about what ``tolerance_range``
+  should span (item 3 of the checklist).
+
 At the office: fill OPENSEARCH_* / REDIS_* in ``back_dev_home/.env`` and
 ``minio_handler/minio_config.py``, ``cp office_example.py office.py`` (that copy
 IS the switch), make sure ``sem_list`` has one too, then run MIGRATION.md's
@@ -91,10 +114,11 @@ from back_dev_home.ebeam._office_msr_cd import (
     load_points,
     recent_runs,
     resolve_axis,
-    run_median,
 )
 from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from back_dev_home.ebeam.tttm.contracts import (
+    DEFAULT_TOLERANCE,
+    TOLERANCE_RANGE,
     CellSkew,
     ConsensusDeviation,
     EpochMarker,
@@ -114,13 +138,6 @@ __all__ = ["get_tttm_check"]
 
 _LOG = logging.getLogger(__name__)
 
-
-# The knob's travel, in MONITOR-WAFER nm. Declared from contracts.py's
-# ToleranceRange docstring rather than imported from the mock: it is a property
-# of the contract (the client rescales it per cell's own CD), not a mock fixture.
-# Read that docstring before treating `max` as an absolute ceiling — it is not.
-TOLERANCE_RANGE = {"min": 0.01, "max": 0.2, "step": 0.005}
-CURRENT_TOLERANCE = 0.05
 
 # meas_hist keeps 60 days and the dict_pkl partitions are purged at 61, so this
 # is the whole history that exists. A shorter window would be a choice; this is
@@ -145,14 +162,38 @@ _NOTE = "TTTM 미반영"
 
 
 class _Observation(NamedTuple):
-    """One run reduced to one CD, tagged with everything that keys a cell."""
+    """One (run x measured feature) reduced to one CD.
+
+    The grain is per FEATURE, not per run, and that is load-bearing for the CD
+    band. One run measures several parameters at different nominal CDs — the
+    feasibility note's section 3.2 turns on exactly that ("한 실행 안에 서로 다른
+    공칭 CD 를 가진 parameter 가 여러 개 들어 있습니다"), because it is the only
+    clean way to identify a CD-dependent gain term. A run-level median across a
+    31 nm feature and a 68 nm one lands in whichever band the mixture happens to
+    fall in, and every cell downstream inherits an action limit drawn for a
+    pattern size nobody measured. The contract law then still passes — band and
+    median came from one row set — while the band means nothing.
+    """
 
     eqp_id: str
-    recipe_key: str
+    msr: str            # the RUN this came from — several rows share one
+    recipe_key: str     # the recipe alone: what "shared production" means
+    feature: str        # the measured parameter within it
     at: datetime
     beam: str
     axis: str
     value: float
+
+    @property
+    def contrast_key(self) -> str:
+        """What two tools must have in COMMON before their CDs are comparable.
+
+        The recipe is not enough. ``Para_13`` of one recipe and ``Para_14`` of
+        the same recipe are different features at different nominal CDs, so
+        centring them together puts the feature-to-feature difference into the
+        tool offset.
+        """
+        return f"{self.recipe_key}\u241f{self.feature}"
 
 
 class _CellKey(NamedTuple):
@@ -193,7 +234,7 @@ def _fleet(tool_slug: str, fab_name: str) -> list[ToolRef]:
 def _observations(
     runs: tuple[RunRef, ...], parameter: str | None
 ) -> tuple[list[_Observation], dict[str, int]]:
-    """Every (run x beam x axis) median, plus a count of what was dropped.
+    """Every (run x feature x beam x axis) median, plus a count of what fell out.
 
     ``parameter`` narrows to one measured feature of the recipe. It is a WHERE
     on real rows here: an unknown name simply matches nothing, which is why the
@@ -202,7 +243,7 @@ def _observations(
     observations: list[_Observation] = []
     dropped = {"no_axis": 0, "no_parameter": 0, "no_cd": 0}
     for run in runs:
-        grouped: dict[tuple[str, str], list[float]] = defaultdict(list)
+        grouped: dict[tuple[str, str, str], list[float]] = defaultdict(list)
         matched_parameter = False
         for point in load_points(run.pkl):
             if parameter is not None and point.parameter != parameter:
@@ -215,39 +256,38 @@ def _observations(
             if axis is None:
                 dropped["no_axis"] += 1
                 continue
-            grouped[(beam_label(point.vac), axis)].append(point.cd_value)
+            grouped[(point.parameter, beam_label(point.vac), axis)].append(
+                point.cd_value
+            )
         if parameter is not None and not matched_parameter:
             dropped["no_parameter"] += 1
-        for (beam, axis), values in grouped.items():
+        for (feature, beam, axis), values in grouped.items():
             if not beam:
                 continue  # no accelerating voltage recorded: not a beam cell
             observations.append(
                 _Observation(
                     eqp_id=run.eqp_id,
+                    msr=run.msr,
                     recipe_key=run.recipe_key,
+                    feature=feature,
                     at=run.at,
                     beam=beam,
                     axis=axis,
-                    value=median(values),
+                    # Rounded HERE, before anything bands it. Banding a raw
+                    # 24.9997 as "<25" and only then rounding the cell median
+                    # to 25.0 breaks the contract law that a median must sit
+                    # inside its own band — at the edge, and only at the edge,
+                    # which is exactly where nobody looks.
+                    value=round(median(values), 3),
                 )
             )
     return observations, dropped
 
 
-def _run_cd(run: RunRef, parameter: str | None) -> float | None:
-    """One run's overall CD — used where beam and axis do not key the answer."""
-    points = load_points(run.pkl)
-    if parameter is not None:
-        points = tuple(point for point in points if point.parameter == parameter)
-    else:
-        points = tuple(point for point in points if point.parameter)
-    return run_median(points)
-
-
 def _run_observations(
     runs: tuple[RunRef, ...], parameter: str | None
 ) -> list[_Observation]:
-    """One number per run, with no beam or axis attached.
+    """One row per (run x feature), with no beam or axis attached.
 
     ``fleet_today``, ``trend`` and ``production_corroboration`` have no axis
     dimension in the contract, so they must NOT be derived from the axis-keyed
@@ -255,22 +295,35 @@ def _run_observations(
     parameter names, those rows are dropped and the three axis-free views would
     empty out with them. They are the part of the page that still works while
     caveat 1 is unresolved, which is only true if they are computed from here.
+
+    Still per FEATURE, for the same reason the axis-keyed grain is — centring a
+    tool on a run-level median mixes the feature spread into its offset.
+    Unnamed points (a recipe's stabilisation shots) carry real CDs but no
+    feature identity to contrast on, so they are excluded here while
+    ``load_points`` still returns them.
     """
     rows: list[_Observation] = []
     for run in runs:
-        value = _run_cd(run, parameter)
-        if value is None:
-            continue
-        rows.append(
-            _Observation(
-                eqp_id=run.eqp_id,
-                recipe_key=run.recipe_key,
-                at=run.at,
-                beam="",
-                axis="",
-                value=value,
+        grouped: dict[str, list[float]] = defaultdict(list)
+        for point in load_points(run.pkl):
+            if parameter is not None and point.parameter != parameter:
+                continue
+            if not point.parameter or point.cd_value is None:
+                continue
+            grouped[point.parameter].append(point.cd_value)
+        for feature, values in grouped.items():
+            rows.append(
+                _Observation(
+                    eqp_id=run.eqp_id,
+                    msr=run.msr,
+                    recipe_key=run.recipe_key,
+                    feature=feature,
+                    at=run.at,
+                    beam="",
+                    axis="",
+                    value=round(median(values), 3),
+                )
             )
-        )
     return rows
 
 
@@ -278,13 +331,28 @@ def _run_observations(
 
 
 class _Offsets(NamedTuple):
-    """Per-tool offsets and the recipe evidence each pair shares."""
+    """Per-tool offsets, the evidence each pair shares, and who is reachable."""
 
     offset: dict[str, float]
-    recipes: dict[str, set[str]]  # tool -> the CONTRAST recipes it ran
+    recipes: dict[str, set[str]]  # tool -> the CONTRAST keys it ran
+    component: dict[str, int]     # tool -> its connected component id
 
     def shared(self, left: str, right: str) -> set[str]:
         return self.recipes.get(left, set()) & self.recipes.get(right, set())
+
+    def connected(self, left: str, right: str) -> bool:
+        """Is there any chain of shared work joining these two tools?
+
+        Feasibility note 3.5: "성분이 여러 개면 그 경계를 넘는 비교는 화면에서
+        '비교 불가'로 막아야 합니다." Two tools in DIFFERENT components each
+        centred on their own recipes' medians, and those two medians are set by
+        disjoint sets of tools — so the difference between the offsets is an
+        artifact of two unrelated reference points, not a skew. Shipping it as
+        a `predicted` number is worse than shipping nothing, because the
+        client cannot tell the two apart.
+        """
+        left_component = self.component.get(left)
+        return left_component is not None and left_component == self.component.get(right)
 
 
 def _estimate(rows: list[_Observation]) -> _Offsets:
@@ -299,7 +367,7 @@ def _estimate(rows: list[_Observation]) -> _Offsets:
     """
     per_pair: dict[tuple[str, str], list[float]] = defaultdict(list)
     for row in rows:
-        per_pair[(row.eqp_id, row.recipe_key)].append(row.value)
+        per_pair[(row.eqp_id, row.contrast_key)].append(row.value)
     tool_recipe = {key: median(values) for key, values in per_pair.items()}
 
     tools_by_recipe: dict[str, set[str]] = defaultdict(set)
@@ -325,7 +393,42 @@ def _estimate(rows: list[_Observation]) -> _Offsets:
     return _Offsets(
         offset={eqp_id: median(values) for eqp_id, values in centered.items()},
         recipes=dict(recipes),
+        component=_components(recipes),
     )
+
+
+def _components(recipes: dict[str, set[str]]) -> dict[str, int]:
+    """Connected components of the tool graph, joined by shared contrast keys.
+
+    Two tools are adjacent when they measured the same feature of the same
+    recipe. A component is then the set of tools whose offsets are all pinned
+    to one another, directly or through intermediaries — the only set within
+    which a bridged comparison means anything.
+    """
+    by_key: dict[str, set[str]] = defaultdict(set)
+    for tool, keys in recipes.items():
+        for key in keys:
+            by_key[key].add(tool)
+
+    parent = {tool: tool for tool in recipes}
+
+    def find(tool: str) -> str:
+        while parent[tool] != tool:
+            parent[tool] = parent[parent[tool]]
+            tool = parent[tool]
+        return tool
+
+    for tools in by_key.values():
+        members = sorted(tools)
+        for other in members[1:]:
+            root_a, root_b = find(members[0]), find(other)
+            if root_a != root_b:
+                parent[root_b] = root_a
+
+    labels: dict[str, int] = {}
+    return {
+        tool: labels.setdefault(find(tool), len(labels)) for tool in sorted(recipes)
+    }
 
 
 def _matrix(
@@ -353,6 +456,8 @@ def _matrix(
         is_direct = bool(offsets.shared(left, right))
         if is_direct != direct:
             continue
+        if not direct and not offsets.connected(left, right):
+            continue  # no path joins them — see _Offsets.connected
         skew = round(abs(offsets.offset[left] - offsets.offset[right]), 3)
         values[i][j] = values[j][i] = skew
         filled = True
@@ -419,15 +524,19 @@ def _cells(
         if direct is None and predicted is None:
             continue  # every pair lacked contrast; an empty cell says nothing
 
+        # Distinct RUNS, not rows. A row is one (run x feature), so a single
+        # run measuring six features would otherwise clear HIGH_CONFIDENCE_RUNS
+        # on its own — the pseudo-replication the estimator is careful to avoid,
+        # leaking back in through the number that vouches for it.
         runs_per_tool = min(
-            len([row for row in rows if row.eqp_id == eqp_id]) for eqp_id in ids
+            len({row.msr for row in rows if row.eqp_id == eqp_id}) for eqp_id in ids
         )
         if direct is not None:
             confidence = "High" if runs_per_tool >= HIGH_CONFIDENCE_RUNS else "Med"
         else:
             confidence = "Low"
 
-        labels = [f"실행 {len(rows)}건 · 장비 {len(ids)}대"]
+        labels = [f"실행 {len({row.msr for row in rows})}건 · 장비 {len(ids)}대"]
         if direct is None:
             labels.append("공통 recipe 없음 — 브리지 추정")
 
@@ -472,15 +581,23 @@ def _fleet_today(observations: list[_Observation], roster: list[str]) -> dict[st
 
     ids = [eqp_id for eqp_id in roster if any(row.eqp_id == eqp_id for row in rows)]
     offsets = _estimate(rows)
-    # One block, both tiers folded: the fleet check has no cell structure to
-    # separate them by, and the client renders it as a single map.
+    # DIRECT pairs only. The contract gives this block no tier dimension, so a
+    # bridged estimate placed here would enter the client's grouping with the
+    # same standing as a measured one — the failure section 4 of the
+    # feasibility note names ("2-hop 브리지 추정치가 직접 측정과 동일한 자격으로
+    # clique 에 들어갑니다"). A pair with no feature in common is null, which
+    # the contract already defines as "not TTTM-able", not as agreement.
     size = len(ids)
     values: list[list[float | None]] = [[None] * size for _ in range(size)]
     for index in range(size):
         values[index][index] = 0.0
     for i, j in combinations(range(size), 2):
         left, right = ids[i], ids[j]
-        if left in offsets.offset and right in offsets.offset:
+        if (
+            left in offsets.offset
+            and right in offsets.offset
+            and offsets.shared(left, right)
+        ):
             values[i][j] = values[j][i] = round(
                 abs(offsets.offset[left] - offsets.offset[right]), 3
             )
@@ -495,12 +612,24 @@ def _fleet_today(observations: list[_Observation], roster: list[str]) -> dict[st
             for eqp_id in ids
             if eqp_id in offsets.offset
         ],
-        # The client divides by 1% of this to draw the fab's action limit, so a
-        # zero would produce an infinite limit that passes every tool silently.
-        # None instead, and the client falls back to the 15 nm monitor wafer
-        # while saying on screen that it assumed it.
-        "median_cd_nm": round(median([row.value for row in rows]), 3),
+        # None unless today's measurements sit at ONE pattern size, which is
+        # what the contract says this field means ("the daily fleet check runs
+        # the monitor wafer"). Unfiltered, a fab's day spans a 31 nm feature and
+        # a 68 nm one, and their median is a number no wafer has: the client
+        # divides by 1% of it to draw the action limit, so the line would land
+        # between the two sizes and be wrong for both. Returning None sends it
+        # to the monitor-wafer fallback, which at least says on screen that it
+        # assumed.
+        "median_cd_nm": _fleet_median_cd(rows),
     }
+
+
+def _fleet_median_cd(rows: list[_Observation]) -> float | None:
+    """Today's fleet CD, or None when the day spans more than one CD band."""
+    if len({cd_band(row.value) for row in rows}) != 1:
+        return None
+    value = round(median([row.value for row in rows]), 3)
+    return value if value > 0 else None
 
 
 def _trend(
@@ -636,6 +765,47 @@ def _corroboration(observations: list[_Observation]) -> ProductionCorroboration:
     )
 
 
+def _empty_cells_summary(
+    fab_name: str,
+    fleet_size: int,
+    dropped: dict[str, int],
+    rows: list[_Observation],
+) -> str:
+    """Why ``occupied_cells`` is empty, in the words that name the fix.
+
+    Three distinct causes reach here and none of them is visible on screen:
+    the parameter matched no row, no parameter carried a resolvable direction,
+    or every recipe was run by a single tool so nothing had contrast. Blaming
+    the axis for all three sends the next person to the wrong env var.
+    """
+    head = f"{fab_name} 장비 그룹 {fleet_size}대 · "
+    tail = "장비 그룹 비교는 아래 fleet 지표로 보시기 바랍니다."
+    if dropped["no_parameter"] and not rows:
+        return (
+            f"{head}선택한 parameter 를 측정한 이력이 없어 셀별 스큐를 "
+            f"계산하지 못했습니다. {tail}"
+        )
+    if dropped["no_axis"] and not rows:
+        _LOG.warning(
+            "tttm: %d measured rows in %s had no resolvable axis; "
+            "occupied_cells is empty. Set SKEWNONO_AXIS_PARAM_MAP.",
+            dropped["no_axis"], fab_name,
+        )
+        return (
+            f"{head}측정 방향(X/Y)을 확인할 수 없어 셀별 스큐를 계산하지 "
+            f"못했습니다. {tail}"
+        )
+    _LOG.info(
+        "tttm: %s has %d observations but no cell survived — no recipe and "
+        "feature was measured by two tools in one epoch.",
+        fab_name, len(rows),
+    )
+    return (
+        f"{head}두 대 이상이 함께 측정한 recipe·parameter 가 없어 장비간 "
+        f"비교가 성립하지 않습니다. {tail}"
+    )
+
+
 def _unavailable(
     tool_slug: str,
     fab_name: str,
@@ -658,7 +828,7 @@ def _unavailable(
         "fetched_at": "",
         "summary": summary,
         "tools": [],
-        "current_tolerance": CURRENT_TOLERANCE,
+        "current_tolerance": DEFAULT_TOLERANCE,
         "tolerance_range": TOLERANCE_RANGE,  # type: ignore[typeddict-item]
         "occupied_cells": [],
         "production_corroboration": {"level": "low", "note": _NOTE, "detail": []},
@@ -729,20 +899,9 @@ def get_tttm_check(
             f"(직접 {direct} · 예측 {len(cells) - direct}) 기준 추천입니다."
         )
     else:
-        # The most likely reason by far, and the one with a one-line fix — see
-        # the module docstring's caveat 1. Saying it on the payload beats a
-        # silently empty grid the user reads as "these tools all match".
-        summary = (
-            f"{fab_name} 장비 그룹 {len(fleet)}대 · 측정 방향(X/Y)을 확인할 수 없어 "
-            f"셀별 스큐를 계산하지 못했습니다. 장비 그룹 비교는 아래 fleet 지표로 "
-            f"보시기 바랍니다."
-        )
-        if dropped["no_axis"]:
-            _LOG.warning(
-                "tttm: %d measured rows in %s had no resolvable axis; "
-                "occupied_cells is empty. Set SKEWNONO_AXIS_PARAM_MAP.",
-                dropped["no_axis"], fab_name,
-            )
+        # An empty grid has three causes that render identically, and the user
+        # reads all three as "these tools all match". Each one says which.
+        summary = _empty_cells_summary(fab_name, len(fleet), dropped, cell_rows)
 
     return {
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
@@ -753,7 +912,7 @@ def get_tttm_check(
         "fetched_at": anchor.isoformat(timespec="seconds"),
         "summary": summary,
         "tools": fleet,
-        "current_tolerance": CURRENT_TOLERANCE,
+        "current_tolerance": DEFAULT_TOLERANCE,
         "tolerance_range": TOLERANCE_RANGE,  # type: ignore[typeddict-item]
         "occupied_cells": cells,
         "production_corroboration": _corroboration(fleet_rows_),

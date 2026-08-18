@@ -17,13 +17,14 @@ never boundaries. Importing it would also couple two features to whether the
 hardware adapter happens to have been ``cp``-ed. This module is TRACKED, so it
 travels with ``git pull``, and it answers only the boundary question.
 
-Sources (docs/datatables/hardware_mdc_setting.txt, 담당자 확인 2026-07-27):
+Source (docs/datatables/hardware_mdc_setting.txt, 담당자 확인 2026-07-27): MinIO
+``hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json`` — one file per
+collection date, each the fab's whole ``{eqp_id: {beam_condition: value}}`` map.
 
-* Redis hash ``mdc_setting`` — field per ``fab_name``, value the fab's
-  ``{eqp_id: {beam_condition: value}}`` map. Overwritten in place: latest only.
-* MinIO ``hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json`` — one file
-  per collection date, the same dict-of-dict shape. This is the only place
-  history exists, so every "when did it change" answer is a walk of these.
+The Redis hash ``mdc_setting`` holds the same map for TODAY and is deliberately
+not read here. A boundary is a difference between two dates, and the snapshot
+carries no date to difference against; ``hardware/providers/mdc`` already serves
+the "what is it now" question that key answers.
 
 ★ An empty read is ABNORMAL here, unlike SCE. MDC covers every fab including
 R3/R4, so a missing hash field or archive file is a collection failure, not a
@@ -38,8 +39,6 @@ regular, so a walk that assumed daily files would read a gap as a change.
 
 from __future__ import annotations
 
-import json
-import pickle
 from datetime import date, datetime
 from functools import lru_cache
 from typing import Any, NamedTuple
@@ -49,18 +48,13 @@ from back_dev_home._logging.providers import logger as _LOG
 
 __all__ = [
     "MDC_MINIO_BASE",
-    "MDC_REDIS_KEY",
     "MdcChange",
     "archive_dates",
     "changes",
-    "latest_snapshot",
     "snapshot_on",
     "split_condition",
 ]
 
-
-# Redis hash: field per fab_name, value = that fab's dict-of-dict map.
-MDC_REDIS_KEY = "mdc_setting"
 
 # MinIO anchor; composes onto the configured default prefix. One
 # {fab_name}.json per collection date beneath it.
@@ -142,31 +136,6 @@ def _conditions(entry: Any) -> dict[str, float]:
     return out
 
 
-def _parse_fab_blob(raw: bytes, fab: str) -> Any:
-    """One Redis hash-field value -> the fab's raw map.
-
-    The writer stores JSON; the pickle branch is a fallback in case a fab lands
-    via ``pickle.dumps`` instead. Mirrors ``hardware/providers/mdc`` and
-    ``sce``, which face the same writer — keep the three in step.
-    """
-    if raw.lstrip()[:1] in (b"{", b"["):
-        try:
-            return json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise LookupError(
-                f"Redis {MDC_REDIS_KEY!r}[{fab!r}] looks like JSON but does "
-                f"not parse -> {type(exc).__name__}: {exc}"
-            ) from exc
-    try:
-        return pickle.loads(raw)
-    except Exception as exc:  # noqa: BLE001 — any unpickling failure is data
-        raise LookupError(
-            f"Could not deserialize Redis {MDC_REDIS_KEY!r}[{fab!r}] "
-            f"(first bytes: {raw[:16].hex(' ')!r}, length {len(raw)}). "
-            f"Real error -> {type(exc).__name__}: {exc}."
-        ) from exc
-
-
 def _fab_map(payload: Any) -> dict[str, dict[str, float]]:
     if not isinstance(payload, dict):
         return {}
@@ -175,22 +144,6 @@ def _fab_map(payload: Any) -> dict[str, dict[str, float]]:
         for eqp, entry in payload.items()
         if (conditions := _conditions(entry))
     }
-
-
-def latest_snapshot(fab_name: str) -> dict[str, dict[str, float]]:
-    """The fab's current MDC map from Redis, ``{eqp_id: {condition: value}}``."""
-    from back_dev_home._runtime.office_redis import redis_client
-
-    fab = fab_name.strip().upper()
-    client = redis_client()
-    raw = client.hget(MDC_REDIS_KEY, fab)
-    if raw is None:
-        _warn_empty(
-            f"fab {fab!r} has no field in the snapshot hash",
-            f"Redis {MDC_REDIS_KEY} carries no {fab!r} field",
-        )
-        return {}
-    return _fab_map(_parse_fab_blob(raw, fab))
 
 
 def _is_missing_object(exc: Exception) -> bool:
@@ -223,6 +176,15 @@ def snapshot_on(fab_name: str, on: date) -> dict[str, dict[str, float]]:
     an ingestion problem. Cached per (fab, date): a 60-day window is 60 GETs
     the first time and none afterwards, and the archive for a past date never
     changes.
+
+    A missing file degrades; any OTHER MinIO failure RAISES, and that asymmetry
+    is deliberate even though ``hardware/providers/mdc`` renders its tab
+    through the same absence. The difference is what the caller does with the
+    answer: the hardware tab DISPLAYS MDC values, so a gap is a blank row,
+    while the callers here use them to decide which measurements may be
+    compared. An unreadable archive there means an epoch boundary we cannot
+    see, and a skew pooled across an unseen boundary reports a correction
+    factor as a tool difference — a wrong number, not a missing one.
     """
     from minio_handler import MinioObject
 

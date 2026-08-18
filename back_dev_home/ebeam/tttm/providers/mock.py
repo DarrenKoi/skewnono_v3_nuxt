@@ -79,6 +79,17 @@ flatten them by accident:
   feature can move a tool in or out of the N배화 group — and it does that by
   re-seeding rather than by pretending to know the feature list.
 
+OFFICE-VERIFY: `beam_condition` here is "BC1"/"BC2"/"BC3", and that vocabulary is
+this mock's invention. The office emits an accelerating-voltage label derived
+from the pickle's `meas_condition vac` ("500V"/"800V"), which is also what the
+real MDC keys are built from ("500V_HR_0Deg" — see
+docs/datatables/hardware_mdc_setting.txt). The field is a free string in
+contracts.py and `cellLabel()` just concatenates it with the axis, so both
+render; but home teaches a vocabulary the office does not use, and the prose in
+`utils/tttmCells.ts` is written around the mock's. Renaming these to voltages
+would make home and office agree — deferred because it ripples through the
+captured fixture and the frontend unit tests, not because "BC1" is right.
+
 OFFICE-VERIFY: that per-parameter skew statistics exist at the grain the office
 adapter needs. `parameter` is specified against `idp_image_info.Parameter` (the
 recipe-search catalogue), but whether the skew source can be sliced by it — or
@@ -102,6 +113,8 @@ from typing import NamedTuple
 
 from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from back_dev_home.ebeam.tttm.contracts import (
+    DEFAULT_TOLERANCE,
+    TOLERANCE_RANGE,
     CellSkew,
     ConsensusDeviation,
     EpochMarker,
@@ -126,8 +139,10 @@ _FETCHED_AT = "2026-05-31T14:30:00"
 # line the frontend draws.
 _FLEET_MEDIAN_CD_NM = 15.1
 
-_TOLERANCE_RANGE = {"min": 0.01, "max": 0.2, "step": 0.005}
-_CURRENT_TOLERANCE = 0.05
+# From contracts.py — the one declaration, next to the docstring that explains
+# why these are monitor-wafer figures rather than absolute nanometres.
+_TOLERANCE_RANGE = TOLERANCE_RANGE
+_CURRENT_TOLERANCE = DEFAULT_TOLERANCE
 # The one pair pinned above `_TOLERANCE_RANGE["max"]`; see the module docstring.
 _BREACH_SKEW = 0.24
 _DRIFTED_DEVIATION = -0.13

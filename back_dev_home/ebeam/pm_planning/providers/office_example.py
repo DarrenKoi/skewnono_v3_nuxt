@@ -53,6 +53,26 @@ Volatile fields: ``fetched_at`` is stamped per request and ``anchor_date``
 follows meas_hist ingestion, where the mock freezes both at
 ``2026-05-24T09:00:00Z``. A parity harness must scrub them rather than compare.
 
+OFFICE-VERIFY (check these once, on the first office run — the staged
+``__main__`` below prints what it actually found for every one of them):
+
+* Which recipe is the CD-monitoring run (``SKEWNONO_CD_MONITOR_RECIPE``). There
+  is no source for this anywhere in ``docs/datatables``; the default is this
+  repo's mock vocabulary. Stage 2 lists the recipe names the fab really ran.
+* The index aliases ``beam_shape_cdsem`` and ``fab_inform_notes``, and that
+  exact matches go through ``.keyword`` sub-fields with ``fab_name``
+  upper-cased. A term query on an analyzed parent matches NOTHING and answers
+  200 with an empty gate.
+* That BSM sharpness is the mean of the ``Reso EB`` profile. The metric
+  registry has an ``Ave. Noise`` scalar but no ``Ave. Reso EB``, so noise is
+  read and sharpness is averaged — confirm the fab reads them the same way.
+* Whether ``fab_inform_notes`` stores offset-less KST wall clock like the
+  meas_hist indices. A stored ``Z`` slides ``post_pm_at`` by nine hours, which
+  moves the before/after split behind ``prev_post_delta``.
+* That the fleet-relative substitutes in note 2 and note 3 above are acceptable
+  as an interim, and what the real CD spec window and BSM band are when they
+  are found.
+
 At the office: fill OPENSEARCH_* / REDIS_* in ``back_dev_home/.env`` and
 ``minio_handler/minio_config.py``, ``cp office_example.py office.py`` (that copy
 IS the switch), make sure ``sem_list`` has one too, then run MIGRATION.md's
@@ -63,7 +83,7 @@ from __future__ import annotations
 
 import logging
 import statistics
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from back_dev_home.ebeam._office_bm_pm import latest_pm_by_tool, maintenance_events
@@ -81,6 +101,7 @@ from back_dev_home.ebeam._office_meas_hist import (
 from back_dev_home.ebeam._office_msr_cd import (
     Point,
     RunRef,
+    as_float as _as_float,
     beam_label,
     load_points,
     monitor_recipe_pattern,
@@ -132,6 +153,15 @@ WINDOW_DAYS = 30
 # into a hundred MinIO GETs.
 RUNS_PER_TOOL = 8
 
+# How far back to look for MDC epoch boundaries. Deliberately NOT WINDOW_DAYS:
+# MDC "자주 바뀌지는 않는다" (docs/datatables/hardware_mdc_setting.txt) and the
+# mock's own epoch_history spaces its three points 60+ days apart, so a 30-day
+# lookback would leave nearly every tool with an empty history and make the
+# `mdc_changed` badge read as "never changed" rather than "not in the last
+# month". The archive walk is date-partitioned and cached, so the longer window
+# costs one pass per fab per process.
+EPOCH_LOOKBACK_DAYS = 240
+
 # The fab's action limit for one tool against consensus, as a fraction of CD.
 # user-confirmed 2026-08-16 — the familiar ±0.15 nm at the 15 nm monitor wafer
 # IS this ratio. Not a guess, and not the mock's ±0.5 nm.
@@ -152,9 +182,13 @@ BSM_TIME = "timestamp"
 BSM_SHARPNESS_KEY = "Reso EB"
 BSM_NOISE_SCALAR = "Ave. Noise"
 BSM_NOISE_PROFILE = "Noise"
-# Docs kept per tool: enough to average a BSM level per MDC epoch, not enough to
-# pull 30 days of 16-element arrays for a whole fab.
-BSM_DOCS_PER_TOOL = 40
+# Docs kept per tool. beam_shape runs ~3x/day (docs/datatables/hardware_beam_shape.txt),
+# so a 30-day window is ~90 docs per tool per beam condition — 40 silently cut
+# the older half, and the epoch-opening levels in `epoch_history` came from
+# whatever survived. Sized to cover the window with headroom, and truncation is
+# DETECTED below rather than quietly served, which is that document's own rule
+# ("상한에 닿으면 조용히 자르지 않고 감지합니다").
+BSM_DOCS_PER_TOOL = 200
 
 # A fleet is uniform enough that "3 MADs out" is a real outlier; the floor stops
 # a fleet whose readings happen to be identical from flagging the one tool that
@@ -170,16 +204,6 @@ BsmReading = tuple[datetime, float | None, float | None]
 
 
 # ── small numeric helpers ─────────────────────────────────────────────────
-
-
-def _as_float(value: Any) -> float | None:
-    if isinstance(value, bool):
-        return None
-    try:
-        result = float(value)
-    except (TypeError, ValueError):
-        return None
-    return result if result == result and abs(result) != float("inf") else None
 
 
 def _mean_of(values: Any) -> float | None:
@@ -270,6 +294,15 @@ def _bsm_by_tool(
             if noise is None:
                 noise = _mean_of(source.get(BSM_NOISE_PROFILE))
             series.append((at, _mean_of(source.get(BSM_SHARPNESS_KEY)), noise))
+        if bucket.get("doc_count", 0) > len(
+            bucket.get("latest", {}).get("hits", {}).get("hits", [])
+        ):
+            _LOG.warning(
+                "pm_planning: %s returned more than %d BSM docs for %s; the "
+                "oldest were not read, so an epoch_history point may report a "
+                "later level than the one its epoch opened at.",
+                BSM_INDEX, BSM_DOCS_PER_TOOL, eqp_id,
+            )
         readings[eqp_id] = series
     return readings
 
@@ -333,8 +366,18 @@ def _prev_post_delta(runs: list[RunRef], post_pm_at: str | None) -> float | None
     """
     if not post_pm_at:
         return None
-    before = [run for run in runs if run.at.isoformat() < post_pm_at]
-    after = [run for run in runs if run.at.isoformat() >= post_pm_at]
+    try:
+        # Parsed, not string-compared. `run.at` carries a UTC tag (KST wall
+        # clock, per parse_dt) while `post_pm_at` is the raw stored string with
+        # no offset, so a lexical compare works only while their first 19
+        # characters happen to line up — and fails silently the day
+        # fab_inform_notes starts storing a `Z`, which this module's own
+        # docstring records as UNVERIFIED.
+        boundary = parse_dt(post_pm_at)
+    except ValueError:
+        return None
+    before = [run for run in runs if run.at < boundary]
+    after = [run for run in runs if run.at >= boundary]
     if not before or not after:
         return None
     before_values = [v for v in (_run_value(run) for run in before) if v is not None]
@@ -361,7 +404,17 @@ def _epoch_history(
     """
     points: list[EpochPoint] = []
     for change in epochs[-3:]:
-        opened = datetime.combine(change.on, datetime.min.time()).replace(tzinfo=KST)
+        # UTC, not KST, and the nine hours matter. The office indices store
+        # offset-less KST wall clock, and `parse_dt` labels that naive string
+        # UTC — so every `at` here is a KST reading wearing a UTC tag. An
+        # honestly-KST midnight would sit nine hours EARLIER than those
+        # readings, pulling the previous evening's BSM into this epoch and
+        # running the seven-day window nine hours long. Comparing tag-to-tag is
+        # what keeps both sides on the same wall clock; it is the same
+        # KST-as-UTC convention `_office_meas_hist` states for its own filters.
+        opened = datetime.combine(change.on, datetime.min.time()).replace(
+            tzinfo=timezone.utc
+        )
         after = sorted(
             (at, sharpness) for at, sharpness, _ in bsm
             if sharpness is not None and at >= opened
@@ -552,7 +605,7 @@ def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
     post_pm = latest_pm_by_tool(maintenance_events(fab, eqp_ids, start, anchor))
 
     epochs_by_tool: dict[str, list[MdcChange]] = {}
-    for change in mdc_changes(fab, start, anchor):
+    for change in mdc_changes(fab, anchor - timedelta(days=EPOCH_LOOKBACK_DAYS), anchor):
         epochs_by_tool.setdefault(change.eqp_id, []).append(change)
 
     # The spec window is the fleet's own median, so every tool's latest reading
@@ -704,8 +757,8 @@ if __name__ == "__main__":  # pragma: no cover
         f"{len(latest_pm_by_tool(maint))} tools with a completed PM in the window"
     )
     print(
-        f"  MDC: {len(mdc_changes(fab_arg, window_start, anchor_at))} changes "
-        "in the window"
+        f"  MDC: {len(mdc_changes(fab_arg, anchor_at - timedelta(days=EPOCH_LOOKBACK_DAYS), anchor_at))} "
+        f"changes in the last {EPOCH_LOOKBACK_DAYS}d"
     )
 
     print("\n--- 5. payload ---")

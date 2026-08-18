@@ -195,3 +195,36 @@ device 카탈로그(디바이스별 화면)용 lot_cd 해결
   - OpenSearch "ebeam_tas_lot_hist" index 의 최근 60일(event_tm) unique
     lot_cd -> "현재 생산 중" 판단(오래된 lot_cd 제거).
   자세한 스키마는 device_desc.txt, ebeam_tas_lot_hist.txt 참고.
+
+
+========================================================================
+어댑터 소비 규약 (tttm / pm_planning — 장비 그룹 실행 조회)
+========================================================================
+
+두 피처는 이 인덱스를 "어떤 실행이 있었는가"로만 쓰고, 실제 CD 값은 각 문서의
+minio_pkl 을 열어서 얻습니다(msr_file_pickle.txt 의 tttm/pm_planning 절 참고).
+공용 코드는 back_dev_home/ebeam/_office_msr_cd.py 의 recent_runs() 입니다.
+
+조회 조건 -> fab_name.keyword + eqp_id.keyword(terms, 장비 그룹 전체)
+             + msr_check.keyword = "Yes" + timestamp range
+             (+ 선택적으로 recipe: full_name/recipe_name/class_name 의 .keyword,
+              값에 * 가 있으면 case_insensitive wildcard)
+집계       -> terms(eqp_id.keyword) + top_hits(size=per_tool, timestamp desc)
+              장비 1대당 1회 조회가 아니라 **한 번의 집계**입니다. 18대 fab 이면
+              pickle 을 열기도 전에 왕복이 18번 생기기 때문입니다.
+절단 감지  -> bucket 의 doc_count > 돌려받은 hit 수이면 상한에 닿은 것이며,
+              RunSet.truncated 로 호출부에 알립니다. 조용히 자르지 않습니다.
+
+msr_check = "Yes" 로 거르는 이유: MSR 파일이 안 떨어진 실행은 실제 실행이지만
+(recipe_tat 는 그것도 셉니다) pickle 이 없어 CD 가 없습니다. 걸러 두지 않으면
+확정적으로 헛되는 MinIO GET 이 됩니다.
+
+★ CD_MONITORING recipe 의 이름은 이 문서에도, 이 폴더 어디에도 없습니다.
+  pm_planning 의 Up gate 는 "그 장비의 CD 모니터링 측정값"을 물어보는데, 어느
+  recipe 가 그것인지 집에서는 알 방법이 없습니다(mock 은 값과 스펙 창을 모두
+  지어냅니다). 그래서 어댑터는 SKEWNONO_CD_MONITOR_RECIPE 환경변수로 recipe 를
+  받습니다. 기본값 "QC" 는 이 저장소 mock 의 어휘이며 팹의 것이 아닙니다.
+  사무실에서 확인하는 방법:
+    .venv/bin/python -m back_dev_home.ebeam.pm_planning.providers.office R3
+  2단계가 그 fab 이 실제로 돌린 recipe 이름을 출력합니다. 이름을 확인하면
+  **이 문서에 먼저 적고** 환경변수를 맞추십시오.

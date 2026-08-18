@@ -16,6 +16,27 @@ to zero tools at home. Deduplicated by eqp_id because sem_list's mock rolls
 ids at random (~10 of its 300 rows collide) and eqp_id keys everything here.
 A fab with no CD-SEM rows in sem_list answers an EMPTY `tools` list — real
 fabs are `M14A`/`R3`-style names; a bare `M14` matches nothing.
+
+OFFICE-VERIFY — the Up gate's two spec inputs are FABRICATED here, and the
+office adapter deliberately does NOT reuse them:
+
+* `spec_range_mock.get_cd_monitoring_spec` invents a per-tool target ±0.5 nm.
+  No CD_MONITORING source exists in docs/datatables at all — not the recipe
+  name, not the spec window. The office adapter derives the window as the
+  fleet's own median ±1 %, because 1 % of CD is the only spec rule this repo
+  actually knows (user-confirmed 2026-08-16: the familiar ±0.15 nm at the 15 nm
+  monitor wafer IS that ratio). So `cd_in_spec` means "agrees with its
+  siblings" at the office and "inside a made-up window" here. The two are not
+  the same claim; do not reconcile them by copying this one outward.
+* `spec_range_mock.bsm_in_spec` tests noise against 6.65-6.95, a band invented
+  alongside `pm_gate_bsm_mock`. The real sample doc in
+  docs/datatables/hardware_beam_shape.txt has `Ave. Noise` at 6.277 — OUTSIDE
+  it. Applying this band to real data would mark every tool in the fab out of
+  spec and hold the whole fleet, so the office adapter uses a fleet-relative
+  robust outlier test instead.
+
+Both are replacements for sources that do not exist yet. When a real ingested
+spec appears, it replaces the office side FIRST and this docstring second.
 """
 
 import hashlib

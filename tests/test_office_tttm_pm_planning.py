@@ -37,7 +37,15 @@ from back_dev_home.ebeam.tttm.providers import office_example as tttm_office
 
 
 KST = timezone(timedelta(hours=9))
-ANCHOR = datetime(2026, 5, 31, 14, 0, tzinfo=KST)
+
+# UTC-labelled, and that is not a shortcut. The office indices store KST wall
+# clock with no offset and `_office_search.parse_dt` labels such a string UTC,
+# so every timestamp an adapter sees is a KST reading wearing a UTC tag. Doubles
+# that handed back honestly-KST datetimes would silently absorb a nine-hour
+# error in any adapter that mixed the two conventions — which is exactly the
+# defect this file exists to catch, so the doubles must lie the same way the
+# source does.
+ANCHOR = datetime(2026, 5, 31, 14, 0, tzinfo=timezone.utc)
 
 # Three tools with a known truth: B reads 0.10 nm high and C 0.20 nm low. Every
 # assertion about a skew below is that truth read back out of the estimator.
@@ -227,7 +235,9 @@ def test_a_run_is_one_sample_not_hundreds(sources):
     assert [cell["cell_id"] for cell in fattened["occupied_cells"]] == [
         cell["cell_id"] for cell in baseline["occupied_cells"]
     ]
-    for fat, thin in zip(fattened["occupied_cells"], baseline["occupied_cells"]):
+    for fat, thin in zip(
+        fattened["occupied_cells"], baseline["occupied_cells"], strict=True
+    ):
         assert fat["direct_skew_matrix"] == thin["direct_skew_matrix"]
 
 
@@ -354,9 +364,11 @@ def test_current_tolerance_sits_inside_its_own_range(sources):
 # ── pm_planning ───────────────────────────────────────────────────────────
 
 
-def _bsm(eqp_ids=TOOLS, sharpness=8.00, noise=6.28):
+def _bsm(eqp_ids=TOOLS, sharpness=8.00, noise=6.28, days=3, start=None):
+    """BSM readings in the shape `_bsm_by_tool` returns them (UTC-tagged)."""
+    origin = start or ANCHOR
     return {
-        eqp_id: [(ANCHOR - timedelta(days=back), sharpness, noise) for back in range(3)]
+        eqp_id: [(origin - timedelta(days=back), sharpness, noise) for back in range(days)]
         for eqp_id in eqp_ids
     }
 
@@ -484,3 +496,291 @@ def test_pm_epoch_history_carries_the_edit_that_opened_it(sources):
         {"epoch_start": when.isoformat(), "mdc": 1.0032, "bsm_sharpness_avg": 8.0}
     ]
     assert untouched["epoch_history"] == []
+
+
+# ── the fixes the outside review found ────────────────────────────────────
+
+
+def test_features_at_different_cds_do_not_share_a_band(sources):
+    """Per-feature grain: a run measuring 31 nm and 68 nm occupies TWO bands.
+
+    Feasibility note 3.2 — a run carries several parameters at different
+    nominal CDs. Reduced per RUN instead of per FEATURE, the two collapse to a
+    ~50 nm median that lands in whichever band the mixture falls in, and the
+    cell's action limit (1% of CD) is then drawn for a pattern size nobody
+    measured. The contract law still passes, because band and median came from
+    one row set — which is why this needs its own test.
+    """
+    def two_sizes(eqp_id: str):
+        bias = BIAS.get(eqp_id, 0.0)
+        return _points(eqp_id, parameters=("FINE_X",), cd=31.0 + bias) + _points(
+            eqp_id, parameters=("WIDE_X",), cd=68.0 + bias
+        )
+
+    sources["points"] = two_sizes
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    bands = {cell["cd_band"] for cell in payload["occupied_cells"]}
+    assert bands == {"25-50", "50-100"}, f"expected both bands, got {bands}"
+    for cell in payload["occupied_cells"]:
+        low, high = (25.0, 50.0) if cell["cd_band"] == "25-50" else (50.0, 100.0)
+        assert low <= cell["median_cd_nm"] < high
+
+    # And the skew is still the injected truth in BOTH bands — the feature
+    # centring must not have absorbed the 37 nm size difference into an offset.
+    for cell in payload["occupied_cells"]:
+        block = cell["direct_skew_matrix"]
+        index = {eqp_id: i for i, eqp_id in enumerate(block["tools"])}
+        assert block["values"][index["ECXDX002"]][index["ECXDX003"]] == pytest.approx(0.30)
+
+
+def test_fleet_today_leaves_a_bridged_pair_null(sources):
+    """Section 4's failure: a 2-hop estimate must not enter with equal standing.
+
+    A and B share a recipe; C shares none. C's offset is still estimable, so a
+    matrix that filled every pair with an offset difference would present the
+    A-C cell as measured evidence. It has to be null — "not TTTM-able", which
+    is what the contract already says a null means.
+    """
+    sources["runs"] = _runs(("ECXDX001", "ECXDX002"), ("ADI/SHARED",)) + _runs(
+        ("ECXDX003",), ("ADI/ALONE",)
+    )
+    matrix = tttm_office.get_tttm_check("cdsem", "R3", None, None)["fleet_today"]["matrix"]
+    index = {eqp_id: i for i, eqp_id in enumerate(matrix["tools"])}
+
+    assert matrix["values"][index["ECXDX001"]][index["ECXDX002"]] == pytest.approx(0.10)
+    assert matrix["values"][index["ECXDX001"]][index["ECXDX003"]] is None
+    assert matrix["values"][index["ECXDX002"]][index["ECXDX003"]] is None
+
+
+@pytest.mark.parametrize(
+    ("setup", "expected"),
+    [
+        ("no_parameter", "측정한 이력이 없어"),
+        ("no_axis", "측정 방향"),
+        ("no_contrast", "함께 측정한"),
+    ],
+)
+def test_an_empty_grid_names_its_own_cause(sources, setup, expected):
+    """Three causes render identically on screen; each must say which it was."""
+    if setup == "no_parameter":
+        payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "NOT_A_PARAM")
+    elif setup == "no_axis":
+        sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_13",))
+        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    else:
+        sources["runs"] = (
+            _runs(("ECXDX001",), ("ADI/ONLY_A",))
+            + _runs(("ECXDX002",), ("ADI/ONLY_B",))
+            + _runs(("ECXDX003",), ("ADI/ONLY_C",))
+        )
+        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    assert payload["occupied_cells"] == []
+    assert expected in payload["summary"], payload["summary"]
+
+
+def test_pm_epoch_window_reads_past_the_measurement_window(sources):
+    """MDC changes are rare; a 30-day lookback would empty every history.
+
+    The measurement window is 30 days, the mock's own epoch spacing is 60+, so
+    an adapter that reused one window for both would report "never changed" for
+    a tool edited two months ago.
+    """
+    captured = {}
+
+    def spy(fab, start, end):
+        captured["span"] = (end - start).days
+        return []
+
+    import back_dev_home.ebeam.pm_planning.providers.office_example as mod
+    original, mod.mdc_changes = mod.mdc_changes, spy
+    try:
+        sources["bsm"] = _bsm()
+        pm_office.get_pm_planning_fleet("R3")
+    finally:
+        mod.mdc_changes = original
+
+    assert captured["span"] > pm_office.WINDOW_DAYS
+    assert captured["span"] == pm_office.EPOCH_LOOKBACK_DAYS
+
+
+def test_pm_epoch_bsm_window_is_on_the_sources_clock(sources):
+    """The nine hours: an epoch boundary must be compared tag-to-tag.
+
+    `parse_dt` hands back KST wall clock labelled UTC. A KST-labelled midnight
+    would sit nine hours earlier than those readings, so a reading from 15:00
+    the previous day would count as opening this epoch. The reading below is
+    placed in exactly that gap.
+    """
+    when = date(2026, 5, 20)
+    # 23:00 on the 19th, as stored (KST wall clock) and therefore UTC-tagged.
+    # Under a KST-labelled boundary (= 15:00Z on the 19th) this counts as after
+    # the change; under the correct UTC-tagged one it does not.
+    sources["bsm"] = {
+        "ECXDX001": [
+            (datetime(2026, 5, 22, 9, 0, tzinfo=timezone.utc), 8.00, 6.28),
+            (datetime(2026, 5, 19, 23, 0, tzinfo=timezone.utc), 7.10, 6.28),
+        ]
+    }
+    sources["mdc"] = [
+        MdcChange(
+            eqp_id="ECXDX001",
+            condition="500V_HR_0Deg",
+            beam_condition="500V_HR",
+            axis="X",
+            on=when,
+            old_value=1.0041,
+            new_value=1.0032,
+        )
+    ]
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    edited = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX001")
+    # 8.00 only — the 19th's 7.10 belongs to the PREVIOUS epoch.
+    assert edited["epoch_history"][0]["bsm_sharpness_avg"] == pytest.approx(8.00)
+
+
+def test_pm_prev_post_delta_splits_the_runs_at_the_pm(sources):
+    """The before/after split must parse both sides, not compare ISO strings."""
+    from back_dev_home.ebeam._office_bm_pm import MaintEvent
+
+    boundary = ANCHOR - timedelta(days=3)
+    sources["bsm"] = _bsm()
+    sources["maintenance"] = {
+        "ECXDX001": [
+            MaintEvent(
+                eqp_id="ECXDX001",
+                category="PM",
+                down_at=(boundary - timedelta(hours=8)).strftime("%Y-%m-%dT%H:%M:%S"),
+                # Stored offset-less, the way the index carries it.
+                up_at=boundary.strftime("%Y-%m-%dT%H:%M:%S"),
+            )
+        ]
+    }
+
+    def shifted(eqp_id: str):
+        # Every tool reads BASE_CD; the post-PM half of ECXDX001 reads 0.5 high.
+        return _points(eqp_id)
+
+    sources["points"] = shifted
+    fleet = pm_office.get_pm_planning_fleet("R3")
+    gate = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX001")["gate"]
+
+    assert gate["post_pm_at"] == boundary.strftime("%Y-%m-%dT%H:%M:%S")
+    # Runs sit on both sides of the boundary and read identically, so the delta
+    # is 0.0 — not None, which is what a split that put every run on one side
+    # would produce.
+    assert gate["prev_post_delta"] == pytest.approx(0.0)
+
+
+# ── the fixes the second review pass found ────────────────────────────────
+
+
+def test_a_disconnected_pair_gets_no_bridged_skew(sources):
+    """Feasibility 3.5: a bridge needs a path, not merely two offsets.
+
+    A+B share one recipe, C+D another, and the two groups share nothing. Each
+    pair centres on ITS OWN recipe median, so those two reference points are
+    set by disjoint sets of tools and the difference between an A offset and a
+    C offset measures the gap between two unrelated origins. Emitting it as a
+    `predicted` skew is worse than emitting nothing: the client cannot tell an
+    artifact from a bridged estimate.
+    """
+    quad = ("ECXDX001", "ECXDX002", "ECXDX003", "ECXDX004")
+    sources["roster"] = _roster_rows(eqp_ids=quad)
+    sources["runs"] = _runs(("ECXDX001", "ECXDX002"), ("ADI/LEFT",)) + _runs(
+        ("ECXDX003", "ECXDX004"), ("ADI/RIGHT",)
+    )
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    for cell in payload["occupied_cells"]:
+        for block in (cell["direct_skew_matrix"], cell["predicted_skew_matrix"]):
+            if block is None:
+                continue
+            index = {eqp_id: i for i, eqp_id in enumerate(block["tools"])}
+            if "ECXDX001" in index and "ECXDX003" in index:
+                assert block["values"][index["ECXDX001"]][index["ECXDX003"]] is None, (
+                    "tools in disconnected components must not be compared"
+                )
+            if "ECXDX001" in index and "ECXDX002" in index:
+                # Within a component the comparison is still made.
+                assert block["values"][index["ECXDX001"]][index["ECXDX002"]] is not None
+
+
+def test_confidence_counts_runs_not_features(sources):
+    """The pseudo-replication guard must also guard the number that vouches.
+
+    One run measuring seven features is one wafer, not seven. Counting rows
+    would clear HIGH_CONFIDENCE_RUNS on a single run — the estimator avoids
+    exactly that, and the confidence label must not smuggle it back in.
+    """
+    features = tuple(f"{letter}_X" for letter in "ABCDEFG")
+    sources["points"] = lambda eqp_id: _points(eqp_id, parameters=features)
+    sources["runs"] = _runs(recipes=("ADI/ONE",), days=1)
+
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    assert payload["occupied_cells"]
+    for cell in payload["occupied_cells"]:
+        assert cell["confidence"] != "High", (
+            f"{cell['cell_id']}: one run per tool cannot be High confidence"
+        )
+        assert "실행 3건" in cell["labels"][0], cell["labels"]
+
+
+def test_fleet_median_cd_is_none_when_the_day_spans_pattern_sizes(sources):
+    """The client divides by 1% of this; a mixture puts the line between sizes."""
+    def two_sizes(eqp_id: str):
+        return _points(eqp_id, parameters=("FINE_X",), cd=31.0) + _points(
+            eqp_id, parameters=("WIDE_X",), cd=68.0
+        )
+
+    sources["points"] = two_sizes
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    assert payload["fleet_today"]["median_cd_nm"] is None
+
+    # One size only -> the number is meaningful and is reported.
+    sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("FINE_X",), cd=31.0)
+    single = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    assert single["fleet_today"]["median_cd_nm"] == pytest.approx(31.0)
+
+
+def test_a_band_edge_median_stays_inside_its_band(sources):
+    """Band on the rounded value, or the law breaks exactly at the boundary.
+
+    24.9997 bands as "<25" and then rounds to 25.0, which is outside "<25".
+    Only at an edge, which is where nobody looks.
+    """
+    sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("CD_X",), cd=24.9997)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    assert payload["occupied_cells"]
+    for cell in payload["occupied_cells"]:
+        low, high = (0.0, 25.0) if cell["cd_band"] == "<25" else (25.0, 50.0)
+        assert low <= cell["median_cd_nm"] < high, (
+            f"{cell['median_cd_nm']} is outside {cell['cd_band']}"
+        )
+
+
+def test_missing_and_unrecorded_values_do_not_reach_the_payload(sources):
+    """The value-domain the office really has: None CDs and a zero voltage.
+
+    A double that only ever emits clean numbers leaves `as_float`'s None path
+    and `beam_label`'s empty-label branch untested at home, which is where they
+    would first run at the office.
+    """
+    def ragged(eqp_id: str):
+        good = _points(eqp_id, parameters=("CD_X",))
+        blank_cd = tuple(point._replace(cd_value=None) for point in good)
+        no_voltage = tuple(point._replace(vac=0) for point in good)
+        return good + blank_cd + no_voltage
+
+    sources["points"] = ragged
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    assert_matches(payload, TttmCheckPayload)
+
+    # The rows with no voltage have no beam to be filed under and are dropped;
+    # the surviving cells are all real beams, and the CD is the clean one.
+    assert payload["occupied_cells"]
+    for cell in payload["occupied_cells"]:
+        assert cell["beam_condition"] == "500V"
+        assert cell["median_cd_nm"] == pytest.approx(BASE_CD, abs=0.25)
+    assert payload["raw"]["dropped"]["no_cd"] > 0

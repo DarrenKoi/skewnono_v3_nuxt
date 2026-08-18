@@ -447,3 +447,45 @@ FDC 처리
   pickle 값은 str / float / None / 문자열 "None" 이 섞여 옵니다. 숫자 계약 field 는
   float 로 변환하고, 변환 실패나 비유한(NaN/inf) 값은 None 으로 둡니다. 문자열
   "None" 을 그대로 통과시키면 화면에 "None" 이 찍히므로 빈 값으로 취급합니다.
+
+========================================================================
+어댑터 소비 규약 (tttm / pm_planning — 장비 그룹 CD 통계)
+========================================================================
+
+msr_file 은 MSR 1건을 열지만, tttm 과 pm_planning 은 **장비 그룹 전체의 최근
+실행**을 열어 (장비 × beam × 방향) 별 대표 CD 를 만듭니다. 공용 코드는
+back_dev_home/ebeam/_office_msr_cd.py 입니다.
+
+읽는 컬럼 — "parameter", "cd_value", "meas_condition vac".
+
+1. 표본 단위는 **점이 아니라 실행(run)** 입니다.
+   MSR 1건에는 측정점이 수백 개 있고 같은 웨이퍼라 서로 상관되어 있습니다
+   (rho 약 0.8). 점을 독립 표본으로 세면 표준오차가 10~25배 작아져 **모든
+   장비쌍이 유의하게 스큐된 것으로** 나옵니다. 따라서 run_median() 이 실행
+   1건을 숫자 1개로 접은 뒤에야 장비 단위 통계가 그 값을 봅니다.
+   (docs/research/2026-08-16-skew-tttm-feasibility.md 2.4절)
+
+2. 그 grain 은 다시 **parameter 단위**입니다.
+   한 실행 안에 공칭 CD 가 다른 parameter 가 여러 개 들어 있습니다(3.2절).
+   실행 단위로 한 번 더 중앙값을 내면 31 nm feature 와 68 nm feature 가 섞여
+   엉뚱한 CD 대역(cd_band)에 들어가고, 그 셀의 action limit(CD 의 1 %)이
+   아무도 측정하지 않은 패턴 크기 기준으로 그려집니다.
+
+3. beam condition 은 "meas_condition vac" 에서 나옵니다 — 500 -> "500V".
+   pickle 이 싣는 유일한 beam 속성이므로 라벨은 전압에서 멈춥니다. 사무실
+   MDC 키는 optics 접미사까지 답니다("500V_HR_0Deg"). 같은 전압의 optics 두
+   모드는 서로 다른 beam 이므로, **optics 를 추측해서 라벨을 늘리면 안 됩니다.**
+
+4. ★ 측정 방향(X/Y)을 싣는 컬럼은 **없습니다** (2026-08-18 확인 — 이 문서의
+   컬럼 목록과 meas_hist.txt 어디에도 없습니다).
+   계약(tttm/contracts.py, pm_planning/contracts.py)의 axis 는
+   Literal["X","Y"] 이므로 채울 값이 반드시 있어야 하는데, 현재는 parameter
+   **이름**에서 되찾습니다(`CD_X`, `..._Y`, HORIZ/VERT). 이름에서 읽을 수
+   없으면(`Para_13` 처럼) 그 행은 **버립니다**. 기본값 "X" 를 넣지 않는
+   이유는, 계약상 측정된 사실과 구분이 되지 않아 X 셀이 두 방향을 모두
+   담게 되고 그러면 방향별 드리프트 — TTTM 이 찾으려는 바로 그것 — 이
+   평균으로 지워지기 때문입니다.
+   사무실에서 실제 parameter 이름을 보고 SKEWNONO_AXIS_PARAM_MAP 으로
+   매핑하십시오. 각 어댑터의 __main__ 진단이 해석 실패한 이름을 출력합니다.
+   OFFICE-VERIFY: 방향이 정말 이름에만 있는지, 아니면 recipe IDP 쪽에
+   따로 있는지 미확인입니다.

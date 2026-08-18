@@ -69,7 +69,14 @@
   the numbers, which is the property the UI depends on. The server never computes N배화
   (maximal-clique) grouping; it only serves raw per-cell pairwise skew
   matrices and lets the client derive groupings.
-- Office data source: <!-- OFFICE: real pairwise skew statistics per cell (beam_condition × axis × cd_band × mdc_epoch), median measured CD per cell and for today's fleet, tolerance config, production overlap corroboration, fleet-today consensus, trend history, MDC change epochs -->
+- Office data source: **구현 완료(2026-08-18), 사무실 검증 대기.**
+  `providers/office_example.py` 가 네 소스를 조인합니다 — 장비 명단은
+  `sem_list`, 모든 스큐 숫자는 `meas_hist_{cdsem,hvsem}` 실행을 MinIO
+  `dict_pkl` 로 풀어 얻은 CD 값, epoch 경계와 `mdc_history` 는
+  `mdc_setting` 의 MinIO 아카이브, soft `epoch_markers` 는
+  `fab_inform_notes`. 공용 코드는 `ebeam/_office_msr_cd.py`,
+  `ebeam/_office_mdc.py`, `ebeam/_office_bm_pm.py` 이며 **tracked** 이므로
+  `git pull` 로 갱신됩니다(`office.py` 만 `cp` 대상입니다).
 - Notes: `fetched_at` is volatile (stamp-at-request-time) and should be
   scrubbed by any parity harness rather than compared exactly. `direct_skew_matrix`/
   `predicted_skew_matrix` in each `CellSkew` are independently nullable —
@@ -125,6 +132,40 @@ user-confirmed 2026-08-16, 두 방향 모두: `max` 는 0.20 을 유지하고(Ka
 커집니다. 두 답이 함께 있어야 합니다 — 앞의 것만 남기면 "0.20 은 절대 한계"로
 읽히고, 그것은 사실이 아닙니다.
 
+## 사무실에서 먼저 할 일 두 가지
+
+계약을 만족시키는 데 필요한데 집에서는 알 수 없는 값이 두 개 있습니다. 둘 다
+환경변수이며, 어댑터의 staged 진단이 실제 값을 출력합니다.
+
+    .venv/bin/python -m back_dev_home.ebeam.tttm.providers.office cdsem R3
+
+| 환경변수 | 무엇을 정하는가 | 안 맞으면 |
+| --- | --- | --- |
+| `SKEWNONO_AXIS_PARAM_MAP` | 어느 parameter 가 X 이고 어느 것이 Y 인지 | `occupied_cells` 가 **빈 채로** 돌아옵니다. summary 가 그 이유를 한국어로 말합니다 |
+| (tttm 은 recipe 를 사용자가 고르므로 `SKEWNONO_CD_MONITOR_RECIPE` 는 pm_planning 전용입니다) | — | — |
+
+측정 방향은 pickle 에도 meas_hist 에도 없습니다(`docs/datatables/msr_file_pickle.txt`
+참고). 어댑터는 parameter **이름**에서 되찾고, 읽을 수 없으면 그 행을 **버립니다**.
+기본값 "X" 를 넣지 않는 이유는 계약의 `Axis` 가 두 값짜리 Literal 이라 측정된
+사실과 구분되지 않고, 그러면 X 셀이 두 방향을 모두 담아 방향별 드리프트가
+평균으로 지워지기 때문입니다. 빈 grid 는 시끄럽고, 틀린 axis 는 조용합니다.
+
+## 빈 grid 를 봤을 때 읽는 순서
+
+`occupied_cells` 가 비는 원인은 셋이고 화면에서는 똑같이 보이므로, payload 의
+`summary` 가 어느 쪽인지 말합니다. 더 자세한 것은 응답의 `raw` 에 있습니다
+(계약상 `NotRequired`, 클라이언트는 무시합니다).
+
+| summary | 원인 | 조치 |
+| --- | --- | --- |
+| 측정한 이력이 없어 | 고른 parameter 가 한 행도 매칭하지 않음 | parameter 이름 확인 |
+| 측정 방향 | axis 를 못 읽음 | `SKEWNONO_AXIS_PARAM_MAP` |
+| 함께 측정한 | 두 대 이상이 함께 돈 recipe·parameter 가 없음 | feasibility 문서 6절 1번 — QC/매칭 recipe 존재 여부 |
+
 ## Verify
 
     SKEWNONO_TTTM_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/tttm
+
+집에서 어댑터의 계산 자체는 다음으로 검증합니다(사무실 접속 불필요):
+
+    .venv/bin/python -m pytest tests/test_office_tttm_pm_planning.py

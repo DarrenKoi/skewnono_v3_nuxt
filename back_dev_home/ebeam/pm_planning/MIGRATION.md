@@ -145,10 +145,19 @@
     current_value - median`). This is why `cells` cannot be validated
     tool-by-tool in isolation: the final `median`/`gap` values depend on
     the whole fleet having been generated first.
-- Office data source: <!-- OFFICE: per-fab CD-SEM tool roster; per-tool
-  CD-monitoring measurement + spec range; per-tool daily BSM
-  sharpness/noise averages; per-tool PM job history (most recent
-  completed PM's job_end); per-tool MDC epoch history -->
+- Office data source: **구현 완료(2026-08-18), 사무실 검증 대기.**
+  `providers/office_example.py` 가 네 소스를 조인합니다 — 장비 명단은
+  `sem_list`(`roster.py` 의 `fleet_rows`), `cd_monitoring_value` 와 `cells` 는
+  `meas_hist_cdsem` 실행을 MinIO `dict_pkl` 로 풀어 얻은 CD 값, `bsm_*` 는
+  OpenSearch `beam_shape_cdsem`, `post_pm_at` 는 `fab_inform_notes`,
+  `mdc_changed` 와 `epoch_history` 는 `mdc_setting` 의 MinIO 아카이브입니다.
+  공용 코드는 `ebeam/_office_msr_cd.py`, `ebeam/_office_mdc.py`,
+  `ebeam/_office_bm_pm.py` 이며 **tracked** 이므로 `git pull` 로 갱신됩니다.
+
+  ★ hardware 의 office 어댑터를 **가져다 쓰지 않습니다.** 두 가지 이유입니다 —
+  그쪽은 gitignore 된 사본이라 `cp` 하지 않은 기계에서는 pm_planning 이 통째로
+  깨지고, 또 장비 1대씩 답하는 모양이라 18대 fab 이면 왕복이 18번 생깁니다.
+  여기서는 집계 한 번으로 장비 그룹 전체를 받습니다.
 - Notes:
   - **No huge-payload concern** — a fleet snapshot is one fab's CD-SEM
     roster (≤ ~18 tools in the mock's sem_list) × 4 cells, unlike
@@ -174,6 +183,39 @@
     the `400` case is still valid parity (identical status+body before/
     after the seam cut), not a bug to fix.
 
+## ★ office 의 gate 는 mock 의 gate 와 뜻이 다릅니다
+
+`spec_range_mock` 이 공급하는 두 값은 **지어낸 값**이고 사무실 소스가 없습니다.
+그래서 office 어댑터는 그것을 재사용하지 않고 대체합니다. 화면은 같아 보이지만
+읽는 뜻이 달라지므로, 숫자를 보고하기 전에 이 표를 보십시오.
+
+| 항목 | mock | office | 왜 |
+| --- | --- | --- | --- |
+| `cd_spec_lower/upper` | 장비별 target ±0.5 nm (지어냄) | 장비 그룹 중앙값 ±1 % | 1 % 가 팹이 밝힌 유일한 규칙입니다(user-confirmed 2026-08-16, 15 nm 모니터 wafer 의 ±0.15 nm 가 곧 이 비율) |
+| `cd_in_spec` 의 뜻 | 기록된 스펙 안 | **형제 장비들과 일치** | 위에서 따라옵니다. 같은 주장이 아닙니다 |
+| `bsm_in_spec` | 절대 밴드 noise 6.65–6.95 | 장비 그룹 상대 median ± 3 × MAD | 실 샘플 문서의 `Ave. Noise` 가 6.277 입니다. mock 의 밴드를 실데이터에 대면 **fab 전체가 hold** 로 잠깁니다 |
+
+실제 스펙이 나오면 office 쪽(`_cd_spec`, `_bsm_bands`)을 먼저 고치고
+`docs/datatables/README.md` 의 "아직 사무실 소스가 없는 항목" 에서 지우십시오.
+
+## 사무실에서 먼저 할 일
+
+`SKEWNONO_CD_MONITOR_RECIPE` 를 실제 모니터링 recipe 로 맞춰야 합니다. 어느
+recipe 가 CD_MONITORING 인지 기록된 곳이 없어 기본값은 이 저장소 mock 의
+어휘(`QC`)입니다. staged 진단의 2단계가 그 fab 이 실제로 돌린 recipe 이름을
+출력합니다.
+
+    .venv/bin/python -m back_dev_home.ebeam.pm_planning.providers.office R3
+
+3단계는 parameter 이름에서 측정 방향(X/Y)을 읽을 수 있는지 보여 줍니다. 읽을 수
+없는 이름은 그 행이 `cells` 에서 **버려지므로**(기본값 "X" 를 넣지 않습니다)
+`SKEWNONO_AXIS_PARAM_MAP` 으로 매핑하십시오. 자세한 이유는 tttm/MIGRATION.md
+의 같은 절에 있습니다.
+
 ## Verify
 
     SKEWNONO_PM_PLANNING_PROVIDER=office .venv/bin/pytest back_dev_home/ebeam/pm_planning
+
+집에서 어댑터의 계산 자체는 다음으로 검증합니다(사무실 접속 불필요):
+
+    .venv/bin/python -m pytest tests/test_office_tttm_pm_planning.py

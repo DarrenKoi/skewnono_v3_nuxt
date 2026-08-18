@@ -141,6 +141,15 @@ class ToleranceRange(TypedDict):
     step: float
 
 
+# The knob's travel and its default, declared ONCE beside the type whose
+# docstring explains what the numbers mean. Both providers import these rather
+# than restating them: a mock and an office adapter that disagreed about the
+# slider's bounds would render the same payload against two different scales,
+# and nothing about either screen would look wrong.
+TOLERANCE_RANGE: ToleranceRange = {"min": 0.01, "max": 0.2, "step": 0.005}
+DEFAULT_TOLERANCE = 0.05
+
+
 class TttmCheckPayload(TypedDict):
     tool_slug: ToolSlug
     fab_name: str

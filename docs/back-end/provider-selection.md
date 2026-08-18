@@ -89,11 +89,19 @@ dispatcher를 통해 그 피처의 데이터를 읽습니다.** 이 경우 두 �
 
 | 피처 | 의존 대상 | 이유 |
 | --- | --- | --- |
+| `pm_planning` | `sem_list` | 장비 명단을 `sem_list/roster.py`의 `fleet_rows()`로 받은 뒤 그 `eqp_id`로 meas_hist를 조회합니다 |
 | `storage` | `sem_list` | office adapter가 모든 행을 `eqp_ip`로 live sem_list와 조인합니다 |
+| `tttm` | `sem_list` | 위와 같습니다. 두 피처는 같은 roster 법칙을 씁니다 |
 
 `storage=office` + `sem_list=mock` 조합은 **오류를 내지 않습니다.** 조인 양쪽의
 `eqp_ip`가 서로 다른 출처라 한 건도 매칭되지 않고, 스토리지 표가 200 응답과 함께
 빈 채로 렌더링됩니다. 로그에도 아무것도 남지 않습니다.
+
+`pm_planning`과 `tttm`은 같은 실패가 한 단계 더 나쁩니다. mock roster의 `eqp_id`는
+지어낸 값이므로 meas_hist에서 어떤 실행도 찾지 못하고, 두 페이지 모두 빈 장비 그룹을
+200으로 돌려줍니다. 게다가 **pm-tune 화면은 두 응답을 `eqp_id`로 조인합니다** —
+한쪽이 mock roster이고 다른 쪽이 실제 roster이면 교집합이 0이 되는데, 각 응답은
+따로 보면 아무 문제가 없어 보입니다.
 
 이 조합은 환경 변수 없이도 발생합니다. 사무실에서 `storage`의 adapter만 `cp`하고
 `sem_list`의 것을 빠뜨리면, presence 감지가 각각을 독립적으로 해석하여 정확히 이

@@ -152,6 +152,18 @@ def maintenance_events(
                     up_at=_text(source.get(_UP_DT)).replace(" ", "T"),
                 )
             )
+        if bucket.get("doc_count", 0) > len(
+            bucket.get("recent", {}).get("hits", {}).get("hits", [])
+        ):
+            # docs/datatables/hardware_bm_pm.txt: "잘린 이력을 조용히 보여주지
+            # 않고". A truncated history reads as a quiet fab, so the cap is
+            # announced. Not raised: unlike a truncated TREND, the two callers
+            # here want the most recent jobs and the sort already keeps those.
+            _LOG.info(
+                "%s: %s has more than %d maintenance jobs in the window; "
+                "older ones were not read",
+                BM_PM_INDEX, eqp_id, _DOCS_PER_TOOL,
+            )
         events[eqp_id] = rows
     return events
 

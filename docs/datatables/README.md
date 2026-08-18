@@ -20,12 +20,12 @@
 | `members.txt` | Redis hash `members` | `_auth` (사용자 이름·소속, `GET /api/me`) | 구현완료(스키마 user-confirmed, 실행 검증 대기) |
 | `sem_list.txt` | Redis `v3_df_sem_avail` + `v3_df_sem_version` | `sem_list` | 연결 |
 | `storage_ppid.txt` | Redis `v3_df_ppid_storage_{cdsem,hvsem}` + `v3_hitachi_sem_ppid_not_avail` | `ebeam/storage` | 연결 |
-| `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe` | 연결 |
+| `meas_hist.txt` | OpenSearch `meas_hist_cdsem` / `meas_hist_hvsem` | `meas_hist`, `recipe_tat`, `fail_issue`, `msr_file`, `lateral_recipe`, `ebeam/tttm`, `ebeam/pm_planning` | 연결 |
 | `ebeam_tas_lot_hist.txt` | OpenSearch `ebeam_tas_lot_hist` | `recipe_tat`, `fail_issue` (lot_id↔lot_cd 다리), `device_statistics`(M fab 공정 스텝) | 연결(device_statistics 제외) |
 | `device_desc.txt` | Redis `device_desc` | `recipe_tat`, `fail_issue`, `device_statistics` | 연결 |
 | `r3_device_grp.txt` | Redis `r3_device_grp` | 위와 동일 (R3/R&D) | 연결 |
 | `planstep_r3.txt` | OpenSearch `sknn-planstep-r3` | `device_statistics` (R3 공정 스텝; M fab 은 `ebeam_tas_lot_hist`) | 구현완료(사무실 검증 대기) |
-| `msr_file_pickle.txt` | MinIO — meas_hist 문서의 `minio_pkl` 경로 | `msr_file` | 연결 |
+| `msr_file_pickle.txt` | MinIO — meas_hist 문서의 `minio_pkl` 경로 | `msr_file`, `ebeam/tttm`, `ebeam/pm_planning` | 연결 |
 | `msr_image_ftp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/...` | `msr_image` | 연결 |
 | `idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe`, `device_statistics`(파라미터 개수 — `parameters` blob) | 연결(lateral_recipe만) |
 | `recipe_name_list.txt` | Redis `v3_{cdsem,hvsem}_unique_rcp_list` + `v3_{cdsem,hvsem}_rcp_loc_{fab}` + `v3_{cdsem,hvsem}_tools_in_rcp_{fab}` | `recipe_search` | 연결 |
@@ -36,7 +36,7 @@
 | `hardware_sce_setting.txt` | Redis `sce_info` + MinIO `hitachi_sem/cdsem/sce_info/` | `hardware/sce` | 연결 |
 | `hardware_bm_pm.txt` | OpenSearch `fab_inform_notes`(실적) + `tool_maintenance_plan`(계획) | `hardware/bm_pm` | 연결 |
 | `hardware_reso_center_data.txt` | OpenSearch `reso_center_cdsem` | `hardware/reso_center` | 연결 |
-| `hardware_mdc_setting.txt` | Redis `mdc_setting` + MinIO `hitachi_sem/cdsem/mdc_setting/` | `hardware/mdc` | 연결 |
+| `hardware_mdc_setting.txt` | Redis `mdc_setting` + MinIO `hitachi_sem/cdsem/mdc_setting/` | `hardware/mdc`, `ebeam/tttm`, `ebeam/pm_planning` | 연결 |
 | `skewnono_logging.txt` | OpenSearch `skewnono_logging{,_local}` (자체 생성) | `activity`, `admin_logs` | 연결(alias office 확인 2026-07-28) |
 | `skewnono_chat_logging.txt` | OpenSearch `skewnono_chat_logging{,_local}` (자체 생성) | `chat` (대화 turn 기록) | 연결(alias 생성 user-confirmed 2026-08-04) |
 | `chat_rag_contract.txt` | OpenSearch RAG 인덱스(k-NN) + MinIO figure 저장소 | `chat` (근거 검색) | **미연결**(mock) — 계약만 확정, office 어댑터는 template |
@@ -56,6 +56,19 @@
 아래는 화면은 있으나 office 어댑터가 mock 을 그대로 재사용하는 부분입니다. 새 소스를
 찾으면 해당 문서부터 채워야 합니다.
 
+- **CD_MONITORING recipe 이름** — `pm_planning` 의 Up gate 가 읽어야 하는
+  모니터링 측정이 어느 recipe 인지 기록된 곳이 없습니다. office 어댑터는
+  `SKEWNONO_CD_MONITOR_RECIPE` 환경변수로 받으며, 기본값은 팹의 것이 아닙니다.
+  확인 절차는 `meas_hist.txt` 의 tttm/pm_planning 절에 있습니다.
+- **측정 방향(X/Y)** — `tttm` 과 `pm_planning` 의 계약이 요구하는 axis 를 담은
+  컬럼이 pickle 에도 meas_hist 에도 없습니다. 지금은 parameter 이름에서
+  되찾고, 실패하면 그 행을 버립니다(기본값을 넣지 않습니다). 자세한 내용은
+  `msr_file_pickle.txt` 의 해당 절.
+- **CD 스펙 창과 BSM 합격 밴드** — `pm_planning` 의 mock 이 쓰는
+  `spec_range_mock` 의 숫자는 지어낸 값입니다. office 어댑터는 장비 그룹의
+  중앙값 ±1 %(팹이 밝힌 action limit)와 장비 그룹 상대 MAD 이상치 검정으로
+  **대신하며**, 따라서 `cd_in_spec` 의 뜻이 "기록된 스펙 안"이 아니라
+  "형제 장비들과 일치"입니다. 실제 스펙이 나오면 이 항목부터 채우십시오.
 - **recipe 비교** (`recipe_idp.txt`, `parameter_info.txt`) — `recipe_search` 의
   office 어댑터는 recipe **이름 목록**과 **열람**(`get_recipe_open_data`)까지
   연결되었습니다 — Redis 레지스트리(`v3_*_rcp_loc_*` / `v3_*_tools_in_rcp_*`)를
