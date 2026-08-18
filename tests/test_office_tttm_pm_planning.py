@@ -333,7 +333,14 @@ def test_tttm_echoes_the_triple_it_was_asked_about_on_every_branch(sources):
     assert (lonely["fab_name"], lonely["recipe_id"], lonely["parameter"]) == (
         "R3", "ADI/R1", "CD_X",
     )
-    assert lonely["tools"] == []
+    # The ROSTER survives — one tool is not a comparison, but it is still the
+    # fab's tool, and the client's picker is drawn from this list. What must
+    # stay empty is the comparison itself, asserted just below. (An unknown
+    # fab does answer `tools: []`, because there is no roster to carry — see
+    # test_an_unknown_fab_is_available_false_not_an_error.)
+    assert [tool["eqp_id"] for tool in lonely["tools"]] == ["ECXDX001"]
+    assert lonely["occupied_cells"] == []
+    assert lonely["fleet_today"]["matrix"]["tools"] == []
 
 
 def test_a_parameter_filter_narrows_the_rows(sources):
@@ -950,3 +957,68 @@ def test_no_aggregation_asks_for_more_inner_hits_than_opensearch_allows():
     # And the builder refuses, so a future adapter cannot reintroduce it.
     with pytest.raises(ValueError, match="max_inner_result_window"):
         top_hits(MAX_INNER_RESULT_WINDOW + 1, sort=[{"timestamp": "desc"}])
+
+
+class TestTttmUnavailableKeepsTheRoster:
+    """`available: false` must not also mean "this fab has no tools".
+
+    The client draws its tool picker from `tools`, and that picker shares a rail
+    with the recipe picker — the control the user needs to LEAVE an empty answer.
+    Blanking the roster removes both at exactly the moment they are needed.
+
+    Asserted against the office template specifically, and directly rather than
+    through `get_tttm_check`, because that is the half a home test cannot reach
+    any other way. `_unavailable` grew its `tools` parameter and a docstring
+    promising to carry the roster while the body still returned a hardcoded `[]`
+    — the mock had the same change and DID honour it, so the whole home suite
+    and a browser pass stayed green while the office served a blank rail. A test
+    that goes through the mock cannot see that; this one names the template.
+    """
+
+    @staticmethod
+    def _roster() -> list[dict[str, str]]:
+        return [
+            {"eqp_id": "ECDX172", "label": "ECDX172", "eqp_model_cd": "CG6300"},
+            {"eqp_id": "ECDX261", "label": "ECDX261", "eqp_model_cd": "CG6300"},
+        ]
+
+    def test_the_roster_survives_an_unavailable_answer(self):
+        payload = tttm_office._unavailable(
+            "cdsem", "R3", "CD_MONITOR/NEVER_RUN", None, "측정 이력이 없습니다.",
+            tools=self._roster(),  # type: ignore[arg-type]
+        )
+        assert_matches(payload, TttmCheckPayload)
+        assert payload["available"] is False
+        assert [tool["eqp_id"] for tool in payload["tools"]] == ["ECDX172", "ECDX261"]
+
+    def test_the_comparison_stays_empty_even_though_the_roster_does_not(self):
+        # The distinction the branch exists to hold: a roster is not a
+        # comparison. Shipping tools here must not smuggle in a matrix the
+        # client would render as a real pairwise result.
+        payload = tttm_office._unavailable(
+            "cdsem", "R3", None, None, "장비가 1대뿐입니다.",
+            tools=self._roster(),  # type: ignore[arg-type]
+        )
+        assert payload["occupied_cells"] == []
+        assert payload["fleet_today"]["matrix"]["tools"] == []
+        assert payload["fleet_today"]["consensus_deviation"] == []
+        assert payload["trend"] == []
+
+    def test_a_fab_with_no_tool_of_this_family_still_answers_empty(self):
+        # The one branch that SHOULD blank it — there is no roster to carry.
+        payload = tttm_office._unavailable(
+            "cdsem", "ZZZ", None, None, "이 계열의 장비가 없습니다."
+        )
+        assert_matches(payload, TttmCheckPayload)
+        assert payload["tools"] == []
+
+    def test_the_mock_and_the_office_template_agree_on_this_rule(self):
+        # mock<->office drift is what let the defect through: the guard was
+        # written into mock.py and the office template kept a hardcoded [].
+        from back_dev_home.ebeam.tttm.providers import mock as tttm_mock
+
+        for adapter in (tttm_office, tttm_mock):
+            payload = adapter._unavailable(
+                "cdsem", "R3", None, None, "…", tools=self._roster(),  # type: ignore[arg-type]
+            )
+            assert payload["tools"], f"{adapter.__name__} dropped the roster"

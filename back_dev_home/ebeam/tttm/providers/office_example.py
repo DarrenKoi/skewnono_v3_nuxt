@@ -849,7 +849,7 @@ def _unavailable(
         "available": False,
         "fetched_at": "",
         "summary": summary,
-        "tools": [],
+        "tools": tools or [],
         "current_tolerance": DEFAULT_TOLERANCE,
         "tolerance_range": TOLERANCE_RANGE,  # type: ignore[typeddict-item]
         "occupied_cells": [],

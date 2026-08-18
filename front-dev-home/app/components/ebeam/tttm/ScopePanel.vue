@@ -123,6 +123,8 @@
       :parameter="parameter"
       :parameter-names="parameterNames"
       :parameters-pending="parametersPending"
+      :parameters-error="parametersError"
+      :recipes-without-a-pair="recipesWithoutAPair"
       @update:recipe-id="emit('update:recipeId', $event)"
       @update:parameter="emit('update:parameter', $event)"
     />
@@ -156,6 +158,19 @@ const props = defineProps<{
   parameter: string | null
   parameterNames: string[]
   parametersPending: boolean
+  /**
+   * Relayed straight through to ScopeRecipe, both of them.
+   *
+   * This panel owns no part of the recipe/parameter pair — it hosts the control
+   * so TTTM and pm-tune show one scope. That makes every prop the inner picker
+   * grows a prop THIS component has to grow too: an undeclared one lands on the
+   * root div as a fallthrough attribute and never reaches the picker, which then
+   * quietly falls back to its own default. Vue reports nothing and the template
+   * typecheck does not run in strict mode, so the only symptom is the feature
+   * silently not working on the TTTM page while it works on pm-tune.
+   */
+  parametersError?: Error | null
+  recipesWithoutAPair?: Set<string>
 }>()
 
 const emit = defineEmits<{
