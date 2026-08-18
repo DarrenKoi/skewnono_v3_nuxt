@@ -38,6 +38,16 @@ export interface HeaderLink {
   // Required once there is more than one dynamic row — LabMenu used to treat `to: null` as
   // "this is 라이브 알람", so a second one would have silently pointed at the alarm board.
   scope?: 'live-alarm' | 'tttm' | 'pm-tune'
+  // Keep this row out of the menu on the Phase 3 cloud deploy. For pages whose estimator is
+  // not validated yet: production users must not be LED to them, but the route is deliberately
+  // left open, so anyone holding the URL (power users, beta testers) still gets in. Hiding the
+  // page too would mean a redirect middleware and a backend gate; hiding the invitation is the
+  // whole ask.
+  //
+  // A property of the row rather than a check inside LabMenu, for the same reason the rest of
+  // this file exists: the alternative is `label === '장비간 스큐(TTTM)' || …`, which nobody
+  // updates when a third unvalidated page arrives.
+  hiddenOnCloud?: boolean
   // Draw a hairline above this row. 채팅 is the only user: the rows above it are things you
   // look up or compute, and it is a conversation — same menu, different kind, so the eye is
   // given the seam rather than left to find it.
@@ -56,11 +66,18 @@ export const HEADER_LINKS: HeaderLink[] = [
   // (docs/research/2026-08-16-skew-tttm-feasibility.md), and 실험실 already means "계산 도구,
   // 아직 확정 아님". A feature tab would claim more than the numbers currently support.
   // CD-SEM only, so unlike 라이브 알람 it does not follow the remembered tool type.
-  { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교', activeMatch: '/tttm', scope: 'tttm' },
+  //
+  // hiddenOnCloud for that same unvalidated-estimator reason, carried one step further: 실험실
+  // + BETA is enough of a caveat for a colleague at the office, but a production user reading
+  // a skew matrix has no way to know the numbers behind it are not signed off yet. Drop the
+  // flag when the feasibility study lands.
+  { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교', activeMatch: '/tttm', scope: 'tttm', hiddenOnCloud: true },
   // TTTM 옆자리: TTTM 이 "어느 장비끼리 맞는가"를 답하고, 이 페이지는 그 답을 받아
   // "PM 창에서 어떻게 튜닝하면 그 그룹에 들어가는가"를 답합니다. TTTM 과 같은 이유로
-  // 실험실이고(추정기 미검증), 같은 이유로 CD-SEM 전용입니다.
-  { to: null, icon: 'i-lucide-wrench', label: 'PM 튜닝(PM-Tune)', group: 'lab', description: 'PM 때 그룹에 맞춰 튜닝할 목표 제시', activeMatch: '/pm-tune', scope: 'pm-tune' },
+  // 실험실이고(추정기 미검증), 같은 이유로 CD-SEM 전용이며, 같은 이유로 hiddenOnCloud 입니다.
+  // TTTM 페이로드를 그대로 받아 쓰므로 TTTM 이 프로덕션에 열리기 전에 이 페이지만 먼저 열리는
+  // 경우는 없습니다 — 두 플래그는 함께 내려갑니다.
+  { to: null, icon: 'i-lucide-wrench', label: 'PM 튜닝(PM-Tune)', group: 'lab', description: 'PM 때 그룹에 맞춰 튜닝할 목표 제시', activeMatch: '/pm-tune', scope: 'pm-tune', hiddenOnCloud: true },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅', group: 'lab', description: '데이터에 대해 물어보기', separated: true },
 
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '앱 소개', group: 'account' },
@@ -77,6 +94,18 @@ export const HEADER_LINKS: HeaderLink[] = [
 /** One menu's rows, in declaration order. */
 export const headerLinksIn = (group: HeaderMenuGroup): HeaderLink[] =>
   HEADER_LINKS.filter(link => link.group === group)
+
+/** One menu's rows as THIS deployment should draw them.
+ *
+ *  Split from `headerLinksIn` rather than folded into it: the derivations below
+ *  (HEADER_INFO_PATHS, isHeaderInfoPath) must keep seeing every row, because a
+ *  hidden row's page is still reachable by URL and still has to render its
+ *  feature tabs. Hiding the invitation must never hide the way back. */
+export const visibleHeaderLinksIn = (
+  group: HeaderMenuGroup,
+  isCloud: boolean
+): HeaderLink[] =>
+  headerLinksIn(group).filter(link => !(isCloud && link.hiddenOnCloud))
 
 // The fixed top-level pages the menus lead to — the ones that keep the feature tabs.
 export const HEADER_INFO_PATHS: string[]
