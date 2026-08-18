@@ -1,3 +1,4 @@
+import { reconcileRecipeId } from '~/utils/tttmRecipeScope'
 import { useRecipeSearchApi } from '~/composables/useRecipeSearchApi'
 import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
@@ -49,11 +50,37 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     )
   )
 
+  // A stored recipe that the fab has not measured is DROPPED, silently, back to
+  // 전체. It is not merely a pick that answers "no data": the parameter list is
+  // resolved through recipe-open, which derives its .idp location from a
+  // measurement, so an unmeasured recipe 502s that request at the office and
+  // leaves the picker empty with no stated reason. See utils/tttmRecipeScope.
+  //
+  // `null` while the list is in flight or failed, so a slow or blipping
+  // catalogue never throws away a working setup — the whole point of persisting
+  // it. Clearing writes null, which reconciles to null, so this settles at once.
+  watch(
+    [recipeList, recipeId],
+    () => {
+      const measured = recipeList.value ? recipeList.value.rows.map(row => row.recipe_id) : null
+      if (reconcileRecipeId(recipeId.value, measured) !== recipeId.value) {
+        settings.setRecipe(toolType, fabName, null)
+      }
+    },
+    { immediate: true }
+  )
+
   // Keyed on (toolType, fab) with the recipe WATCHED rather than baked into the
   // key — the same rule useTttmCheck follows, and for the same reason: a key
   // carrying the recipe accumulates one cache entry per recipe ever opened, and
   // a user searching a 50,000-name catalogue opens a lot of them.
-  const { data: parameterList, pending: parametersPending } = useAsyncData(
+  // `error` is READ, not ignored: recipe-open is the one call here that reaches
+  // the tool over FTP, so it fails for reasons that have nothing to do with the
+  // user's pick — an unreachable tool, an incomplete meas_hist document. Left
+  // unread, all of those render as "이 recipe 에서 측정 parameter 를 찾지
+  // 못했습니다", which says the recipe is empty when the truth is we could not
+  // look. The page must stay usable either way, so this only labels the caption.
+  const { data: parameterList, pending: parametersPending, error: parametersError } = useAsyncData(
     `tttm-parameters:${toolType}:${fabName}`,
     () => recipeId.value
       ? fetchRecipeParameters({
@@ -83,6 +110,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     recipesPending,
     parameterNames,
     parametersPending,
+    parametersError,
     onSelectedTools,
     onRecipe,
     onParameter

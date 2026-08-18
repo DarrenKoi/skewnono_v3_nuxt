@@ -826,12 +826,20 @@ def _unavailable(
     recipe_id: str | None,
     parameter: str | None,
     summary: str,
+    tools: list[ToolRef] | None = None,
 ) -> TttmCheckPayload:
     """The documented "nothing to compare" answer — not an error.
 
     Echoes the fab, recipe and parameter it was asked about on this branch too:
     the client files the response under the triple it requested, so an adapter
     that blanked them here would label one fab's empty state with another's.
+
+    ``tools`` carries the ROSTER whenever the fab has one — an empty comparison
+    is not an empty fab. The client builds its tool picker from this list and
+    renders no matrix from an unavailable payload, so blanking it only ever
+    removed the fab's tools from the screen while the scope was wrong, which is
+    the moment the picker is needed. Only the genuinely empty-roster branch
+    (no tool of this family in this fab) still answers with an empty list.
     """
     return {
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
@@ -880,6 +888,7 @@ def get_tttm_check(
         return _unavailable(
             tool_slug, fab_name, recipe_id, parameter,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
+            tools=fleet,
         )
 
     roster = [tool["eqp_id"] for tool in fleet]
@@ -899,6 +908,7 @@ def get_tttm_check(
         return _unavailable(
             tool_slug, fab_name, recipe_id, parameter,
             f"{fab_name} 에 최근 {WINDOW_DAYS}일간 {scope}측정 이력이 없습니다.",
+            tools=fleet,
         )
 
     cell_rows, dropped = _observations(runs.runs, parameter)

@@ -17,13 +17,10 @@
       v-if="tttmPending"
       title="Fleet 데이터를 불러오는 중입니다."
     />
-    <div
-      v-else-if="!payload?.available"
-      class="text-sm text-(--sk-bad)"
-    >
-      {{ payload?.summary ?? '데이터가 없습니다.' }}
-    </div>
-
+    <!-- The rail renders even on `available: false` — same rule as TttmView,
+         and the same reason: the scope IS the commonest cause of an empty
+         answer, so taking the recipe picker off the screen leaves the user with
+         no way back. Only the results column collapses. -->
     <div
       v-else
       class="grid items-start gap-3 xl:grid-cols-[392px_minmax(0,1fr)]"
@@ -52,6 +49,8 @@
             :parameter="parameter"
             :parameter-names="parameterNames"
             :parameters-pending="parametersPending"
+            :parameters-error="parametersError"
+            :recipes-without-a-pair="recipesWithoutAPair"
             @update:recipe-id="onRecipe"
             @update:parameter="onParameter"
           />
@@ -64,7 +63,13 @@
           @update:picked="picked = $event"
         />
 
-        <div class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5">
+        <!-- Hidden when there is no comparison behind it: "그룹이 없어 판정할
+             수 없습니다" restates the empty state the results column already
+             carries, in the rail that is supposed to hold controls. -->
+        <div
+          v-if="payload?.available"
+          class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5"
+        >
           <p class="sk-title">
             이 장비는
           </p>
@@ -96,43 +101,60 @@
 
       <!-- 결과 — 지도·목표 → gate → 다음 후보 순. -->
       <div class="flex min-w-0 flex-col gap-3">
-        <div class="grid gap-3 2xl:grid-cols-2">
-          <EbeamTttmFleetMap
-            :fleet="visibleFleet"
-            :tools="visibleTools"
-            :tolerance-index="toleranceIndex"
-            :group-tools="primary?.tools"
-            :blocked-pair="blockedPair"
-            :picked-tool="picked"
-            :halo-label="haloLabel"
-          />
-          <!-- File is pmTune/Targets.vue, NOT pmTune/TuneTargets.vue: Nuxt's
-               auto-import collapses the repeated word at the segment boundary
-               (PmTune + TuneTargets -> PmTuneTargets), so the longer file name
-               would leave this tag rendering silently empty. -->
-          <EbeamPmTuneTargets
-            :report="report"
-            :n="primary?.n ?? 0"
-            :tools="labelRefs"
-          />
+        <div
+          v-if="!payload?.available"
+          class="dashboard-surface rounded-[var(--sk-r-card)] p-4"
+        >
+          <p class="sk-title text-(--sk-bad)">
+            튜닝 목표를 낼 수 없습니다
+          </p>
+          <p class="mt-1.5 sk-meta leading-relaxed">
+            {{ payload?.summary ?? '데이터를 불러오지 못했습니다.' }}
+          </p>
+          <p class="mt-1.5 sk-field-label leading-relaxed">
+            왼쪽에서 recipe · parameter 를 바꾸어 다시 계산하실 수 있습니다.
+          </p>
         </div>
 
-        <div class="grid items-stretch gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <EbeamPmTuneGateCard
-            :gate="pickedGate"
-            :eqp-id="picked"
-          />
-          <EbeamPmTuneFocusRanking
-            :tools="pmTools"
-            :beam-conditions="beamConditions"
-            :focus-n="focusN"
-            :threshold="threshold"
-            :picked="picked"
-            @update:focus-n="focusN = $event"
-            @update:threshold="setThreshold"
-            @pick="picked = $event"
-          />
-        </div>
+        <template v-else>
+          <div class="grid gap-3 2xl:grid-cols-2">
+            <EbeamTttmFleetMap
+              :fleet="visibleFleet"
+              :tools="visibleTools"
+              :tolerance-index="toleranceIndex"
+              :group-tools="primary?.tools"
+              :blocked-pair="blockedPair"
+              :picked-tool="picked"
+              :halo-label="haloLabel"
+            />
+            <!-- File is pmTune/Targets.vue, NOT pmTune/TuneTargets.vue: Nuxt's
+                 auto-import collapses the repeated word at the segment boundary
+                 (PmTune + TuneTargets -> PmTuneTargets), so the longer file name
+                 would leave this tag rendering silently empty. -->
+            <EbeamPmTuneTargets
+              :report="report"
+              :n="primary?.n ?? 0"
+              :tools="labelRefs"
+            />
+          </div>
+
+          <div class="grid items-stretch gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <EbeamPmTuneGateCard
+              :gate="pickedGate"
+              :eqp-id="picked"
+            />
+            <EbeamPmTuneFocusRanking
+              :tools="pmTools"
+              :beam-conditions="beamConditions"
+              :focus-n="focusN"
+              :threshold="threshold"
+              :picked="picked"
+              @update:focus-n="focusN = $event"
+              @update:threshold="setThreshold"
+              @pick="picked = $event"
+            />
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -162,8 +184,10 @@ const {
   parameter,
   recipeNames,
   recipesPending,
+  recipesWithoutAPair,
   parameterNames,
   parametersPending,
+  parametersError,
   onRecipe,
   onParameter
 } = useTttmScope(props.toolType, props.fab)

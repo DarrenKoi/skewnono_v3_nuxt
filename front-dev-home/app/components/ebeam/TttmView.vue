@@ -13,13 +13,13 @@
       v-if="pending"
       title="장비간 스큐 데이터를 불러오는 중입니다."
     />
-    <div
-      v-else-if="!payload?.available"
-      class="text-sm text-(--sk-bad)"
-    >
-      {{ payload?.summary ?? '데이터가 없습니다.' }}
-    </div>
-
+    <!-- The rail renders WHATEVER the payload says, including `available:
+         false`. It used to be inside the same `v-else` as the results, so an
+         empty answer took the controls down with it — and the commonest cause
+         of an empty answer is the scope itself (a recipe with no pair, a
+         parameter nobody measured, a stored pick that no longer applies). The
+         one control that could fix it was the one thing removed from the
+         screen. Only the RESULTS column collapses now. -->
     <div
       v-else
       class="grid items-start gap-3 xl:grid-cols-[392px_minmax(0,1fr)]"
@@ -28,7 +28,7 @@
            레일에는 결과가 하나도 없습니다. -->
       <div class="flex flex-col gap-3 xl:sticky xl:top-2">
         <EbeamTttmScopePanel
-          :tools="payload.tools"
+          :tools="payload?.tools ?? []"
           :selected="selectedTools"
           :deviations="fleetDeviations"
           :recipe-id="recipeId"
@@ -37,6 +37,8 @@
           :parameter="parameter"
           :parameter-names="parameterNames"
           :parameters-pending="parametersPending"
+          :parameters-error="parametersError"
+          :recipes-without-a-pair="recipesWithoutAPair"
           @update:parameter="onParameter"
           @update:selected="onSelectedTools"
           @update:recipe-id="onRecipe"
@@ -46,6 +48,7 @@
                dropdowns with it. -->
           <template #tolerance>
             <EbeamTttmToleranceKnob
+              v-if="payload"
               v-model="tolerance"
               :range="payload.tolerance_range"
               :tolerance-index="toleranceIndex"
@@ -57,7 +60,13 @@
              numbers all appear again below in their own cards; this is the
              roll-up that makes dragging the slider legible without scrolling
              the results column to find out what moved. -->
-        <div class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5">
+        <!-- Hidden rather than zeroed when nothing was computed: "점유 셀 0개 ·
+             불합격 0쌍" reads as a clean result, which is the opposite of what
+             an unavailable payload means. -->
+        <div
+          v-if="payload?.available"
+          class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5"
+        >
           <p class="sk-title">
             이 설정에서
           </p>
@@ -86,57 +95,74 @@
       <!-- 결과 — 판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로, 근거가 위에서
            아래로 한 번씩만 나옵니다. -->
       <div class="flex min-w-0 flex-col gap-3">
-        <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <EbeamTttmRecommendationCard
-            :primary="primary"
-            :others="others"
-            :tools="visibleTools"
-          />
-          <EbeamTttmExcludedTools
-            :excluded="excluded"
-            :has-group="primary !== null"
-            :tools="visibleTools"
-            :deviations="visibleDeviations"
-            :action-limit="fleetActionLimit"
-            :markers="visibleMarkers"
-          />
+        <div
+          v-if="!payload?.available"
+          class="dashboard-surface rounded-[var(--sk-r-card)] p-4"
+        >
+          <p class="sk-title text-(--sk-bad)">
+            비교할 결과가 없습니다
+          </p>
+          <p class="mt-1.5 sk-meta leading-relaxed">
+            {{ payload?.summary ?? '데이터를 불러오지 못했습니다.' }}
+          </p>
+          <p class="mt-1.5 sk-field-label leading-relaxed">
+            왼쪽에서 recipe · parameter · 장비를 바꾸어 다시 계산하실 수 있습니다.
+          </p>
         </div>
 
-        <div class="grid gap-3 2xl:grid-cols-2">
-          <EbeamTttmFleetMap
-            :fleet="visibleFleet"
-            :tools="visibleTools"
-            :tolerance-index="toleranceIndex"
-            :group-tools="primary?.tools"
-            :blocked-pair="blockedPair"
-          />
-          <EbeamTttmCellSeverityList
+        <template v-else>
+          <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <EbeamTttmRecommendationCard
+              :primary="primary"
+              :others="others"
+              :tools="visibleTools"
+            />
+            <EbeamTttmExcludedTools
+              :excluded="excluded"
+              :has-group="primary !== null"
+              :tools="visibleTools"
+              :deviations="visibleDeviations"
+              :action-limit="fleetActionLimit"
+              :markers="visibleMarkers"
+            />
+          </div>
+
+          <div class="grid gap-3 2xl:grid-cols-2">
+            <EbeamTttmFleetMap
+              :fleet="visibleFleet"
+              :tools="visibleTools"
+              :tolerance-index="toleranceIndex"
+              :group-tools="primary?.tools"
+              :blocked-pair="blockedPair"
+            />
+            <EbeamTttmCellSeverityList
+              :cells="rankedCells"
+              :tools="visibleTools"
+            />
+          </div>
+
+          <EbeamTttmPairMatrix
             :cells="rankedCells"
             :tools="visibleTools"
           />
-        </div>
 
-        <EbeamTttmPairMatrix
-          :cells="rankedCells"
-          :tools="visibleTools"
-        />
+          <div class="grid gap-3 2xl:grid-cols-2">
+            <EbeamTttmFleetStatus
+              :deviations="visibleFleet.consensus_deviation"
+              :tools="visibleTools"
+              :cd="fleetCd"
+            />
+            <EbeamTttmTrendChart
+              :trend="visibleTrend"
+              :markers="visibleMarkers"
+            />
+          </div>
 
-        <div class="grid gap-3 2xl:grid-cols-2">
-          <EbeamTttmFleetStatus
-            :deviations="visibleFleet.consensus_deviation"
-            :tools="visibleTools"
-            :cd="fleetCd"
-          />
-          <EbeamTttmTrendChart
-            :trend="visibleTrend"
-            :markers="visibleMarkers"
-          />
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-2">
-          <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
-          <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
-        </div>
+          <div class="grid gap-3 md:grid-cols-2">
+            <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
+            <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -177,8 +203,10 @@ const {
   parameter,
   recipeNames,
   recipesPending,
+  recipesWithoutAPair,
   parameterNames,
   parametersPending,
+  parametersError,
   onSelectedTools,
   onRecipe,
   onParameter

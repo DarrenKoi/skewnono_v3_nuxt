@@ -215,7 +215,13 @@ def test_mock_a_fab_with_one_tool_is_not_a_comparison():
     payload = data.get_tttm_check("hvsem", "M10B", None, None)
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
-    assert payload["tools"] == []
+    # The MATRIX is what must stay empty — that is the "comparison of nothing"
+    # this branch exists to refuse. The ROSTER is a different fact and is kept:
+    # the client builds its tool picker from it, and a fab that holds one tool
+    # should say so rather than render as a fab that holds none.
+    assert payload["fleet_today"]["matrix"]["tools"] == []
+    assert payload["occupied_cells"] == []
+    assert [tool["eqp_id"] for tool in payload["tools"]] != []
 
 
 def test_mock_unknown_fab_is_available_false_not_an_error():
@@ -301,3 +307,47 @@ def test_mock_recipe_list_is_exactly_what_meas_hist_measured():
     }
     offered = {row["recipe_id"] for row in data.get_tttm_recipes(TOOL_SLUG, FAB_NAME)["rows"]}
     assert offered == measured
+
+
+def test_mock_an_unmeasured_recipe_is_unavailable_but_keeps_the_roster():
+    """A recipe this fab never ran cannot be compared — and must say so.
+
+    The office reaches this through `recent_runs` coming back empty for the
+    recipe filter. It is the branch a STALE STORED RECIPE lands on: the picker
+    was re-sourced from meas_hist, so a recipe_id persisted while it still read
+    recipe-search's catalogue names something nobody measured.
+
+    The roster is asserted because losing it is what made this unrecoverable on
+    screen — the tool picker and the recipe picker share one rail, so a payload
+    with no tools left the user looking at an empty control panel with no way
+    to pick a different recipe.
+    """
+    if not _is_mock():
+        pytest.skip("reaching the office's empty-runs branch needs the network")
+
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, "CD_MONITOR/NEVER_MEASURED_XYZ", None)
+    assert_matches(payload, TttmCheckPayload)
+    assert payload["available"] is False
+    assert payload["occupied_cells"] == []
+    assert [tool["eqp_id"] for tool in payload["tools"]] != []
+    # Echoed on this branch too, so the client can file the answer under the
+    # recipe it asked about rather than under "no recipe".
+    assert payload["recipe_id"] == "CD_MONITOR/NEVER_MEASURED_XYZ"
+
+
+def test_mock_every_recipe_the_picker_offers_is_actually_comparable():
+    """The picker's list and the check's answer must agree on "measured".
+
+    Sourcing the picker from meas_hist only helps if the check accepts what the
+    picker offers. If these two ever computed the measured set differently, the
+    picker would hand the user recipes that answer unavailable — the failure
+    the re-sourcing was done to remove, reintroduced from the other side.
+    """
+    if not _is_mock():
+        pytest.skip("the mock derives both sides from the same meas_hist mock")
+
+    rows = data.get_tttm_recipes(TOOL_SLUG, FAB_NAME)["rows"]
+    assert rows, "the fab must offer some measured recipe for this to mean anything"
+    for row in rows[:5]:
+        payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, row["recipe_id"], None)
+        assert payload["available"] is True, row["recipe_id"]

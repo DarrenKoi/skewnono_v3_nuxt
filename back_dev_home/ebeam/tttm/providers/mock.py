@@ -388,7 +388,17 @@ def _unavailable(
     recipe_id: str | None,
     parameter: str | None,
     summary: str,
+    tools: list[ToolRef] | None = None,
 ) -> TttmCheckPayload:
+    """The documented "nothing to compare" answer — mirrors the office branch.
+
+    ``tools`` is the ROSTER, and it is carried on this branch whenever the fab
+    actually has one. It is not a comparison and the client renders no matrix
+    from an unavailable payload; it is what the tool picker is built from, and
+    the picker is on the same rail as the recipe picker the user has to reach to
+    get OUT of an empty answer. Blanking it removed the fab's tools from the
+    screen for the whole time the scope was wrong.
+    """
     return {
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
         "fab_name": fab_name,
@@ -397,7 +407,7 @@ def _unavailable(
         "available": False,
         "fetched_at": "",
         "summary": summary,
-        "tools": [],
+        "tools": tools or [],
         "current_tolerance": _CURRENT_TOLERANCE,
         "tolerance_range": _TOLERANCE_RANGE,  # type: ignore[typeddict-item]
         "occupied_cells": [],
@@ -435,6 +445,28 @@ def get_tttm_check(
             recipe_id,
             parameter,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
+            tools=fleet,
+        )
+
+    # A recipe THIS FAB HAS NOT MEASURED answers unavailable, the way the office
+    # adapter does when `recent_runs` comes back empty for the recipe filter.
+    # The mock used to seed a full payload from any string it was handed, so a
+    # recipe nobody ran produced a confident-looking comparison at home and an
+    # empty one at the office — and a stale stored recipe, which is exactly this
+    # case, was invisible until someone opened the page on the company network.
+    # `get_tttm_recipes` is the same measured set the picker offers, so the two
+    # cannot disagree about what "measured" means.
+    if recipe_id and recipe_id not in {
+        row["recipe_id"] for row in get_tttm_recipes(tool_slug, fab_name)["rows"]
+    }:
+        return _unavailable(
+            tool_slug,
+            fab_name,
+            recipe_id,
+            parameter,
+            f"{fab_name} 에 {recipe_id} 측정 이력이 없습니다 — "
+            "측정한 recipe 중에서 고르시기 바랍니다.",
+            tools=fleet,
         )
 
     seed = _seed(tool_slug, fab_name, recipe_id, parameter)

@@ -58,15 +58,27 @@
   by `eqp_id` — the same physical tools every other screen shows for the fab,
   not an invented one. `__fixtures__/tttm_cdsem_r3.json` is no longer an
   input; it is a captured sample of this generator's output
-  (`scripts/capture_fixtures.py`). A fab holding fewer than two tools of the
-  family (or none at all) returns an `available: false` empty payload
-  (`tools: []`, `occupied_cells: []`, all list fields empty,
-  `current_tolerance: 0.05`, `production_corroboration.level: "low"`) with a
-  Korean summary saying which of the two it was — this is the "unknown fab"
-  case, not an error. `recipe_id` and `parameter` are echoed and also seed the
+  (`scripts/capture_fixtures.py`). A fab holding no tool of the family returns
+  an `available: false` empty payload (`tools: []`, `occupied_cells: []`, all
+  list fields empty, `current_tolerance: 0.05`,
+  `production_corroboration.level: "low"`) with a Korean summary saying so —
+  this is the "unknown fab" case, not an error. A fab holding exactly one tool,
+  and a recipe this fab has never measured, answer `available: false` the same
+  way **but keep `tools`** (see the rule below). `recipe_id` and `parameter` are echoed and also seed the
   numbers, so picking either visibly recomputes — the mock has no parameter
   catalogue of its own and stands in for the office's row filtering by moving
-  the numbers, which is the property the UI depends on. The server never computes N배화
+  the numbers, which is the property the UI depends on.
+
+  **A recipe the fab has not measured is `available: false`, not a seeded
+  payload.** The mock resolves the measured set through its own
+  `get_tttm_recipes`, so the picker and the check cannot disagree about what
+  "measured" means. This mirrors the office branch where `recent_runs` returns
+  nothing for the recipe filter, and it exists because the earlier mock seeded a
+  full comparison from ANY string: a stale stored `recipe_id` produced a
+  confident payload at home and an empty one at the office, so the failure was
+  first met on the company network.
+
+  The server never computes N배화
   (maximal-clique) grouping; it only serves raw per-cell pairwise skew
   matrices and lets the client derive groupings.
 - Office data source: **구현 완료(2026-08-18), 사무실 검증 대기.**
@@ -77,6 +89,14 @@
   `fab_inform_notes`. 공용 코드는 `ebeam/_office_msr_cd.py`,
   `ebeam/_office_mdc.py`, `ebeam/_office_bm_pm.py` 이며 **tracked** 이므로
   `git pull` 로 갱신됩니다(`office.py` 만 `cp` 대상입니다).
+- **`available: false` keeps the roster.** Every unavailable branch except the
+  genuinely empty one (no tool of this family in this fab) must return the
+  fab's `tools`. An empty comparison is not an empty fab, the client renders no
+  matrix from an unavailable payload, and the tool picker shares a rail with the
+  recipe picker — so blanking `tools` removes the controls the user needs to
+  leave the empty state, at exactly the moment they need them.
+  `fleet_today.matrix` and `occupied_cells` stay empty on this branch; those
+  are the "comparison of nothing" the branch exists to refuse.
 - Notes: `fetched_at` is volatile (stamp-at-request-time) and should be
   scrubbed by any parity harness rather than compared exactly. `direct_skew_matrix`/
   `predicted_skew_matrix` in each `CellSkew` are independently nullable —

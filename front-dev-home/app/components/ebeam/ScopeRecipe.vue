@@ -3,9 +3,9 @@
     <p class="mb-1.5 sk-label">
       RECIPE
     </p>
-    <!-- Searchable, not a plain <select>: R3 alone answers with 50,000 recipe
-         names, and rendering that many <option> nodes locks the page. Search is
-         the only way to reach one, so the list is filtered and capped. -->
+    <!-- Searchable, not a plain <select>: even the measured-only list runs to
+         hundreds of names, and search is how a known one is reached. The list
+         is filtered and capped, and the caption says when it capped. -->
     <USelectMenu
       v-model:search-term="recipeTerm"
       :model-value="recipeId ?? ALL_RECIPES"
@@ -17,14 +17,42 @@
       color="neutral"
       variant="outline"
       class="w-full"
+      :ui="POPPER_UI"
       @update:model-value="onRecipe($event === ALL_RECIPES ? '' : String($event))"
-    />
-    <p class="mt-1.5 sk-field-label">
+    >
+      <!-- The trigger keeps the rail's 392px, so the name is clipped here and
+           carried in full by the title and by the caption below. -->
+      <template #default>
+        <span
+          class="truncate font-mono text-[13px]"
+          :title="recipeId ?? ALL_RECIPES"
+        >{{ recipeId ?? ALL_RECIPES }}</span>
+      </template>
+
+      <!-- `tools == 1` means one tool ran it, so no PAIR exists and no direct
+           skew can ever come out of it however many runs it has. Marked rather
+           than hidden: it is still a legitimate thing to look at, and the list
+           is already ordered so these sink to the bottom. -->
+      <template #item-trailing="{ item }">
+        <span
+          v-if="recipesWithoutAPair.has(String(item))"
+          class="ml-auto sk-signal-badge bg-(--sk-warn-soft) text-(--sk-warn)"
+          title="이 recipe 를 측정한 장비가 1대뿐이라 장비쌍이 없습니다"
+        >장비 1대</span>
+      </template>
+    </USelectMenu>
+    <p class="mt-1.5 sk-field-label leading-relaxed">
       <template v-if="recipesOverflowed">
         {{ recipeMatchCount.toLocaleString() }}건 중 {{ RECIPE_LIMIT }}건만 표시합니다 — 더 좁혀서 검색하십시오.
       </template>
+      <template v-else-if="recipeId">
+        <!-- `break-all`, not truncate: this is the one place the whole name is
+             readable without opening the menu, and a class/recipe full name has
+             no spaces to wrap at. -->
+        <span class="font-mono break-all text-(--sk-ink-muted)">{{ recipeId }}</span>
+      </template>
       <template v-else>
-        {{ recipeNames.length.toLocaleString() }}건 · recipe 를 고르면 그 recipe 만으로 다시 계산합니다.
+        {{ recipeNames.length.toLocaleString() }}건 측정됨 · recipe 를 고르면 그 recipe 만으로 다시 계산합니다.
       </template>
     </p>
 
@@ -48,14 +76,31 @@
       color="neutral"
       variant="outline"
       class="w-full"
+      :ui="POPPER_UI"
       @update:model-value="onParameter($event === ALL_PARAMETERS ? '' : String($event))"
-    />
+    >
+      <template #default>
+        <span
+          class="truncate font-mono text-[13px]"
+          :title="parameter ?? ALL_PARAMETERS"
+        >{{ parameter ?? ALL_PARAMETERS }}</span>
+      </template>
+    </USelectMenu>
     <p class="mt-1.5 sk-field-label leading-relaxed">
       <template v-if="!recipeId">
         recipe 를 먼저 고르십시오 — parameter 이름은 recipe 안에서만 뜻이 있습니다.
       </template>
       <template v-else-if="parametersPending">
         parameter 목록을 불러오는 중입니다.
+      </template>
+      <!-- A failed lookup and an empty recipe are DIFFERENT facts and must not
+           share a sentence: recipe-open reaches the tool over FTP to read the
+           .idp, so this fails for reasons that say nothing about the recipe.
+           Reported before the empty case, because on failure the list is also
+           empty and the empty message would win by accident. -->
+      <template v-else-if="parametersError">
+        <span class="text-(--sk-bad)">parameter 목록을 불러오지 못했습니다</span> —
+        recipe 를 바꾸거나 전체(측정 항목 합산) 기준으로 계속 보실 수 있습니다.
       </template>
       <template v-else-if="!parameterNames.length">
         이 recipe 에서 측정 parameter 를 찾지 못했습니다.
@@ -78,24 +123,49 @@ import { filterByTerm } from '~/utils/hardwareCompare'
 // would render as an empty row rather than as a readable choice.
 const ALL_RECIPES = '전체 (서버 기본)'
 const ALL_PARAMETERS = '전체 (모든 측정 항목)'
-// The recipe catalogue is ~50,000 names per fab; this many rows is already more
-// than anyone scrolls, and the caption says how many matched so the cap never
-// hides the fact that it capped.
+// The measured-recipe list is hundreds of names, not the catalogue's ~50,000,
+// but the cap stays: it costs nothing and the caption says when it bound.
 const RECIPE_LIMIT = 100
 // A recipe holds tens of parameters, not thousands — this cap exists so a
 // pathological recipe cannot lock the page, not because it is expected to bind.
 const PARAMETER_LIMIT = 200
 
-const props = defineProps<{
+// NuxtUI pins the dropdown to the trigger (`w-(--reka-select-trigger-width)` in
+// .nuxt/ui/select-menu.ts), and the trigger is as wide as the rail — 392px, an
+// agreed layout DESIGN.md §Layout marks "do not revert". A class/recipe full
+// name such as CD_MONITOR/CD_MONITORING_HR_800V_X_FULL_NEW5 does not fit in it,
+// and two recipes differing only in their suffix become indistinguishable in
+// the list you pick from. So the POPPER widens instead of the rail: it floats
+// over the results column, where the space already exists. Bounded by the
+// viewport so a narrow window cannot push it off-screen.
+const POPPER_UI = {
+  content: 'w-auto min-w-full max-w-[min(48rem,calc(100vw-2rem))]',
+  item: 'font-mono text-[13px]'
+}
+
+const props = withDefaults(defineProps<{
   recipeId: string | null
   recipeNames: string[]
   recipesPending: boolean
+  /** Recipes only ONE tool measured — they cannot yield a pair. */
+  recipesWithoutAPair?: Set<string>
   /** One measured feature of `recipeId`; null folds every feature together. */
   parameter: string | null
   /** Distinct parameter names of the picked recipe. Empty until one is picked. */
   parameterNames: string[]
   parametersPending: boolean
-}>()
+  /**
+   * Set when the parameter lookup FAILED, as opposed to came back empty.
+   *
+   * Typed as the shape `useAsyncData` hands back rather than `unknown`:
+   * `withDefaults` reads a default for a prop whose type admits a function as a
+   * FACTORY, so `unknown` here makes `null` a type error rather than a value.
+   */
+  parametersError?: Error | null
+}>(), {
+  recipesWithoutAPair: () => new Set<string>(),
+  parametersError: null
+})
 
 const emit = defineEmits<{
   (e: 'update:recipeId' | 'update:parameter', value: string | null): void
@@ -109,7 +179,7 @@ const recipeMatched = computed(() => filterByTerm(props.recipeNames, recipeTerm.
 const recipeMatchCount = computed(() => recipeMatched.value.length)
 const recipesOverflowed = computed(() => recipeMatchCount.value > RECIPE_LIMIT)
 // The sentinel stays at the top so clearing the filter is always one click away,
-// even when the search box is narrowing 50,000 names down to a hundred.
+// even when the search box is narrowing the list down to a hundred.
 const recipeItems = computed(() => [ALL_RECIPES, ...recipeMatched.value.slice(0, RECIPE_LIMIT)])
 
 const parameterTerm = ref('')
