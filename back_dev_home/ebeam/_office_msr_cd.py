@@ -59,10 +59,12 @@ from back_dev_home.ebeam._office_meas_hist import (
     FULL_NAME_KW,
     INDEX,
     TIME_FIELD,
+    MAX_INNER_RESULT_WINDOW,
     aggregate,
     parse_dt,
     query as _query,
     text as _text,
+    top_hits as _top_hits,
 )
 from back_dev_home.ebeam._tool_specs import ToolType
 
@@ -116,6 +118,11 @@ _RUN_SOURCE = [
 # keeping a 20-tool fab under ~240 MinIO GETs — slow but survivable for a lab
 # page. Raise it only together with a rollup job; see MIGRATION.md.
 DEFAULT_RUNS_PER_TOOL = 12
+
+# Callers pick `per_tool`; this is the ceiling OpenSearch itself imposes on a
+# top_hits sub-aggregation. `_top_hits` raises rather than letting the cluster
+# answer 400, so a caller asking for more fails at home, in a test.
+MAX_RUNS_PER_TOOL = MAX_INNER_RESULT_WINDOW
 
 # Hard ceiling on the terms bucket count, so a mis-typed fleet cannot ask
 # OpenSearch for an unbounded aggregation.
@@ -269,13 +276,9 @@ def recent_runs(
         "per_tool": {
             "terms": {"field": EQP_ID_KW, "size": len(fleet)},
             "aggs": {
-                "latest": {
-                    "top_hits": {
-                        "size": per_tool,
-                        "sort": [{TIME_FIELD: "desc"}],
-                        "_source": _RUN_SOURCE,
-                    }
-                }
+                "latest": _top_hits(
+                    per_tool, sort=[{TIME_FIELD: "desc"}], source=_RUN_SOURCE
+                )
             },
         }
     }

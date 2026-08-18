@@ -96,11 +96,13 @@ from back_dev_home.ebeam._office_meas_hist import (
     EQP_ID_KW,
     FAB_NAME_KW,
     KST,
+    MAX_INNER_RESULT_WINDOW,
     aggregate,
     get_anchor_time,
     parse_dt,
     query as _query,
     text as _text,
+    top_hits as _top_hits,
 )
 from back_dev_home.ebeam._office_msr_cd import (
     Point,
@@ -186,13 +188,21 @@ BSM_TIME = "timestamp"
 BSM_SHARPNESS_KEY = "Reso EB"
 BSM_NOISE_SCALAR = "Ave. Noise"
 BSM_NOISE_PROFILE = "Noise"
-# Docs kept per tool. beam_shape runs ~3x/day (docs/datatables/hardware_beam_shape.txt),
-# so a 30-day window is ~90 docs per tool per beam condition — 40 silently cut
-# the older half, and the epoch-opening levels in `epoch_history` came from
-# whatever survived. Sized to cover the window with headroom, and truncation is
-# DETECTED below rather than quietly served, which is that document's own rule
+# Docs kept per tool. beam_shape runs ~3x/day
+# (docs/datatables/hardware_beam_shape.txt), so a 30-day window is ~90 docs per
+# tool per beam condition and 40 silently cut the older half — the
+# epoch-opening levels in `epoch_history` then came from whatever survived.
+#
+# 100 is not a preference, it is OpenSearch's `index.max_inner_result_window`,
+# the ceiling on a top_hits sub-aggregation. An earlier 200 here answered 400
+# `search_phase_execution_exception` and failed the whole page, which is why
+# `_top_hits` now refuses an over-cap size at home instead. Truncation at the
+# cap is DETECTED below rather than quietly served — that document's own rule
 # ("상한에 닿으면 조용히 자르지 않고 감지합니다").
-BSM_DOCS_PER_TOOL = 200
+#
+# If a fab genuinely needs more than 100, the fix is a narrower window or a
+# date_histogram, NOT raising a cluster-wide setting for one screen.
+BSM_DOCS_PER_TOOL = MAX_INNER_RESULT_WINDOW
 
 # A fleet is uniform enough that "3 MADs out" is a real outlier; the floor stops
 # a fleet whose readings happen to be identical from flagging the one tool that
@@ -267,18 +277,16 @@ def _bsm_by_tool(
         "per_tool": {
             "terms": {"field": EQP_ID_KW, "size": len(eqp_ids)},
             "aggs": {
-                "latest": {
-                    "top_hits": {
-                        "size": BSM_DOCS_PER_TOOL,
-                        "sort": [{BSM_TIME: "desc"}],
-                        "_source": [
-                            BSM_TIME,
-                            BSM_SHARPNESS_KEY,
-                            BSM_NOISE_SCALAR,
-                            BSM_NOISE_PROFILE,
-                        ],
-                    }
-                }
+                "latest": _top_hits(
+                    BSM_DOCS_PER_TOOL,
+                    sort=[{BSM_TIME: "desc"}],
+                    source=[
+                        BSM_TIME,
+                        BSM_SHARPNESS_KEY,
+                        BSM_NOISE_SCALAR,
+                        BSM_NOISE_PROFILE,
+                    ],
+                )
             },
         }
     }

@@ -38,6 +38,7 @@ from back_dev_home._runtime.office_redis import load_env_file
 __all__ = [
     "CACHE_TTL_SECONDS",
     "KST",
+    "MAX_INNER_RESULT_WINDOW",
     "aggregate",
     "client",
     "fetch_hits",
@@ -45,6 +46,7 @@ __all__ = [
     "query",
     "search",
     "text",
+    "top_hits",
     "ttl_cache",
 ]
 
@@ -55,6 +57,15 @@ _LOG = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9), "KST")
 
 CACHE_TTL_SECONDS = 900  # backing catalogs refresh at most every 15 minutes
+
+# OpenSearch caps a top_hits sub-aggregation at `index.max_inner_result_window`,
+# which defaults to 100 — a DIFFERENT and much smaller limit than the 10,000
+# `index.max_result_window` that bounds a top-level search. Exceeding it is a
+# 400 `search_phase_execution_exception` at query time, not a truncation, so the
+# whole page fails rather than showing less. Nothing about a `size: 200` looks
+# wrong when you write it, which is why `top_hits` below refuses it here
+# instead of letting the cluster refuse it in production.
+MAX_INNER_RESULT_WINDOW = 100
 
 
 def ttl_cache(func):
@@ -182,6 +193,39 @@ def aggregate(
             f"must be a mapping; got {type(aggregations).__name__}."
         )
     return dict(aggregations)
+
+
+def top_hits(
+    size: int,
+    *,
+    sort: list[dict[str, Any]],
+    source: list[str] | None = None,
+) -> dict[str, Any]:
+    """A ``top_hits`` sub-aggregation, refusing a size the cluster will reject.
+
+    Raising here rather than at query time is the point: the cap is per-INNER
+    result window (100 by default), not the familiar 10,000, and an adapter
+    author reaching for "the last 200 docs per tool" has no reason to suspect a
+    different ceiling applies. The error names the fix.
+
+    A caller that legitimately needs more than the cap has to change shape, not
+    the number — a composite walk, a date_histogram, or a narrower window —
+    because raising ``index.max_inner_result_window`` is a cluster-wide setting
+    paid for by every query, not just this one.
+    """
+    if size > MAX_INNER_RESULT_WINDOW:
+        raise ValueError(
+            f"top_hits size={size} exceeds index.max_inner_result_window "
+            f"({MAX_INNER_RESULT_WINDOW}). OpenSearch answers 400 "
+            "search_phase_execution_exception rather than truncating, so the "
+            "page fails outright. Narrow the window, aggregate instead of "
+            "listing, or split the query — do not raise the cluster setting "
+            "for one screen."
+        )
+    body: dict[str, Any] = {"size": size, "sort": sort}
+    if source is not None:
+        body["_source"] = source
+    return {"top_hits": body}
 
 
 def fetch_hits(

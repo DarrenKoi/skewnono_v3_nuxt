@@ -916,3 +916,37 @@ def test_scoped_axis_rules_reach_the_payload(sources, monkeypatch):
 
     # Both recipes measure "Para_9"; the map sends R1's rows to X and R2's to Y.
     assert {cell["axis"] for cell in payload["occupied_cells"]} == {"X", "Y"}
+
+
+def test_no_aggregation_asks_for_more_inner_hits_than_opensearch_allows():
+    """The 400 that took down the page: top_hits is capped at 100, not 10,000.
+
+    `index.max_inner_result_window` (100) bounds a top_hits sub-aggregation and
+    is a different, much smaller limit than the `index.max_result_window`
+    (10,000) that bounds a top-level search. Exceeding it is a 400
+    `search_phase_execution_exception` — the whole request fails rather than
+    returning less — and nothing about writing `size: 200` looks wrong.
+
+    So every per-tool cap in the office adapters is asserted against the real
+    ceiling here, at home, where it costs a test rather than an office trip.
+    """
+    from back_dev_home.ebeam import _office_bm_pm, _office_msr_cd
+    from back_dev_home.ebeam._office_search import MAX_INNER_RESULT_WINDOW, top_hits
+
+    caps = {
+        "runs/tool (shared)": _office_msr_cd.DEFAULT_RUNS_PER_TOOL,
+        "runs/tool (tttm)": tttm_office.RUNS_PER_TOOL,
+        "runs/tool (pm)": pm_office.RUNS_PER_TOOL,
+        "bsm docs/tool": pm_office.BSM_DOCS_PER_TOOL,
+        "maintenance/tool": _office_bm_pm._DOCS_PER_TOOL,
+    }
+    for label, size in caps.items():
+        assert size <= MAX_INNER_RESULT_WINDOW, (
+            f"{label}={size} exceeds index.max_inner_result_window "
+            f"({MAX_INNER_RESULT_WINDOW}) — OpenSearch answers 400, not a "
+            "truncated list"
+        )
+
+    # And the builder refuses, so a future adapter cannot reintroduce it.
+    with pytest.raises(ValueError, match="max_inner_result_window"):
+        top_hits(MAX_INNER_RESULT_WINDOW + 1, sort=[{"timestamp": "desc"}])

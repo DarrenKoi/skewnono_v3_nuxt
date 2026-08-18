@@ -40,6 +40,7 @@ from back_dev_home.ebeam._office_meas_hist import (
     aggregate,
     query as _query,
     text as _text,
+    top_hits as _top_hits,
 )
 from back_dev_home.ebeam.hardware.providers.bm_pm._shared import classify_category
 
@@ -110,13 +111,9 @@ def maintenance_events(
         "per_tool": {
             "terms": {"field": EQP_ID_KW, "size": len(eqp_ids)},
             "aggs": {
-                "recent": {
-                    "top_hits": {
-                        "size": _DOCS_PER_TOOL,
-                        "sort": [{_DOWN_DT: "desc"}],
-                        "_source": _SOURCE,
-                    }
-                }
+                "recent": _top_hits(
+                    _DOCS_PER_TOOL, sort=[{_DOWN_DT: "desc"}], source=_SOURCE
+                )
             },
         }
     }

@@ -53,6 +53,7 @@ from back_dev_home._runtime.office_redis import (
 from back_dev_home.ebeam._office_search import (  # noqa: F401
     CACHE_TTL_SECONDS,
     KST,
+    MAX_INNER_RESULT_WINDOW,
     aggregate,
     client,
     fetch_hits,
@@ -60,6 +61,7 @@ from back_dev_home.ebeam._office_search import (  # noqa: F401
     query,
     search,
     text,
+    top_hits,
     ttl_cache,
 )
 from back_dev_home.ebeam.recipe_tat.contracts import ToolType
