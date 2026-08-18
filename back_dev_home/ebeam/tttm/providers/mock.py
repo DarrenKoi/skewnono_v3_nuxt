@@ -108,6 +108,7 @@ tool would drag the reference and shift every other tool's deviation.
 import random
 import zlib
 from datetime import date, timedelta
+from functools import lru_cache
 from statistics import median
 from typing import NamedTuple
 
@@ -115,6 +116,7 @@ from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
+    unavailable_payload,
     CellSkew,
     TttmRecipeList,
     TttmRecipeRow,
@@ -382,45 +384,17 @@ def _corroboration(fleet: list[ToolRef], biases: dict[str, float]) -> Production
     )
 
 
-def _unavailable(
-    tool_slug: str,
-    fab_name: str,
-    recipe_id: str | None,
-    parameter: str | None,
-    summary: str,
-    tools: list[ToolRef] | None = None,
-) -> TttmCheckPayload:
-    """The documented "nothing to compare" answer — mirrors the office branch.
+@lru_cache(maxsize=32)
+def _measured_recipe_ids(tool_slug: str, fab_name: str) -> frozenset[str]:
+    """Every recipe_id this fab has measured, as a set, computed once.
 
-    ``tools`` is the ROSTER, and it is carried on this branch whenever the fab
-    actually has one. It is not a comparison and the client renders no matrix
-    from an unavailable payload; it is what the tool picker is built from, and
-    the picker is on the same rail as the recipe picker the user has to reach to
-    get OUT of an empty answer. Blanking it removed the fab's tools from the
-    screen for the whole time the scope was wrong.
+    Cached because it cannot change within a process — the meas_hist mock's rows
+    are `@lru_cache`d and its window anchor is a constant — while the membership
+    question is asked on EVERY check that carries a recipe, including every
+    valid pick. Uncached, the happy path re-filtered 600 rows, re-aggregated the
+    per-recipe run/tool counts and re-sorted them, to answer one `in`.
     """
-    return {
-        "tool_slug": tool_slug,  # type: ignore[typeddict-item]
-        "fab_name": fab_name,
-        "recipe_id": recipe_id,
-        "parameter": parameter,
-        "available": False,
-        "fetched_at": "",
-        "summary": summary,
-        "tools": tools or [],
-        "current_tolerance": _CURRENT_TOLERANCE,
-        "tolerance_range": _TOLERANCE_RANGE,  # type: ignore[typeddict-item]
-        "occupied_cells": [],
-        "production_corroboration": {"level": "low", "note": "TTTM 미반영", "detail": []},
-        "fleet_today": {
-            "matrix": {"tools": [], "values": []},
-            "consensus_deviation": [],
-            "median_cd_nm": None,
-        },
-        "trend": [],
-        "epoch_markers": [],
-        "mdc_history": [],
-    }
+    return frozenset(row["recipe_id"] for row in get_tttm_recipes(tool_slug, fab_name)["rows"])
 
 
 def get_tttm_check(
@@ -431,15 +405,19 @@ def get_tttm_check(
 ) -> TttmCheckPayload:
     fleet = _fleet(tool_slug, fab_name)
     if not fleet:
-        return _unavailable(
+        return unavailable_payload(
             tool_slug,
             fab_name,
             recipe_id,
             parameter,
             f"{fab_name} 에는 이 계열의 장비가 없습니다.",
+            # The one branch that really has no roster — `fleet` IS empty here,
+            # so it is passed rather than omitted. Opting out is what let the
+            # office template blank a roster it actually had.
+            tools=fleet,
         )
     if len(fleet) < 2:
-        return _unavailable(
+        return unavailable_payload(
             tool_slug,
             fab_name,
             recipe_id,
@@ -456,10 +434,8 @@ def get_tttm_check(
     # case, was invisible until someone opened the page on the company network.
     # `get_tttm_recipes` is the same measured set the picker offers, so the two
     # cannot disagree about what "measured" means.
-    if recipe_id and recipe_id not in {
-        row["recipe_id"] for row in get_tttm_recipes(tool_slug, fab_name)["rows"]
-    }:
-        return _unavailable(
+    if recipe_id and recipe_id not in _measured_recipe_ids(tool_slug, fab_name):
+        return unavailable_payload(
             tool_slug,
             fab_name,
             recipe_id,

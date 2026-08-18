@@ -131,6 +131,7 @@ from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
+    unavailable_payload,
     CellSkew,
     ConsensusDeviation,
     EpochMarker,
@@ -820,51 +821,6 @@ def _empty_cells_summary(
     )
 
 
-def _unavailable(
-    tool_slug: str,
-    fab_name: str,
-    recipe_id: str | None,
-    parameter: str | None,
-    summary: str,
-    tools: list[ToolRef] | None = None,
-) -> TttmCheckPayload:
-    """The documented "nothing to compare" answer — not an error.
-
-    Echoes the fab, recipe and parameter it was asked about on this branch too:
-    the client files the response under the triple it requested, so an adapter
-    that blanked them here would label one fab's empty state with another's.
-
-    ``tools`` carries the ROSTER whenever the fab has one — an empty comparison
-    is not an empty fab. The client builds its tool picker from this list and
-    renders no matrix from an unavailable payload, so blanking it only ever
-    removed the fab's tools from the screen while the scope was wrong, which is
-    the moment the picker is needed. Only the genuinely empty-roster branch
-    (no tool of this family in this fab) still answers with an empty list.
-    """
-    return {
-        "tool_slug": tool_slug,  # type: ignore[typeddict-item]
-        "fab_name": fab_name,
-        "recipe_id": recipe_id,
-        "parameter": parameter,
-        "available": False,
-        "fetched_at": "",
-        "summary": summary,
-        "tools": tools or [],
-        "current_tolerance": DEFAULT_TOLERANCE,
-        "tolerance_range": TOLERANCE_RANGE,  # type: ignore[typeddict-item]
-        "occupied_cells": [],
-        "production_corroboration": {"level": "low", "note": _NOTE, "detail": []},
-        "fleet_today": {
-            "matrix": {"tools": [], "values": []},
-            "consensus_deviation": [],
-            "median_cd_nm": None,
-        },
-        "trend": [],
-        "epoch_markers": [],
-        "mdc_history": [],
-    }
-
-
 def get_tttm_check(
     tool_slug: str,
     fab_name: str,
@@ -880,12 +836,15 @@ def get_tttm_check(
     """
     fleet = _fleet(tool_slug, fab_name)
     if not fleet:
-        return _unavailable(
+        return unavailable_payload(
             tool_slug, fab_name, recipe_id, parameter,
             f"{fab_name} 에는 이 계열의 장비가 없습니다.",
+            # `fleet` IS empty here, so the empty roster is passed rather than
+            # omitted — see unavailable_payload's docstring.
+            tools=fleet,
         )
     if len(fleet) < 2:
-        return _unavailable(
+        return unavailable_payload(
             tool_slug, fab_name, recipe_id, parameter,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
             tools=fleet,
@@ -905,7 +864,7 @@ def get_tttm_check(
     )
     if not runs.runs:
         scope = f"{recipe_id} " if recipe_id else ""
-        return _unavailable(
+        return unavailable_payload(
             tool_slug, fab_name, recipe_id, parameter,
             f"{fab_name} 에 최근 {WINDOW_DAYS}일간 {scope}측정 이력이 없습니다.",
             tools=fleet,

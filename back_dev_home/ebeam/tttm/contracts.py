@@ -213,3 +213,76 @@ class TttmCheckPayload(TypedDict):
     epoch_markers: list[EpochMarker]
     mdc_history: list[MdcHistoryEntry]
     raw: NotRequired[dict[str, object]]
+
+
+# "TTTM 미반영" — production corroboration cannot be computed without a
+# comparison, so the unavailable branch reports the absence rather than a level.
+UNAVAILABLE_NOTE = "TTTM 미반영"
+
+
+def unavailable_payload(
+    tool_slug: str,
+    fab_name: str,
+    recipe_id: str | None,
+    parameter: str | None,
+    summary: str,
+    tools: list[ToolRef],
+) -> "TttmCheckPayload":
+    """The documented "nothing to compare" answer — not an error.
+
+    Hoisted beside the contract for the same reason ``TOLERANCE_RANGE`` above
+    is: both providers must answer this branch identically, and they cannot be
+    trusted to do so separately. This function was a ~40-line copy in each of
+    `providers/mock.py` and `providers/office_example.py`, and on 2026-08-18 the
+    copies diverged in the worst available way — the office template grew a
+    ``tools`` parameter and a docstring promising to carry the roster, then
+    returned a hardcoded ``[]``. The mock had the identical change and honoured
+    it, so the whole home suite stayed green while the office served a blank
+    control rail. One definition makes that unrepresentable rather than merely
+    tested for.
+
+    Echoes the fab, recipe and parameter it was asked about: the client files
+    the response under the triple it requested, so blanking them here would
+    label one fab's empty state with another's.
+
+    ``tools`` is the ROSTER, and it is REQUIRED — an empty comparison is not an
+    empty fab. The client builds its tool picker from this list, and that picker
+    shares a rail with the recipe picker the user needs in order to leave an
+    empty answer. Pass the fab's fleet on every branch; only the genuinely
+    empty-roster branch (no tool of this family in this fab) passes ``[]``, and
+    it does so by passing a fleet that IS empty rather than by opting out. The
+    parameter is undefaulted deliberately, the same guard
+    `data.get_tttm_check` uses on its own arguments: `office.py` is a gitignored
+    COPY, so a copy made before this existed fails with a TypeError instead of
+    silently serving a blank roster again.
+
+    What must stay empty is the COMPARISON — `occupied_cells`, the fleet matrix
+    and the trend — because that is the "comparison of nothing" this branch
+    exists to refuse.
+    """
+    return {
+        "tool_slug": tool_slug,  # type: ignore[typeddict-item]
+        "fab_name": fab_name,
+        "recipe_id": recipe_id,
+        "parameter": parameter,
+        "available": False,
+        "fetched_at": "",
+        "summary": summary,
+        "tools": tools,
+        "current_tolerance": DEFAULT_TOLERANCE,
+        "tolerance_range": TOLERANCE_RANGE,  # type: ignore[typeddict-item]
+        "occupied_cells": [],
+        "production_corroboration": {
+            "level": "low",
+            "note": UNAVAILABLE_NOTE,
+            "detail": [],
+        },
+        "fleet_today": {
+            "matrix": {"tools": [], "values": []},
+            "consensus_deviation": [],
+            "median_cd_nm": None,
+        },
+        "trend": [],
+        "epoch_markers": [],
+        "mdc_history": [],
+    }

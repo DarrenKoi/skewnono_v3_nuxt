@@ -33,6 +33,7 @@ from back_dev_home.ebeam._office_mdc import MdcChange
 from back_dev_home.ebeam._office_msr_cd import Point, RunRef, RunSet
 from back_dev_home.ebeam.pm_planning.contracts import FleetPayload
 from back_dev_home.ebeam.pm_planning.providers import office_example as pm_office
+from back_dev_home.ebeam.tttm import contracts as tttm_contracts
 from back_dev_home.ebeam.tttm.contracts import TttmCheckPayload
 from back_dev_home.ebeam.tttm.providers import office_example as tttm_office
 
@@ -966,13 +967,11 @@ class TestTttmUnavailableKeepsTheRoster:
     with the recipe picker — the control the user needs to LEAVE an empty answer.
     Blanking the roster removes both at exactly the moment they are needed.
 
-    Asserted against the office template specifically, and directly rather than
-    through `get_tttm_check`, because that is the half a home test cannot reach
-    any other way. `_unavailable` grew its `tools` parameter and a docstring
-    promising to carry the roster while the body still returned a hardcoded `[]`
-    — the mock had the same change and DID honour it, so the whole home suite
-    and a browser pass stayed green while the office served a blank rail. A test
-    that goes through the mock cannot see that; this one names the template.
+    The rule used to live in two ~40-line copies of the payload constructor, one
+    per provider, and on 2026-08-18 they diverged: the office template accepted a
+    `tools` argument and returned a hardcoded `[]`, so home stayed green while
+    the office served a blank rail. The constructor now lives once in
+    `contracts.unavailable_payload`, which is what these tests exercise.
     """
 
     @staticmethod
@@ -982,10 +981,10 @@ class TestTttmUnavailableKeepsTheRoster:
             {"eqp_id": "ECDX261", "label": "ECDX261", "eqp_model_cd": "CG6300"},
         ]
 
-    def test_the_roster_survives_an_unavailable_answer(self):
-        payload = tttm_office._unavailable(
+    def test_the_roster_it_is_given_is_the_roster_it_returns(self):
+        payload = tttm_contracts.unavailable_payload(
             "cdsem", "R3", "CD_MONITOR/NEVER_RUN", None, "측정 이력이 없습니다.",
-            tools=self._roster(),  # type: ignore[arg-type]
+            self._roster(),  # type: ignore[arg-type]
         )
         assert_matches(payload, TttmCheckPayload)
         assert payload["available"] is False
@@ -993,32 +992,46 @@ class TestTttmUnavailableKeepsTheRoster:
 
     def test_the_comparison_stays_empty_even_though_the_roster_does_not(self):
         # The distinction the branch exists to hold: a roster is not a
-        # comparison. Shipping tools here must not smuggle in a matrix the
-        # client would render as a real pairwise result.
-        payload = tttm_office._unavailable(
+        # comparison. Carrying tools must not smuggle in a matrix the client
+        # would render as a real pairwise result.
+        payload = tttm_contracts.unavailable_payload(
             "cdsem", "R3", None, None, "장비가 1대뿐입니다.",
-            tools=self._roster(),  # type: ignore[arg-type]
+            self._roster(),  # type: ignore[arg-type]
         )
         assert payload["occupied_cells"] == []
         assert payload["fleet_today"]["matrix"]["tools"] == []
         assert payload["fleet_today"]["consensus_deviation"] == []
         assert payload["trend"] == []
 
-    def test_a_fab_with_no_tool_of_this_family_still_answers_empty(self):
-        # The one branch that SHOULD blank it — there is no roster to carry.
-        payload = tttm_office._unavailable(
-            "cdsem", "ZZZ", None, None, "이 계열의 장비가 없습니다."
+    def test_an_empty_roster_is_passed_not_omitted(self):
+        # A fab with no tool of this family answers `[]` — but by handing over an
+        # empty fleet, not by leaving the argument out. `tools` is required
+        # precisely so a branch cannot quietly decline to state a roster.
+        payload = tttm_contracts.unavailable_payload(
+            "cdsem", "ZZZ", None, None, "이 계열의 장비가 없습니다.", []
         )
         assert_matches(payload, TttmCheckPayload)
         assert payload["tools"] == []
 
-    def test_the_mock_and_the_office_template_agree_on_this_rule(self):
-        # mock<->office drift is what let the defect through: the guard was
-        # written into mock.py and the office template kept a hardcoded [].
+        with pytest.raises(TypeError):
+            tttm_contracts.unavailable_payload(  # type: ignore[call-arg]
+                "cdsem", "ZZZ", None, None, "…"
+            )
+
+    def test_neither_provider_keeps_a_private_copy_of_the_constructor(self):
+        """The drift guard, stated as the thing that actually went wrong.
+
+        Comparing the two providers' output would now be a tautology — they call
+        one function. What is still possible, and is exactly what happened
+        before, is a provider growing its OWN `_unavailable` again and drifting
+        from the shared one. `office.py` is a gitignored copy, so this is a live
+        risk every time someone edits a template in isolation.
+        """
         from back_dev_home.ebeam.tttm.providers import mock as tttm_mock
 
         for adapter in (tttm_office, tttm_mock):
-            payload = adapter._unavailable(
-                "cdsem", "R3", None, None, "…", tools=self._roster(),  # type: ignore[arg-type]
+            assert not hasattr(adapter, "_unavailable"), (
+                f"{adapter.__name__} re-declared a local _unavailable; the "
+                "unavailable payload has ONE definition, in contracts.py"
             )
-            assert payload["tools"], f"{adapter.__name__} dropped the roster"
+            assert adapter.unavailable_payload is tttm_contracts.unavailable_payload

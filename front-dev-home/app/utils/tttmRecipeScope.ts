@@ -18,23 +18,28 @@
 // 200 for any name it is handed.
 
 /**
- * The recipe pick that should stand, given the measured-recipe list.
+ * Whether a persisted recipe pick still stands, given the measured-recipe list.
  *
- * @param recipeId  the persisted pick; null means 전체 and is never disturbed.
+ * A predicate rather than a "return the pick that should stand" function: the
+ * only two answers are the input and null, so returning a string forced the
+ * caller into an identity comparison to recover the one bit it actually wanted,
+ * and forced every reader to check that a THIRD value was not possible.
+ *
+ * @param recipeId  the persisted pick; null means 전체, which always stands.
  * @param measuredRecipeIds  every `recipe_id` the fab has measured, or **null**
  *   when the list has not answered yet — in flight, or the request failed.
- * @returns `recipeId` to keep it, or `null` to fall back to 전체.
  */
-export const reconcileRecipeId = (
+export const recipeStillStands = (
   recipeId: string | null,
   measuredRecipeIds: string[] | null
-): string | null => {
-  if (!recipeId) return null
+): boolean => {
+  // 전체 is not a pick that can go stale.
+  if (!recipeId) return true
   // Not an answer, so not grounds to discard the user's setup. An empty ARRAY
   // is an answer ("this fab measured nothing") and does clear the pick.
-  if (measuredRecipeIds === null) return recipeId
+  if (measuredRecipeIds === null) return true
   // Exact match: recipe_id is the class/recipe full_name, and the bare recipe
   // half is a different identity the office refuses — see the tttm/recipes
   // commit and docs/datatables/meas_hist.txt.
-  return measuredRecipeIds.includes(recipeId) ? recipeId : null
+  return measuredRecipeIds.includes(recipeId)
 }

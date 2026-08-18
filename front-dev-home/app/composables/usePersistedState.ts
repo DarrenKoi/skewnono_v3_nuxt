@@ -9,6 +9,18 @@
 // Watchers live for the lifetime of the SPA — bounded by the distinct
 // stateKeys a session touches (tool/fab combinations), no disposal needed.
 
+// NORMALIZE GUARDS THE SHAPE, NOT THE VALUE. `normalize` runs on read and can
+// only ask "is this the structure we store?". If a stored value NAMES something
+// a server catalogue offers — a recipe, a tool id, a filter option — it can also
+// go stale while the shape stays perfect, and nothing here will notice. Whoever
+// stores such a value owns reconciling it once that catalogue has answered:
+//   - useTttmScope / utils/tttmRecipeScope — one id, cleared by a watcher
+//   - utils/tttmFleetSubset resolveSelection — a list, resolved at read time
+//   - useMeasHistSearch / utils/measHistCascade — cascaded filters
+// The three differ in what counts as "answered" (measHist reads empty facets as
+// still-loading; tttm reads an empty array as an answer and null as loading),
+// which is why this is a convention stated here rather than a hook offered here.
+
 export interface PersistedStateOptions<T> {
   /** Initial value when storage is empty, unreadable, or fails validation. */
   default: () => T

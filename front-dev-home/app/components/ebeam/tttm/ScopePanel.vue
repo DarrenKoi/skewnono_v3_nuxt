@@ -112,22 +112,17 @@
       비교하려면 2대 이상이어야 합니다.
     </p>
 
-    <!-- The recipe/parameter pair is the SAME component pm-tune mounts, driven
-         by the same persisted settings, so the two lab pages cannot end up
-         describing different groups — see PmTuneView's rail comment. -->
-    <EbeamScopeRecipe
-      class="mt-4"
-      :recipe-id="recipeId"
-      :recipe-names="recipeNames"
-      :recipes-pending="recipesPending"
-      :parameter="parameter"
-      :parameter-names="parameterNames"
-      :parameters-pending="parametersPending"
-      :parameters-error="parametersError"
-      :recipes-without-a-pair="recipesWithoutAPair"
-      @update:recipe-id="emit('update:recipeId', $event)"
-      @update:parameter="emit('update:parameter', $event)"
-    />
+    <!-- The recipe/parameter pair arrives as a SLOT, for the same reason the
+         tolerance knob below does: this panel owns no part of that control. It
+         relayed eight props and two emits through to ScopeRecipe, and the cost
+         of that was paid on 2026-08-18 — two newly added props were not
+         declared here, so Vue turned them into fallthrough attributes on the
+         root div and the picker silently used its own defaults. The features
+         worked on pm-tune, which mounts ScopeRecipe directly, and did nothing
+         on this page. Slotted, there is no relay to forget to update. -->
+    <div class="mt-4">
+      <slot name="recipe" />
+    </div>
 
     <!-- The knob arrives as a slot rather than through three props and an emit.
          Relaying it cost nothing to write and everything to drag: a prop that
@@ -151,26 +146,6 @@ const props = defineProps<{
   selected: string[]
   /** Fleet-wide consensus deviation per tool, for the dropdown rows. */
   deviations: Record<string, number>
-  recipeId: string | null
-  recipeNames: string[]
-  recipesPending: boolean
-  /** One measured feature of `recipeId`; null folds every feature together. */
-  parameter: string | null
-  parameterNames: string[]
-  parametersPending: boolean
-  /**
-   * Relayed straight through to ScopeRecipe, both of them.
-   *
-   * This panel owns no part of the recipe/parameter pair — it hosts the control
-   * so TTTM and pm-tune show one scope. That makes every prop the inner picker
-   * grows a prop THIS component has to grow too: an undeclared one lands on the
-   * root div as a fallthrough attribute and never reaches the picker, which then
-   * quietly falls back to its own default. Vue reports nothing and the template
-   * typecheck does not run in strict mode, so the only symptom is the feature
-   * silently not working on the TTTM page while it works on pm-tune.
-   */
-  parametersError?: Error | null
-  recipesWithoutAPair?: Set<string>
 }>()
 
 const emit = defineEmits<{

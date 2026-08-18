@@ -31,18 +31,29 @@
           :tools="payload?.tools ?? []"
           :selected="selectedTools"
           :deviations="fleetDeviations"
-          :recipe-id="recipeId"
-          :recipe-names="recipeNames"
-          :recipes-pending="recipesPending"
-          :parameter="parameter"
-          :parameter-names="parameterNames"
-          :parameters-pending="parametersPending"
-          :parameters-error="parametersError"
-          :recipes-without-a-pair="recipesWithoutAPair"
           @update:parameter="onParameter"
           @update:selected="onSelectedTools"
           @update:recipe-id="onRecipe"
         >
+          <!-- The picker is mounted HERE rather than passed through the panel,
+               the same way pm-tune mounts it. Both pages therefore hand
+               ScopeRecipe its props directly from useTttmScope, so the two lab
+               pages cannot drift in what they give it. -->
+          <template #recipe>
+            <EbeamScopeRecipe
+              :recipe-id="recipeId"
+              :recipe-names="recipeNames"
+              :recipes-pending="recipesPending"
+              :recipes-without-a-pair="recipesWithoutAPair"
+              :parameter="parameter"
+              :parameter-names="parameterNames"
+              :parameters-pending="parametersPending"
+              :parameters-error="parametersError"
+              @update:recipe-id="onRecipe"
+              @update:parameter="onParameter"
+            />
+          </template>
+
           <!-- Slotted, not passed down: the knob fires on every drag frame, and
                a prop through ScopePanel would re-render all seven model-group
                dropdowns with it. -->
@@ -95,20 +106,16 @@
       <!-- 결과 — 판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로, 근거가 위에서
            아래로 한 번씩만 나옵니다. -->
       <div class="flex min-w-0 flex-col gap-3">
-        <div
+        <!-- The shared empty-state shell, not a hand-rolled card: an
+             unavailable payload is a legitimate answer ("nothing to compare"),
+             which is the same shape of event AppEmptyState already owns. -->
+        <AppEmptyState
           v-if="!payload?.available"
-          class="dashboard-surface rounded-[var(--sk-r-card)] p-4"
-        >
-          <p class="sk-title text-(--sk-bad)">
-            비교할 결과가 없습니다
-          </p>
-          <p class="mt-1.5 sk-meta leading-relaxed">
-            {{ payload?.summary ?? '데이터를 불러오지 못했습니다.' }}
-          </p>
-          <p class="mt-1.5 sk-field-label leading-relaxed">
-            왼쪽에서 recipe · parameter · 장비를 바꾸어 다시 계산하실 수 있습니다.
-          </p>
-        </div>
+          title="비교할 결과가 없습니다"
+          :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
+          hint="왼쪽에서 recipe · parameter · 장비를 바꾸어 다시 계산하실 수 있습니다."
+          icon="i-lucide-scale"
+        />
 
         <template v-else>
           <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">

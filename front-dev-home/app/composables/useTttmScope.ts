@@ -1,4 +1,4 @@
-import { reconcileRecipeId } from '~/utils/tttmRecipeScope'
+import { recipeStillStands } from '~/utils/tttmRecipeScope'
 import { useRecipeSearchApi } from '~/composables/useRecipeSearchApi'
 import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
@@ -62,8 +62,11 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   watch(
     [recipeList, recipeId],
     () => {
-      const measured = recipeList.value ? recipeList.value.rows.map(row => row.recipe_id) : null
-      if (reconcileRecipeId(recipeId.value, measured) !== recipeId.value) {
+      // `recipeNames` is the same mapping, already cached by Vue — but it folds
+      // "no answer yet" into an empty array, and that distinction is the whole
+      // guard here, so the null case is restored from `recipeList` itself.
+      const measured = recipeList.value ? recipeNames.value : null
+      if (!recipeStillStands(recipeId.value, measured)) {
         settings.setRecipe(toolType, fabName, null)
       }
     },

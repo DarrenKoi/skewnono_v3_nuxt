@@ -101,20 +101,16 @@
 
       <!-- 결과 — 지도·목표 → gate → 다음 후보 순. -->
       <div class="flex min-w-0 flex-col gap-3">
-        <div
+        <!-- The shared empty-state shell, not a hand-rolled card: an
+             unavailable payload is a legitimate answer ("nothing to compare"),
+             which is the same shape of event AppEmptyState already owns. -->
+        <AppEmptyState
           v-if="!payload?.available"
-          class="dashboard-surface rounded-[var(--sk-r-card)] p-4"
-        >
-          <p class="sk-title text-(--sk-bad)">
-            튜닝 목표를 낼 수 없습니다
-          </p>
-          <p class="mt-1.5 sk-meta leading-relaxed">
-            {{ payload?.summary ?? '데이터를 불러오지 못했습니다.' }}
-          </p>
-          <p class="mt-1.5 sk-field-label leading-relaxed">
-            왼쪽에서 recipe · parameter 를 바꾸어 다시 계산하실 수 있습니다.
-          </p>
-        </div>
+          title="튜닝 목표를 낼 수 없습니다"
+          :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
+          hint="왼쪽에서 recipe · parameter 를 바꾸어 다시 계산하실 수 있습니다."
+          icon="i-lucide-scale"
+        />
 
         <template v-else>
           <div class="grid gap-3 2xl:grid-cols-2">

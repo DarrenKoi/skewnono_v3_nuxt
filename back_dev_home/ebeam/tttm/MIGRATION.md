@@ -89,9 +89,12 @@
   `fab_inform_notes`. 공용 코드는 `ebeam/_office_msr_cd.py`,
   `ebeam/_office_mdc.py`, `ebeam/_office_bm_pm.py` 이며 **tracked** 이므로
   `git pull` 로 갱신됩니다(`office.py` 만 `cp` 대상입니다).
-- **`available: false` keeps the roster.** Every unavailable branch except the
-  genuinely empty one (no tool of this family in this fab) must return the
-  fab's `tools`. An empty comparison is not an empty fab, the client renders no
+- **`available: false` is built by `contracts.unavailable_payload`, not by hand.**
+  Do not write your own — that function is imported by both providers precisely
+  because two copies drifted once (the office copy took a `tools` argument and
+  returned `[]`), and `tools` is a REQUIRED parameter so no branch can quietly
+  decline to state a roster. Every unavailable branch except the genuinely empty
+  one (no tool of this family in this fab) therefore returns the fab's `tools`. An empty comparison is not an empty fab, the client renders no
   matrix from an unavailable payload, and the tool picker shares a rail with the
   recipe picker — so blanking `tools` removes the controls the user needs to
   leave the empty state, at exactly the moment they need them.
