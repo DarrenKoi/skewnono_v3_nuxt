@@ -46,12 +46,24 @@ Mode를 환경 변수로 지정하지 않으면 `_runtime/site.py`가 아래 순
 
 실제로 무엇이 선택되었는지는 `GET /api/health/providers` 또는 부팅 로그로 확인합니다.
 
-## 4. `/api/health/providers`의 예외
+## 4. `health/` introspection 엔드포인트의 예외
 
 라우트는 원칙적으로 `from .data import ...`만 사용하며 phase에 따라 분기하지
-않습니다. 단 하나의 예외가 `/api/health/providers`이며, 이 엔드포인트는 `_runtime`을
-직접 읽습니다. **스왑 메커니즘 자체를 보고하는 엔드포인트가 그 메커니즘을 거치면,
-정작 그것을 조회해야 하는 상황에서 잘못된 값을 보고할 수 있기 때문입니다.**
+않습니다. 예외는 `back_dev_home/health/`의 introspection 엔드포인트들이며, 이들은
+`_runtime`을 직접 읽습니다. **스왑 메커니즘 자체를 보고하는 엔드포인트가 그
+메커니즘을 거치면, 정작 그것을 조회해야 하는 상황에서 잘못된 값을 보고할 수 있기
+때문입니다.**
+
+| 엔드포인트 | 직접 읽는 대상 | 답하는 질문 |
+| --- | --- | --- |
+| `GET /api/health/providers` | `_runtime/data_provider.py` | 전체 feature가 각각 어느 adapter로, 왜 해석되었는가 |
+| `GET /api/health/data-mode` | `_runtime/data_provider.py` | 지정한 feature 하나가 지금 생성된 데이터를 주는가 |
+| `GET /api/health/deployment` | `_runtime/env.py` | 이 인스턴스가 Phase 3 클라우드 배포본인가 |
+
+이 예외는 `health/`에 한정됩니다. 다른 feature의 `routes.py`가 `_runtime`을 직접
+import한다면 그것은 예외가 아니라 위반입니다. 엔드포인트별 auth gate와 그 이유는
+[`back_dev_home/health/MIGRATION.md`](../../back_dev_home/health/MIGRATION.md)의
+표에 있습니다 — carve-out이라는 사실이 admin 전용을 뜻하지는 않습니다.
 
 ## 5. 복사본이 낡는 문제
 

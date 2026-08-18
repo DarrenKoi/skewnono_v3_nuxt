@@ -2,21 +2,15 @@ import { joinApiPath } from '~/utils/apiPath'
 
 // Which deployment the SPA is talking to.
 //
-// The SPA cannot answer this by itself. `ssr: false` bakes
-// `runtimeConfig.public` at BUILD time, and the artifact built at the office is
-// byte-for-byte the one `scripts/deploy/pack.py` ships to the cloud — so a
-// build-time flag would be a step someone has to remember on every pack, and
-// forgetting it fails in the silent direction. The backend answers instead,
-// from `_runtime/env.py`'s `is_cloud()`, which is a filesystem-path check and
-// so cannot be flipped by a stray environment variable.
+// Why this is a REQUEST and not a build-time constant, and why the gate is
+// cloud rather than office, are both properties of the backend's answer — they
+// are written down once, at the endpoint: `back_dev_home/health/routes.py`'s
+// `deployment()`. The short version: `ssr: false` bakes `runtimeConfig.public`
+// at build time, and the office-built artifact is the one that ships.
 //
-// Cloud, NOT office. Phase 2 runs on a company localhost against real data,
-// which is exactly where an unvalidated page has to be exercised — only the
-// Phase 3 production deploy hides anything.
-//
-// Reads `/api/health/deployment`, NOT `/api/health/providers`: the providers
-// table is admin-only, and a menu that renders correctly only for admins is
-// the bug this would be written to avoid.
+// The one thing that belongs on this side: it reads `/api/health/deployment`,
+// NOT `/api/health/providers`. The providers table is admin-only, and a menu
+// that renders correctly only for admins is the bug this exists to avoid.
 
 export interface DeploymentResponse {
   is_cloud: boolean

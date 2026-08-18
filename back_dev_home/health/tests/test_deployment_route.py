@@ -46,7 +46,10 @@ def test_deployment_is_open_to_a_normal_user():
     response = client.get("/api/health/deployment")
 
     assert response.status_code == 200
-    assert response.get_json()["is_cloud"] in (True, False)
+    # A JSON bool, not the string "false". The SPA branches on `is_cloud === true`,
+    # so a stringified flag would read as "not cloud" and show every hidden row in
+    # production. `in (True, False)` was vacuous here — every bool passes it.
+    assert response.get_json()["is_cloud"] is False
 
 
 def test_deployment_does_not_leak_the_provider_table():

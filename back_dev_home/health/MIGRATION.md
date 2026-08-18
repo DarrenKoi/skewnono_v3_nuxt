@@ -16,25 +16,42 @@
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
-## This feature has three endpoints, and only one of them swaps
+## Only one of this feature's endpoints swaps
 
 | Endpoint | Auth | Provider swap | Source |
 | --- | --- | --- | --- |
 | `GET /api/health/services` | open to all users | yes, via `data.py` | `providers/{mock,office}.py` |
 | `GET /api/health/providers` | `@require_admin` | no — carve-out | `_runtime/data_provider.py` |
+| `GET /api/health/data-mode` | open to all users | no — carve-out | `_runtime/data_provider.py` |
+| `GET /api/health/deployment` | open to all users | no — carve-out | `_runtime/env.py` |
 | `GET /api/health/logging` | `@require_admin` | no — carve-out | `_logging/opensearch_handler.py` |
+| `GET /api/health/jobs` | `@require_admin` | no — carve-out | `app.extensions["scheduler_run_log"]` |
 
-The two carve-outs read the runtime **directly** on purpose. They are
-introspection, not phase-swappable data: a swappable `/health/providers` could
-misreport itself in exactly the situation you would query it, and a swappable
-`/health/logging` could hide the very log loss being asked about. A test pins
-that `health/data.py` never grows a `get_provider_table`, so do not "fix" this
-by routing them through `data.py`.
+Every carve-out reads the runtime **directly** on purpose. They are
+introspection, not phase-swappable data, and each would be self-defeating if it
+went through `data.py`: a swappable `/health/providers` could misreport itself
+in exactly the situation you would query it, a swappable `/health/data-mode`
+could not answer "is this generated data?" honestly *because the answer is
+which provider is running*, and a swappable `/health/logging` could hide the
+very log loss being asked about. A test pins that `health/data.py` never grows
+a `get_provider_table`, so do not "fix" this by routing them through `data.py`.
 
-Both carve-outs are admin-only (`back_dev_home/_auth/admin.py`). At home the
-no-cookie fallback identity is `local-dev`, which **is** an admin, so a bare
-curl still answers 200; send a member id (`-b "LASTUSER=1234567"`) to see the
-403.
+**A carve-out is not automatically admin-only.** The gate follows what the
+answer reveals, not how it is sourced:
+
+- `/health/providers` and `/health/jobs` enumerate every feature or job with
+  the reason each resolved as it did — deployment shape, admin-only.
+- `/health/logging` names the log index alias — admin-only.
+- `/health/data-mode` answers about one named feature the caller already picked.
+  A "this is demo data" marker only admins can see is not a marker, so it is
+  open, and it returns no reason string.
+- `/health/deployment` answers which deployment the caller is already talking
+  to, which the address bar gives away. The SPA reads it to keep unvalidated
+  실험실 rows out of the production menu, so a normal user must be able to ask.
+
+At home the no-cookie fallback identity is `local-dev`, which **is** an admin,
+so a bare curl answers 200 on the gated ones too; send a member id
+(`-b "LASTUSER=1234567"`) to see the 403.
 
 ## Endpoint: GET /api/health/services
 
