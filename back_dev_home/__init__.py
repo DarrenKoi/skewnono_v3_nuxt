@@ -57,6 +57,26 @@ def _rate_limit_storage() -> dict:
     }
 
 
+# Blueprints whose endpoints are exempt from the per-user /api budget, matched
+# by the `<blueprint>.` prefix Flask puts on every endpoint name.
+#
+# The shared 50/5s budget assumes a page costs a handful of requests. These
+# three break that assumption by construction, not by misuse:
+#
+# - msr_image: a gallery view fans out dozens of <img>/list requests at once.
+# - fail_issue, recipe_tat: the two blueprints behind /recipe-status (its
+#   align/meas tabs are fail_issue, its tat tab is recipe_tat — see
+#   front-dev-home/app/utils/features.ts). One view fires 5 analytics calls,
+#   and every fab multi-select click refires them across the mounted tabs, so
+#   three clicks inside 5s exhausted the budget for the WHOLE app — the user
+#   pill and the page-view beacon 429'd along with the page they were on.
+#
+# Exempting trades runaway-loop protection on these routes for a page that
+# works. The office cost of that is bounded elsewhere: these endpoints are
+# read-only aggregations and the analytics scope caps their row counts.
+_EXEMPT_BLUEPRINTS = ("msr_image.", "fail_issue.", "recipe_tat.")
+
+
 def _install_rate_limit(app: Flask) -> None:
     from flask_limiter import Limiter
 
@@ -87,10 +107,8 @@ def _install_rate_limit(app: Flask) -> None:
         if view is not None:
             limiter.exempt(view)
 
-    # SEM image serving fans out dozens of <img>/list requests per gallery view;
-    # exempt the whole msr_image blueprint from the per-user API budget.
     for endpoint, view in app.view_functions.items():
-        if endpoint.startswith("msr_image."):
+        if endpoint.startswith(_EXEMPT_BLUEPRINTS):
             limiter.exempt(view)
 
 

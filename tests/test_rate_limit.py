@@ -70,6 +70,23 @@ def test_msr_image_stays_exempt_from_the_application_budget(client):
     assert client.get("/api/me").status_code == 200
 
 
+def test_recipe_status_stays_exempt_from_the_application_budget(client):
+    """/recipe-status is two blueprints behind one route — its align/meas tabs
+    are fail_issue, its tat tab is recipe_tat. Each tab fires ~5 analytics
+    calls per filter change, so a few fab-multiselect clicks used to 429 the
+    whole app. Interleaving the two proves the exemption covers BOTH, and the
+    /api/me probe proves the exempt hits did not drain the shared budget."""
+    client.set_cookie("LASTUSER", "7770003")
+
+    paths = ("/api/cdsem/fail-issue/devices", "/api/cdsem/recipe-tat/summary")
+    statuses = [client.get(paths[i % 2]).status_code for i in range(52)]
+
+    # == {200}, not `429 not in`: a typo'd path would 404 all 52 times and pass
+    # a no-429 assertion while proving nothing about the exemption.
+    assert set(statuses) == {200}
+    assert client.get("/api/me").status_code == 200
+
+
 def test_anonymous_callers_get_per_address_buckets():
     app = Flask(__name__)
     with app.test_request_context(environ_base={"REMOTE_ADDR": "10.9.8.7"}):
