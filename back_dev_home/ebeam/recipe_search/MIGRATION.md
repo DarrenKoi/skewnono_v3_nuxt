@@ -486,8 +486,21 @@ recipe-open refused for no reason, and a listed recipe that has never run nor
 been registered had it offered and then 502'd. This asks the registry the
 question the inference was standing in for.
 
-**Cost.** Two `hget`s per recipe plus one `_eqp_ip_index()` — ttl-cached, so a
-200-recipe batch pays the sem_list roster once, not 200 times.
+**Cost, and the one thing to watch.** Two `hget`s per recipe plus one
+`_eqp_ip_index()` — ttl-cached, so a batch pays the sem_list roster once rather
+than once per recipe. The two `hget`s are NOT batched: they are issued through
+`_locate_via_redis` one recipe at a time, so a full page costs 2N sequential
+round trips. That is deliberate — one code path answers "can the registry place
+this recipe", and a second, batched reader would be free to drift from the one
+recipe-open actually uses. It is also the first time `_locate_via_redis` runs in
+a loop inside one request, so the cost is new even though the function is not.
+
+The frontend sends only the OpenSearch-fallback rows of the visible page, which
+is normally a handful; the ceiling is 100 (its page size), not the 200 the route
+allows. If a real batch ever gets big enough to feel, the fix is `HMGET` grouped
+by fab — the batch shares a fab in the common case, so `2 × distinct_fabs`
+round trips replace `2 × N` — and it belongs INSIDE `_locate_via_redis` as a
+plural entry point, so both callers keep reading the same registry logic.
 
 ## Endpoints: the tiered reads (2026-08-02) — no adapter work
 

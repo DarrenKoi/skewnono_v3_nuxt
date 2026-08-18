@@ -1,5 +1,6 @@
 import { joinApiPath } from '~/utils/apiPath'
 import { canonicalFabList } from '~/utils/fab'
+import { recipePairSetKey } from '~/utils/recipePair'
 import type { RegistryCheckResult } from '~/utils/recipeSearchMatch'
 import type { ToolType } from '~/utils/toolType'
 
@@ -145,6 +146,7 @@ export interface RegistryCheckResponse {
 const inFlightRecipeLists = new Map<string, Promise<RecipeSearchResponse>>()
 const inFlightRecipeDetails = new Map<string, Promise<RecipeDetailResponse>>()
 const inFlightRecipeParameters = new Map<string, Promise<ParameterListResponse>>()
+const inFlightRegistryChecks = new Map<string, Promise<RegistryCheckResponse>>()
 
 export const useRecipeSearchApi = () => {
   const config = useRuntimeConfig()
@@ -233,27 +235,43 @@ export const useRecipeSearchApi = () => {
    * Which of these recipes the Redis recipe registry can place, one request
    * for the batch.
    *
-   * Not deduped or cached here: the caller asks about rows it has just decided
-   * are unanswered, so a second call for the same pair is a caller bug rather
-   * than a race two components lost. POST because the batch is a body, and
-   * because 50 GETs would spend the whole 50 req / 5 s budget on one question.
+   * POST because the batch is a body, and because 50 GETs would spend the
+   * whole 50 req / 5 s budget on one question. Same in-flight dedup as the
+   * three fetchers above and as `useRecipeCompareApi`, keyed by the same
+   * `recipePairSetKey` — the caller marks a pair answered only when the
+   * RESPONSE lands, so paging away and back mid-flight otherwise re-asks the
+   * identical batch. Normalized before the key as well as before the wire, or
+   * ' A ' and 'A' would open two requests for one question.
    */
   const checkRecipeRegistry = async (
     params: RegistryCheckParams
   ): Promise<RegistryCheckResponse> => {
     const slug = toolSlug(params.toolType)
-    return await $fetch<RegistryCheckResponse>(
+    const refs = params.recipes
+      .map(recipe => ({
+        recipe_name: recipe.recipe_name.trim(),
+        fab_name: normalizeFab(recipe.fab_name)
+      }))
+      .filter(recipe => recipe.recipe_name)
+    const cacheKey = `${params.toolType}:${recipePairSetKey(refs)}`
+    const existing = inFlightRegistryChecks.get(cacheKey)
+
+    if (existing) {
+      return await existing
+    }
+
+    const request = $fetch<RegistryCheckResponse>(
       joinApiPath(base, `/${slug}/recipe-search/registry-check`),
       {
         method: 'POST',
-        body: {
-          recipes: params.recipes.map(recipe => ({
-            recipe_name: recipe.recipe_name.trim(),
-            fab_name: normalizeFab(recipe.fab_name)
-          }))
-        }
+        body: { recipes: refs }
       }
-    )
+    ).finally(() => {
+      inFlightRegistryChecks.delete(cacheKey)
+    })
+
+    inFlightRegistryChecks.set(cacheKey, request)
+    return await request
   }
 
   return {

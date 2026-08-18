@@ -8,9 +8,9 @@ import {
   matchesRecipeQuery,
   matchingHistoryPairs,
   normalizeRecipeNameSnapshot,
+  confirmedRegistryPairs,
   promoteVerifiedResults,
   rankRecipeMatches,
-  registryBackedKeys,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
   toRecipeSearchResults,
@@ -115,17 +115,15 @@ const fallbackTruncated = ref(false)
 const redisResults = computed(() =>
   toRecipeSearchResults(redisMatchedRows.value, 'redis')
 )
-// (fab, recipe) pairs the backend confirmed the Redis registry can place, and
-// the pairs already asked about whatever the answer was. Two sets rather than a
-// map because "not yet asked" and "asked, declined" must not collapse: the
-// first is retried on the next page, the second never is.
-const registryBacked = ref(new Set<string>())
-const registryAsked = ref(new Set<string>())
+// What registry-check said about each (fab, recipe) pair. Absent = not asked
+// yet and worth asking; false = asked and declined, never asked again; true =
+// registry-backed. Those three states are why this is a map and not a boolean.
+const registryAnswers = ref(new Map<string, boolean>())
 
 const fallbackResults = computed(() =>
   promoteVerifiedResults(
     toRecipeSearchResults(historyMatches.value, 'opensearch'),
-    registryBacked.value
+    registryAnswers.value
   )
 )
 const filteredRows = computed(() =>
@@ -135,9 +133,12 @@ const filteredRows = computed(() =>
 // has been verified against the registry it is Redis-backed, and a header that
 // still said "OpenSearch fallback" would contradict the row's own badge.
 const activeSource = computed(() => {
-  const rows = filteredRows.value
-  if (!rows.length) return null
-  return rows.every(row => row.source === 'redis') ? 'redis' : 'opensearch'
+  // Catalog matches are tagged 'redis' on construction and win outright, so
+  // the common — and only large — case answers without a scan. The `every`
+  // runs on the fallback list, which is a handful of rows.
+  if (redisResults.value.length) return 'redis'
+  if (!fallbackResults.value.length) return null
+  return fallbackResults.value.every(row => row.source === 'redis') ? 'redis' : 'opensearch'
 })
 const promotedCount = computed(() =>
   redisResults.value.length
@@ -341,6 +342,20 @@ watch(historyProbeKey, (key) => {
 
 onBeforeUnmount(() => clearTimeout(historyProbeTimer))
 
+const {
+  entries,
+  selected,
+  capabilities,
+  has,
+  toggle,
+  remove,
+  clear,
+  count,
+  promoteRedis
+} = useRecipeSelectionSet(props.toolType)
+
+watch(recipeRows, rows => promoteRedis(rows), { immediate: true })
+
 // --- 레지스트리 확인 --------------------------------------------------------
 // A fallback row's capabilities were an inference: the daily catalog list did
 // not carry this name, so the row was tagged `opensearch` and refused 열어
@@ -353,12 +368,16 @@ onBeforeUnmount(() => clearTimeout(historyProbeTimer))
 // page turn stays inside the 50 req / 5 s budget, and a row nobody has
 // scrolled to has no capability to unlock yet.
 const REGISTRY_CHECK_DEBOUNCE_MS = 200
+// Mirrors the backend's `_MAX_RECIPE_ITEMS`, which answers 400 above it. A page
+// holds at most 100 rows (`PAGE_SIZE_OPTIONS`), so this cannot fire today — it
+// is here so a future page-size bump truncates the batch instead of turning the
+// whole request into a 400.
 const REGISTRY_CHECK_MAX_ITEMS = 200
 
 const unverifiedRows = computed(() =>
   pagedRows.value.filter(row =>
     row.source === 'opensearch'
-    && !registryAsked.value.has(recipePairKey(row.fab_name, row.recipe_name))
+    && !registryAnswers.value.has(recipePairKey(row.fab_name, row.recipe_name))
   )
 )
 const unverifiedKey = computed(() =>
@@ -383,21 +402,31 @@ watch(unverifiedKey, (key) => {
         toolType: props.toolType,
         recipes: targets
       })
-      // Replaced rather than mutated: two Sets read by a computed, and a
+      // Replaced rather than mutated: a Map read by a computed, and a
       // reassignment is the one form that cannot depend on collection-proxy
-      // instrumentation to be seen.
-      const asked = new Set(registryAsked.value)
+      // instrumentation to be seen. Declined first, confirmed second, so the
+      // confirmations win on any pair that appears in both.
+      const answers = new Map(registryAnswers.value)
       for (const target of targets) {
-        asked.add(recipePairKey(target.fab_name, target.recipe_name))
+        answers.set(recipePairKey(target.fab_name, target.recipe_name), false)
       }
-      const backed = new Set(registryBacked.value)
-      for (const backedKey of registryBackedKeys(response.results)) {
-        backed.add(backedKey)
+      const confirmed = confirmedRegistryPairs(response.results)
+      for (const pair of confirmed) {
+        answers.set(recipePairKey(pair.fab_name, pair.recipe_name), true)
       }
-      registryAsked.value = asked
-      registryBacked.value = backed
+      registryAnswers.value = answers
+
+      // The persisted working set needs the same promotion, and needs it from
+      // HERE. A row's checkbox captures `source` at click time, so a row
+      // checked while this request was in flight was stored `opensearch` — and
+      // `capabilitiesForRecipeSelection` requires EVERY entry to be redis, so
+      // that one stale entry disables 열어보기 and 비교하기 for the whole set,
+      // survives a reload, and is only cleared by deselecting it by hand. The
+      // catalog watcher below cannot reach it: it promotes against the daily
+      // list, which is exactly the list these recipes are missing from.
+      promoteRedis(confirmed)
     } catch {
-      // Deliberately leaves these pairs UNASKED. A check that never answered
+      // Deliberately leaves these pairs out of the map. A check that never answered
       // must not read as "the registry declined" — that would refuse 열어
       // 보기 permanently on the strength of one failed request. The next page
       // turn asks again.
@@ -479,20 +508,6 @@ const getLateralRoute = (row: RecipeSearchResult) =>
 
 const getMeasHistRoute = (row: RecipeSearchResult) =>
   recipeDetailRoute(props.toolType, fabSegment.value, 'meas-hist', row.recipe_name, row.source, row.fab_name)
-
-const {
-  entries,
-  selected,
-  capabilities,
-  has,
-  toggle,
-  remove,
-  clear,
-  count,
-  promoteRedis
-} = useRecipeSelectionSet(props.toolType)
-
-watch(recipeRows, rows => promoteRedis(rows), { immediate: true })
 
 const selectionGuidance = computed(() => {
   if (

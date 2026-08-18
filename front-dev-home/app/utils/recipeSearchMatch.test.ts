@@ -1,14 +1,18 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  capabilitiesForRecipeSelection,
+  promoteRecipeSelectionsToRedis
+} from './recipeSelection.ts'
+import {
   activeRecipeResults,
   isRecipeQueryEligible,
   matchesRecipeQuery,
   matchingHistoryPairs,
+  confirmedRegistryPairs,
   normalizeRecipeNameSnapshot,
   promoteVerifiedResults,
   rankRecipeMatches,
-  registryBackedKeys,
   resolveRecipeSearchViewState,
   shouldProbeRecipeFallback,
   toRecipeSearchResults,
@@ -390,23 +394,45 @@ test('view state keeps an empty query idle while the catalog is pending', () => 
 const fallbackRow = (recipe: string, fab: string) =>
   ({ recipe_name: recipe, fab_name: fab, source: 'opensearch' as const })
 
-test('registryBackedKeys keeps only the confirmed pairs', () => {
-  assert.deepEqual(registryBackedKeys([
+test('confirmedRegistryPairs keeps only the confirmed pairs', () => {
+  assert.deepEqual(confirmedRegistryPairs([
     { recipe_name: 'ADI/A', fab_name: 'R3', in_registry: true, reason: '' },
     { recipe_name: 'ADI/B', fab_name: 'R3', in_registry: false, reason: 'no entry' }
-  ]), ['R3|ADI/A'])
+  ]), [{ recipe_name: 'ADI/A', fab_name: 'R3' }])
+})
+
+test('confirmed pairs promote a selection stored before the check answered', () => {
+  // The row checkbox captures `source` at click time, so a row checked while
+  // registry-check was in flight is persisted `opensearch`. One such entry
+  // disables 열어보기 and 비교하기 for the WHOLE working set, so the confirmed
+  // pairs have to reach the selection, not only the table.
+  const stored = [{ name: 'ADI/A', fab_name: 'R3', source: 'opensearch' as const }]
+  const confirmed = confirmedRegistryPairs([
+    { recipe_name: 'ADI/A', fab_name: 'R3', in_registry: true, reason: '' }
+  ])
+  const promoted = promoteRecipeSelectionsToRedis(stored, confirmed)
+  assert.equal(promoted[0]!.source, 'redis')
+  assert.equal(capabilitiesForRecipeSelection(promoted).compare, true)
+})
+
+test('a declined pair leaves the selection alone', () => {
+  const stored = [{ name: 'ADI/B', fab_name: 'R3', source: 'opensearch' as const }]
+  const confirmed = confirmedRegistryPairs([
+    { recipe_name: 'ADI/B', fab_name: 'R3', in_registry: false, reason: 'no entry' }
+  ])
+  assert.equal(promoteRecipeSelectionsToRedis(stored, confirmed), stored)
 })
 
 test('a confirmed fallback row is promoted to redis', () => {
   const rows = [fallbackRow('ADI/A', 'R3'), fallbackRow('ADI/B', 'R3')]
-  const promoted = promoteVerifiedResults(rows, new Set(['R3|ADI/A']))
+  const promoted = promoteVerifiedResults(rows, new Map([['R3|ADI/A', true]]))
   assert.deepEqual(promoted.map(row => row.source), ['redis', 'opensearch'])
 })
 
 test('promotion is per (recipe, fab) pair, never per name', () => {
   // The same name registered in R3 and absent from M16B is the normal case.
   const rows = [fallbackRow('ADI/A', 'R3'), fallbackRow('ADI/A', 'M16B')]
-  const promoted = promoteVerifiedResults(rows, new Set(['R3|ADI/A']))
+  const promoted = promoteVerifiedResults(rows, new Map([['R3|ADI/A', true]]))
   assert.deepEqual(promoted.map(row => [row.fab_name, row.source]), [
     ['R3', 'redis'],
     ['M16B', 'opensearch']
@@ -415,12 +441,19 @@ test('promotion is per (recipe, fab) pair, never per name', () => {
 
 test('promotion never downgrades a redis row', () => {
   const rows = [{ recipe_name: 'ADI/A', fab_name: 'R3', source: 'redis' as const }]
-  assert.equal(promoteVerifiedResults(rows, new Set()), rows)
-  assert.equal(promoteVerifiedResults(rows, new Set(['R3|ADI/A']))[0]!.source, 'redis')
+  assert.equal(promoteVerifiedResults(rows, new Map()), rows)
+  assert.equal(promoteVerifiedResults(rows, new Map([['R3|ADI/A', true]]))[0]!.source, 'redis')
 })
 
 test('promoting nothing returns the same array identity', () => {
   const rows = [fallbackRow('ADI/A', 'R3')]
-  assert.equal(promoteVerifiedResults(rows, new Set()), rows)
-  assert.equal(promoteVerifiedResults(rows, new Set(['R3|ADI/OTHER'])), rows)
+  assert.equal(promoteVerifiedResults(rows, new Map()), rows)
+  assert.equal(promoteVerifiedResults(rows, new Map([['R3|ADI/OTHER', true]])), rows)
+})
+
+test('a declined answer does not promote, and is distinct from unasked', () => {
+  const rows = [fallbackRow('ADI/A', 'R3')]
+  // false is the whole reason this is a map: it must read differently from an
+  // absent key, which the caller retries.
+  assert.equal(promoteVerifiedResults(rows, new Map([['R3|ADI/A', false]])), rows)
 })

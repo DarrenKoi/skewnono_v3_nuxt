@@ -173,17 +173,35 @@ export interface RegistryCheckResult {
 }
 
 /**
- * The (fab, recipe) pairs a registry-check confirmed, as lookup keys.
+ * The (fab, recipe) pairs a registry-check confirmed.
  *
- * Keyed on the PAIR because a recipe name is not unique across fabs — the same
- * name registered in R3 and absent from M16B is the normal case, and a
- * name-only key would unlock the second on the strength of the first.
+ * Pairs rather than keys because both consumers need the fab and the name
+ * back: the table's lookup set builds its own `recipePairKey`, and the
+ * persisted working set is promoted through `promoteRecipeSelectionsToRedis`,
+ * which matches on the two fields. Returning keys forced the second caller to
+ * split them apart again.
+ *
+ * Always the PAIR, never the bare name: a recipe name is not unique across
+ * fabs — the same name registered in R3 and absent from M16B is the normal
+ * case, and a name-only match would unlock the second on the strength of the
+ * first.
  */
-export const registryBackedKeys = (
+export const confirmedRegistryPairs = (
   results: RegistryCheckResult[]
-): string[] => results
+): Array<{ recipe_name: string, fab_name: string }> => results
   .filter(result => result.in_registry)
-  .map(result => recipePairKey(result.fab_name, result.recipe_name))
+  .map(result => ({ recipe_name: result.recipe_name, fab_name: result.fab_name }))
+
+/**
+ * What a registry-check said about each `(fab, recipe)` pair asked about.
+ *
+ * ONE map rather than a confirmed-set beside an asked-set, because the three
+ * states are not two booleans: a key that is absent has not been asked and is
+ * still worth asking, `false` was asked and declined and must not be asked
+ * again, `true` is registry-backed. Two collections encode the same three
+ * states only for as long as every write remembers to touch both.
+ */
+export type RegistryAnswers = ReadonlyMap<string, boolean>
 
 /**
  * Re-tag fallback rows the Redis registry turned out to know.
@@ -205,13 +223,13 @@ export const registryBackedKeys = (
  */
 export const promoteVerifiedResults = (
   results: RecipeSearchResult[],
-  backedKeys: ReadonlySet<string>
+  answers: RegistryAnswers
 ): RecipeSearchResult[] => {
-  if (!backedKeys.size) return results
+  if (!answers.size) return results
   let changed = false
   const next = results.map((row) => {
     if (row.source === 'redis') return row
-    if (!backedKeys.has(recipePairKey(row.fab_name, row.recipe_name))) return row
+    if (answers.get(recipePairKey(row.fab_name, row.recipe_name)) !== true) return row
     changed = true
     return { ...row, source: 'redis' as const }
   })
