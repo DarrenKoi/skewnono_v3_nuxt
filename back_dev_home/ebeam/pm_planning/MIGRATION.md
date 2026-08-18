@@ -215,11 +215,13 @@ prefix 로 찾은 recipe 를, 3단계가 그 fab 의 parameter 어휘 전체와 
 
 방향은 parameter 이름에 들어 있지만 이름 짓는 방식이 recipe·fab 마다 매우
 다양합니다(user-confirmed 2026-08-18). 읽을 수 없는 이름은 그 행이 `cells` 에서
-**버려지므로**(기본값 "X" 를 넣지 않습니다) 매핑해 주어야 합니다. 환경변수는
-glob 을 받으므로 보통 패턴 두세 개로 끝납니다 — 진단이 붙여 넣을 수 있는 한 줄을
-만들어 줍니다.
+**버려지므로**(기본값 "X" 를 넣지 않습니다) 매핑해 주어야 합니다.
 
-    SKEWNONO_AXIS_PARAM_MAP="*_HOR=X,*_VER=Y,Para_13=X"
+표의 키는 **(recipe, parameter) 쌍**입니다 — 같은 이름이라도 다른 recipe 에서는
+다른 feature 를 재기 때문입니다. 양쪽 다 glob 을 받고 더 구체적인 규칙이 이기므로
+작성 순서는 상관없습니다. 진단이 해석 실패한 쌍과 붙여 넣을 한 줄을 만들어 줍니다.
+
+    SKEWNONO_AXIS_PARAM_MAP="ADI/*:*_HOR=X,ADI/*:*_VER=Y,ADI/CD_MONITOR_001:Para_13=X"
 
 CD 모니터링 recipe 의 parameter 도 다른 측정에서 쓰는 평범한 이름들이므로
 (user-confirmed 2026-08-18) 이 표 하나가 pm-tune 과 tttm 양쪽을 커버합니다.

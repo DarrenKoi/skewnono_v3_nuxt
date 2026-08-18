@@ -119,17 +119,17 @@ def _runs(eqp_ids=TOOLS, recipes=("ADI/R1", "ADI/R2"), days=6):
 def _fresh_axis_map():
     """Clear the process-wide axis-map cache around every test.
 
-    `_axis_overrides` is `lru_cache(maxsize=1)` over a function taking no
+    `_axis_rules` is `lru_cache(maxsize=1)` over a function taking no
     arguments, so the FIRST call in a process fixes the mapping for the rest of
     it — correct in production (the env is read once at boot) but it makes test
     order load-bearing here, and an ordering-dependent suite is one that passes
     until someone adds a test above yours.
     """
-    from back_dev_home.ebeam._office_msr_cd import _axis_overrides
+    from back_dev_home.ebeam._office_msr_cd import _axis_rules
 
-    _axis_overrides.cache_clear()
+    _axis_rules.cache_clear()
     yield
-    _axis_overrides.cache_clear()
+    _axis_rules.cache_clear()
 
 
 @pytest.fixture
@@ -868,3 +868,51 @@ def test_the_axis_map_never_invents_a_direction(monkeypatch):
     assert resolve_axis("Para_13") is None, "Z is not an axis"
     assert resolve_axis("Para_14") is None, "a blank axis is not an axis"
     assert resolve_axis("Para_15") == "Y", "lowercase is accepted"
+
+
+def test_the_axis_map_is_scoped_to_the_recipe(monkeypatch):
+    """One recipe's Para_13 is not another's — the same law routes.py enforces.
+
+    `tttm/routes.py` refuses a `parameter` without a `recipe_id` because "the
+    same name in another recipe measures something else entirely"
+    (contracts.py). A map keyed on the bare name would contradict that: it
+    files every recipe's Para_13 under one direction and is silently wrong for
+    all but the one it was written against.
+    """
+    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+
+    monkeypatch.setenv(
+        AXIS_ENV_VAR,
+        "ADI/CD_MONITOR_001:Para_13=X,ADI/*:Para_13=Y,Para_13=Y,*_HOR=X",
+    )
+    # Most specific wins: exact recipe > recipe glob > unscoped.
+    assert resolve_axis("Para_13", "ADI/CD_MONITOR_001") == "X"
+    assert resolve_axis("Para_13", "ADI/SOMETHING_ELSE") == "Y"
+    assert resolve_axis("Para_13", "ETC/UNRELATED") == "Y"
+    # An unscoped rule still applies to every recipe.
+    assert resolve_axis("TOP_HOR", "ETC/UNRELATED") == "X"
+    # A scoped rule cannot be judged without a recipe, so it does not apply;
+    # the unscoped fallback still can.
+    assert resolve_axis("Para_13") == "Y"
+
+
+def test_a_scoped_rule_does_not_leak_to_another_recipe(monkeypatch):
+    """The failure the scoping exists to prevent, stated directly."""
+    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+
+    monkeypatch.setenv(AXIS_ENV_VAR, "ADI/CD_MONITOR_001:Para_13=X")
+    assert resolve_axis("Para_13", "ADI/CD_MONITOR_001") == "X"
+    # No rule and no built-in pattern reaches this one: unknown, not "X".
+    assert resolve_axis("Para_13", "ETC/OTHER") is None
+
+
+def test_scoped_axis_rules_reach_the_payload(sources, monkeypatch):
+    """End to end: the same parameter splits by recipe, not by name alone."""
+    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR
+
+    monkeypatch.setenv(AXIS_ENV_VAR, "ADI/R1:Para_9=X,ADI/R2:Para_9=Y")
+    sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_9",))
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+
+    # Both recipes measure "Para_9"; the map sends R1's rows to X and R2's to Y.
+    assert {cell["axis"] for cell in payload["occupied_cells"]} == {"X", "Y"}

@@ -42,7 +42,9 @@ quietly, which is the only reason it is safe to ship them unresolved.
 1. **Measurement direction (X/Y) is not in the data we read.** Neither meas_hist
    nor the pickle carries it; the MDC keys do (``500V_HR_0Deg``) but nothing
    ties a measured row to one. ``resolve_axis`` recovers it from the parameter
-   NAME, and returns None when it cannot — in which case those rows are dropped
+   NAME **within its recipe** — the same scoping ``routes.py`` enforces on the
+   ``parameter`` query arg, because one recipe's ``Para_13`` is not another's —
+   and returns None when it cannot — in which case those rows are dropped
    and ``occupied_cells`` comes back **empty**, with the summary saying so. It
    never defaults to "X": the contract's ``Axis`` is a two-value Literal, so a
    default would be indistinguishable from a measured fact and an axis-specific
@@ -252,7 +254,7 @@ def _observations(
             if point.cd_value is None:
                 dropped["no_cd"] += 1
                 continue
-            axis = resolve_axis(point.parameter)
+            axis = resolve_axis(point.parameter, run.recipe_key)
             if axis is None:
                 dropped["no_axis"] += 1
                 continue
@@ -984,18 +986,25 @@ if __name__ == "__main__":  # pragma: no cover
     if drops["no_axis"]:
         # Across EVERY run, not a sample: the naming varies per recipe, so a
         # three-run peek would send you back for a second pass.
-        names = sorted({
-            point.parameter
+        # Keyed by (recipe, parameter), because that PAIR is what an axis
+        # belongs to — the same name under another recipe is another feature.
+        pairs = sorted({
+            (run.recipe_key, point.parameter)
             for run in found.runs
             for point in load_points(run.pkl)
-            if point.parameter and resolve_axis(point.parameter) is None
+            if point.parameter
+            and resolve_axis(point.parameter, run.recipe_key) is None
         })
-        print(f"  ★ {len(names)} parameter(s) with no resolvable direction:")
-        for name in names:
-            print(f"      {name}")
+        print(f"  ★ {len(pairs)} (recipe, parameter) pair(s) with no direction:")
+        for recipe_key, name in pairs:
+            print(f"      {recipe_key:<32} {name}")
         print("    Paste this into back_dev_home/.env, correcting each axis:")
-        print(f"    {AXIS_ENV_VAR}=" + ",".join(f"{n}=X" for n in names))
-        print("    A glob covers a family in one entry, e.g. *_HOR=X,*_VER=Y")
+        print(
+            f"    {AXIS_ENV_VAR}="
+            + ",".join(f"{recipe_key}:{name}=X" for recipe_key, name in pairs)
+        )
+        print("    Globs work on both halves — e.g. ADI/*:*_HOR=X,*_VER=Y —")
+        print("    and drop the 'recipe:' prefix for a rule that is fab-wide.")
     print(f"  beams: {sorted({o.beam for o in obs})}  axes: {sorted({o.axis for o in obs})}")
 
     print("\n--- 4. epochs + cells ---")

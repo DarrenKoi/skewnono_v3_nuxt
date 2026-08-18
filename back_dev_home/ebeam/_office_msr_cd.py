@@ -471,41 +471,99 @@ _AXIS_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 )
 
 
+class _AxisRule(NamedTuple):
+    """One ``[recipe:]parameter=axis`` entry of the axis map."""
+
+    recipe: str | None   # casefolded; None = applies to any recipe
+    parameter: str       # casefolded
+    axis: str
+    recipe_is_glob: bool
+    parameter_is_glob: bool
+
+    @property
+    def specificity(self) -> tuple[int, int]:
+        """How narrowly this rule was written. Higher wins.
+
+        A rule naming one recipe outranks one naming a family, which outranks
+        an unscoped rule; within each, an exact parameter outranks a glob. So a
+        fab can state a broad family rule and then correct the single feature
+        that breaks it, without having to order the entries carefully.
+        """
+        recipe_rank = 0 if self.recipe is None else (1 if self.recipe_is_glob else 2)
+        return (recipe_rank, 0 if self.parameter_is_glob else 1)
+
+
+def _is_glob(text: str) -> bool:
+    return any(char in text for char in "*?[")
+
+
+def _matches(value: str, pattern: str, is_glob: bool) -> bool:
+    return fnmatch(value, pattern) if is_glob else value == pattern
+
+
 @lru_cache(maxsize=1)
-def _axis_overrides() -> tuple[dict[str, str], tuple[tuple[str, str], ...]]:
-    """``SKEWNONO_AXIS_PARAM_MAP`` parsed once, as (exact names, glob patterns).
+def _axis_rules() -> tuple[_AxisRule, ...]:
+    """``SKEWNONO_AXIS_PARAM_MAP`` parsed once.
 
-    Accepts both forms in one comma-separated list::
+    Grammar, comma-separated::
 
-        SKEWNONO_AXIS_PARAM_MAP="*_HOR=X,*_VER=Y,Para_13=X"
+        [<recipe>:]<parameter>=<X|Y>
 
-    A glob earns its place because the direction really is in the parameter
-    name, but the naming is highly varied across recipes and fabs
-    (user-confirmed 2026-08-18) — so a fab that would need forty exact entries
-    usually needs two or three patterns. Exact names still win over globs, so a
-    single odd parameter can be corrected without disturbing the family rule.
+    Both halves accept globs::
+
+        SKEWNONO_AXIS_PARAM_MAP="ADI/CD_MONITOR_001:Para_13=X,*:*_HOR=X,*_VER=Y"
+
+    **The recipe scope is the point, not a convenience.** A parameter name is a
+    row of ONE recipe's ``idp_image_info``, and the same name in another recipe
+    measures a different feature — which is why ``tttm/routes.py`` refuses a
+    ``parameter`` without a ``recipe_id`` rather than ignoring it. An axis map
+    keyed on the bare name contradicts that rule: it would file ``Para_13`` of
+    every recipe under one direction, and be wrong for all but the one it was
+    written against, silently.
+
+    Unscoped entries are still accepted and still useful — a fab whose
+    ``*_HOR`` / ``*_VER`` convention really is fab-wide should say so once
+    rather than repeat it per recipe. They simply lose to any scoped rule that
+    also matches.
     """
-    exact: dict[str, str] = {}
-    globs: list[tuple[str, str]] = []
+    rules: list[_AxisRule] = []
     for item in os.environ.get(AXIS_ENV_VAR, "").split(","):
-        name, _, axis = item.partition("=")
-        name, axis = name.strip(), axis.strip().upper()
-        if not name or axis not in ("X", "Y"):
+        left, sep, axis = item.rpartition("=")
+        if not sep:
             continue
-        if any(char in name for char in "*?["):
-            globs.append((name.casefold(), axis))
-        else:
-            exact[name.casefold()] = axis
-    return exact, tuple(globs)
+        axis = axis.strip().upper()
+        if axis not in ("X", "Y"):
+            continue
+        recipe_part, scoped, parameter_part = left.strip().partition(":")
+        recipe = recipe_part.strip() if scoped else None
+        parameter = (parameter_part if scoped else recipe_part).strip()
+        if not parameter or (scoped and not recipe):
+            continue
+        rules.append(
+            _AxisRule(
+                recipe=recipe.casefold() if recipe else None,
+                parameter=parameter.casefold(),
+                axis=axis,
+                recipe_is_glob=bool(recipe) and _is_glob(recipe),
+                parameter_is_glob=_is_glob(parameter),
+            )
+        )
+    return tuple(rules)
 
 
-def resolve_axis(parameter: str) -> str | None:
-    """``"X"`` / ``"Y"`` for a measured feature, or None when unknowable.
+def resolve_axis(parameter: str, recipe: str | None = None) -> str | None:
+    """``"X"`` / ``"Y"`` for a measured feature of ``recipe``, or None.
 
-    Three sources in order: an exact env mapping, an env glob, then the
-    built-in token patterns. The env comes first because the built-in table is
-    a guess about a vocabulary that varies per fab, and the fab's own answer
-    must be able to overrule it rather than merely fill its gaps.
+    ``recipe`` is the recipe identity the parameter was measured under
+    (``RunRef.recipe_key``). It is optional only so a caller that genuinely has
+    no recipe in hand — a diagnostic listing a vocabulary, say — can still ask;
+    every real reduction passes it, because without it no recipe-scoped rule
+    can apply and the answer silently falls back to the fab-wide guess.
+
+    Order: the most specific matching env rule, then the built-in token
+    patterns. The env comes first because the built-in table is a guess about a
+    vocabulary that varies per fab, and the fab's own answer must be able to
+    overrule it rather than merely fill its gaps.
 
     None is a real answer and callers must honor it by DROPPING the rows, not
     by defaulting to ``"X"``. The contract's ``Axis`` is a two-value Literal
@@ -519,13 +577,23 @@ def resolve_axis(parameter: str) -> str | None:
     name = parameter.strip()
     if not name:
         return None
-    exact, globs = _axis_overrides()
-    override = exact.get(name.casefold())
-    if override:
-        return override
-    for pattern, axis in globs:
-        if fnmatch(name.casefold(), pattern):
-            return axis
+    folded = name.casefold()
+    recipe_folded = recipe.strip().casefold() if recipe else None
+
+    best: _AxisRule | None = None
+    for rule in _axis_rules():
+        if rule.recipe is not None:
+            if recipe_folded is None:
+                continue  # a scoped rule cannot be judged without a recipe
+            if not _matches(recipe_folded, rule.recipe, rule.recipe_is_glob):
+                continue
+        if not _matches(folded, rule.parameter, rule.parameter_is_glob):
+            continue
+        if best is None or rule.specificity > best.specificity:
+            best = rule
+    if best is not None:
+        return best.axis
+
     for pattern, axis in _AXIS_PATTERNS:
         if pattern.search(name):
             return axis

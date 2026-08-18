@@ -147,11 +147,18 @@ user-confirmed 2026-08-16, 두 방향 모두: `max` 는 0.20 을 유지하고(Ka
 사용자가 고릅니다.)
 
 방향은 parameter 이름에 들어 있으나 이름 짓는 방식이 recipe·fab 마다 **매우
-다양합니다**(user-confirmed 2026-08-18). 그래서 내장 정규식표만으로는 부족하고,
-환경변수는 **glob 을 받습니다** — 정확한 이름 40개 대신 보통 패턴 두세 개입니다.
-정확한 이름이 glob 을 이기므로 예외 하나만 따로 고칠 수 있습니다.
+다양합니다**(user-confirmed 2026-08-18). 그래서 내장 정규식표만으로는 부족합니다.
 
-    SKEWNONO_AXIS_PARAM_MAP="*_HOR=X,*_VER=Y,Para_13=X"
+표의 키는 이름 하나가 아니라 **(recipe, parameter) 쌍**입니다. 같은 이름이라도
+다른 recipe 에서는 다른 feature 를 재기 때문이며, 이 화면의 `routes.py` 가
+`parameter` 를 `recipe_id` 없이 거부하는 것과 같은 이유입니다. 문법은
+`[<recipe>:]<parameter>=<X|Y>` 이고 양쪽 다 glob 을 받습니다.
+
+    SKEWNONO_AXIS_PARAM_MAP="ADI/*:*_HOR=X,ADI/*:*_VER=Y,ADI/CD_MONITOR_001:Para_13=X"
+
+더 구체적인 규칙이 이기므로 작성 순서는 상관없습니다 — 정확한 recipe >
+recipe glob > 무범위, 각 단계 안에서 정확한 이름 > glob. fab 전체에 통하는
+규칙이면 `recipe:` 접두사를 빼십시오. 진단이 해석 실패한 쌍을 전부 출력합니다.
 
 측정 방향은 pickle 에도 meas_hist 에도 없습니다(`docs/datatables/msr_file_pickle.txt`
 참고). 어댑터는 parameter **이름**에서 되찾고, 읽을 수 없으면 그 행을 **버립니다**.

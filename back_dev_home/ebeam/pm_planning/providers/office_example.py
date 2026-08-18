@@ -338,7 +338,7 @@ def _cell_values(runs: list[RunRef]) -> dict[tuple[str, str], float]:
     for run in runs:
         grouped: dict[tuple[str, str], list[Point]] = {}
         for point in load_points(run.pkl):
-            axis = resolve_axis(point.parameter)
+            axis = resolve_axis(point.parameter, run.recipe_key)
             if axis is None:
                 continue  # direction unknown — see resolve_axis's docstring
             beam = beam_label(point.vac)
@@ -728,31 +728,45 @@ if __name__ == "__main__":  # pragma: no cover
     # Every run in the window, not one sample: the direction is in the
     # parameter NAME and the naming varies per recipe and per fab, so the map
     # can only be written once the whole vocabulary is on screen.
-    vocabulary: dict[str, int] = {}
+    # Keyed by (recipe, parameter): the axis belongs to that PAIR, since one
+    # recipe's Para_13 is not another's. Same scoping routes.py enforces on the
+    # tttm `parameter` query arg.
+    vocabulary: dict[tuple[str, str], int] = {}
     beams: set[str] = set()
     for run in found.runs:
         for point in load_points(run.pkl):
             beams.add(beam_label(point.vac))
             if point.parameter:
-                vocabulary[point.parameter] = vocabulary.get(point.parameter, 0) + 1
-    resolved = {name: resolve_axis(name) for name in sorted(vocabulary)}
-    print(f"  {len(found.runs)} runs, {len(vocabulary)} distinct named parameters")
-    for name in sorted(vocabulary):
-        print(f"    {name:<28} n={vocabulary[name]:<6} axis={resolved[name]}")
+                key = (run.recipe_key, point.parameter)
+                vocabulary[key] = vocabulary.get(key, 0) + 1
+    resolved = {
+        key: resolve_axis(key[1], key[0]) for key in sorted(vocabulary)
+    }
+    print(
+        f"  {len(found.runs)} runs, {len(vocabulary)} distinct "
+        "(recipe, parameter) pairs"
+    )
+    for key in sorted(vocabulary):
+        recipe_key, name = key
+        print(
+            f"    {recipe_key:<30} {name:<24} "
+            f"n={vocabulary[key]:<6} axis={resolved[key]}"
+        )
     print(f"  beams seen: {sorted(beams)}")
 
-    unresolved = [name for name, axis in resolved.items() if axis is None]
+    unresolved = [key for key, axis in resolved.items() if axis is None]
     if unresolved:
         print(
-            f"\n  ★ {len(unresolved)} parameter(s) have no resolvable direction, "
+            f"\n  ★ {len(unresolved)} pair(s) have no resolvable direction, "
             "so their rows are DROPPED from `cells` (never defaulted to X)."
         )
         print("    Paste this into back_dev_home/.env, correcting each axis:")
         print(
             f"    {AXIS_ENV_VAR}="
-            + ",".join(f"{name}=X" for name in unresolved)
+            + ",".join(f"{recipe_key}:{name}=X" for recipe_key, name in unresolved)
         )
-        print("    A glob covers a family in one entry, e.g. *_HOR=X,*_VER=Y")
+        print("    Globs work on both halves — e.g. ADI/*:*_HOR=X,*_VER=Y —")
+        print("    and drop the 'recipe:' prefix for a rule that is fab-wide.")
 
     print("\n--- 4. BSM / PM / MDC ---")
     readings = _bsm_by_tool(fab_arg, ids, window_start, anchor_at)
