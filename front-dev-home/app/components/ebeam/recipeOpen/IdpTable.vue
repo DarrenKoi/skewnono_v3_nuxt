@@ -55,7 +55,7 @@
         <tbody>
           <tr
             v-for="item in displayedRows"
-            :key="`${item.row.Parameter}-${item.row.SEQ}`"
+            :key="recipeOpenRowKey(item)"
             class="cursor-pointer transition-colors"
             :class="item.sourceIndex === selectedIndex
               ? 'bg-(--sk-brand-soft)/55'
@@ -111,6 +111,7 @@ import {
   DEFAULT_RECIPE_OPEN_SORT,
   buildRecipeOpenSummaryItems,
   nextRecipeOpenSort,
+  recipeOpenRowKey,
   sortRecipeOpenRows,
   type RecipeOpenSortDirection,
   type RecipeOpenSortKey

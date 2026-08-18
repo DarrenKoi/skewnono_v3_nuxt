@@ -34,6 +34,28 @@ export const sortRecipeOpenRows = (
   ))
 }
 
+/**
+ * The `v-for` key for one sorted row — its position in the UNSORTED payload,
+ * never its contents.
+ *
+ * A content key is what the table used until 2026-08-18, and it looked safe:
+ * `Parameter-SEQ` is unique in every mock recipe, because the mock numbers SEQ
+ * as a running row index. The office table carries no such rule — SEQ is an
+ * "image definition 순번" (docs/datatables/recipe_idp.txt) and a sparse row can
+ * leave both columns empty — so two rows there can share the pair.
+ *
+ * When they do, re-sorting does not reorder the table, it GROWS it: Vue's keyed
+ * patch matches new children to old ones through a key→index map, a repeated
+ * key overwrites its own entry, and the unmatched old row is left in the DOM
+ * instead of being moved. One orphan per header click, on data whose length
+ * never changed.
+ *
+ * `sourceIndex` is unique by construction and stable across re-sorts, which is
+ * what a key has to be. It is an index, but not the display index — the usual
+ * "never key by index" warning is about the latter.
+ */
+export const recipeOpenRowKey = (item: { sourceIndex: number }) => item.sourceIndex
+
 export const nextRecipeOpenSort = (
   currentKey: RecipeOpenSortKey,
   currentDirection: RecipeOpenSortDirection,
