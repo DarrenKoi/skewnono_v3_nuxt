@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import {
   deriveType, deriveFamily, derivePhase, deriveMemoryClass,
   capFor, applyAnnotation, resolveRuleCell, evaluateRecipe, evaluateLot,
-  classifyHealth, type RuleCell, type RecipeInput
+  classifyHealth, groupCaps, effectiveCap, type RuleCell, type RecipeInput
 } from './ruleEngine.ts'
 
 // --- fixtures ---
@@ -405,4 +405,37 @@ test('SEQ group: mother 자신은 언제나 자기 cap 으로 판정한다', () 
   const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
   // mother 가 자기 cap 을 넘었으므로 둘 다 위반입니다 (son 은 물려받은 9 를 넘음).
   assert.deepEqual(res.violation_params.map(p => p.name), ['CELL_SP', 'LWR'])
+})
+
+// ── 그룹 cap 은 D9 면제를 덮지 않습니다 (b5d8dcdb 회귀 방지) ──────────────────
+test('effectiveCap: DUMMY son keeps its own 면제, it does not inherit the mother cap', () => {
+  // b5d8dcdb 가 user-confirmed 2026-08-05 로 확정한 규칙입니다 — Sample 셀은
+  // `_other` cap 이 0 이라 DUMMY 는 point 1 개만 있어도 자동 위반이 되고, 그
+  // 위반은 recipe 를 고쳐 없앨 수 있는 종류가 아니라 고칠 수 있는 진짜 위반을
+  // 목록에서 밀어냅니다. name_override 의 cap=null 이 "상한 없음 = 절대 위반
+  // 아님" 입니다.
+  //
+  // 그룹 cap(2026-08-18)이 들어오면서 son 은 무조건 mother 의 cap 을 물려받게
+  // 되었고, 그래서 region 이 붙은 DUMMY 는 자기 면제를 잃습니다. 집에서는 mock
+  // 이 Dummy·Align 에 region 을 주지 않아 이 경로가 아예 만들어지지 않지만,
+  // office 의 `_param_regions` 는 이름을 가리지 않고 모든 row 에 region 을
+  // 붙입니다 — 그래서 사무실에서만 터지는 모양입니다.
+  const mother = { name: 'SOME_OTHER_PARAM', point_count: 1, mother: true, region: 1 }
+  const dummySon = { name: 'DUMMY', point_count: 1, mother: false, region: 1 }
+
+  assert.equal(capFor(dummySon, sampleDram), null, '이름만으로는 면제입니다')
+
+  const caps = groupCaps([mother, dummySon], sampleDram)
+  assert.equal(
+    effectiveCap(dummySon, sampleDram, caps), null,
+    'DUMMY 는 그룹에 묶여도 절대 위반이 아닙니다'
+  )
+})
+
+test('effectiveCap: a plain OTHER son still inherits its mother cap', () => {
+  // 면제 예외가 그룹 상속 자체를 무너뜨리면 안 됩니다 — 이빨은 남아야 합니다.
+  const mother = { name: 'WAFER_X', point_count: 13, mother: true, region: 2 }
+  const son = { name: 'CELL_SP', point_count: 13, mother: false, region: 2 }
+  const caps = groupCaps([mother, son], coreEarlyDram)
+  assert.equal(effectiveCap(son, coreEarlyDram, caps), 13)
 })

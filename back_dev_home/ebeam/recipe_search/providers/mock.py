@@ -344,11 +344,22 @@ def generate_idp_image_info(
     data: list[IdpImageInfoRow] = []
     # Decided once per parameter, then reused by that parameter's other rows.
     removed_by_parameter: dict[str, bool] = {}
+    # Regions that already have their mother — the first row of each owns it.
+    regions_with_a_mother: set[int] = set()
 
     for index in range(num_records):
         p_no = active_rng.randint(1, 20)
         seq = index + 1
         parameter = f"Para_{p_no}"
+        # SEVERAL parameters share one Region, because a Region IS one image
+        # definition and the parameters measuring off that image are its group
+        # (user-confirmed 2026-08-18, docs/datatables/recipe_idp.txt ★★). Region
+        # used to be `p_no`, i.e. one parameter per Region, which made every
+        # group a singleton and quietly guaranteed that no son ever inherited a
+        # mother's cap — the very relationship device-statistics reads this for.
+        region = (p_no - 1) // 4 + 1
+        is_mother = region not in regions_with_a_mother
+        regions_with_a_mother.add(region)
         if parameter not in removed_by_parameter:
             removed_by_parameter[parameter] = active_rng.choice([True, False])
 
@@ -360,12 +371,17 @@ def generate_idp_image_info(
             "img_meas2": _slot("img_meas2", seq, active_rng),
             "SEQ": seq,
             "Last_SEQ": seq + active_rng.randint(0, 5),
-            "Region": p_no,
+            "Region": region,
             "image_add3": _slot("image_add3", seq, active_rng),
             "Addressing": active_rng.choice([True, False]),
-            # A mother is the parameter whose image its sons measure from —
-            # usually the SEQ 1 row (office 확인 2026-07-28), not a name.
-            "Mother_Para": seq == 1,
+            # A mother is the parameter whose image its sons measure from, and
+            # the grouping is by REGION, not by SEQ (user-confirmed 2026-08-18,
+            # docs/datatables/recipe_idp.txt ★★). Exactly one row per Region
+            # carries it — the first one, since measurement order is SEQ order.
+            # This said "usually the SEQ 1 row" and produced ONE mother for the
+            # whole recipe, which the doc's own example (WAFER/CELL_SP/LWR all
+            # in Region 1, one mother among them) contradicts.
+            "Mother_Para": is_mother,
             "Double_Addressing": active_rng.choice([True, False]),
             "Meas_Counting": active_rng.randint(1, 10),
             # Parameter-level, not row-level — see the note above. True means the

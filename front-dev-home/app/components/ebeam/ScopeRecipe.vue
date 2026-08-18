@@ -49,7 +49,10 @@
         <!-- `break-all`, not truncate: this is the one place the whole name is
              readable without opening the menu, and a class/recipe full name has
              no spaces to wrap at. -->
-        <span class="font-mono break-all text-(--sk-ink-muted)">{{ recipeId }}</span>
+        <!-- Full ink: this is the recipe ID itself, the value the caption exists
+             to make readable. DESIGN.md §Text — muted ink is "never data
+             values", and the litmus is "value → ink; label → ink-muted". -->
+        <span class="font-mono break-all text-(--sk-ink)">{{ recipeId }}</span>
       </template>
       <template v-else>
         {{ recipeNames.length.toLocaleString() }}건 측정됨 · recipe 를 고르면 그 recipe 만으로 다시 계산합니다.

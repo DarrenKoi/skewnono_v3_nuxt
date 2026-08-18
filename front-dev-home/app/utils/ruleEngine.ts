@@ -188,8 +188,21 @@ export const effectiveCap = (
   cell: RuleCell,
   caps: Map<number, number | null>
 ): number | null => {
-  if (param.mother || param.region == null) return capFor(param, cell)
-  return caps.has(param.region) ? caps.get(param.region)! : capFor(param, cell)
+  const own = capFor(param, cell)
+  if (param.mother || param.region == null) return own
+  // 자기 cap 이 이미 `null` 이면 그룹 cap 을 물려받지 않습니다. `null` 은 D9 의
+  // "상한 없음 = 절대 위반 아님" 이고, 그 면제는 b5d8dcdb 가 user-confirmed
+  // 2026-08-05 로 확정한 것입니다 — Sample 셀의 `_other` 는 0 이라, DUMMY 가
+  // mother 밑에 묶였다는 이유로 0 을 물려받으면 point 1 개짜리 DUMMY 가 다시
+  // 자동 위반이 되고, 그것은 recipe 를 고쳐 없앨 수 있는 위반이 아니라 고칠 수
+  // 있는 진짜 위반을 목록에서 밀어내는 종류입니다.
+  //
+  // 집에서는 이 경로가 생기지 않습니다: mock 의 `_assign_regions` 는 Dummy·Align
+  // 에 region 을 주지 않지만, office 의 `_param_regions` 는 이름을 가리지 않고
+  // 모든 row 에 붙입니다. 면제를 여기서 지키면 두 provider 중 어느 쪽이 region 을
+  // 주든 판정이 같아집니다.
+  if (own === null) return null
+  return caps.has(param.region) ? caps.get(param.region)! : own
 }
 
 // =================== Cell resolution (D8 / D14) ===================

@@ -412,8 +412,12 @@ def get_tttm_check(
             parameter,
             f"{fab_name} 에는 이 계열의 장비가 없습니다.",
             # The one branch that really has no roster — `fleet` IS empty here,
-            # so it is passed rather than omitted. Opting out is what let the
-            # office template blank a roster it actually had.
+            # so the empty roster is passed rather than the argument skipped.
+            # (For the record: the 2026-08-18 office incident was NOT an omitted
+            # argument. Both roster-bearing branches passed `tools=fleet`; the
+            # copy's function BODY returned a hardcoded `[]` and discarded it.
+            # Requiring the parameter is tidiness, not the cure — one shared
+            # constructor is the cure.)
             tools=fleet,
         )
     if len(fleet) < 2:

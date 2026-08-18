@@ -168,8 +168,12 @@ class TttmRecipeRow(TypedDict):
     fab_name: str
     runs: int
     # Distinct tools that ran it. ONE means no pair exists, so no direct skew
-    # can come out of it however many runs there are — the client dims those
-    # rather than letting the user pick a recipe that cannot answer.
+    # can come out of it however many runs there are — the client BADGES those
+    # ("장비 1대") and still lets them be picked, because looking at a recipe
+    # only one tool ran is a legitimate thing to want. An earlier draft of this
+    # comment said the client dims them; it does not, and a contract comment
+    # describing a client behaviour that never shipped is how the next reader
+    # gets the screen wrong.
     tools: int
 
 
@@ -250,11 +254,19 @@ def unavailable_payload(
     shares a rail with the recipe picker the user needs in order to leave an
     empty answer. Pass the fab's fleet on every branch; only the genuinely
     empty-roster branch (no tool of this family in this fab) passes ``[]``, and
-    it does so by passing a fleet that IS empty rather than by opting out. The
-    parameter is undefaulted deliberately, the same guard
-    `data.get_tttm_check` uses on its own arguments: `office.py` is a gitignored
-    COPY, so a copy made before this existed fails with a TypeError instead of
-    silently serving a blank roster again.
+    it does so by passing a fleet that IS empty rather than by opting out.
+
+    Being undefaulted guards FUTURE EDITS to this template — a new branch cannot
+    quietly decline to state a roster. It does NOT protect a stale `office.py`,
+    and an earlier draft of this docstring wrongly claimed it did. The guard in
+    `data.get_tttm_check` works because the TRACKED dispatcher calls INTO the
+    copy, so an old signature raises; here the direction is reversed. A copy
+    taken before this function existed carries its own `_unavailable`, never
+    imports this, still resolves every symbol it does import, and therefore
+    boots clean while serving exactly the blank roster this exists to prevent.
+    What actually catches that copy is the boot-time freshness check that logs
+    ``STALE office.py`` (`_runtime/boot.py`), and the fix is the documented
+    `python -m scripts.sync_office_adapters tttm`.
 
     What must stay empty is the COMPARISON — `occupied_cells`, the fleet matrix
     and the trend — because that is the "comparison of nothing" this branch

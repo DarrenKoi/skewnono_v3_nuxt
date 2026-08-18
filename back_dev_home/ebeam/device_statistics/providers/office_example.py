@@ -901,8 +901,31 @@ def _param_regions(raw_data: Any) -> dict[str, int]:
         # (recipe_idp.txt: "img_* 5개의 주인은 row 이며 Parameter 가 아닙니다").
         # 이 표면의 단위는 parameter 이므로 **먼저 나온 것**을 씁니다 — 측정 순서가
         # 곧 SEQ 순서이니 앞선 row 가 그 parameter 를 처음 재는 자리입니다.
+        #
+        # OFFICE-VERIFY — 이 규칙은 `_mother_names` 와 다릅니다. 그쪽은 "한 row
+        # 라도 mother 면 mother", 이쪽은 "첫 row 의 Region" 이라, 한 parameter 가
+        # Region 2 에서는 son 이고 Region 5 에서는 mother 인 경우 프론트엔드에는
+        # {mother: True, region: 2} 라는, 어느 row 에도 없는 짝이 갑니다.
+        # 한 parameter 의 Mother_Para 가 row 마다 실제로 달라지는지는 사무실에서
+        # 확인해야 합니다 — 안 달라진다면 지금 코드로 충분하고, 달라진다면 두
+        # 값을 같은 row 에서 함께 읽어야 합니다. 추측으로 한쪽을 바꾸면 진짜
+        # mother 를 잃을 수 있어 그대로 두고 표시만 남깁니다.
         if name and name not in regions:
-            regions[name] = _as_int(raw)
+            # `_as_int` 를 쓰지 않습니다 — 그 함수는 못 읽으면 0 을 돌려주는데,
+            # 0 은 "모름" 이 아니라 **멀쩡한 group id** 입니다. Region 이
+            # "2.0"(float 로 직렬화된 문자열, int("2.0") 은 ValueError) 이거나
+            # 빈 문자열로 오면 그 recipe 의 파라미터가 전부 group 0 으로 뭉쳐
+            # 서로 남의 mother cap 을 물려받습니다. 이 docstring 이 근거로 삼는
+            # 안전한 기본값은 "Region 이 없음"(dict 에 키가 없음)이지 0 이 아니며,
+            # 못 읽은 것은 건너뛰어야 그 기본값으로 갑니다.
+            #
+            # 사내 파서가 숫자 필드를 문자열로 준 전례가 있습니다 —
+            # 2026-08-05 `Coordinate.X` 가 "52.676" 로 왔습니다
+            # (docs/datatables/recipe_idp.txt §dtype).
+            try:
+                regions[name] = int(str(raw).strip())
+            except (TypeError, ValueError):
+                continue
     return regions
 
 

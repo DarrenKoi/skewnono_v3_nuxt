@@ -106,7 +106,7 @@
              which is the same shape of event AppEmptyState already owns. -->
         <AppEmptyState
           v-if="!payload?.available"
-          title="튜닝 목표를 낼 수 없습니다"
+          title="튜닝 목표를 낼 수 없습니다."
           :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
           hint="왼쪽에서 recipe · parameter 를 바꾸어 다시 계산하실 수 있습니다."
           icon="i-lucide-scale"

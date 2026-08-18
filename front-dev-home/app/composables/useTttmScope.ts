@@ -100,6 +100,26 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     [...new Set((parameterList.value?.rows ?? []).map(row => row.Parameter).filter(Boolean))].sort()
   )
 
+  // The PARAMETER goes stale the same way the recipe does, and was left
+  // half-fixed: a recipe can survive an .idp revision that renames or drops one
+  // of its features, and the stored parameter then names nothing. The office
+  // filters its rows to that name, finds none, and answers "측정 이력이
+  // 없습니다" — which blames the recipe while the stale half is the parameter.
+  //
+  // Same three-state rule as the recipe: `parameterList` is null while the
+  // lookup is in flight OR failed, and a failed lookup must not erase a working
+  // pick — that is exactly the recoverable FTP error `parametersError` labels.
+  watch(
+    [parameterList, parameter],
+    () => {
+      const known = parameterList.value ? parameterNames.value : null
+      if (parameter.value && known && !known.includes(parameter.value)) {
+        settings.setParameter(toolType, fabName, null)
+      }
+    },
+    { immediate: true }
+  )
+
   const onSelectedTools = (next: string[]) => settings.setTools(toolType, fabName, next)
   const onRecipe = (next: string | null) => settings.setRecipe(toolType, fabName, next)
   const onParameter = (next: string | null) => settings.setParameter(toolType, fabName, next)
