@@ -66,8 +66,8 @@
     </header>
 
     <!-- 행 카드. 12열 표에서 옮긴 것: lot · health · stage 는 카드 첫 줄로,
-         violations · 판정 범위 · 운용/전체 recipe · 중앙값은 라벨 달린 메타
-         줄로, para 분포는 가운데 블록으로, outlier 는 클릭 가능한 배지로. -->
+         상한 초과 · 판정 범위 · 운용/전체 recipe · 중앙값은 라벨 달린 메타
+         줄로, para 분포는 가운데 블록으로, 중앙값 초과는 클릭 가능한 배지로. -->
     <div
       v-if="view === 'cards'"
       class="dashboard-surface overflow-hidden rounded-2xl"
@@ -120,12 +120,15 @@
             </p>
 
             <div class="mt-2 flex flex-wrap gap-x-5 gap-y-0.5">
-              <span class="sk-field-label">
+              <span
+                class="sk-field-label"
+                :title="violationTitle(row.verdict)"
+              >
                 {{ text.violations }}
                 <span
                   class="sk-field-value"
                   :class="{ 'font-semibold text-(--sk-ink)': row.verdict.kind === 'judged' }"
-                >{{ formatViolations(row.verdict) }}</span>
+                >{{ formatViolations(row.verdict, ' recipe') }}</span>
               </span>
               <span
                 class="sk-field-label"
@@ -185,8 +188,11 @@
             </div>
           </div>
 
-          <div class="w-26 flex-none text-right">
-            <div class="mb-1 sk-field-label">
+          <div class="w-32 flex-none text-right">
+            <div
+              class="mb-1 sk-field-label"
+              :title="outlierTitle(row)"
+            >
               {{ text.outlier }}
             </div>
             <span
@@ -198,7 +204,7 @@
               v-else-if="row.outlier_count > 0"
               type="button"
               class="inline-flex h-8 min-w-13 items-center justify-center gap-1 rounded-lg bg-(--sk-bad-soft) px-2.5 font-mono text-base font-bold tabular-nums text-(--sk-bad) transition-colors hover:bg-(--sk-bad-soft-hover)"
-              :aria-label="`${row.lot_cd} outlier ${row.outlier_count}건 자세히`"
+              :aria-label="`${row.lot_cd} 중앙값 초과 파라미터 ${row.outlier_count}건 자세히`"
               @click.stop="emit('open-outliers', row.lot_cd)"
             >
               {{ row.outlier_count }}
@@ -294,6 +300,7 @@
           <span
             class="tabular-nums"
             :class="row.original.verdict.kind === 'judged' ? 'text-(--sk-ink)' : 'text-(--sk-ink-subtle)'"
+            :title="violationTitle(row.original.verdict)"
           >{{ formatViolations(row.original.verdict) }}</span>
         </template>
 
@@ -340,7 +347,8 @@
             color="neutral"
             variant="ghost"
             class="-my-1 h-7 gap-1 px-1.5"
-            :aria-label="`${row.original.lot_cd} outlier ${row.original.outlier_count}건 자세히`"
+            :title="outlierTitle(row.original)"
+            :aria-label="`${row.original.lot_cd} 중앙값 초과 파라미터 ${row.original.outlier_count}건 자세히`"
             @click.stop="emit('open-outliers', row.original.lot_cd)"
           >
             <span :class="[countPill, 'bg-(--sk-bad-soft) text-(--sk-bad)']">
@@ -354,6 +362,7 @@
           <span
             v-else
             :class="[countPill, 'bg-(--sk-surface) text-(--sk-ink-subtle)']"
+            :title="outlierTitle(row.original)"
           >0</span>
         </template>
 
@@ -405,8 +414,8 @@ const emit = defineEmits<{
 
 const text = {
   title: 'Lot 요약',
-  subtitleCards: '카드를 클릭하면 recipe 상세와 추이를, outlier 를 클릭하면 같은 팝업이 초과 recipe 만 추려 열립니다.',
-  subtitleTable: '행을 클릭하면 recipe 상세와 추이를, outlier 를 클릭하면 같은 팝업이 초과 recipe 만 추려 열립니다.',
+  subtitleCards: '카드를 클릭하면 recipe 상세와 추이를, 중앙값 초과 배지를 클릭하면 같은 팝업이 초과 recipe 만 추려 열립니다.',
+  subtitleTable: '행을 클릭하면 recipe 상세와 추이를, 중앙값 초과 배지를 클릭하면 같은 팝업이 초과 recipe 만 추려 열립니다.',
   noProfile: '이 lot 의 recipe 파라미터를 불러오지 못했습니다',
   empty: '표시할 lot 이 없습니다. 다른 bucket 을 선택해 보세요.',
   copy: '클립보드 복사',
@@ -414,12 +423,12 @@ const text = {
   download: 'CSV',
   viewToggle: 'Lot 요약 보기 방식',
   noRules: '룰 없음',
-  violations: '위반',
+  violations: '상한 초과',
   coverage: '판정 범위',
   recipeRatio: '운용 / 전체 recipe',
   pointMedian: '측정점 중앙값',
   paraDist: 'para 분포',
-  outlier: 'outlier',
+  outlier: '중앙값 초과 파라미터',
   sortNote: '위 정렬 칩을 따릅니다 · 표 보기에서 열 머리글로 다른 축 정렬'
 } as const
 
@@ -440,8 +449,28 @@ const countPill = 'inline-flex h-6 min-w-8 items-center justify-center rounded p
 
 // 카드와 표가 같은 문자열을 씁니다. 두 표면이 각자 조건문을 들고 있으면
 // "판정 없음" 을 한쪽은 —, 다른 쪽은 0 으로 쓰는 식으로 갈라집니다.
-const formatViolations = (v: LotVerdict) =>
-  v.kind === 'judged' ? `${v.violation_recipes} / ${v.judged_recipes}` : '—'
+// `unit` 은 카드만 씁니다. 카드는 라벨과 값이 한 줄로 이어져 읽히므로 "3 / 40
+// recipe" 가 문장이 되고, 표는 열 머리글이 이미 단위를 말해 자리만 먹습니다.
+// 그래도 '—' 판정과 두 숫자의 순서는 여전히 이 한 곳이 정합니다.
+const formatViolations = (v: LotVerdict, unit = '') =>
+  v.kind === 'judged' ? `${v.violation_recipes} / ${v.judged_recipes}${unit}` : '—'
+
+// 라벨은 "무엇을 넘겼는가", 툴팁은 "몇 건 중 몇 건인가" 를 말합니다. 분자·분모가
+// 각각 무엇을 세는지 화면 밖에서 물어보게 두지 않으려는 것이고, 특히 분모가
+// 전체 recipe 가 아니라 **판정한** recipe 라는 점은 숫자만 봐서는 알 수 없습니다.
+const violationTitle = (v: LotVerdict) =>
+  v.kind === 'judged'
+    ? `상한을 넘긴 recipe ${v.violation_recipes}건 / 룰로 판정한 recipe ${v.judged_recipes}건`
+    + ' — recipe 안에 상한을 넘긴 파라미터가 하나라도 있으면 그 recipe 를 1건으로 셉니다.'
+    : '이 lot 은 룰로 판정하지 못했습니다 — 옆의 판정 범위가 이유를 말합니다.'
+
+// outlier 는 상한과 **다른 축**입니다. 이름만으로는 "무엇 대비 초과인지" 를 알
+// 수 없어 상한 초과와 같은 종류로 읽히던 자리라, 기준선을 숫자로 펼쳐 둡니다.
+const outlierTitle = (r: Profiled<HealthAugmentedRow>) =>
+  r.outlier_count === null || r.point_median === null
+    ? text.noProfile
+    : `측정점 중앙값 ${r.point_median} × 2 = ${r.point_median * 2} 를 넘는 파라미터 ${r.outlier_count}개`
+      + ' — 룰의 상한이 아니라 이 lot 자신의 분포를 기준으로 잡은 별개의 축입니다.'
 
 const formatCoverage = (v: LotVerdict) =>
   v.kind === 'judged'
@@ -497,7 +526,7 @@ const columns: TableColumn<Profiled<HealthAugmentedRow>>[] = [
   { accessorKey: 'lot_cd', header: 'lot', size: 120 },
   { id: 'stage', accessorFn: r => r.dev_stage, header: 'stage', size: 72 },
   { id: 'health', accessorFn: healthSortValue, header: 'health', size: 90 },
-  { id: 'violations', accessorFn: r => r.verdict.violation_recipes, header: 'violations', size: 110 },
+  { id: 'violations', accessorFn: r => r.verdict.violation_recipes, header: '상한 초과', size: 110 },
   { id: 'coverage', accessorFn: r => r.verdict.coverage, header: '판정 범위', size: 120 },
   { id: 'params', header: 'para 분포', size: 216, enableSorting: false },
   { id: 'para_total', accessorFn: paraTotal, header: 'para 합계', size: 90 },
@@ -506,7 +535,7 @@ const columns: TableColumn<Profiled<HealthAugmentedRow>>[] = [
   // 측정 프로파일 — 과다 측정 디바이스 탐지. 요약 버킷이 아니라 recipe_params 에서
   // 옵니다(버킷을 바꿔도 기준선이 움직이면 안 되므로).
   { id: 'point_median', accessorFn: profileSortValue('point_median'), header: '중앙값', size: 90 },
-  { id: 'outlier_count', accessorFn: profileSortValue('outlier_count'), header: 'outlier', size: 90 },
+  { id: 'outlier_count', accessorFn: profileSortValue('outlier_count'), header: '중앙값 초과 파라미터', size: 160 },
   { accessorKey: 'ctn_desc', header: 'description' }
 ]
 

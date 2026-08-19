@@ -42,7 +42,10 @@
             </p>
 
             <div class="mt-2 flex flex-wrap gap-x-5 gap-y-0.5">
-              <span class="sk-field-label">
+              <span
+                class="sk-field-label"
+                :title="text.violationsHint"
+              >
                 {{ text.violations }}
                 <span
                   v-if="row.verdict.kind === 'judged'"
@@ -277,7 +280,11 @@ const open = defineModel<boolean>('open', { required: true })
 const text = {
   recipeEmpty: '이 lot 의 recipe 가 현재 bucket 에 없습니다.',
   noRules: '룰 없음',
-  violations: '위반',
+  violations: '상한 초과',
+  // 분모가 전체 recipe 가 아니라 **판정한** recipe 라는 점은 숫자만 봐서는
+  // 알 수 없습니다. 바로 옆 '판정 제외' 가 나머지를 말합니다.
+  violationsHint: '상한을 넘긴 recipe 수 / 룰로 판정한 recipe 수 — recipe 안에 상한을 넘긴 '
+    + '파라미터가 하나라도 있으면 그 recipe 를 1건으로 셉니다.',
   grayRecipes: '판정 제외',
   recipeRatio: '운용 / 전체 recipe',
   paraDist: 'para 분포',

@@ -143,7 +143,7 @@ The table above is calibrated for a **real table**: a shared column header carri
 |---|---|---|
 | `.sk-card-id` | The identifier the card is **about** (`lot_cd`, `recipe_id`) | 18px · 700 · mono tabular -0.01em · ink |
 | `.sk-card-desc` | Prose on a card (`ctn_desc`, `oper_desc`) — never truncated | 15px/1.45 · 400 · ink |
-| `.sk-field-label` | Inline label on a meta line (`위반`, `판정 범위`) | 13px · 400 · ink-subtle |
+| `.sk-field-label` | Inline label on a meta line (`상한 초과`, `판정 범위`) | 13px · 400 · ink-subtle |
 | `.sk-field-value` | The number that label points at | 14px · 500 · mono tabular · ink-muted |
 | `.sk-field-name` | A raw **backend field name** shown to the user (`prod_catg_cd`) | 13px · 400 · mono · ink-subtle |
 | `.sk-panel-title` | Title of a panel holding cards | 16px · 700 · ink |
