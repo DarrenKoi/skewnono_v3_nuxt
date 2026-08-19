@@ -61,6 +61,10 @@
                   class="h-4 w-4 shrink-0"
                 />
                 <span class="truncate">{{ page.title }}</span>
+                <span
+                  v-if="page.hiddenOnCloud"
+                  class="ml-auto intro-beta"
+                >개발 중</span>
               </button>
             </div>
           </div>
@@ -283,6 +287,10 @@
                   <h1 class="sk-page-title md:text-4xl">
                     {{ selectedPageGuide.title }}
                   </h1>
+                  <span
+                    v-if="selectedPageGuide.hiddenOnCloud"
+                    class="intro-beta"
+                  >개발 중</span>
                 </div>
                 <p class="mt-3 sk-body leading-7 md:text-base">
                   {{ selectedPageGuide.purpose }}
@@ -317,6 +325,26 @@
                 {{ selectedPageGuide.users }}
               </p>
             </div>
+          </section>
+
+          <section
+            v-if="selectedPageGuide.hiddenOnCloud"
+            class="intro-callout rounded-lg border p-5"
+          >
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-flask-conical"
+                class="h-5 w-5 shrink-0"
+              />
+              <h2 class="sk-heading">
+                아직 개발 중인 화면입니다
+              </h2>
+            </div>
+            <p class="mt-3 sk-body leading-7">
+              계산 방식이 검증 단계라, 이 화면의 숫자는 판정 근거가 아니라 검토용 참고값입니다.
+              같은 이유로 운영 환경에서는 실험실 메뉴와 이 안내 모두에 노출하지 않고, 만드는
+              동안 URL을 아는 사람만 열어 봅니다.
+            </p>
           </section>
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
@@ -679,10 +707,7 @@ const pageGuides: PageGuide[] = [
     purpose: '같은 조건에서 장비끼리 측정값이 얼마나 맞는지 비교합니다.',
     description: '장비 쌍별 스큐를 matrix 형태로 보여 주고, 허용 범위를 벗어난 조합을 찾아냅니다.',
     users: '장비 정합성 검토자',
-    notes: [
-      'CD-SEM 전용이며 Fab 하나를 기준으로 봅니다.',
-      '추정 방식이 아직 검증 단계라 BETA로 표시하며, 판정 근거가 아니라 검토용 참고값입니다.'
-    ],
+    notes: ['CD-SEM 전용이며 Fab 하나를 기준으로 봅니다.'],
     hiddenOnCloud: true
   },
   {
@@ -696,7 +721,7 @@ const pageGuides: PageGuide[] = [
     users: 'PM 계획 담당자, 장비 담당자',
     notes: [
       'TTTM과 같은 payload를 사용하므로 두 화면은 함께 열리고 함께 닫힙니다.',
-      'CD-SEM 전용이며, TTTM과 같은 이유로 BETA입니다.'
+      'TTTM과 마찬가지로 CD-SEM 전용입니다.'
     ],
     hiddenOnCloud: true
   },
@@ -796,3 +821,27 @@ const guideSections = computed(() =>
 
 const canOpenPage = (path: string) => !path.includes(',') && !path.includes('{')
 </script>
+
+<style scoped>
+/* 헤더 실험실 메뉴의 BETA 칩과 같은 토큰 - 같은 사실을 알리는 표시가 두 곳에서
+   다르게 보이면 다른 뜻으로 읽힙니다. 라벨이지 버튼이 아니므로 chip radius이고,
+   rounded-full 은 쓰지 않습니다 (DESIGN.md §Tags / Badges). */
+.intro-beta {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--sk-r-chip);
+  background: var(--sk-warn-soft);
+  border: 1px solid var(--sk-warn-border);
+  color: var(--sk-ink);
+}
+
+.intro-callout {
+  background: var(--sk-warn-soft);
+  border-color: var(--sk-warn-border);
+  color: var(--sk-ink);
+}
+</style>
