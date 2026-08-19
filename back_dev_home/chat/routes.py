@@ -1,8 +1,10 @@
 """Thin HTTP adapters for chat models, threads, messages, and feedback."""
 
+import re
+from pathlib import Path
 from uuid import UUID
 
-from flask import Blueprint, g, request
+from flask import Blueprint, Response, g, request
 
 from back_dev_home._auth.errors import error_json
 from back_dev_home.chat import config, data, guard
@@ -198,3 +200,56 @@ def chat_delete_feedback(message_id):
     if data.delete_feedback(_uid(), message_id):
         return {"data": {"id": message_id, "feedback": None}}
     return {"data": {"id": message_id, "feedback": None}}
+
+
+# The office derives a figure id as ``{doc_id}_p{page}_i{idx}``, and real
+# doc_ids carry dots — ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office 확인
+# 2026-08-19). The charset therefore admits ``.``, which the original design
+# did not; without it every office figure 404s while every mock fixture keeps
+# passing, so the failure would only ever show up at the office.
+_FIGURE_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+
+
+def _figure_path(figure_id: str) -> Path | None:
+    """The stored path for a figure id, or ``None`` if it must not be served.
+
+    Validation happens before any storage call, not after: on the Phase 2
+    MinIO path a malformed id would otherwise cost a network round trip to
+    learn what the charset already knows.
+    """
+    figures_dir = config.get_figures_dir()
+    if figures_dir is None:
+        return None
+    if not _FIGURE_ID.match(figure_id) or ".." in figure_id:
+        return None
+    # Admitting ``.`` means ``..`` is no longer excluded by the charset alone,
+    # so it is refused by name above. Routing already refuses anything with a
+    # slash, and the containment check below is the backstop for both — it
+    # also catches a figure symlinked out of the store.
+    root = Path(figures_dir).resolve()
+    path = (root / f"{figure_id}.webp").resolve()
+    return path if path.parent == root else None
+
+
+@bp.get("/chat/figures/<figure_id>")
+def chat_figure(figure_id):
+    """Serve one extracted manual figure.
+
+    Authorization is the identity gate on ``/api/*`` and nothing more. Noted
+    risk, carried over from the agreed design: retrieval is filtered by
+    ``AccessScope`` but this endpoint is not, so a user who knows a figure_id
+    can fetch the figure of a manual outside their group. Revisit if figures
+    are found to carry access-restricted content.
+    """
+    path = _figure_path(figure_id)
+    if path is None:
+        return error_json("not_found", "figure not found", 404)
+    try:
+        payload = path.read_bytes()
+    except OSError:
+        return error_json("not_found", "figure not found", 404)
+    return Response(
+        payload,
+        mimetype="image/webp",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )

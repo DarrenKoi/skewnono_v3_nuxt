@@ -2,6 +2,7 @@
 
 import pytest
 
+from back_dev_home.chat import routes
 from back_dev_home.chat.knowledge import data
 from back_dev_home.chat.knowledge.contracts import KnowledgeUnavailable
 
@@ -72,8 +73,28 @@ def test_figure_bearing_evidence_carries_an_opaque_figure_id(monkeypatch):
     row = data.search_manuals("alarm reset", {}, METROLOGY_USER, 5)[0]
 
     figure_id = row["figure_id"]
-    assert figure_id == "fig-alarm-r2-p12"
+    assert figure_id == "SYN6300_1.EBEAM_ALARM_p12_i0"
     assert "/" not in figure_id and not figure_id.endswith(".webp")
+
+
+def test_mock_figure_ids_are_servable_by_the_figure_route(monkeypatch):
+    """Catches the mock drifting from what the serving route will accept.
+
+    Asserted against the route's own validator rather than a copy of the
+    pattern: a mock whose ids the route rejects renders no figure at home and
+    would send someone hunting through the frontend for a backend disagreement.
+    The office id shape carries a dot (``CG6300_1.HHTSEM_SYSTEM_p100_i0``),
+    which is the property the fixtures exist to reproduce.
+    """
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")
+
+    rows = data.search_manuals("alarm calibration optics", {}, METROLOGY_USER, 5)
+    figure_ids = [row["figure_id"] for row in rows if row["figure_id"]]
+
+    assert figure_ids
+    for figure_id in figure_ids:
+        assert "." in figure_id, figure_id
+        assert routes._FIGURE_ID.match(figure_id), figure_id
 
 
 def test_text_evidence_reports_no_figure(monkeypatch):

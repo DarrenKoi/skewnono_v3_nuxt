@@ -179,8 +179,12 @@ search_reports(
 
 `figure_id`는 애플리케이션이 저장소 접근으로 바꾸는 유일한 값이므로 `locator`와 다른
 규칙을 따릅니다. Bucket, prefix, 경로 구분자, `.webp` 확장자를 포함하지 않는 맨 id만
-반환합니다. 키 조립(`{prefix}{figure_id}.webp`)과 `^[A-Za-z0-9_-]{1,128}$` 검증은 serving
+반환합니다. 키 조립(`{prefix}{figure_id}.webp`)과 `^[A-Za-z0-9._-]{1,128}$` 검증은 serving
 쪽이 전담하므로, 경로가 섞인 id는 오류가 아니라 렌더되지 않는 그림이 됩니다.
+
+형식은 `{doc_id}_p{page}_i{idx}`이며 doc_id에 **점이 들어갑니다**
+(`CG6300_1.HHTSEM_SYSTEM_p100_i0`, office 확인 2026-08-19). 검증 charset이 점을
+허용하는 이유가 이것입니다 — 자세한 내용은 아래 "Figure serving" 절을 봅니다.
 
 Retrieval query 한 번이 한국어와 영어를 **동시에** 만족시켜야 합니다. 사용자는 한 질문
 안에서 두 언어를 섞고 코퍼스도 섞여 있으므로, 한 언어만 만족시키는 요청은 실패하지 않고
@@ -232,27 +236,63 @@ direct runtime, mock provider 또는 다른 source로 자동 전환하지 않습
 assistant/source/trace row도 저장하지 않으며, 이미 저장된 user turn은 같은
 `request_id` retry를 위해 유지합니다.
 
-## Figure serving — 설계 확정, 구현 보류
+## Figure serving — Phase 1 구현 완료, Phase 2 는 설계
 
-2026-08-04 기준 figure endpoint는 **만들지 않았습니다**. RAG 자체가 작업 중이므로
-필요해지는 시점에 진행합니다. `figure_id`는 계약과 저장소에 먼저 흘려 두었으므로 office
-retrieval이 값을 채우기 시작해도 스키마 변경 없이 받을 수 있습니다.
-
-구현 시 합의된 설계입니다.
+`GET /api/chat/figures/<figure_id>`는 2026-08-19에 **구현했습니다**. 저장소만 두 단계로
+나뉩니다 — 지금은 디스크에서 읽고, MinIO 전환은 route를 바꾸지 않습니다.
 
 | 항목 | 결정 |
 | --- | --- |
-| Route | `GET /api/chat/figures/<figure_id>` |
+| Route | `GET /api/chat/figures/<figure_id>` (`chat/routes.py`의 `chat_figure`) |
 | 구현 참고 | `back_dev_home/msr_image/routes.py`의 `serve_image_route` — `Response(bytes, mimetype=...)` + `Cache-Control` |
 | 인가 | 인증된 사용자면 통과합니다. `/api/*`가 이미 신원 gate 뒤이므로 추가 확인을 하지 않습니다. |
-| Key | `{prefix}{figure_id}.webp` |
-| 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`, `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `figures/`) |
-| 검증 | 저장소 호출 전에 `^[A-Za-z0-9_-]{1,128}$`에 맞지 않는 id는 `404` |
+| Phase 1 저장소 | 디스크. `{figures_dir}/{figure_id}.webp` |
+| Phase 1 설정 | `SKEWNONO_CHAT_FIGURES_DIR` — 그림 디렉터리의 절대 경로 |
+| Phase 2 저장소 | MinIO. 키는 `{prefix}{figure_id}.webp` |
+| Phase 2 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`, `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `figures/`) |
+| 검증 | 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 불일치 또는 `..` 포함이면 `404` |
+| 응답 | `image/webp` + `Cache-Control: public, max-age=3600` |
 
-인가 결정에 남는 위험을 명시합니다. Retrieval은 `AccessScope`로 걸러지지만 이 endpoint는
-걸러지지 않으므로, group/FAB 제한 매뉴얼의 **그림**은 `figure_id`를 아는 사용자면 그룹
-밖에서도 받을 수 있습니다. 그림 자체가 접근 제한 정보를 담는 것이 확인되면 이 결정을 다시
-검토합니다.
+Phase 2 전환은 디스크 읽기 한 줄을 `MinioObject().get(f"{prefix}{figure_id}.webp")`로
+바꾸는 것이 전부입니다. Route signature, 검증, 응답 헤더, 그리고 `chat/tests/test_figures.py`의
+테스트는 전부 그대로 둡니다 — 테스트를 HTTP 경계에만 걸어 둔 이유가 이것입니다.
+
+### 검증 charset이 점을 허용하는 이유
+
+Office의 figure_id 형식은 `{doc_id}_p{page}_i{idx}`이고 doc_id가 점을 포함합니다
+(`CG6300_1.HHTSEM_SYSTEM_p100_i0`, office 확인 2026-08-19). 원래 합의했던
+`^[A-Za-z0-9_-]{1,128}$`는 이 값을 **거부합니다**.
+
+이 조합이 위험한 이유는 실패가 조용하기 때문입니다. Mock fixture의 id에는 점이 없었으므로
+집에서는 모든 테스트가 통과하고, 사무실에서만 모든 그림이 404가 나며, 그마저도 오류가 아니라
+"썸네일이 안 보인다"로 나타납니다. 그래서 charset을 넓혔습니다.
+
+점을 허용하면 `..`가 charset만으로는 걸러지지 않으므로 세 겹으로 막습니다.
+
+1. `..`를 포함한 id는 이름으로 거부합니다.
+2. Slash는 charset과 Flask routing 양쪽에서 막힙니다 — routing이 `../`를 정규화하므로
+   view까지 도달하지도 않습니다.
+3. 조립한 경로를 `resolve()`한 뒤 부모가 figures 디렉터리인지 확인합니다. 저장소 밖으로
+   나가는 symlink도 여기서 걸립니다.
+
+Mock fixture의 id도 같은 날 실제 형식으로 바꿨습니다(`SYN6300_1.EBEAM_ALARM_p12_i0`).
+`test_knowledge.py`가 mock의 id를 route의 검증기에 직접 걸어 보므로, 한쪽만 바뀌면
+테스트가 깨집니다.
+
+### 실패는 전부 404입니다
+
+형식 불일치, 저장되지 않은 그림, 저장소 미설정(`SKEWNONO_CHAT_FIGURES_DIR` 없음)이 모두
+같은 404입니다. 구분해서 알려주면 figure_id의 존재 여부를 확인하는 수단이 되므로 의도적으로
+합쳤습니다.
+
+저장소 미설정이 오류가 아닌 이유도 함께 적어 둡니다. 그림 추출 없이 색인한 매뉴얼은 정상
+상태이고, 그때 SPA는 썸네일 없이 인용만 렌더합니다.
+
+### 남는 위험 (인가)
+
+Retrieval은 `AccessScope`로 걸러지지만 이 endpoint는 걸러지지 않으므로, group/FAB 제한
+매뉴얼의 **그림**은 `figure_id`를 아는 사용자면 그룹 밖에서도 받을 수 있습니다. 그림 자체가
+접근 제한 정보를 담는 것이 확인되면 이 결정을 다시 검토합니다.
 
 Prefix를 환경 변수로 두는 이유는 사무실 MinIO credential이 사용자 namespace로 제한될 수
 있기 때문입니다. 이미지 캐시에서 실제로 그랬으므로(`msr_image/minio_cache.py`의 `_key`

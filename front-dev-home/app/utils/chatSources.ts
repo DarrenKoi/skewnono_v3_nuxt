@@ -5,6 +5,22 @@ import type {
   MessageFeedback,
   SourceRef
 } from '~/composables/useChatApi'
+// Relative with an explicit extension, not the `~` alias: this module is
+// covered by `npm test` (node --test), which resolves no Nuxt aliases. Type
+// imports above are erased before they reach the runner, so only value
+// imports need this — same reason `useMsrImageApi.ts` does it.
+import { joinApiPath } from './apiPath.ts'
+
+/**
+ * Where a figure-bearing citation's image lives.
+ *
+ * `figure_id` is an opaque token, never a storage key — the server owns the
+ * directory (or bucket) and the `.webp` extension. Encoded per segment so a
+ * malformed id cannot reshape the path; the office's dots survive that
+ * untouched, which matters because the route matches them literally.
+ */
+export const figureUrl = (base: string, figureId: string): string =>
+  `${joinApiPath(base, '/chat/figures')}/${encodeURIComponent(figureId)}`
 
 export const FEEDBACK_REASON_ORDER = [
   'incorrect',

@@ -18,6 +18,13 @@ export interface SourceRef {
   page: number | null
   region: string | null
   locator: string | null
+  /**
+   * Opaque figure token, never a storage key — the server owns the directory,
+   * bucket, prefix and `.webp` extension. `null` for text and table evidence,
+   * which is the common case. Resolve it with `figureUrl` from
+   * `~/utils/chatSources`.
+   */
+  figure_id: string | null
   score: number | null
 }
 

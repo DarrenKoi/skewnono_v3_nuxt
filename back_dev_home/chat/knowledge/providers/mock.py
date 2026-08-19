@@ -17,8 +17,17 @@ zero results for a Korean question that the office index answers fine, and
 every home session would be tuning against a retrieval path that cannot do
 what the real one does. ``figure_id`` is populated only on the manual records
 that would plausibly carry an extracted figure; text and table evidence
-carries ``None``. The values are opaque tokens with no MinIO object behind
-them — the mock cannot know real office figure ids.
+carries ``None``.
+
+The fixture figure ids reproduce the office's confirmed shape,
+``{doc_id}_p{page}_i{idx}`` — e.g. ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office
+확인 2026-08-19) — with a synthetic ``SYN…`` doc_id and the ``_p{page}`` half
+kept consistent with each record's ``page``. The **dot** in the doc_id is the
+property worth copying rather than a cosmetic detail: the earlier dot-free ids
+taught that the serving charset could exclude ``.``, and an id the route
+rejects renders no figure at all rather than erroring, so the mock would have
+passed while every office figure 404'd. Nothing is stored behind these ids —
+only the shape is real.
 
 This mock answers all four sources unconditionally, even though the office
 provider currently exposes only ``manual`` (``get_knowledge_sources()``

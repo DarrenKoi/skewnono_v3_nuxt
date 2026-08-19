@@ -87,7 +87,7 @@ artifact를 read-only로 읽습니다.
 | 권한 필드 | group/fab 등 접근 제한을 **filterable 필드**로 색인합니다. 지금 사용하지 않아도 색인은 해 둡니다. | 나중에 access resolver를 붙일 때 전체 재색인이 필요해집니다. |
 | `source_type` 구분 | 소스별 인덱스든 필터 필드든, **질의 단계에서** 소스를 제한할 수 있어야 합니다. | hit 안의 값은 신뢰하지 않는다는 계약을 지킬 수 없습니다. |
 | `source_id` | 결정적으로 유도합니다(예: `sha1(doc_id + revision + chunk_index)`). Ingestion 실행 단위 UUID를 쓰지 않습니다. | 재색인할 때마다 저장된 인용이 전부 끊깁니다. |
-| `figure_id` | `^[A-Za-z0-9_-]{1,128}$`. Bucket·prefix·경로 구분자·`.webp`를 포함하지 않는 맨 id만 내보냅니다. | 서버 검증에 걸려 오류가 아니라 렌더되지 않는 그림이 됩니다. 색인 쪽이 유일한 방어선입니다. |
+| `figure_id` | `^[A-Za-z0-9._-]{1,128}$` (2026-08-19 개정, 아래 참고). Bucket·prefix·경로 구분자·`.webp`를 포함하지 않는 맨 id만 내보냅니다. | 서버 검증에 걸려 오류가 아니라 렌더되지 않는 그림이 됩니다. 색인 쪽이 유일한 방어선입니다. |
 | `locator` | `manual:<doc_id>#page=<page>` 형태의 논리 참조입니다. URL·파일 경로·저장소 키가 아닙니다. | 화면에 내부 경로가 노출됩니다. |
 | `snippet` | 승인된 최소 근거 text이며 원문 전체가 아닙니다. | 계약 위반입니다. |
 | `element_type` | 인덱스 내부 전용입니다. `Evidence`로 내보내지 않습니다. | 어휘 교정이 backend·frontend·mock·테스트·datatables 동시 변경이 됩니다. |
@@ -256,9 +256,16 @@ semantic 매칭이 없고, `score`가 float 거리가 아닌 작은 정수이며
 
 ## 13. 범위 밖
 
-- Figure serving endpoint (`GET /api/chat/figures/<figure_id>`) — 설계는 확정되어
-  있고 구현은 보류입니다. `figure_id`는 계약과 인덱스에 먼저 흘려 두므로 스키마
-  변경 없이 나중에 켤 수 있습니다.
+- ~~Figure serving endpoint (`GET /api/chat/figures/<figure_id>`)~~ — **2026-08-19에
+  구현했습니다**(Phase 1은 디스크, `SKEWNONO_CHAT_FIGURES_DIR`; Phase 2 MinIO 전환은
+  저장소 읽기 한 줄). 현재 계약은 `back_dev_home/chat/MIGRATION.md`의 "Figure
+  serving" 절과 `docs/datatables/chat_rag_contract.txt`를 봅니다.
+
+  이때 검증 charset을 `^[A-Za-z0-9_-]{1,128}$` → `^[A-Za-z0-9._-]{1,128}$`로
+  넓혔습니다. Office의 실제 형식이 `{doc_id}_p{page}_i{idx}`이고 doc_id가 점을
+  포함하므로(`CG6300_1.HHTSEM_SYSTEM_p100_i0`, office 확인 2026-08-19), 원래 규칙은
+  실제 id를 전부 거부합니다. **색인 쪽은 점을 그대로 내보내면 됩니다** — 위 5절
+  표의 규칙도 같이 고쳤습니다.
 - 회의록·메일·리포트 — authoritative access resolver와 상시 ingestion 파이프라인이
   선행 조건입니다.
 - MCP / A2A 전송 — 지금 결정하지 않습니다. `search_emails()`는 이미 provider로

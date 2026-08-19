@@ -3,13 +3,13 @@ import test from 'node:test'
 
 import * as chatSources from './chatSources.ts'
 
-const { formatSourceLabel, normalizeFeedbackInput } = chatSources
+const { figureUrl, formatSourceLabel, normalizeFeedbackInput } = chatSources
 
 test('manual source label includes revision and page', () => {
   assert.equal(formatSourceLabel({
     source_id: 'manual-1', source_type: 'manual', title: 'Alarm Manual',
     snippet: 'Reset procedure', revision: 'R2', occurred_at: null,
-    section: 'Alarm', page: 12, region: null, locator: null, score: 0.9
+    section: 'Alarm', page: 12, region: null, locator: null, figure_id: null, score: 0.9
   }), 'Alarm Manual · R2 · p.12')
 })
 
@@ -18,7 +18,7 @@ test('non-manual source label includes its occurred date', () => {
     source_id: 'email-1', source_type: 'email', title: 'Maintenance Notice',
     snippet: 'Maintenance is scheduled', revision: null,
     occurred_at: '2026-04-02T01:00:00Z', section: 'Notice', page: null,
-    region: null, locator: 'internal-email-locator', score: 0.8
+    region: null, locator: 'internal-email-locator', figure_id: null, score: 0.8
   }), 'Maintenance Notice · 2026-04-02')
 })
 
@@ -88,4 +88,17 @@ test('feedback reconciliation preserves a different active thread', () => {
     }
   ), false)
   assert.equal(activeMessage.feedback, null)
+})
+
+test('figure url keeps the dot the office puts in a figure id', () => {
+  // {doc_id}_p{page}_i{idx}, and real doc_ids carry a dot. Percent-encoding
+  // it would 404 against a route whose charset admits `.` literally.
+  assert.equal(
+    figureUrl('/api', 'CG6300_1.HHTSEM_SYSTEM_p100_i0'),
+    '/api/chat/figures/CG6300_1.HHTSEM_SYSTEM_p100_i0'
+  )
+})
+
+test('figure url escapes a character that would change the path', () => {
+  assert.equal(figureUrl('/api', 'a/b'), '/api/chat/figures/a%2Fb')
 })

@@ -132,6 +132,17 @@ def get_rag_source_root() -> str | None:
     return value or None
 
 
+def get_figures_dir() -> str | None:
+    """Absolute path of the directory holding extracted manual figures.
+
+    Phase 1 of figure serving. Unset means the deployment has no figure store,
+    which is a 404 rather than an error: a manual indexed without figures is a
+    normal state, not a misconfiguration.
+    """
+    value = os.environ.get("SKEWNONO_CHAT_FIGURES_DIR", "").strip()
+    return value or None
+
+
 KNOWLEDGE_SOURCES: tuple[str, ...] = ("manual", "meeting", "email", "report")
 
 

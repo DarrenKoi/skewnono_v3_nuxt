@@ -40,34 +40,60 @@ OFFICE-VERIFY 이며 이 문서에 적지 않습니다 — credential 과 사내
 figure_id — 저장소 키가 아니라 토큰입니다
 - figure_id 는 그림을 식별하는 불투명 문자열입니다. bucket, prefix, 경로
   구분자, .webp 확장자를 **포함하지 않습니다**. 인덱스는 맨 id 만 내보냅니다.
+- 형식은 `{doc_id}_p{page}_i{idx}` 입니다(office 확인 2026-08-19).
+  실제 예: `CG6300_1.HHTSEM_SYSTEM_p100_i0`
+  - doc_id 에 **점(.) 이 들어갑니다**. `CG6300_1.HHTSEM_SYSTEM` 처럼 장비
+    모델과 문서 이름이 점으로 이어집니다.
+  - page 는 1-based page 번호이고, idx 는 그 page 안에서 추출된 그림의
+    0-based 순번입니다. 한 page 에 그림이 여러 개면 i0, i1 … 로 늘어납니다.
 - 키 조립은 전적으로 서버가 합니다: `{prefix}{figure_id}.webp`.
-- 서버는 저장소에 닿기 전에 `^[A-Za-z0-9_-]{1,128}$` 로 id 를 검증합니다.
+- 서버는 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 로 id 를 검증하고,
+  추가로 `..` 를 포함한 id 를 거부합니다.
   따라서 경로가 섞인 id 를 내보내는 hit 은 오류가 아니라 그냥 렌더되지 않는
   그림이 됩니다. 색인 쪽에서 형식을 지키는 것이 유일한 방어선입니다.
+  - 점을 허용하는 charset 은 2026-08-19 에 넓혔습니다. 그전 규칙
+    `^[A-Za-z0-9_-]{1,128}$` 은 위 실제 예를 **거부**합니다. mock fixture 의
+    id 에는 점이 없었으므로 집에서는 전부 통과하고 사무실에서만 모든 그림이
+    404 나는 형태였습니다 — 조용히 렌더만 안 되므로 오류로 드러나지 않습니다.
+  - 점을 허용하면 `..` 가 charset 만으로는 걸러지지 않으므로 이름으로 따로
+    거부합니다. slash 는 charset 과 Flask routing 양쪽에서 막히고, 조립된
+    경로가 figures 디렉터리 안인지 다시 확인합니다(3중).
 - 이 규칙이 locator 와 다른 이유: locator 는 사람이 읽는 참조라 절대
   저장소 경로가 되면 안 되고, figure_id 는 반대로 애플리케이션이 저장소
   접근으로 바꾸는 유일한 값이라 형식을 좁게 고정해야 합니다.
 
-figure 제공 (설계만, 아직 구현하지 않음)
-- 2026-08-04 기준 endpoint 는 만들지 않았습니다. RAG 자체가 아직 작업
-  중이므로, 필요해지는 시점에 담당자가 알려주기로 했습니다. 아래는 그때
-  그대로 구현하면 되도록 합의된 설계입니다.
-- `GET /api/chat/figures/<figure_id>` 가 MinIO 의 webp 를 그대로 stream
-  합니다. 구현 본은 back_dev_home/msr_image/routes.py 의 serve_image_route
-  를 따릅니다 — Response(bytes, mimetype=...) + Cache-Control.
+figure 제공 (Phase 1 구현 완료 2026-08-19, Phase 2 는 설계만)
+- `GET /api/chat/figures/<figure_id>` 는 **구현되어 있습니다**. 구현 본은
+  back_dev_home/msr_image/routes.py 의 serve_image_route 를 따릅니다 —
+  Response(bytes, mimetype="image/webp") + Cache-Control.
+- Phase 1(현재): 디스크에서 읽습니다.
+  - 환경 변수 SKEWNONO_CHAT_FIGURES_DIR 이 그림 디렉터리의 절대 경로입니다.
+  - 파일은 `{figures_dir}/{figure_id}.webp` 입니다.
+  - 변수를 설정하지 않으면 그 배포에는 그림 저장소가 없다는 뜻이고 404 를
+    돌려줍니다. 오류가 아닙니다 — 그림 추출 없이 색인한 매뉴얼은 정상
+    상태이고, SPA 는 썸네일 없이 인용만 렌더합니다.
+- Phase 2(MinIO): 디스크 읽기만 `MinioObject().get(f"{prefix}{figure_id}.webp")`
+  로 바꿉니다. route signature, 검증, 응답 헤더는 그대로입니다.
+  - bucket 과 prefix 는 환경 변수입니다:
+    SKEWNONO_CHAT_FIGURE_BUCKET, SKEWNONO_CHAT_FIGURE_PREFIX(기본 `figures/`).
+  - OFFICE-VERIFY: 사무실 MinIO credential 이 사용자 namespace 로 제한되어
+    있으면(msr_image 이미지 캐시가 실제로 그랬습니다 —
+    back_dev_home/msr_image/minio_cache.py 의 _key 주석 참고) prefix 에 전체
+    경로를 넣습니다(예: `user/2067928/figures/`). 코드에 `figures/` 를
+    하드코딩하지 않는 이유가 이것입니다.
+- 응답: 200 은 image/webp 바이트와 `Cache-Control: public, max-age=3600`
+  입니다. 추출된 그림은 불변이고 답변 하나가 여러 장을 인용하므로, 캐시가
+  없으면 대화를 되짚어 볼 때마다 전부 다시 받습니다.
+- 실패는 전부 404 입니다: 형식에 맞지 않는 id, 저장되지 않은 그림,
+  저장소 미설정이 모두 같은 응답입니다. 어떤 경우인지 구분해서 알려주지
+  않는 것은 의도된 것입니다 — 구분하면 figure_id 존재 여부를 확인하는
+  수단이 됩니다.
 - 인가는 "인증된 사용자면 통과"입니다(user-confirmed 2026-08-04). /api/* 는
   이미 신원 gate 뒤에 있으므로 추가 확인을 하지 않습니다.
   남는 위험: 검색은 AccessScope 로 걸러지지만 이 endpoint 는 걸러지지
   않으므로, group/fab 제한 매뉴얼의 **그림**은 figure_id 를 아는 사람이면
   그룹 밖에서도 받을 수 있습니다. 그림 자체가 접근 제한 정보를 담는 것이
   확인되면 이 결정을 다시 봐야 합니다.
-- bucket 과 prefix 는 환경 변수입니다:
-  SKEWNONO_CHAT_FIGURE_BUCKET, SKEWNONO_CHAT_FIGURE_PREFIX(기본 `figures/`).
-  OFFICE-VERIFY: 사무실 MinIO credential 이 사용자 namespace 로 제한되어
-  있으면(msr_image 이미지 캐시가 실제로 그랬습니다 —
-  back_dev_home/msr_image/minio_cache.py 의 _key 주석 참고) prefix 에 전체
-  경로를 넣습니다(예: `user/2067928/figures/`). 코드에 `figures/` 를
-  하드코딩하지 않는 이유가 이것입니다.
 
 한국어와 영어를 항상 함께 (user-confirmed 2026-08-04)
 - 사용자는 한 질문 안에서 두 언어를 섞습니다("얼라인 alarm 리셋"). 코퍼스도
@@ -147,8 +173,15 @@ figure 제공 (설계만, 아직 구현하지 않음)
   인덱스가 답하는 한국어 질문에 집에서는 빈 결과가 나오고, 모든 집 세션이
   실제와 다른 검색 경로를 상대로 개발하게 됩니다.
 - figure_id 는 manual fixture 3건에만 채워져 있고 나머지는 None 입니다.
-  값은 뒤에 실제 MinIO 객체가 없는 불투명 토큰입니다 — mock 은 사무실의
-  진짜 figure id 를 알 수 없으므로 흉내내지 않습니다.
+  뒤에 실제 MinIO 객체나 .webp 파일은 없습니다 — 값은 여전히 불투명
+  토큰입니다.
+  다만 **형식은 사무실 것을 그대로 따릅니다**: `{doc_id}_p{page}_i{idx}`,
+  doc_id 는 점을 포함한 합성값(예: `SYN6300_1.EBEAM_ALARM_p12_i0`)이고
+  `_p{page}` 는 그 record 의 page 필드와 일치시킵니다.
+  점 없는 예전 id(`fig-alarm-r2-p12`)를 2026-08-19 에 바꾼 이유는, 그 형태가
+  "serving charset 에서 점을 빼도 된다"를 가르쳤고 실제로 그렇게 좁혔다가
+  집에서는 전부 통과하고 사무실에서만 모든 그림이 404 나는 상태를 만들기
+  때문입니다. 형식만 진짜이고 내용은 합성입니다.
 
 관련 문서
 - back_dev_home/chat/MIGRATION.md — office 전환 순서, selector, 상한값
