@@ -234,8 +234,9 @@
                   원하는 데이터부터 바로 확인하세요
                 </h2>
                 <p class="mt-2 sk-body leading-6">
-                  왼쪽 목록에서 페이지별 안내를 확인하세요. 데이터를 직접 가져가려는 개발자는
-                  API 리스트를 참고하십시오.
+                  왼쪽 목록에서 페이지별 안내를 확인하세요. 기능 탭에 없는 조회·계산 도구는
+                  헤더의 실험실 메뉴에 모여 있으며, 장비군을 고른 뒤에 나타납니다. 데이터를
+                  직접 가져가려는 개발자는 API 리스트를 참고하십시오.
                 </p>
                 <div class="mt-4 flex items-center gap-2 sk-meta">
                   <UIcon
@@ -356,7 +357,7 @@ useHead({
   title: '소개 | SKEWNONO'
 })
 
-type GuideSection = 'common' | 'ebeam' | 'afm' | 'admin'
+type GuideSection = 'common' | 'ebeam' | 'lab' | 'afm' | 'admin'
 
 type PageGuide = {
   id: string
@@ -368,6 +369,10 @@ type PageGuide = {
   description: string
   users: string
   notes: string[]
+  // 실험실의 미검증 페이지는 헤더 메뉴와 같은 규칙으로 클라우드에서 안내에서도 빠집니다.
+  // 헤더에서는 감춰 두고 소개 페이지에서만 소개하면, 열 수 없는 화면을 광고하는 셈이 됩니다.
+  // 규칙의 원본은 utils/headerNav.ts 의 `hiddenOnCloud` 입니다.
+  hiddenOnCloud?: boolean
 }
 
 const overviewAreas = [
@@ -451,13 +456,14 @@ const audiences = [
 const sectionMeta: { key: GuideSection, label: string, icon: string }[] = [
   { key: 'common', label: '공통', icon: 'i-lucide-layout-grid' },
   { key: 'ebeam', label: 'E-Beam Metrology', icon: 'i-lucide-microscope' },
+  { key: 'lab', label: '실험실', icon: 'i-lucide-flask-conical' },
   { key: 'afm', label: 'AFM Metrology', icon: 'i-lucide-ruler' },
   { key: 'admin', label: '관리자', icon: 'i-lucide-shield-check' }
 ]
 
 // 안내에 싣는 section. 관리자 전용 화면은 일반 사용자에게 노출하지 않고,
 // AFM Metrology는 다음 버전에 공개하므로 지금은 감춰 둡니다 (guide 정의는 그대로 둡니다).
-const visibleSections: GuideSection[] = ['common', 'ebeam']
+const visibleSections: GuideSection[] = ['common', 'ebeam', 'lab']
 
 const pageGuides: PageGuide[] = [
   {
@@ -640,6 +646,72 @@ const pageGuides: PageGuide[] = [
     notes: ['현재 CD-SEM과 HV-SEM 진입 route가 모두 있습니다.']
   },
   {
+    id: 'mag-pixel',
+    title: 'Mag/Pixel 가이드',
+    path: '/mag-pixel',
+    icon: 'i-lucide-scan-search',
+    section: 'lab',
+    purpose: '측정하려는 패턴이 화면에 들어오는 한도에서 가장 높은 배율을 계산합니다.',
+    description: '패턴 크기와 pixel 조건을 입력하면 FOV 안에 패턴이 들어오는 최대 배율과 그때의 pixel size를 계산해 보여 줍니다.',
+    users: 'Recipe 조건을 잡는 계측 엔지니어',
+    notes: ['장비 데이터를 조회하지 않고 입력값만으로 계산하는 화면입니다.']
+  },
+  {
+    id: 'live-alarm',
+    title: '라이브 알람',
+    path: '/ebeam/{tool}/{fab}/live-alarm',
+    icon: 'i-lucide-radio',
+    section: 'lab',
+    purpose: 'Fab의 E-Beam 장비에서 지금 올라오는 알람을 한 보드에서 확인합니다.',
+    description: 'Align 계열과 Measurement 계열 알람을 장비별로 모아 보여 주고, 최근 발생 흐름을 함께 확인합니다.',
+    users: '장비 담당자, 당직 대응자',
+    notes: [
+      '헤더 실험실 메뉴에서 최근에 보던 장비군과 Fab 기준으로 열립니다.',
+      'CD-SEM과 HV-SEM 모두에서 사용할 수 있습니다.'
+    ]
+  },
+  {
+    id: 'tttm',
+    title: '장비간 스큐(TTTM)',
+    path: '/ebeam/cd-sem/{fab}/tttm',
+    icon: 'i-lucide-git-compare',
+    section: 'lab',
+    purpose: '같은 조건에서 장비끼리 측정값이 얼마나 맞는지 비교합니다.',
+    description: '장비 쌍별 스큐를 matrix 형태로 보여 주고, 허용 범위를 벗어난 조합을 찾아냅니다.',
+    users: '장비 정합성 검토자',
+    notes: [
+      'CD-SEM 전용이며 Fab 하나를 기준으로 봅니다.',
+      '추정 방식이 아직 검증 단계라 BETA로 표시하며, 판정 근거가 아니라 검토용 참고값입니다.'
+    ],
+    hiddenOnCloud: true
+  },
+  {
+    id: 'pm-tune',
+    title: 'PM 튜닝(PM-Tune)',
+    path: '/ebeam/cd-sem/{fab}/pm-tune',
+    icon: 'i-lucide-wrench',
+    section: 'lab',
+    purpose: 'PM 창에서 장비를 어느 목표로 맞춰야 그룹에 들어오는지 제시합니다.',
+    description: 'TTTM이 계산한 장비간 스큐를 받아, PM 대상 장비가 맞춰야 할 튜닝 목표와 여유를 보여 줍니다.',
+    users: 'PM 계획 담당자, 장비 담당자',
+    notes: [
+      'TTTM과 같은 payload를 사용하므로 두 화면은 함께 열리고 함께 닫힙니다.',
+      'CD-SEM 전용이며, TTTM과 같은 이유로 BETA입니다.'
+    ],
+    hiddenOnCloud: true
+  },
+  {
+    id: 'chat',
+    title: '채팅',
+    path: '/chat',
+    icon: 'i-lucide-message-square',
+    section: 'lab',
+    purpose: '데이터에 대해 자연어로 물어봅니다.',
+    description: 'SKEWNONO가 모아 둔 계측·장비 데이터를 대화로 확인하는 화면으로, Metrology AI Agent 방향의 첫 단계입니다.',
+    users: '전체 사용자',
+    notes: ['실험실의 다른 화면이 조회·계산이라면 이 화면은 대화이므로, 메뉴에서도 구분선 아래에 둡니다.']
+  },
+  {
     id: 'afm-tools',
     title: 'AFM Tool 선택',
     path: '/afm',
@@ -696,11 +768,20 @@ const pageGuides: PageGuide[] = [
   }
 ]
 
-const visiblePageGuides = pageGuides.filter(page => visibleSections.includes(page.section))
+// 클라우드 여부는 요청으로 도착하므로 목록도 computed 입니다. 답이 오기 전에는 false —
+// 미검증 화면이 잠깐 더 보이는 쪽이, 만드는 사람에게 안내가 사라지는 쪽보다 낫습니다
+// (같은 판단이 useDeployment 에 적혀 있습니다).
+const { isCloud } = useDeployment()
+
+const visiblePageGuides = computed(() =>
+  pageGuides.filter(page =>
+    visibleSections.includes(page.section) && !(isCloud.value && page.hiddenOnCloud)
+  )
+)
 
 const activePageId = ref('overview')
 const selectedPageGuide = computed<PageGuide>(() =>
-  visiblePageGuides.find(page => page.id === activePageId.value) ?? visiblePageGuides[0]!
+  visiblePageGuides.value.find(page => page.id === activePageId.value) ?? visiblePageGuides.value[0]!
 )
 
 const guideSections = computed(() =>
@@ -708,7 +789,7 @@ const guideSections = computed(() =>
     .filter(section => visibleSections.includes(section.key))
     .map(section => ({
       ...section,
-      pages: visiblePageGuides.filter(page => page.section === section.key)
+      pages: visiblePageGuides.value.filter(page => page.section === section.key)
     }))
     .filter(section => section.pages.length > 0)
 )
