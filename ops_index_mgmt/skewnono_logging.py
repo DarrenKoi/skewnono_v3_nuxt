@@ -2,8 +2,14 @@
 
 Both aliases live on the same company OpenSearch cluster, use the connection
 settings loaded by :func:`ops_store.create_client`, and share one canonical
-mapping. Their retention policies differ so office-local diagnostics never
-mix with production activity.
+mapping. Their retention policies differ (30d vs 365d) so a short-lived
+diagnostic family can be kept apart from production activity.
+
+In practice the office also runs with ``SKEWNONO_LOG_ENV=production``
+(confirmed 2026-08-20): office-localhost access is real usage and belongs in
+the activity record. The ``local`` family is provisioned but unused, so do
+not read a ``skewnono_logging`` row as necessarily coming from the cloud --
+``host`` is what distinguishes them, not ``deployment``.
 
 Run it as a plain script — no arguments provisions both environments::
 

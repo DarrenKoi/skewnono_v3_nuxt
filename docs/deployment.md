@@ -237,10 +237,15 @@ SKEWNONO_SECRET_KEY=<임의의 비어 있지 않은 문자열>
 
 활동 로그(OpenSearch)의 대상 alias 는 이 값 하나로 결정됩니다.
 
-| 값 | alias | 쓰는 곳 |
+| 값 | alias | 보존 |
 | --- | --- | --- |
-| `local` | `skewnono_logging_local` | 사무실 PC localhost (Phase 2) |
-| `production` | `skewnono_logging` | 사내 클라우드 (Phase 3) |
+| `local` | `skewnono_logging_local` | 30일 |
+| `production` | `skewnono_logging` | 365일 |
+
+**사무실 PC(Phase 2)도 `production` 을 씁니다** (2026-08-20 확인). 사무실
+localhost 로 접속한 것도 실제 사용이므로 활동 기록에 남아야 한다는 판단이며,
+부수 효과로 아래의 "사무실 `.env` 가 번들에 실려 클라우드까지 따라가는" 사고가
+애초에 생기지 않습니다. `local` 계열은 만들어져 있으나 현재 쓰이지 않습니다.
 
 클라우드에서는 **반드시 `production`** 이어야 합니다. `local` 로 두어도 앱은
 정상 기동하고 요청도 빠짐없이 색인됩니다 — 다만 전부 사무실용 alias 로
