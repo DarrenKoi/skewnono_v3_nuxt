@@ -364,6 +364,27 @@
                 @change="toggleDeviceSelect(row.original.lot_cd)"
               >
             </template>
+            <!-- 정렬 가능한 세 열(Lot · Meas (90d) · Grade)의 헤더 버튼.
+                 Grade 슬롯은 M 계열 레이아웃에는 해당 열이 없어 그냥 무시됩니다. -->
+            <template
+              v-for="sortable in sortableColumns"
+              :key="sortable.key"
+              #[`${sortable.key}-header`]
+            >
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 transition-colors hover:text-(--sk-ink)"
+                :class="tableSort?.key === sortable.key ? 'text-(--sk-ink)' : ''"
+                :aria-label="`${sortable.label} 정렬`"
+                @click="cycleSort(sortable.key)"
+              >
+                {{ sortable.label }}
+                <UIcon
+                  :name="sortIcon(sortable.key)"
+                  class="size-3.5 shrink-0"
+                />
+              </button>
+            </template>
             <template #meas_count-cell="{ row }">
               <span
                 v-if="measCountByLot.get(row.original.lot_cd) !== undefined"
@@ -529,10 +550,10 @@ const currentPage = ref(1)
 const view = useRowCardView('device-stats:listView', 'skewnono:deviceStatistics.listView')
 
 // 기본 페이지 크기는 보기 방식을 따릅니다. 행 카드 한 장이 표 한 행보다 훨씬
-// 높아 25 로 두면 한 페이지가 화면 세 개 분량이 되지만, 표 보기를 저장해 둔
+// 높아 50 으로 두면 한 페이지가 화면 여러 개 분량이 되지만, 표 보기를 저장해 둔
 // 사람에게까지 12행을 강요하면 정렬·붙여넣기 하러 온 쪽이 손해를 봅니다.
 // 첫 값만 정하고 그 뒤로는 사용자가 고른 값을 그대로 둡니다.
-const pageSize = ref(view.value === 'cards' ? '12' : '25')
+const pageSize = ref(view.value === 'cards' ? '12' : '50')
 
 const chipsExpanded = ref(false)
 
@@ -540,6 +561,45 @@ const chipsExpanded = ref(false)
 // 않습니다(순위 탐색용 토글이지, 남겨 둘 작업 조건이 아닙니다).
 const topNOptions = [10, 25, 50] as const
 const selectedTopN = ref<number | null>(null)
+
+// 표 헤더 클릭 정렬 — null 이면 기존 기본 정렬(lot_cd, 측정 상위 필터 시 순위순).
+// UTable 은 페이지 단위 pagedRows 만 받으므로 내장 정렬을 쓰면 현재 페이지
+// 안에서만 정렬됩니다. 전체 데이터 기준이어야 하니 sortedRows 단계에서 적용합니다.
+type SortKey = 'lot_cd' | 'meas_count' | 'plan_grade_cd'
+type SortDir = 'asc' | 'desc'
+const tableSort = ref<{ key: SortKey, dir: SortDir } | null>(null)
+
+// 측정 건수는 큰 값부터 보고 싶은 열이라 첫 클릭이 내림차순.
+const SORT_DEFAULT_DIR: Record<SortKey, SortDir> = {
+  lot_cd: 'asc',
+  meas_count: 'desc',
+  plan_grade_cd: 'asc'
+}
+
+const sortableColumns: { key: SortKey, label: string }[] = [
+  { key: 'lot_cd', label: 'Lot' },
+  { key: 'meas_count', label: 'Meas (90d)' },
+  { key: 'plan_grade_cd', label: 'Grade' }
+]
+
+// 클릭 사이클: 없음 → 기본 방향 → 반대 방향 → 없음(기본 정렬 복귀).
+const cycleSort = (key: SortKey) => {
+  const current = tableSort.value
+  if (!current || current.key !== key) {
+    tableSort.value = { key, dir: SORT_DEFAULT_DIR[key] }
+  } else if (current.dir === SORT_DEFAULT_DIR[key]) {
+    tableSort.value = { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+  } else {
+    tableSort.value = null
+  }
+}
+
+const sortIcon = (key: SortKey) => {
+  if (tableSort.value?.key !== key) return 'i-lucide-arrow-up-down'
+  return tableSort.value.dir === 'asc'
+    ? 'i-lucide-arrow-up-narrow-wide'
+    : 'i-lucide-arrow-down-wide-narrow'
+}
 
 const { data, pending, error } = await useAsyncData<DeviceRow[]>(
   'device-statistics',
@@ -682,6 +742,42 @@ const matchesDomainFilters = (row: DeviceRow) => {
 
 const sortedRows = computed(() => {
   const sourceRows: DeviceRow[] = hasRSelection.value ? r3Rows.value : mRows.value
+
+  // 헤더 클릭 정렬이 켜져 있으면 그것이 우선 — 측정 상위 필터의 순위 정렬보다
+  // 사용자가 방금 명시한 축이 이깁니다. 동률은 lot_cd 로 안정화합니다.
+  const sort = tableSort.value
+  if (sort !== null) {
+    const dir = sort.dir === 'asc' ? 1 : -1
+
+    if (sort.key === 'meas_count') {
+      const counts = measCountByLot.value
+      return [...sourceRows].sort((left, right) => {
+        const leftCount = counts.get(left.lot_cd)
+        const rightCount = counts.get(right.lot_cd)
+        // 순위 자료가 없는 lot 은 "0건" 이 아니라 "모름" — 방향과 무관하게 맨 뒤.
+        if (leftCount === undefined && rightCount === undefined) {
+          return sortCollator.compare(left.lot_cd, right.lot_cd)
+        }
+        if (leftCount === undefined) return 1
+        if (rightCount === undefined) return -1
+        return (leftCount - rightCount) * dir || sortCollator.compare(left.lot_cd, right.lot_cd)
+      })
+    }
+
+    const valueOf = (row: DeviceRow) => sort.key === 'lot_cd'
+      ? row.lot_cd
+      : (row as R3DeviceGrpRow).plan_grade_cd ?? ''
+    return [...sourceRows].sort((left, right) => {
+      const leftValue = valueOf(left)
+      const rightValue = valueOf(right)
+      // 빈 Grade 는 Meas 열의 "순위 없음" 과 같은 규칙 — 방향과 무관하게 맨 뒤.
+      if (!leftValue && !rightValue) return sortCollator.compare(left.lot_cd, right.lot_cd)
+      if (!leftValue) return 1
+      if (!rightValue) return -1
+      return sortCollator.compare(leftValue, rightValue) * dir
+        || sortCollator.compare(left.lot_cd, right.lot_cd)
+    })
+  }
 
   // 측정 상위 필터가 켜지면 순위순으로 — 순위 밖(순위 목록에 없는) lot 은 맨 뒤.
   if (selectedTopN.value !== null) {
@@ -1031,6 +1127,7 @@ const resetAllFilters = () => {
   selectedLots.value = []
   selectedTechs.value = []
   selectedTopN.value = null
+  tableSort.value = null
   lotSearch.value = ''
   techSearch.value = ''
   tableSearch.value = ''
@@ -1044,6 +1141,7 @@ const hasActiveFilters = computed(() => {
     || selectedLots.value.length > 0
     || selectedTechs.value.length > 0
     || selectedTopN.value !== null
+    || tableSort.value !== null
     || lotSearch.value.length > 0
     || techSearch.value.length > 0
     || tableSearch.value.length > 0
@@ -1082,6 +1180,9 @@ const syncSelectionWithOptions = (selectedValues: string[], options: string[]) =
 // are pruned by the watcher on `pending`/`sortedRows` below.
 watch(selectedFab, () => {
   selectedDeviceLots.value = []
+  // Grade(plan_grade_cd)는 R3 전용 열 — fab 이 바뀌면 정렬 축 자체가 사라질 수
+  // 있으니 기본 정렬로 되돌립니다.
+  tableSort.value = null
 })
 
 watch([sortedRows, pending], ([nextSortedRows, nextPending]) => {
@@ -1186,7 +1287,7 @@ watch([filteredRowCount, pageSize], () => {
   }
 })
 
-watch([selectedFab, selectedProdCategories, selectedLots, selectedTechs, selectedTopN, tableSearch], () => {
+watch([selectedFab, selectedProdCategories, selectedLots, selectedTechs, selectedTopN, tableSearch, tableSort], () => {
   currentPage.value = 1
 })
 
