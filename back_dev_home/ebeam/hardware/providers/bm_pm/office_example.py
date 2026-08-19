@@ -20,15 +20,20 @@ Deliberately unread: ``up_dt`` (an expected-up field that is not maintained —
 the planned side lives in ``tool_maintenance_plan``), ``fac_id`` (coarser than
 fab and not a join key), and ``ll_dt``/``limit_dt``/``org_dt`` (normally empty).
 
-These two indices are ASSUMED to store offset-less KST wall clock, like
-``network_fdc_cdsem``. That is the documented cross-index convention
-(``docs/datatables/README.md``) and the office data is generated on Korean
-time (user-confirmed 2026-08-20), but these two specific indices have not been
-read at the office yet, and one index in this repo genuinely departs from the
-convention (``skewnono_logging``, which we write ourselves, stores UTC with an
-offset). A stored ``Z`` suffix here would slide every window by nine hours, so
-run this module's ``__main__`` — it prints raw stored values next to the
-reformatted ones — before trusting the tab.
+``fab_inform_notes`` stores offset-less KST wall clock — office 확인
+2026-08-20, a real run returned ``down_dt='2026-05-31T08:57:00'`` with no
+``Z`` and no offset, rendered unchanged as ``2026-05-31 08:57``. That matches
+``network_fdc_cdsem`` and the cross-index convention in
+``docs/datatables/README.md``.
+
+``tool_maintenance_plan`` is still ASSUMED to match: the same run diagnosed
+only the past index, so ``chg_tm``/``tool_start_tm`` have not been read. The
+convention makes it likely, but one index in this repo does depart from it
+(``skewnono_logging``, which we write ourselves, stores UTC with an offset),
+so a stored ``Z`` there would still slide the future window by nine hours.
+Run this module's ``__main__`` — it prints raw stored values next to the
+reformatted ones — and read the ``tool_maintenance_plan`` section before
+trusting the 예정 table.
 
 The request side used to carry an independent nine-hour defect and no longer
 does: ``hardware/routes.py`` deleted the ``Z`` from the frontend's
@@ -255,8 +260,18 @@ def _diagnose(eqp_id: str, anchor: datetime) -> None:  # pragma: no cover
     os_client = client()
 
     def _count(index: str, filters: list) -> Any:
+        # track_total_hits is what makes this a COUNT rather than a ceiling:
+        # without it OpenSearch stops counting at 10,000 and reports exactly
+        # that, with relation="gte". A clause-isolation probe whose whole job
+        # is comparing counts then prints "10000" for both a 10k and a 900k
+        # result, and the comparison silently means nothing.
         res = os_client.search(
-            index=index, body={"size": 0, "query": {"bool": {"filter": filters}}}
+            index=index,
+            body={
+                "size": 0,
+                "track_total_hits": True,
+                "query": {"bool": {"filter": filters}},
+            },
         )
         total = res.get("hits", {}).get("total", {})
         return total.get("value") if isinstance(total, dict) else total

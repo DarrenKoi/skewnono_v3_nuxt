@@ -235,11 +235,11 @@ def build_bm_pm_data(eqp_id: str, anchor: datetime) -> dict[str, object]:
     mocks generate against, so BM/PM overlay markers land inside chart
     ranges. Same (eqp_id, anchor) → same data.
 
-    That clock is a naive **KST wall clock**, which is what the office indices
-    store (`docs/datatables/README.md`; 사무실 데이터가 한국 시간 기준으로
-    생성됨 — user-confirmed 2026-08-20). `hardware/routes.py` converts the
-    frontend's UTC `toISOString()` value before it gets here, so this mock and
-    the office adapter are handed the same kind of value.
+    That clock is a naive **KST wall clock**, which is what the office index
+    stores (office 확인 2026-08-20: `fab_inform_notes.down_dt` came back as
+    `'2026-05-31T08:57:00'`, no `Z`, no offset). `hardware/routes.py` converts
+    the frontend's UTC `toISOString()` value before it gets here, so this mock
+    and the office adapter are handed the same kind of value.
     """
     rng = random.Random(seed_for(eqp_id))
     past = build_past_frame(eqp_id, rng, anchor).to_dict(orient="records")
