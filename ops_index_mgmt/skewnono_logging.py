@@ -238,13 +238,59 @@ def create_skewnono_client() -> Any:
     return create_client()
 
 
+def _is_not_found(error: Exception) -> bool:
+    # Imported lazily, the way ops_store does it: this script is meant to run
+    # standalone, including beside an install without the driver.
+    try:
+        from opensearchpy.exceptions import NotFoundError
+    except ModuleNotFoundError:
+        return False
+    return isinstance(error, NotFoundError)
+
+
+def get_ism_policy(client: Any, policy_id: str) -> dict[str, Any] | None:
+    """The stored policy, or None when it has never been created."""
+    try:
+        return client.transport.perform_request(
+            "GET",
+            f"/_plugins/_ism/policies/{policy_id}",
+        )
+    except Exception as exc:
+        if _is_not_found(exc):
+            return None
+        raise
+
+
 def put_ism_policy(
     client: Any,
     target: LoggingIndexTarget,
 ) -> dict[str, Any]:
+    """Create the retention policy, or update the one already stored.
+
+    ISM reads a bare PUT as a *create* and answers 409
+    ``version_conflict_engine_exception`` once the policy exists; an update
+    has to carry the current sequence number as a guard. Without it this
+    script's "re-running is a safe no-op" is false on every run after the
+    first -- and because the policy is provisioned FIRST, that 409 also costs
+    the index template and the additive mapping update that follow it. That is
+    the shape the failure takes in practice: a newly added log field never
+    reaches the mapping, and ``dynamic: "false"`` then keeps it out of every
+    aggregation while still storing it in ``_source``, so the field looks
+    present in a document and is missing from every query that counts.
+    """
+    existing = get_ism_policy(client, target.policy_id)
+    params = (
+        {
+            "if_seq_no": existing["_seq_no"],
+            "if_primary_term": existing["_primary_term"],
+        }
+        if existing is not None
+        else None
+    )
     return client.transport.perform_request(
         "PUT",
         f"/_plugins/_ism/policies/{target.policy_id}",
+        params=params,
         body=build_ism_policy_body(target),
     )
 

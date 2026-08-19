@@ -28,6 +28,7 @@ like any other backend module.
 import os
 
 import pytest
+from opensearchpy.exceptions import NotFoundError
 
 from ops_index_mgmt import hitachi_sem_msr_info as sem_msr
 from ops_index_mgmt import skewnono_logging as logging_setup
@@ -185,6 +186,61 @@ def test_the_retention_age_is_longer_than_the_rollover_age(environment):
     assert int(target.retention_age.rstrip("d")) > int(
         logging_setup.ROLLOVER_AGE.rstrip("d")
     )
+
+
+class FakeTransport:
+    """Records ISM requests and answers GET from a policy store."""
+
+    def __init__(self, policies: dict[str, dict] | None = None) -> None:
+        self.policies = policies or {}
+        self.calls: list[tuple[str, str, dict | None]] = []
+
+    def perform_request(self, method, url, params=None, body=None):
+        self.calls.append((method, url, params))
+        if method == "GET":
+            policy_id = url.rsplit("/", 1)[-1]
+            try:
+                return self.policies[policy_id]
+            except KeyError:
+                raise NotFoundError(404, "not_found", {}) from None
+        return {"acknowledged": True}
+
+
+class FakeIsmClient:
+    def __init__(self, transport: FakeTransport) -> None:
+        self.transport = transport
+
+
+def test_a_first_run_creates_the_policy_without_a_version_guard():
+    target = logging_setup.target_for("local")
+    transport = FakeTransport()
+
+    logging_setup.put_ism_policy(FakeIsmClient(transport), target)
+
+    method, url, params = transport.calls[-1]
+    assert method == "PUT"
+    assert url == f"/_plugins/_ism/policies/{target.policy_id}"
+    # A create must NOT carry if_seq_no -- there is no document to guard.
+    assert params is None
+
+
+def test_re_running_updates_the_existing_policy_instead_of_409ing():
+    """ISM reads a bare PUT as a create and answers 409
+    version_conflict_engine_exception once the policy exists. This script
+    promises that re-running is a safe no-op, and the policy is provisioned
+    FIRST -- so without the version guard a second run also costs the index
+    template and the additive mapping update that follow it, which is how a
+    newly added log field silently fails to reach the index."""
+    target = logging_setup.target_for("local")
+    transport = FakeTransport(
+        {target.policy_id: {"_seq_no": 7, "_primary_term": 2, "policy": {}}}
+    )
+
+    logging_setup.put_ism_policy(FakeIsmClient(transport), target)
+
+    method, _url, params = transport.calls[-1]
+    assert method == "PUT"
+    assert params == {"if_seq_no": 7, "if_primary_term": 2}
 
 
 def test_the_ism_template_auto_attaches_the_policy_to_future_indices():
