@@ -501,7 +501,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-house',
     section: 'common',
     purpose: 'SKEWNONO의 첫 진입 화면입니다.',
-    description: 'CD-SEM, HV-SEM 같은 E-Beam 작업 영역을 선택하고 각 장비군의 대표 상태를 빠르게 확인하는 허브 역할을 합니다.',
+    description: 'FAB을 고르면 그 선택이 다른 화면까지 따라갑니다. CD-SEM·HV-SEM 같은 작업 영역이 장비 대수와 함께 나열됩니다. 오른쪽 시스템 상태 카드에서 검색·저장소·캐시가 살아 있는지 한눈에 확인하고 펼치면 각 서비스의 응답 시간까지 봅니다. 장비군별 online/total 요약과 미연결 장비 목록으로 가는 입구도 여기 있습니다.',
     users: '일반 엔지니어, 장비 담당자, 신규 사용자',
     notes: ['장비군 선택은 사용자의 의도가 강하므로 상단에서 과도한 교차 전환을 강요하지 않습니다.']
   },
@@ -512,7 +512,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-settings',
     section: 'common',
     purpose: '개인 설정과 API Token을 관리하는 화면입니다.',
-    description: '색상 모드, ECharts theme, API Token 발급/복사/폐기 기능을 제공합니다.',
+    description: '색상 모드와 ECharts 테마를 고르고 /api/* 호출에 쓰는 API Token을 만들고 폐기합니다. 토큰 표에는 라벨과 생성일, 마지막 사용 시각이 남아 어떤 토큰이 실제로 쓰이는지 알 수 있습니다. 발급 직후 모달에 뜨는 평문 토큰은 그때 한 번만 보입니다.',
     users: '개인 개발 환경에서 API를 호출하려는 사용자',
     notes: ['Token plaintext는 발급 직후 한 번만 보여주므로 바로 저장해야 합니다.']
   },
@@ -523,7 +523,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-bar-chart-3',
     section: 'common',
     purpose: 'SKEWNONO가 어떻게 쓰이고 있는지 확인하는 화면입니다.',
-    description: '내 최근 활동과 자주 쓰는 기능을 요약하고, 많이 쓰이는 기능과 Fab별 사용 추이를 함께 보여줍니다.',
+    description: '맨 위는 내 사용 패턴입니다. 이번 달 요청 수와 활동일, 자주 쓰는 기능 Top 5, 30일 스파크라인이 놓입니다. 그 아래로 DAU·WAU·MAU 같은 전체 지표와 인기 기능 Top 10, FAB별 페이지 사용량이 7일·30일 기준으로 이어집니다. 관리자는 사용자별 사용 현황 표를 검색·정렬하고 CSV로 내려받을 수 있습니다.',
     users: '전체 사용자',
     notes: ['개인 활동과 전체 집계를 나란히 두어 내 사용 패턴을 전체 흐름과 비교할 수 있습니다.']
   },
@@ -556,7 +556,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-microscope',
     section: 'ebeam',
     purpose: 'E-Beam 장비군별 Fab 진입점을 제공합니다.',
-    description: 'CD-SEM 또는 HV-SEM을 선택한 뒤 Fab별 장비 목록, storage, recipe, 통계 기능으로 이동합니다.',
+    description: '화면이 따로 없는 갈아타는 지점입니다. 마지막으로 보던 FAB, 처음이라면 R3의 장비 목록으로 곧장 옮겨 가므로 사용자는 CD-SEM인지 HV-SEM인지만 고르면 됩니다.',
     users: 'E-Beam 엔지니어',
     notes: ['VeritySEM, Provision은 준비 중 화면으로 유지됩니다.']
   },
@@ -567,7 +567,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-list-checks',
     section: 'ebeam',
     purpose: 'Fab별 E-Beam 장비 현황을 확인하는 기본 작업 화면입니다.',
-    description: '장비 ID, model, vendor, IP, online/offline 상태를 탐색하고 필요한 장비의 상세 기능으로 이동합니다.',
+    description: '장비 ID, Model, Vendor, IP, Version을 한 표에서 보고 Available과 Offline 상태를 우선 정렬로 확인합니다. 상단의 Available·Offline 칩은 눌러서 그대로 필터가 되고 검색과 Model 셀렉트로 범위를 좁힙니다. 각 행에서 H/W 상태 화면으로 바로 넘어가거나 IP를 복사할 수 있습니다. 화면에 없는 Fac까지 담은 CSV도 내려받습니다.',
     users: 'Fab 담당 엔지니어, 장비 담당자',
     notes: ['CSV 다운로드와 filtering은 장비 현황 확인을 빠르게 하기 위한 보조 기능입니다.']
   },
@@ -578,7 +578,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-hard-drive',
     section: 'ebeam',
     purpose: '장비별 storage 사용량과 unavailable 상태를 확인합니다.',
-    description: 'Fab, 장비, 사용률, capacity, recipe count 기준으로 storage 상태를 비교합니다.',
+    description: '장비별로 Total·Used·Available·Usage와 Recipe 수, 마지막 보고 시각이 늘어서고 사용률은 색 막대로 나타납니다. 위험 98% 이상, 주의 90~97% 같은 구간 필터와 20종 정렬 프리셋이 있습니다. Recipe 수가 장비 상한 50,000에 가까워지면 따로 경고합니다. 아래쪽 PPID 미접속 장비 패널에서 며칠째 응답이 없는 장비도 함께 확인합니다.',
     users: '장비 storage 관리 담당자',
     notes: ['tool_slug는 cdsem 또는 hvsem입니다.']
   },
@@ -589,7 +589,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-cpu',
     section: 'ebeam',
     purpose: '장비별 hardware 보조 서비스 상태를 확인합니다.',
-    description: 'BSM, FDC, BM/PM 같은 service를 선택하고 장비 또는 Fab 기준으로 payload를 조회합니다.',
+    description: '왼쪽 레일에서 장비를 고르고 오른쪽에서 FDC·Sharpness 두 데일리 서비스와 BM/PM·BSM·Reso Center·MDC·SCE 다섯 분기 서비스를 탭으로 오갑니다. 서비스마다 전용 패널이 있어 추세와 비교 차트를 보고 BM/PM 표시를 켜면 정비 이벤트가 차트 위 마커로 겹쳐 보입니다. 비교 장비를 붙이면 같은 축에서 두 장비를 나란히 놓을 수 있습니다.',
     users: '장비 hardware 담당자',
     notes: ['같은 화면 컴포넌트를 CD-SEM과 HV-SEM에서 공유합니다.']
   },
@@ -600,7 +600,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-search-code',
     section: 'ebeam',
     purpose: 'Recipe catalog를 검색하고 상세 분석 화면으로 이동합니다.',
-    description: 'recipe_name, Fab, tool type 기준으로 recipe를 찾고 open, lateral, meas history 화면으로 이어집니다.',
+    description: '세 글자 이상 입력하면 공백과 밑줄로 나눈 조각을 모두 포함하는 recipe를 찾습니다. Redis 카탈로그를 먼저 뒤지고 없으면 OpenSearch로 다시 찾는데, 이때는 배너와 행 태그로 출처가 드러나고 Redis로 다시 시도할 수도 있습니다. 결과를 체크해 작업 세트에 담으면 열어 보기·횡전개·측정 이력·비교하기로 한꺼번에 넘어갑니다.',
     users: 'Recipe 담당 엔지니어, 계측 조건 분석자',
     notes: ['행 전체 클릭보다 명시적인 action 버튼으로 상세 화면에 진입합니다.']
   },
@@ -611,7 +611,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-file-code',
     section: 'ebeam',
     purpose: '선택한 recipe의 open recipe 상세 구조를 확인합니다.',
-    description: 'wafer measurement point, align point, image 정의, AMP 관련 정보를 확인합니다.',
+    description: '왼쪽 파라미터 목록에서 하나를 고르면 오른쪽이 그 파라미터의 상세로 바뀝니다. 이미지와 설정 탭에서 Addressing·Measurement SEM 이미지와 AF/PR 조건을 보고, 나머지 탭에서 AMP 설정과 Sequence 구성, 해당 파라미터의 측정 위치를 확인합니다. Align 정보는 별도 모달에 좌표 표와 정렬 이미지로 있습니다. 필요하면 이미지까지 포함해 Excel로 내려받습니다.',
     users: 'Recipe 분석자',
     notes: ['recipe_name query parameter가 필요합니다.']
   },
@@ -622,7 +622,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-git-compare',
     section: 'ebeam',
     purpose: '장비별 lateral recipe 보유 여부를 확인합니다.',
-    description: '선택 recipe가 각 장비에서 준비되어 있는지 비교하고 미보유 장비를 파악합니다.',
+    description: '고른 recipe가 FAB 안 장비에 있는지를 보유와 미보유 탭으로 나눠 보이고 보유 비율을 함께 표시합니다. 보유 탭은 recipe_version별로 표를 갈라 최신 버전부터 세우므로 버전이 섞여 있으면 어느 장비가 옛 버전에 남아 있는지 바로 보입니다.',
     users: 'Recipe 배포 담당자',
     notes: ['Recipe Search에서 선택한 recipe context로 이동합니다.']
   },
@@ -633,7 +633,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-history',
     section: 'ebeam',
     purpose: '선택 recipe의 측정 이력을 확인합니다.',
-    description: 'MSR 존재 여부, align fail, measurement fail 같은 이력 정보를 recipe 기준으로 조회합니다.',
+    description: '최근 30일 측정 row를 최신순으로 놓고 msr_check·align_fail·fail_ratio로 상태를 판단합니다. MSR 없음과 Align Fail, 평균 fail 비율은 상단에 따로 세어 둡니다. 표에서는 fail 비율이 15%를 넘으면 붉게 표시합니다. align 정렬은 알파벳순이 아니라 Fail·NA·Pass 순으로 나쁜 것부터 올라옵니다.',
     users: '계측 결과 확인자',
     notes: ['필요 시 MSR file 상세 조회로 이어집니다.']
   },
@@ -644,7 +644,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-timer',
     section: 'ebeam',
     purpose: 'Recipe TAT와 Align/Meas fail 이슈를 한 화면에서 확인합니다.',
-    description: 'Recipe TAT · Align Fail · Meas Fail 세 개의 내부 탭으로 recipe 수행 시간, 병목, fail 이슈를 기간/lot/Fab 기준으로 분석합니다.',
+    description: 'Recipe TAT 탭에서는 총 TAT와 실행 수, Top N 막대와 일별 추세로 어떤 recipe가 시간을 먹는지 봅니다. Align Fail과 Meas Fail 탭은 같은 기간을 기준으로 fail 건수와 비율을 Bar·Line·Ratio로 바꿔 가며 나타냅니다. 세 탭 모두 전체 요약, 디바이스별, 장비별로 시야를 바꿀 수 있고 랭킹 표의 각 행에서 열어 보기·횡전개·측정 이력으로 바로 이어집니다.',
     users: '공정/계측 효율 분석자, 장비/계측 품질 담당자',
     notes: [
       '기존 Recipe TAT · Fail 이슈 페이지가 이 화면으로 통합되었습니다 (이전 URL은 자동 redirect).',
@@ -658,7 +658,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-table-properties',
     section: 'ebeam',
     purpose: 'CD-SEM device와 lot 기준 recipe 통계를 비교합니다.',
-    description: 'R3 device group, M-fab device description, lot별 recipe statistics와 trend를 조합해 분석합니다.',
+    description: 'Fab을 고르고 측정 상위와 카테고리, Lot/Tech 칩으로 범위를 좁힌 다음 디바이스 표에서 볼 lot을 체크해 담습니다. 담은 조합은 프리셋으로 저장해 두었다가 다시 꺼낼 수 있습니다. 비교 화면에서는 파라미터 분포와 운용 레시피 수를 차트로 견주고, Lot 요약 표의 행을 열면 recipe 상세와 추세, 중앙값을 넘은 파라미터까지 모달로 확인합니다.',
     users: 'CD-SEM device 분석자',
     notes: ['선택한 lot은 comparison 화면으로 이어집니다.']
   },
@@ -669,7 +669,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-scan-search',
     section: 'ebeam',
     purpose: 'MSR 기반 CD 분포와 wafer 위치 분석을 수행합니다.',
-    description: 'MSR 목록을 선택하고 시간 흐름, CD 분포, wafer map, sequence trend를 함께 봅니다.',
+    description: '장비·Recipe·Lot·날짜·MSR을 한 검색창에 섞어 넣으면 토큰으로 갈라 찾습니다. 결과에서 측정을 골라 워크벤치에 쌓고, 분석 화면의 여섯 관점인 측정 개요, 위치 비교, FDC, Time-Series, 상관·분포, 이미지 갤러리를 단축키로 오갑니다. 선택과 축, baseline까지 URL에 실리므로 링크를 건네면 상대도 같은 화면을 봅니다.',
     users: '계측 데이터 분석자',
     notes: ['현재 CD-SEM과 HV-SEM 진입 route가 모두 있습니다.']
   },
@@ -680,7 +680,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-scan-search',
     section: 'lab',
     purpose: '측정하려는 패턴이 화면에 들어오는 한도에서 가장 높은 배율을 계산합니다.',
-    description: '패턴 크기와 pixel 조건을 입력하면 FOV 안에 패턴이 들어오는 최대 배율과 그때의 pixel size를 계산해 보여 줍니다.',
+    description: 'CD와 Pitch, 패턴 수, 여유 마진을 넣으면 필요한 FOV를 계산하는데, 이어서 그 안에 들어오는 최대 배율과 그때의 픽셀 크기, CD당 픽셀 수까지 나옵니다. 추천 조합 카드가 기준 통과 여부와 스캔 시간까지 알려 주고, 마진 민감도 표는 마진을 조금 바꿨을 때 배율이 어떻게 계단식으로 움직이는지 나타냅니다. 오른쪽 미리보기 그림과 참조표로 패턴이 FOV에 들어오는 모습과 배율별 픽셀 값을 확인합니다.',
     users: 'Recipe 조건을 잡는 계측 엔지니어',
     notes: ['장비 데이터를 조회하지 않고 입력값만으로 계산하는 화면입니다.']
   },
@@ -691,7 +691,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-radio',
     section: 'lab',
     purpose: 'Fab의 E-Beam 장비에서 지금 올라오는 알람을 한 보드에서 확인합니다.',
-    description: 'Align 계열과 Measurement 계열 알람을 장비별로 모아 보여 주고, 최근 발생 흐름을 함께 확인합니다.',
+    description: '최근 20분 사이의 Align 실패와 측정 실패를 15초마다 새로 받아 장비별로 늘어놓습니다. 알람마다 lot과 FOUP, step, alid와 경과 시간이 붙고 recipe_id를 누르면 그 recipe 검색으로 넘어갑니다. 측정 실패만 볼 때는 장비와 ppid가 같은 건을 묶어 접어 둡니다. 아직 읽지 않은 알람 수는 브라우저 탭 제목에도 표시합니다.',
     users: '장비 담당자, 당직 대응자',
     notes: [
       '헤더 실험실 메뉴에서 최근에 보던 장비군과 Fab 기준으로 열립니다.',
@@ -705,7 +705,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-git-compare',
     section: 'lab',
     purpose: '같은 조건에서 장비끼리 측정값이 얼마나 맞는지 비교합니다.',
-    description: '장비 쌍별 스큐를 matrix 형태로 보여 주고, 허용 범위를 벗어난 조합을 찾아냅니다.',
+    description: 'recipe와 parameter, 볼 장비를 고르면 장비 쌍마다 측정값 차이를 행렬로 계산해 허용 범위를 넘은 조합을 짚습니다. 배치도에서 어느 장비가 그룹 밖으로 벗어났는지 보고, 셀별 심각도와 추세, BM/PM·MDC 이력을 함께 놓아 언제부터 벌어졌는지 따라갑니다. 허용 범위는 슬라이더로 바꿔 가며 결과가 어떻게 달라지는지 볼 수 있습니다.',
     users: '장비 정합성 검토자',
     notes: ['CD-SEM 전용이며 Fab 하나를 기준으로 봅니다.'],
     hiddenOnCloud: true
@@ -717,7 +717,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-wrench',
     section: 'lab',
     purpose: 'PM 창에서 장비를 어느 목표로 맞춰야 그룹에 들어오는지 제시합니다.',
-    description: 'TTTM이 계산한 장비간 스큐를 받아, PM 대상 장비가 맞춰야 할 튜닝 목표와 여유를 보여 줍니다.',
+    description: 'TTTM이 계산한 장비간 스큐를 그대로 받습니다. 튜닝할 장비를 고르면 그 장비가 그룹에 들어가려면 셀마다 몇 nm를 움직여야 하는지 제시합니다. 게이트 카드에서 Up 가능인지 Hold인지와 최근 PM 완료일, PM 전후 변화를 확인하고 다음 PM 후보 랭킹으로 기준선을 넘은 장비들을 훑습니다. recipe와 parameter, 장비 선택은 TTTM과 같은 설정을 쓰므로 한쪽에서 바꾸면 다른 쪽에도 반영됩니다.',
     users: 'PM 계획 담당자, 장비 담당자',
     notes: [
       'TTTM과 같은 payload를 사용하므로 두 화면은 함께 열리고 함께 닫힙니다.',
@@ -732,7 +732,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-message-square',
     section: 'lab',
     purpose: '데이터에 대해 자연어로 물어봅니다.',
-    description: 'SKEWNONO가 모아 둔 계측·장비 데이터를 대화로 확인하는 화면으로, Metrology AI Agent 방향의 첫 단계입니다.',
+    description: '왼쪽에 대화 목록, 가운데에 주고받은 메시지가 놓이고 모델과 시스템 프롬프트는 첫 메시지를 보내기 전까지만 바꿀 수 있습니다. 답변에는 응답 시간과 토큰 수, 참고한 출처가 함께 붙고 좋아요와 싫어요로 평가를 남길 수 있습니다. 백엔드가 준비되지 않은 환경에서는 화면 대신 준비 중 안내가 뜹니다.',
     users: '전체 사용자',
     notes: ['실험실의 다른 화면이 조회·계산이라면 이 화면은 대화이므로, 메뉴에서도 구분선 아래에 둡니다.']
   },
