@@ -166,6 +166,63 @@ test('the fab hub is one identity across every tool family', () => {
   assert.ok(identities.has('#tool-inventory'))
 })
 
+test('the fab list is not part of a page identity', () => {
+  // buildFabSegment joins the selection, so a two-fab session routes through
+  // /ebeam/<tool>/m14,r3/… Matching a single fab code only, the whole list
+  // stayed in the canonical path, no rule matched it, and every multi-fab page
+  // fell back to `landing` — one identity for the entire tool. The beacon then
+  // fired for the first page of the session and deduped every page after it.
+  const storage = resolvePageIdentity('/ebeam/cd-sem/M14/storage', {})
+
+  for (const path of [
+    '/ebeam/cd-sem/m14,r3/storage',
+    '/ebeam/cd-sem/M14,R3/storage',
+    '/ebeam/cd-sem/r3,m16b,m11/storage'
+  ]) {
+    assert.equal(resolvePageIdentity(path, {}), storage, path)
+  }
+
+  // Distinct pages under one multi-fab segment must stay distinct — this is
+  // the half that was losing page opens.
+  const identities = new Set([
+    resolvePageIdentity('/ebeam/cd-sem/m14,r3/storage', {}),
+    resolvePageIdentity('/ebeam/cd-sem/m14,r3/hardware', {}),
+    resolvePageIdentity('/ebeam/cd-sem/m14,r3/live-alarm', {}),
+    resolvePageIdentity('/ebeam/cd-sem/m14,r3', {})
+  ])
+
+  assert.equal(identities.size, 4)
+})
+
+test('a multi-fab recipe-status keeps the tab as its only distinction', () => {
+  // The tab branch keys on the canonical path, so an unstripped fab list gave
+  // each fab combination its own identity for the same tab — splitting one
+  // feature into as many series as there are ways to pick fabs.
+  const single = resolvePageIdentity('/ebeam/cd-sem/M14/recipe-status', { tab: 'tat' })
+
+  assert.equal(
+    resolvePageIdentity('/ebeam/cd-sem/m14,r3/recipe-status', { tab: 'tat' }),
+    single
+  )
+  assert.notEqual(
+    resolvePageIdentity('/ebeam/cd-sem/m14,r3/recipe-status', { tab: 'align' }),
+    single
+  )
+})
+
+test('a malformed fab list is not swallowed as a fab', () => {
+  // A trailing comma or an unknown code must fall through to the tool
+  // fallback rather than being stripped, which would misfile it as the page
+  // that happens to follow it.
+  const hub = resolvePageIdentity('/ebeam/cd-sem/M14', {})
+
+  assert.notEqual(resolvePageIdentity('/ebeam/cd-sem/m14,/storage', {}), hub)
+  assert.notEqual(
+    resolvePageIdentity('/ebeam/cd-sem/m14,x9/storage', {}),
+    resolvePageIdentity('/ebeam/cd-sem/M14/storage', {})
+  )
+})
+
 test('an unmapped e-beam page falls back to its tool, not to the fab hub', () => {
   // Otherwise a page nobody mapped would be counted as 장비 상태 — a confident
   // wrong answer where the tool fallback gives a vague right one.

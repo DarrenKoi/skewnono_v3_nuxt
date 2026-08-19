@@ -24,7 +24,15 @@
 // Fab segments are `[fab]` route params, so the same page under two fabs has
 // two paths. Matches fab_name shape, same as plugins/persist-fab.client.ts and
 // the backend's _FAB_SEGMENT.
-const FAB_SEGMENT = /^[RM]\d{1,2}[A-C]?$/i
+//
+// A comma-separated list is a fab segment too — buildFabSegment joins the
+// selected fabs, so a multi-fab session routes through /ebeam/<tool>/m14,r3/…
+// Matching a single code only left the list in the canonical path, where no
+// rule matches it, so every multi-fab page fell through to `landing` and shared
+// ONE identity: the beacon fired for the first page of the session and deduped
+// every page after it. The backend mislabelled the same paths `cdsem`.
+const FAB_CODE = String.raw`[RM]\d{1,2}[A-C]?`
+const FAB_SEGMENT = new RegExp(`^${FAB_CODE}(,${FAB_CODE})*$`, 'i')
 
 const TAB_ROUTE = 'recipe-status'
 const VALID_TABS = new Set(['tat', 'align', 'meas'])

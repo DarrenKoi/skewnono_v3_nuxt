@@ -257,6 +257,32 @@ def test_the_retired_hyphenated_verity_sem_path_still_resolves():
     assert page_to_feature("/ebeam/verity-sem/M14/unmapped-page") == "verity_sem"
 
 
+def test_a_multi_fab_segment_is_still_a_fab_segment():
+    """utils/fab.ts's buildFabSegment joins the selected fabs with commas.
+
+    Matching a single fab code only, the classifier did not recognise
+    "m14,r3" as a fab, left it in the path, matched no page rule and filed
+    every multi-fab page under the tool fallback — which is how CD-SEM came
+    back to the ranking after the tool_inventory fix. The fab list is never
+    part of a page's identity: the same page under one fab or five is one
+    feature.
+    """
+    assert page_to_feature("/ebeam/cd-sem/m14,r3/storage") == "storage"
+    assert page_to_feature("/ebeam/cd-sem/M14,R3/storage") == "storage"
+    assert page_to_feature("/ebeam/cd-sem/m14,r3") == "tool_inventory"
+    assert page_to_feature("/ebeam/hv-sem/r3,m16b,m11/hardware") == "hardware"
+    # The tab route resolves the same way, so one feature does not split into
+    # one identity per fab combination.
+    assert (
+        page_to_feature("/ebeam/cd-sem/m14,r3/recipe-status?tab=tat")
+        == "recipe_tat"
+    )
+    # Not a fab list — a trailing comma or an unknown code must still fall
+    # through rather than being silently swallowed as a fab.
+    assert page_to_feature("/ebeam/cd-sem/m14,/storage") == "cdsem"
+    assert page_to_feature("/ebeam/cd-sem/m14,x9/storage") == "cdsem"
+
+
 def test_bare_ebeam_is_not_the_tool_inventory_page():
     """/ebeam alone names no tool, so it is not the fab hub.
 

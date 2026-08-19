@@ -151,7 +151,17 @@ _TOOL_SEGMENT_SLUGS = {
 # Fab segments are [fab] route params. Same shape the frontend uses in
 # plugins/persist-fab.client.ts, so the two stay in agreement about what a fab
 # looks like.
-_FAB_SEGMENT = re.compile(r"^[RM]\d{1,2}[A-C]?$", re.IGNORECASE)
+#
+# A COMMA-SEPARATED LIST is a fab segment too: utils/fab.ts's buildFabSegment
+# joins the selected fabs, so every page reached with two or more fabs picked
+# arrives here as /ebeam/<tool>/m14,r3/<page>. Matching one code only meant the
+# segment was not recognised as a fab, so it stayed in `rest`, no page rule
+# matched "m14,r3/storage", and the tool fallback filed the visit under `cdsem`
+# — the whole reason CD-SEM came back to the ranking after the tool_inventory
+# fix. It also collapsed every multi-fab page onto one beacon identity, so the
+# second and later page opens in a session were deduped away entirely.
+_FAB_CODE = r"[RM]\d{1,2}[A-C]?"
+_FAB_SEGMENT = re.compile(rf"^{_FAB_CODE}(,{_FAB_CODE})*$", re.IGNORECASE)
 
 # ?tab= on recipe-status is the real identity. align and meas are two views of
 # one feature: /api/<tool>/fail-issue returns align_fail_* and meas_fail_*

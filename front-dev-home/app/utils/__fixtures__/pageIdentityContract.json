@@ -10,6 +10,24 @@
     "slug": "storage"
   },
   {
+    "path": "/ebeam/cd-sem/m14,r3/storage",
+    "query": {},
+    "slug": "storage",
+    "comment": "Multi-fab [fab] segment: buildFabSegment joins the selection, so this is the shape a two-fab session actually routes through. Same page, same slug — the fab list is not part of the identity"
+  },
+  {
+    "path": "/ebeam/cd-sem/m14,r3",
+    "query": {},
+    "slug": "tool_inventory",
+    "comment": "Fab hub under a multi-fab segment — still [fab]/index.vue"
+  },
+  {
+    "path": "/ebeam/cd-sem/m14,r3/recipe-search/meas-hist",
+    "query": {},
+    "slug": "meas_hist",
+    "comment": "The nested child still wins over its parent once the fab list is stripped"
+  },
+  {
     "path": "/ebeam/cd-sem/device-statistics",
     "query": {},
     "slug": "device_statistics"
