@@ -1,13 +1,14 @@
-// Pure set-membership helpers for the CURRENT SELECTION rail. The rail shows
-// the compared set's members; unchecking a row removes it, but the focused MSR
-// is never removable (the workspace must always keep an active measurement).
-// Callers pass the result straight to `ws.setMsrs(...)`.
-
-/** Remove `msr` from the set, unless it is the focused MSR (guarded). */
-export const removeFromSet = (list: string[], msr: string, focusMsr: string): string[] => {
-  if (msr === focusMsr) return list.slice()
-  return list.filter(m => m !== msr)
-}
+// Pure set-membership helpers for the analysis workspace. Membership is edited
+// in ONE place — 세트 편집 in the selection detail modal — and the invariant
+// both helpers uphold is that the workspace always keeps an active
+// measurement, so the focused MSR can never leave the set. Callers pass the
+// result straight to `ws.setMsrs(...)`.
+//
+// The rail used to carry a second, per-row removal control (a checkbox beside
+// each member). It was dropped: it removed the member with no inverse on the
+// same screen, and once the set fell to one member the list stopped rendering
+// entirely, so a click meant to inspect a measurement could silently end a
+// multi-measurement comparison.
 
 /** Empty the set down to just the focused MSR (선택 해제). */
 export const clearToFocus = (focusMsr: string): string[] => [focusMsr]

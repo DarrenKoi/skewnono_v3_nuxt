@@ -1,7 +1,9 @@
 <template>
   <div class="flex flex-col gap-2.5 xl:h-full xl:min-h-0">
-    <!-- Top: coverage/outlier/mean/align stats + measurement conditions
-         (focus switching lives in the left rail's 비교 세트 for scope=set) -->
+    <!-- Top: coverage/outlier/mean/align stats + measurement conditions.
+         This view renders ONE measurement, so under scope=set it needs to be
+         told which: the left rail's 비교 세트 is clickable HERE and inert on
+         every other view (workspace/LeftRail.vue owns that rule). -->
     <div class="flex flex-wrap items-stretch gap-2.5">
       <EbeamSkewvoirOverviewStatBar
         class="min-w-0 flex-1"
