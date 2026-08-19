@@ -211,11 +211,15 @@
              on screen. -->
         <div
           v-else-if="!hasComparableSetData"
-          class="flex h-72 items-center justify-center sk-body"
+          class="flex h-72 flex-col items-center justify-center gap-1 px-4 text-center sk-body"
         >
-          {{ comparableCount === 1
-            ? '측정 1개로는 비교할 수 없습니다 · 측정을 더 추가하세요.'
-            : '비교할 측정을 추가하세요.' }}
+          <p>{{ blocked.title }}</p>
+          <p
+            v-if="blocked.hint"
+            class="sk-meta"
+          >
+            {{ blocked.hint }}
+          </p>
         </div>
 
         <template v-else-if="ws.tsView.value === 'trend' && analysis.trendPoints.value.length">
@@ -369,6 +373,7 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { TsAxisMode, TsBaseline, TsView } from '~/utils/skewvoirAnalysis/types'
 import { placeTrendPoints } from '~/utils/skewvoirAnalysis/timeSeries'
+import { isNamedParam, paramLabel } from '~/utils/skewvoirAnalysis/paramOrder'
 
 // `ws` carries the URL-pinned lens, axis mode and baseline; `analysis` carries
 // everything derived from the loaded set.
@@ -438,6 +443,50 @@ const comparableCount = computed(() => Math.max(
   props.analysis.trendPoints.value.length,
   props.analysis.distributionGroups.value.length
 ))
+
+// WHY the panel cannot draw, in the set's own terms.
+//
+// The old text said `측정 1개로는 비교할 수 없습니다 · 측정을 더 추가하세요`
+// whenever the count came up short — which, on a set of four measurements that
+// simply do not share this parameter, told the user to add measurements they
+// had already added. The count is 1 because ONE measurement carries the active
+// parameter, not because one was selected.
+//
+// Three distinct situations, and the fix for each is different:
+//   • nothing selected            → add measurements (the original message)
+//   • the set shares a BETTER parameter → switch parameter, and name it
+//   • the set shares NO named parameter → the selection itself cannot be
+//     compared; recipes differ, and no parameter choice will help
+const namedOptions = computed(() => props.analysis.paramOptions.value.filter(o => isNamedParam(o.parameter)))
+
+const bestShared = computed(() => {
+  let best: { parameter: string, covered: number } | null = null
+  for (const option of namedOptions.value) {
+    if (option.covered >= 2 && (!best || option.covered > best.covered)) best = option
+  }
+  return best
+})
+
+const blocked = computed<{ title: string, hint: string }>(() => {
+  if (comparableCount.value !== 1) {
+    return { title: '비교할 측정을 추가하세요.', hint: '' }
+  }
+  const loaded = integrity.value.loaded
+  const best = bestShared.value
+  if (best) {
+    return {
+      title: `${props.analysis.activeParamLabel.value} 은(는) 측정 ${loaded}개 중 1개에만 있습니다.`,
+      hint: `${paramLabel(best.parameter)} 은(는) ${best.covered}개가 공유합니다 — 위에서 파라미터를 바꿔 보세요.`
+    }
+  }
+  if (loaded >= 2) {
+    return {
+      title: `선택한 측정 ${loaded}개가 공유하는 파라미터가 없습니다.`,
+      hint: `recipe ${integrity.value.recipeCount}종이 섞여 있어 비교할 공통 항목이 없습니다 — 같은 recipe 측정을 고르세요.`
+    }
+  }
+  return { title: '측정 1개로는 비교할 수 없습니다 · 측정을 더 추가하세요.', hint: '' }
+})
 
 // TWO measurements is the floor for every lens, not one. At n=1 the trend is a
 // single dot whose 세트 기준 is its own mean, the distribution is one box with

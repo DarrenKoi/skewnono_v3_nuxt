@@ -202,15 +202,26 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   )
   const availableParams = computed(() => paramSummaries.value.map(p => p.parameter))
 
-  // Parameters carried by ANY loaded measurement in the curated set. Empty
-  // until the set files land, which is what keeps the dashboard case safe.
-  const setParams = computed<string[]>(() => {
-    const names = new Set<string>()
+  // Parameters carried by ANY loaded measurement in the curated set, with HOW
+  // MANY carry each. Empty until the set files land, which is what keeps the
+  // dashboard case safe.
+  //
+  // The counts are what let resolveActiveParam default to a parameter the set
+  // can actually compare. They are built here, in the one loop that already
+  // walks every loaded file, rather than derived from `paramOptions` further
+  // down — that computed is declared after this one, and reading it from up
+  // here would hit its temporal dead zone the same way `setFiles` does.
+  const setParamCoverage = computed<Map<string, number>>(() => {
+    const counts = new Map<string, number>()
     for (const file of setFiles.value.values()) {
-      for (const p of file.parameters) names.add(p.parameter)
+      for (const p of file.parameters) {
+        counts.set(p.parameter, (counts.get(p.parameter) ?? 0) + 1)
+      }
     }
-    return [...names]
+    return counts
   })
+
+  const setParams = computed<string[]>(() => [...setParamCoverage.value.keys()])
 
   // Effective parameter: honor the URL `mp` when a measurement that gets a vote
   // actually has it, else fall back to the first NAMED parameter (recipes
@@ -223,7 +234,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     scope: ws.scope.value,
     urlMp: ws.selection.value?.mp,
     focusParams: availableParams.value,
-    setParams: setParams.value
+    setParams: setParams.value,
+    setCoverage: setParamCoverage.value
   }))
 
   const activeParam = computed(() => resolveActiveParam(paramInput.value))
