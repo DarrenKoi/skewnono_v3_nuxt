@@ -44,6 +44,11 @@ msr -> string: MSR raw data 식별자. 예: 20260428_ADI_CD_BIAS_001_RAEA240031_
                다루고, v-for key는 msr 대신 fallback 키를 씁니다
                (utils/measHistSelection.ts measHistRowKey).
 msr_check -> string: MSR 파일 존재 여부. Yes, No
+               "No" = MSR 파일이 발견되지 않아 MinIO에 저장되지 않았다는 뜻
+               (user-confirmed 2026-08-19). msr 값 유무와는 별개의 사실이므로
+               "이 행을 열거나 비교할 수 있는가"는 msr이 비었는지가 아니라
+               이 필드로 판단합니다 (utils/measHistSelection.ts
+               isAnalyzableMeasHist).
 align_fail -> string: align 결과. Pass, Fail, NA
 total_images -> int64: 측정 대상 image 전체 개수
 fail_images -> int64: 실패 image 개수

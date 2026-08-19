@@ -254,11 +254,12 @@ def _build_row(
     fail_ratio = fail_ratio_percent(fail_images, total_images)
 
     date_str = end_time.strftime("%Y%m%d")
-    # msr exists ONLY where msr_check == "Yes". OFFICE-VERIFY 2026-08-19:
-    # production 스큐보아 검색이 msr '' 행 여럿으로 Vue duplicate-key '""'
-    # 경고를 냈습니다 -- "No" 문서에 msr 필드가 없고 어댑터의
-    # `_text(src.get("msr"))` 가 '' 를 내보낸다는 추정입니다(meastime 과 같은
-    # 패턴, 그쪽은 user-confirmed 2026-08-10). '' 가 faithful stand-in 인
+    # msr_check "No" = MSR 파일이 발견되지 않아 MinIO 에 저장되지 않음
+    # (user-confirmed 2026-08-19) -- 열거나 비교할 raw data 가 없는 행입니다.
+    # 그런 문서에 msr "필드"까지 없는지는 별개의 추정입니다(OFFICE-VERIFY
+    # 2026-08-19: production 스큐보아 검색이 msr '' 행 여럿으로 Vue
+    # duplicate-key '""' 경고를 냈고, meastime 의 필드-부재 패턴과 같다고
+    # 추정 -- 그쪽은 user-confirmed 2026-08-10). '' 가 faithful stand-in 인
     # 이유도 meastime 의 0 과 같습니다: 프론트가 빈 msr 행(선택 불가,
     # 분석 진입 불가)을 다루는지를 집에서 검증할 수 있게 합니다.
     msr = (

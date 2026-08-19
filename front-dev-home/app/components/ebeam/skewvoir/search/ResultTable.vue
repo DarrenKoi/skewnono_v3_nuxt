@@ -179,31 +179,33 @@
           </tr>
         </thead>
         <tbody>
-          <!-- msr_check "No" rows carry no msr identity (msr '') -- there is
-               no raw data to open or compare, so they render without the
-               click/checkbox affordances. measHistRowKey keeps their v-for
-               keys unique; several '' keys would break keyed patching
-               ("Duplicate keys found during update") and mis-render rows. -->
+          <!-- msr_check "No" rows have no MSR file in MinIO (user-confirmed
+               2026-08-19) -- no raw data to open or compare -- so they render
+               without the click/checkbox affordances. They may also carry no
+               msr value at all (OFFICE-VERIFY): measHistRowKey keeps such
+               rows' v-for keys unique, since several '' keys would break
+               keyed patching ("Duplicate keys found during update") and
+               mis-render rows. -->
           <tr
             v-for="(row, index) in rows"
             :key="measHistRowKey(row, index)"
             class="border-b border-(--sk-border-soft) transition-colors last:border-0"
-            :class="hasMsrIdentity(row)
+            :class="isAnalyzableMeasHist(row)
               ? ['cursor-pointer', 'hover:bg-(--sk-brand)/5', { 'bg-(--sk-brand)/5': isSelected(row.msr) }]
               : 'cursor-default'"
-            @click="hasMsrIdentity(row) && emit('open', row)"
+            @click="isAnalyzableMeasHist(row) && emit('open', row)"
           >
             <td
               class="px-3 py-2"
               @click.stop
             >
               <UTooltip
-                :text="hasMsrIdentity(row) ? undefined : '측정 raw data가 없어(msr_check No) 선택할 수 없습니다'"
-                :disabled="hasMsrIdentity(row)"
+                :text="isAnalyzableMeasHist(row) ? undefined : 'MSR 파일이 저장되어 있지 않아(msr_check No) 선택할 수 없습니다'"
+                :disabled="isAnalyzableMeasHist(row)"
               >
                 <UCheckbox
                   :model-value="isSelected(row.msr)"
-                  :disabled="!hasMsrIdentity(row)"
+                  :disabled="!isAnalyzableMeasHist(row)"
                   :aria-label="`${row.full_name} 측정 선택`"
                   @update:model-value="emit('toggle', row)"
                 />
@@ -287,7 +289,7 @@
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MeasHistSort, MeasHistSortKey } from '~/utils/measHistSort'
 import { copyTextToClipboard } from '~/utils/csvDownload'
-import { hasMsrIdentity, measHistRowKey } from '~/utils/measHistSelection'
+import { isAnalyzableMeasHist, measHistRowKey } from '~/utils/measHistSelection'
 
 const props = defineProps<{
   rows: MeasHistRow[]
@@ -360,10 +362,11 @@ const copyRecipe = async (recipe: string) => {
 const selectedIds = computed(() => new Set(props.selected.map(row => row.msr)))
 const isSelected = (msr: string) => selectedIds.value.has(msr)
 
-// Identity-less rows (msr '') can never join the selection, so "all selected"
-// and select-all both range over the selectable rows only -- otherwise one
-// msr_check "No" row in view keeps the header checkbox permanently unchecked.
-const selectableRows = computed(() => props.rows.filter(hasMsrIdentity))
+// Rows without a stored MSR file can never join the selection, so "all
+// selected" and select-all both range over the selectable rows only --
+// otherwise one msr_check "No" row in view keeps the header checkbox
+// permanently unchecked.
+const selectableRows = computed(() => props.rows.filter(isAnalyzableMeasHist))
 const allVisibleSelected = computed(() =>
   selectableRows.value.length > 0 && selectableRows.value.every(row => isSelected(row.msr))
 )

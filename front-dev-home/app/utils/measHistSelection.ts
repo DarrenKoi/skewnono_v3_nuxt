@@ -3,12 +3,20 @@ import type { MeasHistRow } from '~/composables/useMeasHistApi'
 // Pure selection helpers keep the working set independent from whichever
 // search result page happens to be visible. MSR is the stable measurement key.
 
-// msr_check "No" rows carry no msr identity: the office document has no msr
-// field and the adapter's _text() lands it as '' (OFFICE-VERIFY 2026-08-19,
-// docs/datatables/meas_hist.txt). Such a row cannot be selected, compared, or
-// opened -- there is no raw data behind it -- so everything that treats msr as
-// a key must ask this first.
+// Whether the row has a usable msr key at all. '' is what the office
+// adapter's _text() emits when the document carries no msr field
+// (OFFICE-VERIFY 2026-08-19, docs/datatables/meas_hist.txt) -- everything
+// that treats msr as a v-for/dedup key must ask this first.
 export const hasMsrIdentity = (row: MeasHistRow): boolean => row.msr.trim() !== ''
+
+// Whether the row can actually be opened or compared. msr_check "No" means
+// the MSR file was never found and is not stored in MinIO (user-confirmed
+// 2026-08-19): even a row that DOES carry an msr value has no raw data
+// behind it, so selection and analysis entry gate on this, not on
+// hasMsrIdentity alone. At home the mock emits msr '' for such rows, so the
+// two conditions coincide -- at the office they may not.
+export const isAnalyzableMeasHist = (row: MeasHistRow): boolean =>
+  hasMsrIdentity(row) && row.msr_check !== 'No'
 
 // v-for key for a search-result row. The msr where one exists; identity-less
 // rows fall back to a composite that cannot collide with an msr (no real msr
@@ -24,7 +32,7 @@ export const addMeasHistSelection = (
   selected: MeasHistRow[],
   row: MeasHistRow
 ): MeasHistRow[] => {
-  if (!hasMsrIdentity(row)) return selected
+  if (!isAnalyzableMeasHist(row)) return selected
 
   const index = selected.findIndex(existing => existing.msr === row.msr)
   if (index < 0) return [...selected, row]

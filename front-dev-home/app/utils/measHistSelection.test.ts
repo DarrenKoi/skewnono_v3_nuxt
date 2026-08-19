@@ -4,6 +4,7 @@ import type { MeasHistRow } from '../composables/useMeasHistApi.ts'
 import {
   addMeasHistSelection,
   hasMsrIdentity,
+  isAnalyzableMeasHist,
   measHistRowKey,
   removeMeasHistSelection,
   setMeasHistSelections,
@@ -102,4 +103,22 @@ test('measHistRowKey keeps the msr as key and never collides for msr-less rows',
   const keyB = measHistRowKey(b, 4)
   assert.notEqual(keyA, keyB)
   assert.notEqual(keyA, '')
+})
+
+test('isAnalyzableMeasHist needs both an msr identity and a stored MSR file', () => {
+  const analyzable = row('MSR-001', 'ADI_CD_BIAS_001')
+  assert.equal(isAnalyzableMeasHist(analyzable), true)
+
+  // user-confirmed 2026-08-19: msr_check "No" = MSR 파일이 발견되지 않아
+  // MinIO 에 저장되지 않음. msr 값이 있어도 열 raw data 가 없습니다.
+  const fileMissing = { ...row('MSR-002', 'ADI_CD_BIAS_001'), msr_check: 'No' as const }
+  assert.equal(isAnalyzableMeasHist(fileMissing), false)
+
+  assert.equal(isAnalyzableMeasHist(row('', 'ADI_CD_BIAS_001')), false)
+})
+
+test('a row whose MSR file is missing cannot join the selection even with a real msr', () => {
+  const fileMissing = { ...row('MSR-002', 'ADI_CD_BIAS_001'), msr_check: 'No' as const }
+  assert.deepEqual(addMeasHistSelection([], fileMissing), [])
+  assert.deepEqual(toggleMeasHistSelection([], fileMissing), [])
 })

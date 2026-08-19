@@ -153,6 +153,10 @@ def test_meastime_exists_only_where_msr_check_is_yes():
 def test_msr_check_no_rows_have_no_msr_identity():
     """msr_check == "No" 인 행의 msr 은 빈 문자열입니다.
 
+    msr_check "No" 는 MSR 파일이 발견되지 않아 MinIO 에 저장되지 않았다는
+    뜻입니다 (user-confirmed 2026-08-19). 이 테스트가 거는 것은 그보다 좁은
+    추정 — 그런 문서에는 msr "필드"도 없다는 것 — 입니다.
+
     OFFICE-VERIFY 2026-08-19: production 스큐보아 검색에서 Vue 가
     'Duplicate keys found during update: ""' 를 경고했습니다 — 검색 결과에
     msr 이 '' 인 행이 여럿 있어야만 나올 수 있는 증상이므로, office 인덱스의
