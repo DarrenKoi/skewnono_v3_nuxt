@@ -1,10 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { clearToFocus, ensureFocus } from './setEditing.ts'
-
-test('clearToFocus returns just the focused msr', () => {
-  assert.deepEqual(clearToFocus('b'), ['b'])
-})
+import { ensureFocus } from './setEditing.ts'
 
 test('ensureFocus re-adds the focused msr when it was deselected', () => {
   assert.deepEqual(ensureFocus(['a', 'b'], 'c'), ['c', 'a', 'b'])

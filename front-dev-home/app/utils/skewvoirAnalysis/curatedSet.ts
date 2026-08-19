@@ -35,6 +35,31 @@ export const TREND_LIMIT = 30
 export const shouldLoadSet = (scope: AnalysisScope, activeKind: SkewvoirViewKind): boolean =>
   scope === 'set' && activeKind !== 'dashboard'
 
+/** Whether a view renders the FOCUS measurement ALONE, even in `set` scope.
+ *
+ *  Two views do. The dashboard's wafer map, SEM image and radius plot are each
+ *  built from ONE MsrFile, and the gallery's set-scope branch is a grid of one
+ *  measurement's image files (`views/Gallery.vue`, the `focusCtx` tiles). Under
+ *  a set they therefore show one member and have to be TOLD which — the left
+ *  rail's 비교 세트 list is that picker, and it is interactive exactly there.
+ *  The other four (position-stack, fdc, time-series, correlation) draw the
+ *  whole set at once, where singling a member out changes nothing but which
+ *  line is emphasised, at the cost of making a set assembled to be read
+ *  TOGETHER look like a one-at-a-time list.
+ *
+ *  Deliberately NOT the negation of shouldLoadSet, even though the two lists
+ *  nearly coincide — they answer different questions and disagree about the
+ *  gallery. The gallery renders the focus alone AND still needs the batch,
+ *  because `manifest.counts` feeds the rail in every view (see shouldLoadSet's
+ *  note on `fdc`). Deriving one from the other would silently starve it.
+ *
+ *  Declared here rather than as a `activeKind === 'dashboard'` test inside the
+ *  rail so adding a seventh view has ONE place to answer the question, and so
+ *  the rule is reachable from `node --test` — a computed inside an SFC is not
+ *  (this repo has no component-test harness). */
+export const rendersFocusAlone = (activeKind: SkewvoirViewKind): boolean =>
+  activeKind === 'dashboard' || activeKind === 'gallery'
+
 /** Whether the loaded set files are the WHOLE of the set currently being asked
  *  about — the input to activeParamPool's `setComplete`.
  *

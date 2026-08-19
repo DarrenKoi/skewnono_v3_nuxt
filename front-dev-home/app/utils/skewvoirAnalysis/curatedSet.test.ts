@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TREND_LIMIT, isSetPoolComplete, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
+import { TREND_LIMIT, isSetPoolComplete, rendersFocusAlone, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
 
 interface MeasHistRowFixture { msr: string, msr_check: 'Yes' | 'No' }
 
@@ -31,6 +31,28 @@ test('shouldLoadSet: under set scope, every non-dashboard detail view triggers t
   // content is the sequence workbench), but manifest.counts still feeds the
   // left rail there, so the batch fetch must still fire.
   assert.equal(shouldLoadSet('set', 'fdc'), true)
+})
+
+test('rendersFocusAlone: the two views that draw ONE measurement under a set', () => {
+  assert.equal(rendersFocusAlone('dashboard'), true)
+  // The gallery's set-scope branch is a grid of the FOCUS measurement's image
+  // files, so it needs the picker just as much as the dashboard does. It was
+  // the view this rule got wrong when it was spelled `=== 'dashboard'`.
+  assert.equal(rendersFocusAlone('gallery'), true)
+})
+
+test('rendersFocusAlone: the views that draw the whole set at once', () => {
+  assert.equal(rendersFocusAlone('position-stack'), false)
+  assert.equal(rendersFocusAlone('time-series'), false)
+  assert.equal(rendersFocusAlone('correlation'), false)
+  assert.equal(rendersFocusAlone('fdc'), false)
+})
+
+test('rendersFocusAlone is NOT the negation of shouldLoadSet — they disagree on the gallery', () => {
+  // Focus-only AND still batch-fetched: manifest.counts feeds the rail in every
+  // view. Deriving either rule from the other would starve one of them.
+  assert.equal(rendersFocusAlone('gallery'), true)
+  assert.equal(shouldLoadSet('set', 'gallery'), true)
 })
 
 test('shouldLoadSet lazy-load invariant: Dashboard NEVER triggers the batch fetch, even under set scope', () => {

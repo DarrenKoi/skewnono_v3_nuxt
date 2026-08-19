@@ -63,14 +63,8 @@
          identity exactly one way; the old `Focus` row restated it as a raw msr
          id that the 240px rail truncated to `20260509_EDGE_PROFILE_…`.
 
-         The member list is INERT except on 측정 개요. Every other view draws the
-         whole set at once, so singling one member out there answers a question
-         nobody asked — and the row that did it sat beside a checkbox that
-         silently REMOVED the member, which is how a multi-measurement trend
-         used to vanish under a click meant to inspect. Membership is edited in
-         one place now: 세트 편집 in the ⤢ modal, which can add as well as
-         remove. 측정 개요 renders one measurement by definition, so there the
-         rows stay clickable — that is the view's own picker.
+         Which views let you click a member is `canSwitchFocus` below, and the
+         reasoning is at `rendersFocusAlone` (utils/skewvoirAnalysis/curatedSet.ts).
 
          Enlarge (⤢) opens the full-detail modal; 분석 준비 상태 opens the readiness modal. -->
     <section
@@ -119,10 +113,12 @@
         >제외 {{ counts.excluded }}</span>
       </div>
 
-      <!-- Member list. One markup shape, two behaviours: `is` swaps the row
-           between a focus button (측정 개요) and a plain div (everywhere else),
-           so the two variants cannot drift apart in type, spacing or truncation
-           — the difference between them is exactly the interaction. -->
+      <!-- Member list. One markup shape, two behaviours: `rowTag` swaps the row
+           between a focus button and a plain div, so the two variants cannot
+           drift apart in type, spacing or truncation. What differs is the
+           interaction and the focus highlight that comes with it — an inert
+           list marks nothing, because a set assembled to be read TOGETHER
+           should not nominate one of its members. -->
       <div class="flex items-center justify-between gap-2 px-1">
         <span class="sk-eyebrow">{{ isSet ? `비교 세트 · ${members.length}` : '측정' }}</span>
         <button
@@ -140,26 +136,24 @@
           :key="member.msr"
         >
           <component
-            :is="canSwitchFocus ? 'button' : 'div'"
-            :type="canSwitchFocus ? 'button' : undefined"
+            :is="rowTag"
+            v-bind="rowAttrs(member)"
             class="flex w-full min-w-0 flex-col gap-0.5 rounded-(--sk-r-nav) px-2 py-1.5 text-left transition-colors"
-            :class="canSwitchFocus
-              ? (member.active
-                ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
-                : 'hover:bg-(--sk-chip-bg)')
-              : ''"
-            :aria-pressed="canSwitchFocus ? member.active : undefined"
-            :title="member.title"
-            @click="canSwitchFocus && analysis.setFocusedMsr(member.msr)"
+            :class="rowClass(member)"
+            :title="member.msr"
           >
+            <!-- Both lines are DATA (a lot id, an equipment id, a capture
+                 time), so both sit at the 12px floor DESIGN.md sets for a
+                 value; the 11px tier is for chrome that names things. Weight
+                 and colour carry the hierarchy between them instead. -->
             <span
               class="min-w-0 truncate font-mono text-[12px] font-semibold"
-              :class="canSwitchFocus && member.active ? '' : 'text-(--sk-ink)'"
+              :class="member.pressed ? '' : 'text-(--sk-ink)'"
             >{{ member.lot }}</span>
             <span
               v-if="member.sub"
-              class="min-w-0 truncate font-mono text-[11px]"
-              :class="canSwitchFocus && member.active ? 'opacity-80' : 'text-(--sk-ink-muted)'"
+              class="min-w-0 truncate font-mono text-[12px]"
+              :class="member.pressed ? 'opacity-80' : 'text-(--sk-ink-muted)'"
             >{{ member.sub }}</span>
           </component>
         </li>
@@ -216,8 +210,8 @@
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { copyTextToClipboard } from '~/utils/csvDownload'
-import { recipeDetailRoute } from '~/utils/recipeView'
-import { clearToFocus } from '~/utils/skewvoirAnalysis/setEditing'
+import { formatRecipeTimestamp, recipeDetailRoute } from '~/utils/recipeView'
+import { rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
 
 const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis, fab: string }>()
@@ -226,27 +220,33 @@ const emit = defineEmits<{ openReadiness: [] }>()
 
 const detailOpen = ref(false)
 
-// A comparison set (scope=set with 2+ members) vs. a single measurement. Only
-// the SECTION HEADINGS differ between the two now — the member rows render the
+// A comparison set (scope=set with 2+ members) vs. a single measurement. It
+// picks the section headings and the scope chip; the member ROWS render the
 // same either way, because parseMsrList falls the `msrs` list back to the lone
 // focus `msr`, so a single measurement is just a set of one.
 const isSet = computed(() => props.analysis.scope.value === 'set' && props.analysis.msrList.value.length >= 2)
 
 // Whether a member row may be clicked to move the focus. Two conditions, and
-// both are about there being a choice to make:
-//
-//   • 측정 개요 — that view renders ONE measurement (wafer map, SEM image and
-//     radius plot are all single-msr), so it has to be told which, and this
-//     list is its picker. Every other view draws the whole set at once, where
-//     picking one member changes nothing but which line is emphasised — at the
-//     cost of making a set assembled to be read TOGETHER look like a
-//     one-at-a-time list.
-//   • a SET — with one measurement there is nothing to switch to, and a lone
-//     row rendered as a permanently-pressed toggle offers a choice that isn't.
-const canSwitchFocus = computed(() => props.ws.activeKind.value === 'dashboard' && isSet.value)
+// both are about there being a choice to make: a view that draws ONE
+// measurement and so needs to be told which (rendersFocusAlone owns that list
+// and the reasoning behind it), and a SET — with one measurement there is
+// nothing to switch to, and a lone row rendered as a permanently-pressed
+// toggle offers a choice that isn't.
+const canSwitchFocus = computed(() =>
+  rendersFocusAlone(props.ws.activeKind.value) && isSet.value
+)
 
-const focusMsr = computed(() => props.ws.selection.value?.msr ?? '')
 const counts = computed(() => props.analysis.manifest.value.counts)
+
+interface RailMember {
+  msr: string
+  lot: string
+  sub: string
+  /** Drawn as the active row. Folded in here rather than left as a bare
+   *  `active` flag because every consumer wants it AND-ed with canSwitchFocus:
+   *  an inert list highlights nothing, so there is no second reading. */
+  pressed: boolean
+}
 
 // One shape for every measurement in the rail: `lot` over `eqp · time`.
 //
@@ -256,29 +256,64 @@ const counts = computed(() => props.analysis.manifest.value.counts)
 // identity the URL itself carries, which is exactly what those `lot`/`eq`/`cap`
 // params exist for. With neither, the raw msr id stands in: unreadable at 240px
 // but honest, and the `title` carries it in full for a hover.
-const members = computed(() =>
-  props.analysis.msrList.value.map((msr) => {
-    const row = props.analysis.rowByMsr.value.get(msr)
-    const sel = props.ws.selection.value
-    const url = sel && sel.msr === msr ? sel : null
-    const cap = url?.capturedAt && url.capturedAt !== '—' ? url.capturedAt : ''
+//
+// The URL fallback is built ONCE above the loop: it can only ever apply to the
+// focus row, so deriving it per member was 30 evaluations of a string that has
+// at most one consumer. It goes through formatRecipeTimestamp for the same
+// reason msrLabel does — `cap` is a raw ISO stamp copied out of the meas_hist
+// row, so without it a deep-linked row reads `ECDX285 · 2026-05-09T12:00:00Z`
+// directly beneath siblings reading `ECDX285 · 2026-05-09 12:00`.
+const members = computed<RailMember[]>(() => {
+  const rows = props.analysis.rowByMsr.value
+  const sel = props.ws.selection.value
+  const focus = props.analysis.focusMsr.value
+  const clickable = canSwitchFocus.value
+  const cap = sel?.capturedAt && sel.capturedAt !== '—' ? formatRecipeTimestamp(sel.capturedAt) : ''
+  const urlSub = [sel?.eq, cap].filter(Boolean).join(' · ')
+
+  return props.analysis.msrList.value.map((msr) => {
+    const row = rows.get(msr)
+    const isUrlFocus = sel?.msr === msr
     return {
       msr,
-      lot: row?.lot_id || url?.lot || msr,
+      lot: row?.lot_id || (isUrlFocus ? sel.lot : '') || msr,
       // msrLabel already reads `eqp · time` off the row; it returns the bare
       // msr id when there is no row, which would restate the line above it.
-      sub: row ? props.analysis.msrLabel(msr) : [url?.eq, cap].filter(Boolean).join(' · '),
-      title: msr,
-      active: msr === focusMsr.value
+      sub: row ? props.analysis.msrLabel(msr) : (isUrlFocus ? urlSub : ''),
+      pressed: clickable && msr === focus
     }
   })
-)
+})
+
+// The row's tag and its behavioural attributes, assembled together rather than
+// re-branching on canSwitchFocus at each binding site. Mirrors sk/NavPill.vue's
+// `resolvedTag` + `rootAttrs`, and for the same reason: nothing structurally
+// stops a `:is` from drifting out of step with a separately-guarded `:type` or
+// `@click`, so adding one attribute later means finding every guard. Here it is
+// one object.
+const rowTag = computed(() => (canSwitchFocus.value ? 'button' : 'div'))
+
+const rowAttrs = (member: RailMember): Record<string, unknown> =>
+  canSwitchFocus.value
+    ? {
+        'type': 'button',
+        'aria-pressed': member.pressed,
+        'onClick': () => props.analysis.setFocusedMsr(member.msr)
+      }
+    : {}
+
+// State-only classes; the row's geometry stays at the call site.
+const rowClass = (member: RailMember): string => {
+  if (member.pressed) return 'bg-(--sk-brand) text-(--sk-brand-fg)'
+  return canSwitchFocus.value ? 'hover:bg-(--sk-chip-bg)' : ''
+}
 
 // 선택 해제 — empty the set down to the focused MSR. Offered only where the
-// focus is meaningful (측정 개요); membership is otherwise edited in the ⤢
-// modal's 세트 편집, which can add as well as remove.
+// focus is meaningful (a set on a focus-only view); the ⤢ modal's 세트 편집 is
+// the general editor, and can add as well as remove.
 const deselectToFocus = () => {
-  if (focusMsr.value) props.ws.setMsrs(clearToFocus(focusMsr.value))
+  const focus = props.analysis.focusMsr.value
+  if (focus) props.ws.setMsrs([focus])
 }
 
 const toast = useToast()
