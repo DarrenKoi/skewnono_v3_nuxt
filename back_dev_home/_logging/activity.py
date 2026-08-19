@@ -7,6 +7,7 @@ from flask import Flask, g, request
 from flask.signals import got_request_exception
 
 from ..activity.data import record_request
+from . import os_timing
 from .feature_map import route_to_feature
 from .opensearch_handler import install_opensearch_logging
 from .policy import (
@@ -94,7 +95,7 @@ def _build_extra(
         feature=feature,
         page_slug=getattr(g, "_activity_page_slug", None),
     )
-    return {
+    extra = {
         "event": event,
         "user_id": str(user_id) if user_id not in (None, "-") else None,
         # How we know who this is: token, cookie, declared, local, anonymous.
@@ -124,6 +125,14 @@ def _build_extra(
         "error_code": error_code,
         "error_name": error_name,
     }
+    # One row per request rather than one per query: the log handler ships to
+    # the same cluster these queries hit, through a queue shared with the audit
+    # rows, so a line per query would multiply the document count by the very
+    # fan-out it is measuring.
+    round_trips = os_timing.summary()
+    if round_trips is not None:
+        extra.update(round_trips.as_extra())
+    return extra
 
 
 def install_activity_logging(app: Flask) -> None:
@@ -139,8 +148,22 @@ def install_activity_logging(app: Flask) -> None:
     @app.before_request
     def _stamp_start():
         g._activity_t0 = time.perf_counter()
+        g._os_timing_token = os_timing.start()
         _request_id()
         g._activity_fab_name_list = []
+
+    @app.teardown_request
+    def _release_round_trips(_exc):
+        # Not optional bookkeeping: uWSGI reuses request threads, so a
+        # collector left installed would bill the next request on this thread
+        # for the queries this one made.
+        #
+        # `pop`, not a read: a request context preserved by `with client:` is
+        # torn down a second time when it is finally popped, and a ContextVar
+        # token raises if reset twice. Consuming it here also covers the case
+        # where an earlier before_request (rate limiter, identity gate)
+        # answered before _stamp_start ran, so no token was ever stored.
+        os_timing.finish(g.pop("_os_timing_token", None))
 
     @app.after_request
     def _emit(response):

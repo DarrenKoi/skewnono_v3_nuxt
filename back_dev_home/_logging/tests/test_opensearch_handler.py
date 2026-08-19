@@ -118,6 +118,35 @@ def test_a_document_carries_the_fields_the_index_template_maps(parked):
     assert doc["activity_weight"] == 1
 
 
+def test_a_documents_round_trip_fields_survive_the_allowlist(parked):
+    doc = parked._record_to_doc(
+        _record(
+            opensearch_query_count=3,
+            opensearch_total_ms=41,
+            opensearch_slowest_ms=30,
+            opensearch_slowest_index="cdsem_idp_ver",
+        )
+    )
+
+    assert doc["opensearch_query_count"] == 3
+    assert doc["opensearch_total_ms"] == 41
+    assert doc["opensearch_slowest_ms"] == 30
+    assert doc["opensearch_slowest_index"] == "cdsem_idp_ver"
+
+
+def test_every_allowlisted_extra_is_a_field_the_index_actually_maps():
+    """The allowlist and the index mapping are two of the three places a log
+    field has to be named, and neither one fails loudly when the other is
+    missed: `_record_to_doc` drops an unlisted extra, and the template's
+    `dynamic: "false"` keeps an unmapped field out of every aggregation while
+    still storing it in `_source`. So the field looks present when you read one
+    document and is absent from every query that counts."""
+    from ops_index_mgmt.skewnono_logging import LOG_MAPPING_PROPERTIES
+
+    unmapped = set(osh._KNOWN_EXTRA_KEYS) - set(LOG_MAPPING_PROPERTIES)
+    assert not unmapped
+
+
 def test_document_has_identity_environment_and_bounded_fields(parked):
     parked._deployment = "local"
     doc = parked._record_to_doc(

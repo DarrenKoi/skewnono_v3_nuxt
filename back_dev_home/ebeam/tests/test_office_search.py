@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from opensearchpy.exceptions import NotFoundError
 
+from back_dev_home._logging import os_timing
 from back_dev_home.ebeam import _office_search
 
 
@@ -49,6 +50,11 @@ class _FakeSearch:
         *,
         query: dict[str, Any] | None,
     ) -> Any:
+        if self._error is not None:
+            raise self._error
+        return self._response
+
+    def search_raw(self, _body: dict[str, Any]) -> Any:
         if self._error is not None:
             raise self._error
         return self._response
@@ -221,3 +227,61 @@ def test_aggregate_translates_not_found_error_to_lookup_error(monkeypatch):
         _office_search.aggregate(INDEX, {}, None)
 
     assert raised.value.__cause__ is error
+
+
+# ── round-trip accounting ────────────────────────────────────────────────────
+#
+# These two helpers are where every office adapter's OpenSearch traffic passes,
+# so counting here counts everything without an adapter having to opt in.
+
+
+def test_aggregate_counts_one_round_trip_against_the_request(monkeypatch):
+    _stub_response(monkeypatch, _clean_response())
+
+    with os_timing.collect():
+        _office_search.aggregate(INDEX, {}, None)
+        summary = os_timing.summary()
+
+    assert summary.query_count == 1
+    assert summary.slowest_index == INDEX
+
+
+def test_fetch_hits_counts_one_round_trip_against_the_request(monkeypatch):
+    _stub_response(monkeypatch, _clean_response())
+
+    with os_timing.collect():
+        _office_search.fetch_hits(INDEX, None, 10)
+        summary = os_timing.summary()
+
+    assert summary.query_count == 1
+    assert summary.slowest_index == INDEX
+
+
+def test_a_failed_query_still_spent_a_round_trip(monkeypatch):
+    # A missing alias costs the same HTTP round trip a successful one does. A
+    # screen whose fan-out only shows up when something is broken is exactly
+    # the screen worth knowing about.
+    monkeypatch.setattr(
+        _office_search,
+        "search",
+        lambda _index: _FakeSearch(
+            error=NotFoundError(404, "missing", {"error": "index_not_found_exception"})
+        ),
+    )
+
+    with os_timing.collect():
+        with pytest.raises(LookupError):
+            _office_search.aggregate(INDEX, {}, None)
+        summary = os_timing.summary()
+
+    assert summary.query_count == 1
+
+
+def test_queries_outside_a_request_are_not_counted_and_do_not_fail(monkeypatch):
+    # bm_pm's `_diagnose` and the scheduler jobs call these helpers with no
+    # request in flight.
+    _stub_response(monkeypatch, _clean_response())
+
+    _office_search.aggregate(INDEX, {}, None)
+
+    assert os_timing.summary() is None

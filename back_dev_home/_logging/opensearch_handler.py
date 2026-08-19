@@ -54,6 +54,12 @@ _KNOWN_EXTRA_KEYS = (
     "fab_name_list",
     "error_code",
     "error_name",
+    # OpenSearch round trips this request spent (see _logging/os_timing.py).
+    # Absent entirely on a request that made none, rather than four zeroes.
+    "opensearch_query_count",
+    "opensearch_total_ms",
+    "opensearch_slowest_ms",
+    "opensearch_slowest_index",
 )
 _RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 _RETRY_BACKOFFS = (0.5, 1.0)

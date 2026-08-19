@@ -32,6 +32,7 @@ from opensearchpy.exceptions import NotFoundError
 
 from ops_store import OSSearch, create_client
 
+from back_dev_home._logging import os_timing
 from back_dev_home._runtime.office_redis import load_env_file
 
 
@@ -148,10 +149,16 @@ def _missing_index_error(index: str, exc: Exception) -> LookupError:
 def aggregate(
     index: str, aggs: dict[str, Any], query_body: dict[str, Any] | None
 ) -> dict[str, Any]:
+    started = time.perf_counter()
     try:
         result = search(index).aggregate(aggs, query=query_body)
     except NotFoundError as exc:
         raise _missing_index_error(index, exc) from exc
+    finally:
+        # In `finally`, so a failed query still counts the round trip it spent.
+        # Only the call is timed; the validation below is ours, not the
+        # cluster's, and folding it in would inflate every measurement.
+        os_timing.record(index, (time.perf_counter() - started) * 1000)
     if not isinstance(result, Mapping):
         raise RuntimeError(
             f"OpenSearch aggregate response for {index!r} must be a mapping; "
@@ -257,10 +264,13 @@ def fetch_hits(
         body["sort"] = sort
     if source is not None:
         body["_source"] = source
+    started = time.perf_counter()
     try:
         result = search(index).search_raw(body)
     except NotFoundError as exc:
         raise _missing_index_error(index, exc) from exc
+    finally:
+        os_timing.record(index, (time.perf_counter() - started) * 1000)
     return [hit.get("_source", {}) for hit in result.get("hits", {}).get("hits", [])]
 
 

@@ -50,6 +50,18 @@ fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M1
   context 가 없으면 빈 list 입니다. scalar fab_name 과 혼동하지 않습니다.
 error_code -> keyword: HTTP status 또는 예외 타입 이름
 error_name -> keyword(최대 1,024자): bounded 오류 이름
+opensearch_query_count -> integer: 이 요청이 쓴 OpenSearch 왕복 횟수
+  (_logging/os_timing.py 가 세고 ebeam/_office_search.py 의 aggregate/fetch_hits
+  가 기록합니다). 왕복을 한 번도 하지 않은 요청에는 아래 네 필드가 통째로
+  없습니다 — 0 이 아니라 부재입니다. mock provider 로 도는 집 환경에서는 항상
+  부재이며, 사무실에서만 값이 남습니다. (2026-08-20)
+opensearch_total_ms -> integer: 그 왕복들의 소요시간 합. 같은 행의 latency_ms 와
+  견주어 요청 시간이 실제로 OpenSearch 에 있는지 판단합니다.
+opensearch_slowest_ms -> integer: 가장 느렸던 단일 질의의 소요시간.
+  total_ms 와의 비가 판정을 가릅니다 — slowest ≈ total 이면 느린 질의 하나가
+  지배하므로 질의를 묶어도 소용이 없고(그 질의를 고칠 일), slowest ≪ total 이면
+  작은 질의가 여럿이라는 뜻입니다.
+opensearch_slowest_index -> keyword: 그 가장 느린 질의가 읽은 index/alias 이름
 exception.type -> keyword / exception.message -> text / exception.stack -> text(32,768자)
 
 alias 판정 시 주의 (office 확인 2026-07-28)

@@ -17,6 +17,7 @@ import pytest
 from flask import Flask, abort, g
 
 from back_dev_home._logging import activity as activity_mod
+from back_dev_home._logging import os_timing
 
 
 @pytest.fixture
@@ -81,6 +82,15 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
         @app.get("/api/cdsem/live-alarm")
         def _live_alarm():
             return {"alarms": []}
+
+        @app.get("/api/cdsem/fan-out")
+        def _fan_out():
+            # Stands in for an office adapter's OpenSearch reads. The real
+            # calls go through ebeam/_office_search.py and record the same way;
+            # spelled literally so this test needs no ebeam import.
+            os_timing.record("meas_hist_cdsem", 4.0)
+            os_timing.record("cdsem_idp_ver", 11.0)
+            return {"rows": []}
 
         @app.get("/api/nope")
         def _missing():
@@ -152,6 +162,69 @@ def test_a_request_is_logged_with_the_fields_the_dashboard_reads(make_app, recor
     assert record.activity_kind == "entry"
     assert record.activity_weight == 1
     assert record.fab_name_list == ["M16"]
+
+
+def test_a_requests_opensearch_round_trips_ride_its_own_log_row(
+    make_app, records
+):
+    """One row per request, not one per query.
+
+    The log handler ships to the same cluster these queries hit, through a
+    bounded queue shared with the audit rows — a line per query would multiply
+    the document count by the fan-out being measured.
+    """
+    client = make_app(user_id="2067928")
+
+    client.get("/api/cdsem/fan-out")
+
+    record = _only(records, "request")
+    assert record.opensearch_query_count == 2
+    assert record.opensearch_total_ms == 15
+    # slowest against total is what separates "many small queries" (batchable)
+    # from "one slow query" (not batchable, and the real bug).
+    assert record.opensearch_slowest_ms == 11
+    assert record.opensearch_slowest_index == "cdsem_idp_ver"
+
+
+def test_a_request_that_touched_no_index_carries_no_opensearch_fields(
+    make_app, records
+):
+    # Absence is the zero: four zero fields on every static asset and mock-mode
+    # request would cost more index than the measurement is worth.
+    client = make_app(user_id="2067928")
+
+    client.get("/api/sem-list")
+
+    record = _only(records, "request")
+    assert not hasattr(record, "opensearch_query_count")
+
+
+def test_round_trips_are_not_billed_to_the_next_request(make_app, records):
+    # uWSGI reuses request threads, so a collector left installed would make
+    # every later request on that thread look like a fan-out.
+    client = make_app(user_id="2067928")
+
+    client.get("/api/cdsem/fan-out")
+    records.clear()
+    client.get("/api/sem-list")
+
+    assert not hasattr(_only(records, "request"), "opensearch_query_count")
+
+
+def test_a_preserved_request_context_is_released_only_once(make_app, records):
+    """`with app.test_client() as c:` — the shape most route tests use — keeps
+    the request context alive past the response, so teardown can run again on
+    the same request. Anything the teardown holds must therefore be safe to
+    release twice; a ContextVar token is not."""
+    client = make_app(user_id="2067928")
+
+    with client:
+        client.get("/api/cdsem/fan-out")
+        client.get("/api/sem-list")
+
+    fan_out, plain = records
+    assert fan_out.opensearch_query_count == 2
+    assert not hasattr(plain, "opensearch_query_count")
 
 
 def test_multi_fab_query_is_normalized(make_app, records):
