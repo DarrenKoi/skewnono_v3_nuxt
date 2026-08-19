@@ -254,7 +254,18 @@ def _build_row(
     fail_ratio = fail_ratio_percent(fail_images, total_images)
 
     date_str = end_time.strftime("%Y%m%d")
-    msr = _make_msr(date_str, recipe_name, lot_id, eqp["eqp_id"])
+    # msr exists ONLY where msr_check == "Yes". OFFICE-VERIFY 2026-08-19:
+    # production 스큐보아 검색이 msr '' 행 여럿으로 Vue duplicate-key '""'
+    # 경고를 냈습니다 -- "No" 문서에 msr 필드가 없고 어댑터의
+    # `_text(src.get("msr"))` 가 '' 를 내보낸다는 추정입니다(meastime 과 같은
+    # 패턴, 그쪽은 user-confirmed 2026-08-10). '' 가 faithful stand-in 인
+    # 이유도 meastime 의 0 과 같습니다: 프론트가 빈 msr 행(선택 불가,
+    # 분석 진입 불가)을 다루는지를 집에서 검증할 수 있게 합니다.
+    msr = (
+        _make_msr(date_str, recipe_name, lot_id, eqp["eqp_id"])
+        if msr_check == "Yes"
+        else ""
+    )
 
     return MeasHistRow(
         # id IS the msr -- the datatable rule this module's own header states
@@ -319,7 +330,12 @@ def _all_rows() -> tuple[MeasHistRow, ...]:
 
 @lru_cache(maxsize=1)
 def _rows_by_msr() -> dict[str, MeasHistRow]:
-    return {row["msr"]: row for row in _all_rows()}
+    # msr_check == "No" rows carry no msr identity ('' -- see _build_row);
+    # keying them would collapse onto one dict slot and hand an arbitrary
+    # "No" row to find_meas_hist_by_msr(""). The office adapter resolves ''
+    # to nothing too: its term query has no doc to match when the field is
+    # absent, and its own `if not msr` guard mirrors this one.
+    return {row["msr"]: row for row in _all_rows() if row["msr"]}
 
 
 def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
@@ -372,14 +388,24 @@ def _synthesize_for_recipe(
             continue
 
         date_str = base["end_time"][:10].replace("-", "")
+        # Same rules as _build_row: msr exists only where msr_check == "Yes",
+        # and id IS the msr. Overriding msr without id left the synthesized
+        # rows keyed by the base recipe's msr -- a latent id != msr drift the
+        # contract test now pins.
+        msr = (
+            _make_msr(date_str, recipe_part, base["lot_id"], base["eqp_id"])
+            if base["msr_check"] == "Yes"
+            else ""
+        )
         rows.append({
             **base,
+            "id": msr,
             "class_name": class_part,
             "recipe_name": recipe_part,
             "full_name": full_name,
             "idp_name": f"/Recipe/{class_part}/{recipe_part}.idp",
             "idw_name": f"/Recipe/{class_part}/{recipe_part}.idw",
-            "msr": _make_msr(date_str, recipe_part, base["lot_id"], base["eqp_id"])
+            "msr": msr
         })
 
     return rows

@@ -33,6 +33,16 @@ meastime -> int64: 측정 소요 시간. 단위는 second이며 end_time - start
                    분모만 value_count 입니다. 이 둘을 한 값으로 쓰면
                    요약 카드가 자기 트렌드 차트와 어긋납니다.
 msr -> string: MSR raw data 식별자. 예: 20260428_ADI_CD_BIAS_001_RAEA240031_ECXDX123
+               msr_check가 "Yes"인 문서에만 존재합니다 (OFFICE-VERIFY
+               2026-08-19 — production 스큐보아 검색 결과에 msr이 빈 행이
+               여럿 있어 Vue가 duplicate-key '""' 경고를 냈습니다. meastime과
+               같은 필드-부재 패턴으로 추정하며, office에서
+               back_dev_home/meas_hist 계약 테스트가 깨지면 이 추정이 틀린
+               것이므로 실측으로 바꿉니다). "No"이면 어댑터의
+               _text(src.get("msr"))가 '' 를 내보내고, id = msr 규칙에 따라
+               id도 '' 가 됩니다. 프론트는 이런 행을 선택·분석 진입 불가로
+               다루고, v-for key는 msr 대신 fallback 키를 씁니다
+               (utils/measHistSelection.ts measHistRowKey).
 msr_check -> string: MSR 파일 존재 여부. Yes, No
 align_fail -> string: align 결과. Pass, Fail, NA
 total_images -> int64: 측정 대상 image 전체 개수

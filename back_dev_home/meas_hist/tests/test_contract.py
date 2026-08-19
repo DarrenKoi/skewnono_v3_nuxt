@@ -148,3 +148,54 @@ def test_meastime_exists_only_where_msr_check_is_yes():
     assert measured == checked
     # 결측이 실제로 생성되는지 — 없으면 이 테스트가 아무것도 지키지 않습니다.
     assert len(rows) > len(checked) > 0
+
+
+def test_msr_check_no_rows_have_no_msr_identity():
+    """msr_check == "No" 인 행의 msr 은 빈 문자열입니다.
+
+    OFFICE-VERIFY 2026-08-19: production 스큐보아 검색에서 Vue 가
+    'Duplicate keys found during update: ""' 를 경고했습니다 — 검색 결과에
+    msr 이 '' 인 행이 여럿 있어야만 나올 수 있는 증상이므로, office 인덱스의
+    "No" 문서에는 msr 필드가 없고 어댑터의 _text(src.get("msr")) 가 '' 를
+    내보낸다고 추정합니다(meastime 이 "Yes" 문서에만 존재하는 것과 같은
+    패턴, 그쪽은 user-confirmed 2026-08-10). mock 이 모든 행에 msr 을
+    지어내는 동안에는 이 값 영역이 집에 존재하지 않아, 빈 msr 로 죽는
+    프론트 버그가 집 테스트를 전부 통과했습니다.
+
+    office 실행에서 이 테스트가 깨지면 추정이 틀렸다는 뜻이므로, 그때는
+    mock 과 이 테스트를 실측에 맞춰 고치고 datatables 문서의 OFFICE-VERIFY
+    를 확정 표기로 바꿉니다.
+    """
+    rows = data.search_meas_hist(limit=500)["rows"]
+    no_rows = [row for row in rows if row["msr_check"] == "No"]
+    if not no_rows:
+        pytest.skip("no msr_check=No rows in this window")
+    assert all(row["msr"] == "" for row in no_rows)
+    # id = msr 규칙은 빈 값에도 그대로 적용됩니다.
+    assert all(row["id"] == "" for row in no_rows)
+
+
+def test_find_meas_hist_by_msr_empty_key_resolves_nothing():
+    """빈 msr 로는 어떤 행도 짚을 수 없습니다 — 두 provider 공통 계약.
+
+    mock 에서 msr '' 행이 여럿이므로 dict 조회가 아무 행이나 돌려주면 안
+    되고, office 에서도 term 쿼리가 '' 로 "No" 문서를 집어오면 안 됩니다.
+    """
+    assert data.find_meas_hist_by_msr("") is None
+
+
+def test_synthesized_rows_keep_id_equals_msr():
+    """합성 경로도 id = msr 규칙과 "No" 행의 빈 msr 규칙을 지킵니다.
+
+    _synthesize_for_recipe 는 base 행 위에 msr 만 덮어써 id 가 옛 msr 로
+    남는 잠복 불일치가 있었습니다. 알 수 없는 recipe 로 강제 합성해 두 규칙을
+    함께 고정합니다.
+    """
+    if get_data_provider("meas_hist") != "mock":
+        pytest.skip("synthesis is a mock-only path")
+    rows = data.get_meas_hist(recipe_name="UNKNOWN/NEVER_HEARD_OF_0001")["rows"]
+    assert rows, "synthesis must fabricate rows for an unknown recipe"
+    assert all(row["id"] == row["msr"] for row in rows)
+    for row in rows:
+        if row["msr_check"] == "No":
+            assert row["msr"] == ""

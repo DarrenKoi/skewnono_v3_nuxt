@@ -13,10 +13,15 @@ const storageKey = (toolType: MeasHistToolType) =>
 
 const normalizeRows = (parsed: unknown): MeasHistRow[] => {
   if (!Array.isArray(parsed)) return []
+  // A blank msr is not an identity (msr_check "No" rows -- see
+  // utils/measHistSelection.ts hasMsrIdentity): such an entry could never be
+  // deselected (toggle keys on msr) and would duplicate the workbench's
+  // v-for keys, so it is dropped at the storage boundary.
   return parsed.filter((item): item is MeasHistRow =>
     typeof item === 'object'
     && item !== null
     && typeof (item as { msr?: unknown }).msr === 'string'
+    && (item as { msr: string }).msr.trim() !== ''
   )
 }
 

@@ -179,22 +179,35 @@
           </tr>
         </thead>
         <tbody>
+          <!-- msr_check "No" rows carry no msr identity (msr '') -- there is
+               no raw data to open or compare, so they render without the
+               click/checkbox affordances. measHistRowKey keeps their v-for
+               keys unique; several '' keys would break keyed patching
+               ("Duplicate keys found during update") and mis-render rows. -->
           <tr
-            v-for="row in rows"
-            :key="row.msr"
-            class="cursor-pointer border-b border-(--sk-border-soft) transition-colors last:border-0 hover:bg-(--sk-brand)/5"
-            :class="{ 'bg-(--sk-brand)/5': isSelected(row.msr) }"
-            @click="emit('open', row)"
+            v-for="(row, index) in rows"
+            :key="measHistRowKey(row, index)"
+            class="border-b border-(--sk-border-soft) transition-colors last:border-0"
+            :class="hasMsrIdentity(row)
+              ? ['cursor-pointer', 'hover:bg-(--sk-brand)/5', { 'bg-(--sk-brand)/5': isSelected(row.msr) }]
+              : 'cursor-default'"
+            @click="hasMsrIdentity(row) && emit('open', row)"
           >
             <td
               class="px-3 py-2"
               @click.stop
             >
-              <UCheckbox
-                :model-value="isSelected(row.msr)"
-                :aria-label="`${row.full_name} 측정 선택`"
-                @update:model-value="emit('toggle', row)"
-              />
+              <UTooltip
+                :text="hasMsrIdentity(row) ? undefined : '측정 raw data가 없어(msr_check No) 선택할 수 없습니다'"
+                :disabled="hasMsrIdentity(row)"
+              >
+                <UCheckbox
+                  :model-value="isSelected(row.msr)"
+                  :disabled="!hasMsrIdentity(row)"
+                  :aria-label="`${row.full_name} 측정 선택`"
+                  @update:model-value="emit('toggle', row)"
+                />
+              </UTooltip>
             </td>
             <td class="px-3 py-2 font-mono font-semibold text-zinc-900 dark:text-zinc-100">
               {{ row.lot_id }}
@@ -274,6 +287,7 @@
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MeasHistSort, MeasHistSortKey } from '~/utils/measHistSort'
 import { copyTextToClipboard } from '~/utils/csvDownload'
+import { hasMsrIdentity, measHistRowKey } from '~/utils/measHistSelection'
 
 const props = defineProps<{
   rows: MeasHistRow[]
@@ -345,12 +359,17 @@ const copyRecipe = async (recipe: string) => {
 
 const selectedIds = computed(() => new Set(props.selected.map(row => row.msr)))
 const isSelected = (msr: string) => selectedIds.value.has(msr)
+
+// Identity-less rows (msr '') can never join the selection, so "all selected"
+// and select-all both range over the selectable rows only -- otherwise one
+// msr_check "No" row in view keeps the header checkbox permanently unchecked.
+const selectableRows = computed(() => props.rows.filter(hasMsrIdentity))
 const allVisibleSelected = computed(() =>
-  props.rows.length > 0 && props.rows.every(row => isSelected(row.msr))
+  selectableRows.value.length > 0 && selectableRows.value.every(row => isSelected(row.msr))
 )
 
 const toggleVisible = () => {
-  emit('selectRows', props.rows, !allVisibleSelected.value)
+  emit('selectRows', selectableRows.value, !allVisibleSelected.value)
 }
 
 // Five distinct states, in priority order. An error never masks rows that are

@@ -2,11 +2,29 @@ import type { MeasHistRow } from '~/composables/useMeasHistApi'
 
 // Pure selection helpers keep the working set independent from whichever
 // search result page happens to be visible. MSR is the stable measurement key.
+
+// msr_check "No" rows carry no msr identity: the office document has no msr
+// field and the adapter's _text() lands it as '' (OFFICE-VERIFY 2026-08-19,
+// docs/datatables/meas_hist.txt). Such a row cannot be selected, compared, or
+// opened -- there is no raw data behind it -- so everything that treats msr as
+// a key must ask this first.
+export const hasMsrIdentity = (row: MeasHistRow): boolean => row.msr.trim() !== ''
+
+// v-for key for a search-result row. The msr where one exists; identity-less
+// rows fall back to a composite that cannot collide with an msr (no real msr
+// starts with "no-msr:") nor with each other (the index disambiguates true
+// duplicates). Without this, several '' keys break Vue's keyed patching --
+// "Duplicate keys found during update" -- and neighbouring rows mis-render.
+export const measHistRowKey = (row: MeasHistRow, index: number): string =>
+  hasMsrIdentity(row)
+    ? row.msr
+    : `no-msr:${row.lot_id}:${row.eqp_id}:${row.timestamp}:${index}`
+
 export const addMeasHistSelection = (
   selected: MeasHistRow[],
   row: MeasHistRow
 ): MeasHistRow[] => {
-  if (!row.msr.trim()) return selected
+  if (!hasMsrIdentity(row)) return selected
 
   const index = selected.findIndex(existing => existing.msr === row.msr)
   if (index < 0) return [...selected, row]

@@ -39,6 +39,11 @@ def _runs_by_recipe(min_runs: int = 5) -> dict[str, list[dict]]:
     the same path the skewvoir search feeds."""
     grouped: dict[str, list[dict]] = defaultdict(list)
     for row in _all_rows():
+        # msr_check == "No" rows carry no msr identity ('' -- raw data was
+        # never produced), so there is no detail payload to fetch; the search
+        # UI cannot feed them into an analysis either.
+        if not row["msr"]:
+            continue
         grouped[row["recipe_name"]].append(row)
     return {name: rows for name, rows in grouped.items() if len(rows) >= min_runs}
 

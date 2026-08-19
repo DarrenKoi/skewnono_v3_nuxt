@@ -3,6 +3,8 @@ import test from 'node:test'
 import type { MeasHistRow } from '../composables/useMeasHistApi.ts'
 import {
   addMeasHistSelection,
+  hasMsrIdentity,
+  measHistRowKey,
   removeMeasHistSelection,
   setMeasHistSelections,
   toggleMeasHistSelection
@@ -79,4 +81,25 @@ test('selecting every row in a new result set preserves earlier selections', () 
 
   const clearedCurrent = setMeasHistSelections(selected, current, false)
   assert.deepEqual(clearedCurrent, [earlier])
+})
+
+// --- msr-less rows (office value domain: msr_check "No" 문서에는 msr 필드가
+// 없어 어댑터의 _text() 가 '' 를 내보냅니다) ---
+
+test('hasMsrIdentity rejects blank and whitespace msr values', () => {
+  assert.equal(hasMsrIdentity(row('MSR-001', 'ADI_CD_BIAS_001')), true)
+  assert.equal(hasMsrIdentity(row('', 'ADI_CD_BIAS_001')), false)
+  assert.equal(hasMsrIdentity(row('   ', 'ADI_CD_BIAS_001')), false)
+})
+
+test('measHistRowKey keeps the msr as key and never collides for msr-less rows', () => {
+  const real = row('MSR-001', 'ADI_CD_BIAS_001')
+  assert.equal(measHistRowKey(real, 0), 'MSR-001')
+
+  const a = { ...row('', 'ADI_CD_BIAS_001'), timestamp: '2026-05-09T12:00:00' }
+  const b = { ...row('', 'ADI_CD_BIAS_001'), timestamp: '2026-05-09T12:00:00' }
+  const keyA = measHistRowKey(a, 3)
+  const keyB = measHistRowKey(b, 4)
+  assert.notEqual(keyA, keyB)
+  assert.notEqual(keyA, '')
 })

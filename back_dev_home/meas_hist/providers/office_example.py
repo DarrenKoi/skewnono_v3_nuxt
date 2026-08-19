@@ -397,6 +397,13 @@ def get_meas_hist(
 
 
 def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
+    # msr_check == "No" rows carry no msr identity (OFFICE-VERIFY 2026-08-19,
+    # docs/datatables/meas_hist.txt). A term query for "" would match any doc
+    # that stores the field as an explicit empty string, handing back an
+    # arbitrary "No" row -- an identity-less lookup must resolve to nothing,
+    # exactly as the mock's _rows_by_msr guard does.
+    if not msr:
+        return None
     body = {
         "query": {"bool": {"filter": [{"term": {_MSR_KW: msr}}]}},
         "size": 1,
