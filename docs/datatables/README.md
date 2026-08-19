@@ -119,6 +119,9 @@ bm_pm, reso_center, mdc — 8개 문서). 폴더 목록에서 흩어지지 않�
 - OpenSearch `text` field 의 정확 일치·집계는 반드시 `.keyword` subfield 를 씁니다.
   문서에도 어느 쪽을 쓰는지 명시합니다.
 - 시각(timestamp)은 사무실 인덱스 공통으로 **offset 없는 KST wall-clock** 입니다.
+  사무실 데이터가 한국 시간 기준으로 생성되기 때문입니다(user-confirmed 2026-08-20).
   `Z` 접미사가 붙어 저장되는 소스를 발견하면 9시간 어긋나므로 문서에 반드시 적습니다.
+  예외가 하나 있습니다 — `skewnono_logging` 은 우리가 직접 쓰는 인덱스라 offset 을
+  포함한 UTC 로 저장합니다. 사무실이 만든 데이터가 아니므로 규약 밖입니다.
 - Redis 의 DataFrame 은 parquet 직렬화(`df.to_parquet()`, 값 선두 4바이트 `PAR1`)
   입니다. `_runtime/office_redis.py` 의 `read_dataframe` 이 역직렬화를 담당합니다.

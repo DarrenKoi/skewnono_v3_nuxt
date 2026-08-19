@@ -20,18 +20,24 @@ Deliberately unread: ``up_dt`` (an expected-up field that is not maintained —
 the planned side lives in ``tool_maintenance_plan``), ``fac_id`` (coarser than
 fab and not a join key), and ``ll_dt``/``limit_dt``/``org_dt`` (normally empty).
 
-UNVERIFIED until run at the office: whether these two indices store offset-less
-KST wall clock like ``network_fdc_cdsem``. A stored ``Z`` suffix would slide
-every window by nine hours. Run this module's ``__main__`` — it prints raw
-stored values next to the reformatted ones — before trusting the tab.
+These two indices are ASSUMED to store offset-less KST wall clock, like
+``network_fdc_cdsem``. That is the documented cross-index convention
+(``docs/datatables/README.md``) and the office data is generated on Korean
+time (user-confirmed 2026-08-20), but these two specific indices have not been
+read at the office yet, and one index in this repo genuinely departs from the
+convention (``skewnono_logging``, which we write ourselves, stores UTC with an
+offset). A stored ``Z`` suffix here would slide every window by nine hours, so
+run this module's ``__main__`` — it prints raw stored values next to the
+reformatted ones — before trusting the tab.
 
-There is a second, independent timezone hazard on the request side, shared
-with the sibling ``fdc`` adapter and not introduced here: this module sends
-``anchor.isoformat()`` treating the route's naive datetime as a KST wall
-clock, but the frontend sends ``new Date().toISOString()`` and the route only
-strips the ``Z`` — so the anchor it receives is actually a UTC wall clock,
-nine hours behind KST. Symptom: the most recent ~9 hours of maintenance
-appears to be missing from the tab.
+The request side used to carry an independent nine-hour defect and no longer
+does: ``hardware/routes.py`` deleted the ``Z`` from the frontend's
+``new Date().toISOString()`` value instead of converting it, so the anchor
+arriving here was a UTC wall clock nine hours behind KST and the newest ~9h of
+maintenance fell outside the window. ``_parse_iso`` now converts to KST before
+dropping the offset, so the ``anchor`` this module receives is a genuine KST
+wall clock. Fixed 2026-08-20; regression tests in
+``hardware/tests/test_routes_window.py``.
 
 At the office: fill OPENSEARCH_* in ``back_dev_home/.env``, ``cp`` this file
 and ``providers/office_example.py`` to ``office.py``, set

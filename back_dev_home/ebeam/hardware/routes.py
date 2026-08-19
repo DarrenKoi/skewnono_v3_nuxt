@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -16,6 +16,10 @@ bp = Blueprint("hardware", __name__)
 # Anchor matches the mock generators so the default 30-day window lines up
 # with the data they fabricate.
 _NOW = datetime(2026, 5, 24, 9, 0)
+# Korea has no DST, so a fixed +09:00 offset is exact (mirrors
+# ``_office_search.KST``, which this module cannot import -- that is
+# office-side plumbing and the route runs under both providers).
+_KST = timezone(timedelta(hours=9), "KST")
 _DEFAULT_WINDOW_DAYS = 30
 
 
@@ -28,12 +32,31 @@ def _resolve_eqp_id(raw_segment: str) -> str | None:
 
 
 def _parse_iso(raw: str | None) -> datetime | None:
+    """Inbound ISO timestamp -> a naive **KST wall clock**.
+
+    The office OpenSearch indices store offset-less KST wall clock
+    (``docs/datatables/README.md``), and the hardware office adapters put the
+    values returned here straight into a range clause. So an offset must be
+    CONVERTED, never deleted: the frontend sends
+    ``new Date().toISOString()``, which always renders UTC, and merely
+    stripping its ``Z`` leaves a UTC wall clock wearing a KST label -- every
+    window then slides nine hours into the past and the newest ~9h of data
+    silently falls outside it.
+
+    A value that arrives without an offset (a hand-built deep link) is already
+    a KST wall clock and passes through unshifted. Normalizing to naive here
+    also keeps ``_resolve_window``'s comparison total: an aware ``start`` next
+    to the naive ``_NOW`` fallback used to raise TypeError.
+    """
     if not raw:
         return None
     try:
-        return datetime.fromisoformat(raw.replace("Z", "").strip())
+        parsed = datetime.fromisoformat(raw.strip())
     except ValueError:
         return None
+    if parsed.tzinfo is None:
+        return parsed
+    return parsed.astimezone(_KST).replace(tzinfo=None)
 
 
 def _resolve_window() -> tuple[datetime, datetime]:

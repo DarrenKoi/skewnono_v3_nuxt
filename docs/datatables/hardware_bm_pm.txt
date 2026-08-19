@@ -259,12 +259,23 @@ fab 단위 구분은 det_fac_id 입니다(fab_inform_notes 의 fab_name 과 같�
 
 UNVERIFIED (첫 사무실 실행 때 확인)
 
-  두 index 가 network_fdc_cdsem 처럼 offset 없는 KST wall
-  clock 으로 저장하는지 아직 검증되지 않았습니다. Z 접미사가 붙어 있으면 모든 창이
+  두 index 가 network_fdc_cdsem 처럼 offset 없는 KST wall clock 으로 저장하는지
+  아직 개별 검증되지 않았습니다. README 의 공통 규약이 그렇고 사무실 데이터가
+  한국 시간 기준으로 생성되므로(user-confirmed 2026-08-20) 그럴 가능성이 높지만,
+  이 두 index 를 직접 읽어본 적은 없습니다. Z 접미사가 붙어 있으면 모든 창이
   9시간 밀립니다. 어댑터의 __main__ 이 원본 저장값과 재포맷값을 나란히 출력하므로,
   탭을 신뢰하기 전에 그것부터 돌립니다.
 
-  ★ 별도의 두 번째 시각 함정(요청 쪽): 프론트가 new Date().toISOString() 을 보내고
-  라우트는 Z 만 떼므로, 어댑터가 받는 anchor 는 실제로 UTC wall clock 입니다(KST
-  보다 9시간 뒤). 증상은 "가장 최근 ~9시간의 정비가 탭에서 빠져 보임" 입니다.
-  fdc 어댑터와 공유하는 문제이며 bm_pm 이 만든 것은 아닙니다.
+RESOLVED 2026-08-20 (요청 쪽 시각 함정)
+
+  ★ 별도의 두 번째 시각 함정이 있었고 지금은 고쳐졌습니다. 프론트가
+  new Date().toISOString() 으로 UTC 를 보내는데 라우트(hardware/routes.py 의
+  _parse_iso)가 Z 를 변환하지 않고 삭제해, 어댑터가 받는 anchor 가 실제로는 UTC
+  wall clock 이었습니다(KST 보다 9시간 뒤). 증상은 "가장 최근 ~9시간의 정비가
+  탭에서 빠져 보임" 이었고, fdc/bsm/reso_center/sharpness 도 같은 라우트를 쓰므로
+  함께 영향을 받았습니다. 이제 _parse_iso 가 KST 로 변환한 뒤 offset 을 떼므로
+  어댑터는 진짜 KST wall clock 을 받습니다. 회귀 테스트는
+  back_dev_home/ebeam/hardware/tests/test_routes_window.py 입니다.
+
+  같은 수정으로 두 번째 결함도 사라졌습니다 — +09:00 이 붙은 딥링크는 naive 인
+  기본 anchor 와 비교되면서 TypeError(500) 를 냈습니다.
