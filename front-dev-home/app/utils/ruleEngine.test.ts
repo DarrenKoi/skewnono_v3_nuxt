@@ -354,6 +354,8 @@ test('SEQ group: 물려받은 cap 에도 이빨이 있다 — LEVEL(4) mother �
   ])
   const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
   assert.deepEqual(res.violation_params.map(p => p.name), ['CELL_SP'])
+  // CELL_SP 의 cap 출처는 `_other` 라 상속이 걸립니다 — mother 의 4 를 그대로
+  // 물려받고, 13 은 위반입니다.
   assert.equal(res.results[1]?.cap, 4)
 })
 
@@ -457,6 +459,19 @@ test('effectiveCap: D9 가 정한 cap 을 가진 son 은 mother 의 cap 을 물�
   }
 })
 
+test('SEQ group: EDGE son 은 WAFER mother 의 13 을 물려받지 않는다', () => {
+  // EDGE 상한(8/10)은 "가장자리를 몇 점 재느냐" 라는 고유의 룰이라 WAFER 파라미터와
+  // 다르게 판정되어야 합니다 (user-confirmed 2026-08-21). 상속이 이것까지 올려 주면
+  // EDGE 룰이 사라집니다 — 홈 기준 recipe 6,208 건이 그렇게 가려지고 있었습니다.
+  const r = seqRecipe([
+    { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+    { name: 'EDGE_R', point_count: 11, region: 1 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.equal(res.results[1]?.cap, 10, 'EDGE 는 자기 룰을 지킵니다')
+  assert.deepEqual(res.violation_params.map(p => p.name), ['EDGE_R'])
+})
+
 test('SEQ group: WAFER 13 을 재는 son 은 위반이 아니다 (사무실 모양)', () => {
   const r = seqRecipe([
     { name: 'LEVEL_1', point_count: 4, mother: true, region: 1 },
@@ -494,12 +509,33 @@ test('judgeSons=false: son 은 cap 을 넘어도 위반이 아니다', () => {
   assert.equal(off.results[0]?.judged, true)
 })
 
+test('judgeSons=false: mother 가 없는 recipe 는 통째로 빠지지 않는다', () => {
+  // `mother` 플래그가 false 라는 것만으로 son 이라고 보면, 원천이 mother 를
+  // 기록하지 않은 recipe 의 **모든** 파라미터가 판정에서 빠집니다. 집 mock 에서만
+  // 판정 대상의 15.2%(31,021건)가 그런 recipe 이고, 그 recipe 들의 위반
+  // 13,755 건이 토글 한 번에 통째로 사라졌습니다 — 독립적으로 잰 파라미터까지.
+  //
+  // region 이 있어도 그 region 에 mother 가 없으면 마찬가지입니다. 얹혀 갈 상대가
+  // 없으므로 자기 측정입니다.
+  const noMother = seqRecipe([
+    { name: 'WAFER_CD', point_count: 99, region: 1 },
+    { name: 'EDGE_L', point_count: 99 }
+  ])
+  const merged = applyAnnotation(noMother)
+  const res = resolveRuleCell(merged, [coreEarlyDram])
+  const off = evaluateRecipe(merged, res, { judgeSons: false })
+  assert.deepEqual(off.violation_params.map(p => p.name), ['WAFER_CD', 'EDGE_L'])
+  assert.ok(off.results.every(p => p.judged), '묶을 근거가 없으면 판정합니다')
+})
+
 test('evaluateLot: judgeSons=false 가 lot 집계까지 이어진다', () => {
   const sonOnly = recipe({
     recipe_id: 'ADI/CD_BIAS_R000_001',
     parameters: [
+      // son 은 mother 와 **같은** region 이어야 합니다 — 다른 region 에 두면 얹혀
+      // 갈 mother 가 없어 son 이 아니고, 토글과 무관하게 판정됩니다.
       { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
-      { name: 'LWR', point_count: 99, mother: false, region: 2 }
+      { name: 'LWR', point_count: 99, mother: false, region: 1 }
     ]
   })
   assert.equal(evaluateLot('R000', [sonOnly], [coreEarlyDram]).violation_recipes, 1)

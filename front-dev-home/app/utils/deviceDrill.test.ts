@@ -122,8 +122,10 @@ test('violation drill: judgeSons=false 인 son 은 tint 없이 사유만 답니�
   const recipes = [{
     ...dramRecipe('A', 16),
     parameters: [
+      // 같은 region 이라야 son 입니다 — mother 없는 region 의 파라미터는 얹혀 갈
+      // 상대가 없어 토글과 무관하게 판정됩니다.
       { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
-      { name: 'EDGE_L', point_count: 16, mother: false, region: 2 }
+      { name: 'EDGE_L', point_count: 16, mother: false, region: 1 }
     ]
   }]
   const health = evaluateLot('R000', recipes, [coreEarlyDram], { judgeSons: false })

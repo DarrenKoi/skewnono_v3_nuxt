@@ -202,35 +202,46 @@ export const groupCaps = (params: Parameter[], cell: RuleCell): Map<number, numb
 
 /**
  * 이 파라미터를 실제로 재는 cap. mother 와 "묶일 곳이 없는" 파라미터는 자기
- * cap 이고, son 은 자기 그룹 mother 의 cap 입니다 — **자기 cap 이 fallback 일
- * 때만**.
+ * cap 이고, son 은 **자기 cap 이 `_other` fallback 일 때만** mother 의 cap 을
+ * 물려받습니다.
  *
- * 규칙이 하나인 이유. 상속은 `_other` 를 겨냥해 넣은 것입니다: CELL_SP·LWR
- * 처럼 이름으로 타입이 정해지지 않는 파라미터의 `_other`(9)는 "달리 볼 근거가
- * 없을 때의 값" 이라, 같은 image 를 쓰는 mother 가 13 이면 그 13 이 더 맞는
- * 근거입니다. 반대로 D9 가 실제로 정한 cap — 타입 cap 과 name_override — 은
- * 근거가 이미 있는 값이라 상속이 덮으면 안 됩니다.
+ * 상속이 fallback 에만 걸리는 이유. `_other`(9)는 "이름으로 타입을 정하지 못해
+ * 달리 볼 근거가 없을 때 쓰는 값" 입니다 — CELL_SP·LWR 처럼요. 그런 파라미터가
+ * mother 의 image 를 함께 쓴다면 mother 의 13 이 `_other` 보다 나은 근거이고,
+ * 그것이 2026-08-18 상속이 겨냥한 것입니다(그 전에는 `_other` 에 걸려 고칠 수
+ * 없는 위반이 되고 있었습니다).
  *
- * 이 한 줄이 지우는 오류가 셋입니다.
+ * 반대로 룰이 **값으로 정해 둔** cap — 타입 cap(WAFER/LEVEL/EDGE/EDGE_EX)과
+ * name_override — 은 상속이 어느 방향으로도 덮지 않습니다. EDGE 가 그 이유를
+ * 가장 잘 보여 줍니다: EDGE 상한(8/10)은 "가장자리를 몇 점 재느냐" 라는 **고유의
+ * 룰**이라 WAFER 파라미터와 다르게 판정되어야 합니다 (user-confirmed
+ * 2026-08-21). WAFER mother 의 image 에 얹혔다는 이유로 13 이 되면 EDGE 룰이
+ * 사라집니다.
  *
- *   타입 cap: LEVEL(4) mother 밑의 WAFER son 이 13 point 를 재는 것이 위반이
- *     되고, 룰 화면은 같은 파라미터를 두고 "상한 13" 이라고 적습니다.
+ * 내리는 방향이 만든 위반은 전부 **고칠 수 없는 위반**이었습니다. 셋 다 실제로
+ * 있었습니다.
+ *
+ *   타입 cap: LEVEL(4) mother 밑의 WAFER son 이 13 point 를 재면 위반이 되고,
+ *     룰 화면은 같은 파라미터를 두고 "상한 13" 이라고 적습니다.
  *   name_override(숫자): `CD_WF_1` 은 DSPT/WF/WAFER contains 로 13 을 받는데
- *     OTHER 타입이라, 타입만 보는 방어를 그대로 통과해 4 로 내려갔습니다.
- *   name_override(면제, cap=null): Sample 셀의 `_other` 는 0 이라 DUMMY 가
+ *     타입이 OTHER 라, 타입만 보는 방어를 그대로 통과해 4 로 내려갔습니다.
+ *   name_override(면제, cap=null): Sample 셀의 `_other` 는 0 이라, DUMMY 가
  *     mother 밑에 묶였다는 이유로 0 을 물려받으면 point 1 개짜리 DUMMY 가 다시
  *     자동 위반이 됩니다 (b5d8dcdb, user-confirmed 2026-08-05).
  *
- * 셋 다 recipe 를 고쳐 없앨 수 있는 위반이 아니므로, 고칠 수 있는 진짜 위반을
- * 목록에서 밀어내기만 합니다. 앞의 둘은 타입을 특수 케이스로 막고 셋째는
- * `null` 을 특수 케이스로 막던 자리였는데, 특수 케이스마다 한 경로씩 샜습니다.
+ * 앞의 둘은 타입을 특수 케이스로, 셋째는 `null` 을 특수 케이스로 막던 자리였고
+ * 특수 케이스마다 한 경로씩 샜습니다. 출처 하나로 물으면 셋이 함께 닫힙니다.
  *
- * 집에서는 이 경로가 생기지 않습니다: mock 은 Dummy·Align 에 region 을 주지
+ * 집에서는 내리는 경로가 생기지 않습니다: mock 은 Dummy·Align 에 region 을 주지
  * 않고 WAFER son 을 늘 mother 없는 region 에 넣습니다. office 의
  * `_param_regions` 는 이름을 가리지 않고 모든 row 에 region 을 붙입니다.
  *
- * 상속의 이빨은 그대로입니다 — LEVEL(4) mother 의 **OTHER** son 이 13 이면
- * 여전히 위반입니다. 그룹이 통째로 판정 밖으로 나가지 않습니다.
+ * 이빨은 그대로입니다 — LEVEL(4) mother 의 CELL_SP son 은 `_other` 가 출처라
+ * 4 를 물려받고, 13 이면 여전히 위반입니다.
+ *
+ * 올리는 방향도 함께 좁아집니다. EDGE son 이 WAFER mother 의 13 을 받지 못하게
+ * 되어 홈 기준 recipe 6,208 건(34.2% -> 37.2%)이 새로 위반으로 잡힙니다 — 없던
+ * 위반이 생기는 것이 아니라, 상속이 가리고 있던 EDGE 룰 위반이 드러나는 것입니다.
  */
 export const effectiveCap = (
   param: Parameter,
@@ -318,10 +329,13 @@ export interface ParamResult {
 /**
  * 판정 범위·기준 — `evaluateRecipe`/`evaluateLot` 의 꼬리 인자.
  *
- * `judgeSons: false` 면 mother 가 아닌 파라미터를 **위반 판정에서만** 뺍니다.
- * 근거는 상속과 같습니다 — son 은 mother 와 한 image 를 쓰므로 son 을 재는 데
- * 드는 측정 point 가 따로 없고, 그래서 "상한이 겨냥한 대상이 아니다" 라고 볼
- * 여지가 있습니다. 어느 쪽이 옳은지는 도메인 판단이라 코드가 정하지 않습니다.
+ * `judgeSons: false` 면 son 파라미터를 **위반 판정에서만** 뺍니다. 근거는
+ * 상속과 같습니다 — son 은 mother 와 한 image 를 쓰므로 son 을 재는 데 드는
+ * 측정 point 가 따로 없고, 그래서 "상한이 겨냥한 대상이 아니다" 라고 볼 여지가
+ * 있습니다. 어느 쪽이 옳은지는 도메인 판단이라 코드가 정하지 않습니다.
+ *
+ * 여기서 son 은 **mother 가 있는 region 에 속한** 파라미터입니다 — `mother`
+ * 플래그가 false 인 것만으로는 부족합니다(`evaluateRecipe` 의 주석 참고).
  *
  * 빼는 것은 파라미터이지 recipe 가 아닙니다 — 분모(`judged_recipes`)는 그대로고
  * `cap` 도 계속 계산해 돌려주므로, 화면은 `judged` 와 함께 "상한 9 인데 13,
@@ -369,7 +383,17 @@ export const evaluateRecipe = (
     // 파라미터당 `deriveType` 한 번이 판정 시간의 10% 대입니다.
     const type = deriveType(p.name)
     const cap = effectiveCap(p, res.cell, caps, type)
-    const judged = judgeSons || p.mother === true
+    // "son" 은 **mother 가 실제로 있는 그룹에 속한** 파라미터입니다. `mother`
+    // 플래그가 false 라는 것만으로는 부족합니다 — 원천이 mother 를 기록하지 않은
+    // recipe 에서는 모든 파라미터가 false 이고, 그것은 "son" 이 아니라 "묶을
+    // 근거가 없음" 입니다. 집 mock 만 봐도 판정 대상의 15.2%(31,021건)가 mother
+    // 없는 recipe 이고, 그 조건을 빼면 토글을 끌 때 그 recipe 들의 위반
+    // 13,755 건이 통째로 사라집니다 — 독립적으로 잰 파라미터까지 함께.
+    //
+    // `effectiveCap` 이 region 없는 파라미터를 자기 cap 으로 재는 것과 같은
+    // 원칙이고, 실제로 같은 술어입니다: 상속이 걸릴 수 있는 파라미터가 곧
+    // "mother 의 측정에 얹혀 가는" 파라미터입니다.
+    const judged = judgeSons || !(!p.mother && p.region != null && caps.has(p.region))
     return { name: p.name, point_count: p.point_count, type, cap, judged, violation: judged && typeof cap === 'number' && p.point_count > cap }
   })
   const violation_params = results.filter(r => r.violation)
