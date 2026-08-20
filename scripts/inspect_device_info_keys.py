@@ -297,12 +297,17 @@ def inspect_key(client, name: str, rows: int, unique_cols: list[str]):
     _rule(f"KEY {name!r}  (redis type: {kind})")
     if kind == "none":
         print("  MISSING - no such key. List what does exist with:")
-        print("      .venv/bin/python -m scripts.inspect_redis_key --pattern '*device*'")
+        print("      .venv/bin/python -c \"from back_dev_home._runtime.office_redis"
+              " import redis_client; print(sorted(k.decode() for k in"
+              " redis_client().scan_iter('*device*')))\"")
         return None
 
     if kind != "string":
         print(f"  size: {kind} (not a string - a serialized DataFrame is a string key)")
-        print("  Inspect it with: .venv/bin/python -m scripts.inspect_redis_key " + name)
+        # inspect_redis_key takes no arguments: its key is the KEY_NAME
+        # constant in its own source, and it refuses a supplied one.
+        print(f"  Inspect it by setting KEY_NAME = {name!r} in"
+              " scripts/inspect_redis_key.py, then running that script bare.")
         return None
 
     raw = client.get(key)

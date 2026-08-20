@@ -1,9 +1,13 @@
 """Inspect one office Redis value in PyCharm's interactive Python console.
 
-This is a schema-discovery worksheet, not an argument-driven CLI. Before
-running it, edit ``KEY_NAME``, ``ROWS``, and ``UNIQUE_COLUMNS`` below. At the
-office, set the PyCharm working directory to the repository root, then use
-**Run File in Python Console**.
+This is a schema-discovery worksheet, not an argument-driven CLI. **The key
+comes from ``KEY_NAME`` in this file and there is no way to pass one on the
+command line** - edit ``KEY_NAME``, ``ROWS`` and ``UNIQUE_COLUMNS`` below, then
+run. Supplying a key as an argument is refused rather than ignored, because
+``-m scripts.inspect_redis_key v3_df_sem_avail`` printing ``v3_df_sem_list``'s
+schema is a wrong datatables entry, not a wasted run. At the office, set the
+PyCharm working directory to the repository root, then use **Run File in
+Python Console**.
 
 After execution, inspect the module variables directly in PyCharm:
 
@@ -49,7 +53,8 @@ from back_dev_home._runtime.office_redis import (  # noqa: E402
 )
 
 
-# Edit these values before choosing "Run File in Python Console" in PyCharm.
+# THE KEY LIVES HERE. Edit these values before choosing "Run File in Python
+# Console" in PyCharm; nothing on the command line can override them.
 KEY_NAME = "v3_df_sem_list"
 ROWS = 5
 UNIQUE_COLUMNS: list[str] = []
@@ -180,6 +185,19 @@ def _describe_collection(client, key: bytes, kind: str, rows: int) -> None:
 
 
 if __name__ == "__main__":
+    # Refuse a command-line key BEFORE connecting: the office Redis handshake is
+    # the slow part of a run, and this one is already doomed. Silently ignoring
+    # the argument was worse than either -- the operator read the schema of
+    # whatever KEY_NAME happened to say and wrote it into docs/datatables under
+    # the name they had typed.
+    if len(sys.argv) > 1:
+        raise SystemExit(
+            "inspect_redis_key 는 인자를 받지 않습니다. 조사할 key 는 이 파일 안의\n"
+            "KEY_NAME 이며, 편집한 뒤 다시 실행합니다.\n"
+            f"  현재 KEY_NAME = {KEY_NAME!r}\n"
+            f"  무시된 인자   = {sys.argv[1:]}"
+        )
+
     # These assignments intentionally stay at module scope. PyCharm keeps them
     # in its Variables pane after "Run File in Python Console" finishes.
     client = redis_client()

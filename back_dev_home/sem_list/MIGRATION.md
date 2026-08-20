@@ -91,7 +91,9 @@
   an empty screen:
 
   ```bash
-  .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list
+  # The key is NOT an argument: set KEY_NAME = "v3_df_sem_list" inside
+  # scripts/inspect_redis_key.py first, then run it bare.
+  .venv/bin/python -m scripts.inspect_redis_key
   ```
 
 - Unlike `get_sem_list`, an unknown `vendor_nm` is **passed through**, not
@@ -130,7 +132,11 @@ Both must run from the repo root. Do NOT run the provider file by path
    `office 확인 <date>`:
 
    ```bash
-   .venv/bin/python -m scripts.inspect_redis_key v3_df_sem_list --unique fab_name,eqp_model_cd
+   # In scripts/inspect_redis_key.py, set these two module constants first --
+   # the script takes no arguments and refuses any:
+   #   KEY_NAME = "v3_df_sem_list"
+   #   UNIQUE_COLUMNS = ["fab_name", "eqp_model_cd"]
+   .venv/bin/python -m scripts.inspect_redis_key
    ```
 
 3. Check the real payload for a null `eqp_ip`. `_normalize_pending` blanks a NaN
