@@ -42,7 +42,16 @@ SEARCHABLE_SOURCE_FIELDS = (
 
 
 def build_search_all_value(row: Mapping[str, Any]) -> str:
-    """Create the denormalized value stored in the office wildcard field."""
+    """Create the denormalized value stored in the office wildcard field.
+
+    A field the row does not carry is skipped, so a document ingested without
+    ``msr`` (the 2026-08-20 loader defect) is not searchable BY its msr either
+    -- the value never made it into the wildcard field. The office adapter
+    compensates on the read side with an exact ``ids`` clause, which is why
+    pasting a whole msr into the search bar still finds it; a fragment of one
+    cannot be found on those documents until the loader is fixed and they are
+    backfilled.
+    """
     return " ".join(
         str(row[field]).strip()
         for field in SEARCHABLE_SOURCE_FIELDS

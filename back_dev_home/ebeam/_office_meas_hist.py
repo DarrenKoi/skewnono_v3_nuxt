@@ -117,19 +117,27 @@ LOT_ID_KW = "lot_id.keyword"         # device roll-ups + lot_cd drill-down
 EQP_MODEL_CD_KW = "eqp_model_cd.keyword"
 
 # ── the measurement id (msr) ────────────────────────────────────────────────
-# The document ``_id`` IS the msr (user-confirmed 2026-08-20). The ``msr``
-# FIELD is not on every document -- 21,474 of 2,250,652 carry none, and the
-# newest documents are among them, which is the segment a default 스큐보아
-# search returns. Reading only ``_source["msr"]`` therefore hands the frontend
-# an empty identity for exactly the rows a user is most likely to click, and
-# the row goes dead while its ``minio_msr``/``minio_pkl`` sit populated in the
-# same document.
+# ``_id`` and the ``msr`` field are SUPPOSED to hold the same value
+# (user-confirmed 2026-08-20), and the ``msr`` field is what this app has read
+# all along. The helpers below exist because that invariant is currently
+# broken on the write side: recently ingested documents carry no ``msr`` field
+# at all -- 21,474 of 2,250,652 as of 2026-08-20, believed to be a scheduler /
+# loader defect rather than a schema change. The newest documents are the
+# affected ones, which is the segment a default 스큐보아 search returns, so
+# reading only ``_source["msr"]`` hands the frontend an empty identity for
+# exactly the rows a user is most likely to click -- the row goes dead while
+# its ``minio_msr``/``minio_pkl`` sit populated in the same document.
+#
+# So this is a safety net over an upstream bug, NOT a blessing of documents
+# without ``msr``: the loader still needs fixing and the affected documents
+# still want a backfill. What the net buys is that neither one has to happen
+# before the screens work, and that a future recurrence cannot black them out
+# again.
 #
 # Every office adapter that needs a measurement id must go through the two
-# helpers below rather than touching ``_source["msr"]``: the field is the
-# preferred source where it exists (it is the same value, and keeps behaviour
-# identical for the 99% that have it), and ``_id`` is what makes the identity
-# total.
+# helpers below rather than touching ``_source["msr"]``. The field stays the
+# preferred source where it exists -- it is the same value, and behaviour is
+# then identical to before for every document that has it.
 MSR_KW = "msr.keyword"
 
 

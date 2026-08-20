@@ -101,10 +101,11 @@ what was measured — investigate the post-processing pipeline, not the adapter.
   `minio_handler/minio_config.py`, NOT `.env`. Unknown MSR, missing
   `minio_pkl`, or a non-dict pickle all return `None` → 404, same as the mock.
   - The parent lookup goes through `_office_meas_hist.msr_clause`, never a bare
-    `msr.keyword` term. The `msr` field is absent on 21,474 of 2,250,652 office
-    documents (office 확인 2026-08-20) — including the newest, which are the
-    ones a 스큐보아 search surfaces — and there the id lives only in the
-    document `_id`. A field-only query returns `None` for those, which the UI
+    `msr.keyword` term. `_id` and `msr` are supposed to hold the same value,
+    but the `msr` field is absent on 21,474 of 2,250,652 office documents
+    (office 확인 2026-08-20, believed to be a loader defect) — including the
+    newest, which are the ones a 스큐보아 search surfaces — and there the id
+    lives only in the document `_id`. A field-only query returns `None` for those, which the UI
     renders as "this measurement has no data" while its `minio_pkl` sits
     populated in the very document the query failed to find.
 - Normalization gaps handled by `build_response` (pure, pinned at home by
