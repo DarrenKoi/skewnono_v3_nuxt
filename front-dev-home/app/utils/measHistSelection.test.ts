@@ -4,7 +4,6 @@ import type { MeasHistRow } from '../composables/useMeasHistApi.ts'
 import {
   addMeasHistSelection,
   hasMsrIdentity,
-  isAnalyzableMeasHist,
   measHistRowKey,
   removeMeasHistSelection,
   setMeasHistSelections,
@@ -105,20 +104,16 @@ test('measHistRowKey keeps the msr as key and never collides for msr-less rows',
   assert.notEqual(keyA, '')
 })
 
-test('isAnalyzableMeasHist needs both an msr identity and a stored MSR file', () => {
-  const analyzable = row('MSR-001', 'ADI_CD_BIAS_001')
-  assert.equal(isAnalyzableMeasHist(analyzable), true)
-
-  // user-confirmed 2026-08-19: msr_check "No" = MSR 파일이 발견되지 않아
-  // MinIO 에 저장되지 않음. msr 값이 있어도 열 raw data 가 없습니다.
+// Regression (2026-08-20): the office reported every 검색 결과 row dead while
+// MinIO held the data. msr_check must never be what disables a row -- the
+// office adapter maps EVERY unrecognized value to "No" (providers/
+// office_example.py `_text(src.get("msr_check")).lower() == "yes"`), so one
+// unexpected value shape blanks the whole table with no error anywhere.
+// Opening needs the msr and nothing else; a measurement whose raw data really
+// is missing renders an empty analysis screen, which is the recoverable error.
+test('msr_check never decides whether a row can be opened', () => {
   const fileMissing = { ...row('MSR-002', 'ADI_CD_BIAS_001'), msr_check: 'No' as const }
-  assert.equal(isAnalyzableMeasHist(fileMissing), false)
-
-  assert.equal(isAnalyzableMeasHist(row('', 'ADI_CD_BIAS_001')), false)
-})
-
-test('a row whose MSR file is missing cannot join the selection even with a real msr', () => {
-  const fileMissing = { ...row('MSR-002', 'ADI_CD_BIAS_001'), msr_check: 'No' as const }
-  assert.deepEqual(addMeasHistSelection([], fileMissing), [])
-  assert.deepEqual(toggleMeasHistSelection([], fileMissing), [])
+  assert.equal(hasMsrIdentity(fileMissing), true)
+  assert.deepEqual(addMeasHistSelection([], fileMissing), [fileMissing])
+  assert.deepEqual(toggleMeasHistSelection([], fileMissing), [fileMissing])
 })

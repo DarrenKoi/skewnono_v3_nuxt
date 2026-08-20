@@ -7,16 +7,18 @@ import type { MeasHistRow } from '~/composables/useMeasHistApi'
 // adapter's _text() emits when the document carries no msr field
 // (OFFICE-VERIFY 2026-08-19, docs/datatables/meas_hist.txt) -- everything
 // that treats msr as a v-for/dedup key must ask this first.
+//
+// This is ALSO the whole test for "can this row be opened in analysis", and
+// msr_check deliberately plays no part in it. Gating on msr_check went in on
+// 2026-08-19 and blanked the office's entire 검색 결과 table: the adapter maps
+// every unrecognized value to "No" (providers/office_example.py --
+// `_text(...).lower() == "yes"`, so "Y" and a boolean True both become "No"),
+// which makes "the office wrote something we did not expect" indistinguishable
+// from "this row has no data". Fail-closed is the wrong default here, because
+// the two errors are not the same size: a row wrongly blocked is data the user
+// cannot reach at all, while a row wrongly opened just renders an empty
+// analysis screen. Anything cheap enough to guard belongs in that screen.
 export const hasMsrIdentity = (row: MeasHistRow): boolean => row.msr.trim() !== ''
-
-// Whether the row can actually be opened or compared. msr_check "No" means
-// the MSR file was never found and is not stored in MinIO (user-confirmed
-// 2026-08-19): even a row that DOES carry an msr value has no raw data
-// behind it, so selection and analysis entry gate on this, not on
-// hasMsrIdentity alone. At home the mock emits msr '' for such rows, so the
-// two conditions coincide -- at the office they may not.
-export const isAnalyzableMeasHist = (row: MeasHistRow): boolean =>
-  hasMsrIdentity(row) && row.msr_check !== 'No'
 
 // v-for key for a search-result row. The msr where one exists; identity-less
 // rows fall back to a composite that cannot collide with an msr (no real msr
@@ -32,7 +34,7 @@ export const addMeasHistSelection = (
   selected: MeasHistRow[],
   row: MeasHistRow
 ): MeasHistRow[] => {
-  if (!isAnalyzableMeasHist(row)) return selected
+  if (!hasMsrIdentity(row)) return selected
 
   const index = selected.findIndex(existing => existing.msr === row.msr)
   if (index < 0) return [...selected, row]

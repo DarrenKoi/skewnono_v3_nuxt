@@ -15,15 +15,13 @@ const normalizeRows = (parsed: unknown): MeasHistRow[] => {
   if (!Array.isArray(parsed)) return []
   // Only rows the selection could legitimately hold survive the storage
   // boundary: a blank msr could never be deselected (toggle keys on msr) and
-  // would duplicate the workbench's v-for keys, and an msr_check "No" row
-  // has no MSR file to analyze (user-confirmed 2026-08-19) -- see
-  // utils/measHistSelection.ts isAnalyzableMeasHist.
+  // would duplicate the workbench's v-for keys. msr_check is not a criterion
+  // here either -- see utils/measHistSelection.ts hasMsrIdentity.
   return parsed.filter((item): item is MeasHistRow =>
     typeof item === 'object'
     && item !== null
     && typeof (item as { msr?: unknown }).msr === 'string'
     && (item as { msr: string }).msr.trim() !== ''
-    && (item as { msr_check?: unknown }).msr_check !== 'No'
   )
 }
 

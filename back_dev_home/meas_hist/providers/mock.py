@@ -255,13 +255,16 @@ def _build_row(
 
     date_str = end_time.strftime("%Y%m%d")
     # msr_check "No" = MSR 파일이 발견되지 않아 MinIO 에 저장되지 않음
-    # (user-confirmed 2026-08-19) -- 열거나 비교할 raw data 가 없는 행입니다.
-    # 그런 문서에 msr "필드"까지 없는지는 별개의 추정입니다(OFFICE-VERIFY
-    # 2026-08-19: production 스큐보아 검색이 msr '' 행 여럿으로 Vue
-    # duplicate-key '""' 경고를 냈고, meastime 의 필드-부재 패턴과 같다고
-    # 추정 -- 그쪽은 user-confirmed 2026-08-10). '' 가 faithful stand-in 인
-    # 이유도 meastime 의 0 과 같습니다: 프론트가 빈 msr 행(선택 불가,
-    # 분석 진입 불가)을 다루는지를 집에서 검증할 수 있게 합니다.
+    # (user-confirmed 2026-08-19). 단, 이 뜻은 2026-08-20 사무실 관찰과
+    # 어긋나 미결입니다 -- docs/datatables/meas_hist.txt 의 msr_check 절 H1/H2/H3
+    # 참고. 그래서 프론트는 msr_check 로 행을 막지 않습니다. 여기서 "No" 행에
+    # msr 을 비워 두는 것은 그 논쟁과 무관합니다: 그런 문서에 msr "필드"가
+    # 없다는 별개의 추정이며(OFFICE-VERIFY 2026-08-19: production 스큐보아
+    # 검색이 msr '' 행 여럿으로 Vue duplicate-key '""' 경고를 냈고, meastime 의
+    # 필드-부재 패턴과 같다고 추정 -- 그쪽은 user-confirmed 2026-08-10),
+    # '' 가 faithful stand-in 인 이유도 meastime 의 0 과 같습니다: 프론트가
+    # 빈 msr 행(선택 불가, 분석 진입 불가)을 다루는지를 집에서 검증할 수 있게
+    # 합니다.
     msr = (
         _make_msr(date_str, recipe_name, lot_id, eqp["eqp_id"])
         if msr_check == "Yes"
