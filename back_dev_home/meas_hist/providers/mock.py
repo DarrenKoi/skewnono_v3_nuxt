@@ -254,17 +254,19 @@ def _build_row(
     fail_ratio = fail_ratio_percent(fail_images, total_images)
 
     date_str = end_time.strftime("%Y%m%d")
-    # msr_check "No" = MSR 파일이 발견되지 않아 MinIO 에 저장되지 않음
-    # (user-confirmed 2026-08-19). 단, 이 뜻은 2026-08-20 사무실 관찰과
-    # 어긋나 미결입니다 -- docs/datatables/meas_hist.txt 의 msr_check 절 H1/H2/H3
-    # 참고. 그래서 프론트는 msr_check 로 행을 막지 않습니다. 여기서 "No" 행에
-    # msr 을 비워 두는 것은 그 논쟁과 무관합니다: 그런 문서에 msr "필드"가
-    # 없다는 별개의 추정이며(OFFICE-VERIFY 2026-08-19: production 스큐보아
-    # 검색이 msr '' 행 여럿으로 Vue duplicate-key '""' 경고를 냈고, meastime 의
-    # 필드-부재 패턴과 같다고 추정 -- 그쪽은 user-confirmed 2026-08-10),
-    # '' 가 faithful stand-in 인 이유도 meastime 의 0 과 같습니다: 프론트가
-    # 빈 msr 행(선택 불가, 분석 진입 불가)을 다루는지를 집에서 검증할 수 있게
-    # 합니다.
+    # ★ 이 mock 은 여기서 office 와 어긋나 있습니다 (office 확인 2026-08-20,
+    # docs/datatables/meas_hist.txt 참고). 실데이터는 msr_check 가 2,250,652 건
+    # 전부 "Yes" 이고, msr 필드는 21,474 건에서 빠져 있으며 그 둘은 서로
+    # 상관이 없습니다. 여기 있는 "8% 는 No 이고 No 면 msr 도 없다" 는 상관은
+    # 실물에 없습니다.
+    # 그래도 빈 msr 을 계속 만드는 이유는 그것이 프론트의 유일한 게이트이기
+    # 때문입니다 -- 빈 msr 행(선택 불가, 분석 진입 불가)과 measHistRowKey 의
+    # 중복 키 회피를 집에서 검증할 수 있게 해 줍니다. office 에서는 msr 필드가
+    # 없어도 _id 가 msr 이라 어댑터(_office_meas_hist.msr_of)가 식별자를
+    # 채워 주므로, 실제로 빈 msr 행이 사무실에 남는지는 미확인입니다.
+    # 분포 자체를 실물에 맞추는 것은 별건입니다: msr_check 를 전부 "Yes" 로
+    # 바꾸면 fail_ratio 생성 규칙 9, cdu.ts 의 msr_check 실패 사유,
+    # 계약 테스트가 함께 움직입니다.
     msr = (
         _make_msr(date_str, recipe_name, lot_id, eqp["eqp_id"])
         if msr_check == "Yes"

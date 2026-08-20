@@ -76,8 +76,8 @@ what was measured — investigate the post-processing pipeline, not the adapter.
   unhealthy tool shows correlated CD ↔ FDC excursions. `exe_detail_info`
   deliberately omits `site_layout_hash`, `recipe_revision`,
   `coordinate_transform_version` and `sequence_timestamp` — see below.
-- Office data source: the meas_hist document found by `msr.keyword` (both
-  aliases, `meas_hist_cdsem,meas_hist_hvsem`) carries two MinIO paths —
+- Office data source: the meas_hist document for this MSR (both aliases,
+  `meas_hist_cdsem,meas_hist_hvsem`) carries two MinIO paths —
   `minio_msr` (RAW .MSR text) and `minio_pkl` (post-processed pickle). The
   adapter reads ONLY `minio_pkl`, which is a **key relative to the configured
   `PREFIX`** — not a `"bucket/key"` pair. Its first segment (`hitachi_sem/...`)
@@ -99,8 +99,14 @@ what was measured — investigate the post-processing pipeline, not the adapter.
   `fixed_fdc` + `dynamic_fdc` + `spm_dict`, see
   `docs/datatables/msr_file_pickle.txt`). MinIO settings come from
   `minio_handler/minio_config.py`, NOT `.env`. Unknown MSR, missing
-  `minio_pkl` (e.g. `msr_check: No`), or a non-dict pickle all return `None`
-  → 404, same as the mock.
+  `minio_pkl`, or a non-dict pickle all return `None` → 404, same as the mock.
+  - The parent lookup goes through `_office_meas_hist.msr_clause`, never a bare
+    `msr.keyword` term. The `msr` field is absent on 21,474 of 2,250,652 office
+    documents (office 확인 2026-08-20) — including the newest, which are the
+    ones a 스큐보아 search surfaces — and there the id lives only in the
+    document `_id`. A field-only query returns `None` for those, which the UI
+    renders as "this measurement has no data" while its `minio_pkl` sits
+    populated in the very document the query failed to find.
 - Normalization gaps handled by `build_response` (pure, pinned at home by
   `tests/test_office_template.py`): spaced pickle columns
   (`"mp_image_name 01"`, `"meas_condition mag"`) → underscore names —

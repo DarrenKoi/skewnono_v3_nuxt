@@ -33,41 +33,39 @@ meastime -> int64: 측정 소요 시간. 단위는 second이며 end_time - start
                    분모만 value_count 입니다. 이 둘을 한 값으로 쓰면
                    요약 카드가 자기 트렌드 차트와 어긋납니다.
 msr -> string: MSR raw data 식별자. 예: 20260428_ADI_CD_BIAS_001_RAEA240031_ECXDX123
-               msr_check가 "Yes"인 문서에만 존재합니다 (OFFICE-VERIFY
-               2026-08-19 — production 스큐보아 검색 결과에 msr이 빈 행이
-               여럿 있어 Vue가 duplicate-key '""' 경고를 냈습니다. meastime과
-               같은 필드-부재 패턴으로 추정하며, office에서
-               back_dev_home/meas_hist 계약 테스트가 깨지면 이 추정이 틀린
-               것이므로 실측으로 바꿉니다). "No"이면 어댑터의
-               _text(src.get("msr"))가 '' 를 내보내고, id = msr 규칙에 따라
-               id도 '' 가 됩니다. 프론트는 이런 행을 선택·분석 진입 불가로
-               다루고, v-for key는 msr 대신 fallback 키를 씁니다
-               (utils/measHistSelection.ts measHistRowKey). msr이 비었는지가
-               행을 열 수 있는지를 정하는 **유일한** 기준입니다 - msr_check 절
-               참고.
-msr_check -> string: MSR 파일 존재 여부. Yes, No
-               "No" = MSR 파일이 발견되지 않아 MinIO에 저장되지 않았다는 뜻
-               (user-confirmed 2026-08-19).
-               ★ 이 뜻은 2026-08-20 사무실 관찰과 어긋납니다. 그날 스큐보아
-               검색 결과 표의 행 클릭이 전부 죽었는데 MinIO에는 데이터가
-               있었습니다. 아직 어느 쪽이 틀렸는지 모릅니다 - 가능성은 셋이고
-               scripts/diagnose_msr_check_office.py 를 사무실에서 한 번 돌리면
-               갈립니다.
-                 H1) 저장된 값이 "Yes"가 아니어서 어댑터가 전부 "No"로 만든다.
-                     office_example.py 는 _text(...).lower() == "yes" 만
-                     "Yes"로 보므로 "Y"나 boolean True 는 모두 "No"가 됩니다.
-                 H2) 값은 진짜 "No"지만 minio_msr/minio_pkl 은 채워져 있다.
-                     즉 "No"는 MinIO 저장 여부를 뜻하지 않는다.
-                 H3) msr 필드 자체가 대부분 비어 있다.
-               결론이 나기 전까지 **프론트는 이 필드로 행을 막지 않습니다.**
-               행을 열 수 있는지는 msr 유무만으로 판단합니다
-               (utils/measHistSelection.ts hasMsrIdentity). 두 오류의 크기가
-               다르기 때문입니다 - 잘못 막으면 있는 데이터에 아예 못 닿고,
-               잘못 열리면 빈 분석 화면 하나가 뜰 뿐입니다.
-               같은 이유로 ebeam/_office_msr_cd.py 의
-               msr_check.keyword == "Yes" 필터도 H1이 참이면 아무것도 매칭하지
-               않습니다(tttm / pm-tune 이 조용히 비게 됩니다). 진단 스크립트가
-               그것도 함께 확인합니다.
+               ★ **문서의 _id 가 곧 msr 입니다** (user-confirmed 2026-08-20).
+               그리고 msr "필드"는 모든 문서에 있지 않습니다 - office 확인
+               2026-08-20 기준 2,250,652 건 중 21,474 건에 없고, **가장 최근
+               문서들이 그 부류**입니다. 스큐보아 기본 검색이 돌려주는 구간이
+               바로 최신 구간이므로, _source["msr"] 만 읽으면 사용자가 가장
+               많이 클릭할 행들이 빈 식별자를 받습니다. 2026-08-19 의 Vue
+               duplicate-key '""' 경고도 이것이 원인이었습니다(여러 행의 키가
+               동시에 '' 였음).
+               따라서 office 어댑터는 msr 을 필드에서 읽되 없으면 _id 에서
+               가져옵니다. 이 규칙은 공용 모듈 한 곳에만 있습니다 -
+               back_dev_home/ebeam/_office_meas_hist.py 의 msr_of(hit) /
+               msr_clause(values). **_source["msr"] 를 직접 읽지 마십시오.**
+               조회 쪽도 마찬가지입니다: msr.keyword term 만으로는 필드 없는
+               문서를 찾지 못하므로 msr_clause 가 terms + ids 를 OR 합니다.
+               (id = msr 규칙은 그대로입니다. _id 를 쓰면 id 도 같은 값이 됩니다.)
+msr_check -> string: MSR 파일 존재 여부. 스키마상 Yes, No
+               ★ **실데이터에서는 값이 사실상 하나입니다** - office 확인
+               2026-08-20: 2,250,652 건 전부 "Yes" 이고 필드가 없는 문서는
+               0 건입니다. 즉 이 필드로는 아무것도 구분되지 않습니다.
+               2026-08-19 에 "No" = MinIO 미저장 이라고 적었고(user-confirmed)
+               그 뜻 자체는 유지하지만, 그런 문서가 실제로 존재하는지는
+               확인되지 않았습니다.
+               **행을 열 수 있는지 판단하는 데 쓰지 마십시오.** 잠깐 그렇게
+               했다가(2026-08-19) 사무실 검색 결과 표가 통째로 죽었습니다.
+               프론트는 msr 유무만 봅니다 (utils/measHistSelection.ts
+               hasMsrIdentity). 두 오류의 크기가 다르기 때문입니다 - 잘못
+               막으면 있는 데이터에 아예 못 닿고, 잘못 열리면 빈 분석 화면
+               하나가 뜰 뿐입니다.
+               ebeam/_office_msr_cd.py 는 여전히 msr_check.keyword == "Yes" 로
+               거릅니다. 전부 "Yes" 이므로 지금은 아무것도 거르지 않는 절이며,
+               "pickle 없는 실행을 건너뛴다"는 원래 의도는 minio_pkl 유무로
+               다시 세워야 합니다(미결).
+               재확인: scripts/diagnose_msr_check_office.py
 align_fail -> string: align 결과. Pass, Fail, NA
 total_images -> int64: 측정 대상 image 전체 개수
 fail_images -> int64: 실패 image 개수
@@ -138,10 +136,13 @@ Field(mapping) -> Type: 설명
   meastime      -> long: 측정 소요 시간(초). recipe TAT 의 핵심 지표(sum 대상).
                    msr_check == "Yes" 인 문서에만 존재 (user-confirmed
                    2026-08-10) — 위 컬럼 설명의 집계 주의사항 참조.
-  minio_msr     -> text
-  minio_pkl     -> text
-  msr           -> text
-  msr_check     -> text
+  minio_msr     -> text: MinIO raw .MSR 경로. 2,242,422 / 2,250,652 건에 존재
+  minio_pkl     -> text: MinIO 후처리 pickle 경로. msr_file 어댑터가 읽는 값
+  msr           -> text: **모든 문서에 있지는 않습니다** (없는 문서 21,474 건,
+                   최신 구간 포함). 문서의 _id 가 곧 msr 이므로 어댑터는
+                   _office_meas_hist.msr_of(hit) 로 읽습니다. 위 컬럼 설명 참조
+  msr_check     -> text: 실데이터는 전부 "Yes" (office 확인 2026-08-20).
+                   구분에 쓸 수 없습니다
   recipe_name   -> text: 집계는 recipe_name.keyword 사용
   start_time    -> date: 측정 시작 시각
   timestamp     -> date: 측정 대표 시각. 기간(range) 필터/일자 histogram/anchor 기준

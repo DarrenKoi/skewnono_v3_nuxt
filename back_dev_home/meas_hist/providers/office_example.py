@@ -72,7 +72,10 @@ from back_dev_home.ebeam._office_meas_hist import (
     TIME_FIELD as _TIME_F,
     aggregate as _aggregate,
     composite_buckets as _composite_buckets,
+    MSR_KW as _MSR_KW,
     get_anchor_time,
+    msr_clause as _msr_clause,
+    msr_of as _msr_of,
     search as _os_search,
     text as _text,
     try_bridge as _try_bridge,
@@ -107,7 +110,6 @@ __all__ = [
 
 
 _MODEL_KW = "eqp_model_cd.keyword"
-_MSR_KW = "msr.keyword"
 _RECIPE_KW = "recipe_name.keyword"
 
 # Generous terms-agg cap for the facet dropdowns. A terms agg silently drops
@@ -161,7 +163,7 @@ def _row(
     bridge: dict[str, str],
 ) -> MeasHistRow:
     src = hit.get("_source", {})
-    msr = _text(src.get("msr"))
+    msr = _msr_of(hit)
     lot_id = _text(src.get("lot_id"))
     eqp_model_cd = _text(src.get("eqp_model_cd"))
     msr_check = "Yes" if _text(src.get("msr_check")).lower() == "yes" else "No"
@@ -334,6 +336,25 @@ def _wildcard_or(terms: list[str], fields: tuple[str, ...]) -> dict[str, Any] | 
     }
 
 
+def _q_clause(terms: list[str]) -> dict[str, Any] | None:
+    """The free-text `q` clause: substring across _Q_FIELDS, OR an exact id.
+
+    The id half is what makes a pasted msr findable on a document that carries
+    no ``msr`` field -- there its identity is the ``_id``, and ``_id`` cannot
+    be wildcarded, only matched whole. Pasting a full msr is the realistic way
+    that search is used, and a fragment of one still resolves through the
+    wildcard half for every document that does have the field.
+    """
+    wildcard = _wildcard_or(terms, _Q_FIELDS)
+    exact = [term.strip() for term in terms if term.strip()]
+    if not exact:
+        return wildcard
+    should = [{"ids": {"values": exact}}]
+    if wildcard:
+        should.append(wildcard)
+    return {"bool": {"should": should, "minimum_should_match": 1}}
+
+
 def _recipe_clause(terms: list[str]) -> dict[str, Any] | None:
     """Substring match on recipe_name/full_name — the search bar accepts
     fragments."""
@@ -397,15 +418,14 @@ def get_meas_hist(
 
 
 def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
-    # msr_check == "No" rows carry no msr identity (OFFICE-VERIFY 2026-08-19,
-    # docs/datatables/meas_hist.txt). A term query for "" would match any doc
-    # that stores the field as an explicit empty string, handing back an
-    # arbitrary "No" row -- an identity-less lookup must resolve to nothing,
-    # exactly as the mock's _rows_by_msr guard does.
-    if not msr:
+    # An empty lookup must resolve to nothing rather than to an arbitrary row:
+    # a term query for "" matches any document storing the field as an explicit
+    # empty string. The mock's _rows_by_msr guard does the same.
+    clause = _msr_clause([msr])
+    if clause is None:
         return None
     body = {
-        "query": {"bool": {"filter": [{"term": {_MSR_KW: msr}}]}},
+        "query": {"bool": {"filter": [clause]}},
         "size": 1,
     }
     result = _os_search(_ALL_INDICES).search_raw(body)
@@ -451,14 +471,15 @@ def search_meas_hist(
             clauses.append({"terms": {_EQP_KW: [v.upper() for v in eq]}})
         if lot:
             clauses.append({"terms": {_LOT_ID_KW: [v.upper() for v in lot]}})
-        if msr:
-            clauses.append({"terms": {_MSR_KW: list(msr)}})
+        msr_filter = _msr_clause(list(msr or []))
+        if msr_filter:
+            clauses.append(msr_filter)
         recipe_clause = _recipe_clause(recipe_terms)
         if recipe_clause:
             clauses.append(recipe_clause)
         # q fallback: substring wildcard across the real source fields — see
         # the module docstring's "q free-text search" note.
-        q_clause = _wildcard_or(q or [], _Q_FIELDS)
+        q_clause = _q_clause(q or [])
         if q_clause:
             clauses.append(q_clause)
 

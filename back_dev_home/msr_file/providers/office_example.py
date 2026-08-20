@@ -4,7 +4,8 @@
 
 Data path (docs/datatables/meas_hist.txt + msr_file_pickle.txt):
 
-* The meas_hist_{cdsem,hvsem} document found by ``msr.keyword`` carries two
+* The meas_hist_{cdsem,hvsem} document for this MSR (matched by
+  ``_office_meas_hist.msr_clause`` — field or ``_id``) carries two
   MinIO paths: ``minio_msr`` (the RAW .MSR text file) and ``minio_pkl`` (the
   post-processed pickle). This adapter reads ONLY ``minio_pkl`` — the pickle
   already holds the parsed structure the UI needs (``df_result_data`` +
@@ -59,6 +60,7 @@ from typing import Any
 
 from back_dev_home.ebeam._office_meas_hist import (
     ALL_INDICES as _ALL_INDICES,
+    msr_clause as _msr_clause,
     search as _os_search,
     text as _text,
 )
@@ -86,8 +88,6 @@ from back_dev_home.msr_file.providers.mock import (
 __all__ = ["get_msr_file", "build_response"]
 
 _log = logging.getLogger(__name__)
-
-_MSR_KW = "msr.keyword"
 
 # Names a real revision might hide under in the pickle's exe_detail_info.
 # Checked in order; extend at the office if the pipeline uses another key.
@@ -142,9 +142,18 @@ def _float_list(value: Any) -> list[float]:
 
 
 def _find_parent(msr: str) -> dict[str, Any] | None:
-    """The meas_hist _source for this MSR — searched across BOTH aliases."""
+    """The meas_hist _source for this MSR — searched across BOTH aliases.
+
+    Matching goes through the shared msr_clause because the id lives in the
+    ``msr`` field on some documents and only in ``_id`` on others. Querying the
+    field alone would return None for the second kind, which reads as "this
+    measurement has no data" while its minio_pkl sits right there.
+    """
+    clause = _msr_clause([msr])
+    if clause is None:
+        return None
     body = {
-        "query": {"bool": {"filter": [{"term": {_MSR_KW: msr}}]}},
+        "query": {"bool": {"filter": [clause]}},
         "size": 1,
     }
     hits = _os_search(_ALL_INDICES).search_raw(body).get("hits", {}).get("hits", [])

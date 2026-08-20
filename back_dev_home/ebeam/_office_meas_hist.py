@@ -116,6 +116,49 @@ LOT_ID_KW = "lot_id.keyword"         # device roll-ups + lot_cd drill-down
 # (이쪽도 에러 없이 조용히 틀립니다).
 EQP_MODEL_CD_KW = "eqp_model_cd.keyword"
 
+# ── the measurement id (msr) ────────────────────────────────────────────────
+# The document ``_id`` IS the msr (user-confirmed 2026-08-20). The ``msr``
+# FIELD is not on every document -- 21,474 of 2,250,652 carry none, and the
+# newest documents are among them, which is the segment a default 스큐보아
+# search returns. Reading only ``_source["msr"]`` therefore hands the frontend
+# an empty identity for exactly the rows a user is most likely to click, and
+# the row goes dead while its ``minio_msr``/``minio_pkl`` sit populated in the
+# same document.
+#
+# Every office adapter that needs a measurement id must go through the two
+# helpers below rather than touching ``_source["msr"]``: the field is the
+# preferred source where it exists (it is the same value, and keeps behaviour
+# identical for the 99% that have it), and ``_id`` is what makes the identity
+# total.
+MSR_KW = "msr.keyword"
+
+
+def msr_of(hit: Mapping[str, Any]) -> str:
+    """The measurement id of a search hit. Never empty for a real document."""
+    return text(hit.get("_source", {}).get("msr")) or text(hit.get("_id"))
+
+
+def msr_clause(values: Sequence[str]) -> dict[str, Any] | None:
+    """Match documents whose msr is any of ``values``.
+
+    Two clauses OR'd, because the same id lives in two places depending on the
+    document: a ``terms`` on the field for those that have it, and an ``ids``
+    query for those where only ``_id`` carries it. A lookup that queried only
+    ``MSR_KW`` would 404 on every document ingested without the field.
+    """
+    wanted = [v for v in values if v]
+    if not wanted:
+        return None
+    return {
+        "bool": {
+            "should": [
+                {"terms": {MSR_KW: wanted}},
+                {"ids": {"values": wanted}},
+            ],
+            "minimum_should_match": 1,
+        }
+    }
+
 
 def iso_date_or_none(value: str | None) -> str | None:
     """``value`` when it is a real ``yyyy-MM-dd`` date, else ``None``.

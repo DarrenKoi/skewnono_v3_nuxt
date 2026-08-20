@@ -329,3 +329,87 @@ def test_recipe_names_are_incomplete_when_date_range_is_rejected(
     assert result["out_of_retention"] is True
     assert result["recipe_names"] == []
     assert result["recipe_names_complete"] is False
+
+
+# ── the msr identity: field where present, _id otherwise ────────────────────
+# Regression 2026-08-20: 21,474 of 2,250,652 office documents carry no `msr`
+# field, and the NEWEST ones are among them -- the segment a default 스큐보아
+# search returns. Reading only _source["msr"] gave those rows an empty
+# identity, so every one of them lost its click while minio_msr/minio_pkl sat
+# populated in the same document. The _id IS the msr (user-confirmed).
+
+_ID_ONLY_HIT = {
+    "_id": "20260819_ADI_CD_BIAS_001_RAEA240031_ECXDX123",
+    "_index": "meas_hist_cdsem",
+    "_source": {
+        "lot_id": "RAEA240031",
+        "eqp_id": "ECXDX123",
+        "eqp_model_cd": "CG6300",
+        "msr_check": "Yes",
+        "minio_pkl": "hitachi_sem/cdsem/dict_pkl/2026/x.pkl",
+        "timestamp": "2026-08-19T10:00:00",
+    },
+}
+
+
+def test_row_takes_the_msr_from_the_id_when_the_field_is_absent():
+    row = office_example._row(_ID_ONLY_HIT, "cd-sem", {})
+
+    assert row["msr"] == _ID_ONLY_HIT["_id"]
+    # id = msr is the datatable rule; it must hold on this path too.
+    assert row["id"] == _ID_ONLY_HIT["_id"]
+
+
+def test_row_prefers_the_stored_field_when_the_document_has_one():
+    hit = {**_ID_ONLY_HIT, "_source": {**_ID_ONLY_HIT["_source"], "msr": "FROM-FIELD"}}
+
+    assert office_example._row(hit, "cd-sem", {})["msr"] == "FROM-FIELD"
+
+
+def test_msr_lookup_matches_documents_whose_id_carries_the_identity(monkeypatch):
+    captured = {}
+
+    class _Search:
+        def search_raw(self, body):
+            captured["body"] = body
+            return {"hits": {"hits": [_ID_ONLY_HIT]}}
+
+    monkeypatch.setattr(office_example, "_os_search", lambda _index: _Search())
+
+    row = office_example.find_meas_hist_by_msr(_ID_ONLY_HIT["_id"])
+
+    assert row is not None and row["msr"] == _ID_ONLY_HIT["_id"]
+    # An `ids` clause is the half that reaches a field-less document; a query
+    # built only on msr.keyword would have returned nothing for it.
+    assert "ids" in str(captured["body"])
+
+
+def test_msr_lookup_still_refuses_an_empty_identity(monkeypatch):
+    def unexpected(*_args, **_kwargs):
+        raise AssertionError("an empty msr must not reach OpenSearch")
+
+    monkeypatch.setattr(office_example, "_os_search", unexpected)
+
+    assert office_example.find_meas_hist_by_msr("") is None
+
+
+def test_msr_filter_and_q_both_reach_id_only_documents(monkeypatch):
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(office_example, "_os_search", lambda _i: _FakeSearch(captured))
+    monkeypatch.setattr(
+        office_example,
+        "_composite_buckets",
+        lambda *_a, **_k: [],
+        raising=False,
+    )
+
+    office_example.search_meas_hist(
+        msr=[_ID_ONLY_HIT["_id"]],
+        q=[_ID_ONLY_HIT["_id"]],
+        limit=1,
+    )
+
+    # Both the explicit msr= filter and the pasted-into-the-search-bar path
+    # must carry an ids clause; _id cannot be wildcarded, only matched whole.
+    assert str(captured["raw_body"]).count("ids") >= 2

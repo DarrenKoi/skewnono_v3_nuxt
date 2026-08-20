@@ -61,6 +61,7 @@ from back_dev_home.ebeam._office_meas_hist import (
     TIME_FIELD,
     MAX_INNER_RESULT_WINDOW,
     aggregate,
+    msr_of as _msr_of,
     parse_dt,
     query as _query,
     text as _text,
@@ -166,9 +167,13 @@ class RunSet(NamedTuple):
         return grouped
 
 
-def _run_from_source(source: dict[str, Any]) -> RunRef | None:
+def _run_from_hit(hit: dict[str, Any]) -> RunRef | None:
+    # The whole hit, not just _source: on documents with no ``msr`` field the
+    # measurement id is the ``_id``, and dropping those runs would quietly
+    # shrink every tool's history to the days that predate the change.
+    source = hit.get("_source", {})
     pkl = _text(source.get("minio_pkl"))
-    msr = _text(source.get("msr"))
+    msr = _msr_of(hit)
     eqp_id = _text(source.get("eqp_id"))
     if not (pkl and msr and eqp_id):
         # No pickle path, no measurement to open. Dropping it here keeps every
@@ -289,7 +294,7 @@ def recent_runs(
     for bucket in result.get("per_tool", {}).get("buckets", []):
         hits = bucket.get("latest", {}).get("hits", {}).get("hits", [])
         for hit in hits:
-            run = _run_from_source(hit.get("_source", {}))
+            run = _run_from_hit(hit)
             if run is not None:
                 runs.append(run)
         if bucket.get("doc_count", 0) > len(hits):
