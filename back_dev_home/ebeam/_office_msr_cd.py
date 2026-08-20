@@ -80,6 +80,7 @@ __all__ = [
     "RunSet",
     "beam_label",
     "cd_band",
+    "has_pickle_clause",
     "load_points",
     "monitor_recipe_pattern",
     "recent_runs",
@@ -92,12 +93,35 @@ _LOG = logging.getLogger(__name__)
 
 # ── the run index ──────────────────────────────────────────────────────────
 
-# Only a run whose MSR file landed has a pickle to open. A document with
-# msr_check == "No" is a real execution (recipe_tat counts it) but carries no
-# CD values, so fetching its minio_pkl is a guaranteed wasted GET.
-MSR_CHECK_KW = "msr_check.keyword"
+# Only a run whose MSR file landed has a pickle to open. A run without one is a
+# real execution (recipe_tat counts it) but carries no CD values, so fetching it
+# would be a guaranteed wasted GET.
+#
+# This asks for the pickle path directly. It used to ask `msr_check == "Yes"`
+# as a proxy, which stopped meaning anything: msr_check is "Yes" on all
+# 2,250,652 office documents (office 확인 2026-08-20), so the clause filtered
+# nothing and every pickle-less run reached the fetch loop. Asking for the
+# field the next step actually opens cannot drift out of agreement with it.
+MINIO_PKL_FIELD = "minio_pkl"
 RECIPE_NAME_KW = "recipe_name.keyword"
 CLASS_NAME_KW = "class_name.keyword"
+
+
+def has_pickle_clause() -> dict[str, Any]:
+    """The filter for "this run has CD values to read".
+
+    Every caller that fans out to MinIO must apply this, and tttm's recipe
+    picker must apply it too: a picker scoped more loosely than the payload it
+    drives offers recipes that come back empty. Returns a fresh dict so a
+    caller assembling a clause list cannot mutate the shared one.
+
+    `exists` also matches a field stored as "", which `_run_from_hit` drops on
+    the `pkl` guard. Narrowing that here would need a `minio_pkl.keyword`
+    subfield whose existence is unverified, and a composite source on a field
+    that is not mapped returns zero buckets rather than an error -- an empty
+    screen indistinguishable from "no data".
+    """
+    return {"exists": {"field": MINIO_PKL_FIELD}}
 
 # The _source fields a run needs. Trimmed on purpose: meas_hist documents are
 # wide and this adapter reads eight fields of them.
@@ -264,7 +288,7 @@ def recent_runs(
     clauses: list[dict[str, Any]] = [
         {"term": {FAB_NAME_KW: fab_name.strip().upper()}},
         {"terms": {EQP_ID_KW: fleet}},
-        {"term": {MSR_CHECK_KW: "Yes"}},
+        has_pickle_clause(),
         {
             "range": {
                 TIME_FIELD: {

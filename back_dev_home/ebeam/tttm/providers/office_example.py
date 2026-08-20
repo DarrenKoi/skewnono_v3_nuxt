@@ -123,6 +123,7 @@ from back_dev_home.ebeam._office_msr_cd import (
     RunRef,
     beam_label,
     cd_band,
+    has_pickle_clause,
     load_points,
     recent_runs,
     resolve_axis,
@@ -1014,9 +1015,10 @@ if __name__ == "__main__":  # pragma: no cover
 
 # Only a run whose MSR landed can contribute CD values, and this list exists to
 # offer recipes the check can actually answer for — so it filters exactly the
-# way `recent_runs` does. A picker scoped more loosely than the payload it
-# drives offers recipes that then come back empty.
-_RECIPES_MSR_CHECK_KW = "msr_check.keyword"
+# way `recent_runs` does, through the SAME shared clause rather than a second
+# spelling of it. A picker scoped more loosely than the payload it drives
+# offers recipes that then come back empty, and that drift is invisible: the
+# rows still render, they just resolve to nothing once selected.
 
 
 def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
@@ -1049,7 +1051,7 @@ def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
     start = anchor - timedelta(days=WINDOW_DAYS)
     clauses: list[dict[str, Any]] = [
         {"term": {FAB_NAME_KW: fab}},
-        {"term": {_RECIPES_MSR_CHECK_KW: "Yes"}},
+        has_pickle_clause(),
         {
             "range": {
                 TIME_FIELD: {

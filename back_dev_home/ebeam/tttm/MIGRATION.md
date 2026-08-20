@@ -124,7 +124,9 @@
   recipe that EXISTS. On this screen a recipe nobody ran carries no information
   at all — picking it can only answer "no data" — so the picker is fed from
   `meas_hist_{cdsem,hvsem}` instead, filtered exactly the way `recent_runs`
-  filters (`fab_name`, `msr_check == "Yes"`, the same window). The measured set
+  filters — `fab_name`, the same window, and the SAME shared
+  `_office_msr_cd.has_pickle_clause()` (`exists(minio_pkl)`), not a second
+  spelling of it. The measured set
   is also far smaller than the catalogue, which is what makes the picker usable.
 - `recipe_id` is the `class/recipe` **full_name** where the source carries one,
   because that is the key the axis map scopes by and the identity
