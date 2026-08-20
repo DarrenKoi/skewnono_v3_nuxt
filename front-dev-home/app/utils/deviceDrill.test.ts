@@ -115,6 +115,26 @@ test('violation drill flags recipes whose param exceeds its cap, with cap note',
   assert.equal(recA.flagged, false)
 })
 
+test('violation drill: judgeSons=false 인 son 은 tint 없이 사유만 답니다', () => {
+  // 준수(표시 없음) · 위반(tint + cap) · 판정 제외(cap + 제외, tint 없음)가 서로
+  // 다른 모습이어야 합니다. 셋 중 뒤의 둘이 같아지면 토글을 껐다는 사실이 화면에서
+  // 사라지고, 상한을 넘긴 son 이 준수한 파라미터처럼 읽힙니다.
+  const recipes = [{
+    ...dramRecipe('A', 16),
+    parameters: [
+      { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+      { name: 'EDGE_L', point_count: 16, mother: false, region: 2 }
+    ]
+  }]
+  const health = evaluateLot('R000', recipes, [coreEarlyDram], { judgeSons: false })
+  const params = toViolationDrill('R000', '', health).recipes[0]!.parameters
+
+  const son = params.find(p => p.name === 'EDGE_L')!
+  assert.equal(son.flagged, false, 'tint 는 위반에만')
+  assert.equal(son.note, 'cap 10 · 제외')
+  assert.equal(params.find(p => p.name === 'WAFER_CD')!.note, undefined, '준수한 파라미터는 꼬리표가 없습니다')
+})
+
 test('violation drill: gray (unruled) recipes are unflagged', () => {
   // No matching cell for an M-class fab → gray, conservative pass (D14).
   const recipes = [dramRecipe('A', 99)]

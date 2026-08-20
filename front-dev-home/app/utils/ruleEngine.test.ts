@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   deriveType, deriveFamily, derivePhase, deriveMemoryClass,
-  capFor, applyAnnotation, resolveRuleCell, evaluateRecipe, evaluateLot,
+  capFor, resolveCap, applyAnnotation, resolveRuleCell, evaluateRecipe, evaluateLot,
   classifyHealth, groupCaps, effectiveCap, type RuleCell, type RecipeInput
 } from './ruleEngine.ts'
 
@@ -325,7 +325,7 @@ test('D17 evaluateLot threads thresholds through to health', () => {
   ]
   // ratio 0.5 → red under seed, but green under a permissive saved threshold
   assert.equal(evaluateLot('R3K-12', recipes, [coreEarlyDram]).health, 'red')
-  assert.equal(evaluateLot('R3K-12', recipes, [coreEarlyDram], undefined, { yellow_at: 0.6, red_at: 0.8 }).health, 'green')
+  assert.equal(evaluateLot('R3K-12', recipes, [coreEarlyDram], { thresholds: { yellow_at: 0.6, red_at: 0.8 } }).health, 'green')
 })
 
 // --- SEQ group (region): son 은 mother 의 cap 을 물려받습니다 (user-confirmed 2026-08-18) ---
@@ -442,33 +442,19 @@ test('effectiveCap: a plain OTHER son still inherits its mother cap', () => {
   assert.equal(effectiveCap(son, coreEarlyDram, caps), 13)
 })
 
-// ── 그룹 cap 은 명시적 타입 cap 을 덮지 않습니다 (D9) ────────────────────────
-// 상속(2026-08-18)은 son 의 cap 을 **올리려고** 넣은 것입니다 — WAFER mother 의
-// image 를 함께 쓰는 CELL_SP·LWR 이 `_other`(9)에 걸려 고칠 수 없는 위반이 되던
-// 것을 없앴습니다. 그런데 같은 코드가 반대 방향으로도 걸려서, 이름으로 타입이
-// 정해지는 파라미터의 cap 을 **내리기도** 했습니다: WAFER son 이 LEVEL(4) mother
-// 밑에 있으면 13 point 를 재는 것이 위반으로 잡힙니다.
-//
-// D9 는 "타입 cap 이 이긴다" 입니다(`capFor`). 그 우선순위를 상속이 덮으면
-// 룰 화면이 "WAFER 13" 이라고 적어 둔 값과 판정이 어긋납니다.
-//
-// 집에서는 이 모양이 만들어지지 않습니다 — mock 의 WAFER son 49,009 개가 전부
-// mother 없는 region 에 있어 상속이 아예 발동하지 않습니다. office 의
-// `_param_regions` 는 이름을 가리지 않고 모든 row 에 region 을 붙이므로 거기서만
-// 나타납니다. DUMMY 면제(b5d8dcdb)와 같은 blind spot 이고, 그때는 면제 하나만
-// 막고 타입 cap 은 같은 방식으로 지키지 않았습니다.
-test('effectiveCap: WAFER son 은 LEVEL mother 밑에서도 자기 타입 cap 13 을 지킨다', () => {
+// ── 그룹 상속은 fallback cap 에만 걸립니다 (D9) ──────────────────────────────
+// 규칙과 그 이유는 ruleEngine.effectiveCap 의 주석에 있습니다. 여기서 고정하는
+// 것은 "D9 가 실제로 정한 cap 은 상속이 덮지 않는다" 세 갈래 전부입니다 —
+// 갈래마다 따로 막던 시절에 갈래마다 하나씩 샜기 때문입니다. (면제 갈래는 위
+// DUMMY 테스트가 이미 봅니다.)
+test('effectiveCap: D9 가 정한 cap 을 가진 son 은 mother 의 cap 을 물려받지 않는다', () => {
   const mother = { name: 'LEVEL_1', point_count: 4, mother: true, region: 1 }
-  const son = { name: 'WAFER_CD', point_count: 13, mother: false, region: 1 }
-  const caps = groupCaps([mother, son], coreEarlyDram)
-  assert.equal(effectiveCap(son, coreEarlyDram, caps), 13)
-})
-
-test('effectiveCap: WAFER son 은 OTHER mother 밑에서도 _other(9) 로 내려가지 않는다', () => {
-  const mother = { name: 'OVL_X', point_count: 6, mother: true, region: 1 }
-  const son = { name: 'WAFER_CD', point_count: 13, mother: false, region: 1 }
-  const caps = groupCaps([mother, son], coreEarlyDram)
-  assert.equal(effectiveCap(son, coreEarlyDram, caps), 13)
+  // WAFER_CD 는 타입 cap 13, CD_WF_1 은 OTHER 이지만 name_override(contains WF)로 13.
+  // 후자는 타입만 보는 방어를 그대로 통과하던 갈래입니다.
+  for (const name of ['WAFER_CD', 'CD_WF_1']) {
+    const son = { name, point_count: 13, mother: false, region: 1 }
+    assert.equal(effectiveCap(son, coreEarlyDram, groupCaps([mother, son], coreEarlyDram)), 13, name)
+  }
 })
 
 test('SEQ group: WAFER 13 을 재는 son 은 위반이 아니다 (사무실 모양)', () => {
@@ -481,50 +467,31 @@ test('SEQ group: WAFER 13 을 재는 son 은 위반이 아니다 (사무실 모�
   assert.equal(res.results[1]?.cap, 13)
 })
 
-test('effectiveCap: 타입 cap 우선은 상속의 이빨을 건드리지 않는다 — OTHER son 은 그대로 물려받는다', () => {
-  // 위 두 테스트가 상속 자체를 무력화하지 않았음을 고정합니다. CELL_SP 는 이름으로
-  // 타입이 정해지지 않는(OTHER) 파라미터라 `_other` 가 fallback 일 뿐이고, 그래서
-  // mother 의 cap 을 물려받는 것이 맞습니다 — 올리는 쪽도 내리는 쪽도.
-  const raise = groupCaps(
-    [{ name: 'WAFER_X', point_count: 13, mother: true, region: 1 },
-      { name: 'CELL_SP', point_count: 13, mother: false, region: 1 }], coreEarlyDram)
-  assert.equal(effectiveCap({ name: 'CELL_SP', point_count: 13, mother: false, region: 1 }, coreEarlyDram, raise), 13)
-
-  const lower = groupCaps(
-    [{ name: 'LEVEL_1', point_count: 4, mother: true, region: 2 },
-      { name: 'CELL_SP', point_count: 13, mother: false, region: 2 }], coreEarlyDram)
-  assert.equal(effectiveCap({ name: 'CELL_SP', point_count: 13, mother: false, region: 2 }, coreEarlyDram, lower), 4)
+test('resolveCap: cap 의 출처를 함께 돌려준다', () => {
+  // 상속이 읽는 것이 값이 아니라 이 출처입니다. capFor 는 얇은 wrapper 라
+  // 기존 호출부가 그대로 남습니다.
+  assert.deepEqual(resolveCap({ name: 'WAFER_CD', point_count: 13 }, coreEarlyDram), { cap: 13, source: 'type' })
+  assert.deepEqual(resolveCap({ name: 'CD_WF_1', point_count: 13 }, coreEarlyDram), { cap: 13, source: 'name' })
+  assert.deepEqual(resolveCap({ name: 'CELL_SP', point_count: 13 }, coreEarlyDram), { cap: 9, source: 'fallback' })
+  assert.deepEqual(resolveCap({ name: 'Dummy', point_count: 1 }, sampleDram), { cap: null, source: 'name' })
 })
 
 // ── son 판정 토글 (judgeSons) ────────────────────────────────────────────────
-// son 은 mother 와 같은 image 에서 cd_value 를 꺼내므로 son 을 재는 데 드는
-// 측정 point 가 따로 없습니다. 그래서 "son 은 애초에 상한이 겨냥한 대상이
-// 아니다" 라고 볼 수도 있습니다. 어느 쪽이 옳은지는 도메인 판단이라 기본값
-// (판정함)을 유지한 채 화면에서 끌 수 있게 둡니다.
-test('judgeSons=false: son 은 cap 을 넘어도 위반이 아니다 (cap 표시는 남는다)', () => {
+// 무엇을 왜 빼는지는 ruleEngine.JudgeOptions 의 주석에 있습니다.
+test('judgeSons=false: son 은 cap 을 넘어도 위반이 아니다', () => {
   const r = seqRecipe([
     { name: 'CELL_SP', point_count: 13, mother: true, region: 1 },
     { name: 'LWR', point_count: 13, region: 1 }
   ])
   const merged = applyAnnotation(r)
   const res = resolveRuleCell(merged, [coreEarlyDram])
-  assert.deepEqual(
-    evaluateRecipe(merged, res).violation_params.map(p => p.name), ['CELL_SP', 'LWR'],
-    '기본값은 son 도 판정합니다'
-  )
   const off = evaluateRecipe(merged, res, { judgeSons: false })
   assert.deepEqual(off.violation_params.map(p => p.name), ['CELL_SP'], 'mother 는 계속 판정합니다')
-  assert.equal(off.results[1]?.cap, 9, 'son 의 cap 은 판정을 껐어도 화면에 그대로 보입니다')
-})
-
-test('judgeSons=false: mother 만 위반이던 recipe 의 판정은 달라지지 않는다', () => {
-  const r = seqRecipe([
-    { name: 'EDGE_R', point_count: 40, mother: true, region: 1 },
-    { name: 'CELL_SP', point_count: 4, region: 1 }
-  ])
-  const merged = applyAnnotation(r)
-  const res = resolveRuleCell(merged, [coreEarlyDram])
-  assert.equal(evaluateRecipe(merged, res, { judgeSons: false }).pass, false)
+  // cap 을 지우지 않는 것이 요점입니다 — `judged` 와 함께라야 화면이 "상한 9 인데
+  // 13, 판정 제외" 를 말할 수 있고, 준수한 파라미터와 구별됩니다.
+  assert.equal(off.results[1]?.cap, 9)
+  assert.equal(off.results[1]?.judged, false)
+  assert.equal(off.results[0]?.judged, true)
 })
 
 test('evaluateLot: judgeSons=false 가 lot 집계까지 이어진다', () => {
@@ -535,9 +502,8 @@ test('evaluateLot: judgeSons=false 가 lot 집계까지 이어진다', () => {
       { name: 'LWR', point_count: 99, mother: false, region: 2 }
     ]
   })
-  const on = evaluateLot('R000', [sonOnly], [coreEarlyDram])
-  assert.equal(on.violation_recipes, 1)
-  const off = evaluateLot('R000', [sonOnly], [coreEarlyDram], undefined, undefined, { judgeSons: false })
+  assert.equal(evaluateLot('R000', [sonOnly], [coreEarlyDram]).violation_recipes, 1)
+  const off = evaluateLot('R000', [sonOnly], [coreEarlyDram], { judgeSons: false })
   assert.equal(off.violation_recipes, 0)
   assert.equal(off.judged_recipes, 1, '판정 대상에서 빠지는 것은 파라미터이지 recipe 가 아닙니다')
 })

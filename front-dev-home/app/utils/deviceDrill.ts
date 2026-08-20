@@ -116,7 +116,17 @@ export const toViolationDrill = (
       name: p.name,
       point_count: p.point_count,
       flagged: p.violation,
-      note: p.violation && typeof p.cap === 'number' ? `cap ${p.cap}` : undefined
+      // 판정에서 뺀 son 이 상한을 넘었으면 그 사실을 적습니다. 적지 않으면
+      // "재 봤더니 상한 안" 과 "아예 안 쟀다" 가 화면에서 같은 모습이 되어,
+      // son 판정 토글을 껐다는 사실이 숫자가 줄었다는 것 말고는 드러나지 않습니다.
+      note: typeof p.cap !== 'number'
+        ? undefined
+        : p.violation
+          ? `cap ${p.cap}`
+          // 꼬리표 열은 112px 라 이보다 길면 두 줄로 접혀 행 높이가 어긋납니다.
+          // "son" 을 적지 않아도 되는 것은 판정에서 빠지는 것이 son 뿐이고,
+          // 표 위의 토글이 그 사실을 이미 말하고 있기 때문입니다.
+          : (!p.judged && p.point_count > p.cap) ? `cap ${p.cap} · 제외` : undefined
     }))
     return {
       recipe_id: r.recipe_id,

@@ -131,20 +131,41 @@ const matchName = (name: string, ov: NameOverride): boolean => {
 }
 
 /**
+ * cap 이 **어디서 왔는가**. `_other` 만이 "달리 볼 근거가 없어서 쓴 값" 입니다.
+ *
+ * 이 구분이 값 자체만큼 중요한 이유는 그룹 상속(아래 `effectiveCap`)이 오직
+ * fallback 에만 걸려야 하기 때문입니다. 출처를 버리고 숫자만 넘기면 상속하는
+ * 쪽이 "이 cap 이 fallback 이었나" 를 이름으로 되짚어야 하고, 그 되짚기는
+ * 번번이 한 경로씩 빠뜨렸습니다.
+ */
+export type CapSource = 'type' | 'name' | 'fallback'
+
+/**
  * D9 — type cap wins; name-override only touches OTHER params.
  * Returns the cap, or null = "no limit / exempt" (never a violation).
+ *
+ * `type` 을 받는 것은 호출자가 이미 알고 있을 때 `deriveType` 을 다시 돌리지
+ * 않기 위해서입니다 — 사무실 규모(한 fab 판정에 파라미터 약 1.4M)에서 이
+ * 한 번이 전체 판정 시간의 10% 대입니다.
  */
-export const capFor = (param: Parameter, cell: RuleCell): number | null => {
-  const type = deriveType(param.name)
+export const resolveCap = (
+  param: Parameter,
+  cell: RuleCell,
+  type: ParamType = deriveType(param.name)
+): { cap: number | null, source: CapSource } => {
   if (type !== 'OTHER') {
     const c = cell.caps[type]
-    return c === undefined ? null : c
+    return { cap: c === undefined ? null : c, source: 'type' }
   }
   for (const ov of cell.name_overrides) {
-    if (matchName(param.name, ov)) return ov.cap
+    if (matchName(param.name, ov)) return { cap: ov.cap, source: 'name' }
   }
-  return cell.caps._other
+  return { cap: cell.caps._other, source: 'fallback' }
 }
+
+/** D9 cap 만 필요할 때. 출처까지 필요하면 :func:`resolveCap`. */
+export const capFor = (param: Parameter, cell: RuleCell, type?: ParamType): number | null =>
+  resolveCap(param, cell, type).cap
 
 // =================== 그룹 cap — SEQ 묶음 (user-confirmed 2026-08-18) ===================
 
@@ -181,45 +202,45 @@ export const groupCaps = (params: Parameter[], cell: RuleCell): Map<number, numb
 
 /**
  * 이 파라미터를 실제로 재는 cap. mother 와 "묶일 곳이 없는" 파라미터는 자기
- * cap 이고, son 은 자기 그룹 mother 의 cap 입니다 — 단 **이름으로 타입이 정해지는
- * son 은 제외**입니다(아래 D9 주석).
+ * cap 이고, son 은 자기 그룹 mother 의 cap 입니다 — **자기 cap 이 fallback 일
+ * 때만**.
+ *
+ * 규칙이 하나인 이유. 상속은 `_other` 를 겨냥해 넣은 것입니다: CELL_SP·LWR
+ * 처럼 이름으로 타입이 정해지지 않는 파라미터의 `_other`(9)는 "달리 볼 근거가
+ * 없을 때의 값" 이라, 같은 image 를 쓰는 mother 가 13 이면 그 13 이 더 맞는
+ * 근거입니다. 반대로 D9 가 실제로 정한 cap — 타입 cap 과 name_override — 은
+ * 근거가 이미 있는 값이라 상속이 덮으면 안 됩니다.
+ *
+ * 이 한 줄이 지우는 오류가 셋입니다.
+ *
+ *   타입 cap: LEVEL(4) mother 밑의 WAFER son 이 13 point 를 재는 것이 위반이
+ *     되고, 룰 화면은 같은 파라미터를 두고 "상한 13" 이라고 적습니다.
+ *   name_override(숫자): `CD_WF_1` 은 DSPT/WF/WAFER contains 로 13 을 받는데
+ *     OTHER 타입이라, 타입만 보는 방어를 그대로 통과해 4 로 내려갔습니다.
+ *   name_override(면제, cap=null): Sample 셀의 `_other` 는 0 이라 DUMMY 가
+ *     mother 밑에 묶였다는 이유로 0 을 물려받으면 point 1 개짜리 DUMMY 가 다시
+ *     자동 위반이 됩니다 (b5d8dcdb, user-confirmed 2026-08-05).
+ *
+ * 셋 다 recipe 를 고쳐 없앨 수 있는 위반이 아니므로, 고칠 수 있는 진짜 위반을
+ * 목록에서 밀어내기만 합니다. 앞의 둘은 타입을 특수 케이스로 막고 셋째는
+ * `null` 을 특수 케이스로 막던 자리였는데, 특수 케이스마다 한 경로씩 샜습니다.
+ *
+ * 집에서는 이 경로가 생기지 않습니다: mock 은 Dummy·Align 에 region 을 주지
+ * 않고 WAFER son 을 늘 mother 없는 region 에 넣습니다. office 의
+ * `_param_regions` 는 이름을 가리지 않고 모든 row 에 region 을 붙입니다.
+ *
+ * 상속의 이빨은 그대로입니다 — LEVEL(4) mother 의 **OTHER** son 이 13 이면
+ * 여전히 위반입니다. 그룹이 통째로 판정 밖으로 나가지 않습니다.
  */
 export const effectiveCap = (
   param: Parameter,
   cell: RuleCell,
-  caps: Map<number, number | null>
+  caps: Map<number, number | null>,
+  type?: ParamType
 ): number | null => {
-  const own = capFor(param, cell)
-  if (param.mother || param.region == null) return own
-  // 자기 cap 이 이미 `null` 이면 그룹 cap 을 물려받지 않습니다. `null` 은 D9 의
-  // "상한 없음 = 절대 위반 아님" 이고, 그 면제는 b5d8dcdb 가 user-confirmed
-  // 2026-08-05 로 확정한 것입니다 — Sample 셀의 `_other` 는 0 이라, DUMMY 가
-  // mother 밑에 묶였다는 이유로 0 을 물려받으면 point 1 개짜리 DUMMY 가 다시
-  // 자동 위반이 되고, 그것은 recipe 를 고쳐 없앨 수 있는 위반이 아니라 고칠 수
-  // 있는 진짜 위반을 목록에서 밀어내는 종류입니다.
-  //
-  // 집에서는 이 경로가 생기지 않습니다: mock 의 `_assign_regions` 는 Dummy·Align
-  // 에 region 을 주지 않지만, office 의 `_param_regions` 는 이름을 가리지 않고
-  // 모든 row 에 붙입니다. 면제를 여기서 지키면 두 provider 중 어느 쪽이 region 을
-  // 주든 판정이 같아집니다.
-  if (own === null) return null
-  // D9 — **명시적 타입 cap 은 그룹 상속보다 셉니다.** 상속은 `_other` 를 겨냥해
-  // 넣은 것입니다: CELL_SP·LWR 처럼 이름으로 타입이 정해지지 않는 파라미터의
-  // `_other`(9)는 "달리 볼 근거가 없을 때의 값" 이라, 같은 image 를 쓰는 mother
-  // 가 13 이면 그 13 이 더 맞는 근거입니다.
-  //
-  // WAFER/LEVEL/EDGE/EDGE_EX 는 다릅니다. 이 cap 들은 룰 화면에 값으로 적혀
-  // 있고(WAFER 13 · LEVEL 4 는 전 셀 공통), `capFor` 가 name_override 보다도
-  // 먼저 적용하는 D9 의 최우선 규칙입니다. 상속이 이것까지 덮으면 방향이 반대로
-  // 걸립니다 — LEVEL(4) mother 밑에 놓인 WAFER son 이 13 point 를 재는 것이
-  // 위반이 되고, 화면은 같은 파라미터를 두고 "상한 13" 이라고 적어 둡니다.
-  // 고쳐서 없앨 수 있는 위반이 아니므로 진짜 위반을 목록에서 밀어냅니다.
-  //
-  // 위 DUMMY 면제와 같은 자리의 같은 실패입니다: 집 mock 은 WAFER son 을 늘
-  // mother 없는 region 에 넣어 이 경로를 한 번도 만들지 않고, office 의
-  // `_param_regions` 는 이름을 가리지 않고 모든 row 에 region 을 붙입니다.
-  if (deriveType(param.name) !== 'OTHER') return own
-  return caps.has(param.region) ? caps.get(param.region)! : own
+  const { cap, source } = resolveCap(param, cell, type)
+  if (param.mother || param.region == null || source !== 'fallback') return cap
+  return caps.has(param.region) ? caps.get(param.region)! : cap
 }
 
 // =================== Cell resolution (D8 / D14) ===================
@@ -277,21 +298,40 @@ export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolut
 
 // =================== Evaluation (D5 / D14) ===================
 
-export interface ParamResult { name: string, point_count: number, type: ParamType, cap: number | null, violation: boolean }
+export interface ParamResult {
+  name: string
+  point_count: number
+  type: ParamType
+  cap: number | null
+  /**
+   * 이 파라미터가 판정 대상이었는가. `judgeSons: false` 인 son 과 gray recipe 의
+   * 파라미터가 `false` 입니다.
+   *
+   * `violation: false` 와 구별되어야 합니다 — 하나는 "재 봤더니 상한 안" 이고
+   * 다른 하나는 "아예 안 쟀다" 입니다. 이 둘이 한 값이면 화면이 준수한
+   * 파라미터와 판정에서 뺀 파라미터를 똑같이 그립니다 (deviceDrill 의 `note`).
+   */
+  judged: boolean
+  violation: boolean
+}
 
 /**
- * 판정 범위 선택 — 룰 화면의 토글이 넘깁니다.
+ * 판정 범위·기준 — `evaluateRecipe`/`evaluateLot` 의 꼬리 인자.
  *
  * `judgeSons: false` 면 mother 가 아닌 파라미터를 **위반 판정에서만** 뺍니다.
  * 근거는 상속과 같습니다 — son 은 mother 와 한 image 를 쓰므로 son 을 재는 데
  * 드는 측정 point 가 따로 없고, 그래서 "상한이 겨냥한 대상이 아니다" 라고 볼
  * 여지가 있습니다. 어느 쪽이 옳은지는 도메인 판단이라 코드가 정하지 않습니다.
  *
- * 빼는 것은 파라미터이지 recipe 가 아닙니다. `cap` 은 계속 계산해 돌려주므로
- * 화면은 "상한 9, 13 point, 판정 안 함" 을 그대로 보여줄 수 있습니다 — 값이
- * 사라지면 토글을 껐다는 사실과 데이터가 없다는 사실이 한 모습이 됩니다.
+ * 빼는 것은 파라미터이지 recipe 가 아닙니다 — 분모(`judged_recipes`)는 그대로고
+ * `cap` 도 계속 계산해 돌려주므로, 화면은 `judged` 와 함께 "상한 9 인데 13,
+ * 판정 제외" 를 말할 수 있습니다.
  */
-export interface JudgeOptions { judgeSons?: boolean }
+export interface JudgeOptions {
+  judgeSons?: boolean
+  annotation?: Annotation
+  thresholds?: Thresholds
+}
 
 export interface RecipeResult {
   recipe_id: string
@@ -317,7 +357,7 @@ export const evaluateRecipe = (
       pass: true, // conservative: gray ≠ violation (D14)
       gray: res.gray,
       gray_reason: res.reason,
-      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, violation: false }))
+      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, violation: false }))
     }
   }
   // son 은 mother 와 같은 image 를 쓰므로 자기 타입 cap 이 아니라 그룹 mother 의
@@ -325,9 +365,12 @@ export const evaluateRecipe = (
   const caps = groupCaps(recipe.parameters, res.cell)
   const judgeSons = opts.judgeSons ?? true
   const results = recipe.parameters.map((p): ParamResult => {
-    const cap = effectiveCap(p, res.cell, caps)
-    const judged = judgeSons || !!p.mother
-    return { name: p.name, point_count: p.point_count, type: deriveType(p.name), cap, violation: judged && typeof cap === 'number' && p.point_count > cap }
+    // 타입은 여기서 한 번만 구해 `effectiveCap` 까지 넘깁니다 — 사무실 규모에서
+    // 파라미터당 `deriveType` 한 번이 판정 시간의 10% 대입니다.
+    const type = deriveType(p.name)
+    const cap = effectiveCap(p, res.cell, caps, type)
+    const judged = judgeSons || p.mother === true
+    return { name: p.name, point_count: p.point_count, type, cap, judged, violation: judged && typeof cap === 'number' && p.point_count > cap }
   })
   const violation_params = results.filter(r => r.violation)
   return {
@@ -396,12 +439,11 @@ export const evaluateLot = (
   lot_cd: string,
   recipes: RecipeInput[],
   cells: RuleCell[],
-  annotation?: Annotation,
-  thresholds: Thresholds = SEED_THRESHOLDS,
   opts: JudgeOptions = {}
 ): LotHealth => {
+  const thresholds = opts.thresholds ?? SEED_THRESHOLDS
   const results = recipes.map((r) => {
-    const merged = applyAnnotation(r, annotation)
+    const merged = applyAnnotation(r, opts.annotation)
     return evaluateRecipe(merged, resolveRuleCell(merged, cells), opts)
   })
   // gray recipes are excluded from the denominator (conservative, D14)

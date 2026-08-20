@@ -57,7 +57,11 @@ export const useDeviceStatisticsPreferences = () => {
     STORAGE_KEYS.judgeSons,
     {
       default: () => true,
-      normalize: parsed => parsed === false ? false : true
+      normalize: parsed => parsed !== false,
+      // 판정함이 기본이므로 storage 에는 기본에서 벗어난 값만 둡니다 — 다시
+      // 켜면 false 를 쓰는 대신 키를 지웁니다 (useSkewvoirParamNavOpen 과 같은
+      // 방침, 거기는 기본이 false 라 방향만 반대입니다).
+      isEmpty: value => value
     }
   )
 

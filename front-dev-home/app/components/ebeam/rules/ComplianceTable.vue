@@ -169,7 +169,7 @@ const judgedByLot = computed<Map<string, Judged>>(() => {
       recipes,
       total: all.length,
       exempt: all.length - recipes.length,
-      health: evaluateLot(lot_cd, recipes, props.cells, undefined, undefined, { judgeSons: judgeSons.value })
+      health: evaluateLot(lot_cd, recipes, props.cells, { judgeSons: judgeSons.value })
     })
   }
   return map

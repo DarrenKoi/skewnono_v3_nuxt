@@ -191,7 +191,7 @@ export const buildLotVerdicts = (
       continue
     }
 
-    const health = evaluateLot(lotCd, recipes, rules.cells, undefined, rules.thresholds, opts)
+    const health = evaluateLot(lotCd, recipes, rules.cells, { ...opts, thresholds: rules.thresholds })
 
     // 사유별 gray 집계만 여기서 합니다 — 분모(judged_recipes)는 엔진이 이미
     // 계산했습니다. 다시 세면 같은 분모의 정의가 둘이 됩니다.
