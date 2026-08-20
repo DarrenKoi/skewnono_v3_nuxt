@@ -20,10 +20,11 @@ const sampleDram: RuleCell = {
   selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'DRAM' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 0 },
   // providers/rules.py `_SAMPLE_OVERRIDES` 를 그대로 옮긴 것입니다 — DUMMY 면제
-  // 포함 (user-confirmed 2026-08-05).
+  // (user-confirmed 2026-08-05)와 ALIGN 면제(2026-08-10) 포함.
   name_overrides: [
     { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
-    { patterns: ['DUMMY'], match: 'affix', cap: null }
+    { patterns: ['DUMMY'], match: 'affix', cap: null },
+    { patterns: ['ALIGN'], match: 'affix', cap: null }
   ]
 }
 const wfOverride = { patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains' as const, cap: 13 }
@@ -58,10 +59,11 @@ const sampleNand: RuleCell = {
   selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'NAND' },
   caps: { WAFER: 13, LEVEL: 4, EDGE: 8, EDGE_EX: 0, _other: 0 },
   // providers/rules.py `_SAMPLE_OVERRIDES` 를 그대로 옮긴 것입니다 — DUMMY 면제
-  // 포함 (user-confirmed 2026-08-05).
+  // (user-confirmed 2026-08-05)와 ALIGN 면제(2026-08-10) 포함.
   name_overrides: [
     { patterns: ['WAFER', 'WF'], match: 'affix', cap: null },
-    { patterns: ['DUMMY'], match: 'affix', cap: null }
+    { patterns: ['DUMMY'], match: 'affix', cap: null },
+    { patterns: ['ALIGN'], match: 'affix', cap: null }
   ]
 }
 // D15 — same selector shape, different fab (M-fab recipe_class × memory_class)
@@ -438,4 +440,120 @@ test('effectiveCap: a plain OTHER son still inherits its mother cap', () => {
   const son = { name: 'CELL_SP', point_count: 13, mother: false, region: 2 }
   const caps = groupCaps([mother, son], coreEarlyDram)
   assert.equal(effectiveCap(son, coreEarlyDram, caps), 13)
+})
+
+// ── 그룹 cap 은 명시적 타입 cap 을 덮지 않습니다 (D9) ────────────────────────
+// 상속(2026-08-18)은 son 의 cap 을 **올리려고** 넣은 것입니다 — WAFER mother 의
+// image 를 함께 쓰는 CELL_SP·LWR 이 `_other`(9)에 걸려 고칠 수 없는 위반이 되던
+// 것을 없앴습니다. 그런데 같은 코드가 반대 방향으로도 걸려서, 이름으로 타입이
+// 정해지는 파라미터의 cap 을 **내리기도** 했습니다: WAFER son 이 LEVEL(4) mother
+// 밑에 있으면 13 point 를 재는 것이 위반으로 잡힙니다.
+//
+// D9 는 "타입 cap 이 이긴다" 입니다(`capFor`). 그 우선순위를 상속이 덮으면
+// 룰 화면이 "WAFER 13" 이라고 적어 둔 값과 판정이 어긋납니다.
+//
+// 집에서는 이 모양이 만들어지지 않습니다 — mock 의 WAFER son 49,009 개가 전부
+// mother 없는 region 에 있어 상속이 아예 발동하지 않습니다. office 의
+// `_param_regions` 는 이름을 가리지 않고 모든 row 에 region 을 붙이므로 거기서만
+// 나타납니다. DUMMY 면제(b5d8dcdb)와 같은 blind spot 이고, 그때는 면제 하나만
+// 막고 타입 cap 은 같은 방식으로 지키지 않았습니다.
+test('effectiveCap: WAFER son 은 LEVEL mother 밑에서도 자기 타입 cap 13 을 지킨다', () => {
+  const mother = { name: 'LEVEL_1', point_count: 4, mother: true, region: 1 }
+  const son = { name: 'WAFER_CD', point_count: 13, mother: false, region: 1 }
+  const caps = groupCaps([mother, son], coreEarlyDram)
+  assert.equal(effectiveCap(son, coreEarlyDram, caps), 13)
+})
+
+test('effectiveCap: WAFER son 은 OTHER mother 밑에서도 _other(9) 로 내려가지 않는다', () => {
+  const mother = { name: 'OVL_X', point_count: 6, mother: true, region: 1 }
+  const son = { name: 'WAFER_CD', point_count: 13, mother: false, region: 1 }
+  const caps = groupCaps([mother, son], coreEarlyDram)
+  assert.equal(effectiveCap(son, coreEarlyDram, caps), 13)
+})
+
+test('SEQ group: WAFER 13 을 재는 son 은 위반이 아니다 (사무실 모양)', () => {
+  const r = seqRecipe([
+    { name: 'LEVEL_1', point_count: 4, mother: true, region: 1 },
+    { name: 'WAFER_CD', point_count: 13, region: 1 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.deepEqual(res.violation_params.map(p => p.name), [])
+  assert.equal(res.results[1]?.cap, 13)
+})
+
+test('effectiveCap: 타입 cap 우선은 상속의 이빨을 건드리지 않는다 — OTHER son 은 그대로 물려받는다', () => {
+  // 위 두 테스트가 상속 자체를 무력화하지 않았음을 고정합니다. CELL_SP 는 이름으로
+  // 타입이 정해지지 않는(OTHER) 파라미터라 `_other` 가 fallback 일 뿐이고, 그래서
+  // mother 의 cap 을 물려받는 것이 맞습니다 — 올리는 쪽도 내리는 쪽도.
+  const raise = groupCaps(
+    [{ name: 'WAFER_X', point_count: 13, mother: true, region: 1 },
+      { name: 'CELL_SP', point_count: 13, mother: false, region: 1 }], coreEarlyDram)
+  assert.equal(effectiveCap({ name: 'CELL_SP', point_count: 13, mother: false, region: 1 }, coreEarlyDram, raise), 13)
+
+  const lower = groupCaps(
+    [{ name: 'LEVEL_1', point_count: 4, mother: true, region: 2 },
+      { name: 'CELL_SP', point_count: 13, mother: false, region: 2 }], coreEarlyDram)
+  assert.equal(effectiveCap({ name: 'CELL_SP', point_count: 13, mother: false, region: 2 }, coreEarlyDram, lower), 4)
+})
+
+// ── son 판정 토글 (judgeSons) ────────────────────────────────────────────────
+// son 은 mother 와 같은 image 에서 cd_value 를 꺼내므로 son 을 재는 데 드는
+// 측정 point 가 따로 없습니다. 그래서 "son 은 애초에 상한이 겨냥한 대상이
+// 아니다" 라고 볼 수도 있습니다. 어느 쪽이 옳은지는 도메인 판단이라 기본값
+// (판정함)을 유지한 채 화면에서 끌 수 있게 둡니다.
+test('judgeSons=false: son 은 cap 을 넘어도 위반이 아니다 (cap 표시는 남는다)', () => {
+  const r = seqRecipe([
+    { name: 'CELL_SP', point_count: 13, mother: true, region: 1 },
+    { name: 'LWR', point_count: 13, region: 1 }
+  ])
+  const merged = applyAnnotation(r)
+  const res = resolveRuleCell(merged, [coreEarlyDram])
+  assert.deepEqual(
+    evaluateRecipe(merged, res).violation_params.map(p => p.name), ['CELL_SP', 'LWR'],
+    '기본값은 son 도 판정합니다'
+  )
+  const off = evaluateRecipe(merged, res, { judgeSons: false })
+  assert.deepEqual(off.violation_params.map(p => p.name), ['CELL_SP'], 'mother 는 계속 판정합니다')
+  assert.equal(off.results[1]?.cap, 9, 'son 의 cap 은 판정을 껐어도 화면에 그대로 보입니다')
+})
+
+test('judgeSons=false: mother 만 위반이던 recipe 의 판정은 달라지지 않는다', () => {
+  const r = seqRecipe([
+    { name: 'EDGE_R', point_count: 40, mother: true, region: 1 },
+    { name: 'CELL_SP', point_count: 4, region: 1 }
+  ])
+  const merged = applyAnnotation(r)
+  const res = resolveRuleCell(merged, [coreEarlyDram])
+  assert.equal(evaluateRecipe(merged, res, { judgeSons: false }).pass, false)
+})
+
+test('evaluateLot: judgeSons=false 가 lot 집계까지 이어진다', () => {
+  const sonOnly = recipe({
+    recipe_id: 'ADI/CD_BIAS_R000_001',
+    parameters: [
+      { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+      { name: 'LWR', point_count: 99, mother: false, region: 2 }
+    ]
+  })
+  const on = evaluateLot('R000', [sonOnly], [coreEarlyDram])
+  assert.equal(on.violation_recipes, 1)
+  const off = evaluateLot('R000', [sonOnly], [coreEarlyDram], undefined, undefined, { judgeSons: false })
+  assert.equal(off.violation_recipes, 0)
+  assert.equal(off.judged_recipes, 1, '판정 대상에서 빠지는 것은 파라미터이지 recipe 가 아닙니다')
+})
+
+// ── Align 면제 (user-confirmed 2026-08-10) ───────────────────────────────────
+// DUMMY 와 같은 근거입니다 — 정렬은 측정이 아니라 측정을 위한 준비라 "얼마나
+// 많이 쟀는가" 의 답에 들어가면 안 됩니다. Sample 셀의 `_other` 가 0 이라 면제가
+// 없으면 point 1~3 개짜리 Align 이 자동 위반이 되고, 그 위반은 recipe 를 고쳐
+// 없앨 수 없으므로 진짜 위반을 목록에서 밀어냅니다. 집 mock 만으로도 2,607 건이
+// 이렇게 잡히고 있었습니다.
+test('capFor: Sample 셀의 Align 은 DUMMY 와 같이 면제', () => {
+  for (const name of ['Align', 'ALIGN', 'CD_Align', 'Align_1']) {
+    assert.equal(capFor({ name, point_count: 3 }, sampleDram), null, name)
+  }
+})
+
+test('capFor: 이름 한복판의 align 은 면제가 아니다 (affix 규칙)', () => {
+  assert.equal(capFor({ name: 'X_ALIGN_Y', point_count: 3 }, sampleDram), 0)
 })

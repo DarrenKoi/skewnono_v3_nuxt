@@ -4,9 +4,18 @@
       <h3 class="sk-title">
         {{ text.title }}
       </h3>
-      <span class="sk-meta">
-        {{ text.legend }}
-      </span>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span class="sk-meta">
+          {{ text.legend }}
+        </span>
+        <USwitch
+          v-model="judgeSons"
+          size="sm"
+          :label="text.judgeSons"
+          :title="text.judgeSonsHint"
+          class="shrink-0"
+        />
+      </div>
     </div>
 
     <div
@@ -99,6 +108,7 @@ const props = defineProps<{ cells: RuleCell[] }>()
 
 const { fetchRecipeParams } = useDeviceStatisticsApi()
 const { selectedDeviceLots } = useDeviceCart()
+const { judgeSons } = useDeviceStatisticsPreferences()
 
 // Compliance is R3-only (D22). Filter the cart to R3 lots (lot_cd starts with 'R').
 const r3Lots = computed(() => selectedDeviceLots.value.filter(lot => lot.startsWith('R')))
@@ -107,6 +117,8 @@ const text = {
   title: 'R3 룰 준수',
   legend: '선택한 R3 디바이스의 recipe 별 상한 준수 결과 · 상한을 넘긴 recipe / 룰로 판정한 recipe',
   details: '자세히',
+  judgeSons: 'son 파라미터 판정',
+  judgeSonsHint: 'son 은 mother 와 같은 image 에서 값을 꺼내므로 son 을 재는 데 드는 측정 point 가 따로 없습니다. 끄면 mother 파라미터만 상한과 견줍니다.',
   empty: '디바이스 통계에서 R3 디바이스를 선택하면 룰 준수 결과가 표시됩니다.',
   loading: '로딩 중',
   loadError: '데이터를 불러오지 못했습니다.'
@@ -157,7 +169,7 @@ const judgedByLot = computed<Map<string, Judged>>(() => {
       recipes,
       total: all.length,
       exempt: all.length - recipes.length,
-      health: evaluateLot(lot_cd, recipes, props.cells)
+      health: evaluateLot(lot_cd, recipes, props.cells, undefined, undefined, { judgeSons: judgeSons.value })
     })
   }
   return map
@@ -198,6 +210,9 @@ const violationTitle = (row: ComplianceRow) => {
   const parts = [`전체 recipe ${row.recipe_count}건`, `판정 ${row.judged_count}건`]
   if (row.gray_count > 0) parts.push(`룰·어노테이션 미정으로 판정 제외 ${row.gray_count}건`)
   if (row.exempt_count > 0) parts.push(`특수 job(CDU 계열/FULL/HALF/MTX) ${row.exempt_count}건은 판정 범위 밖`)
+  // 토글이 켜져 있을 때는 적지 않습니다 — 기본값을 매번 적어 두면 정말 달라진
+  // 날의 한 줄이 늘 있던 문구에 묻힙니다.
+  if (!judgeSons.value) parts.push('son 파라미터는 판정에서 제외')
   const head = row.judged_count === 0
     ? '판정한 recipe 가 없습니다'
     : `상한을 넘긴 recipe ${row.violation_count}건 / 룰로 판정한 recipe ${row.judged_count}건`

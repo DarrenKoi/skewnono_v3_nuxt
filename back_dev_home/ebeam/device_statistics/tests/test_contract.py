@@ -365,12 +365,21 @@ def test_rules_unknown_fab_returns_none():
     assert data.get_rules("does-not-exist") is None
 
 
-def test_sample_cells_exempt_the_dummy_parameter():
-    """Sample 셀은 DUMMY 를 판정에서 면제해야 합니다 (user-confirmed 2026-08-05).
+def test_sample_cells_exempt_the_non_measurement_parameters():
+    """Sample 셀은 DUMMY·ALIGN 을 판정에서 면제해야 합니다.
 
-    Sample 셀의 ``_other`` 는 0 이라, 면제가 없으면 자리 표시용 파라미터인
-    DUMMY 가 point 1 만 있어도 **항상 위반**입니다. 그 위반은 recipe 를 고쳐서
-    없앨 수 있는 종류가 아니라, 고칠 수 있는 진짜 위반을 목록에서 밀어냅니다.
+    (DUMMY user-confirmed 2026-08-05, ALIGN 2026-08-10.)
+
+    Sample 셀의 ``_other`` 는 0 이라, 면제가 없으면 이 두 파라미터가 point 1 만
+    있어도 **항상 위반**입니다. 그 위반은 recipe 를 고쳐서 없앨 수 있는 종류가
+    아니라, 고칠 수 있는 진짜 위반을 목록에서 밀어냅니다 — DUMMY 는 재는 대상이
+    아니라 자리 표시이고, Align 은 측정이 아니라 측정을 위한 준비입니다.
+
+    두 이름을 한 테스트에서 함께 보는 이유가 있습니다. 프론트엔드는 이미 둘을
+    한 벌로 다루는데(``outlierDetect.NON_MEASUREMENT_PARAMS``,
+    ``para_buckets.measurement_parameters``) 룰만 DUMMY 하나로 남아 있었고, 그
+    비대칭이 눈에 띄지 않은 채 오래갔습니다. 목록으로 묶어 두면 다음에 한쪽만
+    늘어나는 것이 실패로 나타납니다.
 
     ``cap: None`` 이 프론트엔드 capFor 의 "상한 없음 = 절대 위반 아님" 입니다
     (D9). 값이 0 이면 정반대 뜻이 되므로 None 인 것을 명시적으로 봅니다.
@@ -386,12 +395,13 @@ def test_sample_cells_exempt_the_dummy_parameter():
 
     for cell in sample_cells:
         assert cell["caps"]["_other"] == 0, cell["id"]
-        dummy = [
-            ov for ov in cell["name_overrides"]
-            if any(p.upper() == "DUMMY" for p in ov["patterns"])
-        ]
-        assert len(dummy) == 1, f"{cell['id']} 에 DUMMY 면제가 없습니다"
-        assert dummy[0]["cap"] is None, f"{cell['id']} 의 DUMMY cap 은 None 이어야 합니다"
+        for name in ("DUMMY", "ALIGN"):
+            exempt = [
+                ov for ov in cell["name_overrides"]
+                if any(p.upper() == name for p in ov["patterns"])
+            ]
+            assert len(exempt) == 1, f"{cell['id']} 에 {name} 면제가 없습니다"
+            assert exempt[0]["cap"] is None, f"{cell['id']} 의 {name} cap 은 None 이어야 합니다"
 
 
 def test_lot_index_fac_ids_match_the_operating_fabs():

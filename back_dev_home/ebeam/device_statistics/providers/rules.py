@@ -53,9 +53,21 @@ _MAIN_OVERRIDES: list[NameOverride] = [
 # 2026-08-05) — 다른 파라미터가 대체로 전부 대문자인데 이 이름만 그렇지
 # 않습니다. ruleEngine.matchName 이 양쪽을 대문자로 올려 비교하므로 어느 표기든
 # 걸립니다. 여기 대문자는 비교용 정규형이지 데이터의 모습이 아닙니다.
+#
+# ALIGN 도 같은 이유로 면제입니다. 정렬(addressing)은 **측정이 아니라 측정을
+# 위한 준비**라 "얼마나 많이 쟀는가" 라는 질문의 답에 들어가면 안 됩니다 —
+# 설비 알람조차 align(9006)과 meas(9007)를 다른 사건으로 셉니다. 프론트엔드는
+# 이 둘을 이미 한 벌로 다룹니다(``outlierDetect.NON_MEASUREMENT_PARAMS`` 의
+# DUMMY·ALIGN, 그리고 ``para_buckets.measurement_parameters``). 룰 쪽만 DUMMY
+# 하나로 남아 있어서, Sample recipe 의 Align 이 point 1~3 개로 자동 위반이
+# 되고 있었습니다 — 집 mock 에서만 2,607 건입니다.
+#
+# 실물 표기는 "Align" 입니다 (user-confirmed 2026-08-10) — DUMMY 와 마찬가지로
+# 대문자 표기가 아니고, ``matchName`` 이 양쪽을 올려 비교하므로 상관없습니다.
 _SAMPLE_OVERRIDES: list[NameOverride] = [
     {"patterns": ["WAFER", "WF"], "match": "affix", "cap": None},
     {"patterns": ["DUMMY"], "match": "affix", "cap": None},
+    {"patterns": ["ALIGN"], "match": "affix", "cap": None},
 ]
 
 # D16 — fab-level 신호등 경계 seed 기본값. 편집 가능하되 거의 안 바꿈(D18).

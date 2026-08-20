@@ -181,7 +181,8 @@ export const groupCaps = (params: Parameter[], cell: RuleCell): Map<number, numb
 
 /**
  * 이 파라미터를 실제로 재는 cap. mother 와 "묶일 곳이 없는" 파라미터는 자기
- * cap 이고, son 은 자기 그룹 mother 의 cap 입니다.
+ * cap 이고, son 은 자기 그룹 mother 의 cap 입니다 — 단 **이름으로 타입이 정해지는
+ * son 은 제외**입니다(아래 D9 주석).
  */
 export const effectiveCap = (
   param: Parameter,
@@ -202,6 +203,22 @@ export const effectiveCap = (
   // 모든 row 에 붙입니다. 면제를 여기서 지키면 두 provider 중 어느 쪽이 region 을
   // 주든 판정이 같아집니다.
   if (own === null) return null
+  // D9 — **명시적 타입 cap 은 그룹 상속보다 셉니다.** 상속은 `_other` 를 겨냥해
+  // 넣은 것입니다: CELL_SP·LWR 처럼 이름으로 타입이 정해지지 않는 파라미터의
+  // `_other`(9)는 "달리 볼 근거가 없을 때의 값" 이라, 같은 image 를 쓰는 mother
+  // 가 13 이면 그 13 이 더 맞는 근거입니다.
+  //
+  // WAFER/LEVEL/EDGE/EDGE_EX 는 다릅니다. 이 cap 들은 룰 화면에 값으로 적혀
+  // 있고(WAFER 13 · LEVEL 4 는 전 셀 공통), `capFor` 가 name_override 보다도
+  // 먼저 적용하는 D9 의 최우선 규칙입니다. 상속이 이것까지 덮으면 방향이 반대로
+  // 걸립니다 — LEVEL(4) mother 밑에 놓인 WAFER son 이 13 point 를 재는 것이
+  // 위반이 되고, 화면은 같은 파라미터를 두고 "상한 13" 이라고 적어 둡니다.
+  // 고쳐서 없앨 수 있는 위반이 아니므로 진짜 위반을 목록에서 밀어냅니다.
+  //
+  // 위 DUMMY 면제와 같은 자리의 같은 실패입니다: 집 mock 은 WAFER son 을 늘
+  // mother 없는 region 에 넣어 이 경로를 한 번도 만들지 않고, office 의
+  // `_param_regions` 는 이름을 가리지 않고 모든 row 에 region 을 붙입니다.
+  if (deriveType(param.name) !== 'OTHER') return own
   return caps.has(param.region) ? caps.get(param.region)! : own
 }
 
@@ -262,6 +279,20 @@ export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolut
 
 export interface ParamResult { name: string, point_count: number, type: ParamType, cap: number | null, violation: boolean }
 
+/**
+ * 판정 범위 선택 — 룰 화면의 토글이 넘깁니다.
+ *
+ * `judgeSons: false` 면 mother 가 아닌 파라미터를 **위반 판정에서만** 뺍니다.
+ * 근거는 상속과 같습니다 — son 은 mother 와 한 image 를 쓰므로 son 을 재는 데
+ * 드는 측정 point 가 따로 없고, 그래서 "상한이 겨냥한 대상이 아니다" 라고 볼
+ * 여지가 있습니다. 어느 쪽이 옳은지는 도메인 판단이라 코드가 정하지 않습니다.
+ *
+ * 빼는 것은 파라미터이지 recipe 가 아닙니다. `cap` 은 계속 계산해 돌려주므로
+ * 화면은 "상한 9, 13 point, 판정 안 함" 을 그대로 보여줄 수 있습니다 — 값이
+ * 사라지면 토글을 껐다는 사실과 데이터가 없다는 사실이 한 모습이 됩니다.
+ */
+export interface JudgeOptions { judgeSons?: boolean }
+
 export interface RecipeResult {
   recipe_id: string
   total_params: number
@@ -273,7 +304,11 @@ export interface RecipeResult {
 }
 
 /** D5 — point_count ≤ cap; under-measuring is never a violation. */
-export const evaluateRecipe = (recipe: MergedRecipe, res: CellResolution): RecipeResult => {
+export const evaluateRecipe = (
+  recipe: MergedRecipe,
+  res: CellResolution,
+  opts: JudgeOptions = {}
+): RecipeResult => {
   if (res.kind === 'gray') {
     return {
       recipe_id: recipe.recipe_id,
@@ -288,9 +323,11 @@ export const evaluateRecipe = (recipe: MergedRecipe, res: CellResolution): Recip
   // son 은 mother 와 같은 image 를 쓰므로 자기 타입 cap 이 아니라 그룹 mother 의
   // cap 으로 잽니다 (groupCaps 참고).
   const caps = groupCaps(recipe.parameters, res.cell)
+  const judgeSons = opts.judgeSons ?? true
   const results = recipe.parameters.map((p): ParamResult => {
     const cap = effectiveCap(p, res.cell, caps)
-    return { name: p.name, point_count: p.point_count, type: deriveType(p.name), cap, violation: typeof cap === 'number' && p.point_count > cap }
+    const judged = judgeSons || !!p.mother
+    return { name: p.name, point_count: p.point_count, type: deriveType(p.name), cap, violation: judged && typeof cap === 'number' && p.point_count > cap }
   })
   const violation_params = results.filter(r => r.violation)
   return {
@@ -360,11 +397,12 @@ export const evaluateLot = (
   recipes: RecipeInput[],
   cells: RuleCell[],
   annotation?: Annotation,
-  thresholds: Thresholds = SEED_THRESHOLDS
+  thresholds: Thresholds = SEED_THRESHOLDS,
+  opts: JudgeOptions = {}
 ): LotHealth => {
   const results = recipes.map((r) => {
     const merged = applyAnnotation(r, annotation)
-    return evaluateRecipe(merged, resolveRuleCell(merged, cells))
+    return evaluateRecipe(merged, resolveRuleCell(merged, cells), opts)
   })
   // gray recipes are excluded from the denominator (conservative, D14)
   const evaluated = results.filter(r => r.gray == null)

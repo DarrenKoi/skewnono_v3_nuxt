@@ -15,6 +15,7 @@
 import {
   evaluateLot,
   type HealthLevel,
+  type JudgeOptions,
   type RecipeInput,
   type RuleCell,
   type Thresholds
@@ -153,7 +154,8 @@ const emptyVerdict = (): LotVerdict => ({
 export const buildLotVerdicts = (
   recipeParams: RecipeInput[],
   rulesByFab: Record<string, RuleSet | null>,
-  bucketKeys: Set<string> | null = null
+  bucketKeys: Set<string> | null = null,
+  opts: JudgeOptions = {}
 ): Map<string, LotVerdict> => {
   const byLot = new Map<string, RecipeInput[]>()
   const exemptByLot = new Map<string, number>()
@@ -189,7 +191,7 @@ export const buildLotVerdicts = (
       continue
     }
 
-    const health = evaluateLot(lotCd, recipes, rules.cells, undefined, rules.thresholds)
+    const health = evaluateLot(lotCd, recipes, rules.cells, undefined, rules.thresholds, opts)
 
     // 사유별 gray 집계만 여기서 합니다 — 분모(judged_recipes)는 엔진이 이미
     // 계산했습니다. 다시 세면 같은 분모의 정의가 둘이 됩니다.

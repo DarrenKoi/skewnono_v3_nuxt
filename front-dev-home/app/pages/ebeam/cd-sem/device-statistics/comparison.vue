@@ -248,6 +248,9 @@ const paraOrder = PARA_KEYS
 const { resolvedThemeName } = useEchartsTheme()
 
 const { selectedDeviceLots: selectedLots } = useDeviceCart()
+// 룰 화면(ComplianceTable)의 토글과 **같은 값**입니다. 두 화면이 같은 lot 을 두고
+// 다른 위반 수를 말하지 않으려면 판정 범위도 공유해야 합니다.
+const { judgeSons } = useDeviceStatisticsPreferences()
 
 const text = {
   title: '디바이스 분석',
@@ -409,7 +412,7 @@ const bucketRecipes = computed(() =>
 // bucketKeys 는 넘기지 않습니다 — bucketRecipes 가 이미 좁혀 왔습니다. 두 번
 // 좁히면 어느 쪽이 진짜 범위인지 읽는 사람이 알 수 없습니다.
 const lotVerdicts = computed(() =>
-  buildLotVerdicts(bucketRecipes.value, rulesByFab.value ?? {})
+  buildLotVerdicts(bucketRecipes.value, rulesByFab.value ?? {}, null, { judgeSons: judgeSons.value })
 )
 
 const augmentedRows = computed<HealthAugmentedRow[]>(() =>
