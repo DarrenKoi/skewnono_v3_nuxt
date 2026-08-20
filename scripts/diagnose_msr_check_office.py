@@ -50,8 +50,9 @@ from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
 from back_dev_home.ebeam._office_meas_hist import INDEX as _INDEX  # noqa: E402
 from ops_store import OSSearch, create_client  # noqa: E402
 
-# The fields this question is about, plus the identity the frontend needs.
-_SAMPLE_SOURCE = ["msr", "msr_check", "minio_msr", "minio_pkl", "timestamp", "eqp_id"]
+# Sampled documents are printed WHOLE (no _source allowlist). The first run of
+# this script listed six fields and so could not have seen a renamed identifier,
+# which is exactly what the answer turned on.
 
 
 def _adapter_verdict(raw: object) -> str:
@@ -121,19 +122,54 @@ def _report_index(tool: str, index: str, client: object) -> None:
     if no_docs_with_pkl:
         print("    -> H2 CONFIRMED: msr_check does not decide MinIO presence.")
 
-    # Ground truth: a few whole documents, printed as stored.
-    print("  -- newest documents, as stored --")
-    hits = search.search_raw({
-        "size": 5,
-        "sort": [{"timestamp": "desc"}],
-        "_source": _SAMPLE_SOURCE,
-    }).get("hits", {}).get("hits", [])
-    for hit in hits:
-        src = hit.get("_source", {})
-        print(f"    msr={src.get('msr')!r}")
-        print(f"      msr_check={src.get('msr_check')!r} -> adapter {_adapter_verdict(src.get('msr_check'))!r}")
-        print(f"      minio_msr={src.get('minio_msr')!r}")
-        print(f"      minio_pkl={src.get('minio_pkl')!r}")
+    # H3 detail. `msr` missing on ~1% of all documents but on the NEWEST ones
+    # is the signature of an ingestion change rather than scattered bad rows,
+    # and the newest documents are what a default skewvoir search returns.
+    print("  -- H3 detail: when did msr stop appearing --")
+    no_msr = {"bool": {"must_not": [{"exists": {"field": "msr"}}]}}
+    orphan = {
+        "bool": {
+            "filter": [{"exists": {"field": "minio_pkl"}}],
+            "must_not": [{"exists": {"field": "msr"}}],
+        }
+    }
+    print(f"    minio_pkl present but NO msr (unreachable by the UI): {_count(search, orphan)}")
+    try:
+        months = (
+            search.aggregate(
+                {"by_month": {"date_histogram": {
+                    "field": "timestamp",
+                    "calendar_interval": "month",
+                    "format": "yyyy-MM",
+                    "min_doc_count": 1,
+                }}},
+                query=no_msr,
+            )
+            .get("aggregations", {})
+            .get("by_month", {})
+            .get("buckets", [])
+        )
+        for bucket in months[-12:]:
+            print(f"      {bucket['key_as_string']}  msr-less docs={bucket['doc_count']}")
+    except Exception as exc:  # noqa: BLE001 - the failure IS the finding
+        print(f"    date_histogram FAILED: {type(exc).__name__}: {exc}")
+
+    # Ground truth: whole documents, so a renamed identifier cannot hide.
+    # Printed for the newest overall AND the newest msr-less one, because the
+    # difference between those two documents is the whole question.
+    for label, query in (("newest document", None), ("newest msr-less document", no_msr)):
+        body = {"size": 1, "sort": [{"timestamp": "desc"}]}
+        if query is not None:
+            body["query"] = query
+        hits = search.search_raw(body).get("hits", {}).get("hits", [])
+        print(f"  -- {label}, EVERY field as stored --")
+        if not hits:
+            print("    (none)")
+            continue
+        hit = hits[0]
+        print(f"    _id={hit.get('_id')!r}")
+        for key, value in sorted(hit.get("_source", {}).items()):
+            print(f"      {key} = {value!r}")
 
 
 def main() -> None:
