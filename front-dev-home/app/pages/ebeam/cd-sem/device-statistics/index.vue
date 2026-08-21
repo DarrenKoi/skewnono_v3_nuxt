@@ -549,11 +549,11 @@ const currentPage = ref(1)
 
 const view = useRowCardView('device-stats:listView', 'skewnono:deviceStatistics.listView')
 
-// 기본 페이지 크기는 보기 방식을 따릅니다. 행 카드 한 장이 표 한 행보다 훨씬
-// 높아 50 으로 두면 한 페이지가 화면 여러 개 분량이 되지만, 표 보기를 저장해 둔
-// 사람에게까지 12행을 강요하면 정렬·붙여넣기 하러 온 쪽이 손해를 봅니다.
-// 첫 값만 정하고 그 뒤로는 사용자가 고른 값을 그대로 둡니다.
-const pageSize = ref(view.value === 'cards' ? '12' : '50')
+// 기본 페이지 크기는 50 입니다. 카드 보기에서 행 카드가 표 한 행보다 훨씬
+// 높아 한 페이지가 화면 여러 개 분량이 되지만, 12 로 줄이면 비교·붙여넣기
+// 하러 온 쪽이 페이지를 자주 넘겨야 합니다. 첫 값만 정하고 그 뒤로는
+// 사용자가 고른 값을 그대로 둡니다.
+const pageSize = ref('50')
 
 const chipsExpanded = ref(false)
 
