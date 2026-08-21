@@ -543,6 +543,20 @@ OFFICE-VERIFY: P.No 가 3 이상인 recipe 가 있는지, 있다면 which 가 �
 WARNING 을 남깁니다 — 둘 중 하나를 찍으면 화면이 반대쪽 광학계의 조건을 정상인
 것처럼 보여 주게 되기 때문입니다.
 
+align 이미지는 HV-SEM 도 같은 이름입니다 (user-confirmed 2026-08-21)
+-----------------------------------------------------------------
+
+HV-SEM 은 **측정·addressing** 이미지 슬롯 하나를 targeting sub-position 별로
+여러 파일(`-U`/`-T`/`-M`/`-L`)로 쪼갭니다(2026-08-08 확인). **align 이미지는
+그렇지 않습니다** — CD-SEM 과 똑같이 `IMAP{p:04d}.jpeg` 한 장입니다.
+
+이 사실이 중요한 이유는 align 기준 이미지를 **파일 목록 조회 없이 이름만 계산해서**
+가져올 수 있게 해 주기 때문입니다. live-alarm 의 ALIGNMENT FAIL 화면이 그 위에
+서 있습니다: recipe 위치만 해석하면 되고 장비 FTP 는 bytes 를 실제로 요청할 때
+비로소 열립니다. 만약 HV-SEM 이 align 도 쪼갠다는 것이 나중에 확인되면, 계산된
+이름은 전부 404 가 되므로 그 fab 에서는 화면이 통째로 비어 보입니다 — 그때는
+`rawfiles.align_reference_images` 를 폴더 listing 기반으로 바꿔야 합니다.
+
 이름 규칙
 ---------
 

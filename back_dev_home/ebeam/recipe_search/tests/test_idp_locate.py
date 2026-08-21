@@ -102,6 +102,40 @@ class TestOrderCandidates:
             ("CG6300_01", "10.1.2.1"),
         ]
 
+    def test_the_preferred_tool_comes_first_even_when_offline(self):
+        # live_alarm asks for the align images of the tool that RAISED the
+        # alarm. Without this, an alarming tool marked available="Off" sorts
+        # behind its siblings and the walk serves a DIFFERENT tool's copy of
+        # the recipe -- which is the whole reason lateral_recipe exists.
+        assert oe._order_candidates(
+            ["CG6300_01", "CG6380_02"], ROSTER, prefer="CG6380_02"
+        ) == [
+            ("CG6380_02", "10.1.2.2"),
+            ("CG6300_01", "10.1.2.1"),
+        ]
+
+    def test_the_preferred_tool_is_added_when_the_registry_omits_it(self):
+        # The registry "is not promised to cover every fab or every recipe"
+        # (_locate_via_redis). An ALIGNMENT FAIL alarm is proof the tool ran
+        # this recipe, so a registry that omits it is incomplete -- not
+        # evidence the tool lacks the file. Dialing it anyway is what keeps
+        # the answer about the tool that actually failed.
+        assert oe._order_candidates(
+            ["CG6300_01"], ROSTER, prefer="CG6300_07"
+        ) == [
+            ("CG6300_07", "10.1.2.7"),
+            ("CG6300_01", "10.1.2.1"),
+        ]
+
+    def test_an_unroutable_preference_changes_nothing(self):
+        # No IP means nothing to dial, so the preference is dropped rather
+        # than turned into a candidate that always fails the SSRF guard.
+        assert oe._order_candidates(
+            ["CG6300_01"], ROSTER, prefer="GONE_99"
+        ) == [
+            ("CG6300_01", "10.1.2.1"),
+        ]
+
 
 class TestEqpIpIndex:
     def test_builds_the_index_from_the_sem_list_roster(self, monkeypatch):
@@ -292,16 +326,16 @@ class TestLocateViaMeasHist:
 class TestLocateIdpDispatch:
     def test_redis_wins_and_opensearch_is_never_queried(self, monkeypatch):
         sentinel = [oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "A")]
-        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a: sentinel)
-        monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a: pytest.fail(
+        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a, **k: sentinel)
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a, **k: pytest.fail(
             "meas_hist must not be queried when the registry answered"
         ))
         assert oe._locate_idp("cd-sem", RECIPE, "R3") == sentinel
 
     def test_registry_miss_falls_through_to_meas_hist(self, monkeypatch):
         sentinel = [oe._IdpLocation("CG6300_02", "10.9.9.2", "ADI", "A", "A")]
-        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a: None)
-        monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a: sentinel)
+        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a, **k: None)
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", lambda *a, **k: sentinel)
         assert oe._locate_idp("cd-sem", RECIPE, "R3") == sentinel
 
 
@@ -323,7 +357,7 @@ class TestLocateFailureNamesBothSources:
     """
 
     @staticmethod
-    def _no_meas_hist(*args):
+    def _no_meas_hist(*args, **kwargs):
         raise LookupError(
             f"No document in meas_hist_cdsem has full_name={RECIPE!r} for fab 'R3'."
         )

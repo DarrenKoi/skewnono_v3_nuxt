@@ -99,6 +99,8 @@ from functools import lru_cache
 from back_dev_home.ebeam.recipe_search import rawfiles
 from back_dev_home.ebeam.recipe_search.contracts import (
     AlignDetailResponse,
+    AlignImage,
+    AlignImagesResponse,
     AlignPoint,
     CompareParameter,
     CompareRecipe,
@@ -122,6 +124,7 @@ from back_dev_home.ebeam.recipe_search.contracts import (
 
 __all__ = [
     "CompareParameter",
+    "get_align_images",
     "CompareRecipe",
     "IMAGE_SLOTS",
     "IdpImageInfoRow",
@@ -1075,6 +1078,49 @@ def get_param_detail(
             ]
         })
     return out
+
+
+def get_align_images(
+    tool_type: ToolType,
+    recipe_name: str,
+    fab_name: str | None,
+    eqp_id: str | None = None,
+) -> AlignImagesResponse:
+    """A recipe's align reference images as ONE tool holds them.
+
+    Office-side the locator is resolved from the Redis recipe registry (or
+    measurement history), and ``eqp_id`` names the tool the caller wants the
+    copy FROM. At home there is no registry, so the locator is fabricated from
+    the recipe id exactly as recipe open does — the point is that the
+    frontend's round trip (align-images -> locator -> recipe-image) runs for
+    real rather than being stubbed.
+
+    THE SUBSTITUTION IS FABRICATED, DELIBERATELY. Office-side a sibling tool
+    answers only when the registry omits the requested one or the roster
+    cannot route to it — uncommon, and therefore invisible at home if the mock
+    always honoured the request. A screen path that never renders at home is a
+    screen path nobody develops, so one request in four is answered by a
+    substitute here. The RATE is not something home can know (OFFICE-VERIFY);
+    the shape is real.
+    """
+    requested = (eqp_id or "").strip()
+    locator = _fake_locator(recipe_name)
+    substituted = bool(requested) and _seed_for_values(
+        "align-images", recipe_name, requested
+    ) % 4 == 0
+    served_by = f"{requested[:-2]}9{requested[-1:]}" if substituted else requested
+    return {
+        "recipe_name": recipe_name,
+        "fab_name": (fab_name or "").strip().upper(),
+        "locator": locator,
+        "eqp_id": served_by,
+        "requested_eqp_id": requested,
+        "from_requested_tool": served_by == requested,
+        "images": [
+            AlignImage(p_no=p_no, optic=optic, name=name)
+            for p_no, optic, name in rawfiles.align_reference_images()
+        ],
+    }
 
 
 def get_align_detail(

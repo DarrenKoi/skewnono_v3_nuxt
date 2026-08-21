@@ -166,6 +166,8 @@ from back_dev_home.ebeam.recipe_search import rawfiles
 from back_dev_home.msr_image.errors import SourceUnavailable
 from back_dev_home.ebeam.recipe_search.contracts import (
     AlignDetailResponse,
+    AlignImage,
+    AlignImagesResponse,
     AlignPoint,
     CompareRequestItem,
     IdpImageInfoRow,
@@ -198,6 +200,7 @@ __all__ = [
     "check_recipe_registry",
     "fetch_recipe_image",
     "get_align_detail",
+    "get_align_images",
     "get_param_detail",
     "get_recipe_catalog",
     "get_recipe_compare_data",
@@ -441,6 +444,7 @@ def _eqp_ip_index() -> dict[str, tuple[str, str]]:
 def _order_candidates(
     eqp_ids: list[str],
     index: dict[str, tuple[str, str]],
+    prefer: str | None = None,
 ) -> list[tuple[str, str]]:
     """``[eqp_id, ...]`` -> ``[(eqp_id, eqp_ip), ...]``, best host first. Pure.
 
@@ -453,6 +457,14 @@ def _order_candidates(
 
     An ``eqp_id`` the roster does not know is dropped: the registry says the
     recipe is there, but with no IP there is nothing to dial.
+
+    ``prefer`` names ONE tool that must be tried first regardless of
+    availability. Callers that want a specific tool's copy of the recipe pass
+    it -- live_alarm does, because the question there is what the tool that
+    raised the alarm was aligning to, and tools hold different versions of the
+    same recipe (that divergence is what lateral_recipe exists to show). With
+    no preference the availability sort stands, which is right for the recipe
+    catalog: it wants any tool that can serve the file.
     """
     online: list[tuple[str, str]] = []
     offline: list[tuple[str, str]] = []
@@ -475,7 +487,17 @@ def _order_candidates(
         )
     # A tools_in_rcp value can repeat an eqp_id; collapse exact repeats so the
     # download walk tries each distinct tool once rather than re-dialing one.
-    return list(dict.fromkeys(online + offline))
+    ordered = list(dict.fromkeys(online + offline))
+    if prefer:
+        wanted = prefer.strip()
+        resolved = index.get(wanted)
+        if resolved is not None:
+            # Prepended rather than only re-sorted: the registry is not
+            # promised to list every tool holding a recipe, and an alarm is
+            # proof this one ran it. dict.fromkeys then collapses the repeat
+            # when the registry DID list it.
+            ordered = list(dict.fromkeys([(wanted, resolved[0]), *ordered]))
+    return ordered
 
 
 def _locate_via_redis(
@@ -483,6 +505,7 @@ def _locate_via_redis(
     recipe_id: str,
     fab_name: str | None,
     notes: list[str] | None = None,
+    prefer: str | None = None,
 ) -> list[_IdpLocation] | None:
     """Candidate locations from the two per-fab registry hashes, or ``None``.
 
@@ -537,7 +560,7 @@ def _locate_via_redis(
             f"({parts[:2]})"
         )
 
-    candidates = _order_candidates(eqp_ids, _eqp_ip_index())
+    candidates = _order_candidates(eqp_ids, _eqp_ip_index(), prefer=prefer)
     if not candidates:
         return _bail(
             f"none of {eqp_ids} resolves to an IP for {recipe_id!r} — the "
@@ -564,6 +587,7 @@ def _locate_via_meas_hist(
     tool_type: ToolType,
     recipe_id: str,
     fab_name: str | None,
+    prefer: str | None = None,
 ) -> list[_IdpLocation]:
     """Candidate locations from measurement history, newest run first.
 
@@ -636,7 +660,15 @@ def _locate_via_meas_hist(
         # yield several identical _IdpLocation tuples. Without collapsing
         # them, _download_first would re-dial that one (possibly dead) host
         # several times instead of trying several different hosts.
-        return list(dict.fromkeys(complete))
+        located = list(dict.fromkeys(complete))
+        if prefer:
+            # Re-sort only. Unlike the registry path there is nothing to
+            # prepend: a tool with no measurement document for this recipe
+            # yields no class_name/idw/idp, and those cannot be had from the
+            # roster, which carries placement rather than recipe paths.
+            wanted = prefer.strip()
+            located.sort(key=lambda loc: loc.eqp_id != wanted)
+        return located
 
     raise LookupError(
         f"Found {len(hits)} document(s) in {index} for full_name={recipe_id!r}, "
@@ -649,6 +681,7 @@ def _locate_idp(
     tool_type: ToolType,
     recipe_id: str,
     fab_name: str | None,
+    prefer: str | None = None,
 ) -> list[_IdpLocation]:
     """Where this recipe's .idp can be fetched from, best candidate first.
 
@@ -673,11 +706,11 @@ def _locate_idp(
         The boot log flags this too, but a 502 body reaches further.
     """
     notes: list[str] = []
-    located = _locate_via_redis(tool_type, recipe_id, fab_name, notes)
+    located = _locate_via_redis(tool_type, recipe_id, fab_name, notes, prefer=prefer)
     if located:
         return located
     try:
-        return _locate_via_meas_hist(tool_type, recipe_id, fab_name)
+        return _locate_via_meas_hist(tool_type, recipe_id, fab_name, prefer=prefer)
     except LookupError as exc:
         if not notes:
             raise
@@ -1802,6 +1835,54 @@ def _align_settings(
         )
         return {}
     return _split_align_settings(parsed, present, optics)
+
+
+def get_align_images(
+    tool_type: ToolType,
+    recipe_name: str,
+    fab_name: str | None,
+    eqp_id: str | None = None,
+) -> AlignImagesResponse:
+    """A recipe's align reference images as ONE named tool holds them.
+
+    Resolution only — NO FTP. The file names are computable
+    (``rawfiles.align_reference_images``), so the tool is not dialed until the
+    caller asks for the bytes through ``recipe-image``. That split is what
+    keeps this endpoint cheap enough for live_alarm to call on a board where
+    the tool in question is, by definition, unwell.
+
+    ``eqp_id`` is the tool the caller wants the copy FROM — live_alarm passes
+    the one that raised the ALIGNMENT FAIL. It becomes ``prefer`` on the
+    locate, so an ``available="Off"`` tool is still tried first instead of
+    sorting behind healthier siblings holding a DIFFERENT version of the same
+    recipe. When the locate cannot reach it anyway, the response says so
+    through ``from_requested_tool`` rather than substituting in silence.
+
+    Raises:
+        LookupError: neither the registry nor measurement history can place
+            this recipe. The route turns it into a 502 naming both sources.
+    """
+    requested = (eqp_id or "").strip()
+    location = _locate_idp(tool_type, recipe_name, fab_name, prefer=requested or None)[0]
+    return {
+        "recipe_name": recipe_name,
+        "fab_name": (fab_name or "").strip().upper(),
+        "locator": IdpLocator(
+            eqp_ip=location.eqp_ip,
+            class_name=location.class_name,
+            idw=location.idw_stem,
+            idp=location.idp_stem,
+        ),
+        "eqp_id": location.eqp_id,
+        "requested_eqp_id": requested,
+        # No request means no substitution: recipe-search opens a recipe
+        # without naming a tool, and a mismatch flag has no meaning there.
+        "from_requested_tool": not requested or location.eqp_id == requested,
+        "images": [
+            AlignImage(p_no=p_no, optic=optic, name=name)
+            for p_no, optic, name in rawfiles.align_reference_images()
+        ],
+    }
 
 
 def get_align_detail(

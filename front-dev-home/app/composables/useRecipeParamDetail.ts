@@ -170,6 +170,48 @@ export async function fetchParamDetailsChunked(
   return out
 }
 
+export interface AlignImage {
+  p_no: number
+  /** "OM" (P.No 1) or "SEM" (P.No 2). */
+  optic: string
+  name: string
+}
+
+export interface AlignImages {
+  recipe_name: string
+  fab_name: string
+  locator: IdpLocator
+  /** The tool the images will actually come from. */
+  eqp_id: string
+  /** The tool the caller asked for; "" when it asked for none. */
+  requested_eqp_id: string
+  from_requested_tool: boolean
+  images: AlignImage[]
+}
+
+/**
+ * A recipe's align reference images (OM and SEM) as ONE tool holds them.
+ *
+ * `eqpId` is part of the question, not a filter: the live-alarm board asks
+ * about the tool that raised an ALIGNMENT FAIL, and tools hold different
+ * versions of the same recipe. The response reports which tool actually
+ * answered so the screen can say so instead of substituting silently.
+ *
+ * Resolution only — no image bytes here. The names come back ready for
+ * `recipeImageUrl`, which is what dials the tool.
+ */
+export function fetchAlignImages(
+  toolSlug: string,
+  recipeName: string,
+  fabName: string,
+  eqpId: string
+): Promise<AlignImages> {
+  return $fetch<AlignImages>(
+    joinApiPath(recipeApiBase(), `/${toolSlug}/recipe-search/align-images`),
+    { query: { recipe_name: recipeName, fab_name: fabName, eqp_id: eqpId } }
+  )
+}
+
 export interface AlignPoint {
   P_No: number
   image: string | null

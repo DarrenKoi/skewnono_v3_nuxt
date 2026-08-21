@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatElapsed, KIND_LABEL } from '~/utils/liveAlarm'
 import type { LiveAlarmEvent } from '~/utils/liveAlarm'
+import type { ToolType } from '~/utils/toolType'
 
 const props = defineProps<{
   event: LiveAlarmEvent
@@ -35,6 +36,14 @@ const alTypeTone = computed(() =>
 // of its own. Blank fields drop out entirely rather than rendering a label
 // with nothing after it — every field is always present as "" (see
 // contracts.py), so absence is a value, not a missing key.
+// Align reference images are worth a click, not a column. The board is a dense
+// 20-minute list and most rows are never opened, so the fetch — an FTP session
+// to a tool that is already failing to align — waits for someone to ask.
+const alignImagesOpen = ref(false)
+const canShowAlignImages = computed(
+  () => props.event.kind === 'align' && Boolean(props.event.recipe_id)
+)
+
 const details = computed(() => [
   { label: 'LOT', value: props.event.lot_id },
   { label: 'FOUP', value: props.event.cassette_id },
@@ -74,6 +83,17 @@ const details = computed(() => [
       >
         {{ event.recipe_id }}
       </NuxtLink>
+
+      <UButton
+        v-if="canShowAlignImages"
+        icon="i-lucide-image"
+        color="neutral"
+        variant="subtle"
+        size="xs"
+        @click="alignImagesOpen = true"
+      >
+        정렬 이미지
+      </UButton>
       <span
         v-else
         class="text-sm text-muted"
@@ -119,5 +139,14 @@ const details = computed(() => [
         <span class="opacity-70">{{ detail.label }}</span> {{ detail.value }}
       </span>
     </p>
+
+    <LiveAlarmAlignImagesModal
+      v-if="canShowAlignImages"
+      v-model:open="alignImagesOpen"
+      :tool-type="(toolSlug as ToolType)"
+      :fab="fab"
+      :recipe-id="event.recipe_id"
+      :eqp-id="event.eqp_id"
+    />
   </div>
 </template>

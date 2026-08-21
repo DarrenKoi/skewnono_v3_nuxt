@@ -37,9 +37,18 @@ def _default_client(bucket):
 
 
 class MinioImageCache:
-    def __init__(self, bucket, prefix="image_cache/", client_factory: Callable[[], object] | None = None):
+    def __init__(
+        self,
+        bucket,
+        prefix="image_cache/",
+        client_factory: Callable[[], object] | None = None,
+        key_fn=cache_key,
+    ):
         self.bucket = bucket
         self.prefix = prefix if prefix.endswith("/") else prefix + "/"
+        # See DiskImageCache.__init__ — a second caller's path shape, one store,
+        # one sweep.
+        self._key_fn = key_fn
         self._factory = client_factory or (lambda: _default_client(bucket))
         self._client = None
 
@@ -63,7 +72,7 @@ class MinioImageCache:
         # offer "user/2067928/image_cache/" as the prefix, which writes to
         # user/user/2067928/... -- outside the credentials' scope, so MinIO
         # answers AccessDenied rather than quietly misfiling the cache.
-        return f"{self.prefix}{cache_key(locator, preview=preview)}"
+        return f"{self.prefix}{self._key_fn(locator, preview=preview)}"
 
     def has(self, locator: ImageLocator, *, preview: bool = False) -> bool:
         """Existence only (one stat round-trip) — get() would download the

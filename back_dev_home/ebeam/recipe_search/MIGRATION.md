@@ -49,9 +49,52 @@ files-per-connection; do the same here if a real request is seen timing out.
 | `/recipe-detail` | Redis recipe registry (fallback: meas_hist) → tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
 | `/param-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
 | `/align-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
-| `/recipe-image` | tool FTP raw folder (bytes) | wired, unverified on real data |
+| `/align-images` | Redis recipe registry (fallback: meas_hist) — resolution only, no FTP | wired, unverified on real data |
+| `/recipe-image` | tool FTP raw folder (bytes), MinIO write-through cache | wired, unverified on real data |
 | `/compare` | — | mock (re-exported) |
 | `/registry-check` | Redis recipe registry (2 `hget` per recipe) | wired, unverified on real data |
+
+### `/align-images` — the caller names the tool
+
+Built for the live-alarm board's ALIGNMENT FAIL rows. It differs from every
+other endpoint here in one way that matters office-side: the caller passes an
+`eqp_id`, and that becomes `prefer` on `_locate_idp`, so the requested tool is
+tried first **even when the roster reports it `available="Off"`**.
+
+That is not a nicety. `_order_candidates` sorts available tools first, so
+without the preference an offline alarming tool sorts behind its siblings and
+the walk returns a DIFFERENT tool's copy of the recipe. Tools hold different
+versions of the same recipe — that divergence is the entire reason
+`lateral_recipe` exists — so the engineer would be judging "is this align
+target weak" against a file that is not the one that failed. The response
+carries `eqp_id` (who answered) alongside `requested_eqp_id`, and the screen
+shows a warning when they differ, so a substitution is never silent.
+
+No FTP happens in this endpoint. Align image names are computable
+(`rawfiles.align_reference_images`; HV-SEM confirmed to use the same
+`IMAP{p:04d}.jpeg` names — `docs/datatables/recipe_idp.txt`), so the tool is
+only dialed when `/recipe-image` is asked for the bytes.
+
+### `/recipe-image` now caches
+
+The route was "FTP to memory to response" — every viewer paid a full visit to
+the tool. Two guards were added because the live-alarm caller aims this path at
+tools that are, by definition, unwell:
+
+- **MinIO write-through cache**, in the SAME prefix and sweep as `msr_image`'s
+  (`image_cache/`). A separate prefix would be invisible to the flask_modules
+  Airflow DAG that enforces retention office-side, so the two sweeps would
+  silently diverge. Keys cannot collide: this one has five path segments
+  (`{eqp_ip}/{class_name}/{idw}/{idp}/{name}`) and `msr_image`'s has four, and
+  `validate_segment` forbids `/` inside `msr`.
+- **`single_flight`**, which `msr_image` already had and this feature did not.
+  It collapses concurrent callers — the browser retries a slow image at 2.5s
+  and 5s — so a stalled FTP login holds ONE uWSGI worker instead of one per
+  arrival. That matters here: `ftp_host_timeout` runs to 60s under a proxy
+  harakiri of 75s.
+
+The cache covers the sequential case (a second engineer, an hour later);
+`single_flight` covers the simultaneous one. Neither substitutes for the other.
 
 **The "compare is derived from open" invariant is knowingly broken office-side
 right now.** `/recipe-detail` returns parsed IDP data while `/compare` returns

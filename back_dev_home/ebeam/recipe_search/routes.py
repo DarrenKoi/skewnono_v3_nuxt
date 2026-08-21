@@ -1,4 +1,4 @@
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 
 from back_dev_home._core.request_args import (
     resolve_fab_name,
@@ -20,18 +20,40 @@ from back_dev_home.ebeam.recipe_search.data import (
     check_recipe_registry,
     fetch_recipe_image,
     get_align_detail,
+    get_align_images,
     get_param_detail,
     get_recipe_catalog,
     get_recipe_compare_data,
     get_recipe_open_data,
 )
+from back_dev_home._runtime.data_provider import get_data_provider
+from back_dev_home.ebeam.recipe_search import rawfiles
+from back_dev_home.msr_image.cache import make_cache
 from back_dev_home.msr_image.config import load_config
+from back_dev_home.msr_image.contracts import FetchedImage
 from back_dev_home.msr_image.errors import InvalidLocator, MsrImageError
 from back_dev_home.msr_image.paths import validate_segment, validate_tool_ip
 from back_dev_home.msr_image.preview import preview_bytes, wants_preview
+from back_dev_home.msr_image.single_flight import single_flight
 
 
 bp = Blueprint("recipe_search", __name__)
+
+
+def _get_cache(cfg):
+    """One cache per (app, provider), as msr_image does.
+
+    Rebuilding it per request would, office-side, build a fresh MinIO SDK
+    client and connection pool for every thumbnail in a recipe.
+    """
+    provider = get_data_provider("recipe_search")
+    key = f"recipe_image_cache::{provider}"
+    ext = current_app.extensions
+    cache = ext.get(key)
+    if cache is None:
+        cache = make_cache(cfg, provider, key_fn=rawfiles.recipe_image_cache_key)
+        ext[key] = cache
+    return cache
 
 # Compare fans one parameter out across every selected recipe, so the
 # param-detail body is a LIST. As N separate GETs a large comparison could
@@ -408,6 +430,33 @@ def recipe_search_align_detail(tool_slug: str):
         return _error(exc)
 
 
+@bp.get("/<tool_slug>/recipe-search/align-images")
+def recipe_search_align_images(tool_slug: str):
+    """A recipe's align reference images (OM and SEM) as one tool holds them.
+
+    Built for the live-alarm board: an ALIGNMENT FAIL names a tool and a
+    recipe, and the engineer wants to see what that tool was trying to align
+    to. ``eqp_id`` is therefore part of the question, not a filter — the
+    answer says which tool it actually came from so a substitution is never
+    silent.
+
+    Resolution only; the tool is dialed by ``recipe-image`` when the bytes are
+    asked for. Keeping the two apart matters here because the tool this runs
+    against is, by definition, the one having trouble.
+    """
+    context, failed = _resolve_recipe_request(tool_slug, needs_parameter=False)
+    if failed:
+        return failed
+    tool_type, recipe_name, _, fab_name = context
+
+    eqp_id = (request.args.get("eqp_id") or "").strip()
+    promote_request_fab_names(fab_name)
+    try:
+        return jsonify(get_align_images(tool_type, recipe_name, fab_name, eqp_id))
+    except MsrImageError as exc:
+        return _error(exc)
+
+
 @bp.get("/<tool_slug>/recipe-search/recipe-image")
 def recipe_search_recipe_image(tool_slug: str):
     """One raw-recipe image, streamed from memory.
@@ -428,8 +477,36 @@ def recipe_search_recipe_image(tool_slug: str):
     except MsrImageError as exc:
         return _error(exc)
 
-    try:
+    cache = _get_cache(load_config())
+    cached_locator = {**locator, "name": name}
+
+    def _visit_tool() -> FetchedImage:
+        # The leader re-reads first: an attempt that finished a moment ago has
+        # already filled the cache, and this body runs after the wait.
+        hit = cache.get(cached_locator)
+        if hit is not None:
+            return hit
         payload, content_type = fetch_recipe_image(locator, name)
+        got = FetchedImage(payload, content_type, None)
+        cache.put(cached_locator, got)
+        return got
+
+    try:
+        fetched = cache.get(cached_locator)
+        if fetched is None:
+            # Two different herds, two different guards. The CACHE is what
+            # makes the second viewer free — engineers open the same hot
+            # ALIGNMENT FAIL one after another, and before this the route was
+            # "FTP to memory to response" for every one of them. SINGLE_FLIGHT
+            # is what collapses the simultaneous ones: the browser retries a
+            # slow image at 2.5s and 5s, and a stalled FTP login holds a uWSGI
+            # worker for as long as ftp_host_timeout under a harakiri only
+            # twice that. The tool this runs against is, on the live-alarm
+            # path, the one currently failing to align.
+            fetched = single_flight(
+                rawfiles.recipe_image_cache_key(cached_locator), _visit_tool
+            )
+        payload, content_type = fetched.data, fetched.content_type
     except MsrImageError as exc:
         # An unreachable TOOL is not a missing image. Collapsing both into 404
         # would tell the user the file does not exist when the tool is simply

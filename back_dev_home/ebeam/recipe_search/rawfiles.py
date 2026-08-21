@@ -41,6 +41,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from back_dev_home._core.image_naming import HV_SEM_STEM_SUFFIXES
+from back_dev_home.msr_image.cache import PREVIEW_SUFFIX
 from back_dev_home.msr_image.paths import cond_path
 
 __all__ = [
@@ -54,6 +55,7 @@ __all__ = [
     "SLOT_PREFIX",
     "align_names",
     "align_optics",
+    "align_reference_images",
     "slot_sources",
     "cond_remote_path",
     "cond_source",
@@ -62,6 +64,7 @@ __all__ = [
     "image_variants",
     "is_empty",
     "raw_dir",
+    "recipe_image_cache_key",
     "remote_path",
     "setting_name",
 ]
@@ -131,6 +134,29 @@ _SUFFIX_RANK: dict[str, int] = {s: i for i, s in enumerate(KNOWN_STEM_SUFFIXES)}
 def is_empty(value: str | None) -> bool:
     """Does this slot name no file? Case- and whitespace-insensitive."""
     return not value or value.strip().lower() == EMPTY_SLOT
+
+
+def recipe_image_cache_key(locator, *, preview: bool = False) -> str:
+    """Where one raw-recipe image sits in the shared image cache.
+
+    ``{eqp_ip}/{class_name}/{idw}/{idp}/{name}`` — the raw folder's own path,
+    so an object is inspectable without consulting code, exactly as
+    msr_image's key is. ``locator`` carries the name too, because this is
+    called as a cache backend's key function and those take one argument.
+
+    It shares a MinIO prefix with msr_image's ``{eqp_ip}/{class_name}/{msr}/
+    {name}``, and cannot collide with it: this key has five segments and that
+    one has four, and ``msr`` can never supply the extra separator because
+    ``validate_segment`` rejects "/" before any key is built. One prefix means
+    ONE retention rule, which matters because the office enforces it twice —
+    this app's nightly sweep and a flask_modules Airflow DAG — and a second
+    prefix would be invisible to the second.
+    """
+    key = (
+        f"{locator['eqp_ip']}/{locator['class_name']}/"
+        f"{locator['idw']}/{locator['idp']}/{locator['name']}"
+    )
+    return key + PREVIEW_SUFFIX if preview else key
 
 
 def raw_dir(class_name: str, idw_stem: str, idp_stem: str) -> str:
@@ -233,6 +259,23 @@ def align_names(p_no: int) -> tuple[str, str]:
     nine-character name in a folder where every name is eight.
     """
     return f"IMAP{p_no:04d}.jpeg", f"ENAP{p_no:04d}"
+
+
+def align_reference_images() -> list[tuple[int, str, str]]:
+    """``[(p_no, optic, file_name), ...]`` for a recipe's align reference set.
+
+    ONE definition for both providers. The office adapter and the mock have to
+    name the same files here — a second copy of "point 1 is IMAP0001.jpeg and
+    it is the OM" would let the mock teach a name the office never serves.
+
+    The set is ALIGN_OPTICS, not a discovered listing: align points are the
+    same alignment seen through two optics rather than scattered positions
+    (user-confirmed 2026-07-29), and HV-SEM carries these same names rather
+    than splitting them into the -U/-T/-M/-L files its MEASUREMENT slots use
+    (user-confirmed 2026-08-21). So the names are computable, and this lookup
+    costs no FTP round trip at all.
+    """
+    return [(p_no, optic, align_names(p_no)[0]) for p_no, optic in sorted(ALIGN_OPTICS.items())]
 
 
 def cond_source(image_file_name: str) -> str:

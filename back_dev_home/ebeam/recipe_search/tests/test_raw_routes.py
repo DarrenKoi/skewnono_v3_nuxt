@@ -16,7 +16,15 @@ LOCATOR = {"eqp_ip": "10.1.2.3", "class_name": "CLS", "idw": "IDW_A", "idp": "ID
 
 
 @pytest.fixture()
-def client():
+def client(tmp_path, monkeypatch):
+    # A per-test cache dir. The image route caches what it fetches (see
+    # test_recipe_image_cache.py), and the default cache_dir is a real shared
+    # folder -- so without this one test's successful fetch becomes another
+    # test's cache hit, and the "unreachable tool is a 503" case silently
+    # passes as a 200.
+    from back_dev_home.msr_image.config import ImageConfig
+
+    monkeypatch.setattr(routes, "load_config", lambda: ImageConfig(cache_dir=str(tmp_path)))
     app = Flask(__name__)
     app.register_blueprint(routes.bp, url_prefix="/api")
     return app.test_client()
@@ -251,4 +259,30 @@ def test_align_detail_caps_the_point_list(client):
     response = client.get("/api/cdsem/recipe-search/align-detail",
                           query_string={**LOCATOR,
                                         "p_numbers": ",".join(str(i) for i in range(300))})
+    assert response.status_code == 400
+
+
+# ── align-images ──────────────────────────────────────────────────────────
+
+
+def test_align_images_names_both_optics(client):
+    response = client.get(
+        "/api/cdsem/recipe-search/align-images"
+        "?recipe_name=MONITOR/CD_TOP_01&fab_name=M14A&eqp_id=CG6300_01"
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert [img["optic"] for img in body["images"]] == ["OM", "SEM"]
+    assert body["requested_eqp_id"] == "CG6300_01"
+
+
+def test_align_images_rejects_an_unknown_tool_slug(client):
+    response = client.get(
+        "/api/xxsem/recipe-search/align-images?recipe_name=MONITOR/CD_TOP_01"
+    )
+    assert response.status_code == 400
+
+
+def test_align_images_requires_a_recipe_name(client):
+    response = client.get("/api/cdsem/recipe-search/align-images?eqp_id=CG6300_01")
     assert response.status_code == 400

@@ -7,6 +7,8 @@ from typing import Literal, NotRequired, TypedDict
 
 __all__ = [
     "AlignDetailResponse",
+    "AlignImage",
+    "AlignImagesResponse",
     "AlignPoint",
     "CompareParameter",
     "CompareRecipe",
@@ -194,6 +196,34 @@ AlignPoint = TypedDict("AlignPoint", {
 
 class AlignDetailResponse(TypedDict):
     points: list[AlignPoint]
+
+
+class AlignImage(TypedDict):
+    p_no: int
+    optic: str  # "OM" (P.No 1) or "SEM" (P.No 2)
+    name: str   # IMAP{p:04d}.jpeg, fetched through the recipe-image route
+
+
+class AlignImagesResponse(TypedDict):
+    """A recipe's align reference images, as ONE named tool holds them.
+
+    ``eqp_id`` and ``requested_eqp_id`` are separate on purpose. The caller
+    (live_alarm) asks for the tool that raised the alarm; the registry may not
+    list that tool, or the roster may not be able to route to it, and the
+    answer then comes from a sibling. Tools hold DIFFERENT versions of the same
+    recipe — that divergence is what lateral_recipe exists to show — so an
+    engineer judging "is this align target weak" against another tool's copy is
+    judging the wrong file. Reporting both lets the screen say so instead of
+    substituting silently.
+    """
+
+    recipe_name: str
+    fab_name: str
+    locator: IdpLocator
+    eqp_id: str            # the tool the locator points at
+    requested_eqp_id: str  # what the caller asked for; "" when it asked for none
+    from_requested_tool: bool
+    images: list[AlignImage]
 
 
 class RecipeSearchResponse(TypedDict):

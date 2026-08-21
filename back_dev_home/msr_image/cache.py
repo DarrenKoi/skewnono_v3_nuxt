@@ -43,11 +43,16 @@ class ImageCache(Protocol):
 
 
 class DiskImageCache:
-    def __init__(self, root: str) -> None:
+    def __init__(self, root: str, key_fn=cache_key) -> None:
         self.root = Path(root)
+        # Injected so a second caller can store under its OWN path shape in the
+        # same cache. recipe_search does: its objects are raw-recipe files
+        # ({eqp_ip}/{class}/{idw}/{idp}/{name}), not measurement results, and
+        # they share this store so ONE retention sweep reaches both.
+        self._key_fn = key_fn
 
     def _path(self, locator: ImageLocator, preview: bool = False) -> Path:
-        return self.root / cache_key(locator, preview=preview)
+        return self.root / self._key_fn(locator, preview=preview)
 
     def has(self, locator: ImageLocator, *, preview: bool = False) -> bool:
         """Existence only — no body read. The scoped warm job uses this to
@@ -96,7 +101,7 @@ class DiskImageCache:
         return removed
 
 
-def make_cache(cfg, provider: str):
+def make_cache(cfg, provider: str, key_fn=cache_key):
     """Pick the cache backend that matches the byte source.
 
     ``cfg`` is an ImageConfig (typed loosely to avoid a config import cycle).
@@ -118,6 +123,6 @@ def make_cache(cfg, provider: str):
             )
         from back_dev_home.msr_image.minio_cache import MinioImageCache
         return MinioImageCache(
-            bucket=cfg.cache_bucket, prefix=cfg.cache_prefix
+            bucket=cfg.cache_bucket, prefix=cfg.cache_prefix, key_fn=key_fn
         )
-    return DiskImageCache(cfg.cache_dir)
+    return DiskImageCache(cfg.cache_dir, key_fn=key_fn)

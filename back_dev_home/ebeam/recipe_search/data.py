@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.ebeam.recipe_search.contracts import (
     AlignDetailResponse,
+    AlignImagesResponse,
     CompareRequestItem,
     IdpLocator,
     ParamDetailRequestItem,
@@ -29,6 +30,7 @@ __all__ = [
     "check_recipe_registry",
     "fetch_recipe_image",
     "get_align_detail",
+    "get_align_images",
     "get_param_detail",
     "get_recipe_catalog",
     "get_recipe_compare_data",
@@ -77,6 +79,15 @@ def get_param_detail(
     items: list[ParamDetailRequestItem],
 ) -> list[ParamDetailResponse]:
     return _provider().get_param_detail(items)
+
+
+def get_align_images(
+    tool_type: ToolType,
+    recipe_name: str,
+    fab_name: str | None,
+    eqp_id: str | None = None,
+) -> AlignImagesResponse:
+    return _provider().get_align_images(tool_type, recipe_name, fab_name, eqp_id)
 
 
 def get_align_detail(
