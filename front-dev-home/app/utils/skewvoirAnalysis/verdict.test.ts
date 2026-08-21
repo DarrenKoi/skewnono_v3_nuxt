@@ -143,3 +143,18 @@ test('a measurement with no measured site refuses to state a level', () => {
   assert.equal(textOf(v), 'CD_TOP — 측정된 site 가 없습니다.')
   assert.equal(v.outlierShare, null)
 })
+
+test('a flat-topped wafer reports no outlier contribution, never a negative one', () => {
+  // Near-uniform values: MAD × 1.4826 OVERSHOOTS the sample σ (0.3706·range vs
+  // 0.2887·range), so the raw ratio goes past 1 and the share goes negative.
+  // The extremes are not inflating σ here — that is a share of zero, and a
+  // caption reading "이상치 제외 시 -22% 축소" is not a smaller number, it is a
+  // sentence that means nothing.
+  const flatTop = cduMetrics(
+    [10, 11, 12, 13, 14, 15, 16, 17, 18, 19].map((v, i) => row(i + 1, v)),
+    'CD_TOP',
+    'nm'
+  )
+  const v = measurementVerdict(input({ metrics: flatTop }))
+  assert.equal(v.outlierShare, 0)
+})

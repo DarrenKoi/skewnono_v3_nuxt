@@ -69,18 +69,14 @@
       <section class="flex flex-col gap-1 px-4 py-2.5">
         <div class="flex items-baseline gap-2">
           <span class="sk-eyebrow">커버리지</span>
-          <button
-            type="button"
-            class="ml-auto shrink-0 rounded-(--sk-r-sidebar) sk-label transition-colors duration-200 hover:text-(--sk-ink)"
-            :aria-expanded="detail === 'coverage'"
-            @click="toggle('coverage')"
-          >
-            자세히
-          </button>
+          <EbeamSkewvoirOverviewDetailToggle
+            :expanded="detail === 'coverage'"
+            @toggle="toggle('coverage')"
+          />
         </div>
         <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span class="font-mono text-xl font-bold tabular-nums text-(--sk-ink)">
-            {{ cov.measured }}<span class="text-sm text-(--sk-ink-muted)">/{{ cov.total }}</span>
+            {{ cov.measured }}<span class="text-sm">/{{ cov.total }}</span>
           </span>
           <span
             v-if="cov.failed > 0"
@@ -91,7 +87,7 @@
             <span class="sk-value-num font-bold">{{ align.total }}</span>
             <span
               v-if="align.methods.length"
-              class="sk-label"
+              class="sk-value"
             >{{ align.methods.join(' · ') }}</span>
           </span>
           <EbeamSkewvoirDashboardAlignImages
@@ -122,14 +118,10 @@
       <section class="flex flex-col gap-1 border-(--sk-border-soft) px-4 py-2.5 sm:border-l">
         <div class="flex items-baseline gap-2">
           <span class="sk-eyebrow">산포</span>
-          <button
-            type="button"
-            class="ml-auto shrink-0 rounded-(--sk-r-sidebar) sk-label transition-colors duration-200 hover:text-(--sk-ink)"
-            :aria-expanded="detail === 'spread'"
-            @click="toggle('spread')"
-          >
-            자세히
-          </button>
+          <EbeamSkewvoirOverviewDetailToggle
+            :expanded="detail === 'spread'"
+            @toggle="toggle('spread')"
+          />
         </div>
         <div
           v-if="spread"
@@ -149,7 +141,7 @@
           class="text-xs font-semibold text-(--sk-ink-subtle)"
         >평가 불가 — 산포를 정의하려면 측정 site 가 2개 이상 필요합니다.</span>
         <p class="flex flex-wrap items-baseline gap-x-1.5 sk-label">
-          <template v-if="verdict.outlierShare !== null">
+          <template v-if="verdict.outlierShare">
             <span>이상치 제외 시</span>
             <span class="sk-value-num">{{ Math.round(verdict.outlierShare * 100) }}%</span>
             <span>축소 ·</span>
@@ -162,14 +154,10 @@
       <section class="flex flex-col gap-1 border-(--sk-border-soft) px-4 py-2.5 sm:border-l">
         <div class="flex items-baseline gap-2">
           <span class="sk-eyebrow">이상 site</span>
-          <button
-            type="button"
-            class="ml-auto shrink-0 rounded-(--sk-r-sidebar) sk-label transition-colors duration-200 hover:text-(--sk-ink)"
-            :aria-expanded="detail === 'anomaly'"
-            @click="toggle('anomaly')"
-          >
-            자세히
-          </button>
+          <EbeamSkewvoirOverviewDetailToggle
+            :expanded="detail === 'anomaly'"
+            @toggle="toggle('anomaly')"
+          />
         </div>
         <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span
@@ -218,7 +206,7 @@
           <button
             v-if="firstOutlier"
             type="button"
-            class="ml-auto shrink-0 text-xs font-semibold text-(--sk-accent) transition-colors duration-200 hover:text-(--sk-brand-ink)"
+            class="ml-auto shrink-0 text-xs font-semibold text-(--sk-ink) underline decoration-(--sk-border) underline-offset-4 transition-colors duration-200 hover:decoration-(--sk-ink)"
             @click="showOnWafer"
           >
             웨이퍼에서 보기 →
@@ -405,7 +393,7 @@ const verdict = computed(() => measurementVerdict({
   metrics: metrics.value,
   outlierCount: ov.value.status === 'evaluated' ? ov.value.outlierCount : 0,
   failedCauses: breakdown.value.failedCount,
-  missing: cov.value.failed,
+  missing: metrics.value.missing,
   measured: cov.value.measured,
   total: cov.value.total,
   clustering: clustering.value

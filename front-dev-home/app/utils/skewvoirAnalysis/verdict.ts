@@ -91,11 +91,18 @@ export const measurementVerdict = (input: VerdictInput): MeasurementVerdict => {
  * reports that outliers carry 100% of a σ that does not exist. `range` is a
  * subtraction of two of the observations, so on identical sites it is exactly 0
  * and the question is refused instead of answered wrongly.
+ *
+ * The floor at 0 is not cosmetic either. On a flat-topped (near-uniform) wafer
+ * the scaled MAD OVERSHOOTS σ — 0.3706·range against 0.2887·range for a true
+ * uniform — so the ratio passes 1 and the raw share goes negative. Negative is
+ * not a smaller share: it says the extremes are not inflating σ at all, which
+ * is a share of zero. Unclamped it printed "이상치 제외 시 -22% 축소", a
+ * sentence that means nothing, and broke this field's own documented 0..1 range.
  */
 const outlierShare = (metrics: CduMetrics): number | null => {
   const spread = metrics.spread
   if (!spread || !(spread.range > 0)) return null
-  return 1 - spread.madSigma / spread.std
+  return Math.max(0, 1 - spread.madSigma / spread.std)
 }
 
 /** `CD_TOP 29.58 nm` — the level, or the parameter alone when nothing measured. */
