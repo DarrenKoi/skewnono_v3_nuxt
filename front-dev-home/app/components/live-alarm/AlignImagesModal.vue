@@ -148,7 +148,7 @@ watch(open, (isOpen) => {
           <div class="relative mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-md border border-zinc-300/70 bg-(--sk-field) dark:border-zinc-700">
             <img
               :src="imageSrc(image.name)"
-              :alt="`${image.optic} 정렬 기준 이미지`"
+              :alt="`${image.optic || `P.No ${image.p_no}`} 정렬 기준 이미지`"
               loading="lazy"
               decoding="async"
               class="h-full w-full object-cover"

@@ -25,11 +25,14 @@ escalation surface 에 해당하여 `heavy` (glm-5.3, variant high) 로 두 축�
 > ### JUDGEMENT
 >
 > 2. **Duplicated Code** — `align_point_of` (rawfiles.py:280–285) re-hand-rolls the basename/extension extraction `image_variants` already owns, and its own docstring admits it ("on the same rule `image_variants` matches by"):
+>
 >    ```python
 >    base = str(entry).replace("\\", "/").rsplit("/", 1)[-1]
 >    dot = base.rfind(".")
 >    if dot < 0 or base[dot:].lower() not in IMAGE_EXTENSIONS:
+>
 >    ```
+>
 >    Extract a shared `_basename_ext(entry)` helper. Likewise `{p_no:04d}` now appears in both `align_names` and `align_reference_images` — the `ALIGN_IMAGE_PREFIX` constants were extracted precisely to keep derivation in one place, but the padding rule still lives in two.
 >
 > 3. **Malformed docstring** — office_example.py `get_align_images`: the diff consumed the second `Raises:` header, so the `LookupError:` entry (line ~1879) now dangles inside the `eqp_id` prose paragraph instead of a Raises section.
