@@ -1845,11 +1845,27 @@ def get_align_images(
 ) -> AlignImagesResponse:
     """A recipe's align reference images as ONE named tool holds them.
 
-    Resolution only — NO FTP. The file names are computable
-    (``rawfiles.align_reference_images``), so the tool is not dialed until the
-    caller asks for the bytes through ``recipe-image``. That split is what
-    keeps this endpoint cheap enough for live_alarm to call on a board where
-    the tool in question is, by definition, unwell.
+    Resolution plus ONE listing round trip — no bytes. Until 2026-08-22 this
+    did resolution only, on the ground that the names are computable and the
+    tool should not be dialed until the caller asks for the bytes. That was
+    wrong in a way the screen could not report: a recipe with only P.No 1 got
+    a computed IMAP0002.jpeg, and the browser discovered it did not exist as a
+    404 on ``recipe-image``. Existence is not derivable, so it is listed.
+
+    The extra round trip does not cost the live_alarm board its
+    responsiveness, which was the reason for the old split. Nothing here runs
+    until someone opens an alarm, and the listing dials the host the image
+    fetches were about to dial anyway. On a tool that is DOWN the wall clock is
+    unchanged: the listing spends the connect timeout and reports 503, where
+    before the endpoint returned instantly and two <img> requests spent the
+    same timeout in parallel to arrive at two broken thumbnails.
+
+    Raises:
+        SourceUnavailable: the folder could not be listed. NOT an empty image
+            set — "the tool did not answer" and "this recipe has no align
+            images" are different answers, and on an ALIGNMENT FAIL screen
+            reporting the first as the second sends the engineer looking for a
+            recipe defect that is not there.
 
     ``eqp_id`` is the tool the caller wants the copy FROM — live_alarm passes
     the one that raised the ALIGNMENT FAIL. It becomes ``prefer`` on the
@@ -1858,21 +1874,30 @@ def get_align_images(
     recipe. When the locate cannot reach it anyway, the response says so
     through ``from_requested_tool`` rather than substituting in silence.
 
-    Raises:
         LookupError: neither the registry nor measurement history can place
             this recipe. The route turns it into a 502 naming both sources.
     """
     requested = (eqp_id or "").strip()
     location = _locate_idp(tool_type, recipe_name, fab_name, prefer=requested or None)[0]
+    locator = IdpLocator(
+        eqp_ip=location.eqp_ip,
+        class_name=location.class_name,
+        idw=location.idw_stem,
+        idp=location.idp_stem,
+    )
+    # _list_raw_dirs degrades to None rather than raising, because param-detail
+    # wants to keep going on derived names. Here there is nothing to derive:
+    # every name this endpoint could invent is the bug it was changed to fix.
+    key = _locator_key(locator)
+    listing = _list_raw_dirs({key}).get(key)
+    if listing is None:
+        raise SourceUnavailable(
+            f"{location.eqp_id} did not answer a listing of the raw-recipe folder"
+        )
     return {
         "recipe_name": recipe_name,
         "fab_name": (fab_name or "").strip().upper(),
-        "locator": IdpLocator(
-            eqp_ip=location.eqp_ip,
-            class_name=location.class_name,
-            idw=location.idw_stem,
-            idp=location.idp_stem,
-        ),
+        "locator": locator,
         "eqp_id": location.eqp_id,
         "requested_eqp_id": requested,
         # No request means no substitution: recipe-search opens a recipe
@@ -1880,7 +1905,7 @@ def get_align_images(
         "from_requested_tool": not requested or location.eqp_id == requested,
         "images": [
             AlignImage(p_no=p_no, optic=optic, name=name)
-            for p_no, optic, name in rawfiles.align_reference_images()
+            for p_no, optic, name in rawfiles.align_reference_images(listing)
         ],
     }
 

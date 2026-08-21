@@ -172,7 +172,11 @@ export async function fetchParamDetailsChunked(
 
 export interface AlignImage {
   p_no: number
-  /** "OM" (P.No 1) or "SEM" (P.No 2). */
+  /**
+   * "OM" (P.No 1) or "SEM" (P.No 2), or "" for a point the office has never
+   * described. `align_optics` refuses to guess: a wrong "SEM" would render OM
+   * optics under a SEM heading and read as ordinary data.
+   */
   optic: string
   name: string
 }
@@ -186,6 +190,16 @@ export interface AlignImages {
   /** The tool the caller asked for; "" when it asked for none. */
   requested_eqp_id: string
   from_requested_tool: boolean
+  /**
+   * ★ NOT always two, and NOT one per point. The server DISCOVERS these from
+   *   the tool's raw folder rather than computing them (changed 2026-08-22 —
+   *   the computed pair sent the browser after an IMAP0002.jpeg that OM-only
+   *   recipes do not have, and every one of those was a 404). So: empty when
+   *   the recipe genuinely has no align images, one entry when it aligns on
+   *   the OM alone, and several sharing a `p_no` if a tool splits the file.
+   *   Key on `name`, never on `p_no`. An unreachable tool is a 503, not an
+   *   empty list.
+   */
   images: AlignImage[]
 }
 
@@ -197,8 +211,10 @@ export interface AlignImages {
  * versions of the same recipe. The response reports which tool actually
  * answered so the screen can say so instead of substituting silently.
  *
- * Resolution only — no image bytes here. The names come back ready for
- * `recipeImageUrl`, which is what dials the tool.
+ * No image bytes here — the names come back ready for `recipeImageUrl`, which
+ * is what fetches them. The server does list the tool's raw folder to find out
+ * which files exist, so this is not free and an unreachable tool rejects it
+ * with a 503 rather than answering an empty set.
  */
 export function fetchAlignImages(
   toolSlug: string,

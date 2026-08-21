@@ -276,6 +276,36 @@ def test_align_images_names_both_optics(client):
     assert body["requested_eqp_id"] == "CG6300_01"
 
 
+def test_every_align_image_the_screen_is_told_to_fetch_resolves(client):
+    """The round trip the modal actually makes, end to end over HTTP.
+
+    This is the shape of the production defect reported on 2026-08-22: the
+    align-images response is a work list, and every entry on it becomes an
+    <img src>. A name on that list that the folder does not hold is not a
+    quiet miss -- `recipe-image` has to answer 404, because a per-file GET has
+    nowhere to drop a missing file to, and the console fills up with them.
+
+    Runs across many recipes because the shapes differ: most hold both align
+    points, some hold only the OM.
+    """
+    for n in range(1, 25):
+        listed = client.get(
+            f"/api/cdsem/recipe-search/align-images"
+            f"?recipe_name=MONITOR/CD_TOP_{n:02d}&fab_name=M14A&eqp_id=CG6300_01"
+        )
+        assert listed.status_code == 200
+        body = listed.get_json()
+        for image in body["images"]:
+            fetched = client.get(
+                "/api/cdsem/recipe-search/recipe-image",
+                query_string={**body["locator"], "name": image["name"]},
+            )
+            assert fetched.status_code == 200, (
+                f"{body['recipe_name']} published {image['name']}, "
+                f"which the tool answered {fetched.status_code} for"
+            )
+
+
 def test_align_images_rejects_an_unknown_tool_slug(client):
     response = client.get(
         "/api/xxsem/recipe-search/align-images?recipe_name=MONITOR/CD_TOP_01"

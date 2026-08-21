@@ -6,16 +6,23 @@ SEM) as THAT tool holds them. So the seam takes an eqp_id and reports which
 tool the answer actually came from -- a substitution has to be visible, because
 tools hold different versions of the same recipe.
 
-No FTP happens here. The names are computed (user-confirmed 2026-08-21: HV-SEM
-align images carry the same IMAP{p:04d}.jpeg names as CD-SEM, with none of the
--U/-T/-M/-L splitting its measurement slots have), so this seam is pure
-resolution and the tool is only dialed when the bytes are requested.
+The names are DISCOVERED from the raw folder, not computed. Until 2026-08-22
+this seam returned both optics unconditionally and dialed no tool at all; a
+recipe with only P.No 1 therefore published an IMAP0002.jpeg that does not
+exist, and the browser found out as a 404 on `recipe-image`. One listing round
+trip buys the answer, and a tool that cannot be listed still falls back to the
+derived pair so a dead tool reports itself as dead rather than as empty.
 """
 
 import pytest
 
 from back_dev_home.ebeam.recipe_search.providers import mock
 from back_dev_home.ebeam.recipe_search.providers import office_example as oe
+from back_dev_home.msr_image.errors import SourceUnavailable
+
+
+def _names(payload) -> list[str]:
+    return [img["name"] for img in payload["images"]]
 
 
 class TestMockAlignImages:
@@ -27,6 +34,44 @@ class TestMockAlignImages:
             (1, "OM", "IMAP0001.jpeg"),
             (2, "SEM", "IMAP0002.jpeg"),
         ]
+
+    def test_some_recipes_align_on_the_optical_microscope_alone(self):
+        # The value-domain guard, and the one this feature actually needed.
+        # A mock that gave every recipe both points made the office's OM-only
+        # recipes unreachable at home -- so the 404 they produce could not be
+        # seen, written a test for, or fixed, until production reported it.
+        shapes = {
+            len(mock.get_align_images(
+                "cd-sem", f"MONITOR/CD_TOP_{n:02d}", "M14A", "CG6300_01"
+            )["images"])
+            for n in range(1, 25)
+        }
+        assert shapes == {1, 2}
+
+    def test_every_published_name_is_fetchable(self):
+        # The round trip the screen makes. Home used to pass this for free --
+        # fetch_recipe_image served any name it was handed -- which is exactly
+        # why it proved nothing.
+        for n in range(1, 25):
+            recipe = f"MONITOR/CD_TOP_{n:02d}"
+            payload = mock.get_align_images("cd-sem", recipe, "M14A", "CG6300_01")
+            for name in _names(payload):
+                data, content_type = mock.fetch_recipe_image(payload["locator"], name)
+                assert data and content_type
+
+    def test_an_align_file_the_folder_lacks_is_refused(self):
+        # The office property home was missing. Without it nothing at home can
+        # go red on the 404 the route documents.
+        om_only = next(
+            mock.get_align_images("cd-sem", f"MONITOR/CD_TOP_{n:02d}", "M14A", "CG6300_01")
+            for n in range(1, 25)
+            if len(mock.get_align_images(
+                "cd-sem", f"MONITOR/CD_TOP_{n:02d}", "M14A", "CG6300_01"
+            )["images"]) == 1
+        )
+        assert _names(om_only) == ["IMAP0001.jpeg"]
+        with pytest.raises(LookupError):
+            mock.fetch_recipe_image(om_only["locator"], "IMAP0002.jpeg")
 
     def test_the_serving_tool_is_reported_alongside_the_requested_one(self):
         payload = mock.get_align_images(
@@ -88,8 +133,63 @@ def wired(monkeypatch):
     monkeypatch.setattr(oe, "_eqp_ip_index", lambda: ROSTER)
 
 
+def _listing(monkeypatch, entries):
+    """Stand in for the one NLST round trip get_align_images now makes."""
+    monkeypatch.setattr(oe, "_list_raw_dirs", lambda keys: dict.fromkeys(keys, entries))
+
+
 class TestOfficeAlignImages:
-    def test_the_locator_points_at_the_requested_tool_even_when_offline(self, wired):
+    def test_only_the_points_the_folder_holds_are_published(self, wired, monkeypatch):
+        # The production bug. This recipe aligns on the OM alone, and the
+        # computed IMAP0002.jpeg was a 404 every time the screen opened.
+        _listing(monkeypatch, ["IMAP0001.jpeg", "ENAP0001", "IMMS0001.jpeg"])
+        payload = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
+        assert _names(payload) == ["IMAP0001.jpeg"]
+
+    def test_an_unlistable_tool_is_reported_as_unavailable_not_as_empty(
+        self, wired, monkeypatch
+    ):
+        # A tool that cannot be listed is DOWN, not a recipe without align
+        # images. Returning [] would send the engineer looking for a recipe
+        # defect; returning the derived pair -- which this did until
+        # 2026-08-22 -- queues two <img> requests that cannot succeed. 503 is
+        # what this surface already answers for a connect/login/listing
+        # failure (docs/datatables/recipe_idp.txt).
+        _listing(monkeypatch, None)
+        with pytest.raises(SourceUnavailable):
+            oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
+
+    def test_a_split_align_image_is_found_rather_than_missed(
+        self, wired, monkeypatch
+    ):
+        # Whether any tool family splits ALIGN images the way HV-SEM splits its
+        # measurement slots is OFFICE-VERIFY. Discovery answers it either way.
+        # Driven through cd-sem because the family is not what decides this --
+        # the folder is -- and the fixture registry only holds the CD keys.
+        _listing(monkeypatch, ["IMAP0001-U.jpeg", "IMAP0001-L.jpeg"])
+        payload = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
+        assert _names(payload) == ["IMAP0001-U.jpeg", "IMAP0001-L.jpeg"]
+
+    def test_the_listing_is_taken_from_the_tool_that_answered(
+        self, wired, monkeypatch
+    ):
+        # A substitution changes which folder holds the answer. Listing the
+        # requested tool's path on the substitute's host would describe a
+        # folder nobody is going to fetch from.
+        seen: list[set] = []
+
+        def spy(keys):
+            seen.append(set(keys))
+            return dict.fromkeys(keys, ["IMAP0001.jpeg"])
+
+        monkeypatch.setattr(oe, "_list_raw_dirs", spy)
+        payload = oe.get_align_images("cd-sem", RECIPE, "R3", "GONE_99")
+        assert payload["from_requested_tool"] is False
+        assert seen == [{(payload["locator"]["eqp_ip"], "ADI", "ADI_CD_BIAS_001",
+                          "ADI_CD_BIAS_001")}]
+
+    def test_the_locator_points_at_the_requested_tool_even_when_offline(self, wired, monkeypatch):
+        _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
         # The bug this whole seam exists to prevent. CG6380_02 is available=Off
         # and sorts LAST in the ordinary candidate walk, so without a
         # preference the answer would be CG6300_01's copy of the recipe --
@@ -99,7 +199,8 @@ class TestOfficeAlignImages:
         assert payload["eqp_id"] == "CG6380_02"
         assert payload["from_requested_tool"] is True
 
-    def test_an_unroutable_request_is_reported_not_hidden(self, wired):
+    def test_an_unroutable_request_is_reported_not_hidden(self, wired, monkeypatch):
+        _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
         # GONE_99 is not in the roster, so there is no IP to dial and the
         # answer necessarily comes from a sibling. Saying so is the point:
         # a silent substitution reads as "this recipe's align target looks
@@ -109,11 +210,19 @@ class TestOfficeAlignImages:
         assert payload["requested_eqp_id"] == "GONE_99"
         assert payload["from_requested_tool"] is False
 
-    def test_opening_a_recipe_without_a_tool_is_not_a_substitution(self, wired):
+    def test_opening_a_recipe_without_a_tool_is_not_a_substitution(self, wired, monkeypatch):
+        _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
         payload = oe.get_align_images("cd-sem", RECIPE, "R3", None)
         assert payload["from_requested_tool"] is True
 
-    def test_both_providers_answer_the_same_contract(self, wired):
+    def test_both_providers_answer_the_same_contract(self, wired, monkeypatch):
+        # Both sides are pinned to the SAME folder here. Comparing them while
+        # each invented its own align set is what let the two agree on a name
+        # neither had checked -- parity by construction, about nothing.
+        _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
+        monkeypatch.setattr(
+            mock, "_mock_align_listing", lambda locator: ["IMAP0001.jpeg", "IMAP0002.jpeg"]
+        )
         office = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
         home = mock.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
         assert office.keys() == home.keys()

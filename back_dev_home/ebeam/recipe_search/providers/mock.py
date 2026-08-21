@@ -993,6 +993,31 @@ def _fake_locator(recipe_id: str) -> IdpLocator:
     }
 
 
+# ~1 in this many recipes aligns on the optical microscope alone, so the raw
+# folder holds IMAP0001.jpeg and no IMAP0002.jpeg.
+#
+# OFFICE-VERIFY: the RATIO is fabricated. The CASE is not — "align point 는
+# 보통 1 과 2 두 개이고, 1 하나만 있는 recipe 도 있습니다"
+# (docs/datatables/recipe_idp.txt). Home used to emit both for every recipe,
+# which is precisely why the 404 this models was invisible until production.
+_OM_ONLY_ONE_IN = 4
+
+
+def _mock_align_listing(locator: IdpLocator) -> list[str]:
+    """The align files this locator's raw folder holds.
+
+    Keyed on the LOCATOR rather than the recipe name because
+    ``fetch_recipe_image`` is handed a locator and a file name and nothing
+    else. Both seams deriving the folder from the same argument is what lets
+    the mock refuse a name it never published — the office property home was
+    missing when ``get_align_images`` shipped.
+    """
+    idp = str((locator or {}).get("idp", ""))
+    om_only = _seed_for_values("align-listing", idp) % _OM_ONLY_ONE_IN == 0
+    points = (1,) if om_only else tuple(sorted(rawfiles.ALIGN_OPTICS))
+    return [rawfiles.align_names(p_no)[0] for p_no in points]
+
+
 def _mock_raw_listing(locator: IdpLocator, slots: dict[str, str]) -> list[str]:
     """A synthesized raw-folder listing for this parameter's image slots.
 
@@ -1118,7 +1143,9 @@ def get_align_images(
         "from_requested_tool": served_by == requested,
         "images": [
             AlignImage(p_no=p_no, optic=optic, name=name)
-            for p_no, optic, name in rawfiles.align_reference_images()
+            for p_no, optic, name in rawfiles.align_reference_images(
+                _mock_align_listing(locator)
+            )
         ],
     }
 
@@ -1173,7 +1200,27 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
     An SVG renders in the same ``<img>`` the office JPEG will, without
     pretending to be a SEM photograph — a fabricated micrograph is the one kind
     of mock data that could be mistaken for a measurement.
+
+    ABSENCE IS PART OF THE VALUE DOMAIN. Until 2026-08-22 this served any name
+    it was handed, so no home run and no home test could produce the 404 the
+    route documents — which is how ``get_align_images`` reached production
+    publishing an IMAP0002.jpeg that a one-point recipe does not have. An
+    align name outside this locator's folder is now refused the way a tool
+    refuses it.
+
+    Only ALIGN names are checked: ``_mock_align_listing`` derives the align
+    set from the locator alone, which is all this seam is given. A parameter
+    image's folder needs the five slot values, which reach ``get_param_detail``
+    and stop there — so a wrong parameter-image name is still served here, and
+    guarding it would mean giving this signature data it does not have.
+
+    Raises:
+        LookupError: the align file is not in this locator's folder. The route
+            turns it into the same 404 the office does.
     """
+    if rawfiles.align_point_of(name) is not None:
+        if name not in _mock_align_listing(locator):
+            raise LookupError(f"{name} not found under the raw-recipe folder")
     hue = _seed_for_values("recipe-image", name) % 360
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240">'

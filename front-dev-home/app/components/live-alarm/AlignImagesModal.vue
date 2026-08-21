@@ -10,8 +10,15 @@
  *
  * A separate component from `recipeOpen/AlignPopup.vue` on purpose — that one
  * takes `wafer_align_info` rows as a prop, which only exist after a full .idp
- * download and parse. Here the file names are computed server-side, so no
- * recipe parse is involved at all.
+ * download and parse. Here the file names come from a listing of the tool's
+ * raw folder, so no recipe parse is involved at all.
+ *
+ * THREE OUTCOMES, and they are not the same thing. The tool could not be
+ * reached (503 -> the failed branch); the folder was read and holds no align
+ * images (empty list); the folder holds some (rendered). Until 2026-08-22 the
+ * server computed the names instead of reading them, so the middle case
+ * arrived disguised as the last one — two <img> tags pointing at files that
+ * were not there, which showed up as 404s in production.
  */
 import { fetchAlignImages, recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import type { AlignImages } from '~/composables/useRecipeParamDetail'
@@ -122,6 +129,13 @@ watch(open, (isOpen) => {
         정렬 기준 이미지를 불러오지 못했습니다. 레시피 위치를 찾을 수 없거나 장비에 연결할 수 없습니다.
       </p>
 
+      <p
+        v-else-if="data && !data.images.length"
+        class="sk-meta"
+      >
+        이 레시피에는 정렬 기준 이미지가 없습니다. 장비의 레시피 폴더를 읽었으나 IMAP 파일이 없었습니다.
+      </p>
+
       <div
         v-else-if="data?.images.length"
         class="grid grid-cols-2 gap-3"
@@ -139,7 +153,13 @@ watch(open, (isOpen) => {
               decoding="async"
               class="h-full w-full object-cover"
             >
-            <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)">
+            <!-- Blank for a P.No the office has never described. The server
+                 will not name an optic it cannot know, and a badge reading
+                 "SEM" over an OM image is worse than no badge. -->
+            <span
+              v-if="image.optic"
+              class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)"
+            >
               {{ image.optic }}
             </span>
           </div>

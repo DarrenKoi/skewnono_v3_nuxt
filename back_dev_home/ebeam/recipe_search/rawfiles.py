@@ -45,7 +45,9 @@ from back_dev_home.msr_image.cache import PREVIEW_SUFFIX
 from back_dev_home.msr_image.paths import cond_path
 
 __all__ = [
+    "ALIGN_IMAGE_PREFIX",
     "ALIGN_OPTICS",
+    "ALIGN_SETTING_PREFIX",
     "EMPTY_SLOT",
     "IMAGE_EXTENSIONS",
     "IMAGE_SLOT_KEYS",
@@ -55,6 +57,7 @@ __all__ = [
     "SLOT_PREFIX",
     "align_names",
     "align_optics",
+    "align_point_of",
     "align_reference_images",
     "slot_sources",
     "cond_remote_path",
@@ -98,6 +101,12 @@ PART_SLOTS: dict[str, tuple[str, ...]] = {
     "af_pr": (SETTING_SLOT["af_pr"],),
     "images": IMAGE_SLOT_KEYS,
 }
+
+# The prefixes wafer-align files carry. Named rather than inlined because the
+# derivation (align_names) and the discovery (align_point_of) have to agree
+# about them, and two literals four functions apart is how they stop agreeing.
+ALIGN_IMAGE_PREFIX = "IMAP"
+ALIGN_SETTING_PREFIX = "ENAP"
 
 # Which optic took an align image, by align point number (user-confirmed
 # 2026-07-29). Align points are not scattered positions on the wafer so much as
@@ -258,24 +267,79 @@ def align_names(p_no: int) -> tuple[str, str]:
     str(p)`` agrees for p < 10 and breaks at p = 10, where it would produce a
     nine-character name in a folder where every name is eight.
     """
-    return f"IMAP{p_no:04d}.jpeg", f"ENAP{p_no:04d}"
+    return f"{ALIGN_IMAGE_PREFIX}{p_no:04d}.jpeg", f"{ALIGN_SETTING_PREFIX}{p_no:04d}"
 
 
-def align_reference_images() -> list[tuple[int, str, str]]:
+def align_point_of(entry: str) -> int | None:
+    """The P.No a raw-folder entry names, or ``None`` if it names no align image.
+
+    The reading half of ``align_names``, on the same rule ``image_variants``
+    matches by: an image extension, the ``IMAP`` prefix, exactly four digits,
+    and then either nothing or a ``-suffix``. ``IMAP00010.jpeg`` is therefore
+    NOT P.No 1, and the hidden ``.IMAP0001.jpeg/`` sidecar directory is not an
+    image — its basename keeps the leading dot, so it fails the prefix test.
+    """
+    base = str(entry).replace("\\", "/").rsplit("/", 1)[-1]
+    dot = base.rfind(".")
+    if dot < 0 or base[dot:].lower() not in IMAGE_EXTENSIONS:
+        return None
+    stem = base[:dot]
+    if not stem.startswith(ALIGN_IMAGE_PREFIX):
+        return None
+    digits = stem[len(ALIGN_IMAGE_PREFIX):len(ALIGN_IMAGE_PREFIX) + 4]
+    if len(digits) != 4 or not digits.isdigit():
+        return None
+    rest = stem[len(ALIGN_IMAGE_PREFIX) + 4:]
+    if rest and not rest.startswith("-"):
+        return None
+    return int(digits)
+
+
+def align_reference_images(listing: Iterable[str]) -> list[tuple[int, str, str]]:
     """``[(p_no, optic, file_name), ...]`` for a recipe's align reference set.
 
     ONE definition for both providers. The office adapter and the mock have to
     name the same files here — a second copy of "point 1 is IMAP0001.jpeg and
     it is the OM" would let the mock teach a name the office never serves.
 
-    The set is ALIGN_OPTICS, not a discovered listing: align points are the
-    same alignment seen through two optics rather than scattered positions
-    (user-confirmed 2026-07-29), and HV-SEM carries these same names rather
-    than splitting them into the -U/-T/-M/-L files its MEASUREMENT slots use
-    (user-confirmed 2026-08-21). So the names are computable, and this lookup
-    costs no FTP round trip at all.
+    DISCOVERED from ``listing``, not computed from ALIGN_OPTICS. Until
+    2026-08-22 this returned both optics unconditionally, on the reasoning that
+    align points are the same alignment through two instruments rather than
+    scattered positions (user-confirmed 2026-07-29) and so are computable. The
+    reasoning holds; the conclusion did not. A recipe with only P.No 1 exists
+    (`docs/datatables/recipe_idp.txt`), and for one the computed P.No 2 sent
+    the browser after a file the folder does not hold — which ``recipe-image``,
+    alone on this feature's read surface, has to answer 404 rather than 파일
+    없음, because a per-file GET has nowhere to drop a missing file to.
+    Discovery also settles the open question of whether a tool splits align
+    images into ``-U``/``-T``/``-M``/``-L`` the way HV-SEM splits its
+    measurement slots (OFFICE-VERIFY): if one does, the files are found instead
+    of the screen going blank on a fab-wide run of 404s.
+
+    ``listing`` is REQUIRED, with no derived stand-in for a folder that could
+    not be read. A caller that cannot list has not learned "this recipe has no
+    align images" — it has learned nothing, and the two are different answers
+    to the engineer reading the screen. Saying so is the caller's job (the
+    office adapter raises SourceUnavailable, the 503 this surface already uses
+    for a connect/login/listing failure); an empty return here means the folder
+    was read and holds none.
     """
-    return [(p_no, optic, align_names(p_no)[0]) for p_no, optic in sorted(ALIGN_OPTICS.items())]
+    # Materialized, not normalized: both readers below take full paths and
+    # compare basenames themselves, but `listing` may be a one-shot iterable
+    # and this reads it twice.
+    entries = list(listing)
+    points = sorted({
+        p_no for p_no in map(align_point_of, entries) if p_no is not None
+    })
+    return [
+        # An unknown point is reported WITHOUT an optic rather than skipped:
+        # align_optics refuses to guess (a wrong "SEM" renders OM optics under
+        # a SEM heading and reads as ordinary data), but the file is really
+        # there and hiding it would be its own kind of lie.
+        (p_no, align_optics(p_no) or "", name)
+        for p_no in points
+        for name in image_variants(f"{ALIGN_IMAGE_PREFIX}{p_no:04d}", entries)
+    ]
 
 
 def cond_source(image_file_name: str) -> str:

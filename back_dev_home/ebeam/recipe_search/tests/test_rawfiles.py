@@ -147,3 +147,76 @@ def test_slot_sources_falls_back_to_the_derived_name_when_unlisted():
             {"img_meas1": "IMMS0001"}, listing=listing
         )
         assert images == expected, f"listing={listing!r}"
+
+
+# ── align reference images ────────────────────────────────────────────────
+# Until 2026-08-22 these names were COMPUTED from ALIGN_OPTICS and published
+# without ever being checked against the folder. A recipe with only P.No 1
+# therefore sent the browser after an IMAP0002.jpeg that does not exist, and
+# `recipe-image` answered 404 — the one place in this feature where a missing
+# file is an error rather than 파일 없음.
+
+
+def test_align_reference_images_reads_the_folder_it_is_given():
+    listing = ["IMAP0001.jpeg", "IMAP0002.jpeg", "ENAP0001", "IMMS0000.jpeg"]
+    assert rawfiles.align_reference_images(listing) == [
+        (1, "OM", "IMAP0001.jpeg"),
+        (2, "SEM", "IMAP0002.jpeg"),
+    ]
+
+
+def test_align_reference_images_has_no_derived_stand_in():
+    """A caller with no listing has not learned "no align images" -- it has
+    learned nothing, and the two read very differently on an ALIGNMENT FAIL
+    screen. There is deliberately nothing to pass but a real folder."""
+    with pytest.raises(TypeError):
+        rawfiles.align_reference_images()
+
+
+def test_align_reference_images_names_only_the_points_the_folder_holds():
+    """`1 하나만 있는 recipe 도 있습니다` (docs/datatables/recipe_idp.txt).
+
+    Publishing IMAP0002.jpeg for such a recipe is a guaranteed 404.
+    """
+    listing = ["IMAP0001.jpeg", "ENAP0001", ".IMAP0001.jpeg/cond.txt"]
+    assert rawfiles.align_reference_images(listing) == [(1, "OM", "IMAP0001.jpeg")]
+
+
+def test_align_reference_images_expands_stem_suffixes_when_a_tool_splits_them():
+    """Whether HV-SEM splits ALIGN images the way it splits measurement ones
+    is OFFICE-VERIFY. Discovery answers it either way instead of the screen
+    going blank on a fab-wide run of 404s."""
+    listing = ["IMAP0001-U.jpeg", "IMAP0001-L.jpeg", "IMAP0002.jpeg"]
+    assert rawfiles.align_reference_images(listing) == [
+        (1, "OM", "IMAP0001-U.jpeg"),
+        (1, "OM", "IMAP0001-L.jpeg"),
+        (2, "SEM", "IMAP0002.jpeg"),
+    ]
+
+
+def test_align_reference_images_reports_an_unknown_point_without_naming_an_optic():
+    """P.No >= 3 is OFFICE-VERIFY. Discovery finds the file; `align_optics`
+    still refuses to guess which instrument took it, so the optic is blank
+    rather than a plausible-looking 'SEM'."""
+    listing = ["IMAP0001.jpeg", "IMAP0003.jpeg"]
+    assert rawfiles.align_reference_images(listing) == [
+        (1, "OM", "IMAP0001.jpeg"),
+        (3, "", "IMAP0003.jpeg"),
+    ]
+
+
+def test_align_reference_images_ignores_near_miss_and_foreign_names():
+    """The raw folder holds other parameters' files and hidden sidecars. Same
+    rejection rule `image_variants` applies, so IMAP00010 is not P.No 1."""
+    listing = [
+        "IMAP00010.jpeg",           # 'IMAP0001' + '0', no dash — a different file
+        "IMMP0001.jpeg",            # an addressing image
+        "ENAP0001",                 # a setting file, no extension
+        ".IMAP0001.jpeg/cond.txt",  # the hidden sidecar, not an image
+    ]
+    assert rawfiles.align_reference_images(listing) == []
+
+
+def test_align_reference_images_accepts_full_paths():
+    listing = ["/HITACHI/DEVICE/HD/CLS/data/IDW_A/IDP_B/IMAP0002.jpeg"]
+    assert rawfiles.align_reference_images(listing) == [(2, "SEM", "IMAP0002.jpeg")]
