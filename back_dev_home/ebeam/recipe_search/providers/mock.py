@@ -1188,48 +1188,28 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
     return svg.encode("utf-8"), "image/svg+xml"
 
 
-# ~1 in this many well-formed recipes has no derivable .idp location.
-#
-# OFFICE-VERIFY: the RATIO is fabricated. What is not fabricated is that the
-# slice exists and is not small — the office locates a recipe's .idp from the
-# Redis registry (`v3_{cdsem,hvsem}_rcp_loc_{fab}`) or, failing that, from a
-# meas_hist run, and a catalogue recipe that has neither has no location at all
-# (recipe_search/providers/office_example.py). The catalogue is ~50,000 names
-# per fab and only a fraction of them have ever been measured.
-_UNLOCATABLE_ONE_IN = 5
-
-
 def _is_locatable(recipe_id: str, fab_name: str, tool_category: str) -> bool:
     """Can this recipe's .idp be found at all? Deterministic per recipe.
 
-    The mock's stand-in for the office's two location sources. It exists because
-    home had NO failing path here: this module answered a full, confident 200 for
-    any string it was handed, so every screen that opens a recipe was written and
-    tested against a backend that cannot fail, and the first real answer arrived
-    at the office as a 502. That is the shape recorded in
-    `docs/opencode/2026-08-16-tttm-cd-limit-review.md` — a client branch built for
-    an office error, with no way to reach it from a home session.
+    The mock's stand-in for the office's `full_name` key contract. The office
+    keys location hashes on the `class/recipe` form, so the bare half names
+    nothing the registry and meas_hist can find — every name this mock
+    generates carries the slash (`_recipe_name`), and a caller arriving
+    without one has dropped the class somewhere, which is the defect
+    `recipeView.ts` hit on 2026-08-18 (office 502'd, home did not).
 
-    Two rules, of very different provenance:
-
-    * **A bare recipe name is never locatable.** Confirmed, not invented: the
-      office keys on `full_name`, the `class/recipe` form, and the bare half
-      names something the registry and meas_hist both miss. Every name this mock
-      generates carries the slash (`_recipe_name`), so a caller arriving without
-      one has dropped the class somewhere — which is exactly the defect found in
-      `recipeView.ts` on 2026-08-18, where the office 502'd and home did not.
-    * **One in `_UNLOCATABLE_ONE_IN` well-formed names has no location.** The
-      never-measured, never-registered slice. The ratio is the guess here; its
-      existence is not.
-
-    Seeded by (recipe, fab, family) so a recipe that opens once opens every time
-    — a mock that failed at random would be untestable and would teach nobody
-    anything.
+    For well-formed names the mock used to refuse a ~1-in-5 slice as a stand-in
+    for the office's never-measured, never-registered recipes. The fabrication
+    made the home dev path painful: every 5th recipe open 502'd with no way
+    past the seeded miss, and the 작업 세트 compare blew up the moment a
+    single member of the set hit the slice. The office now handles its own
+    location resolution (see `office_example._locate_idp`), so home no longer
+    imitates the refusal — every well-formed name this mock generates is
+    locatable here.
     """
     if "/" not in recipe_id:
         return False
-    key = f"{recipe_id}|{fab_name}|{tool_category}".encode()
-    return int(hashlib.sha1(key).hexdigest()[:8], 16) % _UNLOCATABLE_ONE_IN != 0
+    return True
 
 
 # ~1 in this many LOCATABLE recipes is placeable only from measurement history,

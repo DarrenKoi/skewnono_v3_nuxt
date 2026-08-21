@@ -223,10 +223,9 @@ def test_office_catalog_union_preserves_provenance(monkeypatch):
 
 
 def test_mock_compare_cross_fab_recipes_differ():
-    # A real catalogue name, locatable in BOTH fabs. The invented
-    # "SAME/NAME_ABC123_STD_00001" fell in the ~1-in-5 slice the mock now
-    # reports as having no derivable .idp location — which is the point of that
-    # slice existing (providers/mock.py `_is_locatable`).
+    # Same name in two fabs => two genuinely different generated tables, because
+    # the mock's seeded random stream includes fab_name. The cross-fab
+    # duplication is deliberate — the office catalog has it too.
     payload = mock.get_recipe_compare_data("cd-sem", [
         {"recipe_name": "RACE/DEAE_ABC123_PROD_00001", "fab_name": "R3"},
         {"recipe_name": "RACE/DEAE_ABC123_PROD_00001", "fab_name": "M16B"},
@@ -253,17 +252,6 @@ def test_mock_refuses_a_bare_recipe_name_the_way_the_office_does():
         mock.get_recipe_open_data("DEAE_ABC123_PROD_00001", "R3", "cd-sem")
 
 
-def test_mock_refuses_a_well_formed_recipe_it_cannot_locate():
-    # The never-measured, never-registered slice. Its SIZE is fabricated
-    # (OFFICE-VERIFY); its existence is not — the catalogue lists every recipe
-    # that exists and only some have a derivable .idp location.
-    rows = [r["recipe_name"] for r in mock.get_recipe_catalog("cd-sem", ["R3"])["rows"]]
-    unlocatable = [n for n in rows if not mock._is_locatable(n, "R3", "cd-sem")]
-    assert unlocatable, "the mock must be able to produce the office's refusal"
-    with pytest.raises(LookupError, match="never been measured"):
-        mock.get_recipe_open_data(unlocatable[0], "R3", "cd-sem")
-
-
 def test_mock_locatability_is_stable_for_a_given_recipe():
     # A mock that failed at random would be untestable and would teach nothing.
     name = "RACE/DEAE_ABC123_PROD_00001"
@@ -275,11 +263,26 @@ def test_mock_locatability_is_stable_for_a_given_recipe():
     )
 
 
-def test_mock_locatability_is_per_fab():
-    # The office registry is one hash PER FAB, so a recipe located in one fab
-    # says nothing about another — the mock seeds on the fab for that reason.
+def test_mock_all_well_formed_recipes_are_locatable():
+    """Every well-formed name this mock generates is openable.
+
+    Home dev used to hit a 502 on ~1 in 5 recipe opens (the seeded
+    never-measured, never-registered slice). The fabrication added no
+    value — the office adapter handles its own location resolution — and
+    made the home path painful to develop against. The bare-name refusal
+    (no `class/` prefix) still applies, because that one mirrors a real
+    office contract: location hashes key on `full_name`, the `class/recipe`
+    form.
+    """
     rows = [r["recipe_name"] for r in mock.get_recipe_catalog("cd-sem", ["R3"])["rows"]]
-    assert any(
-        mock._is_locatable(n, "R3", "cd-sem") != mock._is_locatable(n, "M16B", "cd-sem")
-        for n in rows[:200]
+    assert rows, "mock catalog must not be empty"
+    unlocatable = [n for n in rows if not mock._is_locatable(n, "R3", "cd-sem")]
+    assert not unlocatable, (
+        f"mock has {len(unlocatable)} unlocatable well-formed name(s); the "
+        "home dev path should never refuse a name the catalog returned. "
+        f"First 3: {unlocatable[:3]}"
     )
+    # And every well-formed name the catalog returns actually opens.
+    for name in rows[:20]:
+        detail = mock.get_recipe_open_data(name, "R3", "cd-sem")
+        assert detail["recipe_id"] == name
