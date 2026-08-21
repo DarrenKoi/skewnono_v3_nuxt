@@ -38,6 +38,7 @@ disagree, that file wins and this one is stale.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 from back_dev_home._core.image_naming import HV_SEM_STEM_SUFFIXES
@@ -45,9 +46,7 @@ from back_dev_home.msr_image.cache import PREVIEW_SUFFIX
 from back_dev_home.msr_image.paths import cond_path
 
 __all__ = [
-    "ALIGN_IMAGE_PREFIX",
     "ALIGN_OPTICS",
-    "ALIGN_SETTING_PREFIX",
     "EMPTY_SLOT",
     "IMAGE_EXTENSIONS",
     "IMAGE_SLOT_KEYS",
@@ -106,7 +105,16 @@ PART_SLOTS: dict[str, tuple[str, ...]] = {
 # derivation (align_names) and the discovery (align_point_of) have to agree
 # about them, and two literals four functions apart is how they stop agreeing.
 ALIGN_IMAGE_PREFIX = "IMAP"
-ALIGN_SETTING_PREFIX = "ENAP"
+
+# ``IMAP0001``, or ``IMAP0001-U`` — the four-digit padding and the optional
+# stem suffix in one statement. Fixed-width ``\d{4}`` is what makes
+# ``IMAP00010`` a different file rather than P.No 1 with a stray digit: it
+# cannot give a digit back to satisfy the anchor.
+#
+# There is no ENAP twin. The setting files are only ever DERIVED (align_names);
+# nothing discovers them, so a second constant would be surface with no second
+# reader to keep honest.
+_ALIGN_STEM = re.compile(rf"{re.escape(ALIGN_IMAGE_PREFIX)}(\d{{4}})(-.*)?$")
 
 # Which optic took an align image, by align point number (user-confirmed
 # 2026-07-29). Align points are not scattered positions on the wafer so much as
@@ -197,6 +205,22 @@ def image_name(value: str | None) -> str | None:
     return None if stem is None else f"{stem}.jpeg"
 
 
+def _image_file(entry: str) -> tuple[str, str] | None:
+    """``(basename, stem)`` for a listing entry that names an image, else None.
+
+    The rule both readers below match by, in one place: a listing entry may be
+    a full path, only its basename counts, and only the four image extensions
+    are images. A hidden cond sidecar (``.IMMP0001.jpeg/cond.txt``) fails on
+    its ``.txt``; the sidecar DIRECTORY itself (``.IMMP0001.jpeg``) passes here
+    and is rejected by the stem comparison, whose leading dot it keeps.
+    """
+    base = str(entry).replace("\\", "/").rsplit("/", 1)[-1]
+    dot = base.rfind(".")
+    if dot < 0 or base[dot:].lower() not in IMAGE_EXTENSIONS:
+        return None
+    return base, base[:dot]
+
+
 def image_variants(stem: str, listing: Iterable[str]) -> list[str]:
     """Every file in the raw-folder ``listing`` that belongs to this slot.
 
@@ -210,11 +234,10 @@ def image_variants(stem: str, listing: Iterable[str]) -> list[str]:
     """
     ranked: list[tuple[int, int, str, str]] = []
     for entry in listing:
-        base = str(entry).replace("\\", "/").rsplit("/", 1)[-1]
-        dot = base.rfind(".")
-        if dot < 0 or base[dot:].lower() not in IMAGE_EXTENSIONS:
+        parsed = _image_file(entry)
+        if parsed is None:
             continue
-        file_stem = base[:dot]
+        base, file_stem = parsed
         if file_stem == stem:
             ranked.append((0, 0, "", base))
         elif file_stem.startswith(f"{stem}-"):
@@ -267,7 +290,12 @@ def align_names(p_no: int) -> tuple[str, str]:
     str(p)`` agrees for p < 10 and breaks at p = 10, where it would produce a
     nine-character name in a folder where every name is eight.
     """
-    return f"{ALIGN_IMAGE_PREFIX}{p_no:04d}.jpeg", f"{ALIGN_SETTING_PREFIX}{p_no:04d}"
+    return f"{align_image_stem(p_no)}.jpeg", f"ENAP{p_no:04d}"
+
+
+def align_image_stem(p_no: int) -> str:
+    """``1 -> 'IMAP0001'``. The padding rule, in the one place that owns it."""
+    return f"{ALIGN_IMAGE_PREFIX}{p_no:04d}"
 
 
 def align_point_of(entry: str) -> int | None:
@@ -279,20 +307,9 @@ def align_point_of(entry: str) -> int | None:
     NOT P.No 1, and the hidden ``.IMAP0001.jpeg/`` sidecar directory is not an
     image — its basename keeps the leading dot, so it fails the prefix test.
     """
-    base = str(entry).replace("\\", "/").rsplit("/", 1)[-1]
-    dot = base.rfind(".")
-    if dot < 0 or base[dot:].lower() not in IMAGE_EXTENSIONS:
-        return None
-    stem = base[:dot]
-    if not stem.startswith(ALIGN_IMAGE_PREFIX):
-        return None
-    digits = stem[len(ALIGN_IMAGE_PREFIX):len(ALIGN_IMAGE_PREFIX) + 4]
-    if len(digits) != 4 or not digits.isdigit():
-        return None
-    rest = stem[len(ALIGN_IMAGE_PREFIX) + 4:]
-    if rest and not rest.startswith("-"):
-        return None
-    return int(digits)
+    parsed = _image_file(entry)
+    match = _ALIGN_STEM.match(parsed[1]) if parsed else None
+    return int(match.group(1)) if match else None
 
 
 def align_reference_images(listing: Iterable[str]) -> list[tuple[int, str, str]]:
@@ -338,7 +355,7 @@ def align_reference_images(listing: Iterable[str]) -> list[tuple[int, str, str]]
         # there and hiding it would be its own kind of lie.
         (p_no, align_optics(p_no) or "", name)
         for p_no in points
-        for name in image_variants(f"{ALIGN_IMAGE_PREFIX}{p_no:04d}", entries)
+        for name in image_variants(align_image_stem(p_no), entries)
     ]
 
 

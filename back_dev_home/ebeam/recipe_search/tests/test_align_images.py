@@ -10,8 +10,9 @@ The names are DISCOVERED from the raw folder, not computed. Until 2026-08-22
 this seam returned both optics unconditionally and dialed no tool at all; a
 recipe with only P.No 1 therefore published an IMAP0002.jpeg that does not
 exist, and the browser found out as a 404 on `recipe-image`. One listing round
-trip buys the answer, and a tool that cannot be listed still falls back to the
-derived pair so a dead tool reports itself as dead rather than as empty.
+trip buys the answer. A tool that cannot be listed is SourceUnavailable (503),
+not an empty set -- a dead tool has to report itself as dead rather than as a
+recipe with nothing to align to.
 """
 
 import pytest
@@ -25,6 +26,20 @@ def _names(payload) -> list[str]:
     return [img["name"] for img in payload["images"]]
 
 
+@pytest.fixture(scope="module")
+def home_payloads():
+    """Enough recipes to see every shape the mock can produce.
+
+    Built once: the three tests below differ only in what they assert about
+    the same set, and rebuilding it per test made the formula for a recipe
+    name a thing written three times.
+    """
+    return [
+        mock.get_align_images("cd-sem", f"MONITOR/CD_TOP_{n:02d}", "M14A", "CG6300_01")
+        for n in range(1, 25)
+    ]
+
+
 class TestMockAlignImages:
     def test_names_the_two_optics(self):
         payload = mock.get_align_images(
@@ -35,40 +50,29 @@ class TestMockAlignImages:
             (2, "SEM", "IMAP0002.jpeg"),
         ]
 
-    def test_some_recipes_align_on_the_optical_microscope_alone(self):
+    def test_home_produces_all_three_shapes_the_screen_has(self, home_payloads):
         # The value-domain guard, and the one this feature actually needed.
         # A mock that gave every recipe both points made the office's OM-only
         # recipes unreachable at home -- so the 404 they produce could not be
         # seen, written a test for, or fixed, until production reported it.
-        shapes = {
-            len(mock.get_align_images(
-                "cd-sem", f"MONITOR/CD_TOP_{n:02d}", "M14A", "CG6300_01"
-            )["images"])
-            for n in range(1, 25)
-        }
-        assert shapes == {1, 2}
+        # The empty case earns its place the same way: the modal renders a
+        # branch for it, and a branch home cannot reach is a branch nobody
+        # develops.
+        assert {len(p["images"]) for p in home_payloads} == {0, 1, 2}
 
-    def test_every_published_name_is_fetchable(self):
+    def test_every_published_name_is_fetchable(self, home_payloads):
         # The round trip the screen makes. Home used to pass this for free --
         # fetch_recipe_image served any name it was handed -- which is exactly
         # why it proved nothing.
-        for n in range(1, 25):
-            recipe = f"MONITOR/CD_TOP_{n:02d}"
-            payload = mock.get_align_images("cd-sem", recipe, "M14A", "CG6300_01")
+        for payload in home_payloads:
             for name in _names(payload):
                 data, content_type = mock.fetch_recipe_image(payload["locator"], name)
                 assert data and content_type
 
-    def test_an_align_file_the_folder_lacks_is_refused(self):
+    def test_an_align_file_the_folder_lacks_is_refused(self, home_payloads):
         # The office property home was missing. Without it nothing at home can
         # go red on the 404 the route documents.
-        om_only = next(
-            mock.get_align_images("cd-sem", f"MONITOR/CD_TOP_{n:02d}", "M14A", "CG6300_01")
-            for n in range(1, 25)
-            if len(mock.get_align_images(
-                "cd-sem", f"MONITOR/CD_TOP_{n:02d}", "M14A", "CG6300_01"
-            )["images"]) == 1
-        )
+        om_only = next(p for p in home_payloads if len(p["images"]) == 1)
         assert _names(om_only) == ["IMAP0001.jpeg"]
         with pytest.raises(LookupError):
             mock.fetch_recipe_image(om_only["locator"], "IMAP0002.jpeg")
@@ -221,7 +225,7 @@ class TestOfficeAlignImages:
         # neither had checked -- parity by construction, about nothing.
         _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
         monkeypatch.setattr(
-            mock, "_mock_align_listing", lambda locator: ["IMAP0001.jpeg", "IMAP0002.jpeg"]
+            mock, "_mock_raw_listing", lambda locator: ["IMAP0001.jpeg", "IMAP0002.jpeg"]
         )
         office = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
         home = mock.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")

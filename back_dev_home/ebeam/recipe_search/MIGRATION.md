@@ -49,7 +49,7 @@ files-per-connection; do the same here if a real request is seen timing out.
 | `/recipe-detail` | Redis recipe registry (fallback: meas_hist) → tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
 | `/param-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
 | `/align-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
-| `/align-images` | Redis recipe registry (fallback: meas_hist) — resolution only, no FTP | wired, unverified on real data |
+| `/align-images` | Redis recipe registry (fallback: meas_hist) → tool FTP raw-folder listing | wired, unverified on real data |
 | `/recipe-image` | tool FTP raw folder (bytes), MinIO write-through cache | wired, unverified on real data |
 | `/compare` | — | mock (re-exported) |
 | `/registry-check` | Redis recipe registry (2 `hget` per recipe) | wired, unverified on real data |
@@ -70,10 +70,23 @@ target weak" against a file that is not the one that failed. The response
 carries `eqp_id` (who answered) alongside `requested_eqp_id`, and the screen
 shows a warning when they differ, so a substitution is never silent.
 
-No FTP happens in this endpoint. Align image names are computable
-(`rawfiles.align_reference_images`; HV-SEM confirmed to use the same
-`IMAP{p:04d}.jpeg` names — `docs/datatables/recipe_idp.txt`), so the tool is
-only dialed when `/recipe-image` is asked for the bytes.
+One NLST round trip happens here, and it is load-bearing (2026-08-22). This
+endpoint used to compute the names instead — `align_reference_images()` returned
+`ALIGN_OPTICS` verbatim, so the answer was always `IMAP0001.jpeg` and
+`IMAP0002.jpeg`. A recipe that aligns on the OM alone has no `IMAP0002.jpeg`,
+and publishing that name made `/recipe-image` answer 404 every time the screen
+opened, which is what production reported. Every other read path here drops a
+missing file and answers 200; `/recipe-image` is one GET per file and has
+nowhere to drop it to, so **an endpoint that hands the browser a file name owns
+checking that the file exists.**
+
+`_list_raw_dirs` therefore runs before the response is built, and a listing it
+cannot perform is `SourceUnavailable` (503) rather than an empty image set:
+"the tool did not answer" and "this recipe has no align images" are different
+answers on an ALIGNMENT FAIL screen. The cost is one round trip on a host the
+image fetches were about to dial anyway; on a tool that is down the wall clock
+is unchanged, because the two `<img>` requests previously spent the same
+connect timeout in parallel.
 
 ### `/recipe-image` now caches
 

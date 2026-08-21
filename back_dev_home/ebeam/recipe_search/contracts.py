@@ -199,9 +199,21 @@ class AlignDetailResponse(TypedDict):
 
 
 class AlignImage(TypedDict):
+    """One align reference image, DISCOVERED in the tool's raw folder.
+
+    ★ ``p_no`` is not a key. Both adapters expand a point to every matching
+      file, so a tool that splits one align image the way HV-SEM splits its
+      measurement slots yields several entries sharing a ``p_no``. Identify by
+      ``name``.
+    """
+
     p_no: int
-    optic: str  # "OM" (P.No 1) or "SEM" (P.No 2)
-    name: str   # IMAP{p:04d}.jpeg, fetched through the recipe-image route
+    # "OM" (P.No 1) or "SEM" (P.No 2), and "" for any other point: the office
+    # has only ever described those two, and align_optics will not guess -- a
+    # wrong "SEM" renders OM optics under a SEM heading and reads as ordinary
+    # data. Never None; the screen tests it for emptiness.
+    optic: str
+    name: str   # IMAP{p:04d}[-suffix].{ext}, fetched through recipe-image
 
 
 class AlignImagesResponse(TypedDict):

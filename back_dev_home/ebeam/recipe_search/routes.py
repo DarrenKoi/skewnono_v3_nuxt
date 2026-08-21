@@ -440,9 +440,12 @@ def recipe_search_align_images(tool_slug: str):
     answer says which tool it actually came from so a substitution is never
     silent.
 
-    Resolution only; the tool is dialed by ``recipe-image`` when the bytes are
-    asked for. Keeping the two apart matters here because the tool this runs
-    against is, by definition, the one having trouble.
+    Resolution plus one folder listing — the bytes still come from
+    ``recipe-image``. Until 2026-08-22 the names were computed and no tool was
+    dialed at all, which published an ``IMAP0002.jpeg`` for recipes that align
+    on the OM alone and turned every one of those into a 404. A name this
+    endpoint has not seen in the folder is a name the browser will 404 on, so
+    it does not publish one.
     """
     context, failed = _resolve_recipe_request(tool_slug, needs_parameter=False)
     if failed:

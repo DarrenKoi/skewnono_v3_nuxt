@@ -1002,8 +1002,16 @@ def _fake_locator(recipe_id: str) -> IdpLocator:
 # which is precisely why the 404 this models was invisible until production.
 _OM_ONLY_ONE_IN = 4
 
+# ~1 in this many holds no align image at all. OFFICE-VERIFY, and the weaker
+# of the two claims here: the office is documented to have OM-only recipes,
+# but nothing says a recipe can have zero align points. It is modelled anyway
+# because the SERVER can answer an empty set — the folder listing succeeded
+# and held no IMAP file — and a response shape home cannot produce is a screen
+# branch nobody develops. Rarer than the OM-only slice, which is confirmed.
+_NO_ALIGN_ONE_IN = 8
 
-def _mock_align_listing(locator: IdpLocator) -> list[str]:
+
+def _mock_align_files(locator: IdpLocator) -> list[str]:
     """The align files this locator's raw folder holds.
 
     Keyed on the LOCATOR rather than the recipe name because
@@ -1011,15 +1019,30 @@ def _mock_align_listing(locator: IdpLocator) -> list[str]:
     else. Both seams deriving the folder from the same argument is what lets
     the mock refuse a name it never published — the office property home was
     missing when ``get_align_images`` shipped.
+
+    Three shapes, because the screen has three: both optics, the OM alone, and
+    an empty folder. The RATIOS are fabricated; that the first two occur is
+    not (`docs/datatables/recipe_idp.txt`).
     """
     idp = str((locator or {}).get("idp", ""))
-    om_only = _seed_for_values("align-listing", idp) % _OM_ONLY_ONE_IN == 0
-    points = (1,) if om_only else tuple(sorted(rawfiles.ALIGN_OPTICS))
+    seed = _seed_for_values("align-listing", idp)
+    if seed % _NO_ALIGN_ONE_IN == 1:
+        return []
+    points = (1,) if seed % _OM_ONLY_ONE_IN == 0 else tuple(sorted(rawfiles.ALIGN_OPTICS))
     return [rawfiles.align_names(p_no)[0] for p_no in points]
 
 
-def _mock_raw_listing(locator: IdpLocator, slots: dict[str, str]) -> list[str]:
-    """A synthesized raw-folder listing for this parameter's image slots.
+def _mock_raw_listing(
+    locator: IdpLocator, slots: dict[str, str] | None = None
+) -> list[str]:
+    """A synthesized raw-folder listing for this locator.
+
+    ONE folder, as the office has one: the align files are always in it, and
+    ``slots`` adds the image files those slots name. Callers that hold no
+    slots (``get_align_images``, ``fetch_recipe_image``) omit it and get the
+    align half. Modelling the two halves as separate folders would be the
+    same class of divergence the 2026-08-22 404 came from — home believing
+    something about the office that is not one thing.
 
     The mock's stand-in for the FTP listing the office adapter takes before
     planning. Suffix expansion is a MEASUREMENT-image phenomenon: only
@@ -1033,19 +1056,19 @@ def _mock_raw_listing(locator: IdpLocator, slots: dict[str, str]) -> list[str]:
     only: TIFF is confirmed for MSR result images, not for recipe raw
     folders.
 
-    WHAT THIS LISTING DOES NOT EXERCISE: every name it synthesizes is built
-    FROM the expected stems, so the listing is always a subset of what the
-    planner is looking for. The office folder is not — it holds unrelated
-    files, other parameters' images and leftovers, which is the reason
-    ``image_variants`` filters the listing at all. Nothing this function emits
-    ever reaches that filter's reject branch, so an end-to-end mock run is not
-    evidence the filtering works. The rejection cases are covered directly, in
-    ``tests/test_rawfiles.py`` (foreign stems, near-miss stems like
-    ``IMMS00010``, hidden sidecars, extension-less setting files) — that suite,
-    not this one, is what guards the filter. Widen it there, not here.
+    WHAT THIS LISTING STILL DOES NOT EXERCISE: apart from the align files,
+    every name it synthesizes is built FROM the expected stems, so the slot
+    half is a subset of what the planner is looking for. The office folder is
+    not — it holds other parameters' images and leftovers, which is the reason
+    ``image_variants`` filters at all. The align entries are the one kind of
+    foreign name an end-to-end run now puts in front of that filter (an
+    ``IMAP`` stem can never match an ``IMMS``/``IMMP``/``I2MP`` slot); the
+    harder rejections — near-miss stems like ``IMMS00010``, hidden sidecars,
+    extension-less setting files — are covered directly in
+    ``tests/test_rawfiles.py``. Widen those there, not here.
     """
     idp = str((locator or {}).get("idp", ""))
-    listing: list[str] = []
+    listing: list[str] = _mock_align_files(locator)
     for slot in rawfiles.IMAGE_SLOT_KEYS:
         stem = rawfiles.image_stem((slots or {}).get(slot))
         if stem is None:
@@ -1144,7 +1167,7 @@ def get_align_images(
         "images": [
             AlignImage(p_no=p_no, optic=optic, name=name)
             for p_no, optic, name in rawfiles.align_reference_images(
-                _mock_align_listing(locator)
+                _mock_raw_listing(locator)
             )
         ],
     }
@@ -1218,9 +1241,9 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
         LookupError: the align file is not in this locator's folder. The route
             turns it into the same 404 the office does.
     """
-    if rawfiles.align_point_of(name) is not None:
-        if name not in _mock_align_listing(locator):
-            raise LookupError(f"{name} not found under the raw-recipe folder")
+    align = rawfiles.align_point_of(name) is not None
+    if align and name not in _mock_raw_listing(locator):
+        raise LookupError(f"{name} not found under the raw-recipe folder")
     hue = _seed_for_values("recipe-image", name) % 360
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240">'

@@ -1860,13 +1860,6 @@ def get_align_images(
     before the endpoint returned instantly and two <img> requests spent the
     same timeout in parallel to arrive at two broken thumbnails.
 
-    Raises:
-        SourceUnavailable: the folder could not be listed. NOT an empty image
-            set — "the tool did not answer" and "this recipe has no align
-            images" are different answers, and on an ALIGNMENT FAIL screen
-            reporting the first as the second sends the engineer looking for a
-            recipe defect that is not there.
-
     ``eqp_id`` is the tool the caller wants the copy FROM — live_alarm passes
     the one that raised the ALIGNMENT FAIL. It becomes ``prefer`` on the
     locate, so an ``available="Off"`` tool is still tried first instead of
@@ -1874,8 +1867,14 @@ def get_align_images(
     recipe. When the locate cannot reach it anyway, the response says so
     through ``from_requested_tool`` rather than substituting in silence.
 
+    Raises:
         LookupError: neither the registry nor measurement history can place
             this recipe. The route turns it into a 502 naming both sources.
+        SourceUnavailable: the folder could not be listed. NOT an empty image
+            set — "the tool did not answer" and "this recipe has no align
+            images" are different answers, and on an ALIGNMENT FAIL screen
+            reporting the first as the second sends the engineer looking for a
+            recipe defect that is not there.
     """
     requested = (eqp_id or "").strip()
     location = _locate_idp(tool_type, recipe_name, fab_name, prefer=requested or None)[0]
