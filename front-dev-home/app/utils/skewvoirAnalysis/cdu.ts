@@ -27,7 +27,7 @@ import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import { isMeasuredRow } from '../msrRows.ts'
 import { mean, median, sampleStd, medianAbsoluteDeviation, MAD_TO_SIGMA } from '../stats.ts'
-import { SECTOR_LABEL, type SpatialFailureSite } from './spatial.ts'
+import { SECTOR_LABEL } from './spatial.ts'
 
 // ── CDU metrics ──────────────────────────────────────────────────────────
 
@@ -223,51 +223,59 @@ export const failureBreakdown = (
   }
 }
 
-// ── Where the failures sit ───────────────────────────────────────────────
+// ── Where the wrong sites sit ────────────────────────────────────────────
 
-/** Below this many PLACED failures a sector share is noise — three points can
- * land in one quadrant by chance often enough that calling it a cluster would
- * be a coin flip presented as a finding. */
+/** Below this many PLACED sites a sector share is noise — three points can land
+ * in one quadrant by chance often enough that calling it a cluster would be a
+ * coin flip presented as a finding. */
 const MIN_PLACED_FOR_VERDICT = 3
 
-/** A single sector holding at least this share of the placed failures is what we
+/** A single sector holding at least this share of the placed sites is what we
  * call clustered. It is a display threshold, not a statistical test — which is
  * why the per-sector counts are returned alongside it, so the reader judges the
  * evidence rather than the verdict. */
 const CLUSTER_SHARE = 0.6
 
-export interface FailureSectorCount {
+export interface SectorCount {
   key: string
   label: string
   count: number
 }
 
-export interface FailureClustering {
+export interface SectorClustering {
   status: 'ok' | 'unavailable'
-  /** Failures with a parseable stage coordinate — the ONLY denominator here. */
+  /** Sites with a parseable stage coordinate — the ONLY denominator here. */
   placed: number
-  /** Failures we could not put on the wafer; excluded from every share below. */
+  /** Sites we could not put on the wafer; excluded from every share below. */
   unplaced: number
-  sectors: FailureSectorCount[]
+  sectors: SectorCount[]
   topShare: number | null
   verdict: 'clustered' | 'scattered' | null
   reason: string | null
 }
 
+/** Anything already carrying a notch-anchored compass sector. Widened past
+ * SpatialFailureSite so the 측정 개요 verdict block can pool OUTLIER sites with
+ * failed ones: "where did this wafer go wrong" is one question, and answering it
+ * from failures alone would call a wafer scattered while every outlier sat in
+ * one sector. The pool is spatial only — it never touches `outlierCount`, which
+ * stays the outlier axis alone (utils/overview.ts owns that separation). */
+export type SectorSited = { sector: string | null }
+
 /**
- * Are the failures piled into one part of the wafer, or spread over it?
+ * Are the wrong sites piled into one part of the wafer, or spread over it?
  *
- * Takes analyzeSpatial()'s own `failures` layer — this function never places a
- * site itself, it only counts what spatial already placed and labelled.
+ * Takes sites analyzeSpatial() already placed and labelled — this function never
+ * places a site itself, it only counts.
  */
-export const failureClustering = (failures: SpatialFailureSite[]): FailureClustering => {
-  const placedSites = failures.filter(f => f.sector != null)
+export const sectorClustering = (sites: SectorSited[]): SectorClustering => {
+  const placedSites = sites.filter(f => f.sector != null)
   const placed = placedSites.length
-  const unplaced = failures.length - placed
+  const unplaced = sites.length - placed
 
   const counts = new Map<string, number>()
   for (const f of placedSites) counts.set(f.sector!, (counts.get(f.sector!) ?? 0) + 1)
-  const sectors: FailureSectorCount[] = [...counts.entries()]
+  const sectors: SectorCount[] = [...counts.entries()]
     .map(([key, count]) => ({ key, label: SECTOR_LABEL[key] ?? key, count }))
     .sort((a, b) => b.count - a.count)
 
@@ -280,8 +288,8 @@ export const failureClustering = (failures: SpatialFailureSite[]): FailureCluste
       topShare: null,
       verdict: null,
       reason: placed === 0
-        ? '좌표를 확인할 수 있는 실패 site 가 없습니다.'
-        : `실패 site 가 ${placed}개뿐이라 공간 군집 여부를 판단하지 않습니다.`
+        ? '좌표를 확인할 수 있는 이상·실패 site 가 없습니다.'
+        : `좌표가 있는 이상·실패 site 가 ${placed}개뿐이라 공간 군집 여부를 판단하지 않습니다.`
     }
   }
 

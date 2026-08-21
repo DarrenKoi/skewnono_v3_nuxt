@@ -3,7 +3,7 @@
 // Run: cd front-dev-home && node --test app/utils/skewvoirAnalysis/cdu.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { cduMetrics, failureBreakdown, failureClustering } from './cdu.ts'
+import { cduMetrics, failureBreakdown, sectorClustering } from './cdu.ts'
 import type { SpatialFailureSite } from './spatial.ts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
@@ -156,7 +156,7 @@ test('failureBreakdown without a meas-hist row reports 평가 불가, never a pa
   assert.equal(b.unknownCount, 3)
 })
 
-// ── failureClustering ────────────────────────────────────────────────────
+// ── sectorClustering ────────────────────────────────────────────────────
 
 const fail = (sequence: number, sector: string | null): SpatialFailureSite => ({
   sequence,
@@ -166,8 +166,8 @@ const fail = (sequence: number, sector: string | null): SpatialFailureSite => ({
   sector
 })
 
-test('failureClustering calls one crowded sector clustered', () => {
-  const c = failureClustering([fail(1, 'S'), fail(2, 'S'), fail(3, 'S'), fail(4, 'E')])
+test('sectorClustering calls one crowded sector clustered', () => {
+  const c = sectorClustering([fail(1, 'S'), fail(2, 'S'), fail(3, 'S'), fail(4, 'E')])
   assert.equal(c.status, 'ok')
   assert.equal(c.placed, 4)
   assert.equal(c.verdict, 'clustered')
@@ -177,29 +177,44 @@ test('failureClustering calls one crowded sector clustered', () => {
   close(c.topShare!, 0.75)
 })
 
-test('failureClustering calls evenly spread failures scattered', () => {
-  const c = failureClustering([fail(1, 'S'), fail(2, 'E'), fail(3, 'N'), fail(4, 'W')])
+test('sectorClustering calls evenly spread failures scattered', () => {
+  const c = sectorClustering([fail(1, 'S'), fail(2, 'E'), fail(3, 'N'), fail(4, 'W')])
   assert.equal(c.verdict, 'scattered')
   close(c.topShare!, 0.25)
 })
 
-test('failureClustering refuses a verdict on too few placed failures', () => {
-  const c = failureClustering([fail(1, 'S'), fail(2, 'S')])
+test('sectorClustering refuses a verdict on too few placed failures', () => {
+  const c = sectorClustering([fail(1, 'S'), fail(2, 'S')])
   assert.equal(c.status, 'unavailable')
   assert.equal(c.verdict, null)
   assert.ok(c.reason)
 })
 
-test('failureClustering keeps unplaceable failures out of the denominator', () => {
-  const c = failureClustering([fail(1, 'S'), fail(2, 'S'), fail(3, 'S'), fail(4, null)])
+test('sectorClustering keeps unplaceable failures out of the denominator', () => {
+  const c = sectorClustering([fail(1, 'S'), fail(2, 'S'), fail(3, 'S'), fail(4, null)])
   assert.equal(c.placed, 3)
   assert.equal(c.unplaced, 1)
   close(c.topShare!, 1)
 })
 
-test('failureClustering on no failures at all is unavailable, not clustered', () => {
-  const c = failureClustering([])
+test('sectorClustering on no failures at all is unavailable, not clustered', () => {
+  const c = sectorClustering([])
   assert.equal(c.status, 'unavailable')
   assert.equal(c.verdict, null)
   assert.deepEqual(c.sectors, [])
+})
+
+test('sectorClustering pools outlier sites with failed ones', () => {
+  // The 측정 개요 verdict block asks "where did things go wrong", and an outlier
+  // and a failure are both an answer to it — so the clustering denominator is
+  // the union. A caller passes anything carrying a sector, not just failures.
+  const c = sectorClustering([
+    { sector: 'E' },
+    { sector: 'E' },
+    { sector: 'N' },
+    ...[fail(1, 'E')]
+  ])
+  assert.equal(c.placed, 4)
+  assert.equal(c.verdict, 'clustered', '3 of 4 in E is over the 60% share')
+  assert.equal(c.sectors[0]!.key, 'E')
 })

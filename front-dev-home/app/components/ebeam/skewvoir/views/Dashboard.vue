@@ -1,25 +1,14 @@
 <template>
   <div class="flex flex-col gap-2.5 xl:h-full xl:min-h-0">
-    <!-- Top: coverage/outlier/mean/align stats + measurement conditions.
-         This view renders ONE measurement, so under scope=set it needs to be
-         told which: the left rail's 비교 세트 is clickable HERE and inert on
-         every other view (workspace/LeftRail.vue owns that rule). -->
-    <div class="flex flex-wrap items-stretch gap-2.5">
-      <EbeamSkewvoirOverviewStatBar
-        class="min-w-0 flex-1"
-        :analysis="analysis"
-      />
-      <EbeamSkewvoirDashboardConditions :analysis="analysis" />
-    </div>
-
-    <!-- CDU 지표 (level / spread / shape) beside the decomposition of what did
-         NOT get measured. They sit together because they answer the same
-         question in two halves: how good is the number, and how much of the
-         wafer is behind it. -->
-    <div class="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
-      <EbeamSkewvoirOverviewCduCard :analysis="analysis" />
-      <EbeamSkewvoirOverviewFailureCauses :analysis="analysis" />
-    </div>
+    <!-- Top: the one verdict this measurement can prove about itself, with the
+         coverage / spread / anomaly evidence under it. This view renders ONE
+         measurement, so under scope=set it needs to be told which: the left
+         rail's 비교 세트 is clickable HERE and inert on every other view
+         (workspace/LeftRail.vue owns that rule). -->
+    <EbeamSkewvoirOverviewVerdictBlock
+      :analysis="analysis"
+      @show-on-wafer="scrollToWafer"
+    />
 
     <!-- Parameter navigator — switching it syncs every panel below -->
     <EbeamSkewvoirDashboardParamNav :analysis="analysis" />
@@ -48,7 +37,10 @@
          focusedSequence selection is visible at once. -->
     <div class="grid grid-cols-1 gap-2.5 xl:min-h-0 xl:flex-1 xl:grid-cols-12 xl:grid-rows-[minmax(49rem,1fr)]">
       <!-- Linked cluster, left: wafer over radius -->
-      <div class="flex h-[49rem] flex-col gap-2.5 xl:col-span-4 xl:h-auto xl:min-h-0">
+      <div
+        ref="waferColumn"
+        class="flex h-[49rem] flex-col gap-2.5 xl:col-span-4 xl:h-auto xl:min-h-0"
+      >
         <EbeamSkewvoirDashboardWaferMap :analysis="analysis" />
         <EbeamSkewvoirDashboardRadiusPlot
           class="min-h-[18rem] flex-1"
@@ -91,6 +83,15 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { paramImageRows, rowImageNames } from '~/utils/msrRows'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
+
+// The verdict block's "웨이퍼에서 보기" sets the focused site itself; bringing
+// the wafer into view is this view's job because it owns the column layout.
+// Below xl the panels stack and the wafer can be a screen away, which is the
+// case the link exists for.
+const waferColumn = useTemplateRef<HTMLElement>('waferColumn')
+const scrollToWafer = () => {
+  waferColumn.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
 
 // Warm the server-side image cache for the ACTIVE parameter's points as soon
 // as its rows resolve — and again on every parameter switch — so the SEM
