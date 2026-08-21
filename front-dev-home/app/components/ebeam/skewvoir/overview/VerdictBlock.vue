@@ -13,7 +13,12 @@
         {{ verdict.badge }}
       </span>
 
-      <p class="min-w-0 flex-1 text-base leading-snug font-semibold text-(--sk-ink)">
+      <!-- A real flex-basis, not flex-1. With basis-0 the sentence has no width
+           of its own to defend, so the conditions strip beside it holds the row
+           and the headline collapses to a four-line sliver on a laptop. At 20rem
+           the strip wraps to its own line instead, which is the right thing to
+           give up first. -->
+      <p class="min-w-0 shrink grow basis-80 text-base leading-snug font-semibold text-(--sk-ink)">
         <span
           v-for="(seg, i) in verdict.sentence"
           :key="i"
@@ -181,32 +186,44 @@
             class="font-mono text-xs font-bold"
             :class="clustering.verdict === 'clustered' ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
           >{{ clustering.verdict === 'clustered' ? '군집' : '분산' }}</span>
-          <span class="flex flex-wrap items-baseline gap-x-1">
-            <template
-              v-for="(s, i) in clustering.sectors"
-              :key="s.key"
-            >
-              <span
-                v-if="i > 0"
-                class="sk-label"
-              >·</span>
-              <span class="sk-label">{{ s.label }}</span>
-              <span class="sk-value-num">{{ s.count }}</span>
-            </template>
+          <!-- The clustering pool is named before its counts are shown. The big
+               number beside it is 이상 site alone, so an unlabelled sector list
+               summing to something else reads as one number disagreeing with
+               itself rather than as two measures of two things. -->
+          <span
+            v-if="clustering.placed > 0"
+            class="flex items-baseline gap-1"
+          >
+            <span class="sk-label">이상·실패</span>
+            <span class="sk-value-num">{{ clustering.placed }}</span>
+            <span class="sk-label">곳</span>
           </span>
         </div>
-        <button
-          v-if="firstOutlier"
-          type="button"
-          class="self-start text-xs font-semibold text-(--sk-accent) transition-colors duration-200 hover:text-(--sk-brand-ink)"
-          @click="showOnWafer"
-        >
-          웨이퍼에서 보기 →
-        </button>
-        <span
-          v-else
-          class="sk-label"
-        >{{ clustering.reason ?? '표시할 이상 site 가 없습니다.' }}</span>
+        <p class="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+          <template
+            v-for="(s, i) in clustering.sectors"
+            :key="s.key"
+          >
+            <span
+              v-if="i > 0"
+              class="sk-label"
+            >·</span>
+            <span class="sk-label">{{ s.label }}</span>
+            <span class="sk-value-num">{{ s.count }}</span>
+          </template>
+          <span
+            v-if="!clustering.sectors.length"
+            class="sk-label"
+          >{{ clustering.reason ?? '이상·실패 site 가 없습니다.' }}</span>
+          <button
+            v-if="firstOutlier"
+            type="button"
+            class="ml-auto shrink-0 text-xs font-semibold text-(--sk-accent) transition-colors duration-200 hover:text-(--sk-brand-ink)"
+            @click="showOnWafer"
+          >
+            웨이퍼에서 보기 →
+          </button>
+        </p>
       </section>
     </div>
 
