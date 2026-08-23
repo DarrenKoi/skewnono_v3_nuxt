@@ -5,7 +5,14 @@
       :title="text.title"
       :subtitle="text.subtitle"
       :stats="metaStats"
-    />
+    >
+      <template #leading>
+        <AppBackButton
+          :label="text.back"
+          @click="goBack"
+        />
+      </template>
+    </EbeamMetaBar>
 
     <div class="dashboard-surface rounded-[var(--sk-r-card)] p-3">
       <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -93,12 +100,14 @@ import { fixedCaps } from '~/utils/ruleMatrix'
 // own table so the Main story (TV opens up EDGE/EDGE_EX) stays readable.
 const { setToolType } = useNavigation()
 const { fetchRules } = useMeasurementRulesApi()
+const { goBack } = useHistoryBack('/ebeam/cd-sem/device-statistics')
 
 // R3-only rule page (D22 — M-fab placeholder caps removed). The rule API serves
 // only R3; any other fab 404s.
 const RULE_FAB = 'R3'
 
 const text = {
+  back: '돌아가기',
   title: '계측 룰',
   subtitle: 'R3 계측 파라미터 cap 정책과 준수 결과를 확인합니다.',
   mainTitle: 'Main 룰',
