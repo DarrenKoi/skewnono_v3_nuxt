@@ -104,7 +104,7 @@ export const useActivityMe = () => {
   const { meUrl } = useActivityUrls()
   const fetchOnce = () => meSlot.run(() => $fetch<MeResponse>(meUrl))
   return useAsyncData(ME_KEY, fetchOnce, {
-    getCachedData: payloadCache
+    getCachedData: payloadCacheOnInitial
   })
 }
 
@@ -112,7 +112,7 @@ export const useActivitySummary = () => {
   const { summaryUrl } = useActivityUrls()
   const fetchOnce = () => summarySlot.run(() => $fetch<SummaryResponse>(summaryUrl))
   return useAsyncData(SUMMARY_KEY, fetchOnce, {
-    getCachedData: payloadCache
+    getCachedData: payloadCacheOnInitial
   })
 }
 
@@ -120,7 +120,7 @@ export const useActivityUsers = () => {
   const { usersUrl } = useActivityUrls()
   const fetchOnce = () => usersSlot.run(() => $fetch<UserListResponse>(usersUrl))
   return useAsyncData(USERS_KEY, fetchOnce, {
-    getCachedData: payloadCache
+    getCachedData: payloadCacheOnInitial
   })
 }
 
@@ -128,7 +128,7 @@ export const useActivityFabs = () => {
   const { fabsUrl } = useActivityUrls()
   const fetchOnce = () => fabsSlot.run(() => $fetch<FabUsageResponse>(fabsUrl))
   return useAsyncData(FABS_KEY, fetchOnce, {
-    getCachedData: payloadCache
+    getCachedData: payloadCacheOnInitial
   })
 }
 
