@@ -137,8 +137,15 @@ const axisMax = computed(() => waferRadius.value * 1.03)
 // only step split lines from its own extent, never from the die grid, so letting
 // it draw as well is what put two grids half a pitch apart on the wafer. See
 // utils/waferAxis.ts.
+//
+// The lattice describes the die layout, so it only renders in Die mode. In
+// Field mode the wafer shows measured points on a clean outline so the two
+// views read as different scales (point vs. chip), not just different markers
+// for the same grid.
 const dieGridData = computed(() =>
-  props.options.dieGrid || props.options.grid ? dieGridLineData(props.geo, waferRadius.value) : []
+  props.mode === 'Die' && (props.options.dieGrid || props.options.grid)
+    ? dieGridLineData(props.geo, waferRadius.value)
+    : []
 )
 
 const waferOutline = computed<[number, number][]>(() => {
