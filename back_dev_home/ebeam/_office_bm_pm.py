@@ -18,7 +18,7 @@ compared for equality would classify nothing and silently report a fab with no
 maintenance at all.
 
 This module is TRACKED. It carries the index and field names already recorded in
-``docs/datatables/hardware_bm_pm.txt``, and no query shaped to one screen.
+``docs/datatables/hitachi/hardware_bm_pm.txt``, and no query shaped to one screen.
 
 TIMEZONE, inherited and unresolved: ``hardware/providers/bm_pm`` records that
 whether this index stores offset-less KST wall clock (like the meas_hist
@@ -152,7 +152,7 @@ def maintenance_events(
         if bucket.get("doc_count", 0) > len(
             bucket.get("recent", {}).get("hits", {}).get("hits", [])
         ):
-            # docs/datatables/hardware_bm_pm.txt: "잘린 이력을 조용히 보여주지
+            # docs/datatables/hitachi/hardware_bm_pm.txt: "잘린 이력을 조용히 보여주지
             # 않고". A truncated history reads as a quiet fab, so the cap is
             # announced. Not raised: unlike a truncated TREND, the two callers
             # here want the most recent jobs and the sort already keeps those.

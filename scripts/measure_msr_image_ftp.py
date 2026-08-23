@@ -99,7 +99,7 @@ from back_dev_home.msr_image.paths import image_dir, validate_tool_ip  # noqa: E
 # an office visit than the measurement itself. Every value here is already
 # committed elsewhere in this public repo -- the tool account in .env.example
 # ("사내 관례, 비기밀"), the cache location in msr_image/MIGRATION.md and
-# docs/datatables/msr_file_pickle.txt -- so writing them here reveals nothing
+# docs/datatables/hitachi/msr_file_pickle.txt -- so writing them here reveals nothing
 # new. It only removes a dependency from a script that is run by hand, once, on
 # a machine whose environment nobody wants to debug at that moment.
 #

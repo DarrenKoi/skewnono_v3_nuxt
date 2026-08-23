@@ -1475,7 +1475,7 @@ doc **and** the feature docs, or the next office session contradicts it.
 
 **Files:**
 
-- Modify: `docs/datatables/skewnono_logging.txt:43-44`
+- Modify: `docs/datatables/hitachi/skewnono_logging.txt:43-44`
 - Modify: `back_dev_home/activity/MIGRATION.md`
 - Modify: `docs/api-contracts/activity.yaml`
 
@@ -1486,7 +1486,7 @@ doc **and** the feature docs, or the next office session contradicts it.
 
 - [ ] **Step 1: Update the logging datatable**
 
-In `docs/datatables/skewnono_logging.txt`, replace the `activity_kind` line:
+In `docs/datatables/hitachi/skewnono_logging.txt`, replace the `activity_kind` line:
 
 ```text
 activity_kind -> keyword: entry | feature | background | operation | page_view
@@ -1521,7 +1521,7 @@ Expected: `0 error(s)`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/datatables/skewnono_logging.txt back_dev_home/activity/MIGRATION.md docs/api-contracts/activity.yaml
+git add docs/datatables/hitachi/skewnono_logging.txt back_dev_home/activity/MIGRATION.md docs/api-contracts/activity.yaml
 git commit -m "docs(activity): record the page_view kind and beacon contract"
 ```
 

@@ -13,7 +13,7 @@ Phase 1 mock: lot 당 결정론적 seed 로 recipe·parameter 생성. 일부 rec
 
 사무실 파생 규칙 (user-confirmed 2026-07-31) — 이 mock 이 난수로 고르는 분류
 컬럼들은 실물에서 **파생**됩니다. 규칙 전문은
-docs/datatables/recipe_params.txt 의 "사무실 파생 규칙" 절이고, 요지는:
+docs/datatables/hitachi/recipe_params.txt 의 "사무실 파생 규칙" 절이고, 요지는:
 
 - recipe_class -> **recipe 이름이 "_S"/"SE" 로 끝나면 Sample**. 끝자리 고정
   이어야 합니다 — 이름 어디든 "SE" 를 찾으면 PHASE/BASE/SET 이 전부 Sample 이
@@ -274,12 +274,12 @@ def _assign_regions(
     무작위로 골라 켰고, 그러면 "mother 가 자기 묶음의 머리" 라는 성질이 없어 son 을
     mother 에 이어 붙일 방법 자체가 없습니다. 묶음을 연속 구간으로 잡는 것은
     파라미터 순서가 곧 측정 순서(= SEQ 순서)이기 때문입니다
-    (docs/datatables/recipe_params.txt).
+    (docs/datatables/hitachi/recipe_params.txt).
 
     ★ **son 의 point 수는 mother 를 따라가지 않고, 다만 넘지 않습니다.**
 
       실물 문서 1건이 ``{'EDGE': 10, 'LEVEL': 4, 'WAFER': 10}`` 이고 그 WAFER 가
-      mother, LEVEL 이 son 입니다 (docs/datatables/idp_ver.txt) — son 이 mother
+      mother, LEVEL 이 son 입니다 (docs/datatables/hitachi/idp_ver.txt) — son 이 mother
       보다 **적게** 잰 경우입니다. 반대로 묶음이 통째로 같은 값인 경우(WAFER 13 에
       son 도 13)도 실물에 있습니다 (user-confirmed 2026-08-18). 둘 중 하나로
       고정하면 없는 규칙을 지어내는 셈이라, 뽑은 값을 그대로 두고 **머리보다 큰

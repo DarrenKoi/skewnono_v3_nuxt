@@ -25,7 +25,7 @@ recipe 경로는 **fab 계열에 따라 갈라지는 3-hop 체인**입니다. �
     ──────────────────── 공통 ────────────────────
     recipe_id == cdsem_idp_ver.full_name, 최신 version 의 parameters
 
-field 목록과 함정은 docs/datatables/ 의 planstep_r3.txt, ebeam_tas_lot_hist.txt,
+field 목록과 함정은 docs/datatables/hitachi/ 의 planstep_r3.txt, ebeam_tas_lot_hist.txt,
 idp_ver.txt, device_desc.txt, r3_device_grp.txt 에 있습니다.
 
 버킷 정의 (user-confirmed 2026-07-31)
@@ -62,7 +62,7 @@ Sample 판정만 축이 다릅니다 — 스텝명이 아니라 **recipe 이름*
 
   이름 그대로 **"Y" 가 skip(측정하지 않음)** 입니다. 2026-07-30 에 문서에
   기록되었던 "Y = 현재 측정 중" 은 틀린 내용이었고 2026-07-31 에 정정되었습니다
-  (docs/datatables/planstep_r3.txt). 이 극성은 ``avail_recipe`` 와 mother_normal
+  (docs/datatables/hitachi/planstep_r3.txt). 이 극성은 ``avail_recipe`` 와 mother_normal
   버킷 양쪽을 동시에 뒤집으므로 :func:`_is_measuring` 하나로 모았습니다.
 
 주간 트렌드 — MinIO 스냅샷 (설계 확정 2026-07-31)
@@ -651,7 +651,7 @@ _IDP_CHUNK = 500
 
 
 # mother 플래그가 실릴 수 있는 key 이름. idp 원본 컬럼명은 ``Mother_Para`` 입니다
-# (docs/datatables/recipe_idp.txt, office 확인 2026-07-28). 나머지 두 개는 적재
+# (docs/datatables/hitachi/recipe_idp.txt, office 확인 2026-07-28). 나머지 두 개는 적재
 # 쪽이 이름을 바꿨을 때를 위한 관용입니다.
 _MOTHER_KEYS = ("Mother_Para", "mother_para", "mother")
 
@@ -659,7 +659,7 @@ _MOTHER_KEYS = ("Mother_Para", "mother_para", "mother")
 _PARAM_NAME_KEYS = ("Parameter", "parameter", "name")
 
 # image definition 묶음이 실릴 수 있는 key 이름. idp 원본 컬럼명은 ``Region``
-# 입니다 (docs/datatables/recipe_idp.txt). 같은 Region = 한 SEQ 그룹이고, 그 안의
+# 입니다 (docs/datatables/hitachi/recipe_idp.txt). 같은 Region = 한 SEQ 그룹이고, 그 안의
 # Mother_Para 하나가 image 의 주인입니다 (user-confirmed 2026-08-18).
 _REGION_KEYS = ("Region", "region")
 
@@ -895,7 +895,7 @@ def _param_regions(raw_data: Any) -> dict[str, int]:
     row 에서 오므로 한쪽이 안 읽히면 다른 쪽도 대개 안 읽힙니다.
 
     ``Region`` 은 wafer_mp_info 의 ``P_No`` 와 같은 값이며 recipe 안에서만 뜻이
-    있습니다 (docs/datatables/recipe_idp.txt) — recipe 를 가로질러 비교하지
+    있습니다 (docs/datatables/hitachi/recipe_idp.txt) — recipe 를 가로질러 비교하지
     마십시오.
     """
     rows = _raw_data_rows(raw_data)
@@ -946,7 +946,7 @@ def _param_regions(raw_data: Any) -> dict[str, int]:
             #
             # 사내 파서가 숫자 필드를 문자열로 준 전례가 있습니다 —
             # 2026-08-05 `Coordinate.X` 가 "52.676" 로 왔습니다
-            # (docs/datatables/recipe_idp.txt §dtype).
+            # (docs/datatables/hitachi/recipe_idp.txt §dtype).
             try:
                 regions[name] = int(str(raw).strip())
             except (TypeError, ValueError):
@@ -1535,7 +1535,7 @@ def sweep_weekly_snapshots(keep_weeks: int = 26) -> int:
     정상적인 최근 것을 지웁니다.
 
     MinIO 자격증명이 prefix 로 제한되어 native lifecycle 을 걸 수 없기 때문에
-    애플리케이션 쪽에서 지웁니다(docs/datatables/device_statistics_weekly_trend.txt
+    애플리케이션 쪽에서 지웁니다(docs/datatables/hitachi/device_statistics_weekly_trend.txt
     의 OFFICE-VERIFY 항목).
 
     **``AccessDenied`` 를 "지울 것 없음"으로 삼키지 않습니다.** 사무실 자격증명은

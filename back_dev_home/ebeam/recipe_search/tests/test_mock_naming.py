@@ -4,7 +4,7 @@ Not cosmetic. ``rawfiles.py`` derives every raw-folder path from these strings,
 so a mock emitting ``IMG_ADD1_0001.jpg`` — as this one did until 2026-07-29 —
 makes the whole path layer untestable at home and lets a wrong derivation pass
 here and fail only at the office. That is the failure mode
-``docs/datatables/recipe_idp.txt`` warns about in its header, reached through
+``docs/datatables/hitachi/recipe_idp.txt`` warns about in its header, reached through
 values instead of column names.
 """
 

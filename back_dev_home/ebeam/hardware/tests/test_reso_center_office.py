@@ -34,7 +34,7 @@ START = ANCHOR - timedelta(days=14)
 IP = "10.1.2.3"
 EQP = "CDX001"
 
-# A raw `_source` doc mirroring docs/datatables/hardware_reso_center_data.txt,
+# A raw `_source` doc mirroring docs/datatables/hitachi/hardware_reso_center_data.txt,
 # with two source quirks the adapter has to absorb: numeric cells arriving as
 # strings, and the dropped Focus Sweep objects still present in `_source`.
 RAW_HIT = {

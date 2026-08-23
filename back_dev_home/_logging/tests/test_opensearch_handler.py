@@ -177,7 +177,7 @@ def test_the_document_carries_how_the_caller_was_identified(parked):
     middleware test passed, and nothing ever shipped. The index mapping is
     `dynamic: "false"` too, so the field has to be named in three places
     before it survives — this allowlist, `ops_index_mgmt/skewnono_logging.py`,
-    and `docs/datatables/skewnono_logging.txt`.
+    and `docs/datatables/hitachi/skewnono_logging.txt`.
     """
     doc = parked._record_to_doc(_record(user_id="7654321", identity_source="declared"))
 

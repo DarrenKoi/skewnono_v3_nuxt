@@ -203,7 +203,7 @@ const union = (sets: ReadonlySet<string>[]): Set<string> => {
  * map — under a different array, pitch or origin it is a different place.
  *
  * `mapOffset` is deliberately absent, matching how the office builds
- * site_layout_hash (docs/datatables/msr_file_pickle.txt: "map_offset 은 일부러
+ * site_layout_hash (docs/datatables/hitachi/msr_file_pickle.txt: "map_offset 은 일부러
  * 제외합니다 — run 마다 달라지는 align 보정이 섞여 있으면 같은 layout 이 여러
  * 개로 쪼개집니다"). Including it here would split one layout per run and make
  * coverage readiness permanently unavailable, which is the exact failure the
@@ -383,7 +383,7 @@ export const serializeSiteKey = (site: CanonicalSiteKey): string =>
  * Everything here comes from columns the Phase-1 mock already emits. The office
  * hash is defined over chip_array / chip_pitch / wafer_size / map_origin plus
  * the sorted `(chip_number, dnum_group, mp_number)` site set
- * (docs/datatables/msr_file_pickle.txt), so this is that definition's site half,
+ * (docs/datatables/hitachi/msr_file_pickle.txt), so this is that definition's site half,
  * recomputed from rows instead of read off a precomputed digest.
  *
  * `dnum_group` is deliberately not part of the key. In every sample we have it

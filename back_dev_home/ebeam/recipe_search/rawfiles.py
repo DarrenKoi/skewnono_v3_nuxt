@@ -32,7 +32,7 @@ point), so a name can only be DISCOVERED from the raw folder's listing:
 ``image_name`` remains only as the no-listing fallback (exactly the pre-2026-08-08
 behavior, which is also the CD-SEM fast path).
 
-Schema of record: ``docs/datatables/recipe_idp.txt``. If that file and this one
+Schema of record: ``docs/datatables/hitachi/recipe_idp.txt``. If that file and this one
 disagree, that file wins and this one is stale.
 """
 
@@ -324,7 +324,7 @@ def align_reference_images(listing: Iterable[str]) -> list[tuple[int, str, str]]
     align points are the same alignment through two instruments rather than
     scattered positions (user-confirmed 2026-07-29) and so are computable. The
     reasoning holds; the conclusion did not. A recipe with only P.No 1 exists
-    (`docs/datatables/recipe_idp.txt`), and for one the computed P.No 2 sent
+    (`docs/datatables/hitachi/recipe_idp.txt`), and for one the computed P.No 2 sent
     the browser after a file the folder does not hold — which ``recipe-image``,
     alone on this feature's read surface, has to answer 404 rather than 파일
     없음, because a per-file GET has nowhere to drop a missing file to.

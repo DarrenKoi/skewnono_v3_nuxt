@@ -146,7 +146,7 @@ mother_normal 버킷은 이 플래그로 파라미터를 좁혀서
 
   - para_* 구간 버킷 (Lot 요약의 "para 분포"·"para 합계") —
     point 수를 다섯 구간(>16 / 14~16 / 10~13 / 6~9 / <=5)으로 나눈 개수입니다
-    (2026-08-10 합의, docs/datatables/idp_ver.txt)
+    (2026-08-10 합의, docs/datatables/hitachi/idp_ver.txt)
   - 계측 룰 검증 (health / violations / 판정 범위)
   - 측정 프로파일 (중앙값 / outlier)
 
@@ -161,7 +161,7 @@ mother 를 가진 파라미터가 하나도 없는 recipe 는 mother_normal 버�
 ★ 출처 미해결 (2026-08-04) — 이 컬럼은 **사무실에서 아직 채울 수 없습니다.**
 
   Mother_Para 가 확인된 유일한 곳은 장비 FTP 의 {idp_name}.idp 원본 파일이고
-  (docs/datatables/recipe_idp.txt), 이 응답의 parameters 원천인
+  (docs/datatables/hitachi/recipe_idp.txt), 이 응답의 parameters 원천인
   cdsem_idp_ver.parameters 는 {name: point_count} 라 플래그를 담을 자리가
   없습니다. recipe 1건당 파일 1개를 내려받아야 하므로 device 4000개 규모에서는
   그 경로를 쓸 수 없습니다.
@@ -310,7 +310,7 @@ Mock 생성 규칙
 device 의 ctn_desc / recipe 이름에서 파생됩니다. 근거 없이 값을 지어내지 않는
 것이 규칙이므로, 판별할 수 없는 값은 빈 문자열이나 null 로 둡니다.
 
-원천 (docs/datatables/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt)
+원천 (docs/datatables/hitachi/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt)
 
   recipe 목록  -> R3: sknn-planstep-r3 / M fab: ebeam_tas_lot_hist
   parameters   -> cdsem_idp_ver, full_name == recipe_id 의 최신 version

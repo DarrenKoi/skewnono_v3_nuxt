@@ -395,7 +395,7 @@ def _check_fetch(
         _info("If this is a TypeError or an encoding error, the parser wants a "
               "path after all. Set SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 in "
               "back_dev_home/.env, restart Flask to restore the temp file, and "
-              "tell home - docs/datatables/recipe_idp.txt records the opposite.")
+              "tell home - docs/datatables/hitachi/recipe_idp.txt records the opposite.")
         return None
 
     _ok("combined_idp_info(bytes) returned the three documented tables:")

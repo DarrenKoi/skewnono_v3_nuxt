@@ -1,6 +1,6 @@
 """측정 이력(meas_hist) — shared mock data for recipe-search 측정 이력 view and 스큐보아.
 
-Spec: docs/datatables/meas_hist.txt
+Spec: docs/datatables/hitachi/meas_hist.txt
 Each row = "장비가 특정 lot에 특정 recipe를 실행한 1회 측정 이력".
 
 Office counterpart: OpenSearch, one alias per tool family — `meas_hist_cdsem`
@@ -243,7 +243,7 @@ def _build_row(
     )[0]
 
     # Percent, 0..100 — the office scale (see providers/_shared.py). The
-    # bands come from docs/datatables/meas_hist.txt rule #9.
+    # bands come from docs/datatables/hitachi/meas_hist.txt rule #9.
     if msr_check == "No" or align_fail == "Fail":
         fail_ratio = round(rng.uniform(15.0, 80.0), 4)
     else:
@@ -255,7 +255,7 @@ def _build_row(
 
     date_str = end_time.strftime("%Y%m%d")
     # ★ 이 mock 은 여기서 office 와 어긋나 있습니다 (office 확인 2026-08-20,
-    # docs/datatables/meas_hist.txt 참고). 실데이터는 msr_check 가 2,250,652 건
+    # docs/datatables/hitachi/meas_hist.txt 참고). 실데이터는 msr_check 가 2,250,652 건
     # 전부 "Yes" 이고, msr 필드는 21,474 건에서 빠져 있으며 그 둘은 서로
     # 상관이 없습니다. 여기 있는 "8% 는 No 이고 No 면 msr 도 없다" 는 상관은
     # 실물에 없습니다.

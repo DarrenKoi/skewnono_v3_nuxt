@@ -187,7 +187,7 @@ def main() -> None:
     print("  H2 = msr_check 가 'Yes' 가 아닌데 minio_pkl 이 있으면, msr_check 는")
     print("       MinIO 저장 여부를 뜻하지 않습니다.")
     print("  H3 = msr 필드가 없는 문서 수. 그 행은 분석 화면을 열 키가 없습니다.")
-    print("결과를 docs/datatables/meas_hist.txt 의 msr_check 절에 옮겨 적으십시오.")
+    print("결과를 docs/datatables/hitachi/meas_hist.txt 의 msr_check 절에 옮겨 적으십시오.")
 
 
 if __name__ == "__main__":

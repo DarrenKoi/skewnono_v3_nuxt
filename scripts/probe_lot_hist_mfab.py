@@ -28,7 +28,7 @@ Run FROM THE REPO ROOT at the office:
     .venv/bin/python -m scripts.probe_lot_hist_mfab --devices 5 --recipes 8
 
 Whatever this proves belongs in TWO places (CLAUDE.md):
-``docs/datatables/ebeam_tas_lot_hist.txt`` AND the device_statistics mock
+``docs/datatables/hitachi/ebeam_tas_lot_hist.txt`` AND the device_statistics mock
 docstrings. Mark each fact ``office 확인 YYYY-MM-DD``.
 
 Read-only: count / search / aggregate / mapping reads only.
@@ -128,7 +128,7 @@ def stage_mapping(client: Any, props: dict[str, Any]) -> None:
 
     if missing:
         print(f"\n  DOCUMENTED BUT ABSENT: {', '.join(missing)}")
-        print("  -> fix docs/datatables/ebeam_tas_lot_hist.txt before writing the adapter.")
+        print("  -> fix docs/datatables/hitachi/ebeam_tas_lot_hist.txt before writing the adapter.")
 
     present_r3 = [name for name in R3_ONLY_FIELDS if name in props]
     print("\n  R3-only fields (expected ABSENT here):")
@@ -354,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
     _rule("NEXT")
     print(
         "  Record what this proved in BOTH places (CLAUDE.md):\n"
-        "    1. docs/datatables/ebeam_tas_lot_hist.txt (and idp_ver.txt)\n"
+        "    1. docs/datatables/hitachi/ebeam_tas_lot_hist.txt (and idp_ver.txt)\n"
         "    2. device_statistics/providers/ mock docstrings\n"
         "  Open question this run should settle: what fills\n"
         "  RecipeInfoRow.oper_seq / samp_seq for M fab, given no sequence field.\n"

@@ -61,7 +61,7 @@ withDefaults(defineProps<{
   // to one Parameter (see the caption above the table in RecipeOpenView).
   //
   // `img_meas2` is omitted because in THIS table it is just P_No again
-  // (user-confirmed 2026-08-05; docs/datatables/recipe_idp.txt records the
+  // (user-confirmed 2026-08-05; docs/datatables/hitachi/recipe_idp.txt records the
   // same equality). Two columns of identical integers under different names
   // read as two facts. Note this is not true of `idp_image_info.img_meas2`,
   // which is an 8-character slot key — same name, unrelated meaning.

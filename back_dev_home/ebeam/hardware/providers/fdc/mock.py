@@ -1,6 +1,6 @@
 """Phase 1 faithful network_fdc_cdsem mock.
 
-Raw doc shape from `docs/datatables/hardware_network_fdc_cdsem.txt`. One doc = one
+Raw doc shape from `docs/datatables/hitachi/hardware_network_fdc_cdsem.txt`. One doc = one
 (eqp_id, timestamp, values) where `values` begins with the `fdc_key` and then
 follows that key's own layout:
 

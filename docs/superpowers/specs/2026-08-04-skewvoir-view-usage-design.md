@@ -4,7 +4,7 @@
 - **상태:** 승인된 설계, 구현 계획 작성 전 문서 검토 대기
 - **적용 범위:** `back_dev_home/_logging`, `back_dev_home/activity`,
   `front-dev-home/app/composables`, `front-dev-home/app/pages/activity.vue`,
-  `docs/datatables/skewnono_logging.txt`, `docs/api-contracts/`
+  `docs/datatables/hitachi/skewnono_logging.txt`, `docs/api-contracts/`
 
 ## 1. 배경
 
@@ -433,7 +433,7 @@ const SKEWVOIR_VIEW_LABELS = Object.fromEntries(
 
 ## 7. 문서
 
-- `docs/datatables/skewnono_logging.txt`: `activity_kind`의 신규 값 `view`,
+- `docs/datatables/hitachi/skewnono_logging.txt`: `activity_kind`의 신규 값 `view`,
   `feature`의 `skewvoir:<kind>` 문법. **그리고 `activity_weight`의 정의 수정** —
   현재 "활동 집계 대상이면 1"이라고 적혀 있으나, 이 변경 이후 weight 0 문서도
   집계 대상입니다. "요청량 지표 가중치"로 다시 씁니다. 이 문장을 고치지 않으면

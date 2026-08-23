@@ -33,7 +33,7 @@ office adapter deliberately does NOT reuse them:
   the same claim; do not reconcile them by copying this one outward.
 * `spec_range_mock.bsm_in_spec` tests noise against 6.65-6.95, a band invented
   alongside `pm_gate_bsm_mock`. The real sample doc in
-  docs/datatables/hardware_beam_shape.txt has `Ave. Noise` at 6.277 — OUTSIDE
+  docs/datatables/hitachi/hardware_beam_shape.txt has `Ave. Noise` at 6.277 — OUTSIDE
   it. Applying this band to real data would mark every tool in the fab out of
   spec and hold the whole fleet, so the office adapter uses a fleet-relative
   robust outlier test instead.

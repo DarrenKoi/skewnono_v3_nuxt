@@ -1,6 +1,6 @@
 // Physical wafer geometry shared by the wafer map and radius plot.
 //
-// The mock (and the office data it mirrors — docs/datatables/msr_file_pickle.txt)
+// The mock (and the office data it mirrors — docs/datatables/hitachi/msr_file_pickle.txt)
 // keeps three coherent fields:
 //   • chip_number      — die INDEX "(col,row)", centred on the wafer
 //   • stage_coordinate — physical position "(x,y)" in nm, corner origin

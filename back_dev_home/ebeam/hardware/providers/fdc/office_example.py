@@ -7,7 +7,7 @@ Returns RAW documents ascending by timestamp for one tool inside
 with ``normalizers.docs_payload``. The page reads ``values`` straight off each
 doc, so this adapter only fetches, validates, and orders.
 
-Doc layout (source of truth: ``docs/datatables/hardware_network_fdc_cdsem.txt``). Seven
+Doc layout (source of truth: ``docs/datatables/hitachi/hardware_network_fdc_cdsem.txt``). Seven
 fields — ``eqp_id``, ``eqp_model_cd``, ``fab_name``, ``eqp_ip``, ``fdc_key``,
 ``timestamp``, ``values`` — one doc = one (eqp_id, timestamp, values).
 ``values[0]`` repeats ``fdc_key``; the rest follows that key's layout:

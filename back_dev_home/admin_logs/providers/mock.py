@@ -10,7 +10,7 @@ Deliberate differences from real data: ``event_id`` and ``request_id`` are
 readable ``demo-*`` strings rather than UUIDs, timestamps are relative to now
 so the default time window always has hits, and one row carries the legacy
 ``request_path`` field to exercise ``item_from_hit``'s fallback for documents
-written before ``c11fbc2``. See ``docs/datatables/skewnono_logging.txt``.
+written before ``c11fbc2``. See ``docs/datatables/hitachi/skewnono_logging.txt``.
 
 Query semantics are shared with the office adapter: ``parse_log_query``
 validates ``from``/``to`` (malformed values raise the same 400), the ``q``

@@ -78,7 +78,7 @@ checkout. Compare `passed + skipped` totals, not `passed` alone.
 | `front-dev-home/app/utils/liveAlarm.ts` | payload type | 9 |
 | `front-dev-home/app/composables/useLiveAlarmFeed.ts` | poll loop and reducer | 9 |
 | `front-dev-home/app/components/ebeam/LiveAlarmView.vue` | board UI | 9 |
-| `live_alarm/MIGRATION.md`, `docs/datatables/live_alarm_board.txt`, `back_dev_home/.env.example` | office-facing docs | 10 |
+| `live_alarm/MIGRATION.md`, `docs/datatables/hitachi/live_alarm_board.txt`, `back_dev_home/.env.example` | office-facing docs | 10 |
 
 **Ordering constraint:** `tests/test_office_adapter_parity.py` imports every
 office template through `importlib`. `providers/office_example.py` must
@@ -1656,7 +1656,7 @@ Expected: FAIL — `KeyError: 'unmatched_count'`.
 Replace the module docstring's lines 8–37 with:
 
 ```python
-Office counterpart — schema of record: `docs/datatables/live_alarm_board.txt`.
+Office counterpart — schema of record: `docs/datatables/hitachi/live_alarm_board.txt`.
 The office read source is refreshed by the SAME request that reads it: a page
 view calls `refresh.ensure_fresh`, which fetches from the in-house alarm API
 only when the facility's cache is older than CACHE_TTL_SEC and only after
@@ -1896,7 +1896,7 @@ the feature's `mock.py`. Task 8 did the mock; this task does the rest.
 **Files:**
 
 - Rewrite: `back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md`
-- Rewrite: `docs/datatables/live_alarm_board.txt`
+- Rewrite: `docs/datatables/hitachi/live_alarm_board.txt`
 - Modify: `back_dev_home/.env.example:193-203`
 
 - [ ] **Step 1: Rewrite `MIGRATION.md`**
@@ -1991,7 +1991,7 @@ redis-cli -n 0 --scan --pattern 'skewnono:live_alarm:*'
   입니다.
 ````
 
-- [ ] **Step 2: Rewrite `docs/datatables/live_alarm_board.txt`**
+- [ ] **Step 2: Rewrite `docs/datatables/hitachi/live_alarm_board.txt`**
 
 Replace the file's header and key-structure sections (through the `events
 ZSET` heading) with:
@@ -2077,7 +2077,7 @@ Expected: all PASS.
 
 ```bash
 git add back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md \
-        docs/datatables/live_alarm_board.txt \
+        docs/datatables/hitachi/live_alarm_board.txt \
         back_dev_home/.env.example
 git commit -m "docs(live-alarm): document the cached pull for the office
 

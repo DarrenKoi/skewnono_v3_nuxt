@@ -21,7 +21,7 @@ cond 는 이미지 1장당 1개인 숨김 사이드카입니다. 파일이 아�
     최초 발견: 실측 스크립트 B 단계가 .S12_A0001-01AP.jpeg 에서 ImageNotFound.
 
 class_name 과 msr 은 meas_hist 문서의 같은 이름 field 에서 옵니다
-(docs/datatables/meas_hist.txt).
+(docs/datatables/hitachi/meas_hist.txt).
 
 파일 확장자
 
@@ -38,7 +38,7 @@ class_name 과 msr 은 meas_hist 문서의 같은 이름 field 에서 옵니다
   .tif 만 존재합니다. 이 feature 의 요청 경로는 이름을 **불투명 문자열**로만
   다루므로(정확 일치 fetch, hyphen 은 validate_segment 통과) 코드 변경 없이
   동작합니다 — 어떤 이름을 요청할지는 msr_file 의 mp_image_names 목록이
-  정합니다(docs/datatables/msr_file_pickle.txt 의 어댑터 규약).
+  정합니다(docs/datatables/hitachi/msr_file_pickle.txt 의 어댑터 규약).
 
 경로 표기 주의
 

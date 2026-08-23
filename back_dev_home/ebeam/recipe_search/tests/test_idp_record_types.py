@@ -10,7 +10,7 @@ the cause.
 
 The mock cannot produce this: it builds frames from a dtype map, so every cell
 is already the declared type (see the value-domain blind spot in
-`docs/datatables/recipe_idp.txt`). That is exactly why the coercion belongs in
+`docs/datatables/hitachi/recipe_idp.txt`). That is exactly why the coercion belongs in
 the adapter and the test belongs here — `_records` is pure, so the office-only
 failure is reproducible anywhere by handing it an object-dtype frame.
 
@@ -193,7 +193,7 @@ def test_bool_words_are_not_inferred_from_strings():
 def test_a_number_in_a_str_column_becomes_text():
     """img_meas2 is a str in idp_image_info and an int in wafer_mp_info.
 
-    Same name, unrelated meaning (docs/datatables/recipe_idp.txt). Driving the
+    Same name, unrelated meaning (docs/datatables/hitachi/recipe_idp.txt). Driving the
     coercion off each table's own contract is what keeps that straight.
     """
     frame = pd.DataFrame([{

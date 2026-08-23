@@ -56,19 +56,19 @@ worktree에는 gitignore된 `office.py` 사본이 없으므로 `pytest`의 **ski
 | `front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue` | 트렌드 오버레이 + 레시피 매트릭스 | 9 |
 | `front-dev-home/app/components/ebeam/RecipeTatView.vue` | 모드 토글 + 분기 (최소 편집) | 8 |
 | `front-dev-home/app/components/ebeam/DateRangePopover.vue` | 60/90일 프리셋 | 10 |
-| `docs/datatables/meas_hist.txt`, `docs/api-contracts/recipe-tat.yaml` | 문서 | 2, 10 |
+| `docs/datatables/hitachi/meas_hist.txt`, `docs/api-contracts/recipe-tat.yaml` | 문서 | 2, 10 |
 
 ---
 
 ### Task 1: fab 어휘 통일 — M12는 실재하지 않는 fab
 
-`docs/datatables/sem_list.txt`가 이미 판정해 둔 사실입니다: *"현재 운영 중인 값의 전부는 R3, M16, M15, M14, M11, M10 입니다 (user-confirmed 2026-08-03). 예전 문서와 mock 에 있던 M12 는 실재하지 않는 값이었습니다."*
+`docs/datatables/hitachi/sem_list.txt`가 이미 판정해 둔 사실입니다: *"현재 운영 중인 값의 전부는 R3, M16, M15, M14, M11, M10 입니다 (user-confirmed 2026-08-03). 예전 문서와 mock 에 있던 M12 는 실재하지 않는 값이었습니다."*
 
 `sem_list` mock은 이미 고쳐졌지만 `device_statistics`의 lot 풀은 아직 M12를 만들고 M10을 만들지 않습니다. Task 2에서 "장비의 fac_id에 맞는 lot"을 뽑아야 하는데, 장비는 M10에 있고 lot은 M12에 있으면 둘이 절대 만나지 못합니다. 폴백으로 덮으면 문서가 틀렸다고 기록해 둔 값이 mock 안에 영원히 남습니다.
 
 **Files:**
 - Modify: `back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py:66`, `:78-84`, docstring `:10`
-- Modify: `docs/datatables/device_info.txt:9`, `docs/datatables/meas_hist.txt:11`
+- Modify: `docs/datatables/hitachi/device_info.txt:9`, `docs/datatables/hitachi/meas_hist.txt:11`
 - Test: `back_dev_home/ebeam/cdsem/device_statistics/tests/test_contract.py`
 
 **Interfaces:**
@@ -81,7 +81,7 @@ worktree에는 gitignore된 `office.py` 사본이 없으므로 `pytest`의 **ski
 
 ```python
 def test_lot_index_fac_ids_match_the_operating_fabs():
-    # M12는 실재하지 않습니다 — docs/datatables/sem_list.txt (user-confirmed
+    # M12는 실재하지 않습니다 — docs/datatables/hitachi/sem_list.txt (user-confirmed
     # 2026-08-03). sem_list가 장비 명부의 진실이고, lot 풀의 fac_id는 그
     # 어휘를 벗어나면 안 됩니다. 벗어나면 recipe_tat의 장비<->lot 짝짓기가
     # 조용히 폴백 경로로 새어 나갑니다.
@@ -121,7 +121,7 @@ docstring 10번째 줄의 `M11/M12/M14/M15/M16`을 `M10/M11/M14/M15/M16`으로 �
 
 ```python
 # 운영 중인 M-fab 전부입니다. 예전 mock에 있던 M12는 실재하지 않는 값이었고
-# (docs/datatables/sem_list.txt, user-confirmed 2026-08-03), sem_list의 FAC_IDS가
+# (docs/datatables/hitachi/sem_list.txt, user-confirmed 2026-08-03), sem_list의 FAC_IDS가
 # 이 어휘의 진실입니다. 여기가 어긋나면 recipe_tat이 장비(sem_list)와
 # lot(여기)을 fac_id로 짝지을 때 만나지 못하는 조합이 생깁니다.
 ```
@@ -134,7 +134,7 @@ Expected: 전부 PASS. 이 스위트가 저장소에서 가장 크므로(전체 
 
 - [ ] **Step 5: 데이터 문서 갱신**
 
-`docs/datatables/device_info.txt:9`와 `docs/datatables/meas_hist.txt:11`의 `예: M11, M12, M14, M15, M16` 을 각각 다음으로 고칩니다:
+`docs/datatables/hitachi/device_info.txt:9`와 `docs/datatables/hitachi/meas_hist.txt:11`의 `예: M11, M12, M14, M15, M16` 을 각각 다음으로 고칩니다:
 
 ```text
 fac_id -> string: fab 대표 코드. 예: M10, M11, M14, M15, M16, R3
@@ -148,7 +148,7 @@ fac_id -> string: fab 대표 코드. 예: M10, M11, M14, M15, M16, R3
 npm run lint:md
 git add back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py \
         back_dev_home/ebeam/cdsem/device_statistics/tests/test_contract.py \
-        docs/datatables/device_info.txt docs/datatables/meas_hist.txt
+        docs/datatables/hitachi/device_info.txt docs/datatables/hitachi/meas_hist.txt
 git commit -m "fix(mock): M12 -> M10, 실재하지 않는 fab을 lot 풀에서 제거
 
 sem_list.txt가 이미 판정한 사실입니다(user-confirmed 2026-08-03). sem_list
@@ -165,13 +165,13 @@ lot_cd 접두사도 함께 이동합니다(M12='2' -> M10='0')."
 
 ### Task 2: mock 장비 플릿 — sem_list를 명부로, 생성 순서를 장비→lot으로
 
-지금 mock은 `CG63-04` 같은 eqp_id를 지어냅니다. `_tool_specs.py`가 명시적으로 금지하는 일입니다: *"sem_list is the roster of record… never parse the id itself."* `docs/datatables/meas_hist.txt` 규칙 1도 *"eqp_id…는 sem-list mock data에서 고른 장비 row를 복사합니다"*라고 이미 요구하고 있습니다.
+지금 mock은 `CG63-04` 같은 eqp_id를 지어냅니다. `_tool_specs.py`가 명시적으로 금지하는 일입니다: *"sem_list is the roster of record… never parse the id itself."* `docs/datatables/hitachi/meas_hist.txt` 규칙 1도 *"eqp_id…는 sem-list mock data에서 고른 장비 row를 복사합니다"*라고 이미 요구하고 있습니다.
 
 또한 지어낸 eqp_id는 fab에도 meastime에도 묶여 있지 않아서, 같은 장비가 7개 fab에 동시에 나타나고 `tat_index`는 잡음이 됩니다.
 
 **Files:**
 - Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py` (전면 — docstring, 상수, 생성 함수)
-- Modify: `docs/datatables/meas_hist.txt` (생성 규칙 1·6)
+- Modify: `docs/datatables/hitachi/meas_hist.txt` (생성 규칙 1·6)
 - Test: `back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py`
 
 **Interfaces:**
@@ -564,7 +564,7 @@ eqp_model_cd / vendor_nm 을 sem_list row에서 그대로 복사하며, 지어�
 
 - [ ] **Step 7: 데이터 문서 갱신**
 
-`docs/datatables/meas_hist.txt`의 "Mock data 생성 규칙" 1번과 6번을 고칩니다:
+`docs/datatables/hitachi/meas_hist.txt`의 "Mock data 생성 규칙" 1번과 6번을 고칩니다:
 
 ```text
 1. eqp_id, eqp_model_cd, vendor_nm, fac_id, fab_name은 sem-list mock data에서
@@ -588,7 +588,7 @@ eqp_model_cd / vendor_nm 을 sem_list row에서 그대로 복사하며, 지어�
 npm run lint:md
 git add back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
         back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py \
-        docs/datatables/meas_hist.txt
+        docs/datatables/hitachi/meas_hist.txt
 git commit -m "fix(recipe-tat/mock): 장비 플릿을 sem_list에서 가져오고 생성 순서를 뒤집기
 
 지어낸 eqp_id(CG63-04)를 sem_list 명부의 실제 장비로 교체합니다.
@@ -1927,7 +1927,7 @@ def test_office_example_exposes_the_equipment_endpoints():
     curl -s "$BASE/api/cdsem/recipe-tat/equipments?start_date=…&end_date=…" | python -m json.tool
 
    `occupancy`의 절대 수준을 MES 가동률과 나란히 놓고 격차를
-   `docs/datatables/meas_hist.txt`에 기록합니다 — 이 값은 측정 점유율이지
+   `docs/datatables/hitachi/meas_hist.txt`에 기록합니다 — 이 값은 측정 점유율이지
    장비 가동률이 아닙니다(로딩·대기·PM 제외).
 ```
 
@@ -3176,7 +3176,7 @@ worktree 정리는 선택이 아닙니다. 남겨두면 낡은 체크아웃이 �
 1. `MAX_COMPARE_EQPS`를 `contracts.py`가 아니라 `_analytics_routes.py`에 `MAX_EQP_IDS`로 둡니다. 요청 형태에 관한 값이지 응답 계약이 아니고, 계약에 두면 공유 파서가 recipe_tat 계약을 import 하게 되어 fail_issue까지 끌려옵니다. 프론트엔드는 자체 상수(`MAX_COMPARE_EQPS`)를 갖습니다.
 2. payload 조립을 `providers/_shape.py`로 분리합니다(Task 6). 스펙은 각 provider가 조립한다고만 적었지만, mock과 office가 지수·중앙값·분위수를 각자 계산하면 언젠가 어긋납니다.
 
-**스펙이 예상하지 못했고 조사로 드러난 것 (Task 1로 흡수):** `device_statistics`의 lot 풀이 아직 M12를 쓰고 M10 lot을 만들지 않아, 장비(M10 보유)와 lot(M12 보유)이 fac_id로 만날 수 없었습니다. `docs/datatables/sem_list.txt`가 *"M12 는 실재하지 않는 값이었습니다 (user-confirmed 2026-08-03)"*로 이미 판정해 둔 사안입니다.
+**스펙이 예상하지 못했고 조사로 드러난 것 (Task 1로 흡수):** `device_statistics`의 lot 풀이 아직 M12를 쓰고 M10 lot을 만들지 않아, 장비(M10 보유)와 lot(M12 보유)이 fac_id로 만날 수 없었습니다. `docs/datatables/hitachi/sem_list.txt`가 *"M12 는 실재하지 않는 값이었습니다 (user-confirmed 2026-08-03)"*로 이미 판정해 둔 사안입니다.
 
 **Placeholder scan** — "TBD"/"적절히 처리"/"위 내용에 대한 테스트 작성" 없음. 모든 코드 단계에 실제 코드 블록이 있습니다. Task 6의 `_shape.py` 두 함수는 시그니처와 입력 격자 형태를 명시하고 본문은 Task 4·5에서 이미 쓴 로직을 옮기는 것으로 정의했습니다. Task 10 Step 2의 YAML은 필드 목록을 Task 4·5의 TypedDict와 1:1로 지정했습니다.
 

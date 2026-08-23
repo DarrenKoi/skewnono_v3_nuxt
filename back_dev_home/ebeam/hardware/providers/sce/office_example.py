@@ -7,7 +7,7 @@ Two builders, matching ``sce/mock.py``:
 - ``build_sce_settings`` — the LATEST collection from the Redis hash
   ``sce_info``: one field per fab_name (``M15A``, ``M14B``, ...), each value
   the fab's ``{eqp_id: {FileInfo, SemCond, ImgCond, SCEParam, Coefficients}}``
-  dict (see ``docs/datatables/hardware_sce_setting.txt``). The whole fab map IS the
+  dict (see ``docs/datatables/hitachi/hardware_sce_setting.txt``). The whole fab map IS the
   "selected tool + in-fab siblings" cohort the page compares.
 - ``build_sce_history`` — the bidaily archive from MinIO: one
   ``{fab_name}.json`` per collection date under

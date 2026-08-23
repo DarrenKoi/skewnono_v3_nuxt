@@ -83,7 +83,7 @@ OFFICE-VERIFY: `beam_condition` here is "BC1"/"BC2"/"BC3", and that vocabulary i
 this mock's invention. The office emits an accelerating-voltage label derived
 from the pickle's `meas_condition vac` ("500V"/"800V"), which is also what the
 real MDC keys are built from ("500V_HR_0Deg" — see
-docs/datatables/hardware_mdc_setting.txt). The field is a free string in
+docs/datatables/hitachi/hardware_mdc_setting.txt). The field is a free string in
 contracts.py and `cellLabel()` just concatenates it with the axis, so both
 render; but home teaches a vocabulary the office does not use, and the prose in
 `utils/tttmCells.ts` is written around the mock's. Renaming these to voltages

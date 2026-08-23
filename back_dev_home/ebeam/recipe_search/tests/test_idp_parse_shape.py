@@ -13,7 +13,7 @@ position, which would map silently wrong), and an unrecognisable one raises a
 `LookupError` that describes what actually arrived. Both matter more than they
 look: every failure here happens where nobody can attach a debugger.
 
-Columns are transcribed from `docs/datatables/recipe_idp.txt`, matching
+Columns are transcribed from `docs/datatables/hitachi/recipe_idp.txt`, matching
 `test_idp_mapping.py` — see that file's header for why they are not derived
 from `contracts.py`.
 """

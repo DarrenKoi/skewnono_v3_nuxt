@@ -63,7 +63,7 @@ RecipeIdentity + mother_para_16 / 13 / 9 / 5
 ```
 
 계약: `ParameterRow` 에 `mother: bool` 추가. 원천은
-`idp_image_info.Mother_Para` (`docs/datatables/recipe_idp.txt:182`,
+`idp_image_info.Mother_Para` (`docs/datatables/hitachi/recipe_idp.txt:182`,
 office 확인 2026-07-28) — parameter 1개당 bool 입니다.
 
 ### rng 순서 보존 (필수)
@@ -108,8 +108,8 @@ scopeRecipesToBucket(recipeParams, bucketKeys, motherOnly)
 프론트: `utils/ruleEngine.ts`, `utils/lotHealth.ts`, `utils/deviceProfile.ts`,
 `pages/ebeam/cd-sem/device-statistics/comparison.vue`
 
-문서: `CONTEXT.md`, `docs/datatables/planstep_r3.txt`,
-`docs/datatables/recipe_params.txt`, `docs/datatables/recipe_idp.txt`,
+문서: `CONTEXT.md`, `docs/datatables/hitachi/planstep_r3.txt`,
+`docs/datatables/hitachi/recipe_params.txt`, `docs/datatables/hitachi/recipe_idp.txt`,
 `back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md`
 
 ## 테스트

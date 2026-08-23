@@ -185,6 +185,6 @@ figure 제공 (Phase 1 구현 완료 2026-08-19, Phase 2 는 설계만)
 
 관련 문서
 - back_dev_home/chat/MIGRATION.md — office 전환 순서, selector, 상한값
-- docs/datatables/skewnono_chat_logging.txt — 대화 turn 기록 인덱스(별개)
+- docs/datatables/hitachi/skewnono_chat_logging.txt — 대화 turn 기록 인덱스(별개)
 - docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md — 검색 방식,
   모델 호출 위치(C1/C2), `element_type` 축 분리 권고의 설계 확정 문서

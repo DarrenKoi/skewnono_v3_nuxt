@@ -34,7 +34,7 @@
 | `back_dev_home/chat/tests/test_runtime.py` | runtime 홈 테스트 | tool 노출 테스트 추가 |
 | `back_dev_home/chat/tests/test_knowledge_office_template.py` | **신규** — 템플릿 계약 절반의 홈 커버리지 | 생성 |
 | `back_dev_home/chat/tests/test_knowledge_office.py` | 사무실 copy 대상 fake-client 테스트 | 리랭크 반영해 갱신 |
-| `docs/datatables/chat_rag_contract.txt` | 인덱스 스키마의 진실 원천 | 갱신 |
+| `docs/datatables/hitachi/chat_rag_contract.txt` | 인덱스 스키마의 진실 원천 | 갱신 |
 | `back_dev_home/chat/MIGRATION.md` | 전환 가이드 | 갱신 |
 | `back_dev_home/chat/knowledge/providers/mock.py` | 홈 mock | docstring 갱신 |
 
@@ -691,7 +691,7 @@ test_knowledge_office.py는 gitignored office 모듈을 importorskip 하므로
 ### Task 4: 문서 정정
 
 **Files:**
-- Modify: `docs/datatables/chat_rag_contract.txt`
+- Modify: `docs/datatables/hitachi/chat_rag_contract.txt`
 - Modify: `back_dev_home/chat/MIGRATION.md`
 - Modify: `back_dev_home/chat/knowledge/providers/mock.py` (모듈 docstring만)
 
@@ -741,7 +741,7 @@ Expected: PASS
 - [ ] **Step 5: 커밋한다**
 
 ```bash
-git add docs/datatables/chat_rag_contract.txt back_dev_home/chat/MIGRATION.md back_dev_home/chat/knowledge/providers/mock.py
+git add docs/datatables/hitachi/chat_rag_contract.txt back_dev_home/chat/MIGRATION.md back_dev_home/chat/knowledge/providers/mock.py
 git commit -m "docs(chat): record the confirmed RAG retrieval stack
 
 BGE-M3 dense + Nori BM25 2-leg hybrid, bge-reranker-v2-m3, 그리고 모델을

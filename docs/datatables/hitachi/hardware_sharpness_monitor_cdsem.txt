@@ -78,7 +78,7 @@ ip 는 keyword 로 **명시** 매핑되어 있으므로 .keyword 접미사를 �
 
   이 index 에는 eqp_id 가 아예 없습니다. Hardware 화면은 eqp_id 로 장비를 고르므로
   eqp_id -> eqp_ip -> ip 두 단계를 거칩니다. eqp_id/eqp_ip 짝은 sem_list 명부에서
-  옵니다(docs/datatables/sem_list.txt) — 장비 재고 화면, storage, lateral_recipe 가
+  옵니다(docs/datatables/hitachi/sem_list.txt) — 장비 재고 화면, storage, lateral_recipe 가
   쓰는 바로 그 소스입니다. eqp_id 를 파싱하거나 별도 표를 두어 IP 를 만들어내면 이
   화면이 재고 화면과 다른 답을 내놓고, 어느 쪽이 맞는지 판별할 방법이 없어집니다.
 

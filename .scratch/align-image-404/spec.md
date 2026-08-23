@@ -32,7 +32,7 @@
 
 `align_reference_images()` 는 `ALIGN_OPTICS` 를 그대로 돌려주어 응답이 언제나
 `IMAP0001.jpeg` + `IMAP0002.jpeg` 두 장이었습니다. 그러나 align point 가 1
-하나뿐인 recipe 가 존재합니다 — `docs/datatables/recipe_idp.txt` 의
+하나뿐인 recipe 가 존재합니다 — `docs/datatables/hitachi/recipe_idp.txt` 의
 "align point 는 보통 1 과 2 두 개이고, 1 하나만 있는 recipe 도 있습니다" 이며,
 같은 사실이 `rawfiles.align_optics` 의 docstring 에도 적혀 있습니다. 그런 recipe
 마다 `IMAP0002.jpeg` 는 확정적으로 404 입니다.

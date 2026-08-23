@@ -5,7 +5,7 @@ import type { MeasHistRow } from '~/composables/useMeasHistApi'
 
 // Whether the row has a usable msr key at all. '' is what the office
 // adapter's _text() emits when the document carries no msr field
-// (OFFICE-VERIFY 2026-08-19, docs/datatables/meas_hist.txt) -- everything
+// (OFFICE-VERIFY 2026-08-19, docs/datatables/hitachi/meas_hist.txt) -- everything
 // that treats msr as a v-for/dedup key must ask this first.
 //
 // This is ALSO the whole test for "can this row be opened in analysis", and

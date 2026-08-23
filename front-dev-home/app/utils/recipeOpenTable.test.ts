@@ -70,7 +70,7 @@ test('builds the agreed table-header counts', () => {
 
 test('gives content-identical rows distinct keys', () => {
   // The office table has no uniqueness rule on (Parameter, SEQ) — SEQ is an
-  // "image definition 순번" (docs/datatables/recipe_idp.txt), and a sparse row
+  // "image definition 순번" (docs/datatables/hitachi/recipe_idp.txt), and a sparse row
   // can leave both columns empty. Two rows that agree on every displayed column
   // must still key apart, or re-sorting orphans DOM rows instead of moving them.
   const duplicated = row({ Parameter: 'Para_5', SEQ: 4 })

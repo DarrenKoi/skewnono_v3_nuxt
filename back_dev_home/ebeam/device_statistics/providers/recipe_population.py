@@ -4,7 +4,7 @@
 ────────────────────────
 ``recipe_id`` 는 실물에서 **DB 를 가로지르는 조인 키**입니다 —
 sknn-planstep-r3 의 recipe_id 가 cdsem_idp_ver 의 full_name 과 같은 값이고
-(docs/datatables/idp_ver.txt L55), ebeam_tas_lot_hist 의 recipe_id 도 "다른 DB 의
+(docs/datatables/hitachi/idp_ver.txt L55), ebeam_tas_lot_hist 의 recipe_id 도 "다른 DB 의
 full_name 과 동일 체계"입니다 (ebeam_tas_lot_hist.txt L34). 우리가 가공 접미사를
 덧붙이지 않습니다 — 단, 실물 recipe **이름 자체**는 "_S"/"SE"(Sample) 외에
 "_WCDU"/"_FCDU"/"_FULL"(CDU·full-map job, user-confirmed 2026-08-04)로 끝날 수
@@ -23,7 +23,7 @@ recipe 를 판정 범위에서 뺍니다 (lotHealth.isJudgeExempt).
 실물에서 버킷은 **한 모집단 위의 겹치는 필터**입니다 — 한 스텝이 여러 버킷에 동시에
 들어갑니다 (office_example.py ``_bucket_members``).
 
-주차별 변화 모델 (docs/datatables/device_statistics_weekly_trend.txt)
+주차별 변화 모델 (docs/datatables/hitachi/device_statistics_weekly_trend.txt)
 ────────────────────────────────────────────────────────────────────
 그 문서가 말하는 트렌드 화면의 질문은 하나입니다 — "이 device 의 **파라미터 규모가
 주 단위로 어떻게 변해 왔는가**". 원천(sknn-planstep-r3)은 현재 계획만 있는 index 라
@@ -40,7 +40,7 @@ recipe 를 판정 범위에서 뺍니다 (lotHealth.isJudgeExempt).
 덕분에 트렌드 차트가 실제로 방향을 갖고, 3주 전에 있던 recipe 가 이번 주에도 같은
 recipe_id 로 남아 있습니다.
 
-분류 규칙 (user-confirmed 2026-08-04, docs/datatables/planstep_r3.txt)
+분류 규칙 (user-confirmed 2026-08-04, docs/datatables/hitachi/planstep_r3.txt)
 ─────────────────────────────────────────────────────────────────────
   all            모든 Step
   only_normal    skip 되지 않은(skip_yn != "Y") Step 중 스텝명 끝이 **순수한 CD**
@@ -63,7 +63,7 @@ mother_normal 은 스텝을 더 좁히는 것이 아니라 **한 단계 아래(�
 갈라지면 집에서 만든 화면이 사무실에서 다르게 나오므로, tests 가 같은 예시 표로
 양쪽을 함께 검증합니다.
 
-mother 파라미터 (docs/datatables/recipe_idp.txt L182, office 확인 2026-07-28)
+mother 파라미터 (docs/datatables/hitachi/recipe_idp.txt L182, office 확인 2026-07-28)
 ─────────────────────────────────────────────────────────────────────────────
 ``Mother_Para`` 는 **파라미터 1개당 bool** 입니다 — True 면 그 파라미터가 mother
 이고, son 들은 mother 와 같은 image 에서 자기 cd_value 를 얻습니다. 측정
@@ -77,7 +77,7 @@ recipe 에 mother 가 있는가" 를 두 곳에서 따로 정하면 *para 합계
 health 는 그대로*인, 오류 없이 조용히 어긋나는 화면이 됩니다.
 
 사무실 출처는 ``cdsem_idp_ver`` 의 **``raw_data``** 입니다 — parameter 별 row 에
-``Mother_Para`` 가 실려 있습니다 (office 확인 2026-08-10, docs/datatables/
+``Mother_Para`` 가 실려 있습니다 (office 확인 2026-08-10, docs/datatables/hitachi/
 idp_ver.txt). 2026-08-04 까지 이 자리에는 "사무실 원천 미해결" 이라고 적혀
 있었는데, ``parameters`` 만 열어 보고 판단한 오진이었습니다.
 
@@ -261,7 +261,7 @@ _PAREN_CD_RATIO = 0.22     # "… CLN CD(E))"  -> 추가계측, 이제 어느 CD
 _CD_VARIANTS = ("CD(E)", "CD(F)", "CD(BENDING)")
 
 # recipe 이름의 두 조각. 실물 full_name 이 "class_name/recipe_name" 이고 "/" 앞이
-# class_name 입니다 (docs/datatables/recipe_name_list.txt L56, user-confirmed
+# class_name 입니다 (docs/datatables/hitachi/recipe_name_list.txt L56, user-confirmed
 # 2026-07-29). 어휘 자체는 지어낸 것이며 사무실의 실제 class 목록이 아닙니다
 # (OFFICE-VERIFY) — 형태만 실물을 따릅니다.
 #
@@ -329,7 +329,7 @@ _EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
 # :func:`_apply_shared_recipes` 가 같은 recipe 로 묶어 recipe 수를 스텝 수보다
 # 작게 만듭니다. office 의 sknn-planstep-r3 은 문서 1건이 recipe 가 아니라 plan
 # step 이고, 한 device 가 2000건을 넘습니다 (office 확인 2026-08-10 — RJ1B 가
-# 어댑터 상한을 쳤습니다; docs/datatables/planstep_r3.txt). 차이는 skip 되는 스텝과
+# 어댑터 상한을 쳤습니다; docs/datatables/hitachi/planstep_r3.txt). 차이는 skip 되는 스텝과
 # 같은 recipe 를 여러 스텝에서 재사용하는 몫입니다. 재사용은 이제 재현하지만 **스텝
 # 수는 여전히 실물의 1/10** 이므로, 스텝 규모에 좌우되는 것(어댑터의 조회 상한,
 # payload 크기)은 집에서 관찰되지 않습니다.
@@ -496,7 +496,7 @@ def _recipe_name(rng: random.Random, lot_cd: str, idx: int) -> str:
     """실물 형태의 recipe_id — ``class_name/recipe_name`` + 이름의 일부인 접미사.
 
     실물 recipe_id 는 idp registry 의 ``full_name`` 이고 "/" 앞이 class_name 인
-    슬래시 형태입니다 (docs/datatables/recipe_name_list.txt L56, user-confirmed
+    슬래시 형태입니다 (docs/datatables/hitachi/recipe_name_list.txt L56, user-confirmed
     2026-07-29). recipe_search mock 도 같은 shape 를 씁니다.
 
     **class 를 idx 가 아니라 digest 로 고르는 것이 이 함수의 요점**입니다.

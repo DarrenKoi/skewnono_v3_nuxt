@@ -28,8 +28,8 @@
 | --- | --- | --- |
 | `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` | The whole change: helpers, both strategies, the retry loop | 1–5 |
 | `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py` | New. Home-runnable gate for every new pure function and the retry loop | 1–5 |
-| `docs/datatables/recipe_name_list.txt` | Schema of record for the Redis recipe hashes | 6 |
-| `docs/datatables/recipe_idp.txt` | Schema of record for the IDP source chain | 6 |
+| `docs/datatables/hitachi/recipe_name_list.txt` | Schema of record for the Redis recipe hashes | 6 |
+| `docs/datatables/hitachi/recipe_idp.txt` | Schema of record for the IDP source chain | 6 |
 | `back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py` | Docstring only — what the mock stands in for | 6 |
 | `back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md` | Office adapter status and error table | 6 |
 
@@ -202,7 +202,7 @@ def _class_name(recipe_id: str) -> str:
     """'ADI/ADI_CD_BIAS_001' -> 'ADI'. The FTP tree's class directory.
 
     ``full_name = f"{class_name}/{recipe_name}"``
-    (docs/datatables/meas_hist.txt), so on the Redis path the class is the
+    (docs/datatables/hitachi/meas_hist.txt), so on the Redis path the class is the
     prefix of the key just looked up — neither registry hash carries it
     separately, and meas_hist is not queried to get it.
 
@@ -1078,8 +1078,8 @@ code change makes false.
 
 **Files:**
 
-- Modify: `docs/datatables/recipe_name_list.txt`
-- Modify: `docs/datatables/recipe_idp.txt`
+- Modify: `docs/datatables/hitachi/recipe_name_list.txt`
+- Modify: `docs/datatables/hitachi/recipe_idp.txt`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py` (docstring only)
 - Modify: `back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md`
 - Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` (module docstring only)
@@ -1133,7 +1133,7 @@ open is mock-backed, with:
 recipe 자세히 보기 / 비교
 
 자세히 보기(recipe open)는 위 registry 2개로 .idp 경로를 조립해 장비 FTP 에서
-파일을 받아 파싱합니다(docs/datatables/recipe_idp.txt). 비교(compare)는 아직
+파일을 받아 파싱합니다(docs/datatables/hitachi/recipe_idp.txt). 비교(compare)는 아직
 mock 을 그대로 re-export 하고 있습니다 — 열람에서 파생되는 관계를 유지하기
 위해 재구현하지 않았습니다.
 ```
@@ -1330,8 +1330,8 @@ contradicts.
 Corrects two passages the wiring makes false: recipe_idp.txt said recipe open
 needs no sem_list join (true only on the meas_hist fallback now), and mock.py
 still claimed recipe open runs off the mock at the office (wired 2026-07-27).
-" -- docs/datatables/recipe_name_list.txt \
-     docs/datatables/recipe_idp.txt \
+" -- docs/datatables/hitachi/recipe_name_list.txt \
+     docs/datatables/hitachi/recipe_idp.txt \
      back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py \
      back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md \
      back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py

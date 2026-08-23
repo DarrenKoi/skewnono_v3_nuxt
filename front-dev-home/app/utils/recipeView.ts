@@ -174,7 +174,7 @@ export const recipeDetailRoute = (
  *
  * `recipe_search` knows a recipe by ONE name and it is the class-qualified one:
  * its catalog rows carry `recipe_name = "ADI/ADI_CD_BIAS_001"`, which is
- * character-for-character meas_hist's `full_name` (docs/datatables/meas_hist.txt).
+ * character-for-character meas_hist's `full_name` (docs/datatables/hitachi/meas_hist.txt).
  * That is why `RecipeSearchRow` has no separate `full_name` field — there is
  * nothing there to separate.
  *

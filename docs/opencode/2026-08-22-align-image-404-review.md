@@ -8,7 +8,7 @@ escalation surface 에 해당하여 `heavy` (glm-5.3, variant high) 로 두 축�
 - Standards 기준 문서: `CLAUDE.md`, `DESIGN.md`,
   `docs/back-end/provider-selection.md`,
   `back_dev_home/ebeam/recipe_search/MIGRATION.md`,
-  `docs/datatables/recipe_idp.txt`
+  `docs/datatables/hitachi/recipe_idp.txt`
 - Spec: `.scratch/align-image-404/spec.md`
 
 ## Standards (exit 0) — 모델 원문
@@ -16,7 +16,7 @@ escalation surface 에 해당하여 `heavy` (glm-5.3, variant high) 로 두 축�
 > Now let me read the documented standards files.
 > ## Review: 8a5d7fcf (align images discovered from folder listing)
 >
-> **Positives first:** the mock/office formula-drift smell is *avoided* — both providers route through one `rawfiles.align_reference_images(listing)`; the fabricated 1-in-4 OM-only ratio is marked `OFFICE-VERIFY`; `docs/datatables/recipe_idp.txt` and `mock.py` changed together; no vendor path, no inline hex, `usePersistedState` untouched.
+> **Positives first:** the mock/office formula-drift smell is *avoided* — both providers route through one `rawfiles.align_reference_images(listing)`; the fabricated 1-in-4 OM-only ratio is marked `OFFICE-VERIFY`; `docs/datatables/hitachi/recipe_idp.txt` and `mock.py` changed together; no vendor path, no inline hex, `usePersistedState` untouched.
 >
 > ### HARD
 >

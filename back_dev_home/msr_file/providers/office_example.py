@@ -2,7 +2,7 @@
 # office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Phase 2/3 MSR-file adapter: meas_hist doc -> ``minio_pkl`` pickle -> contract.
 
-Data path (docs/datatables/meas_hist.txt + msr_file_pickle.txt):
+Data path (docs/datatables/hitachi/meas_hist.txt + msr_file_pickle.txt):
 
 * The meas_hist_{cdsem,hvsem} document for this MSR (matched by
   ``_office_meas_hist.msr_clause`` — field or ``_id``) carries two
@@ -185,7 +185,7 @@ def _records(df_result_data: Any) -> list[dict[str, Any]]:
     """df_result_data rows as dicts with NORMALIZED keys.
 
     The pickle's DataFrame columns use spaces ("mp_image_name 01",
-    "meas_condition mag") — docs/datatables/msr_file_pickle.txt. Keys are
+    "meas_condition mag") — docs/datatables/hitachi/msr_file_pickle.txt. Keys are
     lowercased and space->underscore so the row builder reads one spelling.
     Accepts a DataFrame or an already-listified payload.
     """
@@ -470,7 +470,7 @@ def build_response(
     # One row is one measurement and dynamic_fdc holds that measurement's tool
     # state keyed by that row's sequence, so the two must agree on IDENTITY,
     # not just count. Office-confirmed 2026-07-27
-    # (docs/datatables/msr_file_pickle.txt). This has to be a SET comparison,
+    # (docs/datatables/hitachi/msr_file_pickle.txt). This has to be a SET comparison,
     # not len(rows) != len(dynamic_fdc): the frontend's scoped FDC axis
     # (utils/skewvoirAnalysis/sequence.ts) builds fdcBySeq — and derives
     # fdcKeys, which gates whether any FDC pane renders at all — from entries
@@ -510,7 +510,7 @@ def build_response(
     return MsrFileResponse(
         msr=msr,
         class_name=resolved_class,
-        # The meas_hist _source carries eqp_ip (docs/datatables/meas_hist.txt),
+        # The meas_hist _source carries eqp_ip (docs/datatables/hitachi/meas_hist.txt),
         # and _find_parent returns the whole _source — so the tool address the
         # msr_image FTP session needs rides along at no extra query.
         eqp_ip=_text(parent.get("eqp_ip")),

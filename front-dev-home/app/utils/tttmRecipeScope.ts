@@ -40,6 +40,6 @@ export const recipeStillStands = (
   if (measuredRecipeIds === null) return true
   // Exact match: recipe_id is the class/recipe full_name, and the bare recipe
   // half is a different identity the office refuses — see the tttm/recipes
-  // commit and docs/datatables/meas_hist.txt.
+  // commit and docs/datatables/hitachi/meas_hist.txt.
   return measuredRecipeIds.includes(recipeId)
 }

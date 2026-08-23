@@ -1,6 +1,6 @@
 """Phase 1 BM/PM mock generator.
 
-Office counterpart — schema of record: `docs/datatables/hardware_bm_pm.txt`.
+Office counterpart — schema of record: `docs/datatables/hitachi/hardware_bm_pm.txt`.
 The two sides are TWO OPENSEARCH INDICES, queried once each per tool (an earlier
 version of this docstring called them "two pandas DataFrames", which described
 the shape after loading, not the source):

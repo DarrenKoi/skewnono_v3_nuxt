@@ -99,7 +99,7 @@ export const isExemptJob = (recipeId: string): boolean =>
  * 1. recipe 축: `bucketKeys` 에 있는 recipe 만. 요약 행은 버킷 단위인데
  *    recipe-params 에는 버킷 축이 없으므로, 좁히지 않으면 버킷을 바꿔도 health
  *    만 그대로인 모순이 생깁니다. recipe_id 로 좁힐 수 있는 것은 그것이 표면을
- *    가로지르는 조인 키이기 때문입니다 (docs/datatables/idp_ver.txt L55).
+ *    가로지르는 조인 키이기 때문입니다 (docs/datatables/hitachi/idp_ver.txt L55).
  * 2. 파라미터 축: `motherOnly` 면 mother 파라만. mother_normal 은 스텝을 더
  *    좁히는 버킷이 아니라 **한 단계 아래로 들어가는** 버킷이기 때문입니다.
  *
@@ -149,7 +149,7 @@ const emptyVerdict = (): LotVerdict => ({
  * 바꿔도 health 만 그대로인 모순이 생깁니다. `null` 이면 좁히지 않습니다.
  *
  * recipe_id 로 좁힐 수 있는 것은 그것이 표면을 가로지르는 조인 키이기 때문입니다
- * (docs/datatables/idp_ver.txt L55).
+ * (docs/datatables/hitachi/idp_ver.txt L55).
  */
 export const buildLotVerdicts = (
   recipeParams: RecipeInput[],

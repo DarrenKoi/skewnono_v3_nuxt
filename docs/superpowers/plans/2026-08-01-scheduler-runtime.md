@@ -1118,7 +1118,7 @@ def test_payload_has_the_documented_shape():
 
 def test_payload_carries_summaries_but_not_recipe_info():
     # Snapshots are summary-only by design: device x bucket x recipe would be
-    # GB-scale weekly, and no screen reads it (docs/datatables/
+    # GB-scale weekly, and no screen reads it (docs/datatables/hitachi/
     # device_statistics_weekly_trend.txt).
     payload = build_weekly_snapshot()
     assert payload["summaries"]["all"], "expected at least one summary row"
@@ -1279,7 +1279,7 @@ def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
 
     ``*_rcp_info`` 는 일부러 담지 않습니다. recipe 단위 상세는 device 4000개 ×
     버킷 4개 × recipe 100~200개가 되어 매주 GB 급이 되는데, 그것을 읽는 화면이
-    없습니다(docs/datatables/device_statistics_weekly_trend.txt).
+    없습니다(docs/datatables/hitachi/device_statistics_weekly_trend.txt).
     """
     anchor = date_key or _current_week()
     # points=1, not 8. A snapshot is ONE week, and the mock costs ~4.6s per
@@ -1498,7 +1498,7 @@ def sweep_weekly_snapshots(keep_weeks: int = 12) -> int:
     정상적인 최근 것을 지웁니다.
 
     MinIO 자격증명이 prefix 로 제한되어 native lifecycle 을 걸 수 없기 때문에
-    애플리케이션 쪽에서 지웁니다(docs/datatables/device_statistics_weekly_trend.txt
+    애플리케이션 쪽에서 지웁니다(docs/datatables/hitachi/device_statistics_weekly_trend.txt
     의 OFFICE-VERIFY 항목).
 
     **``AccessDenied`` 를 "지울 것 없음"으로 삼키지 않습니다.** 사무실 자격증명은
@@ -1674,7 +1674,7 @@ Why the snapshot exists at all: the process-step source is a CURRENT-STATE
 index, so "how many steps did this device have three weeks ago" cannot be
 recovered by query. Filtering on chg_tm is not equivalent either -- any step
 changed since the cutoff drops out entirely, so the further back you go the
-more it under-counts. See docs/datatables/device_statistics_weekly_trend.txt.
+more it under-counts. See docs/datatables/hitachi/device_statistics_weekly_trend.txt.
 """
 
 import logging
@@ -2278,7 +2278,7 @@ git commit -m "feat(health): add GET /api/health/jobs for scheduler run records"
 
 **Files:**
 - Modify: `docs/deployment.md`
-- Modify: `docs/datatables/device_statistics_weekly_trend.txt`
+- Modify: `docs/datatables/hitachi/device_statistics_weekly_trend.txt`
 - Modify: `back_dev_home/.env.example`
 - Modify: `CLAUDE.md`
 
@@ -2307,7 +2307,7 @@ A comment in the local `wsgi.ini` never reaches the cloud host's permanent copy,
 
 - [ ] **Step 2: Mark the retention item as implemented**
 
-In `docs/datatables/device_statistics_weekly_trend.txt`, replace the "적재 (스케줄러)" section's closing line `스케줄러 자체는 아직 없습니다 — 사무실에서 붙일 작업입니다.` with:
+In `docs/datatables/hitachi/device_statistics_weekly_trend.txt`, replace the "적재 (스케줄러)" section's closing line `스케줄러 자체는 아직 없습니다 — 사무실에서 붙일 작업입니다.` with:
 
 ```text
 스케줄러는 2026-08-01 에 붙었습니다 — back_dev_home/_scheduler/ 의
@@ -2379,7 +2379,7 @@ Expected: PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add docs/deployment.md docs/datatables/device_statistics_weekly_trend.txt \
+git add docs/deployment.md docs/datatables/hitachi/device_statistics_weekly_trend.txt \
         back_dev_home/.env.example CLAUDE.md
 git commit -m "docs(scheduler): record the load-bearing uWSGI flags and new env vars
 

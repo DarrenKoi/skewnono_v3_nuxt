@@ -331,7 +331,7 @@ def stage_msr_sample(tool_type: str, days: int, sample: int) -> None:
     if blank_first or count_mismatch:
         print(
             "    -> 관측됐습니다. OFFICE-VERIFY 를 office 확인 으로 승격하고\n"
-            "       docs/datatables/msr_file_pickle.txt 를 갱신하십시오."
+            "       docs/datatables/hitachi/msr_file_pickle.txt 를 갱신하십시오."
         )
     else:
         print("    -> 이 표본에는 없습니다. OFFICE-VERIFY 로 남깁니다.")

@@ -143,7 +143,7 @@ types:
       items: MsrParamSummary
     fdc_params:
       type: array
-      description: Per-FDC-param drift summary (see docs/datatables/hardware.txt).
+      description: Per-FDC-param drift summary (see docs/datatables/hitachi/hardware.txt).
     fixed_fdc:
       type: object
       description: Per-MSR scalar FDC — one value per measurement.

@@ -18,7 +18,7 @@ cascade (FAB → 카테고리 → 장비 모델 → EQ) is frontend-only via sem
 facets stay a single un-cascaded aggregation per scope.
 
 Contract-gap derivations — the office documents lack four MeasHistRow fields
-(docs/datatables/meas_hist.txt office section):
+(docs/datatables/hitachi/meas_hist.txt office section):
 
 * ``id``        — the datatable pins ``id = msr``; reuse the msr value.
 * ``tool_type`` — from the alias searched; when searching both (tool_type

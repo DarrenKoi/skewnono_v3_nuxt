@@ -5,7 +5,7 @@
 RECONSTRUCTED FROM THE SCHEMA DOC, NOT COPIED FROM THE OFFICE. A working
 ``office.py`` has existed at the office since 2026-07-27, but it is gitignored
 and never reached this repo, so this body was written from
-``docs/datatables/hardware_mdc_setting.txt`` plus the sibling ``sce`` adapter,
+``docs/datatables/hitachi/hardware_mdc_setting.txt`` plus the sibling ``sce`` adapter,
 which has the identical two-tier shape. **Diff it against the office copy before
 overwriting that copy** — `cp`-ing this file over a working ``office.py`` would
 replace verified code with a reconstruction.

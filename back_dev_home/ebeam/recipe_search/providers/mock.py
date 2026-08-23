@@ -1,6 +1,6 @@
 """Recipe Search mock catalog and recipe-open payloads.
 
-Office counterpart — schema of record: `docs/datatables/recipe_name_list.txt`.
+Office counterpart — schema of record: `docs/datatables/hitachi/recipe_name_list.txt`.
 Only the recipe NAME LIST is wired office-side, as one Redis hash per family:
 
     v3_cdsem_unique_rcp_list / v3_hvsem_unique_rcp_list
@@ -39,7 +39,7 @@ DISAGREE office-side until the batched fetch lands; see MIGRATION.md.
 
 The SOURCE is no longer unknown, though: the IDP file lives on the measuring
 tool's FTP server and a 사내 parser turns it into exactly the three tables
-below (`docs/datatables/recipe_idp.txt`):
+below (`docs/datatables/hitachi/recipe_idp.txt`):
 
     v3_{cdsem,hvsem}_rcp_loc_{fab}       field full_name -> [idw_name, idp_name]
     v3_{cdsem,hvsem}_tools_in_rcp_{fab}  field full_name -> [eqp_id, ...]
@@ -59,7 +59,7 @@ filename.
 ★ The three-key mapping on the line above is 2026-07-27's confirmed shape, and
   on 2026-08-03 the CLOUD returned something else — an iterable of dicts, seen
   only through the `TypeError` it caused. Which shape the office parser
-  produces today is OFFICE-VERIFY (`docs/datatables/recipe_idp.txt` §파서 반환
+  produces today is OFFICE-VERIFY (`docs/datatables/hitachi/recipe_idp.txt` §파서 반환
   구조 carries the one-liner to settle it). Nothing here needs to change for
   it: this mock never calls the parser, and the home stand-in at the repo root
   still returns the documented mapping. It is noted so a home session reading
@@ -74,7 +74,7 @@ filename.
   coerces to `contracts.py` in `_records`, which is where that class of bug is
   caught. Do NOT teach this mock to emit strings to "cover" it: a mock that
   imitates a malformed office response teaches the frontend to expect one.
-  (`docs/datatables/recipe_idp.txt` §dtype 은 위 표를 믿으면 안 됩니다.)
+  (`docs/datatables/hitachi/recipe_idp.txt` §dtype 은 위 표를 믿으면 안 됩니다.)
 
 `align_images` and `amp_info` are NOT among the parser's keys. Their source is
 the RAW-RECIPE FOLDER beside the .idp (`data/{idw}/{idp}/`), read by a second
@@ -332,7 +332,7 @@ def generate_idp_image_info(
     """Generate dummy IDP image information.
 
     ★ The img_* slots belong to the ROW, not to the Parameter. A row is one image
-      definition (docs/datatables/recipe_idp.txt), so the slots here are built
+      definition (docs/datatables/hitachi/recipe_idp.txt), so the slots here are built
       from SEQ while `Parameter` is drawn at random and repeats — Para_13 at
       SEQ 4/6 names IMMP0004… and at SEQ 11/15 names IMMP0011….
 
@@ -342,7 +342,7 @@ def generate_idp_image_info(
       exactly that until 2026-07-30, and this mock is what exposed it.
 
     ★ What is NOT row-level: ``Region`` and ``dnumber_removed`` describe the
-      PARAMETER (docs/datatables/recipe_idp.txt), so the rows a parameter
+      PARAMETER (docs/datatables/hitachi/recipe_idp.txt), so the rows a parameter
       repeats across must agree on both. ``dnumber_removed`` used to be flipped
       per row, which let one parameter be suppressed and not suppressed at once
       — an ill-defined answer for anything grouping by parameter, and it makes
@@ -361,7 +361,7 @@ def generate_idp_image_info(
         parameter = f"Para_{p_no}"
         # SEVERAL parameters share one Region, because a Region IS one image
         # definition and the parameters measuring off that image are its group
-        # (user-confirmed 2026-08-18, docs/datatables/recipe_idp.txt ★★). Region
+        # (user-confirmed 2026-08-18, docs/datatables/hitachi/recipe_idp.txt ★★). Region
         # used to be `p_no`, i.e. one parameter per Region, which made every
         # group a singleton and quietly guaranteed that no son ever inherited a
         # mother's cap — the very relationship device-statistics reads this for.
@@ -384,7 +384,7 @@ def generate_idp_image_info(
             "Addressing": active_rng.choice([True, False]),
             # A mother is the parameter whose image its sons measure from, and
             # the grouping is by REGION, not by SEQ (user-confirmed 2026-08-18,
-            # docs/datatables/recipe_idp.txt ★★). Exactly one row per Region
+            # docs/datatables/hitachi/recipe_idp.txt ★★). Exactly one row per Region
             # carries it — the first one, since measurement order is SEQ order.
             # This said "usually the SEQ 1 row" and produced ONE mother for the
             # whole recipe, which the doc's own example (WAFER/CELL_SP/LWR all
@@ -998,7 +998,7 @@ def _fake_locator(recipe_id: str) -> IdpLocator:
 #
 # OFFICE-VERIFY: the RATIO is fabricated. The CASE is not — "align point 는
 # 보통 1 과 2 두 개이고, 1 하나만 있는 recipe 도 있습니다"
-# (docs/datatables/recipe_idp.txt). Home used to emit both for every recipe,
+# (docs/datatables/hitachi/recipe_idp.txt). Home used to emit both for every recipe,
 # which is precisely why the 404 this models was invisible until production.
 _OM_ONLY_ONE_IN = 4
 
@@ -1022,7 +1022,7 @@ def _mock_align_files(locator: IdpLocator) -> list[str]:
 
     Three shapes, because the screen has three: both optics, the OM alone, and
     an empty folder. The RATIOS are fabricated; that the first two occur is
-    not (`docs/datatables/recipe_idp.txt`).
+    not (`docs/datatables/hitachi/recipe_idp.txt`).
     """
     idp = str((locator or {}).get("idp", ""))
     seed = _seed_for_values("align-listing", idp)

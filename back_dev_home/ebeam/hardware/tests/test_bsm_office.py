@@ -28,7 +28,7 @@ def _arr16(base: float) -> list[float]:
     return [round(base + i * 0.01, 5) for i in range(16)]
 
 
-# A raw `_source` doc mirroring docs/datatables/hardware_beam_shape.txt: Reso EB Focus is
+# A raw `_source` doc mirroring docs/datatables/hitachi/hardware_beam_shape.txt: Reso EB Focus is
 # doubly-nested and string-valued, Range is a one-element list, Noise mixes a
 # float and a numeric string.
 RAW_HIT = {

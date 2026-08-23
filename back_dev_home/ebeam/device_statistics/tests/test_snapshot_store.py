@@ -19,7 +19,7 @@ def test_payload_has_the_documented_shape():
 
 def test_payload_carries_summaries_but_not_recipe_info():
     # Snapshots are summary-only by design: device x bucket x recipe would be
-    # GB-scale weekly, and no screen reads it (docs/datatables/
+    # GB-scale weekly, and no screen reads it (docs/datatables/hitachi/
     # device_statistics_weekly_trend.txt).
     payload = build_weekly_snapshot()
     assert payload["summaries"]["all"], "expected at least one summary row"

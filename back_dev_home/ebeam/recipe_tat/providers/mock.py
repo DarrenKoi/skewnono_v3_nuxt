@@ -1,6 +1,6 @@
 """SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
 
-원본 테이블:  docs/datatables/meas_hist.txt
+원본 테이블:  docs/datatables/hitachi/meas_hist.txt
 계약:        docs/api-contracts/recipe-tat.yaml
 픽스처:      back_dev_home/ebeam/recipe_tat/__fixtures__/
 
@@ -11,7 +11,7 @@ on one lot, by one tool, of one recipe. The TAT dashboard groups these rows
 by (tool_type, recipe_name, class_name) over a date range to surface which
 recipes consume the most measurement time.
 
-Schema follows `docs/datatables/meas_hist.txt`. We intentionally drop the
+Schema follows `docs/datatables/hitachi/meas_hist.txt`. We intentionally drop the
 wider columns (msr / align / image counts / idp paths) — TAT only needs
 timing, so adding them would bloat payloads without changing the dashboard.
 
@@ -64,7 +64,7 @@ no fab filter at all.
 이 모듈은 자체 행 생성기를 쓰고 msr_check 열을 의도적으로 갖지 않으므로,
 "meastime 이 없는 실행" 이라는 상태를 만들어 내지 못합니다. 사무실 인덱스는
 msr_check == "Yes" 인 문서에만 meastime 을 갖고(user-confirmed 2026-08-10,
-docs/datatables/meas_hist.txt), 그런 문서는 sum(meastime) 과
+docs/datatables/hitachi/meas_hist.txt), 그런 문서는 sum(meastime) 과
 value_count(meastime) 양쪽에서 빠집니다. 따라서 집에서는 아래 get_summary 의
 두 분모(전체 실행 수 vs meastime 있는 수)가 항상 같은 값이고, 둘을 뒤바꿔
 써도 드러나지 않습니다 — 그 구분은 테스트가 행을 직접 지어 넣어 지킵니다.

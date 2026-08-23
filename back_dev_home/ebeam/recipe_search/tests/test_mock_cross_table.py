@@ -1,6 +1,6 @@
 """The two cross-table invariants the office confirmed on 2026-07-28.
 
-``docs/datatables/recipe_idp.txt`` and ``MIGRATION.md`` both record them:
+``docs/datatables/hitachi/recipe_idp.txt`` and ``MIGRATION.md`` both record them:
 
     Region == wafer_mp_info.P_No
     D_No == -1  ⟺  dnumber_removed == True
@@ -97,7 +97,7 @@ def test_img_meas2_still_copies_p_no():
 
 
 def test_slots_stay_row_level_so_a_repeated_parameter_names_different_files():
-    """The deliberate trap from docs/datatables/recipe_idp.txt must survive.
+    """The deliberate trap from docs/datatables/hitachi/recipe_idp.txt must survive.
 
     Making Region and dnumber_removed parameter-level must NOT drag the img_*
     slots along: those belong to the row, and the param-detail cache bug of

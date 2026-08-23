@@ -1,6 +1,6 @@
 """Deterministic Phase 1 adapter for storage-page information.
 
-Office counterpart — schema of record: `docs/datatables/storage_ppid.txt`.
+Office counterpart — schema of record: `docs/datatables/hitachi/storage_ppid.txt`.
 Two Redis sources, refreshed by a 04:30 daily collector:
 
     v3_df_ppid_storage_cdsem   parquet DataFrame, one row per CD-SEM tool

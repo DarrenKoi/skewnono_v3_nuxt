@@ -2,7 +2,7 @@
 
 이 파일이 지키는 핵심 불변식은 하나입니다 — **recipe_id 는 표면을 가로지르는
 조인 키다.** 실물에서 planstep_r3 의 recipe_id 가 cdsem_idp_ver 의 full_name 과
-같은 값이기 때문입니다 (docs/datatables/idp_ver.txt L55). 예전 mock 은 버킷 이름을
+같은 값이기 때문입니다 (docs/datatables/hitachi/idp_ver.txt L55). 예전 mock 은 버킷 이름을
 id 에 박아(``RCP-R000-ALL-000``) 이 불변식을 깼고, recipe-statistics 와
 recipe-params 의 교집합이 0건이었습니다.
 """
@@ -87,7 +87,7 @@ def test_recipe_id_carries_no_bucket_suffix(trend):
 def test_recipe_id_has_the_office_slash_shape(lot_cd):
     """실물 full_name 은 "class_name/recipe_name" 입니다.
 
-    docs/datatables/recipe_name_list.txt L56 (user-confirmed 2026-07-29).
+    docs/datatables/hitachi/recipe_name_list.txt L56 (user-confirmed 2026-07-29).
     """
     population = build_population(lot_cd, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
     assert population
@@ -467,7 +467,7 @@ def test_recipe_ids_persist_across_weeks(trend):
     """3주 전에 있던 recipe 가 이번 주에도 같은 id 로 남아야 합니다.
 
     주차마다 새로 뽑으면 "트렌드" 가 아니라 매주 다른 표본입니다. 이 안정성이
-    docs/datatables/device_statistics_weekly_trend.txt 가 말하는 "같은 계획이
+    docs/datatables/hitachi/device_statistics_weekly_trend.txt 가 말하는 "같은 계획이
     자라거나 줄어든 모습" 입니다.
     """
     dates = list(trend)

@@ -291,7 +291,7 @@ const text = {
   csvDownload: 'CSV 다운로드',
   copyHint: '파라미터 표를 클립보드에 복사 (엑셀에 붙여넣기)',
   // M 계열은 원천에 순서 field 가 없어 oper_seq/samp_seq 를 공정 접두사 순위로
-  // 합성합니다 — 화면 표기 의무 (docs/datatables/ebeam_tas_lot_hist.txt ★).
+  // 합성합니다 — 화면 표기 의무 (docs/datatables/hitachi/ebeam_tas_lot_hist.txt ★).
   seqCaveat: 'M 계열 fab 의 oper_seq · samp_seq 는 합성값으로, 실제 운영 공정 순서를 반영하지 않습니다.',
   outlierCount: '과다 측정',
   baseline: '중앙값 · 문턱',

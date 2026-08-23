@@ -95,7 +95,7 @@ def step_key(row: Mapping[str, Any]) -> tuple[int, int]:
     """``RecipeInfoRow`` 한 건의 정체성 — **한 lot 안에서** 유일합니다.
 
     실물 문서 1건이 (prod_id, oper_seq, samp_seq) 스텝이므로
-    (docs/datatables/planstep_r3.txt), lot 을 고정하면 (oper_seq, samp_seq) 가 곧
+    (docs/datatables/hitachi/planstep_r3.txt), lot 을 고정하면 (oper_seq, samp_seq) 가 곧
     행의 정체성입니다. lot 을 가로지르는 목록에서는 부르는 쪽이 lot_cd 를 앞에
     붙입니다 — lot 은 정체성의 일부가 아니라 그것을 담는 범위입니다.
 

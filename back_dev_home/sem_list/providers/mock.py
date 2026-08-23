@@ -1,6 +1,6 @@
 """Deterministic Phase 1 adapter for the SEM equipment list.
 
-Office counterpart — schema of record: `docs/datatables/sem_list.txt`.
+Office counterpart — schema of record: `docs/datatables/hitachi/sem_list.txt`.
 THREE Redis keys, each a pandas DataFrame serialized to parquet:
 
     v3_df_sem_list      the FULL company roster — every tool, all tool types

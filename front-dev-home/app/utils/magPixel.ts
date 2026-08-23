@@ -1,6 +1,6 @@
 // CD-SEM 배율 ↔ 픽셀 크기 유도.
 //
-// 원본: docs/datatables/cdsem_mag_pixel_table.txt
+// 원본: docs/datatables/hitachi/cdsem_mag_pixel_table.txt
 //   FOV_µm       = 135000 / Mag
 //   PixelSize_nm = FOV_µm × 1000 / N_pixels
 //

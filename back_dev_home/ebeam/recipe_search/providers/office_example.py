@@ -49,7 +49,7 @@ because there the measurement row already names the tool that ran the recipe,
 so the host it must be readable from is the host we just proved ran it.
 
 Column names and response types are the contract, not a convenience — see
-``docs/datatables/recipe_idp.txt``, which is the schema of record for all three
+``docs/datatables/hitachi/recipe_idp.txt``, which is the schema of record for all three
 tables and for this module's three known traps: ``wafer_align_info`` uses
 dot-columns (``Chip.X``, ``P.No``); ``img_meas2`` means different things in
 ``wafer_mp_info`` (P_No's integer) and ``idp_image_info`` (a filename); and
@@ -94,7 +94,7 @@ the office. They are gone as of 2026-07-29: their source turned out to be the
       ├── IMAP0001.jpeg / ENAP0001   per wafer-align P.No
       │
       └─►  office_utils.idp_amp_reader — FIVE readers, and which file goes to
-           which is the contract (docs/datatables/recipe_idp.txt):
+           which is the contract (docs/datatables/hitachi/recipe_idp.txt):
 
              read_meas_image_condition(src)     .IMMP/.I2MP/.IMMS cond.txt
              read_amp_info(src)                 PRMS…
@@ -120,7 +120,7 @@ code below rather than merely the documentation:
   already ``str()``s everything, which is why nothing here needed changing —
   but do not add code that assumes a reader handed back a string.
 
-Field NAMES are recorded in docs/datatables/recipe_idp.txt, not here, and they
+Field NAMES are recorded in docs/datatables/hitachi/recipe_idp.txt, not here, and they
 are expected to change as the office parser is refined. Nothing in this module
 keys off any of them: the contract is open key/value precisely so a renamed
 field shows up on screen instead of vanishing.
@@ -339,7 +339,7 @@ def get_recipe_catalog(
 
 # Same aliases _office_meas_hist.INDEX names. Declared locally rather than
 # imported so recipe_search does not take a dependency on recipe_tat's
-# contracts module for two string literals; docs/datatables/meas_hist.txt is
+# contracts module for two string literals; docs/datatables/hitachi/meas_hist.txt is
 # the shared record if they ever change.
 _MEAS_HIST_INDEX: dict[ToolType, str] = {
     "cd-sem": "meas_hist_cdsem",
@@ -347,7 +347,7 @@ _MEAS_HIST_INDEX: dict[ToolType, str] = {
 }
 
 # The catalog's recipe names are "class/recipe" strings, which is exactly
-# meas_hist's `full_name` (docs/datatables/meas_hist.txt) — so the id the
+# meas_hist's `full_name` (docs/datatables/hitachi/meas_hist.txt) — so the id the
 # frontend hands back from the search table is already the lookup key.
 _FULL_NAME_KW = "full_name.keyword"
 _FAB_NAME_KW = "fab_name.keyword"
@@ -407,7 +407,7 @@ def _class_name(recipe_id: str) -> str:
     """'ADI/ADI_CD_BIAS_001' -> 'ADI'. The FTP tree's class directory.
 
     ``full_name = f"{class_name}/{recipe_name}"``
-    (docs/datatables/meas_hist.txt), so on the Redis path the class is the
+    (docs/datatables/hitachi/meas_hist.txt), so on the Redis path the class is the
     prefix of the key just looked up — neither registry hash carries it
     separately, and meas_hist is not queried to get it.
 
@@ -654,7 +654,7 @@ def _locate_via_meas_hist(
 
     if complete:
         # meas_hist's grain is one document per measurement RUN — one tool
-        # running one recipe on one lot (docs/datatables/meas_hist.txt) — so
+        # running one recipe on one lot (docs/datatables/hitachi/meas_hist.txt) — so
         # the newest _LOCATE_CANDIDATES documents for a recipe are usually the
         # SAME tool measuring several different lots, which would otherwise
         # yield several identical _IdpLocation tuples. Without collapsing
@@ -968,7 +968,7 @@ def _parse_error(source: str, saw: Any, detail: str) -> LookupError:
     """The one shape of parse-failure message, so the variants cannot drift."""
     return LookupError(
         f"combined_idp_info({source}) returned {_describe(saw)} — {detail}. "
-        "docs/datatables/recipe_idp.txt is the schema of record."
+        "docs/datatables/hitachi/recipe_idp.txt is the schema of record."
     )
 
 
@@ -1002,7 +1002,7 @@ def _require_frame(value: Any, table: str, source: str) -> pd.DataFrame:
         )
     _LOG.warning(
         "recipe_search: combined_idp_info(%s) returned %s for %s rather than a "
-        "DataFrame; converted. docs/datatables/recipe_idp.txt says DataFrame.",
+        "DataFrame; converted. docs/datatables/hitachi/recipe_idp.txt says DataFrame.",
         source, type(value).__name__, table,
     )
     return frame
@@ -1104,7 +1104,7 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
         _LOG.warning(
             "recipe_search: combined_idp_info(%s) returned a %s wrapping the "
             "documented three-key mapping; unwrapped it after verifying each "
-            "table by its columns. docs/datatables/recipe_idp.txt now "
+            "table by its columns. docs/datatables/hitachi/recipe_idp.txt now "
             "disagrees with the parser — reconcile it. Saw: %s",
             source, container, _describe(candidates),
         )
@@ -1134,7 +1134,7 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
     _LOG.warning(
         "recipe_search: combined_idp_info(%s) returned a %s, not the documented "
         "three-key mapping. All three tables were recovered by their columns, "
-        "but docs/datatables/recipe_idp.txt now disagrees with the parser — "
+        "but docs/datatables/hitachi/recipe_idp.txt now disagrees with the parser — "
         "reconcile it. Saw: %s", source, container, _describe(candidates),
     )
     return {name: identified[name][0] for name in _PARSED_TABLES}
@@ -1174,14 +1174,14 @@ def _parse_idp(data: bytes, label: str) -> dict[str, pd.DataFrame]:
             "office_utils.read_idp_info is not importable — recipe open needs "
             "the 사내 IDP parser. It exists only on office machines; at home a "
             "gitignored stand-in at the repo root fills in "
-            "(docs/datatables/recipe_idp.txt §집에서의 대역)."
+            "(docs/datatables/hitachi/recipe_idp.txt §집에서의 대역)."
         ) from exc
 
     if os.getenv("SKEWNONO_RECIPE_IDP_VIA_TEMPFILE", "").strip() == "1":
         _LOG.warning(
             "recipe_search: SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 — parsing %s "
             "through a temp file. Report this: it means combined_idp_info "
-            "rejected bytes, contradicting docs/datatables/recipe_idp.txt.",
+            "rejected bytes, contradicting docs/datatables/hitachi/recipe_idp.txt.",
             label,
         )
         with tempfile.TemporaryDirectory(prefix="skewnono-idp-") as tmp_dir:
@@ -1277,7 +1277,7 @@ def _coerce_fail(table: str, column: str, value: Any, seen: set) -> None:
             "recipe_search: %s.%s from the IDP parser is not the type "
             "contracts.py declares and could not be converted (e.g. %r, a %s) "
             "— those cells are blank. Record the real type in "
-            "docs/datatables/recipe_idp.txt.",
+            "docs/datatables/hitachi/recipe_idp.txt.",
             table, column, value, type(value).__name__,
         )
     return None
@@ -1305,14 +1305,14 @@ def _records(
     if missing:
         _LOG.warning(
             "recipe_search: %s from the IDP parser is missing %s — those cells "
-            "will be blank. Check docs/datatables/recipe_idp.txt against the "
+            "will be blank. Check docs/datatables/hitachi/recipe_idp.txt against the "
             "parser's actual output.", table, missing,
         )
     extra = [column for column in frame.columns if column not in columns]
     if extra:
         _LOG.info(
             "recipe_search: %s from the IDP parser has undocumented columns %s "
-            "(dropped). Worth adding to docs/datatables/recipe_idp.txt.",
+            "(dropped). Worth adding to docs/datatables/hitachi/recipe_idp.txt.",
             table, extra,
         )
 
@@ -1413,7 +1413,7 @@ def _to_rows(obj: Any) -> list[SettingRow]:
 
     Their FIELD NAMES no longer are. All five readers were run against real
     files (office 확인 2026-07-30) and every key is written down in
-    docs/datatables/recipe_idp.txt. Only ONE of the five forced a change here —
+    docs/datatables/hitachi/recipe_idp.txt. Only ONE of the five forced a change here —
     ENMP's nested branch below — which is the open key/value contract paying for
     itself. The ambiguous 1x2 reading cannot reach any of them either way: the
     smallest real file carries three settings.
@@ -1447,7 +1447,7 @@ def _to_rows(obj: Any) -> list[SettingRow]:
         _LOG.warning(
             "recipe_search: reader returned a %dx%d frame, which has no "
             "key/value reading — using row 0 and dropping %d row(s). Record the "
-            "real shape in docs/datatables/recipe_idp.txt.",
+            "real shape in docs/datatables/hitachi/recipe_idp.txt.",
             len(obj), obj.shape[1], len(obj) - 1,
         )
         first = obj.iloc[0]
@@ -1483,7 +1483,7 @@ def _to_rows(obj: Any) -> list[SettingRow]:
         ]
     _LOG.warning(
         "recipe_search: unrecognised reader return type %s — rendered empty. "
-        "Add it to _to_rows and record it in docs/datatables/recipe_idp.txt.",
+        "Add it to _to_rows and record it in docs/datatables/hitachi/recipe_idp.txt.",
         type(obj).__name__,
     )
     return []
@@ -1795,7 +1795,7 @@ def _split_align_settings(
     _LOG.warning(
         "recipe_search: get_align_beam_pr_conditions returned %s for %d file(s) "
         "(%s) — could not be split per align point, so every point shows the "
-        "whole result. Record the real shape in docs/datatables/recipe_idp.txt.",
+        "whole result. Record the real shape in docs/datatables/hitachi/recipe_idp.txt.",
         type(parsed).__name__, len(names), ", ".join(names),
     )
     shared: SettingBlock = {"source": ", ".join(names), "rows": _to_rows(parsed)}
@@ -1955,7 +1955,7 @@ def get_align_detail(
             _LOG.warning(
                 "recipe_search: align point P.No=%s is neither 1 (OM) nor 2 (SEM); "
                 "%s downloaded but not parsed, since the optic it was taken with "
-                "is unknown. Record P.No=%s in docs/datatables/recipe_idp.txt.",
+                "is unknown. Record P.No=%s in docs/datatables/hitachi/recipe_idp.txt.",
                 p_no, cond, p_no,
             )
         points.append({

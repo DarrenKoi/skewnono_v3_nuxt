@@ -22,7 +22,7 @@ storage mt는 storage 정보 적재 timestamp
   fab 의 스토리지 table 이 빈 화면이었습니다.
   어댑터는 각 row 를 eqp_ip 기준으로 sem_list(장비 명부, 단일 진실 원천)에 다시
   대조해서 fab_name / fac_id / eqp_model_cd 를 채우고, 명부에 없는 IP 일 때만 DF 의
-  값으로 fallback 합니다. docs/datatables/sem_list.txt 참고.
+  값으로 fallback 합니다. docs/datatables/hitachi/sem_list.txt 참고.
 
 
 ppid는 recipe_id와 동의어. 

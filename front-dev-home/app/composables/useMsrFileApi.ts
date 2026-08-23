@@ -94,7 +94,7 @@ export interface MsrParamSummary {
 
 export type FdcStatus = 'ok' | 'warning' | 'bad'
 
-// FDC param category (docs/datatables/hardware.txt abnormal-behavior groups).
+// FDC param category (docs/datatables/hitachi/hardware.txt abnormal-behavior groups).
 export type FdcCategory
   = | 'image'
     | 'astigmatism'

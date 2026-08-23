@@ -405,7 +405,7 @@ def test_sample_cells_exempt_the_non_measurement_parameters():
 
 
 def test_lot_index_fac_ids_match_the_operating_fabs():
-    # M12는 실재하지 않습니다 — docs/datatables/sem_list.txt (user-confirmed
+    # M12는 실재하지 않습니다 — docs/datatables/hitachi/sem_list.txt (user-confirmed
     # 2026-08-03). sem_list가 장비 명부의 진실이고, lot 풀의 fac_id는 그
     # 어휘를 벗어나면 안 됩니다. 벗어나면 recipe_tat의 장비<->lot 짝짓기가
     # 조용히 폴백 경로로 새어 나갑니다.

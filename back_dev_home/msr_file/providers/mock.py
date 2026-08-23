@@ -1,9 +1,9 @@
 """msr_file — MSR raw measurement detail mock for 스큐보아 (Skewvoir).
 
-Spec: docs/datatables/msr_file_pickle.txt
+Spec: docs/datatables/hitachi/msr_file_pickle.txt
 Each row is one measurement, and one measurement owns exactly one sequence
 number: row 1건 = 측정 1건 = sequence 1개입니다 (office 확인 2026-07-27,
-docs/datatables/msr_file_pickle.txt). 같은 지점에서 여러 parameter가 측정되어도
+docs/datatables/hitachi/msr_file_pickle.txt). 같은 지점에서 여러 parameter가 측정되어도
 parameter마다 서로 다른 sequence를 가지므로, row와 sequence는 항상 1:1로
 대응합니다 — 예전 표현("특정 sequence, 특정 parameter로 측정된 1개 측정값")은
 sequence와 parameter를 각각 독립된 축처럼 보이게 해, 실제로는 row 하나에
@@ -12,7 +12,7 @@ sequence 하나만 대응한다는 사실을 가렸습니다.
 Beyond per-measurement CD values, the MinIO-parsed pickle carries FDC telemetry
 (fixed_fdc / dynamic_fdc) that lets 스큐보아 cross-check CD drift against tool
 condition. We model the abnormal-behavior FDC params called out in
-docs/datatables/hardware.txt (Brightness/Contrast, Stigma X·Y, OBJECT_SEM·VRD
+docs/datatables/hitachi/hardware.txt (Brightness/Contrast, Stigma X·Y, OBJECT_SEM·VRD
 defocus, LFB imageshift / alignment stage-drift), plus two deliberately
 CONSTANT setpoint channels (VT, ESCdV — see DYNAMIC_FDC_SPECS). Real tools
 stream flat channels alongside the varying ones (user-confirmed 2026-08-07),
@@ -48,7 +48,7 @@ property is seeded from IS the domain model here, so it is stated once:
 The wafer map joined the program layer on 2026-08-08; it was the last property
 still seeded from the msr. The office's own site_layout_hash — sha1 over
 chip_array / chip_pitch / wafer_size / map_origin plus the site set
-(docs/datatables/msr_file_pickle.txt) — presupposes it: a layout digest that
+(docs/datatables/hitachi/msr_file_pickle.txt) — presupposes it: a layout digest that
 changed every run could not identify a shared layout, which is its only job.
 Keyed on the msr, two runs of ADI_CD_BIAS_001 reported 45x53 and 40x56 with
 ZERO sites in common, so 분석 준비 상태 read same-site analysis as structurally
@@ -279,7 +279,7 @@ def _seed(msr: str, offset: int = 0) -> int:
 # `stage_coordinate` is the physical position in nm from a corner origin, so the
 # wafer centre sits at (wafer_size/2, wafer_size/2). Die pitch is derived from the
 # array count so pitch * array ≈ the wafer diameter — the three fields can never
-# disagree (docs/datatables/msr_file_pickle.txt).
+# disagree (docs/datatables/hitachi/msr_file_pickle.txt).
 WAFER_SIZE_MM = 300
 NM_PER_MM = 1_000_000
 _WAFER_NM = WAFER_SIZE_MM * NM_PER_MM
@@ -312,7 +312,7 @@ def _wafer_geometry(program_key: str) -> WaferGeom:
     Keyed on the recipe, not the run, because a recipe is a fixed measurement
     program: two runs of it step through the same wafer map. The argument is
     structural — site_layout_hash is the sha1 of chip_array / chip_pitch /
-    wafer_size / map_origin plus the site set (docs/datatables/msr_file_pickle.txt),
+    wafer_size / map_origin plus the site set (docs/datatables/hitachi/msr_file_pickle.txt),
     and a hash that changed every run could never identify a shared layout, which
     is the only thing it exists to do.
 
@@ -421,7 +421,7 @@ def _param_spec(parameter: str) -> tuple[float, float, str]:
 
 
 # ── FDC modelling ────────────────────────────────────────────────────────────
-# Abnormal-behavior FDC params (docs/datatables/hardware.txt). `gain` is how far
+# Abnormal-behavior FDC params (docs/datatables/hitachi/hardware.txt). `gain` is how far
 # a fully-unhealthy MSR (health=1) pushes the param off `nominal`, expressed in
 # absolute units; `sigma` is the normal run-to-run noise. A param whose drift
 # exceeds ~2σ is "warning", ~3.5σ is "bad" — the same convention FDC dashboards use.
@@ -469,7 +469,7 @@ DYNAMIC_FDC_SPECS: dict[str, FdcSpec] = {
     # verdict and its 숨기기 toggle exist, and without these the home mock could
     # never exercise either path. WHICH channels sit constant is OFFICE-VERIFY:
     # these two are taken from the real dynamic_fdc key list in
-    # docs/datatables/msr_file_pickle.txt as plausible setpoints, not observed
+    # docs/datatables/hitachi/msr_file_pickle.txt as plausible setpoints, not observed
     # office behavior.
     "VT": FdcSpec(1200.0, 0.0, "V", "source", 0.0),
     "ESCdV": FdcSpec(2500.0, 0.0, "V", "echuck", 0.0),
@@ -761,7 +761,7 @@ def _program_dummy_count(program_key: str) -> int:
     A program either starts with settling shots or it does not, so this cannot
     vary run to run. Seeded so that some programs carry them and some do not,
     which is what keeps BOTH paths exercised at home (see the settling-shot note
-    in _build_rows and docs/datatables/msr_file_pickle.txt).
+    in _build_rows and docs/datatables/hitachi/msr_file_pickle.txt).
     """
     return random.Random(_seed(f"program:{program_key}", 911)).choice((0, 0, 0, 1, 1, 2, 3))
 
@@ -906,7 +906,7 @@ def _build_rows(
     # A STEP is one measurement point (one die). Each parameter measured there is
     # its own measurement and takes the next global sequence number — so two
     # parameters at one point share chip/stage but never share a sequence
-    # (office 확인 2026-07-27, docs/datatables/msr_file_pickle.txt).
+    # (office 확인 2026-07-27, docs/datatables/hitachi/msr_file_pickle.txt).
     # A distinct name from the dummy loop's own `sequence` above: this counter
     # STARTS at num_dummy (the settling shots already claimed 1..num_dummy) and
     # is not a reset of that binding, it is a continuation of it.
@@ -1119,14 +1119,14 @@ def get_msr_file(
 
     # One row is one measurement and each carries its own sequence, so this set
     # is simply every row — the office invariant len(rows) == len(dynamic_fdc)
-    # (office 확인 2026-07-27, docs/datatables/msr_file_pickle.txt).
+    # (office 확인 2026-07-27, docs/datatables/hitachi/msr_file_pickle.txt).
     sequences = sorted({row["sequence"] for row in rows})
     fixed_fdc, dynamic_fdc, fdc_params = _build_fdc(msr, sequences, health)
 
     return MsrFileResponse(
         msr=msr,
         class_name=class_name,
-        # Straight off the parent row (docs/datatables/meas_hist.txt: eqp_ip).
+        # Straight off the parent row (docs/datatables/hitachi/meas_hist.txt: eqp_ip).
         # A synthesized MSR has no parent, so no tool — "" is the honest answer.
         eqp_ip=parent["eqp_ip"] if parent else "",
         total_images=total_images,

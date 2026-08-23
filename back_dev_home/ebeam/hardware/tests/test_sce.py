@@ -2,7 +2,7 @@
 
 Pins the contract both providers share: the snapshot is a per-eqp
 FileInfo/SemCond/ImgCond/SCEParam block plus a 360-entry Coefficients curve
-(`docs/datatables/hardware_sce_setting.txt`); the history is one such block per
+(`docs/datatables/hitachi/hardware_sce_setting.txt`); the history is one such block per
 bidaily collection date for the selected tool, ascending, each carrying
 ``date``. A history doc for date D must equal a snapshot taken as-of D —
 office-side both views come from the same collection run.

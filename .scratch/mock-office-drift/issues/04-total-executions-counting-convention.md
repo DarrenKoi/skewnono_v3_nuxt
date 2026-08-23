@@ -23,7 +23,7 @@ Status: done
 
 `meastime` 은 **`msr_check == "Yes"` 인 문서에만 존재**합니다. `"No"` 이면
 필드 자체가 없고, office 어댑터의 `_int(src.get("meastime"))` 를 거쳐 행에서는
-0 이 됩니다. `docs/datatables/meas_hist.txt` 와 `meas_hist/providers/mock.py`
+0 이 됩니다. `docs/datatables/hitachi/meas_hist.txt` 와 `meas_hist/providers/mock.py`
 양쪽에 기록했습니다.
 
 `_office_meas_hist.py` 의 `# every doc has one` 주석이 **틀린 단언**이었고,

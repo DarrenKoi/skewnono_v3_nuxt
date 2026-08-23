@@ -51,7 +51,7 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
    recipe 를 실행한 장비는 미보유로 표시될 수 없습니다. IDP 이력에 없는 장비는
    발견된 최신 버전을 받고, 명시적 IDP 버전 등재가 항상 우선합니다.
 3. 장비 명부(eqp_id / model / vendor / available)는 **이 index 에서 오지 않습니다.**
-   sem_list 로 해결합니다(docs/datatables/sem_list.txt). 이 index 는 장비별
+   sem_list 로 해결합니다(docs/datatables/hitachi/sem_list.txt). 이 index 는 장비별
    보유/버전/시점만 결정합니다. 명부를 자체 공급하면 같은 fab 인데 장비 재고 화면과
    장비 수가 달라지고, 어느 쪽이 맞는지 판별할 수 없게 됩니다.
 
@@ -61,7 +61,7 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
 parameters 를 버리고 보유/버전만 보지만, device-statistics 는 parameters 가 목적입니다.
 
 - 조인 키: sknn-planstep-r3 의 recipe_id 가 이 index 의 full_name 과 같은 값입니다
-  (docs/datatables/planstep_r3.txt). 정확 일치는 full_name.keyword 로 겁니다.
+  (docs/datatables/hitachi/planstep_r3.txt). 정확 일치는 full_name.keyword 로 겁니다.
 - **가장 높은 version 문서 1건만** 필요합니다. 버전 이력 전체를 받는 lateral check 와
   달리, 여기서는 recipe 당 최신 1건의 parameters 로 para_* 개수를 집계합니다.
 - 따라서 질의는 recipe 당 `full_name.keyword` term + `version` desc 정렬 + `size: 1` 로
@@ -69,7 +69,7 @@ parameters 를 버리고 보유/버전만 보지만, device-statistics 는 param
   `parameters_list`, 그리고 `raw_data` 는 **통째로가 아니라** `raw_data.Parameter` /
   `raw_data.Mother_Para` / `raw_data.Region` 세 경로만.
 
-주의 — payload. device 1개가 recipe 를 100~200개 가지므로(docs/datatables/
+주의 — payload. device 1개가 recipe 를 100~200개 가지므로(docs/datatables/hitachi/
 recipe_params.txt), recipe 마다 parameters blob 을 받으면 위 "200건이면 응답이
 커진다" 경고가 device 단위로 그대로 재현됩니다. 최신 1건 제한과 _source 제한은
 선택이 아니라 필수입니다. 실제 blob 크기와 recipe 당 파라미터 개수는 사무실에서
@@ -188,7 +188,7 @@ parameter 별 상세 row 가 담긴 object 이고, **``Mother_Para`` 가 여기 
 "1/8, 2/8, 3/8 …" 으로 보입니다. device-statistics 는 이 묶음으로 son 에게 mother
 의 cap 을 물려줍니다 — 없으면 WAFER(13) mother 의 son 인 CELL_SP·LWR 이 이름이
 OTHER 라는 이유로 _other(9)에 걸려 고칠 수 없는 위반이 됩니다
-(docs/datatables/recipe_params.txt 의 "SEQ 그룹" 절).
+(docs/datatables/hitachi/recipe_params.txt 의 "SEQ 그룹" 절).
 
 이것으로 오래 열려 있던 문제가 닫힙니다. 그전까지 ``Mother_Para`` 는 장비 FTP 의
 ``.idp`` 원본 파일에서만 읽을 수 있다고 보았고(recipe_idp.txt), device 4000개 ×

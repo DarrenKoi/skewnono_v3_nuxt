@@ -2,7 +2,7 @@
 //
 // "Measured", not "valid": an mp_number < 0 row is not malformed — it is a
 // perfectly well-formed row that carries point metadata but no point data, so
-// the backend reports cd_value: null (docs/datatables/msr_file_pickle.txt).
+// the backend reports cd_value: null (docs/datatables/hitachi/msr_file_pickle.txt).
 // Nothing is wrong with it; there is simply no measurement in it, and no mean,
 // sigma or outlier verdict may be computed from it.
 //

@@ -21,7 +21,7 @@ Recipe 현황의 세 탭 중 `Recipe TAT` 만 장비별 시점을 갖고 있습�
    갈리는가
 
 `fail_issue` 의 원천 행(`FailRow`)에는 이미 `eqp_id` 가 실려 있고, office
-OpenSearch 문서도 `eqp_id` 를 갖고 있습니다(`docs/datatables/meas_hist.txt`).
+OpenSearch 문서도 `eqp_id` 를 갖고 있습니다(`docs/datatables/hitachi/meas_hist.txt`).
 지금은 랭킹 행의 `sample_eqp_ids` 예시 목록으로만 쓰이므로, 이 작업은 새
 집계 축을 추가하는 일이지 새 데이터를 구하는 일이 아닙니다.
 
@@ -526,7 +526,7 @@ Byar 근사는 틀려도 그럴듯한 숫자를 냅니다.
 - `docs/api-contracts/fail-issue.yaml` — 두 엔드포인트 추가.
 - `back_dev_home/ebeam/hitachi/fail_issue/MIGRATION.md` — office 어댑터가
   해야 할 일과 OFFICE-VERIFY 목록(9절을 그대로 옮깁니다).
-- `docs/datatables/meas_hist.txt` — 이 작업은 새 필드를 요구하지 않으므로
+- `docs/datatables/hitachi/meas_hist.txt` — 이 작업은 새 필드를 요구하지 않으므로
   변경 없습니다. 사무실에서 새 사실이 나오면 그때 mock 과 함께 갱신합니다.
 
 ## 9. 사무실 확인 절차

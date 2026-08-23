@@ -41,7 +41,7 @@ export const sortRecipeOpenRows = (
  * A content key is what the table used until 2026-08-18, and it looked safe:
  * `Parameter-SEQ` is unique in every mock recipe, because the mock numbers SEQ
  * as a running row index. The office table carries no such rule — SEQ is an
- * "image definition 순번" (docs/datatables/recipe_idp.txt) and a sparse row can
+ * "image definition 순번" (docs/datatables/hitachi/recipe_idp.txt) and a sparse row can
  * leave both columns empty — so two rows there can share the pair.
  *
  * When they do, re-sorting does not reorder the table, it GROWS it: Vue's keyed

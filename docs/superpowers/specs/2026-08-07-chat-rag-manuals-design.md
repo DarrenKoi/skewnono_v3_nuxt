@@ -16,7 +16,7 @@ mock provider가 모두 동작합니다. 남은 것은 사무실 adapter가 **�
 `_execute()`가 무엇을 치느냐의 결정입니다.
 
 관련 문서는 `back_dev_home/chat/MIGRATION.md`(전환 순서·selector·상한),
-`docs/datatables/chat_rag_contract.txt`(인덱스 스키마의 진실 원천),
+`docs/datatables/hitachi/chat_rag_contract.txt`(인덱스 스키마의 진실 원천),
 `docs/research/llm-rag-chatbot-feasibility.md`(최초 타당성 조사)입니다.
 
 ## 2. 결정 요약
@@ -233,7 +233,7 @@ semantic 매칭이 없고, `score`가 float 거리가 아닌 작은 정수이며
 
 | 파일 | 정정 내용 |
 | --- | --- |
-| `docs/datatables/chat_rag_contract.txt` | multilingual OFFICE-VERIFY → BGE-M3 user-confirmed. Nori 확정. 2-leg hybrid + `bge-reranker-v2-m3` 명시. `element_type` 인덱스 내부 전용 명시. 매뉴얼 우선 범위. C2 호출 경로. |
+| `docs/datatables/hitachi/chat_rag_contract.txt` | multilingual OFFICE-VERIFY → BGE-M3 user-confirmed. Nori 확정. 2-leg hybrid + `bge-reranker-v2-m3` 명시. `element_type` 인덱스 내부 전용 명시. 매뉴얼 우선 범위. C2 호출 경로. |
 | `back_dev_home/chat/MIGRATION.md` | 4소스 동시 전제 → 소스별 준비 상태. Revision/superseded 항목 축소. `available_sources()`와 `_rerank()` seam 추가. C1/C2 분기. |
 | `knowledge/providers/mock.py` docstring | 무엇을 대신하는지, 어디서 의도적으로 다른지. |
 
@@ -259,7 +259,7 @@ semantic 매칭이 없고, `score`가 float 거리가 아닌 작은 정수이며
 - ~~Figure serving endpoint (`GET /api/chat/figures/<figure_id>`)~~ — **2026-08-19에
   구현했습니다**(Phase 1은 디스크, `SKEWNONO_CHAT_FIGURES_DIR`; Phase 2 MinIO 전환은
   저장소 읽기 한 줄). 현재 계약은 `back_dev_home/chat/MIGRATION.md`의 "Figure
-  serving" 절과 `docs/datatables/chat_rag_contract.txt`를 봅니다.
+  serving" 절과 `docs/datatables/hitachi/chat_rag_contract.txt`를 봅니다.
 
   이때 검증 charset을 `^[A-Za-z0-9_-]{1,128}$` → `^[A-Za-z0-9._-]{1,128}$`로
   넓혔습니다. Office의 실제 형식이 `{doc_id}_p{page}_i{idx}`이고 doc_id가 점을

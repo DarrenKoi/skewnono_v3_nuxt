@@ -1,6 +1,6 @@
 """Mock provider for cdsem device_statistics.
 
-원본 테이블:  docs/datatables/r3_device_grp.txt, docs/datatables/device_desc.txt
+원본 테이블:  docs/datatables/hitachi/r3_device_grp.txt, docs/datatables/hitachi/device_desc.txt
 계약:        docs/api-contracts/cdsem-device-statistics.yaml
 픽스처:      back_dev_home/ebeam/device_statistics/__fixtures__/
 
@@ -64,7 +64,7 @@ from back_dev_home.ebeam.device_statistics.contracts import (
 R3_ROW_COUNT = 2000
 M_ROW_COUNT = 2000
 # 운영 중인 M-fab 전부입니다. 예전 mock에 있던 M12는 실재하지 않는 값이었고
-# (docs/datatables/sem_list.txt, user-confirmed 2026-08-03), sem_list의 FAC_IDS가
+# (docs/datatables/hitachi/sem_list.txt, user-confirmed 2026-08-03), sem_list의 FAC_IDS가
 # 이 어휘의 진실입니다. 여기가 어긋나면 recipe_tat이 장비(sem_list)와
 # lot(여기)을 fac_id로 짝지을 때 만나지 못하는 조합이 생깁니다.
 M_FAC_IDS = ["M10", "M11", "M14", "M15", "M16"]

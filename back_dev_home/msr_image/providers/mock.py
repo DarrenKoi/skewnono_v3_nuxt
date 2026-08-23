@@ -4,7 +4,7 @@ Seeded from the locator so the same MSR always yields the same gallery. Lets the
 whole flow (list → serve → cond → download-all → cache → purge) run with no tool,
 no OpenSearch, no MinIO.
 
-Office counterpart — schema of record: `docs/datatables/msr_image_ftp.txt`.
+Office counterpart — schema of record: `docs/datatables/hitachi/msr_image_ftp.txt`.
 Measurement images are NOT in any database: they live only on the TOOL'S OWN FTP
 server, and the backend opens a session to it per request.
 

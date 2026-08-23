@@ -9,7 +9,7 @@ Why the snapshot exists at all: the process-step source is a CURRENT-STATE
 index, so "how many steps did this device have three weeks ago" cannot be
 recovered by query. Filtering on chg_tm is not equivalent either -- any step
 changed since the cutoff drops out entirely, so the further back you go the
-more it under-counts. See docs/datatables/device_statistics_weekly_trend.txt.
+more it under-counts. See docs/datatables/hitachi/device_statistics_weekly_trend.txt.
 """
 
 import logging

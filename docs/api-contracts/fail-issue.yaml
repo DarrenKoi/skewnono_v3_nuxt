@@ -5,7 +5,7 @@ base_path: /api/<tool_slug>/fail-issue
 constants:
   MEAS_FAIL_THRESHOLD:
     value: 15.0
-    description: fail_ratio strictly greater than this value counts as a meas-fail. Percent scale, matching fail_ratio itself (15.0 means 15%). Pinned to docs/datatables/meas_hist.txt rule #9 — office must keep in sync.
+    description: fail_ratio strictly greater than this value counts as a meas-fail. Percent scale, matching fail_ratio itself (15.0 means 15%). Pinned to docs/datatables/hitachi/meas_hist.txt rule #9 — office must keep in sync.
 
 types:
   Summary:

@@ -15,7 +15,7 @@ This module is TRACKED (it is not an ``office_example.py`` template): it
 holds no 사내 schema secrets, only the access mechanics. Feature-specific
 query shapes stay in each feature's gitignored ``providers/office.py``.
 
-Data layout (see ``docs/datatables/meas_hist.txt`` for the full mapping):
+Data layout (see ``docs/datatables/hitachi/meas_hist.txt`` for the full mapping):
 
 * ``meas_hist_cdsem`` / ``meas_hist_hvsem`` — one document per measurement
   execution, alias per tool family. Text fields aggregate/filter through
@@ -104,7 +104,7 @@ FULL_NAME_KW = "full_name.keyword"   # class_name/recipe_name composite group ke
 FAB_NAME_KW = "fab_name.keyword"     # fab selection filter
 EQP_ID_KW = "eqp_id.keyword"         # sample_eqp_ids
 LOT_ID_KW = "lot_id.keyword"         # device roll-ups + lot_cd drill-down
-# 장비별 뷰의 모델 열. OFFICE-VERIFY: docs/datatables/meas_hist.txt 는
+# 장비별 뷰의 모델 열. OFFICE-VERIFY: docs/datatables/hitachi/meas_hist.txt 는
 # eqp_model_cd 를 text 로만 적고 있어 .keyword 서브필드 존재가 미확인입니다.
 # **없어도 예외가 나지 않습니다** — 매핑에 없는 필드를 composite 소스로 쓰면
 # 매칭되는 문서가 없어 버킷이 0개가 되고, /equipments 는 200 에 빈 표를

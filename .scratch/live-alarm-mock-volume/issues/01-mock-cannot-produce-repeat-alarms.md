@@ -77,7 +77,7 @@ screen has.
   feature; several assert on board contents.
 - Per `CLAUDE.md`, a change to what the mock stands for belongs in the
   docstring too, and any new office fact belongs in
-  `docs/datatables/live_alarm_board.txt` as well.
+  `docs/datatables/hitachi/live_alarm_board.txt` as well.
 - **Do not invent office values.** Whether the office feed actually shows one
   PPID failing many times in ten minutes is `OFFICE-VERIFY`. The mock should
   be able to REPRESENT repeats because the screen is built for them; it should

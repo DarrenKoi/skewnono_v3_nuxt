@@ -3,7 +3,7 @@
 Everything downstream — the ZSET member, board.py, the Vue row — speaks the
 snake_case contract, so these tests are what pin the mapping. The row literals
 below are spelled exactly as the office DataFrame spells them (all-caps names,
-per docs/datatables/live_alarm_board.txt); a test that used friendly names
+per docs/datatables/hitachi/live_alarm_board.txt); a test that used friendly names
 would pass while the real feed produced a board of blanks.
 """
 

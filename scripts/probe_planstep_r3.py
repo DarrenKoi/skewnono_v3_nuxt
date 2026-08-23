@@ -27,7 +27,7 @@ Run FROM THE REPO ROOT at the office (config self-loads from
     .venv/bin/python -m scripts.probe_planstep_r3 --recipes 10 --devices 5
 
 Whatever this proves belongs in TWO places (CLAUDE.md): the schema of record in
-``docs/datatables/planstep_r3.txt`` (and ``idp_ver.txt`` for the parameters
+``docs/datatables/hitachi/planstep_r3.txt`` (and ``idp_ver.txt`` for the parameters
 blob) AND ``device_statistics/providers/`` mock docstrings. Mark each fact
 ``office 확인 YYYY-MM-DD``.
 
@@ -99,7 +99,7 @@ NUMERIC_FIELDS = ("oper_seq", "samp_seq")
 # user-confirmed 2026-07-31: "Y" means SKIPPED, exactly as the field name reads.
 # The field has THREE values - "Y", "N", and blank - so "is this step measured"
 # is `!= "Y"`, never `== "N"`. (An earlier note claiming "Y" meant "currently
-# measuring" was withdrawn; docs/datatables/planstep_r3.txt has the history.)
+# measuring" was withdrawn; docs/datatables/hitachi/planstep_r3.txt has the history.)
 SKIPPED = "Y"
 
 PROD_ID_SUFFIX = "_BASE"
@@ -166,7 +166,7 @@ def stage_mapping(client: Any, props: dict[str, Any]) -> None:
     if missing:
         print(
             f"\n  DOCUMENTED BUT ABSENT: {', '.join(missing)}\n"
-            "  -> fix docs/datatables/planstep_r3.txt before writing the adapter."
+            "  -> fix docs/datatables/hitachi/planstep_r3.txt before writing the adapter."
         )
 
 
@@ -464,7 +464,7 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
         print(
             "  -> next: decide how parameters maps to RecipeParamsRow.parameters\n"
             "     ({name, point_count}) and to RecipeInfoRow's para_16/13/9/5.\n"
-            "     Record the blob's real structure in docs/datatables/idp_ver.txt."
+            "     Record the blob's real structure in docs/datatables/hitachi/idp_ver.txt."
         )
 
 
@@ -586,7 +586,7 @@ def main(argv: list[str] | None = None) -> int:
     _rule("NEXT")
     print(
         "  Record what this proved in BOTH places (CLAUDE.md):\n"
-        "    1. docs/datatables/planstep_r3.txt and idp_ver.txt\n"
+        "    1. docs/datatables/hitachi/planstep_r3.txt and idp_ver.txt\n"
         "    2. device_statistics/providers/ mock docstrings\n"
         "  Mark each fact 'office 확인 YYYY-MM-DD', then implement\n"
         "  device_statistics/providers/office.py per its MIGRATION.md.\n"

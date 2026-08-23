@@ -194,7 +194,7 @@ multilingual이므로 k-NN leg에서 한/영 요건이 충족됩니다(user-conf
 Lexical leg는 Nori analyzer로 확정했습니다(user-confirmed 2026-08-06) — OpenSearch
 기본 `standard` analyzer는 한글을 한 글자씩 분해하므로 씁니다. 질의를 언어 판별로
 분기하거나 번역해서 보내지 않습니다. 후보 20~30건을 `bge-reranker-v2-m3` 크로스인코더로
-재점수화한 뒤 상한 5행으로 절단합니다 — 상세는 `docs/datatables/chat_rag_contract.txt`의
+재점수화한 뒤 상한 5행으로 절단합니다 — 상세는 `docs/datatables/hitachi/chat_rag_contract.txt`의
 "검색 방식" 절을 참고합니다. 모델 호출은 `office.py`가 사내 embedding/rerank API를
 직접 호출하는 C2 경로입니다(user-confirmed 2026-08-07); C1(OpenSearch ML Commons remote
 connector)은 사내 host가 `trusted_connector_endpoints_regex`에 없어 보류입니다(office
@@ -417,7 +417,7 @@ artifact만 read-only로 엽니다.
 - 본문은 각 8,000자에서 절단합니다. 문서 스키마의 진실 원천은
   `ops_index_mgmt/skewnono_chat_logging.py`의 `CHAT_MAPPING_PROPERTIES`이며,
   필드를 추가할 때는 `build_turn_document()`·mapping·
-  `docs/datatables/skewnono_chat_logging.txt` 세 곳을 함께 갱신한 뒤 사무실에서
+  `docs/datatables/hitachi/skewnono_chat_logging.txt` 세 곳을 함께 갱신한 뒤 사무실에서
   additive mapping update를 실행합니다.
 - 이 인덱스는 thread storage가 아닙니다. Thread CRUD·replay·feedback은 계속
   thread storage provider가 담당하며, 이 인덱스는 append-only 기록입니다.

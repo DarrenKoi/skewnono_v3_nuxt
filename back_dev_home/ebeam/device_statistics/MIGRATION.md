@@ -84,7 +84,7 @@ docstring.
   1:1 except `plan_catg_typ`→`plan_catg_type` and `den_typ`→`den_type`; `id`
   has no source column and is synthesized as `{fac_id}-{lot_cd}` (a row index
   would move every device's id whenever the catalog changes). See
-  `docs/datatables/r3_device_grp.txt`.
+  `docs/datatables/hitachi/r3_device_grp.txt`.
 - Notes: **this endpoint has no query params** — unlike
   `recipe-statistics`/`recipe-params`/`recipe-trend` below, there is no
   lot-narrowing here to preserve. `lot_cd` is the join key shared with
@@ -134,7 +134,7 @@ docstring.
   uppercase `fac_id`. The description column is `ctn_desc`, with `stn_desc`
   accepted as a fallback since that name has been recorded both ways. `id` is
   synthesized as `{fac_id}-{lot_cd}` like `r3-device-grp` above. See
-  `docs/datatables/device_desc.txt`.
+  `docs/datatables/hitachi/device_desc.txt`.
 - Notes: like `r3-device-grp`, this endpoint returns the full (or
   fac_id-filtered) table with no lot-narrowing — no huge-payload concern
   here relative to the trend/params endpoints below, but the unfiltered
@@ -220,7 +220,7 @@ docstring.
   the latest date, it never touches the weekly snapshots. Bucket membership
   (all / only_normal / mother_normal / only_sample) is derived from the step
   name, the recipe name, and — for `mother_normal` only — the per-parameter
-  mother flag. See `docs/datatables/planstep_r3.txt` "화면의 네 버킷" and the
+  mother flag. See `docs/datatables/hitachi/planstep_r3.txt` "화면의 네 버킷" and the
   **mother_para 출처** section at the end of this file.
 - Notes: **huge-payload endpoint.** Called with no `lot_cds` filter, this
   fans out over every lot in the mock (2000 R3 + 2000 M-fab = 4000 lots)
@@ -283,7 +283,7 @@ docstring.
   still has exactly one parameter set — `cdsem_idp_ver` holds one blob per
   `full_name`. `recipe_class` / `family` / `phase` / `memory_class_auto` are
   derived, not stored — the derivation table is in
-  `docs/datatables/recipe_params.txt` "사무실 파생 규칙".
+  `docs/datatables/hitachi/recipe_params.txt` "사무실 파생 규칙".
 - Notes: **huge-payload endpoint**, same shape of concern as
   `recipe-statistics` above — an unfiltered call fans out over all ~4000
   lots (the original capture was 578 MB). The parity harness pins
@@ -406,7 +406,7 @@ docstring.
   computed live. A past week whose snapshot is missing is **omitted from the
   response** rather than emitted empty — an empty bucket would draw a
   0 on the trend chart and assert "nothing was measured that week". See
-  `docs/datatables/device_statistics_weekly_trend.txt`.
+  `docs/datatables/hitachi/device_statistics_weekly_trend.txt`.
 - Notes: **huge-payload endpoint**, same class of concern as
   `recipe-statistics`/`recipe-params` — the original capture was 70 MB
   unfiltered. The parity harness pins `?lot_cds=R000` (~12 KB). Because
@@ -480,7 +480,7 @@ image 의 주인이고 나머지는 son 입니다.
 한 묶음의 크기 — 관찰된 예는 8개인데 mock 은 `MOTHER_SHARE` 때문에 2~4 개입니다.
 
 **남은 확인** — `Mother_Para` 가 index 에도 진짜 bool 로 실려 있는지. 파서 쪽은
-bool 이 확인되었지만(`docs/datatables/recipe_idp.txt`) 적재를 거치며 문자열이
+bool 이 확인되었지만(`docs/datatables/hitachi/recipe_idp.txt`) 적재를 거치며 문자열이
 되었을 수 있고, 그 경우 위 4번의 두 번째 경고가 뜹니다.
 
 ## Verify

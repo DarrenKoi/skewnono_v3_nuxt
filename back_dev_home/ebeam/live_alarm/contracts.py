@@ -84,7 +84,7 @@ class AlarmEvent(TypedDict):
 
     Every field is a string except `occurred_epoch`, because the office feed
     is all-str apart from `UTC9` (datetime64[us]) and `RAWID` (int) — see
-    `docs/datatables/live_alarm_board.txt` for the column-by-column source.
+    `docs/datatables/hitachi/live_alarm_board.txt` for the column-by-column source.
     Absent or null cells become "" rather than being omitted: the ZSET member
     is this dict verbatim, and a key that appears only sometimes would make
     two spellings of the same alarm two distinct members.

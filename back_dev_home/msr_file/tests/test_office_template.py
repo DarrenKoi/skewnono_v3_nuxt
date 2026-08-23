@@ -5,7 +5,7 @@ separate), so the pickle->contract normalization is pinned AT HOME: the
 spaced-column renames ("mp_image_name 01" -> mp_image_name_01, "object" ->
 object_type), the "None"-string coercions, and the office-gated metadata
 derivations all run against a synthetic payload shaped exactly like
-docs/datatables/msr_file_pickle.txt. The office copies office.py from this
+docs/datatables/hitachi/msr_file_pickle.txt. The office copies office.py from this
 template, so what passes here is what runs there.
 
 Run from repo root:  .venv/bin/python -m pytest back_dev_home/msr_file
@@ -30,7 +30,7 @@ def _df(rows: list[dict]) -> pd.DataFrame:
 
 
 def _result_rows() -> list[dict]:
-    # Column spellings COPIED from docs/datatables/msr_file_pickle.txt —
+    # Column spellings COPIED from docs/datatables/hitachi/msr_file_pickle.txt —
     # spaces and all. Sequence 2 is the degenerate "no point data" case.
     base = {
         "chip_number": "1,1",
@@ -115,7 +115,7 @@ def _payload(result_rows: list[dict] | None = None) -> dict:
         # One entry per row, INCLUDING sequence 2 (the degenerate "no point
         # data" row): the tool still went there and recorded its state, so it
         # IS a measurement -- len(dynamic_fdc) must equal len(rows)
-        # (office-confirmed 2026-07-27, docs/datatables/msr_file_pickle.txt).
+        # (office-confirmed 2026-07-27, docs/datatables/hitachi/msr_file_pickle.txt).
         # A golden fixture that itself violated this would make build_response
         # warn on every test run instead of only the one that means to.
         "fixed_fdc": {"SEMCondVsup": 1502.0, "ESCD": "23.44", "MysteryFixed": "7.5"},
@@ -294,7 +294,7 @@ def test_parameter_summaries_use_measured_rows_only(response):
 
 def test_golden_payload_satisfies_row_fdc_invariant(caplog):
     """The golden fixture itself must honor len(rows) == len(dynamic_fdc)
-    (office-confirmed 2026-07-27, docs/datatables/msr_file_pickle.txt) -- a
+    (office-confirmed 2026-07-27, docs/datatables/hitachi/msr_file_pickle.txt) -- a
     fixture that violated the rule it exists to demonstrate would fire the
     mismatch warning on every test run, not just the one below that means to,
     turning a diagnosable-fault signal into routine noise."""
@@ -399,7 +399,7 @@ def _hvsem_raw(**overrides) -> dict:
     """HV-SEM 한 점의 여러 이미지 — pickle 이 주는 그대로의 **공백형** 컬럼.
 
     ``"mp_image_name 01"`` 은 underscore 가 아니라 공백입니다
-    (docs/datatables/msr_file_pickle.txt "컬럼 이름 정규화"). ``_records()``
+    (docs/datatables/hitachi/msr_file_pickle.txt "컬럼 이름 정규화"). ``_records()``
     가 소문자+공백→underscore 로 바꾸는 경계 위쪽이므로, build_response 를
     거치는 테스트는 공백형으로 넣어야 그 정규화까지 함께 밟습니다 — 골든
     픽스처 ``_payload()`` 도 같은 이유로 공백형입니다.

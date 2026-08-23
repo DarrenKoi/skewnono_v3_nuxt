@@ -8,7 +8,7 @@ trend directly without re-shaping.
 
 사무실 원천 (user-confirmed 2026-07-31) — 이 모듈이 대역하는 실제 경로는 **fab
 계열에 따라 둘로 갈리고**, 파라미터 개수만 공통입니다. 자세한 내용은
-docs/datatables/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt 입니다.
+docs/datatables/hitachi/planstep_r3.txt, ebeam_tas_lot_hist.txt, idp_ver.txt 입니다.
 
   R3 / 연구개발:
     r3_device_grp (Redis)          -> lot_cd
@@ -82,7 +82,7 @@ only_normal / mother_normal 은 skip 을 **멤버십에서** 거르므로 두 �
 이 mock 은 날짜별 값을 seed 로 만들어 내지만, 실물 스텝 index 에는 **과거가
 없습니다**(현재 계획만 있는 index). 따라서 사무실에서는 주차별 스냅샷을 MinIO
 에 적재해 두고 읽습니다 — 과거 주차는 스냅샷, 이번 주차만 라이브입니다.
-자세한 내용은 docs/datatables/device_statistics_weekly_trend.txt.
+자세한 내용은 docs/datatables/hitachi/device_statistics_weekly_trend.txt.
 
 Internal module: callers outside this feature must import the public surface
 from `device_statistics.data` (the provider switch); `recipe_tat`'s mock
@@ -124,7 +124,7 @@ DEFAULT_INTERVAL_DAYS = 7
 # recipe 모집단·이름 어휘·버킷 분류는 providers/recipe_population.py 가 갖습니다.
 # 예전에는 이 모듈이 버킷마다 recipe 를 따로 만들고 id 에 버킷 이름을 박았는데,
 # 그러면 recipe-params 와 recipe_id 로 조인할 수 없습니다 (실물에서 recipe_id 는
-# cdsem_idp_ver.full_name 과 같은 조인 키입니다 — docs/datatables/idp_ver.txt L55).
+# cdsem_idp_ver.full_name 과 같은 조인 키입니다 — docs/datatables/hitachi/idp_ver.txt L55).
 # `_is_measuring` 는 그 모듈에서 가져와 avail_recipe 집계에 그대로 씁니다.
 
 
@@ -252,7 +252,7 @@ def _bucketed_recipe_rows(
     버킷은 **한 모집단 위의 겹치는 필터**입니다 — 예전처럼 버킷마다 따로 만들지
     않습니다. 같은 recipe 가 여러 버킷에 나오면 같은 recipe_id 를 갖고, 그 id 로
     recipe-params 와 조인됩니다 (실물에서 recipe_id 가 cdsem_idp_ver.full_name
-    과 같은 조인 키이기 때문입니다 — docs/datatables/idp_ver.txt L55).
+    과 같은 조인 키이기 때문입니다 — docs/datatables/hitachi/idp_ver.txt L55).
 
     mother_normal 만 자기 행을 따로 만듭니다 — 같은 recipe 라도 이 버킷에서는
     para_* 가 mother 기준이라 다른 세 버킷과 행 객체를 공유할 수 없습니다.

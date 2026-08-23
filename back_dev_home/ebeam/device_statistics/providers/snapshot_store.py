@@ -63,7 +63,7 @@ def build_weekly_snapshot(date_key: str | None = None) -> dict[str, Any]:
 
     ``*_rcp_info`` 는 일부러 담지 않습니다. recipe 단위 상세는 device 4000개 ×
     버킷 4개 × recipe 100~200개가 되어 매주 GB 급이 되는데, 그것을 읽는 화면이
-    없습니다(docs/datatables/device_statistics_weekly_trend.txt).
+    없습니다(docs/datatables/hitachi/device_statistics_weekly_trend.txt).
     """
     anchor = date_key or _current_week()
     # points=1 — a snapshot only needs one week. Across 4000 lots the mock

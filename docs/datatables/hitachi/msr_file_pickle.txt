@@ -378,7 +378,7 @@ there can be either more or less.
   없으나 예외 상황으로 가능하다고 봅니다(2026-08-10). 원시 값이 파생값과
   달랐던 행 수는 응답당 한 줄로 WARNING 에 남깁니다 — 관측되면 그 로그가
   근거가 됩니다. 장비 FTP 이미지 목록 대조
-  (docs/datatables/msr_image_ftp.txt)도 같은 컬럼 전부를 훑습니다.
+  (docs/datatables/hitachi/msr_image_ftp.txt)도 같은 컬럼 전부를 훑습니다.
 
   프론트엔드는 이 목록을 utils/msrRows.ts 의 rowImageNames() 로만 읽습니다 —
   목록이 없는 구형 응답(구 office.py 복사본, 캐시)은 _01 폴백으로 1장이라도

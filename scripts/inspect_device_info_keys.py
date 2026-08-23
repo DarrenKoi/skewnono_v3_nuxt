@@ -397,7 +397,7 @@ def main(argv: list[str] | None = None) -> int:
         _rule("NEXT")
         print(
             "  Record what this run proved in BOTH places (CLAUDE.md):\n"
-            "    1. docs/datatables/device_desc.txt / r3_device_grp.txt\n"
+            "    1. docs/datatables/hitachi/device_desc.txt / r3_device_grp.txt\n"
             "    2. back_dev_home/ebeam/device_statistics/providers/mock.py "
             "docstring\n"
             "  Mark each fact 'office 확인 YYYY-MM-DD'. Then implement\n"

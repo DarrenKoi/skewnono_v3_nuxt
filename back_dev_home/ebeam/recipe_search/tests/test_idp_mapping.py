@@ -12,7 +12,7 @@ never `providers/office.py`, which is gitignored and absent on a clean
 checkout. `office_utils` is not imported at all: these frames stand in for its
 output directly.
 
-The column lists below are TRANSCRIBED FROM `docs/datatables/recipe_idp.txt`
+The column lists below are TRANSCRIBED FROM `docs/datatables/hitachi/recipe_idp.txt`
 rather than derived from `contracts.py`, deliberately. If they were derived,
 this file would agree with any edit to the contract; transcribed, an edit that
 drifts from the office schema fails here and has to be reconciled against the
@@ -155,7 +155,7 @@ def test_parsed_frames_map_to_the_detail_contract():
     ],
 )
 def test_rows_carry_exactly_the_documented_columns(table, columns):
-    """Names AND order, per docs/datatables/recipe_idp.txt.
+    """Names AND order, per docs/datatables/hitachi/recipe_idp.txt.
 
     Order matters because the MP table renders its columns in key order, so a
     reshuffle here is a visible reshuffle on screen.

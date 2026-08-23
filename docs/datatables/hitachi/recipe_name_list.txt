@@ -74,7 +74,7 @@ hash value -> rcp_loc      : [idw_name, idp_name]  (경로 문자열 2개, 순�
 recipe 자세히 보기 / 비교
 
 자세히 보기(recipe open)는 위 registry 2개로 .idp 경로를 조립해 장비 FTP 에서
-파일을 받아 파싱합니다(docs/datatables/recipe_idp.txt). 비교(compare)는 아직
+파일을 받아 파싱합니다(docs/datatables/hitachi/recipe_idp.txt). 비교(compare)는 아직
 mock 을 그대로 re-export 하고 있습니다 — 열람에서 파생되는 관계를 유지하기
 위해 재구현하지 않았습니다.
 

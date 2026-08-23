@@ -130,7 +130,7 @@ def test_normalize_fab_map_drops_tools_whose_entries_are_all_unusable():
 # ──────────────── an empty result is reported, never silent ─────────────────
 #
 # This section replaces the old "the stub must raise" test. Same point, moved
-# forward: MDC covers every fab including R3/R4 (docs/datatables/
+# forward: MDC covers every fab including R3/R4 (docs/datatables/hitachi/
 # hardware_mdc_setting.txt), so an absent snapshot is a collection failure. If
 # it came back as a quiet `{}` the tab would render "no MDC calibration" and be
 # believed. SCE may return a quiet empty for R3/R4; MDC may not.
@@ -431,7 +431,7 @@ def test_settings_must_key_on_eqp_id_and_carry_the_selected_tool(monkeypatch):
 
 def test_office_shaped_settings_match_the_mocks_dict_of_dict_shape():
     # Shape only: {eqp_id: {beam_condition: value}} with STRING values, per
-    # docs/datatables/hardware_mdc_setting.txt. Values are compared by TYPE, never by
+    # docs/datatables/hitachi/hardware_mdc_setting.txt. Values are compared by TYPE, never by
     # magnitude — the mock's numbers are a Phase-1 fabrication.
     reference = mock.build_mdc_settings("ECDX100", "M16A", ANCHOR)
 

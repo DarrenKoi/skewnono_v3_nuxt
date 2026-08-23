@@ -297,7 +297,7 @@ index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 �
 - **OFFICE-VERIFY — `TAT_INDEX_MIN_SAMPLE` (=12).** Tools with fewer executions
   in the window get `tat_index: None`. Check the real per-tool execution-count
   distribution: set too high, the column is all `—`; too low, noise gets a badge.
-- **OFFICE-VERIFY — `eqp_model_cd.keyword`.** `docs/datatables/meas_hist.txt`
+- **OFFICE-VERIFY — `eqp_model_cd.keyword`.** `docs/datatables/hitachi/meas_hist.txt`
   records `eqp_model_cd` as `text`; whether the `.keyword` sub-field needed to
   aggregate on it exists is unconfirmed. 이것이 **첫 실행에서 확인할 첫 번째
   항목**입니다.
@@ -381,7 +381,7 @@ index, medians and percentiles. 두 provider 가 각자 계산하면 언젠가 �
   레시피를 1위로 뽑고, 따라서 서로 다른 상수를 요구합니다.
 
   같은 실행에서 `occupancy`의 절대 수준을 MES 가동률과 나란히 놓고 그 격차를
-  `docs/datatables/meas_hist.txt`에 기록합니다 — 이 값은 **측정 점유율**이지
+  `docs/datatables/hitachi/meas_hist.txt`에 기록합니다 — 이 값은 **측정 점유율**이지
   장비 가동률이 아닙니다(로딩·대기·PM이 빠져 있어 항상 낮게 읽힙니다).
 - **OFFICE-VERIFY — `TAT_CEIL` (위 항목의 세 상수와 별개로 남는 하나).**
   `fleet.percentiles`를 읽는 것만으로는 이 상수를 검증했다고 할 수 없습니다.

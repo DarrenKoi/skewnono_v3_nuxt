@@ -16,7 +16,7 @@ fail_issue became recipe_tat's second consumer.
 This module is TRACKED (it is not an ``office_example.py`` template), so a
 ``git pull`` at the office updates it without a second ``cp``. It carries index
 names, field names and pickle column names — all of which are already recorded
-in ``docs/datatables/{meas_hist,msr_file_pickle}.txt`` — but no query shaped to
+in ``docs/datatables/hitachi/{meas_hist,msr_file_pickle}.txt`` — but no query shaped to
 one feature's question. Those stay in each feature's gitignored ``office.py``.
 
 Three properties are load-bearing, and each has a way of failing silently:
@@ -337,7 +337,7 @@ def recent_runs(
 
 # ── the pickle ─────────────────────────────────────────────────────────────
 
-# Pickle column names, per docs/datatables/msr_file_pickle.txt. The spaces in
+# Pickle column names, per docs/datatables/hitachi/msr_file_pickle.txt. The spaces in
 # the meas_condition keys are in the source; msr_file's contract renames them
 # to meas_condition_vac and friends, which is a CONTRACT name, not a source one.
 _COL_PARAMETER = "parameter"

@@ -1,6 +1,6 @@
 """SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
 
-원본 테이블:  docs/datatables/meas_hist.txt
+원본 테이블:  docs/datatables/hitachi/meas_hist.txt
 계약:        docs/api-contracts/fail-issue.yaml
 
 Fail-issue mock data — measurement-history rows enriched with two failure
@@ -102,7 +102,7 @@ __all__ = [
 
 
 # Threshold that promotes a meas_hist row to a "meas fail". Pinned to the
-# datatable spec (docs/datatables/meas_hist.txt rule #9 — "정상 row는 보통
+# datatable spec (docs/datatables/hitachi/meas_hist.txt rule #9 — "정상 row는 보통
 # 0 ~ 15%"). The YAML contract repeats this constant; office must keep
 # it in sync.
 #

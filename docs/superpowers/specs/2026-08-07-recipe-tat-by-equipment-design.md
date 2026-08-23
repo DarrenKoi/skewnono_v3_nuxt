@@ -22,7 +22,7 @@ Recipe TAT은 오늘 두 가지 시점만 제공합니다.
 3. 같은 일을 하는데 유독 오래 걸리는 장비가 있는가
 
 측정 이력(`meas_hist`)에는 이미 `eqp_id`가 실려 있고, office OpenSearch 문서도
-`eqp_id`를 갖고 있습니다(`docs/datatables/meas_hist.txt`). 지금은 랭킹 행의
+`eqp_id`를 갖고 있습니다(`docs/datatables/hitachi/meas_hist.txt`). 지금은 랭킹 행의
 `sample_eqp_ids` 예시 목록으로만 쓰이고 있어서, 새 집계 축을 추가하는 일이지
 새 데이터를 구하는 일이 아닙니다.
 
@@ -200,7 +200,7 @@ export const SHARE_CEIL  = 0.50
 4. `equipmentSignals.ts`의 상수 네 개만 고치고 `OFFICE-VERIFY` 주석을
    `office 확인 YYYY-MM-DD`로 바꿉니다. 백엔드·계약 변경은 없습니다.
 5. `occupancy`의 절대 수준을 MES 가동률과 나란히 놓고 둘의 격차를
-   `docs/datatables/meas_hist.txt`에 기록합니다 — 3.2절이 경고한 그
+   `docs/datatables/hitachi/meas_hist.txt`에 기록합니다 — 3.2절이 경고한 그
    격차의 실측값입니다.
 
 `fleet.percentiles`를 계약에 넣은 이유가 이것입니다. 이게 없으면 사무실에서
@@ -517,7 +517,7 @@ fab_name 17개 = `R3, R4` + `M10/M11/M14/M15/M16` × `A/B/C`.
 - 날짜 프리셋에 60/90일을 더하면 `FailIssueView`도 함께 넓어집니다. 같은
   meas_hist row를 읽으므로 밀도 개선의 수혜자이기도 합니다. skewvoir
   `FilterBar`는 자체 프리셋을 넘기므로 영향 없습니다.
-- CLAUDE.md 규칙에 따라 `docs/datatables/meas_hist.txt`와 mock docstring을
+- CLAUDE.md 규칙에 따라 `docs/datatables/hitachi/meas_hist.txt`와 mock docstring을
   같은 커밋에서 갱신합니다. 담을 내용:
   - sem_list를 장비 명부로 삼는다는 사실(규칙 1이 이미 요구하던 것)
   - 장비별 스칼라가 흉내내는 것은 실 데이터의 **값**이 아니라 **편차가

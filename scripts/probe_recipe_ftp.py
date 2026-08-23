@@ -31,7 +31,7 @@ measurement row already names the tool that ran the recipe, so the host it must
 be readable from is the host we just proved ran it.
 
 THE ASSUMPTION UNDER TEST - ``idp_name``/``idw_name`` are documented as *paths*
-("/Recipe/ADI/ADI_CD_BIAS_001.idp", docs/datatables/meas_hist.txt) while the FTP
+("/Recipe/ADI/ADI_CD_BIAS_001.idp", docs/datatables/hitachi/meas_hist.txt) while the FTP
 tree wants a bare folder name. Every derivation below is therefore a stem, and
 the script prints the raw value beside the assembled path so a wrong guess reads
 as a wrong string rather than an unexplained 550. When the primary path misses,
@@ -58,7 +58,7 @@ adapter uses::
 The names are derived by ``recipe_search/rawfiles.py`` rather than spelled out
 here on purpose: that module is what the office adapter runs, so a name this
 script gets wrong is a bug found rather than a probe-only typo. Two things
-``docs/datatables/recipe_idp.txt`` still lists as unverified are what this stage
+``docs/datatables/hitachi/recipe_idp.txt`` still lists as unverified are what this stage
 is for - whether the ``img_*`` values are filenames at all, and whether the
 untranslated ``PR...`` file holds anything of its own (it is fetched beside the
 ``EN...`` one to find out).
@@ -163,14 +163,14 @@ PARAMETER = "WAFER"
 # recipe tree is its sibling: images/{msr} vs data/{idw}.
 _ROOT = "/HITACHI/DEVICE/HD"
 
-# idp_image_info's five slot columns, in the order docs/datatables/recipe_idp.txt
+# idp_image_info's five slot columns, in the order docs/datatables/hitachi/recipe_idp.txt
 # lists them. Spelled out because the names do NOT follow one rule - image_add3
 # breaks the img_* run - and because the printout is meant to read like the doc.
 _SLOT_COLUMNS = ("img_add1", "img_add2", "img_meas1", "img_meas2", "image_add3")
 
 _INDEX = {"cdsem": "meas_hist_cdsem", "hvsem": "meas_hist_hvsem"}
 
-# Office indices store KST wall-clock with NO offset (docs/datatables/meas_hist.txt),
+# Office indices store KST wall-clock with NO offset (docs/datatables/hitachi/meas_hist.txt),
 # so "today" must be resolved in Seoul time and sent as a naive string. Using the
 # host's local date would silently select the wrong day on a UTC cloud box.
 _KST = ZoneInfo("Asia/Seoul")
@@ -403,7 +403,7 @@ def _preview(data: bytes, lines: int = 25) -> str:
 
 # ── parse ─────────────────────────────────────────────────────────────────
 
-# What combined_idp_info() is documented to return (docs/datatables/recipe_idp.txt).
+# What combined_idp_info() is documented to return (docs/datatables/hitachi/recipe_idp.txt).
 # Named here only to notice a difference, never to enforce one - if the office
 # parser hands back something else, that IS the finding and the script says so.
 _IDP_TABLES = ("wafer_mp_info", "wafer_align_info", "idp_image_info")
@@ -510,7 +510,7 @@ def _wants(row: dict[str, Any]) -> list[_Want]:
     if af_pr:
         wants.append(_Want("img_add2", "af_pr", af_pr))
 
-    # OFFICE-VERIFY (docs/datatables/recipe_idp.txt): the adapter only ever
+    # OFFICE-VERIFY (docs/datatables/hitachi/recipe_idp.txt): the adapter only ever
     # reads the EN... translation of img_add2. Whether the PR... file it was
     # translated from carries anything of its own has never been looked at, and
     # this run is standing in the folder anyway.
@@ -949,7 +949,7 @@ def _stage_e(probe: Probe, dl: Any, HostSpec: Any, args: argparse.Namespace) -> 
 
     Unlike the adapter, this fetches the align IMAGE too. The adapter only
     names it and lets the browser pull it later, but whether those images exist
-    at all is still an open question in docs/datatables/recipe_idp.txt, and one
+    at all is still an open question in docs/datatables/hitachi/recipe_idp.txt, and one
     listing answers it.
     """
     print("\n=== Stage E: wafer-align files ===")

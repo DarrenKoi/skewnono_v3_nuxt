@@ -58,7 +58,7 @@ build_reso_center_docs(eqp_id, fab_name, start, end) -> list[dict]
     그대로 돌려줍니다. 상위 dispatcher 가 normalizers.docs_payload 로 감쌉니다.
   - 이 index 는 eqp_ip 로 키가 걸려 있으므로, 다른 hardware 어댑터와 같은 방식으로
     eqp_id -> eqp_ip 를 해결합니다. 명부는 sem_list 입니다
-    (docs/datatables/sem_list.txt). sharpness 어댑터가 같은 문제를 이미 풀어
+    (docs/datatables/hitachi/sem_list.txt). sharpness 어댑터가 같은 문제를 이미 풀어
     두었으므로 같은 방식입니다.
     ★ 따라서 sem_list 도 office provider 여야 합니다. mock 명부는 가짜 IP 를 주고,
       그 IP 는 0건을 매칭해 "데이터 없음" 과 구분되지 않습니다.

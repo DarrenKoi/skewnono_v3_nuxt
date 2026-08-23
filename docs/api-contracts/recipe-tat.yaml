@@ -427,7 +427,7 @@ endpoints:
 
 notes:
   - Office must anchor the date window on max(timestamp) from the source index — do NOT use wall-clock now(). Phase 1 mock anchors on import-time wall-clock (ANCHOR_TIME) which drifts; production should be deterministic per query.
-  - Source schema is docs/datatables/meas_hist.txt. The TAT dashboard only needs timing fields; office should drop msr/align/image counts and idp paths just like the mock does, to keep payloads small.
+  - Source schema is docs/datatables/hitachi/meas_hist.txt. The TAT dashboard only needs timing fields; office should drop msr/align/image counts and idp paths just like the mock does, to keep payloads small.
   - The path prefix /cdsem/recipe-tat is used for both tool types — clients pass tool_type as a query param. Do not split into /cdsem/... and /hvsem/... paths in the office.
   - lru_cache(maxsize=256) on _filter_rows in the mock keys on (tool_type, fab_names, start_date, end_date, lot_cd), where fab_names is the resolved tuple of uppercased fab names (hashable, required by lru_cache) — not the raw comma-separated fab_name query string. Office should cache the filter result similarly since each page hit triggers ranking + summary + daily-trend + devices with identical filters.
   - equipments and equipment-compare do not accept lot_cd — they answer "what equipment exists / how do these equipments compare" and must not be narrowed by the lot-detail slideover's selection.

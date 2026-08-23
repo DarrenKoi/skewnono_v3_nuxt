@@ -158,7 +158,7 @@ class TestOfficeAlignImages:
         # defect; returning the derived pair -- which this did until
         # 2026-08-22 -- queues two <img> requests that cannot succeed. 503 is
         # what this surface already answers for a connect/login/listing
-        # failure (docs/datatables/recipe_idp.txt).
+        # failure (docs/datatables/hitachi/recipe_idp.txt).
         _listing(monkeypatch, None)
         with pytest.raises(SourceUnavailable):
             oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")

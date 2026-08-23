@@ -45,10 +45,10 @@ Redis supplies `idw_name` and `idp_name` directly. The other two are derived:
 
 - `class_name` — the prefix of the `full_name` key being looked up.
   `full_name = f"{class_name}/{recipe_name}"` is documented in
-  `docs/datatables/meas_hist.txt`, so `recipe_id.split("/", 1)[0]` is the class.
+  `docs/datatables/hitachi/meas_hist.txt`, so `recipe_id.split("/", 1)[0]` is the class.
 - `eqp_ip` — Redis gives `eqp_id`, so the roster resolves it. This is the
   `eqp_id -> eqp_ip` join through `sem_list.data.get_sem_list()` that
-  `lateral_recipe` already performs, and that `docs/datatables/recipe_idp.txt`
+  `lateral_recipe` already performs, and that `docs/datatables/hitachi/recipe_idp.txt`
   currently claims recipe open does not need. That claim becomes true only of
   the fallback path and must be corrected.
 
@@ -156,9 +156,9 @@ appear.
 Per the two-places rule in `CLAUDE.md`, office DB facts land in both the schema
 of record and the mock docstring:
 
-- `docs/datatables/recipe_name_list.txt` — both new hash schemas, marked
+- `docs/datatables/hitachi/recipe_name_list.txt` — both new hash schemas, marked
   `user-confirmed 2026-07-29`
-- `docs/datatables/recipe_idp.txt` — redraw the source chain Redis-first, and
+- `docs/datatables/hitachi/recipe_idp.txt` — redraw the source chain Redis-first, and
   correct the passage asserting the `sem_list` join is unnecessary
 - `providers/mock.py` docstring — name the new office source
 - `MIGRATION.md` — `/recipe-detail` source and error tables

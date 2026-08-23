@@ -236,17 +236,17 @@ dnumber_removed -> bool: 데이터 전송 제외 여부 (office 확인 2026-07-2
      그래서 "보통 SEQ = 1" 이 불변식이냐는 물음은 묶기에는 필요하지 않습니다 —
      Region 이 같은지만 보면 되고, 그 값은 mother 와 같은 row 에 있습니다.
      device-statistics 가 이 묶음으로 son 에게 mother 의 cap 을 물려줍니다
-     (docs/datatables/recipe_params.txt 의 "SEQ 그룹" 절).
+     (docs/datatables/hitachi/recipe_params.txt 의 "SEQ 그룹" 절).
 
   ★ 소비처가 둘입니다 (2026-08-04) — recipe open 화면 말고도
     **device-statistics 의 mother_normal 버킷**이 이 값을 필요로 합니다
-    (docs/datatables/recipe_params.txt 의 mother 컬럼, planstep_r3.txt 의 네
+    (docs/datatables/hitachi/recipe_params.txt 의 mother 컬럼, planstep_r3.txt 의 네
     버킷 절). 그런데 그쪽은 device 4000개 × recipe 100~200개 규모라, recipe
     1건당 .idp 파일을 내려받는 이 경로를 쓸 수 없습니다.
 
     ★★ 해결됨 (office 확인 2026-08-10) — 두 번째 출처가 있었습니다.
        **cdsem_idp_ver 의 raw_data** object 에 같은 parameter 별 row 가 실려
-       있고 Mother_Para 도 거기 있습니다 (docs/datatables/idp_ver.txt 의
+       있고 Mother_Para 도 거기 있습니다 (docs/datatables/hitachi/idp_ver.txt 의
        "raw_data — mother 의 출처" 절). device-statistics 는 이제 그 경로로
        읽으므로 .idp 파일을 recipe 마다 내려받지 않습니다.
 

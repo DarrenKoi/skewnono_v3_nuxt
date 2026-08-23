@@ -1,6 +1,6 @@
 """횡전개(lateral) — recipe ↔ tools mapping mock.
 
-Office counterpart — schema of record: `docs/datatables/idp_ver.txt`. CONNECTED
+Office counterpart — schema of record: `docs/datatables/hitachi/idp_ver.txt`. CONNECTED
 (2026-07-27); the Redis `v3_tools_in_recipe_<fab>` hash this docstring used to
 name as the deferred production source was never the source and is not used.
 What the office adapter actually reads:

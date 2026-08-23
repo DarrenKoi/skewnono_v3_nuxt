@@ -1,7 +1,7 @@
 """Naming rules for the raw-recipe folder. Pure — these run anywhere.
 
 Every assertion here encodes an office fact from
-``docs/datatables/recipe_idp.txt`` — see its "raw recipe folder — AMP / focus /
+``docs/datatables/hitachi/recipe_idp.txt`` — see its "raw recipe folder — AMP / focus /
 beam condition" section.
 A change to one of them is a change to what the office was observed to do, not a
 refactor — so each test is named for the fact it holds rather than the function
@@ -174,7 +174,7 @@ def test_align_reference_images_has_no_derived_stand_in():
 
 
 def test_align_reference_images_names_only_the_points_the_folder_holds():
-    """`1 하나만 있는 recipe 도 있습니다` (docs/datatables/recipe_idp.txt).
+    """`1 하나만 있는 recipe 도 있습니다` (docs/datatables/hitachi/recipe_idp.txt).
 
     Publishing IMAP0002.jpeg for such a recipe is a guaranteed 404.
     """

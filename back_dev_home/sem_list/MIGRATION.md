@@ -128,7 +128,7 @@ Both must run from the repo root. Do NOT run the provider file by path
    refreshed. The symptom is a boot failure that does not obviously name
    `sem_list`.
 2. Confirm the roster's columns once, and upgrade the two `user-confirmed
-   2026-07-30` markers (here and in `docs/datatables/sem_list.txt`) to
+   2026-07-30` markers (here and in `docs/datatables/hitachi/sem_list.txt`) to
    `office 확인 <date>`:
 
    ```bash

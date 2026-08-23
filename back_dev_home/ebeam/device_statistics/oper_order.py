@@ -2,7 +2,7 @@
 
 M 계열 양산 fab 의 스텝은 OpenSearch ``ebeam_tas_lot_hist`` 에서 오는데, 이 index
 에는 **공정 순서 field 가 없습니다** (R3 의 sknn-planstep-r3 는 oper_seq / samp_seq
-를 가짐 — docs/datatables/ebeam_tas_lot_hist.txt). 대신 oper_det_desc 가 관례적인
+를 가짐 — docs/datatables/hitachi/ebeam_tas_lot_hist.txt). 대신 oper_det_desc 가 관례적인
 공정 접두사로 시작하므로, 그 접두사의 순서로 정렬합니다.
 
     "CBL ETCH CD"    -> 접두사 "CBL"

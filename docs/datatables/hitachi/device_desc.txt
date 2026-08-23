@@ -25,7 +25,7 @@ Key   -> "device_desc" (DataFrame, parquet 직렬화)
 Column -> fac_id, lot_cd, ctn_desc, chg_tm, tech_nm, rnd_connector
 
 R3/연구개발 카탈로그는 별도 key r3_device_grp 입니다
-(docs/datatables/r3_device_grp.txt 참고). recipe_tat/fail_issue 가 공유하는
+(docs/datatables/hitachi/r3_device_grp.txt 참고). recipe_tat/fail_issue 가 공유하는
 back_dev_home/ebeam/_office_meas_hist.py 도 이 두 key 를 읽으므로,
 한쪽만 바꾸면 같은 device 목록이 화면마다 달라집니다.
 

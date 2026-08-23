@@ -84,7 +84,7 @@ def main() -> int:
     client = redis_client()
     if not client.exists(_PPID_HASH):
         print("NOT FOUND. The adapter returns an empty snapshot for a missing key.")
-        print("Check the key name against docs/datatables/storage_ppid.txt.")
+        print("Check the key name against docs/datatables/hitachi/storage_ppid.txt.")
         return 1
 
     snapshots = _load_ppid_snapshots(client)

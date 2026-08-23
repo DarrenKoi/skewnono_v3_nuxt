@@ -3,7 +3,7 @@
  *
  * Fetched on click rather than with the recipe, because each parameter costs up
  * to five files off the measuring tool's own FTP server and most parameters are
- * never opened. See `docs/datatables/recipe_idp.txt`.
+ * never opened. See `docs/datatables/hitachi/recipe_idp.txt`.
  *
  * The rows are OPEN key/value, not fixed columns: the office parser's field
  * names are still unverified, and an open shape renders an unexpected key
@@ -80,7 +80,7 @@ export function slotsOf(row: Record<string, string>): Record<string, string> {
  * Identity of one param-detail request: the parameter AND its five slot values.
  *
  * ★ The parameter alone is NOT the identity. A row of idp_image_info is one image
- *   DEFINITION, not one parameter (`docs/datatables/recipe_idp.txt`), so the same
+ *   DEFINITION, not one parameter (`docs/datatables/hitachi/recipe_idp.txt`), so the same
  *   parameter can appear in several rows naming different files — Para_13 at
  *   SEQ 4/6 and SEQ 11/15 resolve to `IMMP0004…` and `IMMP0011…`. A cache keyed
  *   on the parameter served the first row's images and settings under the second

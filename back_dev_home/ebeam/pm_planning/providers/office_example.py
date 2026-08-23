@@ -45,7 +45,7 @@ reading a number off this screen.
 3. **The BSM acceptance band is RELATIVE, and deliberately not the mock's.**
    ``spec_range_mock.bsm_in_spec`` tests noise against 6.65–6.95, a band
    invented alongside ``pm_gate_bsm_mock``. The real sample doc in
-   ``docs/datatables/hardware_beam_shape.txt`` has ``Ave. Noise`` at 6.277 —
+   ``docs/datatables/hitachi/hardware_beam_shape.txt`` has ``Ave. Noise`` at 6.277 —
    outside it. Importing that band would mark every tool in the fab out of spec
    and hold the whole fleet, on a threshold nobody at the fab ever stated. So
    ``bsm_in_spec`` here is a robust outlier test against the fab's own fleet
@@ -160,7 +160,7 @@ WINDOW_DAYS = 30
 RUNS_PER_TOOL = 8
 
 # How far back to look for MDC epoch boundaries. Deliberately NOT WINDOW_DAYS:
-# MDC "자주 바뀌지는 않는다" (docs/datatables/hardware_mdc_setting.txt) and the
+# MDC "자주 바뀌지는 않는다" (docs/datatables/hitachi/hardware_mdc_setting.txt) and the
 # mock's own epoch_history spaces its three points 60+ days apart, so a 30-day
 # lookback would leave nearly every tool with an empty history and make the
 # `mdc_changed` badge read as "never changed" rather than "not in the last
@@ -175,7 +175,7 @@ ACTION_LIMIT_RATIO = 0.01
 
 # ── BSM (beam_shape_cdsem) ────────────────────────────────────────────────
 # Same index and selectors as hardware/providers/bsm; the schema and the
-# .keyword rules are in docs/datatables/hardware_beam_shape.txt.
+# .keyword rules are in docs/datatables/hitachi/hardware_beam_shape.txt.
 BSM_INDEX = "beam_shape_cdsem"
 BSM_TYPE_KW = "type.keyword"
 BSM_CATEGORY_KW = "fdc_category.keyword"
@@ -189,7 +189,7 @@ BSM_SHARPNESS_KEY = "Reso EB"
 BSM_NOISE_SCALAR = "Ave. Noise"
 BSM_NOISE_PROFILE = "Noise"
 # Docs kept per tool. beam_shape runs ~3x/day
-# (docs/datatables/hardware_beam_shape.txt), so a 30-day window is ~90 docs per
+# (docs/datatables/hitachi/hardware_beam_shape.txt), so a 30-day window is ~90 docs per
 # tool per beam condition and 40 silently cut the older half — the
 # epoch-opening levels in `epoch_history` then came from whatever survived.
 #

@@ -8,7 +8,7 @@ with ``normalizers.docs_payload``. SharpnessPanel reads the nested objects
 straight off each doc, so nothing here interprets a measurement — this adapter
 resolves identity, fetches, validates, and orders, and that is all.
 
-Doc layout (source of truth: ``docs/datatables/hardware_sharpness_monitor_cdsem.txt``).
+Doc layout (source of truth: ``docs/datatables/hitachi/hardware_sharpness_monitor_cdsem.txt``).
 The index carries exactly eight fields, user-confirmed 2026-07-22:
 
 * ``ip`` (keyword)      — the ONLY tool identity (see IDENTITY below).
@@ -66,7 +66,7 @@ OFFICE-VERIFY on the first real run:
    6 -> 800**. The page's condition selector is built from that pair, and the
    panel defaults to the condition whose ``Vacc == 800`` — i.e. cond 6.
    (This line previously said 5/800 and 6/500, a positional misreading of
-   docs/datatables/hardware_sharpness_monitor_cdsem.txt, which lists the two value sets
+   docs/datatables/hitachi/hardware_sharpness_monitor_cdsem.txt, which lists the two value sets
    in opposite order. ``sharpness/mock.py`` had it right all along.)
 
 At the office: fill in OPENSEARCH_* in ``back_dev_home/.env``,

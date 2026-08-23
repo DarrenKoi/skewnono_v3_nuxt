@@ -83,7 +83,7 @@ activity-count 용법. device-statistics 의 GET /meas-activity 가 fab_id term
 
 device-statistics 의 공정 스텝 소스는 fab 계열에 따라 **둘로 갈립니다**.
 
-  R3 / 연구개발 -> sknn-planstep-r3      (docs/datatables/planstep_r3.txt)
+  R3 / 연구개발 -> sknn-planstep-r3      (docs/datatables/hitachi/planstep_r3.txt)
   M 계열 양산   -> ebeam_tas_lot_hist    (이 문서)
 
 M fab 경로는 다음과 같습니다.
@@ -98,7 +98,7 @@ M fab 경로는 다음과 같습니다.
    event_tm 시간순으로 대신합니다.
 4. 각 스텝의 recipe_id 를 함께 가져옵니다. 파라미터 개수는 R3 와 동일하게
    recipe_id -> cdsem_idp_ver.full_name 최신 version 의 parameters 에서 구합니다
-   (docs/datatables/idp_ver.txt).
+   (docs/datatables/hitachi/idp_ver.txt).
 
 주의 — payload. 3개월 × measurement 단위이므로 전체 row 를 내려받는 방식은
 위험합니다. "lot_cd 별 unique oper_det_desc" 는 nested terms aggregation

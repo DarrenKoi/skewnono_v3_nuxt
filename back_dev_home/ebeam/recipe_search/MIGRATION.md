@@ -142,7 +142,7 @@ function are gone; three endpoints replace them.
   `recipe_search/rawfiles.py`, which is pure and fully tested at home. Do not
   re-derive `.jpeg`, the `PR`→`EN` swap, the four-digit padding, or the
   `.`-prefixed `cond.txt` sidecar in the adapter. Schema of record:
-  `docs/datatables/recipe_idp.txt`.
+  `docs/datatables/hitachi/recipe_idp.txt`.
 - **A missing file is not an error.** `_fetch_raw` logs it and omits it from the
   result; `_read_block` turns both an absent file and a reader that raises into
   `None`, which renders as 파일 없음 on a **200**. Only the FTP session itself
@@ -167,7 +167,7 @@ function are gone; three endpoints replace them.
 ### What the 2026-07-30 probe run changed
 
 `scripts/probe_recipe_ftp.py` was run against real files and all five readers'
-output is now recorded in `docs/datatables/recipe_idp.txt`. Three results
+output is now recorded in `docs/datatables/hitachi/recipe_idp.txt`. Three results
 changed the adapter rather than only the documentation, so re-read them before
 copying this template to `office.py`:
 
@@ -191,7 +191,7 @@ copying this template to `office.py`:
   genuinely all-`str`. `_to_rows` already stringifies every branch, so nothing
   broke — but do not add code that assumes a reader returned a string.
 
-Field NAMES live in `docs/datatables/recipe_idp.txt` and are expected to change
+Field NAMES live in `docs/datatables/hitachi/recipe_idp.txt` and are expected to change
 as the office parser is refined. Nothing in the adapter keys off any of them;
 that is what the open key/value `SettingBlock` buys. When they change, the
 adapter needs no edit at all — only the mock's tables and that document.
@@ -368,7 +368,7 @@ production equipment.
     frames answer to the same one — does it raise `LookupError` (502). The
     2026-08-03 cloud failure is why: the old code assumed a mapping in its own
     error message (`sorted(frames)`) and died with a `TypeError` (opaque 500)
-    instead of reporting what arrived. See `docs/datatables/recipe_idp.txt`
+    instead of reporting what arrived. See `docs/datatables/hitachi/recipe_idp.txt`
     §파서 반환 구조 — the real shape there is still OFFICE-VERIFY.
   - A documented column the parser stopped emitting is **nulled, not dropped**
     (WARNING logged); an undocumented one it started emitting is **dropped**
@@ -406,7 +406,7 @@ production equipment.
   everything below the parse is runnable here. `tests/test_idp_mapping.py`
   covers the mapping with hand-built DataFrames and needs neither
   `office_utils` nor `office.py`, so it also runs on a clean checkout.
-  Details: `docs/datatables/recipe_idp.txt` §집에서의 대역.
+  Details: `docs/datatables/hitachi/recipe_idp.txt` §집에서의 대역.
 - **Where the real `office_utils` comes from, and how to get it back.** The
   office copy is not produced by this repo and is in no commit — `git log
   --diff-filter=A -- 'office_utils/*'` is empty on every branch. If it is

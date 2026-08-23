@@ -25,7 +25,7 @@ image_cache 의 오래된 객체 삭제, device-statistics 주차 스냅샷 사�
 그 패턴을 이 저장소로 옮기는 설계를 기술합니다.
 
 한편 device-statistics 주차 스냅샷은 **설계가 이미 끝나 있습니다.**
-`docs/datatables/device_statistics_weekly_trend.txt` 가 payload 구조와 MinIO
+`docs/datatables/hitachi/device_statistics_weekly_trend.txt` 가 payload 구조와 MinIO
 key 규칙을 확정했고, `providers/office_example.py:966` 에
 `write_weekly_snapshot()` 이 구현되어 있습니다. 그 문서의 마지막 줄이 남긴 숙제가
 **"스케줄러 자체는 아직 없습니다"** 입니다. 즉 이 작업에 필요한 것은 설계가 아니라
@@ -433,7 +433,7 @@ Redis 기반 락과 jobstore 는 집에서 실제 서버를 상대로 검증할 
 | purge 작업 이전 | `msr_image/scheduler.py` **삭제**, 본문 → `_scheduler/tasks/image_cache.py` |
 | 스냅샷·sweep dispatch | `device_statistics/data.py`, `providers/mock.py`, `providers/office_example.py` |
 | 실행 기록 엔드포인트 | `health/routes.py`, `health/contracts.py` |
-| 문서 | `docs/deployment.md`(핵심 uWSGI 설정), `device_statistics/MIGRATION.md`, `docs/datatables/device_statistics_weekly_trend.txt`(보존 정책 구현됨으로 갱신) |
+| 문서 | `docs/deployment.md`(핵심 uWSGI 설정), `device_statistics/MIGRATION.md`, `docs/datatables/hitachi/device_statistics_weekly_trend.txt`(보존 정책 구현됨으로 갱신) |
 
 ## 10. OFFICE-VERIFY
 

@@ -373,7 +373,7 @@ without a live Redis. New or rewritten coverage:
 
 ## Office verification items
 
-Marked `OFFICE-VERIFY` in `mock.py` and `docs/datatables/live_alarm_board.txt`:
+Marked `OFFICE-VERIFY` in `mock.py` and `docs/datatables/hitachi/live_alarm_board.txt`:
 
 - **How far back `get_live_alarms(fac_id)` reaches.** If it returns ≥10 minutes
   of history the board self-heals after any outage; if it returns only active

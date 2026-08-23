@@ -22,7 +22,7 @@ the thing it stands for, which is the failure mode CLAUDE.md warns about.
 `tests/test_mock.py` now guards that domain: volume, the repeat, the quiet
 board, the blank ppid, and the roster gap.
 
-Office counterpart — schema of record: `docs/datatables/live_alarm_board.txt`.
+Office counterpart — schema of record: `docs/datatables/hitachi/live_alarm_board.txt`.
 Unlike every other feature here, the office READ SOURCE IS NOT THE SYSTEM OF
 RECORD. Redis is a short cache in front of the in-house alarm API, refreshed
 by the same request that reads it: a page view calls `refresh.ensure_fresh`,

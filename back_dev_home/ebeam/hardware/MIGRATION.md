@@ -21,8 +21,8 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 `office.py` for both has existed **at the office** since 2026-07-27, but
 `office.py` is gitignored and never reached this repo. Rather than leave the
 tracked templates as stubs, their bodies were **reconstructed at home** from
-`docs/datatables/hardware_reso_center_data.txt` and
-`docs/datatables/hardware_mdc_setting.txt` plus the sibling adapters
+`docs/datatables/hitachi/hardware_reso_center_data.txt` and
+`docs/datatables/hitachi/hardware_mdc_setting.txt` plus the sibling adapters
 (`sce/` for mdc's two-tier Redis+MinIO shape, `bsm/`+`sharpness/` for
 reso_center's query and identity hop).
 
@@ -46,7 +46,7 @@ against exactly that.
 
 `fdc/office_example.py` is implemented, not a stub: its body is written
 against the `network_fdc_cdsem` layout in
-`docs/datatables/hardware_network_fdc_cdsem.txt`, so the office step is `cp` plus the
+`docs/datatables/hitachi/hardware_network_fdc_cdsem.txt`, so the office step is `cp` plus the
 two OFFICE-VERIFY checks in its docstring (offset-less `timestamp`, and
 `eqp_id` carrying a `.keyword` subfield). FDC is CD-SEM only — an HV-SEM tool
 matches no documents and renders an empty chart, which is the intended
@@ -57,10 +57,10 @@ for the past-work table (`down_dt`/`equp_dt` plus the three engineer notes)
 and `tool_maintenance_plan` for the planned-work table. Run its `__main__` before
 `cp`-ing it — the diagnostic prints the raw stored timestamps, which is the one
 thing about these indices that is still unverified (see the module docstring).
-Schema: `docs/datatables/hardware_bm_pm.txt`.
+Schema: `docs/datatables/hitachi/hardware_bm_pm.txt`.
 
 `sharpness/office_example.py` is likewise implemented, against
-`docs/datatables/hardware_sharpness_monitor_cdsem.txt`. It is the one adapter here that
+`docs/datatables/hitachi/hardware_sharpness_monitor_cdsem.txt`. It is the one adapter here that
 cannot query by `eqp_id`: `sharpness_monitor_cdsem` carries **`ip` only** as
 tool identity, so the adapter resolves `eqp_id → eqp_ip` through
 `sem_list.data.get_sem_list()` (the same roster `storage` and `lateral_recipe`
@@ -79,7 +79,7 @@ spelled the same as sem_list's `eqp_ip` (bare dotted quad, no port). Run the
 `__main__` smoke block — it prints the resolved IP separately from the query
 result, so a roster problem is distinguishable from an empty window.
 
-`bsm/office_example.py` is implemented against `docs/datatables/hardware_beam_shape.txt`.
+`bsm/office_example.py` is implemented against `docs/datatables/hitachi/hardware_beam_shape.txt`.
 It queries the `beam_shape_cdsem` alias for the `type:"total"` /
 `fdc_category:"bsi_beam_shape"` documents and normalizes each doc's SHAPE (not
 its field names) to match `bsm/mock.py`, because two source shapes would
@@ -96,7 +96,7 @@ smoke block after `cp`. The pure normalizers are unit-tested at home in
 `tests/test_bsm_office.py`.
 
 `sce/office_example.py` is implemented against
-`docs/datatables/hardware_sce_setting.txt`, and is the one hardware adapter that reads
+`docs/datatables/hitachi/hardware_sce_setting.txt`, and is the one hardware adapter that reads
 neither OpenSearch nor one source: the LATEST snapshot comes from the Redis
 hash `sce_info` (one field per `fab_name` — `M15A`, `M14B`, ... — each value
 the fab's `{eqp_id: {FileInfo, SemCond, ImgCond, SCEParam, Coefficients}}`

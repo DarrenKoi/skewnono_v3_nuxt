@@ -211,7 +211,7 @@ user-confirmed 2026-08-16, 두 방향 모두: `max` 는 0.20 을 유지하고(Ka
 recipe glob > 무범위, 각 단계 안에서 정확한 이름 > glob. fab 전체에 통하는
 규칙이면 `recipe:` 접두사를 빼십시오. 진단이 해석 실패한 쌍을 전부 출력합니다.
 
-측정 방향은 pickle 에도 meas_hist 에도 없습니다(`docs/datatables/msr_file_pickle.txt`
+측정 방향은 pickle 에도 meas_hist 에도 없습니다(`docs/datatables/hitachi/msr_file_pickle.txt`
 참고). 어댑터는 parameter **이름**에서 되찾고, 읽을 수 없으면 그 행을 **버립니다**.
 기본값 "X" 를 넣지 않는 이유는 계약의 `Axis` 가 두 값짜리 Literal 이라 측정된
 사실과 구분되지 않고, 그러면 X 셀이 두 방향을 모두 담아 방향별 드리프트가

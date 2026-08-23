@@ -97,7 +97,7 @@ def test_wafer_map_is_a_recipe_property():
 
     This is the office's own structural claim, not a modelling preference:
     site_layout_hash is the sha1 of chip_array / chip_pitch / wafer_size /
-    map_origin plus the site set (docs/datatables/msr_file_pickle.txt), and a
+    map_origin plus the site set (docs/datatables/hitachi/msr_file_pickle.txt), and a
     hash that changed every run could not identify a shared layout — which is
     the only thing it exists to do.
 

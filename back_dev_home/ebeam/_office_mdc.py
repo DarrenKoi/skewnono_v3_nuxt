@@ -17,7 +17,7 @@ never boundaries. Importing it would also couple two features to whether the
 hardware adapter happens to have been ``cp``-ed. This module is TRACKED, so it
 travels with ``git pull``, and it answers only the boundary question.
 
-Source (docs/datatables/hardware_mdc_setting.txt, 담당자 확인 2026-07-27): MinIO
+Source (docs/datatables/hitachi/hardware_mdc_setting.txt, 담당자 확인 2026-07-27): MinIO
 ``hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json`` — one file per
 collection date, each the fab's whole ``{eqp_id: {beam_condition: value}}`` map.
 

@@ -50,7 +50,7 @@
 
 ### Invariant: `{row sequences} == {dynamic_fdc keys}`
 
-Office-confirmed 2026-07-27 (`docs/datatables/msr_file_pickle.txt`):
+Office-confirmed 2026-07-27 (`docs/datatables/hitachi/msr_file_pickle.txt`):
 `sequence` is a global running counter over the whole MSR — one number per
 measurement row — and `dynamic_fdc` is keyed by that sequence, holding the tool
 state captured for it. The two must therefore agree as SETS, not merely as
@@ -97,7 +97,7 @@ what was measured — investigate the post-processing pipeline, not the adapter.
   The pickle already holds the
   parsed structure (`df_result_data` + `exe_detail_info` + `alignment` +
   `fixed_fdc` + `dynamic_fdc` + `spm_dict`, see
-  `docs/datatables/msr_file_pickle.txt`). MinIO settings come from
+  `docs/datatables/hitachi/msr_file_pickle.txt`). MinIO settings come from
   `minio_handler/minio_config.py`, NOT `.env`. Unknown MSR, missing
   `minio_pkl`, or a non-dict pickle all return `None` → 404, same as the mock.
   - The parent lookup goes through `_office_meas_hist.msr_clause`, never a bare
@@ -124,7 +124,7 @@ what was measured — investigate the post-processing pipeline, not the adapter.
   = pickle key or pinned `minio-pkl-v1`, `sequence_timestamp` = parent doc
   `start_time`.
 - `eqp_ip` is NOT in the pickle — it comes straight off the parent meas_hist
-  `_source` (`docs/datatables/meas_hist.txt`), which `_find_parent` already
+  `_source` (`docs/datatables/hitachi/meas_hist.txt`), which `_find_parent` already
   fetches whole for `class_name`/`total_images`, so it costs no extra query.
   It is the third leg of the `(eqp_ip, class_name, msr)` address `msr_image`
   serves by, and it rides on this response so a caller holding only an `msr`
@@ -162,7 +162,7 @@ what was measured — investigate the post-processing pipeline, not the adapter.
 따라서 잘못 지운 픽클의 복구 수단은 상위 파이프라인 재실행뿐입니다.
 
 키 레이아웃은 `user / 2067928/hitachi_sem/{cdsem,hvsem}/{raw_msr,dict_pkl}/
-YYYY/MM/DD/` 입니다(user-confirmed 2026-07-28, `docs/datatables/msr_file_pickle.txt`).
+YYYY/MM/DD/` 입니다(user-confirmed 2026-07-28, `docs/datatables/hitachi/msr_file_pickle.txt`).
 pickle 과 raw 원본은 확장자가 아니라 **형제 폴더**로 갈리고, 그 아래가 날짜
 파티션이라는 두 가지가 정리 방식을 결정합니다.
 
