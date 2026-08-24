@@ -136,3 +136,36 @@ export const isSetColdLoading = (input: {
   input.wantSet
   && input.loaded === 0
   && (input.historyPending || input.filesPending)
+
+/** Whether the manifest's compatibility count (the rail's 호환 chip) is an
+ *  answer at all, or a number produced by having nothing to count.
+ *
+ *  `buildAnalysisManifest` derives `counts.compatible` from the files that
+ *  LOADED, and the focus file loads on its own path (loadFocus, not the set
+ *  batch). So with no set files in hand the manifest compares the focus against
+ *  itself, finds it compatible, and reports 호환 1 — which beside a 9-member
+ *  member list reads as "8 of your 9 are incompatible", a verdict nothing
+ *  computed.
+ *
+ *  Two situations reach that state, and only one of them ends:
+ *
+ *    • a cold set load, for as long as meas_hist + the msr_file batch take;
+ *    • the Dashboard, PERMANENTLY. It is excluded from shouldLoadSet to keep
+ *      the single-measurement lazy-load invariant, so under `set` scope its
+ *      rail has a full member list and will never have a file to compare them
+ *      with. A "wait for the fetch" flag cannot cover this one — there is no
+ *      fetch to wait for.
+ *
+ *  Hence `loaded`, not a pending flag: the question is whether anything was
+ *  counted, not whether something is in flight. That also leaves a warm set
+ *  edit alone — it carries the previous files, so the chip HOLDS the last real
+ *  answer for the second the batch takes instead of blinking to a placeholder.
+ *
+ *  A one-measurement selection is always known: `호환 1` is then the whole
+ *  truth, not a floor. */
+export const isSetCompatibilityKnown = (input: {
+  /** How many measurements the selection names (URL `msrs`). */
+  members: number
+  /** How many set files are loaded, for ANY set. */
+  loaded: number
+}): boolean => input.members < 2 || input.loaded > 0

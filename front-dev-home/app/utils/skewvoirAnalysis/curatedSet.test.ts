@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TREND_LIMIT, isSetColdLoading, isSetPoolComplete, rendersFocusAlone, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
+import { TREND_LIMIT, isSetColdLoading, isSetCompatibilityKnown, isSetPoolComplete, rendersFocusAlone, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
 
 interface MeasHistRowFixture { msr: string, msr_check: 'Yes' | 'No' }
 
@@ -133,4 +133,24 @@ test('isSetColdLoading: a view that does not want the set never shows the loader
   // Dashboard and single scope run off the focus file, which has its own
   // pending flag — a set fetch they never asked for must not block them.
   assert.equal(isSetColdLoading({ ...COLD, wantSet: false }), false)
+})
+
+// --- isSetCompatibilityKnown: is the rail's 호환 chip an answer or an artefact? ---
+
+test('isSetCompatibilityKnown: a set with no files loaded has nothing to count', () => {
+  // The focus loads on its own path, so the manifest compares it against
+  // itself and reports 호환 1 beside a 9-member list.
+  assert.equal(isSetCompatibilityKnown({ members: 9, loaded: 0 }), false)
+})
+
+test('isSetCompatibilityKnown: one loaded file is enough to state a real count', () => {
+  // Partial or stale, but computed over files — and a warm set edit keeps the
+  // previous ones, so the chip holds its last answer rather than blinking.
+  assert.equal(isSetCompatibilityKnown({ members: 9, loaded: 8 }), true)
+})
+
+test('isSetCompatibilityKnown: a single measurement is always known', () => {
+  // 호환 1 is the whole truth for a set of one, not a floor, so the Dashboard
+  // under single scope keeps its number.
+  assert.equal(isSetCompatibilityKnown({ members: 1, loaded: 0 }), true)
 })

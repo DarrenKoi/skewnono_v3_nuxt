@@ -104,9 +104,25 @@
         <span class="truncate font-mono text-(--sk-ink)">{{ analysis.activeParamLabel.value }}</span>
       </div>
 
-      <!-- Compact counts -->
+      <!-- Compact counts. 호환 goes to an em dash — and drops the OK colour for
+           the neutral chip — when nothing was counted, because the manifest
+           derives the count from the files that loaded and the focus loads on
+           its own path: with no set files it compares the focus against itself
+           and reports 호환 1 beside a nine-row member list.
+           isSetCompatibilityKnown owns that line and names the two situations
+           it covers (a cold set load, and the Dashboard permanently).
+
+           제외 needs no such gate: it is already hidden at 0, and 0 is exactly
+           what an uncounted set yields, so it stays silent rather than
+           claiming nothing was excluded. -->
       <div class="flex flex-wrap items-center gap-1 px-1">
-        <span class="rounded-(--sk-r-chip) bg-(--sk-ok-soft) px-1.5 py-0.5 font-mono text-[10.5px] text-(--sk-ok)">호환 {{ counts.compatible }}</span>
+        <span
+          class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-[10.5px]"
+          :class="compatibilityKnown
+            ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
+            : 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'"
+          :title="compatibilityKnown ? undefined : '세트 파일을 불러온 뒤 계산됩니다.'"
+        >호환 {{ compatibilityKnown ? counts.compatible : '—' }}</span>
         <span
           v-if="counts.excluded > 0"
           class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-1.5 py-0.5 font-mono text-[10.5px] text-(--sk-bad)"
@@ -211,7 +227,7 @@ import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { copyTextToClipboard } from '~/utils/csvDownload'
 import { formatRecipeTimestamp, recipeDetailRoute } from '~/utils/recipeView'
-import { rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
+import { isSetCompatibilityKnown, rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
 
 const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis, fab: string }>()
@@ -237,6 +253,13 @@ const canSwitchFocus = computed(() =>
 )
 
 const counts = computed(() => props.analysis.manifest.value.counts)
+
+// Whether `counts.compatible` may be shown as a number. Reads setFiles rather
+// than a pending flag on purpose — see isSetCompatibilityKnown.
+const compatibilityKnown = computed(() => isSetCompatibilityKnown({
+  members: props.analysis.msrList.value.length,
+  loaded: props.analysis.setFiles.value.size
+}))
 
 interface RailMember {
   msr: string
