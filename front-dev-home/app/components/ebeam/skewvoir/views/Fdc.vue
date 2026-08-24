@@ -27,7 +27,7 @@
 
     <EbeamSkewvoirPanelFrame
       v-else-if="matrix.channelCount"
-      title="측정별 FDC 채널 상태"
+      title="선택 세트 대비 FDC 채널 상태"
       :meta="panelMeta"
       icon="i-lucide-grid-3x3"
     >
@@ -39,8 +39,15 @@
                summary per measurement, so a cell is one whole run compared with
                another whole run — nothing is pooled across sequences to build
                it. See the GRAIN section of utils/skewvoirAnalysis/fdcSet.ts. -->
-          셀 값은 채널의 drift σ이며, 각 셀은 측정 하나 전체의 요약입니다.
-          sequence를 합쳐 만든 값이 아닙니다.
+          셀의 큰 값은 채널의 원시 평균이며, 작은 σ 값과 색은 같은 채널의 다른 측정만 기준으로 계산한 선택 세트 대비 결과입니다.
+          Contrast, Brightness, Stigma처럼 눈금이 다른 채널끼리는 비교하지 않습니다.
+        </p>
+
+        <p class="sk-meta">
+          같은 채널의 유효 측정이 {{ fdcPolicy.minMeasurements }}개 이상일 때만 나머지 측정의 평균·표준편차로 평가합니다.
+          |편차| {{ fdcPolicy.watchSigma }}σ 미만은 정상, {{ fdcPolicy.watchSigma }}σ 이상은 주의,
+          {{ fdcPolicy.abnormalSigma }}σ 이상은 이상이며, 표본 또는 표준편차가 부족하면 평가 불가입니다.
+          이 결과는 선택 세트 안의 탐색 비교이며 고정 장비 관리 한계가 아닙니다.
         </p>
 
         <p
@@ -71,7 +78,13 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { buildFdcSetMatrix, type FdcSetRunSource } from '~/utils/skewvoirAnalysis/fdcSet'
+import {
+  buildFdcSetMatrix,
+  FDC_SET_POLICY,
+  type FdcSetRunSource
+} from '~/utils/skewvoirAnalysis/fdcSet'
+
+const fdcPolicy = FDC_SET_POLICY
 
 const props = defineProps<{
   analysis: SkewvoirAnalysis

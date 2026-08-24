@@ -13,6 +13,12 @@ export interface PeerOptions {
   minN?: number
 }
 
+export interface PeerVerdict extends AnomalyVerdict {
+  /** Leave-one-out reference centre and spread used for this verdict. */
+  peerMean: number | null
+  peerStd: number | null
+}
+
 // Mean + sample std (n-1) of all finite entries except index `skip`.
 const looStats = (values: number[], skip: number): { mean: number, std: number } | null => {
   const others: number[] = []
@@ -29,14 +35,15 @@ const looStats = (values: number[], skip: number): { mean: number, std: number }
   return { mean, std }
 }
 
-export const peerVerdicts = (values: number[], opts: PeerOptions): AnomalyVerdict[] => {
+export const peerVerdicts = (values: number[], opts: PeerOptions): PeerVerdict[] => {
   const { config, metric, tag = '' } = opts
   const method = config.method
   const minN = opts.minN ?? PEER_MIN_N[method]
 
-  const insufficient = (): AnomalyVerdict => ({
+  const insufficient = (): PeerVerdict => ({
     status: 'insufficient', severity: 'normal', method, score: NaN,
-    reason: '표본 부족 — 미평가', metric, signal: 'peer'
+    reason: '표본 부족 — 미평가', metric, signal: 'peer',
+    peerMean: null, peerStd: null
   })
 
   // Re-check N after dropping non-finite values (Codex #8): too few real points → none evaluated.
@@ -50,6 +57,13 @@ export const peerVerdicts = (values: number[], opts: PeerOptions): AnomalyVerdic
     const part = method === 'range'
       ? scoreByRange(value, stats.mean, config.range, tag)
       : scoreByStddev(value, stats.mean, stats.std, config.stddev, tag)
-    return { ...part, method, metric, signal: 'peer' as const }
+    return {
+      ...part,
+      method,
+      metric,
+      signal: 'peer' as const,
+      peerMean: stats.mean,
+      peerStd: stats.std
+    }
   })
 }

@@ -41,6 +41,8 @@ test('stddev method: lone extreme is flagged under LOO at N=7', () => {
   const v = peerVerdicts([50, 51, 49, 50, 52, 48, 90], { config: stddevCfg, metric: 'mean' })
   assert.equal(v[6]!.severity, 'abnormal')
   assert.equal(v[6]!.method, 'stddev')
+  assert.equal(v[6]!.peerMean, 50)
+  assert.ok(Math.abs(v[6]!.peerStd! - Math.sqrt(2)) < 1e-12)
 })
 
 test('verdict carries metric, signal=peer, and active method', () => {

@@ -36,6 +36,64 @@ test('one run column per source, in the caller-supplied order', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Peer-relative classification — raw channel scales never cross-contaminate
+// ---------------------------------------------------------------------------
+
+test('large differently-scaled channels receive the same peer-relative verdict pattern', () => {
+  const values = [
+    { contrast: 20_000, brightness: 12_000, stigma: 79_500 },
+    { contrast: 20_050, brightness: 12_030, stigma: 79_520 },
+    { contrast: 19_950, brightness: 11_970, stigma: 79_480 },
+    { contrast: 20_100, brightness: 12_060, stigma: 79_540 },
+    { contrast: 19_900, brightness: 11_940, stigma: 79_460 },
+    { contrast: 24_000, brightness: 14_400, stigma: 81_100 }
+  ]
+  const matrix = buildFdcSetMatrix(values.map((value, i) => run(`M${i + 1}`, [
+    fdcParam({ name: 'Contrast', mean: value.contrast, status: 'bad', drift_sigma: 9_999 }),
+    fdcParam({ name: 'Brightness', mean: value.brightness, status: 'bad', drift_sigma: 9_999 }),
+    fdcParam({ name: 'StigmaX', mean: value.stigma, status: 'bad', drift_sigma: 9_999 })
+  ])))
+
+  const expected = ['ok', 'ok', 'ok', 'ok', 'ok', 'bad']
+  assert.deepEqual(channel(matrix, 'Contrast').cells.map(c => c.status), expected)
+  assert.deepEqual(channel(matrix, 'Brightness').cells.map(c => c.status), expected)
+  assert.deepEqual(channel(matrix, 'StigmaX').cells.map(c => c.status), expected)
+  assert.deepEqual(
+    channel(matrix, 'Contrast').cells.map(c => c.present ? c.rawValue : null),
+    values.map(value => value.contrast)
+  )
+})
+
+test('fewer than five peer measurements are explicitly insufficient', () => {
+  const matrix = buildFdcSetMatrix([
+    run('M1', [fdcParam({ name: 'Contrast', mean: 19_000, status: 'bad', drift_sigma: 9_999 })]),
+    run('M2', [fdcParam({ name: 'Contrast', mean: 22_000, status: 'bad', drift_sigma: 9_999 })]),
+    run('M3', [fdcParam({ name: 'Contrast', mean: 25_000, status: 'bad', drift_sigma: 9_999 })])
+  ])
+
+  assert.deepEqual(
+    channel(matrix, 'Contrast').cells.map(c => c.status),
+    ['insufficient', 'insufficient', 'insufficient']
+  )
+  assert.equal(channel(matrix, 'Contrast').worstStatus, 'insufficient')
+  assert.equal(matrix.runs[0]?.insufficient, 1)
+})
+
+test('a different value against zero-spread peers is insufficient, not abnormal', () => {
+  const values = [10, 10, 10, 10, 11]
+  const matrix = buildFdcSetMatrix(values.map((mean, i) =>
+    run(`M${i + 1}`, [fdcParam({ name: 'Contrast', mean })])
+  ))
+
+  const cells = channel(matrix, 'Contrast').cells
+  assert.equal(cells[4]?.status, 'insufficient')
+  assert.equal(cells[4]?.peerSigma, null)
+  assert.match(cells[4]?.reason ?? '', /표준편차가 0/)
+  assert.equal(matrix.runs[4]?.bad, 0)
+  assert.equal(matrix.runs[4]?.insufficient, 1)
+})
+
+// ---------------------------------------------------------------------------
 // Cells — presence is reported, never imputed
 // ---------------------------------------------------------------------------
 
@@ -48,8 +106,20 @@ test('a channel one run does not carry is blank there, never zero', () => {
 
   const cells = channel(m, 'DefocusZ').cells
   assert.equal(cells.length, 2)
-  assert.deepEqual(cells[0], { present: true, status: 'bad', driftSigma: 2.7 })
-  assert.deepEqual(cells[1], { present: false, status: null, driftSigma: null })
+  assert.deepEqual(cells[0], {
+    present: true,
+    status: 'insufficient',
+    rawValue: 1,
+    peerSigma: null,
+    reason: '표본 부족 — 미평가'
+  })
+  assert.deepEqual(cells[1], {
+    present: false,
+    status: null,
+    rawValue: null,
+    peerSigma: null,
+    reason: null
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -86,15 +156,16 @@ test('a category the backend left unlabelled falls back to its code', () => {
 const oneCategory = (specs: Partial<FdcParamSummary>[]) =>
   specs.map(s => fdcParam({ category: 'defocus', category_label: '초점', ...s }))
 
-test('within a category the worst status leads, then the largest drift', () => {
-  const m = buildFdcSetMatrix([
-    run('M1', oneCategory([
-      { name: 'Calm', status: 'ok', drift_sigma: 0.2 },
-      { name: 'Drifting', status: 'warning', drift_sigma: 1.5 },
-      { name: 'Broken', status: 'bad', drift_sigma: 3.1 },
-      { name: 'Noisy', status: 'warning', drift_sigma: 2.4 }
-    ]))
-  ])
+test('within a category the worst peer status leads, then the largest peer score', () => {
+  const series = {
+    Calm: [100, 101, 99, 100, 102, 98],
+    Drifting: [100, 101, 99, 100, 102, 103],
+    Broken: [100, 101, 99, 100, 102, 120],
+    Noisy: [100, 101, 99, 100, 102, 108]
+  }
+  const m = buildFdcSetMatrix(Array.from({ length: 6 }, (_, i) =>
+    run(`M${i + 1}`, oneCategory(Object.entries(series).map(([name, values]) => ({ name, mean: values[i] }))))
+  ))
   assert.deepEqual(
     m.groups[0]?.channels.map(c => c.name),
     ['Broken', 'Noisy', 'Drifting', 'Calm']
@@ -102,22 +173,18 @@ test('within a category the worst status leads, then the largest drift', () => {
 })
 
 test('a channel is ranked by its WORST run, not by the first one listed', () => {
-  const m = buildFdcSetMatrix([
-    run('M1', oneCategory([
-      { name: 'LateBad', status: 'ok', drift_sigma: 0.1 },
-      { name: 'AlwaysWarn', status: 'warning', drift_sigma: 1.2 }
-    ])),
-    run('M2', oneCategory([
-      { name: 'LateBad', status: 'bad', drift_sigma: 4.0 },
-      { name: 'AlwaysWarn', status: 'warning', drift_sigma: 1.2 }
-    ]))
-  ])
+  const lateBad = [100, 101, 99, 100, 102, 120]
+  const alwaysWarn = [100, 101, 99, 100, 102, 103]
+  const m = buildFdcSetMatrix(Array.from({ length: 6 }, (_, i) => run(`M${i + 1}`, oneCategory([
+    { name: 'LateBad', mean: lateBad[i] },
+    { name: 'AlwaysWarn', mean: alwaysWarn[i] }
+  ]))))
   assert.deepEqual(m.groups[0]?.channels.map(c => c.name), ['LateBad', 'AlwaysWarn'])
   assert.equal(channel(m, 'LateBad').worstStatus, 'bad')
-  assert.equal(channel(m, 'LateBad').maxDriftSigma, 4.0)
+  assert.equal(channel(m, 'AlwaysWarn').worstStatus, 'warning')
 })
 
-test('equal severity and drift tie-break on name, so renders never reorder', () => {
+test('equal severity and peer score tie-break on name, so renders never reorder', () => {
   const m = buildFdcSetMatrix([
     run('M1', oneCategory([
       { name: 'Zeta', status: 'ok', drift_sigma: 1 },
@@ -132,16 +199,20 @@ test('equal severity and drift tie-break on name, so renders never reorder', () 
 // ---------------------------------------------------------------------------
 
 test('each run column counts its own statuses and its missing channels', () => {
-  const m = buildFdcSetMatrix([
-    run('M1', oneCategory([
-      { name: 'A', status: 'bad', drift_sigma: 3 },
-      { name: 'B', status: 'warning', drift_sigma: 1 },
-      { name: 'C', status: 'ok', drift_sigma: 0.1 }
-    ])),
-    run('M2', oneCategory([{ name: 'A', status: 'ok', drift_sigma: 0.2 }]))
-  ])
-  assert.deepEqual(m.runs[0], { msr: 'M1', label: 'EQ · M1', bad: 1, warning: 1, ok: 1, missing: 0 })
-  assert.deepEqual(m.runs[1], { msr: 'M2', label: 'EQ · M2', bad: 0, warning: 0, ok: 1, missing: 2 })
+  const a = [100, 101, 99, 100, 102, 120]
+  const b = [100, 101, 99, 100, 102, 103]
+  const m = buildFdcSetMatrix(Array.from({ length: 6 }, (_, i) => run(`M${i + 1}`, oneCategory([
+    { name: 'A', mean: a[i] },
+    { name: 'B', mean: b[i] },
+    { name: 'C', mean: 100 },
+    ...(i === 0 ? [{ name: 'OnlyM1', mean: 100 }] : [])
+  ]))))
+  assert.deepEqual(m.runs[0], {
+    msr: 'M1', label: 'EQ · M1', bad: 0, warning: 0, ok: 3, insufficient: 1, missing: 0
+  })
+  assert.deepEqual(m.runs[5], {
+    msr: 'M6', label: 'EQ · M6', bad: 1, warning: 1, ok: 1, insufficient: 0, missing: 1
+  })
 })
 
 test('the matrix reports how many channels are not shared by every run', () => {

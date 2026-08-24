@@ -20,7 +20,7 @@
     <div class="overflow-x-auto">
       <table class="w-full border-collapse">
         <caption class="sr-only">
-          측정(run)별 FDC 채널 상태 비교. 셀 값은 drift σ, 셀 색은 채널 상태입니다.
+          측정(run)별 FDC 채널 비교. 셀 값은 채널 원시 평균과 같은 채널의 선택 세트 대비 편차이며, 셀 색은 상대 상태입니다.
         </caption>
 
         <thead>
@@ -53,9 +53,17 @@
                   class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-1.5 font-mono text-xs tabular-nums text-(--sk-warn)"
                 >주의 {{ run.warning }}</span>
                 <span
-                  v-if="!run.bad && !run.warning"
+                  v-if="run.insufficient"
+                  class="rounded-(--sk-r-chip) bg-(--sk-muted-surface) px-1.5 font-mono text-xs tabular-nums text-(--sk-ink)"
+                >평가 불가 {{ run.insufficient }}</span>
+                <span
+                  v-if="!run.bad && !run.warning && !run.insufficient && run.ok"
                   class="font-mono text-xs text-(--sk-ink-subtle)"
-                >이상 없음</span>
+                >정상</span>
+                <span
+                  v-else-if="!run.bad && !run.warning && !run.insufficient"
+                  class="font-mono text-xs text-(--sk-ink-subtle)"
+                >평가 없음</span>
               </span>
             </th>
           </tr>
@@ -95,10 +103,19 @@
               :key="matrix.runs[i]?.msr ?? i"
               class="px-2 py-1 text-right sk-value-num"
               :class="cell.present ? TONE[cell.status] : 'text-(--sk-ink-subtle)'"
+              :title="cell.present ? cell.reason : '이 측정에 없는 채널'"
             >
               <template v-if="cell.present">
-                {{ cell.driftSigma.toFixed(2) }}
-                <span class="sr-only">σ, {{ STATUS_LABEL[cell.status] }}</span>
+                <span class="block">{{ formatRawValue(cell.rawValue) }}</span>
+                <span
+                  v-if="cell.peerSigma != null"
+                  class="block text-xs font-normal"
+                >{{ formatSigned(cell.peerSigma) }}σ</span>
+                <span
+                  v-else-if="cell.status === 'insufficient'"
+                  class="block text-xs font-normal text-(--sk-ink-subtle)"
+                >미평가</span>
+                <span class="sr-only">{{ STATUS_LABEL[cell.status] }}</span>
               </template>
               <template v-else>
                 –<span class="sr-only">이 측정에 없는 채널</span>
@@ -112,8 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FdcStatus } from '~/composables/useMsrFileApi'
-import type { FdcSetMatrix } from '~/utils/skewvoirAnalysis/fdcSet'
+import type { FdcSetMatrix, FdcSetStatus } from '~/utils/skewvoirAnalysis/fdcSet'
 
 // Presentational only. Row composition, category grouping, channel ranking, the
 // per-run roll-ups and the absent-cell rule are all decided in
@@ -126,41 +142,54 @@ import type { FdcSetMatrix } from '~/utils/skewvoirAnalysis/fdcSet'
 // theme switch comes for free.
 defineProps<{ matrix: FdcSetMatrix }>()
 
-// The established status skin: `-soft` fill + the tone's own ink, the pairing
-// FdcPanel.vue / BmPmTables.vue / ReadinessModal.vue already use. `ok` stays
-// unfilled — a green wash on the majority of cells would drown out the few that
-// need reading, and DESIGN.md's table rule is to keep tables quiet.
+// Status lives in the `-soft` CELL BACKGROUND. Every raw mean and peer σ keeps
+// full ink: DESIGN.md reserves semantic text colour for status labels, never
+// for the data value itself. `ok` stays unfilled — a green wash on the majority
+// of cells would drown out the few that need reading.
 //
 // `ok` keeps FULL ink all the same. Not filling the cell is a background
-// decision; the drift σ inside it is still the value the user came to read, and
+// decision; the raw mean and peer σ inside it are the values the user came to read, and
 // DESIGN.md is explicit that muted ink is for labels only (`--sk-ink-muted`:
 // "never data values"). Quieting the majority of the numbers would hand the
 // table's own content the treatment reserved for its chrome.
-const TONE: Record<FdcStatus, string> = {
+const TONE: Record<FdcSetStatus, string> = {
   ok: 'text-(--sk-ink)',
-  warning: 'bg-(--sk-warn-soft) text-(--sk-warn)',
-  bad: 'bg-(--sk-bad-soft) text-(--sk-bad)'
+  warning: 'bg-(--sk-warn-soft) text-(--sk-ink)',
+  bad: 'bg-(--sk-bad-soft) text-(--sk-ink)',
+  insufficient: 'bg-(--sk-muted-surface) text-(--sk-ink)'
 }
 
-const STATUS_LABEL: Record<FdcStatus, string> = {
+const STATUS_LABEL: Record<FdcSetStatus, string> = {
   ok: '정상',
   warning: '주의',
-  bad: '이상'
+  bad: '이상',
+  insufficient: '평가 불가'
 }
 
-const LEGEND = ['bad', 'warning', 'ok', 'absent'] as const
+const LEGEND = ['bad', 'warning', 'ok', 'insufficient', 'absent'] as const
 
 const LEGEND_FILL: Record<(typeof LEGEND)[number], string> = {
   bad: 'bg-(--sk-bad-soft)',
   warning: 'bg-(--sk-warn-soft)',
   ok: 'bg-(--sk-surface)',
-  absent: 'bg-(--sk-muted-surface)'
+  insufficient: 'bg-(--sk-muted-surface)',
+  absent: 'border-dashed bg-(--sk-surface)'
 }
 
 const LEGEND_LABEL: Record<(typeof LEGEND)[number], string> = {
   bad: '이상',
   warning: '주의',
   ok: '정상',
+  insufficient: '평가 불가',
   absent: '이 측정에 없는 채널'
 }
+
+const rawValueFormatter = new Intl.NumberFormat('ko-KR', {
+  maximumFractionDigits: 2
+})
+
+const formatRawValue = (value: number): string => rawValueFormatter.format(value)
+
+const formatSigned = (value: number): string =>
+  `${value >= 0 ? '+' : ''}${value.toFixed(2)}`
 </script>
