@@ -14,8 +14,12 @@
     v-else
     class="space-y-3"
   >
+    <!-- `setColdLoading` as well as `setPending`, because the batch flag misses
+         the first half of a cold wait: until meas_hist answers there is no set
+         key to fetch files for, so nothing is pending and this view would
+         render its empty state as if the set had resolved to nothing. -->
     <AppLoadingState
-      v-if="analysis.setPending.value"
+      v-if="analysis.setPending.value || analysis.setColdLoading.value"
       variant="inline"
       class="dashboard-surface h-72 rounded-(--sk-r-card)"
       title="세트를 불러오는 중입니다."

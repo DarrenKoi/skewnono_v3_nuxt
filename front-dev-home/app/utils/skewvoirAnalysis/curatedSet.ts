@@ -105,3 +105,34 @@ export const resolveSetRows = <T>(
     .map(id => rowByMsr.get(id))
     .filter((r): r is T => r != null)
     .slice(0, TREND_LIMIT)
+
+/** Whether a `set`-scope view has NOTHING of the current selection to draw yet
+ *  and is still waiting on a fetch — the "show the block loading state" rule.
+ *
+ *  Distinct from `pending` (the file batch) on purpose, because the batch flag
+ *  cannot see the FIRST half of the wait. A set is resolved by looking its URL
+ *  `msrs` ids up in meas_hist, so until that history answers there is no set key
+ *  to fetch files for and `pending` is legitimately false. Gating the loading
+ *  state on `pending` alone therefore leaves the views rendering their EMPTY
+ *  states — "비교할 측정을 추가하세요.", "이 파라미터의 sequence 데이터가
+ *  없습니다." — for the whole history round-trip, which reads as an answer
+ *  ("your set is empty") rather than as a wait.
+ *
+ *  `loaded === 0` is what keeps this to the COLD path. A set edit over an
+ *  already-loaded set carries the previous files (see the incremental branch in
+ *  useSkewvoirAnalysis), so the charts stay on screen and the in-panel inline
+ *  spinner is the right feedback there — swapping a rendered chart for a block
+ *  loader on every add/remove would be a worse trade. */
+export const isSetColdLoading = (input: {
+  /** The screen wants the curated set at all (shouldLoadSet). */
+  wantSet: boolean
+  /** How many set files are loaded, for ANY set. */
+  loaded: number
+  /** The meas_hist fetch that resolves the set's rows is running. */
+  historyPending: boolean
+  /** The msr_file batch is running. */
+  filesPending: boolean
+}): boolean =>
+  input.wantSet
+  && input.loaded === 0
+  && (input.historyPending || input.filesPending)

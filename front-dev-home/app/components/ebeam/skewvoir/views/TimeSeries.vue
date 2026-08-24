@@ -5,8 +5,27 @@
 
        Reading order: 무결성 → 파라미터 → 렌즈 → 조건 경고 → 활성 차트 →
        Sequence Trend. -->
+  <!-- Cold load: the whole set-scope body is replaced, not decorated. Every
+       panel below reads the SAME loaded files, so while none of them are here
+       the alternative is three panels each announcing an absence — an empty
+       set, an empty parameter list, an empty sequence — which reads as an
+       answer rather than as a wait. Same block variant, and the same wording,
+       as the Recipe 현황 page (DESIGN.md, Loading States).
+
+       An incremental set edit is deliberately NOT this branch: it carries the
+       previous files, so the charts stay up and the in-panel inline spinner
+       further down owns that feedback. isSetColdLoading draws the line.
+
+       No scope test needed: setColdLoading already requires `wantSet`, which on
+       this view is exactly `scope === 'set'`. -->
+  <AppLoadingState
+    v-if="analysis.setColdLoading.value"
+    title="추이 데이터를 불러오는 중입니다."
+    :description="`측정 ${analysis.msrList.value.length}개의 파일을 모두 읽은 뒤 차트를 그립니다.`"
+  />
+
   <div
-    v-if="analysis.scope.value === 'set'"
+    v-else-if="analysis.scope.value === 'set'"
     class="space-y-3"
   >
     <!-- Integrity. Cross-family picks now resolve like any other (the analysis

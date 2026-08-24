@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TREND_LIMIT, isSetPoolComplete, rendersFocusAlone, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
+import { TREND_LIMIT, isSetColdLoading, isSetPoolComplete, rendersFocusAlone, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
 
 interface MeasHistRowFixture { msr: string, msr_check: 'Yes' | 'No' }
 
@@ -100,4 +100,37 @@ test('isSetPoolComplete: an empty set on an empty key is vacuously complete', ()
   assert.equal(isSetPoolComplete({
     pending: false, loadedKey: '', wantedKey: '', loaded: 0, expected: 0
   }), true)
+})
+
+// --- isSetColdLoading: is the set-scope view still waiting with nothing to draw? ---
+
+const COLD = { wantSet: true, loaded: 0, historyPending: true, filesPending: false }
+
+test('isSetColdLoading: the meas_hist round-trip counts as loading, before any set key exists', () => {
+  // The half `setPending` cannot see: no history means no resolved set rows,
+  // so no key, so no batch — and the views would otherwise render their empty
+  // states as if the answer were "your set is empty".
+  assert.equal(isSetColdLoading(COLD), true)
+})
+
+test('isSetColdLoading: the msr_file batch counts as loading too', () => {
+  assert.equal(isSetColdLoading({ ...COLD, historyPending: false, filesPending: true }), true)
+})
+
+test('isSetColdLoading: a warm set edit is NOT cold — the carried files stay on screen', () => {
+  // An add/remove over a loaded set keeps the previous files, so the charts
+  // remain rendered and the in-panel inline spinner owns that feedback.
+  assert.equal(isSetColdLoading({ ...COLD, loaded: 3, historyPending: false, filesPending: true }), false)
+})
+
+test('isSetColdLoading: nothing in flight is not loading, however empty the set', () => {
+  // A set that genuinely resolves to nothing must reach its real empty state
+  // rather than spin forever.
+  assert.equal(isSetColdLoading({ ...COLD, historyPending: false, filesPending: false }), false)
+})
+
+test('isSetColdLoading: a view that does not want the set never shows the loader', () => {
+  // Dashboard and single scope run off the focus file, which has its own
+  // pending flag — a set fetch they never asked for must not block them.
+  assert.equal(isSetColdLoading({ ...COLD, wantSet: false }), false)
 })

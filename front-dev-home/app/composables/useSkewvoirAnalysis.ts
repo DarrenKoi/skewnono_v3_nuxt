@@ -26,7 +26,7 @@ import {
   setParamOptions,
   type TrendPoint
 } from '~/utils/skewvoirAnalysis/timeSeries'
-import { isSetPoolComplete, resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
+import { isSetColdLoading, isSetPoolComplete, resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
 import { toggleKey, siteKey } from '~/utils/mpSelection'
@@ -54,8 +54,10 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
 
   const histKey = `skewvoir-meas-hist:${ws.toolType}`
 
-  // Shares the search landing's cached meas-hist payload (same key).
-  const { data: hist } = useAsyncData<MeasHistResponse>(
+  // Shares the search landing's cached meas-hist payload (same key). `status`
+  // is read (not just `data`) because the curated set cannot even be NAMED
+  // until this answers — see setColdLoading below.
+  const { data: hist, status: histStatus } = useAsyncData<MeasHistResponse>(
     histKey,
     () => fetchMeasHist({ toolType: ws.toolType }),
     {
@@ -531,6 +533,25 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     }
   }, { immediate: true })
 
+  // The whole-view waiting state for the set-scope views (Time-Series, Position
+  // Stack, FDC): nothing of the current selection is on screen yet AND a fetch
+  // is still running. isSetColdLoading owns the rule
+  // (utils/skewvoirAnalysis/curatedSet.ts) and its comment carries the why;
+  // this is the reactive binding of it.
+  //
+  // `setPending` alone is not that flag. It covers the msr_file batch only, and
+  // the batch is the SECOND half of the wait — the first half is the meas_hist
+  // round-trip the set rows resolve against, during which there is no set key,
+  // so `setPending` is (correctly) false and the views render their empty
+  // states. Eight measurements at office latency spent that whole first stretch
+  // telling the user their set was empty.
+  const setColdLoading = computed(() => isSetColdLoading({
+    wantSet: wantSet.value,
+    loaded: setFiles.value.size,
+    historyPending: histStatus.value === 'pending',
+    filesPending: setPending.value
+  }))
+
   // --- URL write-back for the active parameter ---
   //
   // Once the file loads, if the URL `mp` isn't one of the parameters that get a
@@ -784,6 +805,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     setRows,
     setFiles,
     setPending,
+    setColdLoading,
     trendPoints,
     distributionGroups,
     sequenceGroups,
