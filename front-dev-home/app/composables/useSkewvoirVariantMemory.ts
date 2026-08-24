@@ -6,7 +6,8 @@
 // one depth re-picked that depth on every site. Here the pick becomes state
 // keyed by recipe + parameter, shared by all three hosts and persisted.
 //
-// The stored value is the SUFFIX LABEL, never an index — see
+// The stored value is the chip LABEL ('M', or 'M·TIF' where one sub-position
+// is listed under several extensions), never an index — see
 // utils/skewvoirAnalysis/variantMemory.ts for why that distinction is
 // load-bearing (the suffix set is not fixed across points).
 //
@@ -15,7 +16,7 @@
 //   would need a watcher to re-derive it on every point/parameter change — the
 //   very shape whose three copies caused the bug. As a computed there is no
 //   reset path to get wrong: changing points re-runs the getter, which either
-//   finds the remembered suffix or answers 0.
+//   finds the remembered label (or its sub-position) or answers 0.
 import type { MaybeRefOrGetter, WritableComputedRef } from 'vue'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { imageVariantLabels } from '~/utils/imageKind'
@@ -27,8 +28,9 @@ import {
   type VariantMemory
 } from '~/utils/skewvoirAnalysis/variantMemory'
 
-/** The shared recipe+parameter → suffix map. One state key, so the dashboard
- * panel, the gallery viewer and the site drawer read and write ONE memory. */
+/** The shared recipe+parameter → chip-label map. One state key, so the
+ * dashboard panel, the gallery viewer and the site drawer read and write ONE
+ * memory. */
 export const useSkewvoirVariantMemory = () =>
   usePersistedState<VariantMemory>(
     'skewvoir:sem-variant-memory',
@@ -53,9 +55,9 @@ export const useSkewvoirVariantKey = (analysis: SkewvoirAnalysis) =>
   ))
 
 /**
- * A `v-model`-able index into `names`, backed by the remembered suffix for
- * `key`. Reading resolves the suffix against THIS point's names; writing stores
- * the picked name's suffix.
+ * A `v-model`-able index into `names`, backed by the remembered chip label for
+ * `key`. Reading resolves the label against THIS point's names; writing stores
+ * the picked chip's list-aware label (possibly rendition-tagged, e.g. 'U·TIF').
  *
  * @param names this point's image files, in pickle order
  * @param key   recipe+parameter key, or null when the context is unresolved
