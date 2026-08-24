@@ -82,7 +82,7 @@
 import type { ParamDetail, ParamImage } from '~/composables/useRecipeParamDetail'
 import type { IdpLocator } from '~/composables/useRecipeSearchApi'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
-import { imageVariantLabel } from '~/utils/imageKind'
+import { imageVariantLabels } from '~/utils/imageKind'
 import {
   IMAGE_SLOTS,
   splitAfPrSectionsByDomain,
@@ -127,11 +127,14 @@ const roleOf = (slotKey: string): SlotRole =>
   IMAGE_SLOTS.find(slot => slot.key === slotKey)?.role ?? 'address'
 
 // A slot that expanded to several files (HV-SEM) repeats its stage, so the
-// cond-table titles carry the variant label to stay tellable apart.
+// cond-table titles carry the variant label to stay tellable apart —
+// list-aware, because a sub-position listed under two extensions would
+// otherwise title two different cond tables identically.
 const condTitle = (image: ParamImage, all: readonly ParamImage[]): string => {
   const siblings = all.filter(other => other.slot === image.slot)
   if (siblings.length <= 1) return `${image.stage} 빔 조건`
-  return `${image.stage} 빔 조건 — ${imageVariantLabel(image.name, siblings.indexOf(image))}`
+  const labels = imageVariantLabels(siblings.map(sibling => sibling.name))
+  return `${image.stage} 빔 조건 — ${labels[siblings.indexOf(image)]}`
 }
 
 // Display rendition: a TIFF raw file converts to WebP server-side; the JPEGs

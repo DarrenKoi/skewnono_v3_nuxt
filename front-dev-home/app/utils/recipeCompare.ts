@@ -1,7 +1,7 @@
 import type { CompareRecipe, CompareIdpFields, CompareParameter } from '~/composables/useRecipeCompareApi'
 import type { ParamDetail, SettingBlock, SettingRow } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS, formatSettingValue, type ImageSlotKey } from './recipeView.ts'
-import { imageVariantLabel } from './imageKind.ts'
+import { imageVariantLabels } from './imageKind.ts'
 import { recipePairKey } from './recipePair.ts'
 import { createWorkbook, writeWorkbook, type WorkbookSheet } from './xlsx.ts'
 
@@ -73,12 +73,15 @@ export function blockForSlot(
   // row's `section`, so the (section, key) row identity the compare screen
   // already uses (settingRowId) keeps the U/T/M/L passes apart — a bare
   // `find()` here compared only the first file and silently ignored the rest.
+  // Labels are list-aware: a sub-position listed under two extensions would
+  // otherwise put two files' rows under one indistinguishable section.
+  const labels = imageVariantLabels(matches.map(image => image.name))
   const rows: SettingRow[] = []
   const sources: string[] = []
   matches.forEach((image, index) => {
     if (!image.cond) return
     sources.push(image.cond.source)
-    const label = imageVariantLabel(image.name, index)
+    const label = labels[index]!
     for (const row of image.cond.rows) rows.push({ ...row, section: row.section ?? label })
   })
   if (!rows.length) return null

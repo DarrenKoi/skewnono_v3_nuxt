@@ -6,7 +6,8 @@
 // re-clicked M on every single site. This module is the memory that ends that.
 //
 // WHY A LABEL AND NOT AN INDEX (the load-bearing decision):
-//   The stored value is the SUFFIX ('M'), resolved back to a position on each
+//   The stored value is the chip LABEL ('M', or 'M·TIF' where one sub-position
+//   is listed under several extensions), resolved back to a position on each
 //   point. An index cannot be reused across points because the suffix set is
 //   not fixed — a point whose -T shot is absent renders U/M/L, where index 2
 //   is 'L' while the reviewer meant 'M'. Storing the index would silently show
@@ -21,7 +22,7 @@
 //
 // Runs under raw `node --test` (no Nuxt, no bundler) — sibling imports carry an
 // explicit `.ts` extension.
-import { imageVariantLabel } from '../imageKind.ts'
+import { imageVariantLabels, variantLabelBase } from '../imageKind.ts'
 
 /** recipe+parameter key → the suffix label the reviewer last picked there. */
 export type VariantMemory = Record<string, string>
@@ -46,18 +47,31 @@ export const variantMemoryKey = (
 ): string | null => (recipe && parameter ? `${recipe}${SEP}${parameter}` : null)
 
 /**
- * Where the remembered suffix sits among THIS point's image names, or 0 when
- * there is no memory or this point does not carry that suffix.
+ * Where the remembered label sits among THIS point's image names, or 0 when
+ * there is no memory or this point carries nothing like it.
  *
  * Pure and index-free by design: callers derive the index on every render
  * instead of storing one, so a point swap re-resolves rather than going stale.
+ *
+ * Resolution is against the LIST-AWARE labels (imageVariantLabels), never the
+ * per-name label: a point listing one sub-position under two extensions
+ * (-U.jpeg + -U.TIF, user-confirmed 2026-08-24) has duplicated per-name labels,
+ * and matching those always answered the first file — the chip for the second
+ * could be clicked but never stayed selected. An exact miss falls back to the
+ * sub-position half ("U·TIF" finds a lone "U", and a pre-disambiguation stored
+ * "U" finds "U·JPG"), so a pick keeps meaning "this depth" across points whose
+ * rendition sets differ.
  */
 export const rememberedVariantIndex = (
   names: string[],
   label: string | null | undefined
 ): number => {
   if (!label || names.length === 0) return 0
-  const found = names.findIndex((name, index) => imageVariantLabel(name, index) === label)
+  const labels = imageVariantLabels(names)
+  const exact = labels.indexOf(label)
+  if (exact >= 0) return exact
+  const base = variantLabelBase(label)
+  const found = labels.findIndex(candidate => variantLabelBase(candidate) === base)
   return found < 0 ? 0 : found
 }
 

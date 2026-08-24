@@ -35,7 +35,11 @@ class_name 과 msr 은 meas_hist 문서의 같은 이름 field 에서 옵니다
 
   HV-SEM 은 targeting point 하나를 여러 장으로 찍어 공유 stem 에 -U/-T/-M/-L
   suffix 를 붙입니다 (예: S04_M0004-01MP-U.jpeg). 어떤 구성원은 .jpeg 없이
-  .tif 만 존재합니다. 이 feature 의 요청 경로는 이름을 **불투명 문자열**로만
+  .tif 만 존재하고, 같은 sub-position 이 JPEG 프리뷰와 TIFF 원본 **양쪽으로
+  함께** 나열되기도 합니다 (-U.jpeg + -U.TIF, user-confirmed 2026-08-24 —
+  pickle 의 4-image U/U/L/L row 로 확인, 대문자 .TIF 표기 관찰; 정확한 표기
+  집합은 OFFICE-VERIFY). 어댑터의 확장자 필터는 이미 lower() 후 비교하므로
+  대문자 표기도 통과합니다. 이 feature 의 요청 경로는 이름을 **불투명 문자열**로만
   다루므로(정확 일치 fetch, hyphen 은 validate_segment 통과) 코드 변경 없이
   동작합니다 — 어떤 이름을 요청할지는 msr_file 의 mp_image_names 목록이
   정합니다(docs/datatables/hitachi/msr_file_pickle.txt 의 어댑터 규약).

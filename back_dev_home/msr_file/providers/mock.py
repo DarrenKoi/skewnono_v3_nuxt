@@ -791,15 +791,29 @@ def _row_image_names(msr: str, sequence: int, parameter: str, rng: random.Random
     JPEG previews with TIFF originals (office 확인 2026-07-24: 26 jpeg / 13 tif
     in one MSR) and a sub-image sometimes exists only as .tif (user-confirmed
     2026-08-08), so a per-file draw keeps tif-only members in the value domain.
+
+    One sub-position can also be listed under BOTH renditions — the columns
+    carry e.g. -U.jpeg AND -U.TIF for the same targeting point (user-confirmed
+    2026-08-24: the analysis page showed a 4-image U/U/L/L row, which is what
+    exposed the frontend's suffix-only chip labels as colliding). The mock
+    draws that pair too, uppercase .TIF included, so home renders the
+    collision the office renders. Preview-before-original column order and the
+    exact office spelling set (.tif/.TIF/.tiff) are OFFICE-VERIFY.
     """
     count = 1 + rng.randint(0, 3)
     stem = f"{msr}_{sequence:03d}_{parameter}_{rng.randint(0, 9999):04d}"
     if count == 1:
         return [f"{stem}.{'tif' if rng.random() < 0.3 else 'jpeg'}"]
-    return [
-        f"{stem}-{suffix}.{'tif' if rng.random() < 0.3 else 'jpeg'}"
-        for suffix in _MP_IMAGE_SUFFIXES[:count]
-    ]
+    names: list[str] = []
+    for suffix in _MP_IMAGE_SUFFIXES[:count]:
+        draw = rng.random()
+        if draw < 0.2:
+            names += [f"{stem}-{suffix}.jpeg", f"{stem}-{suffix}.TIF"]
+        elif draw < 0.5:
+            names.append(f"{stem}-{suffix}.tif")
+        else:
+            names.append(f"{stem}-{suffix}.jpeg")
+    return names
 
 
 def _build_rows(

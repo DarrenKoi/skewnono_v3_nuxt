@@ -18,7 +18,7 @@
 //   finds the remembered suffix or answers 0.
 import type { MaybeRefOrGetter, WritableComputedRef } from 'vue'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { imageVariantLabel } from '~/utils/imageKind'
+import { imageVariantLabels } from '~/utils/imageKind'
 import {
   normalizeVariantMemory,
   rememberVariant,
@@ -72,12 +72,16 @@ export const useSkewvoirVariantIndex = (
     },
     set: (index) => {
       const scope = toValue(key)
-      const name = toValue(names)[index]
+      const list = toValue(names)
       // An out-of-range index or an unresolved key writes nothing: the getter
       // already answers 0 for both, and storing a guess would outlive the
       // moment that produced it.
-      if (!scope || name == null) return
-      memory.value = rememberVariant(memory.value, scope, imageVariantLabel(name, index))
+      if (!scope || list[index] == null) return
+      // The LIST-AWARE label, matching what the chips render and what the
+      // getter resolves against — a per-name label is ambiguous when one
+      // sub-position is listed under several extensions (-U.jpeg + -U.TIF),
+      // which is what made the second such chip unselectable.
+      memory.value = rememberVariant(memory.value, scope, imageVariantLabels(list)[index]!)
     }
   })
 }

@@ -21,7 +21,8 @@ def test_list_returns_names(client):
     body = r.get_json()
     assert body["msr"] == "MSR_1"
     assert body["total"] == len(body["images"])
-    assert all(n.endswith((".jpeg", ".tif")) for n in body["images"])
+    # lower() because the mock, like the office, spells some TIFFs .TIF.
+    assert all(n.lower().endswith((".jpeg", ".tif")) for n in body["images"])
 
 
 def test_serve_returns_svg_with_cond_header(client):
@@ -302,7 +303,9 @@ def test_list_ext_jpg_returns_only_jpeg_family(client):
 def test_list_ext_tif_returns_only_tiff_family(client):
     r = client.get("/api/msr-images?eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_1&ext=tif")
     assert r.status_code == 200
-    assert all(n.endswith((".tif", ".tiff")) for n in r.get_json()["images"])
+    # lower() so an uppercase .TIF passing the (case-insensitive) filter is a
+    # pass, not a spelling mismatch.
+    assert all(n.lower().endswith((".tif", ".tiff")) for n in r.get_json()["images"])
 
 
 def test_list_without_ext_is_unchanged(client):

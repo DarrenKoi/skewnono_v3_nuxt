@@ -9,8 +9,9 @@ from back_dev_home.msr_image.errors import ConfigError
 def test_mock_provider_dispatch(monkeypatch):
     monkeypatch.setenv("SKEWNONO_MSR_IMAGE_PROVIDER", "mock")
     names = data.list_images("10.0.0.1", "ADI", "MSR_1")
-    # Office tools mix JPEG previews with TIFF originals; the mock mirrors that.
-    assert names and all(n.endswith((".jpeg", ".tif")) for n in names)
+    # Office tools mix JPEG previews with TIFF originals, in varying extension
+    # case (.TIF user-confirmed 2026-08-24); the mock mirrors that.
+    assert names and all(n.lower().endswith((".jpeg", ".tif")) for n in names)
 
 
 def test_make_cache_mock_is_disk(tmp_path):

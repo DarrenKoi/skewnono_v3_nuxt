@@ -23,9 +23,10 @@ def _wants_preview() -> bool:
     return wants_preview(request.args.get("preview"))
 
 # Tools are not consistent about which spelling they write -- office serves
-# .jpeg/.jpg/.tif/.tiff (MIGRATION.md, office 확인 2026-07-24) while the mock
-# emits only .jpeg/.tif. Grouping means a caller never has to know which
-# spelling a given tool happened to use.
+# .jpeg/.jpg/.tif/.tiff in varying case (MIGRATION.md, office 확인 2026-07-24;
+# uppercase .TIF user-confirmed 2026-08-24), and the mock emits .jpeg/.tif/.TIF
+# to match. Grouping (matched against the lowercased name below) means a caller
+# never has to know which spelling a given tool happened to use.
 _EXT_GROUPS: dict[str, tuple[str, ...]] = {
     "jpg": (".jpg", ".jpeg"),
     "tif": (".tif", ".tiff"),

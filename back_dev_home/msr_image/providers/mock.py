@@ -71,6 +71,14 @@ def list_images(eqp_ip: str, class_name: str, msr: str) -> list[str]:
         ext = "tif" if i % 4 == 0 else "jpeg"
         if i % 3 == 0:
             names += [f"{msr}_shot{i:02d}-{s}.{ext}" for s in _STEM_SUFFIXES[:2]]
+            # One sub-position under BOTH renditions, uppercase .TIF spelling —
+            # a jpeg-suffixed shot also lists its TIFF original (user-confirmed
+            # 2026-08-24 via the pickle's 4-image U/U/L/L row; presence in the
+            # FTP listing follows, since the pickle references what the tool
+            # serves). Keeps the frontend's extension-disambiguated variant
+            # labels exercised at home.
+            if ext == "jpeg":
+                names.append(f"{msr}_shot{i:02d}-{_STEM_SUFFIXES[0]}.TIF")
         else:
             names.append(f"{msr}_shot{i:02d}.{ext}")
     return names

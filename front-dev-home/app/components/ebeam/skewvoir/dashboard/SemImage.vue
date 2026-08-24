@@ -102,7 +102,7 @@
           <button
             type="button"
             class="block h-full w-full cursor-zoom-in"
-            :aria-label="`이미지 ${imageVariantLabel(name, i)} 확대해서 보기`"
+            :aria-label="`이미지 ${imageLabels[i]} 확대해서 보기`"
             @click="zoomSrc = displayImageUrl(name)"
           >
             <img
@@ -114,7 +114,7 @@
             >
           </button>
           <span class="absolute top-1 left-1 rounded-(--sk-r-sidebar) bg-(--sk-ink)/85 px-1.5 py-0.5 font-mono text-[11px] font-medium text-(--sk-ink-fg)">
-            {{ imageVariantLabel(name, i) }}
+            {{ imageLabels[i] }}
           </span>
           <a
             v-if="isTiffName(name)"
@@ -215,7 +215,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { WarmState } from '~/composables/useMsrImageWarmer'
-import { imageVariantLabel, isTiffName } from '~/utils/imageKind'
+import { imageVariantLabels, isTiffName } from '~/utils/imageKind'
 import { warmProgressLabel } from '~/utils/imageWarm'
 import { measuredRows, rowImageNames } from '~/utils/msrRows'
 
@@ -259,6 +259,11 @@ const measuredRow = computed(() => {
 // A point's image files: one on CD-SEM, several stem-suffixed on HV-SEM
 // (user-confirmed 2026-08-08).
 const imageNames = computed(() => (measuredRow.value ? rowImageNames(measuredRow.value) : []))
+
+// List-aware labels (extension-disambiguated where one sub-position is listed
+// under several extensions) — the grid badges and the meta caption must say
+// the same thing the variant chips say.
+const imageLabels = computed(() => imageVariantLabels(imageNames.value))
 
 // How a multi-image point renders: 'single' (one image + variant chips) or
 // 'all' (every sub-image as labeled thumbnails). A reviewer PREFERENCE, not
@@ -334,7 +339,7 @@ const meta = computed(() => {
   }
   const ok = measuredName.value && !loadFailed.value
   const variant = imageNames.value.length > 1 && measuredName.value
-    ? ` · ${imageVariantLabel(measuredName.value, variantIndex.value)}`
+    ? ` · ${imageLabels.value[variantIndex.value]}`
     : ''
   return seq != null && ok ? `seq ${seq}${variant}` : (ok ? `측정 이미지${variant}` : '없음')
 })

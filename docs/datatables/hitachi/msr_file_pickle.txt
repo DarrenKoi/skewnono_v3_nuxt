@@ -178,6 +178,14 @@ columns : value (examples)
                     이름은 공유 stem 에 -U/-T/-M/-L suffix 를 붙인 형태이며
                     (예: S04_M0004-01MP-U.jpeg), 어떤 구성원은 .jpeg 없이
                     .tif 만 존재합니다. CD-SEM 은 보통 01 하나입니다.
+                    같은 sub-position 이 **두 rendition 으로 동시에** 실릴 수
+                    있습니다 — 한 row 의 컬럼에 -U.jpeg 와 -U.TIF 가 함께
+                    나열됩니다 (user-confirmed 2026-08-24: 분석 페이지의
+                    4-image U/U/L/L row). 확장자 표기는 대문자 .TIF 가
+                    관찰되었고, 정확한 표기 집합(.tif/.TIF/.tiff)과 프리뷰가
+                    원본보다 앞에 오는지의 컬럼 순서는 OFFICE-VERIFY 입니다.
+                    프런트엔드는 suffix 만으로 라벨을 만들면 이 쌍이 충돌하므로
+                    rendition 태그(U·JPG / U·TIF)로 구분합니다.
 "meas_condition mag": magnification value (0, 250030, 250044)
 "meas_condition vac": voltage acceleration (0, 500,..)
 "meas_condition pixel": "0,0", "512,512"

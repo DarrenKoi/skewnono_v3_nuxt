@@ -13,10 +13,10 @@
         ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
         : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
       :aria-pressed="i === index"
-      :aria-label="`이미지 ${imageVariantLabel(name, i)}`"
+      :aria-label="`이미지 ${labels[i]}`"
       @click="index = i"
     >
-      {{ imageVariantLabel(name, i) }}
+      {{ labels[i] }}
     </button>
   </div>
 </template>
@@ -40,9 +40,14 @@
 // which every host binds through the same writable computed; before 2026-08-11
 // each host instead owned a `ref(0)` and reset it on a different change, which
 // is the behaviour that memory replaced.
-import { imageVariantLabel } from '~/utils/imageKind'
+import { imageVariantLabels } from '~/utils/imageKind'
 
-defineProps<{ names: string[] }>()
+const props = defineProps<{ names: string[] }>()
+
+// List-aware labels, not per-name: one sub-position listed under two
+// extensions (-U.jpeg + -U.TIF) rendered two chips both reading "U" — visually
+// identical and, through the label-keyed memory, only the first selectable.
+const labels = computed(() => imageVariantLabels(props.names))
 
 /** Index into `names`. Bound by the host — normally to the remembered-variant
  * computed, which re-resolves it whenever `names` changes. */

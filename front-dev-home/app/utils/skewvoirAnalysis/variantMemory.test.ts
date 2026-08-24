@@ -7,6 +7,7 @@ import {
   rememberedVariantIndex,
   variantMemoryKey
 } from './variantMemory.ts'
+import { imageVariantLabels } from '../imageKind.ts'
 
 // ── variantMemoryKey ─────────────────────────────────────────────────────────
 
@@ -76,6 +77,33 @@ test('a suffix-less name matches by its 1-based positional label', () => {
   // suffix, so the memory still round-trips for those points.
   const plain = ['first.jpeg', 'second.jpeg', 'third.jpeg']
   assert.equal(rememberedVariantIndex(plain, '2'), 1)
+})
+
+// One sub-position under two extensions (JPEG preview + TIFF original,
+// user-confirmed 2026-08-24). Per-name labels collide here (U, U, L, L) —
+// the regression this block pins is that resolving a stored label always
+// answered the FIRST file, so the second chip of each pair could be clicked
+// but never stayed selected.
+const CROSS_EXT = ['S04_M0004-01MP-U.jpeg', 'S04_M0004-01MP-U.TIF', 'S04_M0004-01MP-L.jpeg', 'S04_M0004-01MP-L.TIF']
+
+test('every chip of a cross-extension point round-trips to itself', () => {
+  for (let i = 0; i < CROSS_EXT.length; i++) {
+    const memory = rememberVariant({}, 'k', imageVariantLabels(CROSS_EXT)[i]!)
+    assert.equal(rememberedVariantIndex(CROSS_EXT, memory['k']), i)
+  }
+})
+
+test('a pre-disambiguation stored suffix still lands on that sub-position', () => {
+  // Memories persisted before labels carried rendition tags hold bare "U".
+  assert.equal(rememberedVariantIndex(CROSS_EXT, 'U'), 0)
+  assert.equal(rememberedVariantIndex(CROSS_EXT, 'L'), 2)
+})
+
+test('a rendition-tagged memory falls back to the sub-position on a single-rendition point', () => {
+  // Picked U·TIF on a two-rendition point; this point lists U once. The pick
+  // means "depth U", so it must find that file rather than reset to the first.
+  assert.equal(rememberedVariantIndex(['a-U.jpeg', 'a-L.jpeg'], 'U·TIF'), 0)
+  assert.equal(rememberedVariantIndex(['a-U.jpeg', 'a-L.jpeg'], 'L·TIF'), 1)
 })
 
 // ── rememberVariant ──────────────────────────────────────────────────────────

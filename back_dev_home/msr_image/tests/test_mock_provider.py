@@ -7,7 +7,10 @@ def test_list_is_deterministic_and_image_typed():
     b = mock.list_images("10.0.0.1", "ADI", "MSR_1")
     assert a == b
     assert len(a) >= 1
-    assert all(n.endswith((".jpeg", ".tif")) for n in a)
+    # Case-insensitive: the value domain includes uppercase .TIF (same
+    # sub-position listed as JPEG preview + TIFF original, user-confirmed
+    # 2026-08-24), matching how office listings spell extensions.
+    assert all(n.lower().endswith((".jpeg", ".tif")) for n in a)
 
 
 def test_fetch_returns_svg_and_synthetic_cond():
