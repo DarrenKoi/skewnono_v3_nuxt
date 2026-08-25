@@ -14,6 +14,7 @@ ctn_desc -> 개발 디바이스에 대한 간략한 설명 ("pool제", "Pool", "
    product family 와 phase 는 직교하므로 둘 다 파생하는 것이 맞고, 파싱을 한쪽으로 끊으면 안 됩니다.
    다만 **계측 룰 판정에서는 Pool 이 phase 를 이깁니다** — Pool 제품은 phase 가 아니라 yield_check 로 키잉됩니다.
    즉 위 예시는 family=Pool, phase=PV 로 파생하되 판정은 Pool 룰을 따르고 PV 는 무시합니다.
+   화면의 개발단계 칩(dev_stage)도 같은 우선순위입니다 — 칩은 Pool 로 뜹니다.
 chg_tm -> 개발 정보 등록 또는 변경된 시점 (예: 2019-09-30T17:30:33Z)
 tech_nm-> 테크 코드 (예, TP, 4G, AA, 7D), None
 rnd_connector -> 연구 개발에서 이용된 테크 코드명 (lot_cd가 R로 시작할 경우 tech_nm과 rnd_connector는 같은 value 사용)

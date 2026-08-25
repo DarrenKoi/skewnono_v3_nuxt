@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  deriveType, deriveFamily, derivePhase, deriveMemoryClass,
+  deriveType, deriveMemoryClass,
   capFor, resolveCap, applyAnnotation, resolveRuleCell, evaluateRecipe, evaluateLot,
   classifyHealth, groupCaps, effectiveCap, type RuleCell, type RecipeInput
 } from './ruleEngine.ts'
@@ -103,19 +103,10 @@ test('deriveType', () => {
   assert.equal(deriveType('X_WF'), 'OTHER')
 })
 
-// --- D3/D7 derivations ---
-test('deriveFamily priority VG > Pool > Core', () => {
-  assert.equal(deriveFamily('vertical gate pool lot'), 'VG_RTC_Cubic')
-  assert.equal(deriveFamily('Pool제 dram'), 'Pool')
-  assert.equal(deriveFamily('plain core lot'), 'Core')
-})
-test('derivePhase t-EV before EV, null fallback', () => {
-  assert.equal(derivePhase('t-EV dram'), 't-EV')
-  assert.equal(derivePhase('PV transfer'), 'PV')
-  assert.equal(derivePhase('TV qual'), 'TV')
-  assert.equal(derivePhase('EV early'), 'EV')
-  assert.equal(derivePhase('no keyword'), null)
-})
+// --- D7 derivation ---
+// deriveFamily/derivePhase 의 테스트는 그 함수와 함께 지웠습니다 — family/phase
+// 파생은 backend(office_example.py `_family_of`/`_phase_of`)의 것이고, 그쪽
+// 회귀는 back_dev_home/ebeam/device_statistics/tests/ 가 봅니다.
 test('deriveType tolerates empty/malformed name', () => {
   assert.equal(deriveType(''), 'OTHER')
   assert.equal(deriveType(undefined as unknown as string), 'OTHER')

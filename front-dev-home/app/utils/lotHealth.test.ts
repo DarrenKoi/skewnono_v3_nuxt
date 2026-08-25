@@ -345,6 +345,20 @@ test('stage comes from the lot-level ctn_desc', () => {
   assert.equal(extractStage(undefined), '?')
 })
 
+// Pool 과 phase 토큰은 한 ctn_desc 에 같이 옵니다 — "DRAM Pool제 (@Spica PV)"
+// (user-confirmed 2026-08-25). 칩은 Pool 을 따르고 phase 는 무시합니다.
+// 룰 판정(ruleEngine.selectorMatches)과 같은 우선순위여야, 화면 칩과 실제
+// 적용된 cap 이 서로 다른 것을 가리키지 않습니다.
+test('stage chip: Pool 이 phase 토큰을 이긴다', () => {
+  assert.equal(extractStage('DRAM Pool제 (@Spica PV)'), 'Pool')
+  assert.equal(extractStage('NAND Pool제 (@Vega TV) development lot R0A2'), 'Pool')
+  assert.equal(extractStage('Pool 풀제 t-EV lot'), 'Pool')
+  // office `_POOL_TOKEN` 과 같은 토큰 — 한글 "풀" 단독도 Pool 입니다.
+  assert.equal(extractStage('DRAM 풀 (@Rigel EV)'), 'Pool')
+  // Pool 이 없으면 phase 토큰이 그대로 이깁니다.
+  assert.equal(extractStage('PV NAND lot'), 'PV')
+})
+
 const summaryRow = (ctn_desc: string, para_16 = 10) => ({
   lot_cd: 'R000', fac_id: 'R3', ctn_desc,
   para_all: para_16 + 10, para_16, para_13: 3, para_9: 2, para_5: 1, para_over_16: 4,

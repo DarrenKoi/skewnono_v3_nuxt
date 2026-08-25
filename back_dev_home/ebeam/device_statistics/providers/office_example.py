@@ -1189,6 +1189,28 @@ def _family_of(ctn_desc: str) -> Literal["Core", "Pool", "VG_RTC_Cubic"]:
 
     ``VG_RTC_Cubic`` 은 원천에서 판별할 근거가 없어 **발행하지 않습니다**.
     틀린 분류보다 미분류가 낫다는 판단이며, 근거가 생기면 여기만 고칩니다.
+
+    OFFICE-VERIFY — 기록이 둘로 갈립니다. 요구사항 원문
+    (``docs/issues/ground_rules/ground_rules.txt`` 31행)은 "VT/RTC/Cubic또한
+    ctn_desc에 vertical gate, vertical, RTC, Cubic과 같은 string이 포함되어
+    있다" 고 하지만, 위 2026-07-31 확인은 원천에 그 근거가 없다고 합니다.
+    사무실에서 실제 ``ctn_desc`` 를 훑어 어느 쪽인지 판정해야 합니다.
+
+    대안 신호(2026-08-25 제안, **미채택**): VG·RTC·Cubic device 는 보통
+    ``t-EV``/``EV``/``TV``/``PV`` 표현 자체가 없으므로 "phase 토큰 없음" 을
+    VG 신호로 쓸 수 있습니다. 지금 넣지 않은 이유는 셋입니다.
+
+    1. ``rules.py`` 의 VG 셀 두 개가 ``phase_in`` 으로 키잉되어 있어,
+       ``phase=None`` 이면 어느 쪽도 안 맞고 전부 Gray-A 로 떨어집니다 —
+       VG 셀을 phase 축 없는 하나로 합쳐야 합니다.
+    2. ``VG > Pool`` 우선순위 때문에 phase 없는 Pool device
+       ("DRAM Pool제 (@Spica)")가 VG 로 분류됩니다. "Pool 이 없을 때만" 을
+       명시해야 합니다.
+    3. 지금 "phase 없음" 은 *모름* 의 신호입니다 — 가장 strict 한 EV 급 룰 +
+       ``[?]`` 칩으로 데이터 품질 audit 를 가능하게 합니다(CONTEXT.md §Phase).
+       이것을 VG 라는 *사실* 로 바꾸면 그 신호가 사라집니다. 채택하더라도
+       추정임을 칩에 남겨 audit 여지를 지키기로 했습니다(user-confirmed
+       2026-08-25).
     """
     return "Pool" if _POOL_TOKEN.search(ctn_desc or "") else "Core"
 

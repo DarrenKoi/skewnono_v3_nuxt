@@ -248,11 +248,19 @@ export const verdictSortValue = (verdict: LotVerdict | undefined): number => {
 
 export type DevStage = 'EV' | 'TV' | 'PV' | 'Pool' | '?'
 
+// 순서가 곧 우선순위입니다. **Pool 이 맨 앞이어야 합니다** — 실물 ctn_desc 에는
+// Pool 토큰과 phase 토큰이 함께 옵니다("DRAM Pool제 (@Spica PV)",
+// user-confirmed 2026-08-25). 그때 따라야 하는 것은 Pool 이고 phase 는
+// 무시합니다. 예전에는 PV 가 맨 앞이라 Pool제 device 의 칩이 `PV` 로 떴고,
+// 정작 적용되는 cap 은 Pool 룰이었습니다 — 칩과 판정이 서로 다른 것을
+// 가리켰습니다(ruleEngine.ts `selectorMatches` 의 같은 우선순위).
 const STAGE_PATTERNS: Array<{ stage: DevStage, regex: RegExp }> = [
+  // 토큰은 office `_family_of` 의 `_POOL_TOKEN` 과 **같아야** 합니다 — 둘 다
+  // "이 device 가 Pool 인가" 를 답하므로, 다르면 칩과 family 컬럼이 갈라집니다.
+  { stage: 'Pool', regex: /pool|풀/i },
   { stage: 'PV', regex: /\bPV\b|\bP\.?V\b|\bpv\b/ },
   { stage: 'EV', regex: /\bEV\b|\bE\.?V\b|\bev\b/ },
-  { stage: 'TV', regex: /\bTV\b|\bT\.?V\b|\btv\b/ },
-  { stage: 'Pool', regex: /\bPool\b|\bpool\b|\bPOOL\b/ }
+  { stage: 'TV', regex: /\bTV\b|\bT\.?V\b|\btv\b/ }
 ]
 
 export const extractStage = (ctnDesc: string | undefined): DevStage => {

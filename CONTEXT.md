@@ -88,7 +88,7 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 > ⚠️ 이전 모델은 "Pool제" 를 [[phase]] 의 한 값으로 다뤘으나(§Flagged ambiguities), Pool제는 **phase 와 직교하는 product family** 로 확정. Pool제 제품도 t-EV→PV phase 를 거칩니다.
 
-**Pool 은 판정에서 phase 를 이깁니다 (user-confirmed 2026-08-25)**: `ctn_desc` 에 Pool 토큰과 phase 토큰이 함께 들어 있는 device 가 실제로 있습니다 — 예: `"DRAM Pool제 (@Spica PV)"`. 두 축이 직교하므로 파생은 양쪽 다 합니다(`family=Pool`, `phase=PV`, payload 에도 그대로 실림). 그러나 **룰 셀을 고를 때는 Pool 을 따르고 phase 는 무시**합니다 — Pool 제품군은 phase 가 아니라 `yield_check` 로 키잉되기 때문입니다(D8). `TV` 와 겹칠 때도 같습니다. 이것은 `rules.py` 의 seed 가 Pool 셀에 `phase_in` 을 안 다는 관행이 아니라 **엔진의 불변식**입니다 — `ruleEngine.ts` 의 `selectorMatches` 가 `phase_in` 을 가진 셀은 Pool recipe 를 주장하지 못하게 막습니다.
+**Pool 은 판정에서 phase 를 이깁니다 (user-confirmed 2026-08-25)**: `ctn_desc` 에 Pool 토큰과 phase 토큰이 함께 들어 있는 device 가 실제로 있습니다 — 예: `"DRAM Pool제 (@Spica PV)"`. 두 축이 직교하므로 파생은 양쪽 다 합니다(`family=Pool`, `phase=PV`, payload 에도 그대로 실림). 그러나 **룰 셀을 고를 때는 Pool 을 따르고 phase 는 무시**합니다 — Pool 제품군은 phase 가 아니라 `yield_check` 로 키잉되기 때문입니다(D8). `TV` 와 겹칠 때도 같습니다. 이것은 `rules.py` 의 seed 가 Pool 셀에 `phase_in` 을 안 다는 관행이 아니라 **엔진의 불변식**입니다 — `ruleEngine.ts` 의 `selectorMatches` 가 `phase_in` 을 가진 셀은 Pool recipe 를 주장하지 못하게 막습니다. **화면의 개발단계 칩도 같은 우선순위**입니다(`lotHealth.ts` 의 `extractStage`) — 칩이 `PV` 인데 적용된 cap 은 Pool 룰인 상태가 없어야 합니다. 두 곳의 Pool 토큰은 office `_family_of` 의 `_POOL_TOKEN`(`pool|풀`)과 같은 것을 봅니다.
 
 ### Phase (t-EV / EV / TV / PV)
 
@@ -230,4 +230,4 @@ clique). N배화된 그룹이 클수록 그 그룹 안에서는 장비를 바꿔
 
 ## Flagged ambiguities
 
-- **"Pool" — stage 인가 product family 인가 (✅ 해소)**: 이전 모델은 "Pool제" 를 [[phase]](구 Device Stage) 의 한 값으로 다뤘으나, [[product-family]]로 확정 — phase 와 직교. mock `data.py:64` 의 `DEV_PHASES` 가 `Pool` 을 phase 토큰에 섞어 둔 것은 추후 데이터 정비 시 분리 대상.
+- **"Pool" — stage 인가 product family 인가 (✅ 해소)**: 이전 모델은 "Pool제" 를 [[phase]](구 Device Stage) 의 한 값으로 다뤘으나, [[product-family]]로 확정 — phase 와 직교. mock 의 `DEV_PHASES` 가 `Pool` 을 phase 토큰에 섞어 두었던 것은 **2026-08-25 분리했습니다** (`providers/mock.py` 의 `DEV_PHASES` / `POOL_TOKENS`). 섞여 있는 동안에는 mock device 의 `ctn_desc` 가 Pool 이거나 phase 이거나 둘 중 하나여서, 실물에 있는 겹침(`"DRAM Pool제 (@Spica PV)"`)과 그 우선순위 경로가 집에서 한 번도 실행되지 않았습니다.

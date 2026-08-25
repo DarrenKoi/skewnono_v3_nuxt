@@ -9,7 +9,7 @@
 | --- | --- |
 | `useLotHealthMock.ts` 의 `RuleCaps {para_16/13/9/5_max}` | type 기반 `RuleCaps {WAFER/LEVEL/EDGE/EDGE_EX/_other}` + `name_overrides` |
 | `DevStage = EV/TV/PV/Pool` 단일 축 | `family` + `phase`/`yield_check` selector (D8) |
-| `extractStage(ctn_desc)` | `deriveFamily` + `derivePhase` + `deriveMemoryClass` (D7) |
+| `extractStage(ctn_desc)` | backend 가 파생한 `family` + `phase` 컬럼 + `deriveMemoryClass` (D7) |
 | `getCaps(facId, stage, bucket)` | `resolveRuleCell(recipe)` → `capFor(param, cell)` (D9) |
 | `SummaryRow` 의 `para_N` 집계 | recipe 당 파라미터 행 `{name, point_count}` (D1) |
 
@@ -62,12 +62,12 @@ interface RuleVersion {      // D12 — append-only 이력 + rollback
 
 | 함수 | 입력 → 출력 | 결정 |
 | --- | --- | --- |
-| `deriveFamily(ctn_desc)` | string → `Family` | D3 (VG·RTC·Cubic > Pool > Core) |
-| `derivePhase(ctn_desc)` | string → `Phase \| null` | D3 (없으면 strict fallback) |
 | `deriveMemoryClass(prod_catg_cd)` | string → `MemoryClass \| 'unknown'` | D7 (Tech·Advanced → unknown) |
 | `deriveType(name)` | string → `ParamType` | D10 longest-prefix `[EDGE_EX,EDGE,WAFER,LEVEL]` |
 | `resolveRuleCell(recipe, rules)` | recipe + 어노테이션 → `RuleCell \| Gray` | D8 selector 매칭 |
 | `capFor(param, cell)` | `{name,point_count}` + cell → number\|null | D9 알고리즘 |
+
+> `deriveFamily`/`derivePhase` 는 이 표에 없습니다. `family`·`phase` 파생은 **backend 전용**입니다 — office 어댑터(`office_example.py` 의 `_family_of`/`_phase_of`)가 **device 의** `ctn_desc` 에서 뽑아 `RecipeInput` 의 컬럼으로 실어 보내고, 프런트는 소비만 합니다. 예전에는 `ruleEngine.ts` 에도 같은 이름의 사본이 있었으나 지웠습니다: 호출자가 테스트뿐이었고, `RecipeInput.ctn_desc` 가 provider 마다 다른 것을 뜻하기 때문입니다 — mock 은 device 설명문이지만 사무실은 그 recipe 가 걸린 **공정 스텝 이름**(`oper_desc`)이라, 그 사본을 `recipe.ctn_desc` 에 쓰면 집에서는 맞고 사무실에서는 전부 `Core` 로 무너집니다.
 | `evaluateRecipe(recipe, cell)` | → `{total, violations[]}` | D5 `≤`, D14 집계 |
 
 `resolveRuleCell` 이 셀을 못 찾으면 **Gray-A(룰 미정)**, 어노테이션 미설정이면 **Gray-B(데이터 공백)** → 둘 다 비위반(D14).

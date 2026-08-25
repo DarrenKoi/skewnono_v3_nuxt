@@ -86,7 +86,36 @@ M_LOT_PREFIX_BY_FAC = {
     "M16": "6"
 }
 
-DEV_PHASES = ["t-EV", "tev", "p-EV", "PV", "TV", "Pool", "pool"]
+# phase 와 Pool 은 **직교하는 두 축**입니다. 예전에는 이 목록이 "Pool"/"pool" 을
+# phase 토큰에 섞어 두어(CONTEXT.md §Flagged ambiguities 가 정비 대상으로 표시해
+# 둔 그것), 한 device 의 ctn_desc 가 Pool 이거나 phase 이거나 **둘 중 하나**였
+# 습니다. 실물은 둘이 함께 옵니다 — "DRAM Pool제 (@Spica PV)"
+# (user-confirmed 2026-08-25). 섞어 두면 "Pool 이 phase 를 이긴다" 는 경로가
+# 집에서 한 번도 실행되지 않습니다(lotHealth.extractStage, ruleEngine
+# .selectorMatches 둘 다).
+DEV_PHASES = ["t-EV", "tev", "p-EV", "PV", "TV"]
+
+# ctn_desc 에 나타나는 Pool 표기. office `_family_of` 의 `_POOL_TOKEN`(=pool|풀)
+# 이 셋 다 잡습니다.
+POOL_TOKENS = ["Pool제", "Pool", "풀"]
+
+# 실물 ctn_desc 에 섞여 있는 개발코드 명. "Spica" 만 실제로 본 값이고
+# (user-confirmed 2026-08-25), 나머지는 형태만 맞춘 자리 채움입니다.
+DEV_CODES = ["Spica", "Vega", "Altair", "Rigel"]  # OFFICE-VERIFY (Spica 제외)
+
+
+def _dev_ctn_desc(rng: random.Random, phase: str, head: str, tail: str) -> str:
+    """device 설명문 한 줄.
+
+    약 1/4 은 Pool 제품이고, 그 경우 **Pool 토큰과 phase 토큰이 한 문자열에
+    같이** 실립니다 — 실물이 그렇습니다("DRAM Pool제 (@Spica PV)").
+    판정·칩 양쪽에서 Pool 이 phase 를 이깁니다.
+    """
+    if rng.random() < 0.25:
+        pool = rng.choice(POOL_TOKENS)
+        code = rng.choice(DEV_CODES)
+        return f"{head} {pool} (@{code} {phase}) {tail}"
+    return f"{phase} {head} {tail}"
 BASE_TIME = datetime(2026, 4, 1, 12, 0, 0, tzinfo=timezone.utc)
 BASE36_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -145,7 +174,11 @@ def _generate_r3_device_grp() -> tuple[R3DeviceGrpRow, ...]:
             "lot_cd": lot_cd,
             "plan_grade_cd": rng.choice(PLAN_GRADE_CODES),
             "lake_load_tm": timestamp.strftime("%Y%m%d%H%M%S"),
-            "ctn_desc": f"{phase} {prod_catg_cd} {tech_cd or 'NA'} {den_type or 'GEN'} development lot {lot_cd}"
+            "ctn_desc": _dev_ctn_desc(
+                rng, phase,
+                f"{prod_catg_cd} {tech_cd or 'NA'} {den_type or 'GEN'}",
+                f"development lot {lot_cd}",
+            )
         })
 
     return tuple(rows)
@@ -176,7 +209,10 @@ def _generate_device_desc() -> tuple[DeviceDescRow, ...]:
                 "id": f"{fac_id}-{index + 1:04d}",
                 "fac_id": fac_id,
                 "lot_cd": lot_cd,
-                "ctn_desc": f"{phase} {fac_id} {tech_nm} device description lot {lot_cd}",
+                "ctn_desc": _dev_ctn_desc(
+                    rng, phase, f"{fac_id} {tech_nm}",
+                    f"device description lot {lot_cd}",
+                ),
                 "chg_tm": timestamp.isoformat().replace("+00:00", "Z"),
                 "tech_nm": tech_nm,
                 "rnd_connector": rnd_connector

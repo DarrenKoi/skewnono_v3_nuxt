@@ -94,23 +94,16 @@ export const deriveType = (name: string): ParamType => {
   return 'OTHER'
 }
 
-/** D3 — VG·RTC·Cubic > Pool > Core. */
-export const deriveFamily = (ctnDesc: string): Family => {
-  const s = (ctnDesc || '').toLowerCase()
-  if (/vertical gate|vertical|rtc|cubic/.test(s)) return 'VG_RTC_Cubic'
-  if (/pool/.test(s)) return 'Pool'
-  return 'Core'
-}
-
-/** D3 — t-EV checked before EV; null → caller applies strict fallback. */
-export const derivePhase = (ctnDesc: string): Phase | null => {
-  const s = ctnDesc || ''
-  if (/\bt-?EV\b/i.test(s)) return 't-EV'
-  if (/\bPV\b/i.test(s)) return 'PV'
-  if (/\bTV\b/i.test(s)) return 'TV'
-  if (/\bEV\b/i.test(s)) return 'EV'
-  return null
-}
+// D3 — family/phase 는 여기서 파생하지 않습니다. backend 가 **device 의**
+// ctn_desc 에서 뽑아 `RecipeInput.family`/`.phase` 컬럼으로 실어 보내고
+// (office_example.py `_family_of`/`_phase_of`), 프런트는 소비만 합니다.
+//
+// 예전에 여기 있던 `deriveFamily`/`derivePhase` 사본은 지웠습니다. 호출자가
+// 테스트뿐이었던 데다, `RecipeInput.ctn_desc` 가 두 provider 에서 서로 다른
+// 것을 뜻하기 때문입니다 — mock 은 device 설명문이지만 사무실은 그 recipe 가
+// 걸린 **공정 스텝 이름**(oper_desc)입니다. 그래서 누가 그 사본을
+// `recipe.ctn_desc` 에 쓰면 집에서는 맞고 사무실에서는 전부 Core 로
+// 무너집니다. 파서를 office 어댑터 한 곳에만 두어 그 함정을 없앴습니다.
 
 /** D7 — DRAM→DRAM, NAND/FLASH→NAND, Tech/Advanced/absent→unknown (manual). */
 export const deriveMemoryClass = (prodCatgCd: string): MemoryClass | 'unknown' => {

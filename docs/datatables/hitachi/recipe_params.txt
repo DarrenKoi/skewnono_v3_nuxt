@@ -333,6 +333,12 @@ device 의 ctn_desc / recipe 이름에서 파생됩니다. 근거 없이 값을 
                    전부 Core. **VG_RTC_Cubic 은 발행하지 않습니다** — 원천에서
                    판별할 근거가 없어, 틀린 분류보다 미분류를 택했습니다.
                    근거가 생기면 office 어댑터의 _family_of 만 고칩니다.
+                   OFFICE-VERIFY: 요구사항 원문(ground_rules.txt 31행)은 VG 토큰이
+                   ctn_desc 에 있다고 하여 위 2026-07-31 확인과 부딪힙니다.
+                   대안 신호 "phase 토큰 없음 -> VG" 는 검토했으나 미채택입니다 —
+                   사유는 office_example.py 의 _family_of docstring.
+                   Pool 과 phase 는 한 ctn_desc 에 같이 옵니다("DRAM Pool제
+                   (@Spica PV)"); 판정과 화면 칩 모두 Pool 이 이깁니다.
   phase         -> device 의 ctn_desc 에서 파싱합니다. "t-EV"/"tev" 를 "EV"
                    보다 먼저 봐야 합니다(부분 일치 함정).
                    OFFICE-VERIFY: 원천에 실제로 있는 "p-EV" 는 계약 Literal
