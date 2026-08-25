@@ -15,9 +15,9 @@
   query param (`?fab_name=...`, 400 if missing); `recipe_id` and `parameter`
   are optional query params.
 - **`parameter` narrows the rows, and only inside a recipe.** It names one
-  measured feature of `recipe_id` (a `Parameter` value of that recipe's
-  `idp_image_info` — the same catalogue `GET
-  /api/<slug>/recipe-search/parameters` lists). The office adapter filters the
+  measured feature of `recipe_id` — a `parameter` value of the recipe's MSR
+  rows, which is also what the payload's own `parameters` lists (below). The
+  office adapter filters the
   MSR rows it computes pairwise skew from down to that feature; `None` means
   fold every feature together, the pre-existing behaviour. The route refuses
   `parameter` without `recipe_id` with a 400 before the data call, because the
@@ -25,6 +25,15 @@
   adapter may assume that a non-null `parameter` arrives with a `recipe_id`.
   Echo **both** back on the payload, including on the `available: false`
   branch: the client files the response under the pair it asked for.
+- **`parameters` is the catalogue `parameter` is picked from.** Every distinct
+  named `parameter` across the recipe's run pickles in the window, sorted —
+  the same rows the skew is computed from, so a name offered is one the filter
+  can match (the client used to read this list from recipe-open's `.idp` over
+  FTP, which failed for reasons unrelated to the recipe and could name
+  features nobody measured). Always the **unfiltered** set even when
+  `parameter` is set; `[]` without a `recipe_id` (names are recipe-local, so a
+  pooled list would offer one name for several features) and on every
+  `available: false` branch. Unnamed points (stabilisation shots) are excluded.
 - Contract: `TttmCheckPayload` (large nested tree — see `contracts.py` for
   the full `ToolRef`/`CellSkew`/`SkewMatrixBlock`/`ProductionCorroboration`/
   `FleetToday`/`TrendPoint`/`EpochMarker`/`MdcHistoryEntry` definitions) —
@@ -35,6 +44,7 @@
       fab_name: str
       recipe_id: str | None
       parameter: str | None        # one measured feature of recipe_id
+      parameters: list[str]        # every named feature the recipe's runs measured, sorted
       available: bool
       fetched_at: str
       summary: str
@@ -61,13 +71,15 @@
   (`scripts/capture_fixtures.py`). A fab holding no tool of the family returns
   an `available: false` empty payload (`tools: []`, `occupied_cells: []`, all
   list fields empty, `current_tolerance: 0.05`,
-  `production_corroboration.level: "low"`) with a Korean summary saying so —
+  `production_corroboration.level: "low"`, `parameters: []`) with a Korean summary saying so —
   this is the "unknown fab" case, not an error. A fab holding exactly one tool,
   and a recipe this fab has never measured, answer `available: false` the same
   way **but keep `tools`** (see the rule below). `recipe_id` and `parameter` are echoed and also seed the
-  numbers, so picking either visibly recomputes — the mock has no parameter
-  catalogue of its own and stands in for the office's row filtering by moving
-  the numbers, which is the property the UI depends on.
+  numbers, so picking either visibly recomputes — the mock does not filter by
+  parameter and stands in for the office's row filtering by moving the
+  numbers, which is the property the UI depends on. `parameters` is the
+  recipe's feature set from the msr_file mock's programs
+  (`program_parameters`), the same programs its mock pickles come from.
 
   **A recipe the fab has not measured is `available: false`, not a seeded
   payload.** The mock resolves the measured set through its own

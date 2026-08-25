@@ -202,6 +202,18 @@ class TttmCheckPayload(TypedDict):
     # can change a group verdict rather than merely relabel one: two tools that
     # agree once every feature is folded together can disagree on one feature.
     parameter: str | None
+    # The catalogue `parameter` is picked FROM: every distinct parameter name
+    # the fab measured under `recipe_id` in the window, sorted. Read off the
+    # same MSR rows the skew is computed from, so a name offered here is one the
+    # filter can match — the earlier source, recipe-open's .idp over FTP, could
+    # fail for reasons unrelated to the recipe and could name features nobody
+    # measured. Always the UNFILTERED set, even when `parameter` is set: it is
+    # the picker's list, and a list narrowed by its own pick is one entry long.
+    #
+    # Empty without a recipe — a parameter name is recipe-local, so pooling
+    # names across every measured recipe would offer the same name for
+    # different features — and empty on every unavailable branch.
+    parameters: list[str]
     available: bool
     fetched_at: str
     summary: str
@@ -277,6 +289,7 @@ def unavailable_payload(
         "fab_name": fab_name,
         "recipe_id": recipe_id,
         "parameter": parameter,
+        "parameters": [],
         "available": False,
         "fetched_at": "",
         "summary": summary,

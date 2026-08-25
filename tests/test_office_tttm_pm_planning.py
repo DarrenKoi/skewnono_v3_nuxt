@@ -1035,3 +1035,30 @@ class TestTttmUnavailableKeepsTheRoster:
                 "unavailable payload has ONE definition, in contracts.py"
             )
             assert adapter.unavailable_payload is tttm_contracts.unavailable_payload
+
+
+def test_a_recipe_payload_lists_the_parameters_its_runs_measured(sources):
+    """The picker's catalogue comes from the pickles, not from the .idp.
+
+    Same rows the skew is computed from, so every name offered is one the
+    parameter filter can match — and the list is the UNFILTERED set even when
+    a filter is applied, or the picker would collapse to its own pick.
+    """
+    sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("CD_Y", "CD_X", "WIDE_X"))
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None)
+    assert payload["parameters"] == ["CD_X", "CD_Y", "WIDE_X"]
+    narrowed = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    assert narrowed["parameters"] == ["CD_X", "CD_Y", "WIDE_X"]
+
+
+def test_without_a_recipe_the_office_offers_no_parameter_list(sources):
+    # Recipe-local names must not be pooled across recipes.
+    assert tttm_office.get_tttm_check("cdsem", "R3", None, None)["parameters"] == []
+
+
+def test_unnamed_points_do_not_reach_the_parameter_list(sources):
+    # A recipe's stabilisation shots carry CDs but no feature name; they are
+    # kept by load_points and must not surface as an empty picker entry.
+    sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("", "CD_X"))
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None)
+    assert payload["parameters"] == ["CD_X"]

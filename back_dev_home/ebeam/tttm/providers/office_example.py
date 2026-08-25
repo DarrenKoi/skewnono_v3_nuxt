@@ -300,6 +300,27 @@ def _observations(
     return observations, dropped
 
 
+def _measured_parameters(runs: tuple[RunRef, ...]) -> list[str]:
+    """Every distinct named feature across the runs' pickles, sorted.
+
+    The picker's catalogue. Deliberately UNFILTERED by the request's
+    ``parameter`` — the list is what that filter is picked from — and read
+    from the same pickles the skew is computed from, so a name offered here is
+    one the filter can match. ``load_points`` is LRU-cached, so this second
+    walk over the same pickles costs no further object-store reads.
+
+    Unnamed points (stabilisation shots) carry CDs but no feature identity;
+    they are kept by ``load_points`` and must not surface as a blank entry.
+    """
+    names = {
+        point.parameter
+        for run in runs
+        for point in load_points(run.pkl)
+        if point.parameter
+    }
+    return sorted(names)
+
+
 def _run_observations(
     runs: tuple[RunRef, ...], parameter: str | None
 ) -> list[_Observation]:
@@ -892,6 +913,10 @@ def get_tttm_check(
         "fab_name": fab_name,
         "recipe_id": recipe_id,
         "parameter": parameter,
+        # Recipe-local names, so only inside a recipe: without one the runs
+        # span every measured recipe and a pooled list would offer one name for
+        # several different features. See the contract's field comment.
+        "parameters": _measured_parameters(runs.runs) if recipe_id else [],
         "available": True,
         "fetched_at": anchor.isoformat(timespec="seconds"),
         "summary": summary,

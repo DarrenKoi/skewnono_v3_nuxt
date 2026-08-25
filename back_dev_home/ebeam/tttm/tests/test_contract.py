@@ -351,3 +351,46 @@ def test_mock_every_recipe_the_picker_offers_is_actually_comparable():
     for row in rows[:5]:
         payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, row["recipe_id"], None)
         assert payload["available"] is True, row["recipe_id"]
+
+
+# ── parameters: the catalogue the payload carries ─────────────────────────
+
+
+def _measured_recipe() -> str:
+    """A recipe the fab actually measured — the only kind the picker offers."""
+    rows = data.get_tttm_recipes(TOOL_SLUG, FAB_NAME)["rows"]
+    assert rows, "the fab must have measured something for this test to mean anything"
+    return rows[0]["recipe_id"]
+
+
+def test_a_recipe_payload_lists_the_parameters_it_measured():
+    # The parameter picker is fed from THIS list, not from recipe-open over
+    # FTP: the names come out of the same measurement rows the skew does, so a
+    # name offered here is one the filter can actually match.
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), None)
+    names = payload["parameters"]
+    assert names, "a measured recipe carries at least one measured parameter"
+    assert names == sorted(set(names)), "sorted and without duplicates"
+    assert all(isinstance(name, str) and name for name in names)
+
+
+def test_without_a_recipe_there_is_no_parameter_list():
+    # A parameter name is recipe-local, so a list spanning every measured recipe
+    # would offer names that mean different features in different recipes.
+    assert _payload()["parameters"] == []
+
+
+def test_the_parameter_list_does_not_move_with_the_parameter_filter():
+    # The list is the catalogue the filter is picked FROM; a filter that
+    # narrowed its own catalogue would leave the picker one entry long.
+    recipe = _measured_recipe()
+    unfiltered = data.get_tttm_check(TOOL_SLUG, FAB_NAME, recipe, None)["parameters"]
+    filtered = data.get_tttm_check(TOOL_SLUG, FAB_NAME, recipe, unfiltered[0])["parameters"]
+    assert filtered == unfiltered
+
+
+@pytest.mark.skipif(not _is_mock(), reason="mock-only data assumption")
+def test_mock_an_unavailable_answer_carries_no_parameter_list():
+    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, _measured_recipe(), None)
+    assert payload["available"] is False
+    assert payload["parameters"] == []

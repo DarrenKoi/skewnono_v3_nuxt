@@ -87,9 +87,11 @@ ENDPOINTS: list[tuple[str, str, str]] = [
      "/api/cdsem/pm-planning/fleet?fab_name=R3"),
 
     # hitachi skew (fab_name required; recipe_id optional but pinned so the
-    # captured shape stays the recipe-scoped one)
+    # captured shape stays the recipe-scoped one). A recipe R3 has MEASURED in
+    # the meas_hist mock: the mock answers an unmeasured recipe with
+    # `available: false`, which would capture the empty branch instead.
     ("ebeam/tttm", "tttm_cdsem_r3.json",
-     "/api/cdsem/tttm/check?fab_name=R3&recipe_id=CD_MON_16"),
+     "/api/cdsem/tttm/check?fab_name=R3&recipe_id=DEF/DEF_REVIEW_001"),
 
     # hitachi hardware (equipment-first path; tool_slug + eqp_id + service)
     ("ebeam/hardware", "hardware-bsm.json",

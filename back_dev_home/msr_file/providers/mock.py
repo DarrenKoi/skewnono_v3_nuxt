@@ -755,6 +755,18 @@ def _program_params(program_key: str, class_name: str) -> tuple[str, ...]:
     return tuple(param for param in pool if param in picked)
 
 
+def program_parameters(recipe_name: str, class_name: str) -> tuple[str, ...]:
+    """The parameter set of one recipe — the cross-feature seam for `_program_params`.
+
+    tttm's mock answers "which parameters did this recipe measure" from here,
+    because at the office that list is read out of the runs' pickles and these
+    programs are what the mock pickles are generated from. Anything else would
+    let the picker offer a name no mock pickle carries. The program key is the
+    recipe name, the same key `get_msr_file` derives from a run's parent row.
+    """
+    return _program_params(recipe_name, class_name)
+
+
 def _program_dummy_count(program_key: str) -> int:
     """How many unnamed settling shots the recipe opens with.
 

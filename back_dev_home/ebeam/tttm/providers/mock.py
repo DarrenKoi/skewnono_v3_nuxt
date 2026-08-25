@@ -72,12 +72,18 @@ flatten them by accident:
   anyway; some HV-SEM fabs really do hold a single tool.
 - **The seed includes `recipe_id` AND `parameter`**, so picking either visibly
   recomputes — which is what the pickers promise. The numbers move; the shape
-  does not. There is no parameter catalogue here: the mock never checks that a
-  parameter belongs to the recipe, because at the office the filter is a WHERE
-  on real MSR rows and an unknown parameter simply matches nothing. What the
-  mock has to stand in for is the consequence — that narrowing to one measured
-  feature can move a tool in or out of the N배화 group — and it does that by
-  re-seeding rather than by pretending to know the feature list.
+  does not. The mock still never checks that a parameter belongs to the
+  recipe, because at the office the filter is a WHERE on real MSR rows and an
+  unknown parameter simply matches nothing. What the mock has to stand in for
+  is the consequence — that narrowing to one measured feature can move a tool
+  in or out of the N배화 group — and it does that by re-seeding rather than by
+  filtering a feature list.
+- **`parameters` is the recipe's measured feature set**, read from the
+  msr_file mock's per-recipe programs (`program_parameters`) — the same
+  programs its mock pickles are generated from, so the picker offers exactly
+  the names 스큐보아 shows for the same recipe. The office reads the same fact
+  out of the runs' pickles. Seeded by the recipe alone, never by `parameter`:
+  the list is what the filter is picked from.
 
 OFFICE-VERIFY: `beam_condition` here is "BC1"/"BC2"/"BC3", and that vocabulary is
 this mock's invention. The office emits an accelerating-voltage label derived
@@ -397,6 +403,29 @@ def _measured_recipe_ids(tool_slug: str, fab_name: str) -> frozenset[str]:
     return frozenset(row["recipe_id"] for row in get_tttm_recipes(tool_slug, fab_name)["rows"])
 
 
+def _measured_parameters(tool_slug: str, fab_name: str, recipe_id: str) -> list[str]:
+    """Parameters the fab measured under `recipe_id`, sorted.
+
+    Home stands in for the office rule the same way `get_tttm_recipes` does:
+    the office reads the names off the recipe's run pickles, and the mock reads
+    them off the programs those mock pickles are generated from. The program
+    key is the bare recipe name, so every row of one recipe answers alike and
+    the first match is the whole answer.
+
+    Imported lazily for the same reason `get_tttm_recipes` imports lazily.
+    """
+    from back_dev_home.meas_hist.providers.mock import get_meas_hist
+    from back_dev_home.msr_file.providers.mock import program_parameters
+
+    tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
+    if tool_type is None:
+        return []
+    for row in get_meas_hist(tool_type=tool_type, fab_name=fab_name.strip().upper())["rows"]:
+        if (row.get("full_name") or row["recipe_name"]) == recipe_id:
+            return sorted(program_parameters(row["recipe_name"], row["class_name"]))
+    return []
+
+
 def get_tttm_check(
     tool_slug: str,
     fab_name: str,
@@ -467,6 +496,8 @@ def get_tttm_check(
         "fab_name": fab_name,
         "recipe_id": recipe_id,
         "parameter": parameter,
+        # Recipe-local, so only inside a recipe — see the contract's comment.
+        "parameters": _measured_parameters(tool_slug, fab_name, recipe_id) if recipe_id else [],
         "available": True,
         "fetched_at": _FETCHED_AT,
         "summary": (
