@@ -72,10 +72,17 @@ const windowEnd = ref(qp('end') || toIso(defaultEnd))
 // they're per-visit scratch, not worth persisting.
 const activeService = useState<HardwareServiceKey>('hw-section', () => defaultHardwareService.key)
 // The model is the page's GATE, not a filter (user decision 2026-08-25): no
-// tool shows until one is picked, so the reader always knows which model the
-// page is about. '' is "not picked". Page-scoped like the section tab, so
-// coming back to the page does not re-gate it.
-const modelFilter = useState<string>('hw-model', () => '')
+// tool shows until at least one is picked, so the reader always knows which
+// models the page is about. Several models may be picked together (chips
+// toggle); an empty list is "not picked". Page-scoped like the section tab,
+// so coming back to the page does not re-gate it.
+const modelFilters = useState<string[]>('hw-models', () => [])
+const modelPicked = computed(() => modelFilters.value.length > 0)
+const toggleModel = (model: string) => {
+  modelFilters.value = modelFilters.value.includes(model)
+    ? modelFilters.value.filter(picked => picked !== model)
+    : [...modelFilters.value, model]
+}
 const availabilityFilter = ref<'all' | 'On' | 'Off'>('all')
 const toolSearch = ref('')
 const selectedToolId = ref(deepLinkEqpId || storeSelectedToolId.value)
@@ -107,8 +114,7 @@ const matchesQuery = (row: SemListRow) => {
     .some(value => value.toLowerCase().includes(query))
 }
 
-const matchesModel = (row: SemListRow) =>
-  modelFilter.value !== '' && row.eqp_model_cd === modelFilter.value
+const matchesModel = (row: SemListRow) => modelFilters.value.includes(row.eqp_model_cd)
 
 const matchesAvailability = (row: SemListRow) =>
   availabilityFilter.value === 'all' || row.available === availabilityFilter.value
@@ -127,20 +133,22 @@ const modelGroups = computed(() => {
     .sort((left, right) => left.model.localeCompare(right.model))
 })
 // A deep-linked or store-handed tool names its model for the gate, so the
-// link opens on that tool instead of on an empty strip.
+// link opens on that tool instead of on an empty strip. Models already
+// picked stay: the link adds to the selection rather than replacing it.
 const linkedModel = selectedToolId.value
   ? rows.value.find(row => row.eqp_id === selectedToolId.value)?.eqp_model_cd
   : undefined
-if (linkedModel) modelFilter.value = linkedModel
+if (linkedModel && !modelFilters.value.includes(linkedModel)) {
+  modelFilters.value = [...modelFilters.value, linkedModel]
+}
 
 // A model remembered from another fab may be absent from this roster. Left in
-// place it would gate the page on a choice no chip shows as active, so clear
+// place it would gate the page on a choice no chip shows as active, so drop
 // it and let the empty state name the real situation. `modelGroups` keeps
 // zero-count models, so membership here is the roster, not the filtered view.
 watch(modelGroups, (groups) => {
-  if (modelFilter.value && !groups.some(group => group.model === modelFilter.value)) {
-    modelFilter.value = ''
-  }
+  const present = modelFilters.value.filter(model => groups.some(group => group.model === model))
+  if (present.length !== modelFilters.value.length) modelFilters.value = present
 }, { immediate: true })
 
 const availabilityCounts = computed(() => {
@@ -172,9 +180,9 @@ const toolChips = computed(() => {
     return true
   })
 })
-// The picked model's roster size, for "N대 중 M대 표시" — the model is a gate,
-// so the base is the model, not the fab: measured against the whole fab the
-// line would read as if the other models were hidden by a filter.
+// The picked models' roster size, for "N대 중 M대 표시" — the model is a gate,
+// so the base is the picked models, not the fab: measured against the whole
+// fab the line would read as if the other models were hidden by a filter.
 const modelToolCount = computed(() =>
   new Set(rows.value.filter(matchesModel).map(row => row.eqp_id)).size
 )
@@ -369,9 +377,9 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
             v-for="group in modelGroups"
             :key="group.model"
             size="sm"
-            :active="modelFilter === group.model"
+            :active="modelFilters.includes(group.model)"
             :count="group.count"
-            @click="modelFilter = group.model"
+            @click="toggleModel(group.model)"
           >
             {{ group.model }}
           </SkChip>
@@ -382,7 +390,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
              they appear with the model, not before it (three zero chips beside
              an empty strip would read as a filter that hid everything). -->
         <div
-          v-if="modelFilter"
+          v-if="modelPicked"
           class="ml-auto flex flex-wrap items-center gap-1.5"
         >
           <SkChip
@@ -465,7 +473,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </SkChip>
       </div>
       <p
-        v-else-if="!modelFilter"
+        v-else-if="!modelPicked"
         class="mt-3 sk-body"
       >
         모델을 고르면 그 모델의 장비가 여기에 나타납니다.
@@ -494,7 +502,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         <!-- Both numbers are data values, so both take full ink (DESIGN.md
              §Colors); only the words between them stay on the label tone. -->
         <span class="ml-auto">
-          {{ modelFilter }}
+          {{ modelFilters.join(' + ') }}
           <strong class="font-mono tabular-nums text-(--sk-ink)">{{ modelToolCount }}</strong>대 중
           <strong class="font-mono tabular-nums text-(--sk-ink)">{{ toolChips.length }}</strong>대 표시
         </span>
@@ -542,15 +550,15 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
            rule): until one is picked there is no tool, and the results name
            the missing choice instead of showing a tool nobody chose. -->
       <AppEmptyState
-        v-if="!modelFilter"
+        v-if="!modelPicked"
         title="모델을 선택하세요."
-        description="위 장비 선택에서 모델을 고르면 그 모델의 장비 목록이 열리고, 첫 장비의 H/W 상태가 여기에 표시됩니다."
-        hint="장비를 바꾸려면 chip 을 누르세요. 검색과 On/Off 는 그 모델 안에서 목록을 좁힙니다."
+        description="위 장비 선택에서 모델을 고르면 그 모델의 장비 목록이 열리고, 첫 장비의 H/W 상태가 여기에 표시됩니다. 모델은 여러 개를 함께 고를 수 있습니다."
+        hint="장비를 바꾸려면 chip 을 누르세요. 검색과 On/Off 는 고른 모델 안에서 목록을 좁힙니다."
       />
       <AppEmptyState
         v-else-if="!selectedTool"
         title="조건에 맞는 장비가 없습니다."
-        :description="`${modelFilter} 장비 중 검색어와 On/Off 조건을 만족하는 장비가 없습니다.`"
+        :description="`${modelFilters.join(' + ')} 장비 중 검색어와 On/Off 조건을 만족하는 장비가 없습니다.`"
         hint="검색어를 지우거나 On/Off 를 All 로 돌리면 장비가 다시 나타납니다."
       />
       <section
