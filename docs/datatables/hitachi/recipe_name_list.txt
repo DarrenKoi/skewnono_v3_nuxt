@@ -11,6 +11,7 @@ Key -> "v3_hvsem_unique_rcp_list"  : HV-SEM
 
 hash field -> fab 이름의 **소문자** 표기. 예: "m14a", "m16b", "r3"
                (office 확인 2026-08-07 — 아래 주의 1 참고)
+               표기의 어휘는 sem_list 의 fab_name 입니다 — 아래 주의 4 참고.
 hash value -> 그 fab 의 recipe 이름 list
 
   {"m14a": ["1/AC_M2_TAT", "1/AC_M3_CD", ...], "r3": [...]}
@@ -33,6 +34,12 @@ hash value -> 그 fab 의 recipe 이름 list
    "_" 는 있어도 콤마는 없으므로 안전한 fallback 입니다.
 3. recipe 이름은 "class/recipe" 형태를 포함합니다. meas_hist 의 full_name 과 같은
    체계입니다.
+4. fab 이름의 **어휘는 sem_list 의 `fab_name` 컬럼**입니다 (user-confirmed
+   2026-08-25). 즉 M16A, M16B, R3, R4 처럼 granular 한 이름이며, 대표 코드인
+   `fac_id`(M16, R3, ...) 가 아닙니다. 둘은 R3 처럼 표기가 겹치는 값이 있어
+   혼동하기 쉽지만, M16 으로 key 를 조립하면 M16A/M16B 어느 쪽도 맞지 않습니다.
+   sem_list 가 어휘의 출처라는 사실은 registry 쪽에서 한 번 더 쓰입니다 —
+   장비 목록의 eqp_id 를 eqp_ip 로 해석하는 명부도 같은 sem_list 입니다.
 
 Recipe 위치 registry (user-confirmed 2026-07-29)
 ================================================
@@ -46,6 +53,9 @@ Key -> "v3_{cdsem|hvsem}_tools_in_rcp_{fab}"  : 그 recipe 를 보유한 장비 
 
   {fab} 은 fab 이름의 **소문자** 표기입니다(unique_rcp_list 의 hash field 와
   같은 규칙이지만, 여기서는 field 가 아니라 **key 이름**의 일부입니다).
+  어휘도 같은 규칙입니다 — sem_list 의 `fab_name` 을 소문자로 내린 값이므로
+  `v3_cdsem_rcp_loc_m16a` 는 있어도 `..._m16` 은 없습니다
+  (user-confirmed 2026-08-25, 위 주의 4).
   이 두 registry 도 2026-08-07 에 소문자로 재생성되어 있음을 확인했습니다
   (office 확인 2026-08-07). 카탈로그와 함께 바꿔야 하는 이유는 실패 방식이
   다르기 때문입니다 — 카탈로그가 대문자면 검색이 빈 결과가 되고, registry 가

@@ -6,7 +6,12 @@ Only the recipe NAME LIST is wired office-side, as one Redis hash per family:
     v3_cdsem_unique_rcp_list / v3_hvsem_unique_rcp_list
 
 field = the fab name in LOWERCASE ("m14a", "r3"), value = that fab's list of
-recipe names. Two office quirks the adapter absorbs so nothing above it has to:
+recipe names. The fab VOCABULARY is sem_list's `fab_name` column — the granular
+name (M16A, M16B, R3, R4), never the `fac_id` representative code (M16, R3)
+that shares some of its spellings (user-confirmed 2026-08-25). That holds for
+the two per-fab registry keys below as well, where the fab is part of the key
+NAME: `v3_cdsem_rcp_loc_m16a` exists, `..._m16` does not. Two office quirks the
+adapter absorbs so nothing above it has to:
 routes uppercase `?fab_name=` and the lowercasing happens only at the Redis
 boundary (the response echoes the caller's uppercase spelling), and the stored
 list may be JSON (`["a","b"]`) or a Python repr (`['a','b']`) depending on the
@@ -167,7 +172,9 @@ RECIPE_COUNT = 50_000
 # Stand-in for the office HGETALL field set: the office catalog hash holds one
 # field per fab, so "no fab requested" means "every fab in the hash". The mock
 # cannot know the real field set; two fabs is enough to exercise the union and
-# the ~20% duplicate-name overlap.
+# the ~20% duplicate-name overlap. Both are real sem_list `fab_name` values,
+# because that column IS the office key vocabulary (user-confirmed 2026-08-25)
+# — a fac_id such as "M16" here would build a key no office fab answers to.
 _DEFAULT_FAB_NAMES: tuple[str, ...] = ("R3", "M16B")
 
 NAME_PATTERNS: tuple[tuple[str, str], ...] = (

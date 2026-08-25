@@ -19,6 +19,13 @@ lowercasing happens here — at the Redis boundary — and never leaks into the
 routes. The response echoes the caller's (uppercase) spelling so the contract
 matches the mock.
 
+The fab VOCABULARY is sem_list's ``fab_name`` (user-confirmed 2026-08-25): the
+granular name — M16A, M16B, R3, R4 — and never the ``fac_id`` representative
+code (M16, R3), which overlaps it on R-class fabs and would silently build a
+key nothing answers to. The same vocabulary names the two per-fab registry
+keys below, so the roster this adapter already joins against for
+``eqp_id -> eqp_ip`` is also the list of fabs those keys can exist for.
+
 **Recipe open** (``get_recipe_open_data``) — the measuring tool's own FTP
 server. The path is assembled from the Redis recipe registry when it can be,
 and from measurement history when it cannot::
@@ -394,6 +401,11 @@ def _fab_hash(kind: str, tool_type: ToolType, fab_name: str) -> str:
     Redis boundary, for the same reason the catalog does it: routes.py hands
     down an uppercase name and nothing above this module should have to know
     that the store disagrees.
+
+    ``fab_name`` is expected to be a sem_list ``fab_name`` (user-confirmed
+    2026-08-25) — M16A, not the M16 ``fac_id``. Nothing validates that here:
+    a wrong-grain name simply builds a key Redis has no entry for, which
+    ``_locate_via_redis`` reports as a bail reason and falls back on.
     """
     family = _FAMILY.get(tool_type)
     if family is None:
