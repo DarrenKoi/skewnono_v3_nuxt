@@ -22,7 +22,7 @@
         <div
           v-if="lane.images.length"
           class="grid gap-3"
-          :style="{ gridTemplateColumns: `repeat(${lane.images.length}, minmax(0, 1fr))` }"
+          :style="{ gridTemplateColumns: `repeat(${columnsFor(lane.images.length)}, minmax(0, 1fr))` }"
         >
           <!-- Keyed on (slot, name): an HV-SEM slot expands to several
                stem-suffixed files (2026-08-08), so `slot` alone would collide
@@ -122,6 +122,11 @@ const lanes = computed(() => [
     afPr: groupedAfPr.value.measurement
   }
 ] as const)
+
+// Two columns at most: a lane occupies half the panel, so an HV-SEM slot that
+// expands to four files (-U/-T/-M/-L) would otherwise squeeze four thumbnails
+// into ~1/8 panel width each. A single image still spans the lane.
+const columnsFor = (count: number) => Math.min(count, 2)
 
 const roleOf = (slotKey: string): SlotRole =>
   IMAGE_SLOTS.find(slot => slot.key === slotKey)?.role ?? 'address'
