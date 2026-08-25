@@ -96,13 +96,6 @@ const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'total', label: '전체', value: rows.value.length, tone: 'neutral' }
 ])
 
-const modelOptions = computed(() => [
-  { label: 'All Models', value: 'all' },
-  ...Array.from(new Set(rows.value.map(row => row.eqp_model_cd)))
-    .sort((left, right) => left.localeCompare(right))
-    .map(model => ({ label: model, value: model }))
-])
-
 const matchesQuery = (row: SemListRow) => {
   const query = toolSearch.value.trim().toLowerCase()
   if (query.length === 0) return true
@@ -113,8 +106,24 @@ const matchesQuery = (row: SemListRow) => {
 const matchesModel = (row: SemListRow) =>
   modelFilter.value === 'all' || row.eqp_model_cd === modelFilter.value
 
-// Availability segment counts respect the active search + model filter so the
-// chips reflect exactly what clicking each one would reveal.
+const matchesAvailability = (row: SemListRow) =>
+  availabilityFilter.value === 'all' || row.available === availabilityFilter.value
+
+// Each chip row's counts respect the OTHER two controls (search + the other
+// row), so a count is exactly what clicking that chip would reveal. A model
+// chip is never dropped for counting zero: the model row is the roster of what
+// this fab union owns, and a model whose tools are all Off still exists.
+const modelGroups = computed(() => {
+  const counts = new Map<string, number>()
+  for (const row of rows.value) {
+    const visible = matchesQuery(row) && matchesAvailability(row)
+    counts.set(row.eqp_model_cd, (counts.get(row.eqp_model_cd) ?? 0) + (visible ? 1 : 0))
+  }
+  return Array.from(counts, ([model, count]) => ({ model, count }))
+    .sort((left, right) => left.model.localeCompare(right.model))
+})
+const modelCountAll = computed(() => modelGroups.value.reduce((sum, group) => sum + group.count, 0))
+
 const availabilityCounts = computed(() => {
   let on = 0
   let off = 0
@@ -127,11 +136,7 @@ const availabilityCounts = computed(() => {
 })
 
 const searchedRows = computed(() =>
-  rows.value.filter(row =>
-    matchesModel(row)
-    && matchesQuery(row)
-    && (availabilityFilter.value === 'all' || row.available === availabilityFilter.value)
-  )
+  rows.value.filter(row => matchesModel(row) && matchesQuery(row) && matchesAvailability(row))
 )
 
 const selectedTool = computed(() =>
@@ -290,346 +295,383 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
       :stats="metaStats"
     />
 
-    <!-- ===== 2-column body: list rail + detail ===== -->
-    <div class="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <!-- LEFT · search + equipment list -->
-      <UCard
-        class="dashboard-surface flex max-h-[36rem] flex-col overflow-hidden rounded-2xl lg:max-h-[calc(100vh-13rem)]"
-        :ui="{ body: 'flex min-h-0 flex-1 flex-col p-0 sm:p-0', header: 'shrink-0 p-0 sm:px-0' }"
+    <!-- ===== Tool strip — which tool everything below is computed for =====
+         This was a 320px list rail beside the detail. It sits above the results
+         now (DESIGN.md §Layout, the scope-bar rule): the page has exactly one
+         required decision — the tool — and every card and chart below is
+         computed for that one tool, so the decision belongs first in reading
+         order, and the detail (FDC's per-key grid, the MDC/SCE comparison
+         charts) gets the full width instead of `1fr` beside a rail.
+
+         Two chip rows, two roles. Model chips NARROW the roster, so they take
+         the terracotta FILTER fill. The tool chip picks the one subject among
+         peers — the ink fill that the rail's selected row already used, and the
+         `tone="ink"` SkChip that skewvoir's ParamCoverageList uses for the same
+         "one of these" choice. Different roles, so the two fills do not mix. -->
+    <section class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <p class="shrink-0 sk-panel-title">
+          장비 선택
+        </p>
+        <div
+          role="group"
+          aria-label="모델 필터"
+          class="flex flex-wrap items-center gap-1.5"
+        >
+          <SkChip
+            size="sm"
+            :active="modelFilter === 'all'"
+            :count="modelCountAll"
+            @click="modelFilter = 'all'"
+          >
+            All Models
+          </SkChip>
+          <SkChip
+            v-for="group in modelGroups"
+            :key="group.model"
+            size="sm"
+            :active="modelFilter === group.model"
+            :count="group.count"
+            @click="modelFilter = group.model"
+          >
+            {{ group.model }}
+          </SkChip>
+        </div>
+
+        <!-- Availability + search sit at the trailing edge: they refine the
+             roster the model row already narrowed, rather than define it. -->
+        <div class="ml-auto flex flex-wrap items-center gap-1.5">
+          <SkChip
+            size="sm"
+            :active="availabilityFilter === 'all'"
+            :count="availabilityCounts.all"
+            @click="availabilityFilter = 'all'"
+          >
+            All
+          </SkChip>
+          <SkChip
+            size="sm"
+            :active="availabilityFilter === 'On'"
+            :count="availabilityCounts.On"
+            @click="availabilityFilter = 'On'"
+          >
+            On
+          </SkChip>
+          <SkChip
+            size="sm"
+            :active="availabilityFilter === 'Off'"
+            :count="availabilityCounts.Off"
+            @click="availabilityFilter = 'Off'"
+          >
+            Off
+          </SkChip>
+          <UInput
+            v-model="toolSearch"
+            size="sm"
+            icon="i-lucide-search"
+            color="neutral"
+            variant="subtle"
+            placeholder="장비 ID, Model, IP 검색"
+            class="w-52"
+          />
+          <UButton
+            v-if="hasActiveListControls"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-rotate-ccw"
+            aria-label="리스트 필터 초기화"
+            @click="resetListControls"
+          />
+        </div>
+      </div>
+
+      <!-- Tool chips — click to switch the detail below.
+           Keyed with the list position, not the bare eqp_id: sem_list repeats
+           an eqp_id (10 of 300 rows), and two of those pairs sit in ONE fab —
+           R3 lists ECDX729/GT2000 twice — so an id key collides after the fab
+           filter and every re-filter orphans a chip in the DOM.
+
+           Capped at about four rows: a single fab holds up to ~20 tools of one
+           type, which fits, but a multi-fab union can reach 60+, and a strip
+           that tall pushes the data it exists to select below the fold. -->
+      <div
+        v-if="searchedRows.length"
+        role="group"
+        aria-label="장비 선택"
+        class="mt-3 flex max-h-[9.5rem] flex-wrap gap-1.5 overflow-y-auto"
       >
-        <template #header>
-          <div class="space-y-2.5 border-b border-zinc-200/70 px-3 py-3 dark:border-zinc-800/70">
-            <UInput
-              v-model="toolSearch"
-              size="md"
-              icon="i-lucide-search"
-              color="neutral"
-              variant="subtle"
-              placeholder="장비 ID, Model, IP 검색"
-              class="w-full"
+        <SkChip
+          v-for="(row, rowAt) in searchedRows"
+          :key="`${row.eqp_id}#${rowAt}`"
+          size="sm"
+          tone="ink"
+          :active="row.eqp_id === selectedToolId"
+          :title="`${row.vendor_nm} ${row.eqp_model_cd} · ${row.fab_name} · ${row.eqp_ip} · ${row.version}`"
+          @click="selectTool(row.eqp_id)"
+        >
+          <span class="inline-flex items-center gap-1.5 font-mono">
+            <!-- On keeps the semantic green on either fill; Off rides
+                 currentColor so it stays visible on the ink fill, where the
+                 subtle-ink token would vanish. -->
+            <span
+              class="h-1.5 w-1.5 rounded-full"
+              :class="row.available === 'On' ? 'bg-(--sk-ok)' : 'bg-current opacity-40'"
             />
-            <USelect
-              v-model="modelFilter"
-              size="md"
-              color="neutral"
-              variant="subtle"
-              :items="modelOptions"
-              class="w-full"
-            />
-            <div class="flex items-center gap-1.5">
-              <SkChip
+            {{ row.eqp_id }}
+          </span>
+        </SkChip>
+      </div>
+      <p
+        v-else
+        class="mt-3 sk-body"
+      >
+        검색·필터 조건에 맞는 장비가 없습니다.
+      </p>
+
+      <!-- The rail row used to carry vendor / model / fab / ip / version under
+           each id; a chip cannot, so the SELECTED tool's line moves here. -->
+      <p
+        v-if="selectedTool"
+        class="mt-2.5 flex flex-wrap items-baseline gap-x-2 sk-field-label"
+      >
+        <strong class="font-mono font-semibold text-(--sk-ink)">{{ selectedTool.eqp_id }}</strong>
+        <span>{{ selectedTool.vendor_nm }} {{ selectedTool.eqp_model_cd }}</span>
+        <span>·</span>
+        <span>{{ selectedTool.fab_name }}</span>
+        <span>·</span>
+        <span class="font-mono">{{ selectedTool.eqp_ip }}</span>
+        <span>·</span>
+        <span class="font-mono">{{ selectedTool.version }}</span>
+        <span class="ml-auto">
+          {{ rows.length }}대 중 <strong class="font-mono tabular-nums text-(--sk-ink)">{{ searchedRows.length }}대</strong> 표시
+        </span>
+      </p>
+    </section>
+
+    <!-- ===== Service navigation + detail — full width ===== -->
+    <div class="flex min-w-0 flex-col gap-3">
+      <!-- Service tabs — the tool itself is chosen in the strip above. -->
+      <section class="dashboard-surface flex flex-wrap items-center rounded-2xl px-4 py-3">
+        <!-- Segment tabs: BLACK = NAVIGATE (the detail view changes).
+             Grouped into 데일리 / 분기 clusters by measurement cadence. -->
+        <div
+          role="tablist"
+          aria-label="섹션 전환"
+          class="flex flex-wrap items-end gap-x-4 gap-y-2"
+        >
+          <div
+            v-for="group in serviceGroups"
+            :key="group.category"
+            class="flex flex-col gap-1"
+          >
+            <span class="px-0.5 sk-eyebrow">
+              {{ group.category }}
+            </span>
+            <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border)">
+              <SkNavPill
+                v-for="service in group.services"
+                :key="service.key"
+                role="tab"
+                :aria-selected="activeService === service.key"
+                :label="service.label"
+                :icon="service.icon"
+                :active="activeService === service.key"
                 size="sm"
-                :active="availabilityFilter === 'all'"
-                :count="availabilityCounts.all"
-                @click="availabilityFilter = 'all'"
-              >
-                All
-              </SkChip>
-              <SkChip
-                size="sm"
-                :active="availabilityFilter === 'On'"
-                :count="availabilityCounts.On"
-                @click="availabilityFilter = 'On'"
-              >
-                On
-              </SkChip>
-              <SkChip
-                size="sm"
-                :active="availabilityFilter === 'Off'"
-                :count="availabilityCounts.Off"
-                @click="availabilityFilter = 'Off'"
-              >
-                Off
-              </SkChip>
-              <UButton
-                v-if="hasActiveListControls"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-rotate-ccw"
-                class="ml-auto"
-                aria-label="리스트 필터 초기화"
-                @click="resetListControls"
+                class="!rounded-none !border-0 !px-3.5"
+                @click="activeService = service.key"
               />
             </div>
           </div>
-        </template>
-
-        <!-- Equipment rows — click to switch the detail pane.
-             Keyed with the list position, not the bare eqp_id: sem_list repeats
-             an eqp_id (10 of 300 rows), and two of those pairs sit in ONE fab —
-             R3 lists ECDX729/GT2000 twice — so an id key collides after the fab
-             filter and every re-filter orphans a row in the DOM. -->
-        <div class="flex-1 overflow-auto">
-          <button
-            v-for="(row, rowAt) in searchedRows"
-            :key="`${row.eqp_id}#${rowAt}`"
-            type="button"
-            class="flex w-full items-start gap-2.5 border-b border-l-2 border-zinc-100 px-3.5 py-3 text-left transition-colors dark:border-zinc-800/60"
-            :class="row.eqp_id === selectedToolId
-              ? 'border-l-(--sk-ink) bg-(--sk-muted-surface)'
-              : 'border-l-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/40'"
-            :aria-current="row.eqp_id === selectedToolId ? 'true' : undefined"
-            @click="selectTool(row.eqp_id)"
-          >
-            <div class="min-w-0 flex-1 space-y-1">
-              <div class="flex items-center gap-2">
-                <span class="min-w-0 flex-1 truncate font-mono text-[13px] font-bold text-(--sk-ink)">
-                  {{ row.eqp_id }}
-                </span>
-                <span
-                  class="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold"
-                  :style="{ color: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
-                >
-                  <span
-                    class="h-1.5 w-1.5 rounded-full"
-                    :style="{ background: row.available === 'On' ? 'var(--sk-ok)' : 'var(--sk-ink-subtle)' }"
-                  />
-                  {{ row.available }}
-                </span>
-              </div>
-              <div class="truncate text-[11px] text-(--sk-ink-muted)">
-                {{ row.vendor_nm }} {{ row.eqp_model_cd }}
-              </div>
-              <div class="truncate font-mono text-[10px] text-(--sk-ink-subtle)">
-                {{ row.fab_name }} · {{ row.eqp_ip }} · {{ row.version }}
-              </div>
-            </div>
-          </button>
-
-          <p
-            v-if="searchedRows.length === 0"
-            class="px-3.5 py-8 text-center sk-body"
-          >
-            검색·필터 조건에 맞는 장비가 없습니다.
-          </p>
         </div>
-      </UCard>
+      </section>
 
-      <!-- RIGHT · service navigation + detail -->
-      <div class="flex min-w-0 flex-col gap-3">
-        <!-- Service tabs — tool details stay with the selectable rows in the left rail. -->
-        <section class="dashboard-surface flex flex-wrap items-center rounded-2xl px-4 py-3">
-          <!-- Segment tabs: BLACK = NAVIGATE (the detail view changes).
-               Grouped into 데일리 / 분기 clusters by measurement cadence. -->
-          <div
-            role="tablist"
-            aria-label="섹션 전환"
-            class="flex flex-wrap items-end gap-x-4 gap-y-2"
-          >
-            <div
-              v-for="group in serviceGroups"
-              :key="group.category"
-              class="flex flex-col gap-1"
-            >
-              <span class="px-0.5 sk-eyebrow">
-                {{ group.category }}
-              </span>
-              <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border)">
-                <SkNavPill
-                  v-for="service in group.services"
-                  :key="service.key"
-                  role="tab"
-                  :aria-selected="activeService === service.key"
-                  :label="service.label"
-                  :icon="service.icon"
-                  :active="activeService === service.key"
-                  size="sm"
-                  class="!rounded-none !border-0 !px-3.5"
-                  @click="activeService = service.key"
-                />
-              </div>
-            </div>
+      <!-- Service detail -->
+      <section class="dashboard-surface flex-1 rounded-2xl p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="sk-heading">
+              {{ activeServiceDetail.title }}
+            </h2>
+            <p class="mt-1 max-w-2xl sk-body">
+              {{ activeServiceDetail.description }}
+            </p>
           </div>
-        </section>
+          <!-- BM/PM 수직 마커 오버레이 on/off — 시간축 차트가 있는 탭에서만 -->
+          <USwitch
+            v-if="overlayToggleVisible"
+            v-model="showBmPmOverlay"
+            size="sm"
+            label="BM/PM 표시"
+            class="shrink-0"
+          />
+        </div>
 
-        <!-- Service detail -->
-        <section class="dashboard-surface flex-1 rounded-2xl p-4">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <h2 class="sk-heading">
-                {{ activeServiceDetail.title }}
-              </h2>
-              <p class="mt-1 max-w-2xl sk-body">
-                {{ activeServiceDetail.description }}
-              </p>
-            </div>
-            <!-- BM/PM 수직 마커 오버레이 on/off — 시간축 차트가 있는 탭에서만 -->
-            <USwitch
-              v-if="overlayToggleVisible"
-              v-model="showBmPmOverlay"
-              size="sm"
-              label="BM/PM 표시"
-              class="shrink-0"
-            />
-          </div>
-
-          <div class="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
-            <template v-if="servicePending">
-              <span class="inline-flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-loader-circle"
-                  class="h-4 w-4 animate-spin"
-                />
-                {{ activeServiceDetail.label }} 데이터를 불러오는 중...
-              </span>
-            </template>
-            <template v-else-if="serviceError">
-              <span class="text-rose-700 dark:text-rose-300">
-                {{ activeServiceDetail.label }} 요청 실패: {{ serviceError.message }}
-              </span>
-            </template>
-            <template v-else-if="servicePayload">
-              <div class="flex flex-col gap-2">
-                <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-                  <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span
-                      class="inline-flex items-center gap-1.5 text-xs font-semibold"
-                      :class="servicePayload.available
-                        ? 'text-emerald-700 dark:text-emerald-300'
-                        : 'text-amber-700 dark:text-amber-300'"
-                    >
-                      <span class="h-1.5 w-1.5 rounded-full bg-current" />
-                      {{ servicePayload.available ? 'Available' : 'Not available' }}
-                    </span>
-                    <span class="font-mono text-xs text-(--sk-ink-muted)">
-                      {{ servicePayload.fetched_at }}
-                    </span>
-                  </div>
-                  <!-- Compact metric strip (문서수 · 기준일 · 최신 측정 …) -->
-                  <dl
-                    v-if="visibleCards.length"
-                    class="flex flex-wrap items-baseline gap-x-4 gap-y-1"
-                  >
-                    <div
-                      v-for="card in visibleCards"
-                      :key="card.key"
-                      class="flex items-baseline gap-1.5"
-                    >
-                      <dt class="sk-eyebrow">
-                        {{ card.label }}
-                      </dt>
-                      <dd
-                        class="font-mono text-xs font-semibold tabular-nums"
-                        :class="metricToneClass(card.tone)"
-                      >
-                        {{ formatMetricValue(card.value) }}<span
-                          v-if="card.unit"
-                          class="ml-0.5 font-normal text-(--sk-ink-muted)"
-                        >{{ card.unit }}</span>
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-                <!-- Normal payloads carry a boilerplate summary that restates the
-                     tab description above; only hint/unavailable payloads (empty
-                     cards) say something the header doesn't. -->
-                <p v-if="!servicePayload.available || servicePayload.cards.length === 0">
-                  {{ servicePayload.summary }}
-                </p>
-
-                <!-- BM/PM: dedicated past/future tables with expandable engineer notes -->
-                <EbeamHardwareBmPmTables
-                  v-if="activeService === 'bm-pm' && servicePayload.tables.length"
-                  :tables="servicePayload.tables"
-                />
-
-                <!-- BSM: beam_condition filter + scalar trends + 360° radars (reads docs) -->
-                <EbeamHardwareBsmPanel
-                  v-if="activeService === 'bsm'"
-                  :docs="servicePayload.docs ?? []"
-                  :maintenance-events="overlayEvents"
-                />
-
-                <!-- Reso Center: drift scatter + best-reso trend + focus sweep -->
-                <EbeamHardwareResoCenterPanel
-                  v-else-if="activeService === 'reso-center'"
-                  :docs="servicePayload.docs ?? []"
-                  :maintenance-events="overlayEvents"
-                />
-
-                <!-- FDC: fdc_key sub-tabs -->
-                <EbeamHardwareFdcPanel
-                  v-else-if="activeService === 'fdc'"
-                  :docs="servicePayload.docs ?? []"
-                  :maintenance-events="overlayEvents"
-                />
-
-                <!-- Sharpness: chamber-stub beam quality — condition filter + summ_beam trends + per-degree radars -->
-                <EbeamHardwareSharpnessPanel
-                  v-else-if="activeService === 'sharpness'"
-                  :docs="servicePayload.docs ?? []"
-                  :maintenance-events="overlayEvents"
-                />
-
-                <!-- MDC: 시계열 (trajectory + per-axis trends) / 비교 sub-tabs -->
-                <EbeamHardwareMdcPanel
-                  v-else-if="activeService === 'mdc'"
-                  :settings="servicePayload.settings ?? {}"
-                  :docs="servicePayload.docs ?? []"
-                  :compare-docs="compareMdcDocs ?? {}"
-                  :selected-eqp="selectedTool?.eqp_id ?? ''"
-                  :maintenance-events="overlayEvents"
-                />
-
-                <!-- SCE: 비교 (settings + coefficient curve) / 시계열 (bidaily archive) sub-tabs -->
-                <EbeamHardwareScePanel
-                  v-else-if="activeService === 'sce'"
-                  :settings="servicePayload.settings ?? {}"
-                  :docs="servicePayload.docs ?? []"
-                  :selected-eqp="selectedTool?.eqp_id ?? ''"
-                  :maintenance-events="overlayEvents"
-                />
-
-                <!-- Generic table renderer (excluded for all dedicated panel services) -->
-                <div
-                  v-for="section in (['bm-pm', 'bsm', 'reso-center', 'fdc', 'mdc', 'sce', 'sharpness'].includes(activeService) ? [] : servicePayload.tables)"
-                  :key="section.key"
-                  class="mt-3 overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
-                >
-                  <div class="border-b border-(--sk-border-soft) px-3 py-2 sk-title">
-                    {{ section.title }}
-                  </div>
-                  <div class="overflow-x-auto">
-                    <table class="min-w-full text-left text-xs">
-                      <thead class="bg-zinc-100 text-(--sk-ink-muted) dark:bg-zinc-900">
-                        <tr>
-                          <th
-                            v-for="column in section.columns"
-                            :key="column.key"
-                            class="whitespace-nowrap px-3 py-2 sk-eyebrow"
-                          >
-                            {{ column.label }}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr
-                          v-for="(row, rowIndex) in section.rows"
-                          :key="rowIndex"
-                          class="border-t border-(--sk-border-soft)"
-                        >
-                          <td
-                            v-for="column in section.columns"
-                            :key="column.key"
-                            class="whitespace-nowrap px-3 py-2 sk-value-num"
-                          >
-                            {{ formatMetricValue(row[column.key]) }}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </template>
-            <span v-else>
-              <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ activeServiceDetail.label }}</span>
-              정보는 선택한 장비를 기준으로 열립니다.
+        <div class="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
+          <template v-if="servicePending">
+            <span class="inline-flex items-center gap-2">
+              <UIcon
+                name="i-lucide-loader-circle"
+                class="h-4 w-4 animate-spin"
+              />
+              {{ activeServiceDetail.label }} 데이터를 불러오는 중...
             </span>
-          </div>
-        </section>
-      </div>
+          </template>
+          <template v-else-if="serviceError">
+            <span class="text-rose-700 dark:text-rose-300">
+              {{ activeServiceDetail.label }} 요청 실패: {{ serviceError.message }}
+            </span>
+          </template>
+          <template v-else-if="servicePayload">
+            <div class="flex flex-col gap-2">
+              <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold"
+                    :class="servicePayload.available
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-amber-700 dark:text-amber-300'"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full bg-current" />
+                    {{ servicePayload.available ? 'Available' : 'Not available' }}
+                  </span>
+                  <span class="font-mono text-xs text-(--sk-ink-muted)">
+                    {{ servicePayload.fetched_at }}
+                  </span>
+                </div>
+                <!-- Compact metric strip (문서수 · 기준일 · 최신 측정 …) -->
+                <dl
+                  v-if="visibleCards.length"
+                  class="flex flex-wrap items-baseline gap-x-4 gap-y-1"
+                >
+                  <div
+                    v-for="card in visibleCards"
+                    :key="card.key"
+                    class="flex items-baseline gap-1.5"
+                  >
+                    <dt class="sk-eyebrow">
+                      {{ card.label }}
+                    </dt>
+                    <dd
+                      class="font-mono text-xs font-semibold tabular-nums"
+                      :class="metricToneClass(card.tone)"
+                    >
+                      {{ formatMetricValue(card.value) }}<span
+                        v-if="card.unit"
+                        class="ml-0.5 font-normal text-(--sk-ink-muted)"
+                      >{{ card.unit }}</span>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+              <!-- Normal payloads carry a boilerplate summary that restates the
+                   tab description above; only hint/unavailable payloads (empty
+                   cards) say something the header doesn't. -->
+              <p v-if="!servicePayload.available || servicePayload.cards.length === 0">
+                {{ servicePayload.summary }}
+              </p>
+
+              <!-- BM/PM: dedicated past/future tables with expandable engineer notes -->
+              <EbeamHardwareBmPmTables
+                v-if="activeService === 'bm-pm' && servicePayload.tables.length"
+                :tables="servicePayload.tables"
+              />
+
+              <!-- BSM: beam_condition filter + scalar trends + 360° radars (reads docs) -->
+              <EbeamHardwareBsmPanel
+                v-if="activeService === 'bsm'"
+                :docs="servicePayload.docs ?? []"
+                :maintenance-events="overlayEvents"
+              />
+
+              <!-- Reso Center: drift scatter + best-reso trend + focus sweep -->
+              <EbeamHardwareResoCenterPanel
+                v-else-if="activeService === 'reso-center'"
+                :docs="servicePayload.docs ?? []"
+                :maintenance-events="overlayEvents"
+              />
+
+              <!-- FDC: fdc_key sub-tabs -->
+              <EbeamHardwareFdcPanel
+                v-else-if="activeService === 'fdc'"
+                :docs="servicePayload.docs ?? []"
+                :maintenance-events="overlayEvents"
+              />
+
+              <!-- Sharpness: chamber-stub beam quality — condition filter + summ_beam trends + per-degree radars -->
+              <EbeamHardwareSharpnessPanel
+                v-else-if="activeService === 'sharpness'"
+                :docs="servicePayload.docs ?? []"
+                :maintenance-events="overlayEvents"
+              />
+
+              <!-- MDC: 시계열 (trajectory + per-axis trends) / 비교 sub-tabs -->
+              <EbeamHardwareMdcPanel
+                v-else-if="activeService === 'mdc'"
+                :settings="servicePayload.settings ?? {}"
+                :docs="servicePayload.docs ?? []"
+                :compare-docs="compareMdcDocs ?? {}"
+                :selected-eqp="selectedTool?.eqp_id ?? ''"
+                :maintenance-events="overlayEvents"
+              />
+
+              <!-- SCE: 비교 (settings + coefficient curve) / 시계열 (bidaily archive) sub-tabs -->
+              <EbeamHardwareScePanel
+                v-else-if="activeService === 'sce'"
+                :settings="servicePayload.settings ?? {}"
+                :docs="servicePayload.docs ?? []"
+                :selected-eqp="selectedTool?.eqp_id ?? ''"
+                :maintenance-events="overlayEvents"
+              />
+
+              <!-- Generic table renderer (excluded for all dedicated panel services) -->
+              <div
+                v-for="section in (['bm-pm', 'bsm', 'reso-center', 'fdc', 'mdc', 'sce', 'sharpness'].includes(activeService) ? [] : servicePayload.tables)"
+                :key="section.key"
+                class="mt-3 overflow-hidden rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
+              >
+                <div class="border-b border-(--sk-border-soft) px-3 py-2 sk-title">
+                  {{ section.title }}
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-left text-xs">
+                    <thead class="bg-zinc-100 text-(--sk-ink-muted) dark:bg-zinc-900">
+                      <tr>
+                        <th
+                          v-for="column in section.columns"
+                          :key="column.key"
+                          class="whitespace-nowrap px-3 py-2 sk-eyebrow"
+                        >
+                          {{ column.label }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="(row, rowIndex) in section.rows"
+                        :key="rowIndex"
+                        class="border-t border-(--sk-border-soft)"
+                      >
+                        <td
+                          v-for="column in section.columns"
+                          :key="column.key"
+                          class="whitespace-nowrap px-3 py-2 sk-value-num"
+                        >
+                          {{ formatMetricValue(row[column.key]) }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </template>
+          <span v-else>
+            <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ activeServiceDetail.label }}</span>
+            정보는 선택한 장비를 기준으로 열립니다.
+          </span>
+        </div>
+      </section>
     </div>
   </div>
 </template>
