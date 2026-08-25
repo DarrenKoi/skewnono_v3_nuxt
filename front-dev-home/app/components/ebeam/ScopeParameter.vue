@@ -84,7 +84,7 @@ const emit = defineEmits<{
 const onParameter = (value: string) => emit('update:parameter', value || null)
 
 // `parameterNames` is content-stable (useTttmScope), so the term resets when
-// the recipe changes, not on every refetch of the same list.
+// the LIST changes — a new recipe — not on every refetch of the same list.
 const { term, matched, overflowed, items } = useMenuFilter(
   () => props.parameterNames,
   { sentinel: ALL_PARAMETERS, limit: PARAMETER_LIMIT }

@@ -107,9 +107,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     return prev && sameNames(prev, next) ? prev : next
   })
 
-  const lock = computed(() =>
-    analysisLock(recipeId.value, payload.value, pending.value, offered.value)
-  )
+  const lock = computed(() => analysisLock(recipeId.value, pending.value, offered.value))
   // The results gate: the recipe alone. The server does answer without one
   // (it folds every measured recipe together), but that answer is a fleet-wide
   // average nobody asked for and renders identically to a scoped one.

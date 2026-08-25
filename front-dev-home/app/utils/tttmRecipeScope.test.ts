@@ -100,26 +100,31 @@ test('pickStillStands: a parameter the recipe did not measure is dropped', () =>
 // ── the lock on the 분석 조건 bar ─────────────────────────────────────────
 
 test('analysisLock: no recipe is the first step missing, whatever else is true', () => {
-  assert.equal(analysisLock(null, answered(null, []), true, null), 'no-recipe')
+  assert.equal(analysisLock(null, true, null), 'no-recipe')
 })
 
 test('analysisLock: an unavailable answer locks for a reason, not for a moment', () => {
-  assert.equal(analysisLock('R', answered('R', [], false), false, null), 'no-data')
+  // offeredParameters reads an unavailable payload as "no answer", and with
+  // nothing in flight that is the recipe's verdict.
+  assert.equal(analysisLock('R', false, offeredParameters(answered('R', [], false), 'R')), 'no-data')
+})
+
+test('analysisLock: a failed request is no-data, not a live picker over nothing', () => {
+  // payload null, nothing pending: the picker must not enable over an empty
+  // list and claim the recipe measured no named parameter.
+  assert.equal(analysisLock('R', false, null), 'no-data')
 })
 
 test('analysisLock: no answer yet while the request is in flight is loading', () => {
-  assert.equal(analysisLock('R', null, true, null), 'loading')
-  // A payload still answering the PREVIOUS recipe reads the same way.
-  assert.equal(analysisLock('R', answered('OTHER', ['CD_X']), true, null), 'loading')
-})
-
-test('analysisLock: a failed request is not loading forever', () => {
-  assert.equal(analysisLock('R', null, false, null), null)
+  assert.equal(analysisLock('R', true, null), 'loading')
+  // A payload still answering the PREVIOUS recipe — available or not — reads
+  // the same way; its verdict is not this recipe's.
+  assert.equal(analysisLock('R', true, offeredParameters(answered('OTHER', [], false), 'R')), 'loading')
 })
 
 test('analysisLock: an answer for the picked recipe is live, even mid-refetch', () => {
   // The parameter filter re-requests the payload; the stale-but-available
   // list keeps the controls usable while that is in flight.
-  assert.equal(analysisLock('R', answered('R', ['CD_X']), true, ['CD_X']), null)
-  assert.equal(analysisLock('R', answered('R', []), false, []), null)
+  assert.equal(analysisLock('R', true, ['CD_X']), null)
+  assert.equal(analysisLock('R', false, []), null)
 })

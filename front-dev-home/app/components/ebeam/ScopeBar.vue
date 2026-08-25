@@ -168,7 +168,7 @@ import type { ToolRef } from '~/composables/useTttmApi'
  * The tool half lives here; the recipe half arrives as a slot. The parameter
  * and the page-specific control (tolerance knob, 튜닝할 장비) are NOT here —
  * they act on the measurement data this bar's choice selects, so they sit in
- * the 분석 조건 bar below (`EbeamAnalysisBar`), which only appears once a
+ * the 분석 조건 bar below (`EbeamAnalysisBar`), which stays inert until a
  * recipe is picked.
  */
 

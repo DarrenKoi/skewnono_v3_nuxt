@@ -77,27 +77,28 @@ export const offeredParameters = (
 /**
  * Why the 분석 조건 controls are inert, or null when they are live.
  *
- * `no-recipe`: the first step is not taken. `no-data`: the recipe's answer is
- * unavailable, so there is no row set to list features from and no parameter
- * or tolerance can turn it into a comparison. `loading`: the list is not an
- * answer yet and the request is in flight — the only state that is inert for
- * a moment rather than for a reason.
+ * `no-recipe`: the first step is not taken. `loading`: there is no answer for
+ * this recipe yet and the request is in flight — the only state that is inert
+ * for a moment rather than for a reason. `no-data`: there is no answer and
+ * nothing in flight — the recipe's answer was unavailable, or the request
+ * failed — so there is no row set to list features from and no parameter or
+ * tolerance can turn it into a comparison; the results area below says which.
  *
- * Read from the payload rather than from `pending` alone, so a stale-but-
- * available payload keeps the controls usable while the next answer is in
- * flight; and a request that FAILED (`offered` null, nothing pending) is not
- * reported as loading forever.
+ * Decided from `offered` (already reconciled against the picked recipe by
+ * `offeredParameters`) rather than from the payload directly: useAsyncData
+ * keeps the previous recipe's payload on screen while the next request runs,
+ * and reading its `available` here would report the OLD recipe's verdict as
+ * the new one's. An answer for this recipe keeps the controls live even while
+ * a refetch (the parameter filter) is in flight.
  */
 export type AnalysisLock = 'no-recipe' | 'no-data' | 'loading' | null
 
 export const analysisLock = (
   recipeId: string | null,
-  payload: ParameterAnswer | null | undefined,
   pending: boolean,
   offered: string[] | null
 ): AnalysisLock => {
   if (!recipeId) return 'no-recipe'
-  if (payload && !payload.available) return 'no-data'
-  if (offered === null && pending) return 'loading'
-  return null
+  if (offered !== null) return null
+  return pending ? 'loading' : 'no-data'
 }

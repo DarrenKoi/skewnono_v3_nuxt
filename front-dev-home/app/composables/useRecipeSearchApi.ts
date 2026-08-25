@@ -124,12 +124,6 @@ export interface ParameterListResponse {
   rows: IdpImageInfoRow[]
 }
 
-export interface RecipeParametersParams {
-  toolType: RecipeSearchToolType
-  fabName?: string
-  recipeName: string
-}
-
 export interface RegistryCheckParams {
   toolType: RecipeSearchToolType
   recipes: Array<{ recipe_name: string, fab_name: string }>
@@ -145,7 +139,6 @@ export interface RegistryCheckResponse {
 
 const inFlightRecipeLists = new Map<string, Promise<RecipeSearchResponse>>()
 const inFlightRecipeDetails = new Map<string, Promise<RecipeDetailResponse>>()
-const inFlightRecipeParameters = new Map<string, Promise<ParameterListResponse>>()
 const inFlightRegistryChecks = new Map<string, Promise<RegistryCheckResponse>>()
 
 export const useRecipeSearchApi = () => {
@@ -200,37 +193,6 @@ export const useRecipeSearchApi = () => {
     return await request
   }
 
-  // Tier 0 — the parameter catalogue of one recipe. Same in-flight dedup as the
-  // two above: the TTTM and pm-tune rails both mount a parameter picker against
-  // the same (recipe, fab), and /api/* is rate-limited to 50 req / 5 s.
-  const fetchRecipeParameters = async (
-    params: RecipeParametersParams
-  ): Promise<ParameterListResponse> => {
-    const slug = toolSlug(params.toolType)
-    const fabName = normalizeFab(params.fabName)
-    const recipeName = params.recipeName.trim()
-    const cacheKey = `${params.toolType}:${fabName || 'ALL'}:${recipeName}`
-    const existing = inFlightRecipeParameters.get(cacheKey)
-
-    if (existing) {
-      return await existing
-    }
-
-    const query = {
-      recipe_name: recipeName,
-      ...(fabName ? { fab_name: fabName } : {})
-    }
-    const request = $fetch<ParameterListResponse>(
-      joinApiPath(base, `/${slug}/recipe-search/parameters`),
-      { query }
-    ).finally(() => {
-      inFlightRecipeParameters.delete(cacheKey)
-    })
-
-    inFlightRecipeParameters.set(cacheKey, request)
-    return await request
-  }
-
   /**
    * Which of these recipes the Redis recipe registry can place, one request
    * for the batch.
@@ -277,7 +239,6 @@ export const useRecipeSearchApi = () => {
   return {
     checkRecipeRegistry,
     fetchRecipeDetail,
-    fetchRecipeList,
-    fetchRecipeParameters
+    fetchRecipeList
   }
 }
