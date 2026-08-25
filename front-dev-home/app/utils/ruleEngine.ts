@@ -280,6 +280,18 @@ const selectorMatches = (cell: RuleCell, r: MergedRecipe): boolean => {
   if (s.fac_id !== r.fac_id) return false // D15 — fab is a real axis
   if (s.recipe_class !== r.recipe_class) return false
   if (s.family != null && s.family !== r.family) return false
+  // D3 — Pool 은 phase 를 이깁니다. ctn_desc 에 Pool 과 phase 가 함께 들어 있는
+  // device 가 실제로 있고("DRAM Pool제 (@Spica PV)", user-confirmed 2026-08-25),
+  // 그때 판정 기준은 Pool 입니다. phase 값 자체는 payload 에 그대로 남기고
+  // (Pool 제품도 t-EV→PV 를 거치므로 — CONTEXT.md §Product Family), 여기 판정에서만
+  // 무시합니다. Pool 은 오직 yield_check 로만 키잉됩니다(D8).
+  //
+  // 이 줄이 없으면 불변식이 룰 **데이터**에만 있습니다 — 지금 Pool cell 이 이기는
+  // 것은 `rules.py` 가 Pool cell 에 `phase_in` 을 안 달아 둔 덕이지 판정 로직이
+  // 아닙니다. `resolveRuleCell` 은 배열 첫 매칭을 집으므로, 나중에 누가 family
+  // 없는 phase cell 을 seed 에 하나 끼워 넣으면 Pool recipe 의 EDGE_EX 상한이
+  // 0 에서 조용히 벌어집니다.
+  if (s.phase_in && r.family === 'Pool') return false
   if (s.phase_in && !(r.phase && s.phase_in.includes(r.phase))) return false
   if (s.yield_check && s.yield_check !== r.yield_check) return false
   if (s.memory_class && s.memory_class !== r.memory_class) return false

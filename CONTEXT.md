@@ -88,9 +88,11 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 > ⚠️ 이전 모델은 "Pool제" 를 [[phase]] 의 한 값으로 다뤘으나(§Flagged ambiguities), Pool제는 **phase 와 직교하는 product family** 로 확정. Pool제 제품도 t-EV→PV phase 를 거칩니다.
 
+**Pool 은 판정에서 phase 를 이깁니다 (user-confirmed 2026-08-25)**: `ctn_desc` 에 Pool 토큰과 phase 토큰이 함께 들어 있는 device 가 실제로 있습니다 — 예: `"DRAM Pool제 (@Spica PV)"`. 두 축이 직교하므로 파생은 양쪽 다 합니다(`family=Pool`, `phase=PV`, payload 에도 그대로 실림). 그러나 **룰 셀을 고를 때는 Pool 을 따르고 phase 는 무시**합니다 — Pool 제품군은 phase 가 아니라 `yield_check` 로 키잉되기 때문입니다(D8). `TV` 와 겹칠 때도 같습니다. 이것은 `rules.py` 의 seed 가 Pool 셀에 `phase_in` 을 안 다는 관행이 아니라 **엔진의 불변식**입니다 — `ruleEngine.ts` 의 `selectorMatches` 가 `phase_in` 을 가진 셀은 Pool recipe 를 주장하지 못하게 막습니다.
+
 ### Phase (t-EV / EV / TV / PV)
 
-디바이스 개발 단계. [[product-family]]와 **직교**하는 룰 축. PV 는 양산 이관 직전으로 가장 중요. 룰은 종종 **"TV 이후"(TV + PV)** 를 한 묶음으로 다룹니다(예: Core 의 EDGE 16 증가). backend 가 `ctn_desc` 에서 추출(`PV`/`TV`/`EV`/`t-EV` 단어). 프런트는 파생된 컬럼을 소비만 합니다.
+디바이스 개발 단계. [[product-family]]와 **직교**하는 룰 축 — 단, 판정에서는 Pool 이 phase 를 이깁니다(§Product Family). PV 는 양산 이관 직전으로 가장 중요. 룰은 종종 **"TV 이후"(TV + PV)** 를 한 묶음으로 다룹니다(예: Core 의 EDGE 16 증가). backend 가 `ctn_desc` 에서 추출(`PV`/`TV`/`EV`/`t-EV` 단어). 프런트는 파생된 컬럼을 소비만 합니다.
 
 **추출 실패 시 fallback**: phase 키워드가 없으면 *초기 개발 단계* 로 간주해 **가장 strict 한 룰(EV 급)** 을 적용 — 보수적 선택. UI 칩은 `[?]` 로 노출해 "fallback 적용 중" 을 tooltip 으로 부연, 데이터 품질 audit 가능성 유지.
 

@@ -1170,6 +1170,14 @@ _PHASE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 
 def _phase_of(ctn_desc: str) -> Literal["t-EV", "EV", "TV", "PV"] | None:
+    """ctn_desc 의 phase 토큰. ``_family_of`` 와 **독립적으로** 봅니다.
+
+    "DRAM Pool제 (@Spica PV)" 처럼 Pool 과 phase 가 한 문자열에 같이 오는
+    device 가 있습니다(user-confirmed 2026-08-25). 그때도 여기서 phase 를
+    지우면 안 됩니다 — 두 축은 직교하고 payload 는 둘 다 실어야 합니다.
+    Pool 이 phase 를 이기는 것은 **판정** 규칙이고, 판정은 client-side 라
+    ``ruleEngine.ts`` 의 ``selectorMatches`` 가 담당합니다.
+    """
     for phase, pattern in _PHASE_PATTERNS:
         if pattern.search(ctn_desc or ""):
             return phase  # type: ignore[return-value]

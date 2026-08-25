@@ -54,6 +54,20 @@ const poolAfterDram: RuleCell = {
   caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 10, _other: 9 },
   name_overrides: [wfOverride]
 }
+// D3 — Pool 이 phase 를 이긴다는 것을 engine 이 지키는지 보기 위한 두 가지 새는 모양.
+// 둘 다 룰 편집기(adr-0004)로 사람이 만들 수 있는 cell 입니다.
+const anyFamilyTvPv: RuleCell = {
+  id: 'r3-anyfamily-tvpv',
+  selector: { fac_id: 'R3', recipe_class: 'Main', phase_in: ['TV', 'PV'] },
+  caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 9 },
+  name_overrides: [wfOverride]
+}
+const poolTvPv: RuleCell = {
+  id: 'r3-pool-tvpv',
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', phase_in: ['TV', 'PV'] },
+  caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 9 },
+  name_overrides: [wfOverride]
+}
 const sampleNand: RuleCell = {
   id: 'r3-sample-nand',
   selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'NAND' },
@@ -280,6 +294,48 @@ test('D8 Pool keys on yield_check, ignores phase', () => {
     { yield_check: 'after' }
   )
   assert.equal(evaluateRecipe(after, resolveRuleCell(after, [poolBeforeDram, poolAfterDram])).pass, true)
+})
+// D3 — "DRAM Pool제 (@Spica PV)" 처럼 ctn_desc 에 Pool 과 phase 가 동시에
+// 들어 있는 device 가 실제로 있습니다(user-confirmed 2026-08-25). 그때
+// 판정은 Pool 을 따르고 phase 는 무시합니다 — payload 의 phase 값은
+// 그대로 남기되, phase 로 키잉된 cell 은 Pool recipe 를 주장하지
+// 못합니다. 룰셋이 우연히 그렇게 생긴 것이 아니라 engine 의 불변식이어야
+// 합니다 — 지금 Pool 이 이기는 것은 rules.py 가 Pool cell 에 phase_in 을 안 달아
+// 둔 덕일 뿐이고, resolveRuleCell 은 배열 첫 매칭을 집습니다.
+test('D3 Pool beats phase: family-less phase cell cannot claim a Pool recipe', () => {
+  const r = applyAnnotation(
+    recipe({ family: 'Pool', ctn_desc: 'DRAM Pool제 (@Spica PV)', phase: 'PV',
+      parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
+    { yield_check: 'before' }
+  )
+  // 이 cell 은 EDGE_EX 16 을 허용하므로, 잡히면 5 point 가 통과해 버립니다.
+  const res = resolveRuleCell(r, [anyFamilyTvPv, poolBeforeDram, poolAfterDram])
+  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-pool-before-dram')
+  assert.equal(evaluateRecipe(r, res).pass, false) // Pool before-yield → EDGE_EX cap 0
+})
+test('D3 Pool beats phase: a Pool cell keyed on phase is inert (TV 포함)', () => {
+  const r = applyAnnotation(
+    recipe({ family: 'Pool', ctn_desc: 'NAND Pool TV vehicle', phase: 'TV',
+      parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
+    { yield_check: 'before' }
+  )
+  const res = resolveRuleCell(r, [poolTvPv, poolBeforeDram, poolAfterDram])
+  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-pool-before-dram')
+})
+test('D3 Pool beats phase: phase-only ruleset leaves Pool gray, not judged', () => {
+  const r = applyAnnotation(
+    recipe({ family: 'Pool', ctn_desc: 'DRAM Pool제 (@Spica PV)', phase: 'PV',
+      parameters: [{ name: 'EDGE_EX', point_count: 5 }] }),
+    { yield_check: 'before' }
+  )
+  const res = resolveRuleCell(r, [anyFamilyTvPv])
+  assert.equal(res.kind === 'gray' && res.gray, 'A')
+})
+// Core/VG 는 그대로 phase 로 키잉됩니다 — 가드가 Pool 에만 걸리는지.
+test('D3 non-Pool families still match a family-less phase cell', () => {
+  const core = applyAnnotation(recipe({ phase: 'PV', parameters: [{ name: 'EDGE_EX', point_count: 5 }] }))
+  const res = resolveRuleCell(core, [anyFamilyTvPv])
+  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-anyfamily-tvpv')
 })
 test('D14 Pool missing yield_check → Gray-B', () => {
   const r = applyAnnotation(recipe({ family: 'Pool', parameters: [{ name: 'EDGE_EX', point_count: 5 }] }))

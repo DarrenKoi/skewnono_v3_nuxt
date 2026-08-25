@@ -18,6 +18,10 @@ lot_cd -> 3 or 4 Alphabets and Numbers, normally Starts with "R" like R7BU, RAEA
 plan_grade_cd -> P1, P2, P3, P4, P5, ""
 lake_load_tm -> datetime in string. yyyymmddhhmmss
 ctn_desc -> 개발 디바이스에 대한 간략한 설명 ("pool제", "Pool", "풀" 단어 포함 여부 중요), t-EV, tev, p-EV, PV, TV 등 개발 phase 정보 포함. 개발코드 명도 포함되어 있음
+   Pool 토큰과 phase 토큰이 **한 문자열에 같이** 나오는 device 가 있습니다 — 예: "DRAM Pool제 (@Spica PV)" (user-confirmed 2026-08-25).
+   product family 와 phase 는 직교하므로 둘 다 파생하는 것이 맞고, 파싱을 한쪽으로 끊으면 안 됩니다.
+   다만 **계측 룰 판정에서는 Pool 이 phase 를 이깁니다** — Pool 제품은 phase 가 아니라 yield_check 로 키잉됩니다.
+   즉 위 예시는 family=Pool, phase=PV 로 파생하되 판정은 Pool 룰을 따르고 PV 는 무시합니다.
 
 
 

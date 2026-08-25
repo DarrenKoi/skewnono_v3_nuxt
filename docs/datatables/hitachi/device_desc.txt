@@ -10,6 +10,10 @@ Column -> Type: Value 설명
 fac_id -> fab 이름 (fab_name처럼 fab 내 세부적인 표현 없음)
 lot_cd -> 3 or 4 Alphabets and Numbers, normally Starts with RAEA, RAAJ, 4MJ, 7EC. 3글자인 경우 맨 앞 숫자는 Fab을 지칭 (M17), R은 연구개발 디바이스
 ctn_desc -> 개발 디바이스에 대한 간략한 설명 ("pool제", "Pool", "풀" 단어 포함 여부 중요), t-EV, tev, p-EV, PV, TV 등 개발 phase 정보 포함. 개발코드 명도 포함되어 있음
+   Pool 토큰과 phase 토큰이 **한 문자열에 같이** 나오는 device 가 있습니다 — 예: "DRAM Pool제 (@Spica PV)" (user-confirmed 2026-08-25).
+   product family 와 phase 는 직교하므로 둘 다 파생하는 것이 맞고, 파싱을 한쪽으로 끊으면 안 됩니다.
+   다만 **계측 룰 판정에서는 Pool 이 phase 를 이깁니다** — Pool 제품은 phase 가 아니라 yield_check 로 키잉됩니다.
+   즉 위 예시는 family=Pool, phase=PV 로 파생하되 판정은 Pool 룰을 따르고 PV 는 무시합니다.
 chg_tm -> 개발 정보 등록 또는 변경된 시점 (예: 2019-09-30T17:30:33Z)
 tech_nm-> 테크 코드 (예, TP, 4G, AA, 7D), None
 rnd_connector -> 연구 개발에서 이용된 테크 코드명 (lot_cd가 R로 시작할 경우 tech_nm과 rnd_connector는 같은 value 사용)

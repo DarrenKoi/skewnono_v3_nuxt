@@ -110,7 +110,9 @@ def _r3_cells() -> list[RuleCell]:
         _main_cell("r3-core-tvpv",
                    {"fac_id": f, "recipe_class": "Main", "family": "Core",
                     "phase_in": ["TV", "PV"]}, edge=16, edge_ex=16),
-        # Pool — yield_check 로 키잉, phase 무시 (D8)
+        # Pool — yield_check 로 키잉, phase 무시 (D8). 여기 셀에 phase_in 을
+        # 달면 안 되는 것은 물론이고, family 없는 phase 셀도 Pool recipe 를
+        # 주장하지 못합니다 — ruleEngine.ts 의 selectorMatches 가 막습니다.
         _main_cell("r3-pool-before-dram",
                    {"fac_id": f, "recipe_class": "Main", "family": "Pool",
                     "yield_check": "before", "memory_class": "DRAM"}, edge=10, edge_ex=0),

@@ -21,6 +21,9 @@ docs/datatables/hitachi/recipe_params.txt 의 "사무실 파생 규칙" 절이�
 - family -> device ctn_desc 에 "pool"/"풀" 이 있으면 Pool, 나머지는 전부 Core.
   **VG_RTC_Cubic 은 실물에서 판별할 근거가 없어 발행하지 않습니다** — 이
   mock 이 세 값을 고루 만드는 것과 다릅니다.
+- family 와 phase 는 **한 ctn_desc 안에 같이** 실릴 수 있습니다
+  ("DRAM Pool제 (@Spica PV)"). 둘 다 파생하되 룰 판정에서는 Pool 이 phase 를
+  이깁니다 — 자세한 것은 아래 `_ctn_desc`.
 - prod_catg_cd -> R3 카탈로그에만 있습니다. 이 mock 은 M fab lot 에도 값을
   지어내지만(_prod_catg_for 의 fallback), 실물은 빈 값이고 따라서
   memory_class_auto 가 unknown(수동 분류) 으로 떨어집니다.
@@ -63,6 +66,11 @@ _MOTHER_MARK_SALT = 70009
 
 FAMILIES: tuple[str, ...] = ("Core", "Pool", "VG_RTC_Cubic")
 PHASES: tuple[str, ...] = ("t-EV", "EV", "TV", "PV")
+
+# 실물 ctn_desc 에 섞여 있는 개발코드 명. "Spica" 만 실제로 본 값이고
+# (user-confirmed 2026-08-25, "DRAM Pool제 (@Spica PV)"), 나머지는 형태만 맞춘
+# 자리 채움입니다.
+DEV_CODES: tuple[str, ...] = ("Spica", "Vega", "Altair", "Rigel")  # OFFICE-VERIFY (Spica 제외)
 
 # Parameter-name templates per type, chosen to exercise ruleEngine.deriveType
 # (longest-prefix EDGE_EX > EDGE > WAFER > LEVEL; everything else = OTHER).
@@ -155,6 +163,25 @@ TYPICAL_POINTS = {
 # OFFICE-VERIFY: 실물 배율은 확인된 바 없습니다 — "자릿수가 다르다" 는 성질만
 # 재현하고 절대값은 흉내 내지 않습니다.
 EXEMPT_JOB_POINT_SCALE = 8
+
+
+def _ctn_desc(family: str, phase: str, prod_catg_cd: str, lot_cd: str, idx: int) -> str:
+    """실물 ctn_desc 를 흉내 낸 문자열.
+
+    Pool 제품은 Pool 토큰과 phase 토큰이 **한 문자열에 같이** 나옵니다 —
+    "DRAM Pool제 (@Spica PV)" 가 실제로 본 모양입니다(user-confirmed
+    2026-08-25). product family 와 phase 는 직교하므로 사무실 어댑터는 둘 다
+    파생하고(``family="Pool"``, ``phase="PV"``), **판정에서만** Pool 이 phase 를
+    이깁니다(ruleEngine.ts ``selectorMatches``). 이 겹침을 mock 이 내지 않으면
+    집에서는 그 우선순위 경로가 한 번도 실행되지 않습니다.
+
+    개발코드는 ``rng`` 를 새로 굴리지 않고 ``idx`` 로 고릅니다 — 이 함수가 rng
+    호출을 하나라도 늘리면 그 뒤에 뽑히는 모든 값이 재추첨됩니다.
+    """
+    if family == "Pool":
+        dev_code = DEV_CODES[idx % len(DEV_CODES)]
+        return f"{prod_catg_cd} Pool제 (@{dev_code} {phase}) recipe {idx} lot {lot_cd}"
+    return f"{phase} {prod_catg_cd} {family} recipe {idx} lot {lot_cd}"
 
 
 def _memory_class_auto(prod_catg_cd: str) -> str:
@@ -394,7 +421,7 @@ def _build_recipe(
         "lot_cd": lot_cd,
         "recipe_id": identity["recipe_id"],
         "fac_id": fac_id,
-        "ctn_desc": f"{phase} {prod_catg_cd} {family} recipe {idx} lot {lot_cd}",
+        "ctn_desc": _ctn_desc(family, phase, prod_catg_cd, lot_cd, idx),
         "prod_catg_cd": prod_catg_cd,
         "recipe_class": recipe_class,
         "family": family,
