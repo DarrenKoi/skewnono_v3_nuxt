@@ -68,10 +68,14 @@ const windowStart = ref(qp('start') || toIso(defaultStart))
 const windowEnd = ref(qp('end') || toIso(defaultEnd))
 
 // Section tab is page-scoped state so navigating away and back keeps the last
-// view (DESIGN.md handoff RULE 5). The list rail filters/search stay local —
+// view (DESIGN.md handoff RULE 5). Search and the On/Off filter stay local —
 // they're per-visit scratch, not worth persisting.
 const activeService = useState<HardwareServiceKey>('hw-section', () => defaultHardwareService.key)
-const modelFilter = ref('all')
+// The model is the page's GATE, not a filter (user decision 2026-08-25): no
+// tool shows until one is picked, so the reader always knows which model the
+// page is about. '' is "not picked". Page-scoped like the section tab, so
+// coming back to the page does not re-gate it.
+const modelFilter = useState<string>('hw-model', () => '')
 const availabilityFilter = ref<'all' | 'On' | 'Off'>('all')
 const toolSearch = ref('')
 const selectedToolId = ref(deepLinkEqpId || storeSelectedToolId.value)
@@ -104,7 +108,7 @@ const matchesQuery = (row: SemListRow) => {
 }
 
 const matchesModel = (row: SemListRow) =>
-  modelFilter.value === 'all' || row.eqp_model_cd === modelFilter.value
+  modelFilter.value !== '' && row.eqp_model_cd === modelFilter.value
 
 const matchesAvailability = (row: SemListRow) =>
   availabilityFilter.value === 'all' || row.available === availabilityFilter.value
@@ -122,7 +126,22 @@ const modelGroups = computed(() => {
   return Array.from(counts, ([model, count]) => ({ model, count }))
     .sort((left, right) => left.model.localeCompare(right.model))
 })
-const modelCountAll = computed(() => modelGroups.value.reduce((sum, group) => sum + group.count, 0))
+// A deep-linked or store-handed tool names its model for the gate, so the
+// link opens on that tool instead of on an empty strip.
+const linkedModel = selectedToolId.value
+  ? rows.value.find(row => row.eqp_id === selectedToolId.value)?.eqp_model_cd
+  : undefined
+if (linkedModel) modelFilter.value = linkedModel
+
+// A model remembered from another fab may be absent from this roster. Left in
+// place it would gate the page on a choice no chip shows as active, so clear
+// it and let the empty state name the real situation. `modelGroups` keeps
+// zero-count models, so membership here is the roster, not the filtered view.
+watch(modelGroups, (groups) => {
+  if (modelFilter.value && !groups.some(group => group.model === modelFilter.value)) {
+    modelFilter.value = ''
+  }
+}, { immediate: true })
 
 const availabilityCounts = computed(() => {
   let on = 0
@@ -153,13 +172,17 @@ const toolChips = computed(() => {
     return true
   })
 })
-const toolCount = computed(() => new Set(rows.value.map(row => row.eqp_id)).size)
+// The picked model's roster size, for "N대 중 M대 표시" — the model is a gate,
+// so the base is the model, not the fab: measured against the whole fab the
+// line would read as if the other models were hidden by a filter.
+const modelToolCount = computed(() =>
+  new Set(rows.value.filter(matchesModel).map(row => row.eqp_id)).size
+)
 
+// Only a tool in view can be the subject; with no model picked there is none,
+// and the results below say so rather than showing a tool nobody chose.
 const selectedTool = computed(() =>
-  rows.value.find(row => row.eqp_id === selectedToolId.value)
-  ?? searchedRows.value[0]
-  ?? rows.value[0]
-  ?? null
+  searchedRows.value.find(row => row.eqp_id === selectedToolId.value) ?? null
 )
 
 const activeServiceDetail = computed<HardwareService>(() =>
@@ -170,14 +193,15 @@ const selectTool = (eqpId: string) => {
   selectedToolId.value = eqpId
 }
 
+// Reset clears the refinements, not the gate: the model is a choice the page
+// is computed for, and un-picking it would empty the page under the reader.
 const resetListControls = () => {
   toolSearch.value = ''
-  modelFilter.value = 'all'
   availabilityFilter.value = 'all'
 }
 
 const hasActiveListControls = computed(() =>
-  toolSearch.value.length > 0 || modelFilter.value !== 'all' || availabilityFilter.value !== 'all'
+  toolSearch.value.length > 0 || availabilityFilter.value !== 'all'
 )
 
 // Keep a valid selection when the list filters change: if the current pick
@@ -199,14 +223,19 @@ watch(searchedRows, (nextRows) => {
 // trigger refetches.
 const { data: servicePayload, pending: servicePending, error: serviceError } = await useAsyncData<HardwarePayload | null>(
   `hardware:${props.toolType}:${props.fabs.join(',')}`,
-  () => fetchService({
-    toolType: props.toolType,
-    service: activeService.value,
-    eqpId: selectedTool.value?.eqp_id,
-    fabName: selectedTool.value?.fab_name,
-    start: windowStart.value,
-    end: windowEnd.value
-  }),
+  () => {
+    // Gated: no tool, no request — the results area shows the empty state.
+    const tool = selectedTool.value
+    if (!tool) return Promise.resolve(null)
+    return fetchService({
+      toolType: props.toolType,
+      service: activeService.value,
+      eqpId: tool.eqp_id,
+      fabName: tool.fab_name,
+      start: windowStart.value,
+      end: windowEnd.value
+    })
+  },
   {
     watch: [() => props.toolType, fabsKey, activeService, () => selectedTool.value?.eqp_id]
   }
@@ -320,10 +349,12 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
          charts) gets the full width instead of `1fr` beside a rail.
 
          Two chip rows, two roles. Model chips NARROW the roster, so they take
-         the terracotta FILTER fill. The tool chip picks the one subject among
-         peers — the ink fill that the rail's selected row already used, and the
-         `tone="ink"` SkChip that skewvoir's ParamCoverageList uses for the same
-         "one of these" choice. Different roles, so the two fills do not mix. -->
+         the terracotta FILTER fill — and the model is also the page's gate:
+         there is no "all models" chip, and nothing below opens until one is
+         picked. The tool chip picks the one subject among peers — the ink fill
+         that the rail's selected row already used, and the `tone="ink"` SkChip
+         that skewvoir's ParamCoverageList uses for the same "one of these"
+         choice. Different roles, so the two fills do not mix. -->
     <section class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
         <p class="shrink-0 sk-panel-title">
@@ -331,17 +362,9 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </p>
         <div
           role="group"
-          aria-label="모델 필터"
+          aria-label="모델 선택"
           class="flex flex-wrap items-center gap-1.5"
         >
-          <SkChip
-            size="sm"
-            :active="modelFilter === 'all'"
-            :count="modelCountAll"
-            @click="modelFilter = 'all'"
-          >
-            All Models
-          </SkChip>
           <SkChip
             v-for="group in modelGroups"
             :key="group.model"
@@ -355,8 +378,13 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </div>
 
         <!-- Availability + search sit at the trailing edge: they refine the
-             roster the model row already narrowed, rather than define it. -->
-        <div class="ml-auto flex flex-wrap items-center gap-1.5">
+             roster the model row already narrowed, rather than define it — so
+             they appear with the model, not before it (three zero chips beside
+             an empty strip would read as a filter that hid everything). -->
+        <div
+          v-if="modelFilter"
+          class="ml-auto flex flex-wrap items-center gap-1.5"
+        >
           <SkChip
             size="sm"
             :active="availabilityFilter === 'all'"
@@ -437,6 +465,12 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </SkChip>
       </div>
       <p
+        v-else-if="!modelFilter"
+        class="mt-3 sk-body"
+      >
+        모델을 고르면 그 모델의 장비가 여기에 나타납니다.
+      </p>
+      <p
         v-else
         class="mt-3 sk-body"
       >
@@ -460,7 +494,8 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         <!-- Both numbers are data values, so both take full ink (DESIGN.md
              §Colors); only the words between them stay on the label tone. -->
         <span class="ml-auto">
-          <strong class="font-mono tabular-nums text-(--sk-ink)">{{ toolCount }}</strong>대 중
+          {{ modelFilter }}
+          <strong class="font-mono tabular-nums text-(--sk-ink)">{{ modelToolCount }}</strong>대 중
           <strong class="font-mono tabular-nums text-(--sk-ink)">{{ toolChips.length }}</strong>대 표시
         </span>
       </p>
@@ -503,8 +538,25 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </div>
       </section>
 
-      <!-- Service detail -->
-      <section class="dashboard-surface flex-1 rounded-[var(--sk-r-card)] p-4">
+      <!-- Service detail — gated on the model (DESIGN.md §Layout, scope-bar
+           rule): until one is picked there is no tool, and the results name
+           the missing choice instead of showing a tool nobody chose. -->
+      <AppEmptyState
+        v-if="!modelFilter"
+        title="모델을 선택하세요."
+        description="위 장비 선택에서 모델을 고르면 그 모델의 장비 목록이 열리고, 첫 장비의 H/W 상태가 여기에 표시됩니다."
+        hint="장비를 바꾸려면 chip 을 누르세요. 검색과 On/Off 는 그 모델 안에서 목록을 좁힙니다."
+      />
+      <AppEmptyState
+        v-else-if="!selectedTool"
+        title="조건에 맞는 장비가 없습니다."
+        :description="`${modelFilter} 장비 중 검색어와 On/Off 조건을 만족하는 장비가 없습니다.`"
+        hint="검색어를 지우거나 On/Off 를 All 로 돌리면 장비가 다시 나타납니다."
+      />
+      <section
+        v-else
+        class="dashboard-surface flex-1 rounded-[var(--sk-r-card)] p-4"
+      >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h2 class="sk-heading">
