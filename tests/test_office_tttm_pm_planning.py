@@ -29,6 +29,11 @@ from fnmatch import fnmatch
 import pytest
 
 from back_dev_home._core.contract_check import assert_matches
+from back_dev_home.ebeam._analysis_window import (
+    DEFAULT_WINDOW_WEEKS,
+    WINDOW_WEEKS_CHOICES,
+    window_days,
+)
 from back_dev_home.ebeam._office_mdc import MdcChange
 from back_dev_home.ebeam._office_msr_cd import Point, RunRef, RunSet
 from back_dev_home.ebeam.pm_planning.contracts import FleetPayload
@@ -54,6 +59,9 @@ ANCHOR = datetime(2026, 5, 31, 14, 0, tzinfo=timezone.utc)
 TOOLS = ("ECXDX001", "ECXDX002", "ECXDX003")
 BIAS = {"ECXDX001": 0.0, "ECXDX002": 0.10, "ECXDX003": -0.20}
 BASE_CD = 32.0  # sits in the 25-50 band, like the mock's measured cells
+# The window every adapter call below gathers over unless the test is ABOUT
+# the window. The doubles carry 6 days of runs, inside every choice.
+WEEKS = DEFAULT_WINDOW_WEEKS
 
 
 def _roster_rows(eqp_ids=TOOLS, fab_name="R3", model="CG6300"):
@@ -189,12 +197,71 @@ def sources(monkeypatch):
 # ── tttm ──────────────────────────────────────────────────────────────────
 
 
+def _spy_recent_runs(monkeypatch, module, state):
+    """Record what the adapter asked `recent_runs` for, still answering the doubles."""
+    asked: dict = {}
+
+    def spy(tool_type, fab_name, eqp_ids, start, end, *, recipe=None, per_tool=12):
+        asked["start"], asked["end"], asked["per_tool"] = start, end, per_tool
+        keep = [
+            run
+            for run in state["runs"]
+            if run.eqp_id in eqp_ids
+            and start <= run.at <= end
+            and (recipe is None or recipe in (run.full_name, run.recipe_name))
+        ]
+        return RunSet(tuple(keep), ())
+
+    monkeypatch.setattr(module, "recent_runs", spy)
+    return asked
+
+
+@pytest.mark.parametrize("weeks", WINDOW_WEEKS_CHOICES)
+def test_tttm_window_moves_the_lookback_and_the_run_cap_together(sources, monkeypatch, weeks):
+    """The knob must widen the EVIDENCE, not just the cut-off.
+
+    The lookback used to be a fixed 60 days behind a fixed cap of 10 runs, which
+    made the cap the real window: a daily-monitoring tool contributed its last
+    ten days whatever the lookback said. Asserted per choice so a cap that
+    stopped scaling — the regression that would make "3주" gather a week —
+    fails on the widest window rather than passing on the default.
+    """
+    asked = _spy_recent_runs(monkeypatch, tttm_office, sources)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, weeks)
+
+    assert payload["window_weeks"] == weeks
+    assert (asked["end"] - asked["start"]).days == window_days(weeks)
+    assert asked["per_tool"] == tttm_office.runs_per_tool(weeks)
+    assert asked["per_tool"] == tttm_office.RUNS_PER_TOOL_PER_WEEK * weeks
+
+
+def test_tttm_trend_spans_the_window_not_a_private_cut_off(sources):
+    """Every day the window gathered is a day the trend may show.
+
+    The doubles carry six days of runs; a one-week window keeps them all, so
+    the trend must too. There was a fixed 30-day trend cut-off separate from
+    the window — harmless while the window was wider than it, and a silent
+    truncation the moment the window became the user's to choose.
+    """
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, 1)
+    days = {point["date"] for point in payload["trend"]}
+    assert len(days) == 6
+
+
+def test_tttm_unavailable_branches_echo_the_window(sources):
+    sources["runs"] = ()
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, 2)
+    assert payload["available"] is False
+    assert payload["window_weeks"] == 2
+    assert "14일간" in payload["summary"], "the empty answer names the span it was empty over"
+
+
 def test_tttm_payload_matches_the_contract(sources):
-    assert_matches(tttm_office.get_tttm_check("cdsem", "R3", None, None), TttmCheckPayload)
+    assert_matches(tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS), TttmCheckPayload)
 
 
 def test_tttm_recovers_the_pairwise_skew_it_was_given(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     assert payload["available"] is True
     cells = payload["occupied_cells"]
     assert cells, "three tools running two shared recipes must occupy cells"
@@ -214,7 +281,7 @@ def test_tttm_recovers_the_pairwise_skew_it_was_given(sources):
 
 
 def test_tttm_matrices_are_symmetric_with_a_zero_diagonal(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     blocks = [payload["fleet_today"]["matrix"]]
     for cell in payload["occupied_cells"]:
         blocks += [b for b in (cell["direct_skew_matrix"], cell["predicted_skew_matrix"]) if b]
@@ -231,7 +298,7 @@ def test_tttm_median_cd_stays_inside_the_band_it_is_filed_under(sources):
     # The cross-field law tests/test_contract.py enforces: band and median must
     # come from ONE row set. Derived from the same values here by construction,
     # and asserted so a future edit cannot separate them.
-    for cell in tttm_office.get_tttm_check("cdsem", "R3", None, None)["occupied_cells"]:
+    for cell in tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["occupied_cells"]:
         assert cell["cd_band"] == "25-50"
         assert 25.0 <= cell["median_cd_nm"] < 50.0
 
@@ -243,13 +310,13 @@ def test_a_run_is_one_sample_not_hundreds(sources):
     raw points instead of collapsing each run to a median, doubling the points
     of one tool would move its offset. It must not.
     """
-    baseline = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    baseline = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     def fat_points(eqp_id: str):
         return _points(eqp_id) * 4  # same distribution, 4x the rows
 
     sources["points"] = fat_points
-    fattened = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    fattened = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     assert [cell["cell_id"] for cell in fattened["occupied_cells"]] == [
         cell["cell_id"] for cell in baseline["occupied_cells"]
@@ -272,7 +339,7 @@ def test_a_recipe_only_one_tool_ran_yields_no_skew_rather_than_zero(sources):
         + _runs(("ECXDX002",), ("ADI/ONLY_B",))
         + _runs(("ECXDX003",), ("ADI/ONLY_C",))
     )
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     assert_matches(payload, TttmCheckPayload)
     assert payload["occupied_cells"] == []
     for row in payload["fleet_today"]["matrix"]["values"]:
@@ -282,7 +349,7 @@ def test_a_recipe_only_one_tool_ran_yields_no_skew_rather_than_zero(sources):
 def test_an_unresolvable_axis_empties_the_cells_and_says_so(sources):
     """Caveat 1 of the module docstring, as behaviour rather than prose."""
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_13",))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is True, "the fleet view still works"
@@ -308,7 +375,7 @@ def test_an_mdc_change_cuts_the_comparison_window(sources):
             new_value=1.0032,
         )
     ]
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     epochs = {cell["mdc_epoch"] for cell in payload["occupied_cells"]}
     labelled = f"e{cutoff:%Y%m%d}"
@@ -323,13 +390,13 @@ def test_an_mdc_change_cuts_the_comparison_window(sources):
 
 
 def test_tttm_echoes_the_triple_it_was_asked_about_on_every_branch(sources):
-    asked = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    asked = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
     assert (asked["fab_name"], asked["recipe_id"], asked["parameter"]) == (
         "R3", "ADI/R1", "CD_X",
     )
     # ... including where there is nothing to answer with.
     sources["roster"] = _roster_rows(eqp_ids=("ECXDX001",))
-    lonely = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    lonely = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
     assert lonely["available"] is False
     assert (lonely["fab_name"], lonely["recipe_id"], lonely["parameter"]) == (
         "R3", "ADI/R1", "CD_X",
@@ -346,13 +413,13 @@ def test_tttm_echoes_the_triple_it_was_asked_about_on_every_branch(sources):
 
 def test_a_parameter_filter_narrows_the_rows(sources):
     """One feature, not a relabelling: the X cell survives and Y disappears."""
-    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
     assert {cell["axis"] for cell in payload["occupied_cells"]} == {"X"}
 
 
 def test_an_unknown_fab_is_available_false_not_an_error(sources):
     sources["roster"] = _roster_rows(fab_name="M16A")
-    payload = tttm_office.get_tttm_check("cdsem", "ZZZ-NOT-A-FAB", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "ZZZ-NOT-A-FAB", None, None, WEEKS)
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     assert payload["tools"] == []
@@ -363,13 +430,13 @@ def test_the_roster_names_each_tool_once(sources):
     # sem_list really does hand back duplicate eqp_ids (~10 of 300 mock rows),
     # and a repeated id would give the matrix two identical axes.
     sources["roster"] = _roster_rows() + _roster_rows(eqp_ids=("ECXDX002",))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     ids = [tool["eqp_id"] for tool in payload["tools"]]
     assert len(ids) == len(set(ids))
 
 
 def test_matrix_axes_stay_inside_the_advertised_roster(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     roster = {tool["eqp_id"] for tool in payload["tools"]}
     assert set(payload["fleet_today"]["matrix"]["tools"]) <= roster
     for deviation in payload["fleet_today"]["consensus_deviation"]:
@@ -381,13 +448,32 @@ def test_matrix_axes_stay_inside_the_advertised_roster(sources):
 
 
 def test_current_tolerance_sits_inside_its_own_range(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     bounds = payload["tolerance_range"]
     assert bounds["min"] <= payload["current_tolerance"] <= bounds["max"]
     assert bounds["step"] > 0
 
 
 # ── pm_planning ───────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("weeks", WINDOW_WEEKS_CHOICES)
+def test_pm_window_moves_the_lookback_and_the_run_cap_together(sources, monkeypatch, weeks):
+    """pm-tune joins this payload with the tttm check — one span, one label."""
+    asked = _spy_recent_runs(monkeypatch, pm_office, sources)
+    sources["bsm"] = _bsm()
+    fleet = pm_office.get_pm_planning_fleet("R3", weeks)
+
+    assert fleet["window_weeks"] == weeks
+    assert (asked["end"] - asked["start"]).days == window_days(weeks)
+    assert asked["per_tool"] == pm_office.runs_per_tool(weeks)
+
+
+def test_pm_empty_roster_echoes_the_window(sources):
+    sources["roster"] = []
+    fleet = pm_office.get_pm_planning_fleet("R3", 1)
+    assert fleet["tools"] == []
+    assert fleet["window_weeks"] == 1
 
 
 def _bsm(eqp_ids=TOOLS, sharpness=8.00, noise=6.28, days=3, start=None):
@@ -401,12 +487,12 @@ def _bsm(eqp_ids=TOOLS, sharpness=8.00, noise=6.28, days=3, start=None):
 
 def test_pm_payload_matches_the_contract(sources):
     sources["bsm"] = _bsm()
-    assert_matches(pm_office.get_pm_planning_fleet("R3"), FleetPayload)
+    assert_matches(pm_office.get_pm_planning_fleet("R3", WEEKS), FleetPayload)
 
 
 def test_pm_cells_are_keyed_on_the_advertised_grid(sources):
     sources["bsm"] = _bsm()
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     beams, axes = set(fleet["beam_conditions"]), set(fleet["axes"])
     for tool in fleet["tools"]:
         seen = set()
@@ -420,7 +506,7 @@ def test_pm_cells_are_keyed_on_the_advertised_grid(sources):
 
 def test_pm_gap_is_measured_against_the_fleet_median(sources):
     sources["bsm"] = _bsm()
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     consensus = {(c["beam"], c["axis"]): c["consensus"] for c in fleet["consensus"]}
     # BIAS is 0.0 / +0.10 / -0.20, so the fleet median is the unbiased tool.
     assert consensus[("500V", "X")] == pytest.approx(BASE_CD)
@@ -438,7 +524,7 @@ def test_pm_gap_is_measured_against_the_fleet_median(sources):
 
 def test_pm_spec_window_is_ordered_and_fleet_relative(sources):
     sources["bsm"] = _bsm()
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     for tool in fleet["tools"]:
         gate = tool["gate"]
         assert gate["cd_spec_lower"] <= gate["cd_spec_upper"]
@@ -452,7 +538,7 @@ def test_pm_a_tool_with_no_measurement_holds(sources):
     """An absent reading is not a passed one."""
     sources["bsm"] = _bsm()
     sources["runs"] = _runs(eqp_ids=("ECXDX001", "ECXDX002"))
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     silent = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX003")
     assert silent["gate"]["verdict"] == "hold"
     assert silent["gate"]["cd_in_spec"] is False
@@ -464,15 +550,15 @@ def test_pm_bsm_outlier_is_judged_against_the_fleet_not_a_fixed_band(sources):
     readings = _bsm()
     # Every tool sits at the real doc's Ave. Noise (6.277), which is OUTSIDE
     # spec_range_mock's 6.65-6.95. A fleet-relative test must pass them all.
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     sources["bsm"] = readings
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     assert all(tool["gate"]["bsm_in_spec"] for tool in fleet["tools"])
 
     # Now move one tool far off its siblings: it alone must fail.
     readings["ECXDX003"] = [(ANCHOR, 8.00, 9.50)]
     sources["bsm"] = readings
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     verdicts = {t["eqp_id"]: t["gate"]["bsm_in_spec"] for t in fleet["tools"]}
     assert verdicts["ECXDX003"] is False
     assert verdicts["ECXDX001"] is True
@@ -480,7 +566,7 @@ def test_pm_bsm_outlier_is_judged_against_the_fleet_not_a_fixed_band(sources):
 
 def test_pm_a_fab_with_no_roster_is_empty_not_an_error(sources):
     sources["roster"] = _roster_rows(fab_name="M16A")
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     assert_matches(fleet, FleetPayload)
     assert fleet["tools"] == []
     assert fleet["consensus"] == []
@@ -490,10 +576,10 @@ def test_pm_a_fab_with_no_roster_is_empty_not_an_error(sources):
 def test_pm_and_tttm_agree_on_the_roster(sources):
     """pm-tune joins the two payloads BY eqp_id — a divergence empties the page."""
     sources["bsm"] = _bsm()
-    pm_ids = {tool["eqp_id"] for tool in pm_office.get_pm_planning_fleet("R3")["tools"]}
+    pm_ids = {tool["eqp_id"] for tool in pm_office.get_pm_planning_fleet("R3", WEEKS)["tools"]}
     tttm_ids = {
         tool["eqp_id"]
-        for tool in tttm_office.get_tttm_check("cdsem", "R3", None, None)["tools"]
+        for tool in tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["tools"]
     }
     assert pm_ids == tttm_ids
 
@@ -512,7 +598,7 @@ def test_pm_epoch_history_carries_the_edit_that_opened_it(sources):
             new_value=1.0032,
         )
     ]
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     edited = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX001")
     untouched = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX002")
 
@@ -544,7 +630,7 @@ def test_features_at_different_cds_do_not_share_a_band(sources):
         )
 
     sources["points"] = two_sizes
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     bands = {cell["cd_band"] for cell in payload["occupied_cells"]}
     assert bands == {"25-50", "50-100"}, f"expected both bands, got {bands}"
@@ -571,7 +657,7 @@ def test_fleet_today_leaves_a_bridged_pair_null(sources):
     sources["runs"] = _runs(("ECXDX001", "ECXDX002"), ("ADI/SHARED",)) + _runs(
         ("ECXDX003",), ("ADI/ALONE",)
     )
-    matrix = tttm_office.get_tttm_check("cdsem", "R3", None, None)["fleet_today"]["matrix"]
+    matrix = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["fleet_today"]["matrix"]
     index = {eqp_id: i for i, eqp_id in enumerate(matrix["tools"])}
 
     assert matrix["values"][index["ECXDX001"]][index["ECXDX002"]] == pytest.approx(0.10)
@@ -590,17 +676,17 @@ def test_fleet_today_leaves_a_bridged_pair_null(sources):
 def test_an_empty_grid_names_its_own_cause(sources, setup, expected):
     """Three causes render identically on screen; each must say which it was."""
     if setup == "no_parameter":
-        payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "NOT_A_PARAM")
+        payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "NOT_A_PARAM", WEEKS)
     elif setup == "no_axis":
         sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_13",))
-        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     else:
         sources["runs"] = (
             _runs(("ECXDX001",), ("ADI/ONLY_A",))
             + _runs(("ECXDX002",), ("ADI/ONLY_B",))
             + _runs(("ECXDX003",), ("ADI/ONLY_C",))
         )
-        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     assert payload["occupied_cells"] == []
     assert expected in payload["summary"], payload["summary"]
@@ -609,7 +695,8 @@ def test_an_empty_grid_names_its_own_cause(sources, setup, expected):
 def test_pm_epoch_window_reads_past_the_measurement_window(sources):
     """MDC changes are rare; a 30-day lookback would empty every history.
 
-    The measurement window is 30 days, the mock's own epoch spacing is 60+, so
+    The measurement window is at most three weeks, the mock's own epoch
+    spacing is 60+ days, so
     an adapter that reused one window for both would report "never changed" for
     a tool edited two months ago.
     """
@@ -623,11 +710,11 @@ def test_pm_epoch_window_reads_past_the_measurement_window(sources):
     original, mod.mdc_changes = mod.mdc_changes, spy
     try:
         sources["bsm"] = _bsm()
-        pm_office.get_pm_planning_fleet("R3")
+        pm_office.get_pm_planning_fleet("R3", WEEKS)
     finally:
         mod.mdc_changes = original
 
-    assert captured["span"] > pm_office.WINDOW_DAYS
+    assert captured["span"] > window_days(max(WINDOW_WEEKS_CHOICES))
     assert captured["span"] == pm_office.EPOCH_LOOKBACK_DAYS
 
 
@@ -660,7 +747,7 @@ def test_pm_epoch_bsm_window_is_on_the_sources_clock(sources):
             new_value=1.0032,
         )
     ]
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     edited = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX001")
     # 8.00 only — the 19th's 7.10 belongs to the PREVIOUS epoch.
     assert edited["epoch_history"][0]["bsm_sharpness_avg"] == pytest.approx(8.00)
@@ -689,7 +776,7 @@ def test_pm_prev_post_delta_splits_the_runs_at_the_pm(sources):
         return _points(eqp_id)
 
     sources["points"] = shifted
-    fleet = pm_office.get_pm_planning_fleet("R3")
+    fleet = pm_office.get_pm_planning_fleet("R3", WEEKS)
     gate = next(t for t in fleet["tools"] if t["eqp_id"] == "ECXDX001")["gate"]
 
     assert gate["post_pm_at"] == boundary.strftime("%Y-%m-%dT%H:%M:%S")
@@ -717,7 +804,7 @@ def test_a_disconnected_pair_gets_no_bridged_skew(sources):
     sources["runs"] = _runs(("ECXDX001", "ECXDX002"), ("ADI/LEFT",)) + _runs(
         ("ECXDX003", "ECXDX004"), ("ADI/RIGHT",)
     )
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     for cell in payload["occupied_cells"]:
         for block in (cell["direct_skew_matrix"], cell["predicted_skew_matrix"]):
@@ -744,7 +831,7 @@ def test_confidence_counts_runs_not_features(sources):
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=features)
     sources["runs"] = _runs(recipes=("ADI/ONE",), days=1)
 
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     assert payload["occupied_cells"]
     for cell in payload["occupied_cells"]:
         assert cell["confidence"] != "High", (
@@ -761,12 +848,12 @@ def test_fleet_median_cd_is_none_when_the_day_spans_pattern_sizes(sources):
         )
 
     sources["points"] = two_sizes
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     assert payload["fleet_today"]["median_cd_nm"] is None
 
     # One size only -> the number is meaningful and is reported.
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("FINE_X",), cd=31.0)
-    single = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    single = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     assert single["fleet_today"]["median_cd_nm"] == pytest.approx(31.0)
 
 
@@ -777,7 +864,7 @@ def test_a_band_edge_median_stays_inside_its_band(sources):
     Only at an edge, which is where nobody looks.
     """
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("CD_X",), cd=24.9997)
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     assert payload["occupied_cells"]
     for cell in payload["occupied_cells"]:
         low, high = (0.0, 25.0) if cell["cd_band"] == "<25" else (25.0, 50.0)
@@ -800,7 +887,7 @@ def test_missing_and_unrecorded_values_do_not_reach_the_payload(sources):
         return good + blank_cd + no_voltage
 
     sources["points"] = ragged
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
     assert_matches(payload, TttmCheckPayload)
 
     # The rows with no voltage have no beam to be filed under and are dropped;
@@ -920,7 +1007,7 @@ def test_scoped_axis_rules_reach_the_payload(sources, monkeypatch):
 
     monkeypatch.setenv(AXIS_ENV_VAR, "ADI/R1:Para_9=X,ADI/R2:Para_9=Y")
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_9",))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
 
     # Both recipes measure "Para_9"; the map sends R1's rows to X and R2's to Y.
     assert {cell["axis"] for cell in payload["occupied_cells"]} == {"X", "Y"}
@@ -943,8 +1030,9 @@ def test_no_aggregation_asks_for_more_inner_hits_than_opensearch_allows():
 
     caps = {
         "runs/tool (shared)": _office_msr_cd.DEFAULT_RUNS_PER_TOOL,
-        "runs/tool (tttm)": tttm_office.RUNS_PER_TOOL,
-        "runs/tool (pm)": pm_office.RUNS_PER_TOOL,
+        # The caps grow with the window, so the WIDEST choice is what must fit.
+        "runs/tool (tttm)": tttm_office.runs_per_tool(max(WINDOW_WEEKS_CHOICES)),
+        "runs/tool (pm)": pm_office.runs_per_tool(max(WINDOW_WEEKS_CHOICES)),
         "bsm docs/tool": pm_office.BSM_DOCS_PER_TOOL,
         "maintenance/tool": _office_bm_pm._DOCS_PER_TOOL,
     }
@@ -985,6 +1073,7 @@ class TestTttmUnavailableKeepsTheRoster:
         payload = tttm_contracts.unavailable_payload(
             "cdsem", "R3", "CD_MONITOR/NEVER_RUN", None, "측정 이력이 없습니다.",
             self._roster(),  # type: ignore[arg-type]
+            window_weeks=WEEKS,
         )
         assert_matches(payload, TttmCheckPayload)
         assert payload["available"] is False
@@ -997,6 +1086,7 @@ class TestTttmUnavailableKeepsTheRoster:
         payload = tttm_contracts.unavailable_payload(
             "cdsem", "R3", None, None, "장비가 1대뿐입니다.",
             self._roster(),  # type: ignore[arg-type]
+            window_weeks=WEEKS,
         )
         assert payload["occupied_cells"] == []
         assert payload["fleet_today"]["matrix"]["tools"] == []
@@ -1008,14 +1098,27 @@ class TestTttmUnavailableKeepsTheRoster:
         # empty fleet, not by leaving the argument out. `tools` is required
         # precisely so a branch cannot quietly decline to state a roster.
         payload = tttm_contracts.unavailable_payload(
-            "cdsem", "ZZZ", None, None, "이 계열의 장비가 없습니다.", []
+            "cdsem", "ZZZ", None, None, "이 계열의 장비가 없습니다.", [], window_weeks=WEEKS
         )
         assert_matches(payload, TttmCheckPayload)
         assert payload["tools"] == []
 
         with pytest.raises(TypeError):
             tttm_contracts.unavailable_payload(  # type: ignore[call-arg]
-                "cdsem", "ZZZ", None, None, "…"
+                "cdsem", "ZZZ", None, None, "…", window_weeks=WEEKS
+            )
+
+    def test_the_window_is_required_and_echoed(self):
+        # Same rule as the roster, for the same reason: an empty answer still
+        # says which window it was empty over, and a branch cannot quietly
+        # decline to state one.
+        payload = tttm_contracts.unavailable_payload(
+            "cdsem", "ZZZ", None, None, "…", [], window_weeks=1
+        )
+        assert payload["window_weeks"] == 1
+        with pytest.raises(TypeError):
+            tttm_contracts.unavailable_payload(  # type: ignore[call-arg]
+                "cdsem", "ZZZ", None, None, "…", []
             )
 
     def test_neither_provider_keeps_a_private_copy_of_the_constructor(self):
@@ -1045,20 +1148,20 @@ def test_a_recipe_payload_lists_the_parameters_its_runs_measured(sources):
     a filter is applied, or the picker would collapse to its own pick.
     """
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("CD_Y", "CD_X", "WIDE_X"))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)
     assert payload["parameters"] == ["CD_X", "CD_Y", "WIDE_X"]
-    narrowed = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X")
+    narrowed = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
     assert narrowed["parameters"] == ["CD_X", "CD_Y", "WIDE_X"]
 
 
 def test_without_a_recipe_the_office_offers_no_parameter_list(sources):
     # Recipe-local names must not be pooled across recipes.
-    assert tttm_office.get_tttm_check("cdsem", "R3", None, None)["parameters"] == []
+    assert tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["parameters"] == []
 
 
 def test_unnamed_points_do_not_reach_the_parameter_list(sources):
     # A recipe's stabilisation shots carry CDs but no feature name; they are
     # kept by load_points and must not surface as an empty picker entry.
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("", "CD_X"))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)
     assert payload["parameters"] == ["CD_X"]

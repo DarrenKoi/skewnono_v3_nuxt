@@ -403,8 +403,14 @@ def _records(frame: Any) -> list[dict[str, Any]]:
 # One entry per MSR. A fab request opens a few hundred pickles and consecutive
 # requests (the same fab, a different parameter) reuse almost all of them, so
 # the cache is what makes the second request fast rather than merely repeatable.
-# Sized for two fabs' worth of runs.
-@lru_cache(maxsize=768)
+#
+# Sized for the WIDEST window of both lab adapters on one page, twice over:
+# pm-tune loads the tttm check (3 weeks x 10 runs/week x ~18 tools = 540) and
+# the pm_planning fleet (3 x 8 x 18 = 432) together, ~970 pickles, and a cache
+# smaller than one page load evicts the first adapter's runs while the second
+# is still opening its own — every later request then re-fetches everything.
+# 768 was that size once the window became selectable (2026-08-25).
+@lru_cache(maxsize=2048)
 def load_points(pkl: str) -> tuple[Point, ...]:
     """Every measured site of one run, straight from its MinIO pickle.
 

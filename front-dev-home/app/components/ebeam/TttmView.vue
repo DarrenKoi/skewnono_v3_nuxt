@@ -4,7 +4,7 @@
       :eyebrow="`${toolLabel} · ${fab}`"
       title="장비간 스큐 관리"
       subtitle="Recipe가 점유하는 셀에서 서로 잘 맞는(N배화) 측정 장비 조합을 추천합니다."
-      cadence="1주 윈도우"
+      :cadence="cadence"
       :as-of="asOf"
       :stats="metaStats"
     />
@@ -36,6 +36,12 @@
           :recipes-pending="recipesPending"
           :recipes-without-a-pair="recipesWithoutAPair"
           @update:recipe-id="onRecipe"
+        />
+      </template>
+      <template #window>
+        <EbeamScopeWindow
+          :window-weeks="windowWeeks"
+          @update:window-weeks="onWindow"
         />
       </template>
     </EbeamScopeBar>
@@ -184,6 +190,7 @@
 
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import { windowLabel } from '~/utils/analysisWindow'
 import {
   alignSkewMatrix,
   groupFromCells,
@@ -216,6 +223,7 @@ const {
   scoped,
   recipeId,
   parameter,
+  windowWeeks,
   recipeNames,
   recipesPending,
   recipesWithoutAPair,
@@ -226,7 +234,8 @@ const {
   scopeReady,
   onSelectedTools,
   onRecipe,
-  onParameter
+  onParameter,
+  onWindow
 } = useTttmScope(props.toolType, props.fab)
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
@@ -383,6 +392,9 @@ const blockedPair = computed(() => {
 })
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
+// From the payload's echo where there is one, so the readout names the span
+// the server actually gathered; the stored choice stands in while in flight.
+const cadence = computed(() => windowLabel(payload.value?.window_weeks ?? windowWeeks.value))
 // Empty while the scope is unset, so the bar does not headline "N배화 0" as a
 // finding. MetaBar drops the whole stat strip on an empty array, and a zero
 // there reads as a computed verdict rather than as "nothing computed yet".

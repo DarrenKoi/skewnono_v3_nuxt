@@ -65,6 +65,12 @@ class FleetPayload(TypedDict):
     fab_name: str
     fetched_at: str
     anchor_date: str
+    # How far back the monitor runs, BSM readings and PM events were gathered,
+    # in weeks — echoed from `?window_weeks=` (one of
+    # `_analysis_window.WINDOW_WEEKS_CHOICES`). pm-tune shares this axis with
+    # the tttm check it joins against, so the two halves of that page describe
+    # one span.
+    window_weeks: int
     beam_conditions: list[BeamCondition]
     axes: list[ScanAxis]
     defaults: FleetDefaults

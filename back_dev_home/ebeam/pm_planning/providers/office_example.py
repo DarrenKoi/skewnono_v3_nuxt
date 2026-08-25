@@ -104,6 +104,7 @@ from back_dev_home.ebeam._office_meas_hist import (
     text as _text,
     top_hits as _top_hits,
 )
+from back_dev_home.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS, window_days
 from back_dev_home.ebeam._office_msr_cd import (
     Point,
     RunRef,
@@ -148,24 +149,31 @@ DEFAULTS = {
     "advisory_threshold": {"500V": 0.30, "800V": 0.40},
 }
 
-# How far back a "current" reading may come from. 30 days is the BSM tab's own
-# window and comfortably inside meas_hist's 60-day retention, so a tool that has
-# been down for a fortnight still shows its last real numbers instead of
-# vanishing from the fleet.
-WINDOW_DAYS = 30
+# How far back a "current" CD reading, BSM reading or PM event may come from is
+# the request's `window_weeks` (`_analysis_window.py`, 1-3 weeks, shared with
+# the tttm check that pm-tune joins this payload against). A tool idle for
+# longer than the window drops out of the fleet — that is the window meaning
+# what its label says, not a gap. It used to be a fixed 30 days.
 
-# Monitor runs opened per tool. Enough to hold a PM boundary (so
-# `prev_post_delta` has a before AND an after) without turning one page load
-# into a hundred MinIO GETs.
-RUNS_PER_TOOL = 8
+# Monitor runs opened per tool per WEEK of the window. 8/week holds a PM
+# boundary (so `prev_post_delta` has a before AND an after) with a daily
+# monitor run; at the widest window that is 24 x ~18 tools = ~430 MinIO GETs.
+# Scaled with the window for the reason tttm's cap is: a fixed cap behind a
+# widening lookback makes the cap the real window.
+RUNS_PER_TOOL_PER_WEEK = 8
 
-# How far back to look for MDC epoch boundaries. Deliberately NOT WINDOW_DAYS:
-# MDC "자주 바뀌지는 않는다" (docs/datatables/hitachi/hardware_mdc_setting.txt) and the
-# mock's own epoch_history spaces its three points 60+ days apart, so a 30-day
-# lookback would leave nearly every tool with an empty history and make the
-# `mdc_changed` badge read as "never changed" rather than "not in the last
-# month". The archive walk is date-partitioned and cached, so the longer window
-# costs one pass per fab per process.
+
+def runs_per_tool(window_weeks: int) -> int:
+    return RUNS_PER_TOOL_PER_WEEK * window_weeks
+
+
+# How far back to look for MDC epoch boundaries. Deliberately NOT the request
+# window: MDC "자주 바뀌지는 않는다" (docs/datatables/hitachi/hardware_mdc_setting.txt)
+# and the mock's own epoch_history spaces its three points 60+ days apart, so a
+# weeks-long lookback would leave nearly every tool with an empty history and
+# make the `mdc_changed` badge read as "never changed" rather than "not in the
+# window". The archive walk is date-partitioned and cached, so the longer
+# window costs one pass per fab per process.
 EPOCH_LOOKBACK_DAYS = 240
 
 # The fab's action limit for one tool against consensus, as a fraction of CD.
@@ -575,13 +583,16 @@ def _apply_fleet_median(tools: list[ToolBlock]) -> list[ConsensusCell]:
     return consensus
 
 
-def _empty_payload(fab: str, fetched_at: str, anchor: datetime) -> FleetPayload:
+def _empty_payload(
+    fab: str, fetched_at: str, anchor: datetime, window_weeks: int
+) -> FleetPayload:
     """A fab with no CD-SEM roster. Empty, not an error — same as the mock."""
     return FleetPayload(
         tool_type="cd-sem",
         fab_name=fab,
         fetched_at=fetched_at,
         anchor_date=anchor.date().isoformat(),
+        window_weeks=window_weeks,
         beam_conditions=BEAM_CONDITIONS,
         axes=AXES,
         defaults=DEFAULTS,  # type: ignore[typeddict-item]
@@ -590,17 +601,22 @@ def _empty_payload(fab: str, fetched_at: str, anchor: datetime) -> FleetPayload:
     )
 
 
-def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
-    """One fab's CD-SEM Up-gate snapshot, joined across the four sources."""
+def get_pm_planning_fleet(fab_name: str, window_weeks: int) -> FleetPayload:
+    """One fab's CD-SEM Up-gate snapshot, joined across the four sources.
+
+    ``window_weeks`` bounds the monitor runs, the BSM readings and the PM
+    events alike (one span, one label), and the per-tool run cap grows with it
+    — see ``runs_per_tool``. MDC epochs keep their own longer lookback.
+    """
     fab = fab_name.strip().upper()
     eqp_ids = [str(row["eqp_id"]) for row in _fleet_rows(fab)]
 
     anchor = get_anchor_time()
-    start = anchor - timedelta(days=WINDOW_DAYS)
+    start = anchor - timedelta(days=window_days(window_weeks))
     fetched_at = datetime.now(KST).replace(microsecond=0).isoformat()
 
     if not eqp_ids:
-        return _empty_payload(fab, fetched_at, anchor)
+        return _empty_payload(fab, fetched_at, anchor, window_weeks)
 
     runs = recent_runs(
         "cd-sem",
@@ -609,7 +625,7 @@ def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
         start,
         anchor,
         recipe=monitor_recipe_pattern(),
-        per_tool=RUNS_PER_TOOL,
+        per_tool=runs_per_tool(window_weeks),
     )
     by_tool = runs.by_tool()
     bsm = _bsm_by_tool(fab, eqp_ids, start, anchor)
@@ -670,6 +686,7 @@ def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
         fab_name=fab,
         fetched_at=fetched_at,
         anchor_date=anchor.date().isoformat(),
+        window_weeks=window_weeks,
         beam_conditions=BEAM_CONDITIONS,
         axes=AXES,
         defaults=DEFAULTS,  # type: ignore[typeddict-item]
@@ -708,7 +725,8 @@ if __name__ == "__main__":  # pragma: no cover
         sys.exit(1)
 
     anchor_at = get_anchor_time()
-    window_start = anchor_at - timedelta(days=WINDOW_DAYS)
+    weeks_arg = int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_WINDOW_WEEKS
+    window_start = anchor_at - timedelta(days=window_days(weeks_arg))
     print(
         f"  window: {window_start.date()} .. {anchor_at.date()} "
         "(anchor = max meas_hist timestamp)"
@@ -717,11 +735,11 @@ if __name__ == "__main__":  # pragma: no cover
     print("\n--- 2. monitor runs (meas_hist -> MinIO) ---")
     found = recent_runs(
         "cd-sem", fab_arg, ids, window_start, anchor_at,
-        recipe=monitor_recipe_pattern(), per_tool=RUNS_PER_TOOL,
+        recipe=monitor_recipe_pattern(), per_tool=runs_per_tool(weeks_arg),
     )
     print(f"  {len(found.runs)} runs across {len(found.by_tool())} tools")
     if found.truncated:
-        print(f"  capped at {RUNS_PER_TOOL}/tool for: {list(found.truncated)}")
+        print(f"  capped at {runs_per_tool(weeks_arg)}/tool for: {list(found.truncated)}")
     if not found.runs:
         print(
             "  EMPTY — the recipe filter is the likely cause. Recipe names this "

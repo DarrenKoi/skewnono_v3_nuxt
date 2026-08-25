@@ -1,10 +1,12 @@
 import { analysisLock, offeredParameters, pickStillStands } from '~/utils/tttmRecipeScope'
+import type { WindowWeeks } from '~/utils/analysisWindow'
 import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
 
 /**
- * The (tools, recipe, parameter) scope both lab pages compare under, the
- * recipe catalogue their picker needs, and the skew payload the scope selects.
+ * The (tools, recipe, parameter, window) scope both lab pages compare under,
+ * the recipe catalogue their picker needs, and the skew payload the scope
+ * selects.
  *
  * Shared rather than written twice because the SCOPE is shared: TTTM and
  * pm-tune read and write one persisted entry per (toolType, fab), so a group
@@ -32,6 +34,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   const scoped = computed(() => settings.read(toolType, fabName))
   const recipeId = computed(() => scoped.value.recipeId)
   const parameter = computed(() => scoped.value.parameter)
+  const windowWeeks = computed(() => scoped.value.windowWeeks)
 
   const { fetchTttmRecipes, useTttmCheck } = useTttmApi()
 
@@ -40,9 +43,14 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   // no information at all, so offering it can only waste a click on "no data".
   // The measured set is also far smaller, which is what makes this picker
   // usable where the 50,000-name catalogue needed a search box.
+  //
+  // Re-fetched when the window moves, under the same key: the list is what
+  // the check will find IN THAT WINDOW, so a list from another window would
+  // offer recipes the check then answers "no data" for.
   const { data: recipeList, pending: recipesPending } = useAsyncData(
     `tttm-recipes:${toolType}:${fabName}`,
-    () => fetchTttmRecipes(toolType, fabName)
+    () => fetchTttmRecipes(toolType, fabName, windowWeeks.value),
+    { watch: [windowWeeks] }
   )
   // Already sorted by evidence server-side (tools, then runs), and that order
   // is kept: the recipes that can actually support a comparison come first.
@@ -90,7 +98,8 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     toolType,
     fabName,
     () => recipeId.value,
-    () => parameter.value
+    () => parameter.value,
+    () => windowWeeks.value
   )
 
   // The picker's catalogue as the payload states it — the three-state reading
@@ -134,11 +143,13 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   const onSelectedTools = (next: string[]) => settings.setTools(toolType, fabName, next)
   const onRecipe = (next: string | null) => settings.setRecipe(toolType, fabName, next)
   const onParameter = (next: string | null) => settings.setParameter(toolType, fabName, next)
+  const onWindow = (next: WindowWeeks) => settings.setWindow(toolType, fabName, next)
 
   return {
     scoped,
     recipeId,
     parameter,
+    windowWeeks,
     recipeNames,
     recipesWithoutAPair,
     recipesPending,
@@ -149,6 +160,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     scopeReady,
     onSelectedTools,
     onRecipe,
-    onParameter
+    onParameter,
+    onWindow
   }
 }

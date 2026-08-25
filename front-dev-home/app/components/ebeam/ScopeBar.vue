@@ -1,9 +1,9 @@
 <template>
   <div class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
-    <!-- 비교 대상 — 무엇을 비교할지: 장비와 recipe. 두 실험실 페이지가 같은 저장
-         설정을 쓰므로 한쪽에서 바꾸면 다른 쪽도 같이 바뀝니다. 이 둘이 정해져야
-         측정 데이터가 오고, parameter 는 그 데이터에서 고르므로 아래 분석 조건 바에
-         있습니다. -->
+    <!-- 비교 대상 — 무엇을 비교할지: 장비, recipe, 그리고 얼마나 모을지(수집 기간).
+         두 실험실 페이지가 같은 저장 설정을 쓰므로 한쪽에서 바꾸면 다른 쪽도 같이
+         바뀝니다. 이 셋이 정해져야 측정 데이터가 오고, parameter 는 그 데이터에서
+         고르므로 아래 분석 조건 바에 있습니다. -->
     <div class="min-w-0">
       <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <p class="sk-panel-title">
@@ -16,8 +16,9 @@
 
       <!-- Tools get the wider column: a fab runs up to ~7 model-group
              dropdowns of 148px, while the recipe is one cell whose popper
-             widens on its own. -->
-      <div class="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+             widens on its own. The window is three chips and takes only the
+             width it needs. -->
+      <div class="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_auto]">
         <div class="min-w-0">
           <p class="mb-1.5 sk-label">
             장비 · 모델 그룹
@@ -147,6 +148,11 @@
         <div class="min-w-0">
           <slot name="recipe" />
         </div>
+
+        <!-- Same slot rule as the recipe, same reason. -->
+        <div class="min-w-0">
+          <slot name="window" />
+        </div>
       </div>
     </div>
   </div>
@@ -165,8 +171,9 @@ import type { ToolRef } from '~/composables/useTttmApi'
  * first thing read and the first thing acted on, and a page-wide bar is what
  * puts it in reading order. See DESIGN.md §Layout — the scope-bar rule.
  *
- * The tool half lives here; the recipe half arrives as a slot. The parameter
- * and the page-specific control (tolerance knob, 튜닝할 장비) are NOT here —
+ * The tool cell lives here; the recipe and 수집 기간 cells arrive as slots.
+ * The parameter and the page-specific control (tolerance knob, 튜닝할 장비)
+ * are NOT here —
  * they act on the measurement data this bar's choice selects, so they sit in
  * the 분석 조건 bar below (`EbeamAnalysisBar`), which stays inert until a
  * recipe is picked.
@@ -190,7 +197,7 @@ const props = withDefaults(defineProps<{
   hint?: string
 }>(), {
   pending: false,
-  hint: '고른 장비와 recipe 로 다시 계산합니다. 이 설정은 이 브라우저에 저장되고, TTTM · PM 튜닝 두 페이지가 함께 씁니다.'
+  hint: '고른 장비 · recipe · 수집 기간으로 다시 계산합니다. 이 설정은 이 브라우저에 저장되고, TTTM · PM 튜닝 두 페이지가 함께 씁니다.'
 })
 
 const emit = defineEmits<{

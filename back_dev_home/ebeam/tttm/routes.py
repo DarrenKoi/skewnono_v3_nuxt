@@ -1,5 +1,9 @@
 from flask import Blueprint, jsonify, request
 
+from back_dev_home.ebeam._analysis_window import (
+    bad_window_weeks_response,
+    resolve_window_weeks,
+)
 from back_dev_home.ebeam._slug_routes import (
     bad_tool_slug_response,
     is_sem_tool_slug,
@@ -31,7 +35,12 @@ def tttm_check(tool_slug: str):
     # response looks wrong to the client.
     if parameter is not None and recipe_id is None:
         return jsonify({"error": "parameter requires recipe_id"}), 400
-    payload = get_tttm_check(tool_slug, fab_name, recipe_id, parameter)
+    # How far back to gather runs. Refused rather than clamped when it is not
+    # one of the offered choices — see _analysis_window.resolve_window_weeks.
+    window_weeks = resolve_window_weeks()
+    if window_weeks is None:
+        return bad_window_weeks_response()
+    payload = get_tttm_check(tool_slug, fab_name, recipe_id, parameter, window_weeks)
     return jsonify(payload)
 
 
@@ -39,13 +48,16 @@ def tttm_check(tool_slug: str):
 def tttm_recipes(tool_slug: str):
     """Recipes this fab has measured, for the shared pm-tune / TTTM picker.
 
-    Same slug and fab_name rules as `/tttm/check`, so a fab that answers one
-    answers the other — a picker scoped differently from the payload it drives
-    would offer recipes the check then finds nothing for.
+    Same slug, fab_name and window_weeks rules as `/tttm/check`, so a fab that
+    answers one answers the other — a picker scoped differently from the
+    payload it drives would offer recipes the check then finds nothing for.
     """
     if not is_sem_tool_slug(tool_slug):
         return bad_tool_slug_response()
     fab_name = _arg("fab_name")
     if fab_name is None:
         return jsonify({"error": "fab_name is required"}), 400
-    return jsonify(get_tttm_recipes(tool_slug, fab_name))
+    window_weeks = resolve_window_weeks()
+    if window_weeks is None:
+        return bad_window_weeks_response()
+    return jsonify(get_tttm_recipes(tool_slug, fab_name, window_weeks))

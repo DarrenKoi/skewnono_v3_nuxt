@@ -20,6 +20,20 @@
   families this feature has no adapter for. Anything else is a `400` from
   `_slug_routes.bad_tool_slug_response()` before `data.py` is ever called;
   the message is derived from the registry, not hard-coded.
+- **`window_weeks` bounds every "current" source, and the run cap grows with
+  it.** Read by `_analysis_window.resolve_window_weeks()` exactly as
+  `/tttm/check` reads it — one of `1`/`2`/`3`, default `3`, anything else a
+  400 — because pm-tune joins this payload with the tttm check under one
+  "N주 윈도우" label. `data.get_pm_planning_fleet(fab_name, window_weeks)` is
+  positional and undefaulted so a stale `office.py` raises. The adapter
+  gathers monitor runs, BSM readings and PM events from
+  `anchor - 7 * window_weeks` days, and asks `recent_runs` for
+  `runs_per_tool(window_weeks)` = `RUNS_PER_TOOL_PER_WEEK * window_weeks`
+  runs per tool; a tool idle for longer than the window drops out of the
+  fleet, which is the window meaning what its label says. MDC epochs keep
+  their own `EPOCH_LOOKBACK_DAYS`. Echo `window_weeks` on the payload,
+  including the empty-roster one. (It used to be a fixed 30 days behind a
+  fixed cap of 8 runs.)
 - **CD-SEM only.** Even though `hvsem` is a valid slug elsewhere in this
   codebase, `routes.py` explicitly rejects it here with a second `400`
   (`"pm-planning is available for CD-SEM only"`) before checking `fab_name`.

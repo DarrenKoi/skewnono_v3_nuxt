@@ -68,8 +68,14 @@ def test_the_recipe_picker_uses_the_same_clause_as_the_payload(monkeypatch):
 
     monkeypatch.setattr(office, "composite_buckets", fake_composite)
     monkeypatch.setattr(office, "get_anchor_time", lambda: datetime(2026, 8, 20))
-    office.get_tttm_recipes("cdsem", "R3")
+    office.get_tttm_recipes("cdsem", "R3", 2)
 
     clauses = captured["query"]["bool"]["filter"]
     assert has_pickle_clause() in clauses
     assert "msr_check" not in str(clauses)
+    # And the same WINDOW as the payload: a picker counting over a wider span
+    # offers recipes the check then finds nothing for.
+    [window] = [clause["range"] for clause in clauses if "range" in clause]
+    [(_field, bounds)] = window.items()
+    assert bounds["gte"] == "2026-08-06T00:00:00"
+    assert bounds["lte"] == "2026-08-20T00:00:00"

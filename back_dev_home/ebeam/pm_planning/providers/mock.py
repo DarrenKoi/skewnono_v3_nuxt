@@ -53,6 +53,7 @@ from back_dev_home.ebeam.hardware.providers.bm_pm.mock import build_bm_pm_data
 from back_dev_home.ebeam.hardware.providers.pm_gate_bsm_mock import (
     build_bsm_data,
 )
+from back_dev_home.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS
 from back_dev_home.ebeam.hardware.providers.spec_range_mock import (
     bsm_in_spec,
     get_cd_monitoring_spec,
@@ -221,8 +222,15 @@ def _apply_fleet_median(tools: list[ToolBlock]) -> list[ConsensusCell]:
     return consensus
 
 
-def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
-    """Return a deterministic fab-scoped CD-SEM fleet snapshot."""
+def get_pm_planning_fleet(fab_name: str, window_weeks: int) -> FleetPayload:
+    """Return a deterministic fab-scoped CD-SEM fleet snapshot.
+
+    `window_weeks` is echoed only. The mock's gate inputs are seeded per tool
+    with no run history to gather, so the snapshot is the same for every
+    window; at the office the same knob decides how far back a "current" CD
+    reading, BSM reading or PM event may come from — a tool idle for longer
+    than the window drops out of the fleet there, and never does here.
+    """
     fab = fab_name.upper()
     tools: list[ToolBlock] = [
         {
@@ -240,6 +248,7 @@ def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
         "fab_name": fab,
         "fetched_at": FETCHED_AT,
         "anchor_date": NOW.date().isoformat(),
+        "window_weeks": window_weeks,
         "beam_conditions": BEAM_CONDITIONS,
         "axes": AXES,
         "defaults": DEFAULTS,
@@ -249,8 +258,8 @@ def get_pm_planning_fleet(fab_name: str) -> FleetPayload:
 
 
 if __name__ == "__main__":
-    a = get_pm_planning_fleet("R3")
-    b = get_pm_planning_fleet("R3")
+    a = get_pm_planning_fleet("R3", DEFAULT_WINDOW_WEEKS)
+    b = get_pm_planning_fleet("R3", DEFAULT_WINDOW_WEEKS)
     assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True), (
         "fleet snapshot is not deterministic"
     )

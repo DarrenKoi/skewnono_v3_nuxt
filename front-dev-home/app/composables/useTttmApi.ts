@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { WindowWeeks } from '~/utils/analysisWindow'
 import type { SkewMatrix, Confidence, Tier } from '~/utils/tttmGrouping'
 
 // `eqp_model_cd` is the raw sem_list model code (CG6300, TP4500, …). The fleet
@@ -18,6 +19,8 @@ export interface TttmRecipeRow {
 export interface TttmRecipeList {
   tool_slug: string
   fab_name: string
+  /** The window the rows were counted over — the check's window, echoed. */
+  window_weeks: number
   fetched_at: string
   rows: TttmRecipeRow[]
 }
@@ -90,6 +93,12 @@ export interface TttmCheckPayload {
    * set; `[]` without a recipe and on every unavailable branch.
    */
   parameters: string[]
+  /**
+   * How far back the runs were gathered, in weeks — echoed from the request,
+   * including on unavailable answers. Bounds the per-tool run cap at the
+   * office as well as the lookback, so a wider window is more evidence.
+   */
+  window_weeks: number
   available: boolean
   fetched_at: string
   summary: string
@@ -116,56 +125,65 @@ export const useTttmApi = () => {
   // measures a different feature. Dropping it here rather than letting the
   // request fail keeps a stale stored parameter from breaking the page while
   // the user has no recipe picked.
+  //
+  // `windowWeeks` is always sent (the store normalises it to a choice the
+  // server accepts), so the label the page shows and the span the server
+  // gathered cannot come apart on a default that differs between the two.
   const fetchTttmCheck = (
     toolType: string,
     fabName: string,
-    recipeId?: string,
-    parameter?: string
+    recipeId: string | undefined,
+    parameter: string | undefined,
+    windowWeeks: WindowWeeks
   ) =>
     $fetch<TttmCheckPayload>(
       joinApiPath(base, `/${toSlug(toolType)}/tttm/check`),
       {
         query: {
           fab_name: fabName,
+          window_weeks: windowWeeks,
           ...(recipeId ? { recipe_id: recipeId } : {}),
           ...(recipeId && parameter ? { parameter } : {})
         }
       }
     )
 
-  // `recipeId`/`parameter` are getters, not plain strings, because the user
-  // picks them in the page: a value baked into the key at call time would never
-  // refetch. The key deliberately omits both so one cache entry per (tool, fab)
-  // is reused and re-fetched, rather than accumulating one entry per scope ever
-  // viewed.
+  // `recipeId`/`parameter`/`windowWeeks` are getters, not plain values,
+  // because the user picks them in the page: a value baked into the key at
+  // call time would never refetch. The key deliberately omits all three so one
+  // cache entry per (tool, fab) is reused and re-fetched, rather than
+  // accumulating one entry per scope ever viewed.
   const useTttmCheck = (
     toolType: string,
     fabName: string,
-    recipeId?: () => string | null | undefined,
-    parameter?: () => string | null | undefined
-  ) => {
-    const sources = [recipeId, parameter].filter(Boolean) as (() => unknown)[]
-    return useAsyncData(
+    recipeId: () => string | null | undefined,
+    parameter: () => string | null | undefined,
+    windowWeeks: () => WindowWeeks
+  ) =>
+    useAsyncData(
       `tttm-check:${toolType}:${fabName}`,
       () => fetchTttmCheck(
         toolType,
         fabName,
-        recipeId?.() ?? undefined,
-        parameter?.() ?? undefined
+        recipeId() ?? undefined,
+        parameter() ?? undefined,
+        windowWeeks()
       ),
-      sources.length ? { watch: sources } : {}
+      { watch: [recipeId, parameter, windowWeeks] }
     )
-  }
 
   // The picker's source. Deliberately NOT recipe-search's catalogue: that
   // lists every recipe that EXISTS, and on these screens a recipe nobody ran
   // can only ever answer "no data". `runs`/`tools` come back so the picker can
   // rank by evidence and mark the recipes only one tool measured — those can
   // never produce a pair, however many runs they have.
-  const fetchTttmRecipes = (toolType: string, fabName: string) =>
+  //
+  // Windowed like the check, because it lists what the check will find: a
+  // recipe measured four weeks ago is on a 3-week list only if it ran again.
+  const fetchTttmRecipes = (toolType: string, fabName: string, windowWeeks: WindowWeeks) =>
     $fetch<TttmRecipeList>(
       joinApiPath(base, `/${toSlug(toolType)}/tttm/recipes`),
-      { query: { fab_name: fabName } }
+      { query: { fab_name: fabName, window_weeks: windowWeeks } }
     )
 
   return { fetchTttmCheck, useTttmCheck, fetchTttmRecipes }

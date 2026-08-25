@@ -63,10 +63,12 @@ quietly, which is the only reason it is safe to ship them unresolved.
    treat it as equivalent evidence.
 
 NOT DONE HERE, deliberately: there is no nightly rollup job yet, so this
-computes on request over a bounded window (``WINDOW_DAYS`` x ``RUNS_PER_TOOL``
-pickles, LRU-cached). That is fine for a lab page and will not scale to a fleet
-dashboard — section 5.1 of the feasibility note is the fix, and until it exists
-raising either constant multiplies MinIO GETs directly.
+computes on request over a bounded window (``window_weeks`` x
+``RUNS_PER_TOOL_PER_WEEK`` pickles per tool, LRU-cached). That is fine for a
+lab page and will not scale to a fleet dashboard — section 5.1 of the
+feasibility note is the fix, and until it exists widening the choices in
+``_analysis_window.py`` or raising the per-week cap multiplies MinIO GETs
+directly.
 
 OFFICE-VERIFY (check these once, on the first office run — the staged
 ``__main__`` below prints what it actually found for every one of them):
@@ -106,6 +108,7 @@ from itertools import combinations
 from statistics import median
 from typing import Any, NamedTuple
 
+from back_dev_home.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS, window_days
 from back_dev_home.ebeam._office_bm_pm import maintenance_events
 from back_dev_home.ebeam._office_mdc import MdcChange, changes as mdc_changes
 from back_dev_home.ebeam._office_meas_hist import (
@@ -155,24 +158,29 @@ __all__ = ["get_tttm_check", "get_tttm_recipes"]
 _LOG = logging.getLogger(__name__)
 
 
-# meas_hist keeps 60 days and the dict_pkl partitions are purged at 61, so this
-# is the whole history that exists. A shorter window would be a choice; this is
-# the ceiling.
-WINDOW_DAYS = 60
+# Runs opened per tool per WEEK of the requested window. The fleet check is a
+# daily monitor run, so 10/week is a week's worth with slack for a tool that
+# ran twice some days; at the widest window that is 30 x ~18 tools = ~540
+# MinIO GETs, cached across requests by `load_points`. See the "NOT DONE
+# HERE" note above before raising it.
+#
+# Scaled with the window ON PURPOSE. The lookback used to be a fixed 60 days
+# (meas_hist's whole retention) behind a fixed cap of 10 runs, which made the
+# cap the real window: a tool measuring daily contributed its last ten days
+# whatever the lookback said. A window the user can widen has to widen the
+# evidence, so both move together — `runs_per_tool` is the one place.
+RUNS_PER_TOOL_PER_WEEK = 10
 
-# Runs opened per tool per request. 10 x ~18 tools = ~180 MinIO GETs, cached
-# across requests by `load_points`. See the "NOT DONE HERE" note above before
-# raising it.
-RUNS_PER_TOOL = 10
+
+def runs_per_tool(window_weeks: int) -> int:
+    """The per-tool run cap for a window — grows with it, see above."""
+    return RUNS_PER_TOOL_PER_WEEK * window_weeks
+
 
 # A cell needs this many runs from its tightest participant before its estimate
 # is called High rather than Med. Below it the pair difference is one or two
 # wafers apart, which is a snapshot, not a reproducible offset.
 HIGH_CONFIDENCE_RUNS = 6
-
-# Trend points are per (tool, day); a fab-wide 60-day series over 18 tools is
-# already ~1000 points, so the series is capped at the most recent days.
-TREND_DAYS = 30
 
 _NOTE = "TTTM 미반영"
 
@@ -662,15 +670,19 @@ def _fleet_median_cd(rows: list[_Observation]) -> float | None:
 
 
 def _trend(
-    observations: list[_Observation], anchor: datetime
+    observations: list[_Observation], start: datetime
 ) -> list[TrendPoint]:
-    """Per (tool, day) offset over the recent window.
+    """Per (tool, day) offset over the requested window.
 
     Each day is centred on its OWN recipe set rather than on the window's, so a
     day when the fleet happened to run a different recipe mix does not read as a
     fleet-wide step. A day with no contrast simply produces no points.
+
+    The span is the gathering window itself: the observations already come from
+    runs inside it, so a separate trend cut-off (there was a fixed 30-day one)
+    could only ever hide days the user asked for.
     """
-    cutoff = (anchor - timedelta(days=TREND_DAYS)).date()
+    cutoff = start.date()
     by_day: dict[date, list[_Observation]] = defaultdict(list)
     for row in observations:
         if row.at.date() >= cutoff:
@@ -840,13 +852,16 @@ def get_tttm_check(
     fab_name: str,
     recipe_id: str | None,
     parameter: str | None,
+    window_weeks: int,
 ) -> TttmCheckPayload:
     """Pairwise tool skew for one fab, optionally narrowed to one feature.
 
     ``parameter`` narrows the ROWS the skew is computed from to one measured
     feature of ``recipe_id``; it is never meaningful on its own, and the route
     refuses it without a recipe, so a non-null ``parameter`` always arrives with
-    one. Both are echoed back — including on every unavailable branch.
+    one. ``window_weeks`` bounds how far back runs are gathered AND how many
+    per tool (`runs_per_tool`). All three are echoed back — including on every
+    unavailable branch.
     """
     fleet = _fleet(tool_slug, fab_name)
     if not fleet:
@@ -856,17 +871,20 @@ def get_tttm_check(
             # `fleet` IS empty here, so the empty roster is passed rather than
             # omitted — see unavailable_payload's docstring.
             tools=fleet,
+            window_weeks=window_weeks,
         )
     if len(fleet) < 2:
         return unavailable_payload(
             tool_slug, fab_name, recipe_id, parameter,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
             tools=fleet,
+            window_weeks=window_weeks,
         )
 
     roster = [tool["eqp_id"] for tool in fleet]
     anchor = get_anchor_time()
-    start = anchor - timedelta(days=WINDOW_DAYS)
+    lookback = window_days(window_weeks)
+    start = anchor - timedelta(days=lookback)
     runs = recent_runs(
         SLUG_TO_TOOL_TYPE[tool_slug],  # type: ignore[index]
         fab_name,
@@ -874,14 +892,15 @@ def get_tttm_check(
         start,
         anchor,
         recipe=recipe_id,
-        per_tool=RUNS_PER_TOOL,
+        per_tool=runs_per_tool(window_weeks),
     )
     if not runs.runs:
         scope = f"{recipe_id} " if recipe_id else ""
         return unavailable_payload(
             tool_slug, fab_name, recipe_id, parameter,
-            f"{fab_name} 에 최근 {WINDOW_DAYS}일간 {scope}측정 이력이 없습니다.",
+            f"{fab_name} 에 최근 {lookback}일간 {scope}측정 이력이 없습니다.",
             tools=fleet,
+            window_weeks=window_weeks,
         )
 
     cell_rows, dropped = _observations(runs.runs, parameter)
@@ -909,6 +928,7 @@ def get_tttm_check(
         # span every measured recipe and a pooled list would offer one name for
         # several different features. See the contract's field comment.
         "parameters": measured_names if recipe_id else [],
+        "window_weeks": window_weeks,
         "available": True,
         "fetched_at": anchor.isoformat(timespec="seconds"),
         "summary": summary,
@@ -918,7 +938,7 @@ def get_tttm_check(
         "occupied_cells": cells,
         "production_corroboration": _corroboration(fleet_rows_),
         "fleet_today": _fleet_today(fleet_rows_, roster),  # type: ignore[typeddict-item]
-        "trend": _trend(fleet_rows_, anchor),
+        "trend": _trend(fleet_rows_, start),
         "epoch_markers": _markers(epochs, fab_name, roster, start, anchor),
         "mdc_history": _mdc_history(epochs, roster),
         # Diagnostics, not display data. `raw` is NotRequired by contract and
@@ -952,8 +972,9 @@ if __name__ == "__main__":  # pragma: no cover
     fab = sys.argv[2] if len(sys.argv) > 2 else "R3"
     recipe = sys.argv[3] if len(sys.argv) > 3 else None
     param = sys.argv[4] if len(sys.argv) > 4 else None
+    weeks = int(sys.argv[5]) if len(sys.argv) > 5 else DEFAULT_WINDOW_WEEKS
 
-    print(f"slug={slug} fab={fab} recipe={recipe!r} parameter={param!r}")
+    print(f"slug={slug} fab={fab} recipe={recipe!r} parameter={param!r} window={weeks}w")
 
     print("\n--- 1. roster ---")
     tools = _fleet(slug, fab)
@@ -964,18 +985,18 @@ if __name__ == "__main__":  # pragma: no cover
 
     ids_ = [t["eqp_id"] for t in tools]
     anchor_ = get_anchor_time()
-    start_ = anchor_ - timedelta(days=WINDOW_DAYS)
+    start_ = anchor_ - timedelta(days=window_days(weeks))
     print(f"  window {start_.date()} .. {anchor_.date()}")
 
     print("\n--- 2. runs ---")
     found = recent_runs(
         SLUG_TO_TOOL_TYPE[slug],  # type: ignore[index]
-        fab, ids_, start_, anchor_, recipe=recipe, per_tool=RUNS_PER_TOOL,
+        fab, ids_, start_, anchor_, recipe=recipe, per_tool=runs_per_tool(weeks),
     )
     print(f"  {len(found.runs)} runs across {len(found.by_tool())} tools")
     print(f"  recipes: {sorted({run.recipe_key for run in found.runs})[:12]}")
     if found.truncated:
-        print(f"  capped at {RUNS_PER_TOOL}/tool for {list(found.truncated)}")
+        print(f"  capped at {runs_per_tool(weeks)}/tool for {list(found.truncated)}")
     if not found.runs:
         sys.exit(1)
 
@@ -1038,8 +1059,8 @@ if __name__ == "__main__":  # pragma: no cover
 # rows still render, they just resolve to nothing once selected.
 
 
-def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
-    """Recipes this fab has MEASURED, with the evidence behind each.
+def get_tttm_recipes(tool_slug: str, fab_name: str, window_weeks: int) -> TttmRecipeList:
+    """Recipes this fab has MEASURED in the window, with the evidence behind each.
 
     Deliberately NOT the Redis recipe registry (`v3_*_unique_rcp_list`), which
     recipe-search reads. That registry lists every recipe that EXISTS; on this
@@ -1060,12 +1081,14 @@ def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
         return TttmRecipeList(
             tool_slug=tool_slug,  # type: ignore[typeddict-item]
             fab_name=fab_name,
+            window_weeks=window_weeks,
             fetched_at=fetched_at,
             rows=[],
         )
 
     anchor = get_anchor_time()
-    start = anchor - timedelta(days=WINDOW_DAYS)
+    # The check's window, so every recipe offered has runs the check will find.
+    start = anchor - timedelta(days=window_days(window_weeks))
     clauses: list[dict[str, Any]] = [
         {"term": {FAB_NAME_KW: fab}},
         has_pickle_clause(),
@@ -1099,6 +1122,7 @@ def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
     return TttmRecipeList(
         tool_slug=tool_slug,  # type: ignore[typeddict-item]
         fab_name=fab_name,
+        window_weeks=window_weeks,
         fetched_at=fetched_at,
         rows=rows,
     )

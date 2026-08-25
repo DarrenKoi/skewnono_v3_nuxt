@@ -180,6 +180,10 @@ class TttmRecipeRow(TypedDict):
 class TttmRecipeList(TypedDict):
     tool_slug: ToolSlug
     fab_name: str
+    # The window the rows were counted over — the SAME `window_weeks` the check
+    # is asked for, echoed so the client can tell a list for one window from a
+    # list for another. See `_analysis_window.py`.
+    window_weeks: int
     fetched_at: str
     # Descending by evidence (tools, then runs), so the recipes that can
     # actually support a comparison sort to the top of the picker.
@@ -214,6 +218,12 @@ class TttmCheckPayload(TypedDict):
     # names across every measured recipe would offer the same name for
     # different features — and empty on every unavailable branch.
     parameters: list[str]
+    # How far back the runs were gathered, in weeks — one of
+    # `_analysis_window.WINDOW_WEEKS_CHOICES`, echoed from the request
+    # (including on every unavailable branch). It bounds BOTH the lookback and
+    # the per-tool run cap in the office adapter, so a wider window is more
+    # evidence rather than merely an older cut-off — see MIGRATION.md.
+    window_weeks: int
     available: bool
     fetched_at: str
     summary: str
@@ -243,6 +253,8 @@ def unavailable_payload(
     parameter: str | None,
     summary: str,
     tools: list[ToolRef],
+    *,
+    window_weeks: int,
 ) -> "TttmCheckPayload":
     """The documented "nothing to compare" answer — not an error.
 
@@ -257,9 +269,11 @@ def unavailable_payload(
     control rail. One definition makes that unrepresentable rather than merely
     tested for.
 
-    Echoes the fab, recipe and parameter it was asked about: the client files
-    the response under the triple it requested, so blanking them here would
-    label one fab's empty state with another's.
+    Echoes the fab, recipe, parameter and window it was asked about: the
+    client files the response under the scope it requested, so blanking them
+    here would label one fab's empty state with another's. ``window_weeks`` is
+    keyword-only and required for the same reason ``tools`` is — an empty
+    answer still says which window it was empty over.
 
     ``tools`` is the ROSTER, and it is REQUIRED — an empty comparison is not an
     empty fab. The client builds its tool picker from this list, and that picker
@@ -290,6 +304,7 @@ def unavailable_payload(
         "recipe_id": recipe_id,
         "parameter": parameter,
         "parameters": [],
+        "window_weeks": window_weeks,
         "available": False,
         "fetched_at": "",
         "summary": summary,

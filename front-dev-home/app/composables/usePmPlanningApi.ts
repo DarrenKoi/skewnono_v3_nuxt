@@ -1,4 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
+import type { WindowWeeks } from '~/utils/analysisWindow'
 import type { BeamCondition, CellSkew, ScanAxis } from '~/utils/pmPlanning'
 
 export interface GateBlock {
@@ -44,6 +45,8 @@ export interface FleetResponse {
   fab_name: string
   fetched_at: string
   anchor_date: string
+  /** How far back runs, BSM readings and PM events were gathered — echoed. */
+  window_weeks: number
   beam_conditions: BeamCondition[]
   axes: ScanAxis[]
   defaults: FleetDefaults
@@ -55,10 +58,15 @@ export const usePmPlanningApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  const fetchPmPlanningFleet = async (fabName: string): Promise<FleetResponse> => {
+  // The same `window_weeks` the tttm check is fetched under: pm-tune joins
+  // the two payloads, and one label has to describe both.
+  const fetchPmPlanningFleet = async (
+    fabName: string,
+    windowWeeks: WindowWeeks
+  ): Promise<FleetResponse> => {
     return await $fetch<FleetResponse>(
       joinApiPath(base, '/cdsem/pm-planning/fleet'),
-      { query: { fab_name: fabName } }
+      { query: { fab_name: fabName, window_weeks: windowWeeks } }
     )
   }
 

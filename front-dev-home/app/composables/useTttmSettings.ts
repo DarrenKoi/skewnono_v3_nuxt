@@ -1,8 +1,9 @@
 import { usePersistedState } from '~/composables/usePersistedState'
+import { DEFAULT_WINDOW_WEEKS, normalizeWindowWeeks, type WindowWeeks } from '~/utils/analysisWindow'
 
-// Per-(toolType, fab) TTTM settings: which tools the user compares, and which
-// recipe. Survives a reload because these are a working setup, not a filter you
-// re-pick every visit.
+// Per-(toolType, fab) TTTM settings: which tools the user compares, which
+// recipe, and how far back to gather. Survives a reload because these are a
+// working setup, not a filter you re-pick every visit.
 //
 // One storage entry holding a map, rather than one entry per fab: the scope
 // changes as the user moves between fabs, and usePersistedState binds its
@@ -25,6 +26,14 @@ export interface TttmScopeSettings {
    * but not its recipe would name a feature of a recipe nobody picked.
    */
   parameter: string | null
+  /**
+   * How many weeks of runs the server gathers — one of WINDOW_WEEKS, sent as
+   * `window_weeks` on the check, the recipe picker AND pm-tune's fleet fetch.
+   * Part of the shared scope rather than a per-page setting because the two
+   * pages describe ONE group: a 1-week group on TTTM and a 3-week group on
+   * PM 튜닝 would be two different groups under one name.
+   */
+  windowWeeks: WindowWeeks
 }
 
 export type TttmSettingsMap = Record<string, TttmScopeSettings>
@@ -34,7 +43,12 @@ const STORAGE_KEY = 'tttm-settings'
 export const tttmScopeKey = (toolType: string, fabName: string) =>
   `${toolType}:${fabName.toUpperCase()}`
 
-const EMPTY: TttmScopeSettings = { tools: [], recipeId: null, parameter: null }
+const EMPTY: TttmScopeSettings = {
+  tools: [],
+  recipeId: null,
+  parameter: null,
+  windowWeeks: DEFAULT_WINDOW_WEEKS
+}
 
 // localStorage is user-writable and survives deploys, so anything read back has
 // to be treated as untrusted rather than as the shape we last wrote.
@@ -49,7 +63,10 @@ const normalizeScope = (raw: unknown): TttmScopeSettings => {
     // without its recipe is a feature name with nothing to resolve it against,
     // and the server 400s on the pair. Entries written before this field
     // existed simply have no `parameter`, which lands here as null.
-    parameter: recipeId && typeof value.parameter === 'string' ? value.parameter : null
+    parameter: recipeId && typeof value.parameter === 'string' ? value.parameter : null,
+    // Entries written before this field existed land here as the default;
+    // a hand-edited value outside the choices does too, rather than 400ing.
+    windowWeeks: normalizeWindowWeeks(value.windowWeeks)
   }
 }
 
@@ -98,5 +115,10 @@ export const useTttmSettings = () => {
     write(toolType, fabName, { ...current, parameter })
   }
 
-  return { all, read, write, setTools, setRecipe, setParameter }
+  // The window outlives a recipe change: it is a statement about evidence,
+  // not about the recipe, and the recipe picker itself is re-fetched under it.
+  const setWindow = (toolType: string, fabName: string, windowWeeks: WindowWeeks) =>
+    write(toolType, fabName, { ...read(toolType, fabName), windowWeeks })
+
+  return { all, read, write, setTools, setRecipe, setParameter, setWindow }
 }

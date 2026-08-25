@@ -4,7 +4,7 @@
       :eyebrow="`${toolLabel} · ${fab}`"
       title="PM 튜닝"
       subtitle="하드웨어를 만질 기회는 PM 창뿐입니다 — 그때 N배화 그룹에 맞춰 튜닝할 목표를 셀 단위로 제시합니다. N이 커질수록 서로 대체 측정할 수 있는 장비가 늘어납니다."
-      cadence="1주 윈도우"
+      :cadence="cadence"
       :as-of="asOf"
       :stats="metaStats"
     />
@@ -36,6 +36,12 @@
           :recipes-pending="recipesPending"
           :recipes-without-a-pair="recipesWithoutAPair"
           @update:recipe-id="onRecipe"
+        />
+      </template>
+      <template #window>
+        <EbeamScopeWindow
+          :window-weeks="windowWeeks"
+          @update:window-weeks="onWindow"
         />
       </template>
     </EbeamScopeBar>
@@ -181,6 +187,7 @@
 
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import { windowLabel } from '~/utils/analysisWindow'
 import { usePmPlanningApi, type FleetResponse } from '~/composables/usePmPlanningApi'
 import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 import { admissionReport, pickDefaultTool } from '~/utils/pmTune'
@@ -201,6 +208,7 @@ const {
   scoped,
   recipeId,
   parameter,
+  windowWeeks,
   recipeNames,
   recipesPending,
   recipesWithoutAPair,
@@ -211,15 +219,19 @@ const {
   scopeReady,
   onSelectedTools,
   onRecipe,
-  onParameter
+  onParameter,
+  onWindow
 } = useTttmScope(props.toolType, props.fab)
 
 // The gate/PM half, from pm_planning. Independent request: a slow gate payload
 // must not delay the map, and vice versa.
+// Fetched under the scope's window, and re-fetched with it: the two halves of
+// this page are joined and must describe one span.
 const { fetchPmPlanningFleet } = usePmPlanningApi()
 const { data: pmFleet, pending: pmPending } = useAsyncData<FleetResponse | null>(
   `pm-tune:${props.fab || 'NONE'}`,
-  () => props.fab ? fetchPmPlanningFleet(props.fab) : Promise.resolve(null)
+  () => props.fab ? fetchPmPlanningFleet(props.fab, windowWeeks.value) : Promise.resolve(null),
+  { watch: [windowWeeks] }
 )
 
 const pmTools = computed(() => pmFleet.value?.tools ?? [])
@@ -381,6 +393,9 @@ const setThreshold = ({ beam, value }: { beam: BeamCondition, value: number }) =
 }
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
+// From the payload's echo where there is one, so the readout names the span
+// the server actually gathered; the stored choice stands in while in flight.
+const cadence = computed(() => windowLabel(payload.value?.window_weeks ?? windowWeeks.value))
 // Empty while the scope is unset — a "N배화 0" headline is a computed verdict,
 // and nothing has been computed yet. MetaBar drops the strip on an empty array.
 const metaStats = computed<MetaBarStat[]>(() => {

@@ -136,6 +136,7 @@ from back_dev_home.ebeam.tttm.contracts import (
     TrendPoint,
     TttmCheckPayload,
 )
+from back_dev_home.ebeam._analysis_window import window_days
 from back_dev_home.sem_list.providers.mock import get_sem_list
 from back_dev_home.sem_list.roster import fleet_rows
 
@@ -307,8 +308,20 @@ def _cells(fleet: list[ToolRef], biases: dict[str, float], seed: int) -> list[Ce
     return cells
 
 
-def _trend(fleet: list[ToolRef], biases: dict[str, float], rng: random.Random) -> list[TrendPoint]:
-    dates = [(_TODAY - timedelta(days=7 * back)).isoformat() for back in range(4, -1, -1)]
+def _trend(
+    fleet: list[ToolRef], biases: dict[str, float], rng: random.Random, window_weeks: int
+) -> list[TrendPoint]:
+    """One point per (tool, day) over the whole window — the office grain.
+
+    The span follows `window_weeks` because that is the one thing the window
+    knob visibly changes at home: the office gathers more runs, so its trend
+    reaches further back; the mock has no runs to gather, so it draws the same
+    per-day series over the same span. It used to be five weekly points over
+    four weeks regardless of the request, which made the knob a no-op here and
+    taught nothing about what widening the window does at the office.
+    """
+    days = window_days(window_weeks)
+    dates = [(_TODAY - timedelta(days=back)).isoformat() for back in range(days - 1, -1, -1)]
     return [
         TrendPoint(
             eqp_id=tool["eqp_id"],
@@ -391,16 +404,23 @@ def _corroboration(fleet: list[ToolRef], biases: dict[str, float]) -> Production
 
 
 @lru_cache(maxsize=32)
-def _measured_recipe_ids(tool_slug: str, fab_name: str) -> frozenset[str]:
-    """Every recipe_id this fab has measured, as a set, computed once.
+def _measured_recipe_ids(tool_slug: str, fab_name: str, window_weeks: int) -> frozenset[str]:
+    """Every recipe_id this fab has measured in the window, as a set, computed once.
 
     Cached because it cannot change within a process — the meas_hist mock's rows
     are `@lru_cache`d and its window anchor is a constant — while the membership
     question is asked on EVERY check that carries a recipe, including every
     valid pick. Uncached, the happy path re-filtered 600 rows, re-aggregated the
     per-recipe run/tool counts and re-sorted them, to answer one `in`.
+
+    Keyed by the window even though this mock's rows do not move with it: the
+    question is "would the picker for THIS request have offered it", and the
+    picker is windowed. Answering from another window's list is the drift the
+    check/recipes pairing exists to prevent.
     """
-    return frozenset(row["recipe_id"] for row in get_tttm_recipes(tool_slug, fab_name)["rows"])
+    return frozenset(
+        row["recipe_id"] for row in get_tttm_recipes(tool_slug, fab_name, window_weeks)["rows"]
+    )
 
 
 def _meas_hist_rows(tool_slug: str, fab_name: str) -> list[dict]:
@@ -453,7 +473,18 @@ def get_tttm_check(
     fab_name: str,
     recipe_id: str | None,
     parameter: str | None,
+    window_weeks: int,
 ) -> TttmCheckPayload:
+    """Deterministic pairwise skew for one fab.
+
+    `window_weeks` is echoed and drives the trend's span (see `_trend`), and
+    nothing else: the cells, matrices and confidences are seeded from the
+    scope, not gathered from runs, so a wider window cannot raise a cell from
+    Med to High here the way it does at the office. Deliberately NOT faked —
+    a confidence that climbed with the knob would teach that the window is a
+    quality dial, when at the office it is an evidence-count dial whose effect
+    on confidence depends on how often each tool actually ran.
+    """
     fleet = _fleet(tool_slug, fab_name)
     if not fleet:
         return unavailable_payload(
@@ -470,6 +501,7 @@ def get_tttm_check(
             # Requiring the parameter is tidiness, not the cure — one shared
             # constructor is the cure.)
             tools=fleet,
+            window_weeks=window_weeks,
         )
     if len(fleet) < 2:
         return unavailable_payload(
@@ -479,6 +511,7 @@ def get_tttm_check(
             parameter,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
             tools=fleet,
+            window_weeks=window_weeks,
         )
 
     # A recipe THIS FAB HAS NOT MEASURED answers unavailable, the way the office
@@ -489,7 +522,7 @@ def get_tttm_check(
     # case, was invisible until someone opened the page on the company network.
     # `get_tttm_recipes` is the same measured set the picker offers, so the two
     # cannot disagree about what "measured" means.
-    if recipe_id and recipe_id not in _measured_recipe_ids(tool_slug, fab_name):
+    if recipe_id and recipe_id not in _measured_recipe_ids(tool_slug, fab_name, window_weeks):
         return unavailable_payload(
             tool_slug,
             fab_name,
@@ -498,6 +531,7 @@ def get_tttm_check(
             f"{fab_name} 에 {recipe_id} 측정 이력이 없습니다 — "
             "측정한 recipe 중에서 고르시기 바랍니다.",
             tools=fleet,
+            window_weeks=window_weeks,
         )
 
     seed = _seed(tool_slug, fab_name, recipe_id, parameter)
@@ -520,6 +554,7 @@ def get_tttm_check(
         "parameter": parameter,
         # Recipe-local, so only inside a recipe — see the contract's comment.
         "parameters": list(_measured_parameters(tool_slug, fab_name, recipe_id)) if recipe_id else [],
+        "window_weeks": window_weeks,
         "available": True,
         "fetched_at": _FETCHED_AT,
         "summary": (
@@ -536,16 +571,19 @@ def get_tttm_check(
             "consensus_deviation": deviations,
             "median_cd_nm": _FLEET_MEDIAN_CD_NM,
         },
-        "trend": _trend(fleet, biases, random.Random(seed + 11)),
+        "trend": _trend(fleet, biases, random.Random(seed + 11), window_weeks),
         "epoch_markers": _markers(fleet),
         "mdc_history": _mdc_history(fleet),
     }
 
 
-def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
+def get_tttm_recipes(tool_slug: str, fab_name: str, window_weeks: int) -> TttmRecipeList:
     """Recipes this fab has MEASURED, derived from the meas_hist mock.
 
-    See `_meas_hist_rows` for why the rows come from the meas_hist mock.
+    See `_meas_hist_rows` for why the rows come from the meas_hist mock. The
+    meas_hist mock has no per-row clock to window by, so `window_weeks` is
+    echoed and the rows are the same for every window — at the office the
+    counts shrink with the window and a recipe can drop off the list.
     """
     fab = fab_name.strip().upper()
     runs: dict[str, int] = {}
@@ -569,6 +607,7 @@ def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
     return TttmRecipeList(
         tool_slug=tool_slug,  # type: ignore[typeddict-item]
         fab_name=fab_name,
+        window_weeks=window_weeks,
         fetched_at=_FETCHED_AT,
         rows=rows,
     )

@@ -10,10 +10,26 @@
 ## Endpoint: GET /api/<tool_slug>/tttm/check
 
 - Handler: `routes.py` → `data.get_tttm_check(tool_slug, fab_name,
-  recipe_id, parameter)`. `tool_slug` is validated against `SEM_TOOL_SLUGS`
-  (400 if not `cdsem`/`hvsem`) before the data call. `fab_name` is a required
-  query param (`?fab_name=...`, 400 if missing); `recipe_id` and `parameter`
-  are optional query params.
+  recipe_id, parameter, window_weeks)`. `tool_slug` is validated against
+  `SEM_TOOL_SLUGS` (400 if not `cdsem`/`hvsem`) before the data call.
+  `fab_name` is a required query param (`?fab_name=...`, 400 if missing);
+  `recipe_id` and `parameter` are optional query params; `window_weeks` is
+  optional and defaults to 3.
+- **`window_weeks` is how far back to gather, AND how many runs per tool.**
+  One of `_analysis_window.WINDOW_WEEKS_CHOICES` (`1`, `2`, `3`); the route
+  refuses anything else with a 400 rather than clamping, and defaults an
+  absent/blank value to `DEFAULT_WINDOW_WEEKS` (3). The adapter gathers runs
+  from `anchor - 7 * window_weeks` days and asks `recent_runs` for
+  `runs_per_tool(window_weeks)` = `RUNS_PER_TOOL_PER_WEEK * window_weeks`
+  per tool — both move together on purpose. The lookback used to be a fixed
+  60 days behind a fixed cap of 10 runs, which made the cap the real window:
+  a tool measuring daily contributed its last ten days whatever the lookback
+  said, and the page labelled that "1주". A window the user can widen has to
+  widen the evidence. The trend spans the same window (there was a separate
+  30-day trend cut-off; gone). Echo `window_weeks` on the payload, including
+  on every `available: false` branch. Positional and undefaulted in `data.py`
+  for the same reason `parameter` is: a stale `office.py` raises instead of
+  answering over its own fixed window.
 - **`parameter` narrows the rows, and only inside a recipe.** It names one
   measured feature of `recipe_id` — a `parameter` value of the recipe's MSR
   rows, which is also what the payload's own `parameters` lists (below). The
@@ -126,11 +142,14 @@
 
 ## Endpoint: GET /api/&lt;tool_slug&gt;/tttm/recipes
 
-- Handler: `routes.py` → `data.get_tttm_recipes(tool_slug, fab_name)`. Same
-  slug and `fab_name` rules as `/tttm/check` — a picker scoped differently from
-  the payload it drives offers recipes the check then finds nothing for.
-- Contract: `TttmRecipeList` — `{tool_slug, fab_name, fetched_at, rows}` where
-  each row is `{recipe_id, fab_name, runs, tools}`.
+- Handler: `routes.py` → `data.get_tttm_recipes(tool_slug, fab_name,
+  window_weeks)`. Same slug, `fab_name` and `window_weeks` rules as
+  `/tttm/check` — a picker scoped differently from the payload it drives
+  offers recipes the check then finds nothing for, so the rows are counted
+  over the check's window (`anchor - 7 * window_weeks` days) and the client
+  re-fetches the list whenever the window moves.
+- Contract: `TttmRecipeList` — `{tool_slug, fab_name, window_weeks,
+  fetched_at, rows}` where each row is `{recipe_id, fab_name, runs, tools}`.
 - **Sourced from measurement history, NOT the Redis recipe registry.**
   `recipe-search` reads `v3_{cdsem,hvsem}_unique_rcp_list`, which lists every
   recipe that EXISTS. On this screen a recipe nobody ran carries no information

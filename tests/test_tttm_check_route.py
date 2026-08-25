@@ -12,6 +12,7 @@ import unittest
 
 from flask import Flask
 
+from back_dev_home.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS
 from back_dev_home.ebeam.tttm.routes import bp
 
 
@@ -116,6 +117,38 @@ class TestTttmCheckScopeArgs(unittest.TestCase):
         )
         self.assertTrue(payload["tools"], "the roster is what the picker rebuilds from")
 
+    # ── window_weeks ────────────────────────────────────────────────────
+
+    def test_the_window_defaults_when_absent_or_blank(self):
+        # Older clients (and a cleared control) send nothing; the widest choice
+        # is the default because "not enough runs" is the complaint that
+        # created the axis — see _analysis_window.py.
+        for query in ("", "&window_weeks="):
+            payload = self._get(f"recipe_id={self._measured_recipe()}{query}").get_json()
+            self.assertEqual(payload["window_weeks"], DEFAULT_WINDOW_WEEKS)
+
+    def test_the_window_reaches_the_provider_rather_than_relabelling(self):
+        # Same guard as the parameter test above: an argument the route accepts
+        # and passes nowhere yields an identically-computed payload under a new
+        # label. The trend's span is what the window changes under every
+        # provider, so that is what must differ.
+        recipe = self._measured_recipe()
+        one = self._get(f"recipe_id={recipe}&window_weeks=1").get_json()
+        three = self._get(f"recipe_id={recipe}&window_weeks=3").get_json()
+        self.assertEqual(one["window_weeks"], 1)
+        self.assertEqual(three["window_weeks"], 3)
+        self.assertTrue(one["available"], one["summary"])
+        span = lambda payload: len({p["date"] for p in payload["trend"]})  # noqa: E731
+        self.assertLess(span(one), span(three), "the window reached no computation")
+
+    def test_a_window_outside_the_choices_is_refused_not_clamped(self):
+        # 8 weeks clamped to 3 would label the screen with a span the server
+        # never gathered; a word is not a window at all.
+        for bad in ("0", "4", "8", "abc", "1.5"):
+            response = self._get(f"window_weeks={bad}")
+            self.assertEqual(response.status_code, 400, bad)
+            self.assertIn("window_weeks", response.get_json()["error"])
+
     def test_a_blank_parameter_is_absent_not_a_parameter_named_empty(self):
         # `?parameter=` is what a client sends when it clears the picker, and
         # the route's _arg() already folds blanks to None. Asserted because the
@@ -154,4 +187,15 @@ class TestTttmRecipesRoute(unittest.TestCase):
 
     def test_an_unknown_tool_slug_is_refused(self):
         response = self.client.get(f"/api/nope/tttm/recipes?fab_name={FAB}")
+        self.assertEqual(response.status_code, 400)
+
+    def test_the_picker_is_windowed_like_the_check(self):
+        # A picker scoped to a different window from the payload it drives
+        # offers recipes the check then finds nothing for — so it takes the
+        # same argument, defaults the same way, and refuses the same values.
+        default = self.client.get(f"/api/cdsem/tttm/recipes?fab_name={FAB}").get_json()
+        self.assertEqual(default["window_weeks"], DEFAULT_WINDOW_WEEKS)
+        one = self.client.get(f"/api/cdsem/tttm/recipes?fab_name={FAB}&window_weeks=1").get_json()
+        self.assertEqual(one["window_weeks"], 1)
+        response = self.client.get(f"/api/cdsem/tttm/recipes?fab_name={FAB}&window_weeks=9")
         self.assertEqual(response.status_code, 400)

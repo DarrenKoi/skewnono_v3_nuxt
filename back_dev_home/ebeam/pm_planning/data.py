@@ -17,5 +17,8 @@ def _provider():
     return mock
 
 
-def get_pm_planning_fleet(fab_name: str):
-    return _provider().get_pm_planning_fleet(fab_name)
+def get_pm_planning_fleet(fab_name: str, window_weeks: int):
+    # Positional and undefaulted for the same reason tttm's dispatcher is: a
+    # gitignored office.py copied before this axis existed must raise here
+    # rather than keep answering over its own fixed 30-day window.
+    return _provider().get_pm_planning_fleet(fab_name, window_weeks)
