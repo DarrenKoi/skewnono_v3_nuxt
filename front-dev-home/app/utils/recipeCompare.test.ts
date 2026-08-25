@@ -7,6 +7,7 @@ import {
   filterOverlap,
   commonParameters,
   buildIdpRows, buildSettingRows, blockForSlot, cellsDiffer, imageFilenames,
+  displayedVariant,
   groupFieldValues,
   buildCompareWorkbook, compareDetailKey, compareRecipeLabels,
   type CompareParamDetail, type CompareDetailIndex
@@ -245,6 +246,46 @@ test('blockForSlot merges an HV-SEM slot\'s several files into one sectioned blo
     { key: 'Mag', value: '50000', section: 'L' }
   ])
   assert.equal(block.source, '.IMMS0001-U.jpeg/cond.txt · .IMMS0001-L.jpeg/cond.txt')
+})
+
+test('displayedVariant names which of an HV-SEM slot\'s files the thumbnail shows', () => {
+  // The compare matrix has ONE cell per recipe, so it can only render the first
+  // of a multi-file slot. Unlabelled, two recipes differing solely in their -T
+  // image would show identical -U thumbnails and read as agreeing.
+  const detail: CompareParamDetail = {
+    parameter: 'WAFER',
+    amp: null,
+    af_pr: null,
+    images: [
+      { slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0001-U.jpeg', cond: null },
+      { slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0001-T.jpeg', cond: null },
+      { slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0001-L.jpeg', cond: null }
+    ]
+  }
+  assert.deepEqual(displayedVariant(detail, 'img_meas1'), { label: 'U', total: 3 })
+})
+
+test('displayedVariant labels are list-aware, so a repeated sub-position carries its rendition', () => {
+  // One sub-position listed under two extensions (user-confirmed 2026-08-24):
+  // a bare per-name label would read "U" for a file the neighbouring cell also
+  // calls "U".
+  const detail: CompareParamDetail = {
+    parameter: 'WAFER',
+    amp: null,
+    af_pr: null,
+    images: [
+      { slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0001-U.jpeg', cond: null },
+      { slot: 'img_meas1', stage: 'Measure 1', name: 'IMMS0001-U.TIF', cond: null }
+    ]
+  }
+  assert.deepEqual(displayedVariant(detail, 'img_meas1'), { label: 'U\u00b7JPG', total: 2 })
+})
+
+test('displayedVariant stays silent when there is nothing to disambiguate', () => {
+  // CD-SEM: one file per slot. A chip here would be noise on every cell.
+  assert.equal(displayedVariant(detailWith({ Mag: '50.0K' }), 'img_meas1'), null)
+  assert.equal(displayedVariant(detailWith({ Mag: '50.0K' }), 'img_add1'), null)
+  assert.equal(displayedVariant(null, 'img_meas1'), null)
 })
 
 test('blockForSlot keeps a single-file slot\'s block untouched', () => {

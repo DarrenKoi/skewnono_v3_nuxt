@@ -69,6 +69,8 @@
                 :name="imageFileName(i)"
                 :src="imageSrc(i)"
                 :role="slotDescriptor.role"
+                :variant="variantOf(i)?.label"
+                :variant-total="variantOf(i)?.total"
                 @open="openLightbox(i)"
               />
               <span
@@ -111,7 +113,7 @@
 <script setup lang="ts">
 import type { CompareRecipe } from '~/composables/useRecipeCompareApi'
 import type { CompareColumn, CompareParamDetail } from '~/utils/recipeCompare'
-import { blockForSlot, buildSettingRows, buildIdpRows, imageFilenames, spansFabs } from '~/utils/recipeCompare'
+import { blockForSlot, buildSettingRows, buildIdpRows, displayedVariant, imageFilenames, spansFabs } from '~/utils/recipeCompare'
 import { recipePairKey } from '~/utils/recipePair'
 import { recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import { IMAGE_SLOTS, type ImageSlotKey } from '~/utils/recipeView'
@@ -155,6 +157,12 @@ const lightboxData = ref<LightboxData | null>(null)
 // client-side implementation could disagree with it.
 const imageFileName = (recipeIndex: number) =>
   props.details[recipeIndex]?.images.find(i => i.slot === props.slotKey)?.name ?? ''
+
+// The cell renders one thumbnail per recipe, so an HV-SEM slot's extra files
+// have nowhere to go — the chip names the one that IS showing rather than
+// letting two recipes that differ in a hidden variant look identical.
+const variantOf = (recipeIndex: number) =>
+  displayedVariant(props.details[recipeIndex], props.slotKey)
 
 const imageSrc = (recipeIndex: number) => {
   const locator = props.recipes[recipeIndex]?.locator

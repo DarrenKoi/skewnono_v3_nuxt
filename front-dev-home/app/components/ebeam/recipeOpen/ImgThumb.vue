@@ -34,6 +34,14 @@
           ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
           : 'bg-(--sk-ink) text-(--sk-ink-fg)'"
       >{{ isMeas ? 'MEAS' : 'ADDR' }}</span>
+      <!-- Which of a slot's several files this is. Absent for the usual
+           one-file slot; a caller that already renders every file side by side
+           (ParamSettings) leaves it unset too — the chip answers "which one am
+           I NOT seeing", which only a single-thumbnail view has to ask. -->
+      <span
+        v-if="variant"
+        class="absolute top-1 right-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)"
+      >{{ variant }}</span>
       <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
     </button>
     <div class="text-center font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
@@ -41,6 +49,12 @@
     </div>
     <div class="truncate text-center font-mono text-[11px] text-(--sk-ink-muted)">
       {{ name || '—' }}
+    </div>
+    <div
+      v-if="variantTotal && variantTotal > 1"
+      class="text-center font-mono text-[10px] text-(--sk-ink-subtle)"
+    >
+      {{ variantTotal }}개 중 1개
     </div>
   </div>
 </template>
@@ -56,6 +70,11 @@ const props = defineProps<{
   /** `recipe-image` URL, or empty when the slot names no file. */
   src: string
   role: 'address' | 'measure'
+  /** Sub-position label when this thumbnail stands for ONE of a slot's several
+   *  files (HV-SEM). Omitted when the slot names a single file. */
+  variant?: string
+  /** How many files that slot holds, so the caller can say what is hidden. */
+  variantTotal?: number
 }>()
 
 const emit = defineEmits<{ (e: 'open'): void }>()

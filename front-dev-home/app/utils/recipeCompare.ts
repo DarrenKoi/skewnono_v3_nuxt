@@ -278,6 +278,38 @@ export function imageFilenames(
   })
 }
 
+/** Which of a slot's files the compare matrix's single thumbnail is showing. */
+export interface DisplayedVariant {
+  /** Sub-position label, disambiguated within the slot ("U", "U\u00b7JPG"). */
+  label: string
+  /** How many files the slot expands to — the cell is showing one of these. */
+  total: number
+}
+
+/**
+ * Names the file the compare cell renders, or `null` when the slot holds one
+ * file and there is nothing to disambiguate.
+ *
+ * The matrix's axis is RECIPES, one thumbnail per column, so an HV-SEM slot
+ * that expands to several stem-suffixed files (2026-08-08) can only show its
+ * first. Unlabelled that is misleading rather than merely partial: two recipes
+ * differing solely in their -T image render identical -U thumbnails and read as
+ * agreeing. `blockForSlot` above already compares every file's settings; this
+ * is the image side telling the reader which one it stopped at.
+ *
+ * Labels come from `imageVariantLabels` (list-aware) rather than the per-name
+ * `imageVariantLabel`, because one sub-position can be listed under two
+ * extensions and two cells both reading "U" would be no better than none.
+ */
+export function displayedVariant(
+  detail: CompareParamDetail | null | undefined,
+  slot: ImageSlotKey
+): DisplayedVariant | null {
+  const matches = detail?.images.filter(image => image.slot === slot) ?? []
+  if (matches.length <= 1) return null
+  return { label: imageVariantLabels(matches.map(image => image.name))[0]!, total: matches.length }
+}
+
 export interface ValueBucket {
   value: string
   count: number
