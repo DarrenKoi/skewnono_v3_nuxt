@@ -18,9 +18,10 @@ docs/datatables/hitachi/recipe_params.txt 의 "사무실 파생 규칙" 절이�
 - recipe_class -> **recipe 이름이 "_S"/"SE" 로 끝나면 Sample**. 끝자리 고정
   이어야 합니다 — 이름 어디든 "SE" 를 찾으면 PHASE/BASE/SET 이 전부 Sample 이
   되고, recipe_class 가 프론트의 cap 선택 축(D2)이라 위반 판정까지 뒤집힙니다.
-- family -> device ctn_desc 에 "pool"/"풀" 이 있으면 Pool, 나머지는 전부 Core.
-  **VG_RTC_Cubic 은 실물에서 판별할 근거가 없어 발행하지 않습니다** — 이
-  mock 이 세 값을 고루 만드는 것과 다릅니다.
+- family -> device ctn_desc 에서 파생하며 **VG·RTC·Cubic > Pool > Core** 순서
+  입니다. VG 는 표기가 여럿이라("Vertical Gate"/"Vertical"/"VG"/"RTC"/"Cubic")
+  office `_VG_TOKEN` 이 다섯을 모두 잡습니다 (user-confirmed 2026-08-25).
+  2026-07-31 의 "VG 는 판별 근거가 없어 발행하지 않는다" 는 철회되었습니다.
 - family 와 phase 는 **device 의** ctn_desc 한 문자열에 같이 실립니다
   ("DRAM Pool제 (@Spica PV)"). 둘 다 파생하되 룰 판정에서는 Pool 이 phase 를
   이깁니다(ruleEngine.ts `selectorMatches`). 그 문자열을 내는 것은 이 모듈이

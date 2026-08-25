@@ -68,6 +68,15 @@ const poolTvPv: RuleCell = {
   caps: { WAFER: 13, LEVEL: 4, EDGE: 16, EDGE_EX: 16, _other: 9 },
   name_overrides: [wfOverride]
 }
+// D3/D7 — VG·RTC·Cubic 은 phase 를 키잉하지 않는 셀 하나입니다
+// (user-confirmed 2026-08-25). VG device 는 보통 ctn_desc 에 phase 표현이
+// 없어서, phase 로 쪼갠 셀만 있으면 통째로 Gray-A 로 빠집니다.
+const vgCell: RuleCell = {
+  id: 'r3-vg',
+  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'VG_RTC_Cubic' },
+  caps: { WAFER: 13, LEVEL: 4, EDGE: 10, EDGE_EX: 0, _other: 9 },
+  name_overrides: [wfOverride]
+}
 const sampleNand: RuleCell = {
   id: 'r3-sample-nand',
   selector: { fac_id: 'R3', recipe_class: 'Sample', memory_class: 'NAND' },
@@ -333,6 +342,29 @@ test('D14 Pool missing yield_check → Gray-B', () => {
   const res = resolveRuleCell(r, [poolBeforeDram, poolAfterDram])
   assert.equal(res.kind === 'gray' && res.gray, 'B')
   assert.equal(res.kind === 'gray' && res.reason, 'yield_check 미설정')
+})
+
+test('D3 VG: phase 없는 VG device 도 셀에 붙는다 (Gray-A 아님)', () => {
+  const r = applyAnnotation(recipe({
+    family: 'VG_RTC_Cubic', ctn_desc: 'DRAM Vertical Gate (@Spica)', phase: null,
+    memory_class_auto: 'unknown', parameters: [{ name: 'EDGE', point_count: 10 }]
+  }))
+  const res = resolveRuleCell(r, [vgCell])
+  assert.equal(res.kind === 'cell' && res.cell.id, 'r3-vg')
+  assert.equal(evaluateRecipe(r, res).pass, true) // 10 ≤ EDGE 10
+  // D7 — VG 는 memory_class 를 잠정 DRAM-side 로 환원하므로 Gray-B 도 안 남습니다.
+  assert.equal(r.memory_class, 'DRAM')
+})
+test('D3 VG: phase 가 있어도 같은 셀이 잡힌다 (phase 축 무관)', () => {
+  for (const phase of ['t-EV', 'EV', 'TV', 'PV'] as const) {
+    const r = applyAnnotation(recipe({
+      family: 'VG_RTC_Cubic', phase, parameters: [{ name: 'EDGE_EX', point_count: 1 }]
+    }))
+    const res = resolveRuleCell(r, [vgCell])
+    assert.equal(res.kind === 'cell' && res.cell.id, 'r3-vg', phase)
+    // 합친 셀은 보수적인 쪽입니다 — 예전 r3-vg-tvpv 의 EDGE_EX 16 은 없습니다.
+    assert.equal(evaluateRecipe(r, res).pass, false, phase)
+  }
 })
 
 // --- D5 boundaries: equality passes, cap 0 means any measurement violates ---

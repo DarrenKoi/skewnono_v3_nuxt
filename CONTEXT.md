@@ -81,10 +81,10 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 개발 제품군 분류로, [[계측-룰]]을 가르는 축 중 하나. **backend 가 `ctn_desc` 문자열에서 파생**합니다:
 
 - **Pool제** — `ctn_desc` 에 `"Pool"`/`"Pool제"` 포함.
-- **VG·RTC·Cubic** — `"vertical gate"`/`"vertical"`/`"RTC"`/`"Cubic"` 포함.
+- **VG·RTC·Cubic** — `"Vertical Gate"`/`"Vertical"`/`"VG"`/`"RTC"`/`"Cubic"` 포함. 한 제품군인데 **표기가 여럿**이라 다섯을 모두 잡습니다(user-confirmed 2026-08-25). 단독 `VG`/`RTC`/`Cubic` 은 단어경계로 좁혀 `"AVG"`·`"VGA"` 같은 단어 안쪽 우연 일치를 거릅니다.
 - **Core** — 그 외 전부 (default).
 
-**우선순위 (다중 매치 시)**: 가장 구체적인 것 우선 → `VG·RTC·Cubic > Pool > Core`.
+**우선순위 (다중 매치 시)**: 가장 구체적인 것 우선 → `VG·RTC·Cubic > Pool > Core`. VG 와 Pool 이 한 `ctn_desc` 에 같이 나오면 VG 가 이깁니다(user-confirmed 2026-08-25). 이 파생을 하는 곳은 office 어댑터의 `_family_of` **하나뿐**입니다 — 프런트에 있던 사본은 지웠습니다.
 
 > ⚠️ 이전 모델은 "Pool제" 를 [[phase]] 의 한 값으로 다뤘으나(§Flagged ambiguities), Pool제는 **phase 와 직교하는 product family** 로 확정. Pool제 제품도 t-EV→PV phase 를 거칩니다.
 
@@ -95,6 +95,8 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 디바이스 개발 단계. [[product-family]]와 **직교**하는 룰 축 — 단, 판정에서는 Pool 이 phase 를 이깁니다(§Product Family). PV 는 양산 이관 직전으로 가장 중요. 룰은 종종 **"TV 이후"(TV + PV)** 를 한 묶음으로 다룹니다(예: Core 의 EDGE 16 증가). backend 가 `ctn_desc` 에서 추출(`PV`/`TV`/`EV`/`t-EV` 단어). 프런트는 파생된 컬럼을 소비만 합니다.
 
 **추출 실패 시 fallback**: phase 키워드가 없으면 *초기 개발 단계* 로 간주해 **가장 strict 한 룰(EV 급)** 을 적용 — 보수적 선택. UI 칩은 `[?]` 로 노출해 "fallback 적용 중" 을 tooltip 으로 부연, 데이터 품질 audit 가능성 유지.
+
+**VG·RTC·Cubic 은 phase 축을 쓰지 않습니다** (user-confirmed 2026-08-25): VG device 는 보통 `ctn_desc` 에 `t-EV`/`EV`/`TV`/`PV` 표현 자체가 없습니다. 그래서 `rules.py` 의 VG 셀은 phase 를 키잉하지 않는 **한 개**이고 값은 보수적인 쪽(`EDGE 10` / `EDGE_EX 0`)입니다 — phase 로 쪼개 두면 `phase=null` 인 VG 가 어느 셀에도 안 맞아 통째로 Gray-A 로 빠집니다. 예전 VG TV·PV 셀의 `16/16` 상향은 그래서 없어졌습니다. 반대로 "phase 표현이 없으면 VG 로 간주" 하는 역방향 추론은 **채택하지 않았습니다** — 위 `[?]` 의 데이터 품질 audit 신호가 사라지기 때문입니다.
 
 **fab 적용 범위**: ground rule 의 family/phase 축은 *개발*(R3) 전용입니다. **양산 M-fab 은 family·phase·Pool 축이 없고** `recipe_class × memory_class` 로만 키잉됩니다(양산은 DRAM/NAND 로 분리되나 개발 단계 개념은 없음). 상세는 [[계측-룰]] 참조.
 

@@ -103,18 +103,42 @@ POOL_TOKENS = ["Pool제", "Pool", "풀"]
 # (user-confirmed 2026-08-25), 나머지는 형태만 맞춘 자리 채움입니다.
 DEV_CODES = ["Spica", "Vega", "Altair", "Rigel"]  # OFFICE-VERIFY (Spica 제외)
 
+# VG·RTC·Cubic 은 한 제품군인데 **표기가 여럿**입니다 (user-confirmed
+# 2026-08-25). office `_family_of` 의 `_VG_TOKEN` 이 이 다섯을 모두 잡으므로,
+# mock 도 다섯을 고루 내야 그 패턴의 각 가지가 집에서 실행됩니다.
+VG_TOKENS = ["Vertical Gate", "VerticalGate", "Vertical", "VG", "RTC", "Cubic"]
+
 
 def _dev_ctn_desc(rng: random.Random, phase: str, head: str, tail: str) -> str:
     """device 설명문 한 줄.
 
-    약 1/4 은 Pool 제품이고, 그 경우 **Pool 토큰과 phase 토큰이 한 문자열에
-    같이** 실립니다 — 실물이 그렇습니다("DRAM Pool제 (@Spica PV)").
-    판정·칩 양쪽에서 Pool 이 phase 를 이깁니다.
+    세 제품군을 실물 비율에 가깝게 섞습니다 — **VG > Pool > Core** 우선순위가
+    집에서 실제로 실행되도록.
+
+    - 약 1/8 은 VG·RTC·Cubic 이고, 그중 일부는 Pool 토큰까지 함께 답니다.
+      그때 family 는 VG 여야 합니다(VG 가 Pool 을 이깁니다).
+    - VG 는 보통 phase 표현을 쓰지 않으므로(user-confirmed 2026-08-25)
+      대부분 phase 토큰 없이 냅니다 — `rules.py` 의 VG 셀이 phase 를 키잉하지
+      않는 이유가 바로 이것이고, 그 조합이 mock 에 없으면 그 결정이 옳은지
+      집에서 확인할 수 없습니다.
+    - 약 1/4 은 Pool 이고, 그 경우 **Pool 토큰과 phase 토큰이 한 문자열에
+      같이** 실립니다("DRAM Pool제 (@Spica PV)"). 판정·칩 양쪽에서 Pool 이
+      phase 를 이깁니다.
     """
+    code = rng.choice(DEV_CODES)
+
+    if rng.random() < 0.125:
+        vg = rng.choice(VG_TOKENS)
+        # VG 중 1/5 은 Pool 토큰도 답니다 — 겹칠 때 VG 가 이기는지 보는 표본.
+        pool = f" {rng.choice(POOL_TOKENS)}" if rng.random() < 0.2 else ""
+        # VG 중 1/4 만 phase 표현을 답니다.
+        tag = f" (@{code} {phase})" if rng.random() < 0.25 else f" (@{code})"
+        return f"{head} {vg}{pool}{tag} {tail}"
+
     if rng.random() < 0.25:
         pool = rng.choice(POOL_TOKENS)
-        code = rng.choice(DEV_CODES)
         return f"{head} {pool} (@{code} {phase}) {tail}"
+
     return f"{phase} {head} {tail}"
 BASE_TIME = datetime(2026, 4, 1, 12, 0, 0, tzinfo=timezone.utc)
 BASE36_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

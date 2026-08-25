@@ -45,3 +45,43 @@ def test_m_fab_wins_an_overlapping_lot_cd():
     # memory_class_auto 는 "unknown"(수동 분류)으로 떨어집니다.
     assert meta["prod_catg_cd"] == ""
     assert not office_example._is_r3(office_example._lot_index()["R001"])
+
+
+# ── family 파생 (D3) ────────────────────────────────────────────────────────
+# 파서가 여기 하나뿐입니다 — 프런트의 사본은 2026-08-25 에 지웠습니다. 그래서
+# family 우선순위의 회귀는 전적으로 이 테스트가 봅니다.
+
+
+def test_family_vg_beats_pool_beats_core():
+    """VG·RTC·Cubic > Pool > Core (user-confirmed 2026-08-25).
+
+    VG 는 한 제품군인데 표기가 여럿입니다 — "Vertical Gate", "Vertical",
+    "VG", "RTC", "Cubic". 2026-07-31 에는 원천에서 판별할 근거가 없다고
+    보았으나, 담당자가 desc 에 이 표기들이 실린다고 확인했습니다.
+    """
+    assert office_example._family_of("DRAM Vertical Gate (@Spica)") == "VG_RTC_Cubic"
+    assert office_example._family_of("DRAM VerticalGate dev") == "VG_RTC_Cubic"
+    assert office_example._family_of("NAND vertical 3D lot") == "VG_RTC_Cubic"
+    assert office_example._family_of("DRAM VG (@Vega)") == "VG_RTC_Cubic"
+    assert office_example._family_of("RTC 검증 lot") == "VG_RTC_Cubic"
+    assert office_example._family_of("Cubic 개발") == "VG_RTC_Cubic"
+    # 겹치면 VG 가 Pool 을 이깁니다.
+    assert office_example._family_of("DRAM Pool제 vertical gate (@Spica PV)") == "VG_RTC_Cubic"
+    # VG 가 없으면 Pool, 둘 다 없으면 Core.
+    assert office_example._family_of("DRAM Pool제 (@Spica PV)") == "Pool"
+    assert office_example._family_of("DRAM T1Y 개발 lot") == "Core"
+
+
+def test_family_vg_token_does_not_fire_inside_a_word():
+    """단독 "VG" 는 단어경계로 좁힙니다 — "AVG"/"VGA" 는 VG 가 아닙니다."""
+    assert office_example._family_of("AVG CD 측정 lot") == "Core"
+    assert office_example._family_of("VGA 검사") == "Core"
+    # "RTC"/"Cubic" 도 마찬가지입니다.
+    assert office_example._family_of("PARTChange lot") == "Core"
+
+
+def test_family_derivation_ignores_phase_tokens():
+    """family 축과 phase 축은 서로를 지우지 않습니다."""
+    desc = "DRAM Pool제 (@Spica PV)"
+    assert office_example._family_of(desc) == "Pool"
+    assert office_example._phase_of(desc) == "PV"

@@ -128,12 +128,16 @@ def _r3_cells() -> list[RuleCell]:
         # VG·RTC·Cubic — 잠정 DRAM-side/Core 차용 (D7). 자체 cap 분기는 추후.
         # memory_class 생략: VG 는 항상 DRAM-side 라 EDGE 분기 불필요(ruleEngine 가
         # family=VG → memory_class DRAM 으로 환원하므로 Gray-B 도 안 남).
-        _main_cell("r3-vg-early",
-                   {"fac_id": f, "recipe_class": "Main", "family": "VG_RTC_Cubic",
-                    "phase_in": ["t-EV", "EV"]}, edge=10, edge_ex=0),
-        _main_cell("r3-vg-tvpv",
-                   {"fac_id": f, "recipe_class": "Main", "family": "VG_RTC_Cubic",
-                    "phase_in": ["TV", "PV"]}, edge=16, edge_ex=16),
+        #
+        # phase 도 키잉하지 않습니다 (user-confirmed 2026-08-25). VG device 는
+        # 보통 ctn_desc 에 t-EV/EV/TV/PV 표현 자체가 없어서, 예전처럼 셀을
+        # phase 로 쪼개 두면 phase=None 인 VG 가 어느 셀에도 안 맞아 통째로
+        # Gray-A(룰 미정)로 빠집니다. 한 셀로 합치고 값은 보수적인 쪽
+        # (EDGE 10 / EDGE_EX 0)을 씁니다 — 예전 r3-vg-tvpv 의 16/16 상향은
+        # 그래서 사라졌습니다. VG 전용 cap 을 정하면 여기만 고치면 됩니다.
+        _main_cell("r3-vg",
+                   {"fac_id": f, "recipe_class": "Main", "family": "VG_RTC_Cubic"},
+                   edge=10, edge_ex=0),
         # Sample — fab 공통, memory_class 로 분기 (D2·D6).
         # D19: Core TV·PV 만 EDGE 16 으로 상향 (ground_rules.txt L40). memory-blind
         # (Main Core TV·PV 와 동일하게 분기 없음). 일반 Sample 셀보다 **먼저** 둬야
