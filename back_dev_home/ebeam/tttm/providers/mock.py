@@ -403,27 +403,49 @@ def _measured_recipe_ids(tool_slug: str, fab_name: str) -> frozenset[str]:
     return frozenset(row["recipe_id"] for row in get_tttm_recipes(tool_slug, fab_name)["rows"])
 
 
-def _measured_parameters(tool_slug: str, fab_name: str, recipe_id: str) -> list[str]:
-    """Parameters the fab measured under `recipe_id`, sorted.
+def _meas_hist_rows(tool_slug: str, fab_name: str) -> list[dict]:
+    """The fab's measured rows for this tool family, from the meas_hist mock.
 
-    Home stands in for the office rule the same way `get_tttm_recipes` does:
-    the office reads the names off the recipe's run pickles, and the mock reads
-    them off the programs those mock pickles are generated from. The program
-    key is the bare recipe name, so every row of one recipe answers alike and
-    the first match is the whole answer.
+    Home stands in for the office rule rather than inventing a list: the office
+    reads recipes and parameters out of `meas_hist_{cdsem,hvsem}` and the run
+    pickles, and the mock reads the same facts out of the same feature's mock
+    universe. A hand-written list here would make the picker offer recipes the
+    check has no rows for — which is the very failure sourcing from measurement
+    history exists to remove.
 
-    Imported lazily for the same reason `get_tttm_recipes` imports lazily.
+    Imported lazily because meas_hist's mock builds its whole universe on first
+    touch, and the check endpoint has no reason to pay for that.
     """
     from back_dev_home.meas_hist.providers.mock import get_meas_hist
-    from back_dev_home.msr_file.providers.mock import program_parameters
 
     tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
     if tool_type is None:
         return []
-    for row in get_meas_hist(tool_type=tool_type, fab_name=fab_name.strip().upper())["rows"]:
-        if (row.get("full_name") or row["recipe_name"]) == recipe_id:
-            return sorted(program_parameters(row["recipe_name"], row["class_name"]))
-    return []
+    return get_meas_hist(tool_type=tool_type, fab_name=fab_name.strip().upper())["rows"]
+
+
+def _row_recipe_id(row: dict) -> str:
+    # full_name where present, for the same reason the office uses it: it is
+    # what the axis map scopes by and what runs are contrasted within.
+    return row.get("full_name") or row["recipe_name"]
+
+
+@lru_cache(maxsize=64)
+def _measured_parameters(tool_slug: str, fab_name: str, recipe_id: str) -> tuple[str, ...]:
+    """Parameters the fab measured under `recipe_id`, sorted.
+
+    The office reads the names off the recipe's run pickles; the mock reads
+    them off the programs those mock pickles are generated from. The program
+    key is the bare recipe name, so every row of one recipe answers alike and
+    the first match is the whole answer. Cached for the same reason
+    `_measured_recipe_ids` is — the mock universe is frozen.
+    """
+    from back_dev_home.msr_file.providers.mock import program_parameters
+
+    for row in _meas_hist_rows(tool_slug, fab_name):
+        if _row_recipe_id(row) == recipe_id:
+            return tuple(sorted(program_parameters(row["recipe_name"], row["class_name"])))
+    return ()
 
 
 def get_tttm_check(
@@ -497,7 +519,7 @@ def get_tttm_check(
         "recipe_id": recipe_id,
         "parameter": parameter,
         # Recipe-local, so only inside a recipe — see the contract's comment.
-        "parameters": _measured_parameters(tool_slug, fab_name, recipe_id) if recipe_id else [],
+        "parameters": list(_measured_parameters(tool_slug, fab_name, recipe_id)) if recipe_id else [],
         "available": True,
         "fetched_at": _FETCHED_AT,
         "summary": (
@@ -523,33 +545,13 @@ def get_tttm_check(
 def get_tttm_recipes(tool_slug: str, fab_name: str) -> TttmRecipeList:
     """Recipes this fab has MEASURED, derived from the meas_hist mock.
 
-    Home stands in for the office rule rather than inventing a list: the office
-    reads the same fact out of `meas_hist_{cdsem,hvsem}`, and the mock reads it
-    out of the same feature's mock universe. A hand-written list here would
-    make the picker offer recipes the check has no rows for — which is the very
-    failure sourcing from measurement history exists to remove.
-
-    Imported lazily because meas_hist's mock builds its whole universe on first
-    touch, and the check endpoint has no reason to pay for that.
+    See `_meas_hist_rows` for why the rows come from the meas_hist mock.
     """
-    from back_dev_home.meas_hist.providers.mock import get_meas_hist
-
-    tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
     fab = fab_name.strip().upper()
-    if tool_type is None:
-        return TttmRecipeList(
-            tool_slug=tool_slug,  # type: ignore[typeddict-item]
-            fab_name=fab_name,
-            fetched_at=_FETCHED_AT,
-            rows=[],
-        )
-
     runs: dict[str, int] = {}
     tools: dict[str, set[str]] = {}
-    for row in get_meas_hist(tool_type=tool_type, fab_name=fab)["rows"]:
-        # full_name where present, for the same reason the office uses it: it
-        # is what the axis map scopes by and what runs are contrasted within.
-        recipe_id = row.get("full_name") or row["recipe_name"]
+    for row in _meas_hist_rows(tool_slug, fab_name):
+        recipe_id = _row_recipe_id(row)
         runs[recipe_id] = runs.get(recipe_id, 0) + 1
         tools.setdefault(recipe_id, set()).add(row["eqp_id"])
 

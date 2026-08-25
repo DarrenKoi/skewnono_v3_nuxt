@@ -10,7 +10,9 @@
             분석 조건
           </p>
           <p class="sk-hint">
-            {{ hint }}
+            {{ hint }}<template v-if="note">
+              {{ note }}
+            </template>
           </p>
         </div>
 
@@ -22,18 +24,22 @@
       </div>
 
       <!-- 판정 임계값(TTTM) 또는 튜닝 장비(pm-tune) — parameter 와 같은 단계의
-           선택이지만 서로 다른 물음이라, 같은 바 안에서 선으로 갈라 둡니다. -->
-      <div
-        v-if="$slots.trailing"
-        class="shrink-0 border-t border-(--sk-border-soft) pt-4 xl:w-[264px] xl:border-t-0 xl:border-l xl:pt-0 xl:pl-5"
-      >
-        <slot name="trailing" />
+           선택이지만 서로 다른 물음이라, 같은 바 안에서 선으로 갈라 둡니다.
+           The slot hands the control its `disabled`, so the collapse of the
+           lock into a boolean is written once, here. -->
+      <div class="shrink-0 border-t border-(--sk-border-soft) pt-4 xl:w-[264px] xl:border-t-0 xl:border-l xl:pt-0 xl:pl-5">
+        <slot
+          name="trailing"
+          :disabled="disabled"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { AnalysisLock } from '~/utils/tttmRecipeScope'
+
 /**
  * The second bar of the two lab pages, under 비교 대상 (`EbeamScopeBar`).
  *
@@ -43,14 +49,29 @@
  * in two steps. The bar is always mounted and its controls are DISABLED until
  * a recipe is picked: hidden, the second step did not exist until the first
  * was taken, and the page's layout jumped when it appeared; disabled, the
- * procedure reads as two steps from the start and each control's caption
+ * procedure reads as two steps from the start and the parameter's caption
  * says which step is missing. See DESIGN.md §Layout — the scope-bar rule.
+ *
+ * `lock` is the one input; it comes from useTttmScope, so both pages share
+ * the rule. The parameter cell reads the full reason (it captions it); the
+ * trailing control gets the boolean collapse through its slot.
  *
  * Both cells arrive as slots for the reason ScopeBar's recipe cell does: a
  * prop relay through a wrapper is a place to forget a prop, and the knob in
  * the trailing cell fires on every drag frame.
  */
-withDefaults(defineProps<{ hint?: string }>(), {
-  hint: '비교 대상의 측정 데이터에서 읽은 parameter 입니다. 비워 두면 측정 항목을 모두 합쳐 판정합니다.'
+const props = withDefaults(defineProps<{
+  lock: AnalysisLock
+  hint?: string
+  /** A page-specific sentence appended to the hint. */
+  note?: string
+}>(), {
+  hint: '비교 대상의 측정 데이터에서 읽은 parameter 로 판정 조건을 정합니다.',
+  note: undefined
 })
+
+// Inert for a REASON, not for a moment: while the list is merely loading the
+// trailing control still acts on a stale-but-available payload, and a slider
+// that greys out on every refetch reads as broken.
+const disabled = computed(() => props.lock === 'no-recipe' || props.lock === 'no-data')
 </script>

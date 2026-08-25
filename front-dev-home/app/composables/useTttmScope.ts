@@ -1,4 +1,4 @@
-import { offeredParameters, pickStillStands } from '~/utils/tttmRecipeScope'
+import { analysisLock, offeredParameters, pickStillStands } from '~/utils/tttmRecipeScope'
 import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
 
@@ -23,6 +23,10 @@ import { useTttmSettings } from '~/composables/useTttmSettings'
  * The recipe catalogue is its own request, so a slow catalogue never delays
  * the skew payload the pages are actually about.
  */
+const NO_NAMES: string[] = []
+const sameNames = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((name, i) => name === b[i])
+
 export const useTttmScope = (toolType: string, fabName: string) => {
   const settings = useTttmSettings()
   const scoped = computed(() => settings.read(toolType, fabName))
@@ -89,13 +93,27 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     () => parameter.value
   )
 
-  // The picker's catalogue, as the payload states it. Empty until a recipe is
-  // picked and its payload has landed — `offeredParameters` is the three-state
-  // reading (no answer / answering another recipe / answer) and this folds the
-  // first two into "nothing to list yet", which is all the picker shows.
-  const parameterNames = computed(() =>
-    offeredParameters(payload.value, recipeId.value) ?? []
+  // The picker's catalogue as the payload states it — the three-state reading
+  // (no answer / answering another recipe / answer), computed once for the
+  // list, the lock and the reconciliation below.
+  const offered = computed(() => offeredParameters(payload.value, recipeId.value))
+
+  // Content-stable: the same array identity is kept while the names are the
+  // same, so a refetch caused by the PARAMETER filter (same recipe, same list)
+  // does not read as a new list downstream — the picker clears its search term
+  // on list identity, and that must mean "the recipe changed".
+  const parameterNames = computed<string[]>((prev) => {
+    const next = offered.value ?? NO_NAMES
+    return prev && sameNames(prev, next) ? prev : next
+  })
+
+  const lock = computed(() =>
+    analysisLock(recipeId.value, payload.value, pending.value, offered.value)
   )
+  // The results gate: the recipe alone. The server does answer without one
+  // (it folds every measured recipe together), but that answer is a fleet-wide
+  // average nobody asked for and renders identically to a scoped one.
+  const scopeReady = computed(() => lock.value !== 'no-recipe')
 
   // The PARAMETER goes stale the same way the recipe does: a recipe can
   // survive an .idp revision that renames or drops one of its features, and
@@ -103,13 +121,12 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   // that name, finds none, and answers "측정 이력이 없습니다" — which blames the
   // recipe while the stale half is the parameter.
   //
-  // Same three-state rule as the recipe, through `offeredParameters`: a payload
-  // that is not an answer to THIS recipe must not erase a working pick.
+  // Same three-state rule as the recipe: a payload that is not an answer to
+  // THIS recipe (`offered` null) must not erase a working pick.
   watch(
-    [payload, parameter],
+    [offered, parameter],
     () => {
-      const offered = offeredParameters(payload.value, recipeId.value)
-      if (!pickStillStands(parameter.value, offered)) {
+      if (!pickStillStands(parameter.value, offered.value)) {
         settings.setParameter(toolType, fabName, null)
       }
     },
@@ -130,6 +147,8 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     payload,
     pending,
     parameterNames,
+    lock,
+    scopeReady,
     onSelectedTools,
     onRecipe,
     onParameter

@@ -58,7 +58,7 @@ Seeding a program-level fact from the msr is the bug this layering replaces. It
 made every run of one recipe measure a different, randomly drawn parameter
 subset, so 스큐보아's multi-MSR Time-Series excluded most of a selected set as
 `metadata-missing` (app/utils/skewvoirAnalysis/compatibility.ts) and the trend
-it did plot was uncorrelated noise. See ``_program_params`` and ``_cd_field``.
+it did plot was uncorrelated noise. See ``program_parameters`` and ``_cd_field``.
 
 A run with NO parent meas_hist row belongs to no recipe, so it is its own
 program (program key = its msr). That is the honest answer — with no parent
@@ -122,6 +122,7 @@ __all__ = [
     "SpmDict",
     "MsrFileResponse",
     "get_msr_file",
+    "program_parameters",
 ]
 
 
@@ -330,7 +331,7 @@ def _wafer_geometry(program_key: str) -> WaferGeom:
     cross-MSR compatibility work something false about the real data: it made
     same-site analysis look structurally impossible rather than merely
     office-gated. This is the last of the program properties to be moved;
-    _program_params / _program_step_count / _program_dummy_count were already
+    program_parameters / _program_step_count / _program_dummy_count were already
     keyed this way."""
     rng = random.Random(_seed(program_key, 313))
     cols, rows_n = rng.randint(38, 46), rng.randint(52, 62)
@@ -743,28 +744,23 @@ def _resolve_params(class_name: str) -> tuple[str, ...]:
 # domain model and not an implementation detail.
 
 
-def _program_params(program_key: str, class_name: str) -> tuple[str, ...]:
+def program_parameters(program_key: str, class_name: str) -> tuple[str, ...]:
     """WHICH parameters this recipe measures.
 
     Returned in PARAMETER_MAPPING order rather than draw order, so the set reads
     in its canonical order everywhere it is listed.
+
+    Public because it is the cross-feature seam: tttm's mock answers "which
+    parameters did this recipe measure" from here, because at the office that
+    list is read out of the runs' pickles and these programs are what the mock
+    pickles are generated from. Anything else would let the picker offer a name
+    no mock pickle carries. The program key is the recipe name, the same key
+    `get_msr_file` derives from a run's parent row.
     """
     pool = _resolve_params(class_name)
     rng = random.Random(_seed(f"program:{program_key}", 1301))
     picked = set(rng.sample(pool, min(rng.randint(1, 3), len(pool))))
     return tuple(param for param in pool if param in picked)
-
-
-def program_parameters(recipe_name: str, class_name: str) -> tuple[str, ...]:
-    """The parameter set of one recipe — the cross-feature seam for `_program_params`.
-
-    tttm's mock answers "which parameters did this recipe measure" from here,
-    because at the office that list is read out of the runs' pickles and these
-    programs are what the mock pickles are generated from. Anything else would
-    let the picker offer a name no mock pickle carries. The program key is the
-    recipe name, the same key `get_msr_file` derives from a run's parent row.
-    """
-    return _program_params(recipe_name, class_name)
 
 
 def _program_dummy_count(program_key: str) -> int:
@@ -840,7 +836,7 @@ def _build_rows(
     seed = _seed(msr, offset)
     rng = random.Random(seed)
 
-    selected_params = _program_params(program_key, class_name)
+    selected_params = program_parameters(program_key, class_name)
     # STEP count, not measurement-point count: each step emits one row (one
     # sequence) PER PARAMETER, so points are num_measurements * num_params.
     # Deliberately still bounded by total_images // 2 rather than that product —

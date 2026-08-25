@@ -1,50 +1,50 @@
 // Pure-logic tests — run with: npm test  (node --test, Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { offeredParameters, pickStillStands, recipeStillStands } from './tttmRecipeScope.ts'
+import { analysisLock, offeredParameters, pickStillStands } from './tttmRecipeScope.ts'
 
 const MEASURED = ['CD_MONITOR/CD_MONITORING_HR_800V_X_FULL', 'CD_MONITOR/OTHER']
 
-test('recipeStillStands: a recipe the fab has measured stands', () => {
-  assert.equal(recipeStillStands(MEASURED[0]!, MEASURED), true)
+test('pickStillStands (recipe): a recipe the fab has measured stands', () => {
+  assert.equal(pickStillStands(MEASURED[0]!, MEASURED), true)
 })
 
-test('recipeStillStands: a recipe that is not in the measured list does not', () => {
+test('pickStillStands (recipe): a recipe that is not in the measured list does not', () => {
   // The office regression this exists for: a recipeId persisted before the
   // picker was re-sourced from meas_hist names a CATALOGUE recipe nobody ran.
   // Driving it 502s the parameter fetch with
   //   "No document in meas_hist_cdsem has full_name=... for fab 'R3'".
   const stale = 'CD_MONITOR/CD_MONITORING_HR_800V_X_FULL_NEW5'
-  assert.equal(recipeStillStands(stale, MEASURED), false)
+  assert.equal(pickStillStands(stale, MEASURED), false)
 })
 
-test('recipeStillStands: nothing stands when the fab has measured nothing', () => {
+test('pickStillStands (recipe): nothing stands when the fab has measured nothing', () => {
   // An empty list is an ANSWER (this fab ran nothing), not an absent one — so
   // there is no recipe left that could be driven.
-  assert.equal(recipeStillStands('anything', []), false)
+  assert.equal(pickStillStands('anything', []), false)
 })
 
-test('recipeStillStands: the pick stands while the list has not answered', () => {
+test('pickStillStands (recipe): the pick stands while the list has not answered', () => {
   // null = still in flight, or the request failed. Clearing here would throw
   // away a working setup every time the catalogue request is slow or the
   // backend blips — the settings are persisted precisely so they survive that.
-  assert.equal(recipeStillStands('CD_MONITOR/OTHER', null), true)
+  assert.equal(pickStillStands('CD_MONITOR/OTHER', null), true)
 })
 
-test('recipeStillStands: 전체 (no recipe) always stands', () => {
+test('pickStillStands (recipe): 전체 (no recipe) always stands', () => {
   // Never disturbed, in any of the three list states — there is no pick to go
   // stale, and clearing what is already cleared would rewrite storage on every
   // catalogue answer.
-  assert.equal(recipeStillStands(null, []), true)
-  assert.equal(recipeStillStands(null, MEASURED), true)
-  assert.equal(recipeStillStands(null, null), true)
+  assert.equal(pickStillStands(null, []), true)
+  assert.equal(pickStillStands(null, MEASURED), true)
+  assert.equal(pickStillStands(null, null), true)
 })
 
-test('recipeStillStands: matching is exact, not by bare recipe name', () => {
+test('pickStillStands (recipe): matching is exact, not by bare recipe name', () => {
   // recipe_id IS the class/recipe full_name. A bare half that happens to be a
   // suffix of a measured full_name is a DIFFERENT identity — the office 502s
   // on it — so a substring match here would keep exactly the value that breaks.
-  assert.equal(recipeStillStands('CD_MONITORING_HR_800V_X_FULL', MEASURED), false)
+  assert.equal(pickStillStands('CD_MONITORING_HR_800V_X_FULL', MEASURED), false)
 })
 
 // ── the parameter half ────────────────────────────────────────────────────
@@ -95,4 +95,31 @@ test('pickStillStands: a parameter the recipe did not measure is dropped', () =>
   assert.equal(pickStillStands('CD_X', ['CD_X', 'CD_Y']), true)
   assert.equal(pickStillStands('Para_13', null), true)
   assert.equal(pickStillStands(null, []), true)
+})
+
+// ── the lock on the 분석 조건 bar ─────────────────────────────────────────
+
+test('analysisLock: no recipe is the first step missing, whatever else is true', () => {
+  assert.equal(analysisLock(null, answered(null, []), true, null), 'no-recipe')
+})
+
+test('analysisLock: an unavailable answer locks for a reason, not for a moment', () => {
+  assert.equal(analysisLock('R', answered('R', [], false), false, null), 'no-data')
+})
+
+test('analysisLock: no answer yet while the request is in flight is loading', () => {
+  assert.equal(analysisLock('R', null, true, null), 'loading')
+  // A payload still answering the PREVIOUS recipe reads the same way.
+  assert.equal(analysisLock('R', answered('OTHER', ['CD_X']), true, null), 'loading')
+})
+
+test('analysisLock: a failed request is not loading forever', () => {
+  assert.equal(analysisLock('R', null, false, null), null)
+})
+
+test('analysisLock: an answer for the picked recipe is live, even mid-refetch', () => {
+  // The parameter filter re-requests the payload; the stale-but-available
+  // list keeps the controls usable while that is in flight.
+  assert.equal(analysisLock('R', answered('R', ['CD_X']), true, ['CD_X']), null)
+  assert.equal(analysisLock('R', answered('R', []), false, []), null)
 })

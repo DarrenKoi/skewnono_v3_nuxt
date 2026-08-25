@@ -5,8 +5,8 @@
     </p>
     <!-- The list is the payload's own `parameters` — the names measured under
          the picked recipe, read off the same rows the skew is computed from.
-         So there is no "lookup failed" state to caption here any more: if the
-         payload came, the list came with it. -->
+         So there is no "lookup failed" state to caption here: if the payload
+         came, the list came with it. -->
     <USelectMenu
       v-model:search-term="term"
       :model-value="parameter ?? ALL_PARAMETERS"
@@ -14,12 +14,12 @@
       :items="items"
       :disabled="lock !== null"
       :search-input="parameterNames.length > 8 ? { placeholder: 'parameter 검색…' } : false"
-      :loading="lock === null && pending && !parameterNames.length"
+      :loading="lock === 'loading'"
       icon="i-lucide-crosshair"
       color="neutral"
       variant="outline"
       class="w-full"
-      :ui="POPPER_UI"
+      :ui="scopeMenuUi"
       @update:model-value="onParameter($event === ALL_PARAMETERS ? '' : String($event))"
     >
       <template #default>
@@ -39,7 +39,7 @@
       <template v-else-if="lock === 'no-data'">
         이 비교 대상에는 계산할 측정 데이터가 없습니다 — 아래 안내를 보십시오.
       </template>
-      <template v-else-if="pending && !parameterNames.length">
+      <template v-else-if="lock === 'loading'">
         비교 대상의 측정 데이터에서 parameter 를 읽는 중입니다.
       </template>
       <!-- An empty list is an ANSWER: the recipe's runs carried no named
@@ -59,39 +59,22 @@
 </template>
 
 <script setup lang="ts">
-import { filterByTerm } from '~/utils/hardwareCompare'
+import { useMenuFilter } from '~/composables/useMenuFilter'
+import { scopeMenuUi } from '~/utils/scopeMenuUi'
+import type { AnalysisLock } from '~/utils/tttmRecipeScope'
 
-export type ParameterLock = 'no-recipe' | 'no-data' | null
-
-// Sentinel for "no filter". A plain '' cannot be a USelectMenu item, and null
-// would render as an empty row rather than as a readable choice.
 const ALL_PARAMETERS = '전체 (모든 측정 항목)'
 // A recipe holds tens of parameters, not thousands — this cap exists so a
 // pathological recipe cannot lock the page, not because it is expected to bind.
 const PARAMETER_LIMIT = 200
-
-// NuxtUI pins the dropdown to the trigger (`w-(--reka-select-trigger-width)` in
-// .nuxt/ui/select-menu.ts). Parameter names are short, but the rule is kept
-// with the recipe picker's so the two menus behave alike; bounded by the
-// viewport so a narrow window cannot push it off-screen.
-const POPPER_UI = {
-  content: 'w-auto min-w-full max-w-[min(48rem,calc(100vw-2rem))]',
-  item: 'font-mono text-[13px]'
-}
 
 const props = defineProps<{
   /** One measured feature of the picked recipe; null folds every feature together. */
   parameter: string | null
   /** Distinct parameter names the picked recipe measured, from the payload. */
   parameterNames: string[]
-  /** The payload carrying the list is still in flight — empty is not yet empty. */
-  pending: boolean
-  /**
-   * Why the control cannot be used yet, or null when it can. `no-recipe`: the
-   * first step is not taken; `no-data`: the recipe's answer is unavailable, so
-   * there is no row set to list features from.
-   */
-  lock: ParameterLock
+  /** Why the control is inert, or null when it is live — see analysisLock. */
+  lock: AnalysisLock
 }>()
 
 const emit = defineEmits<{
@@ -100,17 +83,10 @@ const emit = defineEmits<{
 
 const onParameter = (value: string) => emit('update:parameter', value || null)
 
-const term = ref('')
-const matched = computed(() => filterByTerm(props.parameterNames, term.value, name => name))
-const overflowed = computed(() => matched.value.length > PARAMETER_LIMIT)
-// The sentinel stays at the top so clearing the filter is always one click away.
-const items = computed(() => [ALL_PARAMETERS, ...matched.value.slice(0, PARAMETER_LIMIT)])
-
-// The search box keeps its term across openings, so a term typed against the
-// PREVIOUS recipe's parameters would silently filter the new recipe's list down
-// to nothing — the menu would read as "this recipe has no parameters". The
-// list changes identity with the payload, which is exactly when to clear.
-watch(() => props.parameterNames, () => {
-  term.value = ''
-})
+// `parameterNames` is content-stable (useTttmScope), so the term resets when
+// the recipe changes, not on every refetch of the same list.
+const { term, matched, overflowed, items } = useMenuFilter(
+  () => props.parameterNames,
+  { sentinel: ALL_PARAMETERS, limit: PARAMETER_LIMIT }
+)
 </script>

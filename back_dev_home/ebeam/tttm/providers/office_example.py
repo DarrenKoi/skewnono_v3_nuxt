@@ -300,31 +300,20 @@ def _observations(
     return observations, dropped
 
 
-def _measured_parameters(runs: tuple[RunRef, ...]) -> list[str]:
-    """Every distinct named feature across the runs' pickles, sorted.
-
-    The picker's catalogue. Deliberately UNFILTERED by the request's
-    ``parameter`` — the list is what that filter is picked from — and read
-    from the same pickles the skew is computed from, so a name offered here is
-    one the filter can match. ``load_points`` is LRU-cached, so this second
-    walk over the same pickles costs no further object-store reads.
-
-    Unnamed points (stabilisation shots) carry CDs but no feature identity;
-    they are kept by ``load_points`` and must not surface as a blank entry.
-    """
-    names = {
-        point.parameter
-        for run in runs
-        for point in load_points(run.pkl)
-        if point.parameter
-    }
-    return sorted(names)
-
-
 def _run_observations(
     runs: tuple[RunRef, ...], parameter: str | None
-) -> list[_Observation]:
-    """One row per (run x feature), with no beam or axis attached.
+) -> tuple[list[_Observation], list[str]]:
+    """One row per (run x feature), with no beam or axis attached — plus the
+    sorted set of every named feature the runs carry.
+
+    The second value is the picker's catalogue (``parameters`` on the payload).
+    Collected in this same walk, BEFORE the ``parameter`` filter, because it is
+    deliberately unfiltered — the list is what that filter is picked from — and
+    a third pass over ~1000 points per run to gather it would be pure waste.
+    Read from the same pickles the skew is computed from, so a name offered is
+    one the filter can match. Unnamed points (stabilisation shots) carry CDs
+    but no feature identity; they are kept by ``load_points`` and must not
+    surface as a blank entry.
 
     ``fleet_today``, ``trend`` and ``production_corroboration`` have no axis
     dimension in the contract, so they must NOT be derived from the axis-keyed
@@ -340,9 +329,12 @@ def _run_observations(
     ``load_points`` still returns them.
     """
     rows: list[_Observation] = []
+    names: set[str] = set()
     for run in runs:
         grouped: dict[str, list[float]] = defaultdict(list)
         for point in load_points(run.pkl):
+            if point.parameter:
+                names.add(point.parameter)
             if parameter is not None and point.parameter != parameter:
                 continue
             if not point.parameter or point.cd_value is None:
@@ -361,7 +353,7 @@ def _run_observations(
                     value=round(median(values), 3),
                 )
             )
-    return rows
+    return rows, sorted(names)
 
 
 # ── the estimator ─────────────────────────────────────────────────────────
@@ -893,7 +885,7 @@ def get_tttm_check(
         )
 
     cell_rows, dropped = _observations(runs.runs, parameter)
-    fleet_rows_ = _run_observations(runs.runs, parameter)
+    fleet_rows_, measured_names = _run_observations(runs.runs, parameter)
     epochs = mdc_changes(fab_name, start, anchor)
     cells = _cells(cell_rows, _epoch_starts(epochs, start))
 
@@ -916,7 +908,7 @@ def get_tttm_check(
         # Recipe-local names, so only inside a recipe: without one the runs
         # span every measured recipe and a pooled list would offer one name for
         # several different features. See the contract's field comment.
-        "parameters": _measured_parameters(runs.runs) if recipe_id else [],
+        "parameters": measured_names if recipe_id else [],
         "available": True,
         "fetched_at": anchor.isoformat(timespec="seconds"),
         "summary": summary,

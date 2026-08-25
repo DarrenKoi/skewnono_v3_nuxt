@@ -46,26 +46,25 @@
          condition the results gate on, plus an unavailable answer: no
          parameter or tolerance can turn "no runs in the window" into a
          comparison, and the empty state below says why. -->
-    <EbeamAnalysisBar>
+    <EbeamAnalysisBar :lock="lock">
       <template #parameter>
         <EbeamScopeParameter
           :parameter="parameter"
           :parameter-names="parameterNames"
-          :pending="pending"
-          :lock="parameterLock"
+          :lock="lock"
           @update:parameter="onParameter"
         />
       </template>
 
       <!-- Slotted, not passed down: the knob fires on every drag frame, and a
            prop through the bar would re-render the parameter menu with it. -->
-      <template #trailing>
+      <template #trailing="{ disabled }">
         <EbeamTttmToleranceKnob
           v-if="payload"
           v-model="tolerance"
           :range="payload.tolerance_range"
           :tolerance-index="toleranceIndex"
-          :disabled="parameterLock !== null"
+          :disabled="disabled"
         />
       </template>
     </EbeamAnalysisBar>
@@ -185,7 +184,6 @@
 
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
-import type { ParameterLock } from '~/components/ebeam/ScopeParameter.vue'
 import {
   alignSkewMatrix,
   groupFromCells,
@@ -224,22 +222,12 @@ const {
   payload,
   pending,
   parameterNames,
+  lock,
+  scopeReady,
   onSelectedTools,
   onRecipe,
   onParameter
 } = useTttmScope(props.toolType, props.fab)
-
-// The payload fires without a recipe (the roster rides on it); only the
-// results and the 분석 조건 bar are gated — see the empty state above.
-const scopeReady = computed(() => Boolean(recipeId.value))
-// Why the 분석 조건 controls are inert, or null when they are live. Read from
-// the payload rather than from `pending`, so a stale-but-available payload
-// keeps the controls usable while the next answer is in flight.
-const parameterLock = computed<ParameterLock>(() => {
-  if (!scopeReady.value) return 'no-recipe'
-  if (payload.value && !payload.value.available) return 'no-data'
-  return null
-})
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
 // Stored selection resolved against the fleet the server actually returned:

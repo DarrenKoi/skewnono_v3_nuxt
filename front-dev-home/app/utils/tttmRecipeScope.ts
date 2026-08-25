@@ -47,9 +47,6 @@ export const pickStillStands = (
   return offered.includes(pick)
 }
 
-/** The recipe half of the scope — `pickStillStands` under its original name. */
-export const recipeStillStands = pickStillStands
-
 /** The slice of the check payload the parameter reconciliation reads. */
 export interface ParameterAnswer {
   available: boolean
@@ -75,4 +72,32 @@ export const offeredParameters = (
   if (!recipeId || !payload || !payload.available) return null
   if (payload.recipe_id !== recipeId) return null
   return payload.parameters
+}
+
+/**
+ * Why the 분석 조건 controls are inert, or null when they are live.
+ *
+ * `no-recipe`: the first step is not taken. `no-data`: the recipe's answer is
+ * unavailable, so there is no row set to list features from and no parameter
+ * or tolerance can turn it into a comparison. `loading`: the list is not an
+ * answer yet and the request is in flight — the only state that is inert for
+ * a moment rather than for a reason.
+ *
+ * Read from the payload rather than from `pending` alone, so a stale-but-
+ * available payload keeps the controls usable while the next answer is in
+ * flight; and a request that FAILED (`offered` null, nothing pending) is not
+ * reported as loading forever.
+ */
+export type AnalysisLock = 'no-recipe' | 'no-data' | 'loading' | null
+
+export const analysisLock = (
+  recipeId: string | null,
+  payload: ParameterAnswer | null | undefined,
+  pending: boolean,
+  offered: string[] | null
+): AnalysisLock => {
+  if (!recipeId) return 'no-recipe'
+  if (payload && !payload.available) return 'no-data'
+  if (offered === null && pending) return 'loading'
+  return null
 }
