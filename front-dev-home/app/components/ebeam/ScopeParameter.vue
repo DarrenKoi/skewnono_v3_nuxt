@@ -12,8 +12,9 @@
       :model-value="parameter ?? ALL_PARAMETERS"
       ignore-filter
       :items="items"
+      :disabled="lock !== null"
       :search-input="parameterNames.length > 8 ? { placeholder: 'parameter 검색…' } : false"
-      :loading="pending && !parameterNames.length"
+      :loading="lock === null && pending && !parameterNames.length"
       icon="i-lucide-crosshair"
       color="neutral"
       variant="outline"
@@ -29,7 +30,16 @@
       </template>
     </USelectMenu>
     <p class="mt-1.5 sk-field-label leading-relaxed">
-      <template v-if="pending && !parameterNames.length">
+      <!-- Disabled rather than hidden while it cannot be used: the control has
+           to be visible for the procedure (비교 대상 → 분석 조건) to read as
+           two steps, and the caption says which step is missing. -->
+      <template v-if="lock === 'no-recipe'">
+        먼저 위에서 recipe 를 고르십시오 — parameter 는 그 recipe 의 측정 데이터에서 고릅니다.
+      </template>
+      <template v-else-if="lock === 'no-data'">
+        이 비교 대상에는 계산할 측정 데이터가 없습니다 — 아래 안내를 보십시오.
+      </template>
+      <template v-else-if="pending && !parameterNames.length">
         비교 대상의 측정 데이터에서 parameter 를 읽는 중입니다.
       </template>
       <!-- An empty list is an ANSWER: the recipe's runs carried no named
@@ -50,6 +60,8 @@
 
 <script setup lang="ts">
 import { filterByTerm } from '~/utils/hardwareCompare'
+
+export type ParameterLock = 'no-recipe' | 'no-data' | null
 
 // Sentinel for "no filter". A plain '' cannot be a USelectMenu item, and null
 // would render as an empty row rather than as a readable choice.
@@ -74,6 +86,12 @@ const props = defineProps<{
   parameterNames: string[]
   /** The payload carrying the list is still in flight — empty is not yet empty. */
   pending: boolean
+  /**
+   * Why the control cannot be used yet, or null when it can. `no-recipe`: the
+   * first step is not taken; `no-data`: the recipe's answer is unavailable, so
+   * there is no row set to list features from.
+   */
+  lock: ParameterLock
 }>()
 
 const emit = defineEmits<{

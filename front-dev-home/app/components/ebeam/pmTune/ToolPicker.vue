@@ -9,7 +9,7 @@
       :items="ids"
       :search-input="rows.length > 6 ? { placeholder: 'eqp_id 검색…' } : false"
       :loading="pending"
-      :disabled="!rows.length"
+      :disabled="disabled || !rows.length"
       :ui="{ content: MENU_CONTENT, itemTrailingIcon: 'hidden' }"
       icon="i-lucide-wrench"
       color="neutral"
@@ -95,6 +95,8 @@ const props = defineProps<{
   picked: string | null
   /** The pm request is still in flight — an empty list is not yet an empty fab. */
   pending?: boolean
+  /** No scope to judge against yet — visible so the step reads, but inert. */
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{

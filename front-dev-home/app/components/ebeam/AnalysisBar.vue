@@ -40,9 +40,11 @@
  * The split follows the procedure: pick the tools and the recipe, THEN the
  * measurement rows arrive, and only then is there a parameter list to pick
  * from — so the parameter cannot honestly sit beside the recipe as one choice
- * in two steps. This bar is mounted only once a recipe is picked, which is
- * also what keeps the page's first decision alone at the top, in reading
- * order. See DESIGN.md §Layout — the scope-bar rule.
+ * in two steps. The bar is always mounted and its controls are DISABLED until
+ * a recipe is picked: hidden, the second step did not exist until the first
+ * was taken, and the page's layout jumped when it appeared; disabled, the
+ * procedure reads as two steps from the start and each control's caption
+ * says which step is missing. See DESIGN.md §Layout — the scope-bar rule.
  *
  * Both cells arrive as slots for the reason ScopeBar's recipe cell does: a
  * prop relay through a wrapper is a place to forget a prop, and the knob in

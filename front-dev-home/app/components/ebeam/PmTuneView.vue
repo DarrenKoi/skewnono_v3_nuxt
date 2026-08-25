@@ -40,11 +40,10 @@
       </template>
     </EbeamScopeBar>
 
-    <!-- 분석 조건 — same bar and same mounting rule as TttmView: the parameter
-         list rides on the recipe's payload, so it appears once a recipe is
-         picked and goes with the results on an unavailable answer. -->
+    <!-- 분석 조건 — same bar and same lock rule as TttmView: the parameter
+         list rides on the recipe's payload, so the controls are inert until a
+         recipe is picked and while its answer is unavailable. -->
     <EbeamAnalysisBar
-      v-if="scopeReady && payload?.available"
       hint="비교 대상의 측정 데이터에서 읽은 parameter 입니다. 비워 두면 측정 항목을 모두 합쳐 판정합니다 · tolerance 는 TTTM 페이지의 설정을 따릅니다."
     >
       <template #parameter>
@@ -52,6 +51,7 @@
           :parameter="parameter"
           :parameter-names="parameterNames"
           :pending="tttmPending"
+          :lock="parameterLock"
           @update:parameter="onParameter"
         />
       </template>
@@ -64,6 +64,7 @@
           :rows="pickerRows"
           :picked="picked"
           :pending="pmPending"
+          :disabled="parameterLock !== null"
           @update:picked="picked = $event"
         />
       </template>
@@ -180,6 +181,7 @@
 
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import type { ParameterLock } from '~/components/ebeam/ScopeParameter.vue'
 import { usePmPlanningApi, type FleetResponse } from '~/composables/usePmPlanningApi'
 import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 import { admissionReport, pickDefaultTool } from '~/utils/pmTune'
@@ -214,6 +216,12 @@ const {
 // The payload fires without a recipe (the roster rides on it); only the
 // results and the 분석 조건 bar are gated — see the empty state above.
 const scopeReady = computed(() => Boolean(recipeId.value))
+// Same lock as TttmView, for the same controls — see its comment.
+const parameterLock = computed<ParameterLock>(() => {
+  if (!scopeReady.value) return 'no-recipe'
+  if (payload.value && !payload.value.available) return 'no-data'
+  return null
+})
 
 // The gate/PM half, from pm_planning. Independent request: a slow gate payload
 // must not delay the map, and vice versa.

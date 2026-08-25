@@ -42,15 +42,17 @@
 
     <!-- 분석 조건 — 비교 대상이 정해진 뒤의 선택. parameter 목록은 그 recipe 의
          측정 데이터(payload)에서 오므로, recipe 전에는 고를 것이 없습니다.
-         Mounted on the same condition as the results, and hidden with them on
-         an unavailable answer: no parameter or tolerance can turn "no runs in
-         the window" into a comparison, and the empty state below says why. -->
-    <EbeamAnalysisBar v-if="scopeReady && payload?.available">
+         Always mounted, disabled until the results can be computed — the same
+         condition the results gate on, plus an unavailable answer: no
+         parameter or tolerance can turn "no runs in the window" into a
+         comparison, and the empty state below says why. -->
+    <EbeamAnalysisBar>
       <template #parameter>
         <EbeamScopeParameter
           :parameter="parameter"
           :parameter-names="parameterNames"
           :pending="pending"
+          :lock="parameterLock"
           @update:parameter="onParameter"
         />
       </template>
@@ -63,6 +65,7 @@
           v-model="tolerance"
           :range="payload.tolerance_range"
           :tolerance-index="toleranceIndex"
+          :disabled="parameterLock !== null"
         />
       </template>
     </EbeamAnalysisBar>
@@ -182,6 +185,7 @@
 
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
+import type { ParameterLock } from '~/components/ebeam/ScopeParameter.vue'
 import {
   alignSkewMatrix,
   groupFromCells,
@@ -228,6 +232,14 @@ const {
 // The payload fires without a recipe (the roster rides on it); only the
 // results and the 분석 조건 bar are gated — see the empty state above.
 const scopeReady = computed(() => Boolean(recipeId.value))
+// Why the 분석 조건 controls are inert, or null when they are live. Read from
+// the payload rather than from `pending`, so a stale-but-available payload
+// keeps the controls usable while the next answer is in flight.
+const parameterLock = computed<ParameterLock>(() => {
+  if (!scopeReady.value) return 'no-recipe'
+  if (payload.value && !payload.value.available) return 'no-data'
+  return null
+})
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
 // Stored selection resolved against the fleet the server actually returned:

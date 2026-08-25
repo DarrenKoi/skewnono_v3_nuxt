@@ -17,7 +17,8 @@
       :max="range.max"
       :step="range.step"
       :value="modelValue"
-      class="mt-2 w-full accent-(--sk-brand)"
+      :disabled="disabled"
+      class="mt-2 w-full accent-(--sk-brand) disabled:opacity-50"
       @input="onInput"
     >
     <!-- 12px, not the 11px micro-label tier: these are the knob's endpoints —
@@ -51,6 +52,8 @@ defineProps<{
   range: { min: number, max: number, step: number }
   /** The nm value read as a fraction of CD's 1% — what grouping actually uses. */
   toleranceIndex: number
+  /** No scope to judge yet — the slider stays visible so the step reads, but inert. */
+  disabled?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: number] }>()
 
