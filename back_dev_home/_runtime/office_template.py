@@ -186,20 +186,40 @@ def committed_template_origin(
         return None
     want = blob.strip()
 
+    # --follow, and --name-only so each commit reports the path the template
+    # had THEN. Without both, a template that was moved (the ebeam flattening
+    # moved every `ebeam/hitachi/<feature>/` one folder up) takes its whole
+    # history with it: the walk stops at the rename commit and every untouched
+    # copy is reported as locally EDITED — which `copy` then refuses to
+    # refresh without --force, on the strength of local edits that do not
+    # exist. --follow is a heuristic and can miss a rename; missing one costs
+    # the old EDITED answer, never a wrong STALE.
     log = _git(
-        root, "log", f"-{HISTORY_DEPTH}", "--format=%H|%h|%ad", "--date=short",
-        "--", relative,
+        root, "log", f"-{HISTORY_DEPTH}", "--follow", "--name-only",
+        "--format=%H|%h|%ad", "--date=short", "--", relative,
     )
     if not log:
         return None
 
-    commits = [
-        line.split("|", 2) for line in log.splitlines() if line.count("|") == 2
-    ]
+    # Header line, then the path(s) that commit touched. Pinned to one path by
+    # --follow, so the first path line after a header is that commit's name for
+    # the template.
+    commits: list[tuple[str, str, str, str]] = []
+    for line in log.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.count("|") == 2:
+            full, short, date = line.split("|", 2)
+            commits.append((full, short, date, ""))
+        elif commits and not commits[-1][3]:
+            full, short, date, _ = commits[-1]
+            commits[-1] = (full, short, date, line)
+    commits = [commit for commit in commits if commit[3]]
     if not commits:
         return None
 
-    revisions = "".join(f"{full}:{relative}\n" for full, _, _ in commits)
+    revisions = "".join(f"{full}:{path}\n" for full, _, _, path in commits)
     names = _git(
         root, "cat-file", "--batch-check=%(objectname)", stdin=revisions
     )
@@ -208,7 +228,7 @@ def committed_template_origin(
 
     # One output line per input revision, in order. A revision that does not
     # resolve prints "<input> missing", which can never equal a blob id.
-    for (_, short, date), line in zip(commits, names.splitlines(), strict=True):
+    for (_, short, date, _path), line in zip(commits, names.splitlines(), strict=True):
         if line.strip() == want:
             return f"{short} ({date.strip()})"
     return None

@@ -247,3 +247,44 @@ def test_discover_drops_the_providers_segment_from_the_slug(repo):
 
     slugs = [adapter.slug for adapter in office_template.discover(backend)]
     assert slugs == ["hardware/fdc", "sem_list"]
+
+
+def test_stale_survives_a_template_that_was_moved_to_another_folder(repo):
+    """A renamed template must not turn every copy of it into EDITED.
+
+    This is the ebeam flattening (2026-08-xx), where every
+    `ebeam/hitachi/<feature>/` template moved up to `ebeam/<feature>/`. The
+    copies were untouched and their exact bytes were still in git history —
+    but under the OLD path, so a history walk pinned to the CURRENT path found
+    nothing and four adapters were reported as locally EDITED.
+
+    That misreport is expensive in both directions: `copy` refuses to refresh
+    an EDITED copy without --force, so the honest user keeps running old
+    adapter code against live office data, and the user who does force is told
+    they may be destroying local work that never existed.
+    """
+    providers = repo / "back_dev_home" / "sem_list" / "providers"
+    (providers / "office.py").write_text((providers / "office_example.py").read_text())
+    before_move = _head_sha(repo)
+
+    moved = repo / "back_dev_home" / "ebeam" / "sem_list" / "providers"
+    (repo / "back_dev_home" / "ebeam").mkdir()
+    _git(repo, "mv", "back_dev_home/sem_list", "back_dev_home/ebeam/sem_list")
+    _git(repo, "commit", "-qm", "flatten: move the template one folder up")
+    the_move = _head_sha(repo)
+    # A separate commit, as the flattening was: the move carried the bytes
+    # unchanged and the template moved ahead later. Renaming and rewriting in
+    # ONE commit is a rename git cannot detect on a file this small, which
+    # would test git's similarity heuristic rather than this module.
+    (moved / "office_example.py").write_text("VERSION = 2\n")
+    _git(repo, "commit", "-qam", "template moves ahead after the move")
+
+    adapter = office_template.discover(repo / "back_dev_home")[0]
+    # discover() finds the template at its NEW path; office.py rode along with
+    # the `git mv` and is still the bytes committed at `origin`.
+    status, note = _classify(adapter, repo)
+    assert status == STALE
+    # Either commit is a correct answer — the move carried the bytes unchanged,
+    # so both hold a template identical to this copy, and the walk names the
+    # newest match. What must not happen is naming neither.
+    assert any(sha in note for sha in (before_move, the_move)), note
