@@ -139,6 +139,22 @@ const searchedRows = computed(() =>
   rows.value.filter(row => matchesModel(row) && matchesQuery(row) && matchesAvailability(row))
 )
 
+// One chip per eqp_id. sem_list repeats an id (10 of 300 mock rows; R3 lists
+// ECDX729 twice — a mock artefact, ids are unique at the office), and the rail
+// kept both rows because their bodies differed (IP, version). A chip carries
+// only the id, and the detail is fetched BY id, so a second chip would light up
+// together with the first and open the same data. The first occurrence stands
+// for the id, which is also the row `selectedTool` resolves to.
+const toolChips = computed(() => {
+  const seen = new Set<string>()
+  return searchedRows.value.filter((row) => {
+    if (seen.has(row.eqp_id)) return false
+    seen.add(row.eqp_id)
+    return true
+  })
+})
+const toolCount = computed(() => new Set(rows.value.map(row => row.eqp_id)).size)
+
 const selectedTool = computed(() =>
   rows.value.find(row => row.eqp_id === selectedToolId.value)
   ?? searchedRows.value[0]
@@ -386,24 +402,22 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </div>
       </div>
 
-      <!-- Tool chips — click to switch the detail below.
-           Keyed with the list position, not the bare eqp_id: sem_list repeats
-           an eqp_id (10 of 300 rows), and two of those pairs sit in ONE fab —
-           R3 lists ECDX729/GT2000 twice — so an id key collides after the fab
-           filter and every re-filter orphans a chip in the DOM.
+      <!-- Tool chips — click to switch the detail below. `toolChips` is
+           deduplicated, so the id is a safe key here (the rail keyed by
+           position because it kept sem_list's repeated ids as separate rows).
 
            Capped at about four rows: a single fab holds up to ~20 tools of one
            type, which fits, but a multi-fab union can reach 60+, and a strip
            that tall pushes the data it exists to select below the fold. -->
       <div
-        v-if="searchedRows.length"
+        v-if="toolChips.length"
         role="group"
         aria-label="장비 선택"
         class="mt-3 flex max-h-[9.5rem] flex-wrap gap-1.5 overflow-y-auto"
       >
         <SkChip
-          v-for="(row, rowAt) in searchedRows"
-          :key="`${row.eqp_id}#${rowAt}`"
+          v-for="row in toolChips"
+          :key="row.eqp_id"
           size="sm"
           tone="ink"
           :active="row.eqp_id === selectedToolId"
@@ -443,8 +457,11 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         <span class="font-mono">{{ selectedTool.eqp_ip }}</span>
         <span>·</span>
         <span class="font-mono">{{ selectedTool.version }}</span>
+        <!-- Both numbers are data values, so both take full ink (DESIGN.md
+             §Colors); only the words between them stay on the label tone. -->
         <span class="ml-auto">
-          {{ rows.length }}대 중 <strong class="font-mono tabular-nums text-(--sk-ink)">{{ searchedRows.length }}대</strong> 표시
+          <strong class="font-mono tabular-nums text-(--sk-ink)">{{ toolCount }}</strong>대 중
+          <strong class="font-mono tabular-nums text-(--sk-ink)">{{ toolChips.length }}</strong>대 표시
         </span>
       </p>
     </section>
@@ -452,7 +469,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
     <!-- ===== Service navigation + detail — full width ===== -->
     <div class="flex min-w-0 flex-col gap-3">
       <!-- Service tabs — the tool itself is chosen in the strip above. -->
-      <section class="dashboard-surface flex flex-wrap items-center rounded-2xl px-4 py-3">
+      <section class="dashboard-surface flex flex-wrap items-center rounded-[var(--sk-r-card)] px-4 py-3">
         <!-- Segment tabs: BLACK = NAVIGATE (the detail view changes).
              Grouped into 데일리 / 분기 clusters by measurement cadence. -->
         <div
@@ -487,7 +504,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
       </section>
 
       <!-- Service detail -->
-      <section class="dashboard-surface flex-1 rounded-2xl p-4">
+      <section class="dashboard-surface flex-1 rounded-[var(--sk-r-card)] p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h2 class="sk-heading">
