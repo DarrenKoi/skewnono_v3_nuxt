@@ -84,6 +84,12 @@ export interface TttmCheckPayload {
   recipe_id: string | null
   /** The one measured feature these numbers are about; null = all folded. */
   parameter: string | null
+  /**
+   * Every parameter name measured under `recipe_id` — the picker's catalogue,
+   * read off the same rows the skew is computed from. Always the UNFILTERED
+   * set; `[]` without a recipe and on every unavailable branch.
+   */
+  parameters: string[]
   available: boolean
   fetched_at: string
   summary: string

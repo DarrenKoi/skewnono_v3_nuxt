@@ -28,7 +28,6 @@
       :pending="tttmPending"
       @update:selected="onSelectedTools"
       @update:recipe-id="onRecipe"
-      @update:parameter="onParameter"
     >
       <template #recipe>
         <EbeamScopeRecipe
@@ -36,18 +35,30 @@
           :recipe-names="recipeNames"
           :recipes-pending="recipesPending"
           :recipes-without-a-pair="recipesWithoutAPair"
+          @update:recipe-id="onRecipe"
+        />
+      </template>
+    </EbeamScopeBar>
+
+    <!-- 분석 조건 — same bar and same mounting rule as TttmView: the parameter
+         list rides on the recipe's payload, so it appears once a recipe is
+         picked and goes with the results on an unavailable answer. -->
+    <EbeamAnalysisBar
+      v-if="scopeReady && payload?.available"
+      hint="비교 대상의 측정 데이터에서 읽은 parameter 입니다. 비워 두면 측정 항목을 모두 합쳐 판정합니다 · tolerance 는 TTTM 페이지의 설정을 따릅니다."
+    >
+      <template #parameter>
+        <EbeamScopeParameter
           :parameter="parameter"
           :parameter-names="parameterNames"
-          :parameters-pending="parametersPending"
-          :parameters-error="parametersError"
-          @update:recipe-id="onRecipe"
+          :pending="tttmPending"
           @update:parameter="onParameter"
         />
       </template>
 
       <!-- 튜닝 대상은 비교 대상이 아닙니다 — 어느 장비를 만질 것인가는 이 페이지
-           전용이고, 비교 대상은 TTTM 과 공유하는 설정입니다. 같은 바 안에서 선으로
-           갈라 둡니다. -->
+           전용이고, 비교 대상은 TTTM 과 공유하는 설정입니다. parameter 와 같은
+           단계의 선택이라 이 바에 두되, 선으로 갈라 둡니다. -->
       <template #trailing>
         <EbeamPmTuneToolPicker
           :rows="pickerRows"
@@ -56,19 +67,19 @@
           @update:picked="picked = $event"
         />
       </template>
-    </EbeamScopeBar>
+    </EbeamAnalysisBar>
 
     <!-- 결과 — 지도·목표 → gate → 다음 후보 순. -->
     <!-- Same gate as TTTM, and deliberately the same one: the two pages describe
          one group from one scope, so a recipe that opens the results on one page
-         must open them on the other. Recipe only — the parameter's list is
-         resolved through recipe-open over FTP, so requiring it would let an
-         unreachable tool lock the page shut. -->
+         must open them on the other. Recipe only — the parameter stays optional
+         because folding every measured feature is a legitimate answer, and its
+         list only exists once the recipe's payload has landed. -->
     <AppEmptyState
       v-if="!scopeReady"
       title="비교 대상을 선택하세요."
       description="위 비교 대상에서 recipe 를 고르면 그 recipe 기준으로 N배화 그룹과 튜닝 목표를 계산합니다."
-      hint="parameter 는 선택 사항입니다 — 비워 두면 그 recipe 의 측정 항목을 모두 합쳐 판정합니다. 이 설정은 TTTM 페이지와 공유합니다."
+      hint="recipe 를 고르면 그 측정 데이터에서 parameter 를 고를 수 있습니다 — 비워 두면 측정 항목을 모두 합쳐 판정합니다. 이 설정은 TTTM 페이지와 공유합니다."
       icon="i-lucide-mouse-pointer-click"
     />
 
@@ -192,25 +203,16 @@ const {
   recipeNames,
   recipesPending,
   recipesWithoutAPair,
+  payload,
+  pending: tttmPending,
   parameterNames,
-  parametersPending,
-  parametersError,
   onSelectedTools,
   onRecipe,
   onParameter
 } = useTttmScope(props.toolType, props.fab)
 
-const { useTttmCheck } = useTttmApi()
-const { data: payload, pending: tttmPending } = useTttmCheck(
-  props.toolType,
-  props.fab,
-  () => recipeId.value,
-  () => parameter.value
-)
-
-// The request fires without a recipe, and must: the tool roster the scope bar's
-// model-group dropdowns are built from arrives on this payload. Only the results
-// are gated — see the empty state above.
+// The payload fires without a recipe (the roster rides on it); only the
+// results and the 분석 조건 bar are gated — see the empty state above.
 const scopeReady = computed(() => Boolean(recipeId.value))
 
 // The gate/PM half, from pm_planning. Independent request: a slow gate payload

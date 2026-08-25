@@ -24,7 +24,6 @@
       :pending="pending"
       @update:selected="onSelectedTools"
       @update:recipe-id="onRecipe"
-      @update:parameter="onParameter"
     >
       <!-- The picker is mounted HERE rather than passed through the bar, the
            same way pm-tune mounts it. Both pages therefore hand ScopeRecipe its
@@ -36,18 +35,28 @@
           :recipe-names="recipeNames"
           :recipes-pending="recipesPending"
           :recipes-without-a-pair="recipesWithoutAPair"
+          @update:recipe-id="onRecipe"
+        />
+      </template>
+    </EbeamScopeBar>
+
+    <!-- 분석 조건 — 비교 대상이 정해진 뒤의 선택. parameter 목록은 그 recipe 의
+         측정 데이터(payload)에서 오므로, recipe 전에는 고를 것이 없습니다.
+         Mounted on the same condition as the results, and hidden with them on
+         an unavailable answer: no parameter or tolerance can turn "no runs in
+         the window" into a comparison, and the empty state below says why. -->
+    <EbeamAnalysisBar v-if="scopeReady && payload?.available">
+      <template #parameter>
+        <EbeamScopeParameter
           :parameter="parameter"
           :parameter-names="parameterNames"
-          :parameters-pending="parametersPending"
-          :parameters-error="parametersError"
-          @update:recipe-id="onRecipe"
+          :pending="pending"
           @update:parameter="onParameter"
         />
       </template>
 
       <!-- Slotted, not passed down: the knob fires on every drag frame, and a
-           prop through ScopeBar would re-render all seven model-group dropdowns
-           with it. -->
+           prop through the bar would re-render the parameter menu with it. -->
       <template #trailing>
         <EbeamTttmToleranceKnob
           v-if="payload"
@@ -56,7 +65,7 @@
           :tolerance-index="toleranceIndex"
         />
       </template>
-    </EbeamScopeBar>
+    </EbeamAnalysisBar>
 
     <!-- 결과 — 판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로, 근거가 위에서 아래로
          한 번씩만 나옵니다. 비교 대상이 정해지기 전에는 아무것도 그리지 않습니다. -->
@@ -64,14 +73,14 @@
          folds every measured recipe together), but that answer is a fleet-wide
          average nobody asked for, and it renders identically to a deliberately
          scoped one — so the page would be quoting a comparison the user never
-         chose. Parameter stays optional on purpose: its list is resolved through
-         recipe-open over FTP, so requiring it would let an unreachable tool lock
-         the page shut. -->
+         chose. The parameter stays optional: folding every measured feature is
+         a legitimate answer, and its list only exists once this payload has
+         landed. -->
     <AppEmptyState
       v-if="!scopeReady"
       title="비교 대상을 선택하세요."
       description="위 비교 대상에서 recipe 를 고르면 그 recipe 가 점유한 셀로 장비간 스큐를 계산합니다."
-      hint="parameter 는 선택 사항입니다 — 비워 두면 그 recipe 의 측정 항목을 모두 합쳐 판정합니다."
+      hint="recipe 를 고르면 그 측정 데이터에서 parameter 를 고를 수 있습니다 — 비워 두면 측정 항목을 모두 합쳐 판정합니다."
       icon="i-lucide-mouse-pointer-click"
     />
 
@@ -198,8 +207,9 @@ import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
-// The comparison scope and its two catalogues, shared verbatim with pm-tune —
-// see useTttmScope for why this is one composable rather than wiring per page.
+// The comparison scope, its recipe catalogue and the skew payload it selects,
+// shared verbatim with pm-tune — see useTttmScope for why this is one
+// composable rather than wiring per page.
 const {
   scoped,
   recipeId,
@@ -207,26 +217,16 @@ const {
   recipeNames,
   recipesPending,
   recipesWithoutAPair,
+  payload,
+  pending,
   parameterNames,
-  parametersPending,
-  parametersError,
   onSelectedTools,
   onRecipe,
   onParameter
 } = useTttmScope(props.toolType, props.fab)
 
-const { useTttmCheck } = useTttmApi()
-const { data: payload, pending } = useTttmCheck(
-  props.toolType,
-  props.fab,
-  () => recipeId.value,
-  () => parameter.value
-)
-
-// The request still fires without a recipe, and must: the tool roster the scope
-// bar's model-group dropdowns are built from arrives on this payload, so gating
-// the FETCH would leave the user nothing to pick from. Only the results are
-// gated — see the empty state above.
+// The payload fires without a recipe (the roster rides on it); only the
+// results and the 분석 조건 bar are gated — see the empty state above.
 const scopeReady = computed(() => Boolean(recipeId.value))
 
 const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))

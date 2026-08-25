@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 // A dropdown rather than the standing list this was as a rail card: the control
-// moved into the scope bar, where the page's controls occupy one row and an
+// moved into the 분석 조건 bar, where the page's controls occupy one row and an
 // 18-row list would be the tallest thing on the screen. Every fact a row carried
 // — Up gate, group membership, last PM — is still on the row, now inside the
 // menu, and the picked row repeats it in the caption so the collapsed state is

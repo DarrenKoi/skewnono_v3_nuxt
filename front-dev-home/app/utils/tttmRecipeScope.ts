@@ -1,45 +1,78 @@
-// Reconciling a PERSISTED recipe pick against the recipes the fab has measured.
+// Reconciling a PERSISTED scope pick against what the server still offers.
 //
-// `useTttmSettings` stores the recipe so a working setup survives a reload, and
-// `normalizeScope` there checks the stored SHAPE. Nothing checked the stored
-// VALUE against what the server still offers, and the two pickers resolve a
-// recipe through different sources:
+// `useTttmSettings` stores the recipe and parameter so a working setup survives
+// a reload, and `normalizeScope` there checks the stored SHAPE. Nothing checked
+// the stored VALUE against what the server still offers, and both picks can go
+// stale on their own:
 //
-//   recipe picker  → GET /<slug>/tttm/recipes   — only what meas_hist has RUN
-//   parameter list → GET /<slug>/recipe-search/parameters — needs an .idp,
-//                    whose location is itself derived from a measurement
-//
-// So a recipeId stored while the picker still read recipe-search's catalogue
-// (every recipe that EXISTS, ~50,000 per fab) names something nobody measured.
-// The office answers that with a bare LookupError, which `back_dev_home` maps
-// to a 502 — "No document in meas_hist_cdsem has full_name=... for fab 'R3'.
-// A recipe that exists in the catalog but has never been measured has no .idp
-// location to derive." Home never sees it: recipe-search's mock fabricates a
-// 200 for any name it is handed.
+//   recipe     → GET /<slug>/tttm/recipes — only what meas_hist has RUN. A
+//                recipeId stored while the picker still read recipe-search's
+//                catalogue (every recipe that EXISTS, ~50,000 per fab) names
+//                something nobody measured. The office answers that with a bare
+//                LookupError, which `back_dev_home` maps to a 502 — "No document
+//                in meas_hist_cdsem has full_name=... for fab 'R3'." Home never
+//                sees it: recipe-search's mock fabricates a 200 for any name.
+//   parameter  → `parameters` on the check payload itself — the names measured
+//                under the picked recipe, read off the same rows the skew is.
+//                A recipe survives an .idp revision that renames or drops one of
+//                its features, and the stored parameter then names nothing; the
+//                office filters its rows to that name, finds none, and answers
+//                an empty grid that blames the recipe.
 
 /**
- * Whether a persisted recipe pick still stands, given the measured-recipe list.
+ * Whether a persisted pick still stands, given the list the server now offers.
  *
- * A predicate rather than a "return the pick that should stand" function: the
- * only two answers are the input and null, so returning a string forced the
- * caller into an identity comparison to recover the one bit it actually wanted,
- * and forced every reader to check that a THIRD value was not possible.
+ * One law for both halves of the scope. A predicate rather than a "return the
+ * pick that should stand" function: the only two answers are the input and
+ * null, so returning a string forced the caller into an identity comparison to
+ * recover the one bit it actually wanted, and forced every reader to check
+ * that a THIRD value was not possible.
  *
- * @param recipeId  the persisted pick; null means 전체, which always stands.
- * @param measuredRecipeIds  every `recipe_id` the fab has measured, or **null**
- *   when the list has not answered yet — in flight, or the request failed.
+ * @param pick  the persisted pick; null means 전체, which always stands.
+ * @param offered  everything the server offers, or **null** when the list has
+ *   not answered yet — in flight, failed, or answering a different question.
  */
-export const recipeStillStands = (
-  recipeId: string | null,
-  measuredRecipeIds: string[] | null
+export const pickStillStands = (
+  pick: string | null,
+  offered: string[] | null
 ): boolean => {
   // 전체 is not a pick that can go stale.
-  if (!recipeId) return true
+  if (!pick) return true
   // Not an answer, so not grounds to discard the user's setup. An empty ARRAY
-  // is an answer ("this fab measured nothing") and does clear the pick.
-  if (measuredRecipeIds === null) return true
-  // Exact match: recipe_id is the class/recipe full_name, and the bare recipe
-  // half is a different identity the office refuses — see the tttm/recipes
-  // commit and docs/datatables/hitachi/meas_hist.txt.
-  return measuredRecipeIds.includes(recipeId)
+  // is an answer ("nothing offered") and does clear the pick.
+  if (offered === null) return true
+  // Exact match. For the recipe: recipe_id is the class/recipe full_name, and
+  // the bare recipe half is a different identity the office refuses — see the
+  // tttm/recipes commit and docs/datatables/hitachi/meas_hist.txt.
+  return offered.includes(pick)
+}
+
+/** The recipe half of the scope — `pickStillStands` under its original name. */
+export const recipeStillStands = pickStillStands
+
+/** The slice of the check payload the parameter reconciliation reads. */
+export interface ParameterAnswer {
+  available: boolean
+  recipe_id: string | null
+  parameters: string[]
+}
+
+/**
+ * The parameter list the picked recipe's payload offers — or null when the
+ * payload on hand is not an answer to that question.
+ *
+ * Three ways it is not: no payload yet; a payload still describing the recipe
+ * the user just LEFT (useAsyncData keeps the old data while the next request is
+ * in flight, so the list on screen can belong to a recipe nobody is looking
+ * at); and an unavailable payload, whose `parameters: []` is the contract's
+ * "nothing to compare" rather than "this recipe has no features" — reading it
+ * as an answer would erase a working pick on a window with no runs.
+ */
+export const offeredParameters = (
+  payload: ParameterAnswer | null | undefined,
+  recipeId: string | null
+): string[] | null => {
+  if (!recipeId || !payload || !payload.available) return null
+  if (payload.recipe_id !== recipeId) return null
+  return payload.parameters
 }
