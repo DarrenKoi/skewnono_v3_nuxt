@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col">
     <div class="mb-1 flex items-center gap-2 px-1">
-      <span class="sk-eyebrow">
+      <span class="sk-title">
         {{ label }}
       </span>
     </div>

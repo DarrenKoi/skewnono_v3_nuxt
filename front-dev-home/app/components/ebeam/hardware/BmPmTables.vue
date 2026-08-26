@@ -7,7 +7,7 @@
     >
       <div class="flex items-center justify-between border-b border-(--sk-border-soft) px-3 py-1.5">
         <span class="sk-title">{{ section.title }}</span>
-        <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ section.rows.length }} rows</span>
+        <span class="font-mono text-xs text-(--sk-ink-muted)">{{ section.rows.length }} rows</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -17,7 +17,7 @@
               <th
                 v-for="column in section.columns"
                 :key="column.key"
-                class="whitespace-nowrap px-3 py-1.5 sk-eyebrow"
+                class="whitespace-nowrap px-3 py-1.5 sk-label"
                 :class="column.expandable ? 'w-full' : ''"
               >
                 {{ column.label }}
@@ -41,7 +41,7 @@
                      default cell below rather than render as a bogus BM. -->
                 <span
                   v-if="column.key === 'category' && (row[column.key] === 'BM' || row[column.key] === 'PM')"
-                  class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold"
+                  class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-xs font-bold"
                   :class="row[column.key] === 'PM'
                     ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
                     : 'bg-(--sk-bad-soft) text-(--sk-bad)'"

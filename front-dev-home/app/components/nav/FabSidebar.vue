@@ -78,7 +78,7 @@ const activeToolLabel = computed(() =>
     <div class="px-2 py-2.5 border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
       <span
         v-if="!sidebarCollapsed"
-        class="text-[10px] font-semibold text-(--sk-ink-muted) uppercase tracking-[0.14em] pl-1.5"
+        class="sk-label text-(--sk-ink-muted) pl-1.5"
       >
         장비모델
       </span>
@@ -123,12 +123,12 @@ const activeToolLabel = computed(() =>
         @click="tool.enabled && navigateToToolType(tool.id)"
       >
         <template v-if="sidebarCollapsed">
-          <span class="text-[11px] font-semibold tracking-tight">{{ tool.short }}</span>
+          <span class="text-xs font-semibold tracking-tight">{{ tool.short }}</span>
         </template>
         <template v-else>
           <span class="text-sm truncate">{{ tool.label }}</span>
           <span
-            class="inline-flex items-center justify-center min-w-[22px] h-[18px] px-1.5 rounded text-[11px] font-semibold tabular-nums"
+            class="inline-flex items-center justify-center min-w-[22px] h-[18px] px-1.5 rounded text-xs font-semibold tabular-nums"
             :class="tool.active
               ? 'bg-white/15 text-zinc-100/90 dark:bg-zinc-900/15 dark:text-zinc-900/90'
               : tool.enabled
@@ -142,11 +142,11 @@ const activeToolLabel = computed(() =>
     <div class="border-t border-zinc-200/70 dark:border-zinc-800/70">
       <div
         v-if="!sidebarCollapsed"
-        class="px-3.5 pt-2 pb-1 text-[10px] font-semibold text-(--sk-ink-muted) uppercase tracking-[0.14em]"
+        class="px-3.5 pt-2 pb-1 sk-label text-(--sk-ink-muted)"
       >
         Fab<span
           v-if="activeToolLabel"
-          class="text-(--sk-ink-muted) normal-case font-medium tracking-normal"
+          class="text-(--sk-ink-muted) font-medium"
         > · {{ activeToolLabel }}</span>
       </div>
     </div>
@@ -160,7 +160,7 @@ const activeToolLabel = computed(() =>
         v-if="favorites.length > 0 && !sidebarCollapsed"
         class="mb-3"
       >
-        <div class="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium text-(--sk-ink-muted)">
+        <div class="flex items-center gap-1.5 px-2 py-1 sk-label text-(--sk-ink-muted)">
           <UIcon
             name="i-lucide-star"
             class="w-3 h-3"
@@ -206,7 +206,7 @@ const activeToolLabel = computed(() =>
           >{{ item.label }}</span>
           <span
             v-else
-            class="text-[11px] font-semibold tracking-tight"
+            class="text-xs font-semibold tracking-tight"
           >{{ item.label }}</span>
         </button>
         <button

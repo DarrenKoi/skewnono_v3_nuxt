@@ -9,7 +9,7 @@
     <p class="text-xs font-medium leading-snug text-zinc-600 dark:text-zinc-300">
       {{ title }}
     </p>
-    <p class="mt-1 text-[11px] leading-snug text-(--sk-ink-muted)">
+    <p class="mt-1 text-xs leading-snug text-(--sk-ink-muted)">
       {{ line1 }}<br>{{ line2 }}
     </p>
   </div>

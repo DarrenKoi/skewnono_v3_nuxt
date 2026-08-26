@@ -108,7 +108,7 @@
       >
         <div class="mb-1 flex items-center justify-between px-1">
           <span class="sk-title">Fleet 분포 · 조건별</span>
-          <span class="font-mono text-[11px] text-(--sk-ink-muted)">
+          <span class="font-mono text-xs text-(--sk-ink-muted)">
             ◆ {{ selectedEqp || '—' }} · {{ fleetSize }}대
           </span>
         </div>

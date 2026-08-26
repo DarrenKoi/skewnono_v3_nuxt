@@ -24,13 +24,13 @@
       v-if="categoryField && categoryOptions.length"
       class="mb-6 flex min-w-0 flex-wrap items-start gap-2 border-b border-(--sk-border-soft) pb-4"
     >
-      <span class="mt-1.5 shrink-0 font-mono text-[10px] text-(--sk-ink-muted)">{{ categoryField }}</span>
+      <span class="mt-1.5 shrink-0 sk-label text-(--sk-ink-muted)">{{ categoryField }}</span>
       <div class="flex min-w-0 flex-wrap items-center gap-1">
         <button
           v-for="category in categoryOptions"
           :key="category"
           type="button"
-          class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+          class="inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-medium ring-1 transition-colors"
           :class="chipClass(selectedCategories.includes(category))"
           @click="toggleCategory(category)"
         >
@@ -40,7 +40,7 @@
     </div>
 
     <div class="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2">
-      <span class="mt-1.5 shrink-0 font-mono text-[10px] text-(--sk-ink-muted)">lot_cd</span>
+      <span class="mt-1.5 shrink-0 sk-label text-(--sk-ink-muted)">lot_cd</span>
       <UInput
         v-model="lotSearch"
         class="w-44 shrink-0"
@@ -55,7 +55,7 @@
           v-for="device in chipStrip"
           :key="device.lot_cd"
           type="button"
-          class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-[11px] font-medium ring-1 transition-colors"
+          class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-xs font-medium ring-1 transition-colors"
           :class="chipClass(selectedLot === device.lot_cd)"
           :title="getTitle?.(device)"
           @click="toggleLot(device.lot_cd)"
@@ -64,7 +64,7 @@
         </button>
         <span
           v-if="!devices.length"
-          class="text-[11px] text-(--sk-ink-muted)"
+          class="text-xs text-(--sk-ink-muted)"
         >
           {{ emptyMessage }}
         </span>

@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col">
-    <div class="mb-1 text-center sk-eyebrow">
+    <div class="mb-1 text-center sk-title">
       {{ title }}
     </div>
     <div

@@ -7,7 +7,7 @@
           aria-label="페이지 안내"
         >
           <div class="space-y-1">
-            <p class="mb-2 sk-eyebrow">
+            <p class="mb-2 sk-label">
               시작하기
             </p>
             <button
@@ -40,7 +40,7 @@
             v-for="section in guideSections"
             :key="section.key"
           >
-            <p class="mb-2 flex items-center gap-1.5 sk-eyebrow">
+            <p class="mb-2 flex items-center gap-1.5 sk-label">
               <UIcon
                 :name="section.icon"
                 class="h-3.5 w-3.5 shrink-0"
@@ -310,7 +310,7 @@
 
           <section class="grid gap-4 md:grid-cols-2">
             <div class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950">
-              <div class="sk-eyebrow">
+              <div class="sk-label">
                 Route
               </div>
               <code class="mt-2 block break-words sk-value-num">
@@ -318,7 +318,7 @@
               </code>
             </div>
             <div class="rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950">
-              <div class="sk-eyebrow">
+              <div class="sk-label">
                 주요 사용자
               </div>
               <p class="mt-2 sk-body leading-6">

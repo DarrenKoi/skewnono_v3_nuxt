@@ -2,7 +2,7 @@
   <div>
     <div
       v-if="hasData"
-      class="flex justify-end text-[10px] text-(--sk-ink-muted) mb-1 tabular-nums"
+      class="flex justify-end text-xs text-(--sk-ink-muted) mb-1 tabular-nums"
     >
       <span>{{ totalLabel }}</span>
     </div>
@@ -20,7 +20,7 @@
     </div>
     <div
       v-if="hasData"
-      class="flex justify-between text-[10px] text-(--sk-ink-muted) mt-1 tabular-nums"
+      class="flex justify-between text-xs text-(--sk-ink-muted) mt-1 tabular-nums"
     >
       <span>{{ firstLabel }}</span>
       <span>{{ lastLabel }}</span>

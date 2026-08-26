@@ -32,7 +32,7 @@
         class="grid gap-3 md:grid-cols-[7rem_minmax(0,1fr)] md:gap-5"
       >
         <div class="pt-1">
-          <div class="sk-eyebrow">
+          <div class="sk-value-num">
             {{ release.releasedAt }}
           </div>
           <div class="mt-1 text-xl font-semibold text-zinc-950 dark:text-white">

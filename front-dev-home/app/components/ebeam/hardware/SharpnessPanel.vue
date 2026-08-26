@@ -9,7 +9,7 @@
             v-for="[value, label] in conditions"
             :key="value"
             type="button"
-            class="px-2.5 py-1 text-[11px] font-semibold transition-colors"
+            class="px-2.5 py-1 text-xs font-semibold transition-colors"
             :class="value === condition
               ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
               : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
@@ -18,7 +18,7 @@
             {{ label }}
           </button>
         </div>
-        <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
+        <span class="font-mono text-xs text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
       </div>
       <div class="flex items-center gap-2">
         <UTooltip text="클립보드 복사">

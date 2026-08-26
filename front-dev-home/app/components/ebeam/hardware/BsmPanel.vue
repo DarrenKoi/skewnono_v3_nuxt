@@ -11,13 +11,13 @@
           icon="i-lucide-filter"
           class="w-48"
         />
-        <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
+        <span class="font-mono text-xs text-(--sk-ink-muted)">{{ filteredDocs.length }} docs</span>
         <span
           v-if="selectedCategory"
           class="inline-flex items-center gap-1.5 rounded-full bg-(--sk-surface) px-2.5 py-0.5 ring-1 ring-(--sk-border-soft)"
         >
-          <span class="sk-eyebrow">Category</span>
-          <span class="font-mono text-[11px] font-bold text-(--sk-ink)">{{ selectedCategory }}</span>
+          <span class="sk-label">Category</span>
+          <span class="font-mono text-xs font-bold text-(--sk-ink)">{{ selectedCategory }}</span>
         </span>
       </div>
       <UTooltip text="클립보드 복사">
@@ -53,7 +53,7 @@
         :key="card.key"
         class="rounded-xl bg-(--sk-surface) px-3 py-2 ring-1 ring-(--sk-border-soft)"
       >
-        <dt class="truncate sk-eyebrow">
+        <dt class="truncate sk-field-label">
           {{ card.label }}
         </dt>
         <dd class="mt-0.5 font-mono text-sm font-bold tabular-nums text-(--sk-ink)">

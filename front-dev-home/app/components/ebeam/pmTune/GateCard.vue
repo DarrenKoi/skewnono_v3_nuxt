@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
-    <p class="sk-eyebrow">
+    <p class="sk-title">
       BM/PM Up gate
     </p>
 

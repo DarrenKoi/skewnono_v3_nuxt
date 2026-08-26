@@ -3,7 +3,7 @@
     class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4"
     :style="{ backgroundImage: lead ? 'linear-gradient(var(--sk-bad-tint), var(--sk-bad-tint))' : undefined }"
   >
-    <p class="sk-eyebrow">
+    <p class="sk-title">
       그룹에서 빠진 장비
     </p>
 

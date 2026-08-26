@@ -26,7 +26,7 @@ const selectedApiGroup = computed<ApiGroup>(() =>
           aria-label="Information sections"
         >
           <div>
-            <p class="mb-2 sk-eyebrow">
+            <p class="mb-2 sk-label">
               시작하기
             </p>
             <button
@@ -44,7 +44,7 @@ const selectedApiGroup = computed<ApiGroup>(() =>
           </div>
 
           <div>
-            <p class="mb-2 sk-eyebrow">
+            <p class="mb-2 sk-label">
               API 카탈로그
             </p>
             <div class="space-y-1">
@@ -64,7 +64,7 @@ const selectedApiGroup = computed<ApiGroup>(() =>
                   <span class="truncate">{{ group.name }}</span>
                 </span>
                 <span
-                  class="rounded-full px-2 py-0.5 text-[11px]"
+                  class="rounded-full px-2 py-0.5 text-xs"
                   :class="activePanel === group.name ? 'bg-white/15 dark:bg-zinc-950/10' : 'bg-zinc-100 text-(--sk-ink-muted) dark:bg-zinc-900 dark:text-zinc-400'"
                 >
                   {{ group.endpoints.length }}
@@ -309,9 +309,9 @@ const selectedApiGroup = computed<ApiGroup>(() =>
                         class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
                       >
                         <code class="sk-value-num">{{ arg.name }}</code>
-                        <span class="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ arg.kind }}</span>
+                        <span class="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ arg.kind }}</span>
                         <span
-                          class="text-[10px] font-semibold"
+                          class="text-xs font-semibold"
                           :class="arg.required ? 'text-zinc-900 dark:text-zinc-100' : 'text-(--sk-ink-muted)'"
                         >{{ arg.required ? 'required' : 'optional' }}</span>
                         <span class="sk-body">{{ arg.note }}</span>
@@ -334,13 +334,13 @@ const selectedApiGroup = computed<ApiGroup>(() =>
                   <div class="border-b border-(--sk-border) px-3 py-2 sk-label">
                     curl
                   </div>
-                  <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ curlExample(endpoint) }}</code></pre>
+                  <pre class="whitespace-pre-wrap break-words p-3 text-xs leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ curlExample(endpoint) }}</code></pre>
                 </div>
                 <div class="overflow-hidden rounded-md bg-zinc-50 dark:bg-zinc-900">
                   <div class="border-b border-(--sk-border) px-3 py-2 sk-label">
                     Python
                   </div>
-                  <pre class="whitespace-pre-wrap break-words p-3 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ pythonExample(endpoint) }}</code></pre>
+                  <pre class="whitespace-pre-wrap break-words p-3 text-xs leading-5 text-zinc-600 dark:text-zinc-300"><code>{{ pythonExample(endpoint) }}</code></pre>
                 </div>
               </div>
             </article>

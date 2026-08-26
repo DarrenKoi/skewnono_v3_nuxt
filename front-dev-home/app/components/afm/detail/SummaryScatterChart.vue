@@ -26,7 +26,7 @@
               v-for="col in measurementColumns"
               :key="col"
               type="button"
-              class="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+              class="inline-flex h-6 items-center rounded-md px-2 text-xs font-medium ring-1 transition-colors"
               :class="chipClass(selectedMeasurements.includes(col))"
               @click="toggleMeasurement(col)"
             >

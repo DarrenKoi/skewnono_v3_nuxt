@@ -19,7 +19,7 @@
           :key="fabGroup.fab"
           class="space-y-1"
         >
-          <div class="px-3 sk-eyebrow">
+          <div class="px-3 sk-label">
             {{ fabGroup.fab }}
           </div>
           <NuxtLink

@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-surface flex flex-col rounded-[var(--sk-r-card)] px-5 py-4">
-    <p class="sk-eyebrow">
+    <p class="sk-title">
       1차 추천 · 최대 N배화
     </p>
 

@@ -26,7 +26,7 @@
             :key="fabGroup.fab"
             class="rounded-2xl border border-[var(--sk-border)] bg-[var(--sk-muted-surface)] px-4 py-3"
           >
-            <span class="mb-3 flex items-center gap-2 sk-eyebrow">
+            <span class="mb-3 flex items-center gap-2 sk-label">
               <span class="h-2 w-2 rounded-full bg-[var(--sk-accent)]" />
               {{ fabGroup.fab }} FAB
             </span>

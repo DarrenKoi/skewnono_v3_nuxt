@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-wrap items-center gap-2 rounded-xl bg-(--sk-surface) px-3 py-2 ring-1 ring-(--sk-border-soft)">
-    <span class="inline-flex items-center gap-1.5 sk-eyebrow">
+    <span class="inline-flex items-center gap-1.5 sk-label">
       <UIcon
         name="i-lucide-git-compare"
         class="h-3.5 w-3.5"
@@ -9,7 +9,7 @@
     </span>
 
     <!-- ◆ = the selected (primary) tool, always shown as the comparison anchor. -->
-    <span class="font-mono text-[11px] font-bold text-(--sk-ink)">◆ {{ selectedEqp || '—' }}</span>
+    <span class="font-mono text-xs font-bold text-(--sk-ink)">◆ {{ selectedEqp || '—' }}</span>
 
     <USelectMenu
       v-model:open="menuOpen"
@@ -83,7 +83,7 @@
       </template>
     </USelectMenu>
 
-    <span class="font-mono text-[11px] text-(--sk-ink-muted) tabular-nums">
+    <span class="font-mono text-xs text-(--sk-ink-muted) tabular-nums">
       동일 fab 장비 {{ siblingIds.length }}대 · 비교 {{ modelValue.length }}대
     </span>
   </div>

@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-flex h-5.5 items-center rounded-[var(--sk-r-sidebar)] border px-1.5 font-mono text-[11px] font-semibold tracking-wide"
+    class="inline-flex h-5.5 items-center rounded-[var(--sk-r-sidebar)] border px-1.5 text-xs font-semibold"
     :class="chipClass"
   >{{ memory }}</span>
 </template>

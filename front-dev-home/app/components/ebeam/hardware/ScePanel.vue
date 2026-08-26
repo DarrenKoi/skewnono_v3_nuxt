@@ -39,7 +39,7 @@
               :key="group.block"
               class="flex flex-wrap items-center gap-1.5"
             >
-              <span class="w-[4.5rem] shrink-0 sk-eyebrow text-(--sk-ink-muted)">
+              <span class="w-[4.5rem] shrink-0 sk-label text-(--sk-ink-muted)">
                 {{ group.block }}
               </span>
               <SkChip
@@ -86,7 +86,7 @@
                   type="number"
                   min="0"
                   max="359"
-                  class="w-16 rounded-md border border-(--sk-border) bg-(--sk-surface) px-1.5 py-0.5 text-right font-mono text-[11px] text-(--sk-ink)"
+                  class="w-16 rounded-md border border-(--sk-border) bg-(--sk-surface) px-1.5 py-0.5 text-right font-mono text-xs text-(--sk-ink)"
                   aria-label="Coefficient index (number)"
                   @change="setCoeffIndex(($event.target as HTMLInputElement).value)"
                 >
@@ -106,7 +106,7 @@
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
                 <span
-                  class="font-mono text-[11px] tabular-nums"
+                  class="font-mono text-xs tabular-nums"
                   :class="nothingCollapsed ? 'text-(--sk-warn)' : 'text-(--sk-ink-muted)'"
                 >
                   {{ collectionCount }}회 수집 · {{ revisions.length }}개 버전
@@ -224,16 +224,16 @@
           <table class="min-w-full text-left text-xs">
             <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
               <tr>
-                <th class="px-3 py-2 sk-eyebrow">
+                <th class="px-3 py-2 sk-label">
                   Setting
                 </th>
-                <th class="px-3 py-2 sk-eyebrow">
+                <th class="px-3 py-2 sk-value-num">
                   {{ selectedEqp }} (선택)
                 </th>
                 <th
                   v-for="id in compareIds"
                   :key="id"
-                  class="px-3 py-2 sk-eyebrow"
+                  class="px-3 py-2 sk-value-num"
                 >
                   <span class="inline-flex items-center gap-1.5">
                     <span

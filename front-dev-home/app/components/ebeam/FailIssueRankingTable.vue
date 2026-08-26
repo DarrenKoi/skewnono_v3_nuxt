@@ -5,7 +5,7 @@
         <h3 class="sk-title">
           {{ title }}
         </h3>
-        <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-xs tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
           {{ filteredRows.length.toLocaleString() }} / {{ rows.length.toLocaleString() }}
         </span>
         <!-- Badges that only one panel needs (e.g. the TAT view's server-side

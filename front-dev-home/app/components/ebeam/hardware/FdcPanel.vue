@@ -13,7 +13,7 @@
         @click="activeKey = key"
       >
         {{ key }}
-        <span class="ml-1 font-mono text-[10px] opacity-70">{{ grouped[key]?.length ?? 0 }}</span>
+        <span class="ml-1 font-mono text-xs opacity-70">{{ grouped[key]?.length ?? 0 }}</span>
       </button>
     </div>
 
@@ -32,16 +32,16 @@
       <table class="min-w-full text-left text-xs">
         <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
           <tr>
-            <th class="px-3 py-2 sk-eyebrow">
+            <th class="px-3 py-2 sk-label">
               Timestamp
             </th>
-            <th class="px-3 py-2 sk-eyebrow">
+            <th class="px-3 py-2 sk-label">
               Ch
             </th>
-            <th class="px-3 py-2 sk-eyebrow">
+            <th class="px-3 py-2 sk-label">
               Judgment
             </th>
-            <th class="px-3 py-2 text-right sk-eyebrow">
+            <th class="px-3 py-2 text-right sk-label">
               Values
             </th>
           </tr>
@@ -60,7 +60,7 @@
             </td>
             <td class="px-3 py-2">
               <span
-                class="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                class="rounded px-1.5 py-0.5 text-xs font-bold"
                 :class="row.judgment === 'Conduction'
                   ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
                   : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
@@ -84,7 +84,7 @@
           <span
             v-for="b in spmJudgments"
             :key="b.channel"
-            class="rounded bg-(--sk-muted-surface) px-1.5 py-0.5 font-mono text-[10px] font-bold text-(--sk-ink)"
+            class="rounded bg-(--sk-muted-surface) px-1.5 py-0.5 font-mono text-xs font-bold text-(--sk-ink)"
           >{{ b.channel }}: {{ b.judgment }}</span>
         </div>
         <USelect
@@ -113,7 +113,7 @@
             v-for="m in laserViews"
             :key="m.value"
             type="button"
-            class="px-2.5 py-1 text-[11px] font-semibold transition-colors"
+            class="px-2.5 py-1 text-xs font-semibold transition-colors"
             :class="m.value === laserView
               ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
               : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"

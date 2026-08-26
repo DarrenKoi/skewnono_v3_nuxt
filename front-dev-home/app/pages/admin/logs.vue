@@ -44,7 +44,7 @@
 
     <section class="dashboard-surface rounded-lg border border-(--sk-border) p-3">
       <div class="mb-2 flex flex-wrap items-center gap-1.5">
-        <span class="sk-eyebrow mr-1">상태</span>
+        <span class="sk-label mr-1">상태</span>
         <UButton
           v-for="preset in statusPresets"
           :key="preset.value"
@@ -228,7 +228,7 @@
         class="overflow-x-auto"
       >
         <table class="w-full min-w-[72rem] text-left text-xs">
-          <thead class="border-b border-(--sk-border) sk-eyebrow">
+          <thead class="border-b border-(--sk-border) sk-label">
             <tr>
               <th class="px-3 py-2">
                 Time
@@ -283,24 +283,24 @@
                     {{ row.level || '-' }}
                   </UBadge>
                 </td>
-                <td class="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-600 dark:text-zinc-300">
+                <td class="whitespace-nowrap px-3 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-300">
                   {{ row.event || '-' }}
                 </td>
                 <td class="whitespace-nowrap px-3 py-2">
-                  <div class="text-[11px]">
+                  <div class="text-xs">
                     {{ userCell(row.user_id).name }}
                   </div>
                   <div
                     v-if="userCell(row.user_id).empno"
-                    class="font-mono text-[10px] text-(--sk-ink-muted)"
+                    class="font-mono text-xs text-(--sk-ink-muted)"
                   >
                     {{ userCell(row.user_id).empno }}
                   </div>
                 </td>
-                <td class="px-3 py-2 font-mono text-[11px]">
+                <td class="px-3 py-2 font-mono text-xs">
                   {{ row.method || '-' }}
                 </td>
-                <td class="max-w-[22rem] truncate px-3 py-2 font-mono text-[11px] text-zinc-600 dark:text-zinc-300">
+                <td class="max-w-[22rem] truncate px-3 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-300">
                   {{ row.path || '-' }}
                 </td>
                 <td class="px-3 py-2 text-right font-mono tabular-nums">
@@ -309,7 +309,7 @@
                 <td class="px-3 py-2 text-right font-mono tabular-nums">
                   {{ row.latency_ms ?? '-' }}
                 </td>
-                <td class="whitespace-nowrap px-3 py-2 font-mono text-[11px]">
+                <td class="whitespace-nowrap px-3 py-2 font-mono text-xs">
                   {{ row.feature || '-' }}
                 </td>
                 <td class="max-w-[28rem] truncate px-3 py-2 text-zinc-600 dark:text-zinc-300">
@@ -329,13 +329,13 @@
                       <h3 class="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                         Exception
                       </h3>
-                      <pre class="max-h-80 overflow-auto rounded bg-zinc-950 p-3 text-[11px] text-zinc-100">{{ exceptionText(row) }}</pre>
+                      <pre class="max-h-80 overflow-auto rounded bg-zinc-950 p-3 text-xs text-zinc-100">{{ exceptionText(row) }}</pre>
                     </div>
                     <div>
                       <h3 class="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                         Raw document
                       </h3>
-                      <pre class="max-h-80 overflow-auto rounded bg-zinc-950 p-3 text-[11px] text-zinc-100">{{ rawText(row) }}</pre>
+                      <pre class="max-h-80 overflow-auto rounded bg-zinc-950 p-3 text-xs text-zinc-100">{{ rawText(row) }}</pre>
                     </div>
                   </div>
                 </td>

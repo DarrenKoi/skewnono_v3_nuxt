@@ -158,12 +158,12 @@ watch(open, (isOpen) => {
                  "SEM" over an OM image is worse than no badge. -->
             <span
               v-if="image.optic"
-              class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)"
+              class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)"
             >
               {{ image.optic }}
             </span>
           </div>
-          <figcaption class="text-center font-mono text-[11px] text-(--sk-ink-muted)">
+          <figcaption class="text-center font-mono text-xs text-(--sk-ink-muted)">
             P.No {{ image.p_no }} · {{ image.name }}
           </figcaption>
         </figure>

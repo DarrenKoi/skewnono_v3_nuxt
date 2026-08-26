@@ -113,7 +113,7 @@ const hasActiveLink = computed(() => links.value.some(isActive))
     <template #content>
       <div class="w-[300px] p-1.5">
         <div class="flex items-center justify-between gap-2 px-2.5 pb-1.5 pt-2">
-          <span class="sk-eyebrow">실험실</span>
+          <span class="sk-label">실험실</span>
           <span class="lab-beta">BETA</span>
         </div>
         <nav

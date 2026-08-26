@@ -1,6 +1,6 @@
 <template>
   <div class="mt-1 flex items-center justify-center gap-1.5 px-1">
-    <span class="sk-eyebrow shrink-0">
+    <span class="sk-label shrink-0">
       범위
     </span>
     <UInput
@@ -15,7 +15,7 @@
       @change="commit"
       @keyup.enter="commit"
     />
-    <span class="text-[11px] text-(--sk-ink-muted)">–</span>
+    <span class="text-xs text-(--sk-ink-muted)">–</span>
     <UInput
       v-model="maxText"
       size="xs"

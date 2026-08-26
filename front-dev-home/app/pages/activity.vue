@@ -452,7 +452,7 @@
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-left sk-eyebrow border-b border-(--sk-border)">
+              <tr class="text-left sk-label border-b border-(--sk-border)">
                 <th class="py-2 pr-4">
                   사용자
                 </th>
@@ -550,7 +550,7 @@
                       class="grid grid-cols-1 lg:grid-cols-3 gap-4"
                     >
                       <div>
-                        <div class="sk-eyebrow mb-2">
+                        <div class="sk-label mb-2">
                           이번 달
                         </div>
                         <div class="text-2xl font-semibold tabular-nums">
@@ -561,7 +561,7 @@
                         </div>
                       </div>
                       <div class="lg:col-span-1">
-                        <div class="sk-eyebrow mb-2">
+                        <div class="sk-label mb-2">
                           자주 쓰는 기능
                         </div>
                         <ActivityFeatureBarList
@@ -571,7 +571,7 @@
                         />
                       </div>
                       <div>
-                        <div class="sk-eyebrow mb-2">
+                        <div class="sk-label mb-2">
                           30일 활동
                         </div>
                         <ActivitySparkline

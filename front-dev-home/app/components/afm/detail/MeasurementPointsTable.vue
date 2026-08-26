@@ -22,7 +22,7 @@
             v-for="point in availablePoints"
             :key="point"
             type="button"
-            class="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-medium ring-1 transition-colors"
+            class="inline-flex h-6 items-center rounded-md px-2 text-xs font-medium ring-1 transition-colors"
             :class="chipClass(selectedPoint === point)"
             @click="$emit('update:selectedPoint', point)"
           >
@@ -31,7 +31,7 @@
           <button
             v-if="selectedPoint"
             type="button"
-            class="inline-flex h-6 items-center gap-1 rounded-full px-2 text-[11px] text-(--sk-ink-muted) ring-1 ring-zinc-200 hover:bg-zinc-50 dark:ring-zinc-700 dark:hover:bg-zinc-800"
+            class="inline-flex h-6 items-center gap-1 rounded-full px-2 text-xs text-(--sk-ink-muted) ring-1 ring-zinc-200 hover:bg-zinc-50 dark:ring-zinc-700 dark:hover:bg-zinc-800"
             @click="$emit('update:selectedPoint', '')"
           >
             <UIcon

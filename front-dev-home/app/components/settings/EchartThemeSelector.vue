@@ -57,7 +57,7 @@ const selectedLabel = computed(() =>
               <p class="truncate text-sm font-semibold">
                 {{ option.label }}
               </p>
-              <p class="mt-0.5 truncate font-mono text-[10px] opacity-70">
+              <p class="mt-0.5 truncate font-mono text-xs opacity-70">
                 {{ option.fileName }}
               </p>
             </div>

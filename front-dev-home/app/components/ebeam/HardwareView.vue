@@ -525,7 +525,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
             :key="group.category"
             class="flex flex-col gap-1"
           >
-            <span class="px-0.5 sk-eyebrow">
+            <span class="px-0.5 sk-label">
               {{ group.category }}
             </span>
             <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border)">
@@ -626,7 +626,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                     :key="card.key"
                     class="flex items-baseline gap-1.5"
                   >
-                    <dt class="sk-eyebrow">
+                    <dt class="sk-field-label">
                       {{ card.label }}
                     </dt>
                     <dd
@@ -717,7 +717,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                         <th
                           v-for="column in section.columns"
                           :key="column.key"
-                          class="whitespace-nowrap px-3 py-2 sk-eyebrow"
+                          class="whitespace-nowrap px-3 py-2 sk-label"
                         >
                           {{ column.label }}
                         </th>
