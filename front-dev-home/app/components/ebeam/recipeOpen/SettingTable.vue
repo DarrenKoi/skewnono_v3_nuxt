@@ -1,17 +1,17 @@
 <template>
   <div class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/40 dark:border-zinc-800/60 dark:bg-zinc-900/30">
     <div class="flex shrink-0 items-baseline justify-between gap-2 border-b border-zinc-200/70 px-3.5 py-2 dark:border-zinc-800/60">
-      <span class="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">{{ title }}</span>
+      <span class="text-xs">{{ title }}</span>
       <span
         v-if="block"
-        class="truncate font-mono text-[10px] text-(--sk-ink-muted)"
+        class="truncate font-mono text-xs text-(--sk-ink-muted)"
         :title="block.source"
       >{{ block.source }}</span>
     </div>
 
     <p
       v-if="!block"
-      class="px-3.5 py-3 text-[11px] text-(--sk-ink-muted)"
+      class="px-3.5 py-3 text-xs text-(--sk-ink-muted)"
     >
       파일 없음
     </p>
@@ -29,13 +29,13 @@
             <tr v-if="startsSection(index)">
               <th
                 colspan="2"
-                class="border-b border-zinc-200/70 bg-black/[0.025] px-3.5 py-1 text-left text-[10px] font-semibold tracking-wide text-(--sk-ink-muted) dark:border-zinc-800/60 dark:bg-white/[0.03]"
+                class="border-b border-zinc-200/70 bg-black/[0.025] px-3.5 py-1 text-left sk-label dark:border-zinc-800/60 dark:bg-white/[0.03]"
               >
                 {{ setting.section }}
               </th>
             </tr>
             <tr :class="index % 2 ? 'bg-black/[0.014] dark:bg-white/[0.02]' : ''">
-              <td class="border-b border-zinc-100 px-3.5 py-1.5 text-[11px] font-semibold whitespace-nowrap text-zinc-700 dark:border-zinc-800/60 dark:text-zinc-300">
+              <td class="border-b border-zinc-100 px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap text-zinc-700 dark:border-zinc-800/60 dark:text-zinc-300">
                 {{ setting.key }}
               </td>
               <td
@@ -52,7 +52,7 @@
       </table>
       <p
         v-if="!block.rows.length"
-        class="px-3.5 py-3 text-[11px] text-(--sk-ink-muted)"
+        class="px-3.5 py-3 text-xs text-(--sk-ink-muted)"
       >
         읽을 수 있는 설정이 없습니다.
       </p>

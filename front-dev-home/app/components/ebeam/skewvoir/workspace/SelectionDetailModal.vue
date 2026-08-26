@@ -12,7 +12,7 @@
         <!-- Scope + Focus + Parameter -->
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
           <span
-            class="inline-flex items-center gap-1.5 rounded-(--sk-r-chip) px-2 py-0.5 text-[11px] font-semibold"
+            class="inline-flex items-center gap-1.5 rounded-(--sk-r-chip) px-2 py-0.5 text-xs font-semibold"
             :class="scope === 'set'
               ? 'bg-(--sk-accent-soft) text-(--sk-accent)'
               : 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'"
@@ -54,12 +54,12 @@
 
         <!-- Counts -->
         <div class="flex flex-wrap items-center gap-1.5 border-t border-(--sk-border-soft) pt-3">
-          <span class="rounded-(--sk-r-chip) bg-(--sk-ok-soft) px-2 py-0.5 font-mono text-[11px] text-(--sk-ok)">호환 {{ counts.compatible }}</span>
-          <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-[11px] text-(--sk-ink-muted)">로드 {{ counts.loaded }}</span>
-          <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-[11px] text-(--sk-ink-muted)">선택 {{ counts.selected }}</span>
+          <span class="rounded-(--sk-r-chip) bg-(--sk-ok-soft) px-2 py-0.5 font-mono text-xs text-(--sk-ok)">호환 {{ counts.compatible }}</span>
+          <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-xs text-(--sk-ink-muted)">로드 {{ counts.loaded }}</span>
+          <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-xs text-(--sk-ink-muted)">선택 {{ counts.selected }}</span>
           <span
             v-if="counts.excluded > 0"
-            class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-0.5 font-mono text-[11px] text-(--sk-bad)"
+            class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-0.5 font-mono text-xs text-(--sk-bad)"
           >제외 {{ counts.excluded }}</span>
         </div>
 
@@ -69,7 +69,7 @@
           class="flex items-baseline gap-1.5"
         >
           <span class="sk-label shrink-0">기준</span>
-          <span class="truncate font-mono text-[11px] text-(--sk-ink-muted)">{{ referenceLabel }}</span>
+          <span class="truncate font-mono text-xs text-(--sk-ink-muted)">{{ referenceLabel }}</span>
         </div>
 
         <!-- Searchable set editor (set scope only) — the place to add a new MSR -->

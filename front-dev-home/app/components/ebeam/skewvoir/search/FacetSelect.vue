@@ -51,7 +51,7 @@
               @click="toggle(opt.value)"
             >
               <span class="truncate font-mono text-xs text-zinc-700 dark:text-zinc-200">{{ opt.value }}</span>
-              <span class="shrink-0 font-mono text-[11px] text-(--sk-ink-subtle)">{{ opt.count }}</span>
+              <span class="shrink-0 font-mono text-xs text-(--sk-ink-subtle)">{{ opt.count }}</span>
             </button>
           </li>
         </ul>

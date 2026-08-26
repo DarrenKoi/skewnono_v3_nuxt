@@ -38,7 +38,7 @@
             <button
               v-if="activeName"
               type="button"
-              class="mt-1 inline-flex items-center gap-1 rounded-md border border-white/30 px-2.5 py-1 font-mono text-[11px] text-white/80 hover:text-white"
+              class="mt-1 inline-flex items-center gap-1 rounded-md border border-white/30 px-2.5 py-1 font-mono text-xs text-white/80 hover:text-white"
               @click="retry"
             >
               <UIcon
@@ -79,9 +79,9 @@
           <div class="absolute bottom-3 left-3 flex flex-col gap-1 rounded-md bg-black/55 px-2.5 py-1.5 backdrop-blur-sm">
             <div class="flex items-center gap-1.5">
               <div class="h-1 w-16 rounded-sm bg-white/90" />
-              <span class="font-mono text-[10px] text-white/85">{{ scaleLabel }}</span>
+              <span class="font-mono text-xs text-white/85">{{ scaleLabel }}</span>
             </div>
-            <span class="font-mono text-[9px] text-white/50">{{ scaleNote }}</span>
+            <span class="font-mono text-xs text-white/50">{{ scaleNote }}</span>
           </div>
         </div>
       </div>
@@ -109,12 +109,12 @@
           <span
             v-for="reason in entry.reasons"
             :key="reason"
-            class="rounded-(--sk-r-sidebar) px-1.5 py-0.5 font-mono text-[10px] font-semibold"
+            class="rounded-(--sk-r-sidebar) px-1.5 py-0.5 font-mono text-xs font-semibold"
             :class="roleClass(REASON_META[reason].role)"
           >{{ REASON_META[reason].label }}</span>
           <span
             v-if="entry.monitor?.low"
-            class="rounded-(--sk-r-sidebar) border border-(--sk-border) px-1.5 py-0.5 font-mono text-[10px] text-(--sk-ink-muted)"
+            class="rounded-(--sk-r-sidebar) border border-(--sk-border) px-1.5 py-0.5 font-mono text-xs text-(--sk-ink-muted)"
           >취득 점수↓</span>
         </div>
 
@@ -132,7 +132,7 @@
           v-if="isTiff && downloadUrl"
           :href="downloadUrl"
           :download="activeName ?? undefined"
-          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-border) px-3 py-1.5 font-mono text-[11px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-border) px-3 py-1.5 font-mono text-xs text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
         >
           <UIcon
             name="i-lucide-download"
@@ -157,15 +157,15 @@
         </dl>
 
         <div v-if="cond">
-          <p class="mb-1 sk-eyebrow">
+          <p class="mb-1 sk-title">
             취득 조건
           </p>
-          <pre class="max-h-32 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2 font-mono text-[10px] whitespace-pre-wrap text-(--sk-ink-muted)">{{ cond }}</pre>
+          <pre class="max-h-32 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2 font-mono text-xs whitespace-pre-wrap text-(--sk-ink-muted)">{{ cond }}</pre>
         </div>
 
         <button
           type="button"
-          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-accent)/40 bg-(--sk-accent)/10 px-3 py-1.5 font-mono text-[11px] font-medium text-(--sk-accent) transition-colors hover:bg-(--sk-accent)/20"
+          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-accent)/40 bg-(--sk-accent)/10 px-3 py-1.5 font-mono text-xs font-medium text-(--sk-accent) transition-colors hover:bg-(--sk-accent)/20"
           @click="emit('moveToSite', entry.chip)"
         >
           <UIcon
@@ -177,7 +177,7 @@
 
         <button
           type="button"
-          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-border) px-3 py-1.5 font-mono text-[11px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-border) px-3 py-1.5 font-mono text-xs text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
           @click="emit('evidence', entry)"
         >
           <UIcon
@@ -187,7 +187,7 @@
           측정 근거 레이어
         </button>
 
-        <p class="mt-auto font-mono text-[10px] text-(--sk-ink-subtle)">
+        <p class="mt-auto font-mono text-xs text-(--sk-ink-subtle)">
           {{ index + 1 }} / {{ entries.length }} · ← → 로 이동
         </p>
       </aside>

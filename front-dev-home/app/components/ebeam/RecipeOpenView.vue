@@ -90,7 +90,7 @@
                      mother 인지를 나타내는 flag 입니다. 참일 때만 표시합니다. -->
                 <span
                   v-if="selectedIdp.Mother_Para"
-                  class="inline-block rounded bg-(--sk-brand-soft) px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-(--sk-brand-ink)"
+                  class="inline-block rounded bg-(--sk-brand-soft) px-1.5 py-px font-mono text-xs font-bold tracking-wide text-(--sk-brand-ink)"
                 >MOTHER</span>
               </div>
 

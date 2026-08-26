@@ -3,7 +3,7 @@
     <!-- 이상·실패 우선: evidence-backed only (failure/residual, NOT vendor score). -->
     <button
       type="button"
-      class="inline-flex items-center gap-1.5 rounded-(--sk-r-chip) border px-2.5 py-1 font-mono text-[11px] font-medium transition-colors duration-200"
+      class="inline-flex items-center gap-1.5 rounded-(--sk-r-chip) border px-2.5 py-1 font-mono text-xs font-medium transition-colors duration-200"
       :class="model.evidenceOnly
         ? 'border-(--sk-bad)/40 bg-(--sk-bad)/10 text-(--sk-bad)'
         : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -19,7 +19,7 @@
     <!-- Image-present filter. -->
     <button
       type="button"
-      class="inline-flex items-center gap-1.5 rounded-(--sk-r-chip) border px-2.5 py-1 font-mono text-[11px] font-medium transition-colors duration-200"
+      class="inline-flex items-center gap-1.5 rounded-(--sk-r-chip) border px-2.5 py-1 font-mono text-xs font-medium transition-colors duration-200"
       :class="model.imageOnly
         ? 'border-(--sk-accent)/40 bg-(--sk-accent)/10 text-(--sk-accent)'
         : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -44,13 +44,13 @@
         :value="model.query"
         type="text"
         placeholder="chip / sequence 검색"
-        class="w-full rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-surface) py-1 pr-2 pl-7 font-mono text-[11px] text-(--sk-ink) placeholder:text-(--sk-ink-subtle) focus:border-(--sk-accent) focus:outline-none"
+        class="w-full rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-surface) py-1 pr-2 pl-7 font-mono text-xs text-(--sk-ink) placeholder:text-(--sk-ink-subtle) focus:border-(--sk-accent) focus:outline-none"
         @input="patch({ query: ($event.target as HTMLInputElement).value })"
       >
     </div>
 
     <!-- Count summary — separates evidence from the vendor monitoring badge. -->
-    <div class="flex items-center gap-2 font-mono text-[11px] text-(--sk-ink-muted)">
+    <div class="flex items-center gap-2 font-mono text-xs text-(--sk-ink-muted)">
       <span>{{ counts.shown }}/{{ counts.total }}</span>
       <span
         v-if="counts.failure"

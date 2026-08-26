@@ -108,7 +108,7 @@
 
       <template v-else>
         <div class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) px-3 py-2.5">
-          <span class="sk-eyebrow">X</span>
+          <span class="sk-label">X</span>
           <USelect
             v-model="axisXId"
             :items="axisItems"
@@ -119,7 +119,7 @@
             name="i-lucide-x"
             class="h-3 w-3 text-(--sk-ink-subtle)"
           />
-          <span class="sk-eyebrow">Y</span>
+          <span class="sk-label">Y</span>
           <USelect
             v-model="axisYId"
             :items="axisItems"

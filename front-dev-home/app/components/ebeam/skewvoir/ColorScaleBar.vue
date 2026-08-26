@@ -7,7 +7,7 @@
       class="h-2.5 w-full max-w-[16rem] rounded-(--sk-r-sidebar)"
       :style="gradientStyle"
     />
-    <div class="flex w-full max-w-[16rem] items-center justify-between font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
+    <div class="flex w-full max-w-[16rem] items-center justify-between font-mono text-xs tabular-nums text-(--sk-ink-muted)">
       <span class="text-(--sk-ink)">{{ fmt(min) }}</span>
       <span>{{ fmt((min + max) / 2) }}</span>
       <span class="text-(--sk-ink)">{{ fmt(max) }} {{ unit }}</span>

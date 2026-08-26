@@ -2,7 +2,7 @@
   <div class="dashboard-surface flex flex-wrap items-center gap-x-3 gap-y-2 rounded-(--sk-r-card) px-3 py-2.5">
     <!-- X axis: a CD parameter of the focus MSR. -->
     <div class="flex items-center gap-1.5">
-      <span class="sk-eyebrow">X</span>
+      <span class="sk-label">X</span>
       <USelect
         :model-value="query.xParam"
         :items="cdParams"
@@ -19,13 +19,13 @@
 
     <!-- Y axis kind: another CD parameter, or a dynamic FDC channel. -->
     <div class="flex items-center gap-1.5">
-      <span class="sk-eyebrow">Y</span>
+      <span class="sk-label">Y</span>
       <div class="inline-flex items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5">
         <button
           v-for="opt in yKindOptions"
           :key="opt.value"
           type="button"
-          class="rounded-[6px] px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+          class="rounded-[6px] px-2 py-0.5 font-mono text-xs font-medium transition-colors duration-200"
           :class="query.yKind === opt.value
             ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
             : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -54,7 +54,7 @@
     </div>
 
     <div class="ml-auto flex items-center gap-1.5">
-      <span class="sk-eyebrow">그룹</span>
+      <span class="sk-label">그룹</span>
       <USelect
         :model-value="query.group"
         :items="groupItems"

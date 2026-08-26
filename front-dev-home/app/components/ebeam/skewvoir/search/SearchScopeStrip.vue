@@ -20,7 +20,7 @@
             <p class="mt-1 leading-5">
               일반 키워드는 장비, Recipe, Lot, MSR 전체에서 찾습니다. 정확한 범위를 지정하려면 아래 접두어를 사용하세요.
             </p>
-            <div class="mt-2 grid grid-cols-[62px_1fr] gap-x-2 gap-y-1 font-mono text-[11px]">
+            <div class="mt-2 grid grid-cols-[62px_1fr] gap-x-2 gap-y-1 font-mono text-xs">
               <span class="text-(--sk-brand)">eq:</span><span>장비 ID</span>
               <span class="text-(--sk-brand)">recipe:</span><span>Recipe 이름</span>
               <span class="text-(--sk-brand)">lot:</span><span>Lot ID</span>
@@ -36,7 +36,7 @@
       <span
         v-for="item in items"
         :key="`${item.label}:${item.value}`"
-        class="inline-flex min-w-0 items-baseline gap-1 font-mono text-[11px]"
+        class="inline-flex min-w-0 items-baseline gap-1 font-mono text-xs"
       >
         <span class="text-(--sk-ink-subtle)">{{ item.label }}</span>
         <span

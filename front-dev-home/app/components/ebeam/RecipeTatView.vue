@@ -176,7 +176,7 @@
           <template #title-extra>
             <span
               v-if="rankingLimit && rankingRows.length >= rankingLimit"
-              class="font-mono text-[10px] text-(--sk-warn)"
+              class="font-mono text-xs text-(--sk-warn)"
             >capped at {{ rankingLimit.toLocaleString() }}</span>
           </template>
           <template #actions-cell="{ row }">

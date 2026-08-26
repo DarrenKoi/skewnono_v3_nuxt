@@ -15,7 +15,7 @@
              edge / CD gauge / line profile / algorithm version, so that layer is
              HIDDEN and disclosed rather than faked. -->
         <section>
-          <p class="mb-2 sk-eyebrow">
+          <p class="mb-2 sk-title">
             측정 근거 레이어
           </p>
           <div class="flex items-start gap-2 rounded-(--sk-r-nav) border border-dashed border-(--sk-border) px-3 py-2.5">
@@ -37,7 +37,7 @@
         <!-- Artifact-suspicion review tags — a SEPARATE axis from any pattern
              verdict; reviewer-selected, not machine-classified. -->
         <section>
-          <p class="mb-2 sk-eyebrow">
+          <p class="mb-2 sk-title">
             artifact 의심 (검토 태그)
           </p>
           <div class="flex flex-wrap gap-1.5">
@@ -45,7 +45,7 @@
               v-for="tag in ARTIFACT_TAGS"
               :key="tag.key"
               type="button"
-              class="rounded-(--sk-r-chip) border px-2 py-1 font-mono text-[11px] transition-colors duration-200"
+              class="rounded-(--sk-r-chip) border px-2 py-1 font-mono text-xs transition-colors duration-200"
               :class="selected.has(tag.key)
                 ? 'border-(--sk-warn)/50 bg-(--sk-warn)/10 text-(--sk-warn)'
                 : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -61,7 +61,7 @@
 
         <!-- Vendor acquisition-score monitoring — separate from any verdict. -->
         <section v-if="entry.monitor">
-          <p class="mb-2 sk-eyebrow">
+          <p class="mb-2 sk-title">
             취득 점수 모니터링
           </p>
           <div class="space-y-1 rounded-(--sk-r-nav) border border-(--sk-border-soft) px-3 py-2.5">

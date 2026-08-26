@@ -84,7 +84,7 @@
           <span
             v-for="recipe in recipes"
             :key="recipePairKey(recipe.fab_name, recipe.recipe_id)"
-            class="inline-flex items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-muted-surface) px-2 py-1 font-mono text-[11px] text-(--sk-ink)"
+            class="inline-flex items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-muted-surface) px-2 py-1 font-mono text-xs text-(--sk-ink)"
           >
             {{ recipe.recipe_id }}
             <span
@@ -121,12 +121,12 @@
               <UCheckbox
                 v-model="diffOnly"
                 label="차이만 보기"
-                class="text-[11px] text-(--sk-ink-muted)"
+                class="text-xs text-(--sk-ink-muted)"
               />
               <div class="flex rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-800">
                 <button
                   type="button"
-                  class="rounded-md px-3 py-1 text-[11px] font-semibold transition"
+                  class="rounded-md px-3 py-1 text-xs font-semibold transition"
                   :class="viewMode === 'matrix' ? 'bg-white shadow-sm dark:bg-zinc-950' : 'text-(--sk-ink-muted)'"
                   @click="viewMode = 'matrix'"
                 >
@@ -134,7 +134,7 @@
                 </button>
                 <button
                   type="button"
-                  class="rounded-md px-3 py-1 text-[11px] font-semibold transition"
+                  class="rounded-md px-3 py-1 text-xs font-semibold transition"
                   :class="viewMode === 'grouping' ? 'bg-white shadow-sm dark:bg-zinc-950' : 'text-(--sk-ink-muted)'"
                   @click="viewMode = 'grouping'"
                 >

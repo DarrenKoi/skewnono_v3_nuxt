@@ -172,7 +172,7 @@
             <button
               type="button"
               :aria-pressed="selectedGraphSet.has(cdGraphId(analysis.activeParam.value))"
-              class="rounded-(--sk-r-chip) px-2.5 py-1 font-mono text-[11px] transition-colors"
+              class="rounded-(--sk-r-chip) px-2.5 py-1 font-mono text-xs transition-colors"
               :class="selectedGraphSet.has(cdGraphId(analysis.activeParam.value))
                 ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
                 : 'bg-(--sk-chip-bg) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -185,7 +185,7 @@
               :key="series.param"
               type="button"
               :aria-pressed="selectedGraphSet.has(fdcGraphId(series.param))"
-              class="rounded-(--sk-r-chip) px-2.5 py-1 font-mono text-[11px] transition-colors"
+              class="rounded-(--sk-r-chip) px-2.5 py-1 font-mono text-xs transition-colors"
               :class="selectedGraphSet.has(fdcGraphId(series.param))
                 ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
                 : 'bg-(--sk-chip-bg) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -207,7 +207,7 @@
             <div class="flex items-center gap-2">
               <span
                 v-if="!model.integrity.matched && model.integrity.fdc > 0"
-                class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-[10px] text-(--sk-warn)"
+                class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-2 py-0.5 font-mono text-xs text-(--sk-warn)"
                 :title="`측정 row ${model.integrity.rows}개 · dynamic FDC ${model.integrity.fdc}개 — 측정마다 FDC 1건이 있어야 합니다.`"
               >
                 데이터 불일치 · row {{ model.integrity.rows }} / FDC {{ model.integrity.fdc }}

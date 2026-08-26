@@ -29,7 +29,7 @@
           v-for="name in fdcNames"
           :key="name"
           type="button"
-          class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition"
+          class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition"
           :class="selectedFdcParams.includes(name)
             ? 'border-transparent text-white'
             : 'border-zinc-200 text-(--sk-ink-muted) hover:bg-zinc-500/5 dark:border-zinc-700'"
@@ -96,7 +96,7 @@
         />
         <div class="flex flex-row gap-4 lg:flex-col lg:justify-center">
           <div>
-            <p class="sk-eyebrow">
+            <p class="sk-label">
               Pearson r
             </p>
             <p
@@ -142,19 +142,19 @@
           <table class="w-full text-xs">
             <thead class="sticky top-0 bg-(--sk-surface) text-left">
               <tr>
-                <th class="px-3 py-1.5 sk-eyebrow">
+                <th class="px-3 py-1.5 sk-label">
                   time
                 </th>
-                <th class="px-2 py-1.5 sk-eyebrow">
+                <th class="px-2 py-1.5 sk-label">
                   eqp
                 </th>
-                <th class="px-2 py-1.5 sk-eyebrow">
+                <th class="px-2 py-1.5 sk-label">
                   worst FDC
                 </th>
-                <th class="px-2 py-1.5 text-right sk-eyebrow">
+                <th class="px-2 py-1.5 text-right sk-label">
                   drift
                 </th>
-                <th class="px-3 py-1.5 sk-eyebrow">
+                <th class="px-3 py-1.5 sk-label">
                   status
                 </th>
               </tr>
@@ -236,7 +236,7 @@
               <p class="sk-value-num">
                 {{ card.value }}<span
                   v-if="card.unit"
-                  class="ml-0.5 text-[10px] font-normal text-(--sk-ink-muted)"
+                  class="ml-0.5 sk-label text-(--sk-ink-muted)"
                 >{{ card.unit }}</span>
               </p>
             </div>

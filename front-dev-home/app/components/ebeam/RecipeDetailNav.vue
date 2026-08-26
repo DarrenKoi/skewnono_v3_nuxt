@@ -74,7 +74,7 @@ const items = computed(() => buildRecipeDetailNavItems(
       </p>
       <p
         v-if="subtitle"
-        class="mt-0.5 font-mono text-[11px] text-(--sk-ink-muted)"
+        class="mt-0.5 font-mono text-xs text-(--sk-ink-muted)"
       >
         {{ subtitle }}
       </p>

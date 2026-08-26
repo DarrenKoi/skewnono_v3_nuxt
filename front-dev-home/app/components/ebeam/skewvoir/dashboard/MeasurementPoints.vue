@@ -47,7 +47,7 @@
     >
       <table class="w-full border-collapse text-xs">
         <thead class="sticky top-0 z-10 bg-(--sk-surface)">
-          <tr class="border-b border-(--sk-border) font-mono text-[11px] text-(--sk-ink-muted)">
+          <tr class="border-b border-(--sk-border) sk-label">
             <template
               v-for="col in columns"
               :key="col.key"
@@ -151,7 +151,7 @@
             <td class="px-1.5 py-1.5 text-right">
               <span
                 v-if="p.kind !== 'normal'"
-                class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-[11px] font-semibold"
+                class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-xs font-semibold"
                 :class="badgeClass(p.kind)"
               >{{ badgeLabel(p.kind) }}</span>
             </td>

@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-1.5">
-    <div class="flex items-center gap-3 text-[11px] text-(--sk-ink-muted)">
-      <span class="sk-eyebrow">이벤트 레인</span>
+    <div class="flex items-center gap-3 text-xs text-(--sk-ink-muted)">
+      <span class="sk-label">이벤트 레인</span>
       <span class="flex items-center gap-1">
         <span class="inline-block h-2 w-2 rounded-full bg-(--sk-bad)" /> 측정 실패
       </span>
@@ -38,7 +38,7 @@
           class="h-1.5 w-1.5 rounded-full"
           :class="cell.alignment ? 'bg-(--sk-ok)' : 'bg-transparent'"
         />
-        <span class="mt-0.5 font-mono text-[9px] text-(--sk-ink-subtle) tabular-nums">
+        <span class="mt-0.5 font-mono text-xs text-(--sk-ink-subtle) tabular-nums">
           {{ cell.sequence }}
         </span>
       </button>

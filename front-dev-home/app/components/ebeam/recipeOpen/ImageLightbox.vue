@@ -26,12 +26,12 @@
           </div>
           <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
             <span
-              class="rounded px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider"
+              class="rounded px-2 py-0.5 font-mono text-xs font-bold tracking-wider"
               :class="isMeas
                 ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
                 : 'bg-(--sk-ink) text-(--sk-ink-fg)'"
             >{{ data.stage.toUpperCase() }}</span>
-            <span class="font-mono text-[11px] text-white/60">{{ data.name }}</span>
+            <span class="font-mono text-xs text-white/60">{{ data.name }}</span>
           </div>
           <!-- Overriding #content drops UModal's own ✕, so carry one here.
                Over the image, not the dialog corner, which holds 빔 조건. -->
@@ -49,7 +49,7 @@
         </div>
 
         <div class="max-h-[88vh] overflow-auto rounded-xl bg-zinc-50/60 px-4 py-3 dark:bg-zinc-900/40">
-          <p class="sk-eyebrow text-(--sk-brand)">
+          <p class="sk-meta text-(--sk-brand)">
             빔 조건 — {{ data.stage.toUpperCase() }}
           </p>
           <p class="mt-0.5 sk-title">
@@ -57,7 +57,7 @@
           </p>
           <p
             v-if="!data.cond"
-            class="mt-2.5 text-[11px] text-(--sk-ink-muted)"
+            class="mt-2.5 text-xs text-(--sk-ink-muted)"
           >
             파일 없음
           </p>
@@ -65,7 +65,7 @@
             v-else
             class="mt-2.5"
           >
-            <p class="mb-1.5 font-mono text-[10px] text-(--sk-ink-subtle)">
+            <p class="mb-1.5 font-mono text-xs text-(--sk-ink-subtle)">
               {{ data.cond.source }}
             </p>
             <div

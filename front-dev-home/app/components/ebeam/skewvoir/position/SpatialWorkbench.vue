@@ -37,7 +37,7 @@
           :key="chip.key"
           class="dashboard-surface rounded-(--sk-r-card) px-3 py-2.5"
         >
-          <p class="sk-eyebrow text-[12px]">
+          <p class="sk-label">
             {{ chip.label }}
           </p>
           <p
@@ -91,7 +91,7 @@
         <div class="max-h-64 overflow-auto">
           <table class="w-full border-collapse text-xs">
             <thead class="sticky top-0 z-10 bg-(--sk-surface)">
-              <tr class="border-b border-(--sk-border) font-mono text-[11px] text-(--sk-ink-muted)">
+              <tr class="border-b border-(--sk-border) sk-label">
                 <th
                   scope="col"
                   class="px-1.5 py-1.5 text-left font-semibold"

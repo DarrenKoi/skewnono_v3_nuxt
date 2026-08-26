@@ -54,7 +54,7 @@
         <div class="flex items-center gap-1">
           <button
             type="button"
-            class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+            class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-xs text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
             @click="retry"
           >
             <UIcon
@@ -70,7 +70,7 @@
             v-if="isTiff && originalSrc"
             :href="originalSrc"
             :download="primary ?? undefined"
-            class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+            class="inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-xs text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
             title="TIFF 원본 다운로드"
           >
             <UIcon
@@ -99,7 +99,7 @@
         <span
           v-for="reason in entry.reasons"
           :key="reason"
-          class="rounded-(--sk-r-sidebar) px-1 py-0.5 font-mono text-[9px] font-semibold shadow-sm backdrop-blur-sm"
+          class="rounded-(--sk-r-sidebar) px-1 py-0.5 font-mono text-xs font-semibold shadow-sm backdrop-blur-sm"
           :class="roleClass(REASON_META[reason].role)"
         >{{ REASON_META[reason].label }}</span>
       </div>
@@ -108,12 +108,12 @@
       <div class="absolute top-1 right-1 flex flex-col items-end gap-0.5">
         <span
           v-if="entry.monitor?.low"
-          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-[9px] text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
+          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
           title="취득 점수 모니터링(판정 아님)"
         >취득↓</span>
         <span
           v-if="isTiff"
-          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-[9px] text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
+          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
           title="TIFF 원본 — 미리보기는 변환본, 원본은 뷰어에서 다운로드"
         >TIFF</span>
       </div>
@@ -124,7 +124,7 @@
       <div class="flex items-center justify-between gap-1">
         <button
           type="button"
-          class="truncate font-mono text-[11px] font-medium text-(--sk-ink) hover:text-(--sk-accent)"
+          class="truncate font-mono text-xs font-medium text-(--sk-ink) hover:text-(--sk-accent)"
           :title="`chip ${entry.chip} 로 이동`"
           @click="emit('focus')"
         >

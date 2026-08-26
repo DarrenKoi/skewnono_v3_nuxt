@@ -53,7 +53,7 @@
           class="h-4 w-4"
         />
       </button>
-      <span class="w-9 text-center font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">{{ Math.round(scale * 100) }}%</span>
+      <span class="w-9 text-center font-mono text-xs tabular-nums text-(--sk-ink-muted)">{{ Math.round(scale * 100) }}%</span>
       <button
         type="button"
         class="rounded-(--sk-r-sidebar) p-1 text-(--sk-ink-muted) transition-colors duration-200 hover:bg-(--sk-chip-bg) hover:text-(--sk-ink) disabled:opacity-40"

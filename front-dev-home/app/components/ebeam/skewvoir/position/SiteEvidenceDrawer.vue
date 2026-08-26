@@ -13,7 +13,7 @@
       >
         <dl class="grid grid-cols-2 gap-2">
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow text-[11px]">
+            <dt class="sk-field-label">
               chip · seq
             </dt>
             <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
@@ -21,7 +21,7 @@
             </dd>
           </div>
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow text-[11px]">
+            <dt class="sk-field-label">
               sector · R
             </dt>
             <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
@@ -29,7 +29,7 @@
             </dd>
           </div>
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow text-[11px]">
+            <dt class="sk-field-label">
               raw ({{ unit }})
             </dt>
             <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
@@ -37,7 +37,7 @@
             </dd>
           </div>
           <div class="rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow text-[11px]">
+            <dt class="sk-field-label">
               중앙값 대비
             </dt>
             <dd
@@ -48,7 +48,7 @@
             </dd>
           </div>
           <div class="col-span-2 rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2">
-            <dt class="sk-eyebrow text-[11px]">
+            <dt class="sk-field-label">
               추세 잔차 (residual)
             </dt>
             <dd class="mt-0.5 font-mono text-sm font-semibold text-(--sk-ink)">
@@ -62,7 +62,7 @@
         </dl>
 
         <section>
-          <p class="mb-1.5 sk-eyebrow text-[12px]">
+          <p class="mb-1.5 sk-title">
             SEM 미리보기
           </p>
           <!-- HV-SEM sub-images of this point (-U/-T/-M/-L). NAVIGATE family. -->
@@ -111,7 +111,7 @@
                 v-if="imageName && isTiffName(imageName) && downloadUrl"
                 :href="downloadUrl"
                 :download="imageName"
-                class="mt-1.5 inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-[10px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+                class="mt-1.5 inline-flex items-center gap-1 rounded-(--sk-r-sidebar) border border-(--sk-border) px-2 py-0.5 font-mono text-xs text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
               >
                 <UIcon
                   name="i-lucide-download"
@@ -122,7 +122,7 @@
             </div>
 
             <div v-if="imageCond">
-              <p class="mb-1 sk-eyebrow text-[12px]">
+              <p class="mb-1 sk-title">
                 취득 조건
               </p>
               <pre class="max-h-96 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2.5 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-(--sk-ink)">{{ imageCond }}</pre>

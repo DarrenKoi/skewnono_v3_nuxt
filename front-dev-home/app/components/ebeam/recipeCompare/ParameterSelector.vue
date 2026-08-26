@@ -37,7 +37,7 @@
     </div>
 
     <div class="max-h-[300px] overflow-auto rounded-lg border border-zinc-200/70 dark:border-zinc-800/70">
-      <table class="w-full border-collapse font-mono text-[11px]">
+      <table class="w-full border-collapse font-mono text-xs">
         <thead>
           <tr class="sticky top-0 z-10 bg-zinc-50/90 text-left text-(--sk-ink-muted) dark:bg-zinc-900/70">
             <th class="w-8 p-2" />
@@ -81,7 +81,7 @@
             </td>
             <td class="px-2.5 py-1.5">
               <span
-                class="rounded px-1.5 py-0.5 text-[11px] font-bold"
+                class="rounded px-1.5 py-0.5 text-xs font-bold"
                 :class="coverageClass(row.coverage)"
               >
                 {{ coverageLabel(row) }}

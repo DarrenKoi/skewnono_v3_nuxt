@@ -14,7 +14,7 @@
           <span class="text-xs font-bold tracking-wide text-zinc-900 dark:text-zinc-100">
             {{ lane.title }}
           </span>
-          <span class="font-mono text-[10px] text-(--sk-ink-muted)">
+          <span class="font-mono text-xs text-(--sk-ink-muted)">
             {{ lane.images.length }} image
           </span>
         </div>

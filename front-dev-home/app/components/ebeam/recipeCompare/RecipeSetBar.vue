@@ -7,7 +7,7 @@
           label="Recipe 검색"
           class="-ml-2"
         />
-        <p class="sk-eyebrow text-(--sk-brand)">
+        <p class="sk-meta text-(--sk-brand)">
           비교 대상 recipe · {{ entries.length }}
         </p>
       </div>
@@ -15,7 +15,7 @@
         <span
           v-for="entry in entries"
           :key="recipePairKey(entry.fab_name, entry.name)"
-          class="inline-flex max-w-[240px] items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-[11px] text-(--sk-ink)"
+          class="inline-flex max-w-[240px] items-center gap-1 rounded-[var(--sk-r-chip)] bg-(--sk-brand-soft)/60 py-1 pl-2.5 pr-1 font-mono text-xs text-(--sk-ink)"
         >
           <span class="truncate">{{ entry.name }}</span>
           <button

@@ -2,8 +2,8 @@
   <div class="flex min-h-0 flex-col gap-3">
     <!-- IDP block -->
     <div class="overflow-x-auto rounded-lg border border-zinc-200/70 dark:border-zinc-800/70">
-      <table class="w-full border-collapse font-mono text-[11px]">
-        <caption class="px-2.5 py-1.5 text-left sk-eyebrow text-(--sk-brand)">
+      <table class="w-full border-collapse font-mono text-xs">
+        <caption class="px-2.5 py-1.5 text-left sk-label text-(--sk-brand)">
           IDP · 파라미터 단위
         </caption>
         <tbody>
@@ -30,7 +30,7 @@
 
     <!-- AMP block for active slot -->
     <div class="overflow-x-auto rounded-lg border border-zinc-200/70 dark:border-zinc-800/70">
-      <table class="w-full border-collapse font-mono text-[11px]">
+      <table class="w-full border-collapse font-mono text-xs">
         <thead>
           <tr class="bg-zinc-50/80 text-left dark:bg-zinc-900/60">
             <th class="sticky left-0 z-10 bg-inherit px-2.5 py-2 font-medium text-(--sk-ink-muted)">

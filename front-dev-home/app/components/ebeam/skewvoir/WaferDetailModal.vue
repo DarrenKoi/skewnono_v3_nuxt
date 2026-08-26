@@ -12,7 +12,7 @@
               v-for="m in (['Field', 'Die'] as const)"
               :key="m"
               type="button"
-              class="rounded-[6px] px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+              class="rounded-[6px] px-2 py-0.5 font-mono text-xs font-medium transition-colors duration-200"
               :class="mode === m ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm' : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
               @click="mode = m"
             >

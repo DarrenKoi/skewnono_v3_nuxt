@@ -152,7 +152,7 @@ const sortLabel = computed(() => {
 const tableUi = {
   ...recipeTableUi,
   td: 'py-2 px-3 text-[13px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 sk-label bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 </script>
 
@@ -272,7 +272,7 @@ const tableUi = {
             size="xs"
             color="neutral"
             variant="ghost"
-            class="-mx-2 -my-1 h-6 px-2 text-[11px] font-semibold uppercase tracking-wide text-(--sk-ink-muted) hover:text-(--sk-ink)"
+            class="-mx-2 -my-1 h-6 px-2 sk-label hover:text-(--sk-ink)"
             :trailing-icon="getSortIcon(column.getIsSorted())"
             @click="column.toggleSorting()"
           >
@@ -347,13 +347,13 @@ const tableUi = {
         </template>
 
         <template #lot_id-cell="{ row }">
-          <span class="font-mono text-[11px] text-(--sk-ink-muted)">
+          <span class="font-mono text-xs text-(--sk-ink-muted)">
             {{ row.original.lot_id }}
           </span>
         </template>
 
         <template #meastime-cell="{ row }">
-          <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
+          <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
             {{ row.original.meastime }}
           </span>
         </template>

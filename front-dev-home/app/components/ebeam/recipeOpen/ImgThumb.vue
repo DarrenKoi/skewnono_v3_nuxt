@@ -29,7 +29,7 @@
         {{ failed ? '이미지를 불러오지 못했습니다' : '이미지 없음' }}
       </div>
       <span
-        class="absolute top-1 left-1 rounded-sm px-1.5 py-px font-mono text-[11px] font-bold tracking-wider"
+        class="absolute top-1 left-1 rounded-sm px-1.5 py-px font-mono text-xs font-bold tracking-wider"
         :class="isMeas
           ? 'bg-(--sk-brand) text-(--sk-brand-fg)'
           : 'bg-(--sk-ink) text-(--sk-ink-fg)'"
@@ -40,19 +40,19 @@
            I NOT seeing", which only a single-thumbnail view has to ask. -->
       <span
         v-if="variant"
-        class="absolute top-1 right-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)"
+        class="absolute top-1 right-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)"
       >{{ variant }}</span>
-      <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
+      <span class="absolute right-1.5 bottom-1 font-mono text-xs text-white/55">⤢</span>
     </button>
-    <div class="text-center font-mono text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+    <div class="text-center font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-100">
       {{ label }}
     </div>
-    <div class="truncate text-center font-mono text-[11px] text-(--sk-ink-muted)">
+    <div class="truncate text-center font-mono text-xs text-(--sk-ink-muted)">
       {{ name || '—' }}
     </div>
     <div
       v-if="variantTotal && variantTotal > 1"
-      class="text-center font-mono text-[10px] text-(--sk-ink-subtle)"
+      class="text-center font-mono text-xs text-(--sk-ink-subtle)"
     >
       {{ variantTotal }}개 중 1개
     </div>

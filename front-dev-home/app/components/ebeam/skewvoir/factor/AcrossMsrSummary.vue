@@ -7,7 +7,7 @@
         :key="stat.label"
         class="min-w-[5.5rem] flex-1 rounded-(--sk-r-nav) border border-(--sk-border-soft) px-2.5 py-2"
       >
-        <p class="sk-eyebrow">
+        <p class="sk-label">
           {{ stat.label }}
         </p>
         <p
@@ -108,14 +108,14 @@
     <div class="mt-2 flex flex-wrap gap-1.5">
       <!-- ALWAYS shown, exactly as in the single-scope summary: correlation is
            not causation (격차 보고서 §6 유지 항목). -->
-      <span class="inline-flex items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 text-[11px] font-medium text-(--sk-ink-muted)">
+      <span class="inline-flex items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 text-xs font-medium text-(--sk-ink-muted)">
         <UIcon
           name="i-lucide-info"
           class="h-3 w-3"
         />
         연관이며 원인 증명이 아님
       </span>
-      <span class="inline-flex items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 text-[11px] font-medium text-(--sk-ink-muted)">
+      <span class="inline-flex items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 text-xs font-medium text-(--sk-ink-muted)">
         <UIcon
           name="i-lucide-layers"
           class="h-3 w-3"

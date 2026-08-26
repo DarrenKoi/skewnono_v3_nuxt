@@ -182,7 +182,7 @@ const tableUi = recipeTableUi
                 Recipe version
               </h2>
               <span
-                class="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-semibold ring-1"
+                class="inline-flex h-6 items-center rounded-md px-2 text-xs font-semibold ring-1"
                 :class="data.versions.length <= 1
                   ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900'
                   : 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900'"
@@ -195,13 +195,13 @@ const tableUi = recipeTableUi
             </p>
           </div>
           <div class="text-left lg:text-right">
-            <p class="font-mono text-[11px] text-(--sk-ink-muted)">
+            <p class="font-mono sk-meta">
               latest
             </p>
             <p class="mt-0.5 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {{ data.latest_recipe_version === null ? '—' : `v${data.latest_recipe_version}` }}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-(--sk-ink-muted)">
+            <p class="mt-0.5 font-mono text-xs text-(--sk-ink-muted)">
               {{ formatGeneratedAt(data.latest_generated_at) }}
             </p>
           </div>
@@ -223,11 +223,11 @@ const tableUi = recipeTableUi
               <span class="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 v{{ version.recipe_version }}
               </span>
-              <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
+              <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
                 {{ version.ready_count.toLocaleString() }} tools
               </span>
             </div>
-            <p class="mt-1 font-mono text-[11px] text-(--sk-ink-muted)">
+            <p class="mt-1 font-mono text-xs text-(--sk-ink-muted)">
               {{ formatGeneratedAt(version.generated_at) }}
             </p>
           </div>
@@ -247,7 +247,7 @@ const tableUi = recipeTableUi
             <h2 class="sk-title">
               {{ activeTab === 'ready' ? '보유 장비 리스트' : '미보유 장비 리스트' }}
             </h2>
-            <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-xs tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {{ activeRows.length.toLocaleString() }}
             </span>
           </div>
@@ -270,7 +270,7 @@ const tableUi = recipeTableUi
               @click="activeTab = option.value"
             >
               {{ option.label }}
-              <span class="font-mono text-[10px] tabular-nums opacity-70">
+              <span class="font-mono text-xs tabular-nums opacity-70">
                 {{ option.count.toLocaleString() }}
               </span>
             </button>
@@ -295,15 +295,15 @@ const tableUi = recipeTableUi
                 </span>
                 <span
                   v-if="group.version !== null && group.version === data.latest_recipe_version"
-                  class="inline-flex h-5 items-center rounded px-1.5 text-[10px] font-semibold ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900"
+                  class="inline-flex h-5 items-center rounded px-1.5 text-xs font-semibold ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900"
                 >
                   latest
                 </span>
-                <span class="font-mono text-[11px] tabular-nums text-(--sk-ink-muted)">
+                <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
                   {{ formatGeneratedAt(group.generatedAt) }}
                 </span>
               </div>
-              <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-xs tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {{ group.rows.length.toLocaleString() }} tools
               </span>
             </header>

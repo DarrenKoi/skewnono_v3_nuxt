@@ -148,7 +148,7 @@
               v-for="column in COLUMNS"
               :key="column.label"
               class="px-3 py-1.5"
-              :class="{ 'sk-eyebrow': !column.sortKey }"
+              :class="{ 'sk-label': !column.sortKey }"
               :aria-sort="column.sortKey ? ariaSort(column.sortKey) : undefined"
             >
               <!-- Sortable headers are real <button>s rather than a click
@@ -158,7 +158,7 @@
               <button
                 v-if="column.sortKey"
                 type="button"
-                class="group flex items-center gap-1 sk-eyebrow transition-colors hover:text-(--sk-ink)"
+                class="group flex items-center gap-1 sk-label transition-colors hover:text-(--sk-ink)"
                 :class="{ 'text-(--sk-ink)': sort.key === column.sortKey }"
                 @click="emit('toggleSort', column.sortKey)"
               >
@@ -238,7 +238,7 @@
               {{ row.eqp_id }}
             </td>
             <td class="px-3 py-2">
-              <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-1.5 py-0.5 font-mono text-[11px] text-(--sk-chip-text)">
+              <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-1.5 py-0.5 font-mono text-xs text-(--sk-chip-text)">
                 {{ row.fab_name }}
               </span>
             </td>

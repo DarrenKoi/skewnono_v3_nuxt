@@ -10,7 +10,7 @@
         v-for="bucket in field.buckets"
         :key="bucket.value"
         type="button"
-        class="rounded-md px-2.5 py-1 font-mono text-[11px] transition"
+        class="rounded-md px-2.5 py-1 font-mono text-xs transition"
         :class="bucket.isOutlier
           ? 'bg-rose-500/15 text-rose-600 ring-1 ring-rose-500/40 dark:text-rose-300'
           : 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'"
@@ -20,7 +20,7 @@
       </button>
       <div
         v-if="expanded === `${field.key}::pick`"
-        class="basis-full pt-1 pl-28 font-mono text-[10px] text-(--sk-ink-muted)"
+        class="basis-full pt-1 pl-28 font-mono text-xs text-(--sk-ink-muted)"
       >
         {{ expandedLabels.join(', ') }}
       </div>

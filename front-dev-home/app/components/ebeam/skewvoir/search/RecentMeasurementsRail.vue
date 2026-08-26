@@ -9,7 +9,7 @@
           <h2 class="sk-title">
             최근 본 측정
           </h2>
-          <span class="font-mono text-[10px] text-(--sk-ink-subtle)">{{ items.length }}</span>
+          <span class="font-mono text-xs text-(--sk-ink-subtle)">{{ items.length }}</span>
         </div>
         <UButton
           v-if="items.length"
@@ -47,7 +47,7 @@
       >
         <div class="flex items-start justify-between gap-2">
           <span
-            class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-[11px] font-semibold"
+            class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-xs font-semibold"
             :class="item.mode === 'time-series'
               ? 'bg-(--sk-brand-soft) text-(--sk-brand)'
               : 'bg-(--sk-chip-bg) text-(--sk-chip-text)'"
@@ -66,16 +66,16 @@
             />
           </button>
         </div>
-        <p class="mt-2 truncate font-mono text-[11px] font-semibold text-(--sk-ink)">
+        <p class="mt-2 truncate font-mono text-xs font-semibold text-(--sk-ink)">
           {{ summarizeRecentValues(item.measurements.map(measurement => measurement.lot)) }}
         </p>
-        <p class="mt-0.5 truncate font-mono text-[11px] text-(--sk-ink-muted)">
+        <p class="mt-0.5 truncate font-mono text-xs text-(--sk-ink-muted)">
           {{ summarizeRecentValues(item.measurements.map(measurement => measurement.recipe)) }}
         </p>
-        <p class="mt-0.5 truncate font-mono text-[11px] text-(--sk-ink-muted)">
+        <p class="mt-0.5 truncate font-mono text-xs text-(--sk-ink-muted)">
           {{ summarizeRecentValues(item.measurements.map(measurement => measurement.eq)) }}
         </p>
-        <div class="mt-2 flex items-center justify-between gap-2 font-mono text-[11px] text-(--sk-ink-subtle)">
+        <div class="mt-2 flex items-center justify-between gap-2 font-mono text-xs text-(--sk-ink-subtle)">
           <span>{{ item.viewedAt.slice(0, 16).replace('T', ' ') }}</span>
           <span v-if="item.expired">보존 기간 만료</span>
           <span v-else-if="item.expiredCount">{{ item.expiredCount }}개 만료</span>

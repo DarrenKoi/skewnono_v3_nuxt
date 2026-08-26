@@ -1,6 +1,6 @@
 <template>
   <span
-    class="inline-block rounded px-1.5 py-px font-mono text-[10px] font-bold tracking-wide"
+    class="inline-block rounded px-1.5 py-px font-mono text-xs font-bold tracking-wide"
     :class="isOk
       ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
       : 'bg-(--sk-border-soft) text-(--sk-ink-subtle)'"

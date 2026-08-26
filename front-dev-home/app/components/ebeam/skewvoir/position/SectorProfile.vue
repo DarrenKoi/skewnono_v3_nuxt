@@ -9,8 +9,8 @@
       v-if="summary.status === 'unavailable'"
       class="flex flex-1 flex-col items-center justify-center gap-1 px-4 text-center sk-body"
     >
-      <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-[11px] font-semibold text-(--sk-ink-muted)">평가 불가</span>
-      <span class="text-[11px] text-(--sk-ink-subtle)">{{ summary.reason }}</span>
+      <span class="rounded-(--sk-r-chip) bg-(--sk-chip-bg) px-2 py-0.5 font-mono text-xs font-semibold text-(--sk-ink-muted)">평가 불가</span>
+      <span class="text-xs text-(--sk-ink-subtle)">{{ summary.reason }}</span>
     </div>
     <template v-else>
       <p class="sk-meta">
@@ -21,7 +21,7 @@
           {{ ariaSummary }}
         </caption>
         <thead>
-          <tr class="border-b border-(--sk-border) font-mono text-[11px] text-(--sk-ink-muted)">
+          <tr class="border-b border-(--sk-border) sk-label">
             <th
               scope="col"
               class="px-1.5 py-1 text-left font-semibold"

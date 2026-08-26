@@ -12,7 +12,7 @@
           v-for="opt in layerOptions"
           :key="opt.key"
           type="button"
-          class="rounded-[6px] px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+          class="rounded-[6px] px-2 py-0.5 font-mono text-xs font-medium transition-colors duration-200"
           :class="opt.key === layer
             ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
             : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -45,7 +45,7 @@
         class="h-6 w-6 text-(--sk-ink-subtle)"
       />
       <span>좌표 정보가 없어 raw 레이어와 표만 제공됩니다.</span>
-      <span class="text-[11px] text-(--sk-ink-subtle)">{{ spatial.readiness.reason }}</span>
+      <span class="text-xs text-(--sk-ink-subtle)">{{ spatial.readiness.reason }}</span>
     </div>
     <template v-else>
       <div class="grid min-h-0 flex-1 place-items-center">
@@ -66,7 +66,7 @@
           :max="range.max"
           :unit="activeLayerUnit"
         />
-        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-[11px] text-(--sk-ink-muted)">
+        <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-xs text-(--sk-ink-muted)">
           <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">✕</span>측정 실패</span>
           <span
             v-if="scanPath"

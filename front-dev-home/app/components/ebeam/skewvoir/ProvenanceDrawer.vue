@@ -90,7 +90,7 @@
           <p class="mb-2 sk-eyebrow">
             버전
           </p>
-          <p class="font-mono text-[11px] text-(--sk-ink-subtle)">
+          <p class="font-mono text-xs text-(--sk-ink-subtle)">
             {{ derived.version }}
           </p>
         </section>

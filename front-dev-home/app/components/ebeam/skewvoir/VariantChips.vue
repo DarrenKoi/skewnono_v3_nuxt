@@ -8,7 +8,7 @@
       v-for="(name, i) in names"
       :key="name"
       type="button"
-      class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-[11px] font-medium transition-colors duration-200"
+      class="rounded-(--sk-r-sidebar) border px-2 py-0.5 font-mono text-xs font-medium transition-colors duration-200"
       :class="i === index
         ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
         : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)'"

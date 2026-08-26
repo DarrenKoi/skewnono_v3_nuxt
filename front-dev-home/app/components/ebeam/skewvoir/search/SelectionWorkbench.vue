@@ -6,7 +6,7 @@
           <h2 class="sk-title">
             측정 작업 세트
           </h2>
-          <span class="rounded-(--sk-r-chip) bg-(--sk-brand-soft) px-1.5 py-0.5 font-mono text-[10px] font-semibold text-(--sk-brand)">
+          <span class="rounded-(--sk-r-chip) bg-(--sk-brand-soft) px-1.5 py-0.5 font-mono text-xs font-semibold text-(--sk-brand)">
             {{ selected.length }}
           </span>
         </div>
@@ -18,7 +18,7 @@
       <div class="flex shrink-0 items-center gap-1.5">
         <span
           v-if="selected.length > 30"
-          class="font-mono text-[11px] text-(--sk-bad)"
+          class="font-mono text-xs text-(--sk-bad)"
         >최대 30개 표시</span>
         <UButton
           color="primary"
@@ -52,7 +52,7 @@
         v-for="row in selected"
         v-else
         :key="row.msr"
-        class="group inline-flex max-w-56 shrink-0 items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) py-1 pl-2 pr-1 font-mono text-[11px] text-(--sk-ink)"
+        class="group inline-flex max-w-56 shrink-0 items-center gap-1 rounded-(--sk-r-chip) bg-(--sk-chip-bg) py-1 pl-2 pr-1 font-mono text-xs text-(--sk-ink)"
         :title="`${row.full_name} · ${row.lot_id} · ${row.eqp_id}`"
       >
         <span class="truncate">{{ row.lot_id }} · {{ row.eqp_id }}</span>

@@ -495,7 +495,7 @@ const columns: TableColumn<RecipeSearchResult>[] = [
 const tableUi = {
   tr: 'transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-2.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
-  th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
+  th: 'py-2 px-3 sk-label bg-zinc-50/60 dark:bg-zinc-900/40'
 }
 
 const recipeSubpath = (subpath: string) => `/ebeam/${props.toolType}/${fabSegment.value}/recipe-search/${subpath}`
@@ -649,7 +649,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
 
             <div
               v-if="canSearch"
-              class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-(--sk-ink-muted)"
+              class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-(--sk-ink-muted)"
             >
               <span>
                 {{ filteredCount.toLocaleString() }}개 검색됨
@@ -665,7 +665,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
             </div>
             <div
               v-else
-              class="mt-2.5 flex items-center gap-1.5 text-[11px] text-(--sk-ink-muted)"
+              class="mt-2.5 flex items-center gap-1.5 text-xs text-(--sk-ink-muted)"
             >
               <UIcon
                 name="i-lucide-keyboard"
@@ -675,7 +675,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
             </div>
             <div
               v-if="fallbackNoticeVisible"
-              class="mt-2.5 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+              class="mt-2.5 flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
             >
               <span class="flex items-center gap-1.5">
                 <UIcon
@@ -797,7 +797,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
                   variant="soft"
                   :label="fallbackBadgeLabel"
                 />
-                <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                <span class="inline-flex h-5 items-center rounded bg-zinc-100 px-1.5 font-mono text-xs tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                   <template v-if="isRefining">{{ refinedCount.toLocaleString() }} / {{ filteredCount.toLocaleString() }}</template>
                   <template v-else>{{ filteredCount.toLocaleString() }}</template>
                 </span>
@@ -886,7 +886,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
                   </span>
                   <span
                     v-if="row.original.source === 'opensearch'"
-                    class="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                    class="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 font-sans text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
                   >
                     OpenSearch
                   </span>
@@ -965,7 +965,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
                 <h2 class="sk-title">
                   최근 검색
                 </h2>
-                <span class="font-mono text-[10px] text-(--sk-ink-subtle)">{{ recentSearches.length }}</span>
+                <span class="font-mono text-xs text-(--sk-ink-subtle)">{{ recentSearches.length }}</span>
               </div>
               <UButton
                 v-if="recentSearches.length"
@@ -996,9 +996,9 @@ const openMeasHist = (row: RecipeSearchResult) => {
                 @click="applyRecentSearch(term)"
               >
                 <span
-                  class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-(--sk-brand)/10 font-mono text-[10px] font-semibold tabular-nums text-(--sk-brand)"
+                  class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-(--sk-brand)/10 font-mono text-xs font-semibold tabular-nums text-(--sk-brand)"
                 >{{ index + 1 }}</span>
-                <span class="truncate font-mono text-[11px] font-semibold text-(--sk-ink)">{{ term }}</span>
+                <span class="truncate font-mono text-xs font-semibold text-(--sk-ink)">{{ term }}</span>
               </button>
               <button
                 type="button"

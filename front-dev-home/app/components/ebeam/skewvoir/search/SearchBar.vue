@@ -50,7 +50,7 @@
       <span
         v-for="chip in chips"
         :key="`${chip.field}:${chip.value}`"
-        class="inline-flex h-6 items-center gap-1 rounded-(--sk-r-chip) px-2 font-mono text-[11px]"
+        class="inline-flex h-6 items-center gap-1 rounded-(--sk-r-chip) px-2 font-mono text-xs"
         :class="chip.field === 'unknown'
           ? 'bg-(--sk-bad)/10 text-(--sk-bad)'
           : 'bg-(--sk-chip-bg) text-(--sk-chip-text)'"

@@ -113,7 +113,7 @@
               class="h-full w-full object-cover"
             >
           </button>
-          <span class="absolute top-1 left-1 rounded-(--sk-r-sidebar) bg-(--sk-ink)/85 px-1.5 py-0.5 font-mono text-[11px] font-medium text-(--sk-ink-fg)">
+          <span class="absolute top-1 left-1 rounded-(--sk-r-sidebar) bg-(--sk-ink)/85 px-1.5 py-0.5 font-mono text-xs font-medium text-(--sk-ink-fg)">
             {{ imageLabels[i] }}
           </span>
           <a

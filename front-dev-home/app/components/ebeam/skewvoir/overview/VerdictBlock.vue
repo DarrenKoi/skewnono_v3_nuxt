@@ -68,7 +68,7 @@
       <!-- 커버리지 -->
       <section class="flex flex-col gap-1 px-4 py-2.5">
         <div class="flex items-baseline gap-2">
-          <span class="sk-eyebrow">커버리지</span>
+          <span class="sk-label">커버리지</span>
           <EbeamSkewvoirOverviewDetailToggle
             :expanded="detail === 'coverage'"
             @toggle="toggle('coverage')"
@@ -117,7 +117,7 @@
       <!-- 산포 -->
       <section class="flex flex-col gap-1 border-(--sk-border-soft) px-4 py-2.5 sm:border-l">
         <div class="flex items-baseline gap-2">
-          <span class="sk-eyebrow">산포</span>
+          <span class="sk-label">산포</span>
           <EbeamSkewvoirOverviewDetailToggle
             :expanded="detail === 'spread'"
             @toggle="toggle('spread')"
@@ -153,7 +153,7 @@
       <!-- 이상 site -->
       <section class="flex flex-col gap-1 border-(--sk-border-soft) px-4 py-2.5 sm:border-l">
         <div class="flex items-baseline gap-2">
-          <span class="sk-eyebrow">이상 site</span>
+          <span class="sk-label">이상 site</span>
           <EbeamSkewvoirOverviewDetailToggle
             :expanded="detail === 'anomaly'"
             @toggle="toggle('anomaly')"
@@ -274,7 +274,7 @@
               :key="cell.label"
               class="flex items-baseline gap-1"
             >
-              <span class="font-mono text-[11px] text-(--sk-ink-muted)">{{ cell.label }}</span>
+              <span class="sk-field-label">{{ cell.label }}</span>
               <span class="font-mono text-sm font-bold tabular-nums text-(--sk-ink)">{{ cell.value }}</span>
             </div>
           </template>

@@ -86,7 +86,7 @@
 
           <aside class="min-h-0 space-y-3 overflow-auto pr-1">
             <section class="rounded-(--sk-r-chip) border border-(--sk-border) p-3">
-              <h3 class="mb-2 sk-eyebrow">
+              <h3 class="mb-2 sk-title">
                 Fit quality
               </h3>
               <dl class="grid grid-cols-2 gap-x-3 gap-y-2">
@@ -105,7 +105,7 @@
             </section>
 
             <section class="rounded-(--sk-r-chip) border border-(--sk-border) p-3">
-              <h3 class="mb-2 sk-eyebrow">
+              <h3 class="mb-2 sk-title">
                 Largest radial residual
               </h3>
               <p class="font-mono text-lg font-semibold tabular-nums text-(--sk-ink)">
@@ -120,10 +120,10 @@
             </section>
 
             <section class="rounded-(--sk-r-chip) border border-(--sk-border) p-3">
-              <h3 class="mb-2 sk-eyebrow">
+              <h3 class="mb-2 sk-title">
                 Model details
               </h3>
-              <p class="break-words font-mono text-[11px] leading-5 text-(--sk-ink-muted)">
+              <p class="break-words font-mono text-xs leading-5 text-(--sk-ink-muted)">
                 {{ equation }}
               </p>
               <p class="mt-2 sk-meta">
@@ -132,7 +132,7 @@
             </section>
 
             <section class="rounded-(--sk-r-chip) border border-(--sk-border) p-3">
-              <h3 class="mb-2 sk-eyebrow">
+              <h3 class="mb-2 sk-title">
                 Band meaning
               </h3>
               <p class="sk-meta">
@@ -161,10 +161,10 @@
               v-if="colorBySector"
               class="rounded-(--sk-r-chip) border border-(--sk-border) p-3"
             >
-              <h3 class="mb-2 sk-eyebrow">
+              <h3 class="mb-2 sk-title">
                 Sectors
               </h3>
-              <div class="flex flex-wrap gap-2 font-mono text-[11px]">
+              <div class="flex flex-wrap gap-2 font-mono text-xs">
                 <span class="text-[#5C86AE]">● E</span>
                 <span class="text-[#C75A3C]">● N</span>
                 <span class="text-[#C98A2E]">● W</span>

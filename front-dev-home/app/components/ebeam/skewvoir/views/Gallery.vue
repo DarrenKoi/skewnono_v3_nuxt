@@ -81,7 +81,7 @@
             class="aspect-square w-full object-cover"
             loading="lazy"
           >
-          <span class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-[9px] text-(--sk-ink-muted) shadow-sm backdrop-blur-sm">TIFF</span>
+          <span class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm">TIFF</span>
         </a>
         <img
           v-else

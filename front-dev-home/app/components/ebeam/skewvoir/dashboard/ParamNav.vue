@@ -11,14 +11,14 @@
       </span>
       <span
         v-if="selectedCount > 1"
-        class="font-mono text-[11px] text-(--sk-ink-muted)"
+        class="font-mono text-xs text-(--sk-ink-muted)"
       >· {{ selectedCount }}개 선택</span>
       <!-- The chips carry one signal 파라미터 요약 does not — per-parameter
            failures + outliers. Rolled up here so collapsing the row never
            hides the fact that something needs looking at. -->
       <span
         v-if="flaggedParamCount"
-        class="font-mono text-[11px] font-semibold text-(--sk-bad)"
+        class="font-mono text-xs font-semibold text-(--sk-bad)"
       >● {{ flaggedParamCount }}개 이상·실패</span>
 
       <!-- NAVIGATE family (ink), not the terracotta the chips use: this reveals,
@@ -36,7 +36,7 @@
           class="size-3.5 shrink-0"
         />
         파라미터 리스트 {{ open ? '감추기' : '보이기' }}
-        <span class="text-[11px] tabular-nums text-(--sk-ink-subtle)">{{ chips.length }}</span>
+        <span class="text-xs tabular-nums text-(--sk-ink-subtle)">{{ chips.length }}</span>
       </button>
     </div>
 
@@ -62,13 +62,13 @@
       >
         {{ paramLabel(c.parameter) }}
         <span
-          class="text-[11px] tabular-nums"
+          class="text-xs tabular-nums"
           :class="c.parameter === activeParam
             ? 'text-(--sk-brand-fg)/80'
             : c.flagged ? 'font-semibold text-(--sk-bad)' : 'text-(--sk-ink-subtle)'"
         >{{ c.flagged ? `● ${c.flaggedCount}` : `${c.measured}/${c.total}` }}</span>
       </button>
-      <span class="font-mono text-[10px] text-(--sk-ink-subtle)">⌘/Ctrl+클릭 다중 선택</span>
+      <span class="font-mono text-xs text-(--sk-ink-subtle)">⌘/Ctrl+클릭 다중 선택</span>
     </div>
   </div>
 </template>

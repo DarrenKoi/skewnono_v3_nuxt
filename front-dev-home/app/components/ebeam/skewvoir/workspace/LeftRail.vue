@@ -43,7 +43,7 @@
             <span class="min-w-0 flex-1">
               <span class="block truncate text-[12.5px] font-semibold">{{ mode.label }}</span>
               <span
-                class="block truncate text-[11px]"
+                class="block truncate text-xs"
                 :class="mode.kind === ws.activeKind.value ? 'text-(--sk-ink-fg)/70' : 'text-(--sk-ink-muted)'"
               >{{ mode.sub }}</span>
             </span>
@@ -76,7 +76,7 @@
       </p>
       <div class="flex items-center justify-between gap-2 px-1">
         <span
-          class="inline-flex items-center gap-1 rounded-(--sk-r-chip) px-1.5 py-0.5 text-[10.5px] font-semibold"
+          class="inline-flex items-center gap-1 rounded-(--sk-r-chip) px-1.5 py-0.5 text-xs font-semibold"
           :class="isSet
             ? 'bg-(--sk-accent-soft) text-(--sk-accent)'
             : 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'"
@@ -117,7 +117,7 @@
            claiming nothing was excluded. -->
       <div class="flex flex-wrap items-center gap-1 px-1">
         <span
-          class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-[10.5px]"
+          class="rounded-(--sk-r-chip) px-1.5 py-0.5 font-mono text-xs"
           :class="compatibilityKnown
             ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
             : 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'"
@@ -125,7 +125,7 @@
         >호환 {{ compatibilityKnown ? counts.compatible : '—' }}</span>
         <span
           v-if="counts.excluded > 0"
-          class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-1.5 py-0.5 font-mono text-[10.5px] text-(--sk-bad)"
+          class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-1.5 py-0.5 font-mono text-xs text-(--sk-bad)"
         >제외 {{ counts.excluded }}</span>
       </div>
 
@@ -136,11 +136,11 @@
            list marks nothing, because a set assembled to be read TOGETHER
            should not nominate one of its members. -->
       <div class="flex items-center justify-between gap-2 px-1">
-        <span class="sk-eyebrow">{{ isSet ? `비교 세트 · ${members.length}` : '측정' }}</span>
+        <span class="sk-meta">{{ isSet ? `비교 세트 · ${members.length}` : '측정' }}</span>
         <button
           v-if="canSwitchFocus"
           type="button"
-          class="text-[11px] text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
+          class="text-xs text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
           @click="deselectToFocus"
         >
           선택 해제

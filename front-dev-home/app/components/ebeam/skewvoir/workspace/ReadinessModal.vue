@@ -10,7 +10,7 @@
       <div class="space-y-5">
         <!-- Per-capability readiness -->
         <section>
-          <p class="mb-2 sk-eyebrow">
+          <p class="mb-2 sk-title">
             기능별 준비도
           </p>
           <ul class="space-y-1.5">
@@ -23,11 +23,11 @@
                 <span class="block truncate text-[12.5px] font-semibold text-(--sk-ink)">{{ cap.label }}</span>
                 <span
                   v-if="cap.readiness.reasons.length"
-                  class="block truncate text-[11px] text-(--sk-ink-muted)"
+                  class="block truncate text-xs text-(--sk-ink-muted)"
                 >{{ cap.readiness.reasons.map(reasonLabel).join(', ') }}</span>
               </span>
               <span
-                class="shrink-0 rounded-(--sk-r-chip) px-2 py-0.5 text-[11px] font-semibold"
+                class="shrink-0 rounded-(--sk-r-chip) px-2 py-0.5 text-xs font-semibold"
                 :class="statusClass(cap.readiness.status)"
               >
                 {{ statusLabel(cap.readiness.status) }}
@@ -38,7 +38,7 @@
 
         <!-- Compatibility groups -->
         <section>
-          <p class="mb-2 sk-eyebrow">
+          <p class="mb-2 sk-title">
             호환 그룹 · {{ groups.length }}
           </p>
           <ul
@@ -54,10 +54,10 @@
                 <span class="text-[12px] font-semibold text-(--sk-ink)">그룹 {{ i + 1 }}</span>
                 <span class="sk-meta tabular-nums">{{ group.members.length }} MSR</span>
               </div>
-              <p class="mt-0.5 truncate font-mono text-[11px] text-(--sk-ink-muted)">
+              <p class="mt-0.5 truncate font-mono text-xs text-(--sk-ink-muted)">
                 {{ groupLabel(group) }}
               </p>
-              <p class="mt-1 break-all font-mono text-[11px] text-(--sk-ink-subtle)">
+              <p class="mt-1 break-all font-mono text-xs text-(--sk-ink-subtle)">
                 {{ group.members.join(', ') }}
               </p>
             </li>
@@ -72,7 +72,7 @@
 
         <!-- Excluded MSRs -->
         <section v-if="excluded.length">
-          <p class="mb-2 sk-eyebrow">
+          <p class="mb-2 sk-title">
             제외된 측정 · {{ excluded.length }}
           </p>
           <ul class="space-y-1.5">
@@ -81,12 +81,12 @@
               :key="entry.msr"
               class="flex items-start justify-between gap-2 rounded-(--sk-r-nav) border border-(--sk-bad-border) bg-(--sk-bad-soft) px-2.5 py-2"
             >
-              <span class="truncate font-mono text-[11px] text-(--sk-ink)">{{ entry.msr }}</span>
+              <span class="truncate font-mono text-xs text-(--sk-ink)">{{ entry.msr }}</span>
               <span class="flex shrink-0 flex-wrap justify-end gap-1">
                 <span
                   v-for="reason in entry.reasons"
                   :key="reason"
-                  class="rounded-(--sk-r-chip) bg-(--sk-bad)/10 px-1.5 py-0.5 text-[10px] font-semibold text-(--sk-bad)"
+                  class="rounded-(--sk-r-chip) bg-(--sk-bad)/10 px-1.5 py-0.5 text-xs font-semibold text-(--sk-bad)"
                 >
                   {{ reasonLabel(reason) }}
                 </span>

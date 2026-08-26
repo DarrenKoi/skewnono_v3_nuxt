@@ -65,12 +65,12 @@
                 decoding="async"
                 class="h-full w-full object-cover"
               >
-              <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-(--sk-ink-fg)">
+              <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)">
                 P.No {{ point.P_No }}
               </span>
-              <span class="absolute right-1.5 bottom-1 font-mono text-[10px] text-white/55">⤢</span>
+              <span class="absolute right-1.5 bottom-1 font-mono text-xs text-white/55">⤢</span>
             </div>
-            <div class="truncate font-mono text-[11px] text-(--sk-ink-muted)">
+            <div class="truncate font-mono text-xs text-(--sk-ink-muted)">
               {{ point.image ?? '—' }}
             </div>
           </button>
@@ -112,10 +112,10 @@
             class="h-full w-full object-contain"
           >
           <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
-            <span class="rounded bg-(--sk-ink) px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-(--sk-ink-fg)">
+            <span class="rounded bg-(--sk-ink) px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)">
               P.No {{ zoom.P_No }}
             </span>
-            <span class="font-mono text-[11px] text-white/60">{{ zoom.image }}</span>
+            <span class="font-mono text-xs text-white/60">{{ zoom.image }}</span>
           </div>
           <!-- Over the image, not the dialog corner: the corner is occupied by
                the 빔 조건 panel heading. -->

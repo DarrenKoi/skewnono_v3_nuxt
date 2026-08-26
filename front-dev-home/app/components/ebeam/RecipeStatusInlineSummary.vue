@@ -5,11 +5,11 @@
       :key="item.label"
       class="inline-flex items-baseline gap-1 whitespace-nowrap"
     >
-      <dt class="text-[10px] font-medium text-(--sk-ink-muted)">
+      <dt class="sk-label">
         {{ item.label }}
       </dt>
       <dd
-        class="font-mono text-[11px] font-semibold tabular-nums"
+        class="font-mono text-xs font-semibold tabular-nums"
         :class="recipeStatusSummaryValueClass(item.tone)"
       >
         {{ item.value }}
