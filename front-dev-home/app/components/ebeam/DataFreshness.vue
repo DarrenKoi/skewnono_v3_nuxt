@@ -98,7 +98,7 @@ const tooltip = computed(() => {
 }
 
 .sk-fresh__kicker {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -109,7 +109,7 @@ const tooltip = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.3125rem;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 

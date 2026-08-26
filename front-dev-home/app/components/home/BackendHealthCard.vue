@@ -179,7 +179,7 @@ const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
 }
 
 .sk-health-card__title {
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--sk-ink-subtle);
@@ -208,7 +208,7 @@ const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
 }
 
 .sk-health-card__subline {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--sk-ink-muted);
   line-height: 1.4;
 }
@@ -225,7 +225,7 @@ const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
   align-items: center;
   cursor: pointer;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--sk-ink-muted);
   letter-spacing: 0.02em;
@@ -308,7 +308,7 @@ const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
 }
 
 .sk-health-card__latency {
-  font-size: 10px;
+  font-size: 12px;
   font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   color: var(--sk-ink-subtle);
   text-align: right;
@@ -316,7 +316,7 @@ const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
 }
 
 .sk-health-card__badge {
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;

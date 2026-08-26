@@ -161,7 +161,7 @@ const hasActiveLink = computed(() => links.value.some(isActive))
   display: inline-flex;
   align-items: center;
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: var(--sk-r-chip);
   background: var(--sk-warn-soft);

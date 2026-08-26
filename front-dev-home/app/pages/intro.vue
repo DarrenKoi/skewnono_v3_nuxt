@@ -831,7 +831,7 @@ const canOpenPage = (path: string) => !path.includes(',') && !path.includes('{')
   align-items: center;
   flex-shrink: 0;
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: var(--sk-r-chip);
   background: var(--sk-warn-soft);

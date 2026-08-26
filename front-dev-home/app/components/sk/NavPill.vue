@@ -119,7 +119,7 @@ const countClass = computed(() => {
   min-width: 22px;
   height: 18px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: 5px;
   background: var(--sk-border-soft);
