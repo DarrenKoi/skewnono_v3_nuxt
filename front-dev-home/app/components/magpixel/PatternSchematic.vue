@@ -41,7 +41,7 @@ const pxGridColor = 'color-mix(in srgb,var(--sk-field-ink) 55%,transparent)'
 
 <template>
   <div>
-    <div class="mb-1.5 sk-eyebrow">
+    <div class="mb-1.5 sk-title">
       ① 전체 FOV {{ Math.round(fovNm).toLocaleString() }} nm — 패턴 {{ patternCount }}개 · 마진 {{ Math.round(marginNm) }} nm
     </div>
     <div class="flex h-14 overflow-hidden rounded-[var(--sk-r-nav)] bg-(--sk-field)">
@@ -68,7 +68,7 @@ const pxGridColor = 'color-mix(in srgb,var(--sk-field-ink) 55%,transparent)'
         class="border-l border-dashed border-(--sk-brand)"
       />
     </div>
-    <div class="mt-1.5 flex font-mono text-[10px]">
+    <div class="mt-1.5 flex font-mono text-xs tabular-nums">
       <div
         class="text-center text-(--sk-brand-ink)"
         :style="{ width: `${marginPct}%` }"
@@ -89,7 +89,7 @@ const pxGridColor = 'color-mix(in srgb,var(--sk-field-ink) 55%,transparent)'
       </div>
     </div>
 
-    <div class="mb-1.5 mt-4 sk-eyebrow">
+    <div class="mb-1.5 mt-4 sk-title">
       ② Pitch {{ pitchNm }} nm 확대 — 픽셀 경계 {{ pxPerPitch.toFixed(1) }} px
     </div>
     <div class="relative h-16 overflow-hidden rounded-[var(--sk-r-nav)] bg-(--sk-field)">
@@ -106,7 +106,7 @@ const pxGridColor = 'color-mix(in srgb,var(--sk-field-ink) 55%,transparent)'
         :style="{ width: `${barPct}%` }"
       />
     </div>
-    <div class="mt-1.5 flex font-mono text-[11px]">
+    <div class="mt-1.5 flex font-mono text-xs tabular-nums">
       <div
         class="text-center text-(--sk-brand-ink)"
         :style="{ width: `${barPct}%` }"

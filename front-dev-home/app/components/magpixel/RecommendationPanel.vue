@@ -54,11 +54,11 @@ const marginPctLabel = computed(() =>
         :class="tone.soft"
       >
         <span
-          class="sk-eyebrow"
+          class="sk-title"
           :class="tone.text"
         >★ 추천 조합</span>
         <span
-          class="ml-auto sk-label"
+          class="ml-auto text-xs font-semibold"
           :class="tone.text"
         >{{ verdictLabel }}</span>
       </div>
@@ -129,7 +129,7 @@ const marginPctLabel = computed(() =>
           class="mt-3.5 rounded-[var(--sk-r-nav)] border p-3"
           :class="[tone.border, tone.soft]"
         >
-          <p class="text-[13px] font-semibold leading-snug text-(--sk-ink)">
+          <p class="sk-title leading-snug">
             {{ guidance.headline }}
           </p>
           <p class="mt-1 sk-meta leading-relaxed">
@@ -142,7 +142,7 @@ const marginPctLabel = computed(() =>
     <!-- 마진 민감도 — 배율이 이산값이라 마진이 연속으로 반응하지 않는다. -->
     <section class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
       <div class="mb-2 flex items-baseline justify-between gap-2">
-        <span class="sk-eyebrow">마진 민감도</span>
+        <span class="sk-title">마진 민감도</span>
         <span class="sk-meta">배율은 계단으로 움직입니다</span>
       </div>
       <table class="w-full border-collapse">

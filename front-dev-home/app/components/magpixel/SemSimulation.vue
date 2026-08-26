@@ -101,7 +101,7 @@ const rampColor = (v: number) =>
   <div class="contents">
     <div class="contents">
       <div class="w-52">
-        <div class="sk-eyebrow">
+        <div class="sk-title">
           전체 FOV · {{ pixels }} px · {{ nmPerPx.toFixed(3) }} nm/px
         </div>
         <div class="relative mt-1.5 h-52 w-52 overflow-hidden rounded-[var(--sk-r-nav)] bg-(--sk-field)">
@@ -149,7 +149,7 @@ const rampColor = (v: number) =>
         v-if="strips.length && halfWindowNm"
         class="w-72"
       >
-        <div class="sk-eyebrow">
+        <div class="sk-title">
           경계 확대(zoom) · 가로 {{ (2 * halfWindowNm).toFixed(1) }} nm
         </div>
 
@@ -189,7 +189,7 @@ const rampColor = (v: number) =>
           </div>
         </div>
 
-        <div class="mt-1 flex justify-between font-mono text-[10px] text-(--sk-ink-muted)">
+        <div class="mt-1 flex justify-between font-mono text-xs text-(--sk-ink-muted)">
           <span>← bar 안쪽</span>
           <span>space →</span>
         </div>

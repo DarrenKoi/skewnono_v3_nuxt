@@ -83,9 +83,9 @@ const pxPerCdClass = (row: MagPixelRow, pixels: number) => {
   <div class="overflow-x-auto">
     <!-- w-max: 참조표는 밀도가 가독성이다. w-full은 남는 폭을 컬럼에 분배해
          값 사이를 벌리므로, 내용만큼만 넓히고 좁은 화면에서만 스크롤한다. -->
-    <table class="w-max border-collapse font-mono text-[12px]">
+    <table class="w-max border-collapse font-mono text-sm">
       <thead>
-        <tr class="sk-eyebrow">
+        <tr class="sk-label">
           <th
             rowspan="2"
             class="border-b border-(--sk-border) px-2 py-1.5 text-left align-bottom"
@@ -107,19 +107,19 @@ const pxPerCdClass = (row: MagPixelRow, pixels: number) => {
             {{ p }} px <span class="opacity-60">· 스캔 {{ scanFactorLabel(p) }}</span>
           </th>
         </tr>
-        <tr class="sk-eyebrow">
+        <tr class="sk-label">
           <template
             v-for="p in visiblePixels"
             :key="p"
           >
             <th
-              class="whitespace-nowrap border-b border-l border-(--sk-border) px-2 pb-1.5 text-right font-normal normal-case tracking-normal"
+              class="whitespace-nowrap border-b border-l border-(--sk-border) px-2 pb-1.5 text-right"
             >
               px 크기(nm)
             </th>
             <th
               v-if="hasVerdict"
-              class="whitespace-nowrap border-b border-(--sk-border) px-2 pb-1.5 text-right font-normal normal-case tracking-normal"
+              class="whitespace-nowrap border-b border-(--sk-border) px-2 pb-1.5 text-right"
             >
               CD당 px 수
             </th>

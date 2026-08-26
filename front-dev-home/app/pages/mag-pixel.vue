@@ -215,7 +215,7 @@ const calcInput = computed<CalcInput>(() => ({
       <div class="flex flex-col gap-4 xl:sticky xl:top-6">
         <section class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
           <div class="mb-3.5 flex items-center justify-between">
-            <div class="sk-eyebrow">
+            <div class="sk-title">
               입력 · 스크롤 고정
             </div>
             <UButton
@@ -328,7 +328,7 @@ const calcInput = computed<CalcInput>(() => ({
             <div class="border-t border-(--sk-border-soft) pt-3.5">
               <div class="mb-2.5 flex items-center gap-1.5">
                 <span class="sk-label">기준 px/CD</span>
-                <span class="inline-flex items-center rounded-[var(--sk-r-chip)] bg-(--sk-warn-soft) px-1.5 py-px text-[10px] font-semibold text-(--sk-warn)">잠정</span>
+                <span class="inline-flex items-center rounded-[var(--sk-r-chip)] bg-(--sk-warn-soft) px-1.5 py-px text-xs font-semibold text-(--sk-warn)">잠정</span>
                 <UTooltip text="CD 하나 폭에 픽셀이 최소 몇 개는 얹혀야 하는지 — 측정을 신뢰할 수 있다고 볼 합격선입니다.">
                   <UIcon
                     name="i-lucide-circle-help"
@@ -351,7 +351,7 @@ const calcInput = computed<CalcInput>(() => ({
                 aria-label="기준 px/CD"
                 :ui="{ range: 'bg-(--sk-brand)', thumb: 'ring-(--sk-brand)' }"
               />
-              <div class="mt-1 flex justify-between font-mono text-[10px] text-(--sk-ink-subtle)">
+              <div class="mt-1 flex justify-between font-mono text-xs text-(--sk-ink-subtle)">
                 <span>4</span>
                 <span class="font-semibold text-(--sk-ok)">통상 6–10</span>
                 <span>20</span>
