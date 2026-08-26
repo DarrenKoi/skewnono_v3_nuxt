@@ -109,7 +109,7 @@ All fonts are **self-hosted**: woff2 only, in `front-dev-home/public/fonts/`. Pu
 | `text-base` | 16px | 400 | 24px | 0 | Body default |
 | `text-sm` | 14px | 400 | 20px | 0 | Table cells, inputs, secondary body |
 | `text-xs` | 12px | 500–600 | 16px | 0 | Metadata, pills, secondary labels — **the floor for anything the user reads as content** |
-| micro-label | 11px | 500–600 | 16px | 0 to +0.02em | **Labels only** — table header cells, stat-strip captions. Never a data value |
+| micro-label | 11px | 500–600 | 16px | 0 to +0.02em | **Labels only** — table header cells. Never a data value — meta-bar stat captions sit on the 12px `.sk-meta` tier (2026-08-26) |
 | eyebrow | 10px | 500–600 mono | 1.4 | +0.06em, uppercase | Meta-bar kickers (`CD-SEM · R3`) — mono caps only |
 
 ### Principles
@@ -124,7 +124,7 @@ The hierarchy above is implemented as a small set of **role-named classes** in `
 | Class | Role — purpose / location | Size · weight · colour |
 |---|---|---|
 | `.sk-eyebrow` | Mono uppercase kicker (meta-bar, section kicker) | 10px · 600 · mono +0.06em uppercase · ink-muted |
-| `.sk-label` | Field / column / caption **label** (table headers, stat captions) | 11px · 600 · ink-muted |
+| `.sk-label` | Field / column / caption **label** (table headers) | 11px · 600 · ink-muted |
 | `.sk-value` | A data **value** (table cell, stat text, ID) | 12px · 500 · **ink** |
 | `.sk-value-num` | A **numeric** value (mono + tabular figures) | 12px · 500 · mono tabular · **ink** |
 | `.sk-meta` | Secondary / supporting text (helper, timestamp, de-emphasised) | 12px · 400 · ink-muted |
