@@ -11,7 +11,7 @@ import {
 } from './analysisWindow.ts'
 
 test('the choices are exactly what the server accepts, and the default is one of them', () => {
-  assert.deepEqual([...WINDOW_WEEKS], [1, 2, 3])
+  assert.deepEqual([...WINDOW_WEEKS], [1, 2, 3, 4])
   assert.ok(isWindowWeeks(DEFAULT_WINDOW_WEEKS))
 })
 
@@ -23,7 +23,7 @@ test('normalizeWindowWeeks falls back for anything the server would 400', () => 
   // A stored value is user-writable and survives deploys: a number outside the
   // choices, a numeric STRING (JSON round-trips preserve type, but a hand edit
   // does not), an entry written before the field existed.
-  for (const raw of [0, 4, 8, 1.5, '2', null, undefined, {}]) {
+  for (const raw of [0, 5, 8, 1.5, '2', null, undefined, {}]) {
     assert.equal(normalizeWindowWeeks(raw), DEFAULT_WINDOW_WEEKS, String(raw))
   }
 })

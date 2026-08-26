@@ -150,14 +150,14 @@ DEFAULTS = {
 }
 
 # How far back a "current" CD reading, BSM reading or PM event may come from is
-# the request's `window_weeks` (`_analysis_window.py`, 1-3 weeks, shared with
+# the request's `window_weeks` (`_analysis_window.py`, 1-4 weeks, shared with
 # the tttm check that pm-tune joins this payload against). A tool idle for
 # longer than the window drops out of the fleet — that is the window meaning
 # what its label says, not a gap. It used to be a fixed 30 days.
 
 # Monitor runs opened per tool per WEEK of the window. 8/week holds a PM
 # boundary (so `prev_post_delta` has a before AND an after) with a daily
-# monitor run; at the widest window that is 24 x ~18 tools = ~430 MinIO GETs.
+# monitor run; at the widest window that is 32 x ~18 tools = ~580 MinIO GETs.
 # Scaled with the window for the reason tttm's cap is: a fixed cap behind a
 # widening lookback makes the cap the real window.
 RUNS_PER_TOOL_PER_WEEK = 8

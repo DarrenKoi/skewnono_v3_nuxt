@@ -8,13 +8,15 @@ defaulting to a week, another to three — and a picker scoped to a different
 window from the payload it drives offers recipes the check then finds nothing
 for.
 
-Why WEEKS and why these three: the fleet check is a daily monitor run, so a
+Why WEEKS and why these four: the fleet check is a daily monitor run, so a
 week is the smallest span that separates a reproducible tool offset from
-day-to-day scatter, and three weeks is where the office cost stops being a lab
+day-to-day scatter, and four weeks is where the office cost stops being a lab
 page (see ``runs_per_tool`` in each office adapter — the run cap scales with
 the window, and every run is one MinIO GET). The user picks; the default is
-the widest, because "not enough runs" was the complaint that created the axis
-(2026-08-25), and a narrower default puts the user back where they started.
+two — a second week to confirm what the first showed, at half the cost of the
+widest choice. "Not enough runs" was the complaint that created the axis
+(2026-08-25, when the effective window was ten runs); the user then settled
+the default at 2 with 1-4 on offer (2026-08-26).
 """
 
 from __future__ import annotations
@@ -22,8 +24,8 @@ from __future__ import annotations
 from flask import jsonify, request
 
 
-WINDOW_WEEKS_CHOICES: tuple[int, ...] = (1, 2, 3)
-DEFAULT_WINDOW_WEEKS = 3
+WINDOW_WEEKS_CHOICES: tuple[int, ...] = (1, 2, 3, 4)
+DEFAULT_WINDOW_WEEKS = 2
 
 _ARG = "window_weeks"
 

@@ -120,9 +120,8 @@ class TestTttmCheckScopeArgs(unittest.TestCase):
     # ── window_weeks ────────────────────────────────────────────────────
 
     def test_the_window_defaults_when_absent_or_blank(self):
-        # Older clients (and a cleared control) send nothing; the widest choice
-        # is the default because "not enough runs" is the complaint that
-        # created the axis — see _analysis_window.py.
+        # Older clients (and a cleared control) send nothing and get the
+        # server's default — see _analysis_window.py for why it is what it is.
         for query in ("", "&window_weeks="):
             payload = self._get(f"recipe_id={self._measured_recipe()}{query}").get_json()
             self.assertEqual(payload["window_weeks"], DEFAULT_WINDOW_WEEKS)
@@ -144,7 +143,7 @@ class TestTttmCheckScopeArgs(unittest.TestCase):
     def test_a_window_outside_the_choices_is_refused_not_clamped(self):
         # 8 weeks clamped to 3 would label the screen with a span the server
         # never gathered; a word is not a window at all.
-        for bad in ("0", "4", "8", "abc", "1.5"):
+        for bad in ("0", "5", "8", "abc", "1.5"):
             response = self._get(f"window_weeks={bad}")
             self.assertEqual(response.status_code, 400, bad)
             self.assertIn("window_weeks", response.get_json()["error"])

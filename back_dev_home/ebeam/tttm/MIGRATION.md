@@ -14,11 +14,11 @@
   `SEM_TOOL_SLUGS` (400 if not `cdsem`/`hvsem`) before the data call.
   `fab_name` is a required query param (`?fab_name=...`, 400 if missing);
   `recipe_id` and `parameter` are optional query params; `window_weeks` is
-  optional and defaults to 3.
+  optional and defaults to 2.
 - **`window_weeks` is how far back to gather, AND how many runs per tool.**
-  One of `_analysis_window.WINDOW_WEEKS_CHOICES` (`1`, `2`, `3`); the route
+  One of `_analysis_window.WINDOW_WEEKS_CHOICES` (`1`, `2`, `3`, `4`); the route
   refuses anything else with a 400 rather than clamping, and defaults an
-  absent/blank value to `DEFAULT_WINDOW_WEEKS` (3). The adapter gathers runs
+  absent/blank value to `DEFAULT_WINDOW_WEEKS` (2). The adapter gathers runs
   from `anchor - 7 * window_weeks` days and asks `recent_runs` for
   `runs_per_tool(window_weeks)` = `RUNS_PER_TOOL_PER_WEEK * window_weeks`
   per tool — both move together on purpose. The lookback used to be a fixed

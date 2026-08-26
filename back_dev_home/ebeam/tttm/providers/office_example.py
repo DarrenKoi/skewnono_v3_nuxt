@@ -160,7 +160,7 @@ _LOG = logging.getLogger(__name__)
 
 # Runs opened per tool per WEEK of the requested window. The fleet check is a
 # daily monitor run, so 10/week is a week's worth with slack for a tool that
-# ran twice some days; at the widest window that is 30 x ~18 tools = ~540
+# ran twice some days; at the widest window that is 40 x ~18 tools = ~720
 # MinIO GETs, cached across requests by `load_points`. See the "NOT DONE
 # HERE" note above before raising it.
 #

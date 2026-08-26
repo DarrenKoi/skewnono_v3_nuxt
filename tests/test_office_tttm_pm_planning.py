@@ -223,7 +223,7 @@ def test_tttm_window_moves_the_lookback_and_the_run_cap_together(sources, monkey
     The lookback used to be a fixed 60 days behind a fixed cap of 10 runs, which
     made the cap the real window: a daily-monitoring tool contributed its last
     ten days whatever the lookback said. Asserted per choice so a cap that
-    stopped scaling — the regression that would make "3주" gather a week —
+    stopped scaling — the regression that would make "4주" gather a week —
     fails on the widest window rather than passing on the default.
     """
     asked = _spy_recent_runs(monkeypatch, tttm_office, sources)
@@ -695,7 +695,7 @@ def test_an_empty_grid_names_its_own_cause(sources, setup, expected):
 def test_pm_epoch_window_reads_past_the_measurement_window(sources):
     """MDC changes are rare; a 30-day lookback would empty every history.
 
-    The measurement window is at most three weeks, the mock's own epoch
+    The measurement window is at most four weeks, the mock's own epoch
     spacing is 60+ days, so
     an adapter that reused one window for both would report "never changed" for
     a tool edited two months ago.

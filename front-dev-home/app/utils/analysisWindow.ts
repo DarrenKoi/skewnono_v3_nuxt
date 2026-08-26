@@ -2,13 +2,13 @@
 //
 // Mirrors back_dev_home/ebeam/_analysis_window.py — the server refuses a value
 // outside its choices with a 400 rather than clamping it, so the client must
-// only ever send one of these. The default is the widest because "not enough
-// runs" was the complaint that created the axis (2026-08-25); a narrower
-// default would put the user back where they started.
+// only ever send one of these. The default is two weeks — user decision
+// (2026-08-26): a second week to confirm the first at half the cost of the
+// widest choice; "not enough runs" was the complaint that created the axis.
 
-export const WINDOW_WEEKS = [1, 2, 3] as const
+export const WINDOW_WEEKS = [1, 2, 3, 4] as const
 export type WindowWeeks = typeof WINDOW_WEEKS[number]
-export const DEFAULT_WINDOW_WEEKS: WindowWeeks = 3
+export const DEFAULT_WINDOW_WEEKS: WindowWeeks = 2
 
 export const isWindowWeeks = (value: unknown): value is WindowWeeks =>
   (WINDOW_WEEKS as readonly unknown[]).includes(value)

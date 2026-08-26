@@ -22,7 +22,7 @@
   the message is derived from the registry, not hard-coded.
 - **`window_weeks` bounds every "current" source, and the run cap grows with
   it.** Read by `_analysis_window.resolve_window_weeks()` exactly as
-  `/tttm/check` reads it — one of `1`/`2`/`3`, default `3`, anything else a
+  `/tttm/check` reads it — one of `1`/`2`/`3`/`4`, default `2`, anything else a
   400 — because pm-tune joins this payload with the tttm check under one
   "N주 윈도우" label. `data.get_pm_planning_fleet(fab_name, window_weeks)` is
   positional and undefaulted so a stale `office.py` raises. The adapter

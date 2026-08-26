@@ -45,7 +45,7 @@ class TestPmPlanningFleetArgs(unittest.TestCase):
             self.assertEqual(payload["fab_name"], FAB)
 
     def test_a_window_outside_the_choices_is_refused_not_clamped(self):
-        for bad in ("0", "4", "abc"):
+        for bad in ("0", "5", "abc"):
             response = self._get(f"&window_weeks={bad}")
             self.assertEqual(response.status_code, 400, bad)
             self.assertIn("window_weeks", response.get_json()["error"])

@@ -3,7 +3,7 @@
     <p class="mb-1.5 sk-label">
       수집 기간
     </p>
-    <!-- Chips, not a dropdown: three fixed choices the reader should see all
+    <!-- Chips, not a dropdown: four fixed choices the reader should see all
          of at once, and picking one narrows the data on this page — the
          FILTER role, so the active chip takes the brand fill like the model
          dropdowns beside it (DESIGN.md §Selection Primitives). -->
