@@ -139,7 +139,7 @@ const toneActiveBg = (tone: MetaBarStatTone = 'neutral') => ({
             :class="toneTextClass(stat.tone)"
           >{{ stat.value }}</span>
           <!-- 11px micro-label: a caption naming the number, never a value. -->
-          <span class="mt-0.5 sk-eyebrow">
+          <span class="mt-0.5 sk-label">
             {{ stat.label }}
           </span>
         </component>
