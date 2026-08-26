@@ -24,6 +24,10 @@ from __future__ import annotations
 from flask import jsonify, request
 
 
+# Mirrored in front-dev-home/app/utils/analysisWindow.ts — the client only ever
+# sends one of these, so the two lists must change together. Nothing ties them
+# mechanically: a drift shows up as a 400 (server narrower) or as a silent
+# normalize-to-default (client narrower).
 WINDOW_WEEKS_CHOICES: tuple[int, ...] = (1, 2, 3, 4)
 DEFAULT_WINDOW_WEEKS = 2
 

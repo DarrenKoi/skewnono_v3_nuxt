@@ -158,9 +158,11 @@ __all__ = ["get_tttm_check", "get_tttm_recipes"]
 _LOG = logging.getLogger(__name__)
 
 
-# Runs opened per tool per WEEK of the requested window. The fleet check is a
-# daily monitor run, so 10/week is a week's worth with slack for a tool that
-# ran twice some days; at the widest window that is 40 x ~18 tools = ~720
+# Runs opened per tool per WEEK of the requested window. Sized on the ASSUMPTION
+# that the fleet check is a daily monitor run (OFFICE-VERIFY — docs/datatables/
+# hitachi/meas_hist.txt only says CD_MONITOR recipes run 주기적으로, not how
+# often), so 10/week is a week's worth with slack for a tool that ran twice
+# some days; at the widest window that is 40 x ~18 tools = ~720
 # MinIO GETs, cached across requests by `load_points`. See the "NOT DONE
 # HERE" note above before raising it.
 #

@@ -26,12 +26,16 @@
   400 — because pm-tune joins this payload with the tttm check under one
   "N주 윈도우" label. `data.get_pm_planning_fleet(fab_name, window_weeks)` is
   positional and undefaulted so a stale `office.py` raises. The adapter
-  gathers monitor runs, BSM readings and PM events from
-  `anchor - 7 * window_weeks` days, and asks `recent_runs` for
-  `runs_per_tool(window_weeks)` = `RUNS_PER_TOOL_PER_WEEK * window_weeks`
-  runs per tool; a tool idle for longer than the window drops out of the
-  fleet, which is the window meaning what its label says. MDC epochs keep
-  their own `EPOCH_LOOKBACK_DAYS`. Echo `window_weeks` on the payload,
+  gathers monitor runs and BSM readings from `anchor - 7 * window_weeks`
+  days, and asks `recent_runs` for `runs_per_tool(window_weeks)` =
+  `RUNS_PER_TOOL_PER_WEEK * window_weeks` runs per tool; a tool idle for
+  longer than the window drops out of the fleet, which is the window meaning
+  what its label says. **PM events are NOT windowed**: `post_pm_at` comes from
+  `maintenance_events` over a fixed `PM_LOOKBACK_DAYS` (30, what the old
+  fixed window gave it) because "when was this tool last touched" is a fact
+  about the tool, not evidence the user sized — windowed, a PM three weeks ago
+  vanished at the 2-week default and moved pm-tune's default pick. MDC epochs
+  likewise keep their own `EPOCH_LOOKBACK_DAYS`. Echo `window_weeks` on the payload,
   including the empty-roster one. (It used to be a fixed 30 days behind a
   fixed cap of 8 runs.)
 - **CD-SEM only.** Even though `hvsem` is a valid slug elsewhere in this

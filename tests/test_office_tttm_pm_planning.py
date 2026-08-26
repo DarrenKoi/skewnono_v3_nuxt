@@ -469,6 +469,29 @@ def test_pm_window_moves_the_lookback_and_the_run_cap_together(sources, monkeypa
     assert asked["per_tool"] == pm_office.runs_per_tool(weeks)
 
 
+@pytest.mark.parametrize("weeks", (min(WINDOW_WEEKS_CHOICES), max(WINDOW_WEEKS_CHOICES)))
+def test_pm_events_keep_their_own_lookback_whatever_the_window(sources, monkeypatch, weeks):
+    """`post_pm_at` is "when was this tool last touched", not sized evidence.
+
+    The window request bounded PM events along with the runs, so at the 2-week
+    default a PM three weeks old disappeared and pm-tune's "freshest out of PM"
+    pick moved — a widening nobody asked for (oc-review 2026-08-26). Asserted at
+    both ends of the choices so the lookback is provably independent of them.
+    """
+    captured = {}
+
+    def spy(fab, eqp_ids, start, end):
+        captured["span"] = (end - start).days
+        return {}
+
+    monkeypatch.setattr(pm_office, "maintenance_events", spy)
+    sources["bsm"] = _bsm()
+    pm_office.get_pm_planning_fleet("R3", weeks)
+
+    assert captured["span"] == pm_office.PM_LOOKBACK_DAYS
+    assert captured["span"] > window_days(weeks) or weeks == max(WINDOW_WEEKS_CHOICES)
+
+
 def test_pm_empty_roster_echoes_the_window(sources):
     sources["roster"] = []
     fleet = pm_office.get_pm_planning_fleet("R3", 1)

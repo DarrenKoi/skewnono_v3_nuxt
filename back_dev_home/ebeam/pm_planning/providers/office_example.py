@@ -149,15 +149,17 @@ DEFAULTS = {
     "advisory_threshold": {"500V": 0.30, "800V": 0.40},
 }
 
-# How far back a "current" CD reading, BSM reading or PM event may come from is
-# the request's `window_weeks` (`_analysis_window.py`, 1-4 weeks, shared with
-# the tttm check that pm-tune joins this payload against). A tool idle for
-# longer than the window drops out of the fleet — that is the window meaning
-# what its label says, not a gap. It used to be a fixed 30 days.
+# How far back a "current" CD reading or BSM reading may come from is the
+# request's `window_weeks` (`_analysis_window.py`, 1-4 weeks, shared with the
+# tttm check that pm-tune joins this payload against). A tool idle for longer
+# than the window drops out of the fleet — that is the window meaning what its
+# label says, not a gap. It used to be a fixed 30 days. PM EVENTS are not
+# windowed — see PM_LOOKBACK_DAYS below.
 
 # Monitor runs opened per tool per WEEK of the window. 8/week holds a PM
-# boundary (so `prev_post_delta` has a before AND an after) with a daily
-# monitor run; at the widest window that is 32 x ~18 tools = ~580 MinIO GETs.
+# boundary (so `prev_post_delta` has a before AND an after) IF the monitor runs
+# daily (OFFICE-VERIFY — meas_hist.txt only says CD_MONITOR recipes run
+# 주기적으로); at the widest window that is 32 x ~18 tools = ~580 MinIO GETs.
 # Scaled with the window for the reason tttm's cap is: a fixed cap behind a
 # widening lookback makes the cap the real window.
 RUNS_PER_TOOL_PER_WEEK = 8
@@ -166,6 +168,16 @@ RUNS_PER_TOOL_PER_WEEK = 8
 def runs_per_tool(window_weeks: int) -> int:
     return RUNS_PER_TOOL_PER_WEEK * window_weeks
 
+
+# How far back to look for the tool's last PM. Deliberately NOT the request
+# window, and unchanged from before the window became selectable: `post_pm_at`
+# answers "when was this tool last touched", which is a fact about the tool and
+# not about how much evidence the user asked for. Windowed, a PM three weeks
+# ago vanished at the 2-week default — `post_pm_at` went None, `prev_post_delta`
+# with it, and pm-tune's "freshest out of PM" default pick moved — which the
+# window request never asked for (oc-review 2026-08-26). Same reasoning as the
+# MDC lookback below, at the span the 30-day window used to give it.
+PM_LOOKBACK_DAYS = 30
 
 # How far back to look for MDC epoch boundaries. Deliberately NOT the request
 # window: MDC "자주 바뀌지는 않는다" (docs/datatables/hitachi/hardware_mdc_setting.txt)
@@ -604,9 +616,10 @@ def _empty_payload(
 def get_pm_planning_fleet(fab_name: str, window_weeks: int) -> FleetPayload:
     """One fab's CD-SEM Up-gate snapshot, joined across the four sources.
 
-    ``window_weeks`` bounds the monitor runs, the BSM readings and the PM
-    events alike (one span, one label), and the per-tool run cap grows with it
-    — see ``runs_per_tool``. MDC epochs keep their own longer lookback.
+    ``window_weeks`` bounds the monitor runs and the BSM readings (one span,
+    one label), and the per-tool run cap grows with it — see ``runs_per_tool``.
+    PM events and MDC epochs keep their own longer lookbacks: both are facts
+    about the tool rather than evidence the user sized.
     """
     fab = fab_name.strip().upper()
     eqp_ids = [str(row["eqp_id"]) for row in _fleet_rows(fab)]
@@ -630,7 +643,9 @@ def get_pm_planning_fleet(fab_name: str, window_weeks: int) -> FleetPayload:
     by_tool = runs.by_tool()
     bsm = _bsm_by_tool(fab, eqp_ids, start, anchor)
     bands = _bsm_bands(bsm)
-    post_pm = latest_pm_by_tool(maintenance_events(fab, eqp_ids, start, anchor))
+    post_pm = latest_pm_by_tool(
+        maintenance_events(fab, eqp_ids, anchor - timedelta(days=PM_LOOKBACK_DAYS), anchor)
+    )
 
     epochs_by_tool: dict[str, list[MdcChange]] = {}
     for change in mdc_changes(fab, anchor - timedelta(days=EPOCH_LOOKBACK_DAYS), anchor):
@@ -800,10 +815,13 @@ if __name__ == "__main__":  # pragma: no cover
         f"  BSM: {sum(len(v) for v in readings.values())} docs across "
         f"{len(readings)} tools; bands={_bsm_bands(readings)}"
     )
-    maint = maintenance_events(fab_arg, ids, window_start, anchor_at)
+    maint = maintenance_events(
+        fab_arg, ids, anchor_at - timedelta(days=PM_LOOKBACK_DAYS), anchor_at
+    )
     print(
         f"  PM : {sum(len(v) for v in maint.values())} maintenance jobs, "
-        f"{len(latest_pm_by_tool(maint))} tools with a completed PM in the window"
+        f"{len(latest_pm_by_tool(maint))} tools with a completed PM in the last "
+        f"{PM_LOOKBACK_DAYS}d"
     )
     print(
         f"  MDC: {len(mdc_changes(fab_arg, anchor_at - timedelta(days=EPOCH_LOOKBACK_DAYS), anchor_at))} "
