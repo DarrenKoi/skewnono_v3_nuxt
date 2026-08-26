@@ -22,6 +22,25 @@ actually serving requests. A copy left behind by an older ``git pull`` has no
 registry path at all - stage 0 catches that outright, since no amount of
 correct Redis data helps an adapter that never reads it.
 
+The flow this script replays is the one ``get_recipe_open_data`` runs, one
+stage per step, printing what each step READ and what it DERIVED from it::
+
+    0. providers/office.py             which adapter is deployed
+    1. Redis   INFO keyspace + SCAN    which logical DB the client is on (db 0,
+                                       there is no REDIS_DB knob) and which
+                                       v3_{family}_* keys that DB holds - a
+                                       registry loaded into db1 reads as
+                                       "key absent" from db0, not as an error
+    2. Redis   HGET x3                 v3_{family}_unique_rcp_list    [fab]    -> names
+                                       v3_{family}_rcp_loc_{fab}      [recipe] -> [idw, idp]
+                                       v3_{family}_tools_in_rcp_{fab} [recipe] -> [eqp_id, ...]
+    3. Redis   v3_df_sem_avail         eqp_id -> eqp_ip  (FTP dials an IP)
+    4. OpenSearch meas_hist_{family}   the fallback when stage 2 declines
+    5. verdict                         /HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp
+                                       per candidate tool, in download order
+    6. FTP     RETR                    --fetch: download, parse from bytes
+    7. FTP     raw folder              --fetch: the five raw readers
+
 Run FROM THE REPO ROOT at the office (reads REDIS_* / OPENSEARCH_* from
 back_dev_home/.env the same way the adapter does)::
 
@@ -29,10 +48,10 @@ back_dev_home/.env the same way the adapter does)::
     .venv/bin/python -m scripts.diagnose_recipe_search_office "ADI/X" --fab M14A
     .venv/bin/python -m scripts.diagnose_recipe_search_office "ADI/X" --tool hvsem
 
-Stages 1-4 write nothing and open no FTP session: they are read-only against
+Stages 1-5 write nothing and open no FTP session: they are read-only against
 Redis and OpenSearch, and locating the file is the step that 502s.
 
-``--fetch`` adds stages 5-6, which go past locating into the office_utils
+``--fetch`` adds stages 6-7, which go past locating into the office_utils
 surface itself - download the ``.idp``, parse it FROM BYTES, and run one
 parameter's slots through the five raw readers::
 
@@ -42,7 +61,7 @@ parameter's slots through the five raw readers::
 Those two are opt-in because they dial the measuring tool. They exist for the
 2026-08-05 change: the adapter stopped writing the ``.idp`` to a temp file on
 the strength of ``combined_idp_info`` accepting bytes - user-confirmed, but
-never executed at the office and untestable from home. Stage 5 parses the same
+never executed at the office and untestable from home. Stage 6 parses the same
 bytes both ways and reports whether they agree, so the claim is checked by a
 command instead of by a user hitting a 502. If it turns out to be wrong,
 ``SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1`` in ``back_dev_home/.env`` restores the
@@ -55,11 +74,15 @@ Flask host either.
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib
+import json
 import os
 import sys
 from pathlib import Path
 from types import ModuleType
+
+import redis
 
 # Make `back_dev_home` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
@@ -75,7 +98,11 @@ if str(_REPO_ROOT) not in sys.path:
 import scripts  # noqa: E402,F401
 
 from back_dev_home._runtime import office_template  # noqa: E402
-from back_dev_home._runtime.office_redis import load_env_file, redis_client  # noqa: E402
+from back_dev_home._runtime.office_redis import (  # noqa: E402
+    STORE_ERRORS,
+    load_env_file,
+    redis_client,
+)
 
 
 _PACKAGE = "back_dev_home.ebeam.recipe_search.providers"
@@ -85,7 +112,7 @@ _TOOL_TYPE = {"cdsem": "cd-sem", "hvsem": "hv-sem"}
 
 
 def _rule(title: str) -> None:
-    print(f"\n{'─' * 72}\n{title}\n{'─' * 72}")
+    print(f"\n{'-' * 72}\n{title}\n{'-' * 72}")
 
 
 def _ok(message: str) -> None:
@@ -181,16 +208,137 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
     return has_registry
 
 
-# ── stage 1: Redis ────────────────────────────────────────────────────────
+# ── stage 1: Redis - which database, which keys ──────────────────────────
+
+
+def _codec(raw: object) -> str:
+    """Which of ``_parse_str_list``'s three parsers a stored value falls to.
+
+    The loader is not pinned to one serialization (JSON list, Python repr,
+    or a comma-joined string - docs/datatables/hitachi/recipe_name_list.txt),
+    and the adapter accepts all three, so this is reported rather than judged.
+    It is still worth seeing: a value that parses as "comma-separated" was not
+    written as a list at all, and one day a name with a comma will split.
+    """
+    text = _text(raw).strip()
+    for name, parse in (("JSON", json.loads), ("Python repr", ast.literal_eval)):
+        try:
+            if isinstance(parse(text), (list, tuple)):
+                return name
+        except (ValueError, SyntaxError):
+            continue
+    return "comma-separated"
+
+
+def _expected_keys(adapter: ModuleType, family: str, fab: str) -> dict[str, str]:
+    """The three keys the adapter will build for this request -> what each is.
+
+    Built through the adapter's own ``_fab_hash`` where the copy has one, so a
+    mismatch here is a mismatch between the deployed code and the store, not
+    between this script and the store.
+    """
+    keys = {f"v3_{family}_unique_rcp_list": "catalog   fab -> [recipe names]"}
+    fab_hash = getattr(adapter, "_fab_hash", None)
+    if fab_hash is not None:
+        tool_type = _TOOL_TYPE[family]
+        keys[fab_hash("rcp_loc", tool_type, fab)] = "registry  recipe -> [idw, idp]"
+        keys[fab_hash("tools_in_rcp", tool_type, fab)] = "registry  recipe -> [eqp_id, ...]"
+    return keys
+
+
+def _check_redis_inventory(adapter: ModuleType, family: str, fab: str) -> bool:
+    """Is the client on the DB that holds the recipe keys? Returns reachable.
+
+    ``redis_client()`` has no db setting - it always talks to logical DB 0.
+    The office Redis is one server shared by several loaders, and a registry
+    written into db1 is indistinguishable from an absent one when read from
+    db0: HGET answers nil, the adapter bails to meas_hist, and the browser
+    shows the meas_hist sentence. ``INFO keyspace`` lists every DB with a key
+    count in one round trip, and ``SCAN v3_{family}_*`` shows what this DB
+    actually holds before any per-recipe read is attempted. When an expected
+    key is missing, the other DBs are scanned for it too, so "wrong DB" is
+    named outright rather than left to be inferred from a nil.
+    """
+    _rule("1. Redis - which database is the client on, and which keys are in it")
+
+    client = redis_client()
+    kwargs = dict(client.connection_pool.connection_kwargs)
+    db = int(kwargs.get("db") or 0)
+    where = f"{kwargs.get('host')}:{kwargs.get('port')}"
+    try:
+        client.ping()
+    except STORE_ERRORS as exc:
+        _bad(f"cannot reach {where}: {type(exc).__name__}: {exc}")
+        _info("REDIS_HOST/REDIS_PORT/REDIS_PASSWORD come from back_dev_home/.env. "
+              "At home the host is set but unreachable - run this at the office.")
+        return False
+    _ok(f"connected to {where}  db={db}")
+    _info("redis_client() has no db setting, so db 0 is the only DB the adapter "
+          "ever reads.")
+
+    keyspace = client.info("keyspace")  # {"db0": {"keys": N, ...}, "db1": ...}
+    for name, stats in sorted(keyspace.items()):
+        count = stats.get("keys") if isinstance(stats, dict) else stats
+        tag = "  <- the adapter reads this one" if name == f"db{db}" else ""
+        _info(f"{name}: {count} keys{tag}")
+    if f"db{db}" not in keyspace:
+        _bad(f"db{db} holds no keys at all - nothing the adapter reads exists there.")
+
+    pattern = f"v3_{family}_*"
+    keys = sorted(_text(key) for key in client.scan_iter(match=pattern, count=1000))
+    expected = _expected_keys(adapter, family, fab)
+    if keys:
+        _ok(f"db{db} holds {len(keys)} key(s) matching {pattern}:")
+        for key in keys:
+            kind = _text(client.type(key))
+            size = f"{client.hlen(key)} fields" if kind == "hash" else ""
+            _info(f"{key:<40} {kind:<6} {size:<12} {expected.get(key, '')}")
+    else:
+        _bad(f"db{db} has NO key matching {pattern}.")
+
+    missing = [key for key in expected if key not in keys]
+    for key in missing:
+        _bad(f"expected {key} ({expected[key].split()[0]}) is not in db{db}.")
+        near = [other for other in keys if other.lower() == key.lower()]
+        if near:
+            _info(f"but {near[0]} IS - the loader spelled the fab in another case. "
+                  "Both hashes were regenerated lowercase on 2026-08-07 "
+                  "(docs/datatables/hitachi/recipe_name_list.txt).")
+    if not missing:
+        _ok("all three keys the adapter will read for this request exist.")
+        return True
+
+    # The direct answer to "are we on the right DB": look for the same keys
+    # everywhere else the server has data.
+    for name in sorted(keyspace):
+        other = int(name[2:])
+        if other == db:
+            continue
+        pool = redis.ConnectionPool(**{**kwargs, "db": other})
+        try:
+            found = sorted(
+                _text(key) for key in
+                redis.Redis(connection_pool=pool).scan_iter(match=pattern, count=1000)
+            )
+        finally:
+            pool.disconnect()
+        if found:
+            _bad(f"db{other} holds {len(found)} {pattern} key(s): "
+                 + ", ".join(found[:6]) + (" ..." if len(found) > 6 else ""))
+            _info("The loader wrote to a DB the adapter never reads. Either the "
+                  "loader must SELECT 0, or redis_client() needs a REDIS_DB "
+                  "setting - it has none today (back_dev_home/_runtime/office_redis.py).")
+    return True
+
+
+# ── stage 2: Redis - the three reads for this recipe ─────────────────────
 
 
 def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> list[str]:
     """Walk the catalog and both registry hashes. Returns the eqp_ids found."""
-    _rule("1. Redis - catalog and recipe-location registry")
+    _rule("2. Redis - catalog and recipe-location registry, for this recipe")
 
     client = redis_client()
-    client.ping()
-    _ok(f"connected to {os.environ.get('REDIS_HOST')}:{os.environ.get('REDIS_PORT')}")
 
     catalog_key = f"v3_{family}_unique_rcp_list"
     fields = client.hkeys(catalog_key)
@@ -205,7 +353,10 @@ def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> lis
         _info("Fields are lowercase here; the screen and routes use uppercase.")
         return []
 
-    names = adapter._parse_str_list(client.hget(catalog_key, fab.lower()) or "")
+    raw = client.hget(catalog_key, fab.lower()) or b""
+    names = adapter._parse_str_list(raw)
+    _info(f"HGET {catalog_key} {fab.lower()}  -> {len(raw)} bytes, {_codec(raw)}: "
+          f"{_text(raw)[:60]!r}...")
     if recipe in names:
         _ok(f"{fab} lists {len(names)} recipes, including {recipe!r}.")
     else:
@@ -233,6 +384,7 @@ def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> lis
             _info(f"sample fields (compare the spelling): {', '.join(sample)}")
             continue
         parsed = adapter._parse_str_list(raw)
+        _info(f"HGET {key} {recipe}  -> {_codec(raw)}: {_text(raw)!r}")
         if key == loc_key:
             if len(parsed) < 2:
                 _bad(f"{key} entry is {parsed} - needs 2 entries, read positionally.")
@@ -247,14 +399,14 @@ def _check_redis(adapter: ModuleType, family: str, fab: str, recipe: str) -> lis
     return eqp_ids
 
 
-# ── stage 2: the eqp_id -> eqp_ip join through sem_list ───────────────────
+# ── stage 3: the eqp_id -> eqp_ip join through sem_list ───────────────────
 
 
 def _check_roster(adapter: ModuleType, eqp_ids: list[str]) -> None:
-    _rule("2. sem_list roster - eqp_id -> eqp_ip (FTP dials an IP, not an id)")
+    _rule("3. sem_list roster - eqp_id -> eqp_ip (FTP dials an IP, not an id)")
 
     if not eqp_ids:
-        _info("skipped: stage 1 found no tool list to resolve.")
+        _info("skipped: stage 2 found no tool list to resolve.")
         return
 
     index = adapter._eqp_ip_index()
@@ -273,11 +425,11 @@ def _check_roster(adapter: ModuleType, eqp_ids: list[str]) -> None:
         _bad("no tool resolves to an IP - the registry path bails here.")
 
 
-# ── stage 3: OpenSearch fallback ─────────────────────────────────────────
+# ── stage 4: OpenSearch fallback ─────────────────────────────────────────
 
 
 def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) -> None:
-    _rule("3. meas_hist - the fallback, and the source the 502 message names")
+    _rule("4. meas_hist - the fallback, and the source the 502 message names")
 
     from back_dev_home.ebeam._office_search import aggregate, fetch_hits, query
 
@@ -329,11 +481,11 @@ def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) ->
             "can open it.")
 
 
-# ── stage 4: the verdict the endpoint itself would reach ─────────────────
+# ── stage 5: the verdict the endpoint itself would reach ─────────────────
 
 
 def _check_verdict(adapter: ModuleType, family: str, fab: str, recipe: str) -> None:
-    _rule("4. Verdict - what /recipe-detail would do with this exact request")
+    _rule("5. Verdict - what /recipe-detail would do with this exact request")
 
     try:
         locations = adapter._locate_idp(_TOOL_TYPE[family], recipe, fab)
@@ -353,7 +505,7 @@ def _check_verdict(adapter: ModuleType, family: str, fab: str, recipe: str) -> N
           "instead - add --fetch to carry on into it.")
 
 
-# ── stage 5: download and parse, the step --fetch adds ───────────────────
+# ── stage 6: download and parse, the step --fetch adds ───────────────────
 
 
 def _check_fetch(
@@ -361,7 +513,7 @@ def _check_fetch(
 ) -> tuple[dict, dict] | None:
     """Download the .idp and hand the parser BYTES, the 2026-08-05 change.
 
-    Split from stage 4 because it is the first step that opens an FTP session
+    Split from stage 5 because it is the first step that opens an FTP session
     and the first that runs 사내 code. Everything above is read-only against
     Redis and OpenSearch and safe to run against anything.
 
@@ -372,7 +524,7 @@ def _check_fetch(
     stage exists: if bytes are rejected or quietly return something different,
     it says so here instead of on a user's screen as a 502.
     """
-    _rule("5. Download + parse (--fetch)")
+    _rule("6. Download + parse (--fetch)")
 
     try:
         locations = adapter._locate_idp(_TOOL_TYPE[family], recipe, fab)
@@ -406,7 +558,7 @@ def _check_fetch(
              "Run this at the office for it to mean anything.")
 
     _compare_with_tempfile(adapter, data, label, frames)
-    # The same locator _to_detail_response sends to the browser, so stage 6
+    # The same locator _to_detail_response sends to the browser, so stage 7
     # reaches the raw folder exactly the way param-detail does.
     locator = {
         "eqp_ip": location.eqp_ip,
@@ -480,7 +632,7 @@ def _compare_with_tempfile(
           "2026-08-05. Then send this output home.")
 
 
-# ── stage 6: the five raw readers ────────────────────────────────────────
+# ── stage 7: the five raw readers ────────────────────────────────────────
 
 
 def _check_readers(
@@ -494,7 +646,7 @@ def _check_readers(
     changes renders as an empty 설정 panel rather than an error, so this prints
     what actually arrived rather than asserting anything about it.
     """
-    _rule("6. Raw-folder readers (--fetch)")
+    _rule("7. Raw-folder readers (--fetch)")
 
     if _is_home_standin("office_utils.idp_amp_reader"):
         _bad("the HOME STAND-IN is installed - the settings below are "
@@ -584,15 +736,23 @@ def main() -> int:
     adapter, state = _load_adapter()
     has_registry = _check_deployment(adapter, state)
 
-    if has_registry:
+    reachable = _check_redis_inventory(adapter, args.tool, fab)
+    if not reachable:
+        _rule("2-3. Redis registry and roster")
+        _info("skipped: Redis is unreachable, so every read below would fail "
+              "the same way.")
+    elif has_registry:
         eqp_ids = _check_redis(adapter, args.tool, fab, recipe)
         _check_roster(adapter, eqp_ids)
     else:
-        _rule("1-2. Redis registry")
+        _rule("2-3. Redis registry and roster")
         _info("skipped: this adapter cannot read it. Refresh it first, then "
-              "re-run - the Redis data is very likely fine.")
+              "re-run - stage 1 already showed whether the keys are there.")
 
-    _check_meas_hist(adapter, args.tool, fab, recipe)
+    try:
+        _check_meas_hist(adapter, args.tool, fab, recipe)
+    except RuntimeError as exc:  # OpenSearch not configured or unreachable
+        _bad(str(exc))
     _check_verdict(adapter, args.tool, fab, recipe)
 
     if args.fetch:
@@ -601,7 +761,7 @@ def main() -> int:
             frames, locator = fetched
             _check_readers(adapter, frames, locator, args.parameter)
     else:
-        _rule("5-6. Download, parse and readers")
+        _rule("6-7. Download, parse and readers")
         _info("skipped: add --fetch. Those stages open an FTP session to the "
               "tool and run 사내 office_utils code, so they are opt-in.")
 
