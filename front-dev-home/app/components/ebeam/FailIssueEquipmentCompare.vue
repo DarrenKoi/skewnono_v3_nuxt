@@ -84,7 +84,7 @@
               레시피별 fail 비교
             </h3>
             <span class="sk-meta">
-              선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 —로 표시됩니다.
+              선택한 장비에서 실행한 레시피를 모두 모은 표입니다. 그 장비에서 실행 이력이 없는 레시피는 —로 표시합니다.
             </span>
           </div>
           <!-- 표는 페이지 단위로 보이지만 내보내기는 합집합 전체를 냅니다 —
@@ -140,6 +140,7 @@
 </template>
 
 <script setup lang="ts">
+import { h } from 'vue'
 import type { EChartsOption } from 'echarts'
 import type { TableColumn } from '@nuxt/ui'
 import {
@@ -352,13 +353,18 @@ const columns = computed<TableColumn<FailIssueEquipmentRecipeRow>[]>(() => [
   { accessorKey: 'full_name', header: 'full name', size: 240 },
   {
     id: 'total_fails',
-    header: '합계',
+    header: 'fail 합계',
     size: 90,
     cell: ({ row }) => rowTotalFails(row.original).toLocaleString()
   },
   ...(data.value?.eqp_ids ?? []).map((eqpId, index) => ({
     id: `eqp-${eqpId}`,
-    header: eqpId,
+    // 헤더는 두 줄입니다: eqp_id 와, 그 칸의 숫자가 무엇인지(fail / 실행수 (fail율)).
+    // 근거는 RecipeTatEquipmentCompare.vue 의 같은 블록에 있습니다.
+    header: () => h('div', { class: 'leading-tight' }, [
+      h('div', eqpId),
+      h('div', { class: 'font-normal' }, 'fail / 실행수 (fail율)')
+    ]),
     size: 160,
     cell: ({ row }: { row: { original: FailIssueEquipmentRecipeRow } }) => {
       const cell = row.original.cells[index]

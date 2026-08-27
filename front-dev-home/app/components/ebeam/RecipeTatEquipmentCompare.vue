@@ -71,7 +71,7 @@
               레시피 구성 비교
             </h3>
             <span class="sk-meta">
-              선택 장비들이 돈 레시피의 합집합입니다. 돌지 않은 장비는 —로 표시됩니다.
+              선택한 장비에서 실행한 레시피를 모두 모은 표입니다. 그 장비에서 실행 이력이 없는 레시피는 —로 표시합니다.
             </span>
           </div>
           <!-- 표는 페이지 단위로 보이지만 내보내기는 합집합 전체를 냅니다 —
@@ -127,6 +127,7 @@
 </template>
 
 <script setup lang="ts">
+import { h } from 'vue'
 import type { EChartsOption } from 'echarts'
 import type { TableColumn } from '@nuxt/ui'
 import {
@@ -299,18 +300,26 @@ const columns = computed<TableColumn<RecipeTatEquipmentRecipeRow>[]>(() => [
   { accessorKey: 'full_name', header: 'full name', size: 240 },
   {
     accessorKey: 'total_meastime',
-    header: '합계',
+    header: '총 TAT',
     size: 110,
     cell: ({ row }) => formatSecondsAsDuration(row.original.total_meastime)
   },
   ...(data.value?.eqp_ids ?? []).map((eqpId, index) => ({
     id: `eqp-${eqpId}`,
-    header: eqpId,
+    // 헤더는 두 줄입니다: eqp_id 와, 그 칸의 숫자가 무엇인지(실행수 · 총 TAT).
+    // 「1,234 · 2h 30m」만 보고는 앞이 건수인지 뒤가 합계인지 알 수 없다는
+    // 피드백(2026-08-27)에서 나왔습니다. FailIssueEquipmentCompare.vue 도 같은 꼴입니다.
+    header: () => h('div', { class: 'leading-tight' }, [
+      h('div', eqpId),
+      h('div', { class: 'font-normal' }, '실행수 · 총 TAT')
+    ]),
     size: 150,
     cell: ({ row }: { row: { original: RecipeTatEquipmentRecipeRow } }) => {
       const cell = row.original.cells[index]
       if (!cell || cell.meas_counts === 0) return '—'
-      return `${cell.meas_counts.toLocaleString()} · ${formatSecondsCompact(cell.total_meastime)}`
+      // 총 TAT 열과 같은 h/m/s 꼴입니다 — 한 행에 「2h 07m 16s」와 「1.75h」가
+      // 나란히 있으면 같은 양인지부터 헷갈립니다.
+      return `${cell.meas_counts.toLocaleString()} · ${formatSecondsAsDuration(cell.total_meastime)}`
     }
   }))
 ])
