@@ -10,11 +10,13 @@
 ## Endpoint: GET /api/<tool_slug>/tttm/check
 
 - Handler: `routes.py` → `data.get_tttm_check(tool_slug, fab_name,
-  recipe_id, parameter, window_weeks)`. `tool_slug` is validated against
+  recipe_id, parameters, window_weeks)`. `tool_slug` is validated against
   `SEM_TOOL_SLUGS` (400 if not `cdsem`/`hvsem`) before the data call.
   `fab_name` is a required query param (`?fab_name=...`, 400 if missing);
-  `recipe_id` and `parameter` are optional query params; `window_weeks` is
-  optional and defaults to 2.
+  `recipe_id` is optional; `parameter` is optional and **repeatable**
+  (`?parameter=a&parameter=b` — the client's multi-select; the route folds it
+  to the `parameters` tuple, blanks and duplicates dropped, request order
+  kept); `window_weeks` is optional and defaults to 2.
 - **`window_weeks` is how far back to gather, AND how many runs per tool.**
   One of `_analysis_window.WINDOW_WEEKS_CHOICES` (`1`, `2`, `3`, `4`); the route
   refuses anything else with a 400 rather than clamping, and defaults an
@@ -30,26 +32,44 @@
   on every `available: false` branch. Positional and undefaulted in `data.py`
   for the same reason `parameter` is: a stale `office.py` raises instead of
   answering over its own fixed window.
-- **`parameter` narrows the rows, and only inside a recipe.** It names one
-  measured feature of `recipe_id` — a `parameter` value of the recipe's MSR
-  rows, which is also what the payload's own `parameters` lists (below). The
-  office adapter filters the
-  MSR rows it computes pairwise skew from down to that feature; `None` means
-  fold every feature together, the pre-existing behaviour. The route refuses
-  `parameter` without `recipe_id` with a 400 before the data call, because the
-  same parameter name in another recipe measures something else — so the
-  adapter may assume that a non-null `parameter` arrives with a `recipe_id`.
-  Echo **both** back on the payload, including on the `available: false`
-  branch: the client files the response under the pair it asked for.
+- **`parameters` narrows the rows, and only inside a recipe.** Each names
+  one measured feature of `recipe_id` — a `parameter` value of the recipe's
+  MSR rows, which is also what the payload's own `parameters` catalogue lists
+  (below). The office adapter filters the MSR rows it computes pairwise skew
+  from down to those features; an empty tuple means fold every feature
+  together, the pre-existing behaviour, and several names fold exactly those
+  (so the client's N배화 group is "tools that match on each of them"). The
+  route refuses a `parameter` without `recipe_id` with a 400 before the data
+  call, because the same parameter name in another recipe measures something
+  else — so the adapter may assume that a non-empty `parameters` arrives with
+  a `recipe_id`. Echo **both** back on the payload as `recipe_id` and
+  `selected_parameters` (a list, request order), including on the
+  `available: false` branch: the client files the response under the pair it
+  asked for.
 - **`parameters` is the catalogue `parameter` is picked from.** Every distinct
   named `parameter` across the recipe's run pickles in the window, sorted —
   the same rows the skew is computed from, so a name offered is one the filter
   can match (the client used to read this list from recipe-open's `.idp` over
   FTP, which failed for reasons unrelated to the recipe and could name
   features nobody measured). Always the **unfiltered** set even when
-  `parameter` is set; `[]` without a `recipe_id` (names are recipe-local, so a
+  `parameters` is set; `[]` without a `recipe_id` (names are recipe-local, so a
   pooled list would offer one name for several features) and on every
   `available: false` branch. Unnamed points (stabilisation shots) are excluded.
+- **`parameter_profile` is the tool × parameter offset table the 장비 그룹
+  배치도's PCA runs over** (the client computes the PCA —
+  `front-dev-home/app/utils/parameterPca.ts`). One row per roster tool, one
+  column per catalogue parameter (same names and order as `parameters`, and
+  like it **never narrowed by the selection** — the client picks the columns,
+  so selecting never refetches). Each entry is the tool's median CD for that
+  parameter minus the fleet **median** for it (nm, signed), `None` when the
+  tool did not measure it; a column only one tool measured is all `None`.
+  `median_cd_nm` per column is the CD it was read at, so the client can scale
+  each column by its own action limit before comparing pattern sizes. Build
+  it with the shared `profile.build_parameter_profile(roster, names,
+  samples)` — samples being each (tool, feature)'s per-run medians — never
+  by hand: the mock and this template share that one derivation. Empty
+  (`{parameters: [], tools: [], values: []}`) without a `recipe_id` and on
+  every `available: false` branch.
 - Contract: `TttmCheckPayload` (large nested tree — see `contracts.py` for
   the full `ToolRef`/`CellSkew`/`SkewMatrixBlock`/`ProductionCorroboration`/
   `FleetToday`/`TrendPoint`/`EpochMarker`/`MdcHistoryEntry` definitions) —
@@ -59,7 +79,7 @@
       tool_slug: ToolSlug
       fab_name: str
       recipe_id: str | None
-      parameter: str | None        # one measured feature of recipe_id
+      selected_parameters: list[str]  # the ?parameter= values, request order; [] = all folded
       parameters: list[str]        # every named feature the recipe's runs measured, sorted
       available: bool
       fetched_at: str
@@ -68,6 +88,7 @@
       current_tolerance: float           # default 0.05 (nm)
       tolerance_range: ToleranceRange     # {min: 0.01, max: 0.20, step: 0.005}
       occupied_cells: list[CellSkew]
+      parameter_profile: ParameterProfile  # tool × catalogue-parameter offsets, see above
       production_corroboration: ProductionCorroboration
       fleet_today: FleetToday
       trend: list[TrendPoint]
@@ -77,9 +98,9 @@
   ```
 
 - Mock behavior: generates a deterministic payload per
-  `tool_slug`/`fab_name`/`recipe_id`/`parameter`, seeded by crc32 of those
-  four (pipe-separated, so `recipe_id` and `parameter` cannot bleed into one
-  another). The
+  `tool_slug`/`fab_name`/`recipe_id`/`parameters`, seeded by crc32 of those
+  four (pipe-separated, so `recipe_id` and the parameters cannot bleed into
+  one another). The
   roster is **`sem_list` filtered to that fab and tool family**, deduplicated
   by `eqp_id` — the same physical tools every other screen shows for the fab,
   not an invented one. `__fixtures__/tttm_cdsem_r3.json` is no longer an
@@ -90,12 +111,15 @@
   `production_corroboration.level: "low"`, `parameters: []`) with a Korean summary saying so —
   this is the "unknown fab" case, not an error. A fab holding exactly one tool,
   and a recipe this fab has never measured, answer `available: false` the same
-  way **but keep `tools`** (see the rule below). `recipe_id` and `parameter` are echoed and also seed the
-  numbers, so picking either visibly recomputes — the mock does not filter by
-  parameter and stands in for the office's row filtering by moving the
-  numbers, which is the property the UI depends on. `parameters` is the
-  recipe's feature set from the msr_file mock's programs
-  (`program_parameters`), the same programs its mock pickles come from.
+  way **but keep `tools`** (see the rule below). `recipe_id` and the selected
+  parameters are echoed and also seed the numbers, so picking either visibly
+  recomputes — the mock does not filter by parameter and stands in for the
+  office's row filtering by moving the numbers, which is the property the UI
+  depends on. `parameters` is the recipe's feature set from the msr_file
+  mock's programs (`program_parameters`), the same programs its mock pickles
+  come from; `parameter_profile` is fabricated from the same per-tool bias
+  through the shared `profile.py`, with the drifted tool's last column `None`
+  so the client's dropped-from-the-map path runs at home.
 
   **A recipe the fab has not measured is `available: false`, not a seeded
   payload.** The mock resolves the measured set through its own

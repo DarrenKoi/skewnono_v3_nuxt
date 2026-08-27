@@ -69,7 +69,7 @@ class TestTttmCheckScopeArgs(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertEqual(payload["recipe_id"], recipe)
-        self.assertIsNone(payload["parameter"])
+        self.assertEqual(payload["selected_parameters"], [])
 
     def test_both_arguments_reach_the_provider(self):
         recipe = self._measured_recipe()
@@ -77,7 +77,18 @@ class TestTttmCheckScopeArgs(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertEqual(payload["recipe_id"], recipe)
-        self.assertEqual(payload["parameter"], PARAMETER)
+        self.assertEqual(payload["selected_parameters"], [PARAMETER])
+
+    def test_a_repeated_parameter_key_is_a_multi_select(self):
+        # `?parameter=a&parameter=b` is what ofetch sends for an array. Order
+        # is kept (the picker shows picks in the order made), duplicates and
+        # blanks fold away rather than becoming two filters or an empty name.
+        recipe = self._measured_recipe()
+        response = self._get(
+            f"recipe_id={recipe}&parameter=Para_2&parameter=&parameter={PARAMETER}&parameter=Para_2"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["selected_parameters"], ["Para_2", PARAMETER])
 
     def test_picking_a_parameter_recomputes_rather_than_relabels(self):
         # The whole point of the axis: narrowing to one feature must be able to
@@ -155,7 +166,7 @@ class TestTttmCheckScopeArgs(unittest.TestCase):
         # also cleared the recipe.
         response = self._get("recipe_id=&parameter=")
         self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.get_json()["parameter"])
+        self.assertEqual(response.get_json()["selected_parameters"], [])
 
 
 if __name__ == "__main__":

@@ -47,6 +47,23 @@ export const pickStillStands = (
   return offered.includes(pick)
 }
 
+/**
+ * The parameter picks that still stand — `pickStillStands` over a list.
+ *
+ * Several parameters can be picked, and each goes stale on its own; the ones
+ * the server no longer offers are dropped and the rest kept in order. Returns
+ * the SAME array when nothing changed, so a caller can watch for identity and
+ * not rewrite the store on every payload.
+ */
+export const standingPicks = (
+  picks: readonly string[],
+  offered: string[] | null
+): readonly string[] => {
+  if (offered === null) return picks
+  const kept = picks.filter(pick => offered.includes(pick))
+  return kept.length === picks.length ? picks : kept
+}
+
 /** The slice of the check payload the parameter reconciliation reads. */
 export interface ParameterAnswer {
   available: boolean

@@ -1,4 +1,4 @@
-import { analysisLock, offeredParameters, pickStillStands } from '~/utils/tttmRecipeScope'
+import { analysisLock, offeredParameters, pickStillStands, standingPicks } from '~/utils/tttmRecipeScope'
 import type { WindowWeeks } from '~/utils/analysisWindow'
 import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
@@ -33,7 +33,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   const settings = useTttmSettings()
   const scoped = computed(() => settings.read(toolType, fabName))
   const recipeId = computed(() => scoped.value.recipeId)
-  const parameter = computed(() => scoped.value.parameter)
+  const parameters = computed(() => scoped.value.parameters)
   const windowWeeks = computed(() => scoped.value.windowWeeks)
 
   const { fetchTttmRecipes, useTttmCheck } = useTttmApi()
@@ -98,7 +98,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     toolType,
     fabName,
     () => recipeId.value,
-    () => parameter.value,
+    () => parameters.value,
     () => windowWeeks.value
   )
 
@@ -122,33 +122,35 @@ export const useTttmScope = (toolType: string, fabName: string) => {
   // average nobody asked for and renders identically to a scoped one.
   const scopeReady = computed(() => lock.value !== 'no-recipe')
 
-  // The PARAMETER goes stale the same way the recipe does: a recipe can
+  // The PARAMETERS go stale the same way the recipe does: a recipe can
   // survive an .idp revision that renames or drops one of its features, and
-  // the stored parameter then names nothing. The office filters its rows to
+  // a stored parameter then names nothing. The office filters its rows to
   // that name, finds none, and answers "측정 이력이 없습니다" — which blames the
-  // recipe while the stale half is the parameter.
+  // recipe while the stale half is the parameter. Each pick is judged on its
+  // own; the ones still offered stay.
   //
   // Same three-state rule as the recipe: a payload that is not an answer to
   // THIS recipe (`offered` null) must not erase a working pick.
   watch(
-    [offered, parameter],
+    [offered, parameters],
     () => {
-      if (!pickStillStands(parameter.value, offered.value)) {
-        settings.setParameter(toolType, fabName, null)
+      const standing = standingPicks(parameters.value, offered.value)
+      if (standing !== parameters.value) {
+        settings.setParameters(toolType, fabName, [...standing])
       }
     },
     { immediate: true }
   )
 
-  const onSelectedTools = (next: string[]) => settings.setTools(toolType, fabName, next)
+  const onSelectedTools = (next: string[] | null) => settings.setTools(toolType, fabName, next)
   const onRecipe = (next: string | null) => settings.setRecipe(toolType, fabName, next)
-  const onParameter = (next: string | null) => settings.setParameter(toolType, fabName, next)
+  const onParameters = (next: string[]) => settings.setParameters(toolType, fabName, next)
   const onWindow = (next: WindowWeeks) => settings.setWindow(toolType, fabName, next)
 
   return {
     scoped,
     recipeId,
-    parameter,
+    parameters,
     windowWeeks,
     recipeNames,
     recipesWithoutAPair,
@@ -160,7 +162,7 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     scopeReady,
     onSelectedTools,
     onRecipe,
-    onParameter,
+    onParameters,
     onWindow
   }
 }

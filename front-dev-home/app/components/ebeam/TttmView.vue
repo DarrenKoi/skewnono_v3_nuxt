@@ -17,14 +17,7 @@
          measured, a stored pick that no longer applies). The one control that
          could fix it was the one thing removed from the screen. Only the RESULTS
          collapse now. -->
-    <EbeamScopeBar
-      :tools="payload?.tools ?? []"
-      :selected="selectedTools"
-      :deviations="fleetDeviations"
-      :pending="pending"
-      @update:selected="onSelectedTools"
-      @update:recipe-id="onRecipe"
-    >
+    <EbeamScopeBar>
       <!-- The picker is mounted HERE rather than passed through the bar, the
            same way pm-planning mounts it. Both pages therefore hand ScopeRecipe its
            props directly from useTttmScope, so the two lab pages cannot drift in
@@ -46,6 +39,16 @@
       </template>
     </EbeamScopeBar>
 
+    <!-- 장비 모델 그룹 — 비교에 넣을 장비. recipe 의 payload 가 roster 를 싣고
+         오므로 비교 대상 다음이고, 결과는 2대 이상일 때만 계산됩니다. -->
+    <EbeamToolGroupBar
+      :tools="payload?.tools ?? []"
+      :selected="selectedTools"
+      :deviations="fleetDeviations"
+      :pending="pending"
+      @update:selected="onSelectedTools"
+    />
+
     <!-- 분석 조건 — 비교 대상이 정해진 뒤의 선택. parameter 목록은 그 recipe 의
          측정 데이터(payload)에서 오므로, recipe 전에는 고를 것이 없습니다.
          Always mounted, disabled until the results can be computed — the same
@@ -55,10 +58,10 @@
     <EbeamAnalysisBar :lock="lock">
       <template #parameter>
         <EbeamScopeParameter
-          :parameter="parameter"
+          :parameters="parameters"
           :parameter-names="parameterNames"
           :lock="lock"
-          @update:parameter="onParameter"
+          @update:parameters="onParameters"
         />
       </template>
 
@@ -106,6 +109,16 @@
       :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
       hint="위에서 recipe · parameter · 장비를 바꾸어 다시 계산하실 수 있습니다."
       icon="i-lucide-scale"
+    />
+
+    <!-- One tool is not a comparison. The tool bar lets the selection drop
+         to one or none (that is what 해제 means), and this is where the page
+         says so instead of drawing empty cards. -->
+    <AppEmptyState
+      v-else-if="selectedTools.length < 2"
+      title="비교할 장비를 2대 이상 고르세요."
+      description="위 장비 모델 그룹에서 장비를 고르면 그 장비들 사이의 스큐를 계산합니다."
+      icon="i-lucide-mouse-pointer-click"
     />
 
     <div
@@ -156,6 +169,7 @@
           :tolerance-index="toleranceIndex"
           :group-tools="primary?.tools"
           :blocked-pair="blockedPair"
+          :pca="pca"
         />
         <EbeamTttmCellSeverityList
           :cells="rankedCells"
@@ -212,6 +226,7 @@ import {
   type CellInput
 } from '~/utils/tttmCells'
 import { subsetSkewMatrix, rebaseDeviations, resolveSelection } from '~/utils/tttmFleetSubset'
+import { parameterPca } from '~/utils/parameterPca'
 import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
@@ -222,7 +237,7 @@ const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>(
 const {
   scoped,
   recipeId,
-  parameter,
+  parameters,
   windowWeeks,
   recipeNames,
   recipesPending,
@@ -234,7 +249,7 @@ const {
   scopeReady,
   onSelectedTools,
   onRecipe,
-  onParameter,
+  onParameters,
   onWindow
 } = useTttmScope(props.toolType, props.fab)
 
@@ -322,6 +337,13 @@ const visibleMarkers = computed(() =>
 )
 const visibleMdcHistory = computed(() =>
   (payload.value?.mdc_history ?? []).filter(m => inSelection(m.eqp_id))
+)
+
+// The map's placement: PCA over the picked parameters (every parameter when
+// none is picked) of the selected tools. Null when the payload carries no
+// usable profile column, and the map falls back to today's fleet matrix.
+const pca = computed(() =>
+  payload.value ? parameterPca(payload.value.parameter_profile, parameters.value, selectedTools.value) : null
 )
 
 const tolerance = ref(0.05)

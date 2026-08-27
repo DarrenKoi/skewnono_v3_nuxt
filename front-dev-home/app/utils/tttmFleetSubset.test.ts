@@ -46,7 +46,7 @@ test('subsetSkewMatrix: unknown ids are ignored rather than inventing rows', () 
 test('resolveSelection: duplicate fleet ids collapse, so the basis has no repeats', () => {
   // sem_list's fleet carries a handful of duplicate eqp_ids, and a repeated id
   // in the basis becomes a repeated row/column in every aligned matrix.
-  assert.deepEqual(resolveSelection(['A', 'B', 'A'], []), ['A', 'B'])
+  assert.deepEqual(resolveSelection(['A', 'B', 'A'], null), ['A', 'B'])
   assert.deepEqual(resolveSelection(['A', 'B', 'A'], ['A']), ['A'])
 })
 
@@ -95,8 +95,12 @@ test('rebaseDeviations: a single kept tool is its own consensus', () => {
   assert.equal(out[0]!.deviation, 0)
 })
 
-test('resolveSelection: empty means all, so a fresh user sees the whole fleet', () => {
-  assert.deepEqual(resolveSelection(['A', 'B', 'C'], []), ['A', 'B', 'C'])
+test('resolveSelection: null means all, so a fresh user sees the whole fleet', () => {
+  assert.deepEqual(resolveSelection(['A', 'B', 'C'], null), ['A', 'B', 'C'])
+})
+
+test('resolveSelection: empty means none — what clearing the last group leaves', () => {
+  assert.deepEqual(resolveSelection(['A', 'B', 'C'], []), [])
 })
 
 test('resolveSelection: a stored selection filters, preserving fleet order', () => {

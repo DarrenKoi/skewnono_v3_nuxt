@@ -132,6 +132,7 @@ from back_dev_home.ebeam._office_msr_cd import (
     resolve_axis,
 )
 from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
+from back_dev_home.ebeam.tttm.profile import build_parameter_profile
 from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
@@ -258,13 +259,14 @@ def _fleet(tool_slug: str, fab_name: str) -> list[ToolRef]:
 
 
 def _observations(
-    runs: tuple[RunRef, ...], parameter: str | None
+    runs: tuple[RunRef, ...], parameters: tuple[str, ...]
 ) -> tuple[list[_Observation], dict[str, int]]:
     """Every (run x feature x beam x axis) median, plus a count of what fell out.
 
-    ``parameter`` narrows to one measured feature of the recipe. It is a WHERE
-    on real rows here: an unknown name simply matches nothing, which is why the
-    route can accept any string without a catalogue to validate it against.
+    ``parameters`` narrows to those measured features of the recipe (empty =
+    all). It is a WHERE on real rows here: an unknown name simply matches
+    nothing, which is why the route can accept any string without a catalogue
+    to validate it against.
     """
     observations: list[_Observation] = []
     dropped = {"no_axis": 0, "no_parameter": 0, "no_cd": 0}
@@ -272,7 +274,7 @@ def _observations(
         grouped: dict[tuple[str, str, str], list[float]] = defaultdict(list)
         matched_parameter = False
         for point in load_points(run.pkl):
-            if parameter is not None and point.parameter != parameter:
+            if parameters and point.parameter not in parameters:
                 continue
             matched_parameter = True
             if point.cd_value is None:
@@ -285,7 +287,7 @@ def _observations(
             grouped[(point.parameter, beam_label(point.vac), axis)].append(
                 point.cd_value
             )
-        if parameter is not None and not matched_parameter:
+        if parameters and not matched_parameter:
             dropped["no_parameter"] += 1
         for (feature, beam, axis), values in grouped.items():
             if not beam:
@@ -311,15 +313,17 @@ def _observations(
 
 
 def _run_observations(
-    runs: tuple[RunRef, ...], parameter: str | None
-) -> tuple[list[_Observation], list[str]]:
-    """One row per (run x feature), with no beam or axis attached — plus the
-    sorted set of every named feature the runs carry.
+    runs: tuple[RunRef, ...], parameters: tuple[str, ...]
+) -> tuple[list[_Observation], list[_Observation]]:
+    """One row per (run x feature), with no beam or axis attached — twice:
+    narrowed to ``parameters`` (empty = all), and UNFILTERED.
 
-    The second value is the picker's catalogue (``parameters`` on the payload).
-    Collected in this same walk, BEFORE the ``parameter`` filter, because it is
-    deliberately unfiltered — the list is what that filter is picked from — and
-    a third pass over ~1000 points per run to gather it would be pure waste.
+    The unfiltered rows feed the picker's catalogue (``parameters`` on the
+    payload, the sorted feature names) and the ``parameter_profile`` the map's
+    PCA runs over — both are deliberately unfiltered, because the list is what
+    the filter is picked from and the profile's columns are what the client
+    selects among. Collected in this same walk, BEFORE the filter, because a
+    third pass over ~1000 points per run to gather them would be pure waste.
     Read from the same pickles the skew is computed from, so a name offered is
     one the filter can match. Unnamed points (stabilisation shots) carry CDs
     but no feature identity; they are kept by ``load_points`` and must not
@@ -338,20 +342,15 @@ def _run_observations(
     feature identity to contrast on, so they are excluded here while
     ``load_points`` still returns them.
     """
-    rows: list[_Observation] = []
-    names: set[str] = set()
+    every: list[_Observation] = []
     for run in runs:
         grouped: dict[str, list[float]] = defaultdict(list)
         for point in load_points(run.pkl):
-            if point.parameter:
-                names.add(point.parameter)
-            if parameter is not None and point.parameter != parameter:
-                continue
             if not point.parameter or point.cd_value is None:
                 continue
             grouped[point.parameter].append(point.cd_value)
         for feature, values in grouped.items():
-            rows.append(
+            every.append(
                 _Observation(
                     eqp_id=run.eqp_id,
                     msr=run.msr,
@@ -363,7 +362,22 @@ def _run_observations(
                     value=round(median(values), 3),
                 )
             )
-    return rows, sorted(names)
+    rows = [row for row in every if not parameters or row.feature in parameters]
+    return rows, every
+
+
+def _parameter_profile(every: list[_Observation], roster: list[str]) -> dict[str, Any]:
+    """tool × parameter offsets over the recipe's whole catalogue.
+
+    Each (tool, feature) contributes its per-run medians as samples; the
+    shared derivation takes the median of those, then the fleet median per
+    feature, and reports the difference — see ``profile.py`` for the rules.
+    """
+    samples: dict[tuple[str, str], list[float]] = defaultdict(list)
+    for row in every:
+        samples[(row.eqp_id, row.feature)].append(row.value)
+    names = sorted({row.feature for row in every})
+    return build_parameter_profile(roster, names, samples)  # type: ignore[return-value]
 
 
 # ── the estimator ─────────────────────────────────────────────────────────
@@ -877,22 +891,23 @@ def get_tttm_check(
     tool_slug: str,
     fab_name: str,
     recipe_id: str | None,
-    parameter: str | None,
+    parameters: tuple[str, ...],
     window_weeks: int,
 ) -> TttmCheckPayload:
-    """Pairwise tool skew for one fab, optionally narrowed to one feature.
+    """Pairwise tool skew for one fab, optionally narrowed to some features.
 
-    ``parameter`` narrows the ROWS the skew is computed from to one measured
-    feature of ``recipe_id``; it is never meaningful on its own, and the route
-    refuses it without a recipe, so a non-null ``parameter`` always arrives with
-    one. ``window_weeks`` bounds how far back runs are gathered AND how many
-    per tool (`runs_per_tool`). All three are echoed back — including on every
-    unavailable branch.
+    ``parameters`` narrows the ROWS the skew is computed from to those measured
+    features of ``recipe_id`` (empty = all); it is never meaningful on its own,
+    and the route refuses it without a recipe, so a non-empty ``parameters``
+    always arrives with one. ``window_weeks`` bounds how far back runs are
+    gathered AND how many per tool (`runs_per_tool`). All three are echoed
+    back — including on every unavailable branch.
     """
     fleet = _fleet(tool_slug, fab_name)
+    selected = list(parameters)
     if not fleet:
         return unavailable_payload(
-            tool_slug, fab_name, recipe_id, parameter,
+            tool_slug, fab_name, recipe_id, selected,
             f"{fab_name} 에는 이 계열의 장비가 없습니다.",
             # `fleet` IS empty here, so the empty roster is passed rather than
             # omitted — see unavailable_payload's docstring.
@@ -901,7 +916,7 @@ def get_tttm_check(
         )
     if len(fleet) < 2:
         return unavailable_payload(
-            tool_slug, fab_name, recipe_id, parameter,
+            tool_slug, fab_name, recipe_id, selected,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
             tools=fleet,
             window_weeks=window_weeks,
@@ -923,14 +938,15 @@ def get_tttm_check(
     if not runs.runs:
         scope = f"{recipe_id} " if recipe_id else ""
         return unavailable_payload(
-            tool_slug, fab_name, recipe_id, parameter,
+            tool_slug, fab_name, recipe_id, selected,
             f"{fab_name} 에 최근 {lookback}일간 {scope}측정 이력이 없습니다.",
             tools=fleet,
             window_weeks=window_weeks,
         )
 
-    cell_rows, dropped = _observations(runs.runs, parameter)
-    fleet_rows_, measured_names = _run_observations(runs.runs, parameter)
+    cell_rows, dropped = _observations(runs.runs, parameters)
+    fleet_rows_, every_row = _run_observations(runs.runs, parameters)
+    measured_names = sorted({row.feature for row in every_row})
     epochs = mdc_changes(fab_name, start, anchor)
     cells = _cells(cell_rows, _epoch_starts(epochs, start))
 
@@ -949,10 +965,11 @@ def get_tttm_check(
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
         "fab_name": fab_name,
         "recipe_id": recipe_id,
-        "parameter": parameter,
+        "selected_parameters": selected,
         # Recipe-local names, so only inside a recipe: without one the runs
         # span every measured recipe and a pooled list would offer one name for
-        # several different features. See the contract's field comment.
+        # several different features. See the contract's field comment. The
+        # profile is that same catalogue as columns, so it is empty with it.
         "parameters": measured_names if recipe_id else [],
         "window_weeks": window_weeks,
         "available": True,
@@ -962,6 +979,10 @@ def get_tttm_check(
         "current_tolerance": DEFAULT_TOLERANCE,
         "tolerance_range": TOLERANCE_RANGE,  # type: ignore[typeddict-item]
         "occupied_cells": cells,
+        "parameter_profile": (
+            _parameter_profile(every_row, roster) if recipe_id else
+            {"parameters": [], "tools": [], "values": []}
+        ),
         "production_corroboration": _corroboration(fleet_rows_),
         "fleet_today": _fleet_today(fleet_rows_, roster),  # type: ignore[typeddict-item]
         "trend": _trend(fleet_rows_, start),
@@ -997,10 +1018,11 @@ if __name__ == "__main__":  # pragma: no cover
     slug = sys.argv[1] if len(sys.argv) > 1 else "cdsem"
     fab = sys.argv[2] if len(sys.argv) > 2 else "R3"
     recipe = sys.argv[3] if len(sys.argv) > 3 else None
-    param = sys.argv[4] if len(sys.argv) > 4 else None
+    # Comma-separated, matching the client's multi-select; blank = all.
+    params = tuple(p for p in (sys.argv[4] if len(sys.argv) > 4 else "").split(",") if p)
     weeks = int(sys.argv[5]) if len(sys.argv) > 5 else DEFAULT_WINDOW_WEEKS
 
-    print(f"slug={slug} fab={fab} recipe={recipe!r} parameter={param!r} window={weeks}w")
+    print(f"slug={slug} fab={fab} recipe={recipe!r} parameters={params!r} window={weeks}w")
 
     print("\n--- 1. roster ---")
     tools = _fleet(slug, fab)
@@ -1027,7 +1049,7 @@ if __name__ == "__main__":  # pragma: no cover
         sys.exit(1)
 
     print("\n--- 3. observations (pickles -> beam x axis medians) ---")
-    obs, drops = _observations(found.runs, param)
+    obs, drops = _observations(found.runs, params)
     print(f"  {len(obs)} observations; dropped={drops}")
     if drops["no_axis"]:
         # Across EVERY run, not a sample: the naming varies per recipe, so a
@@ -1068,9 +1090,11 @@ if __name__ == "__main__":  # pragma: no cover
         print("    by a single tool, so nothing has contrast (rule 2).")
 
     print("\n--- 5. payload ---")
-    result = get_tttm_check(slug, fab, recipe, param)
+    result = get_tttm_check(slug, fab, recipe, params, weeks)
+    profile = result["parameter_profile"]
     print(f"  available={result['available']} cells={len(result['occupied_cells'])} "
-          f"trend={len(result['trend'])} markers={len(result['epoch_markers'])}")
+          f"trend={len(result['trend'])} markers={len(result['epoch_markers'])} "
+          f"profile={len(profile['tools'])}x{len(profile['parameters'])}")
     print(f"  fleet_today.median_cd_nm={result['fleet_today']['median_cd_nm']}")
     print(f"  summary: {result['summary']}")
 

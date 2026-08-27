@@ -12,20 +12,27 @@ import { DEFAULT_WINDOW_WEEKS, normalizeWindowWeeks, type WindowWeeks } from '~/
 // live. The map keeps exactly one writer for the whole feature.
 
 export interface TttmScopeSettings {
-  /** Selected eqp_ids. EMPTY MEANS ALL — see resolveSelection in utils/tttmFleetSubset. */
-  tools: string[]
+  /**
+   * Selected eqp_ids. NULL MEANS ALL, EMPTY MEANS NONE — see resolveSelection
+   * in utils/tttmFleetSubset. Empty is what 해제 on the last model group
+   * leaves; it is not persisted as a working setup (a reload normalises it
+   * back to all), because nobody reopens the page to compare nothing.
+   */
+  tools: string[] | null
   /** null = every recipe the server chooses to answer with. */
   recipeId: string | null
   /**
-   * One measured feature of `recipeId`, or null to fold every feature together.
+   * Measured features of `recipeId` to fold — empty folds every feature.
    *
    * Meaningless without a recipe — the same parameter name in another recipe
-   * measures something else — so `setRecipe` clears it and the API layer
-   * refuses to send it alone. Stored beside the recipe rather than in a second
-   * entry because the two are one scope: a reload that restored the parameter
-   * but not its recipe would name a feature of a recipe nobody picked.
+   * measures something else — so `setRecipe` clears them and the API layer
+   * refuses to send them alone. Stored beside the recipe rather than in a
+   * second entry because the two are one scope: a reload that restored the
+   * parameters but not their recipe would name features of a recipe nobody
+   * picked. Several rather than one since 2026-08-27: the N배화 group is
+   * "tools that match on each of these", and the map is PCA over them.
    */
-  parameter: string | null
+  parameters: string[]
   /**
    * How many weeks of runs the server gathers — one of WINDOW_WEEKS, sent as
    * `window_weeks` on the check, the recipe picker AND pm-planning's fleet fetch.
@@ -44,11 +51,14 @@ export const tttmScopeKey = (toolType: string, fabName: string) =>
   `${toolType}:${fabName.toUpperCase()}`
 
 const EMPTY: TttmScopeSettings = {
-  tools: [],
+  tools: null,
   recipeId: null,
-  parameter: null,
+  parameters: [],
   windowWeeks: DEFAULT_WINDOW_WEEKS
 }
+
+const strings = (raw: unknown): string[] =>
+  Array.isArray(raw) ? raw.filter((t): t is string => typeof t === 'string') : []
 
 // localStorage is user-writable and survives deploys, so anything read back has
 // to be treated as untrusted rather than as the shape we last wrote.
@@ -56,14 +66,23 @@ const normalizeScope = (raw: unknown): TttmScopeSettings => {
   if (typeof raw !== 'object' || raw === null) return { ...EMPTY }
   const value = raw as Partial<TttmScopeSettings>
   const recipeId = typeof value.recipeId === 'string' ? value.recipeId : null
+  const tools = strings(value.tools)
+  // Entries written while `[]` meant all (before 2026-08-27) — and a
+  // deliberately emptied selection — both land as "all": neither is a
+  // working setup worth restoring as "compare nothing".
+  const legacyParameter = (value as { parameter?: unknown }).parameter
+  const parameters = strings(value.parameters).concat(
+    typeof legacyParameter === 'string' ? [legacyParameter] : []
+  )
   return {
-    tools: Array.isArray(value.tools) ? value.tools.filter(t => typeof t === 'string') : [],
+    tools: tools.length ? tools : null,
     recipeId,
     // Dropped when the recipe did not survive normalisation: a parameter
     // without its recipe is a feature name with nothing to resolve it against,
-    // and the server 400s on the pair. Entries written before this field
-    // existed simply have no `parameter`, which lands here as null.
-    parameter: recipeId && typeof value.parameter === 'string' ? value.parameter : null,
+    // and the server 400s on the pair. Entries written before the list
+    // existed carried one `parameter`, folded in above so a working pick
+    // survives the upgrade.
+    parameters: recipeId ? parameters : [],
     // Entries written before this field existed land here as the default;
     // a hand-edited value outside the choices does too, rather than 400ing.
     windowWeeks: normalizeWindowWeeks(value.windowWeeks)
@@ -97,7 +116,7 @@ export const useTttmSettings = () => {
     all.value = { ...all.value, [tttmScopeKey(toolType, fabName)]: next }
   }
 
-  const setTools = (toolType: string, fabName: string, tools: string[]) =>
+  const setTools = (toolType: string, fabName: string, tools: string[] | null) =>
     write(toolType, fabName, { ...read(toolType, fabName), tools })
 
   // Changing the recipe CLEARS the parameter rather than carrying it across:
@@ -105,14 +124,14 @@ export const useTttmSettings = () => {
   // a different feature from the "Para_13" the user was looking at — and it may
   // not exist there at all. Silently keeping it would relabel the group.
   const setRecipe = (toolType: string, fabName: string, recipeId: string | null) =>
-    write(toolType, fabName, { ...read(toolType, fabName), recipeId, parameter: null })
+    write(toolType, fabName, { ...read(toolType, fabName), recipeId, parameters: [] })
 
-  const setParameter = (toolType: string, fabName: string, parameter: string | null) => {
+  const setParameters = (toolType: string, fabName: string, parameters: string[]) => {
     const current = read(toolType, fabName)
-    // No recipe, no parameter — refused rather than clamped, the same way
-    // ScopeBar refuses to drop below two tools.
+    // No recipe, no parameters — refused rather than clamped: a parameter
+    // name is recipe-local and the server 400s on the pair.
     if (!current.recipeId) return
-    write(toolType, fabName, { ...current, parameter })
+    write(toolType, fabName, { ...current, parameters })
   }
 
   // The window outlives a recipe change: it is a statement about evidence,
@@ -120,5 +139,5 @@ export const useTttmSettings = () => {
   const setWindow = (toolType: string, fabName: string, windowWeeks: WindowWeeks) =>
     write(toolType, fabName, { ...read(toolType, fabName), windowWeeks })
 
-  return { all, read, write, setTools, setRecipe, setParameter, setWindow }
+  return { all, read, write, setTools, setRecipe, setParameters, setWindow }
 }

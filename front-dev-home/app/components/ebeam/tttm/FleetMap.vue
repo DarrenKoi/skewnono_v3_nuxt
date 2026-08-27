@@ -4,7 +4,17 @@
       <p class="sk-title">
         장비 그룹 배치도
       </p>
+      <!-- PCA: how much of the spread the two drawn axes carry — the honesty
+           figure for a projection, the way stress is for MDS. -->
       <p
+        v-if="pca"
+        class="font-mono text-xs tabular-nums"
+        :style="{ color: explainedTone.color }"
+      >
+        PCA · PC1 {{ pct(pca.explained[0]) }} · PC2 {{ pct(pca.explained[1]) }} · parameter {{ pca.parameters.length }}개{{ explainedTone.text }}
+      </p>
+      <p
+        v-else
         class="font-mono text-xs tabular-nums"
         :style="{ color: stress.color }"
       >
@@ -39,11 +49,33 @@
         class="sk-badge bg-(--sk-chip-bg) text-(--sk-chip-text)"
       >{{ labelFor(eqp) }}</span>
       <span class="sk-field-label">
-        — 다른 장비와 겹치는 측정이 없어 거리를 정의할 수 없습니다.
+        <template v-if="pca">— 고른 parameter 중 측정하지 않은 것이 있어 놓을 수 없습니다.</template>
+        <template v-else>— 다른 장비와 겹치는 측정이 없어 거리를 정의할 수 없습니다.</template>
       </span>
     </div>
 
-    <p class="mt-1.5 sk-field-label leading-relaxed">
+    <p
+      v-if="pca"
+      class="mt-1.5 sk-field-label leading-relaxed"
+    >
+      고른 parameter 별 consensus 잔차(CD 대비 배수)를 주성분 분석한 배치입니다. 점 크기 = 평균 거리(Score).
+      <EbeamTttmCaptionMore>
+        <span class="block">PC1 ← {{ loadingText(0) }}</span>
+        <span class="block">PC2 ← {{ loadingText(1) }}</span>
+        <span class="mt-1 block">
+          각 parameter 는 그 parameter 의 CD 대비 배수로 먼저 맞춘 뒤 분석하므로 패턴 크기가 달라도
+          같은 잣대입니다. 빨강은 <strong>어느 한 parameter 에서라도</strong> 가장 가까운 장비와
+          허용오차 CD 대비 {{ toleranceIndex.toFixed(2) }}× 밖인 장비입니다. 초록 테두리는
+          <strong>N배화 그룹</strong>(점유 셀 전체에서 서로 허용오차 안인 장비 — 완전연결 군집)이라
+          위치가 아니라 판정으로 그려집니다. 그래서 가까이 있는데 테두리 밖인 장비가 나올 수 있고,
+          그것이 두 계산이 갈라진 지점입니다.
+        </span>
+      </EbeamTttmCaptionMore>
+    </p>
+    <p
+      v-else
+      class="mt-1.5 sk-field-label leading-relaxed"
+    >
       점 사이 거리만 의미가 있습니다. 점 크기 = 평균 skew(Score).
       <EbeamTttmCaptionMore>
         축에는 단위가 없고 회전·반전해도 같은 지도입니다. 빨강은 <strong>오늘 장비
@@ -61,6 +93,7 @@
 <script setup lang="ts">
 import type { EChartsOption, SeriesOption } from 'echarts'
 import { fleetMap } from '~/utils/fleetMap'
+import type { PcaResult } from '~/utils/parameterPca'
 import { mean } from '~/utils/stats'
 import { SK_STATE } from '~/utils/chartPalette'
 import { CHART_AXIS_LABEL } from '~/utils/chartType'
@@ -111,6 +144,13 @@ const props = defineProps<{
    * only the CURRENT members; only the words change.
    */
   haloLabel?: string
+  /**
+   * PCA placement over the picked parameters (utils/parameterPca). When
+   * given, positions, `score` and `nearest` are in CD-relative index units
+   * and the red rule compares `nearest` to `toleranceIndex` directly; when
+   * null the map falls back to classical MDS over `fleet.matrix` in nm.
+   */
+  pca?: PcaResult | null
 }>()
 
 // fleet_today carries its own CD, so the map's red rule scales the same way the
@@ -130,7 +170,37 @@ const thresholdBasis = computed(() => {
 const el = ref<HTMLDivElement | null>(null)
 const sk = useChartPalette()
 
-const map = computed(() => fleetMap(props.fleet.matrix))
+// Same point shape from either engine, so everything below (halo, link,
+// domain, labels) is written once. Only the units differ — `unit` says which.
+const map = computed(() =>
+  props.pca
+    ? { points: props.pca.points, detached: props.pca.detached, stress: 0 }
+    : fleetMap(props.fleet.matrix)
+)
+const threshold = computed(() => (props.pca ? props.toleranceIndex : thresholdNm.value))
+const unit = (v: number) => (props.pca ? `CD 대비 ${v.toFixed(2)}×` : `${v.toFixed(3)} nm`)
+
+const pct = (fraction: number) => `${(fraction * 100).toFixed(0)}%`
+// Two components carrying under half the spread is a picture to read with the
+// pairwise matrix beside it — the same warning the stress ladder gives MDS.
+const explainedTone = computed(() => {
+  const carried = (props.pca?.explained[0] ?? 0) + (props.pca?.explained[1] ?? 0)
+  if (carried >= 0.8) return { text: '', color: 'var(--sk-ink-subtle)' }
+  if (carried >= 0.5) return { text: ' · 위치는 참고만', color: 'var(--sk-ink-muted)' }
+  return { text: ' · 2축으로 부족 — 셀 행렬을 보십시오', color: 'var(--sk-bad)' }
+})
+// The parameters that make up an axis, largest weight first, signed so the
+// reader can tell "CD_X up" from "CD_X down". Three is enough to name a
+// direction; the rest is noise for this caption.
+const loadingText = (axis: 0 | 1) => {
+  const key = axis === 0 ? 'pc1' : 'pc2'
+  const ranked = [...(props.pca?.loadings ?? [])]
+    .filter(l => Math.abs(l[key]) > 1e-6)
+    .sort((a, b) => Math.abs(b[key]) - Math.abs(a[key]))
+    .slice(0, 3)
+  if (!ranked.length) return '없음'
+  return ranked.map(l => `${l.name} (${l[key] >= 0 ? '+' : '−'}${Math.abs(l[key]).toFixed(2)})`).join(' · ')
+}
 
 const labels = computed(() => toolLabels(props.tools))
 const labelFor = (eqp: string) => labels.value.labelFor(eqp)
@@ -313,8 +383,8 @@ const chartOption = computed<EChartsOption>(() => {
       trigger: 'item',
       formatter: (p: unknown) => {
         const { name, value } = (p as { data: FleetDatum }).data
-        return `${labelFor(name)}<br/>최근접 ${value[3].toFixed(3)} nm`
-          + `<br/>Score(평균) ${value[2].toFixed(3)} nm`
+        return `${labelFor(name)}<br/>최근접 ${unit(value[3])}`
+          + `<br/>Score(평균) ${unit(value[2])}`
       }
     },
     xAxis: axis(),
@@ -334,7 +404,7 @@ const chartOption = computed<EChartsOption>(() => {
         // only because it reuses cell bc1-X-25-50-e7's values, and the office
         // adapter owes us no such thing. The caption says which one this is.
         itemStyle: {
-          color: p.nearest > thresholdNm.value ? SK_STATE.bad : sk.value.series,
+          color: p.nearest > threshold.value ? SK_STATE.bad : sk.value.series,
           // The picked tool gets an ink RING, orthogonal to the red/series
           // color: the fill keeps saying what the tolerance says, the ring
           // says which point the page is currently arguing about.

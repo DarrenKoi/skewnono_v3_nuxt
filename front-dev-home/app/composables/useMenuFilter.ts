@@ -17,14 +17,18 @@ import { filterByTerm } from '~/utils/hardwareCompare'
  */
 export const useMenuFilter = (
   names: () => string[],
-  { sentinel, limit }: { sentinel: string, limit: number }
+  { sentinel, limit }: { sentinel?: string, limit: number }
 ) => {
   const term = ref('')
   const matched = computed(() => filterByTerm(names(), term.value, name => name))
   const overflowed = computed(() => matched.value.length > limit)
   // The sentinel stays at the top so clearing the filter is always one click
   // away, even when the search box is narrowing the list down to the cap.
-  const items = computed(() => [sentinel, ...matched.value.slice(0, limit)])
+  // No sentinel for a multi-select: "no filter" there is the empty selection,
+  // reached by its own 해제 button rather than by a row.
+  const items = computed(() =>
+    sentinel === undefined ? matched.value.slice(0, limit) : [sentinel, ...matched.value.slice(0, limit)]
+  )
   watch(names, () => {
     term.value = ''
   })

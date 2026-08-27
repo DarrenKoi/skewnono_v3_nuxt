@@ -1,6 +1,9 @@
 import { joinApiPath } from '~/utils/apiPath'
 import type { WindowWeeks } from '~/utils/analysisWindow'
 import type { SkewMatrix, Confidence, Tier } from '~/utils/tttmGrouping'
+// Type-only, NOT re-exported: a second export of the same name is silently
+// dropped by Nuxt's auto-import with only a build WARN.
+import type { ParameterProfile } from '~/utils/parameterPca'
 
 // `eqp_model_cd` is the raw sem_list model code (CG6300, TP4500, …). The fleet
 // picker groups its chips by it — see utils/tttmToolGroups.
@@ -85,8 +88,8 @@ export interface TttmCheckPayload {
   tool_slug: string
   fab_name: string
   recipe_id: string | null
-  /** The one measured feature these numbers are about; null = all folded. */
-  parameter: string | null
+  /** The measured features these numbers are about, in request order; [] = all folded. */
+  selected_parameters: string[]
   /**
    * Every parameter name measured under `recipe_id` — the picker's catalogue,
    * read off the same rows the skew is computed from. Always the UNFILTERED
@@ -106,6 +109,12 @@ export interface TttmCheckPayload {
   current_tolerance: number
   tolerance_range: { min: number, max: number, step: number }
   occupied_cells: SkewCondition[]
+  /**
+   * tool × parameter offsets over the recipe's WHOLE catalogue (never narrowed
+   * by the selection) — what the 장비 그룹 배치도's PCA runs over. Empty without
+   * a recipe and on every unavailable branch.
+   */
+  parameter_profile: ParameterProfile
   production_corroboration: ProductionCorroboration
   fleet_today: FleetToday
   trend: TrendPoint[]
@@ -120,11 +129,12 @@ export const useTttmApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  // `parameter` is only sent alongside a recipe: the server answers 400 to a
+  // `parameters` are only sent alongside a recipe: the server answers 400 to a
   // parameter on its own, because the same parameter name in another recipe
-  // measures a different feature. Dropping it here rather than letting the
-  // request fail keeps a stale stored parameter from breaking the page while
-  // the user has no recipe picked.
+  // measures a different feature. Dropping them here rather than letting the
+  // request fail keeps stale stored parameters from breaking the page while
+  // the user has no recipe picked. Sent as a repeated `parameter` key — what
+  // ofetch's query serialiser does with an array, and what the route reads.
   //
   // `windowWeeks` is always sent (the store normalises it to a choice the
   // server accepts), so the label the page shows and the span the server
@@ -133,7 +143,7 @@ export const useTttmApi = () => {
     toolType: string,
     fabName: string,
     recipeId: string | undefined,
-    parameter: string | undefined,
+    parameters: readonly string[],
     windowWeeks: WindowWeeks
   ) =>
     $fetch<TttmCheckPayload>(
@@ -143,12 +153,12 @@ export const useTttmApi = () => {
           fab_name: fabName,
           window_weeks: windowWeeks,
           ...(recipeId ? { recipe_id: recipeId } : {}),
-          ...(recipeId && parameter ? { parameter } : {})
+          ...(recipeId && parameters.length ? { parameter: [...parameters] } : {})
         }
       }
     )
 
-  // `recipeId`/`parameter`/`windowWeeks` are getters, not plain values,
+  // `recipeId`/`parameters`/`windowWeeks` are getters, not plain values,
   // because the user picks them in the page: a value baked into the key at
   // call time would never refetch. The key deliberately omits all three so one
   // cache entry per (tool, fab) is reused and re-fetched, rather than
@@ -157,7 +167,7 @@ export const useTttmApi = () => {
     toolType: string,
     fabName: string,
     recipeId: () => string | null | undefined,
-    parameter: () => string | null | undefined,
+    parameters: () => readonly string[],
     windowWeeks: () => WindowWeeks
   ) =>
     useAsyncData(
@@ -166,10 +176,10 @@ export const useTttmApi = () => {
         toolType,
         fabName,
         recipeId() ?? undefined,
-        parameter() ?? undefined,
+        parameters(),
         windowWeeks()
       ),
-      { watch: [recipeId, parameter, windowWeeks] }
+      { watch: [recipeId, parameters, windowWeeks] }
     )
 
   // The picker's source. Deliberately NOT recipe-search's catalogue: that

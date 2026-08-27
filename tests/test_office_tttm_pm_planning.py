@@ -227,7 +227,7 @@ def test_tttm_window_moves_the_lookback_and_the_run_cap_together(sources, monkey
     fails on the widest window rather than passing on the default.
     """
     asked = _spy_recent_runs(monkeypatch, tttm_office, sources)
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, weeks)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), weeks)
 
     assert payload["window_weeks"] == weeks
     assert (asked["end"] - asked["start"]).days == window_days(weeks)
@@ -243,25 +243,25 @@ def test_tttm_trend_spans_the_window_not_a_private_cut_off(sources):
     the window — harmless while the window was wider than it, and a silent
     truncation the moment the window became the user's to choose.
     """
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, 1)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), 1)
     days = {point["date"] for point in payload["trend"]}
     assert len(days) == 6
 
 
 def test_tttm_unavailable_branches_echo_the_window(sources):
     sources["runs"] = ()
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, 2)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), 2)
     assert payload["available"] is False
     assert payload["window_weeks"] == 2
     assert "14일간" in payload["summary"], "the empty answer names the span it was empty over"
 
 
 def test_tttm_payload_matches_the_contract(sources):
-    assert_matches(tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS), TttmCheckPayload)
+    assert_matches(tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS), TttmCheckPayload)
 
 
 def test_tttm_recovers_the_pairwise_skew_it_was_given(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     assert payload["available"] is True
     cells = payload["occupied_cells"]
     assert cells, "three tools running two shared recipes must occupy cells"
@@ -281,7 +281,7 @@ def test_tttm_recovers_the_pairwise_skew_it_was_given(sources):
 
 
 def test_tttm_matrices_are_symmetric_with_a_zero_diagonal(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     blocks = [payload["fleet_today"]["matrix"]]
     for cell in payload["occupied_cells"]:
         blocks += [b for b in (cell["direct_skew_matrix"], cell["predicted_skew_matrix"]) if b]
@@ -298,7 +298,7 @@ def test_tttm_median_cd_stays_inside_the_band_it_is_filed_under(sources):
     # The cross-field law tests/test_contract.py enforces: band and median must
     # come from ONE row set. Derived from the same values here by construction,
     # and asserted so a future edit cannot separate them.
-    for cell in tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["occupied_cells"]:
+    for cell in tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)["occupied_cells"]:
         assert cell["cd_band"] == "25-50"
         assert 25.0 <= cell["median_cd_nm"] < 50.0
 
@@ -310,13 +310,13 @@ def test_a_run_is_one_sample_not_hundreds(sources):
     raw points instead of collapsing each run to a median, doubling the points
     of one tool would move its offset. It must not.
     """
-    baseline = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    baseline = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     def fat_points(eqp_id: str):
         return _points(eqp_id) * 4  # same distribution, 4x the rows
 
     sources["points"] = fat_points
-    fattened = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    fattened = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     assert [cell["cell_id"] for cell in fattened["occupied_cells"]] == [
         cell["cell_id"] for cell in baseline["occupied_cells"]
@@ -339,7 +339,7 @@ def test_a_recipe_only_one_tool_ran_yields_no_skew_rather_than_zero(sources):
         + _runs(("ECXDX002",), ("ADI/ONLY_B",))
         + _runs(("ECXDX003",), ("ADI/ONLY_C",))
     )
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     assert_matches(payload, TttmCheckPayload)
     assert payload["occupied_cells"] == []
     for row in payload["fleet_today"]["matrix"]["values"]:
@@ -349,7 +349,7 @@ def test_a_recipe_only_one_tool_ran_yields_no_skew_rather_than_zero(sources):
 def test_an_unresolvable_axis_empties_the_cells_and_says_so(sources):
     """Caveat 1 of the module docstring, as behaviour rather than prose."""
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_13",))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is True, "the fleet view still works"
@@ -375,7 +375,7 @@ def test_an_mdc_change_cuts_the_comparison_window(sources):
             new_value=1.0032,
         )
     ]
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     epochs = {cell["mdc_epoch"] for cell in payload["occupied_cells"]}
     labelled = f"e{cutoff:%Y%m%d}"
@@ -390,16 +390,16 @@ def test_an_mdc_change_cuts_the_comparison_window(sources):
 
 
 def test_tttm_echoes_the_triple_it_was_asked_about_on_every_branch(sources):
-    asked = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
-    assert (asked["fab_name"], asked["recipe_id"], asked["parameter"]) == (
-        "R3", "ADI/R1", "CD_X",
+    asked = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", ("CD_X",), WEEKS)
+    assert (asked["fab_name"], asked["recipe_id"], asked["selected_parameters"]) == (
+        "R3", "ADI/R1", ["CD_X"],
     )
     # ... including where there is nothing to answer with.
     sources["roster"] = _roster_rows(eqp_ids=("ECXDX001",))
-    lonely = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
+    lonely = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", ("CD_X",), WEEKS)
     assert lonely["available"] is False
-    assert (lonely["fab_name"], lonely["recipe_id"], lonely["parameter"]) == (
-        "R3", "ADI/R1", "CD_X",
+    assert (lonely["fab_name"], lonely["recipe_id"], lonely["selected_parameters"]) == (
+        "R3", "ADI/R1", ["CD_X"],
     )
     # The ROSTER survives — one tool is not a comparison, but it is still the
     # fab's tool, and the client's picker is drawn from this list. What must
@@ -413,13 +413,33 @@ def test_tttm_echoes_the_triple_it_was_asked_about_on_every_branch(sources):
 
 def test_a_parameter_filter_narrows_the_rows(sources):
     """One feature, not a relabelling: the X cell survives and Y disappears."""
-    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", ("CD_X",), WEEKS)
     assert {cell["axis"] for cell in payload["occupied_cells"]} == {"X"}
+    # Two features fold exactly those two — here that is the whole catalogue,
+    # so both axes are back.
+    both = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", ("CD_X", "CD_Y"), WEEKS)
+    assert {cell["axis"] for cell in both["occupied_cells"]} == {"X", "Y"}
+
+
+def test_the_profile_is_the_whole_catalogue_whatever_was_selected(sources):
+    """The map's PCA table is unfiltered: the client picks its columns."""
+    narrowed = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", ("CD_X",), WEEKS)
+    profile = narrowed["parameter_profile"]
+    assert [a["name"] for a in profile["parameters"]] == ["CD_X", "CD_Y"]
+    assert profile["tools"] == [t["eqp_id"] for t in narrowed["tools"]]
+    # Every double measured both features, so no entry is None and each column
+    # is median-centred.
+    from statistics import median
+
+    for j in range(2):
+        column = [row[j] for row in profile["values"]]
+        assert None not in column
+        assert abs(median(column)) < 1e-6
 
 
 def test_an_unknown_fab_is_available_false_not_an_error(sources):
     sources["roster"] = _roster_rows(fab_name="M16A")
-    payload = tttm_office.get_tttm_check("cdsem", "ZZZ-NOT-A-FAB", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "ZZZ-NOT-A-FAB", None, (), WEEKS)
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     assert payload["tools"] == []
@@ -430,13 +450,13 @@ def test_the_roster_names_each_tool_once(sources):
     # sem_list really does hand back duplicate eqp_ids (~10 of 300 mock rows),
     # and a repeated id would give the matrix two identical axes.
     sources["roster"] = _roster_rows() + _roster_rows(eqp_ids=("ECXDX002",))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     ids = [tool["eqp_id"] for tool in payload["tools"]]
     assert len(ids) == len(set(ids))
 
 
 def test_matrix_axes_stay_inside_the_advertised_roster(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     roster = {tool["eqp_id"] for tool in payload["tools"]}
     assert set(payload["fleet_today"]["matrix"]["tools"]) <= roster
     for deviation in payload["fleet_today"]["consensus_deviation"]:
@@ -448,7 +468,7 @@ def test_matrix_axes_stay_inside_the_advertised_roster(sources):
 
 
 def test_current_tolerance_sits_inside_its_own_range(sources):
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     bounds = payload["tolerance_range"]
     assert bounds["min"] <= payload["current_tolerance"] <= bounds["max"]
     assert bounds["step"] > 0
@@ -602,7 +622,7 @@ def test_pm_and_tttm_agree_on_the_roster(sources):
     pm_ids = {tool["eqp_id"] for tool in pm_office.get_pm_planning_fleet("R3", WEEKS)["tools"]}
     tttm_ids = {
         tool["eqp_id"]
-        for tool in tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["tools"]
+        for tool in tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)["tools"]
     }
     assert pm_ids == tttm_ids
 
@@ -653,7 +673,7 @@ def test_features_at_different_cds_do_not_share_a_band(sources):
         )
 
     sources["points"] = two_sizes
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     bands = {cell["cd_band"] for cell in payload["occupied_cells"]}
     assert bands == {"25-50", "50-100"}, f"expected both bands, got {bands}"
@@ -680,7 +700,7 @@ def test_fleet_today_leaves_a_bridged_pair_null(sources):
     sources["runs"] = _runs(("ECXDX001", "ECXDX002"), ("ADI/SHARED",)) + _runs(
         ("ECXDX003",), ("ADI/ALONE",)
     )
-    matrix = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["fleet_today"]["matrix"]
+    matrix = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)["fleet_today"]["matrix"]
     index = {eqp_id: i for i, eqp_id in enumerate(matrix["tools"])}
 
     assert matrix["values"][index["ECXDX001"]][index["ECXDX002"]] == pytest.approx(0.10)
@@ -699,17 +719,17 @@ def test_fleet_today_leaves_a_bridged_pair_null(sources):
 def test_an_empty_grid_names_its_own_cause(sources, setup, expected):
     """Three causes render identically on screen; each must say which it was."""
     if setup == "no_parameter":
-        payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "NOT_A_PARAM", WEEKS)
+        payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", ("NOT_A_PARAM",), WEEKS)
     elif setup == "no_axis":
         sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_13",))
-        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+        payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     else:
         sources["runs"] = (
             _runs(("ECXDX001",), ("ADI/ONLY_A",))
             + _runs(("ECXDX002",), ("ADI/ONLY_B",))
             + _runs(("ECXDX003",), ("ADI/ONLY_C",))
         )
-        payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+        payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     assert payload["occupied_cells"] == []
     assert expected in payload["summary"], payload["summary"]
@@ -827,7 +847,7 @@ def test_a_disconnected_pair_gets_no_bridged_skew(sources):
     sources["runs"] = _runs(("ECXDX001", "ECXDX002"), ("ADI/LEFT",)) + _runs(
         ("ECXDX003", "ECXDX004"), ("ADI/RIGHT",)
     )
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     for cell in payload["occupied_cells"]:
         for block in (cell["direct_skew_matrix"], cell["predicted_skew_matrix"]):
@@ -854,7 +874,7 @@ def test_confidence_counts_runs_not_features(sources):
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=features)
     sources["runs"] = _runs(recipes=("ADI/ONE",), days=1)
 
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     assert payload["occupied_cells"]
     for cell in payload["occupied_cells"]:
         assert cell["confidence"] != "High", (
@@ -871,12 +891,12 @@ def test_fleet_median_cd_is_none_when_the_day_spans_pattern_sizes(sources):
         )
 
     sources["points"] = two_sizes
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     assert payload["fleet_today"]["median_cd_nm"] is None
 
     # One size only -> the number is meaningful and is reported.
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("FINE_X",), cd=31.0)
-    single = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    single = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     assert single["fleet_today"]["median_cd_nm"] == pytest.approx(31.0)
 
 
@@ -887,7 +907,7 @@ def test_a_band_edge_median_stays_inside_its_band(sources):
     Only at an edge, which is where nobody looks.
     """
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("CD_X",), cd=24.9997)
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     assert payload["occupied_cells"]
     for cell in payload["occupied_cells"]:
         low, high = (0.0, 25.0) if cell["cd_band"] == "<25" else (25.0, 50.0)
@@ -910,7 +930,7 @@ def test_missing_and_unrecorded_values_do_not_reach_the_payload(sources):
         return good + blank_cd + no_voltage
 
     sources["points"] = ragged
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
     assert_matches(payload, TttmCheckPayload)
 
     # The rows with no voltage have no beam to be filed under and are dropped;
@@ -1030,7 +1050,7 @@ def test_scoped_axis_rules_reach_the_payload(sources, monkeypatch):
 
     monkeypatch.setenv(AXIS_ENV_VAR, "ADI/R1:Para_9=X,ADI/R2:Para_9=Y")
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_9",))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)
 
     # Both recipes measure "Para_9"; the map sends R1's rows to X and R2's to Y.
     assert {cell["axis"] for cell in payload["occupied_cells"]} == {"X", "Y"}
@@ -1094,7 +1114,7 @@ class TestTttmUnavailableKeepsTheRoster:
 
     def test_the_roster_it_is_given_is_the_roster_it_returns(self):
         payload = tttm_contracts.unavailable_payload(
-            "cdsem", "R3", "CD_MONITOR/NEVER_RUN", None, "측정 이력이 없습니다.",
+            "cdsem", "R3", "CD_MONITOR/NEVER_RUN", [], "측정 이력이 없습니다.",
             self._roster(),  # type: ignore[arg-type]
             window_weeks=WEEKS,
         )
@@ -1107,7 +1127,7 @@ class TestTttmUnavailableKeepsTheRoster:
         # comparison. Carrying tools must not smuggle in a matrix the client
         # would render as a real pairwise result.
         payload = tttm_contracts.unavailable_payload(
-            "cdsem", "R3", None, None, "장비가 1대뿐입니다.",
+            "cdsem", "R3", None, [], "장비가 1대뿐입니다.",
             self._roster(),  # type: ignore[arg-type]
             window_weeks=WEEKS,
         )
@@ -1121,14 +1141,14 @@ class TestTttmUnavailableKeepsTheRoster:
         # empty fleet, not by leaving the argument out. `tools` is required
         # precisely so a branch cannot quietly decline to state a roster.
         payload = tttm_contracts.unavailable_payload(
-            "cdsem", "ZZZ", None, None, "이 계열의 장비가 없습니다.", [], window_weeks=WEEKS
+            "cdsem", "ZZZ", None, [], "이 계열의 장비가 없습니다.", [], window_weeks=WEEKS
         )
         assert_matches(payload, TttmCheckPayload)
         assert payload["tools"] == []
 
         with pytest.raises(TypeError):
             tttm_contracts.unavailable_payload(  # type: ignore[call-arg]
-                "cdsem", "ZZZ", None, None, "…", window_weeks=WEEKS
+                "cdsem", "ZZZ", None, [], "…", window_weeks=WEEKS
             )
 
     def test_the_window_is_required_and_echoed(self):
@@ -1136,7 +1156,7 @@ class TestTttmUnavailableKeepsTheRoster:
         # says which window it was empty over, and a branch cannot quietly
         # decline to state one.
         payload = tttm_contracts.unavailable_payload(
-            "cdsem", "ZZZ", None, None, "…", [], window_weeks=1
+            "cdsem", "ZZZ", None, [], "…", [], window_weeks=1
         )
         assert payload["window_weeks"] == 1
         with pytest.raises(TypeError):
@@ -1171,22 +1191,22 @@ def test_a_recipe_payload_lists_the_parameters_its_runs_measured(sources):
     a filter is applied, or the picker would collapse to its own pick.
     """
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("CD_Y", "CD_X", "WIDE_X"))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", (), WEEKS)
     assert payload["parameters"] == ["CD_X", "CD_Y", "WIDE_X"]
-    narrowed = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", "CD_X", WEEKS)
+    narrowed = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", ("CD_X",), WEEKS)
     assert narrowed["parameters"] == ["CD_X", "CD_Y", "WIDE_X"]
 
 
 def test_without_a_recipe_the_office_offers_no_parameter_list(sources):
     # Recipe-local names must not be pooled across recipes.
-    assert tttm_office.get_tttm_check("cdsem", "R3", None, None, WEEKS)["parameters"] == []
+    assert tttm_office.get_tttm_check("cdsem", "R3", None, (), WEEKS)["parameters"] == []
 
 
 def test_unnamed_points_do_not_reach_the_parameter_list(sources):
     # A recipe's stabilisation shots carry CDs but no feature name; they are
     # kept by load_points and must not surface as an empty picker entry.
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("", "CD_X"))
-    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)
+    payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", (), WEEKS)
     assert payload["parameters"] == ["CD_X"]
 
 
@@ -1203,7 +1223,7 @@ def test_fleet_today_reads_each_tool_at_its_own_latest_day(sources):
         for back, eqp_id in enumerate(TOOLS)
         for run in _runs((eqp_id,), ("ADI/R1",), days=1)
     )
-    today = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)["fleet_today"]
+    today = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", (), WEEKS)["fleet_today"]
 
     assert {d["eqp_id"] for d in today["consensus_deviation"]} == set(TOOLS)
     index = {eqp_id: i for i, eqp_id in enumerate(today["matrix"]["tools"])}
@@ -1223,7 +1243,7 @@ def test_trend_reads_each_day_as_the_fleet_as_of_that_day(sources):
         for back, eqp_id in enumerate(TOOLS)
         for run in _runs((eqp_id,), ("ADI/R1",), days=1)
     )
-    trend = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)["trend"]
+    trend = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", (), WEEKS)["trend"]
     by_day = {}
     for point in trend:
         by_day.setdefault(point["date"], {})[point["eqp_id"]] = point["skew"]

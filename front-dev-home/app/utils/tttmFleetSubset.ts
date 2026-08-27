@@ -63,13 +63,17 @@ export const rebaseDeviations = (
 /**
  * The tool ids to actually render, given a stored selection.
  *
- * An empty selection means "all of them", not "none": that is what a fresh user
- * has, and it is also what makes a tool added to the fleet later show up
- * instead of being silently excluded by a selection saved before it existed.
+ * A NULL selection means "all of them": that is what a fresh user has, and it
+ * is also what makes a tool added to the fleet later show up instead of being
+ * silently excluded by a selection saved before it existed. An EMPTY selection
+ * means none — what 해제 on the last model group leaves, and the state the
+ * views answer with "2대 이상이어야 합니다" rather than a comparison. The two
+ * used to share `[]`, which is why 해제 could never empty a group: clearing
+ * the last tools re-selected the whole fleet.
  */
 export const resolveSelection = (
   available: readonly string[],
-  selected: readonly string[]
+  selected: readonly string[] | null
 ): string[] => {
   // De-duplicated because the result is used as a TOOL BASIS by
   // `alignSkewMatrix`, where a repeated id becomes a repeated row and column —
@@ -77,7 +81,8 @@ export const resolveSelection = (
   // Not hypothetical: sem_list's fleet carries a handful of duplicate eqp_ids,
   // and this feature's tool list is built from the same physical fleet.
   const fleet = [...new Set(available)]
-  if (selected.length === 0) return fleet
+  if (selected === null) return fleet
+  if (selected.length === 0) return []
   const wanted = new Set(selected)
   const kept = fleet.filter(eqp => wanted.has(eqp))
   // Every stored id is gone (fleet replaced, or a stale fab's selection):

@@ -21,14 +21,7 @@
          change is a scope you cannot work with. Editing either here edits it
          there — the two pages are meant to describe ONE group, so sharing is the
          safeguard, not a shortcut. -->
-    <EbeamScopeBar
-      :tools="payload?.tools ?? []"
-      :selected="selection"
-      :deviations="fleetDeviations"
-      :pending="tttmPending"
-      @update:selected="onSelectedTools"
-      @update:recipe-id="onRecipe"
-    >
+    <EbeamScopeBar>
       <template #recipe>
         <EbeamScopeRecipe
           :recipe-id="recipeId"
@@ -46,6 +39,15 @@
       </template>
     </EbeamScopeBar>
 
+    <!-- 장비 모델 그룹 — same bar, same persisted selection as TttmView. -->
+    <EbeamToolGroupBar
+      :tools="payload?.tools ?? []"
+      :selected="selection"
+      :deviations="fleetDeviations"
+      :pending="tttmPending"
+      @update:selected="onSelectedTools"
+    />
+
     <!-- 분석 조건 — same bar and same lock rule as TttmView: the parameter
          list rides on the recipe's payload, so the controls are inert until a
          recipe is picked and while its answer is unavailable. -->
@@ -55,10 +57,10 @@
     >
       <template #parameter>
         <EbeamScopeParameter
-          :parameter="parameter"
+          :parameters="parameters"
           :parameter-names="parameterNames"
           :lock="lock"
-          @update:parameter="onParameter"
+          @update:parameters="onParameters"
         />
       </template>
 
@@ -110,6 +112,14 @@
       icon="i-lucide-scale"
     />
 
+    <!-- Same guard as TttmView: a group needs two tools to exist. -->
+    <AppEmptyState
+      v-else-if="basis.length < 2"
+      title="비교할 장비를 2대 이상 고르세요."
+      description="위 장비 모델 그룹에서 장비를 고르면 그 장비들로 N배화 그룹과 튜닝 목표를 계산합니다."
+      icon="i-lucide-mouse-pointer-click"
+    />
+
     <div
       v-else
       class="flex min-w-0 flex-col gap-3"
@@ -134,8 +144,8 @@
           </template>
         </p>
         <p class="mt-1.5 sk-field-label leading-relaxed">
-          <template v-if="parameter">
-            측정 항목 <span class="sk-value-num">{{ parameter }}</span> 기준입니다 ·
+          <template v-if="parameters.length">
+            측정 항목 <span class="sk-value-num">{{ parameters.join(', ') }}</span> 기준입니다 ·
             tolerance 는 TTTM 페이지의 설정을 따릅니다.
           </template>
           <template v-else>
@@ -153,6 +163,7 @@
           :blocked-pair="blockedPair"
           :picked-tool="picked"
           :halo-label="haloLabel"
+          :pca="pca"
         />
         <!-- File is pmPlanning/Targets.vue, NOT pmPlanning/TuneTargets.vue: Nuxt's
              auto-import collapses the repeated word at the segment boundary
@@ -195,6 +206,7 @@ import { alignSkewMatrix, groupFromCells, pickPrimary, type GroupCell, type NbaG
 import { applyTolerance, excludedTools, scoreCells, type CellInput } from '~/utils/tttmCells'
 import { fractionOfLimit, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
 import { resolveSelection, subsetSkewMatrix, rebaseDeviations } from '~/utils/tttmFleetSubset'
+import { parameterPca } from '~/utils/parameterPca'
 import type { BeamCondition } from '~/utils/pmPlanning'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
@@ -207,7 +219,7 @@ const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>(
 const {
   scoped,
   recipeId,
-  parameter,
+  parameters,
   windowWeeks,
   recipeNames,
   recipesPending,
@@ -219,7 +231,7 @@ const {
   scopeReady,
   onSelectedTools,
   onRecipe,
-  onParameter,
+  onParameters,
   onWindow
 } = useTttmScope(props.toolType, props.fab)
 
@@ -295,6 +307,12 @@ const visibleFleet = computed<FleetToday>(() => ({
   consensus_deviation: rebaseDeviations(payload.value?.fleet_today.consensus_deviation ?? [], basis.value),
   median_cd_nm: payload.value?.fleet_today.median_cd_nm ?? null
 }))
+
+// Same placement as TttmView, over the working basis (the picked tool is
+// in it even when TTTM deselected it — its position is the question).
+const pca = computed(() =>
+  payload.value ? parameterPca(payload.value.parameter_profile, parameters.value, basis.value) : null
+)
 
 // No tolerance knob on this page: the server's current tolerance IS the one the
 // TTTM page opens on, so the group here matches the group there by default.

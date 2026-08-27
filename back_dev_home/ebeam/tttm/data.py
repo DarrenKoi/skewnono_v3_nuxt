@@ -12,9 +12,10 @@ def get_tttm_check(
     tool_slug: str,
     fab_name: str,
     recipe_id: str | None,
-    parameter: str | None,
+    parameters: tuple[str, ...],
     window_weeks: int,
 ) -> TttmCheckPayload:
+    """`parameters` is the selection — `()` folds every feature of the recipe."""
     if get_data_provider("tttm") == "office":
         from back_dev_home.ebeam.tttm.providers.office import (
             get_tttm_check as load_tttm_check,
@@ -28,8 +29,11 @@ def get_tttm_check(
     # of office_example.py, so a copy made before an axis existed would
     # otherwise keep serving 200s computed over every parameter — or over its
     # own fixed window — while the UI labelled them with what the user picked.
-    # A TypeError says so instead. `window_weeks` joined on 2026-08-25.
-    return load_tttm_check(tool_slug, fab_name, recipe_id, parameter, window_weeks)
+    # A TypeError says so instead. `window_weeks` joined on 2026-08-25; the
+    # single `parameter` became the `parameters` tuple on 2026-08-27 (same
+    # arity, so a stale copy would NOT raise here — the contract test's
+    # `selected_parameters` / `parameter_profile` keys are what catch it).
+    return load_tttm_check(tool_slug, fab_name, recipe_id, parameters, window_weeks)
 
 
 def get_tttm_recipes(tool_slug: str, fab_name: str, window_weeks: int) -> TttmRecipeList:

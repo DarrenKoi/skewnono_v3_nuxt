@@ -60,7 +60,10 @@ export interface FleetMapResult {
 // a numeric dependency for something it can do in 40 lines.
 const MAX_SWEEPS = 100
 
-function jacobiEigen(input: number[][]): { values: number[], vectors: number[][] } {
+// Exported for parameterPca.ts, which decomposes a parameter covariance with
+// it. `vectors` holds the eigenvectors as COLUMNS (vectors[row][k] is the k-th
+// vector's row-th component), paired with values[k].
+export function jacobiEigen(input: number[][]): { values: number[], vectors: number[][] } {
   const n = input.length
   const m = input.map(row => [...row])
   const v: number[][] = Array.from({ length: n }, (_, i) =>

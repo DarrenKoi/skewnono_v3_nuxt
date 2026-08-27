@@ -18,6 +18,22 @@ def _arg(name: str) -> str | None:
     return raw or None
 
 
+def _args(name: str) -> tuple[str, ...]:
+    """Every non-blank value of a repeated query key, de-duplicated in order.
+
+    `?parameter=a&parameter=b` is how the client sends a multi-select (ofetch
+    serialises an array as a repeated key). Blanks are dropped the way `_arg`
+    folds them to None — `?parameter=` is a cleared picker, not a parameter
+    named empty.
+    """
+    seen: dict[str, None] = {}
+    for raw in request.args.getlist(name):
+        value = raw.strip()
+        if value:
+            seen.setdefault(value, None)
+    return tuple(seen)
+
+
 @bp.get("/<tool_slug>/tttm/check")
 def tttm_check(tool_slug: str):
     if not is_sem_tool_slug(tool_slug):
@@ -26,21 +42,21 @@ def tttm_check(tool_slug: str):
     if fab_name is None:
         return jsonify({"error": "fab_name is required"}), 400
     recipe_id = _arg("recipe_id")
-    parameter = _arg("parameter")
+    parameters = _args("parameter")
     # A parameter name is a row of ONE recipe's idp_image_info, and the same
     # name in another recipe measures a different feature — so "this parameter,
     # across every recipe" is not a question with an answer. Refused rather than
     # ignored: a silently dropped filter returns a group verdict under a
     # parameter heading the server never applied, and nothing about that
     # response looks wrong to the client.
-    if parameter is not None and recipe_id is None:
+    if parameters and recipe_id is None:
         return jsonify({"error": "parameter requires recipe_id"}), 400
     # How far back to gather runs. Refused rather than clamped when it is not
     # one of the offered choices — see _analysis_window.resolve_window_weeks.
     window_weeks = resolve_window_weeks()
     if window_weeks is None:
         return bad_window_weeks_response()
-    payload = get_tttm_check(tool_slug, fab_name, recipe_id, parameter, window_weeks)
+    payload = get_tttm_check(tool_slug, fab_name, recipe_id, parameters, window_weeks)
     return jsonify(payload)
 
 

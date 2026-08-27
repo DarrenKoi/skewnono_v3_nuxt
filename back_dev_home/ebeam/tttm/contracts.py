@@ -99,6 +99,37 @@ class TrendPoint(TypedDict):
     skew: float
 
 
+class ParameterAxis(TypedDict):
+    """One column of `ParameterProfile` — a measured parameter of the recipe."""
+
+    name: str
+    # The CD (nm) this parameter was read at — the median of every sample
+    # behind the column — so the client can scale the column by ITS action
+    # limit (1% of CD) before comparing it with a column at another pattern
+    # size. None when no sample carried a CD.
+    median_cd_nm: float | None
+    # Distinct tools that measured it. Below 2 there is no consensus to take
+    # an offset against, and the column is all None.
+    tools: int
+
+
+class ParameterProfile(TypedDict):
+    """tool × parameter offsets — what the 장비 그룹 배치도's PCA is run over.
+
+    `values[i][j]` is `tools[i]`'s median CD for `parameters[j]` minus the
+    fleet median for that parameter (nm, signed), or None when the tool did
+    not measure it. Columns are the recipe's WHOLE catalogue (same names and
+    order as the payload's `parameters`), never narrowed by the selection:
+    the client picks the columns, so selecting never needs a refetch. Empty
+    (no columns, no rows) without a recipe and on every unavailable branch.
+    One derivation for both providers — `profile.py`.
+    """
+
+    parameters: list[ParameterAxis]
+    tools: list[str]
+    values: list[list[float | None]]
+
+
 class EpochMarker(TypedDict):
     eqp_id: str
     date: str
@@ -194,18 +225,21 @@ class TttmCheckPayload(TypedDict):
     tool_slug: ToolSlug
     fab_name: str
     recipe_id: str | None
-    # The measured feature this whole payload is about. None = every parameter
-    # the recipe filter left standing, folded together as before.
+    # The measured features this whole payload is about — the request's
+    # `?parameter=` values, echoed in request order. Empty = every parameter
+    # the recipe filter left standing, folded together.
     #
     # Only meaningful INSIDE a recipe: a parameter name ("Para_13") is a row of
     # one recipe's idp_image_info, and the same name in another recipe measures
-    # something else entirely. routes.py refuses `parameter` without
+    # something else entirely. routes.py refuses a `parameter` without
     # `recipe_id` for exactly that reason — the PAIR is the key, not the name.
     #
     # It narrows the ROWS the pairwise skew is computed from, which is why it
     # can change a group verdict rather than merely relabel one: two tools that
     # agree once every feature is folded together can disagree on one feature.
-    parameter: str | None
+    # Several names fold exactly those features, so the N배화 group is "tools
+    # that match on each of these" and the map is placed over the same set.
+    selected_parameters: list[str]
     # The catalogue `parameter` is picked FROM: every distinct parameter name
     # the fab measured under `recipe_id` in the window, sorted. Read off the
     # same MSR rows the skew is computed from, so a name offered here is one the
@@ -233,6 +267,9 @@ class TttmCheckPayload(TypedDict):
     current_tolerance: float  # default 0.05 (nm at the 15 nm monitor wafer)
     tolerance_range: ToleranceRange  # {min:0.01, max:0.20, step:0.005}
     occupied_cells: list[CellSkew]
+    # tool × parameter offsets over the recipe's whole catalogue, for the PCA
+    # placement — see ParameterProfile.
+    parameter_profile: ParameterProfile
     production_corroboration: ProductionCorroboration
     fleet_today: FleetToday
     trend: list[TrendPoint]
@@ -250,7 +287,7 @@ def unavailable_payload(
     tool_slug: str,
     fab_name: str,
     recipe_id: str | None,
-    parameter: str | None,
+    selected_parameters: list[str],
     summary: str,
     tools: list[ToolRef],
     *,
@@ -302,7 +339,7 @@ def unavailable_payload(
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
         "fab_name": fab_name,
         "recipe_id": recipe_id,
-        "parameter": parameter,
+        "selected_parameters": list(selected_parameters),
         "parameters": [],
         "window_weeks": window_weeks,
         "available": False,
@@ -312,6 +349,7 @@ def unavailable_payload(
         "current_tolerance": DEFAULT_TOLERANCE,
         "tolerance_range": TOLERANCE_RANGE,  # type: ignore[typeddict-item]
         "occupied_cells": [],
+        "parameter_profile": {"parameters": [], "tools": [], "values": []},
         "production_corroboration": {
             "level": "low",
             "note": UNAVAILABLE_NOTE,

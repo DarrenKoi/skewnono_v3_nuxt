@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm test  (node --test, Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { analysisLock, offeredParameters, pickStillStands } from './tttmRecipeScope.ts'
+import { analysisLock, offeredParameters, pickStillStands, standingPicks } from './tttmRecipeScope.ts'
 
 const MEASURED = ['CD_MONITOR/CD_MONITORING_HR_800V_X_FULL', 'CD_MONITOR/OTHER']
 
@@ -48,6 +48,17 @@ test('pickStillStands (recipe): matching is exact, not by bare recipe name', () 
 })
 
 // ── the parameter half ────────────────────────────────────────────────────
+
+test('standingPicks: picks the server still offers stand, the rest drop, order kept', () => {
+  assert.deepEqual(standingPicks(['CD_Y', 'GONE', 'CD_X'], ['CD_X', 'CD_Y']), ['CD_Y', 'CD_X'])
+})
+
+test('standingPicks: no answer yet keeps every pick, and an unchanged list keeps its identity', () => {
+  const picks = ['CD_X', 'CD_Y']
+  assert.equal(standingPicks(picks, null), picks)
+  assert.equal(standingPicks(picks, ['CD_Y', 'CD_X', 'CD_Z']), picks)
+  assert.deepEqual(standingPicks(picks, []), [])
+})
 
 const answered = (recipe_id: string | null, parameters: string[], available = true) =>
   ({ available, recipe_id, parameters })

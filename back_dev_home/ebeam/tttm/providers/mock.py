@@ -76,14 +76,23 @@ flatten them by accident:
 - **A fab with fewer than two tools answers `available: false`.** One tool is
   not a comparison, and the frontend's picker refuses to drop below two
   anyway; some HV-SEM fabs really do hold a single tool.
-- **The seed includes `recipe_id` AND `parameter`**, so picking either visibly
-  recomputes — which is what the pickers promise. The numbers move; the shape
-  does not. The mock still never checks that a parameter belongs to the
-  recipe, because at the office the filter is a WHERE on real MSR rows and an
-  unknown parameter simply matches nothing. What the mock has to stand in for
-  is the consequence — that narrowing to one measured feature can move a tool
-  in or out of the N배화 group — and it does that by re-seeding rather than by
-  filtering a feature list.
+- **The seed includes `recipe_id` AND the selected `parameters`**, so picking
+  either visibly recomputes — which is what the pickers promise. The numbers
+  move; the shape does not. The mock still never checks that a parameter
+  belongs to the recipe, because at the office the filter is a WHERE on real
+  MSR rows and an unknown parameter simply matches nothing. What the mock has
+  to stand in for is the consequence — that narrowing to some measured
+  features can move a tool in or out of the N배화 group — and it does that by
+  re-seeding rather than by filtering a feature list.
+- **`parameter_profile` is fabricated from the same per-tool bias**, one
+  column per catalogue parameter, each column scaled and jittered
+  differently so the PCA has more than one direction to find. The drifted
+  tool's LAST column is None — the "never measured this parameter" case the
+  client must drop from the map and name rather than place at the consensus.
+  Column CDs cycle through the cell CDs (32.4 / 31.8 / 68.0) so the client's
+  per-column limit scaling is exercised at home. OFFICE-VERIFY: real
+  per-parameter offsets are read off run pickles (`profile.py` is the shared
+  derivation); their true spread and how correlated columns are is unknown.
 - **`parameters` is the recipe's measured feature set**, read from the
   msr_file mock's per-recipe programs (`program_parameters`) — the same
   programs its mock pickles are generated from, so the picker offers exactly
@@ -143,6 +152,8 @@ from back_dev_home.ebeam.tttm.contracts import (
     TttmCheckPayload,
 )
 from back_dev_home.ebeam._analysis_window import window_days
+from back_dev_home.ebeam.tttm.contracts import ParameterProfile
+from back_dev_home.ebeam.tttm.profile import build_parameter_profile, empty_parameter_profile
 from back_dev_home.sem_list.providers.mock import get_sem_list
 from back_dev_home.sem_list.roster import fleet_rows
 
@@ -194,7 +205,7 @@ _CELLS: tuple[_CellSpec, ...] = (
 
 
 def _seed(
-    tool_slug: str, fab_name: str, recipe_id: str | None, parameter: str | None
+    tool_slug: str, fab_name: str, recipe_id: str | None, parameters: tuple[str, ...]
 ) -> int:
     # crc32, not hash(): PYTHONHASHSEED is randomised per process, so hash()
     # would hand a different fleet to every worker and to every restart.
@@ -203,7 +214,7 @@ def _seed(
     # without it recipe "AB" + parameter "C" and recipe "A" + parameter "BC"
     # would seed identically, so picking a different parameter would sometimes
     # visibly do nothing.
-    key = f"{tool_slug}|{fab_name.upper()}|{recipe_id or ''}|{parameter or ''}"
+    key = f"{tool_slug}|{fab_name.upper()}|{recipe_id or ''}|{'|'.join(parameters)}"
     return zlib.crc32(key.encode("utf-8"))
 
 
@@ -385,6 +396,36 @@ def _mdc_history(fleet: list[ToolRef]) -> list[MdcHistoryEntry]:
     ]
 
 
+_PROFILE_CDS = (32.4, 31.8, 68.0)
+
+
+def _parameter_profile(
+    fleet: list[ToolRef], biases: dict[str, float], parameters: tuple[str, ...], seed: int
+) -> ParameterProfile:
+    """tool × parameter samples from the one latent bias — see the docstring.
+
+    Three samples per (tool, parameter) rather than one, so the shared
+    derivation's median actually does something at home. The column scale
+    alternates sign so the columns are not one direction repeated: a PCA over
+    perfectly collinear columns has one component and the map is a line.
+    """
+    rng = random.Random(seed + 23)
+    ids = [tool["eqp_id"] for tool in fleet]
+    drifted = ids[-1]
+    samples: dict[tuple[str, str], list[float]] = {}
+    for index, name in enumerate(parameters):
+        cd = _PROFILE_CDS[index % len(_PROFILE_CDS)]
+        scale = (0.6 + 0.5 * (index % 3)) * (-1 if index % 2 else 1)
+        for eqp_id in ids:
+            if eqp_id == drifted and index == len(parameters) - 1:
+                continue  # never measured — the None the client must handle
+            centre = cd + biases[eqp_id] * scale + rng.uniform(-0.02, 0.02)
+            samples[(eqp_id, name)] = [
+                round(centre + rng.uniform(-0.01, 0.01), 3) for _ in range(3)
+            ]
+    return build_parameter_profile(ids, parameters, samples)
+
+
 def _corroboration(fleet: list[ToolRef], biases: dict[str, float]) -> ProductionCorroboration:
     """Production overlap for the three best-matched pairs.
 
@@ -478,7 +519,7 @@ def get_tttm_check(
     tool_slug: str,
     fab_name: str,
     recipe_id: str | None,
-    parameter: str | None,
+    parameters: tuple[str, ...],
     window_weeks: int,
 ) -> TttmCheckPayload:
     """Deterministic pairwise skew for one fab.
@@ -492,12 +533,13 @@ def get_tttm_check(
     on confidence depends on how often each tool actually ran.
     """
     fleet = _fleet(tool_slug, fab_name)
+    selected = list(parameters)
     if not fleet:
         return unavailable_payload(
             tool_slug,
             fab_name,
             recipe_id,
-            parameter,
+            selected,
             f"{fab_name} 에는 이 계열의 장비가 없습니다.",
             # The one branch that really has no roster — `fleet` IS empty here,
             # so the empty roster is passed rather than the argument skipped.
@@ -514,7 +556,7 @@ def get_tttm_check(
             tool_slug,
             fab_name,
             recipe_id,
-            parameter,
+            selected,
             f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
             tools=fleet,
             window_weeks=window_weeks,
@@ -533,16 +575,19 @@ def get_tttm_check(
             tool_slug,
             fab_name,
             recipe_id,
-            parameter,
+            selected,
             f"{fab_name} 에 {recipe_id} 측정 이력이 없습니다 — "
             "측정한 recipe 중에서 고르시기 바랍니다.",
             tools=fleet,
             window_weeks=window_weeks,
         )
 
-    seed = _seed(tool_slug, fab_name, recipe_id, parameter)
+    seed = _seed(tool_slug, fab_name, recipe_id, parameters)
     biases = _biases(random.Random(seed), fleet)
     ids = [tool["eqp_id"] for tool in fleet]
+    # Recipe-local, so only inside a recipe — see the contract's comment. The
+    # profile's columns are this same catalogue, so it is empty with it.
+    catalogue = _measured_parameters(tool_slug, fab_name, recipe_id) if recipe_id else ()
 
     consensus = median(biases.values())
     deviations = [
@@ -557,9 +602,8 @@ def get_tttm_check(
         "tool_slug": tool_slug,  # type: ignore[typeddict-item]
         "fab_name": fab_name,
         "recipe_id": recipe_id,
-        "parameter": parameter,
-        # Recipe-local, so only inside a recipe — see the contract's comment.
-        "parameters": list(_measured_parameters(tool_slug, fab_name, recipe_id)) if recipe_id else [],
+        "selected_parameters": selected,
+        "parameters": list(catalogue),
         "window_weeks": window_weeks,
         "available": True,
         "fetched_at": _FETCHED_AT,
@@ -571,6 +615,9 @@ def get_tttm_check(
         "current_tolerance": _CURRENT_TOLERANCE,
         "tolerance_range": _TOLERANCE_RANGE,  # type: ignore[typeddict-item]
         "occupied_cells": cells,
+        "parameter_profile": (
+            _parameter_profile(fleet, biases, catalogue, seed) if recipe_id else empty_parameter_profile()
+        ),
         "production_corroboration": _corroboration(fleet, biases),
         "fleet_today": {
             "matrix": _matrix(ids, biases, random.Random(seed + 7), 1.0),

@@ -86,14 +86,14 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 hardware_payload,
             )
             self.assertIs(
-                tttm_data.get_tttm_check("cdsem", "R3", "RECIPE-1", "Para_13"),
+                tttm_data.get_tttm_check("cdsem", "R3", "RECIPE-1", ("Para_13",), 2),
                 tttm_payload,
             )
 
         load_hardware.assert_called_once_with(
             "cdsem", "bsm", "ECDX123", "M16A", now, now
         )
-        load_tttm.assert_called_once_with("cdsem", "R3", "RECIPE-1")
+        load_tttm.assert_called_once_with("cdsem", "R3", "RECIPE-1", ("Para_13",), 2)
 
     def test_feature_mock_override_wins_over_global_office_provider(self):
         os.environ["SKEWNONO_DATA_PROVIDER"] = "office"
@@ -122,7 +122,7 @@ class TestCommonProviderDispatch(ProviderEnvironmentTestCase):
                 hardware_payload,
             )
             self.assertIs(
-                tttm_data.get_tttm_check("cdsem", "R3", None, None),
+                tttm_data.get_tttm_check("cdsem", "R3", None, (), 2),
                 tttm_payload,
             )
 
