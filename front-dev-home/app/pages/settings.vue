@@ -21,6 +21,16 @@
       <UCard class="dashboard-surface rounded-3xl">
         <template #header>
           <h2 class="sk-title">
+            기본 Fab
+          </h2>
+        </template>
+
+        <SettingsDefaultFabPicker />
+      </UCard>
+
+      <UCard class="dashboard-surface rounded-3xl">
+        <template #header>
+          <h2 class="sk-title">
             ECharts theme
           </h2>
         </template>
