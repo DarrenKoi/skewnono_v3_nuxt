@@ -235,27 +235,34 @@ def test_recipe_status_without_a_tab_is_unresolved():
     assert page_to_feature("/ebeam/cd-sem/M14/recipe-status") is None
 
 
-def test_unknown_pages_fall_back_to_a_derived_slug():
-    """Same policy as route_to_feature: a new page groups sanely until mapped.
-
-    The fallback deliberately stays the TOOL slug rather than tool_inventory:
-    a future e-beam page nobody mapped must not be counted as 장비 상태, which
-    would be a confident wrong answer instead of a vague one.
-    """
+def test_unknown_standalone_pages_fall_back_to_a_derived_slug():
+    """Same policy as route_to_feature: a new top-level page groups sanely
+    until mapped, under its own first segment."""
     assert page_to_feature("/thickness") == "thickness"
-    assert page_to_feature("/ebeam/veritysem/M14/unmapped-page") == "veritysem"
-    assert page_to_feature("/ebeam/cd-sem/M14/unmapped-page") == "cdsem"
 
 
-def test_the_retired_hyphenated_verity_sem_path_still_resolves():
-    """The pre-Task-6 route must keep resolving to its historical slug.
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/ebeam/cd-sem/M14/unmapped-page",
+        "/ebeam/hv-sem/R3/unmapped-page",
+        "/ebeam/provision/M14/unmapped-page",
+        "/ebeam/veritysem/M14/unmapped-page",
+        # The pre-Task-6 spelling; the route 404s but a stale link still beacons.
+        "/ebeam/verity-sem/M14/unmapped-page",
+    ],
+)
+def test_unmapped_ebeam_pages_are_not_ranked(path):
+    """A tool family is never a feature, so there is no fallback slug for it.
 
-    /ebeam/verity-sem/... was renamed to /ebeam/veritysem/... in Task 6, but
-    rows already written under the "verity_sem" fallback slug must keep
-    resolving the same way — the slug vocabulary is append-only (see
-    feature_map.py module docstring).
+    The old fallback (tool segment → cdsem/hvsem/provision/veritysem) is how
+    "CD-SEM" kept reappearing in the ranking: every e-beam path with no page
+    rule landed there. An unmapped e-beam page is now unresolvable — the same
+    None as recipe-status without a tab — until it gets a _PAGE_RULES entry.
+    It must not be counted as 장비 상태 either, which would be a confident
+    wrong answer instead of no answer.
     """
-    assert page_to_feature("/ebeam/verity-sem/M14/unmapped-page") == "verity_sem"
+    assert page_to_feature(path) is None
 
 
 def test_a_multi_fab_segment_is_still_a_fab_segment():
@@ -279,17 +286,17 @@ def test_a_multi_fab_segment_is_still_a_fab_segment():
         == "recipe_tat"
     )
     # Not a fab list — a trailing comma or an unknown code must still fall
-    # through rather than being silently swallowed as a fab.
-    assert page_to_feature("/ebeam/cd-sem/m14,/storage") == "cdsem"
-    assert page_to_feature("/ebeam/cd-sem/m14,x9/storage") == "cdsem"
+    # through (unresolvable) rather than being silently swallowed as a fab
+    # and misfiled as the page that happens to follow it.
+    assert page_to_feature("/ebeam/cd-sem/m14,/storage") is None
+    assert page_to_feature("/ebeam/cd-sem/m14,x9/storage") is None
 
 
 def test_bare_ebeam_is_not_the_tool_inventory_page():
-    """/ebeam alone names no tool, so it is not the fab hub.
+    """/ebeam alone names no tool, so it is not the fab hub — nor anything.
 
     Not a real route — pinned because the tool_inventory rule keys on "nothing
     left after the fab", and a bare /ebeam also has nothing left. The frontend
-    returns its own /ebeam identity for this shape, so the two halves would
-    disagree if this drifted.
+    resolves it to null too, so the two halves would disagree if this drifted.
     """
-    assert page_to_feature("/ebeam") == "ebeam"
+    assert page_to_feature("/ebeam") is None

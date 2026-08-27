@@ -57,26 +57,18 @@ export const rankableFabRows = <T extends { fab: string }>(
 //   - `home` is retired: `/` stopped being ranked (page_to_feature returns
 //     None for it). Its label is needed only until the rows already written
 //     under it age out of the 30-day ranking window — after that it can go.
-//   - `cdsem`, `hvsem`, `provision`, `veritysem`, `thickness` are fallback
-//     slugs, not retired ones: any e-beam page with no explicit _PAGE_RULES
-//     entry still falls back to its tool segment (page_to_feature's bottom
-//     branch), and any non-ebeam page with no rule falls back to its first
-//     path segment. Both fallbacks are exercised today by real unmapped
-//     pages (e.g. /thickness) and are pinned by
-//     test_unknown_pages_fall_back_to_a_derived_slug. Their labels are
-//     PERMANENT — deleting them on a 30-day clock makes the ranking render
-//     `Cdsem` / `Veritysem` the next time an unmapped page is visited.
-//   - `verity_sem` is a THIRD case: Task 6 renamed the frontend route from
-//     /ebeam/verity-sem/... to /ebeam/veritysem/..., which shifted the
-//     fallback slug a live page produces from "verity_sem" to "veritysem"
-//     (see _TOOL_SEGMENT_SLUGS / the tool-fallback branch in
-//     feature_map.py). Unlike recipe-tat/fail-issue, there is no redirect
-//     stub for the old path — Task 6 was a plain `git mv`, and the old URL
-//     404s. `verity_sem` still shows up because the router's afterEach
-//     beacon fires on the raw path regardless of route match, so a
-//     bookmark or link nobody updated still logs a hit — so its label stays
-//     PERMANENT for the same reason as the two above, not because the page
-//     is current.
+//   - `cdsem`, `hvsem`, `provision`, `veritysem`, `verity_sem` are retired
+//     too, as of 2026-08-27: they were the tool-segment fallback for an
+//     e-beam page with no rule, and a tool family is not a feature — which
+//     is why "CD-SEM" kept showing up as someone's 가장 많이 쓴 기능. Both
+//     halves now resolve such a page to null/None (no beacon, not ranked),
+//     so nothing can write these slugs again. Like `home`, keep the labels
+//     until the office rows already written under them leave the 30-day
+//     window; then they can go.
+//   - `thickness` is a live fallback: a standalone page with no rule still
+//     falls back to its first path segment (pinned by
+//     test_unknown_standalone_pages_fall_back_to_a_derived_slug), so its
+//     label stays.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',

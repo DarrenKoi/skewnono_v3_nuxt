@@ -207,8 +207,8 @@
   {
     "path": "/ebeam/cd-sem/M14/unmapped-page",
     "query": {},
-    "slug": "cdsem",
-    "comment": "Unmapped e-beam page still falls back to its tool, NOT to tool_inventory"
+    "slug": null,
+    "comment": "Unmapped e-beam page is not ranked: no tool-family fallback (that is how CD-SEM got in), and NOT tool_inventory either"
   },
   {
     "path": "/afm",

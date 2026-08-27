@@ -211,25 +211,26 @@ test('a multi-fab recipe-status keeps the tab as its only distinction', () => {
 })
 
 test('a malformed fab list is not swallowed as a fab', () => {
-  // A trailing comma or an unknown code must fall through to the tool
-  // fallback rather than being stripped, which would misfile it as the page
-  // that happens to follow it.
-  const hub = resolvePageIdentity('/ebeam/cd-sem/M14', {})
-
-  assert.notEqual(resolvePageIdentity('/ebeam/cd-sem/m14,/storage', {}), hub)
-  assert.notEqual(
-    resolvePageIdentity('/ebeam/cd-sem/m14,x9/storage', {}),
-    resolvePageIdentity('/ebeam/cd-sem/M14/storage', {})
-  )
+  // A trailing comma or an unknown code must fall through (unresolved) rather
+  // than being stripped, which would misfile it as the page that happens to
+  // follow it.
+  assert.equal(resolvePageIdentity('/ebeam/cd-sem/m14,/storage', {}), null)
+  assert.equal(resolvePageIdentity('/ebeam/cd-sem/m14,x9/storage', {}), null)
 })
 
-test('an unmapped e-beam page falls back to its tool, not to the fab hub', () => {
-  // Otherwise a page nobody mapped would be counted as 장비 상태 — a confident
-  // wrong answer where the tool fallback gives a vague right one.
-  const unmapped = resolvePageIdentity('/ebeam/cd-sem/M14/unmapped-page', {})
-
-  assert.ok(unmapped)
-  assert.notEqual(unmapped, resolvePageIdentity('/ebeam/cd-sem/M14', {}))
+test('an unmapped e-beam page has no identity, so no beacon fires', () => {
+  // The old fallback grouped these by tool, which is how "CD-SEM" kept turning
+  // up in the ranking: a tool family is not a page. Nor may it be counted as
+  // 장비 상태 — a confident wrong answer instead of no answer.
+  for (const path of [
+    '/ebeam/cd-sem/M14/unmapped-page',
+    '/ebeam/hv-sem/R3/unmapped-page',
+    '/ebeam/provision/M14/unmapped-page',
+    '/ebeam/veritysem/M14/unmapped-page',
+    '/ebeam'
+  ]) {
+    assert.equal(resolvePageIdentity(path, {}), null, path)
+  }
 })
 
 test('a fabless page shape shares the fab shape identity', () => {

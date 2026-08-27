@@ -110,32 +110,26 @@ const firstValue = (raw: unknown): string | null => {
 interface Canonical {
   /** Path with fab (and, under /ebeam, the tool) removed. */
   path: string
-  /** For /ebeam routes, the tool landing page — the identity an unmapped
-   *  e-beam page falls back to, matching the backend's `parts[1]` fallback.
-   *  The four tool landings themselves now collapse into one identity
-   *  (TOOL_INVENTORY_PATH) — what `landing` keeps apart is the four
-   *  UNMAPPED-page fallbacks, one per tool, from colliding into each
-   *  other. */
-  landing: string | null
+  /** True for /ebeam routes. An unmapped e-beam page has no identity at all
+   *  (the backend returns None for it) — there is deliberately no tool-family
+   *  fallback, because "CD-SEM" is not a page and must never be ranked as one. */
+  ebeam: boolean
 }
 
 const canonicalize = (rawPath: string): Canonical => {
   const segments = rawPath.split('/').filter(Boolean)
 
   if (segments[0] === 'ebeam') {
-    const tool = segments[1]
-    if (!tool) return { path: '/ebeam', landing: '/ebeam' }
-    const landing = `/ebeam/${tool}`
+    // A bare /ebeam names no tool and is not a page.
+    if (!segments[1]) return { path: '/ebeam', ebeam: true }
     const rest = segments.slice(2).filter(segment => !FAB_SEGMENT.test(segment))
-    // /ebeam/<tool> and /ebeam/<tool>/<fab> are the same page. Returning
-    // `landing` here would make them share an identity with any UNMAPPED page
-    // of the same tool, which falls back to `landing` below — two different
-    // slugs, one identity. The synthetic path keeps them apart.
-    if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, landing }
-    return { path: '/' + rest.join('/'), landing }
+    // /ebeam/<tool> and /ebeam/<tool>/<fab> are the same page (the fab hub);
+    // the synthetic path is what all four tool families collapse onto.
+    if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, ebeam: true }
+    return { path: '/' + rest.join('/'), ebeam: true }
   }
 
-  return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), landing: null }
+  return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), ebeam: false }
 }
 
 const matchRule = (canonical: string): string | null => {
@@ -160,7 +154,7 @@ export const resolvePageIdentity = (
   if (!path) return null
   if (isOpsPath(path)) return null
 
-  const { path: canonical, landing } = canonicalize(path)
+  const { path: canonical, ebeam } = canonicalize(path)
 
   // The hub at / is a waypoint everyone passes through, not a ranked feature.
   // The backend returns None for it, so the beacon must not fire either — and
@@ -180,8 +174,11 @@ export const resolvePageIdentity = (
   const matched = matchRule(canonical)
   if (matched) return matched
 
-  // Unmapped e-beam page: group by tool, exactly as the backend does.
-  return landing ?? canonical
+  // Unmapped e-beam page: no identity, no beacon — exactly as the backend
+  // returns None. The old tool-segment fallback is how CD-SEM kept reappearing
+  // in the ranking. A page ranks once it has an IDENTITY_RULES entry (and a
+  // matching backend rule); a standalone page still falls back to its own path.
+  return ebeam ? null : canonical
 }
 
 export const buildPageViewPath = (

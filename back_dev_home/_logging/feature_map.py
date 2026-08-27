@@ -141,13 +141,6 @@ _STANDALONE_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("/afm",         "afm"),
 )
 
-# Frontend tool segment → the slug route_to_feature already emits for the same
-# tool (/api/cdsem/... → "cdsem"). One tool, one slug, in both vocabularies.
-_TOOL_SEGMENT_SLUGS = {
-    "cd-sem": "cdsem",
-    "hv-sem": "hvsem",
-}
-
 # Fab segments are [fab] route params. Same shape the frontend uses in
 # plugins/persist-fab.client.ts, so the two stay in agreement about what a fab
 # looks like.
@@ -226,13 +219,10 @@ def page_to_feature(path: str) -> str | None:
             rest = rest[1:]
         # Nothing left after the fab: /ebeam/<tool> and /ebeam/<tool>/<fab> are
         # both [fab]/index.vue, which renders EbeamToolInventoryView (장비 상태)
-        # for all four tool families. One page, so one slug — the tool-segment
-        # fallback at the bottom of this branch used to catch it and split it
-        # four ways, which is the whole reason CD-SEM appeared in the ranking.
+        # for all four tool families. One page, so one slug.
         #
         # `len(parts) >= 2` because a bare /ebeam names no tool and is not that
-        # page; it keeps the fallback, which the frontend matches with its own
-        # /ebeam early return.
+        # page; it falls through to None below, as the frontend does.
         if len(parts) >= 2 and not rest:
             return "tool_inventory"
         if rest and rest[0] == "recipe-status":
@@ -244,13 +234,14 @@ def page_to_feature(path: str) -> str | None:
         for prefix, slug in _PAGE_RULES:
             if joined == prefix or joined.startswith(prefix + "/"):
                 return slug
-        # Unmapped ebeam page: group by tool, matching route_to_feature's
-        # fallback, which yields cdsem/hvsem for unmapped API paths. The tool
-        # segment is spelled with a hyphen in the frontend route and without
-        # one in the API path, so it is translated rather than underscored —
-        # writing cd_sem here would be a SECOND spelling of a slug that has
-        # already been written, and this module forbids that (see header).
-        tool = parts[1] if len(parts) >= 2 else "ebeam"
-        return _TOOL_SEGMENT_SLUGS.get(tool, tool.replace("-", "_"))
+        # Unmapped ebeam page: NOT ranked. This used to fall back to the tool
+        # segment (cdsem/hvsem/…), and every path that reached it put "CD-SEM"
+        # in a ranking that is supposed to answer "which page is popular", not
+        # "which tool family" — three separate fixes (live-alarm, the fab hub,
+        # multi-fab segments) each closed one such path. A tool family is
+        # never a feature, so there is no fallback to fall back to: a new
+        # e-beam page ranks once it has a _PAGE_RULES entry, and until then it
+        # is treated like recipe-status without a tab — not yet resolvable.
+        return None
 
     return parts[0].replace("-", "_") if parts else None
