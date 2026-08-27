@@ -69,9 +69,9 @@ flatten them by accident:
   tool red and says PM/BM, so move these knowing what you are asserting.
 - **Every tool measures every day here; the office does not.** A fab runs a
   recipe on each tool on DIFFERENT days (office 확인 2026-08-27), so the
-  office adapter reads `fleet_today` as each tool's own latest day rather
-  than one fab-wide day — a fab-wide day kept one tool and emptied the
-  grouping. This mock's dates never stagger, so that path only shows at the
+  office adapter reads `fleet_today` — and each day of `trend` — as the fleet
+  AS OF that day, each tool at its own latest run, rather than one day's rows;
+  one day's rows held one tool and emptied the grouping and the trend. This mock's dates never stagger, so that path only shows at the
   office; `tests/test_office_tttm_pm_planning.py` staggers the doubles.
 - **A fab with fewer than two tools answers `available: false`.** One tool is
   not a comparison, and the frontend's picker refuses to drop below two

@@ -1209,3 +1209,27 @@ def test_fleet_today_reads_each_tool_at_its_own_latest_day(sources):
     index = {eqp_id: i for i, eqp_id in enumerate(today["matrix"]["tools"])}
     assert today["matrix"]["values"][index["ECXDX001"]][index["ECXDX002"]] == pytest.approx(0.10)
     assert today["matrix"]["values"][index["ECXDX001"]][index["ECXDX003"]] == pytest.approx(0.20)
+
+
+def test_trend_reads_each_day_as_the_fleet_as_of_that_day(sources):
+    """Same staggered fleet as above: one tool per day, no shared day.
+
+    Per-day centring found no contrast on any day and the trend was empty. A
+    day's point is the fleet as of that day — each tool at its latest run on
+    or before it — so a tool's reading enters the trend the day it lands.
+    """
+    sources["runs"] = tuple(
+        run._replace(at=ANCHOR - timedelta(days=back), msr=f"{run.msr}_{back}")
+        for back, eqp_id in enumerate(TOOLS)
+        for run in _runs((eqp_id,), ("ADI/R1",), days=1)
+    )
+    trend = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)["trend"]
+    by_day = {}
+    for point in trend:
+        by_day.setdefault(point["date"], {})[point["eqp_id"]] = point["skew"]
+
+    # Day -2: C alone, no contrast. Day -1: B joins -> B/C readable. Day 0: all.
+    assert set(by_day) == {f"{ANCHOR - timedelta(days=back):%Y-%m-%d}" for back in (0, 1)}
+    assert set(by_day[f"{ANCHOR:%Y-%m-%d}"]) == set(TOOLS)
+    last = by_day[f"{ANCHOR:%Y-%m-%d}"]
+    assert last["ECXDX002"] - last["ECXDX003"] == pytest.approx(0.30)

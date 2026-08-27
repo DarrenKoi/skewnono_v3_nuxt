@@ -601,6 +601,23 @@ def _cells(
     return cells
 
 
+def _as_of(observations: list[_Observation], day: date | None) -> list[_Observation]:
+    """The fleet as of ``day``: each tool at its latest measurement day on or
+    before it. Empty when there is no day.
+
+    Shared by ``fleet_today`` (the last day) and ``trend`` (every measurement
+    day), so the two cannot disagree about what a day's fleet reading is.
+    """
+    if day is None:
+        return []
+    latest: dict[str, date] = {}
+    for row in observations:
+        seen = row.at.date()
+        if seen <= day and seen > latest.get(row.eqp_id, date.min):
+            latest[row.eqp_id] = seen
+    return [row for row in observations if row.at.date() == latest.get(row.eqp_id)]
+
+
 def _fleet_today(observations: list[_Observation], roster: list[str]) -> dict[str, Any]:
     """Each tool at its most recent data day: pairwise matrix, deviations, CD.
 
@@ -611,12 +628,7 @@ def _fleet_today(observations: list[_Observation], roster: list[str]) -> dict[st
     contrast on its own: every tool read "측정 없음" and the grouping was empty.
     A fleet that does measure daily gets exactly the old answer.
     """
-    latest_by_tool: dict[str, date] = {}
-    for row in observations:
-        day = row.at.date()
-        if day > latest_by_tool.get(row.eqp_id, date.min):
-            latest_by_tool[row.eqp_id] = day
-    rows = [row for row in observations if row.at.date() == latest_by_tool[row.eqp_id]]
+    rows = _as_of(observations, max((row.at.date() for row in observations), default=None))
     if not rows:
         return {
             "matrix": SkewMatrixBlock(tools=[], values=[]),
@@ -682,9 +694,12 @@ def _trend(
 ) -> list[TrendPoint]:
     """Per (tool, day) offset over the requested window.
 
-    Each day is centred on its OWN recipe set rather than on the window's, so a
-    day when the fleet happened to run a different recipe mix does not read as a
-    fleet-wide step. A day with no contrast simply produces no points.
+    A day's reading is the fleet AS OF that day (``_as_of``) — each tool at its
+    latest run on or before it — not only the rows of that day: tools measure
+    on different days (office 확인 2026-08-27), so per-day centring found no
+    contrast on any day and the trend was empty. Every tool with a reading gets
+    a point on every measurement day, so the series moves the day new data
+    lands and holds otherwise. A day with no contrast produces no points.
 
     The span is the gathering window itself: the observations already come from
     runs inside it, so a separate trend cut-off (there was a fixed 30-day one)
@@ -697,8 +712,11 @@ def _trend(
             by_day[row.at.date()].append(row)
 
     points: list[TrendPoint] = []
+    # ponytail: O(days x rows) re-scan per day; index rows by tool if a
+    # window ever holds more than a few thousand observations.
+    cut = [row for rows in by_day.values() for row in rows]
     for day in sorted(by_day):
-        offsets = _estimate(by_day[day])
+        offsets = _estimate(_as_of(cut, day))
         for eqp_id, offset in sorted(offsets.offset.items()):
             points.append(
                 TrendPoint(eqp_id=eqp_id, date=day.isoformat(), skew=round(offset, 3))
