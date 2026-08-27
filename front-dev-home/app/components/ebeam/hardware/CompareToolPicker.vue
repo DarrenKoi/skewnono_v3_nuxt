@@ -67,9 +67,15 @@
         @update:model-value="emit('update:modelValue', $event)"
       >
         <!-- The multi-select default would print every picked id into a 11rem
-             trigger; the tokens beside it already carry that list. -->
+             trigger; the tokens beside it already carry that list. Overriding
+             the slot drops the theme's own `data-slot="placeholder"` styling,
+             so the empty state has to restate the muted colour by hand —
+             without it an empty picker reads as a filled value (DESIGN.md:
+             "values are ink, labels are muted"). -->
         <template #default>
-          <span class="truncate">{{ modelValue.length ? '장비 추가 · 변경' : '비교할 장비 선택' }}</span>
+          <span :class="modelValue.length ? 'truncate' : 'truncate text-(--sk-ink-subtle)'">
+            {{ modelValue.length ? '장비 추가 · 변경' : '비교할 장비 선택' }}
+          </span>
         </template>
 
         <!-- Leading checkbox sits right before the tool name (no far-right gap);
