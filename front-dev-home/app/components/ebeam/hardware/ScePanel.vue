@@ -217,6 +217,7 @@
           v-model="compareIds"
           :sibling-ids="siblingIds"
           :selected-eqp="selectedEqp"
+          :compare-colors="compareColors"
         />
 
         <!-- Settings compare table: selected vs picked tools, diffs flagged -->
@@ -273,7 +274,7 @@
             v-if="compareIds.length === 0"
             class="border-t border-(--sk-border-soft) px-3 py-3 text-center sk-body"
           >
-            위 드롭박스에서 비교할 장비를 선택하면 열이 추가됩니다.
+            위에서 비교할 장비를 선택하면 열이 추가됩니다.
           </p>
         </div>
 

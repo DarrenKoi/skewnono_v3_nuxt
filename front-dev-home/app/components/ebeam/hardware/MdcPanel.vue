@@ -5,6 +5,7 @@
       v-model="compareIds"
       :sibling-ids="siblingIds"
       :selected-eqp="selectedEqp"
+      :compare-colors="compareColors"
     />
 
     <!-- 시계열 | 비교 sub-tabs (same pattern as the FDC fdc_key tabs) -->
