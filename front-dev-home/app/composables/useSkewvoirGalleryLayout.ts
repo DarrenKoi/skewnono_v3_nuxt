@@ -6,10 +6,7 @@ export type GalleryLayout = 'lattice' | 'list'
 export const useSkewvoirGalleryLayout = () =>
   usePersistedState<GalleryLayout>('skewvoir:gallery-layout', 'skewnono:skewvoir.galleryLayout', {
     default: () => 'lattice',
-    normalize: parsed => parsed === 'list' ? 'list' : 'lattice',
-    isEmpty: () => false,
-    serialize: value => value,
-    deserialize: raw => raw
+    normalize: parsed => parsed === 'list' ? 'list' : 'lattice'
   })
 
 // Thumbnail edge in px. One knob for both layouts: the original-size view is
@@ -19,10 +16,5 @@ export const GALLERY_CELL_MAX = 240
 export const useSkewvoirGalleryCell = () =>
   usePersistedState<number>('skewvoir:gallery-cell', 'skewnono:skewvoir.galleryCell', {
     default: () => 128,
-    normalize: (parsed) => {
-      const n = Number(parsed)
-      if (!Number.isFinite(n)) throw new Error('not a number')
-      return Math.min(GALLERY_CELL_MAX, Math.max(GALLERY_CELL_MIN, n))
-    },
-    isEmpty: () => false
+    normalize: parsed => Math.min(GALLERY_CELL_MAX, Math.max(GALLERY_CELL_MIN, Number(parsed) || 128))
   })

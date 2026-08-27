@@ -5,47 +5,33 @@
     title="SEM Gallery"
     :meta="frameMeta"
     icon="i-lucide-images"
+    :toggles="LAYOUT_TOGGLES"
+    :model-value="LAYOUT_LABEL[layout]"
+    @update:model-value="layout = $event === LAYOUT_LABEL.list ? 'list' : 'lattice'"
   >
     <template #actions>
-      <div class="flex items-center gap-2">
-        <!-- Thumbnail size — native range; the original-size view is the viewer. -->
-        <label
-          class="flex items-center gap-1.5 sk-meta"
-          title="썸네일 크기"
+      <!-- Thumbnail size — native range; the original-size view is the viewer.
+           The grid follows the drag live; the persisted value is written on
+           `change` only, so a drag is not one localStorage write per pixel. -->
+      <label
+        class="flex items-center gap-1.5 sk-meta"
+        title="썸네일 크기"
+      >
+        <UIcon
+          name="i-lucide-image"
+          class="h-3.5 w-3.5"
+        />
+        <input
+          v-model.number="cellDraft"
+          type="range"
+          :min="GALLERY_CELL_MIN"
+          :max="GALLERY_CELL_MAX"
+          step="8"
+          class="w-24 accent-(--sk-ink)"
+          aria-label="썸네일 크기"
+          @change="cell = cellDraft"
         >
-          <UIcon
-            name="i-lucide-image"
-            class="h-3.5 w-3.5"
-          />
-          <input
-            v-model.number="cell"
-            type="range"
-            :min="GALLERY_CELL_MIN"
-            :max="GALLERY_CELL_MAX"
-            step="8"
-            class="w-24 accent-(--sk-ink)"
-            aria-label="썸네일 크기"
-          >
-        </label>
-        <div class="flex items-center gap-1">
-          <SkNavPill
-            size="sm"
-            icon="i-lucide-grid-3x3"
-            label="격자"
-            :active="layout === 'lattice'"
-            title="칩(field) 위치대로 배치"
-            @click="layout = 'lattice'"
-          />
-          <SkNavPill
-            size="sm"
-            icon="i-lucide-layout-grid"
-            label="목록"
-            :active="layout === 'list'"
-            title="검토 우선순위 순서"
-            @click="layout = 'list'"
-          />
-        </div>
-      </div>
+      </label>
     </template>
 
     <!-- Loading -->
@@ -77,20 +63,20 @@
       <EbeamSkewvoirGalleryImageGrid
         v-if="filteredEntries.length"
         :items="filteredEntries"
-        :axis-chips="queueChips"
+        :lattice="queueLattice"
         :layout="layout"
-        :cell="cell"
+        :cell="cellDraft"
       >
-        <template #cell="{ indexes }">
+        <template #cell="{ items: cellEntries }">
           <EbeamSkewvoirGalleryEvidenceCard
-            v-for="i in indexes"
-            :key="`${filteredEntries[i]!.chip}#${filteredEntries[i]!.sequence}`"
-            :entry="filteredEntries[i]!"
-            :src="entryImageUrl(filteredEntries[i]!, { preview: true })"
-            :original-src="entryImageUrl(filteredEntries[i]!)"
-            :focused="filteredEntries[i]!.chip === analysis.focusedSite.value"
-            @open="openViewer(filteredEntries[i]!)"
-            @focus="focusSite(filteredEntries[i]!)"
+            v-for="entry in cellEntries"
+            :key="`${entry.chip}#${entry.sequence}`"
+            :entry="entry"
+            :src="entryImageUrl(entry, { preview: true })"
+            :original-src="entryImageUrl(entry)"
+            :focused="entry.chip === analysis.focusedSite.value"
+            @open="openViewer(entry)"
+            @focus="focusSite(entry)"
           />
         </template>
       </EbeamSkewvoirGalleryImageGrid>
@@ -106,12 +92,13 @@
     <EbeamSkewvoirGalleryImageGrid
       v-else-if="images.length"
       :items="images"
+      :lattice="imagesLattice"
       :layout="layout"
-      :cell="cell"
+      :cell="cellDraft"
     >
-      <template #cell="{ indexes }">
+      <template #cell="{ items: cellImages }">
         <figure
-          v-for="img in indexes.map(i => images[i]!)"
+          v-for="img in cellImages"
           :key="img.name"
           class="overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
         >
@@ -182,7 +169,8 @@ import { isTiffName } from '~/utils/imageKind'
 import { paramImageRows, rowImageNames } from '~/utils/msrRows'
 import { buildReviewQueue, resolveEvidenceOnly, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 import type { ImagePreviewOptions } from '~/utils/imageKind'
-import { GALLERY_CELL_MIN, GALLERY_CELL_MAX } from '~/composables/useSkewvoirGalleryLayout'
+import { GALLERY_CELL_MIN, GALLERY_CELL_MAX, type GalleryLayout } from '~/composables/useSkewvoirGalleryLayout'
+import { buildChipLattice } from '~/utils/skewvoirAnalysis/chipLattice'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -195,8 +183,12 @@ const { imageUrl } = useMsrImageApi()
 const focusCtx = useFocusImageCtx(props.analysis)
 
 // 격자/목록 + thumbnail size, shared by both scopes and remembered across views.
+// PanelFrame's segmented toggle speaks labels, so map both ways.
 const layout = useSkewvoirGalleryLayout()
+const LAYOUT_LABEL: Record<GalleryLayout, string> = { lattice: '격자', list: '목록' }
+const LAYOUT_TOGGLES = [LAYOUT_LABEL.lattice, LAYOUT_LABEL.list]
 const cell = useSkewvoirGalleryCell()
+const cellDraft = ref(cell.value)
 
 // Scope for the viewer's remembered sub-image pick. Resolved here because the
 // viewer takes review entries, which carry a parameter but not the recipe.
@@ -274,8 +266,8 @@ const filteredEntries = computed<ReviewEntry[]>(() => {
   })
 })
 
-// Lattice axes from the UNFILTERED queue — see ImageGrid `axisChips`.
-const queueChips = computed(() => queue.value.entries.map(e => e.chip))
+// Lattice axes from the UNFILTERED queue — see ImageGrid `lattice`.
+const queueLattice = computed(() => buildChipLattice(queue.value.entries.map(e => e.chip)))
 
 const filterCounts = computed(() => ({
   total: queue.value.counts.total,
@@ -329,4 +321,5 @@ const images = computed(() =>
   paramImageRows(props.analysis.siteRows.value, props.analysis.activeParam.value)
     .flatMap(r => rowImageNames(r).map(name => ({ name, chip: r.chip_number, cd: r.cd_value })))
 )
+const imagesLattice = computed(() => buildChipLattice(images.value.map(i => i.chip)))
 </script>

@@ -18,31 +18,30 @@ export interface LatticeCell {
 }
 
 export interface ChipLattice {
-  cols: number
-  rows: number
   colLabels: number[] // chip col index per grid column, left → right
   rowLabels: number[] // chip row index per grid row, top → bottom
   cells: Map<string, LatticeCell> // by chip string, placeable chips only
 }
 
-const EMPTY: ChipLattice = { cols: 0, rows: 0, colLabels: [], rowLabels: [], cells: new Map() }
-
-/** Bounding-box lattice of the given chips. Chips that do not parse as
- * "col,row" are left out of `cells` — the caller lists them separately rather
- * than piling them onto a guessed die. */
+/** Compacted lattice of the given chips. Chips that do not parse as "col,row"
+ * are left out of `cells` — the caller lists them separately rather than
+ * piling them onto a guessed die. */
 export const buildChipLattice = (chips: Iterable<string>): ChipLattice => {
   const parsed = new Map<string, [number, number]>()
+  const colSet = new Set<number>()
+  const rowSet = new Set<number>()
   for (const chip of chips) {
-    if (parsed.has(chip)) continue
     const xy = parseChipXY(chip)
-    if (xy) parsed.set(chip, xy)
+    if (!xy) continue
+    parsed.set(chip, xy)
+    colSet.add(xy[0])
+    rowSet.add(xy[1])
   }
-  if (parsed.size === 0) return EMPTY
-  const colLabels = [...new Set([...parsed.values()].map(p => p[0]))].sort((a, b) => a - b)
-  const rowLabels = [...new Set([...parsed.values()].map(p => p[1]))].sort((a, b) => b - a)
+  const colLabels = [...colSet].sort((a, b) => a - b)
+  const rowLabels = [...rowSet].sort((a, b) => b - a)
   const colAt = new Map(colLabels.map((c, i) => [c, i + 1]))
   const rowAt = new Map(rowLabels.map((r, i) => [r, i + 1]))
   const cells = new Map<string, LatticeCell>()
   for (const [chip, [x, y]] of parsed) cells.set(chip, { col: colAt.get(x)!, row: rowAt.get(y)! })
-  return { cols: colLabels.length, rows: rowLabels.length, colLabels, rowLabels, cells }
+  return { colLabels, rowLabels, cells }
 }
