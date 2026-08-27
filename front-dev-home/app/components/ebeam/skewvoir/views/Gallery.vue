@@ -6,6 +6,48 @@
     :meta="frameMeta"
     icon="i-lucide-images"
   >
+    <template #actions>
+      <div class="flex items-center gap-2">
+        <!-- Thumbnail size — native range; the original-size view is the viewer. -->
+        <label
+          class="flex items-center gap-1.5 sk-meta"
+          title="썸네일 크기"
+        >
+          <UIcon
+            name="i-lucide-image"
+            class="h-3.5 w-3.5"
+          />
+          <input
+            v-model.number="cell"
+            type="range"
+            :min="GALLERY_CELL_MIN"
+            :max="GALLERY_CELL_MAX"
+            step="8"
+            class="w-24 accent-(--sk-ink)"
+            aria-label="썸네일 크기"
+          >
+        </label>
+        <div class="flex items-center gap-1">
+          <SkNavPill
+            size="sm"
+            icon="i-lucide-grid-3x3"
+            label="격자"
+            :active="layout === 'lattice'"
+            title="칩(field) 위치대로 배치"
+            @click="layout = 'lattice'"
+          />
+          <SkNavPill
+            size="sm"
+            icon="i-lucide-layout-grid"
+            label="목록"
+            :active="layout === 'list'"
+            title="검토 우선순위 순서"
+            @click="layout = 'list'"
+          />
+        </div>
+      </div>
+    </template>
+
     <!-- Loading -->
     <AppLoadingState
       v-if="analysis.focusPending.value"
@@ -32,21 +74,26 @@
         {{ queue.readiness.reason }}
       </p>
 
-      <div
+      <EbeamSkewvoirGalleryImageGrid
         v-if="filteredEntries.length"
-        class="grid min-h-0 flex-1 auto-rows-max grid-cols-2 content-start gap-2 overflow-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        :items="filteredEntries"
+        :axis-chips="queueChips"
+        :layout="layout"
+        :cell="cell"
       >
-        <EbeamSkewvoirGalleryEvidenceCard
-          v-for="entry in filteredEntries"
-          :key="`${entry.chip}#${entry.sequence}`"
-          :entry="entry"
-          :src="entryImageUrl(entry, { preview: true })"
-          :original-src="entryImageUrl(entry)"
-          :focused="entry.chip === analysis.focusedSite.value"
-          @open="openViewer(entry)"
-          @focus="focusSite(entry)"
-        />
-      </div>
+        <template #cell="{ indexes }">
+          <EbeamSkewvoirGalleryEvidenceCard
+            v-for="i in indexes"
+            :key="`${filteredEntries[i]!.chip}#${filteredEntries[i]!.sequence}`"
+            :entry="filteredEntries[i]!"
+            :src="entryImageUrl(filteredEntries[i]!, { preview: true })"
+            :original-src="entryImageUrl(filteredEntries[i]!)"
+            :focused="filteredEntries[i]!.chip === analysis.focusedSite.value"
+            @open="openViewer(filteredEntries[i]!)"
+            @focus="focusSite(filteredEntries[i]!)"
+          />
+        </template>
+      </EbeamSkewvoirGalleryImageGrid>
       <div
         v-else
         class="flex h-72 items-center justify-center sk-body"
@@ -56,45 +103,49 @@
     </div>
 
     <!-- ── SET scope: existing focus-only filename grid (Task 12 replaces) ──── -->
-    <div
+    <EbeamSkewvoirGalleryImageGrid
       v-else-if="images.length"
-      class="grid min-h-0 flex-1 auto-rows-max grid-cols-3 content-start gap-2 overflow-auto sm:grid-cols-4 xl:grid-cols-6"
+      :items="images"
+      :layout="layout"
+      :cell="cell"
     >
-      <figure
-        v-for="img in images"
-        :key="img.name"
-        class="overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
-      >
-        <!-- TIFFs render through the server-side WebP preview; clicking the
+      <template #cell="{ indexes }">
+        <figure
+          v-for="img in indexes.map(i => images[i]!)"
+          :key="img.name"
+          class="overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
+        >
+          <!-- TIFFs render through the server-side WebP preview; clicking the
              tile downloads the untouched original (the TIFF corner tag is the
              cue that a click means download). -->
-        <a
-          v-if="isTiffName(img.name)"
-          :href="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name) : undefined"
-          :download="img.name"
-          class="relative block"
-          :title="`${img.name} — TIFF 원본 다운로드`"
-        >
+          <a
+            v-if="isTiffName(img.name)"
+            :href="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name) : undefined"
+            :download="img.name"
+            class="relative block"
+            :title="`${img.name} — TIFF 원본 다운로드`"
+          >
+            <img
+              :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name, { preview: true }) : undefined"
+              :alt="img.name"
+              class="aspect-square w-full object-cover"
+              loading="lazy"
+            >
+            <span class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm">TIFF</span>
+          </a>
           <img
+            v-else
             :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name, { preview: true }) : undefined"
             :alt="img.name"
             class="aspect-square w-full object-cover"
             loading="lazy"
           >
-          <span class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm">TIFF</span>
-        </a>
-        <img
-          v-else
-          :src="focusCtx.eqp_ip ? imageUrl(focusCtx.eqp_ip, focusCtx.class_name, focusCtx.msr, img.name, { preview: true }) : undefined"
-          :alt="img.name"
-          class="aspect-square w-full object-cover"
-          loading="lazy"
-        >
-        <figcaption class="truncate px-1.5 py-1 sk-meta">
-          {{ img.chip }} · {{ img.cd.toFixed(2) }}
-        </figcaption>
-      </figure>
-    </div>
+          <figcaption class="truncate px-1.5 py-1 sk-meta">
+            {{ img.chip }} · {{ img.cd.toFixed(2) }}
+          </figcaption>
+        </figure>
+      </template>
+    </EbeamSkewvoirGalleryImageGrid>
     <div
       v-else
       class="flex h-96 items-center justify-center sk-body"
@@ -131,6 +182,7 @@ import { isTiffName } from '~/utils/imageKind'
 import { paramImageRows, rowImageNames } from '~/utils/msrRows'
 import { buildReviewQueue, resolveEvidenceOnly, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 import type { ImagePreviewOptions } from '~/utils/imageKind'
+import { GALLERY_CELL_MIN, GALLERY_CELL_MAX } from '~/composables/useSkewvoirGalleryLayout'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -141,6 +193,10 @@ const { imageUrl } = useMsrImageApi()
 // Empty strings (never undefined) when the focus row hasn't resolved yet —
 // callers gate on `focusCtx.eqp_ip` before building a URL/job.
 const focusCtx = useFocusImageCtx(props.analysis)
+
+// 격자/목록 + thumbnail size, shared by both scopes and remembered across views.
+const layout = useSkewvoirGalleryLayout()
+const cell = useSkewvoirGalleryCell()
 
 // Scope for the viewer's remembered sub-image pick. Resolved here because the
 // viewer takes review entries, which carry a parameter but not the recipe.
@@ -217,6 +273,9 @@ const filteredEntries = computed<ReviewEntry[]>(() => {
     return true
   })
 })
+
+// Lattice axes from the UNFILTERED queue — see ImageGrid `axisChips`.
+const queueChips = computed(() => queue.value.entries.map(e => e.chip))
 
 const filterCounts = computed(() => ({
   total: queue.value.counts.total,
