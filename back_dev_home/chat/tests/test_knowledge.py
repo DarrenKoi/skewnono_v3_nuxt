@@ -2,7 +2,7 @@
 
 import pytest
 
-from back_dev_home.chat import routes
+from back_dev_home.chat import figures
 from back_dev_home.chat.knowledge import data
 from back_dev_home.chat.knowledge.contracts import KnowledgeUnavailable
 
@@ -19,7 +19,27 @@ def test_manual_search_returns_page_provenance(monkeypatch):
 
     assert rows[0]["source_type"] == "manual"
     assert rows[0]["page"] == 12
-    assert rows[0]["revision"] == "R2"
+    assert rows[0]["section"] == "Alarm recovery"
+
+
+def test_manual_rows_carry_only_what_the_office_index_returns(monkeypatch):
+    """Catches the mock re-growing fields the office manual search never emits.
+
+    The office ``search_manuals()`` returns source_id/title/snippet/section/
+    page/figure_id/score (office 확인 2026-08-27) — no revision (manuals are
+    not revised), no occurred_at, no region, no locator. A mock that fills
+    them teaches the SPA a label format the office can never produce.
+    """
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")
+
+    rows = data.search_manuals("alarm reset", {}, METROLOGY_USER, 5)
+
+    assert rows
+    for row in rows:
+        assert row["revision"] is None
+        assert row["occurred_at"] is None
+        assert row["region"] is None
+        assert row["locator"] is None
 
 
 @pytest.mark.parametrize(
@@ -94,7 +114,7 @@ def test_mock_figure_ids_are_servable_by_the_figure_route(monkeypatch):
     assert figure_ids
     for figure_id in figure_ids:
         assert "." in figure_id, figure_id
-        assert routes._FIGURE_ID.match(figure_id), figure_id
+        assert figures.is_valid_figure_id(figure_id), figure_id
 
 
 def test_text_evidence_reports_no_figure(monkeypatch):

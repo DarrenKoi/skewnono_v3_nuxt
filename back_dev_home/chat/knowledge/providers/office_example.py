@@ -41,13 +41,29 @@ Normalized raw hit — one mapping per result, keys:
 | ``figure_id``   | str or None   | opaque figure token — None for text/table evidence |
 | ``score``       | float or None | ranking diagnostic                    |
 
+Optional keys may be ABSENT rather than ``None`` — ``_to_evidence()`` reads
+them with ``.get`` — and unknown keys are ignored. That matters for manuals:
+the office RAG's ``src/retrieve/serve.py:search_manuals()`` returns exactly
+``source_id, title, snippet, section, page, figure_id, score, element_type``
+per hit (office 확인 2026-08-27). ``_execute()`` can pass those rows through
+as they are: revision/occurred_at/region/locator map to ``None`` (manuals
+carry no revision — user-confirmed 2026-08-06), and ``element_type`` is
+dropped at the seam. It is an index-internal label (see
+``docs/datatables/hitachi/chat_rag_contract.txt``), not an Evidence field;
+``figure_id`` — null for text/table chunks, set for figure chunks — is the
+signal that crosses. The filesystem ``image_path`` never crosses; only the
+id does.
+
 ``figure_id`` identifies the figure a chunk was extracted from. It is the one
 key whose value the application later turns into storage access, so it is an
 OPAQUE TOKEN, not a key: emit the bare id, never a bucket, prefix, path
-separator or ``.webp`` suffix. The serving side owns the whole key template
-(``{prefix}{figure_id}.webp``) and rejects any id outside
-``^[A-Za-z0-9_-]{1,128}$`` before it reaches storage, so an id carrying a path
-is a hit that will simply never render. Text and table chunks emit ``None``.
+separator or ``.webp`` suffix. The serving side (``chat/figures.py``) owns the
+whole key template — at the office
+``{client prefix}/hitachi_sem/manual_figures/{figure_id}.webp`` (office 확인
+2026-08-27) — and rejects any id outside ``^[A-Za-z0-9._-]{1,128}$`` (dots
+admitted because real doc_ids carry them: ``CG6300_1.HHTSEM_SYSTEM_p100_i0``)
+before it reaches storage, so an id carrying a path is a hit that will simply
+never render. Text and table chunks emit ``None``.
 
 ``source_type`` is stamped by this adapter from the called function, never
 read from the hit. Malformed hits raise ``KnowledgeUnavailable`` (index/schema

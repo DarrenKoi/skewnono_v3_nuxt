@@ -37,6 +37,25 @@ OFFICE-VERIFY 이며 이 문서에 적지 않습니다 — credential 과 사내
 | figure_id | 그림 chunk 의 불투명(opaque) 토큰. text/table chunk 는 None. |
 | score | ranking 진단값, 없으면 None |
 
+사무실 manual 검색이 실제로 돌려주는 필드 (office 확인 2026-08-27)
+- 사내 RAG 의 `src/retrieve/serve.py:search_manuals()` 는 hit 마다 정확히
+  다음 8개를 돌려줍니다: `source_id`, `title`, `snippet`, `section`, `page`,
+  `figure_id`, `score`, `element_type`.
+  - `figure_id` 는 text/table chunk 에서 null, figure chunk 에서만 값이
+    있습니다.
+  - 파일시스템의 `image_path` 는 절대 돌려주지 않습니다 — seam 을 넘는 것은
+    `figure_id` 뿐입니다.
+- 따라서 Evidence 의 `revision`, `occurred_at`, `region`, `locator` 는
+  manual 에서 모두 None 입니다. 어댑터 `_to_evidence()` 는 optional 키를
+  `.get` 으로 읽으므로 키가 아예 없어도 None 으로 매핑되고, office.py 가
+  채워 넣을 필요가 없습니다. (매뉴얼은 개정되지 않으므로 revision 이 없는
+  것은 예상과 일치합니다 — user-confirmed 2026-08-06.)
+  - OFFICE-VERIFY: office.py 가 `source_id`/`page` 로 `locator`
+    (`manual:<doc_id>#page=<page>`) 를 파생할지는 미정입니다. 확정 전까지
+    mock 의 manual fixture 는 raw hit 과 같이 None 을 냅니다.
+- `element_type` 은 raw hit 에는 실려 오지만 Evidence 로 내보내지 않고
+  어댑터에서 버립니다 — 아래 "`element_type`" 절 참고.
+
 figure_id — 저장소 키가 아니라 토큰입니다
 - figure_id 는 그림을 식별하는 불투명 문자열입니다. bucket, prefix, 경로
   구분자, .webp 확장자를 **포함하지 않습니다**. 인덱스는 맨 id 만 내보냅니다.
@@ -46,7 +65,8 @@ figure_id — 저장소 키가 아니라 토큰입니다
     모델과 문서 이름이 점으로 이어집니다.
   - page 는 1-based page 번호이고, idx 는 그 page 안에서 추출된 그림의
     0-based 순번입니다. 한 page 에 그림이 여러 개면 i0, i1 … 로 늘어납니다.
-- 키 조립은 전적으로 서버가 합니다: `{prefix}{figure_id}.webp`.
+- 키 조립은 전적으로 서버가 합니다(back_dev_home/chat/figures.py):
+  `{client prefix}/hitachi_sem/manual_figures/{figure_id}.webp`.
 - 서버는 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 로 id 를 검증하고,
   추가로 `..` 를 포함한 id 를 거부합니다.
   따라서 경로가 섞인 id 를 내보내는 hit 은 오류가 아니라 그냥 렌더되지 않는
@@ -56,31 +76,53 @@ figure_id — 저장소 키가 아니라 토큰입니다
     id 에는 점이 없었으므로 집에서는 전부 통과하고 사무실에서만 모든 그림이
     404 나는 형태였습니다 — 조용히 렌더만 안 되므로 오류로 드러나지 않습니다.
   - 점을 허용하면 `..` 가 charset 만으로는 걸러지지 않으므로 이름으로 따로
-    거부합니다. slash 는 charset 과 Flask routing 양쪽에서 막히고, 조립된
-    경로가 figures 디렉터리 안인지 다시 확인합니다(3중).
+    거부합니다. 앞머리 점(`.`, `.foo`)도 거부합니다 — 맨 `.` 하나가 charset
+    을 통과해 MinIO 경로에서는 `.../..webp` 키로 저장소까지 갔습니다
+    (2026-08-27, 디스크 경로는 containment 검사로만 살아남던 것). slash 는
+    charset 과 Flask routing 양쪽에서 막히고, 디스크 경로는 조립된 경로가
+    figures 디렉터리 안인지 다시 확인합니다.
 - 이 규칙이 locator 와 다른 이유: locator 는 사람이 읽는 참조라 절대
   저장소 경로가 되면 안 되고, figure_id 는 반대로 애플리케이션이 저장소
   접근으로 바꾸는 유일한 값이라 형식을 좁게 고정해야 합니다.
 
-figure 제공 (Phase 1 구현 완료 2026-08-19, Phase 2 는 설계만)
-- `GET /api/chat/figures/<figure_id>` 는 **구현되어 있습니다**. 구현 본은
+figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
+- `GET /api/chat/figures/<figure_id>` 는 **구현되어 있습니다**. route 는
+  back_dev_home/chat/routes.py 의 chat_figure, 저장소 접근은
+  back_dev_home/chat/figures.py 의 read_figure() 한 곳입니다. 응답 형태는
   back_dev_home/msr_image/routes.py 의 serve_image_route 를 따릅니다 —
   Response(bytes, mimetype="image/webp") + Cache-Control.
-- Phase 1(현재): 디스크에서 읽습니다.
-  - 환경 변수 SKEWNONO_CHAT_FIGURES_DIR 이 그림 디렉터리의 절대 경로입니다.
-  - 파일은 `{figures_dir}/{figure_id}.webp` 입니다.
-  - 변수를 설정하지 않으면 그 배포에는 그림 저장소가 없다는 뜻이고 404 를
-    돌려줍니다. 오류가 아닙니다 — 그림 추출 없이 색인한 매뉴얼은 정상
-    상태이고, SPA 는 썸네일 없이 인용만 렌더합니다.
-- Phase 2(MinIO): 디스크 읽기만 `MinioObject().get(f"{prefix}{figure_id}.webp")`
-  로 바꿉니다. route signature, 검증, 응답 헤더는 그대로입니다.
-  - bucket 과 prefix 는 환경 변수입니다:
-    SKEWNONO_CHAT_FIGURE_BUCKET, SKEWNONO_CHAT_FIGURE_PREFIX(기본 `figures/`).
-  - OFFICE-VERIFY: 사무실 MinIO credential 이 사용자 namespace 로 제한되어
-    있으면(msr_image 이미지 캐시가 실제로 그랬습니다 —
-    back_dev_home/msr_image/minio_cache.py 의 _key 주석 참고) prefix 에 전체
-    경로를 넣습니다(예: `user/2067928/figures/`). 코드에 `figures/` 를
-    하드코딩하지 않는 이유가 이것입니다.
+- 저장소는 **knowledge provider 를 따라갑니다**. 별도 selector 가 없습니다:
+  figure_id 는 그것을 만든 인덱스에 대해서만 의미가 있고(사내 ingestion 이
+  인덱스와 그림 객체를 같이 씁니다), "사무실 인덱스 + 디스크 그림" 은 누구도
+  원할 수 없는 조합이기 때문입니다.
+  | SKEWNONO_CHAT_KNOWLEDGE_PROVIDER | 저장소 | 객체 |
+  | --- | --- | --- |
+  | mock (집) | 디스크 | `{SKEWNONO_CHAT_FIGURES_DIR}/{figure_id}.webp` |
+  | office | MinIO | `{client prefix}/{SKEWNONO_CHAT_FIGURE_PREFIX}{figure_id}.webp` |
+- 디스크(mock): SKEWNONO_CHAT_FIGURES_DIR 이 그림 디렉터리의 절대 경로입니다.
+  설정하지 않으면 그 배포에는 그림 저장소가 없다는 뜻이고 404 를 돌려줍니다.
+  오류가 아닙니다 — 그림 추출 없이 색인한 매뉴얼은 정상 상태이고, SPA 는
+  썸네일 없이 인용만 렌더합니다.
+- MinIO(office) 실제 배치 (office 확인 2026-08-27):
+    user/2067928/hitachi_sem/manual_figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
+    ^bucket ^client prefix ^SKEWNONO_CHAT_FIGURE_PREFIX (기본값)  ^figure_id
+  - 사용자 namespace `2067928/` 는 MinIO client 의 **자체 기본 prefix**
+    (minio_handler 의 PREFIX / MINIO_PREFIX)이고, 앱은 그 아래 키만 넘깁니다:
+    `MinioObject().get("hitachi_sem/manual_figures/<id>.webp")`.
+  - msr_image 의 image cache 와 **반대 규약**입니다. 그쪽은 client prefix 를
+    비우고(use_prefix(None)) `2067928/image_cache/` 를 자기 prefix 에 적습니다.
+    둘 다 동작하며, 섞는 것이 함정입니다 — SKEWNONO_CHAT_FIGURE_PREFIX 에
+    `2067928/` 를 적으면 `2067928/2067928/...` 으로 겹쳐 모든 그림이 404
+    납니다. (이전 문서의 `user/2067928/figures/` 예시는 이 이유로 폐기.)
+  - SKEWNONO_CHAT_FIGURE_BUCKET 은 보통 비웁니다 — client 기본 bucket 이
+    `user` 이고 그림이 거기 있습니다. SKEWNONO_CHAT_FIGURE_PREFIX 기본값은
+    `hitachi_sem/manual_figures/` 이며 앞 slash 제거·뒤 slash 하나로
+    정규화합니다. `hitachi_sem/` 은 tool family 축이라 다른 family 의 그림은
+    다른 prefix 로 가지 다른 bucket 으로 가지 않습니다.
+  - MinIO 오류 중 NoSuchKey/NoSuchObject/NotFound 는 그냥 miss(404)이고,
+    그 밖의 오류(예: scoped credential 의 AccessDenied)도 404 이지만 warning
+    로그를 남깁니다 — 남기지 않으면 bucket 설정 오류가 "그림을 추출하지 않은
+    매뉴얼" 과 구분되지 않습니다.
 - 응답: 200 은 image/webp 바이트와 `Cache-Control: public, max-age=3600`
   입니다. 추출된 그림은 불변이고 답변 하나가 여러 장을 인용하므로, 캐시가
   없으면 대화를 되짚어 볼 때마다 전부 다시 받습니다.
@@ -133,10 +175,12 @@ figure 제공 (Phase 1 구현 완료 2026-08-19, Phase 2 는 설계만)
   의 `_execute()` 와 `_rerank()` 뿐이며, 추적되는 계약(`chat_rag_contract.txt`
   의 필드, `Evidence` 12필드)은 바뀌지 않습니다.
 
-`element_type` — 인덱스 내부 전용, Evidence 로 내보내지 않음
-- 인덱스는 chunk 마다 `element_type` 을 갖지만 이는 검색 엔진 내부 값이며
-  애플리케이션 `Evidence` 계약에는 없는 필드입니다. 프론트로 끌어올리면 안
-  됩니다.
+`element_type` — raw hit 에는 실려 오지만 Evidence 로 내보내지 않음
+- 인덱스는 chunk 마다 `element_type` 을 갖고, 사무실 `search_manuals()` 는
+  이를 hit 에 실어 돌려줍니다(office 확인 2026-08-27). 그러나 검색 엔진
+  내부 값이며 애플리케이션 `Evidence` 계약에는 없는 필드입니다. 어댑터
+  `_to_evidence()` 가 seam 에서 버리며, 프론트로 끌어올리면 안 됩니다.
+  그림 여부는 `element_type` 이 아니라 `figure_id` 의 null 여부로 읽습니다.
 - 현재 어휘는 `paragraph`, `procedure`, `warning`, `caution`, `alarm`,
   `parameter`, `table`, `parts_list`, `troubleshooting`, `figure_caption`,
   `figure_description` 11종입니다. 라벨링이 망설여지는 원인은 어휘 자체가
@@ -172,6 +216,9 @@ figure 제공 (Phase 1 구현 완료 2026-08-19, Phase 2 는 설계만)
 - fixture 는 한국어와 영어를 일부러 섞어 둡니다. 영어 전용 mock 이면 사무실
   인덱스가 답하는 한국어 질문에 집에서는 빈 결과가 나오고, 모든 집 세션이
   실제와 다른 검색 경로를 상대로 개발하게 됩니다.
+- manual fixture 의 revision/occurred_at/region/locator 는 사무실 raw hit 과
+  같이 전부 None 입니다(위 "사무실 manual 검색이 실제로 돌려주는 필드" 절).
+  meeting/email/report fixture 는 아직 사무실 형태를 모르므로 그대로입니다.
 - figure_id 는 manual fixture 3건에만 채워져 있고 나머지는 None 입니다.
   뒤에 실제 MinIO 객체나 .webp 파일은 없습니다 — 값은 여전히 불투명
   토큰입니다.

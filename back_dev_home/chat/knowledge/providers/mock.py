@@ -19,6 +19,18 @@ what the real one does. ``figure_id`` is populated only on the manual records
 that would plausibly carry an extracted figure; text and table evidence
 carries ``None``.
 
+The manual fixture rows carry ``None`` for ``revision``, ``occurred_at``,
+``region`` and ``locator`` because the office manual search returns none of
+them: ``search_manuals()`` at the office emits exactly ``source_id, title,
+snippet, section, page, figure_id, score`` plus an index-internal
+``element_type`` that the adapter drops (office 확인 2026-08-27). A mock that
+filled them would have the SPA rendering "title · R2 · p.12" labels the
+office can never produce. OFFICE-VERIFY: whether the office adapter derives a
+``locator`` from ``source_id``/``page`` — until confirmed, the mock matches
+the raw hit and emits ``None``. Meeting/email/report fixtures keep their
+dates and locators; those sources are not connected yet and their office
+shape is unknown.
+
 The fixture figure ids reproduce the office's confirmed shape,
 ``{doc_id}_p{page}_i{idx}`` — e.g. ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office
 확인 2026-08-19) — with a synthetic ``SYN…`` doc_id and the ``_p{page}`` half

@@ -1,12 +1,14 @@
 """Figure serving — ``GET /api/chat/figures/<figure_id>``.
 
-The seam under test is the HTTP boundary, not the storage read: Phase 2 swaps
-the disk read for MinIO and every test here must survive that untouched.
+The seam under test is the HTTP boundary, not the storage read. The disk tests
+came first; the MinIO tests at the bottom were added with the office store and
+the disk tests survived that untouched — which is the property they exist for.
 """
 
 import pytest
 from flask import Flask, g
 
+from back_dev_home.chat import figures
 from back_dev_home.chat.routes import bp
 
 # A real WebP header, so a test can never pass on bytes the browser would
@@ -130,3 +132,122 @@ def test_no_figure_store_configured_is_not_found(client, monkeypatch, figures_di
     response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
 
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Office store — MinIO, selected by the knowledge provider (office 확인
+# 2026-08-27: user/2067928/hitachi_sem/manual_figures/{figure_id}.webp).
+# ---------------------------------------------------------------------------
+
+
+class _NotFound(Exception):
+    """Shaped like minio's S3Error: the code rides on ``.code``."""
+
+    code = "NoSuchKey"
+
+
+class _Denied(Exception):
+    code = "AccessDenied"
+
+
+class FakeMinio:
+    def __init__(self, objects, *, raise_with=None):
+        self.objects = objects
+        self.raise_with = raise_with
+        self.gets = []
+
+    def get(self, key):
+        self.gets.append(key)
+        if self.raise_with is not None:
+            raise self.raise_with
+        if key not in self.objects:
+            raise _NotFound()
+        return self.objects[key]
+
+
+@pytest.fixture
+def minio(monkeypatch):
+    """Route figure reads at a fake MinIO and report every key it was asked for."""
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.delenv("SKEWNONO_CHAT_FIGURE_PREFIX", raising=False)
+    fake = FakeMinio({})
+    monkeypatch.setattr(figures, "_client_factory", lambda: fake)
+    figures.reset_client()
+    yield fake
+    figures.reset_client()
+
+
+def test_office_figures_come_from_minio_below_the_namespace_prefix(client, minio):
+    """Catches the key template drifting from the office layout.
+
+    The user namespace (``2067928/``) is the MinIO client's own default prefix,
+    so the key this module hands to ``get()`` starts at ``hitachi_sem/`` —
+    spelling the namespace here too would double it and 404 every figure.
+    """
+    minio.objects[f"hitachi_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"] = WEBP_BYTES
+
+    response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
+
+    assert response.status_code == 200
+    assert response.mimetype == "image/webp"
+    assert response.data == WEBP_BYTES
+    assert minio.gets == [f"hitachi_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"]
+
+
+def test_office_figure_prefix_is_configurable_per_tool_family(client, minio, monkeypatch):
+    """Catches ``hitachi_sem/`` being hardcoded — it is a tool-family axis."""
+    monkeypatch.setenv("SKEWNONO_CHAT_FIGURE_PREFIX", "/other_sem/manual_figures")
+    minio.objects[f"other_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"] = WEBP_BYTES
+
+    response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
+
+    assert response.status_code == 200
+    assert minio.gets == [f"other_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"]
+
+
+def test_an_office_figure_missing_from_minio_is_not_found(client, minio):
+    """Catches minio's NoSuchKey surfacing as a 500 instead of a 404."""
+    response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
+
+    assert response.status_code == 404
+
+
+def test_an_office_storage_error_is_a_miss_but_leaves_a_trace(client, minio, caplog):
+    """Catches a scoped-credential AccessDenied masquerading as "not extracted".
+
+    The response must stay 404 (no existence oracle), but a non-miss error
+    has to be visible somewhere or a misconfigured bucket is indistinguishable
+    from a manual indexed without figures.
+    """
+    minio.raise_with = _Denied()
+
+    with caplog.at_level("WARNING", logger="back_dev_home.chat.figures"):
+        response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
+
+    assert response.status_code == 404
+    assert any("AccessDenied" in record.getMessage() for record in caplog.records)
+
+
+@pytest.mark.parametrize("figure_id", MALFORMED_IDS)
+def test_a_malformed_id_never_reaches_minio(client, minio, figure_id):
+    """Catches validation being skipped on the office path — a wasted round
+    trip at best, a key outside the figure prefix at worst."""
+    response = client.get(f"/api/chat/figures/{figure_id}")
+
+    assert response.status_code == 404
+    assert minio.gets == []
+
+
+def test_the_office_store_ignores_the_disk_directory(client, minio, figures_dir):
+    """Catches the disk fallback surviving into office mode.
+
+    A figure on the office host's disk is not the figure the office index
+    minted the id for; with the knowledge provider on office, only MinIO
+    answers, and a miss there is a miss.
+    """
+    (figures_dir / f"{OFFICE_FIGURE_ID}.webp").write_bytes(WEBP_BYTES)
+
+    response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
+
+    assert response.status_code == 404
+    assert minio.gets == [f"hitachi_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"]

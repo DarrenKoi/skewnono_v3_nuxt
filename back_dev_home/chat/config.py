@@ -135,12 +135,43 @@ def get_rag_source_root() -> str | None:
 def get_figures_dir() -> str | None:
     """Absolute path of the directory holding extracted manual figures.
 
-    Phase 1 of figure serving. Unset means the deployment has no figure store,
-    which is a 404 rather than an error: a manual indexed without figures is a
-    normal state, not a misconfiguration.
+    The disk store, used while the knowledge provider is ``mock``. Unset means
+    the deployment has no figure store, which is a 404 rather than an error: a
+    manual indexed without figures is a normal state, not a misconfiguration.
     """
     value = os.environ.get("SKEWNONO_CHAT_FIGURES_DIR", "").strip()
     return value or None
+
+
+def get_figure_bucket() -> str | None:
+    """MinIO bucket of the office figure store; unset keeps the client default.
+
+    At the office that default is the ``user`` bucket (``minio_handler``'s
+    ``BUCKET``), which is where the figures live (office 확인 2026-08-27), so
+    this is normally left unset.
+    """
+    value = os.environ.get("SKEWNONO_CHAT_FIGURE_BUCKET", "").strip()
+    return value or None
+
+
+# The office ingestion writes manual figures here, BELOW the MinIO client's
+# own namespace prefix (office 확인 2026-08-27):
+#   {client prefix}/hitachi_sem/manual_figures/{figure_id}.webp
+# ``hitachi_sem`` is a tool-family segment, not a bucket — see chat/figures.py.
+DEFAULT_FIGURE_PREFIX = "hitachi_sem/manual_figures/"
+
+
+def get_figure_prefix() -> str:
+    """Key prefix of office figures, relative to the client's namespace prefix.
+
+    Normalized to ``segment/.../`` — no leading slash, exactly one trailing —
+    so ``figure_key()`` can concatenate. Do NOT put the user namespace
+    (``2067928/``) here; the MinIO client already carries it and the key
+    would double up.
+    """
+    raw = os.environ.get("SKEWNONO_CHAT_FIGURE_PREFIX", "").strip()
+    value = (raw or DEFAULT_FIGURE_PREFIX).strip("/")
+    return f"{value}/" if value else ""
 
 
 KNOWLEDGE_SOURCES: tuple[str, ...] = ("manual", "meeting", "email", "report")

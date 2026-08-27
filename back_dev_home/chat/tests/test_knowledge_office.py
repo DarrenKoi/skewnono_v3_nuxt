@@ -40,7 +40,8 @@ _RAW_HIT = {
     "page": 3,
     "region": "steps-1-2",
     "locator": "manual-synthetic-r1#page=3",
-    "figure_id": "fig-synthetic-r1-p3",
+    # Real shape, {doc_id}_p{page}_i{idx} with a dotted doc_id (office 확인 2026-08-19).
+    "figure_id": "SYN6300_1.OFFICE_MANUAL_p3_i0",
     "score": 12.5,
 }
 

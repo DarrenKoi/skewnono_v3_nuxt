@@ -160,3 +160,61 @@ def test_an_unimplemented_rerank_seam_fails_loudly(monkeypatch):
 
     with pytest.raises(KnowledgeUnavailable):
         template.search_manuals("alarm reset", None, _SCOPE, 5)
+
+
+# The exact mapping the office RAG's ``search_manuals()`` returns per hit
+# (office 확인 2026-08-27). Note what is NOT here: revision, occurred_at,
+# region, locator. And what is: ``element_type``, an index-internal label.
+_OFFICE_MANUAL_HIT = {
+    "source_id": "CG6300_1.HHTSEM_SYSTEM#p100#c3",
+    "title": "CG6300 System Manual",
+    "snippet": "Synthetic snippet standing in for the approved evidence.",
+    "section": "3.2 Alignment",
+    "page": 100,
+    "figure_id": "CG6300_1.HHTSEM_SYSTEM_p100_i0",
+    "score": 0.83,
+    "element_type": "figure_caption",
+}
+
+
+def test_the_office_manual_hit_shape_maps_without_the_absent_fields(seams):
+    """Catches the contract half rejecting the office's real hit.
+
+    ``_to_evidence`` reads the optional keys with ``.get``, so a hit that
+    simply lacks revision/occurred_at/region/locator maps to ``None`` for
+    each — the office copy does not have to pad them in.
+    """
+    seams["hits"] = [dict(_OFFICE_MANUAL_HIT)]
+    seams["scores"] = [0.91]
+
+    rows = template.search_manuals("alignment", None, _SCOPE, 5)
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["source_id"] == _OFFICE_MANUAL_HIT["source_id"]
+    assert row["figure_id"] == "CG6300_1.HHTSEM_SYSTEM_p100_i0"
+    assert row["page"] == 100
+    assert row["section"] == "3.2 Alignment"
+    for absent in ("revision", "occurred_at", "region", "locator"):
+        assert row[absent] is None
+
+
+def test_element_type_stays_behind_the_seam(seams):
+    """Catches ``element_type`` leaking into Evidence.
+
+    The index carries it on every chunk and the office search returns it,
+    but it is a retrieval-internal label (one enum with four axes pressed
+    into it — see chat_rag_contract.txt) and not part of the Evidence
+    contract the SPA renders. ``figure_id`` is the signal that crosses.
+    """
+    seams["hits"] = [dict(_OFFICE_MANUAL_HIT)]
+    seams["scores"] = [0.91]
+
+    rows = template.search_manuals("alignment", None, _SCOPE, 5)
+
+    assert "element_type" not in rows[0]
+    assert set(rows[0]) == {
+        "source_id", "source_type", "title", "snippet", "revision",
+        "occurred_at", "section", "page", "region", "locator", "figure_id",
+        "score",
+    }

@@ -41,6 +41,7 @@ Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값�
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=mock` | Synthetic fixture를 결정적으로 검색합니다. | Office source나 network가 필요하지 않습니다. |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office` | 사내 read-only index를 검색합니다. | Adapter 또는 설정이 없으면 `503`이며 mock으로 전환하지 않습니다. |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_SOURCES`(기본 `manual`) | Office provider가 실제로 답할 수 있는 source 집합을 고릅니다(`manual`/`meeting`/`email`/`report`의 comma-separated subset). | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office`일 때만 boot에서 함께 검증하며, 알 수 없는 값이나 빈 값은 `RuntimeError`로 startup을 중단합니다. `mock`일 때는 검증하지 않습니다(lazy). 준비되지 않은 source는 tool로도 노출되지 않습니다. |
+| Figures | `SKEWNONO_CHAT_FIGURES_DIR` / `SKEWNONO_CHAT_FIGURE_BUCKET` / `SKEWNONO_CHAT_FIGURE_PREFIX` | 그림 저장소는 knowledge provider 를 따라갑니다 — `mock`이면 디스크, `office`면 MinIO. 별도 selector 는 없습니다. | 미설정·미저장·형식 불일치 모두 `404`입니다(아래 "Figure serving" 절). |
 | Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES`(기본 `24`) | Office retrieval이 rerank 전에 가져오는 후보 수입니다(5~50으로 clamp). | Application이 소유하는 상한이며 adapter가 자기 입력을 넓힐 수 없습니다. |
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=mock` | 제한된 deterministic classifier를 사용합니다. | Office dependency가 필요하지 않습니다. |
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=office` | 승인된 사내 scope classifier를 사용합니다. | Adapter가 없으면 `503`이며 mock으로 전환하지 않습니다. |
@@ -177,10 +178,19 @@ search_reports(
 | `figure_id` | 그림 chunk의 opaque token이며 text/table chunk는 `None`입니다. |
 | `score` | 같은 source 검색 결과의 ranking 진단용 값이며 없으면 `None`입니다. |
 
+사무실 manual 검색(`src/retrieve/serve.py:search_manuals()`)이 실제로 돌려주는 키는
+`source_id`, `title`, `snippet`, `section`, `page`, `figure_id`, `score`,
+`element_type` 여덟 개입니다(office 확인 2026-08-27). `_to_evidence()`는 optional 키를
+`.get`으로 읽으므로 `revision`/`occurred_at`/`region`/`locator`가 없는 hit은 그대로
+`None`으로 매핑되고, 알 수 없는 키 `element_type`은 seam에서 버려집니다 — office copy가
+채우거나 지울 것이 없습니다. 파일시스템 `image_path`는 절대 seam을 넘지 않으며, 넘는
+것은 `figure_id`뿐입니다.
+
 `figure_id`는 애플리케이션이 저장소 접근으로 바꾸는 유일한 값이므로 `locator`와 다른
 규칙을 따릅니다. Bucket, prefix, 경로 구분자, `.webp` 확장자를 포함하지 않는 맨 id만
-반환합니다. 키 조립(`{prefix}{figure_id}.webp`)과 `^[A-Za-z0-9._-]{1,128}$` 검증은 serving
-쪽이 전담하므로, 경로가 섞인 id는 오류가 아니라 렌더되지 않는 그림이 됩니다.
+반환합니다. 키 조립(`{client prefix}/hitachi_sem/manual_figures/{figure_id}.webp`)과
+`^[A-Za-z0-9._-]{1,128}$` 검증은 serving 쪽이 전담하므로, 경로가 섞인 id는 오류가
+아니라 렌더되지 않는 그림이 됩니다.
 
 형식은 `{doc_id}_p{page}_i{idx}`이며 doc_id에 **점이 들어갑니다**
 (`CG6300_1.HHTSEM_SYSTEM_p100_i0`, office 확인 2026-08-19). 검증 charset이 점을
@@ -236,26 +246,47 @@ direct runtime, mock provider 또는 다른 source로 자동 전환하지 않습
 assistant/source/trace row도 저장하지 않으며, 이미 저장된 user turn은 같은
 `request_id` retry를 위해 유지합니다.
 
-## Figure serving — Phase 1 구현 완료, Phase 2 는 설계
+## Figure serving — 디스크(2026-08-19)와 MinIO(2026-08-27) 모두 구현 완료
 
-`GET /api/chat/figures/<figure_id>`는 2026-08-19에 **구현했습니다**. 저장소만 두 단계로
-나뉩니다 — 지금은 디스크에서 읽고, MinIO 전환은 route를 바꾸지 않습니다.
+`GET /api/chat/figures/<figure_id>`는 구현되어 있고, 저장소 접근은 `chat/figures.py`의
+`read_figure()` 한 곳입니다. 저장소는 **knowledge provider를 따라갑니다** — `figure_id`는
+그것을 만든 인덱스에 대해서만 의미가 있으므로(사내 ingestion이 인덱스와 그림 객체를 함께
+씁니다) 별도 selector를 두지 않았습니다.
 
 | 항목 | 결정 |
 | --- | --- |
 | Route | `GET /api/chat/figures/<figure_id>` (`chat/routes.py`의 `chat_figure`) |
-| 구현 참고 | `back_dev_home/msr_image/routes.py`의 `serve_image_route` — `Response(bytes, mimetype=...)` + `Cache-Control` |
+| 저장소 접근 | `chat/figures.py`의 `read_figure(figure_id) -> bytes \| None` |
 | 인가 | 인증된 사용자면 통과합니다. `/api/*`가 이미 신원 gate 뒤이므로 추가 확인을 하지 않습니다. |
-| Phase 1 저장소 | 디스크. `{figures_dir}/{figure_id}.webp` |
-| Phase 1 설정 | `SKEWNONO_CHAT_FIGURES_DIR` — 그림 디렉터리의 절대 경로 |
-| Phase 2 저장소 | MinIO. 키는 `{prefix}{figure_id}.webp` |
-| Phase 2 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`, `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `figures/`) |
-| 검증 | 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 불일치 또는 `..` 포함이면 `404` |
+| `mock` 저장소 | 디스크. `{SKEWNONO_CHAT_FIGURES_DIR}/{figure_id}.webp` |
+| `office` 저장소 | MinIO. `{client prefix}/{SKEWNONO_CHAT_FIGURE_PREFIX}{figure_id}.webp` |
+| `office` 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`(보통 비움 = client 기본 `user`), `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `hitachi_sem/manual_figures/`) |
+| 검증 | 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 불일치, `..` 포함, 앞머리 점이면 `404` |
 | 응답 | `image/webp` + `Cache-Control: public, max-age=3600` |
 
-Phase 2 전환은 디스크 읽기 한 줄을 `MinioObject().get(f"{prefix}{figure_id}.webp")`로
-바꾸는 것이 전부입니다. Route signature, 검증, 응답 헤더, 그리고 `chat/tests/test_figures.py`의
-테스트는 전부 그대로 둡니다 — 테스트를 HTTP 경계에만 걸어 둔 이유가 이것입니다.
+사무실의 실제 객체 키는 다음과 같습니다(office 확인 2026-08-27).
+
+```text
+user/2067928/hitachi_sem/manual_figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
+^bucket ^client prefix ^SKEWNONO_CHAT_FIGURE_PREFIX (기본값)  ^figure_id
+```
+
+사용자 namespace `2067928/`는 MinIO client의 **자체 기본 prefix**(`minio_handler`의
+`PREFIX` / `MINIO_PREFIX`)이고, 앱은 그 아래 키만 넘깁니다 —
+`MinioObject().get("hitachi_sem/manual_figures/<id>.webp")`. 이것은 `msr_image`의
+image cache와 **반대 규약**입니다. 그쪽은 client prefix를 비우고 `2067928/image_cache/`를
+자기 prefix에 적습니다. 둘 다 동작하며 섞는 것이 함정입니다 —
+`SKEWNONO_CHAT_FIGURE_PREFIX`에 `2067928/`를 적으면 키가 `2067928/2067928/...`으로
+겹쳐 모든 그림이 404 납니다. `hitachi_sem/`은 tool family 축이므로 다른 family의 그림은
+다른 prefix로 가지, 다른 bucket으로 가지 않습니다.
+
+MinIO 오류 중 `NoSuchKey`/`NoSuchObject`/`NotFound`는 그냥 miss(404)입니다. 그 밖의
+오류(scoped credential의 `AccessDenied` 등)도 404이지만 warning 로그를 남깁니다 —
+남기지 않으면 bucket 설정 오류가 "그림을 추출하지 않은 매뉴얼"과 구분되지 않습니다.
+
+`chat/tests/test_figures.py`의 디스크 테스트는 MinIO 구현 전후로 한 줄도 바뀌지
+않았습니다 — 테스트를 HTTP 경계에만 걸어 둔 이유가 이것입니다. MinIO 쪽은 같은 파일
+하단에서 fake client로 키 조립·miss·오류 로그·검증 선행을 고정합니다.
 
 ### 검증 charset이 점을 허용하는 이유
 
@@ -272,8 +303,11 @@ Office의 figure_id 형식은 `{doc_id}_p{page}_i{idx}`이고 doc_id가 점을 �
 1. `..`를 포함한 id는 이름으로 거부합니다.
 2. Slash는 charset과 Flask routing 양쪽에서 막힙니다 — routing이 `../`를 정규화하므로
    view까지 도달하지도 않습니다.
-3. 조립한 경로를 `resolve()`한 뒤 부모가 figures 디렉터리인지 확인합니다. 저장소 밖으로
-   나가는 symlink도 여기서 걸립니다.
+3. 디스크 경로는 조립한 경로를 `resolve()`한 뒤 부모가 figures 디렉터리인지 확인합니다.
+   저장소 밖으로 나가는 symlink도 여기서 걸립니다.
+4. 앞머리 점(`.`, `.foo`)은 이름으로 거부합니다. 맨 `.` 하나는 charset을 통과하고 `..`도
+   아니어서, MinIO 경로에서는 `.../..webp` 키로 저장소까지 갔습니다(2026-08-27에 MinIO
+   테스트가 잡아냈고, 디스크 경로는 3번 검사로만 살아남고 있었습니다).
 
 Mock fixture의 id도 같은 날 실제 형식으로 바꿨습니다(`SYN6300_1.EBEAM_ALARM_p12_i0`).
 `test_knowledge.py`가 mock의 id를 route의 검증기에 직접 걸어 보므로, 한쪽만 바뀌면
@@ -281,8 +315,8 @@ Mock fixture의 id도 같은 날 실제 형식으로 바꿨습니다(`SYN6300_1.
 
 ### 실패는 전부 404입니다
 
-형식 불일치, 저장되지 않은 그림, 저장소 미설정(`SKEWNONO_CHAT_FIGURES_DIR` 없음)이 모두
-같은 404입니다. 구분해서 알려주면 figure_id의 존재 여부를 확인하는 수단이 되므로 의도적으로
+형식 불일치, 저장되지 않은 그림, 저장소 미설정(`mock`에서 `SKEWNONO_CHAT_FIGURES_DIR`
+없음)이 모두 같은 404입니다. 구분해서 알려주면 figure_id의 존재 여부를 확인하는 수단이 되므로 의도적으로
 합쳤습니다.
 
 저장소 미설정이 오류가 아닌 이유도 함께 적어 둡니다. 그림 추출 없이 색인한 매뉴얼은 정상
@@ -294,10 +328,10 @@ Retrieval은 `AccessScope`로 걸러지지만 이 endpoint는 걸러지지 않�
 매뉴얼의 **그림**은 `figure_id`를 아는 사용자면 그룹 밖에서도 받을 수 있습니다. 그림 자체가
 접근 제한 정보를 담는 것이 확인되면 이 결정을 다시 검토합니다.
 
-Prefix를 환경 변수로 두는 이유는 사무실 MinIO credential이 사용자 namespace로 제한될 수
-있기 때문입니다. 이미지 캐시에서 실제로 그랬으므로(`msr_image/minio_cache.py`의 `_key`
-주석) `figures/`를 코드에 하드코딩하지 않고, 제한이 확인되면 prefix에 전체 경로
-(예: `user/2067928/figures/`)를 넣습니다.
+Prefix를 환경 변수로 두는 이유는 `hitachi_sem/`이 tool family 축이기 때문입니다. 사용자
+namespace 제한은 MinIO client의 기본 prefix가 이미 감당하므로, 이전에 적었던
+`user/2067928/figures/` 같은 전체 경로를 prefix에 넣는 안은 폐기했습니다 — 넣으면
+namespace가 두 번 붙습니다(위 표 아래 설명).
 
 ## Scope provider 구현 계약
 

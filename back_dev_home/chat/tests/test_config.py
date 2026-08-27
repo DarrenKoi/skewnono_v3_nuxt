@@ -159,3 +159,28 @@ def test_blank_override_falls_through_to_the_deploy_default(monkeypatch):
     for blank in ("", "   "):
         monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", blank)
         assert config.is_under_development() is True
+
+
+def test_figure_prefix_defaults_to_the_office_layout(monkeypatch):
+    """Office 확인 2026-08-27: {namespace}/hitachi_sem/manual_figures/{id}.webp."""
+    monkeypatch.delenv("SKEWNONO_CHAT_FIGURE_PREFIX", raising=False)
+
+    assert config.get_figure_prefix() == "hitachi_sem/manual_figures/"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["other_sem/manual_figures", "/other_sem/manual_figures/", " other_sem/manual_figures// "],
+)
+def test_figure_prefix_is_normalized_to_one_trailing_slash(monkeypatch, raw):
+    """Catches ``figure_key()`` producing ``//`` or a namespace-rooted key."""
+    monkeypatch.setenv("SKEWNONO_CHAT_FIGURE_PREFIX", raw)
+
+    assert config.get_figure_prefix() == "other_sem/manual_figures/"
+
+
+def test_figure_bucket_is_unset_by_default(monkeypatch):
+    """Unset means the MinIO client's own default bucket (``user`` at the office)."""
+    monkeypatch.delenv("SKEWNONO_CHAT_FIGURE_BUCKET", raising=False)
+
+    assert config.get_figure_bucket() is None
