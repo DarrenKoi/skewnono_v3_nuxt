@@ -1188,3 +1188,24 @@ def test_unnamed_points_do_not_reach_the_parameter_list(sources):
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("", "CD_X"))
     payload = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)
     assert payload["parameters"] == ["CD_X"]
+
+
+def test_fleet_today_reads_each_tool_at_its_own_latest_day(sources):
+    """The office fleet does not measure a recipe on one shared day.
+
+    Three tools each ran the recipe once, on three different days. A single
+    fab-wide "latest day" keeps only the last tool, which has no contrast on
+    its own — so every tool shows "측정 없음" and the grouping chart is empty
+    although every tool measured. "Today" has to be per tool: its latest run.
+    """
+    sources["runs"] = tuple(
+        run._replace(at=ANCHOR - timedelta(days=back), msr=f"{run.msr}_{back}")
+        for back, eqp_id in enumerate(TOOLS)
+        for run in _runs((eqp_id,), ("ADI/R1",), days=1)
+    )
+    today = tttm_office.get_tttm_check("cdsem", "R3", "ADI/R1", None, WEEKS)["fleet_today"]
+
+    assert {d["eqp_id"] for d in today["consensus_deviation"]} == set(TOOLS)
+    index = {eqp_id: i for i, eqp_id in enumerate(today["matrix"]["tools"])}
+    assert today["matrix"]["values"][index["ECXDX001"]][index["ECXDX002"]] == pytest.approx(0.10)
+    assert today["matrix"]["values"][index["ECXDX001"]][index["ECXDX003"]] == pytest.approx(0.20)

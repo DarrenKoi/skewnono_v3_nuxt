@@ -312,6 +312,11 @@ CD 모니터링 recipe (user-confirmed 2026-08-18)
   meas_hist_hvsem 의 평범한 문서로 남습니다. 따라서 이 인덱스에 이름 접두사
   필터를 걸면 그대로 찾힙니다.
 
+  장비마다 **측정한 날이 다릅니다** (office 확인 2026-08-27). 같은 recipe 라도
+  fab 전체가 한 날에 함께 도는 것이 아니라 장비별로 다른 날에 남으므로,
+  "최근 하루" 로 자르면 장비 한 대만 남습니다. tttm 의 `fleet_today` 는 이
+  때문에 장비별 최신 측정일을 씁니다.
+
   office 어댑터의 기본값이 곧 그 규칙입니다 — `CD_MONITOR*` 를
   recipe_name/full_name/class_name 의 .keyword 에 case_insensitive wildcard 로
   겁니다(_office_msr_cd._recipe_clause). **바꿔야 하는 값이 아니라 발견 규칙**

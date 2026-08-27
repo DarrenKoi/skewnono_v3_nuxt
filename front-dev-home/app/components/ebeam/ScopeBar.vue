@@ -20,8 +20,18 @@
              width it needs. -->
       <div class="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_auto]">
         <div class="min-w-0">
-          <p class="mb-1.5 sk-label">
+          <!-- The skew payload behind these dropdowns is slow at the office
+               (hundreds of MinIO GETs), and a refetch keeps the previous
+               roster on screen — so the spinner, not the roster, is what
+               says "still computing". -->
+          <p class="mb-1.5 flex items-center gap-1.5 sk-label">
             장비 · 모델 그룹
+            <UIcon
+              v-if="pending"
+              name="i-lucide-loader-circle"
+              class="h-3.5 w-3.5 animate-spin text-(--sk-ink-muted)"
+              aria-label="불러오는 중"
+            />
           </p>
           <!-- One dropdown per model code, not a chip per tool. A fab carries
                  up to ~18 CD-SEMs; laid out as chips they filled the width of the

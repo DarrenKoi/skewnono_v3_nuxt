@@ -67,6 +67,12 @@ flatten them by accident:
   here, the monitor wafer → 0.151 nm) rather than from a constant, so raising
   the fleet CD raises the limit too. Pushing a deviation past it turns that
   tool red and says PM/BM, so move these knowing what you are asserting.
+- **Every tool measures every day here; the office does not.** A fab runs a
+  recipe on each tool on DIFFERENT days (office 확인 2026-08-27), so the
+  office adapter reads `fleet_today` as each tool's own latest day rather
+  than one fab-wide day — a fab-wide day kept one tool and emptied the
+  grouping. This mock's dates never stagger, so that path only shows at the
+  office; `tests/test_office_tttm_pm_planning.py` staggers the doubles.
 - **A fab with fewer than two tools answers `available: false`.** One tool is
   not a comparison, and the frontend's picker refuses to drop below two
   anyway; some HV-SEM fabs really do hold a single tool.

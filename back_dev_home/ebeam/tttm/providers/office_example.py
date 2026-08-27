@@ -602,15 +602,21 @@ def _cells(
 
 
 def _fleet_today(observations: list[_Observation], roster: list[str]) -> dict[str, Any]:
-    """The most recent data day: pairwise matrix, deviations and its CD.
+    """Each tool at its most recent data day: pairwise matrix, deviations, CD.
 
-    "Today" is the latest day the fab actually produced measurements, not the
-    wall clock — a Monday request would otherwise show an empty weekend.
+    "Today" is PER TOOL — its latest day with a measurement — not the wall
+    clock and not one fab-wide day. The fab does not run a recipe on every tool
+    the same day (office 확인 2026-08-27: each tool had measured, on different
+    days), and a single latest day kept only the last tool, which has no
+    contrast on its own: every tool read "측정 없음" and the grouping was empty.
+    A fleet that does measure daily gets exactly the old answer.
     """
-    rows = []
-    if observations:
-        latest = max(row.at.date() for row in observations)
-        rows = [row for row in observations if row.at.date() == latest]
+    latest_by_tool: dict[str, date] = {}
+    for row in observations:
+        day = row.at.date()
+        if day > latest_by_tool.get(row.eqp_id, date.min):
+            latest_by_tool[row.eqp_id] = day
+    rows = [row for row in observations if row.at.date() == latest_by_tool[row.eqp_id]]
     if not rows:
         return {
             "matrix": SkewMatrixBlock(tools=[], values=[]),
