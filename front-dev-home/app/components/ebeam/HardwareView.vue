@@ -648,8 +648,8 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 {{ servicePayload.summary }}
               </p>
 
-              <!-- BM/PM: dedicated past/future tables with expandable engineer notes -->
-              <EbeamHardwareBmPmTables
+              <!-- BM/PM: master-detail — 예정/이력 job list beside the selected job in full -->
+              <EbeamHardwareBmPmPanel
                 v-if="activeService === 'bm-pm' && servicePayload.tables.length"
                 :tables="servicePayload.tables"
               />
