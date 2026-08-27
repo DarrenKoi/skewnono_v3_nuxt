@@ -1,10 +1,14 @@
 // Pure display helpers for the BM/PM master-detail panel.
 //
-// Job stamps arrive on the hardware `bm-pm` contract as fixed-width local
-// wall-clock strings — `_shared.py`'s TS_FMT ("%Y-%m-%d %H:%M"), which both the
-// mock and the office adapter normalize through. That fixed width is what lets
-// the end label read date and time by slice rather than by Date, so no timezone
-// gets to reinterpret a string the backend already formatted for display.
+// Job stamps arrive on the hardware `bm-pm` contract as local wall-clock
+// strings in `_shared.py`'s TS_FMT ("%Y-%m-%d %H:%M"). Reading the end label by
+// slice rather than by Date is what keeps a timezone from reinterpreting a
+// string the backend already formatted for display.
+//
+// That width is the intent, not a guarantee: office_example.py's `_fmt_stored`
+// passes an unparseable value through raw on purpose, so a malformed *display*
+// timestamp degrades one cell instead of blanking the tab. Both helpers below
+// therefore have to survive a stamp that is not in TS_FMT at all.
 
 const toEpoch = (ts: string): number | null => {
   const t = Date.parse(ts.replace(' ', 'T'))

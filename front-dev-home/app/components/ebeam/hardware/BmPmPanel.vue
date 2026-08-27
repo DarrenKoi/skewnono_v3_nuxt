@@ -40,11 +40,11 @@
           >
             <span class="flex items-center gap-2">
               <span
-                class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold"
+                class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-xs font-bold"
                 :class="item.badge.class"
               >{{ item.badge.label }}</span>
               <span class="font-mono text-xs font-semibold tabular-nums text-(--sk-ink)">{{ item.start }}</span>
-              <span class="ml-auto font-mono text-[11px] text-(--sk-ink-subtle)">{{ item.duration }}</span>
+              <span class="ml-auto font-mono text-xs text-(--sk-ink-subtle)">{{ item.duration }}</span>
             </span>
             <span
               v-if="item.line"
@@ -58,14 +58,14 @@
       <div class="min-w-0 flex-1 px-5 py-4">
         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           <span
-            class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold"
+            class="inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-xs font-bold"
             :class="selected.badge.class"
           >{{ selected.badge.detailLabel }}</span>
           <span class="font-mono text-sm font-semibold tabular-nums text-(--sk-ink)">
             {{ selected.start }} → {{ selected.endLabel || 'Up 기록 없음' }}
           </span>
           <span class="font-mono text-xs text-(--sk-ink-subtle)">{{ selected.duration }}</span>
-          <span class="ml-auto font-mono text-[11px] text-(--sk-ink-subtle)">{{ selected.eqpId }}</span>
+          <span class="ml-auto font-mono text-xs text-(--sk-ink-subtle)">{{ selected.eqpId }}</span>
         </div>
 
         <dl
@@ -125,7 +125,7 @@ const HEADER_KEYS = new Set(['eqp_id', 'job_starts', 'job_end', 'category'])
 // Free-text notes carry their own severity: a problem is not a comment.
 const NOTE_TONES: Record<string, string> = {
   zzproblem: 'text-(--sk-bad)',
-  hltext: 'text-amber-700 dark:text-amber-300'
+  hltext: 'text-(--sk-warn)'
 }
 const noteTone = (key: string) => NOTE_TONES[key] ?? ''
 
@@ -202,8 +202,10 @@ const buildItems = (section: HardwareTableSection | undefined, plan: boolean): W
       eqpId: text(row.eqp_id),
       start,
       endLabel: workEndLabel(start, end),
-      // A past job with no Up stamp is still down, not instantaneous.
-      duration: duration || (plan ? '' : '진행 중'),
+      // A past job with NO Up stamp is still down. A past job that has one we
+      // could not read is a different thing — office data can be malformed —
+      // so it shows no duration rather than claiming the tool never came up.
+      duration: duration || (!plan && !end ? '진행 중' : ''),
       line: notes[0]?.value ?? '',
       badge: badgeFor(category, plan),
       meta: metaColumns.map(c => ({ ...field(c, row), value: text(row[c.key]) || '—' })),
