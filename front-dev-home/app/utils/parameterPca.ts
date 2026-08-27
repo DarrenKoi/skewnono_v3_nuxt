@@ -90,52 +90,104 @@ export interface PcaResult {
  * was dropped, because "cannot draw" and "nothing selected" are different
  * captions.
  */
-export function parameterPca(
+/** A profile column the picture is computed over, with its own action limit. */
+export interface UsedColumn {
+  name: string
+  /** Index into `profile.parameters` / each row of `profile.values`. */
+  index: number
+  /** The CD this column's action limit is drawn against. */
+  limitCd: number
+}
+
+/**
+ * The profile columns a selection resolves to — every usable column when
+ * `selected` is empty.
+ *
+ * A column one tool measured is all null by contract, so using it would drop
+ * every tool; it is skipped rather than allowed to empty the map.
+ *
+ * Exported because the 배치도 and the 튜닝 목표 table MUST run over the same
+ * columns: the table states where the group's centre is in this space, and a
+ * table computed over a different column set would be describing a centre the
+ * map does not draw.
+ */
+export const usableColumns = (
   profile: ParameterProfile,
-  selected: readonly string[],
-  tools: readonly string[]
-): PcaResult | null {
+  selected: readonly string[]
+): UsedColumn[] => {
   const wanted = new Set(selected)
-  // A column one tool measured is all null by contract — using it would drop
-  // every tool, so it is skipped rather than allowed to empty the map.
-  const columns = profile.parameters
-    .map((axis, index) => ({ axis, index }))
-    .filter(({ axis }) => axis.tools >= 2 && (wanted.size === 0 || wanted.has(axis.name)))
-  if (columns.length === 0) return null
+  return profile.parameters
+    .flatMap((axis, index) =>
+      axis.tools >= 2 && (wanted.size === 0 || wanted.has(axis.name))
+        ? [{ name: axis.name, index, limitCd: resolveNominalCd(axis.median_cd_nm).nm }]
+        : []
+    )
+}
 
-  const parameters = columns.map(c => c.axis.name)
-  const limitCd = columns.map(c => resolveNominalCd(c.axis.median_cd_nm).nm)
+/**
+ * Each tool's readings on `columns`, in the profile's own nanometres.
+ *
+ * A tool is PLACED only when it measured every used column: a hole has no
+ * honest position and no honest distance, and filling it with the consensus
+ * would place an unmeasured tool exactly at the centre — the one place that
+ * asserts it matches the fleet. The rest come back as `detached`.
+ *
+ * Shared with pmTuningTarget for the same reason `usableColumns` is: the
+ * centroid the table quotes has to be the mean of the tools the map actually
+ * drew, or the two surfaces describe different groups.
+ */
+export const profileRows = (
+  profile: ParameterProfile,
+  columns: readonly UsedColumn[],
+  tools: readonly string[]
+): { placed: { eqp_id: string, row: number[] }[], detached: string[] } => {
   const rowOf = new Map(profile.tools.map((eqp, i) => [eqp, i]))
-
   const placed: { eqp_id: string, row: number[] }[] = []
   const detached: string[] = []
+
   for (const eqp of tools) {
     const r = rowOf.get(eqp)
     const raw = r === undefined ? undefined : profile.values[r]
     const row: number[] = []
     let complete = raw !== undefined
     if (raw) {
-      for (const [k, c] of columns.entries()) {
+      for (const c of columns) {
         const v = raw[c.index]
         if (!isMeasured(v)) {
           complete = false
           break
         }
-        row.push(fractionOfLimit(v, limitCd[k]!))
+        row.push(v)
       }
     }
     if (complete) placed.push({ eqp_id: eqp, row })
     else detached.push(eqp)
   }
 
+  return { placed, detached }
+}
+
+export function parameterPca(
+  profile: ParameterProfile,
+  selected: readonly string[],
+  tools: readonly string[]
+): PcaResult | null {
+  const columns = usableColumns(profile, selected)
+  if (columns.length === 0) return null
+
+  const parameters = columns.map(c => c.name)
+  const { placed, detached } = profileRows(profile, columns, tools)
+
   const n = placed.length
   const k = columns.length
   if (n < 2) return { points: [], detached, parameters, explained: [0, 0], loadings: [] }
 
-  // Centre each column on its mean — PCA is about spread around the centre,
-  // and the server's median-centring is per column over ALL tools, not the
-  // placed subset.
-  const centred = placed.map(p => [...p.row])
+  // Into index units — each column as a fraction of ITS OWN action limit —
+  // before anything else, so a 68 nm feature's offsets cannot dwarf a 32 nm
+  // feature's simply for being bigger numbers. Then centre each column on its
+  // mean: PCA is about spread around the centre, and the server's
+  // median-centring is per column over ALL tools, not the placed subset.
+  const centred = placed.map(p => p.row.map((v, j) => fractionOfLimit(v, columns[j]!.limitCd)))
   for (let j = 0; j < k; j++) {
     const m = mean(centred.map(row => row[j]!))
     for (const row of centred) row[j] = row[j]! - m
@@ -188,13 +240,18 @@ export function parameterPca(
   }
 
   // Chebyshev — the pair's worst parameter — is what the tolerance is about.
+  //
+  // Read off `centred`, not `placed`: `placed` rows are the profile's raw
+  // nanometres now, and `nearest` is compared against a CD-relative tolerance
+  // index. Centring is a per-column constant, so it cancels in a difference —
+  // these are the index-space distances, with no second conversion to drift.
   const cheb = (a: number[], b: number[]) => {
     let worst = 0
     for (let j = 0; j < k; j++) worst = Math.max(worst, Math.abs(a[j]! - b[j]!))
     return worst
   }
   const points: PcaPoint[] = placed.map((p, i) => {
-    const others = placed.filter((_, j) => j !== i).map(q => cheb(p.row, q.row))
+    const others = centred.filter((_, j) => j !== i).map(q => cheb(centred[i]!, q))
     return {
       eqp_id: p.eqp_id,
       x: coords[i]![0]!,

@@ -1,15 +1,16 @@
 <template>
   <div class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
-    <!-- 튜닝할 장비 — 이 페이지의 주어. 아래 튜닝 목표 · Up gate · 다음 후보
-         랭킹이 전부 이 한 대를 기준으로 계산되므로, 비교 대상(recipe · 장비 모델
-         그룹 · parameter)보다 먼저 읽혀야 합니다. TTTM 과 공유하는 설정이 아니라
-         이 페이지만의 선택이라, 공유 바들과 섞이지 않는 자기 바를 씁니다. -->
+    <!-- 튜닝할 장비 — 이 페이지의 주어. 아래 튜닝 목표 · Up gate 가 이 한 대를
+         기준으로 계산되지만, 그 계산은 위 비교 대상(recipe)과 장비 모델 그룹이
+         정한 집합 안에서만 뜻이 있으므로 그 두 바 다음에 옵니다. TTTM 과
+         공유하는 설정이 아니라 이 페이지만의 선택이라, 공유 바들과 섞이지 않는
+         자기 바를 씁니다. -->
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <p class="sk-panel-title">
         튜닝할 장비
       </p>
       <p class="sk-hint">
-        아래 튜닝 목표 · Up gate · 다음 후보가 모두 이 장비 기준입니다. 기본값은 PM 직후 장비 — 하드웨어를 만질 기회가 지금인 장비입니다.
+        아래 튜닝 목표 · Up gate 가 이 장비 기준입니다. 기본값은 PM 직후 장비 — 하드웨어를 만질 기회가 지금인 장비입니다.
       </p>
     </div>
 
@@ -102,13 +103,15 @@
 </template>
 
 <script setup lang="ts">
-// Its own bar at the top of the page since 2026-08-27, and a dropdown rather
-// than the standing list this was as a rail card. It sat in the 분석 조건 bar's
-// trailing cell, which put the page's SUBJECT in a 264px column at the far
-// right, under a title that did not name it — while the two bars above it hold
-// settings shared with the TTTM page. Every fact a row carried — Up gate, group
-// membership, last PM — is still on the row inside the menu, and the picked row
-// repeats them beside the trigger so the collapsed state is never a bare id.
+// Its own bar since 2026-08-27, and a dropdown rather than the standing list
+// this was as a rail card. It sat in the 분석 조건 bar's trailing cell, which
+// put the page's SUBJECT in a 264px column at the far right under a title that
+// did not name it. It then spent a day at the very top of the page, which fixed
+// the visibility and broke the order: the tool is picked out of the group the
+// 장비 모델 그룹 bar defines, so it now sits directly under that bar
+// (2026-08-28). Every fact a row carried — Up gate, group membership, last PM —
+// is still on the row inside the menu, and the picked row repeats them beside
+// the trigger so the collapsed state is never a bare id.
 
 export interface PickerRow {
   eqp_id: string

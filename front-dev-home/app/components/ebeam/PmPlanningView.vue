@@ -3,28 +3,10 @@
     <EbeamMetaBar
       :eyebrow="`${toolLabel} · ${fab}`"
       title="PM 플래닝"
-      subtitle="하드웨어를 만질 기회는 PM 창뿐입니다 — 그때 N배화 그룹에 맞춰 튜닝할 목표를 셀 단위로 제시합니다. N이 커질수록 서로 대체 측정할 수 있는 장비가 늘어납니다."
+      subtitle="하드웨어를 만질 기회는 PM 창뿐입니다 — 그때 N배화 그룹의 중심에 맞추도록 parameter 별 조정량을 제시합니다. N이 커질수록 서로 대체 측정할 수 있는 장비가 늘어납니다."
       :cadence="cadence"
       :as-of="asOf"
       :stats="metaStats"
-    />
-
-    <!-- 튜닝할 장비 — 첫 바입니다. 아래 세 바(비교 대상 · 장비 모델 그룹 ·
-         분석 조건)는 TTTM 과 공유하는 설정이고, 이 선택만 이 페이지 전용이며
-         페이지의 모든 결과가 이 한 대를 기준으로 계산됩니다. 분석 조건 바의
-         오른쪽 칸에 있던 것을 2026-08-27 에 끌어올렸습니다 — 가장 중요한 선택이
-         가장 눈에 안 띄는 자리에 있었습니다.
-
-         The pm roster is its own request and does not ride on the recipe, so
-         this bar is never locked: picking the tool first and the scope after is
-         a legitimate order, and a greyed-out control at the top of the page
-         would read as broken. The 그룹 badge simply does not appear until there
-         is a group to be in. -->
-    <EbeamPmPlanningToolPicker
-      :rows="pickerRows"
-      :picked="picked"
-      :pending="pmPending"
-      @update:picked="picked = $event"
     />
 
     <!-- The scope bar renders even on `available: false`, and while the payload
@@ -66,10 +48,32 @@
       @update:selected="onSelectedTools"
     />
 
+    <!-- 튜닝할 장비 — 장비 모델 그룹 바로 아래입니다. 이 페이지의 주어이고 아래
+         결과가 전부 이 한 대를 기준으로 계산되지만, 그 계산이 성립하려면 먼저
+         비교 대상(recipe)과 장비 모델 그룹이 정해져 있어야 합니다 — 어느 집합
+         안에서 고르는지가 정해지지 않은 상태의 선택은 무엇을 고르는 것인지
+         말할 수 없습니다. 2026-08-27 에 분석 조건 바의 오른쪽 칸에서 페이지
+         맨 위로 끌어올렸고, 2026-08-28 에 이 자리로 내렸습니다: 눈에 띄는 것과
+         고를 순서가 맞는 것은 다른 문제였고, 후자가 이겼습니다.
+
+         The pm roster is its own request and does not ride on the recipe, so
+         this bar is never locked: it lists the whole fab roster whatever the
+         group above selects, and picking a tool the 장비 모델 그룹 bar left out
+         is a legitimate question — it is exactly the "would this one get in"
+         case the page exists to answer, and `basis` below pins such a pick into
+         the matrices for it. The 그룹 badge simply does not appear until there
+         is a group to be in. -->
+    <EbeamPmPlanningToolPicker
+      :rows="pickerRows"
+      :picked="picked"
+      :pending="pmPending"
+      @update:picked="picked = $event"
+    />
+
     <!-- 분석 조건 — same bar and same lock rule as TttmView: the parameter
          list rides on the recipe's payload, so the picker is inert until a
          recipe is picked and while its answer is unavailable. No trailing cell
-         here: 튜닝할 장비 moved to its own bar at the top of the page. -->
+         here: 튜닝할 장비 has its own bar, directly above this one. -->
     <EbeamAnalysisBar
       :lock="lock"
       note="tolerance 는 TTTM 페이지의 설정을 따릅니다."
@@ -84,7 +88,7 @@
       </template>
     </EbeamAnalysisBar>
 
-    <!-- 결과 — 지도·목표 → gate → 다음 후보 순. -->
+    <!-- 결과 — 지도 → 튜닝 목표 → gate 순. -->
     <!-- Same gate as TTTM, and deliberately the same one: the two pages describe
          one group from one scope, so a recipe that opens the results on one page
          must open them on the other. Recipe only — the parameter stays optional
@@ -171,32 +175,27 @@
           :halo-label="haloLabel"
           :pca="pca"
         />
-        <!-- File is pmPlanning/Targets.vue, NOT pmPlanning/TuneTargets.vue: Nuxt's
-             auto-import collapses the repeated word at the segment boundary
-             (PmPlanning + TuneTargets -> PmPlanningTargets), so the longer file name
-             would leave this tag rendering silently empty. -->
-        <EbeamPmPlanningTargets
-          :report="report"
-          :n="primary?.n ?? 0"
-          :tools="labelRefs"
-        />
-      </div>
-
-      <div class="grid items-stretch gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <EbeamPmPlanningGateCard
-          :gate="pickedGate"
-          :eqp-id="picked"
-        />
-        <EbeamPmPlanningFocusRanking
-          :tools="pmTools"
-          :beam-conditions="beamConditions"
-          :focus-n="focusN"
-          :threshold="threshold"
-          :picked="picked"
-          @update:focus-n="focusN = $event"
-          @update:threshold="setThreshold"
-          @pick="picked = $event"
-        />
+        <!-- Stacked beside the map rather than in a row of their own: the map
+             is the target's definition and the table is its reading, so they
+             belong in one glance, and the gate card is short enough that a
+             full-width row of it alone would read as an orphan. It was in a
+             320px column next to 다음 PM 후보 랭킹 until that card was
+             removed (2026-08-28). -->
+        <div class="flex min-w-0 flex-col gap-3">
+          <!-- File is pmPlanning/Targets.vue, NOT pmPlanning/TuneTargets.vue:
+               Nuxt's auto-import collapses the repeated word at the segment
+               boundary (PmPlanning + TuneTargets -> PmPlanningTargets), so the
+               longer file name would leave this tag rendering silently empty. -->
+          <EbeamPmPlanningTargets
+            :target="tuning"
+            :n="primary?.n ?? 0"
+            :tools="labelRefs"
+          />
+          <EbeamPmPlanningGateCard
+            :gate="pickedGate"
+            :eqp-id="picked"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -213,7 +212,7 @@ import { applyTolerance, excludedTools, scoreCells, type CellInput } from '~/uti
 import { fractionOfLimit, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
 import { resolveSelection, subsetSkewMatrix, rebaseDeviations } from '~/utils/tttmFleetSubset'
 import { parameterPca } from '~/utils/parameterPca'
-import type { BeamCondition } from '~/utils/pmPlanning'
+import { tuningTarget } from '~/utils/pmTuningTarget'
 
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
@@ -371,6 +370,26 @@ const report = computed(() =>
   picked.value ? admissionReport(picked.value, primary.value?.tools ?? [], rankedCells.value) : null
 )
 
+// 튜닝 목표 — the group's centre of gravity in the SAME space the map places
+// tools in, over the SAME columns (utils/pmTuningTarget shares the map's
+// `usableColumns`/`profileRows`), so the table quotes the point the ring above
+// it is drawn around rather than a second, similar-looking calculation.
+//
+// Deliberately a different axis from `report`: admission is a per-cell pairwise
+// verdict, this is a per-parameter position. Both are shown, and neither is
+// derived from the other.
+const tuning = computed(() =>
+  payload.value
+    ? tuningTarget(
+        payload.value.parameter_profile,
+        parameters.value,
+        primary.value?.tools ?? [],
+        picked.value,
+        toleranceIndex.value
+      )
+    : null
+)
+
 const maxRequiredNm = computed(() =>
   Math.max(0, ...(report.value?.cells.map(row => row.requiredNm) ?? []))
 )
@@ -406,19 +425,6 @@ const pickerRows = computed(() => {
 const pickedGate = computed(() =>
   pmTools.value.find(t => t.eqp_id === picked.value)?.gate ?? null
 )
-
-// Focus-ranking knobs, seeded from the pm_planning defaults then tunable.
-const beamConditions = computed<BeamCondition[]>(() => pmFleet.value?.beam_conditions ?? ['500V', '800V'])
-const focusN = ref(3)
-const threshold = ref<Record<string, number>>({ '500V': 0.30, '800V': 0.40 })
-watch(pmFleet, (snapshot) => {
-  if (!snapshot) return
-  focusN.value = snapshot.defaults.focus_n
-  threshold.value = { ...snapshot.defaults.advisory_threshold }
-}, { immediate: true })
-const setThreshold = ({ beam, value }: { beam: BeamCondition, value: number }) => {
-  threshold.value = { ...threshold.value, [beam]: value }
-}
 
 const asOf = computed(() => (payload.value?.fetched_at ?? '').replace('T', ' ').slice(0, 16))
 // From the payload's echo where there is one, so the readout names the span

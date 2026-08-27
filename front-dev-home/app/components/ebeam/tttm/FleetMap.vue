@@ -59,6 +59,7 @@
       class="mt-1.5 sk-field-label leading-relaxed"
     >
       고른 parameter 별 consensus 잔차(CD 대비 배수)를 주성분 분석한 배치입니다. 점 크기 = 평균 거리(Score).
+      휠로 확대·축소, 끌어서 이동합니다.
       <EbeamTttmCaptionMore>
         <span class="block">PC1 ← {{ loadingText(0) }}</span>
         <span class="block">PC2 ← {{ loadingText(1) }}</span>
@@ -67,7 +68,8 @@
           같은 잣대입니다. 빨강은 <strong>어느 한 parameter 에서라도</strong> 가장 가까운 장비와
           허용오차 CD 대비 {{ toleranceIndex.toFixed(2) }}× 밖인 장비입니다. 초록 테두리는
           <strong>N배화 그룹</strong>(점유 셀 전체에서 서로 허용오차 안인 장비 — 완전연결 군집)이라
-          위치가 아니라 판정으로 그려집니다. 그래서 가까이 있는데 테두리 밖인 장비가 나올 수 있고,
+          위치가 아니라 판정으로 그려집니다. 그 안의 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>이며,
+          오른쪽 튜닝 목표 표가 가리키는 좌표가 바로 이 점입니다. 그래서 가까이 있는데 테두리 밖인 장비가 나올 수 있고,
           그것이 두 계산이 갈라진 지점입니다.
         </span>
       </EbeamTttmCaptionMore>
@@ -76,14 +78,14 @@
       v-else
       class="mt-1.5 sk-field-label leading-relaxed"
     >
-      점 사이 거리만 의미가 있습니다. 점 크기 = 평균 skew(Score).
+      점 사이 거리만 의미가 있습니다. 점 크기 = 평균 skew(Score). 휠로 확대·축소, 끌어서 이동합니다.
       <EbeamTttmCaptionMore>
         축에는 단위가 없고 회전·반전해도 같은 지도입니다. 빨강은 <strong>오늘 장비
           그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
         {{ thresholdBasis }} 밖인 장비이며, N배화 판정은 점유 셀 전체를 교차한
         결과라 이 지도와 다를 수 있습니다 — 그쪽은 위 추천 카드를 보십시오.
         초록 테두리는 그 <strong>N배화 그룹</strong>이라 위치가 아니라 판정으로
-        그려집니다. 그래서 테두리 안에 있는데 빨간 점이거나, 가까이 있는데 테두리
+        그려지고, 그 안의 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>입니다. 그래서 테두리 안에 있는데 빨간 점이거나, 가까이 있는데 테두리
         밖인 장비가 나올 수 있고, 그것이 두 계산이 갈라진 지점입니다.
       </EbeamTttmCaptionMore>
     </p>
@@ -169,6 +171,9 @@ const thresholdBasis = computed(() => {
 
 const el = ref<HTMLDivElement | null>(null)
 const sk = useChartPalette()
+// The card's own background, for the outline pass under the centroid marker —
+// a stroke drawn straight onto a symbol is unreadable in either theme.
+const { surface } = useEchartsTheme()
 
 // Same point shape from either engine, so everything below (halo, link,
 // domain, labels) is written once. Only the units differ — `unit` says which.
@@ -339,6 +344,54 @@ const backdrop = computed<SeriesOption[]>(() => {
     })
   }
 
+  // The centre of gravity, as its own series ABOVE the scatter (z: 3).
+  //
+  // It cannot ride on the halo: that series sits at z: 1 so its translucent
+  // fill stays behind the points, and a tightly-matched group puts its centre
+  // exactly where the points are — the marker was invisible under them.
+  // Raising the halo instead would wash the whole cluster through its fill.
+  //
+  // Drawn because the 튜닝 목표 table quotes this point as a coordinate: a
+  // table that says "move to the group centre" is only readable if the reader
+  // can see where that is. A crosshair rather than a filled symbol so it is
+  // never mistaken for a tool, and each stroke is laid twice — once wide in
+  // the card's own background colour, once narrow in the group green — so it
+  // stays legible over a symbol as well as over empty canvas.
+  if (halo) {
+    out.push({
+      type: 'custom',
+      silent: true,
+      z: 3,
+      data: [[halo.cx, halo.cy]],
+      renderItem: (_params: unknown, api: unknown) => {
+        const { coord } = api as { coord: (d: number[]) => number[] }
+        const centre = coord([halo.cx, halo.cy])
+        const cx = centre[0] ?? 0
+        const cy = centre[1] ?? 0
+        const arm = 7
+        const stroke = (wide: boolean) => [
+          {
+            type: 'line' as const,
+            shape: { x1: cx - arm, y1: cy, x2: cx + arm, y2: cy },
+            style: { stroke: wide ? surface.value.surface : SK_STATE.ok, lineWidth: wide ? 4 : 1.75 }
+          },
+          {
+            type: 'line' as const,
+            shape: { x1: cx, y1: cy - arm, x2: cx, y2: cy + arm },
+            style: { stroke: wide ? surface.value.surface : SK_STATE.ok, lineWidth: wide ? 4 : 1.75 }
+          }
+        ]
+        // No caption on the marker. It carried one, and a group tight enough
+        // to be worth reading is exactly the case where its centre lands in
+        // the middle of the cluster — where the text overlapped two eqp_id
+        // labels. Those go through `labelLayout` and a custom series' children
+        // cannot join that pass, so the collision had no fix at this altitude.
+        // The captions under the chart and on the 튜닝 목표 card both name it.
+        return { type: 'group', children: [...stroke(true), ...stroke(false)] }
+      }
+    })
+  }
+
   const link = blockedLink.value
   if (link) {
     out.push({
@@ -379,6 +432,24 @@ const chartOption = computed<EChartsOption>(() => {
     // Equal insets on all four sides, so the square box yields a square plot
     // area and the shared axis domain really is drawn at one scale.
     grid: { top: 20, right: 20, bottom: 20, left: 20 },
+    // Wheel to zoom, drag to pan. One component per axis, and BOTH must be
+    // present: ECharts applies one scale factor to every dataZoom a wheel event
+    // reaches, so with the two axes on one shared domain (see `domain`) they
+    // keep an equal span and the map stays square through any zoom. Zooming a
+    // single axis would stretch the picture and silently misstate every
+    // distance on a chart whose entire content is distance.
+    //
+    // `filterMode: 'none'` is load-bearing, not a default worth changing: the
+    // default filters data outside the window OUT of the series, which would
+    // take the group ring and the blocked-pair connector off the chart as soon
+    // as their coordinates left the view. Nothing is dropped, only clipped.
+    //
+    // No reset control, because scrolling back out is one: ECharts clamps the
+    // window at the full 0–100%, so a wheel-out always lands on the whole map.
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
+      { type: 'inside', yAxisIndex: 0, filterMode: 'none' }
+    ],
     tooltip: {
       trigger: 'item',
       formatter: (p: unknown) => {
