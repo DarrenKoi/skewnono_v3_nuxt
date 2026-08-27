@@ -1,4 +1,4 @@
-// Pure logic for the pm-tune page: what it would take for one tool — the one
+// Pure logic for the pm-planning page: what it would take for one tool — the one
 // in (or fresh out of) its PM window — to be ADMITTED into the current N배화
 // group.
 //

@@ -29,7 +29,7 @@ test('the slug list is the live set, with the merged legacy routes excluded', ()
     'device-statistics',
     'skewvoir',
     'tttm',
-    'pm-tune'
+    'pm-planning'
   ])
   // recipe-tat / fail-issue merged into recipe-status and are redirected by
   // route middleware before any layout reads route.path, so listing them would
@@ -120,12 +120,12 @@ test('every fabless entry is a real slug', () => {
 })
 
 test('the single-fab set is exactly the two lab pages that pin one fab', () => {
-  assert.deepEqual([...SINGLE_FAB_FEATURES].sort(), ['pm-tune', 'tttm'])
+  assert.deepEqual([...SINGLE_FAB_FEATURES].sort(), ['pm-planning', 'tttm'])
 })
 
 test('isSingleFabFeature answers for live slugs and unknown strings alike', () => {
   assert.equal(isSingleFabFeature('tttm'), true)
-  assert.equal(isSingleFabFeature('pm-tune'), true)
+  assert.equal(isSingleFabFeature('pm-planning'), true)
   assert.equal(isSingleFabFeature('storage'), false)
   assert.equal(isSingleFabFeature('not-a-feature'), false)
   assert.equal(isSingleFabFeature(''), false)
@@ -150,8 +150,8 @@ test('every live slug declares its tool families, non-empty', () => {
 test('featureSupportsToolType answers for live slugs and unknown strings alike', () => {
   assert.equal(featureSupportsToolType('storage', 'cd-sem'), true)
   assert.equal(featureSupportsToolType('storage', 'hv-sem'), true)
-  assert.equal(featureSupportsToolType('pm-tune', 'cd-sem'), true)
-  assert.equal(featureSupportsToolType('pm-tune', 'hv-sem'), false)
+  assert.equal(featureSupportsToolType('pm-planning', 'cd-sem'), true)
+  assert.equal(featureSupportsToolType('pm-planning', 'hv-sem'), false)
   assert.equal(featureSupportsToolType('tttm', 'hv-sem'), false)
   assert.equal(featureSupportsToolType('storage', 'veritysem'), false)
   assert.equal(featureSupportsToolType('not-a-feature', 'cd-sem'), false)

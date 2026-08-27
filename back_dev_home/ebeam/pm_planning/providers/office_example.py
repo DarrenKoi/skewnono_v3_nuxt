@@ -151,7 +151,7 @@ DEFAULTS = {
 
 # How far back a "current" CD reading or BSM reading may come from is the
 # request's `window_weeks` (`_analysis_window.py`, 1-4 weeks, shared with the
-# tttm check that pm-tune joins this payload against). A tool idle for longer
+# tttm check that pm-planning joins this payload against). A tool idle for longer
 # than the window drops out of the fleet — that is the window meaning what its
 # label says, not a gap. It used to be a fixed 30 days. PM EVENTS are not
 # windowed — see PM_LOOKBACK_DAYS below.
@@ -174,7 +174,7 @@ def runs_per_tool(window_weeks: int) -> int:
 # answers "when was this tool last touched", which is a fact about the tool and
 # not about how much evidence the user asked for. Windowed, a PM three weeks
 # ago vanished at the 2-week default — `post_pm_at` went None, `prev_post_delta`
-# with it, and pm-tune's "freshest out of PM" default pick moved — which the
+# with it, and pm-planning's "freshest out of PM" default pick moved — which the
 # window request never asked for (oc-review 2026-08-26). Same reasoning as the
 # MDC lookback below, at the span the 30-day window used to give it.
 PM_LOOKBACK_DAYS = 30
@@ -715,7 +715,7 @@ if __name__ == "__main__":  # pragma: no cover
     #   .venv/bin/python -m back_dev_home.ebeam.pm_planning.providers.office R3
     #
     # It walks the four sources in the order the payload needs them and prints
-    # what each returned, because an empty pm-tune page looks identical
+    # what each returned, because an empty pm-planning page looks identical
     # whichever of them came back empty. The first stage printing 0 IS the bug —
     # and the two likeliest are named in the module docstring:
     # SKEWNONO_CD_MONITOR_RECIPE (stage 2) and SKEWNONO_AXIS_PARAM_MAP (stage 3).

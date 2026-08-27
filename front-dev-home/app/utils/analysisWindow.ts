@@ -1,4 +1,4 @@
-// The `window_weeks` axis the two lab pages (TTTM, PM 튜닝) gather data over.
+// The `window_weeks` axis the two lab pages (TTTM, PM 플래닝) gather data over.
 //
 // Mirrors back_dev_home/ebeam/_analysis_window.py — the server refuses a value
 // outside its choices with a 400 rather than clamping it, so the client must

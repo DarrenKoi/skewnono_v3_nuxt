@@ -67,7 +67,7 @@ export const useNavigation = () => {
     router.push(`/ebeam/${toolType}/${fabSegment(fab)}`)
   }
 
-  // Whether the current page pins a single fab (tttm, pm-tune). The sidebar
+  // Whether the current page pins a single fab (tttm, pm-planning). The sidebar
   // reads this to drop its multi-select affordances, and toggleFab degrades to
   // plain single-fab navigation so a Cmd/Ctrl+click cannot build a multi-fab
   // URL these pages would immediately collapse (useFabRoute redirects it).

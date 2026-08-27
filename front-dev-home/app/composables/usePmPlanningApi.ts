@@ -58,7 +58,7 @@ export const usePmPlanningApi = () => {
   const config = useRuntimeConfig()
   const base = config.public.apiBase
 
-  // The same `window_weeks` the tttm check is fetched under: pm-tune joins
+  // The same `window_weeks` the tttm check is fetched under: pm-planning joins
   // the two payloads, and one label has to describe both.
   const fetchPmPlanningFleet = async (
     fabName: string,

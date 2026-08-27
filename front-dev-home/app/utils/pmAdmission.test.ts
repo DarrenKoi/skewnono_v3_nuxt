@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm test  (node --test, Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { admissionReport, pickDefaultTool } from './pmTune.ts'
+import { admissionReport, pickDefaultTool } from './pmAdmission.ts'
 import { applyTolerance, scoreCells, type CellInput } from './tttmCells.ts'
 import type { SkewMatrix } from './tttmGrouping.ts'
 

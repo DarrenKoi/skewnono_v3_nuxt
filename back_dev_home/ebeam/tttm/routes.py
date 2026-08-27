@@ -46,7 +46,7 @@ def tttm_check(tool_slug: str):
 
 @bp.get("/<tool_slug>/tttm/recipes")
 def tttm_recipes(tool_slug: str):
-    """Recipes this fab has measured, for the shared pm-tune / TTTM picker.
+    """Recipes this fab has measured, for the shared pm-planning / TTTM picker.
 
     Same slug, fab_name and window_weeks rules as `/tttm/check`, so a fab that
     answers one answers the other — a picker scoped differently from the

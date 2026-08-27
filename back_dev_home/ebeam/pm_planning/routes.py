@@ -25,7 +25,7 @@ def pm_planning_fleet(tool_slug: str):
     fab_name = resolve_fab_name()
     if not fab_name:
         return jsonify({"error": "fab_name query parameter is required"}), 400
-    # The same axis as /tttm/check — pm-tune joins the two payloads and they
+    # The same axis as /tttm/check — pm-planning joins the two payloads and they
     # must describe one span. See _analysis_window.py.
     window_weeks = resolve_window_weeks()
     if window_weeks is None:

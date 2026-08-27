@@ -37,7 +37,7 @@ export interface HeaderLink {
   // Only for `to: null` entries: which fab-scoped target the menu builds for this row.
   // Required once there is more than one dynamic row — LabMenu used to treat `to: null` as
   // "this is 라이브 알람", so a second one would have silently pointed at the alarm board.
-  scope?: 'live-alarm' | 'tttm' | 'pm-tune'
+  scope?: 'live-alarm' | 'tttm' | 'pm-planning'
   // Keep this row out of the menu on the Phase 3 cloud deploy. For pages whose estimator is
   // not validated yet: production users must not be LED to them, but the route is deliberately
   // left open, so anyone holding the URL (power users, beta testers) still gets in. Hiding the
@@ -77,7 +77,7 @@ export const HEADER_LINKS: HeaderLink[] = [
   // 실험실이고(추정기 미검증), 같은 이유로 CD-SEM 전용이며, 같은 이유로 hiddenOnCloud 입니다.
   // TTTM 페이로드를 그대로 받아 쓰므로 TTTM 이 프로덕션에 열리기 전에 이 페이지만 먼저 열리는
   // 경우는 없습니다 — 두 플래그는 함께 내려갑니다.
-  { to: null, icon: 'i-lucide-wrench', label: 'PM 튜닝(PM-Tune)', group: 'lab', description: 'PM 때 그룹에 맞춰 튜닝할 목표 제시', activeMatch: '/pm-tune', scope: 'pm-tune', hiddenOnCloud: true },
+  { to: null, icon: 'i-lucide-wrench', label: 'PM 플래닝(PM-Planning)', group: 'lab', description: 'PM 때 그룹에 맞춰 튜닝할 목표 제시', activeMatch: '/pm-planning', scope: 'pm-planning', hiddenOnCloud: true },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅', group: 'lab', description: '데이터에 대해 물어보기', separated: true },
 
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '앱 소개', group: 'account' },

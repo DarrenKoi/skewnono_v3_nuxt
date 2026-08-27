@@ -711,9 +711,9 @@ const pageGuides: PageGuide[] = [
     hiddenOnCloud: true
   },
   {
-    id: 'pm-tune',
-    title: 'PM 튜닝(PM-Tune)',
-    path: '/ebeam/cd-sem/{fab}/pm-tune',
+    id: 'pm-planning',
+    title: 'PM 플래닝(PM-Planning)',
+    path: '/ebeam/cd-sem/{fab}/pm-planning',
     icon: 'i-lucide-wrench',
     section: 'lab',
     purpose: 'PM 창에서 장비를 어느 목표로 맞춰야 그룹에 들어오는지 제시합니다.',

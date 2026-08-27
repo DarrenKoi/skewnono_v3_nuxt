@@ -12,7 +12,7 @@ export const useFabRoute = (toolType: ToolType) => {
 
   const parsed = computed(() => parseFabSegment(route.params.fab as string | string[] | undefined))
 
-  // Single-fab pages (tttm, pm-tune) collapse a multi-fab segment to the
+  // Single-fab pages (tttm, pm-planning) collapse a multi-fab segment to the
   // primary: the URL is normalized (replace, so Back does not bounce through
   // the multi form) and the store keeps only the fab the page actually shows.
   // The sidebar already refuses to BUILD multi-fab URLs on these pages — the

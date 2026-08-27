@@ -405,7 +405,7 @@ def _records(frame: Any) -> list[dict[str, Any]]:
 # the cache is what makes the second request fast rather than merely repeatable.
 #
 # Sized for the WIDEST window of both lab adapters on one page, twice over:
-# pm-tune loads the tttm check (4 weeks x 10 runs/week x ~18 tools = 720) and
+# pm-planning loads the tttm check (4 weeks x 10 runs/week x ~18 tools = 720) and
 # the pm_planning fleet (4 x 8 x 18 = 576) together, ~1300 pickles, and a cache
 # smaller than one page load evicts the first adapter's runs while the second
 # is still opening its own — every later request then re-fetches everything.

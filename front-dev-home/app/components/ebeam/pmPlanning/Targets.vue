@@ -98,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AdmissionReport } from '~/utils/pmTune'
+import type { AdmissionReport } from '~/utils/pmAdmission'
 import { cellLabel } from '~/utils/tttmCells'
 import { toolLabels } from '~/utils/toolLabels'
 

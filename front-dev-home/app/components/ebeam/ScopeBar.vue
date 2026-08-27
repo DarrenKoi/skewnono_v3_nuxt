@@ -207,7 +207,7 @@ const props = withDefaults(defineProps<{
   hint?: string
 }>(), {
   pending: false,
-  hint: '고른 장비 · recipe · 수집 기간으로 다시 계산합니다. 이 설정은 이 브라우저에 저장되고, TTTM · PM 튜닝 두 페이지가 함께 씁니다.'
+  hint: '고른 장비 · recipe · 수집 기간으로 다시 계산합니다. 이 설정은 이 브라우저에 저장되고, TTTM · PM 플래닝 두 페이지가 함께 씁니다.'
 })
 
 const emit = defineEmits<{

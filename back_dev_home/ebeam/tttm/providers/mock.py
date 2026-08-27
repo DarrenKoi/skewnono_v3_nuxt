@@ -213,7 +213,7 @@ def _fleet(tool_slug: str, fab_name: str) -> list[ToolRef]:
     The roster law itself (fab_name-not-fac_id, dedupe by eqp_id, sorted so
     "the last tool is the drifted one" is a stable property of the fab) lives
     in sem_list/roster.py — pm_planning's mock derives the SAME fleet from it,
-    and the pm-tune page joins the two payloads by eqp_id.
+    and the pm-planning page joins the two payloads by eqp_id.
     """
     tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
     if tool_type is None:

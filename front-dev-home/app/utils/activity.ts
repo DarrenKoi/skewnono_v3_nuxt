@@ -94,7 +94,7 @@ const FEATURE_LABELS: Record<string, string> = {
   live_alarm: 'Live Alarm',
   mag_pixel: 'Mag/Pixel 가이드',
   meas_hist: '측정 이력',
-  pm_planning: 'PM 튜닝',
+  pm_planning: 'PM 플래닝',
   provision: 'Provision',
   recipe_search: 'Recipe 검색',
   recipe_tat: 'Recipe TAT',

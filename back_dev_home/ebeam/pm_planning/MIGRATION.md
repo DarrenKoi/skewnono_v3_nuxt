@@ -23,7 +23,7 @@
 - **`window_weeks` bounds every "current" source, and the run cap grows with
   it.** Read by `_analysis_window.resolve_window_weeks()` exactly as
   `/tttm/check` reads it — one of `1`/`2`/`3`/`4`, default `2`, anything else a
-  400 — because pm-tune joins this payload with the tttm check under one
+  400 — because pm-planning joins this payload with the tttm check under one
   "N주 윈도우" label. `data.get_pm_planning_fleet(fab_name, window_weeks)` is
   positional and undefaulted so a stale `office.py` raises. The adapter
   gathers monitor runs and BSM readings from `anchor - 7 * window_weeks`
@@ -34,7 +34,7 @@
   `maintenance_events` over a fixed `PM_LOOKBACK_DAYS` (30, what the old
   fixed window gave it) because "when was this tool last touched" is a fact
   about the tool, not evidence the user sized — windowed, a PM three weeks ago
-  vanished at the 2-week default and moved pm-tune's default pick. MDC epochs
+  vanished at the 2-week default and moved pm-planning's default pick. MDC epochs
   likewise keep their own `EPOCH_LOOKBACK_DAYS`. Echo `window_weeks` on the payload,
   including the empty-roster one. (It used to be a fixed 30 days behind a
   fixed cap of 8 runs.)
@@ -122,7 +122,7 @@
 - Mock behavior: `providers/mock.py` reads the fab's CD-SEM roster
   **from sem_list** (`sem_list/providers/mock.get_sem_list()`, filtered by
   `fab_name` + `model_to_tool_type == "cd-sem"`, deduplicated by `eqp_id`,
-  sorted) — the same law tttm's mock follows, because the pm-tune page
+  sorted) — the same law tttm's mock follows, because the pm-planning page
   joins this payload with `tttm/check` by `eqp_id` and a fabricated roster
   intersects that join down to zero tools. A fab with no CD-SEM rows in
   sem_list answers an **empty** `tools` list (real fab names are
@@ -242,7 +242,7 @@ prefix 로 찾은 recipe 를, 3단계가 그 fab 의 parameter 어휘 전체와 
     SKEWNONO_AXIS_PARAM_MAP="ADI/*:*_HOR=X,ADI/*:*_VER=Y,ADI/CD_MONITOR_001:Para_13=X"
 
 CD 모니터링 recipe 의 parameter 도 다른 측정에서 쓰는 평범한 이름들이므로
-(user-confirmed 2026-08-18) 이 표 하나가 pm-tune 과 tttm 양쪽을 커버합니다.
+(user-confirmed 2026-08-18) 이 표 하나가 pm-planning 과 tttm 양쪽을 커버합니다.
 자세한 이유는 tttm/MIGRATION.md 의 같은 절에 있습니다.
 
 ## Verify

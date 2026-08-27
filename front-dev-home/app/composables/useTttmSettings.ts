@@ -28,10 +28,10 @@ export interface TttmScopeSettings {
   parameter: string | null
   /**
    * How many weeks of runs the server gathers — one of WINDOW_WEEKS, sent as
-   * `window_weeks` on the check, the recipe picker AND pm-tune's fleet fetch.
+   * `window_weeks` on the check, the recipe picker AND pm-planning's fleet fetch.
    * Part of the shared scope rather than a per-page setting because the two
    * pages describe ONE group: a 1-week group on TTTM and a 3-week group on
-   * PM 튜닝 would be two different groups under one name.
+   * PM 플래닝 would be two different groups under one name.
    */
   windowWeeks: WindowWeeks
 }

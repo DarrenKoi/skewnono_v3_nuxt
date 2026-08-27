@@ -1,5 +1,4 @@
-// Pure client-side focus-ranking logic for the pm-tune page (the backend
-// feature keeps the pm_planning name, hence the file name). Kept
+// Pure client-side focus-ranking logic for the pm-planning page. Kept
 // dependency-free and framework-free so it runs under `node --test`.
 
 export type BeamCondition = '500V' | '800V'

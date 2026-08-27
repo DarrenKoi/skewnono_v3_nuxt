@@ -99,14 +99,14 @@ const props = defineProps<{
    */
   blockedPair?: PairReading | null
   /**
-   * One tool to visually anchor — pm-tune's picked tool, the one in (or fresh
+   * One tool to visually anchor — pm-planning's picked tool, the one in (or fresh
    * out of) its PM window. Drawn as an ink ring around its point plus a bold
    * label, never a recolor: red already means "no partner inside tolerance",
    * and overloading it would make the pick look like a finding.
    */
   pickedTool?: string | null
   /**
-   * Overrides the halo's `N배화 그룹 · {n}대` caption — pm-tune writes the
+   * Overrides the halo's `N배화 그룹 · {n}대` caption — pm-planning writes the
    * prospective form (`… → {n+1}대 (튜닝 시)`). The ring itself still encloses
    * only the CURRENT members; only the words change.
    */

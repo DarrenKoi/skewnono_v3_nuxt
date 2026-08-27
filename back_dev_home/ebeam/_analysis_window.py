@@ -1,7 +1,7 @@
-"""The ``window_weeks`` axis the two lab pages (tttm, pm-tune) gather data over.
+"""The ``window_weeks`` axis the two lab pages (tttm, pm-planning) gather data over.
 
 One module rather than a constant in each feature because the axis is SHARED:
-pm-tune joins the tttm check payload with the pm_planning fleet payload, and
+pm-planning joins the tttm check payload with the pm_planning fleet payload, and
 the recipe picker (`/tttm/recipes`) must list what the check will find. Three
 endpoints that each read the query argument their own way would drift — one
 defaulting to a week, another to three — and a picker scoped to a different

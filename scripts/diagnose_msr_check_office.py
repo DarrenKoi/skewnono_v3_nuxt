@@ -17,7 +17,7 @@ still open, and it is not answerable from home:
 
 Each hypothesis implies a different fix, and two other places depend on the
 answer: ``ebeam/_office_msr_cd.py`` filters ``msr_check.keyword == "Yes"`` for
-tttm / pm-tune, and ``msr_file``'s adapter reads ``minio_pkl``. If H1 holds,
+tttm / pm-planning, and ``msr_file``'s adapter reads ``minio_pkl``. If H1 holds,
 those screens are silently empty at the office for the same reason.
 
 Read-only: counts, aggregations and a few sampled documents. Nothing is
@@ -75,7 +75,7 @@ def _report_index(tool: str, index: str, client: object) -> None:
     # H1. The raw stored values. A terms agg needs the .keyword subfield;
     # msr_check is mapped as text, and whether it HAS that subfield is itself
     # load-bearing: _office_msr_cd filters on msr_check.keyword, so a missing
-    # subfield means tttm / pm-tune match nothing at the office either.
+    # subfield means tttm / pm-planning match nothing at the office either.
     print("  -- H1: stored msr_check values --")
     try:
         buckets = (
@@ -87,7 +87,7 @@ def _report_index(tool: str, index: str, client: object) -> None:
     except Exception as exc:  # noqa: BLE001 - the failure IS the finding
         print(f"  terms on msr_check.keyword FAILED: {type(exc).__name__}: {exc}")
         print("  -> no .keyword subfield. _office_msr_cd's msr_check.keyword")
-        print("     filter matches nothing, so tttm / pm-tune are empty too.")
+        print("     filter matches nothing, so tttm / pm-planning are empty too.")
         buckets = []
     for bucket in buckets:
         key = bucket["key"]

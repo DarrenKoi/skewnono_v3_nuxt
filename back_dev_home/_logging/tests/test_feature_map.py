@@ -169,8 +169,9 @@ def test_no_registered_route_still_needs_the_fallback():
         # slug, because renaming a written slug splits the historical series.
         ("/ebeam/cd-sem/R3/tttm", "skew_check"),
         ("/ebeam/cd-sem/R3/skew-check", "skew_check"),
-        # Renamed pm-planning → pm-tune (2026-08-17), same rule again.
+        # pm-tune was the page path 2026-08-17..27; the alias keeps that series.
         ("/ebeam/cd-sem/R3/pm-tune", "pm_planning"),
+        ("/ebeam/cd-sem/R3/pm-planning", "pm_planning"),
         ("/ebeam/cd-sem/M15/pm-planning", "pm_planning"),
         # Fabless ebeam pages.
         ("/ebeam/cd-sem/device-statistics", "device_statistics"),

@@ -9,7 +9,7 @@ import { useTttmSettings } from '~/composables/useTttmSettings'
  * selects.
  *
  * Shared rather than written twice because the SCOPE is shared: TTTM and
- * pm-tune read and write one persisted entry per (toolType, fab), so a group
+ * pm-planning read and write one persisted entry per (toolType, fab), so a group
  * shown on one page is the same group on the other. Duplicating this wiring is
  * how the two would start to drift — one page clearing the parameter on a
  * recipe change and the other not is enough to make them disagree.

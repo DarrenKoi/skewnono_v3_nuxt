@@ -56,7 +56,7 @@ _LAZY_SUB_PROVIDER_ENVS = frozenset({
 # ``fleet_rows``) and then look every tool up in meas_hist by ``eqp_id``. On a
 # mock roster those ids are fabricated, so no run is ever found: both pages
 # answer 200 with an empty fleet. Worse than storage's case, in fact — the
-# pm-tune screen JOINS the two payloads by ``eqp_id``, so a mock roster on one
+# pm-planning screen JOINS the two payloads by ``eqp_id``, so a mock roster on one
 # side and a real one on the other intersects to nothing while each response
 # looks individually fine.
 #

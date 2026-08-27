@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <EbeamMetaBar
       :eyebrow="`${toolLabel} · ${fab}`"
-      title="PM 튜닝"
+      title="PM 플래닝"
       subtitle="하드웨어를 만질 기회는 PM 창뿐입니다 — 그때 N배화 그룹에 맞춰 튜닝할 목표를 셀 단위로 제시합니다. N이 커질수록 서로 대체 측정할 수 있는 장비가 늘어납니다."
       :cadence="cadence"
       :as-of="asOf"
@@ -66,7 +66,7 @@
            전용이고, 비교 대상은 TTTM 과 공유하는 설정입니다. parameter 와 같은
            단계의 선택이라 이 바에 두되, 선으로 갈라 둡니다. -->
       <template #trailing="{ disabled }">
-        <EbeamPmTuneToolPicker
+        <EbeamPmPlanningToolPicker
           :rows="pickerRows"
           :picked="picked"
           :pending="pmPending"
@@ -154,11 +154,11 @@
           :picked-tool="picked"
           :halo-label="haloLabel"
         />
-        <!-- File is pmTune/Targets.vue, NOT pmTune/TuneTargets.vue: Nuxt's
+        <!-- File is pmPlanning/Targets.vue, NOT pmPlanning/TuneTargets.vue: Nuxt's
              auto-import collapses the repeated word at the segment boundary
-             (PmTune + TuneTargets -> PmTuneTargets), so the longer file name
+             (PmPlanning + TuneTargets -> PmPlanningTargets), so the longer file name
              would leave this tag rendering silently empty. -->
-        <EbeamPmTuneTargets
+        <EbeamPmPlanningTargets
           :report="report"
           :n="primary?.n ?? 0"
           :tools="labelRefs"
@@ -166,11 +166,11 @@
       </div>
 
       <div class="grid items-stretch gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <EbeamPmTuneGateCard
+        <EbeamPmPlanningGateCard
           :gate="pickedGate"
           :eqp-id="picked"
         />
-        <EbeamPmTuneFocusRanking
+        <EbeamPmPlanningFocusRanking
           :tools="pmTools"
           :beam-conditions="beamConditions"
           :focus-n="focusN"
@@ -190,7 +190,7 @@ import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { windowLabel } from '~/utils/analysisWindow'
 import { usePmPlanningApi, type FleetResponse } from '~/composables/usePmPlanningApi'
 import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
-import { admissionReport, pickDefaultTool } from '~/utils/pmTune'
+import { admissionReport, pickDefaultTool } from '~/utils/pmAdmission'
 import { alignSkewMatrix, groupFromCells, pickPrimary, type GroupCell, type NbaGroup } from '~/utils/tttmGrouping'
 import { applyTolerance, excludedTools, scoreCells, type CellInput } from '~/utils/tttmCells'
 import { fractionOfLimit, MONITOR_WAFER_CD_NM } from '~/utils/tttmLimits'
@@ -229,7 +229,7 @@ const {
 // this page are joined and must describe one span.
 const { fetchPmPlanningFleet } = usePmPlanningApi()
 const { data: pmFleet, pending: pmPending } = useAsyncData<FleetResponse | null>(
-  `pm-tune:${props.fab || 'NONE'}`,
+  `pm-planning:${props.fab || 'NONE'}`,
   () => props.fab ? fetchPmPlanningFleet(props.fab, windowWeeks.value) : Promise.resolve(null),
   { watch: [windowWeeks] }
 )

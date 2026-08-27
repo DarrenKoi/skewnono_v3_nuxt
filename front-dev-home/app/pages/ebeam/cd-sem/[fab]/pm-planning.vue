@@ -3,11 +3,11 @@
        결과 구성이라 같은 폭을 씁니다. -->
   <div class="mx-auto w-full max-w-[1440px] space-y-3">
     <!-- Keyed on the fab so a fab switch REMOUNTS rather than reusing the view —
-         PmTuneView reads props.fab once at setup (both useAsyncData keys bake it
-         in), same reasoning as tttm.vue. pm-tune is a SINGLE_FAB_FEATURES page,
+         PmPlanningView reads props.fab once at setup (both useAsyncData keys bake it
+         in), same reasoning as tttm.vue. pm-planning is a SINGLE_FAB_FEATURES page,
          so useFabRoute collapses a multi-fab URL to the primary before this
          renders. -->
-    <EbeamPmTuneView
+    <EbeamPmPlanningView
       :key="primaryFab"
       :fab="primaryFab"
       tool-label="CD-SEM"

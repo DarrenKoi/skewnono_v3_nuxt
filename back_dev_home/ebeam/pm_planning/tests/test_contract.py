@@ -98,7 +98,7 @@ def test_mock_roster_is_the_sem_list_fleet():
     if not _is_mock():
         # Mock-only: an office adapter reads the real roster, and what frame it
         # joins against is its own business. At home, though, sem_list is the
-        # ONE fleet every feature stands on — pm-tune joins this payload with
+        # ONE fleet every feature stands on — pm-planning joins this payload with
         # tttm/check by eqp_id, and tttm's mock already derives its roster from
         # sem_list. A pm_planning mock that fabricates its own ids intersects
         # that join down to zero tools.
@@ -147,7 +147,7 @@ def test_mock_fleet_is_a_complete_frozen_snapshot():
 
 @pytest.mark.parametrize("weeks", WINDOW_WEEKS_CHOICES)
 def test_the_fleet_echoes_the_window_it_gathered_over(weeks):
-    # pm-tune joins this with the tttm check under one "N주 윈도우" label, read
+    # pm-planning joins this with the tttm check under one "N주 윈도우" label, read
     # from the payload rather than from what the client sent.
     fleet = data.get_pm_planning_fleet(FAB_NAME, weeks)
     assert fleet["window_weeks"] == weeks

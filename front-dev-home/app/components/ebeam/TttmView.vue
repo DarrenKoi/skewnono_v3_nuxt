@@ -26,7 +26,7 @@
       @update:recipe-id="onRecipe"
     >
       <!-- The picker is mounted HERE rather than passed through the bar, the
-           same way pm-tune mounts it. Both pages therefore hand ScopeRecipe its
+           same way pm-planning mounts it. Both pages therefore hand ScopeRecipe its
            props directly from useTttmScope, so the two lab pages cannot drift in
            what they give it. -->
       <template #recipe>
@@ -217,7 +217,7 @@ import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>()
 
 // The comparison scope, its recipe catalogue and the skew payload it selects,
-// shared verbatim with pm-tune — see useTttmScope for why this is one
+// shared verbatim with pm-planning — see useTttmScope for why this is one
 // composable rather than wiring per page.
 const {
   scoped,

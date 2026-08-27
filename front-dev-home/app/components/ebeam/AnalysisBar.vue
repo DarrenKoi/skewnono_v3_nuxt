@@ -23,7 +23,7 @@
         </div>
       </div>
 
-      <!-- 판정 임계값(TTTM) 또는 튜닝 장비(pm-tune) — parameter 와 같은 단계의
+      <!-- 판정 임계값(TTTM) 또는 튜닝 장비(pm-planning) — parameter 와 같은 단계의
            선택이지만 서로 다른 물음이라, 같은 바 안에서 선으로 갈라 둡니다.
            The slot hands the control its `disabled`, so the collapse of the
            lock into a boolean is written once, here. -->
