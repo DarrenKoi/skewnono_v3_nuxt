@@ -19,6 +19,7 @@ import {
   type RecipeSearchResult
 } from '~/utils/recipeSearchMatch'
 import { buildFabSegment } from '~/utils/fab'
+import { recipeRecentSearchKey, type RecipeRecentSearch } from '~/utils/recipeRecentSearches'
 import { recipePairKey } from '~/utils/recipePair'
 
 const props = defineProps<{
@@ -176,13 +177,26 @@ const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'matched', label: 'Matched', value: filteredCount.value.toLocaleString(), tone: 'accent' }
 ])
 
-const applyRecentSearch = (value: string) => {
-  query.value = value
+// Replaying an entry recorded under other fabs navigates there first: the
+// catalog is per-[fab], so the term only matches inside the fabs it was typed
+// in. Changing the segment remounts the page, which reads `q` back off the
+// URL and syncs the sidebar via useFabRoute — no separate state to poke.
+const applyRecentSearch = (entry: RecipeRecentSearch) => {
+  const targetSegment = entry.fabs.length ? buildFabSegment(entry.fabs) : fabSegment.value
+  if (targetSegment === fabSegment.value || route.name == null) {
+    query.value = entry.term
+    return
+  }
+  router.push({
+    name: route.name,
+    params: { ...route.params, fab: targetSegment },
+    query: { q: entry.term }
+  })
 }
 
 const commitSearch = () => {
   if (canSearch.value) {
-    recordRecentSearch(query.value.trim())
+    recordRecentSearch(query.value.trim(), props.fabs)
   }
 }
 
@@ -561,17 +575,17 @@ const openSetMeasHist = () => {
 
 const openRecipeDetail = (row: RecipeSearchResult) => {
   if (row.source !== 'redis') return
-  recordRecentSearch(query.value.trim())
+  recordRecentSearch(query.value.trim(), props.fabs)
   router.push(getRecipeDetailRoute(row))
 }
 
 const openLateral = (row: RecipeSearchResult) => {
-  recordRecentSearch(query.value.trim())
+  recordRecentSearch(query.value.trim(), props.fabs)
   router.push(getLateralRoute(row))
 }
 
 const openMeasHist = (row: RecipeSearchResult) => {
-  recordRecentSearch(query.value.trim())
+  recordRecentSearch(query.value.trim(), props.fabs)
   router.push(getMeasHistRoute(row))
 }
 </script>
@@ -986,25 +1000,29 @@ const openMeasHist = (row: RecipeSearchResult) => {
             class="grid flex-1 content-start gap-1.5 p-3 sm:grid-cols-2"
           >
             <div
-              v-for="(term, index) in recentSearches"
-              :key="term"
+              v-for="(entry, index) in recentSearches"
+              :key="recipeRecentSearchKey(entry)"
               class="group flex min-w-0 items-center gap-1 rounded-(--sk-r-chip) border border-(--sk-border-soft) bg-(--sk-muted-surface) px-2 py-1.5 transition-colors hover:border-(--sk-brand)/35 hover:bg-(--sk-brand)/5"
             >
               <button
                 type="button"
                 class="flex min-w-0 flex-1 items-center gap-2 text-left"
-                @click="applyRecentSearch(term)"
+                @click="applyRecentSearch(entry)"
               >
                 <span
                   class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-(--sk-brand)/10 font-mono text-xs font-semibold tabular-nums text-(--sk-brand)"
                 >{{ index + 1 }}</span>
-                <span class="truncate font-mono text-xs font-semibold text-(--sk-ink)">{{ term }}</span>
+                <span class="truncate font-mono text-xs font-semibold text-(--sk-ink)">{{ entry.term }}</span>
+                <span
+                  v-if="entry.fabs.length"
+                  class="ml-auto shrink-0 font-mono text-xs text-(--sk-ink-subtle)"
+                >{{ entry.fabs.join('+') }}</span>
               </button>
               <button
                 type="button"
                 class="shrink-0 rounded p-0.5 text-(--sk-ink-subtle) opacity-60 transition hover:bg-(--sk-bad)/10 hover:text-(--sk-bad) group-hover:opacity-100"
-                :aria-label="`${term} 최근 검색어 삭제`"
-                @click.stop="removeRecentSearch(term)"
+                :aria-label="`${entry.term} 최근 검색어 삭제`"
+                @click.stop="removeRecentSearch(entry)"
               >
                 <UIcon
                   name="i-lucide-x"
