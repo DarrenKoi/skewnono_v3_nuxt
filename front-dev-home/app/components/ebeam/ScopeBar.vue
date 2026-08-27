@@ -49,8 +49,11 @@
  * Recipe and 수집 기간 only, since 2026-08-27. The tool cell moved out to its
  * own bar (`EbeamToolGroupBar`): which tools to compare is decided AMONG the
  * roster the recipe's payload returns, so it is the second step, not a third
- * cell of the first. The parameter and the page-specific control (tolerance
- * knob, 튜닝할 장비) sit in the 분석 조건 bar (`EbeamAnalysisBar`) below.
+ * cell of the first. The parameter and the page-specific judging control
+ * (TTTM's tolerance knob) sit in the 분석 조건 bar (`EbeamAnalysisBar`) below.
+ * PM 플래닝's 튜닝할 장비 is NOT one of these three: it names the subject the
+ * page reports on rather than the data it reports from, so it has its own bar
+ * ABOVE this one (`EbeamPmPlanningToolPicker`, 2026-08-27).
  */
 withDefaults(defineProps<{
   hint?: string

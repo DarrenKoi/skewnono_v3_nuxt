@@ -9,6 +9,24 @@
       :stats="metaStats"
     />
 
+    <!-- 튜닝할 장비 — 첫 바입니다. 아래 세 바(비교 대상 · 장비 모델 그룹 ·
+         분석 조건)는 TTTM 과 공유하는 설정이고, 이 선택만 이 페이지 전용이며
+         페이지의 모든 결과가 이 한 대를 기준으로 계산됩니다. 분석 조건 바의
+         오른쪽 칸에 있던 것을 2026-08-27 에 끌어올렸습니다 — 가장 중요한 선택이
+         가장 눈에 안 띄는 자리에 있었습니다.
+
+         The pm roster is its own request and does not ride on the recipe, so
+         this bar is never locked: picking the tool first and the scope after is
+         a legitimate order, and a greyed-out control at the top of the page
+         would read as broken. The 그룹 badge simply does not appear until there
+         is a group to be in. -->
+    <EbeamPmPlanningToolPicker
+      :rows="pickerRows"
+      :picked="picked"
+      :pending="pmPending"
+      @update:picked="picked = $event"
+    />
+
     <!-- The scope bar renders even on `available: false`, and while the payload
          is in flight — same rule as TttmView, and the same reason: the scope IS
          the commonest cause of an empty answer, so taking the recipe picker off
@@ -49,8 +67,9 @@
     />
 
     <!-- 분석 조건 — same bar and same lock rule as TttmView: the parameter
-         list rides on the recipe's payload, so the controls are inert until a
-         recipe is picked and while its answer is unavailable. -->
+         list rides on the recipe's payload, so the picker is inert until a
+         recipe is picked and while its answer is unavailable. No trailing cell
+         here: 튜닝할 장비 moved to its own bar at the top of the page. -->
     <EbeamAnalysisBar
       :lock="lock"
       note="tolerance 는 TTTM 페이지의 설정을 따릅니다."
@@ -61,19 +80,6 @@
           :parameter-names="parameterNames"
           :lock="lock"
           @update:parameters="onParameters"
-        />
-      </template>
-
-      <!-- 튜닝 대상은 비교 대상이 아닙니다 — 어느 장비를 만질 것인가는 이 페이지
-           전용이고, 비교 대상은 TTTM 과 공유하는 설정입니다. parameter 와 같은
-           단계의 선택이라 이 바에 두되, 선으로 갈라 둡니다. -->
-      <template #trailing="{ disabled }">
-        <EbeamPmPlanningToolPicker
-          :rows="pickerRows"
-          :picked="picked"
-          :pending="pmPending"
-          :disabled="disabled"
-          @update:picked="picked = $event"
         />
       </template>
     </EbeamAnalysisBar>
@@ -384,7 +390,11 @@ const haloLabel = computed(() => {
 })
 
 const pickerRows = computed(() => {
-  const members = new Set(primary.value?.tools ?? [])
+  // 그룹 membership only once a recipe has been picked. Without one the server
+  // still answers — with a fleet-wide fold of every measured recipe — and the
+  // results below are gated on exactly that, so a 1차 그룹 badge on the top bar
+  // would be the page asserting membership in a comparison nobody chose.
+  const members = new Set(scopeReady.value ? primary.value?.tools ?? [] : [])
   return pmTools.value.map(t => ({
     eqp_id: t.eqp_id,
     verdict: t.gate.verdict,

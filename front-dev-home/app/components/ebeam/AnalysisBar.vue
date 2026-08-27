@@ -3,7 +3,8 @@
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-5">
       <!-- 분석 조건 — 비교 대상이 정해져 측정 데이터가 온 뒤에야 뜻이 생기는 선택.
            parameter 는 그 데이터에서 읽은 목록이고, 오른쪽 칸은 페이지마다 다른
-           조건(판정 임계값 · 튜닝할 장비)입니다. -->
+           판정 조건(TTTM 의 판정 임계값)입니다. 채우지 않은 페이지에서는 칸째로
+           빠집니다 — 빈 칸에 선만 그어 두면 뭔가 사라진 것처럼 읽힙니다. -->
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <p class="sk-panel-title">
@@ -23,11 +24,14 @@
         </div>
       </div>
 
-      <!-- 판정 임계값(TTTM) 또는 튜닝 장비(pm-planning) — parameter 와 같은 단계의
-           선택이지만 서로 다른 물음이라, 같은 바 안에서 선으로 갈라 둡니다.
+      <!-- 판정 임계값(TTTM) — parameter 와 같은 단계의 선택이지만 서로 다른
+           물음이라, 같은 바 안에서 선으로 갈라 둡니다.
            The slot hands the control its `disabled`, so the collapse of the
            lock into a boolean is written once, here. -->
-      <div class="shrink-0 border-t border-(--sk-border-soft) pt-4 xl:w-[264px] xl:border-t-0 xl:border-l xl:pt-0 xl:pl-5">
+      <div
+        v-if="$slots.trailing"
+        class="shrink-0 border-t border-(--sk-border-soft) pt-4 xl:w-[264px] xl:border-t-0 xl:border-l xl:pt-0 xl:pl-5"
+      >
         <slot
           name="trailing"
           :disabled="disabled"
@@ -58,7 +62,9 @@ import type { AnalysisLock } from '~/utils/tttmRecipeScope'
  *
  * Both cells arrive as slots for the reason ScopeBar's recipe cell does: a
  * prop relay through a wrapper is a place to forget a prop, and the knob in
- * the trailing cell fires on every drag frame.
+ * the trailing cell fires on every drag frame. The trailing cell is optional:
+ * PM 플래닝 gave it up on 2026-08-27 when 튜닝할 장비 became its own bar at the
+ * top of that page, and an empty divided column reads as a missing control.
  */
 const props = withDefaults(defineProps<{
   lock: AnalysisLock
