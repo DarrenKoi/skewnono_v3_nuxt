@@ -632,7 +632,7 @@ const openMeasHist = (row: RecipeSearchResult) => {
                 autocomplete="off"
                 class="sk-no-native-clear min-w-0 flex-1"
                 icon="i-lucide-search"
-                placeholder="CD_MON"
+                placeholder="검색어를 3자 이상 입력하면 결과가 표시됩니다"
                 size="md"
                 aria-label="Recipe 검색"
               >
