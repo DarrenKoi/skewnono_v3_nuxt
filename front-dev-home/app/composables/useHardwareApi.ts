@@ -20,8 +20,9 @@ export interface HardwareMetricCard {
 export interface HardwareTableColumn {
   key: string
   label: string
-  // Long free-text columns (e.g. engr_note) render truncated with a
-  // click-to-expand toggle instead of a wide nowrap cell.
+  // Long free-text columns (e.g. note_comment). BmPmPanel.vue renders these
+  // as the detail pane's note blocks, and shows the first one truncated as
+  // the master row's summary line.
   expandable?: boolean
 }
 

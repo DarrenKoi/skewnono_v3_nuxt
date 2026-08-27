@@ -65,7 +65,7 @@ def classify_category(*candidates: str) -> str:
 def merge_notes(row: dict[str, Any]) -> str:
     """The three note fields as one labelled block, for the overlay tooltip.
 
-    Carried on the row but never declared as a column: `BmPmTables.vue`
+    Carried on the row but never declared as a column: `BmPmPanel.vue`
     renders only declared columns, while `bmPmMarkers.ts` reads
     `row.engr_note` directly. Blank notes are dropped so a tooltip never shows
     a bare label.

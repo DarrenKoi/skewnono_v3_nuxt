@@ -171,7 +171,7 @@ def test_past_table_declares_the_three_note_columns_as_expandable():
 
 
 def test_engr_note_rides_along_without_being_a_column():
-    # bmPmMarkers.ts reads row.engr_note; BmPmTables.vue must not show it.
+    # bmPmMarkers.ts reads row.engr_note; BmPmPanel.vue must not show it.
     payload = _bm_pm_payload()
     past = next(s for s in payload["tables"] if s["key"] == "past_work")
     assert "engr_note" not in {c["key"] for c in past["columns"]}

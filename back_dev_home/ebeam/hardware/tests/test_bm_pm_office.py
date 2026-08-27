@@ -50,7 +50,7 @@ def test_past_row_maps_index_fields_onto_the_row_contract():
 
 
 def test_past_row_yields_an_empty_category_when_neither_field_says_bm_or_pm():
-    # This is the value BmPmTables.vue must not paint as a BM chip.
+    # This is the value BmPmPanel.vue must not paint as a BM chip.
     hit = {**PAST_HIT, "pm_type": "기타", "eq_event": "EQ_CHECK"}
     assert office.past_row(hit, "CDX001")["category"] == ""
 
