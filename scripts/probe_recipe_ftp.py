@@ -146,7 +146,10 @@ import scripts  # noqa: E402,F401
 
 from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
 from back_dev_home.ebeam.recipe_search import rawfiles  # noqa: E402
-from back_dev_home.msr_image.config import load_config  # noqa: E402
+from back_dev_home.msr_image.config import (  # noqa: E402
+    ftp_account_lookup,
+    load_config,
+)
 from back_dev_home.msr_image.paths import validate_tool_ip  # noqa: E402
 from ops_store import OSSearch, create_client  # noqa: E402
 
@@ -334,10 +337,21 @@ def _transport(direct: bool):
     return FtpFleetDownloader, HostSpec, ListDir, "direct"
 
 
-def _downloader(cls, cfg):
+def _downloader(cls, cfg, eqp_ip: str):
+    """The client for ONE tool, logging in as the account that tool actually
+    uses - the fleet pair, or this fab's / this tool's own from
+    ``SKEWNONO_TOOL_FTP_ACCOUNTS``.
+
+    Resolved onto the downloader rather than onto each spec because a probe run
+    is one tool by definition. The point is that the probe authenticates
+    EXACTLY as the adapter would: a probe that succeeded on the fleet account
+    while the adapter used a per-tool one would be diagnosing a different
+    problem than the one being reported.
+    """
+    account = ftp_account_lookup(cfg)(eqp_ip)
     return cls(
-        user=cfg.ftp_user,
-        password=cfg.ftp_password,
+        user=account.get("user", cfg.ftp_user),
+        password=account.get("password", cfg.ftp_password),
         port=cfg.ftp_port,
         connect_timeout=cfg.ftp_timeout,
     )
@@ -788,8 +802,8 @@ def main(argv: list[str] | None = None) -> Probe:
 
     cfg = load_config()
     FtpFleetDownloader, HostSpec, ListDir, mode = _transport(args.direct)
-    dl = _downloader(FtpFleetDownloader, cfg)
-    print(f"\n=== Stage C: FTP {probe.ip} (transport: {mode}, user={cfg.ftp_user}) ===")
+    dl = _downloader(FtpFleetDownloader, cfg, probe.ip)
+    print(f"\n=== Stage C: FTP {probe.ip} (transport: {mode}, user={dl.user}) ===")
 
     print(f"\n  [1] list data_dir  {probe.data_dir}")
     paths = _list(dl, HostSpec, ListDir, probe.ip, probe.data_dir)

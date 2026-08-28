@@ -3,13 +3,14 @@
 ## ⚠ Required before the first office deploy after 2026-08-09
 
 This feature's office adapter drives the same vendored `ftp_handler` proxy
-transport as `msr_image`. The proxy host reads `FTP_PROXY_FTP_USER` /
-`FTP_PROXY_FTP_PASSWORD` from its own environment and raises `KeyError` → 500
-without them. Set both on the proxy host; nothing in `office.py` needs editing.
-(Since 2026-08-28 the client also sends the account `config.ftp_user` names, so
-the environment pair is the fallback rather than the only source — between
-2026-08-09 and that date the proxy ignored `config.ftp_user` entirely and every
-tool was reached as the environment account.) Full context:
+transport as `msr_image`, and shares its FTP account configuration
+(`msr_image.config.load_config`). Since 2026-08-28 the client sends the account
+per spec — `SKEWNONO_TOOL_FTP_ACCOUNTS` for the fab/tool exceptions, otherwise
+`SKEWNONO_TOOL_FTP_USER` — so the proxy host's `FTP_PROXY_FTP_USER` /
+`FTP_PROXY_FTP_PASSWORD` are only a fallback and no longer required. Nothing in
+`office.py` needs editing. (Between 2026-08-09 and 2026-08-28 the proxy ignored
+`config.ftp_user` entirely and reached every tool as the environment account.)
+Full context:
 [`back_dev_home/msr_image/MIGRATION.md`](../../msr_image/MIGRATION.md); the
 proxy host's own deploy procedure is
 [`docs/deployment-ftp-proxy.md`](../../../docs/deployment-ftp-proxy.md).

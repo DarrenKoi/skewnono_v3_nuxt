@@ -839,7 +839,7 @@ def _download_idp(location: _IdpLocation) -> bytes:
     Raises:
         LookupError: the tool refused the connection or does not have the file.
     """
-    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.config import ftp_account_lookup, load_config
     from back_dev_home.msr_image.paths import validate_tool_ip
 
     config = load_config()
@@ -852,7 +852,13 @@ def _download_idp(location: _IdpLocation) -> bytes:
     tp = _transport()
     downloader_cls, host_spec_cls, transport = tp.downloader_cls, tp.host_spec_cls, tp.label
     report = _downloader(downloader_cls, config).download(
-        [host_spec_cls(location.eqp_ip, files=[remote_path])]
+        [
+            host_spec_cls(
+                location.eqp_ip,
+                files=[remote_path],
+                **ftp_account_lookup(config)(location.eqp_ip),
+            )
+        ]
     )
 
     fetched = {result.remote_path: result.data for result in report.files}
@@ -1552,7 +1558,7 @@ def _fetch_many(
     results are matched on BOTH — which is what ``report.grouped()`` returns
     (``{host: {remote_path: data}}``) and why it is used instead of flattening.
     """
-    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.config import ftp_account_lookup, load_config
     from back_dev_home.msr_image.paths import validate_tool_ip
 
     wanted = {key: names for key, names in wanted.items() if names}
@@ -1579,8 +1585,9 @@ def _fetch_many(
             origin.setdefault(eqp_ip, {}).setdefault(path, []).append((key, name))
             files_for.setdefault(eqp_ip, set()).add(path)
 
+    account = ftp_account_lookup(config)
     specs = [
-        host_spec_cls(eqp_ip, files=sorted(paths))
+        host_spec_cls(eqp_ip, files=sorted(paths), **account(eqp_ip))
         for eqp_ip, paths in files_for.items()
     ]
     report = _downloader(downloader_cls, config).download(specs)
@@ -1636,7 +1643,7 @@ def _list_raw_dirs(
     as ``SourceUnavailable`` from the download step right after. Raising here
     would turn a degraded listing into a dead screen.
     """
-    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.config import ftp_account_lookup, load_config
     from back_dev_home.msr_image.paths import validate_tool_ip
 
     if not keys:
@@ -1653,8 +1660,13 @@ def _list_raw_dirs(
         validate_tool_ip(eqp_ip, config.allowed_subnets)
         dirs_for.setdefault(eqp_ip, set()).add(rawfiles.raw_dir(class_name, idw, idp))
 
+    account = ftp_account_lookup(config)
     specs = [
-        host_spec_cls(eqp_ip, listings=[list_dir_cls(d) for d in sorted(dirs)])
+        host_spec_cls(
+            eqp_ip,
+            listings=[list_dir_cls(d) for d in sorted(dirs)],
+            **account(eqp_ip),
+        )
         for eqp_ip, dirs in dirs_for.items()
     ]
     try:

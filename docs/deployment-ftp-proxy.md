@@ -75,20 +75,23 @@ mtime 을 보존하면(`scp -p`, 공유 폴더 복사, 일부 압축 해제) **�
 find <PYTHONPATH>/ftp_handler -name __pycache__ -type d -exec rm -rf {} +
 ```
 
-### 4.4 환경 변수
-
-장비 FTP 계정은 프록시 호스트가 자기 환경에서 읽습니다. `os.environ[...]` 이라
-**없으면 `KeyError` → 500** 입니다. uWSGI 라면 그 앱의 `wsgi.ini` 에 넣습니다.
+### 4.4 환경 변수 — 더 이상 필수가 아닙니다
 
 ```ini
 env = FTP_PROXY_FTP_USER=hitachi
 env = FTP_PROXY_FTP_PASSWORD=hid
 ```
 
-이 두 값은 **최후의 기본값**입니다. 2026-08-28 부터 클라이언트가 자기 생성자
-계정(`config.ftp_user`)을 spec 에 실어 보내므로 실제 로그인은 대개 그 값으로
-이루어지고, 계열이 섞인 장비는 호스트별 override 가 다시 그 위를 덮습니다.
-계정을 싣지 않는 옛 클라이언트가 남아 있을 수 있으니 설정은 유지하십시오.
+이 두 값은 이제 **계정을 싣지 않은 요청에만 쓰이는 최후의 기본값**입니다.
+2026-08-28 부터 클라이언트가 spec 마다 계정을 실어 보내며(fab/tool 별 계정은
+`SKEWNONO_TOOL_FTP_ACCOUNTS`, [`msr_image/MIGRATION.md`](../back_dev_home/msr_image/MIGRATION.md)),
+`os.getenv` 로 읽으므로 **없어도 500 이 나지 않습니다**.
+
+장비 계정을 여기서 관리하지 마십시오. 이 쌍은 하나뿐이라 fab/tool 마다 갈리는
+계정을 표현할 수 없고, 이 프록시는 fileloader webapp 소유라 계정이 바뀔 때마다
+남의 앱 `wsgi.ini` 를 고쳐야 합니다. 계정의 단일 출처는 skewnono 쪽
+`SKEWNONO_TOOL_FTP_ACCOUNTS` 입니다. 이미 설정되어 있다면 그대로 두어도
+무해하고, 정리하고 싶으면 지워도 됩니다.
 
 ### 4.5 재기동
 

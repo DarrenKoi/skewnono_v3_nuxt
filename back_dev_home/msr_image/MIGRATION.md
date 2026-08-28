@@ -247,6 +247,7 @@ listing 에 숨김 폴더가 없었습니다. 지금은 들어 있습니다.
 | --- | --- | --- |
 | `SKEWNONO_TOOL_FTP_USER` | 장비 FTP 계정 | `hitachi` |
 | `SKEWNONO_TOOL_FTP_PASSWORD` | 장비 FTP 비밀번호 | `hid` |
+| `SKEWNONO_TOOL_FTP_ACCOUNTS` | 위 계정이 닿지 않는 장비의 fab/tool 별 계정. `KEY=user:password` 를 쉼표로 나열하며 KEY 는 `fab_name` 또는 `eqp_id`(대소문자 무시, `eqp_id` 가 우선). 목록에 없는 장비는 위 계정을 씁니다 | 빈 값 |
 | `SKEWNONO_TOOL_FTP_PORT` | FTP 포트 | `21` |
 | `SKEWNONO_TOOL_FTP_CONCURRENCY` | `download_all`의 최대 동시 연결 수 | `6` |
 | `SKEWNONO_TOOL_FTP_TIMEOUT` | 연결/응답 타임아웃(초); 소켓 작업 단위 상한이라 죽은 장비 탐지는 이 값이 담당 | `8.0` |

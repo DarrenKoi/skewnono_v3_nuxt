@@ -153,8 +153,12 @@ def _downloader_from(body: dict) -> FtpFleetDownloader:
     request. See ADR 0001.
     """
     return FtpFleetDownloader(
-        user=os.environ["FTP_PROXY_FTP_USER"],
-        password=os.environ["FTP_PROXY_FTP_PASSWORD"],
+        # ``getenv``, not ``environ[...]``: since 2026-08-28 every client sends
+        # the account it wants per spec, so this pair is the fallback for a spec
+        # that names none — not a boot requirement. A proxy host that has
+        # retired the variables must serve those clients, not 500 at them.
+        user=os.getenv("FTP_PROXY_FTP_USER", ""),
+        password=os.getenv("FTP_PROXY_FTP_PASSWORD", ""),
         port=body.get("port", 21),
         max_concurrency=body.get("max_concurrency", 48),
         connect_timeout=body.get("connect_timeout", 8.0),

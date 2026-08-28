@@ -26,7 +26,7 @@ else:
     # Cloud (Phase 3) and any host with direct reach to the tools.
     from ftp_handler.direct_downloader import FtpFleetDownloader, HostSpec, ListDir
 
-from back_dev_home.msr_image.config import ImageConfig, load_config
+from back_dev_home.msr_image.config import ImageConfig, ftp_account_lookup, load_config
 from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
 from back_dev_home.msr_image.errors import ImageNotFound, SourceUnavailable
 from back_dev_home.msr_image.paths import cond_path, image_dir, image_path
@@ -122,7 +122,10 @@ def _downloader(cfg: ImageConfig, images_per_connection: int = 1) -> FtpFleetDow
 def list_images(eqp_ip, class_name, msr, _config: ImageConfig | None = None) -> list[str]:
     cfg = _config or load_config()
     directory = image_dir(class_name, msr)
-    report = _downloader(cfg).list_dirs([HostSpec(eqp_ip, listings=[ListDir(directory)])])
+    account = ftp_account_lookup(cfg)
+    report = _downloader(cfg).list_dirs(
+        [HostSpec(eqp_ip, listings=[ListDir(directory)], **account(eqp_ip))]
+    )
     if report.failures:  # dead host, auth, or the one listing dir failed
         raise SourceUnavailable(f"tool listing failed: {report.failures[0].error}")
     # Listing paths are FULL remote paths (ftp_handler normalizes NLST output
@@ -161,7 +164,13 @@ def fetch_image(locator: ImageLocator, _config: ImageConfig | None = None) -> Fe
     cfg = _config or load_config()
     img = image_path(locator.class_name, locator.msr, locator.name)
     report = _downloader(cfg).download(
-        [HostSpec(locator.eqp_ip, files=[img, cond_path(img)])]
+        [
+            HostSpec(
+                locator.eqp_ip,
+                files=[img, cond_path(img)],
+                **ftp_account_lookup(cfg)(locator.eqp_ip),
+            )
+        ]
     )
     data = {f.remote_path: f.data for f in report.files}
     if img not in data:
@@ -188,6 +197,7 @@ def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6,
     # The busiest connection is what the per-host budget has to cover.
     per_connection = max((len(c) for c in chunks), default=1)
 
+    account = ftp_account_lookup(cfg)(eqp_ip)
     specs: list[HostSpec] = []
     name_of_image: dict[str, str] = {}
     image_of_cond: dict[str, str] = {}
@@ -200,7 +210,9 @@ def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6,
             name_of_image[img] = name
             image_of_cond[cond_path(img)] = img
             chunk_of[img] = chunk_of[cond_path(img)] = idx
-        specs.append(HostSpec(eqp_ip, files=files))
+        # One resolver for the whole run: every chunk is the same tool, and the
+        # lookup behind it reads the sem_list roster (see ftp_account_lookup).
+        specs.append(HostSpec(eqp_ip, files=files, **account))
 
     # Streamed pairing keeps RAM flat and progress live. Each chunk is one
     # connection fetching [img1, cond1, img2, cond2, ...] in order, so an image
