@@ -773,6 +773,21 @@ def test_a_spec_serializes_to_the_wire_without_losing_a_none_pattern():
                     "listings": [{"remote_dir": "/M", "pattern": None}]}
 
 
+def test_the_constructors_account_travels_to_the_proxy():
+    """The client's ``user``/``password`` must reach the proxy, or it logs in
+    as its own ``FTP_PROXY_FTP_USER`` and the caller's account is silently
+    ignored — the direct transport uses ``spec.user or self.user``, and the two
+    transports have to reach the same tool as the same account. A per-host
+    override still wins over the constructor's."""
+    client = proxy.FtpFleetDownloader(user="hitachi", password="hid")
+    specs = client._payload([direct.HostSpec("h1"), direct.HostSpec("h2", user="amat", password="ad")])["specs"]
+    assert (specs[0]["user"], specs[0]["password"]) == ("hitachi", "hid")
+    assert (specs[1]["user"], specs[1]["password"]) == ("amat", "ad")
+
+    uploads = client._upload_payload([direct.UploadSpec("h1")])["specs"]
+    assert (uploads[0]["user"], uploads[0]["password"]) == ("hitachi", "hid")
+
+
 def test_upload_bytes_travel_base64_encoded_because_json_has_no_byte_type():
     wire = proxy._upload_spec_to_wire(
         direct.UploadSpec("h", files=[direct.UploadFile("/a", b"\x00\xff")])
@@ -879,23 +894,30 @@ def test_the_default_http_timeout_covers_a_whole_batch_worked_serially():
     assert client.http_timeout == 45.0 * 5 + 30.0
 
 
-def test_the_credentials_never_reach_the_request_body(monkeypatch):
-    """The FTP credentials do NOT cross the client→proxy hop.
+def test_the_fleet_account_reaches_the_request_body(monkeypatch):
+    """The constructor's account IS serialized — reversed 2026-08-28.
 
-    They used to: every POST carried ``user``/``password`` in its JSON, and the
-    cloud deploy is http-only (no TLS to hide them) — so the shared equipment
-    account sat in plaintext in each request and in any proxy log that records
-    bodies. The 2026-08-09 upstream sync moved them to the proxy host's
-    ``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD`` environment. The client
-    constructor still ACCEPTS them so its signature matches the direct adapter
-    (the ``FleetTransport`` seam); they are simply not serialized.
+    It was not, between 2026-08-09 and 2026-08-28: the account lived only in the
+    proxy host's ``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD``, to keep it
+    out of plaintext bodies on the http-only cloud. That bought little and cost
+    correctness. Little, because FTP itself sends USER/PASS in the clear to the
+    same tools on the same network one hop later. Cost, because the proxy then
+    ignored whatever account the caller constructed the client with — invisible
+    while every tool family shared one login, wrong the moment one did not, and
+    wrong as a WRONG-ACCOUNT LOGIN rather than an error. The direct transport
+    has always used ``spec.user or self.user``; the two now agree.
+
+    The proxy env survives as the default for a request that names no account.
     """
     fake = FakeRequests({"files": [], "failures": []})
     monkeypatch.setattr(proxy, "requests", fake)
     proxy.FtpFleetDownloader(user="hitachi", password="hid").download([direct.HostSpec("h")])
+    entry = fake.posts[0]["json"]["specs"][0]
+    assert entry["user"] == "hitachi"
+    assert entry["password"] == "hid"
+    # Still per-spec, never a top-level field: the proxy logs in per host.
     body = fake.posts[0]["json"]
     assert "user" not in body and "password" not in body
-    assert "hid" not in repr(body), "the password leaked through some other key"
 
 
 def test_a_per_host_credential_override_does_reach_the_body(monkeypatch):
@@ -916,24 +938,19 @@ def test_a_per_host_credential_override_does_reach_the_body(monkeypatch):
     assert entry["password"] == "other"
 
 
-def test_an_override_on_one_host_does_not_leak_the_fleet_account(monkeypatch):
-    """The fleet account stays off the wire even when a sibling host overrides.
-
-    The regression this guards is a plausible implementation, not a silly one:
-    filling every spec in from ``self.user`` would produce identical logins and
-    identical bytes on disk, while quietly putting the shared account back into
-    every request body and undoing the 2026-08-09 sync. ABSENCE of the key for
-    the non-overriding host is the contract — not an empty string, not a null.
-    """
+def test_a_per_host_override_beats_the_fleet_account_only_for_that_host(monkeypatch):
+    """Two accounts in one batch: the override host gets its own, the sibling
+    keeps the constructor's. This is the case the whole fallback exists for —
+    a run spanning two vendors' tools, which the proxy's single environment
+    pair cannot express."""
     fake = FakeRequests({"files": [], "failures": []})
     monkeypatch.setattr(proxy, "requests", fake)
     proxy.FtpFleetDownloader(user="hitachi", password="hid").download(
         [direct.HostSpec("shared"), direct.HostSpec("other", user="amat", password="x")]
     )
-    body = fake.posts[0]["json"]
-    shared = next(e for e in body["specs"] if e["host"] == "shared")
-    assert "user" not in shared and "password" not in shared
-    assert "hid" not in repr(body), "the fleet password leaked"
+    by_host = {e["host"]: e for e in fake.posts[0]["json"]["specs"]}
+    assert by_host["shared"]["user"] == "hitachi"
+    assert by_host["other"]["user"] == "amat"
 
 
 @pytest.mark.parametrize(

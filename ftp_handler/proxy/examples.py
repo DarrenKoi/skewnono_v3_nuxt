@@ -36,9 +36,11 @@ def example_run_the_proxy_server() -> None:
 
     기존 Flask 앱에 블루프린트를 붙이거나 단독으로 실행한다. 인증 없음: 신뢰하는
     단일 사용자뿐이라 FTP_PROXY_TOKEN은 설정하지 않으며 모든 요청이 그대로 통과한다.
-    장비 FTP 계정은 프록시 호스트의 FTP_PROXY_FTP_USER /
-    FTP_PROXY_FTP_PASSWORD 환경 변수로 설정한다. 다만 포트가 신뢰할 수 없는
-    네트워크에 노출되지 않게만 하라(파일 바이트가 이 연결을 평문으로 오간다).
+    장비 FTP 계정은 보통 클라이언트가 요청 본문에 실어 보낸다(클라이언트가
+    고른 계정을 프록시가 그대로 써야 하기 때문). 프록시 호스트의
+    FTP_PROXY_FTP_USER / FTP_PROXY_FTP_PASSWORD 환경 변수는 계정을 싣지 않은
+    요청의 기본값이다. 포트가 신뢰할 수 없는 네트워크에 노출되지 않게 하라
+    (파일 바이트와 계정이 이 연결을 평문으로 오간다).
 
         from ftp_handler.proxy.flask_proxy import ftp_proxy_sknn_v3
         app.register_blueprint(ftp_proxy_sknn_v3)

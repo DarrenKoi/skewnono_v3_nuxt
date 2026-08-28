@@ -284,9 +284,12 @@ report = dl.download(specs)                 # same call as direct mode
 ```
 
 Notes:
-- **Security:** the fleet's equipment FTP credentials stay on the proxy host in
-  `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD`; they are not part of the
-  client POST body. File bytes still cross the HTTP hop, so run the proxy behind
+- **Security:** the equipment FTP credentials the client was constructed with
+  travel in the POST body (2026-08-28 — between 2026-08-09 and that date they
+  did not, and the proxy silently logged in as its own environment account
+  instead of the caller's). `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD` on
+  the proxy host remain the fallback for a request that names no account. File
+  bytes and credentials both cross the HTTP hop, so run the proxy behind
   **HTTPS** and set `FTP_PROXY_TOKEN` (the proxy enforces `Authorization:
   Bearer <token>`).
 - **Per-host credentials:** one fleet is not always one account. `HostSpec` and

@@ -207,8 +207,9 @@ client PC ──HTTP──> Flask proxy ──FTP──> equipment servers
 
 **서버 절반** (방화벽 없는 호스트에서) — 블루프린트를 마운트하거나 단독 실행한다.
 신뢰하는 단일 사용자라면 인증 없이(`FTP_PROXY_TOKEN` 미설정) 쓰고, 포트만 신뢰할 수
-없는 네트워크에 노출하지 않으면 된다. 플릿의 장비 FTP 계정은 클라이언트 요청에 싣지
-않고 프록시 호스트의 `FTP_PROXY_FTP_USER`, `FTP_PROXY_FTP_PASSWORD` 환경 변수로 둔다:
+없는 네트워크에 노출하지 않으면 된다. 장비 FTP 계정은 보통 클라이언트 요청이 실어
+보내며, 프록시 호스트의 `FTP_PROXY_FTP_USER`, `FTP_PROXY_FTP_PASSWORD` 환경 변수는
+계정을 싣지 않은 요청의 기본값이다:
 
 ```python
 import os

@@ -102,13 +102,18 @@ listing 에 숨김 폴더가 없었습니다. 지금은 들어 있습니다.
    FTP_PROXY_FTP_PASSWORD=<비밀번호>
    ```
 
-   이전에는 클라이언트가 매 POST 본문에 `user`/`password`를 실어 보냈습니다.
-   클라우드는 http-only 라 TLS 가 가리지도 못했고, 본문을 남기는 프록시 로그가
-   있었다면 공용 장비 계정이 평문으로 적재됩니다. 이제 프록시가
-   `os.environ[...]`로 직접 읽으므로, **환경변수가 없으면 `KeyError` → 500**
-   입니다. 클라이언트 생성자는 여전히 `user`/`password`를 받습니다(direct
-   어댑터와 시그니처를 맞추는 `FleetTransport` seam) — 다만 직렬화하지 않을
-   뿐이라 `office.py` 는 고칠 필요가 없습니다.
+   프록시가 `os.environ[...]`로 직접 읽으므로, **환경변수가 없으면
+   `KeyError` → 500** 입니다.
+
+   2026-08-09 에는 클라이언트가 `user`/`password`를 아예 직렬화하지 않도록
+   바꾸었습니다(클라우드가 http-only 라 평문 노출을 줄이려는 의도). 그 결과
+   프록시는 `cfg.ftp_user` 가 무엇이든 자기 환경 계정으로만 로그인했고,
+   계열이 갈리는 장비가 등장하는 순간 **틀린 계정으로 조용히 접속**합니다.
+   2026-08-28 에 되돌렸습니다 — 클라이언트 생성자 계정이 다시 본문에 실리고
+   (direct 어댑터의 `spec.user or self.user` 와 같은 규칙), 환경변수 쌍은
+   계정을 싣지 않은 요청의 기본값으로 남습니다. FTP 자체가 USER/PASS 를 같은
+   망에 평문으로 보내므로 본문에서만 가린 것은 실익이 없었습니다.
+   `office.py` 는 여전히 고칠 필요가 없습니다.
 2. **`office.py`를 다시 복사하십시오** — `cp providers/office_example.py
    providers/office.py`. `office.py`는 gitignore 대상이라 `git pull`이
    갱신하지 않는데, 이번에 템플릿의 `_downloader`/`_host_timeout`이 바뀌었습니다.

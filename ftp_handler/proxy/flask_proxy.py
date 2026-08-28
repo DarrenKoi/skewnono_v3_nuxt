@@ -38,10 +38,12 @@ used by the host app:
 
 Auth: if env FTP_PROXY_TOKEN is set, requests must carry
 ``Authorization: Bearer <token>`` or get 401. Always serve behind HTTPS in
-production — file bytes cross this connection. The fleet's equipment FTP
-credentials stay on the proxy host in ``FTP_PROXY_FTP_USER`` /
-``FTP_PROXY_FTP_PASSWORD``; a spec may override them per host by sending
-``user``/``password`` in its wire entry, for a fleet that spans accounts.
+production — file bytes AND the equipment FTP credentials cross this
+connection. Each wire spec normally carries the ``user``/``password`` the
+client was built with (since 2026-08-28: the proxy cannot otherwise honour the
+account its caller chose, and one fleet is not one account). The proxy host's
+``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD`` are the fallback for a spec
+that names neither — an older client, or a caller that wants the host default.
 
 Standalone run (without an existing app):
     pip install flask

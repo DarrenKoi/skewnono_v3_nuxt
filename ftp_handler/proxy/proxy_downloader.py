@@ -32,9 +32,11 @@ the top of this file for your deployment:
     PROXY_URL    e.g. "https://proxy.host:8080"   (default the SEM fileloader webapp)
     PROXY_TOKEN  bearer-token string the proxy enforces, or None for no auth
 
-The proxy host reads the equipment FTP credentials from
-``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD``. They are never serialized
-into the client's HTTP request body.
+Credentials travel in the request body: the constructor's ``user``/``password``
+(or a spec's per-host override) are what the proxy logs in with, so the account
+is the caller's choice under either transport. The proxy host's
+``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD`` remain only as the default
+for a request that names neither.
 
 Run: pip install requests
 """
@@ -137,23 +139,34 @@ PROXY_URL = "http://skewnono-scheduler1-webapp.aipp01.skhynix.com"
 PROXY_TOKEN = None
 
 
-def _credentials_to_wire(spec: "HostSpec | UploadSpec") -> dict:
-    """The per-host credential OVERRIDE, or nothing at all when it is unset.
+def _credentials_to_wire(
+    spec: "HostSpec | UploadSpec",
+    user: str | None = None,
+    password: str | None = None,
+) -> dict:
+    """The credentials this host is to be reached with: the per-host override
+    if the spec names one, else the downloader's own (the constructor args).
 
-    The shared fleet account still never crosses this hop — it lives in the
-    proxy host's own environment (``FTP_PROXY_FTP_USER``). Only a spec that
-    deliberately names a different account serializes one, so a fleet on one
-    account produces byte-identical payloads to before this field existed.
+    The fallback is the point. The direct downloader logs in with
+    ``spec.user or self.user``; without the same fallback here the proxy would
+    silently ignore the account the caller constructed the client with and log
+    in as whatever ``FTP_PROXY_FTP_USER`` names on the proxy host — invisible
+    while every tool family shares one account, wrong the moment one does not.
+
+    Both stay omitted only when nothing is known at either level, which leaves
+    the proxy's environment as the last-resort default.
     """
-    override = {}
-    if spec.user is not None:
-        override["user"] = spec.user
-    if spec.password is not None:
-        override["password"] = spec.password
-    return override
+    creds = {}
+    if (value := spec.user or user) is not None:
+        creds["user"] = value
+    if (value := spec.password or password) is not None:
+        creds["password"] = value
+    return creds
 
 
-def _spec_to_wire(spec: HostSpec) -> dict:
+def _spec_to_wire(
+    spec: HostSpec, user: str | None = None, password: str | None = None
+) -> dict:
     return {
         "host": spec.host,
         "files": list(spec.files),
@@ -161,11 +174,13 @@ def _spec_to_wire(spec: HostSpec) -> dict:
             {"remote_dir": ld.remote_dir, "pattern": ld.pattern}
             for ld in spec.listings
         ],
-        **_credentials_to_wire(spec),
+        **_credentials_to_wire(spec, user, password),
     }
 
 
-def _upload_spec_to_wire(spec: UploadSpec) -> dict:
+def _upload_spec_to_wire(
+    spec: UploadSpec, user: str | None = None, password: str | None = None
+) -> dict:
     # File bytes aren't JSON-native, so base64 them; the proxy decodes before the
     # STOR. The data travels client → proxy here (the reverse of download).
     return {
@@ -177,7 +192,7 @@ def _upload_spec_to_wire(spec: UploadSpec) -> dict:
             }
             for item in spec.files
         ],
-        **_credentials_to_wire(spec),
+        **_credentials_to_wire(spec, user, password),
     }
 
 
@@ -347,10 +362,18 @@ class FtpFleetDownloader:
         }
 
     def _payload(self, batch: list[HostSpec]) -> dict:
-        return {**self._tuning(), "specs": [_spec_to_wire(s) for s in batch]}
+        return {
+            **self._tuning(),
+            "specs": [_spec_to_wire(s, self.user, self.password) for s in batch],
+        }
 
     def _upload_payload(self, batch: list[UploadSpec]) -> dict:
-        return {**self._tuning(), "specs": [_upload_spec_to_wire(s) for s in batch]}
+        return {
+            **self._tuning(),
+            "specs": [
+                _upload_spec_to_wire(s, self.user, self.password) for s in batch
+            ],
+        }
 
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.token}"} if self.token else {}
