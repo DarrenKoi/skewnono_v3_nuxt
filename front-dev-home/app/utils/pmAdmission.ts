@@ -39,8 +39,15 @@ export interface AdmissionReport {
   admitted: boolean
   /**
    * Cells still blocking admission (0 for a member). The report carries its
-   * own headline number: two cards render "미충족 셀 N개", and two independent
-   * `filter(!admitted).length` copies is how they start disagreeing.
+   * own headline number rather than leaving each caller to recompute
+   * `filter(!admitted).length` — two independent copies is how they start
+   * disagreeing.
+   *
+   * Only PmPlanningView's summary bar renders "미충족 셀 N개" since 2026-08-28;
+   * the 튜닝 목표 card, which used to render the second copy, now states a
+   * distance to the group centroid instead and no longer reads this report.
+   * The field stays the single source anyway: one renderer today is not a
+   * reason to hand the next one a recomputation.
    */
   blockedCells: number
   /** Non-member only: per-cell tuning targets, worst first. */

@@ -95,7 +95,13 @@
               <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)">
                 {{ formatSignedNm(row.currentNm) }}
               </td>
-              <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink-muted)">
+              <!-- Full ink, like every other value in the row. DESIGN.md:
+                   "data values always get full ink; muted ink is for labels
+                   only" — and this is the one the card is named after. The
+                   hierarchy is carried by WEIGHT on 조정량 below, never by
+                   dimming a number: muted ink on a value column washes out in
+                   dark mode beside its full-ink neighbours. -->
+              <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)">
                 {{ formatSignedNm(row.centroidNm) }}
               </td>
               <!-- The instruction, and the only bold column: everything else on
@@ -106,7 +112,7 @@
               >
                 {{ formatSignedNm(row.deltaNm) }}
               </td>
-              <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink-muted)">
+              <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)">
                 <UIcon
                   :name="row.withinTolerance ? 'i-lucide-check' : 'i-lucide-move-down-right'"
                   class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"
