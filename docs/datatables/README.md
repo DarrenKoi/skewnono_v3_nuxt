@@ -47,7 +47,7 @@
 | `hitachi/device_statistics_weekly_trend.txt` | MinIO `device_statistics/weekly_trend/YYYY-MM-DD.json` (자체 생성) | `device_statistics` (recipe-trend) | 어댑터 구현완료, **적재 스케줄러 미구현** |
 | `hitachi/device_info.txt` | 파생 — `device_desc` / `r3_device_grp` 의 요약 view | `device_statistics` | 파생(원천 아님) |
 | `hitachi/hardware.txt` | 데이터 소스 아님 — FDC 파라미터 해설 | `msr_file` mock, 스큐보아 | 참고 |
-| `hitachi/cdsem_mag_pixel_table.txt` | 데이터 소스 아님 — mag/FOV/pixel 계산식 | 프론트 mag-pixel 화면 | 참고 |
+| `hitachi/mag_pixel.txt` | 데이터 소스 아님 — mag/FOV/pixel 메커니즘·계산식·계열별 구간·역산 규칙 | 프론트 mag-pixel 화면, 스큐보아 갤러리 nm/px, recipe_search mock | 참고 |
 
 `health` feature 는 연결되어 있지만 데이터 테이블을 읽지 않습니다. Redis/OpenSearch/MinIO
 세 서버의 생존 여부만 probe 하므로 이 폴더에 해당 문서가 없습니다.
