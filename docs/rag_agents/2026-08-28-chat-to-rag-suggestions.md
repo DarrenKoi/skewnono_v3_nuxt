@@ -33,6 +33,31 @@ handoff 원문의 오탈자 두 곳은 구현에서 바로잡았습니다: `_exe
 두 번째 인자는 `request["source"]` 가 아니라 `request["scope"]` 이고, `_rerank`
 는 `[float(hit.get("score") or 0.0) for hit in hits]` 입니다.
 
+### chat 페이지 쪽에서 바뀐 것
+
+- **Orchestrator** (`chat/orchestration.py`): agent runtime 일 때만 loop 전에
+  `knowledge_data.rewrite_query(question)` 1회, 답변 후에
+  `knowledge_data.generate_follow_ups(question, answer, sources)` 1회를 부릅니다.
+  `question` 은 runtime 이 실제로 답하는 문장입니다 — mixed scope 면
+  `supported_query`, 아니면 사용자 문장. Direct runtime 과 scope 거절 turn 은 둘 다
+  건너뜁니다.
+- **Rewrite 의 쓰임**: 사용자 메시지를 바꾸지 않습니다. `RuntimeRequest.rewrite`
+  로 넘어가 agent system prompt 의 `retrieval_query` 줄이 되고, policy 에 "검색
+  tool 의 query 로 이것을 우선 써라" 가 들어갑니다. 원문과 같으면 `None`.
+- **실패 정책**: rewrite 실패는 turn 실패(`KnowledgeUnavailable`→503,
+  `KnowledgeTimeout`→504, `KnowledgeDenied`→403; user turn 은 retry 용으로 남음).
+  follow-ups 실패는 `skewnono.chat` logger 에 예외를 남기고 `[]` 저장 — 답변은
+  살아남습니다.
+- **저장**: assistant `Message` 에 `rewrite: str | None`, `follow_ups: list[str]`.
+  SQLite 는 `messages.rewrite`, `messages.follow_ups_json` 열로 additive
+  migration 합니다(기존 `chat.db` 도 그대로 열립니다).
+- **SPA** (`components/chat/ChatMessage.vue`): 출처 아래에 "검색 질의" 줄(rewrite 가
+  있을 때만)과 follow-up chip 을 그립니다. chip 을 누르면 composer 에 채우고
+  바로 보내지는 않습니다.
+- **집(mock)**: `knowledge/providers/mock.py` 의 `rewrite_query` 는 고정 약어·
+  번역 표, `generate_follow_ups` 는 인용 제목에서 만든 질문 3개입니다. 모양만
+  사무실과 같습니다.
+
 ## 2. 동거 방식 — RAG 저장소가 chat 아래에 있어도 안전한 이유
 
 RAG 는 별도 git 저장소로 남고, `back_dev_home/chat/_rag/` 에 checkout 합니다.
@@ -111,3 +136,34 @@ RAG 코드가 `sys.path` 를 직접 만질 필요는 없습니다.
   붙인 뒤에는 `GET /api/health/providers` 로 `chat` 의 선택값을 확인하고,
   `/chat` 에서 agent runtime 한 turn 을 보내 assistant message 에 `rewrite` 와
   `follow_ups` 가 채워지는지 봅니다.
+
+## 5. 맞물리는 계약 — 양쪽이 그대로 지켜야 하는 것
+
+아래가 어긋나면 boot 는 되지만 첫 agent turn 에서 503 이 납니다. 왼쪽은 chat 이
+호출하는 형태이고, 오른쪽은 RAG 가 지켜야 하는 것입니다.
+
+| chat 이 부르는 것 | RAG 가 지킬 것 |
+| --- | --- |
+| `import src.retrieve.serve` / `import src.retrieve.agent` (루트 = `SKEWNONO_CHAT_RAG_ROOT`, 기본 `back_dev_home/chat/_rag`) | 루트 바로 아래에 `src/` 패키지가 있어야 합니다. `chat/rag.py` 는 `{root}/src` 디렉터리가 없으면 "checkout 없음" 으로 봅니다. 이름을 바꾸면(제안 1) 알려 주세요. |
+| `search_manuals(query: str, scope: dict, *, limit: int, index_dir: str)` | 키워드 인자 `limit`, `index_dir` 를 받습니다. `scope` 는 `{"user_id": str, "groups": list[str], "fabs": list[str]}` 입니다. `limit` 은 **후보 수**(기본 24, 5~50)이며 절단은 chat 이 합니다. |
+| 반환: hit `list[dict]`, rank 순 | 각 hit 에 `source_id`(str, 비어 있지 않음), `title`(str), `snippet`(str) 필수. `section`(str\|None), `page`(1-based int\|None), `figure_id`(str\|None, 맨 id — bucket/prefix/`.webp` 금지), `score`(float\|None) 선택. `element_type` 은 있어도 chat 이 버립니다. 빈 결과는 `[]` 이지 예외가 아닙니다. |
+| `_rerank` 는 hit 의 `score` 를 그대로 씁니다 | `score` 가 rerank 점수(클수록 좋음)여야 합니다. retrieval 점수를 남겨 두면 정렬이 그 순서가 됩니다. NaN/inf 는 chat 이 503 으로 거부합니다. |
+| `rewrite_query(question: str) -> str` | 비어 있지 않은 문자열. 원문을 포함(제안 6). 예외는 그대로 올리되 `TimeoutError`/`PermissionError` 로 구분(제안 3). |
+| `generate_follow_ups(question: str, answer: str, sources: list[dict]) -> list[str]` | `sources` 는 chat 의 `Evidence` dict(12 필드) 목록입니다. 3~5개, 중복 없이. 예외는 chat 이 흡수해 `[]` 로 저장합니다. |
+| `index_dir` 는 항상 절대 경로로 넘어옵니다 (`SKEWNONO_RAG_INDEX_DIR`, 기본 `{root}/index`) | 그 디렉터리가 없으면 chat 이 부르기 전에 503 을 냅니다. 인덱스를 다른 곳에 두면 `.env` 의 `SKEWNONO_RAG_INDEX_DIR` 로 알려 주세요. |
+| 동시성: Flask thread 마다 호출, uWSGI worker 마다 프로세스 | 모듈 import 와 첫 호출이 여러 thread 에서 겹쳐도 안전해야 합니다(제안 5). |
+
+### RAG 측 체크리스트 (붙이기 전)
+
+- [ ] `back_dev_home/chat/_rag/src/retrieve/serve.py` 와 `agent.py` 가 위 세 함수를
+  위 signature 로 export 합니다.
+- [ ] RAG 저장소 안에 `routes.py` 가 있어도 상관없지만, **`bp` 라는 이름의
+  Flask Blueprint 를 export 하지 않습니다** — `_` 경로라 스캔되지 않지만, 규칙을
+  알아 두면 다른 경로로 옮길 때 안전합니다.
+- [ ] RAG 의 의존성(torch, sentence-transformers 등)이 chat 이 도는 venv 에
+  설치되어 있습니다. chat 은 RAG 를 같은 프로세스에서 import 합니다.
+- [ ] 인덱스·모델 경로가 절대 경로이거나 `SKEWNONO_RAG_INDEX_DIR` 로 넘어옵니다.
+- [ ] `.venv/bin/python -m pytest back_dev_home/chat -q` 가 사무실에서 통과합니다
+  (복사본 `office.py` 에도 같은 seam 테스트가 돕니다).
+- [ ] `/chat` 에서 agent turn 한 번: assistant message 에 `sources`, `rewrite`,
+  `follow_ups` 가 채워집니다. `follow_ups` 가 `[]` 이면 `skewnono.chat` 로그를 봅니다.
