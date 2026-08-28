@@ -14,8 +14,16 @@ def get_tttm_check(
     recipe_id: str | None,
     parameters: tuple[str, ...],
     window_weeks: int,
+    eqp_ids: tuple[str, ...],
 ) -> TttmCheckPayload:
-    """`parameters` is the selection — `()` folds every feature of the recipe."""
+    """`parameters` is the selection — `()` folds every feature of the recipe.
+
+    `eqp_ids` narrows the fleet the comparison is computed over — the tools the
+    user picked. `()` means the whole fab fleet, the pre-existing behaviour;
+    a non-empty tuple keeps only the requested tools (see
+    `contracts.narrow_fleet`). The route folds the repeated `?eqp_id=` key
+    into this tuple.
+    """
     if get_data_provider("tttm") == "office":
         from back_dev_home.ebeam.tttm.providers.office import (
             get_tttm_check as load_tttm_check,
@@ -32,8 +40,9 @@ def get_tttm_check(
     # A TypeError says so instead. `window_weeks` joined on 2026-08-25; the
     # single `parameter` became the `parameters` tuple on 2026-08-27 (same
     # arity, so a stale copy would NOT raise here — the contract test's
-    # `selected_parameters` / `parameter_profile` keys are what catch it).
-    return load_tttm_check(tool_slug, fab_name, recipe_id, parameters, window_weeks)
+    # `selected_parameters` / `parameter_profile` keys are what catch it);
+    # `eqp_ids` joined on 2026-08-28.
+    return load_tttm_check(tool_slug, fab_name, recipe_id, parameters, window_weeks, eqp_ids)
 
 
 def get_tttm_recipes(tool_slug: str, fab_name: str, window_weeks: int) -> TttmRecipeList:

@@ -10,13 +10,16 @@
 ## Endpoint: GET /api/<tool_slug>/tttm/check
 
 - Handler: `routes.py` → `data.get_tttm_check(tool_slug, fab_name,
-  recipe_id, parameters, window_weeks)`. `tool_slug` is validated against
+  recipe_id, parameters, window_weeks, eqp_ids)`. `tool_slug` is validated against
   `SEM_TOOL_SLUGS` (400 if not `cdsem`/`hvsem`) before the data call.
   `fab_name` is a required query param (`?fab_name=...`, 400 if missing);
   `recipe_id` is optional; `parameter` is optional and **repeatable**
   (`?parameter=a&parameter=b` — the client's multi-select; the route folds it
   to the `parameters` tuple, blanks and duplicates dropped, request order
-  kept); `window_weeks` is optional and defaults to 2.
+  kept); `window_weeks` is optional and defaults to 2; `eqp_id` is optional
+  and **repeatable** exactly like `parameter` (`?eqp_id=A&eqp_id=B` — the
+  client's tool multi-select; the same `_args` helper folds it to the
+  `eqp_ids` tuple).
 - **`window_weeks` is how far back to gather, AND how many runs per tool.**
   One of `_analysis_window.WINDOW_WEEKS_CHOICES` (`1`, `2`, `3`, `4`); the route
   refuses anything else with a 400 rather than clamping, and defaults an
@@ -32,6 +35,26 @@
   on every `available: false` branch. Positional and undefaulted in `data.py`
   for the same reason `parameter` is: a stale `office.py` raises instead of
   answering over its own fixed window.
+- **`eqp_ids` narrows the FLEET the comparison is computed over.** `()` means
+  the whole fab fleet — the pre-existing behaviour, so a request that never
+  sent the key computes exactly what it used to. Otherwise the shared
+  `contracts.narrow_fleet` keeps only the requested tools, **in fleet order**
+  (the roster indexes every matrix axis, so a reorder by the request would
+  move a tool's row between two requests for the same fab), dropping unknown
+  ids silently. Everything downstream — `tools`, every `SkewMatrixBlock`,
+  `consensus_deviation`, `trend`, `epoch_markers`, `mdc_history` — is
+  computed over the narrowed fleet, and `tools` on every branch is the
+  narrowed roster, so the payload describes exactly the comparison the user
+  asked for. A request naming fewer than two valid tools answers
+  `available: false` with a summary saying the REQUEST named too few
+  ("요청한 장비가 2대 미만이라 장비간 스큐를 볼 수 없습니다 — 2대 이상
+  고르십시오."), not that the fab holds one tool. The office adapter narrows
+  **BEFORE `recent_runs(..., roster, ...)`** — that is the whole optimisation:
+  a user comparing two tools opens two tools' pickles, not the fab's hundreds
+  of MinIO GETs (the `raw` diagnostics echo `requested_tools` so an office run
+  can tell the narrowing from the answer). Positional and undefaulted in
+  `data.py` (joined 2026-08-28) so a stale `office.py` copy raises a
+  `TypeError` instead of silently ignoring the axis.
 - **`parameters` narrows the rows, and only inside a recipe.** Each names
   one measured feature of `recipe_id` — a `parameter` value of the recipe's
   MSR rows, which is also what the payload's own `parameters` catalogue lists

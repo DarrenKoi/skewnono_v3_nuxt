@@ -56,7 +56,12 @@ def tttm_check(tool_slug: str):
     window_weeks = resolve_window_weeks()
     if window_weeks is None:
         return bad_window_weeks_response()
-    payload = get_tttm_check(tool_slug, fab_name, recipe_id, parameters, window_weeks)
+    # The tools the user picked for the comparison — a repeated key the same
+    # way `parameter` is, folded to a tuple by the same helper. `()` means the
+    # whole fleet, the pre-existing behaviour; a non-empty tuple narrows the
+    # fleet the skew is computed over (see contracts.narrow_fleet).
+    eqp_ids = _args("eqp_id")
+    payload = get_tttm_check(tool_slug, fab_name, recipe_id, parameters, window_weeks, eqp_ids)
     return jsonify(payload)
 
 

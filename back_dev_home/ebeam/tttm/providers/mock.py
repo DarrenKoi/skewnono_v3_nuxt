@@ -76,6 +76,13 @@ flatten them by accident:
 - **A fab with fewer than two tools answers `available: false`.** One tool is
   not a comparison, and the frontend's picker refuses to drop below two
   anyway; some HV-SEM fabs really do hold a single tool.
+- **`eqp_ids` narrows the whole computation to the requested tools.** The
+  frontend sends the tools the user picked (repeated `?eqp_id=`), and the
+  shared `narrow_fleet` (contracts.py) filters the roster before anything is
+  seeded — so the matrices, consensus, trend and markers all describe exactly
+  the requested subset, and a request that names fewer than two valid tools
+  answers `available: false` saying the REQUEST named too few, not that the
+  fab has one tool.
 - **The seed includes `recipe_id` AND the selected `parameters`**, so picking
   either visibly recomputes — which is what the pickers promise. The numbers
   move; the shape does not. The mock still never checks that a parameter
@@ -138,6 +145,7 @@ from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
     unavailable_payload,
+    narrow_fleet,
     CellSkew,
     TttmRecipeList,
     TttmRecipeRow,
@@ -521,6 +529,7 @@ def get_tttm_check(
     recipe_id: str | None,
     parameters: tuple[str, ...],
     window_weeks: int,
+    eqp_ids: tuple[str, ...],
 ) -> TttmCheckPayload:
     """Deterministic pairwise skew for one fab.
 
@@ -531,8 +540,18 @@ def get_tttm_check(
     a confidence that climbed with the knob would teach that the window is a
     quality dial, when at the office it is an evidence-count dial whose effect
     on confidence depends on how often each tool actually ran.
+
+    `eqp_ids` narrows the roster the payload is computed over to the requested
+    tools (`()` = the whole fleet, shared `contracts.narrow_fleet`). Everything
+    below is derived from the narrowed fleet — the matrices, the consensus,
+    the trend and the markers alike — so the payload describes exactly the
+    comparison the user asked for, and nothing it computes names a tool that
+    was not requested.
     """
     fleet = _fleet(tool_slug, fab_name)
+    # Narrow BEFORE any branch: the `< 2` answer below has to be about the
+    # REQUEST's roster, and `tools` on every branch is the narrowed one.
+    fleet = narrow_fleet(fleet, eqp_ids)
     selected = list(parameters)
     if not fleet:
         return unavailable_payload(
@@ -552,12 +571,24 @@ def get_tttm_check(
             window_weeks=window_weeks,
         )
     if len(fleet) < 2:
+        if eqp_ids:
+            # The fab may hold many tools; the REQUEST named too few. Blaming
+            # the fab here would send the user to add tools that are already
+            # in the picker.
+            summary = (
+                "요청한 장비가 2대 미만이라 장비간 스큐를 볼 수 없습니다 — "
+                "2대 이상 고르십시오."
+            )
+        else:
+            summary = (
+                f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다."
+            )
         return unavailable_payload(
             tool_slug,
             fab_name,
             recipe_id,
             selected,
-            f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
+            summary,
             tools=fleet,
             window_weeks=window_weeks,
         )

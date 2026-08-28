@@ -137,6 +137,7 @@ from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
     unavailable_payload,
+    narrow_fleet,
     CellSkew,
     ConsensusDeviation,
     EpochMarker,
@@ -893,6 +894,7 @@ def get_tttm_check(
     recipe_id: str | None,
     parameters: tuple[str, ...],
     window_weeks: int,
+    eqp_ids: tuple[str, ...],
 ) -> TttmCheckPayload:
     """Pairwise tool skew for one fab, optionally narrowed to some features.
 
@@ -902,8 +904,20 @@ def get_tttm_check(
     always arrives with one. ``window_weeks`` bounds how far back runs are
     gathered AND how many per tool (`runs_per_tool`). All three are echoed
     back — including on every unavailable branch.
+
+    ``eqp_ids`` narrows the FLEET the comparison is computed over to the
+    requested tools (``()`` = the whole fleet, the pre-existing behaviour). It
+    is applied through the shared ``contracts.narrow_fleet`` BEFORE the runs
+    are gathered — that is the whole optimisation: a user comparing two tools
+    should open two tools' pickles, not the fab's hundreds — so ``roster``
+    below is already the narrowed list.
     """
     fleet = _fleet(tool_slug, fab_name)
+    # Narrow BEFORE `recent_runs(..., roster, ...)`: the per-tool run gather is
+    # the expensive part, and this axis exists so a small selection does not
+    # pay for the whole fab's pickles. The shared helper keeps this ordering
+    # from ever drifting against the mock's.
+    fleet = narrow_fleet(fleet, eqp_ids)
     selected = list(parameters)
     if not fleet:
         return unavailable_payload(
@@ -915,9 +929,21 @@ def get_tttm_check(
             window_weeks=window_weeks,
         )
     if len(fleet) < 2:
+        if eqp_ids:
+            # The fab may hold many tools; the REQUEST named too few. Blaming
+            # the fab here would send the user to add tools that are already
+            # in the picker.
+            summary = (
+                "요청한 장비가 2대 미만이라 장비간 스큐를 볼 수 없습니다 — "
+                "2대 이상 고르십시오."
+            )
+        else:
+            summary = (
+                f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다."
+            )
         return unavailable_payload(
             tool_slug, fab_name, recipe_id, selected,
-            f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다.",
+            summary,
             tools=fleet,
             window_weeks=window_weeks,
         )
@@ -994,6 +1020,7 @@ def get_tttm_check(
         # matched nothing, without re-running the module's __main__.
         "raw": {
             "window": [start.isoformat(), anchor.isoformat()],
+            "requested_tools": list(eqp_ids),
             "runs": len(runs.runs),
             "runs_truncated_for": list(runs.truncated),
             "observations": {"cells": len(cell_rows), "fleet": len(fleet_rows_)},
@@ -1090,7 +1117,7 @@ if __name__ == "__main__":  # pragma: no cover
         print("    by a single tool, so nothing has contrast (rule 2).")
 
     print("\n--- 5. payload ---")
-    result = get_tttm_check(slug, fab, recipe, params, weeks)
+    result = get_tttm_check(slug, fab, recipe, params, weeks, ())
     profile = result["parameter_profile"]
     print(f"  available={result['available']} cells={len(result['occupied_cells'])} "
           f"trend={len(result['trend'])} markers={len(result['epoch_markers'])} "

@@ -364,3 +364,30 @@ def unavailable_payload(
         "epoch_markers": [],
         "mdc_history": [],
     }
+
+
+def narrow_fleet(fleet: list[ToolRef], eqp_ids: tuple[str, ...]) -> list[ToolRef]:
+    """Narrow a fab's fleet to the tools the request named, fleet order kept.
+
+    ``()`` — the request named nothing — returns the whole fleet unchanged, so
+    an absent ``?eqp_id=`` filter is exactly the pre-existing behaviour.
+    Otherwise keep only the tools whose ``eqp_id`` is in ``eqp_ids``:
+
+    - **FLEET order, not request order.** ``tools`` indexes every matrix axis,
+      and a roster that reordered itself by the request would move a tool's
+      row and column between two requests for the same fab.
+    - **Unknown ids are dropped silently.** The roster is what every matrix
+      indexes, so a tool nobody can select must not surface as an empty axis.
+
+    One shared helper for both providers, for the same reason
+    ``unavailable_payload`` above is: mock/office formula drift. Each adapter
+    applies it at a different point — the office must narrow BEFORE
+    ``recent_runs`` gathers the runs (that is the whole optimisation), the mock
+    just filters its generated roster — so a guard added to one provider's
+    copy never reaches the other unless the narrowing itself lives here, next
+    to the contract both of them already import.
+    """
+    if not eqp_ids:
+        return fleet
+    wanted = set(eqp_ids)
+    return [tool for tool in fleet if tool["eqp_id"] in wanted]

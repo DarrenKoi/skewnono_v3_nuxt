@@ -55,7 +55,7 @@ def _is_mock() -> bool:
 
 
 def _payload() -> TttmCheckPayload:
-    return data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), WEEKS)
+    return data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), WEEKS, ())
 
 
 def _assert_matrix(block, label: str) -> None:
@@ -153,7 +153,7 @@ def test_the_payload_echoes_the_fab_it_was_asked_about():
     assert _payload()["fab_name"] == FAB_NAME
     # Same law on the fallback path — an unknown fab still names itself rather
     # than answering with a blank or a default fab.
-    unknown = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, (), WEEKS)
+    unknown = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, (), WEEKS, ())
     assert unknown["fab_name"] == UNKNOWN_FAB
 
 
@@ -219,7 +219,7 @@ def test_mock_a_fab_with_one_tool_is_not_a_comparison():
     # HV-SEM in M10B holds a single tool in sem_list. One tool has no pairwise
     # skew at all, so the payload must say unavailable rather than ship a 1x1
     # matrix the frontend would render as a comparison of nothing.
-    payload = data.get_tttm_check("hvsem", "M10B", None, (), WEEKS)
+    payload = data.get_tttm_check("hvsem", "M10B", None, (), WEEKS, ())
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     # The MATRIX is what must stay empty — that is the "comparison of nothing"
@@ -238,7 +238,7 @@ def test_mock_unknown_fab_is_available_false_not_an_error():
         # no statistics, but reaching that branch requires the company network.
         pytest.skip("the unknown-fab fallback is an empty-roster branch")
 
-    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, (), WEEKS)
+    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, (), WEEKS, ())
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     assert payload["tools"] == []
@@ -251,7 +251,7 @@ def test_the_payload_echoes_the_parameter_it_was_asked_about():
     # what the grouping verdict is ABOUT — "these tools agree on this feature" —
     # so a payload echoing a different parameter labels one feature's group
     # with another feature's name, and nothing about it looks wrong.
-    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, RECIPE_ID, (PARAMETER, "Para_2"), WEEKS)
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, RECIPE_ID, (PARAMETER, "Para_2"), WEEKS, ())
     assert payload["recipe_id"] == RECIPE_ID
     # In REQUEST order — the client shows its picks in the order they were made.
     assert payload["selected_parameters"] == [PARAMETER, "Para_2"]
@@ -333,7 +333,7 @@ def test_mock_an_unmeasured_recipe_is_unavailable_but_keeps_the_roster():
     if not _is_mock():
         pytest.skip("reaching the office's empty-runs branch needs the network")
 
-    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, "CD_MONITOR/NEVER_MEASURED_XYZ", (), WEEKS)
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, "CD_MONITOR/NEVER_MEASURED_XYZ", (), WEEKS, ())
     assert_matches(payload, TttmCheckPayload)
     assert payload["available"] is False
     assert payload["occupied_cells"] == []
@@ -357,7 +357,7 @@ def test_mock_every_recipe_the_picker_offers_is_actually_comparable():
     rows = data.get_tttm_recipes(TOOL_SLUG, FAB_NAME, WEEKS)["rows"]
     assert rows, "the fab must offer some measured recipe for this to mean anything"
     for row in rows[:5]:
-        payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, row["recipe_id"], (), WEEKS)
+        payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, row["recipe_id"], (), WEEKS, ())
         assert payload["available"] is True, row["recipe_id"]
 
 
@@ -375,7 +375,7 @@ def test_a_recipe_payload_lists_the_parameters_it_measured():
     # The parameter picker is fed from THIS list, not from recipe-open over
     # FTP: the names come out of the same measurement rows the skew does, so a
     # name offered here is one the filter can actually match.
-    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS)
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS, ())
     names = payload["parameters"]
     assert names, "a measured recipe carries at least one measured parameter"
     assert names == sorted(set(names)), "sorted and without duplicates"
@@ -392,8 +392,8 @@ def test_the_parameter_list_does_not_move_with_the_parameter_filter():
     # The list is the catalogue the filter is picked FROM; a filter that
     # narrowed its own catalogue would leave the picker one entry long.
     recipe = _measured_recipe()
-    unfiltered = data.get_tttm_check(TOOL_SLUG, FAB_NAME, recipe, (), WEEKS)
-    filtered = data.get_tttm_check(TOOL_SLUG, FAB_NAME, recipe, (unfiltered["parameters"][0],), WEEKS)
+    unfiltered = data.get_tttm_check(TOOL_SLUG, FAB_NAME, recipe, (), WEEKS, ())
+    filtered = data.get_tttm_check(TOOL_SLUG, FAB_NAME, recipe, (unfiltered["parameters"][0],), WEEKS, ())
     assert filtered["parameters"] == unfiltered["parameters"]
     # Same law for the profile: its columns are the catalogue, so the client
     # can change its selection without a refetch of the table it selects from.
@@ -404,7 +404,7 @@ def test_the_parameter_list_does_not_move_with_the_parameter_filter():
 
 
 def test_the_parameter_profile_is_a_tool_by_catalogue_table():
-    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS)
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS, ())
     profile = payload["parameter_profile"]
     roster = [tool["eqp_id"] for tool in payload["tools"]]
     assert profile["tools"] == roster, "rows index the payload's own roster, in order"
@@ -421,7 +421,7 @@ def test_a_profile_column_is_centred_on_the_fleet_median():
     # centred on a mean would put a drifted tool's pull into every other entry.
     from statistics import median
 
-    profile = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS)["parameter_profile"]
+    profile = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS, ())["parameter_profile"]
     for j, axis in enumerate(profile["parameters"]):
         column = [row[j] for row in profile["values"] if row[j] is not None]
         assert len(column) == axis["tools"], axis["name"]
@@ -441,13 +441,13 @@ def test_mock_profile_carries_a_none_so_the_client_null_path_runs_at_home():
     # The office will have tools that never measured a parameter; the mock
     # must too, or the map's "dropped from the PCA" branch first runs at the
     # office (see the 2026-08 mock value-domain note).
-    profile = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS)["parameter_profile"]
+    profile = data.get_tttm_check(TOOL_SLUG, FAB_NAME, _measured_recipe(), (), WEEKS, ())["parameter_profile"]
     assert any(v is None for row in profile["values"] for v in row)
 
 
 @pytest.mark.skipif(not _is_mock(), reason="mock-only data assumption")
 def test_mock_an_unavailable_answer_carries_no_parameter_list():
-    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, _measured_recipe(), (), WEEKS)
+    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, _measured_recipe(), (), WEEKS, ())
     assert payload["available"] is False
     assert payload["parameters"] == []
     assert payload["parameter_profile"] == {"parameters": [], "tools": [], "values": []}
@@ -460,7 +460,7 @@ def test_mock_an_unavailable_answer_carries_no_parameter_list():
 def test_the_payload_echoes_the_window_it_gathered_over(weeks):
     # Both payloads file under the window, the way they file under the fab:
     # the client renders "N주 윈도우" from this field, not from what it sent.
-    check = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), weeks)
+    check = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), weeks, ())
     recipes = data.get_tttm_recipes(TOOL_SLUG, FAB_NAME, weeks)
     assert check["window_weeks"] == weeks
     assert recipes["window_weeks"] == weeks
@@ -469,7 +469,7 @@ def test_the_payload_echoes_the_window_it_gathered_over(weeks):
 
 
 def test_unavailable_answers_echo_the_window():
-    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, (), 2)
+    payload = data.get_tttm_check(TOOL_SLUG, UNKNOWN_FAB, None, (), 2, ())
     assert payload["available"] is False
     assert payload["window_weeks"] == 2
 
@@ -480,9 +480,133 @@ def test_mock_trend_spans_exactly_the_window(weeks):
     # The one thing the knob visibly changes at home. One point per (tool,
     # day) across the whole window — the office grain — so widening the window
     # lengthens the series rather than leaving it a fixed five weekly points.
-    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), weeks)
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), weeks, ())
     days = sorted({point["date"] for point in payload["trend"]})
     assert len(days) == window_days(weeks)
     for tool in payload["tools"]:
         per_tool = [p for p in payload["trend"] if p["eqp_id"] == tool["eqp_id"]]
         assert len(per_tool) == window_days(weeks)
+
+
+# ── eqp_ids: the requested-tool axis ─────────────────────────────────────
+
+
+def _roster_ids() -> list[str]:
+    """The eqp_ids the full-fleet answer advertises, in roster order."""
+    return [tool["eqp_id"] for tool in _payload()["tools"]]
+
+
+def test_eqp_ids_narrow_the_payload_to_the_requested_tools_in_roster_order():
+    # The `?eqp_id=` axis narrows the WHOLE payload to the tools the user
+    # picked, not just the `tools` list — a matrix naming a tool that was not
+    # requested would render an axis the user never selected. Requesting the
+    # pair in the REVERSE order must not reorder the roster: `tools` indexes
+    # every matrix axis, so a roster that followed the request would move a
+    # tool's row and column between two requests for the same fab.
+    ids = _roster_ids()
+    if len(ids) < 2:
+        pytest.skip("active provider advertises fewer than two tools")
+    first, second = ids[0], ids[1]
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), WEEKS, (second, first))
+    assert [tool["eqp_id"] for tool in payload["tools"]] == [first, second]
+
+    subset = {first, second}
+    assert set(payload["fleet_today"]["matrix"]["tools"]) <= subset
+    for deviation in payload["fleet_today"]["consensus_deviation"]:
+        assert deviation["eqp_id"] in subset
+    for cell in payload["occupied_cells"]:
+        for kind in ("direct_skew_matrix", "predicted_skew_matrix"):
+            block = cell[kind]
+            if block is not None:
+                assert set(block["tools"]) <= subset
+    for point in payload["trend"]:
+        assert point["eqp_id"] in subset
+    for marker in payload["epoch_markers"]:
+        assert marker["eqp_id"] in subset
+    for entry in payload["mdc_history"]:
+        assert entry["eqp_id"] in subset
+
+
+def test_an_unknown_eqp_id_is_dropped_silently():
+    # The route trusts its query values and the adapter keeps only the tools
+    # the fab actually has. A stale stored selection or a hand-typed id must
+    # not surface as an empty axis — the roster is what every matrix indexes,
+    # so the answer is exactly the tools the request DID name.
+    ids = _roster_ids()
+    if len(ids) < 2:
+        pytest.skip("active provider advertises fewer than two tools")
+    first, second = ids[0], ids[1]
+    payload = data.get_tttm_check(
+        TOOL_SLUG, FAB_NAME, None, (), WEEKS, (first, second, "NO_SUCH_TOOL")
+    )
+    assert [tool["eqp_id"] for tool in payload["tools"]] == [first, second]
+
+
+def test_a_single_requested_eqp_id_is_not_a_comparison():
+    # One tool has no pairwise skew, whatever the fab holds. The summary must
+    # blame the REQUEST — the user picked one tool — not the fab: a fab that
+    # holds a dozen tools answering "장비 1대" would send the user hunting for
+    # tools that were always in the picker.
+    ids = _roster_ids()
+    if not ids:
+        pytest.skip("active provider advertises no tools")
+    one = ids[0]
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), WEEKS, (one,))
+    assert payload["available"] is False
+    assert [tool["eqp_id"] for tool in payload["tools"]] == [one]
+    assert "2대" in payload["summary"]
+
+
+def test_an_empty_eqp_ids_tuple_is_the_whole_fleet():
+    # `()` is the pre-existing behaviour — an absent `?eqp_id=` filter must
+    # not change the answer at all, or stored requests that never sent the
+    # key would silently compute over a different scope than they used to.
+    narrowed = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), WEEKS, ())
+    assert [tool["eqp_id"] for tool in narrowed["tools"]] == _roster_ids()
+
+
+@pytest.mark.skipif(not _is_mock(), reason="availability over a subset is a mock roster property")
+def test_mock_a_two_tool_selection_stays_available():
+    # The mock derives data for every roster tool, so picking two of R3's
+    # eighteen must still answer `available: true` — narrowing is not the
+    # office's "no runs for those tools" case. This is what the office page
+    # should feel like when the user compares two measured tools.
+    ids = _roster_ids()
+    assert len(ids) >= 2, "the mock fab must hold at least two tools"
+    payload = data.get_tttm_check(TOOL_SLUG, FAB_NAME, None, (), WEEKS, (ids[0], ids[1]))
+    assert payload["available"] is True
+    assert payload["occupied_cells"], "a two-tool selection of a measured fab must occupy cells"
+
+
+def test_the_route_passes_repeated_eqp_id_queries_to_the_provider_as_a_tuple(monkeypatch):
+    # The frontend serialises its multi-select the way `parameter` is
+    # serialised — `?eqp_id=A&eqp_id=B` — and the route must fold the repeated
+    # key into ONE tuple before the data call. A route that read only the
+    # first value would narrow every multi-tool selection to a single tool and
+    # the page would answer `available: false` for the one comparison it
+    # exists to make.
+    if not _is_mock():
+        pytest.skip("the route test runs against the mock provider")
+    from back_dev_home import create_app
+    from back_dev_home.ebeam.tttm.providers import mock as mock_provider
+
+    seen = {}
+
+    def fake_get_tttm_check(
+        tool_slug, fab_name, recipe_id, parameters, window_weeks, eqp_ids
+    ):
+        seen["eqp_ids"] = eqp_ids
+        return {"available": False, "summary": "stub", "tools": []}
+
+    # Patch the PROVIDER, not the route: data.py re-imports the attribute on
+    # every call, so this proves the tuple survives the whole route → dispatcher
+    # → provider chain, not just the route's own read.
+    monkeypatch.setattr(mock_provider, "get_tttm_check", fake_get_tttm_check)
+
+    app = create_app()
+    app.config.update(TESTING=True)
+    response = app.test_client().get(
+        "/api/cdsem/tttm/check?fab_name=R3&eqp_id=ECXDX001&eqp_id=ECXDX002"
+    )
+    assert response.status_code == 200
+    assert seen["eqp_ids"] == ("ECXDX001", "ECXDX002")
