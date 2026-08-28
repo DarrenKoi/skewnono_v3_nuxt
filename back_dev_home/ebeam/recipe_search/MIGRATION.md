@@ -7,8 +7,13 @@ transport as `msr_image`, and shares its FTP account configuration
 (`msr_image.config.load_config`). Since 2026-08-28 the client sends the account
 per spec — `SKEWNONO_TOOL_FTP_ACCOUNTS` for the fab/tool exceptions, otherwise
 `SKEWNONO_TOOL_FTP_USER` — so the proxy host's `FTP_PROXY_FTP_USER` /
-`FTP_PROXY_FTP_PASSWORD` are only a fallback and no longer required. Nothing in
-`office.py` needs editing. (Between 2026-08-09 and 2026-08-28 the proxy ignored
+`FTP_PROXY_FTP_PASSWORD` are only a fallback and no longer required.
+
+**`office.py` 를 다시 복사하십시오** — `cp providers/office_example.py
+providers/office.py`. 2026-08-28 변경이 `office_example.py` 의 spec 생성부를
+고쳤으므로, 복사하지 않은 사본은 계정을 싣지 않은 채로 계속 동작합니다. 오류가
+아니라 **틀린 계정으로 접속**하는 형태라 로그만 봐서는 드러나지 않습니다.
+(Between 2026-08-09 and 2026-08-28 the proxy ignored
 `config.ftp_user` entirely and reached every tool as the environment account.)
 Full context:
 [`back_dev_home/msr_image/MIGRATION.md`](../../msr_image/MIGRATION.md); the

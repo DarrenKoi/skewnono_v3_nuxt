@@ -839,7 +839,8 @@ def _download_idp(location: _IdpLocation) -> bytes:
     Raises:
         LookupError: the tool refused the connection or does not have the file.
     """
-    from back_dev_home.msr_image.config import ftp_account_lookup, load_config
+    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.ftp_accounts import ftp_account_lookup
     from back_dev_home.msr_image.paths import validate_tool_ip
 
     config = load_config()
@@ -851,14 +852,10 @@ def _download_idp(location: _IdpLocation) -> bytes:
     remote_path = _idp_remote_path(location)
     tp = _transport()
     downloader_cls, host_spec_cls, transport = tp.downloader_cls, tp.host_spec_cls, tp.label
+    # One .idp, one tool -- see the note in msr_image's fetch_image.
+    account = ftp_account_lookup(config)(location.eqp_ip)
     report = _downloader(downloader_cls, config).download(
-        [
-            host_spec_cls(
-                location.eqp_ip,
-                files=[remote_path],
-                **ftp_account_lookup(config)(location.eqp_ip),
-            )
-        ]
+        [host_spec_cls(location.eqp_ip, files=[remote_path], **account)]
     )
 
     fetched = {result.remote_path: result.data for result in report.files}
@@ -1558,7 +1555,8 @@ def _fetch_many(
     results are matched on BOTH — which is what ``report.grouped()`` returns
     (``{host: {remote_path: data}}``) and why it is used instead of flattening.
     """
-    from back_dev_home.msr_image.config import ftp_account_lookup, load_config
+    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.ftp_accounts import ftp_account_lookup
     from back_dev_home.msr_image.paths import validate_tool_ip
 
     wanted = {key: names for key, names in wanted.items() if names}
@@ -1643,7 +1641,8 @@ def _list_raw_dirs(
     as ``SourceUnavailable`` from the download step right after. Raising here
     would turn a degraded listing into a dead screen.
     """
-    from back_dev_home.msr_image.config import ftp_account_lookup, load_config
+    from back_dev_home.msr_image.config import load_config
+    from back_dev_home.msr_image.ftp_accounts import ftp_account_lookup
     from back_dev_home.msr_image.paths import validate_tool_ip
 
     if not keys:

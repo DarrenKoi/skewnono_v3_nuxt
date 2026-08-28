@@ -91,6 +91,7 @@ import scripts  # noqa: E402,F401
 from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
 from back_dev_home.msr_image.config import ImageConfig, load_config  # noqa: E402
 from back_dev_home.msr_image.contracts import ImageLocator  # noqa: E402
+from back_dev_home.msr_image.ftp_accounts import ftp_account_lookup  # noqa: E402
 from back_dev_home.msr_image.paths import image_dir, validate_tool_ip  # noqa: E402
 
 # Office settings, in the file, so this script runs with no .env at all.
@@ -188,8 +189,17 @@ def _stage_a_login(office: Any, cfg: ImageConfig, eqp_ip: str, rounds: int) -> f
     samples: list[float] = []
     for i in range(rounds):
         started = time.monotonic()
+        # Same account the adapter would use for THIS tool, not just the fleet
+        # pair: a stage that logs in differently is measuring a different
+        # connection than the one being tuned.
         office._downloader(cfg).list_dirs(
-            [HostSpec(eqp_ip, listings=[ListDir("/__skewnono_measure_nonexistent__")])]
+            [
+                HostSpec(
+                    eqp_ip,
+                    listings=[ListDir("/__skewnono_measure_nonexistent__")],
+                    **ftp_account_lookup(cfg)(eqp_ip),
+                )
+            ]
         )
         samples.append(time.monotonic() - started)
         print(f"   round {i + 1}/{rounds}: {samples[-1] * 1000:7.1f} ms")

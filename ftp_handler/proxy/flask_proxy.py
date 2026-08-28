@@ -141,11 +141,11 @@ def _unauthorized():
 def _downloader_from(body: dict) -> FtpFleetDownloader:
     """Build the FtpFleetDownloader from the request body's tuning.
 
-    The FLEET's FTP credentials come from the proxy host's environment and never
-    cross the client HTTP hop. They are the default, not the only source: a spec
-    may carry a per-host ``user``/``password`` override (see
-    ``_spec_from_wire``) for a fleet spanning accounts, and that one does travel
-    in the body. Hosts on the shared account send nothing.
+    Credentials come from the spec (see ``_spec_from_wire``) -- since
+    2026-08-28 a client sends the account it wants for each host, which is the
+    only way one request can span two accounts. The values built in here are
+    the FALLBACK for a spec that names none, read from the proxy host's
+    ``FTP_PROXY_FTP_USER`` / ``FTP_PROXY_FTP_PASSWORD`` if they are set at all.
 
     The remaining tuning comes from the client so proxy-side behavior matches
     the direct adapter. host_timeout default 45s stays under the host app's

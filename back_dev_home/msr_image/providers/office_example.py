@@ -26,7 +26,8 @@ else:
     # Cloud (Phase 3) and any host with direct reach to the tools.
     from ftp_handler.direct_downloader import FtpFleetDownloader, HostSpec, ListDir
 
-from back_dev_home.msr_image.config import ImageConfig, ftp_account_lookup, load_config
+from back_dev_home.msr_image.config import ImageConfig, load_config
+from back_dev_home.msr_image.ftp_accounts import ftp_account_lookup
 from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
 from back_dev_home.msr_image.errors import ImageNotFound, SourceUnavailable
 from back_dev_home.msr_image.paths import cond_path, image_dir, image_path
@@ -163,14 +164,11 @@ def _image_error(report, img: str) -> str:
 def fetch_image(locator: ImageLocator, _config: ImageConfig | None = None) -> FetchedImage:
     cfg = _config or load_config()
     img = image_path(locator.class_name, locator.msr, locator.name)
+    # One image, one tool: the per-run closure has nothing to amortize here,
+    # and the roster read behind it is TTL-cached across calls anyway.
+    account = ftp_account_lookup(cfg)(locator.eqp_ip)
     report = _downloader(cfg).download(
-        [
-            HostSpec(
-                locator.eqp_ip,
-                files=[img, cond_path(img)],
-                **ftp_account_lookup(cfg)(locator.eqp_ip),
-            )
-        ]
+        [HostSpec(locator.eqp_ip, files=[img, cond_path(img)], **account)]
     )
     data = {f.remote_path: f.data for f in report.files}
     if img not in data:
