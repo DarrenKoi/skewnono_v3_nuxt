@@ -150,6 +150,16 @@ export const useTttmScope = (
   // list, the lock and the reconciliation below.
   const offered = computed(() => offeredParameters(payload.value, recipeId.value))
 
+  // The one scope axis that refetches on its own in manual mode (user
+  // decision 2026-08-28): a parameter can only be picked once the payload
+  // answers this recipe, so the request is already narrowed to the picked
+  // tools and the refetch costs what the button would — while a parameter
+  // pick that sat stale until a second click read as a picker that did not
+  // work. `offered` non-null is exactly "the payload answers this recipe".
+  watch(parameters, () => {
+    if (manual && offered.value !== null) execute()
+  })
+
   // Content-stable: the same array identity is kept while the names are the
   // same, so a refetch caused by the PARAMETER filter (same recipe, same list)
   // does not read as a new list downstream — the picker clears its search term
