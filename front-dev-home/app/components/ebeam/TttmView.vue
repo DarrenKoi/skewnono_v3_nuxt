@@ -17,11 +17,13 @@
          measured, a stored pick that no longer applies). The one control that
          could fix it was the one thing removed from the screen. Only the RESULTS
          collapse now. -->
-    <EbeamScopeBar>
+    <EbeamScopeBar hint="고른 recipe 의 측정 데이터로 계산합니다. 이 설정은 이 브라우저에 저장되고, TTTM · PM 플래닝 두 페이지가 함께 씁니다.">
       <!-- The picker is mounted HERE rather than passed through the bar, the
            same way pm-planning mounts it. Both pages therefore hand ScopeRecipe its
            props directly from useTttmScope, so the two lab pages cannot drift in
-           what they give it. -->
+           what they give it. 수집 기간 is NOT in this bar on this page: it sits
+           beside the 데이터 요청 button below, because on this page it is part
+           of asking, not of naming what to look at. -->
       <template #recipe>
         <EbeamScopeRecipe
           :recipe-id="recipeId"
@@ -31,22 +33,31 @@
           @update:recipe-id="onRecipe"
         />
       </template>
-      <template #window>
-        <EbeamScopeWindow
-          :window-weeks="windowWeeks"
-          @update:window-weeks="onWindow"
-        />
-      </template>
     </EbeamScopeBar>
 
-    <!-- 장비 모델 그룹 — 비교에 넣을 장비. recipe 의 payload 가 roster 를 싣고
-         오므로 비교 대상 다음이고, 결과는 2대 이상일 때만 계산됩니다. -->
+    <!-- 장비 모델 그룹 — 비교에 넣을 장비. roster 는 sem-list 에서 오므로 요청
+         전에도 고를 수 있고, 여기서 고른 장비만 서버에 요청합니다(2026-08-28).
+         결과는 2대 이상일 때만 계산됩니다. -->
     <EbeamToolGroupBar
-      :tools="payload?.tools ?? []"
-      :selected="selectedTools"
+      :tools="roster"
+      :selected="pickedTools"
       :deviations="fleetDeviations"
-      :pending="pending"
+      :answered="answeredTools"
+      :pending="rosterPending"
+      hint="비교에 넣을 장비를 모델 그룹별로 고릅니다 — 고른 장비의 데이터만 서버에서 모읍니다. TTTM · PM 플래닝 두 페이지가 함께 씁니다."
       @update:selected="onSelectedTools"
+    />
+
+    <!-- 수집 기간 · 데이터 요청 — 조건이 다 정해진 뒤 한 번 묻습니다. -->
+    <EbeamTttmRequestBar
+      :window-weeks="windowWeeks"
+      :tool-count="pickedTools.length"
+      :has-recipe="scopeReady"
+      :pending="pending"
+      :stale="stale"
+      :fetched-at="payload?.fetched_at ?? null"
+      @update:window-weeks="onWindow"
+      @request="requestCheck"
     />
 
     <!-- 분석 조건 — 비교 대상이 정해진 뒤의 선택. parameter 목록은 그 recipe 의
@@ -100,6 +111,15 @@
       title="장비간 스큐 데이터를 불러오는 중입니다."
     />
 
+    <!-- Nothing asked yet. The old page fetched on load; this one waits for
+         the button, and says so where the results will appear. -->
+    <AppEmptyState
+      v-else-if="!payload"
+      title="데이터를 요청하십시오."
+      description="위 장비 모델 그룹과 수집 기간을 정한 뒤 데이터 요청을 누르면 고른 장비의 run 을 서버에서 모읍니다."
+      icon="i-lucide-database"
+    />
+
     <!-- The shared empty-state shell, not a hand-rolled card: an unavailable
          payload is a legitimate answer ("nothing to compare"), which is the same
          shape of event AppEmptyState already owns. -->
@@ -125,6 +145,18 @@
       v-else
       class="flex min-w-0 flex-col gap-3"
     >
+      <!-- The payload lags the scope: the results below are still the LAST
+           answer, and must not be read as the current question's. Drawn, not
+           hidden — an old answer with a label beats a blank page while the
+           reader decides whether to re-ask. -->
+      <div
+        v-if="stale"
+        class="rounded-[var(--sk-r-card)] border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-2.5 sk-meta leading-relaxed"
+      >
+        <span class="sk-title">조건이 바뀌었습니다</span> — 아래 결과는 마지막 요청
+        <span class="font-mono tabular-nums">{{ asOf }}</span> 기준입니다. 위 데이터 요청을 누르면 반영됩니다.
+      </div>
+
       <!-- What the knob and the picks currently cost, in one line. The numbers
            all appear again below in their own cards; this is the roll-up that
            makes dragging the slider legible without hunting for what moved, so
@@ -162,6 +194,9 @@
         />
       </div>
 
+      <!-- 셀별 최악 장비쌍 and 양산 정합도 were dropped on 2026-08-28: the
+           first re-ranked what the matrix below already shows, the second was
+           a reference panel the verdict never used ("TTTM 미반영"). -->
       <div class="grid gap-3 2xl:grid-cols-2">
         <EbeamTttmFleetMap
           :fleet="visibleFleet"
@@ -171,9 +206,10 @@
           :blocked-pair="blockedPair"
           :pca="pca"
         />
-        <EbeamTttmCellSeverityList
-          :cells="rankedCells"
+        <EbeamTttmFleetStatus
+          :deviations="visibleFleet.consensus_deviation"
           :tools="visibleTools"
+          :cd="fleetCd"
         />
       </div>
 
@@ -182,22 +218,14 @@
         :tools="visibleTools"
       />
 
-      <div class="grid gap-3 2xl:grid-cols-2">
-        <EbeamTttmFleetStatus
-          :deviations="visibleFleet.consensus_deviation"
-          :tools="visibleTools"
-          :cd="fleetCd"
-        />
-        <EbeamTttmTrendChart
-          :trend="visibleTrend"
-          :markers="visibleMarkers"
-        />
-      </div>
+      <!-- Full width: the chart is zoomable now, and a zoomed span needs the
+           horizontal room a half-width card could not give it. -->
+      <EbeamTttmTrendChart
+        :trend="visibleTrend"
+        :markers="visibleMarkers"
+      />
 
-      <div class="grid gap-3 md:grid-cols-2">
-        <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
-        <EbeamTttmProductionChip :corroboration="payload.production_corroboration" />
-      </div>
+      <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
     </div>
   </div>
 </template>
@@ -234,6 +262,9 @@ const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>(
 // The comparison scope, its recipe catalogue and the skew payload it selects,
 // shared verbatim with pm-planning — see useTttmScope for why this is one
 // composable rather than wiring per page.
+//
+// `manual`: this page asks for the payload with a button and narrows the
+// request to the picked tools — see utils/tttmRequest for why.
 const {
   scoped,
   recipeId,
@@ -242,8 +273,13 @@ const {
   recipeNames,
   recipesPending,
   recipesWithoutAPair,
+  roster,
+  rosterPending,
+  pickedTools,
   payload,
   pending,
+  stale,
+  requestCheck,
   parameterNames,
   lock,
   scopeReady,
@@ -251,12 +287,16 @@ const {
   onRecipe,
   onParameters,
   onWindow
-} = useTttmScope(props.toolType, props.fab)
+} = useTttmScope(props.toolType, props.fab, { manual: true })
 
-const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
-// Stored selection resolved against the fleet the server actually returned:
-// empty means all, and ids that no longer exist are dropped.
-const selectedTools = computed(() => resolveSelection(allToolIds.value, scoped.value.tools))
+// Two selections, and the difference is the on-demand request. `pickedTools`
+// (from the scope) is resolved against the sem-list ROSTER and is what the
+// next request will name; this one is resolved against the tools the PAYLOAD
+// answered for and is what the results below are drawn from. They differ
+// exactly while the payload is stale — a tool added to the picks has no data
+// until the next request, and must not appear in the cards as if it had.
+const answeredTools = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
+const selectedTools = computed(() => resolveSelection(answeredTools.value, scoped.value.tools))
 
 const visibleTools = computed(() =>
   (payload.value?.tools ?? []).filter(t => selectedTools.value.includes(t.eqp_id))
@@ -310,10 +350,11 @@ const visibleFleet = computed<FleetToday>(() => ({
   median_cd_nm: payload.value?.fleet_today.median_cd_nm ?? null
 }))
 
-// Two deviation maps, and the difference matters. The SCOPE BAR shows the
-// payload's own fleet-wide numbers, because a tool that is not selected has no
-// re-based value to show and the bar is where the selection gets decided;
-// everything below the bar reads the re-based ones.
+// Two deviation maps, and the difference matters. The TOOL BAR shows the
+// payload's own numbers over the tools it answered for (the bar is where the
+// next selection gets decided, and a tool outside the answer has nothing to
+// show — `answered` keeps its badge honest); everything below reads the
+// re-based ones.
 const fleetDeviations = computed<Record<string, number>>(() =>
   Object.fromEntries(
     (payload.value?.fleet_today.consensus_deviation ?? []).map(d => [d.eqp_id, d.deviation])

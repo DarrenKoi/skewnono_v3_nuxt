@@ -1,5 +1,8 @@
 import { analysisLock, offeredParameters, pickStillStands, standingPicks } from '~/utils/tttmRecipeScope'
+import { checkIsStale, rosterFromSemList } from '~/utils/tttmRequest'
+import { resolveSelection } from '~/utils/tttmFleetSubset'
 import type { WindowWeeks } from '~/utils/analysisWindow'
+import type { ToolType } from '~/utils/toolType'
 import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
 
@@ -24,12 +27,22 @@ import { useTttmSettings } from '~/composables/useTttmSettings'
  *
  * The recipe catalogue is its own request, so a slow catalogue never delays
  * the skew payload the pages are actually about.
+ *
+ * `manual` (TTTM since 2026-08-28): the payload is fetched only by
+ * `requestCheck`, narrowed to the picked tools, and `stale` says whether it
+ * still answers the scope on screen. The roster the picker offers then comes
+ * from sem-list — the payload cannot carry it before the first request. A
+ * page that leaves `manual` off keeps the auto-fetching, whole-fleet form.
  */
 const NO_NAMES: string[] = []
 const sameNames = (a: string[], b: string[]) =>
   a.length === b.length && a.every((name, i) => name === b[i])
 
-export const useTttmScope = (toolType: string, fabName: string) => {
+export const useTttmScope = (
+  toolType: string,
+  fabName: string,
+  { manual = false }: { manual?: boolean } = {}
+) => {
   const settings = useTttmSettings()
   const scoped = computed(() => settings.read(toolType, fabName))
   const recipeId = computed(() => scoped.value.recipeId)
@@ -90,17 +103,47 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     { immediate: true }
   )
 
-  // The request still fires without a recipe, and must: the tool roster the
-  // scope bar's model-group dropdowns are built from arrives on this payload,
-  // so gating the FETCH would leave the user nothing to pick from. Only the
-  // results are gated — the views own that empty state.
-  const { data: payload, pending } = useTttmCheck(
+  // The picker's roster, from the app-wide sem-list cache rather than from the
+  // payload: in manual mode the payload is what the picker REQUESTS, so it
+  // cannot also be where the picker's choices come from. The auto-fetching
+  // page keeps reading the roster off its payload and ignores this.
+  const { filterRows } = useSemListApi()
+  const { data: semList, pending: rosterPending } = useSemList()
+  const roster = computed(() =>
+    rosterFromSemList(filterRows(semList.value, toolType as ToolType, fabName))
+  )
+  // The stored selection resolved against that roster: null is all, ids that
+  // no longer exist are dropped. What the request names.
+  const pickedTools = computed(() =>
+    resolveSelection(roster.value.map(t => t.eqp_id), scoped.value.tools)
+  )
+
+  // Auto mode: the request still fires without a recipe, and must — the tool
+  // roster the scope bar's model-group dropdowns are built from arrives on
+  // this payload, so gating the FETCH would leave the user nothing to pick
+  // from. Only the results are gated; the views own that empty state.
+  // Manual mode: nothing fires until `requestCheck`.
+  const { data: payload, pending, execute } = useTttmCheck(
     toolType,
     fabName,
     () => recipeId.value,
     () => parameters.value,
-    () => windowWeeks.value
+    () => windowWeeks.value,
+    () => (manual ? pickedTools.value : []),
+    { manual }
   )
+
+  // Auto mode never lags its scope (every change refetches), so it is never
+  // stale; the flag only means something where a request has to be asked for.
+  const stale = computed(() =>
+    manual && checkIsStale(payload.value, {
+      recipeId: recipeId.value,
+      parameters: parameters.value,
+      windowWeeks: windowWeeks.value,
+      tools: pickedTools.value
+    })
+  )
+  const requestCheck = () => execute()
 
   // The picker's catalogue as the payload states it — the three-state reading
   // (no answer / answering another recipe / answer), computed once for the
@@ -116,7 +159,11 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     return prev && sameNames(prev, next) ? prev : next
   })
 
-  const lock = computed(() => analysisLock(recipeId.value, pending.value, offered.value))
+  // In manual mode a scope nobody has requested is `no-request`, not
+  // `no-data` — the remedy is the button, and the caption has to say so.
+  const lock = computed(() =>
+    analysisLock(recipeId.value, pending.value, offered.value, !stale.value)
+  )
   // The results gate: the recipe alone. The server does answer without one
   // (it folds every measured recipe together), but that answer is a fleet-wide
   // average nobody asked for and renders identically to a scoped one.
@@ -153,10 +200,15 @@ export const useTttmScope = (toolType: string, fabName: string) => {
     parameters,
     windowWeeks,
     recipeNames,
-    recipesWithoutAPair,
     recipesPending,
+    recipesWithoutAPair,
+    roster,
+    rosterPending,
+    pickedTools,
     payload,
     pending,
+    stale,
+    requestCheck,
     parameterNames,
     lock,
     scopeReady,

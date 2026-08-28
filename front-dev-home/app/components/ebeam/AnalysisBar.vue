@@ -79,5 +79,5 @@ const props = withDefaults(defineProps<{
 // Inert for a REASON, not for a moment: while the list is merely loading the
 // trailing control still acts on a stale-but-available payload, and a slider
 // that greys out on every refetch reads as broken.
-const disabled = computed(() => props.lock === 'no-recipe' || props.lock === 'no-data')
+const disabled = computed(() => props.lock !== null && props.lock !== 'loading')
 </script>

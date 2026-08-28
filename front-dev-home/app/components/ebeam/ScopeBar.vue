@@ -28,8 +28,13 @@
           <slot name="recipe" />
         </div>
 
-        <!-- Same slot rule as the recipe, same reason. -->
-        <div class="min-w-0">
+        <!-- Same slot rule as the recipe, same reason. Optional: TTTM moved
+             수집 기간 down beside its 데이터 요청 button (2026-08-28), and an
+             empty grid cell would still take its gap. -->
+        <div
+          v-if="$slots.window"
+          class="min-w-0"
+        >
           <slot name="window" />
         </div>
       </div>

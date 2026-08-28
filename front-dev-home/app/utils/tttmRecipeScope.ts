@@ -108,14 +108,24 @@ export const offeredParameters = (
  * the new one's. An answer for this recipe keeps the controls live even while
  * a refetch (the parameter filter) is in flight.
  */
-export type AnalysisLock = 'no-recipe' | 'no-data' | 'loading' | null
+export type AnalysisLock = 'no-recipe' | 'no-request' | 'no-data' | 'loading' | null
 
+/**
+ * @param requested  whether the payload on hand was asked for THIS scope. The
+ *   on-demand page (TTTM since 2026-08-28) passes `!stale`; a page that still
+ *   auto-fetches passes nothing. Without it a scope nobody has requested yet
+ *   would read as `no-data` — "the server found nothing" — when the truth is
+ *   that the server was never asked, and the caption sends the reader to the
+ *   wrong remedy.
+ */
 export const analysisLock = (
   recipeId: string | null,
   pending: boolean,
-  offered: string[] | null
+  offered: string[] | null,
+  requested = true
 ): AnalysisLock => {
   if (!recipeId) return 'no-recipe'
   if (offered !== null) return null
-  return pending ? 'loading' : 'no-data'
+  if (pending) return 'loading'
+  return requested ? 'no-data' : 'no-request'
 }

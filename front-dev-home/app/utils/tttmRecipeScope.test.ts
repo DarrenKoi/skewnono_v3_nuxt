@@ -139,3 +139,15 @@ test('analysisLock: an answer for the picked recipe is live, even mid-refetch', 
   assert.equal(analysisLock('R', true, ['CD_X']), null)
   assert.equal(analysisLock('R', false, []), null)
 })
+
+test('analysisLock: a scope nobody has requested yet is no-request, not no-data', () => {
+  // The on-demand page: no payload (or one for another scope), nothing in
+  // flight — the remedy is the 데이터 요청 button, not "check the recipe".
+  assert.equal(analysisLock('R', false, null, false), 'no-request')
+  // In flight still wins: the request IS the remedy being applied.
+  assert.equal(analysisLock('R', true, null, false), 'loading')
+  // An answer for this scope is live regardless.
+  assert.equal(analysisLock('R', false, ['P1'], false), null)
+  // No recipe is still the first step missing.
+  assert.equal(analysisLock(null, false, null, false), 'no-recipe')
+})

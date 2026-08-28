@@ -81,6 +81,9 @@
       <template v-if="lock === 'no-recipe'">
         먼저 위에서 recipe 를 고르십시오 — parameter 는 그 recipe 의 측정 데이터에서 고릅니다.
       </template>
+      <template v-else-if="lock === 'no-request'">
+        위 데이터 요청을 누르면 이 recipe 의 측정 데이터에서 parameter 를 읽습니다.
+      </template>
       <template v-else-if="lock === 'no-data'">
         이 비교 대상에는 계산할 측정 데이터가 없습니다 — 아래 안내를 보십시오.
       </template>

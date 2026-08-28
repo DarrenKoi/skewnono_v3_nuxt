@@ -69,7 +69,7 @@
             title="장비 그룹 전체 기준 consensus 잔차"
           >{{ formatSignedNm(deviations[item]!) }}</span>
           <span
-            v-else
+            v-else-if="isAnswered(item)"
             class="ml-auto sk-signal-badge bg-(--sk-bad-soft) text-(--sk-bad)"
           >측정 없음</span>
         </template>
@@ -186,9 +186,17 @@ const props = withDefaults(defineProps<{
   deviations: Record<string, number>
   /** The payload carrying the roster is still in flight — empty is not yet empty. */
   pending?: boolean
+  /**
+   * The tools the payload actually answered for. A tool outside it has no
+   * deviation because it was never REQUESTED (TTTM narrows the request to
+   * the picked tools since 2026-08-28), which is not "측정 없음" — so the badge
+   * is only drawn inside this set. Omitted = every tool was asked for.
+   */
+  answered?: string[]
   hint?: string
 }>(), {
   pending: false,
+  answered: undefined,
   hint: '비교에 넣을 장비를 모델 그룹별로 고릅니다 — 그룹 전체를 켜고 끄거나, 펼쳐서 한 대씩 고릅니다. TTTM · PM 플래닝 두 페이지가 함께 씁니다.'
 })
 
@@ -206,6 +214,9 @@ const groups = computed(() => groupToolsByModel(props.tools))
 // subtree. A fab runs up to 18 tools across ~7 model groups.
 const selectedSet = computed(() => new Set(props.selected))
 const isSelected = (eqp: string) => selectedSet.value.has(eqp)
+
+const answeredSet = computed(() => props.answered ? new Set(props.answered) : null)
+const isAnswered = (eqp: string) => answeredSet.value?.has(eqp) ?? true
 
 const groupIds = computed(() =>
   new Map(groups.value.map(g => [g.model, g.tools.map(t => t.eqp_id)]))

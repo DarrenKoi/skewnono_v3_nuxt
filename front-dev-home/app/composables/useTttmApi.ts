@@ -139,12 +139,18 @@ export const useTttmApi = () => {
   // `windowWeeks` is always sent (the store normalises it to a choice the
   // server accepts), so the label the page shows and the span the server
   // gathered cannot come apart on a default that differs between the two.
+  //
+  // `eqpIds` narrows the FLEET the server gathers runs for — the expensive
+  // half of the request at the office, one MinIO GET per run per tool. Empty
+  // is the whole fleet, which is what a page that never picks tools sends.
+  // Repeated `eqp_id` key, the same way `parameter` is.
   const fetchTttmCheck = (
     toolType: string,
     fabName: string,
     recipeId: string | undefined,
     parameters: readonly string[],
-    windowWeeks: WindowWeeks
+    windowWeeks: WindowWeeks,
+    eqpIds: readonly string[] = []
   ) =>
     $fetch<TttmCheckPayload>(
       joinApiPath(base, `/${toSlug(toolType)}/tttm/check`),
@@ -153,33 +159,44 @@ export const useTttmApi = () => {
           fab_name: fabName,
           window_weeks: windowWeeks,
           ...(recipeId ? { recipe_id: recipeId } : {}),
-          ...(recipeId && parameters.length ? { parameter: [...parameters] } : {})
+          ...(recipeId && parameters.length ? { parameter: [...parameters] } : {}),
+          ...(eqpIds.length ? { eqp_id: [...eqpIds] } : {})
         }
       }
     )
 
-  // `recipeId`/`parameters`/`windowWeeks` are getters, not plain values,
-  // because the user picks them in the page: a value baked into the key at
-  // call time would never refetch. The key deliberately omits all three so one
-  // cache entry per (tool, fab) is reused and re-fetched, rather than
-  // accumulating one entry per scope ever viewed.
+  // `recipeId`/`parameters`/`windowWeeks`/`eqpIds` are getters, not plain
+  // values, because the user picks them in the page: a value baked into the
+  // key at call time would never refetch. The key deliberately omits all of
+  // them so one cache entry per (tool, fab) is reused and re-fetched, rather
+  // than accumulating one entry per scope ever viewed.
+  //
+  // `manual`: the ON-DEMAND form (TTTM). Nothing is fetched until the caller
+  // runs the returned `execute`, and no scope change fetches on its own — see
+  // utils/tttmRequest for why. Its cache key is kept apart from the
+  // auto-fetching form's: the two would otherwise share one `data` ref, and a
+  // fleet narrowed here would surface on the page that expects the whole
+  // fleet without that page ever having asked.
   const useTttmCheck = (
     toolType: string,
     fabName: string,
     recipeId: () => string | null | undefined,
     parameters: () => readonly string[],
-    windowWeeks: () => WindowWeeks
+    windowWeeks: () => WindowWeeks,
+    eqpIds: () => readonly string[] = () => [],
+    { manual = false }: { manual?: boolean } = {}
   ) =>
     useAsyncData(
-      `tttm-check:${toolType}:${fabName}`,
+      `tttm-check:${toolType}:${fabName}${manual ? ':picked' : ''}`,
       () => fetchTttmCheck(
         toolType,
         fabName,
         recipeId() ?? undefined,
         parameters(),
-        windowWeeks()
+        windowWeeks(),
+        eqpIds()
       ),
-      { watch: [recipeId, parameters, windowWeeks] }
+      manual ? { immediate: false } : { watch: [recipeId, parameters, windowWeeks] }
     )
 
   // The picker's source. Deliberately NOT recipe-search's catalogue: that
