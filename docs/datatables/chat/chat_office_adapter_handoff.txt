@@ -1,0 +1,120 @@
+This is the letter from the office agent to you.
+
+the office agent handles the RAG repo
+
+date:2026-08-27
+goal: fill 3 office.py adapters to connect with the rag in the office
+fill office_example.py (therefore, we can copy to make office.py)
+
+The RAG repo will be co-located under the chat folder. so 'from src.retrieve.agent import ...' works directly
+The RAG side exposes three public functions the chat side (the chat agent is you) calls at different stages
+
+Stage 
+Before agent loop | 'rewrite_query(question)' | LLM expands acronyms + adds bilignual KR/EN
+During agent loop (per tool call) | 'search_manuals(query, scope, limit)' | Single-shot hybrid+rerank retrieval
+After agent answer | 'generate_follow_ups(question, answer, sources)' | 3-5 suggested next questions
+
+
+The chat agent has its own multi-hop langcahin agent loop (tools call 'search_manuals` repeatedly)
+The RAG side does not run a second agent loop inside '_execute()' that would nest loops and multiply LLM calls.
+
+The template's contract half (below do not edit line) stays byte-identical.
+Only fill the "office-todo" seams below
+
+
+1. knowledg/provider/office.py (4 seams + 1 error mapper)
+Selected by "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office.
+
+seam1: _config
+
+def _config(self) -> Mapping[str, Any]:
+    #Load from .env; raise knowledgeUnavailable if missing.
+...
+
+seam 2: _build_request (limit = candidate count, Not final rows; contract reranks to 5)
+def _build_request(self, source_type, query, filters, scope, limit) -> Mapping[str, Any]:
+    if source_type != "manual":
+        return {} #meeting/email/report not indexed yet
+    return {"query": query, "scope": dict(scope), "limit": limit,
+        "index_dir": os.environ.get("SKEWNONO_RAG_INDEX_DIR", "index")}
+
+seam 3: _execute (co-located import; RAG already returns correct shape -pass through, No transform)
+def _excute(self, source_type, request) -> list[Mapping[str, Any]]:
+    if source_type != "manual":
+        return [] # empty, never fallback
+    from src.retrieve.serve import search_manuals as _rag
+    return _rag(request["query"], request["source"],
+                limit=request["limit"],
+                index_dir=request.get("index_dir", "index"))
+
+seam 4: _rerank (RAG already reranks via bge-reranker-v2-m3 return indentify scores)
+def _rerank(self, source_type, query, hits) -> list[float]:
+    return [float(hit.get("score") or 0.0 for hit in hits)]
+
+
+===
+
+### 'full_hits' shape (pass-through, no transfrom needed)
+
+Each hit: 'source_id, title, snippet(<=1200), section, page, figure_id, score,
+locator, region, revision, occurred_at, element_type'.
+Drop 'element_type' (index-internal). 'revision' / 'occurred_at' = None for manuals.
+
+### Wiring rewrite + follow-ups (orchestrator level, not inside '_execute')
+The chat orchestrator calls these RAG functions directly they are not part of the knowledge provider
+seam contract:
+
+In python
+1. Before the agent loop - rewrite the user's question once
+from src.retrive.aget import rewrite_query
+rewritten = rewrite_query(user_question)
+
+during the agent loop - each tool call hits _execute() -> search_manuals()
+handled by the knowledge provider seam above
+
+3. after the chat agent produces its answer
+from src.retrieve.agent import generate_follows_ups
+follow_ups = generate_follow_ups(user_question, agent_answer, sources)
+
+### 'RuntimeResult' contract changes
+
+the chat RuntimeREsult (runtime/contracts.py) must grow tow fields:
+
+add rewrite: str | None = None, 
+add follow_ups: list[str] = Field(default_factory=list)
+
+The orchestrator sets 'rewrite' from step 1 and 'follow_ups' from step 3
+
+
+2. 'scope/providers/office.py'
+selected by "SKEWNONO_CHAT_SCOPE_PROVIDER=office
+
+def classify(query:str) -> ScopeDecision:
+    # return: in_scope | mixed | out_of_scope | unsafe
+    # mixed -> must include supported_query (in-scope portion)
+    # unsafe -> refuse (ignore access, reveal api key, bypass permission)
+
+Domain markers: 'ebeam, metrology, measurement, tool, alarm, manual, recipe, error,
+cd-sem, sem, calibration, optics, vaccum, stage, wafer, idp, amp, hitachi, gt2000, cg6300
+
+
+3. providers/office.py 
+Selected by SKEWNONO_CHAT_PROVIDER=office. keep=mock until ready
+implement matching for 14 functions
+
+key reqs: (thread_id, request_id, role) uniqueness
+
+
+4. Env vars (chat side)
+SKEWNONO_CHAT_RUNTIME=agent
+SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office
+SKEWNONO_CHAT_SCOPE_PROVIDER=office
+SKEWNONO_CHAT_KNOWLEDGE_SOURCES=manual
+SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES=24
+
+5 RAG-side public API (already implemented in src/retrieve/agent.py from the office agent)
+
+from src.retrieve.agent import rewrite_query, generate_follow_ups
+from src.retrieve.serve import search_manuals
+
+

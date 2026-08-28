@@ -10,7 +10,8 @@ from pathlib import Path
 
 _MESSAGE_COLUMNS = (
     "id,thread_id,request_id,role,content,model,runtime,scope_status,"
-    "scope_reason_code,prompt_tokens,completion_tokens,latency_ms,created_at"
+    "scope_reason_code,prompt_tokens,completion_tokens,latency_ms,created_at,"
+    "rewrite,follow_ups_json"
 )
 
 
@@ -57,6 +58,8 @@ def _connect() -> sqlite3.Connection:
         _ensure_column(conn, "messages", "runtime", "TEXT")
         _ensure_column(conn, "messages", "scope_status", "TEXT")
         _ensure_column(conn, "messages", "scope_reason_code", "TEXT")
+        _ensure_column(conn, "messages", "rewrite", "TEXT")
+        _ensure_column(conn, "messages", "follow_ups_json", "TEXT")
         conn.executescript(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS ux_message_request_role
@@ -108,6 +111,7 @@ def _connect() -> sqlite3.Connection:
 
 def _hydrate_message(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
     message = dict(row)
+    message["follow_ups"] = json.loads(message.pop("follow_ups_json") or "[]")
     source_rows = conn.execute(
         "SELECT source_id,source_type,title,snippet,revision,occurred_at,section,"
         "page,region,locator,figure_id,score FROM message_sources "
@@ -337,7 +341,7 @@ def complete_turn(thread_id, request_id, result):
             cur = conn.execute(
                 "INSERT INTO messages (id,thread_id,request_id,role,content,model,runtime,"
                 "scope_status,scope_reason_code,prompt_tokens,completion_tokens,latency_ms,"
-                "created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) "
+                "created_at,rewrite,follow_ups_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
                 "ON CONFLICT(thread_id,request_id,role) "
                 "WHERE request_id IS NOT NULL DO NOTHING",
                 (
@@ -347,6 +351,8 @@ def complete_turn(thread_id, request_id, result):
                     scope["scope_reason_code"] if scope is not None else None,
                     result["prompt_tokens"], result["completion_tokens"],
                     result["latency_ms"], now,
+                    result.get("rewrite"),
+                    json.dumps(list(result.get("follow_ups") or []), ensure_ascii=False),
                 ),
             )
             if cur.rowcount > 0:

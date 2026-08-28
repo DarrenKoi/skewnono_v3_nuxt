@@ -84,6 +84,7 @@ const examples = [
           :message="m"
           :feedback-loading="isFeedbackLoading(m.id)"
           @feedback="(messageId, input) => emit('feedback', messageId, input)"
+          @follow-up="text => emit('example', text)"
         />
 
         <!-- Typing indicator -->

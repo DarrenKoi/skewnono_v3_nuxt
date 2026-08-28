@@ -6,6 +6,11 @@ from flask import Blueprint, Response, g, request
 
 from back_dev_home._auth.errors import error_json
 from back_dev_home.chat import config, data, figures, guard
+from back_dev_home.chat.knowledge.contracts import (
+    KnowledgeDenied,
+    KnowledgeTimeout,
+    KnowledgeUnavailable,
+)
 from back_dev_home.chat.orchestration import (
     ModelDoesNotSupportTools,
     ThreadNotFound,
@@ -158,11 +163,13 @@ def chat_send_message(thread_id):
         return error_json("not_found", str(exc), 404)
     except ModelDoesNotSupportTools as exc:
         return error_json("bad_request", str(exc), 400)
-    except RuntimeDenied as exc:
+    # Knowledge* reach here from the orchestrator's own RAG calls (query
+    # rewrite); inside the agent loop they are already mapped to Runtime*.
+    except (RuntimeDenied, KnowledgeDenied) as exc:
         return error_json("runtime_denied", str(exc), 403)
-    except (RuntimeUnavailable, ScopeUnavailable) as exc:
+    except (RuntimeUnavailable, ScopeUnavailable, KnowledgeUnavailable) as exc:
         return error_json("runtime_unavailable", str(exc), 503)
-    except RuntimeTimeout as exc:
+    except (RuntimeTimeout, KnowledgeTimeout) as exc:
         return error_json("gateway_timeout", str(exc), 504)
     except RuntimeUpstreamError as exc:
         return error_json("bad_gateway", str(exc), 502)

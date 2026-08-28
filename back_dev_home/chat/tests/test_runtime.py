@@ -827,3 +827,28 @@ def test_agent_refuses_to_run_with_no_available_source(monkeypatch):
 def test_application_policy_does_not_hardcode_the_tool_count():
     """The prompt must stay true when only one source is exposed."""
     assert "four" not in agent._APPLICATION_POLICY.lower()
+
+
+def test_agent_system_prompt_carries_the_retrieval_query_when_rewritten(
+    scripted_manual_model,
+):
+    """The rewrite is a search hint in the application prompt, not a replaced
+    user message — the model answers the user's words and searches with the
+    expanded ones."""
+    request = make_request()
+    request["rewrite"] = "alarm reset (알람 리셋, alarm recovery)"
+
+    agent.invoke(request, model=scripted_manual_model)
+
+    system = scripted_manual_model.seen_messages[0][0]
+    assert isinstance(system, SystemMessage)
+    assert "retrieval_query" in system.content
+    assert "alarm reset (알람 리셋, alarm recovery)" in system.content
+    assert scripted_manual_model.seen_messages[0][-1].content == "alarm reset"
+
+
+def test_agent_system_prompt_omits_the_retrieval_query_when_absent(scripted_manual_model):
+    agent.invoke(make_request(), model=scripted_manual_model)
+
+    system = scripted_manual_model.seen_messages[0][0].content
+    assert "retrieval_query (application-provided" not in system

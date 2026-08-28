@@ -1,15 +1,35 @@
-# TEMPLATE — copy to office.py at the office, then implement the OFFICE-TODO
-# seams. office.py is gitignored; this file (office_example.py) is the tracked
-# skeleton. Unlike presence-switched features, chat knowledge is selected by
-# SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office, so copying this file alone changes
-# nothing until that variable is set.
-"""Phase 2/3 adapter skeleton for the office chat RAG knowledge source.
+# TEMPLATE — copy to office.py at the office (`cp office_example.py office.py`).
+# office.py is gitignored; this file (office_example.py) is the tracked
+# implementation, COMPLETE as of 2026-08-28: the seams below call the office
+# RAG in-process, so the copy needs no edits. Unlike presence-switched
+# features, chat knowledge is selected by SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=
+# office, so copying this file alone changes nothing until that variable is set.
+"""Phase 2/3 adapter for the office chat RAG knowledge source.
 
-The contract half of this adapter is already written and must not change:
-``_search()`` clamps limits, short-circuits empty queries, converts every
-backend failure into the typed exceptions from ``contracts.py``, and
-``_to_evidence()`` strictly validates each raw hit into an ``Evidence`` row.
-The office implementation fills exactly four seams:
+The RAG is a separate 사내 repository checked out beside this package (see
+``chat/rag.py`` for where and why) and called IN-PROCESS — there is no
+service between Flask and the index. Its public surface, as handed over by
+the RAG side (office 확인 2026-08-27, ``docs/datatables/chat/
+chat_office_adapter_handoff.txt``):
+
+* ``src.retrieve.serve.search_manuals(query, scope, limit=, index_dir=)`` —
+  single-shot hybrid retrieval + ``bge-reranker-v2-m3`` rerank, returning
+  hits already in the normalized raw hit shape below;
+* ``src.retrieve.agent.rewrite_query(question)`` — one LLM call that expands
+  acronyms and pairs Korean/English terms, run once BEFORE the agent loop;
+* ``src.retrieve.agent.generate_follow_ups(question, answer, sources)`` —
+  3–5 suggested next questions, run once AFTER the answer.
+
+The RAG side runs no agent loop of its own: the chat agent's tools call
+``search_manuals`` repeatedly, and nesting a second loop inside ``_execute``
+would multiply LLM calls. Rewrite and follow-ups are exposed here as two
+extra provider functions (``rewrite_query`` / ``generate_follow_ups``) so the
+orchestrator reaches them through ``knowledge/data.py`` like everything else.
+
+The contract half of this adapter must not change: ``_search()`` clamps
+limits, short-circuits empty queries, converts every backend failure into the
+typed exceptions from ``contracts.py``, and ``_to_evidence()`` strictly
+validates each raw hit into an ``Evidence`` row. The four seams are:
 
 * ``_config()``       — load office settings (hosts, index aliases, timeouts)
   from environment/.env. Never accept them from user input or model arguments.
@@ -70,17 +90,20 @@ read from the hit. Malformed hits raise ``KnowledgeUnavailable`` (index/schema
 mismatch) naming the offending key but never the content. Empty results are
 an empty list — no fallback to mock or another source, ever.
 
-Verification: fill the OFFICE-TODO fixtures in
-``back_dev_home/chat/tests/test_knowledge_office.py`` (tracked; skips at home)
-and follow the ladder in ``back_dev_home/chat/MIGRATION.md``.
+Verification: ``tests/test_knowledge_office_template.py`` exercises these
+seams at home against a fake ``src.retrieve`` package, and runs the same
+tests against the gitignored copy when it exists; the ladder is in
+``back_dev_home/chat/MIGRATION.md``.
 """
 
 from __future__ import annotations
 
 import math
+import os
+from pathlib import Path
 from typing import Any, Mapping
 
-from back_dev_home.chat import config
+from back_dev_home.chat import config, rag
 from back_dev_home.chat.knowledge.contracts import (
     AccessScope,
     Evidence,
@@ -105,22 +128,33 @@ _OPTIONAL_STR_KEYS = (
 
 
 # ---------------------------------------------------------------------------
-# OFFICE-TODO seams — the only code the office implementation writes.
+# Seams — the office-specific half. Everything below calls the co-located RAG.
 # ---------------------------------------------------------------------------
 
 
 def _config() -> Mapping[str, Any]:
-    """Load office-side settings (hosts, index aliases, timeouts).
+    """Locate the RAG checkout and its index; unavailable when either is absent.
 
-    OFFICE-TODO: read from environment/.env only (the self-load pattern in
-    ``back_dev_home/_runtime/office_redis.load_env_file`` is available).
-    Raise ``KnowledgeUnavailable`` when required settings are missing.
-    Never log or return credentials.
+    ``index_dir`` is ``SKEWNONO_RAG_INDEX_DIR`` when set, else ``index/`` under
+    the checkout — the RAG's own default is the RELATIVE ``"index"``, which
+    would resolve against Flask's cwd (``/project/workSpace/`` on the cloud),
+    so it is always passed absolute. Never log or return credentials (there
+    are none: the RAG reads a local index).
     """
-    raise KnowledgeUnavailable(
-        "The chat knowledge office provider is not connected: _config() is "
-        "not implemented."
-    )
+    root = rag.rag_root()
+    if root is None:
+        raise KnowledgeUnavailable(
+            "The chat knowledge office provider has no RAG checkout; set "
+            "SKEWNONO_CHAT_RAG_ROOT or clone it to back_dev_home/chat/_rag."
+        )
+    raw = os.environ.get("SKEWNONO_RAG_INDEX_DIR", "").strip()
+    index_dir = Path(raw) if raw else root / "index"
+    if not index_dir.is_dir():
+        raise KnowledgeUnavailable(
+            "The chat knowledge office provider has no RAG index directory; "
+            "set SKEWNONO_RAG_INDEX_DIR to the built index."
+        )
+    return {"index_dir": str(index_dir.resolve())}
 
 
 def _build_request(
@@ -130,46 +164,51 @@ def _build_request(
     scope: AccessScope,
     limit: int,
 ) -> Mapping[str, Any]:
-    """Build the backend search request for one source type.
+    """Build the RAG search request for one source type.
 
     ``limit`` is the CANDIDATE count to retrieve, not the number of rows the
     caller receives. The contract half reranks those candidates and truncates
     to the application's five-row cap afterwards, so fetch all of them.
 
-    OFFICE-TODO: embed the ``scope`` access filter (user_id/groups/fabs) in
-    the request itself so unauthorized sources are excluded at query time and
-    their existence, title, count, and score are never observable. Restrict
-    the field projection to the normalized raw hit keys — ``figure_id``
-    included, or every hit arrives figure-less.
+    Only ``manual`` is indexed; the other sources build no request and
+    ``_execute`` returns an empty list for them — never a manual search in
+    disguise. The ``scope`` rides in the request so the RAG can filter at
+    query time; manuals are currently unrestricted, but the filter still has
+    to be applied there rather than on the returned rows.
 
-    One request must serve Korean and English TOGETHER. Users mix them in a
-    single question ("얼라인 alarm 리셋"), and the corpus mixes them too, so a
-    request that only satisfies one language silently halves recall instead of
-    failing visibly. The k-NN leg handles this if the embedding model is
-    multilingual — confirm that it is rather than assuming. Any lexical/BM25
-    leg needs an explicit Korean analyzer: OpenSearch's default ``standard``
-    analyzer splits Hangul into single characters, which matches nothing
-    useful. Do not translate or language-detect the query and dispatch one
-    branch; that turns a mixed-language question into a worse monolingual one.
+    Korean and English are served by ONE request: the RAG's dense leg is
+    BGE-M3 (multilingual) and its lexical leg uses the Nori analyzer, so the
+    query is passed through as typed — never translated or language-routed.
     """
-    raise KnowledgeUnavailable(
-        "The chat knowledge office provider is not connected: "
-        "_build_request() is not implemented."
-    )
+    del filters  # no per-call filters are exposed to the model
+    if source_type != "manual":
+        return {}
+    return {
+        "query": query,
+        "scope": dict(scope),
+        "limit": limit,
+        "index_dir": _config()["index_dir"],
+    }
 
 
 def _execute(source_type: str, request: Mapping[str, Any]) -> list[Mapping[str, Any]]:
-    """Run one search against the office backend.
+    """Run one search through the RAG; rows pass through untransformed.
 
-    OFFICE-TODO: call the office index/service and return raw hits in the
-    normalized raw hit shape, preserving backend rank order. Let
-    backend-specific exceptions escape; ``_search()`` routes them through
-    ``_translate_error()``.
+    ``search_manuals`` already returns the normalized raw hit shape
+    (``source_id, title, snippet, section, page, figure_id, score`` plus the
+    index-internal ``element_type`` that ``_to_evidence`` drops), in rank
+    order. RAG exceptions escape to ``_search()`` → ``_translate_error()``.
     """
-    raise KnowledgeUnavailable(
-        "The chat knowledge office provider is not connected: _execute() is "
-        "not implemented."
+    if source_type != "manual":
+        return []
+    serve = rag.import_rag("retrieve.serve")
+    hits = serve.search_manuals(
+        request["query"],
+        request["scope"],
+        limit=request["limit"],
+        index_dir=request["index_dir"],
     )
+    return list(hits)
 
 
 def _rerank(
@@ -177,35 +216,61 @@ def _rerank(
     query: str,
     hits: list[Mapping[str, Any]],
 ) -> list[float]:
-    """Score each candidate hit against the query.
+    """Identity: the RAG reranks with ``bge-reranker-v2-m3`` inside ``search_manuals``.
 
-    OFFICE-TODO: call the approved in-house reranker and return ONE score per
-    hit, in the SAME ORDER as ``hits``. Higher is better. The contract half
-    below owns the sort and the row cap, so never reorder or truncate here.
-
-    When reranking happens inside the search backend itself (the C1 path in
-    the design spec), return each hit's existing ``score`` — that keeps this
-    seam an identity ordering without special-casing the contract half.
-
-    Do not silently skip the rerank when the service is down: raise, and let
-    ``_search()`` route it through ``_translate_error()``. Returning the raw
-    retrieval order would look like a working answer of measurably worse
-    quality, which is the failure mode this contract exists to prevent.
+    Each hit's ``score`` IS the cross-encoder score, so returning it keeps the
+    contract half's sort a no-op re-statement of the RAG's order. A missing
+    score sorts last rather than failing — the RAG never omits it for manuals,
+    and a hit without one is still evidence.
     """
-    raise KnowledgeUnavailable(
-        "The chat knowledge office provider is not connected: _rerank() is "
-        "not implemented."
-    )
+    del source_type, query
+    return [float(hit.get("score") or 0.0) for hit in hits]
+
+
+def rewrite_query(question: str) -> str:
+    """Expand the user's question once for retrieval (acronyms + KR/EN pairs).
+
+    Runs BEFORE the agent loop; the result is handed to the model as the
+    application-provided retrieval query. A blank rewrite is unavailable
+    rather than silently accepted — an empty hint is worse than none.
+    """
+    agent = rag.import_rag("retrieve.agent")
+    try:
+        rewritten = agent.rewrite_query(question)
+    except Exception as error:  # noqa: BLE001 — typed for the caller
+        raise _translate_error(error) from error
+    if not isinstance(rewritten, str) or not rewritten.strip():
+        raise KnowledgeUnavailable("The office RAG query rewrite returned no text.")
+    return rewritten.strip()
+
+
+def generate_follow_ups(
+    question: str,
+    answer: str,
+    sources: list[Mapping[str, Any]],
+) -> list[str]:
+    """Suggest 3–5 next questions from the answered turn (deduplicated, trimmed)."""
+    agent = rag.import_rag("retrieve.agent")
+    try:
+        raw = agent.generate_follow_ups(question, answer, sources)
+    except Exception as error:  # noqa: BLE001 — typed for the caller
+        raise _translate_error(error) from error
+    follow_ups: list[str] = []
+    for item in raw or ():
+        if isinstance(item, str) and item.strip() and item.strip() not in follow_ups:
+            follow_ups.append(item.strip())
+    return follow_ups
 
 
 def _translate_error(error: Exception) -> Exception:
-    """Map backend-specific exceptions onto the typed contract exceptions.
+    """Map RAG exceptions onto the typed contract exceptions.
 
-    OFFICE-TODO: extend the mapping for the office client library —
-    authorization failures to ``KnowledgeDenied``, deadline/timeout errors to
-    ``KnowledgeTimeout``. Anything unrecognized stays ``KnowledgeUnavailable``
-    (configuration/index mismatch/service down); never re-raise raw client
-    errors and never include query text or credentials in messages.
+    The RAG raises plain Python errors today; ``TimeoutError`` and
+    ``PermissionError`` are the two it is asked to use for deadline and
+    authorization failures (see the handoff suggestions in MIGRATION.md).
+    Anything unrecognized stays ``KnowledgeUnavailable`` (missing index, model
+    load failure, 사내 dependency absent); raw errors are never re-raised and
+    messages never carry query text.
     """
     if isinstance(error, TimeoutError):
         return KnowledgeTimeout("The chat knowledge search timed out.")

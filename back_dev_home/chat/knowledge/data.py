@@ -86,3 +86,17 @@ def search_reports(
     limit: int,
 ) -> list[Evidence]:
     return _provider().search_reports(query, filters, scope, _limit(limit))
+
+
+def rewrite_query(question: str) -> str:
+    """Expand the question once for retrieval — run before the agent loop."""
+    return _provider().rewrite_query(question)
+
+
+def generate_follow_ups(
+    question: str,
+    answer: str,
+    sources: list[Mapping[str, object]],
+) -> list[str]:
+    """Suggest next questions from the answered turn — run after the answer."""
+    return _provider().generate_follow_ups(question, answer, sources)

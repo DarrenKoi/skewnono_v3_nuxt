@@ -61,6 +61,14 @@ export interface ChatMessage {
   latency_ms?: number | null
   sources: SourceRef[]
   feedback: MessageFeedback | null
+  /**
+   * Agent mode only, on the assistant turn: the retrieval expansion of the
+   * question (acronyms spelled out, Korean/English paired) — `null` when the
+   * runtime was direct, the scope was rejected, or nothing changed — and the
+   * RAG's suggested next questions (empty outside agent mode).
+   */
+  rewrite: string | null
+  follow_ups: string[]
   created_at: string
 }
 

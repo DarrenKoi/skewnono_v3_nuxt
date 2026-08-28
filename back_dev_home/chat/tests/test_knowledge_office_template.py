@@ -149,7 +149,7 @@ def test_empty_results_stay_empty(seams):
     assert template.search_manuals("alarm reset", None, _SCOPE, 5) == []
 
 
-def test_an_unimplemented_rerank_seam_fails_loudly(monkeypatch):
+def test_a_failing_rerank_seam_fails_loudly(monkeypatch):
     """Skipping the rerank silently would degrade quality without an error."""
     monkeypatch.setattr(
         template,
@@ -157,6 +157,11 @@ def test_an_unimplemented_rerank_seam_fails_loudly(monkeypatch):
         lambda source_type, query, filters, scope, limit: {},
     )
     monkeypatch.setattr(template, "_execute", lambda source_type, request: [_hit("a", 1.0)])
+
+    def broken(source_type, query, hits):
+        raise RuntimeError("reranker down")
+
+    monkeypatch.setattr(template, "_rerank", broken)
 
     with pytest.raises(KnowledgeUnavailable):
         template.search_manuals("alarm reset", None, _SCOPE, 5)
@@ -218,3 +223,175 @@ def test_element_type_stays_behind_the_seam(seams):
         "occurred_at", "section", "page", "region", "locator", "figure_id",
         "score",
     }
+
+
+# ---------------------------------------------------------------------------
+# The seams themselves. The template is the COMPLETE office implementation
+# (the RAG is called in-process through ``chat/rag.py``), so office.py is a
+# byte-identical copy and these tests run against both when the copy exists.
+# The RAG package is never imported for real: ``src.retrieve.*`` is a fake
+# planted in ``sys.modules``.
+# ---------------------------------------------------------------------------
+
+import importlib  # noqa: E402
+import sys  # noqa: E402
+import types  # noqa: E402
+
+from back_dev_home.chat import rag  # noqa: E402
+
+
+def _adapters():
+    modules = [template]
+    try:
+        office = importlib.import_module("back_dev_home.chat.knowledge.providers.office")
+    except ModuleNotFoundError:
+        return modules
+    return modules + [office]
+
+
+@pytest.fixture(params=_adapters(), ids=lambda module: module.__name__.rsplit(".", 1)[-1])
+def adapter(request):
+    return request.param
+
+
+@pytest.fixture
+def checkout(tmp_path, monkeypatch):
+    """A RAG checkout on disk plus a fake ``src.retrieve`` package in memory."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "index").mkdir()
+    monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(tmp_path))
+    monkeypatch.delenv("SKEWNONO_RAG_INDEX_DIR", raising=False)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    calls: dict = {}
+
+    serve = types.ModuleType("src.retrieve.serve")
+
+    def search_manuals(query, scope, *, limit, index_dir):
+        calls["search"] = {"query": query, "scope": scope, "limit": limit, "index_dir": index_dir}
+        return calls.get("hits", [])
+
+    serve.search_manuals = search_manuals
+
+    agent = types.ModuleType("src.retrieve.agent")
+
+    def rewrite_query(question):
+        calls["rewrite"] = question
+        return f"{question} (expanded)"
+
+    def generate_follow_ups(question, answer, sources):
+        calls["follow_ups"] = (question, answer, sources)
+        return ["다음 질문 1", "Next question 2"]
+
+    agent.rewrite_query = rewrite_query
+    agent.generate_follow_ups = generate_follow_ups
+    monkeypatch.setitem(sys.modules, "src.retrieve.serve", serve)
+    monkeypatch.setitem(sys.modules, "src.retrieve.agent", agent)
+    calls["root"] = tmp_path
+    return calls
+
+
+def test_config_requires_the_checkout(adapter, monkeypatch, tmp_path):
+    monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(tmp_path))  # no src/
+
+    with pytest.raises(KnowledgeUnavailable):
+        adapter._config()
+
+
+def test_config_index_dir_defaults_under_the_checkout(adapter, checkout):
+    assert adapter._config()["index_dir"] == str((checkout["root"] / "index").resolve())
+
+
+def test_config_index_dir_env_override_must_exist(adapter, checkout, monkeypatch, tmp_path):
+    elsewhere = tmp_path / "elsewhere"
+    monkeypatch.setenv("SKEWNONO_RAG_INDEX_DIR", str(elsewhere))
+    with pytest.raises(KnowledgeUnavailable):
+        adapter._config()
+
+    elsewhere.mkdir()
+    assert adapter._config()["index_dir"] == str(elsewhere.resolve())
+
+
+def test_build_request_embeds_scope_candidates_and_index_dir(adapter, checkout):
+    request = adapter._build_request("manual", "alarm reset", None, _SCOPE, 24)
+
+    assert request["query"] == "alarm reset"
+    assert request["scope"] == _SCOPE
+    assert request["limit"] == 24
+    assert request["index_dir"] == str((checkout["root"] / "index").resolve())
+
+
+@pytest.mark.parametrize("source_type", ["meeting", "email", "report"])
+def test_unindexed_sources_build_no_request_and_execute_to_empty(adapter, checkout, source_type):
+    """Empty, never a fallback to manuals — those sources have no index yet."""
+    assert adapter._build_request(source_type, "q", None, _SCOPE, 24) == {}
+    assert adapter._execute(source_type, {}) == []
+    assert "search" not in checkout
+
+
+def test_execute_calls_the_rag_search_and_passes_rows_through(adapter, checkout):
+    checkout["hits"] = [dict(_OFFICE_MANUAL_HIT)]
+    request = adapter._build_request("manual", "alignment", None, _SCOPE, 24)
+
+    rows = adapter._execute("manual", request)
+
+    assert rows == [dict(_OFFICE_MANUAL_HIT)]  # no transform, element_type intact
+    assert checkout["search"] == {
+        "query": "alignment",
+        "scope": _SCOPE,
+        "limit": 24,
+        "index_dir": request["index_dir"],
+    }
+
+
+def test_rerank_is_the_identity_over_the_rag_scores(adapter):
+    hits = [_hit("a", 0.2), _hit("b", 0.9), dict(_hit("c", 0.0), score=None)]
+
+    assert adapter._rerank("manual", "q", hits) == [0.2, 0.9, 0.0]
+
+
+def test_end_to_end_manual_search_through_the_rag(adapter, checkout):
+    checkout["hits"] = [dict(_OFFICE_MANUAL_HIT, score=0.1), dict(_OFFICE_MANUAL_HIT, source_id="x", score=0.7)]
+
+    rows = adapter.search_manuals("alignment", None, _SCOPE, 5)
+
+    assert [row["source_id"] for row in rows] == ["x", _OFFICE_MANUAL_HIT["source_id"]]
+    assert "element_type" not in rows[0]
+
+
+def test_rewrite_and_follow_ups_go_to_the_rag_agent_module(adapter, checkout):
+    sources = [{"source_id": "s1", "title": "T"}]
+
+    assert adapter.rewrite_query("얼라인 alarm") == "얼라인 alarm (expanded)"
+    assert adapter.generate_follow_ups("q", "a", sources) == ["다음 질문 1", "Next question 2"]
+    assert checkout["rewrite"] == "얼라인 alarm"
+    assert checkout["follow_ups"] == ("q", "a", sources)
+
+
+def test_rewrite_and_follow_ups_without_a_checkout_are_unavailable(adapter, monkeypatch, tmp_path):
+    monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(tmp_path))
+
+    with pytest.raises(KnowledgeUnavailable):
+        adapter.rewrite_query("q")
+    with pytest.raises(KnowledgeUnavailable):
+        adapter.generate_follow_ups("q", "a", [])
+
+
+def test_a_rewrite_that_is_not_a_nonempty_string_is_unavailable(adapter, checkout):
+    """A blank rewrite would send an empty retrieval hint — worse than none."""
+    sys.modules["src.retrieve.agent"].rewrite_query = lambda question: "   "
+
+    with pytest.raises(KnowledgeUnavailable):
+        adapter.rewrite_query("q")
+
+
+def test_follow_ups_are_normalized_to_clean_strings(adapter, checkout):
+    sys.modules["src.retrieve.agent"].generate_follow_ups = (
+        lambda q, a, s: ["  one ", "", None, "one", "two"]
+    )
+
+    assert adapter.generate_follow_ups("q", "a", []) == ["one", "two"]
+
+
+def test_rag_root_is_the_bridge_default(adapter):
+    """The seams resolve the checkout through chat/rag.py, not their own path logic."""
+    assert adapter.rag is rag

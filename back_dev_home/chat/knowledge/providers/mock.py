@@ -41,6 +41,15 @@ rejects renders no figure at all rather than erroring, so the mock would have
 passed while every office figure 404'd. Nothing is stored behind these ids —
 only the shape is real.
 
+``rewrite_query`` / ``generate_follow_ups`` stand in for the office RAG's two
+LLM calls (``src.retrieve.agent``, office 확인 2026-08-27): the rewrite there
+expands acronyms and pairs Korean/English terms; the follow-ups are 3–5 next
+questions generated from the answer and its sources. Here both are table
+lookups — a fixed acronym/translation table and title-derived questions — so
+the orchestration path and the SPA are exercised deterministically with no
+model in the loop. The office output is free text; only the shape (a
+nonempty string; 3–5 distinct strings) is copied.
+
 This mock answers all four sources unconditionally, even though the office
 provider currently exposes only ``manual`` (``get_knowledge_sources()``
 defaults to ``SKEWNONO_CHAT_KNOWLEDGE_SOURCES=manual``). That is deliberate:
@@ -151,3 +160,69 @@ def search_reports(
     limit: int,
 ) -> list[Evidence]:
     return _search("reports", query, filters, scope, limit)
+
+
+# Acronym expansions and KR/EN pairs the office rewrite would produce; token
+# → expansion, matched on the same tokenizer as retrieval so a hit here is a
+# hit there.
+_REWRITE_TABLE = {
+    "cd-sem": "critical dimension SEM, 측장 SEM",
+    "cd": "critical dimension, 측장",
+    "sem": "scanning electron microscope, 전자현미경",
+    "alarm": "알람",
+    "알람": "alarm",
+    "리셋": "reset",
+    "reset": "리셋",
+    "얼라인": "align, alignment",
+    "align": "얼라인, 정렬",
+    "recipe": "레시피",
+    "레시피": "recipe",
+    "manual": "매뉴얼",
+    "매뉴얼": "manual",
+    "calibration": "교정, 캘리브레이션",
+    "교정": "calibration",
+    "wafer": "웨이퍼",
+    "웨이퍼": "wafer",
+}
+_REWRITE_PATTERN = re.compile(r"[a-z0-9가-힣-]+")
+
+
+def rewrite_query(question: str) -> str:
+    """Append table expansions in first-seen order; unchanged when none apply."""
+    seen: list[str] = []
+    for token in _REWRITE_PATTERN.findall(question.lower()):
+        expansion = _REWRITE_TABLE.get(token)
+        if expansion and expansion not in seen:
+            seen.append(expansion)
+    if not seen:
+        return question
+    return f"{question} ({'; '.join(seen)})"
+
+
+_GENERIC_FOLLOW_UPS = (
+    "이 절차에서 주의해야 할 점은 무엇인가요?",
+    "관련 알람 코드와 대처 방법을 알려줘",
+    "Which other equipment does this apply to?",
+)
+
+
+def generate_follow_ups(
+    question: str,
+    answer: str,
+    sources: list[Mapping[str, Any]],
+) -> list[str]:
+    """Three questions: one per distinct cited title, padded with generic ones."""
+    del question, answer  # the office LLM reads them; the table does not
+    follow_ups: list[str] = []
+    for source in sources:
+        title = str(source.get("title") or "").strip()
+        candidate = f"{title}에서 관련 절차를 더 알려줘"
+        if title and candidate not in follow_ups:
+            follow_ups.append(candidate)
+        if len(follow_ups) == 3:
+            break
+    for generic in _GENERIC_FOLLOW_UPS:
+        if len(follow_ups) == 3:
+            break
+        follow_ups.append(generic)
+    return follow_ups

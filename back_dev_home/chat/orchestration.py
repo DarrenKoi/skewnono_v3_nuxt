@@ -8,6 +8,7 @@ from typing import Any
 
 from back_dev_home.chat import config, conversation_log, data
 from back_dev_home.chat.contracts import Message
+from back_dev_home.chat.knowledge import data as knowledge_data
 from back_dev_home.chat.runtime import data as runtime_data
 from back_dev_home.chat.runtime.contracts import RuntimeRequest, RuntimeResult
 from back_dev_home.chat.scope import data as scope_data
@@ -46,6 +47,10 @@ class ChatOrchestrator:
         *,
         runtime_name_finder: Callable[[], str] = config.get_runtime_name,
         conversation_recorder: Callable[..., None] = conversation_log.record_turn,
+        query_rewriter: Callable[[str], str] = knowledge_data.rewrite_query,
+        follow_up_generator: Callable[
+            [str, str, list], list[str]
+        ] = knowledge_data.generate_follow_ups,
     ) -> None:
         self._store = store
         self._scope_classifier = scope_classifier
@@ -53,6 +58,8 @@ class ChatOrchestrator:
         self._model_finder = model_finder
         self._runtime_name_finder = runtime_name_finder
         self._conversation_recorder = conversation_recorder
+        self._query_rewriter = query_rewriter
+        self._follow_up_generator = follow_up_generator
 
     def send_message(
         self,
@@ -66,7 +73,8 @@ class ChatOrchestrator:
         if thread is None:
             raise ThreadNotFound("thread not found")
 
-        if self._runtime_name_finder() == "agent":
+        is_agent = self._runtime_name_finder() == "agent"
+        if is_agent:
             model = self._model_finder(thread["model"])
             if model is None or not model.get("supports_tools", False):
                 raise ModelDoesNotSupportTools(
@@ -108,6 +116,17 @@ class ChatOrchestrator:
         persisted = self._store.get_thread(user_id, thread_id)
         if persisted is None:
             raise ThreadNotFound("thread not found")
+        # The question the runtime actually answers: the supported clause for
+        # a mixed turn, else the user's words. Rewrite and follow-ups are RAG
+        # calls, so they run only where retrieval runs — agent mode. A rewrite
+        # failure fails the turn (raw-question retrieval would look like a
+        # working answer with worse recall); the user turn stays for retry.
+        question = (
+            decision["supported_query"]
+            if decision["status"] == "mixed"
+            else user_message["content"]
+        )
+        rewrite = self._rewrite(question) if is_agent else None
         runtime_request: RuntimeRequest = {
             "request_id": request_id,
             "thread_id": thread_id,
@@ -122,8 +141,15 @@ class ChatOrchestrator:
                 persisted["messages"], request_id, decision
             ),
             "scope_decision": decision,
+            "rewrite": rewrite,
         }
         result = self._runtime_invoker(runtime_request)
+        result["rewrite"] = rewrite
+        result["follow_ups"] = (
+            self._follow_ups(question, result["content"], result["sources"])
+            if is_agent
+            else []
+        )
         if decision["status"] == "mixed":
             result["content"] = f"{MIXED_SCOPE_NOTICE}\n\n{result['content']}"
         assistant = self._store.complete_turn(thread_id, request_id, result)
@@ -136,6 +162,22 @@ class ChatOrchestrator:
             tool_call_count=len(result["tool_traces"]),
         )
         return assistant
+
+    def _rewrite(self, question: str) -> str | None:
+        rewritten = self._query_rewriter(question)
+        return rewritten if rewritten != question else None
+
+    def _follow_ups(self, question: str, answer: str, sources: list) -> list[str]:
+        # Suggestions are decoration on a turn that already succeeded; a RAG
+        # failure here costs the chips, never the answer — same policy as the
+        # conversation record below.
+        try:
+            return list(self._follow_up_generator(question, answer, sources))
+        except Exception:
+            logging.getLogger("skewnono.chat").exception(
+                "failed to generate chat follow-up questions"
+            )
+            return []
 
     def _record_conversation(
         self,
@@ -193,6 +235,8 @@ class ChatOrchestrator:
             "latency_ms": 0,
             "sources": [],
             "tool_traces": [],
+            "rewrite": None,
+            "follow_ups": [],
         }
 
 

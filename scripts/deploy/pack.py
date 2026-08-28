@@ -72,7 +72,10 @@ INCLUDED_ROOTS = (
 )
 
 # Directory names removed anywhere in the copied tree.
-PRUNE_DIRS = frozenset({"__pycache__", "tests", ".pytest_cache", ".ruff_cache"})
+# `.git` is here for the chat RAG checkout at back_dev_home/chat/_rag/, which
+# is a nested repository the bundle must carry (the office adapter imports it
+# in-process) - its history and objects are not runtime files.
+PRUNE_DIRS = frozenset({"__pycache__", "tests", ".pytest_cache", ".ruff_cache", ".git"})
 
 # File suffixes removed anywhere. .md covers 22 MIGRATION.md files plus
 # READMEs - office-migration notes with no runtime role.

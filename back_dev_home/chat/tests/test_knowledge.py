@@ -217,3 +217,39 @@ def test_available_sources_does_not_import_the_office_module(monkeypatch):
     monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
     monkeypatch.delenv("SKEWNONO_CHAT_KNOWLEDGE_SOURCES", raising=False)
     assert available_sources() == ("manual",)
+
+
+def test_mock_rewrite_expands_acronyms_bilingually(monkeypatch):
+    """Stands in for the office LLM rewrite: acronyms expanded, KR/EN paired."""
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")
+
+    rewritten = data.rewrite_query("CD-SEM 얼라인 alarm 리셋")
+
+    assert rewritten.startswith("CD-SEM 얼라인 alarm 리셋")
+    assert "critical dimension" in rewritten.lower()
+    assert "알람" in rewritten
+    assert "reset" in rewritten.lower()
+    assert data.rewrite_query("hello") == "hello"
+
+
+def test_mock_follow_ups_derive_from_the_cited_sources(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock")
+    sources = data.search_manuals("alarm reset", {}, METROLOGY_USER, 5)
+
+    follow_ups = data.generate_follow_ups("alarm reset", "Use the reset procedure.", sources)
+
+    assert 3 <= len(follow_ups) <= 5
+    assert len(set(follow_ups)) == len(follow_ups)
+    assert all(isinstance(item, str) and item.strip() for item in follow_ups)
+    assert sources[0]["title"] in follow_ups[0]
+    assert data.generate_follow_ups("q", "a", []) == data.generate_follow_ups("q", "a", [])
+
+
+def test_rewrite_and_follow_ups_route_to_the_office_provider(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setattr(data, "_OFFICE_MODULE", "back_dev_home.chat.knowledge.providers.definitely_missing")
+
+    with pytest.raises(KnowledgeUnavailable):
+        data.rewrite_query("q")
+    with pytest.raises(KnowledgeUnavailable):
+        data.generate_follow_ups("q", "a", [])

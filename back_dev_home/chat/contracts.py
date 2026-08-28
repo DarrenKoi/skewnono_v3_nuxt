@@ -57,6 +57,12 @@ class Message(TypedDict):
     latency_ms: int | None
     sources: list[SourceRef]
     feedback: MessageFeedback | None
+    # Agent-mode retrieval expansion of the question this turn answered
+    # (None when direct, rejected, or unchanged) and the RAG's suggested
+    # next questions (empty outside agent mode). Both live on the assistant
+    # turn; user turns carry None / [].
+    rewrite: str | None
+    follow_ups: list[str]
     created_at: str
 
 

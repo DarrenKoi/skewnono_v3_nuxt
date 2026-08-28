@@ -55,7 +55,12 @@ testpaths = ["tests", "back_dev_home"]
 # `sys.path` insertion; deleting one of the nested `back_dev_home/**/tests/
 # __init__.py` files instead collides test basenames (many of those dirs share a
 # `test_contract.py`). Neither is a cleanup.
-addopts = ["--import-mode=prepend"]
+# `--ignore` of the chat RAG checkout: `back_dev_home/chat/_rag/` is a separate
+# 사내 git repository (gitignored here, see chat/rag.py) with its own tests and
+# heavy model dependencies. `testpaths` walks back_dev_home, and pytest does not
+# honour .gitignore, so without this line the office run would collect the
+# RAG's suite as ours. Absent at home, so the ignore is a no-op there.
+addopts = ["--import-mode=prepend", "--ignore=back_dev_home/chat/_rag"]
 
 # No `markers` key on purpose: the only marker used anywhere in the suite is the
 # builtin `@pytest.mark.parametrize`. Likewise no `-q`, no `--strict-*` and no

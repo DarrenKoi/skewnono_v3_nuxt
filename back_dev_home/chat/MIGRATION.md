@@ -105,16 +105,81 @@ message를 보내는 혼합 배포를 허용하지 않습니다.
 Assistant message는 `runtime`, `scope_status`, `sources`, `feedback`을 포함합니다.
 Frontend와 backend의 해당 타입도 같은 release 단위로 유지합니다.
 
+## RAG 동거(co-location) — 사내 RAG 저장소를 chat 아래에 두는 방법 (2026-08-28)
+
+사내 RAG는 별도의 git 저장소이며(공개 저장소인 이곳에 절대 push 하지 않습니다),
+chat 은 그것을 **같은 프로세스 안에서 import** 합니다 — Flask 와 인덱스 사이에
+서비스가 없습니다. RAG 측 handoff 는 `docs/datatables/chat/chat_office_adapter_handoff.txt`
+(2026-08-27)이고, 공개 API 는 다음 셋입니다(office 확인 2026-08-27).
+
+| 단계 | RAG 함수 | chat 쪽 호출 지점 |
+| --- | --- | --- |
+| Agent loop 전 1회 | `src.retrieve.agent.rewrite_query(question) -> str` | `orchestration.py` → `knowledge/data.py:rewrite_query()` |
+| Loop 안 tool 호출마다 | `src.retrieve.serve.search_manuals(query, scope, limit=, index_dir=)` | `knowledge/providers/office.py:_execute()` |
+| 답변 후 1회 | `src.retrieve.agent.generate_follow_ups(question, answer, sources) -> list[str]` | `orchestration.py` → `knowledge/data.py:generate_follow_ups()` |
+
+RAG 측은 자체 agent loop 를 돌리지 않습니다 — chat 의 LangChain agent 가
+`search_manuals` 를 반복 호출하고, `_execute()` 안에 두 번째 loop 가 있으면 LLM
+호출이 곱해집니다.
+
+**배치.** RAG checkout 은 `back_dev_home/chat/_rag/` 에 둡니다(자체 `.git` 포함).
+앞머리 밑줄이 이 배치를 안전하게 만드는 전부입니다.
+
+| 걸림돌 | 왜 `_rag/` 가 걸리지 않는가 |
+| --- | --- |
+| Blueprint 자동 탐색(`routes.py` rglob) | `_` 로 시작하는 경로를 건너뜁니다. RAG 에 `routes.py` 가 있어도 boot 가 깨지지 않습니다. |
+| Office registry(`**/providers/{mock,office}.py` glob) | 같은 규칙. RAG 안의 `providers/` 폴더가 중복 slug 로 잡히지 않습니다. |
+| Deploy pack | `_` 경로를 걷지 않는 규칙은 없지만 `back_dev_home` 통째로 복사하므로 **함께 실립니다**(의도). 대신 `.git` 은 `PRUNE_DIRS` 로 버립니다. |
+| ruff | `.gitignore` 를 따르므로 무시합니다. |
+| pytest | `.gitignore` 를 따르지 **않으므로** `pyproject.toml` 의 `--ignore=back_dev_home/chat/_rag` 가 막습니다. |
+| git | `.gitignore` 의 `back_dev_home/chat/_rag/`. 중첩 저장소는 `git -C back_dev_home/chat/_rag pull` 로 따로 갱신합니다. Submodule 은 쓰지 않습니다 — 사무실은 GitHub 에 로그인할 수 없고 RAG 저장소는 사내 전용입니다. |
+
+`from src.retrieve...` 가 동작하려면 checkout 루트가 `sys.path` 에 있어야 하는데,
+Flask 는 저장소 루트에서 뜨므로 저절로 되지 않습니다. `chat/rag.py` 의
+`import_rag("retrieve.serve")` 가 유일한 import 경로입니다 — 루트를
+`SKEWNONO_CHAT_RAG_ROOT`(미설정이면 `_rag/`)에서 찾아 한 번만 `sys.path` 에 넣고,
+checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUnavailable`(503)로
+바꿉니다. 인덱스 경로는 `SKEWNONO_RAG_INDEX_DIR`(미설정이면 `{checkout}/index`)이며
+항상 절대 경로로 넘깁니다 — RAG 의 기본값은 상대 경로 `"index"` 라 cloud 에서는
+`/project/workSpace/index` 를 찾게 됩니다.
+
+**Rewrite 와 follow-ups 의 동작 계약.**
+
+- 둘 다 agent runtime 에서만 호출합니다. Direct runtime 은 retrieval 이 없으므로
+  둘 다 건너뛰고 `rewrite=None`, `follow_ups=[]` 을 저장합니다. Scope 거절 turn 도
+  같습니다.
+- Rewrite 대상은 runtime 이 실제로 답하는 질문입니다 — mixed 면 `supported_query`,
+  아니면 사용자 문장. 결과가 원문과 같으면 `None` 으로 저장합니다.
+- Rewrite 는 사용자 메시지를 **바꾸지 않습니다**. `RuntimeRequest.rewrite` 로
+  넘어가 agent system prompt 의 `retrieval_query` 줄이 되고, 모델은 검색 tool 의
+  query 로 그것을 우선 씁니다. 사용자의 말은 그대로 user message 로 남습니다.
+- Rewrite 실패는 turn 실패입니다(`KnowledgeUnavailable` → 503, `KnowledgeTimeout` →
+  504, `KnowledgeDenied` → 403). 원문으로 검색을 계속하면 recall 이 낮은 답이
+  정상 답처럼 보이기 때문입니다 — rerank 를 건너뛰지 않는 것과 같은 이유입니다.
+  User turn 은 같은 `request_id` retry 를 위해 남습니다.
+- Follow-ups 실패는 답변을 깨뜨리지 않습니다. `skewnono.chat` logger 에 예외를
+  남기고 `[]` 을 저장합니다 — 대화 기록(telemetry)과 같은 정책입니다.
+- `RuntimeResult` 와 `Message` 가 `rewrite: str | None`, `follow_ups: list[str]` 을
+  가집니다. SQLite mock 은 `messages.rewrite`, `messages.follow_ups_json` 열로
+  additive migration 합니다. SPA 는 follow-up 을 chip 으로 그리고, 누르면 composer 에
+  채웁니다(바로 전송하지 않습니다).
+
+**Mock 과의 차이.** `knowledge/providers/mock.py` 의 `rewrite_query` 는 고정 약어·
+번역 표이고 `generate_follow_ups` 는 인용 제목에서 만든 질문 3개입니다. 사무실은
+둘 다 LLM 이며 자유 문장입니다. 모양(비어 있지 않은 문자열, 서로 다른 3~5개)만
+같습니다.
+
 ## Office knowledge provider 구현 계약
 
-Tracked template인 `knowledge/providers/office_example.py`를
-`knowledge/providers/office.py`로 복사한 뒤 gitignored copy만 구현합니다. Template은
-계약 절반(`_search` limit/오류 변환, `_rank_hits` 정렬·절단, `_to_evidence` 엄격
-검증, 네 공개 함수)이 이미 작성된 skeleton이며, office copy는 `OFFICE-TODO`로
-표시된 네 seam — `_config()`, `_build_request()`, `_execute()`,
-`_rerank(source_type, query, hits) -> list[float]` — 과 `_translate_error()`의
-client별 오류 mapping만 구현합니다. "do not edit below" 표시 아래의 계약 절반은
-수정하지 않습니다. 다음 네 공개 signature를 그대로 유지합니다.
+`knowledge/providers/office_example.py` 는 **완성된 구현**입니다(2026-08-28). 사무실
+에서는 `cp office_example.py office.py` 만 하고 아무것도 고치지 않습니다 — 네 seam
+(`_config()`, `_build_request()`, `_execute()`, `_rerank()`)이 위 "RAG 동거" 절의
+co-located RAG 를 호출하고, `rewrite_query()`/`generate_follow_ups()` 두 공개
+함수가 더해져 있습니다. "do not edit below" 아래의 계약 절반(`_search` limit/오류
+변환, `_rank_hits` 정렬·절단, `_to_evidence` 엄격 검증, 네 공개 함수)은 여전히
+수정하지 않습니다. Seam 의 검증은 `tests/test_knowledge_office_template.py` 가
+집에서 가짜 `src.retrieve` 패키지로 수행하고, 복사본이 있으면 같은 테스트를
+복사본에도 돌립니다. 다음 네 공개 signature를 그대로 유지합니다.
 
 ```python
 search_manuals(
@@ -335,11 +400,17 @@ namespace가 두 번 붙습니다(위 표 아래 설명).
 
 ## Scope provider 구현 계약
 
-`scope/providers/office_example.py`를 `scope/providers/office.py`로 복사하고
-`classify(query: str) -> ScopeDecision`만 구현합니다. 반환 `status`는 `in_scope`,
-`mixed`, `out_of_scope`, `unsafe` 중 하나이며 `reason_code`와 `supported_query`를 함께
+`scope/providers/office_example.py` 는 **완성된 구현**입니다(2026-08-28) — RAG
+handoff 가 정한 도메인 marker(`ebeam, metrology, measurement, tool, alarm, manual,
+recipe, error, cd-sem, sem, calibration, optics, vacuum, stage, wafer, idp, amp,
+hitachi, gt2000, cg6300`)에 한국어 대응어를 짝지은 keyword 정책이며, 엔진은 mock 과
+같은 `scope/keyword_policy.py` 를 씁니다(어휘만 다릅니다). 사무실에서는
+`cp office_example.py office.py` 만 합니다. 반환 `status`는 `in_scope`, `mixed`,
+`out_of_scope`, `unsafe` 중 하나이며 `reason_code`와 `supported_query`를 함께
 정규화합니다. `mixed`일 때만 지원되는 부분을 `supported_query`로 전달합니다.
 Unavailable 상태는 `ScopeUnavailable`을 발생시키며 mock으로 fallback하지 않습니다.
+어휘를 넓히려면 template 을 고치고 다시 복사합니다 — 복사본만 고치면
+`sync_office_adapters` 가 `EDITED` 로 분류합니다.
 
 ## Thread storage 동기화
 

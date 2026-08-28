@@ -117,7 +117,8 @@ const send = async (text: string) => {
   thread.messages.push({
     id: `local-${Date.now()}`, thread_id: thread.id, role: 'user',
     request_id: turn.requestId, content: text, runtime: null, scope_status: null,
-    sources: [], feedback: null, created_at: new Date().toISOString()
+    sources: [], feedback: null, rewrite: null, follow_ups: [],
+    created_at: new Date().toISOString()
   })
   const succeeded = await deliver(turn)
   if (firstTurn && succeeded) await titleThread(thread, text)

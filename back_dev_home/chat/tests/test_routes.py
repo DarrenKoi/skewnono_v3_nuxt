@@ -3,6 +3,11 @@ from flask import Flask, g
 
 from back_dev_home.chat import data, guard, llm
 from back_dev_home.chat.routes import bp
+from back_dev_home.chat.knowledge.contracts import (
+    KnowledgeDenied,
+    KnowledgeTimeout,
+    KnowledgeUnavailable,
+)
 from back_dev_home.chat.runtime.contracts import (
     RuntimeDenied,
     RuntimeLimitExceeded,
@@ -101,6 +106,8 @@ def test_send_message_persists_reply(client, monkeypatch):
     assert body["role"] == "assistant"
     assert body["content"] == "pong"
     assert body["latency_ms"] == 7
+    assert body["rewrite"] is None
+    assert body["follow_ups"] == []
     roles = [
         m["role"]
         for m in client.get(f"/api/chat/threads/{tid}").get_json()["data"]["messages"]
@@ -370,9 +377,12 @@ def test_feedback_rejects_owned_user_message_before_writing(client, monkeypatch)
     ("error", "status"),
     [
         (RuntimeDenied("denied"), 403),
+        (KnowledgeDenied("rag denied"), 403),
         (RuntimeUnavailable("offline"), 503),
         (ScopeUnavailable("scope offline"), 503),
+        (KnowledgeUnavailable("rag offline"), 503),
         (RuntimeTimeout("slow"), 504),
+        (KnowledgeTimeout("rag slow"), 504),
         (RuntimeUpstreamError("gateway failed"), 502),
         (RuntimeLimitExceeded("too many"), 422),
     ],

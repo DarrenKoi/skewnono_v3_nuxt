@@ -594,3 +594,78 @@ def test_feedback_write_cannot_outlive_owned_message(monkeypatch, tmp_path):
     ).fetchone()[0]
     conn.close()
     assert feedback_count == 0
+
+
+def test_complete_turn_persists_rewrite_and_follow_ups(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    thread = data.create_thread("u1", "m1")
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    user = data.append_user_message(thread["id"], "alarm", request_id)
+    data.complete_turn(
+        thread["id"],
+        request_id,
+        {
+            "content": "Use the reset procedure.",
+            "runtime": "agent",
+            "model": "m1",
+            "prompt_tokens": 4,
+            "completion_tokens": 3,
+            "latency_ms": 9,
+            "sources": [],
+            "tool_traces": [],
+            "rewrite": "alarm (알람, alarm recovery)",
+            "follow_ups": ["다음 질문", "Next question"],
+        },
+    )
+
+    stored = data.get_thread("u1", thread["id"])["messages"]
+    assert stored[-1]["rewrite"] == "alarm (알람, alarm recovery)"
+    assert stored[-1]["follow_ups"] == ["다음 질문", "Next question"]
+    # User turns and pre-rewrite runtimes carry the neutral values.
+    assert user["rewrite"] is None and user["follow_ups"] == []
+    assert stored[0]["follow_ups"] == []
+
+
+def test_complete_turn_tolerates_a_result_without_the_new_keys(monkeypatch, tmp_path):
+    """Direct-runtime results carry neither key; the store must not KeyError."""
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    thread = data.create_thread("u1", "m1")
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    data.append_user_message(thread["id"], "alarm", request_id)
+
+    assistant = data.complete_turn(
+        thread["id"],
+        request_id,
+        {
+            "content": "pong", "runtime": "direct", "model": "m1",
+            "prompt_tokens": 1, "completion_tokens": 1, "latency_ms": 1,
+            "sources": [], "tool_traces": [],
+        },
+    )
+
+    assert assistant["rewrite"] is None
+    assert assistant["follow_ups"] == []
+
+
+def test_existing_db_gains_rewrite_and_follow_up_columns(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    legacy = sqlite3.connect(str(tmp_path / "chat.db"))
+    legacy.executescript(
+        """
+        CREATE TABLE messages (
+          id TEXT PRIMARY KEY, thread_id TEXT, role TEXT, content TEXT,
+          model TEXT, prompt_tokens INTEGER, completion_tokens INTEGER,
+          latency_ms INTEGER, created_at TEXT
+        );
+        """
+    )
+    legacy.commit()
+    legacy.close()
+
+    thread = data.create_thread("u1", "m1")
+    message = data.append_user_message(
+        thread["id"], "alarm", "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    )
+
+    assert message["follow_ups"] == []
+    assert message["rewrite"] is None

@@ -10,6 +10,9 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   feedback: [messageId: string, input: FeedbackInput | null]
+  // A suggested next question was picked; the page prefills the composer so
+  // the user can edit before sending, same path as the empty-state examples.
+  followUp: [text: string]
 }>()
 
 const isUser = computed(() => props.message.role === 'user')
@@ -90,6 +93,30 @@ const removeFeedback = () => {
         v-if="isAssistant"
         :sources="message.sources"
       />
+      <!-- What retrieval actually searched for. Shown only when the RAG
+           changed the question, so a direct-mode turn stays as it was. -->
+      <p
+        v-if="isAssistant && message.rewrite"
+        class="sk-chat-rewrite"
+      >
+        <span class="sk-chat-rewrite-label">검색 질의</span>
+        {{ message.rewrite }}
+      </p>
+      <div
+        v-if="isAssistant && message.follow_ups.length"
+        class="sk-chat-followups"
+        aria-label="이어서 물어볼 질문"
+      >
+        <button
+          v-for="text in message.follow_ups"
+          :key="text"
+          type="button"
+          class="sk-chat-followup"
+          @click="emit('followUp', text)"
+        >
+          {{ text }}
+        </button>
+      </div>
       <div class="sk-chat-metarail">
         <span
           v-for="bit in meta"
@@ -192,6 +219,55 @@ const removeFeedback = () => {
   white-space: pre;
 }
 
+.sk-chat-rewrite {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--sk-ink-muted);
+  word-break: break-word;
+}
+
+.sk-chat-rewrite-label {
+  margin-right: 0.375rem;
+  padding: 0.05rem 0.375rem;
+  border-radius: 0.25rem;
+  background: var(--sk-chip-bg);
+  color: var(--sk-chip-text);
+  font-weight: 500;
+}
+
+/* Same chip as the empty-state examples in ChatThread: one visual for
+   "a question you can send", wherever it appears. */
+.sk-chat-followups {
+  margin-top: 0.625rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.sk-chat-followup {
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--sk-border);
+  background: var(--sk-surface);
+  color: var(--sk-ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: left;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.sk-chat-followup:hover {
+  border-color: var(--sk-accent-border);
+  color: var(--sk-ink);
+  background: var(--sk-accent-tint);
+}
+
+.sk-chat-followup:focus-visible {
+  outline: 2px solid var(--sk-focus-ring);
+  outline-offset: 2px;
+}
+
 .sk-chat-metarail {
   display: flex;
   align-items: flex-start;
@@ -218,7 +294,8 @@ const removeFeedback = () => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sk-chat-copy {
+  .sk-chat-copy,
+  .sk-chat-followup {
     transition: none;
   }
 }
