@@ -78,8 +78,11 @@ INCLUDED_ROOTS = (
 PRUNE_DIRS = frozenset({"__pycache__", "tests", ".pytest_cache", ".ruff_cache", ".git"})
 
 # File suffixes removed anywhere. .md covers 22 MIGRATION.md files plus
-# READMEs - office-migration notes with no runtime role.
-PRUNE_SUFFIXES = (".pyc", ".pyo", ".md", ".log")
+# READMEs - office-migration notes with no runtime role. .db is the chat
+# thread store (back_dev_home/chat/chat.db, gitignored but present in every
+# working tree that ran chat): overlaying the bundle onto /project/workSpace/
+# would replace the cloud's threads with the office PC's.
+PRUNE_SUFFIXES = (".pyc", ".pyo", ".md", ".log", ".db")
 
 # Exact file names removed anywhere.
 PRUNE_NAMES = frozenset({"conftest.py", ".DS_Store", "Thumbs.db"})

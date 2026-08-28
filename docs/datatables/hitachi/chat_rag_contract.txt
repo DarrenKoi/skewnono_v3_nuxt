@@ -175,27 +175,38 @@ figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
   의 `_execute()` 와 `_rerank()` 뿐이며, 추적되는 계약(`chat_rag_contract.txt`
   의 필드, `Evidence` 12필드)은 바뀌지 않습니다.
 
-RAG 공개 API 와 호출 방식 (office 확인 2026-08-27, handoff:
-docs/datatables/chat/chat_office_adapter_handoff.txt)
+RAG 공개 API 와 호출 방식 (office 확인 2026-08-27, 2026-08-28 RAG 측 회신 반영;
+handoff: docs/datatables/chat/chat_office_adapter_handoff.txt, 회신:
+docs/rag_agents/)
 - RAG 는 별도 git 저장소이며 `back_dev_home/chat/_rag/` 에 checkout 해 두고
   같은 프로세스에서 import 합니다(`chat/rag.py`). 서비스 경계가 없습니다.
-- 공개 함수 셋:
-  - `src.retrieve.serve.search_manuals(query, scope, limit=, index_dir=)`
-    → hit list(위 8개 필드). hybrid + bge-reranker-v2-m3 rerank 까지 끝난
-    결과이므로 어댑터 `_rerank()` 는 hit 의 `score` 를 그대로 돌려주는
-    항등 함수입니다(C1 과 같은 모양). `limit` 은 후보 수(기본 24)입니다.
-  - `src.retrieve.agent.rewrite_query(question) -> str` — agent loop 전 1회.
-    LLM 이 약어를 풀고 한/영 용어를 짝지어 검색용 질의를 만듭니다.
-  - `src.retrieve.agent.generate_follow_ups(question, answer, sources)
-    -> list[str]` — 답변 후 1회, 다음 질문 3~5개.
-- 인덱스 위치는 `index_dir` 인자로 넘깁니다. RAG 의 기본값은 상대 경로
-  `"index"` 이므로 chat 은 항상 절대 경로(`SKEWNONO_RAG_INDEX_DIR`, 미설정이면
-  `{checkout}/index`)를 넘깁니다.
-- OFFICE-VERIFY: `search_manuals` 의 `scope` 인자가 질의 단계 필터로 실제
-  쓰이는지(매뉴얼은 현재 권한 제한이 없어 무시해도 결과는 같음), 그리고 RAG 가
-  timeout/권한 오류를 `TimeoutError`/`PermissionError` 로 올리는지. 현재
-  `_translate_error()` 는 그 둘만 구분하고 나머지는 전부 `KnowledgeUnavailable`
-  입니다.
+- 최상위 패키지는 `skewnono_rag` 입니다(RAG 측 확인 2026-08-28; 2026-08-27
+  까지는 `src`). `chat/rag.py` 는 `{root}/skewnono_rag/` 가 없으면 checkout
+  없음으로 봅니다.
+- 공개 함수 셋 — 모두 `timeout=` 초 kwarg 를 받습니다(RAG 측 확인 2026-08-28):
+  - `skewnono_rag.retrieve.serve.search_manuals(query, scope, limit=,
+    index_dir=, timeout=)` → hit list(위 8개 필드). hybrid +
+    bge-reranker-v2-m3 rerank 까지 끝난 결과이므로 어댑터 `_rerank()` 는 hit
+    의 `score` 를 그대로 돌려주는 항등 함수입니다(C1 과 같은 모양). `limit`
+    은 후보 수(기본 24)입니다.
+  - `skewnono_rag.retrieve.agent.rewrite_query(question, timeout=) -> str` —
+    agent loop 전 1회. LLM 이 약어를 풀고 한/영 용어를 짝지어 검색용 질의를
+    만듭니다. 원문을 보존한 채 덧붙입니다(RAG 측 확인 2026-08-28).
+  - `skewnono_rag.retrieve.agent.generate_follow_ups(question, answer,
+    sources, timeout=) -> list[str]` — 답변 후 1회, 다음 질문 3~5개.
+- 인덱스 위치는 `index_dir` 인자로 넘깁니다. RAG 의 기본값도 이제 절대
+  경로입니다(RAG 측 확인 2026-08-28)만, chat 은 여전히 절대 경로
+  (`SKEWNONO_RAG_INDEX_DIR`, 미설정이면 `{checkout}/index`)를 넘깁니다.
+- 오류 타입(RAG 측 확인 2026-08-28): deadline 초과는 `TimeoutError`, 권한
+  거부는 `PermissionError`, 그 외는 일반 예외. chat 의 `_translate_error()`
+  가 각각 504/403, 나머지는 503(`KnowledgeUnavailable`)으로 바꿉니다.
+- 모델은 프로세스당 1회 lazy-load 이며 thread-safe 합니다(RAG 측 확인
+  2026-08-28). 인덱스·모델 파일은 checkout 밖 또는 RAG 의 `.gitignore` 안에
+  둡니다.
+- OFFICE-VERIFY: `search_manuals` 의 `scope` 가 질의 단계에서 무엇을 하는지
+  RAG 측이 "명시 완료" 라고 회신했으나 그 내용은 아직 이 파일에 옮겨지지
+  않았습니다(매뉴얼은 현재 권한 제한이 없어 무시해도 결과는 같음). RAG 측의
+  문장을 받으면 여기에 그대로 적습니다.
 - 집(mock)과의 차이: mock 의 `rewrite_query` 는 고정 약어·번역 표, `generate_follow_ups`
   는 인용 제목에서 만든 질문 3개입니다. 모양만 같고 내용은 표 lookup 입니다.
 

@@ -1,3 +1,9 @@
+[2026-08-28 update] The RAG side answered chat's suggestions: package is
+`skewnono_rag` (not `src`), every function takes `timeout=`, errors are
+TimeoutError/PermissionError, thread storage stays SQLite. The current
+contract is docs/datatables/hitachi/chat_rag_contract.txt; the exchange is
+docs/rag_agents/. The letter below is kept as received.
+
 This is the letter from the office agent to you.
 
 the office agent handles the RAG repo

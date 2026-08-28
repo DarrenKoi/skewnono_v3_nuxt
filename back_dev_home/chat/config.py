@@ -95,6 +95,19 @@ def get_agent_timeout() -> float:
     return min(max(float(os.environ.get("SKEWNONO_CHAT_AGENT_TIMEOUT", "60")), 1), 120)
 
 
+def get_knowledge_timeout() -> float:
+    """Seconds one office RAG call may take (search, rewrite, or follow-ups).
+
+    Passed as ``timeout=`` to every RAG function. It is a per-call bound, not
+    the loop's remaining budget: the agent wall-clock (``get_agent_timeout``)
+    cuts the answer, but a RAG call already running in its thread would keep
+    going without this. Kept under the agent timeout so a single hung search
+    cannot consume the whole turn.
+    """
+    raw = float(os.environ.get("SKEWNONO_CHAT_KNOWLEDGE_TIMEOUT", "20"))
+    return min(max(raw, 1), get_agent_timeout())
+
+
 def get_max_concurrent_agent_runs() -> int:
     name = "SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS"
     raw = os.environ.get(name, "4")

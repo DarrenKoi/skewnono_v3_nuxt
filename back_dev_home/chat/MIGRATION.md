@@ -46,7 +46,8 @@ Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값�
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=mock` | 제한된 deterministic classifier를 사용합니다. | Office dependency가 필요하지 않습니다. |
 | Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=office` | 승인된 사내 scope classifier를 사용합니다. | Adapter가 없으면 `503`이며 mock으로 전환하지 않습니다. |
 | Thread storage | `SKEWNONO_CHAT_PROVIDER=mock` | SQLite에 thread, turn, source, trace, feedback을 저장합니다. | 기본 보존 기간은 30일입니다. |
-| Thread storage | `SKEWNONO_CHAT_PROVIDER=office` | 승인된 사내 저장소를 사용합니다. | `providers/office.py`가 없으면 명시적 office 선택은 boot 단계에서 실패합니다. Stub copy는 호출 시 실패합니다. |
+| Thread storage | `SKEWNONO_CHAT_PROVIDER=office` | 쓰지 않습니다 — 사무실도 SQLite 입니다(2026-08-28 결정, 아래 "Thread storage 동기화"). | `providers/office.py`가 없으면 명시적 office 선택은 boot 단계에서 실패합니다. Stub copy는 호출 시 실패합니다. |
+| Thread storage | `SKEWNONO_CHAT_DB` | SQLite 파일 경로입니다. 미설정이면 `back_dev_home/chat/chat.db`. | cloud 에서는 deploy overlay 바깥의 절대 경로로 둡니다 — 기본 경로는 overlay 되는 트리 안입니다. |
 
 권장 전환 순서는 `direct/mock/mock` baseline, `agent/mock/mock` synthetic RAG,
 `agent/office/mock` knowledge integration, `agent/office/office` scope integration
@@ -114,9 +115,15 @@ chat 은 그것을 **같은 프로세스 안에서 import** 합니다 — Flask 
 
 | 단계 | RAG 함수 | chat 쪽 호출 지점 |
 | --- | --- | --- |
-| Agent loop 전 1회 | `src.retrieve.agent.rewrite_query(question) -> str` | `orchestration.py` → `knowledge/data.py:rewrite_query()` |
-| Loop 안 tool 호출마다 | `src.retrieve.serve.search_manuals(query, scope, limit=, index_dir=)` | `knowledge/providers/office.py:_execute()` |
-| 답변 후 1회 | `src.retrieve.agent.generate_follow_ups(question, answer, sources) -> list[str]` | `orchestration.py` → `knowledge/data.py:generate_follow_ups()` |
+| Agent loop 전 1회 | `skewnono_rag.retrieve.agent.rewrite_query(question, timeout=) -> str` | `orchestration.py` → `knowledge/data.py:rewrite_query()` |
+| Loop 안 tool 호출마다 | `skewnono_rag.retrieve.serve.search_manuals(query, scope, limit=, index_dir=, timeout=)` | `knowledge/providers/office.py:_execute()` |
+| 답변 후 1회 | `skewnono_rag.retrieve.agent.generate_follow_ups(question, answer, sources, timeout=) -> list[str]` | `orchestration.py` → `knowledge/data.py:generate_follow_ups()` |
+
+최상위 패키지는 `skewnono_rag` 입니다(2026-08-28 에 `src` 에서 개명, RAG 측
+확인). 세 함수 모두 `timeout=` 초를 받아 넘기면 `TimeoutError` 를, 권한 거부는
+`PermissionError` 를 올립니다(RAG 측 확인 2026-08-28) — chat 은
+`SKEWNONO_CHAT_KNOWLEDGE_TIMEOUT`(기본 20, agent wall-clock 이하로 clamp)을 매
+호출에 넘기고 `_translate_error()` 가 각각 504/403 으로 바꿉니다.
 
 RAG 측은 자체 agent loop 를 돌리지 않습니다 — chat 의 LangChain agent 가
 `search_manuals` 를 반복 호출하고, `_execute()` 안에 두 번째 loop 가 있으면 LLM
@@ -134,7 +141,7 @@ RAG 측은 자체 agent loop 를 돌리지 않습니다 — chat 의 LangChain a
 | pytest | `.gitignore` 를 따르지 **않으므로** `pyproject.toml` 의 `--ignore=back_dev_home/chat/_rag` 가 막습니다. |
 | git | `.gitignore` 의 `back_dev_home/chat/_rag/`. 중첩 저장소는 `git -C back_dev_home/chat/_rag pull` 로 따로 갱신합니다. Submodule 은 쓰지 않습니다 — 사무실은 GitHub 에 로그인할 수 없고 RAG 저장소는 사내 전용입니다. |
 
-`from src.retrieve...` 가 동작하려면 checkout 루트가 `sys.path` 에 있어야 하는데,
+`from skewnono_rag.retrieve...` 가 동작하려면 checkout 루트가 `sys.path` 에 있어야 하는데,
 Flask 는 저장소 루트에서 뜨므로 저절로 되지 않습니다. `chat/rag.py` 의
 `import_rag("retrieve.serve")` 가 유일한 import 경로입니다 — 루트를
 `SKEWNONO_CHAT_RAG_ROOT`(미설정이면 `_rag/`)에서 찾아 한 번만 `sys.path` 에 넣고,
@@ -178,7 +185,7 @@ co-located RAG 를 호출하고, `rewrite_query()`/`generate_follow_ups()` 두 �
 함수가 더해져 있습니다. "do not edit below" 아래의 계약 절반(`_search` limit/오류
 변환, `_rank_hits` 정렬·절단, `_to_evidence` 엄격 검증, 네 공개 함수)은 여전히
 수정하지 않습니다. Seam 의 검증은 `tests/test_knowledge_office_template.py` 가
-집에서 가짜 `src.retrieve` 패키지로 수행하고, 복사본이 있으면 같은 테스트를
+집에서 가짜 `skewnono_rag.retrieve` 패키지로 수행하고, 복사본이 있으면 같은 테스트를
 복사본에도 돌립니다. 다음 네 공개 signature를 그대로 유지합니다.
 
 ```python
@@ -243,7 +250,7 @@ search_reports(
 | `figure_id` | 그림 chunk의 opaque token이며 text/table chunk는 `None`입니다. |
 | `score` | 같은 source 검색 결과의 ranking 진단용 값이며 없으면 `None`입니다. |
 
-사무실 manual 검색(`src/retrieve/serve.py:search_manuals()`)이 실제로 돌려주는 키는
+사무실 manual 검색(`skewnono_rag/retrieve/serve.py:search_manuals()`)이 실제로 돌려주는 키는
 `source_id`, `title`, `snippet`, `section`, `page`, `figure_id`, `score`,
 `element_type` 여덟 개입니다(office 확인 2026-08-27). `_to_evidence()`는 optional 키를
 `.get`으로 읽으므로 `revision`/`occurred_at`/`region`/`locator`가 없는 hit은 그대로
@@ -414,8 +421,15 @@ Unavailable 상태는 `ScopeUnavailable`을 발생시키며 mock으로 fallback�
 
 ## Thread storage 동기화
 
-Office thread storage는 `providers/office_example.py`의 모든 함수를 구현하고
-`contracts.py`와 mock provider의 의미를 유지합니다. 특히 다음을 보장합니다.
+**2026-08-28 결정(RAG 측 확인): office thread storage 는 SQLite 입니다.**
+`providers/office.py` 를 만들지 않고 `SKEWNONO_CHAT_DB` 만 영속 경로로 둡니다.
+단일 host 이므로 코드 변경이 없고, uWSGI worker 여럿이 한 파일을 여는 것은
+SQLite 의 파일 잠금이 처리합니다. deploy pack 은 `*.db` 를 prune 하므로 번들이
+cloud 의 thread 를 덮어쓰지 않습니다. 아래 절은 저장소를 multi-host 로 옮길
+때만 유효합니다.
+
+Office thread storage를 따로 쓴다면 `providers/office_example.py`의 모든 함수를
+구현하고 `contracts.py`와 mock provider의 의미를 유지합니다. 특히 다음을 보장합니다.
 
 ```python
 create_thread(user_id, model, system_prompt=None)

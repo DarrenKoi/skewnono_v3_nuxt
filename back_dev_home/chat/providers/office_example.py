@@ -10,12 +10,17 @@
 #       CHAT_MODELS=[{"id":"<model-id>","label":"<picker text>"}, ...]
 #   Surface B - thread storage: THIS file. Where threads/messages persist.
 #
-# Do NOT `cp` this file to office.py until storage is actually implemented:
-# presence detection reads office.py's existence as "storage ready", so an
-# unimplemented copy flips chat storage onto the stubs below and breaks the
-# page. To TEST chat at the office, leave office.py absent — storage stays on
-# the working SQLite mock and the CHAT_* env alone selects the internal gateway.
-"""Office chat store hookup point (OpenSearch). Not yet connected."""
+# DECISION (RAG 측 확인 2026-08-28): office thread storage IS the SQLite
+# provider. Do NOT `cp` this file to office.py — presence detection reads
+# office.py's existence as "storage ready" and would flip storage onto the
+# stubs below. At the office and on the cloud, leave office.py absent and
+# point SKEWNONO_CHAT_DB at a persistent path OUTSIDE the deploy overlay
+# (the pack prunes *.db so a bundle never replaces the cloud's threads, but
+# the default back_dev_home/chat/chat.db still lives inside the overlaid
+# tree). The retention purge stays the mock's list-time purge; the checklist
+# in MIGRATION.md "Office retention job rollout" applies only if storage
+# ever moves to a multi-host store.
+"""Office chat store hookup point — unused: SQLite is the office store."""
 
 
 def _not_connected(*args, **kwargs):

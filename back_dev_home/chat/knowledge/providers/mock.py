@@ -42,7 +42,7 @@ passed while every office figure 404'd. Nothing is stored behind these ids —
 only the shape is real.
 
 ``rewrite_query`` / ``generate_follow_ups`` stand in for the office RAG's two
-LLM calls (``src.retrieve.agent``, office 확인 2026-08-27): the rewrite there
+LLM calls (``skewnono_rag.retrieve.agent``, office 확인 2026-08-27): the rewrite there
 expands acronyms and pairs Korean/English terms; the follow-ups are 3–5 next
 questions generated from the answer and its sources. Here both are table
 lookups — a fixed acronym/translation table and title-derived questions — so

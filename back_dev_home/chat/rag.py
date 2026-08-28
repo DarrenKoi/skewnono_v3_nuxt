@@ -1,8 +1,9 @@
 """Import bridge to the office RAG checkout, which the chat feature calls in-process.
 
 The RAG is a separate git repository (사내, never pushed here) whose top-level
-package is ``src`` — ``src.retrieve.serve.search_manuals``,
-``src.retrieve.agent.rewrite_query`` / ``generate_follow_ups``. It is checked
+package is ``skewnono_rag`` (renamed from ``src`` at chat's request, RAG 측
+확인 2026-08-28) — ``skewnono_rag.retrieve.serve.search_manuals``,
+``skewnono_rag.retrieve.agent.rewrite_query`` / ``generate_follow_ups``. It is checked
 out at ``back_dev_home/chat/_rag/`` by default: the leading underscore is what
 keeps a whole foreign repo inert inside this tree — the app factory's
 ``routes.py`` scan, the office registry's ``providers/`` scan and the deploy
@@ -27,11 +28,11 @@ from types import ModuleType
 from back_dev_home.chat.knowledge.contracts import KnowledgeUnavailable
 
 _DEFAULT_ROOT: Path | None = Path(__file__).resolve().parent / "_rag"
-_PACKAGE = "src"
+_PACKAGE = "skewnono_rag"
 
 
 def rag_root() -> Path | None:
-    """Directory holding the RAG's ``src/`` package, or None when absent."""
+    """Directory holding the RAG's ``skewnono_rag/`` package, or None when absent."""
     raw = os.environ.get("SKEWNONO_CHAT_RAG_ROOT", "").strip()
     root = Path(raw) if raw else _DEFAULT_ROOT
     if root is None or not (root / _PACKAGE).is_dir():
@@ -40,7 +41,7 @@ def rag_root() -> Path | None:
 
 
 def import_rag(module: str) -> ModuleType:
-    """Import ``src.<module>`` from the checkout; unavailable when it cannot be."""
+    """Import ``skewnono_rag.<module>`` from the checkout; unavailable when it cannot be."""
     root = rag_root()
     if root is None:
         raise KnowledgeUnavailable(

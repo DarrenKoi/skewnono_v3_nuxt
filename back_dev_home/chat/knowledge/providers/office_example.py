@@ -12,13 +12,18 @@ service between Flask and the index. Its public surface, as handed over by
 the RAG side (office 확인 2026-08-27, ``docs/datatables/chat/
 chat_office_adapter_handoff.txt``):
 
-* ``src.retrieve.serve.search_manuals(query, scope, limit=, index_dir=)`` —
-  single-shot hybrid retrieval + ``bge-reranker-v2-m3`` rerank, returning
-  hits already in the normalized raw hit shape below;
-* ``src.retrieve.agent.rewrite_query(question)`` — one LLM call that expands
-  acronyms and pairs Korean/English terms, run once BEFORE the agent loop;
-* ``src.retrieve.agent.generate_follow_ups(question, answer, sources)`` —
-  3–5 suggested next questions, run once AFTER the answer.
+* ``skewnono_rag.retrieve.serve.search_manuals(query, scope, limit=, index_dir=,
+  timeout=)`` — single-shot hybrid retrieval + ``bge-reranker-v2-m3`` rerank,
+  returning hits already in the normalized raw hit shape below;
+* ``skewnono_rag.retrieve.agent.rewrite_query(question, timeout=)`` — one LLM
+  call that expands acronyms and pairs Korean/English terms, run once BEFORE
+  the agent loop;
+* ``skewnono_rag.retrieve.agent.generate_follow_ups(question, answer, sources,
+  timeout=)`` — 3–5 suggested next questions, run once AFTER the answer.
+
+All three accept ``timeout=`` seconds and raise ``TimeoutError`` past it
+(RAG 측 확인 2026-08-28); ``_config()`` supplies the value from
+``SKEWNONO_CHAT_KNOWLEDGE_TIMEOUT``. The package was ``src`` until 2026-08-28.
 
 The RAG side runs no agent loop of its own: the chat agent's tools call
 ``search_manuals`` repeatedly, and nesting a second loop inside ``_execute``
@@ -63,7 +68,7 @@ Normalized raw hit — one mapping per result, keys:
 
 Optional keys may be ABSENT rather than ``None`` — ``_to_evidence()`` reads
 them with ``.get`` — and unknown keys are ignored. That matters for manuals:
-the office RAG's ``src/retrieve/serve.py:search_manuals()`` returns exactly
+the office RAG's ``skewnono_rag/retrieve/serve.py:search_manuals()`` returns exactly
 ``source_id, title, snippet, section, page, figure_id, score, element_type``
 per hit (office 확인 2026-08-27). ``_execute()`` can pass those rows through
 as they are: revision/occurred_at/region/locator map to ``None`` (manuals
@@ -91,7 +96,7 @@ mismatch) naming the offending key but never the content. Empty results are
 an empty list — no fallback to mock or another source, ever.
 
 Verification: ``tests/test_knowledge_office_template.py`` exercises these
-seams at home against a fake ``src.retrieve`` package, and runs the same
+seams at home against a fake ``skewnono_rag.retrieve`` package, and runs the same
 tests against the gitignored copy when it exists; the ladder is in
 ``back_dev_home/chat/MIGRATION.md``.
 """
@@ -138,8 +143,9 @@ def _config() -> Mapping[str, Any]:
     ``index_dir`` is ``SKEWNONO_RAG_INDEX_DIR`` when set, else ``index/`` under
     the checkout — the RAG's own default is the RELATIVE ``"index"``, which
     would resolve against Flask's cwd (``/project/workSpace/`` on the cloud),
-    so it is always passed absolute. Never log or return credentials (there
-    are none: the RAG reads a local index).
+    so it is always passed absolute. ``timeout`` is the per-call bound every
+    RAG function receives. Never log or return credentials (there are none:
+    the RAG reads a local index).
     """
     root = rag.rag_root()
     if root is None:
@@ -154,7 +160,10 @@ def _config() -> Mapping[str, Any]:
             "The chat knowledge office provider has no RAG index directory; "
             "set SKEWNONO_RAG_INDEX_DIR to the built index."
         )
-    return {"index_dir": str(index_dir.resolve())}
+    return {
+        "index_dir": str(index_dir.resolve()),
+        "timeout": config.get_knowledge_timeout(),
+    }
 
 
 def _build_request(
@@ -183,11 +192,13 @@ def _build_request(
     del filters  # no per-call filters are exposed to the model
     if source_type != "manual":
         return {}
+    settings = _config()
     return {
         "query": query,
         "scope": dict(scope),
         "limit": limit,
-        "index_dir": _config()["index_dir"],
+        "index_dir": settings["index_dir"],
+        "timeout": settings["timeout"],
     }
 
 
@@ -207,6 +218,7 @@ def _execute(source_type: str, request: Mapping[str, Any]) -> list[Mapping[str, 
         request["scope"],
         limit=request["limit"],
         index_dir=request["index_dir"],
+        timeout=request["timeout"],
     )
     return list(hits)
 
@@ -236,7 +248,7 @@ def rewrite_query(question: str) -> str:
     """
     agent = rag.import_rag("retrieve.agent")
     try:
-        rewritten = agent.rewrite_query(question)
+        rewritten = agent.rewrite_query(question, timeout=_config()["timeout"])
     except Exception as error:  # noqa: BLE001 — typed for the caller
         raise _translate_error(error) from error
     if not isinstance(rewritten, str) or not rewritten.strip():
@@ -252,7 +264,9 @@ def generate_follow_ups(
     """Suggest 3–5 next questions from the answered turn (deduplicated, trimmed)."""
     agent = rag.import_rag("retrieve.agent")
     try:
-        raw = agent.generate_follow_ups(question, answer, sources)
+        raw = agent.generate_follow_ups(
+            question, answer, sources, timeout=_config()["timeout"]
+        )
     except Exception as error:  # noqa: BLE001 — typed for the caller
         raise _translate_error(error) from error
     follow_ups: list[str] = []
@@ -265,9 +279,9 @@ def generate_follow_ups(
 def _translate_error(error: Exception) -> Exception:
     """Map RAG exceptions onto the typed contract exceptions.
 
-    The RAG raises plain Python errors today; ``TimeoutError`` and
-    ``PermissionError`` are the two it is asked to use for deadline and
-    authorization failures (see the handoff suggestions in MIGRATION.md).
+    The RAG raises ``TimeoutError`` past ``timeout=`` and ``PermissionError``
+    for authorization failures (RAG 측 확인 2026-08-28); everything else is a
+    plain Python error.
     Anything unrecognized stays ``KnowledgeUnavailable`` (missing index, model
     load failure, 사내 dependency absent); raw errors are never re-raised and
     messages never carry query text.
