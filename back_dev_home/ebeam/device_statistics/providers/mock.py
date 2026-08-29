@@ -49,6 +49,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
+from back_dev_home._core.timefmt import iso_z
 from back_dev_home.ebeam.device_statistics.para_buckets import _str_digest
 from back_dev_home.ebeam.device_statistics.contracts import (
     DeviceDescRow,
@@ -238,7 +239,7 @@ def _generate_device_desc() -> tuple[DeviceDescRow, ...]:
                     rng, phase, f"{fac_id} {tech_nm}",
                     f"device description lot {lot_cd}",
                 ),
-                "chg_tm": timestamp.isoformat().replace("+00:00", "Z"),
+                "chg_tm": iso_z(timestamp),
                 "tech_nm": tech_nm,
                 "rnd_connector": rnd_connector
             })

@@ -35,7 +35,6 @@ def build_search_tool(name: str, description: str, empty_message: str):
             trace = {
                 "tool_name": name,
                 "query": query,
-                "result_count": len(rows),
                 "duration_ms": int((time.perf_counter() - started) * 1000),
                 "status": "success" if rows else "empty",
             }

@@ -4,7 +4,6 @@ export interface ChatModel {
   id: string
   label: string
   supports_tools: boolean
-  supports_vision: boolean
 }
 
 export interface SourceRef {

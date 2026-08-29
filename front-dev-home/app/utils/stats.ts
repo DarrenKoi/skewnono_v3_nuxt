@@ -147,7 +147,7 @@ export const linearFit = (pairs: [number, number][]): LinearFit | null => {
 
 // The two endpoints of a fitted line, at min(x) and max(x) — the single shape
 // every scatter's fit overlay needs. Was duplicated in CorrelationScatter.vue
-// and FdcAnalysis.vue before this; both now call here instead.
+// and the since-deleted FdcAnalysis.vue; CorrelationScatter calls here now.
 export const fitLine = (pairs: [number, number][]): [[number, number], [number, number]] | null => {
   const fit = linearFit(pairs)
   if (!fit) return null

@@ -35,11 +35,6 @@ export interface ConsensusCell {
   consensus: number
 }
 
-export interface FleetDefaults {
-  focus_n: number
-  advisory_threshold: Record<string, number>
-}
-
 export interface FleetResponse {
   tool_type: 'cd-sem'
   fab_name: string
@@ -49,7 +44,6 @@ export interface FleetResponse {
   window_weeks: number
   beam_conditions: BeamCondition[]
   axes: ScanAxis[]
-  defaults: FleetDefaults
   consensus: ConsensusCell[]
   tools: ToolBlock[]
 }

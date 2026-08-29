@@ -49,6 +49,7 @@ import statistics
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
+from back_dev_home._core.timefmt import iso_z
 from back_dev_home.ebeam.hardware.providers.bm_pm.mock import build_bm_pm_data
 from back_dev_home.ebeam.hardware.providers.pm_gate_bsm_mock import (
     build_bsm_data,
@@ -81,7 +82,7 @@ AXES: list[ScanAxis] = ["X", "Y"]
 _CONSENSUS_BASE = {"500V": 16.0, "800V": 16.0}
 
 NOW = datetime(2026, 5, 24, 9, 0, tzinfo=timezone.utc)
-FETCHED_AT = NOW.isoformat(timespec="seconds").replace("+00:00", "Z")
+FETCHED_AT = iso_z(NOW)
 
 
 def _seed_for(text: str) -> int:

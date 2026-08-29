@@ -2,7 +2,7 @@
 
 The fleet snapshot carries per-tool Up-gate inputs and per-cell signed skew.
 Ranking, threshold filtering, and bottom-N selection are client-side concerns,
-so this contract ships raw values plus defaults instead of pre-ranked results.
+so this contract ships raw values instead of pre-ranked results.
 """
 
 from typing import Literal, TypedDict

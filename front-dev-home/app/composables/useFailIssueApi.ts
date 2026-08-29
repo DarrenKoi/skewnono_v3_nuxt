@@ -139,8 +139,6 @@ export interface FailIssueFleetReference {
   meas_fail_rate: number
   median_exec_count: number
   median_recipe_count: number
-  min_expected_fails: number
-  confidence_z: number
   percentiles: Record<string, Record<string, number>>
 }
 
