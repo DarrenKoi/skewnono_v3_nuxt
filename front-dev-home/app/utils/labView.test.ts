@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_PANELS, LAB_PANELS, normalizePanels } from './labView.ts'
+import { LAB_PANELS, LAB_VIEWS, normalizePanels } from './labView.ts'
 
 // The stored panel selection is untrusted input (localStorage), and the one
 // thing it must never do is decide the ORDER cards render in — that order is
@@ -30,13 +30,13 @@ test('a non-array is refused, so the caller can fall back to the preset', () => 
 })
 
 test('every preset names real panels, in canonical order', () => {
-  for (const panels of Object.values(DEFAULT_PANELS)) {
-    assert.deepEqual(normalizePanels(panels), panels)
+  for (const view of LAB_VIEWS) {
+    assert.deepEqual(normalizePanels(view.panels), view.panels)
   }
 })
 
 test('the two presets between them cover every panel', () => {
-  const covered = new Set(Object.values(DEFAULT_PANELS).flat())
+  const covered = new Set(LAB_VIEWS.flatMap(view => view.panels))
   // A panel no preset turns on is a panel most users would never discover.
   assert.deepEqual([...covered].sort(), LAB_PANELS.map(p => p.value).sort())
 })

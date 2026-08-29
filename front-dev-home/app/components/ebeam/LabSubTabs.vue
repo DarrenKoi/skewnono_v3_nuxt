@@ -19,9 +19,9 @@
       v-for="option in options"
       :key="option.value"
       :to="option.to"
-      :aria-current="view === option.value ? 'page' : undefined"
+      :aria-current="slug === option.value ? 'page' : undefined"
       class="inline-flex h-[30px] items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors"
-      :class="view === option.value
+      :class="slug === option.value
         ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm ring-1 ring-(--sk-border)'
         : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
     >
@@ -41,7 +41,7 @@ import { LAB_VIEWS } from '~/utils/labView'
 // Which view is showing comes from the PARENT, not from re-parsing the path:
 // LabView already has it as a prop (it decides which results to draw with it),
 // and a second derivation here is a second thing to fix when routes move.
-defineProps<{ view: LabViewSlug }>()
+defineProps<{ slug: LabViewSlug }>()
 
 const route = useRoute()
 

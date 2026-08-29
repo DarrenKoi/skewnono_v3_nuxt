@@ -1,6 +1,7 @@
 import { usePersistedState } from '~/composables/usePersistedState'
 import {
-  DEFAULT_PANELS,
+  LAB_VIEWS,
+  labViewBySlug,
   normalizePanels,
   type LabPanel,
   type LabViewSlug
@@ -27,9 +28,9 @@ const STORAGE_KEY = 'lab-panels'
 const normalize = (raw: unknown): LabPanelPrefs => {
   if (typeof raw !== 'object' || raw === null) return {}
   const out: LabPanelPrefs = {}
-  for (const slug of Object.keys(DEFAULT_PANELS) as LabViewSlug[]) {
-    const panels = normalizePanels((raw as Record<string, unknown>)[slug])
-    if (panels) out[slug] = panels
+  for (const view of LAB_VIEWS) {
+    const panels = normalizePanels((raw as Record<string, unknown>)[view.value])
+    if (panels) out[view.value] = panels
   }
   return out
 }
@@ -46,7 +47,7 @@ export const useLabPanels = (view: MaybeRefOrGetter<LabViewSlug>) => {
   )
 
   const slug = computed(() => toValue(view))
-  const panels = computed<LabPanel[]>(() => prefs.value[slug.value] ?? DEFAULT_PANELS[slug.value])
+  const panels = computed<LabPanel[]>(() => prefs.value[slug.value] ?? labViewBySlug(slug.value).panels)
   const has = (panel: LabPanel) => panels.value.includes(panel)
 
   // Replaces the whole object rather than mutating a nested array:

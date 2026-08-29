@@ -2,8 +2,8 @@
   <div class="space-y-3">
     <EbeamMetaBar
       :eyebrow="`${toolLabel} · ${fab}`"
-      :title="copy.title"
-      :subtitle="copy.subtitle"
+      :title="view.title"
+      :subtitle="view.subtitle"
       :cadence="cadence"
       :as-of="asOf"
       :stats="metaStats"
@@ -11,7 +11,7 @@
       <!-- Beside the title, in MetaBar's own toggle cell — the same place
            장비 상태 puts its 장비 리스트/스토리지 pair. -->
       <template #toggle>
-        <EbeamLabSubTabs :view="view" />
+        <EbeamLabSubTabs :slug="slug" />
       </template>
     </EbeamMetaBar>
 
@@ -108,7 +108,7 @@
       <template #panels>
         <EbeamLabPanelPicker
           :panels="panels"
-          @update:panels="onPanels"
+          @update:panels="setPanels"
         />
       </template>
 
@@ -136,7 +136,7 @@
     <AppEmptyState
       v-if="!scopeReady"
       title="비교 대상을 선택하세요."
-      :description="copy.noScope"
+      description="위 비교 대상에서 recipe 를 고르면 그 recipe 가 점유한 셀로 아래 켜 둔 분석을 계산합니다."
       hint="recipe 를 고르면 그 측정 데이터에서 parameter 를 고를 수 있습니다 — 비워 두면 측정 항목을 모두 합쳐 판정합니다."
       icon="i-lucide-mouse-pointer-click"
     />
@@ -147,7 +147,7 @@
          for the slow one. -->
     <AppLoadingState
       v-else-if="tttmPending"
-      :title="copy.loading"
+      title="측정 데이터를 불러오는 중입니다."
     />
 
     <!-- Nothing asked yet. The old pages fetched on load; this one waits for
@@ -164,7 +164,7 @@
          shape of event AppEmptyState already owns. -->
     <AppEmptyState
       v-else-if="!payload?.available"
-      :title="copy.unavailableTitle"
+      title="계산할 결과가 없습니다."
       :description="payload?.summary ?? '데이터를 불러오지 못했습니다.'"
       hint="위에서 recipe · parameter · 장비를 바꾸어 다시 계산하실 수 있습니다."
       icon="i-lucide-scale"
@@ -176,7 +176,7 @@
     <AppEmptyState
       v-else-if="basis.length < 2"
       title="비교할 장비를 2대 이상 고르세요."
-      :description="copy.tooFewTools"
+      description="위 장비 모델 그룹에서 장비를 고르면 그 장비들로 N배화 그룹과 스큐를 계산합니다."
       icon="i-lucide-mouse-pointer-click"
     />
 
@@ -358,7 +358,7 @@
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { windowLabel } from '~/utils/analysisWindow'
-import { LAB_COPY, type LabPanel, type LabViewSlug } from '~/utils/labView'
+import { labViewBySlug, type LabViewSlug } from '~/utils/labView'
 import { usePmPlanningApi, type FleetResponse } from '~/composables/usePmPlanningApi'
 import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 import { admissionReport, pickDefaultTool } from '~/utils/pmAdmission'
@@ -407,17 +407,18 @@ const props = defineProps<{
   fab: string
   toolLabel: string
   toolType: string
-  view: LabViewSlug
+  /** Which of the two routes is rendering this — `view` below resolves it. */
+  slug: LabViewSlug
 }>()
 
-const copy = computed(() => LAB_COPY[props.view])
+// What this route is called and what it opens showing.
+const view = computed(() => labViewBySlug(props.slug))
 
-// Which analyses are drawn. The route chooses the PRESET (see utils/labView);
-// from there it is the user's, remembered per route. `pm` is the one that also
-// adds a control — 튜닝할 장비 — because the two cards it draws are computed
-// from that pick and mean nothing without it.
-const { panels, has, setPanels } = useLabPanels(() => props.view)
-const onPanels = (next: LabPanel[]) => setPanels(next)
+// Which analyses are drawn. The route chooses the PRESET (`view.panels`); from
+// there it is the user's, remembered per route. `pm` is the one that also adds
+// a control — 튜닝할 장비 — because the two cards it draws are computed from
+// that pick and mean nothing without it.
+const { panels, has, setPanels } = useLabPanels(() => props.slug)
 
 // The comparison scope, its recipe catalogue and the skew payload it selects.
 //

@@ -10,7 +10,7 @@
       :fab="primaryFab"
       tool-label="CD-SEM"
       tool-type="cd-sem"
-      view="pm-planning"
+      slug="pm-planning"
     />
   </div>
 </template>

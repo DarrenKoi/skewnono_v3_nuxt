@@ -20,7 +20,7 @@
       :fab="primaryFab"
       tool-label="CD-SEM"
       tool-type="cd-sem"
-      view="tttm"
+      slug="tttm"
     />
   </div>
 </template>

@@ -1,10 +1,12 @@
-// The two views of the 실험실 analysis page, and the words each one wears.
+// The two views of the 실험실 analysis page: what each is called, and what it
+// opens showing.
 //
 // One page since 2026-08-30, two routes. `/tttm` and `/pm-planning` used to be
 // two components that shared a scope, a persisted entry, a request and 18 of
 // their ~30 computeds, and documented the overlap in eight "same as TttmView"
 // comments rather than removing it. They are now one component (`LabView.vue`)
-// picking its results section by this slug.
+// whose results section is a set of panels the user picks; a view is the PRESET
+// those panels start from.
 //
 // Both routes SURVIVED the merge on purpose. The slug is an identity, not a
 // path: `_logging/feature_map.py` files activity under it, `utils/pageIdentity.ts`
@@ -19,45 +21,55 @@
 
 export type LabViewSlug = 'tttm' | 'pm-planning'
 
-/** Tab order = reading order: measure the group, then plan against it. */
-export const LAB_VIEWS = [
-  { value: 'tttm', label: '장비간 스큐', icon: 'i-lucide-git-compare' },
-  { value: 'pm-planning', label: 'PM 플래닝', icon: 'i-lucide-wrench' }
-] as const satisfies readonly { value: LabViewSlug, label: string, icon: string }[]
+/** Which analyses get drawn — see LAB_PANELS for what each one carries. */
+export type LabPanel = 'verdict' | 'map' | 'matrix' | 'trend' | 'pm'
 
-export interface LabViewCopy {
+export interface LabViewDef {
+  value: LabViewSlug
+  /** Sub-tab. Short, because it sits beside the other one. */
+  label: string
+  icon: string
+  /** Page heading — the same thing `label` says, with room to breathe. */
   title: string
   subtitle: string
-  loading: string
-  /** No recipe picked — what THIS view would compute once there is one. */
-  noScope: string
-  /** The server answered `available: false`. */
-  unavailableTitle: string
-  /** Fewer than two tools in the basis — no pair, so no group. */
-  tooFewTools: string
+  /** What this route opens with, before the user has an opinion. */
+  panels: LabPanel[]
 }
 
-// Kept out of the template because every line here has a twin: side by side in
-// one table, a change to one view's wording is read against the other's, which
-// is how the two pages drifted into saying the same thing three different ways.
-export const LAB_COPY: Record<LabViewSlug, LabViewCopy> = {
-  'tttm': {
+/**
+ * One table rather than three keyed by the same slug. The tab label, the page
+ * heading and the default panels are three statements about ONE view; split
+ * across three exports they were three places to edit and three chances to
+ * disagree — the exact drift the merge existed to end.
+ *
+ * Order = reading order: measure the group, then plan against it.
+ */
+export const LAB_VIEWS: LabViewDef[] = [
+  {
+    value: 'tttm',
+    label: '장비간 스큐',
+    icon: 'i-lucide-git-compare',
     title: '장비간 스큐 관리',
     subtitle: 'Recipe가 점유하는 셀에서 서로 잘 맞는(N배화) 측정 장비 조합을 추천합니다.',
-    loading: '장비간 스큐 데이터를 불러오는 중입니다.',
-    noScope: '위 비교 대상에서 recipe 를 고르면 그 recipe 가 점유한 셀로 장비간 스큐를 계산합니다.',
-    unavailableTitle: '비교할 결과가 없습니다.',
-    tooFewTools: '위 장비 모델 그룹에서 장비를 고르면 그 장비들 사이의 스큐를 계산합니다.'
+    panels: ['verdict', 'map', 'matrix', 'trend']
   },
-  'pm-planning': {
+  {
+    value: 'pm-planning',
+    label: 'PM 플래닝',
+    icon: 'i-lucide-wrench',
     title: 'PM 플래닝',
     subtitle: '하드웨어를 만질 기회는 PM 창뿐입니다 — 그때 N배화 그룹의 중심에 맞추도록 parameter 별 조정량을 제시합니다. N이 커질수록 서로 대체 측정할 수 있는 장비가 늘어납니다.',
-    loading: 'Fleet 데이터를 불러오는 중입니다.',
-    noScope: '위 비교 대상에서 recipe 를 고르면 그 recipe 기준으로 N배화 그룹과 튜닝 목표를 계산합니다.',
-    unavailableTitle: '튜닝 목표를 낼 수 없습니다.',
-    tooFewTools: '위 장비 모델 그룹에서 장비를 고르면 그 장비들로 N배화 그룹과 튜닝 목표를 계산합니다.'
+    // Keeps the 배치도 because the tuning target is defined as a position ON
+    // that map — the table beside it is that map read as numbers.
+    panels: ['map', 'pm']
   }
-}
+]
+
+const VIEW_BY_SLUG = Object.fromEntries(
+  LAB_VIEWS.map(view => [view.value, view])
+) as Record<LabViewSlug, LabViewDef>
+
+export const labViewBySlug = (slug: LabViewSlug): LabViewDef => VIEW_BY_SLUG[slug]
 
 // ── 보기 (which analyses are drawn) ────────────────────────────────────────
 //
@@ -72,8 +84,6 @@ export const LAB_COPY: Record<LabViewSlug, LabViewCopy> = {
 // Up gate are both computed from that pick: a checkbox that silently needed
 // another control would be a checkbox that lies.
 
-export type LabPanel = 'verdict' | 'map' | 'matrix' | 'trend' | 'pm'
-
 export const LAB_PANELS = [
   { value: 'verdict', label: '그룹 판정', hint: '추천 N배화 그룹 · 제외 장비' },
   { value: 'map', label: '배치도', hint: '장비 그룹 배치도 · consensus 잔차' },
@@ -83,16 +93,6 @@ export const LAB_PANELS = [
 ] as const satisfies readonly { value: LabPanel, label: string, hint: string }[]
 
 const PANEL_VALUES = new Set<string>(LAB_PANELS.map(p => p.value))
-
-/**
- * What each route opens with. `장비간 스큐` is the whole comparison; PM 플래닝
- * keeps the 배치도 because the tuning target is defined as a position ON that
- * map — the table beside it is that map read as numbers.
- */
-export const DEFAULT_PANELS: Record<LabViewSlug, LabPanel[]> = {
-  'tttm': ['verdict', 'map', 'matrix', 'trend'],
-  'pm-planning': ['map', 'pm']
-}
 
 /**
  * localStorage is user-writable, so a stored selection is untrusted input:
