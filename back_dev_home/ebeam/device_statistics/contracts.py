@@ -15,6 +15,7 @@ __all__ = [
     "R3DeviceGrpRow",
     "DeviceDescRow",
     "MeasActivityRow",
+    "ParaBlock",
     "RecipeInfoRow",
     "step_key",
     "SummaryRow",
@@ -63,21 +64,12 @@ class MeasActivityRow(TypedDict):
     meas_count: int
 
 
-class RecipeInfoRow(TypedDict):
-    lot_cd: str
-    fac_id: str
-    oper_id: str
-    oper_desc: str
-    oper_seq: int
-    samp_seq: int
-    eqp_id: str
-    recipe_id: str
-    skip_yn: str
-    chg_tm: str
-    ctn_desc: str
-    # point 수 **구간**별 파라미터 개수 — para_buckets.py 가 경계를 정합니다.
-    # 다섯 구간이 전체를 덮으므로 para_all 은 파라미터 총 개수이고, 다섯
-    # 퍼센트의 합은 항상 100 입니다.
+class ParaBlock(TypedDict):
+    """point 수 **구간**별 파라미터 개수 — ``RecipeInfoRow`` 와 ``SummaryRow`` 가
+    이 11개 필드를 그대로 공유합니다. para_buckets.py 가 경계를 정합니다.
+    다섯 구간이 전체를 덮으므로 para_all 은 파라미터 총 개수이고, 다섯
+    퍼센트의 합은 항상 100 입니다."""
+
     para_all: int
     para_16: int
     para_13: int
@@ -89,6 +81,20 @@ class RecipeInfoRow(TypedDict):
     para_9_percent: float
     para_5_percent: float
     para_over_16_percent: float
+
+
+class RecipeInfoRow(ParaBlock):
+    lot_cd: str
+    fac_id: str
+    oper_id: str
+    oper_desc: str
+    oper_seq: int
+    samp_seq: int
+    eqp_id: str
+    recipe_id: str
+    skip_yn: str
+    chg_tm: str
+    ctn_desc: str
 
 
 def step_key(row: Mapping[str, Any]) -> tuple[int, int]:
@@ -110,23 +116,9 @@ def step_key(row: Mapping[str, Any]) -> tuple[int, int]:
     return row["oper_seq"], row["samp_seq"]
 
 
-class SummaryRow(TypedDict):
+class SummaryRow(ParaBlock):
     lot_cd: str
     fac_id: str
-    # point 수 **구간**별 파라미터 개수 — para_buckets.py 가 경계를 정합니다.
-    # 다섯 구간이 전체를 덮으므로 para_all 은 파라미터 총 개수이고, 다섯
-    # 퍼센트의 합은 항상 100 입니다.
-    para_all: int
-    para_16: int
-    para_13: int
-    para_9: int
-    para_5: int
-    para_over_16: int
-    para_16_percent: float
-    para_13_percent: float
-    para_9_percent: float
-    para_5_percent: float
-    para_over_16_percent: float
     ctn_desc: str
     total_recipe: int
     avail_recipe: int

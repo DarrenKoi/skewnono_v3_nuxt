@@ -76,7 +76,7 @@ def test_standardised_reports_at_and_above_the_display_floor():
 
 
 def test_z_is_the_two_sided_95_percent_value():
-    # 구간의 의미가 조용히 바뀌는 것을 막습니다. 이 값을 바꾸려면 설계 3.2절
-    # 과 payload 의 confidence_z 에코를 함께 바꿔야 합니다.
+    # 구간의 의미가 조용히 바뀌는 것을 막습니다. 이 값을 바꾸려면 설계 3.2절도
+    # 함께 바꿔야 합니다.
     assert CONFIDENCE_Z == 1.96
     assert math.isclose(FAIL_INDEX_MIN_EXPECTED, 1.0)

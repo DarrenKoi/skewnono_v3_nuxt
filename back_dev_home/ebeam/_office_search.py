@@ -139,11 +139,26 @@ def query(clauses: list[dict[str, Any]]) -> dict[str, Any]:
     return {"bool": {"filter": clauses}}
 
 
-def _missing_index_error(index: str, exc: Exception) -> LookupError:
+def _missing_index_error(index: str) -> LookupError:
     return LookupError(
         f"OpenSearch index/alias {index!r} not found — check the alias "
         "name and that ingestion has populated it."
     )
+
+
+def _require(index: str, condition: bool, detail: str) -> None:
+    """One shared raise for ``aggregate``'s response-shape checks below.
+
+    Each check needs its own message — that specificity is what tells an
+    office incident which part of the response broke — so this only removes
+    the repeated ``raise RuntimeError(f"OpenSearch aggregate response for
+    {index!r} ...")`` boilerplate around seven near-identical checks; the
+    checks stay sequential because each later one reads a value the earlier
+    one just proved exists (e.g. ``shards.get("failed")`` needs ``shards`` to
+    already be a mapping).
+    """
+    if not condition:
+        raise RuntimeError(f"OpenSearch aggregate response for {index!r} {detail}")
 
 
 def aggregate(
@@ -153,52 +168,45 @@ def aggregate(
     try:
         result = search(index).aggregate(aggs, query=query_body)
     except NotFoundError as exc:
-        raise _missing_index_error(index, exc) from exc
+        raise _missing_index_error(index) from exc
     finally:
         # In `finally`, so a failed query still counts the round trip it spent.
         # Only the call is timed; the validation below is ours, not the
         # cluster's, and folding it in would inflate every measurement.
         os_timing.record(index, (time.perf_counter() - started) * 1000)
-    if not isinstance(result, Mapping):
-        raise RuntimeError(
-            f"OpenSearch aggregate response for {index!r} must be a mapping; "
-            f"got {type(result).__name__}."
-        )
+    _require(
+        index, isinstance(result, Mapping),
+        f"must be a mapping; got {type(result).__name__}.",
+    )
     timed_out = result.get("timed_out")
-    if timed_out is not False:
-        raise RuntimeError(
-            f"OpenSearch aggregate response for {index!r} has invalid "
-            f"'timed_out' metadata: expected exactly false, got {timed_out!r}."
-        )
+    _require(
+        index, timed_out is False,
+        f"has invalid 'timed_out' metadata: expected exactly false, got {timed_out!r}.",
+    )
     shards = result.get("_shards")
-    if not isinstance(shards, Mapping):
-        raise RuntimeError(
-            f"OpenSearch aggregate response for {index!r} '_shards' metadata "
-            f"must be a mapping; got {type(shards).__name__}."
-        )
+    _require(
+        index, isinstance(shards, Mapping),
+        f"'_shards' metadata must be a mapping; got {type(shards).__name__}.",
+    )
     failed = shards.get("failed")
-    if isinstance(failed, bool) or not isinstance(failed, int):
-        raise RuntimeError(
-            f"OpenSearch aggregate response for {index!r} '_shards.failed' "
-            "must be a non-negative integer (boolean is not valid); "
-            f"got {failed!r}."
-        )
-    if failed < 0:
-        raise RuntimeError(
-            f"OpenSearch aggregate response for {index!r} '_shards.failed' "
-            f"must be non-negative; got {failed}."
-        )
-    if failed != 0:
-        raise RuntimeError(
-            f"OpenSearch aggregate response for {index!r} reports "
-            f"_shards.failed={failed}; refusing partial aggregation results."
-        )
+    _require(
+        index, not isinstance(failed, bool) and isinstance(failed, int),
+        f"'_shards.failed' must be a non-negative integer (boolean is not valid); "
+        f"got {failed!r}.",
+    )
+    _require(
+        index, failed >= 0,
+        f"'_shards.failed' must be non-negative; got {failed}.",
+    )
+    _require(
+        index, failed == 0,
+        f"reports _shards.failed={failed}; refusing partial aggregation results.",
+    )
     aggregations = result.get("aggregations")
-    if not isinstance(aggregations, Mapping):
-        raise RuntimeError(
-            f"OpenSearch aggregate response for {index!r} 'aggregations' "
-            f"must be a mapping; got {type(aggregations).__name__}."
-        )
+    _require(
+        index, isinstance(aggregations, Mapping),
+        f"'aggregations' must be a mapping; got {type(aggregations).__name__}.",
+    )
     return dict(aggregations)
 
 
@@ -268,7 +276,7 @@ def fetch_hits(
     try:
         result = search(index).search_raw(body)
     except NotFoundError as exc:
-        raise _missing_index_error(index, exc) from exc
+        raise _missing_index_error(index) from exc
     finally:
         os_timing.record(index, (time.perf_counter() - started) * 1000)
     return [hit.get("_source", {}) for hit in result.get("hits", {}).get("hits", [])]

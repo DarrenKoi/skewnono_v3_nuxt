@@ -109,7 +109,6 @@ __all__ = [
     "ANCHOR_TIME",
     "ToolType",
     "MeasHistRow",
-    "get_meas_hist",
     "get_ranking",
     "get_summary",
     "get_daily_trend",
@@ -511,11 +510,6 @@ def _generate_meas_hist() -> tuple[MeasHistRow, ...]:
         })
 
     return tuple(rows)
-
-
-def get_meas_hist() -> list[MeasHistRow]:
-    """Public accessor — callers may filter with the helpers below."""
-    return list(_generate_meas_hist())
 
 
 @lru_cache(maxsize=256)

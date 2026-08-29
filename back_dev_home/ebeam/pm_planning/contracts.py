@@ -55,11 +55,6 @@ class ConsensusCell(TypedDict):
     consensus: float
 
 
-class FleetDefaults(TypedDict):
-    focus_n: int
-    advisory_threshold: dict[str, float]
-
-
 class FleetPayload(TypedDict):
     tool_type: str
     fab_name: str
@@ -73,6 +68,5 @@ class FleetPayload(TypedDict):
     window_weeks: int
     beam_conditions: list[BeamCondition]
     axes: list[ScanAxis]
-    defaults: FleetDefaults
     consensus: list[ConsensusCell]
     tools: list[ToolBlock]

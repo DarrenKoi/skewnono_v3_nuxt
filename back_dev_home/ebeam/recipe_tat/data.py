@@ -22,7 +22,6 @@ __all__ = [
     "ToolType",
     "MeasHistRow",
     "get_anchor_time",
-    "get_meas_hist",
     "get_ranking",
     "get_summary",
     "get_daily_trend",
@@ -44,10 +43,6 @@ def get_anchor_time() -> datetime:
     if provider is mock_provider:
         return mock_provider.ANCHOR_TIME
     return provider.get_anchor_time()
-
-
-def get_meas_hist() -> list[MeasHistRow]:
-    return _provider().get_meas_hist()
 
 
 def get_ranking(

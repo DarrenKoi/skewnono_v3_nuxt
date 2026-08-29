@@ -51,6 +51,23 @@ _UPPER_BOUNDS: tuple[tuple[int, str], ...] = (
 OVERFLOW_BUCKET = "para_over_16"
 
 
+def _str_digest(value: str) -> int:
+    """A deterministic rolling-hash digest of ``value``, folded to 32 bits.
+
+    ``hash()`` is unusable here — it varies run to run under
+    ``PYTHONHASHSEED`` — and the mock needs the SAME digest every time it
+    sees the same ``lot_cd`` so a lot's derived properties (meas count,
+    sample seed, trajectory, recipe identity) stay stable across calls. This
+    was a copy-pasted 2-line loop in four places across three providers
+    (``mock.py``, ``statistics.py``, ``recipe_population.py`` twice); one
+    definition here means the multiplier can't drift between them.
+    """
+    digest = 0
+    for ch in value:
+        digest = (digest * 131 + ord(ch)) & 0xFFFFFFFF
+    return digest
+
+
 def bucket_for(point_count: int) -> str:
     """이 point 수가 들어갈 버킷 이름. **항상 하나가 나옵니다.**
 

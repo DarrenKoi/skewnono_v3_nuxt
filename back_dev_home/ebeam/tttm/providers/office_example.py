@@ -136,6 +136,7 @@ from back_dev_home.ebeam.tttm.profile import build_parameter_profile
 from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
+    fleet_too_small_payload,
     unavailable_payload,
     narrow_fleet,
     CellSkew,
@@ -919,34 +920,12 @@ def get_tttm_check(
     # from ever drifting against the mock's.
     fleet = narrow_fleet(fleet, eqp_ids)
     selected = list(parameters)
-    if not fleet:
-        return unavailable_payload(
-            tool_slug, fab_name, recipe_id, selected,
-            f"{fab_name} 에는 이 계열의 장비가 없습니다.",
-            # `fleet` IS empty here, so the empty roster is passed rather than
-            # omitted — see unavailable_payload's docstring.
-            tools=fleet,
-            window_weeks=window_weeks,
-        )
-    if len(fleet) < 2:
-        if eqp_ids:
-            # The fab may hold many tools; the REQUEST named too few. Blaming
-            # the fab here would send the user to add tools that are already
-            # in the picker.
-            summary = (
-                "요청한 장비가 2대 미만이라 장비간 스큐를 볼 수 없습니다 — "
-                "2대 이상 고르십시오."
-            )
-        else:
-            summary = (
-                f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다."
-            )
-        return unavailable_payload(
-            tool_slug, fab_name, recipe_id, selected,
-            summary,
-            tools=fleet,
-            window_weeks=window_weeks,
-        )
+    too_small = fleet_too_small_payload(
+        tool_slug, fab_name, recipe_id, selected, fleet, eqp_ids,
+        window_weeks=window_weeks,
+    )
+    if too_small is not None:
+        return too_small
 
     roster = [tool["eqp_id"] for tool in fleet]
     anchor = get_anchor_time()

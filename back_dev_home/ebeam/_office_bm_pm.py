@@ -42,6 +42,7 @@ from back_dev_home.ebeam._office_meas_hist import (
     text as _text,
     top_hits as _top_hits,
 )
+from back_dev_home.ebeam._office_msr_cd import _datetime_range_clause
 from back_dev_home.ebeam.hardware.providers.bm_pm._shared import classify_category
 
 
@@ -95,14 +96,7 @@ def maintenance_events(
         return {}
     clauses: list[dict[str, Any]] = [
         {"terms": {EQP_ID_KW: eqp_ids}},
-        {
-            "range": {
-                _DOWN_DT: {
-                    "gte": start.strftime("%Y-%m-%dT%H:%M:%S"),
-                    "lte": end.strftime("%Y-%m-%dT%H:%M:%S"),
-                }
-            }
-        },
+        _datetime_range_clause(_DOWN_DT, start, end),
     ]
     if fab_name:
         clauses.append({"term": {FAB_NAME_KW: fab_name.strip().upper()}})

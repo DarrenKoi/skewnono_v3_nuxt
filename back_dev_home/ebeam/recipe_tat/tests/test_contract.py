@@ -55,19 +55,6 @@ def test_get_ranking_limit_zero_is_uncapped():
         assert everything[: len(top)] == top
 
 
-def test_office_get_meas_hist_is_intentionally_disconnected():
-    # Raw-row export is not part of the office wiring (routes only use the
-    # aggregation endpoints). Pin that as a loud NotImplementedError so a
-    # future office.py copy can't silently return wrong-shaped rows.
-    import pytest
-
-    office_example = pytest.importorskip(
-        "back_dev_home.ebeam.recipe_tat.providers.office_example"
-    )
-    with pytest.raises(NotImplementedError):
-        office_example.get_meas_hist()
-
-
 def test_office_example_exposes_the_equipment_endpoints():
     # 스텁이 아니라 실제 구현이 자리에 있는지 고정합니다. import 가능해야
     # 하는 이유가 더 중요합니다: office.py 는 이 파일의 사본이고, 여기서
@@ -110,13 +97,14 @@ def test_mock_rows_carry_real_sem_list_tools():
     # (_tool_specs.py 모듈 docstring, meas_hist.txt 생성 규칙 1).
     if get_data_provider("recipe_tat") != "mock":
         return
+    from back_dev_home.ebeam.recipe_tat.providers.mock import _generate_meas_hist
     from back_dev_home.sem_list.providers.mock import _generate_rows
 
     roster = {}
     for row in _generate_rows():
         roster.setdefault(row["eqp_id"], row)   # 중복 eqp_id는 첫 행이 이깁니다
 
-    for row in data.get_meas_hist():
+    for row in _generate_meas_hist():
         tool = roster.get(row["eqp_id"])
         assert tool is not None, f"sem_list에 없는 eqp_id: {row['eqp_id']}"
         assert row["fab_name"] == tool["fab_name"]
@@ -129,8 +117,10 @@ def test_mock_each_tool_lives_in_exactly_one_fab():
     # 여러 fab에 걸쳐 나타납니다.
     if get_data_provider("recipe_tat") != "mock":
         return
+    from back_dev_home.ebeam.recipe_tat.providers.mock import _generate_meas_hist
+
     fabs_by_eqp: dict[str, set[str]] = {}
-    for row in data.get_meas_hist():
+    for row in _generate_meas_hist():
         fabs_by_eqp.setdefault(row["eqp_id"], set()).add(row["fab_name"])
     offenders = {eqp: fabs for eqp, fabs in fabs_by_eqp.items() if len(fabs) > 1}
     assert not offenders, f"여러 fab에 걸친 장비: {offenders}"
@@ -141,9 +131,10 @@ def test_mock_lot_fac_matches_tool_fac():
     if get_data_provider("recipe_tat") != "mock":
         return
     from back_dev_home.ebeam.device_statistics.providers.mock import _lot_index
+    from back_dev_home.ebeam.recipe_tat.providers.mock import _generate_meas_hist
 
     lot_fac = _lot_index()
-    for row in data.get_meas_hist():
+    for row in _generate_meas_hist():
         assert lot_fac[row["lot_cd"]] == row["fac_id"]
 
 
@@ -155,11 +146,13 @@ def test_mock_density_supports_the_tat_index():
         return
     import statistics
 
+    from back_dev_home.ebeam.recipe_tat.providers.mock import _generate_meas_hist
+
     anchor = data.get_anchor_time().date()
     end = anchor.isoformat()
     start = (anchor - timedelta(days=14)).isoformat()
     rows = [
-        r for r in data.get_meas_hist()
+        r for r in _generate_meas_hist()
         if r["tool_type"] == "cd-sem" and r["fab_name"] == "R3"
         and start <= r["timestamp"][:10] <= end
     ]

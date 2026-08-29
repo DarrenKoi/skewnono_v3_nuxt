@@ -220,6 +220,23 @@ def _run_from_hit(hit: dict[str, Any]) -> RunRef | None:
     )
 
 
+def _datetime_range_clause(field: str, start: datetime, end: datetime) -> dict[str, Any]:
+    """An OpenSearch ``range`` clause over ``field`` covering ``[start, end]``.
+
+    Shared with ``_office_bm_pm.py``'s maintenance-event query — the two
+    differ only in which field they range over, and this was a copy-pasted
+    5-line dict literal in both.
+    """
+    return {
+        "range": {
+            field: {
+                "gte": start.strftime("%Y-%m-%dT%H:%M:%S"),
+                "lte": end.strftime("%Y-%m-%dT%H:%M:%S"),
+            }
+        }
+    }
+
+
 def _recipe_clause(recipe: str) -> dict[str, Any]:
     """Match ``recipe`` against every recipe identity a caller might hold.
 
@@ -289,14 +306,7 @@ def recent_runs(
         {"term": {FAB_NAME_KW: fab_name.strip().upper()}},
         {"terms": {EQP_ID_KW: fleet}},
         has_pickle_clause(),
-        {
-            "range": {
-                TIME_FIELD: {
-                    "gte": start.strftime("%Y-%m-%dT%H:%M:%S"),
-                    "lte": end.strftime("%Y-%m-%dT%H:%M:%S"),
-                }
-            }
-        },
+        _datetime_range_clause(TIME_FIELD, start, end),
     ]
     if recipe:
         clauses.append(_recipe_clause(recipe))
@@ -381,9 +391,6 @@ def as_float(value: Any) -> float | None:
     return result if result == result and abs(result) != float("inf") else None
 
 
-_as_float = as_float
-
-
 def _as_int(value: Any) -> int:
     result = as_float(value)
     return int(result) if result is not None else 0
@@ -433,7 +440,7 @@ def load_points(pkl: str) -> tuple[Point, ...]:
         points.append(
             Point(
                 parameter=_text(row.get(_COL_PARAMETER)),
-                cd_value=_as_float(row.get(_COL_CD)),
+                cd_value=as_float(row.get(_COL_CD)),
                 vac=_as_int(row.get(_COL_VAC)),
                 mag=_as_int(row.get(_COL_MAG)),
                 chip=_text(row.get(_COL_CHIP)),

@@ -130,7 +130,7 @@ from back_dev_home.sem_list.data import get_sem_list
 from back_dev_home.sem_list.roster import fleet_rows
 
 
-__all__ = ["BEAM_CONDITIONS", "AXES", "DEFAULTS", "get_pm_planning_fleet"]
+__all__ = ["BEAM_CONDITIONS", "AXES", "get_pm_planning_fleet"]
 
 _LOG = logging.getLogger(__name__)
 
@@ -141,13 +141,6 @@ _LOG = logging.getLogger(__name__)
 # is the one thing a beam-keyed grid exists to prevent.
 BEAM_CONDITIONS: list[BeamCondition] = ["500V", "800V"]
 AXES: list[ScanAxis] = ["X", "Y"]
-
-# Client-side ranking knobs; the backend ships raw values, per MIGRATION.md.
-# Same numbers as the mock: these are UI defaults, not measurements.
-DEFAULTS = {
-    "focus_n": 3,
-    "advisory_threshold": {"500V": 0.30, "800V": 0.40},
-}
 
 # How far back a "current" CD reading or BSM reading may come from is the
 # request's `window_weeks` (`_analysis_window.py`, 1-4 weeks, shared with the
@@ -607,7 +600,6 @@ def _empty_payload(
         window_weeks=window_weeks,
         beam_conditions=BEAM_CONDITIONS,
         axes=AXES,
-        defaults=DEFAULTS,  # type: ignore[typeddict-item]
         consensus=[],
         tools=[],
     )
@@ -704,7 +696,6 @@ def get_pm_planning_fleet(fab_name: str, window_weeks: int) -> FleetPayload:
         window_weeks=window_weeks,
         beam_conditions=BEAM_CONDITIONS,
         axes=AXES,
-        defaults=DEFAULTS,  # type: ignore[typeddict-item]
         consensus=consensus,
         tools=tools,
     )

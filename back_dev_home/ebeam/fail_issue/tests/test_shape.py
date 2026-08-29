@@ -198,8 +198,6 @@ def test_fleet_totals_match_the_sum_of_rows():
     assert fleet["total_executions"] == sum(r["exec_count"] for r in rows)
     assert fleet["align_fail_count"] == sum(r["align_fail_count"] for r in rows)
     assert fleet["meas_fail_count"] == sum(r["meas_fail_count"] for r in rows)
-    assert fleet["min_expected_fails"] == 1.0
-    assert fleet["confidence_z"] == 1.96
 
 
 def test_rows_sort_by_execution_count_desc_then_eqp_id():

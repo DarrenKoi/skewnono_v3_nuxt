@@ -144,6 +144,7 @@ from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from back_dev_home.ebeam.tttm.contracts import (
     DEFAULT_TOLERANCE,
     TOLERANCE_RANGE,
+    fleet_too_small_payload,
     unavailable_payload,
     narrow_fleet,
     CellSkew,
@@ -553,45 +554,16 @@ def get_tttm_check(
     # REQUEST's roster, and `tools` on every branch is the narrowed one.
     fleet = narrow_fleet(fleet, eqp_ids)
     selected = list(parameters)
-    if not fleet:
-        return unavailable_payload(
-            tool_slug,
-            fab_name,
-            recipe_id,
-            selected,
-            f"{fab_name} 에는 이 계열의 장비가 없습니다.",
-            # The one branch that really has no roster — `fleet` IS empty here,
-            # so the empty roster is passed rather than the argument skipped.
-            # (For the record: the 2026-08-18 office incident was NOT an omitted
-            # argument. Both roster-bearing branches passed `tools=fleet`; the
-            # copy's function BODY returned a hardcoded `[]` and discarded it.
-            # Requiring the parameter is tidiness, not the cure — one shared
-            # constructor is the cure.)
-            tools=fleet,
-            window_weeks=window_weeks,
-        )
-    if len(fleet) < 2:
-        if eqp_ids:
-            # The fab may hold many tools; the REQUEST named too few. Blaming
-            # the fab here would send the user to add tools that are already
-            # in the picker.
-            summary = (
-                "요청한 장비가 2대 미만이라 장비간 스큐를 볼 수 없습니다 — "
-                "2대 이상 고르십시오."
-            )
-        else:
-            summary = (
-                f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다."
-            )
-        return unavailable_payload(
-            tool_slug,
-            fab_name,
-            recipe_id,
-            selected,
-            summary,
-            tools=fleet,
-            window_weeks=window_weeks,
-        )
+    # The 2026-08-18 office incident was NOT an omitted argument: both
+    # roster-bearing branches below pass `tools=fleet`, but the office copy's
+    # `fleet_too_small_payload` equivalent had its function BODY return a
+    # hardcoded `[]` and discard it. One shared constructor is the cure.
+    too_small = fleet_too_small_payload(
+        tool_slug, fab_name, recipe_id, selected, fleet, eqp_ids,
+        window_weeks=window_weeks,
+    )
+    if too_small is not None:
+        return too_small
 
     # A recipe THIS FAB HAS NOT MEASURED answers unavailable, the way the office
     # adapter does when `recent_runs` comes back empty for the recipe filter.

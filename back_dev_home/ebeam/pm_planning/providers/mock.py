@@ -72,16 +72,11 @@ from back_dev_home.sem_list.providers.mock import get_sem_list
 from back_dev_home.sem_list.roster import fleet_rows
 
 
-__all__ = ["BEAM_CONDITIONS", "AXES", "DEFAULTS", "get_pm_planning_fleet"]
+__all__ = ["BEAM_CONDITIONS", "AXES", "get_pm_planning_fleet"]
 
 
 BEAM_CONDITIONS: list[BeamCondition] = ["500V", "800V"]
 AXES: list[ScanAxis] = ["X", "Y"]
-
-DEFAULTS = {
-    "focus_n": 3,
-    "advisory_threshold": {"500V": 0.30, "800V": 0.40},
-}
 
 _CONSENSUS_BASE = {"500V": 16.0, "800V": 16.0}
 
@@ -251,7 +246,6 @@ def get_pm_planning_fleet(fab_name: str, window_weeks: int) -> FleetPayload:
         "window_weeks": window_weeks,
         "beam_conditions": BEAM_CONDITIONS,
         "axes": AXES,
-        "defaults": DEFAULTS,
         "consensus": consensus,
         "tools": tools,
     }
@@ -270,7 +264,7 @@ if __name__ == "__main__":
 
     print(
         f"fab={a['fab_name']} tools={len(a['tools'])} "
-        f"beams={a['beam_conditions']} defaults={a['defaults']}"
+        f"beams={a['beam_conditions']}"
     )
     sample = a["tools"][0]
     print(f"sample tool: {sample['eqp_id']}")

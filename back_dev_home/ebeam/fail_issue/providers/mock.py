@@ -79,7 +79,7 @@ from back_dev_home.ebeam.recipe_tat.providers.mock import (
     ANCHOR_TIME,
     MeasHistRow,
     ToolType,
-    get_meas_hist,
+    _generate_meas_hist,
 )
 # fail_ratio's scale (percent, 0..100) is defined once, by meas_hist — this
 # feature reads the same column off the same index.
@@ -218,7 +218,7 @@ def _enrich(row: MeasHistRow) -> FailRow:
 
 @lru_cache(maxsize=1)
 def _all_fail_rows() -> tuple[FailRow, ...]:
-    return tuple(_enrich(row) for row in get_meas_hist())
+    return tuple(_enrich(row) for row in _generate_meas_hist())
 
 
 @lru_cache(maxsize=256)

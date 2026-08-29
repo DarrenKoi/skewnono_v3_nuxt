@@ -51,8 +51,8 @@
   calls `data.get_pm_planning_fleet(fab_name)` and returns the payload
   directly via `jsonify(...)`.
 - Contract: `FleetPayload` (see `contracts.py` for the full definitions of
-  `GateBlock`, `CellSkew`, `EpochPoint`, `ToolBlock`, `ConsensusCell`, and
-  `FleetDefaults` referenced below) —
+  `GateBlock`, `CellSkew`, `EpochPoint`, `ToolBlock`, and `ConsensusCell`
+  referenced below) —
 
   ```python
   BeamCondition = Literal["500V", "800V"]
@@ -102,11 +102,6 @@
       consensus: float
 
 
-  class FleetDefaults(TypedDict):
-      focus_n: int
-      advisory_threshold: dict[str, float]
-
-
   class FleetPayload(TypedDict):
       tool_type: str
       fab_name: str
@@ -114,7 +109,6 @@
       anchor_date: str
       beam_conditions: list[BeamCondition]
       axes: list[ScanAxis]
-      defaults: FleetDefaults
       consensus: list[ConsensusCell]
       tools: list[ToolBlock]
   ```
@@ -182,10 +176,9 @@
     device_statistics's lot-fan-out endpoints.
   - Ranking, threshold filtering, and bottom-N tool selection are
     explicitly **client-side** concerns (per this feature's own contract
-    docstring) — the backend ships raw per-cell values plus `defaults`
-    (`focus_n`, `advisory_threshold`) instead of pre-ranked results.
-    Office must keep shipping the same raw shape; do not pre-rank or
-    pre-filter tools/cells before returning.
+    docstring) — the backend ships raw per-cell values instead of
+    pre-ranked results. Office must keep shipping the same raw shape; do
+    not pre-rank or pre-filter tools/cells before returning.
   - `fab_name` in the response is the request's `fab_name` upper-cased
     (`fab_name.upper()`), not validated against a known-fabs list by this
     endpoint — any string is accepted and echoed back upper-cased.

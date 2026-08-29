@@ -82,7 +82,6 @@ from back_dev_home.ebeam.recipe_tat.providers._shape import (
 
 __all__ = [
     "get_anchor_time",
-    "get_meas_hist",
     "get_ranking",
     "get_summary",
     "get_daily_trend",
@@ -90,16 +89,6 @@ __all__ = [
     "get_equipments",
     "get_equipment_compare",
 ]
-
-
-def get_meas_hist(*args: Any, **kwargs: Any) -> Any:
-    # Not used by the TAT routes (they only call the aggregation endpoints)
-    # and not part of the contract gate. Raw-row export would also need the
-    # lot_cd source; use the aggregation endpoints instead.
-    raise NotImplementedError(
-        "get_meas_hist (raw rows) is intentionally not connected for office "
-        "mode — the Recipe-TAT routes use the aggregation endpoints below."
-    )
 
 
 def get_equipments(

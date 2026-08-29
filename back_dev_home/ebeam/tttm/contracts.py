@@ -366,6 +366,58 @@ def unavailable_payload(
     }
 
 
+def fleet_too_small_payload(
+    tool_slug: str,
+    fab_name: str,
+    recipe_id: str | None,
+    selected_parameters: list[str],
+    fleet: list[ToolRef],
+    eqp_ids: tuple[str, ...],
+    *,
+    window_weeks: int,
+) -> "TttmCheckPayload | None":
+    """``get_tttm_check``'s two earliest branches — no fleet, or fewer than 2
+    tools to compare — or ``None`` when the (already-narrowed) fleet is big
+    enough and the caller should keep going.
+
+    Hoisted beside ``unavailable_payload`` for the same reason: this was a
+    ~20-line copy (including the Korean summary strings) in each of
+    ``providers/mock.py`` and ``providers/office_example.py``, and a fix or a
+    wording change to one copy has no way to reach the other. Call this
+    immediately after ``narrow_fleet`` and return its result when it is not
+    ``None``.
+    """
+    if not fleet:
+        return unavailable_payload(
+            tool_slug, fab_name, recipe_id, selected_parameters,
+            f"{fab_name} 에는 이 계열의 장비가 없습니다.",
+            # The one branch that really has no roster — `fleet` IS empty here,
+            # so the empty roster is passed rather than the argument skipped.
+            tools=fleet,
+            window_weeks=window_weeks,
+        )
+    if len(fleet) < 2:
+        if eqp_ids:
+            # The fab may hold many tools; the REQUEST named too few. Blaming
+            # the fab here would send the user to add tools that are already
+            # in the picker.
+            summary = (
+                "요청한 장비가 2대 미만이라 장비간 스큐를 볼 수 없습니다 — "
+                "2대 이상 고르십시오."
+            )
+        else:
+            summary = (
+                f"{fab_name} 에는 이 계열 장비가 1대뿐이라 장비간 스큐를 볼 수 없습니다."
+            )
+        return unavailable_payload(
+            tool_slug, fab_name, recipe_id, selected_parameters,
+            summary,
+            tools=fleet,
+            window_weeks=window_weeks,
+        )
+    return None
+
+
 def narrow_fleet(fleet: list[ToolRef], eqp_ids: tuple[str, ...]) -> list[ToolRef]:
     """Narrow a fab's fleet to the tools the request named, fleet order kept.
 

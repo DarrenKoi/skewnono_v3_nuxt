@@ -172,8 +172,6 @@ class FleetReference(TypedDict):
     meas_fail_rate: float
     median_exec_count: float
     median_recipe_count: float
-    min_expected_fails: float
-    confidence_z: float
     # 사무실에서 FAIL_INDEX_CEIL 을 정하기 위한 분포 참고용입니다.
     # **배지 판정에는 쓰이지 않습니다** — 잡음 판정은 신뢰구간이 합니다.
     # 키: "align_fail_rate" | "align_index" | "meas_fail_rate" | "meas_index"

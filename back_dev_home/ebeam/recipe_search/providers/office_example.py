@@ -1037,13 +1037,22 @@ def _identify_table(frame: pd.DataFrame) -> str | None:
     return best_table
 
 
+def _dedupe_equal(frames: list[pd.DataFrame]) -> list[pd.DataFrame]:
+    """Keep one copy of each distinct frame — equal frames are not ambiguous."""
+    unique: list[pd.DataFrame] = []
+    for frame in frames:
+        if not any(frame.equals(existing) for existing in unique):
+            unique.append(frame)
+    return unique
+
+
 def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
     """Parser output -> the three documented tables, or a usable error.
 
     The documented return is a three-key mapping (``recipe_idp.txt`` §파서 반환
     구조, user-confirmed 2026-07-27) and that path is untouched. A parser that
-    returns a bare container of tables instead is recovered from — by matching
-    documented columns, never by position — because the alternative is a dead
+    returns something else is recovered from — by matching documented columns,
+    never by position or by key name — because the alternative is a dead
     screen at the office over a shape home can neither see nor reproduce. Every
     recovery is logged as a warning: the doc is the schema of record, so a
     return shape it does not describe is a doc bug to reconcile, not a new
@@ -1055,14 +1064,16 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
     ``ndarray`` of dicts fits the evidence exactly as well, so accepting only
     the two obvious containers would leave the reported failure unfixed.
 
-    The second cloud 502 (2026-08-03, OFFICE-VERIFY) narrowed the shape: a
-    tuple of TWO dicts, EACH carrying the three documented keys — the
-    container wraps the documented mapping itself, it does not scatter loose
-    tables. So candidates are also tried AS the mapping: one qualifies when
-    each documented key's value identifies, by columns, as that key's own
-    table. A shadow dict with the same keys but non-table values (whatever the
-    second element holds) fails that test and falls away by content, not by
-    position.
+    The second cloud 502 (2026-08-03, OFFICE-VERIFY) added a further shape: a
+    tuple of dicts, each carrying the three documented keys — the container
+    wraps the documented mapping itself rather than scattering loose tables.
+    A candidate shaped like that is unwrapped into its values before
+    identification, so it goes through the same column-matching pass as any
+    loose candidate: columns decide the table, never the key it travelled
+    under (a shadow dict with the right keys but non-table values simply
+    contributes nothing identifiable). Equal copies of the mapping (the parser
+    handing back the same tables twice) collapse to one; genuinely different
+    full sets (an OM/SEM split, say) are refused rather than picked between.
     """
     if isinstance(raw, dict) and all(name in raw for name in _PARSED_TABLES):
         return {
@@ -1084,73 +1095,44 @@ def _normalize_frames(raw: Any, source: str) -> dict[str, pd.DataFrame]:
             ) from None
         container = f"bare {type(raw).__name__}"
 
-    # A candidate that IS the documented mapping (the observed tuple-of-dicts
-    # shape) beats identifying loose frames: its key->table assignment is the
-    # parser's own, verified per key by columns before it is believed.
-    qualifying: list[dict[str, pd.DataFrame]] = []
+    # A candidate that IS the documented mapping (a dict carrying all three
+    # keys) is unwrapped into its values rather than trusted by key: each
+    # value still has to identify, by columns, as some documented table.
+    flattened: list[Any] = []
     for candidate in candidates:
-        if not (isinstance(candidate, dict)
-                and all(name in candidate for name in _PARSED_TABLES)):
-            continue
-        frames: dict[str, pd.DataFrame] = {}
-        for name in _PARSED_TABLES:
-            frame = _as_frame(candidate[name])
-            if frame is None or _identify_table(frame) != name:
-                break
-            frames[name] = frame
+        if isinstance(candidate, dict) and all(name in candidate for name in _PARSED_TABLES):
+            flattened.extend(candidate.values())
         else:
-            qualifying.append(frames)
-
-    if qualifying:
-        first = qualifying[0]
-        if any(
-            not first[name].equals(other[name])
-            for other in qualifying[1:] for name in _PARSED_TABLES
-        ):
-            # Two DIFFERENT full table sets (an OM/SEM split would look like
-            # this). Choosing one renders a plausible screen over the wrong
-            # half of the data — worse than the error, which now describes
-            # both sets' contents.
-            raise _parse_error(
-                source, candidates,
-                f"a {container} holding {len(qualifying)} distinct copies of "
-                "the documented mapping, which columns cannot choose between",
-            )
-        _LOG.warning(
-            "recipe_search: combined_idp_info(%s) returned a %s wrapping the "
-            "documented three-key mapping; unwrapped it after verifying each "
-            "table by its columns. docs/datatables/hitachi/recipe_idp.txt now "
-            "disagrees with the parser — reconcile it. Saw: %s",
-            source, container, _describe(candidates),
-        )
-        return first
+            flattened.append(candidate)
 
     # Every match is kept, not just the first: two frames answering to the same
     # table means the columns did NOT decide it, and silently taking whichever
     # came first is the positional guess this function exists to refuse.
     identified: dict[str, list[pd.DataFrame]] = {}
-    for candidate in candidates:
+    for candidate in flattened:
         frame = _as_frame(candidate)
         if frame is None:
             continue
         table = _identify_table(frame)
         if table is not None:
             identified.setdefault(table, []).append(frame)
+    identified = {name: _dedupe_equal(frames) for name, frames in identified.items()}
 
     missing = [name for name in _PARSED_TABLES if name not in identified]
     ambiguous = [name for name in _PARSED_TABLES if len(identified.get(name, ())) > 1]
     if missing or ambiguous:
         trouble = ", ".join(filter(None, (
             f"{missing} could not be recognised by their documented columns" if missing else "",
-            f"{ambiguous} matched more than one frame each" if ambiguous else "",
+            (f"{ambiguous} matched more than one distinct frame each, so no single "
+             "documented mapping can be chosen among them") if ambiguous else "",
         )))
         raise _parse_error(source, candidates, f"a {container} in which {trouble}")
 
     _LOG.warning(
         "recipe_search: combined_idp_info(%s) returned a %s, not the documented "
-        "three-key mapping. All three tables were recovered by their columns, "
-        "but docs/datatables/hitachi/recipe_idp.txt now disagrees with the parser — "
-        "reconcile it. Saw: %s", source, container, _describe(candidates),
+        "three-key mapping. All three tables were recovered by their documented "
+        "columns, but docs/datatables/hitachi/recipe_idp.txt now disagrees with the "
+        "parser — reconcile it. Saw: %s", source, container, _describe(candidates),
     )
     return {name: identified[name][0] for name in _PARSED_TABLES}
 

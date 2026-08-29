@@ -49,6 +49,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
+from back_dev_home.ebeam.device_statistics.para_buckets import _str_digest
 from back_dev_home.ebeam.device_statistics.contracts import (
     DeviceDescRow,
     MeasActivityRow,
@@ -270,9 +271,7 @@ def _meas_count(lot_cd: str) -> int:
     균등 난수 대신 제곱으로 눌러 상위 소수 + 긴 꼬리 모양을 만듭니다. 절대값은
     mock 이 알 수 없는 사실이라 자릿수(수십~수천)만 실물스럽게 잡습니다.
     """
-    digest = 0
-    for ch in lot_cd:
-        digest = (digest * 131 + ord(ch)) & 0xFFFFFFFF
+    digest = _str_digest(lot_cd)
     unit = ((digest * 2654435761) & 0xFFFFFFFF) / 0xFFFFFFFF  # 0.0 ~ 1.0
     return 10 + round((unit ** 4) * 4990)
 
@@ -317,7 +316,6 @@ def get_meas_activity(fac_id: str) -> list[MeasActivityRow]:
 # ---------------------------------------------------------------------------
 from .statistics import (  # noqa: E402  (의도된 후위 import)
     _lot_index,
-    get_lot_index,
     get_weekly_trend_data,
 )
 from .recipe_params import get_recipe_params  # noqa: E402  (의도된 후위 import)
@@ -343,7 +341,6 @@ __all__ = [
     "get_meas_activity",
     "get_weekly_trend_data",
     "get_recipe_params",
-    "get_lot_index",
     "get_rules",
     "_lot_index",
     "write_weekly_snapshot",

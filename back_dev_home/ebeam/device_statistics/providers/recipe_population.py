@@ -108,6 +108,7 @@ from back_dev_home.ebeam.device_statistics.oper_order import OPER_PREFIX_ORDER
 from back_dev_home.ebeam.device_statistics.para_buckets import (
     OVERFLOW_BUCKET,
     PARA_BUCKETS,
+    _str_digest,
 )
 
 
@@ -425,9 +426,7 @@ TRAJECTORIES = ("growing", "shrinking", "stable", "ramp")
 
 def lot_trajectory(lot_cd: str) -> str:
     """lot 하나의 궤적. lot_cd 만으로 정해지므로 주차가 바뀌어도 같습니다."""
-    digest = 0
-    for ch in lot_cd:
-        digest = (digest * 131 + ord(ch)) & 0xFFFFFFFF
+    digest = _str_digest(lot_cd)
     return TRAJECTORIES[digest % len(TRAJECTORIES)]
 
 
@@ -533,9 +532,7 @@ def _recipe_name(rng: random.Random, lot_cd: str, idx: int) -> str:
 
 
 def _identity_seed(lot_cd: str) -> int:
-    digest = 0
-    for ch in lot_cd:
-        digest = (digest * 131 + ord(ch)) & 0xFFFFFFFF
+    digest = _str_digest(lot_cd)
     return (digest * 1009 + _IDENTITY_SALT * 7919) & 0xFFFFFFFF
 
 

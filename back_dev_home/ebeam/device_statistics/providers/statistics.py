@@ -102,6 +102,7 @@ from functools import lru_cache
 
 from back_dev_home.ebeam.device_statistics.para_buckets import (
     PARA_BUCKETS,
+    _str_digest,
     para_block,
 )
 from back_dev_home.ebeam.device_statistics.contracts import (
@@ -135,9 +136,7 @@ def _percent(part: int, total: int) -> float:
 
 
 def _seed_for(lot_cd: str, point_index: int) -> int:
-    digest = 0
-    for ch in lot_cd:
-        digest = (digest * 131 + ord(ch)) & 0xFFFFFFFF
+    digest = _str_digest(lot_cd)
     return (digest * 1009 + point_index * 7919) & 0xFFFFFFFF
 
 
@@ -378,11 +377,6 @@ def get_weekly_trend_data(
         trend[date_key] = bucketed
 
     return trend
-
-
-def get_lot_index() -> list[dict]:
-    """Flat lot_cd -> fac_id listing, useful as a frontend lot picker."""
-    return [{"lot_cd": lot_cd, "fac_id": fac_id} for lot_cd, fac_id in _lot_index().items()]
 
 
 if __name__ == "__main__":

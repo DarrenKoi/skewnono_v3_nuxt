@@ -242,8 +242,6 @@ def build_equipments_payload(
             "median_recipe_count": float(
                 statistics.median([row["recipe_count"] for row in equipments])
             ) if equipments else 0.0,
-            "min_expected_fails": FAIL_INDEX_MIN_EXPECTED,
-            "confidence_z": CONFIDENCE_Z,
             "percentiles": {
                 "exec_count": percentile_summary(r["exec_count"] for r in equipments),
                 "recipe_count": percentile_summary(r["recipe_count"] for r in equipments),
