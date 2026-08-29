@@ -1,4 +1,9 @@
 <template>
+  <!-- At the shared `ebeam/` level beside ScopeBar · ToolGroupBar · AnalysisBar,
+       not in `ebeam/tttm/` where it started: that folder holds the cards of the
+       장비간 스큐 PANEL, and this is a control every panel is fed by. It sat
+       there while TTTM was a page of its own (2026-08-28) and stayed through
+       the merge, which left the folder meaning two things. -->
   <div class="dashboard-surface rounded-[var(--sk-r-card)] p-4">
     <!-- 수집 기간 · 데이터 요청 — 세 번째 단계. 비교 대상(recipe)과 장비를 정한 뒤
          얼마나 모을지 고르고, 그때서야 서버에 묻습니다. 사무실에서는 이 요청 한 번이

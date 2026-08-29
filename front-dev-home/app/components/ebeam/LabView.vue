@@ -54,7 +54,7 @@
     <!-- 수집 기간 · 데이터 요청 — 조건이 다 정해진 뒤 한 번 묻습니다. 한 번의
          클릭이 두 화면의 데이터를 다 모으므로, 탭을 바꾸는 데에는 다시 묻지
          않습니다 — 그것이 두 페이지를 하나로 합친 이유입니다. -->
-    <EbeamTttmRequestBar
+    <EbeamRequestBar
       :window-weeks="windowWeeks"
       :tool-count="pickedTools.length"
       :has-recipe="scopeReady"
@@ -113,7 +113,7 @@
       </template>
 
       <template #trailing="{ disabled }">
-        <EbeamTttmToleranceKnob
+        <EbeamToleranceKnob
           v-if="payload"
           v-model="tolerance"
           :range="payload.tolerance_range"
