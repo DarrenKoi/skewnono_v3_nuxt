@@ -48,6 +48,8 @@ export const useTttmScope = (
   const recipeId = computed(() => scoped.value.recipeId)
   const parameters = computed(() => scoped.value.parameters)
   const windowWeeks = computed(() => scoped.value.windowWeeks)
+  /** Null until the knob has been moved — the payload's default stands in. */
+  const storedTolerance = computed(() => scoped.value.tolerance)
 
   const { fetchTttmRecipes, useTttmCheck } = useTttmApi()
 
@@ -203,12 +205,14 @@ export const useTttmScope = (
   const onRecipe = (next: string | null) => settings.setRecipe(toolType, fabName, next)
   const onParameters = (next: string[]) => settings.setParameters(toolType, fabName, next)
   const onWindow = (next: WindowWeeks) => settings.setWindow(toolType, fabName, next)
+  const onTolerance = (next: number) => settings.setTolerance(toolType, fabName, next)
 
   return {
     scoped,
     recipeId,
     parameters,
     windowWeeks,
+    storedTolerance,
     recipeNames,
     recipesPending,
     recipesWithoutAPair,
@@ -225,6 +229,7 @@ export const useTttmScope = (
     onSelectedTools,
     onRecipe,
     onParameters,
-    onWindow
+    onWindow,
+    onTolerance
   }
 }

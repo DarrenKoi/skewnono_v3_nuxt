@@ -41,6 +41,18 @@ export interface TttmScopeSettings {
    * PM 플래닝 would be two different groups under one name.
    */
   windowWeeks: WindowWeeks
+  /**
+   * The N배화 판정 임계값 in nm, as the tolerance knob leaves it. Null until the
+   * user moves it, and the payload's own `current_tolerance` stands in.
+   *
+   * Shared for exactly the reason `windowWeeks` is: a 0.05 nm group on the
+   * 스큐 view and a 0.08 nm group on PM 플래닝 would be two different groups
+   * under one name. It was a per-page `ref` until 2026-08-30, which is why
+   * PM 플래닝 had to caption "tolerance 는 TTTM 페이지의 설정을 따릅니다" three
+   * times over — and then quietly use the server default anyway, because a
+   * local ref cannot cross a route.
+   */
+  tolerance: number | null
 }
 
 export type TttmSettingsMap = Record<string, TttmScopeSettings>
@@ -54,7 +66,8 @@ const EMPTY: TttmScopeSettings = {
   tools: null,
   recipeId: null,
   parameters: [],
-  windowWeeks: DEFAULT_WINDOW_WEEKS
+  windowWeeks: DEFAULT_WINDOW_WEEKS,
+  tolerance: null
 }
 
 const strings = (raw: unknown): string[] =>
@@ -85,7 +98,14 @@ const normalizeScope = (raw: unknown): TttmScopeSettings => {
     parameters: recipeId ? parameters : [],
     // Entries written before this field existed land here as the default;
     // a hand-edited value outside the choices does too, rather than 400ing.
-    windowWeeks: normalizeWindowWeeks(value.windowWeeks)
+    windowWeeks: normalizeWindowWeeks(value.windowWeeks),
+    // A knob position, so any finite positive number is legitimate here. It is
+    // NOT clamped to the slider's range: that range arrives on the payload and
+    // varies with the answer, so clamping is the view's job at the moment it
+    // has one — clamping to a guess here would rewrite a good stored value.
+    tolerance: typeof value.tolerance === 'number' && Number.isFinite(value.tolerance) && value.tolerance > 0
+      ? value.tolerance
+      : null
   }
 }
 
@@ -139,5 +159,11 @@ export const useTttmSettings = () => {
   const setWindow = (toolType: string, fabName: string, windowWeeks: WindowWeeks) =>
     write(toolType, fabName, { ...read(toolType, fabName), windowWeeks })
 
-  return { all, read, write, setTools, setRecipe, setParameters, setWindow }
+  // Committed on the slider's `change` (pointer release), never on `input`:
+  // this write replaces the whole scope object, which re-renders every control
+  // reading it, and the range input fires on every drag frame.
+  const setTolerance = (toolType: string, fabName: string, tolerance: number) =>
+    write(toolType, fabName, { ...read(toolType, fabName), tolerance })
+
+  return { all, read, write, setTools, setRecipe, setParameters, setWindow, setTolerance }
 }
