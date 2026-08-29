@@ -10,6 +10,7 @@ from ..activity.data import record_request
 from . import os_timing
 from .feature_map import route_to_feature
 from .opensearch_handler import install_opensearch_logging
+from .providers import install_console_logger
 from .policy import (
     classify_activity,
     normalize_fab_name_list,
@@ -136,13 +137,7 @@ def _build_extra(
 
 
 def install_activity_logging(app: Flask) -> None:
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-        logger.propagate = False
-
+    install_console_logger(logger)
     install_opensearch_logging()
 
     @app.before_request

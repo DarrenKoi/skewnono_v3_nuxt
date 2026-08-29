@@ -19,12 +19,17 @@ import logging
 logger = logging.getLogger("skewnono.providers")
 
 
-def install_provider_logging() -> None:
-    """Attach the handler once. Idempotent, like install_activity_logging."""
-    if logger.handlers:
+def install_console_logger(target: logging.Logger) -> None:
+    """Attach a console handler once. Idempotent. Shared with ``activity.py``."""
+    if target.handlers:
         return
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
+    target.addHandler(handler)
+    target.setLevel(logging.INFO)
+    target.propagate = False
+
+
+def install_provider_logging() -> None:
+    """Attach the handler once. Idempotent, like install_activity_logging."""
+    install_console_logger(logger)
