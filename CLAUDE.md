@@ -233,7 +233,7 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 | Skill | Use for |
 | --- | --- |
 | `oc-review` | Two-axis review (Standards + Spec) of a diff, delegated to an opencode model, then reconciled against Claude's own reading |
-| `oc-simplify` | Quality-only pass (reuse, simplification, efficiency, altitude) delegated to an opencode model; Claude applies the edits |
+| `oc-simplify` | Quality-only pass (reuse, over-engineering via `ponytail-review`'s tags, efficiency, altitude) delegated to an opencode model; Claude applies the edits |
 | `oc-discuss` | Debate a decision with an opencode model over up to three rounds, ending in AGREED / DISPUTED / I-WAS-WRONG |
 
 These three are installed **globally** at `~/.claude/skills/`, not in this
