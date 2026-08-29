@@ -21,8 +21,7 @@
         type="button"
         :aria-pressed="isOn(panel.value)"
         :title="panel.hint"
-        :disabled="disabled"
-        class="inline-flex h-[30px] items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        class="inline-flex h-[30px] items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors"
         :class="isOn(panel.value)
           ? 'border-(--sk-brand) bg-(--sk-brand-soft) text-(--sk-brand-ink)'
           : 'border-(--sk-border) bg-(--sk-surface) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
@@ -46,11 +45,12 @@
 <script setup lang="ts">
 import { LAB_PANELS, type LabPanel } from '~/utils/labView'
 
-const props = defineProps<{
-  panels: LabPanel[]
-  /** No scope to draw yet — the chips stay visible so the choice reads, but inert. */
-  disabled?: boolean
-}>()
+// Deliberately NOT wired to the 분석 조건 bar's `disabled`, though it sits in
+// that bar: the lock is about the PARAMETER, which cannot be picked before the
+// payload names one. Which analyses to draw is answerable at any time — locking
+// it would mean setting up your view had to wait on a request you have not made
+// yet, and the chips would grey out on every refetch.
+const props = defineProps<{ panels: LabPanel[] }>()
 
 const emit = defineEmits<{ 'update:panels': [value: LabPanel[]] }>()
 

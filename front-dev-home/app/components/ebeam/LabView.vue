@@ -105,10 +105,9 @@
            the PM targets are aimed at, so a PM 플래닝 that could not turn it was
            a page that had to caption "TTTM 페이지의 설정을 따릅니다" and then
            use the server default anyway. -->
-      <template #panels="{ disabled }">
+      <template #panels>
         <EbeamLabPanelPicker
           :panels="panels"
-          :disabled="disabled"
           @update:panels="onPanels"
         />
       </template>
