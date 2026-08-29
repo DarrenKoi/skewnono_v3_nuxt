@@ -233,17 +233,16 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 | Skill | Use for |
 | --- | --- |
 | `oc-review` | Two-axis review (Standards + Spec) of a diff, delegated to an opencode model, then reconciled against Claude's own reading |
-| `oc-simplify` | Quality-only pass (reuse, over-engineering via `ponytail-review`'s tags, efficiency, altitude) delegated to an opencode model; Claude applies the edits |
 | `oc-discuss` | Debate a decision with an opencode model over up to three rounds, ending in AGREED / DISPUTED / I-WAS-WRONG |
 
-These three are installed **globally** at `~/.claude/skills/`, not in this
+These two are installed **globally** at `~/.claude/skills/`, not in this
 repo, so they work in any project. They share `~/.claude/skills/_opencode/`
 (`oc.sh`, the tier table in `models.md`, the Fowler smell baseline, and the
 logging format); that folder has no `SKILL.md`, so it is not itself a skill.
 
 Everything SKEWNONO-specific they need lives in **`.claude/oc-project.md`** —
 the escalation surfaces, the extra smells (mock/office formula drift and
-friends), the reuse hotspots, the constraints an outside model cannot infer,
+friends), the constraints an outside model cannot infer,
 the verify commands, and the logging destination. Keep it current the way
 `CLAUDE.md` is kept current: the skills read it, and a stale overlay sends a
 delegated reviewer at the wrong surfaces. The file's contract is

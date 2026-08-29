@@ -1,7 +1,7 @@
 # oc-* project overlay
 
-Read by the globally-installed `oc-review`, `oc-simplify`, and `oc-discuss`
-skills (`~/.claude/skills/`). The skills themselves are project-agnostic; every
+Read by the globally-installed `oc-review` and `oc-discuss` skills
+(`~/.claude/skills/`). The skills themselves are project-agnostic; every
 SKEWNONO-specific fact they need is here. The file's contract is
 `~/.claude/skills/_opencode/project-overlay.md`.
 
@@ -51,42 +51,6 @@ generic list does not name:
 - **Vendor folder in a feature path** — an `ebeam/<vendor>/<feature>/` directory. Tool family is a `providers/` axis, never a path axis; a duplicate feature slug makes the app factory refuse to boot. → `<feature>/providers/<family>/`.
 - **Hand-rolled localStorage plumbing** — a composable doing its own read/write/watch instead of calling `composables/usePersistedState.ts`.
 - **Inline hex or raw Tailwind color** in a Vue file where a `--sk-*` token exists.
-
-## Deliberate structure
-
-Pasted verbatim into the `oc-simplify` prompt. An over-engineering lens run
-cold tags these `yagni:` or `delete:`; each exists on purpose, and `CLAUDE.md`
-or `DESIGN.md` says why:
-
-- **The provider seam looks single-implementation at home.** `office.py` is a
-  gitignored `cp`, so at home `<feature>/data.py` dispatches to
-  `providers/mock.py` alone and `contracts.py` binds one adapter. The second
-  implementation exists at the office; `data.py` is never edited
-- **`providers/office_example.py` is unused at home by design.** It is the
-  tracked template for the gitignored `office.py`, not dead code
-- **`__fixtures__/` directories are load-bearing.** Captured office responses a
-  contract test replays; a feature-scoped scan finds no importer
-- **Provider env knobs are unset at home on purpose.** `SKEWNONO_DATA_PROVIDER`,
-  `SKEWNONO_<FEATURE>_PROVIDER`, and the office-source knobs configure the
-  office, they are not "config nobody sets"
-- **Identity aliases stay.** `/pm-tune` in `_logging/feature_map.py` and
-  `utils/pageIdentity.ts` keeps logged history readable; it is not a duplicate
-  route
-- **NuxtUI `U*` components and `--sk-*` tokens are the documented standard**
-  (`DESIGN.md`). A `native:` finding that swaps them for raw HTML controls or
-  inline CSS is a Standards breach, not a simplification
-- **Vendored trees are out of scope** — `ftp_handler/`, `minio_handler/`,
-  `ops_store/`, `ops_index_mgmt/` must stay byte-identical to their upstream
-  (change both or neither), so no `shrink:` or `stdlib:` there
-
-## Reuse hotspots
-
-Grep these before accepting any "this is new" claim:
-
-- `back_dev_home/_runtime/`, `_core/`, `_auth/`, `_logging/` — shared backend plumbing
-- `front-dev-home/app/utils/` and `app/composables/` — shared frontend logic
-- `front-dev-home/app/assets/css/main.css` — the `--sk-*` tokens and `sk-*` classes
-- `back_dev_home/ebeam/_tool_specs.py` — the tool-family registry
 
 ## Spec source
 
