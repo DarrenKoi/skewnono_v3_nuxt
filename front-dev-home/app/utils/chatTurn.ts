@@ -20,11 +20,6 @@ export const createPendingChatTurn = (
   makeId: () => string = generateUuid
 ): PendingChatTurn => ({ threadId, content, requestId: makeId() })
 
-export const isPendingTurnForThread = (
-  turn: PendingChatTurn | null,
-  threadId: string | null
-): turn is PendingChatTurn => turn !== null && turn.threadId === threadId
-
 export const getThreadTurnState = (
   states: ThreadTurnStates,
   threadId: string | null

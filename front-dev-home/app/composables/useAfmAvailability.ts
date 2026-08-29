@@ -7,4 +7,4 @@
  */
 export const AFM_ENABLED = false
 
-export const useAfmEnabled = () => computed(() => AFM_ENABLED)
+export const useAfmEnabled = () => AFM_ENABLED

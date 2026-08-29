@@ -6,8 +6,7 @@ import {
   createPendingChatTurn,
   failThreadTurn,
   getThreadTurnState,
-  startThreadTurn,
-  isPendingTurnForThread
+  startThreadTurn
 } from './chatTurn.ts'
 
 test('a pending turn keeps one request id across retries', () => {
@@ -18,13 +17,6 @@ test('a pending turn keeps one request id across retries', () => {
     requestId: 'fixed-request-id'
   })
   assert.equal(turn.requestId, 'fixed-request-id')
-})
-
-test('pending reconciliation is bound to its originating thread', () => {
-  const turn = createPendingChatTurn('thread-a', 'alarm reset', () => 'request-a')
-
-  assert.equal(isPendingTurnForThread(turn, 'thread-a'), true)
-  assert.equal(isPendingTurnForThread(turn, 'thread-b'), false)
 })
 
 test('a failed A turn survives a B send and retries with the original A identity', () => {
