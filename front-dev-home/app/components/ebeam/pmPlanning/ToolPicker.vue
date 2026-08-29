@@ -47,7 +47,7 @@
           <span
             v-else
             class="sk-field-label"
-          >{{ pending ? 'Roster를 불러오는 중입니다' : '장비 없음' }}</span>
+          >{{ pending ? 'Roster를 불러오는 중입니다' : awaiting ? '데이터 요청 전' : '장비 없음' }}</span>
         </template>
 
         <!-- The dot restates the Up gate, not group membership — the two are
@@ -93,11 +93,15 @@
       </div>
     </div>
 
+    <!-- An empty list is three different facts, and only one of them is an
+         empty fab. Since the pm payload waits for 데이터 요청 (2026-08-30), the
+         commonest one is simply that nobody has asked yet — captioning that as
+         "roster 가 비어 있습니다" told the user their fab had no tools. -->
     <p
       v-if="!pending && !rows.length"
       class="mt-2 sk-field-label leading-relaxed"
     >
-      이 FAB 의 CD-SEM roster 가 비어 있습니다.
+      {{ awaiting ? '위 데이터 요청을 누르면 이 FAB 의 장비가 채워집니다.' : '이 FAB 의 CD-SEM roster 가 비어 있습니다.' }}
     </p>
   </div>
 </template>
@@ -127,6 +131,8 @@ const props = defineProps<{
   picked: string | null
   /** The pm request is still in flight — an empty list is not yet an empty fab. */
   pending?: boolean
+  /** No request has been made yet — an empty list is not an empty fab either. */
+  awaiting?: boolean
 }>()
 
 const emit = defineEmits<{

@@ -21,7 +21,7 @@
          change is a scope you cannot work with. Editing either here edits it
          there — the two pages are meant to describe ONE group, so sharing is the
          safeguard, not a shortcut. -->
-    <EbeamScopeBar>
+    <EbeamScopeBar hint="고른 recipe 의 측정 데이터로 계산합니다. 이 설정은 이 브라우저에 저장되고, TTTM · PM 플래닝 두 페이지가 함께 씁니다.">
       <template #recipe>
         <EbeamScopeRecipe
           :recipe-id="recipeId"
@@ -31,21 +31,39 @@
           @update:recipe-id="onRecipe"
         />
       </template>
-      <template #window>
-        <EbeamScopeWindow
-          :window-weeks="windowWeeks"
-          @update:window-weeks="onWindow"
-        />
-      </template>
     </EbeamScopeBar>
 
-    <!-- 장비 모델 그룹 — same bar, same persisted selection as TttmView. -->
+    <!-- 장비 모델 그룹 — same bar, same persisted selection as TttmView, and
+         since this page asks on demand too, the same roster source: sem-list,
+         not the payload. The payload is what the button REQUESTS, so it cannot
+         also be where the picks come from — before the first request there
+         would be nothing to pick. -->
     <EbeamToolGroupBar
-      :tools="payload?.tools ?? []"
-      :selected="selection"
+      :tools="roster"
+      :selected="pickedTools"
       :deviations="fleetDeviations"
-      :pending="tttmPending"
+      :answered="answeredTools"
+      :pending="rosterPending"
+      hint="비교에 넣을 장비를 모델 그룹별로 고릅니다 — 고른 장비의 데이터만 서버에서 모읍니다. TTTM · PM 플래닝 두 페이지가 함께 씁니다."
       @update:selected="onSelectedTools"
+    />
+
+    <!-- 수집 기간 · 데이터 요청 — the TTTM bar verbatim, because it is the same
+         request: both pages ask the same check endpoint under the same shared
+         scope, and one office answer costs hundreds of MinIO GETs either way.
+         It sits ABOVE 튜닝할 장비 rather than below the way TTTM's sits above
+         분석 조건: that picker's rows (verdict, post_pm_at) come off the pm
+         payload, so until this button is pressed there is nothing to pick.
+         One click drives BOTH halves — see `request` below. -->
+    <EbeamTttmRequestBar
+      :window-weeks="windowWeeks"
+      :tool-count="pickedTools.length"
+      :has-recipe="scopeReady"
+      :pending="pending"
+      :stale="stale"
+      :fetched-at="payload?.fetched_at ?? null"
+      @update:window-weeks="onWindow"
+      @request="request"
     />
 
     <!-- 튜닝할 장비 — 장비 모델 그룹 바로 아래입니다. 이 페이지의 주어이고 아래
@@ -67,6 +85,7 @@
       :rows="pickerRows"
       :picked="picked"
       :pending="pmPending"
+      :awaiting="!pmFleet"
       @update:picked="picked = $event"
     />
 
@@ -111,6 +130,15 @@
       title="Fleet 데이터를 불러오는 중입니다."
     />
 
+    <!-- Nothing asked yet — same as TttmView: the page waits for the button and
+         says so where the results will appear. -->
+    <AppEmptyState
+      v-else-if="!payload"
+      title="데이터를 요청하십시오."
+      description="위 장비 모델 그룹과 수집 기간을 정한 뒤 데이터 요청을 누르면 고른 장비의 run 과 PM gate 를 서버에서 모읍니다."
+      icon="i-lucide-database"
+    />
+
     <!-- The shared empty-state shell, not a hand-rolled card: an unavailable
          payload is a legitimate answer ("nothing to compare"), which is the same
          shape of event AppEmptyState already owns. -->
@@ -134,6 +162,17 @@
       v-else
       class="flex min-w-0 flex-col gap-3"
     >
+      <!-- The payload lags the scope: the results below are still the LAST
+           answer and must not be read as the current question's. Drawn, not
+           hidden — same rule as TttmView. -->
+      <div
+        v-if="stale"
+        class="rounded-[var(--sk-r-card)] border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-2.5 sk-meta leading-relaxed"
+      >
+        <span class="sk-title">조건이 바뀌었습니다</span> — 아래 결과는 마지막 요청
+        <span class="font-mono tabular-nums">{{ asOf }}</span> 기준입니다. 위 데이터 요청을 누르면 반영됩니다.
+      </div>
+
       <!-- The roll-up of what the current pick costs, directly under the bar
            that sets it. The numbers all appear again in the cards below; this
            line is what makes changing the picked tool legible without hunting
@@ -141,7 +180,15 @@
       <div class="rounded-[var(--sk-r-card)] border border-(--sk-border) bg-(--sk-muted-surface) px-4 py-3.5">
         <p class="sk-meta leading-relaxed">
           <span class="sk-title">이 장비는</span> —
-          <template v-if="!primary">
+          <!-- No pick yet, and the sentence must still finish. Reachable since
+               the pm half waits for 데이터 요청 (2026-08-30): arriving from TTTM
+               the shared check payload draws the map straight away while the
+               gate roster this card's subject comes from has not been asked
+               for, and every branch below assumes a subject. -->
+          <template v-if="!picked">
+            아직 고르지 않았습니다 — 위 데이터 요청을 누르면 PM gate 와 함께 채워집니다.
+          </template>
+          <template v-else-if="!primary">
             그룹이 없어 판정할 수 없습니다.
           </template>
           <template v-else-if="report?.inGroup">
@@ -221,6 +268,11 @@ const props = defineProps<{ fab: string, toolLabel: string, toolType: string }>(
 // all editable from here as well as from there, and editing any of them here
 // edits it there: the two pages are meant to describe ONE group, so a scope this
 // page could only read was a scope the user had to leave the page to change.
+//
+// `manual`: this page asks for the payload with a button too, and narrows the
+// request to the picked tools — see utils/tttmRequest for why. The check is
+// keyed the same in both pages' manual mode, so an answer requested on TTTM is
+// still the answer here.
 const {
   scoped,
   recipeId,
@@ -229,8 +281,13 @@ const {
   recipeNames,
   recipesPending,
   recipesWithoutAPair,
+  roster,
+  rosterPending,
+  pickedTools,
   payload,
   pending: tttmPending,
+  stale,
+  requestCheck,
   parameterNames,
   lock,
   scopeReady,
@@ -238,23 +295,38 @@ const {
   onRecipe,
   onParameters,
   onWindow
-} = useTttmScope(props.toolType, props.fab)
+} = useTttmScope(props.toolType, props.fab, { manual: true })
 
 // The gate/PM half, from pm_planning. Independent request: a slow gate payload
 // must not delay the map, and vice versa.
 // Fetched under the scope's window, and re-fetched with it: the two halves of
-// this page are joined and must describe one span.
+// this page are joined and must describe one span. Which is exactly why the
+// window no longer triggers it on its own — it waits for the same button, or
+// the gate cards would describe a span the map above them does not.
 const { fetchPmPlanningFleet } = usePmPlanningApi()
-const { data: pmFleet, pending: pmPending } = useAsyncData<FleetResponse | null>(
+const { data: pmFleet, pending: pmPending, refresh: refreshPmFleet } = useAsyncData<FleetResponse | null>(
   `pm-planning:${props.fab || 'NONE'}`,
   () => props.fab ? fetchPmPlanningFleet(props.fab, windowWeeks.value) : Promise.resolve(null),
-  { watch: [windowWeeks] }
+  { immediate: false }
 )
+
+// One click, both halves. Not awaited in sequence: they are independent
+// endpoints and the map should paint as soon as its own answer lands.
+const request = () => {
+  requestCheck()
+  refreshPmFleet()
+}
+const pending = computed(() => tttmPending.value || pmPending.value)
 
 const pmTools = computed(() => pmFleet.value?.tools ?? [])
 
-const allToolIds = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
-const selection = computed(() => resolveSelection(allToolIds.value, scoped.value.tools))
+// Two selections, and the difference is the on-demand request — same split as
+// TttmView. `pickedTools` (from the scope, resolved against the sem-list
+// roster) is what the NEXT request will name; `selection` is resolved against
+// the tools the payload actually answered for and is what the results below are
+// drawn from. They differ exactly while the payload is stale.
+const answeredTools = computed(() => (payload.value?.tools ?? []).map(t => t.eqp_id))
+const selection = computed(() => resolveSelection(answeredTools.value, scoped.value.tools))
 
 // The payload's own fleet-wide residuals, for the scope bar's dropdown rows —
 // the same rule TttmView follows: a tool that is not selected has no re-based
@@ -279,7 +351,7 @@ const picked = ref<string | null>(null)
 // caller needs it, it stays here.
 const basis = computed(() => {
   const p = picked.value
-  if (!p || !allToolIds.value.includes(p) || selection.value.includes(p)) return selection.value
+  if (!p || !answeredTools.value.includes(p) || selection.value.includes(p)) return selection.value
   return [...selection.value, p]
 })
 
