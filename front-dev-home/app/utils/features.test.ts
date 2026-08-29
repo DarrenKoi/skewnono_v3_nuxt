@@ -12,7 +12,8 @@ import {
   featureSupportsToolType,
   isFablessFeature,
   isSingleFabFeature,
-  matchFeatureFromPath
+  matchFeatureFromPath,
+  activeFeatureTab
 } from './features.ts'
 
 // Widened view of the tuple, so retired slugs can be checked for absence
@@ -155,4 +156,49 @@ test('featureSupportsToolType answers for live slugs and unknown strings alike',
   assert.equal(featureSupportsToolType('tttm', 'hv-sem'), false)
   assert.equal(featureSupportsToolType('storage', 'veritysem'), false)
   assert.equal(featureSupportsToolType('not-a-feature', 'cd-sem'), false)
+})
+
+// activeFeatureTab — which top nav pill lights up.
+//
+// 장비 상태 ('index') is the FALLBACK, so every page that is not 장비 상태 has
+// to be recognised or it silently claims that tab. /pm-planning was not, and
+// lit 장비 상태 while the user was on a 실험실 page (2026-08-30).
+
+test('each feature page highlights its own tab', () => {
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a/recipe-status'), 'recipe-status')
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a/recipe-search'), 'recipe-search')
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a/hardware'), 'hardware')
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/device-statistics'), 'device-statistics')
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/skewvoir'), 'skewvoir')
+})
+
+test('장비 상태 and its storage sub-tab are the only pages that light 장비 상태', () => {
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a'), 'index')
+  // 스토리지 is a sub-tab OF 장비 상태 (EbeamEquipmentStatusSubTabs), so the
+  // parent tab staying lit there is correct, not a second instance of the bug.
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a/storage'), 'index')
+})
+
+test('실험실 pages claim no feature tab', () => {
+  // Neither has a tab in the row, so the correct outcome is that NOTHING
+  // highlights — which only holds if they are recognised rather than falling
+  // through to the 장비 상태 default.
+  assert.notEqual(activeFeatureTab('/ebeam/cd-sem/m14a/pm-planning'), 'index')
+  assert.notEqual(activeFeatureTab('/ebeam/cd-sem/m14a/tttm'), 'index')
+  assert.notEqual(activeFeatureTab('/ebeam/cd-sem/live-alarm'), 'index')
+})
+
+test('every feature slug is recognised — the fallback is never reached by one', () => {
+  // The class of the bug: a slug added to FEATURE_SLUGS but not to whatever
+  // decides the tab silently lights 장비 상태. Only 'storage' may map to it.
+  for (const slug of FEATURE_SLUGS) {
+    const tab = activeFeatureTab(`/ebeam/cd-sem/m14a/${slug}`)
+    if (slug === 'storage') continue
+    assert.notEqual(tab, 'index', `${slug} falls through to 장비 상태`)
+  }
+})
+
+test('non-ebeam paths have no tab', () => {
+  assert.equal(activeFeatureTab('/chat'), null)
+  assert.equal(activeFeatureTab('/settings'), null)
 })

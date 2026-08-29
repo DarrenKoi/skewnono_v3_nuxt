@@ -77,3 +77,24 @@ export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {
   const match = path.match(FEATURE_SLUG_REGEX)
   return (match?.[1] as FeatureSlug | undefined) ?? ''
 }
+
+/**
+ * Which FEATURE TAB is highlighted for a path — `'index'` is 장비 상태, and
+ * null means "not an ebeam page, so no tab at all".
+ *
+ * Derived from FEATURE_SLUGS rather than matched by its own if-chain. It WAS
+ * such a chain, inside FeatureTabs.vue, and it drifted: `/pm-planning` was
+ * never added to it, so it fell through to the `'index'` default and lit
+ * 장비 상태 while the user was on a 실험실 page (fixed 2026-08-30). Any slug
+ * added here in future is recognised by construction — which is the actual
+ * fix, the missing branch being only the symptom.
+ *
+ * 장비 상태 is the fallback because the fab landing page has no slug of its
+ * own; `storage` joins it because 스토리지 is a SUB-TAB of 장비 상태
+ * (EbeamEquipmentStatusSubTabs), so the parent tab staying lit there is right.
+ */
+export const activeFeatureTab = (path: string): FeatureSlug | 'index' | null => {
+  if (!(path === '/ebeam' || path.startsWith('/ebeam/'))) return null
+  const feature = matchFeatureFromPath(path)
+  return feature === '' || feature === 'storage' ? 'index' : feature
+}

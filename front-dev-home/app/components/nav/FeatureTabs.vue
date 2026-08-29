@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { ToolType } from '~/stores/navigation'
-import { FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature } from '~/utils/features'
+import { activeFeatureTab, FEATURE_SLUG_SUFFIX_REGEX, isFablessFeature, type FeatureSlug } from '~/utils/features'
 import { buildFabSegment } from '~/utils/fab'
 import { isHeaderInfoPath } from '~/utils/headerNav'
 
 const route = useRoute()
 const { fabs, toolType: storeToolType } = useNavigation()
-const isEbeamRoute = useEbeamRoute()
 
 // Header-right info pages keep the feature tabs so the user can jump back to the main
 // pages; outside ebeam routes the tool type falls back to the store's remembered value.
@@ -17,12 +16,11 @@ const isInfoRoute = computed(() => isHeaderInfoPath(route.path))
 // The tabs and the 실험실 menu appear in exactly the same places — one composable decides.
 const isToolScoped = useToolScopedRoute()
 
-type FeatureRouteValue = 'index' | 'recipe-search' | 'recipe-status' | 'hardware' | 'live-alarm' | 'device-statistics' | 'skewvoir' | 'tttm'
-
 type FeatureTab = {
   label: string
   icon: string
-  routeValue?: FeatureRouteValue
+  /** `'index'` is 장비 상태, whose page has no slug of its own. */
+  routeValue?: FeatureSlug | 'index'
   enabledToolTypes?: ToolType[]
 }
 
@@ -52,18 +50,12 @@ const effectiveToolType = computed<ToolType | null>(() =>
   routeToolType.value ?? (isInfoRoute.value ? storeToolType.value : null)
 )
 
-const activeFeature = computed<FeatureRouteValue | null>(() => {
-  if (!isEbeamRoute.value) return null
-  const path = route.path
-  if (path.includes('/recipe-search')) return 'recipe-search'
-  if (path.includes('/recipe-status')) return 'recipe-status'
-  if (path.includes('/hardware')) return 'hardware'
-  if (path.includes('/live-alarm')) return 'live-alarm'
-  if (path.includes('/device-statistics')) return 'device-statistics'
-  if (path.includes('/tttm')) return 'tttm'
-  if (path.includes('/skewvoir')) return 'skewvoir'
-  return 'index'
-})
+// Not an if-chain here any more. It was one, and it drifted: pages added after
+// it — /pm-planning most recently — were never given a branch, so they fell
+// through to its `'index'` default and lit 장비 상태 from a 실험실 page.
+// utils/features derives the answer from FEATURE_SLUGS, which every new page
+// already has to join, and features.test.ts holds that line.
+const activeFeature = computed(() => activeFeatureTab(route.path))
 
 const getFeatureRoute = (feature: string) => {
   const toolType = effectiveToolType.value
