@@ -43,6 +43,8 @@ def get_msr_file(
 # Preserve the established test/debug hook while keeping routes on this façade.
 get_msr_file.cache_clear = mock_provider.get_msr_file.cache_clear  # type: ignore[attr-defined]
 
-# Kept temporarily for existing characterization tests. Application code should
-# consume summaries through ``get_msr_file`` rather than this mock detail.
+# Kept for the root-level characterization suite (tests/test_msr_file.py),
+# which imports ``_summaries`` from here directly rather than from mock.py.
+# Application code should consume summaries through ``get_msr_file`` rather
+# than this mock detail.
 _summaries = mock_provider._summaries

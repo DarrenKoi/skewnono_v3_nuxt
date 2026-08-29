@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone
 from itertools import islice
 from typing import Any
 
+from back_dev_home._core.timefmt import iso_z
 from back_dev_home._runtime.office_redis import load_env_file, redis_client
 from back_dev_home.health.contracts import ServiceHealth, ServicesHealthResponse, Status
 
@@ -71,7 +72,7 @@ def now() -> datetime:
 
 def checked_at() -> str:
     """UTC stamp at second resolution, `Z`-suffixed like the rest of the API."""
-    return now().isoformat(timespec="seconds").replace("+00:00", "Z")
+    return iso_z(now())
 
 
 def parse_ts(value: Any) -> datetime:

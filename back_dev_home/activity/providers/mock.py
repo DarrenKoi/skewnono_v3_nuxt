@@ -22,6 +22,7 @@ from datetime import date, datetime, timedelta, timezone
 from threading import RLock
 
 from ..._auth.admin import is_admin
+from ..._core.timefmt import iso_z as _iso
 from ..contracts import (
     DailyCount,
     FabUsageResponse,
@@ -65,10 +66,6 @@ def _kst_date(value: datetime) -> date:
 
 def _today() -> date:
     return _kst_date(_now())
-
-
-def _iso(value: datetime) -> str:
-    return value.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _iso_or_none(value: datetime | None) -> str | None:

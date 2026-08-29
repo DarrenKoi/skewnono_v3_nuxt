@@ -8,10 +8,8 @@ from back_dev_home.afm.data import (
     get_profile_image_svg,
     get_profile_points,
     get_tools,
-    get_user_analytics,
     list_afm_files,
     list_analysis_images,
-    list_user_activities,
     normalize_tool
 )
 
@@ -178,52 +176,6 @@ def afm_analysis_image_file(filename: str, image_type: str, name: str):
     return Response(svg, mimetype="image/svg+xml")
 
 
-@bp.get("/afm/activities")
-def afm_activities():
-    user = request.args.get("user")
-    limit = _int_arg("limit", 100)
-    activities = list_user_activities(user, limit)
-    return jsonify({
-        "success": True,
-        "data": activities,
-        "count": len(activities),
-        "message": f"Retrieved {len(activities)} AFM activities"
-    })
-
-
-@bp.get("/afm/activities/me")
-def afm_my_activities():
-    user = request.cookies.get("LASTUSER") or request.cookies.get("LAST_USER") or "anonymous"
-    activities = list_user_activities(user, 50)
-    return jsonify({
-        "success": True,
-        "user": user,
-        "data": activities,
-        "count": len(activities),
-        "message": f"Retrieved {len(activities)} AFM activities for {user}"
-    })
-
-
-@bp.get("/afm/current-user")
-def afm_current_user():
-    user = request.cookies.get("LASTUSER") or request.cookies.get("LAST_USER") or "anonymous"
-    return jsonify({
-        "success": True,
-        "user": user,
-        "message": f"Current user: {user}"
-    })
-
-
-@bp.get("/afm/analytics")
-def afm_analytics():
-    days = _int_arg("days", 7)
-    return jsonify({
-        "success": True,
-        "data": get_user_analytics(days),
-        "message": f"User analytics for the last {days} days"
-    })
-
-
 def _tool_name() -> str:
     return normalize_tool(request.args.get("tool"))
 
@@ -243,10 +195,3 @@ def _site_info() -> dict[str, str | int | None]:
         "site_y": request.args.get("site_y"),
         "point_no": parsed_point_no
     }
-
-
-def _int_arg(name: str, default: int) -> int:
-    try:
-        return int(request.args.get(name, default))
-    except (TypeError, ValueError):
-        return default

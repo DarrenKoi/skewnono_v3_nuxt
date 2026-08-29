@@ -10,10 +10,6 @@ __all__ = [
     "AfmToolRow",
     "AfmFileDetail",
     "AfmProfilePoint",
-    "AfmUserActivity",
-    "AfmDailyStat",
-    "AfmAnalyticsSummary",
-    "AfmUserAnalytics",
 ]
 
 
@@ -41,11 +37,6 @@ class AfmMeasurementRow(TypedDict):
     has_image: bool
     has_align: bool
     has_tip: bool
-    hasProfile: bool
-    hasData: bool
-    hasImage: bool
-    hasAlign: bool
-    hasTip: bool
     point_count: int
 
 
@@ -72,33 +63,3 @@ class AfmProfilePoint(TypedDict):
     x: float
     y: float
     z: float
-
-
-class AfmUserActivity(TypedDict):
-    timestamp: str
-    user: str
-    action: str
-    tool: str
-    filename: str
-    summary_count: int
-    detail_count: int
-
-
-class AfmDailyStat(TypedDict):
-    date: str
-    unique_users: int
-    total_sessions: int
-    total_actions: int
-    avg_actions_per_session: float
-
-
-class AfmAnalyticsSummary(TypedDict):
-    period_days: int
-    total_unique_users: int
-    avg_daily_users: float
-    avg_daily_sessions: float
-
-
-class AfmUserAnalytics(TypedDict):
-    daily_stats: list[AfmDailyStat]
-    summary: AfmAnalyticsSummary

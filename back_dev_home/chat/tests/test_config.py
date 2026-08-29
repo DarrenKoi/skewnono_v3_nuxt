@@ -20,7 +20,6 @@ def test_list_models_parses_env_json(monkeypatch):
         "id": "x/y",
         "label": "XY",
         "supports_tools": False,
-        "supports_vision": False,
     }]
 
 
@@ -44,7 +43,6 @@ def test_models_default_missing_capabilities_to_false(monkeypatch):
         "id": "m1",
         "label": "Model 1",
         "supports_tools": False,
-        "supports_vision": False,
     }]
 
 

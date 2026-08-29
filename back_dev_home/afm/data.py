@@ -16,8 +16,6 @@ __all__ = [
     "get_profile_image_svg",
     "list_analysis_images",
     "get_analysis_image_svg",
-    "list_user_activities",
-    "get_user_analytics",
 ]
 
 
@@ -80,14 +78,3 @@ def get_analysis_image_svg(
     tool_name: str | None = None,
 ) -> str | None:
     return _provider().get_analysis_image_svg(filename, image_type, name, tool_name)
-
-
-def list_user_activities(
-    user: str | None = None,
-    limit: int = 100,
-) -> list[dict[str, Any]]:
-    return _provider().list_user_activities(user, limit)
-
-
-def get_user_analytics(days: int = 7) -> dict[str, Any]:
-    return _provider().get_user_analytics(days)

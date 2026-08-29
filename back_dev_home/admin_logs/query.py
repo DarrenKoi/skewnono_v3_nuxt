@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from back_dev_home._core.opensearch import wildcard_clause
+from back_dev_home._core.timefmt import iso_z
 from back_dev_home._logging.policy import normalize_fab_name_list
 from back_dev_home.admin_logs.contracts import LogItem, LogQueryResponse
 
@@ -37,14 +38,6 @@ class ParsedLogQuery:
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def iso_z(value: datetime) -> str:
-    return (
-        value.astimezone(timezone.utc)
-        .isoformat(timespec="seconds")
-        .replace("+00:00", "Z")
-    )
 
 
 def parse_iso_utc(value: str) -> datetime:

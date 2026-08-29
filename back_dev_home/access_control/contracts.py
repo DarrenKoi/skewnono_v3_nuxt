@@ -10,8 +10,6 @@ __all__ = [
     "DeniedRow",
     "ExceptionListResponse",
     "DeniedListResponse",
-    "RuleInfo",
-    "AccessOverviewResponse",
 ]
 
 
@@ -29,13 +27,3 @@ class DeniedRow(TypedDict):
 # object. routes.py assembles both into the GET /api/admin/access response.
 ExceptionListResponse = list[ExceptionRow]
 DeniedListResponse = list[DeniedRow]
-
-
-class RuleInfo(TypedDict):
-    blocked_prefix: str
-
-
-class AccessOverviewResponse(TypedDict):
-    rule: RuleInfo
-    exceptions: ExceptionListResponse
-    denied: DeniedListResponse

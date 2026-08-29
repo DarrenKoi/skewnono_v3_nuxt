@@ -21,7 +21,6 @@ class ModelInfo(TypedDict):
     id: str
     label: str
     supports_tools: bool
-    supports_vision: bool
 
 
 class SourceRef(Evidence):

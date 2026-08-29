@@ -70,7 +70,6 @@ from back_dev_home.msr_file.contracts import (
     FdcParamSummary,
     MsrFileResponse,
     MsrFileRow,
-    MsrParamSummary,
     SpmDict,
 )
 # Cross-phase single sources: the FDC catalog (nominal/sigma/unit/category),
@@ -519,11 +518,6 @@ def build_response(
         # round, so the skewvoir UI could pass total_images from the row it had
         # selected and have the parent lookup silently override it, making the
         # parameter decorative office-side and load-bearing at home.
-        # The caller's value wins when it gave one, with the parent row as the
-        # fallback -- the mock's precedence. This used to be the other way
-        # round, so the skewvoir UI could pass total_images from the row it had
-        # selected and have the parent lookup silently override it, making the
-        # parameter decorative office-side and load-bearing at home.
         total_images=(
             total_images
             if total_images is not None
@@ -531,7 +525,9 @@ def build_response(
         ),
         sequence_count=sequences[-1] if sequences else 0,
         health=health,
-        parameters=_param_summaries(rows),
+        # mock._summaries is the shared stats implementation (measured-rows-only
+        # gate, sample stdev matching the frontend) — see its docstring.
+        parameters=_summaries(rows),
         fdc_params=fdc_params,
         fixed_fdc=fixed_fdc,
         dynamic_fdc=dynamic_fdc,
@@ -541,12 +537,6 @@ def build_response(
         total=len(rows),
         rows=rows,
     )
-
-
-def _param_summaries(rows: list[MsrFileRow]) -> list[MsrParamSummary]:
-    # mock._summaries is the shared stats implementation (measured-rows-only
-    # gate, sample stdev matching the frontend) — see its docstring.
-    return _summaries(rows)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────

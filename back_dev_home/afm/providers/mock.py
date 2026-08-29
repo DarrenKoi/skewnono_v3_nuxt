@@ -31,8 +31,6 @@ __all__ = [
     "get_profile_image_svg",
     "list_analysis_images",
     "get_analysis_image_svg",
-    "list_user_activities",
-    "get_user_analytics",
 ]
 
 
@@ -381,59 +379,6 @@ def get_analysis_image_svg(
 </svg>"""
 
 
-def list_user_activities(user: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-    rows = list_afm_files("MAP608")[: min(max(limit, 0), 20)]
-    now = BASE_TIME + timedelta(days=4)
-    activities: list[dict[str, Any]] = []
-
-    for index, row in enumerate(rows):
-        actor = user or f"engineer{(index % 4) + 1:02d}"
-        detail = get_afm_file_detail(row["filename"], row["tool_name"])
-        detail_count = len(detail["data"]) if detail else 0
-        activities.append({
-            "timestamp": (now - timedelta(minutes=index * 17)).isoformat().replace("+00:00", "Z"),
-            "user": actor,
-            "action": "get_detail" if index % 3 == 0 else "list_files",
-            "tool": row["tool_name"],
-            "filename": row["filename"],
-            "summary_count": row["point_count"] * len(SUMMARY_ITEMS),
-            "detail_count": detail_count
-        })
-
-    return activities
-
-
-def get_user_analytics(days: int = 7) -> dict[str, Any]:
-    clamped_days = max(1, min(days, 30))
-    daily_stats = []
-
-    for offset in range(clamped_days):
-        date = (BASE_TIME.date() - timedelta(days=clamped_days - offset - 1)).isoformat()
-        daily_stats.append({
-            "date": date,
-            "unique_users": 2 + (offset % 4),
-            "total_sessions": 4 + (offset % 5),
-            "total_actions": 18 + offset * 3,
-            "avg_actions_per_session": round((18 + offset * 3) / (4 + (offset % 5)), 1)
-        })
-
-    return {
-        "daily_stats": daily_stats,
-        "summary": {
-            "period_days": clamped_days,
-            "total_unique_users": 6,
-            "avg_daily_users": round(
-                sum(day["unique_users"] for day in daily_stats) / len(daily_stats),
-                1
-            ),
-            "avg_daily_sessions": round(
-                sum(day["total_sessions"] for day in daily_stats) / len(daily_stats),
-                1
-            )
-        }
-    }
-
-
 @lru_cache(maxsize=None)
 def _generate_measurements(tool_name: str) -> tuple[AfmMeasurementRow, ...]:
     config = TOOL_CONFIGS.get(tool_name)
@@ -499,11 +444,6 @@ def _generate_measurements(tool_name: str) -> tuple[AfmMeasurementRow, ...]:
             "has_image": has_image,
             "has_align": has_align,
             "has_tip": has_tip,
-            "hasProfile": has_profile,
-            "hasData": True,
-            "hasImage": has_image,
-            "hasAlign": has_align,
-            "hasTip": has_tip,
             "point_count": point_count
         })
 

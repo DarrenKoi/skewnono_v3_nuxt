@@ -21,8 +21,6 @@ from back_dev_home.afm.contracts import (
     AfmMeasurementRow,
     AfmProfilePoint,
     AfmToolRow,
-    AfmUserActivity,
-    AfmUserAnalytics,
 )
 
 
@@ -99,19 +97,3 @@ def test_get_profile_image_svg_returns_string():
     svg = data.get_profile_image_svg(row["filename"], point, row["tool_name"])
     assert isinstance(svg, str)
     assert svg
-
-
-def test_list_user_activities_matches_contract():
-    activities = data.list_user_activities(None, 5)
-    assert isinstance(activities, list)
-    for activity in activities:
-        assert_matches(activity, AfmUserActivity)
-    if get_data_provider("afm") == "mock":
-        # The mock derives activities from its own fabricated MAP608 listing, so
-        # they always exist; an office usage log can be empty for a user.
-        assert activities, "mock AFM activity log must not be empty"
-
-
-def test_get_user_analytics_matches_contract():
-    analytics = data.get_user_analytics(7)
-    assert_matches(analytics, AfmUserAnalytics)

@@ -40,11 +40,3 @@ def list_analysis_images(*args, **kwargs):
 
 def get_analysis_image_svg(*args, **kwargs):
     return _not_connected()
-
-
-def list_user_activities(*args, **kwargs):
-    return _not_connected()
-
-
-def get_user_analytics(*args, **kwargs):
-    return _not_connected()

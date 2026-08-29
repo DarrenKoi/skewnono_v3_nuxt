@@ -202,8 +202,7 @@ def chat_delete_feedback(message_id):
     target_error = _feedback_target_error(_uid(), message_id)
     if target_error is not None:
         return target_error
-    if data.delete_feedback(_uid(), message_id):
-        return {"data": {"id": message_id, "feedback": None}}
+    data.delete_feedback(_uid(), message_id)
     return {"data": {"id": message_id, "feedback": None}}
 
 

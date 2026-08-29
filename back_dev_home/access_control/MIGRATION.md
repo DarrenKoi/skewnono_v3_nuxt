@@ -109,15 +109,14 @@ provider to parse it.
   `data.list_denied()` + the `BLOCKED_PREFIX` constant — because the admin
   page needs all three at once and separate calls would eat into the
   50-req/5s per-user rate budget.
-- Contract: `AccessOverviewResponse` (the wire shape `routes.py` builds;
-  `contracts.py` also models the two list rows and the rule block
-  separately since the contract test checks `list_exceptions`/
-  `list_denied` directly, not the wrapped GET response) —
+- Contract: `routes.py` builds an untyped `{rule: {blocked_prefix}, exceptions,
+  denied}` dict literal — there is no `AccessOverviewResponse`/`RuleInfo`
+  TypedDict in `contracts.py`, since nothing imports one as a type. What
+  `contracts.py` DOES model, because the contract test checks
+  `list_exceptions`/`list_denied` directly rather than the wrapped GET
+  response —
 
   ```python
-  class RuleInfo(TypedDict):
-      blocked_prefix: str
-
   class ExceptionRow(TypedDict):
       user_id: str
       granted_at: str
@@ -128,11 +127,6 @@ provider to parse it.
 
   ExceptionListResponse = list[ExceptionRow]
   DeniedListResponse = list[DeniedRow]
-
-  class AccessOverviewResponse(TypedDict):
-      rule: RuleInfo
-      exceptions: ExceptionListResponse
-      denied: DeniedListResponse
   ```
 
 - Mock behavior: `list_exceptions()` returns every granted row from the

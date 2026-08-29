@@ -7,6 +7,7 @@ from datetime import datetime, time, timedelta, timezone
 from typing import Any
 
 from back_dev_home._auth.admin import is_admin
+from back_dev_home._core.timefmt import iso_z
 from back_dev_home._logging.target import resolve_logging_target
 from back_dev_home.activity.contracts import (
     DailyCount,
@@ -89,7 +90,7 @@ def _default_search_factory(alias: str) -> Any:
 
 
 def _iso_utc(value: datetime) -> str:
-    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return iso_z(value, timespec="auto")
 
 
 def _feature_rows(node: dict[str, Any]) -> list[FeatureCount]:

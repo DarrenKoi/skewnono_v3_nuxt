@@ -56,7 +56,6 @@ def list_models() -> list[dict]:
     for row in models:
         model = dict(row)
         model.setdefault("supports_tools", False)
-        model.setdefault("supports_vision", False)
         normalized.append(model)
     return normalized
 
@@ -138,11 +137,6 @@ def get_max_evidence_chars() -> int:
         max(int(os.environ.get("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", "12000")), 1),
         40000,
     )
-
-
-def get_rag_source_root() -> str | None:
-    value = os.environ.get("SKEWNONO_RAG_SOURCE_ROOT", "").strip()
-    return value or None
 
 
 def get_figures_dir() -> str | None:
