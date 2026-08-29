@@ -22,6 +22,21 @@
         <div class="mt-3 max-w-md">
           <slot name="parameter" />
         </div>
+
+        <!-- 보기 — which analyses get drawn. UNCAPPED, unlike the parameter
+             above it: this is a row of chips that has to be readable at a
+             glance, and max-w-md would wrap five of them into three lines.
+             Optional, like the trailing cell — a page with one fixed set of
+             cards has nothing to offer here. -->
+        <div
+          v-if="$slots.panels"
+          class="mt-4 border-t border-(--sk-border-soft) pt-4"
+        >
+          <slot
+            name="panels"
+            :disabled="disabled"
+          />
+        </div>
       </div>
 
       <!-- 판정 임계값(TTTM) — parameter 와 같은 단계의 선택이지만 서로 다른

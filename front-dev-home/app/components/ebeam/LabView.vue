@@ -78,7 +78,7 @@
          the matrices for it. The 그룹 badge simply does not appear until there
          is a group to be in. -->
     <EbeamPmPlanningToolPicker
-      v-if="isPm"
+      v-if="has('pm')"
       :rows="pickerRows"
       :picked="picked"
       :pending="pmPending"
@@ -105,6 +105,14 @@
            the PM targets are aimed at, so a PM 플래닝 that could not turn it was
            a page that had to caption "TTTM 페이지의 설정을 따릅니다" and then
            use the server default anyway. -->
+      <template #panels="{ disabled }">
+        <EbeamLabPanelPicker
+          :panels="panels"
+          :disabled="disabled"
+          @update:panels="onPanels"
+        />
+      </template>
+
       <template #trailing="{ disabled }">
         <EbeamTttmToleranceKnob
           v-if="payload"
@@ -196,7 +204,7 @@
         <!-- `.sk-meta` for the sentence and `.sk-value-num` for each number, per
              DESIGN.md §Colors' litmus — "value → ink; label → ink-muted". -->
         <p
-          v-if="!isPm"
+          v-if="has('verdict')"
           class="sk-meta leading-relaxed"
         >
           <span class="sk-title">이 설정에서</span> —
@@ -211,8 +219,11 @@
           </template>
         </p>
 
-        <template v-else>
-          <p class="sk-meta leading-relaxed">
+        <template v-if="has('pm')">
+          <p
+            class="sk-meta leading-relaxed"
+            :class="{ 'mt-1.5': has('verdict') }"
+          >
             <span class="sk-title">이 장비는</span> —
             <!-- No pick yet, and the sentence must still finish: the check half
                  can be answered while the gate roster this card's subject comes
@@ -244,62 +255,38 @@
         </template>
       </div>
 
-      <!-- ── 장비간 스큐 ─────────────────────────────────────────────────────
-           판정 → 지도·셀 → 행렬 → 잔차·트렌드 순으로, 근거가 위에서 아래로
-           한 번씩만 나옵니다. -->
-      <template v-if="!isPm">
-        <div class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <EbeamTttmRecommendationCard
-            :primary="primary"
-            :others="others"
-            :tools="visibleTools"
-          />
-          <EbeamTttmExcludedTools
-            :excluded="excluded"
-            :has-group="primary !== null"
-            :tools="visibleTools"
-            :deviations="visibleDeviations"
-            :action-limit="fleetActionLimit"
-            :markers="visibleMarkers"
-          />
-        </div>
+      <!-- 결과 — 켠 것만, 언제나 이 순서로. 근거가 위에서 아래로 한 번씩만
+           나오도록 짜인 순서라, 고른 순서가 아니라 이 순서로 그립니다
+           (utils/labView normalizePanels 가 정렬을 되돌립니다). -->
 
-        <div class="grid gap-3 2xl:grid-cols-2">
-          <EbeamTttmFleetMap
-            :fleet="visibleFleet"
-            :tools="visibleTools"
-            :tolerance-index="toleranceIndex"
-            :group-tools="primary?.tools"
-            :blocked-pair="blockedPair"
-            :pca="pca"
-          />
-          <EbeamTttmFleetStatus
-            :deviations="visibleFleet.consensus_deviation"
-            :tools="visibleTools"
-            :cd="fleetCd"
-          />
-        </div>
-
-        <EbeamTttmPairMatrix
-          :cells="rankedCells"
+      <!-- 그룹 판정 — 누가 그룹이고 누가 왜 빠졌는지. 두 카드가 한 묶음인 것은
+           아래 배치도의 빨간 선이 바로 제외 카드가 말로 설명하는 그 장비쌍이기
+           때문입니다. -->
+      <div
+        v-if="has('verdict')"
+        class="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_320px]"
+      >
+        <EbeamTttmRecommendationCard
+          :primary="primary"
+          :others="others"
           :tools="visibleTools"
         />
-
-        <!-- Full width: the chart is zoomable, and a zoomed span needs the
-             horizontal room a half-width card could not give it. -->
-        <EbeamTttmTrendChart
-          :trend="visibleTrend"
+        <EbeamTttmExcludedTools
+          :excluded="excluded"
+          :has-group="primary !== null"
+          :tools="visibleTools"
+          :deviations="visibleDeviations"
+          :action-limit="fleetActionLimit"
           :markers="visibleMarkers"
         />
+      </div>
 
-        <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
-      </template>
-
-      <!-- ── PM 플래닝 ───────────────────────────────────────────────────────
-           지도 → 튜닝 목표 → gate 순. Same map component as above, given the
-           picked tool so it can ring it. -->
+      <!-- 배치도 — 한 번만 그려집니다. PM 튜닝이 켜져 있으면 고른 장비를 고리로
+           표시하고 그 장비가 넘긴 쌍을 표시합니다(showsPickedTool); 아니면 제외
+           카드가 설명하는 쌍을 표시합니다. 예전에는 화면마다 지도를 따로 그려
+           두 벌의 prop 을 유지했고, 그래서 둘이 갈라질 수 있었습니다. -->
       <div
-        v-else
+        v-if="has('map')"
         class="grid gap-3 2xl:grid-cols-2"
       >
         <EbeamTttmFleetMap
@@ -308,30 +295,63 @@
           :tolerance-index="toleranceIndex"
           :group-tools="primary?.tools"
           :blocked-pair="blockedPair"
-          :picked-tool="picked"
+          :picked-tool="showsPickedTool ? picked : null"
           :halo-label="haloLabel"
           :pca="pca"
         />
-        <!-- Stacked beside the map rather than in a row of their own: the map
-             is the target's definition and the table is its reading, so they
-             belong in one glance, and the gate card is short enough that a
-             full-width row of it alone would read as an orphan. -->
-        <div class="flex min-w-0 flex-col gap-3">
-          <!-- File is pmPlanning/Targets.vue, NOT pmPlanning/TuneTargets.vue:
-               Nuxt's auto-import collapses the repeated word at the segment
-               boundary (PmPlanning + TuneTargets -> PmPlanningTargets), so the
-               longer file name would leave this tag rendering silently empty. -->
-          <EbeamPmPlanningTargets
-            :target="tuning"
-            :n="primary?.n ?? 0"
-            :tools="labelRefs"
-          />
-          <EbeamPmPlanningGateCard
-            :gate="pickedGate"
-            :eqp-id="picked"
-          />
-        </div>
+        <EbeamTttmFleetStatus
+          :deviations="visibleFleet.consensus_deviation"
+          :tools="visibleTools"
+          :cd="fleetCd"
+        />
       </div>
+
+      <EbeamTttmPairMatrix
+        v-if="has('matrix')"
+        :cells="rankedCells"
+        :tools="visibleTools"
+      />
+
+      <!-- 추세 — full width: the chart is zoomable, and a zoomed span needs the
+           horizontal room a half-width card could not give it. -->
+      <template v-if="has('trend')">
+        <EbeamTttmTrendChart
+          :trend="visibleTrend"
+          :markers="visibleMarkers"
+        />
+        <EbeamTttmMdcTimeline :history="visibleMdcHistory" />
+      </template>
+
+      <!-- PM 튜닝 — 목표와 gate. 위 튜닝할 장비 바가 이 묶음의 일부라, 이 둘만
+           켤 수는 없습니다. 나란히 두는 것은 목표가 "어디로 옮길지"이고 gate 가
+           "지금 만져도 되는지"라, 한 번에 같이 읽어야 하기 때문입니다. -->
+      <div
+        v-if="has('pm')"
+        class="grid gap-3 2xl:grid-cols-2"
+      >
+        <!-- File is pmPlanning/Targets.vue, NOT pmPlanning/TuneTargets.vue:
+             Nuxt's auto-import collapses the repeated word at the segment
+             boundary (PmPlanning + TuneTargets -> PmPlanningTargets), so the
+             longer file name would leave this tag rendering silently empty. -->
+        <EbeamPmPlanningTargets
+          :target="tuning"
+          :n="primary?.n ?? 0"
+          :tools="labelRefs"
+        />
+        <EbeamPmPlanningGateCard
+          :gate="pickedGate"
+          :eqp-id="picked"
+        />
+      </div>
+
+      <!-- 다 껐을 때. 데이터는 와 있으므로 "요청하십시오"가 아니라 "고르십시오"
+           입니다 — 빈 화면이 요청 실패로 읽히면 안 됩니다. -->
+      <AppEmptyState
+        v-if="!panels.length"
+        title="보여 줄 분석을 고르세요."
+        description="위 분석 조건의 보기에서 그릴 분석을 켜면 이미 모은 데이터로 바로 그립니다 — 다시 요청하지 않습니다."
+        icon="i-lucide-layout-grid"
+      />
     </div>
   </div>
 </template>
@@ -339,7 +359,7 @@
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { windowLabel } from '~/utils/analysisWindow'
-import { LAB_COPY, type LabViewSlug } from '~/utils/labView'
+import { LAB_COPY, type LabPanel, type LabViewSlug } from '~/utils/labView'
 import { usePmPlanningApi, type FleetResponse } from '~/composables/usePmPlanningApi'
 import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 import { admissionReport, pickDefaultTool } from '~/utils/pmAdmission'
@@ -391,8 +411,14 @@ const props = defineProps<{
   view: LabViewSlug
 }>()
 
-const isPm = computed(() => props.view === 'pm-planning')
 const copy = computed(() => LAB_COPY[props.view])
+
+// Which analyses are drawn. The route chooses the PRESET (see utils/labView);
+// from there it is the user's, remembered per route. `pm` is the one that also
+// adds a control — 튜닝할 장비 — because the two cards it draws are computed
+// from that pick and mean nothing without it.
+const { panels, has, setPanels } = useLabPanels(() => props.view)
+const onPanels = (next: LabPanel[]) => setPanels(next)
 
 // The comparison scope, its recipe catalogue and the skew payload it selects.
 //
@@ -431,7 +457,7 @@ const {
 // Fetched in BOTH views, though only PM 플래닝 draws it: the point of one page
 // is that switching tabs shows an answer rather than another button. The cost
 // that made the check manual is its per-run MinIO fan-out, which this query
-// does not have — if it ever does, gating this on `isPm` is one line.
+// does not have — if it ever does, gating this on `has('pm')` is one line.
 const { fetchPmPlanningFleet } = usePmPlanningApi()
 const { data: pmFleet, pending: pmPending, refresh: refreshPmFleet } = useAsyncData<FleetResponse | null>(
   `pm-planning:${props.fab || 'NONE'}`,
@@ -460,6 +486,15 @@ const selection = computed(() => resolveSelection(answeredTools.value, scoped.va
 
 const picked = ref<string | null>(null)
 
+// Whether the map is drawn ABOUT a tool. The PM payload is fetched either way
+// (one request feeds every panel), so `picked` is set even when nothing on
+// screen is about it — ringing a tool the reader did not ask to see, and
+// annotating the pair IT has to fix rather than the one the exclusion card
+// explains. The subject is the panel, not the route: this used to read
+// `view === 'pm-planning'`, which said the same thing only because the cards
+// and the route could not be separated.
+const showsPickedTool = computed(() => has('pm') && picked.value !== null)
+
 // The working basis: the selection, plus the picked tool when PM 플래닝 is
 // showing and the user picked one the group bar had deselected — its admission
 // question is exactly what that view exists to answer, so it must be in the
@@ -472,7 +507,7 @@ const picked = ref<string | null>(null)
 // the single picked tool whenever there is no explicit selection.
 const basis = computed(() => {
   const p = picked.value
-  if (!isPm.value || !p || !answeredTools.value.includes(p) || selection.value.includes(p)) {
+  if (!has('pm') || !p || !answeredTools.value.includes(p) || selection.value.includes(p)) {
     return selection.value
   }
   return [...selection.value, p]
@@ -692,7 +727,7 @@ const maxRequiredNm = computed(() =>
 // `skewNm` here would be a second place `PairReading`'s field names live, so a
 // rename would still compile and silently drop the annotation.
 const blockedPair = computed(() => {
-  if (isPm.value) {
+  if (showsPickedTool.value) {
     const lead = report.value?.cells[0]
     return lead?.worst && lead.worst.skewNm > lead.thresholdNm ? lead.worst : null
   }
@@ -702,7 +737,7 @@ const blockedPair = computed(() => {
 
 const haloLabel = computed(() => {
   const group = primary.value
-  if (!group || !report.value || report.value.inGroup) return undefined
+  if (!showsPickedTool.value || !group || !report.value || report.value.inGroup) return undefined
   return `N배화 그룹 · ${group.n}대 → ${group.n + 1}대 (튜닝 시)`
 })
 
@@ -733,7 +768,7 @@ const cadence = computed(() => windowLabel(payload.value?.window_weeks ?? window
 // there reads as a computed verdict rather than as "nothing computed yet".
 const metaStats = computed<MetaBarStat[]>(() => {
   if (!scopeReady.value) return []
-  if (isPm.value) {
+  if (has('pm')) {
     const holdCount = pmTools.value.filter(t => t.gate.verdict === 'hold').length
     return [
       { key: 'n', label: 'N배화', value: primary.value?.n ?? 0, tone: 'ok' },
