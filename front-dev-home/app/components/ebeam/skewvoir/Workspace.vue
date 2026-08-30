@@ -4,7 +4,6 @@
       <EbeamSkewvoirWorkspaceLeftRail
         :ws="ws"
         :analysis="analysis"
-        :fab="analysis.fab.value"
         @open-readiness="readinessOpen = true"
       />
 

@@ -116,9 +116,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const focusRow = computed<MeasHistRow | null>(() =>
     allRows.value.find(r => r.msr === focusMsr.value) ?? null
   )
-  // The focus measurement's fab (per-measurement, e.g. 'M11B') — for fab-scoped
-  // links like the recipe 열어보기 page.
-  const fab = computed<string>(() => focusRow.value?.fab_name ?? '')
 
   // --- Single measurement (Dashboard) ---
   const focusFile = ref<MsrFileResponse | null>(null)
@@ -759,7 +756,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   return {
     focusMsr,
     focusRow,
-    fab,
     focusFile,
     focusPending,
     focusError,
