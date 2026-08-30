@@ -162,10 +162,19 @@
                  time), so both sit at the 12px floor DESIGN.md sets for a
                  value; the 11px tier is for chrome that names things. Weight
                  and colour carry the hierarchy between them instead. -->
-            <span
-              class="min-w-0 truncate font-mono text-[12px] font-semibold"
-              :class="member.pressed ? '' : 'text-(--sk-ink)'"
-            >{{ member.lot }}</span>
+            <span class="flex min-w-0 items-center gap-1.5">
+              <span
+                class="min-w-0 truncate font-mono text-[12px] font-semibold"
+                :class="member.pressed ? '' : 'text-(--sk-ink)'"
+              >{{ member.lot }}</span>
+              <!-- Same chip shape the search result table gives a fab. A value,
+                   so it sits at the 12px data floor, not the 11px chrome tier. -->
+              <span
+                v-if="member.fab"
+                class="shrink-0 rounded-(--sk-r-chip) px-1.5 font-mono text-[12px]"
+                :class="member.pressed ? 'bg-(--sk-brand-fg)/20' : 'bg-(--sk-chip-bg) text-(--sk-chip-text)'"
+              >{{ member.fab }}</span>
+            </span>
             <span
               v-if="member.sub"
               class="min-w-0 truncate font-mono text-[12px]"
@@ -266,6 +275,8 @@ interface RailMember {
   msr: string
   lot: string
   sub: string
+  /** Empty unless the set actually spans fabs — see `namesFab` in `members`. */
+  fab: string
   /** Drawn as the active row. Folded in here rather than left as a bare
    *  `active` flag because every consumer wants it AND-ed with canSwitchFocus:
    *  an inert list highlights nothing, so there is no second reading. */
@@ -292,10 +303,20 @@ const members = computed<RailMember[]>(() => {
   const sel = props.ws.selection.value
   const focus = props.analysis.focusMsr.value
   const clickable = canSwitchFocus.value
+  const msrs = props.analysis.msrList.value
   const cap = sel?.capturedAt && sel.capturedAt !== '—' ? formatRecipeTimestamp(sel.capturedAt) : ''
   const urlSub = [sel?.eq, cap].filter(Boolean).join(' · ')
 
-  return props.analysis.msrList.value.map((msr) => {
+  // A set CAN span fabs — the search is fab-filterable but does not have to be,
+  // and comparing one recipe across fabs is a real reading. That matters here
+  // because the recipe is a different copy in each fab, so a cross-fab set is
+  // comparing measurements taken under settings that may genuinely differ.
+  // Named only when it actually varies: at 240px the prefix costs the sub-line
+  // its minutes, and a single-fab set has nothing to disambiguate.
+  const fabs = new Set(msrs.map(msr => rows.get(msr)?.fab_name).filter(Boolean))
+  const namesFab = fabs.size > 1
+
+  return msrs.map((msr) => {
     const row = rows.get(msr)
     const isUrlFocus = sel?.msr === msr
     return {
@@ -304,6 +325,10 @@ const members = computed<RailMember[]>(() => {
       // msrLabel already reads `eqp · time` off the row; it returns the bare
       // msr id when there is no row, which would restate the line above it.
       sub: row ? props.analysis.msrLabel(msr) : (isUrlFocus ? urlSub : ''),
+      // Beside the lot, NOT prepended to `sub`: at 240px `eqp · time` already
+      // fills that line, and a fab prefix there truncates away the very
+      // timestamp a Time-Series comparison is read by. The lot line has room.
+      fab: namesFab && row ? row.fab_name : '',
       pressed: clickable && msr === focus
     }
   })
@@ -357,10 +382,17 @@ const router = useRouter()
 // The route is fab-scoped and the analysis route is not, so the fab comes off
 // the same row. No row — meas_hist still loading, or a deep-linked msr it has
 // no row for — DISABLES the button rather than dropping the click silently.
+//
+// The fab is not decoration: the same recipe name is a DIFFERENT recipe per
+// fab (each fab's tools hold their own .idp, and the office adapter locates it
+// per fab), so the button names the copy it is about to open rather than
+// letting the reader assume there is only one.
+const focusFab = computed(() => props.analysis.focusRow.value?.fab_name ?? '')
+
 const recipeTarget = computed(() => {
   const row = props.analysis.focusRow.value
-  if (!row?.fab_name) return null
-  return recipeDetailRoute(props.ws.toolType, row.fab_name, 'open', recipeDetailId(row), 'redis', row.fab_name)
+  if (!row || !focusFab.value) return null
+  return recipeDetailRoute(props.ws.toolType, focusFab.value, 'open', recipeDetailId(row), 'redis', focusFab.value)
 })
 
 const openRecipe = () => {
@@ -422,7 +454,12 @@ const copySummary = async () => {
 // notes) is tracked in .scratch/skewvoir-annotation/ — no UI until it works.
 const actions = computed(() => [
   { label: '요약 복사', icon: 'i-lucide-clipboard-list', disabled: false, onClick: copySummary },
-  { label: 'Recipe 열어보기', icon: 'i-lucide-file-search', disabled: !recipeTarget.value, onClick: openRecipe },
+  {
+    label: focusFab.value ? `Recipe 열어보기 · ${focusFab.value}` : 'Recipe 열어보기',
+    icon: 'i-lucide-file-search',
+    disabled: !recipeTarget.value,
+    onClick: openRecipe
+  },
   { label: 'Share', icon: 'i-lucide-share-2', disabled: false, onClick: share }
 ])
 </script>
