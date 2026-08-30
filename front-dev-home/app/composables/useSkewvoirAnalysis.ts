@@ -1,6 +1,6 @@
 import type { MeasHistResponse, MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MsrFileResponse, MsrParamSummary, MsrFileRow } from '~/composables/useMsrFileApi'
-import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
+import type { SkewvoirViewKind, SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
 import { DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
 import { overviewSites, type OverviewSites } from '~/utils/overview'
@@ -393,6 +393,17 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusedSite.value = siteKey
     ws.setSite(siteKey)
   }
+  // Focus a site AND hand the reader to the view that actually draws it — the
+  // gallery's 「wafer 위치 이동」 selects a site only the 위치 비교 wafer map
+  // renders, so setting the state without the view move looks like a dead
+  // button. ONE patchQuery, not setFocusedSite() + openView(): those are two
+  // router.replace calls in the same tick, and the second rebuilds its query
+  // from the one it read at call time — which is still the pre-navigation
+  // query, so it silently drops the `site` the first just wrote.
+  const openSiteInView = (siteKey: string, view: SkewvoirViewKind) => {
+    focusedSite.value = siteKey
+    ws.patchQuery({ site: siteKey, view })
+  }
   // The site keys the current focus can address (Phase-1: die identity from
   // chip_number). When the active parameter or focus group changes and the held
   // site key is no longer among them, reset the linked site so a stale key from
@@ -777,6 +788,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     seqColorsForActiveParam,
     focusedSite,
     setFocusedSite,
+    openSiteInView,
     setFocusedMsr,
     // URL-carried X/Y param picks (Correlation single-scope explorer) and the
     // Gallery review-queue filter preset — raw passthrough of the URL params +

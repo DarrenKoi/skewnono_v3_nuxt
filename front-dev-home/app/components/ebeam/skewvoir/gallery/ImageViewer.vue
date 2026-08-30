@@ -105,9 +105,14 @@
           </button>
         </div>
 
-        <div class="flex flex-wrap gap-1">
+        <!-- Same chip rule as the grid card: the baseline 측정 순서 tag says
+             nothing the sequence row below does not, so it gets no chip. -->
+        <div
+          v-if="chips.length || entry.monitor?.low"
+          class="flex flex-wrap gap-1"
+        >
           <span
-            v-for="reason in entry.reasons"
+            v-for="reason in chips"
             :key="reason"
             class="rounded-(--sk-r-sidebar) px-1.5 py-0.5 font-mono text-xs font-semibold"
             :class="roleClass(REASON_META[reason].role)"
@@ -198,7 +203,7 @@
 <script setup lang="ts">
 import type { WaferGeometry } from '~/utils/waferGeometry'
 import { isTiffName } from '~/utils/imageKind'
-import { REASON_META, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+import { REASON_META, chipReasons, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{
   open: boolean
@@ -212,6 +217,12 @@ const props = defineProps<{
    * than derived here because this viewer takes review entries, not the
    * analysis context that knows the recipe. Null disables the memory. */
   variantKey: string | null
+  /** False while another layer sits ON TOP of this viewer (the 측정 근거 레이어
+   * drawer). Arrow/Esc are bound to `window`, so without this the viewer keeps
+   * answering keys meant for the layer above it: one Esc tore down the drawer
+   * AND the viewer together, and ← → stepped the image behind an open drawer
+   * whose contents still described the image it had left. */
+  keyboard?: boolean
 }>()
 const emit = defineEmits<{
   'close': []
@@ -223,6 +234,7 @@ const emit = defineEmits<{
 const { fetchImageWithCond, imageUrl } = useMsrImageApi()
 
 const entry = computed<ReviewEntry | null>(() => props.entries[props.index] ?? null)
+const chips = computed(() => (entry.value ? chipReasons(entry.value) : []))
 
 // One point, several sub-images on HV-SEM (-U/-T/-M/-L, 2026-08-08). The pick
 // is REMEMBERED per recipe+parameter (2026-08-11) and shared with the SEM Image
@@ -373,19 +385,28 @@ const roleClass = (role: 'bad' | 'warn' | 'muted'): string => {
   return 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'
 }
 
-// Keyboard nav — arrows step, Esc closes — only while open.
+// Keyboard nav — arrows step, Esc closes. Bound only while this viewer is the
+// TOP layer: `keyboard` goes false under the 측정 근거 레이어 drawer, so Esc
+// dismisses the drawer alone and ← → cannot step the image out from under it.
+//
+// Deliberately its OWN watcher rather than a wider source on the lifecycle
+// watch below: that one also revokes the decoded blob when it goes false, so
+// folding `keyboard` into it would blank the micrograph behind the drawer.
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') emit('close')
   else if (e.key === 'ArrowLeft') step(-1)
   else if (e.key === 'ArrowRight') step(1)
 }
+watch(() => props.open && props.keyboard !== false, (listening) => {
+  if (!import.meta.client) return
+  if (listening) window.addEventListener('keydown', onKey)
+  else window.removeEventListener('keydown', onKey)
+})
+
+// Blob lifecycle — separate concern, keyed on `open` alone.
 watch(() => props.open, (isOpen) => {
-  if (import.meta.client) {
-    if (isOpen) window.addEventListener('keydown', onKey)
-    else window.removeEventListener('keydown', onKey)
-  }
   if (isOpen) {
-    // Reopening on the same image: the key watcher below won't refire (nothing
+    // Reopening on the same image: the image-key watcher won't refire (nothing
     // changed), so the blob a previous close released has to be re-fetched.
     if (!blobUrl.value) loadImage()
     return

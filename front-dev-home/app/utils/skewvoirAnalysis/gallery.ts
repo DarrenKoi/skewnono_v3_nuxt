@@ -138,6 +138,15 @@ export const REASON_META: Record<GalleryReason, { label: string, role: 'bad' | '
   sequence: { label: '측정 순서', role: 'muted', evidence: false }
 }
 
+/** The reasons worth a visible chip. `sequence` is the baseline "here by
+ * measurement order, nothing flagged" tag, so it is carried by nearly every
+ * ordinary site — rendering it stamps 측정 순서 over most of the grid while
+ * saying nothing the caption's `seq N` does not already say. Filtering it here
+ * rather than in each view is what keeps the card and the viewer rail from
+ * drifting into two different answers about what a chip means. */
+export const chipReasons = (entry: Pick<ReviewEntry, 'reasons'>): GalleryReason[] =>
+  entry.reasons.filter(r => REASON_META[r].evidence)
+
 /** The `이상·실패 우선` toggle's state, resolved from the reviewer's explicit
  * choice and the queue itself.
  *

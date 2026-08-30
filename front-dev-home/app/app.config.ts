@@ -42,6 +42,20 @@ export default defineAppConfig({
     },
     badge: {
       slots: { base: 'rounded-[var(--sk-r-chip)]' }
+    },
+
+    // Stacking — NuxtUI v4 ships its slideover with NO z-index at all (see
+    // .nuxt/ui/slideover.ts: `fixed inset-0` and `fixed inset-y-0 right-0`),
+    // so it resolves to `z-index: auto` and loses to every z-50 surface this
+    // app puts on screen: the sticky header, and the full-screen SEM image
+    // viewer/lightbox. A drawer opened from inside the viewer therefore slid
+    // in BEHIND it, unreadable. Raised here rather than at the five call sites
+    // because it is one property of what a slideover IS, not of any one drawer.
+    slideover: {
+      slots: {
+        overlay: 'z-[60]',
+        content: 'z-[60]'
+      }
     }
   }
 })

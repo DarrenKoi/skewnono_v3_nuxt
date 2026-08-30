@@ -94,29 +94,28 @@
         <span class="sk-meta">이미지 없음</span>
       </div>
 
-      <!-- Reason chips (evidence axis). -->
-      <div class="absolute top-1 left-1 flex flex-wrap gap-0.5">
+      <!-- Reason chips (evidence axis) — flagged sites only; see chipReasons. -->
+      <div
+        v-if="chips.length"
+        class="absolute top-1 left-1 flex flex-wrap gap-0.5"
+      >
         <span
-          v-for="reason in entry.reasons"
+          v-for="reason in chips"
           :key="reason"
           class="rounded-(--sk-r-sidebar) px-1 py-0.5 font-mono text-xs font-semibold shadow-sm backdrop-blur-sm"
           :class="roleClass(REASON_META[reason].role)"
         >{{ REASON_META[reason].label }}</span>
       </div>
 
-      <!-- Vendor monitoring badge — SEPARATE axis (never a verdict). -->
-      <div class="absolute top-1 right-1 flex flex-col items-end gap-0.5">
-        <span
-          v-if="entry.monitor?.low"
-          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
-          title="취득 점수 모니터링(판정 아님)"
-        >취득↓</span>
-        <span
-          v-if="isTiff"
-          class="rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
-          title="TIFF 원본 — 미리보기는 변환본, 원본은 뷰어에서 다운로드"
-        >TIFF</span>
-      </div>
+      <!-- File-kind tag. The vendor acquisition-score badge used to sit beside it;
+           it is neither a verdict nor actionable at thumbnail size, so it now
+           lives only where it can be read next to its scores — the viewer rail
+           and the evidence drawer. -->
+      <span
+        v-if="isTiff"
+        class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"
+        title="TIFF 원본 — 미리보기는 변환본, 원본은 뷰어에서 다운로드"
+      >TIFF</span>
     </div>
 
     <!-- Caption: chip/MP, sequence, value, residual. -->
@@ -150,7 +149,7 @@
 
 <script setup lang="ts">
 import { isTiffName } from '~/utils/imageKind'
-import { REASON_META, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
+import { REASON_META, chipReasons, reviewImage, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 const props = defineProps<{
   entry: ReviewEntry
@@ -165,6 +164,8 @@ const emit = defineEmits<{ open: [], focus: [] }>()
 
 // The row's representative file, derived from `images` — see reviewImage.
 const primary = computed(() => reviewImage(props.entry))
+// Only the flagged reasons get a chip — see chipReasons.
+const chips = computed(() => chipReasons(props.entry))
 const isTiff = computed(() => isTiffName(primary.value))
 
 // Per-image load state, LOCAL to this card so a sibling's failure never

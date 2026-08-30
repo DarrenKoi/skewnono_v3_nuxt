@@ -150,6 +150,7 @@
       :class_name="focusCtx.class_name"
       :msr="focusCtx.msr"
       :variant-key="variantKey"
+      :keyboard="!drawerOpen"
       @update:index="viewerIndex = $event"
       @close="viewerOpen = false"
       @move-to-site="onMoveToSite"
@@ -303,10 +304,15 @@ const focusSite = (entry: ReviewEntry) => {
   props.analysis.setFocusedSequence(entry.sequence)
 }
 
+// 「wafer 위치 이동」 — focusedSite is drawn by the 위치 비교 wafer map, which is
+// a DIFFERENT view, and the viewer covers the whole screen. Setting the state
+// alone therefore looked like a button that did nothing: hand the reader over
+// to the view that renders it, and get the modal out of the way first.
 const onMoveToSite = (chip: string) => {
   const entry = filteredEntries.value.find(e => e.chip === chip)
-  props.analysis.setFocusedSite(chip)
   if (entry) props.analysis.setFocusedSequence(entry.sequence)
+  viewerOpen.value = false
+  props.analysis.openSiteInView(chip, 'position-stack')
 }
 
 const onEvidence = (entry: ReviewEntry) => {
