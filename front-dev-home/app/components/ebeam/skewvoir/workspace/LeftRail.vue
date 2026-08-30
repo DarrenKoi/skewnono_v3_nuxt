@@ -215,6 +215,7 @@
           class="justify-start"
           :icon="action.icon"
           :label="action.label"
+          :disabled="action.disabled"
           @click="action.onClick()"
         />
       </div>
@@ -226,11 +227,11 @@
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { copyTextToClipboard } from '~/utils/csvDownload'
-import { formatRecipeTimestamp, recipeDetailRoute } from '~/utils/recipeView'
+import { formatRecipeTimestamp, recipeDetailId, recipeDetailRoute } from '~/utils/recipeView'
 import { isSetCompatibilityKnown, rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
 
-const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis, fab: string }>()
+const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis }>()
 
 const emit = defineEmits<{ openReadiness: [] }>()
 
@@ -342,14 +343,29 @@ const deselectToFocus = () => {
 const toast = useToast()
 const router = useRouter()
 
-// Open the current measurement's recipe in the existing "Recipe 열어 보기" page,
-// in a new tab. The analysis route isn't fab-scoped, so the fab comes from the
-// focus measurement (passed in).
+// The "Recipe 열어 보기" target for the focus measurement, in the existing
+// recipe-detail page — or null when the measurement cannot address it yet.
+//
+// Every field comes off the meas_hist focus ROW, never off `selection`. The
+// selection's `recipe` is the BARE display half (`ADI_CD_BIAS_001`) — the
+// landing page actively strips the class prefix off recent entries — while the
+// detail screens are addressed by the class-qualified `full_name`. Handing over
+// the bare half is a 502 at the office AND at home, surfacing as
+// "Recipe 내용을 불러오지 못했습니다." on the page that just opened.
+// `recipeDetailId` (utils/recipeView.ts) owns that rule and its reasoning.
+//
+// The route is fab-scoped and the analysis route is not, so the fab comes off
+// the same row. No row — meas_hist still loading, or a deep-linked msr it has
+// no row for — DISABLES the button rather than dropping the click silently.
+const recipeTarget = computed(() => {
+  const row = props.analysis.focusRow.value
+  if (!row?.fab_name) return null
+  return recipeDetailRoute(props.ws.toolType, row.fab_name, 'open', recipeDetailId(row), 'redis', row.fab_name)
+})
+
 const openRecipe = () => {
-  const recipe = props.ws.selection.value?.recipe
-  if (!recipe || !props.fab) return
-  const route = recipeDetailRoute(props.ws.toolType, props.fab, 'open', recipe, 'redis', props.fab)
-  window.open(router.resolve(route).href, '_blank', 'noopener')
+  if (!recipeTarget.value) return
+  window.open(router.resolve(recipeTarget.value).href, '_blank', 'noopener')
 }
 
 // The FAILURE toast is the copy-it-yourself fallback, so it has to carry the
@@ -404,9 +420,9 @@ const copySummary = async () => {
 
 // Excel export lives on the data table, not here. Annotation (per-MSR triage
 // notes) is tracked in .scratch/skewvoir-annotation/ — no UI until it works.
-const actions = [
-  { label: '요약 복사', icon: 'i-lucide-clipboard-list', onClick: copySummary },
-  { label: 'Recipe 열어보기', icon: 'i-lucide-file-search', onClick: openRecipe },
-  { label: 'Share', icon: 'i-lucide-share-2', onClick: share }
-]
+const actions = computed(() => [
+  { label: '요약 복사', icon: 'i-lucide-clipboard-list', disabled: false, onClick: copySummary },
+  { label: 'Recipe 열어보기', icon: 'i-lucide-file-search', disabled: !recipeTarget.value, onClick: openRecipe },
+  { label: 'Share', icon: 'i-lucide-share-2', disabled: false, onClick: share }
+])
 </script>
