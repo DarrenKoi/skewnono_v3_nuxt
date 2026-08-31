@@ -8,8 +8,9 @@
          and the point of the control is that you can SEE what the page could be
          showing you. Behind a menu, a panel nobody has opened is a panel nobody
          knows exists — which is the failure mode of every "customise your
-         dashboard" control. Same reason nothing here starts unticked by
-         default: the presets in utils/labView turn cards ON. -->
+         dashboard" control. The four DEFAULT_PANELS (utils/labView) therefore
+         start ON; PM 튜닝 is the one deliberate opt-in, because ticking it is
+         what summons 튜닝할 장비 and asks for a pick. -->
     <div
       class="mt-2 flex flex-wrap gap-1.5"
       role="group"
@@ -37,7 +38,7 @@
 
     <p class="mt-2 sk-field-label leading-relaxed">
       이 화면에 그릴 분석을 고릅니다 — 데이터는 한 번만 모으므로 켜고 끄는 데
-      다시 요청하지 않습니다. 선택은 이 브라우저에 화면별로 저장됩니다.
+      다시 요청하지 않습니다. 선택은 이 브라우저에 저장됩니다.
     </p>
   </div>
 </template>
