@@ -35,9 +35,11 @@ apscheduler>=3.10
 # The co-located 사내 RAG (back_dev_home/chat/_rag) imports these IN THIS
 # PROCESS, so they are our install's problem even though no skewnono module
 # imports them any more — chat's own agent loop was removed 2026-08-31.
-# The RAG also needs faiss-cpu and rank_bm25, which are 사내-installed at the
-# office and deliberately absent here: a home venv must not carry them, and a
-# home instance never imports the RAG (there is no checkout).
 langchain>=1,<2
 langgraph>=1,<2
 langchain-openai>=1,<2
+faiss-cpu
+rank_bm25
+# langchain-openai needs openai but does not pin a 2.x floor; 2.45 is what the
+# RAG code path was checked against.
+openai>=2.45,<4
