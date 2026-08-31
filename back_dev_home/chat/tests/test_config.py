@@ -160,10 +160,10 @@ def test_blank_override_falls_through_to_the_deploy_default(monkeypatch):
 
 
 def test_figure_prefix_defaults_to_the_office_layout(monkeypatch):
-    """Office 확인 2026-08-27: {namespace}/hitachi_sem/manual_figures/{id}.webp."""
+    """RAG 측 확인 2026-08-31: {namespace}/skewnono_rag/hitachi_manuals/figures/{id}.webp."""
     monkeypatch.delenv("SKEWNONO_CHAT_FIGURE_PREFIX", raising=False)
 
-    assert config.get_figure_prefix() == "hitachi_sem/manual_figures/"
+    assert config.get_figure_prefix() == "skewnono_rag/hitachi_manuals/figures/"
 
 
 @pytest.mark.parametrize(

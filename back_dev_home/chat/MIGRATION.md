@@ -129,8 +129,24 @@ RAG 측은 자체 agent loop 를 돌리지 않습니다 — chat 의 LangChain a
 `search_manuals` 를 반복 호출하고, `_execute()` 안에 두 번째 loop 가 있으면 LLM
 호출이 곱해집니다.
 
-**배치.** RAG checkout 은 `back_dev_home/chat/_rag/` 에 둡니다(자체 `.git` 포함).
-앞머리 밑줄이 이 배치를 안전하게 만드는 전부입니다.
+**배치.** Co-location 루트는 `back_dev_home/chat/_rag/` 입니다(RAG 측 확인
+2026-08-31). `_rag/` 자체는 우리 것이고, 그 안의 `skewnono_rag/` 가 RAG 측이
+통째로 전달·교체하는 read-only 패키지입니다 — 여기서 절대 수정하지 않습니다.
+빌드된 인덱스는 패키지 **안** `skewnono_rag/index/` 에 함께 옵니다(db, vectors,
+faiss, bm25 네 파일). `_rag/.env` 는 패키지 옆에 두는 RAG **자체** env 파일로,
+common LLM gateway 키(`LLM_BASE_URL_COMMON`, `API_KEY_RPO`,
+`API_KEY_EMBEDDING`)를 담습니다 — RAG 가 project root(패키지의 부모 =
+`_rag/`)에서 python-dotenv 로 스스로 읽으므로 skewnono 의
+`back_dev_home/.env` 에는 넣지 않습니다. `skewnono_rag/` 만 교체 단위이므로
+재전달이 와도 `_rag/.env` 는 살아남습니다. 앞머리 밑줄이 이 배치를 안전하게
+만드는 전부입니다.
+
+RAG 가 office 에서 요구하는 의존성(RAG 측 확인 2026-08-31): `faiss-cpu`,
+`rank_bm25`, `numpy`, `langchain`, `langgraph`, `langchain-openai`,
+`langchain-core`, `python-dotenv`, `requests`. skewnono 의 venv 에 함께
+설치합니다(같은 프로세스 import 이므로). OFFICE-VERIFY: skewnono 는
+`numpy>=2` 를 pin 하므로 RAG 측 faiss-cpu 버전이 numpy 2 와 호환되는지
+설치 시 확인이 필요합니다.
 
 | 걸림돌 | 왜 `_rag/` 가 걸리지 않는가 |
 | --- | --- |
@@ -139,14 +155,15 @@ RAG 측은 자체 agent loop 를 돌리지 않습니다 — chat 의 LangChain a
 | Deploy pack | `_` 경로를 걷지 않는 규칙은 없지만 `back_dev_home` 통째로 복사하므로 **함께 실립니다**(의도). 대신 `.git` 은 `PRUNE_DIRS` 로 버립니다. |
 | ruff | `.gitignore` 를 따르므로 무시합니다. |
 | pytest | `.gitignore` 를 따르지 **않으므로** `pyproject.toml` 의 `--ignore=back_dev_home/chat/_rag` 가 막습니다. |
-| git | `.gitignore` 의 `back_dev_home/chat/_rag/`. 중첩 저장소는 `git -C back_dev_home/chat/_rag pull` 로 따로 갱신합니다. Submodule 은 쓰지 않습니다 — 사무실은 GitHub 에 로그인할 수 없고 RAG 저장소는 사내 전용입니다. |
+| git | `.gitignore` 의 `back_dev_home/chat/_rag/`. `skewnono_rag/` 갱신은 RAG 측 전달로 통째 교체합니다(사내 저장소라면 `git -C back_dev_home/chat/_rag/skewnono_rag pull`). Submodule 은 쓰지 않습니다 — 사무실은 GitHub 에 로그인할 수 없고 RAG 저장소는 사내 전용입니다. |
 
 `from skewnono_rag.retrieve...` 가 동작하려면 checkout 루트가 `sys.path` 에 있어야 하는데,
 Flask 는 저장소 루트에서 뜨므로 저절로 되지 않습니다. `chat/rag.py` 의
 `import_rag("retrieve.serve")` 가 유일한 import 경로입니다 — 루트를
 `SKEWNONO_CHAT_RAG_ROOT`(미설정이면 `_rag/`)에서 찾아 한 번만 `sys.path` 에 넣고,
 checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUnavailable`(503)로
-바꿉니다. 인덱스 경로는 `SKEWNONO_RAG_INDEX_DIR`(미설정이면 `{checkout}/index`)이며
+바꿉니다. 인덱스 경로는 `SKEWNONO_RAG_INDEX_DIR`(미설정이면 패키지 안
+`{root}/skewnono_rag/index`, RAG 측 확인 2026-08-31)이며
 항상 절대 경로로 넘깁니다 — RAG 의 기본값은 상대 경로 `"index"` 라 cloud 에서는
 `/project/workSpace/index` 를 찾게 됩니다.
 
@@ -260,7 +277,7 @@ search_reports(
 
 `figure_id`는 애플리케이션이 저장소 접근으로 바꾸는 유일한 값이므로 `locator`와 다른
 규칙을 따릅니다. Bucket, prefix, 경로 구분자, `.webp` 확장자를 포함하지 않는 맨 id만
-반환합니다. 키 조립(`{client prefix}/hitachi_sem/manual_figures/{figure_id}.webp`)과
+반환합니다. 키 조립(`{client prefix}/skewnono_rag/hitachi_manuals/figures/{figure_id}.webp`)과
 `^[A-Za-z0-9._-]{1,128}$` 검증은 serving 쪽이 전담하므로, 경로가 섞인 id는 오류가
 아니라 렌더되지 않는 그림이 됩니다.
 
@@ -332,25 +349,27 @@ assistant/source/trace row도 저장하지 않으며, 이미 저장된 user turn
 | 인가 | 인증된 사용자면 통과합니다. `/api/*`가 이미 신원 gate 뒤이므로 추가 확인을 하지 않습니다. |
 | `mock` 저장소 | 디스크. `{SKEWNONO_CHAT_FIGURES_DIR}/{figure_id}.webp` |
 | `office` 저장소 | MinIO. `{client prefix}/{SKEWNONO_CHAT_FIGURE_PREFIX}{figure_id}.webp` |
-| `office` 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`(보통 비움 = client 기본 `user`), `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `hitachi_sem/manual_figures/`) |
+| `office` 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`(보통 비움 = client 기본 `user`), `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `skewnono_rag/hitachi_manuals/figures/`) |
 | 검증 | 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 불일치, `..` 포함, 앞머리 점이면 `404` |
 | 응답 | `image/webp` + `Cache-Control: public, max-age=3600` |
 
-사무실의 실제 객체 키는 다음과 같습니다(office 확인 2026-08-27).
+사무실의 실제 객체 키는 다음과 같습니다(RAG 측 확인 2026-08-31; 2026-08-27 의
+`hitachi_sem/manual_figures/` 배치를 대체합니다).
 
 ```text
-user/2067928/hitachi_sem/manual_figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
+user/2067928/skewnono_rag/hitachi_manuals/figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
 ^bucket ^client prefix ^SKEWNONO_CHAT_FIGURE_PREFIX (기본값)  ^figure_id
 ```
 
 사용자 namespace `2067928/`는 MinIO client의 **자체 기본 prefix**(`minio_handler`의
 `PREFIX` / `MINIO_PREFIX`)이고, 앱은 그 아래 키만 넘깁니다 —
-`MinioObject().get("hitachi_sem/manual_figures/<id>.webp")`. 이것은 `msr_image`의
+`MinioObject().get("skewnono_rag/hitachi_manuals/figures/<id>.webp")`. 이것은 `msr_image`의
 image cache와 **반대 규약**입니다. 그쪽은 client prefix를 비우고 `2067928/image_cache/`를
 자기 prefix에 적습니다. 둘 다 동작하며 섞는 것이 함정입니다 —
 `SKEWNONO_CHAT_FIGURE_PREFIX`에 `2067928/`를 적으면 키가 `2067928/2067928/...`으로
-겹쳐 모든 그림이 404 납니다. `hitachi_sem/`은 tool family 축이므로 다른 family의 그림은
-다른 prefix로 가지, 다른 bucket으로 가지 않습니다.
+겹쳐 모든 그림이 404 납니다. Prefix 는 RAG ingestion 의 namespace(`skewnono_rag/`
++ 매뉴얼 family 구간)이므로 다른 family의 그림은 다른 prefix로 가지, 다른 bucket으로
+가지 않습니다.
 
 MinIO 오류 중 `NoSuchKey`/`NoSuchObject`/`NotFound`는 그냥 miss(404)입니다. 그 밖의
 오류(scoped credential의 `AccessDenied` 등)도 404이지만 warning 로그를 남깁니다 —
@@ -400,7 +419,8 @@ Retrieval은 `AccessScope`로 걸러지지만 이 endpoint는 걸러지지 않�
 매뉴얼의 **그림**은 `figure_id`를 아는 사용자면 그룹 밖에서도 받을 수 있습니다. 그림 자체가
 접근 제한 정보를 담는 것이 확인되면 이 결정을 다시 검토합니다.
 
-Prefix를 환경 변수로 두는 이유는 `hitachi_sem/`이 tool family 축이기 때문입니다. 사용자
+Prefix를 환경 변수로 두는 이유는 배치가 RAG ingestion 소관이라 또 옮겨질 수 있기
+때문입니다(실제로 2026-08-31 에 `hitachi_sem/manual_figures/` 에서 옮겨졌습니다). 사용자
 namespace 제한은 MinIO client의 기본 prefix가 이미 감당하므로, 이전에 적었던
 `user/2067928/figures/` 같은 전체 경로를 prefix에 넣는 안은 폐기했습니다 — 넣으면
 namespace가 두 번 붙습니다(위 표 아래 설명).

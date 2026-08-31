@@ -15,6 +15,15 @@ repo (its own ``.git`` keeps working: ``git -C back_dev_home/chat/_rag pull``).
 ``sys.path`` once and turns every failure — no checkout, a half-cloned tree,
 a missing 사내 dependency — into ``KnowledgeUnavailable`` so the caller reports
 503 instead of a 500 from a bare ``ModuleNotFoundError``.
+
+Layout inside ``_rag/`` (RAG 측 확인 2026-08-31): ``skewnono_rag/`` is the
+delivered read-only package — always replaced wholesale by the RAG side, never
+edited here — with its built index at ``skewnono_rag/index/`` (db, vectors,
+faiss, bm25). ``_rag/.env`` sits BESIDE the package and is the RAG's own env
+file (``LLM_BASE_URL_COMMON``, ``API_KEY_RPO``, ``API_KEY_EMBEDDING``): the
+RAG resolves its project root to the package's parent — this directory — and
+loads it itself via python-dotenv. Only ``skewnono_rag/`` is theirs; ``_rag/``
+itself (the ``.env``, any future siblings) is ours and survives a re-delivery.
 """
 
 from __future__ import annotations

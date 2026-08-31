@@ -162,10 +162,12 @@ def get_figure_bucket() -> str | None:
 
 
 # The office ingestion writes manual figures here, BELOW the MinIO client's
-# own namespace prefix (office 확인 2026-08-27):
-#   {client prefix}/hitachi_sem/manual_figures/{figure_id}.webp
-# ``hitachi_sem`` is a tool-family segment, not a bucket — see chat/figures.py.
-DEFAULT_FIGURE_PREFIX = "hitachi_sem/manual_figures/"
+# own namespace prefix (RAG 측 확인 2026-08-31; supersedes the 2026-08-27
+# ``hitachi_sem/manual_figures/`` layout):
+#   {client prefix}/skewnono_rag/hitachi_manuals/figures/{figure_id}.webp
+# ``skewnono_rag`` is the RAG's own namespace segment, not a bucket — see
+# chat/figures.py.
+DEFAULT_FIGURE_PREFIX = "skewnono_rag/hitachi_manuals/figures/"
 
 
 def get_figure_prefix() -> str:

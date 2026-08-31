@@ -14,20 +14,22 @@ its own: a ``figure_id`` is only meaningful against the index that minted it
 (the office ingestion writes the index and the figure objects together), so
 "office index, disk figures" is not a configuration anyone can want.
 
-Office layout (office 확인 2026-08-27)::
+Office layout (RAG 측 확인 2026-08-31; supersedes the 2026-08-27
+``hitachi_sem/manual_figures/`` layout)::
 
-    user/2067928/hitachi_sem/manual_figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
+    user/2067928/skewnono_rag/hitachi_manuals/figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
     ^bucket ^client prefix ^SKEWNONO_CHAT_FIGURE_PREFIX (default) ^figure_id
 
 The user namespace (``2067928/``) is the MinIO client's own default prefix —
 ``minio_handler``'s ``PREFIX`` / ``MINIO_PREFIX`` — and this module passes the
-key BELOW it: ``MinioObject().get("hitachi_sem/manual_figures/<id>.webp")``.
+key BELOW it: ``MinioObject().get("skewnono_rag/hitachi_manuals/figures/<id>.webp")``.
 That is the opposite of ``msr_image/minio_cache.py``, which clears the client
 prefix and spells the namespace into its own prefix. Both work; the trap is
 mixing them — spelling ``2067928/`` into ``SKEWNONO_CHAT_FIGURE_PREFIX`` here
-would double it to ``2067928/2067928/...`` and every figure 404s. The
-``hitachi_sem/`` segment is a tool-family axis, so another family's figures
-land under another prefix, never another bucket.
+would double it to ``2067928/2067928/...`` and every figure 404s. The prefix
+is the RAG ingestion's namespace (``skewnono_rag/`` + a per-manual-family
+segment), so another family's figures land under another prefix, never
+another bucket.
 
 Every failure is a miss (``None`` → 404), by design: distinguishing "bad id"
 from "not stored" from "no store configured" would make the endpoint an

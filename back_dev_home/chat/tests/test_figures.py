@@ -135,8 +135,8 @@ def test_no_figure_store_configured_is_not_found(client, monkeypatch, figures_di
 
 
 # ---------------------------------------------------------------------------
-# Office store — MinIO, selected by the knowledge provider (office 확인
-# 2026-08-27: user/2067928/hitachi_sem/manual_figures/{figure_id}.webp).
+# Office store — MinIO, selected by the knowledge provider (RAG 측 확인
+# 2026-08-31: user/2067928/skewnono_rag/hitachi_manuals/figures/{figure_id}.webp).
 # ---------------------------------------------------------------------------
 
 
@@ -181,21 +181,21 @@ def test_office_figures_come_from_minio_below_the_namespace_prefix(client, minio
     """Catches the key template drifting from the office layout.
 
     The user namespace (``2067928/``) is the MinIO client's own default prefix,
-    so the key this module hands to ``get()`` starts at ``hitachi_sem/`` —
+    so the key this module hands to ``get()`` starts at ``skewnono_rag/`` —
     spelling the namespace here too would double it and 404 every figure.
     """
-    minio.objects[f"hitachi_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"] = WEBP_BYTES
+    minio.objects[f"skewnono_rag/hitachi_manuals/figures/{OFFICE_FIGURE_ID}.webp"] = WEBP_BYTES
 
     response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
 
     assert response.status_code == 200
     assert response.mimetype == "image/webp"
     assert response.data == WEBP_BYTES
-    assert minio.gets == [f"hitachi_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"]
+    assert minio.gets == [f"skewnono_rag/hitachi_manuals/figures/{OFFICE_FIGURE_ID}.webp"]
 
 
 def test_office_figure_prefix_is_configurable_per_tool_family(client, minio, monkeypatch):
-    """Catches ``hitachi_sem/`` being hardcoded — it is a tool-family axis."""
+    """Catches the default prefix being hardcoded — the layout is RAG-owned."""
     monkeypatch.setenv("SKEWNONO_CHAT_FIGURE_PREFIX", "/other_sem/manual_figures")
     minio.objects[f"other_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"] = WEBP_BYTES
 
@@ -250,4 +250,4 @@ def test_the_office_store_ignores_the_disk_directory(client, minio, figures_dir)
     response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
 
     assert response.status_code == 404
-    assert minio.gets == [f"hitachi_sem/manual_figures/{OFFICE_FIGURE_ID}.webp"]
+    assert minio.gets == [f"skewnono_rag/hitachi_manuals/figures/{OFFICE_FIGURE_ID}.webp"]

@@ -84,8 +84,8 @@ key whose value the application later turns into storage access, so it is an
 OPAQUE TOKEN, not a key: emit the bare id, never a bucket, prefix, path
 separator or ``.webp`` suffix. The serving side (``chat/figures.py``) owns the
 whole key template — at the office
-``{client prefix}/hitachi_sem/manual_figures/{figure_id}.webp`` (office 확인
-2026-08-27) — and rejects any id outside ``^[A-Za-z0-9._-]{1,128}$`` (dots
+``{client prefix}/skewnono_rag/hitachi_manuals/figures/{figure_id}.webp``
+(RAG 측 확인 2026-08-31) — and rejects any id outside ``^[A-Za-z0-9._-]{1,128}$`` (dots
 admitted because real doc_ids carry them: ``CG6300_1.HHTSEM_SYSTEM_p100_i0``)
 before it reaches storage, so an id carrying a path is a hit that will simply
 never render. Text and table chunks emit ``None``.
@@ -140,10 +140,11 @@ _OPTIONAL_STR_KEYS = (
 def _config() -> Mapping[str, Any]:
     """Locate the RAG checkout and its index; unavailable when either is absent.
 
-    ``index_dir`` is ``SKEWNONO_RAG_INDEX_DIR`` when set, else ``index/`` under
-    the checkout — the RAG's own default is the RELATIVE ``"index"``, which
-    would resolve against Flask's cwd (``/project/workSpace/`` on the cloud),
-    so it is always passed absolute. ``timeout`` is the per-call bound every
+    ``index_dir`` is ``SKEWNONO_RAG_INDEX_DIR`` when set, else ``index/``
+    INSIDE the delivered package — ``{root}/skewnono_rag/index`` (db, vectors,
+    faiss, bm25; RAG 측 확인 2026-08-31). The RAG's own default is the
+    RELATIVE ``"index"``, which would resolve against Flask's cwd
+    (``/project/workSpace/`` on the cloud), so it is always passed absolute. ``timeout`` is the per-call bound every
     RAG function receives. Never log or return credentials (there are none:
     the RAG reads a local index).
     """
@@ -154,7 +155,7 @@ def _config() -> Mapping[str, Any]:
             "SKEWNONO_CHAT_RAG_ROOT or clone it to back_dev_home/chat/_rag."
         )
     raw = os.environ.get("SKEWNONO_RAG_INDEX_DIR", "").strip()
-    index_dir = Path(raw) if raw else root / "index"
+    index_dir = Path(raw) if raw else root / "skewnono_rag" / "index"
     if not index_dir.is_dir():
         raise KnowledgeUnavailable(
             "The chat knowledge office provider has no RAG index directory; "

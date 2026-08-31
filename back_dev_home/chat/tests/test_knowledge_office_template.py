@@ -257,8 +257,7 @@ def adapter(request):
 @pytest.fixture
 def checkout(tmp_path, monkeypatch):
     """A RAG checkout on disk plus a fake ``skewnono_rag.retrieve`` package in memory."""
-    (tmp_path / "skewnono_rag").mkdir()
-    (tmp_path / "index").mkdir()
+    (tmp_path / "skewnono_rag" / "index").mkdir(parents=True)
     monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(tmp_path))
     monkeypatch.delenv("SKEWNONO_RAG_INDEX_DIR", raising=False)
     monkeypatch.setattr(sys, "path", list(sys.path))
@@ -305,8 +304,9 @@ def test_config_requires_the_checkout(adapter, monkeypatch, tmp_path):
         adapter._config()
 
 
-def test_config_index_dir_defaults_under_the_checkout(adapter, checkout):
-    assert adapter._config()["index_dir"] == str((checkout["root"] / "index").resolve())
+def test_config_index_dir_defaults_inside_the_package(adapter, checkout):
+    expected = checkout["root"] / "skewnono_rag" / "index"
+    assert adapter._config()["index_dir"] == str(expected.resolve())
 
 
 def test_config_index_dir_env_override_must_exist(adapter, checkout, monkeypatch, tmp_path):
@@ -325,7 +325,9 @@ def test_build_request_embeds_scope_candidates_and_index_dir(adapter, checkout):
     assert request["query"] == "alarm reset"
     assert request["scope"] == _SCOPE
     assert request["limit"] == 24
-    assert request["index_dir"] == str((checkout["root"] / "index").resolve())
+    assert request["index_dir"] == str(
+        (checkout["root"] / "skewnono_rag" / "index").resolve()
+    )
 
 
 @pytest.mark.parametrize("source_type", ["meeting", "email", "report"])
