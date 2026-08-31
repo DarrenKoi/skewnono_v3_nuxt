@@ -1,6 +1,11 @@
 {
   "data": [
     {
+      "id": "GaiA-Small-Latest",
+      "label": "GaiA Small (사내)",
+      "supports_tools": false
+    },
+    {
       "id": "meta-llama/llama-3.3-70b-instruct:free",
       "label": "Llama 3.3 70B (free)",
       "supports_tools": false

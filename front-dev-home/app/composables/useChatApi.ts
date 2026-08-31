@@ -53,7 +53,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   model?: string | null
-  runtime: 'direct' | 'agent' | 'scope_rejection' | null
+  runtime: 'direct' | 'agent' | 'rag' | 'scope_rejection' | null
   scope_status: 'in_scope' | 'mixed' | 'out_of_scope' | 'unsafe' | null
   prompt_tokens?: number | null
   completion_tokens?: number | null

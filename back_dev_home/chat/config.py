@@ -8,7 +8,12 @@ from back_dev_home._runtime.env import is_cloud
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_TIMEOUT = 60.0
 MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT = 32
+# 첫 항목이 SPA 의 기본 선택입니다 (chat.vue: `models.value[0]`).
+# GaiA 는 사내 공통 gateway 모델이라 집에서는 호출되지 않습니다 — 뒤의 두 개는
+# OpenRouter 로 실제 호출이 가능한 집 검증용입니다.
 DEFAULT_MODELS = [
+    # OFFICE-VERIFY: gateway 가 받는 정확한 id 인지 사무실에서 확인해야 합니다.
+    {"id": "GaiA-Small-Latest", "label": "GaiA Small (사내)"},
     {"id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (free)"},
     {"id": "google/gemini-2.0-flash-exp:free", "label": "Gemini 2.0 Flash (free)"},
 ]
