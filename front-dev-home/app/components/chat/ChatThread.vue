@@ -28,9 +28,9 @@ watch(() => [props.messages.length, props.pending, props.errorMessage], scrollTo
 onMounted(scrollToEnd)
 
 const examples = [
-  '이 데이터를 요약해 줘',
-  '파이썬으로 CSV를 읽는 코드를 보여줘',
-  '계측 용어 SPC를 쉽게 설명해 줘'
+  'MDC에 대해서 설명해줘.',
+  'Align Fail 알람 코드를 알려줘.',
+  'elliptical circle 측정 방식에 대해서 알려줘.'
 ]
 </script>
 
