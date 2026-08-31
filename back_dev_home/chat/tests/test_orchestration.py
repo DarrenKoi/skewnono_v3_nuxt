@@ -464,3 +464,43 @@ def test_follow_up_failure_costs_the_suggestions_not_the_answer(
     assert assistant["content"] == "answer"
     assert assistant["follow_ups"] == []
     assert "follow-up" in caplog.text
+
+
+class BundledRuntime(FakeRuntime):
+    """A rag-runtime double: rewrite and follow-ups arrive inside the result."""
+
+    def __call__(self, request):
+        result = super().__call__(request)
+        result["runtime"] = "rag"
+        result["rewrite"] = "확장된 질문"
+        result["follow_ups"] = ["질문 1", "질문 2", "질문 3"]
+        return result
+
+
+def _rag_orchestrator(fake_store, runtime, fake_rag, decision):
+    return ChatOrchestrator(
+        fake_store,
+        lambda query: dict(decision),
+        runtime,
+        # No tool-capable model exists: the rag runtime must not require one.
+        lambda model_id: {"id": model_id, "supports_tools": False},
+        runtime_name_finder=lambda: "rag",
+        query_rewriter=fake_rag.rewrite,
+        follow_up_generator=fake_rag.follow_ups,
+    )
+
+
+def test_rag_runtime_keeps_bundled_rewrite_and_follow_ups(
+    fake_store, fake_rag, scope_decision
+):
+    runtime = BundledRuntime()
+    orchestrator = _rag_orchestrator(fake_store, runtime, fake_rag, scope_decision)
+
+    message = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+
+    assert message["rewrite"] == "확장된 질문"
+    assert message["follow_ups"] == ["질문 1", "질문 2", "질문 3"]
+    # The orchestrator's own knowledge calls stay out of the rag path.
+    assert fake_rag.rewrites == []
+    assert fake_rag.follow_up_calls == []
+    assert runtime.requests[0].get("rewrite") is None

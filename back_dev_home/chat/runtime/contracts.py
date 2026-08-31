@@ -31,7 +31,7 @@ class ToolTrace(TypedDict):
 
 class RuntimeResult(TypedDict):
     content: str
-    runtime: Literal["direct", "agent", "scope_rejection"]
+    runtime: Literal["direct", "agent", "rag", "scope_rejection"]
     model: str | None
     prompt_tokens: int | None
     completion_tokens: int | None

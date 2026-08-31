@@ -180,6 +180,20 @@ figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
   의 `_execute()` 와 `_rerank()` 뿐이며, 추적되는 계약(`chat_rag_contract.txt`
   의 필드, `Evidence` 12필드)은 바뀌지 않습니다.
 
+RAG answer entry point (합의 2026-08-31 — 원본은
+back_dev_home/chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md)
+- `skewnono_rag.retrieve.agent.agent_query(question, messages=, scope=,
+  timeout=) -> dict` — turn 전체(검색 반복 + 답변 생성)를 한 호출로.
+  timeout 은 turn 총예산(초), messages 는 이전 turn 만
+  [{"role","content"}] (이번 질문은 question 으로만), 반환은
+  {content, sources(Evidence 12필드 ≤5, source_type 은 RAG 가 "manual"),
+  follow_ups, rewrite(원문과 같으면 None), tool_traces,
+  prompt/completion_tokens(선택)}. full_hits 는 폐기.
+- chat 소비자: answer/providers/office_example.py (runtime=rag).
+- max_history: RAG 측 값 회신 대기, 그전까지 chat 은 20 으로 자름
+  (OFFICE-VERIFY).
+- 아래 3함수 계약은 전환기 동안 유지되고, 사무실 검증 후 폐기 예정입니다.
+
 RAG 공개 API 와 호출 방식 (office 확인 2026-08-27, 2026-08-28 RAG 측 회신 반영;
 handoff: docs/datatables/chat/chat_office_adapter_handoff.txt, 회신:
 back_dev_home/chat/docs/)

@@ -73,7 +73,12 @@ class ChatOrchestrator:
         if thread is None:
             raise ThreadNotFound("thread not found")
 
-        is_agent = self._runtime_name_finder() == "agent"
+        runtime_name = self._runtime_name_finder()
+        is_agent = runtime_name == "agent"
+        # The rag runtime answers the whole turn: rewrite and follow-ups
+        # arrive inside its result, so the orchestrator's own knowledge
+        # calls stay out of that path entirely.
+        bundles_answer = runtime_name == "rag"
         if is_agent:
             model = self._model_finder(thread["model"])
             if model is None or not model.get("supports_tools", False):
@@ -144,12 +149,16 @@ class ChatOrchestrator:
             "rewrite": rewrite,
         }
         result = self._runtime_invoker(runtime_request)
-        result["rewrite"] = rewrite
-        result["follow_ups"] = (
-            self._follow_ups(question, result["content"], result["sources"])
-            if is_agent
-            else []
-        )
+        if bundles_answer:
+            result.setdefault("rewrite", None)
+            result.setdefault("follow_ups", [])
+        else:
+            result["rewrite"] = rewrite
+            result["follow_ups"] = (
+                self._follow_ups(question, result["content"], result["sources"])
+                if is_agent
+                else []
+            )
         if decision["status"] == "mixed":
             result["content"] = f"{MIXED_SCOPE_NOTICE}\n\n{result['content']}"
         assistant = self._store.complete_turn(thread_id, request_id, result)

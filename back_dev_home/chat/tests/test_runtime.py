@@ -852,3 +852,60 @@ def test_agent_system_prompt_omits_the_retrieval_query_when_absent(scripted_manu
 
     system = scripted_manual_model.seen_messages[0][0].content
     assert "retrieval_query (application-provided" not in system
+
+
+class TestRagRuntime:
+    """SKEWNONO_CHAT_RUNTIME=rag — the whole turn from the answer seam."""
+
+    @staticmethod
+    def _request() -> dict:
+        return {
+            "request_id": "req-1",
+            "thread_id": "t-1",
+            "access_scope": {"user_id": "1234567", "groups": [], "fabs": []},
+            "model": "any-model",
+            "system_prompt": None,
+            "messages": [
+                {"role": "user", "content": "이전 질문"},
+                {"role": "assistant", "content": "이전 답"},
+                {"role": "user", "content": "현재 질문"},
+            ],
+            "scope_decision": {"status": "in_scope", "supported_query": None},
+        }
+
+    def test_splits_question_from_history_and_bundles_the_result(self, monkeypatch):
+        monkeypatch.setenv("SKEWNONO_CHAT_RUNTIME", "rag")
+        from back_dev_home.chat.answer import data as answer_data
+
+        seen = {}
+
+        def fake_answer(question, messages, scope):
+            seen["question"] = question
+            seen["messages"] = messages
+            seen["scope"] = scope
+            return {
+                "content": "답변",
+                "sources": [],
+                "follow_ups": ["질문 1", "질문 2", "질문 3"],
+                "rewrite": "확장된 질문",
+                "tool_traces": [],
+                "prompt_tokens": 11,
+                "completion_tokens": 7,
+            }
+
+        monkeypatch.setattr(answer_data, "answer_question", fake_answer)
+
+        from back_dev_home.chat.runtime import data as runtime_data
+
+        result = runtime_data.invoke(self._request())
+
+        assert seen["question"] == "현재 질문"
+        assert seen["messages"] == self._request()["messages"][:-1]
+        assert seen["scope"]["user_id"] == "1234567"
+        assert result["runtime"] == "rag"
+        assert result["content"] == "답변"
+        assert result["rewrite"] == "확장된 질문"
+        assert result["follow_ups"] == ["질문 1", "질문 2", "질문 3"]
+        assert result["prompt_tokens"] == 11
+        assert result["model"] is None
+        assert result["latency_ms"] >= 0

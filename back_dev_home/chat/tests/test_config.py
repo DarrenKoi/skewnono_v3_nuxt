@@ -182,3 +182,26 @@ def test_figure_bucket_is_unset_by_default(monkeypatch):
     monkeypatch.delenv("SKEWNONO_CHAT_FIGURE_BUCKET", raising=False)
 
     assert config.get_figure_bucket() is None
+
+
+def test_runtime_choice_accepts_rag(monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_RUNTIME", "rag")
+
+    assert config.get_runtime_name() == "rag"
+
+
+def test_answer_provider_defaults_to_mock(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_CHAT_ANSWER_PROVIDER", raising=False)
+
+    assert config.get_answer_provider_name() == "mock"
+
+
+def test_answer_history_limit_defaults_and_clamps(monkeypatch):
+    monkeypatch.delenv("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", raising=False)
+    assert config.get_answer_history_limit() == 20
+
+    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "500")
+    assert config.get_answer_history_limit() == 100
+
+    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "0")
+    assert config.get_answer_history_limit() == 1

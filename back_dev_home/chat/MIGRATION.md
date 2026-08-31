@@ -191,6 +191,23 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
 둘 다 LLM 이며 자유 문장입니다. 모양(비어 있지 않은 문자열, 서로 다른 3~5개)만
 같습니다.
 
+## Answer runtime — 합의된 경계 이동의 chat 측 절반 (2026-08-31)
+
+`SKEWNONO_CHAT_RUNTIME=rag` 는 turn 전체를 answer seam 한 번의 호출로
+받습니다. 계약 원본은 `docs/2026-08-31-chat-to-rag-answer-contract-agreed.md`
+이며, 여기 요약하지 않습니다.
+
+| 조각 | 위치 |
+| --- | --- |
+| Provider swap surface | `answer/providers/{mock,office_example}.py` + `SKEWNONO_CHAT_ANSWER_PROVIDER` |
+| Office adapter | `agent_query(question, messages, scope, timeout)` 호출 + 3종 오류 변환 + Evidence 모양 검증(5건 cap) + 바깥 hard guard(+5초) |
+| Mock answerer | knowledge mock 의 검색·rewrite·follow-ups 를 합성한 고정 템플릿 답변 |
+| History cap | dispatcher(`answer/data.py`)가 `SKEWNONO_CHAT_ANSWER_MAX_HISTORY`(기본 20)로 자름 |
+| Orchestrator | rag runtime 이면 rewrite·follow-ups 를 결과에서 그대로 보존(자체 knowledge 호출 없음), model tool 검사 없음 |
+
+구 경로(agent runtime + tools + knowledge office 어댑터)는 사무실 검증
+전까지 그대로 남습니다 — env 전환만으로 왕복할 수 있어야 합니다.
+
 ## Office knowledge provider 구현 계약
 
 `knowledge/providers/office_example.py` 는 **완성된 구현**입니다(2026-08-28). 사무실

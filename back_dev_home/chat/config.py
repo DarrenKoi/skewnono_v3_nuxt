@@ -73,7 +73,20 @@ def _choice(name: str, default: str, allowed: set[str]) -> str:
 
 
 def get_runtime_name() -> str:
-    return _choice("SKEWNONO_CHAT_RUNTIME", "direct", {"direct", "agent"})
+    return _choice("SKEWNONO_CHAT_RUNTIME", "direct", {"direct", "agent", "rag"})
+
+
+def get_answer_provider_name() -> str:
+    return _choice("SKEWNONO_CHAT_ANSWER_PROVIDER", "mock", {"mock", "office"})
+
+
+def get_answer_history_limit() -> int:
+    """Prior turns sent to the RAG's agent_query, capped before the call.
+
+    Default 20 is the agreed-contract assumption until the RAG side sends its
+    real max_history (chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md).
+    """
+    return min(max(int(os.environ.get("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "20")), 1), 100)
 
 
 def get_knowledge_provider_name() -> str:
