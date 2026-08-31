@@ -525,10 +525,6 @@ retention job을 운영해야 합니다. 다음 항목의 실제 값은 확인�
 - [ ] Flask worker 수, worker별 index memory와 client connection budget을 확인합니다.
 - [ ] 승인된 tool-capable model의 tool-call contract와 `CHAT_MODELS` capability flag를 확인합니다.
 
-`SKEWNONO_RAG_SOURCE_ROOT`는 승인된 외부 root를 가리킵니다. Runtime은 이 경로를
-scan하여 index를 build하지 않으며, offline ingestion이 만든 immutable/versioned
-artifact만 read-only로 엽니다.
-
 ## 대화 기록 인덱스 (skewnono_chat_logging)
 
 완료된 대화 turn은 활동 로그와 분리된 전용 OpenSearch 인덱스에 1건씩 기록합니다.

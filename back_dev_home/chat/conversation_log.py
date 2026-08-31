@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from typing import Any, Mapping
 
 from back_dev_home._logging.opensearch_handler import (
+    _logging_disabled,
     OpenSearchBulkHandler,
     _startup_preflight,
 )
@@ -112,14 +113,6 @@ def record_turn(
         tool_call_count=tool_call_count,
     )
     logger.info("chat turn", extra={"conversation": document})
-
-
-def _logging_disabled(values: Mapping[str, str]) -> bool:
-    return values.get("OPENSEARCH_LOGGING_DISABLED", "").lower() in {
-        "1",
-        "true",
-        "yes",
-    }
 
 
 def installed_conversation_handler() -> ChatConversationHandler | None:

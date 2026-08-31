@@ -50,6 +50,21 @@ def rag_root() -> Path | None:
     return root.resolve()
 
 
+def index_dir() -> Path | None:
+    """Built index inside the delivered package, or the env override.
+
+    ``SKEWNONO_RAG_INDEX_DIR`` when set, else ``index/`` inside the package —
+    ``{root}/skewnono_rag/index`` (db, vectors, faiss, bm25; RAG 측 확인
+    2026-08-31). None when there is no checkout to default under. This module
+    owns the checkout's internal layout; callers never spell the package name.
+    """
+    raw = os.environ.get("SKEWNONO_RAG_INDEX_DIR", "").strip()
+    if raw:
+        return Path(raw)
+    root = rag_root()
+    return None if root is None else root / _PACKAGE / "index"
+
+
 def import_rag(module: str) -> ModuleType:
     """Import ``skewnono_rag.<module>`` from the checkout; unavailable when it cannot be."""
     root = rag_root()

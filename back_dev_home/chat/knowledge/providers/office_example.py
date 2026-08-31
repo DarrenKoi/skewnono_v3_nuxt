@@ -104,8 +104,6 @@ tests against the gitignored copy when it exists; the ladder is in
 from __future__ import annotations
 
 import math
-import os
-from pathlib import Path
 from typing import Any, Mapping
 
 from back_dev_home.chat import config, rag
@@ -140,23 +138,22 @@ _OPTIONAL_STR_KEYS = (
 def _config() -> Mapping[str, Any]:
     """Locate the RAG checkout and its index; unavailable when either is absent.
 
-    ``index_dir`` is ``SKEWNONO_RAG_INDEX_DIR`` when set, else ``index/``
-    INSIDE the delivered package — ``{root}/skewnono_rag/index`` (db, vectors,
-    faiss, bm25; RAG 측 확인 2026-08-31). The RAG's own default is the
-    RELATIVE ``"index"``, which would resolve against Flask's cwd
-    (``/project/workSpace/`` on the cloud), so it is always passed absolute. ``timeout`` is the per-call bound every
-    RAG function receives. Never log or return credentials (there are none:
-    the RAG reads a local index).
+    ``index_dir`` comes from ``rag.index_dir()`` — the checkout's internal
+    layout (package name, ``index/`` inside it) is ``chat/rag.py``'s knowledge,
+    not this template's, so a package rename never leaves a stale literal in
+    the cp'd office copy. The RAG's own default is the RELATIVE ``"index"``,
+    which would resolve against Flask's cwd (``/project/workSpace/`` on the
+    cloud), so it is always passed absolute. ``timeout`` is the per-call bound
+    every RAG function receives. Never log or return credentials (there are
+    none: the RAG reads a local index).
     """
-    root = rag.rag_root()
-    if root is None:
+    if rag.rag_root() is None:
         raise KnowledgeUnavailable(
             "The chat knowledge office provider has no RAG checkout; set "
             "SKEWNONO_CHAT_RAG_ROOT or clone it to back_dev_home/chat/_rag."
         )
-    raw = os.environ.get("SKEWNONO_RAG_INDEX_DIR", "").strip()
-    index_dir = Path(raw) if raw else root / "skewnono_rag" / "index"
-    if not index_dir.is_dir():
+    index_dir = rag.index_dir()
+    if index_dir is None or not index_dir.is_dir():
         raise KnowledgeUnavailable(
             "The chat knowledge office provider has no RAG index directory; "
             "set SKEWNONO_RAG_INDEX_DIR to the built index."
