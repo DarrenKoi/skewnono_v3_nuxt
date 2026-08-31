@@ -51,8 +51,10 @@ RAG 측이 지식·검색을 전담하고, chat 측은 front 를 전담합니다
 **진행 중 안건**: 답변 전체를 RAG 의 `agent_query(question, messages,
 scope, timeout)` 하나로 옮기는 경계 변경이 **합의되었습니다**
 (`docs/2026-08-31-chat-to-rag-answer-contract-agreed.md` 가 최종 계약).
-RAG 측은 (a)~(e) 구현 후 `skewnono_rag/` 재전달, chat 측은 mock answerer +
-신규 runtime 준비. 구 경로 삭제는 사무실 검증 후입니다.
+RAG 측은 (a)~(e) 구현 후 `skewnono_rag/` 재전달. chat 측 절반은 **완료**
+(`answer/providers/` swap surface + `SKEWNONO_CHAT_RUNTIME=rag`) — 사무실
+에서 `cp answer/providers/office_example.py answer/providers/office.py` 후
+env 전환으로 검증합니다. 구 경로 삭제는 사무실 검증 후입니다.
 
 ## 계약의 원본 (여기 요약하지 않습니다)
 
