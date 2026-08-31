@@ -1,4 +1,18 @@
-"""Home chat store: SQLite. Survives restart; queryable 30-day archive."""
+"""Chat thread store: SQLite, at home and at the office alike.
+
+There is no provider seam here and no dispatcher above it — the
+2026-08-28 decision was that threads live in SQLite at the office too, so
+a ``providers/`` directory with one adapter in it was a swap surface that
+could never swap. Callers import this module directly.
+
+That absence is also why ``chat`` no longer appears in the provider boot
+table: the registry lists features by ``providers/mock.py``, and chat has
+none. Which provider ANSWERS is a different question, on a different axis
+— ``answer/data.py``, keyed on the RAG checkout — and the boot log prints
+that one as its own ``chat/answer`` row.
+
+Survives restart; queryable 30-day archive.
+"""
 
 import json
 import os
@@ -19,7 +33,7 @@ def _db_path() -> str:
     override = os.environ.get("SKEWNONO_CHAT_DB")
     if override:
         return override
-    return str(Path(__file__).resolve().parents[1] / "chat.db")
+    return str(Path(__file__).resolve().parent / "chat.db")
 
 
 def _now() -> str:

@@ -32,13 +32,19 @@ def _clean_env(monkeypatch):
 
 @pytest.fixture
 def fake_tree(tmp_path, monkeypatch):
-    """Factory: build back_dev_home/<path>/providers/<files> and aim _ROOT at it."""
+    """Factory: build back_dev_home/<path>/{routes.py,providers/<files>} and aim _ROOT at it.
+
+    Every entry gets a routes.py because every real feature has one — it is
+    the blueprint the app factory registers, and since 2026-09-01 it is also
+    what marks a directory as a feature for the sub-seam nesting guard.
+    """
     root = tmp_path / "back_dev_home"
 
     def build(spec: dict[str, list[str]]):
         for rel, filenames in spec.items():
             providers = root / rel / "providers"
             providers.mkdir(parents=True, exist_ok=True)
+            (root / rel / "routes.py").write_text("")
             for filename in filenames:
                 (providers / filename).write_text("")
         monkeypatch.setattr(office_registry, "_ROOT", root)
@@ -51,12 +57,12 @@ def fake_tree(tmp_path, monkeypatch):
 
 @pytest.fixture
 def wired(fake_tree):
-    """sem_list + storage have an office adapter; chat + tttm do not."""
+    """sem_list + storage have an office adapter; afm + tttm do not."""
     return fake_tree(
         {
             "sem_list": ["mock.py", "office.py"],
             "ebeam/storage": ["mock.py", "office.py"],
-            "chat": ["mock.py", "office_example.py"],
+            "afm": ["mock.py", "office_example.py"],
             "ebeam/tttm": ["mock.py", "office_example.py"],
         }
     )

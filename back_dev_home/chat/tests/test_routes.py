@@ -1,7 +1,7 @@
 import pytest
 from flask import Flask, g
 
-from back_dev_home.chat import data
+from back_dev_home.chat import store
 from back_dev_home.chat.routes import bp, orchestrator
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
@@ -47,7 +47,6 @@ def answerer(monkeypatch):
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "mock")
     app = Flask(__name__)
     app.register_blueprint(bp, url_prefix="/api")
 
@@ -270,9 +269,9 @@ def test_invalid_feedback_is_rejected_without_replacing_existing(
 
 
 def test_feedback_missing_or_unowned_message_is_hidden(client):
-    thread = data.create_thread("u2")
-    data.append_user_message(thread["id"], "alarm", REQUEST_ID)
-    assistant = data.complete_turn(
+    thread = store.create_thread("u2")
+    store.append_user_message(thread["id"], "alarm", REQUEST_ID)
+    assistant = store.complete_turn(
         thread["id"],
         REQUEST_ID,
         {
@@ -294,15 +293,15 @@ def test_feedback_missing_or_unowned_message_is_hidden(client):
 
 
 def test_feedback_rejects_owned_user_message_before_writing(client, monkeypatch):
-    thread = data.create_thread("u1")
-    user_message = data.append_user_message(thread["id"], "alarm", REQUEST_ID)
+    thread = store.create_thread("u1")
+    user_message = store.append_user_message(thread["id"], "alarm", REQUEST_ID)
     path = f"/api/chat/messages/{user_message['id']}/feedback"
 
     def unexpected_write(*_args, **_kwargs):
         pytest.fail("invalid feedback target must be rejected before storage mutation")
 
-    monkeypatch.setattr(data, "put_feedback", unexpected_write)
-    monkeypatch.setattr(data, "delete_feedback", unexpected_write)
+    monkeypatch.setattr(store, "put_feedback", unexpected_write)
+    monkeypatch.setattr(store, "delete_feedback", unexpected_write)
 
     assert client.put(path, json={"rating": "up", "reasons": []}).status_code == 400
     assert client.delete(path).status_code == 400

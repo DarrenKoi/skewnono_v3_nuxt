@@ -5,14 +5,12 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from back_dev_home.chat import data
-from back_dev_home.chat.providers import mock
+from back_dev_home.chat import store
 
 
 @pytest.fixture(autouse=True)
 def temp_db(tmp_path, monkeypatch):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "mock")
 
 
 def test_existing_db_gains_new_source_columns(tmp_path):
@@ -38,7 +36,7 @@ def test_existing_db_gains_new_source_columns(tmp_path):
     legacy.commit()
     legacy.close()
 
-    conn = mock._connect()
+    conn = store._connect()
     columns = {row[1] for row in conn.execute("PRAGMA table_info(message_sources)")}
     conn.close()
 
@@ -46,57 +44,57 @@ def test_existing_db_gains_new_source_columns(tmp_path):
 
 
 def test_create_and_list_thread():
-    t = data.create_thread("u1")
+    t = store.create_thread("u1")
     assert t["title"] == "New chat"
     # No model and no system prompt: both belong to the RAG.
     assert set(t) == {"id", "user_id", "title", "created_at", "updated_at"}
-    rows = data.list_threads("u1")
+    rows = store.list_threads("u1")
     assert [r["id"] for r in rows] == [t["id"]]
     assert set(rows[0]) == {"id", "title", "updated_at"}
 
 
 def test_threads_scoped_by_user():
-    data.create_thread("u1")
-    data.create_thread("u2")
-    assert len(data.list_threads("u1")) == 1
-    assert len(data.list_threads("u2")) == 1
+    store.create_thread("u1")
+    store.create_thread("u2")
+    assert len(store.list_threads("u1")) == 1
+    assert len(store.list_threads("u2")) == 1
 
 
 def test_get_thread_returns_messages_in_order():
-    t = data.create_thread("u1")
-    data.append_message(t["id"], "user", "hello")
-    data.append_message(t["id"], "assistant", "hi", meta={"latency_ms": 10, "model": "m1"})
-    detail = data.get_thread("u1", t["id"])
+    t = store.create_thread("u1")
+    store.append_message(t["id"], "user", "hello")
+    store.append_message(t["id"], "assistant", "hi", meta={"latency_ms": 10, "model": "m1"})
+    detail = store.get_thread("u1", t["id"])
     assert [m["role"] for m in detail["messages"]] == ["user", "assistant"]
     assert detail["messages"][1]["latency_ms"] == 10
 
 
 def test_get_thread_wrong_user_is_none():
-    t = data.create_thread("u1")
-    assert data.get_thread("u2", t["id"]) is None
+    t = store.create_thread("u1")
+    assert store.get_thread("u2", t["id"]) is None
 
 
 def test_rename_and_delete():
-    t = data.create_thread("u1")
-    assert data.rename_thread("u1", t["id"], "Renamed") is True
-    assert data.get_thread("u1", t["id"])["title"] == "Renamed"
-    assert data.delete_thread("u1", t["id"]) is True
-    assert data.get_thread("u1", t["id"]) is None
-    assert data.rename_thread("u1", t["id"], "x") is False
+    t = store.create_thread("u1")
+    assert store.rename_thread("u1", t["id"], "Renamed") is True
+    assert store.get_thread("u1", t["id"])["title"] == "Renamed"
+    assert store.delete_thread("u1", t["id"]) is True
+    assert store.get_thread("u1", t["id"]) is None
+    assert store.rename_thread("u1", t["id"], "x") is False
 
 
 def test_purge_expired_removes_old_threads(tmp_path, monkeypatch):
-    t_old = data.create_thread("u1")
-    t_new = data.create_thread("u1")
+    t_old = store.create_thread("u1")
+    t_new = store.create_thread("u1")
     # backdate t_old past the 30-day window
     old = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
     conn = sqlite3.connect(str(tmp_path / "chat.db"))
     conn.execute("UPDATE threads SET updated_at=? WHERE id=?", (old, t_old["id"]))
     conn.commit()
     conn.close()
-    removed = data.purge_expired(30)
+    removed = store.purge_expired(30)
     assert removed == 1
-    remaining = [r["id"] for r in data.list_threads("u1")]
+    remaining = [r["id"] for r in store.list_threads("u1")]
     assert remaining == [t_new["id"]]
 
 
@@ -127,7 +125,7 @@ def test_opening_legacy_database_adds_schema_without_losing_rows(tmp_path, monke
     )
     conn.close()
 
-    stored = data.get_thread("u1", "thread-legacy")
+    stored = store.get_thread("u1", "thread-legacy")
 
     assert stored["messages"][0]["content"] == "preserve me"
     assert stored["messages"][0]["request_id"] is None
@@ -153,20 +151,20 @@ def test_opening_legacy_database_adds_schema_without_losing_rows(tmp_path, monke
 
 def test_same_request_id_reuses_user_message(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    first = data.append_user_message(thread["id"], "same text", request_id)
-    second = data.append_user_message(thread["id"], "same text", request_id)
+    first = store.append_user_message(thread["id"], "same text", request_id)
+    second = store.append_user_message(thread["id"], "same text", request_id)
     assert second["id"] == first["id"]
 
 
 def test_same_text_with_new_request_id_creates_new_turn(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
-    first = data.append_user_message(
+    thread = store.create_thread("u1")
+    first = store.append_user_message(
         thread["id"], "same text", "64d35cd4-9e07-4be8-90a3-683f94c29408"
     )
-    second = data.append_user_message(
+    second = store.append_user_message(
         thread["id"], "same text", "a61a0778-52d8-4fb6-a430-04a24fa9454c"
     )
     assert second["id"] != first["id"]
@@ -174,10 +172,10 @@ def test_same_text_with_new_request_id_creates_new_turn(monkeypatch, tmp_path):
 
 def test_complete_turn_hydrates_sources_traces_and_feedback(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
-    assistant = data.complete_turn(
+    store.append_user_message(thread["id"], "alarm", request_id)
+    assistant = store.complete_turn(
         thread["id"],
         request_id,
         {
@@ -210,12 +208,12 @@ def test_complete_turn_hydrates_sources_traces_and_feedback(monkeypatch, tmp_pat
             }],
         },
     )
-    data.put_feedback("u1", assistant["id"], {
+    store.put_feedback("u1", assistant["id"], {
         "rating": "down",
         "reasons": ["insufficient_evidence"],
         "comment": "Need the newest revision.",
     })
-    stored = data.get_thread("u1", thread["id"])["messages"][-1]
+    stored = store.get_thread("u1", thread["id"])["messages"][-1]
     assert stored["sources"][0]["source_id"] == "manual-1"
     # Catches a source field that survives the response but not the reload:
     # complete_turn returns its input, so only a re-read proves the column
@@ -234,17 +232,17 @@ def test_complete_turn_hydrates_sources_traces_and_feedback(monkeypatch, tmp_pat
 
 def test_scope_decision_is_copied_to_assistant(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
+    store.append_user_message(thread["id"], "alarm", request_id)
     decision = {
         "status": "out_of_scope",
         "reason_code": "unsupported_domain",
         "supported_query": None,
     }
 
-    user_message = data.set_scope_decision(thread["id"], request_id, decision)
-    assistant = data.complete_turn(
+    user_message = store.set_scope_decision(thread["id"], request_id, decision)
+    assistant = store.complete_turn(
         thread["id"],
         request_id,
         {
@@ -267,9 +265,9 @@ def test_scope_decision_is_copied_to_assistant(monkeypatch, tmp_path):
 
 def test_complete_turn_is_idempotent_for_same_request(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
+    store.append_user_message(thread["id"], "alarm", request_id)
     result = {
         "content": "first answer",
         "runtime": "agent",
@@ -281,26 +279,26 @@ def test_complete_turn_is_idempotent_for_same_request(monkeypatch, tmp_path):
         "tool_traces": [],
     }
 
-    first = data.complete_turn(thread["id"], request_id, result)
-    second = data.complete_turn(
+    first = store.complete_turn(thread["id"], request_id, result)
+    second = store.complete_turn(
         thread["id"], request_id, {**result, "content": "replacement"}
     )
 
     assert second["id"] == first["id"]
     assert second["content"] == "first answer"
-    assert data.get_message_by_request(
+    assert store.get_message_by_request(
         thread["id"], request_id, "assistant"
     )["id"] == first["id"]
 
 
 def test_complete_turn_rolls_back_partial_rows(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
+    store.append_user_message(thread["id"], "alarm", request_id)
 
     with pytest.raises(sqlite3.IntegrityError):
-        data.complete_turn(
+        store.complete_turn(
             thread["id"],
             request_id,
             {
@@ -328,7 +326,7 @@ def test_complete_turn_rolls_back_partial_rows(monkeypatch, tmp_path):
             },
         )
 
-    assert data.get_message_by_request(
+    assert store.get_message_by_request(
         thread["id"], request_id, "assistant"
     ) is None
     conn = sqlite3.connect(str(tmp_path / "chat.db"))
@@ -339,10 +337,10 @@ def test_complete_turn_rolls_back_partial_rows(monkeypatch, tmp_path):
 
 def test_feedback_requires_assistant_ownership(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    user_message = data.append_user_message(thread["id"], "alarm", request_id)
-    assistant = data.complete_turn(
+    user_message = store.append_user_message(thread["id"], "alarm", request_id)
+    assistant = store.complete_turn(
         thread["id"],
         request_id,
         {
@@ -362,33 +360,33 @@ def test_feedback_requires_assistant_ownership(monkeypatch, tmp_path):
         "comment": None,
     }
 
-    assert data.put_feedback("u2", assistant["id"], feedback) is None
-    assert data.put_feedback("u1", user_message["id"], feedback) is None
-    assert data.put_feedback("u1", assistant["id"], feedback)["rating"] == "up"
-    assert data.delete_feedback("u2", assistant["id"]) is False
-    assert data.get_thread("u1", thread["id"])["messages"][-1]["feedback"] is not None
-    assert data.delete_feedback("u1", assistant["id"]) is True
-    assert data.get_thread("u1", thread["id"])["messages"][-1]["feedback"] is None
+    assert store.put_feedback("u2", assistant["id"], feedback) is None
+    assert store.put_feedback("u1", user_message["id"], feedback) is None
+    assert store.put_feedback("u1", assistant["id"], feedback)["rating"] == "up"
+    assert store.delete_feedback("u2", assistant["id"]) is False
+    assert store.get_thread("u1", thread["id"])["messages"][-1]["feedback"] is not None
+    assert store.delete_feedback("u1", assistant["id"]) is True
+    assert store.get_thread("u1", thread["id"])["messages"][-1]["feedback"] is None
 
 
 def test_get_owned_message_hides_other_users_and_preserves_role():
-    thread = data.create_thread("u1")
-    user_message = data.append_user_message(
+    thread = store.create_thread("u1")
+    user_message = store.append_user_message(
         thread["id"], "alarm", "64d35cd4-9e07-4be8-90a3-683f94c29408"
     )
 
-    assert data.get_owned_message("u1", user_message["id"])["role"] == "user"
-    assert data.get_owned_message("u2", user_message["id"]) is None
-    assert data.get_owned_message("u1", "missing") is None
+    assert store.get_owned_message("u1", user_message["id"])["role"] == "user"
+    assert store.get_owned_message("u2", user_message["id"]) is None
+    assert store.get_owned_message("u1", "missing") is None
 
 
 @pytest.mark.parametrize("cleanup", ["delete", "purge"])
 def test_thread_cleanup_removes_message_children(monkeypatch, tmp_path, cleanup):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
-    assistant = data.complete_turn(
+    store.append_user_message(thread["id"], "alarm", request_id)
+    assistant = store.complete_turn(
         thread["id"],
         request_id,
         {
@@ -421,21 +419,21 @@ def test_thread_cleanup_removes_message_children(monkeypatch, tmp_path, cleanup)
             }],
         },
     )
-    data.put_feedback("u1", assistant["id"], {
+    store.put_feedback("u1", assistant["id"], {
         "rating": "down",
         "reasons": ["wrong_source"],
         "comment": None,
     })
 
     if cleanup == "delete":
-        assert data.delete_thread("u1", thread["id"]) is True
+        assert store.delete_thread("u1", thread["id"]) is True
     else:
         old = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
         conn = sqlite3.connect(str(tmp_path / "chat.db"))
         conn.execute("UPDATE threads SET updated_at=? WHERE id=?", (old, thread["id"]))
         conn.commit()
         conn.close()
-        assert data.purge_expired(30) == 1
+        assert store.purge_expired(30) == 1
 
     conn = sqlite3.connect(str(tmp_path / "chat.db"))
     counts = [
@@ -453,10 +451,10 @@ def test_thread_cleanup_removes_message_children(monkeypatch, tmp_path, cleanup)
 
 def test_concurrent_user_replay_returns_winning_message(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
     lookups_complete = threading.Barrier(2)
-    original_lookup = mock._get_message_by_request
+    original_lookup = store._get_message_by_request
 
     def synchronized_lookup(conn, thread_id, candidate_request_id, role):
         message = original_lookup(conn, thread_id, candidate_request_id, role)
@@ -464,12 +462,12 @@ def test_concurrent_user_replay_returns_winning_message(monkeypatch, tmp_path):
             lookups_complete.wait(timeout=5)
         return message
 
-    monkeypatch.setattr(mock, "_get_message_by_request", synchronized_lookup)
+    monkeypatch.setattr(store, "_get_message_by_request", synchronized_lookup)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [
             executor.submit(
-                data.append_user_message, thread["id"], "same text", request_id
+                store.append_user_message, thread["id"], "same text", request_id
             )
             for _ in range(2)
         ]
@@ -480,11 +478,11 @@ def test_concurrent_user_replay_returns_winning_message(monkeypatch, tmp_path):
 
 def test_concurrent_assistant_replay_returns_winning_completion(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
+    store.append_user_message(thread["id"], "alarm", request_id)
     lookups_complete = threading.Barrier(2)
-    original_lookup = mock._get_message_by_request
+    original_lookup = store._get_message_by_request
 
     def synchronized_lookup(conn, thread_id, candidate_request_id, role):
         message = original_lookup(conn, thread_id, candidate_request_id, role)
@@ -492,7 +490,7 @@ def test_concurrent_assistant_replay_returns_winning_completion(monkeypatch, tmp
             lookups_complete.wait(timeout=5)
         return message
 
-    monkeypatch.setattr(mock, "_get_message_by_request", synchronized_lookup)
+    monkeypatch.setattr(store, "_get_message_by_request", synchronized_lookup)
     result = {
         "content": "answer",
         "runtime": "agent",
@@ -506,7 +504,7 @@ def test_concurrent_assistant_replay_returns_winning_completion(monkeypatch, tmp
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [
-            executor.submit(data.complete_turn, thread["id"], request_id, result)
+            executor.submit(store.complete_turn, thread["id"], request_id, result)
             for _ in range(2)
         ]
         messages = [future.result(timeout=5) for future in futures]
@@ -517,10 +515,10 @@ def test_concurrent_assistant_replay_returns_winning_completion(monkeypatch, tmp
 def test_feedback_write_cannot_outlive_owned_message(monkeypatch, tmp_path):
     db_path = tmp_path / "chat.db"
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(db_path))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
-    assistant = data.complete_turn(
+    store.append_user_message(thread["id"], "alarm", request_id)
+    assistant = store.complete_turn(
         thread["id"],
         request_id,
         {
@@ -574,17 +572,17 @@ def test_feedback_write_cannot_outlive_owned_message(monkeypatch, tmp_path):
         conn.row_factory = sqlite3.Row
         return conn
 
-    monkeypatch.setattr(mock, "_connect", coordinated_connect)
+    monkeypatch.setattr(store, "_connect", coordinated_connect)
     feedback = {"rating": "up", "reasons": [], "comment": None}
 
     with ThreadPoolExecutor(
         max_workers=1, thread_name_prefix="feedback-writer"
     ) as executor:
         future = executor.submit(
-            data.put_feedback, "u1", assistant["id"], feedback
+            store.put_feedback, "u1", assistant["id"], feedback
         )
         assert ownership_window_open.wait(timeout=5)
-        assert data.delete_thread("u1", thread["id"]) is True
+        assert store.delete_thread("u1", thread["id"]) is True
         allow_feedback_write.set()
         stored_feedback = future.result(timeout=5)
 
@@ -599,10 +597,10 @@ def test_feedback_write_cannot_outlive_owned_message(monkeypatch, tmp_path):
 
 def test_complete_turn_persists_rewrite_and_follow_ups(monkeypatch, tmp_path):
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    user = data.append_user_message(thread["id"], "alarm", request_id)
-    data.complete_turn(
+    user = store.append_user_message(thread["id"], "alarm", request_id)
+    store.complete_turn(
         thread["id"],
         request_id,
         {
@@ -619,7 +617,7 @@ def test_complete_turn_persists_rewrite_and_follow_ups(monkeypatch, tmp_path):
         },
     )
 
-    stored = data.get_thread("u1", thread["id"])["messages"]
+    stored = store.get_thread("u1", thread["id"])["messages"]
     assert stored[-1]["rewrite"] == "alarm (알람, alarm recovery)"
     assert stored[-1]["follow_ups"] == ["다음 질문", "Next question"]
     # User turns and pre-rewrite runtimes carry the neutral values.
@@ -630,11 +628,11 @@ def test_complete_turn_persists_rewrite_and_follow_ups(monkeypatch, tmp_path):
 def test_complete_turn_tolerates_a_result_without_the_new_keys(monkeypatch, tmp_path):
     """Direct-runtime results carry neither key; the store must not KeyError."""
     monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
-    thread = data.create_thread("u1")
+    thread = store.create_thread("u1")
     request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
-    data.append_user_message(thread["id"], "alarm", request_id)
+    store.append_user_message(thread["id"], "alarm", request_id)
 
-    assistant = data.complete_turn(
+    assistant = store.complete_turn(
         thread["id"],
         request_id,
         {
@@ -663,8 +661,8 @@ def test_existing_db_gains_rewrite_and_follow_up_columns(tmp_path, monkeypatch):
     legacy.commit()
     legacy.close()
 
-    thread = data.create_thread("u1")
-    message = data.append_user_message(
+    thread = store.create_thread("u1")
+    message = store.append_user_message(
         thread["id"], "alarm", "64d35cd4-9e07-4be8-90a3-683f94c29408"
     )
 

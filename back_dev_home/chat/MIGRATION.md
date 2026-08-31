@@ -55,8 +55,8 @@ Chat 에는 provider selector 가 없습니다. 사내 RAG 가 model, prompt, ga
 되돌리는 방법은 체크아웃을 치우거나 `SKEWNONO_CHAT_RAG_ROOT` 를 빈 디렉터리로
 돌리는 것입니다. 요청 도중 자동 fallback 은 없습니다.
 
-Thread 저장소는 이 축과 무관합니다 — 사무실에서도 SQLite 이며
-`SKEWNONO_CHAT_DB` 만 영속 경로로 둡니다(아래 "Thread storage 동기화").
+Thread 저장소는 이 축과 무관합니다 — 사무실에서도 SQLite(`chat/store.py`)
+이며 `SKEWNONO_CHAT_DB` 만 영속 경로로 둡니다(아래 "Thread storage 동기화").
 
 ## HTTP rollout 계약
 
@@ -292,12 +292,15 @@ SQLite 의 파일 잠금이 처리합니다. deploy pack 은 `*.db` 를 prune �
 cloud 의 thread 를 덮어쓰지 않습니다. 아래 절은 저장소를 multi-host 로 옮길
 때만 유효합니다.
 
-이 결정 때문에 thread storage 에는 `office_example.py` template 이 **없습니다**
-(2026-08-31 삭제) — 이 저장소에서 template 은 "office 에서 cp 하는 파일" 인데,
-cp 하는 순간 presence-based selector 가 저장소를 미구현 stub 으로 전환하므로
-cp 해서는 안 되는 template 은 규칙 위반이었습니다. Office thread storage 를
-언젠가 따로 쓴다면 `providers/office.py` 를 처음부터 작성해 `contracts.py`와
-mock provider의 의미를 유지합니다. 특히 다음을 보장합니다.
+이 결정 때문에 thread storage 에는 seam 자체가 **없습니다**(2026-09-01).
+`providers/` 폴더도 `data.py` dispatcher 도 지우고 구현을 `chat/store.py` 하나로
+두었습니다 — adapter 가 하나뿐인 swap surface 는 영영 swap 되지 않고, 그 자리에
+남아 있는 동안 부팅 표에 `chat  mock  no office adapter planned` 라는, 없는
+결정을 기다리는 것처럼 보이는 행을 찍습니다. 이제 `chat` 은 provider 표에
+나오지 않고(registry 는 `providers/mock.py` 로 feature 를 셉니다), 답변 축만
+`chat/answer` 행으로 남습니다. Office thread storage 를 언젠가 따로 쓴다면 그때
+`providers/{mock,office}.py` 를 만들어 seam 을 되살리고 `contracts.py` 의 의미를
+유지합니다. 특히 다음을 보장합니다.
 
 ```python
 create_thread(user_id, model, system_prompt=None)

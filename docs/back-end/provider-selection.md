@@ -88,10 +88,15 @@ python -m scripts.adapters.sync_office_adapters <feature>
 
 | 피처 | 추가 스왑 표면 |
 | --- | --- |
-| `chat` | 답변 provider (`_rag` 체크아웃 존재 여부) |
 | `msr_file`, `msr_image` | FTP / MinIO 핸들러 |
 
 해당 피처는 각자의 `MIGRATION.md`를 확인합니다.
+
+`chat`은 반대 방향의 예외입니다. 데이터 provider가 **없어서** 위 표에도, 부팅
+표에도 나오지 않습니다 — thread 저장소는 집과 사무실이 같은 SQLite
+(`chat/store.py`)이므로 `providers/` 폴더 자체를 두지 않았고, registry는
+`providers/mock.py`로 피처를 세기 때문입니다. 대신 답변 축이 `_rag` 체크아웃
+존재 여부로 스스로 해석되어 부팅 로그에 `chat/answer` 행으로 찍힙니다.
 
 ## 7. 피처 사이의 provider 의존
 

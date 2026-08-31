@@ -13,7 +13,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from back_dev_home.chat import conversation_log, data
+from back_dev_home.chat import conversation_log
+from back_dev_home.chat import store as chat_store
 from back_dev_home.chat.answer import data as answer_data
 from back_dev_home.chat.answer.contracts import AnswerResult
 from back_dev_home.chat.contracts import Message, TurnResult
@@ -41,7 +42,7 @@ class ChatOrchestrator:
 
     def __init__(
         self,
-        store: Any = data,
+        store: Any = chat_store,
         scope_classifier: Callable[[str], ScopeDecision] = scope_policy.classify,
         answerer: Callable[
             [str, list[dict], AccessScope], AnswerResult

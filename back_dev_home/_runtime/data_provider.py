@@ -25,7 +25,6 @@ from typing import Literal, NamedTuple, cast
 
 from back_dev_home._runtime.office_registry import (
     features,
-    office_planned,
     office_ready,
     repo_path,
 )
@@ -158,8 +157,6 @@ def _resolve(feature: str, mode: DataProvider | None = None) -> FeatureResolutio
         return FeatureResolution(slug, "mock", f"mode={mode}")
     if slug in office_ready():
         return FeatureResolution(slug, "office", "providers/office.py found")
-    if slug not in office_planned():
-        return FeatureResolution(slug, "mock", "no office adapter planned")
     return FeatureResolution(slug, "mock", "no providers/office.py")
 
 

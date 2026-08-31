@@ -44,7 +44,7 @@ def test_table_names_every_feature_with_provider_and_reason(
 
     assert "mode=office" in text
     assert "sem_list" in text and "providers/office.py found" in text
-    assert "chat" in text and "no providers/office.py" in text
+    assert "afm" in text and "no providers/office.py" in text
 
 
 def test_table_counts_only_the_features_actually_on_office(

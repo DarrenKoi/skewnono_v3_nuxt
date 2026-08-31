@@ -99,7 +99,7 @@ def test_office_mode_flips_only_features_with_an_adapter(monkeypatch, wired):
     assert data_provider.get_data_provider("sem_list") == "office"
     assert data_provider.get_data_provider("storage") == "office"
     # No office.py -> mock, silently. A blanket office default would 500 these.
-    assert data_provider.get_data_provider("chat") == "mock"
+    assert data_provider.get_data_provider("afm") == "mock"
     assert data_provider.get_data_provider("tttm") == "mock"
 
 
@@ -150,11 +150,11 @@ def test_office_without_an_adapter_raises_off_the_app_factory_path(
     that command dies on a bare ModuleNotFoundError from data.py instead of
     the cp command — on precisely the path the docs send people down.
     """
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_AFM_PROVIDER", "office")
     with pytest.raises(RuntimeError) as exc:
-        data_provider.get_data_provider("chat")
+        data_provider.get_data_provider("afm")
     message = str(exc.value)
-    assert "cp back_dev_home/chat/providers/office_example.py" in message
+    assert "cp back_dev_home/afm/providers/office_example.py" in message
 
 
 def test_the_two_paths_give_the_identical_message(monkeypatch, wired):
@@ -195,13 +195,13 @@ def test_a_new_office_py_only_takes_effect_after_a_restart(monkeypatch, wired):
     pick up new files must break this test first.
     """
     monkeypatch.setenv("SKEWNONO_SITE", "office")
-    assert data_provider.get_data_provider("chat") == "mock"
+    assert data_provider.get_data_provider("afm") == "mock"
 
-    (wired / "chat" / "providers" / "office.py").write_text("")
-    assert data_provider.get_data_provider("chat") == "mock"  # not until restart
+    (wired / "afm" / "providers" / "office.py").write_text("")
+    assert data_provider.get_data_provider("afm") == "mock"  # not until restart
 
     office_registry.reset_cache()  # what a restart amounts to
-    assert data_provider.get_data_provider("chat") == "office"
+    assert data_provider.get_data_provider("afm") == "office"
 
 
 # --------------------------------------------------------------- resolve_all
@@ -211,27 +211,13 @@ def test_resolve_all_reports_provider_and_reason(monkeypatch, wired):
     monkeypatch.setenv("SKEWNONO_STORAGE_PROVIDER", "mock")
     by_feature = {r.feature: r for r in data_provider.resolve_all()}
 
-    assert set(by_feature) == {"sem_list", "storage", "chat", "tttm"}
+    assert set(by_feature) == {"sem_list", "storage", "afm", "tttm"}
     assert by_feature["sem_list"].provider == "office"
     assert by_feature["sem_list"].reason == "providers/office.py found"
-    assert by_feature["chat"].provider == "mock"
-    assert by_feature["chat"].reason == "no providers/office.py"
+    assert by_feature["afm"].provider == "mock"
+    assert by_feature["afm"].reason == "no providers/office.py"
     assert by_feature["storage"].provider == "mock"
     assert "SKEWNONO_STORAGE_PROVIDER" in by_feature["storage"].reason
-
-
-def test_resolve_all_names_the_designed_state_when_no_template_exists(
-    monkeypatch, fake_tree
-):
-    """chat's thread storage: no office_example.py means mock IS the office
-    behaviour (SQLite), so the reason must not read like a missing cp."""
-    fake_tree({"chat": ["mock.py"]})
-    monkeypatch.setenv("SKEWNONO_SITE", "office")
-
-    by_feature = {r.feature: r for r in data_provider.resolve_all()}
-
-    assert by_feature["chat"].provider == "mock"
-    assert by_feature["chat"].reason == "no office adapter planned"
 
 
 def test_resolve_all_reports_mode_when_not_at_the_office(monkeypatch, wired):
@@ -245,18 +231,18 @@ def test_resolve_all_reports_mode_when_not_at_the_office(monkeypatch, wired):
 
 def test_validate_env_passes_when_config_matches_the_filesystem(monkeypatch, wired):
     monkeypatch.setenv("SKEWNONO_SEM_LIST_PROVIDER", "office")
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "mock")
+    monkeypatch.setenv("SKEWNONO_AFM_PROVIDER", "mock")
     data_provider.validate_env()  # must not raise
 
 
 def test_validate_env_refuses_office_without_an_adapter(monkeypatch, wired):
-    monkeypatch.setenv("SKEWNONO_CHAT_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_AFM_PROVIDER", "office")
     with pytest.raises(RuntimeError) as exc:
         data_provider.validate_env()
     message = str(exc.value)
-    assert "SKEWNONO_CHAT_PROVIDER" in message
-    assert "cp back_dev_home/chat/providers/office_example.py" in message
-    assert "back_dev_home/chat/providers/office.py" in message
+    assert "SKEWNONO_AFM_PROVIDER" in message
+    assert "cp back_dev_home/afm/providers/office_example.py" in message
+    assert "back_dev_home/afm/providers/office.py" in message
 
 
 def test_validate_env_flags_an_unknown_feature_as_a_typo(monkeypatch, wired):

@@ -22,7 +22,7 @@ def test_feature_slug_is_the_directory_name_at_any_depth(fake_tree):
 def test_office_ready_lists_only_features_with_an_office_adapter(fake_tree):
     fake_tree({
         "sem_list": ["mock.py", "office.py"],
-        "chat": ["mock.py"],
+        "afm": ["mock.py"],
     })
     assert set(office_registry.office_ready()) == {"sem_list"}
 
@@ -129,30 +129,20 @@ def test_real_repo_scan_is_self_consistent():
 
 
 def test_sub_seams_nested_inside_a_feature_are_not_features(fake_tree):
-    """chat/knowledge, chat/scope, chat/answer are chat's private seams.
+    """chat/answer is chat's private seam, resolved on its own axis.
 
-    Registering them would burn their directory names as global slugs and
-    print presence-based resolution rows their env-based selectors can
-    contradict.
+    Registering it would burn "answer" as a global feature slug and print a
+    presence-based resolution row that the sub-seam's real selector (the RAG
+    checkout) can contradict. This is chat's actual shape since 2026-09-01:
+    the parent has a blueprint and NO providers/ of its own, so the guard
+    cannot key on the parent's mock.py — only on its routes.py.
     """
     fake_tree(
         {
-            "chat": ["mock.py"],
-            "chat/knowledge": ["mock.py", "office_example.py", "office.py"],
-            "chat/answer": ["mock.py", "office_example.py"],
+            "chat": [],
+            "chat/answer": ["mock.py", "office.py"],
         }
     )
 
-    assert set(office_registry.features()) == {"chat"}
+    assert set(office_registry.features()) == set()
     assert set(office_registry.office_ready()) == set()
-
-
-def test_office_planned_lists_features_with_a_template(fake_tree):
-    fake_tree(
-        {
-            "sem_list": ["mock.py", "office_example.py"],
-            "chat": ["mock.py"],
-        }
-    )
-
-    assert set(office_registry.office_planned()) == {"sem_list"}

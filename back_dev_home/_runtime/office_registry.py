@@ -42,12 +42,11 @@ def _discover(filename: str) -> dict[str, Path]:
         if any(part.startswith("_") for part in relative.parts):
             continue  # mirrors the blueprint scan in __init__.py
         if _nested_inside_a_feature(feature_dir):
-            # A providers/ dir INSIDE another feature (chat/knowledge,
-            # chat/scope, chat/answer) is that feature's private sub-seam
-            # with its own selector env — registering it here would claim
-            # its directory name as a global feature slug and print a
-            # presence-based resolution row that its real env-based
-            # selector can contradict.
+            # A providers/ dir INSIDE another feature (chat/answer) is that
+            # feature's private sub-seam with its own selector — registering
+            # it here would claim its directory name as a global feature slug
+            # ("answer") and print a presence-based resolution row that the
+            # sub-seam's real selector can contradict.
             continue
         slug = feature_dir.name
         if slug in found:
@@ -62,24 +61,31 @@ def _discover(filename: str) -> dict[str, Path]:
 
 
 def _nested_inside_a_feature(feature_dir: Path) -> bool:
-    """True when a strict ancestor (below the package root) is itself a feature."""
+    """True when a strict ancestor (below the package root) is itself a feature.
+
+    Ancestry is decided by ``routes.py`` — the same marker the app factory
+    uses to register a blueprint — not by ``providers/mock.py``. A feature is
+    a thing the app serves; whether it happens to have a provider seam is a
+    separate question, and chat is the case that separates them: it serves
+    /api/chat/* with no seam of its own, while ``chat/answer`` beneath it has
+    a seam and no route.
+    """
     for ancestor in feature_dir.parents:
         if ancestor == _ROOT:
             return False
-        if (ancestor / "providers" / "mock.py").is_file():
+        if (ancestor / "routes.py").is_file():
             return True
     return False
 
 
 @lru_cache(maxsize=1)
-def _scan() -> tuple[dict[str, Path], dict[str, Path], dict[str, Path]]:
+def _scan() -> tuple[dict[str, Path], dict[str, Path]]:
     """Scan once per process. Adding an office.py requires a restart.
 
     Flask's dev reloader restarts on its own; cloud deploys restart anyway.
     """
     all_features = _discover("mock.py")
     ready = _discover("office.py")
-    planned = _discover("office_example.py")
 
     orphans = sorted(set(ready) - set(all_features))
     if orphans:
@@ -89,7 +95,7 @@ def _scan() -> tuple[dict[str, Path], dict[str, Path], dict[str, Path]]:
             f"Every feature needs a mock adapter — home development and the "
             f"contract tests both run against it."
         )
-    return all_features, ready, planned
+    return all_features, ready
 
 
 def features() -> dict[str, Path]:
@@ -100,16 +106,6 @@ def features() -> dict[str, Path]:
 def office_ready() -> dict[str, Path]:
     """Features whose providers/office.py exists on this machine."""
     return _scan()[1]
-
-
-def office_planned() -> dict[str, Path]:
-    """Features whose providers/office_example.py template is tracked.
-
-    A feature absent here has no office adapter BY DESIGN (chat's thread
-    storage: SQLite is the office store), so its mock resolution at the
-    office is the decided state, not a missing cp.
-    """
-    return _scan()[2]
 
 
 def backend_root() -> Path:

@@ -5,7 +5,7 @@ from uuid import UUID
 from flask import Blueprint, Response, g, request
 
 from back_dev_home._auth.errors import error_json
-from back_dev_home.chat import config, data, figures
+from back_dev_home.chat import config, figures, store
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,
@@ -60,7 +60,7 @@ def _feedback_input(body):
 
 
 def _feedback_target_error(user_id, message_id):
-    message = data.get_owned_message(user_id, message_id)
+    message = store.get_owned_message(user_id, message_id)
     if message is None:
         return error_json("not_found", "message not found", 404)
     if message["role"] != "assistant":
@@ -89,21 +89,21 @@ def chat_availability():
 
 @bp.get("/chat/threads")
 def chat_list_threads():
-    data.purge_expired(30)
-    return {"data": data.list_threads(_uid())}
+    store.purge_expired(30)
+    return {"data": store.list_threads(_uid())}
 
 
 @bp.post("/chat/threads")
 def chat_create_thread():
     """Open an empty thread. No body: the RAG owns the model and the prompt."""
-    thread = data.create_thread(_uid())
+    thread = store.create_thread(_uid())
     thread["messages"] = []
     return {"data": thread}, 201
 
 
 @bp.get("/chat/threads/<thread_id>")
 def chat_get_thread(thread_id):
-    thread = data.get_thread(_uid(), thread_id)
+    thread = store.get_thread(_uid(), thread_id)
     if thread is None:
         return error_json("not_found", "thread not found", 404)
     return {"data": thread}
@@ -115,14 +115,14 @@ def chat_rename_thread(thread_id):
     title = (body.get("title") or "").strip()
     if not title:
         return error_json("bad_request", "title is required", 400)
-    if not data.rename_thread(_uid(), thread_id, title):
+    if not store.rename_thread(_uid(), thread_id, title):
         return error_json("not_found", "thread not found", 404)
     return {"data": {"id": thread_id, "title": title}}
 
 
 @bp.delete("/chat/threads/<thread_id>")
 def chat_delete_thread(thread_id):
-    if not data.delete_thread(_uid(), thread_id):
+    if not store.delete_thread(_uid(), thread_id):
         return error_json("not_found", "thread not found", 404)
     return {"data": {"id": thread_id, "deleted": True}}
 
@@ -166,7 +166,7 @@ def chat_put_feedback(message_id):
     target_error = _feedback_target_error(_uid(), message_id)
     if target_error is not None:
         return target_error
-    stored = data.put_feedback(_uid(), message_id, feedback)
+    stored = store.put_feedback(_uid(), message_id, feedback)
     if stored is None:
         return error_json("not_found", "message not found", 404)
     return {"data": stored}
@@ -177,7 +177,7 @@ def chat_delete_feedback(message_id):
     target_error = _feedback_target_error(_uid(), message_id)
     if target_error is not None:
         return target_error
-    data.delete_feedback(_uid(), message_id)
+    store.delete_feedback(_uid(), message_id)
     return {"data": {"id": message_id, "feedback": None}}
 
 
