@@ -59,23 +59,6 @@
       @request="request"
     />
 
-    <!-- 튜닝할 장비 — 이 화면의 주어이고 아래 결과가 전부 이 한 대를 기준으로
-         계산되지만, 그 계산이 성립하려면 먼저 비교 대상(recipe)과 장비 모델
-         그룹이 정해져 있어야 합니다 — 어느 집합 안에서 고르는지가 정해지지
-         않은 상태의 선택은 무엇을 고르는 것인지 말할 수 없습니다.
-
-         The pm roster is its own request and does not ride on the recipe. Its
-         choices are narrowed by the model groups above, so changing a group
-         immediately updates both this list and an invalidated current pick. -->
-    <EbeamPmPlanningToolPicker
-      v-if="has('pm')"
-      :rows="pickerRows"
-      :picked="picked"
-      :pending="pmPending"
-      :awaiting="!pmFleet"
-      @update:picked="picked = $event"
-    />
-
     <!-- 분석 조건 — 비교 대상이 정해진 뒤의 선택. parameter 목록은 그 recipe 의
          측정 데이터(payload)에서 오므로, recipe 전에는 고를 것이 없습니다.
          Always mounted, disabled until the results can be computed. -->
@@ -113,6 +96,26 @@
         />
       </template>
     </EbeamAnalysisBar>
+
+    <!-- 튜닝할 장비 — 이 화면의 주어이고 아래 결과가 전부 이 한 대를 기준으로
+         계산되지만, 그 계산이 성립하려면 먼저 비교 대상(recipe)과 장비 모델
+         그룹이 정해져 있어야 합니다 — 어느 집합 안에서 고르는지가 정해지지
+         않은 상태의 선택은 무엇을 고르는 것인지 말할 수 없습니다. 그 두 바
+         다음이면서 분석 조건 바로 아래인 이 자리인 것은, 이 바를 부르는 PM 튜닝
+         칩이 그 분석 조건 안에 있기 때문입니다 — 칩을 켠 자리 바로 밑에서 바가
+         이어지는 것이 의도한 배치입니다.
+
+         The pm roster is its own request and does not ride on the recipe. Its
+         choices are narrowed by the model groups above, so changing a group
+         immediately updates both this list and an invalidated current pick. -->
+    <EbeamPmPlanningToolPicker
+      v-if="has('pm')"
+      :rows="pickerRows"
+      :picked="picked"
+      :pending="pmPending"
+      :awaiting="!pmFleet"
+      @update:picked="picked = $event"
+    />
 
     <!-- The gate is the RECIPE alone. The server does answer without one (it
          folds every measured recipe together), but that answer is a fleet-wide
@@ -326,7 +329,7 @@
         <EbeamPmPlanningTargets
           :target="tuning"
           :n="primary?.n ?? 0"
-          :tools="labelRefs"
+          :tools="visibleTools"
         />
         <EbeamPmPlanningGateCard
           :gate="pickedGate"
@@ -494,7 +497,6 @@ const basis = selection
 const visibleTools = computed(() =>
   (payload.value?.tools ?? []).filter(t => basis.value.includes(t.eqp_id))
 )
-const labelRefs = computed(() => visibleTools.value.map(t => ({ eqp_id: t.eqp_id, label: t.label })))
 
 // Pairwise data narrows exactly; consensus has to be RE-BASED on the kept
 // subset, because the server computed it against the whole fleet's median.

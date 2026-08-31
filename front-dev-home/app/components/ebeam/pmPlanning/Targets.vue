@@ -1,9 +1,26 @@
 <template>
   <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <p class="sk-title">
-        튜닝 목표 — 그룹 중심
-      </p>
+      <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <p class="sk-title">
+          튜닝 목표 — 그룹 중심
+        </p>
+        <!-- Whose numbers these are. Every row below is a distance measured FOR
+             one tool, and the card used to name it nowhere — the id lived only
+             in the picker bar and in the sibling gate card. Drawn off `target`
+             because that is the only thing here that knows the pick, and it is
+             null in exactly the empty branches whose wording already names the
+             missing piece: an id beside "장비를 선택하면…" would contradict the
+             sentence under it. Identity styling is the picker trigger's — id at
+             `sk-card-id`, model muted beside it. -->
+        <template v-if="target">
+          <span class="sk-card-id text-[16px]">{{ target.eqp_id }}</span>
+          <span
+            v-if="pickedModel"
+            class="sk-field-label"
+          >{{ pickedModel }}</span>
+        </template>
+      </div>
       <span
         v-if="target?.rows.length"
         class="sk-badge"
@@ -145,6 +162,7 @@
 // 셀별 미충족 내역은 위 요약 바가 "미충족 셀 N개 · 최대 조정 X nm" 로 계속
 // 말합니다 — admissionReport 는 그대로 살아 있습니다. 이 카드는 이제 그 판정이
 // 아니라 좌표 하나를 가리킵니다.
+import type { ToolRef } from '~/composables/useTttmApi'
 import type { TuningTarget } from '~/utils/pmTuningTarget'
 import { ACTION_LIMIT_PERCENT, formatSignedNm } from '~/utils/tttmLimits'
 import { toolLabels } from '~/utils/toolLabels'
@@ -154,10 +172,15 @@ const props = defineProps<{
   target: TuningTarget | null
   /** The primary group's size; 0 = no group exists (a null target means two things). */
   n: number
-  tools: { eqp_id: string, label: string }[]
+  tools: ToolRef[]
 }>()
 
 const labels = computed(() => toolLabels(props.tools))
+
+/** '' when the tool is not in the payload — a pick made before the request. */
+const pickedModel = computed(() =>
+  props.tools.find(t => t.eqp_id === props.target?.eqp_id)?.eqp_model_cd ?? ''
+)
 const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
 const offCount = computed(() => props.target?.rows.filter(r => !r.withinTolerance).length ?? 0)
