@@ -63,8 +63,8 @@ class FleetPayload(TypedDict):
     # How far back the monitor runs, BSM readings and PM events were gathered,
     # in weeks — echoed from `?window_weeks=` (one of
     # `_analysis_window.WINDOW_WEEKS_CHOICES`). pm-planning shares this axis with
-    # the tttm check it joins against, so the two halves of that page describe
-    # one span.
+    # the tttm check it joins against, so the two payloads behind /tttm (the PM
+    # 튜닝 panel's and the check's) describe one span.
     window_weeks: int
     beam_conditions: list[BeamCondition]
     axes: list[ScanAxis]

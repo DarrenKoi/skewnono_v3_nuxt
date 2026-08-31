@@ -116,7 +116,8 @@
 - Mock behavior: `providers/mock.py` reads the fab's CD-SEM roster
   **from sem_list** (`sem_list/providers/mock.get_sem_list()`, filtered by
   `fab_name` + `model_to_tool_type == "cd-sem"`, deduplicated by `eqp_id`,
-  sorted) — the same law tttm's mock follows, because the pm-planning page
+  sorted) — the same law tttm's mock follows, because the PM 튜닝 panel on
+  `/tttm` (the pm-planning page until 2026-09-01)
   joins this payload with `tttm/check` by `eqp_id` and a fabricated roster
   intersects that join down to zero tools. A fab with no CD-SEM rows in
   sem_list answers an **empty** `tools` list (real fab names are

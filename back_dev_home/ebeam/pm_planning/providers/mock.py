@@ -8,8 +8,10 @@ MIGRATION.md and is never imported directly except by `data.py`'s switch.
 The future office implementation should keep the same public function and
 TypedDict shape while replacing this generator with real data access.
 
-The roster comes from sem_list, not from fabricated ids: the pm-planning page
-joins this payload with tttm/check by eqp_id, and tttm's mock already
+The roster comes from sem_list, not from fabricated ids: the PM 튜닝 panel on
+/tttm (the pm-planning page until 2026-09-01, when the route was absorbed —
+this feature keeps its own folder, endpoint and logging slug) joins this
+payload with tttm/check by eqp_id, and tttm's mock already
 derives its fleet from sem_list. A previous version of this module invented
 a fixed 8-tool `{PREFIX}-{FAB}-{NN}` fleet, which intersected that join down
 to zero tools at home. Deduplicated by eqp_id because sem_list's mock rolls

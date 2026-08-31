@@ -706,7 +706,7 @@ if __name__ == "__main__":  # pragma: no cover
     #   .venv/bin/python -m back_dev_home.ebeam.pm_planning.providers.office R3
     #
     # It walks the four sources in the order the payload needs them and prints
-    # what each returned, because an empty pm-planning page looks identical
+    # what each returned, because an empty PM 튜닝 panel looks identical
     # whichever of them came back empty. The first stage printing 0 IS the bug —
     # and the two likeliest are named in the module docstring:
     # SKEWNONO_CD_MONITOR_RECIPE (stage 2) and SKEWNONO_AXIS_PARAM_MAP (stage 3).

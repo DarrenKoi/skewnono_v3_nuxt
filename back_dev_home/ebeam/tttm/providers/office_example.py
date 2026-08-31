@@ -238,8 +238,8 @@ class _CellKey(NamedTuple):
 def _fleet(tool_slug: str, fab_name: str) -> list[ToolRef]:
     """The fab's roster for this tool family — the law in sem_list/roster.py.
 
-    Same source and same filter as pm_planning's office adapter, because the
-    pm-planning page joins the two payloads BY eqp_id and a roster derived any other
+    Same source and same filter as pm_planning's office adapter, because /tttm's
+    PM 튜닝 panel joins the two payloads BY eqp_id and a roster derived any other
     way intersects that join toward zero.
     """
     tool_type = SLUG_TO_TOOL_TYPE.get(tool_slug)  # type: ignore[arg-type]
