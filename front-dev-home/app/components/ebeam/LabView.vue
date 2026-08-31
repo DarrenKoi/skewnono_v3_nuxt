@@ -692,11 +692,12 @@ const maxRequiredNm = computed(() =>
   Math.max(0, ...(report.value?.cells.map(row => row.requiredNm) ?? []))
 )
 
-// The one blocked pair the map annotates, and the two views annotate different
-// ones because they are answering different questions: 장비간 스큐 draws the
-// lead exclusion's blocker (the pair `ExcludedTools` explains in words two
-// cards up), PM 플래닝 draws the PICKED tool's worst violating pair (the one
-// the tuning card leads with). Either way it is drawn only when it actually
+// The one blocked pair the map annotates. Which pair depends on the PM 튜닝
+// chip, because the chip changes the question being asked: ON, the map is about
+// the picked tool, so it draws that tool's worst violating pair (the one the
+// tuning card leads with); OFF, it draws the lead exclusion's blocker (the pair
+// `ExcludedTools` explains in words two cards up). Either way it is drawn only
+// when it actually
 // breached the tolerance — a tool excluded merely for a MISSING measurement has
 // a blocker that passed, and a red "0.0xx nm" line through the map would assert
 // a violation the number disproves.

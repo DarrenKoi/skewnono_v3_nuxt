@@ -82,12 +82,12 @@ export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {
  * null means "not an ebeam page, so no tab at all".
  *
  * Derived from FEATURE_SLUGS rather than matched by its own if-chain. It WAS
- such a chain, inside FeatureTabs.vue, and it drifted: `/pm-planning` was
+ * such a chain, inside FeatureTabs.vue, and it drifted: `/pm-planning` was
  * never added to it, so it fell through to the `'index'` default and lit
  * 장비 상태 while the user was on a 실험실 page (fixed 2026-08-30; that route
- * has since been folded into /tttm). Any slug
- * added here in future is recognised by construction — which is the actual
- * fix, the missing branch being only the symptom.
+ * has since been folded into /tttm). Any slug added here in future is
+ * recognised by construction — which is the actual fix, the missing branch
+ * being only the symptom.
  *
  * 장비 상태 is the fallback because the fab landing page has no slug of its
  * own; `storage` joins it because 스토리지 is a SUB-TAB of 장비 상태

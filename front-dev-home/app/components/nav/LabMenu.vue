@@ -43,9 +43,9 @@ const links = computed(() => visibleHeaderLinksIn('lab', isCloud.value))
 //
 // Which tool families a row's page exists for comes from FEATURE_TOOL_TYPES —
 // the remembered tool type is kept when the page supports it (라이브 알람 on
-// both SEM boards), else the row pins the page's first family (TTTM and
-// PM-Planning are cd-sem only). One table, not a per-row `||` chain that has to be
-// extended alongside it.
+// both SEM boards), else the row pins the page's first family (TTTM, which
+// carries PM 튜닝 as a chip since 2026-09-01, is cd-sem only). One table, not a
+// per-row `||` chain that has to be extended alongside it.
 const toolTypeFor = (link: HeaderLink) => {
   const supported = link.scope ? FEATURE_TOOL_TYPES[link.scope as FeatureSlug] : undefined
   const remembered = nav.toolType.value === 'hv-sem' ? 'hv-sem' : 'cd-sem'
