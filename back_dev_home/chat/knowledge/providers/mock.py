@@ -50,12 +50,12 @@ the orchestration path and the SPA are exercised deterministically with no
 model in the loop. The office output is free text; only the shape (a
 nonempty string; 3–5 distinct strings) is copied.
 
-This mock answers all four sources unconditionally, even though the office
-provider currently exposes only ``manual`` (``get_knowledge_sources()``
-defaults to ``SKEWNONO_CHAT_KNOWLEDGE_SOURCES=manual``). That is deliberate:
-home sessions need to exercise the whole tool-assembly path
-(``available_sources()`` -> ``_build_tools()``), not just the one source the
-office side has connected so far.
+This is now a corpus, not a seam: the office side does its own retrieval
+inside the RAG, so nothing here is ever selected against it. Its one caller is
+``answer/providers/mock.py``, the home stand-in for ``agent_query`` — which is
+why the fixtures still cover all four source types even though the office
+index has only connected ``manual`` so far. The extra rows cost nothing and
+keep the SPA's source rendering exercised for the types that come next.
 """
 
 from __future__ import annotations

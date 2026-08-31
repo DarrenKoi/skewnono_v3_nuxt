@@ -28,63 +28,35 @@ SPA는 하나의 bundle이 세 phase에 모두 배포되므로 phase를 스스�
 않습니다. Availability 조회가 실패하면 안내가 아니라 정상 UI로 falls through
 합니다 — backend 장애를 "서비스 시작 안 함"으로 잘못 표시하지 않기 위해서입니다.
 
-## 현재 경계와 선택 matrix
+## 유일한 선택점 — `_rag` 가 있는가
 
-Chat에는 서로 독립적인 선택점이 있습니다. 한 선택점의 값을 다른 선택점의 준비
-상태로 간주하지 않습니다.
+Chat 에는 provider selector 가 없습니다. 사내 RAG 가 model, prompt, gateway
+키를 모두 소유하므로 chat 은 자체 LLM 호출을 하지 않고, 남은 질문은 하나뿐
+입니다 — **이 기계에 답할 수 있는 RAG 가 있는가.**
 
-| 경계 | 선택값 | 역할 | 준비되지 않았을 때의 동작 |
-| --- | --- | --- | --- |
-| LLM gateway | `CHAT_BASE_URL`, `CHAT_API_KEY`, `CHAT_MODELS` | OpenAI-compatible model endpoint와 capability를 선택합니다. | Office mode에서 public gateway는 egress guard가 차단합니다. |
-| Runtime | `SKEWNONO_CHAT_RUNTIME=direct` | Retrieval tool 없이 기존 대화 경로를 실행합니다. | Knowledge provider를 호출하지 않습니다. |
-| Runtime | `SKEWNONO_CHAT_RUNTIME=agent` | 네 read-only retrieval tool을 제한된 횟수로 실행합니다. | `supports_tools=false` model은 user turn 저장 전에 `400`으로 거절합니다. |
-| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=mock` | Synthetic fixture를 결정적으로 검색합니다. | Office source나 network가 필요하지 않습니다. |
-| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office` | 사내 read-only index를 검색합니다. | Adapter 또는 설정이 없으면 `503`이며 mock으로 전환하지 않습니다. |
-| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_SOURCES`(기본 `manual`) | Office provider가 실제로 답할 수 있는 source 집합을 고릅니다(`manual`/`meeting`/`email`/`report`의 comma-separated subset). | `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office`일 때만 boot에서 함께 검증하며, 알 수 없는 값이나 빈 값은 `RuntimeError`로 startup을 중단합니다. `mock`일 때는 검증하지 않습니다(lazy). 준비되지 않은 source는 tool로도 노출되지 않습니다. |
-| Figures | `SKEWNONO_CHAT_FIGURES_DIR` / `SKEWNONO_CHAT_FIGURE_BUCKET` / `SKEWNONO_CHAT_FIGURE_PREFIX` | 그림 저장소는 knowledge provider 를 따라갑니다 — `mock`이면 디스크, `office`면 MinIO. 별도 selector 는 없습니다. | 미설정·미저장·형식 불일치 모두 `404`입니다(아래 "Figure serving" 절). |
-| Knowledge | `SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES`(기본 `24`) | Office retrieval이 rerank 전에 가져오는 후보 수입니다(5~50으로 clamp). | Application이 소유하는 상한이며 adapter가 자기 입력을 넓힐 수 없습니다. |
-| Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=mock` | 제한된 deterministic classifier를 사용합니다. | Office dependency가 필요하지 않습니다. |
-| Scope | `SKEWNONO_CHAT_SCOPE_PROVIDER=office` | 승인된 사내 scope classifier를 사용합니다. | Adapter가 없으면 `503`이며 mock으로 전환하지 않습니다. |
-| Thread storage | `SKEWNONO_CHAT_PROVIDER=mock` | SQLite에 thread, turn, source, trace, feedback을 저장합니다. | 기본 보존 기간은 30일입니다. |
-| Thread storage | `SKEWNONO_CHAT_PROVIDER=office` | 쓰지 않습니다 — 사무실도 SQLite 입니다(2026-08-28 결정, 아래 "Thread storage 동기화"). | `providers/office.py`가 없으면 명시적 office 선택은 boot 단계에서 실패합니다. Stub copy는 호출 시 실패합니다. |
-| Thread storage | `SKEWNONO_CHAT_DB` | SQLite 파일 경로입니다. 미설정이면 `back_dev_home/chat/chat.db`. | cloud 에서는 deploy overlay 바깥의 절대 경로로 둡니다 — 기본 경로는 overlay 되는 트리 안입니다. |
+| 판정 | 조건 | 결과 |
+| --- | --- | --- |
+| office | `{root}/skewnono_rag/retrieve/agent.py` 가 있고 `{root}/skewnono_rag/index/` 가 비어 있지 않음 | `answer/providers/rag.py` 가 `agent_query` 로 답합니다. Figure 도 MinIO 에서 읽습니다. |
+| mock | 그 밖의 모든 경우 | `answer/providers/mock.py` 가 fixture 로 답합니다. Figure 는 디스크에서 읽습니다. |
 
-권장 전환 순서는 `direct/mock/mock` baseline, `agent/mock/mock` synthetic RAG,
-`agent/office/mock` knowledge integration, `agent/office/office` scope integration
-순서입니다. Thread storage는 RAG 전환과 독립적으로 검증합니다. 장애 시 runtime 또는
-provider 값을 명시적으로 되돌리며, 요청 중 자동 fallback은 구현하지 않습니다.
+`root` 는 `SKEWNONO_CHAT_RAG_ROOT`, 미설정이면 `back_dev_home/chat/_rag` 입니다
+(`rag.py` 의 `rag_ready()`). 판정은 **import 이 아니라 파일 존재 확인**입니다 —
+부팅 시점에 faiss·torch 를 끌어와 앱을 죽이지 않기 위해서입니다. 따라서 체크아웃은
+있는데 import 이 깨진 경우는 `office` 로 판정된 뒤 요청마다 `503` 이 됩니다. 그것이
+맞는 자리입니다: 조용히 mock 으로 내려가 가짜 답을 내놓는 것보다 낫습니다.
 
-`SKEWNONO_CHAT_PROVIDER`만 generic feature-provider selector이며 thread 저장소를
-선택합니다. `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER`와
-`SKEWNONO_CHAT_SCOPE_PROVIDER`는 chat 내부 lazy selector입니다. 따라서 두 selector를
-`office`로 설정해도 gitignored adapter copy가 없다는 이유만으로 Flask boot가 실패하지
-않습니다. 해당 scope 또는 knowledge 경로를 처음 호출할 때 typed `503`을 반환하며
-mock으로 fallback하지 않습니다. 단 두 selector의 raw 값은 boot에서 먼저 검증하며,
-`mock` 또는 `office`가 아닌 값은 명확한 `RuntimeError`로 startup을 중단합니다.
+부팅 로그가 어느 쪽으로 판정했는지 한 줄로 찍습니다.
 
-## Agent server-side bound
+```text
+  chat/answer  office  RAG checkout at /project/workSpace/back_dev_home/chat/_rag
+  chat/answer  mock    no RAG checkout
+```
 
-아래 bound는 model이나 office adapter가 변경할 수 없는 application-owned 설정입니다.
+되돌리는 방법은 체크아웃을 치우거나 `SKEWNONO_CHAT_RAG_ROOT` 를 빈 디렉터리로
+돌리는 것입니다. 요청 도중 자동 fallback 은 없습니다.
 
-| 환경 변수 | 기본값 | Code hard maximum | 적용 의미 |
-| --- | --- | --- | --- |
-| `SKEWNONO_CHAT_MAX_TOOL_CALLS` | 6 | 12 | 한 agent invocation의 전체 tool call 수입니다. |
-| `SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS` | 4 | 32 | 한 process에서 동시에 실행하거나 timeout 뒤 남아 있을 수 있는 agent worker 수입니다. |
-| Tool별 result 수 | 5 | 5 | 각 knowledge search 결과를 application이 다시 제한합니다. |
-| `SKEWNONO_CHAT_MAX_SNIPPET_CHARS` | 1200 | 4000 | 각 source snippet을 tool content와 artifact 생성 전에 자릅니다. |
-| `SKEWNONO_CHAT_MAX_EVIDENCE_CHARS` | 12000 | 40000 | Invocation 전체의 model-facing tool content 문자 예산입니다. |
-| `SKEWNONO_CHAT_AGENT_TIMEOUT` | 60초 | 120초 | Model과 tool round 전체를 포함하는 wall-clock deadline입니다. |
-
-Snippet 상한은 model 입력과 저장/API `SourceRef`에 동일하게 적용합니다. Aggregate
-evidence 상한을 넘으면 `422 runtime_limit_exceeded`, 전체 invocation deadline을 넘으면
-`504 gateway_timeout`입니다. 두 경우 모두 user turn만 유지하고 assistant, source,
-tool trace를 저장하지 않습니다. Deadline 뒤 background graph 결과도 conversation
-store에 접근하지 못하며 나중에 assistant turn을 추가하지 않습니다. Timeout HTTP 응답을
-보냈다는 이유로 worker slot을 반환하지 않으며, synchronous graph worker가 실제 종료한
-뒤에만 반환합니다. 모든 slot이 사용 중이면 새 worker를 만들지 않고 즉시
-`422 runtime_limit_exceeded`를 반환합니다. 따라서 cooperative cancellation을 지원하지
-않는 upstream이 멈춰도 process별 lingering worker 수는 설정값을 넘지 않습니다.
-`SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS`는 1 이상 32 이하의 정수만 허용합니다.
+Thread 저장소는 이 축과 무관합니다 — 사무실에서도 SQLite 이며
+`SKEWNONO_CHAT_DB` 만 영속 경로로 둡니다(아래 "Thread storage 동기화").
 
 ## HTTP rollout 계약
 
@@ -115,19 +87,16 @@ chat 은 그것을 **같은 프로세스 안에서 import** 합니다 — Flask 
 
 | 단계 | RAG 함수 | chat 쪽 호출 지점 |
 | --- | --- | --- |
-| Agent loop 전 1회 | `skewnono_rag.retrieve.agent.rewrite_query(question, timeout=) -> str` | `orchestration.py` → `knowledge/data.py:rewrite_query()` |
-| Loop 안 tool 호출마다 | `skewnono_rag.retrieve.serve.search_manuals(query, scope, limit=, index_dir=, timeout=)` | `knowledge/providers/office.py:_execute()` |
-| 답변 후 1회 | `skewnono_rag.retrieve.agent.generate_follow_ups(question, answer, sources, timeout=) -> list[str]` | `orchestration.py` → `knowledge/data.py:generate_follow_ups()` |
+| turn 마다 1회 | `skewnono_rag.retrieve.agent.agent_query(question, messages, scope, timeout=)` | `answer/providers/rag.py` |
 
 최상위 패키지는 `skewnono_rag` 입니다(2026-08-28 에 `src` 에서 개명, RAG 측
-확인). 세 함수 모두 `timeout=` 초를 받아 넘기면 `TimeoutError` 를, 권한 거부는
-`PermissionError` 를 올립니다(RAG 측 확인 2026-08-28) — chat 은
-`SKEWNONO_CHAT_KNOWLEDGE_TIMEOUT`(기본 20, agent wall-clock 이하로 clamp)을 매
-호출에 넘기고 `_translate_error()` 가 각각 504/403 으로 바꿉니다.
+확인). `timeout=` 초를 넘기면 `TimeoutError` 를, 권한 거부는 `PermissionError`
+를 올립니다(RAG 측 확인 2026-08-28) — chat 은
+`SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 60)을 넘기고 adapter 가 각각 504/403 으로
+바꿉니다.
 
-RAG 측은 자체 agent loop 를 돌리지 않습니다 — chat 의 LangChain agent 가
-`search_manuals` 를 반복 호출하고, `_execute()` 안에 두 번째 loop 가 있으면 LLM
-호출이 곱해집니다.
+검색 반복과 답변 생성은 **전부 RAG 안**입니다. chat 쪽에는 agent loop 도,
+검색 tool 도, LLM client 도 없습니다(2026-08-31 삭제).
 
 **배치.** Co-location 루트는 `back_dev_home/chat/_rag/` 입니다(RAG 측 확인
 2026-08-31). `_rag/` 자체는 우리 것이고, 그 안의 `skewnono_rag/` 가 RAG 측이
@@ -191,164 +160,23 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
 둘 다 LLM 이며 자유 문장입니다. 모양(비어 있지 않은 문자열, 서로 다른 3~5개)만
 같습니다.
 
-## Answer runtime — 합의된 경계 이동의 chat 측 절반 (2026-08-31)
+## Answer seam — turn 전체를 한 번의 호출로
 
-`SKEWNONO_CHAT_RUNTIME=rag` 는 turn 전체를 answer seam 한 번의 호출로
-받습니다. 계약 원본은 `docs/2026-08-31-chat-to-rag-answer-contract-agreed.md`
-이며, 여기 요약하지 않습니다.
+계약 원본은 `docs/2026-08-31-chat-to-rag-answer-contract-agreed.md` 이며, 여기
+요약하지 않습니다.
 
 | 조각 | 위치 |
 | --- | --- |
-| Provider swap surface | `answer/providers/{mock,office_example}.py` + `SKEWNONO_CHAT_ANSWER_PROVIDER` |
-| Office adapter | `agent_query(question, messages, scope, timeout)` 호출 + 3종 오류 변환 + Evidence 모양 검증(5건 cap) + 바깥 hard guard(+5초) |
-| Mock answerer | knowledge mock 의 검색·rewrite·follow-ups 를 합성한 고정 템플릿 답변 |
-| History cap | dispatcher(`answer/data.py`)가 `SKEWNONO_CHAT_ANSWER_MAX_HISTORY`(기본 5 = RAG 의 MAX_HISTORY, RAG 측 확인 2026-08-31)로 자름 |
-| Orchestrator | rag runtime 이면 rewrite·follow-ups 를 결과에서 그대로 보존(자체 knowledge 호출 없음), model tool 검사 없음 |
+| Provider 선택 | `answer/data.py` — `rag.rag_ready()` 하나. env 없음, `cp` 없음 |
+| Office adapter | `answer/providers/rag.py` — `agent_query(question, messages, scope, timeout)` 호출 + 3종 오류 변환 + Evidence 모양 검증(5건 cap) + 바깥 hard guard(+5초). **추적되는 파일**이므로 사무실에서 복사할 것이 없습니다 |
+| Mock answerer | `answer/providers/mock.py` — knowledge fixture 로 만든 고정 템플릿 답변 |
+| History cap | dispatcher 가 `SKEWNONO_CHAT_ANSWER_MAX_HISTORY`(기본 5 = RAG 의 MAX_HISTORY, RAG 측 확인 2026-08-31)로 자름 |
+| Turn 예산 | `SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 60초, 1~120) |
+| Orchestrator | scope 판정 → answer 호출 1회 → 저장 → 로깅. rewrite·follow-ups 는 결과 안에 실려 오므로 자체 호출이 없습니다 |
 
-구 경로(agent runtime + tools + knowledge office 어댑터)는 사무실 검증
-전까지 그대로 남습니다 — env 전환만으로 왕복할 수 있어야 합니다.
-
-## Office knowledge provider 구현 계약
-
-`knowledge/providers/office_example.py` 는 **완성된 구현**입니다(2026-08-28). 사무실
-에서는 `cp office_example.py office.py` 만 하고 아무것도 고치지 않습니다 — 네 seam
-(`_config()`, `_build_request()`, `_execute()`, `_rerank()`)이 위 "RAG 동거" 절의
-co-located RAG 를 호출하고, `rewrite_query()`/`generate_follow_ups()` 두 공개
-함수가 더해져 있습니다. "do not edit below" 아래의 계약 절반(`_search` limit/오류
-변환, `_rank_hits` 정렬·절단, `_to_evidence` 엄격 검증, 네 공개 함수)은 여전히
-수정하지 않습니다. Seam 의 검증은 `tests/test_knowledge_office_template.py` 가
-집에서 가짜 `skewnono_rag.retrieve` 패키지로 수행하고, 복사본이 있으면 같은 테스트를
-복사본에도 돌립니다. 다음 네 공개 signature를 그대로 유지합니다.
-
-```python
-search_manuals(
-    query: str,
-    filters: Mapping[str, object] | None,
-    scope: AccessScope,
-    limit: int,
-) -> list[Evidence]
-
-search_meeting_summaries(
-    query: str,
-    filters: Mapping[str, object] | None,
-    scope: AccessScope,
-    limit: int,
-) -> list[Evidence]
-
-search_emails(
-    query: str,
-    filters: Mapping[str, object] | None,
-    scope: AccessScope,
-    limit: int,
-) -> list[Evidence]
-
-search_reports(
-    query: str,
-    filters: Mapping[str, object] | None,
-    scope: AccessScope,
-    limit: int,
-) -> list[Evidence]
-```
-
-위 signature의 `limit`은 공개 함수 호출자에게는 최종 행 수(최대 5)이지만,
-`_build_request()`가 받는 `limit`은 그 값이 아니라 **후보 수**입니다. `_search()`가
-`max(bounded, config.get_knowledge_candidate_pool())`로 후보 수를 계산해
-`_build_request()`에 넘기므로, office adapter는 요청한 후보를 전부 가져와야 하며
-스스로 줄이면 안 됩니다. 정렬(`_rank_hits()`)과 상한 5행 절단은 tracked 계약
-절반이 소유합니다 — office copy는 `_rerank()`가 반환한 점수로 정렬된 뒤 이미
-절단된 결과만 봅니다.
-
-네 번째 seam `_rerank(source_type, query, hits) -> list[float]`은 후보 각각에
-`hits`와 같은 순서로 점수 하나씩(높을수록 우수) 반환합니다. 이 seam은 순서를
-바꾸거나 절단해서는 안 됩니다 — 정렬·절단은 `_rank_hits()`가 담당합니다. 리랭크가
-실패하거나 미구현이면 원 순위를 그대로 쓰지 않고 `KnowledgeUnavailable`을
-올립니다. C1(OpenSearch가 rerank까지 수행)으로 전환하면 `_rerank()`는 각 hit의
-기존 `score`를 그대로 돌려주는 항등 함수가 됩니다.
-
-각 반환 행은 `knowledge/contracts.py`의 다음 `Evidence` field를 모두 포함합니다.
-
-| Field | 규칙 |
-| --- | --- |
-| `source_id` | Revision이 바뀌지 않는 한 재색인 후에도 유지되는 stable ID입니다. |
-| `source_type` | `manual`, `meeting`, `email`, `report` 중 하나입니다. |
-| `title` | 사용자가 볼 수 있도록 승인된 제목만 반환합니다. |
-| `snippet` | 승인된 최소 근거 text이며 원문 전체를 반환하지 않습니다. |
-| `revision` | Manual/report revision이 없으면 `None`입니다. |
-| `occurred_at` | Source 기준일을 정규화하며 적용할 수 없으면 `None`입니다. |
-| `section` | Section provenance가 없으면 `None`입니다. |
-| `page` | 1-based page 번호이며 적용할 수 없으면 `None`입니다. |
-| `region` | 승인된 page region/bounding reference이며 없으면 `None`입니다. |
-| `locator` | 임의 URL이나 filesystem path가 아닌 안정된 승인 locator입니다. |
-| `figure_id` | 그림 chunk의 opaque token이며 text/table chunk는 `None`입니다. |
-| `score` | 같은 source 검색 결과의 ranking 진단용 값이며 없으면 `None`입니다. |
-
-사무실 manual 검색(`skewnono_rag/retrieve/serve.py:search_manuals()`)이 실제로 돌려주는 키는
-`source_id`, `title`, `snippet`, `section`, `page`, `figure_id`, `score`,
-`element_type` 여덟 개입니다(office 확인 2026-08-27). `_to_evidence()`는 optional 키를
-`.get`으로 읽으므로 `revision`/`occurred_at`/`region`/`locator`가 없는 hit은 그대로
-`None`으로 매핑되고, 알 수 없는 키 `element_type`은 seam에서 버려집니다 — office copy가
-채우거나 지울 것이 없습니다. 파일시스템 `image_path`는 절대 seam을 넘지 않으며, 넘는
-것은 `figure_id`뿐입니다.
-
-`figure_id`는 애플리케이션이 저장소 접근으로 바꾸는 유일한 값이므로 `locator`와 다른
-규칙을 따릅니다. Bucket, prefix, 경로 구분자, `.webp` 확장자를 포함하지 않는 맨 id만
-반환합니다. 키 조립(`{client prefix}/skewnono_rag/hitachi_manuals/figures/{figure_id}.webp`)과
-`^[A-Za-z0-9._-]{1,128}$` 검증은 serving 쪽이 전담하므로, 경로가 섞인 id는 오류가
-아니라 렌더되지 않는 그림이 됩니다.
-
-형식은 `{doc_id}_p{page}_i{idx}`이며 doc_id에 **점이 들어갑니다**
-(`CG6300_1.HHTSEM_SYSTEM_p100_i0`, office 확인 2026-08-19). 검증 charset이 점을
-허용하는 이유가 이것입니다 — 자세한 내용은 아래 "Figure serving" 절을 봅니다.
-
-Retrieval query 한 번이 한국어와 영어를 **동시에** 만족시켜야 합니다. 사용자는 한 질문
-안에서 두 언어를 섞고 코퍼스도 섞여 있으므로, 한 언어만 만족시키는 요청은 실패하지 않고
-recall만 조용히 반토막 냅니다. 검색은 Nori BM25 ⊕ BGE-M3 dense의 2-leg hybrid이며(설계
-`docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md`), BGE-M3가
-multilingual이므로 k-NN leg에서 한/영 요건이 충족됩니다(user-confirmed 2026-08-06).
-Lexical leg는 Nori analyzer로 확정했습니다(user-confirmed 2026-08-06) — OpenSearch
-기본 `standard` analyzer는 한글을 한 글자씩 분해하므로 씁니다. 질의를 언어 판별로
-분기하거나 번역해서 보내지 않습니다. 후보 20~30건을 `bge-reranker-v2-m3` 크로스인코더로
-재점수화한 뒤 상한 5행으로 절단합니다 — 상세는 `docs/datatables/hitachi/chat_rag_contract.txt`의
-"검색 방식" 절을 참고합니다. 모델 호출은 `office.py`가 사내 embedding/rerank API를
-직접 호출하는 C2 경로입니다(user-confirmed 2026-08-07); C1(OpenSearch ML Commons remote
-connector)은 사내 host가 `trusted_connector_endpoints_regex`에 없어 보류입니다(office
-확인 2026-08-07).
-
-Access filter는 retrieval query 단계에 적용합니다. 검색 후 Python filtering만으로 권한을
-보완하지 않습니다. 권한이 없는 source의 존재, title, count 또는 score도 노출하지
-않습니다. Empty result는 빈 list이며 다른 source나 mock 검색으로 대체하지 않습니다.
-
-이 네 공개 함수는 provider가 준비된 모든 source에 대해 항상 호출 가능한 signature로
-유지되지만, 실제로 tool로 노출되는지는 **source별 준비 상태**가 결정합니다.
-`knowledge/data.py`의 `available_sources()`는 mock에서는 네 소스 전부를, office에서는
-`get_knowledge_sources()`(`SKEWNONO_CHAT_KNOWLEDGE_SOURCES`, 기본 `manual`)가 반환하는
-집합만 돌려줍니다 — office provider 모듈을 import하지 않고 판단합니다.
-`runtime/providers/agent.py`의 `_build_tools()`가 그 목록에 있는 source에만 tool을
-만들므로, 준비되지 않은 source는 tool 자체가 없습니다. 인덱스가 없는 source에 빈 list를
-돌려주는 방식은 택하지 않습니다 — 모델이 "그 소스에는 관련 내용이 없다"로 잘못 읽기
-때문입니다. 노출되는 tool이 하나도 없으면 `RuntimeUnavailable`을 올립니다.
-
-Agent model에 공개되는 tool argument는 `query`뿐입니다. `AccessScope`의 `user_id`,
-`groups`, `fabs`, index/collection 이름, host, credential, limit은 Flask가 인증·설정에서
-만들어 tool closure와 provider에 전달합니다. 이를 model argument나 user 입력에서
-받지 않습니다.
-
-현재 구현은 인증된 `user_id`만 채우고 `groups`와 `fabs`에는 빈 list를 전달합니다.
-따라서 group/FAB 제한 source를 연결하기 전에 authoritative access resolver를 별도
-server-side seam으로 구현하고, 인증 middleware의 값과 resolver 결과만으로
-`AccessScope`를 구성해야 합니다. Resolver unavailable 또는 identity 누락 시 권한을
-넓히지 않고 요청을 거절합니다.
-
-Provider는 오류를 다음 typed exception으로 변환합니다.
-
-- 접근 거부는 `KnowledgeDenied`입니다.
-- 제한 시간 초과는 `KnowledgeTimeout`입니다.
-- 설정 누락, index 불일치, source unavailable은 `KnowledgeUnavailable`입니다.
-
-Agent runtime은 이를 각각 `403`, `504`, `503` 계열로 변환합니다. Retrieval 실패를
-direct runtime, mock provider 또는 다른 source로 자동 전환하지 않습니다. Partial
-assistant/source/trace row도 저장하지 않으며, 이미 저장된 user turn은 같은
-`request_id` retry를 위해 유지합니다.
+구 경로(chat 측 agent loop, `llm.py`, egress guard, tool 6종, knowledge 검색
+seam)는 **사무실 full-path 검증 전에** 사용자 결정으로 삭제했습니다
+(2026-08-31). 되살릴 곳은 git 이며 삭제 커밋 하나를 되돌리면 됩니다.
 
 ## Figure serving — 디스크(2026-08-19)와 MinIO(2026-08-27) 모두 구현 완료
 
@@ -440,19 +268,19 @@ namespace 제한은 MinIO client의 기본 prefix가 이미 감당하므로, 이
 `user/2067928/figures/` 같은 전체 경로를 prefix에 넣는 안은 폐기했습니다 — 넣으면
 namespace가 두 번 붙습니다(위 표 아래 설명).
 
-## Scope provider 구현 계약
+## Scope 사전 게이트
 
-`scope/providers/office_example.py` 는 **완성된 구현**입니다(2026-08-28) — RAG
-handoff 가 정한 도메인 marker(`ebeam, metrology, measurement, tool, alarm, manual,
-recipe, error, cd-sem, sem, calibration, optics, vacuum, stage, wafer, idp, amp,
-hitachi, gt2000, cg6300`)에 한국어 대응어를 짝지은 keyword 정책이며, 엔진은 mock 과
-같은 `scope/keyword_policy.py` 를 씁니다(어휘만 다릅니다). 사무실에서는
-`cp office_example.py office.py` 만 합니다. 반환 `status`는 `in_scope`, `mixed`,
-`out_of_scope`, `unsafe` 중 하나이며 `reason_code`와 `supported_query`를 함께
-정규화합니다. `mixed`일 때만 지원되는 부분을 `supported_query`로 전달합니다.
-Unavailable 상태는 `ScopeUnavailable`을 발생시키며 mock으로 fallback하지 않습니다.
-어휘를 넓히려면 template 을 고치고 다시 복사합니다 — 복사본만 고치면
-`sync_office_adapters` 가 `EDITED` 로 분류합니다.
+`scope/policy.py` 하나이며 집과 사무실이 같은 어휘를 씁니다 — 무엇을 답하는
+서비스인가는 제품 결정이지 어느 기계에서 도는지의 문제가 아니기 때문입니다.
+(mock/office 로 갈라져 있던 것을 2026-08-31 합쳤습니다. 그 분기가 실제로 뜻한
+바는 "집에서는 한국어 질문을 거절한다" 였고, 그것을 원한 테스트는 없었습니다.)
+
+어휘는 RAG handoff 가 정한 도메인 marker(`ebeam, metrology, measurement, tool,
+alarm, manual, recipe, error, cd-sem, sem, calibration, optics, vacuum, stage,
+wafer, idp, amp, hitachi, gt2000, cg6300`)에 한국어 대응어를 짝지은 것입니다.
+반환 `status` 는 `in_scope`, `mixed`, `out_of_scope`, `unsafe` 중 하나이며
+`reason_code` 와 `supported_query` 를 함께 정규화합니다. `mixed` 일 때만 지원되는
+부분을 `supported_query` 로 전달하고, 그 절만 RAG 에 묻습니다.
 
 ## Thread storage 동기화
 
@@ -601,49 +429,28 @@ export, training dataset 생성과 model training/fine-tuning은 계속 이 scaf
 
 ## 검증 순서
 
-### Home 및 fake-client contract
+### Home
 
-먼저 현재 mock/fake 계약을 실행합니다.
-
-```bash
-.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge.py back_dev_home/chat/tests/test_runtime.py back_dev_home/chat/tests/test_scope.py -q
-```
-
-`back_dev_home/chat/tests/test_knowledge_office.py`는 tracked skeleton으로 이미
-존재합니다. Home에서는 gitignored `office.py`가 없어 module 단위로 skip하고,
-office에서 복사 직후부터 계약 절반(정확한 `Evidence` field mapping, limit,
-empty result, rank ordering 유지, typed exception)을 fake seam으로 검증합니다.
-Office 구현 시에는 파일 하단의 `OFFICE-TODO` skip test 네 건 — query-time access
-filter 증명, raw row 정규화, client 오류 mapping, rerank가 hits와 같은 순서로
-점수를 반환하는지 — 을 fake client/raw result 주입 방식으로 채웁니다. Live
-service는 호출하지 않습니다.
+집에서는 체크아웃이 없으므로 mock 경로가 돌고, RAG 경로는 `skewnono_rag` 를
+가짜로 끼워 `test_answer_rag.py` 가 검증합니다 — office adapter 가 추적되는
+파일이라 사무실 복사본을 기다리지 않고 집에서 그대로 실행됩니다.
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office.py -q
-```
-
-`back_dev_home/chat/tests/test_knowledge_office_template.py`는 위 skip을 메웁니다.
-`test_knowledge_office.py`가 gitignored office copy를 import하기 때문에 home에서
-통째로 skip되는 사이, tracked `office_example.py`의 계약 절반 — 후보 over-fetch,
-`_rerank()` 점수로 재정렬, tie는 backend 순서 유지, 5행 절단, 점수 개수 불일치·비수치
-점수·미구현 rerank가 모두 `KnowledgeUnavailable`이 되는 것 — 은 이 파일이 home에서
-매 회 검증합니다. `office.py`는 계약 절반을 byte-identical로 상속하므로 이 테스트가
-office copy에도 그대로 적용됩니다.
-
-```bash
-.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office_template.py -q
+.venv/bin/python -m pytest back_dev_home/chat -q
 ```
 
 ### Office-local smoke
 
-Fake-client test가 통과한 뒤에만 gitignored `knowledge/providers/office.py`와 승인된
-office-local 설정을 사용합니다. `tests/test_chat_rag_local.py`는 `TEST_STAGE=local`과
-필수 환경변수가 없으면 명확한 이유로 skip하고, 승인된 비민감 query 한 건으로 실제
-source type, provenance와 access denial을 확인하도록 작성합니다. Thread storage가 아직
-준비되지 않았으면 mock으로 명시하여 RAG source smoke와 분리합니다.
+집 test 가 통과한 뒤, 사무실에서 체크아웃을 제자리에 두고 부팅 로그가
+`chat/answer  office` 를 찍는지 먼저 확인합니다. 그 다음 승인된 비민감 질문 한 건을
+실제로 보내 source type, provenance, 접근 거부를 확인합니다.
 
 ```bash
-TEST_STAGE=local SKEWNONO_CHAT_PROVIDER=mock SKEWNONO_CHAT_RUNTIME=agent SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office SKEWNONO_CHAT_SCOPE_PROVIDER=office .venv/bin/python -m pytest tests/test_chat_rag_local.py -q
+.venv/bin/python index.py            # 부팅 로그의 chat 행을 읽습니다
+curl -s -b LASTUSER=<사번> -X POST localhost:5000/api/chat/threads
+curl -s -b LASTUSER=<사번> -X POST localhost:5000/api/chat/threads/<id>/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"content":"<승인된 질문>","request_id":"<uuid>"}'
 ```
 
 실제 source content, query 결과, 내부 경로와 credential은 test assertion, fixture,

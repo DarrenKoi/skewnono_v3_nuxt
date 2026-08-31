@@ -1,15 +1,16 @@
 """The answer seam: one call answers a whole turn (agreed contract 2026-08-31).
 
-Dispatcher owns provider selection and the history cap; the mock answerer
-stands in for the RAG's ``agent_query`` at home with the same result shape.
+Dispatcher owns provider selection and the history cap. Selection has no env
+knob: a usable ``_rag`` checkout picks the RAG provider, its absence picks the
+mock, which stands in for ``agent_query`` at home with the same result shape.
 """
 
 from __future__ import annotations
 
 import pytest
 
+from back_dev_home.chat import rag
 from back_dev_home.chat.answer import data
-from back_dev_home.chat.knowledge.contracts import KnowledgeUnavailable
 
 
 _SCOPE = {"user_id": "1234567", "groups": [], "fabs": []}
@@ -19,9 +20,13 @@ def _answer(question="alignment 오차 보정 방법", messages=()):
     return data.answer_question(question, list(messages), _SCOPE)
 
 
-def test_mock_answer_has_the_agreed_shape(monkeypatch):
-    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_PROVIDER", "mock")
+@pytest.fixture(autouse=True)
+def _no_rag_checkout(monkeypatch):
+    """Home: no checkout, so the dispatcher must land on the mock."""
+    monkeypatch.setattr(rag, "rag_ready", lambda: False)
 
+
+def test_mock_answer_has_the_agreed_shape():
     result = _answer()
 
     assert isinstance(result["content"], str) and result["content"].strip()
@@ -41,7 +46,6 @@ def test_mock_answer_has_the_agreed_shape(monkeypatch):
 
 
 def test_history_is_capped_before_the_provider_sees_it(monkeypatch):
-    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_PROVIDER", "mock")
     monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "4")
     seen = {}
 
@@ -61,8 +65,16 @@ def test_history_is_capped_before_the_provider_sees_it(monkeypatch):
     assert seen["messages"] == history[-4:]
 
 
-def test_missing_office_copy_is_unavailable_not_a_crash(monkeypatch):
-    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_PROVIDER", "office")
+def test_a_usable_checkout_selects_the_rag_provider(monkeypatch):
+    """The whole switch: readiness, not configuration."""
+    monkeypatch.setattr(rag, "rag_ready", lambda: True)
 
-    with pytest.raises(KnowledgeUnavailable, match="office"):
-        _answer()
+    from back_dev_home.chat.answer.providers import rag as rag_provider
+
+    assert data._provider() is rag_provider
+
+
+def test_no_checkout_selects_the_mock_provider():
+    from back_dev_home.chat.answer.providers import mock as mock_provider
+
+    assert data._provider() is mock_provider

@@ -168,7 +168,7 @@ class FakeMinio:
 @pytest.fixture
 def minio(monkeypatch):
     """Route figure reads at a fake MinIO and report every key it was asked for."""
-    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
+    monkeypatch.setattr(figures.rag, "rag_ready", lambda: True)
     monkeypatch.delenv("SKEWNONO_CHAT_FIGURE_PREFIX", raising=False)
     fake = FakeMinio({})
     monkeypatch.setattr(figures, "_client_factory", lambda: fake)

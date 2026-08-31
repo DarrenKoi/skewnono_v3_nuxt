@@ -44,8 +44,6 @@ ENDPOINTS: list[tuple[str, str, str]] = [
     # announcements
     ("announcements", "announcements.json", "/api/announcements"),
 
-    # chat
-    ("chat", "models.json", "/api/chat/models"),
 
     # afm
     ("afm", "afm-tools.json", "/api/afm/tools"),

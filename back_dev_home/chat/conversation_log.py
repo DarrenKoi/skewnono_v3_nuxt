@@ -62,7 +62,6 @@ class ChatConversationHandler(OpenSearchBulkHandler):
 def build_turn_document(
     *,
     user_id: str,
-    thread_model: str,
     user_content: str,
     assistant: Mapping[str, Any],
     decision: Mapping[str, Any],
@@ -75,7 +74,7 @@ def build_turn_document(
         "thread_id": assistant.get("thread_id"),
         "request_id": assistant.get("request_id"),
         "message_id": assistant.get("id"),
-        "model": assistant.get("model") or thread_model,
+        "model": assistant.get("model"),
         "runtime": assistant.get("runtime"),
         "scope_status": assistant.get("scope_status") or decision.get("status"),
         "scope_reason_code": decision.get("reason_code"),
@@ -97,7 +96,6 @@ def build_turn_document(
 def record_turn(
     *,
     user_id: str,
-    thread_model: str,
     user_content: str,
     assistant: Mapping[str, Any],
     decision: Mapping[str, Any],
@@ -106,7 +104,6 @@ def record_turn(
     """Emit one conversation document. Delivery is asynchronous and lossy-safe."""
     document = build_turn_document(
         user_id=user_id,
-        thread_model=thread_model,
         user_content=user_content,
         assistant=assistant,
         decision=decision,

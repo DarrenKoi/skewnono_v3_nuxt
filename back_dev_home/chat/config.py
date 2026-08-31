@@ -1,22 +1,13 @@
-"""LLM endpoint/model configuration. Swaps by env only — no code change per phase."""
+"""Chat configuration. Swaps by env only — no code change per phase.
 
-import json
+There is no model or gateway setting here: the RAG owns the LLM (its keys are
+embedded in ``skewnono_rag/config.py``), so chat never makes an outbound model
+call of its own. What is left are budgets and the office figure store.
+"""
+
 import os
 
 from back_dev_home._runtime.env import is_cloud
-
-DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_TIMEOUT = 60.0
-MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT = 32
-# 첫 항목이 SPA 의 기본 선택입니다 (chat.vue: `models.value[0]`).
-# GaiA 는 사내 공통 gateway 모델이라 집에서는 호출되지 않습니다 — 뒤의 두 개는
-# OpenRouter 로 실제 호출이 가능한 집 검증용입니다.
-DEFAULT_MODELS = [
-    # OFFICE-VERIFY: gateway 가 받는 정확한 id 인지 사무실에서 확인해야 합니다.
-    {"id": "GaiA-Small-Latest", "label": "GaiA Small (사내)"},
-    {"id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (free)"},
-    {"id": "google/gemini-2.0-flash-exp:free", "label": "Gemini 2.0 Flash (free)"},
-]
 
 
 def is_under_development() -> bool:
@@ -41,48 +32,15 @@ def is_under_development() -> bool:
     return is_cloud()
 
 
-def get_base_url() -> str:
-    return os.environ.get("CHAT_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+def get_answer_timeout() -> float:
+    """Seconds one whole RAG turn may take, as a wall-clock ceiling.
 
-
-def get_api_key() -> str | None:
-    return os.environ.get("CHAT_API_KEY")
-
-
-def get_timeout() -> float:
-    raw = os.environ.get("CHAT_TIMEOUT")
-    return float(raw) if raw else DEFAULT_TIMEOUT
-
-
-def list_models() -> list[dict]:
-    raw = os.environ.get("CHAT_MODELS")
-    models = DEFAULT_MODELS if not raw else json.loads(raw)
-    normalized = []
-    for row in models:
-        model = dict(row)
-        model.setdefault("supports_tools", False)
-        normalized.append(model)
-    return normalized
-
-
-def find_model(model_id: str) -> dict | None:
-    return next((model for model in list_models() if model["id"] == model_id), None)
-
-
-def _choice(name: str, default: str, allowed: set[str]) -> str:
-    value = os.environ.get(name, default).strip().lower()
-    if value not in allowed:
-        choices = ", ".join(sorted(allowed))
-        raise ValueError(f"{name} must be one of: {choices}")
-    return value
-
-
-def get_runtime_name() -> str:
-    return _choice("SKEWNONO_CHAT_RUNTIME", "direct", {"direct", "agent", "rag"})
-
-
-def get_answer_provider_name() -> str:
-    return _choice("SKEWNONO_CHAT_ANSWER_PROVIDER", "mock", {"mock", "office"})
+    Passed to the RAG as its budget and enforced here by a thread guard: the
+    RAG applies it per internal call plus a pre-invoke deadline check, not as
+    a true cumulative deadline (RAG 측 확인 2026-08-31), so an overshooting
+    call would otherwise pin a Flask worker indefinitely.
+    """
+    return min(max(float(os.environ.get("SKEWNONO_CHAT_ANSWER_TIMEOUT", "60")), 1), 120)
 
 
 def get_answer_history_limit() -> int:
@@ -94,74 +52,11 @@ def get_answer_history_limit() -> int:
     return min(max(int(os.environ.get("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "5")), 1), 100)
 
 
-def get_knowledge_provider_name() -> str:
-    return _choice(
-        "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "mock", {"mock", "office"}
-    )
-
-
-def get_scope_provider_name() -> str:
-    return _choice("SKEWNONO_CHAT_SCOPE_PROVIDER", "mock", {"mock", "office"})
-
-
-def get_max_tool_calls() -> int:
-    return min(max(int(os.environ.get("SKEWNONO_CHAT_MAX_TOOL_CALLS", "6")), 1), 12)
-
-
-def get_agent_timeout() -> float:
-    return min(max(float(os.environ.get("SKEWNONO_CHAT_AGENT_TIMEOUT", "60")), 1), 120)
-
-
-def get_knowledge_timeout() -> float:
-    """Seconds one office RAG call may take (search, rewrite, or follow-ups).
-
-    Passed as ``timeout=`` to every RAG function. It is a per-call bound, not
-    the loop's remaining budget: the agent wall-clock (``get_agent_timeout``)
-    cuts the answer, but a RAG call already running in its thread would keep
-    going without this. Kept under the agent timeout so a single hung search
-    cannot consume the whole turn.
-    """
-    raw = float(os.environ.get("SKEWNONO_CHAT_KNOWLEDGE_TIMEOUT", "20"))
-    return min(max(raw, 1), get_agent_timeout())
-
-
-def get_max_concurrent_agent_runs() -> int:
-    name = "SKEWNONO_CHAT_MAX_CONCURRENT_AGENT_RUNS"
-    raw = os.environ.get(name, "4")
-    try:
-        value = int(raw)
-    except ValueError as error:
-        raise ValueError(
-            f"{name} must be an integer between 1 and "
-            f"{MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT}."
-        ) from error
-    if not 1 <= value <= MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT:
-        raise ValueError(
-            f"{name} must be an integer between 1 and "
-            f"{MAX_CONCURRENT_AGENT_RUNS_HARD_LIMIT}."
-        )
-    return value
-
-
-def get_max_snippet_chars() -> int:
-    return min(
-        max(int(os.environ.get("SKEWNONO_CHAT_MAX_SNIPPET_CHARS", "1200")), 1),
-        4000,
-    )
-
-
-def get_max_evidence_chars() -> int:
-    return min(
-        max(int(os.environ.get("SKEWNONO_CHAT_MAX_EVIDENCE_CHARS", "12000")), 1),
-        40000,
-    )
-
-
 def get_figures_dir() -> str | None:
     """Absolute path of the directory holding extracted manual figures.
 
-    The disk store, used while the knowledge provider is ``mock``. Unset means
-    the deployment has no figure store, which is a 404 rather than an error: a
+    The disk store, used wherever there is no RAG checkout. Unset means the
+    deployment has no figure store, which is a 404 rather than an error: a
     manual indexed without figures is a normal state, not a misconfiguration.
     """
     value = os.environ.get("SKEWNONO_CHAT_FIGURES_DIR", "").strip()
@@ -201,37 +96,3 @@ def get_figure_prefix() -> str:
     return f"{value}/" if value else ""
 
 
-KNOWLEDGE_SOURCES: tuple[str, ...] = ("manual", "meeting", "email", "report")
-
-
-def get_knowledge_sources() -> tuple[str, ...]:
-    """Office-side sources whose retrieval path is ready.
-
-    A source is listed only once its index exists. Unlisted sources are not
-    exposed to the model at all — returning an empty result instead would read
-    as "there is nothing about this in the meeting notes", which is a claim we
-    cannot make about a source we never indexed.
-    """
-    name = "SKEWNONO_CHAT_KNOWLEDGE_SOURCES"
-    raw = os.environ.get(name, "manual")
-    requested = {part.strip().lower() for part in raw.split(",") if part.strip()}
-    if not requested:
-        raise ValueError(f"{name} must name at least one knowledge source.")
-    unknown = sorted(requested - set(KNOWLEDGE_SOURCES))
-    if unknown:
-        allowed = ", ".join(KNOWLEDGE_SOURCES)
-        raise ValueError(
-            f"{name} must be a comma-separated subset of: {allowed}. "
-            f"Unknown: {', '.join(unknown)}."
-        )
-    return tuple(source for source in KNOWLEDGE_SOURCES if source in requested)
-
-
-def get_knowledge_candidate_pool() -> int:
-    """How many candidates the office retrieval fetches before reranking.
-
-    A cross-encoder reranker costs linearly in candidates, so this stays small.
-    The application owns it — the adapter must not widen its own input.
-    """
-    raw = os.environ.get("SKEWNONO_CHAT_KNOWLEDGE_CANDIDATES", "24")
-    return min(max(int(raw), 5), 50)

@@ -12,12 +12,12 @@ from back_dev_home.chat.conversation_log import (
     install_chat_conversation_logging,
     record_turn,
 )
+from back_dev_home.chat.knowledge.contracts import KnowledgeTimeout
 from back_dev_home.chat.orchestration import ChatOrchestrator
-from back_dev_home.chat.runtime.contracts import RuntimeTimeout
 from back_dev_home.chat.tests.test_orchestration import (
     REQUEST_ID,
     SECOND_REQUEST_ID,
-    FakeRuntime,
+    FakeAnswerer,
     FakeStore,
 )
 from ops_index_mgmt.skewnono_chat_logging import CHAT_MAPPING_PROPERTIES
@@ -34,8 +34,8 @@ def _assistant(**overrides):
         "request_id": REQUEST_ID,
         "role": "assistant",
         "content": "answer",
-        "model": "m1",
-        "runtime": "direct",
+        "model": None,
+        "runtime": "rag",
         "scope_status": "in_scope",
         "prompt_tokens": 3,
         "completion_tokens": 1,
@@ -61,7 +61,6 @@ def _decision(**overrides):
 def _document(**overrides):
     kwargs = {
         "user_id": "u1",
-        "thread_model": "m1",
         "user_content": "alarm",
         "assistant": _assistant(),
         "decision": _decision(),
@@ -82,13 +81,11 @@ class RecordingRecorder:
             raise self.error
 
 
-def _orchestrator(store, runtime, recorder, classify=None):
+def _orchestrator(store, answerer, recorder, classify=None):
     return ChatOrchestrator(
         store,
         classify or (lambda query: _decision()),
-        runtime,
-        lambda model_id: {"id": model_id, "supports_tools": True},
-        runtime_name_finder=lambda: "direct",
+        answerer,
         conversation_recorder=recorder,
     )
 
@@ -136,12 +133,12 @@ def test_document_bounds_both_content_fields():
     assert len(document["assistant_content"]) == CONTENT_LIMIT
 
 
-def test_scope_rejection_falls_back_to_thread_model():
+def test_scope_rejection_is_recorded_as_its_own_runtime():
     document = _document(
         assistant=_assistant(model=None, runtime="scope_rejection"),
         decision=_decision(status="out_of_scope", reason_code="unsupported"),
     )
-    assert document["model"] == "m1"
+    assert document["model"] is None
     assert document["runtime"] == "scope_rejection"
     assert document["scope_reason_code"] == "unsupported"
 
@@ -170,7 +167,6 @@ def captured_records():
 def test_record_turn_emits_one_conversation_record(captured_records):
     record_turn(
         user_id="u1",
-        thread_model="m1",
         user_content="alarm",
         assistant=_assistant(),
         decision=_decision(),
@@ -248,14 +244,13 @@ def test_handler_rejects_records_without_payload(handler):
 
 def test_completed_turn_records_one_conversation():
     recorder = RecordingRecorder()
-    orchestrator = _orchestrator(FakeStore(), FakeRuntime(), recorder)
+    orchestrator = _orchestrator(FakeStore(), FakeAnswerer(), recorder)
 
     assistant = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
     assert len(recorder.calls) == 1
     call = recorder.calls[0]
     assert call["user_id"] == "u1"
-    assert call["thread_model"] == "m1"
     assert call["user_content"] == "alarm"
     assert call["assistant"] is assistant
     assert call["tool_call_count"] == 0
@@ -263,7 +258,7 @@ def test_completed_turn_records_one_conversation():
 
 def test_replayed_request_is_not_recorded_again():
     recorder = RecordingRecorder()
-    orchestrator = _orchestrator(FakeStore(), FakeRuntime(), recorder)
+    orchestrator = _orchestrator(FakeStore(), FakeAnswerer(), recorder)
 
     orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
     orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
@@ -272,13 +267,13 @@ def test_replayed_request_is_not_recorded_again():
     assert len(recorder.calls) == 2
 
 
-def test_runtime_failure_records_nothing():
+def test_answer_failure_records_nothing():
     recorder = RecordingRecorder()
-    runtime = FakeRuntime()
-    runtime.error = RuntimeTimeout("slow")
-    orchestrator = _orchestrator(FakeStore(), runtime, recorder)
+    answerer = FakeAnswerer()
+    answerer.error = KnowledgeTimeout("slow")
+    orchestrator = _orchestrator(FakeStore(), answerer, recorder)
 
-    with pytest.raises(RuntimeTimeout):
+    with pytest.raises(KnowledgeTimeout):
         orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
     assert recorder.calls == []
@@ -288,7 +283,7 @@ def test_scope_rejection_is_recorded_with_decision():
     recorder = RecordingRecorder()
     orchestrator = _orchestrator(
         FakeStore(),
-        FakeRuntime(),
+        FakeAnswerer(),
         recorder,
         classify=lambda query: _decision(
             status="out_of_scope", reason_code="unsupported"
@@ -305,7 +300,7 @@ def test_scope_rejection_is_recorded_with_decision():
 
 def test_recorder_failure_never_breaks_the_turn():
     recorder = RecordingRecorder(error=RuntimeError("shipper down"))
-    orchestrator = _orchestrator(FakeStore(), FakeRuntime(), recorder)
+    orchestrator = _orchestrator(FakeStore(), FakeAnswerer(), recorder)
 
     assistant = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 

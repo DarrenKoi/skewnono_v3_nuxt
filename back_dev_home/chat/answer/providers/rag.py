@@ -1,14 +1,14 @@
-"""Office answer adapter TEMPLATE — the whole turn via the co-located RAG.
+"""The whole turn via the co-located RAG — chat's only office answer path.
 
-``cp office_example.py office.py`` at the office; the copy is the adapter
-(presence detection). One seam: ``skewnono_rag.retrieve.agent.agent_query``,
-the entry point agreed 2026-08-31
+Tracked, not copied: selection is ``rag.rag_ready()``, so this file is live
+wherever the checkout is and inert everywhere else. One seam:
+``skewnono_rag.retrieve.agent.agent_query``, the entry point agreed 2026-08-31
 (``chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md``). The RAG
 owns rewrite, search iteration, rerank and answer generation; this adapter
 owns only the call, the outer deadline guard, error translation and shape
 normalization — never a second agent loop.
 
-``timeout`` is the WHOLE-TURN budget (``SKEWNONO_CHAT_AGENT_TIMEOUT``). The
+``timeout`` is the WHOLE-TURN budget (``SKEWNONO_CHAT_ANSWER_TIMEOUT``). The
 RAG enforces it as per-call ``timeout=remaining`` plus a pre-invoke deadline
 check — NOT a true cumulative deadline (RAG 측 확인 2026-08-31) — so the
 thread guard here is the real ceiling: an overshooting internal call can
@@ -56,7 +56,7 @@ def answer_question(
     scope: AccessScope,
 ) -> AnswerResult:
     module = rag.import_rag("retrieve.agent")
-    timeout = config.get_agent_timeout()
+    timeout = config.get_answer_timeout()
     try:
         raw = _call_with_deadline(
             module.agent_query,

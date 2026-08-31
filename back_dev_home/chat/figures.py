@@ -45,7 +45,7 @@ import re
 from pathlib import Path
 from typing import Callable
 
-from back_dev_home.chat import config
+from back_dev_home.chat import config, rag
 
 log = logging.getLogger(__name__)
 
@@ -91,7 +91,9 @@ def read_figure(figure_id: str) -> bytes | None:
     """WebP bytes for ``figure_id``, or ``None`` when it must not be served."""
     if not is_valid_figure_id(figure_id):
         return None
-    if config.get_knowledge_provider_name() == "office":
+    # Same switch as the answer seam: the figures belong to the corpus the
+    # RAG indexed, so a checkout means the office store holds them.
+    if rag.rag_ready():
         return _read_minio(figure_id)
     return _read_disk(figure_id)
 

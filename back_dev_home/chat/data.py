@@ -1,4 +1,14 @@
-"""Stable chat storage seam with mock/office adapters."""
+"""Thread storage seam. SQLite everywhere — there is no office adapter.
+
+2026-08-28 decision: threads live in SQLite at the office too, so no
+``providers/office_example.py`` exists to copy and the registry reports chat as
+"no office adapter planned". The dispatcher keeps its shape anyway: it costs
+one branch, and it is the seam a future writable store would land on without
+touching any caller.
+
+This is a different axis from which provider ANSWERS — that is
+``answer/data.py``, keyed on the RAG checkout.
+"""
 
 from back_dev_home._runtime.data_provider import get_data_provider
 from back_dev_home.chat.contracts import (
@@ -23,8 +33,8 @@ def _provider():
     return mock
 
 
-def create_thread(user_id, model, system_prompt=None):
-    return _provider().create_thread(user_id, model, system_prompt)
+def create_thread(user_id):
+    return _provider().create_thread(user_id)
 
 
 def list_threads(user_id):

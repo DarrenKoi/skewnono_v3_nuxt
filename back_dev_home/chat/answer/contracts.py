@@ -1,7 +1,7 @@
 """Stable contract for the answer seam — one call answers a whole turn.
 
 Agreed with the RAG side 2026-08-31
-(``chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md``): the office
+(``chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md``): the ``rag``
 provider is a thin bridge to ``skewnono_rag.retrieve.agent.agent_query`` and
 this shape mirrors what that returns. Errors reuse the knowledge family —
 routes already translate them (403/503/504).
@@ -9,8 +9,8 @@ routes already translate them (403/503/504).
 
 from typing import TypedDict
 
+from back_dev_home.chat.contracts import ToolTrace
 from back_dev_home.chat.knowledge.contracts import Evidence
-from back_dev_home.chat.runtime.contracts import ToolTrace
 
 
 class AnswerResult(TypedDict):

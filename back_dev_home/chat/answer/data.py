@@ -1,40 +1,32 @@
-"""Lazy provider selection for the answer seam.
+"""Provider selection for the answer seam — the RAG when it is here, else mock.
 
-The dispatcher owns what the application owns regardless of provider: the
-history cap (``get_answer_history_limit``, agreed-contract assumption 20
-until the RAG side sends its ``max_history``). ``messages`` is prior turns
-only — the current question travels in ``question``, never duplicated into
-the history (agreed contract).
+There is no environment variable and no adapter to copy: ``rag.rag_ready()``
+asks whether the delivered ``skewnono_rag`` package and its built index are on
+this machine, and that is the whole decision. At home the checkout is absent,
+so every developer gets the mock; at the office it is present, so the same code
+answers from the real index. Read per call, not cached, so a checkout that
+lands while the server runs takes effect on the next turn.
+
+The dispatcher also owns what the application owns regardless of provider: the
+history cap (``get_answer_history_limit``, default 5 = the RAG's own
+MAX_HISTORY). ``messages`` is prior turns only — the current question travels
+in ``question``, never duplicated into the history (agreed contract).
 """
 
 from __future__ import annotations
 
-from importlib import import_module
-
+from back_dev_home.chat import rag
 from back_dev_home.chat.answer.contracts import AnswerResult
-from back_dev_home.chat.config import (
-    get_answer_history_limit,
-    get_answer_provider_name,
-)
-from back_dev_home.chat.knowledge.contracts import AccessScope, KnowledgeUnavailable
-
-
-_OFFICE_MODULE = "back_dev_home.chat.answer.providers.office"
+from back_dev_home.chat.config import get_answer_history_limit
+from back_dev_home.chat.knowledge.contracts import AccessScope
 
 
 def _provider():
-    if get_answer_provider_name() != "office":
-        return import_module("back_dev_home.chat.answer.providers.mock")
-
-    try:
-        return import_module(_OFFICE_MODULE)
-    except ModuleNotFoundError as error:
-        if error.name == _OFFICE_MODULE:
-            raise KnowledgeUnavailable(
-                "The chat answer office provider is unavailable; "
-                "add back_dev_home/chat/answer/providers/office.py."
-            ) from error
-        raise
+    if rag.rag_ready():
+        from back_dev_home.chat.answer.providers import rag as provider
+        return provider
+    from back_dev_home.chat.answer.providers import mock as provider
+    return provider
 
 
 def answer_question(

@@ -28,7 +28,39 @@ def log_provider_table() -> None:
         logger.info(
             "  %-*s  %-6s  %s", width, row.feature, row.provider, row.reason
         )
+    _log_chat_answer_source()
     _warn_about_stale_adapters(office)
+
+
+def _log_chat_answer_source() -> None:
+    """Chat resolves on its own axis, so the table above cannot show it.
+
+    Every other feature asks "is there a providers/office.py?". Chat asks "is
+    the RAG here?" — the 사내 ``skewnono_rag`` package and its built index,
+    checked out under ``chat/_rag``. That single filesystem answer picks the
+    office adapter or the mock, so it belongs in the same startup record.
+
+    Imported locally: this module is shared plumbing with no reason to
+    hard-depend on the chat feature package at import time.
+    """
+    from back_dev_home.chat.rag import rag_ready, rag_root
+
+    # "chat/answer", not "chat": the table above already has a `chat` row for
+    # its thread storage, and two rows named the same with different answers is
+    # how a reader learns the wrong thing from a log.
+    root = rag_root()
+    if rag_ready():
+        logger.info("  %-11s  %-6s  RAG checkout at %s", "chat/answer", "office", root)
+    elif root is None:
+        logger.info("  %-11s  %-6s  no RAG checkout", "chat/answer", "mock")
+    else:
+        logger.info(
+            "  %-11s  %-6s  RAG checkout at %s is missing its entry module or "
+            "built index",
+            "chat/answer",
+            "mock",
+            root,
+        )
 
 
 def _warn_about_stale_adapters(office: int) -> None:

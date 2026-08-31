@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type {
   ChatMessage,
-  ChatModel,
   FeedbackInput,
   ThreadDetail,
   ThreadSummary
@@ -20,7 +19,6 @@ import {
 const api = useChatApi()
 const toast = useToast()
 
-const models = ref<ChatModel[]>([])
 const threads = ref<ThreadSummary[]>([])
 const active = ref<ThreadDetail | null>(null)
 const draft = ref('')
@@ -42,7 +40,7 @@ const openThread = async (id: string) => {
 }
 
 const newThread = async () => {
-  const t = await api.createThread(models.value[0]?.id ?? '')
+  const t = await api.createThread()
   active.value = t
   sidebarOpen.value = false
   await loadThreads()
@@ -185,7 +183,6 @@ onMounted(async () => {
   }
   if (!available.value) return
 
-  models.value = await api.fetchModels()
   await loadThreads()
 })
 </script>
@@ -261,7 +258,7 @@ onMounted(async () => {
 
       <ChatComposer
         v-model="draft"
-        :disabled="activePending || !models.length"
+        :disabled="activePending"
         @send="send"
       />
     </section>

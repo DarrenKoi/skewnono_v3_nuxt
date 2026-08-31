@@ -298,10 +298,11 @@ def create_app() -> Flask:
 
 대부분의 기능은 교체 지점이 하나(`data.py`)지만, 일부는 여럿입니다. `MIGRATION.md`를 늘 확인하세요.
 
-### `chat` — 저장소 seam + LLM 게이트웨이 seam (독립된 두 축)
+### `chat` — 파일 존재로 정해지는 단 하나의 seam
 
-- **저장소 교체**: `chat/data.py`가 `get_data_provider("chat")`로 mock/office를 골라 스레드 CRUD(`create_thread`, `append_message`, `purge_expired` 등)를 디스패치. office 저장소는 아직 stub.
-- **LLM 교체는 별도 축**: mock/office가 아니라 **env 기반 설정**입니다. `chat/config.py` — *"Swaps by env only — no code change per phase."* `chat/llm.py`는 *"Identical code across phases"*인 stateless OpenAI 호환 클라이언트. 게이트웨이는 `CHAT_BASE_URL`/`CHAT_API_KEY`/`CHAT_MODELS`(기본 `https://openrouter.ai/api/v1`)로 선택하고, egress는 `chat/guard.py`가 제한합니다.
+- **답변 교체**: `chat/answer/data.py`가 `rag.rag_ready()` 하나로 mock/office를 고릅니다. 환경 변수도, `cp office_example.py office.py`도 없습니다 — 사내 RAG 체크아웃(`chat/_rag/skewnono_rag/`)의 진입 모듈과 빌드된 인덱스가 있으면 office, 없으면 mock. 그림 서빙도 같은 스위치를 따릅니다.
+- **판정은 import이 아니라 파일 확인**입니다. 부팅 때 faiss·torch를 끌어오면 앱이 죽을 수 있기 때문입니다. 그래서 "체크아웃은 있는데 import이 깨진" 경우는 office로 판정된 뒤 요청마다 503이 됩니다 — 조용히 mock으로 내려가 가짜 답을 내놓는 것보다 낫습니다.
+- **chat에는 LLM 클라이언트가 없습니다.** 모델·프롬프트·게이트웨이 키는 전부 RAG 소유입니다(2026-08-31에 `llm.py`, egress guard, agent 루프, 검색 tool을 삭제). 스레드 저장은 집·사무실 모두 SQLite입니다.
 
 ### `msr_file` — 데이터 seam + 이미지 seam (하나의 디스패처 뒤 두 진입점)
 

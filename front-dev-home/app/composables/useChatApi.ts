@@ -1,11 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
 
-export interface ChatModel {
-  id: string
-  label: string
-  supports_tools: boolean
-}
-
 export interface SourceRef {
   source_id: string
   source_type: 'manual' | 'meeting' | 'email' | 'report'
@@ -52,8 +46,9 @@ export interface ChatMessage {
   request_id: string | null
   role: 'user' | 'assistant' | 'system'
   content: string
+  /** What answered, when the RAG reports it. It usually does not. */
   model?: string | null
-  runtime: 'direct' | 'agent' | 'rag' | 'scope_rejection' | null
+  runtime: 'rag' | 'scope_rejection' | null
   scope_status: 'in_scope' | 'mixed' | 'out_of_scope' | 'unsafe' | null
   prompt_tokens?: number | null
   completion_tokens?: number | null
@@ -74,13 +69,11 @@ export interface ChatMessage {
 export interface ThreadSummary {
   id: string
   title: string
-  model: string
   updated_at: string
 }
 
 export interface ThreadDetail extends ThreadSummary {
   user_id: string
-  system_prompt?: string | null
   created_at: string
   messages: ChatMessage[]
 }
@@ -98,19 +91,16 @@ export const useChatApi = () => {
   const fetchAvailability = async (): Promise<boolean> =>
     (await $fetch<{ data: { available: boolean } }>(url('/chat/availability'))).data.available
 
-  const fetchModels = async (): Promise<ChatModel[]> =>
-    (await $fetch<{ data: ChatModel[] }>(url('/chat/models'))).data
-
   const fetchThreads = async (): Promise<ThreadSummary[]> =>
     (await $fetch<{ data: ThreadSummary[] }>(url('/chat/threads'))).data
 
   const fetchThread = async (id: string): Promise<ThreadDetail> =>
     (await $fetch<{ data: ThreadDetail }>(url(`/chat/threads/${id}`))).data
 
-  const createThread = async (model: string, systemPrompt?: string): Promise<ThreadDetail> => {
+  /** Opens an empty thread. No body: the RAG owns the model and the prompt. */
+  const createThread = async (): Promise<ThreadDetail> => {
     const t = (await $fetch<{ data: ThreadDetail }>(url('/chat/threads'), {
-      method: 'POST',
-      body: { model, system_prompt: systemPrompt || null }
+      method: 'POST'
     })).data
     return { ...t, messages: t.messages ?? [] }
   }
@@ -148,7 +138,7 @@ export const useChatApi = () => {
 
   return {
     fetchAvailability,
-    fetchModels, fetchThreads, fetchThread,
+    fetchThreads, fetchThread,
     createThread, renameThread, deleteThread, sendMessage,
     putFeedback, deleteFeedback
   }

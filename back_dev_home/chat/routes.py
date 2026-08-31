@@ -1,28 +1,17 @@
-"""Thin HTTP adapters for chat models, threads, messages, and feedback."""
+"""Thin HTTP adapters for chat threads, messages, feedback, and figures."""
 
 from uuid import UUID
 
 from flask import Blueprint, Response, g, request
 
 from back_dev_home._auth.errors import error_json
-from back_dev_home.chat import config, data, figures, guard
+from back_dev_home.chat import config, data, figures
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,
     KnowledgeUnavailable,
 )
-from back_dev_home.chat.orchestration import (
-    ModelDoesNotSupportTools,
-    ThreadNotFound,
-    orchestrator,
-)
-from back_dev_home.chat.runtime.contracts import (
-    RuntimeDenied,
-    RuntimeLimitExceeded,
-    RuntimeTimeout,
-    RuntimeUnavailable,
-    RuntimeUpstreamError,
-)
+from back_dev_home.chat.orchestration import ThreadNotFound, orchestrator
 from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
 bp = Blueprint("chat", __name__)
@@ -98,11 +87,6 @@ def chat_availability():
     return {"data": {"available": not config.is_under_development()}}
 
 
-@bp.get("/chat/models")
-def chat_models():
-    return {"data": config.list_models()}
-
-
 @bp.get("/chat/threads")
 def chat_list_threads():
     data.purge_expired(30)
@@ -111,11 +95,8 @@ def chat_list_threads():
 
 @bp.post("/chat/threads")
 def chat_create_thread():
-    body = request.get_json(silent=True) or {}
-    model = body.get("model")
-    if not model:
-        return error_json("bad_request", "model is required", 400)
-    thread = data.create_thread(_uid(), model, body.get("system_prompt"))
+    """Open an empty thread. No body: the RAG owns the model and the prompt."""
+    thread = data.create_thread(_uid())
     thread["messages"] = []
     return {"data": thread}, 201
 
@@ -162,22 +143,15 @@ def chat_send_message(thread_id):
         assistant = orchestrator.send_message(_uid(), thread_id, content, request_id)
     except ThreadNotFound as exc:
         return error_json("not_found", str(exc), 404)
-    except ModelDoesNotSupportTools as exc:
-        return error_json("bad_request", str(exc), 400)
-    # Knowledge* reach here from the orchestrator's own RAG calls (query
-    # rewrite); inside the agent loop they are already mapped to Runtime*.
-    except (RuntimeDenied, KnowledgeDenied) as exc:
+    # The answer seam is the only thing that can fail out here, and it speaks
+    # the knowledge error family: denied by access scope, no usable RAG on
+    # this machine, or over the turn budget.
+    except KnowledgeDenied as exc:
         return error_json("runtime_denied", str(exc), 403)
-    except (RuntimeUnavailable, ScopeUnavailable, KnowledgeUnavailable) as exc:
+    except (ScopeUnavailable, KnowledgeUnavailable) as exc:
         return error_json("runtime_unavailable", str(exc), 503)
-    except (RuntimeTimeout, KnowledgeTimeout) as exc:
+    except KnowledgeTimeout as exc:
         return error_json("gateway_timeout", str(exc), 504)
-    except RuntimeUpstreamError as exc:
-        return error_json("bad_gateway", str(exc), 502)
-    except RuntimeLimitExceeded as exc:
-        return error_json("runtime_limit_exceeded", str(exc), 422)
-    except guard.ChatEgressBlocked as exc:
-        return error_json("egress_blocked", exc.message, 403)
     return {"data": assistant}
 
 

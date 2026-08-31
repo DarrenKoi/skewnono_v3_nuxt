@@ -44,7 +44,7 @@ def _connect() -> sqlite3.Connection:
         """
         CREATE TABLE IF NOT EXISTS threads (
           id TEXT PRIMARY KEY, user_id TEXT, title TEXT,
-          model TEXT, system_prompt TEXT, created_at TEXT, updated_at TEXT
+          created_at TEXT, updated_at TEXT
         );
         CREATE TABLE IF NOT EXISTS messages (
           id TEXT PRIMARY KEY, thread_id TEXT, role TEXT, content TEXT,
@@ -159,27 +159,28 @@ def _delete_message_children(conn: sqlite3.Connection, message_ids: list[str]) -
         )
 
 
-def create_thread(user_id, model, system_prompt=None):
+def create_thread(user_id):
     tid = uuid.uuid4().hex
     now = _now()
     conn = _connect()
     with conn:
         conn.execute(
-            "INSERT INTO threads (id,user_id,title,model,system_prompt,created_at,updated_at)"
-            " VALUES (?,?,?,?,?,?,?)",
-            (tid, user_id, "New chat", model, system_prompt, now, now),
+            "INSERT INTO threads (id,user_id,title,created_at,updated_at)"
+            " VALUES (?,?,?,?,?)",
+            (tid, user_id, "New chat", now, now),
         )
     conn.close()
     return {
-        "id": tid, "user_id": user_id, "title": "New chat", "model": model,
-        "system_prompt": system_prompt, "created_at": now, "updated_at": now,
+        "id": tid, "user_id": user_id, "title": "New chat",
+        "created_at": now, "updated_at": now,
     }
 
 
 def list_threads(user_id):
     conn = _connect()
     rows = conn.execute(
-        "SELECT id,title,model,updated_at FROM threads WHERE user_id=? ORDER BY updated_at DESC",
+        "SELECT id,title,updated_at FROM threads WHERE user_id=? "
+        "ORDER BY updated_at DESC",
         (user_id,),
     ).fetchall()
     conn.close()
@@ -189,7 +190,12 @@ def list_threads(user_id):
 def get_thread(user_id, thread_id):
     conn = _connect()
     thread_row = conn.execute(
-        "SELECT * FROM threads WHERE id=? AND user_id=?", (thread_id, user_id)
+        # Explicit columns, not *: an older chat.db still carries the model and
+        # system_prompt columns this app no longer owns (the RAG does), and
+        # SELECT * would put them back in the payload on those machines alone.
+        "SELECT id,user_id,title,created_at,updated_at FROM threads "
+        "WHERE id=? AND user_id=?",
+        (thread_id, user_id),
     ).fetchone()
     if thread_row is None:
         conn.close()

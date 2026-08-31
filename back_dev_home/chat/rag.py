@@ -11,6 +11,14 @@ pack all skip ``_``-prefixed directories, and ``.gitignore`` hides it from this
 repo (its own ``.git`` keeps working: ``git -C back_dev_home/chat/_rag pull``).
 ``SKEWNONO_CHAT_RAG_ROOT`` points anywhere else.
 
+The checkout is also the ONLY switch chat has: ``rag_ready()`` asks whether
+the delivered package and its built index are on this machine, and that answer
+alone decides office vs mock for the answer seam. There is no
+``SKEWNONO_CHAT_*_PROVIDER`` variable and no ``cp office_example.py`` step —
+the RAG being here IS the readiness, the same principle as every other
+feature's ``providers/office.py`` presence, keyed on the thing chat actually
+depends on.
+
 ``import_rag("retrieve.serve")`` is the only import path: it puts the root on
 ``sys.path`` once and turns every failure — no checkout, a half-cloned tree,
 a missing 사내 dependency — into ``KnowledgeUnavailable`` so the caller reports
@@ -63,6 +71,32 @@ def index_dir() -> Path | None:
         return Path(raw)
     root = rag_root()
     return None if root is None else root / _PACKAGE / "index"
+
+
+# What a usable checkout must contain. The entry module is the one the answer
+# adapter imports; the index is what makes it answer rather than raise.
+_REQUIRED_MODULE = Path("retrieve") / "agent.py"
+
+
+def rag_ready() -> bool:
+    """Whether this machine has a RAG that can answer — the office/mock switch.
+
+    A filesystem check, never an import: this runs at boot, and importing the
+    RAG pulls 사내 dependencies (faiss, torch) that must not be able to stop
+    the app from starting. A present-but-unimportable checkout therefore still
+    reads as ready here and fails per request as a 503, which is the right
+    place for it — the alternative is a home instance that silently answers
+    with mock data because an import blew up.
+
+    Requires the delivered package, the module the answer adapter imports, and
+    a non-empty built index. The index matters: the package without it imports
+    fine and answers nothing.
+    """
+    root = rag_root()
+    if root is None or not (root / _PACKAGE / _REQUIRED_MODULE).is_file():
+        return False
+    index = index_dir()
+    return index is not None and index.is_dir() and any(index.iterdir())
 
 
 def import_rag(module: str) -> ModuleType:

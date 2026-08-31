@@ -1,9 +1,9 @@
-"""Home coverage for the answer office template (the tracked contract half).
+"""Home coverage for the RAG answer provider — the office path, run at home.
 
-Mirrors ``test_knowledge_office_template.py``: the gitignored office copy is
-byte-identical, so pinning the template here pins what the copy inherits —
-the ``agent_query`` call shape, the three-way error translation, source
-normalization, and the five-row cap the application owns.
+The provider is tracked (no gitignored copy), so this is the real code under
+test with ``skewnono_rag`` faked: the ``agent_query`` call shape, the
+three-way error translation, source normalization, and the five-row cap the
+application owns.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import types
 
 import pytest
 
-from back_dev_home.chat.answer.providers import office_example as template
+from back_dev_home.chat.answer.providers import rag as template
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,

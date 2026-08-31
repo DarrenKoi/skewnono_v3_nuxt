@@ -78,3 +78,67 @@ def test_index_dir_env_override_wins_without_a_checkout(tmp_path, monkeypatch):
     monkeypatch.setenv("SKEWNONO_RAG_INDEX_DIR", str(tmp_path / "elsewhere"))
 
     assert rag.index_dir() == tmp_path / "elsewhere"
+
+
+# ---------------------------------------------------------------------------
+# rag_ready() — chat's only office/mock switch. A filesystem question, asked
+# at boot and again per turn.
+# ---------------------------------------------------------------------------
+
+
+def _checkout(root, *, module=True, index=True):
+    package = root / "skewnono_rag"
+    if module:
+        (package / "retrieve").mkdir(parents=True)
+        (package / "retrieve" / "agent.py").write_text("")
+    else:
+        package.mkdir(parents=True)
+    if index:
+        (package / "index").mkdir()
+        (package / "index" / "faiss.bin").write_text("")
+    return root
+
+
+def test_ready_when_the_package_module_and_index_are_present(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(_checkout(tmp_path)))
+
+    assert rag.rag_ready() is True
+
+
+def test_not_ready_without_a_checkout():
+    assert rag.rag_ready() is False
+
+
+def test_not_ready_without_the_entry_module(tmp_path, monkeypatch):
+    """A half-delivered package must not read as a RAG that can answer."""
+    monkeypatch.setenv(
+        "SKEWNONO_CHAT_RAG_ROOT", str(_checkout(tmp_path, module=False))
+    )
+
+    assert rag.rag_ready() is False
+
+
+def test_not_ready_without_a_built_index(tmp_path, monkeypatch):
+    """The package imports fine without an index and answers nothing."""
+    monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(_checkout(tmp_path, index=False)))
+
+    assert rag.rag_ready() is False
+
+
+def test_not_ready_when_the_index_is_empty(tmp_path, monkeypatch):
+    root = _checkout(tmp_path, index=False)
+    (root / "skewnono_rag" / "index").mkdir()
+
+    monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(root))
+
+    assert rag.rag_ready() is False
+
+
+def test_readiness_never_imports_the_rag(tmp_path, monkeypatch):
+    """Boot must not pull faiss/torch: a filesystem check, never an import."""
+    root = _checkout(tmp_path)
+    (root / "skewnono_rag" / "retrieve" / "agent.py").write_text("raise SystemExit(1)")
+    monkeypatch.setenv("SKEWNONO_CHAT_RAG_ROOT", str(root))
+
+    assert rag.rag_ready() is True
+    assert "skewnono_rag.retrieve.agent" not in sys.modules

@@ -273,39 +273,6 @@ def test_validate_env_ignores_the_global_mode_var(monkeypatch, wired):
     data_provider.validate_env()  # must not raise
 
 
-def test_validate_env_leaves_chat_sub_provider_selectors_to_chat(monkeypatch, wired):
-    """Knowledge/scope adapters are lazy chat seams, not feature providers."""
-    monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
-    monkeypatch.setenv("SKEWNONO_CHAT_SCOPE_PROVIDER", "office")
-    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_PROVIDER", "office")
-
-    data_provider.validate_env()  # must not require chat/providers/office.py
-
-
-@pytest.mark.parametrize(
-    "env_name",
-    [
-        "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER",
-        "SKEWNONO_CHAT_SCOPE_PROVIDER",
-        "SKEWNONO_CHAT_ANSWER_PROVIDER",
-    ],
-)
-def test_validate_env_rejects_invalid_lazy_chat_selector(
-    monkeypatch, wired, env_name
-):
-    """Lazy adapter resolution must not make invalid selector values lazy."""
-    monkeypatch.setenv(env_name, "typo")
-
-    with pytest.raises(RuntimeError, match=env_name):
-        data_provider.validate_env()
-
-
-# ------------------------------------------- cross-feature office dependencies
-#
-# storage's office adapter joins every row against the live sem_list by
-# eqp_ip. Pairing it with a mock sem_list is the one misconfiguration that
-# produces no error at all: the join matches nothing, and the table renders
-# empty behind a 200.
 
 def _storage_only_tree(fake_tree):
     """storage has an office adapter; sem_list does not — the cp-one-of-two slip."""

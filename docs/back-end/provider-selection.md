@@ -88,7 +88,7 @@ python -m scripts.adapters.sync_office_adapters <feature>
 
 | 피처 | 추가 스왑 표면 |
 | --- | --- |
-| `chat` | 저장소와 LLM 설정 (환경 변수 기반) |
+| `chat` | 답변 provider (`_rag` 체크아웃 존재 여부) |
 | `msr_file`, `msr_image` | FTP / MinIO 핸들러 |
 
 해당 피처는 각자의 `MIGRATION.md`를 확인합니다.

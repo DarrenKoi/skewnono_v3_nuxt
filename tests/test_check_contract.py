@@ -559,9 +559,14 @@ def test_no_two_endpoints_share_an_api_path():
 # toolTypeParity.test.ts` (pytest and node --test reading the same JSON), not
 # a mock-server response. Add to this set only for the same reason: a file
 # with nothing `capture_fixtures.py` could ever have produced.
-NON_ENDPOINT_FIXTURE_FILES: frozenset[Path] = frozenset({
-    BACKEND / "ebeam" / "__fixtures__" / "tool_type_cases.json",
-})
+NON_ENDPOINT_FIXTURE_FILES: frozenset[Path] = frozenset(
+    {BACKEND / "ebeam" / "__fixtures__" / "tool_type_cases.json"}
+    # chat's knowledge corpus: the mock's stand-in for what the office RAG
+    # indexed, read by knowledge/providers/mock.py. No endpoint ever returned
+    # these, and chat has no captured endpoint of its own — every chat payload
+    # is either user-specific or a live RAG answer.
+    | set((BACKEND / "chat" / "__fixtures__" / "knowledge").glob("*.json"))
+)
 
 
 def test_no_feature_with_fixtures_is_exempt_from_the_shape_guard():

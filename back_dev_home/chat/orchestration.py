@@ -1,17 +1,24 @@
-"""Application-owned orchestration for persisted chat turns."""
+"""Application-owned orchestration for persisted chat turns.
+
+One turn is: replay a completed request id, classify scope, ask the answer
+seam, persist, log. The answer seam is the RAG (or its home mock), which
+answers the WHOLE turn — rewrite and follow-up suggestions arrive inside its
+result rather than being separate calls this module makes.
+"""
 
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
-from back_dev_home.chat import config, conversation_log, data
-from back_dev_home.chat.contracts import Message
-from back_dev_home.chat.knowledge import data as knowledge_data
-from back_dev_home.chat.runtime import data as runtime_data
-from back_dev_home.chat.runtime.contracts import RuntimeRequest, RuntimeResult
-from back_dev_home.chat.scope import data as scope_data
+from back_dev_home.chat import conversation_log, data
+from back_dev_home.chat.answer import data as answer_data
+from back_dev_home.chat.answer.contracts import AnswerResult
+from back_dev_home.chat.contracts import Message, TurnResult
+from back_dev_home.chat.knowledge.contracts import AccessScope
+from back_dev_home.chat.scope import policy as scope_policy
 from back_dev_home.chat.scope.contracts import ScopeDecision
 from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
@@ -29,37 +36,23 @@ class ThreadNotFound(LookupError):
     """Raised when a thread is absent or is not owned by the caller."""
 
 
-class ModelDoesNotSupportTools(ValueError):
-    """Raised before persistence when agent mode cannot use the thread model."""
-
-
 class ChatOrchestrator:
-    """Coordinate idempotency, scope, runtime invocation, and persistence."""
+    """Coordinate idempotency, scope, the answer call, and persistence."""
 
     def __init__(
         self,
         store: Any = data,
-        scope_classifier: Callable[[str], ScopeDecision] = scope_data.classify,
-        runtime_invoker: Callable[
-            [RuntimeRequest], RuntimeResult
-        ] = runtime_data.invoke,
-        model_finder: Callable[[str], dict | None] = config.find_model,
+        scope_classifier: Callable[[str], ScopeDecision] = scope_policy.classify,
+        answerer: Callable[
+            [str, list[dict], AccessScope], AnswerResult
+        ] = answer_data.answer_question,
         *,
-        runtime_name_finder: Callable[[], str] = config.get_runtime_name,
         conversation_recorder: Callable[..., None] = conversation_log.record_turn,
-        query_rewriter: Callable[[str], str] = knowledge_data.rewrite_query,
-        follow_up_generator: Callable[
-            [str, str, list], list[str]
-        ] = knowledge_data.generate_follow_ups,
     ) -> None:
         self._store = store
         self._scope_classifier = scope_classifier
-        self._runtime_invoker = runtime_invoker
-        self._model_finder = model_finder
-        self._runtime_name_finder = runtime_name_finder
+        self._answerer = answerer
         self._conversation_recorder = conversation_recorder
-        self._query_rewriter = query_rewriter
-        self._follow_up_generator = follow_up_generator
 
     def send_message(
         self,
@@ -72,19 +65,6 @@ class ChatOrchestrator:
         thread = self._store.get_thread(user_id, thread_id)
         if thread is None:
             raise ThreadNotFound("thread not found")
-
-        runtime_name = self._runtime_name_finder()
-        is_agent = runtime_name == "agent"
-        # The rag runtime answers the whole turn: rewrite and follow-ups
-        # arrive inside its result, so the orchestrator's own knowledge
-        # calls stay out of that path entirely.
-        bundles_answer = runtime_name == "rag"
-        if is_agent:
-            model = self._model_finder(thread["model"])
-            if model is None or not model.get("supports_tools", False):
-                raise ModelDoesNotSupportTools(
-                    "the selected model does not support agent tools"
-                )
 
         completed = self._store.get_message_by_request(
             thread_id, request_id, "assistant"
@@ -110,7 +90,6 @@ class ChatOrchestrator:
             )
             self._record_conversation(
                 user_id,
-                thread["model"],
                 user_message["content"],
                 assistant,
                 decision,
@@ -121,50 +100,28 @@ class ChatOrchestrator:
         persisted = self._store.get_thread(user_id, thread_id)
         if persisted is None:
             raise ThreadNotFound("thread not found")
-        # The question the runtime actually answers: the supported clause for
-        # a mixed turn, else the user's words. Rewrite and follow-ups are RAG
-        # calls, so they run only where retrieval runs — agent mode. A rewrite
-        # failure fails the turn (raw-question retrieval would look like a
-        # working answer with worse recall); the user turn stays for retry.
+        # The question the answer seam is asked: the supported clause for a
+        # mixed turn, else the user's words. History is prior turns only —
+        # the current question travels alone (agreed RAG contract).
         question = (
             decision["supported_query"]
             if decision["status"] == "mixed"
             else user_message["content"]
         )
-        rewrite = self._rewrite(question) if is_agent else None
-        runtime_request: RuntimeRequest = {
-            "request_id": request_id,
-            "thread_id": thread_id,
-            "access_scope": {
-                "user_id": user_id,
-                "groups": [],
-                "fabs": [],
-            },
-            "model": thread["model"],
-            "system_prompt": thread.get("system_prompt"),
-            "messages": self._runtime_messages(
-                persisted["messages"], request_id, decision
-            ),
-            "scope_decision": decision,
-            "rewrite": rewrite,
+        history = self._history(persisted["messages"], request_id)
+        access_scope: AccessScope = {
+            "user_id": user_id,
+            "groups": [],
+            "fabs": [],
         }
-        result = self._runtime_invoker(runtime_request)
-        if bundles_answer:
-            result.setdefault("rewrite", None)
-            result.setdefault("follow_ups", [])
-        else:
-            result["rewrite"] = rewrite
-            result["follow_ups"] = (
-                self._follow_ups(question, result["content"], result["sources"])
-                if is_agent
-                else []
-            )
+        started = time.perf_counter()
+        answer = self._answerer(question, history, access_scope)
+        result = self._turn_result(answer, started)
         if decision["status"] == "mixed":
             result["content"] = f"{MIXED_SCOPE_NOTICE}\n\n{result['content']}"
         assistant = self._store.complete_turn(thread_id, request_id, result)
         self._record_conversation(
             user_id,
-            thread["model"],
             user_message["content"],
             assistant,
             decision,
@@ -172,26 +129,30 @@ class ChatOrchestrator:
         )
         return assistant
 
-    def _rewrite(self, question: str) -> str | None:
-        rewritten = self._query_rewriter(question)
-        return rewritten if rewritten != question else None
+    @staticmethod
+    def _turn_result(answer: AnswerResult, started: float) -> TurnResult:
+        """Wrap what the RAG returned in what the store persists.
 
-    def _follow_ups(self, question: str, answer: str, sources: list) -> list[str]:
-        # Suggestions are decoration on a turn that already succeeded; a RAG
-        # failure here costs the chips, never the answer — same policy as the
-        # conversation record below.
-        try:
-            return list(self._follow_up_generator(question, answer, sources))
-        except Exception:
-            logging.getLogger("skewnono.chat").exception(
-                "failed to generate chat follow-up questions"
-            )
-            return []
+        ``model`` is None on purpose: the RAG picks and calls its own model
+        and does not report which. Latency is measured here rather than taken
+        from the answer because this is the number the user waited.
+        """
+        return {
+            "content": answer["content"],
+            "runtime": "rag",
+            "model": None,
+            "prompt_tokens": answer["prompt_tokens"],
+            "completion_tokens": answer["completion_tokens"],
+            "latency_ms": int((time.perf_counter() - started) * 1000),
+            "sources": answer["sources"],
+            "tool_traces": answer["tool_traces"],
+            "rewrite": answer["rewrite"],
+            "follow_ups": answer["follow_ups"],
+        }
 
     def _record_conversation(
         self,
         user_id: str,
-        thread_model: str,
         user_content: str,
         assistant: Message,
         decision: ScopeDecision,
@@ -203,7 +164,6 @@ class ChatOrchestrator:
         try:
             self._conversation_recorder(
                 user_id=user_id,
-                thread_model=thread_model,
                 user_content=user_content,
                 assistant=assistant,
                 decision=decision,
@@ -215,26 +175,23 @@ class ChatOrchestrator:
             )
 
     @staticmethod
-    def _runtime_messages(
-        messages: list[Message],
-        request_id: str,
-        decision: ScopeDecision,
-    ) -> list[dict]:
-        runtime_messages = []
-        for message in messages:
-            content = message["content"]
-            if (
-                decision["status"] == "mixed"
-                and message["role"] == "user"
-                and message["request_id"] == request_id
-                and decision["supported_query"]
-            ):
-                content = decision["supported_query"]
-            runtime_messages.append({"role": message["role"], "content": content})
-        return runtime_messages
+    def _history(messages: list[Message], request_id: str) -> list[dict]:
+        """Prior turns, without the question being asked now.
+
+        The current user turn is already persisted when this runs (so a retry
+        of the same request id replays instead of re-asking), which is exactly
+        the message the contract says must NOT be duplicated into the history.
+        Dropping it by request id also drops the mixed-scope substitution
+        problem: the clause the RAG is asked travels in ``question``.
+        """
+        return [
+            {"role": message["role"], "content": message["content"]}
+            for message in messages
+            if message["request_id"] != request_id
+        ]
 
     @staticmethod
-    def _scope_rejection_result() -> RuntimeResult:
+    def _scope_rejection_result() -> TurnResult:
         return {
             "content": SCOPE_REFUSAL,
             "runtime": "scope_rejection",

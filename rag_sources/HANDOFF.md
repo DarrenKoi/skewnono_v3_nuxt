@@ -1,6 +1,11 @@
 # Chat RAG 데이터 준비 체크포인트와 사내 LLM 프롬프트
 
-작성일: 2026-08-02. 이 문서는 사내 RAG side project에서 로컬 LLM(GLM-5.2,
+작성일: 2026-08-02. **2026-08-31 갱신**: 답변 생성 경계가 RAG 쪽으로
+넘어갔습니다 — chat 에는 agent loop 도, 검색 tool 도, LLM client 도 없고
+`agent_query` 한 번의 호출이 turn 전체를 답합니다. provider 선택 환경 변수도
+없어졌으며, `_rag` 체크아웃의 존재가 mock/office 를 정합니다. 아래 3~5절의
+sadari 절차는 그 이전 구조를 전제하므로 `back_dev_home/chat/MIGRATION.md` 를
+먼저 읽으십시오. 이 문서는 사내 RAG side project에서 로컬 LLM(GLM-5.2,
 pi coding agent)으로 RAG 데이터를 생성할 때 사용할 목표 설명, 체크포인트,
 복사-붙여넣기용 프롬프트를 제공합니다. 원문 배치 위치인 이 디렉터리
 (`rag_sources/`, 계약은 같은 폴더의 `README.md`)에 함께 둡니다. Skewnono 저장소 쪽
@@ -145,75 +150,28 @@ back_dev_home/chat/__fixtures__/knowledge/*.json 의 record 형태다.
 출력에 포함하지 마라.
 ```
 
-### Prompt 2 — `knowledge/providers/office.py` 구현
+### Prompt 2·3 — 철회 (2026-08-31)
+
+`knowledge/providers/office.py` 구현과 그 fake-client contract test 를 지시하던
+두 프롬프트는 삭제했습니다. 검색은 이제 RAG 안에서 일어나고 chat 쪽에는 그
+seam 이 없습니다 — 검색 품질과 접근 필터는 `skewnono_rag` 의 책임이며, chat 은
+`agent_query` 가 돌려준 Evidence 의 **모양만** 검증합니다
+(`answer/providers/rag.py`, `tests/test_answer_rag.py`).
+
+### Prompt 4 — 전환과 smoke 검증
 
 ```text
-skewnono 저장소의 back_dev_home/chat/knowledge/providers/office_example.py 는 계약
-절반이 이미 작성된 skeleton이다. 파일 docstring과
-back_dev_home/chat/MIGRATION.md 의 "Office knowledge provider 구현 계약" 절을 읽은
-뒤, office_example.py 를 office.py 로 복사한 gitignored 파일에서 OFFICE-TODO 로
-표시된 세 seam만 구현하라. "do not edit below" 아래의 계약 절반(공개 signature,
-_search, _to_evidence)은 절대 수정하지 않는다.
+skewnono chat 의 office 전환을 확인하라. 선택할 환경 변수는 없다 — 체크아웃이
+제자리에 있으면 office, 없으면 mock 이다.
 
-1. _config(): <사내 설정 설명: host, index alias, timeout 등>을 환경설정/.env에서만
-   읽는다. model argument나 user 입력에서 받지 않는다. 필수 설정이 없으면
-   KnowledgeUnavailable을 raise한다.
-2. _build_request(): 검색 대상은 <사내 index/collection 설명>이며, scope의
-   user_id/groups/fabs access filter를 backend query 자체에 포함한다. 검색 후
-   Python filtering으로 권한을 보완하는 것은 계약 위반이다. Field projection은
-   docstring의 normalized raw hit 키로 제한한다.
-3. _execute(): 사내 backend를 호출해 normalized raw hit 형태(list of mapping,
-   rank 순서 유지)로 반환한다. snippet은 승인된 최소 근거만 넣는다.
-4. _translate_error(): 사내 client 예외를 KnowledgeDenied(접근 거부)/
-   KnowledgeTimeout(시간 초과)/KnowledgeUnavailable(그 외)로 mapping하는 분기를
-   추가한다. 오류 메시지에 query 내용·credential을 넣지 않는다.
-
-구현 후 back_dev_home/chat/tests/test_knowledge_office.py 의 OFFICE-TODO skip
-test 세 건을 채워라(다음 프롬프트 참조).
-```
-
-### Prompt 3 — fake-client contract test 완성
-
-```text
-back_dev_home/chat/tests/test_knowledge_office.py 는 tracked skeleton으로 이미
-존재한다. 계약 절반(Evidence mapping, limit, empty result, rank ordering, typed
-exception)은 이미 fake seam으로 검증되고 있으니 수정하지 마라. 파일 하단의
-OFFICE-TODO skip test 세 건을 live 사내 service 호출 없이 채워라.
-
-1. test_access_scope_is_embedded_in_the_backend_query: office._build_request가
-   scope(user_id/groups/fabs)를 backend query 자체에 포함하는지 검증한다.
-2. test_raw_backend_rows_normalize_to_the_documented_hit_shape: de-identify한 raw
-   backend row를 fake client로 주입해 _execute가 normalized raw hit 형태(1-based
-   page, 없는 provenance는 None)로 반환하는지 검증한다.
-3. test_office_client_errors_map_to_typed_exceptions: 사내 client library의 실제
-   authorization/timeout 예외 타입이 KnowledgeDenied/KnowledgeTimeout으로
-   mapping되는지 검증한다.
-
-제약: 실제 source 내용·사내 경로·index 이름·credential을 assertion과 fixture에
-넣지 않는다.
-
-실행:
-.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office.py -q
-```
-
-### Prompt 4 — 단계별 전환과 smoke 검증
-
-```text
-skewnono chat의 office 전환을 다음 사다리 순서로 진행하고 각 단계 결과를 기록하라.
-자동 fallback은 없다. 문제가 생기면 환경변수를 명시적으로 되돌린다.
-
-1. direct/mock/mock: SKEWNONO_CHAT_RUNTIME=direct 로 기존 대화 경로 확인.
-2. agent/mock/mock: synthetic RAG로 tool 호출·citation 경로 확인.
-3. agent/office/mock: SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office 로 실제 index 연결.
-   TEST_STAGE=local SKEWNONO_CHAT_PROVIDER=mock SKEWNONO_CHAT_RUNTIME=agent \
-   SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office SKEWNONO_CHAT_SCOPE_PROVIDER=office \
-   .venv/bin/python -m pytest tests/test_chat_rag_local.py -q
-   (승인된 비민감 query 한 건으로 source type/provenance/access denial 확인)
-4. agent/office/office: scope classifier까지 전환.
-
-Thread storage(SKEWNONO_CHAT_PROVIDER)는 RAG와 독립적으로 검증한다. 완료 후 repo
-root에서 전체 suite를 다시 실행해 계약이 변하지 않았음을 확인한다:
-.venv/bin/python -m pytest tests back_dev_home -q
+1. `_rag/skewnono_rag/` 에 패키지와 빌드된 인덱스를 둔다.
+2. `.venv/bin/python index.py` 로 띄우고 부팅 로그의 `chat/answer` 행이 `office` 이며
+   체크아웃 경로를 가리키는지 확인한다. `mock` 이면 진입 모듈이나 인덱스가
+   빠진 것이다.
+3. 승인된 비민감 질문 한 건을 실제로 보내 source type, provenance, 접근 거부를
+   확인한다.
+4. repo root 에서 전체 suite 를 다시 실행해 계약이 변하지 않았음을 확인한다:
+   .venv/bin/python -m pytest tests back_dev_home -q
 ```
 
 ## 6. Adapter 밖에서 별도 배정이 필요한 항목
@@ -224,6 +182,6 @@ RAG 데이터·adapter와 무관하게 사내 담당 배정이 필요한 잔여 
 | 항목 | 상태 |
 | --- | --- |
 | Access resolver (groups/fabs 계산) | 미구현. 현재 AccessScope는 user_id만 채웁니다. Resolver 전에는 전 사용자 공개 source만 연결합니다. |
-| LLM gateway | 사내 tool-capable model endpoint와 `CHAT_MODELS` capability flag 배정이 필요합니다. |
+| LLM gateway | RAG 소유로 이관되었습니다(`skewnono_rag/config.py` 내장 키). chat 쪽에는 배정할 항목이 없습니다. |
 | Thread storage office provider | Stub. Write 가능한 사내 저장소 결정이 필요합니다. |
 | Retention job | `_scheduler/` 에 구현할 수 있으나 owner/주기/alerting 값이 미정입니다. |
