@@ -167,12 +167,19 @@
                 class="min-w-0 truncate font-mono text-[12px] font-semibold"
                 :class="member.pressed ? '' : 'text-(--sk-ink)'"
               >{{ member.lot }}</span>
-              <!-- Same chip shape the search result table gives a fab. A value,
-                   so it sits at the 12px data floor, not the 11px chrome tier. -->
+              <!-- DESIGN.md `category-tag`: a tag naming which peer group a row
+                   belongs to, no verdict attached. Shaped after its named
+                   reference, `ebeam/rules/MemoryChip.vue` — 6px radius, the
+                   sanctioned neutral triple. NEUTRAL for every fab, never a
+                   hue per value: with 17 fabs this is the ">= 3 values get no
+                   colour encoding" case, so the four characters do the telling
+                   apart and the tag is only a container. -->
               <span
                 v-if="member.fab"
-                class="shrink-0 rounded-(--sk-r-chip) px-1.5 font-mono text-[12px]"
-                :class="member.pressed ? 'bg-(--sk-brand-fg)/20' : 'bg-(--sk-chip-bg) text-(--sk-chip-text)'"
+                class="shrink-0 rounded-[var(--sk-r-sidebar)] border px-1.5 font-mono text-xs"
+                :class="member.pressed
+                  ? 'border-transparent bg-(--sk-brand-fg)/20 text-(--sk-brand-fg)'
+                  : 'border-(--sk-border) bg-(--sk-muted-surface) text-(--sk-ink-muted)'"
               >{{ member.fab }}</span>
             </span>
             <span
