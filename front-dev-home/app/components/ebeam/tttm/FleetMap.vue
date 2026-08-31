@@ -49,6 +49,46 @@
       배치할 수 있는 장비가 2대 미만이라 지도를 그리지 않습니다.
     </p>
 
+    <!-- Legend, ALWAYS visible — not folded into 자세히.
+         This card carries two different verdicts at once: the FILL is a
+         pairwise tolerance reading, the OUTLINE is group membership. Nothing
+         about a blue dot says "in the group", and a reader who assumes it does
+         gets the recommendation backwards. That inference was available for as
+         long as the colours went unexplained above the fold, so the swatches
+         sit here rather than one click away.
+         The swatch colours are bound to the SAME values the series use, so the
+         legend cannot drift from what the canvas actually paints. -->
+    <div
+      v-if="map.points.length"
+      class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-(--sk-ink-muted)"
+    >
+      <span class="inline-flex items-center gap-1">
+        <span
+          class="h-3 w-3 shrink-0 rounded-full"
+          :style="{ backgroundColor: sk.series }"
+        />
+        허용오차 안에 드는 짝이 있음
+      </span>
+      <span class="inline-flex items-center gap-1">
+        <span
+          class="h-3 w-3 shrink-0 rounded-full"
+          :style="{ backgroundColor: SK_STATE.bad }"
+        />
+        가장 가까운 장비마저 허용오차 밖
+      </span>
+      <span
+        v-if="groupCentroid"
+        class="inline-flex items-center gap-1"
+      >
+        <span
+          class="h-3 w-3 shrink-0 rounded-full border-2 bg-transparent"
+          :style="{ borderColor: SK_STATE.ok }"
+        />
+        1차 N배화 그룹 소속
+      </span>
+      <span class="text-(--sk-ink-subtle)">· 색은 tolerance 판정이지 그룹 소속이 아닙니다.</span>
+    </div>
+
     <div
       v-if="map.detached.length"
       class="mt-3 flex flex-wrap items-center gap-2"
