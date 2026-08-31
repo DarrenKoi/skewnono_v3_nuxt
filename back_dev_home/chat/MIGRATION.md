@@ -463,8 +463,12 @@ SQLite 의 파일 잠금이 처리합니다. deploy pack 은 `*.db` 를 prune �
 cloud 의 thread 를 덮어쓰지 않습니다. 아래 절은 저장소를 multi-host 로 옮길
 때만 유효합니다.
 
-Office thread storage를 따로 쓴다면 `providers/office_example.py`의 모든 함수를
-구현하고 `contracts.py`와 mock provider의 의미를 유지합니다. 특히 다음을 보장합니다.
+이 결정 때문에 thread storage 에는 `office_example.py` template 이 **없습니다**
+(2026-08-31 삭제) — 이 저장소에서 template 은 "office 에서 cp 하는 파일" 인데,
+cp 하는 순간 presence-based selector 가 저장소를 미구현 stub 으로 전환하므로
+cp 해서는 안 되는 template 은 규칙 위반이었습니다. Office thread storage 를
+언젠가 따로 쓴다면 `providers/office.py` 를 처음부터 작성해 `contracts.py`와
+mock provider의 의미를 유지합니다. 특히 다음을 보장합니다.
 
 ```python
 create_thread(user_id, model, system_prompt=None)
@@ -489,9 +493,8 @@ purge_expired(days=30)
 - Thread 삭제와 retention purge가 source, trace, feedback을 함께 삭제합니다.
 - `get_thread()`는 message와 source/feedback을 빠짐없이 hydrate합니다.
 
-`providers/office_example.py`를 구현하지 않은 채 `office.py`로 복사하면 presence-based
-selector가 thread storage를 stub으로 전환합니다. 구현과 fake-client 검증 전에는
-복사하지 않습니다.
+`office.py` 는 구현과 fake-client 검증이 끝나기 전에는 만들지 않습니다 —
+존재 자체가 스위치입니다.
 
 ### Office retention job rollout checklist
 

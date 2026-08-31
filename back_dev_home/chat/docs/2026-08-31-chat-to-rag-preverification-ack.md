@@ -32,7 +32,7 @@
    | `answer/providers/office_example.py` | `cp` → `office.py` (새 경로, 필수) |
    | `scope/providers/office_example.py` | `cp` → `office.py` (필수) |
    | `knowledge/providers/office_example.py` | `cp` → `office.py` (rollback 용 권장 — boot 의 STALE 안내 해소) |
-   | `providers/office_example.py` (thread 저장소) | **cp 금지** — SQLite 가 office 저장소 |
+   | thread 저장소 (`providers/`) | template 없음 — SQLite 가 office 저장소라 `office.py` 를 만들지 않습니다 |
 
 2. `.env`: `SKEWNONO_CHAT_RUNTIME=rag`, `SKEWNONO_CHAT_ANSWER_PROVIDER=office`,
    `SKEWNONO_CHAT_SCOPE_PROVIDER=office`,
