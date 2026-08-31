@@ -93,8 +93,18 @@ def chat_availability():
 
     Carries no reason string. "Why" is deployment detail and the SPA shows
     the same notice either way.
+
+    ``runtime`` rides along for the same reason: which runtime answers is an
+    env knob the SPA cannot see, and under ``rag`` the RAG owns its own LLM
+    (``runtime/providers/rag.py`` reports ``model: None``), so a model picker
+    there would be a control that changes nothing. The SPA hides it.
     """
-    return {"data": {"available": not config.is_under_development()}}
+    return {
+        "data": {
+            "available": not config.is_under_development(),
+            "runtime": config.get_runtime_name(),
+        }
+    }
 
 
 @bp.get("/chat/models")

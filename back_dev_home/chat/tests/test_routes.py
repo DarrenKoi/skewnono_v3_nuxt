@@ -39,15 +39,24 @@ def client(tmp_path, monkeypatch):
 
 def test_availability_reports_the_page_gate(client, monkeypatch):
     """Catches the SPA losing its only signal that chat is not in service."""
+    monkeypatch.setenv("SKEWNONO_CHAT_RUNTIME", "direct")
     monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", "1")
     assert client.get("/api/chat/availability").get_json()["data"] == {
-        "available": False
+        "available": False,
+        "runtime": "direct",
     }
 
     monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", "0")
     assert client.get("/api/chat/availability").get_json()["data"] == {
-        "available": True
+        "available": True,
+        "runtime": "direct",
     }
+
+
+def test_availability_reports_the_rag_runtime(client, monkeypatch):
+    """Catches the SPA losing the signal that hides its inert model picker."""
+    monkeypatch.setenv("SKEWNONO_CHAT_RUNTIME", "rag")
+    assert client.get("/api/chat/availability").get_json()["data"]["runtime"] == "rag"
 
 
 def test_under_development_does_not_disable_the_chat_api(client, monkeypatch):

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  ChatAvailability,
   ChatMessage,
   ChatModel,
   FeedbackInput,
@@ -183,9 +184,21 @@ const saveFeedback = async (messageId: string, input: FeedbackInput | null) => {
  */
 const available = ref<boolean | null>(null)
 
+const runtime = ref<ChatAvailability['runtime'] | null>(null)
+
+/**
+ * Whether the model picker controls anything. The 'rag' runtime answers with
+ * the RAG's own LLM and reports `model: null`, so the picker would be a knob
+ * wired to nothing. Unknown runtime (the availability call failed) keeps it
+ * visible — a backend outage must not silently strip a real control.
+ */
+const modelSelectable = computed(() => runtime.value !== 'rag')
+
 onMounted(async () => {
   try {
-    available.value = await api.fetchAvailability()
+    const availability = await api.fetchAvailability()
+    available.value = availability.available
+    runtime.value = availability.runtime
   } catch {
     // A failed availability check must not read as "not in service" — that
     // would turn a backend outage into a false launch announcement. Fall
@@ -257,13 +270,16 @@ onMounted(async () => {
             채팅
           </h1>
           <p
-            v-if="modelLabel"
+            v-if="modelLabel && modelSelectable"
             class="sk-chat-subhead"
           >
             {{ modelLabel }}
           </p>
         </div>
-        <div class="ml-auto">
+        <div
+          v-if="modelSelectable"
+          class="ml-auto"
+        >
           <ChatModelPicker
             v-model="selectedModel"
             :models="models"
