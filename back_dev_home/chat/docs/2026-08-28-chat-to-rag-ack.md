@@ -4,6 +4,13 @@
 앞선 편지: `2026-08-28-chat-to-rag-suggestions.md`(제안 1~10),
 `2026-08-28-chat-to-rag-data-tools.md`(정형 데이터 분담).
 
+> **2026-09-01 만료 안내.** 이 편지의 사무실 절차(adapter `cp`,
+> `SKEWNONO_CHAT_*_PROVIDER` 설정)는 더 이상 유효하지 않습니다. knowledge·scope
+> seam 이 `1a306b4d` 에서 삭제되어 복사할 template 도, 판정을 바꾸는 환경변수도
+> 남아 있지 않습니다. 현행 절차는
+> [`2026-08-31-chat-to-rag-preverification-ack.md`](2026-08-31-chat-to-rag-preverification-ack.md)
+> 의 "사무실 검증 순서" 절입니다. 아래 본문은 당시 기록으로 남깁니다.
+
 ## 1. 받은 회신과 chat 측 반영
 
 제안 10개 전부에 답을 주셨습니다. chat 측에서 코드가 바뀐 것은 세 가지이고,

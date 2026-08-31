@@ -4,6 +4,13 @@
 요청받은 6개 항목을 모두 반영했습니다. chat 측 코드는 `main` 에 있고,
 사무실에서 pull 후 **knowledge adapter 재복사 한 번**이 필요합니다(아래 7절).
 
+> **2026-09-01 만료 안내.** 이 편지의 사무실 절차(adapter `cp`,
+> `SKEWNONO_CHAT_*_PROVIDER` 설정)는 더 이상 유효하지 않습니다. knowledge·scope
+> seam 이 `1a306b4d` 에서 삭제되어 복사할 template 도, 판정을 바꾸는 환경변수도
+> 남아 있지 않습니다. 현행 절차는
+> [`2026-08-31-chat-to-rag-preverification-ack.md`](2026-08-31-chat-to-rag-preverification-ack.md)
+> 의 "사무실 검증 순서" 절입니다. 아래 본문은 당시 기록으로 남깁니다.
+
 ## 1. 배치 — 확인, 이미 호환됩니다
 
 `_rag/` 는 유지하고 그 안의 `skewnono_rag/` 를 read-only 전달 단위로
