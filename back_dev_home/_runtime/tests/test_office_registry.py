@@ -126,3 +126,33 @@ def test_real_repo_scan_is_self_consistent():
     # Whatever this machine has must at least be real features — an office.py
     # anywhere else would be a stray copy the orphan guard should have caught.
     assert set(office_registry.office_ready()) <= set(real)
+
+
+def test_sub_seams_nested_inside_a_feature_are_not_features(fake_tree):
+    """chat/knowledge, chat/scope, chat/answer are chat's private seams.
+
+    Registering them would burn their directory names as global slugs and
+    print presence-based resolution rows their env-based selectors can
+    contradict.
+    """
+    fake_tree(
+        {
+            "chat": ["mock.py"],
+            "chat/knowledge": ["mock.py", "office_example.py", "office.py"],
+            "chat/answer": ["mock.py", "office_example.py"],
+        }
+    )
+
+    assert set(office_registry.features()) == {"chat"}
+    assert set(office_registry.office_ready()) == set()
+
+
+def test_office_planned_lists_features_with_a_template(fake_tree):
+    fake_tree(
+        {
+            "sem_list": ["mock.py", "office_example.py"],
+            "chat": ["mock.py"],
+        }
+    )
+
+    assert set(office_registry.office_planned()) == {"sem_list"}

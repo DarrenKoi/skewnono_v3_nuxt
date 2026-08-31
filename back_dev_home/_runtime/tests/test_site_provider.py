@@ -220,6 +220,20 @@ def test_resolve_all_reports_provider_and_reason(monkeypatch, wired):
     assert "SKEWNONO_STORAGE_PROVIDER" in by_feature["storage"].reason
 
 
+def test_resolve_all_names_the_designed_state_when_no_template_exists(
+    monkeypatch, fake_tree
+):
+    """chat's thread storage: no office_example.py means mock IS the office
+    behaviour (SQLite), so the reason must not read like a missing cp."""
+    fake_tree({"chat": ["mock.py"]})
+    monkeypatch.setenv("SKEWNONO_SITE", "office")
+
+    by_feature = {r.feature: r for r in data_provider.resolve_all()}
+
+    assert by_feature["chat"].provider == "mock"
+    assert by_feature["chat"].reason == "no office adapter planned"
+
+
 def test_resolve_all_reports_mode_when_not_at_the_office(monkeypatch, wired):
     _set_host(monkeypatch, "Daeyoungs-Mac-mini")
     by_feature = {r.feature: r for r in data_provider.resolve_all()}
