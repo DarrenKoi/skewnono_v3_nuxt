@@ -79,6 +79,10 @@ def import_rag(module: str) -> ModuleType:
     try:
         return import_module(name)
     except Exception as error:  # noqa: BLE001 — every failure is a 503, not a 500
+        # Carry the cause into the message: at the office the 503 body is
+        # often the only visible diagnostic, and "No module named 'faiss'"
+        # names the missing dependency where a bare sentence names nothing.
         raise KnowledgeUnavailable(
-            f"The office RAG module {name} could not be imported."
+            f"The office RAG module {name} could not be imported: "
+            f"{type(error).__name__}: {error}"
         ) from error
