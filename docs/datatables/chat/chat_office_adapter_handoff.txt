@@ -4,6 +4,16 @@ TimeoutError/PermissionError, thread storage stays SQLite. The current
 contract is docs/datatables/hitachi/chat_rag_contract.txt; the exchange is
 back_dev_home/chat/docs/. The letter below is kept as received.
 
+[2026-09-01 update] Section 4's env vars below are EXPIRED, as are the
+knowledge/scope/thread office.py adapters of sections 1-3. The knowledge and
+scope seams were deleted in 1a306b4d: chat's only office path is the tracked
+answer/providers/rag.py, and the RAG checkout's presence alone decides office
+vs mock. There is nothing to cp and no SKEWNONO_CHAT_*_PROVIDER or
+SKEWNONO_CHAT_RUNTIME to set -- setting a *_PROVIDER one refuses to boot.
+Current office procedure:
+back_dev_home/chat/docs/2026-08-31-chat-to-rag-preverification-ack.md
+("사무실 검증 순서"). The letter below is still kept as received.
+
 This is the letter from the office agent to you.
 
 the office agent handles the RAG repo
