@@ -6,16 +6,16 @@ import type { ToolType } from './toolType'
 export const FEATURE_SLUGS = [
   'storage',
   'recipe-search',
-  // recipe-tat / fail-issue merged into recipe-status; their old routes
-  // redirect via route middleware before any layout observes the path, so
-  // the legacy slugs never appear in route.path and are not listed here.
+  // recipe-tat / fail-issue merged into recipe-status, and pm-planning into
+  // tttm; their old routes redirect via route middleware before any layout
+  // observes the path, so the legacy slugs never appear in route.path and are
+  // not listed here.
   'recipe-status',
   'hardware',
   'live-alarm',
   'device-statistics',
   'skewvoir',
-  'tttm',
-  'pm-planning'
+  'tttm'
 ] as const
 
 export type FeatureSlug = typeof FEATURE_SLUGS[number]
@@ -40,13 +40,13 @@ export const isFablessFeature = (feature: string): feature is FeatureSlug => {
   return FABLESS_FEATURES.has(feature as FeatureSlug)
 }
 
-// Features whose page holds exactly ONE fab. tttm and pm-planning argue from one
-// fab's fleet (a skew matrix / an N배화 group is per-fab by construction), so a
+// Features whose page holds exactly ONE fab. tttm argues from one fab's fleet
+// (a skew matrix / an N배화 group is per-fab by construction), so a
 // multi-fab URL has no meaning there: the sidebar's multi-select affordances are
 // disabled on these pages and useFabRoute collapses a multi-fab segment to the
 // primary. Disjoint from FABLESS_FEATURES by definition — a page must read the
 // URL fab to pin it.
-export const SINGLE_FAB_FEATURES = new Set<FeatureSlug>(['tttm', 'pm-planning'])
+export const SINGLE_FAB_FEATURES = new Set<FeatureSlug>(['tttm'])
 
 export const isSingleFabFeature = (feature: string): feature is FeatureSlug => {
   return SINGLE_FAB_FEATURES.has(feature as FeatureSlug)
@@ -57,7 +57,7 @@ export const isSingleFabFeature = (feature: string): feature is FeatureSlug => {
 // it. It used to live as an if-chain in useNavigation plus a hardcoded
 // `scope === 'tttm' || scope === 'pm-planning'` in LabMenu, and forgetting the
 // second copy when adding a cd-sem-only page would build menu links to URLs
-// with no page behind them.
+// with no page behind them. (pm-planning stopped being a route on 2026-09-01.)
 export const FEATURE_TOOL_TYPES: Record<FeatureSlug, readonly ToolType[]> = {
   'storage': ['cd-sem', 'hv-sem'],
   'recipe-search': ['cd-sem', 'hv-sem'],
@@ -66,8 +66,7 @@ export const FEATURE_TOOL_TYPES: Record<FeatureSlug, readonly ToolType[]> = {
   'live-alarm': ['cd-sem', 'hv-sem'],
   'device-statistics': ['cd-sem'],
   'skewvoir': ['cd-sem', 'hv-sem'],
-  'tttm': ['cd-sem'],
-  'pm-planning': ['cd-sem']
+  'tttm': ['cd-sem']
 }
 
 export const featureSupportsToolType = (feature: string, toolType: ToolType): boolean =>
@@ -83,9 +82,10 @@ export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {
  * null means "not an ebeam page, so no tab at all".
  *
  * Derived from FEATURE_SLUGS rather than matched by its own if-chain. It WAS
- * such a chain, inside FeatureTabs.vue, and it drifted: `/pm-planning` was
+ such a chain, inside FeatureTabs.vue, and it drifted: `/pm-planning` was
  * never added to it, so it fell through to the `'index'` default and lit
- * 장비 상태 while the user was on a 실험실 page (fixed 2026-08-30). Any slug
+ * 장비 상태 while the user was on a 실험실 page (fixed 2026-08-30; that route
+ * has since been folded into /tttm). Any slug
  * added here in future is recognised by construction — which is the actual
  * fix, the missing branch being only the symptom.
  *

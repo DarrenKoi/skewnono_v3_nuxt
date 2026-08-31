@@ -4,9 +4,9 @@
        2단 카드 쌍이 네 줄이라 1280px 로 좁히면 pairwise 행렬이 1080px 화면 밖으로
        밀립니다. -->
   <div class="mx-auto w-full max-w-[1440px] space-y-3">
-    <!-- One component, two routes — see utils/labView. This page is the
-         장비간 스큐 view of it; /pm-planning is the other, and the sub-tabs in
-         the header move between them.
+    <!-- The one 실험실 analysis page — see utils/labView. PM 플래닝 was a
+         second route onto this same component until 2026-09-01; it is now the
+         PM 튜닝 chip, and /pm-planning redirects here.
 
          Keyed on the fab so a fab switch REMOUNTS rather than reusing the view.
          LabView reads props.fab once at setup — both useAsyncData keys bake it
@@ -20,7 +20,6 @@
       :fab="primaryFab"
       tool-label="CD-SEM"
       tool-type="cd-sem"
-      slug="tttm"
     />
   </div>
 </template>

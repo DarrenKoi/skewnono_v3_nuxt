@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { LAB_PANELS, LAB_VIEWS, normalizePanels } from './labView.ts'
+import { DEFAULT_PANELS, normalizePanels, storedPanels } from './labView.ts'
 
 // The stored panel selection is untrusted input (localStorage), and the one
 // thing it must never do is decide the ORDER cards render in — that order is
@@ -29,14 +29,46 @@ test('a non-array is refused, so the caller can fall back to the preset', () => 
   }
 })
 
-test('every preset names real panels, in canonical order', () => {
-  for (const view of LAB_VIEWS) {
-    assert.deepEqual(normalizePanels(view.panels), view.panels)
+test('the preset names real panels, in canonical order', () => {
+  assert.deepEqual(normalizePanels(DEFAULT_PANELS), DEFAULT_PANELS)
+})
+
+test('the preset leaves pm off — ticking it is what summons 튜닝할 장비', () => {
+  assert.ok(!DEFAULT_PANELS.includes('pm'))
+})
+
+// The stored shape changed on 2026-09-01, when /pm-planning stopped being a
+// route: it was keyed by route slug, and is now the selection itself. Both
+// forms are in users' browsers, and neither may hand back the wrong panels.
+
+test('a pre-merge value keeps the tttm pick and drops the pm-planning one', () => {
+  assert.deepEqual(
+    storedPanels({ 'tttm': ['map', 'verdict'], 'pm-planning': ['map', 'pm'] }),
+    ['verdict', 'map']
+  )
+})
+
+test('a pre-merge value with no tttm key falls back to the preset', () => {
+  assert.deepEqual(storedPanels({ 'pm-planning': ['map', 'pm'] }), DEFAULT_PANELS)
+})
+
+test('the current form is read as itself', () => {
+  assert.deepEqual(storedPanels(['pm', 'map']), ['map', 'pm'])
+})
+
+test('everything unticked survives the read — it is a choice, not a missing value', () => {
+  assert.deepEqual(storedPanels([]), [])
+  assert.deepEqual(storedPanels({ tttm: [] }), [])
+})
+
+test('junk falls back to the preset rather than an empty page', () => {
+  for (const raw of [null, undefined, 'map', 7, {}]) {
+    assert.deepEqual(storedPanels(raw), DEFAULT_PANELS)
   }
 })
 
-test('the two presets between them cover every panel', () => {
-  const covered = new Set(LAB_VIEWS.flatMap(view => view.panels))
-  // A panel no preset turns on is a panel most users would never discover.
-  assert.deepEqual([...covered].sort(), LAB_PANELS.map(p => p.value).sort())
+test('the preset is copied, so a caller cannot mutate it', () => {
+  const first = storedPanels(null)
+  first.push('pm')
+  assert.deepEqual(storedPanels(null), DEFAULT_PANELS)
 })

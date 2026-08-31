@@ -56,13 +56,13 @@
  * roster the recipe's payload returns, so it is the second step, not a third
  * cell of the first. The parameter and the page-specific judging control
  * (TTTM's tolerance knob) sit in the 분석 조건 bar (`EbeamAnalysisBar`) below.
- * PM 플래닝's 튜닝할 장비 is NOT one of these three: it names the subject the
- * page reports on rather than the data it reports from, so it has its own bar
- * ABOVE this one (`EbeamPmPlanningToolPicker`, 2026-08-27).
+ * The PM 튜닝 panel's 튜닝할 장비 is NOT one of these three: it names the
+ * subject the page reports on rather than the data it reports from, so it has
+ * its own bar ABOVE this one (`EbeamPmPlanningToolPicker`, 2026-08-27).
  */
 withDefaults(defineProps<{
   hint?: string
 }>(), {
-  hint: '고른 recipe · 수집 기간의 측정 데이터로 계산합니다. 이 설정은 이 브라우저에 저장되고, TTTM · PM 플래닝 두 페이지가 함께 씁니다.'
+  hint: '고른 recipe · 수집 기간의 측정 데이터로 계산합니다. 이 설정은 이 브라우저에 저장됩니다.'
 })
 </script>

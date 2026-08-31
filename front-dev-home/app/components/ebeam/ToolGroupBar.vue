@@ -197,7 +197,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   pending: false,
   answered: undefined,
-  hint: '비교에 넣을 장비를 모델 그룹별로 고릅니다 — 그룹 전체를 켜고 끄거나, 펼쳐서 한 대씩 고릅니다. TTTM · PM 플래닝 두 페이지가 함께 씁니다.'
+  hint: '비교에 넣을 장비를 모델 그룹별로 고릅니다 — 그룹 전체를 켜고 끄거나, 펼쳐서 한 대씩 고릅니다. 이 설정은 이 브라우저에 저장됩니다.'
 })
 
 const emit = defineEmits<{

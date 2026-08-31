@@ -87,7 +87,7 @@ test('the fab-scoped links are not info paths', () => {
   // Their targets are computed per remembered tool/fab and land inside /ebeam, where the
   // tabs come from isEbeamRoute instead.
   const dynamic = HEADER_LINKS.filter(link => link.to === null)
-  assert.deepEqual(dynamic.map(link => link.label), ['라이브 알람', '장비간 스큐(TTTM)', 'PM 플래닝(PM-Planning)'])
+  assert.deepEqual(dynamic.map(link => link.label), ['라이브 알람', '장비간 스큐(TTTM)'])
   assert.ok(!HEADER_INFO_PATHS.includes(null as unknown as string))
 })
 
@@ -104,14 +104,14 @@ test('every fab-scoped link carries the two fields LabMenu needs', () => {
 })
 
 test('the unvalidated 실험실 pages leave the menu on the cloud deploy', () => {
-  // TTTM and PM-Planning run an estimator that is not signed off yet. 실험실 + BETA reads as a
-  // caveat to a colleague at the office; a production user has no such context.
+  // TTTM (PM 튜닝 included, since 2026-09-01) runs an estimator that is not signed off yet.
+  // 실험실 + BETA reads as a caveat to a colleague at the office; a production user has no
+  // such context.
   const hidden = HEADER_LINKS.filter(link => link.hiddenOnCloud).map(link => link.label)
-  assert.deepEqual(hidden, ['장비간 스큐(TTTM)', 'PM 플래닝(PM-Planning)'])
+  assert.deepEqual(hidden, ['장비간 스큐(TTTM)'])
 
   const onCloud = visibleHeaderLinksIn('lab', true).map(link => link.label)
   assert.ok(!onCloud.includes('장비간 스큐(TTTM)'))
-  assert.ok(!onCloud.includes('PM 플래닝(PM-Planning)'))
 })
 
 test('everywhere but the cloud, the menu is unchanged', () => {

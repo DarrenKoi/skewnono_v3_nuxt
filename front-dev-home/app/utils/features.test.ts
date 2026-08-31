@@ -29,14 +29,15 @@ test('the slug list is the live set, with the merged legacy routes excluded', ()
     'live-alarm',
     'device-statistics',
     'skewvoir',
-    'tttm',
-    'pm-planning'
+    'tttm'
   ])
-  // recipe-tat / fail-issue merged into recipe-status and are redirected by
-  // route middleware before any layout reads route.path, so listing them would
-  // make a legacy URL look like a live feature.
+  // recipe-tat / fail-issue merged into recipe-status, pm-planning into tttm;
+  // all three are redirected by route middleware before any layout reads
+  // route.path, so listing them would make a legacy URL look like a live
+  // feature.
   assert.ok(!slugStrings.includes('recipe-tat'))
   assert.ok(!slugStrings.includes('fail-issue'))
+  assert.ok(!slugStrings.includes('pm-planning'))
 })
 
 test('no slug is a prefix of another, so alternation order cannot mis-match', () => {
@@ -120,13 +121,13 @@ test('every fabless entry is a real slug', () => {
   }
 })
 
-test('the single-fab set is exactly the two lab pages that pin one fab', () => {
-  assert.deepEqual([...SINGLE_FAB_FEATURES].sort(), ['pm-planning', 'tttm'])
+test('the single-fab set is exactly the lab page that pins one fab', () => {
+  assert.deepEqual([...SINGLE_FAB_FEATURES].sort(), ['tttm'])
 })
 
 test('isSingleFabFeature answers for live slugs and unknown strings alike', () => {
   assert.equal(isSingleFabFeature('tttm'), true)
-  assert.equal(isSingleFabFeature('pm-planning'), true)
+  assert.equal(isSingleFabFeature('pm-planning'), false)
   assert.equal(isSingleFabFeature('storage'), false)
   assert.equal(isSingleFabFeature('not-a-feature'), false)
   assert.equal(isSingleFabFeature(''), false)
@@ -151,9 +152,9 @@ test('every live slug declares its tool families, non-empty', () => {
 test('featureSupportsToolType answers for live slugs and unknown strings alike', () => {
   assert.equal(featureSupportsToolType('storage', 'cd-sem'), true)
   assert.equal(featureSupportsToolType('storage', 'hv-sem'), true)
-  assert.equal(featureSupportsToolType('pm-planning', 'cd-sem'), true)
-  assert.equal(featureSupportsToolType('pm-planning', 'hv-sem'), false)
+  assert.equal(featureSupportsToolType('tttm', 'cd-sem'), true)
   assert.equal(featureSupportsToolType('tttm', 'hv-sem'), false)
+  assert.equal(featureSupportsToolType('pm-planning', 'cd-sem'), false)
   assert.equal(featureSupportsToolType('storage', 'veritysem'), false)
   assert.equal(featureSupportsToolType('not-a-feature', 'cd-sem'), false)
 })
@@ -162,7 +163,8 @@ test('featureSupportsToolType answers for live slugs and unknown strings alike',
 //
 // 장비 상태 ('index') is the FALLBACK, so every page that is not 장비 상태 has
 // to be recognised or it silently claims that tab. /pm-planning was not, and
-// lit 장비 상태 while the user was on a 실험실 page (2026-08-30).
+// lit 장비 상태 while the user was on a 실험실 page (2026-08-30; that route was
+// folded into /tttm on 2026-09-01 and now redirects before any tab is read).
 
 test('each feature page highlights its own tab', () => {
   assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a/recipe-status'), 'recipe-status')
@@ -183,7 +185,6 @@ test('실험실 pages claim no feature tab', () => {
   // Neither has a tab in the row, so the correct outcome is that NOTHING
   // highlights — which only holds if they are recognised rather than falling
   // through to the 장비 상태 default.
-  assert.notEqual(activeFeatureTab('/ebeam/cd-sem/m14a/pm-planning'), 'index')
   assert.notEqual(activeFeatureTab('/ebeam/cd-sem/m14a/tttm'), 'index')
   assert.notEqual(activeFeatureTab('/ebeam/cd-sem/live-alarm'), 'index')
 })

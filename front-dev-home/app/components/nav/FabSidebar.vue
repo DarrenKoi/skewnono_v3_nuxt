@@ -34,7 +34,7 @@ const fabItems = computed(() => fabNames.value.map(name => ({
 })))
 
 // 일반 클릭 = 단독 선택(기존 습관 유지), Cmd/Ctrl+클릭 = 추가·제거.
-// 단일 FAB 페이지(tttm, pm-planning)의 강등은 toggleFab 자신이 처리합니다 — 이
+// 단일 FAB 페이지(tttm)의 강등은 toggleFab 자신이 처리합니다 — 이
 // 컴포넌트가 아는 것은 affordance 뿐입니다(체크박스·툴팁을 숨기는 것).
 const onFabClick = (event: MouseEvent, id: string) => {
   if (event.metaKey || event.ctrlKey) toggleFab(id)

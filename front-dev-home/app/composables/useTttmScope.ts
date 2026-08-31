@@ -7,15 +7,15 @@ import { useTttmApi } from '~/composables/useTttmApi'
 import { useTttmSettings } from '~/composables/useTttmSettings'
 
 /**
- * The (tools, recipe, parameter, window) scope both lab pages compare under,
- * the recipe catalogue their picker needs, and the skew payload the scope
+ * The (tools, recipe, parameter, window) scope the 실험실 page compares under,
+ * the recipe catalogue its picker needs, and the skew payload the scope
  * selects.
  *
- * Shared rather than written twice because the SCOPE is shared: TTTM and
- * pm-planning read and write one persisted entry per (toolType, fab), so a group
- * shown on one page is the same group on the other. Duplicating this wiring is
- * how the two would start to drift — one page clearing the parameter on a
- * recipe change and the other not is enough to make them disagree.
+ * One persisted entry per (toolType, fab), which is what makes the 스큐 cards
+ * and the PM 튜닝 cards describe the SAME group. It was written twice, once per
+ * page, until the 2026-08-30 merge, and the two had already started to drift —
+ * one clearing the parameter on a recipe change and the other not is enough to
+ * make them disagree.
  *
  * The payload lives here too, because the parameter catalogue is ON it: the
  * procedure is tools + recipe → the recipe's measurement rows → the parameters

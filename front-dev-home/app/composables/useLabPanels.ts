@@ -1,59 +1,40 @@
 import { usePersistedState } from '~/composables/usePersistedState'
-import {
-  LAB_VIEWS,
-  labViewBySlug,
-  normalizePanels,
-  type LabPanel,
-  type LabViewSlug
-} from '~/utils/labView'
+import { storedPanels, normalizePanels, DEFAULT_PANELS, type LabPanel } from '~/utils/labView'
 
-// Which analyses the 실험실 page draws, remembered per ROUTE rather than once
-// for the whole page.
+// Which analyses the 실험실 page draws, remembered once for the page.
 //
-// Per route because the route is the preset: /tttm opens on the comparison and
-// /pm-planning on the tuning target, and a single shared selection would make
-// the second URL mean whatever the user last did on the first. Keyed by slug
-// only — NOT by (toolType, fab) like the scope is — because this says which
-// cards to draw, not what to compute: carrying it across a fab switch is the
+// Once, not per (toolType, fab) like the scope is, because this says which
+// cards to draw and not what to compute: carrying it across a fab switch is the
 // behaviour a display preference should have, and the scope's own reason for
 // being per-fab (a comparison belongs to one fab) does not apply.
 //
-// Missing entry = that route's default preset, so a user who has never touched
-// 보기 keeps getting the preset even after we change what the preset is.
-
-export type LabPanelPrefs = Partial<Record<LabViewSlug, LabPanel[]>>
+// It was keyed per ROUTE until 2026-09-01, when /pm-planning stopped being a
+// route — see utils/labView for the stored shape that key left behind and how
+// it is read now. Missing entry = DEFAULT_PANELS, so a reader who has never
+// touched 보기 keeps getting the preset even after we change what it is.
 
 const STORAGE_KEY = 'lab-panels'
 
-const normalize = (raw: unknown): LabPanelPrefs => {
-  if (typeof raw !== 'object' || raw === null) return {}
-  const out: LabPanelPrefs = {}
-  for (const view of LAB_VIEWS) {
-    const panels = normalizePanels((raw as Record<string, unknown>)[view.value])
-    if (panels) out[view.value] = panels
-  }
-  return out
-}
-
-export const useLabPanels = (view: MaybeRefOrGetter<LabViewSlug>) => {
-  const prefs = usePersistedState<LabPanelPrefs>(
+export const useLabPanels = () => {
+  const panels = usePersistedState<LabPanel[]>(
     'lab-panels-store',
     STORAGE_KEY,
     {
-      default: () => ({}),
-      normalize,
-      isEmpty: value => Object.keys(value).length === 0
+      default: () => [...DEFAULT_PANELS],
+      normalize: storedPanels,
+      // Everything unticked is a real choice, not a vacant one: the default
+      // isEmpty would delete the key and hand the reader the preset back on
+      // the next load.
+      isEmpty: () => false
     }
   )
 
-  const slug = computed(() => toValue(view))
-  const panels = computed<LabPanel[]>(() => prefs.value[slug.value] ?? labViewBySlug(slug.value).panels)
   const has = (panel: LabPanel) => panels.value.includes(panel)
 
-  // Replaces the whole object rather than mutating a nested array:
-  // usePersistedState watches the ref, and an in-place push would not trip it.
+  // Replaces the array rather than mutating it: usePersistedState watches the
+  // ref, and an in-place push would not trip it.
   const setPanels = (next: LabPanel[]) => {
-    prefs.value = { ...prefs.value, [slug.value]: normalizePanels(next) ?? [] }
+    panels.value = normalizePanels(next) ?? []
   }
 
   return { panels, has, setPanels }

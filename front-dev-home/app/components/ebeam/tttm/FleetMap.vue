@@ -188,14 +188,14 @@ const props = defineProps<{
    */
   blockedPair?: PairReading | null
   /**
-   * One tool to visually anchor — pm-planning's picked tool, the one in (or fresh
+   * One tool to visually anchor — the PM 튜닝 panel's picked tool, the one in (or fresh
    * out of) its PM window. Drawn as an ink ring around its point plus a bold
    * label, never a recolor: red already means "no partner inside tolerance",
    * and overloading it would make the pick look like a finding.
    */
   pickedTool?: string | null
   /**
-   * Overrides the header badge's `N배화 그룹 · {n}대` caption — pm-planning
+   * Overrides the header badge's `N배화 그룹 · {n}대` caption — the PM 튜닝 panel
    * writes the prospective form (`… → {n+1}대 (튜닝 시)`). The green outlines
    * still mark only the CURRENT members; only the words change.
    */
@@ -338,7 +338,7 @@ const groupCentroid = computed(() => {
 
 /**
  * The group's size, for the header badge — `haloLabel` when the caller wrote a
- * prospective form (pm-planning's `13대 → 14대 (튜닝 시)`), else the plain count.
+ * prospective form (PM 튜닝's `13대 → 14대 (튜닝 시)`), else the plain count.
  */
 const groupCaption = computed(() =>
   groupCentroid.value ? props.haloLabel ?? `N배화 그룹 · ${groupCentroid.value.n}대` : null

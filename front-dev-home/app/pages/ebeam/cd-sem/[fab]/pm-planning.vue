@@ -1,20 +1,17 @@
 <template>
-  <!-- 1440px 밀집 예외 (DESIGN.md §Layout): 장비간 스큐 화면과 같은 상단 바 +
-       아래 결과 구성이라 같은 폭을 씁니다. -->
-  <div class="mx-auto w-full max-w-[1440px] space-y-3">
-    <!-- The PM 플래닝 view of the same component /tttm renders — see
-         utils/labView for why both routes survived the merge. Keyed on the fab
-         for the reason tttm.vue is. -->
-    <EbeamLabView
-      :key="primaryFab"
-      :fab="primaryFab"
-      tool-label="CD-SEM"
-      tool-type="cd-sem"
-      slug="pm-planning"
-    />
-  </div>
+  <div />
 </template>
 
 <script setup lang="ts">
-const { primaryFab } = useFabRoute('cd-sem')
+// PM 플래닝 merged into 장비간 스큐 (2026-09-01): it is the PM 튜닝 chip there,
+// not a screen of its own. Redirect keeps old bookmarks/deep links working.
+// Neither screen reads the query, so nothing is carried over.
+definePageMeta({
+  middleware: [
+    to => navigateTo(
+      { path: `/ebeam/cd-sem/${to.params.fab}/tttm` },
+      { replace: true }
+    )
+  ]
+})
 </script>

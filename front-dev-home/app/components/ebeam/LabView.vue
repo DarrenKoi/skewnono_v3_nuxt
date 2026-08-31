@@ -2,18 +2,12 @@
   <div class="space-y-3">
     <EbeamMetaBar
       :eyebrow="`${toolLabel} · ${fab}`"
-      :title="view.title"
-      :subtitle="view.subtitle"
+      title="장비간 스큐 관리"
+      subtitle="Recipe가 점유하는 셀에서 서로 잘 맞는(N배화) 측정 장비 조합을 추천합니다."
       :cadence="cadence"
       :as-of="asOf"
       :stats="metaStats"
-    >
-      <!-- Beside the title, in MetaBar's own toggle cell — the same place
-           장비 상태 puts its 장비 리스트/스토리지 pair. -->
-      <template #toggle>
-        <EbeamLabSubTabs :slug="slug" />
-      </template>
-    </EbeamMetaBar>
+    />
 
     <!-- The scope bar renders WHATEVER the payload says, including `available:
          false`, and it renders while the payload is still in flight. It used to
@@ -26,7 +20,7 @@
 
          수집 기간 is NOT in this bar: it sits beside the 데이터 요청 button
          below, because it is part of asking, not of naming what to look at. -->
-    <EbeamScopeBar hint="고른 recipe 의 측정 데이터로 계산합니다. 이 설정은 이 브라우저에 저장되고, 두 화면이 함께 씁니다.">
+    <EbeamScopeBar hint="고른 recipe 의 측정 데이터로 계산합니다. 이 설정은 이 브라우저에 저장됩니다.">
       <template #recipe>
         <EbeamScopeRecipe
           :recipe-id="recipeId"
@@ -47,13 +41,13 @@
       :deviations="fleetDeviations"
       :answered="answeredTools"
       :pending="rosterPending"
-      hint="비교에 넣을 장비를 모델 그룹별로 고릅니다 — 고른 장비의 데이터만 서버에서 모읍니다. 두 화면이 함께 씁니다."
+      hint="비교에 넣을 장비를 모델 그룹별로 고릅니다 — 고른 장비의 데이터만 서버에서 모읍니다. 이 설정은 이 브라우저에 저장됩니다."
       @update:selected="onSelectedTools"
     />
 
     <!-- 수집 기간 · 데이터 요청 — 조건이 다 정해진 뒤 한 번 묻습니다. 한 번의
-         클릭이 두 화면의 데이터를 다 모으므로, 탭을 바꾸는 데에는 다시 묻지
-         않습니다 — 그것이 두 페이지를 하나로 합친 이유입니다. -->
+         클릭이 모든 패널의 데이터를 다 모으므로, PM 튜닝 칩을 켜는 데에는 다시
+         묻지 않습니다 — 그것이 두 페이지를 하나로 합친 이유입니다. -->
     <EbeamRequestBar
       :window-weeks="windowWeeks"
       :tool-count="pickedTools.length"
@@ -97,10 +91,10 @@
 
       <!-- Slotted, not passed down: the knob fires on every drag frame, and a
            prop through the bar would re-render the parameter menu with it.
-           Drawn in BOTH views since the merge — the tolerance defines the group
-           the PM targets are aimed at, so a PM 플래닝 that could not turn it was
-           a page that had to caption "TTTM 페이지의 설정을 따릅니다" and then
-           use the server default anyway. -->
+           Drawn whatever the 보기 chips say — the tolerance defines the group
+           the PM targets are aimed at, so the old PM 플래닝 page, which had no
+           knob, captioned "TTTM 페이지의 설정을 따릅니다" and then used the
+           server default anyway. -->
       <template #panels>
         <EbeamLabPanelPicker
           :panels="panels"
@@ -124,9 +118,9 @@
          folds every measured recipe together), but that answer is a fleet-wide
          average nobody asked for, and it renders identically to a deliberately
          scoped one — so the page would be quoting a comparison the user never
-         chose. Deliberately the same gate in both views: they describe one group
-         from one scope, so a recipe that opens the results on one must open them
-         on the other. The parameter stays optional: folding every measured
+         chose. One gate for every panel: they describe one group from one scope,
+         so a recipe that opens one card opens them all. The parameter stays
+         optional: folding every measured
          feature is a legitimate answer, and its list only exists once this
          payload has landed. -->
     <AppEmptyState
@@ -279,7 +273,8 @@
       <!-- 배치도 — 한 번만 그려집니다. PM 튜닝이 켜져 있으면 고른 장비를 고리로
            표시하고 그 장비가 넘긴 쌍을 표시합니다(showsPickedTool); 아니면 제외
            카드가 설명하는 쌍을 표시합니다. 예전에는 화면마다 지도를 따로 그려
-           두 벌의 prop 을 유지했고, 그래서 둘이 갈라질 수 있었습니다. -->
+           두 벌의 prop 을 유지했고, 그래서 둘이 갈라질 수 있었습니다.
+           (2026-08-30 병합, 2026-09-01 라우트 통합) -->
       <div
         v-if="has('map')"
         class="grid gap-3 2xl:grid-cols-2"
@@ -354,7 +349,6 @@
 <script setup lang="ts">
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { windowLabel } from '~/utils/analysisWindow'
-import { labViewBySlug, type LabViewSlug } from '~/utils/labView'
 import { usePmPlanningApi, type FleetResponse } from '~/composables/usePmPlanningApi'
 import { preferredMatrix, type FleetToday } from '~/composables/useTttmApi'
 import { admissionReport, pickDefaultTool } from '~/utils/pmAdmission'
@@ -395,26 +389,23 @@ import { tuningTarget } from '~/utils/pmTuningTarget'
  * (2026-08-28) the user had to press 데이터 요청 on each page, re-fetching the
  * same expensive check.
  *
- * `view` picks the results section, and NOTHING above the results depends on
- * it. Two routes still address this one component (see utils/labView) so the
- * slugs, the activity logging and the 실험실 entries are untouched.
+ * The 보기 chips pick the results section, and NOTHING above the results
+ * depends on them. Since 2026-09-01 there is one ROUTE as well as one
+ * component: /pm-planning redirects here and PM 플래닝 is the `pm` chip. The
+ * `pm_planning` slug is untouched — it still names the API, the activity log
+ * entry and the backend folder (see utils/labView).
  */
 const props = defineProps<{
   fab: string
   toolLabel: string
   toolType: string
-  /** Which of the two routes is rendering this — `view` below resolves it. */
-  slug: LabViewSlug
 }>()
 
-// What this route is called and what it opens showing.
-const view = computed(() => labViewBySlug(props.slug))
-
-// Which analyses are drawn. The route chooses the PRESET (`view.panels`); from
-// there it is the user's, remembered per route. `pm` is the one that also adds
-// a control — 튜닝할 장비 — because the two cards it draws are computed from
-// that pick and mean nothing without it.
-const { panels, has, setPanels } = useLabPanels(() => props.slug)
+// Which analyses are drawn — DEFAULT_PANELS until the reader has an opinion,
+// theirs thereafter. `pm` is the one that also adds a control — 튜닝할 장비 —
+// because the two cards it draws are computed from that pick and mean nothing
+// without it.
+const { panels, has, setPanels } = useLabPanels()
 
 // The comparison scope, its recipe catalogue and the skew payload it selects.
 //
@@ -450,10 +441,10 @@ const {
 // not delay the map, and vice versa. Fetched under the scope's window, because
 // the two payloads are joined and one label has to describe both.
 //
-// Fetched in BOTH views, though only PM 플래닝 draws it: the point of one page
-// is that switching tabs shows an answer rather than another button. The cost
-// that made the check manual is its per-run MinIO fan-out, which this query
-// does not have — if it ever does, gating this on `has('pm')` is one line.
+// Fetched whether or not the pm chip is on: the point of one page is that
+// ticking PM 튜닝 shows an answer rather than another button. The cost that
+// made the check manual is its per-run MinIO fan-out, which this query does not
+// have — if it ever does, gating this on `has('pm')` is one line.
 const { fetchPmPlanningFleet } = usePmPlanningApi()
 const { data: pmFleet, pending: pmPending, refresh: refreshPmFleet } = useAsyncData<FleetResponse | null>(
   `pm-planning:${props.fab || 'NONE'}`,
@@ -492,7 +483,8 @@ const picked = ref<string | null>(null)
 // annotating the pair IT has to fix rather than the one the exclusion card
 // explains. The subject is the panel, not the route: this used to read
 // `view === 'pm-planning'`, which said the same thing only because the cards
-// and the route could not be separated.
+// and the route could not be separated. They now cannot be confused — the
+// route is gone.
 const showsPickedTool = computed(() => has('pm') && picked.value !== null)
 
 // Every analysis uses the tools selected by 장비 모델 그룹. The PM picker is

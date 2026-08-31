@@ -36,7 +36,7 @@ const links = computed(() => visibleHeaderLinksIn('lab', isCloud.value))
 
 // The fab-scoped rows jump to the remembered tool/fab selection (default cd-sem / R3
 // before any ebeam visit). Multi-fab-capable rows use the full fabs list so a multi-fab
-// selection survives the URL round-trip; single-fab pages (tttm, pm-planning — see
+// selection survives the URL round-trip; single-fab pages (tttm — see
 // SINGLE_FAB_FEATURES) get the primary fab only, because their useFabRoute would
 // immediately collapse a multi segment anyway and the label below must not promise
 // fabs the page will drop.
@@ -62,7 +62,7 @@ const fabsFor = (link: HeaderLink) => {
 // Resolved per row rather than per menu: this used to return the live-alarm target for
 // ANY `to: null` link, which was correct only while there was exactly one of them.
 // `scope` doubles as the route's last segment, which holds for every row today
-// ('live-alarm', 'tttm', 'pm-planning'). Give a future scope a name that is also its
+// ('live-alarm', 'tttm'). Give a future scope a name that is also its
 // segment, or split the two apart here rather than letting the link quietly point at
 // nothing.
 const linkTarget = (link: HeaderLink) =>

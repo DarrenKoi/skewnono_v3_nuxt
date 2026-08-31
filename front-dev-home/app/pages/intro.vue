@@ -705,24 +705,9 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-git-compare',
     section: 'lab',
     purpose: '같은 조건에서 장비끼리 측정값이 얼마나 맞는지 비교합니다.',
-    description: 'recipe와 parameter, 볼 장비를 고르면 장비 쌍마다 측정값 차이를 행렬로 계산해 허용 범위를 넘은 조합을 짚습니다. 배치도에서 어느 장비가 그룹 밖으로 벗어났는지 보고, 셀별 심각도와 추세, BM/PM·MDC 이력을 함께 놓아 언제부터 벌어졌는지 따라갑니다. 허용 범위는 슬라이더로 바꿔 가며 결과가 어떻게 달라지는지 볼 수 있습니다.',
-    users: '장비 정합성 검토자',
+    description: 'recipe와 parameter, 볼 장비를 고르면 장비 쌍마다 측정값 차이를 행렬로 계산해 허용 범위를 넘은 조합을 짚습니다. 배치도에서 어느 장비가 그룹 밖으로 벗어났는지 보고, 셀별 심각도와 추세, BM/PM·MDC 이력을 함께 놓아 언제부터 벌어졌는지 따라갑니다. 허용 범위는 슬라이더로 바꿔 가며 결과가 어떻게 달라지는지 볼 수 있습니다. PM 튜닝을 켜면 고른 장비가 그룹 중심에 들어가려면 셀마다 몇 nm를 움직여야 하는지와 Up 가능/Hold 게이트까지 같은 화면에서 봅니다.',
+    users: '장비 정합성 검토자, PM 계획 담당자',
     notes: ['CD-SEM 전용이며 Fab 하나를 기준으로 봅니다.'],
-    hiddenOnCloud: true
-  },
-  {
-    id: 'pm-planning',
-    title: 'PM 플래닝(PM-Planning)',
-    path: '/ebeam/cd-sem/{fab}/pm-planning',
-    icon: 'i-lucide-wrench',
-    section: 'lab',
-    purpose: 'PM 창에서 장비를 어느 목표로 맞춰야 그룹에 들어오는지 제시합니다.',
-    description: 'TTTM이 계산한 장비간 스큐를 그대로 받습니다. 튜닝할 장비를 고르면 그 장비가 그룹에 들어가려면 셀마다 몇 nm를 움직여야 하는지 제시합니다. 게이트 카드에서 Up 가능인지 Hold인지와 최근 PM 완료일, PM 전후 변화를 확인하고 다음 PM 후보 랭킹으로 기준선을 넘은 장비들을 훑습니다. recipe와 parameter, 장비 선택은 TTTM과 같은 설정을 쓰므로 한쪽에서 바꾸면 다른 쪽에도 반영됩니다.',
-    users: 'PM 계획 담당자, 장비 담당자',
-    notes: [
-      'TTTM과 같은 payload를 사용하므로 두 화면은 함께 열리고 함께 닫힙니다.',
-      'TTTM과 마찬가지로 CD-SEM 전용입니다.'
-    ],
     hiddenOnCloud: true
   },
   {

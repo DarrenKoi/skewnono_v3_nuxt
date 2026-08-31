@@ -35,22 +35,22 @@ export interface TttmScopeSettings {
   parameters: string[]
   /**
    * How many weeks of runs the server gathers — one of WINDOW_WEEKS, sent as
-   * `window_weeks` on the check, the recipe picker AND pm-planning's fleet fetch.
-   * Part of the shared scope rather than a per-page setting because the two
-   * pages describe ONE group: a 1-week group on TTTM and a 3-week group on
-   * PM 플래닝 would be two different groups under one name.
+   * `window_weeks` on the check, the recipe picker AND the pm_planning fleet
+   * fetch. One setting rather than one per request because every panel
+   * describes ONE group: a 1-week group in the 스큐 cards and a 3-week group in
+   * the PM 튜닝 cards would be two different groups under one name.
    */
   windowWeeks: WindowWeeks
   /**
    * The N배화 판정 임계값 in nm, as the tolerance knob leaves it. Null until the
    * user moves it, and the payload's own `current_tolerance` stands in.
    *
-   * Shared for exactly the reason `windowWeeks` is: a 0.05 nm group on the
-   * 스큐 view and a 0.08 nm group on PM 플래닝 would be two different groups
-   * under one name. It was a per-page `ref` until 2026-08-30, which is why
-   * PM 플래닝 had to caption "tolerance 는 TTTM 페이지의 설정을 따릅니다" three
-   * times over — and then quietly use the server default anyway, because a
-   * local ref cannot cross a route.
+   * Shared for exactly the reason `windowWeeks` is: a 0.05 nm group in the
+   * 스큐 cards and a 0.08 nm group in the PM 튜닝 cards would be two different
+   * groups under one name. It was a per-page `ref` until 2026-08-30, which is
+   * why the old PM 플래닝 page had to caption "tolerance 는 TTTM 페이지의
+   * 설정을 따릅니다" three times over — and then quietly use the server default
+   * anyway, because a local ref cannot cross a route.
    */
   tolerance: number | null
 }

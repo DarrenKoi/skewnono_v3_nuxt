@@ -1,81 +1,24 @@
-// The two views of the 실험실 analysis page: what each is called, and what it
-// opens showing.
+// The 실험실 analysis page: which analyses it can draw, and which it opens with.
 //
-// One page since 2026-08-30, two routes. `/tttm` and `/pm-planning` used to be
+// One page, ONE route since 2026-09-01. `/tttm` and `/pm-planning` used to be
 // two components that shared a scope, a persisted entry, a request and 18 of
-// their ~30 computeds, and documented the overlap in eight "same as TttmView"
-// comments rather than removing it. They are now one component (`LabView.vue`)
-// whose results section is a set of panels the user picks; a view is the PRESET
-// those panels start from.
+// their ~30 computeds; the 2026-08-30 merge made them one component
+// (`LabView.vue`) addressed by two routes, and this change drops the second
+// route as well. PM 튜닝 is a panel the reader ticks, not a screen to navigate
+// to — ticking it brings the 튜닝할 장비 bar with it.
 //
-// Both routes SURVIVED the merge on purpose. The slug is an identity, not a
-// path: `_logging/feature_map.py` files activity under it, `utils/pageIdentity.ts`
-// carries `/pm-tune` as an alias of `pm-planning`, `back_dev_home/` has a
-// feature folder per slug, and 실험실 lists the two separately because they
-// answer two different questions. Collapsing one into the other is the
-// 2026-08-17 pm-tune rename, which cost a 47-file sweep to undo.
-//
-// The slugs ARE the route file names (`pages/ebeam/cd-sem/[fab]/<slug>.vue`),
-// which is what lets the sub-tabs build their links by swapping the last path
-// segment instead of knowing the route shape.
-
-export type LabViewSlug = 'tttm' | 'pm-planning'
+// The slug is an IDENTITY, not a path, so dropping the route drops neither:
+// `pages/ebeam/cd-sem/[fab]/pm-planning.vue` stays as a redirect stub for old
+// bookmarks, `back_dev_home/pm_planning/` still answers the pm panel's query,
+// `_logging/feature_map.py` still files that activity under the `pm_planning`
+// slug (it maps API paths, not page paths), and `utils/pageIdentity.ts` still
+// carries `/pm-planning` and its `/pm-tune` alias so past activity keeps its
+// label.
 
 /** Which analyses get drawn — see LAB_PANELS for what each one carries. */
 export type LabPanel = 'verdict' | 'map' | 'matrix' | 'trend' | 'pm'
 
-export interface LabViewDef {
-  value: LabViewSlug
-  /** Sub-tab. Short, because it sits beside the other one. */
-  label: string
-  icon: string
-  /** Page heading — the same thing `label` says, with room to breathe. */
-  title: string
-  subtitle: string
-  /** What this route opens with, before the user has an opinion. */
-  panels: LabPanel[]
-}
-
-/**
- * One table rather than three keyed by the same slug. The tab label, the page
- * heading and the default panels are three statements about ONE view; split
- * across three exports they were three places to edit and three chances to
- * disagree — the exact drift the merge existed to end.
- *
- * Order = reading order: measure the group, then plan against it.
- */
-export const LAB_VIEWS: LabViewDef[] = [
-  {
-    value: 'tttm',
-    label: '장비간 스큐',
-    icon: 'i-lucide-git-compare',
-    title: '장비간 스큐 관리',
-    subtitle: 'Recipe가 점유하는 셀에서 서로 잘 맞는(N배화) 측정 장비 조합을 추천합니다.',
-    panels: ['verdict', 'map', 'matrix', 'trend']
-  },
-  {
-    value: 'pm-planning',
-    label: 'PM 플래닝',
-    icon: 'i-lucide-wrench',
-    title: 'PM 플래닝',
-    subtitle: '하드웨어를 만질 기회는 PM 창뿐입니다 — 그때 N배화 그룹의 중심에 맞추도록 parameter 별 조정량을 제시합니다. N이 커질수록 서로 대체 측정할 수 있는 장비가 늘어납니다.',
-    // Keeps the 배치도 because the tuning target is defined as a position ON
-    // that map — the table beside it is that map read as numbers.
-    panels: ['map', 'pm']
-  }
-]
-
-const VIEW_BY_SLUG = Object.fromEntries(
-  LAB_VIEWS.map(view => [view.value, view])
-) as Record<LabViewSlug, LabViewDef>
-
-export const labViewBySlug = (slug: LabViewSlug): LabViewDef => VIEW_BY_SLUG[slug]
-
 // ── 보기 (which analyses are drawn) ────────────────────────────────────────
-//
-// The two views hold the SAME analysis; what differed was which cards each drew
-// of it. Those cards are now options, and the two routes are the presets that
-// turn them on — which is what keeps the URL meaningful after the merge.
 //
 // Grouped rather than one option per card, because some cards only mean
 // something together. `배치도` keeps the map with `제외 장비`'s companion the
@@ -95,6 +38,16 @@ export const LAB_PANELS = [
 const PANEL_VALUES = new Set<string>(LAB_PANELS.map(p => p.value))
 
 /**
+ * What the page draws before the reader has an opinion — the old /tttm preset.
+ *
+ * `pm` is deliberately OFF: the page answers "어느 장비끼리 맞는가" first, and
+ * PM 튜닝 is the follow-up question asked ABOUT one tool. Turning it on is what
+ * makes 튜닝할 장비 appear, so a default-on pm would open the page asking for a
+ * pick nobody had a reason to make yet.
+ */
+export const DEFAULT_PANELS: LabPanel[] = ['verdict', 'map', 'matrix', 'trend']
+
+/**
  * localStorage is user-writable, so a stored selection is untrusted input:
  * unknown names are dropped and the canonical ORDER is restored, because the
  * order the panels render in is editorial (the evidence reads top to bottom,
@@ -107,4 +60,19 @@ export const normalizePanels = (raw: unknown): LabPanel[] | null => {
   if (!Array.isArray(raw)) return null
   const picked = new Set(raw.filter((v): v is LabPanel => typeof v === 'string' && PANEL_VALUES.has(v)))
   return LAB_PANELS.filter(p => picked.has(p.value)).map(p => p.value)
+}
+
+/**
+ * The stored 보기 selection, read.
+ *
+ * Until 2026-09-01 the value was keyed by route slug — `{"tttm": [...],
+ * "pm-planning": [...]}` — because each route had its own preset. One route
+ * now, so the `tttm` selection IS the selection and the `pm-planning` one is
+ * dropped: it described a screen that no longer exists, and it always had pm
+ * ticked, which would silently reopen the tuning bar for anyone whose last
+ * visit happened to be the other tab.
+ */
+export const storedPanels = (raw: unknown): LabPanel[] => {
+  const value = Array.isArray(raw) ? raw : (raw as { tttm?: unknown } | null)?.tttm
+  return normalizePanels(value) ?? [...DEFAULT_PANELS]
 }

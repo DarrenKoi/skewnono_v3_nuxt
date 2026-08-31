@@ -37,7 +37,7 @@ export interface HeaderLink {
   // Only for `to: null` entries: which fab-scoped target the menu builds for this row.
   // Required once there is more than one dynamic row — LabMenu used to treat `to: null` as
   // "this is 라이브 알람", so a second one would have silently pointed at the alarm board.
-  scope?: 'live-alarm' | 'tttm' | 'pm-planning'
+  scope?: 'live-alarm' | 'tttm'
   // Keep this row out of the menu on the Phase 3 cloud deploy. For pages whose estimator is
   // not validated yet: production users must not be LED to them, but the route is deliberately
   // left open, so anyone holding the URL (power users, beta testers) still gets in. Hiding the
@@ -71,13 +71,9 @@ export const HEADER_LINKS: HeaderLink[] = [
   // + BETA is enough of a caveat for a colleague at the office, but a production user reading
   // a skew matrix has no way to know the numbers behind it are not signed off yet. Drop the
   // flag when the feasibility study lands.
-  { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교', activeMatch: '/tttm', scope: 'tttm', hiddenOnCloud: true },
-  // TTTM 옆자리: TTTM 이 "어느 장비끼리 맞는가"를 답하고, 이 페이지는 그 답을 받아
-  // "PM 창에서 어떻게 튜닝하면 그 그룹에 들어가는가"를 답합니다. TTTM 과 같은 이유로
-  // 실험실이고(추정기 미검증), 같은 이유로 CD-SEM 전용이며, 같은 이유로 hiddenOnCloud 입니다.
-  // TTTM 페이로드를 그대로 받아 쓰므로 TTTM 이 프로덕션에 열리기 전에 이 페이지만 먼저 열리는
-  // 경우는 없습니다 — 두 플래그는 함께 내려갑니다.
-  { to: null, icon: 'i-lucide-wrench', label: 'PM 플래닝(PM-Planning)', group: 'lab', description: 'PM 때 그룹에 맞춰 튜닝할 목표 제시', activeMatch: '/pm-planning', scope: 'pm-planning', hiddenOnCloud: true },
+  // PM 플래닝은 2026-09-01 부터 이 행 하나로 들어옵니다 — 별도 행이 아니라 그 안의
+  // PM 튜닝 칩입니다. /pm-planning 은 redirect 스텁으로 남습니다.
+  { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교 · PM 튜닝 목표', activeMatch: '/tttm', scope: 'tttm', hiddenOnCloud: true },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅', group: 'lab', description: '데이터에 대해 물어보기', separated: true },
 
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '앱 소개', group: 'account' },
