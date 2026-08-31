@@ -198,7 +198,7 @@ def test_answer_provider_defaults_to_mock(monkeypatch):
 
 def test_answer_history_limit_defaults_and_clamps(monkeypatch):
     monkeypatch.delenv("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", raising=False)
-    assert config.get_answer_history_limit() == 20
+    assert config.get_answer_history_limit() == 5  # RAG 의 MAX_HISTORY 와 동일
 
     monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "500")
     assert config.get_answer_history_limit() == 100

@@ -27,17 +27,21 @@ RAG 측이 지식·검색을 전담하고, chat 측은 front 를 전담합니다
 
 ## 소유 경계
 
-- `_rag/skewnono_rag/` 는 RAG 측 전달물입니다. 갱신은 **통째 교체**로만
+- **RAG 측 agent 가 만지는 곳은 `_rag/skewnono_rag/` 하나뿐입니다** — 그
+  밖의 어느 파일도 쓰지 않습니다(편지 파일 포함). 갱신은 **통째 교체**로만
   하며(인덱스 `index/` 4파일과 gateway 키 내장 `config.py` 포함), chat 측은
   읽기만 합니다.
-- 그 밖의 chat 코드는 chat 측이 고칩니다. RAG 측이 chat 코드에서 고칠 것을
-  발견하면 편지로 요청합니다 (아래 서신 절).
+- 그 밖의 chat 코드·문서는 전부 chat 측이 고칩니다. RAG 측이 chat 코드에서
+  고칠 것을 발견하면 회신(아래 서신 절)으로 요청합니다.
 - `_rag/` 는 `.gitignore` 대상이므로 그 안에 둔 파일은 git 으로 전달되지
   않습니다. 저장소를 타야 하는 문서는 `docs/` 에 둡니다.
 
 ## 서신 — `docs/`
 
-두 agent 의 공식 채널은 `docs/` 의 편지입니다. 지금까지의 왕복이 모두 거기
+채널은 비대칭입니다: **chat → RAG 는 `docs/` 의 편지**(RAG 측은 읽기만),
+**RAG → chat 회신은 사용자가 chat 세션에 직접 타이핑해 전달**합니다 — RAG
+측은 파일을 쓰지 않으므로 회신을 편지 파일로 남기는 쪽은 chat 측입니다
+(받은 회신을 해당 편지의 후기 절로 기록). 지금까지의 왕복이 모두 `docs/` 에
 있으니 새 편지를 쓰기 전에 최근 것부터 읽습니다.
 
 - 파일명: `YYYY-MM-DD-<보낸쪽>-to-<받는쪽>-<주제>.md` (예:
@@ -50,11 +54,13 @@ RAG 측이 지식·검색을 전담하고, chat 측은 front 를 전담합니다
 
 **진행 중 안건**: 답변 전체를 RAG 의 `agent_query(question, messages,
 scope, timeout)` 하나로 옮기는 경계 변경이 **합의되었습니다**
-(`docs/2026-08-31-chat-to-rag-answer-contract-agreed.md` 가 최종 계약).
-RAG 측은 (a)~(e) 구현 후 `skewnono_rag/` 재전달. chat 측 절반은 **완료**
-(`answer/providers/` swap surface + `SKEWNONO_CHAT_RUNTIME=rag`) — 사무실
-에서 `cp answer/providers/office_example.py answer/providers/office.py` 후
-env 전환으로 검증합니다. 구 경로 삭제는 사무실 검증 후입니다.
+(`docs/2026-08-31-chat-to-rag-answer-contract-agreed.md` 가 최종 계약,
+후기 절에 확정값). 양쪽 구현 **완료**(2026-08-31): RAG 측은 (a)~(e) 를
+`retrieve/agent.py` 에, chat 측은 `answer/providers/` swap surface +
+`SKEWNONO_CHAT_RUNTIME=rag` 로. 남은 것은 **사무실 full-path 검증**입니다 —
+`cp answer/providers/office_example.py answer/providers/office.py` 후 env
+전환(RAG 측 집 검증은 langchain 부재로 py_compile + Evidence 매핑 assert
+까지만). 구 경로 삭제는 그 검증 후입니다.
 
 ## 계약의 원본 (여기 요약하지 않습니다)
 

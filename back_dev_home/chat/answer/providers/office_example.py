@@ -8,10 +8,11 @@ owns rewrite, search iteration, rerank and answer generation; this adapter
 owns only the call, the outer deadline guard, error translation and shape
 normalization — never a second agent loop.
 
-``timeout`` is the WHOLE-TURN budget (``SKEWNONO_CHAT_AGENT_TIMEOUT``); the
-RAG distributes it internally and raises ``TimeoutError`` past it. The
-thread guard here is the promised backstop with a small grace, so an
-imperfect internal distribution can never pin a Flask worker forever.
+``timeout`` is the WHOLE-TURN budget (``SKEWNONO_CHAT_AGENT_TIMEOUT``). The
+RAG enforces it as per-call ``timeout=remaining`` plus a pre-invoke deadline
+check — NOT a true cumulative deadline (RAG 측 확인 2026-08-31) — so the
+thread guard here is the real ceiling: an overshooting internal call can
+never pin a Flask worker past budget + grace.
 
 Sources come back Evidence-shaped from the RAG (``source_type`` already
 stamped ``manual`` there); chat validates shape only — required text fields

@@ -190,8 +190,16 @@ back_dev_home/chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md)
   follow_ups, rewrite(원문과 같으면 None), tool_traces,
   prompt/completion_tokens(선택)}. full_hits 는 폐기.
 - chat 소비자: answer/providers/office_example.py (runtime=rag).
-- max_history: RAG 측 값 회신 대기, 그전까지 chat 은 20 으로 자름
-  (OFFICE-VERIFY).
+- max_history = 5 (RAG 자체 chat/app.py 의 MAX_HISTORY 와 동일, RAG 측 확인
+  2026-08-31); chat 은 보내기 전에 같은 값으로 자릅니다.
+- timeout 집행(RAG 측 확인 2026-08-31): 내부는 호출별 timeout=remaining +
+  invoke 전 deadline 검사이며 진짜 누적 deadline 이 아닙니다 — 최종 상한은
+  chat 의 바깥 guard(총예산+5초)입니다.
+- token 수 telemetry 는 RAG 측이 생략했습니다 — prompt/completion_tokens 는
+  없거나 None 으로 오며 chat 은 둘 다 처리합니다.
+- (a)~(e) 구현 완료(RAG 측 확인 2026-08-31, retrieve/agent.py). RAG 측
+  집(home) 검증은 py_compile + Evidence 매핑 단독 assert 까지 — langchain 이
+  없어 full-path 는 사무실 runtime 에서 검증합니다(OFFICE-VERIFY).
 - 아래 3함수 계약은 전환기 동안 유지되고, 사무실 검증 후 폐기 예정입니다.
 
 RAG 공개 API 와 호출 방식 (office 확인 2026-08-27, 2026-08-28 RAG 측 회신 반영;

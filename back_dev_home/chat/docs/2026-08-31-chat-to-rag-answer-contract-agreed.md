@@ -32,3 +32,22 @@
 - chat 측: 집에서 mock answerer + 신규 runtime 을 먼저 만들어 env 전환을
   준비합니다. 구 경로(agent loop·tools·knowledge office 어댑터)와 RAG 의
   primitive 3함수 삭제는 **사무실 검증 후** 각자 진행합니다(제안 편지 4절).
+
+## 후기 — RAG 측 최종 회신 (2026-08-31 14:03)
+
+- `max_history = 5` (RAG 자체 `chat/app.py` 의 `MAX_HISTORY` 와 정렬).
+  chat 기본값을 20 → 5 로 반영했습니다.
+- 이름은 `agent_query` 로 확정.
+- timeout 집행은 호출별 `timeout=remaining` + invoke 전 deadline 검사
+  (진짜 누적 deadline 아님) — chat 의 바깥 guard(총예산+5초)가 최종
+  상한이므로 그대로 수용합니다.
+- token 수 telemetry 는 생략 — chat 은 키 부재/None 둘 다 처리하므로 문제
+  없습니다.
+- (a)~(e) 는 `retrieve/agent.py` 에 구현 완료: (a) messages 는 RAG 쪽에서도
+  `MAX_HISTORY=5` 로 잘림(chat 의 cap 과 이중이지만 무해), (b) sources 는
+  Evidence 12필드·5건 cap·`source_type="manual"` RAG 날인·`full_hits` 반환
+  제거, (c) rewrite 원문 동일 시 None, (d) `graph.invoke` 실패는 최상위
+  `TimeoutError`/`PermissionError`/`RuntimeError` 로 wrap(chat 의
+  `Exception` 포괄 처리에 포함됨), (e) token 수 생략. RAG 측 집 검증은 langchain
+  부재로 py_compile + Evidence 매핑 단독 assert 까지이며, full-path 검증은
+  사무실 runtime 에서 합니다.

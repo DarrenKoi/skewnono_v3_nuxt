@@ -83,10 +83,10 @@ def get_answer_provider_name() -> str:
 def get_answer_history_limit() -> int:
     """Prior turns sent to the RAG's agent_query, capped before the call.
 
-    Default 20 is the agreed-contract assumption until the RAG side sends its
-    real max_history (chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md).
+    Default 5 = the RAG's own chat/app.py MAX_HISTORY (RAG 측 확인
+    2026-08-31); sending more is wasted payload the RAG truncates anyway.
     """
-    return min(max(int(os.environ.get("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "20")), 1), 100)
+    return min(max(int(os.environ.get("SKEWNONO_CHAT_ANSWER_MAX_HISTORY", "5")), 1), 100)
 
 
 def get_knowledge_provider_name() -> str:

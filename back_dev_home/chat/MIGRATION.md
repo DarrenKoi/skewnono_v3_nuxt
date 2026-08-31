@@ -202,7 +202,7 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
 | Provider swap surface | `answer/providers/{mock,office_example}.py` + `SKEWNONO_CHAT_ANSWER_PROVIDER` |
 | Office adapter | `agent_query(question, messages, scope, timeout)` 호출 + 3종 오류 변환 + Evidence 모양 검증(5건 cap) + 바깥 hard guard(+5초) |
 | Mock answerer | knowledge mock 의 검색·rewrite·follow-ups 를 합성한 고정 템플릿 답변 |
-| History cap | dispatcher(`answer/data.py`)가 `SKEWNONO_CHAT_ANSWER_MAX_HISTORY`(기본 20)로 자름 |
+| History cap | dispatcher(`answer/data.py`)가 `SKEWNONO_CHAT_ANSWER_MAX_HISTORY`(기본 5 = RAG 의 MAX_HISTORY, RAG 측 확인 2026-08-31)로 자름 |
 | Orchestrator | rag runtime 이면 rewrite·follow-ups 를 결과에서 그대로 보존(자체 knowledge 호출 없음), model tool 검사 없음 |
 
 구 경로(agent runtime + tools + knowledge office 어댑터)는 사무실 검증
