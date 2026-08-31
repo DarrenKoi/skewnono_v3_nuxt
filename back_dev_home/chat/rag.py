@@ -28,7 +28,8 @@ Layout inside ``_rag/`` (RAG 측 확인 2026-08-31): ``skewnono_rag/`` is the
 delivered read-only package — always replaced wholesale by the RAG side, never
 edited here — with its built index at ``skewnono_rag/index/`` (db, vectors,
 faiss, bm25). The package is fully self-contained: the common LLM gateway
-keys (``LLM_BASE_URL_COMMON``, ``API_KEY_RPO``, ``API_KEY_EMBEDDING``) are
+keys (``LLM_BASE_URL_HCP``, ``API_KEY_FREE_HCP`` — renamed from the earlier
+``LLM_BASE_URL_COMMON`` / ``API_KEY_RPO``, RAG 측 확인 2026-09-01) are
 embedded in ``skewnono_rag/config.py`` — there is NO ``.env`` to create, in
 ``_rag/`` or anywhere (RAG 측 확인 2026-08-31; the earlier ``_rag/.env`` plan
 was dropped). Only ``skewnono_rag/`` is theirs; ``_rag/`` itself and any

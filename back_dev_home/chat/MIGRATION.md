@@ -103,7 +103,8 @@ chat 은 그것을 **같은 프로세스 안에서 import** 합니다 — Flask 
 통째로 전달·교체하는 read-only 패키지입니다 — 여기서 절대 수정하지 않습니다.
 빌드된 인덱스는 패키지 **안** `skewnono_rag/index/` 에 함께 옵니다(db, vectors,
 faiss, bm25 네 파일). 패키지는 완전히 self-contained 입니다 — common LLM
-gateway 키(`LLM_BASE_URL_COMMON`, `API_KEY_RPO`, `API_KEY_EMBEDDING`)는
+gateway 키(`LLM_BASE_URL_HCP`, `API_KEY_FREE_HCP` — 초기의
+`LLM_BASE_URL_COMMON`/`API_KEY_RPO` 에서 RAG 측이 개명, RAG 측 확인 2026-09-01)는
 `skewnono_rag/config.py` 에 내장되어 있으므로 `.env` 를 어디에도 만들지
 않습니다(RAG 측 확인 2026-08-31; 초기의 `_rag/.env` 안은 철회됨). skewnono 의
 `back_dev_home/.env` 에도 넣지 않습니다. 앞머리 밑줄이 이 배치를 안전하게
