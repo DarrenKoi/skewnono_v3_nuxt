@@ -330,6 +330,7 @@
           :target="tuning"
           :n="primary?.n ?? 0"
           :tools="visibleTools"
+          :roster="roster"
         />
         <EbeamPmPlanningGateCard
           :gate="pickedGate"

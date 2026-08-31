@@ -58,7 +58,8 @@
  * (TTTM's tolerance knob) sit in the 분석 조건 bar (`EbeamAnalysisBar`) below.
  * The PM 튜닝 panel's 튜닝할 장비 is NOT one of these three: it names the
  * subject the page reports on rather than the data it reports from, so it has
- * its own bar ABOVE this one (`EbeamPmPlanningToolPicker`, 2026-08-27).
+ * its own bar (`EbeamPmPlanningToolPicker`, 2026-08-27) — below 분석 조건 since
+ * 2026-09-01, directly under the PM 튜닝 chip that summons it.
  */
 withDefaults(defineProps<{
   hint?: string

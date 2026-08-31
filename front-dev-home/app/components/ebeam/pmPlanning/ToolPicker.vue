@@ -113,8 +113,12 @@
 // put the page's SUBJECT in a 264px column at the far right under a title that
 // did not name it. It then spent a day at the very top of the page, which fixed
 // the visibility and broke the order: the tool is picked out of the group the
-// 장비 모델 그룹 bar defines, so it now sits directly under that bar
-// (2026-08-28). Every fact a row carried — Up gate, group membership, last PM —
+// 장비 모델 그룹 bar defines, so on 2026-08-28 it moved to directly under that
+// bar. Since 2026-09-01 it sits one bar lower still — under 분석 조건 — because
+// the merge of the two pages put the PM 튜닝 chip that summons this bar inside
+// 분석 조건, and the bar a chip conjures belongs directly beneath that chip.
+// Both orderings are satisfied: 장비 모델 그룹 is still above.
+// Every fact a row carried — Up gate, group membership, last PM —
 // is still on the row inside the menu, and the picked row repeats them beside
 // the trigger so the collapsed state is never a bare id.
 

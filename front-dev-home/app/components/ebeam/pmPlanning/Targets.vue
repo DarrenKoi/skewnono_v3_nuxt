@@ -172,15 +172,30 @@ const props = defineProps<{
   target: TuningTarget | null
   /** The primary group's size; 0 = no group exists (a null target means two things). */
   n: number
+  /** The payload's tools, narrowed to the comparison — labels and models. */
   tools: ToolRef[]
+  /** The fab's whole sem_list fleet, for a pick `tools` cannot describe. */
+  roster: ToolRef[]
 }>()
 
 const labels = computed(() => toolLabels(props.tools))
 
-/** '' when the tool is not in the payload — a pick made before the request. */
-const pickedModel = computed(() =>
-  props.tools.find(t => t.eqp_id === props.target?.eqp_id)?.eqp_model_cd ?? ''
-)
+// Payload first, roster second, because `tools` is the narrower list in TWO
+// ways and the target survives both narrowings: `tuning` is built from
+// `parameter_profile` and the pick alone, while `tools` is the payload's list
+// filtered to the current comparison. So a tool DESELECTED from 장비 모델 그룹
+// still has a target and is no longer in `tools`, and a tool just ADDED to the
+// group and picked before the next 데이터 요청 is in neither the payload nor
+// `tools` — the id would render bare in both. The roster is the fab's whole
+// fleet from sem_list and carries the same `eqp_model_cd`, so it answers both.
+// Falls back to '' rather than a placeholder: the model is a second identifier
+// for an id that is already legible, so an absent one drops out silently.
+const pickedModel = computed(() => {
+  const eqp = props.target?.eqp_id
+  if (!eqp) return ''
+  const from = (tools: ToolRef[]) => tools.find(t => t.eqp_id === eqp)?.eqp_model_cd
+  return from(props.tools) ?? from(props.roster) ?? ''
+})
 const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
 const offCount = computed(() => props.target?.rows.filter(r => !r.withinTolerance).length ?? 0)

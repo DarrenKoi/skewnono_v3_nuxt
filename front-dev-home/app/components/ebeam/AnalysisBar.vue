@@ -78,8 +78,10 @@ import type { AnalysisLock } from '~/utils/tttmRecipeScope'
  * Both cells arrive as slots for the reason ScopeBar's recipe cell does: a
  * prop relay through a wrapper is a place to forget a prop, and the knob in
  * the trailing cell fires on every drag frame. The trailing cell is optional:
- * PM 플래닝 gave it up on 2026-08-27 when 튜닝할 장비 became its own bar at the
- * top of that page, and an empty divided column reads as a missing control.
+ * PM 플래닝 gave it up on 2026-08-27, when 튜닝할 장비 left this cell for a bar
+ * of its own, and an empty divided column reads as a missing control. That bar
+ * has since moved twice and now sits below this one; where it sits does not
+ * bear on the cell being optional — that it left does.
  */
 const props = withDefaults(defineProps<{
   lock: AnalysisLock
