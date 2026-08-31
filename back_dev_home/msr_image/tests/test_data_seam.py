@@ -48,7 +48,7 @@ def test_list_images_seam_signature_is_three_args():
     Pushing it into the provider would widen this signature, and every office
     checkout's gitignored providers/office.py is a COPY -- it would keep the
     old signature and the app factory would fail to boot until someone ran
-    `python -m scripts.sync_office_adapters msr_image`. Filtering a returned
+    `python -m scripts.adapters.sync_office_adapters msr_image`. Filtering a returned
     list is presentation, not data access.
     """
     import inspect

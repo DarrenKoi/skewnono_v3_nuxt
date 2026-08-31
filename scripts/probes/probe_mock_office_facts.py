@@ -35,14 +35,14 @@ instead of five ad-hoc queries.
 
 Run FROM THE REPO ROOT at the office:
 
-    .venv/bin/python -m scripts.probe_mock_office_facts
+    .venv/bin/python -m scripts.probes.probe_mock_office_facts
 
     # skip the slow stage (it fetches pickles from MinIO)
-    .venv/bin/python -m scripts.probe_mock_office_facts --msr-sample 0
+    .venv/bin/python -m scripts.probes.probe_mock_office_facts --msr-sample 0
 
     # widen the window / sample, or look at one tool family
-    .venv/bin/python -m scripts.probe_mock_office_facts --days 180 --msr-sample 50
-    .venv/bin/python -m scripts.probe_mock_office_facts --tool-type hv-sem
+    .venv/bin/python -m scripts.probes.probe_mock_office_facts --days 180 --msr-sample 50
+    .venv/bin/python -m scripts.probes.probe_mock_office_facts --tool-type hv-sem
 
 Whatever this proves belongs in TWO places (CLAUDE.md): the relevant
 `docs/datatables/*.txt` AND the feature's mock. Mark each fact
@@ -61,7 +61,7 @@ from typing import Any
 # Make `back_dev_home` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free;

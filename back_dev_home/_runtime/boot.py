@@ -42,7 +42,7 @@ def _warn_about_stale_adapters(office: int) -> None:
     Only checked when this process actually serves office data somewhere.
     A home instance runs mock no matter how old its copies are, so warning
     there would be noise — and it would pay the git cost of the check on
-    every boot to say nothing. `scripts/sync_office_adapters` is the home-side
+    every boot to say nothing. `scripts/adapters/sync_office_adapters` is the home-side
     way to ask the same question, on purpose rather than at startup.
 
     Best-effort by design: this is a diagnostic, and a diagnostic that can
@@ -61,7 +61,7 @@ def _warn_about_stale_adapters(office: int) -> None:
         logger.warning(
             "  STALE office.py: %s (%s) — this instance serves office data, "
             "and a stale copy runs OLD adapter code against it. Refresh with: "
-            "python -m scripts.sync_office_adapters %s",
+            "python -m scripts.adapters.sync_office_adapters %s",
             adapter.slug,
             note,
             adapter.name,

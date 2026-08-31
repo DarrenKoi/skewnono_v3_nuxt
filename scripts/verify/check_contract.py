@@ -12,8 +12,8 @@
 구조만 봅니다.
 
 사용법:
-    python -m scripts.check_contract              # 기본 :5050
-    PORT=5000 python -m scripts.check_contract    # Flask 를 :5000 으로 띄운 경우
+    python -m scripts.verify.check_contract              # 기본 :5050
+    PORT=5000 python -m scripts.verify.check_contract    # Flask 를 :5000 으로 띄운 경우
 
 포트는 Flask 를 어떻게 띄웠는지에 맞춥니다 - index.py 기본값도 :5050 입니다.
 """
@@ -30,11 +30,11 @@ from typing import Any, Callable
 
 # capture_fixtures.py 와 엔드포인트 목록·포트 해석·픽스처 경로·fetch 를 모두
 # 공유합니다 - 두 스크립트가 같은 서버의 같은 파일을 보아야 비교가 의미 있습니다.
-# 리포 뿌리를 넣어 `python scripts/check_contract.py` 로 직접 실행해도
+# 리포 뿌리를 넣어 `python scripts/verify/check_contract.py` 로 직접 실행해도
 # `scripts` 패키지로 한 번만 import 되게 합니다 - 최상위 `capture_fixtures`
 # 로 import 하면 모듈이 두 벌 생겨 테스트의 monkeypatch 가 새 나갑니다.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from scripts.capture_fixtures import (  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.verify.capture_fixtures import (  # noqa: E402
     ENDPOINTS,
     _fetch,
     display_path,

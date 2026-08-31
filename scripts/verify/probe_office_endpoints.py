@@ -24,13 +24,13 @@ It does two things, in order:
 
 Run FROM THE OFFICE NETWORK (the base URL does not resolve from home):
 
-    .venv/bin/python -m scripts.probe_office_endpoints
-    .venv\\Scripts\\python -m scripts.probe_office_endpoints   # office Windows PC
+    .venv/bin/python -m scripts.verify.probe_office_endpoints
+    .venv\\Scripts\\python -m scripts.verify.probe_office_endpoints   # office Windows PC
 
 For a local home/mock Flask server, opt in to its intentional fallback
 identity so the strict office no-token check does not stop the sweep:
 
-    .venv/bin/python -m scripts.probe_office_endpoints \\
+    .venv/bin/python -m scripts.verify.probe_office_endpoints \\
         --base-url http://localhost:5050 --allow-implicit-identity
 
 The token is NOT an argument: mint one in the web UI (settings -> API tokens)
@@ -64,7 +64,7 @@ from typing import Any
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
@@ -521,7 +521,7 @@ def main(argv: list[str] | None = None) -> int:
     except ImportError:
         raise SystemExit(
             "error: requests is not installed. Run with the venv interpreter:\n"
-            "    .venv/bin/python -m scripts.probe_office_endpoints"
+            "    .venv/bin/python -m scripts.verify.probe_office_endpoints"
         ) from None
 
     base = args.base_url.rstrip("/")

@@ -9,7 +9,7 @@
 없습니다.
 
 여기서 보는 것은 **구문뿐**입니다. 스키마가 코드와 맞는지는
-`scripts/check_contract.py` + `tests/test_check_contract.py` 의 일이고, 이
+`scripts/verify/check_contract.py` + `tests/test_check_contract.py` 의 일이고, 이
 테스트는 그보다 훨씬 아래 — "이 파일이 YAML 이기는 한가" — 를 지킵니다.
 
 `yaml` 은 `pytest.importorskip` 으로 감싸지 않습니다. 없으면 수집 단계에서

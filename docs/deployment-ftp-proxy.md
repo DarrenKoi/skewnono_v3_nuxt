@@ -105,8 +105,8 @@ uwsgi --ini wsgi.ini      # 또는 운영 중인 프로세스 재시작
 실행하십시오(`aipp01` 은 집에서 이름 해석이 되지 않습니다).
 
 ```bash
-.venv/bin/python -m scripts.check_ftp_proxy          # macOS/Linux
-.venv\Scripts\python -m scripts.check_ftp_proxy      # 사무실 Windows PC
+.venv/bin/python -m scripts.verify.check_ftp_proxy          # macOS/Linux
+.venv\Scripts\python -m scripts.verify.check_ftp_proxy      # 사무실 Windows PC
 ```
 
 주소는 `proxy_downloader.py` 의 `PROXY_URL` 을 그대로 읽으므로 인자가 필요

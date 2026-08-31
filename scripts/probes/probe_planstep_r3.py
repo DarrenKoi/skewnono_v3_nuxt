@@ -21,10 +21,10 @@ point is one report covering the whole path, not the first error.
 Run FROM THE REPO ROOT at the office (config self-loads from
 ``back_dev_home/.env``; ``-m`` puts the root on ``sys.path``):
 
-    .venv/bin/python -m scripts.probe_planstep_r3
+    .venv/bin/python -m scripts.probes.probe_planstep_r3
 
     # widen / narrow the sampling
-    .venv/bin/python -m scripts.probe_planstep_r3 --recipes 10 --devices 5
+    .venv/bin/python -m scripts.probes.probe_planstep_r3 --recipes 10 --devices 5
 
 Whatever this proves belongs in TWO places (CLAUDE.md): the schema of record in
 ``docs/datatables/hitachi/planstep_r3.txt`` (and ``idp_ver.txt`` for the parameters
@@ -46,7 +46,7 @@ from pathlib import Path
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
@@ -549,7 +549,7 @@ def _report_raw_data(raw: Any) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m scripts.probe_planstep_r3",
+        prog="python -m scripts.probes.probe_planstep_r3",
         description=(
             "Probe sknn-planstep-r3 and the device_statistics 3-hop chain "
             "(r3_device_grp -> planstep -> cdsem_idp_ver)."

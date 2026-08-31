@@ -14,7 +14,7 @@
   lives in this provider's own template, not only in the shared
   `_office_meas_hist.py` module fail_issue also uses — so this copy needs
   refreshing independently of whether fail_issue's does. Boot log's `STALE
-  office.py` line / `python -m scripts.sync_office_adapters recipe_tat`
+  office.py` line / `python -m scripts.adapters.sync_office_adapters recipe_tat`
   confirm and fix a stale one.
 
 ## Data source: OpenSearch `meas_hist_*` (+ pending Redis lot map)

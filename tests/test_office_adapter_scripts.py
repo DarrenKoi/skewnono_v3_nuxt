@@ -19,9 +19,9 @@ import subprocess
 
 import pytest
 
-from scripts import setup_office_adapters as setup
-from scripts import sync_office_adapters as sync
-from scripts.sync_office_adapters import EDITED, MISSING, STALE, SYNCED
+from scripts.adapters import setup_office_adapters as setup
+from scripts.adapters import sync_office_adapters as sync
+from scripts.adapters.sync_office_adapters import EDITED, MISSING, STALE, SYNCED
 
 
 # --------------------------------------------------------------------------

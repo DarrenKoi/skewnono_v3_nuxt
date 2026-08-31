@@ -9,7 +9,7 @@ office 어댑터는 계측 장비(HITACHI SEM) FTP 서버에 직접 접속해 �
 
 ## 실측값 (office 확인 2026-08-10)
 
-`scripts.measure_msr_image_ftp` 를 실장비 대상으로 돌려 얻은 값입니다. 추측이던
+`scripts.probes.measure_msr_image_ftp` 를 실장비 대상으로 돌려 얻은 값입니다. 추측이던
 추측이던 것 4가지가 모두 확정됐습니다.
 
 | 항목 | 실측 | 반영 |
@@ -86,7 +86,7 @@ listing 에 숨김 폴더가 없었습니다. 지금은 들어 있습니다.
 **`office.py` 를 다시 복사하십시오** — 수정이 `office_example.py` 에 있습니다:
 
 ```powershell
-.venv\Scripts\python -m scripts.sync_office_adapters msr_image
+.venv\Scripts\python -m scripts.adapters.sync_office_adapters msr_image
 ```
 
 ## ⚠ 2026-08-09 이후 첫 office 배포에서 반드시 할 일
@@ -224,7 +224,7 @@ listing 에 숨김 폴더가 없었습니다. 지금은 들어 있습니다.
   `harakiri` 를 **반드시 함께** 올리십시오. 상한에 걸린 잡은 평범한 호스트
   실패로 떨어지고, 프론트는 이미지별 재시도로 이미 이를 흡수합니다.
 - **계측 스크립트로 위 추정치를 실측하십시오** —
-  `.venv/bin/python -m scripts.measure_msr_image_ftp`. 장비에는 아무것도 쓰지
+  `.venv/bin/python -m scripts.probes.measure_msr_image_ftp`. 장비에는 아무것도 쓰지
   않습니다(A~C는 읽기 전용, D는 `--minio` 옵트인이며 `<prefix>_measure/` 에
   썼다가 스스로 지웁니다). locator 를 안 주면 meas_hist 최신 문서에서 스스로
   찾습니다. 네 가지에 답합니다: ①connect+login 비용 → 커넥션 풀링을 만들

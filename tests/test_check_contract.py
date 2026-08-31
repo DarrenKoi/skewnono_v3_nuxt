@@ -1,8 +1,8 @@
 """The mock↔office response-shape guard, exercised without a live Flask.
 
-`scripts/check_contract.py` is the only automated check that the office
+`scripts/verify/check_contract.py` is the only automated check that the office
 providers return the same *shape* the frontend was built against, and
-`scripts/capture_fixtures.py` is the only thing that writes the frozen
+`scripts/verify/capture_fixtures.py` is the only thing that writes the frozen
 baselines it compares to. Both are manual CLIs that need a running server, so
 until now neither had a single test — the guard itself was unguarded.
 
@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts import capture_fixtures, check_contract
+from scripts.verify import capture_fixtures, check_contract
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND = REPO_ROOT / "back_dev_home"

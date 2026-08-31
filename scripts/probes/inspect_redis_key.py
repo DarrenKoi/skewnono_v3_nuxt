@@ -4,7 +4,7 @@ This is a schema-discovery worksheet, not an argument-driven CLI. **The key
 comes from ``KEY_NAME`` in this file and there is no way to pass one on the
 command line** - edit ``KEY_NAME``, ``ROWS`` and ``UNIQUE_COLUMNS`` below, then
 run. Supplying a key as an argument is refused rather than ignored, because
-``-m scripts.inspect_redis_key v3_df_sem_avail`` printing ``v3_df_sem_list``'s
+``-m scripts.probes.inspect_redis_key v3_df_sem_avail`` printing ``v3_df_sem_list``'s
 schema is a wrong datatables entry, not a wasted run. At the office, set the
 PyCharm working directory to the repository root, then use **Run File in
 Python Console**.
@@ -37,7 +37,7 @@ from pathlib import Path
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free

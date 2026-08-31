@@ -34,7 +34,7 @@
 - **결론: 계측만 출하하고 그 외에는 아무것도 하지 않습니다.** 살아남는
   병렬화 대상이 없습니다.
 - `office.py` gitignore 우려는 실질 위험이 아닙니다 —
-  `scripts/sync_office_adapters.py` 와 부팅 로그의 `STALE office.py` 경고가
+  `scripts/adapters/sync_office_adapters.py` 와 부팅 로그의 `STALE office.py` 경고가
   이미 절차로 존재합니다. 모델이 확인 후 철회했습니다.
 - pyarrow mimalloc 흉터는 제안된 두 경로에 닿지 않습니다. OpenSearch 경로는
   JSON 만 다루고 `probe_common.py` 에는 pandas·parquet·`read_dataframe` 가

@@ -31,7 +31,7 @@ office 어댑터가 두 이름을 모두 받아 줍니다.
 
 실제 컬럼/행 수/결측 분포는 사무실에서 아래로 확인합니다:
 
-    .venv/bin/python -m scripts.inspect_device_info_keys
+    .venv/bin/python -m scripts.probes.inspect_device_info_keys
 
 This module (plus its sibling `statistics.py` / `recipe_params.py` /
 `rules.py` helper modules in this same `providers/` package) is

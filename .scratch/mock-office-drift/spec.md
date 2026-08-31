@@ -53,7 +53,7 @@ Status: 09건 중 8건 완료 · 05 는 사무실 확인 대기
 남은 OFFICE-VERIFY 5건은 한 명령으로 전부 답이 나옵니다:
 
 ```bash
-.venv/bin/python -m scripts.probe_mock_office_facts
+.venv/bin/python -m scripts.probes.probe_mock_office_facts
 ```
 
 | 단계 | 무엇을 재는가 | 걸린 이슈 |

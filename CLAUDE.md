@@ -47,7 +47,7 @@ Three-tier configuration management. Database connections, API base URLs, and se
 - All phases: frontend calls Flask over `/api/*` via `$fetch`. Blueprints and response shapes stay identical across phases, and frontend code never branches on phase — only `NUXT_API_TARGET` changes.
 - Routes import `from .data import ...` and never change between phases.
 - The swap surface is `providers/office.py` vs. `providers/mock.py`. **Do not edit `data.py`** — it is a stable dispatcher that picks the adapter via `get_data_provider()`. `office.py` is **gitignored**; the tracked template is `providers/office_example.py`, so you implement the template and `cp office_example.py office.py` at the office (the copy may carry 사내 schema details that stay out of git).
-- Because `office.py` is a copy, a `git pull` that moves the template leaves the running adapter serving 200s from old code. The office boot log names any provably outdated copy (`STALE office.py: <feature>`); refresh with `python -m scripts.sync_office_adapters <feature>`.
+- Because `office.py` is a copy, a `git pull` that moves the template leaves the running adapter serving 200s from old code. The office boot log names any provably outdated copy (`STALE office.py: <feature>`); refresh with `python -m scripts.adapters.sync_office_adapters <feature>`.
 
 Which adapter answers is the logical AND of two independent questions:
 

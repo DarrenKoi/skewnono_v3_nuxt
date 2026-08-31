@@ -2,7 +2,7 @@
 
 device_statistics' process-step source splits by fab family:
 
-    R3 / 연구개발  -> sknn-planstep-r3     (scripts/probe_planstep_r3.py)
+    R3 / 연구개발  -> sknn-planstep-r3     (scripts/probes/probe_planstep_r3.py)
     M 계열 양산    -> ebeam_tas_lot_hist   (this script)
 
 The M-fab branch differs from R3 in ways that each break a different
@@ -21,11 +21,11 @@ rows: "unique oper_det_desc per lot_cd" is a nested terms aggregation, not a
 
 Run FROM THE REPO ROOT at the office:
 
-    .venv/bin/python -m scripts.probe_lot_hist_mfab
+    .venv/bin/python -m scripts.probes.probe_lot_hist_mfab
 
     # narrow to one fab, or change the window
-    .venv/bin/python -m scripts.probe_lot_hist_mfab --fab M14 --days 90
-    .venv/bin/python -m scripts.probe_lot_hist_mfab --devices 5 --recipes 8
+    .venv/bin/python -m scripts.probes.probe_lot_hist_mfab --fab M14 --days 90
+    .venv/bin/python -m scripts.probes.probe_lot_hist_mfab --devices 5 --recipes 8
 
 Whatever this proves belongs in TWO places (CLAUDE.md):
 ``docs/datatables/hitachi/ebeam_tas_lot_hist.txt`` AND the device_statistics mock
@@ -46,7 +46,7 @@ from pathlib import Path
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
@@ -64,7 +64,7 @@ from ops_store import OSIndex, OSSearch, create_client  # noqa: E402
 
 # Shared with the R3 probe rather than duplicated - the `.keyword` resolution in
 # particular is the trap both scripts have to get right (see that module).
-from scripts.probe_planstep_r3 import IDP_INDEX, _agg_field, _properties, _rule, stage_idp_join  # noqa: E402
+from scripts.probes.probe_planstep_r3 import IDP_INDEX, _agg_field, _properties, _rule, stage_idp_join  # noqa: E402
 
 
 INDEX = "ebeam_tas_lot_hist"
@@ -317,7 +317,7 @@ def stage_steps_per_device(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m scripts.probe_lot_hist_mfab",
+        prog="python -m scripts.probes.probe_lot_hist_mfab",
         description=(
             "Probe ebeam_tas_lot_hist for device_statistics' M-fab process steps "
             "(last 3 months, unique oper_det_desc per lot_cd)."

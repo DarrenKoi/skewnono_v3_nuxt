@@ -91,9 +91,9 @@ Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* and SKEWNONO_TOOL_FTP_*
 from back_dev_home/.env, like the adapters do). Bare, it probes the newest
 document in the index; every filter is opt-in:
 
-    .venv/bin/python -m scripts.probe_recipe_ftp
-    .venv/bin/python -m scripts.probe_recipe_ftp --pick 2
-    .venv/bin/python -m scripts.probe_recipe_ftp --tool hvsem --eqp MHV101 --date 2026-07-26
+    .venv/bin/python -m scripts.probes.probe_recipe_ftp
+    .venv/bin/python -m scripts.probes.probe_recipe_ftp --pick 2
+    .venv/bin/python -m scripts.probes.probe_recipe_ftp --tool hvsem --eqp MHV101 --date 2026-07-26
 
 Nothing the run saw is thrown away: ``main()`` returns a ``Probe`` and
 ``__main__`` binds its fields at module scope, so breakpointing the closing
@@ -108,7 +108,7 @@ without another FTP round-trip.
 To drive it by hand instead, pass the flags as a list - ``main()`` takes argv
 explicitly so a console session never has to own ``sys.argv``:
 
-    from scripts.probe_recipe_ftp import main
+    from scripts.probes.probe_recipe_ftp import main
     probe = main([])                            # no filters, newest document
     probe = main(["--eqp", "MCD719", "--pick", "1"])
     mp = probe.wafer_mp_info                    # .wafer_align_info, .idp_image_info
@@ -136,7 +136,7 @@ from zoneinfo import ZoneInfo
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free

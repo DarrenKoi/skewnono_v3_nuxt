@@ -329,7 +329,7 @@ def unavailable_payload(
     boots clean while serving exactly the blank roster this exists to prevent.
     What actually catches that copy is the boot-time freshness check that logs
     ``STALE office.py`` (`_runtime/boot.py`), and the fix is the documented
-    `python -m scripts.sync_office_adapters tttm`.
+    `python -m scripts.adapters.sync_office_adapters tttm`.
 
     What must stay empty is the COMPARISON — `occupied_cells`, the fleet matrix
     and the trend — because that is the "comparison of nothing" this branch

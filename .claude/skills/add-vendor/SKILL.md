@@ -53,7 +53,7 @@ contract makes the contract follow the mock.
       `test_office_template.py` over the new family. Add a case for the
       unwired-adapter 501 path.
 - [ ] **8. 사무실 연결** — office side only:
-      `python -m scripts.sync_office_adapters <feature>/<family>`, then verify
+      `python -m scripts.adapters.sync_office_adapters <feature>/<family>`, then verify
       with `GET /api/health/providers`. At home, stop after step 7 and say so.
 
 ## Gates before reporting done

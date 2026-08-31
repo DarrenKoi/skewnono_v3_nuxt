@@ -107,6 +107,6 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
   | admin_logs | 불필요 | 바뀐 `query.py`가 git 추적 대상입니다 |
   | api_tokens · access_control | 불필요 | `office_example.py`를 건드리지 않았습니다 |
 
-  재복사 명령은 `python -m scripts.sync_office_adapters <기능>`입니다. 기동
+  재복사 명령은 `python -m scripts.adapters.sync_office_adapters <기능>`입니다. 기동
   로그의 `STALE office.py:` 줄이 대상 기능을 짚어 주므로, 먼저 로그를 봐도
   됩니다.

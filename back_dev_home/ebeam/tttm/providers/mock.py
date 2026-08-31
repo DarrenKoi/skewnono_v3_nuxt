@@ -8,7 +8,7 @@ shows for that fab. The previous version of this module read one hand-written
 fixture (`__fixtures__/tttm_cdsem_r3.json`, five tools called `EQP01…EQP05`),
 which meant every fab but R3 answered `available: false` and R3 itself offered
 a roster no other page had ever heard of. `__fixtures__` is still written, but
-now by `scripts/capture_fixtures.py` capturing this generator's output — the
+now by `scripts/verify/capture_fixtures.py` capturing this generator's output — the
 frozen shape example for the office side, not an input.
 
 Deliberate properties of the generated payload, so a later edit does not

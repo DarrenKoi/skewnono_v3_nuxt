@@ -435,7 +435,7 @@ def get_recipe_catalog(
 
 
 # ALL FIVE readers were run against real files at the office (2026-07-30) via
-# scripts/probe_recipe_ftp.py, so no raw file's FIELD NAMES are guessed any
+# scripts/probes/probe_recipe_ftp.py, so no raw file's FIELD NAMES are guessed any
 # more — the counted placeholders that used to live here are gone. What remains
 # unknown is narrower and is marked per field: some VALUES have never been seen,
 # and those emit _unknown_value() rather than a plausible invention. Inventing

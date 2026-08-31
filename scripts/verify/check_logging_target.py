@@ -4,9 +4,9 @@
 같은 alias 를 쓰기와 읽기가 함께 잘못 보고 있으면 아무 이상이 없어 보이므로,
 alias 를 사람 눈으로 확인하는 것 자체가 목적입니다.
 
-    python -m scripts.check_logging_target
-    python scripts/check_logging_target.py
-    python scripts/check_logging_target.py --user 2067928 --url myhost:8080
+    python -m scripts.verify.check_logging_target
+    python scripts/verify/check_logging_target.py
+    python scripts/verify/check_logging_target.py --user 2067928 --url myhost:8080
 
 인자 없이 돌리면 환경만 읽어 alias 와 핸들러 설치 조건을 판정합니다. HTTP 를
 타지 않으므로 인증도 셸도 주소도 문제되지 않습니다.
@@ -26,7 +26,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
@@ -155,7 +155,7 @@ def main() -> int:
         if not args.url:
             print()
             print("--user 를 쓰려면 앱 주소가 필요합니다. 기본값은 두지 않습니다.")
-            print("  python -m scripts.check_logging_target --user <ID> --url <host:port>")
+            print("  python -m scripts.verify.check_logging_target --user <ID> --url <host:port>")
             print(f"또는 {_URL_ENV} 를 환경에 두면 다음부터는 생략됩니다.")
             return 1
         return report_endpoint(resolve_url(args.url), args.user)

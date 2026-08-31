@@ -366,7 +366,7 @@ docstring.
   1. `rules?fac_id=R3` returns 404 (tooltip: "계측 룰이 없습니다") — with
      the current adapter this can only be a **stale `office.py`** still
      reading the discarded Redis hash. Refresh it:
-     `python -m scripts.sync_office_adapters device_statistics`.
+     `python -m scripts.adapters.sync_office_adapters device_statistics`.
   2. Rules load but every recipe falls out as gray (e.g. `phase` is
      null because real device `ctn_desc` strings don't carry parseable
      EV/TV/PV tokens, or `memory_class` is unknown and Pool lots lack a

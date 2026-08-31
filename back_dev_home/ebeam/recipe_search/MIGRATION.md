@@ -174,7 +174,7 @@ function are gone; three endpoints replace them.
 
 ### What the 2026-07-30 probe run changed
 
-`scripts/probe_recipe_ftp.py` was run against real files and all five readers'
+`scripts/probes/probe_recipe_ftp.py` was run against real files and all five readers'
 output is now recorded in `docs/datatables/hitachi/recipe_idp.txt`. Three results
 changed the adapter rather than only the documentation, so re-read them before
 copying this template to `office.py`:
@@ -278,7 +278,7 @@ production equipment.
   expected to be a plain name lookup, not the full synthetic generator.
   `total` must equal `len(rows)`. **`office_example.py` changed for this
   (multi-fab phase B, 2026-08-07): re-copy at the office** —
-  `python -m scripts.sync_office_adapters recipe_search` (or
+  `python -m scripts.adapters.sync_office_adapters recipe_search` (or
   `cp office_example.py office.py`). The boot log's `STALE office.py` line
   flags a pre-2026-08-07 copy, which still answers 200 with bare-string rows
   and a single `fab_name` field the frontend no longer reads.
@@ -308,7 +308,7 @@ production equipment.
   immediately re-read it as a fab name — but `fac_id` is device_statistics'
   key, not this feature's (`docs/datatables/README.md`). **An `office.py` copied
   before that date still emits `fac_id`**, which the SPA no longer reads:
-  re-copy with `python -m scripts.sync_office_adapters --force recipe_search`.
+  re-copy with `python -m scripts.adapters.sync_office_adapters --force recipe_search`.
   The argument is passed positionally through `data.py`, so a stale copy keeps
   answering — it just answers with the old key.
 
@@ -621,11 +621,11 @@ meas_hist 가 비어 있는 것은 정상이며 레지스트리가 바로 그런
 존재합니다. 따라서 실제로 물어야 할 것은 "레지스트리가 왜 답하지 않았는가"이고,
 아래 스크립트가 두 소스의 각 단계를 순서대로 확인합니다.
 
-    .venv/bin/python -m scripts.diagnose_recipe_search_office "1/AC_M2_TAT" --fab R3
+    .venv/bin/python -m scripts.diagnose.diagnose_recipe_search_office "1/AC_M2_TAT" --fab R3
 
 읽는 법 — 502 본문에 `Redis recipe registry was tried first and declined: ...`
 절이 있으면 배포된 `office.py` 가 레지스트리를 조회했고 그 이유를 말해 줍니다.
 **그 절이 없으면** 배포본이 레지스트리 경로가 없던 시절의 STALE 사본이므로
 Redis 를 아예 조회하지 않은 것입니다. 이때는 데이터가 아니라 사본을 고칩니다.
 
-    python -m scripts.sync_office_adapters recipe_search
+    python -m scripts.adapters.sync_office_adapters recipe_search

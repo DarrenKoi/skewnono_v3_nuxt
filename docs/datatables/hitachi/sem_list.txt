@@ -50,9 +50,9 @@ vendor_nm, eqp_ip, fab_name, updt_dt 입니다. 아직 실제 실행으로 검�
 아니므로, 사무실 첫 실행 때 아래로 한 번 확인하고 office 확인 <날짜> 로
 표기를 올립니다.
 
-    (key 는 인자가 아닙니다. scripts/inspect_redis_key.py 안의 KEY_NAME 을
+    (key 는 인자가 아닙니다. scripts/probes/inspect_redis_key.py 안의 KEY_NAME 을
      "v3_df_sem_list" 로 두고 인자 없이 실행합니다.)
-    .venv/bin/python -m scripts.inspect_redis_key
+    .venv/bin/python -m scripts.probes.inspect_redis_key
 
 컬럼 정보 (merge 후 기준, 10개 전부 필수 — 하나라도 없으면 어댑터가 에러)
 

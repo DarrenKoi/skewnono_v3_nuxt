@@ -3,7 +3,7 @@
 Run it after a fresh clone at the office, and again after any `git pull`
 that touched a template. No arguments needed:
 
-    .venv/bin/python -m scripts.setup_office_adapters
+    .venv/bin/python -m scripts.adapters.setup_office_adapters
 
 It creates `providers/office.py` for adapters that have none, and refreshes
 copies that have fallen behind their template. Then restart Flask
@@ -23,7 +23,7 @@ Two kinds of adapter are deliberately left alone:
     overwrite.
 
 For status, per-adapter selection, diffs and forced overwrites, use the
-fuller tool: `.venv/bin/python -m scripts.sync_office_adapters`.
+fuller tool: `.venv/bin/python -m scripts.adapters.sync_office_adapters`.
 """
 
 from __future__ import annotations
@@ -31,8 +31,17 @@ from __future__ import annotations
 import argparse
 import shutil
 import sys
+from pathlib import Path
 
-from scripts.sync_office_adapters import (
+# Running this file BY PATH puts scripts/adapters/ on sys.path, not the repo
+# root, so `import scripts` fails. `-m` does not need this; the path form does
+# (scripts/README.md section 1).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
+
+from scripts.adapters.sync_office_adapters import (  # noqa: E402
     EDITED,
     MISSING,
     REPO_ROOT,
@@ -105,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\nSkipped {len(skipped_edited)} locally-edited copy/copies (changes exist\n"
             f"nowhere else):\n  " + "\n  ".join(skipped_edited)
-            + "\nInspect: python -m scripts.sync_office_adapters --diff <name>"
+            + "\nInspect: python -m scripts.adapters.sync_office_adapters --diff <name>"
         )
     if warnings:
         print("\nWARNING: git does NOT ignore these - office.py must stay untracked:")

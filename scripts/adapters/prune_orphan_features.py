@@ -13,13 +13,13 @@ and the app refuses to boot:
 That failure only ever happens at the office, because home has no `office.py`
 at all. This script is the cleanup, and it runs from anywhere:
 
-    .venv/bin/python -m scripts.prune_orphan_features            # report only
-    .venv/bin/python -m scripts.prune_orphan_features --delete   # actually remove
-    .venv/bin/python -m scripts.prune_orphan_features --delete --yes
+    .venv/bin/python -m scripts.adapters.prune_orphan_features            # report only
+    .venv/bin/python -m scripts.adapters.prune_orphan_features --delete   # actually remove
+    .venv/bin/python -m scripts.adapters.prune_orphan_features --delete --yes
 
 Windows (office local PC):
 
-    .venv\\Scripts\\python -m scripts.prune_orphan_features --delete
+    .venv\\Scripts\\python -m scripts.adapters.prune_orphan_features --delete
 
 ## What counts as an orphan
 
@@ -48,7 +48,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 
 # Mirrors _runtime/office_registry.py: a feature is a directory with a

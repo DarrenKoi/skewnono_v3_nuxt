@@ -92,8 +92,8 @@
 
   ```bash
   # The key is NOT an argument: set KEY_NAME = "v3_df_sem_list" inside
-  # scripts/inspect_redis_key.py first, then run it bare.
-  .venv/bin/python -m scripts.inspect_redis_key
+  # scripts/probes/inspect_redis_key.py first, then run it bare.
+  .venv/bin/python -m scripts.probes.inspect_redis_key
   ```
 
 - Unlike `get_sem_list`, an unknown `vendor_nm` is **passed through**, not
@@ -121,7 +121,7 @@ Both must run from the repo root. Do NOT run the provider file by path
 
 ## Office Follow-up: 미연결 장비 실장
 
-1. **Run this first.** `python -m scripts.sync_office_adapters sem_list`.
+1. **Run this first.** `python -m scripts.adapters.sync_office_adapters sem_list`.
    `providers/office.py` is a gitignored copy and is STALE after this change —
    it lacks `get_pending_tools`, and a stale adapter fails the whole Flask app
    factory during blueprint discovery, so nothing else works until it is
@@ -132,11 +132,11 @@ Both must run from the repo root. Do NOT run the provider file by path
    `office 확인 <date>`:
 
    ```bash
-   # In scripts/inspect_redis_key.py, set these two module constants first --
+   # In scripts/probes/inspect_redis_key.py, set these two module constants first --
    # the script takes no arguments and refuses any:
    #   KEY_NAME = "v3_df_sem_list"
    #   UNIQUE_COLUMNS = ["fab_name", "eqp_model_cd"]
-   .venv/bin/python -m scripts.inspect_redis_key
+   .venv/bin/python -m scripts.probes.inspect_redis_key
    ```
 
 3. Check the real payload for a null `eqp_ip`. `_normalize_pending` blanks a NaN

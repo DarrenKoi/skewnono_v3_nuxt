@@ -6,11 +6,27 @@
 
 `tests/test_script_conventions.py` 가 이 규칙들을 강제합니다.
 
+## 폴더 구성
+
+목적별 하위 폴더로 나뉩니다. 새 스크립트는 아래 질문 중 무엇에 답하는지에
+따라 자리를 정합니다.
+
+| 폴더 | 답하는 질문 | 예 |
+| --- | --- | --- |
+| `adapters/` | office.py 어댑터를 만들고·갱신하고·치웁니다 | `sync_office_adapters`, `setup_office_adapters`, `prune_orphan_features` |
+| `probes/` | 이 사무실 소스에 실제로 무엇이 들어 있는가? (스키마·값 정찰) | `probe_planstep_r3`, `inspect_redis_key`, `measure_msr_image_ftp` |
+| `diagnose/` | 이 화면이 사무실에서 왜 비어 있는가? (증상에서 원인 찾기) | `diagnose_fdc_office`, `diagnose_storage_ppid_office` |
+| `verify/` | 스왑·배포가 제대로 됐는가? (사후 검증) | `check_contract`, `probe_office_endpoints`, `check_ftp_proxy` |
+| `deploy/` | Phase 3 번들 패킹과 프리플라이트 | `pack`, `preflight_cloud` |
+| `clients/` | 외부 소비자에게 배포하는 API 클라이언트 예제 | `msr_image_download` |
+
+실행 형식은 폴더를 그대로 씁니다: `python -m scripts.verify.check_contract`.
+
 ## 1. 두 가지 실행 형식을 모두 지원합니다
 
 ```bash
-python -m scripts.<name>          # 모듈 형식
-python scripts/<name>.py          # 경로 형식
+python -m scripts.<folder>.<name>          # 모듈 형식
+python scripts/<folder>/<name>.py          # 경로 형식
 ```
 
 저장소 패키지를 import 한다면 **첫 import 앞에** 부트스트랩을 둡니다.
@@ -19,7 +35,7 @@ python scripts/<name>.py          # 경로 형식
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]  # 하위 폴더 기준. 더 깊으면 숫자를 올립니다.
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)

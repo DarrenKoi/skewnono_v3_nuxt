@@ -128,7 +128,7 @@
   by `eqp_id` — the same physical tools every other screen shows for the fab,
   not an invented one. `__fixtures__/tttm_cdsem_r3.json` is no longer an
   input; it is a captured sample of this generator's output
-  (`scripts/capture_fixtures.py`). A fab holding no tool of the family returns
+  (`scripts/verify/capture_fixtures.py`). A fab holding no tool of the family returns
   an `available: false` empty payload (`tools: []`, `occupied_cells: []`, all
   list fields empty, `current_tolerance: 0.05`,
   `production_corroboration.level: "low"`, `parameters: []`) with a Korean summary saying so —

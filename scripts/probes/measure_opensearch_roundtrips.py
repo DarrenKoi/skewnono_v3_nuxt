@@ -4,9 +4,9 @@
 "한 화면이 왕복을 몇 번 하는가" 와 "그 시간이 횟수에 있는가 느린 질의 하나에
 있는가" 를 한 표로 보여 줍니다. msearch 도입 여부는 이 표로 판정합니다.
 
-    python -m scripts.measure_opensearch_roundtrips
-    python scripts/measure_opensearch_roundtrips.py --environment production
-    python scripts/measure_opensearch_roundtrips.py --days 1 --limit 50
+    python -m scripts.probes.measure_opensearch_roundtrips
+    python scripts/probes/measure_opensearch_roundtrips.py --environment production
+    python scripts/probes/measure_opensearch_roundtrips.py --days 1 --limit 50
 
 alias 는 `--environment` 가 정하며, 기본값은 SKEWNONO_LOG_ENV 입니다.
 어느 alias 로 나가고 있는지는 `GET /api/health/logging` 이 알려 줍니다.
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)

@@ -48,7 +48,7 @@ Column -> fac_id, plan_catg_typ, prod_catg_cd, tech_cd, den_typ,
 
 실제 컬럼/행 수/결측 분포는 사무실에서 아래로 확인합니다 (OFFICE-VERIFY):
 
-    .venv/bin/python -m scripts.inspect_device_info_keys
+    .venv/bin/python -m scripts.probes.inspect_device_info_keys
 
 사용 방법
 

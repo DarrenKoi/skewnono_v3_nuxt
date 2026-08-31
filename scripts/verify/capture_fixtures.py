@@ -5,8 +5,8 @@
 office data.py 의 회귀 테스트 기준선입니다.
 
 사용법:
-    python -m scripts.capture_fixtures              # 기본 :5050 (댁)
-    PORT=5000 python -m scripts.capture_fixtures    # 다른 포트의 Flask
+    python -m scripts.verify.capture_fixtures              # 기본 :5050 (댁)
+    PORT=5000 python -m scripts.verify.capture_fixtures    # 다른 포트의 Flask
 
 전제 조건: Flask 가 해당 포트에서 동작 중이어야 합니다.
 """
@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # 픽스처 트리의 뿌리. 테스트가 tmp_path 로 갈아끼우므로 함수 안에서
 # 모듈 전역을 읽습니다 - 기본 인자로 굳히면 monkeypatch 가 먹지 않습니다.

@@ -9,24 +9,24 @@ default action here is a **status report**, not a copy.
 Both invocation forms work, and neither depends on your cwd -- every path is
 resolved from this file, not from where you stand:
 
-    .venv/bin/python -m scripts.sync_office_adapters
-    .venv/bin/python scripts/sync_office_adapters.py
+    .venv/bin/python -m scripts.adapters.sync_office_adapters
+    .venv/bin/python scripts/adapters/sync_office_adapters.py
 
 Use the venv interpreter either way: importing the classifier pulls in
 `back_dev_home/__init__.py`, so Flask must be installed.
 
     # 1. See where every adapter stands (safe, changes nothing)
-    .venv/bin/python -m scripts.sync_office_adapters
+    .venv/bin/python -m scripts.adapters.sync_office_adapters
 
     # 2. Copy the ones you want
-    .venv/bin/python -m scripts.sync_office_adapters --all
-    .venv/bin/python -m scripts.sync_office_adapters storage sem_list
-    .venv/bin/python -m scripts.sync_office_adapters hardware/fdc
-    .venv/bin/python -m scripts.sync_office_adapters -i      # pick from a menu
+    .venv/bin/python -m scripts.adapters.sync_office_adapters --all
+    .venv/bin/python -m scripts.adapters.sync_office_adapters storage sem_list
+    .venv/bin/python -m scripts.adapters.sync_office_adapters hardware/fdc
+    .venv/bin/python -m scripts.adapters.sync_office_adapters -i      # pick from a menu
 
     # 3. Inspect / rehearse
-    .venv/bin/python -m scripts.sync_office_adapters --all --dry-run
-    .venv/bin/python -m scripts.sync_office_adapters --diff storage
+    .venv/bin/python -m scripts.adapters.sync_office_adapters --all --dry-run
+    .venv/bin/python -m scripts.adapters.sync_office_adapters --diff storage
 
 Statuses:
 
@@ -61,12 +61,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = REPO_ROOT / "back_dev_home"
 
-# Running a file directly puts `scripts/` on sys.path, not the repo root, so
+# Running a file directly puts this folder on sys.path, not the repo root, so
 # `back_dev_home` would be unimportable -- only `-m` adds the root. Add it here
-# so `python scripts/sync_office_adapters.py` works too. Insert the root (not
+# so `python scripts/adapters/sync_office_adapters.py` works too. Insert the root (not
 # this folder): the import below must resolve to the same module object the
 # app and tests use, and `from scripts import ...` must keep working.
 if str(REPO_ROOT) not in sys.path:

@@ -12,7 +12,7 @@ cp providers/office_example.py providers/office.py
 
 - `office.py` is gitignored, so `git pull` never conflicts on it. It is also a
   **copy** — if a later `git pull` moves the template, refresh it with
-  `python -m scripts.sync_office_adapters api_tokens`, or the boot log will
+  `python -m scripts.adapters.sync_office_adapters api_tokens`, or the boot log will
   report `STALE office.py: api_tokens`.
 - Requires `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in
   `back_dev_home/.env` — resolved through `_runtime/office_redis.py`, the same

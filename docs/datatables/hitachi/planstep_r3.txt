@@ -118,7 +118,7 @@ docs/datatables/hitachi/ebeam_tas_lot_hist.txt 의 "device-statistics — M fab 
 mother_normal 버킷을 동시에 뒤집으므로 어댑터와 mock 양쪽에서 각각 함수
 하나(`_is_measuring`)로 모아 두었습니다. 다시 뒤집지 마십시오.
 
-사무실 실행으로 재확인할 때는 scripts/probe_planstep_r3.py 의 skip_yn 분포와
+사무실 실행으로 재확인할 때는 scripts/probes/probe_planstep_r3.py 의 skip_yn 분포와
 recipe_id 채움 비율을 함께 봅니다. "Y"/"N" 두 버킷의 합이 전체 문서 수보다 작으면
 그 차이가 빈 값입니다.
 
@@ -203,7 +203,7 @@ recipe 수보다 한 자리수 배 많습니다. mock(providers/recipe_populatio
 다음 번을 넘길 수 없고**, 10000 을 치면 search_after 페이지네이션이 필요합니다.
 
 아직 모르는 것: 실제 최대 문서 수, 그리고 2000+ 가 정상 계획 크기인지 아니면
-(oper_seq, samp_seq) 가 중복 적재된 것인지. `scripts/probe_planstep_r3` 의 [4]
+(oper_seq, samp_seq) 가 중복 적재된 것인지. `scripts/probes/probe_planstep_r3` 의 [4]
 단계가 device 별 문서 수를 출력하므로 사무실에서 한 번 확인하십시오.
 
 주의 — mock 과 다른 점
@@ -239,4 +239,4 @@ OFFICE-VERIFY
   넘는 device 가 있으면 단발 search 로는 못 가져오므로 페이지네이션이 필요합니다.
 - 2000+ 문서가 정상 계획 크기인지, (oper_seq, samp_seq) 중복 적재인지.
 
-    .venv/bin/python -m scripts.probe_planstep_r3
+    .venv/bin/python -m scripts.probes.probe_planstep_r3

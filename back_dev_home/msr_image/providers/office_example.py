@@ -53,7 +53,7 @@ def _test_config() -> ImageConfig:
 # Per-image budget used to size a download job's host_timeout. Two RETRs per
 # image (the image itself and its cond sidecar).
 #
-# office 확인 2026-08-10 (scripts.measure_msr_image_ftp against a real tool):
+# office 확인 2026-08-10 (scripts.probes.measure_msr_image_ftp against a real tool):
 # 0.20 s per image inside download_all at the configured concurrency, x2
 # headroom. The previous 5.0 was reasoned from "multi-MB TIFFs" and ran 12x
 # generous -- the images are small and the link is fast, so nearly the whole

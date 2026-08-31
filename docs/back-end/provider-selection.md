@@ -76,7 +76,7 @@ import한다면 그것은 예외가 아니라 위반입니다. 엔드포인트�
 다음과 같습니다.
 
 ```bash
-python -m scripts.sync_office_adapters <feature>
+python -m scripts.adapters.sync_office_adapters <feature>
 ```
 
 사내 수정이 들어간 복사본은 `EDITED`로 분류되어 보고 대상에서 제외되며,

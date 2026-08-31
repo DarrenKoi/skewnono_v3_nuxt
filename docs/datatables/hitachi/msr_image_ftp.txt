@@ -81,7 +81,7 @@ df_result_data 에 적힌 mp_image_name 집합과 장비 FTP 가 실제로 서�
 대조합니다. pickle 이름은 확장자가 없을 수 있고 대소문자가 다를 수 있으므로 stem
 매칭까지 시도합니다. 장비에만 있고 pickle 에 없는 파일(extra)은 보통 정상입니다.
 
-실측 타이밍 (office 확인 2026-08-10, scripts.measure_msr_image_ftp)
+실측 타이밍 (office 확인 2026-08-10, scripts.probes.measure_msr_image_ftp)
 
   connect + login  : 94 ms   (중앙값)
   cold fetch 1장   : 133 ms  (login 94 + 이미지·cond 전송 39)

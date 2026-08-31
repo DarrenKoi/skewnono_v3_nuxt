@@ -38,7 +38,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 - `docs/api-contracts/` — HTTP YAML 계약과 작성 규칙이 있습니다.
 - `docs/datatables/*.txt` — 사무실 측 원본 테이블 스키마(`meas_hist.txt`, `r3_device_grp.txt` 등)가 정리되어 있습니다.
 - `back_dev_home/<feature>/__fixtures__/` — 대표 HTTP 응답 예시가 있습니다.
-- `scripts/capture_fixtures.py`, `scripts/check_contract.py` — 기준 응답 캡처와 구조 비교 도구가 있습니다.
+- `scripts/verify/capture_fixtures.py`, `scripts/verify/check_contract.py` — 기준 응답 캡처와 구조 비교 도구가 있습니다.
 
 **원칙:** 새 규약을 만들지 말고, 위 구조의 **빈 칸을 채우는 방향** 으로 작업합니다.
 
@@ -90,7 +90,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 ```text
 [댁 세션 종료 시]
 1. 기능 작업 + 모의 데이터 수정
-2. python scripts/capture_fixtures.py        # 픽스처 재생성
+2. python scripts/verify/capture_fixtures.py        # 픽스처 재생성
 3. docs/api-contracts/<feature>.yaml 갱신    # 변경 시
 4. npm run lint:md                            # 마크다운 검증
 5. git commit (코드 + 명세 한 묶음)
@@ -111,7 +111,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 9. providers/office.py 구현 → 실 Flask에 배치
 
 [사무실 세션 종료 시]
-10. PORT=5000 python -m scripts.check_contract  # 픽스처와 구조 일치 확인
+10. PORT=5000 python -m scripts.verify.check_contract  # 픽스처와 구조 일치 확인
 11. 드리프트가 있으면 docs/datatables/ 와 mock.py 양쪽에 기록
 12. 새 필드/제약은 docs/api-contracts/에 반영
 13. git commit (사무실 분기 또는 patch 파일)
@@ -200,14 +200,14 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 ### 7.1 댁에서 (커밋 전)
 
 1. Flask와 Nuxt 개발 서버 동작을 확인합니다.
-2. `python scripts/capture_fixtures.py` 실행 → `__fixtures__/*.json` 갱신됩니다.
-3. `python scripts/check_contract.py` — 댁 Flask 자체에 대해 통과하는 것이 기준선(baseline)입니다.
+2. `python scripts/verify/capture_fixtures.py` 실행 → `__fixtures__/*.json` 갱신됩니다.
+3. `python scripts/verify/check_contract.py` — 댁 Flask 자체에 대해 통과하는 것이 기준선(baseline)입니다.
 4. `npm run lint:md` 통과를 확인합니다.
 
 ### 7.2 사무실에서 (스왑 직후)
 
 1. `python index.py` 가 사무실 설정으로 기동합니다.
-2. `python scripts/check_contract.py` 가 통과합니다 (실패 시 키/타입 차이가 그대로 출력됩니다).
+2. `python scripts/verify/check_contract.py` 가 통과합니다 (실패 시 키/타입 차이가 그대로 출력됩니다).
 3. `.env` 의 `NUXT_API_TARGET` 을 사무실 호스트로 변경하고 Nuxt 가 정상 렌더되는지 확인합니다.
 4. 차이가 있으면 `docs/datatables/<table>.txt` 와 해당 기능의 `providers/mock.py`
    양쪽에 기록한 뒤 댁으로 가져갑니다 (CLAUDE.md 의 "두 곳에 함께 기록" 규칙).

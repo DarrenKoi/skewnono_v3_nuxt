@@ -35,11 +35,11 @@ it wrote before returning.
 
 RUN IT (from the repo root, office only -- tools are unreachable from home)::
 
-    .venv/bin/python -m scripts.measure_msr_image_ftp
-    .venv/bin/python -m scripts.measure_msr_image_ftp --images 16 --minio
-    .venv/bin/python -m scripts.measure_msr_image_ftp \
+    .venv/bin/python -m scripts.probes.measure_msr_image_ftp
+    .venv/bin/python -m scripts.probes.measure_msr_image_ftp --images 16 --minio
+    .venv/bin/python -m scripts.probes.measure_msr_image_ftp \
         --eqp-ip 10.1.2.3 --class-name ADI --msr 20260428_ADI_CD_..._ECXDX123
-    .venv/bin/python -m scripts.measure_msr_image_ftp --direct   # bypass the proxy
+    .venv/bin/python -m scripts.probes.measure_msr_image_ftp --direct   # bypass the proxy
 
 With no locator it finds one itself: the newest meas_hist document that carries
 both ``eqp_ip`` and ``msr``, the same discovery
@@ -74,13 +74,13 @@ from pathlib import Path
 from typing import Any
 
 # Make `back_dev_home` importable however this file was started. `python -m
-# scripts.measure_msr_image_ftp` puts the working directory on sys.path and
-# happens to work from the repo root; `python scripts/measure_msr_image_ftp.py`
+# scripts.probes.measure_msr_image_ftp` puts the working directory on sys.path and
+# happens to work from the repo root; `python scripts/probes/measure_msr_image_ftp.py`
 # puts scripts/ there instead and fails on the very first import below. Both
 # forms get typed, and the by-path one is what a file manager, an IDE "run
 # this file" button, and tab completion all produce -- so support it rather
 # than explaining it. check_ftp_proxy.py already does the same.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free

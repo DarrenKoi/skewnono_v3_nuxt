@@ -13,7 +13,7 @@ copy predated it silently went back to reading the index's raw ``fail_ratio``
 (a percentage) and rendered failure rates above 100%. Nothing announced it.
 
 So boot announces it now. The classification is the same one
-``scripts/sync_office_adapters.py`` reports, and lives here rather than there
+``scripts/adapters/sync_office_adapters.py`` reports, and lives here rather than there
 because the app must be able to warn about itself without dev tooling present.
 
 STALE vs EDITED is the whole point, and only git can tell them apart:

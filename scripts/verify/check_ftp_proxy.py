@@ -6,8 +6,8 @@ actually land there" is a real question with no git to ask. This runs the
 checks from `docs/deployment-ftp-proxy.md` §5 so nobody has to hand-assemble a
 POST with the right quoting:
 
-    .venv/bin/python -m scripts.check_ftp_proxy
-    .venv\\Scripts\\python -m scripts.check_ftp_proxy     # office Windows PC
+    .venv/bin/python -m scripts.verify.check_ftp_proxy
+    .venv\\Scripts\\python -m scripts.verify.check_ftp_proxy     # office Windows PC
 
 Run it from the office network - `aipp01` does not resolve from home.
 
@@ -40,7 +40,7 @@ import argparse
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
@@ -157,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     except ImportError:
         raise SystemExit(
             "error: requests 가 없습니다. venv 인터프리터로 실행하십시오 "
-            "(.venv/bin/python -m scripts.check_ftp_proxy)."
+            "(.venv/bin/python -m scripts.verify.check_ftp_proxy)."
         ) from None
 
     base = args.url.rstrip("/")

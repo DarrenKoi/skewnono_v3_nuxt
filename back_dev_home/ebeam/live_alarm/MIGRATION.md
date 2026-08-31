@@ -105,7 +105,7 @@ cp office_example.py office.py
 **이미 `office.py` 를 복사해 둔 배포라면, 다중 FAB 병합(2026-08-07)이
 `office_example.py` 를 바꿨으므로 재복사가 필요합니다** — 5절 참고. 부팅
 로그의 `STALE office.py: live_alarm` 표시나
-`python -m scripts.sync_office_adapters live_alarm` 로 확인·갱신합니다.
+`python -m scripts.adapters.sync_office_adapters live_alarm` 로 확인·갱신합니다.
 
 ## 3. 동작 확인
 

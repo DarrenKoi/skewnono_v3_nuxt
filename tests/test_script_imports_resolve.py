@@ -7,7 +7,7 @@ until someone stands at the office trying to run it.
 
 That is not hypothetical. The e-beam flattening (`b87af52f`) moved
 `ebeam/hitachi/_office_meas_hist.py` up one level, and
-`scripts/measure_msr_image_ftp.py` kept importing the old path for a day. The
+`scripts/probes/measure_msr_image_ftp.py` kept importing the old path for a day. The
 symptom at the office was the worst kind: the traceback went to stderr while
 the progress lines sat in a block-buffered stdout, so the screen scrolled and
 appeared to show nothing at all.

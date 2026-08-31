@@ -104,7 +104,7 @@ OFFICE-VERIFY 목록
    살리는지. probe 의 skip_yn 분포에서 "Y"/"N" 합이 전체보다 작으면 그 차이가
    빈 값입니다.
 2. ``.keyword`` 접미사 — 아래 상수는 문서 관례(analyzed text)를 가정합니다.
-   실제 mapping 은 ``python -m scripts.probe_planstep_r3`` 가 field 별로
+   실제 mapping 은 ``python -m scripts.probes.probe_planstep_r3`` 가 field 별로
    출력하므로 첫 실행에서 확정하십시오. bare keyword field 에 접미사를 붙이면
    조용히 0건이 됩니다.
 3. ``parameters`` key 세분도 — key 가 "WAFER"/"EDGE" 처럼 타입 단어뿐이면
@@ -548,7 +548,7 @@ def _r3_steps(lot_cd: str) -> list[dict[str, Any]]:
             "para_* total. This cap is already OpenSearch's max_result_window, "
             "so raising it alone will make the query fail outright — page with "
             "search_after, or check ingestion for duplicate step documents "
-            "(scripts/probe_planstep_r3 stage [4] prints the real count)."
+            "(scripts/probes/probe_planstep_r3 stage [4] prints the real count)."
         )
     return [
         {
@@ -1053,7 +1053,7 @@ def _idp_parameters(
             "device_statistics: could not read Mother_Para for any of %d recipe(s) "
             "in %r — the mother_normal bucket will be EMPTY. Fetched %s; if the "
             "flag moved, fix _IDP_SOURCE and _raw_data_rows together "
-            "(scripts/probe_planstep_r3 stage [5] prints raw_data's real shape).",
+            "(scripts/probes/probe_planstep_r3 stage [5] prints raw_data's real shape).",
             len(unique), IDP_INDEX, _IDP_SOURCE,
         )
         return out, None, regions_out

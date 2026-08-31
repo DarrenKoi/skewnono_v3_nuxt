@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "inspect_redis_key.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "probes" / "inspect_redis_key.py"
 
 
 class FakeRedisClient:
@@ -79,7 +79,7 @@ def test_passing_the_key_as_an_argument_is_refused(monkeypatch) -> None:
     """A supplied key must fail loudly instead of being silently ignored.
 
     The script inspects `KEY_NAME` from its own source, so
-    `-m scripts.inspect_redis_key v3_df_sem_avail` used to print
+    `-m scripts.probes.inspect_redis_key v3_df_sem_avail` used to print
     `v3_df_sem_list`'s schema under the operator's belief that it was avail's.
     Refusing costs one retry; the silent version costs a wrong datatables entry.
     """

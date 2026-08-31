@@ -96,7 +96,7 @@ msr_check -> string: MSR 파일 존재 여부. 스키마상 Yes, No
                2026-08-20 에 minio_pkl 유무(exists)로 바꿨습니다 - "pickle 없는
                실행은 건너뛴다"는 원래 의도를 대리 필드가 아니라 다음 단계가
                실제로 여는 필드로 직접 표현합니다.
-               재확인: scripts/diagnose_msr_check_office.py
+               재확인: scripts/diagnose/diagnose_msr_check_office.py
 align_fail -> string: align 결과. Pass, Fail, NA
 total_images -> int64: 측정 대상 image 전체 개수
 fail_images -> int64: 실패 image 개수

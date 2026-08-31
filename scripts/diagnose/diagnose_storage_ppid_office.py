@@ -24,7 +24,7 @@ Two of those steps are the usual suspects:
 Run FROM THE REPO ROOT at the office (reads REDIS_* from back_dev_home/.env
 exactly like the adapter does):
 
-    .venv/bin/python -m scripts.diagnose_storage_ppid_office
+    .venv/bin/python -m scripts.diagnose.diagnose_storage_ppid_office
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from pathlib import Path
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
@@ -65,7 +65,7 @@ except ModuleNotFoundError:
     raise SystemExit(
         "error: storage providers/office.py not found (it is gitignored).\n"
         "       Create it first:\n"
-        "         .venv/bin/python -m scripts.sync_office_adapters storage"
+        "         .venv/bin/python -m scripts.adapters.sync_office_adapters storage"
     ) from None
 
 

@@ -373,7 +373,7 @@ def get_sem_list() -> list[SemListRow]:
 - 모든 행의 키/타입/enum/timestamp/유일성이 계약과 일치합니다.
 - 결과가 source 최대 행 수에서도 잘리지 않습니다.
 - 기존 home test와 새 office adapter test가 모두 통과합니다.
-- python scripts/check_contract.py가 실행 중인 office Flask에 대해 통과합니다.
+- python scripts/verify/check_contract.py가 실행 중인 office Flask에 대해 통과합니다.
 
 [응답 형식]
 1. 확인한 source 가정과 확인 필요 사항
@@ -385,7 +385,7 @@ def get_sem_list() -> list[SemListRow]:
 
 ## 7. 검증 게이트
 
-`scripts/check_contract.py`는 대표 픽스처와 실제 응답의 첫 행 구조 및 Python 기본 타입을
+`scripts/verify/check_contract.py`는 대표 픽스처와 실제 응답의 첫 행 구조 및 Python 기본 타입을
 비교합니다. enum, timestamp 의미, 모든 행의 키, 중복, 정렬, 행 수 truncation까지
 증명하지는 않습니다. 따라서 다음 검증을 함께 수행합니다.
 
@@ -403,7 +403,7 @@ def get_sem_list() -> list[SemListRow]:
 ```bash
 SKEWNONO_SEM_LIST_PROVIDER=office python index.py
 SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest back_dev_home/sem_list -q
-PORT=5000 .venv/bin/python -m scripts.check_contract
+PORT=5000 .venv/bin/python -m scripts.verify.check_contract
 ```
 
 두 번째 줄이 해당 기능의 office 게이트입니다. `unittest` 로는 `back_dev_home/**/tests/`

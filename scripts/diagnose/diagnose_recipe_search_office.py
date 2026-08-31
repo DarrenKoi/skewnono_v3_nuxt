@@ -44,9 +44,9 @@ stage per step, printing what each step READ and what it DERIVED from it::
 Run FROM THE REPO ROOT at the office (reads REDIS_* / OPENSEARCH_* from
 back_dev_home/.env the same way the adapter does)::
 
-    .venv/bin/python -m scripts.diagnose_recipe_search_office "1/AC_M2_TAT"
-    .venv/bin/python -m scripts.diagnose_recipe_search_office "ADI/X" --fab M14A
-    .venv/bin/python -m scripts.diagnose_recipe_search_office "ADI/X" --tool hvsem
+    .venv/bin/python -m scripts.diagnose.diagnose_recipe_search_office "1/AC_M2_TAT"
+    .venv/bin/python -m scripts.diagnose.diagnose_recipe_search_office "ADI/X" --fab M14A
+    .venv/bin/python -m scripts.diagnose.diagnose_recipe_search_office "ADI/X" --tool hvsem
 
 Stages 1-5 write nothing and open no FTP session: they are read-only against
 Redis and OpenSearch, and locating the file is the step that 502s.
@@ -55,7 +55,7 @@ Redis and OpenSearch, and locating the file is the step that 502s.
 surface itself - download the ``.idp``, parse it FROM BYTES, and run one
 parameter's slots through the five raw readers::
 
-    .venv/bin/python -m scripts.diagnose_recipe_search_office "1/AC_M2_TAT" --fetch
+    .venv/bin/python -m scripts.diagnose.diagnose_recipe_search_office "1/AC_M2_TAT" --fetch
     ... --fetch --parameter CD_MEAS_01     # a specific parameter, not the first
 
 Those two are opt-in because they dial the measuring tool. They exist for the
@@ -89,7 +89,7 @@ import redis
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
@@ -170,14 +170,14 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
         _info("Blueprints are auto-discovered at app-factory time, so this is a")
         _info("startup failure, not a per-endpoint one. It means the copy predates")
         _info("a change to the tracked modules beside it. Refresh it:")
-        _info("  python -m scripts.sync_office_adapters recipe_search")
+        _info("  python -m scripts.adapters.sync_office_adapters recipe_search")
         _info("Continuing against the tracked template so the data can still be checked.")
         return hasattr(adapter, "_locate_via_redis")
 
     if state == MISSING:
         _bad("providers/office.py does not exist - this feature is serving MOCK data.")
         _info("Nothing below reflects what the endpoint returns. To go live:")
-        _info("  python -m scripts.sync_office_adapters recipe_search")
+        _info("  python -m scripts.adapters.sync_office_adapters recipe_search")
         _info("Continuing against the tracked template so the data can still be checked.")
     else:
         for candidate in office_template.discover():
@@ -190,7 +190,7 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
             elif status == office_template.STALE:
                 _bad(f"providers/office.py is {detail}.")
                 _info("The template moved ahead and this copy still runs. Refresh it:")
-                _info("  python -m scripts.sync_office_adapters recipe_search")
+                _info("  python -m scripts.adapters.sync_office_adapters recipe_search")
             else:
                 _info(f"providers/office.py is {detail} - hand-edited, left alone.")
             break
@@ -204,7 +204,7 @@ def _check_deployment(adapter: ModuleType, state: str) -> bool:
     else:
         _bad("It has NO Redis registry path - it only ever queries meas_hist.")
         _info("This alone explains a 502 on any recipe that has never been measured.")
-        _info("  python -m scripts.sync_office_adapters recipe_search")
+        _info("  python -m scripts.adapters.sync_office_adapters recipe_search")
     return has_registry
 
 
@@ -532,7 +532,7 @@ def _check_fetch(
     except Exception as exc:  # noqa: BLE001 - a diagnosis must not itself crash
         _bad(f"{type(exc).__name__}: {exc}")
         _info("The download failed, so nothing below can run. "
-              "scripts/probe_recipe_ftp.py explores the FTP tree itself.")
+              "scripts/probes/probe_recipe_ftp.py explores the FTP tree itself.")
         return None
 
     _ok(f"downloaded {len(data)} bytes from {location.eqp_id or '?'} "

@@ -714,7 +714,7 @@ def _locate_idp(
         it declined, and the fix is in Redis (or in the fab/recipe spelling).
       * clause ABSENT  -> office.py predates the registry entirely (a STALE
         copy of a pre-2026-07-29 template). It never consulted Redis at all.
-        Refresh it: ``python -m scripts.sync_office_adapters recipe_search``.
+        Refresh it: ``python -m scripts.adapters.sync_office_adapters recipe_search``.
         The boot log flags this too, but a 502 body reaches further.
     """
     notes: list[str] = []

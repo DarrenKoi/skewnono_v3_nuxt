@@ -282,7 +282,7 @@ def test_the_locator_carries_the_resolved_ftp_location():
 def test_idp_remote_path_matches_the_documented_tree():
     """Path derivation: meas_hist stores paths, the FTP tree wants stems.
 
-    Proven against the real server by `scripts/probe_recipe_ftp.py`
+    Proven against the real server by `scripts/probes/probe_recipe_ftp.py`
     (office 확인 2026-07-27); pinned here so a refactor cannot quietly
     reintroduce the raw values.
     """

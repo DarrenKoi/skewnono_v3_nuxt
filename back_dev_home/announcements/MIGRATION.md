@@ -10,7 +10,7 @@ cp providers/office_example.py providers/office.py
 ```
 
 - `office.py` is gitignored, so `git pull` never conflicts on it. It is also a
-  **copy** — refresh it with `python -m scripts.sync_office_adapters
+  **copy** — refresh it with `python -m scripts.adapters.sync_office_adapters
   announcements` if a later `git pull` moves the template, or the boot log will
   report `STALE office.py: announcements`.
 - **A copy made before the `_is_active` → `is_active` rename must be

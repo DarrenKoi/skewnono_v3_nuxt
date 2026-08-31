@@ -11,7 +11,7 @@ cp providers/office_example.py providers/office.py
 ```
 
 - `office.py` is gitignored, so `git pull` never conflicts on it. It is also a
-  **copy** — refresh it with `python -m scripts.sync_office_adapters
+  **copy** — refresh it with `python -m scripts.adapters.sync_office_adapters
   short_links` if a later `git pull` moves the template, or the boot log will
   report `STALE office.py: short_links`.
 - `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` 가 `back_dev_home/.env` 에

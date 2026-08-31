@@ -19,14 +19,14 @@ being silently absorbed into the shape the key name promised.
 Run FROM THE REPO ROOT at the office (the shared client self-loads
 ``back_dev_home/.env``; ``-m`` is what puts the root on ``sys.path``):
 
-    .venv/bin/python -m scripts.inspect_device_info_keys
+    .venv/bin/python -m scripts.probes.inspect_device_info_keys
 
     # full value counts for the columns that decide fab coverage
-    .venv/bin/python -m scripts.inspect_device_info_keys --unique fac_id,tech_nm
+    .venv/bin/python -m scripts.probes.inspect_device_info_keys --unique fac_id,tech_nm
 
     # more sample rows, and check other key names instead
-    .venv/bin/python -m scripts.inspect_device_info_keys --rows 10
-    .venv/bin/python -m scripts.inspect_device_info_keys --keys device_desc,r3_device_grp
+    .venv/bin/python -m scripts.probes.inspect_device_info_keys --rows 10
+    .venv/bin/python -m scripts.probes.inspect_device_info_keys --keys device_desc,r3_device_grp
 
 What it reports per key: existence and byte size, the full column inventory
 (dtype / non-null / distinct / sample), fit against `DeviceDescRow` and
@@ -57,7 +57,7 @@ from pathlib import Path
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
 # completion all produce the by-path one -- so support both.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 # Importing the package applies its stdout UTF-8 fix. `-m` gets it for free
@@ -80,7 +80,7 @@ from back_dev_home.ebeam.device_statistics.contracts import (  # noqa: E402
 # the column-inventory printer and the byte formatter, and a second copy would
 # drift from it. `scripts` is a namespace package, so `-m` from the repo root
 # makes this import work (same pattern as check_contract -> capture_fixtures).
-from scripts.inspect_redis_key import _human_bytes, describe_dataframe  # noqa: E402
+from scripts.probes.inspect_redis_key import _human_bytes, describe_dataframe  # noqa: E402
 
 
 DEFAULT_KEYS = ("device_desc", "r3_device_grp")
@@ -307,7 +307,7 @@ def inspect_key(client, name: str, rows: int, unique_cols: list[str]):
         # inspect_redis_key takes no arguments: its key is the KEY_NAME
         # constant in its own source, and it refuses a supplied one.
         print(f"  Inspect it by setting KEY_NAME = {name!r} in"
-              " scripts/inspect_redis_key.py, then running that script bare.")
+              " scripts/probes/inspect_redis_key.py, then running that script bare.")
         return None
 
     raw = client.get(key)
@@ -360,7 +360,7 @@ def report_cross_key(frames: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m scripts.inspect_device_info_keys",
+        prog="python -m scripts.probes.inspect_device_info_keys",
         description=(
             "Check the office Redis keys device_desc / r3_device_grp and "
             "score them against the cdsem device_statistics contracts."

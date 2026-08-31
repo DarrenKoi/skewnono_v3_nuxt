@@ -1,5 +1,5 @@
-from scripts.probe_office_endpoints import CATALOG
-from scripts.probe_office_endpoints import _do_auth_probe
+from scripts.verify.probe_office_endpoints import CATALOG
+from scripts.verify.probe_office_endpoints import _do_auth_probe
 
 
 def test_catalog_sweep_includes_recipe_image_endpoint():

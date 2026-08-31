@@ -399,11 +399,11 @@ curl -s "$BASE/api/cdsem/fail-issue/summary?fab_name=<FAB>&start_date=<시작일
 
 ## 가드 공백 — shape-drift 가드가 이 피처를 보지 않습니다
 
-`fail_issue` 는 `scripts/capture_fixtures.py` 의 `ENDPOINTS` 로스터에
+`fail_issue` 는 `scripts/verify/capture_fixtures.py` 의 `ENDPOINTS` 로스터에
 **한 항목도 없고**, `__fixtures__` 디렉터리도 없습니다. 이는 이번에
 추가한 두 엔드포인트만이 아니라 **기존 다섯 개
 (`summary`/`daily-trend`/`align-ranking`/`meas-ranking`/`devices`)에도
-해당**됩니다. 즉 `scripts/check_contract.py` 의 mock↔office 형태 대조가
+해당**됩니다. 즉 `scripts/verify/check_contract.py` 의 mock↔office 형태 대조가
 이 피처를 전혀 보지 않으며, 그 결과는 CI/스크립트 출력에서 "문제 0건"으로
 읽히지 "검사 안 함"으로 읽히지 않습니다 — 로스터가 조용하다고 안심하면
 안 됩니다.

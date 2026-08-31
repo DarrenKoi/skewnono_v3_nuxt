@@ -75,7 +75,7 @@ recipe_params.txt), recipe 마다 parameters blob 을 받으면 위 "200건이�
 선택이 아니라 필수입니다. 실제 blob 크기와 recipe 당 파라미터 개수는 사무실에서
 확인합니다:
 
-    .venv/bin/python -m scripts.probe_planstep_r3
+    .venv/bin/python -m scripts.probes.probe_planstep_r3
 
 parameters blob 구조 (user-confirmed 2026-07-30)
 
