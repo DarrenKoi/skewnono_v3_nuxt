@@ -187,12 +187,14 @@ const available = ref<boolean | null>(null)
 const runtime = ref<ChatAvailability['runtime'] | null>(null)
 
 /**
- * Whether the model picker controls anything. The 'rag' runtime answers with
- * the RAG's own LLM and reports `model: null`, so the picker would be a knob
- * wired to nothing. Unknown runtime (the availability call failed) keeps it
- * visible — a backend outage must not silently strip a real control.
+ * Whether the chat side owns the LLM call — and so whether the model picker
+ * and system prompt control anything. The 'rag' runtime answers with the
+ * RAG's own LLM and takes neither (`runtime/providers/rag.py`: `model: None`,
+ * system_prompt dropped), so both would be knobs wired to nothing. Unknown
+ * runtime (the availability call failed) keeps them visible — a backend
+ * outage must not silently strip real controls.
  */
-const modelSelectable = computed(() => runtime.value !== 'rag')
+const chatOwnsLlm = computed(() => runtime.value !== 'rag')
 
 onMounted(async () => {
   try {
@@ -270,14 +272,14 @@ onMounted(async () => {
             채팅
           </h1>
           <p
-            v-if="modelLabel && modelSelectable"
+            v-if="modelLabel && chatOwnsLlm"
             class="sk-chat-subhead"
           >
             {{ modelLabel }}
           </p>
         </div>
         <div
-          v-if="modelSelectable"
+          v-if="chatOwnsLlm"
           class="ml-auto"
         >
           <ChatModelPicker
@@ -289,6 +291,7 @@ onMounted(async () => {
       </header>
 
       <ChatSystemPromptField
+        v-if="chatOwnsLlm"
         v-model="systemPrompt"
         :disabled="!!active"
       />
