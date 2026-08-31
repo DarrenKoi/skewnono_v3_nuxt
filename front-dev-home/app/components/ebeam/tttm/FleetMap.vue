@@ -1,9 +1,20 @@
 <template>
   <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <p class="sk-title">
-        장비 그룹 배치도
-      </p>
+      <div class="flex flex-wrap items-baseline gap-2">
+        <p class="sk-title">
+          장비 그룹 배치도
+        </p>
+        <!-- The group's size, in the header rather than over the plot. It used
+             to caption a circle drawn around the members; the circle is gone
+             (see `groupCentroid`) and this is the half of it that was true.
+             Same token as the 1차 그룹 badge on the 튜닝할 장비 card, because it
+             is the same assertion. -->
+        <span
+          v-if="groupCaption"
+          class="sk-badge bg-(--sk-ok-soft) text-(--sk-ink)"
+        >{{ groupCaption }}</span>
+      </div>
       <!-- PCA: how much of the spread the two drawn axes carry — the honesty
            figure for a projection, the way stress is for MDS. -->
       <p
@@ -66,11 +77,12 @@
         <span class="mt-1 block">
           각 parameter 는 그 parameter 의 CD 대비 배수로 먼저 맞춘 뒤 분석하므로 패턴 크기가 달라도
           같은 잣대입니다. 빨강은 <strong>어느 한 parameter 에서라도</strong> 가장 가까운 장비와
-          허용오차 CD 대비 {{ toleranceIndex.toFixed(2) }}× 밖인 장비입니다. 초록 테두리는
-          <strong>N배화 그룹</strong>(점유 셀 전체에서 서로 허용오차 안인 장비 — 완전연결 군집)이라
-          위치가 아니라 판정으로 그려집니다. 그 안의 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>이며,
-          오른쪽 튜닝 목표 표가 가리키는 좌표가 바로 이 점입니다. 그래서 가까이 있는데 테두리 밖인 장비가 나올 수 있고,
-          그것이 두 계산이 갈라진 지점입니다.
+          허용오차 CD 대비 {{ toleranceIndex.toFixed(2) }}× 밖인 장비이며, 파랑은 맞는 짝이 하나라도
+          있다는 뜻일 뿐 <strong>1차 그룹 소속이 아닙니다</strong>. 소속은 점의 <strong>초록 테두리</strong>가
+          말합니다 — <strong>N배화 그룹</strong>(점유 셀 전체에서 서로 허용오차 안인 장비 — 완전연결 군집)이라
+          위치가 아니라 판정으로 그려집니다. 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>이며,
+          오른쪽 튜닝 목표 표가 가리키는 좌표가 바로 이 점입니다. 그래서 중심 가까이 있는데 테두리가 없는 장비가
+          나올 수 있고, 그것이 두 계산이 갈라진 지점입니다.
         </span>
       </EbeamTttmCaptionMore>
     </p>
@@ -84,9 +96,10 @@
           그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
         {{ thresholdBasis }} 밖인 장비이며, N배화 판정은 점유 셀 전체를 교차한
         결과라 이 지도와 다를 수 있습니다 — 그쪽은 위 추천 카드를 보십시오.
-        초록 테두리는 그 <strong>N배화 그룹</strong>이라 위치가 아니라 판정으로
-        그려지고, 그 안의 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>입니다. 그래서 테두리 안에 있는데 빨간 점이거나, 가까이 있는데 테두리
-        밖인 장비가 나올 수 있고, 그것이 두 계산이 갈라진 지점입니다.
+        점의 초록 테두리가 그 <strong>N배화 그룹</strong> 소속이라 위치가 아니라 판정으로
+        그려지고, 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>입니다. 파랑은 맞는 짝이
+        하나라도 있다는 뜻일 뿐 소속이 아니므로, 중심 가까이 있는데 테두리가 없는 장비가 나올 수 있고,
+        그것이 두 계산이 갈라진 지점입니다.
       </EbeamTttmCaptionMore>
     </p>
   </div>
@@ -110,18 +123,19 @@ const props = defineProps<{
   /** CD-relative; converted against THIS matrix's own CD below, not against nm. */
   toleranceIndex: number
   /**
-   * The 1차 추천 group's members, drawn as a boundary over the scatter.
+   * The 1차 추천 group's members, outlined green on the scatter.
    *
-   * The card is titled 장비 그룹 배치도 and until now drew no 그룹 — only
-   * coloured points — so the reader had to hold the recommendation card in
-   * their head and match ids by eye.
+   * The card is titled 장비 그룹 배치도 and for a while drew no readable 그룹 —
+   * first only coloured points, then an enclosing circle that also swallowed
+   * non-members — so the reader had to hold the recommendation card in their
+   * head and match ids by eye.
    *
    * Note this deliberately mixes two computations, exactly as the design does:
    * the POSITIONS come from `fleet_today.matrix` (one matrix) while MEMBERSHIP
    * comes from the AND-fold across every occupied cell. They can disagree, and
-   * a member can sit visually apart from its group. The caption already says
-   * so, and the boundary is drawn from membership rather than from the
-   * geometry, so it never invents a group the fold did not find.
+   * a member can sit visually apart from its group. Marking it PER POINT is
+   * what keeps that disagreement legible: an outline states a fact about one
+   * tool, where a region silently states one about whatever falls inside it.
    */
   groupTools?: string[]
   /**
@@ -141,9 +155,9 @@ const props = defineProps<{
    */
   pickedTool?: string | null
   /**
-   * Overrides the halo's `N배화 그룹 · {n}대` caption — pm-planning writes the
-   * prospective form (`… → {n+1}대 (튜닝 시)`). The ring itself still encloses
-   * only the CURRENT members; only the words change.
+   * Overrides the header badge's `N배화 그룹 · {n}대` caption — pm-planning
+   * writes the prospective form (`… → {n+1}대 (튜닝 시)`). The green outlines
+   * still mark only the CURRENT members; only the words change.
    */
   haloLabel?: string
   /**
@@ -244,33 +258,51 @@ interface FleetDatum { name: string, value: FleetValue }
 
 const pointAt = computed(() => new Map(map.value.points.map(p => [p.eqp_id, p])))
 
+/** Fast membership lookup for the per-point outline below. */
+const groupSet = computed(() => new Set(props.groupTools ?? []))
+
 /**
- * The circle enclosing the group's mappable members, in DATA space.
+ * The group's centre of gravity, in DATA space — and NOT a region.
  *
- * A circle rather than a hull because both axes already share one domain and
- * the box is `aspect-square` (see the template), so one data unit is the same
- * number of pixels horizontally and vertically — which is the whole reason the
- * map is readable as distance. Under that construction a data-space circle
- * lands as a pixel circle, and no per-axis correction is needed.
+ * This used to also return a radius, and the map drew a circle of it around the
+ * members. That circle was a lie by construction: its radius was the farthest
+ * member's, so any NON-member closer to the centroid than that member fell
+ * inside it and read as enclosed. On R3 / QC_DAILY_MATCH with three parameters
+ * two of the three excluded tools (ECXDX382, HCDX131) sat inside the "13대"
+ * ring, painted the same blue as the members, and nothing on the card said
+ * otherwise.
+ *
+ * The error underneath it was a category one, not an arithmetic one. Positions
+ * come from PCA over the parameter profile while MEMBERSHIP comes from the
+ * AND-fold across every occupied cell — the two are allowed to disagree (the
+ * caption says so), so membership is not a region in this space and no shape
+ * drawn from the geometry can state it. It is a per-tool fact, so it is now
+ * drawn per tool: the green outline in `chartOption`.
  *
  * Members the map dropped (`map.detached` — a tool sharing no measurement with
- * anyone has no defined distance, so MDS cannot place it) are simply not
- * enclosed. Under two enclosable members there is no region to draw.
+ * anyone has no defined distance, so MDS cannot place it) do not move the
+ * centroid. Under two placeable members there is no centre worth drawing.
  */
-const groupHalo = computed(() => {
+const groupCentroid = computed(() => {
   const members = (props.groupTools ?? [])
     .map(eqp => pointAt.value.get(eqp))
     .filter(p => p !== undefined)
   if (members.length < 2) return null
 
-  const cx = mean(members.map(p => p.x))
-  const cy = mean(members.map(p => p.y))
-  const reach = Math.max(...members.map(p => Math.hypot(p.x - cx, p.y - cy)))
-  // Padding is proportional so the ring clears the symbols at any zoom, with a
-  // floor for the degenerate case of members sitting on top of each other.
-  const span = domain.value.max - domain.value.min
-  return { cx, cy, r: reach * 1.25 + span * 0.06, n: members.length }
+  return {
+    cx: mean(members.map(p => p.x)),
+    cy: mean(members.map(p => p.y)),
+    n: members.length
+  }
 })
+
+/**
+ * The group's size, for the header badge — `haloLabel` when the caller wrote a
+ * prospective form (pm-planning's `13대 → 14대 (튜닝 시)`), else the plain count.
+ */
+const groupCaption = computed(() =>
+  groupCentroid.value ? props.haloLabel ?? `N배화 그룹 · ${groupCentroid.value.n}대` : null
+)
 
 /** The blocked pair as map coordinates, when both ends were placed. */
 const blockedLink = computed(() => {
@@ -283,73 +315,24 @@ const blockedLink = computed(() => {
 })
 
 /**
- * What sits UNDER the scatter: the group boundary and the blocked-pair link.
+ * What sits around the scatter: the group's centroid and the blocked-pair link.
  *
  * Both are `silent`, so they never intercept a hover meant for a point, and
  * both are omitted entirely when their inputs are absent — an empty group or an
- * unplaceable endpoint draws nothing rather than a degenerate ring at the
+ * unplaceable endpoint draws nothing rather than a degenerate marker at the
  * origin.
+ *
+ * There is deliberately NO enclosing shape for the group; see `groupCentroid`
+ * for why one cannot be honest here. Membership is the green outline on each
+ * point in `chartOption`.
  */
 const backdrop = computed<SeriesOption[]>(() => {
   const out: SeriesOption[] = []
-  const halo = groupHalo.value
+  const centroid = groupCentroid.value
 
-  if (halo) {
-    out.push({
-      type: 'custom',
-      silent: true,
-      z: 1,
-      // One datum, one renderItem call. The shape is computed in PIXELS on
-      // every render rather than baked once, which is what keeps it aligned
-      // through the host ResizeObserver's re-layout.
-      data: [[halo.cx, halo.cy]],
-      renderItem: (_params: unknown, api: unknown) => {
-        const { coord } = api as { coord: (d: number[]) => number[] }
-        const centre = coord([halo.cx, halo.cy])
-        const edge = coord([halo.cx + halo.r, halo.cy])
-        const cx = centre[0] ?? 0
-        const cy = centre[1] ?? 0
-        const r = Math.abs((edge[0] ?? 0) - cx)
-        return {
-          type: 'group',
-          children: [
-            {
-              type: 'circle',
-              shape: { cx, cy, r },
-              // Alpha over the canvas rather than a fixed soft token, so the
-              // ring reads the same weight on the warm paper and in dark mode.
-              style: {
-                fill: SK_STATE.ok,
-                opacity: 0.12,
-                stroke: SK_STATE.ok,
-                lineWidth: 1,
-                lineDash: [4, 4]
-              }
-            },
-            {
-              type: 'text',
-              style: {
-                text: props.haloLabel ?? `N배화 그룹 · ${halo.n}대`,
-                x: cx,
-                y: cy - r - 6,
-                textAlign: 'center',
-                textVerticalAlign: 'bottom',
-                fill: SK_STATE.ok,
-                ...CHART_AXIS_LABEL
-              }
-            }
-          ]
-        }
-      }
-    })
-  }
-
-  // The centre of gravity, as its own series ABOVE the scatter (z: 3).
-  //
-  // It cannot ride on the halo: that series sits at z: 1 so its translucent
-  // fill stays behind the points, and a tightly-matched group puts its centre
-  // exactly where the points are — the marker was invisible under them.
-  // Raising the halo instead would wash the whole cluster through its fill.
+  // The centre of gravity, as its own series ABOVE the scatter (z: 3) — a
+  // tightly-matched group puts its centre exactly where the points are, and at
+  // any lower z the marker is invisible under them.
   //
   // Drawn because the 튜닝 목표 table quotes this point as a coordinate: a
   // table that says "move to the group centre" is only readable if the reader
@@ -357,15 +340,18 @@ const backdrop = computed<SeriesOption[]>(() => {
   // never mistaken for a tool, and each stroke is laid twice — once wide in
   // the card's own background colour, once narrow in the group green — so it
   // stays legible over a symbol as well as over empty canvas.
-  if (halo) {
+  if (centroid) {
     out.push({
       type: 'custom',
       silent: true,
       z: 3,
-      data: [[halo.cx, halo.cy]],
+      // One datum, one renderItem call. The shape is computed in PIXELS on
+      // every render rather than baked once, which is what keeps it aligned
+      // through the host ResizeObserver's re-layout.
+      data: [[centroid.cx, centroid.cy]],
       renderItem: (_params: unknown, api: unknown) => {
         const { coord } = api as { coord: (d: number[]) => number[] }
-        const centre = coord([halo.cx, halo.cy])
+        const centre = coord([centroid.cx, centroid.cy])
         const cx = centre[0] ?? 0
         const cy = centre[1] ?? 0
         const arm = 7
@@ -441,8 +427,8 @@ const chartOption = computed<EChartsOption>(() => {
     //
     // `filterMode: 'none'` is load-bearing, not a default worth changing: the
     // default filters data outside the window OUT of the series, which would
-    // take the group ring and the blocked-pair connector off the chart as soon
-    // as their coordinates left the view. Nothing is dropped, only clipped.
+    // take the centroid marker and the blocked-pair connector off the chart as
+    // soon as their coordinates left the view. Nothing is dropped, only clipped.
     //
     // No reset control, because scrolling back out is one: ECharts clamps the
     // window at the full 0–100%, so a wheel-out always lands on the whole map.
@@ -476,9 +462,19 @@ const chartOption = computed<EChartsOption>(() => {
         // adapter owes us no such thing. The caption says which one this is.
         itemStyle: {
           color: p.nearest > threshold.value ? SK_STATE.bad : sk.value.series,
-          // The picked tool gets an ink RING, orthogonal to the red/series
-          // color: the fill keeps saying what the tolerance says, the ring
-          // says which point the page is currently arguing about.
+          // Membership, as a green OUTLINE on the point itself — the only
+          // honest place for it, because the fold that decides it does not run
+          // in this space (see `groupCentroid`). Blue is not membership: it
+          // says only that SOME partner is inside the tolerance, so a tool can
+          // be blue, sit near the centroid, and still be outside the group.
+          // That is the case the old enclosing circle silently mis-stated.
+          ...(groupSet.value.has(p.eqp_id)
+            ? { borderColor: SK_STATE.ok, borderWidth: 2 }
+            : {}),
+          // The picked tool takes the border instead, in ink: the page is
+          // arguing about that one point, and two rings on one symbol read as
+          // neither. Nothing is lost — the 튜닝할 장비 card states the picked
+          // tool's 1차 그룹 membership in words, right beside the picker.
           ...(p.eqp_id === props.pickedTool
             ? { borderColor: sk.value.ink, borderWidth: 2 }
             : {})
