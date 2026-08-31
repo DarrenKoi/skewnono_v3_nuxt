@@ -24,8 +24,21 @@
 
 ## 사무실 검증 순서 (참고)
 
-1. `git pull` 후 `cp back_dev_home/chat/answer/providers/office_example.py back_dev_home/chat/answer/providers/office.py`
-2. `.env`: `SKEWNONO_CHAT_RUNTIME=rag`, `SKEWNONO_CHAT_ANSWER_PROVIDER=office`
+1. `git pull` (answer/ 는 2026-08-31 `3b564c66` 에 추가 — 없으면 checkout 이
+   오래된 것입니다) 후 adapter 복사:
+
+   | 파일 | 조치 |
+   | --- | --- |
+   | `answer/providers/office_example.py` | `cp` → `office.py` (새 경로, 필수) |
+   | `scope/providers/office_example.py` | `cp` → `office.py` (필수) |
+   | `knowledge/providers/office_example.py` | `cp` → `office.py` (rollback 용 권장 — boot 의 STALE 안내 해소) |
+   | `providers/office_example.py` (thread 저장소) | **cp 금지** — SQLite 가 office 저장소 |
+
+2. `.env`: `SKEWNONO_CHAT_RUNTIME=rag`, `SKEWNONO_CHAT_ANSWER_PROVIDER=office`,
+   `SKEWNONO_CHAT_SCOPE_PROVIDER=office`,
+   `SKEWNONO_CHAT_KNOWLEDGE_PROVIDER=office` — 마지막 값은 rag 경로가 검색에
+   쓰지 않아도 **그림 저장소(MinIO)가 knowledge provider 를 따라가므로**
+   office 로 둡니다
 3. `/chat` 에서 매뉴얼 질문 1건 — 답변·인용 5건 이하·follow-up chip·그림
    썸네일 확인
 4. 문제가 생기면 env 두 값만 되돌리면 구 경로(agent runtime)로 즉시
