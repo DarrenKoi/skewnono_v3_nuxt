@@ -21,7 +21,7 @@ RAG 측이 지식·검색을 전담하고, chat 측은 front 를 전담합니다
 | HTTP routes, 스레드 저장(SQLite), rate limit, 신원 | chat 측 |
 | scope 사전 게이트 (범위 밖 질문은 RAG 에 도달하지 않음) | chat 측 |
 | figure 서빙 (`figure_id` → MinIO webp), SPA 화면 | chat 측 |
-| agent loop (검색 반복·답변 생성) | **현행** chat 측 — 미결 안건이 합의되면 RAG 측으로 이동 |
+| agent loop (검색 반복·답변 생성) | **현행** chat 측 — RAG 측으로 이동 합의됨(2026-08-31), `agent_query` 구현·검증 완료 시 교체 |
 
 집(mock) 환경에서는 RAG 측 역할 전부를 chat 의 mock provider 가 대역합니다.
 
@@ -48,9 +48,11 @@ RAG 측이 지식·검색을 전담하고, chat 측은 front 를 전담합니다
 - 사실에는 출처 표기를 답니다: `RAG 측 확인 YYYY-MM-DD`,
   `office 확인 YYYY-MM-DD`, `user-confirmed`, 미확인 가정은 `OFFICE-VERIFY`.
 
-**미결 안건**: `docs/2026-08-31-chat-to-rag-answer-contract.md` — 답변 전체를
-RAG 의 `answer_question()` 하나로 옮기는 경계 변경 제안. RAG 측 회신 대기
-중이며, 합의 전에는 양쪽 다 관련 코드를 바꾸지 않습니다.
+**진행 중 안건**: 답변 전체를 RAG 의 `agent_query(question, messages,
+scope, timeout)` 하나로 옮기는 경계 변경이 **합의되었습니다**
+(`docs/2026-08-31-chat-to-rag-answer-contract-agreed.md` 가 최종 계약).
+RAG 측은 (a)~(e) 구현 후 `skewnono_rag/` 재전달, chat 측은 mock answerer +
+신규 runtime 준비. 구 경로 삭제는 사무실 검증 후입니다.
 
 ## 계약의 원본 (여기 요약하지 않습니다)
 
