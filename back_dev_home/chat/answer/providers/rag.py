@@ -80,9 +80,9 @@ def answer_question(
 def _call_with_deadline(func, deadline_seconds: float, /, *args, **kwargs):
     """Run the RAG call behind a wall-clock backstop on a daemon worker.
 
-    Same shape as the agent runtime's graph deadline: a worker finishing
-    after timeout produces only an orphaned in-memory result — persistence
-    stays with the caller.
+    A worker finishing after the deadline produces only an orphaned in-memory
+    result: persistence stays with the caller, so a late answer can never
+    append an assistant turn to a request that already returned 504.
     """
     outcome: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
 
