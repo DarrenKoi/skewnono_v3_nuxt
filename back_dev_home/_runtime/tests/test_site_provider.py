@@ -263,6 +263,7 @@ def test_validate_env_leaves_chat_sub_provider_selectors_to_chat(monkeypatch, wi
     """Knowledge/scope adapters are lazy chat seams, not feature providers."""
     monkeypatch.setenv("SKEWNONO_CHAT_KNOWLEDGE_PROVIDER", "office")
     monkeypatch.setenv("SKEWNONO_CHAT_SCOPE_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_PROVIDER", "office")
 
     data_provider.validate_env()  # must not require chat/providers/office.py
 
@@ -272,6 +273,7 @@ def test_validate_env_leaves_chat_sub_provider_selectors_to_chat(monkeypatch, wi
     [
         "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER",
         "SKEWNONO_CHAT_SCOPE_PROVIDER",
+        "SKEWNONO_CHAT_ANSWER_PROVIDER",
     ],
 )
 def test_validate_env_rejects_invalid_lazy_chat_selector(

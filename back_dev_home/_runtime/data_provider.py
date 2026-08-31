@@ -40,6 +40,7 @@ _VALID_PROVIDERS = frozenset({"mock", "office"})
 _LAZY_SUB_PROVIDER_ENVS = frozenset({
     "SKEWNONO_CHAT_KNOWLEDGE_PROVIDER",
     "SKEWNONO_CHAT_SCOPE_PROVIDER",
+    "SKEWNONO_CHAT_ANSWER_PROVIDER",
 })
 
 # Features whose OFFICE adapter reads another feature's data through that
