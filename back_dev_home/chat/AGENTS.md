@@ -58,9 +58,10 @@ scope, timeout)` 하나로 옮기는 경계 변경이 **합의되었습니다**
 후기 절에 확정값). 양쪽 구현 **완료**(2026-08-31): RAG 측은 (a)~(e) 를
 `retrieve/agent.py` 에, chat 측은 `answer/providers/` swap surface +
 `SKEWNONO_CHAT_RUNTIME=rag` 로. 남은 것은 **사무실 full-path 검증**입니다 —
-`cp answer/providers/office_example.py answer/providers/office.py` 후 env
-전환(RAG 측 집 검증은 langchain 부재로 py_compile + Evidence 매핑 assert
-까지만). 구 경로 삭제는 그 검증 후입니다.
+순서와 검증 전 대조 4건은
+`docs/2026-08-31-chat-to-rag-preverification-ack.md` 에 있습니다(RAG 측 집
+검증은 langchain 부재로 py_compile + Evidence 매핑 assert 까지만). 구 경로
+삭제는 그 검증 후입니다.
 
 ## 계약의 원본 (여기 요약하지 않습니다)
 
