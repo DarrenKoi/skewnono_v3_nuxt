@@ -133,20 +133,18 @@ RAG 측은 자체 agent loop 를 돌리지 않습니다 — chat 의 LangChain a
 2026-08-31). `_rag/` 자체는 우리 것이고, 그 안의 `skewnono_rag/` 가 RAG 측이
 통째로 전달·교체하는 read-only 패키지입니다 — 여기서 절대 수정하지 않습니다.
 빌드된 인덱스는 패키지 **안** `skewnono_rag/index/` 에 함께 옵니다(db, vectors,
-faiss, bm25 네 파일). `_rag/.env` 는 패키지 옆에 두는 RAG **자체** env 파일로,
-common LLM gateway 키(`LLM_BASE_URL_COMMON`, `API_KEY_RPO`,
-`API_KEY_EMBEDDING`)를 담습니다 — RAG 가 project root(패키지의 부모 =
-`_rag/`)에서 python-dotenv 로 스스로 읽으므로 skewnono 의
-`back_dev_home/.env` 에는 넣지 않습니다. `skewnono_rag/` 만 교체 단위이므로
-재전달이 와도 `_rag/.env` 는 살아남습니다. 앞머리 밑줄이 이 배치를 안전하게
+faiss, bm25 네 파일). 패키지는 완전히 self-contained 입니다 — common LLM
+gateway 키(`LLM_BASE_URL_COMMON`, `API_KEY_RPO`, `API_KEY_EMBEDDING`)는
+`skewnono_rag/config.py` 에 내장되어 있으므로 `.env` 를 어디에도 만들지
+않습니다(RAG 측 확인 2026-08-31; 초기의 `_rag/.env` 안은 철회됨). skewnono 의
+`back_dev_home/.env` 에도 넣지 않습니다. 앞머리 밑줄이 이 배치를 안전하게
 만드는 전부입니다.
 
 RAG 가 office 에서 요구하는 의존성(RAG 측 확인 2026-08-31): `faiss-cpu`,
 `rank_bm25`, `numpy`, `langchain`, `langgraph`, `langchain-openai`,
 `langchain-core`, `python-dotenv`, `requests`. skewnono 의 venv 에 함께
-설치합니다(같은 프로세스 import 이므로). OFFICE-VERIFY: skewnono 는
-`numpy>=2` 를 pin 하므로 RAG 측 faiss-cpu 버전이 numpy 2 와 호환되는지
-설치 시 확인이 필요합니다.
+설치합니다(같은 프로세스 import 이므로). faiss-cpu 는 skewnono 가 pin 한
+`numpy>=2` 와 호환됩니다(RAG 측 확인 2026-08-31).
 
 | 걸림돌 | 왜 `_rag/` 가 걸리지 않는가 |
 | --- | --- |

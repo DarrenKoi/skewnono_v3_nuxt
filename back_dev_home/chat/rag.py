@@ -19,11 +19,12 @@ a missing 사내 dependency — into ``KnowledgeUnavailable`` so the caller repo
 Layout inside ``_rag/`` (RAG 측 확인 2026-08-31): ``skewnono_rag/`` is the
 delivered read-only package — always replaced wholesale by the RAG side, never
 edited here — with its built index at ``skewnono_rag/index/`` (db, vectors,
-faiss, bm25). ``_rag/.env`` sits BESIDE the package and is the RAG's own env
-file (``LLM_BASE_URL_COMMON``, ``API_KEY_RPO``, ``API_KEY_EMBEDDING``): the
-RAG resolves its project root to the package's parent — this directory — and
-loads it itself via python-dotenv. Only ``skewnono_rag/`` is theirs; ``_rag/``
-itself (the ``.env``, any future siblings) is ours and survives a re-delivery.
+faiss, bm25). The package is fully self-contained: the common LLM gateway
+keys (``LLM_BASE_URL_COMMON``, ``API_KEY_RPO``, ``API_KEY_EMBEDDING``) are
+embedded in ``skewnono_rag/config.py`` — there is NO ``.env`` to create, in
+``_rag/`` or anywhere (RAG 측 확인 2026-08-31; the earlier ``_rag/.env`` plan
+was dropped). Only ``skewnono_rag/`` is theirs; ``_rag/`` itself and any
+future siblings are ours and survive a re-delivery.
 """
 
 from __future__ import annotations

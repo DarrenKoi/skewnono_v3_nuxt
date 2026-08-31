@@ -86,3 +86,14 @@ cp back_dev_home/chat/knowledge/providers/office_example.py back_dev_home/chat/k
 | 3 | `langcahin-core` = `langchain-core` 오타가 맞습니까? | 맞으면 회신 불요 |
 | 4 | faiss-cpu 가 numpy 2 호환 버전입니까? 버전 pin 목록이 있습니까? | **회신 요청** |
 | 5 | 그림 객체가 client namespace(`2067928/`) 아래에 있습니까? | 위 키가 맞으면 회신 불요 |
+
+## 후기 — RAG 측 회신 받음 (2026-08-31 12:56)
+
+위 질문은 모두 닫혔습니다. 단, 4절(`.env`)은 **철회**되었습니다.
+
+- `.env` 는 어디에도 쓰지 않습니다 — 세 gateway 키는
+  `skewnono_rag/config.py` 에 내장되어 패키지가 self-contained 입니다.
+  chat 측 문서에서 `_rag/.env` 언급을 걷어냈습니다.
+- faiss-cpu 는 `numpy>=2` 와 호환 확인.
+- MinIO 키 `user/2067928/skewnono_rag/hitachi_manuals/figures/{figure_id}.webp`
+  확인.
