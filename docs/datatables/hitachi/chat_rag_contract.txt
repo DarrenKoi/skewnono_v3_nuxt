@@ -182,7 +182,7 @@ figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
 
 RAG 공개 API 와 호출 방식 (office 확인 2026-08-27, 2026-08-28 RAG 측 회신 반영;
 handoff: docs/datatables/chat/chat_office_adapter_handoff.txt, 회신:
-docs/rag_agents/)
+back_dev_home/chat/docs/)
 - RAG 는 별도 git 저장소이며 `back_dev_home/chat/_rag/` 에 checkout 해 두고
   같은 프로세스에서 import 합니다(`chat/rag.py`). 서비스 경계가 없습니다.
 - 최상위 패키지는 `skewnono_rag` 입니다(RAG 측 확인 2026-08-28; 2026-08-27
