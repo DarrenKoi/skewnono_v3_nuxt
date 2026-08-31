@@ -5,7 +5,6 @@ const props = defineProps<{
   messages: ChatMessage[]
   pending?: boolean
   errorMessage?: string | null
-  modelLabel?: string
   feedbackLoadingIds?: ReadonlySet<string>
 }>()
 const emit = defineEmits<{
@@ -53,12 +52,7 @@ const examples = [
           무엇을 도와드릴까요?
         </h2>
         <p class="sk-chat-empty-sub">
-          <template v-if="modelLabel">
-            {{ modelLabel }} 모델과 대화합니다.
-          </template>
-          <template v-else>
-            모델을 선택하고 메시지를 보내 대화를 시작하세요.
-          </template>
+          SKEWNONO 에 대해 궁금한 것을 물어보세요.
         </p>
         <div class="sk-chat-examples">
           <button

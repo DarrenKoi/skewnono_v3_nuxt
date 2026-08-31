@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type {
-  ChatAvailability,
   ChatMessage,
   ChatModel,
   FeedbackInput,
@@ -22,10 +21,8 @@ const api = useChatApi()
 const toast = useToast()
 
 const models = ref<ChatModel[]>([])
-const selectedModel = ref<string>('')
 const threads = ref<ThreadSummary[]>([])
 const active = ref<ThreadDetail | null>(null)
-const systemPrompt = ref('')
 const draft = ref('')
 const turnStates = ref<ThreadTurnStates>({})
 const sidebarOpen = ref(false)
@@ -35,24 +32,17 @@ const activeId = computed(() => active.value?.id ?? null)
 const activeTurnState = computed(() => getThreadTurnState(turnStates.value, activeId.value))
 const errorMessage = computed(() => activeTurnState.value?.errorMessage ?? null)
 const activePending = computed(() => activeTurnState.value?.status === 'pending')
-const currentModelId = computed(() => active.value?.model ?? selectedModel.value)
-const modelLabel = computed(
-  () => models.value.find(m => m.id === currentModelId.value)?.label ?? ''
-)
-
 const loadThreads = async () => {
   threads.value = await api.fetchThreads()
 }
 
 const openThread = async (id: string) => {
   active.value = await api.fetchThread(id)
-  systemPrompt.value = active.value.system_prompt ?? ''
-  selectedModel.value = active.value.model
   sidebarOpen.value = false
 }
 
 const newThread = async () => {
-  const t = await api.createThread(selectedModel.value || models.value[0]?.id || '', systemPrompt.value)
+  const t = await api.createThread(models.value[0]?.id ?? '')
   active.value = t
   sidebarOpen.value = false
   await loadThreads()
@@ -184,23 +174,9 @@ const saveFeedback = async (messageId: string, input: FeedbackInput | null) => {
  */
 const available = ref<boolean | null>(null)
 
-const runtime = ref<ChatAvailability['runtime'] | null>(null)
-
-/**
- * Whether the chat side owns the LLM call — and so whether the model picker
- * and system prompt control anything. The 'rag' runtime answers with the
- * RAG's own LLM and takes neither (`runtime/providers/rag.py`: `model: None`,
- * system_prompt dropped), so both would be knobs wired to nothing. Unknown
- * runtime (the availability call failed) keeps them visible — a backend
- * outage must not silently strip real controls.
- */
-const chatOwnsLlm = computed(() => runtime.value !== 'rag')
-
 onMounted(async () => {
   try {
-    const availability = await api.fetchAvailability()
-    available.value = availability.available
-    runtime.value = availability.runtime
+    available.value = await api.fetchAvailability()
   } catch {
     // A failed availability check must not read as "not in service" — that
     // would turn a backend outage into a false launch announcement. Fall
@@ -210,7 +186,6 @@ onMounted(async () => {
   if (!available.value) return
 
   models.value = await api.fetchModels()
-  selectedModel.value = models.value[0]?.id ?? ''
   await loadThreads()
 })
 </script>
@@ -271,36 +246,13 @@ onMounted(async () => {
           <h1 class="sk-chat-heading">
             채팅
           </h1>
-          <p
-            v-if="modelLabel && chatOwnsLlm"
-            class="sk-chat-subhead"
-          >
-            {{ modelLabel }}
-          </p>
-        </div>
-        <div
-          v-if="chatOwnsLlm"
-          class="ml-auto"
-        >
-          <ChatModelPicker
-            v-model="selectedModel"
-            :models="models"
-            :disabled="!!active"
-          />
         </div>
       </header>
-
-      <ChatSystemPromptField
-        v-if="chatOwnsLlm"
-        v-model="systemPrompt"
-        :disabled="!!active"
-      />
 
       <ChatThread
         :messages="active?.messages ?? []"
         :pending="activePending"
         :error-message="errorMessage"
-        :model-label="modelLabel"
         :feedback-loading-ids="feedbackLoadingIds"
         @retry="retry"
         @example="fillExample"
@@ -309,7 +261,7 @@ onMounted(async () => {
 
       <ChatComposer
         v-model="draft"
-        :disabled="activePending || !selectedModel"
+        :disabled="activePending || !models.length"
         @send="send"
       />
     </section>

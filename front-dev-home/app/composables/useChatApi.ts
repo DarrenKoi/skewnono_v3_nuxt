@@ -1,10 +1,5 @@
 import { joinApiPath } from '~/utils/apiPath'
 
-export interface ChatAvailability {
-  available: boolean
-  runtime: 'direct' | 'agent' | 'rag'
-}
-
 export interface ChatModel {
   id: string
   label: string
@@ -95,15 +90,13 @@ export const useChatApi = () => {
   const url = (p: string) => joinApiPath(config.public.apiBase, p)
 
   /**
-   * Whether chat is in service on this deployment, and which runtime answers.
+   * Whether chat is in service on this deployment.
    *
    * One SPA bundle ships to every phase, so the page cannot tell production
    * from the office on its own — the backend is the only thing that knows.
-   * `runtime` is the same kind of fact: under 'rag' the RAG owns its own LLM,
-   * so the model picker is inert and the page hides it.
    */
-  const fetchAvailability = async (): Promise<ChatAvailability> =>
-    (await $fetch<{ data: ChatAvailability }>(url('/chat/availability'))).data
+  const fetchAvailability = async (): Promise<boolean> =>
+    (await $fetch<{ data: { available: boolean } }>(url('/chat/availability'))).data.available
 
   const fetchModels = async (): Promise<ChatModel[]> =>
     (await $fetch<{ data: ChatModel[] }>(url('/chat/models'))).data

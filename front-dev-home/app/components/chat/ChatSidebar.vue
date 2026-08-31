@@ -8,10 +8,6 @@ const emit = defineEmits<{
   create: []
   remove: [id: string]
 }>()
-
-// "meta-llama/llama-3.3-70b-instruct:free" -> "llama-3.3-70b-instruct"
-const shortModel = (id: string) =>
-  (id.split('/').pop() ?? id).replace(/:free$/, '')
 </script>
 
 <template>
@@ -46,7 +42,7 @@ const shortModel = (id: string) =>
         <span class="sk-thread-body">
           <span class="sk-thread-title">{{ t.title }}</span>
           <span class="sk-thread-meta">
-            {{ shortModel(t.model) }} · {{ formatRelativeTime(t.updated_at) }}
+            {{ formatRelativeTime(t.updated_at) }}
           </span>
         </span>
         <UButton
