@@ -61,7 +61,8 @@ export interface AdmissionReport {
  * being tuned", so the most recent `post_pm_at` wins (ISO strings compare
  * lexicographically). With no PM date anywhere, the first `fallback` entry —
  * the caller passes its worst-excluded tool, the next best story — then the
- * roster's first tool, then null for an empty fab.
+ * first matching `fallback` entry, then the roster's first tool, then null for
+ * an empty fab. A fallback outside `tools` is stale and is ignored.
  */
 export const pickDefaultTool = (
   tools: readonly { eqp_id: string, post_pm_at: string | null }[],
@@ -80,7 +81,8 @@ export const pickDefaultTool = (
       latest = { eqp_id: tool.eqp_id, post_pm_at: tool.post_pm_at }
     }
   }
-  return latest?.eqp_id ?? fallback[0] ?? tools[0]?.eqp_id ?? null
+  const fallbackPick = fallback.find(id => tools.some(tool => tool.eqp_id === id))
+  return latest?.eqp_id ?? fallbackPick ?? tools[0]?.eqp_id ?? null
 }
 
 /**

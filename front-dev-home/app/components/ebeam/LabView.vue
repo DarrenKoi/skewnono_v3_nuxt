@@ -70,13 +70,9 @@
          그룹이 정해져 있어야 합니다 — 어느 집합 안에서 고르는지가 정해지지
          않은 상태의 선택은 무엇을 고르는 것인지 말할 수 없습니다.
 
-         The pm roster is its own request and does not ride on the recipe, so
-         this bar is never locked: it lists the whole fab roster whatever the
-         group above selects, and picking a tool the 장비 모델 그룹 bar left out
-         is a legitimate question — it is exactly the "would this one get in"
-         case this view exists to answer, and `basis` below pins such a pick into
-         the matrices for it. The 그룹 badge simply does not appear until there
-         is a group to be in. -->
+         The pm roster is its own request and does not ride on the recipe. Its
+         choices are narrowed by the model groups above, so changing a group
+         immediately updates both this list and an invalidated current pick. -->
     <EbeamPmPlanningToolPicker
       v-if="has('pm')"
       :rows="pickerRows"
@@ -474,6 +470,10 @@ const request = () => {
 const pending = computed(() => tttmPending.value || pmPending.value)
 
 const pmTools = computed(() => pmFleet.value?.tools ?? [])
+const selectablePmTools = computed(() => {
+  const selected = new Set(pickedTools.value)
+  return pmTools.value.filter(tool => selected.has(tool.eqp_id))
+})
 
 // Two selections, and the difference is the on-demand request. `pickedTools`
 // (from the scope) is resolved against the sem-list ROSTER and is what the
@@ -495,23 +495,9 @@ const picked = ref<string | null>(null)
 // and the route could not be separated.
 const showsPickedTool = computed(() => has('pm') && picked.value !== null)
 
-// The working basis: the selection, plus the picked tool when PM 플래닝 is
-// showing and the user picked one the group bar had deselected — its admission
-// question is exactly what that view exists to answer, so it must be in the
-// matrices. In 장비간 스큐 there is no such subject and the basis IS the
-// selection.
-//
-// A caller-side union on purpose, NOT foldable into resolveSelection:
-// resolveSelection treats an empty `selected` as "all", so
-// resolveSelection(all, [...scoped.tools, picked]) would collapse the basis to
-// the single picked tool whenever there is no explicit selection.
-const basis = computed(() => {
-  const p = picked.value
-  if (!has('pm') || !p || !answeredTools.value.includes(p) || selection.value.includes(p)) {
-    return selection.value
-  }
-  return [...selection.value, p]
-})
+// Every analysis uses the tools selected by 장비 모델 그룹. The PM picker is
+// narrowed to the same selection below, so its subject never needs pinning.
+const basis = selection
 
 const visibleTools = computed(() =>
   (payload.value?.tools ?? []).filter(t => basis.value.includes(t.eqp_id))
@@ -677,11 +663,11 @@ const excluded = computed(() =>
 // no-PM-date-anywhere fallback, and making it a source would force the full
 // excludedTools() scan eagerly on every tolerance/cell change to guard a
 // branch that almost never runs.
-watch(pmFleet, () => {
+watch(selectablePmTools, (tools) => {
   if (!pmFleet.value) return
-  if (picked.value && pmTools.value.some(t => t.eqp_id === picked.value)) return
+  if (picked.value && tools.some(t => t.eqp_id === picked.value)) return
   picked.value = pickDefaultTool(
-    pmTools.value.map(t => ({ eqp_id: t.eqp_id, post_pm_at: t.gate.post_pm_at })),
+    tools.map(t => ({ eqp_id: t.eqp_id, post_pm_at: t.gate.post_pm_at })),
     excluded.value.map(e => e.eqp_id)
   )
 }, { immediate: true })
@@ -747,7 +733,7 @@ const pickerRows = computed(() => {
   // results below are gated on exactly that, so a 1차 그룹 badge on the top bar
   // would be the page asserting membership in a comparison nobody chose.
   const members = new Set(scopeReady.value ? primary.value?.tools ?? [] : [])
-  return pmTools.value.map(t => ({
+  return selectablePmTools.value.map(t => ({
     eqp_id: t.eqp_id,
     verdict: t.gate.verdict,
     postPmAt: t.gate.post_pm_at,

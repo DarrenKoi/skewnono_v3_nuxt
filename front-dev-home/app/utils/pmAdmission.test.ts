@@ -139,3 +139,11 @@ test('pickDefaultTool: with no PM dates, fall back to the worst-excluded tool, t
   assert.equal(pickDefaultTool(noDates, []), 'A')
   assert.equal(pickDefaultTool([], []), null)
 })
+
+test('pickDefaultTool: ignores an excluded fallback outside the updated model groups', () => {
+  const selectedTools = [
+    { eqp_id: 'A', post_pm_at: null },
+    { eqp_id: 'B', post_pm_at: null }
+  ]
+  assert.equal(pickDefaultTool(selectedTools, ['REMOVED', 'B']), 'B')
+})
