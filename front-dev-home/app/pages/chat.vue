@@ -29,11 +29,25 @@ const sendError = ref<string | null>(null)
 
 const activeId = computed(() => active.value?.id ?? null)
 const messages = computed(() => active.value?.messages ?? [])
-const pendingTurn = computed(
-  () => messages.value.find(m => m.role === 'assistant' && m.status === 'pending') ?? null
+/**
+ * Only the newest turn can be unsettled — the composer is disabled while one
+ * is pending, so turns are sequential. Reading the LAST assistant row rather
+ * than searching for any unsettled one is what keeps a turn that failed an
+ * hour ago from showing its error banner over a conversation that has since
+ * gone fine.
+ */
+const lastTurn = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    const m = messages.value[i]
+    if (m?.role === 'assistant') return m
+  }
+  return null
+})
+const pendingTurn = computed(() =>
+  lastTurn.value?.status === 'pending' ? lastTurn.value : null
 )
-const failedTurn = computed(
-  () => messages.value.find(m => m.role === 'assistant' && m.status === 'failed') ?? null
+const failedTurn = computed(() =>
+  lastTurn.value?.status === 'failed' ? lastTurn.value : null
 )
 // A reserved row is empty until it settles; showing it would render a blank
 // assistant bubble under the typing dots.
