@@ -7,7 +7,7 @@ const props = defineProps<{
   serverOffsetMs: number
   highlightIds: string[]
   toolSlug: string
-  fab: string
+  fabSegment: string
   fabBadge?: string
 }>()
 
@@ -41,7 +41,7 @@ const elapsed = computed(() =>
     :server-offset-ms="serverOffsetMs"
     :is-new="highlightSet.has(group.events[0].id)"
     :tool-slug="toolSlug"
-    :fab="fab"
+    :fab-segment="fabSegment"
     :fab-badge="fabBadge"
   />
 
@@ -86,7 +86,7 @@ const elapsed = computed(() =>
         :server-offset-ms="serverOffsetMs"
         :is-new="highlightSet.has(event.id)"
         :tool-slug="toolSlug"
-        :fab="fab"
+        :fab-segment="fabSegment"
         :fab-badge="fabBadge"
       />
     </div>

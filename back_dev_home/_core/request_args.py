@@ -34,7 +34,7 @@ def resolve_fab_name(arg: str = "fab_name") -> str | None:
     """
     raw = (request.args.get(arg) or "").strip().upper()
     if "," in raw:
-        abort(400, f"{arg} takes one fab, not a list: {raw!r}")
+        abort(400, description=f"{arg} takes one fab, not a list: {raw!r}")
     return raw or None
 
 

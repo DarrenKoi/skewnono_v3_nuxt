@@ -205,7 +205,7 @@ useHead({
           :server-offset-ms="serverOffsetMs"
           :is-new="highlightSet.has(event.id)"
           :tool-slug="toolType"
-          :fab="fabSegment"
+          :fab-segment="fabSegment"
           :fab-badge="multiFab ? event.fab_name : ''"
         />
         <LiveAlarmMeasGroup
@@ -215,7 +215,7 @@ useHead({
           :server-offset-ms="serverOffsetMs"
           :highlight-ids="highlightIds"
           :tool-slug="toolType"
-          :fab="fabSegment"
+          :fab-segment="fabSegment"
           :fab-badge="multiFab ? (group.events[0]?.fab_name ?? '') : ''"
         />
       </template>

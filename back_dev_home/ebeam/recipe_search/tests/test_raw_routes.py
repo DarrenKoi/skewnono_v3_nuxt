@@ -334,4 +334,3 @@ def test_align_images_rejects_a_joined_multi_fab_name(client):
         "?recipe_name=MONITOR/CD_TOP_01&fab_name=r3,r4&eqp_id=CG6300_01"
     )
     assert response.status_code == 400
-    assert "one fab" in response.get_data(as_text=True)

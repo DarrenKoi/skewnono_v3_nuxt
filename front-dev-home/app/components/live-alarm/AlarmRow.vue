@@ -8,7 +8,7 @@ const props = defineProps<{
   serverOffsetMs: number
   isNew: boolean
   toolSlug: string
-  fab: string
+  fabSegment: string
   fabBadge?: string
 }>()
 
@@ -21,7 +21,7 @@ const elapsed = computed(() =>
 // 2026-08-03), so the tiebreak is that recipe-search indexes this spelling.
 const recipeLink = computed(() =>
   props.event.recipe_id
-    ? `/ebeam/${props.toolSlug}/${props.fab}/recipe-search?q=${encodeURIComponent(props.event.recipe_id)}`
+    ? `/ebeam/${props.toolSlug}/${props.fabSegment}/recipe-search?q=${encodeURIComponent(props.event.recipe_id)}`
     : null
 )
 
@@ -140,11 +140,10 @@ const details = computed(() => [
       </span>
     </p>
 
-    <!-- `event.fab_name`, not the `fab` prop: that one is the route segment,
-         which is "r3,r4" once more than one fab is selected. align-images takes
-         ONE fab_name — the office side builds a per-fab Redis key from it and
-         term-matches it in meas_hist — so a joined segment resolves to nothing
-         and the modal reports the tool as unreachable. -->
+    <!-- The event's own fab, never `fabSegment` — that one is "r3,r4" once
+         more than one fab is selected. align-images takes ONE fab_name: the
+         office side builds a per-fab Redis key from it and term-matches it in
+         meas_hist, so a joined segment resolves to nothing. -->
     <LiveAlarmAlignImagesModal
       v-if="canShowAlignImages"
       v-model:open="alignImagesOpen"
