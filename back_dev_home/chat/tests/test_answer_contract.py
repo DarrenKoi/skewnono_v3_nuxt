@@ -192,6 +192,17 @@ def test_a_signature_without_timeout_is_reported():
     assert problems == ["cannot be called with `timeout=`"]
 
 
+def test_the_golden_call_carries_the_configured_budget():
+    """Not a literal: the default moved 180 -> 240 once already.
+
+    The runner prints this number to the office as "what chat sends", so a
+    frozen copy here would quietly misinform them after the next change.
+    """
+    from back_dev_home.chat import config
+
+    assert contract.golden_call()["timeout"] == config.get_answer_timeout()
+
+
 def test_the_runner_reports_green_without_a_checkout(capsys):
     """What the RAG side sees before the index exists — no import, no index."""
     assert contract.main([]) == 0

@@ -243,7 +243,7 @@ def _to_evidence(hit: Any, index: int) -> Evidence:
 def validate_signature(func: Any) -> list[str]:
     """Problems with ``agent_query``'s signature; empty list when it fits.
 
-    Chat calls ``agent_query("질문", messages=[...], scope={...}, timeout=180.0)``
+    Chat calls ``agent_query("질문", messages=[...], scope={...}, timeout=…)``
     — question positional, the rest keyword. A signature that cannot accept
     that raises ``TypeError`` at the office and nowhere else, which is exactly
     the class of failure this module exists to move earlier.
@@ -279,7 +279,15 @@ def validate_signature(func: Any) -> list[str]:
 
 
 def golden_call() -> dict[str, Any]:
-    """The call chat makes, as data. ``timeout`` is the WHOLE-turn budget."""
+    """The call chat makes, as data. ``timeout`` is the WHOLE-turn budget.
+
+    ``timeout`` is read from the running configuration rather than written as
+    a literal: the default has already moved once (180 -> 240 on 2026-09-01),
+    and a number frozen here would have gone on telling the office a figure
+    chat no longer sends. Everything else is an example; this one is a fact.
+    """
+    from back_dev_home.chat.config import get_answer_timeout
+
     return {
         "question": "GT2000 얼라인 알람 리셋 절차 알려줘",
         "messages": [
@@ -287,7 +295,7 @@ def golden_call() -> dict[str, Any]:
             {"role": "assistant", "content": "어느 장비인지 알려주시겠습니까?"},
         ],
         "scope": {"user_id": "2067928", "groups": [], "fabs": []},
-        "timeout": 180.0,
+        "timeout": get_answer_timeout(),
     }
 
 
