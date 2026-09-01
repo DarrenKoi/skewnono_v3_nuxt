@@ -300,6 +300,20 @@ def test_copy_keeps_gitignored_files_that_must_ship(tmp_path):
     assert (dest / "back_dev_home" / ".env").is_file()
 
 
+def test_copy_keeps_rag_database_but_prunes_chat_threads(tmp_path):
+    repo = _make_repo(tmp_path)
+    rag_index = repo / "back_dev_home" / "chat" / "_rag" / "skewnono_rag" / "index"
+    rag_index.mkdir(parents=True)
+    (rag_index / "store.db").write_text("rag index")
+    (repo / "back_dev_home" / "chat" / "chat.db").write_text("local threads")
+    dest = tmp_path / "bundle"
+
+    pack.copy_bundle(repo, dest)
+
+    assert (dest / rag_index.relative_to(repo) / "store.db").is_file()
+    assert not (dest / "back_dev_home" / "chat" / "chat.db").exists()
+
+
 def test_spa_output_is_copied_verbatim(tmp_path):
     """Nuxt output is opaque to our naming rules — a build asset named
     tests/ or ending in .md must not be pruned, or the SPA 404s at runtime
