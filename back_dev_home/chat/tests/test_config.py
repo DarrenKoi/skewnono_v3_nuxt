@@ -6,7 +6,7 @@ from back_dev_home.chat import config
 def test_answer_timeout_is_clamped(monkeypatch):
     """The whole-turn ceiling: a typo must not remove the ceiling."""
     monkeypatch.delenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", raising=False)
-    assert config.get_answer_timeout() == 180.0
+    assert config.get_answer_timeout() == 240.0
     monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", "9999")
     assert config.get_answer_timeout() == 360.0
     monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", "0")
