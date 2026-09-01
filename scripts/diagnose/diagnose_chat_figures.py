@@ -106,7 +106,7 @@ def _report_key(figure_id: str):
 
     try:
         client = figures._get_client()
-    except Exception as error:  # noqa: BLE001 — the diagnosis, not a crash
+    except Exception as error:  # noqa: BLE001 -- the diagnosis, not a crash
         print(f"  CLIENT CONSTRUCTION FAILED: {type(error).__name__}: {error}")
         print("  -> credentials or endpoint. Nothing below can run.")
         return None, key
@@ -130,7 +130,7 @@ def _report_read(figure_id: str, client, key: str) -> None:
         return
     try:
         client.get(key)
-    except Exception as error:  # noqa: BLE001 — the whole point is the error
+    except Exception as error:  # noqa: BLE001 -- the whole point is the error
         code = getattr(error, "code", None)
         print(f"  get() raised {type(error).__name__}{f' ({code})' if code else ''}: {error}")
         if code == "AccessDenied":
@@ -140,7 +140,7 @@ def _report_read(figure_id: str, client, key: str) -> None:
             print("  -> reachable and permitted, the object is simply not there.")
             print("     That is an ingestion question for the RAG side.")
     else:
-        print("  get() SUCCEEDED — the store is fine and the 404 is elsewhere")
+        print("  get() SUCCEEDED -- the store is fine and the 404 is elsewhere")
         print("  (check is_valid_figure_id above, and the browser's actual URL).")
 
     print(f"\n  listing up to {_LIST_LIMIT} objects under the figures prefix:")
@@ -164,7 +164,7 @@ def _report_conventions() -> None:
     print("  chat  (inherits the client prefix, minio_config.py owns 2067928/):")
     print("      minio_config.py: BUCKET = \"user\"   PREFIX = \"2067928/\"")
     print(f"      SKEWNONO_CHAT_FIGURE_PREFIX = {prefix}")
-    print("  chat  (no minio_config.py — chat supplies everything itself):")
+    print("  chat  (no minio_config.py -- chat supplies everything itself):")
     print("      SKEWNONO_CHAT_FIGURE_BUCKET=user")
     print(f"      SKEWNONO_CHAT_FIGURE_PREFIX=2067928/{prefix}")
     print("  Pick ONE. Doing both writes 2067928/2067928/... and every figure")
