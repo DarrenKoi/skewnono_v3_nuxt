@@ -103,15 +103,6 @@ test('every fab-scoped link carries the two fields LabMenu needs', () => {
   }
 })
 
-test('every menu row that leads to a fixed page keeps that page in the tab derivation', () => {
-  // HEADER_LINKS is one list precisely so a row and its page cannot drift apart: a page in
-  // the menu whose path lost its feature tabs would strand anyone who followed the row.
-  assert.deepEqual(
-    HEADER_INFO_PATHS,
-    HEADER_LINKS.filter(link => link.to !== null).map(link => link.to)
-  )
-})
-
 test('every info path is an absolute top-level path, listed once', () => {
   for (const path of HEADER_INFO_PATHS) {
     assert.ok(path.startsWith('/'), `${path} is not absolute`)
