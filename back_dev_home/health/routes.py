@@ -6,7 +6,6 @@ from back_dev_home._auth.admin import require_admin
 from back_dev_home._auth.errors import error_json
 from back_dev_home._logging.opensearch_handler import installed_handler
 from back_dev_home._runtime.data_provider import get_data_provider, get_mode, resolve_all
-from back_dev_home._runtime.env import is_cloud
 from back_dev_home._runtime.office_registry import features
 from back_dev_home._runtime.site import detect_site
 from back_dev_home.health.data import get_services_health
@@ -60,33 +59,6 @@ def providers_health():
             "features": [row._asdict() for row in resolve_all()],
         }
     )
-
-
-@bp.get("/health/deployment")
-def deployment():
-    """Is this the Phase 3 cloud instance?
-
-    Open to every user, and the narrowest possible slice of what its
-    admin-only sibling /health/providers reports. The gate there is about
-    naming every feature and the reason each resolved; this answers only
-    "which deployment am I talking to", which the caller already knows from
-    the address bar. There is nothing here to withhold.
-
-    Exists because the SPA cannot answer it alone: `ssr: false` bakes
-    `runtimeConfig.public` at build time, and the artifact built at the office
-    is the same one that ships to the cloud, so a build-time flag would have
-    to be remembered on every pack. The frontend uses this to keep 실험실
-    entries whose page is not validated yet out of the production menu — see
-    `useDeployment.ts`. Hiding the MENU only: the routes stay reachable for
-    anyone holding the URL, which is deliberate (power users, beta testers).
-
-    `is_cloud()` rather than `detect_site()`: Phase 2 at the office runs on a
-    company localhost and SHOULD show the unvalidated pages, because that is
-    where they get exercised against real data. Only the cloud deploy hides
-    them, and is_cloud() is a filesystem-path check (`_runtime/env.py`), so
-    it cannot be flipped by a stray environment variable.
-    """
-    return jsonify({"is_cloud": is_cloud()})
 
 
 @bp.get("/health/data-mode")

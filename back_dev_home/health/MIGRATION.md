@@ -23,7 +23,6 @@
 | `GET /api/health/services` | open to all users | yes, via `data.py` | `providers/{mock,office}.py` |
 | `GET /api/health/providers` | `@require_admin` | no — carve-out | `_runtime/data_provider.py` |
 | `GET /api/health/data-mode` | open to all users | no — carve-out | `_runtime/data_provider.py` |
-| `GET /api/health/deployment` | open to all users | no — carve-out | `_runtime/env.py` |
 | `GET /api/health/logging` | `@require_admin` | no — carve-out | `_logging/opensearch_handler.py` |
 | `GET /api/health/jobs` | `@require_admin` | no — carve-out | `app.extensions["scheduler_run_log"]` |
 
@@ -45,9 +44,6 @@ answer reveals, not how it is sourced:
 - `/health/data-mode` answers about one named feature the caller already picked.
   A "this is demo data" marker only admins can see is not a marker, so it is
   open, and it returns no reason string.
-- `/health/deployment` answers which deployment the caller is already talking
-  to, which the address bar gives away. The SPA reads it to keep unvalidated
-  실험실 rows out of the production menu, so a normal user must be able to ask.
 
 At home the no-cookie fallback identity is `local-dev`, which **is** an admin,
 so a bare curl answers 200 on the gated ones too; send a member id

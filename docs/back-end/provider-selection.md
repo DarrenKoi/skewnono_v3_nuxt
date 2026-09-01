@@ -58,7 +58,6 @@ Mode를 환경 변수로 지정하지 않으면 `_runtime/site.py`가 아래 순
 | --- | --- | --- |
 | `GET /api/health/providers` | `_runtime/data_provider.py` | 전체 feature가 각각 어느 adapter로, 왜 해석되었는가 |
 | `GET /api/health/data-mode` | `_runtime/data_provider.py` | 지정한 feature 하나가 지금 생성된 데이터를 주는가 |
-| `GET /api/health/deployment` | `_runtime/env.py` | 이 인스턴스가 Phase 3 클라우드 배포본인가 |
 
 이 예외는 `health/`에 한정됩니다. 다른 feature의 `routes.py`가 `_runtime`을 직접
 import한다면 그것은 예외가 아니라 위반입니다. 엔드포인트별 auth gate와 그 이유는

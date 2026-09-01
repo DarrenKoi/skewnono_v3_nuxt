@@ -3,7 +3,7 @@ import type { HeaderLink } from '~/utils/headerNav'
 import { useNavigationStore } from '~/stores/navigation'
 import { buildFabSegment, canonicalFabList, DEFAULT_FAB } from '~/utils/fab'
 import { FEATURE_TOOL_TYPES, isSingleFabFeature, type FeatureSlug } from '~/utils/features'
-import { visibleHeaderLinksIn, isHeaderLinkActive } from '~/utils/headerNav'
+import { headerLinksIn, isHeaderLinkActive } from '~/utils/headerNav'
 
 // 실험실 — the tools that are not tied to a feature tab. Before 2026-08-15 these were four
 // of eight unlabelled icons in the header; the icons had to be hovered to be read, and two
@@ -23,16 +23,10 @@ const isToolScoped = useToolScopedRoute()
 
 const open = ref(false)
 
-// Rows whose page is not validated yet leave the menu on the Phase 3 cloud deploy — see
-// `hiddenOnCloud` in headerNav.ts. Their ROUTES stay open, so this hides the invitation and
-// nothing else. Reactive because the answer arrives from /api/health/deployment rather than
-// from the bundle; `isCloud` reads false until it does, which at worst shows a BETA row for a
-// moment to a production user who is welcome to open it anyway.
-//
-// No flicker in practice: the rows live inside the popover's #content and render on open, by
-// which time a fetch started at header mount has long resolved.
-const { isCloud } = useDeployment()
-const links = computed(() => visibleHeaderLinksIn('lab', isCloud.value))
+// Every 실험실 row, on every deployment. Between 2026-08-19 and 2026-09-01 TTTM was held
+// back from the Phase 3 cloud by a `hiddenOnCloud` row flag; the page is in service now, so
+// the flag, the deployment lookup behind it and the filtered list all went with it.
+const links = headerLinksIn('lab')
 
 // The fab-scoped rows jump to the remembered tool/fab selection (default cd-sem / R3
 // before any ebeam visit). Multi-fab-capable rows use the full fabs list so a multi-fab
@@ -77,10 +71,7 @@ const isActive = (link: HeaderLink) => isHeaderLinkActive(link, route.path)
 
 // The trigger itself goes ink when the current page is inside the menu, so the header
 // still answers "where am I" without being opened.
-//
-// Over the VISIBLE rows, deliberately. Someone who reached a hidden page by URL on the cloud
-// sees a plain trigger: inking it would promise a row that opening the menu does not show.
-const hasActiveLink = computed(() => links.value.some(isActive))
+const hasActiveLink = computed(() => links.some(isActive))
 </script>
 
 <template>

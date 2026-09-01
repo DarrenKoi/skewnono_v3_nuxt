@@ -3,7 +3,7 @@
 // list, so a page cannot be reachable from the header while rendering no tabs.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { HEADER_LINKS, HEADER_INFO_PATHS, headerLinksIn, visibleHeaderLinksIn, isHeaderInfoPath, isHeaderLinkActive } from './headerNav.ts'
+import { HEADER_LINKS, HEADER_INFO_PATHS, headerLinksIn, isHeaderInfoPath, isHeaderLinkActive } from './headerNav.ts'
 
 test('every header link has an icon and a label', () => {
   for (const link of HEADER_LINKS) {
@@ -103,35 +103,9 @@ test('every fab-scoped link carries the two fields LabMenu needs', () => {
   }
 })
 
-test('no 실험실 row is held back from the cloud deploy', () => {
-  // TTTM was the last one, released 2026-09-01. The flag stays for the next page that needs
-  // it; this asserts the CURRENT list so re-hiding a page is a deliberate, visible edit
-  // rather than something that drifts back in.
-  const hidden = HEADER_LINKS.filter(link => link.hiddenOnCloud).map(link => link.label)
-  assert.deepEqual(hidden, [])
-
-  assert.deepEqual(
-    visibleHeaderLinksIn('lab', true).map(link => link.label),
-    headerLinksIn('lab').map(link => link.label)
-  )
-})
-
-test('everywhere but the cloud, the menu is unchanged', () => {
-  // Phase 1 home and Phase 2 office-localhost both show them — Phase 2 against real data is
-  // exactly where they get exercised, so hiding on "office" rather than "cloud" would remove
-  // the pages from the only place they can be validated.
-  assert.deepEqual(visibleHeaderLinksIn('lab', false), headerLinksIn('lab'))
-  assert.deepEqual(visibleHeaderLinksIn('account', true), headerLinksIn('account'))
-})
-
-test('hiding a row from the menu never hides its page from the tab derivation', () => {
-  // The routes stay open on purpose (power users, beta testers hold the URL). A hidden row
-  // whose page lost its feature tabs would strand exactly those people, which is the class of
-  // bug HEADER_LINKS was made one list to prevent.
-  for (const link of HEADER_LINKS.filter(link => link.hiddenOnCloud)) {
-    if (link.to === null) continue
-    assert.equal(isHeaderInfoPath(link.to), true, `${link.label} lost its tabs`)
-  }
+test('every menu row that leads to a fixed page keeps that page in the tab derivation', () => {
+  // HEADER_LINKS is one list precisely so a row and its page cannot drift apart: a page in
+  // the menu whose path lost its feature tabs would strand anyone who followed the row.
   assert.deepEqual(
     HEADER_INFO_PATHS,
     HEADER_LINKS.filter(link => link.to !== null).map(link => link.to)

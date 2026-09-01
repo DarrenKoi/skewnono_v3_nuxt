@@ -38,16 +38,6 @@ export interface HeaderLink {
   // Required once there is more than one dynamic row — LabMenu used to treat `to: null` as
   // "this is 라이브 알람", so a second one would have silently pointed at the alarm board.
   scope?: 'live-alarm' | 'tttm'
-  // Keep this row out of the menu on the Phase 3 cloud deploy. For pages whose estimator is
-  // not validated yet: production users must not be LED to them, but the route is deliberately
-  // left open, so anyone holding the URL (power users, beta testers) still gets in. Hiding the
-  // page too would mean a redirect middleware and a backend gate; hiding the invitation is the
-  // whole ask.
-  //
-  // A property of the row rather than a check inside LabMenu, for the same reason the rest of
-  // this file exists: the alternative is `label === '장비간 스큐(TTTM)' || …`, which nobody
-  // updates when a third unvalidated page arrives.
-  hiddenOnCloud?: boolean
   // Draw a hairline above this row. 채팅 is the only user: the rows above it are things you
   // look up or compute, and it is a conversation — same menu, different kind, so the eye is
   // given the seam rather than left to find it.
@@ -67,8 +57,6 @@ export const HEADER_LINKS: HeaderLink[] = [
   // 아직 확정 아님". A feature tab would claim more than the numbers currently support.
   // CD-SEM only, so unlike 라이브 알람 it does not follow the remembered tool type.
   //
-  // hiddenOnCloud was dropped 2026-09-01: the page is now shown on the cloud deploy too,
-  // with 실험실 + BETA carrying the caveat there as it already did at the office.
   // PM 플래닝은 2026-09-01 부터 이 행 하나로 들어옵니다 — 별도 행이 아니라 그 안의
   // PM 튜닝 칩입니다. /pm-planning 은 redirect 스텁으로 남습니다.
   { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교 · PM 튜닝 목표', activeMatch: '/tttm', scope: 'tttm' },
@@ -88,18 +76,6 @@ export const HEADER_LINKS: HeaderLink[] = [
 /** One menu's rows, in declaration order. */
 export const headerLinksIn = (group: HeaderMenuGroup): HeaderLink[] =>
   HEADER_LINKS.filter(link => link.group === group)
-
-/** One menu's rows as THIS deployment should draw them.
- *
- *  Split from `headerLinksIn` rather than folded into it: the derivations below
- *  (HEADER_INFO_PATHS, isHeaderInfoPath) must keep seeing every row, because a
- *  hidden row's page is still reachable by URL and still has to render its
- *  feature tabs. Hiding the invitation must never hide the way back. */
-export const visibleHeaderLinksIn = (
-  group: HeaderMenuGroup,
-  isCloud: boolean
-): HeaderLink[] =>
-  headerLinksIn(group).filter(link => !(isCloud && link.hiddenOnCloud))
 
 // The fixed top-level pages the menus lead to — the ones that keep the feature tabs.
 export const HEADER_INFO_PATHS: string[]

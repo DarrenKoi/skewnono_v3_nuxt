@@ -61,10 +61,6 @@
                   class="h-4 w-4 shrink-0"
                 />
                 <span class="truncate">{{ page.title }}</span>
-                <span
-                  v-if="page.hiddenOnCloud"
-                  class="ml-auto intro-beta"
-                >개발 중</span>
               </button>
             </div>
           </div>
@@ -287,10 +283,6 @@
                   <h1 class="sk-page-title md:text-4xl">
                     {{ selectedPageGuide.title }}
                   </h1>
-                  <span
-                    v-if="selectedPageGuide.hiddenOnCloud"
-                    class="intro-beta"
-                  >개발 중</span>
                 </div>
                 <p class="mt-3 sk-body leading-7 md:text-base">
                   {{ selectedPageGuide.purpose }}
@@ -325,26 +317,6 @@
                 {{ selectedPageGuide.users }}
               </p>
             </div>
-          </section>
-
-          <section
-            v-if="selectedPageGuide.hiddenOnCloud"
-            class="intro-callout rounded-lg border p-5"
-          >
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-flask-conical"
-                class="h-5 w-5 shrink-0"
-              />
-              <h2 class="sk-heading">
-                아직 개발 중인 화면입니다
-              </h2>
-            </div>
-            <p class="mt-3 sk-body leading-7">
-              계산 방식이 검증 단계라, 이 화면의 숫자는 판정 근거가 아니라 검토용 참고값입니다.
-              같은 이유로 운영 환경에서는 실험실 메뉴와 이 안내 모두에 노출하지 않고, 만드는
-              동안 URL을 아는 사람만 열어 봅니다.
-            </p>
           </section>
 
           <section class="rounded-lg border border-(--sk-border) bg-white p-5 dark:bg-zinc-950">
@@ -397,10 +369,6 @@ type PageGuide = {
   description: string
   users: string
   notes: string[]
-  // 실험실의 미검증 페이지는 헤더 메뉴와 같은 규칙으로 클라우드에서 안내에서도 빠집니다.
-  // 헤더에서는 감춰 두고 소개 페이지에서만 소개하면, 열 수 없는 화면을 광고하는 셈이 됩니다.
-  // 규칙의 원본은 utils/headerNav.ts 의 `hiddenOnCloud` 입니다.
-  hiddenOnCloud?: boolean
 }
 
 const overviewAreas = [
@@ -777,15 +745,10 @@ const pageGuides: PageGuide[] = [
   }
 ]
 
-// 클라우드 여부는 요청으로 도착하므로 목록도 computed 입니다. 답이 오기 전에는 false —
-// 미검증 화면이 잠깐 더 보이는 쪽이, 만드는 사람에게 안내가 사라지는 쪽보다 낫습니다
-// (같은 판단이 useDeployment 에 적혀 있습니다).
-const { isCloud } = useDeployment()
-
+// 배포본마다 다른 목록이 아닙니다 — 2026-08-19~09-01 사이에는 TTTM 이 클라우드에서
+// 빠졌지만, 그 화면이 서비스로 올라가면서 hiddenOnCloud 규칙 자체를 걷어냈습니다.
 const visiblePageGuides = computed(() =>
-  pageGuides.filter(page =>
-    visibleSections.includes(page.section) && !(isCloud.value && page.hiddenOnCloud)
-  )
+  pageGuides.filter(page => visibleSections.includes(page.section))
 )
 
 const activePageId = ref('overview')
@@ -805,27 +768,3 @@ const guideSections = computed(() =>
 
 const canOpenPage = (path: string) => !path.includes(',') && !path.includes('{')
 </script>
-
-<style scoped>
-/* 헤더 실험실 메뉴의 BETA 칩과 같은 토큰 - 같은 사실을 알리는 표시가 두 곳에서
-   다르게 보이면 다른 뜻으로 읽힙니다. 라벨이지 버튼이 아니므로 chip radius이고,
-   rounded-full 은 쓰지 않습니다 (DESIGN.md §Tags / Badges). */
-.intro-beta {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 1px 6px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: var(--sk-r-chip);
-  background: var(--sk-warn-soft);
-  border: 1px solid var(--sk-warn-border);
-  color: var(--sk-ink);
-}
-
-.intro-callout {
-  background: var(--sk-warn-soft);
-  border-color: var(--sk-warn-border);
-  color: var(--sk-ink);
-}
-</style>
