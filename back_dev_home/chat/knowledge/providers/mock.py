@@ -32,14 +32,15 @@ dates and locators; those sources are not connected yet and their office
 shape is unknown.
 
 The fixture figure ids reproduce the office's confirmed shape,
-``{doc_id}_p{page}_i{idx}`` — e.g. ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office
-확인 2026-08-19) — with a synthetic ``SYN…`` doc_id and the ``_p{page}`` half
-kept consistent with each record's ``page``. The **dot** in the doc_id is the
-property worth copying rather than a cosmetic detail: the earlier dot-free ids
-taught that the serving charset could exclude ``.``, and an id the route
-rejects renders no figure at all rather than erroring, so the mock would have
-passed while every office figure 404'd. Nothing is stored behind these ids —
-only the shape is real.
+``{stem}_p{page}_i{idx}`` — e.g. ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office
+확인 2026-08-19) — with a synthetic stem and the ``_p{page}`` half kept
+consistent with each record's ``page``. The stem is the manual's **filename**,
+so its charset is the property worth copying rather than a cosmetic detail:
+one fixture carries a dot, and one carries spaces and Hangul, because both are
+ordinary in a filename and both were once rejected by the serving charset. An
+id the route rejects renders no figure at all rather than erroring, so a mock
+whose ids are tidier than the office's passes at home while every office
+figure 404s. Nothing is stored behind these ids — only the shape is real.
 
 ``rewrite_query`` / ``generate_follow_ups`` stand in for the office RAG's two
 LLM calls (``skewnono_rag.retrieve.agent``, office 확인 2026-08-27): the rewrite there

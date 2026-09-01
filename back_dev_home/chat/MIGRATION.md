@@ -194,7 +194,7 @@ seam)는 **사무실 full-path 검증 전에** 사용자 결정으로 삭제했�
 | `mock` 저장소 | 디스크. `{SKEWNONO_CHAT_FIGURES_DIR}/{figure_id}.webp` |
 | `office` 저장소 | MinIO. `{client prefix}/{SKEWNONO_CHAT_FIGURE_PREFIX}{figure_id}.webp` |
 | `office` 설정 | `SKEWNONO_CHAT_FIGURE_BUCKET`(보통 비움 = client 기본 `user`), `SKEWNONO_CHAT_FIGURE_PREFIX`(기본 `skewnono_rag/hitachi_manuals/figures/`) |
-| 검증 | 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 불일치, `..` 포함, 앞머리 점이면 `404` |
+| 검증 | 저장소에 닿기 전에 `^[\w .-]{1,128}$` 불일치, `..` 포함, 앞머리 점이면 `404` |
 | 응답 | `image/webp` + `Cache-Control: public, max-age=3600` |
 
 사무실의 실제 객체 키는 다음과 같습니다(RAG 측 확인 2026-08-31; 2026-08-27 의
@@ -223,30 +223,33 @@ MinIO 오류 중 `NoSuchKey`/`NoSuchObject`/`NotFound`는 그냥 miss(404)입니
 않았습니다 — 테스트를 HTTP 경계에만 걸어 둔 이유가 이것입니다. MinIO 쪽은 같은 파일
 하단에서 fake client로 키 조립·miss·오류 로그·검증 선행을 고정합니다.
 
-### 검증 charset이 점을 허용하는 이유
+### 검증 charset이 공백과 한글까지 허용하는 이유
 
-Office의 figure_id 형식은 `{doc_id}_p{page}_i{idx}`이고 doc_id가 점을 포함합니다
-(`CG6300_1.HHTSEM_SYSTEM_p100_i0`, office 확인 2026-08-19). 원래 합의했던
-`^[A-Za-z0-9_-]{1,128}$`는 이 값을 **거부합니다**.
+Office의 figure_id 형식은 `{stem}_p{page}_i{idx}`이고, stem은 매뉴얼 **파일 이름**입니다.
+파일 이름은 담당자가 붙인 임의의 텍스트이므로 점(`CG6300_1.HHTSEM_SYSTEM_p100_i0`,
+office 확인 2026-08-19)뿐 아니라 공백과 한글(`CD-SEM 사용 설명서 v1.2_p12_i0`)이
+정상입니다. ASCII만 받는 charset은 이런 매뉴얼의 그림을 전부 **거부합니다**.
 
-이 조합이 위험한 이유는 실패가 조용하기 때문입니다. Mock fixture의 id에는 점이 없었으므로
-집에서는 모든 테스트가 통과하고, 사무실에서만 모든 그림이 404가 나며, 그마저도 오류가 아니라
-"썸네일이 안 보인다"로 나타납니다. 그래서 charset을 넓혔습니다.
+이 조합이 위험한 이유는 실패가 조용하기 때문입니다. Mock fixture의 id가 실제보다 단정하면
+집에서는 모든 테스트가 통과하고, 사무실에서만 그림이 404가 나며, 그마저도 오류가 아니라
+"썸네일이 안 보인다"로 나타납니다. 그래서 charset을 파일 이름이 담는 범위까지 넓혔습니다 —
+`\w`(str 패턴이므로 이미 유니코드 인식) + `.` + `-` + 공백. Mock fixture 쪽도 같은 이유로
+점을 가진 id 하나와 공백·한글을 가진 id 하나를 함께 둡니다.
 
-점을 허용하면 `..`가 charset만으로는 걸러지지 않으므로 세 겹으로 막습니다.
+Charset을 넓히면 `..`가 charset만으로는 걸러지지 않으므로 세 겹으로 막습니다.
 
 1. `..`를 포함한 id는 이름으로 거부합니다.
-2. Slash는 charset과 Flask routing 양쪽에서 막힙니다 — routing이 `../`를 정규화하므로
-   view까지 도달하지도 않습니다.
+2. Slash와 backslash는 charset(`\w`에 경로 구분자가 없습니다)과 Flask routing 양쪽에서
+   막힙니다 — routing이 `../`를 정규화하므로 view까지 도달하지도 않습니다.
 3. 디스크 경로는 조립한 경로를 `resolve()`한 뒤 부모가 figures 디렉터리인지 확인합니다.
    저장소 밖으로 나가는 symlink도 여기서 걸립니다.
 4. 앞머리 점(`.`, `.foo`)은 이름으로 거부합니다. 맨 `.` 하나는 charset을 통과하고 `..`도
    아니어서, MinIO 경로에서는 `.../..webp` 키로 저장소까지 갔습니다(2026-08-27에 MinIO
    테스트가 잡아냈고, 디스크 경로는 3번 검사로만 살아남고 있었습니다).
 
-Mock fixture의 id도 같은 날 실제 형식으로 바꿨습니다(`SYN6300_1.EBEAM_ALARM_p12_i0`).
-`test_knowledge.py`가 mock의 id를 route의 검증기에 직접 걸어 보므로, 한쪽만 바뀌면
-테스트가 깨집니다.
+Mock fixture의 id는 실제 형식을 따릅니다 — `SYN6300_1.EBEAM_ALARM_p12_i0`(점)과
+`SYN 전자광학 조정 안내서 v2.1_p21_i0`(공백·한글)이 한 파일에 함께 있습니다
+(`__fixtures__/knowledge/manuals.json`).
 
 ### 실패는 전부 404입니다
 

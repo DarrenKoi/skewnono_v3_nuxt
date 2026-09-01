@@ -21,6 +21,12 @@ WEBP_BYTES = b"RIFF\x24\x00\x00\x00WEBPVP8 " + b"\x00" * 24
 # every mock fixture kept passing.
 OFFICE_FIGURE_ID = "CG6300_1.HHTSEM_SYSTEM_p100_i0"
 
+# The stem of a figure id is the manual's filename, so it is arbitrary text.
+# Spaces and Hangul are the norm at the office, not an edge case; the charset
+# used to reject both, which 404d those manuals' figures while every ASCII
+# fixture above kept passing.
+KOREAN_FIGURE_ID = "CD-SEM 사용 설명서 v1.2_p12_i0"
+
 
 @pytest.fixture
 def figures_dir(tmp_path, monkeypatch):
@@ -53,6 +59,20 @@ def test_serving_a_figure_returns_its_webp_bytes(client, figures_dir):
     assert response.data == WEBP_BYTES
 
 
+def test_a_figure_id_with_spaces_and_hangul_is_served(client, figures_dir):
+    """Catches the charset refusing a Korean filename stem.
+
+    Percent-encoded on the wire, decoded by Werkzeug, and stored verbatim —
+    the id that reaches the view is the filename, spaces and all.
+    """
+    (figures_dir / f"{KOREAN_FIGURE_ID}.webp").write_bytes(WEBP_BYTES)
+
+    response = client.get(f"/api/chat/figures/{KOREAN_FIGURE_ID}")
+
+    assert response.status_code == 200
+    assert response.data == WEBP_BYTES
+
+
 def test_a_figure_that_is_not_stored_is_not_found(client):
     """Catches an unextracted figure surfacing as a 500 instead of a 404."""
     response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
@@ -68,7 +88,6 @@ MALFORMED_IDS = [
     pytest.param("..", id="parent-directory"),
     pytest.param(".", id="current-directory"),
     pytest.param("foo$bar", id="punctuation-outside-the-charset"),
-    pytest.param("sp ace", id="space"),
     pytest.param("nul%00x", id="nul-byte"),
     pytest.param("a" * 129, id="over-the-128-char-cap"),
 ]

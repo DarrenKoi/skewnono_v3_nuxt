@@ -20,6 +20,10 @@ Office layout (RAG 측 확인 2026-08-31; supersedes the 2026-08-27
     user/2067928/skewnono_rag/hitachi_manuals/figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
     ^bucket ^client prefix ^SKEWNONO_CHAT_FIGURE_PREFIX (default) ^figure_id
 
+The ``figure_id`` is built from the manual's filename, so it is arbitrary text
+— spaces and Hangul are the norm, not the exception, and the key carries them
+verbatim (the HTTP layer percent-encodes them, storage does not).
+
 The user namespace (``2067928/``) is the MinIO client's own default prefix —
 ``minio_handler``'s ``PREFIX`` / ``MINIO_PREFIX`` — and this module passes the
 key BELOW it: ``MinioObject().get("skewnono_rag/hitachi_manuals/figures/<id>.webp")``.
@@ -58,12 +62,16 @@ from back_dev_home.chat import config, rag
 
 log = logging.getLogger(__name__)
 
-# The office derives a figure id as ``{doc_id}_p{page}_i{idx}``, and real
-# doc_ids carry dots — ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office 확인
-# 2026-08-19). The charset therefore admits ``.``, which the original design
-# did not; without it every office figure 404s while every mock fixture keeps
-# passing, so the failure would only ever show up at the office.
-_FIGURE_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+# The office derives a figure id as ``{stem}_p{page}_i{idx}``, where the stem
+# is the manual's own filename. That is arbitrary text typed by whoever named
+# the file, so dots, spaces and Hangul are all ordinary — both
+# ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office 확인 2026-08-19) and
+# ``CD-SEM 사용 설명서 v1.2_p12_i0`` are real shapes. The charset is therefore
+# a Unicode word-char whitelist plus ``.``, ``-`` and space; ``\w`` on a str
+# pattern is already Unicode-aware, so Hangul needs no range of its own.
+# Anything narrower 404s real office figures while every ASCII mock fixture
+# keeps passing — a failure that only ever shows up at the office.
+_FIGURE_ID = re.compile(r"^[\w .-]{1,128}$")
 
 # minio raises S3Error with one of these in ``.code`` when the object is gone.
 # Matched on the attribute rather than ``isinstance(exc, S3Error)`` because
@@ -72,17 +80,19 @@ _NOT_FOUND_CODES = frozenset({"NoSuchKey", "NoSuchObject", "NotFound"})
 
 
 def is_valid_figure_id(figure_id: str) -> bool:
-    """Charset + length + no ``..`` — checked before any storage call.
+    r"""Charset + length + no ``..`` — checked before any storage call.
 
     Validation happens before storage, not after: on the MinIO path a
     malformed id would otherwise cost a network round trip to learn what the
-    charset already knows. Admitting ``.`` means ``..`` is no longer excluded
-    by the charset alone, so it is refused by name, and so is a LEADING dot:
-    a bare ``.`` matches the charset, and on the MinIO path it was reaching
-    storage as ``.../..webp`` (the disk path only survived it through the
-    containment check). Real ids start with the doc_id's model prefix
-    (``CG6300_…``), never a dot. Slashes never arrive — Flask routing refuses
-    them before the view runs.
+    charset already knows. The charset admits what a filename stem normally
+    carries, spaces and Hangul included, so traversal cannot be left to it and
+    is refused by name instead: ``..`` anywhere, and a LEADING dot — a bare
+    ``.`` matches the charset, and on the MinIO path it was reaching storage
+    as ``.../..webp`` (the disk path only survived it through the containment
+    check). Real ids start with the stem's first character, never a dot.
+    Separators stay out on both counts: ``/`` and ``\`` are outside ``\w``,
+    and a slash never arrives anyway — Flask routing refuses it before the
+    view runs.
     """
     return (
         bool(_FIGURE_ID.match(figure_id))
