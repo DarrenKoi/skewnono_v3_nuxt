@@ -561,11 +561,11 @@ def test_no_two_endpoints_share_an_api_path():
 # with nothing `capture_fixtures.py` could ever have produced.
 NON_ENDPOINT_FIXTURE_FILES: frozenset[Path] = frozenset(
     {BACKEND / "ebeam" / "__fixtures__" / "tool_type_cases.json"}
-    # chat's knowledge corpus: the mock's stand-in for what the office RAG
-    # indexed, read by knowledge/providers/mock.py. No endpoint ever returned
-    # these, and chat has no captured endpoint of its own — every chat payload
-    # is either user-specific or a live RAG answer.
-    | set((BACKEND / "chat" / "__fixtures__" / "knowledge").glob("*.json"))
+    # chat's corpus: the mock's stand-in for what the office RAG indexed,
+    # read by answer/providers/corpus.py. No endpoint ever returned these, and
+    # chat has no captured endpoint of its own — every chat payload is either
+    # user-specific or a live RAG answer.
+    | set((BACKEND / "chat" / "__fixtures__" / "corpus").glob("*.json"))
 )
 
 
@@ -584,7 +584,7 @@ def test_no_feature_with_fixtures_is_exempt_from_the_shape_guard():
         str(d.parent.relative_to(BACKEND))
         for d in BACKEND.rglob("__fixtures__")
         # rglob, not iterdir: a feature may nest its fixtures in a
-        # subdirectory (e.g. chat/__fixtures__/knowledge/*.json) with
+        # subdirectory (e.g. chat/__fixtures__/corpus/*.json) with
         # nothing directly under __fixtures__/ itself. iterdir() alone made
         # such a feature invisible to this guard entirely.
         if any(

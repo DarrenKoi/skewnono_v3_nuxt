@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import time
 
-from back_dev_home.chat.answer.contracts import AnswerResult
+from back_dev_home.chat.answer.contract import AnswerResult
 from back_dev_home.chat.contracts import AccessScope
 from back_dev_home.chat.answer.providers import corpus
 

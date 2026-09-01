@@ -16,7 +16,7 @@ from typing import Any
 from back_dev_home.chat import conversation_log
 from back_dev_home.chat import store as chat_store
 from back_dev_home.chat.answer import data as answer_data
-from back_dev_home.chat.answer.contracts import AnswerResult
+from back_dev_home.chat.answer.contract import AnswerResult
 from back_dev_home.chat.contracts import Message, TurnResult
 from back_dev_home.chat.contracts import AccessScope
 from back_dev_home.chat.scope import policy as scope_policy

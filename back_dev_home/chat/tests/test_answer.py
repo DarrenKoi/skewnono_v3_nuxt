@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from back_dev_home.chat import rag
-from back_dev_home.chat.answer import data
+from back_dev_home.chat.answer import contract, data
 
 
 _SCOPE = {"user_id": "1234567", "groups": [], "fabs": []}
@@ -26,30 +26,38 @@ def _no_rag_checkout(monkeypatch):
     monkeypatch.setattr(rag, "rag_ready", lambda: False)
 
 
-def test_mock_answer_has_the_agreed_shape():
-    result = _answer()
+def test_mock_answer_satisfies_the_office_contract():
+    """Home and office are held to one shape by one validator.
 
-    assert isinstance(result["content"], str) and result["content"].strip()
-    assert len(result["sources"]) <= 5
-    for source in result["sources"]:
-        # Any of the contract's four, not manuals only — the mock reaches
-        # every retrieval tool the office agent does.
-        assert source["source_type"] in {"manual", "meeting", "email", "report"}
-        assert source["source_id"] and source["title"] and source["snippet"]
-    assert 3 <= len(result["follow_ups"]) <= 5
-    assert all(isinstance(item, str) and item for item in result["follow_ups"])
-    assert result["rewrite"] is None or result["rewrite"] != "alignment 오차 보정 방법"
+    Hand-rolled shape assertions used to live here, which meant the mock was
+    checked against a second reading of the contract. Both paths are pinned
+    because both are contractual: an answer with citations, and the honest
+    "no evidence found" answer — which is the one the default question
+    actually produces, a fact the old ``len(sources) <= 5`` assertion could
+    not distinguish from a working search.
+    """
+    found = "정비 공지 계측 서비스"
+    result = contract.validate_answer(_answer(found), question=found)
+
+    assert result["sources"], "the mock must find its own fixtures"
+    # All four source types, not manuals only: the office agent reaches every
+    # one, and only the non-manual fixtures produce a figure-less citation.
+    assert {source["source_type"] for source in result["sources"]} <= {
+        "manual", "meeting", "email", "report"
+    }
     assert [trace["tool_name"] for trace in result["tool_traces"]] == [
         "search_manuals",
         "search_meeting_summaries",
         "search_emails",
         "search_reports",
     ]
-    assert all(
-        trace["status"] in {"success", "empty"} for trace in result["tool_traces"]
-    )
-    assert result["prompt_tokens"] is None
-    assert result["completion_tokens"] is None
+
+    empty = "alignment 오차 보정 방법"
+    no_hits = contract.validate_answer(_answer(empty), question=empty)
+
+    assert no_hits["sources"] == []
+    assert no_hits["content"].strip(), "a no-evidence turn is still an answer"
+    assert 3 <= len(no_hits["follow_ups"]) <= 5
 
 
 def test_history_is_capped_before_the_provider_sees_it(monkeypatch):

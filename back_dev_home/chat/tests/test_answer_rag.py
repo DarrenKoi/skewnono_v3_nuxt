@@ -14,6 +14,7 @@ import types
 import pytest
 
 from back_dev_home.chat import config
+from back_dev_home.chat.answer import contract
 from back_dev_home.chat.answer.providers import rag as template
 from back_dev_home.chat.contracts import (
     KnowledgeDenied,
@@ -54,16 +55,7 @@ def rag_module(tmp_path, monkeypatch):
         }
         if "raise" in calls:
             raise calls["raise"]
-        return calls.get(
-            "reply",
-            {
-                "content": "답변입니다.",
-                "sources": [_raw_source("CG6300_1")],
-                "follow_ups": ["다음 질문 1", "다음 질문 2", "다음 질문 3"],
-                "rewrite": None,
-                "tool_traces": [],
-            },
-        )
+        return calls.get("reply", contract.golden_answer())
 
     agent.agent_query = agent_query
     monkeypatch.setitem(sys.modules, "skewnono_rag.retrieve.agent", agent)
@@ -90,6 +82,7 @@ def test_sources_are_normalized_and_capped_at_five(rag_module):
         "sources": [_raw_source(f"S{i}") for i in range(8)],
         "follow_ups": [],
         "rewrite": "현재 질문",  # same as the question -> None
+        "tool_traces": [],
     }
 
     result = template.answer_question("현재 질문", [], _SCOPE)
@@ -104,10 +97,52 @@ def test_sources_are_normalized_and_capped_at_five(rag_module):
 
 
 def test_empty_content_is_unavailable(rag_module):
-    rag_module["reply"] = {"content": "  ", "sources": [], "follow_ups": []}
+    rag_module["reply"] = {
+        "content": "  ",
+        "sources": [],
+        "follow_ups": [],
+        "rewrite": None,
+        "tool_traces": [],
+    }
 
     with pytest.raises(KnowledgeUnavailable):
         template.answer_question("q", [], _SCOPE)
+
+
+def test_a_missing_required_key_is_a_violation_that_names_it(rag_module):
+    """The drift this adapter used to absorb silently.
+
+    ``tool_traces`` disappearing produced an empty list and a UI quietly
+    missing a feature. It is now a 503 whose message says which key.
+    """
+    reply = contract.golden_answer()
+    del reply["tool_traces"]
+    rag_module["reply"] = reply
+
+    with pytest.raises(contract.ContractViolation, match="tool_traces"):
+        template.answer_question("현재 질문", [], _SCOPE)
+
+
+def test_the_office_runner_and_this_adapter_agree_on_the_exception_table(rag_module):
+    """``contract.EXCEPTION_MAP`` is what the RAG side is told; pin it here.
+
+    The runner prints that table in the office runtime. If this adapter stops
+    honouring a row, the two environments are being told different things —
+    which is the whole failure mode this contract module exists to end.
+    """
+    for raised, (translated, _status) in contract.EXCEPTION_MAP.items():
+        rag_module["raise"] = raised("사무실")
+
+        with pytest.raises(translated):
+            template.answer_question("q", [], _SCOPE)
+
+        # Subclasses too: `except TimeoutError` is isinstance-based, so the
+        # table has to be read that way on both sides.
+        subclass = type(f"Office{raised.__name__}", (raised,), {})
+        rag_module["raise"] = subclass("사무실")
+
+        with pytest.raises(translated):
+            template.answer_question("q", [], _SCOPE)
 
 
 @pytest.mark.parametrize(

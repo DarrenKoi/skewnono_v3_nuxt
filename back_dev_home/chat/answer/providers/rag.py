@@ -5,49 +5,40 @@ wherever the checkout is and inert everywhere else. One seam:
 ``skewnono_rag.retrieve.agent.agent_query``, the entry point agreed 2026-08-31
 (``chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md``). The RAG
 owns rewrite, search iteration, rerank and answer generation; this adapter
-owns only the call, the outer deadline guard, error translation and shape
-normalization — never a second agent loop.
+owns only the call, the outer deadline guard and error translation — never a
+second agent loop.
+
+What the answer must look like is NOT decided here. ``answer/contract.py``
+holds the field rules, the citation cap and the exception mapping, and both
+sides execute it: this adapter calls ``validate_answer`` on every turn, and
+the RAG side runs the same module in the office runtime to check itself
+before chat ever sees the result. Adding a coercion here instead of there is
+how the two environments drift apart again.
 
 ``timeout`` is the WHOLE-TURN budget (``SKEWNONO_CHAT_ANSWER_TIMEOUT``). The
 RAG enforces it as per-call ``timeout=remaining`` plus a pre-invoke deadline
 check — NOT a true cumulative deadline (RAG 측 확인 2026-08-31) — so the
 thread guard here is the real ceiling: an overshooting internal call can
 never pin a Flask worker past budget + grace.
-
-Sources come back Evidence-shaped from the RAG (``source_type`` already
-stamped ``manual`` there); chat validates shape only — required text fields
-present, optional fields defaulted, five-row application cap.
 """
 
 from __future__ import annotations
 
 import queue
 import threading
-from typing import Any, Mapping
+from typing import Any
 
 from back_dev_home.chat import config, rag
-from back_dev_home.chat.answer.contracts import AnswerResult
+from back_dev_home.chat.answer import contract
+from back_dev_home.chat.answer.contract import AnswerResult
 from back_dev_home.chat.contracts import (
     AccessScope,
-    Evidence,
     KnowledgeDenied,
     KnowledgeTimeout,
     KnowledgeUnavailable,
 )
 
-_RESULT_LIMIT = 5  # application-owned cap, same as the knowledge seam
 _GRACE_SECONDS = 5.0
-_REQUIRED_KEYS = ("source_id", "title", "snippet")
-_OPTIONAL_KEYS = (
-    "revision",
-    "occurred_at",
-    "section",
-    "page",
-    "region",
-    "locator",
-    "figure_id",
-    "score",
-)
 
 
 def answer_question(
@@ -66,6 +57,10 @@ def answer_question(
             scope=dict(scope),
             timeout=timeout,
         )
+    # The three-way translation declared in contract.EXCEPTION_MAP, which
+    # test_answer_rag.py pins against this function so the table and the code
+    # cannot drift. Written out rather than dispatched through the map: two
+    # clauses read better than a loop, and the test is what keeps them honest.
     except TimeoutError as error:
         raise KnowledgeTimeout("The RAG answer timed out.") from error
     except PermissionError as error:
@@ -73,8 +68,13 @@ def answer_question(
     except (KnowledgeTimeout, KnowledgeDenied, KnowledgeUnavailable):
         raise
     except Exception as error:
-        raise KnowledgeUnavailable("The RAG answer failed.") from error
-    return _normalize(question, raw)
+        # Carry the cause into the message: at the office the 503 body is
+        # often the only visible diagnostic, and a TypeError naming a keyword
+        # argument identifies a signature mismatch that a bare sentence hides.
+        raise KnowledgeUnavailable(
+            f"The RAG answer failed: {type(error).__name__}: {error}"
+        ) from error
+    return contract.validate_answer(raw, question=question)
 
 
 def _call_with_deadline(func, deadline_seconds: float, /, *args, **kwargs):
@@ -100,34 +100,3 @@ def _call_with_deadline(func, deadline_seconds: float, /, *args, **kwargs):
     if not succeeded:
         raise value
     return value
-
-
-def _normalize(question: str, raw: Mapping[str, Any]) -> AnswerResult:
-    content = str(raw.get("content") or "").strip()
-    if not content:
-        raise KnowledgeUnavailable("The RAG answer came back empty.")
-    rewrite = raw.get("rewrite") or None
-    if rewrite == question:
-        rewrite = None
-    return {
-        "content": content,
-        "sources": [
-            _to_evidence(hit) for hit in list(raw.get("sources") or [])[:_RESULT_LIMIT]
-        ],
-        "follow_ups": [str(item) for item in raw.get("follow_ups") or []],
-        "rewrite": rewrite,
-        "tool_traces": list(raw.get("tool_traces") or []),
-        "prompt_tokens": raw.get("prompt_tokens"),
-        "completion_tokens": raw.get("completion_tokens"),
-    }
-
-
-def _to_evidence(hit: Mapping[str, Any]) -> Evidence:
-    for key in _REQUIRED_KEYS:
-        if not hit.get(key):
-            raise KnowledgeUnavailable(f"A RAG source is missing {key!r}.")
-    evidence: dict[str, Any] = {key: hit[key] for key in _REQUIRED_KEYS}
-    evidence["source_type"] = hit.get("source_type", "manual")
-    for key in _OPTIONAL_KEYS:
-        evidence[key] = hit.get(key)
-    return evidence  # type: ignore[return-value]

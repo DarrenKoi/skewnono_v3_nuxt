@@ -74,13 +74,28 @@ scope, timeout)` 하나로 옮기는 경계 변경이 끝났습니다
 
 | 내용 | 원본 |
 | --- | --- |
+| **반환값 필드 규칙, 호출 서명, 예외 대응 (실행 가능)** | **`answer/contract.py`** |
 | RAG 동거 배치, 공개 API(`agent_query` 1함수), 오류 계약, 의존성 | `MIGRATION.md` 의 "RAG 동거" 절 |
 | Evidence 필드 규칙, figure 저장소(MinIO 키), index 위치 | `../../docs/datatables/hitachi/chat_rag_contract.txt` |
 | import 경로와 index 기본값의 코드 구현 | `rag.py` (`import_rag`, `index_dir`) |
-| Evidence / AccessScope 타입 | `knowledge/contracts.py` |
+| Evidence / AccessScope 타입 | `contracts.py` |
 | mock / office 판정 (검출 조건) | `rag.py` 의 `rag_ready()` |
 | 답변 범위 사전 게이트 어휘 | `scope/policy.py` |
 
-같은 사실이 두 곳에서 어긋나면 datatables 문서가 이깁니다. 새로 확인된
-office 사실은 datatables 문서와 mock provider 양쪽에 같은 변경으로 적습니다
-(chat 측 담당).
+세 곳이 조용히 경쟁하지 않도록 축을 나눕니다.
+
+| 무엇 | 이기는 곳 |
+| --- | --- |
+| **실행 가능한** 사실 — 필수 키, 값 모양, 호출 서명, 예외 대응 | `answer/contract.py` |
+| **실행 불가능한** 의미 — `source_id` 안정성, `snippet` 승인 범위, AccessScope 가 질의 단계에 들어갈 것 | `docs/datatables/…/chat_rag_contract.txt` |
+| 협상 경과 | `docs/` 의 편지 |
+
+즉 코드로 검사할 수 있는 것은 코드가 이기고, 검사할 수 없는 것은 datatables
+문서가 이깁니다. 새로 확인된 office 사실은 datatables 문서와 mock provider
+양쪽에 같은 변경으로 적습니다(chat 측 담당).
+
+계약 파일은 **두 환경이 함께 실행합니다** — chat 은 사무실 turn 마다
+`validate_answer()` 를 부르고, RAG 측은 사무실 런타임에서
+`python -m scripts.verify.check_answer_contract --live` 로 자기 `agent_query`
+를 검사합니다. 규칙을 바꾸려면 `CONTRACT_VERSION` 을 올리고 편지 한 통을
+보냅니다.

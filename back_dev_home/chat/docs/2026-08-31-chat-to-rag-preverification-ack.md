@@ -22,6 +22,12 @@
 | 3 | `content` 가 빈 문자열/공백이면 chat 은 **실패(503)** 로 봅니다 — "결과 없음" 도 문장으로 적어 주십시오 | 항상 비어 있지 않으면 회신 불요 |
 | 4 | `tool_traces` 는 무검증 pass-through 로 화면에 갑니다 — 항목 키는 `{tool_name, query, result_count, duration_ms, status}` 를 기대합니다 | 그 모양이면 회신 불요; 다르면 키 이름만 알려 주십시오 |
 
+> **2026-09-01 종료.** 위 4항 표는 **회신이 필요 없어졌습니다.** 네 항목
+> 모두 `answer/contract.py` 가 실행으로 답합니다 —
+> `python -m scripts.verify.check_answer_contract --live`. 경위는
+> [`2026-09-01-chat-to-rag-executable-contract.md`](2026-09-01-chat-to-rag-executable-contract.md)
+> 에 있습니다.
+
 ## 사무실 검증 순서 (참고)
 
 **2026-09-01 개정.** 아래 순서는 원래 adapter 복사와 `SKEWNONO_CHAT_*_PROVIDER`

@@ -95,6 +95,19 @@ chat 은 그것을 **같은 프로세스 안에서 import** 합니다 — Flask 
 `SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 240)을 넘기고 adapter 가 각각 504/403 으로
 바꿉니다.
 
+반환값의 필드 규칙·호출 서명·예외 대응은 산문이 아니라 코드입니다 —
+`answer/contract.py` 하나이며, chat 이 turn 마다 `validate_answer()` 로
+검사하고 RAG 측은 사무실에서 같은 모듈을 직접 돌립니다.
+
+```bash
+python -m scripts.verify.check_answer_contract          # 계약 출력 + 자체 검사
+python -m scripts.verify.check_answer_contract --live   # 실제 agent_query 1회
+```
+
+필수 키(`content`, `sources`, `follow_ups`, `rewrite`, `tool_traces`)는
+**present 여야 하고 값은 비어 있어도 됩니다**. token 수 두 개만 합의된
+선택 항목입니다. 5건 상한을 넘긴 인용은 거절이 아니라 절삭입니다.
+
 검색 반복과 답변 생성은 **전부 RAG 안**입니다. chat 쪽에는 agent loop 도,
 검색 tool 도, LLM client 도 없습니다(2026-08-31 삭제).
 
