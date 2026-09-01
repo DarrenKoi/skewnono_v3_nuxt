@@ -310,6 +310,10 @@ const modalUi = {
   title: 'sr-only'
 } as const
 
+// 파일 이름이 son 토글을 적어야 해서 읽습니다 — 이 화면에는 토글이 보이지
+// 않는데(측정 룰 탭의 설정) cap · 상한 초과 열이 그 값에 딸려 옵니다.
+const { judgeSons } = useDeviceStatisticsPreferences()
+
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 const paraOrder = PARA_KEYS
@@ -402,7 +406,7 @@ const headers = [...LOT_PARAM_HEADERS]
 const downloadParamTable = () => {
   if (!props.row) return
   downloadCsv(
-    lotParamFileName(props.row.lot_cd, props.bucket, filter.value === 'flagged'),
+    lotParamFileName(props.row.lot_cd, props.bucket, filter.value === 'flagged', judgeSons.value),
     headers,
     paramRows.value
   )

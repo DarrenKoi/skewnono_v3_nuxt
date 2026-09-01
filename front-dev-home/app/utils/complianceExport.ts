@@ -35,7 +35,16 @@ export const COMPLIANCE_HEADERS = [
 export interface ComplianceExportInput {
   /** 표가 이미 판정한 결과 그대로. 여기서 다시 판정하지 않습니다. */
   health: LotHealth
-  ctn_desc: string
+  /**
+   * 판정 범위 밖이라 `health` 에 들어가지도 않은 특수 job 건수.
+   *
+   * 요약이 이 수를 적지 않으면 파일과 화면을 맞출 수 없습니다 — 표의 `recipe`
+   * 열은 특수 job 을 **포함한** 전체를 보여 주는데(그 열의 주석이 "사라진 것이
+   * 없음을 보입니다" 라고 적어 둔 이유입니다) 요약의 `판정 범위 recipe` 는
+   * 걷어낸 뒤의 수라, 둘을 나란히 놓으면 차이가 설명 없이 남습니다. 같은 lot 에
+   * 두 숫자가 이유 없이 다르게 보이던 것이 b589fe39 가 고친 일입니다.
+   */
+  exempt: number
   /** 표 위 토글. 파일의 숫자가 이 값에 딸려 오므로 요약에 적습니다. */
   judgeSons: boolean
   exportedAt: string
@@ -76,19 +85,35 @@ const judgementRows = (health: LotHealth): (string | number)[][] => {
   return rows
 }
 
-/** 슬라이드오버 머리말과 같은 숫자들. 거기 없는 것은 son 토글 한 줄뿐입니다 —
- *  파일의 숫자가 그 토글에 딸려 오는데, 파일에는 토글이 보이지 않습니다. */
+/**
+ * 슬라이드오버 머리말의 세 숫자(recipe · 상한 초과 recipe · 상한 초과 파라미터)에
+ * 화면에서는 옆에 있지만 파일에는 따라오지 않는 것들을 더합니다.
+ *
+ *   판정 recipe — 표의 배지가 `초과 / 판정` 으로 쓰는 분모입니다. 이것이 없으면
+ *     "상한 초과 60" 이 몇 건 중 60 인지 파일만 봐서는 알 수 없습니다.
+ *   특수 job — 판정 범위 밖이라 위 어느 수에도 들어가지 않은 recipe. 표의
+ *     `recipe` 열과 요약의 `판정 범위 recipe` 가 다른 이유가 이 줄입니다.
+ *   son 파라미터 판정 — 파일의 숫자가 이 토글에 딸려 오는데 파일에는 토글이
+ *     보이지 않습니다.
+ *
+ * `ctn_desc` 는 **적지 않습니다**. 여기서 손에 쥘 수 있는 것은
+ * `RecipeInput.ctn_desc` 뿐인데 그것은 디바이스 설명문이 아니라 그 recipe 가
+ * 걸린 **공정 스텝 이름**입니다(21ff6cf6 이 mock 을 사무실에 맞추면서 그렇게
+ * 굳었습니다). 비교 화면의 `SummaryRow.ctn_desc` 는 진짜 디바이스 설명문이라,
+ * 같은 이름으로 스텝 이름을 실어 보내면 읽는 사람이 둘을 맞대어 보게 됩니다.
+ * 디바이스를 가리키는 것은 `lot_cd` 이고, 표의 첫 열도 그것입니다.
+ */
 const summaryRows = (input: ComplianceExportInput): (string | number)[][] => {
   const { health } = input
   const violationParams = health.recipes.reduce((sum, r) => sum + r.violation_params.length, 0)
   return [
     ['field', 'value'],
     ['lot_cd', health.lot_cd],
-    ['ctn_desc', input.ctn_desc],
-    ['recipe', health.recipes.length],
+    ['판정 범위 recipe', health.recipes.length],
     ['판정 recipe', health.judged_recipes],
     ['상한 초과 recipe', health.violation_recipes],
     ['상한 초과 파라미터', violationParams],
+    ['특수 job(판정 범위 밖)', input.exempt],
     ['son 파라미터 판정', input.judgeSons ? '포함' : '제외'],
     ['exported_at', input.exportedAt]
   ]

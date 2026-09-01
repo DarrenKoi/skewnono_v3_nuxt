@@ -65,7 +65,11 @@ export interface LotVerdict {
    * 버리던 것이었습니다. 소비처가 다시 판정하게 두면 화면의 상한 초과 열과
    * 파일이 갈릴 두 번째 경로가 생깁니다 (이 파일이 되풀이해 피하는 그것).
    *
-   * `no-rules` 이거나 전 recipe 가 판정 외 job 이면 빈 배열입니다.
+   * 비어 있는 것은 **판정을 아예 못 한** 경우뿐입니다 — 이 fab 에 룰이 없거나,
+   * 전 recipe 가 판정 외 job 이거나. `kind: 'no-rules'` 와 같은 말이 아닙니다:
+   * 전 recipe 가 gray 인 lot 도 판정한 것이 0 건이라 kind 는 'no-rules' 가
+   * 되지만, 그때 이 배열은 gray 결과로 **차 있습니다**. 둘을 가르는 것은
+   * `gray_recipes` 입니다(LotTable 의 툴팁이 같은 기준을 씁니다).
    */
   recipes: RecipeResult[]
 }

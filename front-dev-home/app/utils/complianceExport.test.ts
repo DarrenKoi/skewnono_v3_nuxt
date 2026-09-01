@@ -38,8 +38,8 @@ const judge = (
   fac_id = 'R3'
 ): LotHealth => evaluateLot('R0A8', recipes, [cell(caps, fac_id)], { judgeSons })
 
-const sheetOf = (health: LotHealth, judgeSons = true) =>
-  buildComplianceWorkbook({ health, ctn_desc: 'DEV EV', judgeSons, exportedAt: 'T' })
+const sheetOf = (health: LotHealth, judgeSons = true, exempt = 0) =>
+  buildComplianceWorkbook({ health, exempt, judgeSons, exportedAt: 'T' })
 
 test('한 파라미터가 한 줄, 초과는 초과라고 적는다', () => {
   const rows = sheetOf(judge(
@@ -91,25 +91,44 @@ test('판정에서 뺀 son 이 상한을 넘겼으면 그 사실을 적는다', 
   assert.equal(rows[1]?.[2], '정상', 'son 을 빼면 이 recipe 는 통과입니다')
 })
 
-test('파라미터가 없는 recipe 도 한 줄로 남는다', () => {
+// 잰 것이 없는 recipe 를 '정상' 이라 부르면 "재 봤더니 깨끗하다" 로 읽힙니다 —
+// 전부 gray 인 lot 이 green 으로 나오던 d6e6aacb 의 실수를 recipe 층에서 되풀이
+// 하는 것입니다. evaluateRecipe 는 파라미터가 0개면 pass: true 를 줍니다.
+test('파라미터가 없는 recipe 는 한 줄로 남되 정상이라 하지 않는다', () => {
   const rows = sheetOf(judge([recipe('RCP-EMPTY', [])], { _other: 20 }))[1]!.rows
-  assert.deepEqual(rows[1], ['R0A8', 'RCP-EMPTY', '정상', '', '', '', '', '파라미터 없음'])
+  assert.deepEqual(rows[1], ['R0A8', 'RCP-EMPTY', '판정 결과 없음', '', '', '', '', '파라미터 없음'])
 })
 
 // 슬라이드오버 머리말과 같은 숫자여야 합니다. son 토글은 거기 없지만, 파일의
 // 숫자가 그 토글에 딸려 오므로 파일에는 적습니다.
-test('요약은 자세히 머리말과 같은 숫자에 son 토글을 더한다', () => {
+test('요약은 화면과 맞대어 볼 수 있는 숫자를 전부 싣는다', () => {
   const health = judge(
     [recipe('RCP-001', [['WAFER_CD', 13], ['WAFER_X', 20]]), recipe('RCP-002', [['EDGE_L', 3]])],
     { WAFER: 9, _other: 20 }
   )
-  const summary = new Map(sheetOf(health)[0]!.rows.map(r => [r[0], r[1]]))
+  const summary = new Map(sheetOf(health, true, 3)[0]!.rows.map(r => [r[0], r[1]]))
   assert.equal(summary.get('lot_cd'), 'R0A8')
-  assert.equal(summary.get('recipe'), 2)
+  assert.equal(summary.get('판정 범위 recipe'), 2)
+  // 배지가 '초과 / 판정' 으로 쓰는 분모. 없으면 파일만 보고 "몇 건 중 몇 건" 을
+  // 알 수 없습니다.
+  assert.equal(summary.get('판정 recipe'), 2)
   assert.equal(summary.get('상한 초과 recipe'), 1)
   assert.equal(summary.get('상한 초과 파라미터'), 2)
+  // 표의 recipe 열(특수 job 포함)과 요약의 판정 범위 recipe 의 차이를 설명하는
+  // 줄. 2 + 3 = 5 가 표가 보여 주는 수입니다.
+  assert.equal(summary.get('특수 job(판정 범위 밖)'), 3)
   assert.equal(summary.get('son 파라미터 판정'), '포함')
   assert.equal(sheetOf(health, false)[0]!.rows.at(-2)?.[1], '제외')
+})
+
+// RecipeInput.ctn_desc 는 디바이스 설명문이 아니라 공정 스텝 이름입니다
+// (21ff6cf6). 비교 화면의 SummaryRow.ctn_desc 는 진짜 설명문이라, 같은 이름으로
+// 스텝 이름을 내보내면 읽는 사람이 둘을 맞대어 보게 됩니다.
+test('요약은 ctn_desc 를 싣지 않는다', () => {
+  const health = judge([recipe('RCP-001', [['WAFER_CD', 5]])], { WAFER: 9, _other: 20 })
+  const fields = sheetOf(health)[0]!.rows.map(r => r[0])
+  assert.ok(!fields.includes('ctn_desc'), fields.join(','))
+  assert.ok(!sheetOf(health)[0]!.rows.some(r => r[1] === 'DEV EV'))
 })
 
 test('시트는 요약과 판정 두 장이다', () => {

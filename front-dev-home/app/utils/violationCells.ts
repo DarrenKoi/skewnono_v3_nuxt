@@ -26,9 +26,22 @@ import type { ParamResult, RecipeResult } from './ruleEngine.ts'
  */
 export const overCell = (param: ParamResult): string => param.violation ? '초과' : ''
 
-/** recipe 층 판정 한 마디. */
+/**
+ * recipe 층 판정 한 마디.
+ *
+ * 파라미터가 하나도 없는 recipe 를 '정상' 이라 부르지 않습니다. `evaluateRecipe`
+ * 는 그런 recipe 에 `pass: true` 를 주지만(넘긴 파라미터가 0개이므로) 그것은
+ * "재 봤더니 깨끗하다" 가 아니라 "잰 것이 없다" 입니다. 같은 실수를 lot 층에서
+ * 한 적이 있습니다 — 전부 gray 인 lot 이 비율 0 → green 으로 나와 아무것도 못
+ * 본 lot 과 다 보고 깨끗한 lot 이 같은 색이었습니다(d6e6aacb). 그 교훈을 recipe
+ * 층에도 적용합니다.
+ */
 export const recipeVerdictCell = (recipe: RecipeResult): string =>
-  recipe.gray != null ? '판정 제외' : recipe.pass ? '정상' : '상한 초과'
+  recipe.gray != null
+    ? '판정 제외'
+    : recipe.results.length === 0
+      ? NO_JUDGEMENT
+      : recipe.pass ? '정상' : '상한 초과'
 
 /**
  * 왜 이 행이 판정에서 빠졌는가. 빠지지 않았으면 빈 칸.
@@ -50,6 +63,12 @@ export const paramNoteCell = (recipe: RecipeResult, param: ParamResult): string 
 
 /** cap 칸. 룰이 상한을 두지 않은 파라미터(면제)는 빈 칸입니다. */
 export const capCell = (param: ParamResult): number | string => param.cap ?? ''
+
+/**
+ * 판정이 나오지 않은 행의 말. 원인을 모르는 자리에서 아는 만큼만 적습니다 —
+ * 지어낸 원인(예: '룰 없음')을 적으면 파일이 있지도 않은 문제를 지목합니다.
+ */
+export const NO_JUDGEMENT = '판정 결과 없음'
 
 /**
  * 파라미터가 하나도 없는 recipe 의 비고.

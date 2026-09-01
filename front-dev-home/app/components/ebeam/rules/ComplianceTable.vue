@@ -173,8 +173,14 @@ const recipesByLot = computed(() => groupRecipesByLot(data.value ?? []))
 interface Judged {
   /** 특수 job 을 걷어낸 뒤의 recipe. drill 도 이 배열을 그대로 씁니다. */
   recipes: RecipeInput[]
-  /** 디바이스 이름. 자세히와 내보내기가 각자 recipes[0] 에서 파내면 파생이
-   *  두 곳에 생기므로, 만드는 자리에서 한 번만 꺼냅니다. */
+  /**
+   * 슬라이드오버 부제로 쓰는 문자열. **디바이스 이름이 아닙니다** —
+   * `RecipeInput.ctn_desc` 는 그 recipe 가 걸린 공정 스텝 이름이고(사무실은
+   * oper_desc, mock 도 21ff6cf6 이후 같습니다) 여기 담기는 것은 첫 recipe 의
+   * 그것입니다. 화면에 남겨 두는 것은 이 자리가 원래 그랬기 때문이고, 파일로는
+   * 내보내지 않습니다 — 비교 화면의 `SummaryRow.ctn_desc` 가 진짜 디바이스
+   * 설명문이라 같은 이름으로 나가면 둘이 맞대어 읽힙니다.
+   */
   ctn_desc: string
   total: number
   exempt: number
@@ -253,6 +259,7 @@ const openDrill = (lot_cd: string) => {
   drillOpen.value = true
 }
 
+const toast = useToast()
 const downloading = ref<string | null>(null)
 
 // 자세히와 **같은 judgedByLot 항목**을 씁니다. openDrill 바로 아래에 나란히 둔
@@ -270,11 +277,15 @@ const downloadDevice = async (lot_cd: string) => {
       complianceFileName(lot_cd, todayStamp()),
       buildComplianceWorkbook({
         health: judged.health,
-        ctn_desc: judged.ctn_desc,
+        exempt: judged.exempt,
         judgeSons: judgeSons.value,
         exportedAt: new Date().toISOString()
       })
     )
+  } catch {
+    // 스피너만 끄고 말면 파일이 안 생긴 것과 버튼이 죽은 것이 같아 보입니다.
+    // exceljs 청크를 못 받거나 writeBuffer 가 실패하는 경우가 여기로 옵니다.
+    toast.add({ title: '내려받기에 실패했습니다', icon: 'i-lucide-x', color: 'error' })
   } finally {
     downloading.value = null
   }

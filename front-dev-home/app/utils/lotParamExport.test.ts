@@ -115,6 +115,39 @@ test('룰은 있는데 판정에 없는 행은 아는 만큼만 적는다', () =
   assert.equal(rows[1]?.[8], '판정 결과 없음')
 })
 
+// 전 recipe 가 gray 인 lot 은 판정한 것이 0 건이라 kind 가 'no-rules' 가 되지만
+// (d6e6aacb) 룰은 있었습니다. kind 만 보고 '룰 없음' 을 적으면 한 파일이 같은
+// fab 에 대해 "룰 미정으로 판정 제외" 와 "룰 없음" 을 나란히 말하게 됩니다.
+test('전부 gray 인 lot 을 룰 없음이라 부르지 않는다', () => {
+  // Pool 인데 yield_check 어노테이션이 없어 판정 보류 → 전 recipe gray.
+  const graySet = [params('RCP-001', [['WAFER_CD', 13]])].map(r => ({
+    ...r, family: 'Pool' as const, prod_catg_cd: 'Tech'
+  }))
+  const verdict = buildLotVerdicts(graySet, {
+    R3: {
+      cells: [{
+        id: 'c1',
+        selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Pool', yield_check: 'before' },
+        caps: { WAFER: 9, _other: 20 },
+        name_overrides: []
+      }],
+      thresholds: SEED_THRESHOLDS
+    }
+  }).get('R000')
+  assert.equal(verdict?.kind, 'no-rules', '전제 — 판정한 것이 0 건이라 kind 는 no-rules 입니다')
+  assert.ok((verdict?.gray_recipes ?? 0) > 0, '전제 — 룰이 있었다는 증거가 gray 로 남습니다')
+
+  // RCP-999 는 recipe 목록에만 있고 판정에는 없는 행입니다.
+  const rows = buildLotParamRows(
+    [infoRow('RCP-001', 'step'), infoRow('RCP-999', 'other step')],
+    [...graySet, params('RCP-999', [['WAFER_CD', 13]])],
+    verdict
+  )
+  assert.equal(rows[0]?.[8], 'yield_check 미설정')
+  assert.equal(rows[1]?.[3], '판정 결과 없음', '룰은 있었으므로 룰 없음 은 거짓입니다')
+  assert.equal(rows[1]?.[8], '판정 결과 없음')
+})
+
 // gray recipe(룰 미정·어노테이션 미설정)를 빈 칸으로 두면 깨끗한 recipe 와
 // 파일에서 같아집니다 — 화면의 '판정 제외' 와 같은 말을 적습니다.
 test('gray recipe 는 사유를 모든 행에 적는다', () => {
@@ -217,7 +250,19 @@ test('filename drops the bucket key\'s _summary tail', () => {
 test('초과만 상태의 내보내기는 파일 이름으로 구별된다', () => {
   // 같은 lot·같은 버킷에서 두 번 내려받으면 전체 파일과 초과 파일이 한
   // 폴더에 섞입니다. 행 수는 파일을 열어야 보이므로 이름이 말해야 합니다.
+  //
+  // 이름이 `_outlier` 인 것은 그 칩이 **중앙값 초과**로 거르기 때문입니다. 이
+  // 파일에는 `상한 초과` 열도 있어서, 예전 이름 `_flagged` 로는 어느 초과가
+  // 행을 골랐는지 알 수 없었습니다 (b589fe39 의 두 축 구분).
   assert.equal(lotParamFileName('R123', 'only_normal_summary'), 'R123_only_normal_params.csv')
-  assert.equal(lotParamFileName('R123', 'only_normal_summary', true), 'R123_only_normal_params_flagged.csv')
+  assert.equal(lotParamFileName('R123', 'only_normal_summary', true), 'R123_only_normal_params_outlier.csv')
   assert.equal(lotParamFileName('R123', 'only_normal_summary', false), 'R123_only_normal_params.csv')
+})
+
+// 이 화면에는 son 토글이 보이지 않는데 cap·상한 초과 열이 그 값에 딸려 옵니다.
+// 적지 않으면 두 사람이 같은 lot 을 받아 다른 파일을 얻고도 왜인지 모릅니다.
+test('son 판정을 끈 상태의 내보내기도 이름으로 구별된다', () => {
+  assert.equal(lotParamFileName('R123', 'all', false, true), 'R123_all_params.csv')
+  assert.equal(lotParamFileName('R123', 'all', false, false), 'R123_all_params_nosons.csv')
+  assert.equal(lotParamFileName('R123', 'all', true, false), 'R123_all_params_outlier_nosons.csv')
 })
