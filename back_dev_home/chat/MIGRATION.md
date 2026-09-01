@@ -160,6 +160,27 @@ gateway 키(`LLM_BASE_URL_HCP`, `API_KEY_FREE_HCP` — 초기의
 `back_dev_home/.env` 에도 넣지 않습니다. 앞머리 밑줄이 이 배치를 안전하게
 만드는 전부입니다.
 
+### 동거를 유지하기로 한 결정 (2026-09-01)
+
+chat 측이 이음매를 프로세스 경계로 옮기자고 제안했고(별도 venv 의 localhost
+HTTP 서비스), **RAG 측이 현행 동거 유지로 답했습니다** — "나중에 고려해볼 수
+있으나 일단은 함께 운영, 의존성 충돌 문제 없음"(RAG 측 확인 2026-09-01,
+`docs/2026-09-01-chat-to-rag-structure-changes.md` 6절).
+
+제안의 근거였던 것들과 그에 대한 판단을 남깁니다. **같은 제안을 다시 올리기
+전에 여기부터 읽으십시오.**
+
+| 제기된 우려 | 현재 판단 |
+| --- | --- |
+| 의존성 충돌(`numpy>=2` ↔ faiss-cpu·torch) | **비문제.** 두 패키지가 함께 설치되는 유일한 환경이 사무실이고, 그쪽이 충돌 없음을 확인했습니다. chat 쪽 제약은 하나뿐입니다 — 공유 venv 의 numpy 가 2 이상일 것 |
+| 집에서 office 경로를 시험할 수 없음 | 사실이며 유지됩니다. 대신 `answer/contract.py` 가 양쪽이 실행하는 계약이 되어, 검증이 편지 왕복이 아니라 명령 한 번이 되었습니다 |
+| faiss OOM·세그폴트가 Flask 워커를 함께 가져감 | 감수합니다. 발생한 적이 없고, 발생하면 워커가 재시작되며 turn 은 `pending` 으로 남아 나이 판정으로 실패 처리됩니다 |
+| 배포 산출물 공유 | 의도된 배치입니다 — `pack.py` 가 `back_dev_home` 을 통째로 싣습니다 |
+
+재검토할 조건: **사무실에서 실제 버전 충돌이 한 번이라도 관측되면.** 그때는
+프로세스 분리 전에 먼저, pin 된 requirements 전달과 부팅 로그의 실제 로드
+버전 표시(진단 30초)를 봅니다.
+
 RAG 가 office 에서 요구하는 의존성(RAG 측 확인 2026-08-31): `faiss-cpu`,
 `rank_bm25`, `numpy`, `langchain`, `langgraph`, `langchain-openai`,
 `langchain-core`, `python-dotenv`, `requests`. skewnono 의 venv 에 함께
@@ -222,7 +243,7 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
 | Office adapter | `answer/providers/rag.py` — `agent_query(question, messages, scope, timeout)` 호출 + 3종 오류 변환 + Evidence 모양 검증(5건 cap) + 바깥 hard guard(+5초). **추적되는 파일**이므로 사무실에서 복사할 것이 없습니다 |
 | Mock answerer | `answer/providers/mock.py` — knowledge fixture 로 만든 고정 템플릿 답변. 네 개 retrieval tool(manual·meeting·email·report)을 모두 부르고 점수로 합쳐 5건까지 냅니다 — manual fixture 만 `figure_id` 를 가지므로 manuals 만 뒤지면 사무실의 흔한 상태인 *그림 없는 인용*이 집에서 재현되지 않습니다(2026-09-01) |
 | History cap | dispatcher 가 `SKEWNONO_CHAT_ANSWER_MAX_HISTORY`(기본 5 = RAG 의 MAX_HISTORY, RAG 측 확인 2026-08-31)로 자름 |
-| Turn 예산 | `SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 240초, 1~360). cap 360 + adapter grace 5초 = 365초가 앱이 스스로 504 를 내는 시점이므로 `wsgi.ini` 의 harakiri(380)는 항상 그 위에 있어야 합니다 |
+| Turn 예산 | `SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 240초, 1~**300**). cap 이 300 인 것은 **RAG 가 turn 을 300초에서 끊기 때문**입니다(RAG 측 확인 2026-09-01) — 그보다 크게 잡으면 chat 이 절대 오지 않을 시간을 기다립니다. chat 쪽 집행은 없습니다: 답변이 요청 스레드에서 돌지 않으므로 이 숫자는 더 이상 `wsgi.ini` 의 harakiri 아래에 있을 필요가 없습니다 |
 | Orchestrator | scope 판정 → answer 호출 1회 → 저장 → 로깅. rewrite·follow-ups 는 결과 안에 실려 오므로 자체 호출이 없습니다 |
 
 구 경로(chat 측 agent loop, `llm.py`, egress guard, tool 6종, knowledge 검색

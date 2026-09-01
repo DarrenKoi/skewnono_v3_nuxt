@@ -4,11 +4,16 @@ from back_dev_home.chat import config
 
 
 def test_answer_timeout_is_clamped(monkeypatch):
-    """The whole-turn ceiling: a typo must not remove the ceiling."""
+    """The cap is the RAG's own hard ceiling, not a number of our choosing.
+
+    They stop a turn at 300s outright (RAG 측 확인 2026-09-01), so a
+    deployment asking for more would have chat waiting on time that will
+    never arrive.
+    """
     monkeypatch.delenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", raising=False)
     assert config.get_answer_timeout() == 240.0
     monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", "9999")
-    assert config.get_answer_timeout() == 360.0
+    assert config.get_answer_timeout() == 300.0
     monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", "0")
     assert config.get_answer_timeout() == 1.0
 

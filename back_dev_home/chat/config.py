@@ -31,24 +31,27 @@ def is_under_development() -> bool:
 
 
 def get_answer_timeout() -> float:
-    """Seconds one whole RAG turn may take, as a wall-clock ceiling.
+    """Seconds one whole RAG turn may take, sent to the RAG as its budget.
 
-    Passed to the RAG as its budget and enforced here by a thread guard: the
-    RAG applies it per internal call plus a pre-invoke deadline check, not as
-    a true cumulative deadline (RAG 측 확인 2026-08-31), so an overshooting
-    call would otherwise pin a Flask worker indefinitely.
+    Nothing on this side enforces it any more. The thread guard that used to
+    (``_call_with_deadline``) went away with the turn-as-resource change on
+    2026-09-01: it protected a request that is now over before the RAG is
+    asked, and it could never stop the call anyway — only abandon it. The RAG
+    raises ``TimeoutError`` on its own budget, and that is the ceiling.
 
-    240 default / 360 cap: one turn is not one model call. Query rewrite,
-    hybrid retrieval, rerank and follow-up generation each take their own
-    slice of the budget, and turns were still being cut off while making
-    progress — 60/120 first (raised 2026-09-01), then 180. Only the DEFAULT
-    moved to 240; the cap is deliberately left at 360 because the cap is what
-    the deployment invariant is written against. The cap is load-bearing
-    against uWSGI's harakiri — see wsgi.ini, which must stay above cap + the
-    adapter's 5s grace so the app returns its own 504 instead of the worker
-    being killed.
+    240 default: one turn is not one model call. Query rewrite, hybrid
+    retrieval, rerank and follow-up generation each take their own slice, and
+    turns were still being cut off mid-progress at 60, 120 and 180.
+
+    **300 cap, because that is the RAG's own hard ceiling** (RAG 측 확인
+    2026-09-01: they cap a turn at 300s outright, on the grounds that an
+    answer arriving later than that is a problem rather than a slow success).
+    Asking for more than 300 would have chat waiting on time the RAG will
+    never give. It is no longer a deployment invariant: the answer does not
+    run on a request thread, so this number no longer has to sit under
+    uWSGI's harakiri.
     """
-    return min(max(float(os.environ.get("SKEWNONO_CHAT_ANSWER_TIMEOUT", "240")), 1), 360)
+    return min(max(float(os.environ.get("SKEWNONO_CHAT_ANSWER_TIMEOUT", "240")), 1), 300)
 
 
 def get_answer_history_limit() -> int:
