@@ -49,6 +49,12 @@ RUNTIME_PACKAGES = (
     ("langchain", "langchain"),
     ("langgraph", "langgraph"),
     ("langchain_openai", "langchain-openai"),
+    ("openai", "openai"),
+    # The RAG's retrieval halves. Both are imported inside skewnono_rag, so a
+    # cloud host missing one passes preflight and then 503s on the first chat
+    # turn - which is the failure this list exists to move earlier.
+    ("faiss", "faiss-cpu"),
+    ("rank_bm25", "rank_bm25"),
 )
 
 def check_layout(root: Path) -> list[str]:
