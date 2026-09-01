@@ -8,7 +8,7 @@ import types
 import pytest
 
 from back_dev_home.chat import rag
-from back_dev_home.chat.knowledge.contracts import KnowledgeUnavailable
+from back_dev_home.chat.contracts import KnowledgeUnavailable
 
 
 @pytest.fixture(autouse=True)

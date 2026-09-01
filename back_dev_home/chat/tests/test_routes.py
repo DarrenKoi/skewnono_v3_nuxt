@@ -3,7 +3,7 @@ from flask import Flask, g
 
 from back_dev_home.chat import store
 from back_dev_home.chat.routes import bp, orchestrator
-from back_dev_home.chat.knowledge.contracts import (
+from back_dev_home.chat.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,
     KnowledgeUnavailable,

@@ -18,7 +18,7 @@ from __future__ import annotations
 from back_dev_home.chat import rag
 from back_dev_home.chat.answer.contracts import AnswerResult
 from back_dev_home.chat.config import get_answer_history_limit
-from back_dev_home.chat.knowledge.contracts import AccessScope
+from back_dev_home.chat.contracts import AccessScope
 
 
 def _provider():

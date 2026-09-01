@@ -9,8 +9,7 @@ routes already translate them (403/503/504).
 
 from typing import TypedDict
 
-from back_dev_home.chat.contracts import ToolTrace
-from back_dev_home.chat.knowledge.contracts import Evidence
+from back_dev_home.chat.contracts import Evidence, ToolTrace
 
 
 class AnswerResult(TypedDict):

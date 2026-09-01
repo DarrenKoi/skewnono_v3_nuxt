@@ -12,7 +12,7 @@ from back_dev_home.chat.conversation_log import (
     install_chat_conversation_logging,
     record_turn,
 )
-from back_dev_home.chat.knowledge.contracts import KnowledgeTimeout
+from back_dev_home.chat.contracts import KnowledgeTimeout
 from back_dev_home.chat.orchestration import ChatOrchestrator
 from back_dev_home.chat.tests.test_orchestration import (
     REQUEST_ID,

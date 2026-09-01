@@ -22,8 +22,8 @@ from __future__ import annotations
 import time
 
 from back_dev_home.chat.answer.contracts import AnswerResult
-from back_dev_home.chat.knowledge.contracts import AccessScope
-from back_dev_home.chat.knowledge.providers import mock as knowledge
+from back_dev_home.chat.contracts import AccessScope
+from back_dev_home.chat.answer.providers import corpus
 
 
 _NO_HIT_ANSWER = (
@@ -35,10 +35,10 @@ _NO_HIT_ANSWER = (
 # (tool_name, function) because the trace carries the tool's own name and the
 # office reports one trace per call it made.
 _SEARCHES = (
-    ("search_manuals", knowledge.search_manuals),
-    ("search_meeting_summaries", knowledge.search_meeting_summaries),
-    ("search_emails", knowledge.search_emails),
-    ("search_reports", knowledge.search_reports),
+    ("search_manuals", corpus.search_manuals),
+    ("search_meeting_summaries", corpus.search_meeting_summaries),
+    ("search_emails", corpus.search_emails),
+    ("search_reports", corpus.search_reports),
 )
 
 # The application cap, same as the office adapter's _RESULT_LIMIT.
@@ -51,7 +51,7 @@ def answer_question(
     scope: AccessScope,
 ) -> AnswerResult:
     del messages  # the mock answers from the question alone
-    rewritten = knowledge.rewrite_query(question)
+    rewritten = corpus.rewrite_query(question)
 
     hits: list = []
     traces: list[dict] = []
@@ -82,7 +82,7 @@ def answer_question(
     return {
         "content": content,
         "sources": sources,
-        "follow_ups": knowledge.generate_follow_ups(question, content, sources),
+        "follow_ups": corpus.generate_follow_ups(question, content, sources),
         "rewrite": rewritten if rewritten != question else None,
         "tool_traces": traces,
         "prompt_tokens": None,

@@ -44,7 +44,7 @@ from importlib import import_module
 from pathlib import Path
 from types import ModuleType
 
-from back_dev_home.chat.knowledge.contracts import KnowledgeUnavailable
+from back_dev_home.chat.contracts import KnowledgeUnavailable
 
 _DEFAULT_ROOT: Path | None = Path(__file__).resolve().parent / "_rag"
 _PACKAGE = "skewnono_rag"

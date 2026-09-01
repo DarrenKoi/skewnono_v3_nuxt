@@ -27,7 +27,7 @@ from typing import Any, Mapping
 
 from back_dev_home.chat import config, rag
 from back_dev_home.chat.answer.contracts import AnswerResult
-from back_dev_home.chat.knowledge.contracts import (
+from back_dev_home.chat.contracts import (
     AccessScope,
     Evidence,
     KnowledgeDenied,

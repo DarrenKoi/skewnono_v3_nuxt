@@ -51,7 +51,9 @@ the orchestration path and the SPA are exercised deterministically with no
 model in the loop. The office output is free text; only the shape (a
 nonempty string; 3–5 distinct strings) is copied.
 
-This is now a corpus, not a seam: the office side does its own retrieval
+This is a corpus, not a seam — which is why it sits beside its caller in
+``answer/providers/`` rather than in a ``knowledge/`` package of its own
+(that package was deleted 2026-09-01, its types moved to ``chat/contracts.py``): the office side does its own retrieval
 inside the RAG, so nothing here is ever selected against it. Its one caller is
 ``answer/providers/mock.py``, the home stand-in for ``agent_query`` — which is
 why the fixtures still cover all four source types even though the office
@@ -66,10 +68,10 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
-from back_dev_home.chat.knowledge.contracts import AccessScope, Evidence
+from back_dev_home.chat.contracts import AccessScope, Evidence
 
 
-_FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "__fixtures__" / "knowledge"
+_FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "__fixtures__" / "corpus"
 # Hangul is in the class deliberately: without it every Korean query tokenizes
 # to the empty set and short-circuits to "no results" — a silent wrong answer,
 # not an error. Syllable-level, so it matches whole words only (no stemming,

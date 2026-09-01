@@ -6,7 +6,7 @@ from flask import Blueprint, Response, g, request
 
 from back_dev_home._auth.errors import error_json
 from back_dev_home.chat import config, figures, store
-from back_dev_home.chat.knowledge.contracts import (
+from back_dev_home.chat.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,
     KnowledgeUnavailable,

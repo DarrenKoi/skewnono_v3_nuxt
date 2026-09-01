@@ -7,7 +7,7 @@ around that call.
 
 import pytest
 
-from back_dev_home.chat.knowledge.contracts import KnowledgeTimeout, KnowledgeUnavailable
+from back_dev_home.chat.contracts import KnowledgeTimeout, KnowledgeUnavailable
 from back_dev_home.chat.orchestration import ChatOrchestrator, ThreadNotFound
 from back_dev_home.chat.scope.contracts import ScopeUnavailable
 

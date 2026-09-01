@@ -1,12 +1,28 @@
-"""Stable response contracts for chat endpoints."""
+"""Stable response contracts for chat endpoints.
+
+One contracts module per feature. ``Evidence``, ``AccessScope`` and the
+``Knowledge*`` error family used to live in ``chat/knowledge/contracts.py``,
+back when retrieval was a seam this app owned. It has not been one since
+2026-08-31 — the RAG answers the whole turn — so the package was a name that
+no longer described anything, importing backwards into this module while
+fourteen files reached through it for types that have nothing to do with
+retrieval. They are here now; the package is gone.
+
+The ``Knowledge*`` names are kept as-is: they are what the RAG adapter raises
+and what ``routes.py`` already translates to 403/503/504. Renaming them is
+churn for its own sake and would have to travel to the office in a letter.
+"""
 
 from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
-from back_dev_home.chat.knowledge.contracts import Evidence
-
 __all__ = [
+    "AccessScope",
+    "Evidence",
+    "KnowledgeUnavailable",
+    "KnowledgeTimeout",
+    "KnowledgeDenied",
     "SourceRef",
     "ToolTrace",
     "TurnResult",
@@ -16,6 +32,45 @@ __all__ = [
     "Thread",
     "ThreadDetail",
 ]
+
+
+class AccessScope(TypedDict):
+    """Who is asking, as the retrieval filter the RAG applies at query time."""
+
+    user_id: str
+    groups: list[str]
+    fabs: list[str]
+
+
+class Evidence(TypedDict):
+    """One cited chunk. Field rules: docs/datatables/hitachi/chat_rag_contract.txt."""
+
+    source_id: str
+    source_type: Literal["manual", "meeting", "email", "report"]
+    title: str
+    snippet: str
+    revision: str | None
+    occurred_at: str | None
+    section: str | None
+    page: int | None
+    region: str | None
+    locator: str | None
+    # Opaque figure token, never a storage key: the server owns the bucket,
+    # prefix and extension. None for text and table evidence.
+    figure_id: str | None
+    score: float | None
+
+
+class KnowledgeUnavailable(RuntimeError):
+    """The answer seam could not answer at all — routes translate this to 503."""
+
+
+class KnowledgeTimeout(RuntimeError):
+    """The turn exceeded its budget — routes translate this to 504."""
+
+
+class KnowledgeDenied(RuntimeError):
+    """Access scope refused the question — routes translate this to 403."""
 
 
 class SourceRef(Evidence):

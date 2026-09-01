@@ -15,7 +15,7 @@ import pytest
 
 from back_dev_home.chat import config
 from back_dev_home.chat.answer.providers import rag as template
-from back_dev_home.chat.knowledge.contracts import (
+from back_dev_home.chat.contracts import (
     KnowledgeDenied,
     KnowledgeTimeout,
     KnowledgeUnavailable,
