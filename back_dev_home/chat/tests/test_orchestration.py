@@ -9,7 +9,6 @@ import pytest
 
 from back_dev_home.chat.contracts import KnowledgeTimeout, KnowledgeUnavailable
 from back_dev_home.chat.orchestration import ChatOrchestrator, ThreadNotFound
-from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
 
 REQUEST_ID = "64d35cd4-9e07-4be8-90a3-683f94c29408"
@@ -200,7 +199,6 @@ def scope_decision():
     return {
         "status": "in_scope",
         "reason_code": "supported_domain",
-        "supported_query": "alarm",
     }
 
 
@@ -247,7 +245,7 @@ def test_rejected_scope_persists_a_normal_assistant_turn_without_asking(
     orchestrator = _orchestrator(
         fake_store,
         answerer,
-        {"status": status, "reason_code": "unsupported", "supported_query": None},
+        {"status": status, "reason_code": "unsupported"},
     )
 
     assistant = orchestrator.send_message("u1", "t1", "movie", REQUEST_ID)
@@ -302,48 +300,30 @@ def test_an_unavailable_rag_leaves_the_turn_retryable(orchestrator, fake_store, 
     ], "the retry reuses the reserved row rather than adding a second one"
 
 
-def test_mixed_scope_asks_the_supported_clause_but_persists_the_original(
+def test_a_query_with_an_off_topic_clause_is_asked_as_written(
     fake_store, answerer
 ):
+    """No clause surgery. The work half finds evidence, the rest finds none.
+
+    The extractor this replaces cut the query at punctuation or a conjunction
+    and, when it could not, forwarded the matched marker words alone — a
+    question nobody asked, sent under a notice saying we had answered.
+    """
     orchestrator = _orchestrator(
         fake_store,
         answerer,
-        {
-            "status": "mixed",
-            "reason_code": "mixed_scope",
-            "supported_query": "alarm reset",
-        },
+        {"status": "in_scope", "reason_code": "off_topic_clause_ignored"},
     )
 
     orchestrator.send_message(
         "u1", "t1", "alarm reset and movie recommendations", REQUEST_ID
     )
 
-    assert _settled(fake_store)["content"] == (
-        "지원 범위를 벗어난 부분은 제외하고, 지원되는 업무 관련 질문에만 "
-        "답변했습니다.\n\nanswer"
-    )
+    assert answerer.questions == ["alarm reset and movie recommendations"]
+    assert _settled(fake_store)["content"] == "answer"
     assert fake_store.thread["messages"][0]["content"] == (
         "alarm reset and movie recommendations"
     )
-    assert answerer.questions == ["alarm reset"]
-
-
-def test_mixed_scope_without_a_supported_query_never_reaches_the_rag(
-    fake_store, answerer
-):
-    orchestrator = _orchestrator(
-        fake_store,
-        answerer,
-        {"status": "mixed", "reason_code": "mixed_scope", "supported_query": None},
-    )
-
-    with pytest.raises(ScopeUnavailable, match="supported_query"):
-        orchestrator.send_message(
-            "u1", "t1", "movie recommendations and alarm reset", REQUEST_ID
-        )
-
-    assert answerer.calls == 0
 
 
 def test_the_question_is_not_duplicated_into_the_history(orchestrator, answerer):

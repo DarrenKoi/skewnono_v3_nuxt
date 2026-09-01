@@ -8,7 +8,6 @@ from back_dev_home.chat.contracts import (
     KnowledgeTimeout,
     KnowledgeUnavailable,
 )
-from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
 
 REQUEST_ID = "64d35cd4-9e07-4be8-90a3-683f94c29408"
@@ -334,26 +333,6 @@ def test_feedback_rejects_owned_user_message_before_writing(client, monkeypatch)
 
     assert client.put(path, json={"rating": "up", "reasons": []}).status_code == 400
     assert client.delete(path).status_code == 400
-
-
-def test_a_scope_failure_is_still_an_http_error(client, monkeypatch):
-    """The scope gate runs inline, so its failure is the only one left here."""
-    from back_dev_home.chat import routes
-
-    def _raise(*args):
-        raise ScopeUnavailable("scope offline")
-
-    monkeypatch.setattr(routes.orchestrator, "send_message", _raise)
-    tid = client.post("/api/chat/threads").get_json()["data"][
-        "id"
-    ]
-    response = client.post(
-        f"/api/chat/threads/{tid}/messages",
-        json={"content": "alarm", "request_id": REQUEST_ID},
-    )
-
-    assert response.status_code == 503
-    assert set(response.get_json()["error"]) == {"code", "message"}
 
 
 @pytest.mark.parametrize(

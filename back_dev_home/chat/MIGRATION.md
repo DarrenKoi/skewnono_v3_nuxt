@@ -190,8 +190,8 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
 - 둘 다 agent runtime 에서만 호출합니다. Direct runtime 은 retrieval 이 없으므로
   둘 다 건너뛰고 `rewrite=None`, `follow_ups=[]` 을 저장합니다. Scope 거절 turn 도
   같습니다.
-- Rewrite 대상은 runtime 이 실제로 답하는 질문입니다 — mixed 면 `supported_query`,
-  아니면 사용자 문장. 결과가 원문과 같으면 `None` 으로 저장합니다.
+- Rewrite 대상은 사용자 문장 그대로입니다. 결과가 원문과 같으면 `None` 으로
+  저장합니다.
 - Rewrite 는 사용자 메시지를 **바꾸지 않습니다**. `RuntimeRequest.rewrite` 로
   넘어가 agent system prompt 의 `retrieval_query` 줄이 되고, 모델은 검색 tool 의
   query 로 그것을 우선 씁니다. 사용자의 말은 그대로 user message 로 남습니다.
@@ -341,13 +341,23 @@ allow-list 는 하필 사용자가 모르는 용어에서 가장 크게 실패�
 어휘는 RAG handoff 가 정한 도메인 marker(`ebeam, metrology, measurement, tool,
 alarm, manual, recipe, error, cd-sem, sem, calibration, optics, vacuum, stage,
 wafer, idp, amp, hitachi, gt2000, cg6300`)에 한국어 대응어를 짝지은 것입니다.
-이제 이 목록은 게이트가 아니라 `mixed` 질문에서 지원되는 절을 골라내는 데
-쓰입니다. 반환 `status` 는 `in_scope`, `mixed`, `out_of_scope`, `unsafe` 중
-하나이며 `reason_code` 와 `supported_query` 를 함께 정규화합니다. marker 로
-통과한 것과 기본 허용으로 통과한 것은 `reason_code` 가 각각 `supported_domain`,
-`no_marker_default_allow` 로 갈리므로 messages 테이블에서 구분해 셀 수 있습니다.
-`mixed` 일 때만 지원되는 부분을 `supported_query` 로 전달하고, 그 절만 RAG 에
-묻습니다.
+이제 이 목록이 결정하는 것은 하나입니다 — off-topic marker 가 걸린 질의에
+**업무 부분이 조금이라도 있는가**. 반환 `status` 는 `in_scope`,
+`out_of_scope`, `unsafe` **셋**이며 `reason_code` 를 함께 냅니다.
+
+**`mixed` 는 2026-09-01 에 없앴습니다.** 업무 주제와 off-topic 이 한 질의에
+같이 있으면 예전에는 정규식으로 절을 잘라 지원되는 부분만 RAG 에 보냈고,
+자를 경계가 없으면 **매칭된 marker 단어만 이어 붙여** 보냈습니다 —
+`"계측 알람"` 같은, 아무도 하지 않은 질문이었고 그것을 "답변했습니다" 라는
+고지와 함께 내보냈습니다. 지금은 그런 질의를 **사용자가 쓴 그대로** 묻습니다:
+업무 부분은 근거를 찾고 나머지는 못 찾으므로, 잘라낸 질문보다 정직합니다.
+`supported_query` 필드와 `ScopeUnavailable` 도 함께 사라졌습니다.
+
+`reason_code` 는 셋을 가릅니다 — marker 로 통과한 `supported_domain`,
+marker 없이 기본 허용으로 통과한 `no_marker_default_allow`, off-topic 절을
+끼고 통과한 `off_topic_clause_ignored`. 셋 다 messages 테이블에서 세어 볼 수
+있으므로 "허용 기본값이 얼마나 자주 turn 을 나르는가" 가 추측이 아니라
+질의입니다.
 
 ## Thread storage 동기화
 

@@ -65,7 +65,7 @@ export interface ChatMessage {
   /** What answered, when the RAG reports it. It usually does not. */
   model?: string | null
   runtime: 'rag' | 'scope_rejection' | null
-  scope_status: 'in_scope' | 'mixed' | 'out_of_scope' | 'unsafe' | null
+  scope_status: 'in_scope' | 'out_of_scope' | 'unsafe' | null
   prompt_tokens?: number | null
   completion_tokens?: number | null
   latency_ms?: number | null

@@ -7,7 +7,6 @@ from flask import Blueprint, Response, g, request
 from back_dev_home._auth.errors import error_json
 from back_dev_home.chat import config, figures, store
 from back_dev_home.chat.orchestration import ThreadNotFound, orchestrator
-from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
 bp = Blueprint("chat", __name__)
 
@@ -152,12 +151,9 @@ def chat_send_message(thread_id):
         assistant = orchestrator.send_message(_uid(), thread_id, content, request_id)
     except ThreadNotFound as exc:
         return error_json("not_found", str(exc), 404)
-    # The answer no longer happens on this thread, so the knowledge error
-    # family cannot reach here — a turn that fails does so on the worker and
-    # is recorded on its own row, with the same code strings this module uses.
-    # Only the scope gate still runs inline.
-    except ScopeUnavailable as exc:
-        return error_json("runtime_unavailable", str(exc), 503)
+    # The answer no longer happens on this thread, so nothing else can fail
+    # out here — a turn that fails does so on the worker and is recorded on
+    # its own row, with the same code strings this module uses.
     # 202 means a worker is making the answer and the SPA should poll
     # GET /chat/threads/<id> until the row settles. A scope rejection costs no
     # time and is already settled, so it comes back 200 on the first call.

@@ -238,7 +238,6 @@ def test_scope_decision_is_copied_to_assistant(monkeypatch, tmp_path):
     decision = {
         "status": "out_of_scope",
         "reason_code": "unsupported_domain",
-        "supported_query": None,
     }
 
     user_message = store.set_scope_decision(thread["id"], request_id, decision)
@@ -717,7 +716,7 @@ def test_a_reserved_turn_starts_empty_and_carries_the_scope_decision(
     store.set_scope_decision(
         thread_id,
         request_id,
-        {"status": "mixed", "reason_code": "mixed_scope", "supported_query": "alarm"},
+        {"status": "in_scope", "reason_code": "off_topic_clause_ignored"},
     )
 
     assistant, _mine = store.begin_turn(thread_id, request_id)
@@ -725,7 +724,7 @@ def test_a_reserved_turn_starts_empty_and_carries_the_scope_decision(
     assert assistant["status"] == "pending"
     assert assistant["content"] == ""
     assert assistant["runtime"] is None
-    assert assistant["scope_status"] == "mixed"
+    assert assistant["scope_status"] == "in_scope"
 
 
 def test_a_failed_turn_is_retaken_in_place(monkeypatch, tmp_path):

@@ -55,7 +55,6 @@ def _decision(**overrides):
     decision = {
         "status": "in_scope",
         "reason_code": "supported_domain",
-        "supported_query": None,
     }
     decision.update(overrides)
     return decision

@@ -45,17 +45,13 @@ from back_dev_home.chat.contracts import (
     TurnResult,
 )
 from back_dev_home.chat.scope import policy as scope_policy
-from back_dev_home.chat.scope.contracts import ScopeDecision, ScopeUnavailable
+from back_dev_home.chat.scope.contracts import ScopeDecision
 
 
 SCOPE_REFUSAL = (
     "이 채팅은 장비 매뉴얼, E-beam 계측, 팀 회의·이메일·보고서 관련 질문을 "
     "지원합니다. 해당 범위의 질문으로 다시 요청해 주세요."
 )
-MIXED_SCOPE_NOTICE = (
-    "지원 범위를 벗어난 부분은 제외하고, 지원되는 업무 관련 질문에만 답변했습니다."
-)
-
 # Failure -> the code the SPA reads. Deliberately the strings routes.py already
 # puts in an error body: a turn that fails inside the worker and one that fails
 # before the response is written must not speak two vocabularies.
@@ -127,12 +123,6 @@ class ChatOrchestrator:
 
         user_message = self._store.append_user_message(thread_id, content, request_id)
         decision = self._scope_classifier(user_message["content"])
-        if decision["status"] == "mixed" and not (
-            decision["supported_query"] or ""
-        ).strip():
-            raise ScopeUnavailable(
-                "A mixed scope decision must include a nonempty supported_query."
-            )
         self._store.set_scope_decision(thread_id, request_id, decision)
 
         assistant, mine = self._store.begin_turn(thread_id, request_id)
@@ -157,14 +147,10 @@ class ChatOrchestrator:
         persisted = self._store.get_thread(user_id, thread_id)
         if persisted is None:
             raise ThreadNotFound("thread not found")
-        # The question the answer seam is asked: the supported clause for a
-        # mixed turn, else the user's words. History is prior turns only —
-        # the current question travels alone (agreed RAG contract).
-        question = (
-            decision["supported_query"]
-            if decision["status"] == "mixed"
-            else user_message["content"]
-        )
+        # The question the answer seam is asked is the user's words, as
+        # written. History is prior turns only — the current question travels
+        # alone (agreed RAG contract).
+        question = user_message["content"]
         history = self._history(persisted["messages"], request_id)
         access_scope: AccessScope = {"user_id": user_id, "groups": [], "fabs": []}
 
@@ -211,8 +197,6 @@ class ChatOrchestrator:
 
         try:
             result = self._turn_result(answer, started)
-            if decision["status"] == "mixed":
-                result["content"] = f"{MIXED_SCOPE_NOTICE}\n\n{result['content']}"
             assistant = self._store.complete_turn(thread_id, request_id, result)
         except Exception:
             logging.getLogger("skewnono.chat").exception(

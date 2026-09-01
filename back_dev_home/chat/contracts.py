@@ -149,7 +149,7 @@ class Message(TypedDict):
     content: str
     model: str | None
     runtime: Literal["rag", "scope_rejection"] | None
-    scope_status: Literal["in_scope", "mixed", "out_of_scope", "unsafe"] | None
+    scope_status: Literal["in_scope", "out_of_scope", "unsafe"] | None
     prompt_tokens: int | None
     completion_tokens: int | None
     latency_ms: int | None
