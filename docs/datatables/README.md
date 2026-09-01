@@ -39,7 +39,7 @@
 | `hitachi/hardware_mdc_setting.txt` | Redis `mdc_setting` + MinIO `hitachi_sem/cdsem/mdc_setting/` | `hardware/mdc`, `ebeam/tttm`, `ebeam/pm_planning` | 연결 |
 | `hitachi/skewnono_logging.txt` | OpenSearch `skewnono_logging{,_local}` (자체 생성) | `activity`, `admin_logs` | 연결(alias office 확인 2026-07-28) |
 | `hitachi/skewnono_chat_logging.txt` | OpenSearch `skewnono_chat_logging{,_local}` (자체 생성) | `chat` (대화 turn 기록) | 연결(alias 생성 user-confirmed 2026-08-04) |
-| `hitachi/chat_rag_contract.txt` | 사내 RAG 저장소(in-process, `chat/_rag/`) + MinIO figure 저장소 | `chat` (근거 검색·질의 rewrite·follow-ups) | 구현완료(사무실 검증 대기) — office 어댑터 template 완성 2026-08-28 |
+| `hitachi/chat_rag_contract.txt` | 사내 RAG 저장소(in-process, `chat/_rag/`) + MinIO figure 저장소 | `chat` (근거 검색·질의 rewrite·follow-ups) | 연결 — `agent_query` full-path 사무실 검증 완료 2026-09-01(`check_answer_contract --live`). SPA·그림 경로만 미검증 |
 | `chat/chat_office_adapter_handoff.txt` | RAG 측 agent 의 handoff 편지(2026-08-27) — 공개 API 셋과 seam 채우기 지시 | `chat` | 참고 문서(원문 보존, 오탈자 포함) |
 | `hitachi/recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 연결 |
 | `hitachi/parameter_info.txt` | 미정 — IDP 파서가 돌려주지 않음(`amp_info`) | `recipe_search` 자세히 보기 | **미연결**(mock) |

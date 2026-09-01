@@ -227,7 +227,7 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
   additive migration 합니다. SPA 는 follow-up 을 chip 으로 그리고, 누르면 composer 에
   채웁니다(바로 전송하지 않습니다).
 
-**Mock 과의 차이.** `knowledge/providers/mock.py` 의 `rewrite_query` 는 고정 약어·
+**Mock 과의 차이.** `answer/providers/corpus.py` 의 `rewrite_query` 는 고정 약어·
 번역 표이고 `generate_follow_ups` 는 인용 제목에서 만든 질문 3개입니다. 사무실은
 둘 다 LLM 이며 자유 문장입니다. 모양(비어 있지 않은 문자열, 서로 다른 3~5개)만
 같습니다.
@@ -320,7 +320,7 @@ Charset을 넓히면 `..`가 charset만으로는 걸러지지 않으므로 세 �
 
 Mock fixture의 id는 실제 형식을 따릅니다 — `SYN6300_1.EBEAM_ALARM_p12_i0`(점)과
 `SYN 전자광학 조정 안내서 v2.1_p21_i0`(공백·한글)이 한 파일에 함께 있습니다
-(`__fixtures__/knowledge/manuals.json`).
+(`__fixtures__/corpus/manuals.json`).
 
 ### 실패는 전부 404입니다
 
