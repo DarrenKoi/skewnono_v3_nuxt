@@ -92,7 +92,7 @@ chat 은 그것을 **같은 프로세스 안에서 import** 합니다 — Flask 
 최상위 패키지는 `skewnono_rag` 입니다(2026-08-28 에 `src` 에서 개명, RAG 측
 확인). `timeout=` 초를 넘기면 `TimeoutError` 를, 권한 거부는 `PermissionError`
 를 올립니다(RAG 측 확인 2026-08-28) — chat 은
-`SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 60)을 넘기고 adapter 가 각각 504/403 으로
+`SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 180)을 넘기고 adapter 가 각각 504/403 으로
 바꿉니다.
 
 검색 반복과 답변 생성은 **전부 RAG 안**입니다. chat 쪽에는 agent loop 도,
@@ -172,7 +172,7 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
 | Office adapter | `answer/providers/rag.py` — `agent_query(question, messages, scope, timeout)` 호출 + 3종 오류 변환 + Evidence 모양 검증(5건 cap) + 바깥 hard guard(+5초). **추적되는 파일**이므로 사무실에서 복사할 것이 없습니다 |
 | Mock answerer | `answer/providers/mock.py` — knowledge fixture 로 만든 고정 템플릿 답변 |
 | History cap | dispatcher 가 `SKEWNONO_CHAT_ANSWER_MAX_HISTORY`(기본 5 = RAG 의 MAX_HISTORY, RAG 측 확인 2026-08-31)로 자름 |
-| Turn 예산 | `SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 60초, 1~120) |
+| Turn 예산 | `SKEWNONO_CHAT_ANSWER_TIMEOUT`(기본 180초, 1~360). cap 360 + adapter grace 5초 = 365초가 앱이 스스로 504 를 내는 시점이므로 `wsgi.ini` 의 harakiri(380)는 항상 그 위에 있어야 합니다 |
 | Orchestrator | scope 판정 → answer 호출 1회 → 저장 → 로깅. rewrite·follow-ups 는 결과 안에 실려 오므로 자체 호출이 없습니다 |
 
 구 경로(chat 측 agent loop, `llm.py`, egress guard, tool 6종, knowledge 검색

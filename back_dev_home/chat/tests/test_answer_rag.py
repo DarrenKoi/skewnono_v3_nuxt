@@ -13,6 +13,7 @@ import types
 
 import pytest
 
+from back_dev_home.chat import config
 from back_dev_home.chat.answer.providers import rag as template
 from back_dev_home.chat.knowledge.contracts import (
     KnowledgeDenied,
@@ -78,7 +79,9 @@ def test_agent_query_receives_the_agreed_call_shape(rag_module):
     assert call["question"] == "현재 질문"
     assert call["messages"] == history  # the current question is NOT in history
     assert call["scope"] == dict(_SCOPE)
-    assert call["timeout"] == pytest.approx(60.0)
+    # What matters here is that the CONFIGURED budget reaches the RAG, not
+    # what today's default happens to be — test_config pins the number.
+    assert call["timeout"] == pytest.approx(config.get_answer_timeout())
 
 
 def test_sources_are_normalized_and_capped_at_five(rag_module):

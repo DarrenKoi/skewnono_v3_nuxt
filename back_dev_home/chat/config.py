@@ -39,8 +39,15 @@ def get_answer_timeout() -> float:
     RAG applies it per internal call plus a pre-invoke deadline check, not as
     a true cumulative deadline (RAG 측 확인 2026-08-31), so an overshooting
     call would otherwise pin a Flask worker indefinitely.
+
+    180 default / 360 cap since 2026-09-01: one turn is not one model call.
+    Query rewrite, hybrid retrieval, rerank and follow-up generation each take
+    their own slice of the budget, and the earlier 60/120 pair was cutting off
+    turns that were still making progress. The cap is load-bearing against
+    uWSGI's harakiri — see wsgi.ini, which must stay above cap + the adapter's
+    5s grace so the app returns its own 504 instead of the worker being killed.
     """
-    return min(max(float(os.environ.get("SKEWNONO_CHAT_ANSWER_TIMEOUT", "60")), 1), 120)
+    return min(max(float(os.environ.get("SKEWNONO_CHAT_ANSWER_TIMEOUT", "180")), 1), 360)
 
 
 def get_answer_history_limit() -> int:
