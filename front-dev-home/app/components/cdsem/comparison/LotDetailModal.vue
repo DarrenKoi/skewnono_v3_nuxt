@@ -384,8 +384,16 @@ const presentParaKeys = computed(() =>
 // 파일은 화면이 보여 주는 것을 그대로 담습니다 — 정렬도, 필터도. 버튼 옆의
 // `N행` 이 무엇을 받는지 미리 말해 주고, 파일 이름의 _flagged 가 받은 뒤에도
 // 말해 줍니다.
+// 상한 판정은 행에 이미 실려 옵니다 — `augmentRow` 가 붙인 `verdict` 이고, 그
+// 안의 recipe 별 결과는 이 표 위의 '상한 초과' 열이 세고 있는 바로 그것입니다.
+// 여기서 다시 판정하지 않는 이유는 recipeParams 를 다시 좁히지 않는 이유와
+// 같습니다: 화면 하나가 두 경로로 같은 사실을 계산하면 언젠가 갈립니다.
 const paramRows = computed(() =>
-  buildLotParamRows(visibleCards.value.map(card => card.step), props.recipeParams)
+  buildLotParamRows(
+    visibleCards.value.map(card => card.step),
+    props.recipeParams,
+    props.row?.verdict.recipes ?? []
+  )
 )
 const paramRowCount = computed(() => paramRows.value.length)
 

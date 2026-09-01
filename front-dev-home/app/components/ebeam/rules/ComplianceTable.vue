@@ -50,7 +50,7 @@
           <th class="w-[130px] px-2 py-2 text-right whitespace-nowrap sk-label">
             상한 초과
           </th>
-          <th class="w-[92px] px-2 py-2" />
+          <th class="w-[184px] px-2 py-2" />
           <th class="w-full" />
         </tr>
       </thead>
@@ -75,14 +75,28 @@
               :title="violationTitle(dev)"
             >{{ formatViolations(dev) }}</span>
           </td>
-          <td class="px-2 py-1.5 text-right">
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              :label="text.details"
-              @click="openDrill(dev.lot_cd)"
-            />
+          <td class="px-2 py-1.5">
+            <div class="flex items-center justify-end gap-1.5">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="outline"
+                :label="text.details"
+                @click="openDrill(dev.lot_cd)"
+              />
+              <UTooltip :text="text.downloadHint">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-file-spreadsheet"
+                  label="Excel"
+                  :aria-label="`${dev.lot_cd} 룰 준수 결과 Excel 내려받기`"
+                  :loading="downloading === dev.lot_cd"
+                  @click="downloadDevice(dev.lot_cd)"
+                />
+              </UTooltip>
+            </div>
           </td>
           <td />
         </tr>
@@ -103,6 +117,9 @@ import { evaluateLot } from '~/utils/ruleEngine'
 import { toViolationDrill, type DrillDevice } from '~/utils/deviceDrill'
 import { groupRecipesByLot } from '~/utils/deviceProfile'
 import { isExemptJob } from '~/utils/lotHealth'
+import { buildComplianceWorkbook, complianceFileName } from '~/utils/complianceExport'
+import { downloadWorkbook } from '~/utils/xlsx'
+import { todayStamp } from '~/utils/dateTime'
 
 const props = defineProps<{ cells: RuleCell[] }>()
 
@@ -117,6 +134,7 @@ const text = {
   title: 'R3 룰 준수',
   legend: '선택한 R3 디바이스의 recipe 별 상한 준수 결과 · 상한을 넘긴 recipe / 룰로 판정한 recipe',
   details: '자세히',
+  downloadHint: '이 디바이스의 판정 결과를 Excel 로 내려받기 (자세히와 같은 내용)',
   judgeSons: 'son 파라미터 판정',
   judgeSonsHint: 'son 은 mother 와 같은 image 에서 값을 꺼내므로 son 을 재는 데 드는 측정 point 가 따로 없습니다. 끄면 mother 파라미터만 상한과 견줍니다.',
   empty: '디바이스 통계에서 R3 디바이스를 선택하면 룰 준수 결과가 표시됩니다.',
@@ -229,5 +247,32 @@ const openDrill = (lot_cd: string) => {
   if (!judged) return
   activeDrill.value = toViolationDrill(lot_cd, judged.recipes[0]?.ctn_desc ?? '', judged.health)
   drillOpen.value = true
+}
+
+const downloading = ref<string | null>(null)
+
+// 자세히와 **같은 judgedByLot 항목**을 씁니다. openDrill 바로 아래에 나란히 둔
+// 것은 그래서입니다 — 화면이 접어 보여 주는 판정과 파일이 펴서 담는 판정이
+// 갈릴 자리를 없앱니다. 둘 다 여기서 다시 evaluateLot 을 부르지 않습니다.
+//
+// exceljs 는 동적 import 라 첫 클릭에 수백 KB 를 받습니다. 그동안 아무 표시도
+// 없으면 버튼이 죽은 것으로 읽혀 다시 누르게 됩니다.
+const downloadDevice = async (lot_cd: string) => {
+  const judged = judgedByLot.value.get(lot_cd)
+  if (!judged) return
+  downloading.value = lot_cd
+  try {
+    await downloadWorkbook(
+      complianceFileName(lot_cd, todayStamp()),
+      buildComplianceWorkbook({
+        health: judged.health,
+        ctn_desc: judged.recipes[0]?.ctn_desc ?? '',
+        judgeSons: judgeSons.value,
+        exportedAt: new Date().toISOString()
+      })
+    )
+  } finally {
+    downloading.value = null
+  }
 }
 </script>

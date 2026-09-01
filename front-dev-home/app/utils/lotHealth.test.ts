@@ -323,7 +323,8 @@ test('no-verdict lots sort last, red first', () => {
   const mk = (health: 'red' | 'yellow' | 'green', ratio: number) => ({
     kind: 'judged' as const, health, violation_ratio: ratio,
     violation_recipes: 0, judged_recipes: 4, total_recipes: 4,
-    gray_recipes: 0, gray_reasons: {}, exempt_recipes: 0, coverage: 1
+    gray_recipes: 0, gray_reasons: {}, exempt_recipes: 0, coverage: 1,
+    recipes: []
   })
   const order = [
     mk('green', 0), mk('red', 0.5), undefined, mk('yellow', 0.15)
@@ -396,7 +397,8 @@ test('within one colour the worse ratio comes first', () => {
   const mk = (ratio: number) => ({
     kind: 'judged' as const, health: 'red' as const, violation_ratio: ratio,
     violation_recipes: 0, judged_recipes: 4, total_recipes: 4,
-    gray_recipes: 0, gray_reasons: {}, exempt_recipes: 0, coverage: 1
+    gray_recipes: 0, gray_reasons: {}, exempt_recipes: 0, coverage: 1,
+    recipes: []
   })
   assert.ok(verdictSortValue(mk(0.9)) < verdictSortValue(mk(0.3)))
 })

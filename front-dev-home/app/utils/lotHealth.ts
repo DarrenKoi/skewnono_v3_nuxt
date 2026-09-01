@@ -17,6 +17,7 @@ import {
   type HealthLevel,
   type JudgeOptions,
   type RecipeInput,
+  type RecipeResult,
   type RuleCell,
   type Thresholds
 } from './ruleEngine.ts'
@@ -55,6 +56,18 @@ export interface LotVerdict {
   exempt_recipes: number
   /** judged / total. 0 이면 아무것도 판정하지 못했습니다. */
   coverage: number
+  /**
+   * recipe 하나하나의 판정. 위의 집계는 전부 이 배열에서 나온 숫자입니다.
+   *
+   * 집계만 두었다가 **내보내기가 상세를 필요로 해서** 실어 보냅니다 — lot 상세
+   * 모달의 파라미터 CSV 가 "이 파라미터가 상한을 넘겼는가" 를 칸으로 적어야
+   * 하는데, 그 답은 이미 `evaluateLot` 이 여기서 계산해 두고 집계만 남긴 채
+   * 버리던 것이었습니다. 소비처가 다시 판정하게 두면 화면의 상한 초과 열과
+   * 파일이 갈릴 두 번째 경로가 생깁니다 (이 파일이 되풀이해 피하는 그것).
+   *
+   * `no-rules` 이거나 전 recipe 가 판정 외 job 이면 빈 배열입니다.
+   */
+  recipes: RecipeResult[]
 }
 
 /** `lot_cd`+`recipe_id` 한 쌍의 키. 버킷 필터가 이 키로 좁힙니다. */
@@ -138,7 +151,8 @@ const emptyVerdict = (): LotVerdict => ({
   gray_recipes: 0,
   gray_reasons: {},
   exempt_recipes: 0,
-  coverage: 0
+  coverage: 0,
+  recipes: []
 })
 
 /**
@@ -217,7 +231,8 @@ export const buildLotVerdicts = (
       gray_recipes: total - judged,
       gray_reasons: grayReasons,
       exempt_recipes: exemptByLot.get(lotCd) ?? 0,
-      coverage: total === 0 ? 0 : judged / total
+      coverage: total === 0 ? 0 : judged / total,
+      recipes: health.recipes
     })
   }
 
