@@ -13,7 +13,8 @@
 
     <footer class="border-t-(--sk-border) py-4">
       <div class="max-w-7xl mx-auto px-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
-        SKEWNONO v3 - Metrology Solution
+        <div>SKEWNONO v3 - Metrology Solution</div>
+        <div class="mt-1">developed by 최대영 TL</div>
       </div>
     </footer>
   </div>
