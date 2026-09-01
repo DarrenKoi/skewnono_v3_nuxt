@@ -25,7 +25,7 @@
 > **2026-09-01 종료.** 위 4항 표는 **회신이 필요 없어졌습니다.** 네 항목
 > 모두 `answer/contract.py` 가 실행으로 답합니다 —
 > `python -m scripts.verify.check_answer_contract --live`. 경위는
-> [`2026-09-01-chat-to-rag-executable-contract.md`](2026-09-01-chat-to-rag-executable-contract.md)
+> [`2026-09-01-chat-to-rag-structure-changes.md`](2026-09-01-chat-to-rag-structure-changes.md)
 > 에 있습니다.
 
 ## 사무실 검증 순서 (참고)
