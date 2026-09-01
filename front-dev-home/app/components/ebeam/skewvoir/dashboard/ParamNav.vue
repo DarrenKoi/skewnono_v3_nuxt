@@ -16,10 +16,16 @@
       <!-- The chips carry one signal 파라미터 요약 does not — per-parameter
            failures + outliers. Rolled up here so collapsing the row never
            hides the fact that something needs looking at. -->
-      <span
+      <button
         v-if="flaggedParamCount"
-        class="font-mono text-xs font-semibold text-(--sk-bad)"
-      >● {{ flaggedParamCount }}개 이상·실패</span>
+        type="button"
+        class="inline-flex items-center rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-1 font-mono text-xs font-semibold text-(--sk-bad) transition-colors hover:bg-(--sk-bad-soft-hover) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--sk-focus-ring)"
+        :aria-expanded="open"
+        :aria-controls="chipsId"
+        @click="open = true"
+      >
+        ● {{ flaggedParamCount }}개 이상·실패 파라미터 보기
+      </button>
 
       <!-- NAVIGATE family (ink), not the terracotta the chips use: this reveals,
            it does not filter. See DESIGN.md. -->
