@@ -32,15 +32,22 @@ def test_mock_answer_has_the_agreed_shape():
     assert isinstance(result["content"], str) and result["content"].strip()
     assert len(result["sources"]) <= 5
     for source in result["sources"]:
-        assert source["source_type"] == "manual"
+        # Any of the contract's four, not manuals only — the mock reaches
+        # every retrieval tool the office agent does.
+        assert source["source_type"] in {"manual", "meeting", "email", "report"}
         assert source["source_id"] and source["title"] and source["snippet"]
     assert 3 <= len(result["follow_ups"]) <= 5
     assert all(isinstance(item, str) and item for item in result["follow_ups"])
     assert result["rewrite"] is None or result["rewrite"] != "alignment 오차 보정 방법"
-    assert result["tool_traces"] and result["tool_traces"][0]["status"] in {
-        "success",
-        "empty",
-    }
+    assert [trace["tool_name"] for trace in result["tool_traces"]] == [
+        "search_manuals",
+        "search_meeting_summaries",
+        "search_emails",
+        "search_reports",
+    ]
+    assert all(
+        trace["status"] in {"success", "empty"} for trace in result["tool_traces"]
+    )
     assert result["prompt_tokens"] is None
     assert result["completion_tokens"] is None
 
@@ -78,3 +85,30 @@ def test_no_checkout_selects_the_mock_provider():
     from back_dev_home.chat.answer.providers import mock as mock_provider
 
     assert data._provider() is mock_provider
+
+
+def test_a_figure_less_citation_is_reachable_at_home():
+    """The office's COMMON case: text and table chunks carry no figure_id.
+
+    Only the non-manual fixtures have ``figure_id: None``, so while this mock
+    searched manuals alone the state could not occur at home — and the UI path
+    for a citation with no image was the one path no home session could see.
+    """
+    result = _answer("정비 공지 계측 서비스")
+
+    assert result["sources"], "the open email fixture must be reachable"
+    assert any(source["figure_id"] is None for source in result["sources"])
+
+
+def test_sources_from_different_tools_share_one_ranking():
+    """Merged hits are ordered by score across tools, not tool by tool.
+
+    Each search sorts within its own source, so concatenating them would put a
+    weak manual above a strong report purely because manuals are searched
+    first — and the top 5 cap would then drop the better evidence.
+    """
+    result = _answer("계측 서비스 공지 측정 tat 시나리오")
+
+    scores = [float(source["score"] or 0) for source in result["sources"]]
+    assert scores == sorted(scores, reverse=True)
+    assert len({source["source_type"] for source in result["sources"]}) > 1
