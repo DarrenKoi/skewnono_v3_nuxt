@@ -108,6 +108,20 @@ const systemStatus = computed(() => {
       </div>
     </section>
 
+    <!-- 전사 반출 금지 고지. 개별 페이지가 아니라 진입점에 두어, 어떤 탭으로
+         들어가든 한 번은 읽고 지나가게 합니다. -->
+    <div
+      class="flex items-start gap-2.5 rounded-3xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-5 py-3.5"
+    >
+      <UIcon
+        name="i-lucide-triangle-alert"
+        class="mt-0.5 size-5 shrink-0 text-(--sk-warn)"
+      />
+      <p class="sk-meta leading-relaxed">
+        <span class="sk-title">데이터 반출 금지</span> — 스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.
+      </p>
+    </div>
+
     <!-- Category Cards -->
     <div
       class="grid gap-6"

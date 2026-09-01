@@ -600,6 +600,20 @@ const openMeasHist = (row: RecipeSearchResult) => {
       :stats="metaStats"
     />
 
+    <!-- 반출 통제 고지. Recipe 이름 자체가 사내 공정 정보라 검색 결과를 그대로
+         옮기는 것이 곧 반출이 됩니다 — 결과를 보기 전에 읽히도록 상단에 둡니다. -->
+    <div
+      class="flex items-start gap-2 rounded-[var(--sk-r-card)] border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-2.5 sk-meta leading-relaxed"
+    >
+      <UIcon
+        name="i-lucide-triangle-alert"
+        class="mt-0.5 size-4 shrink-0 text-(--sk-warn)"
+      />
+      <p>
+        Recipe 정보 사외 반출 시 반드시 <span class="sk-title">MI팀</span>과 협의를 거쳐야 합니다.
+      </p>
+    </div>
+
     <!-- One 12-col grid with two stacked columns, not two full-width grid rows.
          Results must sit directly under the lookup card; when they lived in a
          separate grid row the tall 최근 검색 panel set the first row's height and
