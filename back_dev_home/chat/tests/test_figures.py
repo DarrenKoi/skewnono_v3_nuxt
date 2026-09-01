@@ -151,6 +151,11 @@ class _Denied(Exception):
 
 
 class FakeMinio:
+    # Same attribute names MinioBase resolves its bucket/prefix into — the
+    # warning path reads them off the client to report the key it really used.
+    default_bucket = "user"
+    default_prefix = "2067928"
+
     def __init__(self, objects, *, raise_with=None):
         self.objects = objects
         self.raise_with = raise_with
@@ -225,7 +230,16 @@ def test_an_office_storage_error_is_a_miss_but_leaves_a_trace(client, minio, cap
         response = client.get(f"/api/chat/figures/{OFFICE_FIGURE_ID}")
 
     assert response.status_code == 404
-    assert any("AccessDenied" in record.getMessage() for record in caplog.records)
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("AccessDenied" in message for message in messages)
+    # The bucket and the FULL key, not just the exception: the office failure
+    # this catches is a key missing its 2067928/ namespace, which no exception
+    # type can show.
+    assert any(
+        f"user/2067928/skewnono_rag/hitachi_manuals/figures/{OFFICE_FIGURE_ID}.webp"
+        in message
+        for message in messages
+    )
 
 
 @pytest.mark.parametrize("figure_id", MALFORMED_IDS)

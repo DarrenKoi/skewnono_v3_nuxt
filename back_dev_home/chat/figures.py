@@ -34,8 +34,17 @@ another bucket.
 Every failure is a miss (``None`` → 404), by design: distinguishing "bad id"
 from "not stored" from "no store configured" would make the endpoint an
 oracle for which figure_ids exist. Storage errors that are NOT a plain miss
-are logged so a scoped-credential ``AccessDenied`` does not masquerade as an
-unextracted figure.
+are logged WITH the bucket and resolved key, because the log line is then the
+only signal — and the thing that differs between machines is the key itself.
+The user namespace comes from ``minio_handler/minio_config.py``, which is
+gitignored: on a checkout without that file ``default_prefix`` is ``None``,
+the key loses ``2067928/``, and credentials scoped to that prefix answer
+``AccessDenied``. Printing the key turns "AccessDenied" into "AccessDenied on
+a key you can see is missing its namespace". Note that BUCKET and PREFIX have
+no environment fallback — unlike the connection settings, they are read from
+that module alone (``minio_handler/base.py`` ``_module_values``), so the only
+other way to supply them here is ``SKEWNONO_CHAT_FIGURE_BUCKET`` and folding
+the namespace into ``SKEWNONO_CHAT_FIGURE_PREFIX``.
 """
 
 from __future__ import annotations
@@ -145,6 +154,21 @@ def reset_client() -> None:
     _client = None
 
 
+def _store_location(key: str) -> str:
+    """``bucket/resolved-key``, for the warning below.
+
+    Read off the cached client rather than the config, so it reports what the
+    failing call actually used. Defensive throughout: the client may have
+    failed to construct (no credentials), and tests inject a double.
+    """
+    client = _client
+    if client is None:
+        return "no client"
+    bucket = getattr(client, "default_bucket", None) or "<no bucket>"
+    prefix = getattr(client, "default_prefix", None)
+    return f"{bucket}/{prefix + '/' if prefix else ''}{key}"
+
+
 def _read_minio(figure_id: str) -> bytes | None:
     key = figure_key(figure_id)
     try:
@@ -154,8 +178,9 @@ def _read_minio(figure_id: str) -> bytes | None:
         if code in _NOT_FOUND_CODES:
             return None
         log.warning(
-            "chat figure store read failed for %s: %s%s",
+            "chat figure store read failed for %s at %s: %s%s",
             figure_id,
+            _store_location(key),
             type(error).__name__,
             f" ({code})" if code else "",
         )
