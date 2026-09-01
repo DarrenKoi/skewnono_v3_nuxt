@@ -78,8 +78,17 @@ def chat_availability():
     Carries no reason string. "Why" is deployment detail and the SPA shows
     the same notice either way.
 
+    It also carries the turn budget, because the SPA shows "N초 경과 / 최대 M초"
+    while an answer is being made and M is the server's number, not a constant
+    the frontend can be trusted to keep in step. This endpoint is already
+    fetched once on mount, so it costs no extra request.
     """
-    return {"data": {"available": not config.is_under_development()}}
+    return {
+        "data": {
+            "available": not config.is_under_development(),
+            "answer_timeout_seconds": int(config.get_answer_timeout()),
+        }
+    }
 
 
 @bp.get("/chat/threads")

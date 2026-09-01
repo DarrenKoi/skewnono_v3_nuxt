@@ -76,8 +76,44 @@ UUID를 재사용하고, 같은 문장의 새 질문은 새 UUID를 생성합니
 구형 frontend가 새 backend에 message를 보내거나 새 frontend가 구형 backend에
 message를 보내는 혼합 배포를 허용하지 않습니다.
 
-Assistant message는 `runtime`, `scope_status`, `sources`, `feedback`을 포함합니다.
-Frontend와 backend의 해당 타입도 같은 release 단위로 유지합니다.
+Assistant message는 `status`, `runtime`, `scope_status`, `sources`, `feedback`을
+포함합니다. Frontend와 backend의 해당 타입도 같은 release 단위로 유지합니다.
+
+### Turn 은 요청이 아니라 리소스입니다 (2026-09-01)
+
+`POST` 는 답변을 기다리지 않습니다. assistant 행을 `pending` 으로 예약하고
+**202** 로 즉시 돌려주며, 답변은 백그라운드 worker 가 만들어 SQLite 에 씁니다.
+SPA 는 `GET /api/chat/threads/<id>` 를 2초 간격으로 폴링해 그 행이
+`done` 또는 `failed` 로 정착하는 것을 봅니다. 전용 폴링 엔드포인트는 없습니다 —
+스레드 조회가 이미 그 행을 내려주고, 그래서 새로고침이 진행 중인 turn 을 그대로
+이어받습니다.
+
+| 응답 | 언제 |
+| --- | --- |
+| `202` + `status: "pending"` | worker 가 답변을 만드는 중 |
+| `200` + `status: "done"` | scope 거절(0ms)이거나 이미 끝난 turn 의 재생 |
+| `503` | scope 게이트 자체가 사용 불가(`ScopeUnavailable`). 유일하게 인라인으로 남은 실패 |
+
+**답변 실패는 HTTP 오류가 아닙니다.** 답변이 요청 스레드에서 일어나지 않으므로,
+403/503/504 로 나가던 것이 이제 그 turn 의 행에 `status='failed'` 와
+`error_code` 로 남습니다. `error_code` 는 이 모듈이 오류 본문에 쓰는 문자열과
+같은 어휘(`runtime_denied` / `runtime_unavailable` / `gateway_timeout`)이므로
+SPA 는 한 벌만 알면 됩니다.
+
+**같은 `request_id` 의 재요청**은 진행 중인 turn 에 합류하고(RAG 에 두 번 묻지
+않습니다), 실패한 turn 은 같은 행에서 다시 시작합니다. 행은 turn 당 하나이며
+시도마다 늘지 않습니다.
+
+**고아 `pending`** 은 청소 작업이 아니라 읽을 때 나이로 판정합니다 —
+`created_at` 이 예산 + 30초를 넘긴 pending 은 `gateway_timeout` 실패로 보입니다.
+부팅 훅으로 일괄 처리하지 않는 이유는 `lazy-apps` 때문입니다: 워커가 각자
+부팅하므로 4번 워커가 뜨면서 1번 워커의 진행 중인 turn 을 죽이게 됩니다.
+
+`GET /api/chat/availability` 는 `answer_timeout_seconds` 도 함께 돌려줍니다.
+SPA 가 "42초 경과 / 최대 240초" 를 그리는 데 쓰며, 그 숫자는 서버의 것입니다.
+
+혼합 배포는 여기서도 허용하지 않습니다 — 구형 SPA 는 202 를 완성된 답변으로
+읽습니다.
 
 ## RAG 동거(co-location) — 사내 RAG 저장소를 chat 아래에 두는 방법 (2026-08-28)
 

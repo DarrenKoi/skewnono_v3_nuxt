@@ -75,14 +75,17 @@ def client(tmp_path, monkeypatch):
 
 def test_availability_reports_the_page_gate(client, monkeypatch):
     """Catches the SPA losing its only signal that chat is not in service."""
+    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", "240")
     monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", "1")
     assert client.get("/api/chat/availability").get_json()["data"] == {
-        "available": False
+        "available": False,
+        "answer_timeout_seconds": 240,
     }
 
     monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", "0")
     assert client.get("/api/chat/availability").get_json()["data"] == {
-        "available": True
+        "available": True,
+        "answer_timeout_seconds": 240,
     }
 
 

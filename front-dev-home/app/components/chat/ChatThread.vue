@@ -4,6 +4,9 @@ import type { ChatMessage, FeedbackInput } from '~/composables/useChatApi'
 const props = defineProps<{
   messages: ChatMessage[]
   pending?: boolean
+  /** Seconds since the turn started, and the budget it has. */
+  elapsedSeconds?: number
+  budgetSeconds?: number
   errorMessage?: string | null
   feedbackLoadingIds?: ReadonlySet<string>
 }>()
@@ -25,6 +28,22 @@ const scrollToEnd = () => {
 }
 // Keep the newest turn in view as messages arrive or the typing dots appear.
 watch(() => [props.messages.length, props.pending, props.errorMessage], scrollToEnd)
+
+/**
+ * "42초 경과 / 최대 240초" while an answer is being made.
+ *
+ * A turn can legitimately take minutes and the RAG reports nothing until it
+ * is finished, so there is no progress to show — but a counter answers the
+ * only question a long wait actually raises, which is whether anything is
+ * still happening. Held back for the first few seconds so a fast answer never
+ * flashes a stopwatch at anyone.
+ */
+const waited = computed(() => {
+  const seconds = props.elapsedSeconds ?? 0
+  if (!props.pending || seconds < 3) return ''
+  const budget = props.budgetSeconds ?? 0
+  return budget ? `${seconds}초 경과 / 최대 ${budget}초` : `${seconds}초 경과`
+})
 onMounted(scrollToEnd)
 
 const examples = [
@@ -92,12 +111,20 @@ const examples = [
           >
             <UIcon name="i-lucide-sparkles" />
           </div>
-          <div
-            class="sk-chat-typing"
-            role="status"
-            aria-label="응답 생성 중"
-          >
-            <span /><span /><span />
+          <div class="sk-chat-waiting">
+            <div
+              class="sk-chat-typing"
+              role="status"
+              aria-label="응답 생성 중"
+            >
+              <span /><span /><span />
+            </div>
+            <p
+              v-if="waited"
+              class="sk-chat-waited"
+            >
+              {{ waited }}
+            </p>
           </div>
         </div>
 
@@ -132,6 +159,18 @@ const examples = [
 </template>
 
 <style scoped>
+.sk-chat-waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.sk-chat-waited {
+  font-size: 0.75rem;
+  color: var(--sk-ink-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
 .sk-chat-scroller {
   scroll-behavior: smooth;
 }

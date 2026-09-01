@@ -46,6 +46,22 @@ export interface ChatMessage {
   request_id: string | null
   role: 'user' | 'assistant' | 'system'
   content: string
+  /**
+   * The turn's lifecycle, on the assistant row. A turn is reserved as
+   * `pending` when the question is sent and settles to `done` or `failed`;
+   * the page polls the thread until it leaves `pending`. Separate from
+   * `runtime`, which says what answered rather than whether it finished.
+   * For an assistant row `created_at` is when the turn STARTED, which is what
+   * the elapsed-seconds display counts from.
+   */
+  status: 'pending' | 'done' | 'failed'
+  /**
+   * Set only on a failed turn, and drawn from the same vocabulary the API
+   * puts in an error body — one mapping whether the failure arrived on the
+   * POST or through a poll.
+   */
+  error_code: 'runtime_denied' | 'runtime_unavailable' | 'gateway_timeout' | null
+  error_message: string | null
   /** What answered, when the RAG reports it. It usually does not. */
   model?: string | null
   runtime: 'rag' | 'scope_rejection' | null
@@ -83,13 +99,26 @@ export const useChatApi = () => {
   const url = (p: string) => joinApiPath(config.public.apiBase, p)
 
   /**
-   * Whether chat is in service on this deployment.
+   * Whether chat is in service here, and how long one turn may take.
    *
    * One SPA bundle ships to every phase, so the page cannot tell production
    * from the office on its own — the backend is the only thing that knows.
+   * The budget rides along for the same reason: the page prints it as
+   * "최대 N초" beside the elapsed count while an answer is being made, and a
+   * constant copied into the frontend would drift the next time it moves.
    */
-  const fetchAvailability = async (): Promise<boolean> =>
-    (await $fetch<{ data: { available: boolean } }>(url('/chat/availability'))).data.available
+  const fetchAvailability = async (): Promise<{
+    available: boolean
+    answerTimeoutSeconds: number
+  }> => {
+    const { data } = await $fetch<{
+      data: { available: boolean, answer_timeout_seconds?: number }
+    }>(url('/chat/availability'))
+    return {
+      available: data.available,
+      answerTimeoutSeconds: data.answer_timeout_seconds ?? 0
+    }
+  }
 
   const fetchThreads = async (): Promise<ThreadSummary[]> =>
     (await $fetch<{ data: ThreadSummary[] }>(url('/chat/threads'))).data
