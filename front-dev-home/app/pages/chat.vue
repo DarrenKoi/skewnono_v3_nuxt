@@ -5,6 +5,7 @@ import type {
   ThreadSummary
 } from '~/composables/useChatApi'
 import { reconcileMessageFeedback } from '~/utils/chatSources'
+import { httpStatus } from '~/utils/httpError'
 import { generateUuid } from '~/utils/uuid'
 
 const api = useChatApi()
@@ -83,7 +84,13 @@ const startNew = () => {
 }
 
 const removeThread = async (id: string) => {
-  await api.deleteThread(id)
+  try {
+    await api.deleteThread(id)
+  } catch (err) {
+    // 404 = already gone server-side (stale sidebar row, e.g. another tab or
+    // a reset chat.db). The resync below removes the row either way.
+    if (httpStatus(err) !== 404) throw err
+  }
   if (active.value?.id === id) active.value = null
   await loadThreads()
 }
