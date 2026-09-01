@@ -392,7 +392,7 @@ const paramRows = computed(() =>
   buildLotParamRows(
     visibleCards.value.map(card => card.step),
     props.recipeParams,
-    props.row?.verdict.recipes ?? []
+    props.row?.verdict
   )
 )
 const paramRowCount = computed(() => paramRows.value.length)

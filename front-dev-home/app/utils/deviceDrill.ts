@@ -126,7 +126,7 @@ export const toViolationDrill = (
           // 꼬리표 열은 112px 라 이보다 길면 두 줄로 접혀 행 높이가 어긋납니다.
           // "son" 을 적지 않아도 되는 것은 판정에서 빠지는 것이 son 뿐이고,
           // 표 위의 토글이 그 사실을 이미 말하고 있기 때문입니다.
-          : (!p.judged && p.point_count > p.cap) ? `cap ${p.cap} · 제외` : undefined
+          : (!p.judged && p.over_cap) ? `cap ${p.cap} · 제외` : undefined
     }))
     return {
       recipe_id: r.recipe_id,

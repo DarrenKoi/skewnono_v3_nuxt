@@ -173,6 +173,9 @@ const recipesByLot = computed(() => groupRecipesByLot(data.value ?? []))
 interface Judged {
   /** 특수 job 을 걷어낸 뒤의 recipe. drill 도 이 배열을 그대로 씁니다. */
   recipes: RecipeInput[]
+  /** 디바이스 이름. 자세히와 내보내기가 각자 recipes[0] 에서 파내면 파생이
+   *  두 곳에 생기므로, 만드는 자리에서 한 번만 꺼냅니다. */
+  ctn_desc: string
   total: number
   exempt: number
   health: LotHealth
@@ -185,6 +188,7 @@ const judgedByLot = computed<Map<string, Judged>>(() => {
     const recipes = all.filter(r => !isExemptJob(r.recipe_id))
     map.set(lot_cd, {
       recipes,
+      ctn_desc: recipes[0]?.ctn_desc ?? '',
       total: all.length,
       exempt: all.length - recipes.length,
       health: evaluateLot(lot_cd, recipes, props.cells, { judgeSons: judgeSons.value })
@@ -245,7 +249,7 @@ const activeDrill = ref<DrillDevice | null>(null)
 const openDrill = (lot_cd: string) => {
   const judged = judgedByLot.value.get(lot_cd)
   if (!judged) return
-  activeDrill.value = toViolationDrill(lot_cd, judged.recipes[0]?.ctn_desc ?? '', judged.health)
+  activeDrill.value = toViolationDrill(lot_cd, judged.ctn_desc, judged.health)
   drillOpen.value = true
 }
 
@@ -266,7 +270,7 @@ const downloadDevice = async (lot_cd: string) => {
       complianceFileName(lot_cd, todayStamp()),
       buildComplianceWorkbook({
         health: judged.health,
-        ctn_desc: judged.recipes[0]?.ctn_desc ?? '',
+        ctn_desc: judged.ctn_desc,
         judgeSons: judgeSons.value,
         exportedAt: new Date().toISOString()
       })

@@ -328,6 +328,16 @@ export interface ParamResult {
    * 파라미터와 판정에서 뺀 파라미터를 똑같이 그립니다 (deviceDrill 의 `note`).
    */
   judged: boolean
+  /**
+   * point_count 가 cap 을 넘었는가 — **판정 대상이었는지와 무관하게**.
+   *
+   * `violation` 은 `judged && over_cap` 입니다. 둘을 나눠 두는 이유는 화면과
+   * 파일이 "판정에서 뺐지만 상한은 넘긴" 파라미터를 그렇게 말해야 하기
+   * 때문입니다 — 그 술어를 소비처가 각자 다시 쓰면(`!p.judged &&
+   * p.point_count > p.cap`) 판정 규칙이 세 곳에 생기고, 상한의 정의가 바뀌는
+   * 날 한 곳만 고쳐집니다. cap 이 없으면(면제) 언제나 false 입니다.
+   */
+  over_cap: boolean
   violation: boolean
 }
 
@@ -376,7 +386,7 @@ export const evaluateRecipe = (
       pass: true, // conservative: gray ≠ violation (D14)
       gray: res.gray,
       gray_reason: res.reason,
-      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, violation: false }))
+      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, over_cap: false, violation: false }))
     }
   }
   // son 은 mother 와 같은 image 를 쓰므로 자기 타입 cap 이 아니라 그룹 mother 의
@@ -399,7 +409,8 @@ export const evaluateRecipe = (
     // 원칙이고, 실제로 같은 술어입니다: 상속이 걸릴 수 있는 파라미터가 곧
     // "mother 의 측정에 얹혀 가는" 파라미터입니다.
     const judged = judgeSons || !(!p.mother && p.region != null && caps.has(p.region))
-    return { name: p.name, point_count: p.point_count, type, cap, judged, violation: judged && typeof cap === 'number' && p.point_count > cap }
+    const over_cap = typeof cap === 'number' && p.point_count > cap
+    return { name: p.name, point_count: p.point_count, type, cap, judged, over_cap, violation: judged && over_cap }
   })
   const violation_params = results.filter(r => r.violation)
   return {

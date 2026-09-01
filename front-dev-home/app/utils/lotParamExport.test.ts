@@ -3,8 +3,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { LOT_PARAM_HEADERS, buildLotParamRows, lotParamFileName } from './lotParamExport.ts'
-import { evaluateLot } from './ruleEngine.ts'
-import type { RecipeInput, RecipeResult, RuleCell } from './ruleEngine.ts'
+import { buildLotVerdicts } from './lotHealth.ts'
+import type { LotVerdict } from './lotHealth.ts'
+import { SEED_THRESHOLDS } from './ruleEngine.ts'
+import type { RecipeInput, RuleCell } from './ruleEngine.ts'
 
 const infoRow = (recipe_id: string, oper_desc: string, para_all = 0) => ({
   lot_cd: 'R000',
@@ -37,17 +39,27 @@ const params = (recipe_id: string, entries: [string, number][]): RecipeInput => 
   parameters: entries.map(([name, point_count]) => ({ name, point_count }))
 })
 
-// 판정은 손으로 짓지 않고 **엔진에게 받습니다** — 이 빌더가 지켜야 하는 것은
-// evaluateLot 의 출력을 칸으로 옮기는 규칙이지, 판정 그 자체가 아닙니다.
-const cell = (caps: RuleCell['caps']): RuleCell => ({
+// 판정은 손으로 짓지 않고 **화면과 같은 경로로 받습니다** — 이 빌더가 지켜야
+// 하는 것은 buildLotVerdicts 의 출력을 칸으로 옮기는 규칙이지, 판정 그
+// 자체가 아닙니다.
+const cell = (caps: RuleCell['caps'], fac_id = 'R3'): RuleCell => ({
   id: 'c1',
-  selector: { fac_id: 'R3', recipe_class: 'Main', family: 'Core', phase_in: ['EV'] },
+  selector: { fac_id, recipe_class: 'Main', family: 'Core', phase_in: ['EV'] },
   caps,
   name_overrides: []
 })
 
-const judge = (recipes: RecipeInput[], caps: RuleCell['caps']): RecipeResult[] =>
-  evaluateLot('R000', recipes, [cell(caps)]).recipes
+const judge = (
+  recipes: RecipeInput[],
+  caps: RuleCell['caps'],
+  fac_id = 'R3'
+): LotVerdict | undefined => buildLotVerdicts(recipes, {
+  R3: { cells: [cell(caps, fac_id)], thresholds: SEED_THRESHOLDS }
+}).get('R000')
+
+/** 룰이 없는 fab. verdict 는 있고 kind 만 'no-rules' 입니다. */
+const noRules = (recipes: RecipeInput[]): LotVerdict | undefined =>
+  buildLotVerdicts(recipes, { R3: null }).get('R000')
 
 test('one row per parameter, joined on recipe_id', () => {
   const recipes = [params('RCP-001', [['WAFER_CD', 13], ['EDGE_L', 8]])]
@@ -76,26 +88,42 @@ test('headers name what the user asked for', () => {
 // 읽는 사람이 그 둘을 구별할 수 없습니다.
 test('판정이 없는 recipe 는 왜 없는지를 적는다', () => {
   const recipes = [params('RCP-001', [['WAFER_CD', 13]])]
-  const noRules = buildLotParamRows([infoRow('RCP-001', 'step')], recipes, [])
-  assert.equal(noRules[0]?.[3], '룰 없음')
-  assert.equal(noRules[0]?.[8], '룰 없음')
-  assert.equal(noRules[0]?.[7], '', '판정하지 않은 행에 초과를 적으면 안 됩니다')
+  const rows = buildLotParamRows([infoRow('RCP-001', 'step')], recipes, noRules(recipes))
+  assert.equal(rows[0]?.[3], '룰 없음')
+  assert.equal(rows[0]?.[8], '룰 없음')
+  assert.equal(rows[0]?.[7], '', '판정하지 않은 행에 초과를 적으면 안 됩니다')
 
   const exempt = [params('RCP_WCDU_01', [['WAFER_CD', 104]])]
-  const rows = buildLotParamRows([infoRow('RCP_WCDU_01', 'step')], exempt, [])
-  assert.equal(rows[0]?.[3], '판정 범위 밖(특수 job)')
+  const exemptRows = buildLotParamRows(
+    [infoRow('RCP_WCDU_01', 'step')], exempt, judge(exempt, { WAFER: 9, _other: 20 })
+  )
+  assert.equal(exemptRows[0]?.[3], '판정 범위 밖(특수 job)',
+    '룰이 있어도 특수 job 은 판정 범위 밖이라고 말해야 합니다')
+})
+
+// 룰도 있고 특수 job 도 아닌데 판정에 없는 행. 예전에는 '룰 없음' 이라고
+// 적었는데, 그건 있지도 않은 원인을 파일이 지목하는 것이었습니다.
+test('룰은 있는데 판정에 없는 행은 아는 만큼만 적는다', () => {
+  const judged = [params('RCP-001', [['WAFER_CD', 13]])]
+  const rows = buildLotParamRows(
+    [infoRow('RCP-001', 'step'), infoRow('RCP-999', 'other step')],
+    [...judged, params('RCP-999', [['WAFER_CD', 13]])],
+    judge(judged, { WAFER: 9, _other: 20 })
+  )
+  assert.equal(rows[0]?.[3], '상한 초과')
+  assert.equal(rows[1]?.[3], '판정 결과 없음')
+  assert.equal(rows[1]?.[8], '판정 결과 없음')
 })
 
 // gray recipe(룰 미정·어노테이션 미설정)를 빈 칸으로 두면 깨끗한 recipe 와
 // 파일에서 같아집니다 — 화면의 '판정 제외' 와 같은 말을 적습니다.
 test('gray recipe 는 사유를 모든 행에 적는다', () => {
   const recipes = [params('RCP-001', [['WAFER_CD', 13], ['EDGE_L', 8]])]
-  // fac_id 가 맞지 않는 셀뿐이라 룰을 못 찾습니다 → gray A.
-  const gray = evaluateLot('R000', recipes, [{
-    ...cell({ WAFER: 9, _other: 20 }),
-    selector: { fac_id: 'M11', recipe_class: 'Main' }
-  }]).recipes
-  const rows = buildLotParamRows([infoRow('RCP-001', 'step')], recipes, gray)
+  const rows = buildLotParamRows(
+    [infoRow('RCP-001', 'step')], recipes,
+    // fac_id 가 맞지 않는 셀뿐이라 룰을 못 찾습니다.
+    judge(recipes, { WAFER: 9, _other: 20 }, 'M11')
+  )
   assert.deepEqual(rows.map(r => r[3]), ['판정 제외', '판정 제외'])
   assert.deepEqual(rows.map(r => r[8]), ['룰 미정', '룰 미정'])
   assert.deepEqual(rows.map(r => r[7]), ['', ''], 'gray 는 초과로 세지 않습니다')
@@ -104,11 +132,11 @@ test('gray recipe 는 사유를 모든 행에 적는다', () => {
 // 이름으로 잇습니다. 순서로 이으면 mother 버킷처럼 한쪽만 좁혀진 날 한 칸씩
 // 밀린 cap 이 조용히 붙습니다.
 test('파라미터 판정은 이름으로 이어 붙는다', () => {
-  const judged = judge([params('RCP-001', [['A', 1], ['WAFER_CD', 13]])], { WAFER: 9, _other: 20 })
+  const verdict = judge([params('RCP-001', [['A', 1], ['WAFER_CD', 13]])], { WAFER: 9, _other: 20 })
   const rows = buildLotParamRows(
     [infoRow('RCP-001', 'step')],
     [params('RCP-001', [['WAFER_CD', 13]])], // 화면이 A 를 걸러낸 상태
-    judged
+    verdict
   )
   assert.deepEqual(rows[0]?.slice(4), ['WAFER_CD', '13', '9', '초과', ''])
 })
@@ -119,7 +147,7 @@ test('parameter order is the source order, never sorted', () => {
   const rows = buildLotParamRows(
     [infoRow('RCP-001', 'step')],
     [params('RCP-001', [['WAFER_CD', 13], ['EDGE_L', 8], ['CD_BAR', 3]])],
-    []
+    undefined
   )
   assert.deepEqual(rows.map(r => r[4]), ['WAFER_CD', 'EDGE_L', 'CD_BAR'])
 })
@@ -130,20 +158,30 @@ test('recipe order is the caller order, never re-sorted', () => {
   const rows = buildLotParamRows(
     [infoRow('RCP-B', 'step B'), infoRow('RCP-A', 'step A')],
     [params('RCP-A', [['P', 1]]), params('RCP-B', [['Q', 2]])],
-    []
+    undefined
   )
   assert.deepEqual(rows.map(r => r[2]), ['RCP-B', 'RCP-A'])
 })
 
 test('a recipe with no parameters still gets a row', () => {
-  const rows = buildLotParamRows([infoRow('RCP-001', 'step')], [], [])
+  const rows = buildLotParamRows([infoRow('RCP-001', 'step')], [], undefined)
   assert.deepEqual(rows, [['R000', 'step', 'RCP-001', '룰 없음', '', '', '', '', '룰 없음']])
+})
+
+// 판정된 recipe 가 파라미터를 하나도 안 가진 경우는 워크북과 **같은 말**을
+// 써야 합니다 — 예전엔 여기가 빈 칸이고 워크북만 '파라미터 없음' 이었습니다.
+test('판정된 recipe 의 빈 파라미터 줄은 워크북과 같은 말을 쓴다', () => {
+  const judged = [params('RCP-001', [])]
+  const rows = buildLotParamRows(
+    [infoRow('RCP-001', 'step')], judged, judge(judged, { _other: 20 })
+  )
+  assert.equal(rows[0]?.[8], '파라미터 없음')
 })
 
 test('a recipe present only in recipe-params is not invented', () => {
   // 조인의 축은 화면이 보여주는 recipe 목록입니다. params 쪽에만 있는 recipe 를
   // 끌어오면 파일이 화면보다 많은 것을 말하게 됩니다.
-  const rows = buildLotParamRows([], [params('RCP-GHOST', [['P', 1]])], [])
+  const rows = buildLotParamRows([], [params('RCP-GHOST', [['P', 1]])], undefined)
   assert.deepEqual(rows, [])
 })
 
@@ -153,7 +191,7 @@ test('zero measure points is written, not blanked', () => {
   const rows = buildLotParamRows(
     [infoRow('RCP-001', 'step')],
     [params('RCP-001', [['EDGE_EX_L', 0]])],
-    []
+    undefined
   )
   assert.equal(rows[0]?.[5], '0')
 })

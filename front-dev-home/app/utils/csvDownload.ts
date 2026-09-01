@@ -102,3 +102,18 @@ export const copyTableToClipboard = async (
 
   return copyTextToClipboard(tsv)
 }
+
+/**
+ * 파일 이름 한 토막을 파일 시스템이 받아들이는 형태로 씻습니다.
+ *
+ * lot 코드·recipe 이름·파라미터 이름은 전부 office 값이라 슬래시를 비롯해
+ * 파일 이름에 못 쓰는 문자가 섞여 옵니다. 내보내기 세 곳(lotParamExport ·
+ * complianceExport · recipeParamExport)이 같은 정규식을 각자 들고 있었고,
+ * 셋 다 주석으로 "…와 같은 이유" 라며 서로를 가리키고 있었습니다 — 코드가
+ * 아니라 산문으로 추적하던 중복이라 여기로 모읍니다.
+ *
+ * 빈 값이 `unknown` 이 되는 것은 이름 없는 파일(`_params.csv`)이 무엇을 담고
+ * 있는지 스스로 말하지 못하기 때문입니다.
+ */
+export const safeFileNamePart = (value: string): string =>
+  (value || 'unknown').replace(/[^\w.-]+/g, '_')

@@ -8,7 +8,11 @@
  * 파일 쪽에서 맡습니다.
  *
  * 판단은 하지 않습니다 — `ruleEngine` 이 이미 내린 판정을 문자열로 옮길
- * 뿐입니다. 순수 함수라 `node --test` 가 그대로 실행합니다.
+ * 뿐입니다. 그래서 인자는 전부 **있는 판정**입니다: 판정이 없는 행을 무엇이라
+ * 부를지는 조인을 소유한 쪽(lotParamExport)이 자기 자리에서 답합니다. 여기서
+ * 는 어느 쪽인지 알 수 없기 때문입니다.
+ *
+ * 순수 함수라 `node --test` 가 그대로 실행합니다.
  */
 import type { ParamResult, RecipeResult } from './ruleEngine.ts'
 
@@ -16,31 +20,15 @@ import type { ParamResult, RecipeResult } from './ruleEngine.ts'
  * 초과 칸의 값. 정상은 **빈 칸**입니다 — '정상' 을 적으면 두 문자열이 같은
  * 폭으로 늘어서서, 열을 훑을 때 초과가 눈에 튀지 않습니다. 빈 칸이면 자동
  * 필터 한 번으로 초과만 남습니다.
- */
-export const OVER = '초과'
-export const NOT_OVER = ''
-
-/**
- * recipe 층 판정 한 마디.
  *
- * `fallback` 은 판정 자체가 없을 때(룰 없는 fab, 판정 범위 밖 job) 쓰는 말로,
- * 호출자가 정합니다 — 어느 쪽인지는 여기서 알 수 없고, 둘을 한 말로 뭉개면
- * "룰이 없다" 와 "이 job 은 원래 안 본다" 가 파일에서 같아집니다.
+ * 판정 대상이 아니었으면 상한을 넘겼어도 빈 칸입니다 — 그 사실은 아래
+ * `paramNoteCell` 이 말합니다.
  */
-export const recipeVerdictCell = (
-  recipe: RecipeResult | undefined,
-  fallback: string
-): string =>
-  recipe == null
-    ? fallback
-    : recipe.gray != null
-      ? '판정 제외'
-      : recipe.pass ? '정상' : '상한 초과'
+export const overCell = (param: ParamResult): string => param.violation ? '초과' : ''
 
-/** 파라미터가 상한을 넘겼는가. 판정 대상이 아니었으면 넘겼어도 빈 칸입니다 —
- *  그 사실은 아래 `paramNoteCell` 이 말합니다. */
-export const overCell = (param: ParamResult | undefined): string =>
-  param?.violation ? OVER : NOT_OVER
+/** recipe 층 판정 한 마디. */
+export const recipeVerdictCell = (recipe: RecipeResult): string =>
+  recipe.gray != null ? '판정 제외' : recipe.pass ? '정상' : '상한 초과'
 
 /**
  * 왜 이 행이 판정에서 빠졌는가. 빠지지 않았으면 빈 칸.
@@ -51,25 +39,24 @@ export const overCell = (param: ParamResult | undefined): string =>
  * 사유가 붙습니다 — 되풀이되지만, 한 행만 떼어 봐도 말이 되는 것이 평평한
  * 표의 값입니다.
  */
-export const paramNoteCell = (
-  recipe: RecipeResult | undefined,
-  param: ParamResult | undefined,
-  fallback: string
-): string => {
-  if (recipe == null || param == null) return fallback
+export const paramNoteCell = (recipe: RecipeResult, param: ParamResult): string => {
   if (recipe.gray != null) return recipe.gray_reason ?? '룰 미정'
   if (param.judged) return ''
   // 판정에서 빠지는 것은 son 뿐입니다(ruleEngine 의 JudgeOptions). 상한을 넘긴
   // son 은 넘겼다는 사실까지 적습니다 — son 판정 토글을 껐다는 것이 숫자가
   // 줄었다는 것 말고도 파일에 남습니다.
-  const over = typeof param.cap === 'number' && param.point_count > param.cap
-  return over ? 'son 판정 제외 · 상한 초과' : 'son 판정 제외'
+  return param.over_cap ? 'son 판정 제외 · 상한 초과' : 'son 판정 제외'
 }
 
 /** cap 칸. 룰이 상한을 두지 않은 파라미터(면제)는 빈 칸입니다. */
-export const capCell = (param: ParamResult | undefined): number | string =>
-  typeof param?.cap === 'number' ? param.cap : ''
+export const capCell = (param: ParamResult): number | string => param.cap ?? ''
 
-/** recipe_id → 판정. 두 내보내기 모두 이 조인으로 원본 행에 판정을 붙입니다. */
-export const indexResults = (recipes: RecipeResult[]): Map<string, RecipeResult> =>
-  new Map(recipes.map(r => [r.recipe_id, r]))
+/**
+ * 파라미터가 하나도 없는 recipe 의 비고.
+ *
+ * 두 내보내기 모두 그런 recipe 를 **한 줄로 남깁니다** — 건너뛰면 그 recipe 가
+ * 파일에서 통째로 사라져, "측정 파라미터가 없는 recipe" 와 "받아오지 못한
+ * recipe" 를 구분할 수 없습니다. 그 줄이 스스로를 설명하는 말이라 두 파일이
+ * 같은 말을 써야 하고, 그래서 여기 있습니다.
+ */
+export const NO_PARAMS = '파라미터 없음'

@@ -16,6 +16,7 @@ import type { IdpImageInfoRow, IdpLocator } from '../composables/useRecipeSearch
 import type { ParamDetail, ParamImage, SettingBlock } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS } from './recipeView.ts'
 import { createWorkbook, writeWorkbook } from './xlsx.ts'
+import { safeFileNamePart } from './csvDownload.ts'
 
 // Relative `.ts` specifier, not the `~` alias, for the same reason
 // `recipeCompare.ts` uses one: `node --test` cannot resolve `~`, but resolves
@@ -210,10 +211,10 @@ export function buildParamWorkbook(input: ParamExportInput): ParamWorkbook {
 }
 
 /** `RCP_001_Para_13.xlsx`. Recipe and parameter names come from the office and
- *  can carry characters a filesystem rejects, so they are sanitised here. */
+ *  can carry characters a filesystem rejects, so they go through the shared
+ *  `safeFileNamePart` — the same one every other export filename uses. */
 export function paramExportFilename(recipeId: string, parameter: string): string {
-  const safe = (value: string) => (value || 'unknown').replace(/[^\w.-]+/g, '_')
-  return `${safe(recipeId)}_${safe(parameter)}.xlsx`
+  return `${safeFileNamePart(recipeId)}_${safeFileNamePart(parameter)}.xlsx`
 }
 
 /** Roughly 4:3 at a readable size in Excel's default zoom. */

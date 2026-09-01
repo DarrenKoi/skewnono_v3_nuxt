@@ -637,7 +637,11 @@ useEchart(stackedEl, stackedOption)
 useEchart(availRecipeEl, availRecipeOption)
 
 const lotModalOpen = ref(false)
-const selectedLotRow = ref<HealthAugmentedRow | null>(null)
+// shallowRef: 이 행은 `verdict.recipes` 로 recipe 175 개 · 파라미터 1,500 여 개의
+// 판정 트리를 달고 옵니다. 깊은 ref 면 Vue 가 모달을 열 때 그 전부를 프록시로
+// 감싸고(측정 2.3ms, 필터를 토글할 때마다 0.8ms 씩 더), 얻는 것은 없습니다 —
+// 이 ref 는 언제나 통째로 갈아끼워질 뿐 안쪽 필드를 고치는 곳이 없습니다.
+const selectedLotRow = shallowRef<HealthAugmentedRow | null>(null)
 
 // 필터의 초기 상태를 **진입점이** 정합니다 (D1). 행을 눌러 들어온 사람은 "이
 // device 가 무엇을 재는가" 를 물었고, outlier 배지를 눌러 들어온 사람은 "무엇이

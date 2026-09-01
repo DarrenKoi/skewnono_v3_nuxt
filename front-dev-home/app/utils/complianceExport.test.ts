@@ -48,6 +48,9 @@ test('한 파라미터가 한 줄, 초과는 초과라고 적는다', () => {
   ))[1]!.rows
 
   assert.deepEqual(rows[0], [...COMPLIANCE_HEADERS])
+  // deepEqual 은 strict 라 13 과 '13' 을 구별합니다 — measure_points 와 cap 이
+  // **숫자**로 나간다는 것을 이 한 줄이 함께 지킵니다. 문자열로 내면 엑셀에서
+  // 정렬도 조건부 서식도 걸리지 않습니다.
   assert.deepEqual(rows.slice(1), [
     ['R0A8', 'RCP-001', '상한 초과', 'WAFER_CD', 13, 9, '초과', ''],
     ['R0A8', 'RCP-001', '상한 초과', 'EDGE_L', 8, 20, '', ''],
@@ -57,18 +60,9 @@ test('한 파라미터가 한 줄, 초과는 초과라고 적는다', () => {
 
 // 정상은 빈 칸입니다 — '정상' 을 적으면 두 문자열이 같은 폭으로 늘어서서
 // 열을 훑을 때 초과가 눈에 튀지 않고, 자동 필터도 한 번에 안 끝납니다.
-test('정상 파라미터의 초과 칸은 빈 칸이다', () => {
+test('상한 안에 든 recipe 는 정상이라고 적는다', () => {
   const rows = sheetOf(judge([recipe('RCP-001', [['WAFER_CD', 5]])], { WAFER: 9, _other: 20 }))[1]!.rows
-  assert.equal(rows[1]?.[6], '')
   assert.equal(rows[1]?.[2], '정상')
-})
-
-// point_count 와 cap 은 **숫자**로 나갑니다. 문자열로 내면 엑셀에서 정렬도
-// 조건부 서식도 걸리지 않습니다.
-test('measure_points 와 cap 은 숫자로 나간다', () => {
-  const rows = sheetOf(judge([recipe('RCP-001', [['WAFER_CD', 13]])], { WAFER: 9, _other: 20 }))[1]!.rows
-  assert.equal(typeof rows[1]?.[4], 'number')
-  assert.equal(typeof rows[1]?.[5], 'number')
 })
 
 // gray recipe 를 빈 칸으로 두면 깨끗한 recipe 와 파일에서 같아집니다.

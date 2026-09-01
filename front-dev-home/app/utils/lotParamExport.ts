@@ -14,9 +14,11 @@
 // 순수 함수라 `node --test` 가 그대로 실행합니다 — 컴포넌트 안에 두면
 // 테스트가 볼 수 없습니다.
 import type { RecipeInfoRow } from '~/composables/useRecipeStatisticsApi'
-import type { RecipeInput, RecipeResult } from './ruleEngine'
+import type { RecipeInput } from './ruleEngine'
+import type { LotVerdict } from './lotHealth'
 import { isExemptJob } from './lotHealth.ts'
-import { capCell, overCell, paramNoteCell, recipeVerdictCell } from './violationCells.ts'
+import { safeFileNamePart } from './csvDownload.ts'
+import { NO_PARAMS, capCell, overCell, paramNoteCell, recipeVerdictCell } from './violationCells.ts'
 
 /** 엑셀 첫 줄. 화면 용어와 같은 말을 씁니다. */
 export const LOT_PARAM_HEADERS = [
@@ -32,14 +34,22 @@ export const LOT_PARAM_HEADERS = [
 ] as const
 
 /**
- * 판정이 아예 없는 recipe 의 사유. 두 경우를 **구별해서** 적습니다.
+ * 판정이 아예 없는 행의 사유. 세 경우를 **구별해서** 적습니다.
  *
- * 하나로 뭉개면 "이 fab 에는 룰이 없다" 와 "이 job 은 원래 판정 대상이
- * 아니다" 가 파일에서 같은 말이 되고, 앞의 것은 고쳐야 할 일이지만 뒤의 것은
- * 정상입니다. 특수 job 이 판정 범위 밖인 이유는 `lotHealth.isExemptJob` 에
- * 적혀 있습니다.
+ * 하나로 뭉개면 "이 fab 에는 룰이 없다"(고쳐야 할 일)와 "이 job 은 원래 판정
+ * 대상이 아니다"(정상)가 파일에서 같은 말이 됩니다. 특수 job 이 판정 범위
+ * 밖인 이유는 `lotHealth.isExemptJob` 에 적혀 있습니다.
+ *
+ * `noResult` 는 나머지 전부입니다 — 룰도 있고 특수 job 도 아닌데 판정에
+ * 없는 행. 실제로는 화면과 판정이 서로 다른 범위로 좁혀졌을 때 나오며,
+ * 왜인지 여기서는 알 수 없으므로 아는 만큼만 적습니다. 모르는 것을 '룰 없음'
+ * 이라고 적으면 있지도 않은 원인을 파일이 지목하게 됩니다.
  */
-const NO_VERDICT = { exempt: '판정 범위 밖(특수 job)', noRules: '룰 없음' } as const
+const NO_VERDICT = {
+  exempt: '판정 범위 밖(특수 job)',
+  noRules: '룰 없음',
+  noResult: '판정 결과 없음'
+} as const
 
 /**
  * recipe 순서는 **호출자가 정해서 넘깁니다** — 화면에 보이는 순서 그대로
@@ -51,43 +61,52 @@ const NO_VERDICT = { exempt: '판정 범위 밖(특수 job)', noRules: '룰 없�
  * 통째로 사라져, 읽는 사람은 "측정 파라미터가 없는 recipe" 와 "받아오지 못한
  * recipe" 를 구분할 수 없습니다.
  *
- * `verdictRecipes` 는 이 lot 의 판정 결과(`LotVerdict.recipes`)입니다. 기본값을
- * 두지 않은 것은 빈 배열이 곧 "이 fab 에 룰이 없다" 를 뜻하기 때문입니다 —
- * 넘기는 것을 잊으면 파일이 모든 행을 '룰 없음' 이라고 잘못 소개합니다.
+ * `verdict` 는 이 lot 의 판정(`buildLotVerdicts` 의 산물)입니다. 판정 결과
+ * 배열이 아니라 verdict 를 통째로 받는 것은, 룰이 없다는 사실을 **verdict 가
+ * 스스로 말하기** 때문입니다(`kind: 'no-rules'`). 배열만 받으면 그 사실이
+ * 배열의 비어 있음으로 표현되고, 빈 배열은 타입이 잡아 주지 못하는 합법적인
+ * 값이라 넘기기를 잊은 날 파일이 모든 행을 '룰 없음' 이라고 잘못 소개합니다.
  */
 export const buildLotParamRows = (
   orderedRecipes: RecipeInfoRow[],
   recipeParams: RecipeInput[],
-  verdictRecipes: RecipeResult[]
+  verdict: LotVerdict | undefined
 ): string[][] => {
   const paramsByRecipe = new Map<string, RecipeInput>()
   for (const recipe of recipeParams) paramsByRecipe.set(recipe.recipe_id, recipe)
 
-  const verdictByRecipe = new Map<string, RecipeResult>()
-  for (const result of verdictRecipes) verdictByRecipe.set(result.recipe_id, result)
+  const resultByRecipe = new Map((verdict?.recipes ?? []).map(r => [r.recipe_id, r]))
+  // 룰이 없다는 것은 verdict 에게 물어서 압니다. `emptyVerdict()` 도 'no-rules'
+  // 라 verdict 가 아예 없는 경우와 같은 답이 나옵니다.
+  const noRules = (verdict?.kind ?? 'no-rules') === 'no-rules'
 
   const rows: string[][] = []
   for (const recipe of orderedRecipes) {
     const parameters = paramsByRecipe.get(recipe.recipe_id)?.parameters ?? []
-    const verdict = verdictByRecipe.get(recipe.recipe_id)
+    const result = resultByRecipe.get(recipe.recipe_id)
     // 판정이 없는 recipe 는 왜 없는지가 곧 사유입니다. 판정 범위 밖 job 은
     // `buildLotVerdicts` 가 애초에 판정에 넣지 않으므로 여기서 이름으로
     // 되짚습니다 — 그 판단의 주인은 계속 `isExemptJob` 하나입니다.
-    const missing = isExemptJob(recipe.recipe_id) ? NO_VERDICT.exempt : NO_VERDICT.noRules
-    const verdictLabel = recipeVerdictCell(verdict, missing)
+    const missing = isExemptJob(recipe.recipe_id)
+      ? NO_VERDICT.exempt
+      : noRules ? NO_VERDICT.noRules : NO_VERDICT.noResult
+    const verdictLabel = result ? recipeVerdictCell(result) : missing
 
     if (parameters.length === 0) {
       rows.push([
         recipe.lot_cd, recipe.oper_desc, recipe.recipe_id, verdictLabel,
-        '', '', '', '', verdict ? '' : missing
+        '', '', '', '', result ? NO_PARAMS : missing
       ])
       continue
     }
     // 파라미터 판정은 이름으로 잇습니다. 순서로 이으면 mother 버킷처럼 한쪽만
     // 좁혀진 날 한 칸씩 밀린 cap 이 조용히 붙습니다.
-    const resultByName = new Map((verdict?.results ?? []).map(r => [r.name, r]))
+    const resultByName = new Map((result?.results ?? []).map(r => [r.name, r]))
     for (const param of parameters) {
-      const result = resultByName.get(param.name)
+      // recipe 는 판정됐는데 이 파라미터만 없는 경우가 있습니다(버킷이 한쪽만
+      // 좁혀진 날). 그때의 사유는 recipe 층 사유가 아니라 '판정 결과 없음'
+      // 입니다 — recipe 는 룰을 찾았으므로 '룰 없음' 은 거짓말이 됩니다.
+      const p = result && resultByName.get(param.name)
       rows.push([
         recipe.lot_cd,
         recipe.oper_desc,
@@ -95,9 +114,9 @@ export const buildLotParamRows = (
         verdictLabel,
         param.name,
         String(param.point_count),
-        String(capCell(result)),
-        overCell(result),
-        paramNoteCell(verdict, result, missing)
+        p ? String(capCell(p)) : '',
+        p ? overCell(p) : '',
+        p ? paramNoteCell(result, p) : (result ? NO_VERDICT.noResult : missing)
       ])
     }
   }
@@ -112,11 +131,9 @@ export const buildLotParamRows = (
  * 가리키는 이름인데, 이 파일은 요약이 아니라 그 아래 파라미터 명세입니다 —
  * `R0A8_all_summary_params.csv` 는 파일 이름이 스스로를 잘못 소개하는 꼴입니다.
  *
- * lot 코드는 office 값이라 파일명으로 쓰기 전에 씻어 냅니다
- * (recipeParamExport.paramExportFilename 과 같은 이유).
+ * lot 코드는 office 값이라 파일명으로 쓰기 전에 씻어 냅니다 — `safeFileNamePart`.
  */
 export const lotParamFileName = (lotCd: string, bucket: string, flagged = false): string => {
-  const safe = (value: string) => (value || 'unknown').replace(/[^\w.-]+/g, '_')
   const suffix = flagged ? '_flagged' : ''
-  return `${safe(lotCd)}_${safe(bucket.replace(/_summary$/, ''))}_params${suffix}.csv`
+  return `${safeFileNamePart(lotCd)}_${safeFileNamePart(bucket.replace(/_summary$/, ''))}_params${suffix}.csv`
 }

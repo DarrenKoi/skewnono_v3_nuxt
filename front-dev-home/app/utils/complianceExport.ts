@@ -13,7 +13,8 @@
  */
 import type { LotHealth } from './ruleEngine.ts'
 import type { WorkbookSheet } from './xlsx.ts'
-import { capCell, overCell, paramNoteCell, recipeVerdictCell } from './violationCells.ts'
+import { safeFileNamePart } from './csvDownload.ts'
+import { NO_PARAMS, capCell, overCell, paramNoteCell, recipeVerdictCell } from './violationCells.ts'
 
 /**
  * 엑셀 첫 줄. 판정은 recipe 층과 파라미터 층 **양쪽**에 답니다 —
@@ -46,18 +47,17 @@ export interface ComplianceExportInput {
  *
  * 파라미터가 없는 recipe 도 한 줄로 남깁니다. 건너뛰면 그 recipe 가 파일에서
  * 통째로 사라져, "측정 파라미터가 없는 recipe" 와 "받아오지 못한 recipe" 를
- * 구분할 수 없습니다 (lotParamExport 와 같은 결정).
+ * 구분할 수 없습니다 (lotParamExport 와 같은 결정, 같은 말).
  *
  * 판정이 없는 recipe 는 여기 올 수 없습니다 — 이 표는 룰이 있는 R3 만 다루고,
  * 판정 범위 밖 job 은 화면이 `evaluateLot` 에 넘기기 전에 이미 걸렀습니다.
- * 그래서 fallback 자리는 빈 문자열입니다.
  */
 const judgementRows = (health: LotHealth): (string | number)[][] => {
   const rows: (string | number)[][] = [[...COMPLIANCE_HEADERS]]
   for (const recipe of health.recipes) {
-    const verdict = recipeVerdictCell(recipe, '')
+    const verdict = recipeVerdictCell(recipe)
     if (recipe.results.length === 0) {
-      rows.push([health.lot_cd, recipe.recipe_id, verdict, '', '', '', '', '파라미터 없음'])
+      rows.push([health.lot_cd, recipe.recipe_id, verdict, '', '', '', '', NO_PARAMS])
       continue
     }
     for (const param of recipe.results) {
@@ -69,7 +69,7 @@ const judgementRows = (health: LotHealth): (string | number)[][] => {
         param.point_count,
         capCell(param),
         overCell(param),
-        paramNoteCell(recipe, param, '')
+        paramNoteCell(recipe, param)
       ])
     }
   }
@@ -105,9 +105,6 @@ export const buildComplianceWorkbook = (input: ComplianceExportInput): WorkbookS
  * 날짜를 **받는** 것은 룰을 고치면 같은 디바이스의 판정이 날마다 달라지기
  * 때문입니다 — 파일 이름이 언제의 판정인지 말합니다. 함수 안에서 시계를 읽지
  * 않는 것은 그래야 이름이 테스트 가능하기 때문입니다.
- *
- * lot 코드는 office 값이라 파일명으로 쓰기 전에 씻어 냅니다
- * (lotParamExport.lotParamFileName 과 같은 이유).
  */
 export const complianceFileName = (lotCd: string, stamp: string): string =>
-  `${(lotCd || 'unknown').replace(/[^\w.-]+/g, '_')}_rule_compliance_${stamp}.xlsx`
+  `${safeFileNamePart(lotCd)}_rule_compliance_${stamp}.xlsx`
