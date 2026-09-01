@@ -23,6 +23,17 @@ const markFailed = (figureId: string) => {
 const hasFigure = (source: SourceRef): source is SourceRef & { figure_id: string } =>
   !!source.figure_id && !failed.value.has(source.figure_id)
 
+/**
+ * A citation is worth opening when it has something the chip cannot show.
+ *
+ * The chip is one line of label; the evidence the answer was built on is the
+ * snippet, and it was previously reachable only as a `title` tooltip — absent
+ * on touch, untranslatable, and gone the moment the pointer moves. A citation
+ * with neither figure nor snippet stays an inert chip rather than opening an
+ * empty dialog.
+ */
+const isReadable = (source: SourceRef) => hasFigure(source) || !!source.snippet.trim()
+
 const zoomedSource = ref<SourceRef | null>(null)
 const isOpen = computed({
   get: () => zoomedSource.value !== null,
@@ -53,11 +64,12 @@ watch(zoomedSource, () => {
         :key="source.source_id"
       >
         <!-- Source locators are internal identifiers, not navigable URLs, so
-             only a figure-bearing citation is actionable at all. -->
+             a chip never navigates. What it opens is the evidence itself:
+             the figure when there is one, the cited text otherwise. -->
         <button
           v-if="hasFigure(source)"
           type="button"
-          class="sk-chat-source-chip sk-chat-source-chip-figure"
+          class="sk-chat-source-chip sk-chat-source-chip-actionable sk-chat-source-chip-figure"
           :title="source.snippet"
           :aria-label="`${formatSourceLabel(source)} 그림 크게 보기`"
           @click="zoomedSource = source"
@@ -77,10 +89,28 @@ watch(zoomedSource, () => {
             aria-hidden="true"
           />
         </button>
+        <button
+          v-else-if="isReadable(source)"
+          type="button"
+          class="sk-chat-source-chip sk-chat-source-chip-actionable"
+          :title="source.snippet"
+          :aria-label="`${formatSourceLabel(source)} 인용문 보기`"
+          @click="zoomedSource = source"
+        >
+          <UIcon
+            name="i-lucide-file-text"
+            aria-hidden="true"
+          />
+          {{ formatSourceLabel(source) }}
+          <UIcon
+            name="i-lucide-maximize-2"
+            class="sk-chat-source-zoom"
+            aria-hidden="true"
+          />
+        </button>
         <span
           v-else
           class="sk-chat-source-chip"
-          :title="source.snippet"
         >
           <UIcon
             name="i-lucide-file-text"
@@ -97,8 +127,11 @@ watch(zoomedSource, () => {
       :ui="{ content: 'w-[92vw] sm:max-w-[900px]' }"
     >
       <template #body>
+        <!-- hasFigure, not figure_id: a figure whose image already 404'd in
+             the chip must not be requested again here, or the dialog opens on
+             a broken image while the chip beside it shows text. -->
         <div
-          v-if="zoomedSource?.figure_id"
+          v-if="zoomedSource && hasFigure(zoomedSource)"
           class="sk-chat-figure-stage"
           :class="{ 'sk-chat-figure-stage-magnified': isMagnified }"
         >
@@ -113,8 +146,19 @@ watch(zoomedSource, () => {
           >
         </div>
         <p
+          v-if="zoomedSource?.section"
+          class="sk-chat-source-section"
+        >
+          {{ zoomedSource.section }}
+        </p>
+        <!-- Under a figure the snippet is a caption; without one it IS the
+             evidence, so it takes the reading tier (DESIGN.md §Typography:
+             14px + leading-relaxed for Korean paragraphs) instead of the
+             12px supporting tier. -->
+        <p
           v-if="zoomedSource?.snippet"
           class="sk-chat-figure-snippet"
+          :class="{ 'sk-chat-figure-snippet-primary': !hasFigure(zoomedSource) }"
         >
           {{ zoomedSource.snippet }}
         </p>
@@ -167,17 +211,21 @@ watch(zoomedSource, () => {
   flex-shrink: 0;
 }
 
-/* The one actionable chip in the row, so it carries the affordance the
-   others deliberately lack. */
-.sk-chat-source-chip-figure {
-  padding-left: 0.2rem;
+/* Every chip that opens the dialog carries the same affordance; a chip with
+   nothing behind it deliberately lacks it. */
+.sk-chat-source-chip-actionable {
   cursor: pointer;
   transition: border-color 200ms, color 200ms;
 }
 
-.sk-chat-source-chip-figure:hover {
+.sk-chat-source-chip-actionable:hover {
   border-color: var(--sk-border);
   color: var(--sk-ink);
+}
+
+/* Only the thumbnail needs the tighter leading edge. */
+.sk-chat-source-chip-figure {
+  padding-left: 0.2rem;
 }
 
 .sk-chat-source-thumb {
@@ -230,10 +278,25 @@ watch(zoomedSource, () => {
   cursor: zoom-out;
 }
 
+.sk-chat-source-section {
+  margin-bottom: 0.5rem;
+  color: var(--sk-ink-subtle);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .sk-chat-figure-snippet {
   margin-top: 0.75rem;
   color: var(--sk-ink-muted);
   font-size: 0.75rem;
   line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.sk-chat-figure-snippet-primary {
+  margin-top: 0;
+  color: var(--sk-ink);
+  font-size: 0.875rem;
+  line-height: 1.75;
 }
 </style>
