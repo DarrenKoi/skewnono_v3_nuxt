@@ -153,32 +153,58 @@ useHead({
 
     <!-- Hidden on uncollected fabs: every mode renders the same "not collected"
          sentence there, so the control would offer a choice that does
-         nothing — see TimeSeries.vue's lensTabsVisible for the precedent. -->
+         nothing — see TimeSeries.vue's lensTabsVisible for the precedent.
+
+         Same precedent for the skin, and for the same reason. These are the
+         board's MAIN tabs — they pick what the page is showing, not a variant
+         of a view you are already in — so they take DESIGN.md's `sk-nav-pill`
+         language (ink fill, --sk-r-nav, 15px), which the selection-primitive
+         decision flow assigns to exactly this job, rather than the white-pill-
+         on-a-rail segmented skin built for SUB-tabs. And they sit on their own
+         `dashboard-surface` card: a bare pill row on the page background read
+         as loose furniture between the meta bar and the board.
+
+         The pill's ROLE CLASSES are taken, not the <SkNavPill> COMPONENT: it
+         hardcodes `aria-pressed`, a toggle-button semantic invalid on
+         `role="tab"`, and these are real tabs wired to the board below via
+         aria-controls/aria-labelledby with roving-tabindex arrow keys.
+         Restating the pill's geometry in utilities instead of taking the
+         classes is how that choice quietly recreates the dependency. -->
     <div
       v-if="feedStatus !== 'not_configured'"
-      ref="filterTabsEl"
-      role="tablist"
-      aria-label="알람 종류 필터"
-      class="inline-flex w-fit items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
-      @keydown="onFilterKeydown"
+      class="dashboard-surface flex flex-col gap-2 rounded-(--sk-r-card) px-3 py-2.5"
     >
-      <button
-        v-for="option in FILTERS"
-        :id="tabId(option.value)"
-        :key="option.value"
-        type="button"
-        role="tab"
-        :tabindex="filter === option.value ? 0 : -1"
-        :aria-selected="filter === option.value"
-        :aria-controls="PANEL_ID"
-        class="rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors"
-        :class="filter === option.value
-          ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
-          : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-        @click="filter = option.value"
+      <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <h3 class="sk-panel-title">
+          보기
+        </h3>
+        <p class="sk-hint">
+          아래 보드에 표시할 알람 종류를 고릅니다.
+        </p>
+      </div>
+      <div
+        ref="filterTabsEl"
+        role="tablist"
+        aria-label="알람 종류 필터"
+        class="inline-flex w-fit items-center gap-1.5"
+        @keydown="onFilterKeydown"
       >
-        {{ option.label }}
-      </button>
+        <button
+          v-for="option in FILTERS"
+          :id="tabId(option.value)"
+          :key="option.value"
+          type="button"
+          role="tab"
+          :tabindex="filter === option.value ? 0 : -1"
+          :aria-selected="filter === option.value"
+          :aria-controls="PANEL_ID"
+          class="sk-nav-pill sk-nav-pill--lg"
+          :class="filter === option.value ? 'sk-nav-pill--active' : 'sk-nav-pill--rest'"
+          @click="filter = option.value"
+        >
+          {{ option.label }}
+        </button>
+      </div>
     </div>
 
     <!-- The tablist is conditional, so the panel only claims to be its
