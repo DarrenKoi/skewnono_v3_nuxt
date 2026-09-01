@@ -276,12 +276,25 @@ namespace가 두 번 붙습니다(위 표 아래 설명).
 (mock/office 로 갈라져 있던 것을 2026-08-31 합쳤습니다. 그 분기가 실제로 뜻한
 바는 "집에서는 한국어 질문을 거절한다" 였고, 그것을 원한 테스트는 없었습니다.)
 
+**2026-09-01 부터 deny-list 입니다.** 명시적으로 도메인 밖인 marker(영화, 주식,
+날씨 …)가 없으면 통과시킵니다. 그전에는 반대로 도메인 marker 를 **요구**했고,
+그 결과 어휘에 없는 용어로 물으면 거절했습니다 — "MDC에 대해서 알려줘" 가
+`mdc` 가 목록에 없다는 이유로 막혔습니다. 우리가 미리 떠올린 단어만 담긴
+allow-list 는 하필 사용자가 모르는 용어에서 가장 크게 실패하며, 목록에 있는 말로
+바꿔 물으려면 이미 답을 알아야 합니다. 진짜 필터는 retrieval 입니다: 도메인 밖
+질문은 근거를 못 찾아 "근거 없음" 으로 정직하게 답하고, 검색 한 번을 씁니다.
+잘못된 거절의 대가는 답 그 자체입니다.
+
 어휘는 RAG handoff 가 정한 도메인 marker(`ebeam, metrology, measurement, tool,
 alarm, manual, recipe, error, cd-sem, sem, calibration, optics, vacuum, stage,
 wafer, idp, amp, hitachi, gt2000, cg6300`)에 한국어 대응어를 짝지은 것입니다.
-반환 `status` 는 `in_scope`, `mixed`, `out_of_scope`, `unsafe` 중 하나이며
-`reason_code` 와 `supported_query` 를 함께 정규화합니다. `mixed` 일 때만 지원되는
-부분을 `supported_query` 로 전달하고, 그 절만 RAG 에 묻습니다.
+이제 이 목록은 게이트가 아니라 `mixed` 질문에서 지원되는 절을 골라내는 데
+쓰입니다. 반환 `status` 는 `in_scope`, `mixed`, `out_of_scope`, `unsafe` 중
+하나이며 `reason_code` 와 `supported_query` 를 함께 정규화합니다. marker 로
+통과한 것과 기본 허용으로 통과한 것은 `reason_code` 가 각각 `supported_domain`,
+`no_marker_default_allow` 로 갈리므로 messages 테이블에서 구분해 셀 수 있습니다.
+`mixed` 일 때만 지원되는 부분을 `supported_query` 로 전달하고, 그 절만 RAG 에
+묻습니다.
 
 ## Thread storage 동기화
 

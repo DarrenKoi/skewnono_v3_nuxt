@@ -1,5 +1,20 @@
 """Which questions this chat answers — one marker policy, everywhere.
 
+**Deny-list, not allow-list (2026-09-01).** A query is in scope unless it
+carries an explicitly off-topic marker. The earlier rule was the inverse — a
+domain marker was REQUIRED — and it refused every question phrased in terms
+the list had never heard of: "MDC에 대해서 알려줘" was turned away because
+``mdc`` is not in the vocabulary, which is precisely the question the manuals
+can answer and the user cannot rephrase without already knowing the answer.
+An allow-list of domain words can only contain the jargon we thought of first,
+so it fails hardest on exactly the unfamiliar term someone is asking about.
+
+The real filter is retrieval, not this function: a genuinely off-domain
+question finds no evidence and gets an honest "no evidence found", which costs
+one search. A false refusal costs the user the answer. So the in-scope markers
+below no longer gate anything — they survive to salvage the supported clause
+out of a MIXED query, and as the record of what the RAG side listed.
+
 The vocabulary is the RAG side's domain markers in Korean and English
 (handoff ``docs/datatables/chat/chat_office_adapter_handoff.txt``, 2026-08-27),
 and it is the same at home and at the office: scope is a product decision
@@ -78,17 +93,23 @@ def _decide(
 
     has_in_scope = _contains_any(normalized, in_scope)
     has_out_of_scope = _contains_any(normalized, out_of_scope)
-    if has_in_scope and has_out_of_scope:
+    if not has_out_of_scope:
+        # Nothing off-topic in it — pass, whether or not a domain marker
+        # matched. The two reason codes keep that distinction visible in the
+        # messages table, so how often the permissive default carries a turn
+        # is a query rather than a guess.
+        return {
+            "status": "in_scope",
+            "reason_code": (
+                "supported_domain" if has_in_scope else "no_marker_default_allow"
+            ),
+            "supported_query": query,
+        }
+    if has_in_scope:
         return {
             "status": "mixed",
             "reason_code": "mixed_scope",
             "supported_query": _supported_clause(query, in_scope, out_of_scope) or None,
-        }
-    if has_in_scope:
-        return {
-            "status": "in_scope",
-            "reason_code": "supported_domain",
-            "supported_query": query,
         }
     return {
         "status": "out_of_scope",
