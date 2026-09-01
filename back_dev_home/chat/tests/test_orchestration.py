@@ -431,3 +431,24 @@ def test_a_recorder_failure_costs_the_record_not_the_answer(
     assert _settled(fake_store)["content"] == "answer"
     assert _settled(fake_store)["status"] == "done"
     assert "record chat conversation" in caplog.text
+
+
+def test_an_earlier_failed_turn_is_not_sent_as_a_blank_reply(
+    fake_store, answerer, scope_decision
+):
+    """History carries answers, not the holes where answers failed.
+
+    A failed turn leaves a row with empty content and a request id of its own,
+    so the current turn's request-id filter does not catch it. Forwarding it
+    would tell the RAG the conversation contains a blank assistant message —
+    and only ever in the situation where a turn has already gone wrong.
+    """
+    orchestrator = _orchestrator(fake_store, answerer, scope_decision)
+    answerer.error = KnowledgeUnavailable("no checkout")
+    orchestrator.send_message("u1", "t1", "첫 질문", REQUEST_ID)
+    assert _settled(fake_store)["status"] == "failed"
+
+    answerer.error = None
+    orchestrator.send_message("u1", "t1", "두 번째 질문", SECOND_REQUEST_ID)
+
+    assert answerer.histories[-1] == [{"role": "user", "content": "첫 질문"}]

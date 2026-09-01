@@ -288,14 +288,20 @@ class ChatOrchestrator:
         The current user turn is already persisted when this runs (so a retry
         of the same request id joins it instead of re-asking), which is exactly
         the message the contract says must NOT be duplicated into the history.
-        The reserved assistant row is dropped by the same request-id filter —
-        it is empty, and sending an empty assistant turn as history would tell
-        the RAG the conversation contains a blank reply.
+
+        Unsettled assistant rows are dropped too, and by status rather than by
+        request id: a turn reserved a moment ago is this turn (the request-id
+        filter would have caught it), but an EARLIER turn that failed leaves a
+        row with an empty content and a request id of its own. Sending that
+        would tell the RAG the conversation contains a blank reply, and it
+        would do so only in the one situation where the user is already having
+        a bad time.
         """
         return [
             {"role": message["role"], "content": message["content"]}
             for message in messages
             if message["request_id"] != request_id
+            and (message["role"] != "assistant" or message["status"] == "done")
         ]
 
     @staticmethod
