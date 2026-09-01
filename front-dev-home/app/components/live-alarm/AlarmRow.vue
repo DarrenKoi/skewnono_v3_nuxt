@@ -140,11 +140,16 @@ const details = computed(() => [
       </span>
     </p>
 
+    <!-- `event.fab_name`, not the `fab` prop: that one is the route segment,
+         which is "r3,r4" once more than one fab is selected. align-images takes
+         ONE fab_name — the office side builds a per-fab Redis key from it and
+         term-matches it in meas_hist — so a joined segment resolves to nothing
+         and the modal reports the tool as unreachable. -->
     <LiveAlarmAlignImagesModal
       v-if="canShowAlignImages"
       v-model:open="alignImagesOpen"
       :tool-type="(toolSlug as ToolType)"
-      :fab="fab"
+      :fab="event.fab_name"
       :recipe-id="event.recipe_id"
       :eqp-id="event.eqp_id"
     />

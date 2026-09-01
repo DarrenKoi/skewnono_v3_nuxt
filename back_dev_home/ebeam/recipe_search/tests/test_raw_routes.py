@@ -316,3 +316,22 @@ def test_align_images_rejects_an_unknown_tool_slug(client):
 def test_align_images_requires_a_recipe_name(client):
     response = client.get("/api/cdsem/recipe-search/align-images?eqp_id=CG6300_01")
     assert response.status_code == 400
+
+
+def test_align_images_rejects_a_joined_multi_fab_name(client):
+    """The 2026-09-01 live-alarm defect, at the seam that can see it.
+
+    The board's align modal was handed the ROUTE segment instead of the
+    alarming row's own fab, so selecting two fabs sent ``fab_name=r3,r4``. The
+    mock ignores fab_name entirely and answered 200, which is why this only
+    ever failed at the office -- there the name builds a Redis key that does
+    not exist and a keyword term that matches nothing, and the screen says the
+    tool is unreachable. The reader now refuses the list, so the same mistake
+    on any single-fab endpoint is red at home.
+    """
+    response = client.get(
+        "/api/cdsem/recipe-search/align-images"
+        "?recipe_name=MONITOR/CD_TOP_01&fab_name=r3,r4&eqp_id=CG6300_01"
+    )
+    assert response.status_code == 400
+    assert "one fab" in response.get_data(as_text=True)
