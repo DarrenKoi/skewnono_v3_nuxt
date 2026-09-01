@@ -19,10 +19,10 @@ RAG 측이 지식·검색·답변 생성을 전담하고, chat 측은 front 를 
 | 역할 | 담당 |
 | --- | --- |
 | 문서 ingestion, 인덱스 빌드, MinIO figure 적재 | RAG 측 |
-| 검색·질의 rewrite·follow-ups (`search_manuals`, `rewrite_query`, `generate_follow_ups`) | RAG 측 |
+| 검색·질의 rewrite·follow-ups | RAG 측 — 셋 다 `agent_query` **안에서** 일어납니다. chat 이 따로 부르는 함수는 없습니다(구 primitive 3함수는 2026-08-31 계약에서 폐기) |
 | LLM gateway 키 관리 (`skewnono_rag/config.py` 내장) | RAG 측 |
 | HTTP routes, 스레드 저장(SQLite), rate limit, 신원 | chat 측 |
-| scope 사전 게이트 (범위 밖 질문은 RAG 에 도달하지 않음) | chat 측 |
+| scope 사전 게이트 | chat 측 — 2026-09-01 부터 **deny-list** 입니다. 명시적 off-topic·unsafe 마커가 있는 질의만 막히고, 나머지는 마커가 없어도 RAG 에 도달합니다(`scope/policy.py`) |
 | figure 서빙 (`figure_id` → MinIO webp), SPA 화면 | chat 측 |
 | agent loop (검색 반복·답변 생성) | RAG 측 (`agent_query`) — chat 측 구 경로는 2026-08-31 삭제되었습니다 |
 | 모델 선택·system prompt | RAG 측 — chat 은 자체 LLM 호출이 없습니다 |
@@ -74,7 +74,7 @@ scope, timeout)` 하나로 옮기는 경계 변경이 끝났습니다
 
 | 내용 | 원본 |
 | --- | --- |
-| RAG 동거 배치, 공개 API 3함수, 오류 계약, 의존성 | `MIGRATION.md` 의 "RAG 동거" 절 |
+| RAG 동거 배치, 공개 API(`agent_query` 1함수), 오류 계약, 의존성 | `MIGRATION.md` 의 "RAG 동거" 절 |
 | Evidence 필드 규칙, figure 저장소(MinIO 키), index 위치 | `../../docs/datatables/hitachi/chat_rag_contract.txt` |
 | import 경로와 index 기본값의 코드 구현 | `rag.py` (`import_rag`, `index_dir`) |
 | Evidence / AccessScope 타입 | `knowledge/contracts.py` |
