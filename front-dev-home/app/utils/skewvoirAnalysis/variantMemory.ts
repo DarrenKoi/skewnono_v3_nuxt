@@ -38,13 +38,26 @@ export const MAX_REMEMBERED_VARIANTS = 200
 // ('A', 'B|C') and ('A|B', 'C') cannot collide into one bucket.
 const SEP = '\u001f'
 
+interface VariantRecipeSource {
+  msr: string
+  exe_detail_info: { recipe_name: string }
+}
+
+/** Prefer the loaded file because shared links need no history-row hit. Reject
+ * a stale file retained while another MSR loads, then fall back to the row. */
+export const resolveVariantMemoryRecipe = (
+  focusMsr: string | null,
+  file: VariantRecipeSource | null,
+  rowRecipe: string | null | undefined
+): string | null =>
+  (file?.msr === focusMsr ? file.exe_detail_info.recipe_name : null) || rowRecipe || null
+
 /** The memory key for a recipe/parameter pair, or null when either half is not
- * resolved yet — an unresolved half must NOT fall back to a shared bucket, or
- * two parameters would trade picks while the focus file loads. */
+ * resolved yet. An empty parameter is the valid unnamed settling MP. */
 export const variantMemoryKey = (
   recipe: string | null | undefined,
   parameter: string | null | undefined
-): string | null => (recipe && parameter ? `${recipe}${SEP}${parameter}` : null)
+): string | null => (recipe && parameter != null ? `${recipe}${SEP}${parameter}` : null)
 
 /**
  * Where the remembered label sits among THIS point's image names, or 0 when

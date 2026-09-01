@@ -24,6 +24,7 @@ import {
   normalizeVariantMemory,
   rememberVariant,
   rememberedVariantIndex,
+  resolveVariantMemoryRecipe,
   variantMemoryKey,
   type VariantMemory
 } from '~/utils/skewvoirAnalysis/variantMemory'
@@ -45,12 +46,15 @@ export const useSkewvoirVariantMemory = () =>
   )
 
 /** The memory key for the analysis context a host is rendering: the focus MSR's
- * recipe plus the active parameter. Null while either is unresolved, which
- * makes the selection below behave exactly as it did before this memory
- * existed (start at the first image, remember nothing). */
+ * recipe plus the active parameter. The empty string is a valid unnamed MP;
+ * only a missing value leaves the key unresolved. */
 export const useSkewvoirVariantKey = (analysis: SkewvoirAnalysis) =>
   computed(() => variantMemoryKey(
-    analysis.focusRow.value?.recipe_name,
+    resolveVariantMemoryRecipe(
+      analysis.focusMsr.value,
+      analysis.focusFile.value,
+      analysis.focusRow.value?.recipe_name
+    ),
     analysis.activeParam.value
   ))
 

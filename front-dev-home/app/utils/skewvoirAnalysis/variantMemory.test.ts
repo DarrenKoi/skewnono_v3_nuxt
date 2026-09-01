@@ -5,6 +5,7 @@ import {
   normalizeVariantMemory,
   rememberVariant,
   rememberedVariantIndex,
+  resolveVariantMemoryRecipe,
   variantMemoryKey
 } from './variantMemory.ts'
 import { imageVariantLabels } from '../imageKind.ts'
@@ -22,10 +23,29 @@ test('key scopes the memory to recipe AND parameter', () => {
   )
 })
 
-test('key is null when either half is missing — nothing to remember against', () => {
+test('key keeps the valid unnamed parameter distinct from an unresolved parameter', () => {
   assert.equal(variantMemoryKey(null, 'CD_BOTTOM'), null)
-  assert.equal(variantMemoryKey('R000_GATE', ''), null)
+  assert.notEqual(variantMemoryKey('R000_GATE', ''), null)
+  assert.notEqual(
+    variantMemoryKey('R000_GATE', ''),
+    variantMemoryKey('R000_GATE', 'CD_BOTTOM')
+  )
+  assert.equal(variantMemoryKey('R000_GATE', undefined), null)
   assert.equal(variantMemoryKey(undefined, undefined), null)
+})
+
+test('rowless focus uses the recipe carried by the matching MSR file', () => {
+  assert.equal(resolveVariantMemoryRecipe('MSR-2', {
+    msr: 'MSR-2',
+    exe_detail_info: { recipe_name: 'R_FILE' }
+  }, null), 'R_FILE')
+})
+
+test('a stale MSR file cannot override the current history-row recipe', () => {
+  assert.equal(resolveVariantMemoryRecipe('MSR-2', {
+    msr: 'MSR-1',
+    exe_detail_info: { recipe_name: 'R_STALE' }
+  }, 'R_ROW'), 'R_ROW')
 })
 
 test('key does not collide across a boundary that punctuation could blur', () => {
