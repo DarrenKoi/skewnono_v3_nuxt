@@ -13,18 +13,14 @@ def test_answer_timeout_is_clamped(monkeypatch):
     assert config.get_answer_timeout() == 1.0
 
 
-def test_under_development_follows_the_deploy_unless_overridden(monkeypatch):
-    """Catches chat looking live to production users, or hidden at the office.
+def test_the_page_is_in_service_by_default(monkeypatch):
+    """Catches the pre-launch cloud default creeping back in.
 
-    The default has to track the deploy rather than a checked-in constant: a
-    hardcoded True would hide the page at home and at the office too, and a
-    hardcoded False is exactly the state this flag exists to prevent.
+    Chat launched 2026-09-01, so an unset flag means "show the page" on every
+    phase including the production cloud — the notice is now opt-IN.
     """
     monkeypatch.delenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", raising=False)
 
-    monkeypatch.setattr(config, "is_cloud", lambda: True)
-    assert config.is_under_development() is True
-    monkeypatch.setattr(config, "is_cloud", lambda: False)
     assert config.is_under_development() is False
 
 
@@ -33,31 +29,27 @@ def test_under_development_follows_the_deploy_unless_overridden(monkeypatch):
     [("1", True), ("true", True), ("on", True), ("YES", True),
      ("0", False), ("false", False), ("off", False), ("nonsense", False)],
 )
-def test_under_development_override_beats_the_deploy_default(monkeypatch, raw, expected):
-    """Catches an override that can only turn the notice on, never off.
+def test_under_development_override_beats_the_default(monkeypatch, raw, expected):
+    """Catches an override that only works in one direction.
 
-    Launch day is a config flip on the cloud host, so `0` has to beat a
-    cloud default of True — an override honoured in one direction only would
-    leave no way to ship without a code change.
+    Post-launch the load-bearing direction is `1`: taking the page down on
+    the cloud must not need a deploy. `0` is kept honoured so an old cloud
+    `.env` line from before the launch still means what it said.
     """
-    monkeypatch.setattr(config, "is_cloud", lambda: True)
     monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", raw)
 
     assert config.is_under_development() is expected
 
 
-def test_blank_override_falls_through_to_the_deploy_default(monkeypatch):
-    """Catches a blank env var being read as an explicit 'no'.
+def test_blank_override_falls_through_to_the_default(monkeypatch):
+    """Catches a blank env var being read as an explicit answer.
 
     An empty SKEWNONO_CHAT_UNDER_DEVELOPMENT= line in .env means "unset", not
-    "launch". Treating it as an override would silently expose the page in
-    production on the strength of a stray line.
+    "1" — a stray line must not take the page down.
     """
-    monkeypatch.setattr(config, "is_cloud", lambda: True)
-
     for blank in ("", "   "):
         monkeypatch.setenv("SKEWNONO_CHAT_UNDER_DEVELOPMENT", blank)
-        assert config.is_under_development() is True
+        assert config.is_under_development() is False
 
 
 def test_figure_prefix_defaults_to_the_office_layout(monkeypatch):

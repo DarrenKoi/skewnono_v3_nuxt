@@ -7,20 +7,18 @@ call of its own. What is left are budgets and the office figure store.
 
 import os
 
-from back_dev_home._runtime.env import is_cloud
-
 
 def is_under_development() -> bool:
     """Whether the SPA should show the chat page as not-yet-in-service.
 
-    Defaults to true on the production cloud and false everywhere else: chat
-    is usable at home and at the office while it is being built, but must not
-    look like a live service to production users yet.
+    Defaults to FALSE everywhere since 2026-09-01: chat is in service on the
+    production cloud too. Before that the default was ``is_cloud()`` — shown
+    at home and at the office, hidden in production while it was being built.
 
-    ``SKEWNONO_CHAT_UNDER_DEVELOPMENT`` (1/0) overrides in both directions, so
-    launching is a config change on the cloud host rather than a code change —
-    the same cross-phase rule the rest of this module follows. Read per call,
-    not cached, so flipping it takes effect on the next request.
+    ``SKEWNONO_CHAT_UNDER_DEVELOPMENT=1`` puts the notice back without a
+    deploy, which is why the flag outlives the launch: if the RAG goes down
+    on the cloud, hiding the page is a ``.env`` line and a restart. Read per
+    call, not cached, so flipping it takes effect on the next request.
 
     This gates the PAGE only. ``/api/chat/*`` keeps answering everywhere,
     which is deliberate: it stays exercisable on the cloud host while the
@@ -29,7 +27,7 @@ def is_under_development() -> bool:
     raw = os.environ.get("SKEWNONO_CHAT_UNDER_DEVELOPMENT")
     if raw is not None and raw.strip():
         return raw.strip().lower() in {"1", "true", "yes", "on"}
-    return is_cloud()
+    return False
 
 
 def get_answer_timeout() -> float:

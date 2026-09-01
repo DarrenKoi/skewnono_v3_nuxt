@@ -6,18 +6,19 @@
 
 ## 페이지 공개 여부
 
-Chat은 아직 서비스 시작 전이므로 production cloud에서는 페이지가 "준비 중" 안내로
-대체됩니다. 집과 사무실에서는 평소대로 열립니다.
+Chat은 2026-09-01 부터 production cloud를 포함한 모든 phase에서 정상 공개됩니다.
+"준비 중" 안내는 이제 opt-in 이며, flag는 내려야 할 때를 위해 남겨 둡니다.
 
 | 항목 | 값 |
 | --- | --- |
 | 환경 변수 | `SKEWNONO_CHAT_UNDER_DEVELOPMENT` (1/0) |
-| 기본값 | `is_cloud()` — cloud면 안내, 나머지는 정상 |
+| 기본값 | `False` — 어디서나 정상 공개 (2026-09-01 이전에는 `is_cloud()`) |
 | Endpoint | `GET /api/chat/availability` → `{"data": {"available": bool}}` |
 | SPA | `pages/chat.vue`가 mount 시 1회 조회합니다. |
 
-**서비스 시작은 cloud host의 `.env`에 `SKEWNONO_CHAT_UNDER_DEVELOPMENT=0`을 넣고
-재기동하는 것이 전부입니다.** 코드 변경도 재배포도 필요하지 않습니다.
+**페이지를 다시 내리려면 cloud host의 `.env`에 `SKEWNONO_CHAT_UNDER_DEVELOPMENT=1`을
+넣고 재기동합니다.** RAG 장애처럼 급히 가려야 할 때 재배포 없이 처리하기 위한
+장치이며, 코드 변경은 필요하지 않습니다.
 
 이것은 **페이지 gate이며 authorization gate가 아닙니다.** `/api/chat/*`는 cloud에서도
 계속 응답하므로 페이지가 가려진 상태에서도 API를 그대로 시험할 수 있습니다. 접근을
