@@ -17,16 +17,19 @@ how the two environments drift apart again.
 
 ``timeout`` is the WHOLE-TURN budget (``SKEWNONO_CHAT_ANSWER_TIMEOUT``). The
 RAG enforces it as per-call ``timeout=remaining`` plus a pre-invoke deadline
-check — NOT a true cumulative deadline (RAG 측 확인 2026-08-31) — so the
-thread guard here is the real ceiling: an overshooting internal call can
-never pin a Flask worker past budget + grace.
+check — NOT a true cumulative deadline (RAG 측 확인 2026-08-31).
+
+There used to be an outer thread guard here, running the call on a daemon
+worker with a five-second grace so an overshooting RAG could not pin a Flask
+worker. It went away on 2026-09-01 with the turn-as-resource change: this
+function now runs ON the background worker, so the request it once protected
+is already finished. The guard could never kill the inner call anyway — it
+abandoned it — so keeping it meant two abandoned threads for the same absent
+guarantee. An overrun is now visible where it belongs: the turn stays
+``pending`` and the store presents it as failed once it outlives the budget.
 """
 
 from __future__ import annotations
-
-import queue
-import threading
-from typing import Any
 
 from back_dev_home.chat import config, rag
 from back_dev_home.chat.answer import contract
@@ -38,9 +41,6 @@ from back_dev_home.chat.contracts import (
     KnowledgeUnavailable,
 )
 
-_GRACE_SECONDS = 5.0
-
-
 def answer_question(
     question: str,
     messages: list[dict],
@@ -49,9 +49,7 @@ def answer_question(
     module = rag.import_rag("retrieve.agent")
     timeout = config.get_answer_timeout()
     try:
-        raw = _call_with_deadline(
-            module.agent_query,
-            timeout + _GRACE_SECONDS,
+        raw = module.agent_query(
             question,
             messages=list(messages),
             scope=dict(scope),
@@ -75,28 +73,3 @@ def answer_question(
             f"The RAG answer failed: {type(error).__name__}: {error}"
         ) from error
     return contract.validate_answer(raw, question=question)
-
-
-def _call_with_deadline(func, deadline_seconds: float, /, *args, **kwargs):
-    """Run the RAG call behind a wall-clock backstop on a daemon worker.
-
-    A worker finishing after the deadline produces only an orphaned in-memory
-    result: persistence stays with the caller, so a late answer can never
-    append an assistant turn to a request that already returned 504.
-    """
-    outcome: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
-
-    def run() -> None:
-        try:
-            outcome.put((True, func(*args, **kwargs)))
-        except Exception as error:  # noqa: BLE001 — carried to the caller
-            outcome.put((False, error))
-
-    threading.Thread(target=run, name="chat-rag-answer", daemon=True).start()
-    try:
-        succeeded, value = outcome.get(timeout=deadline_seconds)
-    except queue.Empty as error:
-        raise TimeoutError("The RAG answer exceeded the outer deadline.") from error
-    if not succeeded:
-        raise value
-    return value

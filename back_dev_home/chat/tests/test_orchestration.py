@@ -34,7 +34,7 @@ class FakeStore:
             return None
         return self.thread
 
-    def get_message_by_request(self, thread_id, request_id, role):
+    def _find(self, thread_id, request_id, role):
         return next(
             (
                 message
@@ -46,10 +46,17 @@ class FakeStore:
             None,
         )
 
+    def get_message_by_request(self, thread_id, request_id, role):
+        # A COPY, like the real store: rows come back hydrated from SQLite, so
+        # a test must never pass because it happened to hold the same dict the
+        # worker later mutated.
+        found = self._find(thread_id, request_id, role)
+        return None if found is None else dict(found)
+
     def append_user_message(self, thread_id, content, request_id):
-        existing = self.get_message_by_request(thread_id, request_id, "user")
+        existing = self._find(thread_id, request_id, "user")
         if existing is not None:
-            return existing
+            return dict(existing)
         message = self._message(
             message_id=f"user-{len(self.thread['messages'])}",
             role="user",
@@ -57,27 +64,62 @@ class FakeStore:
             request_id=request_id,
         )
         self.thread["messages"].append(message)
-        return message
+        return dict(message)
 
     def set_scope_decision(self, thread_id, request_id, decision):
-        message = self.get_message_by_request(thread_id, request_id, "user")
+        message = self._find(thread_id, request_id, "user")
         message["scope_status"] = decision["status"]
         message["scope_reason_code"] = decision["reason_code"]
-        return message
+        return dict(message)
 
-    def complete_turn(self, thread_id, request_id, result):
-        existing = self.get_message_by_request(thread_id, request_id, "assistant")
+    def begin_turn(self, thread_id, request_id):
+        existing = self._find(thread_id, request_id, "assistant")
         if existing is not None:
-            return existing
-        user = self.get_message_by_request(thread_id, request_id, "user")
+            if existing["status"] != "failed":
+                return dict(existing), False
+            existing.update(
+                status="pending", error_code=None, error_message=None, content=""
+            )
+            return dict(existing), True
+        user = self._find(thread_id, request_id, "user")
         message = self._message(
             message_id=f"assistant-{len(self.thread['messages'])}",
             role="assistant",
-            content=result["content"],
+            content="",
             request_id=request_id,
         )
         message.update(
             {
+                "status": "pending",
+                "scope_status": user["scope_status"],
+                "scope_reason_code": user["scope_reason_code"],
+            }
+        )
+        self.thread["messages"].append(message)
+        return dict(message), True
+
+    def fail_turn(self, thread_id, request_id, error_code, error_message):
+        message = self._find(thread_id, request_id, "assistant")
+        if message is None or message["status"] != "pending":
+            return None if message is None else dict(message)
+        message.update(
+            status="failed", error_code=error_code, error_message=error_message
+        )
+        return dict(message)
+
+    def complete_turn(self, thread_id, request_id, result):
+        if self._find(thread_id, request_id, "assistant") is None:
+            self.begin_turn(thread_id, request_id)
+        message = self._find(thread_id, request_id, "assistant")
+        if message["status"] == "done":
+            return dict(message)
+        user = self._find(thread_id, request_id, "user")
+        message.update(
+            {
+                "status": "done",
+                "error_code": None,
+                "error_message": None,
+                "content": result["content"],
                 "model": result["model"],
                 "runtime": result["runtime"],
                 "scope_status": user["scope_status"],
@@ -90,8 +132,7 @@ class FakeStore:
                 "follow_ups": list(result.get("follow_ups", [])),
             }
         )
-        self.thread["messages"].append(message)
-        return message
+        return dict(message)
 
     def _message(self, *, message_id, role, content, request_id):
         return {
@@ -109,6 +150,9 @@ class FakeStore:
             "latency_ms": None,
             "sources": [],
             "feedback": None,
+            "status": "done",
+            "error_code": None,
+            "error_message": None,
             "created_at": "2026-08-02T00:00:00+00:00",
         }
 
@@ -161,7 +205,18 @@ def scope_decision():
 
 
 def _orchestrator(store, answerer, decision):
-    return ChatOrchestrator(store, lambda query: dict(decision), answerer)
+    # The worker runs inline so a test can assert on the settled row. What is
+    # NOT faked away is that `send_message` returns the row as it stood when
+    # the worker was handed the turn — pending. Tests read the outcome from
+    # the store, the way a poll does.
+    return ChatOrchestrator(
+        store, lambda query: dict(decision), answerer, spawn=lambda run: run()
+    )
+
+
+def _settled(store, request_id=REQUEST_ID):
+    """The assistant row after the worker finished — what a poll would see."""
+    return store.get_message_by_request("t1", request_id, "assistant")
 
 
 @pytest.fixture
@@ -204,25 +259,47 @@ def test_rejected_scope_persists_a_normal_assistant_turn_without_asking(
     assert answerer.calls == 0
 
 
-def test_answer_failure_keeps_only_the_original_user_message(
+def test_answer_failure_lands_on_the_turn_not_on_the_request(
     orchestrator, fake_store, answerer
 ):
+    """Nothing is waiting on the worker, so a failure has to be recorded.
+
+    It is stored as a failed turn rather than as an assistant answer whose
+    content happens to be an error sentence — the 30-day archive and the
+    conversation index would otherwise count it as a turn the RAG answered.
+    """
     answerer.error = KnowledgeTimeout("slow")
 
-    with pytest.raises(KnowledgeTimeout):
-        orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
-    assert [message["role"] for message in fake_store.thread["messages"]] == ["user"]
+    assistant = _settled(fake_store)
+    assert assistant["status"] == "failed"
+    assert assistant["error_code"] == "gateway_timeout"
+    assert assistant["content"] == ""
+    assert assistant["runtime"] is None
     assert fake_store.thread["messages"][0]["content"] == "alarm"
 
 
 def test_an_unavailable_rag_leaves_the_turn_retryable(orchestrator, fake_store, answerer):
+    """A failed turn is retaken in place by a POST with the same request id.
+
+    The SPA's retry reuses the UUID (MIGRATION.md: a retry keeps it, a new
+    question gets a new one), so a failed turn that refused to restart would
+    leave the retry button doing nothing.
+    """
     answerer.error = KnowledgeUnavailable("no checkout")
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    assert _settled(fake_store)["error_code"] == "runtime_unavailable"
 
-    with pytest.raises(KnowledgeUnavailable):
-        orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    answerer.error = None
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
-    assert [message["role"] for message in fake_store.thread["messages"]] == ["user"]
+    retried = _settled(fake_store)
+    assert retried["status"] == "done"
+    assert retried["content"] == "answer"
+    assert [message["role"] for message in fake_store.thread["messages"]] == [
+        "user", "assistant"
+    ], "the retry reuses the reserved row rather than adding a second one"
 
 
 def test_mixed_scope_asks_the_supported_clause_but_persists_the_original(
@@ -238,11 +315,11 @@ def test_mixed_scope_asks_the_supported_clause_but_persists_the_original(
         },
     )
 
-    assistant = orchestrator.send_message(
+    orchestrator.send_message(
         "u1", "t1", "alarm reset and movie recommendations", REQUEST_ID
     )
 
-    assert assistant["content"] == (
+    assert _settled(fake_store)["content"] == (
         "지원 범위를 벗어난 부분은 제외하고, 지원되는 업무 관련 질문에만 "
         "답변했습니다.\n\nanswer"
     )
@@ -288,20 +365,43 @@ def test_the_rag_receives_a_minimal_access_scope(orchestrator, answerer):
     assert answerer.scopes[0] == {"user_id": "u1", "groups": [], "fabs": []}
 
 
-def test_bundled_rewrite_and_follow_ups_are_persisted(orchestrator):
+def test_bundled_rewrite_and_follow_ups_are_persisted(orchestrator, fake_store):
     """They arrive inside the answer; the orchestrator makes no calls of its own."""
-    assistant = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
+    assistant = _settled(fake_store)
     assert assistant["rewrite"] == "확장된 질문"
     assert assistant["follow_ups"] == ["질문 1", "질문 2", "질문 3"]
 
 
-def test_the_answer_names_no_model(orchestrator):
+def test_the_answer_names_no_model(orchestrator, fake_store):
     """Chat has no LLM: the RAG picks its own and does not report which."""
-    assistant = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
+    assistant = _settled(fake_store)
     assert assistant["model"] is None
     assert assistant["runtime"] == "rag"
+
+
+def test_send_message_hands_back_a_pending_turn(fake_store, answerer, scope_decision):
+    """The POST answers with the reserved row, not with the answer.
+
+    Pinned with a worker that never runs, because the whole point is that the
+    request is over before the answer exists — a fixture that runs the worker
+    inline would let this pass even if the route waited.
+    """
+    never = ChatOrchestrator(
+        fake_store,
+        lambda query: dict(scope_decision),
+        answerer,
+        spawn=lambda run: None,
+    )
+
+    assistant = never.send_message("u1", "t1", "alarm", REQUEST_ID)
+
+    assert assistant["status"] == "pending"
+    assert assistant["content"] == ""
+    assert answerer.calls == 0
 
 
 def test_missing_or_unowned_thread_is_rejected(orchestrator, fake_store):
@@ -322,10 +422,12 @@ def test_a_recorder_failure_costs_the_record_not_the_answer(
         lambda query: dict(scope_decision),
         answerer,
         conversation_recorder=explode,
+        spawn=lambda run: run(),
     )
 
     with caplog.at_level("ERROR", logger="skewnono.chat"):
-        assistant = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+        orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
-    assert assistant["content"] == "answer"
+    assert _settled(fake_store)["content"] == "answer"
+    assert _settled(fake_store)["status"] == "done"
     assert "record chat conversation" in caplog.text

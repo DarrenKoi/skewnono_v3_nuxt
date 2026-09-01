@@ -123,10 +123,29 @@ class MessageFeedback(TypedDict):
 
 
 class Message(TypedDict):
+    """One stored turn half.
+
+    ``status`` is the turn's lifecycle and belongs to the assistant row: a
+    turn is reserved as ``pending`` when it starts and settles to ``done`` or
+    ``failed``. It is a separate axis from ``runtime`` on purpose — ``status``
+    answers "is this turn over", ``runtime`` answers "what answered". Folding
+    them would put ``failed`` in the column the conversation index counts
+    runtimes with. User rows carry ``done`` from the moment they exist.
+
+    For an assistant row ``created_at`` is when the turn STARTED, which is
+    what the SPA counts elapsed seconds from.
+    """
+
     id: str
     thread_id: str
     request_id: str | None
     role: str
+    status: Literal["pending", "done", "failed"]
+    # Set only on a failed turn. ``error_code`` is the same vocabulary
+    # ``routes.py`` puts in an error body, so the SPA reads one set of strings
+    # whether the failure came back from the POST or from a poll.
+    error_code: str | None
+    error_message: str | None
     content: str
     model: str | None
     runtime: Literal["rag", "scope_rejection"] | None

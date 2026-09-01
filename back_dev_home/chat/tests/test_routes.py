@@ -41,7 +41,23 @@ def answerer(monkeypatch):
     answer.result = _answer()
     answer.calls = calls
     monkeypatch.setattr(orchestrator, "_answerer", answer)
+    # The worker runs on the request thread here so a test can POST and then
+    # read the settled row without racing. What stays real is the response:
+    # the POST still answers 202 with the pending row.
+    monkeypatch.setattr(orchestrator, "_spawn", lambda run: run())
     return answer
+
+
+def _settled(client, thread_id, request_id=REQUEST_ID):
+    """The assistant row as a poll would find it."""
+    messages = client.get(f"/api/chat/threads/{thread_id}").get_json()["data"][
+        "messages"
+    ]
+    return next(
+        message
+        for message in messages
+        if message["role"] == "assistant" and message["request_id"] == request_id
+    )
 
 
 @pytest.fixture
@@ -108,9 +124,15 @@ def test_send_message_persists_reply(client, answerer):
         f"/api/chat/threads/{tid}/messages",
         json={"content": "alarm", "request_id": REQUEST_ID},
     )
-    assert r.status_code == 200
-    body = r.get_json()["data"]
-    assert body["role"] == "assistant"
+    # 202: the answer is being made, the request is over.
+    assert r.status_code == 202
+    pending = r.get_json()["data"]
+    assert pending["role"] == "assistant"
+    assert pending["status"] == "pending"
+    assert pending["content"] == ""
+
+    body = _settled(client, tid)
+    assert body["status"] == "done"
     assert body["content"] == "pong"
     assert body["latency_ms"] is not None
     assert body["rewrite"] is None
@@ -122,7 +144,8 @@ def test_send_message_persists_reply(client, answerer):
     assert roles == ["user", "assistant"]
 
 
-def test_send_message_timeout_preserves_user_message(client, answerer):
+def test_a_timed_out_answer_settles_the_turn_as_failed(client, answerer):
+    """The failure used to be the POST's status. It is now the turn's."""
     answerer.result = KnowledgeTimeout("too slow")
     tid = client.post("/api/chat/threads").get_json()["data"][
         "id"
@@ -131,9 +154,13 @@ def test_send_message_timeout_preserves_user_message(client, answerer):
         f"/api/chat/threads/{tid}/messages",
         json={"content": "alarm", "request_id": REQUEST_ID},
     )
-    assert r.status_code == 504
-    msgs = client.get(f"/api/chat/threads/{tid}").get_json()["data"]["messages"]
-    assert [m["role"] for m in msgs] == ["user"]  # user msg kept, no assistant
+
+    assert r.status_code == 202
+    settled = _settled(client, tid)
+    assert settled["status"] == "failed"
+    assert settled["error_code"] == "gateway_timeout"
+    assert settled["error_message"]
+    assert settled["content"] == ""
 
 
 def test_send_message_requires_content(client):
@@ -185,20 +212,19 @@ def test_retry_after_failure_does_not_duplicate_user_message(client, answerer):
         "id"
     ]
     answerer.result = KnowledgeTimeout("slow")
-    assert (
-        client.post(
-            f"/api/chat/threads/{tid}/messages",
-            json={"content": "alarm", "request_id": REQUEST_ID},
-        ).status_code
-        == 504
+    client.post(
+        f"/api/chat/threads/{tid}/messages",
+        json={"content": "alarm", "request_id": REQUEST_ID},
     )
+    assert _settled(client, tid)["status"] == "failed"
 
     answerer.result = _answer()
     r = client.post(
         f"/api/chat/threads/{tid}/messages",
         json={"content": "alarm", "request_id": REQUEST_ID},
     )
-    assert r.status_code == 200
+    assert r.status_code == 202
+    assert _settled(client, tid)["status"] == "done"
 
     roles = [
         m["role"]
@@ -219,8 +245,8 @@ def completed_assistant(client, answerer):
         f"/api/chat/threads/{tid}/messages",
         json={"content": "alarm", "request_id": REQUEST_ID},
     )
-    assert response.status_code == 200
-    return response.get_json()["data"]
+    assert response.status_code == 202
+    return _settled(client, tid)
 
 
 def test_feedback_can_be_replaced_and_removed(client, completed_assistant):
@@ -307,20 +333,12 @@ def test_feedback_rejects_owned_user_message_before_writing(client, monkeypatch)
     assert client.delete(path).status_code == 400
 
 
-@pytest.mark.parametrize(
-    ("error", "status"),
-    [
-        (KnowledgeDenied("rag denied"), 403),
-        (ScopeUnavailable("scope offline"), 503),
-        (KnowledgeUnavailable("rag offline"), 503),
-        (KnowledgeTimeout("rag slow"), 504),
-    ],
-)
-def test_answer_errors_map_to_typed_http_statuses(client, monkeypatch, error, status):
+def test_a_scope_failure_is_still_an_http_error(client, monkeypatch):
+    """The scope gate runs inline, so its failure is the only one left here."""
     from back_dev_home.chat import routes
 
     def _raise(*args):
-        raise error
+        raise ScopeUnavailable("scope offline")
 
     monkeypatch.setattr(routes.orchestrator, "send_message", _raise)
     tid = client.post("/api/chat/threads").get_json()["data"][
@@ -330,8 +348,41 @@ def test_answer_errors_map_to_typed_http_statuses(client, monkeypatch, error, st
         f"/api/chat/threads/{tid}/messages",
         json={"content": "alarm", "request_id": REQUEST_ID},
     )
-    assert response.status_code == status
+
+    assert response.status_code == 503
     assert set(response.get_json()["error"]) == {"code", "message"}
+
+
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        (KnowledgeDenied("rag denied"), "runtime_denied"),
+        (KnowledgeUnavailable("rag offline"), "runtime_unavailable"),
+        (KnowledgeTimeout("rag slow"), "gateway_timeout"),
+    ],
+)
+def test_answer_failures_land_on_the_turn_with_the_route_vocabulary(
+    client, answerer, error, code
+):
+    """One set of strings whichever way the failure reaches the SPA.
+
+    These used to be HTTP statuses on the POST. The answer no longer happens
+    on that thread, so they are recorded on the row instead — but as the SAME
+    codes routes.py puts in an error body, so the SPA needs one mapping and
+    not two.
+    """
+    answerer.result = error
+    tid = client.post("/api/chat/threads").get_json()["data"][
+        "id"
+    ]
+    client.post(
+        f"/api/chat/threads/{tid}/messages",
+        json={"content": "alarm", "request_id": REQUEST_ID},
+    )
+
+    settled = _settled(client, tid)
+    assert settled["status"] == "failed"
+    assert settled["error_code"] == code
 
 
 def test_get_unknown_thread_404(client):

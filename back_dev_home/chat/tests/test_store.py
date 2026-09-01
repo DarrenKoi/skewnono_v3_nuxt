@@ -326,9 +326,12 @@ def test_complete_turn_rolls_back_partial_rows(monkeypatch, tmp_path):
             },
         )
 
-    assert store.get_message_by_request(
-        thread["id"], request_id, "assistant"
-    ) is None
+    # The reserved row survives, still pending: the UPDATE that would have
+    # marked it done is in the same transaction as the citation insert that
+    # failed, so the turn stays retryable rather than half-answered.
+    assistant = store.get_message_by_request(thread["id"], request_id, "assistant")
+    assert assistant["status"] == "pending"
+    assert assistant["content"] == ""
     conn = sqlite3.connect(str(tmp_path / "chat.db"))
     source_count = conn.execute("SELECT count(*) FROM message_sources").fetchone()[0]
     conn.close()
@@ -668,3 +671,189 @@ def test_existing_db_gains_rewrite_and_follow_up_columns(tmp_path, monkeypatch):
 
     assert message["follow_ups"] == []
     assert message["rewrite"] is None
+
+
+# -- turn lifecycle ----------------------------------------------------
+
+
+def _result(content="답변"):
+    return {
+        "content": content, "runtime": "rag", "model": None,
+        "prompt_tokens": None, "completion_tokens": None, "latency_ms": 12,
+        "sources": [], "tool_traces": [], "rewrite": None, "follow_ups": [],
+    }
+
+
+def _started(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    thread = store.create_thread("u1")
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    store.append_user_message(thread["id"], "alarm", request_id)
+    return thread["id"], request_id
+
+
+def test_only_one_caller_owns_a_turn(monkeypatch, tmp_path):
+    """Two POSTs with one request id must not ask the RAG twice.
+
+    ``mine`` is what tells a caller to run the answer, so a second POST that
+    also got True would mean two workers, two RAG calls and two bills for one
+    question the user asked once.
+    """
+    thread_id, request_id = _started(monkeypatch, tmp_path)
+
+    first, first_mine = store.begin_turn(thread_id, request_id)
+    second, second_mine = store.begin_turn(thread_id, request_id)
+
+    assert first_mine is True
+    assert second_mine is False
+    assert second["id"] == first["id"]
+    assert second["status"] == "pending"
+
+
+def test_a_reserved_turn_starts_empty_and_carries_the_scope_decision(
+    monkeypatch, tmp_path
+):
+    thread_id, request_id = _started(monkeypatch, tmp_path)
+    store.set_scope_decision(
+        thread_id,
+        request_id,
+        {"status": "mixed", "reason_code": "mixed_scope", "supported_query": "alarm"},
+    )
+
+    assistant, _mine = store.begin_turn(thread_id, request_id)
+
+    assert assistant["status"] == "pending"
+    assert assistant["content"] == ""
+    assert assistant["runtime"] is None
+    assert assistant["scope_status"] == "mixed"
+
+
+def test_a_failed_turn_is_retaken_in_place(monkeypatch, tmp_path):
+    """The SPA's retry reuses the request id, so the row has to be reusable."""
+    thread_id, request_id = _started(monkeypatch, tmp_path)
+    reserved, _mine = store.begin_turn(thread_id, request_id)
+    store.fail_turn(thread_id, request_id, "gateway_timeout", "너무 오래 걸렸습니다")
+
+    failed = store.get_message_by_request(thread_id, request_id, "assistant")
+    retaken, mine = store.begin_turn(thread_id, request_id)
+
+    assert failed["status"] == "failed"
+    assert failed["error_code"] == "gateway_timeout"
+    assert mine is True
+    assert retaken["id"] == reserved["id"], "one row per turn, not one per attempt"
+    assert retaken["status"] == "pending"
+    assert retaken["error_code"] is None
+
+
+def test_completing_a_settled_turn_changes_nothing(monkeypatch, tmp_path):
+    """A worker that finishes after the turn already settled must not overwrite it."""
+    thread_id, request_id = _started(monkeypatch, tmp_path)
+    store.begin_turn(thread_id, request_id)
+    store.complete_turn(thread_id, request_id, _result("첫 답변"))
+
+    again = store.complete_turn(thread_id, request_id, _result("늦은 답변"))
+
+    assert again["content"] == "첫 답변"
+
+
+def test_failing_a_settled_turn_changes_nothing(monkeypatch, tmp_path):
+    thread_id, request_id = _started(monkeypatch, tmp_path)
+    store.begin_turn(thread_id, request_id)
+    store.complete_turn(thread_id, request_id, _result("답변"))
+
+    after = store.fail_turn(thread_id, request_id, "runtime_unavailable", "늦은 실패")
+
+    assert after["status"] == "done"
+    assert after["content"] == "답변"
+
+
+def test_a_pending_turn_that_outlived_its_budget_reads_as_failed(
+    monkeypatch, tmp_path
+):
+    """The worker died with the turn — a uWSGI restart, a harakiri, a deploy.
+
+    Judged on read rather than swept by a job or a boot hook: ``lazy-apps``
+    means each worker boots on its own, so a boot hook would mark another
+    worker's in-flight turn as failed.
+    """
+    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", "60")
+    thread_id, request_id = _started(monkeypatch, tmp_path)
+    store.begin_turn(thread_id, request_id)
+
+    fresh = store.get_message_by_request(thread_id, request_id, "assistant")
+    assert fresh["status"] == "pending"
+
+    long_ago = (
+        datetime.now(timezone.utc) - timedelta(seconds=60 + 30 + 5)
+    ).isoformat()
+    conn = sqlite3.connect(str(tmp_path / "chat.db"))
+    with conn:
+        conn.execute(
+            "UPDATE messages SET created_at=? WHERE request_id=? AND role='assistant'",
+            (long_ago, request_id),
+        )
+    conn.close()
+
+    stale = store.get_message_by_request(thread_id, request_id, "assistant")
+    assert stale["status"] == "failed"
+    assert stale["error_code"] == "gateway_timeout"
+
+
+def test_a_late_worker_can_still_land_its_answer(monkeypatch, tmp_path):
+    """Staleness is a reading, not a write — the row is still pending.
+
+    Persistence no longer belongs to a request that already returned, so an
+    answer that arrives after the reader gave up is saved rather than thrown
+    away. The next poll or reload shows it.
+    """
+    monkeypatch.setenv("SKEWNONO_CHAT_ANSWER_TIMEOUT", "60")
+    thread_id, request_id = _started(monkeypatch, tmp_path)
+    store.begin_turn(thread_id, request_id)
+    long_ago = (datetime.now(timezone.utc) - timedelta(seconds=200)).isoformat()
+    conn = sqlite3.connect(str(tmp_path / "chat.db"))
+    with conn:
+        conn.execute(
+            "UPDATE messages SET created_at=? WHERE request_id=? AND role='assistant'",
+            (long_ago, request_id),
+        )
+    conn.close()
+    assert store.get_message_by_request(
+        thread_id, request_id, "assistant"
+    )["status"] == "failed"
+
+    landed = store.complete_turn(thread_id, request_id, _result("늦었지만 도착"))
+
+    assert landed["status"] == "done"
+    assert landed["content"] == "늦었지만 도착"
+
+
+def test_rows_written_before_turns_had_a_lifecycle_read_as_done(
+    monkeypatch, tmp_path
+):
+    """An existing chat.db has no status column; every row in it is finished."""
+    db = tmp_path / "chat.db"
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(db))
+    legacy = sqlite3.connect(str(db))
+    with legacy:
+        legacy.executescript(
+            """
+            CREATE TABLE threads (
+              id TEXT PRIMARY KEY, user_id TEXT, title TEXT,
+              created_at TEXT, updated_at TEXT
+            );
+            CREATE TABLE messages (
+              id TEXT PRIMARY KEY, thread_id TEXT, role TEXT, content TEXT,
+              model TEXT, prompt_tokens INTEGER, completion_tokens INTEGER,
+              latency_ms INTEGER, created_at TEXT
+            );
+            INSERT INTO threads VALUES ('t1','u1','old','2026-08-01','2026-08-01');
+            INSERT INTO messages (id,thread_id,role,content,created_at)
+            VALUES ('m1','t1','assistant','옛 답변','2026-08-01T00:00:00+00:00');
+            """
+        )
+    legacy.close()
+
+    thread = store.get_thread("u1", "t1")
+
+    assert thread["messages"][0]["status"] == "done"
+    assert thread["messages"][0]["content"] == "옛 답변"

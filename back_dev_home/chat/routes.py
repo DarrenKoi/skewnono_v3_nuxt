@@ -6,11 +6,6 @@ from flask import Blueprint, Response, g, request
 
 from back_dev_home._auth.errors import error_json
 from back_dev_home.chat import config, figures, store
-from back_dev_home.chat.contracts import (
-    KnowledgeDenied,
-    KnowledgeTimeout,
-    KnowledgeUnavailable,
-)
 from back_dev_home.chat.orchestration import ThreadNotFound, orchestrator
 from back_dev_home.chat.scope.contracts import ScopeUnavailable
 
@@ -129,6 +124,11 @@ def chat_delete_thread(thread_id):
 
 @bp.post("/chat/threads/<thread_id>/messages")
 def chat_send_message(thread_id):
+    """Start one turn. 202 + a pending row, or 200 when it settled here.
+
+    Sending the same ``request_id`` again joins the turn already in flight
+    rather than asking twice, and retries one that failed.
+    """
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
         return error_json("bad_request", "request body must be an object", 400)
@@ -143,16 +143,16 @@ def chat_send_message(thread_id):
         assistant = orchestrator.send_message(_uid(), thread_id, content, request_id)
     except ThreadNotFound as exc:
         return error_json("not_found", str(exc), 404)
-    # The answer seam is the only thing that can fail out here, and it speaks
-    # the knowledge error family: denied by access scope, no usable RAG on
-    # this machine, or over the turn budget.
-    except KnowledgeDenied as exc:
-        return error_json("runtime_denied", str(exc), 403)
-    except (ScopeUnavailable, KnowledgeUnavailable) as exc:
+    # The answer no longer happens on this thread, so the knowledge error
+    # family cannot reach here — a turn that fails does so on the worker and
+    # is recorded on its own row, with the same code strings this module uses.
+    # Only the scope gate still runs inline.
+    except ScopeUnavailable as exc:
         return error_json("runtime_unavailable", str(exc), 503)
-    except KnowledgeTimeout as exc:
-        return error_json("gateway_timeout", str(exc), 504)
-    return {"data": assistant}
+    # 202 means a worker is making the answer and the SPA should poll
+    # GET /chat/threads/<id> until the row settles. A scope rejection costs no
+    # time and is already settled, so it comes back 200 on the first call.
+    return {"data": assistant}, 202 if assistant["status"] == "pending" else 200
 
 
 @bp.put("/chat/messages/<message_id>/feedback")

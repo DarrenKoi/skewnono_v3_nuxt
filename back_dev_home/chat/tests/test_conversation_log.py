@@ -42,6 +42,9 @@ def _assistant(**overrides):
         "latency_ms": 7,
         "sources": [],
         "feedback": None,
+        "status": "done",
+        "error_code": None,
+        "error_message": None,
         "created_at": "2026-08-04T00:00:00+00:00",
     }
     message.update(overrides)
@@ -87,6 +90,9 @@ def _orchestrator(store, answerer, recorder, classify=None):
         classify or (lambda query: _decision()),
         answerer,
         conversation_recorder=recorder,
+        # Inline, so an assertion about what was recorded runs after the turn
+        # it describes. In production the worker is a daemon thread.
+        spawn=lambda run: run(),
     )
 
 
@@ -246,13 +252,16 @@ def test_completed_turn_records_one_conversation():
     recorder = RecordingRecorder()
     orchestrator = _orchestrator(FakeStore(), FakeAnswerer(), recorder)
 
-    assistant = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
     assert len(recorder.calls) == 1
     call = recorder.calls[0]
     assert call["user_id"] == "u1"
     assert call["user_content"] == "alarm"
-    assert call["assistant"] is assistant
+    # The SETTLED row, not the pending one the POST returned: the record is
+    # written by the worker, after the answer exists.
+    assert call["assistant"]["content"] == "answer"
+    assert call["assistant"]["status"] == "done"
     assert call["tool_call_count"] == 0
 
 
@@ -268,15 +277,19 @@ def test_replayed_request_is_not_recorded_again():
 
 
 def test_answer_failure_records_nothing():
+    """A failed turn is not a conversation. It is recorded on its own row."""
     recorder = RecordingRecorder()
     answerer = FakeAnswerer()
     answerer.error = KnowledgeTimeout("slow")
-    orchestrator = _orchestrator(FakeStore(), answerer, recorder)
+    store = FakeStore()
+    orchestrator = _orchestrator(store, answerer, recorder)
 
-    with pytest.raises(KnowledgeTimeout):
-        orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
     assert recorder.calls == []
+    assert store.get_message_by_request("t1", REQUEST_ID, "assistant")[
+        "status"
+    ] == "failed"
 
 
 def test_scope_rejection_is_recorded_with_decision():
@@ -300,11 +313,14 @@ def test_scope_rejection_is_recorded_with_decision():
 
 def test_recorder_failure_never_breaks_the_turn():
     recorder = RecordingRecorder(error=RuntimeError("shipper down"))
-    orchestrator = _orchestrator(FakeStore(), FakeAnswerer(), recorder)
+    store = FakeStore()
+    orchestrator = _orchestrator(store, FakeAnswerer(), recorder)
 
-    assistant = orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
+    orchestrator.send_message("u1", "t1", "alarm", REQUEST_ID)
 
-    assert assistant["content"] == "answer"
+    settled = store.get_message_by_request("t1", REQUEST_ID, "assistant")
+    assert settled["content"] == "answer"
+    assert settled["status"] == "done"
     assert len(recorder.calls) == 1
 
 

@@ -25,8 +25,16 @@ from pathlib import Path
 _MESSAGE_COLUMNS = (
     "id,thread_id,request_id,role,content,model,runtime,scope_status,"
     "scope_reason_code,prompt_tokens,completion_tokens,latency_ms,created_at,"
-    "rewrite,follow_ups_json"
+    "rewrite,follow_ups_json,status,error_code,error_message"
 )
+
+# How long past the turn budget a `pending` row may sit before a reader stops
+# believing in it. The worker enforces no deadline of its own (the RAG raises
+# TimeoutError on its budget), so a row still pending well past the budget
+# means the worker died with it — a uWSGI restart, a harakiri, a deploy. The
+# slack keeps clock jitter and a slow final write from flipping a turn that is
+# about to land.
+_STALE_SLACK_SECONDS = 30
 
 
 def _db_path() -> str:
@@ -54,6 +62,18 @@ def _ensure_column(
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(_db_path())
     conn.row_factory = sqlite3.Row
+    # A turn is now written by a background thread while the SPA polls this
+    # same file every two seconds, and uWSGI runs four such processes. WAL is
+    # what stops a write from blocking those reads. Failure is swallowed on
+    # purpose: WAL needs shared memory the filesystem may not offer (a network
+    # mount is the known case), and the rollback journal is still correct
+    # there — only slower. A chat store that refuses to open would be a far
+    # worse outcome than one that serializes.
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.DatabaseError:
+        pass
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS threads (
@@ -74,6 +94,12 @@ def _connect() -> sqlite3.Connection:
         _ensure_column(conn, "messages", "scope_reason_code", "TEXT")
         _ensure_column(conn, "messages", "rewrite", "TEXT")
         _ensure_column(conn, "messages", "follow_ups_json", "TEXT")
+        # DEFAULT 'done' backfills every row written before turns had a
+        # lifecycle: they are all finished, by definition. Only assistant rows
+        # carry meaning here — a user row is done the moment it exists.
+        _ensure_column(conn, "messages", "status", "TEXT DEFAULT 'done'")
+        _ensure_column(conn, "messages", "error_code", "TEXT")
+        _ensure_column(conn, "messages", "error_message", "TEXT")
         conn.executescript(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS ux_message_request_role
@@ -123,9 +149,36 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def _stale_pending(message: dict) -> bool:
+    """Whether a pending turn has outlived the worker that was to finish it.
+
+    Judged on read rather than swept by a job: the state is a function of
+    ``created_at`` and the budget, so computing it needs no scheduler entry and
+    no boot hook. A boot hook would be actively wrong — ``lazy-apps`` means
+    each uWSGI worker boots on its own, so worker 4 starting up would mark
+    worker 1's in-flight turn as failed.
+    """
+    if message.get("status") != "pending":
+        return False
+    from back_dev_home.chat.config import get_answer_timeout
+
+    try:
+        started = datetime.fromisoformat(message["created_at"])
+    except (TypeError, ValueError):
+        return False
+    age = (datetime.now(timezone.utc) - started).total_seconds()
+    return age > get_answer_timeout() + _STALE_SLACK_SECONDS
+
+
 def _hydrate_message(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
     message = dict(row)
     message["follow_ups"] = json.loads(message.pop("follow_ups_json") or "[]")
+    if _stale_pending(message):
+        message["status"] = "failed"
+        message["error_code"] = "gateway_timeout"
+        message["error_message"] = (
+            "답변을 만들던 작업이 응답하지 않았습니다. 다시 시도해 주세요."
+        )
     source_rows = conn.execute(
         "SELECT source_id,source_type,title,snippet,revision,occurred_at,section,"
         "page,region,locator,figure_id,score FROM message_sources "
@@ -344,38 +397,105 @@ def set_scope_decision(thread_id, request_id, decision):
     return message
 
 
-def complete_turn(thread_id, request_id, result):
+def begin_turn(thread_id, request_id):
+    """Reserve the assistant row for this turn and say who owns it.
+
+    Returns ``(message, mine)``. ``mine`` is True only for the caller that
+    actually moved the row into ``pending`` — that caller runs the answer.
+    Everyone else gets the row as it stands and runs nothing, which is what
+    makes a retried POST join the turn already in flight instead of asking
+    the RAG the same question twice.
+
+    A ``failed`` turn is retried in place. The SPA's retry reuses the same
+    ``request_id`` (MIGRATION.md: a retry keeps the UUID, a new question gets
+    a new one), so refusing here would leave the retry button doing nothing.
+
+    ``created_at`` is set when the turn STARTS, not when it finishes: it is
+    what the elapsed-time display counts from, and what
+    :func:`_stale_pending` measures. It doubles as the compare-and-set token
+    on a retake, so two workers cannot both claim the same failed turn.
+    """
     conn = _connect()
     try:
+        now = _now()
         existing = _get_message_by_request(conn, thread_id, request_id, "assistant")
         if existing is not None:
-            return existing
+            if existing["status"] != "failed":
+                return existing, False
+            with conn:
+                cur = conn.execute(
+                    "UPDATE messages SET status='pending', error_code=NULL, "
+                    "error_message=NULL, content='', created_at=? "
+                    "WHERE id=? AND created_at=?",
+                    (now, existing["id"], existing["created_at"]),
+                )
+            mine = cur.rowcount > 0
+            return _get_message_by_request(
+                conn, thread_id, request_id, "assistant"
+            ), mine
+
         scope = conn.execute(
             "SELECT scope_status,scope_reason_code FROM messages "
             "WHERE thread_id=? AND request_id=? AND role='user'",
             (thread_id, request_id),
         ).fetchone()
-        message_id = uuid.uuid4().hex
-        now = _now()
         with conn:
             cur = conn.execute(
-                "INSERT INTO messages (id,thread_id,request_id,role,content,model,runtime,"
-                "scope_status,scope_reason_code,prompt_tokens,completion_tokens,latency_ms,"
-                "created_at,rewrite,follow_ups_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+                "INSERT INTO messages (id,thread_id,request_id,role,content,"
+                "scope_status,scope_reason_code,created_at,status) "
+                "VALUES (?,?,?,'assistant','',?,?,?,'pending') "
                 "ON CONFLICT(thread_id,request_id,role) "
                 "WHERE request_id IS NOT NULL DO NOTHING",
                 (
-                    message_id, thread_id, request_id, "assistant", result["content"],
-                    result["model"], result["runtime"],
+                    uuid.uuid4().hex, thread_id, request_id,
                     scope["scope_status"] if scope is not None else None,
                     scope["scope_reason_code"] if scope is not None else None,
-                    result["prompt_tokens"], result["completion_tokens"],
-                    result["latency_ms"], now,
-                    result.get("rewrite"),
-                    json.dumps(list(result.get("follow_ups") or []), ensure_ascii=False),
+                    now,
                 ),
             )
             if cur.rowcount > 0:
+                conn.execute(
+                    "UPDATE threads SET updated_at=? WHERE id=?", (now, thread_id)
+                )
+        mine = cur.rowcount > 0
+        return _get_message_by_request(conn, thread_id, request_id, "assistant"), mine
+    finally:
+        conn.close()
+
+
+def complete_turn(thread_id, request_id, result):
+    """Fill in the reserved row with the answer. No-op once it is not pending.
+
+    Reserves the row itself when nobody did, so the function stays a plain
+    upsert: a caller that has an answer and no reservation (a turn settled
+    without a worker, a row purged mid-flight) still lands it.
+    """
+    if get_message_by_request(thread_id, request_id, "assistant") is None:
+        begin_turn(thread_id, request_id)
+    conn = _connect()
+    try:
+        row = _get_message_by_request(conn, thread_id, request_id, "assistant")
+        if row is None or row["status"] == "done":
+            return row
+        now = _now()
+        message_id = row["id"]
+        with conn:
+            cur = conn.execute(
+                "UPDATE messages SET content=?, model=?, runtime=?, prompt_tokens=?, "
+                "completion_tokens=?, latency_ms=?, rewrite=?, follow_ups_json=?, "
+                "status='done', error_code=NULL, error_message=NULL "
+                "WHERE id=? AND status='pending'",
+                (
+                    result["content"], result["model"], result["runtime"],
+                    result["prompt_tokens"], result["completion_tokens"],
+                    result["latency_ms"], result.get("rewrite"),
+                    json.dumps(list(result.get("follow_ups") or []), ensure_ascii=False),
+                    message_id,
+                ),
+            )
+            if cur.rowcount > 0:
+                # Children are written only by the winner, so a late second
+                # writer cannot double the citations under one message.
                 for position, source in enumerate(result["sources"]):
                     conn.execute(
                         "INSERT INTO message_sources (message_id,position,source_id,"
@@ -402,6 +522,29 @@ def complete_turn(thread_id, request_id, result):
                 conn.execute(
                     "UPDATE threads SET updated_at=? WHERE id=?", (now, thread_id)
                 )
+        return _get_message_by_request(conn, thread_id, request_id, "assistant")
+    finally:
+        conn.close()
+
+
+def fail_turn(thread_id, request_id, error_code, error_message):
+    """Record why the turn produced no answer, on the row it reserved.
+
+    A failure is NOT stored as an assistant answer whose content happens to be
+    an error sentence: the 30-day archive and the conversation index would
+    then count it as a turn the RAG answered. ``error_code`` is the same
+    string ``routes.py`` puts in an error body, so the SPA reads one
+    vocabulary whether the failure arrived synchronously or through a poll.
+    """
+    conn = _connect()
+    try:
+        with conn:
+            conn.execute(
+                "UPDATE messages SET status='failed', error_code=?, error_message=? "
+                "WHERE thread_id=? AND request_id=? AND role='assistant' "
+                "AND status='pending'",
+                (error_code, error_message, thread_id, request_id),
+            )
         return _get_message_by_request(conn, thread_id, request_id, "assistant")
     finally:
         conn.close()
