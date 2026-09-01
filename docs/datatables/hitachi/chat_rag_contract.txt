@@ -275,8 +275,10 @@ back_dev_home/chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md)
 - **full-path 사무실 검증 완료 2026-09-01** — `python -m scripts.verify.check_answer_contract --live`
   가 사무실 runtime 에서 통과했습니다(user-confirmed). 서명·필수 키·인용 필드·
   tool_trace 키가 모두 계약을 만족했고, faiss/torch 가 이 저장소의 numpy>=2
-  옆에서 실제로 로드된다는 것도 이때 처음 실증되었습니다. 남은 미검증 경로는
-  SPA(그림 썸네일 포함)뿐입니다.
+  옆에서 실제로 로드된다는 것도 이때 처음 실증되었습니다.
+- **SPA 경로도 검증 완료 2026-09-01** — 사무실에서 `/chat` 이 그림까지
+  정상 렌더했습니다(user-confirmed). MinIO prefix 규약, `figure_id` charset,
+  202+폴링 turn 수명이 한 번에 확인되었습니다. 미검증 경로가 남지 않았습니다.
 
 실행 가능한 계약 (2026-09-01)
 - 계약은 이제 산문이 아니라 **양쪽이 실행하는 모듈 하나**입니다:
