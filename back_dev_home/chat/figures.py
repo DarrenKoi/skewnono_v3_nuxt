@@ -109,6 +109,14 @@ def figure_key(figure_id: str) -> str:
 def read_figure(figure_id: str) -> bytes | None:
     """WebP bytes for ``figure_id``, or ``None`` when it must not be served."""
     if not is_valid_figure_id(figure_id):
+        # The client cannot be told these apart — a rejected id, an absent
+        # object and an unconfigured store are all 404, deliberately. The
+        # SERVER can, and this is the one failure whose cause is knowable:
+        # the id never reached storage. Without the line, an office manual
+        # whose filename carries a character the charset misses looks exactly
+        # like a manual indexed without figures — the SPA drops the thumbnail
+        # and says nothing. Same reasoning as the MinIO warning below.
+        log.warning("[chat-figure] id rejected by charset: %r", figure_id[:160])
         return None
     # Same switch as the answer seam: the figures belong to the corpus the
     # RAG indexed, so a checkout means the office store holds them.
