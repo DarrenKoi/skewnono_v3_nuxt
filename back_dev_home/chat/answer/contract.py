@@ -32,8 +32,8 @@ Precedence, so the three places do not compete silently:
   call signature, the exception mapping.
 * ``docs/datatables/hitachi/chat_rag_contract.txt`` **wins on meaning** —
   what makes a ``source_id`` stable, what a ``snippet`` is allowed to contain,
-  that the AccessScope filter belongs in the query rather than in a Python
-  pass afterwards. None of that is checkable here.
+  that the AccessScope filter must run over the whole candidate pool before
+  the five-row cut rather than after it. None of that is checkable here.
 * The letters in ``chat/docs/`` are the negotiation, not the agreement.
 
 **Tolerance is the thing this module removes.** The rule is: a required key

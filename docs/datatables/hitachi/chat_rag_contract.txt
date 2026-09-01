@@ -21,13 +21,25 @@ bge-reranker-v2-m3)과 검색 방식(2-leg hybrid)은 user-confirmed 로 닫혔�
   애플리케이션이 정합니다(모델이나 어댑터가 늘릴 수 없습니다).
 - source_type 은 manual / meeting / email / report 중 하나이며, 호출된 검색
   함수가 찍습니다. hit 안의 값을 신뢰하지 않습니다.
-- 접근 권한 필터(AccessScope: user_id/groups/fabs)는 질의 단계에 들어갑니다.
-  검색 후 Python 필터링으로 보완하는 것은 계약 위반입니다.
+- 접근 권한 필터(AccessScope: user_id/groups/fabs)는 **후보 pool 전체에 대해,
+  5행 절단 전에** 적용되어야 합니다. 절단 뒤에 거르는 것이 계약 위반입니다 —
+  오류 없이 근거만 줄어들어 "권한 밖" 과 "정말 없음" 이 구분되지 않습니다.
+  - 2026-09-01 이전 규칙은 "질의 단계에 들어간다" 였습니다. 실제 인덱스가
+    faiss 이고 faiss 에는 native access filter 가 없으므로(RAG 측 확인
+    2026-09-01) 그 형태로는 집행할 수 없습니다. 규칙을 지킬 수 있는 형태로
+    바꾼 것이며 완화가 아닙니다 — 관측 가능한 실패를 이름 붙였습니다.
+  - 현재는 사실상 no-op 입니다: 색인된 15개 문서가 전부 `access IS NULL`
+    이라 누구에게나 열려 있습니다(RAG 측 확인 2026-09-01). 따라서 필터 위치가
+    틀려 있어도 **지금은 아무 신호가 없습니다** — 회의록·메일을 붙이는 날
+    처음 드러납니다.
+  - 빈 list(`groups`/`fabs`)는 "제한 없음" 이 아니라 "추가로 매칭되는 것이
+    없음" 이고, 문서 쪽 `access` 가 비어 있는 것이 "모두에게 열림" 입니다
+    (mock 의 `_has_access` 가 이 규약입니다).
 
 필드
 | 필드 | 규칙 |
 | --- | --- |
-| source_id | 재색인 후에도 유지되는 stable ID. revision 이 바뀔 때만 변합니다. |
+| source_id | chunk **내용의 해시**입니다(RAG 측 확인 2026-09-01). 재색인해도 유지되며, 위치 기반 밀림이 없습니다. 내부 seq 는 재색인마다 재부여되지만 검색 결과로 나가지 않습니다. |
 | source_type | manual / meeting / email / report |
 | title | 노출 승인된 제목만 |
 | snippet | 승인된 최소 근거 text. 원문 전체가 아닙니다. |
@@ -72,11 +84,17 @@ figure_id — 저장소 키가 아니라 토큰입니다
   `{client prefix}/skewnono_rag/hitachi_manuals/figures/{figure_id}.webp`
   (RAG 측 확인 2026-08-31; 이전 `hitachi_sem/manual_figures/` 배치를
   대체합니다).
-- 서버는 저장소에 닿기 전에 `^[A-Za-z0-9._-]{1,128}$` 로 id 를 검증하고,
+- figure_id 는 RAG 가 `Path(pdf_path).stem` 에서 **그대로** 만듭니다 —
+  sanitization 이 없습니다(RAG 측 확인 2026-09-01. RAG 측이 추가 예정이라고
+  회신했으므로 아래 "sanitization" 항목을 함께 읽습니다). 따라서 실제 id 의
+  charset 은 매뉴얼 파일 이름의 charset 과 같습니다.
+- 서버는 저장소에 닿기 전에 `^[\w .-]{1,128}$` 로 id 를 검증하고(str 패턴의
+  `\w` 는 이미 Unicode 이므로 한글은 따로 범위를 주지 않습니다),
   추가로 `..` 를 포함한 id 를 거부합니다.
   따라서 경로가 섞인 id 를 내보내는 hit 은 오류가 아니라 그냥 렌더되지 않는
   그림이 됩니다. 색인 쪽에서 형식을 지키는 것이 유일한 방어선입니다.
-  - 점을 허용하는 charset 은 2026-08-19 에 넓혔습니다. 그전 규칙
+  - charset 은 두 번 넓혔습니다: 점을 2026-08-19 에, 공백과 한글을
+    2026-09-01 에(파일 이름이 담는 범위 전체). 최초 규칙
     `^[A-Za-z0-9_-]{1,128}$` 은 위 실제 예를 **거부**합니다. mock fixture 의
     id 에는 점이 없었으므로 집에서는 전부 통과하고 사무실에서만 모든 그림이
     404 나는 형태였습니다 — 조용히 렌더만 안 되므로 오류로 드러나지 않습니다.
@@ -86,6 +104,13 @@ figure_id — 저장소 키가 아니라 토큰입니다
     (2026-08-27, 디스크 경로는 containment 검사로만 살아남던 것). slash 는
     charset 과 Flask routing 양쪽에서 막히고, 디스크 경로는 조립된 경로가
     figures 디렉터리 안인지 다시 확인합니다.
+- sanitization (RAG 측 2026-09-01 추가 예정): **좁히지 마십시오.** 서버는
+  이미 파일 이름이 담는 범위를 받으므로 공백·한글·점을 바꿀 이유가 없고,
+  바꾸면 id 가 달라집니다. figure_id 는 source_id 와 달리 내용 해시가 아니라
+  이름에서 파생되므로, id 를 바꾸는 변경은 **MinIO 객체 이름도 같이 바뀌는
+  변경**입니다 — 인덱스와 객체를 함께 다시 만들지 않으면 모든 그림이 조용히
+  404 납니다. 거를 가치가 있는 것은 traversal 모양뿐입니다: 경로 구분자
+  (`/`, `\`), `..`, 앞머리 점, 제어문자, 128자 초과.
 - 이 규칙이 locator 와 다른 이유: locator 는 사람이 읽는 참조라 절대
   저장소 경로가 되면 안 되고, figure_id 는 반대로 애플리케이션이 저장소
   접근으로 바꾸는 유일한 값이라 형식을 좁게 고정해야 합니다.
@@ -162,6 +187,21 @@ figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
   지정합니다.
 - 질의를 언어 판별해서 한쪽으로 분기하거나 번역해서 보내지 않습니다. 섞인
   질문을 더 나쁜 단일 언어 질문으로 바꾸는 일입니다.
+
+아래 두 절은 OpenSearch 를 전제합니다 — 확인 필요 (2026-09-01)
+- 배달된 인덱스는 `{index_dir}` 의 네 파일(db, vectors, faiss, bm25)이고
+  (RAG 측 확인 2026-08-31), 접근 필터를 Python 후처리로 하는 이유가
+  "faiss 에 native access filter 가 없어서" 였습니다(RAG 측 확인 2026-09-01).
+  둘 다 **클러스터가 아니라 프로세스 안의 파일 인덱스**를 가리킵니다.
+  cloud preflight 도 faiss-cpu 와 rank_bm25 를 runtime 의존성으로 확인합니다.
+- 그렇다면 아래 두 절의 OpenSearch 고유 항목 — Nori analyzer, ML Commons
+  remote connector(C1/C2), `trusted_connector_endpoints_regex` — 은 현재
+  구현과 무관합니다. 다만 RAG 측이 명시적으로 그렇게 회신한 적은 없으므로
+  삭제하지 않고 이 표시를 답니다. 질문은
+  chat/docs/2026-09-01-chat-to-rag-contract-questions.md 의 Q7·Q8 입니다.
+- 특히 **한국어 tokenization** 이 걸려 있습니다. Nori 가 아니라 rank_bm25
+  라면 한글을 무엇으로 자르는지가 새로 열린 질문이고, 잘못 자르면 오류
+  없이 recall 만 반토막 납니다(이 파일 "한국어와 영어를 항상 함께" 절).
 
 검색 방식 — 2-leg hybrid + 크로스인코더 rerank (user-confirmed 2026-08-06/07)
 - 검색은 Nori BM25 ⊕ BGE-M3 dense 의 2-leg hybrid 입니다. BGE-M3 의 sparse

@@ -1,7 +1,10 @@
 """Deterministic lexical search over deliberately synthetic knowledge fixtures.
 
-Stands in for the office RAG index (OpenSearch, manuals/meeting summaries/
-emails/reports; figures in MinIO). The office path is a 2-leg hybrid search —
+Stands in for the office RAG index (manuals/meeting summaries/emails/
+reports; figures in MinIO). The office index is a set of files inside the
+delivered package — faiss vectors plus a bm25 store — not a cluster, which is
+why its access filter is a Python pass rather than a query clause (RAG 측 확인
+2026-09-01). The office path is a 2-leg hybrid search —
 Nori BM25 ⊕ BGE-M3 dense k-NN — over-fetching 20-30 candidates and reranking
 them with the ``bge-reranker-v2-m3`` cross-encoder before truncating to five
 rows (see ``docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md``).
@@ -84,6 +87,17 @@ def _tokens(value: str) -> set[str]:
 
 
 def _has_access(record: Mapping[str, Any], scope: AccessScope) -> bool:
+    """Empty ``access`` means open to everyone; empty scope lists add nothing.
+
+    Called inside the scan, so filtering happens over the whole fixture pool
+    and truncation to ``limit`` comes after — the order the contract requires
+    (``chat_rag_contract.txt``). Filtering after the cut would silently return
+    fewer rows than the cap instead of the permitted ones deeper in the
+    ranking. The office is a Python post-filter too (faiss has no native
+    filter), so this mock stands in for its shape; where in its pipeline the
+    filter sits is Q7's companion question and currently unobservable, since
+    every indexed document is ``access IS NULL`` (RAG 측 확인 2026-09-01).
+    """
     access = record["access"]
     if not any(access.values()):
         return True

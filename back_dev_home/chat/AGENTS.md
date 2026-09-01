@@ -92,7 +92,7 @@ follow-up chip·**그림 썸네일**을 봅니다. 그림은 `--live` 가 건드
 | 무엇 | 이기는 곳 |
 | --- | --- |
 | **실행 가능한** 사실 — 필수 키, 값 모양, 호출 서명, 예외 대응 | `answer/contract.py` |
-| **실행 불가능한** 의미 — `source_id` 안정성, `snippet` 승인 범위, AccessScope 가 질의 단계에 들어갈 것 | `docs/datatables/…/chat_rag_contract.txt` |
+| **실행 불가능한** 의미 — `source_id` 안정성, `snippet` 승인 범위, AccessScope 가 5행 절단 전에 적용될 것 | `docs/datatables/…/chat_rag_contract.txt` |
 | 협상 경과 | `docs/` 의 편지 |
 
 즉 코드로 검사할 수 있는 것은 코드가 이기고, 검사할 수 없는 것은 datatables
