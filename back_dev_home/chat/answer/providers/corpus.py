@@ -2,9 +2,9 @@
 
 Stands in for the office RAG index (manuals/meeting summaries/emails/
 reports; figures in MinIO). The office index is a set of files inside the
-delivered package — faiss vectors plus a bm25 store — not a cluster, which is
-why its access filter is a Python pass rather than a query clause (RAG 측 확인
-2026-09-01). The office path is a 2-leg hybrid search —
+delivered package — faiss vectors plus a bm25 store — not a cluster (RAG 측
+확인 2026-09-01: no OpenSearch is involved in retrieval at all), which is why
+its access filter is a Python pass rather than a query clause. The office path is a 2-leg hybrid search —
 Nori BM25 ⊕ BGE-M3 dense k-NN — over-fetching 20-30 candidates and reranking
 them with the ``bge-reranker-v2-m3`` cross-encoder before truncating to five
 rows (see ``docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md``).
@@ -83,6 +83,20 @@ _TOKEN_PATTERN = re.compile(r"[a-z0-9가-힣]+")
 
 
 def _tokens(value: str) -> set[str]:
+    """Character-class runs, which is what the office BM25 leg does too.
+
+    A happy accident worth keeping deliberately: the office tokenizer is a
+    plain character-class split — a run of Hangul syllables becomes ONE token,
+    particles and endings included, and never a morpheme (RAG 측 확인
+    2026-09-01). ``_TOKEN_PATTERN`` has the same semantics, so the mock
+    reproduces the office's real Korean weakness rather than a tidier one:
+    a query for "알람" misses a document that says "알람을", and no error is
+    raised — the row simply is not there. At the office a dense BGE-M3 leg
+    covers for this and here nothing does, which makes the mock the STRICTER
+    of the two. That is the safe direction; do not "fix" this into a
+    morphological split, or home sessions would start passing on Korean
+    queries the office answers worse.
+    """
     return set(_TOKEN_PATTERN.findall(value.lower()))
 
 

@@ -1,8 +1,13 @@
-chat RAG — 근거 검색 인덱스와 figure 저장소 (OpenSearch + MinIO)
+chat RAG — 근거 검색 인덱스와 figure 저장소 (faiss + BM25 파일 인덱스 + MinIO)
 
 출처: 사내 RAG 인덱스입니다. 문서(매뉴얼·회의록·메일·리포트)를 chunk 단위로
-색인하고 k-NN 으로 검색하며, chunk 가 그림에서 추출된 경우 해당 그림의 webp
-파일이 MinIO 에 따로 보관됩니다. 검색 결과의 애플리케이션 측 계약은
+색인하고 k-NN 으로 검색합니다. 인덱스는 **클러스터가 아니라 배달된 패키지
+안의 파일 묶음**입니다 — `{index_dir}` 의 db·vectors·faiss·bm25 네 파일이고,
+검색은 같은 프로세스 안에서 일어납니다. **OpenSearch 는 쓰지 않습니다**
+(RAG 측 확인 2026-09-01. 매뉴얼만 서비스하는 현 범위에서는 필요가 없다는
+판단이며, 이 저장소의 대화 turn 로깅이 쓰는 OpenSearch 와는 무관합니다).
+chunk 가 그림에서 추출된 경우 해당 그림의 webp 파일이 MinIO 에 따로
+보관됩니다. 검색 결과의 애플리케이션 측 계약은
 back_dev_home/chat/contracts.py 의 Evidence 이고, 그 규칙을 집행하는 것은
 back_dev_home/chat/answer/contract.py 입니다 — 양쪽 환경이 **같은 모듈을
 실행합니다**(2026-09-01). 사무실에서는 RAG 가 agent_query 안에서 검색·rerank·
@@ -181,30 +186,36 @@ figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
 - k-NN leg 는 BGE-M3 dense 를 사용합니다(user-confirmed 2026-08-06). BGE-M3 는
   multilingual 이므로 한/영 동시 요건이 이 leg 에서 충족됩니다. multilingual
   여부는 더 이상 OFFICE-VERIFY 가 아닙니다.
-- lexical/BM25 leg 는 Nori analyzer 를 확보했습니다(user-confirmed
-  2026-08-06). OpenSearch 기본 standard analyzer 는 한글을 한 글자씩 쪼개
-  쓸모 있는 매칭이 나오지 않으므로, 한국어 text 필드에는 Nori 를 명시적으로
-  지정합니다.
+- lexical/BM25 leg 의 토큰화는 **단순 문자 클래스 기반**입니다 — 연속된 한글
+  음절을 한 토큰으로 묶고, 어절 안에서는 뭉쳐진 채로 들어갑니다(RAG 측 확인
+  2026-09-01). 형태소 분석기가 아닙니다. 2026-08-06 에 "Nori analyzer 확보"
+  로 적었던 것은 OpenSearch 를 전제한 오기입니다.
+  - 결과: 이 leg 는 한국어를 **어절 단위 정확 일치**로만 매칭합니다. 조사와
+    어미가 토큰에 붙어 있으므로 질의 "알람" 은 본문 "알람을" 과 매칭되지
+    않고, 띄어쓰기 없는 복합명사 "전자광학조정" 은 "광학" 으로 걸리지
+    않습니다(BM25 에는 부분 문자열 매칭이 없습니다).
+  - 따라서 한국어 산문 질의에서 hybrid 는 사실상 **dense 한 leg** 로 돕니다.
+    BGE-M3 가 multilingual 이라 무너지지는 않지만, lexical leg 가 한국어에서
+    기여하는 몫은 이 문서가 Nori 를 전제로 적었던 것보다 훨씬 작습니다.
+  - 반대로 **alphanumeric 은 그대로 잘 듭니다** — 알람 코드(9006), 모델명,
+    recipe 이름, 파라미터 이름은 문자 클래스가 갈라 주므로 lexical leg 가
+    제 역할을 합니다. 매뉴얼에서 사람이 찾는 것 상당수가 여기 속하므로,
+    현 범위(매뉴얼 15건)에서 이것이 급한 결함은 아닙니다.
+  - 고칠 때가 오면 **질의와 색인 양쪽을 대칭으로** 바꿔야 합니다. 본문에
+    조사가 붙어 있으므로 질의만 정규화하면 매칭이 오히려 더 깨집니다. 사전
+    없이 갈 수 있는 두 길은 조사·어미 접미사 목록으로 잘라내기, 또는 한글
+    구간만 문자 n-gram(bi/tri) 으로 색인하기입니다. 후자는 조사·복합명사·부분
+    일치를 한 번에 해결하고 사전이 필요 없으며, 문서 수가 적을 때는 색인
+    크기 대가도 무시할 만합니다.
+  - 되짚어 볼 신호: 한국어로만 물었을 때 인용이 엉뚱하거나 비는데 같은
+    질문을 영어로 하면 잘 나오는 경우, 또는 코퍼스가 매뉴얼 수십 건 규모를
+    넘어서는 시점.
 - 질의를 언어 판별해서 한쪽으로 분기하거나 번역해서 보내지 않습니다. 섞인
   질문을 더 나쁜 단일 언어 질문으로 바꾸는 일입니다.
 
-아래 두 절은 OpenSearch 를 전제합니다 — 확인 필요 (2026-09-01)
-- 배달된 인덱스는 `{index_dir}` 의 네 파일(db, vectors, faiss, bm25)이고
-  (RAG 측 확인 2026-08-31), 접근 필터를 Python 후처리로 하는 이유가
-  "faiss 에 native access filter 가 없어서" 였습니다(RAG 측 확인 2026-09-01).
-  둘 다 **클러스터가 아니라 프로세스 안의 파일 인덱스**를 가리킵니다.
-  cloud preflight 도 faiss-cpu 와 rank_bm25 를 runtime 의존성으로 확인합니다.
-- 그렇다면 아래 두 절의 OpenSearch 고유 항목 — Nori analyzer, ML Commons
-  remote connector(C1/C2), `trusted_connector_endpoints_regex` — 은 현재
-  구현과 무관합니다. 다만 RAG 측이 명시적으로 그렇게 회신한 적은 없으므로
-  삭제하지 않고 이 표시를 답니다. 질문은
-  chat/docs/2026-09-01-chat-to-rag-contract-questions.md 의 Q7·Q8 입니다.
-- 특히 **한국어 tokenization** 이 걸려 있습니다. Nori 가 아니라 rank_bm25
-  라면 한글을 무엇으로 자르는지가 새로 열린 질문이고, 잘못 자르면 오류
-  없이 recall 만 반토막 납니다(이 파일 "한국어와 영어를 항상 함께" 절).
-
 검색 방식 — 2-leg hybrid + 크로스인코더 rerank (user-confirmed 2026-08-06/07)
-- 검색은 Nori BM25 ⊕ BGE-M3 dense 의 2-leg hybrid 입니다. BGE-M3 의 sparse
+- 검색은 BM25 ⊕ BGE-M3 dense 의 2-leg hybrid 이며, 둘 다 배달된 파일 인덱스
+  위에서 같은 프로세스로 돕니다. BGE-M3 의 sparse
   representation 은 쓰지 않습니다 — dense 하나로 이미 multilingual 요건을
   만족하므로 sparse leg 를 더해 얻는 이득보다 왕복 비용이 큽니다.
 - Hybrid 결과 중 후보 20~30건을 뽑아 `bge-reranker-v2-m3` 크로스인코더로
@@ -216,20 +227,16 @@ figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
 - 크로스인코더는 후보 수에 선형으로 비쌉니다. 20~30 으로 시작해 사무실에서
   실측하며, 50 은 체감될 수 있습니다.
 
-모델 호출 위치 — C2 (user-confirmed 2026-08-07)
-- BGE-M3 embedding 과 `bge-reranker-v2-m3` rerank 는 사내 API 로 제공됩니다.
-  `office.py` 가 이 API 를 **직접** 호출합니다(C2). OpenSearch 의 ML Commons
-  remote connector 로 클러스터가 직접 호출하게 하는 경로(C1)는 보류입니다 —
-  `plugins.ml_commons.trusted_connector_endpoints_regex` 에 사내 host 가
-  등록되어 있지 않습니다(office 확인 2026-08-07).
-  (2026-09-01 기준 이 호출은 전부 `agent_query` 안, 즉 RAG 저장소 안에서
-  일어납니다. C1/C2 는 이제 **RAG 측 내부 선택**이며 chat 쪽에 어댑터가
-  없습니다.)
-- C2 는 tool 호출 1회당 Flask 왕복 3회(embedding → OpenSearch → rerank)입니다.
-  C1 으로 전환하면 왕복이 1회로 줄지만, 클러스터 cluster-wide 설정 변경 권한과
-  운영 협의가 선행되어야 합니다. 전환해도 추적되는 계약(이 파일의 필드,
-  `Evidence` 12필드, `answer/contract.py`)은 바뀌지 않습니다 — 바뀌는 것은
-  RAG 저장소 안뿐이고 chat 은 재배포조차 필요 없습니다.
+모델 호출 위치 — 전부 RAG 프로세스 안 (2026-09-01)
+- BGE-M3 embedding 과 `bge-reranker-v2-m3` rerank 는 `agent_query` 안에서
+  일어나며, chat 쪽에는 어댑터도 왕복도 없습니다.
+- 폐기된 선택지: 2026-08-07 에는 이 호출을 어댑터가 직접 하느냐(C2)
+  OpenSearch ML Commons remote connector 로 클러스터가 하느냐(C1)를 두고
+  C2 로 정했었습니다. RAG 가 OpenSearch 를 쓰지 않으므로(RAG 측 확인
+  2026-09-01) C1 은 존재하지 않는 선택지가 되었고, C2 는 RAG 안으로
+  들어갔습니다. 설계 문서
+  `docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md` 의 C1/C2
+  절은 이 이유로 역사 기록입니다.
 
 RAG answer entry point (합의 2026-08-31 — 원본은
 back_dev_home/chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md)
@@ -382,5 +389,6 @@ back_dev_home/chat/docs/)
   이 파일 중 코드로 검증할 수 없는 절반에 대한 질문 6건
 - back_dev_home/chat/MIGRATION.md — office 전환 순서, selector, 상한값
 - docs/datatables/hitachi/skewnono_chat_logging.txt — 대화 turn 기록 인덱스(별개)
-- docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md — 검색 방식,
-  모델 호출 위치(C1/C2), `element_type` 축 분리 권고의 설계 확정 문서
+- docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md — 검색 방식과
+  `element_type` 축 분리 권고의 설계 확정 문서. 단 OpenSearch 를 전제한
+  부분(C1/C2, Nori)은 역사 기록입니다 — 위 "검색 방식" 절이 현재입니다
