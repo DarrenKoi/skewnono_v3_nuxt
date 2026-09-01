@@ -14,6 +14,14 @@ import { downloadBlob } from './csvDownload.ts'
 export const XLSX_MIME
   = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
+// 수식 주입 방어(`csvDownload.guardFormulaCell`)를 여기서는 **부르지 않습니다**.
+// 2026-08-11 리뷰가 이 파일을 그 구멍으로 적어 두었지만, 확인해 보니 전제가
+// 틀렸습니다: `.xlsx` 는 칸마다 타입이 명시된 형식이라 수식은 `<f>` 요소로만
+// 수식이고, exceljs 는 문자열을 받으면 언제나 공유 문자열로 씁니다. `=1+1` 을
+// addRow 로 넣고 다시 읽으면 type=String / formula=null 이며 sheet XML 에
+// `<f>` 가 0 개입니다. 첫 글자로 짐작하는 것은 CSV·TSV 쪽이고, 방어도 거기
+// 있습니다. 여기에 따옴표를 달면 Excel 이 그 따옴표를 값으로 보여 줍니다.
+
 /** 시트 한 장. 첫 행이 헤더라는 것은 빌더 쪽 약속입니다. */
 export interface WorkbookSheet {
   name: string
