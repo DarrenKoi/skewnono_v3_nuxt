@@ -66,9 +66,14 @@ scope, timeout)` 하나로 옮기는 경계 변경이 끝났습니다
 때문입니다. 검증에서 문제가 나오면 되살릴 곳은 git 이며, 삭제 커밋 하나만
 되돌리면 구 경로가 그대로 복원됩니다.
 
-남은 것은 **사무실 full-path 검증** 하나입니다 — 순서와 검증 전 대조 4건은
-`docs/2026-08-31-chat-to-rag-preverification-ack.md` 에 있습니다(RAG 측 집
-검증은 langchain 부재로 py_compile + Evidence 매핑 assert 까지만).
+**사무실 full-path 검증 완료 (2026-09-01).** `answer/contract.py` 의
+`--live` 러너가 사무실 런타임에서 전부 `ok` 를 냈습니다 — import·서명·반환값.
+동거 배치가 처음으로 실증되었고(사내 의존성이 skewnono 의 `numpy>=2` 옆에서
+로드됨), 계약 검증이 편지 왕복에서 명령 한 번으로 바뀌었습니다.
+
+남은 것은 **화면 경로 한 번**입니다 — 사무실에서 `/chat` 을 열어 인용·
+follow-up chip·**그림 썸네일**을 봅니다. 그림은 `--live` 가 건드리지 않는
+유일한 경로이고, `figure_id` → MinIO 는 사무실에서 실행된 적이 없습니다.
 
 ## 계약의 원본 (여기 요약하지 않습니다)
 
