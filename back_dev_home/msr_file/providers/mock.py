@@ -105,12 +105,17 @@ import math
 import random
 from functools import lru_cache
 from statistics import fmean, pstdev, stdev
-from typing import NamedTuple, TypedDict
+from typing import Any, NamedTuple, TypedDict
 
 from back_dev_home._core.image_naming import HV_SEM_STEM_SUFFIXES
 
 from back_dev_home.meas_hist.contracts import MeasHistRow
 from back_dev_home.meas_hist.providers.mock import find_meas_hist_by_msr
+# MsrArtifact is NOT duplicated here the way the 7 response TypedDicts are
+# (see contracts.py's PARALLEL CONTRACT NOTICE) — that duplication exists to
+# leave the fragile mock-pin surface untouched, and a contract added today has
+# no such history to preserve.
+from back_dev_home.msr_file.contracts import MsrArtifact, MsrArtifactError
 
 
 __all__ = [
@@ -122,6 +127,7 @@ __all__ = [
     "SpmDict",
     "MsrFileResponse",
     "get_msr_file",
+    "get_msr_artifact",
     "program_parameters",
 ]
 
@@ -1163,4 +1169,120 @@ def get_msr_file(
         spm_dict=_spm_dict(msr),
         total=len(rows),
         rows=rows
+    )
+
+
+# ── artifact download (raw .MSR text / .pkl bytes) ──────────────────────────
+#
+# The office serves these two straight out of MinIO (meas_hist's minio_msr and
+# minio_pkl). At home there is no MinIO, so both are SYNTHESIZED from the same
+# seeded payload get_msr_file already builds — a home download and a home API
+# read therefore describe the same measurement, which is the only property that
+# makes the button testable here.
+#
+# Two things about the real files are NOT known and are marked OFFICE-VERIFY:
+# the filename convention under .../YYYY/MM/DD/, and the raw .MSR text layout.
+# The office adapter never uses either guess — it reads the stored key's own
+# basename and the object's own bytes — so the guesses cannot leak outward.
+
+_ARTIFACT_KINDS = ("raw", "pkl")
+
+# df_result_data's real columns carry SPACES; the contract renames them so
+# Python can read one spelling (docs/datatables/hitachi/msr_file_pickle.txt,
+# office_example._records). A downloaded home pickle must carry the OFFICE
+# spelling, or someone who writes a parser against it at home finds their
+# KeyErrors only at the office.
+_PICKLE_COLUMN_NAMES = {
+    "mp_image_name_01": "mp_image_name 01",
+    "meas_condition_mag": "meas_condition mag",
+    "meas_condition_vac": "meas_condition vac",
+    "meas_condition_pixel": "meas_condition pixel",
+    "object_type": "object",
+}
+
+# Derived in the contract, absent from the pickle: mp_image_names is assembled
+# from the numbered columns, so shipping it back would invent a column.
+_CONTRACT_ONLY_COLUMNS = ("mp_image_names",)
+
+
+def _pickle_records(rows: list[MsrFileRow]) -> list[dict[str, Any]]:
+    """Contract rows back into the pickle's own column spelling."""
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        rec = {
+            _PICKLE_COLUMN_NAMES.get(key, key): value
+            for key, value in row.items()
+            if key not in _CONTRACT_ONLY_COLUMNS
+        }
+        # One numbered column per image, as the office pickle stores them.
+        for index, name in enumerate(row["mp_image_names"], start=1):
+            rec[f"mp_image_name {index:02d}"] = name
+        out.append(rec)
+    return out
+
+
+def _raw_msr_text(payload: MsrFileResponse) -> str:
+    """A plausible stand-in for the tool's raw .MSR text. OFFICE-VERIFY.
+
+    The real layout is unread — no .MSR sample has reached home. What IS known
+    is that it is text and that it precedes the pickle, so this renders the
+    same measurement as a header block plus one tab-separated line per row.
+    Treat the exact spelling as fabricated; treat the CONTENT as real, because
+    it comes from the same seeded payload the API returns.
+    """
+    exe = payload["exe_detail_info"]
+    header = [
+        "# SKEWNONO MOCK — 이 파일은 사내 장비가 만든 원본이 아닙니다.",
+        "# OFFICE-VERIFY: 실제 .MSR 텍스트 레이아웃은 아직 확인되지 않았습니다.",
+        f"MSR\t{payload['msr']}",
+        f"CLASS\t{payload['class_name']}",
+        f"RECIPE\t{exe['recipe_name']}",
+        f"LOT\t{exe['lot_id']}",
+        f"WAFER\t{exe['wafer_id']}",
+        f"TOTAL\t{payload['total']}",
+        "",
+    ]
+    columns = ("sequence", "chip_number", "chip_coordinate", "stage_coordinate",
+               "parameter", "cd_value", "mp_number", "meas_method")
+    lines = ["\t".join(columns)]
+    for row in payload["rows"]:
+        lines.append("\t".join("" if row[col] is None else str(row[col]) for col in columns))
+    return "\n".join(header + lines) + "\n"
+
+
+def get_msr_artifact(msr: str, kind: str) -> MsrArtifact:
+    if kind not in _ARTIFACT_KINDS:
+        raise MsrArtifactError(400, f"kind must be one of {', '.join(_ARTIFACT_KINDS)}")
+
+    payload = get_msr_file(msr)
+    if payload is None:
+        raise MsrArtifactError(404, f"MSR not found: {msr}")
+
+    if kind == "raw":
+        return MsrArtifact(
+            kind="raw",
+            filename=f"{msr}.MSR",
+            content_type="text/plain; charset=utf-8",
+            data=_raw_msr_text(payload).encode("utf-8"),
+        )
+
+    import pickle
+
+    import pandas as pd
+
+    # Mirrors the office pickle's top-level keys (docs §msr_file_pickle.txt) so
+    # a script written against a home download opens an office one unchanged.
+    document = {
+        "df_result_data": pd.DataFrame(_pickle_records(payload["rows"])),
+        "exe_detail_info": payload["exe_detail_info"],
+        "alignment": payload["alignment"],
+        "spm_dict": payload["spm_dict"],
+        "fixed_fdc": payload["fixed_fdc"],
+        "dynamic_fdc": payload["dynamic_fdc"],
+    }
+    return MsrArtifact(
+        kind="pkl",
+        filename=f"{msr}.pkl",
+        content_type="application/octet-stream",
+        data=pickle.dumps(document),
     )

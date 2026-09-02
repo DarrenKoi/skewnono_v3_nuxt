@@ -242,7 +242,7 @@
 <script setup lang="ts">
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { copyTextToClipboard } from '~/utils/tableExport'
+import { copyTextToClipboard, downloadBlob, filenameFromDisposition } from '~/utils/tableExport'
 import { formatRecipeTimestamp, recipeDetailId, recipeDetailRoute } from '~/utils/recipeView'
 import { isSetCompatibilityKnown, rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
@@ -457,6 +457,47 @@ const copySummary = async () => {
   )
 }
 
+// The MinIO originals behind this measurement: the raw .MSR text the tool
+// wrote, and the post-processed pickle every analysis on this page is built
+// from. Always the FOCUS msr, never the whole set — a set download would be a
+// server-side zip of hundreds of megabytes, and the label says which one it is
+// so there is nothing to mistake.
+//
+// Fetched rather than linked. A plain <a download> would navigate the SPA away
+// on any non-200 (an expired pickle answers 410), taking the workspace state
+// with it; a fetch lets the failure be a toast and leaves the page standing.
+const downloading = ref('')
+
+const downloadArtifact = async (kind: 'raw' | 'pkl') => {
+  const msr = props.ws.selection.value?.msr
+  if (!msr || downloading.value) return
+
+  downloading.value = kind
+  try {
+    const response = await fetch(`/api/msr-file/download?msr=${encodeURIComponent(msr)}&kind=${kind}`)
+    if (!response.ok) {
+      // The backend tells expiry (410) apart from a missing file (404) on
+      // purpose — pickles are deleted at 61 days as a matter of routine, and
+      // "보존 기간이 지났습니다" is a different thing to tell someone than
+      // "없습니다". Its message is already Korean, so show it.
+      const detail = await response.json().catch(() => null)
+      toast.add({
+        title: '파일을 받지 못했습니다',
+        description: detail?.error ?? `서버가 ${response.status} 를 반환했습니다.`,
+        icon: 'i-lucide-triangle-alert',
+        color: 'warning'
+      })
+      return
+    }
+    const served = filenameFromDisposition(response.headers.get('Content-Disposition'))
+    downloadBlob(served ?? `${msr}.${kind === 'raw' ? 'MSR' : 'pkl'}`, await response.blob())
+  } catch {
+    toast.add({ title: '파일을 받지 못했습니다', description: '네트워크 오류로 다운로드가 중단되었습니다.', icon: 'i-lucide-triangle-alert', color: 'warning' })
+  } finally {
+    downloading.value = ''
+  }
+}
+
 // Excel export lives on the data table, not here. Annotation (per-MSR triage
 // notes) is tracked in .scratch/skewvoir-annotation/ — no UI until it works.
 const actions = computed(() => [
@@ -467,6 +508,18 @@ const actions = computed(() => [
     disabled: !recipeTarget.value,
     onClick: openRecipe
   },
-  { label: 'Share', icon: 'i-lucide-share-2', disabled: false, onClick: share }
+  { label: 'Share', icon: 'i-lucide-share-2', disabled: false, onClick: share },
+  {
+    label: 'MSR 원본 받기',
+    icon: 'i-lucide-file-down',
+    disabled: downloading.value !== '',
+    onClick: () => downloadArtifact('raw')
+  },
+  {
+    label: 'Pickle 받기',
+    icon: 'i-lucide-file-archive',
+    disabled: downloading.value !== '',
+    onClick: () => downloadArtifact('pkl')
+  }
 ])
 </script>

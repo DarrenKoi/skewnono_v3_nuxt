@@ -1,6 +1,9 @@
-from flask import Blueprint, jsonify, request
+from urllib.parse import quote
 
-from back_dev_home.msr_file.data import get_msr_file
+from flask import Blueprint, Response, jsonify, request
+
+from back_dev_home.msr_file.contracts import MsrArtifactError
+from back_dev_home.msr_file.data import get_msr_artifact, get_msr_file
 
 
 bp = Blueprint("msr_file", __name__)
@@ -71,3 +74,52 @@ def msr_files_bulk():
             results.append(result)
 
     return jsonify({"results": results})
+
+
+@bp.get("/msr-file/download")
+def msr_file_download():
+    """Serve the MinIO original behind an MSR — raw .MSR text or the pickle.
+
+    Deliberately keyed on `msr`, never on a MinIO key. Our credentials are
+    valid for the whole `user/2067928/` prefix (image_cache and other apps'
+    objects included), so accepting a key from the caller would turn this into
+    a read primitive over that entire prefix. Taking the id and letting the
+    adapter look the path up in meas_hist keeps the reachable set to objects
+    that a measurement actually points at.
+
+    Sits under /msr-file/ so the activity logger files it as `skewvoir`
+    without a feature_map entry — _logging matches a path prefix plus "/".
+    """
+    msr = (request.args.get("msr") or "").strip()
+    if not msr:
+        return jsonify({"error": "msr query param is required"}), 400
+
+    kind = (request.args.get("kind") or "").strip()
+    if not kind:
+        return jsonify({"error": "kind query param is required (raw | pkl)"}), 400
+
+    try:
+        artifact = get_msr_artifact(msr, kind)
+    except MsrArtifactError as exc:
+        return jsonify({"error": exc.message, "kind": kind, "msr": msr}), exc.status
+
+    # RFC 5987: the office filename can carry non-ASCII, and a bare filename=
+    # with such bytes makes the browser save "download" or mangle the name.
+    name = artifact["filename"]
+    disposition = f"attachment; filename=\"{name}\"; filename*=UTF-8\'\'{quote(name)}"
+    return Response(
+        artifact["data"],
+        # content_type, NOT mimetype: Flask appends its own charset to any
+        # mimetype starting with "text/", which both doubles the parameter on
+        # the mock's utf-8 text AND silently stamps UTF-8 onto the office's
+        # deliberately charset-less text/plain — the one label that must stay
+        # off until the .MSR encoding is verified.
+        content_type=artifact["content_type"],
+        headers={
+            "Content-Disposition": disposition,
+            # An MSR's originals never change once written, but they DO get
+            # deleted at retention, so a long browser cache would keep serving
+            # a file the store no longer has. Revalidate instead.
+            "Cache-Control": "no-cache",
+        },
+    )

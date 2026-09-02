@@ -453,6 +453,23 @@ export const apiGroups: ApiGroup[] = [
         response: '{ results: MsrFilePayload[] }',
         auth: '토큰 가능',
         example: { path: '/msr-files', body: { items: [{ msr: 'MSR_001' }, { msr: 'MSR_002' }] } }
+      },
+      {
+        method: 'GET',
+        path: '/api/msr-file/download',
+        summary: 'MinIO에 저장된 원본 파일을 그대로 내려받습니다 — raw .MSR 텍스트 또는 후처리 pickle. 보존 기간이 지난 파일은 410 으로 답하므로 404(없는 측정)와 구분해 처리하십시오. 파싱된 값이 필요하면 /api/msr-file 을 쓰십시오.',
+        args: [
+          { name: 'msr', kind: 'query', required: true, note: 'MSR identifier' },
+          {
+            name: 'kind',
+            kind: 'query',
+            required: true,
+            note: 'raw = 장비가 쓴 .MSR 원본 텍스트, pkl = 후처리 pickle. pickle 은 여는 쪽 pandas/numpy 버전이 맞아야 열립니다'
+          }
+        ],
+        response: '파일 바이트 (Content-Disposition: attachment)',
+        auth: '토큰 가능',
+        example: { path: '/msr-file/download', query: { msr: 'MSR_001', kind: 'raw' } }
       }
     ]
   },

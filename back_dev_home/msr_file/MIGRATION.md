@@ -154,6 +154,45 @@ what was measured — investigate the post-processing pipeline, not the adapter.
 - Notes: same office metadata obligation as `/api/msr-file` applies to every
   item in `results`.
 
+## 원본 다운로드 — `GET /api/msr-file/download`
+
+`msr` 과 `kind`(`raw` | `pkl`)를 받아 MinIO 오브젝트를 **그대로** 내보냅니다.
+`raw` 는 meas_hist 문서의 `minio_msr`, `pkl` 은 `minio_pkl` 을 읽습니다. 파싱된
+값은 기존 `GET /api/msr-file` 이 담당하므로 이 경로는 정규화를 하지 않습니다 —
+호출자가 요청한 것은 사무실에 저장된 그 파일이기 때문입니다.
+
+**MinIO key 를 인자로 받지 않습니다.** 자격증명이 `user/2067928/` prefix 전체에
+유효하므로(`docs/datatables/hitachi/msr_file_pickle.txt`), key 를 그대로 받으면
+이 엔드포인트가 그 prefix 전체에 대한 읽기 수단이 됩니다. `msr` 을 받아
+어댑터가 경로를 찾게 하면 도달 가능한 범위가 "실제 측정이 가리키는 오브젝트"로
+제한됩니다.
+
+상태 코드 3가지를 구분합니다.
+
+| 상태 | 뜻 |
+| --- | --- |
+| 404 | MSR 을 못 찾았거나, 해당 kind 의 경로 필드가 문서에 없음 (`minio_msr` 은 2.25M 중 약 8,000건에 없습니다) |
+| 410 | 경로는 있는데 오브젝트가 없음 — **보존 기간 경과**. `minio_purge_old_pickles` 가 61일에 `dict_pkl` 을 지우므로 정상 응답입니다 |
+| 400 | `kind` 가 `raw`/`pkl` 이 아님 |
+
+410 을 404 로 합치지 마십시오. 만료는 실패가 아니라 예정된 결과이고, 프론트엔드가
+"보존 기간이 지났습니다"와 "없는 측정입니다"를 다르게 말할 수 있는 유일한 근거입니다.
+
+office 어댑터가 지켜야 할 것 2가지가 있습니다. (1) 저장된 경로는 PREFIX 기준
+**상대 key** 이므로 `/` 로 잘라 bucket 을 만들면 `InvalidBucketName` 이 납니다 —
+`_fetch_payload` 와 같은 규칙입니다. (2) 파일명은 **key 의 basename** 을 씁니다.
+우리가 이름을 지어내면 같은 오브젝트를 두 번 받았을 때 이름이 갈립니다.
+
+`raw` 의 `Content-Type` 에는 charset 을 붙이지 않습니다 — .MSR 텍스트 인코딩이
+아직 확인되지 않았고(OFFICE-VERIFY), CP949/Shift-JIS 를 UTF-8 이라 표기하면
+받는 쪽이 깨집니다. 홈 mock 은 스스로 UTF-8 을 만들므로 거기서만 charset 을
+붙입니다.
+
+home mock 은 MinIO 가 없으므로 두 파일을 같은 시드 payload 에서 합성합니다.
+pickle 은 **사무실 컬럼 철자**(`meas_condition mag`, `mp_image_name 01`,
+`object`)로 되돌려 담습니다 — 홈에서 쓴 파서가 사무실에서 `KeyError` 를 내는
+드리프트를 막기 위한 것이며 `tests/test_artifact.py` 가 이를 고정합니다.
+
 ## 픽클 보존(retention) — 이 앱은 읽기만 합니다
 
 `minio_pkl` 픽클은 **캐시가 아니라 원천 데이터**입니다. 이 어댑터는

@@ -1,7 +1,7 @@
 // Pure-logic tests for tableExport. Run: node --test app/utils/tableExport.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { guardFormulaCell, safeSheetName, toSheetRows } from './tableExport.ts'
+import { filenameFromDisposition, guardFormulaCell, safeSheetName, toSheetRows } from './tableExport.ts'
 
 // 클립보드 TSV 에는 칸 타입이 없어 Excel 이 첫 글자로 수식 여부를 짐작합니다.
 // 사무실 식별자 하나가 =HYPERLINK(...) 이면 붙여넣은 사람의 Excel 이 실행합니다.
@@ -53,4 +53,34 @@ test('safeSheetName 은 금지 문자를 눕히고 31자로 자른다', () => {
   assert.equal(safeSheetName('P'.repeat(40)).length, 31)
   assert.equal(safeSheetName('   '), 'Sheet')
   assert.equal(safeSheetName(''), 'Sheet')
+})
+
+// MinIO 원본 다운로드는 저장소가 준 파일명을 그대로 씁니다. 이름이 한글이나
+// 비 ASCII 를 담으면 `filename=` 쪽은 깨지고 `filename*=` 만 살아남으므로,
+// 둘이 함께 오면 확장 형식이 이깁니다(RFC 6266 §4.3).
+test('filenameFromDisposition 은 확장 형식을 우선해 퍼센트 디코딩한다', () => {
+  assert.equal(
+    filenameFromDisposition('attachment; filename="download"; filename*=UTF-8\'\'%EC%B8%A1%EC%A0%95.MSR'),
+    '측정.MSR'
+  )
+})
+
+test('filenameFromDisposition 은 따옴표 있는/없는 평문 형식을 모두 읽는다', () => {
+  assert.equal(filenameFromDisposition('attachment; filename="A.MSR"'), 'A.MSR')
+  assert.equal(filenameFromDisposition('attachment; filename=B.pkl'), 'B.pkl')
+})
+
+// 헤더가 깨졌다고 다운로드까지 잃으면 안 됩니다 — 호출부가 자기 이름으로
+// 대체할 수 있도록 null 을 돌려주고, 퍼센트 시퀀스가 잘못돼도 던지지 않습니다.
+test('filenameFromDisposition 은 읽을 이름이 없으면 null 을 준다', () => {
+  assert.equal(filenameFromDisposition(null), null)
+  assert.equal(filenameFromDisposition('attachment'), null)
+  assert.equal(filenameFromDisposition('attachment; filename=""'), null)
+})
+
+test('filenameFromDisposition 은 깨진 퍼센트 시퀀스에서 평문으로 물러난다', () => {
+  assert.equal(
+    filenameFromDisposition('attachment; filename="A.MSR"; filename*=UTF-8\'\'%E0%A4%A'),
+    'A.MSR'
+  )
 })

@@ -68,6 +68,8 @@ from back_dev_home.msr_file.contracts import (
     AlignmentInfo,
     ExeDetailInfo,
     FdcParamSummary,
+    MsrArtifact,
+    MsrArtifactError,
     MsrFileResponse,
     MsrFileRow,
     SpmDict,
@@ -84,7 +86,7 @@ from back_dev_home.msr_file.providers.mock import (
 )
 
 
-__all__ = ["get_msr_file", "build_response"]
+__all__ = ["get_msr_file", "get_msr_artifact", "build_response"]
 
 _log = logging.getLogger(__name__)
 
@@ -175,6 +177,80 @@ def _fetch_payload(minio_pkl: str) -> Any:
     from minio_handler import MinioObject
 
     return MinioObject().get_pickle(minio_pkl.lstrip("/"))
+
+
+
+# ── artifact download (the MinIO originals, served verbatim) ────────────────
+
+# meas_hist records both paths per measurement (docs/datatables/hitachi/
+# meas_hist.txt: minio_msr / minio_pkl). They are siblings in the store, not
+# variants of one file — raw_msr/ and dict_pkl/ are separate folders under
+# hitachi_sem/{cdsem,hvsem}/, each date-partitioned.
+_ARTIFACT_FIELDS = {"raw": "minio_msr", "pkl": "minio_pkl"}
+
+# What we send back per kind. "raw" carries NO charset: the .MSR text encoding
+# is unverified (OFFICE-VERIFY — a Hitachi tool may well emit CP949/Shift-JIS,
+# and labelling those as UTF-8 would corrupt the name the browser shows and
+# anything that opens it by the declared charset). Content-Disposition is
+# attachment either way, so the bytes reach disk untouched.
+_ARTIFACT_TYPES = {"raw": "text/plain", "pkl": "application/octet-stream"}
+
+# minio raises S3Error with one of these in ``.code`` when the object is gone.
+# Matched on the attribute rather than isinstance, following chat/figures.py —
+# it keeps the minio import out of this module's import path.
+_GONE_CODES = frozenset({"NoSuchKey", "NoSuchObject", "NotFound"})
+
+
+def get_msr_artifact(msr: str, kind: str) -> MsrArtifact:
+    """Read minio_msr / minio_pkl for this MSR and hand back the bytes.
+
+    NO PARSING. This is the one place in the feature that does not normalize
+    what it reads: the caller asked for the file the office stores, so a
+    reshaped copy would be the wrong answer even if it were tidier.
+
+    The 410 branch is the load-bearing one. The Airflow DAG
+    ``minio_purge_old_pickles`` deletes dict_pkl partitions at 61 days, so a
+    measurement that meas_hist still returns can legitimately have no pickle
+    left. That is expiry, not a missing measurement, and the two must not
+    arrive at the frontend wearing the same status code.
+    """
+    field = _ARTIFACT_FIELDS.get(kind)
+    if field is None:
+        raise MsrArtifactError(400, f"kind must be one of {', '.join(_ARTIFACT_FIELDS)}")
+
+    parent = _find_parent(msr)
+    if parent is None:
+        raise MsrArtifactError(404, f"MSR not found: {msr}")
+
+    path = _text(parent.get(field))
+    if not path:
+        # ~8,000 of 2.25M documents carry no minio_msr (docs/datatables/
+        # hitachi/meas_hist.txt). The measurement is real; this file is not.
+        raise MsrArtifactError(404, f"{msr} 측정에는 {kind} 원본 경로가 기록되어 있지 않습니다")
+
+    # Relative to the configured PREFIX, never a "bucket/key" pair — the same
+    # office-confirmed rule _fetch_payload documents at length.
+    key = path.lstrip("/")
+
+    from minio_handler import MinioObject
+
+    try:
+        data = MinioObject().get(key)
+    except Exception as exc:  # noqa: BLE001 — re-raised unless it is a known "gone"
+        if getattr(exc, "code", None) in _GONE_CODES:
+            raise MsrArtifactError(
+                410, f"{msr} 의 {kind} 파일은 보존 기간이 지나 삭제되었습니다"
+            ) from exc
+        raise
+
+    return MsrArtifact(
+        kind=kind,
+        # The store's own name, not one we compose: two downloads of the same
+        # object must never disagree about what the file is called.
+        filename=key.rsplit("/", 1)[-1] or f"{msr}.{kind}",
+        content_type=_ARTIFACT_TYPES[kind],
+        data=data,
+    )
 
 
 # ── normalization: pickle payload -> contract shapes ────────────────────────

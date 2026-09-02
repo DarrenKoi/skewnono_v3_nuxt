@@ -23,6 +23,8 @@ __all__ = [
     "AlignmentInfo",
     "SpmDict",
     "MsrFileResponse",
+    "MsrArtifact",
+    "MsrArtifactError",
 ]
 
 
@@ -156,3 +158,42 @@ class MsrFileResponse(TypedDict):
     spm_dict: SpmDict
     total: int
     rows: list[MsrFileRow]
+
+
+class MsrArtifact(TypedDict):
+    """One MinIO object served verbatim to the caller — no parsing, no reshaping.
+
+    This is the ONLY contract in this feature that carries bytes. Everything
+    else here describes the *parsed* pickle (MsrFileResponse); this describes
+    the file the pickle was parsed FROM, plus the raw ``.MSR`` text sibling
+    that no endpoint previously exposed at all.
+
+    ``filename`` is the basename of the MinIO key, not a name we invent, so a
+    downloaded file keeps the identity it has in storage and two downloads of
+    the same object never disagree about what it is called.
+    """
+    kind: str            # raw | pkl — which of meas_hist's two path fields this came from
+    filename: str
+    content_type: str
+    data: bytes
+
+
+class MsrArtifactError(Exception):
+    """Why an artifact could not be served, with the HTTP status that says so.
+
+    Three outcomes need to stay distinguishable, because two of them are NOT
+    failures of the request:
+
+      404  the MSR is unknown, or its meas_hist row records no path for this
+           kind (``minio_msr`` is absent on ~8,000 of 2.25M documents).
+      410  the path is recorded but the object is gone. This is the EXPECTED
+           answer for anything past retention — the Airflow DAG deletes
+           dict_pkl partitions at 61 days — so the caller can say "보존 기간이
+           지났습니다" instead of "없는 측정입니다". Collapsing it into 404
+           would make routine expiry read as a broken link.
+    """
+
+    def __init__(self, status: int, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+        self.message = message

@@ -48,6 +48,32 @@ export const downloadBlob = (filename: string, blob: Blob): void => {
   URL.revokeObjectURL(url)
 }
 
+// The name the SERVER gave a downloaded file, out of its Content-Disposition.
+//
+// Worth parsing rather than composing a name client-side: for MinIO originals
+// the stored key's basename IS the file's identity, and inventing a local name
+// would make two downloads of one object disagree about what it is called.
+//
+// Two forms can be present. `filename*=UTF-8''...` is percent-encoded and wins
+// when both appear (RFC 6266 §4.3) — it is the only one that survives a
+// non-ASCII name, which is exactly the case a plain `filename=` mangles.
+export const filenameFromDisposition = (header: string | null): string | null => {
+  if (!header) return null
+
+  const extended = header.match(/filename\*=UTF-8''([^;]+)/i)
+  if (extended?.[1]) {
+    try {
+      return decodeURIComponent(extended[1].trim()) || null
+    } catch {
+      // A malformed percent-sequence must not lose the download; fall through
+      // to the plain form rather than throwing out of the response handler.
+    }
+  }
+
+  const plain = header.match(/filename="([^"]*)"/i) ?? header.match(/filename=([^;]+)/i)
+  return plain?.[1]?.trim() || null
+}
+
 // Copy plain text with the same fallback used by table exports. Clipboard API
 // access can be unavailable outside HTTPS/localhost, so keep the legacy path
 // for office deployments that still run over an internal HTTP address.
