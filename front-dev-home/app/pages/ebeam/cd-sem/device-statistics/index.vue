@@ -456,7 +456,6 @@ import { sameFab } from '~/utils/fab'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { CHIP_BASE, CHIP_BASE_MONO, chipClass } from '~/utils/chipClass'
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 
 definePageMeta({
@@ -464,6 +463,8 @@ definePageMeta({
 })
 
 type DeviceRow = R3DeviceGrpRow | DeviceDescRow
+
+const downloadTable = useTableDownload()
 
 const { setToolType } = useNavigation()
 const { fetchDeviceDesc, fetchMeasActivity, fetchR3DeviceGrp } = useDeviceStatisticsApi()

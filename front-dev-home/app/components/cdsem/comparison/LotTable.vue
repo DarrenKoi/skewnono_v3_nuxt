@@ -392,10 +392,11 @@ import {
   healthBadgeStyle, healthStripeColor, healthSwatches
 } from './healthTokens'
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 import { buildParameterRamp } from '~/utils/parameterRamp'
 import { PARA_KEYS } from '~/utils/paraTrendSeries'
+
+const downloadTable = useTableDownload()
 
 const props = defineProps<{
   rows: Profiled<HealthAugmentedRow>[]

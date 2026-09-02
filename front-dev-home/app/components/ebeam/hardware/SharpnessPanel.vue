@@ -122,11 +122,12 @@
 
 <script setup lang="ts">
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { stableRadialRange, type StableYRangeOptions } from '~/utils/chartRange'
 import { defaultRangeFor, resolveAxisRange } from '~/utils/profileAxisRange'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 import { todayStamp } from '~/utils/dateTime'
+
+const downloadTable = useTableDownload()
 
 const props = defineProps<{
   docs: Record<string, unknown>[]

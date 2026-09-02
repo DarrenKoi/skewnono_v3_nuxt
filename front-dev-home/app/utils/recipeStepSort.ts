@@ -75,7 +75,7 @@ export const byOperSeq = (a: SortableStep, b: SortableStep): number =>
  * 뒤의 스텝 축이 장식이 아닌 이유는 같은 recipe 를 쓰는 스텝이 여럿이기 때문입니다
  * (`recipeStepKey` 주석). 동률 키가 없던 동안 이 정렬은 입력 순서에만 기대고
  * 있었고, 그 순서는 버킷을 바꾸거나 API 를 다시 받으면 달라질 수 있는 값입니다 —
- * CSV 를 두 번 받아 나란히 비교할 수 없게 됩니다.
+ * 내보내기를 두 번 받아 나란히 비교할 수 없게 됩니다.
  */
 export const byRecipeId = (a: SortableStep, b: SortableStep): number =>
   byName(a, b) || byStepSeq(a, b)

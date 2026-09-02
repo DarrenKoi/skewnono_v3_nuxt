@@ -427,7 +427,7 @@
             icon="i-lucide-download"
             label="Excel 다운로드"
             :disabled="filteredUsers.length === 0"
-            @click="downloadUsersCsv"
+            @click="downloadUsersExcel"
           />
           <!-- Deliberately NOT 새로고침: the page header already has a button
                by that name, and it does something else entirely (refetches
@@ -810,7 +810,7 @@ const {
   filteredRows: filteredUsers,
   hasActiveControls: hasActiveUserControls,
   resetControls: resetUserControls,
-  download: downloadUsersCsv,
+  download: downloadUsersExcel,
   copy: copyUsersTable,
   expandedUser,
   userDetail,

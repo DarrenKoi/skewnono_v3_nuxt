@@ -100,7 +100,8 @@ export const copyTableToClipboard = async (
 ): Promise<boolean> => {
   if (!import.meta.client || rows.length === 0) return false
 
-  // 붙여넣는 곳이 대개 Excel 이라 CSV 와 같은 방어가 필요합니다. 평탄화를
+  // 붙여넣는 곳이 대개 Excel 이라 파일 내보내기가 버린 그 방어가 여기는 아직
+  // 필요합니다 — TSV 는 칸 타입이 없습니다. 평탄화를
   // 먼저 하는 것은, 탭·개행이 공백이 된 **뒤의** 첫 글자가 Excel 이 보는
   // 첫 글자이기 때문입니다.
   const toCell = (value: unknown): string =>

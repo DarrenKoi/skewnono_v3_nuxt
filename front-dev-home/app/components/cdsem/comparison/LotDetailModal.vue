@@ -237,7 +237,6 @@ import type { HealthAugmentedRow } from '~/utils/lotHealth'
 import type { RecipeInput } from '~/utils/ruleEngine'
 import { LOT_PARAM_HEADERS, buildLotParamRows, lotParamFileName } from '~/utils/lotParamExport'
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { CHIP_BASE, chipClass } from '~/utils/chipClass'
 import { sortSteps, type RecipeSortKey } from '~/utils/recipeStepSort'
 import type {
@@ -252,6 +251,8 @@ import { PARA_KEYS } from '~/utils/paraTrendSeries'
 import { buildStepOutliers, filterStepOutliers, flaggedStepCount, type StepFilter } from '~/utils/lotOutlierSteps'
 import type { DrillDevice } from '~/utils/deviceDrill'
 import type { DeviceOutlierResult } from '~/utils/outlierDetect'
+
+const downloadTable = useTableDownload()
 
 const props = defineProps<{
   row: HealthAugmentedRow | null

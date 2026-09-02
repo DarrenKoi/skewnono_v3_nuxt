@@ -207,7 +207,6 @@ import {
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import {
   buildTatSummaryItems,
   resolveRecipeStatusSummaryValue
@@ -216,6 +215,8 @@ import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
 import type { RankingTableState } from '~/utils/rankingTable'
+
+const downloadTable = useTableDownload()
 
 const props = defineProps<{
   fabs: string[]

@@ -164,7 +164,7 @@ export const capFor = (param: Parameter, cell: RuleCell, type?: ParamType): numb
 
 /**
  * 파라미터의 이름표 — idp 의 `Mother_Para` 그대로입니다. mother 가 아니면 son
- * (user-confirmed 2026-09-02). 화면(DrillParamRows)·CSV·워크북이 이 말을 씁니다.
+ * (user-confirmed 2026-09-02). 화면(DrillParamRows)·표 내보내기·워크북이 이 말을 씁니다.
  *
  * 판정이 `judgeSons: false` 로 **빼는** 파라미터는 이보다 좁습니다 —
  * `ridesOnMother`. 이름표가 son 인데 판정에서 빠지지 않는 파라미터(mother 없는

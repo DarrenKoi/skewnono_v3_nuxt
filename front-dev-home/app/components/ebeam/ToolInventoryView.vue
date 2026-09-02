@@ -186,10 +186,11 @@ import type { ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { hasStorageView } from '~/utils/toolType'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
+
+const downloadTable = useTableDownload()
 
 const props = defineProps<{
   fabs: string[]

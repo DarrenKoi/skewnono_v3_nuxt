@@ -21,7 +21,7 @@ import type { RecipeInput } from './ruleEngine'
 
 /**
  * null (not 0) when recipe_params has nothing for the lot — "측정 0건" and "아직
- * 안 왔다" must stay distinguishable all the way to the CSV, and a nullable
+ * 안 왔다" must stay distinguishable all the way to the export, and a nullable
  * number says that in the type instead of pairing a zero with a boolean flag.
  */
 export interface DeviceProfile {

@@ -224,7 +224,7 @@ Soft rectangles only — anything outside this set is a bug. `rounded-full` is b
 So: NuxtUI components inherit the scale automatically, and **hand-written markup uses the variables directly** (`rounded-[var(--sk-r-chip)]`) — never `rounded-lg`/`rounded-2xl`, whose sizes are an artifact of NuxtUI's ramp rather than a decision made here. A `rounded-2xl` on a `<UCard>` is worse than redundant: tailwind-merge lets it *beat* the themed radius, so the card silently leaves the scale.
 
 ### Iconography & Imagery
-No photography, no illustration — this is a data tool. One icon set: **Lucide** (`@iconify-json/lucide`), used as `icon="i-lucide-<name>"`. Canonical assignments: `search` (inputs), `rotate-ccw` (reset), `download` (CSV export), `info`, `settings`, `loader-circle` + `animate-spin` (loading), `star`/`star-off` (favorites), `arrow-up-narrow-wide`/`arrow-down-wide-narrow`/`arrow-up-down` (sort), `construction` (under construction). `@iconify-json/simple-icons` exists as a dependency but is reserved for brand logos.
+No photography, no illustration — this is a data tool. One icon set: **Lucide** (`@iconify-json/lucide`), used as `icon="i-lucide-<name>"`. Canonical assignments: `search` (inputs), `rotate-ccw` (reset), `download` (Excel export), `info`, `settings`, `loader-circle` + `animate-spin` (loading), `star`/`star-off` (favorites), `arrow-up-narrow-wide`/`arrow-down-wide-narrow`/`arrow-up-down` (sort), `construction` (under construction). `@iconify-json/simple-icons` exists as a dependency but is reserved for brand logos.
 
 ## Components
 
@@ -250,7 +250,7 @@ Decision flow: changes route/view → `sk-nav-pill` · narrows data on the same 
 
 All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean labels prefer verb forms (`Excel 다운로드`, not `다운로드`); disabled buttons also set `cursor-not-allowed`.
 
-**Table downloads are `.xlsx`, always.** Every table export in the app goes through `utils/xlsx.ts` (`downloadTable` for one sheet, `downloadWorkbook` for several) and is labelled `Excel` or `Excel 다운로드`. CSV was retired on 2026-09-02: it is a typeless format, so it needed a UTF-8 BOM to survive Korean headers, a formula-injection guard on every cell, and it turned `0012` into `12`. Do not add a CSV button back — a button whose label and file extension disagree is exactly the drift this unification removed. The clipboard copy stays TSV (`copyTableToClipboard`), and that one still needs `guardFormulaCell`.
+**Table downloads are `.xlsx`, always.** Every table export in the app goes through `utils/xlsx.ts` (`downloadTable` for one sheet, `downloadWorkbook` for several) and carries the word `Excel` in its label (`Excel`, `Excel 다운로드`, `Excel (전체)`; an all-English menu may read `Download All (Excel)`). CSV was retired on 2026-09-02: it is a typeless format, so it needed a UTF-8 BOM to survive Korean headers, a formula-injection guard on every cell, and it turned `0012` into `12`. Do not add a CSV button back — a button whose label and file extension disagree is exactly the drift this unification removed. The clipboard copy stays TSV (`copyTableToClipboard`), and that one still needs `guardFormulaCell`.
 
 ### Cards & Containers
 

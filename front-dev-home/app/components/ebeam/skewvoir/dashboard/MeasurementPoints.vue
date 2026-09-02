@@ -174,10 +174,11 @@ import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SiteKind } from '~/utils/overview'
 import { siteRadiusMm } from '~/utils/waferGeometry'
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
 import { headerState, pickExportRows, siteKey } from '~/utils/mpSelection'
 import { SK_SITE_OVERFLOW } from '~/utils/chartPalette'
+
+const downloadTable = useTableDownload()
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 

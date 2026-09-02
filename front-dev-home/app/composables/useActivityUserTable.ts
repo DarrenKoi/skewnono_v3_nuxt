@@ -6,7 +6,6 @@ import {
 } from '~/composables/useActivityApi'
 import { activityFeatureLabel, userDisplayName, userSearchText } from '~/utils/activity'
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { todayStamp } from '../utils/dateTime.ts'
 
 type UserSort = 'requests' | 'days' | 'recent' | 'name'
@@ -107,6 +106,8 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
       row.last_seen
     ])
   })
+
+  const downloadTable = useTableDownload()
 
   const download = async () => {
     const date = todayStamp()

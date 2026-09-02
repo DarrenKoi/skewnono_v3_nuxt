@@ -1,5 +1,5 @@
 // 비교 페이지 "정렬" 칩의 어휘. **한 칩이 두 표면을 정합니다** — 위쪽 막대
-// 차트(파라미터 비교)와 아래쪽 Lot 요약(카드·표·CSV).
+// 차트(파라미터 비교)와 아래쪽 Lot 요약(카드·표·Excel).
 //
 // 이 모듈이 있는 이유가 그 "두 표면" 입니다. 예전에는 차트만 칩을 읽고
 // (comparison.vue 의 sortedRows), Lot 요약은 자기 열 정렬 상태(health 순)를
@@ -44,7 +44,7 @@ type SortableLot = Parameters<typeof paraTotal>[0] & Pick<SummaryRow, 'lot_cd' |
  *
  * `column` 은 Lot 요약 표(TanStack)의 열 id 입니다. 표는 자체 정렬 기능을 이미
  * 갖고 있으므로 행을 미리 정렬해 넘기는 대신 **그 상태를 칩으로 몹니다** —
- * 그래야 카드·표·CSV 세 표면이 지금처럼 `sorting` 한 곳만 읽는 구조로 남고,
+ * 그래야 카드·표·Excel 세 표면이 지금처럼 `sorting` 한 곳만 읽는 구조로 남고,
  * 열 머리글을 눌러 칩에 없는 축(health·outlier …)으로 파고드는 길도 열려
  * 있습니다. 없는 열 id 를 주면 표가 조용히 정렬을 멈추므로, LotTable 이
  * 자기 열 목록에 대고 이 id 를 컴파일 시점에 확인합니다.

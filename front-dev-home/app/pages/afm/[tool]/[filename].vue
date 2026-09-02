@@ -187,6 +187,9 @@ const siteCount = computed(() => new Set(summaryRows.value.map(r => r.Site)).siz
 
 const safePoint = () => selectedPoint.value.replace(/[^a-zA-Z0-9]+/g, '_') || 'point'
 
+const toast = useToast()
+const downloadTable = useTableDownload()
+
 const downloadSection = (suffix: string, table: ExportTable) =>
   downloadTable(`${filename.value}-${suffix}.xlsx`, table.headers, table.rows)
 
@@ -197,13 +200,20 @@ const downloadProfile = () =>
   downloadSection(`profile-point${safePoint()}`, buildProfileTable(profile.value))
 
 // 섹션 넷을 시트 넷으로. CSV 시절에는 한 파일에 붙여 쌓았습니다.
-const downloadCombined = () =>
-  downloadWorkbook(`${filename.value}-all.xlsx`, buildCombinedSheets([
-    { label: 'Measurement Info', table: buildInfoTable(information.value) },
-    { label: 'Summary (by site)', table: buildSummaryTable(summaryRows.value) },
-    { label: 'Detailed Points', table: buildDetailedTable(detailRows.value) },
-    { label: `Profile (point ${selectedPoint.value || 'none'})`, table: buildProfileTable(profile.value) }
-  ]))
+// 여러 장짜리라 useTableDownload 를 못 타므로 실패 처리는 여기서 하되,
+// 문구는 같은 상수를 씁니다.
+const downloadCombined = async () => {
+  try {
+    await downloadWorkbook(`${filename.value}-all.xlsx`, buildCombinedSheets([
+      { label: 'Measurement Info', table: buildInfoTable(information.value) },
+      { label: 'Summary (by site)', table: buildSummaryTable(summaryRows.value) },
+      { label: 'Detailed Points', table: buildDetailedTable(detailRows.value) },
+      { label: `Profile (point ${selectedPoint.value || 'none'})`, table: buildProfileTable(profile.value) }
+    ]))
+  } catch {
+    toast.add({ ...EXCEL_DOWNLOAD_FAILED })
+  }
+}
 
 const hasAnyData = computed(() =>
   infoEntries.value.length > 0

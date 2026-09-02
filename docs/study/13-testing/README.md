@@ -57,8 +57,8 @@ utils/outlierDetect.ts        ← 순수 함수 (DOM/Nuxt/Vue import 0)
 utils/outlierDetect.test.ts   ← 바로 옆 테스트
 utils/waferGeometry.ts
 utils/waferGeometry.test.ts
-utils/csvDownload.ts
-utils/csvDownload.test.ts
+utils/tableExport.ts
+utils/tableExport.test.ts
 ...
 ```
 

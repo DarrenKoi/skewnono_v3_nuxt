@@ -1,7 +1,7 @@
 // Date and timestamp formatting. Before this module the same four formatters
 // had been re-typed across ~19 sites, and they had NOT stayed identical:
 // export filenames were built from UTC while chart PNG filenames used local
-// time, so in KST (+09) a CSV and a PNG downloaded from the same page before
+// time, so in KST (+09) an Excel file and a PNG downloaded from the same page before
 // 09:00 carried different dates.
 //
 // Nothing here is timezone-clever. Everything is local time except
@@ -16,7 +16,7 @@ const pad = (n: number) => String(n).padStart(2, '0')
  *
  * Local, not UTC. A filename date is something the user reads next to their
  * own clock, so `new Date().toISOString().slice(0, 10)` was wrong for every
- * KST morning before 09:00. Delegates to `formatDateStamp` so CSV and PNG
+ * KST morning before 09:00. Delegates to `formatDateStamp` so Excel and PNG
  * exports can never disagree about what day it is.
  */
 export const todayStamp = (): string => formatDateStamp(new Date())

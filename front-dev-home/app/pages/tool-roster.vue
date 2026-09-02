@@ -264,8 +264,9 @@ import {
   UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
 import { copyTextToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
+
+const downloadTable = useTableDownload()
 
 const { data, status, error, execute } = usePendingTools()
 const toast = useToast()

@@ -280,7 +280,6 @@ import {
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
 import { copyTableToClipboard } from '~/utils/tableExport'
-import { downloadTable } from '~/utils/xlsx'
 import {
   buildFailSummaryItems,
   resolveRecipeStatusSummaryValue
@@ -288,6 +287,8 @@ import {
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
+
+const downloadTable = useTableDownload()
 
 const props = defineProps<{
   fabs: string[]
