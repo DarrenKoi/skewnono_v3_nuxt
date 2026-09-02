@@ -38,7 +38,6 @@ def test_mock_matches_contract_and_agrees_with_recipe_open():
     detail = data.get_recipe_open_data(RECIPE, "R3", "cd-sem")
     assert body["parameter_rows"] == detail["idp_image_info"]
     assert body["points"] == detail["wafer_mp_info"]
-    assert body["total_points"] == len(detail["wafer_mp_info"])
 
 
 def test_mock_answers_none_for_a_recipe_it_cannot_place():
@@ -56,8 +55,7 @@ def test_office_mapping_from_record_lists():
     assert_matches(body, RecipeLocationsResponse)
     assert body["version"] == 12
     assert body["modified"] == "2026-08-10T09:30:00"
-    assert body["distinct_parameters"] == 2
-    assert body["total_points"] == 2
+    assert len(body["parameter_rows"]) == 2
     assert body["parameter_rows"][1]["Parameter"] == "LEVEL"
     assert body["points"][1]["P_No"] == 2
     json.dumps(body)  # JSON-safe end to end
@@ -85,5 +83,25 @@ def test_office_mapping_serves_a_documents_missing_table_as_empty():
         {"version": 1, "raw_data": [_ROW]}, RECIPE, "R3", "cd-sem"
     )
     assert body["points"] == []
-    assert body["total_points"] == 0
     assert body["parameter_rows"] == [_ROW]
+
+
+def test_office_mapping_unwraps_a_table_keyed_blob():
+    """The `{table: rows}` wrapper device_statistics' reader also accepts."""
+    doc = {
+        "version": 2,
+        "raw_data": {"idp_image_info": [_ROW]},
+        "wafer_para_loc_info": {"wafer_mp_info": [_POINT]},
+    }
+    body = office_example._to_locations_response(doc, RECIPE, "R3", "cd-sem")
+    assert body["parameter_rows"] == [_ROW]
+    assert body["points"] == [_POINT]
+
+
+def test_office_mapping_serves_an_unreadable_blob_as_empty():
+    body = office_example._to_locations_response(
+        {"version": 1, "raw_data": "garbage", "wafer_para_loc_info": 42},
+        RECIPE, "R3", "cd-sem",
+    )
+    assert body["parameter_rows"] == []
+    assert body["points"] == []

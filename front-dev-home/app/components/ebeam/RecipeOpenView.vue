@@ -71,7 +71,9 @@
             :rows="idpImageRows"
             :measurement-point-count="waferMpRows.length"
             :align-point-count="data.wafer_align_info.length"
+            :exporting="exporting"
             @open-align="alignOpen = true"
+            @export-all="downloadRecipeExcel()"
           />
         </section>
 
@@ -116,7 +118,7 @@
                     color="neutral"
                     variant="ghost"
                     icon="i-lucide-chevron-down"
-                    :disabled="exporting"
+                    :disabled="exportDisabled"
                     aria-label="다운로드 옵션"
                   />
                   <template #content>
@@ -134,27 +136,10 @@
                         size="xs"
                         color="neutral"
                         variant="outline"
-                        :disabled="exportDisabled"
                         icon="i-lucide-images"
                         block
                         label="Addressing 이미지까지 포함해 다운로드"
                         @click="downloadExcel(true)"
-                      />
-
-                      <p class="mt-3 sk-label">
-                        Recipe 전체
-                      </p>
-                      <p class="sk-meta">
-                        모든 parameter 행과 측정 위치를 시트 두 장으로 내려받습니다. 이미지와 설정 파일은 담지 않으므로 장비에 접속하지 않습니다.
-                      </p>
-                      <UButton
-                        size="xs"
-                        color="neutral"
-                        variant="outline"
-                        icon="i-lucide-table"
-                        block
-                        label="전체 parameter + 측정 위치"
-                        @click="downloadRecipeExcel()"
                       />
                     </div>
                   </template>
@@ -445,9 +430,10 @@ const exporting = ref(false)
 const optionsOpen = ref(false)
 const toast = useToast()
 
-// Gates the two SELECTED-row exports. The menu itself stays live because it
-// also holds the whole-recipe export, which needs nothing the row fetch
-// brings — only the per-row items inside it go dead.
+// One condition for BOTH halves of the control: with separate ones the menu
+// stayed live while the button it belongs to was dead, offering an action that
+// could not run. The whole-recipe export lives in the IDP table's header
+// instead — it is recipe-scoped and needs nothing this fetch brings.
 const exportDisabled = computed(() => paramPending.value || !paramDetail.value)
 
 const exportMeta = () => ({
@@ -515,7 +501,6 @@ const downloadExcel = async (withAddressing: boolean) => {
 
 /** Every parameter row and every measurement location — no tool reads. */
 const downloadRecipeExcel = async () => {
-  optionsOpen.value = false
   if (!data.value || exporting.value) return
   exporting.value = true
   try {
@@ -524,11 +509,7 @@ const downloadRecipeExcel = async () => {
       idpRows: idpImageRows.value,
       mpRows: waferMpRows.value
     })
-    await downloadParamWorkbook(
-      workbook,
-      recipeExportFilename(titleRecipeName.value),
-      imageUrlOf
-    )
+    await downloadParamWorkbook(workbook, recipeExportFilename(titleRecipeName.value))
   } catch (err) {
     reportExportFailure(err, '파일을 만들지 못했습니다. 잠시 후 다시 시도하십시오.')
   } finally {

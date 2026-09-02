@@ -112,6 +112,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from functools import lru_cache
 
+from back_dev_home.ebeam.lateral_recipe.providers.mock import RECIPE_VERSION_RANGE
 from back_dev_home.ebeam.recipe_search import rawfiles
 from back_dev_home.ebeam.recipe_search.contracts import (
     AlignDetailResponse,
@@ -1428,27 +1429,26 @@ def get_recipe_locations(
     index has no document for the recipe — the route answers 404. Here that is
     the same set the .idp cannot be located for, which is a stand-in: index
     coverage and registry coverage are unrelated office-side.
+
+    ``version`` shares lateral_recipe's mock range but is drawn from its own
+    seed, so the number here and the one /lateral shows for the same recipe
+    are NOT aligned at home. ``modified`` is invented (OFFICE-VERIFY: real
+    spread unknown) and, like the office value, offset-less KST.
     """
     try:
         detail = get_recipe_open_data(recipe_name, fab_name, tool_type)
     except LookupError:
         return None
     rng = random.Random(_seed_for_values("idp_ver", recipe_name, fab_name, tool_type))
-    version = rng.randint(1, 40)
     modified = datetime(2026, 1, 1) + timedelta(days=rng.randint(0, 200), hours=rng.randint(0, 23))
-    rows = detail["idp_image_info"]
-    points = detail["wafer_mp_info"]
     return {
         "recipe_id": detail["recipe_id"],
         "fab_name": fab_name or None,
         "tool_type": tool_type,
-        "version": version,
-        # Offset-less, as the office index stores it (idp_ver.txt §시각).
+        "version": rng.randint(*RECIPE_VERSION_RANGE),
         "modified": modified.isoformat(timespec="seconds"),
-        "distinct_parameters": len({row["Parameter"] for row in rows}),
-        "total_points": len(points),
-        "parameter_rows": rows,
-        "points": points,
+        "parameter_rows": detail["idp_image_info"],
+        "points": detail["wafer_mp_info"],
     }
 
 

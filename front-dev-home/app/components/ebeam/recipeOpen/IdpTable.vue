@@ -16,15 +16,31 @@
         <span class="sk-meta">
           행 클릭 → 우측 상세 표시
         </span>
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-eye"
-          label="Align 정보"
-          class="rounded-lg font-semibold"
-          @click="$emit('openAlign')"
-        />
+        <div class="flex items-center gap-1">
+          <!-- Recipe-scoped, so it sits with the recipe-scoped table rather
+               than in the SELECTED header: every parameter row and every
+               measurement location, no images, no tool reads. -->
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-file-down"
+            label="Excel (전체)"
+            class="rounded-lg font-semibold"
+            :loading="exporting"
+            title="모든 parameter 행과 측정 위치를 시트 두 장으로 내려받습니다"
+            @click="$emit('exportAll')"
+          />
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-eye"
+            label="Align 정보"
+            class="rounded-lg font-semibold"
+            @click="$emit('openAlign')"
+          />
+        </div>
       </div>
     </div>
     <div class="min-h-0 flex-1 overflow-auto">
@@ -121,10 +137,12 @@ const props = defineProps<{
   rows: IdpImageInfoRow[]
   measurementPointCount: number
   alignPointCount: number
+  exporting?: boolean
 }>()
 
 defineEmits<{
   openAlign: []
+  exportAll: []
 }>()
 
 const selectedIndex = defineModel<number>('selectedIndex', { required: true })

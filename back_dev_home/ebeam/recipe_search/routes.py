@@ -277,13 +277,8 @@ def recipe_search_measurement_points(tool_slug: str):
 
 @bp.get("/<tool_slug>/recipe-search/measurement-locations")
 def recipe_search_measurement_locations(tool_slug: str):
-    """Every parameter row and every measurement location of one recipe.
-
-    Read from the IDP version index, not the tool: no FTP session, no locate
-    step, so a script can call it per recipe in a loop. The trade is
-    freshness — the index serves its highest ingested version, which is not
-    necessarily the copy the tool currently holds.
-    """
+    """Parameter rows + measurement locations from the IDP version index — no
+    tool I/O, so a script can loop over recipes. See ``RecipeLocationsResponse``."""
     context, failed = _resolve_recipe_request(tool_slug, needs_parameter=False)
     if failed:
         return failed

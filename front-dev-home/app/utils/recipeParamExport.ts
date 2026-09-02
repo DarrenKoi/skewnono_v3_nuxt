@@ -14,7 +14,7 @@
 
 import type { IdpImageInfoRow, IdpLocator, WaferMpInfoRow } from '../composables/useRecipeSearchApi.ts'
 import type { ParamDetail, ParamImage, SettingBlock } from '../composables/useRecipeParamDetail.ts'
-import { IMAGE_SLOTS } from './recipeView.ts'
+import { IMAGE_SLOTS, MP_TABLE_COLUMNS } from './recipeView.ts'
 import { createWorkbook, writeWorkbook } from './xlsx.ts'
 import { safeFileNamePart } from './csvDownload.ts'
 
@@ -52,11 +52,16 @@ export const EXPORT_IMAGE_SLOTS = {
   addressing: PICTURE_SLOTS.filter(slot => slot.role === 'address').map(slot => slot.key)
 }
 
-export interface ParamExportInput {
+/** What every workbook's 개요 sheet opens and closes with. */
+export interface ExportMeta {
   recipeId: string
   fabName: string
   toolLabel: string
   locator: IdpLocator
+  exportedAt: string
+}
+
+export interface ParamExportInput extends ExportMeta {
   /** The SELECTED idp_image_info row — one image definition, not the parameter.
    *  Typed precisely rather than as a string bag, so a renamed office column is
    *  a compile error instead of a blank cell in a shipped workbook. */
@@ -68,19 +73,13 @@ export interface ParamExportInput {
   mpRows: WaferMpInfoRow[]
   /** Which image slots to include. Order is normalised to SLOT_ORDER. */
   slots: string[]
-  exportedAt: string
 }
 
 /** The whole recipe: every parameter row and every measurement location.
  *  No images and no settings, so building it costs no tool I/O. */
-export interface RecipeExportInput {
-  recipeId: string
-  fabName: string
-  toolLabel: string
-  locator: IdpLocator
+export interface RecipeExportInput extends ExportMeta {
   idpRows: IdpImageInfoRow[]
   mpRows: WaferMpInfoRow[]
-  exportedAt: string
 }
 
 export type ParamCell = string | number | boolean | null
@@ -119,22 +118,16 @@ const IDP_FIELDS: (keyof IdpImageInfoRow)[] = [
   'img_add1', 'img_add2', 'image_add3', 'img_meas1', 'img_meas2'
 ]
 
-/** wafer_mp_info columns, in table order. `img_meas2` is left out: in THIS
- *  table it is P_No again (user-confirmed 2026-08-05), and MpTable.vue omits it
- *  for the same reason — two columns of one integer read as two facts. */
-const MP_FIELDS: (keyof WaferMpInfoRow)[] = [
-  'Parameter', 'ChipNo_X', 'ChipNo_Y', 'Coordinate_X', 'Coordinate_Y',
-  'P_No', 'D_No', 'Diff', 'Rel', 'Rel_MoveX', 'Rel_MoveY',
-  'Coordinate_X_r', 'Coordinate_Y_r'
-]
+/** The screen's columns plus `Parameter` in front: the whole-recipe sheet
+ *  holds every parameter's points, and the per-row sheet keeps the same
+ *  header so a script can parse both the same way. */
+const MP_FIELDS: (keyof WaferMpInfoRow)[] = ['Parameter', ...MP_TABLE_COLUMNS]
 
 const NO_FILE = '파일 없음'
 const MP_SHEET = '측정 위치'
 const NO_POINTS = '매칭되는 측정 포인트가 없습니다.'
 
-type Meta = Pick<ParamExportInput, 'recipeId' | 'fabName' | 'toolLabel' | 'locator' | 'exportedAt'>
-
-function metaRows(input: Meta): ParamCell[][] {
+function metaRows(input: ExportMeta): ParamCell[][] {
   return [
     ['field', 'value'],
     ['recipe_id', input.recipeId],
@@ -143,7 +136,7 @@ function metaRows(input: Meta): ParamCell[][] {
   ]
 }
 
-function locatorRows(input: Meta): ParamCell[][] {
+function locatorRows(input: ExportMeta): ParamCell[][] {
   return [
     ['eqp_ip', input.locator.eqp_ip],
     ['class_name', input.locator.class_name],
@@ -298,7 +291,7 @@ const IMAGE_BOX = { width: 320, height: 240 }
 /** Excel row height is in points; the anchored row must clear the picture. */
 const ANCHOR_ROW_POINTS = 190
 /** Every sheet gets at least this many sized columns; wide tables get more. */
-const SHEET_COLUMNS = 3
+const MIN_SIZED_COLUMNS = 3
 
 /**
  * Write the workbook, embedding each placement's actual picture.
@@ -314,7 +307,8 @@ const SHEET_COLUMNS = 3
 export async function downloadParamWorkbook(
   workbook: ParamWorkbook,
   filename: string,
-  resolveImageUrl: (name: string) => string
+  /** Required only when `workbook.images` is non-empty. */
+  resolveImageUrl?: (name: string) => string
 ): Promise<void> {
   const book = await createWorkbook()
 
@@ -326,14 +320,14 @@ export async function downloadParamWorkbook(
     for (const row of sheet.rows) ws.addRow(row)
     // getColumn, not `ws.columns.forEach`: `columns` is only populated when the
     // sheet was given a column definition, and these are built from addRow.
-    const columns = Math.max(SHEET_COLUMNS, ...sheet.rows.map(row => row.length))
+    const columns = sheet.rows.reduce((widest, row) => Math.max(widest, row.length), MIN_SIZED_COLUMNS)
     for (let column = 1; column <= columns; column += 1) {
       ws.getColumn(column).width = 28
     }
     if (sheet.name === '이미지') imageWorksheet = ws
   }
 
-  if (imageWorksheet) {
+  if (imageWorksheet && resolveImageUrl) {
     for (const placement of workbook.images) {
       try {
         const response = await fetch(resolveImageUrl(placement.name), {

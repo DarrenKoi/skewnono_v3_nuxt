@@ -445,8 +445,7 @@ class RecipeLocationsResponse(TypedDict):
     # As stored in the index — offset-less KST wall-clock (OFFICE-VERIFY,
     # docs/datatables/hitachi/idp_ver.txt §시각). Not re-tagged here.
     modified: str | None
-    # Row counts, named for their grain: a parameter can occupy several rows.
-    distinct_parameters: int
-    total_points: int
+    # No counts: both are ``len()`` of the lists below, and a second formula
+    # for the same number is a place for mock and office to drift apart.
     parameter_rows: list[IdpImageInfoRow]
     points: list[WaferMpInfoRow]

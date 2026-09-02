@@ -1,5 +1,5 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import type { IdpImageInfoRow } from '~/composables/useRecipeSearchApi'
+import type { IdpImageInfoRow, WaferMpInfoRow } from '~/composables/useRecipeSearchApi'
 import type { SettingBlock, SettingRow } from '~/composables/useRecipeParamDetail'
 import type { RecipeSearchSource } from '~/utils/recipeSelection'
 import { formatDateTimeLocal } from './dateTime.ts'
@@ -9,6 +9,30 @@ export const recipeTableUi = {
   td: 'py-1.5 px-3 text-[12px] whitespace-nowrap overflow-hidden text-ellipsis text-(--sk-ink)',
   th: 'py-2 px-3 text-[11px] font-medium text-(--sk-ink-muted) bg-zinc-50/60 dark:bg-zinc-900/40'
 } as const
+
+/**
+ * The wafer_mp_info columns the screen shows and the Excel export writes —
+ * one list, so a column added to the table reaches the sheet.
+ *
+ * Every column except two. `Parameter` is omitted because the screen filters
+ * to one parameter before rendering (the export prepends it, since a sheet
+ * may hold every parameter). `img_meas2` is omitted because in THIS table it
+ * is just P_No again (user-confirmed 2026-08-05; docs/datatables/hitachi/recipe_idp.txt
+ * records the same equality) — two columns of identical integers under
+ * different names read as two facts. Not true of `idp_image_info.img_meas2`,
+ * an 8-character slot key of the same name and unrelated meaning.
+ *
+ * Coordinate_*_r is the position after Rel_Move* is applied — the offsets
+ * without the resulting coordinate told half the story.
+ */
+export const MP_TABLE_COLUMNS: readonly (keyof WaferMpInfoRow)[] = [
+  'ChipNo_X', 'ChipNo_Y',
+  'Coordinate_X', 'Coordinate_Y',
+  'P_No', 'D_No',
+  'Diff', 'Rel',
+  'Rel_MoveX', 'Rel_MoveY',
+  'Coordinate_X_r', 'Coordinate_Y_r'
+]
 
 export type ImageSlotKey = Extract<
   keyof IdpImageInfoRow,

@@ -1282,8 +1282,14 @@ def _coerce_fail(table: str, column: str, value: Any, seen: set) -> None:
     return None
 
 
+_IDP_PARSER = "the IDP parser (docs/datatables/hitachi/recipe_idp.txt)"
+
+
 def _records(
-    frame: pd.DataFrame, columns: dict[str, Any], table: str
+    frame: pd.DataFrame,
+    columns: dict[str, Any],
+    table: str,
+    origin: str = _IDP_PARSER,
 ) -> list[dict[str, Any]]:
     """DataFrame -> contract rows: documented columns only, in contract order.
 
@@ -1299,20 +1305,23 @@ def _records(
     screen up when it loses one. Both are logged, because either silently
     would look identical to correct data on screen — a missing column renders
     as an empty table cell, not as an error.
+
+    ``origin`` names the source and its schema doc in those log lines, so a
+    frame that came from the IDP version index sends the reader to
+    idp_ver.txt rather than to the FTP parser.
     """
     missing = [column for column in columns if column not in frame.columns]
     if missing:
         _LOG.warning(
-            "recipe_search: %s from the IDP parser is missing %s — those cells "
-            "will be blank. Check docs/datatables/hitachi/recipe_idp.txt against the "
-            "parser's actual output.", table, missing,
+            "recipe_search: %s from %s is missing %s — those cells will be "
+            "blank. Check the schema doc against the actual output.",
+            table, origin, missing,
         )
     extra = [column for column in frame.columns if column not in columns]
     if extra:
         _LOG.info(
-            "recipe_search: %s from the IDP parser has undocumented columns %s "
-            "(dropped). Worth adding to docs/datatables/hitachi/recipe_idp.txt.",
-            table, extra,
+            "recipe_search: %s from %s has undocumented columns %s (dropped). "
+            "Worth adding to the schema doc.", table, origin, extra,
         )
 
     present = [column for column in columns if column in frame.columns]
@@ -2029,36 +2038,47 @@ def get_recipe_open_data(
 #
 # The same tables recipe-open parses off the tool, as OpenSearch stores them
 # per (recipe, version) — the index lateral_recipe and device_statistics
-# already read (docs/datatables/hitachi/idp_ver.txt). ``raw_data`` is the
-# parsed idp_image_info (office 확인 2026-08-10: a list of row dicts) and
-# ``wafer_para_loc_info`` the measurement locations. Both are mapped
-# ``enabled: false`` — stored verbatim, never indexed — so they come back only
-# through ``_source`` and cannot be filtered server-side.
+# already read (docs/datatables/hitachi/idp_ver.txt §세 번째 소비자). Both
+# blobs are mapped ``enabled: false``, so they come back only through
+# ``_source`` and cannot be filtered server-side.
 #
-# OFFICE-VERIFY: ``wafer_para_loc_info``'s row shape and column names are
-# assumed to be wafer_mp_info's (recipe_idp.txt). ``_records`` logs any
-# column it does not find, so the first office run settles it in the log.
+# ponytail: third private copy of the idp_ver index map and blob reader
+# (lateral_recipe `INDEX`, device_statistics `_raw_data_rows`). Extract a
+# tracked `ebeam/_office_idp_ver.py` the way `_office_meas_hist.py` serves
+# the meas_hist indices when the next consumer or tool family arrives — it
+# means re-copying two other features' office.py, so not in this change.
 
 _IDP_VER_INDEX: dict[ToolType, str] = {
     "cd-sem": "cdsem_idp_ver",
     "hv-sem": "hvsem_idp_ver",
 }
 _IDP_VER_SOURCE = ["version", "modified", "raw_data", "wafer_para_loc_info"]
+_IDP_VER_ORIGIN = "the IDP version index (docs/datatables/hitachi/idp_ver.txt)"
 
 
-def _blob_records(blob: Any, columns: dict[str, Any], table: str) -> list[dict[str, Any]]:
-    """One ``_source`` blob -> contract rows. Absent or unparseable is empty,
-    logged: a version document with no location table is a document the
-    ingest job wrote before the field existed, not an error to 502 on."""
+def _blob_records(
+    blob: Any, table: str, columns: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """One ``_source`` blob -> contract rows for the parser table ``table``.
+
+    Accepts the confirmed list-of-rows shape (office 확인 2026-08-10 for
+    ``raw_data``), the column-oriented ``DataFrame.to_dict()`` shape, and the
+    ``{table: rows}`` wrapper device_statistics' reader also tolerates —
+    served as empty otherwise, with a log line. Absent is empty and silent: a
+    version ingested before ``wafer_para_loc_info`` existed has no locations,
+    which is an answer, not a 502.
+    """
+    if isinstance(blob, dict) and table in blob:
+        blob = blob[table]
     frame = _as_frame(blob)
     if frame is None:
         if blob is not None:
             _LOG.warning(
-                "recipe_search: %s in the IDP version index is not table-shaped "
-                "(%s) — served as empty.", table, _describe(blob),
+                "recipe_search: %s from %s is not table-shaped (%s) — served "
+                "as empty.", table, _IDP_VER_ORIGIN, _describe(blob),
             )
         return []
-    return _records(frame, columns, table)
+    return _records(frame, columns, table, _IDP_VER_ORIGIN)
 
 
 def _to_locations_response(
@@ -2069,25 +2089,20 @@ def _to_locations_response(
 ) -> RecipeLocationsResponse:
     """One version document -> ``RecipeLocationsResponse``. Pure, so the
     mapping is testable at home the way ``_to_detail_response`` is."""
-    parameter_rows: list[IdpImageInfoRow] = _blob_records(
-        doc.get("raw_data"), IdpImageInfoRow.__annotations__, "raw_data"
-    )
-    points: list[WaferMpInfoRow] = _blob_records(
-        doc.get("wafer_para_loc_info"), WaferMpInfoRow.__annotations__, "wafer_para_loc_info"
-    )
     version = _scalar(doc.get("version"))
+    modified = doc.get("modified")
     return {
         "recipe_id": recipe_id,
         "fab_name": fab_name,
         "tool_type": tool_type,
         "version": int(version) if version is not None else None,
-        "modified": str(doc["modified"]) if doc.get("modified") is not None else None,
-        "distinct_parameters": len({
-            row["Parameter"] for row in parameter_rows if row.get("Parameter")
-        }),
-        "total_points": len(points),
-        "parameter_rows": parameter_rows,
-        "points": points,
+        "modified": str(modified) if modified is not None else None,
+        "parameter_rows": _blob_records(
+            doc.get("raw_data"), "idp_image_info", IdpImageInfoRow.__annotations__
+        ),
+        "points": _blob_records(
+            doc.get("wafer_para_loc_info"), "wafer_mp_info", WaferMpInfoRow.__annotations__
+        ),
     }
 
 
@@ -2099,9 +2114,6 @@ def get_recipe_locations(
     """Highest-version document for the recipe, or ``None`` when there is none.
 
     ``size=1`` sorted by ``version`` desc — the device_statistics query shape.
-    The two blobs are the whole point of the call, so ``_source`` is not
-    trimmed below them; it IS trimmed to them, since ``parameters`` and the
-    eqp_id lists are payload this endpoint does not answer with.
     """
     recipe = (recipe_name or "").strip()
     if not recipe:
@@ -2142,5 +2154,5 @@ if __name__ == "__main__":
                 print(
                     f"  idp_ver v{located['version']}: "
                     f"{len(located['parameter_rows'])} parameter rows, "
-                    f"{located['total_points']} points"
+                    f"{len(located['points'])} points"
                 )

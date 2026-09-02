@@ -29,8 +29,9 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
   raw_data -> object: parameter 별 상세 row. ``Mother_Para`` 가 여기 있습니다
               (office 확인 2026-08-10). 아래 "raw_data — mother 의 출처" 절.
   wafer_para_loc_info -> object: parameter 별 측정 위치 row (wafer_mp_info 에
-              해당). 2026-09-02 에 mapping 에 추가된 field 이며
-              (ops_index_mgmt/hitachi_idp_ver_new_field.py) 아래 "세 번째 소비자" 절.
+              해당). mapping 추가 script 는 ops_index_mgmt/hitachi_idp_ver_new_field.py
+              입니다 (OFFICE-VERIFY: 그 script 가 실제 index 에 적용됐는지, 적재 job 이
+              이 field 를 채우는지는 미확인). 아래 "세 번째 소비자" 절.
 
 가져오지 않는 field
 
@@ -99,9 +100,11 @@ API 입니다.
 - ``modified`` 는 저장된 값 그대로(offset 없는 KST wall-clock, 아래 "시각" 절)
   내보냅니다. lateral_recipe 처럼 +09:00 을 붙이지 않습니다.
 
-★ 두 blob 모두 ``enabled: false`` 로 mapping 되어 있습니다. ``_source`` 로만
-  돌아오고 server-side filter 는 불가능하므로 parameter 하나만 받는 질의는 없습니다
-  — parameter 단위 조회는 recipe-search 의 measurement-points 가 맡습니다.
+★ 두 blob 모두 ``enabled: false`` 로 mapping 되어 있습니다 (ops_index_mgmt/
+  hitachi_idp_ver.py 의 mapping 기준 — OFFICE-VERIFY: 실제 index 의 mapping 은
+  미확인). ``_source`` 로만 돌아오고 server-side filter 는 불가능하므로 parameter
+  하나만 받는 질의는 없습니다 — parameter 단위 조회는 recipe-search 의
+  measurement-points 가 맡습니다.
 
 OFFICE-VERIFY — ``wafer_para_loc_info`` 의 row 형태와 컬럼 이름. raw_data 처럼
 row dict 의 list 로 오고 컬럼은 recipe_idp.txt 의 wafer_mp_info 와 같다고 가정
