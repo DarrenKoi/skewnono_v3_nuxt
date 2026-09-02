@@ -639,11 +639,8 @@ test('capFor: 이름 한복판의 align 은 면제가 아니다 (affix 규칙)',
   assert.equal(capFor({ name: 'X_ALIGN_Y', point_count: 3 }, sampleDram), 0)
 })
 
-// --- role: mother / son / 묶을 근거 없음 ---
-// 판정이 son 을 빼는 술어와 화면·파일이 "son" 이라 적는 술어는 **같은 함수**
-// 여야 합니다. 갈리면 토글을 껐을 때 "son 판정 제외" 가 붙지 않는 행이 son 이라
-// 적혀 나갑니다.
-test('role: mother 는 mother, mother 있는 region 의 나머지는 son, 근거 없으면 null', () => {
+// --- role: idp Mother_Para 그대로 — mother 가 아니면 전부 son (user-confirmed 2026-09-02) ---
+test('role: mother 는 mother, 나머지는 region 유무와 무관하게 son', () => {
   const r = seqRecipe([
     { name: 'WAFER', point_count: 13, mother: true, region: 1 },
     { name: 'CELL_SP', point_count: 13, region: 1 },
@@ -652,7 +649,7 @@ test('role: mother 는 mother, mother 있는 region 의 나머지는 son, 근거
   ])
   const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
   assert.deepEqual(res.results.map(p => [p.name, p.role]), [
-    ['WAFER', 'mother'], ['CELL_SP', 'son'], ['LWR', null], ['EDGE_L', null]
+    ['WAFER', 'mother'], ['CELL_SP', 'son'], ['LWR', 'son'], ['EDGE_L', 'son']
   ])
 })
 
@@ -666,12 +663,16 @@ test('role: gray recipe 의 결과에도 role 은 실린다', () => {
   assert.deepEqual(res.results.map(p => p.role), ['mother', 'son'])
 })
 
-test('role: judgeSons=false 가 빼는 것은 정확히 role === son 인 파라미터다', () => {
+// 이름표와 판정 제외는 다른 술어입니다 — son 이라도 mother 없는 region 이면
+// 얹혀 갈 상대가 없어 토글과 무관하게 판정됩니다(ridesOnMother).
+test('role: judgeSons=false 는 mother 있는 region 의 son 만 뺀다 — 이름표가 son 이어도', () => {
   const r = seqRecipe([
     { name: 'WAFER', point_count: 13, mother: true, region: 1 },
     { name: 'CELL_SP', point_count: 13, region: 1 },
     { name: 'LWR', point_count: 13, region: 3 }
   ])
   const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]), { judgeSons: false })
-  assert.deepEqual(res.results.map(p => p.judged), res.results.map(p => p.role !== 'son'))
+  assert.deepEqual(res.results.map(p => [p.role, p.judged]), [
+    ['mother', true], ['son', false], ['son', true]
+  ])
 })

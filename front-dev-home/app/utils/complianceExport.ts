@@ -121,9 +121,15 @@ const summaryRows = (input: ComplianceExportInput): (string | number)[][] => {
   ]
 }
 
+/** mother/son 열의 위치. `emphasize` 가 행에서 그 칸을 찾을 때 씁니다. */
+const ROLE_COL = COMPLIANCE_HEADERS.indexOf(ROLE_HEADER)
+
+/** mother 행을 굵게 띄웁니다 — image 의 주인이 한눈에 보이도록 (user 요청 2026-09-02). */
+export const isMotherRow = (row: (string | number)[]): boolean => row[ROLE_COL] === 'mother'
+
 export const buildComplianceWorkbook = (input: ComplianceExportInput): WorkbookSheet[] => [
   { name: '요약', rows: summaryRows(input) },
-  { name: '판정', rows: judgementRows(input.health) }
+  { name: '판정', rows: judgementRows(input.health), emphasize: isMotherRow }
 ]
 
 /**

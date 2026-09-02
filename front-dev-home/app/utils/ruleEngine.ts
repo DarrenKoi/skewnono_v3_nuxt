@@ -163,22 +163,18 @@ export const capFor = (param: Parameter, cell: RuleCell, type?: ParamType): numb
 // =================== 그룹 cap — SEQ 묶음 (user-confirmed 2026-08-18) ===================
 
 /**
- * 파라미터가 image 그룹 안에서 맡는 역할.
+ * 파라미터의 이름표 — idp 의 `Mother_Para` 그대로입니다. mother 가 아니면 son
+ * (user-confirmed 2026-09-02). 화면(DrillParamRows)·CSV·워크북이 이 말을 씁니다.
  *
- *   'mother' — 그 image 의 주인(idp 의 `Mother_Para`).
- *   'son'    — **mother 가 실제로 있는** region 의 나머지. mother 의 측정에 얹혀
- *              가므로 cap 도 물려받고(`effectiveCap`), `judgeSons: false` 가 빼는
- *              것도 정확히 이 파라미터입니다.
- *   null     — 묶을 근거가 없음. region 을 읽지 못했거나, region 은 있는데 그 안에
- *              mother 가 없는 경우입니다. 원천이 mother 를 기록하지 않은 recipe 는
- *              모든 파라미터가 `mother: false` 인데, 그것을 son 이라 부르면 판정은
- *              빼지 않는 행을 화면과 파일이 son 이라 소개하게 됩니다.
- *
- * 화면(DrillParamRows)·CSV·워크북이 "mother 인가 son 인가" 를 적을 때 쓰는 술어이자
- * 판정이 son 을 뺄 때 쓰는 술어입니다 — 둘이 한 함수라야 "son 판정 제외" 가 붙지
- * 않는 행에 son 이 적히는 일이 없습니다.
+ * 판정이 `judgeSons: false` 로 **빼는** 파라미터는 이보다 좁습니다 —
+ * `ridesOnMother`. 이름표가 son 인데 판정에서 빠지지 않는 파라미터(mother 없는
+ * region, region 을 못 읽은 파라미터)가 있고, 그 행은 파일에서 son 이면서
+ * "son 판정 제외" 비고가 없습니다. 원천이 mother 를 기록하지 않은 recipe 가
+ * 그렇습니다(집 mock 기준 판정 대상의 15.2%).
  */
-export type ParamRole = 'mother' | 'son' | null
+export type ParamRole = 'mother' | 'son'
+
+export const paramRole = (p: Parameter): ParamRole => p.mother ? 'mother' : 'son'
 
 /** mother 가 한 명이라도 있는 region 의 집합. `groupCaps` 의 키와 같은 집합입니다. */
 export const motherRegions = (params: Parameter[]): Set<number> => {
@@ -187,8 +183,16 @@ export const motherRegions = (params: Parameter[]): Set<number> => {
   return regions
 }
 
-export const paramRole = (p: Parameter, regions: ReadonlySet<number>): ParamRole =>
-  p.mother ? 'mother' : (p.region != null && regions.has(p.region)) ? 'son' : null
+/**
+ * mother 의 측정에 얹혀 가는 파라미터인가 — **mother 가 실제로 있는** region 의
+ * son. `effectiveCap` 이 cap 을 물려주는 것도, `judgeSons: false` 가 판정에서
+ * 빼는 것도 이 파라미터입니다. `mother` 플래그가 false 라는 것만으로는
+ * 부족합니다: 원천이 mother 를 기록하지 않은 recipe 에서는 모든 파라미터가
+ * false 이고, 그 recipe 들의 위반 13,755 건(집 mock)을 토글 하나로 지우면
+ * 독립적으로 잰 파라미터까지 함께 사라집니다.
+ */
+export const ridesOnMother = (p: Parameter, regions: ReadonlySet<number>): boolean =>
+  !p.mother && p.region != null && regions.has(p.region)
 
 /**
  * region -> **그 그룹 mother 의 cap**. mother 가 없는 region 은 아예 넣지 않습니다.
@@ -367,7 +371,7 @@ export interface ParamResult {
    */
   over_cap: boolean
   violation: boolean
-  /** mother / son / 묶을 근거 없음 — `paramRole`. 판정이 아니라 recipe 의 사실이라 gray 에도 실립니다. */
+  /** mother / son — `paramRole`(idp Mother_Para). 판정이 아니라 recipe 의 사실이라 gray 에도 실립니다. */
   role: ParamRole
 }
 
@@ -408,7 +412,6 @@ export const evaluateRecipe = (
   res: CellResolution,
   opts: JudgeOptions = {}
 ): RecipeResult => {
-  const regions = motherRegions(recipe.parameters)
   if (res.kind === 'gray') {
     return {
       recipe_id: recipe.recipe_id,
@@ -417,32 +420,25 @@ export const evaluateRecipe = (
       pass: true, // conservative: gray ≠ violation (D14)
       gray: res.gray,
       gray_reason: res.reason,
-      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, over_cap: false, violation: false, role: paramRole(p, regions) }))
+      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, over_cap: false, violation: false, role: paramRole(p) }))
     }
   }
   // son 은 mother 와 같은 image 를 쓰므로 자기 타입 cap 이 아니라 그룹 mother 의
   // cap 으로 잽니다 (groupCaps 참고).
   const caps = groupCaps(recipe.parameters, res.cell)
+  const regions = motherRegions(recipe.parameters)
   const judgeSons = opts.judgeSons ?? true
   const results = recipe.parameters.map((p): ParamResult => {
     // 타입은 여기서 한 번만 구해 `effectiveCap` 까지 넘깁니다 — 사무실 규모에서
     // 파라미터당 `deriveType` 한 번이 판정 시간의 10% 대입니다.
     const type = deriveType(p.name)
     const cap = effectiveCap(p, res.cell, caps, type)
-    // "son" 은 **mother 가 실제로 있는 그룹에 속한** 파라미터입니다. `mother`
-    // 플래그가 false 라는 것만으로는 부족합니다 — 원천이 mother 를 기록하지 않은
-    // recipe 에서는 모든 파라미터가 false 이고, 그것은 "son" 이 아니라 "묶을
-    // 근거가 없음" 입니다. 집 mock 만 봐도 판정 대상의 15.2%(31,021건)가 mother
-    // 없는 recipe 이고, 그 조건을 빼면 토글을 끌 때 그 recipe 들의 위반
-    // 13,755 건이 통째로 사라집니다 — 독립적으로 잰 파라미터까지 함께.
-    //
-    // `effectiveCap` 이 region 없는 파라미터를 자기 cap 으로 재는 것과 같은
-    // 원칙이고, 실제로 같은 술어입니다: 상속이 걸릴 수 있는 파라미터가 곧
-    // "mother 의 측정에 얹혀 가는" 파라미터입니다.
-    const role = paramRole(p, regions)
-    const judged = judgeSons || role !== 'son'
+    // 빼는 것은 이름표가 son 인 파라미터가 아니라 **mother 의 측정에 얹혀 가는**
+    // 파라미터입니다 (`ridesOnMother` 의 주석). `effectiveCap` 이 상속을 거는
+    // 파라미터와 같은 술어입니다.
+    const judged = judgeSons || !ridesOnMother(p, regions)
     const over_cap = typeof cap === 'number' && p.point_count > cap
-    return { name: p.name, point_count: p.point_count, type, cap, judged, over_cap, violation: judged && over_cap, role }
+    return { name: p.name, point_count: p.point_count, type, cap, judged, over_cap, violation: judged && over_cap, role: paramRole(p) }
   })
   const violation_params = results.filter(r => r.violation)
   return {

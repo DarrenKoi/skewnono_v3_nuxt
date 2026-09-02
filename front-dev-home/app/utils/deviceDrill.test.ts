@@ -159,7 +159,7 @@ test('outlier drill carries mother/son role per parameter', () => {
   }]
   const result = detectDeviceOutliers(recipes)
   const params = toOutlierDrill('R000', '', recipes, result).recipes[0]!.parameters
-  assert.deepEqual(params.map(p => p.role), ['mother', 'son', null])
+  assert.deepEqual(params.map(p => p.role), ['mother', 'son', 'son'])
 })
 
 test('violation drill carries mother/son role per parameter', () => {

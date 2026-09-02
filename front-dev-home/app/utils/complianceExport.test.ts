@@ -52,9 +52,9 @@ test('한 파라미터가 한 줄, 초과는 초과라고 적는다', () => {
   // **숫자**로 나간다는 것을 이 한 줄이 함께 지킵니다. 문자열로 내면 엑셀에서
   // 정렬도 조건부 서식도 걸리지 않습니다.
   assert.deepEqual(rows.slice(1), [
-    ['R0A8', 'RCP-001', '상한 초과', 'WAFER_CD', '', 13, 9, '초과', ''],
-    ['R0A8', 'RCP-001', '상한 초과', 'EDGE_L', '', 8, 20, '', ''],
-    ['R0A8', 'RCP-001', '상한 초과', 'CD_BAR', '', 3, 12, '', '']
+    ['R0A8', 'RCP-001', '상한 초과', 'WAFER_CD', 'son', 13, 9, '초과', ''],
+    ['R0A8', 'RCP-001', '상한 초과', 'EDGE_L', 'son', 8, 20, '', ''],
+    ['R0A8', 'RCP-001', '상한 초과', 'CD_BAR', 'son', 3, 12, '', '']
   ])
 })
 
@@ -159,5 +159,19 @@ test('mother/son 열은 parameter 바로 뒤, 상한 초과 앞에 선다', () =
     'lot_cd', 'recipe_id', 'recipe_판정', 'parameter', 'mother/son',
     'measure_points', 'cap', '상한 초과', '비고'
   ])
-  assert.deepEqual(rows.slice(1).map(r => r[4]), ['mother', 'son', ''])
+  assert.deepEqual(rows.slice(1).map(r => r[4]), ['mother', 'son', 'son'])
+})
+
+// 강조는 판단이라 빌더에 있고 xlsx.ts 는 서식으로 옮기기만 합니다 — 그래서
+// 여기서 검증할 수 있습니다.
+test('판정 시트는 mother 행만 강조한다', () => {
+  const sheet = sheetOf(judge(
+    [recipe('RCP-001', [
+      ['WAFER_CD', 13, { mother: true, region: 1 }],
+      ['CELL_SP', 13, { mother: false, region: 1 }]
+    ])],
+    { WAFER: 13, _other: 12 }
+  ))[1]!
+  assert.deepEqual(sheet.rows.slice(1).map(r => sheet.emphasize!(r)), [true, false])
+  assert.equal(sheetOf(judge([], { _other: 12 }))[0]!.emphasize, undefined, '요약 시트는 강조하지 않습니다')
 })

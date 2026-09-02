@@ -26,7 +26,17 @@ export const XLSX_MIME
 export interface WorkbookSheet {
   name: string
   rows: (string | number)[][]
+  /**
+   * 굵게 + 옅은 채움으로 띄울 행. 빌더가 행을 보고 정합니다(예: mother 파라미터)
+   * — 어느 행인지는 판단이고, 판단은 `node --test` 가 실행할 수 있는 빌더에
+   * 있어야 합니다. 여기는 그 답을 서식으로 옮길 뿐입니다. 첫 행(헤더)에는
+   * 묻지 않습니다.
+   */
+  emphasize?: (row: (string | number)[]) => boolean
 }
+
+/** 강조 행의 채움색. 회색 계열이라 초과 행의 조건부 서식과 부딪히지 않습니다. */
+const EMPHASIS_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } } as const
 
 /** exceljs 의 빈 Workbook. CJS/ESM interop 때문에 `default` 를 벗깁니다. */
 export async function createWorkbook() {
@@ -59,7 +69,13 @@ export async function downloadWorkbook(
   const book = await createWorkbook()
   for (const sheet of sheets) {
     const ws = book.addWorksheet(sheet.name.slice(0, 31))
-    for (const row of sheet.rows) ws.addRow(row)
+    sheet.rows.forEach((row, i) => {
+      const added = ws.addRow(row)
+      if (i > 0 && sheet.emphasize?.(row)) {
+        added.font = { bold: true }
+        added.fill = EMPHASIS_FILL
+      }
+    })
   }
   await writeWorkbook(book, filename)
 }

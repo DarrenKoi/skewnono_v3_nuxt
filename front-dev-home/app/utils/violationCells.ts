@@ -81,9 +81,10 @@ export const NO_JUDGEMENT = '판정 결과 없음'
 export const NO_PARAMS = '파라미터 없음'
 
 /**
- * mother/son 칸. 근거가 없는 파라미터는 **빈 칸**입니다 — 'son' 이라 적으면
- * 토글을 껐을 때 "son 판정 제외" 가 붙지 않는 행이 son 이라 적혀 나갑니다
- * (ruleEngine.paramRole). 열 이름도 두 파일이 같이 씁니다.
+ * mother/son 칸 — idp 의 Mother_Para 그대로(ruleEngine.paramRole). 이름표가 son
+ * 인데 "son 판정 제외" 비고가 없는 행이 있을 수 있습니다: 판정이 빼는 것은
+ * mother 가 있는 region 의 son 뿐이기 때문입니다(ruleEngine.ridesOnMother).
+ * 열 이름도 두 파일이 같이 씁니다.
  */
 export const ROLE_HEADER = 'mother/son'
-export const roleCell = (role: ParamRole): string => role ?? ''
+export const roleCell = (role: ParamRole): string => role

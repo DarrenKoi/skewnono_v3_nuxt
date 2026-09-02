@@ -71,8 +71,8 @@ test('one row per parameter, joined on recipe_id', () => {
 
   // WAFER_CD 는 상한 9 를 넘겨 초과, EDGE_L 은 EDGE 상한 20 안이라 빈 칸.
   assert.deepEqual(rows, [
-    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'WAFER_CD', '', '13', '9', '초과', ''],
-    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'EDGE_L', '', '8', '20', '', '']
+    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'WAFER_CD', 'son', '13', '9', '초과', ''],
+    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'EDGE_L', 'son', '8', '20', '', '']
   ])
 })
 
@@ -171,7 +171,7 @@ test('파라미터 판정은 이름으로 이어 붙는다', () => {
     [params('RCP-001', [['WAFER_CD', 13]])], // 화면이 A 를 걸러낸 상태
     verdict
   )
-  assert.deepEqual(rows[0]?.slice(4), ['WAFER_CD', '', '13', '9', '초과', ''])
+  assert.deepEqual(rows[0]?.slice(4), ['WAFER_CD', 'son', '13', '9', '초과', ''])
 })
 
 // 원본 순서가 곧 정보입니다. 이름순으로 정렬하면 "WAFER" 가 알파벳상 거의
@@ -269,8 +269,8 @@ test('son 판정을 끈 상태의 내보내기도 이름으로 구별된다', ()
 
 // mother/son 은 판정이 아니라 recipe 의 사실이라 판정이 없는 행에도 적습니다 —
 // 룰 없는 fab 의 파일에서도 "이 파라미터가 image 의 주인인가" 는 답할 수 있어야
-// 합니다. 술어는 ruleEngine.paramRole 하나입니다.
-test('mother/son 열은 판정과 무관하게 recipe 의 region 으로 적는다', () => {
+// 합니다. 술어는 ruleEngine.paramRole 하나이고 Mother_Para 그대로입니다.
+test('mother/son 열은 판정과 무관하게 Mother_Para 로 적는다', () => {
   const recipes: RecipeInput[] = [{
     ...params('RCP-001', []),
     parameters: [
@@ -281,6 +281,6 @@ test('mother/son 열은 판정과 무관하게 recipe 의 region 으로 적는�
   }]
   const roles = (verdict: LotVerdict | undefined) =>
     buildLotParamRows([infoRow('RCP-001', 'step')], recipes, verdict).map(r => r[5])
-  assert.deepEqual(roles(judge(recipes, { WAFER: 13, _other: 12 })), ['mother', 'son', ''])
-  assert.deepEqual(roles(noRules(recipes)), ['mother', 'son', ''])
+  assert.deepEqual(roles(judge(recipes, { WAFER: 13, _other: 12 })), ['mother', 'son', 'son'])
+  assert.deepEqual(roles(noRules(recipes)), ['mother', 'son', 'son'])
 })

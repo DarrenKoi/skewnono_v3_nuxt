@@ -16,12 +16,11 @@
           class="min-w-0 flex-1"
           :class="dense ? 'sk-field-name' : 'font-mono text-[15px] text-(--sk-ink)'"
         >{{ param.name }}</span>
-        <!-- mother/son. 근거가 없는 행은 배지 자리를 비워 둡니다(폭은 유지) —
-             그래야 point_count 열이 행마다 흔들리지 않습니다. 술어는
-             ruleEngine.paramRole 하나이고, 판정이 son 을 뺄 때 쓰는 것과 같습니다. -->
+        <!-- mother/son — idp 의 Mother_Para 그대로(ruleEngine.paramRole). mother 만
+             accent 로 띄웁니다: 한 image 그룹에서 주인은 하나이고 나머지는 전부
+             son 이라, son 까지 색을 주면 배지가 아니라 벽지가 됩니다. -->
         <span class="w-16 flex-none text-center">
           <span
-            v-if="param.role"
             class="sk-badge ring-1 ring-inset"
             :class="param.role === 'mother'
               ? 'bg-(--sk-accent-tint) text-(--sk-accent) ring-(--sk-accent-border)'
