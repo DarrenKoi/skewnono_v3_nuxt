@@ -25,10 +25,10 @@ const counts = computed(() => boardCounts(events.value))
 
 const filter = useLiveAlarmFilter()
 
-const FILTERS: { value: AlarmFilter, label: string }[] = [
-  { value: 'all', label: '전부 보기' },
-  { value: 'align', label: 'Align Fail만' },
-  { value: 'meas', label: '측정 실패만' }
+const FILTERS: { value: AlarmFilter, label: string, icon: string }[] = [
+  { value: 'all', label: '전부 보기', icon: 'i-lucide-layers' },
+  { value: 'align', label: 'Align Fail만', icon: 'i-lucide-crosshair' },
+  { value: 'meas', label: '측정 실패만', icon: 'i-lucide-image-off' }
 ]
 const FILTER_ORDER: AlarmFilter[] = FILTERS.map(f => f.value)
 
@@ -129,6 +129,56 @@ useHead({
       subtitle="최근 20분간 발생한 Align 실패 · 측정 실패"
       :stats="metaStats"
     >
+      <!-- Hidden on uncollected fabs: every mode renders the same "not
+           collected" sentence there, so the control would offer a choice that
+           does nothing — see TimeSeries.vue's lensTabsVisible for the
+           precedent.
+
+           These are the board's MAIN tabs, so they ride in the meta bar's
+           #toggle slot in the same segmented skin every other toggle in the
+           app uses (Recipe 현황, 장비 상태 sub-tabs, device-statistics fab
+           picker). That replaces the standalone "보기" card, which spent a
+           whole row of the page on a three-way switch.
+
+           Hand-rolled rather than <SkNavPill>, because that component
+           hardcodes `aria-pressed` — a toggle-button semantic invalid on
+           `role="tab"` — and these are real tabs wired to the board below via
+           aria-controls/aria-labelledby with roving-tabindex arrow keys. -->
+      <template
+        v-if="feedStatus !== 'not_configured'"
+        #toggle
+      >
+        <div
+          ref="filterTabsEl"
+          role="tablist"
+          aria-label="알람 종류 필터"
+          class="inline-flex items-center gap-1 rounded-lg bg-zinc-100/70 p-1 dark:bg-zinc-800/60"
+          @keydown="onFilterKeydown"
+        >
+          <button
+            v-for="option in FILTERS"
+            :id="tabId(option.value)"
+            :key="option.value"
+            type="button"
+            role="tab"
+            :tabindex="filter === option.value ? 0 : -1"
+            :aria-selected="filter === option.value"
+            :aria-controls="PANEL_ID"
+            class="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors"
+            :class="filter === option.value
+              ? 'bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700/80'
+              : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+            @click="filter = option.value"
+          >
+            <UIcon
+              :name="option.icon"
+              class="h-4 w-4"
+            />
+            {{ option.label }}
+          </button>
+        </div>
+      </template>
+
       <template #actions>
         <UBadge
           :color="status.color"
@@ -150,62 +200,6 @@ useHead({
       variant="subtle"
       :description="error"
     />
-
-    <!-- Hidden on uncollected fabs: every mode renders the same "not collected"
-         sentence there, so the control would offer a choice that does
-         nothing — see TimeSeries.vue's lensTabsVisible for the precedent.
-
-         Same precedent for the skin, and for the same reason. These are the
-         board's MAIN tabs — they pick what the page is showing, not a variant
-         of a view you are already in — so they take DESIGN.md's `sk-nav-pill`
-         language (ink fill, --sk-r-nav, 15px), which the selection-primitive
-         decision flow assigns to exactly this job, rather than the white-pill-
-         on-a-rail segmented skin built for SUB-tabs. And they sit on their own
-         `dashboard-surface` card: a bare pill row on the page background read
-         as loose furniture between the meta bar and the board.
-
-         The pill's ROLE CLASSES are taken, not the <SkNavPill> COMPONENT: it
-         hardcodes `aria-pressed`, a toggle-button semantic invalid on
-         `role="tab"`, and these are real tabs wired to the board below via
-         aria-controls/aria-labelledby with roving-tabindex arrow keys.
-         Restating the pill's geometry in utilities instead of taking the
-         classes is how that choice quietly recreates the dependency. -->
-    <div
-      v-if="feedStatus !== 'not_configured'"
-      class="dashboard-surface flex flex-col gap-2 rounded-(--sk-r-card) px-3 py-2.5"
-    >
-      <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <h3 class="sk-panel-title">
-          보기
-        </h3>
-        <p class="sk-hint">
-          아래 보드에 표시할 알람 종류를 고릅니다.
-        </p>
-      </div>
-      <div
-        ref="filterTabsEl"
-        role="tablist"
-        aria-label="알람 종류 필터"
-        class="inline-flex w-fit items-center gap-1.5"
-        @keydown="onFilterKeydown"
-      >
-        <button
-          v-for="option in FILTERS"
-          :id="tabId(option.value)"
-          :key="option.value"
-          type="button"
-          role="tab"
-          :tabindex="filter === option.value ? 0 : -1"
-          :aria-selected="filter === option.value"
-          :aria-controls="PANEL_ID"
-          class="sk-nav-pill sk-nav-pill--lg"
-          :class="filter === option.value ? 'sk-nav-pill--active' : 'sk-nav-pill--rest'"
-          @click="filter = option.value"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-    </div>
 
     <!-- The tablist is conditional, so the panel only claims to be its
          tabpanel while a tab actually exists — a dangling aria-labelledby is
