@@ -72,7 +72,7 @@ def test_entry_requests_count_activity_but_not_feature_rankings(fresh_store):
     state = fresh_store["u1"]
 
     assert state.daily[mock._today()] == 1
-    assert state.by_feature == {}
+    assert state.last_opened == {}
     assert state.daily_features == {}
 
 
@@ -82,15 +82,78 @@ def test_non_activity_kinds_are_ignored(fresh_store):
     assert fresh_store == {}
 
 
-def test_rankings_come_from_page_views_not_requests(fresh_store):
+def test_recent_features_come_from_page_views_not_requests(fresh_store):
     """A poller must not outrank a page someone actually opened."""
     for _ in range(50):
         mock.record_request("u1", "live_alarm", "feature", ["M14"])
     mock.record_request("u1", "mag_pixel", "page_view", [])
 
-    top = mock.get_me("u1")["top_features"]
+    recent = mock.get_me("u1")["recent_features"]
 
-    assert [row["feature"] for row in top] == ["mag_pixel"]
+    assert [row["feature"] for row in recent] == ["mag_pixel"]
+
+
+def test_recent_features_are_distinct_newest_first_and_capped(fresh_store):
+    """Five features, not five opens: re-opening one must not fill the list."""
+    for feature in ("storage", "sem_list", "afm", "chat", "meas_hist"):
+        mock.record_request("u1", feature, "page_view", [])
+    for _ in range(5):
+        mock.record_request("u1", "storage", "page_view", [])
+    mock.record_request("u1", "recipe_tat", "page_view", [])
+
+    recent = mock.get_me("u1")["recent_features"]
+
+    assert [row["feature"] for row in recent] == [
+        "recipe_tat",
+        "storage",
+        "meas_hist",
+        "chat",
+        "afm",
+    ]
+    assert all(row["at"].endswith("Z") for row in recent)
+
+
+def test_the_users_list_names_the_most_recent_feature(fresh_store):
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u1", "storage", "page_view", [])
+    mock.record_request("u1", "afm", "page_view", [])
+
+    assert mock.get_users_list()["users"][0]["recent_feature"] == "afm"
+
+
+def test_each_day_carries_what_was_called_that_day(fresh_store):
+    """The clickable bar and its breakdown are read from the same rows."""
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u1", "afm", "feature", ["M16B"])
+    mock.record_request("u1", "sem_list", "entry", ["M14"])
+
+    today = mock.get_me("u1")["daily"][-1]
+
+    assert today["count"] == 4
+    assert today["features"] == [
+        {"feature": "storage", "count": 2},
+        {"feature": "afm", "count": 1},
+    ]
+    # Entry traffic belongs to no feature, and the payload names the gap
+    # rather than leaving the caller to subtract it.
+    assert today["other_count"] == 1
+
+
+def test_a_multi_fab_request_counts_once_in_the_day_breakdown(fresh_store):
+    """The FAB card counts a request once per FAB; this panel must not.
+
+    Deriving the breakdown from daily_fab_features would report 2 here while
+    the office reader, which counts documents, reports 1 — home and office on
+    different numbers for one field.
+    """
+    mock.record_request("u1", "storage", "feature", ["M14", "M16B"])
+
+    today = mock.get_me("u1")["daily"][-1]
+
+    assert today["count"] == 1
+    assert today["features"] == [{"feature": "storage", "count": 1}]
+    assert today["other_count"] == 0
 
 
 def test_page_views_do_not_inflate_the_request_counters(fresh_store):

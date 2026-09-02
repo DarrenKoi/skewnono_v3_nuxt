@@ -31,7 +31,7 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
   const featureFilterOptions = computed(() => {
     const features = new Set(
       rows.value
-        .map(row => row.favorite_feature)
+        .map(row => row.recent_feature)
         .filter((feature): feature is string => Boolean(feature))
     )
     return [
@@ -45,9 +45,9 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
   const filteredRows = computed(() => {
     const term = query.value.trim().toLocaleLowerCase('ko-KR')
     const matched = rows.value.filter((row) => {
-      if (featureFilter.value !== 'all' && row.favorite_feature !== featureFilter.value) return false
+      if (featureFilter.value !== 'all' && row.recent_feature !== featureFilter.value) return false
       if (!term) return true
-      return [userSearchText(row), row.favorite_feature ?? '', activityFeatureLabel(row.favorite_feature)]
+      return [userSearchText(row), row.recent_feature ?? '', activityFeatureLabel(row.recent_feature)]
         .join(' ')
         .toLocaleLowerCase('ko-KR')
         .includes(term)
@@ -92,7 +92,7 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
     // 이름 and 사번 are separate columns here, unlike the on-screen cell that
     // stacks them: an export is what gets pasted into a spreadsheet and
     // filtered on, and a merged "고대영 (2067928)" string cannot be.
-    headers: ['이름', '사번', '팀', '요청 (30일)', '활동일 (30일)', '가장 많이 쓴 기능', '기능 키', '마지막 활동'],
+    headers: ['이름', '사번', '팀', '요청 (30일)', '활동일 (30일)', '가장 최근 쓴 기능', '기능 키', '마지막 활동'],
     rows: filteredRows.value.map(row => [
       row.emp_nm ?? '',
       row.user_id,
@@ -101,8 +101,8 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
       row.dept_nm ?? '',
       row.requests_30d,
       row.days_active_30d,
-      activityFeatureLabel(row.favorite_feature),
-      row.favorite_feature,
+      activityFeatureLabel(row.recent_feature),
+      row.recent_feature,
       row.last_seen
     ])
   })

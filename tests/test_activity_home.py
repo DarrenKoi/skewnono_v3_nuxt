@@ -50,12 +50,12 @@ class FabPageUsageTestCase(unittest.TestCase):
         fabs = {row["fab"] for row in data.get_fab_page_usage()["fabs_30d"]}
         self.assertIn("미지정", fabs)
 
-    def test_entry_counts_activity_but_never_top_features(self):
+    def test_entry_counts_activity_but_never_feature_recency(self):
         activity_mock._users.clear()
         data.record_request("u1", "sem_list", "entry", ["M14"])
         me = data.get_me("u1")
         self.assertEqual(me["this_month"]["requests"], 1)
-        self.assertEqual(me["top_features"], [])
+        self.assertEqual(me["recent_features"], [])
 
     def test_fab_total_is_distinct_users_not_requests(self):
         activity_mock._users.clear()

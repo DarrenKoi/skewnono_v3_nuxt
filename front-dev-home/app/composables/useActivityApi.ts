@@ -5,9 +5,28 @@ export interface FeatureCount {
   count: number
 }
 
+/** One day of the 30일 활동 series.
+ *
+ *  `count` is every request row; `features` breaks down the feature-kind ones
+ *  only and is capped, so `other_count` is sent rather than inferred — entry
+ *  traffic belongs to no feature, and subtracting a capped list would fold
+ *  the dropped features into it. The clicked-day panel names the gap. */
 export interface DailyCount {
   date: string
   count: number
+  features: FeatureCount[]
+  other_count: number
+}
+
+/** Only the count is read by the arithmetic helpers, so they say only that —
+ *  a test should not have to build a whole day, breakdown included, to check
+ *  a sum. */
+export type CountedDay = Pick<DailyCount, 'count'>
+
+/** A feature and when this person last opened it. */
+export interface FeatureUse {
+  feature: string
+  at: string
 }
 
 export interface MeThisMonth {
@@ -19,7 +38,7 @@ export interface MeResponse {
   user_id: string
   is_admin: boolean
   this_month: MeThisMonth
-  top_features: FeatureCount[]
+  recent_features: FeatureUse[]
   daily: DailyCount[]
   first_seen: string | null
   last_seen: string | null
@@ -51,7 +70,10 @@ export interface UserListRow {
   requests_30d: number
   days_active_30d: number
   last_seen: string | null
-  favorite_feature: string | null
+  /** The feature opened most recently, or null for someone whose only rows
+   *  are requests (a page whose beacon never fired, or traffic predating the
+   *  page-view rollout). */
+  recent_feature: string | null
   /** Member-directory name, joined onto the row in
    *  back_dev_home/activity/routes.py. Null when the directory has no row for
    *  that employee number or could not be reached — the table then shows the
@@ -71,7 +93,7 @@ export interface UserListResponse {
 export interface UserHistoryResponse {
   user_id: string
   this_month: MeThisMonth
-  top_features: FeatureCount[]
+  recent_features: FeatureUse[]
   daily: DailyCount[]
   first_seen: string | null
   last_seen: string | null

@@ -7,6 +7,7 @@ from typing import TypedDict
 
 __all__ = [
     "FeatureCount",
+    "FeatureUse",
     "DailyCount",
     "MeThisMonth",
     "MeResponse",
@@ -27,9 +28,33 @@ class FeatureCount(TypedDict):
     count: int
 
 
+class FeatureUse(TypedDict):
+    """One feature and when this person last opened it.
+
+    Separate from ``FeatureCount`` on purpose: that one answers "how often",
+    this one answers "how recently", and a shape carrying both would invite a
+    reader to rank by the field the query did not order on.
+    """
+
+    feature: str
+    at: str
+
+
 class DailyCount(TypedDict):
+    """One day of the 30일 활동 series, plus what was called that day.
+
+    ``count`` is every request row (entry + feature kinds). ``features``
+    breaks down the feature-kind ones only and is capped, so the parts do NOT
+    sum to ``count`` — which is why ``other_count`` is sent rather than left
+    to the caller to subtract: entry traffic belongs to no single feature,
+    and on a day with more features than the cap a subtraction would fold the
+    dropped ones into it silently.
+    """
+
     date: str
     count: int
+    features: list[FeatureCount]
+    other_count: int
 
 
 class MeThisMonth(TypedDict):
@@ -41,7 +66,7 @@ class MeResponse(TypedDict):
     user_id: str
     is_admin: bool
     this_month: MeThisMonth
-    top_features: list[FeatureCount]
+    recent_features: list[FeatureUse]
     daily: list[DailyCount]
     first_seen: str | None
     last_seen: str | None
@@ -61,7 +86,10 @@ class UserListRow(TypedDict):
     requests_30d: int
     days_active_30d: int
     last_seen: str | None
-    favorite_feature: str | None
+    #: The feature opened most recently, or None for someone whose only rows
+    #: are requests (a page whose beacon never fired, or traffic older than
+    #: the page-view rollout).
+    recent_feature: str | None
 
 
 class UserListResponse(TypedDict):
@@ -100,7 +128,7 @@ class NamedUserListResponse(TypedDict):
 class UserHistoryResponse(TypedDict):
     user_id: str
     this_month: MeThisMonth
-    top_features: list[FeatureCount]
+    recent_features: list[FeatureUse]
     daily: list[DailyCount]
     first_seen: str | None
     last_seen: str | None

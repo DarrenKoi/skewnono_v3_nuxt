@@ -10,7 +10,7 @@
           사용 통계
         </h1>
         <p class="sk-meta mt-1">
-          최근 활동, 자주 쓰는 기능, 전체 사용 추이를 보여줍니다.
+          최근 활동, 최근 쓴 기능, 전체 사용 추이를 보여줍니다.
         </p>
         <!-- The header pill is icon-only (no width for a name in the top nav),
              so this page is where the caller reads who they are signed in as. -->
@@ -91,10 +91,10 @@
             unit="일"
           />
           <ActivityStatCell
-            icon="i-lucide-sparkles"
+            icon="i-lucide-history"
             color="text-violet-500"
-            :value="myFavorite"
-            label="가장 많이 쓴 기능"
+            :value="myRecent"
+            label="가장 최근 쓴 기능"
           />
           <ActivityStatCell
             icon="i-lucide-clock"
@@ -108,13 +108,12 @@
       <UCard class="dashboard-surface">
         <template #header>
           <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
-            <UIcon name="i-lucide-pie-chart" />
-            내가 자주 쓰는 기능 Top 5
+            <UIcon name="i-lucide-history" />
+            내가 최근 쓴 기능 5개
           </span>
         </template>
-        <ActivityFeatureBarList
-          :items="me.top_features"
-          :cap="5"
+        <ActivityRecentFeatureList
+          :items="me.recent_features"
           empty-text="아직 기록된 활동이 없습니다."
         />
       </UCard>
@@ -466,7 +465,7 @@
                   활동일 (30일)
                 </th>
                 <th class="py-2 pr-4">
-                  가장 많이 쓴 기능
+                  가장 최근 쓴 기능
                 </th>
                 <th class="py-2 pr-4">
                   마지막 활동
@@ -516,7 +515,7 @@
                     {{ row.days_active_30d }}
                   </td>
                   <td class="py-2.5 pr-4 sk-value">
-                    {{ activityFeatureLabel(row.favorite_feature) }}
+                    {{ activityFeatureLabel(row.recent_feature) }}
                   </td>
                   <td class="py-2.5 pr-4 sk-value-num">
                     {{ formatTime(row.last_seen) }}
@@ -562,11 +561,10 @@
                       </div>
                       <div class="lg:col-span-1">
                         <div class="sk-label mb-2">
-                          자주 쓰는 기능
+                          최근 쓴 기능 5개
                         </div>
-                        <ActivityFeatureBarList
-                          :items="userDetail.top_features"
-                          :cap="5"
+                        <ActivityRecentFeatureList
+                          :items="userDetail.recent_features"
                           empty-text="—"
                         />
                       </div>
@@ -690,7 +688,7 @@ const refreshAll = async () => {
   await Promise.all(jobs)
 }
 
-const myFavorite = computed(() => activityFeatureLabel(me.value?.top_features?.[0]?.feature))
+const myRecent = computed(() => activityFeatureLabel(me.value?.recent_features?.[0]?.feature))
 
 const formatTime = (iso: string | null | undefined) => formatKoreanDateTime(iso)
 

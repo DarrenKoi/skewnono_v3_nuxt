@@ -1,5 +1,5 @@
 import type { EChartsOption } from 'echarts'
-import type { DailyCount } from '~/composables/useActivityApi'
+import type { CountedDay, DailyCount } from '~/composables/useActivityApi'
 
 /**
  * The activity sparkline's ECharts option, built without importing echarts.
@@ -19,7 +19,7 @@ export const formatSparklineDay = (iso: string): string => {
   return date.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
 }
 
-export const sparklineTotal = (series: DailyCount[]): number =>
+export const sparklineTotal = (series: readonly CountedDay[]): number =>
   series.reduce((sum, d) => sum + d.count, 0)
 
 /**
@@ -28,7 +28,7 @@ export const sparklineTotal = (series: DailyCount[]): number =>
  * than an empty canvas — which also means no ECharts instance is created for
  * the inactive users in the user table, where a row expands one chart each.
  */
-export const sparklineHasData = (series: DailyCount[]): boolean =>
+export const sparklineHasData = (series: readonly CountedDay[]): boolean =>
   series.some(d => d.count > 0)
 
 export const formatSparklineTooltip = (iso: string, count: number): string =>

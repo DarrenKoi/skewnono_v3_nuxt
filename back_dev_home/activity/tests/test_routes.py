@@ -102,14 +102,14 @@ def users_route(monkeypatch, make_client):
                         "requests_30d": 9,
                         "days_active_30d": 3,
                         "last_seen": None,
-                        "favorite_feature": "storage",
+                        "recent_feature": "storage",
                     },
                     {
                         "user_id": "1234567",
                         "requests_30d": 2,
                         "days_active_30d": 1,
                         "last_seen": None,
-                        "favorite_feature": None,
+                        "recent_feature": None,
                     },
                 ],
             },
@@ -257,7 +257,7 @@ def test_a_resolvable_page_is_recorded_as_that_page(beacon_client):
 
     assert client.post("/api/page-view", json={"path": "/mag-pixel"}).status_code == 204
 
-    assert store["1234567"].by_feature == {"mag_pixel": 1}
+    assert list(store["1234567"].last_opened) == ["mag_pixel"]
 
 
 @pytest.mark.parametrize(

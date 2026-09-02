@@ -1,4 +1,4 @@
-import type { DailyCount, UserListRow } from '~/composables/useActivityApi'
+import type { CountedDay, UserListRow } from '~/composables/useActivityApi'
 
 /** Who a listed person is — the columns the member-directory join touches.
  *  Narrower than `UserListRow` so these read as row-identity helpers rather
@@ -110,7 +110,7 @@ export const activityFeatureLabel = (feature: string | null | undefined): string
       .join(' ')
 }
 
-const sumCounts = (series: DailyCount[]): number =>
+const sumCounts = (series: readonly CountedDay[]): number =>
   series.reduce((sum, day) => sum + day.count, 0)
 
 export interface PersonalActivityInsights {
@@ -121,7 +121,9 @@ export interface PersonalActivityInsights {
   changePercent: number | null
 }
 
-export const summarizePersonalActivity = (series: DailyCount[]): PersonalActivityInsights => {
+export const summarizePersonalActivity = (
+  series: readonly CountedDay[]
+): PersonalActivityInsights => {
   const recent7 = series.slice(-7)
   const previous7 = series.slice(-14, -7)
   const recent7Requests = sumCounts(recent7)

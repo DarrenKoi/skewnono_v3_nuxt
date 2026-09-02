@@ -17,9 +17,9 @@ Both aliases live in the same in-house cluster, and
 reader. Connection settings are read from the `OPENSEARCH_*` environment
 variables.
 
-`providers/shared.py` holds the three constants both adapters must agree on —
-the `Asia/Seoul` calendar zone, the top-features cap of 10, and the 30-day
-sparkline window. It exists so the home adapter never imports the office
+`providers/shared.py` holds the four constants both adapters must agree on —
+the `Asia/Seoul` calendar zone, the top-features cap of 10, the
+recent-features cap of 5, and the 30-day sparkline window. It exists so the home adapter never imports the office
 module: `mock.py` used to take `KST` from `opensearch_reader.py`, which made
 every home boot load office-only code. Change a window size there, not in one
 adapter.
@@ -45,11 +45,30 @@ volume) and `RANKING_KIND = "page_view"` (which page someone opened):
   nested under it) — filter to `REQUEST_KINDS`. `entry` (the landing request
   on `/api/sem-list`) counts here, so it contributes to active-user counts,
   personal request totals and the daily sparkline, but not to any ranking.
-- **Feature-ranking aggregations** — `features` (personal top features),
-  `top_features_7d`/`top_features_30d` (site-wide), and the user list's
-  `feature_only` (`favorite_feature`) — filter to `RANKING_KIND`, i.e.
-  `page_view` only. `feature` (API-request) documents no longer feed these
-  rankings; only a fired beacon does.
+- **Feature-ranking aggregations** — `features` (the personal
+  `recent_features` list), `top_features_7d`/`top_features_30d` (site-wide),
+  and the user list's `feature_only` (`recent_feature`) — filter to
+  `RANKING_KIND`, i.e. `page_view` only. `feature` (API-request) documents no
+  longer feed these rankings; only a fired beacon does.
+
+  The two personal ones are ordered by **recency**, not count: their `terms`
+  agg carries `"order": {"last_at": "desc"}` over a `max(@timestamp)`
+  sub-agg. Ordering a `terms` agg by a sub-aggregation is approximate — each
+  shard returns its own top `shard_size` before the comparison — so both pass
+  `shard_size: FEATURE_SHARD_SIZE` (100), comfortably above the few dozen
+  slugs in `_logging/feature_map.py`, which makes the order exact. Dropping
+  that clause turns the card back into a popularity list without failing
+  anything.
+- **The per-day breakdown** (`daily.days.features`) is a third kind split:
+  it sits *inside* the `REQUEST_KINDS` window and narrows again to
+  `activity_kind: "feature"`, because the 30일 활동 bar is clickable and has
+  to say what was called that day. Its parts deliberately do **not** sum to
+  the bar, so `DailyCount.other_count` carries the difference — read from the
+  filter agg's own `doc_count`, never subtracted from the capped bucket list,
+  or a day with more features than the cap would fold the dropped ones into
+  the entry figure. The mock keeps its own day-grain counter for this rather
+  than flattening `daily_fab_features`, which counts a request once per FAB
+  it names.
 - **`first_seen` and `last_seen`** (in `_history_query`, and the per-user
   `last_seen` in the users-list composite) are deliberately **not**
   kind-filtered. "When did we last see this person" is a presence question,
@@ -69,7 +88,7 @@ volume) and `RANKING_KIND = "page_view"` (which page someone opened):
 shipped all carry `activity_kind: "feature"` (`page_view` did not exist as a
 classification outcome), so the feature-ranking aggregations above return
 nothing for pre-existing history. The site-wide and personal top-feature
-lists — and `favorite_feature` in the user list — start at zero on deploy and
+lists — and `recent_feature` in the user list — start at zero on deploy and
 fill in as real beacons land over the following 30 days. The frontend shows a
 caption noting when collection started. This has not been run against a
 real office OpenSearch cluster; the aggregation shapes above are read
@@ -113,8 +132,10 @@ therefore does not mean the account's permanent first-ever use.
 
 ### `GET /api/activity/me`
 
-Returns the signed-in user's request count for this month, active days, feature
-ranking, 30-day daily series, and retained-window first/last seen. An unknown
+Returns the signed-in user's request count for this month, active days, the
+five most recently opened features (`recent_features`, newest first, each with
+the `at` it was last opened), the 30-day daily series — every day carrying its
+own `features` breakdown — and retained-window first/last seen. An unknown
 user gets a zero response of the **same shape**, not a 404. `is_admin` is
 computed by `_auth.admin.is_admin()`.
 
@@ -134,8 +155,8 @@ contributes once to each FAB's bucket. A missing or empty FAB is normalized to
 
 **Admin only** (`403 forbidden` otherwise). Reads the full 30-day user
 composite aggregation, page by page. Returns `requests_30d`,
-`days_active_30d`, `last_seen` and the feature-only `favorite_feature`, sorted
-by `(-requests_30d, user_id)`.
+`days_active_30d`, `last_seen` and the feature-only `recent_feature` (the
+page this person opened most recently), sorted by `(-requests_30d, user_id)`.
 
 The response also carries `emp_nm` and `dept_nm`, but **an office adapter must
 not produce them**. The logging store records employee numbers and no names or

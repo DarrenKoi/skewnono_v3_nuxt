@@ -9,9 +9,9 @@ import {
 } from './activitySparkline.ts'
 
 const SERIES = [
-  { date: '2026-07-01', count: 3 },
-  { date: '2026-07-02', count: 0 },
-  { date: '2026-07-03', count: 7 }
+  { date: '2026-07-01', count: 3, features: [{ feature: 'storage', count: 2 }], other_count: 1 },
+  { date: '2026-07-02', count: 0, features: [], other_count: 0 },
+  { date: '2026-07-03', count: 7, features: [], other_count: 7 }
 ]
 
 test('formats a day as MM.DD and passes through an unparseable date', () => {
@@ -24,7 +24,7 @@ test('totals the counts and reports whether any activity exists', () => {
   assert.equal(sparklineHasData(SERIES), true)
   assert.equal(sparklineTotal([]), 0)
   assert.equal(sparklineHasData([]), false)
-  assert.equal(sparklineHasData([{ date: '2026-07-01', count: 0 }]), false)
+  assert.equal(sparklineHasData([{ count: 0 }]), false)
 })
 
 test('maps every day to one bar, in order', () => {

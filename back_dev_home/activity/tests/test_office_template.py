@@ -69,15 +69,49 @@ def _history_response(total=5):
                 "doc_count": 5,
                 "days": {
                     "buckets": [
-                        {"key_as_string": "2026-07-26", "doc_count": 2},
-                        {"key_as_string": "2026-07-27", "doc_count": 3},
+                        {
+                            "key_as_string": "2026-07-26",
+                            "doc_count": 2,
+                            "features": {
+                                "doc_count": 1,
+                                "items": {
+                                    "buckets": [
+                                        {"key": "storage", "doc_count": 1}
+                                    ]
+                                },
+                            },
+                        },
+                        {
+                            "key_as_string": "2026-07-27",
+                            "doc_count": 3,
+                            # doc_count 3 with only 2 in the listed bucket:
+                            # the day had a feature the cap dropped, and
+                            # other_count must still be 0 rather than 1.
+                            "features": {
+                                "doc_count": 3,
+                                "items": {
+                                    "buckets": [
+                                        {"key": "afm", "doc_count": 2}
+                                    ]
+                                },
+                            },
+                        },
                     ]
                 },
             },
             "features": {
                 "doc_count": 3,
                 "items": {
-                    "buckets": [{"key": "storage", "doc_count": 3}]
+                    "buckets": [
+                        {
+                            "key": "storage",
+                            "doc_count": 3,
+                            "last_at": {
+                                "value": 1,
+                                "value_as_string": "2026-07-27T02:00:00.000Z",
+                            },
+                        }
+                    ]
                 },
             },
         },
@@ -197,16 +231,45 @@ def test_history_query_uses_kst_bounds_and_page_view_ranking():
     # The widened top-level query means the request-based windows must state
     # their own kinds; if they stop doing so they silently count page views.
     assert _kind_terms(body["aggs"]["this_month"]) == ["entry", "feature"]
-    assert _kind_terms(body["aggs"]["daily"]) == ["entry", "feature"]
+    # The window itself, not the whole subtree: the per-day breakdown nested
+    # under it states its own kind, which is the point of it.
+    assert _kind_terms(body["aggs"]["daily"]["filter"]) == ["entry", "feature"]
     assert payload["user_id"] == "u1"
     assert payload["is_admin"] is False
     assert payload["this_month"] == {"requests": 5, "days_active": 2}
-    assert payload["top_features"] == [{"feature": "storage", "count": 3}]
+    assert payload["recent_features"] == [
+        {"feature": "storage", "at": "2026-07-27T02:00:00.000Z"}
+    ]
+    # Ordered by when each feature was last opened, not by how often — the
+    # whole point of the card, and the one clause a refactor can silently drop.
+    assert body["aggs"]["features"]["aggs"]["items"]["terms"]["order"] == {
+        "last_at": "desc"
+    }
     assert len(payload["daily"]) == 30
     assert payload["daily"][-2:] == [
-        {"date": "2026-07-26", "count": 2},
-        {"date": "2026-07-27", "count": 3},
+        {
+            "date": "2026-07-26",
+            "count": 2,
+            "features": [{"feature": "storage", "count": 1}],
+            "other_count": 1,
+        },
+        {
+            "date": "2026-07-27",
+            "count": 3,
+            "features": [{"feature": "afm", "count": 2}],
+            "other_count": 0,
+        },
     ]
+    assert payload["daily"][0] == {
+        "date": "2026-06-28",
+        "count": 0,
+        "features": [],
+        "other_count": 0,
+    }
+    # The per-day breakdown narrows to the feature kind inside a bucket the
+    # entry kind also counts toward, so the parts need not sum to the bar.
+    day_features = body["aggs"]["daily"]["aggs"]["days"]["aggs"]["features"]
+    assert day_features["filter"] == {"term": {"activity_kind": "feature"}}
     assert payload["first_seen"] == "2026-07-01T01:00:00.000Z"
     assert payload["last_seen"] == "2026-07-27T02:00:00.000Z"
 
@@ -286,7 +349,7 @@ def test_fab_page_ranking_stays_request_based():
     )
 
 
-def test_users_are_paged_sorted_and_favorite_is_page_view_only():
+def test_users_are_paged_sorted_and_recent_is_page_view_only():
     responses = [
         {
             "aggregations": {
@@ -306,7 +369,7 @@ def test_users_are_paged_sorted_and_favorite_is_page_view_only():
                                 "value_as_string": "2026-07-25T00:00:00Z"
                             },
                             "feature_only": {
-                                "favorite": {
+                                "recent": {
                                     "buckets": [
                                         {"key": "storage", "doc_count": 1}
                                     ]
@@ -337,7 +400,7 @@ def test_users_are_paged_sorted_and_favorite_is_page_view_only():
                                 "value_as_string": "2026-07-27T02:00:00Z"
                             },
                             "feature_only": {
-                                "favorite": {"buckets": []}
+                                "recent": {"buckets": []}
                             },
                         }
                     ]
@@ -350,13 +413,16 @@ def test_users_are_paged_sorted_and_favorite_is_page_view_only():
     payload = reader.get_users_list()
 
     assert [row["user_id"] for row in payload["users"]] == ["u1", "u2"]
-    assert payload["users"][0]["favorite_feature"] is None
-    assert payload["users"][1]["favorite_feature"] == "storage"
+    assert payload["users"][0]["recent_feature"] is None
+    assert payload["users"][1]["recent_feature"] == "storage"
     assert search.bodies[1]["aggs"]["users"]["composite"]["after"] == {
         "user_id": "u2"
     }
-    favorite_filter = search.bodies[0]["aggs"]["users"]["aggs"]["feature_only"]
-    assert favorite_filter["filter"] == {
+    recent_filter = search.bodies[0]["aggs"]["users"]["aggs"]["feature_only"]
+    assert recent_filter["aggs"]["recent"]["terms"]["order"] == {
+        "last_at": "desc"
+    }
+    assert recent_filter["filter"] == {
         "term": {"activity_kind": "page_view"}
     }
     # The counters read requests_only, not the widened bucket doc_count.

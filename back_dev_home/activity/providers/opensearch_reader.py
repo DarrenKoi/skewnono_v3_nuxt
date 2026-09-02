@@ -14,13 +14,18 @@ from back_dev_home.activity.contracts import (
     FabUsageResponse,
     FabUsageRow,
     FeatureCount,
+    FeatureUse,
     MeResponse,
     SummaryResponse,
     UserHistoryResponse,
     UserListResponse,
     UserListRow,
 )
-from back_dev_home.activity.providers.shared import KST, TOP_FEATURES_CAP
+from back_dev_home.activity.providers.shared import (
+    KST,
+    RECENT_FEATURES_CAP,
+    TOP_FEATURES_CAP,
+)
 
 COMPOSITE_PAGE_SIZE = 1000
 CARDINALITY_PRECISION = 40000
@@ -28,9 +33,17 @@ CARDINALITY_PRECISION = 40000
 # Two units share one index. Request rows answer "how much work happened";
 # page_view rows answer "which page did people open". Every aggregation must
 # say which it means — see the beacon design spec.
-REQUEST_KINDS = ["entry", "feature"]
+FEATURE_KIND = "feature"
+REQUEST_KINDS = ["entry", FEATURE_KIND]
 RANKING_KIND = "page_view"
 ALL_KINDS = [*REQUEST_KINDS, RANKING_KIND]
+
+# A terms agg ordered by a sub-aggregation is approximate: each shard returns
+# its own top `shard_size` and a feature that ranks low on one shard can be
+# dropped before the max-timestamp comparison ever happens. The feature
+# vocabulary is a few dozen slugs (see _logging/feature_map.py), so asking
+# every shard for 100 makes the recency order exact rather than nearly right.
+FEATURE_SHARD_SIZE = 100
 
 
 def _utc_now() -> datetime:
@@ -101,6 +114,33 @@ def _feature_rows(node: dict[str, Any]) -> list[FeatureCount]:
         }
         for bucket in node.get("buckets", [])
         if bucket.get("key") not in (None, "")
+    ]
+
+
+def _recent_feature_agg(size: int) -> dict[str, Any]:
+    """Features ordered by when they were last opened, newest first.
+
+    Written once and used by both callers: the ``order`` clause is the whole
+    difference between this card and a popularity list, and it fails silently
+    if a refactor drops it — so there is one copy to drop.
+    """
+    return {
+        "terms": {
+            "field": "feature",
+            "size": size,
+            "shard_size": FEATURE_SHARD_SIZE,
+            "order": {"last_at": "desc"},
+        },
+        "aggs": {"last_at": {"max": {"field": "@timestamp"}}},
+    }
+
+
+def _recent_feature_rows(node: dict[str, Any]) -> list[FeatureUse]:
+    return [
+        {"feature": str(bucket.get("key", "")), "at": str(last_at)}
+        for bucket in node.get("buckets", [])
+        if bucket.get("key") not in (None, "")
+        and (last_at := bucket.get("last_at", {}).get("value_as_string"))
     ]
 
 
@@ -196,19 +236,36 @@ class ActivityOpenSearchReader:
                     "aggs": {
                         "days": {
                             "date_histogram": daily_histogram,
+                            "aggs": {
+                                # What was called that day. Narrowed to the
+                                # feature kind inside a bucket the entry kind
+                                # also counts toward, so these deliberately do
+                                # not sum to the bar — entry traffic belongs
+                                # to no feature. DailyCount says so.
+                                "features": {
+                                    "filter": {
+                                        "term": {
+                                            "activity_kind": FEATURE_KIND
+                                        }
+                                    },
+                                    "aggs": {
+                                        "items": {
+                                            "terms": {
+                                                "field": "feature",
+                                                "size": TOP_FEATURES_CAP,
+                                                "order": {"_count": "desc"},
+                                            }
+                                        }
+                                    },
+                                }
+                            },
                         }
                     },
                 },
                 "features": {
                     "filter": {"term": {"activity_kind": RANKING_KIND}},
                     "aggs": {
-                        "items": {
-                            "terms": {
-                                "field": "feature",
-                                "size": TOP_FEATURES_CAP,
-                                "order": {"_count": "desc"},
-                            }
-                        }
+                        "items": _recent_feature_agg(RECENT_FEATURES_CAP)
                     },
                 },
             },
@@ -224,19 +281,31 @@ class ActivityOpenSearchReader:
         aggregations = response.get("aggregations", {})
         day_30 = _kst_day_start(now, 29).date()
         daily_node = aggregations.get("daily", {}).get("days", {})
-        counts = {
-            str(bucket.get("key_as_string", "")).split("T", 1)[0]: int(
-                bucket.get("doc_count", 0)
-            )
+        by_day = {
+            str(bucket.get("key_as_string", "")).split("T", 1)[0]: bucket
             for bucket in daily_node.get("buckets", [])
         }
-        daily: list[DailyCount] = [
-            {
-                "date": (day := day_30 + timedelta(days=offset)).isoformat(),
-                "count": counts.get(day.isoformat(), 0),
-            }
-            for offset in range(30)
-        ]
+        daily: list[DailyCount] = []
+        for offset in range(30):
+            day = (day_30 + timedelta(days=offset)).isoformat()
+            bucket = by_day.get(day, {})
+            # NOT `total` — that name already holds the hits count this
+            # function returns alongside the payload.
+            day_total = int(bucket.get("doc_count", 0))
+            features = bucket.get("features", {})
+            daily.append(
+                {
+                    "date": day,
+                    "count": day_total,
+                    "features": _feature_rows(features.get("items", {})),
+                    # The filter agg's own doc_count, not a subtraction from
+                    # the capped bucket list: a day with more distinct
+                    # features than the cap must still report entry traffic
+                    # honestly rather than folding the dropped ones into it.
+                    "other_count": day_total
+                    - int(features.get("doc_count", 0)),
+                }
+            )
         this_month = aggregations.get("this_month", {})
         active_days = sum(
             1
@@ -257,7 +326,7 @@ class ActivityOpenSearchReader:
                 "requests": int(this_month.get("doc_count", 0)),
                 "days_active": active_days,
             },
-            "top_features": _feature_rows(features),
+            "recent_features": _recent_feature_rows(features),
             "daily": daily,
             "first_seen": metric("first_seen"),
             "last_seen": metric("last_seen"),
@@ -269,7 +338,7 @@ class ActivityOpenSearchReader:
             "user_id": user_id,
             "is_admin": self._admin_check(user_id),
             "this_month": history["this_month"],
-            "top_features": history["top_features"],
+            "recent_features": history["recent_features"],
             "daily": history["daily"],
             "first_seen": history["first_seen"],
             "last_seen": history["last_seen"],
@@ -414,12 +483,7 @@ class ActivityOpenSearchReader:
                                         }
                                     },
                                     "aggs": {
-                                        "favorite": {
-                                            "terms": {
-                                                "field": "feature",
-                                                "size": 1,
-                                            }
-                                        }
+                                        "recent": _recent_feature_agg(1)
                                     },
                                 },
                             },
@@ -433,9 +497,9 @@ class ActivityOpenSearchReader:
                 requests = int(requests_only.get("doc_count", 0))
                 if requests <= 0:
                     continue
-                favorites = (
+                recent = (
                     bucket.get("feature_only", {})
-                    .get("favorite", {})
+                    .get("recent", {})
                     .get("buckets", [])
                 )
                 rows.append(
@@ -455,10 +519,8 @@ class ActivityOpenSearchReader:
                         "last_seen": bucket.get("last_seen", {}).get(
                             "value_as_string"
                         ),
-                        "favorite_feature": (
-                            str(favorites[0].get("key"))
-                            if favorites
-                            else None
+                        "recent_feature": (
+                            str(recent[0].get("key")) if recent else None
                         ),
                     }
                 )
@@ -539,7 +601,7 @@ class ActivityOpenSearchReader:
                                             # fab and a data request goes
                                             # out), so page views cannot
                                             # answer a per-FAB question.
-                                            "activity_kind": "feature"
+                                            "activity_kind": FEATURE_KIND
                                         }
                                     },
                                     "aggs": {

@@ -117,14 +117,25 @@ alias 판정 시 주의 (office 확인 2026-07-28)
   activity_weight=1 AND activity_kind IN (entry, feature, page_view) 이며,
   그 아래 각 집계가 자신이 셀 kind 를 다시 명시합니다. 요청 총계·활성 사용자
   (DAU/WAU/MAU)·개인 daily 시리즈·30일 사용자 목록은 entry|feature 만 읽고,
-  top feature 순위(summary, me, 사용자별 history)는 page_view 만 읽습니다.
+  기능 순위(summary 의 top_features_7d/30d, me·사용자별 history 의
+  recent_features, 사용자 목록의 recent_feature)는 page_view 만 읽습니다.
+  같은 page_view 를 읽어도 정렬 축은 둘로 갈립니다 — summary 는 doc_count
+  내림차순(인기)이고, 개인 쪽 두 곳은 max(@timestamp) 하위 집계를 만들어
+  order: {last_at: desc} 로 최근 사용 순을 답니다. terms 집계를 하위 집계로
+  정렬하면 shard 별 근사가 되므로 shard_size 를 100 으로 올려 정확도를
+  확보합니다 (feature slug 은 수십 개 규모입니다). (2026-09-02)
+  개인 daily 시리즈는 entry|feature 창 안에서 날짜 버킷마다 activity_kind
+  =feature 로 한 번 더 좁힌 breakdown 을 답니다 — 화면의 30일 막대를 누르면
+  그날 호출한 기능이 열리기 때문입니다. entry 는 어느 기능에도 속하지 않으므로
+  breakdown 의 합은 막대 값보다 작으며, 이는 결손이 아니라 정의입니다.
+  (2026-09-02)
   FAB 페이지 순위(/api/activity/fabs 의 pages)는 예외적으로 여전히 feature 를
   읽습니다 — beacon 문서에는 fab_name_list 가 없어 FAB 별 집계에 쓸 수
   없습니다. first_seen/last_seen 은 kind 로 걸러내지 않습니다 — "마지막으로
   본 시각"은 요청량이 아니라 존재 여부를 묻는 질문이라 page_view 도
   포함합니다. entry(sem_list 진입)는 DAU/WAU/MAU 에는 포함하고 순위에는
   넣지 않습니다. (2026-08-04) page_view 도입 이전 문서는 activity_kind=feature
-  로 남아 있어 새 순위 집계에는 보이지 않으므로, 순위는 배포 시점부터
+  로 남아 있어 기능 순위 집계에는 보이지 않으므로, 순위는 배포 시점부터
   빈 상태로 시작해 30일에 걸쳐 채워집니다. backfill 은 없습니다.
 - OPTIONS/HEAD 요청은 분류 단계에서 operation/0 이므로 활동 지표에 나타나지
   않습니다 (CORS preflight 오염 방지, 2026-07-27 수정).

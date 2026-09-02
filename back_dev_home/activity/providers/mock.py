@@ -3,7 +3,8 @@
 The mock stores the same request-scoped semantics the OpenSearch office reader
 will aggregate: entry requests count active users, feature requests also count
 FAB page usage, and each request can belong to multiple FAB buckets. Feature
-rankings (``by_feature`` / ``daily_features``) are a separate unit driven
+recency (``last_opened``) and the popularity windows (``daily_features``)
+are a separate unit driven
 entirely by ``page_view`` events — a page open is not a request, so it never
 touches the daily series or ``daily_fabs``. ``last_seen`` is the deliberate
 exception: it answers "when did we last see this person", a presence question
@@ -28,6 +29,7 @@ from ..contracts import (
     FabUsageResponse,
     FabUsageRow,
     FeatureCount,
+    FeatureUse,
     MeResponse,
     MeThisMonth,
     SummaryResponse,
@@ -35,15 +37,33 @@ from ..contracts import (
     UserListResponse,
     UserListRow,
 )
-from .shared import KST, SPARKLINE_DAYS, TOP_FEATURES_CAP
+from .shared import (
+    KST,
+    RECENT_FEATURES_CAP,
+    SPARKLINE_DAYS,
+    TOP_FEATURES_CAP,
+)
 
 
 @dataclass
 class _UserState:
     user_id: str
-    by_feature: dict[str, int] = field(default_factory=dict)
+    # feature -> when it was last opened. Keyed by feature rather than
+    # appended to a list because the question is "which five features", not
+    # "which five opens": someone who refreshes Storage all morning would
+    # otherwise fill every row with Storage. Bounded by the feature
+    # vocabulary (~30 slugs), so it needs no day-based pruning.
+    last_opened: dict[str, datetime] = field(default_factory=dict)
     daily: dict[date, int] = field(default_factory=dict)
     daily_features: dict[date, dict[str, int]] = field(default_factory=dict)
+    # Requests per feature per day, counted ONCE per request. Not derivable
+    # from daily_fab_features, which counts a request once per FAB it names —
+    # correct for the FAB card, double-counting for a per-day total. The
+    # office reader counts each document once, so deriving it here would put
+    # home and office on different numbers for the same field.
+    daily_feature_requests: dict[date, dict[str, int]] = field(
+        default_factory=dict
+    )
     daily_fabs: dict[date, set[str]] = field(default_factory=dict)
     daily_fab_features: dict[date, dict[str, dict[str, int]]] = field(
         default_factory=dict
@@ -82,16 +102,47 @@ def _top_features(
     return [{"feature": feature, "count": count} for feature, count in ranked]
 
 
+def _recent_features(
+    last_opened: dict[str, datetime],
+    cap: int = RECENT_FEATURES_CAP,
+) -> list[FeatureUse]:
+    ranked = sorted(
+        last_opened.items(),
+        key=lambda item: (-item[1].timestamp(), item[0]),
+    )[:cap]
+    return [{"feature": feature, "at": _iso(at)} for feature, at in ranked]
+
+
+def _day_count(
+    day: date,
+    daily: dict[date, int],
+    day_features: dict[date, dict[str, int]],
+) -> DailyCount:
+    """One day of the series: the bar, its breakdown, and the rest.
+
+    ``other_count`` is computed from the FULL feature tally, before
+    ``_top_features`` truncates it, so a day with more features than the cap
+    still reports the entry traffic honestly rather than folding the dropped
+    features into it.
+    """
+    features = day_features.get(day, {})
+    total = daily.get(day, 0)
+    return {
+        "date": day.isoformat(),
+        "count": total,
+        "features": _top_features(features),
+        "other_count": total - sum(features.values()),
+    }
+
+
 def _daily_series(
     daily: dict[date, int],
+    day_features: dict[date, dict[str, int]],
     today: date,
     days: int,
 ) -> list[DailyCount]:
     return [
-        {
-            "date": (day := today - timedelta(days=offset)).isoformat(),
-            "count": daily.get(day, 0),
-        }
+        _day_count(today - timedelta(days=offset), daily, day_features)
         for offset in range(days - 1, -1, -1)
     ]
 
@@ -135,6 +186,7 @@ def _prune_old_days(state: _UserState, today: date) -> None:
         state.daily_features,
         state.daily_fabs,
         state.daily_fab_features,
+        state.daily_feature_requests,
     ):
         for day in [day for day in bucket if day < cutoff]:
             del bucket[day]
@@ -180,7 +232,7 @@ def record_request(
             # touch state.daily / daily_fabs / daily_fab_features.
             # last_seen is the exception: presence, not volume.
             state.last_seen = now
-            state.by_feature[feature] = state.by_feature.get(feature, 0) + 1
+            state.last_opened[feature] = now
             daily_features = state.daily_features.setdefault(today, {})
             daily_features[feature] = daily_features.get(feature, 0) + 1
             _prune_old_days(state, today)
@@ -194,6 +246,9 @@ def record_request(
         if activity_kind != "feature":
             return
 
+        day_features = state.daily_feature_requests.setdefault(today, {})
+        day_features[feature] = day_features.get(feature, 0) + 1
+
         daily_fab_features = state.daily_fab_features.setdefault(today, {})
         for fab in fabs:
             fab_features = daily_fab_features.setdefault(fab, {})
@@ -204,18 +259,20 @@ def _history_fields(
     state: _UserState | None,
     today: date,
 ) -> dict:
-    if state is None:
-        return {
-            "this_month": {"requests": 0, "days_active": 0},
-            "top_features": [],
-            "daily": _daily_series({}, today, SPARKLINE_DAYS),
-            "first_seen": None,
-            "last_seen": None,
-        }
+    # An unknown user gets the zero response of the same shape, and every
+    # helper below already produces it from empty state — so the blank is one
+    # empty _UserState rather than a hand-written second copy that has to be
+    # edited in step whenever a field is added.
+    state = state or _UserState(user_id="")
     return {
         "this_month": _this_month_stats(state.daily, today),
-        "top_features": _top_features(state.by_feature),
-        "daily": _daily_series(state.daily, today, SPARKLINE_DAYS),
+        "recent_features": _recent_features(state.last_opened),
+        "daily": _daily_series(
+            state.daily,
+            state.daily_feature_requests,
+            today,
+            SPARKLINE_DAYS,
+        ),
         "first_seen": _iso_or_none(state.first_seen),
         "last_seen": _iso_or_none(state.last_seen),
     }
@@ -291,13 +348,17 @@ def get_users_list() -> UserListResponse:
             }
             if not active:
                 continue
-            favorite = (
-                sorted(
-                    state.by_feature.items(),
-                    key=lambda item: (-item[1], item[0]),
-                )[0][0]
-                if state.by_feature
-                else None
+            # Windowed to match the office reader, whose users-list
+            # composite sits inside a 30-day range filter: a page opened 40
+            # days ago is not this person's current feature there, and must
+            # not be here either. /me is unwindowed on both sides.
+            recent = _recent_features(
+                {
+                    feature: at
+                    for feature, at in state.last_opened.items()
+                    if _kst_date(at) >= cutoff
+                },
+                cap=1,
             )
             rows.append(
                 {
@@ -305,7 +366,7 @@ def get_users_list() -> UserListResponse:
                     "requests_30d": sum(active.values()),
                     "days_active_30d": len(active),
                     "last_seen": _iso_or_none(state.last_seen),
-                    "favorite_feature": favorite,
+                    "recent_feature": recent[0]["feature"] if recent else None,
                 }
             )
 
@@ -422,10 +483,10 @@ def _seed_feature(
     """Spread ``total`` requests evenly over the last ``days_back`` days.
 
     ``sem_list`` stands in for entry traffic: it counts toward daily totals
-    and FAB active users but never toward the FAB-page rankings, mirroring
-    record_request's entry/feature split. Feature rankings themselves
-    (``by_feature`` / ``daily_features``) are seeded separately by
-    ``_seed_page_views`` — requests no longer feed the rankings.
+    and FAB active users but never toward the FAB-page rankings or the
+    per-day breakdown, mirroring record_request's entry/feature split. The
+    popularity windows are seeded by ``_seed_page_views`` and feature recency
+    by ``seed_demo_users`` itself — requests no longer feed either.
     """
     is_entry = feature == "sem_list"
     for offset in range(days_back):
@@ -439,6 +500,8 @@ def _seed_feature(
         state.daily_fabs.setdefault(day, set()).add(fab)
         if is_entry:
             continue
+        day_features = state.daily_feature_requests.setdefault(day, {})
+        day_features[feature] = day_features.get(feature, 0) + count
         fab_features = state.daily_fab_features.setdefault(
             day,
             {},
@@ -457,6 +520,8 @@ def _seed_page_views(
 
     Deliberately does NOT touch state.daily or daily_fab_features: page views
     feed the rankings only, exactly as record_request splits them.
+    ``last_opened`` is set by the caller, which knows the whole feature order
+    and can stagger it into a believable history.
     """
     if days_back <= 0 or total <= 0:
         return
@@ -466,7 +531,6 @@ def _seed_page_views(
         if count == 0:
             continue
         day = today - timedelta(days=offset)
-        state.by_feature[feature] = state.by_feature.get(feature, 0) + count
         daily = state.daily_features.setdefault(day, {})
         daily[feature] = daily.get(feature, 0) + count
 
@@ -490,4 +554,10 @@ def seed_demo_users() -> None:
                 _seed_feature(state, fab, feature, total, days_back, today)
             for feature, total in page_views.items():
                 _seed_page_views(state, feature, total, days_back, today)
+            # Staggered an hour apart in declaration order so every demo user
+            # has a readable 최근 쓴 기능 list. Seeding them all at `now` would
+            # tie, and the tiebreak is alphabetical — an order that says
+            # nothing about how the person actually works.
+            for index, feature in enumerate(page_views):
+                state.last_opened[feature] = now - timedelta(hours=index + 1)
             _users[user_id] = state
