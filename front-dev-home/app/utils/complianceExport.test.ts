@@ -52,9 +52,9 @@ test('한 파라미터가 한 줄, 초과는 초과라고 적는다', () => {
   // **숫자**로 나간다는 것을 이 한 줄이 함께 지킵니다. 문자열로 내면 엑셀에서
   // 정렬도 조건부 서식도 걸리지 않습니다.
   assert.deepEqual(rows.slice(1), [
-    ['R0A8', 'RCP-001', '상한 초과', 'WAFER_CD', 13, 9, '초과', ''],
-    ['R0A8', 'RCP-001', '상한 초과', 'EDGE_L', 8, 20, '', ''],
-    ['R0A8', 'RCP-001', '상한 초과', 'CD_BAR', 3, 12, '', '']
+    ['R0A8', 'RCP-001', '상한 초과', 'WAFER_CD', '', 13, 9, '초과', ''],
+    ['R0A8', 'RCP-001', '상한 초과', 'EDGE_L', '', 8, 20, '', ''],
+    ['R0A8', 'RCP-001', '상한 초과', 'CD_BAR', '', 3, 12, '', '']
   ])
 })
 
@@ -74,8 +74,8 @@ test('gray recipe 는 판정 제외와 사유를 적는다', () => {
     'M11' // fac_id 가 맞는 셀이 없어 룰을 못 찾습니다
   ))[1]!.rows
   assert.equal(rows[1]?.[2], '판정 제외')
-  assert.equal(rows[1]?.[6], '', 'gray 는 초과로 세지 않습니다')
-  assert.equal(rows[1]?.[7], '룰 미정')
+  assert.equal(rows[1]?.[7], '', 'gray 는 초과로 세지 않습니다')
+  assert.equal(rows[1]?.[8], '룰 미정')
 })
 
 // son 토글을 끄면 son 은 판정에서 빠집니다. 상한을 넘긴 son 이 그냥 빈 칸이면
@@ -86,8 +86,8 @@ test('판정에서 뺀 son 이 상한을 넘겼으면 그 사실을 적는다', 
     ['WAFER_SON', 13, { mother: false, region: 1 }]
   ])]
   const rows = sheetOf(judge(recipes, { WAFER: 9, _other: 20 }, false), false)[1]!.rows
-  assert.equal(rows[2]?.[6], '', '판정 대상이 아니었으므로 초과 칸은 비어 있습니다')
-  assert.equal(rows[2]?.[7], 'son 판정 제외 · 상한 초과')
+  assert.equal(rows[2]?.[7], '', '판정 대상이 아니었으므로 초과 칸은 비어 있습니다')
+  assert.equal(rows[2]?.[8], 'son 판정 제외 · 상한 초과')
   assert.equal(rows[1]?.[2], '정상', 'son 을 빼면 이 recipe 는 통과입니다')
 })
 
@@ -96,7 +96,7 @@ test('판정에서 뺀 son 이 상한을 넘겼으면 그 사실을 적는다', 
 // 하는 것입니다. evaluateRecipe 는 파라미터가 0개면 pass: true 를 줍니다.
 test('파라미터가 없는 recipe 는 한 줄로 남되 정상이라 하지 않는다', () => {
   const rows = sheetOf(judge([recipe('RCP-EMPTY', [])], { _other: 20 }))[1]!.rows
-  assert.deepEqual(rows[1], ['R0A8', 'RCP-EMPTY', '판정 결과 없음', '', '', '', '', '파라미터 없음'])
+  assert.deepEqual(rows[1], ['R0A8', 'RCP-EMPTY', '판정 결과 없음', '', '', '', '', '', '파라미터 없음'])
 })
 
 // 슬라이드오버 머리말과 같은 숫자여야 합니다. son 토글은 거기 없지만, 파일의
@@ -144,4 +144,20 @@ test('파일 이름은 lot 코드를 씻고 날짜를 붙인다', () => {
   assert.equal(complianceFileName('R0A8', '2026-09-01'), 'R0A8_rule_compliance_2026-09-01.xlsx')
   assert.equal(complianceFileName('R0/A8', '2026-09-01'), 'R0_A8_rule_compliance_2026-09-01.xlsx')
   assert.equal(complianceFileName('', '2026-09-01'), 'unknown_rule_compliance_2026-09-01.xlsx')
+})
+
+test('mother/son 열은 parameter 바로 뒤, 상한 초과 앞에 선다', () => {
+  const rows = sheetOf(judge(
+    [recipe('RCP-001', [
+      ['WAFER_CD', 13, { mother: true, region: 1 }],
+      ['CELL_SP', 13, { mother: false, region: 1 }],
+      ['LWR', 13, { mother: false, region: 2 }]
+    ])],
+    { WAFER: 13, _other: 12 }
+  ))[1]!.rows
+  assert.deepEqual([...COMPLIANCE_HEADERS], [
+    'lot_cd', 'recipe_id', 'recipe_판정', 'parameter', 'mother/son',
+    'measure_points', 'cap', '상한 초과', '비고'
+  ])
+  assert.deepEqual(rows.slice(1).map(r => r[4]), ['mother', 'son', ''])
 })

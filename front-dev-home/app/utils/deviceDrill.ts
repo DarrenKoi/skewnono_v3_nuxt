@@ -3,7 +3,8 @@
 // slideover renders both. Adapters are pure + unit-tested.
 import { isExemptJob } from './lotHealth.ts'
 import { dropLeadingHelperParams } from './outlierDetect.ts'
-import type { RecipeInput, LotHealth } from './ruleEngine'
+import { motherRegions, paramRole } from './ruleEngine.ts'
+import type { ParamRole, RecipeInput, LotHealth } from './ruleEngine'
 import type { DeviceOutlierResult } from './outlierDetect'
 
 export interface DrillParameter {
@@ -19,6 +20,8 @@ export interface DrillParameter {
    * 고장난 것으로 읽힙니다. 값을 감추지 않고 이유만 답니다.
    */
   note?: string
+  /** mother / son / 근거 없음(null). 판정이 아니라 recipe 의 사실이라 두 어댑터가 모두 싣습니다. */
+  role: ParamRole
 }
 
 export interface DrillRecipe {
@@ -75,6 +78,7 @@ export const toOutlierDrill = (
     // 화면이 두 가지 이야기를 하게 됩니다 (user-confirmed 2026-08-10: 준비용은
     // 목록 맨 앞의 것뿐입니다).
     const measured = new Set(dropLeadingHelperParams(r.parameters).map(p => p.name))
+    const regions = motherRegions(r.parameters)
     const parameters: DrillParameter[] = r.parameters.map((p) => {
       const flagged = flaggedKey.has(`${r.recipe_id} ${p.name}`)
       // 제외된 파라미터는 flagged 가 될 수 없으므로 두 꼬리표가 부딪히지
@@ -82,7 +86,7 @@ export const toOutlierDrill = (
       const note = flagged
         ? `> ${result.threshold}`
         : measured.has(p.name) ? undefined : EXEMPT_LABEL
-      return { name: p.name, point_count: p.point_count, flagged, note }
+      return { name: p.name, point_count: p.point_count, flagged, note, role: paramRole(p, regions) }
     })
     const flagged_count = parameters.filter(p => p.flagged).length
     return {
@@ -116,6 +120,7 @@ export const toViolationDrill = (
       name: p.name,
       point_count: p.point_count,
       flagged: p.violation,
+      role: p.role,
       // 판정에서 뺀 son 이 상한을 넘었으면 그 사실을 적습니다. 적지 않으면
       // "재 봤더니 상한 안" 과 "아예 안 쟀다" 가 화면에서 같은 모습이 되어,
       // son 판정 토글을 껐다는 사실이 숫자가 줄었다는 것 말고는 드러나지 않습니다.

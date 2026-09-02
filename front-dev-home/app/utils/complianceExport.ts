@@ -14,7 +14,7 @@
 import type { LotHealth } from './ruleEngine.ts'
 import type { WorkbookSheet } from './xlsx.ts'
 import { safeFileNamePart } from './csvDownload.ts'
-import { NO_PARAMS, capCell, overCell, paramNoteCell, recipeVerdictCell } from './violationCells.ts'
+import { NO_PARAMS, ROLE_HEADER, capCell, overCell, paramNoteCell, recipeVerdictCell, roleCell } from './violationCells.ts'
 
 /**
  * 엑셀 첫 줄. 판정은 recipe 층과 파라미터 층 **양쪽**에 답니다 —
@@ -26,6 +26,7 @@ export const COMPLIANCE_HEADERS = [
   'recipe_id',
   'recipe_판정',
   'parameter',
+  ROLE_HEADER,
   'measure_points',
   'cap',
   '상한 초과',
@@ -66,7 +67,7 @@ const judgementRows = (health: LotHealth): (string | number)[][] => {
   for (const recipe of health.recipes) {
     const verdict = recipeVerdictCell(recipe)
     if (recipe.results.length === 0) {
-      rows.push([health.lot_cd, recipe.recipe_id, verdict, '', '', '', '', NO_PARAMS])
+      rows.push([health.lot_cd, recipe.recipe_id, verdict, '', '', '', '', '', NO_PARAMS])
       continue
     }
     for (const param of recipe.results) {
@@ -75,6 +76,7 @@ const judgementRows = (health: LotHealth): (string | number)[][] => {
         recipe.recipe_id,
         verdict,
         param.name,
+        roleCell(param.role),
         param.point_count,
         capCell(param),
         overCell(param),

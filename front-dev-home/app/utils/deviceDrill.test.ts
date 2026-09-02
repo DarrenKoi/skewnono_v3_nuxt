@@ -145,3 +145,32 @@ test('violation drill: gray (unruled) recipes are unflagged', () => {
   assert.equal(drill.flagged_recipe_count, 0)
   assert.ok(drill.recipes.every(r => !r.flagged))
 })
+
+// role 은 판정이 아니라 recipe 의 사실이라 두 어댑터 모두 싣습니다 — 카드를
+// 펼쳤을 때 "이 행이 mother 인가 son 인가" 가 어느 화면에서나 보여야 합니다.
+test('outlier drill carries mother/son role per parameter', () => {
+  const recipes = [{
+    ...dramRecipe('A', 16),
+    parameters: [
+      { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+      { name: 'EDGE_L', point_count: 16, mother: false, region: 1 },
+      { name: 'CD_BAR', point_count: 3, mother: false, region: 2 }
+    ]
+  }]
+  const result = detectDeviceOutliers(recipes)
+  const params = toOutlierDrill('R000', '', recipes, result).recipes[0]!.parameters
+  assert.deepEqual(params.map(p => p.role), ['mother', 'son', null])
+})
+
+test('violation drill carries mother/son role per parameter', () => {
+  const recipes = [{
+    ...dramRecipe('A', 16),
+    parameters: [
+      { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+      { name: 'EDGE_L', point_count: 16, mother: false, region: 1 }
+    ]
+  }]
+  const health = evaluateLot('R000', recipes, [coreEarlyDram])
+  const params = toViolationDrill('R000', '', health).recipes[0]!.parameters
+  assert.deepEqual(params.map(p => p.role), ['mother', 'son'])
+})

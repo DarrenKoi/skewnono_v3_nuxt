@@ -163,6 +163,34 @@ export const capFor = (param: Parameter, cell: RuleCell, type?: ParamType): numb
 // =================== 그룹 cap — SEQ 묶음 (user-confirmed 2026-08-18) ===================
 
 /**
+ * 파라미터가 image 그룹 안에서 맡는 역할.
+ *
+ *   'mother' — 그 image 의 주인(idp 의 `Mother_Para`).
+ *   'son'    — **mother 가 실제로 있는** region 의 나머지. mother 의 측정에 얹혀
+ *              가므로 cap 도 물려받고(`effectiveCap`), `judgeSons: false` 가 빼는
+ *              것도 정확히 이 파라미터입니다.
+ *   null     — 묶을 근거가 없음. region 을 읽지 못했거나, region 은 있는데 그 안에
+ *              mother 가 없는 경우입니다. 원천이 mother 를 기록하지 않은 recipe 는
+ *              모든 파라미터가 `mother: false` 인데, 그것을 son 이라 부르면 판정은
+ *              빼지 않는 행을 화면과 파일이 son 이라 소개하게 됩니다.
+ *
+ * 화면(DrillParamRows)·CSV·워크북이 "mother 인가 son 인가" 를 적을 때 쓰는 술어이자
+ * 판정이 son 을 뺄 때 쓰는 술어입니다 — 둘이 한 함수라야 "son 판정 제외" 가 붙지
+ * 않는 행에 son 이 적히는 일이 없습니다.
+ */
+export type ParamRole = 'mother' | 'son' | null
+
+/** mother 가 한 명이라도 있는 region 의 집합. `groupCaps` 의 키와 같은 집합입니다. */
+export const motherRegions = (params: Parameter[]): Set<number> => {
+  const regions = new Set<number>()
+  for (const p of params) if (p.mother && p.region != null) regions.add(p.region)
+  return regions
+}
+
+export const paramRole = (p: Parameter, regions: ReadonlySet<number>): ParamRole =>
+  p.mother ? 'mother' : (p.region != null && regions.has(p.region)) ? 'son' : null
+
+/**
  * region -> **그 그룹 mother 의 cap**. mother 가 없는 region 은 아예 넣지 않습니다.
  *
  * 왜 필요한가. idp 의 한 `Region` 은 image definition 1개이고, 화면에 "1/8,
@@ -339,6 +367,8 @@ export interface ParamResult {
    */
   over_cap: boolean
   violation: boolean
+  /** mother / son / 묶을 근거 없음 — `paramRole`. 판정이 아니라 recipe 의 사실이라 gray 에도 실립니다. */
+  role: ParamRole
 }
 
 /**
@@ -378,6 +408,7 @@ export const evaluateRecipe = (
   res: CellResolution,
   opts: JudgeOptions = {}
 ): RecipeResult => {
+  const regions = motherRegions(recipe.parameters)
   if (res.kind === 'gray') {
     return {
       recipe_id: recipe.recipe_id,
@@ -386,7 +417,7 @@ export const evaluateRecipe = (
       pass: true, // conservative: gray ≠ violation (D14)
       gray: res.gray,
       gray_reason: res.reason,
-      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, over_cap: false, violation: false }))
+      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, over_cap: false, violation: false, role: paramRole(p, regions) }))
     }
   }
   // son 은 mother 와 같은 image 를 쓰므로 자기 타입 cap 이 아니라 그룹 mother 의
@@ -408,9 +439,10 @@ export const evaluateRecipe = (
     // `effectiveCap` 이 region 없는 파라미터를 자기 cap 으로 재는 것과 같은
     // 원칙이고, 실제로 같은 술어입니다: 상속이 걸릴 수 있는 파라미터가 곧
     // "mother 의 측정에 얹혀 가는" 파라미터입니다.
-    const judged = judgeSons || !(!p.mother && p.region != null && caps.has(p.region))
+    const role = paramRole(p, regions)
+    const judged = judgeSons || role !== 'son'
     const over_cap = typeof cap === 'number' && p.point_count > cap
-    return { name: p.name, point_count: p.point_count, type, cap, judged, over_cap, violation: judged && over_cap }
+    return { name: p.name, point_count: p.point_count, type, cap, judged, over_cap, violation: judged && over_cap, role }
   })
   const violation_params = results.filter(r => r.violation)
   return {

@@ -638,3 +638,40 @@ test('capFor: Sample 셀의 Align 은 DUMMY 와 같이 면제', () => {
 test('capFor: 이름 한복판의 align 은 면제가 아니다 (affix 규칙)', () => {
   assert.equal(capFor({ name: 'X_ALIGN_Y', point_count: 3 }, sampleDram), 0)
 })
+
+// --- role: mother / son / 묶을 근거 없음 ---
+// 판정이 son 을 빼는 술어와 화면·파일이 "son" 이라 적는 술어는 **같은 함수**
+// 여야 합니다. 갈리면 토글을 껐을 때 "son 판정 제외" 가 붙지 않는 행이 son 이라
+// 적혀 나갑니다.
+test('role: mother 는 mother, mother 있는 region 의 나머지는 son, 근거 없으면 null', () => {
+  const r = seqRecipe([
+    { name: 'WAFER', point_count: 13, mother: true, region: 1 },
+    { name: 'CELL_SP', point_count: 13, region: 1 },
+    { name: 'LWR', point_count: 13, region: 3 }, // mother 없는 region
+    { name: 'EDGE_L', point_count: 13 } // region 을 읽지 못함
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]))
+  assert.deepEqual(res.results.map(p => [p.name, p.role]), [
+    ['WAFER', 'mother'], ['CELL_SP', 'son'], ['LWR', null], ['EDGE_L', null]
+  ])
+})
+
+test('role: gray recipe 의 결과에도 role 은 실린다', () => {
+  const r = seqRecipe([
+    { name: 'WAFER', point_count: 13, mother: true, region: 1 },
+    { name: 'CELL_SP', point_count: 13, region: 1 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), []))
+  assert.equal(res.gray, 'A')
+  assert.deepEqual(res.results.map(p => p.role), ['mother', 'son'])
+})
+
+test('role: judgeSons=false 가 빼는 것은 정확히 role === son 인 파라미터다', () => {
+  const r = seqRecipe([
+    { name: 'WAFER', point_count: 13, mother: true, region: 1 },
+    { name: 'CELL_SP', point_count: 13, region: 1 },
+    { name: 'LWR', point_count: 13, region: 3 }
+  ])
+  const res = evaluateRecipe(applyAnnotation(r), resolveRuleCell(applyAnnotation(r), [coreEarlyDram]), { judgeSons: false })
+  assert.deepEqual(res.results.map(p => p.judged), res.results.map(p => p.role !== 'son'))
+})

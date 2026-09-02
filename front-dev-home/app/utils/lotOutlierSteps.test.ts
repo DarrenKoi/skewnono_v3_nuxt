@@ -19,8 +19,8 @@ const drillRecipe = (recipe_id: string, flagged_count: number, exempt = false): 
   total_params: 4,
   flagged_count,
   parameters: [
-    { name: 'CD_1', point_count: 40, flagged: flagged_count > 0, note: flagged_count > 0 ? '> 20' : undefined },
-    { name: 'CD_2', point_count: 10, flagged: false }
+    { name: 'CD_1', point_count: 40, flagged: flagged_count > 0, note: flagged_count > 0 ? '> 20' : undefined, role: null },
+    { name: 'CD_2', point_count: 10, flagged: false, role: null }
   ],
   exempt
 })

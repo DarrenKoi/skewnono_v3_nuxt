@@ -16,6 +16,18 @@
           class="min-w-0 flex-1"
           :class="dense ? 'sk-field-name' : 'font-mono text-[15px] text-(--sk-ink)'"
         >{{ param.name }}</span>
+        <!-- mother/son. 근거가 없는 행은 배지 자리를 비워 둡니다(폭은 유지) —
+             그래야 point_count 열이 행마다 흔들리지 않습니다. 술어는
+             ruleEngine.paramRole 하나이고, 판정이 son 을 뺄 때 쓰는 것과 같습니다. -->
+        <span class="w-16 flex-none text-center">
+          <span
+            v-if="param.role"
+            class="sk-badge ring-1 ring-inset"
+            :class="param.role === 'mother'
+              ? 'bg-(--sk-accent-tint) text-(--sk-accent) ring-(--sk-accent-border)'
+              : 'bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-(--sk-border)'"
+          >{{ param.role }}</span>
+        </span>
         <span
           class="w-16 flex-none text-right font-semibold text-(--sk-ink)"
           :class="dense ? 'sk-field-value' : 'font-mono text-base tabular-nums'"
@@ -29,8 +41,8 @@
 <script setup lang="ts">
 import type { DrillParameter } from '~/utils/deviceDrill'
 
-// 파라미터 행 목록의 단일 원천. 두 화면이 같은 세 열(이름 · point_count ·
-// 꼬리표)을 같은 폭으로 그립니다.
+// 파라미터 행 목록의 단일 원천. 두 화면이 같은 네 열(이름 · mother/son ·
+// point_count · 꼬리표)을 같은 폭으로 그립니다.
 //
 // **색은 공유하고 크기는 나눕니다.** 초과 tint 는 어느 화면에서나 --sk-bad 라야
 // 하지만 글자 크기는 그렇지 않습니다 — 뷰포트 80% 슬라이드오버와 모달 카드

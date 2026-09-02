@@ -71,14 +71,14 @@ test('one row per parameter, joined on recipe_id', () => {
 
   // WAFER_CD 는 상한 9 를 넘겨 초과, EDGE_L 은 EDGE 상한 20 안이라 빈 칸.
   assert.deepEqual(rows, [
-    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'WAFER_CD', '13', '9', '초과', ''],
-    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'EDGE_L', '8', '20', '', '']
+    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'WAFER_CD', '', '13', '9', '초과', ''],
+    ['R000', 'CBL ETCH CD', 'RCP-001', '상한 초과', 'EDGE_L', '', '8', '20', '', '']
   ])
 })
 
 test('headers name what the user asked for', () => {
   assert.deepEqual([...LOT_PARAM_HEADERS], [
-    'lot_cd', 'step', 'recipe_id', 'recipe_판정', 'parameter',
+    'lot_cd', 'step', 'recipe_id', 'recipe_판정', 'parameter', 'mother/son',
     'measure_points', 'cap', '상한 초과', '비고'
   ])
 })
@@ -90,8 +90,8 @@ test('판정이 없는 recipe 는 왜 없는지를 적는다', () => {
   const recipes = [params('RCP-001', [['WAFER_CD', 13]])]
   const rows = buildLotParamRows([infoRow('RCP-001', 'step')], recipes, noRules(recipes))
   assert.equal(rows[0]?.[3], '룰 없음')
-  assert.equal(rows[0]?.[8], '룰 없음')
-  assert.equal(rows[0]?.[7], '', '판정하지 않은 행에 초과를 적으면 안 됩니다')
+  assert.equal(rows[0]?.[9], '룰 없음')
+  assert.equal(rows[0]?.[8], '', '판정하지 않은 행에 초과를 적으면 안 됩니다')
 
   const exempt = [params('RCP_WCDU_01', [['WAFER_CD', 104]])]
   const exemptRows = buildLotParamRows(
@@ -112,7 +112,7 @@ test('룰은 있는데 판정에 없는 행은 아는 만큼만 적는다', () =
   )
   assert.equal(rows[0]?.[3], '상한 초과')
   assert.equal(rows[1]?.[3], '판정 결과 없음')
-  assert.equal(rows[1]?.[8], '판정 결과 없음')
+  assert.equal(rows[1]?.[9], '판정 결과 없음')
 })
 
 // 전 recipe 가 gray 인 lot 은 판정한 것이 0 건이라 kind 가 'no-rules' 가 되지만
@@ -143,9 +143,9 @@ test('전부 gray 인 lot 을 룰 없음이라 부르지 않는다', () => {
     [...graySet, params('RCP-999', [['WAFER_CD', 13]])],
     verdict
   )
-  assert.equal(rows[0]?.[8], 'yield_check 미설정')
+  assert.equal(rows[0]?.[9], 'yield_check 미설정')
   assert.equal(rows[1]?.[3], '판정 결과 없음', '룰은 있었으므로 룰 없음 은 거짓입니다')
-  assert.equal(rows[1]?.[8], '판정 결과 없음')
+  assert.equal(rows[1]?.[9], '판정 결과 없음')
 })
 
 // gray recipe(룰 미정·어노테이션 미설정)를 빈 칸으로 두면 깨끗한 recipe 와
@@ -158,7 +158,7 @@ test('gray recipe 는 사유를 모든 행에 적는다', () => {
     judge(recipes, { WAFER: 9, _other: 20 }, 'M11')
   )
   assert.deepEqual(rows.map(r => r[3]), ['판정 제외', '판정 제외'])
-  assert.deepEqual(rows.map(r => r[8]), ['룰 미정', '룰 미정'])
+  assert.deepEqual(rows.map(r => r[9]), ['룰 미정', '룰 미정'])
   assert.deepEqual(rows.map(r => r[7]), ['', ''], 'gray 는 초과로 세지 않습니다')
 })
 
@@ -171,7 +171,7 @@ test('파라미터 판정은 이름으로 이어 붙는다', () => {
     [params('RCP-001', [['WAFER_CD', 13]])], // 화면이 A 를 걸러낸 상태
     verdict
   )
-  assert.deepEqual(rows[0]?.slice(4), ['WAFER_CD', '13', '9', '초과', ''])
+  assert.deepEqual(rows[0]?.slice(4), ['WAFER_CD', '', '13', '9', '초과', ''])
 })
 
 // 원본 순서가 곧 정보입니다. 이름순으로 정렬하면 "WAFER" 가 알파벳상 거의
@@ -198,7 +198,7 @@ test('recipe order is the caller order, never re-sorted', () => {
 
 test('a recipe with no parameters still gets a row', () => {
   const rows = buildLotParamRows([infoRow('RCP-001', 'step')], [], undefined)
-  assert.deepEqual(rows, [['R000', 'step', 'RCP-001', '룰 없음', '', '', '', '', '룰 없음']])
+  assert.deepEqual(rows, [['R000', 'step', 'RCP-001', '룰 없음', '', '', '', '', '', '룰 없음']])
 })
 
 // 판정된 recipe 가 파라미터를 하나도 안 가진 경우는 워크북과 **같은 말**을
@@ -208,7 +208,7 @@ test('판정된 recipe 의 빈 파라미터 줄은 워크북과 같은 말을 �
   const rows = buildLotParamRows(
     [infoRow('RCP-001', 'step')], judged, judge(judged, { _other: 20 })
   )
-  assert.equal(rows[0]?.[8], '파라미터 없음')
+  assert.equal(rows[0]?.[9], '파라미터 없음')
 })
 
 test('a recipe present only in recipe-params is not invented', () => {
@@ -226,7 +226,7 @@ test('zero measure points is written, not blanked', () => {
     [params('RCP-001', [['EDGE_EX_L', 0]])],
     undefined
   )
-  assert.equal(rows[0]?.[5], '0')
+  assert.equal(rows[0]?.[6], '0')
 })
 
 test('filename sanitises the lot code and names the bucket', () => {
@@ -265,4 +265,22 @@ test('son 판정을 끈 상태의 내보내기도 이름으로 구별된다', ()
   assert.equal(lotParamFileName('R123', 'all', false, true), 'R123_all_params.csv')
   assert.equal(lotParamFileName('R123', 'all', false, false), 'R123_all_params_nosons.csv')
   assert.equal(lotParamFileName('R123', 'all', true, false), 'R123_all_params_outlier_nosons.csv')
+})
+
+// mother/son 은 판정이 아니라 recipe 의 사실이라 판정이 없는 행에도 적습니다 —
+// 룰 없는 fab 의 파일에서도 "이 파라미터가 image 의 주인인가" 는 답할 수 있어야
+// 합니다. 술어는 ruleEngine.paramRole 하나입니다.
+test('mother/son 열은 판정과 무관하게 recipe 의 region 으로 적는다', () => {
+  const recipes: RecipeInput[] = [{
+    ...params('RCP-001', []),
+    parameters: [
+      { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+      { name: 'CELL_SP', point_count: 13, mother: false, region: 1 },
+      { name: 'LWR', point_count: 13, mother: false, region: 2 }
+    ]
+  }]
+  const roles = (verdict: LotVerdict | undefined) =>
+    buildLotParamRows([infoRow('RCP-001', 'step')], recipes, verdict).map(r => r[5])
+  assert.deepEqual(roles(judge(recipes, { WAFER: 13, _other: 12 })), ['mother', 'son', ''])
+  assert.deepEqual(roles(noRules(recipes)), ['mother', 'son', ''])
 })

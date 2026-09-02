@@ -18,7 +18,8 @@ import type { RecipeInput } from './ruleEngine'
 import type { LotVerdict } from './lotHealth'
 import { isExemptJob } from './lotHealth.ts'
 import { safeFileNamePart } from './csvDownload.ts'
-import { NO_JUDGEMENT, NO_PARAMS, capCell, overCell, paramNoteCell, recipeVerdictCell } from './violationCells.ts'
+import { motherRegions, paramRole } from './ruleEngine.ts'
+import { NO_JUDGEMENT, NO_PARAMS, ROLE_HEADER, capCell, overCell, paramNoteCell, recipeVerdictCell, roleCell } from './violationCells.ts'
 
 /** 엑셀 첫 줄. 화면 용어와 같은 말을 씁니다. */
 export const LOT_PARAM_HEADERS = [
@@ -27,6 +28,7 @@ export const LOT_PARAM_HEADERS = [
   'recipe_id',
   'recipe_판정',
   'parameter',
+  ROLE_HEADER,
   'measure_points',
   'cap',
   '상한 초과',
@@ -99,11 +101,14 @@ export const buildLotParamRows = (
     if (parameters.length === 0) {
       rows.push([
         recipe.lot_cd, recipe.oper_desc, recipe.recipe_id, verdictLabel,
-        '', '', '', '', result ? NO_PARAMS : missing
+        '', '', '', '', '', result ? NO_PARAMS : missing
       ])
       continue
     }
     const resultByName = new Map((result?.results ?? []).map(r => [r.name, r]))
+    // role 은 판정이 아니라 recipe 의 사실이라 판정 유무와 무관하게 파라미터에서
+    // 바로 읽습니다 — 룰 없는 fab 의 파일에도 mother/son 은 적힙니다.
+    const regions = motherRegions(parameters)
     for (const param of parameters) {
       // recipe 는 판정됐는데 이 파라미터만 없는 가지입니다. **오늘은 닿지
       // 않습니다** — `scopeRecipesToBucket` 이 파라미터를 한 번만 좁히고 그
@@ -118,6 +123,7 @@ export const buildLotParamRows = (
         recipe.recipe_id,
         verdictLabel,
         param.name,
+        roleCell(paramRole(param, regions)),
         String(param.point_count),
         p ? String(capCell(p)) : '',
         p ? overCell(p) : '',
