@@ -26,7 +26,7 @@
         icon="i-lucide-download"
         label="Excel"
         :disabled="!exportRows.length"
-        @click="exportCsv"
+        @click="exportExcel"
       />
     </template>
 
@@ -173,7 +173,8 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { SiteKind } from '~/utils/overview'
 import { siteRadiusMm } from '~/utils/waferGeometry'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
 import { headerState, pickExportRows, siteKey } from '~/utils/mpSelection'
 import { SK_SITE_OVERFLOW } from '~/utils/chartPalette'
@@ -378,7 +379,7 @@ const onKeydown = (e: KeyboardEvent) => {
 const toast = useToast()
 
 // Build the current (filtered + sorted) rows as headers + a value matrix,
-// shared by CSV download and clipboard copy.
+// shared by Excel download and clipboard copy.
 const pointsTable = () => ({
   headers: ['PARAM', 'MP', 'SEQ', 'X', 'Y', 'DATA', 'RADIUS_mm', 'STATUS'],
   rows: exportRows.value.map(p => [
@@ -395,12 +396,12 @@ const pointsTable = () => ({
 
 const exportFileName = () => {
   const paramPart = multiParam.value ? `${selectedParams.value.length}params` : props.analysis.activeParam.value
-  return `${props.analysis.focusFile.value?.msr ?? 'msr'}_${paramPart}_points.csv`
+  return `${props.analysis.focusFile.value?.msr ?? 'msr'}_${paramPart}_points.xlsx`
 }
 
-const exportCsv = () => {
+const exportExcel = async () => {
   const { headers, rows: data } = pointsTable()
-  downloadCsv(exportFileName(), headers, data)
+  await downloadTable(exportFileName(), headers, data)
 }
 
 const copyPoints = async () => {

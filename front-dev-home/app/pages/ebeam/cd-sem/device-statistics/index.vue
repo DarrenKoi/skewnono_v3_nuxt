@@ -238,9 +238,9 @@
               variant="outline"
               icon="i-lucide-download"
               class="h-[34px] px-3.5 text-sm font-semibold"
-              :label="text.csvDownload"
+              :label="text.excelDownload"
               :disabled="filteredRowCount === 0"
-              @click="downloadDeviceListCsv"
+              @click="downloadDeviceListExcel"
             />
           </div>
 
@@ -455,7 +455,8 @@ import {
 import { sameFab } from '~/utils/fab'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { CHIP_BASE, CHIP_BASE_MONO, chipClass } from '~/utils/chipClass'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 
 definePageMeta({
@@ -475,7 +476,7 @@ const text = {
   reset: '초기화',
   lotSearch: 'Lot 검색 (예: R0A2)',
   techSearch: 'Tech 검색',
-  csvDownload: 'CSV 다운로드',
+  excelDownload: 'Excel 다운로드',
   clipboardCopy: '표를 클립보드에 복사 (엑셀에 붙여넣기)',
   resetAll: '전체 초기화',
   tableSearch: '테이블 검색',
@@ -1204,10 +1205,10 @@ const getDeviceRowValue = (row: DeviceRow, key: string) => {
   return (row as unknown as Record<string, unknown>)[key]
 }
 
-const csvFileName = computed(() => {
+const exportFileName = computed(() => {
   const today = todayStamp()
   const fab = selectedFab.value.toLowerCase()
-  return `cd-sem-${fab}-device-statistics-${today}.csv`
+  return `cd-sem-${fab}-device-statistics-${today}.xlsx`
 })
 
 const deviceTable = () => {
@@ -1228,9 +1229,9 @@ const deviceTable = () => {
   }
 }
 
-const downloadDeviceListCsv = () => {
+const downloadDeviceListExcel = async () => {
   const { headers, rows } = deviceTable()
-  downloadCsv(csvFileName.value, headers, rows)
+  await downloadTable(exportFileName.value, headers, rows)
 }
 
 const copyDeviceList = async () => {

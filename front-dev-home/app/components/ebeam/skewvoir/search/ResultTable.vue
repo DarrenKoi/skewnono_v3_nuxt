@@ -289,7 +289,7 @@
 <script setup lang="ts">
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MeasHistSort, MeasHistSortKey } from '~/utils/measHistSort'
-import { copyTextToClipboard } from '~/utils/csvDownload'
+import { copyTextToClipboard } from '~/utils/tableExport'
 import { hasMsrIdentity, measHistRowKey } from '~/utils/measHistSelection'
 
 const props = defineProps<{

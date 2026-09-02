@@ -491,7 +491,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-bar-chart-3',
     section: 'common',
     purpose: 'SKEWNONO가 어떻게 쓰이고 있는지 확인하는 화면입니다.',
-    description: '맨 위는 내 사용 패턴입니다. 이번 달 요청 수와 활동일, 최근 쓴 기능 5개, 30일 스파크라인이 놓입니다. 스파크라인의 막대를 누르면 그날 호출한 기능이 펼쳐집니다. 그 아래로 DAU·WAU·MAU 같은 전체 지표와 인기 기능 Top 10, FAB별 페이지 사용량이 7일·30일 기준으로 이어집니다. 관리자는 사용자별 사용 현황 표를 검색·정렬하고 CSV로 내려받을 수 있습니다.',
+    description: '맨 위는 내 사용 패턴입니다. 이번 달 요청 수와 활동일, 최근 쓴 기능 5개, 30일 스파크라인이 놓입니다. 스파크라인의 막대를 누르면 그날 호출한 기능이 펼쳐집니다. 그 아래로 DAU·WAU·MAU 같은 전체 지표와 인기 기능 Top 10, FAB별 페이지 사용량이 7일·30일 기준으로 이어집니다. 관리자는 사용자별 사용 현황 표를 검색·정렬하고 Excel로 내려받을 수 있습니다.',
     users: '전체 사용자',
     notes: ['개인 활동과 전체 집계를 나란히 두어 내 사용 패턴을 전체 흐름과 비교할 수 있습니다.']
   },
@@ -535,9 +535,9 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-list-checks',
     section: 'ebeam',
     purpose: 'Fab별 E-Beam 장비 현황을 확인하는 기본 작업 화면입니다.',
-    description: '장비 ID, Model, Vendor, IP, Version을 한 표에서 보고 Available과 Offline 상태를 우선 정렬로 확인합니다. 상단의 Available·Offline 칩은 눌러서 그대로 필터가 되고 검색과 Model 셀렉트로 범위를 좁힙니다. 각 행에서 H/W 상태 화면으로 바로 넘어가거나 IP를 복사할 수 있습니다. 화면에 없는 Fac까지 담은 CSV도 내려받습니다.',
+    description: '장비 ID, Model, Vendor, IP, Version을 한 표에서 보고 Available과 Offline 상태를 우선 정렬로 확인합니다. 상단의 Available·Offline 칩은 눌러서 그대로 필터가 되고 검색과 Model 셀렉트로 범위를 좁힙니다. 각 행에서 H/W 상태 화면으로 바로 넘어가거나 IP를 복사할 수 있습니다. 화면에 없는 Fac까지 담은 Excel도 내려받습니다.',
     users: 'Fab 담당 엔지니어, 장비 담당자',
-    notes: ['CSV 다운로드와 filtering은 장비 현황 확인을 빠르게 하기 위한 보조 기능입니다.']
+    notes: ['Excel 다운로드와 filtering은 장비 현황 확인을 빠르게 하기 위한 보조 기능입니다.']
   },
   {
     id: 'storage',

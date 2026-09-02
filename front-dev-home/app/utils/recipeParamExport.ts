@@ -16,7 +16,7 @@ import type { IdpImageInfoRow, IdpLocator, WaferMpInfoRow } from '../composables
 import type { ParamDetail, ParamImage, SettingBlock } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS, MP_TABLE_COLUMNS } from './recipeView.ts'
 import { createWorkbook, writeWorkbook } from './xlsx.ts'
-import { safeFileNamePart } from './csvDownload.ts'
+import { safeFileNamePart } from './tableExport.ts'
 
 // Relative `.ts` specifier, not the `~` alias, for the same reason
 // `recipeCompare.ts` uses one: `node --test` cannot resolve `~`, but resolves

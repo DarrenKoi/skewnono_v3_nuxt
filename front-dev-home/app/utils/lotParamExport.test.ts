@@ -230,21 +230,21 @@ test('zero measure points is written, not blanked', () => {
 })
 
 test('filename sanitises the lot code and names the bucket', () => {
-  assert.equal(lotParamFileName('R0A8', 'only_normal'), 'R0A8_only_normal_params.csv')
-  assert.equal(lotParamFileName('R0/A8', 'all'), 'R0_A8_all_params.csv')
-  assert.equal(lotParamFileName('', 'all'), 'unknown_all_params.csv')
+  assert.equal(lotParamFileName('R0A8', 'only_normal'), 'R0A8_only_normal_params.xlsx')
+  assert.equal(lotParamFileName('R0/A8', 'all'), 'R0_A8_all_params.xlsx')
+  assert.equal(lotParamFileName('', 'all'), 'unknown_all_params.xlsx')
 })
 
 // 페이지가 넘기는 것은 API 의 버킷 키라 "_summary" 가 붙어 있습니다. 그대로
 // 쓰면 파일 이름이 스스로를 요약이라고 잘못 소개합니다.
 test('filename drops the bucket key\'s _summary tail', () => {
-  assert.equal(lotParamFileName('R0A8', 'all_summary'), 'R0A8_all_params.csv')
+  assert.equal(lotParamFileName('R0A8', 'all_summary'), 'R0A8_all_params.xlsx')
   assert.equal(
     lotParamFileName('R0A8', 'mother_normal_summary'),
-    'R0A8_mother_normal_params.csv'
+    'R0A8_mother_normal_params.xlsx'
   )
   // 꼬리가 아니라 중간에 있으면 건드리지 않습니다.
-  assert.equal(lotParamFileName('R0A8', 'summary_x'), 'R0A8_summary_x_params.csv')
+  assert.equal(lotParamFileName('R0A8', 'summary_x'), 'R0A8_summary_x_params.xlsx')
 })
 
 test('초과만 상태의 내보내기는 파일 이름으로 구별된다', () => {
@@ -254,17 +254,17 @@ test('초과만 상태의 내보내기는 파일 이름으로 구별된다', () 
   // 이름이 `_outlier` 인 것은 그 칩이 **중앙값 초과**로 거르기 때문입니다. 이
   // 파일에는 `상한 초과` 열도 있어서, 예전 이름 `_flagged` 로는 어느 초과가
   // 행을 골랐는지 알 수 없었습니다 (b589fe39 의 두 축 구분).
-  assert.equal(lotParamFileName('R123', 'only_normal_summary'), 'R123_only_normal_params.csv')
-  assert.equal(lotParamFileName('R123', 'only_normal_summary', true), 'R123_only_normal_params_outlier.csv')
-  assert.equal(lotParamFileName('R123', 'only_normal_summary', false), 'R123_only_normal_params.csv')
+  assert.equal(lotParamFileName('R123', 'only_normal_summary'), 'R123_only_normal_params.xlsx')
+  assert.equal(lotParamFileName('R123', 'only_normal_summary', true), 'R123_only_normal_params_outlier.xlsx')
+  assert.equal(lotParamFileName('R123', 'only_normal_summary', false), 'R123_only_normal_params.xlsx')
 })
 
 // 이 화면에는 son 토글이 보이지 않는데 cap·상한 초과 열이 그 값에 딸려 옵니다.
 // 적지 않으면 두 사람이 같은 lot 을 받아 다른 파일을 얻고도 왜인지 모릅니다.
 test('son 판정을 끈 상태의 내보내기도 이름으로 구별된다', () => {
-  assert.equal(lotParamFileName('R123', 'all', false, true), 'R123_all_params.csv')
-  assert.equal(lotParamFileName('R123', 'all', false, false), 'R123_all_params_nosons.csv')
-  assert.equal(lotParamFileName('R123', 'all', true, false), 'R123_all_params_outlier_nosons.csv')
+  assert.equal(lotParamFileName('R123', 'all', false, true), 'R123_all_params.xlsx')
+  assert.equal(lotParamFileName('R123', 'all', false, false), 'R123_all_params_nosons.xlsx')
+  assert.equal(lotParamFileName('R123', 'all', true, false), 'R123_all_params_outlier_nosons.xlsx')
 })
 
 // mother/son 은 판정이 아니라 recipe 의 사실이라 판정이 없는 행에도 적습니다 —

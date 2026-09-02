@@ -224,7 +224,7 @@
           default-sort-id="align_fail_count"
           :reset-key="cacheKey"
           :search-predicate="alignSearchPredicate"
-          @download="downloadAlignCsv"
+          @download="downloadAlignExcel"
           @copy="copyAlignTable"
         >
           <template #actions-cell="{ row }">
@@ -249,7 +249,7 @@
           default-sort-id="meas_fail_count"
           :reset-key="cacheKey"
           :search-predicate="measSearchPredicate"
-          @download="downloadMeasCsv"
+          @download="downloadMeasExcel"
           @copy="copyMeasTable"
         >
           <template #actions-cell="{ row }">
@@ -279,7 +279,8 @@ import {
   type FailIssueMeasRow,
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import {
   buildFailSummaryItems,
   resolveRecipeStatusSummaryValue
@@ -666,7 +667,7 @@ const measColumns: TableColumn<FailIssueMeasRow>[] = [
   }
 ]
 
-// CSV downloads -------------------------------------------------------------
+// Excel downloads -----------------------------------------------------------
 
 const exportFileBase = computed(() => {
   const today = todayStamp()
@@ -710,14 +711,14 @@ const measTable = (rows: FailIssueMeasRow[]) => ({
   ])
 })
 
-const downloadAlignCsv = (rows: FailIssueAlignRow[]) => {
+const downloadAlignExcel = async (rows: FailIssueAlignRow[]) => {
   const { headers, data } = alignTable(rows)
-  downloadCsv(`${exportFileBase.value}-align.csv`, headers, data)
+  await downloadTable(`${exportFileBase.value}-align.xlsx`, headers, data)
 }
 
-const downloadMeasCsv = (rows: FailIssueMeasRow[]) => {
+const downloadMeasExcel = async (rows: FailIssueMeasRow[]) => {
   const { headers, data } = measTable(rows)
-  downloadCsv(`${exportFileBase.value}-meas.csv`, headers, data)
+  await downloadTable(`${exportFileBase.value}-meas.xlsx`, headers, data)
 }
 
 const copyAlignTable = async (rows: FailIssueAlignRow[]) => {

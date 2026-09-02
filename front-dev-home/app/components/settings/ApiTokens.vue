@@ -144,7 +144,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { ApiTokenRow } from '~/composables/useApiTokens'
-import { copyTextToClipboard } from '~/utils/csvDownload'
+import { copyTextToClipboard } from '~/utils/tableExport'
 
 const { tokens, pending, error, create, revoke } = useApiTokens()
 const toast = useToast()

@@ -17,7 +17,7 @@ import type { RecipeInfoRow } from '~/composables/useRecipeStatisticsApi'
 import type { RecipeInput } from './ruleEngine'
 import type { LotVerdict } from './lotHealth'
 import { isExemptJob } from './lotHealth.ts'
-import { safeFileNamePart } from './csvDownload.ts'
+import { safeFileNamePart } from './tableExport.ts'
 import { paramRole } from './ruleEngine.ts'
 import { NO_JUDGEMENT, NO_PARAMS, ROLE_HEADER, capCell, overCell, paramNoteCell, recipeVerdictCell, roleCell } from './violationCells.ts'
 
@@ -152,7 +152,7 @@ export const buildLotParamRows = (
  *
  * 버킷 키의 "_summary" 꼬리는 뗍니다. 그 꼬리는 API 응답에서 요약 표면을
  * 가리키는 이름인데, 이 파일은 요약이 아니라 그 아래 파라미터 명세입니다 —
- * `R0A8_all_summary_params.csv` 는 파일 이름이 스스로를 잘못 소개하는 꼴입니다.
+ * `R0A8_all_summary_params.xlsx` 는 파일 이름이 스스로를 잘못 소개하는 꼴입니다.
  *
  * lot 코드는 office 값이라 파일명으로 쓰기 전에 씻어 냅니다 — `safeFileNamePart`.
  */
@@ -163,5 +163,5 @@ export const lotParamFileName = (
   judgeSons = true
 ): string => {
   const suffix = `${outlier ? '_outlier' : ''}${judgeSons ? '' : '_nosons'}`
-  return `${safeFileNamePart(lotCd)}_${safeFileNamePart(bucket.replace(/_summary$/, ''))}_params${suffix}.csv`
+  return `${safeFileNamePart(lotCd)}_${safeFileNamePart(bucket.replace(/_summary$/, ''))}_params${suffix}.xlsx`
 }

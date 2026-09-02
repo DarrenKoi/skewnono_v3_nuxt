@@ -248,7 +248,9 @@ Decision flow: changes route/view → `sk-nav-pill` · narrows data on the same 
 
 **`button-destructive`** — none exist yet; if one appears: `text-rose-600` text + explicit confirm dialog.
 
-All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean labels prefer verb forms (`CSV 다운로드`, not `다운로드`); disabled buttons also set `cursor-not-allowed`.
+All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean labels prefer verb forms (`Excel 다운로드`, not `다운로드`); disabled buttons also set `cursor-not-allowed`.
+
+**Table downloads are `.xlsx`, always.** Every table export in the app goes through `utils/xlsx.ts` (`downloadTable` for one sheet, `downloadWorkbook` for several) and is labelled `Excel` or `Excel 다운로드`. CSV was retired on 2026-09-02: it is a typeless format, so it needed a UTF-8 BOM to survive Korean headers, a formula-injection guard on every cell, and it turned `0012` into `12`. Do not add a CSV button back — a button whose label and file extension disagree is exactly the drift this unification removed. The clipboard copy stays TSV (`copyTableToClipboard`), and that one still needs `guardFormulaCell`.
 
 ### Cards & Containers
 
@@ -307,7 +309,7 @@ This is forced, not preferred. The semantic families (`--sk-ok/warn/bad`) are ex
 - Keep tables quiet: mono tabular numerals, 1px borders, hover highlight, nothing else.
 - Keep content at `max-w-7xl` (1280px); use the 1440px dense exception only for agreed list-plus-detail pages.
 - Use `aria-pressed` on every toggle, `aria-disabled` + `disabled` together, `aria-label` on icon-only buttons, `aria-sort` on sorted columns.
-- Follow Korean voice endings: page titles noun-form (`디바이스 통계`), buttons verb-form (`CSV 다운로드`), empty states `~없습니다.`, errors `~못했습니다.`, help text `~입니다/합니다.` Tokens and keys stay English (`prod_catg_cd`).
+- Follow Korean voice endings: page titles noun-form (`디바이스 통계`), buttons verb-form (`Excel 다운로드`), empty states `~없습니다.`, errors `~못했습니다.`, help text `~입니다/합니다.` Tokens and keys stay English (`prod_catg_cd`).
 
 ### Don't
 - Don't use crimson (`--sk-accent`) as a fill — no crimson buttons, no crimson body text, no large crimson areas. Trim only, in its three sanctioned spots.

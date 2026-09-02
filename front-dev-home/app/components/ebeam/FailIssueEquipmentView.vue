@@ -61,7 +61,7 @@ import {
   type FailIssueEquipmentRow,
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
-import { copyTableToClipboard } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
 import { buildFailEquipmentWorkbook, exportEquipmentRows } from '~/utils/equipmentExport'
 import { downloadWorkbook } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'

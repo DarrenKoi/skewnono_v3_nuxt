@@ -59,7 +59,7 @@ import {
   type RecipeTatEquipmentRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
-import { copyTableToClipboard } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
 import { buildTatEquipmentWorkbook, exportEquipmentRows } from '~/utils/equipmentExport'
 import { downloadWorkbook } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'

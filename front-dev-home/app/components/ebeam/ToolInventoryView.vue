@@ -77,9 +77,9 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-download"
-          label="CSV 다운로드"
+          label="Excel 다운로드"
           :disabled="filteredRows.length === 0"
-          @click="downloadTableCsv"
+          @click="downloadTableExcel"
         />
 
         <UButton
@@ -185,7 +185,8 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
-import { copyTableToClipboard, copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard, copyTextToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import { hasStorageView } from '~/utils/toolType'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
@@ -317,7 +318,7 @@ const onSelectStat = (key: string) => {
 
 const exportFileName = computed(() => {
   const today = todayStamp()
-  return `${props.toolType}-${props.fabs.join('+').toLowerCase()}-tool-inventory-${today}.csv`
+  return `${props.toolType}-${props.fabs.join('+').toLowerCase()}-tool-inventory-${today}.xlsx`
 })
 
 const hasActiveTableControls = computed(() => {
@@ -369,10 +370,10 @@ const resetTableControls = () => {
   sorting.value = [{ ...defaultSort }]
 }
 
-// CSV columns — keep all 8 fields even though several have been dropped from the UI.
+// Export columns — keep all 8 fields even though several have been dropped from the UI.
 // Analysts pull this into Excel and want the full record.
-type CsvColumn = { id: keyof SemListRow, header: string }
-const csvColumns: CsvColumn[] = [
+type ExportColumn = { id: keyof SemListRow, header: string }
+const exportColumns: ExportColumn[] = [
   { id: 'fac_id', header: 'Fac' },
   { id: 'fab_name', header: 'Fab' },
   { id: 'eqp_id', header: 'Equipment ID' },
@@ -386,13 +387,13 @@ const csvColumns: CsvColumn[] = [
 const toast = useToast()
 
 const tableData = () => ({
-  headers: csvColumns.map(column => column.header),
-  rows: filteredRows.value.map(row => csvColumns.map(column => row[column.id]))
+  headers: exportColumns.map(column => column.header),
+  rows: filteredRows.value.map(row => exportColumns.map(column => row[column.id]))
 })
 
-const downloadTableCsv = () => {
+const downloadTableExcel = async () => {
   const { headers, rows } = tableData()
-  downloadCsv(exportFileName.value, headers, rows)
+  await downloadTable(exportFileName.value, headers, rows)
 }
 
 const copyTable = async () => {

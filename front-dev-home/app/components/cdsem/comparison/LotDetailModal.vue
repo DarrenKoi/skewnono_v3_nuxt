@@ -194,7 +194,7 @@
                 variant="outline"
                 icon="i-lucide-download"
                 class="h-[34px] px-3.5 text-sm font-semibold"
-                :label="text.csvDownload"
+                :label="text.excelDownload"
                 :disabled="paramRowCount === 0"
                 @click="downloadParamTable"
               />
@@ -236,7 +236,8 @@ import { useColorMode, useToast } from '#imports'
 import type { HealthAugmentedRow } from '~/utils/lotHealth'
 import type { RecipeInput } from '~/utils/ruleEngine'
 import { LOT_PARAM_HEADERS, buildLotParamRows, lotParamFileName } from '~/utils/lotParamExport'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import { CHIP_BASE, chipClass } from '~/utils/chipClass'
 import { sortSteps, type RecipeSortKey } from '~/utils/recipeStepSort'
 import type {
@@ -288,7 +289,7 @@ const text = {
   grayRecipes: '판정 제외',
   recipeRatio: '운용 / 전체 recipe',
   paraDist: 'para 분포',
-  csvDownload: 'CSV 다운로드',
+  excelDownload: 'Excel 다운로드',
   copyHint: '파라미터 표를 클립보드에 복사 (엑셀에 붙여넣기)',
   // M 계열은 원천에 순서 field 가 없어 oper_seq/samp_seq 를 공정 접두사 순위로
   // 합성합니다 — 화면 표기 의무 (docs/datatables/hitachi/ebeam_tas_lot_hist.txt ★).
@@ -403,9 +404,9 @@ const paramRowCount = computed(() => paramRows.value.length)
 
 const headers = [...LOT_PARAM_HEADERS]
 
-const downloadParamTable = () => {
+const downloadParamTable = async () => {
   if (!props.row) return
-  downloadCsv(
+  await downloadTable(
     lotParamFileName(props.row.lot_cd, props.bucket, filter.value === 'flagged', judgeSons.value),
     headers,
     paramRows.value

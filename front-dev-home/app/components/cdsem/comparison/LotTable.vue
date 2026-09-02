@@ -56,7 +56,7 @@
           class="h-[34px] px-3.5 text-sm font-semibold"
           :label="text.download"
           :disabled="rows.length === 0"
-          @click="downloadLotCsv"
+          @click="downloadLotExcel"
         />
         <AppViewToggle
           v-model="view"
@@ -230,7 +230,7 @@
       </div>
     </div>
 
-    <!-- 표 보기 — 정렬·엑셀 붙여넣기를 하는 사람용. 카드와 CSV 가 모두 이
+    <!-- 표 보기 — 정렬·엑셀 붙여넣기를 하는 사람용. 카드와 Excel 이 모두 이
          `sorting` 을 따르므로 세 표면의 순서가 갈라지지 않습니다. -->
     <div
       v-else
@@ -391,7 +391,8 @@ import type { Profiled } from '~/utils/deviceProfile'
 import {
   healthBadgeStyle, healthStripeColor, healthSwatches
 } from './healthTokens'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 import { buildParameterRamp } from '~/utils/parameterRamp'
 import { PARA_KEYS } from '~/utils/paraTrendSeries'
@@ -420,7 +421,7 @@ const text = {
   empty: '표시할 lot 이 없습니다. 다른 bucket 을 선택해 보세요.',
   copy: '클립보드 복사',
   copyAria: '표를 클립보드에 복사',
-  download: 'CSV',
+  download: 'Excel',
   viewToggle: 'Lot 요약 보기 방식',
   noRules: '룰 없음',
   violations: '상한 초과',
@@ -518,7 +519,7 @@ const coverageTitle = (r: HealthAugmentedRow) => {
 const healthSortValue = (r: HealthAugmentedRow) => verdictSortValue(r.verdict)
 
 // 프로파일이 없는 lot 은 -1 로 정렬합니다. null 을 그대로 넘기면 표(TanStack)와
-// CSV 가 각자 다른 규칙으로 섞어 두 결과가 어긋납니다.
+// Excel 이 각자 다른 규칙으로 섞어 두 결과가 어긋납니다.
 const profileSortValue = (key: 'point_median' | 'outlier_count') =>
   (r: Profiled<HealthAugmentedRow>) => r[key] ?? -1
 
@@ -558,7 +559,7 @@ const chipSorting = (key: LotSortKey): SortingState => {
 // 기본값(health 오름차순)으로 시작하면 칩은 "이름순" 인데 표는 health 순인
 // 상태로 화면이 열려, 바로 위 막대 차트와 순서가 어긋난 채로 보입니다.
 //
-// 카드·표·CSV 세 표면이 모두 이 ref 하나를 읽으므로(orderedRows / UTable), 여기
+// 카드·표·Excel 세 표면이 모두 이 ref 하나를 읽으므로(orderedRows / UTable), 여기
 // 한 곳만 몰면 셋이 함께 따라옵니다.
 const sorting = ref<SortingState>(chipSorting(props.sort))
 
@@ -596,7 +597,7 @@ const exportSortValue: Record<string, (r: Profiled<HealthAugmentedRow>) => strin
   ctn_desc: r => r.ctn_desc
 }
 
-// 카드 목록과 CSV 가 **같은** 배열입니다. 표 보기에서 정렬을 바꾸고 카드로
+// 카드 목록과 Excel 이 **같은** 배열입니다. 표 보기에서 정렬을 바꾸고 카드로
 // 돌아오면 카드도 그 순서를 따르고, 내보내기도 마찬가지입니다 — 세 표면이
 // 한 `sorting` 을 읽으므로 갈라질 자리가 없습니다.
 const orderedRows = computed(() => {
@@ -640,12 +641,12 @@ const toast = useToast()
 
 const exportFileName = computed(() => {
   const today = todayStamp()
-  return `cdsem-comparison-lots-${today}.csv`
+  return `cdsem-comparison-lots-${today}.xlsx`
 })
 
-const downloadLotCsv = () => {
+const downloadLotExcel = async () => {
   const { headers, rows } = lotTable()
-  downloadCsv(exportFileName.value, headers, rows)
+  await downloadTable(exportFileName.value, headers, rows)
 }
 
 const copyLotTable = async () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatMessage, FeedbackInput } from '~/composables/useChatApi'
 import { renderChatMarkdown } from '~/utils/chatMarkdown'
-import { copyTextToClipboard } from '~/utils/csvDownload'
+import { copyTextToClipboard } from '~/utils/tableExport'
 import { formatRelativeTime } from '~/utils/relativeTime'
 
 const props = defineProps<{

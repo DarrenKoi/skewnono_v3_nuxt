@@ -154,7 +154,7 @@ const downloadChartImage = () => {
 - `<a download>` 엘리먼트를 만들고 `.click()`을 프로그램적으로 호출 → 브라우저 다운로드 발생.
 - 파일명은 **순수 함수** `chartExportFilename`이 생성(제목 slugify + `YYYY-MM-DD` + `.png`). DOM에 의존하지 않아 `node --test`로 테스트됩니다.
 
-> **SVG는 지원하지 않습니다.** ECharts 6은 SVG 렌더러도 있지만, 이 앱의 export 경로는 **PNG 래스터 전용**입니다. (CSV/Excel export는 별도 — `12-statistics-wafer/`와 `utils/csvDownload.ts` 참고.)
+> **SVG는 지원하지 않습니다.** ECharts 6은 SVG 렌더러도 있지만, 이 앱의 export 경로는 **PNG 래스터 전용**입니다. (표 export 는 별도 — `12-statistics-wafer/`와 `utils/xlsx.ts` 참고. 2026-09-02 부터 표 내보내기는 전부 `.xlsx` 입니다.)
 
 ## 6. 차트를 추가할 때의 표준 절차
 

@@ -107,7 +107,7 @@
 import type { Ref } from 'vue'
 import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { CsvTable } from '~/utils/afmExport'
+import type { ExportTable } from '~/utils/afmExport'
 
 definePageMeta({
   layout: 'hub',
@@ -187,24 +187,23 @@ const siteCount = computed(() => new Set(summaryRows.value.map(r => r.Site)).siz
 
 const safePoint = () => selectedPoint.value.replace(/[^a-zA-Z0-9]+/g, '_') || 'point'
 
-const downloadTable = (suffix: string, table: CsvTable) =>
-  downloadCsv(`${filename.value}-${suffix}.csv`, table.headers, table.rows)
+const downloadSection = (suffix: string, table: ExportTable) =>
+  downloadTable(`${filename.value}-${suffix}.xlsx`, table.headers, table.rows)
 
-const downloadInfo = () => downloadTable('info', buildInfoCsv(information.value))
-const downloadSummary = () => downloadTable('summary', buildSummaryCsv(summaryRows.value))
-const downloadDetailed = () => downloadTable('detailed', buildDetailedCsv(detailRows.value))
+const downloadInfo = () => downloadSection('info', buildInfoTable(information.value))
+const downloadSummary = () => downloadSection('summary', buildSummaryTable(summaryRows.value))
+const downloadDetailed = () => downloadSection('detailed', buildDetailedTable(detailRows.value))
 const downloadProfile = () =>
-  downloadTable(`profile-point${safePoint()}`, buildProfileCsv(profile.value))
+  downloadSection(`profile-point${safePoint()}`, buildProfileTable(profile.value))
 
-const downloadCombined = () => {
-  const content = buildCombinedContent([
-    { label: 'Measurement Info', table: buildInfoCsv(information.value) },
-    { label: 'Summary (by site)', table: buildSummaryCsv(summaryRows.value) },
-    { label: 'Detailed Points', table: buildDetailedCsv(detailRows.value) },
-    { label: `Profile (point ${selectedPoint.value || 'none'})`, table: buildProfileCsv(profile.value) }
-  ])
-  downloadCsvRaw(`${filename.value}-all.csv`, content)
-}
+// 섹션 넷을 시트 넷으로. CSV 시절에는 한 파일에 붙여 쌓았습니다.
+const downloadCombined = () =>
+  downloadWorkbook(`${filename.value}-all.xlsx`, buildCombinedSheets([
+    { label: 'Measurement Info', table: buildInfoTable(information.value) },
+    { label: 'Summary (by site)', table: buildSummaryTable(summaryRows.value) },
+    { label: 'Detailed Points', table: buildDetailedTable(detailRows.value) },
+    { label: `Profile (point ${selectedPoint.value || 'none'})`, table: buildProfileTable(profile.value) }
+  ]))
 
 const hasAnyData = computed(() =>
   infoEntries.value.length > 0
@@ -215,7 +214,7 @@ const hasAnyData = computed(() =>
 
 const exportItems = computed<DropdownMenuItem[][]>(() => [
   [{
-    label: 'Download All (CSV)',
+    label: 'Download All (Excel)',
     icon: 'i-lucide-download',
     disabled: !hasAnyData.value,
     onSelect: () => downloadCombined()

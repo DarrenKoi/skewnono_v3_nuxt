@@ -139,7 +139,7 @@ import {
   type RecipeTatEquipmentRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
-import { copyTableToClipboard } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 
 const props = defineProps<{

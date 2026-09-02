@@ -13,7 +13,7 @@
  */
 import type { LotHealth } from './ruleEngine.ts'
 import type { WorkbookSheet } from './xlsx.ts'
-import { safeFileNamePart } from './csvDownload.ts'
+import { safeFileNamePart } from './tableExport.ts'
 import { NO_PARAMS, ROLE_HEADER, capCell, overCell, paramNoteCell, recipeVerdictCell, roleCell } from './violationCells.ts'
 
 /**

@@ -1,16 +1,17 @@
 /**
  * 스프레드시트가 **수식으로 읽어 버리는** 첫 글자들.
  *
- * CSV·TSV 에는 칸의 타입이 없어서 Excel·Sheets·LibreOffice 는 첫 글자로
- * 짐작합니다. `=`·`+`·`-`·`@` 로 시작하면 수식이고, 탭과 캐리지 리턴도 같은
- * 자리에서 수식 시작으로 해석됩니다. 그래서 사무실 식별자 하나가
- * `=HYPERLINK(...)` 이면 파일을 연 사람의 Excel 이 그것을 실행합니다.
+ * 클립보드로 나가는 TSV 에는 칸의 타입이 없어서 Excel·Sheets·LibreOffice 는
+ * 첫 글자로 짐작합니다. `=`·`+`·`-`·`@` 로 시작하면 수식이고, 탭과 캐리지
+ * 리턴도 같은 자리에서 수식 시작으로 해석됩니다. 그래서 사무실 식별자 하나가
+ * `=HYPERLINK(...)` 이면 붙여넣은 사람의 Excel 이 그것을 실행합니다.
  *
- * `.xlsx` 는 이 방어가 **필요 없습니다** — 거기서는 수식인지가 XML 에 명시되고
- * (`<f>` 요소), exceljs 는 문자열을 넘기면 언제나 공유 문자열(`t="s"`)로 씁니다.
- * 확인한 사실입니다: `=1+1` 을 addRow 로 넣고 다시 읽으면 type 은 String,
- * formula 는 null 이며 sheet XML 에 `<f>` 가 하나도 없습니다. 짐작으로 읽는
- * 형식만 이 방어가 필요합니다.
+ * 파일 내보내기는 이 방어가 **필요 없습니다** — 2026-09-02 부터 전부 `.xlsx`
+ * 이고, 거기서는 수식인지가 XML 에 명시되며(`<f>` 요소) exceljs 는 문자열을
+ * 넘기면 언제나 공유 문자열(`t="s"`)로 씁니다. 확인한 사실입니다: `=1+1` 을
+ * addRow 로 넣고 다시 읽으면 type 은 String, formula 는 null 이며 sheet XML 에
+ * `<f>` 가 하나도 없습니다. 짐작으로 읽는 형식만 이 방어가 필요하고, 이제 그
+ * 형식은 클립보드 TSV 하나뿐입니다.
  */
 const FORMULA_LEAD = /^[=+\-@\t\r]/
 
@@ -33,19 +34,6 @@ export const guardFormulaCell = (value: string): string =>
     ? `'${value}`
     : value
 
-export const escapeCsvValue = (value: unknown): string => {
-  const normalized = guardFormulaCell(String(value ?? '')).replace(/"/g, '""')
-  return `"${normalized}"`
-}
-
-// Compose CSV text (no BOM): header + rows, every value escaped, CRLF-joined.
-// Pure — safe to import and call under `node --test`.
-export const buildCsvContent = (headers: string[], rows: unknown[][]): string => {
-  const headerRow = headers.map(escapeCsvValue).join(',')
-  const bodyRows = rows.map(row => row.map(escapeCsvValue).join(','))
-  return [headerRow, ...bodyRows].join('\r\n')
-}
-
 // Hand a Blob to the browser as a download. The object-URL dance is fiddly and
 // easy to get subtly wrong (a missing revoke leaks the blob for the life of the
 // document), so it lives here once rather than in each exporter. Client-only.
@@ -58,23 +46,6 @@ export const downloadBlob = (filename: string, blob: Blob): void => {
   link.download = filename
   link.click()
   URL.revokeObjectURL(url)
-}
-
-// Download an arbitrary CSV string. Excel reads UTF-8 only when a BOM (U+FEFF)
-// is present, so this is the single place the BOM is added. Client-only.
-export const downloadCsvRaw = (filename: string, content: string): void => {
-  if (!import.meta.client || content.length === 0) return
-
-  downloadBlob(filename, new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' }))
-}
-
-export const downloadCsv = (
-  filename: string,
-  headers: string[],
-  rows: unknown[][]
-): void => {
-  if (rows.length === 0) return
-  downloadCsvRaw(filename, buildCsvContent(headers, rows))
 }
 
 // Copy plain text with the same fallback used by table exports. Clipboard API
@@ -155,3 +126,32 @@ export const copyTableToClipboard = async (
  */
 export const safeFileNamePart = (value: string): string =>
   (value || 'unknown').replace(/[^\w.-]+/g, '_')
+
+/**
+ * 시트 이름 한 장. 엑셀이 거부하는 이름을 미리 눕힙니다.
+ *
+ * 상한 31자는 넘기면 exceljs 가 던지고, `[]:*?/\` 는 엑셀이 시트 이름에
+ * 허용하지 않습니다. AFM 의 `Profile (point ...)` 처럼 시트 이름에 office 값이
+ * 섞여 들어오는 자리가 있어서 자르기만으로는 부족합니다.
+ *
+ * `safeFileNamePart` 와 달리 공백·괄호는 남깁니다 — 파일 이름과 달리 시트
+ * 이름은 사람이 탭에서 읽는 라벨이라 `Summary (by site)` 가 그대로 보여야
+ * 합니다.
+ */
+export const safeSheetName = (name: string): string =>
+  (name.replace(/[[\]:*?/\\]+/g, '_').trim() || 'Sheet').slice(0, 31)
+
+/**
+ * 표 하나를 시트 행 배열(헤더 한 줄 + 본문)로 눕힙니다.
+ *
+ * `null`·`undefined` 만 빈 칸이 되고 나머지는 **그대로** 넘어갑니다 — 숫자를
+ * 문자열로 만들지 않는 것이 CSV 를 버린 이유의 절반입니다. office 식별자
+ * `0012` 가 `12` 로 줄거나 `-1.5` 가 텍스트로 굳는 일이 여기서는 없습니다.
+ */
+export const toSheetRows = (
+  headers: string[],
+  rows: unknown[][]
+): (string | number)[][] => [
+  headers,
+  ...rows.map(row => row.map(v => (v == null ? '' : v) as string | number))
+]

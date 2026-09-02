@@ -162,7 +162,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { PpidUnavailableRow } from '~/composables/useStorageApi'
-import { copyTextToClipboard } from '~/utils/csvDownload'
+import { copyTextToClipboard } from '~/utils/tableExport'
 
 const props = defineProps<{
   rows: readonly PpidUnavailableRow[]

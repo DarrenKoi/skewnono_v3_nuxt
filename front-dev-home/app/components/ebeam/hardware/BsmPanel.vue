@@ -37,9 +37,9 @@
         color="neutral"
         variant="outline"
         :disabled="filteredDocs.length === 0"
-        @click="downloadScalarsCsv"
+        @click="downloadScalarsExcel"
       >
-        CSV 다운로드
+        Excel 다운로드
       </UButton>
     </div>
 
@@ -138,7 +138,8 @@
 import {
   profileMetricKeys, scalarMetricKeys, radialRange, degreeLabels, prettyLabel
 } from '~/utils/beamMetrics'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import { defaultRangeFor, resolveAxisRange } from '~/utils/profileAxisRange'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 import { todayStamp } from '~/utils/dateTime'
@@ -269,10 +270,10 @@ const scalarsTable = () => {
   return { headers, rows }
 }
 
-const downloadScalarsCsv = () => {
+const downloadScalarsExcel = async () => {
   const { headers, rows } = scalarsTable()
   const date = todayStamp()
-  downloadCsv(`bsm-${beamCondition.value}-${date}.csv`, headers, rows)
+  await downloadTable(`bsm-${beamCondition.value}-${date}.xlsx`, headers, rows)
 }
 
 const copyScalarsTable = async () => {

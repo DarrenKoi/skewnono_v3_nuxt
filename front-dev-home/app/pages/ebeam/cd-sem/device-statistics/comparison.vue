@@ -665,7 +665,7 @@ const openLotOutliers = (lot_cd: string) => {
   lotModalOpen.value = true
 }
 
-// 모달의 CSV 내보내기가 쓰는 파라미터. 이미 버킷 범위로 좁혀진 recipesByLot 에서
+// 모달의 Excel 내보내기가 쓰는 파라미터. 이미 버킷 범위로 좁혀진 recipesByLot 에서
 // 꺼내므로, 파일이 화면의 health·outlier 와 다른 모집단을 말할 수 없습니다.
 const selectedLotParams = computed<RecipeInput[]>(() => {
   const lotCd = selectedLotRow.value?.lot_cd

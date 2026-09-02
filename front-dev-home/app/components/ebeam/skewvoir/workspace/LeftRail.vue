@@ -242,7 +242,7 @@
 <script setup lang="ts">
 import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { copyTextToClipboard } from '~/utils/csvDownload'
+import { copyTextToClipboard } from '~/utils/tableExport'
 import { formatRecipeTimestamp, recipeDetailId, recipeDetailRoute } from '~/utils/recipeView'
 import { isSetCompatibilityKnown, rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'

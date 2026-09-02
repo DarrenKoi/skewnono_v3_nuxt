@@ -46,7 +46,7 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-download"
-          :label="csvLabel"
+          :label="downloadLabel"
           :disabled="sortedRows.length === 0"
           @click="emitDownload"
         />
@@ -130,7 +130,7 @@ import type { RecipeStatusSummaryItem } from '~/utils/recipeStatusSummary'
 import type { RankingTableState } from '~/utils/rankingTable'
 
 // Generic ranking table — Align (by eqp_id) and Meas (by recipe) panels
-// share the same pagination/sort/search/CSV machinery and only differ in
+// share the same pagination/sort/search/Excel machinery and only differ in
 // columns and which row fields drive the filter. Pulling this out keeps
 // FailIssueView focused on layout instead of repeating table boilerplate.
 const props = defineProps<{
@@ -145,7 +145,7 @@ const props = defineProps<{
   // the parent so the search columns can stay typed per panel.
   searchPredicate: (row: T, term: string) => boolean
   resetKey?: unknown
-  csvLabel?: string
+  downloadLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -156,7 +156,7 @@ const emit = defineEmits<{
   'update:state': [state: RankingTableState<T>]
 }>()
 
-const csvLabel = computed(() => props.csvLabel ?? 'CSV')
+const downloadLabel = computed(() => props.downloadLabel ?? 'Excel')
 
 // `title-extra` is ours and renders in the header, so it must not also be
 // handed to UTable by the passthrough below.

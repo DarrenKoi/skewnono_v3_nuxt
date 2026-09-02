@@ -1,14 +1,15 @@
-// Pure CSV builders for the AFM measurement-detail export menu. No DOM/Nuxt
+// Pure table builders for the AFM measurement-detail export menu. No DOM/Nuxt
 // runtime imports so they run under `node --test`; the page wires these into
-// downloadCsv / downloadCsvRaw from utils/csvDownload.
-import { buildCsvContent } from './csvDownload.ts'
+// downloadTable / downloadWorkbook from utils/xlsx.
+import { toSheetRows } from './tableExport.ts'
+import type { WorkbookSheet } from './xlsx.ts'
 import type {
   AfmInformation,
   AfmSummaryRow,
   AfmProfilePoint
 } from '~/composables/useAfmDetailApi'
 
-export interface CsvTable {
+export interface ExportTable {
   headers: string[]
   rows: unknown[][]
 }
@@ -35,18 +36,18 @@ const collectColumns = (
 const tableFromRows = (
   rows: Record<string, unknown>[],
   leading: string[]
-): CsvTable => {
+): ExportTable => {
   const headers = collectColumns(rows, leading)
   const body = rows.map(row => headers.map(col => row[col] ?? ''))
   return { headers, rows: body }
 }
 
-export const buildInfoCsv = (info: AfmInformation): CsvTable => ({
+export const buildInfoTable = (info: AfmInformation): ExportTable => ({
   headers: ['key', 'value'],
   rows: Object.entries(info).map(([k, v]) => [k, v])
 })
 
-export const buildSummaryCsv = (summary: AfmSummaryRow[]): CsvTable => {
+export const buildSummaryTable = (summary: AfmSummaryRow[]): ExportTable => {
   if (summary.length === 0) return { headers: ['Site', 'ITEM'], rows: [] }
   return tableFromRows(summary as unknown as Record<string, unknown>[], ['Site', 'ITEM'])
 }
@@ -62,29 +63,30 @@ export const buildSummaryCsv = (summary: AfmSummaryRow[]): CsvTable => {
 // Nothing is lost by widening: the backend-shape claim lives on
 // AfmDetailPayload.data, the sole caller still passes an AfmDetailRow[]
 // through here, and afmPointsTable.test.ts pins the full row shape.
-export const buildDetailedCsv = (data: Record<string, unknown>[]): CsvTable => {
+export const buildDetailedTable = (data: Record<string, unknown>[]): ExportTable => {
   if (data.length === 0) return { headers: [], rows: [] }
   return tableFromRows(data, [])
 }
 
-export const buildProfileCsv = (points: AfmProfilePoint[]): CsvTable => ({
+export const buildProfileTable = (points: AfmProfilePoint[]): ExportTable => ({
   headers: ['x', 'y', 'z'],
   rows: points.map(p => [p.x, p.y, p.z])
 })
 
-export interface CsvSection {
+export interface ExportSection {
   label: string
-  table: CsvTable
+  table: ExportTable
 }
 
-// Stack labelled sections into one CSV string. Each section is prefixed with a
-// '## <label>' line; empty tables render '## <label> (no data)' with no rows.
-// Sections separated by a blank line. No BOM (downloadCsvRaw adds it).
-export const buildCombinedContent = (sections: CsvSection[]): string =>
-  sections
-    .map(({ label, table }) =>
-      table.rows.length === 0
-        ? `## ${label} (no data)`
-        : `## ${label}\r\n${buildCsvContent(table.headers, table.rows)}`
-    )
-    .join('\r\n\r\n')
+// 섹션 하나 = 시트 한 장. CSV 시절에는 '## <label>' 줄로 한 파일 안에 섹션을
+// 쌓아야 했지만, 그건 형식이 표를 하나밖에 못 담아서 하던 우회였습니다.
+// 빈 섹션도 시트로 남기고 '(no data)' 한 줄을 적습니다 — 탭은 있는데 안이
+// 비어 있으면 "받다가 잘렸나" 와 구별이 안 됩니다. 시트 이름 정규화(31자·엑셀
+// 금지 문자)는 downloadWorkbook 이 safeSheetName 으로 합니다.
+export const buildCombinedSheets = (sections: ExportSection[]): WorkbookSheet[] =>
+  sections.map(({ label, table }) => ({
+    name: label,
+    rows: table.rows.length === 0
+      ? (table.headers.length ? [table.headers, ['(no data)']] : [['(no data)']])
+      : toSheetRows(table.headers, table.rows)
+  }))

@@ -66,21 +66,22 @@ utils/csvDownload.test.ts
 
 1. **테스트 가능성이 곧 좋은 경계.** 함수가 DOM이나 `useRuntimeConfig()`에 의존하면 `node --test`로 못 돌립니다. 그래서 자연스럽게 **계산(순수)과 부수효과(fetch/DOM)를 분리**하게 됩니다. `11-echarts-dataviz/`의 "계산은 순수 TS, 그리기만 ECharts"가 정확히 이 압력의 결과입니다.
 2. **엣지 케이스가 명세가 된다.** 예: `outlierDetect.test.ts`는 "빈 배열 → median 0", "임계값과 정확히 같으면 이상치 아님(`>`이지 `>=`아님)"을 못박습니다. 이런 미묘한 경계는 코드만 봐선 잊히지만, 테스트가 살아있는 명세로 지켜 줍니다.
-3. **부수효과는 순수 조각으로 쪼갠다.** `csvDownload.ts`는 CSV 문자열을 만드는 순수 `buildCsvContent`(테스트 가능)와, 실제 다운로드를 트리거하는 `downloadCsvRaw`(DOM 필요, 테스트 안 함)를 **분리**합니다. 테스트할 수 없는 부분을 최소화하는 전형적 기법입니다.
+3. **부수효과는 순수 조각으로 쪼갠다.** 표 내보내기는 칸을 눕히는 순수 `toSheetRows`(`tableExport.ts`, 테스트 가능)와, 워크북을 만들어 다운로드를 트리거하는 `downloadTable`(`xlsx.ts` — DOM 필요, 테스트 안 함)로 **나뉩니다**. 테스트할 수 없는 부분을 최소화하는 전형적 기법입니다. `xlsx.ts`는 아예 "여기에 행을 만드는 로직을 두지 않는다"를 파일 주석으로 못박습니다 — 실행할 수 없는 파일에 판단이 들어가면 그 판단은 영영 검증되지 않기 때문입니다.
 
 ```ts
 // 순수 — 테스트됨
-export const buildCsvContent = (headers: string[], rows: unknown[][]): string => {
-  const headerRow = headers.map(escapeCsvValue).join(',')
-  const bodyRows = rows.map(row => row.map(escapeCsvValue).join(','))
-  return [headerRow, ...bodyRows].join('\r\n')
-}
+export const toSheetRows = (
+  headers: string[],
+  rows: unknown[][]
+): (string | number)[][] => [
+  headers,
+  ...rows.map(row => row.map(v => (v == null ? '' : v) as string | number))
+]
 
-// 부수효과 — DOM Blob/anchor, 테스트 대상 아님. import.meta.client 가드.
-export const downloadCsvRaw = (filename: string, content: string): void => {
-  if (!import.meta.client || content.length === 0) return
-  const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' })
-  ...
+// 부수효과 — exceljs 동적 import + DOM Blob/anchor, 테스트 대상 아님.
+export async function downloadTable(filename, headers, rows): Promise<void> {
+  if (rows.length === 0) return
+  await downloadWorkbook(filename, [{ name: 'Sheet1', rows: toSheetRows(headers, rows) }])
 }
 ```
 

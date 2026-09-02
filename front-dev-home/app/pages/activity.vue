@@ -425,7 +425,7 @@
             color="neutral"
             variant="outline"
             icon="i-lucide-download"
-            label="CSV 다운로드"
+            label="Excel 다운로드"
             :disabled="filteredUsers.length === 0"
             @click="downloadUsersCsv"
           />

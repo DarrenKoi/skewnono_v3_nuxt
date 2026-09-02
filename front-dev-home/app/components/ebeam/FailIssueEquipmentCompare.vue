@@ -151,7 +151,7 @@ import {
   type FailIssueEquipmentRow,
   type FailIssueToolType
 } from '~/composables/useFailIssueApi'
-import { copyTableToClipboard } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 
 const props = defineProps<{

@@ -85,9 +85,9 @@ const filteredRows = computed(() => rows.value.filter(matchesActiveFilters))
 const exportRows = computed(() => /* filteredRows를 sorting에 맞게 정렬 */)
 ```
 
-이 JavaScript 파이프라인이 **헤더 카운터(`X of Y tools`)**와 **CSV 다운로드** 결과를 만들고 있었습니다.
+이 JavaScript 파이프라인이 **헤더 카운터(`X of Y tools`)**와 **표 다운로드** 결과를 만들고 있었습니다.
 
-즉, 사용자가 화면에서 보는 표는 *TanStack의 결과*, 카운터와 CSV는 *JS의 결과*였습니다. 대부분의 입력에서는 두 결과가 일치했지만, 두 필터 구현체가 미묘하게 다를 수 있는 지점(예: 숫자 컬럼 `version`에 대한 globalFilter 동작)에서는 어긋날 수 있었습니다.
+즉, 사용자가 화면에서 보는 표는 *TanStack의 결과*, 카운터와 다운로드는 *JS의 결과*였습니다. 대부분의 입력에서는 두 결과가 일치했지만, 두 필터 구현체가 미묘하게 다를 수 있는 지점(예: 숫자 컬럼 `version`에 대한 globalFilter 동작)에서는 어긋날 수 있었습니다.
 
 ### 2.2 수정
 
@@ -104,7 +104,7 @@ const exportRows = computed(() => /* filteredRows를 sorting에 맞게 정렬 */
 - `v-model:global-filter`/`v-model:column-filters` 바인딩은 제거합니다 — 이중 필터를 막기 위함입니다.
 - `v-model:sorting`만 유지합니다. 이건 컬럼 헤더의 정렬 화살표 아이콘이 방향을 표시하기 위해 필요한 *시각 상태*입니다.
 
-이제 화면 표시, 헤더 카운터, CSV 다운로드 모두 **하나의 진실 공급원**(`exportRows`)에서 나옵니다.
+이제 화면 표시, 헤더 카운터, 표 다운로드 모두 **하나의 진실 공급원**(`exportRows`)에서 나옵니다.
 
 ### 2.3 교훈
 

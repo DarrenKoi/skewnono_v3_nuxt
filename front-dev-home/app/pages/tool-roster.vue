@@ -90,9 +90,9 @@
             color="neutral"
             variant="outline"
             icon="i-lucide-download"
-            label="CSV 다운로드"
+            label="Excel 다운로드"
             :disabled="visibleRows.length === 0"
-            @click="downloadPendingCsv"
+            @click="downloadPendingExcel"
           />
         </div>
 
@@ -263,7 +263,8 @@ import {
   uniqueIps,
   UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
-import { copyTextToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTextToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import { todayStamp } from '~/utils/dateTime'
 
 const { data, status, error, execute } = usePendingTools()
@@ -385,7 +386,7 @@ const copyIpList = async () => {
   )
 }
 
-const CSV_COLUMNS: Array<{ id: keyof PendingToolRow, header: string }> = [
+const EXPORT_COLUMNS: Array<{ id: keyof PendingToolRow, header: string }> = [
   { id: 'fac_id', header: 'Fac' },
   { id: 'fab_name', header: 'Fab' },
   { id: 'eqp_id', header: 'Equipment ID' },
@@ -396,11 +397,11 @@ const CSV_COLUMNS: Array<{ id: keyof PendingToolRow, header: string }> = [
   { id: 'updt_dt', header: '반입일' }
 ]
 
-const downloadPendingCsv = () => {
-  downloadCsv(
-    `pending-tools-${activeGroup.value}-${todayStamp()}.csv`,
-    CSV_COLUMNS.map(column => column.header),
-    visibleRows.value.map(row => CSV_COLUMNS.map(column => row[column.id]))
+const downloadPendingExcel = async () => {
+  await downloadTable(
+    `pending-tools-${activeGroup.value}-${todayStamp()}.xlsx`,
+    EXPORT_COLUMNS.map(column => column.header),
+    visibleRows.value.map(row => EXPORT_COLUMNS.map(column => row[column.id]))
   )
 }
 </script>

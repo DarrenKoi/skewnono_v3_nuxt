@@ -161,7 +161,7 @@
         <EbeamFailIssueRankingTable
           title="Ranked recipes"
           search-placeholder="Search recipe / class…"
-          csv-label="CSV 다운로드"
+          download-label="Excel 다운로드"
           :summary-items="tatSummaryItems"
           :rows="rankingRows"
           :columns="columns"
@@ -170,7 +170,7 @@
           :reset-key="cacheKey"
           :search-predicate="rankingSearchPredicate"
           @update:state="onTableState"
-          @download="downloadRankingCsv"
+          @download="downloadRankingExcel"
           @copy="copyRankingTable"
         >
           <template #title-extra>
@@ -206,7 +206,8 @@ import {
   type RecipeTatRow,
   type RecipeTatToolType
 } from '~/composables/useRecipeTatApi'
-import { copyTableToClipboard, downloadCsv } from '~/utils/csvDownload'
+import { copyTableToClipboard } from '~/utils/tableExport'
+import { downloadTable } from '~/utils/xlsx'
 import {
   buildTatSummaryItems,
   resolveRecipeStatusSummaryValue
@@ -419,7 +420,7 @@ useEchart(trendEl, trendOption, { exportName: 'daily-tat-trend' })
 
 // Table
 //
-// Search, sort, pagination and CSV live in EbeamFailIssueRankingTable. What
+// Search, sort, pagination and Excel export live in EbeamFailIssueRankingTable. What
 // stays here is only what the bar chart below also needs: the active sort and
 // the rows in the order the table shows them, both mirrored back out of the
 // component. Recomputing either locally would let the chart and the table
@@ -570,7 +571,7 @@ const columns: TableColumn<RecipeTatRow>[] = [
 const exportFileName = computed(() => {
   const today = todayStamp()
   const fab = (props.fabs.join('+') || 'all').toLowerCase()
-  return `${props.toolType}-${fab}-recipe-tat-${today}.csv`
+  return `${props.toolType}-${fab}-recipe-tat-${today}.xlsx`
 })
 
 const toast = useToast()
@@ -594,9 +595,9 @@ const rankingTable = () => {
   return { headers, rows }
 }
 
-const downloadRankingCsv = () => {
+const downloadRankingExcel = async () => {
   const { headers, rows } = rankingTable()
-  downloadCsv(exportFileName.value, headers, rows)
+  await downloadTable(exportFileName.value, headers, rows)
 }
 
 const copyRankingTable = async () => {
