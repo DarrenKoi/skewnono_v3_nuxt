@@ -134,7 +134,6 @@ cp back_dev_home/sem_list/providers/office_example.py back_dev_home/sem_list/pro
 
 - 스크린샷은 `.playwright-mcp/screenshots/`에 저장합니다(루트 `CLAUDE.md` 규칙).
 - 원격 개발 환경에서는 Tailscale IP로 접속해 스크린샷을 찍습니다.
-- 브라우저 검증 절차 전체는 `verify` 스킬(`.claude/skills/verify/SKILL.md`)에 정리돼 있습니다.
 
 E2E를 진짜 자동화하려면 `playwright.config.ts`와 `*.spec.ts`를 새로 만들어야 하며, 그건 아직 하지 않은 일입니다.
 

@@ -150,7 +150,7 @@ From the repo root: `npm run lint:md` after any Markdown edit.
 
 There is **no automated E2E suite** — no Playwright config, no spec files, and
 no component tests (no mounting harness). Browser verification means driving
-Playwright MCP by hand; see the `verify` skill.
+Playwright MCP by hand.
 
 ### Runtime gotchas
 - `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `back_dev_home/__init__.py`.
@@ -221,7 +221,6 @@ The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay ou
 
 | Skill | Use for |
 | --- | --- |
-| `verify` | Launch/drive recipe for the running app (Flask + Nuxt), identities, browser checks |
 | `home-to-office` | Audit features against the mock→office provider convention before conveying work |
 | `generate-mock` | Scaffold a mock data composable for a new endpoint |
 | `add-vendor` | Wire a new e-beam tool family (VeritySEM, Provision, …) into a feature — rules in `docs/back-end/vendor-onboarding.md` |
