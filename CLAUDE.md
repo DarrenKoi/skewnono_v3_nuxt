@@ -150,7 +150,8 @@ From the repo root: `npm run lint:md` after any Markdown edit.
 
 There is **no automated E2E suite** — no Playwright config, no spec files, and
 no component tests (no mounting harness). Browser verification means driving
-Playwright MCP by hand.
+the **Claude-in-Chrome extension** (`mcp__claude-in-chrome__*`) by hand — see
+"Browser verification" below.
 
 ### Runtime gotchas
 - `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `back_dev_home/__init__.py`.
@@ -194,11 +195,26 @@ its permanent `index.py` and `wsgi.ini` are intentionally outside the bundle.
 The path remains exact because `is_cloud()` is a filesystem check, not a config
 flag. Full steps, including the bundle's `preflight.py`: `docs/deployment.md`.
 
-## Playwright Screenshots
+## Browser verification
 
-Save all Playwright MCP screenshots under `.playwright-mcp/screenshots/`. When calling `browser_take_screenshot`, always pass a relative `filename` like `.playwright-mcp/screenshots/<descriptive-name>.png` — the MCP server resolves relative paths from the project cwd, so omitting the prefix dumps PNGs at the repo root.
+Check features in the running app with the **Claude-in-Chrome extension**
+(`mcp__claude-in-chrome__*`), not Playwright MCP. It drives the real Chrome
+session, so what the agent sees is what I see.
 
-The `.playwright-mcp/` folder is already in `.gitignore`, so screenshots stay out of git automatically.
+- Load the tools in **one** `ToolSearch` call —
+  `select:mcp__claude-in-chrome__tabs_context_mcp,…navigate,…computer,…read_page,…tabs_create_mcp,…tabs_close_mcp`,
+  adding `…read_console_messages` / `…read_network_requests` when debugging.
+- Call `tabs_context_mcp` first, open a **fresh tab** per task with
+  `tabs_create_mcp`, and close it with `tabs_close_mcp` when done.
+- If it reports "Browser extension is not connected", **say so and stop** —
+  do not silently fall back to Playwright.
+- App URL is `http://localhost:3000` (Nuxt takes the next free port when 3000
+  is busy — read the dev-server log rather than assuming). Identity is the
+  `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix =
+  blocked.
+- Screenshots come back through `computer`'s `save_to_disk`, which names the
+  file itself — the old `.playwright-mcp/screenshots/` convention no longer
+  applies. That folder stays in `.gitignore`.
 
 ## Markdown Notes
 
