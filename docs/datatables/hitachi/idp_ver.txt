@@ -28,6 +28,9 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
                      아래 "순서는 parameters_list 가 정합니다" 절을 보십시오.
   raw_data -> object: parameter 별 상세 row. ``Mother_Para`` 가 여기 있습니다
               (office 확인 2026-08-10). 아래 "raw_data — mother 의 출처" 절.
+  wafer_para_loc_info -> object: parameter 별 측정 위치 row (wafer_mp_info 에
+              해당). 2026-09-02 에 mapping 에 추가된 field 이며
+              (ops_index_mgmt/hitachi_idp_ver_new_field.py) 아래 "세 번째 소비자" 절.
 
 가져오지 않는 field
 
@@ -76,6 +79,35 @@ recipe_params.txt), recipe 마다 parameters blob 을 받으면 위 "200건이�
 확인합니다:
 
     .venv/bin/python -m scripts.probes.probe_planstep_r3
+
+세 번째 소비자 — recipe_search 의 measurement-locations (2026-09-02)
+
+``GET /api/{cdsem,hvsem}/recipe-search/measurement-locations`` 는 recipe 한 건의
+parameter row 전체(``raw_data``)와 측정 위치 전체(``wafer_para_loc_info``)를 이
+index 에서 읽어 돌려줍니다. recipe-open 이 장비 FTP 의 ``.idp`` 를 내려받아 파싱하는
+것과 같은 두 표를, 장비 접속 없이 script 가 recipe 단위로 반복 호출할 수 있게 한
+API 입니다.
+
+- 질의는 device-statistics 와 같습니다 — ``full_name.keyword`` term (+
+  ``fab_name.keyword``) + ``version`` desc + ``size: 1``. ``_source`` 는
+  ``version``, ``modified``, ``raw_data``, ``wafer_para_loc_info`` 네 field 로
+  좁힙니다. 두 blob 이 응답의 본체이므로 그 아래로는 줄이지 않습니다.
+- 문서가 없으면 404 입니다. index 에 없는 recipe 는 recipe-open 이 열 수 있는
+  recipe 와 다른 집합입니다 — 적재 job 이 다릅니다.
+- ``version`` / ``modified`` 를 그대로 실어 어느 버전의 표인지 알립니다. 장비가
+  들고 있는 사본(recipe-open)과 index 의 최신 버전이 다를 수 있습니다.
+- ``modified`` 는 저장된 값 그대로(offset 없는 KST wall-clock, 아래 "시각" 절)
+  내보냅니다. lateral_recipe 처럼 +09:00 을 붙이지 않습니다.
+
+★ 두 blob 모두 ``enabled: false`` 로 mapping 되어 있습니다. ``_source`` 로만
+  돌아오고 server-side filter 는 불가능하므로 parameter 하나만 받는 질의는 없습니다
+  — parameter 단위 조회는 recipe-search 의 measurement-points 가 맡습니다.
+
+OFFICE-VERIFY — ``wafer_para_loc_info`` 의 row 형태와 컬럼 이름. raw_data 처럼
+row dict 의 list 로 오고 컬럼은 recipe_idp.txt 의 wafer_mp_info 와 같다고 가정
+합니다. 어댑터(``_blob_records``)는 list 와 ``DataFrame.to_dict()`` 의 column
+방향 dict 를 모두 받고, contracts 에 없는 컬럼은 log 로 남기고 버리므로 첫 사무실
+실행의 log 로 확정합니다.
 
 parameters blob 구조 (user-confirmed 2026-07-30)
 

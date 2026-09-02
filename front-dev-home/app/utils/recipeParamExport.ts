@@ -12,7 +12,7 @@
  * Spec: `docs/superpowers/specs/2026-08-02-recipe-param-export-and-api-design.md`
  */
 
-import type { IdpImageInfoRow, IdpLocator } from '../composables/useRecipeSearchApi.ts'
+import type { IdpImageInfoRow, IdpLocator, WaferMpInfoRow } from '../composables/useRecipeSearchApi.ts'
 import type { ParamDetail, ParamImage, SettingBlock } from '../composables/useRecipeParamDetail.ts'
 import { IMAGE_SLOTS } from './recipeView.ts'
 import { createWorkbook, writeWorkbook } from './xlsx.ts'
@@ -62,8 +62,24 @@ export interface ParamExportInput {
    *  a compile error instead of a blank cell in a shipped workbook. */
   idp: IdpImageInfoRow
   detail: ParamDetail | null
+  /** wafer_mp_info already filtered to this parameter — what the 측정 위치
+   *  tab shows. Filtering stays with the caller so the sheet and the screen
+   *  cannot disagree about which points belong to the row. */
+  mpRows: WaferMpInfoRow[]
   /** Which image slots to include. Order is normalised to SLOT_ORDER. */
   slots: string[]
+  exportedAt: string
+}
+
+/** The whole recipe: every parameter row and every measurement location.
+ *  No images and no settings, so building it costs no tool I/O. */
+export interface RecipeExportInput {
+  recipeId: string
+  fabName: string
+  toolLabel: string
+  locator: IdpLocator
+  idpRows: IdpImageInfoRow[]
+  mpRows: WaferMpInfoRow[]
   exportedAt: string
 }
 
@@ -103,29 +119,65 @@ const IDP_FIELDS: (keyof IdpImageInfoRow)[] = [
   'img_add1', 'img_add2', 'image_add3', 'img_meas1', 'img_meas2'
 ]
 
-const NO_FILE = '파일 없음'
+/** wafer_mp_info columns, in table order. `img_meas2` is left out: in THIS
+ *  table it is P_No again (user-confirmed 2026-08-05), and MpTable.vue omits it
+ *  for the same reason — two columns of one integer read as two facts. */
+const MP_FIELDS: (keyof WaferMpInfoRow)[] = [
+  'Parameter', 'ChipNo_X', 'ChipNo_Y', 'Coordinate_X', 'Coordinate_Y',
+  'P_No', 'D_No', 'Diff', 'Rel', 'Rel_MoveX', 'Rel_MoveY',
+  'Coordinate_X_r', 'Coordinate_Y_r'
+]
 
-function overviewSheet(input: ParamExportInput): ParamSheet {
-  const rows: ParamCell[][] = [
+const NO_FILE = '파일 없음'
+const MP_SHEET = '측정 위치'
+const NO_POINTS = '매칭되는 측정 포인트가 없습니다.'
+
+type Meta = Pick<ParamExportInput, 'recipeId' | 'fabName' | 'toolLabel' | 'locator' | 'exportedAt'>
+
+function metaRows(input: Meta): ParamCell[][] {
+  return [
     ['field', 'value'],
     ['recipe_id', input.recipeId],
     ['fab_name', input.fabName],
     ['tool', input.toolLabel]
   ]
+}
+
+function locatorRows(input: Meta): ParamCell[][] {
+  return [
+    ['eqp_ip', input.locator.eqp_ip],
+    ['class_name', input.locator.class_name],
+    ['idw', input.locator.idw],
+    ['idp', input.locator.idp],
+    ['exported_at', input.exportedAt]
+  ]
+}
+
+function overviewSheet(input: ParamExportInput): ParamSheet {
+  const rows = metaRows(input)
   for (const field of IDP_FIELDS) {
     const value = input.idp[field]
     // `?? ''` rather than `|| ''`: three of these fields are booleans and
     // `false` is a real answer, not a missing one.
     rows.push([field, (value ?? '') as ParamCell])
   }
-  rows.push(
-    ['eqp_ip', input.locator.eqp_ip],
-    ['class_name', input.locator.class_name],
-    ['idw', input.locator.idw],
-    ['idp', input.locator.idp],
-    ['exported_at', input.exportedAt]
-  )
+  rows.push(...locatorRows(input))
   return { name: '개요', rows }
+}
+
+/** One header row of `fields`, then one row per record. */
+function tableSheet<T>(
+  name: string,
+  fields: (keyof T)[],
+  records: T[],
+  empty: string
+): ParamSheet {
+  const rows: ParamCell[][] = [fields.map(String)]
+  for (const record of records) {
+    rows.push(fields.map(field => (record[field] ?? '') as ParamCell))
+  }
+  if (!records.length) rows.push([empty])
+  return { name, rows }
 }
 
 function blockSheet(
@@ -204,9 +256,28 @@ export function buildParamWorkbook(input: ParamExportInput): ParamWorkbook {
       overviewSheet(input),
       blockSheet('AMP', input.detail?.amp),
       blockSheet('AF_PR', input.detail?.af_pr, true),
-      sheet
+      sheet,
+      tableSheet(MP_SHEET, MP_FIELDS, input.mpRows, NO_POINTS)
     ],
     images
+  }
+}
+
+/** Every parameter row and every measurement location, one sheet each. */
+export function buildRecipeWorkbook(input: RecipeExportInput): ParamWorkbook {
+  const overview = metaRows(input)
+  overview.push(
+    ['parameter_rows', input.idpRows.length],
+    ['points', input.mpRows.length],
+    ...locatorRows(input)
+  )
+  return {
+    sheets: [
+      { name: '개요', rows: overview },
+      tableSheet('파라미터', IDP_FIELDS, input.idpRows, '파라미터가 없습니다.'),
+      tableSheet(MP_SHEET, MP_FIELDS, input.mpRows, NO_POINTS)
+    ],
+    images: []
   }
 }
 
@@ -217,11 +288,16 @@ export function paramExportFilename(recipeId: string, parameter: string): string
   return `${safeFileNamePart(recipeId)}_${safeFileNamePart(parameter)}.xlsx`
 }
 
+/** `RCP_001_all.xlsx` — the whole-recipe workbook. */
+export function recipeExportFilename(recipeId: string): string {
+  return `${safeFileNamePart(recipeId)}_all.xlsx`
+}
+
 /** Roughly 4:3 at a readable size in Excel's default zoom. */
 const IMAGE_BOX = { width: 320, height: 240 }
 /** Excel row height is in points; the anchored row must clear the picture. */
 const ANCHOR_ROW_POINTS = 190
-/** The widest any sheet here gets is AF_PR's three columns. */
+/** Every sheet gets at least this many sized columns; wide tables get more. */
 const SHEET_COLUMNS = 3
 
 /**
@@ -250,7 +326,8 @@ export async function downloadParamWorkbook(
     for (const row of sheet.rows) ws.addRow(row)
     // getColumn, not `ws.columns.forEach`: `columns` is only populated when the
     // sheet was given a column definition, and these are built from addRow.
-    for (let column = 1; column <= SHEET_COLUMNS; column += 1) {
+    const columns = Math.max(SHEET_COLUMNS, ...sheet.rows.map(row => row.length))
+    for (let column = 1; column <= columns; column += 1) {
       ws.getColumn(column).width = 28
     }
     if (sheet.name === '이미지') imageWorksheet = ws

@@ -15,6 +15,7 @@ from back_dev_home.ebeam.recipe_search.contracts import (
     IdpLocator,
     ParamDetailRequestItem,
     ParamDetailResponse,
+    RecipeLocationsResponse,
     RegistryCheckResponse,
 )
 from back_dev_home.ebeam.recipe_search.providers.mock import (
@@ -34,6 +35,7 @@ __all__ = [
     "get_param_detail",
     "get_recipe_catalog",
     "get_recipe_compare_data",
+    "get_recipe_locations",
     "get_recipe_open_data",
 ]
 
@@ -59,6 +61,18 @@ def get_recipe_open_data(
     tool_category: str | None = None,
 ) -> RecipeDetailResponse:
     return _provider().get_recipe_open_data(recipe_id, fab_name, tool_category)
+
+
+def get_recipe_locations(
+    tool_type: ToolType,
+    recipe_name: str,
+    fab_name: str | None,
+) -> RecipeLocationsResponse | None:
+    """Parameter rows + measurement locations from the IDP version index.
+
+    ``None`` means the index holds no document for the recipe.
+    """
+    return _provider().get_recipe_locations(tool_type, recipe_name, fab_name)
 
 
 def check_recipe_registry(

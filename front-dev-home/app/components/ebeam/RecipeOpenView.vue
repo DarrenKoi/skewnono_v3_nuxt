@@ -116,7 +116,7 @@
                     color="neutral"
                     variant="ghost"
                     icon="i-lucide-chevron-down"
-                    :disabled="exportDisabled"
+                    :disabled="exporting"
                     aria-label="다운로드 옵션"
                   />
                   <template #content>
@@ -134,10 +134,27 @@
                         size="xs"
                         color="neutral"
                         variant="outline"
+                        :disabled="exportDisabled"
                         icon="i-lucide-images"
                         block
                         label="Addressing 이미지까지 포함해 다운로드"
                         @click="downloadExcel(true)"
+                      />
+
+                      <p class="mt-3 sk-label">
+                        Recipe 전체
+                      </p>
+                      <p class="sk-meta">
+                        모든 parameter 행과 측정 위치를 시트 두 장으로 내려받습니다. 이미지와 설정 파일은 담지 않으므로 장비에 접속하지 않습니다.
+                      </p>
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="outline"
+                        icon="i-lucide-table"
+                        block
+                        label="전체 parameter + 측정 위치"
+                        @click="downloadRecipeExcel()"
                       />
                     </div>
                   </template>
@@ -251,8 +268,10 @@ import {
 import {
   EXPORT_IMAGE_SLOTS,
   buildParamWorkbook,
+  buildRecipeWorkbook,
   downloadParamWorkbook,
-  paramExportFilename
+  paramExportFilename,
+  recipeExportFilename
 } from '~/utils/recipeParamExport'
 import type { LightboxData } from '~/components/ebeam/recipeOpen/ImageLightbox.vue'
 
@@ -426,10 +445,34 @@ const exporting = ref(false)
 const optionsOpen = ref(false)
 const toast = useToast()
 
-// One condition for BOTH halves of the control: with separate ones the menu
-// stayed live while the button it belongs to was dead, offering an action that
-// could not run.
+// Gates the two SELECTED-row exports. The menu itself stays live because it
+// also holds the whole-recipe export, which needs nothing the row fetch
+// brings — only the per-row items inside it go dead.
 const exportDisabled = computed(() => paramPending.value || !paramDetail.value)
+
+const exportMeta = () => ({
+  recipeId: titleRecipeName.value,
+  fabName: props.fab,
+  toolLabel: props.toolLabel,
+  locator: locator.value,
+  exportedAt: new Date().toISOString()
+})
+
+const imageUrlOf = (name: string) =>
+  recipeImageUrl(recipeApiBase(), toolSlug.value, locator.value, name)
+
+// Told, not just logged. The row export reads files off a live tool, so it can
+// fail entirely — and with only a console line the spinner simply stops and a
+// silent no-download is indistinguishable from success.
+const reportExportFailure = (err: unknown, description: string) => {
+  console.error('Excel export failed', err)
+  toast.add({
+    title: 'Excel 다운로드에 실패했습니다.',
+    description,
+    color: 'error',
+    icon: 'i-lucide-circle-alert'
+  })
+}
 
 /**
  * Export the selected row.
@@ -450,34 +493,44 @@ const downloadExcel = async (withAddressing: boolean) => {
       ...(withAddressing ? EXPORT_IMAGE_SLOTS.addressing : [])
     ]
     const workbook = buildParamWorkbook({
-      recipeId: titleRecipeName.value,
-      fabName: props.fab,
-      toolLabel: props.toolLabel,
-      locator: locator.value,
+      ...exportMeta(),
       // The SELECTED row, not the parameter: two rows of one parameter name
       // different files, and this workbook describes the row on screen.
       idp: row,
       detail: paramDetail.value,
-      slots,
-      exportedAt: new Date().toISOString()
+      mpRows: mpRowsForSelected.value,
+      slots
     })
-    const base = recipeApiBase()
     await downloadParamWorkbook(
       workbook,
       paramExportFilename(titleRecipeName.value, row.Parameter),
-      name => recipeImageUrl(base, toolSlug.value, locator.value, name)
+      imageUrlOf
     )
   } catch (err) {
-    // Told, not just logged. The export reads files off a live tool, so it can
-    // fail entirely — and with only a console line the spinner simply stops and
-    // a silent no-download is indistinguishable from success.
-    console.error('Excel export failed', err)
-    toast.add({
-      title: 'Excel 다운로드에 실패했습니다.',
-      description: '장비에서 파일을 읽지 못했습니다. 잠시 후 다시 시도하십시오.',
-      color: 'error',
-      icon: 'i-lucide-circle-alert'
+    reportExportFailure(err, '장비에서 파일을 읽지 못했습니다. 잠시 후 다시 시도하십시오.')
+  } finally {
+    exporting.value = false
+  }
+}
+
+/** Every parameter row and every measurement location — no tool reads. */
+const downloadRecipeExcel = async () => {
+  optionsOpen.value = false
+  if (!data.value || exporting.value) return
+  exporting.value = true
+  try {
+    const workbook = buildRecipeWorkbook({
+      ...exportMeta(),
+      idpRows: idpImageRows.value,
+      mpRows: waferMpRows.value
     })
+    await downloadParamWorkbook(
+      workbook,
+      recipeExportFilename(titleRecipeName.value),
+      imageUrlOf
+    )
+  } catch (err) {
+    reportExportFailure(err, '파일을 만들지 못했습니다. 잠시 후 다시 시도하십시오.')
   } finally {
     exporting.value = false
   }

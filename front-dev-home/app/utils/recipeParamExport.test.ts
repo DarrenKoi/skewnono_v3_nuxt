@@ -3,7 +3,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildParamWorkbook,
+  buildRecipeWorkbook,
   paramExportFilename,
+  recipeExportFilename,
   EXPORT_IMAGE_SLOTS
 } from './recipeParamExport.ts'
 import type { ParamExportInput, ParamWorkbook } from './recipeParamExport.ts'
@@ -53,6 +55,23 @@ const DETAIL = {
   ]
 }
 
+const POINT = {
+  ChipNo_X: 3,
+  ChipNo_Y: 4,
+  Coordinate_X: 1.25,
+  Coordinate_Y: -2.5,
+  P_No: 1,
+  D_No: 7,
+  Diff: false,
+  Rel: true,
+  Rel_MoveX: 0.1,
+  Rel_MoveY: 0.2,
+  Coordinate_X_r: 1.35,
+  Coordinate_Y_r: -2.3,
+  Parameter: 'Para_13',
+  img_meas2: 1
+}
+
 const input = (slots: string[]): ParamExportInput => ({
   recipeId: 'RCP_001',
   fabName: 'M11',
@@ -60,6 +79,7 @@ const input = (slots: string[]): ParamExportInput => ({
   locator: LOCATOR,
   idp: IDP,
   detail: DETAIL,
+  mpRows: [POINT],
   slots,
   exportedAt: '2026-08-02T06:00:00+09:00'
 })
@@ -70,9 +90,28 @@ const sheet = (wb: ParamWorkbook, name: string) =>
 const MEASURE = [...EXPORT_IMAGE_SLOTS.measure]
 const EVERY_SLOT = [...EXPORT_IMAGE_SLOTS.measure, ...EXPORT_IMAGE_SLOTS.addressing]
 
-test('measurement-only export has the four sheets in order', () => {
+test('measurement-only export has the five sheets in order', () => {
   const wb = buildParamWorkbook(input(MEASURE))
-  assert.deepEqual(wb.sheets.map(s => s.name), ['개요', 'AMP', 'AF_PR', '이미지'])
+  assert.deepEqual(wb.sheets.map(s => s.name), ['개요', 'AMP', 'AF_PR', '이미지', '측정 위치'])
+})
+
+test('측정 위치 is a header row plus one row per point, without img_meas2', () => {
+  // img_meas2 is P_No again in this table (user-confirmed 2026-08-05) and
+  // would read as a second fact.
+  const rows = sheet(buildParamWorkbook(input(MEASURE)), '측정 위치').rows
+  assert.equal(rows.length, 2)
+  assert.ok(rows[0]!.includes('Coordinate_X_r'))
+  assert.ok(!rows[0]!.includes('img_meas2'))
+  const point = new Map(rows[0]!.map((key, i) => [String(key), rows[1]![i]]))
+  assert.equal(point.get('Parameter'), 'Para_13')
+  assert.equal(point.get('ChipNo_X'), 3)
+  assert.equal(point.get('Diff'), false)
+})
+
+test('a parameter with no points still gets a readable 측정 위치 sheet', () => {
+  const rows = sheet(buildParamWorkbook({ ...input(MEASURE), mpRows: [] }), '측정 위치').rows
+  assert.equal(rows.length, 2)
+  assert.ok(String(rows[1]![0]).includes('측정 포인트가 없습니다'))
 })
 
 test('개요 carries the idp row, the locator and the export time', () => {
@@ -229,7 +268,7 @@ test('no slots requested still produces a readable 이미지 sheet', () => {
 
 test('a null detail still produces a readable workbook', () => {
   const wb = buildParamWorkbook({ ...input(MEASURE), detail: null })
-  assert.deepEqual(wb.sheets.map(s => s.name), ['개요', 'AMP', 'AF_PR', '이미지'])
+  assert.deepEqual(wb.sheets.map(s => s.name), ['개요', 'AMP', 'AF_PR', '이미지', '측정 위치'])
   assert.ok(sheet(wb, 'AMP').rows.flat().join(' ').includes('파일 없음'))
   assert.deepEqual(wb.images, [])
 })
@@ -237,4 +276,50 @@ test('a null detail still produces a readable workbook', () => {
 test('filename is recipe and parameter, sanitised', () => {
   assert.equal(paramExportFilename('RCP/001', 'Para_13'), 'RCP_001_Para_13.xlsx')
   assert.equal(paramExportFilename('', ''), 'unknown_unknown.xlsx')
+})
+
+// ── whole recipe ──────────────────────────────────────────────────────────
+
+const recipeInput = () => ({
+  recipeId: 'RCP_001',
+  fabName: 'M11',
+  toolLabel: 'CD-SEM',
+  locator: LOCATOR,
+  idpRows: [IDP, { ...IDP, Parameter: 'Para_2', SEQ: 5 }],
+  mpRows: [POINT, { ...POINT, Parameter: 'Para_2', P_No: 2 }],
+  exportedAt: '2026-08-02T06:00:00+09:00'
+})
+
+test('whole-recipe workbook has three sheets and no image placements', () => {
+  const wb = buildRecipeWorkbook(recipeInput())
+  assert.deepEqual(wb.sheets.map(s => s.name), ['개요', '파라미터', '측정 위치'])
+  assert.deepEqual(wb.images, [])
+})
+
+test('whole-recipe 개요 counts the rows it ships', () => {
+  const flat = new Map(sheet(buildRecipeWorkbook(recipeInput()), '개요').rows.map(r => [String(r[0]), r[1]]))
+  assert.equal(flat.get('recipe_id'), 'RCP_001')
+  assert.equal(flat.get('parameter_rows'), 2)
+  assert.equal(flat.get('points'), 2)
+  assert.equal(flat.get('idp'), 'IDP_B')
+})
+
+test('whole-recipe 파라미터 keeps every row, including repeated parameter names', () => {
+  // A row is one image definition; Para_13 twice is two rows, not a dup.
+  const rows = sheet(buildRecipeWorkbook({
+    ...recipeInput(),
+    idpRows: [IDP, { ...IDP, SEQ: 11 }]
+  }), '파라미터').rows
+  assert.equal(rows.length, 3)
+  assert.equal(rows[0]![0], 'Parameter')
+  assert.deepEqual(rows.slice(1).map(r => r[1]), [4, 11])
+})
+
+test('whole-recipe 측정 위치 carries every parameter\'s points', () => {
+  const rows = sheet(buildRecipeWorkbook(recipeInput()), '측정 위치').rows
+  assert.deepEqual(rows.slice(1).map(r => r[0]), ['Para_13', 'Para_2'])
+})
+
+test('whole-recipe filename is the recipe, sanitised', () => {
+  assert.equal(recipeExportFilename('RCP/001'), 'RCP_001_all.xlsx')
 })

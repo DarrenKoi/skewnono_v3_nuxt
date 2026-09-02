@@ -182,6 +182,7 @@ from back_dev_home.ebeam.recipe_search.contracts import (
     ParamDetailRequestItem,
     ParamDetailResponse,
     RecipeDetailResponse,
+    RecipeLocationsResponse,
     RecipeSearchResponse,
     RecipeSearchRow,
     RegistryCheckResponse,
@@ -211,6 +212,7 @@ __all__ = [
     "get_param_detail",
     "get_recipe_catalog",
     "get_recipe_compare_data",
+    "get_recipe_locations",
     "get_recipe_open_data",
 ]
 
@@ -2023,6 +2025,103 @@ def get_recipe_open_data(
     return _to_detail_response(frames, recipe, fab_name or "", tool_type, location)
 
 
+# ── measurement locations (IDP version index) ─────────────────────────────
+#
+# The same tables recipe-open parses off the tool, as OpenSearch stores them
+# per (recipe, version) — the index lateral_recipe and device_statistics
+# already read (docs/datatables/hitachi/idp_ver.txt). ``raw_data`` is the
+# parsed idp_image_info (office 확인 2026-08-10: a list of row dicts) and
+# ``wafer_para_loc_info`` the measurement locations. Both are mapped
+# ``enabled: false`` — stored verbatim, never indexed — so they come back only
+# through ``_source`` and cannot be filtered server-side.
+#
+# OFFICE-VERIFY: ``wafer_para_loc_info``'s row shape and column names are
+# assumed to be wafer_mp_info's (recipe_idp.txt). ``_records`` logs any
+# column it does not find, so the first office run settles it in the log.
+
+_IDP_VER_INDEX: dict[ToolType, str] = {
+    "cd-sem": "cdsem_idp_ver",
+    "hv-sem": "hvsem_idp_ver",
+}
+_IDP_VER_SOURCE = ["version", "modified", "raw_data", "wafer_para_loc_info"]
+
+
+def _blob_records(blob: Any, columns: dict[str, Any], table: str) -> list[dict[str, Any]]:
+    """One ``_source`` blob -> contract rows. Absent or unparseable is empty,
+    logged: a version document with no location table is a document the
+    ingest job wrote before the field existed, not an error to 502 on."""
+    frame = _as_frame(blob)
+    if frame is None:
+        if blob is not None:
+            _LOG.warning(
+                "recipe_search: %s in the IDP version index is not table-shaped "
+                "(%s) — served as empty.", table, _describe(blob),
+            )
+        return []
+    return _records(frame, columns, table)
+
+
+def _to_locations_response(
+    doc: dict[str, Any],
+    recipe_id: str,
+    fab_name: str | None,
+    tool_type: ToolType,
+) -> RecipeLocationsResponse:
+    """One version document -> ``RecipeLocationsResponse``. Pure, so the
+    mapping is testable at home the way ``_to_detail_response`` is."""
+    parameter_rows: list[IdpImageInfoRow] = _blob_records(
+        doc.get("raw_data"), IdpImageInfoRow.__annotations__, "raw_data"
+    )
+    points: list[WaferMpInfoRow] = _blob_records(
+        doc.get("wafer_para_loc_info"), WaferMpInfoRow.__annotations__, "wafer_para_loc_info"
+    )
+    version = _scalar(doc.get("version"))
+    return {
+        "recipe_id": recipe_id,
+        "fab_name": fab_name,
+        "tool_type": tool_type,
+        "version": int(version) if version is not None else None,
+        "modified": str(doc["modified"]) if doc.get("modified") is not None else None,
+        "distinct_parameters": len({
+            row["Parameter"] for row in parameter_rows if row.get("Parameter")
+        }),
+        "total_points": len(points),
+        "parameter_rows": parameter_rows,
+        "points": points,
+    }
+
+
+def get_recipe_locations(
+    tool_type: ToolType,
+    recipe_name: str,
+    fab_name: str | None,
+) -> RecipeLocationsResponse | None:
+    """Highest-version document for the recipe, or ``None`` when there is none.
+
+    ``size=1`` sorted by ``version`` desc — the device_statistics query shape.
+    The two blobs are the whole point of the call, so ``_source`` is not
+    trimmed below them; it IS trimmed to them, since ``parameters`` and the
+    eqp_id lists are payload this endpoint does not answer with.
+    """
+    recipe = (recipe_name or "").strip()
+    if not recipe:
+        raise ValueError("recipe_name is required.")
+    fab = (fab_name or "").strip().upper() or None
+    clauses: list[dict[str, Any]] = [{"term": {_FULL_NAME_KW: recipe}}]
+    if fab:
+        clauses.append({"term": {_FAB_NAME_KW: fab}})
+    docs = fetch_hits(
+        _IDP_VER_INDEX[tool_type],
+        query(clauses),
+        size=1,
+        sort=[{"version": "desc"}],
+        source=_IDP_VER_SOURCE,
+    )
+    if not docs:
+        return None
+    return _to_locations_response(docs[0], recipe, fab, tool_type)
+
+
 if __name__ == "__main__":
     # Standalone smoke test — run FROM THE REPO ROOT with:
     #     .venv/bin/python -m back_dev_home.ebeam.recipe_search.providers.office
@@ -2036,3 +2135,12 @@ if __name__ == "__main__":
             detail = get_recipe_open_data(first["recipe_name"], "R3", tool)
             for table in _PARSED_TABLES:
                 print(f"  {table}: {len(detail[table])} rows")
+            located = get_recipe_locations(tool, first["recipe_name"], "R3")
+            if located is None:
+                print("  idp_ver: no document")
+            else:
+                print(
+                    f"  idp_ver v{located['version']}: "
+                    f"{len(located['parameter_rows'])} parameter rows, "
+                    f"{located['total_points']} points"
+                )

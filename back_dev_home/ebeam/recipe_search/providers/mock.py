@@ -86,6 +86,17 @@ the RAW-RECIPE FOLDER beside the .idp (`data/{idw}/{idp}/`), read by a second
 사내 parser, `office_utils.idp_amp_reader` — see the 2026-07-29 spec and
 `rawfiles.py`.
 
+★ A SECOND SOURCE for two of the three tables (2026-09-02). OpenSearch
+  `{cdsem,hvsem}_idp_ver` — one document per (recipe, version) — stores the
+  parsed `idp_image_info` as `raw_data` and the measurement locations as
+  `wafer_para_loc_info` (`docs/datatables/hitachi/idp_ver.txt`). `get_recipe_locations`
+  reads the highest version there and never dials a tool, which is why it
+  exists as an API for scripts. This mock derives it from `get_recipe_open_data`
+  so home data is self-consistent; at the office the two sources are written by
+  different jobs and CAN disagree (a tool holding an older copy than the index).
+  `version`/`modified` are fabricated here — the index's real values are the
+  same fields lateral_recipe reads.
+
 That makes the five `img_*` VALUES a contract too, not just their column names:
 `rawfiles.py` derives every raw-folder path from them. They are generated here
 in the office shape (user-confirmed 2026-07-29) — `IMMP0001`, `PRMP0000`,
@@ -98,7 +109,7 @@ fabricated; only the shape imitates.
 import hashlib
 import random
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 
 from back_dev_home.ebeam.recipe_search import rawfiles
@@ -116,6 +127,7 @@ from back_dev_home.ebeam.recipe_search.contracts import (
     ParamDetailResponse,
     RecipeCompareResponse,
     RecipeDetailResponse,
+    RecipeLocationsResponse,
     RecipeSearchResponse,
     RecipeSearchRow,
     RegistryCheckResponse,
@@ -148,6 +160,7 @@ __all__ = [
     "get_param_detail",
     "get_recipe_catalog",
     "get_recipe_compare_data",
+    "get_recipe_locations",
     "get_recipe_open_data"
 ]
 
@@ -1400,6 +1413,42 @@ def get_recipe_open_data(
         "fab_name": resolved_fab_name,
         "tool_category": resolved_tool_category,
         "timestamp": datetime.now().isoformat()
+    }
+
+
+def get_recipe_locations(
+    tool_type: ToolType,
+    recipe_name: str,
+    fab_name: str | None,
+) -> RecipeLocationsResponse | None:
+    """Parameter rows and measurement locations, as the IDP version index holds them.
+
+    Derived from ``get_recipe_open_data`` so the two agree at home; the office
+    reads a different store (see the module docstring). ``None`` when the
+    index has no document for the recipe — the route answers 404. Here that is
+    the same set the .idp cannot be located for, which is a stand-in: index
+    coverage and registry coverage are unrelated office-side.
+    """
+    try:
+        detail = get_recipe_open_data(recipe_name, fab_name, tool_type)
+    except LookupError:
+        return None
+    rng = random.Random(_seed_for_values("idp_ver", recipe_name, fab_name, tool_type))
+    version = rng.randint(1, 40)
+    modified = datetime(2026, 1, 1) + timedelta(days=rng.randint(0, 200), hours=rng.randint(0, 23))
+    rows = detail["idp_image_info"]
+    points = detail["wafer_mp_info"]
+    return {
+        "recipe_id": detail["recipe_id"],
+        "fab_name": fab_name or None,
+        "tool_type": tool_type,
+        "version": version,
+        # Offset-less, as the office index stores it (idp_ver.txt §시각).
+        "modified": modified.isoformat(timespec="seconds"),
+        "distinct_parameters": len({row["Parameter"] for row in rows}),
+        "total_points": len(points),
+        "parameter_rows": rows,
+        "points": points,
     }
 
 

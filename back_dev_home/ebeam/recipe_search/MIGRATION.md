@@ -61,6 +61,7 @@ files-per-connection; do the same here if a real request is seen timing out.
 | `/recipe-image` | tool FTP raw folder (bytes), MinIO write-through cache | wired, unverified on real data |
 | `/compare` | — | mock (re-exported) |
 | `/registry-check` | Redis recipe registry (2 `hget` per recipe) | wired, unverified on real data |
+| `/measurement-locations` | OpenSearch `{cdsem,hvsem}_idp_ver` (highest version's `raw_data` + `wafer_para_loc_info`) | wired, unverified on real data — `wafer_para_loc_info` shape is OFFICE-VERIFY |
 
 ### `/align-images` — the caller names the tool
 

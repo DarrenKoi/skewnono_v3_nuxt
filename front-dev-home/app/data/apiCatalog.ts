@@ -282,6 +282,19 @@ export const apiGroups: ApiGroup[] = [
       },
       {
         method: 'GET',
+        path: '/api/{tool_slug}/recipe-search/measurement-locations',
+        summary: 'recipe의 parameter row 전체와 측정 위치(wafer_mp_info) 전체를 한 번에 반환합니다. 장비가 아니라 IDP 버전 index(cdsem_idp_ver / hvsem_idp_ver)의 최신 버전을 읽으므로 장비 접속 없이 recipe 단위로 반복 호출할 수 있습니다. version과 modified가 어느 버전인지 알려 줍니다.',
+        args: [
+          TOOL_SLUG_ARG,
+          { name: 'recipe_name', kind: 'query', required: true, note: '조회할 recipe 이름 (index에 없으면 404)' },
+          { name: 'fab_name', kind: 'query', required: false, note: 'fab 이름 하나 (예: R3). 생략하면 fab에 관계없이 가장 높은 버전' }
+        ],
+        response: 'RecipeLocationsResponse',
+        auth: '토큰 가능',
+        example: { path: '/cdsem/recipe-search/measurement-locations', query: { recipe_name: 'RCP_001', fab_name: 'R3' } }
+      },
+      {
+        method: 'GET',
         path: '/api/{tool_slug}/recipe-search/param-info',
         summary: 'parameter의 AMP, AF/PR, 이미지별 빔 조건을 반환합니다. 같은 parameter가 여러 row에 걸쳐 있으면 occurrences 배열로 모두 내려갑니다(200건 상한, 초과 시 truncated=true와 total_occurrences로 알려 줍니다). 장비 FTP를 읽으므로 occurrence당 최대 5개 파일을 조회합니다.',
         args: [

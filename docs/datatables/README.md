@@ -27,7 +27,7 @@
 | `hitachi/planstep_r3.txt` | OpenSearch `sknn-planstep-r3` | `device_statistics` (R3 공정 스텝; M fab 은 `ebeam_tas_lot_hist`) | 구현완료(사무실 검증 대기) |
 | `hitachi/msr_file_pickle.txt` | MinIO — meas_hist 문서의 `minio_pkl` 경로 | `msr_file`, `ebeam/tttm`, `ebeam/pm_planning` | 연결 |
 | `hitachi/msr_image_ftp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/...` | `msr_image` | 연결 |
-| `hitachi/idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe`, `device_statistics`(파라미터 개수 — `parameters` blob) | 연결(lateral_recipe만) |
+| `hitachi/idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe`, `device_statistics`(파라미터 개수 — `parameters` blob), `recipe_search`(measurement-locations — `raw_data` + `wafer_para_loc_info`) | 연결(lateral_recipe만) |
 | `hitachi/recipe_name_list.txt` | Redis `v3_{cdsem,hvsem}_unique_rcp_list` + `v3_{cdsem,hvsem}_rcp_loc_{fab}` + `v3_{cdsem,hvsem}_tools_in_rcp_{fab}` | `recipe_search` | 연결 |
 | `hitachi/live_alarm_board.txt` | 사내 alarm API → Redis ZSET 보드 | `live_alarm` | 연결 |
 | `hitachi/hardware_beam_shape.txt` | OpenSearch `beam_shape_cdsem` | `hardware/bsm` | 연결 |

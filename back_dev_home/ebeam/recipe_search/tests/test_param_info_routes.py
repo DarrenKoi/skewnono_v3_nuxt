@@ -184,3 +184,31 @@ def test_an_unreachable_tool_is_503_on_every_recipe_route(client, monkeypatch, p
     assert response.status_code == 503
     # The flat body this surface has always used, NOT the app-wide nested one.
     assert set(response.get_json()) == {"error", "code"}
+
+
+# ── measurement-locations ─────────────────────────────────────────────────
+
+
+def test_measurement_locations_returns_both_tables(client):
+    response = client.get(
+        "/api/cdsem/recipe-search/measurement-locations?recipe_name=RACE/DEAE_ABC123_PROD_00001"
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["total_points"] == len(body["points"])
+    assert body["distinct_parameters"] <= len(body["parameter_rows"])
+    # Every point names a parameter the row table knows — the join the screen
+    # filters on.
+    parameters = {row["Parameter"] for row in body["parameter_rows"]}
+    assert all(point["Parameter"] in parameters for point in body["points"])
+
+
+def test_measurement_locations_requires_a_recipe_name(client):
+    assert client.get("/api/cdsem/recipe-search/measurement-locations").status_code == 400
+
+
+def test_measurement_locations_404s_on_a_recipe_the_index_lacks(client):
+    # A bare name with no class is what the mock cannot locate, standing in
+    # for "no document in the IDP version index".
+    response = client.get("/api/cdsem/recipe-search/measurement-locations?recipe_name=RCP_001")
+    assert response.status_code == 404

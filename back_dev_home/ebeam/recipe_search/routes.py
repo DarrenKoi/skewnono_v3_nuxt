@@ -24,6 +24,7 @@ from back_dev_home.ebeam.recipe_search.data import (
     get_param_detail,
     get_recipe_catalog,
     get_recipe_compare_data,
+    get_recipe_locations,
     get_recipe_open_data,
 )
 from back_dev_home._runtime.data_provider import get_data_provider
@@ -272,6 +273,26 @@ def recipe_search_measurement_points(tool_slug: str):
         return _parameter_missing(parameter)
 
     return jsonify(param_info.build_measurement_points(detail, parameter))
+
+
+@bp.get("/<tool_slug>/recipe-search/measurement-locations")
+def recipe_search_measurement_locations(tool_slug: str):
+    """Every parameter row and every measurement location of one recipe.
+
+    Read from the IDP version index, not the tool: no FTP session, no locate
+    step, so a script can call it per recipe in a loop. The trade is
+    freshness — the index serves its highest ingested version, which is not
+    necessarily the copy the tool currently holds.
+    """
+    context, failed = _resolve_recipe_request(tool_slug, needs_parameter=False)
+    if failed:
+        return failed
+    tool_type, recipe_name, _, fab_name = context
+
+    body = get_recipe_locations(tool_type, recipe_name, fab_name)
+    if body is None:
+        return jsonify({"error": f"recipe not in the IDP version index: {recipe_name}"}), 404
+    return jsonify(body)
 
 
 @bp.get("/<tool_slug>/recipe-search/param-info")

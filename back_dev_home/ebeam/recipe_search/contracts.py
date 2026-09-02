@@ -25,6 +25,7 @@ __all__ = [
     "ParameterListResponse",
     "RecipeCompareResponse",
     "RecipeDetailResponse",
+    "RecipeLocationsResponse",
     "RecipeSearchResponse",
     "RecipeSearchRow",
     "RegistryCheckResponse",
@@ -421,3 +422,31 @@ class ParamInfoResponse(TypedDict):
     total_occurrences: int
     truncated: bool
     occurrences: list[ParamOccurrence]
+
+
+# ── measurement locations (IDP version index, 2026-09-02) ─────────────────
+#
+# The same two tables recipe-detail carries, read from OpenSearch
+# ``{cdsem,hvsem}_idp_ver`` instead of the tool's .idp over FTP. The index
+# stores each version's parsed parameter rows (``raw_data``) and measurement
+# locations (``wafer_para_loc_info``), so this answers without dialing a tool
+# — which is what makes it safe for a script to call per recipe in a loop.
+#
+# ``version``/``modified`` say WHICH copy answered: the index holds every
+# version, and the highest is served. recipe-detail reads whatever the located
+# tool holds, so the two can disagree for a recipe mid-rollout.
+
+
+class RecipeLocationsResponse(TypedDict):
+    recipe_id: str
+    fab_name: str | None
+    tool_type: ToolType
+    version: int | None
+    # As stored in the index — offset-less KST wall-clock (OFFICE-VERIFY,
+    # docs/datatables/hitachi/idp_ver.txt §시각). Not re-tagged here.
+    modified: str | None
+    # Row counts, named for their grain: a parameter can occupy several rows.
+    distinct_parameters: int
+    total_points: int
+    parameter_rows: list[IdpImageInfoRow]
+    points: list[WaferMpInfoRow]
