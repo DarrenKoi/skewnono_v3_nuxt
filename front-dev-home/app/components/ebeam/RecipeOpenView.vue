@@ -524,7 +524,8 @@ const openLightbox = (image: ParamImage) => {
     name: image.name,
     src: recipeImageUrl(recipeApiBase(), toolSlug.value, locator.value, image.name, { preview: true }),
     role: IMAGE_SLOTS.find(s => s.key === image.slot)?.role ?? 'address',
-    cond: image.cond
+    cond: image.cond,
+    marks: image.marks
   }
   lightboxOpen.value = true
 }

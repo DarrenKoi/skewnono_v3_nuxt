@@ -167,7 +167,7 @@ from typing import Any, NamedTuple
 
 import pandas as pd
 
-from back_dev_home._core.cond_cursor import cursor_value
+from back_dev_home._core.cond_cursor import CursorMarks, cursor_info_from_cond
 from back_dev_home._runtime.office_redis import redis_client as _redis_client
 from back_dev_home.ebeam._office_search import fetch_hits, query, ttl_cache
 from back_dev_home.ebeam.recipe_search import rawfiles
@@ -1522,27 +1522,30 @@ def _read_block(
             exc_info=True,
         )
         return None
-    rows = _to_rows(parsed)
-    if source_name.endswith("cond.txt"):
-        rows = _with_cursor_row(rows, payload)
-    return {"source": source_name, "rows": rows}
+    return {"source": source_name, "rows": _to_rows(parsed)}
 
 
-def _with_cursor_row(rows: list[SettingRow], payload: bytes) -> list[SettingRow]:
-    """Keep the ``!Cursor_info`` line even if the vendor reader dropped it.
+def _image_marks(payload: bytes | None) -> CursorMarks | None:
+    """An image's crosshair / white box, from its cond.txt BYTES.
 
-    The screen draws the tool's crosshair / white box from that line (see
-    _core/cond_cursor.py). The 2026-07-30 probe of ``read_*_image_condition``
-    listed no ``!``-prefixed key at all, so whether the reader passes the line
-    through is OFFICE-VERIFY; reading it off the raw bytes here makes the row
-    reach the browser either way, verbatim, and never twice.
+    Off the raw bytes rather than the reader's rows: the 2026-07-30 probe of
+    ``read_*_image_condition`` listed no ``!``-prefixed key, so whether the
+    reader passes ``!Cursor_info`` through is OFFICE-VERIFY and the overlay
+    must not depend on it.
     """
-    if any(row["key"].lstrip("!").lower().startswith("cursor_inf") for row in rows):
-        return rows
-    value = cursor_value(payload.decode("utf-8", errors="replace"))
-    if value is None:
-        return rows
-    return [*rows, {"key": "!Cursor_info", "value": value}]
+    return cursor_info_from_cond(payload.decode("utf-8", errors="replace")) if payload else None
+
+
+def _align_image_cond(blob: dict[str, bytes], cond: str, optic: str | None) -> SettingBlock | None:
+    """An align image's cond.txt block. The reader must be told which optic
+    took the image, so a point with an unknown optic reads nothing."""
+    if not optic:
+        return None
+    from functools import partial
+
+    from office_utils.idp_amp_reader import read_align_image_condition
+
+    return _read_block(cond, blob.get(cond), partial(read_align_image_condition, which=optic))
 
 
 def _locator_key(locator: IdpLocator) -> tuple[str, str, str, str]:
@@ -1768,6 +1771,7 @@ def get_param_detail(
                     "cond": _read_block(
                         cond, blob.get(cond), read_meas_image_condition
                     ),
+                    "marks": _image_marks(blob.get(cond)),
                 }
                 for slot, name, cond in images
             ],
@@ -1882,7 +1886,9 @@ def get_align_images(
 ) -> AlignImagesResponse:
     """A recipe's align reference images as ONE named tool holds them.
 
-    Resolution plus ONE listing round trip — no bytes. Until 2026-08-22 this
+    Resolution, one listing round trip, and (since 2026-09-03) the discovered
+    images' cond.txt sidecars in one more fetch — the live-alarm modal draws
+    the crosshair / white box from them. Still no image bytes. Until 2026-08-22 this
     did resolution only, on the ground that the names are computable and the
     tool should not be dialed until the caller asks for the bytes. That was
     wrong in a way the screen could not report: a recipe with only P.No 1 got
@@ -1930,6 +1936,11 @@ def get_align_images(
         raise SourceUnavailable(
             f"{location.eqp_id} did not answer a listing of the raw-recipe folder"
         )
+    found = list(rawfiles.align_reference_images(listing))
+    # Only points whose optic is known are read: the reader must be told OM or
+    # SEM, the same rule get_align_detail applies. Nothing to fetch, no session.
+    cond_of = {name: rawfiles.cond_source(name) for _, optic, name in found if optic}
+    blob = _fetch_raw(locator, list(cond_of.values())) if cond_of else {}
     return {
         "recipe_name": recipe_name,
         "fab_name": (fab_name or "").strip().upper(),
@@ -1940,8 +1951,12 @@ def get_align_images(
         # without naming a tool, and a mismatch flag has no meaning there.
         "from_requested_tool": not requested or location.eqp_id == requested,
         "images": [
-            AlignImage(p_no=p_no, optic=optic, name=name)
-            for p_no, optic, name in rawfiles.align_reference_images(listing)
+            AlignImage(
+                p_no=p_no, optic=optic, name=name,
+                cond=_align_image_cond(blob, cond_of.get(name, ""), optic),
+                marks=_image_marks(blob.get(cond_of.get(name, ""))),
+            )
+            for p_no, optic, name in found
         ],
     }
 
@@ -1961,10 +1976,6 @@ def get_align_detail(
     wrong parsers, on files that would still have downloaded and still have
     rendered, which is why nothing here failed loudly.
     """
-    from functools import partial
-
-    from office_utils.idp_amp_reader import read_align_image_condition
-
     plan = [
         (p_no, image, setting, rawfiles.cond_source(image))
         for p_no in sorted({int(p) for p in p_numbers})
@@ -1998,11 +2009,8 @@ def get_align_detail(
         points.append({
             "P_No": p_no,
             "image": image,
-            "cond": _read_block(
-                cond,
-                blob.get(cond),
-                partial(read_align_image_condition, which=optics),
-            ) if optics else None,
+            "cond": _align_image_cond(blob, cond, optics),
+            "marks": _image_marks(blob.get(cond)),
             "setting": settings.get(setting),
         })
     return {"points": points}

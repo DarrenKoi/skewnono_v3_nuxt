@@ -1,67 +1,58 @@
 <template>
-  <!-- Sits in the same box as the <img>. The viewBox is the loaded image's
-       natural size (the cond Pixel size until it loads) and preserveAspectRatio
-       mirrors the image's object-fit (`meet` = contain, `slice` = cover), so
-       the SVG lands exactly where the browser put the picture, at any size —
-       and the marks, being FRACTIONS, stay put on a copy the tool saved at a
-       different resolution. Strokes are non-scaling so a hairline stays a
-       hairline. Each mark is drawn twice — a dark halo under the colour — so
-       it reads on a white-saturated micrograph too. -->
+  <!-- Sits in the same box as the <img>. The viewBox is the cond Pixel size
+       and preserveAspectRatio mirrors the image's object-fit (`meet` =
+       contain, `slice` = cover), so the SVG lands exactly where the browser
+       put the picture at any size — and because the marks are FRACTIONS, a
+       copy saved at another resolution still lands on the same feature.
+       Strokes are non-scaling so a hairline stays a hairline; the drop
+       shadow is the halo that keeps them readable on a white micrograph. -->
   <svg
     v-if="marks"
     class="pointer-events-none absolute inset-0 h-full w-full"
-    :viewBox="`0 0 ${size[0]} ${size[1]}`"
+    :viewBox="`0 0 ${w} ${h}`"
     :preserveAspectRatio="fit === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet'"
     aria-hidden="true"
   >
-    <template v-if="marks.box">
+    <g
+      fill="none"
+      stroke-width="1.5"
+      style="filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.7))"
+    >
       <rect
-        v-for="pass in passes"
-        :key="`box-${pass.k}`"
-        :x="marks.box[0] * size[0]"
-        :y="marks.box[1] * size[1]"
-        :width="(marks.box[2] - marks.box[0]) * size[0]"
-        :height="(marks.box[3] - marks.box[1]) * size[1]"
-        fill="none"
-        :stroke="pass.k === 'halo' ? HALO : 'var(--sk-warn)'"
-        :stroke-width="pass.w"
+        v-if="marks.box"
+        :x="marks.box[0] * w"
+        :y="marks.box[1] * h"
+        :width="(marks.box[2] - marks.box[0]) * w"
+        :height="(marks.box[3] - marks.box[1]) * h"
+        stroke="var(--sk-warn)"
         vector-effect="non-scaling-stroke"
       />
-    </template>
-    <template v-if="marks.crosshair">
-      <template
-        v-for="pass in passes"
-        :key="`cross-${pass.k}`"
-      >
+      <template v-if="marks.crosshair">
         <line
           :x1="cx"
           y1="0"
           :x2="cx"
-          :y2="size[1]"
-          :stroke="pass.k === 'halo' ? HALO : 'var(--sk-ok)'"
-          :stroke-width="pass.w"
+          :y2="h"
+          stroke="var(--sk-ok)"
           vector-effect="non-scaling-stroke"
         />
         <line
           x1="0"
           :y1="cy"
-          :x2="size[0]"
+          :x2="w"
           :y2="cy"
-          :stroke="pass.k === 'halo' ? HALO : 'var(--sk-ok)'"
-          :stroke-width="pass.w"
+          stroke="var(--sk-ok)"
           vector-effect="non-scaling-stroke"
         />
         <circle
           :cx="cx"
           :cy="cy"
-          :r="size[0] / 40"
-          fill="none"
-          :stroke="pass.k === 'halo' ? HALO : 'var(--sk-ok)'"
-          :stroke-width="pass.w"
+          :r="w / 40"
+          stroke="var(--sk-ok)"
           vector-effect="non-scaling-stroke"
         />
       </template>
-    </template>
+    </g>
   </svg>
 </template>
 
@@ -69,26 +60,19 @@
 /**
  * The tool's marks over a recipe image: the crosshair where its algorithm
  * placed the align / measurement point, and the white box the recipe drew
- * around its unique area — both read from the image's cond.txt rows.
+ * around its unique area. `marks` comes parsed from the server (fractions of
+ * the image) — see back_dev_home/_core/cond_cursor.py.
  */
-import { condMarks, type CondRowLike } from '~/utils/condCrosshair'
+import type { CursorMarks } from '~/composables/useRecipeParamDetail'
 
 const props = withDefaults(defineProps<{
-  rows: readonly CondRowLike[] | null | undefined
+  marks: CursorMarks | null | undefined
   /** The `object-fit` of the <img> this overlays. */
   fit?: 'contain' | 'cover'
-  /** The <img>'s naturalWidth/naturalHeight once loaded. */
-  natural?: [number, number] | null
-}>(), { fit: 'contain', natural: null })
+}>(), { fit: 'contain' })
 
-const HALO = 'rgb(0 0 0 / 0.55)'
-const passes = [{ k: 'halo', w: 3 }, { k: 'ink', w: 1.5 }] as const
-
-const marks = computed(() => condMarks(props.rows))
-const size = computed<[number, number]>(() =>
-  props.natural && props.natural[0] > 0 && props.natural[1] > 0
-    ? props.natural
-    : marks.value?.pixel ?? [1, 1])
-const cx = computed(() => (marks.value?.crosshair?.[0] ?? 0) * size.value[0])
-const cy = computed(() => (marks.value?.crosshair?.[1] ?? 0) * size.value[1])
+const w = computed(() => props.marks?.pixel[0] ?? 1)
+const h = computed(() => props.marks?.pixel[1] ?? 1)
+const cx = computed(() => (props.marks?.crosshair?.[0] ?? 0) * w.value)
+const cy = computed(() => (props.marks?.crosshair?.[1] ?? 0) * h.value)
 </script>

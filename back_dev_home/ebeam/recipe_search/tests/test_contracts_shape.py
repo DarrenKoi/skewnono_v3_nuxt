@@ -29,7 +29,7 @@ def test_param_detail_carries_amp_af_pr_and_images():
 
 def test_param_image_names_the_file_the_image_endpoint_takes():
     assert set(contracts.ParamImage.__annotations__) == {
-        "slot", "stage", "name", "cond",
+        "slot", "stage", "name", "cond", "marks",
     }
 
 
@@ -37,7 +37,7 @@ def test_align_point_carries_both_the_cond_and_the_en_setting():
     """Two different files per align point: .IMAP0001.jpeg/cond.txt is the beam
     condition, ENAP0001 is the focus / pattern-recognition setting."""
     assert set(contracts.AlignPoint.__annotations__) == {
-        "P_No", "image", "cond", "setting",
+        "P_No", "image", "cond", "marks", "setting",
     }
 
 

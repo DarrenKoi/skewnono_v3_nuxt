@@ -502,7 +502,7 @@ def test_concurrent_gets_for_different_images_both_fetch(tmp_path, monkeypatch):
     assert sorted(calls) == ["a.jpeg", "b.jpeg"]
 
 
-def test_serve_clean_erases_the_crosshair_the_cond_declares(client, monkeypatch):
+def test_serve_clean_erases_the_crosshair_the_cond_declares(client, monkeypatch, crosshair_jpeg):
     """?clean=1 — the route hands the (preview) rendition to to_clean, which
     erases the crosshair at the cond sidecar's ``!Cursor_info`` position. The
     plain URL keeps the drawn line; the clean one answers WebP without it."""
@@ -511,17 +511,11 @@ def test_serve_clean_erases_the_crosshair_the_cond_declares(client, monkeypatch)
     from PIL import Image
 
     from back_dev_home.msr_image.contracts import FetchedImage
+    from back_dev_home.msr_image.tests.conftest import CROSSHAIR_COND
 
-    im = Image.new("L", (64, 64), 100)
-    for i in range(64):
-        im.putpixel((32, i), 255)
-        im.putpixel((i, 16), 255)
-    buf = BytesIO()
-    im.save(buf, "JPEG", quality=95)
-    cond = "Pixel\t64,64\n!Cursor_info\t0,0,0,0,320,160,-1,-1,-1,-1\n"
     monkeypatch.setattr(
         "back_dev_home.msr_image.data.fetch_image",
-        lambda locator: FetchedImage(buf.getvalue(), "image/jpeg", cond),
+        lambda locator: FetchedImage(crosshair_jpeg, "image/jpeg", CROSSHAIR_COND),
     )
     q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_CLEAN&name=cross01.jpeg"
     plain = Image.open(BytesIO(client.get(f"/api/msr-image?{q}").data)).convert("L")

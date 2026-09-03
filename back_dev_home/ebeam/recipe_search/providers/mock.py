@@ -113,6 +113,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 
 from back_dev_home.ebeam.lateral_recipe.providers.mock import RECIPE_VERSION_RANGE
+from back_dev_home._core.cond_cursor import format_cursor_info, marks_from_rows
 from back_dev_home.ebeam.recipe_search import rawfiles
 from back_dev_home.ebeam.recipe_search.contracts import (
     AlignDetailResponse,
@@ -528,16 +529,13 @@ _FOV_MAG_PRODUCT = 134_970.0
 # distribution.
 _OM_MAGNIFICATIONS: tuple[int, ...] = (70, 104, 140, 200)
 
-# ``!Cursor_info`` — where the tool put its marks (user-confirmed 2026-09-03,
-# from the auto_recipe_creator align work; rules in _core/cond_cursor.py).
-# Ten comma-separated ints in a Pixel x 10 frame: [4],[5] the crosshair,
-# [6..9] the white box, -1 for an absent mark. The recipe image is the
-# registered align KEY, so the box is always drawn; the crosshair is left
-# out on one image in six so the no-mark path stays exercised at home.
-# OFFICE-VERIFY: what [0..3] carry, the real token count, and whether the
-# line is present on the measurement (.IMMP / .IMMS) sidecars too. The key
-# is listed LAST because its position in the file was not recorded.
-_NO_CROSSHAIR_ONE_IN = 6
+# ``!Cursor_info`` — where the tool put its marks (user-confirmed 2026-09-03;
+# layout and frame in _core/cond_cursor.py, which also formats the line). The
+# recipe image is the registered align KEY, so the box is always drawn; the
+# crosshair is left out on one image in six so the no-mark path stays
+# exercised at home. OFFICE-VERIFY: whether the line is present on the
+# measurement (.IMMP / .IMMS) sidecars too. The key is listed LAST because its
+# position in the file was not recorded.
 
 
 def _um_pair(x: float, y: float) -> str:
@@ -569,15 +567,11 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
     pixel = rng.choice((512, 1024))
     frame = pixel * 10
     # Crosshair near the middle (an align key sits close to the frame centre),
-    # box a 20-40 %-wide square around it.
+    # box a 20-40 %-wide square around it; one image in six has no crosshair.
     cx, cy = (rng.randrange(int(frame * 0.35), int(frame * 0.65)) for _ in range(2))
     half = rng.randrange(frame // 10, frame // 5)
-    if rng.randrange(_NO_CROSSHAIR_ONE_IN) == 0:
-        cx = cy = -1
-    cursor = (0, 0, 0, 0, cx, cy, max(0, cx - half) if cx >= 0 else frame // 4,
-              max(0, cy - half) if cy >= 0 else frame // 4,
-              min(frame - 1, cx + half) if cx >= 0 else frame * 3 // 4,
-              min(frame - 1, cy + half) if cy >= 0 else frame * 3 // 4)
+    box = (max(0, cx - half), max(0, cy - half), min(frame - 1, cx + half), min(frame - 1, cy + half))
+    crosshair = None if rng.randrange(6) == 0 else (cx, cy)
     return {
         "Accelerating_voltage": f"{rng.choice((300, 500, 800))} V",
         "Probe_current": f"{rng.choice((4.0, 8.0, 16.0)):.1f} pA",
@@ -599,7 +593,7 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
         "Scan": "TV",
         "Pixel": f"{pixel},{pixel}",
         "Filter": "OFF",
-        "!Cursor_info": ",".join(str(v) for v in cursor),
+        "!Cursor_info": format_cursor_info(crosshair, box),
     }
 
 
@@ -624,6 +618,12 @@ def _cond_block(source: str | None, optic: str, *scope: str) -> SettingBlock | N
         "source": source,
         "rows": [{"key": key, "value": values[key]} for key in keys]
     }
+
+
+def _cond_fields(source: str | None, optic: str, *scope: str) -> dict[str, object]:
+    """The ``cond`` block and the ``marks`` parsed from it, as one image's fields."""
+    block = _cond_block(source, optic, *scope)
+    return {"cond": block, "marks": marks_from_rows(block["rows"]) if block else None}
 
 
 def _seeded_rng(source: str, *scope: str) -> random.Random:
@@ -1167,7 +1167,7 @@ def get_param_detail(
                     "name": name,
                     # Always SEM: an optical microscope takes no measurement or
                     # addressing image. Only wafer align has an OM file.
-                    "cond": _cond_block(cond, "SEM", *scope)
+                    **_cond_fields(cond, "SEM", *scope),
                 }
                 for slot, name, cond in images
             ]
@@ -1212,7 +1212,11 @@ def get_align_images(
         "requested_eqp_id": requested,
         "from_requested_tool": served_by == requested,
         "images": [
-            AlignImage(p_no=p_no, optic=optic, name=name)
+            AlignImage(
+                p_no=p_no, optic=optic, name=name,
+                **(_cond_fields(rawfiles.cond_source(name), optic, str(locator["idp"]))
+                   if optic else {"cond": None, "marks": None}),
+            )
             for p_no, optic, name in rawfiles.align_reference_images(
                 _mock_raw_listing(locator)
             )
@@ -1254,11 +1258,8 @@ def get_align_detail(
             # full twelve (office 확인 2026-07-30), so a point routed to the
             # wrong optic shows the wrong number of rows rather than merely a
             # wrong heading.
-            "cond": _cond_block(
-                rawfiles.cond_source(image),
-                optics,
-                scope,
-            ) if (optics := rawfiles.align_optics(p_no)) else None,
+            **(_cond_fields(rawfiles.cond_source(image), optics, scope)
+               if (optics := rawfiles.align_optics(p_no)) else {"cond": None, "marks": None}),
             "setting": _alignpr_block(setting, scope)
         })
     return {"points": points}
@@ -1293,12 +1294,14 @@ def fetch_recipe_image(locator: IdpLocator, name: str) -> tuple[bytes, str]:
         raise LookupError(f"{name} not found under the raw-recipe folder")
     hue = _seed_for_values("recipe-image", name) % 360
     svg = (
-        '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240">'
-        f'<rect width="320" height="240" fill="hsl({hue} 30% 18%)"/>'
-        f'<text x="160" y="118" fill="hsl({hue} 55% 80%)" font-size="15" '
+        # Square, like every cond.txt Pixel seen so far, so the marks overlay
+        # lands where it will on a real image.
+        '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">'
+        f'<rect width="512" height="512" fill="hsl({hue} 30% 18%)"/>'
+        f'<text x="256" y="250" fill="hsl({hue} 55% 80%)" font-size="22" '
         'font-family="monospace" text-anchor="middle">'
         f'{name}</text>'
-        f'<text x="160" y="140" fill="hsl({hue} 40% 60%)" font-size="11" '
+        f'<text x="256" y="282" fill="hsl({hue} 40% 60%)" font-size="16" '
         'font-family="monospace" text-anchor="middle">mock placeholder</text>'
         '</svg>'
     )

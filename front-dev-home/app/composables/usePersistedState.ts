@@ -81,6 +81,15 @@ export const usePersistedState = <T>(
   return state
 }
 
+// A persisted boolean preference. `defaultValue` is also the "empty" value,
+// so a preference left at its default holds no storage key.
+export const persistedFlag = (stateKey: string, storageKey: string, defaultValue: boolean): Ref<boolean> =>
+  usePersistedState<boolean>(stateKey, storageKey, {
+    default: () => defaultValue,
+    normalize: parsed => (typeof parsed === 'boolean' ? parsed : defaultValue),
+    isEmpty: value => value === defaultValue
+  })
+
 // Common normalizer: keep only string entries of a JSON array.
 export const normalizeStringArray = (parsed: unknown): string[] =>
   Array.isArray(parsed)

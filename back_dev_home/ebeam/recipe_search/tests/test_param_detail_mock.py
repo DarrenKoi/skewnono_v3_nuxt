@@ -270,26 +270,27 @@ def test_the_om_image_condition_is_a_subset_of_the_sem_one():
     assert "Accelerating_voltage" in sem_keys and "Accelerating_voltage" not in om_keys
 
 
-def test_cursor_info_lives_in_the_pixel_times_ten_frame():
-    """``!Cursor_info`` (user-confirmed 2026-09-03) is ten ints in a frame ten
-    times ``Pixel``; the screen divides by that to place the crosshair. A mock
-    value outside the frame would draw the mark off the image."""
-    from back_dev_home._core.cond_cursor import parse_cursor_info
+def test_marks_are_parsed_from_the_cond_rows_and_stay_inside_the_image():
+    """``marks`` are the ``!Cursor_info`` row as fractions (user-confirmed
+    2026-09-03). A mock value outside 0..1 would draw the mark off the image;
+    both the marked and the unmarked kinds must occur so the screen's two
+    branches are reachable at home."""
+    from back_dev_home._core.cond_cursor import marks_from_rows
 
     seen_cross = seen_none = False
     for p_no in (1, 2):
         for idp in range(12):
             locator = {**LOCATOR, "idp": f"{LOCATOR['idp']}_{idp}"}
-            rows = {r["key"]: r["value"] for r in mock.get_align_detail(locator, [p_no])["points"][0]["cond"]["rows"]}
-            info = parse_cursor_info(rows["Pixel"], rows["!Cursor_info"])
-            assert info is not None and info.box is not None
-            assert all(0.0 <= v <= 1.0 for v in info.box)
-            if info.crosshair is None:
+            point = mock.get_align_detail(locator, [p_no])["points"][0]
+            marks = point["marks"]
+            assert marks == marks_from_rows(point["cond"]["rows"])
+            assert marks is not None and all(0.0 <= v <= 1.0 for v in marks["box"])
+            if marks["crosshair"] is None:
                 seen_none = True
             else:
                 seen_cross = True
-                assert all(0.0 <= v <= 1.0 for v in info.crosshair)
-    assert seen_cross and seen_none, "both the marked and the unmarked image kinds must occur"
+                assert all(0.0 <= v <= 1.0 for v in marks["crosshair"])
+    assert seen_cross and seen_none
 
 
 def test_the_sem_align_condition_matches_the_measurement_one_field_for_field():

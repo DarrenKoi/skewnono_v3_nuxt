@@ -31,6 +31,18 @@ export interface SettingRow {
   section?: string | null
 }
 
+/**
+ * The tool's marks on an image, parsed server-side from the image's cond.txt
+ * `!Cursor_info` line (back_dev_home/_core/cond_cursor.py) as FRACTIONS of
+ * the image, so an overlay is right at any rendered size.
+ */
+export interface CursorMarks {
+  /** The cond `Pixel` size — the overlay's viewBox aspect. */
+  pixel: [number, number]
+  crosshair: [number, number] | null
+  box: [number, number, number, number] | null
+}
+
 export interface SettingBlock {
   /** The file these rows came from, e.g. `PRMS0000`. Shown so a surprising
    *  value can be traced back to a file without reading a server log. */
@@ -50,6 +62,9 @@ export interface ParamImage {
   /** Full filename, ready to hand to `recipeImageUrl`. */
   name: string
   cond: SettingBlock | null
+  /** Always sent by the server; optional only so fixtures built before
+   *  2026-09-03 (recipeCompare, recipeParamExport tests) need not carry it. */
+  marks?: CursorMarks | null
 }
 
 export interface ParamDetail {
@@ -179,6 +194,9 @@ export interface AlignImage {
    */
   optic: string
   name: string
+  /** The image's own cond.txt; null for a point whose optic is unknown. */
+  cond: SettingBlock | null
+  marks: CursorMarks | null
 }
 
 export interface AlignImages {
@@ -232,6 +250,7 @@ export interface AlignPoint {
   P_No: number
   image: string | null
   cond: SettingBlock | null
+  marks: CursorMarks | null
   setting: SettingBlock | null
 }
 

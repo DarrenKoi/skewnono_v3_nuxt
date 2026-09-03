@@ -784,11 +784,14 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
     은 이 줄로 마크를 **덧그리고**, skewvoir 는 같은 줄로 십자선을 **지웁니다**
     (`?clean=1`, `msr_image/preview.py`).
 
-  reader 가 이 줄을 돌려주는지는 확인되지 않았으므로(OFFICE-VERIFY) office adapter 는
-  `_with_cursor_row` 에서 원문 바이트를 한 번 더 읽어 row 로 붙입니다. reader 가 이미
-  돌려주면 중복하지 않습니다. mock 은 두 optic 모두 마지막 row 로 내보내며, 실제
-  파일 안의 위치는 기록되지 않았습니다. 측정·addressing 이미지(.IMMP / .IMMS)의
-  cond.txt 에도 이 줄이 있는지는 OFFICE-VERIFY — 화면은 없으면 토글을 숨깁니다.
+  파싱은 서버가 한 번만 합니다. 이미지가 들어가는 응답(ParamImage · AlignPoint ·
+  AlignImage)마다 `marks` field 로 **이미지 대비 분수(0..1)** 를 실어 보내므로,
+  화면은 Pixel 도 x10 도 모른 채 덧그립니다. reader 가 `!` key 를 돌려주는지는
+  확인되지 않았으므로(OFFICE-VERIFY) office adapter 는 reader 의 row 가 아니라
+  **원문 바이트**에서 `marks` 를 뽑습니다(`_image_marks`). mock 은 두 optic 모두
+  마지막 row 로 내보내며, 실제 파일 안의 위치는 기록되지 않았습니다. 측정·addressing
+  이미지(.IMMP / .IMMS)의 cond.txt 에도 이 줄이 있는지는 OFFICE-VERIFY — 없으면
+  `marks` 가 null 이고 화면은 토글을 숨깁니다.
 
 PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
 =====================================================

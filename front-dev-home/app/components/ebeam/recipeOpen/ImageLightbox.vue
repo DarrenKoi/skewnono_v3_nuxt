@@ -16,20 +16,18 @@
             :alt="`${data.stage} (${data.name})`"
             decoding="async"
             class="h-full w-full object-contain"
-            @load="onLoad"
             @error="failed = true"
           >
-          <EbeamRecipeOpenCondMarks
-            v-if="!failed && showMarks"
-            :rows="data.cond?.rows"
-            :natural="natural"
-          />
           <div
             v-else
             class="px-6 text-center font-mono text-[12px] text-white/45"
           >
             이미지를 불러오지 못했습니다
           </div>
+          <EbeamRecipeOpenCondMarks
+            v-if="!failed && showMarks"
+            :marks="data.marks"
+          />
           <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
             <span
               class="rounded px-2 py-0.5 font-mono text-xs font-bold tracking-wider"
@@ -42,21 +40,11 @@
           <!-- Overriding #content drops UModal's own ✕, so carry one here.
                Over the image, not the dialog corner, which holds 빔 조건. -->
           <div class="absolute top-3 right-3 flex items-center gap-1.5">
-            <button
-              v-if="hasMarks"
-              type="button"
-              class="rounded-(--sk-r-nav) p-1.5 text-white transition-colors duration-200"
-              :class="showMarks ? 'bg-(--sk-ok)/80 hover:bg-(--sk-ok)' : 'bg-black/50 hover:bg-black/70'"
-              :aria-pressed="showMarks"
-              aria-label="측정점 십자선 표시"
-              title="측정점 십자선 표시 (cond.txt)"
-              @click="showMarks = !showMarks"
-            >
-              <UIcon
-                name="i-lucide-crosshair"
-                class="h-4 w-4"
-              />
-            </button>
+            <EbeamRecipeOpenCondMarksToggle
+              v-if="data.marks"
+              v-model="showMarks"
+              label="측정점 십자선 표시"
+            />
             <button
               type="button"
               class="rounded-(--sk-r-nav) bg-black/50 p-1.5 text-white transition-colors duration-200 hover:bg-black/70"
@@ -113,8 +101,7 @@
  * One raw-recipe image at full size, beside the beam condition parsed from its
  * `.{name}/cond.txt` sidecar.
  */
-import type { SettingBlock } from '~/composables/useRecipeParamDetail'
-import { condMarks } from '~/utils/condCrosshair'
+import type { CursorMarks, SettingBlock } from '~/composables/useRecipeParamDetail'
 import { formatSettingValue, type SlotRole } from '~/utils/recipeView'
 
 export interface LightboxData {
@@ -125,6 +112,7 @@ export interface LightboxData {
   src: string
   role: SlotRole
   cond: SettingBlock | null
+  marks?: CursorMarks | null
 }
 
 const open = defineModel<boolean>('open', { required: true })
@@ -135,19 +123,12 @@ const props = defineProps<{
 
 const isMeas = computed(() => props.data?.role === 'measure')
 
-// The tool's crosshair / white box from the image's cond.txt. The toggle only
-// appears when the sidecar actually locates a mark.
+// The tool's crosshair / white box over the image; the toggle only appears
+// when the sidecar actually located a mark.
 const showMarks = useCondCrosshair()
-const hasMarks = computed(() => condMarks(props.data?.cond?.rows) !== null)
 
 const failed = ref(false)
-const natural = ref<[number, number] | null>(null)
-const onLoad = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  natural.value = [img.naturalWidth, img.naturalHeight]
-}
 watch(() => props.data?.src, () => {
   failed.value = false
-  natural.value = null
 })
 </script>

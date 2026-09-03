@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from back_dev_home._core.cond_cursor import CursorMarks
+
 
 __all__ = [
     "AlignDetailResponse",
@@ -156,7 +158,12 @@ ParamImage = TypedDict("ParamImage", {
     "slot": str,
     "stage": str,
     "name": str,
-    "cond": SettingBlock | None
+    "cond": SettingBlock | None,
+    # The tool's crosshair / white box, parsed from the same cond.txt by
+    # _core/cond_cursor.py (2026-09-03). Fractions of the image, so the screen
+    # overlays without knowing Pixel or the x10 frame. None when the sidecar
+    # names no mark.
+    "marks": CursorMarks | None
 })
 
 # One element of the param-detail POST body. ``slots`` is normally the row's
@@ -191,6 +198,7 @@ AlignPoint = TypedDict("AlignPoint", {
     "P_No": int,
     "image": str | None,
     "cond": SettingBlock | None,
+    "marks": CursorMarks | None,   # see ParamImage
     "setting": SettingBlock | None
 })
 
@@ -215,6 +223,12 @@ class AlignImage(TypedDict):
     # data. Never None; the screen tests it for emptiness.
     optic: str
     name: str   # IMAP{p:04d}[-suffix].{ext}, fetched through recipe-image
+    # The image's own ``.{name}/cond.txt``, read in the same tool visit as the
+    # listing (2026-09-03) so the live-alarm modal can overlay the crosshair /
+    # white box (``marks``, see ParamImage). None for a point whose optic is
+    # unknown (the reader must be told OM or SEM) or a sidecar the tool lacks.
+    cond: SettingBlock | None
+    marks: CursorMarks | None
 
 
 class AlignImagesResponse(TypedDict):

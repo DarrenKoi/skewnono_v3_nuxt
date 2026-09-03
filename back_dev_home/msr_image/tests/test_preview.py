@@ -103,40 +103,36 @@ def test_rgb_and_palette_modes_convert():
 
 # ── ?clean=1 — erase the crosshair the cond sidecar locates ──────────────────
 
-_CLEAN_COND = "Pixel\t64,64\n!Cursor_info\t0,0,0,0,320,160,-1,-1,-1,-1\n"  # (32, 16) px
+from back_dev_home.msr_image.tests.conftest import CROSSHAIR_COND
 
 
-def _jpeg_with_crosshair(cx: int, cy: int) -> bytes:
-    im = Image.new("L", (64, 64), 100)
-    px = im.load()
-    for i in range(64):
-        px[cx, i] = 255
-        px[i, cy] = 255
-    out = BytesIO()
-    im.save(out, "JPEG", quality=95)
-    return out.getvalue()
-
-
-def test_clean_erases_the_declared_crosshair_lines():
-    fetched = FetchedImage(_jpeg_with_crosshair(32, 16), "image/jpeg", _CLEAN_COND)
+def test_clean_erases_the_declared_crosshair_lines(crosshair_jpeg):
+    fetched = FetchedImage(crosshair_jpeg, "image/jpeg", CROSSHAIR_COND)
     out = preview.to_clean(fetched)
 
-    assert out.content_type == "image/webp" and out.cond == _CLEAN_COND
+    assert out.content_type == "image/webp" and out.cond == CROSSHAIR_COND
     im = _decode(out.data).convert("L")  # WebP decodes as RGB
     # Sample far from the lines' crossing: both lines are gone, background stays.
     assert im.getpixel((32, 50)) < 130 and im.getpixel((50, 16)) < 130
     assert 90 <= im.getpixel((10, 40)) <= 110
 
 
-def test_clean_is_a_noop_without_a_crosshair_or_a_raster():
+def test_clean_is_a_noop_without_a_crosshair_or_a_raster(crosshair_jpeg):
     no_cross = FetchedImage(b"\xff\xd8junk", "image/jpeg", "Pixel\t64,64\n!Cursor_info\t0,0,0,0,-1,-1,1,1,2,2\n")
     assert preview.to_clean(no_cross) is no_cross
-    no_cond = FetchedImage(_jpeg_with_crosshair(32, 16), "image/jpeg", None)
+    no_cond = FetchedImage(crosshair_jpeg, "image/jpeg", None)
     assert preview.to_clean(no_cond) is no_cond
-    svg = FetchedImage(b"<svg xmlns='http://www.w3.org/2000/svg'/>", "image/svg+xml", _CLEAN_COND)
+    svg = FetchedImage(b"<svg xmlns='http://www.w3.org/2000/svg'/>", "image/svg+xml", CROSSHAIR_COND)
     assert preview.to_clean(svg) is svg  # Pillow cannot open it: degraded, not raised
 
 
-def test_wants_clean_is_the_preview_allowlist():
-    assert preview.wants_clean("1") and preview.wants_clean("true")
-    assert not preview.wants_clean(None) and not preview.wants_clean("0")
+def test_clean_normalises_a_tiff_first(crosshair_jpeg):
+    # ?clean=1 without ?preview=1 is a legal URL: a 16-bit TIFF must still be
+    # stretched before the erase, or the result renders near-black.
+    im = Image.open(BytesIO(crosshair_jpeg)).convert("I;16")
+    im.putdata([v * 200 for v in im.getdata()])
+    buf = BytesIO()
+    im.save(buf, "TIFF")
+    out = preview.to_clean(FetchedImage(buf.getvalue(), "image/tiff", CROSSHAIR_COND))
+    assert out.content_type == "image/webp"
+    assert _decode(out.data).convert("L").getpixel((10, 40)) > 0

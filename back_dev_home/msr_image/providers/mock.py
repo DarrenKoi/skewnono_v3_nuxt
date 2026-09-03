@@ -34,6 +34,7 @@ and runs at home too.
 import hashlib
 from collections.abc import Callable
 
+from back_dev_home._core.cond_cursor import format_cursor_info
 from back_dev_home._core.image_naming import HV_SEM_STEM_SUFFIXES
 from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
 
@@ -104,10 +105,10 @@ def _cond(locator: ImageLocator) -> str:
     are an SVG, so ``?clean=1`` is a no-op at home — the parse path runs, the
     erase does not."""
     s = _seed(locator.name)
-    cx, cy = 2560 + s % 400 - 200, 2560 + (s // 7) % 400 - 200
+    crosshair = (2560 + s % 400 - 200, 2560 + (s // 7) % 400 - 200)
     return (
         f"mag={30000 + s % 40000}\nvac={0.5 + (s % 5) / 10:.1f}\npixel={2 + s % 6}nm\n"
-        f"Pixel\t512,512\n!Cursor_info\t0,0,0,0,{cx},{cy},-1,-1,-1,-1"
+        f"Pixel\t512,512\n!Cursor_info\t{format_cursor_info(crosshair, None)}"
     )
 
 

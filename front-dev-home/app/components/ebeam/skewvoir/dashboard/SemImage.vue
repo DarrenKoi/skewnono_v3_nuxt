@@ -268,15 +268,7 @@ const displayImageUrl = (name: string): string | null => {
 // (?clean=1). A reviewer preference like displayMode: it follows the reviewer
 // across points and reloads. Off by default — the crosshair is what the tool
 // measured, and erasing it is the exception a reviewer asks for.
-const hideCrosshair = usePersistedState<boolean>(
-  'skewvoir-sem-image-clean',
-  'skewnono:skewvoir:sem-image-clean',
-  {
-    default: () => false,
-    normalize: parsed => parsed === true,
-    isEmpty: value => value === false
-  }
-)
+const hideCrosshair = persistedFlag('skewvoir-sem-image-clean', 'skewnono:skewvoir:sem-image-clean', false)
 
 // The micrograph's row for the active parameter. With a focused point, ONLY
 // that point qualifies — a focused point with a failed/missing image shows

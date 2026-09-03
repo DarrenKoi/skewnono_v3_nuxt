@@ -50,6 +50,19 @@ class TestMockAlignImages:
             (2, "SEM", "IMAP0002.jpeg"),
         ]
 
+    def test_each_image_carries_its_own_cond_with_the_cursor_row(self):
+        # The live-alarm modal overlays the crosshair from the image's sidecar,
+        # so the listing must carry it (2026-09-03) — one fetch, not one per
+        # thumbnail through align-detail.
+        payload = mock.get_align_images(
+            "cd-sem", "MONITOR/CD_TOP_01", "M14A", "CG6300_01"
+        )
+        for img in payload["images"]:
+            assert img["cond"]["source"] == f".{img['name']}/cond.txt"
+            keys = [row["key"] for row in img["cond"]["rows"]]
+            assert ("Accelerating_voltage" in keys) == (img["optic"] == "SEM")
+            assert img["marks"] is not None and img["marks"]["box"] is not None
+
     def test_home_produces_all_three_shapes_the_screen_has(self, home_payloads):
         # The value-domain guard, and the one this feature actually needed.
         # A mock that gave every recipe both points made the office's OM-only
@@ -131,14 +144,32 @@ class _FakeRedis:
         return self.store.get(key, {}).get(field)
 
 
+# What the fake tool's cond.txt sidecars say. The vendor reader below returns
+# Pixel only, so ``marks`` reaching the response proves they are parsed off
+# the raw bytes (_image_marks) — the office-side path the live-alarm overlay
+# depends on.
+_COND_TEXT = "Pixel\t512,512\n!Cursor_info\t0,0,0,0,2560,2560,1600,1600,3520,3520\n"
+
+
 @pytest.fixture
 def wired(monkeypatch):
+    import sys
+    import types
+
     monkeypatch.setattr(oe, "_redis_client", lambda: _FakeRedis(STORE))
     monkeypatch.setattr(oe, "_eqp_ip_index", lambda: ROSTER)
+    reader = types.ModuleType("office_utils.idp_amp_reader")
+    reader.read_align_image_condition = lambda payload, which: {"Pixel": "512,512"}
+    monkeypatch.setitem(sys.modules, "office_utils", types.ModuleType("office_utils"))
+    monkeypatch.setitem(sys.modules, "office_utils.idp_amp_reader", reader)
+    # The cond fetch: every requested sidecar exists and carries _COND_TEXT.
+    monkeypatch.setattr(
+        oe, "_fetch_raw", lambda locator, names: {n: _COND_TEXT.encode() for n in names}
+    )
 
 
 def _listing(monkeypatch, entries):
-    """Stand in for the one NLST round trip get_align_images now makes."""
+    """Stand in for the one NLST round trip get_align_images makes."""
     monkeypatch.setattr(oe, "_list_raw_dirs", lambda keys: dict.fromkeys(keys, entries))
 
 
@@ -230,5 +261,20 @@ class TestOfficeAlignImages:
         office = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
         home = mock.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
         assert office.keys() == home.keys()
-        assert office["images"] == home["images"]
+        assert [(i["p_no"], i["optic"], i["name"]) for i in office["images"]] == [
+            (i["p_no"], i["optic"], i["name"]) for i in home["images"]
+        ]
+        for o, h in zip(office["images"], home["images"], strict=True):
+            assert o["cond"]["source"] == h["cond"]["source"]
+            assert o["cond"].keys() == h["cond"].keys()
         assert office["locator"].keys() == home["locator"].keys()
+
+    def test_marks_come_from_the_raw_bytes_not_the_reader(self, wired, monkeypatch):
+        _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
+        office = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
+        for img in office["images"]:
+            assert [r["key"] for r in img["cond"]["rows"]] == ["Pixel"]  # the reader's rows, verbatim
+            assert img["marks"] == {
+                "pixel": [512, 512], "crosshair": [0.5, 0.5],
+                "box": [0.3125, 0.3125, 0.6875, 0.6875],
+            }

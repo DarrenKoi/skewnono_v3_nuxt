@@ -50,6 +50,12 @@ const failed = ref(false)
 const loadedFor = ref('')
 const wantKey = computed(() => `${props.toolType}|${props.fab}|${props.recipeId}|${props.eqpId}`)
 
+// The tool's crosshair / white box over each image, from its cond.txt. The
+// same preference recipe-open's modals use; the toggle only appears when at
+// least one sidecar located a mark.
+const showMarks = useCondCrosshair()
+const hasMarks = computed(() => (data.value?.images ?? []).some(img => img.marks))
+
 const base = recipeApiBase()
 const imageSrc = (name: string) =>
   data.value ? recipeImageUrl(base, apiSlug.value, data.value.locator, name) : ''
@@ -136,37 +142,51 @@ watch(open, (isOpen) => {
         이 레시피에는 정렬 기준 이미지가 없습니다. 장비의 레시피 폴더를 읽었으나 IMAP 파일이 없었습니다.
       </p>
 
-      <div
-        v-else-if="data?.images.length"
-        class="grid grid-cols-2 gap-3"
-      >
-        <figure
-          v-for="image in data.images"
-          :key="image.name"
-          class="flex min-w-0 flex-col gap-1"
+      <div v-else-if="data?.images.length">
+        <div
+          v-if="hasMarks"
+          class="mb-2 flex justify-end"
         >
-          <div class="relative mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-md border border-zinc-300/70 bg-(--sk-field) dark:border-zinc-700">
-            <img
-              :src="imageSrc(image.name)"
-              :alt="`${image.optic || `P.No ${image.p_no}`} 정렬 기준 이미지`"
-              loading="lazy"
-              decoding="async"
-              class="h-full w-full object-cover"
-            >
-            <!-- Blank for a P.No the office has never described. The server
+          <EbeamRecipeOpenCondMarksToggle
+            v-model="showMarks"
+            label="정렬점 십자선"
+            variant="bar"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <figure
+            v-for="image in data.images"
+            :key="image.name"
+            class="flex min-w-0 flex-col gap-1"
+          >
+            <div class="relative mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-md border border-zinc-300/70 bg-(--sk-field) dark:border-zinc-700">
+              <img
+                :src="imageSrc(image.name)"
+                :alt="`${image.optic || `P.No ${image.p_no}`} 정렬 기준 이미지`"
+                loading="lazy"
+                decoding="async"
+                class="h-full w-full object-cover"
+              >
+              <EbeamRecipeOpenCondMarks
+                v-if="showMarks"
+                :marks="image.marks"
+                fit="cover"
+              />
+              <!-- Blank for a P.No the office has never described. The server
                  will not name an optic it cannot know, and a badge reading
                  "SEM" over an OM image is worse than no badge. -->
-            <span
-              v-if="image.optic"
-              class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)"
-            >
-              {{ image.optic }}
-            </span>
-          </div>
-          <figcaption class="text-center font-mono text-xs text-(--sk-ink-muted)">
-            P.No {{ image.p_no }} · {{ image.name }}
-          </figcaption>
-        </figure>
+              <span
+                v-if="image.optic"
+                class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)"
+              >
+                {{ image.optic }}
+              </span>
+            </div>
+            <figcaption class="text-center font-mono text-xs text-(--sk-ink-muted)">
+              P.No {{ image.p_no }} · {{ image.name }}
+            </figcaption>
+          </figure>
+        </div>
       </div>
     </template>
   </UModal>

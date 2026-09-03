@@ -147,13 +147,15 @@ function are gone; three endpoints replace them.
   wrong parsers still return renderable values — so the swap was only visible in
   the values, at the office. `tests/test_align_readers.py` now asserts which
   reader receives what.
-- **The `!Cursor_info` row must reach the browser.** The screen overlays the
-  tool's crosshair / white box from that cond.txt line (user-confirmed
-  2026-09-03; `docs/datatables/hitachi/recipe_idp.txt`). Whether
+- **`marks` come from the cond.txt bytes, not the reader.** The screen
+  overlays the tool's crosshair / white box from the `!Cursor_info` line
+  (user-confirmed 2026-09-03; `docs/datatables/hitachi/recipe_idp.txt`),
+  parsed once by `_core/cond_cursor.py` into fractions. Whether
   `read_*_image_condition` returns `!`-prefixed keys is OFFICE-VERIFY, so
-  `_read_block` re-reads the raw bytes through `_core/cond_cursor.py` and
-  appends the row when the reader dropped it. If a real run shows the reader
-  already returns it, the fallback is idempotent and can stay.
+  `_image_marks` reads the raw bytes beside every `_read_block(cond, …)` and
+  does not depend on the reader. `align-images` reads the discovered images'
+  sidecars too (one `_fetch_raw` after the listing), because the live-alarm
+  modal has no other call to get them from.
 - **Naming is not the adapter's business.** Every path comes from
   `recipe_search/rawfiles.py`, which is pure and fully tested at home. Do not
   re-derive `.jpeg`, the `PR`→`EN` swap, the four-digit padding, or the

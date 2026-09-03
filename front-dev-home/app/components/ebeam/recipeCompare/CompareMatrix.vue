@@ -179,7 +179,8 @@ const openLightbox = (recipeIndex: number) => {
     name,
     src: imageSrc(recipeIndex),
     role: slotDescriptor.value.role,
-    cond: blockForSlot(detail, props.slotKey)
+    cond: blockForSlot(detail, props.slotKey),
+    marks: detail?.images.find(image => image.slot === props.slotKey && image.name === name)?.marks ?? null
   }
   lightboxOpen.value = true
 }
