@@ -1,0 +1,360 @@
+<title>SKEWNONO v3 화면 카탈로그</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --canvas: oklch(0.96 0.012 80);
+    --surface: oklch(0.99 0.006 80);
+    --muted: oklch(0.97 0.01 80);
+    --border: oklch(0.91 0.014 80);
+    --border-soft: oklch(0.94 0.01 80);
+    --ink: #15110D;
+    --ink-muted: oklch(0.47 0.014 60);
+    --ink-subtle: oklch(0.66 0.012 70);
+    --accent: #C75A3C;
+    --accent-soft: #F3DCD2;
+    --accent-ink: #8A3D27;
+    --ok: oklch(0.62 0.13 145);
+    --ok-soft: oklch(0.94 0.05 145);
+    --warn: oklch(0.70 0.15 75);
+    --warn-soft: oklch(0.94 0.06 85);
+    --field: oklch(0.21 0.008 70);
+    --field-ink: oklch(0.94 0.008 80);
+    --sans: "IBM Plex Sans KR", "Spoqa Han Sans Neo", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas: oklch(0.21 0.008 70);
+      --surface: oklch(0.245 0.008 70);
+      --muted: oklch(0.225 0.008 70);
+      --border: oklch(0.295 0.008 70);
+      --border-soft: oklch(0.265 0.008 70);
+      --ink: #F8F4EC;
+      --ink-muted: oklch(0.74 0.008 70);
+      --ink-subtle: oklch(0.56 0.008 70);
+      --accent: oklch(0.74 0.14 38);
+      --accent-soft: oklch(0.32 0.04 38);
+      --accent-ink: oklch(0.86 0.09 45);
+      --ok: oklch(0.72 0.13 145);
+      --ok-soft: oklch(0.30 0.05 145);
+      --warn: oklch(0.78 0.14 80);
+      --warn-soft: oklch(0.32 0.06 85);
+      --field: oklch(0.17 0.008 70);
+      --field-ink: oklch(0.94 0.008 80);
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas: oklch(0.21 0.008 70);
+    --surface: oklch(0.245 0.008 70);
+    --muted: oklch(0.225 0.008 70);
+    --border: oklch(0.295 0.008 70);
+    --border-soft: oklch(0.265 0.008 70);
+    --ink: #F8F4EC;
+    --ink-muted: oklch(0.74 0.008 70);
+    --ink-subtle: oklch(0.56 0.008 70);
+    --accent: oklch(0.74 0.14 38);
+    --accent-soft: oklch(0.32 0.04 38);
+    --accent-ink: oklch(0.86 0.09 45);
+    --ok: oklch(0.72 0.13 145);
+    --ok-soft: oklch(0.30 0.05 145);
+    --warn: oklch(0.78 0.14 80);
+    --warn-soft: oklch(0.32 0.06 85);
+    --field: oklch(0.17 0.008 70);
+    --field-ink: oklch(0.94 0.008 80);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 920px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.25; }
+  h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; font-weight: 600; padding-top: 12px; border-top: 2px solid var(--ink); }
+  h3 { font-size: 16px; font-weight: 600; }
+  p { margin: 0; max-width: 68ch; }
+  a { color: var(--accent-ink); }
+  .eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); font-family: var(--mono); }
+  .lede { color: var(--ink-muted); font-size: 16px; max-width: 64ch; }
+
+  header { display: grid; gap: 12px; margin-bottom: 40px; }
+  .toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+  .toc a { color: var(--ink-muted); text-decoration: none; border-bottom: 1px solid var(--border); }
+  .toc a:hover, .toc a:focus-visible { color: var(--accent-ink); border-color: var(--accent); outline: none; }
+
+  section { display: grid; gap: 18px; margin-bottom: 48px; }
+
+  /* metrics band: this section's numbers are the point */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+  .metric { background: var(--surface); padding: 16px 18px; display: grid; gap: 4px; }
+  .metric .n { font-family: var(--mono); font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .metric .l { font-size: 13px; color: var(--ink-muted); }
+  .metric .s { font-size: 12px; color: var(--ink-subtle); }
+  .metric.hero { background: var(--field); color: var(--field-ink); }
+  .metric.hero .l, .metric.hero .s { color: var(--field-ink); opacity: 0.75; }
+
+  .bars { display: grid; gap: 8px; font-size: 13px; }
+  .bar { display: grid; grid-template-columns: 120px 1fr 90px; align-items: center; gap: 12px; }
+  .bar .track { height: 14px; background: var(--muted); border: 1px solid var(--border-soft); position: relative; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+  .bar .fill.test { background: var(--ink-subtle); }
+  .bar .v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-muted); }
+
+  .note { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 10px 14px; font-size: 13px; max-width: none; }
+  .note b { font-weight: 600; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .scroll { overflow-x: auto; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; border-bottom: 1px solid var(--ink); }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .chip { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 8px; white-space: nowrap; vertical-align: middle; }
+  .chip.live { background: var(--ok-soft); color: var(--ok); }
+  .chip.lab { background: var(--accent-soft); color: var(--accent-ink); }
+  .chip.soon { background: var(--muted); color: var(--ink-muted); border: 1px solid var(--border); }
+
+  .entries { display: grid; gap: 14px; }
+  .entry { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; display: grid; gap: 8px; }
+  .entry .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .entry .route { font-family: var(--mono); font-size: 12px; color: var(--ink-subtle); }
+  .entry dl { display: grid; grid-template-columns: 64px 1fr; gap: 4px 14px; margin: 0; font-size: 14px; }
+  .entry dt { color: var(--ink-muted); font-size: 12px; padding-top: 3px; letter-spacing: 0.03em; }
+  .entry dd { margin: 0; }
+  .entry ul { margin: 0; padding-left: 18px; }
+  .entry li { margin: 0; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .plain { display: grid; gap: 6px; }
+  .plain b { font-weight: 600; }
+
+  @media (max-width: 600px) {
+    .bar { grid-template-columns: 90px 1fr 70px; }
+    .entry dl { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .toc a { transition: color .15s, border-color .15s; }
+  }
+</style>
+
+<div class="page">
+<header>
+  <div class="eyebrow">SKEWNONO v3 · 2026-09-03 · 임원 보고</div>
+  <h1>SKEWNONO v3 화면별 기능 요약</h1>
+  <p class="lede">CD-SEM 약 270대와 HV-SEM 약 50대, 합계 약 320대의 E-Beam 계측 장비의 운영 정보·Recipe·하드웨어 상태·측정 데이터를 한 서비스에서 관리하고 분석하는 플랫폼입니다.</p>
+  <nav class="toc">
+    <a href="#scale">개발 규모</a>
+    <a href="#map">화면 구성</a>
+    <a href="#ops">장비 운영</a>
+    <a href="#analysis">분석</a>
+    <a href="#lab">실험실</a>
+    <a href="#common">공통·관리</a>
+    <a href="#cross">횡단 특징</a>
+    <a href="#next">2027 확장</a>
+  </nav>
+</header>
+
+<section id="scale">
+  <h2>1. 개발 규모와 방식</h2>
+  <p>V2 는 약 5천 줄 규모의 CD-SEM 전용 서비스였습니다. V3 는 Vibe Coding 과 Harness Engineering(에이전트가 따를 규칙·테스트·검증 게이트를 먼저 설계하는 방식)으로 개발되어, 비전문 개발자 1인이 아래 규모의 코드베이스를 만들었습니다.</p>
+  <div class="metrics">
+    <div class="metric hero"><span class="n">207,329</span><span class="l">애플리케이션 코드 (줄)</span><span class="s">Python · Vue · TypeScript</span></div>
+    <div class="metric"><span class="n">8.5개월</span><span class="l">개발 기간</span><span class="s">2025-12-19 → 2026-09-03</span></div>
+    <div class="metric"><span class="n">2,274</span><span class="l">커밋</span><span class="s">개발자 1인</span></div>
+    <div class="metric"><span class="n">66,429</span><span class="l">자동 테스트 (줄)</span><span class="s">백엔드 약 3,600건</span></div>
+    <div class="metric"><span class="n">74,081</span><span class="l">문서 (줄, Markdown)</span><span class="s">설계 · 의사결정 · DB 스키마</span></div>
+  </div>
+  <div class="bars">
+    <div class="bar"><span>Python</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="v">106,519</span></div>
+    <div class="bar"><span>Vue</span><span class="track"><span class="fill" style="width:47%"></span></span><span class="v">50,088</span></div>
+    <div class="bar"><span>TypeScript</span><span class="track"><span class="fill" style="width:46%"></span></span><span class="v">48,882</span></div>
+    <div class="bar"><span>V2 전체 (참고)</span><span class="track"><span class="fill test" style="width:5%"></span></span><span class="v">약 5,000</span></div>
+  </div>
+  <p>전통적으로 개발자 1인이 6개월에 약 1만 줄을 작성한다는 통념과 비교하면 같은 기간 대비 10배 이상의 산출입니다. 줄 수 자체가 품질은 아니지만, 코드가 늘어난 만큼 테스트와 문서가 함께 늘어난 점이 이 방식의 특징입니다.</p>
+  <p class="note"><b>사실 확인 표기.</b> 기간·줄 수·커밋 수는 2026-09-03 git 저장소 실측값입니다 (외부 복제 모듈 제외). V2 "약 5천 줄"은 담당자 진술이며 별도 저장소라 재검증하지 않았습니다. "6개월 1만 줄"은 업계 통념으로 출처 검증 값이 아닙니다.</p>
+</section>
+
+<section id="map">
+  <h2>2. 화면 구성 개요</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>그룹</th><th>화면</th><th>상태</th></tr></thead>
+    <tbody>
+      <tr><td>장비 운영<br><span class="eyebrow">CD-SEM · HV-SEM 공통</span></td><td>장비 상태, 스토리지 용량, Recipe 현황, Recipe 검색(열어보기·횡전개·측정 이력·비교), H/W 관리</td><td><span class="chip live">운영</span></td></tr>
+      <tr><td>분석</td><td>스큐보아 검색·분석 워크스페이스, 디바이스 통계·비교·측정 규칙 (CD-SEM)</td><td><span class="chip live">운영</span></td></tr>
+      <tr><td>실험실 (BETA)</td><td>라이브 알람, 장비간 스큐(TTTM)·PM 튜닝, Mag/Pixel 가이드, 채팅(RAG)</td><td><span class="chip lab">실험실</span></td></tr>
+      <tr><td>공통 · 관리</td><td>대시보드, 미연결 장비, 앱 소개, API 리스트, 사용 통계, 세팅, 운영 로그, 접근 권한</td><td><span class="chip live">운영</span></td></tr>
+      <tr><td>준비중</td><td>VeritySEM · Provision 장비 리스트, AFM 4종, Thickness</td><td><span class="chip soon">2027 확장</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="ops">
+  <h2>3. 장비 운영 화면 <span class="chip live">CD-SEM · HV-SEM 공통</span></h2>
+  <div class="entries">
+
+    <article class="entry">
+      <div class="head"><h3>장비 상태</h3><span class="route">/ebeam/{tool}/{fab}</span></div>
+      <dl>
+        <dt>목적</dt><dd>스큐노노가 접근 가능한 장비가 무엇이고 몇 대가 살아 있는지 확인합니다.</dd>
+        <dt>기능</dt><dd><ul><li>장비 리스트 테이블, 장비 ID·모델·IP 통합 검색</li><li>가용성 통계 칩 클릭 필터, Excel 다운로드</li></ul></dd>
+        <dt>특징</dt><dd>1시간 주기 갱신. 통계 칩이 곧 필터라 클릭 한 번으로 문제 장비만 남깁니다.</dd>
+        <dt>데이터</dt><dd>사내 Redis (사내 실검증 완료)</dd>
+      </dl>
+    </article>
+
+    <article class="entry">
+      <div class="head"><h3>스토리지 용량</h3><span class="route">…/storage</span></div>
+      <dl>
+        <dt>목적</dt><dd>장비 디스크가 가득 차서 측정이 막히기 전에 잡습니다.</dd>
+        <dt>기능</dt><dd><ul><li>용량 테이블, 검색, 요약 통계, PPID 미가용 조회</li></ul></dd>
+        <dt>특징</dt><dd>매일 04:30 갱신. 장비 상태의 형제 탭으로 왕복합니다.</dd>
+        <dt>데이터</dt><dd>사내 Redis (사내 실검증 완료)</dd>
+      </dl>
+    </article>
+
+    <article class="entry">
+      <div class="head"><h3>Recipe 현황</h3><span class="route">…/recipe-status?tab=tat|align|meas</span></div>
+      <dl>
+        <dt>목적</dt><dd>Recipe 별 TAT 와 Align·측정 실패를 한 화면에서 봅니다.</dd>
+        <dt>기능</dt><dd><ul><li>TAT / Align 실패 / 측정 실패 3탭, 일별 추이 차트, 랭킹 테이블</li><li>장비 비교, "오늘 데이터" 포함 토글, Excel 다운로드</li></ul></dd>
+        <dt>특징</dt><dd>옛 Recipe TAT 와 Fail Issue 두 화면을 통합했습니다. 탭 전환 시 필터·테이블 상태가 보존되고 탭이 URL 에 실려 딥링크가 됩니다.</dd>
+        <dt>데이터</dt><dd>사내 OpenSearch 측정 이력 인덱스</dd>
+      </dl>
+    </article>
+
+    <article class="entry">
+      <div class="head"><h3>Recipe 검색</h3><span class="route">…/recipe-search</span></div>
+      <dl>
+        <dt>목적</dt><dd>이름 조각만 아는 Recipe 를 찾아 상세로 들어갑니다.</dd>
+        <dt>기능</dt><dd><ul><li>토큰화 검색과 랭킹, 최근 검색어, 다중 FAB 동시 검색</li><li>레지스트리 확인, 다중 선택 후 비교</li></ul></dd>
+        <dt>특징</dt><dd>레지스트리에 없는 Recipe 는 OpenSearch 대체 결과로 표시하고 비교 불가를 화면이 명시합니다.</dd>
+        <dt>데이터</dt><dd>장비 FTP (프록시 경유) + OpenSearch</dd>
+      </dl>
+    </article>
+
+    <article class="entry">
+      <div class="head"><h3>Recipe 열어보기 · 횡전개 · 측정 이력 · 비교</h3><span class="route">…/recipe-search/{open|lateral|meas-hist|compare}</span></div>
+      <dl>
+        <dt>기능</dt><dd><ul>
+          <li><b>열어보기</b>: Recipe 파일의 시퀀스·측정 위치·AMP 섹션을 펼치고 Align 이미지를 라이트박스로 봅니다. cond.txt 기반 십자선 오버레이가 기본 켜져 있고, 이미지와 설정을 묶어 다운로드합니다.</li>
+          <li><b>횡전개</b>: 같은 Recipe 가 어느 장비·FAB 에 어떤 버전으로 퍼져 있는지 버전별로 묶어 보여 줍니다.</li>
+          <li><b>측정 이력</b>: 그 Recipe 가 언제 어디서 얼마나 측정되었는지 테이블로 봅니다.</li>
+          <li><b>비교</b>: 고른 Recipe 들의 파라미터·측정 설정 차이를 나란히, 그리고 분포로 비교합니다.</li>
+        </ul></dd>
+        <dt>데이터</dt><dd>장비 FTP, 사내 이미지 캐시(MinIO), OpenSearch</dd>
+      </dl>
+    </article>
+
+    <article class="entry">
+      <div class="head"><h3>H/W 관리</h3><span class="route">…/hardware</span></div>
+      <dl>
+        <dt>목적</dt><dd>장비 하드웨어 지표가 정상 범위인지 서비스별로 점검합니다.</dd>
+        <dt>기능</dt><dd><ul><li>FDC · Sharpness · BM/PM · BSM · Reso Center · MDC · SCE 7개 섹션</li><li>모델 → 장비 2단 선택, 축 범위 조절, 장비 비교, BM/PM 표시 토글</li></ul></dd>
+        <dt>특징</dt><dd>섹션마다 사내 소스가 다릅니다. 레이더·추세·프로파일 차트를 혼합해 장비 간 편차 원인을 찾는 TTTM 개선 근거로 씁니다.</dd>
+        <dt>데이터</dt><dd>OpenSearch 하드웨어 인덱스 여러 종 + Redis · MinIO 보조</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="analysis">
+  <h2>4. 분석 화면</h2>
+  <div class="entries">
+    <article class="entry">
+      <div class="head"><h3>스큐보아 (검색 + 분석 워크스페이스)</h3><span class="route">/ebeam/{tool}/skewvoir, …/analysis</span></div>
+      <dl>
+        <dt>목적</dt><dd>분석할 측정 세트를 조건으로 찾아 여러 관점으로 파고들어 스큐 원인을 좁힙니다.</dd>
+        <dt>기능</dt><dd><ul><li>검색바 · 패싯 필터 · 날짜 범위, 선택 워크벤치</li><li>분석 6개 뷰: Dashboard · Position Stack · FDC · Time Series · Correlation · Gallery</li><li>웨이퍼 맵 · 히트맵 · 상관 산점도 · 이미지 라이트박스, Excel 내보내기</li></ul></dd>
+        <dt>특징</dt><dd>활성 뷰·축·기준선이 URL 에 실려 단축 링크로 공유됩니다. 보존 기간 밖 데이터와 결과 상한을 화면 스트립으로 항상 알립니다.</dd>
+        <dt>데이터</dt><dd>OpenSearch 측정 이력 + MinIO 측정 파일 + 장비 FTP 이미지</dd>
+      </dl>
+    </article>
+    <article class="entry">
+      <div class="head"><h3>디바이스 통계 · 디바이스 비교 · 측정 규칙</h3><span class="route">/ebeam/cd-sem/device-statistics …</span><span class="chip live">CD-SEM</span></div>
+      <dl>
+        <dt>목적</dt><dd>디바이스별 측정 활동이 합의된 계측 룰 대비 정상인지, 어느 lot 을 파봐야 하는지 판정합니다.</dd>
+        <dt>기능</dt><dd><ul><li>FAB 선택, 디바이스 그룹·측정 활동 랭킹, Top-N, 테이블·카드 뷰</li><li>다중 선택 후 비교: lot 상세 모달 · 규칙 준수 테이블 · 스택 막대</li><li>Excel 다운로드와 클립보드 복사, 측정 규칙 매트릭스 열람</li></ul></dd>
+        <dt>특징</dt><dd><b>lot health 신호등.</b> 파라미터 종류(WAFER/LEVEL/EDGE/EDGE_EX)별 상한으로 위반 recipe 비율을 계산해 빨강·노랑·초록으로 표시합니다. 룰이 없는 M 계열 FAB 은 회색으로 두어 "색 없음"을 "정상"과 구분합니다.</dd>
+        <dt>데이터</dt><dd>Redis + FTP + MinIO (다섯 함수 모두 사내 소스 대상 작성 완료)</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="lab">
+  <h2>5. 실험실 <span class="chip lab">BETA</span></h2>
+  <div class="entries">
+    <article class="entry">
+      <div class="head"><h3>라이브 알람</h3><span class="route">…/live-alarm</span></div>
+      <dl>
+        <dt>목적</dt><dd>지금 이 순간 Align 실패·측정 실패가 어디서 나는지 봅니다.</dd>
+        <dt>기능</dt><dd><ul><li>최근 20분 알람 피드, 종류 필터, 신규 도착 행 강조</li><li>미확인 카운트를 브라우저 탭 제목에 표시, Align 이미지 모달(십자선 포함)</li></ul></dd>
+        <dt>특징</dt><dd>15초 폴링에 지터를 두어 여러 탭이 동시에 요청하지 않게 합니다.</dd>
+        <dt>데이터</dt><dd>사내 Redis</dd>
+      </dl>
+    </article>
+    <article class="entry">
+      <div class="head"><h3>장비간 스큐 (TTTM) · PM 튜닝</h3><span class="route">/ebeam/cd-sem/{fab}/tttm</span></div>
+      <dl>
+        <dt>목적</dt><dd>같은 셀을 측정하는 장비 중 어느 조합이 서로 잘 맞는지 추천하고, 어느 장비를 PM 으로 맞출지 정합니다.</dd>
+        <dt>기능</dt><dd><ul><li>Recipe 스코프 선택, 모델 그룹별 비교 장비 선택, 수집 기간</li><li>분석 패널 5종: 그룹 판정 · 배치도 · 장비쌍 행렬 · 추세 · PM 튜닝</li></ul></dd>
+        <dt>특징</dt><dd>tolerance 슬라이더로 판정 민감도를 nm 와 배수로 동시에 조정합니다. 한 번의 요청으로 모든 패널을 계산합니다. 추정기가 아직 미검증이라 실험실에 둡니다.</dd>
+        <dt>데이터</dt><dd>Redis · MinIO · FTP + OpenSearch</dd>
+      </dl>
+    </article>
+    <div class="grid2">
+      <article class="entry">
+        <div class="head"><h3>Mag/Pixel 가이드</h3><span class="route">/mag-pixel</span></div>
+        <dl>
+          <dt>목적</dt><dd>패턴이 시야(FOV) 안에 들어오는 한도에서 쓸 수 있는 최대 배율·픽셀 조합을 계산합니다.</dd>
+          <dt>특징</dt><dd>서버 호출 없는 순수 계산기. 첫 화면에 예시값이 채워져 있습니다.</dd>
+        </dl>
+      </article>
+      <article class="entry">
+        <div class="head"><h3>채팅 (RAG)</h3><span class="route">/chat</span></div>
+        <dl>
+          <dt>목적</dt><dd>스큐노노가 가진 데이터와 사내 문서에 대해 자연어로 묻습니다.</dd>
+          <dt>특징</dt><dd>답변 생성을 서버 작업으로 다루어 새로고침해도 진행 중 답변을 이어받습니다. 한국어·영어를 한 요청에서 함께 검색합니다.</dd>
+          <dt>데이터</dt><dd>OpenSearch + MinIO RAG 저장소, 사내 LLM 게이트웨이</dd>
+        </dl>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="common">
+  <h2>6. 공통 · 관리 화면</h2>
+  <div class="scroll"><table>
+    <thead><tr><th style="width:150px">화면</th><th>목적과 특징</th></tr></thead>
+    <tbody>
+      <tr><td>대시보드 <span class="route">/</span></td><td>계열·FAB 선택 진입점. 계열별 장비 대수와 시스템 상태, 미연결 장비 이동. 데이터 반출 금지 경고를 이 한 곳에 둡니다.</td></tr>
+      <tr><td>미연결 장비</td><td>전사 장비 명부 중 아직 연결하지 못한 장비 목록과 다운로드.</td></tr>
+      <tr><td>앱 소개</td><td>화면별 가이드와 앱 연혁을 담은 문서형 화면.</td></tr>
+      <tr><td>API 리스트</td><td>외부에서 직접 호출할 수 있는 API 카탈로그. curl · python 예제 자동 생성, 토큰 발급 안내.</td></tr>
+      <tr><td>사용 통계</td><td>누가 어떤 기능을 얼마나 쓰는지, 내 신원이 무엇으로 잡혔는지. 페이지 열람 비콘을 여기서 집계합니다.</td></tr>
+      <tr><td>세팅</td><td>다크·라이트 모드, 기본 FAB, 차트 테마, API 토큰 발급·삭제.</td></tr>
+      <tr><td>사용자 확인</td><td>인프라가 이름을 못 붙인 접속자의 사번·이름 입력. 로그인이 아닌 신고 신원이며 미검증 배지가 붙습니다.</td></tr>
+      <tr><td>단축 링크</td><td>메신저·보고서에 붙은 짧은 코드를 분석 화면으로 되돌립니다.</td></tr>
+      <tr><td>운영 로그 <span class="chip soon">관리자</span></td><td>실패한 요청 추적. 레벨·건수 필터.</td></tr>
+      <tr><td>접근 권한 <span class="chip soon">관리자</span></td><td>X 로 시작하는 차단 사번의 예외 허용 관리와 차단 시도 목록.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="cross">
+  <h2>7. 횡단 특징</h2>
+  <div class="plain">
+    <p><b>FAB 선택</b>은 대시보드와 좌측 사이드바가 같은 상태를 쓰고, 마지막 선택을 기억해 계열 루트로 들어오면 바로 이전 FAB 으로 갑니다. 다중 FAB 선택이 기능 탭 이동에도 유지됩니다.</p>
+    <p><b>신원</b>은 사내 세션 쿠키가 정본이며 토큰 → 쿠키 → 신고 → 로컬 → 익명 순으로 결정됩니다.</p>
+    <p><b>공지 배너</b>가 모든 화면 상단에 뜨고, <b>표 다운로드</b>는 하나의 공용 Excel 내보내기로 통일되어 있습니다.</p>
+    <p><b>사내 전환</b>은 기능별 office 어댑터 파일의 존재만으로 켜지며, 코드 변경 없이 설정만으로 mock → 사내 localhost → 사내 클라우드를 오갑니다.</p>
+  </div>
+</section>
+
+<section id="next">
+  <h2>8. 2027 확장</h2>
+  <p>VeritySEM 과 Provision 장비 리스트 화면은 자리표시자로 이미 라우팅되어 있고, AFM 4개 화면(장비 선택 · 측정 검색 · 측정 상세 · 시계열 비교)은 플래그로 숨겨진 채 코드가 준비되어 있습니다. Thickness 는 안내 화면만 있습니다. 장기적으로는 조회·시각화를 넘어 분석 전문 AI Agent 로 발전시키는 것이 목표입니다.</p>
+</section>
+</div>
