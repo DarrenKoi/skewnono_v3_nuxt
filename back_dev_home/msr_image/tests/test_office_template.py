@@ -265,3 +265,53 @@ def test_fetch_image_tool_down_raises_source_unavailable(monkeypatch):
         office.fetch_image(
             ImageLocator("10.0.0.1", "ADI", "MSR_1", "shot01.jpeg"), _config=office._test_config()
         )
+
+
+def test_the_transport_label_names_the_downloader_that_actually_loaded():
+    """The label has to be derived from the same branch the import took, not
+    asserted alongside it.
+
+    This is the check that fails if someone pins the proxy import by hand — an
+    ``office.py`` is a gitignored copy, so an edit like that reaches the cloud
+    with nothing in the repo to compare it against. Note it cannot be written
+    against ``HostSpec`` or ``ListDir``: ``proxy_downloader`` re-exports those
+    FROM ``direct_downloader``, so they are the same class object under either
+    import and would report "direct" even through the proxy. The downloader is
+    the only name that differs.
+    """
+    loaded = office.FtpFleetDownloader.__module__
+    if office._VIA_PROXY:
+        assert loaded == "ftp_handler.proxy.proxy_downloader"
+        assert office._TRANSPORT == "proxy (Windows)"
+    else:
+        assert loaded == "ftp_handler.direct_downloader.fleet_downloader"
+        assert office._TRANSPORT == "direct"
+
+
+def test_a_dead_tool_names_the_transport_in_the_error(monkeypatch):
+    """A transport question gets asked when a fetch fails, so the failure is
+    where the answer has to be. Without it a proxy-serving Phase 3 host reads
+    identically to a correctly-direct one."""
+    import re
+
+    import pytest
+
+    from back_dev_home.msr_image.errors import SourceUnavailable
+
+    class DeadFleet(FakeFleet):
+        def download(self, specs, *, on_file=None):
+            return SimpleNamespace(
+                files=[],
+                failures=[SimpleNamespace(
+                    host=specs[0].host,
+                    remote_path=None,
+                    error="TimeoutError: connection timed out",
+                )],
+            )
+
+    monkeypatch.setattr(office, "FtpFleetDownloader", DeadFleet)
+    with pytest.raises(SourceUnavailable, match=re.escape(office._TRANSPORT)):
+        office.fetch_image(
+            ImageLocator("10.0.0.1", "ADI", "MSR_1", "shot01.jpeg"),
+            _config=office._test_config(),
+        )

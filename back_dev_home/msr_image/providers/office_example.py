@@ -10,9 +10,12 @@ Transport is platform-selected at import time. The office local PC (Windows)
 cannot open FTP connections to tools directly — every call must go through the
 HTTP proxy on a firewall-free host. The cloud deploy (Linux) downloads directly.
 Both classes expose the same surface and share the same dataclasses, so only
-the import line differs.
+the import line differs. Which half ran is logged at import (``_TRANSPORT``)
+and named in every failure message -- the dataclasses are the SAME objects
+under both imports, so inspecting HostSpec or ListDir cannot tell them apart.
 """
 
+import logging
 from collections.abc import Callable
 from pathlib import PurePosixPath
 from platform import system
@@ -80,6 +83,24 @@ _SECONDS_PER_IMAGE = 0.4
 _PROXY_HOST_TIMEOUT_CAP = 60.0
 _VIA_PROXY = system() == "Windows"
 
+# The transport this process actually loaded, named so a log line can say it.
+# Nothing at runtime can change it -- there is no env override and the branch
+# above ran at import -- so the ONLY way to know which half of that branch a
+# host took is for the adapter to report it. recipe_search already does (its
+# _Transport.label); without this msr_image was the silent half, and a Phase 3
+# host wrongly running the proxy looked exactly like one correctly running
+# direct.
+_TRANSPORT = "proxy (Windows)" if _VIA_PROXY else "direct"
+
+_LOG = logging.getLogger(__name__)
+
+# At import, not per call: this is a property of the HOST, fixed for the life
+# of the process, and stating it once costs nothing on a busy gallery fan-out.
+# It lands the moment data.py first resolves the office provider, so the
+# evidence exists before any FTP is attempted -- which is the case that needed
+# it, since a transport question is usually asked when nothing works.
+_LOG.info("msr_image: FTP transport = %s (%s)", _TRANSPORT, system())
+
 
 def _host_timeout(cfg: ImageConfig, images_per_connection: int = 1) -> float:
     """How long one connection may run before the fleet gives up on it.
@@ -128,7 +149,9 @@ def list_images(eqp_ip, class_name, msr, _config: ImageConfig | None = None) -> 
         [HostSpec(eqp_ip, listings=[ListDir(directory)], **account(eqp_ip))]
     )
     if report.failures:  # dead host, auth, or the one listing dir failed
-        raise SourceUnavailable(f"tool listing failed: {report.failures[0].error}")
+        raise SourceUnavailable(
+            f"tool listing failed via {_TRANSPORT}: {report.failures[0].error}"
+        )
     # Listing paths are FULL remote paths (ftp_handler normalizes NLST output
     # to paths RETR accepts). The contract here is BASENAMES — the frontend
     # sends the basename back as `name`, and fetch_image rebuilds the full
@@ -177,7 +200,7 @@ def fetch_image(locator: ImageLocator, _config: ImageConfig | None = None) -> Fe
         # from the tool surfaces as "error_perm: ..." -> the file is not there.
         if err.startswith("error_perm"):
             raise ImageNotFound(f"image not found: {locator.name}")
-        raise SourceUnavailable(f"tool fetch failed: {err}")
+        raise SourceUnavailable(f"tool fetch failed via {_TRANSPORT}: {err}")
     cond_bytes = data.get(cond_path(img))
     cond = cond_bytes.decode("utf-8", errors="replace") if cond_bytes is not None else None
     return FetchedImage(data[img], _content_type(locator.name), cond)
@@ -250,7 +273,11 @@ def download_all(eqp_ip, class_name, msr, names, on_file: OnFile, concurrency=6,
         if img in done:
             continue
         err = errors.get(img)
-        on_file(name, None, err or f"connection failed: {host_error or 'unknown'}")
+        on_file(
+            name,
+            None,
+            err or f"connection failed via {_TRANSPORT}: {host_error or 'unknown'}",
+        )
 
 
 if __name__ == "__main__":
