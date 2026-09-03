@@ -42,6 +42,7 @@ still serves everything except ``preview=1``.
 import logging
 from io import BytesIO
 
+from back_dev_home._core.cond_cursor import cursor_info_from_cond
 from back_dev_home.msr_image.contracts import FetchedImage
 
 _LOG = logging.getLogger(__name__)
@@ -88,6 +89,88 @@ def _tiff_to_webp(data: bytes) -> bytes:
         out = BytesIO()
         im.save(out, "WEBP", quality=_WEBP_QUALITY)
         return out.getvalue()
+
+
+# Half-width of the band erased around each crosshair line, in px of the
+# decoded image. The tool draws a ~1 px core plus JPEG halo; 2 covers both
+# without smearing texture (docs/align-crosshair, dilate=1 was optimal there).
+_CLEAN_HALF_BAND = 2
+
+
+def _erase_lines(arr, cx: int, cy: int, half: int = _CLEAN_HALF_BAND):
+    """Replace the column band at ``cx`` and the row band at ``cy`` with a
+    linear blend of the pixels just outside the band. ``arr`` is (H, W[, C]).
+
+    ponytail: linear interpolation across a 5 px band, not inpainting. Fine
+    for a hairline on a micrograph; switch to cv2.inpaint if a real image
+    shows a visible seam.
+    """
+    import numpy as np
+
+    h, w = arr.shape[:2]
+    out = arr.astype("float64")
+    for axis, centre, size in ((1, cx, w), (0, cy, h)):
+        lo, hi = centre - half, centre + half  # inclusive band
+        left, right = max(lo - 1, 0), min(hi + 1, size - 1)
+        if left >= lo or right <= hi:
+            continue  # band touches the border: nothing to blend from
+        a = np.take(out, left, axis=axis)
+        b = np.take(out, right, axis=axis)
+        for i in range(lo, hi + 1):
+            t = (i - left) / (right - left)
+            sl = [slice(None)] * out.ndim
+            sl[axis] = i
+            out[tuple(sl)] = a * (1 - t) + b * t
+    return np.clip(out, 0, 255).astype("uint8")
+
+
+def _clean_crosshair(data: bytes, cond: str) -> bytes | None:
+    """``data`` with the cond-declared crosshair erased, or None when there is
+    no crosshair to erase (or the bytes are not a raster Pillow can open)."""
+    info = cursor_info_from_cond(cond)
+    if info is None or info.crosshair is None:
+        return None
+    from PIL import Image  # lazy — see module docstring
+
+    import numpy as np
+
+    with Image.open(BytesIO(data)) as im:
+        im.load()
+        if im.mode not in ("L", "RGB"):
+            im = im.convert("RGB")
+        w, h = im.size
+        # Fractions of the frame, so a resized copy still lands on the line.
+        cx, cy = round(info.crosshair[0] * w), round(info.crosshair[1] * h)
+        arr = _erase_lines(np.asarray(im), cx, cy)
+        out = BytesIO()
+        Image.fromarray(arr, im.mode).save(out, "WEBP", quality=_WEBP_QUALITY)
+        return out.getvalue()
+
+
+def wants_clean(raw: str | None) -> bool:
+    """``?clean=1`` — serve the image with the tool-drawn crosshair erased."""
+    return wants_preview(raw)
+
+
+def to_clean(fetched: FetchedImage) -> FetchedImage:
+    """The rendition with the crosshair erased, when the cond sidecar locates
+    one. Apply AFTER ``to_preview`` so a TIFF original has already become a
+    raster Pillow decodes cheaply. Unchanged (never raises) when the sidecar
+    names no crosshair, or the bytes are not a raster (the mock's SVG).
+
+    Computed per request rather than cached: the source is already the cached
+    rendition, and the transform is a numpy blend of ten rows and columns.
+    """
+    if fetched.cond is None:
+        return fetched
+    try:
+        cleaned = _clean_crosshair(fetched.data, fetched.cond)
+    except Exception as exc:  # noqa: BLE001 — degrade to the original bytes
+        _LOG.warning("msr_image: crosshair clean failed (%s) — serving original", exc)
+        return fetched
+    if cleaned is None:
+        return fetched
+    return FetchedImage(cleaned, "image/webp", fetched.cond)
 
 
 def wants_preview(raw: str | None) -> bool:

@@ -16,8 +16,14 @@
             :alt="`${data.stage} (${data.name})`"
             decoding="async"
             class="h-full w-full object-contain"
+            @load="onLoad"
             @error="failed = true"
           >
+          <EbeamRecipeOpenCondMarks
+            v-if="!failed && showMarks"
+            :rows="data.cond?.rows"
+            :natural="natural"
+          />
           <div
             v-else
             class="px-6 text-center font-mono text-[12px] text-white/45"
@@ -35,17 +41,34 @@
           </div>
           <!-- Overriding #content drops UModal's own ✕, so carry one here.
                Over the image, not the dialog corner, which holds 빔 조건. -->
-          <button
-            type="button"
-            class="absolute top-3 right-3 rounded-(--sk-r-nav) bg-black/50 p-1.5 text-white transition-colors duration-200 hover:bg-black/70"
-            aria-label="닫기"
-            @click="open = false"
-          >
-            <UIcon
-              name="i-lucide-x"
-              class="h-4 w-4"
-            />
-          </button>
+          <div class="absolute top-3 right-3 flex items-center gap-1.5">
+            <button
+              v-if="hasMarks"
+              type="button"
+              class="rounded-(--sk-r-nav) p-1.5 text-white transition-colors duration-200"
+              :class="showMarks ? 'bg-(--sk-ok)/80 hover:bg-(--sk-ok)' : 'bg-black/50 hover:bg-black/70'"
+              :aria-pressed="showMarks"
+              aria-label="측정점 십자선 표시"
+              title="측정점 십자선 표시 (cond.txt)"
+              @click="showMarks = !showMarks"
+            >
+              <UIcon
+                name="i-lucide-crosshair"
+                class="h-4 w-4"
+              />
+            </button>
+            <button
+              type="button"
+              class="rounded-(--sk-r-nav) bg-black/50 p-1.5 text-white transition-colors duration-200 hover:bg-black/70"
+              aria-label="닫기"
+              @click="open = false"
+            >
+              <UIcon
+                name="i-lucide-x"
+                class="h-4 w-4"
+              />
+            </button>
+          </div>
         </div>
 
         <div class="max-h-[88vh] overflow-auto rounded-xl bg-zinc-50/60 px-4 py-3 dark:bg-zinc-900/40">
@@ -91,6 +114,7 @@
  * `.{name}/cond.txt` sidecar.
  */
 import type { SettingBlock } from '~/composables/useRecipeParamDetail'
+import { condMarks } from '~/utils/condCrosshair'
 import { formatSettingValue, type SlotRole } from '~/utils/recipeView'
 
 export interface LightboxData {
@@ -111,8 +135,19 @@ const props = defineProps<{
 
 const isMeas = computed(() => props.data?.role === 'measure')
 
+// The tool's crosshair / white box from the image's cond.txt. The toggle only
+// appears when the sidecar actually locates a mark.
+const showMarks = useCondCrosshair()
+const hasMarks = computed(() => condMarks(props.data?.cond?.rows) !== null)
+
 const failed = ref(false)
+const natural = ref<[number, number] | null>(null)
+const onLoad = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  natural.value = [img.naturalWidth, img.naturalHeight]
+}
 watch(() => props.data?.src, () => {
   failed.value = false
+  natural.value = null
 })
 </script>

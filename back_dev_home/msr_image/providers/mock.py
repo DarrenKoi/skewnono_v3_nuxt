@@ -96,8 +96,19 @@ def _svg(locator: ImageLocator) -> bytes:
 
 
 def _cond(locator: ImageLocator) -> str:
+    """A cond.txt body. The first three lines are placeholders; the last two
+    are the REAL keys the crosshair cleaner reads (user-confirmed 2026-09-03,
+    _core/cond_cursor.py): ``Pixel`` and a ``!Cursor_info`` whose [4],[5] put
+    the crosshair near the frame centre, in a Pixel x 10 frame. OFFICE-VERIFY
+    that measurement sidecars carry the line as the align ones do. The bytes
+    are an SVG, so ``?clean=1`` is a no-op at home — the parse path runs, the
+    erase does not."""
     s = _seed(locator.name)
-    return f"mag={30000 + s % 40000}\nvac={0.5 + (s % 5) / 10:.1f}\npixel={2 + s % 6}nm"
+    cx, cy = 2560 + s % 400 - 200, 2560 + (s // 7) % 400 - 200
+    return (
+        f"mag={30000 + s % 40000}\nvac={0.5 + (s % 5) / 10:.1f}\npixel={2 + s % 6}nm\n"
+        f"Pixel\t512,512\n!Cursor_info\t0,0,0,0,{cx},{cy},-1,-1,-1,-1"
+    )
 
 
 def fetch_image(locator: ImageLocator) -> FetchedImage:

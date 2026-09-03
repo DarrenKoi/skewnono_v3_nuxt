@@ -167,6 +167,7 @@ from typing import Any, NamedTuple
 
 import pandas as pd
 
+from back_dev_home._core.cond_cursor import cursor_value
 from back_dev_home._runtime.office_redis import redis_client as _redis_client
 from back_dev_home.ebeam._office_search import fetch_hits, query, ttl_cache
 from back_dev_home.ebeam.recipe_search import rawfiles
@@ -1521,7 +1522,27 @@ def _read_block(
             exc_info=True,
         )
         return None
-    return {"source": source_name, "rows": _to_rows(parsed)}
+    rows = _to_rows(parsed)
+    if source_name.endswith("cond.txt"):
+        rows = _with_cursor_row(rows, payload)
+    return {"source": source_name, "rows": rows}
+
+
+def _with_cursor_row(rows: list[SettingRow], payload: bytes) -> list[SettingRow]:
+    """Keep the ``!Cursor_info`` line even if the vendor reader dropped it.
+
+    The screen draws the tool's crosshair / white box from that line (see
+    _core/cond_cursor.py). The 2026-07-30 probe of ``read_*_image_condition``
+    listed no ``!``-prefixed key at all, so whether the reader passes the line
+    through is OFFICE-VERIFY; reading it off the raw bytes here makes the row
+    reach the browser either way, verbatim, and never twice.
+    """
+    if any(row["key"].lstrip("!").lower().startswith("cursor_inf") for row in rows):
+        return rows
+    value = cursor_value(payload.decode("utf-8", errors="replace"))
+    if value is None:
+        return rows
+    return [*rows, {"key": "!Cursor_info", "value": value}]
 
 
 def _locator_key(locator: IdpLocator) -> tuple[str, str, str, str]:

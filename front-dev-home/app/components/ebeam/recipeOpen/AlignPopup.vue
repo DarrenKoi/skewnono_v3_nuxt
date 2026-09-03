@@ -110,7 +110,13 @@
             :alt="`P.No ${zoom.P_No} 정렬 이미지`"
             decoding="async"
             class="h-full w-full object-contain"
+            @load="onZoomLoad"
           >
+          <EbeamRecipeOpenCondMarks
+            v-if="zoom.image && showMarks"
+            :rows="zoom.cond?.rows"
+            :natural="zoomNatural"
+          />
           <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
             <span class="rounded bg-(--sk-ink) px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)">
               P.No {{ zoom.P_No }}
@@ -119,17 +125,34 @@
           </div>
           <!-- Over the image, not the dialog corner: the corner is occupied by
                the 빔 조건 panel heading. -->
-          <button
-            type="button"
-            class="absolute top-3 right-3 rounded-(--sk-r-nav) bg-black/50 p-1.5 text-white transition-colors duration-200 hover:bg-black/70"
-            aria-label="닫기"
-            @click="zoom = null"
-          >
-            <UIcon
-              name="i-lucide-x"
-              class="h-4 w-4"
-            />
-          </button>
+          <div class="absolute top-3 right-3 flex items-center gap-1.5">
+            <button
+              v-if="condMarks(zoom.cond?.rows)"
+              type="button"
+              class="rounded-(--sk-r-nav) p-1.5 text-white transition-colors duration-200"
+              :class="showMarks ? 'bg-(--sk-ok)/80 hover:bg-(--sk-ok)' : 'bg-black/50 hover:bg-black/70'"
+              :aria-pressed="showMarks"
+              aria-label="정렬점 십자선 표시"
+              title="정렬점 십자선 표시 (cond.txt)"
+              @click="showMarks = !showMarks"
+            >
+              <UIcon
+                name="i-lucide-crosshair"
+                class="h-4 w-4"
+              />
+            </button>
+            <button
+              type="button"
+              class="rounded-(--sk-r-nav) bg-black/50 p-1.5 text-white transition-colors duration-200 hover:bg-black/70"
+              aria-label="닫기"
+              @click="zoom = null"
+            >
+              <UIcon
+                name="i-lucide-x"
+                class="h-4 w-4"
+              />
+            </button>
+          </div>
         </div>
 
         <div class="max-h-[88vh] space-y-3 overflow-auto">
@@ -159,6 +182,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { IdpLocator, WaferAlignInfoRow } from '~/composables/useRecipeSearchApi'
 import { fetchAlignDetail, recipeApiBase, recipeImageUrl } from '~/composables/useRecipeParamDetail'
 import type { AlignPoint } from '~/composables/useRecipeParamDetail'
+import { condMarks } from '~/utils/condCrosshair'
 import { formatFixed, recipeTableUi } from '~/utils/recipeView'
 
 type AlignDisplayRow = {
@@ -179,6 +203,16 @@ const props = defineProps<{
 }>()
 
 const zoom = ref<AlignPoint | null>(null)
+// The tool's crosshair / white box over the zoomed image, from its cond.txt.
+const showMarks = useCondCrosshair()
+const zoomNatural = ref<[number, number] | null>(null)
+const onZoomLoad = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  zoomNatural.value = [img.naturalWidth, img.naturalHeight]
+}
+watch(zoom, () => {
+  zoomNatural.value = null
+})
 const points = ref<AlignPoint[]>([])
 const pending = ref(false)
 const error = ref(false)

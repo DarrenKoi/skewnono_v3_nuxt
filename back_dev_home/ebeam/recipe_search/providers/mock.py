@@ -487,6 +487,7 @@ _COND_KEYS_SEM: tuple[str, ...] = (
     "Scan",
     "Pixel",
     "Filter",
+    "!Cursor_info",
 )
 
 # P.No 1 — the optical microscope. Five keys, in the order the file lists them.
@@ -496,6 +497,7 @@ _COND_KEYS_OM: tuple[str, ...] = (
     "Wafer_coordinate",
     "Field_Size",
     "Pixel",
+    "!Cursor_info",
 )
 
 # Field size and magnification are ONE setting seen twice: the sample read at
@@ -526,6 +528,17 @@ _FOV_MAG_PRODUCT = 134_970.0
 # distribution.
 _OM_MAGNIFICATIONS: tuple[int, ...] = (70, 104, 140, 200)
 
+# ``!Cursor_info`` — where the tool put its marks (user-confirmed 2026-09-03,
+# from the auto_recipe_creator align work; rules in _core/cond_cursor.py).
+# Ten comma-separated ints in a Pixel x 10 frame: [4],[5] the crosshair,
+# [6..9] the white box, -1 for an absent mark. The recipe image is the
+# registered align KEY, so the box is always drawn; the crosshair is left
+# out on one image in six so the no-mark path stays exercised at home.
+# OFFICE-VERIFY: what [0..3] carry, the real token count, and whether the
+# line is present on the measurement (.IMMP / .IMMS) sidecars too. The key
+# is listed LAST because its position in the file was not recorded.
+_NO_CROSSHAIR_ONE_IN = 6
+
 
 def _um_pair(x: float, y: float) -> str:
     """'9737 um, 14710 um' — per-component unit, ', ' separator (office 확인)."""
@@ -553,6 +566,18 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
         else rng.choice((20_000, 30_000, 50_000, 100_000, 150_000))
     )
     side = _FOV_MAG_PRODUCT / magnification
+    pixel = rng.choice((512, 1024))
+    frame = pixel * 10
+    # Crosshair near the middle (an align key sits close to the frame centre),
+    # box a 20-40 %-wide square around it.
+    cx, cy = (rng.randrange(int(frame * 0.35), int(frame * 0.65)) for _ in range(2))
+    half = rng.randrange(frame // 10, frame // 5)
+    if rng.randrange(_NO_CROSSHAIR_ONE_IN) == 0:
+        cx = cy = -1
+    cursor = (0, 0, 0, 0, cx, cy, max(0, cx - half) if cx >= 0 else frame // 4,
+              max(0, cy - half) if cy >= 0 else frame // 4,
+              min(frame - 1, cx + half) if cx >= 0 else frame * 3 // 4,
+              min(frame - 1, cy + half) if cy >= 0 else frame * 3 // 4)
     return {
         "Accelerating_voltage": f"{rng.choice((300, 500, 800))} V",
         "Probe_current": f"{rng.choice((4.0, 8.0, 16.0)):.1f} pA",
@@ -572,8 +597,9 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
         "Field_Size": "" if om else f"{side:.3f} um, {side:.3f} um",
         "Optics": "High Reso.",
         "Scan": "TV",
-        "Pixel": rng.choice(("512,512", "1024,1024")),
+        "Pixel": f"{pixel},{pixel}",
         "Filter": "OFF",
+        "!Cursor_info": ",".join(str(v) for v in cursor),
     }
 
 

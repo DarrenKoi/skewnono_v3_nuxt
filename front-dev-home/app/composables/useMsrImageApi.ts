@@ -26,7 +26,7 @@ export const useMsrImageApi = () => {
     opts?: ImagePreviewOptions
   ) =>
     `${joinApiPath(base, '/msr-image')}?${q(eqp_ip, class_name, msr)}`
-    + `&name=${encodeURIComponent(name)}${opts?.preview ? '&preview=1' : ''}`
+    + `&name=${encodeURIComponent(name)}${opts?.preview ? '&preview=1' : ''}${opts?.clean ? '&clean=1' : ''}`
 
   const fetchImageWithCond = async (
     eqp_ip: string, class_name: string, msr: string, name: string,

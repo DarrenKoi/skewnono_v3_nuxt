@@ -145,6 +145,25 @@
           @error="loadFailed = true"
         />
         <div class="absolute top-2 right-2 flex items-center gap-1.5">
+          <!-- Erase the crosshair the tool drew onto the micrograph, so the
+               structure under it can be read. Server-side, from the image's
+               cond.txt; a no-op when the sidecar locates none. -->
+          <button
+            type="button"
+            class="rounded-(--sk-r-sidebar) border p-1.5 shadow-sm backdrop-blur-sm transition-colors duration-200"
+            :class="hideCrosshair
+              ? 'border-(--sk-ink) bg-(--sk-ink) text-(--sk-ink-fg)'
+              : 'border-(--sk-border) bg-(--sk-surface)/90 text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+            :aria-pressed="hideCrosshair"
+            aria-label="십자선 지우기"
+            title="장비가 그린 십자선 지우기"
+            @click="hideCrosshair = !hideCrosshair"
+          >
+            <UIcon
+              name="i-lucide-crosshair"
+              class="h-4 w-4"
+            />
+          </button>
           <a
             v-if="isTiffName(measuredName)"
             :href="resolveImageUrl(measuredName)!"
@@ -240,8 +259,24 @@ const resolveImageUrl = (name: string): string | null => {
 // untouched original for the 원본 다운로드 link.
 const displayImageUrl = (name: string): string | null => {
   const ctx = focusCtx.value
-  return ctx.eqp_ip ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name, { preview: true }) : null
+  return ctx.eqp_ip
+    ? imageUrl(ctx.eqp_ip, ctx.class_name, ctx.msr, name, { preview: true, clean: hideCrosshair.value })
+    : null
 }
+
+// Whether the micrograph is served with the tool-drawn crosshair erased
+// (?clean=1). A reviewer preference like displayMode: it follows the reviewer
+// across points and reloads. Off by default — the crosshair is what the tool
+// measured, and erasing it is the exception a reviewer asks for.
+const hideCrosshair = usePersistedState<boolean>(
+  'skewvoir-sem-image-clean',
+  'skewnono:skewvoir:sem-image-clean',
+  {
+    default: () => false,
+    normalize: parsed => parsed === true,
+    isEmpty: value => value === false
+  }
+)
 
 // The micrograph's row for the active parameter. With a focused point, ONLY
 // that point qualifies — a focused point with a failed/missing image shows

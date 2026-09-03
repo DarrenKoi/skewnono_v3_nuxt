@@ -759,6 +759,37 @@ OM 의 값은 **recipe 마다 달라집니다** (user-confirmed 2026-07-30). 그
 `Optics` · `Scan` · `Filter` 는 여전히 확인된 한 값만 내보냅니다 — 이쪽은 변한다는
 확인이 없기 때문입니다.
 
+`!Cursor_info` — 장비가 그린 마크의 위치 (user-confirmed 2026-09-03)
+------------------------------------------------------------------
+
+위 12개 표는 2026-07-30 probe 가 reader 를 통해 본 key 들이고, `!` 로 시작하는
+key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 줄이 더 있습니다
+(auto_recipe_creator 의 align 작업에서 실데이터로 확인, `poc/workflow_3/align`):
+
+  | key | 예시 | 뜻 |
+  | --- | --- | --- |
+  | !Cursor_info | `0,0,0,0,2097,2561,1600,1600,3520,3520` | 십자선·white box 좌표 |
+
+  - 값은 콤마로 구분한 정수열입니다. 0-base 인덱스로 **[4],[5] 가 십자선 (cx, cy)**,
+    **[6..9] 가 white box (left, top, right, bottom)** 입니다. `-1` 은 "없음" —
+    [4],[5] 가 -1 이면 장비가 십자선을 그리지 않은 것이고, 실패한 align 이미지는
+    흔히 그렇습니다. [0..3] 의 뜻은 OFFICE-VERIFY 입니다.
+  - 좌표계는 이미지 px 가 **아닙니다**. `Pixel` 의 **10배 oversample 프레임**입니다.
+    `Pixel 512,512` 이면 프레임은 5120x5120 이고 `2097,2561` 은 512-px 이미지 위의
+    `(209.7, 256.1)` 입니다. 1024-px 이미지에서 배율이 그대로 10인지는 OFFICE-VERIFY.
+  - key 이름이 장비마다 `!Cursor_inf` / `!Cursor_info` 로 흔들립니다. 파서는
+    `cursor_inf` **접두 매칭**을 합니다 (`back_dev_home/_core/cond_cursor.py`).
+  - 십자선은 msr(측정) 이미지에 장비가 실제로 **그려 넣은** 선이고, white box 는
+    recipe 등록 이미지에 그려 넣은 unique-area 주석입니다. 그래서 recipe-search/open
+    은 이 줄로 마크를 **덧그리고**, skewvoir 는 같은 줄로 십자선을 **지웁니다**
+    (`?clean=1`, `msr_image/preview.py`).
+
+  reader 가 이 줄을 돌려주는지는 확인되지 않았으므로(OFFICE-VERIFY) office adapter 는
+  `_with_cursor_row` 에서 원문 바이트를 한 번 더 읽어 row 로 붙입니다. reader 가 이미
+  돌려주면 중복하지 않습니다. mock 은 두 optic 모두 마지막 row 로 내보내며, 실제
+  파일 안의 위치는 기록되지 않았습니다. 측정·addressing 이미지(.IMMP / .IMMS)의
+  cond.txt 에도 이 줄이 있는지는 OFFICE-VERIFY — 화면은 없으면 토글을 숨깁니다.
+
 PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
 =====================================================
 
