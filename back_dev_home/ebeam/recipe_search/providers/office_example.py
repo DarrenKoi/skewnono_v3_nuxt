@@ -1940,7 +1940,15 @@ def get_align_images(
     # Only points whose optic is known are read: the reader must be told OM or
     # SEM, the same rule get_align_detail applies. Nothing to fetch, no session.
     cond_of = {name: rawfiles.cond_source(name) for _, optic, name in found if optic}
-    blob = _fetch_raw(locator, list(cond_of.values())) if cond_of else {}
+    # The sidecars only feed the overlay. A tool that answered the listing and
+    # then dropped must still get its thumbnails on a 200 (the 2026-08-22
+    # decision above), so this second visit degrades to "no marks" instead of
+    # failing the response the way the listing legitimately does.
+    try:
+        blob = _fetch_raw(locator, list(cond_of.values())) if cond_of else {}
+    except SourceUnavailable as exc:
+        _LOG.warning("recipe_search: align cond.txt fetch failed (%s) — images served without marks", exc)
+        blob = {}
     return {
         "recipe_name": recipe_name,
         "fab_name": (fab_name or "").strip().upper(),

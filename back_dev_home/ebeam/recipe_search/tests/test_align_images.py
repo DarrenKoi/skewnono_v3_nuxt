@@ -269,6 +269,19 @@ class TestOfficeAlignImages:
             assert o["cond"].keys() == h["cond"].keys()
         assert office["locator"].keys() == home["locator"].keys()
 
+    def test_a_sidecar_fetch_failure_keeps_the_thumbnails(self, wired, monkeypatch):
+        # The listing answered, then the host dropped: the overlay is optional,
+        # the thumbnails are not. 200 with marks=None, not a 503.
+        _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
+
+        def dropped(locator, names):
+            raise SourceUnavailable("host went away")
+
+        monkeypatch.setattr(oe, "_fetch_raw", dropped)
+        office = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")
+        assert [i["name"] for i in office["images"]] == ["IMAP0001.jpeg", "IMAP0002.jpeg"]
+        assert all(i["cond"] is None and i["marks"] is None for i in office["images"])
+
     def test_marks_come_from_the_raw_bytes_not_the_reader(self, wired, monkeypatch):
         _listing(monkeypatch, ["IMAP0001.jpeg", "IMAP0002.jpeg"])
         office = oe.get_align_images("cd-sem", RECIPE, "R3", "CG6300_01")

@@ -491,7 +491,8 @@ _COND_KEYS_SEM: tuple[str, ...] = (
     "!Cursor_info",
 )
 
-# P.No 1 — the optical microscope. Five keys, in the order the file lists them.
+# P.No 1 — the optical microscope. The five office-confirmed keys in the order
+# the file lists them, plus !Cursor_info (position in the file not recorded).
 _COND_KEYS_OM: tuple[str, ...] = (
     "Magnification",
     "Chip_coordinate",
