@@ -68,7 +68,9 @@ const onKeydown = (e: KeyboardEvent) => {
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
-  padding: 0.375rem 0.375rem 0.375rem 0.875rem;
+  /* Equal 0.875rem side insets: the text's left gap and the send button's
+     right gap read as one inset. Vertical stays tight so the pill hugs one line. */
+  padding: 0.375rem 0.875rem;
   border: 1px solid var(--sk-border);
   border-radius: 1.25rem;
   background: var(--sk-surface);
