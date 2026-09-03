@@ -94,9 +94,13 @@ const onKeydown = (e: KeyboardEvent) => {
   background: transparent;
 }
 
+/* flex-end pins the button to the last text line as the textarea grows, but the
+   textarea's own 0.5rem bottom padding would drop it below that line. Lift it by
+   that padding less half the button's overhang over the line box. */
 .sk-composer-send {
   flex-shrink: 0;
   border-radius: 999px;
+  margin-bottom: 0.3125rem;
 }
 
 .sk-composer-hint {
