@@ -71,7 +71,7 @@ const examples = [
           무엇을 도와드릴까요?
         </h2>
         <p class="sk-chat-empty-sub">
-          SKEWNONO 에 대해 궁금한 것을 물어보세요.
+          CD-SEM 에 대해 궁금한 것을 물어보세요.
         </p>
         <div class="sk-chat-examples">
           <button
