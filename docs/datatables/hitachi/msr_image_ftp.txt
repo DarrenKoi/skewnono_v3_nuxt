@@ -122,12 +122,11 @@ cond.txt 의 십자선 좌표 — `Pixel` + `!Cursor_info` (user-confirmed 2026-
     Pixel         512,512
     !Cursor_info  a,b,c,d,cx,cy,l,t,r,b     ← [4],[5] 십자선, Pixel x 10 프레임, -1 = 없음
 
-  `GET /api/msr-image?…&clean=1` 은 이 좌표의 세로·가로 띠(±2 px)를 양옆 픽셀로
-  선형 보간해 십자선을 지운 WebP 를 돌려줍니다. 좌표가 없거나 -1 이면 원본 그대로이고,
-  캐시하지 않습니다(캐시된 원본 위의 numpy 연산). recipe-search/open 의 align 이미지는
-  반대로 이 좌표로 십자선을 **덧그립니다** — 그 이미지에는 장비가 그려 넣은 선이 없기
-  때문입니다.
+  msr-image API 와 skewvoir 는 저장된 측정 이미지의 십자선을 변형하지 않습니다.
+  recipe-search/open 과 live-alarm 의 align 이미지는 `marks` 로 전달된 좌표를 사용해
+  십자선과 white box 중심점을 **덧그립니다** — 해당 이미지에는 장비가 그려 넣은 선이
+  없기 때문입니다.
 
   OFFICE-VERIFY: 측정 이미지 cond 에 이 줄이 실제로 있는지(확인된 표본은 align 궤적
-  이미지), 선 두께가 ±2 px 띠 안에 드는지, 1024-px 이미지의 배율. X-Msr-Cond 헤더는
+  이미지), 1024-px 이미지의 배율. X-Msr-Cond 헤더는
   MinIO 메타데이터 1536 B 캡을 그대로 따르므로 긴 cond 에서 이 줄이 잘릴 수 있습니다.

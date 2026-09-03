@@ -42,7 +42,6 @@ still serves everything except ``preview=1``.
 import logging
 from io import BytesIO
 
-from back_dev_home._core.cond_cursor import cursor_info_from_cond
 from back_dev_home.msr_image.contracts import FetchedImage
 
 _LOG = logging.getLogger(__name__)
@@ -83,94 +82,12 @@ def _tiff_to_webp(data: bytes) -> bytes:
                 hi = lo + 1.0
             arr = np.clip((arr - lo) / (hi - lo) * 255.0, 0.0, 255.0)
             im = Image.fromarray(arr.astype("uint8"), "L")
-        return _encode_webp(im)
-
-
-def _encode_webp(im) -> bytes:
-    """What a WebP rendition is: L or RGB, one quality."""
-    if im.mode not in ("L", "RGB"):
-        # palette / RGBA / CMYK and friends — WebP wants L or RGB(A).
-        im = im.convert("RGB")
-    out = BytesIO()
-    im.save(out, "WEBP", quality=_WEBP_QUALITY)
-    return out.getvalue()
-
-
-# Half-width of the band erased around each crosshair line, in px of the
-# decoded image. The tool draws a ~1 px core plus JPEG halo; 2 covers both
-# without smearing texture (docs/align-crosshair, dilate=1 was optimal there).
-_CLEAN_HALF_BAND = 2
-
-
-def _erase_lines(arr, cx: int, cy: int, half: int = _CLEAN_HALF_BAND):
-    """Overwrite the column band at ``cx`` and the row band at ``cy`` with a
-    linear blend of the pixels just outside the band, in place. ``arr`` is a
-    writable uint8 (H, W[, C]) array.
-
-    ponytail: linear interpolation across a 5 px band, not inpainting. Fine
-    for a hairline on a micrograph; switch to cv2.inpaint if a real image
-    shows a visible seam.
-    """
-    import numpy as np
-
-    for axis, centre in ((1, cx), (0, cy)):
-        lo, hi = centre - half, centre + half  # inclusive band
-        left, right = lo - 1, hi + 1           # the pixels blended between
-        if left < 0 or right >= arr.shape[axis]:
-            continue  # band touches the border: nothing to blend from
-        a = np.take(arr, left, axis=axis).astype("float64")
-        b = np.take(arr, right, axis=axis).astype("float64")
-        ramp = np.linspace(a, b, right - left + 1, axis=axis)  # endpoints included
-        inner = [slice(None)] * arr.ndim
-        inner[axis] = slice(1, -1)
-        band = [slice(None)] * arr.ndim
-        band[axis] = slice(lo, hi + 1)
-        arr[tuple(band)] = np.rint(ramp[tuple(inner)]).astype("uint8")
-    return arr
-
-
-def _clean_crosshair(data: bytes, cond: str) -> bytes | None:
-    """``data`` with the cond-declared crosshair erased, or None when there is
-    no crosshair to erase (or the bytes are not a raster Pillow can open)."""
-    marks = cursor_info_from_cond(cond)
-    if marks is None or marks["crosshair"] is None:
-        return None
-    from PIL import Image  # lazy — see module docstring
-
-    import numpy as np
-
-    with Image.open(BytesIO(data)) as im:
-        im.load()
         if im.mode not in ("L", "RGB"):
+            # palette / RGBA / CMYK and friends — WebP wants L or RGB(A).
             im = im.convert("RGB")
-        w, h = im.size
-        # Fractions of the frame, so a resized copy still lands on the line.
-        fx, fy = marks["crosshair"]
-        arr = _erase_lines(np.array(im), round(fx * w), round(fy * h))
-        return _encode_webp(Image.fromarray(arr, im.mode))
-
-
-def to_clean(fetched: FetchedImage) -> FetchedImage:
-    """The rendition with the crosshair erased, when the cond sidecar locates
-    one. Starts from ``to_preview`` (a no-op on already-renderable bytes) so a
-    TIFF original is normalised before it is touched. Unchanged (never raises)
-    when the sidecar names no crosshair, or the bytes are not a raster (the
-    mock's SVG).
-
-    Computed per request rather than cached: the source is already the cached
-    rendition, and the transform is a numpy blend of ten rows and columns.
-    """
-    fetched = to_preview(fetched)
-    if fetched.cond is None:
-        return fetched
-    try:
-        cleaned = _clean_crosshair(fetched.data, fetched.cond)
-    except Exception as exc:  # noqa: BLE001 — degrade to the original bytes
-        _LOG.warning("msr_image: crosshair clean failed (%s) — serving original", exc)
-        return fetched
-    if cleaned is None:
-        return fetched
-    return FetchedImage(cleaned, "image/webp", fetched.cond)
+        out = BytesIO()
+        im.save(out, "WEBP", quality=_WEBP_QUALITY)
+        return out.getvalue()
 
 
 def wants_preview(raw: str | None) -> bool:

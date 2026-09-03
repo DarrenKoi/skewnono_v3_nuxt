@@ -780,9 +780,9 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
   - key 이름이 장비마다 `!Cursor_inf` / `!Cursor_info` 로 흔들립니다. 파서는
     `cursor_inf` **접두 매칭**을 합니다 (`back_dev_home/_core/cond_cursor.py`).
   - 십자선은 msr(측정) 이미지에 장비가 실제로 **그려 넣은** 선이고, white box 는
-    recipe 등록 이미지에 그려 넣은 unique-area 주석입니다. 그래서 recipe-search/open
-    은 이 줄로 마크를 **덧그리고**, skewvoir 는 같은 줄로 십자선을 **지웁니다**
-    (`?clean=1`, `msr_image/preview.py`).
+    recipe 등록 이미지의 unique-area 좌표입니다. recipe-search/open 과 live-alarm 은
+    이 줄로 십자선과 white box 중심점을 **덧그립니다**. skewvoir 는 저장된 측정
+    이미지를 변형하지 않습니다.
 
   파싱은 서버가 한 번만 합니다. 이미지가 들어가는 응답(ParamImage · AlignPoint ·
   AlignImage)마다 `marks` field 로 **이미지 대비 분수(0..1)** 를 실어 보내므로,

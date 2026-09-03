@@ -500,29 +500,3 @@ def test_concurrent_gets_for_different_images_both_fetch(tmp_path, monkeypatch):
         t.join()
 
     assert sorted(calls) == ["a.jpeg", "b.jpeg"]
-
-
-def test_serve_clean_erases_the_crosshair_the_cond_declares(client, monkeypatch, crosshair_jpeg):
-    """?clean=1 — the route hands the (preview) rendition to to_clean, which
-    erases the crosshair at the cond sidecar's ``!Cursor_info`` position. The
-    plain URL keeps the drawn line; the clean one answers WebP without it."""
-    from io import BytesIO
-
-    from PIL import Image
-
-    from back_dev_home.msr_image.contracts import FetchedImage
-    from back_dev_home.msr_image.tests.conftest import CROSSHAIR_COND
-
-    monkeypatch.setattr(
-        "back_dev_home.msr_image.data.fetch_image",
-        lambda locator: FetchedImage(crosshair_jpeg, "image/jpeg", CROSSHAIR_COND),
-    )
-    q = "eqp_ip=10.0.0.1&class_name=ADI&msr=MSR_CLEAN&name=cross01.jpeg"
-    plain = Image.open(BytesIO(client.get(f"/api/msr-image?{q}").data)).convert("L")
-    assert plain.getpixel((32, 50)) > 200
-
-    r = client.get(f"/api/msr-image?{q}&preview=1&clean=1")
-    assert r.status_code == 200 and r.mimetype == "image/webp"
-    assert "cross01.webp" in r.headers["Content-Disposition"]
-    cleaned = Image.open(BytesIO(r.data)).convert("L")
-    assert cleaned.getpixel((32, 50)) < 130 and cleaned.getpixel((50, 16)) < 130

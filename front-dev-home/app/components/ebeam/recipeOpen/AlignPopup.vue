@@ -190,7 +190,7 @@ const props = defineProps<{
 }>()
 
 const zoom = ref<AlignPoint | null>(null)
-// The tool's crosshair / white box over the zoomed image, from its cond.txt.
+// The tool's crosshair / white-box centre over the zoomed image, from its cond.txt.
 const showMarks = useCondCrosshair()
 const points = ref<AlignPoint[]>([])
 const pending = ref(false)

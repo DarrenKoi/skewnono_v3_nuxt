@@ -13,7 +13,7 @@ from back_dev_home.msr_image.contracts import FetchedImage, ImageListResponse, I
 from back_dev_home.msr_image.errors import MsrImageError
 from back_dev_home.msr_image.jobs import make_registry
 from back_dev_home.msr_image.paths import validate_locator, validate_segment, validate_tool_ip
-from back_dev_home.msr_image.preview import to_clean, to_preview, wants_preview
+from back_dev_home.msr_image.preview import to_preview, wants_preview
 from back_dev_home.msr_image.single_flight import single_flight
 
 bp = Blueprint("msr_image", __name__)
@@ -146,7 +146,6 @@ def serve_image_route():
     cfg = load_config()
     locator = ImageLocator(args["eqp_ip"], args["class_name"], args["msr"], args["name"])
     preview = _wants_preview()
-    clean = wants_preview(request.args.get("clean"))  # same 1/true/yes rule
     # The content type the preview transform PRODUCED, when it changed one; None
     # on the plain path. Drives the served filename — see _served_name.
     converted_to = None
@@ -210,15 +209,6 @@ def serve_image_route():
                     if rendition.content_type == "image/webp":
                         cache.put(locator, rendition, preview=True)
                 fetched = rendition
-        # ?clean=1 — erase the crosshair the tool drew, at the position its
-        # cond sidecar declares. After the preview step so a TIFF is already a
-        # raster; a no-op when the sidecar names no crosshair. Not cached: it is
-        # a numpy blend over the cached rendition. See msr_image/preview.py.
-        if clean:
-            rendition = to_clean(fetched)
-            if rendition.content_type != fetched.content_type:
-                converted_to = rendition.content_type
-            fetched = rendition
     except MsrImageError as exc:
         return _error(exc)
 

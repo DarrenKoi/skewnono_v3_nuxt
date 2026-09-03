@@ -18,12 +18,12 @@
       stroke-width="1.5"
       style="filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.7))"
     >
-      <rect
+      <circle
         v-if="marks.box"
-        :x="marks.box[0] * w"
-        :y="marks.box[1] * h"
-        :width="(marks.box[2] - marks.box[0]) * w"
-        :height="(marks.box[3] - marks.box[1]) * h"
+        :cx="boxCx"
+        :cy="boxCy"
+        :r="boxPointRadius"
+        fill="var(--sk-warn)"
         stroke="var(--sk-warn)"
         vector-effect="non-scaling-stroke"
       />
@@ -59,9 +59,9 @@
 <script setup lang="ts">
 /**
  * The tool's marks over a recipe image: the crosshair where its algorithm
- * placed the align / measurement point, and the white box the recipe drew
- * around its unique area. `marks` comes parsed from the server (fractions of
- * the image) — see back_dev_home/_core/cond_cursor.py.
+ * placed the align / measurement point, and the centre of the white box the
+ * recipe drew around its unique area. `marks` comes parsed from the server
+ * (fractions of the image) — see back_dev_home/_core/cond_cursor.py.
  */
 import type { CursorMarks } from '~/composables/useRecipeParamDetail'
 
@@ -75,4 +75,7 @@ const w = computed(() => props.marks?.pixel[0] ?? 1)
 const h = computed(() => props.marks?.pixel[1] ?? 1)
 const cx = computed(() => (props.marks?.crosshair?.[0] ?? 0) * w.value)
 const cy = computed(() => (props.marks?.crosshair?.[1] ?? 0) * h.value)
+const boxCx = computed(() => ((props.marks?.box?.[0] ?? 0) + (props.marks?.box?.[2] ?? 0)) / 2 * w.value)
+const boxCy = computed(() => ((props.marks?.box?.[1] ?? 0) + (props.marks?.box?.[3] ?? 0)) / 2 * h.value)
+const boxPointRadius = computed(() => Math.min(w.value, h.value) / 160)
 </script>

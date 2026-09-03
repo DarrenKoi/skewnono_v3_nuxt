@@ -123,8 +123,8 @@ const props = defineProps<{
 
 const isMeas = computed(() => props.data?.role === 'measure')
 
-// The tool's crosshair / white box over the image; the toggle only appears
-// when the sidecar actually located a mark.
+// The tool's crosshair / white-box centre over the image; the toggle only
+// appears when the sidecar actually located a mark.
 const showMarks = useCondCrosshair()
 
 const failed = ref(false)

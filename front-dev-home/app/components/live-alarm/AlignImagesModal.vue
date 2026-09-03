@@ -50,9 +50,9 @@ const failed = ref(false)
 const loadedFor = ref('')
 const wantKey = computed(() => `${props.toolType}|${props.fab}|${props.recipeId}|${props.eqpId}`)
 
-// The tool's crosshair / white box over each image, from its cond.txt. The
-// same preference recipe-open's modals use; the toggle only appears when at
-// least one sidecar located a mark.
+// The tool's crosshair / white-box centre over each image, from its cond.txt.
+// The same preference recipe-open's modals use; the toggle only appears when
+// at least one sidecar located a mark.
 const showMarks = useCondCrosshair()
 const hasMarks = computed(() => (data.value?.images ?? []).some(img => img.marks))
 

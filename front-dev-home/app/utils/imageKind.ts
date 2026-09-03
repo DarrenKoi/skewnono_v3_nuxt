@@ -8,10 +8,6 @@
 // until 2026-08-09; an anonymous shape cannot carry that rule with it.
 export interface ImagePreviewOptions {
   preview?: boolean
-  /** Erase the crosshair the tool drew, at the position its cond.txt
-   * declares (msr_image/preview.py `to_clean`). A no-op when the sidecar
-   * locates none. DISPLAY only — never on a 원본 다운로드 link. */
-  clean?: boolean
 }
 
 // SEM tools store JPEG previews alongside TIFF originals (office-confirmed
