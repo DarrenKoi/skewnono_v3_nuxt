@@ -54,6 +54,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
 
+from back_dev_home._runtime import office_template  # noqa: E402
 from scripts.deploy.preflight_cloud import env_file_values  # noqa: E402
 
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
@@ -143,6 +144,42 @@ def office_adapters(repo_root: Path) -> list[str]:
     )
 
 
+def adapter_drift(repo_root: Path) -> tuple[list[str], list[str]]:
+    """(stale, edited) office.py copies, classified while git is still here.
+
+    This runs at the office, inside a clone. The bundle is not a clone -- `.git`
+    is in PRUNE_DIRS -- and office_template gives up without one
+    (committed_template_origin returns None, so classify() answers EDITED for
+    everything). The consequence is that the cloud's boot-time `STALE office.py`
+    warning can never fire: the check the app makes on every office boot is
+    structurally dead on the one host nobody can inspect.
+
+    So the question has to be asked HERE, one step before the copies leave the
+    machine that can still answer it. Neither answer blocks:
+
+      * STALE  -- provably an out-of-date copy of a committed template. Old
+        adapter code against real data, and it keeps returning 200.
+      * EDITED -- differs from the template with no commit matching it. Usually
+        legitimate (사내 details that stay out of git), which is why it cannot
+        block -- but it is also the only shape in which a hand-edit reaches the
+        cloud unseen, so it gets named rather than passed over.
+    """
+    backend = repo_root / "back_dev_home"
+    if not backend.is_dir():
+        return [], []
+    stale, edited = [], []
+    for adapter in office_template.discover(backend):
+        try:
+            status, _ = office_template.classify(adapter, repo_root)
+        except Exception:  # noqa: BLE001 -- a diagnostic must not stop a pack
+            continue
+        if status == office_template.STALE:
+            stale.append(adapter.slug)
+        elif status == office_template.EDITED:
+            edited.append(adapter.slug)
+    return stale, edited
+
+
 def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     checks = []
 
@@ -219,6 +256,29 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
         "office_adapters",
         bool(adapters),
         "no providers/office.py found - every feature will serve mock data",
+        False,
+    )
+
+    stale, edited = adapter_drift(repo_root)
+    add(
+        "adapters_current",
+        not stale,
+        f"office.py is an OUT-OF-DATE copy of its template: {', '.join(stale)} - "
+        "the bundle would ship old adapter code that still answers 200. The "
+        "cloud cannot report this itself (the bundle has no .git, so its "
+        "boot-time STALE warning never fires), which is why it is asked here. "
+        f"Refresh with: python -m scripts.adapters.sync_office_adapters {' '.join(stale)}",
+        False,
+    )
+    add(
+        "adapters_reviewed",
+        not edited,
+        f"office.py differs from its template with no commit matching it: "
+        f"{', '.join(edited)} - usually a legitimate 사내 edit, and this is only "
+        "a prompt to confirm it is the edit you meant. It is the last chance: "
+        "once packed there is no template comparison on the cloud, so a stray "
+        "local change rides along unnoticed. Diff each against its "
+        "office_example.py before transferring.",
         False,
     )
 
@@ -347,8 +407,33 @@ RUNBOOK = """# Deploy this bundle
    discloses the site, mode and every feature's provider - so an uncookied
    call gets a 403 rather than the table.
 
+7. Confirm the FTP transport, if msr_image or recipe_search serve real data.
+   Both adapters pick it from `platform.system()` at import: this host is
+   Linux, so both must report `direct`. Nothing can override that - there is
+   no env knob - so `proxy` here means the office.py that shipped was edited.
+
+       grep -E "FTP transport =|via (direct|proxy)" <uwsgi log>
+
+   Or ask directly, without waiting for a request and without touching a
+   tool. These read the module the process ACTUALLY loaded, so they catch an
+   office.py edited to pin the proxy - which reviewing the repo cannot,
+   because office.py is not in it. A ModuleNotFoundError here is an answer
+   too: that feature has no office adapter and serves mock.
+
+       python -c "import platform;print(platform.system())"
+       python -c "from back_dev_home.msr_image.providers.office import FtpFleetDownloader as D;print('msr_image ->',D.__module__)"
+       python -c "from back_dev_home.ebeam.recipe_search.providers import office;print('recipe_search ->',office._transport().downloader_cls.__module__)"
+
+   The two features are asked differently because msr_image binds the class at
+   module level while recipe_search returns it from _transport(). Either way
+   `...direct_downloader.fleet_downloader` is correct and `...proxy_downloader`
+   is not. Do NOT check `HostSpec` or `ListDir` instead - the proxy re-exports
+   those from the direct module, so they read as "direct" under both.
+
 `MANIFEST.txt` records what this bundle contains and any warnings raised
-when it was packed.
+when it was packed - including any office.py that was stale or locally
+edited, which is a question only the office PC can answer (this host has no
+`.git` to compare against).
 """
 
 

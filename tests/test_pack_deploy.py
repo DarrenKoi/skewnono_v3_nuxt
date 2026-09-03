@@ -526,3 +526,67 @@ def test_git_provenance_does_not_claim_a_clean_tree_when_git_fails(tmp_path):
     provenance = pack.git_provenance(tmp_path / "not-a-repo")
 
     assert provenance["dirty"] != "no"
+
+
+def _adapter(root: Path, slug: str, template: str, copy: str | None) -> None:
+    providers = root / "back_dev_home" / slug / "providers"
+    providers.mkdir(parents=True, exist_ok=True)
+    (providers / "office_example.py").write_text(template)
+    if copy is not None:
+        (providers / "office.py").write_text(copy)
+
+
+def test_an_office_copy_matching_its_template_raises_nothing(tmp_path):
+    root = _make_repo(tmp_path)
+    _adapter(root, "sem_list", "X = 1\n", "X = 1\n")
+    stale, edited = pack.adapter_drift(root)
+    assert (stale, edited) == ([], [])
+
+
+def test_a_differing_office_copy_is_named_before_the_bundle_leaves(tmp_path):
+    """The whole reason this check runs at pack time.
+
+    `.git` is in PRUNE_DIRS, and office_template needs a clone to tell STALE
+    from EDITED — so on the cloud every differing copy answers EDITED and the
+    boot-time STALE warning can never fire. This tmp tree has no `.git`
+    either, which is exactly why it reproduces the cloud's blind spot: the
+    copy below is out of date, and without git the best anyone can say is
+    "it differs". Saying that at the office is still worth more than saying
+    nothing on a host no one can inspect.
+    """
+    root = _make_repo(tmp_path)
+    _adapter(root, "msr_image", "TRANSPORT = 'direct'\n", "TRANSPORT = 'proxy'\n")
+    stale, edited = pack.adapter_drift(root)
+    assert "msr_image" in edited
+    assert stale == []
+
+
+def test_a_missing_office_copy_is_not_drift(tmp_path):
+    """No office.py means the feature serves mock — office_adapters already
+    reports that, and it is not a copy that drifted."""
+    root = _make_repo(tmp_path)
+    _adapter(root, "afm", "X = 1\n", None)
+    assert pack.adapter_drift(root) == ([], [])
+
+
+def test_adapter_drift_is_advisory_not_blocking(tmp_path):
+    """An EDITED copy is usually the legitimate 사내 case, so it must not
+    refuse a deploy — it only has to be said out loud while it still can be."""
+    root = _make_repo(tmp_path)
+    _adapter(root, "msr_image", "A = 1\n", "A = 2\n")
+    checks = pack.run_preflight(root)
+    named = {c.name: c for c in checks}
+    assert named["adapters_reviewed"].ok is False
+    assert named["adapters_reviewed"].blocking is False
+    assert not pack.blocking_failures(checks)
+
+
+def test_drift_warnings_reach_the_manifest_the_cloud_reads(tmp_path):
+    """MANIFEST.txt is the only provenance that survives the transfer, so a
+    warning that stops here helps nobody."""
+    root = _make_repo(tmp_path)
+    _adapter(root, "msr_image", "A = 1\n", "A = 2\n")
+    dest = tmp_path / "bundle"
+    dest.mkdir()
+    manifest = pack.write_manifest(dest, root, pack.run_preflight(root), 1, "now")
+    assert "adapters_reviewed" in manifest.read_text(encoding="utf-8")

@@ -6,10 +6,16 @@
 
 ## 1. 이 배포가 필요한 때
 
-사무실 로컬 PC(Windows)는 계측 장비 FTP 로 직접 나가지 못하므로, `msr_image` 와
-`recipe_search` 의 모든 FTP 호출이 이 프록시를 거칩니다. 프록시 절반은
-`ftp_handler/proxy/flask_proxy.py` 의 블루프린트이고,
+사무실 로컬 PC(Windows)는 계측 장비 FTP 로 직접 나가지 못하므로, **그 PC 에서
+실행될 때만** `msr_image` 와 `recipe_search` 의 FTP 호출이 이 프록시를 거칩니다.
+프록시 절반은 `ftp_handler/proxy/flask_proxy.py` 의 블루프린트이고,
 `skewnono-scheduler1-webapp` 에 마운트되어 있습니다.
+
+**클라우드(Phase 3, Linux)는 이 프록시를 쓰지 않습니다.** 두 어댑터는 import
+시점에 `platform.system()` 으로 전송 방식을 고르며, Windows 가 아니면
+`ftp_handler.direct_downloader` 로 장비에 직접 접속합니다. 그러므로 이 문서는
+클라우드 배포([`deployment.md`](deployment.md))의 단계가 아니라, 사무실 PC 가
+의존하는 호스트를 따로 갱신하는 절차입니다.
 
 따라서 **`ftp_handler` 가 바뀌면 skewnono 만 배포해서는 절반만 갱신됩니다.**
 클라이언트 절반(`proxy_downloader.py`)은 skewnono 번들에 실려 가지만, 서버

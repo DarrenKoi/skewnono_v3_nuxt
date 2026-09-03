@@ -4,9 +4,22 @@
 현재 목표는 **실현 가능성 확인(feasibility) 배포**이므로, mock 데이터를 서빙하는
 번들이라도 정상 기동하면 성공으로 간주합니다.
 
-`msr_image` 와 `recipe_search` 의 FTP 는 별도 호스트의 프록시를 거치며, 그 서버
-절반은 이 번들에 실려가지 않습니다. `ftp_handler` 가 바뀐 배포라면
-[`deployment-ftp-proxy.md`](deployment-ftp-proxy.md) 를 함께 수행하십시오.
+`msr_image` 와 `recipe_search` 의 FTP 전송 방식은 **호스트 OS 로 결정됩니다.**
+두 어댑터 모두 import 시점에 `platform.system()` 을 보고, Windows 면
+`ftp_handler.proxy` 를, 그 외면 `ftp_handler.direct_downloader` 를 가져옵니다.
+따라서 **클라우드(Linux)는 장비 FTP 에 직접 접속하며 프록시를 거치지 않습니다.**
+프록시는 장비로 직접 나가지 못하는 사무실 로컬 PC(Windows)만의 경로입니다.
+환경변수로 바꿀 수 있는 값이 아니므로, 이 배포에는 프록시 관련 설정이 없습니다.
+
+그래서 [`deployment-ftp-proxy.md`](deployment-ftp-proxy.md) 는 이 배포의 단계가
+아닙니다. `ftp_handler` 가 바뀌었다면 그 문서는 **사무실 PC 가 쓰는 프록시 호스트**
+를 갱신하기 위해 별도로 수행하십시오 — 클라우드 배포를 하지 않는 날에도
+필요하고, 반대로 이 번들만 올리는 날에는 필요하지 않습니다.
+
+클라우드가 실제로 어느 쪽을 물고 올라왔는지는 로그로 확인합니다. 두 어댑터 모두
+전송 방식을 이름으로 남깁니다 — `msr_image: FTP transport = direct (Linux)` 가
+import 시점에 한 번, `recipe_search: ... via direct` 가 FTP 호출마다 찍힙니다.
+`proxy (Windows)` 가 보이면 그 호스트는 의도와 다르게 동작하는 것입니다.
 
 ## 1. 전체 흐름
 
