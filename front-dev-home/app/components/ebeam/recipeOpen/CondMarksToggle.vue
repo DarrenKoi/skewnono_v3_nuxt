@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-/** Show / hide the tool's marks (crosshair + white-box centre) over recipe images. */
+/** Show / hide the tool's marks (crosshair, white-box centre + image-centre align point) over recipe images. */
 const on = defineModel<boolean>({ required: true })
 
 withDefaults(defineProps<{

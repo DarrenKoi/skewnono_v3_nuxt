@@ -781,7 +781,10 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
     `cursor_inf` **접두 매칭**을 합니다 (`back_dev_home/_core/cond_cursor.py`).
   - 십자선은 msr(측정) 이미지에 장비가 실제로 **그려 넣은** 선이고, white box 는
     recipe 등록 이미지의 unique-area 좌표입니다. recipe-search/open 과 live-alarm 은
-    이 줄로 십자선과 white box 중심점을 **덧그립니다**. skewvoir 는 저장된 측정
+    이 줄로 십자선과 white box 중심점을 **덧그리고**, box 가 있으면 **이미지 중심**도
+    같이 찍어 둘을 점선으로 잇습니다 — recipe 의 실제 정렬점은 이미지 중심이고 box
+    중심은 매칭 단서일 뿐이라, 그 둘의 차이(offset)가 auto_recipe_creator 가
+    클릭 지점에 더하는 값입니다(`docs/align_point_from_cond.md` 참조). skewvoir 는 저장된 측정
     이미지를 변형하지 않습니다.
 
   파싱은 서버가 한 번만 합니다. 이미지가 들어가는 응답(ParamImage · AlignPoint ·

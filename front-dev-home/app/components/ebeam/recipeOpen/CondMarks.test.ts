@@ -52,3 +52,28 @@ test('the box mark renders as its center point, not an outline', async () => {
   assert.doesNotMatch(html, /<rect/)
   assert.match(html, /<circle cx="204.8" cy="256" r="3.2"/)
 })
+
+test('a box also draws the image centre (the align point) and the offset line to it', async () => {
+  const marks = {
+    pixel: [512, 512],
+    box: [0.2, 0.3, 0.6, 0.7],
+    crosshair: null
+  }
+  const html = await renderToString(createSSRApp({
+    render: () => h(loadCondMarks(), { marks })
+  }))
+
+  assert.match(html, /<line x1="204.8" y1="256" x2="256" y2="256"/)
+  assert.match(html, /<circle cx="256" cy="256" r="3.2"/)
+  assert.match(html, /<line x1="256" y1="240" x2="256" y2="272"/)
+})
+
+test('a crosshair alone draws no image-centre mark', async () => {
+  const marks = { pixel: [512, 512], box: null, crosshair: [0.25, 0.25] }
+  const html = await renderToString(createSSRApp({
+    render: () => h(loadCondMarks(), { marks })
+  }))
+
+  assert.doesNotMatch(html, /<circle cx="256" cy="256"/)
+  assert.doesNotMatch(html, /stroke-dasharray/)
+})
