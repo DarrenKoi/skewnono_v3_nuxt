@@ -120,6 +120,12 @@
           </UButton>
         </template>
 
+        <!-- 행 번호는 데이터가 아니라 "지금 몇 번째 줄인가" 입니다 — 정렬이나
+             필터가 바뀌면 화면 순서를 따라 1 부터 다시 매겨집니다. -->
+        <template #row_no-cell="{ row }">
+          <span class="sk-value-num text-(--sk-ink-muted)">{{ row.index + 1 }}</span>
+        </template>
+
         <!-- Equipment running state renders as a status pill with a text label,
              never color alone. -->
         <template #available-cell="{ row }">
@@ -354,10 +360,10 @@ const columnConfigs: ColumnConfig[] = [
   { id: 'version', header: 'Version', size: 90 }
 ]
 
-const columns: TableColumn<SemListRow>[] = columnConfigs.map(({ id, ...column }) => ({
-  accessorKey: id,
-  ...column
-}))
+const columns: TableColumn<SemListRow>[] = [
+  { id: 'row_no', header: '#', size: 48 },
+  ...columnConfigs.map(({ id, ...column }) => ({ accessorKey: id, ...column }))
+]
 
 const sortableHeaders = columnConfigs.map(column => ({
   id: column.id,

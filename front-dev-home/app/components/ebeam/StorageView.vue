@@ -111,6 +111,12 @@
           </UButton>
         </template>
 
+        <!-- 행 번호는 데이터가 아니라 "지금 몇 번째 줄인가" 입니다 — 정렬이나
+             필터가 바뀌면 화면 순서를 따라 1 부터 다시 매겨집니다. -->
+        <template #row_no-cell="{ row }">
+          <span class="sk-value-num text-(--sk-ink-muted)">{{ row.index + 1 }}</span>
+        </template>
+
         <template #eqp_id-cell="{ row }">
           <span class="sk-value-num">{{ row.original.eqp_id }}</span>
         </template>
@@ -610,10 +616,10 @@ const storageColumnConfigs: StorageColumnConfig[] = [
   { id: 'storage_mt', header: 'Last Reported', size: 140 }
 ]
 
-const columns: TableColumn<StorageRow>[] = storageColumnConfigs.map(({ id, ...column }) => ({
-  accessorKey: id,
-  ...column
-}))
+const columns: TableColumn<StorageRow>[] = [
+  { id: 'row_no', header: '#', size: 48 },
+  ...storageColumnConfigs.map(({ id, ...column }) => ({ accessorKey: id, ...column }))
+]
 
 const storageSortableHeaders = storageColumnConfigs.map(column => ({
   id: column.id,
