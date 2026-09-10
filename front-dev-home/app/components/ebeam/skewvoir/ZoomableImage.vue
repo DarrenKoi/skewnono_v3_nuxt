@@ -39,8 +39,11 @@
       />
     </div>
 
-    <!-- Zoom controls -->
+    <!-- Zoom controls. `controls` lets a host add its own buttons to the same
+         bar (the lightbox's 취득 조건 toggle) instead of floating a second
+         one over the image. -->
     <div class="absolute right-2 bottom-2 flex items-center gap-0.5 rounded-(--sk-r-nav) border border-(--sk-border) bg-(--sk-surface)/90 p-0.5 shadow-sm backdrop-blur-sm">
+      <slot name="controls" />
       <button
         type="button"
         class="rounded-(--sk-r-sidebar) p-1 text-(--sk-ink-muted) transition-colors duration-200 hover:bg-(--sk-chip-bg) hover:text-(--sk-ink) disabled:opacity-40"

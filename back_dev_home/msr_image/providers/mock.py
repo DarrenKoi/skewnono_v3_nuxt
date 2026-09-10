@@ -97,16 +97,28 @@ def _svg(locator: ImageLocator) -> bytes:
 
 
 def _cond(locator: ImageLocator) -> str:
-    """A cond.txt body with user-confirmed Pixel and !Cursor_info rows.
+    """A cond.txt body in the tool's own shape: a ``#`` header, then one
+    ``key<TAB>value`` line each, units INSIDE the value ("500 V") — the layout
+    of the office sample (docs/datatables/hitachi/recipe_idp.txt, office 확인
+    2026-06-08) and the key vocabulary of recipe_search/providers/mock.py's
+    ``_COND_KEYS_SEM``. Until 2026-09-10 this wrote ``mag=30000`` lines, a
+    shape no tool writes, which a line parser turned into value-less keys.
 
-    OFFICE-VERIFY: measurement sidecars carry these rows consistently.
+    Pixel and !Cursor_info are user-confirmed (2026-09-03). OFFICE-VERIFY:
+    which beam keys a MEASUREMENT sidecar carries, and in what order — the
+    confirmed sample is a recipe align image.
     """
     s = _seed(locator.name)
     crosshair = (2560 + s % 400 - 200, 2560 + (s // 7) % 400 - 200)
-    return (
-        f"mag={30000 + s % 40000}\nvac={0.5 + (s % 5) / 10:.1f}\npixel={2 + s % 6}nm\n"
-        f"Pixel\t512,512\n!Cursor_info\t{format_cursor_info(crosshair, None)}"
-    )
+    return "\n".join((
+        "# Observation condition",
+        "Scope\tSEM",
+        f"Accelerating_voltage\t{500 + (s % 5) * 100} V",
+        f"Probe_current\t{8 + s % 5} pA",
+        f"Magnification\t{30000 + s % 40000}",
+        "Pixel\t512,512",
+        f"!Cursor_info\t{format_cursor_info(crosshair, None)}",
+    ))
 
 
 def fetch_image(locator: ImageLocator) -> FetchedImage:

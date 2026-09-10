@@ -28,15 +28,33 @@ export const useMsrImageApi = () => {
     `${joinApiPath(base, '/msr-image')}?${q(eqp_ip, class_name, msr)}`
     + `&name=${encodeURIComponent(name)}${opts?.preview ? '&preview=1' : ''}`
 
+  // The route URL-quotes the sidecar into one header line (newlines included).
+  const condOf = (res: Response) => {
+    const raw = res.headers.get('X-Msr-Cond')
+    return raw ? decodeURIComponent(raw) : null
+  }
+
   const fetchImageWithCond = async (
     eqp_ip: string, class_name: string, msr: string, name: string,
     opts?: ImagePreviewOptions
   ) => {
     const res = await fetch(imageUrl(eqp_ip, class_name, msr, name, opts))
     if (!res.ok) throw new Error(`image ${name}: ${res.status}`)
-    const condRaw = res.headers.get('X-Msr-Cond')
     const blob = await res.blob()
-    return { blobUrl: URL.createObjectURL(blob), cond: condRaw ? decodeURIComponent(condRaw) : null }
+    return { blobUrl: URL.createObjectURL(blob), cond: condOf(res) }
+  }
+
+  // The cond.txt sidecar alone, for a viewer whose <img> already holds the
+  // bytes. Re-requesting the SAME URL the <img> loaded is what keeps this
+  // cheap: the route answers with max-age=3600, so the browser serves it from
+  // its HTTP cache, and even a miss is a server cache hit — the sidecar was
+  // fetched in the image's own tool session and stored beside it. The tool is
+  // never revisited for a cond, which is why it can be lazy (click-to-show)
+  // without a dedicated endpoint.
+  const fetchCond = async (url: string) => {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`cond: ${res.status}`)
+    return condOf(res)
   }
 
   // `timeoutMs` is the caller's REMAINING budget, not a constant of this
@@ -68,5 +86,5 @@ export const useMsrImageApi = () => {
       budgeted(timeoutMs)
     )
 
-  return { imageUrl, fetchImageWithCond, startDownloadAll, pollJob }
+  return { imageUrl, fetchImageWithCond, fetchCond, startDownloadAll, pollJob }
 }
