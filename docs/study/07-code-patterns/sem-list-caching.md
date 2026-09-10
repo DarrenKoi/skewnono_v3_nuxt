@@ -1,6 +1,6 @@
 # sem-list 캐싱과 죽은 코드 정리 (2026-04-26 세션)
 
-이 문서는 `/simplify` 리뷰로 시작된 한 세션에서 정리한 **`front-dev-home`의 데이터 패칭 구조 결정**을 기록합니다. 단순한 변경 이력이 아니라, 각 결정 뒤에 숨은 *왜*에 초점을 맞춥니다.
+이 문서는 `/simplify` 리뷰로 시작된 한 세션에서 정리한 **`frontend`의 데이터 패칭 구조 결정**을 기록합니다. 단순한 변경 이력이 아니라, 각 결정 뒤에 숨은 *왜*에 초점을 맞춥니다.
 
 **관련 커밋:**
 
@@ -45,10 +45,10 @@
 
 ```bash
 # recent를 쓰는 곳
-grep -rn "addRecent\|state\.recent\s*=" front-dev-home/app
+grep -rn "addRecent\|state\.recent\s*=" frontend/app
 
 # recent를 읽는 곳
-grep -rn "store\.recent\|\.recent\b" front-dev-home/app | grep -v "addRecent\|state\.value\.recent"
+grep -rn "store\.recent\|\.recent\b" frontend/app | grep -v "addRecent\|state\.value\.recent"
 ```
 
 쓰는 곳은 5곳(상태 정의 + 4개 페이지), 읽는 곳은 0곳이었습니다. 배경 노이즈가 0이라면 그 파이프라인은 죽은 것입니다.

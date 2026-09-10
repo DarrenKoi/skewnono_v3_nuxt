@@ -195,7 +195,7 @@ mock·office 가 각자 계산하면 안 됩니다. 프론트엔드가 갖는 �
 않습니다** — 사무실에서 `FAIL_INDEX_CEIL` 을 정하기 위한 분포 참고용으로만
 내려보냅니다(9절).
 
-새 파일 `front-dev-home/app/utils/failEquipmentSignals.ts`:
+새 파일 `frontend/app/utils/failEquipmentSignals.ts`:
 
 | 배지 | 조건 | 톤 |
 | --- | --- | --- |
@@ -512,7 +512,7 @@ section 의 값을 읽습니다.
 | `fail_issue/tests/test_shape.py` (신규) | 순수 조립기. 지수 산식이 손으로 계산한 값과 일치하는가. 기대 실패가 하한 미만이면 `None` 인가. `None` 을 분위수에서 제외하는가. 비교 payload 의 `cells` 길이와 순서가 `eqp_ids` 와 같은가. 돌지 않은 장비 칸이 0 인가. |
 | `fail_issue/tests/test_byar.py` (신규) | 구간이 문헌값과 일치하는가(관측 11 · 기대 5 → 약 `[1.10, 3.94]`). `obs = 0` 에서 하한이 정확히 0 이고 예외가 없는가. `low <= index <= high` 가 항상 성립하는가. λ 가 커질수록 구간이 좁아지는가(단조성). |
 | `fail_issue/tests/test_contract.py` (추가) | 두 엔드포인트의 payload 가 TypedDict 키를 전부 갖는가. 한 장비가 fab 하나에만 나타나는가. `equipments` 합이 `fleet` 합과 맞는가. `eqp_id` 6개를 보내면 5개로 잘리고 `eqp_ids` 가 그 사실을 에코하는가. `trends[].points` 가 요청 기간의 날짜 수와 같은가. |
-| `front-dev-home/app/utils/failEquipmentSignals.test.ts` (신규) | 구간이 `1.0` 을 걸치면 배지 없음. 구간은 통과했는데 `CEIL` 미만이면 배지 없음(두 조건이 AND 인지). `index === null` 에서 `취약`·`양호` 어느 쪽도 아님. `편중` 의 포함 부등호 경계. |
+| `frontend/app/utils/failEquipmentSignals.test.ts` (신규) | 구간이 `1.0` 을 걸치면 배지 없음. 구간은 통과했는데 `CEIL` 미만이면 배지 없음(두 조건이 AND 인지). `index === null` 에서 `취약`·`양호` 어느 쪽도 아님. `편중` 의 포함 부등호 경계. |
 
 `test_byar.py` 를 따로 두는 이유는 이 함수가 이 기능에서 **유일하게 자명하지
 않은 수식**이기 때문입니다. 나머지는 합계와 나눗셈이라 눈으로 검증되지만,
@@ -524,7 +524,7 @@ Byar 근사는 틀려도 그럴듯한 숫자를 냅니다.
 ## 8. 문서
 
 - `docs/api-contracts/fail-issue.yaml` — 두 엔드포인트 추가.
-- `back_dev_home/ebeam/hitachi/fail_issue/MIGRATION.md` — office 어댑터가
+- `backend/ebeam/hitachi/fail_issue/MIGRATION.md` — office 어댑터가
   해야 할 일과 OFFICE-VERIFY 목록(9절을 그대로 옮깁니다).
 - `docs/datatables/hitachi/meas_hist.txt` — 이 작업은 새 필드를 요구하지 않으므로
   변경 없습니다. 사무실에서 새 사실이 나오면 그때 mock 과 함께 갱신합니다.
@@ -594,7 +594,7 @@ curl -s -b 'LASTUSER=local-dev' \
 위 펜스에도 불구하고 이 작업은 `Recipe TAT` 쪽 파일 두 개를 수정했습니다.
 `useRecipeTatApi.ts` 에서 `MAX_COMPARE_EQPS` 를 제거하고,
 `RecipeTatEquipmentView.vue` 의 import 를 바꾼 뒤, 두 탭이 함께 쓰는
-`front-dev-home/app/utils/analyticsLimits.ts` 를 새로 만들었습니다.
+`frontend/app/utils/analyticsLimits.ts` 를 새로 만들었습니다.
 
 **사유:** Nuxt 자동 임포트 이름 충돌입니다. `useFailIssueApi.ts` 가
 `MAX_COMPARE_EQPS` 를 내보내는 순간 이미 같은 이름을 내보내던

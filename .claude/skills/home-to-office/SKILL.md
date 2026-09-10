@@ -1,13 +1,13 @@
 ---
 name: home-to-office
-description: Audit backend features against the mock→office provider convention before conveying work to the office. Use when the user says "office check", "sync check", "convey to office", "office 준비", or before /leave-office when back_dev_home changed.
+description: Audit backend features against the mock→office provider convention before conveying work to the office. Use when the user says "office check", "sync check", "convey to office", "office 준비", or before /leave-office when backend changed.
 argument-hint: [feature-name … | leave empty to auto-detect from git]
 allowed-tools: Read, Grep, Glob, Bash, Edit, Write
 ---
 
 # Office Sync Check
 
-Audit one or more `back_dev_home/` features against the provider convention
+Audit one or more `backend/` features against the provider convention
 (rules: `docs/back-end/provider-selection.md`, adapter guidance:
 `docs/back-end/office-data-adapters.md`, tool-family sub-adapters:
 `docs/back-end/vendor-onboarding.md`)
@@ -22,7 +22,7 @@ home and office never author the same tracked file:
 - `providers/office_example.py` — **tracked**, authored at home. The skeleton
   (contract import + function signatures + `NotImplementedError` body + any
   `<!-- OFFICE: -->` markers). Home keeps this current as contracts evolve.
-- `providers/office.py` — **gitignored** (`back_dev_home/*/providers/office.py`
+- `providers/office.py` — **gitignored** (`backend/*/providers/office.py`
   in the root `.gitignore`). Created at the office by
   `cp office_example.py office.py`, then implemented against the real source.
   Because it is untracked, `git pull` at the office never conflicts on it.
@@ -40,7 +40,7 @@ has none. Audit the **template**, not `office.py`.
   `docs/office-migration/STATUS.md` marks afm/skew `보류`; chat has no row at all,
   and that omission is intentional.
 - Otherwise auto-detect: `git status --porcelain` + `git diff HEAD~5 --name-only`,
-  map touched files under `back_dev_home/<feature>/` to features (a route-owning
+  map touched files under `backend/<feature>/` to features (a route-owning
   folder = has `routes.py`). Also flag NEW route-owning folders that have no
   provider split at all.
 
@@ -56,9 +56,9 @@ has none. Audit the **template**, not `office.py`.
 | 6 | Office stub honest | every public function in `providers/mock.py` that `data.py` switches exists in `providers/office_example.py` (raising `NotImplementedError`) |
 | 7 | Placeholders intact | `MIGRATION.md` still has `<!-- OFFICE: -->` slots for anything only knowable at the office |
 | 8 | STATUS row | `docs/office-migration/STATUS.md` has a row with the feature's exact `get_data_provider` key as `SKEWNONO_<KEY>_PROVIDER` |
-| 9 | Gate green | `.venv/bin/pytest back_dev_home/<feature> -q` passes |
-| 10 | Office switch wired | `cp providers/office_example.py providers/office.py`, then `SKEWNONO_<KEY>_PROVIDER=office .venv/bin/pytest back_dev_home/<feature> -q` fails with NotImplementedError — anything else means the template/switch is broken. Leave the copied `office.py` in place (it is gitignored) or delete it after. |
-| 11 | office.py untracked | `git check-ignore back_dev_home/<feature>/providers/office.py` matches, AND `git ls-files` does NOT list it — the real adapter must never be tracked |
+| 9 | Gate green | `.venv/bin/pytest backend/<feature> -q` passes |
+| 10 | Office switch wired | `cp providers/office_example.py providers/office.py`, then `SKEWNONO_<KEY>_PROVIDER=office .venv/bin/pytest backend/<feature> -q` fails with NotImplementedError — anything else means the template/switch is broken. Leave the copied `office.py` in place (it is gitignored) or delete it after. |
+| 11 | office.py untracked | `git check-ignore backend/<feature>/providers/office.py` matches, AND `git ls-files` does NOT list it — the real adapter must never be tracked |
 | 12 | Sub-adapter folders | For every `providers/<sub>/` sub-folder (per-tab like `hardware/providers/fdc/`, or per tool family like `providers/veritysem/`): it has both `mock.py` and `office_example.py`, no tracked `office.py`, and the feature-level `providers/{mock,office_example}.py` still exist — moving those into a sub-folder erases the feature from `office_registry` |
 | 13 | Sub-adapter dispatch | The feature-level dispatcher resolves sub-folders by name and guards on `exc.name`. Fallback policy must match the feature's kind: per-tab adapters fall back to that tab's mock, **tool-family adapters raise 501** — see `docs/back-end/vendor-onboarding.md` §3.4 |
 
@@ -77,4 +77,4 @@ has none. Audit the **template**, not `office.py`.
   `cp office.py office_example.py && git rm --cached office.py`.
 - Finish with `npm run lint:md` if any Markdown changed, and print a final
   READY / NOT READY verdict per feature with the office verify command:
-  `SKEWNONO_<KEY>_PROVIDER=office .venv/bin/pytest back_dev_home/<feature>`
+  `SKEWNONO_<KEY>_PROVIDER=office .venv/bin/pytest backend/<feature>`

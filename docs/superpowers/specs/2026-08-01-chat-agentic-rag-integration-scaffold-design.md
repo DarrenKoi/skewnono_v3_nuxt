@@ -61,12 +61,12 @@ model을 사용하여 다음 동작을 로컬에서 결정론적으로 검증합
 
 현재 chat 기능은 다음 구조로 동작합니다.
 
-- `back_dev_home/chat/routes.py`가 thread CRUD와 message 전송을 처리합니다.
-- `back_dev_home/chat/data.py`가 mock/office conversation store를 선택합니다.
-- `back_dev_home/chat/providers/mock.py`가 SQLite에 thread와 message를 저장합니다.
-- `back_dev_home/chat/llm.py`가 OpenAI-compatible `/chat/completions`를 호출합니다.
-- `front-dev-home/app/composables/useChatApi.ts`가 기존 chat API를 감쌉니다.
-- `front-dev-home/app/components/chat/ChatMessage.vue`가 assistant message를 표시합니다.
+- `backend/chat/routes.py`가 thread CRUD와 message 전송을 처리합니다.
+- `backend/chat/data.py`가 mock/office conversation store를 선택합니다.
+- `backend/chat/providers/mock.py`가 SQLite에 thread와 message를 저장합니다.
+- `backend/chat/llm.py`가 OpenAI-compatible `/chat/completions`를 호출합니다.
+- `frontend/app/composables/useChatApi.ts`가 기존 chat API를 감쌉니다.
+- `frontend/app/components/chat/ChatMessage.vue`가 assistant message를 표시합니다.
 
 현재 `chat_send_message()`에는 ownership 확인, 동일 문장 retry 추정, message 저장,
 prompt 조립, LLM 호출, error 변환, assistant 저장이 함께 있습니다. RAG를 route에 직접
@@ -120,7 +120,7 @@ idempotency, persistence를 소유합니다. LangChain object와 LangGraph state
 ## 6. 목표 File Tree
 
 ```text
-back_dev_home/chat/
+backend/chat/
 |-- __init__.py
 |-- routes.py
 |-- contracts.py
@@ -814,12 +814,12 @@ integration boundary를 채웁니다.
 Repository root에서 다음을 실행합니다.
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/chat -q
-.venv/bin/python -m pytest tests back_dev_home -q
+.venv/bin/python -m pytest backend/chat -q
+.venv/bin/python -m pytest tests backend -q
 npm run lint:md
 ```
 
-`front-dev-home/`에서 다음을 실행합니다.
+`frontend/`에서 다음을 실행합니다.
 
 ```bash
 npm test

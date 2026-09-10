@@ -26,7 +26,7 @@
   아닙니다.
 - `분석 제외` 배지와 그 `title` 문구는 recipe 층·파라미터 층 모두 그대로
   옮깁니다.
-- 백엔드(`back_dev_home/`) 는 건드리지 않습니다.
+- 백엔드(`backend/`) 는 건드리지 않습니다.
 - 테스트는 순수 함수만. `npm test` 는 `node --test app/**/*.test.ts` 이고 DOM 도
   마운트 하네스도 없습니다. 컴포넌트 티켓의 검증은 타입체크 + 린트 +
   브라우저 확인입니다.
@@ -38,13 +38,13 @@
 
 | 파일 | 역할 | 티켓 |
 | --- | --- | --- |
-| `front-dev-home/app/utils/lotOutlierSteps.ts` | 신규. 스텝 × `DrillDevice` 조인, 필터, 초과 스텝 수. 순수 함수만. | 01 |
-| `front-dev-home/app/utils/lotOutlierSteps.test.ts` | 신규. 위의 `node --test` 스위트. | 01 |
-| `front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue` | 카드에 배지·펼침 추가, 필터 칩, 헤더 기준선. props 2개 추가. | 02·03 |
-| `front-dev-home/app/utils/lotParamExport.ts` | `lotParamFileName` 에 `flagged` 인자 추가. | 03 |
-| `front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue` | `open-outliers` 수신부를 모달로 돌리고 슬라이드오버 제거. | 04 |
-| `front-dev-home/app/components/ebeam/devstat/DrillSlideover.vue` | **변경 없음.** `ComplianceTable` 이 계속 씁니다. | — |
-| `front-dev-home/app/utils/deviceDrill.ts` | **변경 없음.** `toOutlierDrill` 을 그대로 씁니다. | — |
+| `frontend/app/utils/lotOutlierSteps.ts` | 신규. 스텝 × `DrillDevice` 조인, 필터, 초과 스텝 수. 순수 함수만. | 01 |
+| `frontend/app/utils/lotOutlierSteps.test.ts` | 신규. 위의 `node --test` 스위트. | 01 |
+| `frontend/app/components/cdsem/comparison/LotDetailModal.vue` | 카드에 배지·펼침 추가, 필터 칩, 헤더 기준선. props 2개 추가. | 02·03 |
+| `frontend/app/utils/lotParamExport.ts` | `lotParamFileName` 에 `flagged` 인자 추가. | 03 |
+| `frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue` | `open-outliers` 수신부를 모달로 돌리고 슬라이드오버 제거. | 04 |
+| `frontend/app/components/ebeam/devstat/DrillSlideover.vue` | **변경 없음.** `ComplianceTable` 이 계속 씁니다. | — |
+| `frontend/app/utils/deviceDrill.ts` | **변경 없음.** `toOutlierDrill` 을 그대로 씁니다. | — |
 
 ## Tasks
 

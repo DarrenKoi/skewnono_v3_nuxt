@@ -96,7 +96,7 @@ tool_type 도메인 확장에는 정면으로 영향을 받습니다(§5 참조)
 ### 4.1 목표 구조
 
 ```text
-back_dev_home/ebeam/
+backend/ebeam/
 ├── _tool_specs.py          # 벤더·슬러그·tool_type 단일 레지스트리
 ├── _office_meas_hist.py    # 공용 오피스 헬퍼
 ├── _office_search.py
@@ -143,7 +143,7 @@ back_dev_home/ebeam/
 
 | 대상 | 근거 |
 | --- | --- |
-| `.gitignore` | `back_dev_home/**/providers/**/office.py` 가 이미 존재 |
+| `.gitignore` | `backend/**/providers/**/office.py` 가 이미 존재 |
 | `sync_office_adapters` | `hardware/fdc` 형식의 중첩 인자를 이미 지원 |
 | `office_registry` | `**/providers/<filename>` 글롭이 하위 폴더를 의도적으로 제외 |
 | `/api/health/providers` | feature 레벨 해석만 하므로 영향 없음 |
@@ -214,7 +214,7 @@ def _adapter(name: str):
 ```
 
 **501 은 `raise` 문이 정하는 것이 아니라 예외의 기반 클래스가 정합니다.**
-`back_dev_home/__init__.py` 의 JSON 에러 핸들러는 `HTTPException` 만 그
+`backend/__init__.py` 의 JSON 에러 핸들러는 `HTTPException` 만 그
 상태 코드로 내보내고, **정확히** `RuntimeError` 인 것만 503, 그 하위
 클래스(주석이 `NotImplementedError` 를 명시합니다)는 500 으로 처리합니다.
 따라서 `AdapterNotWired` 는 `werkzeug.exceptions.NotImplemented` 를

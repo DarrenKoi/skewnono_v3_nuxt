@@ -95,7 +95,7 @@ version -> string: 장비 SW version. 숫자와 문자가 섞인 자유 형식 �
 4. tool_type 은 이 명부에 컬럼으로 없습니다. eqp_model_cd 의 **계열 접두사**로
    판별합니다 — CG/GT 는 cd-sem, TP 는 hv-sem, VERITYSEM/VERITY_SEM 은
    veritysem, PROVISION 은 provision
-   (back_dev_home/ebeam/_tool_specs.py 의 model_to_tool_type).
+   (backend/ebeam/_tool_specs.py 의 model_to_tool_type).
    모델 코드 목록이 아니라 접두사입니다. 목록으로 판별하던 시절, 목록에 없던
    실장비 8대가 "PPID 미접속 장비" 패널에서 조용히 사라졌습니다(2026-07-24).
 5. VeritySEM / Provision 은 v3_df_sem_list 에 포함됩니다
@@ -112,5 +112,5 @@ version -> string: 장비 SW version. 숫자와 문자가 섞인 자유 형식 �
 
 연결 설정
 
-REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (back_dev_home/.env).
+REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (backend/.env).
 _runtime/office_redis.py 가 .env 를 self-load 하므로 어댑터에서 따로 읽지 않습니다.

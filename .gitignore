@@ -58,7 +58,7 @@ coverage.xml
 .ipynb_checkpoints/
 
 # ───────────────────────────────────────────────
-# Nuxt / Node (front-dev-home/)
+# Nuxt / Node (frontend/)
 # ───────────────────────────────────────────────
 node_modules/
 
@@ -103,42 +103,42 @@ minio_handler/minio_config.py
 .worktrees/
 
 # Access-control exception lists (managed via /admin/access, per-deployment state)
-back_dev_home/storage/access_exceptions.json
-back_dev_home/access_control/state/access_exceptions.json
+backend/storage/access_exceptions.json
+backend/access_control/state/access_exceptions.json
 
 # Chat feature local store (home/Phase 1)
-back_dev_home/chat/chat.db
-back_dev_home/chat/*.db
+backend/chat/chat.db
+backend/chat/*.db
 
 # Office data adapters (Phase 2/3): created per-environment by copying
 # providers/office_example.py -> providers/office.py, then implemented at the
 # office. Never tracked, so `git pull` at the office can never conflict on it.
 # `**` covers nested provider folders too (e.g. ebeam/hardware/providers/fdc/).
 # The second pattern covers per-tab adapters (e.g. hardware/providers/fdc/office.py).
-back_dev_home/**/providers/office.py
-back_dev_home/**/providers/**/office.py
+backend/**/providers/office.py
+backend/**/providers/**/office.py
 # live_alarm's writer has a second swap surface OUTSIDE providers/ — its
 # office.py holds the in-house alarm API URLs and must never be tracked.
-back_dev_home/**/writer/office.py
+backend/**/writer/office.py
 # `scripts.sync_office_adapters --force` writes office.py.bak beside the
 # adapter before overwriting it. That backup holds the same 사내 details as the
 # adapter, so an untracked one at the office is a `git add -A` away from being
 # committed. Ignore it wherever office.py itself is ignored.
-back_dev_home/**/providers/office.py.bak
-back_dev_home/**/providers/**/office.py.bak
-back_dev_home/**/writer/office.py.bak
+backend/**/providers/office.py.bak
+backend/**/providers/**/office.py.bak
+backend/**/writer/office.py.bak
 
 # msr_image office FTP cache dir + explicit office adapter (already matched by
 # the glob above; listed explicitly for clarity on this feature).
 var/
-back_dev_home/msr_image/providers/office.py
+backend/msr_image/providers/office.py
 
 # The office chat RAG is a separate 사내 git repository checked out INSIDE this
-# tree at back_dev_home/chat/_rag/ (see back_dev_home/chat/rag.py). Its own
+# tree at backend/chat/_rag/ (see backend/chat/rag.py). Its own
 # .git keeps working there; this repo must never track it — it carries manual
 # content, a built index and 사내 model endpoints. The leading underscore keeps
 # the app factory, the office registry and the deploy pack from walking it.
-back_dev_home/chat/_rag/
+backend/chat/_rag/
 
 # scripts/probe_recipe_ftp.py dumps the .idp files it pulls off tool FTP here.
 # Real recipe payloads -- never committed.
@@ -158,7 +158,7 @@ back_dev_home/chat/_rag/
 /office_utils
 
 # Playwright test runner artifacts (the MCP session dumps live in .playwright-mcp/).
-# No leading slash, so this matches at any depth -- front-dev-home/test-results/
+# No leading slash, so this matches at any depth -- frontend/test-results/
 # and any future workspace's included.
 test-results/
 

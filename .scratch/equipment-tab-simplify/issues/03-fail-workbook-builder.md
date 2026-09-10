@@ -10,8 +10,8 @@ Align/Meas 탭의 장비별 결과를 시트 3개로 조립합니다. 02의 TAT 
 
 **Files:**
 
-- Modify: `front-dev-home/app/utils/equipmentExport.ts` (02가 만든 파일에 추가)
-- Modify: `front-dev-home/app/utils/equipmentExport.test.ts` (02가 만든 파일에 추가)
+- Modify: `frontend/app/utils/equipmentExport.ts` (02가 만든 파일에 추가)
+- Modify: `frontend/app/utils/equipmentExport.test.ts` (02가 만든 파일에 추가)
 
 **Interfaces:**
 
@@ -48,7 +48,7 @@ export function buildFailEquipmentWorkbook(
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-`front-dev-home/app/utils/equipmentExport.test.ts` 아래에 이어 붙입니다.
+`frontend/app/utils/equipmentExport.test.ts` 아래에 이어 붙입니다.
 상단 import 두 줄도 함께 고칩니다:
 
 ```ts
@@ -235,13 +235,13 @@ test('장비를 고르지 않으면 fail 도 장비 시트 하나뿐이다', () 
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `cd front-dev-home && npx node --test "app/utils/equipmentExport.test.ts"`
+Run: `cd frontend && npx node --test "app/utils/equipmentExport.test.ts"`
 Expected: FAIL — `buildFailEquipmentWorkbook is not a function` (02의 테스트
 5건은 계속 통과합니다).
 
 - [ ] **Step 3: 빌더를 구현한다**
 
-`front-dev-home/app/utils/equipmentExport.ts`의 import 블록에 추가:
+`frontend/app/utils/equipmentExport.ts`의 import 블록에 추가:
 
 ```ts
 import type {
@@ -357,7 +357,7 @@ export function buildFailEquipmentWorkbook(
 
 - [ ] **Step 4: 테스트 통과를 확인한다**
 
-Run: `cd front-dev-home && npx node --test "app/utils/equipmentExport.test.ts"`
+Run: `cd frontend && npx node --test "app/utils/equipmentExport.test.ts"`
 Expected: PASS 11건 (02의 5건 + 이번 6건).
 
 - [ ] **Step 5: 타입체크·린트**
@@ -365,7 +365,7 @@ Expected: PASS 11건 (02의 5건 + 이번 6건).
 Run:
 
 ```bash
-cd front-dev-home
+cd frontend
 npm run typecheck
 npm run lint
 ```
@@ -373,8 +373,8 @@ npm run lint
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add front-dev-home/app/utils/equipmentExport.ts \
-        front-dev-home/app/utils/equipmentExport.test.ts
+git add frontend/app/utils/equipmentExport.ts \
+        frontend/app/utils/equipmentExport.test.ts
 git commit -m "feat(front): Fail 장비별 워크북 빌더를 추가한다
 
 TAT 빌더와 같은 세 시트 규격을 align/meas 축에 맞춰 냅니다. 보고 있는

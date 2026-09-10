@@ -251,7 +251,7 @@ meta (JSON)
 
 연결 설정
 
-  REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (back_dev_home/.env)
+  REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (backend/.env)
 
   reader 전용 LIVE_ALARM_REDIS_* 변수는 없어졌습니다. 스케줄러와 SKEWNONO 가
   서로 다른 db 에 앉아 조용히 빈 보드가 되는 사고가 원천적으로 불가능합니다 —

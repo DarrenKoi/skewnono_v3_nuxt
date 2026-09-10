@@ -9,7 +9,7 @@
 - 소요: standards 140s (`ses_fc8254a11ffeqMQsDm4dLlVE21`) · spec 131s
   (`ses_fc8254a0cffeqwv1eE4dISvHPu`), 두 축 모두 exit 0
 - 표준 출처로 지정한 문서: `CLAUDE.md`, `DESIGN.md`,
-  `front-dev-home/app/components/sk/Chip.vue`
+  `frontend/app/components/sk/Chip.vue`
 - 스펙 출처: `.scratch/` 에 스펙이 없어 사용자의 요청문을 그대로
   `.scratch/hw-tool-strip/spec.md` 에 옮겨 저장소 상대 경로로 넘겼습니다.
   그 파일의 "Requirements as read" 다섯 항목은 Claude 가 요청문에서 읽어

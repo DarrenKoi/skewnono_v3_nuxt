@@ -27,7 +27,7 @@
 >
 > ## (b) Baseline smells (JUDGEMENT)
 >
-> 1. **Duplicated Code (weak)** — `front-dev-home/app/utils/imageWarm.ts`. Two one-liners differ only in the `(status, code)` pair:
+> 1. **Duplicated Code (weak)** — `frontend/app/utils/imageWarm.ts`. Two one-liners differ only in the `(status, code)` pair:
 >
 >    ```ts
 >    export const isWarmRefusal = (err) => httpStatus(err) === 429 && warmErrorCode(err) === 'too_many_jobs'
@@ -36,11 +36,11 @@
 >
 >    A shared `hasStatusAndCode(err, status, code)` would carry both. Two occurrences of a one-liner — extraction is borderline; judge's call.
 >
-> 2. **Duplicated Code (weak)** — `back_dev_home/msr_image/tests/test_single_flight.py`. The `leader_in`/`release` blocking-fetch scaffolding repeats across `test_one_fetch_serves_every_caller_that_asked_at_once`, `test_the_waiters_are_all_released_at_once`, and `test_a_leader_that_returns_none_is_still_an_answer`. A small fixture/helper would shrink all three; per-test explicitness may be the house style, so weak.
+> 2. **Duplicated Code (weak)** — `backend/msr_image/tests/test_single_flight.py`. The `leader_in`/`release` blocking-fetch scaffolding repeats across `test_one_fetch_serves_every_caller_that_asked_at_once`, `test_the_waiters_are_all_released_at_once`, and `test_a_leader_that_returns_none_is_still_an_answer`. A small fixture/helper would shrink all three; per-test explicitness may be the house style, so weak.
 >
 > 3. **Data Clumps (weak, pre-existing)** — `useMsrImageApi.ts`: `startDownloadAll(eqp_ip, class_name, msr, names, timeoutMs)` adds a fifth positional param to the existing `(eqp_ip, class_name, msr)` clump that `FocusImageCtx` already types. Not introduced by this diff, only widened.
 >
-> 4. **Doc/code terminology drift** — `back_dev_home/msr_image/MIGRATION.md` line 52's table still says "이미지별 **single-flight 게이트**" while the new `single_flight.py` docstring explicitly states "this is not mutual exclusion" — the gate metaphor is what the change retired. The MIGRATION body prose was updated; the table entry was not.
+> 4. **Doc/code terminology drift** — `backend/msr_image/MIGRATION.md` line 52's table still says "이미지별 **single-flight 게이트**" while the new `single_flight.py` docstring explicitly states "this is not mutual exclusion" — the gate metaphor is what the change retired. The MIGRATION body prose was updated; the table entry was not.
 >
 > ## Notes (not flagged)
 >

@@ -1,6 +1,6 @@
 """Route-level rules for GET /api/cdsem/pm-planning/fleet's query arguments.
 
-The provider contract (back_dev_home/ebeam/pm_planning/tests/test_contract.py)
+The provider contract (backend/ebeam/pm_planning/tests/test_contract.py)
 covers the payload. This covers what only the route can get wrong: that the
 window argument is read the same way `/tttm/check` reads it — pm-tune joins
 the two payloads, so they must default, accept and refuse identically.
@@ -12,8 +12,8 @@ import unittest
 
 from flask import Flask
 
-from back_dev_home.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS, WINDOW_WEEKS_CHOICES
-from back_dev_home.ebeam.pm_planning.routes import bp
+from backend.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS, WINDOW_WEEKS_CHOICES
+from backend.ebeam.pm_planning.routes import bp
 
 
 FAB = "R3"

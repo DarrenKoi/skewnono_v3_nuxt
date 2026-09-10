@@ -20,7 +20,7 @@ Blocked by: 04
 ```bash
 cd /Users/daeyoung/Codes/skewnono-lot-outlier-merge
 .venv/bin/python index.py                 # 없으면 본체의 .venv 를 씁니다
-cd front-dev-home && npm run dev
+cd frontend && npm run dev
 ```
 
 화면이 통째로 비고 콘솔이 조용하면 Flask 가 죽은 것입니다 — 컴포넌트를
@@ -56,7 +56,7 @@ Lot 요약까지 내려갑니다.
 
 가장 조심할 항목입니다 (D2). 같은 `recipe_id` 가 스텝 두 곳에 걸린 lot 을
 찾습니다 — 집의 mock 이 이 경우를 일부러 만듭니다
-(`back_dev_home/ebeam/device_statistics/providers/recipe_population.py`
+(`backend/ebeam/device_statistics/providers/recipe_population.py`
 `_apply_shared_recipes`).
 
 확인:

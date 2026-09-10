@@ -74,7 +74,7 @@ msr -> string: MSR raw data 식별자. 예: 20260428_ADI_CD_BIAS_001_RAEA240031_
                원인이었습니다(여러 행의 키가 동시에 '' 였음).
                따라서 office 어댑터는 msr 을 필드에서 읽되 없으면 _id 에서
                가져옵니다. 이 규칙은 공용 모듈 한 곳에만 있습니다 -
-               back_dev_home/ebeam/_office_meas_hist.py 의 msr_of(hit) /
+               backend/ebeam/_office_meas_hist.py 의 msr_of(hit) /
                msr_clause(values). **_source["msr"] 를 직접 읽지 마십시오.**
                조회 쪽도 마찬가지입니다: msr.keyword term 만으로는 필드 없는
                문서를 찾지 못하므로 msr_clause 가 terms + ids 를 OR 합니다.
@@ -271,7 +271,7 @@ device 카탈로그(디바이스별 화면)용 lot_cd 해결
 
 두 피처는 이 인덱스를 "어떤 실행이 있었는가"로만 쓰고, 실제 CD 값은 각 문서의
 minio_pkl 을 열어서 얻습니다(msr_file_pickle.txt 의 tttm/pm_planning 절 참고).
-공용 코드는 back_dev_home/ebeam/_office_msr_cd.py 의 recent_runs() 입니다.
+공용 코드는 backend/ebeam/_office_msr_cd.py 의 recent_runs() 입니다.
 
 조회 조건 -> fab_name.keyword + eqp_id.keyword(terms, 장비 그룹 전체)
              + exists(minio_pkl) + timestamp range
@@ -329,5 +329,5 @@ CD 모니터링 recipe (user-confirmed 2026-08-18)
        정확히 지정해 고정하십시오.
 
   확인:
-    .venv/bin/python -m back_dev_home.ebeam.pm_planning.providers.office R3
+    .venv/bin/python -m backend.ebeam.pm_planning.providers.office R3
   2단계가 그 fab 이 실제로 돌린 recipe 이름과 매칭된 실행 수를 출력합니다.

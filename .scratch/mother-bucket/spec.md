@@ -110,7 +110,7 @@ scopeRecipesToBucket(recipeParams, bucketKeys, motherOnly)
 
 문서: `CONTEXT.md`, `docs/datatables/hitachi/planstep_r3.txt`,
 `docs/datatables/hitachi/recipe_params.txt`, `docs/datatables/hitachi/recipe_idp.txt`,
-`back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md`
+`backend/ebeam/cdsem/device_statistics/MIGRATION.md`
 
 ## 테스트
 

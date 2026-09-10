@@ -227,7 +227,7 @@ types:
       description: >-
         top_recipe's exec_count divided by this equipment's exec_count — a share of
         EXECUTION COUNT, not of measurement time (0.0 when top_recipe is null). This is the
-        number front-dev-home/app/utils/failEquipmentSignals.ts calibrates SHARE_CEIL against.
+        number frontend/app/utils/failEquipmentSignals.ts calibrates SHARE_CEIL against.
 
   FleetReference:
     tool_count:
@@ -269,7 +269,7 @@ types:
         equipment qualifies. DIAGNOSTIC ONLY — badge decisions read the confidence interval
         (the *_index_low/*_index_high pair on each EquipmentRow), never this block. It exists
         so FAIL_INDEX_CEIL/FAIL_INDEX_FLOOR
-        (front-dev-home/app/utils/failEquipmentSignals.ts) can be calibrated against the real
+        (frontend/app/utils/failEquipmentSignals.ts) can be calibrated against the real
         office distribution — see that file's MIGRATION.md OFFICE-VERIFY entry.
 
   EquipmentTrendSeries:

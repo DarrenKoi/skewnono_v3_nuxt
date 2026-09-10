@@ -17,7 +17,7 @@ checked against the confirmed expectation, so a surprise (an R3 row inside
 being silently absorbed into the shape the key name promised.
 
 Run FROM THE REPO ROOT at the office (the shared client self-loads
-``back_dev_home/.env``; ``-m`` is what puts the root on ``sys.path``):
+``backend/.env``; ``-m`` is what puts the root on ``sys.path``):
 
     .venv/bin/python -m scripts.probes.inspect_device_info_keys
 
@@ -52,7 +52,7 @@ import sys
 from dataclasses import dataclass, field
 
 from pathlib import Path
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -65,13 +65,13 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import (  # noqa: E402
+from backend._runtime.office_redis import (  # noqa: E402
     STORE_ERRORS,
     read_dataframe,
     redis_client,
     redis_text,
 )
-from back_dev_home.ebeam.device_statistics.contracts import (  # noqa: E402
+from backend.ebeam.device_statistics.contracts import (  # noqa: E402
     DeviceDescRow,
     R3DeviceGrpRow,
 )
@@ -105,7 +105,7 @@ SYNTHESIZED = frozenset({"id"})
 # per column because "which columns are dirty" is what an adapter author needs.
 PLACEHOLDER_TEXT = ("None", "none", "NONE", "nan", "NaN", "NULL", "null", "")
 
-# Fields `back_dev_home/ebeam/_analytics.py`'s `lot_metadata()` reads
+# Fields `backend/ebeam/_analytics.py`'s `lot_metadata()` reads
 # off device_statistics.data - Recipe TAT's device quick-filter chips break if
 # the office source cannot supply them (device_statistics/MIGRATION.md).
 EXTERNAL_IMPORTER_FIELDS = ("lot_cd", "fac_id", "prod_catg_cd", "tech_nm")
@@ -297,7 +297,7 @@ def inspect_key(client, name: str, rows: int, unique_cols: list[str]):
     _rule(f"KEY {name!r}  (redis type: {kind})")
     if kind == "none":
         print("  MISSING - no such key. List what does exist with:")
-        print("      .venv/bin/python -c \"from back_dev_home._runtime.office_redis"
+        print("      .venv/bin/python -c \"from backend._runtime.office_redis"
               " import redis_client; print(sorted(k.decode() for k in"
               " redis_client().scan_iter('*device*')))\"")
         return None
@@ -398,7 +398,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "  Record what this run proved in BOTH places (CLAUDE.md):\n"
             "    1. docs/datatables/hitachi/device_desc.txt / r3_device_grp.txt\n"
-            "    2. back_dev_home/ebeam/device_statistics/providers/mock.py "
+            "    2. backend/ebeam/device_statistics/providers/mock.py "
             "docstring\n"
             "  Mark each fact 'office 확인 YYYY-MM-DD'. Then implement\n"
             "  device_statistics/providers/office.py per its MIGRATION.md.\n"

@@ -1,6 +1,6 @@
 """Smoke-test every read endpoint listed on the /endpoints page, with a token.
 
-The /endpoints page (front-dev-home/app/pages/endpoints.vue, backed by
+The /endpoints page (frontend/app/pages/endpoints.vue, backed by
 app/data/apiCatalog.ts) is the catalog promised to API consumers. A swap that
 breaks one of those endpoints silently is the failure mode this script exists
 to catch at the office: the mock passes, the office adapter passes its per-
@@ -12,7 +12,7 @@ It does two things, in order:
   1. Token auth probe. A protected endpoint must 401 without a token and 401
      with a junk token, then 200 with the real one. That three-state check is
      the cheapest end-to-end proof that the _try_api_token middleware
-     (back_dev_home/_auth/middleware.py) is wired and that the office
+     (backend/_auth/middleware.py) is wired and that the office
      api_tokens provider recognized the plaintext. A home mock token would
      pass 1 and 2 but fail 3, which is exactly the office-vs-mock gap.
 
@@ -39,7 +39,7 @@ and export it, the same way the documented Python snippet expects:
     set SKEWNONO_TOKEN=skn_...        # cmd
     export SKEWNONO_TOKEN=skn_...     # bash
 
-Rate limit is 50 per 5 seconds per user (back_dev_home/__init__.py). This
+Rate limit is 50 per 5 seconds per user (backend/__init__.py). This
 script sleeps just over 5s between the auth probe and the sweep and paces
 the sweep itself so its own burst cannot 429 itself. A 429 is still retried
 once with backoff, because a real user hitting the app at the same time is
@@ -59,7 +59,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -72,7 +72,7 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._auth.middleware import _BEARER_PREFIX  # noqa: E402
+from backend._auth.middleware import _BEARER_PREFIX  # noqa: E402
 
 
 # Base URL mirrors the catalog's BASE_URL (app/data/apiCatalog.ts) so the

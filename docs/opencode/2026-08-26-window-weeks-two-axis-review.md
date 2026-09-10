@@ -4,7 +4,7 @@
 - Skill: oc-review
 - Model: opencode-go/glm-5.3 variant=high (tier=heavy)
 - Target: `git diff 310128c1...HEAD` 중 `fcd8b5eb`(창 선택 1~3주, 기본 3) + `45146de9`(선택지 1~4주, 기본 2). 같은 범위의 `f40e05c1`·`e9fecb6b`·`7e41731b`(다른 세션의 타이포그래피 수정)는 범위 밖으로 명시했습니다.
-- Standards 출처: `CLAUDE.md`, `DESIGN.md`, `back_dev_home/ebeam/tttm/MIGRATION.md`, `back_dev_home/ebeam/pm_planning/MIGRATION.md`, `docs/back-end/provider-selection.md`
+- Standards 출처: `CLAUDE.md`, `DESIGN.md`, `backend/ebeam/tttm/MIGRATION.md`, `backend/ebeam/pm_planning/MIGRATION.md`, `docs/back-end/provider-selection.md`
 - Spec: `.scratch/window-weeks/spec.md` (사용자 요청 원문 두 건 + 구현자 가정)
 - Elapsed: standards 279s · spec 194s · Session: ses_fc3454f2dffe8ldU9bse9gf7Ti / ses_fc3454f40ffe0tofbY3KKn3WC1
 

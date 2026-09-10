@@ -21,10 +21,10 @@ provider 가 무엇으로 해석되는지의 규칙은
 
 | 기반 | 위치 | 내용 |
 | --- | --- | --- |
-| 장비 레지스트리 | `back_dev_home/ebeam/_tool_specs.py` | 슬러그 ↔ tool_type ↔ 벤더 ↔ 어댑터 폴더의 단일 원천 (`SLUG_TO_TOOL_TYPE`, `TOOL_TYPE_TO_VENDOR`, `SLUG_TO_ADAPTER`) |
+| 장비 레지스트리 | `backend/ebeam/_tool_specs.py` | 슬러그 ↔ tool_type ↔ 벤더 ↔ 어댑터 폴더의 단일 원천 (`SLUG_TO_TOOL_TYPE`, `TOOL_TYPE_TO_VENDOR`, `SLUG_TO_ADAPTER`) |
 | CD/HV 전용 범위 | 같은 파일의 `SEM_TOOL_TYPES` | CD-SEM · HV-SEM 만 담는 집합. 이 범위를 뜻하려면 이 이름을 씁니다 |
-| 분류기 일치 | `back_dev_home/ebeam/__fixtures__/tool_type_cases.json` | 백엔드와 프론트 분류기가 같은 fixture 를 읽어 서로 어긋날 수 없게 고정 |
-| 레이아웃 | `back_dev_home/ebeam/<feature>/` | 중간 벤더 폴더 없이 평탄화 완료 |
+| 분류기 일치 | `backend/ebeam/__fixtures__/tool_type_cases.json` | 백엔드와 프론트 분류기가 같은 fixture 를 읽어 서로 어긋날 수 없게 고정 |
+| 레이아웃 | `backend/ebeam/<feature>/` | 중간 벤더 폴더 없이 평탄화 완료 |
 
 세 가지를 특히 기억합니다.
 
@@ -37,15 +37,15 @@ provider 가 무엇으로 해석되는지의 규칙은
 - **분류기는 두 벌(파이썬 · 타입스크립트)이지만 사례는 한 벌입니다.**
   새 계열의 모델 코드를 넣을 때는 접두사만 추가하지 말고
   `tool_type_cases.json` 에 사례를 함께 추가합니다. 그래야
-  `back_dev_home/ebeam/tests/test_tool_type_parity.py` 와
-  `front-dev-home/app/utils/toolTypeParity.test.ts` 가 함께 지켜 줍니다.
+  `backend/ebeam/tests/test_tool_type_parity.py` 와
+  `frontend/app/utils/toolTypeParity.test.ts` 가 함께 지켜 줍니다.
 - **AMAT 계열은 슬러그 = tool_type = 프론트 라우트가 한 문자열입니다**
   (`veritysem`, `provision`). `cdsem` ↔ `cd-sem` 같은 이중 표기는 Hitachi
   레거시로만 남습니다. 새 계열에 하이픈 표기를 만들지 않습니다.
 
 ## 2. 계열은 feature 위 폴더가 될 수 없습니다
 
-`back_dev_home/_runtime/office_registry.py` 의 `_discover()` 는 feature 를
+`backend/_runtime/office_registry.py` 의 `_discover()` 는 feature 를
 **`feature_dir.name` 하나로만** 식별하고 전역 유일성을 강제합니다. 중복이
 발견되면 다음 예외로 **부팅 자체가 실패합니다.**
 
@@ -81,13 +81,13 @@ ebeam/<feature>/providers/
 
 ### 3.1 기존 도구가 그대로 동작하는 이유
 
-`back_dev_home/ebeam/hardware/providers/` 가 이미 `fdc/`, `bm_pm/`, `sce/`,
+`backend/ebeam/hardware/providers/` 가 이미 `fdc/`, `bm_pm/`, `sce/`,
 `sharpness/`, `mdc/`, `reso_center/`, `bsm/` 로 같은 모양을 씁니다. 따라서
 다음이 **아무 변경 없이** 동작합니다.
 
 | 대상 | 근거 |
 | --- | --- |
-| `.gitignore` | `back_dev_home/**/providers/**/office.py` 규칙이 이미 있습니다 |
+| `.gitignore` | `backend/**/providers/**/office.py` 규칙이 이미 있습니다 |
 | `sync_office_adapters` | `hardware/fdc` 형태의 중첩 인자를 이미 지원합니다 (경로 세그먼트 접미사 매칭) |
 | `office_registry` | `**/providers/<filename>` 글롭이 `providers` 바로 아래만 잡으므로 하위 폴더를 **의도적으로** 제외합니다 |
 | `/api/health/providers` | feature 레벨 해석만 하므로 영향이 없습니다 |
@@ -140,7 +140,7 @@ import 가 깨진 어댑터"를 구분하는 것이 이 패턴의 핵심이며, 
 배선된 어댑터의 import 실패가 조용히 mock 으로 강등됩니다.
 
 ```python
-# back_dev_home/ebeam/_adapters.py — 아래 §3.5
+# backend/ebeam/_adapters.py — 아래 §3.5
 from werkzeug.exceptions import NotImplemented as NotImplementedHTTP
 
 
@@ -167,7 +167,7 @@ def _adapter(name: str):
 `description` 으로 받아 응답 본문에 그대로 싣기 때문에, `AdapterNotWired(name)`
 로 던지면 501 본문이 `"veritysem"` 한 단어가 되어 무엇이 왜 없는지 알 수 없습니다.
 
-**501 로 나가게 하려면 예외 타입을 골라야 합니다.** `back_dev_home/__init__.py`
+**501 로 나가게 하려면 예외 타입을 골라야 합니다.** `backend/__init__.py`
 의 JSON 에러 핸들러는 `HTTPException` 만 그 상태 코드로 내보내고, 정확히
 `RuntimeError` 인 것만 503, 그 하위 클래스(`NotImplementedError` 포함)는 500
 으로 처리합니다. 따라서 `AdapterNotWired` 는
@@ -181,7 +181,7 @@ def _adapter(name: str):
 
 ### 3.5 `AdapterNotWired` 는 한 곳에만 정의합니다
 
-정의 위치는 **`back_dev_home/ebeam/_adapters.py`** 입니다. `_office_meas_hist.py`
+정의 위치는 **`backend/ebeam/_adapters.py`** 입니다. `_office_meas_hist.py`
 · `_office_search.py` 와 같은 자리이고, 밑줄 접두사가 blueprint 스캔에서 빠지게
 해 줍니다. feature 마다 자기 것을 두면 상속 대상이 갈려 어떤 feature 는 501,
 어떤 feature 는 500 을 답하게 됩니다. 이 파일은 **지금 만들지 않습니다** —
@@ -215,7 +215,7 @@ AMAT 계열의 오피스 키 이름과 스키마는 **아직 아무것도 알려
 어떤 계열의 어떤 feature 든 장비 identity 는 `sem_list` 에서만 옵니다.
 `eqp_id` 나 모델 코드 목록을 파싱해 계열을 판정하는 코드는 금지입니다.
 
-근거는 사고입니다. `back_dev_home/ebeam/_tool_specs.py` 의 모듈 docstring 에
+근거는 사고입니다. `backend/ebeam/_tool_specs.py` 의 모듈 docstring 에
 기록되어 있듯, `eqp_models` 를 분류기로 쓴 결과 — 그 목록은 mock 이 그럴듯한
 row 를 만들려고 지어낸 코드 모음입니다 — 목록에 없던 **실장비 8대가 조용히
 사라졌습니다**(2026-07-24). 필터링되어 비워진 결과도 유효한 응답이므로 아무

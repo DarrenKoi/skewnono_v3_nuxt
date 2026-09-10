@@ -5,9 +5,9 @@
 
 ## 전환 절차
 
-1. GLM이 `back_dev_home/<기능>/MIGRATION.md`를 읽고 `providers/office.py`를 구현합니다.
+1. GLM이 `backend/<기능>/MIGRATION.md`를 읽고 `providers/office.py`를 구현합니다.
 2. 계약 테스트가 office 모드에서 통과해야 합니다. 저장소 루트에서
-   `SKEWNONO_<기능>_PROVIDER=office .venv/bin/pytest back_dev_home/<기능>` 형식으로
+   `SKEWNONO_<기능>_PROVIDER=office .venv/bin/pytest backend/<기능>` 형식으로
    실행하며, 이는 각 기능의 `MIGRATION.md` Verify 명령과 동일합니다.
 3. Flask를 재시작합니다. `providers/office.py` 파일이 존재하는 것 자체가
    전환 신호이므로, `.env` 수정이나 코드 커밋은 필요하지 않습니다.
@@ -65,7 +65,7 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 | fail_issue | SKEWNONO_FAIL_ISSUE_PROVIDER | ebeam/fail_issue/contracts.py | ebeam/fail_issue/MIGRATION.md | 구현완료 | - |
 | msr_file | SKEWNONO_MSR_FILE_PROVIDER | msr_file/contracts.py | msr_file/MIGRATION.md | 구현완료(부분) | - |
 
-(모든 계약/MIGRATION 경로는 `back_dev_home/` 기준 상대 경로입니다.)
+(모든 계약/MIGRATION 경로는 `backend/` 기준 상대 경로입니다.)
 
 ## 비고
 

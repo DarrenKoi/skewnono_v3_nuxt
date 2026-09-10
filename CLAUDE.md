@@ -8,7 +8,7 @@ Web application for metrology, specified for tool management and data analytics.
 
 ### Phase 1 — Home / Offline
 - Personal computer, fully offline
-- Flask mock server (`back_dev_home/`) runs on `http://localhost:5050` (5000 conflicts with macOS AirPlay; `PORT` env overrides)
+- Flask mock server (`backend/`) runs on `http://localhost:5050` (5000 conflicts with macOS AirPlay; `PORT` env overrides)
 - Data sourced from in-memory Python mock modules (no OpenSearch, no Redis, no DB)
 - Same Flask code and blueprint layout as Phase 2/3 — only the data-access layer differs
 - Nuxt runs with `NUXT_API_TARGET=http://localhost:5050` so Nitro proxies `/api/*` to Flask
@@ -91,13 +91,13 @@ assumption).
 - Backend responses converted to dict/dataframe shape before returning JSON
 
 ### Feature-sliced Backend Layout
-- Each Nuxt feature tab has a matching folder under `back_dev_home/`. Most are top-level (`sem_list/`, `msr_file/`, `msr_image/`, `afm/`, `meas_hist/`, `chat/`, …); the e-beam tabs sit **flat** under `ebeam/<feature>/` — `storage`, `tttm`, `recipe_tat`, `recipe_search`, `pm_planning`, `fail_issue`, `hardware`, `lateral_recipe`, `live_alarm`, `device_statistics`. **A page and its backend feature carry one name** (`/pm-planning` ↔ `pm_planning`, `/tttm` ↔ `tttm`, `/recipe-tat` ↔ `recipe_tat`): the page path is the feature slug with `-` for `_`, and `_logging/feature_map.py` files activity logs under that slug. Do not rename one side alone — the 2026-08-17 `pm-tune` detour cost a 47-file sweep to undo (2026-08-27); `/pm-tune` survives only as an identity alias there and in `utils/pageIdentity.ts`. There is **no vendor or tool-family folder in the path**: `_runtime/office_registry.py` identifies a feature by its directory name alone and refuses to boot on a duplicate, so `ebeam/amat/storage/` beside `ebeam/hitachi/storage/` is not untidy, it is an app that does not start.
-- **Tool family is a `providers/` axis, never a path axis.** The registry of families (slug ↔ tool_type ↔ vendor ↔ adapter folder) is `back_dev_home/ebeam/_tool_specs.py`; a family-specific adapter goes under `<feature>/providers/<family>/`, the shape `hardware/providers/` already uses. Read [`docs/back-end/vendor-onboarding.md`](docs/back-end/vendor-onboarding.md) before wiring a new tool family into a feature — it carries the 8-step procedure and the reasons behind each rule.
+- Each Nuxt feature tab has a matching folder under `backend/`. Most are top-level (`sem_list/`, `msr_file/`, `msr_image/`, `afm/`, `meas_hist/`, `chat/`, …); the e-beam tabs sit **flat** under `ebeam/<feature>/` — `storage`, `tttm`, `recipe_tat`, `recipe_search`, `pm_planning`, `fail_issue`, `hardware`, `lateral_recipe`, `live_alarm`, `device_statistics`. **A page and its backend feature carry one name** (`/pm-planning` ↔ `pm_planning`, `/tttm` ↔ `tttm`, `/recipe-tat` ↔ `recipe_tat`): the page path is the feature slug with `-` for `_`, and `_logging/feature_map.py` files activity logs under that slug. Do not rename one side alone — the 2026-08-17 `pm-tune` detour cost a 47-file sweep to undo (2026-08-27); `/pm-tune` survives only as an identity alias there and in `utils/pageIdentity.ts`. There is **no vendor or tool-family folder in the path**: `_runtime/office_registry.py` identifies a feature by its directory name alone and refuses to boot on a duplicate, so `ebeam/amat/storage/` beside `ebeam/hitachi/storage/` is not untidy, it is an app that does not start.
+- **Tool family is a `providers/` axis, never a path axis.** The registry of families (slug ↔ tool_type ↔ vendor ↔ adapter folder) is `backend/ebeam/_tool_specs.py`; a family-specific adapter goes under `<feature>/providers/<family>/`, the shape `hardware/providers/` already uses. Read [`docs/back-end/vendor-onboarding.md`](docs/back-end/vendor-onboarding.md) before wiring a new tool family into a feature — it carries the 8-step procedure and the reasons behind each rule.
 - Underscore-prefixed folders (`_runtime/`, `_auth/`, `_core/`, `_logging/`,
   `_scheduler/`, `_spa/`) are shared plumbing, **not** features — the app
   factory skips them.
 - Each feature folder contains `routes.py` (blueprint), `contracts.py` (shared return type), `data.py` (dispatcher), and `providers/{mock,office}.py` (adapters). Optional `__init__.py` re-exports `bp`. See `<feature>/MIGRATION.md` for what each office adapter needs. A feature whose home and office behaviour are the same code keeps `routes.py` and skips the rest — `chat`'s thread store is plain `chat/store.py`, so `chat` has no `providers/` and never appears in the provider table. Don't add a seam back until a second adapter actually exists.
-- `back_dev_home/__init__.py` is the app factory. Blueprints are **auto-discovered**: it rglobs for `routes.py`, skips any `_`-prefixed path, and registers each module's `bp` under `/api` — raising if a `routes.py` does not export a `Blueprint` named `bp`. Adding a feature means adding the folder; never edit the factory to register it.
+- `backend/__init__.py` is the app factory. Blueprints are **auto-discovered**: it rglobs for `routes.py`, skips any `_`-prefixed path, and registers each module's `bp` under `/api` — raising if a `routes.py` does not export a `Blueprint` named `bp`. Adding a feature means adding the folder; never edit the factory to register it.
 - Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `providers/office.py`. Office adapters must normalize results to the `contracts.py` type — "resemble the mock" means match the contract shape, not the mock's data.
 
 ### Repository Layout
@@ -110,7 +110,7 @@ Backend, from the repo root (CPython 3.14 venv; no activation step needed):
 ```bash
 .venv/bin/python index.py                              # Flask on :5050, hot-reloads at home
 .venv/bin/python -m pytest -q                          # full suite (~3040 tests, ~115 s)
-.venv/bin/python -m pytest back_dev_home/<feature> -q  # one feature
+.venv/bin/python -m pytest backend/<feature> -q  # one feature
 .venv/bin/python -m ruff check .                       # static gate, ~0.02 s — must be clean
 ```
 
@@ -119,13 +119,13 @@ builds a real 4000-lot payload. The suite has not rotted — that is where the
 seconds go.)
 
 Run pytest as `python -m pytest` from the root — `-m` is what puts the root on
-`sys.path` so tests can import `back_dev_home.*`. The bare `-q` form and
-`pytest tests back_dev_home -q` collect the same set (`testpaths` in
+`sys.path` so tests can import `backend.*`. The bare `-q` form and
+`pytest tests backend -q` collect the same set (`testpaths` in
 `pyproject.toml`); `tests/` **alone** silently skips every
-`back_dev_home/**/tests/` provider-contract suite, which is the larger half and
+`backend/**/tests/` provider-contract suite, which is the larger half and
 the part that guards the mock→office swap.
 
-Frontend, from `front-dev-home/`:
+Frontend, from `frontend/`:
 
 ```bash
 npm run dev        # Nuxt on :3000, Nitro proxies /api/* to :5050
@@ -142,10 +142,10 @@ browser by hand — Claude-in-Chrome or Playwright MCP; load the
 `browser-verify` skill first.
 
 ### Runtime gotchas
-- `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `back_dev_home/__init__.py`.
+- `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `backend/__init__.py`.
 - Identity at home is the `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix = blocked by access control.
 - `index.py` sets `ARROW_DEFAULT_MEMORY_POOL=system` before any import — **do not remove**. PyArrow 25's bundled mimalloc segfaults on macOS/Python 3.14 when a fresh thread first allocates, and the dev server runs every request on a fresh thread.
-- Periodic jobs live in `back_dev_home/_scheduler/`, not in feature folders.
+- Periodic jobs live in `backend/_scheduler/`, not in feature folders.
   Exactly one process runs them (uWSGI worker 1; the Werkzeug reloader's app
   child at home). `wsgi.ini`'s `lazy-apps` and `enable-threads` are
   load-bearing for this — see `docs/deployment.md`. Check runs with
@@ -182,9 +182,9 @@ flag. Full steps, including the bundle's `preflight.py`: `docs/deployment.md`.
 ## Markdown Notes
 
 - Run `npm run lint:md` after editing Markdown files. It covers the root `*.md`,
-  `docs/`, `back_dev_home/` (the per-feature `MIGRATION.md` files), the top
+  `docs/`, `backend/` (the per-feature `MIGRATION.md` files), the top
   level of `scripts/` (its `README.md` holds the office-script rules) and
-  `front-dev-home/` — every tree whose Markdown we author.
+  `frontend/` — every tree whose Markdown we author.
 - Deliberately **not** linted, so do not widen the glob to reach them: vendored
   copies (`ftp_handler/`, `minio_handler/`, `ops_store/`, `ops_index_mgmt/`,
   `bento_agents.md`) must stay byte-identical to their upstream, `.remember/`,

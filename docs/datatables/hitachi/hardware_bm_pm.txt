@@ -288,7 +288,7 @@ RESOLVED 2026-08-20 (요청 쪽 시각 함정)
   탭에서 빠져 보임" 이었고, fdc/bsm/reso_center/sharpness 도 같은 라우트를 쓰므로
   함께 영향을 받았습니다. 이제 _parse_iso 가 KST 로 변환한 뒤 offset 을 떼므로
   어댑터는 진짜 KST wall clock 을 받습니다. 회귀 테스트는
-  back_dev_home/ebeam/hardware/tests/test_routes_window.py 입니다.
+  backend/ebeam/hardware/tests/test_routes_window.py 입니다.
 
   같은 수정으로 두 번째 결함도 사라졌습니다 — +09:00 이 붙은 딥링크는 naive 인
   기본 anchor 와 비교되면서 TypeError(500) 를 냈습니다.

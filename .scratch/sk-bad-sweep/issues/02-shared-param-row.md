@@ -18,7 +18,7 @@ Blocked by: 01
 
 **Files:**
 
-- Create: 면제 문구 상수 모듈 (`front-dev-home/app/utils/` — 값 import 없는
+- Create: 면제 문구 상수 모듈 (`frontend/app/utils/` — 값 import 없는
   문자열이라 컴포넌트 밖에 두는 편이 `node --test` 로 확인 가능합니다)
 - Create: 파라미터 행 컴포넌트 (`components/ebeam/devstat/` — 두 화면이
   공유하므로 어느 한 화면의 폴더가 아닌 곳이 맞지만, 이 저장소에 공용 폴더
@@ -45,6 +45,6 @@ props 로 남기고 색만 통일합니다.**
 
 - 두 파일 어디에도 `rose-` 가 없습니다.
 - `EXEMPT_TITLE` 문자열이 저장소에 한 번만 등장합니다
-  (`grep -rn "CDU 계열" front-dev-home/app` 결과 1건).
+  (`grep -rn "CDU 계열" frontend/app` 결과 1건).
 - `npm test` · `npm run typecheck` · `npm run lint` 통과.
 - measurement-rules 슬라이드오버 확인은 티켓 05.

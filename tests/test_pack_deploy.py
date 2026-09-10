@@ -20,7 +20,7 @@ def test_excludes_packages_the_app_never_imports():
 
 
 def test_includes_the_built_spa_at_its_exact_path():
-    assert "front-dev-home/.output/public" in pack.INCLUDED_ROOTS
+    assert "frontend/.output/public" in pack.INCLUDED_ROOTS
 
 
 def test_excludes_permanent_cloud_root_files():
@@ -29,35 +29,35 @@ def test_excludes_permanent_cloud_root_files():
 
 
 def test_prunes_pycache_and_tests():
-    assert pack.should_prune(Path("back_dev_home/__pycache__"))
-    assert pack.should_prune(Path("back_dev_home/sem_list/tests"))
-    assert pack.should_prune(Path("back_dev_home/conftest.py"))
+    assert pack.should_prune(Path("backend/__pycache__"))
+    assert pack.should_prune(Path("backend/sem_list/tests"))
+    assert pack.should_prune(Path("backend/conftest.py"))
 
 
 def test_prunes_markdown_and_compiled_files():
-    assert pack.should_prune(Path("back_dev_home/sem_list/MIGRATION.md"))
-    assert pack.should_prune(Path("back_dev_home/x.pyc"))
-    assert pack.should_prune(Path("back_dev_home/.DS_Store"))
+    assert pack.should_prune(Path("backend/sem_list/MIGRATION.md"))
+    assert pack.should_prune(Path("backend/x.pyc"))
+    assert pack.should_prune(Path("backend/.DS_Store"))
 
 
 def test_keeps_the_files_that_must_ship():
     """office.py and .env are gitignored — losing them is the failure mode."""
-    assert not pack.should_prune(Path("back_dev_home/sem_list/providers/office.py"))
-    assert not pack.should_prune(Path("back_dev_home/.env"))
-    assert not pack.should_prune(Path("back_dev_home/requirements.txt"))
+    assert not pack.should_prune(Path("backend/sem_list/providers/office.py"))
+    assert not pack.should_prune(Path("backend/.env"))
+    assert not pack.should_prune(Path("backend/requirements.txt"))
     assert not pack.should_prune(Path("minio_handler/minio_config.py"))
 
 
 def _make_repo(tmp_path: Path) -> Path:
     """A minimal tree that passes every blocking check."""
     root = tmp_path / "repo"
-    (root / "back_dev_home" / "_runtime").mkdir(parents=True)
-    (root / "back_dev_home" / "_runtime" / "env.py").write_text("")
-    (root / "back_dev_home" / ".env").write_text("SKEWNONO_SECRET_KEY=real\n")
-    (root / "back_dev_home" / "requirements.txt").write_text("Flask>=3.0\n")
-    (root / "front-dev-home" / ".output" / "public").mkdir(parents=True)
-    (root / "front-dev-home" / ".output" / "public" / "index.html").write_text("<x>")
-    (root / "front-dev-home" / "app").mkdir(parents=True)
+    (root / "backend" / "_runtime").mkdir(parents=True)
+    (root / "backend" / "_runtime" / "env.py").write_text("")
+    (root / "backend" / ".env").write_text("SKEWNONO_SECRET_KEY=real\n")
+    (root / "backend" / "requirements.txt").write_text("Flask>=3.0\n")
+    (root / "frontend" / ".output" / "public").mkdir(parents=True)
+    (root / "frontend" / ".output" / "public" / "index.html").write_text("<x>")
+    (root / "frontend" / "app").mkdir(parents=True)
     for name in ("ops_store", "minio_handler", "ftp_handler", "office_utils"):
         (root / name).mkdir()
         (root / name / "__init__.py").write_text("")
@@ -82,7 +82,7 @@ def test_preflight_does_not_require_permanent_cloud_root_files(tmp_path):
 
 def test_missing_spa_blocks(tmp_path):
     root = _make_repo(tmp_path)
-    (root / "front-dev-home" / ".output" / "public" / "index.html").unlink()
+    (root / "frontend" / ".output" / "public" / "index.html").unlink()
 
     failures = pack.blocking_failures(pack.run_preflight(root))
 
@@ -91,7 +91,7 @@ def test_missing_spa_blocks(tmp_path):
 
 def test_missing_env_blocks(tmp_path):
     root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").unlink()
+    (root / "backend" / ".env").unlink()
 
     failures = pack.blocking_failures(pack.run_preflight(root))
 
@@ -122,7 +122,7 @@ def test_strict_promotes_advisories_to_blocking(tmp_path):
 
 def test_preflight_does_not_inspect_env_values(tmp_path):
     root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").write_text(
+    (root / "backend" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=dev-only-not-for-prod\n"
     )
 
@@ -135,13 +135,13 @@ def test_preflight_flags_an_office_logging_target_before_it_travels(tmp_path):
     """The one exception to "pack does not inspect .env values".
 
     SKEWNONO_LOG_ENV is not content, it is a property of the machine, and
-    back_dev_home is copied wholesale — so packing at the office is the moment
+    backend is copied wholesale — so packing at the office is the moment
     an office-only value starts travelling to the cloud. The cloud's own
     preflight fails on it as well, but only after the transfer, which on a
     host with a slow iteration loop is the difference worth having.
     """
     root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").write_text(
+    (root / "backend" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=k\nSKEWNONO_LOG_ENV=local\n"
     )
 
@@ -154,7 +154,7 @@ def test_preflight_flags_an_office_logging_target_before_it_travels(tmp_path):
 
 def test_preflight_accepts_a_bundle_that_names_the_production_target(tmp_path):
     root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").write_text(
+    (root / "backend" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=k\nSKEWNONO_LOG_ENV=production\n"
     )
 
@@ -169,7 +169,7 @@ def test_preflight_leaves_an_unset_logging_target_to_the_cloud(tmp_path):
     there. Failing here would block a deploy whose operator sets it after
     transfer."""
     root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").write_text("SKEWNONO_SECRET_KEY=k\n")
+    (root / "backend" / ".env").write_text("SKEWNONO_SECRET_KEY=k\n")
 
     checks = pack.run_preflight(root)
 
@@ -180,7 +180,7 @@ def test_office_logging_target_is_advisory_not_blocking(tmp_path):
     """Advisory because the operator may intend to edit the bundle's .env after
     the copy; --strict promotes it for a real production pack."""
     root = _make_repo(tmp_path)
-    (root / "back_dev_home" / ".env").write_text("SKEWNONO_LOG_ENV=local\n")
+    (root / "backend" / ".env").write_text("SKEWNONO_LOG_ENV=local\n")
 
     assert not any(
         f.name == "logging_target" for f in pack.blocking_failures(pack.run_preflight(root))
@@ -192,18 +192,18 @@ def test_office_logging_target_is_advisory_not_blocking(tmp_path):
 
 
 def _set_build_times(root: Path, source: float, build: float) -> None:
-    """Give front-dev-home/app one source file, then pin both sides' mtimes.
+    """Give frontend/app one source file, then pin both sides' mtimes.
 
     Absolute epochs, minutes apart: build_fresh compares mtimes with >=, so
     writing the files in order and trusting the clock would ride on filesystem
     timestamp granularity.
     """
-    source_file = root / "front-dev-home" / "app" / "pages" / "index.vue"
+    source_file = root / "frontend" / "app" / "pages" / "index.vue"
     source_file.parent.mkdir(parents=True, exist_ok=True)
     source_file.write_text("<template />")
     os.utime(source_file, (source, source))
 
-    spa_index = root / "front-dev-home" / ".output" / "public" / "index.html"
+    spa_index = root / "frontend" / ".output" / "public" / "index.html"
     os.utime(spa_index, (build, build))
 
 
@@ -235,7 +235,7 @@ def test_no_app_directory_is_not_reported_as_a_stale_build(tmp_path):
     """Packing from an export that carries only .output/ must not warn about a
     freshness it cannot measure."""
     root = _make_repo(tmp_path)
-    (root / "front-dev-home" / "app").rmdir()
+    (root / "frontend" / "app").rmdir()
 
     checks = pack.run_preflight(root)
 
@@ -249,7 +249,7 @@ def test_copy_preserves_the_depth_invariant(tmp_path):
 
     pack.copy_bundle(repo, dest)
 
-    env_py = dest / "back_dev_home" / "_runtime" / "env.py"
+    env_py = dest / "backend" / "_runtime" / "env.py"
     assert env_py.is_file()
     assert env_py.resolve().parents[2] == dest.resolve()
 
@@ -270,15 +270,15 @@ def test_copy_places_the_spa_at_its_exact_path(tmp_path):
 
     pack.copy_bundle(repo, dest)
 
-    assert (dest / "front-dev-home" / ".output" / "public" / "index.html").is_file()
+    assert (dest / "frontend" / ".output" / "public" / "index.html").is_file()
 
 
 def test_copy_prunes_pycache_and_tests(tmp_path):
     repo = _make_repo(tmp_path)
-    (repo / "back_dev_home" / "__pycache__").mkdir()
-    (repo / "back_dev_home" / "__pycache__" / "x.pyc").write_text("")
-    (repo / "back_dev_home" / "sem_list" / "tests").mkdir(parents=True)
-    (repo / "back_dev_home" / "sem_list" / "tests" / "test_x.py").write_text("")
+    (repo / "backend" / "__pycache__").mkdir()
+    (repo / "backend" / "__pycache__" / "x.pyc").write_text("")
+    (repo / "backend" / "sem_list" / "tests").mkdir(parents=True)
+    (repo / "backend" / "sem_list" / "tests" / "test_x.py").write_text("")
     dest = tmp_path / "bundle"
 
     pack.copy_bundle(repo, dest)
@@ -289,29 +289,29 @@ def test_copy_prunes_pycache_and_tests(tmp_path):
 
 def test_copy_keeps_gitignored_files_that_must_ship(tmp_path):
     repo = _make_repo(tmp_path)
-    adapter = repo / "back_dev_home" / "sem_list" / "providers"
+    adapter = repo / "backend" / "sem_list" / "providers"
     adapter.mkdir(parents=True)
     (adapter / "office.py").write_text("# real adapter\n")
     dest = tmp_path / "bundle"
 
     pack.copy_bundle(repo, dest)
 
-    assert (dest / "back_dev_home" / "sem_list" / "providers" / "office.py").is_file()
-    assert (dest / "back_dev_home" / ".env").is_file()
+    assert (dest / "backend" / "sem_list" / "providers" / "office.py").is_file()
+    assert (dest / "backend" / ".env").is_file()
 
 
 def test_copy_keeps_rag_database_but_prunes_chat_threads(tmp_path):
     repo = _make_repo(tmp_path)
-    rag_index = repo / "back_dev_home" / "chat" / "_rag" / "skewnono_rag" / "index"
+    rag_index = repo / "backend" / "chat" / "_rag" / "skewnono_rag" / "index"
     rag_index.mkdir(parents=True)
     (rag_index / "store.db").write_text("rag index")
-    (repo / "back_dev_home" / "chat" / "chat.db").write_text("local threads")
+    (repo / "backend" / "chat" / "chat.db").write_text("local threads")
     dest = tmp_path / "bundle"
 
     pack.copy_bundle(repo, dest)
 
     assert (dest / rag_index.relative_to(repo) / "store.db").is_file()
-    assert not (dest / "back_dev_home" / "chat" / "chat.db").exists()
+    assert not (dest / "backend" / "chat" / "chat.db").exists()
 
 
 def test_spa_output_is_copied_verbatim(tmp_path):
@@ -319,7 +319,7 @@ def test_spa_output_is_copied_verbatim(tmp_path):
     tests/ or ending in .md must not be pruned, or the SPA 404s at runtime
     with nothing failing at pack time."""
     repo = _make_repo(tmp_path)
-    spa = repo / "front-dev-home" / ".output" / "public"
+    spa = repo / "frontend" / ".output" / "public"
     (spa / "tests").mkdir()
     (spa / "tests" / "fixture.json").write_text("{}")
     (spa / "readme.md").write_text("# content")
@@ -327,7 +327,7 @@ def test_spa_output_is_copied_verbatim(tmp_path):
 
     pack.copy_bundle(repo, dest)
 
-    out = dest / "front-dev-home" / ".output" / "public"
+    out = dest / "frontend" / ".output" / "public"
     assert (out / "tests" / "fixture.json").is_file()
     assert (out / "readme.md").is_file()
 
@@ -344,7 +344,7 @@ def test_verify_catches_a_mangled_bundle(tmp_path):
     repo = _make_repo(tmp_path)
     dest = tmp_path / "bundle"
     pack.copy_bundle(repo, dest)
-    (dest / "front-dev-home" / ".output" / "public" / "index.html").unlink()
+    (dest / "frontend" / ".output" / "public" / "index.html").unlink()
 
     assert pack.verify_bundle(dest) != []
 
@@ -362,7 +362,7 @@ def test_verify_catches_a_missing_idp_parser(tmp_path):
 
 def test_manifest_records_the_adapter_roster(tmp_path):
     repo = _make_repo(tmp_path)
-    adapter = repo / "back_dev_home" / "sem_list" / "providers"
+    adapter = repo / "backend" / "sem_list" / "providers"
     adapter.mkdir(parents=True)
     (adapter / "office.py").write_text("")
     dest = tmp_path / "bundle"
@@ -398,7 +398,7 @@ def test_runbook_names_preflight_before_uwsgi(tmp_path):
 
 def test_main_exits_nonzero_when_a_blocking_check_fails(tmp_path, monkeypatch):
     repo = _make_repo(tmp_path)
-    (repo / "back_dev_home" / ".env").unlink()
+    (repo / "backend" / ".env").unlink()
     monkeypatch.chdir(repo)
 
     assert pack.main(["--out", str(tmp_path / "out")]) != 0
@@ -429,7 +429,7 @@ def test_main_writes_a_complete_bundle(tmp_path, monkeypatch):
 
 
 def test_main_locks_down_the_bundle_folder(tmp_path, monkeypatch):
-    """The bundle carries back_dev_home/.env and minio_handler/minio_config.py.
+    """The bundle carries backend/.env and minio_handler/minio_config.py.
 
     main() prints three lines telling the operator so, and DEPLOY.md tells them
     to re-apply mode 700 after the copy — both of which read as reassurance
@@ -464,7 +464,7 @@ def test_main_packs_the_named_root_from_a_foreign_cwd(tmp_path, monkeypatch):
     assert pack.main(["--out", str(out), "--repo-root", str(repo)]) == 0
 
     bundle = next(out.iterdir())
-    assert (bundle / "back_dev_home" / "_runtime" / "env.py").is_file()
+    assert (bundle / "backend" / "_runtime" / "env.py").is_file()
 
 
 def test_main_rejects_a_cwd_that_is_not_a_checkout(tmp_path, monkeypatch, capsys):
@@ -488,9 +488,9 @@ def test_ignore_callback_is_not_poisoned_by_the_checkout_path():
     """copytree passes an ABSOLUTE source dir. If the prune decision consulted
     ancestors, a checkout living under any directory named `tests` (or
     __pycache__, .pytest_cache, .ruff_cache) would prune every file in the
-    bundle. Regression: this emptied back_dev_home down to 3 files."""
+    bundle. Regression: this emptied backend down to 3 files."""
     pruned = pack._ignore(
-        "/Users/someone/tests/skewnono_v3_nuxt/back_dev_home/sem_list",
+        "/Users/someone/tests/skewnono_v3_nuxt/backend/sem_list",
         ["routes.py", "data.py", "contracts.py", "__init__.py", "providers"],
     )
 
@@ -499,7 +499,7 @@ def test_ignore_callback_is_not_poisoned_by_the_checkout_path():
 
 def test_ignore_callback_still_prunes_by_entry_name():
     pruned = pack._ignore(
-        "/anywhere/back_dev_home",
+        "/anywhere/backend",
         ["routes.py", "__pycache__", "tests", "MIGRATION.md", "conftest.py"],
     )
 
@@ -511,13 +511,13 @@ def test_copy_survives_a_checkout_under_a_directory_named_tests(tmp_path):
     nest = tmp_path / "tests"
     nest.mkdir()
     repo = _make_repo(nest)
-    (repo / "back_dev_home" / "sem_list").mkdir(parents=True)
-    (repo / "back_dev_home" / "sem_list" / "routes.py").write_text("# real code\n")
+    (repo / "backend" / "sem_list").mkdir(parents=True)
+    (repo / "backend" / "sem_list" / "routes.py").write_text("# real code\n")
     dest = tmp_path / "bundle"
 
     pack.copy_bundle(repo, dest)
 
-    assert (dest / "back_dev_home" / "sem_list" / "routes.py").is_file()
+    assert (dest / "backend" / "sem_list" / "routes.py").is_file()
     assert pack.verify_bundle(dest) == []
 
 
@@ -529,7 +529,7 @@ def test_git_provenance_does_not_claim_a_clean_tree_when_git_fails(tmp_path):
 
 
 def _adapter(root: Path, slug: str, template: str, copy: str | None) -> None:
-    providers = root / "back_dev_home" / slug / "providers"
+    providers = root / "backend" / slug / "providers"
     providers.mkdir(parents=True, exist_ok=True)
     (providers / "office_example.py").write_text(template)
     if copy is not None:

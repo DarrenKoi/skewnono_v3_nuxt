@@ -122,7 +122,7 @@ endpoints:
           detail: "probe failed (ConnectionError)"
 
 notes:
-  - Phase 1 source is back_dev_home/health/data.py, which returns fixed always-up values for the three services because OpenSearch and MinIO are not reachable from home. Only checked_at varies per request. No fixture is captured because the office response is intrinsically time-varying.
+  - Phase 1 source is backend/health/data.py, which returns fixed always-up values for the three services because OpenSearch and MinIO are not reachable from home. Only checked_at varies per request. No fixture is captured because the office response is intrinsically time-varying.
   - Office implementation should keep the same TypedDict shape and reuse the in-repo helpers — redis-py for Redis (ping()), ops_store.create_client() for OpenSearch (ping() or cluster.health()), minio_store.create_client() for MinIO (list_buckets() or bucket_exists()). Wrap each in try/except, measure wall-clock around the call, and convert to int ms.
   - Map probe results to status — "up" if the probe returned successfully (regardless of latency), "down" if it raised / timed out. Set latency_ms to None on "down".
   - Endpoint stays cheap (single-digit ms in the happy path) so future polling can be reintroduced without re-architecting if Phase 2 / 3 wants live status.

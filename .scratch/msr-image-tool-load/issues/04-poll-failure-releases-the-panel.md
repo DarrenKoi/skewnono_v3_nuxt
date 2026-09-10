@@ -9,7 +9,7 @@ Status: resolved
 갑니다.
 
 그런데 `poll_job_route` 는 `too_many_jobs` 를 절대 내보내지 않습니다 —
-`unknown_job`(404)뿐입니다(`back_dev_home/msr_image/routes.py`). 즉 **폴링 중
+`unknown_job`(404)뿐입니다(`backend/msr_image/routes.py`). 즉 **폴링 중
 발생하는 모든 실패는 무조건 `null` → `gaveup`** 입니다.
 
 ## 왜 이것이 브랜치의 목표를 되돌리는가
@@ -60,7 +60,7 @@ POST 재시도와 폴링 재시도를 분리합니다. 지금은 `attempt` 하�
 
 ## 검증
 
-`front-dev-home/app/utils/imageWarm.test.ts` 에 판정 함수 케이스를 추가합니다.
+`frontend/app/utils/imageWarm.test.ts` 에 판정 함수 케이스를 추가합니다.
 
 - 429 rate limit 폴링 실패 → 재시도 (지금 코드는 `gaveup`, **실패해야 함**)
 - 네트워크 오류 폴링 실패 → 재시도
@@ -80,8 +80,8 @@ POST 재시도와 폴링 재시도를 분리합니다. 지금은 `attempt` 하�
 
 ## 참고
 
-- `front-dev-home/app/composables/useMsrImageWarmer.ts` — `runWarm`
-- `back_dev_home/msr_image/routes.py` — `poll_job_route` (404 `unknown_job` 만)
+- `frontend/app/composables/useMsrImageWarmer.ts` — `runWarm`
+- `backend/msr_image/routes.py` — `poll_job_route` (404 `unknown_job` 만)
 - 설계: `docs/superpowers/specs/2026-08-10-msr-image-tool-load-design.md` §2.1, §4.1
 
 ## Answer

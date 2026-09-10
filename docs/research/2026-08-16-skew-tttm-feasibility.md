@@ -204,7 +204,7 @@ recipe 를 아무리 늘려도 줄어드는 것은 **무작위 성분**뿐입니
 
 ### 5.1 야간 rollup — 실행(run) 단위 grain (가장 먼저)
 
-`back_dev_home/_scheduler/` 에 잡을 하나 추가하고, `(msr, eqp_id, recipe, parameter,
+`backend/_scheduler/` 에 잡을 하나 추가하고, `(msr, eqp_id, recipe, parameter,
 cell)` **한 행 = 한 실행**으로 강건 통계(중앙값·MAD·n·실행 내 산포)를 적재합니다.
 `device_statistics` 의 weekly_trend 가 이미 쓰는 모양이며, parquet 로 하루 1 오브젝트면
 됩니다.

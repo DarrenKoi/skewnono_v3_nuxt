@@ -31,12 +31,12 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
 
-from back_dev_home._logging.target import (  # noqa: E402
+from backend._logging.target import (  # noqa: E402
     LoggingConfigurationError,
     resolve_logging_target,
 )
-from back_dev_home._runtime.data_provider import get_mode  # noqa: E402
-from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
+from backend._runtime.data_provider import get_mode  # noqa: E402
+from backend._runtime.office_redis import load_env_file  # noqa: E402
 
 
 _HEALTH_PATH = "/api/health/logging"

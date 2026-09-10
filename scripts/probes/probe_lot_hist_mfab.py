@@ -41,7 +41,7 @@ import sys
 from typing import Any
 
 from pathlib import Path
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -54,8 +54,8 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
-from back_dev_home.ebeam.device_statistics.oper_order import (  # noqa: E402
+from backend._runtime.office_redis import load_env_file  # noqa: E402
+from backend.ebeam.device_statistics.oper_order import (  # noqa: E402
     oper_prefix,
     sort_oper_descs,
     unknown_prefixes,

@@ -15,7 +15,7 @@ across a chronological list.
 
 The mock cannot produce that situation.
 
-`back_dev_home/ebeam/hitachi/live_alarm/providers/mock.py` emits
+`backend/ebeam/hitachi/live_alarm/providers/mock.py` emits
 
 ```python
 count = (now // 60) % 4
@@ -73,7 +73,7 @@ screen has.
 
 - Keep the minute-derived determinism: the same minute must rebuild the same
   board, or the existing tests go flaky.
-- `back_dev_home/ebeam/hitachi/live_alarm/tests/` has 91 tests over this
+- `backend/ebeam/hitachi/live_alarm/tests/` has 91 tests over this
   feature; several assert on board contents.
 - Per `CLAUDE.md`, a change to what the mock stands for belongs in the
   docstring too, and any new office fact belongs in
@@ -86,13 +86,13 @@ screen has.
 ## Why it was not fixed in the originating branch
 
 The 2026-08-03 grouping work was scoped frontend-only, and its plan's Global
-Constraints forbade touching `back_dev_home/`. Reaching across would have
+Constraints forbade touching `backend/`. Reaching across would have
 turned a frontend branch into a backend one mid-review. Recorded here instead.
 
 ## How it was fixed
 
 Three changes in
-`back_dev_home/ebeam/hitachi/live_alarm/providers/mock.py`:
+`backend/ebeam/hitachi/live_alarm/providers/mock.py`:
 
 1. **Volume cycle.** `count = (now // 60) % 4` became
    `_COUNTS = (0, 11, 19, 27)` indexed by the minute. The `0` keeps the quiet

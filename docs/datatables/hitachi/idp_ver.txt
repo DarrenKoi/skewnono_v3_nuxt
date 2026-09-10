@@ -152,7 +152,7 @@ para_all 까지 0 이 되고, 화면의 100% 누적 막대는 빈 칸이 됩니�
 파라미터 수" 로 쓸지 "버킷 합" 으로 쓸지. 구간이 전체를 덮으므로 **두 값은 이제
 같습니다.**
 
-경계는 코드 한 곳에 있습니다: `back_dev_home/ebeam/device_statistics/para_buckets.py`
+경계는 코드 한 곳에 있습니다: `backend/ebeam/device_statistics/para_buckets.py`
 (프론트엔드 거울은 `app/utils/paraTrendSeries.ts` 의 PARA_KEYS).
 
 para_* 는 측정 파라미터만 셉니다 (user-confirmed 2026-08-10)

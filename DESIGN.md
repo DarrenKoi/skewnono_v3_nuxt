@@ -1,6 +1,6 @@
 # DESIGN.md — SKEWNONO Design System
 
-> This document is the **single source of truth** for the SKEWNONO frontend's visual language. Code follows this document; where they disagree, the code is corrected. Token identifiers stay in English to match Tailwind/NuxtUI class names. Implemented in `front-dev-home/app/assets/css/main.css` (tokens), `front-dev-home/app/app.config.ts` (NuxtUI mapping), and verified against `preview.html` / `preview-dark.html`.
+> This document is the **single source of truth** for the SKEWNONO frontend's visual language. Code follows this document; where they disagree, the code is corrected. Token identifiers stay in English to match Tailwind/NuxtUI class names. Implemented in `frontend/app/assets/css/main.css` (tokens), `frontend/app/app.config.ts` (NuxtUI mapping), and verified against `preview.html` / `preview-dark.html`.
 
 ## Overview
 
@@ -92,7 +92,7 @@ The system runs **Spoqa Han Sans Neo** as the default UI/body sans, covering **b
 
 Unlike the previous Noto Sans KR setup (which split into korean + latin subsets with `unicode-range` ordering), each Spoqa Han Sans Neo weight is **one woff2 file that already covers Latin + Hangul**, so there are only three `@font-face` blocks. Spoqa Han Sans Neo ships **no SemiBold (600)** — only 400/500/700 are bundled. The Medium (500) face declares `font-weight: 500 600`, so `font-semibold` / `font-weight: 600` render as **Medium** rather than auto-mapping up to Bold; flip the range if 600 should render as Bold.
 
-All fonts are **self-hosted**: woff2 only, in `front-dev-home/public/fonts/`. Public Sans and JetBrains Mono come from `@fontsource/*`; Spoqa Han Sans Neo comes from the `spoqa-han-sans` npm package (v3.3.0, `Subset/SpoqaHanSansNeo/*.woff2`, SIL OFL 1.1). No CDN or Google Fonts access, ever (offline principle).
+All fonts are **self-hosted**: woff2 only, in `frontend/public/fonts/`. Public Sans and JetBrains Mono come from `@fontsource/*`; Spoqa Han Sans Neo comes from the `spoqa-han-sans` npm package (v3.3.0, `Subset/SpoqaHanSansNeo/*.woff2`, SIL OFL 1.1). No CDN or Google Fonts access, ever (offline principle).
 
 - Spoqa Han Sans Neo 400/500/700 → default sans: body, navigation, buttons, headings, Korean labels and copy (Latin + Hangul); weight 600 → Medium
 - Public Sans 400–700 → Latin fallback

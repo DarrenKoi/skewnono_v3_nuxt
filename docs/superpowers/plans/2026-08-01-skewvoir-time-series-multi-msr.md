@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- All frontend commands run **from `front-dev-home/`**: `npm test`, `npm run typecheck`, `npm run lint`. Markdown lint runs from the repo root: `npm run lint:md`.
+- All frontend commands run **from `frontend/`**: `npm test`, `npm run typecheck`, `npm run lint`. Markdown lint runs from the repo root: `npm run lint:md`.
 - `npm test` is `node --test "app/**/*.test.ts"`. To run one file: `node --test app/utils/skewvoirAnalysis/timeSeries.test.ts`.
 - **Frontend baseline before this plan starts: 971 passed, 0 failed.** Never finish a task with fewer passing.
 - `npm test` covers **pure functions only**. There is no component mounting harness and no E2E suite. Anything inside a `.vue` file is verified by hand via the `verify` skill, never by a unit test. Do not invent a component test.
@@ -100,7 +100,7 @@ If `parseMsrList` is not already imported at the top of the test file, add it to
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run from `front-dev-home/`:
+Run from `frontend/`:
 
 ```bash
 node --test app/utils/skewvoirAnalysis/routeQuery.test.ts

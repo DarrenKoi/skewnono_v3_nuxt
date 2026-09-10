@@ -25,7 +25,7 @@ import 시점에 한 번, `recipe_search: ... via direct` 가 FTP 호출마다 �
 
 ```bash
 # 사무실 PC, 저장소 루트에서
-npm --prefix front-dev-home run build
+npm --prefix frontend run build
 .venv/bin/python scripts/deploy/pack.py
 ```
 
@@ -35,11 +35,11 @@ npm --prefix front-dev-home run build
 
 | 단계 | 실행 위치 | 명령 |
 | --- | --- | --- |
-| 1 | 사무실 | `npm --prefix front-dev-home run build` |
+| 1 | 사무실 | `npm --prefix frontend run build` |
 | 2 | 사무실 | `.venv/bin/python scripts/deploy/pack.py` |
 | 3 | 사무실 → 클라우드 | 번들 내용을 기존 `/project/workSpace/`에 덮어쓰기 |
 | 4 | 클라우드 | `python preflight.py` (설치 전) |
-| 5 | 클라우드 | `pip install -r back_dev_home/requirements.txt` |
+| 5 | 클라우드 | `pip install -r backend/requirements.txt` |
 | 6 | 클라우드 | `python preflight.py` (설치 후) |
 | 7 | 클라우드 | `uwsgi --ini wsgi.ini` |
 
@@ -69,7 +69,7 @@ numpy 가 `requirements.txt` 에 선언되어 있지 않아 pandas 를 통해 �
 
 ## 2. 경로가 곧 설정입니다
 
-이 배포에서 가장 조심해야 할 부분입니다. `back_dev_home/_runtime/env.py` 의
+이 배포에서 가장 조심해야 할 부분입니다. `backend/_runtime/env.py` 의
 `is_cloud()` 는 **자기 자신의 파일 경로가 `/project/workSpace` 아래에 있는지**
 로 클라우드 여부를 판단합니다. 설정 파일이나 환경 변수가 아닙니다.
 
@@ -91,8 +91,8 @@ SPA 경로가 어긋납니다.
 
 | 포함 | 이유 |
 | --- | --- |
-| `back_dev_home/` | Flask 백엔드 전체입니다. |
-| `front-dev-home/.output/public/` | 빌드된 SPA 입니다. |
+| `backend/` | Flask 백엔드 전체입니다. |
+| `frontend/.output/public/` | 빌드된 SPA 입니다. |
 | `ops_store/`, `minio_handler/`, `ftp_handler/` | 앱이 실제로 import 하는 벤더 패키지입니다. |
 | `office_utils/` | recipe open 이 지연 import 하는 사내 IDP 파서입니다. 없으면 recipe open 이 FTP 다운로드 후 파싱 단계에서 실패합니다. |
 
@@ -117,8 +117,8 @@ SPA 경로가 어긋납니다.
 `pack.py`는 git이 아니라 **작업 트리**를 읽습니다. 다음 파일들은
 의도적으로 gitignore 되어 있지만 반드시 함께 배포되어야 합니다.
 
-- `back_dev_home/<feature>/providers/office.py` — 사내 데이터 어댑터입니다.
-- `back_dev_home/.env` — `create_app()` 이 읽는 설정입니다.
+- `backend/<feature>/providers/office.py` — 사내 데이터 어댑터입니다.
+- `backend/.env` — `create_app()` 이 읽는 설정입니다.
 - `minio_handler/minio_config.py` — MinIO 접속 정보입니다.
 - `office_utils/` — 사내 IDP 파서입니다. `pack.py` 의 `verify_bundle` 이
   `office_utils/read_idp_info.py` 부재를 잡고, 클라우드 `preflight.py` 도
@@ -137,7 +137,7 @@ mock 데이터를 서빙하게 됩니다. 아무 경고도 나오지 않기 때�
 >
 > ```bash
 > chmod 700 /project/workSpace
-> chmod 600 /project/workSpace/back_dev_home/.env
+> chmod 600 /project/workSpace/backend/.env
 > chmod 600 /project/workSpace/minio_handler/minio_config.py
 > ```
 
@@ -237,14 +237,14 @@ touch-reload    = %drestart.txt
 | --- | --- | --- |
 | 기존 `/project/workSpace`에 오버레이 | `python preflight.py`의 PATH 및 영구 파일 검사 | 배포자 |
 | `LASTUSER` 쿠키가 브라우저에 전달되는지 | 페이지 접속 후 로그의 `user=` 필드 | 인프라 |
-| `back_dev_home/.env` 배치 | `python preflight.py`의 파일 존재 검사 | 배포자 |
+| `backend/.env` 배치 | `python preflight.py`의 파일 존재 검사 | 배포자 |
 | **`SKEWNONO_SECRET_KEY` 설정 (필수)** | 값이 없으면 앱이 **기동을 거부**합니다 | 배포자 |
 | **`SKEWNONO_LOG_ENV=production` 설정** | `python preflight.py`의 `SKEWNONO_LOG_ENV` 검사 | 배포자 |
 | `skewnono_logging` 롤오버 alias 생성 (**사무실에서 먼저**) | `python ops_index_mgmt/skewnono_logging.py` | 배포자 |
 
 ### `SKEWNONO_SECRET_KEY` 는 이제 필수입니다
 
-`back_dev_home/.env` 에 반드시 값이 있어야 하며, 없거나 비어 있으면 클라우드에서
+`backend/.env` 에 반드시 값이 있어야 하며, 없거나 비어 있으면 클라우드에서
 앱이 뜨지 않습니다. 집과 사무실 localhost 는 종전대로 기본값으로 동작합니다.
 
 이 키는 자기 신원 입력(`/identify`)이 만든 세션에 서명합니다. 서명이 없으면
@@ -257,7 +257,7 @@ touch-reload    = %drestart.txt
 문자열이면 통과합니다.
 
 ```bash
-# /project/workSpace/back_dev_home/.env
+# /project/workSpace/backend/.env
 SKEWNONO_SECRET_KEY=<임의의 비어 있지 않은 문자열>
 ```
 
@@ -283,7 +283,7 @@ localhost 로 접속한 것도 실제 사용이므로 활동 기록에 남아야
 일찍 삭제됩니다. 2026-08-03 클라우드 배포에서 실제로 발생한 사례입니다.
 
 ```bash
-# /project/workSpace/back_dev_home/.env
+# /project/workSpace/backend/.env
 SKEWNONO_LOG_ENV=production
 OPENSEARCH_HOST=<사내 OpenSearch 호스트>
 OPENSEARCH_USER=<계정>
@@ -295,7 +295,7 @@ OPENSEARCH_PASSWORD=<암호>
 이 `LoggingConfigurationError` 로 죽습니다. `preflight.py` 가 이 세 조합을 모두
 구분해 보고합니다.
 
-`back_dev_home/` 은 통째로 복사되므로 **사무실 PC 의 `.env` 가 그대로 번들에
+`backend/` 은 통째로 복사되므로 **사무실 PC 의 `.env` 가 그대로 번들에
 실립니다.** 즉 사무실에서 `local` 로 두고 패킹하면 그 값이 클라우드까지 따라
 갑니다. `pack.py` 가 패킹 시점에 이를 `logging_target` 경고로 알려 주며,
 `--strict` 로 패킹하면 차단 오류가 됩니다.
@@ -382,7 +382,7 @@ alias** 임을 확인한 뒤에만 색인하며, 아니면 배치를 통째로 �
 > 모든 요청이 관리자 계정 `local-dev` 로 취급되므로, `preflight.py` 의 PATH
 > 검사를 반드시 통과시켜야 합니다.
 
-`preflight.py`는 `back_dev_home/.env`의 값 중 **`SKEWNONO_SECRET_KEY`,
+`preflight.py`는 `backend/.env`의 값 중 **`SKEWNONO_SECRET_KEY`,
 `SKEWNONO_LOG_ENV`, `OPENSEARCH_PASSWORD`, `OPENSEARCH_LOGGING_DISABLED`** 만
 읽습니다. 앞의 둘은 값이 잘못되면 기동이 실패하거나 로그가 엉뚱한 인덱스로
 가기 때문이고, 뒤의 둘은 그 판정에 필요하기 때문입니다. 그 외의 값은 읽지도

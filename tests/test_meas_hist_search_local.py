@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import unittest
 
-from back_dev_home.meas_hist.opensearch_query import (
+from backend.meas_hist.opensearch_query import (
     SEARCH_ALL_FIELD,
     build_q_fallback_clause,
 )

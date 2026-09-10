@@ -11,7 +11,7 @@
 ## 1. 목적과 결론
 
 두 연구 문서는 정착 관행·조건부 분석·연구 기능의 성숙도 구분과 우선순위(P0~P3)까지
-정리했습니다. 이 문서는 그 목표 상태와 현재 `front-dev-home` 구현을 화면별로
+정리했습니다. 이 문서는 그 목표 상태와 현재 `frontend` 구현을 화면별로
 대조하여 무엇이 채워졌고 무엇이 비어 있는지를 한눈에 보이게 합니다.
 
 핵심 결론은 다음과 같습니다.
@@ -37,7 +37,7 @@
 
 | 화면 | 구현 파일 | 비고 |
 | --- | --- | --- |
-| 측정 개요 | `front-dev-home/app/components/ebeam/skewvoir/views/Dashboard.vue` | StatBar, ParamNav, WaferMap 패널 포함 |
+| 측정 개요 | `frontend/app/components/ebeam/skewvoir/views/Dashboard.vue` | StatBar, ParamNav, WaferMap 패널 포함 |
 | 위치 비교 | `views/PositionStack.vue` | set 범위는 Composite Mean + Site Variability(σ) 두 heat chart |
 | FDC | `views/Fdc.vue` | set 범위는 안내 카드만 표시 |
 | Time-Series | `views/TimeSeries.vue` | 추이/분포/장비 skew 3렌즈 |

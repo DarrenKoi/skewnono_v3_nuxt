@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **Never modify** `back_dev_home/msr_image/data.py`, `providers/mock.py`, `providers/office_example.py`, or `contracts.py`. `data.list_images()` must keep its exact 3-argument signature `(eqp_ip, class_name, msr)`. Widening it forces every office checkout to run `python -m scripts.sync_office_adapters msr_image` before it will boot.
+- **Never modify** `backend/msr_image/data.py`, `providers/mock.py`, `providers/office_example.py`, or `contracts.py`. `data.list_images()` must keep its exact 3-argument signature `(eqp_ip, class_name, msr)`. Widening it forces every office checkout to run `python -m scripts.sync_office_adapters msr_image` before it will boot.
 - **Never modify** the rate limiter. `msr_image` is already exempt and already regression-tested at `tests/test_rate_limit.py:61`.
 - Run backend tests as `.venv/bin/python -m pytest` **from the repo root** — the `-m` form is what puts the root on `sys.path`.
 - Run `npm run lint:md` from the repo root after any Markdown edit. Enforced rules are only MD031 (blank lines around fences), MD040 (language on fences), MD060 (`compact` table style).
@@ -43,7 +43,7 @@ git worktree add ../skewnono-msr-image-api -b work/msr-image-api
 - [ ] **Step 2: Confirm the tests run there before changing anything**
 
 ```bash
-cd ../skewnono-msr-image-api && .venv/bin/python -m pytest back_dev_home/msr_image -q
+cd ../skewnono-msr-image-api && .venv/bin/python -m pytest backend/msr_image -q
 ```
 
 Expected: all pass. If `.venv` is missing in the worktree, use the main checkout's interpreter by absolute path — do not create a second venv.
@@ -56,8 +56,8 @@ Expected: all pass. If `.venv` is missing in the worktree, use the main checkout
 
 **Files:**
 
-- Modify: `back_dev_home/msr_image/routes.py:71-94`
-- Test: `back_dev_home/msr_image/tests/test_routes_serve.py`
+- Modify: `backend/msr_image/routes.py:71-94`
+- Test: `backend/msr_image/tests/test_routes_serve.py`
 
 **Interfaces:**
 
@@ -66,7 +66,7 @@ Expected: all pass. If `.venv` is missing in the worktree, use the main checkout
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `back_dev_home/msr_image/tests/test_routes_serve.py`:
+Append to `backend/msr_image/tests/test_routes_serve.py`:
 
 ```python
 def test_serve_sets_content_disposition_filename(client):
@@ -116,7 +116,7 @@ from urllib.parse import quote, unquote
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_routes_serve.py -k "disposition or escapes_quote or non_ascii" -v
+.venv/bin/python -m pytest backend/msr_image/tests/test_routes_serve.py -k "disposition or escapes_quote or non_ascii" -v
 ```
 
 Expected: 3 FAIL with `KeyError: 'Content-Disposition'`.
@@ -160,7 +160,7 @@ Replace `routes.py:91` (`headers = {"Cache-Control": "public, max-age=3600"}`) w
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_routes_serve.py -v
+.venv/bin/python -m pytest backend/msr_image/tests/test_routes_serve.py -v
 ```
 
 Expected: all PASS, including the pre-existing tests.
@@ -168,7 +168,7 @@ Expected: all PASS, including the pre-existing tests.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/msr_image/routes.py back_dev_home/msr_image/tests/test_routes_serve.py
+git add backend/msr_image/routes.py backend/msr_image/tests/test_routes_serve.py
 git commit -m "feat(msr_image): send Content-Disposition with an escaped filename
 
 External Python/curl callers download these bytes to disk, so the response
@@ -188,9 +188,9 @@ a non-ASCII name."
 
 **Files:**
 
-- Modify: `back_dev_home/msr_image/routes.py:49-68`
-- Test: `back_dev_home/msr_image/tests/test_routes_serve.py`
-- Test: `back_dev_home/msr_image/tests/test_data_seam.py`
+- Modify: `backend/msr_image/routes.py:49-68`
+- Test: `backend/msr_image/tests/test_routes_serve.py`
+- Test: `backend/msr_image/tests/test_data_seam.py`
 
 **Interfaces:**
 
@@ -199,7 +199,7 @@ a non-ASCII name."
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `back_dev_home/msr_image/tests/test_routes_serve.py`:
+Append to `backend/msr_image/tests/test_routes_serve.py`:
 
 ```python
 def test_list_ext_jpg_returns_only_jpeg_family(client):
@@ -235,7 +235,7 @@ def test_list_rejects_unknown_ext(client):
     assert "ext" in r.get_json()["error"]
 ```
 
-Append to `back_dev_home/msr_image/tests/test_data_seam.py`:
+Append to `backend/msr_image/tests/test_data_seam.py`:
 
 ```python
 def test_list_images_seam_signature_is_three_args():
@@ -256,8 +256,8 @@ def test_list_images_seam_signature_is_three_args():
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_routes_serve.py -k ext -v
-.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_data_seam.py -k signature -v
+.venv/bin/python -m pytest backend/msr_image/tests/test_routes_serve.py -k ext -v
+.venv/bin/python -m pytest backend/msr_image/tests/test_data_seam.py -k signature -v
 ```
 
 Expected: the four `ext` tests FAIL (unknown `ext` is currently ignored, so `ext=png` returns 200). The signature test PASSES already — it is a guard against future change, not a red test.
@@ -302,7 +302,7 @@ In `list_images_route`, replace the body between `cfg = load_config()` and the `
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/msr_image -q
+.venv/bin/python -m pytest backend/msr_image -q
 ```
 
 Expected: all PASS.
@@ -310,9 +310,9 @@ Expected: all PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/msr_image/routes.py \
-        back_dev_home/msr_image/tests/test_routes_serve.py \
-        back_dev_home/msr_image/tests/test_data_seam.py
+git add backend/msr_image/routes.py \
+        backend/msr_image/tests/test_routes_serve.py \
+        backend/msr_image/tests/test_data_seam.py
 git commit -m "feat(msr_image): add ext=jpg|tif filter to the image listing
 
 Users pulling images to their PC to LOOK at them want the JPEG previews,
@@ -785,7 +785,7 @@ FTP listings and serves files the ext filter would have dropped."
 **Files:**
 
 - Modify: `docs/back-end/api-tokens.md:42,44,46`
-- Modify: `back_dev_home/_auth/middleware.py:26`
+- Modify: `backend/_auth/middleware.py:26`
 
 **Interfaces:**
 
@@ -815,7 +815,7 @@ Then replace the paragraph at line 48 (`순서가 중요합니다…`) so it kee
 
 - [ ] **Step 2: Fix the stale docstring in the middleware**
 
-In `back_dev_home/_auth/middleware.py:26`, change:
+In `backend/_auth/middleware.py:26`, change:
 
 ```python
       matched=False           → no Authorization header, fall through to SSO
@@ -830,7 +830,7 @@ to:
 - [ ] **Step 3: Confirm nothing behavioral changed**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/_auth tests/test_app_factory_session.py -q
+.venv/bin/python -m pytest backend/_auth tests/test_app_factory_session.py -q
 npm run lint:md
 ```
 
@@ -839,7 +839,7 @@ Expected: all PASS, `Summary: 0 error(s)`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/back-end/api-tokens.md back_dev_home/_auth/middleware.py
+git add docs/back-end/api-tokens.md backend/_auth/middleware.py
 git commit -m "docs(back-end): drop the removed SSO login flow from api-tokens.md
 
 The middleware decision table still listed a /login public path and claimed
@@ -875,7 +875,7 @@ Expected: all pass. Baseline before this work was 2502 tests. Remember the workt
 
 This is the check promised in spec §4.1 — the claim that `Content-Disposition: inline` is neutral for `<img>` was reasoned from the spec, not observed.
 
-Start Flask (`.venv/bin/python index.py`) and Nuxt (`npm run dev` in `front-dev-home/`), then drive Playwright MCP to a skewvoir workspace, open the 이미지 갤러리 view, and confirm:
+Start Flask (`.venv/bin/python index.py`) and Nuxt (`npm run dev` in `frontend/`), then drive Playwright MCP to a skewvoir workspace, open the 이미지 갤러리 view, and confirm:
 
 - thumbnails render (they are SVG at home, which still exercises the header path)
 - opening the viewer shows an image, not a download prompt

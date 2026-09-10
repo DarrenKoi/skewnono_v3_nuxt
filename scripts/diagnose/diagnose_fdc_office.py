@@ -24,7 +24,7 @@ get the whole picture from one invocation rather than peeling one onion layer
 per trip to the office.
 
 Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* from
-back_dev_home/.env exactly like the adapter does):
+backend/.env exactly like the adapter does):
 
     .venv/bin/python -m scripts.diagnose.diagnose_fdc_office
     .venv/bin/python -m scripts.diagnose.diagnose_fdc_office MCD320 30
@@ -38,7 +38,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -51,8 +51,8 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
-from back_dev_home.ebeam.hardware.providers.fdc import office_example  # noqa: E402
+from backend._runtime.office_redis import load_env_file  # noqa: E402
+from backend.ebeam.hardware.providers.fdc import office_example  # noqa: E402
 from ops_store import OSIndex, OSSearch, create_client  # noqa: E402
 
 
@@ -322,7 +322,7 @@ def check_adapter_query(search: OSSearch, tool: str, days: int) -> None:
 
     print("\n  --- calling the adapter itself ---")
     try:
-        from back_dev_home.ebeam.hardware.providers.fdc import (  # type: ignore
+        from backend.ebeam.hardware.providers.fdc import (  # type: ignore
             office as live,
         )
     except ImportError:

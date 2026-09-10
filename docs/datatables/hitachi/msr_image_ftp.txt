@@ -119,14 +119,14 @@ cond.txt 본문 형식
   recipe_idp.txt 의 cond.txt 절). 측정 이미지 cond 에는 `Scope` 줄이 **없습니다**
   (user-confirmed 2026-06-08 — recipe 의 align cond 에만 있음). OFFICE-VERIFY: 측정
   cond 가 실제로 어떤 빔 키를 어떤 순서로 담는지(확인된 표본은 recipe align 이미지).
-  mock 은 back_dev_home/msr_image/providers/mock.py `_cond` 가 이 형식으로 씁니다.
+  mock 은 backend/msr_image/providers/mock.py `_cond` 가 이 형식으로 씁니다.
 
 cond.txt 의 십자선 좌표 — `Pixel` + `!Cursor_info` (user-confirmed 2026-09-03)
 
   측정 이미지에는 장비가 측정점 십자선을 **그려 넣어** 저장하고, 그 위치를 cond.txt 의
   `!Cursor_info` 줄에 남깁니다. 규칙은 recipe 쪽과 같습니다 — 정의는
   docs/datatables/hitachi/recipe_idp.txt 의 `!Cursor_info` 절, 파서는
-  back_dev_home/_core/cond_cursor.py. 요점만:
+  backend/_core/cond_cursor.py. 요점만:
 
     Pixel         512,512
     !Cursor_info  a,b,c,d,cx,cy,l,t,r,b     ← [4],[5] 십자선, Pixel x 10 프레임, -1 = 없음

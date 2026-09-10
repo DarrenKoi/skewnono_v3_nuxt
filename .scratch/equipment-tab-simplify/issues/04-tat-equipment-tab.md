@@ -11,9 +11,9 @@ TAT 탭의 장비별 화면에서 판정 레이어를 걷어내고, 요약 칩�
 
 **Files:**
 
-- Modify: `front-dev-home/app/components/ebeam/RecipeTatFleetTable.vue`
-- Modify: `front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue`
-- Modify: `front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue`
+- Modify: `frontend/app/components/ebeam/RecipeTatFleetTable.vue`
+- Modify: `frontend/app/components/ebeam/RecipeTatEquipmentView.vue`
+- Modify: `frontend/app/components/ebeam/RecipeTatEquipmentCompare.vue`
 
 **Interfaces:**
 
@@ -311,7 +311,7 @@ const copyFleetTable = async (rows: RecipeTatEquipmentRow[]) => {
 Run:
 
 ```bash
-cd front-dev-home
+cd frontend
 npm test 2>&1 | tail -5
 npm run typecheck
 npm run lint
@@ -326,7 +326,7 @@ Expected: 전부 통과. 특히 `equipmentSignals.test.ts`가 계속 통과해�
 Run:
 
 ```bash
-cd front-dev-home/app
+cd frontend/app
 grep -rn "equipmentSignals\|SIGNAL_META\|isPeerGroupComparable" \
   components/ebeam/RecipeTat*.vue
 ```
@@ -336,9 +336,9 @@ Expected: 히트 0건.
 - [ ] **Step 15: 커밋**
 
 ```bash
-git add front-dev-home/app/components/ebeam/RecipeTatFleetTable.vue \
-        front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue \
-        front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue
+git add frontend/app/components/ebeam/RecipeTatFleetTable.vue \
+        frontend/app/components/ebeam/RecipeTatEquipmentView.vue \
+        frontend/app/components/ebeam/RecipeTatEquipmentCompare.vue
 git commit -m "feat(recipe-tat): 장비별 탭을 관측만 남기고 Excel 내보내기로 바꾼다
 
 플릿 표에서 점유율·TAT index·신호 열과 다중 fab 경고 배너를 뺐습니다.

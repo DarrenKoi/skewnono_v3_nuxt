@@ -25,7 +25,7 @@
 
 ### 2.1 `CD-SEM`은 모호한 기능이 아니라 누락된 규칙입니다
 
-`page_to_feature()`(`back_dev_home/_logging/feature_map.py:211`)는 규칙에 없는
+`page_to_feature()`(`backend/_logging/feature_map.py:211`)는 규칙에 없는
 `/ebeam/<tool>/...` 경로를 **툴 세그먼트**로 떨어뜨립니다. 이 fallback에 걸리는
 페이지는 `[fab]/index.vue` 하나뿐이며, 그 페이지가 렌더링하는 것은
 `EbeamToolInventoryView` — 즉 **장비 상태**입니다.
@@ -123,7 +123,7 @@ Redis 해시(`HGET members <empno>`)이므로 역인덱스가 없습니다. 이�
 
 ### 4.3 `/activity` — 사용자 표 기본 정렬
 
-`front-dev-home/app/composables/useActivityUserTable.ts`에서 세 곳을 함께 옮깁니다.
+`frontend/app/composables/useActivityUserTable.ts`에서 세 곳을 함께 옮깁니다.
 
 | 줄 | 현재 | 변경 후 |
 | --- | --- | --- |
@@ -217,9 +217,9 @@ device-statistics·AFM 트래픽이 사라진 것은 설명이 필요한 누락�
 
 | 파일 | 변경 |
 | --- | --- |
-| `back_dev_home/_logging/feature_map.py` | `/` → `None`, 빈 `rest` → `tool_inventory` |
-| `back_dev_home/admin_logs/contracts.py` | `NamedLogQueryResponse`(= `LogQueryResponse` + `members`) 추가 |
-| `back_dev_home/admin_logs/routes.py` | `lookup_members()` 조인 |
+| `backend/_logging/feature_map.py` | `/` → `None`, 빈 `rest` → `tool_inventory` |
+| `backend/admin_logs/contracts.py` | `NamedLogQueryResponse`(= `LogQueryResponse` + `members`) 추가 |
+| `backend/admin_logs/routes.py` | `lookup_members()` 조인 |
 
 `data.py`와 `providers/*.py`는 변경하지 않습니다.
 

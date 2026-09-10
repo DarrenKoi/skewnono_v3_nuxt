@@ -3,7 +3,7 @@
 - 실행일: 2026-08-16
 - 스킬: oc-discuss (2라운드, 상한 3라운드에서 조기 수렴)
 - 모델: opencode-go/glm-5.3 (tier=heavy)
-- 대상: `back_dev_home/ebeam/skew/` 를 실제 데이터로 되살릴 때의 통계 설계
+- 대상: `backend/ebeam/skew/` 를 실제 데이터로 되살릴 때의 통계 설계
 - 소요: 87s + 48s · Session: `ses_ff84519e1ffep0T9zOuteE5Z5c`
 
 ## 논쟁에 부친 입장

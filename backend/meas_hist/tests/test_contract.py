@@ -1,0 +1,205 @@
+"""Contract gate for meas_hist. Runs against the ACTIVE provider via data.py.
+
+Home:   .venv/bin/pytest backend/meas_hist
+Office: SKEWNONO_MEAS_HIST_PROVIDER=office .venv/bin/pytest backend/meas_hist
+
+The office adapter is implemented (OpenSearch), not a stub, so the only
+mock-only assumption in this file is that rows EXIST: the mock always
+fabricates a row set, while the office index can legitimately answer with
+nothing (an ingestion pause, or a window with no measurements). Everything else
+is required of both providers and stays unfenced so it runs office-side: the
+contract shapes, "a known msr must resolve" and "an unknown msr returns None"
+(MIGRATION.md), and eqp_ip being a real dotted quad — msr_image's routes.py
+feeds that field straight into validate_tool_ip() before any FTP fetch, so a
+row carrying anything else cannot serve images in any phase.
+"""
+
+import pytest
+
+from backend._core.contract_check import assert_matches
+from backend._runtime.data_provider import get_data_provider
+from backend.meas_hist import data
+from backend.meas_hist.contracts import (
+    MeasHistFacetsResponse,
+    MeasHistResponse,
+    MeasHistRow,
+    MeasHistSearchResponse,
+)
+
+
+def _first_row() -> MeasHistRow:
+    """One real row for the msr / eqp_ip checks to key off, or a skip.
+
+    /search is tried first (the wider 60-day retention window), falling back to
+    the 30-day default view.
+    """
+    rows = data.search_meas_hist()["rows"]
+    if not rows:
+        rows = data.get_meas_hist()["rows"]
+    if get_data_provider("meas_hist") == "mock":
+        # The mock's row set is fabricated at import time, so an empty result
+        # means the generator broke. An empty office index is valid data.
+        assert rows, "mock meas hist must not be empty"
+    if not rows:
+        pytest.skip("active provider returned no meas_hist rows")
+    return rows[0]
+
+
+def test_get_meas_hist_matches_contract():
+    assert_matches(data.get_meas_hist(), MeasHistResponse)
+
+
+def test_search_meas_hist_matches_contract():
+    assert_matches(data.search_meas_hist(), MeasHistSearchResponse)
+
+
+def test_get_meas_hist_facets_matches_contract():
+    assert_matches(data.get_meas_hist_facets(), MeasHistFacetsResponse)
+
+
+def test_find_meas_hist_by_msr_matches_contract():
+    msr = _first_row()["msr"]
+
+    # The msr came from a real row, so the lookup MUST resolve it — a silent
+    # skip on None would let a lookup that never finds anything pass the gate.
+    row = data.find_meas_hist_by_msr(msr)
+    assert row is not None, f"a known msr ({msr}) must resolve to a row"
+    assert_matches(row, MeasHistRow)
+
+
+def test_find_meas_hist_by_unknown_msr_returns_none():
+    assert data.find_meas_hist_by_msr("MSR-DOES-NOT-EXIST-000000") is None
+
+
+def test_row_eqp_ip_is_dotted_quad():
+    """msr_image needs eqp_ip to fetch a tool's images; every row must carry
+    a well-formed IPv4 address, not just a truthy string."""
+    row = _first_row()
+    parts = row["eqp_ip"].split(".")
+    assert len(parts) == 4 and all(p.isdigit() for p in parts), (
+        f"eqp_ip {row['eqp_ip']!r} is not a dotted-quad IPv4 address"
+    )
+
+
+def test_meas_hist_fleet_excludes_amat_tools_deliberately():
+    """AMAT 은 measurement 소스가 없으므로 mock 도 지어내지 않는다.
+
+    분류기가 AMAT 을 해석하기 시작한 뒤에도 이 제외가 유지되어야 한다.
+    """
+    from backend.ebeam._tool_specs import model_to_tool_type
+    from backend.meas_hist.providers.mock import _eligible_sem_rows
+
+    tool_types = {model_to_tool_type(row["eqp_model_cd"]) for row in _eligible_sem_rows()}
+    assert tool_types <= {"cd-sem", "hv-sem"}
+    assert tool_types  # 비어 있으면 필터가 전부를 지운 것
+
+
+# ---------------------------------------------------------------------------
+# 공백뿐인 검색어 — office 의 _wildcard_or 는 strip 후 버리는데 mock 은
+# 그대로 들고 있었습니다. 같은 `?recipe=%20` 이 집에서는 0건, 사무실에서는
+# 보존 기간 전체를 돌려줬습니다.
+
+
+@pytest.mark.parametrize("blank", [" ", "   ", "\t", "\n"])
+def test_whitespace_only_search_term_is_dropped_not_matched(blank):
+    baseline = data.search_meas_hist()["rows"]
+    assert data.search_meas_hist(recipe=[blank])["rows"] == baseline
+    assert data.search_meas_hist(q=[blank])["rows"] == baseline
+
+
+def test_search_terms_are_stripped_before_matching():
+    """office 는 "  abc  " 로 "abc" 를 찾습니다 — mock 도 그래야 합니다."""
+    rows = data.search_meas_hist()["rows"]
+    if not rows:
+        pytest.skip("mock returned no rows to derive a term from")
+    term = rows[0]["recipe_name"]
+
+    exact = data.search_meas_hist(recipe=[term])["rows"]
+    padded = data.search_meas_hist(recipe=[f"  {term}  "])["rows"]
+    assert padded == exact
+    assert padded
+
+
+def test_row_id_is_the_msr_on_every_provider():
+    """이 모듈 헤더의 규칙("id = msr")이자 office 어댑터가 내보내는 값입니다.
+
+    mock 이 합성 id("msr_000239")를 쓰던 탓에 같은 행을 두 provider 가 다른
+    키로 식별했습니다 — 화면이 id 로 행을 짚으면 집↔사무실에서 다른 것을
+    가리킵니다.
+    """
+    rows = data.search_meas_hist()["rows"]
+    assert rows
+    assert all(row["id"] == row["msr"] for row in rows)
+
+
+def test_meastime_exists_only_where_msr_check_is_yes():
+    """office 인덱스는 msr_check == "Yes" 인 문서에만 meastime 을 갖습니다.
+
+    user-confirmed 2026-08-10. 실물에는 필드가 아예 없고 office 어댑터의
+    _int(src.get("meastime")) 가 0 으로 강제하므로, mock 도 0 을 내보내야
+    "meastime 결측" 이라는 값 영역이 집에 존재하게 됩니다. mock 이 전부
+    채우던 동안에는 value_count(meastime) 와 doc_count 가 집에서 영원히
+    같아서, 두 숫자를 뒤바꿔 쓴 집계 버그가 보이지 않았습니다.
+    """
+    rows = data.search_meas_hist()["rows"]
+    assert rows
+    measured = {row["msr"] for row in rows if row["meastime"]}
+    checked = {row["msr"] for row in rows if row["msr_check"] == "Yes"}
+    assert measured == checked
+    # 결측이 실제로 생성되는지 — 없으면 이 테스트가 아무것도 지키지 않습니다.
+    assert len(rows) > len(checked) > 0
+
+
+def test_msr_check_no_rows_have_no_msr_identity():
+    """msr_check == "No" 인 행의 msr 은 빈 문자열입니다.
+
+    msr_check "No" 는 MSR 파일이 발견되지 않아 MinIO 에 저장되지 않았다는
+    뜻입니다 (user-confirmed 2026-08-19). 이 테스트가 거는 것은 그보다 좁은
+    추정 — 그런 문서에는 msr "필드"도 없다는 것 — 입니다.
+
+    OFFICE-VERIFY 2026-08-19: production 스큐보아 검색에서 Vue 가
+    'Duplicate keys found during update: ""' 를 경고했습니다 — 검색 결과에
+    msr 이 '' 인 행이 여럿 있어야만 나올 수 있는 증상이므로, office 인덱스의
+    "No" 문서에는 msr 필드가 없고 어댑터의 _text(src.get("msr")) 가 '' 를
+    내보낸다고 추정합니다(meastime 이 "Yes" 문서에만 존재하는 것과 같은
+    패턴, 그쪽은 user-confirmed 2026-08-10). mock 이 모든 행에 msr 을
+    지어내는 동안에는 이 값 영역이 집에 존재하지 않아, 빈 msr 로 죽는
+    프론트 버그가 집 테스트를 전부 통과했습니다.
+
+    office 실행에서 이 테스트가 깨지면 추정이 틀렸다는 뜻이므로, 그때는
+    mock 과 이 테스트를 실측에 맞춰 고치고 datatables 문서의 OFFICE-VERIFY
+    를 확정 표기로 바꿉니다.
+    """
+    rows = data.search_meas_hist(limit=500)["rows"]
+    no_rows = [row for row in rows if row["msr_check"] == "No"]
+    if not no_rows:
+        pytest.skip("no msr_check=No rows in this window")
+    assert all(row["msr"] == "" for row in no_rows)
+    # id = msr 규칙은 빈 값에도 그대로 적용됩니다.
+    assert all(row["id"] == "" for row in no_rows)
+
+
+def test_find_meas_hist_by_msr_empty_key_resolves_nothing():
+    """빈 msr 로는 어떤 행도 짚을 수 없습니다 — 두 provider 공통 계약.
+
+    mock 에서 msr '' 행이 여럿이므로 dict 조회가 아무 행이나 돌려주면 안
+    되고, office 에서도 term 쿼리가 '' 로 "No" 문서를 집어오면 안 됩니다.
+    """
+    assert data.find_meas_hist_by_msr("") is None
+
+
+def test_synthesized_rows_keep_id_equals_msr():
+    """합성 경로도 id = msr 규칙과 "No" 행의 빈 msr 규칙을 지킵니다.
+
+    _synthesize_for_recipe 는 base 행 위에 msr 만 덮어써 id 가 옛 msr 로
+    남는 잠복 불일치가 있었습니다. 알 수 없는 recipe 로 강제 합성해 두 규칙을
+    함께 고정합니다.
+    """
+    if get_data_provider("meas_hist") != "mock":
+        pytest.skip("synthesis is a mock-only path")
+    rows = data.get_meas_hist(recipe_name="UNKNOWN/NEVER_HEARD_OF_0001")["rows"]
+    assert rows, "synthesis must fabricate rows for an unknown recipe"
+    assert all(row["id"] == row["msr"] for row in rows)
+    for row in rows:
+        if row["msr_check"] == "No":
+            assert row["msr"] == ""

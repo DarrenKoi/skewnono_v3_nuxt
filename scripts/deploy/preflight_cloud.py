@@ -8,7 +8,7 @@ Run it TWICE:
 
     cd /project/workSpace
     python preflight.py                                  # before pip install
-    pip install -r back_dev_home/requirements.txt
+    pip install -r backend/requirements.txt
     python preflight.py                                  # after
 
 The first pass proves the transfer landed at the right path with the right
@@ -61,19 +61,19 @@ def check_layout(root: Path) -> list[str]:
     """Structural checks. Depth matters as much as presence."""
     failures = []
 
-    env_py = root / "back_dev_home" / "_runtime" / "env.py"
+    env_py = root / "backend" / "_runtime" / "env.py"
     if not env_py.is_file():
         failures.append(
-            f"MISSING {env_py} - back_dev_home/ did not survive the transfer."
+            f"MISSING {env_py} - backend/ did not survive the transfer."
         )
     elif env_py.resolve().parents[2] != root.resolve():
-        # spa_dir() is parents[2] / front-dev-home / .output / public.
+        # spa_dir() is parents[2] / frontend / .output / public.
         failures.append(
             f"DEPTH {env_py} is not exactly 2 levels below {root}; "
             "spa_dir() will resolve to the wrong place and the UI will 404."
         )
 
-    index_html = root / "front-dev-home" / ".output" / "public" / "index.html"
+    index_html = root / "frontend" / ".output" / "public" / "index.html"
     if not index_html.is_file():
         failures.append(
             f"MISSING {index_html} - the SPA is absent; every page returns 404."
@@ -106,7 +106,7 @@ def check_imports() -> tuple[list[str], list[str]]:
         except ImportError as exc:
             failures.append(
                 f"IMPORT {import_name} unavailable ({exc}); "
-                f"run: pip install -r back_dev_home/requirements.txt  [{pip_name}]"
+                f"run: pip install -r backend/requirements.txt  [{pip_name}]"
             )
 
     notes.append("identity: LASTUSER cookie (no cloud-image SSO module needed)")
@@ -143,7 +143,7 @@ def check_versions(root: Path) -> tuple[list[str], list[str]]:
     failures: list[str] = []
     notes: list[str] = []
 
-    requirements = root / "back_dev_home" / "requirements.txt"
+    requirements = root / "backend" / "requirements.txt"
     try:
         body = requirements.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -167,7 +167,7 @@ def check_versions(root: Path) -> tuple[list[str], list[str]]:
         message = (
             f"VERSION {detail} does not satisfy "
             f"{','.join(op + ver for op, ver in unmet)}; "
-            "run: pip install -r back_dev_home/requirements.txt"
+            "run: pip install -r backend/requirements.txt"
         )
         symptom = VERSION_SYMPTOMS.get(pip_name)
         if symptom:
@@ -263,7 +263,7 @@ def check_config(root: Path) -> tuple[list[str], list[str]]:
     * SKEWNONO_LOG_ENV decides WHICH logging alias this host writes - see
       _check_logging_target for why a valid value can still be a deploy bug.
     """
-    env_path = root / "back_dev_home" / ".env"
+    env_path = root / "backend" / ".env"
     if not env_path.is_file():
         return (
             [
@@ -405,7 +405,7 @@ def env_file_values(env_path: Path) -> dict[str, str] | None:
 
 
 def _adapter_roster(root: Path) -> list[str]:
-    backend = root / "back_dev_home"
+    backend = root / "backend"
     if not backend.is_dir():
         return []
     return sorted(

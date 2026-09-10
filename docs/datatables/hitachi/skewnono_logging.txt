@@ -11,7 +11,7 @@ cluster 반영은 office 확인 2026-07-28 — 회사에서 두 alias 를 실제
 - office PC localhost -> alias skewnono_logging_local, 보존 rollover 후 30일
 - production cloud    -> alias skewnono_logging,       보존 rollover 후 365일
 - 두 family 는 같은 mapping/shard/rollover(20GB 또는 7일)이며 보존 기간만 다릅니다.
-- 쓰기/읽기 alias 는 모두 SKEWNONO_LOG_ENV 를 back_dev_home/_logging/target.py 가
+- 쓰기/읽기 alias 는 모두 SKEWNONO_LOG_ENV 를 backend/_logging/target.py 가
   해석해 결정합니다. 코드에 alias 문자열을 직접 쓰지 않습니다.
 
 mapping (dynamic: false — 아래 필드만 색인됩니다)

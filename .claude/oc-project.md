@@ -33,7 +33,7 @@ trip.
   `cp` of `office_example.py`, so a fix applied to one copy is not applied to
   the other
 - `**/contracts.py` — the shared return type both adapters must satisfy
-- `back_dev_home/_runtime/` — site detection, provider registry, Redis plumbing;
+- `backend/_runtime/` — site detection, provider registry, Redis plumbing;
   a mistake here mis-routes *every* feature at once
 - `docs/datatables/` — the schema of record for the office DBs. It is read when
   someone writes an office adapter, so a wrong line here is wrong for months
@@ -91,16 +91,16 @@ From the repo root (CPython 3.14 venv, no activation step):
 
 ```bash
 .venv/bin/python -m ruff check .                          # static gate, ~0.02s, must be clean
-.venv/bin/python -m pytest back_dev_home/<feature> -q     # one feature
+.venv/bin/python -m pytest backend/<feature> -q     # one feature
 .venv/bin/python -m pytest -q                             # full suite, ~3040 tests, ~115s
 ```
 
 Run pytest as `python -m pytest` from the root — `-m` is what puts the root on
 `sys.path`. `pytest tests/` **alone** silently skips every
-`back_dev_home/**/tests/` provider-contract suite, which is the half that guards
+`backend/**/tests/` provider-contract suite, which is the half that guards
 the mock→office swap.
 
-Frontend, from `front-dev-home/`: `npm test`, `npm run typecheck`, `npm run lint`.
+Frontend, from `frontend/`: `npm test`, `npm run typecheck`, `npm run lint`.
 
 `.venv/` and `node_modules/` are gitignored and therefore **absent in a fresh
 worktree**. Run them from the main checkout, or point at its interpreter

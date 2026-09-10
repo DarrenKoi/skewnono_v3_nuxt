@@ -87,23 +87,23 @@ export async function downloadTable(filename, headers, rows): Promise<void> {
 
 ## 4. 백엔드 테스트 — `pytest`
 
-프론트가 `node --test`라면, 백엔드(`back_dev_home/`)는 `pytest`입니다. Provider 아키텍처(`10-backend-providers/`)의 완료 기준이 곧 테스트 green입니다. 테스트 러너는 `back_dev_home/requirements-dev.txt`로만 설치합니다 — Phase 3 운영 설치(`requirements.txt`)에는 테스트 러너가 들어가지 않도록 분리해 둔 것입니다.
+프론트가 `node --test`라면, 백엔드(`backend/`)는 `pytest`입니다. Provider 아키텍처(`10-backend-providers/`)의 완료 기준이 곧 테스트 green입니다. 테스트 러너는 `backend/requirements-dev.txt`로만 설치합니다 — Phase 3 운영 설치(`requirements.txt`)에는 테스트 러너가 들어가지 않도록 분리해 둔 것입니다.
 
 ```bash
 # 백엔드 전체 (레포 루트에서, 약 990개)
-.venv/bin/python -m pytest tests back_dev_home -q
+.venv/bin/python -m pytest tests backend -q
 
 # 위와 완전히 같은 수집 범위. 루트 pyproject.toml의 testpaths 설정 덕분입니다
 .venv/bin/python -m pytest -q
 
 # 기능 하나만 (집에서는 mock provider로 해석됩니다)
-.venv/bin/python -m pytest back_dev_home/sem_list -q
+.venv/bin/python -m pytest backend/sem_list -q
 ```
 
 명령 형태에서 세 가지가 중요합니다.
 
-1. **경로 두 개를 모두 적어야 합니다.** `tests/`만 돌리면 `back_dev_home/<feature>/tests/`에 있는 provider 계약 스위트가 전부 빠집니다. 그쪽이 오히려 더 큰 절반이고, mock↔office 교체를 지키는 부분도 그쪽입니다.
-2. **`python -m pytest` 형태를 씁니다.** `-m`이 레포 루트를 `sys.path`에 올려 주기 때문에 테스트가 `back_dev_home.*`를 import할 수 있습니다. 항상 레포 루트에서 실행합니다.
+1. **경로 두 개를 모두 적어야 합니다.** `tests/`만 돌리면 `backend/<feature>/tests/`에 있는 provider 계약 스위트가 전부 빠집니다. 그쪽이 오히려 더 큰 절반이고, mock↔office 교체를 지키는 부분도 그쪽입니다.
+2. **`python -m pytest` 형태를 씁니다.** `-m`이 레포 루트를 `sys.path`에 올려 주기 때문에 테스트가 `backend.*`를 import할 수 있습니다. 항상 레포 루트에서 실행합니다.
 3. **`tests/` 디렉토리가 28개 있습니다.** 기능 폴더 23개(`sem_list/`, `msr_image/`, `ebeam/hitachi/*/` 등)와 공용 인프라 5개(`_auth/`, `_core/`, `_logging/`, `_runtime/`, `_spa/`)입니다. 각 기능의 `tests/`와 `__fixtures__/`가 계약(`contracts.py`) 준수를 강제합니다. 예: `msr_file/tests/test_contract.py`는 mock이 특정 메타데이터 필드를 **지어내지 못하게** 막습니다. 한편 `_runtime/tests/`는 provider 해석 규칙 자체(어느 어댑터가 왜 선택됐는지)를 검증하므로, Phase 2 작업 중에 가장 자주 깨지는 곳입니다.
 
 ### Phase 2(office) 게이트
@@ -111,13 +111,13 @@ export async function downloadTable(filename, headers, rows): Promise<void> {
 회사에서 실제 소스 연결을 검증할 때는 기능 단위로 provider를 강제합니다.
 
 ```bash
-SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest back_dev_home/sem_list -q
+SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest backend/sem_list -q
 ```
 
-이 명령은 `back_dev_home/sem_list/providers/office.py`가 **있을 때만** 의미가 있습니다. `office.py`는 gitignore 대상이라 회사에서 직접 만들어야 합니다.
+이 명령은 `backend/sem_list/providers/office.py`가 **있을 때만** 의미가 있습니다. `office.py`는 gitignore 대상이라 회사에서 직접 만들어야 합니다.
 
 ```bash
-cp back_dev_home/sem_list/providers/office_example.py back_dev_home/sem_list/providers/office.py
+cp backend/sem_list/providers/office_example.py backend/sem_list/providers/office.py
 ```
 
 어댑터가 없는 상태에서 위 게이트를 돌리면 조용히 mock으로 돌아가지 않고, 위 `cp` 명령을 그대로 알려 주는 `RuntimeError`로 **실패**합니다. 이 설계 덕분에 "green이면 진짜로 office 어댑터를 통과한 것"이라고 믿을 수 있습니다.
@@ -142,8 +142,8 @@ E2E를 진짜 자동화하려면 `playwright.config.ts`와 `*.spec.ts`를 새로
 | 계층 | 도구 | 대상 | 명령 | 자동화 |
 | --- | --- | --- | --- | --- |
 | 순수 단위 (프론트) | `node --test` | `app/**/*.ts` 순수 함수 | `npm test` | CI 게이트 |
-| 단위/통합 (백엔드) | `pytest` | provider 어댑터, 계약 준수, 라우트 | `.venv/bin/python -m pytest tests back_dev_home -q` | CI 게이트 |
-| Phase 2 office 게이트 | `pytest` | 실제 사내 소스 연결 | `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q` | 회사에서 수동 |
+| 단위/통합 (백엔드) | `pytest` | provider 어댑터, 계약 준수, 라우트 | `.venv/bin/python -m pytest tests backend -q` | CI 게이트 |
+| Phase 2 office 게이트 | `pytest` | 실제 사내 소스 연결 | `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest backend/<feature> -q` | 회사에서 수동 |
 | 컴포넌트 (`.vue`) | 없음 | — | — | 없음 |
 | E2E (브라우저) | Playwright MCP | 실제 UI 흐름·네트워크 | 에이전트/개발자가 대화형으로 조종 | 없음 (수동) |
 
@@ -153,7 +153,7 @@ CI(`.github/workflows/ci.yml`)는 두 잡을 돌립니다 — 백엔드 `pytest`
 
 ## 7. 커밋 전 체크리스트 (갱신판)
 
-프론트엔드를 건드렸다면 `front-dev-home/`에서:
+프론트엔드를 건드렸다면 `frontend/`에서:
 
 ```bash
 npm run lint        # ESLint (스타일 + 정적 분석)
@@ -165,7 +165,7 @@ npm run build       # 빌드 통과 확인 (nuxt generate)
 백엔드를 건드렸다면 레포 루트에서:
 
 ```bash
-.venv/bin/python -m pytest tests back_dev_home -q
+.venv/bin/python -m pytest tests backend -q
 ```
 
 문서만 고쳤다면 레포 루트에서:

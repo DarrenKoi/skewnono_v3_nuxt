@@ -1,7 +1,7 @@
 # device-statistics/comparison — LOT 추이 차트 재설계
 
 작성일: 2026-08-01
-대상: `front-dev-home/app/components/cdsem/comparison/TrendChart.vue`
+대상: `frontend/app/components/cdsem/comparison/TrendChart.vue`
 
 ## 배경
 

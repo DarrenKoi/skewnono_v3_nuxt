@@ -21,9 +21,9 @@
 
 | 종류 | 보통 두는 위치 | 이 저장소의 예시 |
 | --- | --- | --- |
-| 앱 전역 도메인 유니온 | 해당 도메인을 소유한 store/모듈 근처 | [front-dev-home/app/stores/navigation.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/stores/navigation.ts:4) |
-| 기능별 데이터 모델 및 DTO | 해당 기능 또는 API 소스 옆 | [front-dev-home/app/mock-data/sem-list/sem-list.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/mock-data/sem-list/sem-list.ts:3) |
-| 파생 요약 타입 또는 뷰 모델 | 그것을 계산하는 composable/service 내부 | [front-dev-home/app/composables/useSemListApi.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/composables/useSemListApi.ts:4) |
+| 앱 전역 도메인 유니온 | 해당 도메인을 소유한 store/모듈 근처 | [frontend/app/stores/navigation.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/stores/navigation.ts:4) |
+| 기능별 데이터 모델 및 DTO | 해당 기능 또는 API 소스 옆 | [frontend/app/mock-data/sem-list/sem-list.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/mock-data/sem-list/sem-list.ts:3) |
+| 파생 요약 타입 또는 뷰 모델 | 그것을 계산하는 composable/service 내부 | [frontend/app/composables/useSemListApi.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/composables/useSemListApi.ts:4) |
 | 컴포넌트 props / emits | 재사용 전까지는 컴포넌트 내부 | Vue SFC의 `defineProps<{ ... }>()` 패턴 |
 | 외부 라이브러리 보조 타입 | 사용하는 곳에서 직접 import | `TableColumn`, `SortingState`, `ColumnFiltersState` |
 
@@ -33,7 +33,7 @@
 
 ### 1. 공유 도메인 타입은 필요한 곳에서만 중앙화합니다
 
-`Category`, `ToolType`, `Fab`는 [front-dev-home/app/stores/navigation.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/stores/navigation.ts:4)에 정의되어 있습니다.
+`Category`, `ToolType`, `Fab`는 [frontend/app/stores/navigation.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/stores/navigation.ts:4)에 정의되어 있습니다.
 
 이 방식이 좋은 이유는 이 값들이 다음 성격을 가지기 때문입니다.
 
@@ -45,7 +45,7 @@
 
 ### 2. 기능 전용 row 타입은 해당 기능 가까이에 둡니다
 
-`SemListRow`, `SemListResponse`는 [front-dev-home/app/mock-data/sem-list/sem-list.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/mock-data/sem-list/sem-list.ts:3)에 있습니다.
+`SemListRow`, `SemListResponse`는 [frontend/app/mock-data/sem-list/sem-list.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/mock-data/sem-list/sem-list.ts:3)에 있습니다.
 
 이것도 관례적입니다. 이 타입은 SEM list 데이터 자체를 설명하는 타입이지, 앱 전역에서 쓰는 범용 개념은 아니기 때문입니다.
 
@@ -53,13 +53,13 @@
 
 ### 3. 파생 타입은 그것을 계산하는 로직과 함께 둡니다
 
-`FacToolSummary`는 [front-dev-home/app/composables/useSemListApi.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/composables/useSemListApi.ts:4)에 있습니다.
+`FacToolSummary`는 [frontend/app/composables/useSemListApi.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/composables/useSemListApi.ts:4)에 있습니다.
 
 이 역시 관례적입니다. 이것은 백엔드의 원본 엔티티가 아니라, UI나 리포팅 용도로 composable이 만들어 내는 파생 결과이기 때문입니다.
 
 ### 4. 좁은 리터럴 값은 필요한 곳에서 그대로 유지합니다
 
-[front-dev-home/app/components/nav/AppHeader.vue](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/components/nav/AppHeader.vue:4)에서는 category 목록에 `as const`를 사용합니다.
+[frontend/app/components/nav/AppHeader.vue](/C:/Code/skewnono_v3_nuxt/frontend/app/components/nav/AppHeader.vue:4)에서는 category 목록에 `as const`를 사용합니다.
 
 이 방식은 `'ebeam'`, `'thickness'` 같은 값이 단순 `string`으로 넓어지는 것을 막는 일반적인 패턴입니다.
 
@@ -139,9 +139,9 @@ export type ToolType = typeof TOOL_TYPES[number]
 
 이 저장소도 다음과 같은 위치에서 이미 일관되게 사용하고 있습니다.
 
-- [front-dev-home/app/composables/useNavigation.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/composables/useNavigation.ts:1)
-- [front-dev-home/app/composables/useSemListApi.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/composables/useSemListApi.ts:1)
-- [front-dev-home/app/mock-data/sem-list/sem-list.ts](/C:/Code/skewnono_v3_nuxt/front-dev-home/app/mock-data/sem-list/sem-list.ts:1)
+- [frontend/app/composables/useNavigation.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/composables/useNavigation.ts:1)
+- [frontend/app/composables/useSemListApi.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/composables/useSemListApi.ts:1)
+- [frontend/app/mock-data/sem-list/sem-list.ts](/C:/Code/skewnono_v3_nuxt/frontend/app/mock-data/sem-list/sem-list.ts:1)
 
 ### 규칙 7. 런타임 경계 검증은 TypeScript와 분리해서 생각합니다
 

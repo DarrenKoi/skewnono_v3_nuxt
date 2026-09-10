@@ -272,7 +272,7 @@ not. Image bytes come from the existing `recipe-image` endpoint via
 
 ## Testing
 
-Backend, `back_dev_home/ebeam/hitachi/recipe_search/tests/`:
+Backend, `backend/ebeam/hitachi/recipe_search/tests/`:
 
 - a parameter with two occurrences returns two `occurrences`, in row order,
   with different image names;

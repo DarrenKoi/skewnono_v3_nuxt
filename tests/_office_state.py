@@ -20,7 +20,7 @@ Two ways to cope, and this module offers both:
 
 Mind the two key spaces, which name the same feature differently because they
 answer different questions. `has_office_adapter` takes a **repo path** under
-back_dev_home ("ebeam/storage") because it stats a file. The state
+backend ("ebeam/storage") because it stats a file. The state
 helpers take the dispatcher **slug** ("storage") — the `providers/` parent
 directory name, which is what `SKEWNONO_<FEATURE>_PROVIDER` and the registry
 key on, and is globally unique by construction (`office_registry._discover`).
@@ -42,7 +42,7 @@ from pathlib import Path
 from types import ModuleType
 from unittest.mock import patch
 
-_BACKEND = Path(__file__).resolve().parents[1] / "back_dev_home"
+_BACKEND = Path(__file__).resolve().parents[1] / "backend"
 
 # The dispatcher's message when SKEWNONO_<FEATURE>_PROVIDER=office but no
 # adapter is present. This is the documented contract (see CLAUDE.md):
@@ -51,9 +51,9 @@ MISSING_ADAPTER_MESSAGE = "does not exist on this machine"
 
 
 def has_office_adapter(feature_path: str) -> bool:
-    """True when `back_dev_home/<feature_path>/providers/office.py` exists.
+    """True when `backend/<feature_path>/providers/office.py` exists.
 
-    `feature_path` is the slug-ish path under back_dev_home, e.g. "sem_list"
+    `feature_path` is the slug-ish path under backend, e.g. "sem_list"
     or "ebeam/storage".
     """
     return (_BACKEND / feature_path / "providers" / "office.py").is_file()
@@ -75,7 +75,7 @@ def _providers_package(slug: str) -> str:
     wired office machine the drift would silently import the REAL adapter and
     dial the company Redis — the one failure neither CI nor home can catch.
     """
-    from back_dev_home._runtime.office_registry import backend_root, features
+    from backend._runtime.office_registry import backend_root, features
 
     known = features()
     if slug not in known:
@@ -94,7 +94,7 @@ def _patched_readiness(ready: dict[str, Path]):
     `features()` is read BEFORE the patch takes effect — it goes through the
     same `_scan`.
     """
-    from back_dev_home._runtime import office_registry
+    from backend._runtime import office_registry
 
     return patch.object(
         office_registry,
@@ -156,7 +156,7 @@ def fake_office_adapter(slug: str, **functions: object) -> Iterator[None]:
     Together they let the office dispatch branch be asserted on a clean
     checkout, and keep the assertion off the real adapter on a wired one.
     """
-    from back_dev_home._runtime.office_registry import features, office_ready
+    from backend._runtime.office_registry import features, office_ready
 
     package = _providers_package(slug)
     _checked_against_template(package, iter(functions))
@@ -180,7 +180,7 @@ def without_office_adapter(slug: str) -> Iterator[None]:
     `SKEWNONO_<FEATURE>_PROVIDER=office` names a feature with no adapter —
     a refusal, never a silent fall back to fabricated mock numbers.
     """
-    from back_dev_home._runtime.office_registry import office_ready
+    from backend._runtime.office_registry import office_ready
 
     _providers_package(slug)  # reject a typo instead of vacuously "unwired"
     ready = {

@@ -31,53 +31,53 @@
 
 ### Backend shared contracts and configuration
 
-- Modify `back_dev_home/requirements.txt`: bounded LangChain dependencies를 선언합니다.
-- Modify `back_dev_home/chat/contracts.py`: API message, source, feedback, model capability type을 소유합니다.
-- Modify `back_dev_home/chat/config.py`: runtime/provider/bound/model capability 설정을 검증합니다.
-- Create `back_dev_home/chat/runtime/contracts.py`: runtime request/result와 runtime exception을 정의합니다.
-- Create `back_dev_home/chat/knowledge/contracts.py`: access scope, evidence, provider exception을 정의합니다.
-- Create `back_dev_home/chat/scope/contracts.py`: scope decision과 provider exception을 정의합니다.
+- Modify `backend/requirements.txt`: bounded LangChain dependencies를 선언합니다.
+- Modify `backend/chat/contracts.py`: API message, source, feedback, model capability type을 소유합니다.
+- Modify `backend/chat/config.py`: runtime/provider/bound/model capability 설정을 검증합니다.
+- Create `backend/chat/runtime/contracts.py`: runtime request/result와 runtime exception을 정의합니다.
+- Create `backend/chat/knowledge/contracts.py`: access scope, evidence, provider exception을 정의합니다.
+- Create `backend/chat/scope/contracts.py`: scope decision과 provider exception을 정의합니다.
 
 ### Backend persistence and orchestration
 
-- Modify `back_dev_home/chat/data.py`: 새 store operation의 stable forwarding seam입니다.
-- Modify `back_dev_home/chat/providers/mock.py`: additive SQLite migration, idempotent turn, source/trace/feedback persistence를 구현합니다.
-- Modify `back_dev_home/chat/providers/office_example.py`: 새 conversation-store method signature를 명시합니다.
-- Create `back_dev_home/chat/orchestration.py`: send-message use case를 route에서 분리합니다.
-- Modify `back_dev_home/chat/routes.py`: thin HTTP adapter와 feedback endpoint를 제공합니다.
+- Modify `backend/chat/data.py`: 새 store operation의 stable forwarding seam입니다.
+- Modify `backend/chat/providers/mock.py`: additive SQLite migration, idempotent turn, source/trace/feedback persistence를 구현합니다.
+- Modify `backend/chat/providers/office_example.py`: 새 conversation-store method signature를 명시합니다.
+- Create `backend/chat/orchestration.py`: send-message use case를 route에서 분리합니다.
+- Modify `backend/chat/routes.py`: thin HTTP adapter와 feedback endpoint를 제공합니다.
 
 ### Knowledge, scope, tools, and runtime
 
-- Create `back_dev_home/chat/knowledge/data.py`: mock/office knowledge provider를 lazy하게 선택합니다.
-- Create `back_dev_home/chat/knowledge/providers/mock.py`: synthetic fixture를 결정론적으로 검색합니다.
-- Create `back_dev_home/chat/knowledge/providers/office_example.py`: office RAG hookup contract입니다.
-- Create `back_dev_home/chat/scope/data.py`: mock/office scope provider를 lazy하게 선택합니다.
-- Create `back_dev_home/chat/scope/providers/mock.py`: scaffold용 결정론적 scope classifier입니다.
-- Create `back_dev_home/chat/scope/providers/office_example.py`: office classifier hookup contract입니다.
-- Create four files under `back_dev_home/chat/tools/`: source별 LangChain read-only tool builder입니다.
-- Create `back_dev_home/chat/runtime/data.py`: direct/agent runtime selector입니다.
-- Create `back_dev_home/chat/runtime/providers/direct.py`: 기존 `llm.send_chat()` adapter입니다.
-- Create `back_dev_home/chat/runtime/providers/agent.py`: bounded `create_agent` adapter입니다.
+- Create `backend/chat/knowledge/data.py`: mock/office knowledge provider를 lazy하게 선택합니다.
+- Create `backend/chat/knowledge/providers/mock.py`: synthetic fixture를 결정론적으로 검색합니다.
+- Create `backend/chat/knowledge/providers/office_example.py`: office RAG hookup contract입니다.
+- Create `backend/chat/scope/data.py`: mock/office scope provider를 lazy하게 선택합니다.
+- Create `backend/chat/scope/providers/mock.py`: scaffold용 결정론적 scope classifier입니다.
+- Create `backend/chat/scope/providers/office_example.py`: office classifier hookup contract입니다.
+- Create four files under `backend/chat/tools/`: source별 LangChain read-only tool builder입니다.
+- Create `backend/chat/runtime/data.py`: direct/agent runtime selector입니다.
+- Create `backend/chat/runtime/providers/direct.py`: 기존 `llm.send_chat()` adapter입니다.
+- Create `backend/chat/runtime/providers/agent.py`: bounded `create_agent` adapter입니다.
 
 ### Synthetic data and source handoff
 
-- Create four JSON files under `back_dev_home/chat/__fixtures__/knowledge/`: synthetic source corpus입니다.
+- Create four JSON files under `backend/chat/__fixtures__/knowledge/`: synthetic source corpus입니다.
 - Create `rag_sources/README.md`, `rag_sources/.gitignore`, and four tracked empty source directories입니다.
-- Modify `back_dev_home/.env.example`: runtime/provider/model capability example을 추가합니다.
-- Modify `back_dev_home/chat/MIGRATION.md`: request, provider, office RAG activation 계약을 기록합니다.
+- Modify `backend/.env.example`: runtime/provider/model capability example을 추가합니다.
+- Modify `backend/chat/MIGRATION.md`: request, provider, office RAG activation 계약을 기록합니다.
 
 ### Frontend
 
-- Modify `front-dev-home/app/composables/useChatApi.ts`: new API types, request ID, feedback methods를 제공합니다.
-- Create `front-dev-home/app/utils/chatTurn.ts`: retry-safe request ID state를 생성합니다.
-- Create `front-dev-home/app/utils/chatTurn.test.ts`: Node runner로 request ID semantics를 검증합니다.
-- Create `front-dev-home/app/utils/chatSources.ts`: citation label과 feedback payload를 정규화합니다.
-- Create `front-dev-home/app/utils/chatSources.test.ts`: pure formatting/normalization test입니다.
-- Create `front-dev-home/app/components/chat/ChatSources.vue`: compact source chip을 표시합니다.
-- Create `front-dev-home/app/components/chat/ChatFeedbackControls.vue`: thumbs와 downvote reason UI를 소유합니다.
-- Modify `front-dev-home/app/components/chat/ChatMessage.vue`: source/feedback child component를 조합합니다.
-- Modify `front-dev-home/app/components/chat/ChatThread.vue`: feedback event를 page로 전달합니다.
-- Modify `front-dev-home/app/pages/chat.vue`: optimistic turn, retry, feedback API state를 조정합니다.
+- Modify `frontend/app/composables/useChatApi.ts`: new API types, request ID, feedback methods를 제공합니다.
+- Create `frontend/app/utils/chatTurn.ts`: retry-safe request ID state를 생성합니다.
+- Create `frontend/app/utils/chatTurn.test.ts`: Node runner로 request ID semantics를 검증합니다.
+- Create `frontend/app/utils/chatSources.ts`: citation label과 feedback payload를 정규화합니다.
+- Create `frontend/app/utils/chatSources.test.ts`: pure formatting/normalization test입니다.
+- Create `frontend/app/components/chat/ChatSources.vue`: compact source chip을 표시합니다.
+- Create `frontend/app/components/chat/ChatFeedbackControls.vue`: thumbs와 downvote reason UI를 소유합니다.
+- Modify `frontend/app/components/chat/ChatMessage.vue`: source/feedback child component를 조합합니다.
+- Modify `frontend/app/components/chat/ChatThread.vue`: feedback event를 page로 전달합니다.
+- Modify `frontend/app/pages/chat.vue`: optimistic turn, retry, feedback API state를 조정합니다.
 
 ---
 
@@ -85,16 +85,16 @@
 
 **Files:**
 
-- Modify: `back_dev_home/requirements.txt`
-- Modify: `back_dev_home/chat/contracts.py`
-- Modify: `back_dev_home/chat/config.py`
-- Create: `back_dev_home/chat/runtime/__init__.py`
-- Create: `back_dev_home/chat/runtime/contracts.py`
-- Create: `back_dev_home/chat/knowledge/__init__.py`
-- Create: `back_dev_home/chat/knowledge/contracts.py`
-- Create: `back_dev_home/chat/scope/__init__.py`
-- Create: `back_dev_home/chat/scope/contracts.py`
-- Modify: `back_dev_home/chat/tests/test_config.py`
+- Modify: `backend/requirements.txt`
+- Modify: `backend/chat/contracts.py`
+- Modify: `backend/chat/config.py`
+- Create: `backend/chat/runtime/__init__.py`
+- Create: `backend/chat/runtime/contracts.py`
+- Create: `backend/chat/knowledge/__init__.py`
+- Create: `backend/chat/knowledge/contracts.py`
+- Create: `backend/chat/scope/__init__.py`
+- Create: `backend/chat/scope/contracts.py`
+- Modify: `backend/chat/tests/test_config.py`
 
 **Interfaces:**
 
@@ -103,7 +103,7 @@
 
 - [ ] **Step 1: Model capability와 runtime/provider 설정의 failing test를 작성합니다.**
 
-`back_dev_home/chat/tests/test_config.py`에 다음 case를 추가합니다.
+`backend/chat/tests/test_config.py`에 다음 case를 추가합니다.
 
 ```python
 def test_models_default_missing_capabilities_to_false(monkeypatch):
@@ -138,7 +138,7 @@ def test_agent_bounds_are_clamped(monkeypatch):
 
 - [ ] **Step 2: Focused config test가 실패하는지 확인합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_config.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_config.py -q`
 
 Expected: 새 getter와 capability default가 아직 없어 FAIL입니다.
 
@@ -250,7 +250,7 @@ def get_rag_source_root() -> str | None:
 
 - [ ] **Step 5: Bounded dependency를 production requirements에 추가합니다.**
 
-`back_dev_home/requirements.txt` 끝에 다음을 추가합니다.
+`backend/requirements.txt` 끝에 다음을 추가합니다.
 
 ```text
 langchain>=1,<2
@@ -260,7 +260,7 @@ langchain-openai>=1,<2
 
 - [ ] **Step 6: 변경된 dependency를 virtualenv에 설치하고 resolver를 확인합니다.**
 
-Run: `.venv/bin/python -m pip install -r back_dev_home/requirements-dev.txt`
+Run: `.venv/bin/python -m pip install -r backend/requirements-dev.txt`
 
 Expected: LangChain 1.x, LangGraph 1.x, `langchain-openai` 1.x가 설치됩니다.
 
@@ -270,18 +270,18 @@ Expected: `No broken requirements found.`입니다.
 
 - [ ] **Step 7: Focused test와 import smoke를 실행합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_config.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_config.py -q`
 
 Expected: PASS입니다.
 
-Run: `.venv/bin/python -c "from back_dev_home.chat.runtime.contracts import RuntimeResult; from back_dev_home.chat.knowledge.contracts import Evidence; from back_dev_home.chat.scope.contracts import ScopeDecision"`
+Run: `.venv/bin/python -c "from backend.chat.runtime.contracts import RuntimeResult; from backend.chat.knowledge.contracts import Evidence; from backend.chat.scope.contracts import ScopeDecision"`
 
 Expected: exit 0입니다.
 
 - [ ] **Step 8: Task 1 file만 commit합니다.**
 
 ```bash
-git add back_dev_home/requirements.txt back_dev_home/chat/contracts.py back_dev_home/chat/config.py back_dev_home/chat/runtime/__init__.py back_dev_home/chat/runtime/contracts.py back_dev_home/chat/knowledge/__init__.py back_dev_home/chat/knowledge/contracts.py back_dev_home/chat/scope/__init__.py back_dev_home/chat/scope/contracts.py back_dev_home/chat/tests/test_config.py
+git add backend/requirements.txt backend/chat/contracts.py backend/chat/config.py backend/chat/runtime/__init__.py backend/chat/runtime/contracts.py backend/chat/knowledge/__init__.py backend/chat/knowledge/contracts.py backend/chat/scope/__init__.py backend/chat/scope/contracts.py backend/chat/tests/test_config.py
 git commit -m "feat(chat): define agentic RAG contracts"
 ```
 
@@ -291,10 +291,10 @@ git commit -m "feat(chat): define agentic RAG contracts"
 
 **Files:**
 
-- Modify: `back_dev_home/chat/data.py`
-- Modify: `back_dev_home/chat/providers/mock.py`
-- Modify: `back_dev_home/chat/providers/office_example.py`
-- Modify: `back_dev_home/chat/tests/test_store.py`
+- Modify: `backend/chat/data.py`
+- Modify: `backend/chat/providers/mock.py`
+- Modify: `backend/chat/providers/office_example.py`
+- Modify: `backend/chat/tests/test_store.py`
 
 **Interfaces:**
 
@@ -380,7 +380,7 @@ def test_complete_turn_hydrates_sources_traces_and_feedback(monkeypatch, tmp_pat
 
 - [ ] **Step 3: 새 persistence test가 실패하는지 확인합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_store.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_store.py -q`
 
 Expected: 새 store method가 없어 FAIL입니다.
 
@@ -456,14 +456,14 @@ owner를 확인하고 `INSERT ... ON CONFLICT(message_id) DO UPDATE`를 수행�
 
 - [ ] **Step 7: Store test를 다시 실행합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_store.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_store.py -q`
 
 Expected: 기존 test와 새 migration/idempotency/source/feedback test가 모두 PASS입니다.
 
 - [ ] **Step 8: Task 2 file만 commit합니다.**
 
 ```bash
-git add back_dev_home/chat/data.py back_dev_home/chat/providers/mock.py back_dev_home/chat/providers/office_example.py back_dev_home/chat/tests/test_store.py
+git add backend/chat/data.py backend/chat/providers/mock.py backend/chat/providers/office_example.py backend/chat/tests/test_store.py
 git commit -m "feat(chat): persist grounded turn evaluations"
 ```
 
@@ -473,15 +473,15 @@ git commit -m "feat(chat): persist grounded turn evaluations"
 
 **Files:**
 
-- Create: `back_dev_home/chat/__fixtures__/knowledge/manuals.json`
-- Create: `back_dev_home/chat/__fixtures__/knowledge/meetings.json`
-- Create: `back_dev_home/chat/__fixtures__/knowledge/emails.json`
-- Create: `back_dev_home/chat/__fixtures__/knowledge/reports.json`
-- Create: `back_dev_home/chat/knowledge/data.py`
-- Create: `back_dev_home/chat/knowledge/providers/__init__.py`
-- Create: `back_dev_home/chat/knowledge/providers/mock.py`
-- Create: `back_dev_home/chat/knowledge/providers/office_example.py`
-- Create: `back_dev_home/chat/tests/test_knowledge.py`
+- Create: `backend/chat/__fixtures__/knowledge/manuals.json`
+- Create: `backend/chat/__fixtures__/knowledge/meetings.json`
+- Create: `backend/chat/__fixtures__/knowledge/emails.json`
+- Create: `backend/chat/__fixtures__/knowledge/reports.json`
+- Create: `backend/chat/knowledge/data.py`
+- Create: `backend/chat/knowledge/providers/__init__.py`
+- Create: `backend/chat/knowledge/providers/mock.py`
+- Create: `backend/chat/knowledge/providers/office_example.py`
+- Create: `backend/chat/tests/test_knowledge.py`
 
 **Interfaces:**
 
@@ -519,7 +519,7 @@ def test_limit_is_clamped_to_five(monkeypatch):
 
 - [ ] **Step 2: Knowledge test가 provider import failure로 실패하는지 확인합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_knowledge.py -q`
 
 Expected: `knowledge.data`가 없어 FAIL입니다.
 
@@ -565,14 +565,14 @@ function은 `limit`을 `1..5`로 clamp한 뒤 provider에 전달합니다.
 
 - [ ] **Step 6: Knowledge test를 실행합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_knowledge.py -q`
 
 Expected: 네 source, access filter, stable ordering, limit, office unavailable case가 PASS입니다.
 
 - [ ] **Step 7: Task 3 file만 commit합니다.**
 
 ```bash
-git add back_dev_home/chat/__fixtures__/knowledge/manuals.json back_dev_home/chat/__fixtures__/knowledge/meetings.json back_dev_home/chat/__fixtures__/knowledge/emails.json back_dev_home/chat/__fixtures__/knowledge/reports.json back_dev_home/chat/knowledge/data.py back_dev_home/chat/knowledge/providers/__init__.py back_dev_home/chat/knowledge/providers/mock.py back_dev_home/chat/knowledge/providers/office_example.py back_dev_home/chat/tests/test_knowledge.py
+git add backend/chat/__fixtures__/knowledge/manuals.json backend/chat/__fixtures__/knowledge/meetings.json backend/chat/__fixtures__/knowledge/emails.json backend/chat/__fixtures__/knowledge/reports.json backend/chat/knowledge/data.py backend/chat/knowledge/providers/__init__.py backend/chat/knowledge/providers/mock.py backend/chat/knowledge/providers/office_example.py backend/chat/tests/test_knowledge.py
 git commit -m "feat(chat): add synthetic knowledge providers"
 ```
 
@@ -582,11 +582,11 @@ git commit -m "feat(chat): add synthetic knowledge providers"
 
 **Files:**
 
-- Create: `back_dev_home/chat/scope/data.py`
-- Create: `back_dev_home/chat/scope/providers/__init__.py`
-- Create: `back_dev_home/chat/scope/providers/mock.py`
-- Create: `back_dev_home/chat/scope/providers/office_example.py`
-- Create: `back_dev_home/chat/tests/test_scope.py`
+- Create: `backend/chat/scope/data.py`
+- Create: `backend/chat/scope/providers/__init__.py`
+- Create: `backend/chat/scope/providers/mock.py`
+- Create: `backend/chat/scope/providers/office_example.py`
+- Create: `backend/chat/tests/test_scope.py`
 
 **Interfaces:**
 
@@ -612,7 +612,7 @@ def test_mock_scope_classification(monkeypatch, query, status):
 
 - [ ] **Step 2: Scope test가 module import failure로 실패하는지 확인합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_scope.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_scope.py -q`
 
 Expected: `scope.data`가 없어 FAIL입니다.
 
@@ -635,14 +635,14 @@ implementation이 없으면 `ScopeUnavailable`을 발생시키고 mock으로 fal
 
 - [ ] **Step 5: Scope test를 실행합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_scope.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_scope.py -q`
 
 Expected: 네 state와 explicit office failure가 PASS입니다.
 
 - [ ] **Step 6: Task 4 file만 commit합니다.**
 
 ```bash
-git add back_dev_home/chat/scope/data.py back_dev_home/chat/scope/providers/__init__.py back_dev_home/chat/scope/providers/mock.py back_dev_home/chat/scope/providers/office_example.py back_dev_home/chat/tests/test_scope.py
+git add backend/chat/scope/data.py backend/chat/scope/providers/__init__.py backend/chat/scope/providers/mock.py backend/chat/scope/providers/office_example.py backend/chat/tests/test_scope.py
 git commit -m "feat(chat): gate retrieval by supported scope"
 ```
 
@@ -652,16 +652,16 @@ git commit -m "feat(chat): gate retrieval by supported scope"
 
 **Files:**
 
-- Create: `back_dev_home/chat/tools/__init__.py`
-- Create: `back_dev_home/chat/tools/manuals.py`
-- Create: `back_dev_home/chat/tools/meetings.py`
-- Create: `back_dev_home/chat/tools/emails.py`
-- Create: `back_dev_home/chat/tools/reports.py`
-- Create: `back_dev_home/chat/runtime/data.py`
-- Create: `back_dev_home/chat/runtime/providers/__init__.py`
-- Create: `back_dev_home/chat/runtime/providers/direct.py`
-- Create: `back_dev_home/chat/runtime/providers/agent.py`
-- Create: `back_dev_home/chat/tests/test_runtime.py`
+- Create: `backend/chat/tools/__init__.py`
+- Create: `backend/chat/tools/manuals.py`
+- Create: `backend/chat/tools/meetings.py`
+- Create: `backend/chat/tools/emails.py`
+- Create: `backend/chat/tools/reports.py`
+- Create: `backend/chat/runtime/data.py`
+- Create: `backend/chat/runtime/providers/__init__.py`
+- Create: `backend/chat/runtime/providers/direct.py`
+- Create: `backend/chat/runtime/providers/agent.py`
+- Create: `backend/chat/tests/test_runtime.py`
 
 **Interfaces:**
 
@@ -772,7 +772,7 @@ def test_agent_combines_multiple_source_types(scripted_multi_model):
 
 - [ ] **Step 3: Runtime test가 module import failure로 실패하는지 확인합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_runtime.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_runtime.py -q`
 
 Expected: tool/runtime module이 없어 FAIL입니다.
 
@@ -843,7 +843,7 @@ instruction이 아닌 untrusted evidence로 표시합니다.
 
 - [ ] **Step 7: Runtime test를 실행합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_runtime.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_runtime.py -q`
 
 Expected: direct, manual routing, multi-source, empty evidence, deduplication, tool limit,
 lazy import test가 PASS하고 network call은 0회입니다.
@@ -851,7 +851,7 @@ lazy import test가 PASS하고 network call은 0회입니다.
 - [ ] **Step 8: Task 5 file만 commit합니다.**
 
 ```bash
-git add back_dev_home/chat/tools/__init__.py back_dev_home/chat/tools/manuals.py back_dev_home/chat/tools/meetings.py back_dev_home/chat/tools/emails.py back_dev_home/chat/tools/reports.py back_dev_home/chat/runtime/data.py back_dev_home/chat/runtime/providers/__init__.py back_dev_home/chat/runtime/providers/direct.py back_dev_home/chat/runtime/providers/agent.py back_dev_home/chat/tests/test_runtime.py
+git add backend/chat/tools/__init__.py backend/chat/tools/manuals.py backend/chat/tools/meetings.py backend/chat/tools/emails.py backend/chat/tools/reports.py backend/chat/runtime/data.py backend/chat/runtime/providers/__init__.py backend/chat/runtime/providers/direct.py backend/chat/runtime/providers/agent.py backend/chat/tests/test_runtime.py
 git commit -m "feat(chat): add bounded retrieval agent runtime"
 ```
 
@@ -861,10 +861,10 @@ git commit -m "feat(chat): add bounded retrieval agent runtime"
 
 **Files:**
 
-- Create: `back_dev_home/chat/orchestration.py`
-- Modify: `back_dev_home/chat/routes.py`
-- Modify: `back_dev_home/chat/tests/test_routes.py`
-- Create: `back_dev_home/chat/tests/test_orchestration.py`
+- Create: `backend/chat/orchestration.py`
+- Modify: `backend/chat/routes.py`
+- Modify: `backend/chat/tests/test_routes.py`
+- Create: `backend/chat/tests/test_orchestration.py`
 
 **Interfaces:**
 
@@ -915,7 +915,7 @@ def test_feedback_can_be_replaced_and_removed(client, completed_assistant):
 
 - [ ] **Step 4: Focused tests가 실패하는지 확인합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_orchestration.py back_dev_home/chat/tests/test_routes.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_orchestration.py backend/chat/tests/test_routes.py -q`
 
 Expected: orchestrator와 endpoint가 없어 FAIL입니다.
 
@@ -943,20 +943,20 @@ rating/reason/comment를 allowlist와 최대 500자로 검증합니다. 다른 �
 
 - [ ] **Step 7: Focused backend test를 실행합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_orchestration.py back_dev_home/chat/tests/test_routes.py back_dev_home/chat/tests/test_store.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_orchestration.py backend/chat/tests/test_routes.py backend/chat/tests/test_store.py -q`
 
 Expected: PASS입니다.
 
 - [ ] **Step 8: Chat backend 전체 test를 실행합니다.**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat -q`
+Run: `.venv/bin/python -m pytest backend/chat -q`
 
 Expected: PASS이며 outbound model/office call은 없습니다.
 
 - [ ] **Step 9: Task 6 file만 commit합니다.**
 
 ```bash
-git add back_dev_home/chat/orchestration.py back_dev_home/chat/routes.py back_dev_home/chat/tests/test_routes.py back_dev_home/chat/tests/test_orchestration.py
+git add backend/chat/orchestration.py backend/chat/routes.py backend/chat/tests/test_routes.py backend/chat/tests/test_orchestration.py
 git commit -m "refactor(chat): route turns through orchestrator"
 ```
 
@@ -966,10 +966,10 @@ git commit -m "refactor(chat): route turns through orchestrator"
 
 **Files:**
 
-- Modify: `front-dev-home/app/composables/useChatApi.ts`
-- Create: `front-dev-home/app/utils/chatTurn.ts`
-- Create: `front-dev-home/app/utils/chatTurn.test.ts`
-- Modify: `front-dev-home/app/pages/chat.vue`
+- Modify: `frontend/app/composables/useChatApi.ts`
+- Create: `frontend/app/utils/chatTurn.ts`
+- Create: `frontend/app/utils/chatTurn.test.ts`
+- Modify: `frontend/app/pages/chat.vue`
 
 **Interfaces:**
 
@@ -993,7 +993,7 @@ test('a pending turn keeps one request id across retries', () => {
 
 - [ ] **Step 2: Utility test가 import failure로 실패하는지 확인합니다.**
 
-Run from `front-dev-home/`: `node --test app/utils/chatTurn.test.ts`
+Run from `frontend/`: `node --test app/utils/chatTurn.test.ts`
 
 Expected: `chatTurn.ts`가 없어 FAIL입니다.
 
@@ -1069,18 +1069,18 @@ const deleteFeedback = async (messageId: string): Promise<void> => {
 
 - [ ] **Step 6: Frontend focused test와 typecheck를 실행합니다.**
 
-Run from `front-dev-home/`: `node --test app/utils/chatTurn.test.ts`
+Run from `frontend/`: `node --test app/utils/chatTurn.test.ts`
 
 Expected: PASS입니다.
 
-Run from `front-dev-home/`: `npm run typecheck`
+Run from `frontend/`: `npm run typecheck`
 
 Expected: 새 type을 반영한 page/composable이 PASS입니다.
 
 - [ ] **Step 7: Task 7 file만 commit합니다.**
 
 ```bash
-git add front-dev-home/app/composables/useChatApi.ts front-dev-home/app/utils/chatTurn.ts front-dev-home/app/utils/chatTurn.test.ts front-dev-home/app/pages/chat.vue
+git add frontend/app/composables/useChatApi.ts frontend/app/utils/chatTurn.ts frontend/app/utils/chatTurn.test.ts frontend/app/pages/chat.vue
 git commit -m "feat(chat): make frontend turns retry-safe"
 ```
 
@@ -1090,13 +1090,13 @@ git commit -m "feat(chat): make frontend turns retry-safe"
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/chatSources.ts`
-- Create: `front-dev-home/app/utils/chatSources.test.ts`
-- Create: `front-dev-home/app/components/chat/ChatSources.vue`
-- Create: `front-dev-home/app/components/chat/ChatFeedbackControls.vue`
-- Modify: `front-dev-home/app/components/chat/ChatMessage.vue`
-- Modify: `front-dev-home/app/components/chat/ChatThread.vue`
-- Modify: `front-dev-home/app/pages/chat.vue`
+- Create: `frontend/app/utils/chatSources.ts`
+- Create: `frontend/app/utils/chatSources.test.ts`
+- Create: `frontend/app/components/chat/ChatSources.vue`
+- Create: `frontend/app/components/chat/ChatFeedbackControls.vue`
+- Modify: `frontend/app/components/chat/ChatMessage.vue`
+- Modify: `frontend/app/components/chat/ChatThread.vue`
+- Modify: `frontend/app/pages/chat.vue`
 
 **Interfaces:**
 
@@ -1128,7 +1128,7 @@ test('feedback removes blank comment and duplicate reasons', () => {
 
 - [ ] **Step 2: Utility test가 import failure로 실패하는지 확인합니다.**
 
-Run from `front-dev-home/`: `node --test app/utils/chatSources.test.ts`
+Run from `frontend/`: `node --test app/utils/chatSources.test.ts`
 
 Expected: `chatSources.ts`가 없어 FAIL입니다.
 
@@ -1165,15 +1165,15 @@ Page는 message ID별 loading set을 유지하고 API 성공 시 해당 `message
 
 - [ ] **Step 6: Frontend test, typecheck, chat-scoped lint를 실행합니다.**
 
-Run from `front-dev-home/`: `node --test app/utils/chatSources.test.ts app/utils/chatTurn.test.ts`
+Run from `frontend/`: `node --test app/utils/chatSources.test.ts app/utils/chatTurn.test.ts`
 
 Expected: PASS입니다.
 
-Run from `front-dev-home/`: `npm run typecheck`
+Run from `frontend/`: `npm run typecheck`
 
 Expected: PASS입니다.
 
-Run from `front-dev-home/`: `npx eslint app/pages/chat.vue app/components/chat/ChatMessage.vue app/components/chat/ChatThread.vue app/components/chat/ChatSources.vue app/components/chat/ChatFeedbackControls.vue app/composables/useChatApi.ts app/utils/chatTurn.ts app/utils/chatTurn.test.ts app/utils/chatSources.ts app/utils/chatSources.test.ts`
+Run from `frontend/`: `npx eslint app/pages/chat.vue app/components/chat/ChatMessage.vue app/components/chat/ChatThread.vue app/components/chat/ChatSources.vue app/components/chat/ChatFeedbackControls.vue app/composables/useChatApi.ts app/utils/chatTurn.ts app/utils/chatTurn.test.ts app/utils/chatSources.ts app/utils/chatSources.test.ts`
 
 Expected: 새 file과 수정한 chat file에서 0 error입니다.
 
@@ -1193,7 +1193,7 @@ Backend를 fake/mock 설정으로 실행하고 frontend dev server를 실행합�
 - [ ] **Step 8: Task 8 file만 commit합니다.**
 
 ```bash
-git add front-dev-home/app/utils/chatSources.ts front-dev-home/app/utils/chatSources.test.ts front-dev-home/app/components/chat/ChatSources.vue front-dev-home/app/components/chat/ChatFeedbackControls.vue front-dev-home/app/components/chat/ChatMessage.vue front-dev-home/app/components/chat/ChatThread.vue front-dev-home/app/pages/chat.vue
+git add frontend/app/utils/chatSources.ts frontend/app/utils/chatSources.test.ts frontend/app/components/chat/ChatSources.vue frontend/app/components/chat/ChatFeedbackControls.vue frontend/app/components/chat/ChatMessage.vue frontend/app/components/chat/ChatThread.vue frontend/app/pages/chat.vue
 git commit -m "feat(chat): show sources and collect feedback"
 ```
 
@@ -1209,8 +1209,8 @@ git commit -m "feat(chat): show sources and collect feedback"
 - Create: `rag_sources/meetings/.gitkeep`
 - Create: `rag_sources/emails/.gitkeep`
 - Create: `rag_sources/reports/.gitkeep`
-- Modify: `back_dev_home/.env.example`
-- Modify: `back_dev_home/chat/MIGRATION.md`
+- Modify: `backend/.env.example`
+- Modify: `backend/chat/MIGRATION.md`
 
 **Interfaces:**
 
@@ -1241,7 +1241,7 @@ git commit -m "feat(chat): show sources and collect feedback"
 `SKEWNONO_RAG_SOURCE_ROOT`, runtime이 직접 index를 build하지 않는다는 규칙을 한국어
 formal sentence로 기록합니다.
 
-`back_dev_home/.env.example`의 chat section은 다음 key를 포함합니다.
+`backend/.env.example`의 chat section은 다음 key를 포함합니다.
 
 ```dotenv
 SKEWNONO_CHAT_RUNTIME=direct
@@ -1278,30 +1278,30 @@ Expected: exit 1이며 README는 추적 가능합니다.
 
 - [ ] **Step 5: Backend 전체 gate를 실행합니다.**
 
-Run: `.venv/bin/python -m pytest tests back_dev_home -q`
+Run: `.venv/bin/python -m pytest tests backend -q`
 
 Expected: 전체 backend suite PASS입니다.
 
-Run: `uv run --no-project ruff check back_dev_home/chat`
+Run: `uv run --no-project ruff check backend/chat`
 
 Expected: 0 error입니다.
 
 - [ ] **Step 6: Frontend 전체 gate를 실행합니다.**
 
-Run from `front-dev-home/`: `npm test`
+Run from `frontend/`: `npm test`
 
 Expected: 전체 Node test PASS입니다.
 
-Run from `front-dev-home/`: `npm run typecheck`
+Run from `frontend/`: `npm run typecheck`
 
 Expected: PASS입니다.
 
-Run from `front-dev-home/`: `npm run lint`
+Run from `frontend/`: `npm run lint`
 
 Expected: 새 chat error는 0입니다. 기존 unrelated baseline error가 있으면 command output과
 chat-scoped lint 결과를 handoff에 각각 기록합니다.
 
-Run from `front-dev-home/`: `npm run build`
+Run from `frontend/`: `npm run build`
 
 Expected: production generation PASS입니다.
 
@@ -1318,7 +1318,7 @@ Expected: output 없이 exit 0입니다.
 - [ ] **Step 8: Documentation file만 commit합니다.**
 
 ```bash
-git add rag_sources/.gitignore rag_sources/README.md rag_sources/manuals/.gitkeep rag_sources/meetings/.gitkeep rag_sources/emails/.gitkeep rag_sources/reports/.gitkeep back_dev_home/.env.example back_dev_home/chat/MIGRATION.md
+git add rag_sources/.gitignore rag_sources/README.md rag_sources/manuals/.gitkeep rag_sources/meetings/.gitkeep rag_sources/emails/.gitkeep rag_sources/reports/.gitkeep backend/.env.example backend/chat/MIGRATION.md
 git commit -m "docs(chat): add office RAG handoff"
 ```
 

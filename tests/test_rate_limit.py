@@ -25,13 +25,13 @@ the real Redis.
 import pytest
 from flask import Flask, g
 
-import back_dev_home
-from back_dev_home import _rate_limit_key, _rate_limit_storage, create_app
+import backend
+from backend import _rate_limit_key, _rate_limit_storage, create_app
 
 
 @pytest.fixture(autouse=True)
 def no_dotenv(monkeypatch):
-    monkeypatch.setattr(back_dev_home, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setattr(backend, "load_dotenv", lambda *a, **k: None)
 
 
 @pytest.fixture(autouse=True)

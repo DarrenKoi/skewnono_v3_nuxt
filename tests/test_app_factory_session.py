@@ -7,7 +7,7 @@ to start in that state, and that home, where there is nothing to forge, keeps
 its convenience fallback.
 
 `load_dotenv` is neutralized throughout. `create_app` loads
-`back_dev_home/.env`, which exists on a developer's checkout and not in a fresh
+`backend/.env`, which exists on a developer's checkout and not in a fresh
 worktree, and `load_dotenv` sets a variable a test just deleted — so without
 this the results would depend on which tree the suite is run from.
 """
@@ -16,25 +16,25 @@ from datetime import timedelta
 
 import pytest
 
-import back_dev_home
-from back_dev_home import create_app
+import backend
+from backend import create_app
 
 
 @pytest.fixture(autouse=True)
 def no_dotenv(monkeypatch):
-    monkeypatch.setattr(back_dev_home, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setattr(backend, "load_dotenv", lambda *a, **k: None)
 
 
 @pytest.fixture
 def cloud(monkeypatch):
     """`is_cloud` is imported into the factory's namespace, so patching it at
     its source module would leave the factory's reference untouched."""
-    monkeypatch.setattr(back_dev_home, "is_cloud", lambda: True)
+    monkeypatch.setattr(backend, "is_cloud", lambda: True)
 
 
 @pytest.fixture
 def home(monkeypatch):
-    monkeypatch.setattr(back_dev_home, "is_cloud", lambda: False)
+    monkeypatch.setattr(backend, "is_cloud", lambda: False)
 
 
 def _has_proxyfix(app) -> bool:
@@ -119,7 +119,7 @@ def test_an_unset_looking_flag_does_not_enable_it(monkeypatch, home, flag):
 def seeded(monkeypatch):
     """The factory imports `seed_demo_users` inside the branch, so the module
     attribute is what it resolves at call time."""
-    from back_dev_home.activity import data as activity_data
+    from backend.activity import data as activity_data
 
     calls: list[int] = []
     monkeypatch.setattr(activity_data, "seed_demo_users", lambda: calls.append(1))
@@ -128,12 +128,12 @@ def seeded(monkeypatch):
 
 @pytest.fixture
 def mock_mode(monkeypatch):
-    monkeypatch.setattr(back_dev_home, "get_mode", lambda: "mock")
+    monkeypatch.setattr(backend, "get_mode", lambda: "mock")
 
 
 @pytest.fixture
 def office_mode(monkeypatch):
-    monkeypatch.setattr(back_dev_home, "get_mode", lambda: "office")
+    monkeypatch.setattr(backend, "get_mode", lambda: "office")
     # Office mode points the rate limiter at Redis; without this the boot
     # spends its connect timeout on a host that is not there.
     monkeypatch.delenv("REDIS_HOST", raising=False)

@@ -15,7 +15,7 @@
 - **활동 로그 슬러그는 append-only** 입니다. `activity.ts` 의 `FEATURE_LABELS` 에서 기존 `verity_sem` 항목을 **삭제하지 않습니다**.
 - **이 Plan 은 `providers/<family>/` 하위 폴더를 만들지 않습니다.** 그것은 Phase 1(feature × 계열)의 일이며, AMAT 오피스 소스가 확인된 뒤에 시작합니다.
 - pytest 는 반드시 저장소 루트에서 `.venv/bin/python -m pytest` 로 실행합니다. `-m` 이 루트를 `sys.path` 에 넣습니다.
-- 프론트 명령은 `front-dev-home/` 에서 실행합니다.
+- 프론트 명령은 `frontend/` 에서 실행합니다.
 - 커밋은 **직접 편집한 파일 경로만** 명시적으로 지정합니다. `git add -A`, `git add .`, `git commit -a` 는 금지입니다.
 - 이 작업은 다중 파일이므로 **worktree 에서 수행**합니다.
 
@@ -36,8 +36,8 @@ cd ../skewnono-ebeam-phase0
 
 ```bash
 ln -s /Users/daeyoung/Codes/skewnono_v3_nuxt/.venv .venv
-ln -s /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home/node_modules \
-      front-dev-home/node_modules
+ln -s /Users/daeyoung/Codes/skewnono_v3_nuxt/frontend/node_modules \
+      frontend/node_modules
 ```
 
 - [ ] **Step 3: 기준선 측정**
@@ -51,7 +51,7 @@ worktree 에는 gitignored `office.py` 가 없으므로 메인 체크아웃과 s
 수가 다릅니다. 이후 모든 검증은 **passed + skipped 합계**로 비교합니다.
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -6 && npm run typecheck 2>&1 | tail -4 && cd ..
+cd frontend && npm test 2>&1 | tail -6 && npm run typecheck 2>&1 | tail -4 && cd ..
 ```
 
 기대: 프론트 테스트 통과, typecheck 0 errors.
@@ -70,13 +70,13 @@ cd front-dev-home && npm test 2>&1 | tail -6 && npm run typecheck 2>&1 | tail -4
 
 | 파일 | 책임 |
 | --- | --- |
-| `back_dev_home/ebeam/_tool_specs.py` | 슬러그·tool_type·벤더·어댑터 폴더의 단일 레지스트리 (이동 + 확장) |
-| `back_dev_home/ebeam/<feature>/` | 9개 feature + device_statistics (이동) |
-| `back_dev_home/meas_hist/routes.py` | 미지 tool_type 을 400 으로 거절 |
-| `back_dev_home/meas_hist/providers/mock.py` | AMAT 제외를 명시적으로 표현 |
-| `front-dev-home/app/utils/toolType.ts` | 프론트 tool_type 단일 레지스트리 (승격) |
-| `front-dev-home/app/composables/*.ts` | 지역 union 제거, 레지스트리 참조 |
-| `back_dev_home/ebeam/__fixtures__/tool_type_cases.json` | 프론트·백 분류기 일치 계약 fixture |
+| `backend/ebeam/_tool_specs.py` | 슬러그·tool_type·벤더·어댑터 폴더의 단일 레지스트리 (이동 + 확장) |
+| `backend/ebeam/<feature>/` | 9개 feature + device_statistics (이동) |
+| `backend/meas_hist/routes.py` | 미지 tool_type 을 400 으로 거절 |
+| `backend/meas_hist/providers/mock.py` | AMAT 제외를 명시적으로 표현 |
+| `frontend/app/utils/toolType.ts` | 프론트 tool_type 단일 레지스트리 (승격) |
+| `frontend/app/composables/*.ts` | 지역 union 제거, 레지스트리 참조 |
+| `backend/ebeam/__fixtures__/tool_type_cases.json` | 프론트·백 분류기 일치 계약 fixture |
 
 ---
 
@@ -86,22 +86,22 @@ cd front-dev-home && npm test 2>&1 | tail -6 && npm run typecheck 2>&1 | tail -4
 
 **Files:**
 
-- Move: `back_dev_home/ebeam/hitachi/{fail_issue,hardware,lateral_recipe,live_alarm,pm_planning,recipe_search,recipe_tat,skew,storage}/` → `back_dev_home/ebeam/`
-- Move: `back_dev_home/ebeam/hitachi/{_analytics.py,_analytics_routes.py,_office_meas_hist.py,_office_search.py,_tool_specs.py}` → `back_dev_home/ebeam/`
-- Move: `back_dev_home/ebeam/hitachi/tests/` → `back_dev_home/ebeam/tests/`
-- Move: `back_dev_home/ebeam/cdsem/device_statistics/` → `back_dev_home/ebeam/device_statistics/`
-- Delete: `back_dev_home/ebeam/hitachi/__init__.py`, `back_dev_home/ebeam/cdsem/__init__.py`
-- Modify: `back_dev_home.ebeam.hitachi` / `back_dev_home.ebeam.cdsem` 를 참조하는 모든 파일
+- Move: `backend/ebeam/hitachi/{fail_issue,hardware,lateral_recipe,live_alarm,pm_planning,recipe_search,recipe_tat,skew,storage}/` → `backend/ebeam/`
+- Move: `backend/ebeam/hitachi/{_analytics.py,_analytics_routes.py,_office_meas_hist.py,_office_search.py,_tool_specs.py}` → `backend/ebeam/`
+- Move: `backend/ebeam/hitachi/tests/` → `backend/ebeam/tests/`
+- Move: `backend/ebeam/cdsem/device_statistics/` → `backend/ebeam/device_statistics/`
+- Delete: `backend/ebeam/hitachi/__init__.py`, `backend/ebeam/cdsem/__init__.py`
+- Modify: `backend.ebeam.hitachi` / `backend.ebeam.cdsem` 를 참조하는 모든 파일
 
 **Interfaces:**
 
 - Consumes: 없음 (첫 작업)
-- Produces: `back_dev_home.ebeam.<feature>` 및 `back_dev_home.ebeam._tool_specs` 임포트 경로. 이후 모든 Task 가 이 경로를 씁니다.
+- Produces: `backend.ebeam.<feature>` 및 `backend.ebeam._tool_specs` 임포트 경로. 이후 모든 Task 가 이 경로를 씁니다.
 
 - [ ] **Step 1: 이동 전 참조 수를 기록**
 
 ```bash
-grep -rn "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" back_dev_home/ scripts/ tests/ | wc -l
+grep -rn "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" backend/ scripts/ tests/ | wc -l
 ```
 
 숫자를 적어 둡니다. Step 4 이후 0 이 되어야 합니다.
@@ -113,7 +113,7 @@ grep -rn "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" back_dev_home/ scripts/
 메인 체크아웃에서도 안전하도록 이렇게 씁니다.
 
 ```bash
-cd back_dev_home/ebeam
+cd backend/ebeam
 for d in fail_issue hardware lateral_recipe live_alarm pm_planning \
          recipe_search recipe_tat skew storage tests; do
   git mv "hitachi/$d" "$d"
@@ -131,16 +131,16 @@ cd ../..
 - [ ] **Step 3: 임포트 경로 치환**
 
 ```bash
-grep -rl "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" back_dev_home/ scripts/ tests/ \
-  | xargs sed -i '' -e 's/back_dev_home\.ebeam\.hitachi\./back_dev_home.ebeam./g' \
-                     -e 's/back_dev_home\.ebeam\.cdsem\./back_dev_home.ebeam./g' \
-                     -e 's/from back_dev_home\.ebeam\.hitachi import/from back_dev_home.ebeam import/g'
+grep -rl "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" backend/ scripts/ tests/ \
+  | xargs sed -i '' -e 's/backend\.ebeam\.hitachi\./backend.ebeam./g' \
+                     -e 's/backend\.ebeam\.cdsem\./backend.ebeam./g' \
+                     -e 's/from backend\.ebeam\.hitachi import/from backend.ebeam import/g'
 ```
 
 - [ ] **Step 4: 잔여 참조가 0인지 확인**
 
 ```bash
-grep -rn "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" back_dev_home/ scripts/ tests/
+grep -rn "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" backend/ scripts/ tests/
 ```
 
 기대: 출력 없음.
@@ -152,8 +152,8 @@ grep -rn "ebeam\.hitachi\|ebeam\.cdsem" --include="*.py" back_dev_home/ scripts/
 도 함께 `ebeam/` 로 올라왔으므로 그대로 해석됩니다. 확인만 합니다.
 
 ```bash
-grep -rn "from \.\._tool_specs\|from \.\._office\|from \.\._analytics" --include="*.py" back_dev_home/ebeam/
-.venv/bin/python -c "import back_dev_home; back_dev_home.create_app()" && echo BOOT_OK
+grep -rn "from \.\._tool_specs\|from \.\._office\|from \.\._analytics" --include="*.py" backend/ebeam/
+.venv/bin/python -c "import backend; backend.create_app()" && echo BOOT_OK
 ```
 
 기대: 마지막 줄에 `BOOT_OK`.
@@ -169,9 +169,9 @@ grep -rn "from \.\._tool_specs\|from \.\._office\|from \.\._analytics" --include
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add back_dev_home/ebeam back_dev_home/meas_hist back_dev_home/msr_file \
-        back_dev_home/_runtime back_dev_home/_spa back_dev_home/_auth \
-        back_dev_home/_logging scripts tests
+git add backend/ebeam backend/meas_hist backend/msr_file \
+        backend/_runtime backend/_spa backend/_auth \
+        backend/_logging scripts tests
 git commit -m "refactor(ebeam): 벤더 중간 폴더를 없애고 feature 를 평탄화한다
 
 office_registry 가 feature_dir.name 하나로 feature 를 식별하므로 중간 폴더는
@@ -186,12 +186,12 @@ provider 해석에 아무 역할도 하지 않는다. 라우트에도 벤더가 
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/_tool_specs.py`
-- Test: `back_dev_home/ebeam/tests/test_tool_specs.py`
+- Modify: `backend/ebeam/_tool_specs.py`
+- Test: `backend/ebeam/tests/test_tool_specs.py`
 
 **Interfaces:**
 
-- Consumes: Task 1 의 `back_dev_home.ebeam._tool_specs` 경로
+- Consumes: Task 1 의 `backend.ebeam._tool_specs` 경로
 - Produces:
   - `ToolSlug = Literal["cdsem", "hvsem", "veritysem", "provision"]`
   - `ToolType = Literal["cd-sem", "hv-sem", "veritysem", "provision"]`
@@ -205,10 +205,10 @@ provider 해석에 아무 역할도 하지 않는다. 라우트에도 벤더가 
 
 - [ ] **Step 1: 실패하는 테스트를 작성**
 
-`back_dev_home/ebeam/tests/test_tool_specs.py` 끝에 추가합니다.
+`backend/ebeam/tests/test_tool_specs.py` 끝에 추가합니다.
 
 ```python
-from back_dev_home.ebeam._tool_specs import (
+from backend.ebeam._tool_specs import (
     SEM_TOOL_TYPES,
     SLUG_TO_ADAPTER,
     SLUG_TO_TOOL_TYPE,
@@ -263,14 +263,14 @@ def test_amat_slugs_resolve_from_slug():
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/tests/test_tool_specs.py -q 2>&1 | tail -5
+.venv/bin/python -m pytest backend/ebeam/tests/test_tool_specs.py -q 2>&1 | tail -5
 ```
 
 기대: FAIL — `ImportError: cannot import name 'SEM_TOOL_TYPES'`.
 
 - [ ] **Step 3: 레지스트리를 확장**
 
-`back_dev_home/ebeam/_tool_specs.py` 에서 타입과 매핑을 다음으로 바꿉니다.
+`backend/ebeam/_tool_specs.py` 에서 타입과 매핑을 다음으로 바꿉니다.
 
 ```python
 ToolSlug = Literal["cdsem", "hvsem", "veritysem", "provision"]
@@ -351,7 +351,7 @@ AMAT 을 뜻한다고 적혀 있는데 더 이상 사실이 아닙니다.
 def model_to_tool_type(eqp_model_cd: str) -> ToolType | None:
     """Classify a model code, or None when it belongs to no known family.
 
-    Mirrors `classifyToolType()` in front-dev-home/app/utils/toolType.ts;
+    Mirrors `classifyToolType()` in frontend/app/utils/toolType.ts;
     the two are pinned together by __fixtures__/tool_type_cases.json.
 
     None now means genuinely unknown. It used to double as "an AMAT tool",
@@ -367,7 +367,7 @@ def model_to_tool_type(eqp_model_cd: str) -> ToolType | None:
 - [ ] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/tests/test_tool_specs.py -q 2>&1 | tail -3
+.venv/bin/python -m pytest backend/ebeam/tests/test_tool_specs.py -q 2>&1 | tail -3
 ```
 
 기대: PASS.
@@ -387,7 +387,7 @@ def model_to_tool_type(eqp_model_cd: str) -> ToolType | None:
 실패가 있으면 Task 3 을 끝낸 뒤 함께 커밋합니다.
 
 ```bash
-git add back_dev_home/ebeam/_tool_specs.py back_dev_home/ebeam/tests/test_tool_specs.py
+git add backend/ebeam/_tool_specs.py backend/ebeam/tests/test_tool_specs.py
 git commit -m "feat(ebeam): tool_type 레지스트리를 4계열로 확장한다
 
 AMAT 두 계열을 model_to_tool_type 이 해석하게 하고, 벤더(2)와 어댑터 폴더(3)
@@ -401,8 +401,8 @@ AMAT 두 계열을 model_to_tool_type 이 해석하게 하고, 벤더(2)와 어�
 
 **Files:**
 
-- Modify: `back_dev_home/meas_hist/providers/mock.py:267-269`
-- Test: `back_dev_home/meas_hist/tests/test_contract.py`
+- Modify: `backend/meas_hist/providers/mock.py:267-269`
+- Test: `backend/meas_hist/tests/test_contract.py`
 
 **Interfaces:**
 
@@ -415,7 +415,7 @@ meas_hist 는 AMAT 오피스 소스가 없습니다. 따라서 AMAT 장비를 �
 
 - [ ] **Step 1: 실패하는 테스트를 작성**
 
-`back_dev_home/meas_hist/tests/test_contract.py` 끝에 추가합니다.
+`backend/meas_hist/tests/test_contract.py` 끝에 추가합니다.
 
 ```python
 def test_meas_hist_fleet_excludes_amat_tools_deliberately():
@@ -423,8 +423,8 @@ def test_meas_hist_fleet_excludes_amat_tools_deliberately():
 
     분류기가 AMAT 을 해석하기 시작한 뒤에도 이 제외가 유지되어야 한다.
     """
-    from back_dev_home.ebeam._tool_specs import model_to_tool_type
-    from back_dev_home.meas_hist.providers.mock import _eligible_sem_rows
+    from backend.ebeam._tool_specs import model_to_tool_type
+    from backend.meas_hist.providers.mock import _eligible_sem_rows
 
     tool_types = {model_to_tool_type(row["eqp_model_cd"]) for row in _eligible_sem_rows()}
     assert tool_types <= {"cd-sem", "hv-sem"}
@@ -434,18 +434,18 @@ def test_meas_hist_fleet_excludes_amat_tools_deliberately():
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/meas_hist/tests/test_contract.py -q -k amat 2>&1 | tail -5
+.venv/bin/python -m pytest backend/meas_hist/tests/test_contract.py -q -k amat 2>&1 | tail -5
 ```
 
 기대: FAIL — `veritysem` / `provision` 이 집합에 포함됨.
 
 - [ ] **Step 3: 제외를 명시적으로 표현**
 
-`back_dev_home/meas_hist/providers/mock.py` 의 임포트에 `SEM_TOOL_TYPES` 를
+`backend/meas_hist/providers/mock.py` 의 임포트에 `SEM_TOOL_TYPES` 를
 추가하고 `_eligible_sem_rows()` 를 바꿉니다.
 
 ```python
-from back_dev_home.ebeam._tool_specs import SEM_TOOL_TYPES, ToolType, model_to_tool_type
+from backend.ebeam._tool_specs import SEM_TOOL_TYPES, ToolType, model_to_tool_type
 
 
 @lru_cache(maxsize=1)
@@ -465,7 +465,7 @@ def _eligible_sem_rows() -> tuple[SemListRow, ...]:
 - [ ] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/meas_hist -q 2>&1 | tail -3
+.venv/bin/python -m pytest backend/meas_hist -q 2>&1 | tail -3
 ```
 
 기대: PASS.
@@ -491,7 +491,7 @@ def _eligible_sem_rows() -> tuple[SemListRow, ...]:
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add back_dev_home/meas_hist back_dev_home/ebeam
+git add backend/meas_hist backend/ebeam
 git commit -m "fix(meas-hist): CD/HV 한정을 분류기의 None 대신 명시 집합으로 표현한다
 
 model_to_tool_type 이 AMAT 을 해석하게 되면서 'is not None' 은 없는 AMAT
@@ -508,8 +508,8 @@ model_to_tool_type 이 AMAT 을 해석하게 되면서 'is not None' 은 없는 
 
 **Files:**
 
-- Modify: `back_dev_home/meas_hist/routes.py:15-20,40-69`
-- Test: `back_dev_home/meas_hist/tests/test_routes.py` (없으면 생성)
+- Modify: `backend/meas_hist/routes.py:15-20,40-69`
+- Test: `backend/meas_hist/tests/test_routes.py` (없으면 생성)
 
 **Interfaces:**
 
@@ -518,12 +518,12 @@ model_to_tool_type 이 AMAT 을 해석하게 되면서 'is not None' 은 없는 
 
 - [ ] **Step 1: 실패하는 테스트를 작성**
 
-`back_dev_home/meas_hist/tests/test_routes.py` 를 만들고 다음을 씁니다.
+`backend/meas_hist/tests/test_routes.py` 를 만들고 다음을 씁니다.
 
 ```python
 import pytest
 
-from back_dev_home import create_app
+from backend import create_app
 
 
 @pytest.fixture
@@ -565,18 +565,18 @@ def test_known_tool_types_are_accepted(client):
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/meas_hist/tests/test_routes.py -q 2>&1 | tail -5
+.venv/bin/python -m pytest backend/meas_hist/tests/test_routes.py -q 2>&1 | tail -5
 ```
 
 기대: FAIL — 400 대신 200.
 
 - [ ] **Step 3: 라우트를 고침**
 
-`back_dev_home/meas_hist/routes.py` 에서 `VALID_TOOL_TYPES` 하드코딩과
+`backend/meas_hist/routes.py` 에서 `VALID_TOOL_TYPES` 하드코딩과
 `_resolve_tool_type()` 을 다음으로 바꿉니다.
 
 ```python
-from back_dev_home.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
+from backend.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 
 # 하드코딩하지 않습니다. 계열이 늘어나면 레지스트리만 고칩니다.
 VALID_TOOL_TYPES: frozenset[str] = frozenset(SLUG_TO_TOOL_TYPE.values())
@@ -611,7 +611,7 @@ def _reject_unknown_tool_type(exc: _UnknownToolType):
 - [ ] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/meas_hist -q 2>&1 | tail -3
+.venv/bin/python -m pytest backend/meas_hist -q 2>&1 | tail -3
 ```
 
 기대: PASS.
@@ -619,7 +619,7 @@ def _reject_unknown_tool_type(exc: _UnknownToolType):
 - [ ] **Step 5: 다른 라우트에도 같은 구멍이 있는지 확인**
 
 ```bash
-grep -rn "else None" --include="routes.py" back_dev_home/ | grep -i "tool\|slug"
+grep -rn "else None" --include="routes.py" backend/ | grep -i "tool\|slug"
 ```
 
 `VALID_TOOL_SLUGS` 를 쓰는 fleet 형 라우트들은 이미 400 을 냅니다
@@ -629,7 +629,7 @@ grep -rn "else None" --include="routes.py" back_dev_home/ | grep -i "tool\|slug"
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add back_dev_home/meas_hist/routes.py back_dev_home/meas_hist/tests/test_routes.py
+git add backend/meas_hist/routes.py backend/meas_hist/tests/test_routes.py
 git commit -m "fix(meas-hist): 미지 tool_type 을 전체 조회로 넓히지 않고 400 으로 거절한다
 
 파싱 실패와 미지정이 둘 다 None 이 되어, veritysem 으로 필터를 걸면 필터가
@@ -643,9 +643,9 @@ _tool_specs 레지스트리에서 가져온다."
 
 **Files:**
 
-- Modify: `front-dev-home/app/utils/toolType.ts`
-- Modify: `front-dev-home/app/utils/toolType.test.ts`
-- Modify: `front-dev-home/app/stores/navigation.ts:5`
+- Modify: `frontend/app/utils/toolType.ts`
+- Modify: `frontend/app/utils/toolType.test.ts`
+- Modify: `frontend/app/stores/navigation.ts:5`
 
 **Interfaces:**
 
@@ -659,7 +659,7 @@ _tool_specs 레지스트리에서 가져온다."
 
 - [ ] **Step 1: 실패하는 테스트를 작성**
 
-`front-dev-home/app/utils/toolType.test.ts` 의 첫 테스트를 바꾸고 아래를
+`frontend/app/utils/toolType.test.ts` 의 첫 테스트를 바꾸고 아래를
 추가합니다.
 
 ```ts
@@ -705,7 +705,7 @@ test('SEM_TOOL_TYPES names the CD/HV-only scope explicitly', () => {
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -10
+cd frontend && npm test 2>&1 | tail -10
 ```
 
 기대: FAIL — `toolSlug` / `TOOL_TYPES` 미정의.
@@ -720,7 +720,7 @@ cd front-dev-home && npm test 2>&1 | tail -10
 /**
  * 프론트의 tool_type 단일 원천.
  *
- * 백엔드 `back_dev_home/ebeam/_tool_specs.py` 의 거울이며, 두 분류기는
+ * 백엔드 `backend/ebeam/_tool_specs.py` 의 거울이며, 두 분류기는
  * `__fixtures__/tool_type_cases.json` 계약 테스트로 묶여 있습니다.
  * 한쪽만 고치면 그 테스트가 깨집니다.
  *
@@ -770,7 +770,7 @@ export type { ToolType } from '~/utils/toolType'
 - [ ] **Step 5: 테스트와 타입 검사**
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -5 && npm run typecheck 2>&1 | tail -20
+cd frontend && npm test 2>&1 | tail -5 && npm run typecheck 2>&1 | tail -20
 ```
 
 기대: 테스트 PASS. typecheck 는 `'verity-sem'` 을 쓰는 곳에서 **에러가
@@ -779,8 +779,8 @@ cd front-dev-home && npm test 2>&1 | tail -5 && npm run typecheck 2>&1 | tail -2
 - [ ] **Step 6: 커밋 (typecheck 에러는 Task 6 에서 해소)**
 
 ```bash
-git add front-dev-home/app/utils/toolType.ts front-dev-home/app/utils/toolType.test.ts \
-        front-dev-home/app/stores/navigation.ts
+git add frontend/app/utils/toolType.ts frontend/app/utils/toolType.test.ts \
+        frontend/app/stores/navigation.ts
 git commit -m "feat(front): tool_type 단일 레지스트리를 세우고 veritysem 표기를 확정한다
 
 TOOL_TYPES/toolSlug/SEM_TOOL_TYPES 를 utils/toolType.ts 에 모으고
@@ -794,17 +794,17 @@ veritysem/provision 을 쓴다."
 
 **Files:**
 
-- Modify: `front-dev-home/app/composables/useMeasHistApi.ts:4`
-- Modify: `front-dev-home/app/composables/useFailIssueApi.ts:3,219`
-- Modify: `front-dev-home/app/composables/useRecipeSearchApi.ts:4`
-- Modify: `front-dev-home/app/composables/useLateralRecipeApi.ts:4,41`
+- Modify: `frontend/app/composables/useMeasHistApi.ts:4`
+- Modify: `frontend/app/composables/useFailIssueApi.ts:3,219`
+- Modify: `frontend/app/composables/useRecipeSearchApi.ts:4`
+- Modify: `frontend/app/composables/useLateralRecipeApi.ts:4,41`
 - Modify: Task 5 Step 5 의 typecheck 에러가 가리킨 나머지 파일
-- Modify: `front-dev-home/app/pages/ebeam/verity-sem/` → `veritysem/` (2파일)
-- Modify: `front-dev-home/app/components/nav/FeatureTabs.vue:40`, `nav/FabSidebar.vue:55`
-- Modify: `front-dev-home/app/composables/useToolData.ts:14`
-- Modify: `front-dev-home/app/pages/tool-roster.vue:308`
-- Modify: `front-dev-home/app/utils/pendingToolMatrix.test.ts:41,75`
-- Modify: `front-dev-home/app/utils/pageIdentity.test.ts:162`
+- Modify: `frontend/app/pages/ebeam/verity-sem/` → `veritysem/` (2파일)
+- Modify: `frontend/app/components/nav/FeatureTabs.vue:40`, `nav/FabSidebar.vue:55`
+- Modify: `frontend/app/composables/useToolData.ts:14`
+- Modify: `frontend/app/pages/tool-roster.vue:308`
+- Modify: `frontend/app/utils/pendingToolMatrix.test.ts:41,75`
+- Modify: `frontend/app/utils/pageIdentity.test.ts:162`
 
 **Interfaces:**
 
@@ -817,7 +817,7 @@ veritysem/provision 을 쓴다."
 수단은 `npm run typecheck` 와 중복 선언 0** 입니다. 먼저 현재 개수를 셉니다.
 
 ```bash
-cd front-dev-home && grep -rn "= 'cd-sem' | 'hv-sem'" app/ | wc -l
+cd frontend && grep -rn "= 'cd-sem' | 'hv-sem'" app/ | wc -l
 ```
 
 기대: 4 이상. 이 숫자가 0 이 되는 것이 완료 조건입니다.
@@ -858,7 +858,7 @@ const toolSlug = (toolType: FailIssueToolType): 'cdsem' | 'hvsem' =>
 - [ ] **Step 4: 라우트 폴더와 리터럴을 `veritysem` 으로**
 
 ```bash
-cd front-dev-home
+cd frontend
 git mv app/pages/ebeam/verity-sem app/pages/ebeam/veritysem
 grep -rl "verity-sem" app/ | xargs sed -i '' "s/verity-sem/veritysem/g"
 grep -rn "verity-sem" app/
@@ -869,7 +869,7 @@ grep -rn "verity-sem" app/
 - [ ] **Step 5: 타입 검사와 테스트**
 
 ```bash
-cd front-dev-home && npm run typecheck 2>&1 | tail -20 && npm test 2>&1 | tail -5 && npm run lint 2>&1 | tail -5
+cd frontend && npm run typecheck 2>&1 | tail -20 && npm test 2>&1 | tail -5 && npm run lint 2>&1 | tail -5
 ```
 
 기대: typecheck 0 errors, 테스트 PASS, lint 통과.
@@ -877,7 +877,7 @@ cd front-dev-home && npm run typecheck 2>&1 | tail -20 && npm test 2>&1 | tail -
 - [ ] **Step 6: 중복 선언이 0인지 확인**
 
 ```bash
-cd front-dev-home && grep -rn "= 'cd-sem' | 'hv-sem'" app/ | wc -l
+cd frontend && grep -rn "= 'cd-sem' | 'hv-sem'" app/ | wc -l
 ```
 
 기대: `0`.
@@ -885,7 +885,7 @@ cd front-dev-home && grep -rn "= 'cd-sem' | 'hv-sem'" app/ | wc -l
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add front-dev-home/app
+git add frontend/app
 git commit -m "refactor(front): tool_type union 5벌과 슬러그 매핑을 레지스트리로 흡수한다
 
 각 composable 이 'cd-sem' | 'hv-sem' 을 따로 선언하고 슬러그 매핑도 자기
@@ -903,9 +903,9 @@ git commit -m "refactor(front): tool_type union 5벌과 슬러그 매핑을 레�
 
 **Files:**
 
-- Modify: `front-dev-home/app/composables/useSkewvoirAnalysis.ts:75`
-- Modify: `front-dev-home/app/utils/toolType.ts` (`otherSemFamily` 추가)
-- Test: `front-dev-home/app/utils/toolType.test.ts`
+- Modify: `frontend/app/composables/useSkewvoirAnalysis.ts:75`
+- Modify: `frontend/app/utils/toolType.ts` (`otherSemFamily` 추가)
+- Test: `frontend/app/utils/toolType.test.ts`
 
 **Interfaces:**
 
@@ -914,7 +914,7 @@ git commit -m "refactor(front): tool_type union 5벌과 슬러그 매핑을 레�
 
 - [ ] **Step 1: 실패하는 테스트를 작성**
 
-`front-dev-home/app/utils/toolType.test.ts` 에 추가합니다.
+`frontend/app/utils/toolType.test.ts` 에 추가합니다.
 
 ```ts
 test('otherSemFamily pairs CD-SEM and HV-SEM', () => {
@@ -934,14 +934,14 @@ test('otherSemFamily has no answer outside the SEM pair', () => {
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -10
+cd frontend && npm test 2>&1 | tail -10
 ```
 
 기대: FAIL — `otherSemFamily is not defined`.
 
 - [ ] **Step 3: `otherSemFamily` 를 구현**
 
-`front-dev-home/app/utils/toolType.ts` 끝에 추가합니다.
+`frontend/app/utils/toolType.ts` 끝에 추가합니다.
 
 ```ts
 /**
@@ -961,7 +961,7 @@ export const otherSemFamily = (toolType: ToolType): ToolType | null => {
 - [ ] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -5
+cd frontend && npm test 2>&1 | tail -5
 ```
 
 기대: PASS.
@@ -986,7 +986,7 @@ const otherToolType = computed<ToolType | null>(() => otherSemFamily(ws.toolType
 - [ ] **Step 6: 타입 검사와 테스트**
 
 ```bash
-cd front-dev-home && npm run typecheck 2>&1 | tail -10 && npm test 2>&1 | tail -5
+cd frontend && npm run typecheck 2>&1 | tail -10 && npm test 2>&1 | tail -5
 ```
 
 기대: 0 errors, PASS.
@@ -994,8 +994,8 @@ cd front-dev-home && npm run typecheck 2>&1 | tail -10 && npm test 2>&1 | tail -
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add front-dev-home/app/utils/toolType.ts front-dev-home/app/utils/toolType.test.ts \
-        front-dev-home/app/composables/useSkewvoirAnalysis.ts
+git add frontend/app/utils/toolType.ts frontend/app/utils/toolType.test.ts \
+        frontend/app/composables/useSkewvoirAnalysis.ts
 git commit -m "fix(skewvoir): '다른 SEM 계열' 을 삼항 대신 명시적 짝으로 구한다
 
 tool_type 이 2개라는 전제가 삼항에 박혀 있어, AMAT 계열이 들어오면 조용히
@@ -1009,10 +1009,10 @@ cd-sem 으로 떨어져 엉뚱한 계열의 이력을 비교 대상으로 붙였
 
 **Files:**
 
-- Modify: `back_dev_home/_logging/feature_map.py`
-- Modify: `back_dev_home/_logging/tests/test_feature_map.py:182,240`
-- Modify: `front-dev-home/app/utils/activity.ts:55-97`
-- Modify: `front-dev-home/app/utils/pageIdentity.test.ts:162`
+- Modify: `backend/_logging/feature_map.py`
+- Modify: `backend/_logging/tests/test_feature_map.py:182,240`
+- Modify: `frontend/app/utils/activity.ts:55-97`
+- Modify: `frontend/app/utils/pageIdentity.test.ts:162`
 
 **Interfaces:**
 
@@ -1021,7 +1021,7 @@ cd-sem 으로 떨어져 엉뚱한 계열의 이력을 비교 대상으로 붙였
 
 - [ ] **Step 1: 실패하는 테스트를 작성**
 
-`back_dev_home/_logging/tests/test_feature_map.py` 의 기존 두 케이스에서
+`backend/_logging/tests/test_feature_map.py` 의 기존 두 케이스에서
 경로를 바꾸고, 옛 경로가 여전히 해석되는지도 확인합니다.
 
 ```python
@@ -1038,7 +1038,7 @@ def test_the_retired_hyphenated_path_still_resolves():
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/_logging -q 2>&1 | tail -5
+.venv/bin/python -m pytest backend/_logging -q 2>&1 | tail -5
 ```
 
 기대: FAIL.
@@ -1067,8 +1067,8 @@ def test_the_retired_hyphenated_path_still_resolves():
 - [ ] **Step 5: 테스트**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/_logging -q 2>&1 | tail -3
-cd front-dev-home && npm test 2>&1 | tail -5 && cd ..
+.venv/bin/python -m pytest backend/_logging -q 2>&1 | tail -3
+cd frontend && npm test 2>&1 | tail -5 && cd ..
 ```
 
 기대: 양쪽 PASS.
@@ -1076,8 +1076,8 @@ cd front-dev-home && npm test 2>&1 | tail -5 && cd ..
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add back_dev_home/_logging front-dev-home/app/utils/activity.ts \
-        front-dev-home/app/utils/pageIdentity.test.ts
+git add backend/_logging frontend/app/utils/activity.ts \
+        frontend/app/utils/pageIdentity.test.ts
 git commit -m "feat(activity): veritysem 슬러그를 추가하고 옛 verity_sem 라벨을 유지한다
 
 usage_events 슬러그는 append-only 이므로 이미 기록된 verity_sem 을 rename
@@ -1094,9 +1094,9 @@ usage_events 슬러그는 append-only 이므로 이미 기록된 verity_sem 을 
 
 **Files:**
 
-- Create: `back_dev_home/ebeam/__fixtures__/tool_type_cases.json`
-- Create: `back_dev_home/ebeam/tests/test_tool_type_parity.py`
-- Create: `front-dev-home/app/utils/toolTypeParity.test.ts`
+- Create: `backend/ebeam/__fixtures__/tool_type_cases.json`
+- Create: `backend/ebeam/tests/test_tool_type_parity.py`
+- Create: `frontend/app/utils/toolTypeParity.test.ts`
 
 **Interfaces:**
 
@@ -1105,7 +1105,7 @@ usage_events 슬러그는 append-only 이므로 이미 기록된 verity_sem 을 
 
 - [ ] **Step 1: fixture 를 작성**
 
-`back_dev_home/ebeam/__fixtures__/tool_type_cases.json`:
+`backend/ebeam/__fixtures__/tool_type_cases.json`:
 
 ```json
 {
@@ -1132,7 +1132,7 @@ usage_events 슬러그는 append-only 이므로 이미 기록된 verity_sem 을 
 
 - [ ] **Step 2: 백엔드 계약 테스트를 작성**
 
-`back_dev_home/ebeam/tests/test_tool_type_parity.py`:
+`backend/ebeam/tests/test_tool_type_parity.py`:
 
 ```python
 import json
@@ -1140,7 +1140,7 @@ from pathlib import Path
 
 import pytest
 
-from back_dev_home.ebeam._tool_specs import model_to_tool_type
+from backend.ebeam._tool_specs import model_to_tool_type
 
 
 _FIXTURE = Path(__file__).resolve().parent.parent / "__fixtures__" / "tool_type_cases.json"
@@ -1158,14 +1158,14 @@ def test_backend_classifier_matches_the_shared_fixture(case):
 - [ ] **Step 3: 백엔드 테스트가 통과하는지 확인**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/tests/test_tool_type_parity.py -q 2>&1 | tail -3
+.venv/bin/python -m pytest backend/ebeam/tests/test_tool_type_parity.py -q 2>&1 | tail -3
 ```
 
 기대: PASS (Task 2 에서 이미 구현했으므로).
 
 - [ ] **Step 4: 프론트 계약 테스트를 작성**
 
-`front-dev-home/app/utils/toolTypeParity.test.ts`:
+`frontend/app/utils/toolTypeParity.test.ts`:
 
 ```ts
 import { test } from 'node:test'
@@ -1176,7 +1176,7 @@ import { classifyToolType } from './toolType.ts'
 // 백엔드와 같은 파일을 읽습니다. 경로가 깨지면 테스트가 죽는 편이,
 // 두 분류기가 조용히 갈라지는 것보다 낫습니다.
 const FIXTURE = new URL(
-  '../../../back_dev_home/ebeam/__fixtures__/tool_type_cases.json',
+  '../../../backend/ebeam/__fixtures__/tool_type_cases.json',
   import.meta.url
 )
 
@@ -1195,7 +1195,7 @@ test('frontend classifier matches the shared fixture', () => {
 - [ ] **Step 5: 프론트 테스트가 통과하는지 확인**
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -5
+cd frontend && npm test 2>&1 | tail -5
 ```
 
 기대: PASS.
@@ -1206,7 +1206,7 @@ cd front-dev-home && npm test 2>&1 | tail -5
 테스트를 돌립니다. FAIL 이 나야 합니다. 확인 후 되돌립니다.
 
 ```bash
-cd front-dev-home && npm test 2>&1 | grep -c "fail" && git checkout app/utils/toolType.ts
+cd frontend && npm test 2>&1 | grep -c "fail" && git checkout app/utils/toolType.ts
 ```
 
 - [ ] **Step 7: `toolType.ts` 의 자백 주석을 삭제**
@@ -1218,10 +1218,10 @@ work, tracked separately"* 문장이 Task 5 에서 이미 사라졌는지 확인
 - [ ] **Step 8: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/__fixtures__/tool_type_cases.json \
-        back_dev_home/ebeam/tests/test_tool_type_parity.py \
-        front-dev-home/app/utils/toolTypeParity.test.ts \
-        front-dev-home/app/utils/toolType.ts
+git add backend/ebeam/__fixtures__/tool_type_cases.json \
+        backend/ebeam/tests/test_tool_type_parity.py \
+        frontend/app/utils/toolTypeParity.test.ts \
+        frontend/app/utils/toolType.ts
 git commit -m "test(tool-type): 프론트·백 분류기를 공유 fixture 로 묶는다
 
 두 분류기가 갈라진 채 '별도 추적' 으로 남아 있었다. 같은 JSON 을 pytest 와
@@ -1319,7 +1319,7 @@ Phase 1(feature × 계열) 이 기계적 반복이 되도록 8단계 절차와 �
 - [ ] **Step 2: 수집 경로를 직접 확인**
 
 ```bash
-.venv/bin/python -m pytest --collect-only -q 2>&1 | grep -c "back_dev_home/ebeam"
+.venv/bin/python -m pytest --collect-only -q 2>&1 | grep -c "backend/ebeam"
 ```
 
 기대: 0 보다 큼. `ebeam/hitachi` 경로는 하나도 나오지 않아야 합니다.
@@ -1327,7 +1327,7 @@ Phase 1(feature × 계열) 이 기계적 반복이 되도록 8단계 절차와 �
 - [ ] **Step 3: 프론트 검증**
 
 ```bash
-cd front-dev-home && npm test 2>&1 | tail -3 && npm run typecheck 2>&1 | tail -3 && npm run lint 2>&1 | tail -3
+cd frontend && npm test 2>&1 | tail -3 && npm run typecheck 2>&1 | tail -3 && npm run lint 2>&1 | tail -3
 ```
 
 기대: 전부 통과, typecheck 0 errors.
@@ -1336,7 +1336,7 @@ cd front-dev-home && npm test 2>&1 | tail -3 && npm run typecheck 2>&1 | tail -3
 
 ```bash
 .venv/bin/python index.py &
-cd front-dev-home && npm run dev &
+cd frontend && npm run dev &
 ```
 
 확인 항목:
@@ -1367,25 +1367,25 @@ worktree 에는 gitignored 파일이 없으므로 병합만으로는 메인 체�
 고아입니다.
 
 `.gitignore` 는 `office.py` 와 `--force` 가 남기는 `office.py.bak` 을 **둘 다**
-무시하므로(`back_dev_home/**/providers/**/office.py{,.bak}`), 찾을 때도 둘 다
+무시하므로(`backend/**/providers/**/office.py{,.bak}`), 찾을 때도 둘 다
 찾아야 합니다. `-name "office.py"` 만 쓰면 `.bak` 이 옛 경로에 남습니다.
 
 ```bash
-find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem \
+find backend/ebeam/hitachi backend/ebeam/cdsem \
   \( -name "office.py" -o -name "office.py.bak" \) 2>/dev/null
 ```
 
 출력이 있으면 새 경로로 옮깁니다. 예:
 
 ```bash
-mv back_dev_home/ebeam/hitachi/storage/providers/office.py \
-   back_dev_home/ebeam/storage/providers/office.py
+mv backend/ebeam/hitachi/storage/providers/office.py \
+   backend/ebeam/storage/providers/office.py
 ```
 
 옮긴 뒤 빈 디렉터리를 지우고 부팅을 확인합니다.
 
 ```bash
-find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -type d -empty -delete 2>/dev/null
+find backend/ebeam/hitachi backend/ebeam/cdsem -type d -empty -delete 2>/dev/null
 .venv/bin/python -m pytest -q 2>&1 | tail -3
 ```
 
@@ -1399,9 +1399,9 @@ find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -type d -empty -delet
 ```text
 [사무실 필독] ebeam 평탄화 후 첫 pull 시
 1. git pull
-2. find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem \
+2. find backend/ebeam/hitachi backend/ebeam/cdsem \
      \( -name "office.py" -o -name "office.py.bak" \)
-3. 나온 파일을 back_dev_home/ebeam/<feature>/providers/ 로 옮긴다
+3. 나온 파일을 backend/ebeam/<feature>/providers/ 로 옮긴다
 4. .venv/bin/python -m scripts.sync_office_adapters   # STALE 여부 확인
 5. 부팅 로그에서 STALE office.py 경고가 없는지 확인
 ```

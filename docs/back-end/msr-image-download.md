@@ -26,7 +26,7 @@ API tokens** 에서 발급하며, 응답에 담긴 평문(`plaintext`)은 **그 
 발급에는 브라우저 세션이 필요합니다. `POST /api/account/api-tokens`는
 `LASTUSER` 신원 쿠키로 식별된 사람의 브라우저 세션에서만 호출할 수 있고,
 이미 발급된 토큰으로 인증한 호출은 403으로 거부됩니다
-(`back_dev_home/api_tokens/routes.py:16-27`의 `_reject_token_auth`). 즉
+(`backend/api_tokens/routes.py:16-27`의 `_reject_token_auth`). 즉
 **스크립트가 자기 토큰을 스스로 발급할 수는 없습니다** — 최초 1회는 반드시
 누군가 브라우저로 로그인해 발급해야 합니다.
 

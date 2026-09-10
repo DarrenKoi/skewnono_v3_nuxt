@@ -15,7 +15,7 @@
 `yaml` 은 `pytest.importorskip` 으로 감싸지 않습니다. 없으면 수집 단계에서
 크게 터지는 편이 낫습니다. skip 은 초록색으로 보이지만 아무것도 검사하지
 않으므로, 이 파일이 존재하는 이유 자체를 지웁니다. (PyYAML 은
-`back_dev_home/requirements.txt` 의 `langchain` → `langchain-core` 를 통해
+`backend/requirements.txt` 의 `langchain` → `langchain-core` 를 통해
 설치됩니다. 런타임 코드가 직접 import 하지는 않으므로 직접 선언을 추가하지
 않았습니다 — 선언은 클라우드 설치 목록을 늘리는 일이고, 이 의존은 테스트
 전용입니다.)

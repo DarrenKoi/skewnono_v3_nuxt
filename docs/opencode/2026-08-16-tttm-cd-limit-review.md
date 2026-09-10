@@ -7,7 +7,7 @@
 - 대상: `git diff f47fcf05...HEAD` — 커밋 4개
   (`5db142e4`, `e94ce425`, `d2f58f05`, `4b0874c4`)
 - Standards 근거 문서: `CLAUDE.md`, `DESIGN.md`,
-  `back_dev_home/ebeam/tttm/MIGRATION.md`, `docs/back-end/provider-selection.md`
+  `backend/ebeam/tttm/MIGRATION.md`, `docs/back-end/provider-selection.md`
 - Spec: 별도 스펙이 없어 대화에서 확정된 요구사항을
   `.scratch/tttm-cd-limit/spec.md` 에 사용자 발언 그대로 기록한 뒤 그것을
   대상으로 삼았습니다. 구현에서 역산한 스펙이 아닙니다.
@@ -72,7 +72,7 @@
 >
 > - **New office-adapter contract law.**
 >   `test_median_cd_agrees_with_the_band_it_is_filed_under`
->   (back_dev_home/ebeam/tttm/tests/test_contract.py) mandates
+>   (backend/ebeam/tttm/tests/test_contract.py) mandates
 >   median-inside-`cd_band`. Spec only says "CD 중앙값은 **MSR 의 CD
 >   데이터**에서 옵니다" (R4); same-row-set is implied, but this adds an
 >   enforceable invariant nobody quoted.

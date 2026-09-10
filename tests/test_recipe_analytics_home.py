@@ -7,15 +7,15 @@ import unittest
 
 from flask import Flask
 
-from back_dev_home.ebeam._office_meas_hist import FAB_NAME_KW, filter_clauses
-from back_dev_home.ebeam.fail_issue.data import (
+from backend.ebeam._office_meas_hist import FAB_NAME_KW, filter_clauses
+from backend.ebeam.fail_issue.data import (
     get_anchor_time as get_fail_issue_anchor_time,
 )
-from back_dev_home.ebeam.fail_issue.routes import bp as fail_issue_bp
-from back_dev_home.ebeam.recipe_tat.data import (
+from backend.ebeam.fail_issue.routes import bp as fail_issue_bp
+from backend.ebeam.recipe_tat.data import (
     get_anchor_time as get_recipe_tat_anchor_time,
 )
-from back_dev_home.ebeam.recipe_tat.routes import bp as recipe_tat_bp
+from backend.ebeam.recipe_tat.routes import bp as recipe_tat_bp
 from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 

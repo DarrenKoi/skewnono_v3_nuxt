@@ -35,7 +35,7 @@ const isDev = import.meta.dev
 이전 설계는 Phase 1에서 Nitro의 `server/routes/mock-api/sem-list.get.ts`가 mock 데이터를 서빙하고 Phase 2/3에서만 Flask를 붙이는 방식이었습니다. 지금은 **세 Phase 모두 Flask가 백엔드**이며, 바뀌는 것은 Flask 내부의 데이터 소스(mock dict → OpenSearch/Redis)뿐입니다. 이렇게 하면 `/api/*` 응답 형태가 Phase 간 100% 동일해지고, 프론트엔드는 설정 변경만으로 Phase를 바꿀 수 있습니다.
 
 **Phase 스위치**:
-- Phase 1 (집): `npm run dev` → Flask `back_dev_home/`를 `localhost:5050`에서 별도로 띄움 → Nitro devProxy가 `/api/*` → Flask로 프록시
+- Phase 1 (집): `npm run dev` → Flask `backend/`를 `localhost:5050`에서 별도로 띄움 → Nitro devProxy가 `/api/*` → Flask로 프록시
 - Phase 2 (회사): `NUXT_API_TARGET=http://company-host:5000 npm run dev` 또는 기본값 사용 → 같은 프록시 경로
 - Phase 3 (프로덕션): `npm run build` 후 `.output/public/`을 Flask가 직접 정적 서빙 → 같은 origin이라 프록시 불필요
 
@@ -305,13 +305,13 @@ Phase 3에서는 이 `.output/public/`을 Flask `static_folder`로 연결하거�
 
 ```bash
 # 터미널 1 — Flask mock 백엔드
-python index.py            # back_dev_home/__init__.py::create_app을 띄움, :5050 (PORT로 덮어쓰기 가능)
+python index.py            # backend/__init__.py::create_app을 띄움, :5050 (PORT로 덮어쓰기 가능)
 
 # 터미널 2 — Nuxt dev 서버
 npm run dev                # :3000
 ```
 
-→ 브라우저: `http://localhost:3000`. `apiBase='/api'`, devProxy가 `/api/*`를 `:5050`으로 포워드. 데이터는 `back_dev_home/<feature>/providers/mock.py`가 만드는 결정론적 mock(`10-backend-providers/`).
+→ 브라우저: `http://localhost:3000`. `apiBase='/api'`, devProxy가 `/api/*`를 `:5050`으로 포워드. 데이터는 `backend/<feature>/providers/mock.py`가 만드는 결정론적 mock(`10-backend-providers/`).
 
 ### Phase 2 — 회사 로컬
 

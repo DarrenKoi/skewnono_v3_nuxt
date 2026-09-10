@@ -1,6 +1,6 @@
 # 사무실 데이터 어댑터 연결 가이드
 
-이 문서는 `back_dev_home/`를 Phase 2 사무실 데이터와 연결할 때 지켜야 하는
+이 문서는 `backend/`를 Phase 2 사무실 데이터와 연결할 때 지켜야 하는
 공통 인터페이스와 사무실 LLM 작업 절차를 정의합니다. 환경 간 전달 절차는
 [`docs/swap-strategy.md`](../swap-strategy.md), HTTP 응답 형태는
 [`docs/api-contracts/`](../api-contracts/README.md)가 기준입니다.
@@ -11,7 +11,7 @@
 `providers/office.py` 안에서 끝나야 합니다.
 
 ```text
-back_dev_home/<feature>/
+backend/<feature>/
 |-- routes.py              # 변경 금지: HTTP 입력과 응답
 |-- data.py                # 변경 금지: provider 선택과 공개 함수
 |-- contracts.py           # 변경 금지: Python 응답 계약
@@ -59,7 +59,7 @@ export SKEWNONO_DATA_PROVIDER=office
 export SKEWNONO_STORAGE_PROVIDER=mock
 ```
 
-공통 선택기는 `back_dev_home/_runtime/data_provider.py`이며, 피처별 환경 변수가 전역
+공통 선택기는 `backend/_runtime/data_provider.py`이며, 피처별 환경 변수가 전역
 설정보다 우선합니다. 환경 변수를 지정하지 않으면 `_runtime/site.py`의 site 감지가
 기본값을 정하고, 이때 Phase 3 클라우드 배포 경로(`is_cloud()`)는 office로 판정됩니다.
 전체 규칙은 [`docs/back-end/provider-selection.md`](provider-selection.md)를 참고합니다.
@@ -167,7 +167,7 @@ home과 office가 각자의 사본을 유지합니다.
 `minio_config.py`보다 **높은** 우선순위를 가지므로, `.env`에 `MINIO_*` 한 줄만
 남아 있어도 실제로 관리하는 파일의 값을 조용히 덮어씁니다. 특히 값이 빈
 `MINIO_SECRET_KEY=`는 "설정하지 않음"이 아니라 `""`으로 읽혀 `None`으로 해석되므로,
-정상적인 secret key를 아무 오류 없이 무효화합니다. 그래서 `back_dev_home/.env.example`의
+정상적인 secret key를 아무 오류 없이 무효화합니다. 그래서 `backend/.env.example`의
 MinIO 절에는 자격 증명을 두지 않습니다.
 
 bucket과 prefix는 피처 연결 명세에 기록하고 `MinioObject` 생성 시 명시합니다.
@@ -315,18 +315,18 @@ def get_sem_list() -> list[SemListRow]:
 당신은 SKEWNONO Flask의 Phase 2 데이터 adapter를 구현합니다.
 
 [목표]
-- back_dev_home/sem_list/providers/office.py를 실제 사무실 source에 연결합니다.
+- backend/sem_list/providers/office.py를 실제 사무실 source에 연결합니다.
 - public interface get_sem_list() -> list[SemListRow]를 유지합니다.
 - GET /api/sem-list의 bare-array wire contract를 정확히 유지합니다.
 
 [먼저 읽을 파일]
-1. back_dev_home/sem_list/routes.py
-2. back_dev_home/sem_list/data.py
-3. back_dev_home/sem_list/contracts.py
-4. back_dev_home/sem_list/providers/mock.py
-5. back_dev_home/sem_list/providers/office.py
+1. backend/sem_list/routes.py
+2. backend/sem_list/data.py
+3. backend/sem_list/contracts.py
+4. backend/sem_list/providers/mock.py
+5. backend/sem_list/providers/office.py
 6. docs/api-contracts/sem-list.yaml
-7. back_dev_home/sem_list/__fixtures__/sem-list.json
+7. backend/sem_list/__fixtures__/sem-list.json
 8. tests/test_sem_list_home.py
 9. docs/back-end/office-data-adapters.md
 10. ops_store/__init__.py
@@ -344,7 +344,7 @@ def get_sem_list() -> list[SemListRow]:
 - freshness와 timeout 목표: <필수 입력>
 
 [허용 변경]
-- back_dev_home/sem_list/providers/office.py
+- backend/sem_list/providers/office.py
 - office adapter용 새 test file
 - 실제로 추가된 외부 패키지의 requirements 문서
 
@@ -402,11 +402,11 @@ def get_sem_list() -> list[SemListRow]:
 
 ```bash
 SKEWNONO_SEM_LIST_PROVIDER=office python index.py
-SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest back_dev_home/sem_list -q
+SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest backend/sem_list -q
 PORT=5000 .venv/bin/python -m scripts.verify.check_contract
 ```
 
-두 번째 줄이 해당 기능의 office 게이트입니다. `unittest` 로는 `back_dev_home/**/tests/`
+두 번째 줄이 해당 기능의 office 게이트입니다. `unittest` 로는 `backend/**/tests/`
 아래의 contract 테스트가 수집되지 않으므로 `pytest` 를 사용합니다. 기능 이름만 바꾸면
 다른 기능에도 그대로 적용됩니다.
 
@@ -440,7 +440,7 @@ PORT=5000 .venv/bin/python -m scripts.verify.check_contract
 
 - OpenSearch와 MinIO는 저장소의 `ops_store`, `minio_handler`를 사용합니다. 두 모듈이
   의존하는 `opensearch-py`, `pandas`, `redis`, `minio` SDK는
-  `back_dev_home/requirements.txt`에 포함하고 사무실 image도 동일한 dependency
+  `backend/requirements.txt`에 포함하고 사무실 image도 동일한 dependency
   범위를 사용해야 합니다.
 - 인증은 사내 인프라가 내려주는 `LASTUSER` 쿠키만 사용하므로 cloud image가
   제공하는 SSO 라이브러리에 대한 의존성은 없습니다.

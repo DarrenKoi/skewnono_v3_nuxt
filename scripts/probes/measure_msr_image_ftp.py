@@ -73,7 +73,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-# Make `back_dev_home` importable however this file was started. `python -m
+# Make `backend` importable however this file was started. `python -m
 # scripts.probes.measure_msr_image_ftp` puts the working directory on sys.path and
 # happens to work from the repo root; `python scripts/probes/measure_msr_image_ftp.py`
 # puts scripts/ there instead and fails on the very first import below. Both
@@ -88,11 +88,11 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
-from back_dev_home.msr_image.config import ImageConfig, load_config  # noqa: E402
-from back_dev_home.msr_image.contracts import ImageLocator  # noqa: E402
-from back_dev_home.msr_image.ftp_accounts import ftp_account_lookup  # noqa: E402
-from back_dev_home.msr_image.paths import image_dir, validate_tool_ip  # noqa: E402
+from backend._runtime.office_redis import load_env_file  # noqa: E402
+from backend.msr_image.config import ImageConfig, load_config  # noqa: E402
+from backend.msr_image.contracts import ImageLocator  # noqa: E402
+from backend.msr_image.ftp_accounts import ftp_account_lookup  # noqa: E402
+from backend.msr_image.paths import image_dir, validate_tool_ip  # noqa: E402
 
 # Office settings, in the file, so this script runs with no .env at all.
 #
@@ -156,7 +156,7 @@ def _discover() -> tuple[str, str, str]:
     Imported lazily: OpenSearch is an office-only dependency and an explicit
     --eqp-ip run should not need it at all.
     """
-    from back_dev_home.ebeam._office_meas_hist import ALL_INDICES, search, text
+    from backend.ebeam._office_meas_hist import ALL_INDICES, search, text
 
     body = {
         "query": {"bool": {"filter": [
@@ -338,7 +338,7 @@ def _stage_d_minio(office: Any, cfg: ImageConfig, locator: ImageLocator, rounds:
     image, and deletes the key itself on the way out.
     """
     print("\n-- D. MinIO cache PUT (inline in the FTP worker today) -------")
-    from back_dev_home.msr_image.minio_cache import MinioImageCache
+    from backend.msr_image.minio_cache import MinioImageCache
 
     if not cfg.cache_bucket:
         # The one stage that cannot be satisfied from the repo: the bucket name
@@ -346,7 +346,7 @@ def _stage_d_minio(office: Any, cfg: ImageConfig, locator: ImageLocator, rounds:
         # missing -- this stage is the whole reason --minio exists, and a bare
         # SKIP reads as "not applicable" when it means "not configured".
         print("   SKIP: SKEWNONO_IMAGE_CACHE_BUCKET is not set, so there is no")
-        print("         cache to time. Set it in back_dev_home/.env, re-run:")
+        print("         cache to time. Set it in backend/.env, re-run:")
         print("           SKEWNONO_IMAGE_CACHE_BUCKET=<office MinIO bucket>")
         print(f"           SKEWNONO_IMAGE_CACHE_PREFIX={cfg.cache_prefix}")
         print("         Writes land under a separate <prefix>_measure/ and are")
@@ -461,7 +461,7 @@ def _verdict(
         else:
             print("   -> low payoff: the PUT is cheap next to the fetch")
 
-    print("\nRecord what you keep in back_dev_home/msr_image/MIGRATION.md and replace"
+    print("\nRecord what you keep in backend/msr_image/MIGRATION.md and replace"
           "\nthe OFFICE-VERIFY mark with `office confirmed YYYY-MM-DD`.")
 
 
@@ -546,7 +546,7 @@ def main(argv: list[str] | None = None) -> int:
         import platform
         platform.system = lambda: "Linux"  # noqa: E731
 
-    from back_dev_home.msr_image.providers import office_example as office
+    from backend.msr_image.providers import office_example as office
 
     via_proxy = office._VIA_PROXY
     print(f"transport: {'proxy (Windows)' if via_proxy else 'direct'}")

@@ -12,7 +12,7 @@ Two things are pinned here:
 * the roster (`ENDPOINTS`), because a feature missing from that list is
   silently exempt from the guard — it reads as "0 problems", not "not checked".
 
-Nothing in this file may write into a real `back_dev_home/**/__fixtures__/`
+Nothing in this file may write into a real `backend/**/__fixtures__/`
 directory: those JSON files are frozen baselines, and regenerating them from a
 mock run would destroy their value as a drift detector. The `fixture_root`
 fixture below is therefore **autouse** — remembering to ask for it is not a
@@ -31,7 +31,7 @@ import pytest
 from scripts.verify import capture_fixtures, check_contract
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-BACKEND = REPO_ROOT / "back_dev_home"
+BACKEND = REPO_ROOT / "backend"
 
 
 @pytest.fixture(autouse=True)
@@ -553,9 +553,9 @@ def test_no_two_endpoints_share_an_api_path():
 # into the same folder, which is exactly the blind spot this guard exists
 # to catch.
 #
-# `back_dev_home/ebeam/__fixtures__/tool_type_cases.json` is a hand-written
-# contract consumed directly by `back_dev_home/ebeam/tests/
-# test_tool_type_parity.py` and `front-dev-home/app/utils/
+# `backend/ebeam/__fixtures__/tool_type_cases.json` is a hand-written
+# contract consumed directly by `backend/ebeam/tests/
+# test_tool_type_parity.py` and `frontend/app/utils/
 # toolTypeParity.test.ts` (pytest and node --test reading the same JSON), not
 # a mock-server response. Add to this set only for the same reason: a file
 # with nothing `capture_fixtures.py` could ever have produced.

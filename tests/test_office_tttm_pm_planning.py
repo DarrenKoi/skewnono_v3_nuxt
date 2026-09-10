@@ -28,19 +28,19 @@ from fnmatch import fnmatch
 
 import pytest
 
-from back_dev_home._core.contract_check import assert_matches
-from back_dev_home.ebeam._analysis_window import (
+from backend._core.contract_check import assert_matches
+from backend.ebeam._analysis_window import (
     DEFAULT_WINDOW_WEEKS,
     WINDOW_WEEKS_CHOICES,
     window_days,
 )
-from back_dev_home.ebeam._office_mdc import MdcChange
-from back_dev_home.ebeam._office_msr_cd import Point, RunRef, RunSet
-from back_dev_home.ebeam.pm_planning.contracts import FleetPayload
-from back_dev_home.ebeam.pm_planning.providers import office_example as pm_office
-from back_dev_home.ebeam.tttm import contracts as tttm_contracts
-from back_dev_home.ebeam.tttm.contracts import TttmCheckPayload
-from back_dev_home.ebeam.tttm.providers import office_example as tttm_office
+from backend.ebeam._office_mdc import MdcChange
+from backend.ebeam._office_msr_cd import Point, RunRef, RunSet
+from backend.ebeam.pm_planning.contracts import FleetPayload
+from backend.ebeam.pm_planning.providers import office_example as pm_office
+from backend.ebeam.tttm import contracts as tttm_contracts
+from backend.ebeam.tttm.contracts import TttmCheckPayload
+from backend.ebeam.tttm.providers import office_example as tttm_office
 
 
 KST = timezone(timedelta(hours=9))
@@ -134,7 +134,7 @@ def _fresh_axis_map():
     order load-bearing here, and an ordering-dependent suite is one that passes
     until someone adds a test above yours.
     """
-    from back_dev_home.ebeam._office_msr_cd import _axis_rules
+    from backend.ebeam._office_msr_cd import _axis_rules
 
     _axis_rules.cache_clear()
     yield
@@ -749,7 +749,7 @@ def test_pm_epoch_window_reads_past_the_measurement_window(sources):
         captured["span"] = (end - start).days
         return []
 
-    import back_dev_home.ebeam.pm_planning.providers.office_example as mod
+    import backend.ebeam.pm_planning.providers.office_example as mod
     original, mod.mdc_changes = mod.mdc_changes, spy
     try:
         sources["bsm"] = _bsm()
@@ -798,7 +798,7 @@ def test_pm_epoch_bsm_window_is_on_the_sources_clock(sources):
 
 def test_pm_prev_post_delta_splits_the_runs_at_the_pm(sources):
     """The before/after split must parse both sides, not compare ISO strings."""
-    from back_dev_home.ebeam._office_bm_pm import MaintEvent
+    from backend.ebeam._office_bm_pm import MaintEvent
 
     boundary = ANCHOR - timedelta(days=3)
     sources["bsm"] = _bsm()
@@ -953,7 +953,7 @@ def test_the_monitor_recipe_default_is_a_discovery_rule(monkeypatch):
     rather than stand in for one. A default that matched a single literal name
     would answer 200 with an empty fleet at every fab but one.
     """
-    from back_dev_home.ebeam import _office_msr_cd as shared
+    from backend.ebeam import _office_msr_cd as shared
 
     monkeypatch.delenv(shared.MONITOR_RECIPE_ENV_VAR, raising=False)
     pattern = shared.monitor_recipe_pattern()
@@ -985,7 +985,7 @@ def test_an_axis_glob_covers_a_family(monkeypatch):
     the map takes globs. An exact name still wins, so one odd parameter can be
     corrected without disturbing the family rule.
     """
-    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+    from backend.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
 
     monkeypatch.setenv(AXIS_ENV_VAR, "*_HOR=X,*_VER=Y,GATE_HOR=Y")
     assert resolve_axis("TOP_HOR") == "X"
@@ -1000,7 +1000,7 @@ def test_an_axis_glob_covers_a_family(monkeypatch):
 
 def test_the_axis_map_never_invents_a_direction(monkeypatch):
     """A malformed entry is ignored, not coerced into an axis."""
-    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+    from backend.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
 
     monkeypatch.setenv(AXIS_ENV_VAR, "Para_13=Z,Para_14=,=X,Para_15=y")
     assert resolve_axis("Para_13") is None, "Z is not an axis"
@@ -1017,7 +1017,7 @@ def test_the_axis_map_is_scoped_to_the_recipe(monkeypatch):
     files every recipe's Para_13 under one direction and is silently wrong for
     all but the one it was written against.
     """
-    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+    from backend.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
 
     monkeypatch.setenv(
         AXIS_ENV_VAR,
@@ -1036,7 +1036,7 @@ def test_the_axis_map_is_scoped_to_the_recipe(monkeypatch):
 
 def test_a_scoped_rule_does_not_leak_to_another_recipe(monkeypatch):
     """The failure the scoping exists to prevent, stated directly."""
-    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
+    from backend.ebeam._office_msr_cd import AXIS_ENV_VAR, resolve_axis
 
     monkeypatch.setenv(AXIS_ENV_VAR, "ADI/CD_MONITOR_001:Para_13=X")
     assert resolve_axis("Para_13", "ADI/CD_MONITOR_001") == "X"
@@ -1046,7 +1046,7 @@ def test_a_scoped_rule_does_not_leak_to_another_recipe(monkeypatch):
 
 def test_scoped_axis_rules_reach_the_payload(sources, monkeypatch):
     """End to end: the same parameter splits by recipe, not by name alone."""
-    from back_dev_home.ebeam._office_msr_cd import AXIS_ENV_VAR
+    from backend.ebeam._office_msr_cd import AXIS_ENV_VAR
 
     monkeypatch.setenv(AXIS_ENV_VAR, "ADI/R1:Para_9=X,ADI/R2:Para_9=Y")
     sources["points"] = lambda eqp_id: _points(eqp_id, parameters=("Para_9",))
@@ -1068,8 +1068,8 @@ def test_no_aggregation_asks_for_more_inner_hits_than_opensearch_allows():
     So every per-tool cap in the office adapters is asserted against the real
     ceiling here, at home, where it costs a test rather than an office trip.
     """
-    from back_dev_home.ebeam import _office_bm_pm, _office_msr_cd
-    from back_dev_home.ebeam._office_search import MAX_INNER_RESULT_WINDOW, top_hits
+    from backend.ebeam import _office_bm_pm, _office_msr_cd
+    from backend.ebeam._office_search import MAX_INNER_RESULT_WINDOW, top_hits
 
     caps = {
         "runs/tool (shared)": _office_msr_cd.DEFAULT_RUNS_PER_TOOL,
@@ -1173,7 +1173,7 @@ class TestTttmUnavailableKeepsTheRoster:
         from the shared one. `office.py` is a gitignored copy, so this is a live
         risk every time someone edits a template in isolation.
         """
-        from back_dev_home.ebeam.tttm.providers import mock as tttm_mock
+        from backend.ebeam.tttm.providers import mock as tttm_mock
 
         for adapter in (tttm_office, tttm_mock):
             assert not hasattr(adapter, "_unavailable"), (

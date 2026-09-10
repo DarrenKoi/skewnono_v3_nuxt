@@ -26,17 +26,17 @@
 
 | 파일 | 책임 | 변경 |
 | --- | --- | --- |
-| `back_dev_home/chat/config.py` | 환경 변수 → 검증된 설정값 | `get_knowledge_sources()`, `get_knowledge_candidate_pool()` 추가 |
-| `back_dev_home/chat/knowledge/data.py` | provider 선택 + 소스 목록 | `available_sources()` 추가 |
-| `back_dev_home/chat/runtime/providers/agent.py` | agent 조립 | tool 목록을 `available_sources()`로 구동, 정책 문구의 "four" 제거 |
-| `back_dev_home/chat/knowledge/providers/office_example.py` | 사무실 어댑터 tracked 템플릿 | `_rerank()` seam + `_rank_hits()` 계약 절반 + 후보 풀 |
-| `back_dev_home/chat/tests/test_knowledge.py` | knowledge 계약 홈 테스트 | `available_sources()` 테스트 추가 |
-| `back_dev_home/chat/tests/test_runtime.py` | runtime 홈 테스트 | tool 노출 테스트 추가 |
-| `back_dev_home/chat/tests/test_knowledge_office_template.py` | **신규** — 템플릿 계약 절반의 홈 커버리지 | 생성 |
-| `back_dev_home/chat/tests/test_knowledge_office.py` | 사무실 copy 대상 fake-client 테스트 | 리랭크 반영해 갱신 |
+| `backend/chat/config.py` | 환경 변수 → 검증된 설정값 | `get_knowledge_sources()`, `get_knowledge_candidate_pool()` 추가 |
+| `backend/chat/knowledge/data.py` | provider 선택 + 소스 목록 | `available_sources()` 추가 |
+| `backend/chat/runtime/providers/agent.py` | agent 조립 | tool 목록을 `available_sources()`로 구동, 정책 문구의 "four" 제거 |
+| `backend/chat/knowledge/providers/office_example.py` | 사무실 어댑터 tracked 템플릿 | `_rerank()` seam + `_rank_hits()` 계약 절반 + 후보 풀 |
+| `backend/chat/tests/test_knowledge.py` | knowledge 계약 홈 테스트 | `available_sources()` 테스트 추가 |
+| `backend/chat/tests/test_runtime.py` | runtime 홈 테스트 | tool 노출 테스트 추가 |
+| `backend/chat/tests/test_knowledge_office_template.py` | **신규** — 템플릿 계약 절반의 홈 커버리지 | 생성 |
+| `backend/chat/tests/test_knowledge_office.py` | 사무실 copy 대상 fake-client 테스트 | 리랭크 반영해 갱신 |
 | `docs/datatables/hitachi/chat_rag_contract.txt` | 인덱스 스키마의 진실 원천 | 갱신 |
-| `back_dev_home/chat/MIGRATION.md` | 전환 가이드 | 갱신 |
-| `back_dev_home/chat/knowledge/providers/mock.py` | 홈 mock | docstring 갱신 |
+| `backend/chat/MIGRATION.md` | 전환 가이드 | 갱신 |
+| `backend/chat/knowledge/providers/mock.py` | 홈 mock | docstring 갱신 |
 
 **신규 테스트 파일을 만드는 이유:** `test_knowledge_office.py`는 `pytest.importorskip("...providers.office")`로 시작하므로 집에서는 모듈 전체가 skip된다. 그 파일이 검증하는 대상은 `office_example.py`의 tracked 계약 절반인데, 결과적으로 계약 절반은 **집에서 커버리지가 0**이다. `_rank_hits()`를 거기 추가하면 사무실에 갈 때까지 한 번도 실행되지 않는다. 템플릿을 직접 import하는 홈 테스트가 이 구멍을 닫는다.
 
@@ -45,22 +45,22 @@
 ### Task 1: `available_sources()` — 준비된 소스 목록
 
 **Files:**
-- Modify: `back_dev_home/chat/config.py` (파일 끝, `get_rag_source_root()` 뒤)
-- Modify: `back_dev_home/chat/knowledge/data.py:1-35`
-- Test: `back_dev_home/chat/tests/test_knowledge.py` (파일 끝에 추가)
+- Modify: `backend/chat/config.py` (파일 끝, `get_rag_source_root()` 뒤)
+- Modify: `backend/chat/knowledge/data.py:1-35`
+- Test: `backend/chat/tests/test_knowledge.py` (파일 끝에 추가)
 
 **Interfaces:**
-- Consumes: `back_dev_home.chat.config.get_knowledge_provider_name()` (기존)
+- Consumes: `backend.chat.config.get_knowledge_provider_name()` (기존)
 - Produces:
   - `config.get_knowledge_sources() -> tuple[str, ...]`
   - `knowledge.data.available_sources() -> tuple[str, ...]` — 반환값은 항상 `("manual", "meeting", "email", "report")`의 부분집합이며 **그 정규 순서**를 따른다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-`back_dev_home/chat/tests/test_knowledge.py` 끝에 추가한다.
+`backend/chat/tests/test_knowledge.py` 끝에 추가한다.
 
 ```python
-from back_dev_home.chat.knowledge.data import available_sources
+from backend.chat.knowledge.data import available_sources
 
 _ALL = ("manual", "meeting", "email", "report")
 
@@ -107,12 +107,12 @@ def test_available_sources_does_not_import_the_office_module(monkeypatch):
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_knowledge.py -q`
 Expected: FAIL — `ImportError: cannot import name 'available_sources'`
 
 - [ ] **Step 3: config에 소스 목록 파서를 추가한다**
 
-`back_dev_home/chat/config.py` 끝에 추가한다.
+`backend/chat/config.py` 끝에 추가한다.
 
 ```python
 KNOWLEDGE_SOURCES: tuple[str, ...] = ("manual", "meeting", "email", "report")
@@ -143,10 +143,10 @@ def get_knowledge_sources() -> tuple[str, ...]:
 
 - [ ] **Step 4: `data.py`에 `available_sources()`를 추가한다**
 
-`back_dev_home/chat/knowledge/data.py`의 import 블록을 수정한다.
+`backend/chat/knowledge/data.py`의 import 블록을 수정한다.
 
 ```python
-from back_dev_home.chat.config import (
+from backend.chat.config import (
     KNOWLEDGE_SOURCES,
     get_knowledge_provider_name,
     get_knowledge_sources,
@@ -171,13 +171,13 @@ def available_sources() -> tuple[str, ...]:
 
 - [ ] **Step 5: 테스트가 통과하는지 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_knowledge.py -q`
 Expected: PASS (신규 6건 포함, 기존 테스트도 그대로 통과)
 
 - [ ] **Step 6: 커밋한다**
 
 ```bash
-git add back_dev_home/chat/config.py back_dev_home/chat/knowledge/data.py back_dev_home/chat/tests/test_knowledge.py
+git add backend/chat/config.py backend/chat/knowledge/data.py backend/chat/tests/test_knowledge.py
 git commit -m "feat(chat): list knowledge sources by provider readiness
 
 available_sources()가 홈에서는 4종 전부를, 사무실에서는
@@ -190,8 +190,8 @@ import하지 않으므로 gitignored office.py가 없어도 목록 조회가 됩
 ### Task 2: agent runtime이 준비된 tool만 조립하도록
 
 **Files:**
-- Modify: `back_dev_home/chat/runtime/providers/agent.py:20-26`(import), `:44-52`(정책 문구), `:223-232`(tool 조립)
-- Test: `back_dev_home/chat/tests/test_runtime.py` (파일 끝에 추가)
+- Modify: `backend/chat/runtime/providers/agent.py:20-26`(import), `:44-52`(정책 문구), `:223-232`(tool 조립)
+- Test: `backend/chat/tests/test_runtime.py` (파일 끝에 추가)
 
 **Interfaces:**
 - Consumes: `knowledge.data.available_sources() -> tuple[str, ...]` (Task 1)
@@ -199,13 +199,13 @@ import하지 않으므로 gitignored office.py가 없어도 목록 조회가 됩
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-`back_dev_home/chat/tests/test_runtime.py` 끝에 추가한다. 이 파일은 이미
+`backend/chat/tests/test_runtime.py` 끝에 추가한다. 이 파일은 이미
 `make_request()`(무인자 헬퍼), `agent` 모듈, `knowledge_data`, `RuntimeUnavailable`,
 `pytest`를 import하고 있으므로 **새로 추가할 import는 `EvidenceBudget` 하나뿐**이다.
 기존 import 블록에 넣는다.
 
 ```python
-from back_dev_home.chat.tools.evidence import EvidenceBudget
+from backend.chat.tools.evidence import EvidenceBudget
 ```
 
 테스트는 파일 끝에 추가한다.
@@ -242,15 +242,15 @@ def test_application_policy_does_not_hardcode_the_tool_count():
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_runtime.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_runtime.py -q`
 Expected: FAIL — `AttributeError: module ... has no attribute '_build_tools'`
 
 - [ ] **Step 3: `agent.py`의 import에 knowledge data를 추가한다**
 
-`back_dev_home/chat/runtime/providers/agent.py`의 knowledge import 블록 바로 위에 추가한다.
+`backend/chat/runtime/providers/agent.py`의 knowledge import 블록 바로 위에 추가한다.
 
 ```python
-from back_dev_home.chat.knowledge import data as knowledge_data
+from backend.chat.knowledge import data as knowledge_data
 ```
 
 - [ ] **Step 4: 정책 문구에서 "four"를 뺀다**
@@ -308,18 +308,18 @@ def _build_tools(
 
 - [ ] **Step 7: 테스트가 통과하는지 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_runtime.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_runtime.py -q`
 Expected: PASS
 
 - [ ] **Step 8: chat 전체 스위트를 돌린다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat -q`
+Run: `.venv/bin/python -m pytest backend/chat -q`
 Expected: PASS — 기존 agent 테스트가 tool 4개를 전제하고 있을 수 있으므로 여기서 걸러진다. 실패하면 그 테스트가 홈 기본값(4종)을 쓰도록 환경 변수를 비워 준다.
 
 - [ ] **Step 9: 커밋한다**
 
 ```bash
-git add back_dev_home/chat/runtime/providers/agent.py back_dev_home/chat/tests/test_runtime.py
+git add backend/chat/runtime/providers/agent.py backend/chat/tests/test_runtime.py
 git commit -m "feat(chat): build agent tools from available knowledge sources
 
 준비되지 않은 소스는 빈 결과가 아니라 tool 자체를 노출하지 않습니다. 빈
@@ -333,10 +333,10 @@ tool이 하나만 노출될 때 프롬프트가 거짓이 되지 않게 했습�
 ### Task 3: `_rerank()` seam과 계약 절반의 순서·절단
 
 **Files:**
-- Modify: `back_dev_home/chat/config.py` (파일 끝)
-- Modify: `back_dev_home/chat/knowledge/providers/office_example.py:6-56`(docstring), `:58-68`(import), `:135-146`(seam 뒤), `:170-192`(`_search`)
-- Create: `back_dev_home/chat/tests/test_knowledge_office_template.py`
-- Modify: `back_dev_home/chat/tests/test_knowledge_office.py:123-160`
+- Modify: `backend/chat/config.py` (파일 끝)
+- Modify: `backend/chat/knowledge/providers/office_example.py:6-56`(docstring), `:58-68`(import), `:135-146`(seam 뒤), `:170-192`(`_search`)
+- Create: `backend/chat/tests/test_knowledge_office_template.py`
+- Modify: `backend/chat/tests/test_knowledge_office.py:123-160`
 
 **Interfaces:**
 - Consumes: 없음 (Task 1·2와 독립)
@@ -347,7 +347,7 @@ tool이 하나만 노출될 때 프롬프트가 거짓이 되지 않게 했습�
 
 - [ ] **Step 1: 실패하는 홈 테스트를 쓴다**
 
-`back_dev_home/chat/tests/test_knowledge_office_template.py`를 새로 만든다.
+`backend/chat/tests/test_knowledge_office_template.py`를 새로 만든다.
 
 ```python
 """Home coverage for the contract half of the office knowledge template.
@@ -364,8 +364,8 @@ from __future__ import annotations
 
 import pytest
 
-from back_dev_home.chat.knowledge.contracts import KnowledgeUnavailable
-from back_dev_home.chat.knowledge.providers import office_example as template
+from backend.chat.knowledge.contracts import KnowledgeUnavailable
+from backend.chat.knowledge.providers import office_example as template
 
 
 _SCOPE = {"user_id": "1234567", "groups": [], "fabs": []}
@@ -493,12 +493,12 @@ def test_an_unimplemented_rerank_seam_fails_loudly(monkeypatch):
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office_template.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_knowledge_office_template.py -q`
 Expected: FAIL — `AttributeError: module ... has no attribute '_rerank'`
 
 - [ ] **Step 3: config에 후보 풀을 추가한다**
 
-`back_dev_home/chat/config.py` 끝에 추가한다.
+`backend/chat/config.py` 끝에 추가한다.
 
 ```python
 def get_knowledge_candidate_pool() -> int:
@@ -513,10 +513,10 @@ def get_knowledge_candidate_pool() -> int:
 
 - [ ] **Step 4: 템플릿에 `_rerank()` seam을 추가한다**
 
-`back_dev_home/chat/knowledge/providers/office_example.py`의 import 블록에 config를 추가한다.
+`backend/chat/knowledge/providers/office_example.py`의 import 블록에 config를 추가한다.
 
 ```python
-from back_dev_home.chat import config
+from backend.chat import config
 ```
 
 `_execute()` 정의 **뒤**, `_translate_error()` **앞**에 추가한다.
@@ -641,12 +641,12 @@ def _search(
 
 - [ ] **Step 9: 홈 테스트가 통과하는지 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat/tests/test_knowledge_office_template.py -q`
+Run: `.venv/bin/python -m pytest backend/chat/tests/test_knowledge_office_template.py -q`
 Expected: PASS (10건)
 
 - [ ] **Step 10: 사무실 fake-client 테스트를 리랭크에 맞춘다**
 
-`back_dev_home/chat/tests/test_knowledge_office.py`의 `test_limit_is_clamped_and_truncates_hits`와 `test_rank_order_is_preserved`는 `_rerank`가 없던 시절을 전제한다. 두 테스트에 `_rerank` monkeypatch를 더해 backend 순서를 그대로 유지하도록 만든다. 각 테스트의 `_execute` monkeypatch 바로 뒤에 추가한다.
+`backend/chat/tests/test_knowledge_office.py`의 `test_limit_is_clamped_and_truncates_hits`와 `test_rank_order_is_preserved`는 `_rerank`가 없던 시절을 전제한다. 두 테스트에 `_rerank` monkeypatch를 더해 backend 순서를 그대로 유지하도록 만든다. 각 테스트의 `_execute` monkeypatch 바로 뒤에 추가한다.
 
 ```python
     monkeypatch.setattr(
@@ -664,16 +664,16 @@ Expected: PASS (10건)
 
 - [ ] **Step 11: chat 전체와 lint를 돌린다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/chat -q`
+Run: `.venv/bin/python -m pytest backend/chat -q`
 Expected: PASS
 
-Run: `uv run --no-project ruff check back_dev_home/chat`
+Run: `uv run --no-project ruff check backend/chat`
 Expected: 오류 없음
 
 - [ ] **Step 12: 커밋한다**
 
 ```bash
-git add back_dev_home/chat/config.py back_dev_home/chat/knowledge/providers/office_example.py back_dev_home/chat/tests/test_knowledge_office_template.py back_dev_home/chat/tests/test_knowledge_office.py
+git add backend/chat/config.py backend/chat/knowledge/providers/office_example.py backend/chat/tests/test_knowledge_office_template.py backend/chat/tests/test_knowledge_office.py
 git commit -m "feat(chat): own rerank ordering and the row cap in the contract half
 
 사내 reranker를 쓰는 C2 경로에서 '후보 초과 조회 → 리랭크 → 5행 절단'이
@@ -692,8 +692,8 @@ test_knowledge_office.py는 gitignored office 모듈을 importorskip 하므로
 
 **Files:**
 - Modify: `docs/datatables/hitachi/chat_rag_contract.txt`
-- Modify: `back_dev_home/chat/MIGRATION.md`
-- Modify: `back_dev_home/chat/knowledge/providers/mock.py` (모듈 docstring만)
+- Modify: `backend/chat/MIGRATION.md`
+- Modify: `backend/chat/knowledge/providers/mock.py` (모듈 docstring만)
 
 **Interfaces:**
 - Consumes: Task 1~3의 실제 동작 (`available_sources()`, `_rerank()`, 후보 풀 환경 변수)
@@ -735,13 +735,13 @@ test_knowledge_office.py는 gitignored office 모듈을 importorskip 하므로
 Run: `npm run lint:md`
 Expected: 0 error(s)
 
-Run: `.venv/bin/python -m pytest tests back_dev_home -q`
+Run: `.venv/bin/python -m pytest tests backend -q`
 Expected: PASS
 
 - [ ] **Step 5: 커밋한다**
 
 ```bash
-git add docs/datatables/hitachi/chat_rag_contract.txt back_dev_home/chat/MIGRATION.md back_dev_home/chat/knowledge/providers/mock.py
+git add docs/datatables/hitachi/chat_rag_contract.txt backend/chat/MIGRATION.md backend/chat/knowledge/providers/mock.py
 git commit -m "docs(chat): record the confirmed RAG retrieval stack
 
 BGE-M3 dense + Nori BM25 2-leg hybrid, bge-reranker-v2-m3, 그리고 모델을
@@ -759,11 +759,11 @@ docstring도 함께 갱신했습니다."
 
 ## 검증 (전체 완료 후)
 
-- [ ] `.venv/bin/python -m pytest tests back_dev_home -q` — 전체 스위트
-- [ ] `uv run --no-project ruff check back_dev_home/chat`
+- [ ] `.venv/bin/python -m pytest tests backend -q` — 전체 스위트
+- [ ] `uv run --no-project ruff check backend/chat`
 - [ ] `npm run lint:md`
 - [ ] `git diff --check`
-- [ ] `front-dev-home/`에서 `npm test && npm run typecheck && npm run lint && npm run build` — 이 계획은 프론트를 건드리지 않지만 `Evidence`가 프론트 타입과 연결되어 있으므로 회귀를 확인한다.
+- [ ] `frontend/`에서 `npm test && npm run typecheck && npm run lint && npm run build` — 이 계획은 프론트를 건드리지 않지만 `Evidence`가 프론트 타입과 연결되어 있으므로 회귀를 확인한다.
 
 ### 홈 agent loop 확인 (OpenRouter, 수동)
 
@@ -784,7 +784,7 @@ Tool을 넷에서 하나로 줄이는 것은 프롬프트 표면을 바꾸는 �
   office adapter가 없어 호출 시 `503`이 된다. Tool **목록**만 보려면
   `available_sources()`를 직접 호출하거나 `_build_tools()` 테스트로 대신한다. 즉 이
   단계에서 모델 행동까지 보려면 사무실이 필요하다 — 집에서는 4종 경로까지가 한계다.
-- [ ] 관찰 결과를 `back_dev_home/chat/MIGRATION.md`의 검증 순서에 한 줄로 남긴다.
+- [ ] 관찰 결과를 `backend/chat/MIGRATION.md`의 검증 순서에 한 줄로 남긴다.
   Query 본문, 답변, credential은 남기지 않는다.
 
 **OpenRouter가 덮지 못하는 것:** embedding과 rerank. OpenRouter가 구현하는 것은

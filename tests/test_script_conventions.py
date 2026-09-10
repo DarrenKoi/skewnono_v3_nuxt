@@ -24,7 +24,7 @@ SCRIPTS = REPO_ROOT / "scripts"
 # Packages that live in this repo. Importing one is what makes the sys.path
 # bootstrap necessary; a script importing only stdlib does not need it.
 REPO_PACKAGES = {
-    "back_dev_home",
+    "backend",
     "ftp_handler",
     "minio_handler",
     "ops_index_mgmt",

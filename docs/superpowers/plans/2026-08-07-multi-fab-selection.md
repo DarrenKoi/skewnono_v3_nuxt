@@ -15,7 +15,7 @@
 - 커밋은 **직접 편집한 파일만 명시 경로로** 스테이징한다. `git add -A`, `git add .`, `git commit -a` 금지.
 - 다중 파일 작업이므로 **전용 worktree**(`../skewnono-multi-fab`, branch `work/multi-fab`)에서 진행한다. Task 1이 만들고 Task 11이 반드시 철거한다.
 - backend 테스트는 worktree 루트에서 `.venv/bin/python -m pytest`로 실행한다 (`-m`이 루트를 `sys.path`에 올린다). worktree에는 gitignored `office.py` 사본이 없어 skip 수가 main 트리와 다르다 — passed+skipped 합계로 비교한다.
-- frontend 명령은 `front-dev-home/`에서: `npm test`, `npm run typecheck`, `npm run lint`.
+- frontend 명령은 `frontend/`에서: `npm test`, `npm run typecheck`, `npm run lint`.
 - Markdown을 고치면 루트에서 `npm run lint:md`. 표는 MD060 compact 스타일.
 - UI 색은 `--sk-*` 토큰만. 새 UI를 만지기 전에 루트 `DESIGN.md`를 읽는다.
 - Pinia·TanStack Query 도입 금지. localStorage는 기존 플러그인 파일 수정으로만.
@@ -27,7 +27,7 @@
 ## File Structure
 
 ```text
-front-dev-home/app/
+frontend/app/
   utils/fab.ts                  # +canonicalFabList/parseFabSegment/buildFabSegment/toggleFabInList
   utils/fab.test.ts             # +다중 FAB 케이스
   stores/navigation.ts          # fab: string → fabs: string[] (+호환 fab computed)
@@ -44,7 +44,7 @@ front-dev-home/app/
   components/ebeam/{Storage,ToolInventory,Hardware,RecipeStatus,RecipeTat,FailIssue}View.vue
                                 # props fab: string → fabs: string[]
   pages/ebeam/**/[fab]/**       # 전 페이지 useFabRoute()로 이관
-back_dev_home/ebeam/hitachi/
+backend/ebeam/hitachi/
   _analytics_routes.py          # AnalyticsRequestScope.fab_names: tuple[str, ...]
   _analytics.py                 # MeasurementScope.fab_names + set 필터
   _office_meas_hist.py          # filter_clauses: 1개→term, 2개+→terms
@@ -71,7 +71,7 @@ git worktree add ../skewnono-multi-fab -b work/multi-fab
 - [ ] **Step 2: frontend 의존성 설치** (worktree에는 node_modules가 없다)
 
 ```bash
-cd ../skewnono-multi-fab/front-dev-home && npm install
+cd ../skewnono-multi-fab/frontend && npm install
 ```
 
 - [ ] **Step 3: 기준선 확인** — worktree에는 `.venv`가 없으므로 main 트리의 절대 경로를 쓴다(이하 모든 backend 명령 동일)
@@ -79,7 +79,7 @@ cd ../skewnono-multi-fab/front-dev-home && npm install
 ```bash
 cd ../skewnono-multi-fab
 /Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest -q
-cd front-dev-home && npm test && npm run typecheck
+cd frontend && npm test && npm run typecheck
 ```
 
 Expected: 전부 green (office.py 부재로 인한 skip 차이는 정상 — passed+skipped 합계를 기록해 둔다).
@@ -89,8 +89,8 @@ Expected: 전부 green (office.py 부재로 인한 skip 차이는 정상 — pas
 ### Task 2: `utils/fab.ts` 다중 FAB 순수 함수 (TDD)
 
 **Files:**
-- Modify: `front-dev-home/app/utils/fab.ts`
-- Test: `front-dev-home/app/utils/fab.test.ts`
+- Modify: `frontend/app/utils/fab.ts`
+- Test: `frontend/app/utils/fab.test.ts`
 
 **Interfaces:**
 - Produces (이후 모든 태스크가 사용):
@@ -138,7 +138,7 @@ test('toggleFabInList adds, removes, and refuses to empty the list', () => {
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `cd front-dev-home && npm test`
+Run: `cd frontend && npm test`
 Expected: FAIL — `canonicalFabList is not exported` 계열.
 
 - [ ] **Step 3: 구현** — `fab.ts` 끝에 추가 (`NO_FAB_CANONICAL`은 이미 모듈 내부에 있다)
@@ -183,13 +183,13 @@ export const toggleFabInList = (fabs: readonly string[], fab: string): string[] 
 
 - [ ] **Step 4: 통과 확인**
 
-Run: `cd front-dev-home && npm test`
+Run: `cd frontend && npm test`
 Expected: PASS (기존 fab.test.ts 케이스 포함 전부).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add front-dev-home/app/utils/fab.ts front-dev-home/app/utils/fab.test.ts
+git add frontend/app/utils/fab.ts frontend/app/utils/fab.test.ts
 git commit -m "feat(fab): add multi-fab list primitives to utils/fab"
 ```
 
@@ -198,8 +198,8 @@ git commit -m "feat(fab): add multi-fab list primitives to utils/fab"
 ### Task 3: navigation store `fabs[]` + persist 플러그인
 
 **Files:**
-- Modify: `front-dev-home/app/stores/navigation.ts`
-- Modify: `front-dev-home/app/plugins/persist-fab.client.ts`
+- Modify: `frontend/app/stores/navigation.ts`
+- Modify: `frontend/app/plugins/persist-fab.client.ts`
 
 **Interfaces:**
 - Consumes: Task 2의 `canonicalFabList`
@@ -309,13 +309,13 @@ export default defineNuxtPlugin(() => {
 
 - [ ] **Step 3: 컴파일 확인**
 
-Run: `cd front-dev-home && npm run typecheck && npm test`
+Run: `cd frontend && npm run typecheck && npm test`
 Expected: PASS — `fab` computed가 남아 있어 미이관 소비자(useNavigation·FabSidebar·pages)가 전부 그대로 컴파일된다.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add front-dev-home/app/stores/navigation.ts front-dev-home/app/plugins/persist-fab.client.ts
+git add frontend/app/stores/navigation.ts frontend/app/plugins/persist-fab.client.ts
 git commit -m "feat(nav): store holds a fab list; persist plugin round-trips it"
 ```
 
@@ -324,9 +324,9 @@ git commit -m "feat(nav): store holds a fab list; persist plugin round-trips it"
 ### Task 4: `useNavigation` — `toggleFab`와 다중 세그먼트 href
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useNavigation.ts`
-- Modify: `front-dev-home/app/components/nav/FeatureTabs.vue:77-82`
-- Modify: `front-dev-home/app/pages/ebeam/{cd-sem,hv-sem,verity-sem,provision}/index.vue` (tool-type 인덱스 리다이렉트 4곳)
+- Modify: `frontend/app/composables/useNavigation.ts`
+- Modify: `frontend/app/components/nav/FeatureTabs.vue:77-82`
+- Modify: `frontend/app/pages/ebeam/{cd-sem,hv-sem,verity-sem,provision}/index.vue` (tool-type 인덱스 리다이렉트 4곳)
 
 **Interfaces:**
 - Consumes: Task 2 `buildFabSegment`, `toggleFabInList`; Task 3 `store.fabs`, `store.setFabs`
@@ -407,15 +407,15 @@ navigateTo(`/ebeam/cd-sem/${buildFabSegment(fabs.value)}`, { replace: true })
 
 - [ ] **Step 4: 검증**
 
-Run: `cd front-dev-home && npm run typecheck && npm test`
+Run: `cd frontend && npm run typecheck && npm test`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add front-dev-home/app/composables/useNavigation.ts front-dev-home/app/components/nav/FeatureTabs.vue \
-  "front-dev-home/app/pages/ebeam/cd-sem/index.vue" "front-dev-home/app/pages/ebeam/hv-sem/index.vue" \
-  "front-dev-home/app/pages/ebeam/verity-sem/index.vue" "front-dev-home/app/pages/ebeam/provision/index.vue"
+git add frontend/app/composables/useNavigation.ts frontend/app/components/nav/FeatureTabs.vue \
+  "frontend/app/pages/ebeam/cd-sem/index.vue" "frontend/app/pages/ebeam/hv-sem/index.vue" \
+  "frontend/app/pages/ebeam/verity-sem/index.vue" "frontend/app/pages/ebeam/provision/index.vue"
 git commit -m "feat(nav): toggleFab + multi-fab segments in hrefs and tool-type redirects"
 ```
 
@@ -424,7 +424,7 @@ git commit -m "feat(nav): toggleFab + multi-fab segments in hrefs and tool-type 
 ### Task 5: FabSidebar 다중 선택 UI
 
 **Files:**
-- Modify: `front-dev-home/app/components/nav/FabSidebar.vue`
+- Modify: `frontend/app/components/nav/FabSidebar.vue`
 
 **Interfaces:**
 - Consumes: Task 3 `fabs`/`fab`, Task 4 `toggleFab`, 기존 `navigateToFab`
@@ -507,13 +507,13 @@ const onFabClick = (event: MouseEvent, id: string) => {
 
 - [ ] **Step 3: 검증**
 
-Run: `cd front-dev-home && npm run typecheck && npm run lint`
+Run: `cd frontend && npm run typecheck && npm run lint`
 Expected: PASS. (브라우저 동작 확인은 Task 11의 verify에서 일괄.)
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add front-dev-home/app/components/nav/FabSidebar.vue
+git add frontend/app/components/nav/FabSidebar.vue
 git commit -m "feat(sidebar): multi-select fabs via checkbox and Cmd/Ctrl+click"
 ```
 
@@ -522,8 +522,8 @@ git commit -m "feat(sidebar): multi-select fabs via checkbox and Cmd/Ctrl+click"
 ### Task 6: `useFabRoute` + 전체 `[fab]` 페이지 이관 + `FabScopeNotice`
 
 **Files:**
-- Create: `front-dev-home/app/composables/useFabRoute.ts`
-- Create: `front-dev-home/app/components/nav/FabScopeNotice.vue`
+- Create: `frontend/app/composables/useFabRoute.ts`
+- Create: `frontend/app/components/nav/FabScopeNotice.vue`
 - Modify: `[fab]` 배하 **모든** 페이지 (아래 표)
 
 **Interfaces:**
@@ -620,13 +620,13 @@ const { fabs, primaryFab } = useFabRoute('cd-sem')
 
 - [ ] **Step 4: 검증**
 
-Run: `cd front-dev-home && npm run typecheck && npm test && npm run lint`
+Run: `cd frontend && npm run typecheck && npm test && npm run lint`
 Expected: PASS.
 
 - [ ] **Step 5: Commit** (편집한 페이지 경로를 전부 명시 — 긴 목록이면 몇 커밋으로 쪼갠다: composable+notice / cd-sem 페이지 / hv-sem 페이지 / 기타)
 
 ```bash
-git add front-dev-home/app/composables/useFabRoute.ts front-dev-home/app/components/nav/FabScopeNotice.vue
+git add frontend/app/composables/useFabRoute.ts frontend/app/components/nav/FabScopeNotice.vue
 git commit -m "feat(nav): useFabRoute parses multi-fab segments; FabScopeNotice for single-fab pages"
 # 이어서 페이지 이관 커밋(명시 경로)
 git commit -m "refactor(pages): route every [fab] page through useFabRoute" -- <편집한 페이지 경로들>
@@ -637,11 +637,11 @@ git commit -m "refactor(pages): route every [fab] page through useFabRoute" -- <
 ### Task 7: 백엔드 — analytics scope·mock·계약 목록화 (TDD)
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/_analytics_routes.py`
-- Modify: `back_dev_home/ebeam/hitachi/_analytics.py:21-56`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/{routes,data,contracts}.py`, `providers/mock.py`
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/{routes,data,contracts}.py`, `providers/mock.py`
-- Test: `tests/test_recipe_analytics_home.py`, `back_dev_home/ebeam/hitachi/{recipe_tat,fail_issue}/tests/test_contract.py`
+- Modify: `backend/ebeam/hitachi/_analytics_routes.py`
+- Modify: `backend/ebeam/hitachi/_analytics.py:21-56`
+- Modify: `backend/ebeam/hitachi/recipe_tat/{routes,data,contracts}.py`, `providers/mock.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/{routes,data,contracts}.py`, `providers/mock.py`
+- Test: `tests/test_recipe_analytics_home.py`, `backend/ebeam/hitachi/{recipe_tat,fail_issue}/tests/test_contract.py`
 
 **Interfaces:**
 - Produces:
@@ -741,18 +741,18 @@ class MeasurementScope:
 
 - [ ] **Step 8: 통과 확인**
 
-Run: `/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat back_dev_home/ebeam/hitachi/fail_issue tests/test_recipe_analytics_home.py -q`
+Run: `/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat backend/ebeam/hitachi/fail_issue tests/test_recipe_analytics_home.py -q`
 Expected: PASS.
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/_analytics_routes.py back_dev_home/ebeam/hitachi/_analytics.py \
-  back_dev_home/ebeam/hitachi/recipe_tat/routes.py back_dev_home/ebeam/hitachi/recipe_tat/data.py \
-  back_dev_home/ebeam/hitachi/recipe_tat/contracts.py back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
-  back_dev_home/ebeam/hitachi/fail_issue/routes.py back_dev_home/ebeam/hitachi/fail_issue/data.py \
-  back_dev_home/ebeam/hitachi/fail_issue/contracts.py back_dev_home/ebeam/hitachi/fail_issue/providers/mock.py \
-  back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py back_dev_home/ebeam/hitachi/fail_issue/tests/test_contract.py \
+git add backend/ebeam/hitachi/_analytics_routes.py backend/ebeam/hitachi/_analytics.py \
+  backend/ebeam/hitachi/recipe_tat/routes.py backend/ebeam/hitachi/recipe_tat/data.py \
+  backend/ebeam/hitachi/recipe_tat/contracts.py backend/ebeam/hitachi/recipe_tat/providers/mock.py \
+  backend/ebeam/hitachi/fail_issue/routes.py backend/ebeam/hitachi/fail_issue/data.py \
+  backend/ebeam/hitachi/fail_issue/contracts.py backend/ebeam/hitachi/fail_issue/providers/mock.py \
+  backend/ebeam/hitachi/recipe_tat/tests/test_contract.py backend/ebeam/hitachi/fail_issue/tests/test_contract.py \
   tests/test_recipe_analytics_home.py
 git commit -m "feat(analytics): fab_name scope becomes a fab_names tuple across recipe-tat and fail-issue"
 ```
@@ -762,10 +762,10 @@ git commit -m "feat(analytics): fab_name scope becomes a fab_names tuple across 
 ### Task 8: 백엔드 — `filter_clauses` terms + office adapter 전파
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/_office_meas_hist.py:106-119`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py`
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/providers/office_example.py`
-- Modify: `back_dev_home/meas_hist/providers/office_example.py` (filter_clauses 호출부만)
+- Modify: `backend/ebeam/hitachi/_office_meas_hist.py:106-119`
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/office_example.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/providers/office_example.py`
+- Modify: `backend/meas_hist/providers/office_example.py` (filter_clauses 호출부만)
 - Test: `tests/test_office_adapter_parity.py` 실행으로 시그니처 일치 검증 (기존 스위트)
 
 **Interfaces:**
@@ -775,7 +775,7 @@ git commit -m "feat(analytics): fab_name scope becomes a fab_names tuple across 
 - [ ] **Step 1: 실패하는 단위 테스트** — `tests/test_recipe_analytics_home.py`에 추가 (OpenSearch 불필요, 순수 함수):
 
 ```python
-from back_dev_home.ebeam.hitachi._office_meas_hist import FAB_NAME_KW, filter_clauses
+from backend.ebeam.hitachi._office_meas_hist import FAB_NAME_KW, filter_clauses
 
 
 class TestFilterClauses(unittest.TestCase):
@@ -832,16 +832,16 @@ def filter_clauses(
 
 - [ ] **Step 5: 통과 확인**
 
-Run: `/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest tests/ back_dev_home -q`
+Run: `/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest tests/ backend -q`
 Expected: PASS (worktree라 office.py 사본이 없어 skip 증가는 정상 — passed+skipped 합계가 main 기준선과 같아야 한다).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/_office_meas_hist.py \
-  back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py \
-  back_dev_home/ebeam/hitachi/fail_issue/providers/office_example.py \
-  back_dev_home/meas_hist/providers/office_example.py \
+git add backend/ebeam/hitachi/_office_meas_hist.py \
+  backend/ebeam/hitachi/recipe_tat/providers/office_example.py \
+  backend/ebeam/hitachi/fail_issue/providers/office_example.py \
+  backend/meas_hist/providers/office_example.py \
   tests/test_recipe_analytics_home.py
 git commit -m "feat(office): filter_clauses takes a fab list and emits a terms clause for 2+"
 ```
@@ -851,12 +851,12 @@ git commit -m "feat(office): filter_clauses takes a fab list and emits a terms c
 ### Task 9: Storage·ToolInventory·Hardware view 다중화
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useSemListApi.ts:42-51`
-- Modify: `front-dev-home/app/composables/useStorageApi.ts`
-- Modify: `front-dev-home/app/components/ebeam/StorageView.vue`
-- Modify: `front-dev-home/app/components/ebeam/ToolInventoryView.vue`
-- Modify: `front-dev-home/app/components/ebeam/HardwareView.vue`
-- Modify: `front-dev-home/app/components/ebeam/storage/PpidUnavailablePanel.vue` (표시 문자열만)
+- Modify: `frontend/app/composables/useSemListApi.ts:42-51`
+- Modify: `frontend/app/composables/useStorageApi.ts`
+- Modify: `frontend/app/components/ebeam/StorageView.vue`
+- Modify: `frontend/app/components/ebeam/ToolInventoryView.vue`
+- Modify: `frontend/app/components/ebeam/HardwareView.vue`
+- Modify: `frontend/app/components/ebeam/storage/PpidUnavailablePanel.vue` (표시 문자열만)
 - Modify: 해당 페이지 6+2개 — `{cd-sem,hv-sem}/[fab]/{storage/index,hardware,index}.vue`, `{verity-sem,provision}/[fab]/index.vue` — `:fab="primaryFab"` → `:fabs="fabs"`
 
 **Interfaces:**
@@ -916,7 +916,7 @@ const ppidUnavailableRows = computed(() => (ppidUnavailableData.value?.rows ?? [
 - [ ] **Step 6b: row 테이블의 FAB 컬럼 확인** — spec 4.6의 완료 조건: 2개 이상 선택 시 행 귀속이 보여야 한다. StorageView의 스토리지 테이블과 ToolInventoryView의 장비 테이블에 `fab_name` 컬럼이 이미 있는지 template에서 확인하고, 없으면 컬럼을 추가한다(항상 표시 — 조건부 표시로 레이아웃을 흔들지 않는다).
 - [ ] **Step 7: 검증**
 
-Run: `cd front-dev-home && npm run typecheck && npm test && npm run lint`
+Run: `cd frontend && npm run typecheck && npm test && npm run lint`
 Expected: PASS.
 
 - [ ] **Step 8: Commit** — 편집 파일 명시 경로로 `feat(views): storage/inventory/hardware render the selected fab union`.
@@ -926,11 +926,11 @@ Expected: PASS.
 ### Task 10: RecipeStatus·RecipeTat·FailIssue view + API composable 다중화
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useRecipeTatApi.ts`
-- Modify: `front-dev-home/app/composables/useFailIssueApi.ts`
-- Modify: `front-dev-home/app/components/ebeam/RecipeStatusView.vue`
-- Modify: `front-dev-home/app/components/ebeam/RecipeTatView.vue`
-- Modify: `front-dev-home/app/components/ebeam/FailIssueView.vue`
+- Modify: `frontend/app/composables/useRecipeTatApi.ts`
+- Modify: `frontend/app/composables/useFailIssueApi.ts`
+- Modify: `frontend/app/components/ebeam/RecipeStatusView.vue`
+- Modify: `frontend/app/components/ebeam/RecipeTatView.vue`
+- Modify: `frontend/app/components/ebeam/FailIssueView.vue`
 - Modify: `{cd-sem,hv-sem}/[fab]/recipe-status.vue` — `:fab="primaryFab"` → `:fabs="fabs"`
 
 **Interfaces:**
@@ -960,7 +960,7 @@ Expected: PASS.
 - [ ] **Step 6: recipe-status 페이지 2개** — `:fabs="fabs"`.
 - [ ] **Step 7: 검증**
 
-Run: `cd front-dev-home && npm run typecheck && npm test && npm run lint`
+Run: `cd frontend && npm run typecheck && npm test && npm run lint`
 Expected: PASS. 이어서 홈 E2E 스모크: worktree에서 Flask(`PORT=5051 /Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python index.py`) 없이도 mock 검증은 Task 11에서 일괄하므로 여기서는 컴파일 계열만.
 
 - [ ] **Step 8: Commit** — 명시 경로로 `feat(recipe-status): tat/fail-issue query and render the fab union`.
@@ -970,7 +970,7 @@ Expected: PASS. 이어서 홈 E2E 스모크: worktree에서 Flask(`PORT=5051 /Us
 ### Task 11: 문서·전체 검증·merge·사후 작업
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/MIGRATION.md`, `back_dev_home/ebeam/hitachi/fail_issue/MIGRATION.md`, `back_dev_home/meas_hist/MIGRATION.md` — office adapter 시그니처가 `fab_names: tuple[str, ...] | None`(meas_hist는 호출부 래핑만)임을 한 줄씩 기록
+- Modify: `backend/ebeam/hitachi/recipe_tat/MIGRATION.md`, `backend/ebeam/hitachi/fail_issue/MIGRATION.md`, `backend/meas_hist/MIGRATION.md` — office adapter 시그니처가 `fab_names: tuple[str, ...] | None`(meas_hist는 호출부 래핑만)임을 한 줄씩 기록
 
 - [ ] **Step 1: MIGRATION.md 3곳에 변경 기록** 후 `npm run lint:md` (루트).
 - [ ] **Step 2: worktree 전체 검증**
@@ -978,7 +978,7 @@ Expected: PASS. 이어서 홈 E2E 스모크: worktree에서 Flask(`PORT=5051 /Us
 ```bash
 cd ../skewnono-multi-fab
 /Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest -q
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: 전부 green.

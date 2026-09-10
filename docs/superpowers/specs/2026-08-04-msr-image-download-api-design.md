@@ -2,8 +2,8 @@
 
 - **작성일:** 2026-08-04
 - **상태:** 승인된 설계, 구현 계획 작성 전 문서 검토 대기
-- **적용 범위:** `back_dev_home/msr_image/routes.py`,
-  `back_dev_home/msr_image/tests/`, `scripts/clients/`,
+- **적용 범위:** `backend/msr_image/routes.py`,
+  `backend/msr_image/tests/`, `scripts/clients/`,
   `docs/back-end/msr-image-download.md`, `docs/back-end/api-tokens.md`
 
 ## 1. 배경
@@ -44,9 +44,9 @@ total_images, fail_images                ← 예상 장수
 
 ### 2.2 rate limit은 장애물이 아닙니다
 
-`back_dev_home/__init__.py:74`의 `application_limits=["20 per 5 seconds"]`는
+`backend/__init__.py:74`의 `application_limits=["20 per 5 seconds"]`는
 사용자당 `/api/*` 전체에 걸린 단일 예산입니다. 그러나
-`back_dev_home/__init__.py:88-92`가 `msr_image` blueprint 전체를 이미
+`backend/__init__.py:88-92`가 `msr_image` blueprint 전체를 이미
 면제하고 있으며, flask-limiter 4.1.1의 `exempt()` 기본 플래그는
 `ExemptionScope.APPLICATION|META|DEFAULT`이므로 application 예산에서도
 제외됩니다.
@@ -73,7 +73,7 @@ meas-hist  30회 연속 호출:  [200, 429]   429 발생: 10건
 | --- | --- | --- |
 | 한국어 사용 안내 | `docs/back-end/msr-image-download.md` | 인증을 다루는 `docs/back-end/api-tokens.md` 옆에 위치시켜 두 문서가 짝을 이루게 합니다 |
 | 참조 클라이언트 | `scripts/clients/msr_image_download.py` | `scripts/`는 이미 운영자용 Python(`probe_*.py`, `diagnose_*.py`)을 담고 있습니다. `clients/` 하위 폴더는 "사용자 PC로 복사해 쓰는 파일"임을 표시합니다 |
-| 엔드포인트 보완 2건 | `back_dev_home/msr_image/routes.py` | 이 기능에서 동작이 바뀌는 유일한 파일입니다. §10의 부수 작업은 주석·문서만 손대므로 동작 변경이 아닙니다 |
+| 엔드포인트 보완 2건 | `backend/msr_image/routes.py` | 이 기능에서 동작이 바뀌는 유일한 파일입니다. §10의 부수 작업은 주석·문서만 손대므로 동작 변경이 아닙니다 |
 
 ## 4. 백엔드 변경 A — `GET /api/msr-image`에 `Content-Disposition` 추가
 
@@ -209,7 +209,7 @@ GET 단계로 넘어갑니다.
 
 ## 9. 테스트 계획
 
-**백엔드** — `back_dev_home/msr_image/tests/`에 추가합니다.
+**백엔드** — `backend/msr_image/tests/`에 추가합니다.
 
 - `Content-Disposition`이 존재하고 파일명이 일치하며, `name`에 `"`나 개행을
   넣은 요청에서 값이 이스케이프됨
@@ -263,12 +263,12 @@ msr_image 작업과 diff를 섞지 않도록 **별도 커밋**으로 처리합�
 
 | 파일 | 역할 |
 | --- | --- |
-| `back_dev_home/msr_image/routes.py` | 변경 대상 — 헤더 1건, 필터 1건 |
-| `back_dev_home/msr_image/data.py` | **변경 금지** — provider 시그니처 유지 |
-| `back_dev_home/msr_image/providers/office_example.py` | **변경 금지** |
-| `back_dev_home/__init__.py` | rate limit 면제 근거 (읽기 전용) |
-| `back_dev_home/_auth/middleware.py` | Bearer 인증 경로, §10의 주석 수정 대상 |
-| `back_dev_home/meas_hist/routes.py` | 탐색 엔드포인트 (읽기 전용) |
+| `backend/msr_image/routes.py` | 변경 대상 — 헤더 1건, 필터 1건 |
+| `backend/msr_image/data.py` | **변경 금지** — provider 시그니처 유지 |
+| `backend/msr_image/providers/office_example.py` | **변경 금지** |
+| `backend/__init__.py` | rate limit 면제 근거 (읽기 전용) |
+| `backend/_auth/middleware.py` | Bearer 인증 경로, §10의 주석 수정 대상 |
+| `backend/meas_hist/routes.py` | 탐색 엔드포인트 (읽기 전용) |
 | `scripts/clients/msr_image_download.py` | 신규 |
 | `docs/back-end/msr-image-download.md` | 신규 |
 | `docs/back-end/api-tokens.md` | §10 수정 대상 |

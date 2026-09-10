@@ -13,7 +13,7 @@ resolved from this file, not from where you stand:
     .venv/bin/python scripts/adapters/sync_office_adapters.py
 
 Use the venv interpreter either way: importing the classifier pulls in
-`back_dev_home/__init__.py`, so Flask must be installed.
+`backend/__init__.py`, so Flask must be installed.
 
     # 1. See where every adapter stands (safe, changes nothing)
     .venv/bin/python -m scripts.adapters.sync_office_adapters
@@ -62,10 +62,10 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_ROOT = REPO_ROOT / "back_dev_home"
+BACKEND_ROOT = REPO_ROOT / "backend"
 
 # Running a file directly puts this folder on sys.path, not the repo root, so
-# `back_dev_home` would be unimportable -- only `-m` adds the root. Add it here
+# `backend` would be unimportable -- only `-m` adds the root. Add it here
 # so `python scripts/adapters/sync_office_adapters.py` works too. Insert the root (not
 # this folder): the import below must resolve to the same module object the
 # app and tests use, and `from scripts import ...` must keep working.
@@ -76,8 +76,8 @@ if str(REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime import office_template  # noqa: E402
-from back_dev_home._runtime.office_template import (  # noqa: E402
+from backend._runtime import office_template  # noqa: E402
+from backend._runtime.office_template import (  # noqa: E402
     EDITED,
     MISSING,
     STALE,
@@ -102,7 +102,7 @@ def classify(adapter: Adapter) -> tuple[str, str]:
     cached = _classify_cache.get(adapter.target)
     if cached is None:
         # The Adapter type and the classification both live in
-        # back_dev_home/_runtime/office_template.py so the app can warn about
+        # backend/_runtime/office_template.py so the app can warn about
         # its own stale copies at boot without depending on scripts/ (which a
         # cloud deploy need not ship). This module keeps only the CLI around
         # them.
@@ -126,7 +126,7 @@ def reset_cache() -> None:
 
 
 def discover() -> list[Adapter]:
-    """Every office_example.py under this checkout's back_dev_home.
+    """Every office_example.py under this checkout's backend.
 
     Pinned to BACKEND_ROOT rather than the runtime default: every path this
     CLI prints is made relative to REPO_ROOT, so the scan root and REPO_ROOT

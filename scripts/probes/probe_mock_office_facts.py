@@ -58,7 +58,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -68,8 +68,8 @@ if str(_REPO_ROOT) not in sys.path:
 # running this file by path does not, and would then die on the ANSI code page.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
-from back_dev_home.ebeam._office_meas_hist import (  # noqa: E402
+from backend._runtime.office_redis import load_env_file  # noqa: E402
+from backend.ebeam._office_meas_hist import (  # noqa: E402
     INDEX,
     TIME_FIELD,
     aggregate,
@@ -260,7 +260,7 @@ def stage_msr_sample(tool_type: str, days: int, sample: int) -> None:
 
     # Imported here: this is the only stage that needs MinIO, and a host
     # without a MinIO config should still get stages 1-3.
-    from back_dev_home.msr_file.providers import office_example as msr_office
+    from backend.msr_file.providers import office_example as msr_office
 
     hits = fetch_hits(
         INDEX[tool_type],

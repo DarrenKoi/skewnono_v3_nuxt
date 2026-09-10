@@ -3,7 +3,7 @@
 Status: open
 Spec: [`../spec.md`](../spec.md) · 결정: D3
 
-`front-dev-home/app` 에 `rose-*` 가 **22개 파일**에 있습니다. 이 스펙은 그중
+`frontend/app` 에 `rose-*` 가 **22개 파일**에 있습니다. 이 스펙은 그중
 device-statistics ↔ measurement-rules 드리프트만 고칩니다. 나머지를 손대기 전에
 **빨강이 각 화면에서 무엇을 뜻하는지** 먼저 적습니다 — 뜻을 확인하지 않고 토큰으로
 바꾸는 것은 색을 통일하는 게 아니라 의미를 지우는 것입니다.

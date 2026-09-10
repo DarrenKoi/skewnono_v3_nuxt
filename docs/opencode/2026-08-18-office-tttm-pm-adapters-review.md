@@ -5,16 +5,16 @@
 - 티어: `heavy` (`glm-5.3`, variant `high`)
 - 고정점: `main` (`8150a214`) → `f50fbcf9`
 - 대상: 8개 파일, +3,079 / −31
-- 티어 근거: `**/providers/`, `back_dev_home/_runtime/`, office DB 접근을 동시에
+- 티어 근거: `**/providers/`, `backend/_runtime/`, office DB 접근을 동시에
   건드립니다. 세 곳 모두 오버레이의 escalation surface 이며, 집의 테스트 스위트는
   어느 쪽으로든 통과하므로 크기와 무관하게 상위 티어를 씁니다.
 
 ## 표준 근거로 삼은 문서
 
 `CLAUDE.md`, `docs/back-end/provider-selection.md`,
-`back_dev_home/ebeam/{tttm,pm_planning}/MIGRATION.md`,
+`backend/ebeam/{tttm,pm_planning}/MIGRATION.md`,
 `docs/datatables/README.md` 및 개별 스키마 파일,
-`back_dev_home/ebeam/hardware/providers/bsm/office_example.py`(하우스 스타일 기준).
+`backend/ebeam/hardware/providers/bsm/office_example.py`(하우스 스타일 기준).
 
 ## 스펙으로 삼은 문서
 
@@ -203,7 +203,7 @@ opencode 지적을 반영한 코드를 대상으로, 같은 두 축을 Claude �
 
 | 지적 | 판정 | 조치 |
 | --- | --- | --- |
-| ruff 게이트가 red (`B905`, `tests/…:238`) | **맞습니다** | `ruff check back_dev_home/` 만 돌리고 `tests/` 를 빼먹었습니다. `strict=True` 추가, 이후 저장소 전체 `ruff check .` clean |
+| ruff 게이트가 red (`B905`, `tests/…:238`) | **맞습니다** | `ruff check backend/` 만 돌리고 `tests/` 를 빼먹었습니다. `strict=True` 추가, 이후 저장소 전체 `ruff check .` clean |
 | `docs/back-end/provider-selection.md` §7 이 stale | **맞습니다** | `_OFFICE_DEPENDENCIES` 에 두 줄을 넣고 문서 표는 그대로 뒀습니다. 표에 2행 추가 + pm-tune 조인이 왜 더 나쁜지 서술 추가 |
 | "office DB 지식은 두 곳에" 규칙 미이행 | **맞습니다** | `msr_file_pickle.txt`·`hardware_mdc_setting.txt`·`meas_hist.txt` 에 소비 규약 절을 추가하고, `README.md` 의 소스 없음 목록에 3건을 등재했으며, 양쪽 `mock.py` docstring 에 대응 사실을 적었습니다 |
 | 두 어댑터에 `OFFICE-VERIFY` 블록이 0건 | **맞습니다** | `bsm/office_example.py` 형식대로 각각 6항목·5항목 추가 |

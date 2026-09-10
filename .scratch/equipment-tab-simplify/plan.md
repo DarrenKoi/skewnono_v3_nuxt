@@ -23,7 +23,7 @@
 
 ## 전역 제약
 
-- **백엔드 무변경.** `back_dev_home/**`는 이 작업에서 한 줄도 바뀌지 않습니다.
+- **백엔드 무변경.** `backend/**`는 이 작업에서 한 줄도 바뀌지 않습니다.
 - **`utils/equipmentSignals.ts` / `utils/failEquipmentSignals.ts` 삭제 금지.**
   두 파일과 그 테스트는 그대로 통과해야 합니다. 장비별 탭에서 호출되지 않게
   될 뿐입니다.

@@ -9,8 +9,8 @@ TAT 탭의 장비별 결과를 시트 3개(`장비`/`레시피`/`일별추이`)�
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/equipmentExport.ts`
-- Create: `front-dev-home/app/utils/equipmentExport.test.ts`
+- Create: `frontend/app/utils/equipmentExport.ts`
+- Create: `frontend/app/utils/equipmentExport.test.ts`
 
 **Interfaces:**
 
@@ -44,7 +44,7 @@ export function buildTatEquipmentWorkbook(
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-Create `front-dev-home/app/utils/equipmentExport.test.ts`:
+Create `frontend/app/utils/equipmentExport.test.ts`:
 
 ```ts
 import { test } from 'node:test'
@@ -199,12 +199,12 @@ test('열 순서는 플릿 표가 아니라 응답의 eqp_ids 를 따른다', ()
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `cd front-dev-home && npx node --test "app/utils/equipmentExport.test.ts"`
+Run: `cd frontend && npx node --test "app/utils/equipmentExport.test.ts"`
 Expected: FAIL — `Cannot find module './equipmentExport.ts'`
 
 - [ ] **Step 3: 빌더를 구현한다**
 
-Create `front-dev-home/app/utils/equipmentExport.ts`:
+Create `frontend/app/utils/equipmentExport.ts`:
 
 ```ts
 /**
@@ -316,7 +316,7 @@ export function buildTatEquipmentWorkbook(
 
 - [ ] **Step 4: 테스트 통과를 확인한다**
 
-Run: `cd front-dev-home && npx node --test "app/utils/equipmentExport.test.ts"`
+Run: `cd frontend && npx node --test "app/utils/equipmentExport.test.ts"`
 Expected: PASS 5건.
 
 - [ ] **Step 5: 타입체크·린트**
@@ -324,7 +324,7 @@ Expected: PASS 5건.
 Run:
 
 ```bash
-cd front-dev-home
+cd frontend
 npm run typecheck
 npm run lint
 ```
@@ -334,8 +334,8 @@ Expected: 통과.
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add front-dev-home/app/utils/equipmentExport.ts \
-        front-dev-home/app/utils/equipmentExport.test.ts
+git add frontend/app/utils/equipmentExport.ts \
+        frontend/app/utils/equipmentExport.test.ts
 git commit -m "feat(front): TAT 장비별 워크북 빌더를 추가한다
 
 장비/레시피/일별추이 세 시트를 조립하는 순수 함수입니다. 화면이 한 칸에

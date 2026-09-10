@@ -9,7 +9,7 @@ image_cache 의 오래된 객체 삭제, device-statistics 주차 스냅샷 사�
 문제는 "스케줄러가 없다"가 아닙니다. **이미 하나 있고, 운영 환경에서 조용히
 잘못 동작하고 있습니다.**
 
-`back_dev_home/msr_image/scheduler.py` 는 `create_app()` 안에서
+`backend/msr_image/scheduler.py` 는 `create_app()` 안에서
 `BackgroundScheduler(daemon=True)` 를 띄웁니다. 그런데 `wsgi.ini` 는
 `processes = 4` 와 `lazy-apps = true` 로 동작하므로, **네 개의 uWSGI 워커가 각자
 `create_app()` 을 호출하고 각자 스케줄러 스레드를 만듭니다.** 매일 새벽 3시에
@@ -61,7 +61,7 @@ key 규칙을 확정했고, `providers/office_example.py:966` 에
 ### 3.1 위치
 
 ```text
-back_dev_home/_scheduler/
+backend/_scheduler/
   __init__.py       start_scheduler(app)  ← 앱 팩토리의 유일한 진입점
   config.py         SchedulerConfig — 환경변수 기반
   election.py       is_scheduler_worker()
@@ -429,7 +429,7 @@ Redis 기반 락과 jobstore 는 집에서 실제 서버를 상대로 검증할 
 | 변경 | 파일 |
 | --- | --- |
 | 새 스케줄러 런타임 | `_scheduler/` (새 폴더, 모듈 6개 + 테스트) |
-| 스케줄러 기동 | `back_dev_home/__init__.py:287-288` → `start_scheduler(app)` |
+| 스케줄러 기동 | `backend/__init__.py:287-288` → `start_scheduler(app)` |
 | purge 작업 이전 | `msr_image/scheduler.py` **삭제**, 본문 → `_scheduler/tasks/image_cache.py` |
 | 스냅샷·sweep dispatch | `device_statistics/data.py`, `providers/mock.py`, `providers/office_example.py` |
 | 실행 기록 엔드포인트 | `health/routes.py`, `health/contracts.py` |

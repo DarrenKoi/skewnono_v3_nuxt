@@ -28,12 +28,12 @@ if _missing:
         allow_module_level=True,
     )
 
-from back_dev_home.ebeam.hardware import data as hardware_data
-from back_dev_home.ebeam.hardware.providers import mock as hardware_mock
-from back_dev_home.ebeam.hardware.providers import office as hardware_office
-from back_dev_home.ebeam.tttm import data as tttm_data
-from back_dev_home.ebeam.tttm.providers import mock as tttm_mock
-from back_dev_home.ebeam.tttm.providers import office as tttm_office
+from backend.ebeam.hardware import data as hardware_data
+from backend.ebeam.hardware.providers import mock as hardware_mock
+from backend.ebeam.hardware.providers import office as hardware_office
+from backend.ebeam.tttm import data as tttm_data
+from backend.ebeam.tttm.providers import mock as tttm_mock
+from backend.ebeam.tttm.providers import office as tttm_office
 
 
 _PROVIDER_ENV_NAMES = (

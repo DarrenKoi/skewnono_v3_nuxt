@@ -3,7 +3,7 @@
 Why this exists: on 2026-08-19 the skewvoir 검색 결과 table started gating the
 row click on ``msr_check != "No"``, and at the office the whole table went
 non-clickable while MinIO held the data. The frontend gate is gone again (see
-front-dev-home/app/utils/measHistSelection.ts), but the underlying question is
+frontend/app/utils/measHistSelection.ts), but the underlying question is
 still open, and it is not answerable from home:
 
   H1: the stored value is not the literal "Yes" that the adapter looks for.
@@ -24,7 +24,7 @@ Read-only: counts, aggregations and a few sampled documents. Nothing is
 written and no MinIO object is fetched.
 
 Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* from
-back_dev_home/.env like the adapter does):
+backend/.env like the adapter does):
 
     .venv/bin/python -m scripts.diagnose.diagnose_msr_check_office
 """
@@ -35,7 +35,7 @@ import os
 
 import sys
 from pathlib import Path
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed, so support both.
@@ -46,8 +46,8 @@ if str(_REPO_ROOT) not in sys.path:
 # because -m imports the package first; running this file by path does not.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
-from back_dev_home.ebeam._office_meas_hist import INDEX as _INDEX  # noqa: E402
+from backend._runtime.office_redis import load_env_file  # noqa: E402
+from backend.ebeam._office_meas_hist import INDEX as _INDEX  # noqa: E402
 from ops_store import OSSearch, create_client  # noqa: E402
 
 # Sampled documents are printed WHOLE (no _source allowlist). The first run of

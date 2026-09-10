@@ -29,10 +29,10 @@ target_selection:
     is_cloud 또는 자격 증명 유무로 추론하지 않습니다. 값이 없거나 유효하지 않으면
     명시적인 설정 오류입니다.
 
-writer: back_dev_home/_logging/opensearch_handler.py via ops_store.OSDoc
+writer: backend/_logging/opensearch_handler.py via ops_store.OSDoc
 readers:
-  - back_dev_home/activity/providers/opensearch_reader.py
-  - back_dev_home/admin_logs/providers/office_example.py
+  - backend/activity/providers/opensearch_reader.py
+  - backend/admin_logs/providers/office_example.py
 index_management: ops_index_mgmt/skewnono_logging.py via ops_store.OSIndex
 
 mapping:

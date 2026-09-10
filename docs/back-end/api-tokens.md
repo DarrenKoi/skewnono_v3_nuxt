@@ -56,7 +56,7 @@ SKEWNONO의 모든 데이터는 `/api/*` 엔드포인트를 통해 노출됩니�
 
 ## 3. 토큰의 수명 주기
 
-토큰 자체는 `back_dev_home/api_tokens/` 피처가 관리합니다. 다른 피처와 동일한 슬라이스 패턴(`routes.py` + `data.py`)을 따릅니다.
+토큰 자체는 `backend/api_tokens/` 피처가 관리합니다. 다른 피처와 동일한 슬라이스 패턴(`routes.py` + `data.py`)을 따릅니다.
 
 | 단계 | 엔드포인트 | 누가 호출 가능 |
 | --- | --- | --- |
@@ -179,11 +179,11 @@ GROUP BY api_token_id
 
 | 파일 | 역할 |
 | --- | --- |
-| `back_dev_home/api_tokens/data.py` | 토큰 저장소(모의: 인메모리) |
-| `back_dev_home/api_tokens/routes.py` | `/api/account/api-tokens` CRUD |
-| `back_dev_home/_auth/middleware.py` | 토큰 ↔ SSO 인증 분기 |
-| `back_dev_home/_logging/activity.py` | `api_token_id` 로그 필드 + 활동 점수 제외 |
-| `back_dev_home/_logging/opensearch_handler.py` | `api_token_id` OpenSearch 승격 필드 |
-| `front-dev-home/app/composables/useApiTokens.ts` | 설정 페이지용 CRUD 컴포저블 |
-| `front-dev-home/app/components/settings/ApiTokens.vue` | 토큰 관리 UI |
-| `front-dev-home/app/pages/settings.vue` | `<SettingsApiTokens />` 마운트 지점 |
+| `backend/api_tokens/data.py` | 토큰 저장소(모의: 인메모리) |
+| `backend/api_tokens/routes.py` | `/api/account/api-tokens` CRUD |
+| `backend/_auth/middleware.py` | 토큰 ↔ SSO 인증 분기 |
+| `backend/_logging/activity.py` | `api_token_id` 로그 필드 + 활동 점수 제외 |
+| `backend/_logging/opensearch_handler.py` | `api_token_id` OpenSearch 승격 필드 |
+| `frontend/app/composables/useApiTokens.ts` | 설정 페이지용 CRUD 컴포저블 |
+| `frontend/app/components/settings/ApiTokens.vue` | 토큰 관리 UI |
+| `frontend/app/pages/settings.vue` | `<SettingsApiTokens />` 마운트 지점 |

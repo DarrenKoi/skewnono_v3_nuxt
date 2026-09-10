@@ -3,7 +3,7 @@
 Run at the office, after building the frontend. Both invocation forms work
 (scripts/README.md section 1):
 
-    npm --prefix front-dev-home run build
+    npm --prefix frontend run build
     .venv/bin/python -m scripts.deploy.pack        # module form
     .venv/bin/python scripts/deploy/pack.py        # path form
 
@@ -16,12 +16,12 @@ Two properties of this repository shape everything here.
 
 **Depth is load-bearing.** _runtime/env.py defines is_cloud() as "does this
 file resolve under /project/workSpace" and spa_dir() as parents[2]/
-front-dev-home/.output/public. Cloud mode - auth blueprint, SPA mount, office
+frontend/.output/public. Cloud mode - auth blueprint, SPA mount, office
 site detection - is a property of the filesystem path, not of configuration.
 A re-nested bundle loses all three while still answering HTTP 200.
 
 **The files that matter most are untracked.** providers/office.py,
-minio_handler/minio_config.py and back_dev_home/.env are gitignored by design,
+minio_handler/minio_config.py and backend/.env are gitignored by design,
 so this reads the working tree. A git-archive approach would produce a bundle
 that boots cleanly and serves mock data in production - the worst available
 failure mode, because nothing announces it.
@@ -54,7 +54,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
 
-from back_dev_home._runtime import office_template  # noqa: E402
+from backend._runtime import office_template  # noqa: E402
 from scripts.deploy.preflight_cloud import env_file_values  # noqa: E402
 
 # Repo-relative paths copied wholesale into the bundle. Order is display order.
@@ -64,8 +64,8 @@ from scripts.deploy.preflight_cloud import env_file_values  # noqa: E402
 # fails after the FTP fetch). ops_index_mgmt (index-creation tooling) is
 # deliberately absent.
 INCLUDED_ROOTS = (
-    "back_dev_home",
-    "front-dev-home/.output/public",
+    "backend",
+    "frontend/.output/public",
     "ops_store",
     "minio_handler",
     "ftp_handler",
@@ -73,7 +73,7 @@ INCLUDED_ROOTS = (
 )
 
 # Directory names removed anywhere in the copied tree.
-# `.git` is here for the chat RAG checkout at back_dev_home/chat/_rag/, which
+# `.git` is here for the chat RAG checkout at backend/chat/_rag/, which
 # is a nested repository the bundle must carry (the office adapter imports it
 # in-process) - its history and objects are not runtime files.
 PRUNE_DIRS = frozenset({"__pycache__", "tests", ".pytest_cache", ".ruff_cache", ".git"})
@@ -135,7 +135,7 @@ def _newest_mtime(root: Path) -> float:
 
 def office_adapters(repo_root: Path) -> list[str]:
     """Feature slugs that have a providers/office.py, i.e. serve real data."""
-    backend = repo_root / "back_dev_home"
+    backend = repo_root / "backend"
     if not backend.is_dir():
         return []
     return sorted(
@@ -164,7 +164,7 @@ def adapter_drift(repo_root: Path) -> tuple[list[str], list[str]]:
         block -- but it is also the only shape in which a hand-edit reaches the
         cloud unseen, so it gets named rather than passed over.
     """
-    backend = repo_root / "back_dev_home"
+    backend = repo_root / "backend"
     if not backend.is_dir():
         return [], []
     stale, edited = [], []
@@ -186,15 +186,15 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     def add(name, ok, message, blocking):
         checks.append(Check(name, ok, message, blocking or strict))
 
-    spa_index = repo_root / "front-dev-home" / ".output" / "public" / "index.html"
+    spa_index = repo_root / "frontend" / ".output" / "public" / "index.html"
     add(
         "spa_built",
         spa_index.is_file(),
-        f"{spa_index} missing - run: npm --prefix front-dev-home run build",
+        f"{spa_index} missing - run: npm --prefix frontend run build",
         True,
     )
 
-    env_path = repo_root / "back_dev_home" / ".env"
+    env_path = repo_root / "backend" / ".env"
     add(
         "env_present",
         env_path.is_file(),
@@ -205,7 +205,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
     # The one .env value pack has standing to judge. Everything else in that
     # file is content this script has no opinion on (see
     # test_preflight_does_not_inspect_env_values) - but SKEWNONO_LOG_ENV is
-    # not content, it is a property of the MACHINE, and back_dev_home is
+    # not content, it is a property of the MACHINE, and backend is
     # copied wholesale, so packing here sends this office PC's value to the
     # cloud. That is how a cloud deploy came to run with `local` on
     # 2026-08-03, writing every activity document to the office alias. The
@@ -223,7 +223,7 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
         False,
     )
 
-    reqs = repo_root / "back_dev_home" / "requirements.txt"
+    reqs = repo_root / "backend" / "requirements.txt"
     add(
         "requirements_present",
         reqs.is_file(),
@@ -239,14 +239,14 @@ def run_preflight(repo_root: Path, strict: bool = False) -> list[Check]:
         True,
     )
 
-    app_dir = repo_root / "front-dev-home" / "app"
+    app_dir = repo_root / "frontend" / "app"
     build_fresh = True
     if spa_index.is_file() and app_dir.is_dir():
         build_fresh = spa_index.stat().st_mtime >= _newest_mtime(app_dir)
     add(
         "build_fresh",
         build_fresh,
-        "the built SPA is older than front-dev-home/app/ - rebuild, or you "
+        "the built SPA is older than frontend/app/ - rebuild, or you "
         "will ship yesterday's UI",
         False,
     )
@@ -306,7 +306,7 @@ def _ignore(directory: str, names: list[str]) -> set[str]:
 # end in .md, and pruning it would break the SPA silently - the page would
 # 404 an asset at runtime with nothing failing at pack time. So it is copied
 # verbatim. Everything else goes through should_prune().
-VERBATIM_ROOTS = frozenset({"front-dev-home/.output/public"})
+VERBATIM_ROOTS = frozenset({"frontend/.output/public"})
 
 
 def copy_bundle(repo_root: Path, dest: Path) -> int:
@@ -334,7 +334,7 @@ def verify_bundle(dest: Path) -> list[str]:
     """
     failures = []
 
-    env_py = dest / "back_dev_home" / "_runtime" / "env.py"
+    env_py = dest / "backend" / "_runtime" / "env.py"
     if not env_py.is_file():
         failures.append(f"missing {env_py}")
     elif env_py.resolve().parents[2] != dest.resolve():
@@ -342,7 +342,7 @@ def verify_bundle(dest: Path) -> list[str]:
             f"{env_py} is not 2 levels below the bundle root; spa_dir() will miss"
         )
 
-    index_html = dest / "front-dev-home" / ".output" / "public" / "index.html"
+    index_html = dest / "frontend" / ".output" / "public" / "index.html"
     if not index_html.is_file():
         failures.append(f"missing {index_html}")
 
@@ -368,17 +368,17 @@ RUNBOOK = """# Deploy this bundle
    cloud host. Do not delete or replace `/project/workSpace`: its permanent
    `index.py` and `wsgi.ini` are intentionally not included in this bundle.
 
-   The path matters: `is_cloud()` tests whether `back_dev_home/_runtime/env.py`
+   The path matters: `is_cloud()` tests whether `backend/_runtime/env.py`
    resolves under `/project/workSpace`. Anywhere else and the app starts with
    no SSO auth, no SPA mount, and mock data - while still answering HTTP 200.
 
-   This folder carries credentials (`back_dev_home/.env`,
+   This folder carries credentials (`backend/.env`,
    `minio_handler/minio_config.py`). It is mode 700 here, but `scp -r` without
    `-p`, SFTP clients and tar-extract all recreate directories under the
    destination umask, so re-apply it after the copy:
 
        chmod 700 /project/workSpace
-       chmod 600 /project/workSpace/back_dev_home/.env
+       chmod 600 /project/workSpace/backend/.env
        chmod 600 /project/workSpace/minio_handler/minio_config.py
 
 2. Check the transfer landed correctly, before installing anything:
@@ -387,7 +387,7 @@ RUNBOOK = """# Deploy this bundle
 
 3. Install dependencies:
 
-       pip install -r back_dev_home/requirements.txt
+       pip install -r backend/requirements.txt
 
 4. Run preflight again. Every runtime import comes from requirements.txt -
    identity is the LASTUSER cookie, so nothing here needs the cloud image:
@@ -421,8 +421,8 @@ RUNBOOK = """# Deploy this bundle
    too: that feature has no office adapter and serves mock.
 
        python -c "import platform;print(platform.system())"
-       python -c "from back_dev_home.msr_image.providers.office import FtpFleetDownloader as D;print('msr_image ->',D.__module__)"
-       python -c "from back_dev_home.ebeam.recipe_search.providers import office;print('recipe_search ->',office._transport().downloader_cls.__module__)"
+       python -c "from backend.msr_image.providers.office import FtpFleetDownloader as D;print('msr_image ->',D.__module__)"
+       python -c "from backend.ebeam.recipe_search.providers import office;print('recipe_search ->',office._transport().downloader_cls.__module__)"
 
    The two features are asked differently because msr_image binds the class at
    module level while recipe_search returns it from _transport(). Either way
@@ -515,7 +515,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--build",
         action="store_true",
-        help="run `npm run build` in front-dev-home/ first",
+        help="run `npm run build` in frontend/ first",
     )
     parser.add_argument(
         "--strict",
@@ -541,7 +541,7 @@ def main(argv: list[str] | None = None) -> int:
     # from the wrong directory printed four separate blocking failures, each
     # naming a path under that wrong directory - which reads as a broken repo
     # rather than a mislaid `cd`.
-    if not (repo_root / "back_dev_home").is_dir():
+    if not (repo_root / "backend").is_dir():
         print(f"\nFAIL - {repo_root} is not a skewnono checkout.")
         print("  Pack runs against the CURRENT DIRECTORY. Either cd to the")
         print("  repo root, or name it:")
@@ -551,7 +551,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.build:
         print("building the frontend...")
         result = subprocess.run(
-            ["npm", "--prefix", str(repo_root / "front-dev-home"), "run", "build"]
+            ["npm", "--prefix", str(repo_root / "frontend"), "run", "build"]
         )
         if result.returncode != 0:
             print("FAIL frontend build failed")
@@ -604,7 +604,7 @@ def main(argv: list[str] | None = None) -> int:
         for check in warned:
             print(f"    - {check.name}")
     print("\n  This bundle contains credentials:")
-    print("    back_dev_home/.env")
+    print("    backend/.env")
     print("    minio_handler/minio_config.py")
     print("  The folder is chmod 700. Do not place it on shared storage.")
     print(

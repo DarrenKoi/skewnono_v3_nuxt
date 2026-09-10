@@ -4,7 +4,7 @@ Status: resolved
 
 ## 문제
 
-`front-dev-home/app/utils/imageWarm.ts` 의 `warmErrorCode` 는 응답 본문만 봅니다:
+`frontend/app/utils/imageWarm.ts` 의 `warmErrorCode` 는 응답 본문만 봅니다:
 
 ```ts
 export const warmErrorCode = (err: unknown): string | undefined =>
@@ -23,7 +23,7 @@ export const warmErrorCode = (err: unknown): string | undefined =>
 
 ## 왜 지금은 안 터지는가, 그리고 왜 그래도 고쳐야 하는가
 
-오늘 `too_many_jobs` 를 내보내는 곳은 `back_dev_home/msr_image/routes.py` 의 job
+오늘 `too_many_jobs` 를 내보내는 곳은 `backend/msr_image/routes.py` 의 job
 상한 거부 한 곳뿐이고 그것은 429 입니다. 그래서 현재는 오작동하지 않습니다.
 
 고쳐야 하는 이유는 이 판별이 **정확히 그 느슨함 때문에 위험한** 자리이기 때문입니다.
@@ -37,7 +37,7 @@ export const warmErrorCode = (err: unknown): string | undefined =>
 status 와 code 를 함께 보는 하나의 판별 함수로 합칩니다. 예: `isWarmRefusal(err)` 가
 status 429 **그리고** `data.code === 'too_many_jobs'` 일 때만 참.
 
-status 추출은 저장소에 이미 선례가 있습니다 — `front-dev-home/app/composables/useMsrFileApi.ts:162`
+status 추출은 저장소에 이미 선례가 있습니다 — `frontend/app/composables/useMsrFileApi.ts:162`
 가 `err.response?.status ?? err.statusCode` 형태로 Nuxt 가 넘기는 두 모양을
 모두 다룹니다.
 
@@ -45,7 +45,7 @@ status 추출은 저장소에 이미 선례가 있습니다 — `front-dev-home/
 
 ## 검증
 
-`front-dev-home/app/utils/imageWarm.test.ts` 에 케이스를 추가합니다. 기존 7건은
+`frontend/app/utils/imageWarm.test.ts` 에 케이스를 추가합니다. 기존 7건은
 그대로 통과해야 합니다.
 
 - status 429 + `code: 'too_many_jobs'` → 재시도 (기존 동작)
@@ -58,7 +58,7 @@ Nuxt 가 주는 두 에러 모양(`err.statusCode`, `err.response.status`)을 �
 ## 참고
 
 - 설계: `docs/superpowers/specs/2026-08-10-msr-image-tool-load-design.md` §4.1
-- 거부 응답 본문: `back_dev_home/msr_image/routes.py` (job 상한 분기)
+- 거부 응답 본문: `backend/msr_image/routes.py` (job 상한 분기)
 
 ## Answer
 

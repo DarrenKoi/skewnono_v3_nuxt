@@ -12,7 +12,7 @@
 
 - Run pytest from the repo root as `.venv/bin/python -m pytest` — `-m` is what puts the root on `sys.path`.
 - Never rename an existing feature slug. `feature_map.py` states this: renaming splits the historical series. `recipe_tat` and `fail_issue` stay as they are.
-- `back_dev_home/activity/providers/office.py` is gitignored. Only ever edit the tracked `office_example.py`; the office copy is made with `cp` there.
+- `backend/activity/providers/office.py` is gitignored. Only ever edit the tracked `office_example.py`; the office copy is made with `cp` there.
 - The task list below touches more than one file, so per `CLAUDE.md` do the whole thing in a `git worktree` (`git worktree add ../skewnono-page-view -b work/page-view`) and tear it down after the merge.
 - Commit with explicit pathspecs only. `git add -A`, `git add .`, and `git commit -a` are banned in this repo.
 - Run `npm run lint:md` from the repo root after any Markdown edit.
@@ -28,8 +28,8 @@ Independent of the beacon and ships on its own. The announcements banner is moun
 
 **Files:**
 
-- Modify: `back_dev_home/_logging/policy.py:21-25`
-- Test: `back_dev_home/_logging/tests/test_policy.py`
+- Modify: `backend/_logging/policy.py:21-25`
+- Test: `backend/_logging/tests/test_policy.py`
 
 **Interfaces:**
 
@@ -38,7 +38,7 @@ Independent of the beacon and ships on its own. The announcements banner is moun
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `back_dev_home/_logging/tests/test_policy.py`:
+Append to `backend/_logging/tests/test_policy.py`:
 
 ```python
 def test_announcements_banner_is_background_not_a_counted_feature():
@@ -59,13 +59,13 @@ def test_announcements_banner_is_background_not_a_counted_feature():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging/tests/test_policy.py::test_announcements_banner_is_background_not_a_counted_feature -v`
+Run: `.venv/bin/python -m pytest backend/_logging/tests/test_policy.py::test_announcements_banner_is_background_not_a_counted_feature -v`
 
 Expected: FAIL — `assert ('feature', 1) == ('background', 0)`
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `back_dev_home/_logging/policy.py`, replace the `_BACKGROUND_EXACT` block:
+In `backend/_logging/policy.py`, replace the `_BACKGROUND_EXACT` block:
 
 ```python
 _BACKGROUND_EXACT = {
@@ -81,14 +81,14 @@ _BACKGROUND_EXACT = {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging -q`
+Run: `.venv/bin/python -m pytest backend/_logging -q`
 
 Expected: PASS, no regressions.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_logging/policy.py back_dev_home/_logging/tests/test_policy.py
+git add backend/_logging/policy.py backend/_logging/tests/test_policy.py
 git commit -m "fix(activity): stop counting the announcements banner as usage"
 ```
 
@@ -98,8 +98,8 @@ git commit -m "fix(activity): stop counting the announcements banner as usage"
 
 **Files:**
 
-- Modify: `back_dev_home/_logging/policy.py:7`, `:15-20`, `:42-69`
-- Test: `back_dev_home/_logging/tests/test_policy.py`
+- Modify: `backend/_logging/policy.py:7`, `:15-20`, `:42-69`
+- Test: `backend/_logging/tests/test_policy.py`
 
 **Interfaces:**
 
@@ -108,7 +108,7 @@ git commit -m "fix(activity): stop counting the announcements banner as usage"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `back_dev_home/_logging/tests/test_policy.py`:
+Append to `backend/_logging/tests/test_policy.py`:
 
 ```python
 def test_page_view_beacon_is_its_own_counted_kind():
@@ -141,13 +141,13 @@ def test_page_view_beacon_obeys_the_usual_disqualifiers():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging/tests/test_policy.py -k page_view -v`
+Run: `.venv/bin/python -m pytest backend/_logging/tests/test_policy.py -k page_view -v`
 
 Expected: FAIL — the first returns `('feature', 1)`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `back_dev_home/_logging/policy.py`, widen the kind union:
+In `backend/_logging/policy.py`, widen the kind union:
 
 ```python
 ActivityKind = Literal["entry", "feature", "background", "operation", "page_view"]
@@ -177,14 +177,14 @@ and `status >= 400`, so those cases fall through to `operation` unchanged.
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging -q`
+Run: `.venv/bin/python -m pytest backend/_logging -q`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_logging/policy.py back_dev_home/_logging/tests/test_policy.py
+git add backend/_logging/policy.py backend/_logging/tests/test_policy.py
 git commit -m "feat(activity): add the page_view activity kind"
 ```
 
@@ -194,8 +194,8 @@ git commit -m "feat(activity): add the page_view activity kind"
 
 **Files:**
 
-- Modify: `back_dev_home/_logging/feature_map.py` (append; do not alter `route_to_feature`)
-- Test: `back_dev_home/_logging/tests/test_feature_map.py`
+- Modify: `backend/_logging/feature_map.py` (append; do not alter `route_to_feature`)
+- Test: `backend/_logging/tests/test_feature_map.py`
 
 **Interfaces:**
 
@@ -204,12 +204,12 @@ git commit -m "feat(activity): add the page_view activity kind"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `back_dev_home/_logging/tests/test_feature_map.py`:
+Append to `backend/_logging/tests/test_feature_map.py`:
 
 ```python
 import pytest
 
-from back_dev_home._logging.feature_map import page_to_feature
+from backend._logging.feature_map import page_to_feature
 
 
 @pytest.mark.parametrize(
@@ -284,14 +284,14 @@ def test_unknown_pages_fall_back_to_a_derived_slug():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging/tests/test_feature_map.py -v`
+Run: `.venv/bin/python -m pytest backend/_logging/tests/test_feature_map.py -v`
 
 Expected: FAIL at import — `cannot import name 'page_to_feature'`.
 
 - [ ] **Step 3: Write minimal implementation**
 
 First add `import re` directly below the existing `from __future__ import
-annotations` line, then append to `back_dev_home/_logging/feature_map.py`:
+annotations` line, then append to `backend/_logging/feature_map.py`:
 
 ```python
 # ---------------------------------------------------------------------------
@@ -415,14 +415,14 @@ def page_to_feature(path: str) -> str | None:
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging -q`
+Run: `.venv/bin/python -m pytest backend/_logging -q`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_logging/feature_map.py back_dev_home/_logging/tests/test_feature_map.py
+git add backend/_logging/feature_map.py backend/_logging/tests/test_feature_map.py
 git commit -m "feat(activity): map frontend page paths to feature slugs"
 ```
 
@@ -435,25 +435,25 @@ The middleware derives `feature` from `request.path`, which for a beacon is
 
 **Files:**
 
-- Modify: `back_dev_home/_logging/activity.py:55-58`, `:150-156`
-- Test: `back_dev_home/_logging/tests/test_activity_middleware.py`
+- Modify: `backend/_logging/activity.py:55-58`, `:150-156`
+- Test: `backend/_logging/tests/test_activity_middleware.py`
 
 **Interfaces:**
 
 - Consumes: Task 2's `page_view` kind.
 - Produces: `promote_page_view(slug: str) -> None`, importable from
-  `back_dev_home._logging.activity`. Task 5 calls it.
+  `backend._logging.activity`. Task 5 calls it.
 
 - [ ] **Step 1: Write the failing test**
 
-Read `back_dev_home/_logging/tests/test_activity_middleware.py` first — reuse its
+Read `backend/_logging/tests/test_activity_middleware.py` first — reuse its
 existing `make_app` / `records` / `recorded` fixtures rather than building a new
 app. Append:
 
 ```python
 def test_a_promoted_page_slug_becomes_the_logged_feature(make_app, records):
     """Without this the beacon would rank a feature called "page-view"."""
-    from back_dev_home._logging.activity import promote_page_view
+    from backend._logging.activity import promote_page_view
 
     app = make_app()
 
@@ -477,13 +477,13 @@ def test_an_unpromoted_request_still_uses_the_path(make_app, records):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging/tests/test_activity_middleware.py -k promoted -v`
+Run: `.venv/bin/python -m pytest backend/_logging/tests/test_activity_middleware.py -k promoted -v`
 
 Expected: FAIL — `cannot import name 'promote_page_view'`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `back_dev_home/_logging/activity.py`, add beside `promote_request_fab_names`:
+In `backend/_logging/activity.py`, add beside `promote_request_fab_names`:
 
 ```python
 def promote_page_view(slug: str) -> None:
@@ -504,14 +504,14 @@ In `_emit`, replace the `feature` line:
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_logging -q`
+Run: `.venv/bin/python -m pytest backend/_logging -q`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_logging/activity.py back_dev_home/_logging/tests/test_activity_middleware.py
+git add backend/_logging/activity.py backend/_logging/tests/test_activity_middleware.py
 git commit -m "feat(activity): let a handler promote the page slug onto the log row"
 ```
 
@@ -521,8 +521,8 @@ git commit -m "feat(activity): let a handler promote the page slug onto the log 
 
 **Files:**
 
-- Modify: `back_dev_home/activity/routes.py`
-- Test: `back_dev_home/activity/tests/test_routes.py`
+- Modify: `backend/activity/routes.py`
+- Test: `backend/activity/tests/test_routes.py`
 
 **Interfaces:**
 
@@ -532,7 +532,7 @@ git commit -m "feat(activity): let a handler promote the page slug onto the log 
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `back_dev_home/activity/tests/test_routes.py` (reuse the module's
+Append to `backend/activity/tests/test_routes.py` (reuse the module's
 existing client fixture):
 
 ```python
@@ -560,13 +560,13 @@ def test_an_unresolvable_page_is_accepted_but_not_ranked(client):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/activity/tests/test_routes.py -k page_view -v`
+Run: `.venv/bin/python -m pytest backend/activity/tests/test_routes.py -k page_view -v`
 
 Expected: FAIL — 404, the route does not exist.
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `back_dev_home/activity/routes.py`, extend the imports:
+In `backend/activity/routes.py`, extend the imports:
 
 ```python
 from flask import Blueprint, g, jsonify, request
@@ -602,7 +602,7 @@ def page_view():
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/activity -q`
+Run: `.venv/bin/python -m pytest backend/activity -q`
 
 Expected: PASS.
 
@@ -623,7 +623,7 @@ while its structured `feature` is `mag_pixel`. Kill the server afterwards.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/activity/routes.py back_dev_home/activity/tests/test_routes.py
+git add backend/activity/routes.py backend/activity/tests/test_routes.py
 git commit -m "feat(activity): add the POST /api/page-view beacon endpoint"
 ```
 
@@ -633,9 +633,9 @@ git commit -m "feat(activity): add the POST /api/page-view beacon endpoint"
 
 **Files:**
 
-- Modify: `back_dev_home/activity/providers/mock.py:139-177` (`record_request`),
+- Modify: `backend/activity/providers/mock.py:139-177` (`record_request`),
   `:347-400` (`_DEMO_USERS`, `_seed_feature`), and the module docstring
-- Test: `back_dev_home/activity/tests/test_mock_provider.py`
+- Test: `backend/activity/tests/test_mock_provider.py`
 
 **Interfaces:**
 
@@ -644,7 +644,7 @@ git commit -m "feat(activity): add the POST /api/page-view beacon endpoint"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `back_dev_home/activity/tests/test_mock_provider.py`:
+Append to `backend/activity/tests/test_mock_provider.py`:
 
 ```python
 def test_rankings_come_from_page_views_not_requests(reset_state):
@@ -678,13 +678,13 @@ def test_fab_page_rankings_stay_request_based(reset_state):
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/activity/tests/test_mock_provider.py -k "page_view or rankings" -v`
+Run: `.venv/bin/python -m pytest backend/activity/tests/test_mock_provider.py -k "page_view or rankings" -v`
 
 Expected: FAIL — the first returns `["live_alarm"]`; page views are dropped entirely by the `activity_kind not in {"entry", "feature"}` guard.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Replace `record_request` in `back_dev_home/activity/providers/mock.py`:
+Replace `record_request` in `backend/activity/providers/mock.py`:
 
 ```python
 def record_request(
@@ -857,7 +857,7 @@ seeded requests stop feeding the rankings — leave its `daily`, `daily_fabs` an
 
 - [ ] **Step 5: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/activity -q`
+Run: `.venv/bin/python -m pytest backend/activity -q`
 
 Expected: PASS. If a pre-existing seed test asserts a ranking built from request
 totals, update its expectation to the page-view totals above — that test is
@@ -866,7 +866,7 @@ asserting the behaviour this task deliberately changes.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/activity/providers/mock.py back_dev_home/activity/tests/test_mock_provider.py
+git add backend/activity/providers/mock.py backend/activity/tests/test_mock_provider.py
 git commit -m "feat(activity): rank from page views in the mock provider"
 ```
 
@@ -876,9 +876,9 @@ git commit -m "feat(activity): rank from page views in the mock provider"
 
 **Files:**
 
-- Modify: `back_dev_home/activity/providers/opensearch_reader.py:38-46`, `:138`,
+- Modify: `backend/activity/providers/opensearch_reader.py:38-46`, `:138`,
   `:158`, `:173-184`, `:264-282`, `:284-310`, and the two `feature_only` blocks
-- Test: `back_dev_home/activity/tests/test_office_template.py`
+- Test: `backend/activity/tests/test_office_template.py`
 
 **Interfaces:**
 
@@ -948,7 +948,7 @@ not deleted:**
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/activity/tests/test_office_template.py -k "page_view or fab_usage" -v`
+Run: `.venv/bin/python -m pytest backend/activity/tests/test_office_template.py -k "page_view or fab_usage" -v`
 
 Expected: FAIL — the ranking filter still says `feature`.
 
@@ -1069,14 +1069,14 @@ the response is unaffected. Confirm with the existing history test.
 
 - [ ] **Step 4: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/activity tests/test_office_adapter_parity.py -q`
+Run: `.venv/bin/python -m pytest backend/activity tests/test_office_adapter_parity.py -q`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/activity/providers/opensearch_reader.py back_dev_home/activity/tests/test_office_template.py
+git add backend/activity/providers/opensearch_reader.py backend/activity/tests/test_office_template.py
 git commit -m "feat(activity): rank from page views in the OpenSearch reader"
 ```
 
@@ -1090,8 +1090,8 @@ rules live here rather than inside the plugin.
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/pageIdentity.ts`
-- Create: `front-dev-home/app/utils/pageIdentity.test.ts`
+- Create: `frontend/app/utils/pageIdentity.ts`
+- Create: `frontend/app/utils/pageIdentity.test.ts`
 
 **Interfaces:**
 
@@ -1102,7 +1102,7 @@ rules live here rather than inside the plugin.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `front-dev-home/app/utils/pageIdentity.test.ts`:
+Create `frontend/app/utils/pageIdentity.test.ts`:
 
 ```typescript
 import { test } from 'node:test'
@@ -1166,13 +1166,13 @@ test('the reported path carries the tab and nothing else', () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run (from `front-dev-home/`): `npm test`
+Run (from `frontend/`): `npm test`
 
 Expected: FAIL — cannot resolve `./pageIdentity.ts`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Create `front-dev-home/app/utils/pageIdentity.ts`:
+Create `frontend/app/utils/pageIdentity.ts`:
 
 ```typescript
 /** Page identity for usage beaconing — see
@@ -1232,14 +1232,14 @@ export const buildPageViewPath = (
 
 - [ ] **Step 4: Run the tests**
 
-Run (from `front-dev-home/`): `npm test && npm run typecheck && npm run lint`
+Run (from `frontend/`): `npm test && npm run typecheck && npm run lint`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add front-dev-home/app/utils/pageIdentity.ts front-dev-home/app/utils/pageIdentity.test.ts
+git add frontend/app/utils/pageIdentity.ts frontend/app/utils/pageIdentity.test.ts
 git commit -m "feat(activity): resolve page identity for usage beaconing"
 ```
 
@@ -1249,8 +1249,8 @@ git commit -m "feat(activity): resolve page identity for usage beaconing"
 
 **Files:**
 
-- Create: `front-dev-home/app/plugins/pageView.client.ts`
-- Modify: `front-dev-home/app/utils/activity.ts:5-25`
+- Create: `frontend/app/plugins/pageView.client.ts`
+- Modify: `frontend/app/utils/activity.ts:5-25`
 - Test: manual browser verification (there is no component/plugin test harness in this repo)
 
 **Interfaces:**
@@ -1260,7 +1260,7 @@ git commit -m "feat(activity): resolve page identity for usage beaconing"
 
 - [ ] **Step 1: Add the new feature labels**
 
-In `front-dev-home/app/utils/activity.ts`, add to `FEATURE_LABELS`, keeping the
+In `frontend/app/utils/activity.ts`, add to `FEATURE_LABELS`, keeping the
 existing alphabetical order by key:
 
 ```typescript
@@ -1278,14 +1278,14 @@ Update the file's header comment, which currently claims `cdsem`/`hvsem` only
 appear via the unmapped-endpoint fallback:
 
 ```typescript
-// Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
+// Page-level slugs — see backend/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.
 // `cdsem` / `hvsem` only appear via the fallback for unmapped paths.
 ```
 
 - [ ] **Step 2: Write the plugin**
 
-Create `front-dev-home/app/plugins/pageView.client.ts`:
+Create `frontend/app/plugins/pageView.client.ts`:
 
 ```typescript
 import { resolvePageIdentity, buildPageViewPath } from '~/utils/pageIdentity'
@@ -1333,7 +1333,7 @@ export default defineNuxtPlugin(() => {
 - [ ] **Step 3: Verify in the browser**
 
 Start both servers per the `verify` skill (`.venv/bin/python index.py`, then
-`npm run dev` from `front-dev-home/`), then with the network panel open:
+`npm run dev` from `frontend/`), then with the network panel open:
 
 1. Load `/mag-pixel` → exactly one `POST /api/page-view` with `{"path":"/mag-pixel"}`, status 204.
 2. Navigate to `/ebeam/cd-sem/M14/storage`, then switch the fab to M16B → the fab switch fires **no** second beacon.
@@ -1343,14 +1343,14 @@ Start both servers per the `verify` skill (`.venv/bin/python index.py`, then
 
 - [ ] **Step 4: Run the checks**
 
-Run (from `front-dev-home/`): `npm test && npm run typecheck && npm run lint`
+Run (from `frontend/`): `npm test && npm run typecheck && npm run lint`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add front-dev-home/app/plugins/pageView.client.ts front-dev-home/app/utils/activity.ts
+git add frontend/app/plugins/pageView.client.ts frontend/app/utils/activity.ts
 git commit -m "feat(activity): fire the page-view beacon on route change"
 ```
 
@@ -1363,9 +1363,9 @@ almost-empty 인기 기능 Top 10 reads as a broken page rather than a young one
 
 **Files:**
 
-- Modify: `front-dev-home/app/utils/activity.ts`
-- Modify: `front-dev-home/app/pages/activity.vue:220-240`
-- Test: `front-dev-home/app/utils/activity.test.ts` (create if absent)
+- Modify: `frontend/app/utils/activity.ts`
+- Modify: `frontend/app/pages/activity.vue:220-240`
+- Test: `frontend/app/utils/activity.test.ts` (create if absent)
 
 **Interfaces:**
 
@@ -1398,13 +1398,13 @@ test('the notice disappears once the window is fully covered', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run (from `front-dev-home/`): `npm test`
+Run (from `frontend/`): `npm test`
 
 Expected: FAIL — `pageViewNotice` is not exported.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Append to `front-dev-home/app/utils/activity.ts`:
+Append to `frontend/app/utils/activity.ts`:
 
 ```typescript
 /** The day page-view ranking began. Rows logged before this are
@@ -1428,7 +1428,7 @@ Set `PAGE_VIEW_SINCE` to the actual deploy date if it is not the day this lands.
 
 - [ ] **Step 4: Render it**
 
-In `front-dev-home/app/pages/activity.vue`, add below the
+In `frontend/app/pages/activity.vue`, add below the
 `<ActivityFeatureBarList>` at `:236`:
 
 ```vue
@@ -1455,14 +1455,14 @@ colour.
 
 - [ ] **Step 5: Run the checks**
 
-Run (from `front-dev-home/`): `npm test && npm run typecheck && npm run lint`
+Run (from `frontend/`): `npm test && npm run typecheck && npm run lint`
 
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add front-dev-home/app/utils/activity.ts front-dev-home/app/utils/activity.test.ts front-dev-home/app/pages/activity.vue
+git add frontend/app/utils/activity.ts frontend/app/utils/activity.test.ts frontend/app/pages/activity.vue
 git commit -m "feat(activity): note when page-view ranking started collecting"
 ```
 
@@ -1476,7 +1476,7 @@ doc **and** the feature docs, or the next office session contradicts it.
 **Files:**
 
 - Modify: `docs/datatables/hitachi/skewnono_logging.txt:43-44`
-- Modify: `back_dev_home/activity/MIGRATION.md`
+- Modify: `backend/activity/MIGRATION.md`
 - Modify: `docs/api-contracts/activity.yaml`
 
 **Interfaces:**
@@ -1521,7 +1521,7 @@ Expected: `0 error(s)`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/datatables/hitachi/skewnono_logging.txt back_dev_home/activity/MIGRATION.md docs/api-contracts/activity.yaml
+git add docs/datatables/hitachi/skewnono_logging.txt backend/activity/MIGRATION.md docs/api-contracts/activity.yaml
 git commit -m "docs(activity): record the page_view kind and beacon contract"
 ```
 
@@ -1532,7 +1532,7 @@ git commit -m "docs(activity): record the page_view kind and beacon contract"
 - [ ] Full backend suite from the repo root: `.venv/bin/python -m pytest -q`
   (expect ~2457 passed; a worktree legitimately skips more than the main
   checkout because gitignored `office.py` copies are absent).
-- [ ] Frontend: `npm test && npm run typecheck && npm run lint` from `front-dev-home/`.
+- [ ] Frontend: `npm test && npm run typecheck && npm run lint` from `frontend/`.
 - [ ] `npm run lint:md` from the repo root.
 - [ ] Merge and tear down the worktree in the same session:
 

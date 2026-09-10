@@ -9,9 +9,9 @@ Plan: [`../plan.md`](../plan.md)
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/xlsx.ts`
-- Modify: `front-dev-home/app/utils/recipeCompare.ts` (284-291, 372-408)
-- Modify: `front-dev-home/app/utils/recipeParamExport.ts` (18, 225, 238-245, 288-290)
+- Create: `frontend/app/utils/xlsx.ts`
+- Modify: `frontend/app/utils/recipeCompare.ts` (284-291, 372-408)
+- Modify: `frontend/app/utils/recipeParamExport.ts` (18, 225, 238-245, 288-290)
 
 **Interfaces:**
 
@@ -35,7 +35,7 @@ Plan: [`../plan.md`](../plan.md)
 ```bash
 cd /Users/daeyoung/Codes/skewnono_v3_nuxt
 git worktree add ../skewnono-equipment-tab -b work/equipment-tab
-cd ../skewnono-equipment-tab/front-dev-home
+cd ../skewnono-equipment-tab/frontend
 ```
 
 이후 모든 티켓은 이 워크트리 안에서 작업합니다.
@@ -48,7 +48,7 @@ Expected: 실패 0건. 여기서 이미 깨져 있으면 그것은 이 작업의
 
 - [ ] **Step 3: `utils/xlsx.ts` 작성**
 
-Create `front-dev-home/app/utils/xlsx.ts`:
+Create `frontend/app/utils/xlsx.ts`:
 
 ```ts
 // 워크북 한 권을 브라우저에 파일로 떨어뜨립니다.
@@ -115,7 +115,7 @@ export async function downloadWorkbook(
 Run:
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono-equipment-tab/front-dev-home/app
+cd /Users/daeyoung/Codes/skewnono-equipment-tab/frontend/app
 grep -rn "WorkbookSheet\|createWorkbook\|writeWorkbook\|downloadWorkbook\|XLSX_MIME" \
   --include="*.ts" --include="*.vue" . | grep -v "utils/xlsx.ts"
 ```
@@ -210,7 +210,7 @@ fetch 블록은 그대로 둡니다.
 Run:
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono-equipment-tab/front-dev-home
+cd /Users/daeyoung/Codes/skewnono-equipment-tab/frontend
 npm test 2>&1 | tail -5
 npm run typecheck
 npm run lint
@@ -224,9 +224,9 @@ Expected: 세 명령 모두 통과. 특히 `recipeCompare.test.ts`의
 
 ```bash
 cd /Users/daeyoung/Codes/skewnono-equipment-tab
-git add front-dev-home/app/utils/xlsx.ts \
-        front-dev-home/app/utils/recipeCompare.ts \
-        front-dev-home/app/utils/recipeParamExport.ts
+git add frontend/app/utils/xlsx.ts \
+        frontend/app/utils/recipeCompare.ts \
+        frontend/app/utils/recipeParamExport.ts
 git commit -m "refactor(front): exceljs 부트스트랩을 utils/xlsx.ts로 모은다
 
 recipeCompare 와 recipeParamExport 가 각자 들고 있던 동적 import·Blob·

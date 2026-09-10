@@ -25,15 +25,15 @@
 
 | File | Responsibility |
 | --- | --- |
-| `front-dev-home/app/utils/parameterRamp.ts` | 테마별 anchor와 5단계 RGB 보간 순수 함수 |
-| `front-dev-home/app/utils/parameterRamp.test.ts` | anchor 소속, bucket 매핑, 보간, Default 해석 회귀 테스트 |
-| `front-dev-home/app/utils/paraTrendSeries.test.ts` | 제거되는 고정 단색 램프 테스트 정리 |
-| `front-dev-home/app/components/cdsem/comparison/healthTokens.ts` | health 의미 색상만 유지하고 고정 para 램프 제거 |
-| `front-dev-home/app/components/cdsem/comparison/StackedBar.vue` | 표와 모달에서 재사용하는 DOM 막대의 theme 반응형 색상 |
-| `front-dev-home/app/components/cdsem/comparison/LotTable.vue` | Lot 카드 범례의 theme 반응형 색상 |
-| `front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue` | 상세 모달 범례의 theme 반응형 색상 |
-| `front-dev-home/app/components/cdsem/comparison/TrendChart.vue` | 상세 모달 파라미터 추이의 theme 반응형 색상 |
-| `front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue` | 주 스택 차트와 카드 헤더 범례의 theme 반응형 색상 |
+| `frontend/app/utils/parameterRamp.ts` | 테마별 anchor와 5단계 RGB 보간 순수 함수 |
+| `frontend/app/utils/parameterRamp.test.ts` | anchor 소속, bucket 매핑, 보간, Default 해석 회귀 테스트 |
+| `frontend/app/utils/paraTrendSeries.test.ts` | 제거되는 고정 단색 램프 테스트 정리 |
+| `frontend/app/components/cdsem/comparison/healthTokens.ts` | health 의미 색상만 유지하고 고정 para 램프 제거 |
+| `frontend/app/components/cdsem/comparison/StackedBar.vue` | 표와 모달에서 재사용하는 DOM 막대의 theme 반응형 색상 |
+| `frontend/app/components/cdsem/comparison/LotTable.vue` | Lot 카드 범례의 theme 반응형 색상 |
+| `frontend/app/components/cdsem/comparison/LotDetailModal.vue` | 상세 모달 범례의 theme 반응형 색상 |
+| `frontend/app/components/cdsem/comparison/TrendChart.vue` | 상세 모달 파라미터 추이의 theme 반응형 색상 |
+| `frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue` | 주 스택 차트와 카드 헤더 범례의 theme 반응형 색상 |
 
 ---
 
@@ -41,15 +41,15 @@
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/parameterRamp.ts`
-- Create: `front-dev-home/app/utils/parameterRamp.test.ts`
-- Modify: `front-dev-home/app/utils/paraTrendSeries.test.ts`
-- Modify: `front-dev-home/app/components/cdsem/comparison/healthTokens.ts`
-- Modify: `front-dev-home/app/components/cdsem/comparison/StackedBar.vue`
-- Modify: `front-dev-home/app/components/cdsem/comparison/LotTable.vue`
-- Modify: `front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue`
-- Modify: `front-dev-home/app/components/cdsem/comparison/TrendChart.vue`
-- Modify: `front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue`
+- Create: `frontend/app/utils/parameterRamp.ts`
+- Create: `frontend/app/utils/parameterRamp.test.ts`
+- Modify: `frontend/app/utils/paraTrendSeries.test.ts`
+- Modify: `frontend/app/components/cdsem/comparison/healthTokens.ts`
+- Modify: `frontend/app/components/cdsem/comparison/StackedBar.vue`
+- Modify: `frontend/app/components/cdsem/comparison/LotTable.vue`
+- Modify: `frontend/app/components/cdsem/comparison/LotDetailModal.vue`
+- Modify: `frontend/app/components/cdsem/comparison/TrendChart.vue`
+- Modify: `frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue`
 
 **Interfaces:**
 
@@ -58,7 +58,7 @@
 
 - [ ] **Step 1: 순수 함수의 실패 테스트를 작성합니다**
 
-`front-dev-home/app/utils/parameterRamp.test.ts`를 다음 내용으로 생성합니다.
+`frontend/app/utils/parameterRamp.test.ts`를 다음 내용으로 생성합니다.
 
 ```ts
 import assert from 'node:assert/strict'
@@ -129,14 +129,14 @@ test('Default follows MATLAB in light mode and Dark in dark mode', async () => {
 
 - [ ] **Step 2: 새 테스트가 올바른 이유로 실패하는지 확인합니다**
 
-Run: `cd front-dev-home && node --test app/utils/parameterRamp.test.ts`
+Run: `cd frontend && node --test app/utils/parameterRamp.test.ts`
 
 Expected: FAIL with `AssertionError: parameter ramp module must exist`. RED는 module
 loader error가 아니라 아직 없는 동작을 명시한 assertion으로 실패해야 합니다.
 
 - [ ] **Step 3: 테마별 anchor와 RGB 보간 함수를 구현합니다**
 
-`front-dev-home/app/utils/parameterRamp.ts`를 다음 내용으로 생성합니다.
+`frontend/app/utils/parameterRamp.ts`를 다음 내용으로 생성합니다.
 
 ```ts
 import type { EchartThemeName } from './echartsThemes.ts'
@@ -186,7 +186,7 @@ export const buildParameterRamp = (themeName: EchartThemeName): Record<ParaKey, 
 
 - [ ] **Step 4: 순수 함수 테스트를 통과시킵니다**
 
-Run: `cd front-dev-home && node --test app/utils/parameterRamp.test.ts`
+Run: `cd frontend && node --test app/utils/parameterRamp.test.ts`
 
 Expected: 4 tests PASS.
 
@@ -265,7 +265,7 @@ const paraPalette = computed(() => buildParameterRamp(resolvedThemeName.value))
 Run:
 
 ```bash
-cd front-dev-home
+cd frontend
 node --test app/utils/parameterRamp.test.ts app/utils/paraTrendSeries.test.ts
 rg -n "paraColors|paraColorsDark" app
 rg -l "buildParameterRamp" \
@@ -287,7 +287,7 @@ Expected:
 Run:
 
 ```bash
-cd front-dev-home
+cd frontend
 npm test
 npm run typecheck
 npm run lint
@@ -299,7 +299,7 @@ Expected: 세 명령 모두 exit 0입니다.
 
 worktree의 repo root에서 main checkout의 virtualenv를 사용해 backend를
 `/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python index.py`로 실행하고,
-`front-dev-home/`에서 `npm run dev`를 실행합니다. Browser 도구로 다음을 확인합니다.
+`frontend/`에서 `npm run dev`를 실행합니다. Browser 도구로 다음을 확인합니다.
 
 1. `/settings`에서 Light mode + MATLAB을 선택합니다.
 2. `/ebeam/cd-sem/device-statistics`에서 Lot을 2개 이상 선택하고 comparison으로 이동합니다.
@@ -315,15 +315,15 @@ Expected: 두 theme와 두 color mode에서 색상 연결과 가독성이 유지
 
 ```bash
 git add \
-  front-dev-home/app/utils/parameterRamp.ts \
-  front-dev-home/app/utils/parameterRamp.test.ts \
-  front-dev-home/app/utils/paraTrendSeries.test.ts \
-  front-dev-home/app/components/cdsem/comparison/healthTokens.ts \
-  front-dev-home/app/components/cdsem/comparison/StackedBar.vue \
-  front-dev-home/app/components/cdsem/comparison/LotTable.vue \
-  front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue \
-  front-dev-home/app/components/cdsem/comparison/TrendChart.vue \
-  front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue
+  frontend/app/utils/parameterRamp.ts \
+  frontend/app/utils/parameterRamp.test.ts \
+  frontend/app/utils/paraTrendSeries.test.ts \
+  frontend/app/components/cdsem/comparison/healthTokens.ts \
+  frontend/app/components/cdsem/comparison/StackedBar.vue \
+  frontend/app/components/cdsem/comparison/LotTable.vue \
+  frontend/app/components/cdsem/comparison/LotDetailModal.vue \
+  frontend/app/components/cdsem/comparison/TrendChart.vue \
+  frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue
 git diff --cached --check
 git commit -m "feat(device-statistics): follow chart theme in parameter ramps"
 ```

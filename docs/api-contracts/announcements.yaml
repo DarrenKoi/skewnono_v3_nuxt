@@ -49,6 +49,6 @@ endpoints:
         dismissible: true
 
 notes:
-  - Phase 1 source is back_dev_home/announcements/announcements.json (mtime-cached). Office should serve the same shape from a real notices table or feed.
+  - Phase 1 source is backend/announcements/announcements.json (mtime-cached). Office should serve the same shape from a real notices table or feed.
   - Naive timestamps in the source are interpreted as KST (UTC+9) so operators can omit timezone offsets. _is_active() in data.py compares to datetime.now(timezone.utc) — keep the same semantics in the office implementation to avoid drift.
-  - Response is a bare JSON array. Frontend type Announcement in front-dev-home/app/composables/useAnnouncementsApi.ts mirrors it directly.
+  - Response is a bare JSON array. Frontend type Announcement in frontend/app/composables/useAnnouncementsApi.ts mirrors it directly.

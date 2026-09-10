@@ -64,15 +64,15 @@
 
 현재 코드는 Time-Series와 위치 비교에서만 비교 MSR 파일을 지연 로드하고,
 상관 / 분포와 Gallery는 focus MSR의 row만 사용합니다
-([분석 composable](../../../front-dev-home/app/composables/useSkewvoirAnalysis.ts)).
+([분석 composable](../../../frontend/app/composables/useSkewvoirAnalysis.ts)).
 따라서 네 메뉴가 같은 비교 집합을 공유하는 것처럼 보이지만 실제 분석 범위는 다릅니다.
 
 | 페이지 | 현재 구현 | 엔지니어링 빈틈 |
 | --- | --- | --- |
-| [위치 비교](../../../front-dev-home/app/components/ebeam/skewvoir/views/PositionStack.vue) | 공통 `chip_number`별 composite mean과 wafer-to-wafer sample σ를 표시합니다. | layout·좌표 호환성, site별 유효 MSR 수, reference/delta, focus MSR 강조, 단일 MSR 공간 진단이 없습니다. |
-| [Time-Series](../../../front-dev-home/app/components/ebeam/skewvoir/views/TimeSeries.vue) | MSR별 mean과 min/max band, 사용자 선택 `%`·σ 진단, focus MSR sequence를 표시합니다. | 실제 기준선, tool·lot·recipe 층화, coverage·실패·WCDU lane, BM/PM event, 관리 한계와 spec 구분이 없습니다. |
-| [상관 / 분포](../../../front-dev-home/app/components/ebeam/skewvoir/views/Correlation.vue) | focus MSR 안에서 parameter pair scatter와 한 parameter의 histogram·box·violin을 표시합니다. | exact pair 품질, 다중 MSR의 run-level CD↔FDC 관계, strata 비교, capability readiness가 없습니다. |
-| [이미지 갤러리](../../../front-dev-home/app/components/ebeam/skewvoir/views/Gallery.vue) | focus MSR의 parameter별 image, chip, CD를 grid로 표시합니다. | residual·실패·score 기준 triage, 동일 site 전후 비교, scale·edge·line profile·acquisition metadata와 artifact 증거가 없습니다. |
+| [위치 비교](../../../frontend/app/components/ebeam/skewvoir/views/PositionStack.vue) | 공통 `chip_number`별 composite mean과 wafer-to-wafer sample σ를 표시합니다. | layout·좌표 호환성, site별 유효 MSR 수, reference/delta, focus MSR 강조, 단일 MSR 공간 진단이 없습니다. |
+| [Time-Series](../../../frontend/app/components/ebeam/skewvoir/views/TimeSeries.vue) | MSR별 mean과 min/max band, 사용자 선택 `%`·σ 진단, focus MSR sequence를 표시합니다. | 실제 기준선, tool·lot·recipe 층화, coverage·실패·WCDU lane, BM/PM event, 관리 한계와 spec 구분이 없습니다. |
+| [상관 / 분포](../../../frontend/app/components/ebeam/skewvoir/views/Correlation.vue) | focus MSR 안에서 parameter pair scatter와 한 parameter의 histogram·box·violin을 표시합니다. | exact pair 품질, 다중 MSR의 run-level CD↔FDC 관계, strata 비교, capability readiness가 없습니다. |
+| [이미지 갤러리](../../../frontend/app/components/ebeam/skewvoir/views/Gallery.vue) | focus MSR의 parameter별 image, chip, CD를 grid로 표시합니다. | residual·실패·score 기준 triage, 동일 site 전후 비교, scale·edge·line profile·acquisition metadata와 artifact 증거가 없습니다. |
 
 현재 기능을 폐기할 필요는 없습니다. 각 페이지가 사용하는 분석 단위와 비교 집합을
 명시하고, 현재 차트를 아래에 정의한 evidence stack의 일부로 재배치하는 것이 적절합니다.
@@ -450,7 +450,7 @@ physical site key, time point, stratum, reference version을 담아 분석 결�
 
 현재 계약의 자세한 근거는 [MSR 파일 설명](../../datatables/msr_file_pickle.txt),
 [pickle 구조](../../datatables/msr_file_pickle.txt),
-[프런트 MSR API](../../../front-dev-home/app/composables/useMsrFileApi.ts)에 있습니다.
+[프런트 MSR API](../../../frontend/app/composables/useMsrFileApi.ts)에 있습니다.
 
 **Phase-1(offline mock) 처분.** 위 표에서 `현재 확인 상태`가 계약 미충족인 항목
 (registered map comparison, frozen-baseline SPC, capability, tool matching, image

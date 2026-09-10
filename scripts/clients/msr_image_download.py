@@ -30,7 +30,7 @@ LIST_PATH = "/api/msr-images"
 IMAGE_PATH = "/api/msr-image"
 TIMEOUT = 60
 
-# Mirrors back_dev_home/msr_image/routes.py:_MAX_JOB_NAMES -- a warm POST
+# Mirrors backend/msr_image/routes.py:_MAX_JOB_NAMES -- a warm POST
 # larger than this 400s, so a big pending list has to be chunked rather than
 # posted whole (see `warm()`'s docstring for why losing the warm matters).
 _MAX_WARM_BATCH = 500
@@ -104,7 +104,7 @@ def safe_filename(name: str) -> str:
     """The server validates these names, but this function writes to the
     user's disk -- re-check rather than trust a remote value.
 
-    Mirrors back_dev_home/msr_image/paths.py:validate_segment (reject any
+    Mirrors backend/msr_image/paths.py:validate_segment (reject any
     separator, NUL, control char, or leading/trailing whitespace), plus a
     client-only rule: ':' is banned too, because PureWindowsPath treats
     "C:evil.exe" as drive-relative. That value has no leading slash and

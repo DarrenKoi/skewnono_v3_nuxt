@@ -3,7 +3,7 @@ skewnono_chat_logging / skewnono_chat_logging_local — chat 대화 기록 (Open
 출처: SKEWNONO 자체 생성 인덱스입니다. chat feature 가 완료된 대화 turn 마다
 문서 1건을 적재하며, 스키마의 진실 원천은
 ops_index_mgmt/skewnono_chat_logging.py 의 CHAT_MAPPING_PROPERTIES 와
-back_dev_home/chat/conversation_log.py 의 build_turn_document() 입니다.
+backend/chat/conversation_log.py 의 build_turn_document() 입니다.
 (설계 2026-08-04. 클러스터 반영은 office 확인 2026-08-04 —
 skewnono_chat_logging alias 생성을 user-confirmed. local family 는
 provisioning script 의 기본 실행이 함께 만들지만 개별 확인은 받지
@@ -24,7 +24,7 @@ provisioning script 의 기본 실행이 함께 만들지만 개별 확인은 �
 - 활동 로그와 달리 shard 1 + replica 1 입니다 — turn 당 문서 1건이라 쓰기량이
   요청 로그보다 훨씬 적습니다.
 - 쓰기 alias 는 skewnono_logging 과 같은 SKEWNONO_LOG_ENV 를
-  back_dev_home/_logging/target.py 의 resolve_chat_conversation_target() 이
+  backend/_logging/target.py 의 resolve_chat_conversation_target() 이
   해석해 결정합니다. 코드에 alias 문자열을 직접 쓰지 않습니다.
 - provisioning: .venv/bin/python ops_index_mgmt/skewnono_chat_logging.py
   (idempotent, --dry-run 지원). ops_index_mgmt 는 flask_modules 에서 vendored
@@ -32,7 +32,7 @@ provisioning script 의 기본 실행이 함께 만들지만 개별 확인은 �
 
 무엇이 문서가 되는가
 - ChatOrchestrator.send_message() 가 assistant turn 을 저장 완료한 직후 1건을
-  emit 합니다(back_dev_home/chat/orchestration.py 의 _record_conversation).
+  emit 합니다(backend/chat/orchestration.py 의 _record_conversation).
 - scope 거절(out_of_scope/unsafe)도 turn 이므로 기록됩니다 — runtime 은
   scope_rejection, tool_call_count 는 0 입니다.
 - 같은 request_id 재전송(idempotent replay)은 send_message 가 완료된 turn 을

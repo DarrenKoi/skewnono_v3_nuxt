@@ -1,0 +1,92 @@
+// Pure-logic tests — run with: npm --prefix frontend test
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { assignCompareColors, assignSeriesColors, compareBoxPoints, filterByTerm } from './hardwareCompare.ts'
+
+// The tool picker's items are their own label, so it filters on identity.
+const filterToolIds = (ids: readonly string[], term: string) => filterByTerm(ids, term, id => id)
+
+test('assignCompareColors: reserves palette[0], cycles palette[1..]', () => {
+  const palette = ['#sel', '#a', '#b']
+  const colors = assignCompareColors(['T1', 'T2', 'T3'], palette)
+  assert.equal(colors['T1'], '#a')
+  assert.equal(colors['T2'], '#b')
+  // Wraps back to the first non-selected color.
+  assert.equal(colors['T3'], '#a')
+})
+
+test('assignCompareColors: falls back to ramp when palette has < 2 entries', () => {
+  const colors = assignCompareColors(['T1'], ['#only'])
+  assert.ok(colors['T1'] && colors['T1'] !== '#only')
+})
+
+test('assignCompareColors: empty ids → empty map', () => {
+  assert.deepEqual(assignCompareColors([], ['#a', '#b']), {})
+})
+
+test('assignSeriesColors: cycles from palette[0] — nothing reserved', () => {
+  const colors = assignSeriesColors(['2026-07-26', '2026-07-24', '2026-07-22'], ['#a', '#b'])
+  assert.equal(colors['2026-07-26'], '#a')
+  assert.equal(colors['2026-07-24'], '#b')
+  assert.equal(colors['2026-07-22'], '#a')
+  // No palette at all still yields a usable color per key.
+  assert.ok(assignSeriesColors(['x'], [])['x'])
+  assert.deepEqual(assignSeriesColors([], ['#a']), {})
+})
+
+test('compareBoxPoints: aligns values to the condition axis, omits missing modes', () => {
+  const settings = {
+    T1: { c0: '1.001', c1: '0.998', c2: '1.004' },
+    T2: { c0: '1.000', c2: 'not-a-number' } // lacks c1; c2 non-numeric → dropped
+  }
+  const conditions = ['c0', 'c1', 'c2']
+  const series = compareBoxPoints(settings, ['T1', 'T2'], conditions)
+
+  assert.deepEqual(series[0], { id: 'T1', values: [[0, 1.001], [1, 0.998], [2, 1.004]] })
+  // T2: c0 present, c1 absent, c2 non-numeric → only the c0 point survives.
+  assert.deepEqual(series[1], { id: 'T2', values: [[0, 1.0]] })
+})
+
+test('compareBoxPoints: unknown tool id → empty values, no throw', () => {
+  const series = compareBoxPoints({}, ['ghost'], ['c0'])
+  assert.deepEqual(series, [{ id: 'ghost', values: [] }])
+})
+
+test('filterToolIds: blank or whitespace term → every id, order preserved', () => {
+  const ids = ['TP0302', 'TP0301', 'CD1101']
+  assert.deepEqual(filterToolIds(ids, ''), ids)
+  assert.deepEqual(filterToolIds(ids, '   '), ids)
+})
+
+test('filterToolIds: case-insensitive substring match', () => {
+  const ids = ['TP0301', 'TP0302', 'CD1101']
+  assert.deepEqual(filterToolIds(ids, 'tp03'), ['TP0301', 'TP0302'])
+  assert.deepEqual(filterToolIds(ids, 'TP03'), ['TP0301', 'TP0302'])
+  // Matches anywhere in the id, not just the prefix.
+  assert.deepEqual(filterToolIds(ids, '1101'), ['CD1101'])
+})
+
+test('filterToolIds: surrounding whitespace on the term is ignored', () => {
+  assert.deepEqual(filterToolIds(['TP0301', 'CD1101'], '  tp  '), ['TP0301'])
+})
+
+test('filterToolIds: no match → empty array', () => {
+  assert.deepEqual(filterToolIds(['TP0301'], 'zzz'), [])
+})
+
+test('filterToolIds: returns a copy, never the caller\'s array', () => {
+  const ids = ['TP0301']
+  assert.notEqual(filterToolIds(ids, ''), ids)
+})
+
+test('filterByTerm: matches the field `text` picks, not the whole object', () => {
+  // Shaped like the SCE revision picker, where label !== value.
+  const revs = [
+    { label: '2026-07-17', value: '2026-07-17' },
+    { label: '2026-07-03~2026-07-10 · 3회', value: '2026-07-10' }
+  ]
+  assert.deepEqual(filterByTerm(revs, '3회', r => r.label), [revs[1]])
+  // The value is not searched, so a term only present there matches nothing.
+  assert.deepEqual(filterByTerm(revs, '07-03', r => r.value), [])
+  assert.deepEqual(filterByTerm(revs, '', r => r.label), revs)
+})

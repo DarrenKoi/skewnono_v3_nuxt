@@ -75,10 +75,10 @@ checkout. Compare `passed + skipped` totals, not `passed` alone.
 | `live_alarm/providers/office_example.py` | reader: roster → refresh → filter | 6 |
 | `live_alarm/writer/**` | **deleted** | 7 |
 | `live_alarm/providers/mock.py` | home stand-in; gains `fetched_at`, `unmatched_count` | 8 |
-| `front-dev-home/app/utils/liveAlarm.ts` | payload type | 9 |
-| `front-dev-home/app/composables/useLiveAlarmFeed.ts` | poll loop and reducer | 9 |
-| `front-dev-home/app/components/ebeam/LiveAlarmView.vue` | board UI | 9 |
-| `live_alarm/MIGRATION.md`, `docs/datatables/hitachi/live_alarm_board.txt`, `back_dev_home/.env.example` | office-facing docs | 10 |
+| `frontend/app/utils/liveAlarm.ts` | payload type | 9 |
+| `frontend/app/composables/useLiveAlarmFeed.ts` | poll loop and reducer | 9 |
+| `frontend/app/components/ebeam/LiveAlarmView.vue` | board UI | 9 |
+| `live_alarm/MIGRATION.md`, `docs/datatables/hitachi/live_alarm_board.txt`, `backend/.env.example` | office-facing docs | 10 |
 
 **Ordering constraint:** `tests/test_office_adapter_parity.py` imports every
 office template through `importlib`. `providers/office_example.py` must
@@ -96,8 +96,8 @@ expire when the fake clock advances.
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/tests/fake_redis.py`
-- Test: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_fake_redis.py` (create)
+- Modify: `backend/ebeam/hitachi/live_alarm/tests/fake_redis.py`
+- Test: `backend/ebeam/hitachi/live_alarm/tests/test_fake_redis.py` (create)
 
 **Interfaces:**
 
@@ -109,13 +109,13 @@ expire when the fake clock advances.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `back_dev_home/ebeam/hitachi/live_alarm/tests/test_fake_redis.py`:
+Create `backend/ebeam/hitachi/live_alarm/tests/test_fake_redis.py`:
 
 ```python
 """The fake's own contract. A double that lies about NX or TTL would make
 every lock test below it green for the wrong reason."""
 
-from back_dev_home.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
+from backend.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
 
 
 RELEASE = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0"
@@ -157,7 +157,7 @@ def test_set_without_nx_overwrites_and_clears_any_ttl():
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_fake_redis.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_fake_redis.py -q
 ```
 
 Expected: FAIL — `TypeError: set() got an unexpected keyword argument 'nx'`.
@@ -247,7 +247,7 @@ Also update the module docstring's first line to:
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm -q
 ```
 
 Expected: the four new tests PASS and every pre-existing `live_alarm` test
@@ -256,8 +256,8 @@ still passes.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/tests/fake_redis.py \
-        back_dev_home/ebeam/hitachi/live_alarm/tests/test_fake_redis.py
+git add backend/ebeam/hitachi/live_alarm/tests/fake_redis.py \
+        backend/ebeam/hitachi/live_alarm/tests/test_fake_redis.py
 git commit -m "test(live-alarm): give FakeRedis NX, TTL, delete and eval
 
 The demand-driven refresh needs a real SET NX EX lock and a token-compared
@@ -272,9 +272,9 @@ never expired."
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/contracts.py`
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/board.py:25-37`
-- Test: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_board.py`
+- Modify: `backend/ebeam/hitachi/live_alarm/contracts.py`
+- Modify: `backend/ebeam/hitachi/live_alarm/board.py:25-37`
+- Test: `backend/ebeam/hitachi/live_alarm/tests/test_board.py`
 
 **Interfaces:**
 
@@ -303,7 +303,7 @@ def test_feed_status_reads_fetched_at_not_polled_at():
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_board.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_board.py -q
 ```
 
 Expected: FAIL — the second assertion returns `"stale"` because
@@ -424,7 +424,7 @@ def feed_status_for(meta: dict[str, Any] | None, known: bool, *, now: int) -> Fe
 - [ ] **Step 5: Run the tests**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_board.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_board.py -q
 ```
 
 Expected: PASS. Other `live_alarm` tests fail at this point (they reference
@@ -433,9 +433,9 @@ Expected: PASS. Other `live_alarm` tests fail at this point (they reference
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/contracts.py \
-        back_dev_home/ebeam/hitachi/live_alarm/board.py \
-        back_dev_home/ebeam/hitachi/live_alarm/tests/test_board.py
+git add backend/ebeam/hitachi/live_alarm/contracts.py \
+        backend/ebeam/hitachi/live_alarm/board.py \
+        backend/ebeam/hitachi/live_alarm/tests/test_board.py
 git commit -m "feat(live-alarm): recontract around fetched_at and unmatched_count
 
 polled_at named a writer heartbeat that no longer exists; fetched_at names the
@@ -451,8 +451,8 @@ not accept."
 
 **Files:**
 
-- Create: `back_dev_home/ebeam/hitachi/live_alarm/roster.py`
-- Test: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_roster.py` (create)
+- Create: `backend/ebeam/hitachi/live_alarm/roster.py`
+- Test: `backend/ebeam/hitachi/live_alarm/tests/test_roster.py` (create)
 
 **Interfaces:**
 
@@ -465,7 +465,7 @@ not accept."
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/ebeam/hitachi/live_alarm/tests/test_roster.py`:
+Create `backend/ebeam/hitachi/live_alarm/tests/test_roster.py`:
 
 ```python
 """The roster is the only thing that knows which fab an alarm belongs to.
@@ -474,7 +474,7 @@ Every case here uses M16, never R3 alone: R3 is the single value where fac_id
 and fab_name coincide, so an R3-only test proves nothing about the mapping.
 """
 
-from back_dev_home.ebeam.hitachi.live_alarm import roster
+from backend.ebeam.hitachi.live_alarm import roster
 
 
 def _row(eqp_id, fab_name, fac_id, model="CG6300"):
@@ -536,7 +536,7 @@ def test_has_tools_is_per_fab_and_per_family():
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_roster.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_roster.py -q
 ```
 
 Expected: FAIL — `ModuleNotFoundError: ... live_alarm.roster`.
@@ -561,8 +561,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from back_dev_home.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
-from back_dev_home.sem_list.contracts import SemListRow
+from backend.ebeam.hitachi._tool_specs import ToolType, model_to_tool_type
+from backend.sem_list.contracts import SemListRow
 
 
 __all__ = ["RosterIndex", "build_index", "load_index"]
@@ -612,7 +612,7 @@ def build_index(rows: Iterable[SemListRow]) -> RosterIndex:
 
 
 def load_index() -> RosterIndex:
-    from back_dev_home.sem_list.data import get_sem_list
+    from backend.sem_list.data import get_sem_list
 
     return build_index(get_sem_list())
 ```
@@ -620,7 +620,7 @@ def load_index() -> RosterIndex:
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_roster.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_roster.py -q
 ```
 
 Expected: PASS (7 tests).
@@ -628,8 +628,8 @@ Expected: PASS (7 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/roster.py \
-        back_dev_home/ebeam/hitachi/live_alarm/tests/test_roster.py
+git add backend/ebeam/hitachi/live_alarm/roster.py \
+        backend/ebeam/hitachi/live_alarm/tests/test_roster.py
 git commit -m "feat(live-alarm): resolve fab and fac_id through the sem_list roster
 
 The alarm feed carries EQP_ID and no fab column, so fab attribution is a
@@ -643,15 +643,15 @@ mapping table."
 ### Task 4: Move `normalize` up to the feature, with a NaN guard
 
 `writer/normalize.py` duplicates its constants because the writer was copied
-to a service that could not import `back_dev_home`. Inside SKEWNONO it can
+to a service that could not import `backend`. Inside SKEWNONO it can
 import `contracts`. It also needs a guard the writer never needed: the office
 returns a **pandas DataFrame**, and `to_dict()` leaves `NaN` in optional
 columns, which `str()` renders as the literal text `"nan"`.
 
 **Files:**
 
-- Create: `back_dev_home/ebeam/hitachi/live_alarm/normalize.py`
-- Create: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_normalize.py`
+- Create: `backend/ebeam/hitachi/live_alarm/normalize.py`
+- Create: `backend/ebeam/hitachi/live_alarm/tests/test_normalize.py`
 - Leave `writer/normalize.py` in place — Task 7 deletes the package.
 
 **Interfaces:**
@@ -662,10 +662,10 @@ columns, which `str()` renders as the literal text `"nan"`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/ebeam/hitachi/live_alarm/tests/test_normalize.py`:
+Create `backend/ebeam/hitachi/live_alarm/tests/test_normalize.py`:
 
 ```python
-from back_dev_home.ebeam.hitachi.live_alarm.normalize import canonical_json, to_events
+from backend.ebeam.hitachi.live_alarm.normalize import canonical_json, to_events
 
 
 NOW = 1_000_000_000
@@ -742,7 +742,7 @@ def test_canonical_json_is_stable_regardless_of_key_order():
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_normalize.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_normalize.py -q
 ```
 
 Expected: FAIL — `ModuleNotFoundError: ... live_alarm.normalize`.
@@ -755,7 +755,7 @@ Expected: FAIL — `ModuleNotFoundError: ... live_alarm.normalize`.
 Moved out of writer/ when the scheduled writer was replaced by the on-demand
 refresh. It no longer duplicates ALID_KIND and FUTURE_TOLERANCE_SEC: that
 duplication existed only because the writer was copied onto a service without
-back_dev_home on its path.
+backend on its path.
 
 Deliberately free of pandas. refresh.py converts the office DataFrame to dict
 rows before calling in, so this module stays testable with plain literals.
@@ -767,7 +767,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
+from backend.ebeam.hitachi.live_alarm.contracts import (
     ALID_KIND,
     FUTURE_TOLERANCE_SEC,
 )
@@ -861,7 +861,7 @@ def canonical_json(event: dict) -> str:
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_normalize.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_normalize.py -q
 ```
 
 Expected: PASS (8 tests).
@@ -869,8 +869,8 @@ Expected: PASS (8 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/normalize.py \
-        back_dev_home/ebeam/hitachi/live_alarm/tests/test_normalize.py
+git add backend/ebeam/hitachi/live_alarm/normalize.py \
+        backend/ebeam/hitachi/live_alarm/tests/test_normalize.py
 git commit -m "feat(live-alarm): move normalize into the feature, guard pandas nulls
 
 Inside SKEWNONO this can import contracts, so ALID_KIND and
@@ -885,8 +885,8 @@ columns, which str() would render as the literal text 'nan' on the board."
 
 **Files:**
 
-- Create: `back_dev_home/ebeam/hitachi/live_alarm/refresh.py`
-- Test: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_refresh.py` (create)
+- Create: `backend/ebeam/hitachi/live_alarm/refresh.py`
+- Test: `backend/ebeam/hitachi/live_alarm/tests/test_refresh.py` (create)
 
 **Interfaces:**
 
@@ -899,7 +899,7 @@ columns, which str() would render as the literal text 'nan' on the board."
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/ebeam/hitachi/live_alarm/tests/test_refresh.py`:
+Create `backend/ebeam/hitachi/live_alarm/tests/test_refresh.py`:
 
 ```python
 """The cache and the lock — the whole reason this feature was redesigned.
@@ -910,9 +910,9 @@ the board contains. The board's content is normalize.py's contract.
 
 import pytest
 
-from back_dev_home.ebeam.hitachi.live_alarm import refresh
-from back_dev_home.ebeam.hitachi.live_alarm.contracts import CACHE_TTL_SEC, LOCK_TTL_SEC
-from back_dev_home.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
+from backend.ebeam.hitachi.live_alarm import refresh
+from backend.ebeam.hitachi.live_alarm.contracts import CACHE_TTL_SEC, LOCK_TTL_SEC
+from backend.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
 
 
 FAC = "M16"
@@ -1045,7 +1045,7 @@ def test_a_missing_office_utils_does_not_leave_a_lock_behind():
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_refresh.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_refresh.py -q
 ```
 
 Expected: FAIL — `ModuleNotFoundError: ... live_alarm.refresh`.
@@ -1082,12 +1082,12 @@ import json
 import logging
 import secrets
 
-from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
+from backend.ebeam.hitachi.live_alarm.contracts import (
     CACHE_TTL_SEC,
     LOCK_TTL_SEC,
     PRUNE_SEC,
 )
-from back_dev_home.ebeam.hitachi.live_alarm.normalize import canonical_json, to_events
+from backend.ebeam.hitachi.live_alarm.normalize import canonical_json, to_events
 
 
 log = logging.getLogger(__name__)
@@ -1204,7 +1204,7 @@ def ensure_fresh(client, fac_id: str, *, now: int, fetch=None) -> None:
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_refresh.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_refresh.py -q
 ```
 
 Expected: PASS (11 tests).
@@ -1212,8 +1212,8 @@ Expected: PASS (11 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/refresh.py \
-        back_dev_home/ebeam/hitachi/live_alarm/tests/test_refresh.py
+git add backend/ebeam/hitachi/live_alarm/refresh.py \
+        backend/ebeam/hitachi/live_alarm/tests/test_refresh.py
 git commit -m "feat(live-alarm): add the cached, lock-guarded on-demand refresh
 
 Bounds office API load at one call per facility per CACHE_TTL_SEC no matter
@@ -1229,8 +1229,8 @@ stale instead of reporting a fresh heartbeat over data that never arrived."
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/providers/office_example.py` (full rewrite)
-- Test: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_office_reader.py` (create)
+- Modify: `backend/ebeam/hitachi/live_alarm/providers/office_example.py` (full rewrite)
+- Test: `backend/ebeam/hitachi/live_alarm/tests/test_office_reader.py` (create)
 
 **Interfaces:**
 
@@ -1243,7 +1243,7 @@ stale instead of reporting a fresh heartbeat over data that never arrived."
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/ebeam/hitachi/live_alarm/tests/test_office_reader.py`:
+Create `backend/ebeam/hitachi/live_alarm/tests/test_office_reader.py`:
 
 ```python
 """The reader: roster attribution, unmatched counting, and the three states.
@@ -1252,9 +1252,9 @@ Exercises _build_board directly so no Redis connection or office_utils import
 is needed — get_board is a thin wrapper that supplies the client and index.
 """
 
-from back_dev_home.ebeam.hitachi.live_alarm import refresh, roster
-from back_dev_home.ebeam.hitachi.live_alarm.providers import office_example as reader
-from back_dev_home.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
+from backend.ebeam.hitachi.live_alarm import refresh, roster
+from backend.ebeam.hitachi.live_alarm.providers import office_example as reader
+from backend.ebeam.hitachi.live_alarm.tests.fake_redis import FakeRedis
 
 
 NOW = 1_000_000_000
@@ -1340,7 +1340,7 @@ def test_covered_since_is_derived_from_the_board_window():
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_office_reader.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_office_reader.py -q
 ```
 
 Expected: FAIL — `AttributeError: module ... has no attribute '_build_board'`.
@@ -1368,10 +1368,10 @@ from __future__ import annotations
 import time
 from datetime import datetime, timedelta, timezone
 
-from back_dev_home._runtime.office_redis import STORE_ERRORS, redis_client, unreachable
-from back_dev_home.ebeam.hitachi._tool_specs import ToolType
-from back_dev_home.ebeam.hitachi.live_alarm import board, refresh, roster
-from back_dev_home.ebeam.hitachi.live_alarm.contracts import (
+from backend._runtime.office_redis import STORE_ERRORS, redis_client, unreachable
+from backend.ebeam.hitachi._tool_specs import ToolType
+from backend.ebeam.hitachi.live_alarm import board, refresh, roster
+from backend.ebeam.hitachi.live_alarm.contracts import (
     BOARD_WINDOW_SEC,
     FUTURE_TOLERANCE_SEC,
     LiveAlarmPayload,
@@ -1474,7 +1474,7 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
 - [ ] **Step 4: Run the tests**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_office_reader.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_office_reader.py -q
 ```
 
 Expected: PASS (7 tests).
@@ -1491,8 +1491,8 @@ proves the reader no longer depends on `writer.job` — which Task 7 deletes.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/providers/office_example.py \
-        back_dev_home/ebeam/hitachi/live_alarm/tests/test_office_reader.py
+git add backend/ebeam/hitachi/live_alarm/providers/office_example.py \
+        backend/ebeam/hitachi/live_alarm/tests/test_office_reader.py
 git commit -m "feat(live-alarm): rewrite the office reader around the cached pull
 
 The reader now triggers its own refresh instead of reading a board a
@@ -1508,7 +1508,7 @@ like a quiet fab. Drops the last import of writer.job."
 
 **Files:**
 
-- Delete: `back_dev_home/ebeam/hitachi/live_alarm/writer/` (whole directory)
+- Delete: `backend/ebeam/hitachi/live_alarm/writer/` (whole directory)
 - Delete: `live_alarm/tests/test_writer_job.py`, `test_writer_window.py`,
   `test_writer_normalize.py`
 - Modify: `tests/test_office_adapter_parity.py:95`
@@ -1531,10 +1531,10 @@ Expected: only the two repo-level test files and the writer's own files. If
 - [ ] **Step 2: Delete the package and its tests**
 
 ```bash
-git rm -r back_dev_home/ebeam/hitachi/live_alarm/writer
-git rm back_dev_home/ebeam/hitachi/live_alarm/tests/test_writer_job.py \
-       back_dev_home/ebeam/hitachi/live_alarm/tests/test_writer_window.py \
-       back_dev_home/ebeam/hitachi/live_alarm/tests/test_writer_normalize.py
+git rm -r backend/ebeam/hitachi/live_alarm/writer
+git rm backend/ebeam/hitachi/live_alarm/tests/test_writer_job.py \
+       backend/ebeam/hitachi/live_alarm/tests/test_writer_window.py \
+       backend/ebeam/hitachi/live_alarm/tests/test_writer_normalize.py
 ```
 
 - [ ] **Step 3: Remove the parity carve-out**
@@ -1566,7 +1566,7 @@ In `tests/test_office_adapter_scripts.py`, remove this line from the
 `@pytest.mark.parametrize` list at line ~412:
 
 ```python
-    "back_dev_home/ebeam/hitachi/live_alarm/writer/office.py",
+    "backend/ebeam/hitachi/live_alarm/writer/office.py",
 ```
 
 This test asserts a `.gitignore` rule and `git check-ignore` answers for paths
@@ -1603,8 +1603,8 @@ both go with it."
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/providers/mock.py`
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_contract.py`
+- Modify: `backend/ebeam/hitachi/live_alarm/providers/mock.py`
+- Modify: `backend/ebeam/hitachi/live_alarm/tests/test_contract.py`
 
 **Interfaces:**
 
@@ -1646,7 +1646,7 @@ and line 36's comment from `the office writer's Redis registry` to
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm/tests/test_contract.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm/tests/test_contract.py -q
 ```
 
 Expected: FAIL — `KeyError: 'unmatched_count'`.
@@ -1737,7 +1737,7 @@ def get_board(tool_type: ToolType, fab_name: str) -> LiveAlarmPayload:
 - [ ] **Step 4: Run the feature suite**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm -q
 ```
 
 Expected: PASS, all files.
@@ -1745,8 +1745,8 @@ Expected: PASS, all files.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/providers/mock.py \
-        back_dev_home/ebeam/hitachi/live_alarm/tests/test_contract.py
+git add backend/ebeam/hitachi/live_alarm/providers/mock.py \
+        backend/ebeam/hitachi/live_alarm/tests/test_contract.py
 git commit -m "feat(live-alarm): teach the mock fetched_at and unmatched_count
 
 Also rewrites the docstring's description of the office counterpart: keys are
@@ -1762,10 +1762,10 @@ the office."
 
 **Files:**
 
-- Modify: `front-dev-home/app/utils/liveAlarm.ts:20-29`
-- Modify: `front-dev-home/app/composables/useLiveAlarmFeed.ts`
-- Modify: `front-dev-home/app/composables/useLiveAlarmFeed.test.ts`
-- Modify: `front-dev-home/app/components/ebeam/LiveAlarmView.vue`
+- Modify: `frontend/app/utils/liveAlarm.ts:20-29`
+- Modify: `frontend/app/composables/useLiveAlarmFeed.ts`
+- Modify: `frontend/app/composables/useLiveAlarmFeed.test.ts`
+- Modify: `frontend/app/components/ebeam/LiveAlarmView.vue`
 
 **Interfaces:**
 
@@ -1866,7 +1866,7 @@ file's existing classes and match them rather than introducing a new colour.
 - [ ] **Step 5: Run the frontend checks**
 
 ```bash
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: all PASS.
@@ -1874,10 +1874,10 @@ Expected: all PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add front-dev-home/app/utils/liveAlarm.ts \
-        front-dev-home/app/composables/useLiveAlarmFeed.ts \
-        front-dev-home/app/composables/useLiveAlarmFeed.test.ts \
-        front-dev-home/app/components/ebeam/LiveAlarmView.vue
+git add frontend/app/utils/liveAlarm.ts \
+        frontend/app/composables/useLiveAlarmFeed.ts \
+        frontend/app/composables/useLiveAlarmFeed.test.ts \
+        frontend/app/components/ebeam/LiveAlarmView.vue
 git commit -m "feat(live-alarm): follow the fetched_at rename, surface roster gaps
 
 polled_at named a writer heartbeat that no longer exists. unmatched_count
@@ -1895,9 +1895,9 @@ the feature's `mock.py`. Task 8 did the mock; this task does the rest.
 
 **Files:**
 
-- Rewrite: `back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md`
+- Rewrite: `backend/ebeam/hitachi/live_alarm/MIGRATION.md`
 - Rewrite: `docs/datatables/hitachi/live_alarm_board.txt`
-- Modify: `back_dev_home/.env.example:193-203`
+- Modify: `backend/.env.example:193-203`
 
 - [ ] **Step 1: Rewrite `MIGRATION.md`**
 
@@ -1944,7 +1944,7 @@ def get_live_alarms(fac_id: str) -> pd.DataFrame:
 ## 2. reader 활성화
 
 ```bash
-cd back_dev_home/ebeam/hitachi/live_alarm/providers
+cd backend/ebeam/hitachi/live_alarm/providers
 cp office_example.py office.py
 ```
 
@@ -2041,7 +2041,7 @@ but delete any surviving mention of `registry` — that key no longer exists.
 
 - [ ] **Step 3: Remove the writer env block**
 
-In `back_dev_home/.env.example`, delete lines 193–203 (the
+In `backend/.env.example`, delete lines 193–203 (the
 `── live_alarm writer ──` block and all `LIVE_ALARM_*` variables). The cached
 pull uses the shared `REDIS_*` connection, and its TTLs are constants in
 `contracts.py` rather than env knobs — one fewer thing to configure, and no
@@ -2068,7 +2068,7 @@ Expected: `Summary: 0 error(s)`.
 
 ```bash
 .venv/bin/python -m pytest -q
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: all PASS.
@@ -2076,9 +2076,9 @@ Expected: all PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md \
+git add backend/ebeam/hitachi/live_alarm/MIGRATION.md \
         docs/datatables/hitachi/live_alarm_board.txt \
-        back_dev_home/.env.example
+        backend/.env.example
 git commit -m "docs(live-alarm): document the cached pull for the office
 
 MIGRATION.md drops to one swap surface and specifies get_live_alarms(fac_id),
@@ -2096,7 +2096,7 @@ After Task 10, drive the running app once — there is no automated E2E suite.
 
 ```bash
 .venv/bin/python index.py                      # Flask on :5050
-cd front-dev-home && npm run dev               # Nuxt on :3000
+cd frontend && npm run dev               # Nuxt on :3000
 ```
 
 Check, at `/ebeam/cd-sem/R3/live-alarm`:

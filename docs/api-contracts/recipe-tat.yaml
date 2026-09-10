@@ -110,7 +110,7 @@ types:
       description: >-
         top_recipe's total_meastime divided by this equipment's total_meastime — a share of
         MEASUREMENT TIME, not of exec_count (0.0 when top_recipe is null). SHARE_CEIL in
-        front-dev-home/app/utils/equipmentSignals.ts is calibrated against this number at the
+        frontend/app/utils/equipmentSignals.ts is calibrated against this number at the
         office, and "share of executions" would call for a materially different constant.
     tat_index:
       type: number

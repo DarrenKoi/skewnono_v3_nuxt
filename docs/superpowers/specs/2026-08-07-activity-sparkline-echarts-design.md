@@ -1,7 +1,7 @@
 # activity Sparkline ECharts 전환 설계
 
 작성일: 2026-08-07
-대상: `front-dev-home/app/components/activity/Sparkline.vue`
+대상: `frontend/app/components/activity/Sparkline.vue`
 
 ## 변경 이력
 

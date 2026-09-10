@@ -16,7 +16,7 @@ FEATURE_SLUGS 에서 슬러그 제거 + pageIdentity 는 유지).
 
 ## 범위
 
-**Frontend only.** `back_dev_home/` 는 한 글자도 바꾸지 않는다 — `pm_planning`
+**Frontend only.** `backend/` 는 한 글자도 바꾸지 않는다 — `pm_planning`
 API 는 pm 칩의 데이터원으로 그대로 쓰이고, `_logging/feature_map.py` 의 API
 경로 매핑이 활동을 계속 `pm_planning` 슬러그로 기록한다.
 
@@ -119,7 +119,7 @@ pm-planning 카드 제거, tttm 카드 description 에 PM 튜닝 흡수를 한 �
 worktree 준비: `ln -s` 로 main 체크아웃의 `node_modules` 연결 후
 `npx nuxi prepare` (worktree 에는 `.nuxt` 가 없음).
 
-1. `npm run typecheck` (front-dev-home)
+1. `npm run typecheck` (frontend)
 2. `npm test`
 3. `npm run lint`
 4. `grep -rn "pm-planning" app/` 잔존이 다음뿐일 것: redirect 스텁,
@@ -130,7 +130,7 @@ worktree 준비: `ln -s` 로 main 체크아웃의 `node_modules` 연결 후
 
 ## 하지 말 것
 
-- `back_dev_home/` 수정 금지. `pageIdentity.ts` 수정 금지.
+- `backend/` 수정 금지. `pageIdentity.ts` 수정 금지.
 - `pmPlanning/` 컴포넌트·`usePmPlanningApi`·`pmAdmission`·`pmTuningTarget`
   이름 변경 금지(파일명은 API·도메인 이름이지 라우트가 아님).
 - `git add -A` / `git add .` 금지 — 편집한 파일만 명시 pathspec 으로.

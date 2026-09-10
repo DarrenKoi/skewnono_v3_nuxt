@@ -128,7 +128,7 @@ def main() -> int:
     except Exception as exc:
         raise SystemExit(
             f"OpenSearch 조회 실패: {type(exc).__name__}: {exc}\n"
-            "OPENSEARCH_HOST/USER/PASSWORD 가 환경 또는 back_dev_home/.env 에\n"
+            "OPENSEARCH_HOST/USER/PASSWORD 가 환경 또는 backend/.env 에\n"
             "있는지, alias 이름이 맞는지 확인하십시오. 실제로 쓰이는 alias 는\n"
             "    GET /api/health/logging\n"
             "이 target.alias 로 알려 줍니다."

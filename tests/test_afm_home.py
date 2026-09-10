@@ -8,8 +8,8 @@ from urllib.parse import quote
 
 from flask import Flask
 
-from back_dev_home.afm.data import list_afm_files
-from back_dev_home.afm.routes import bp
+from backend.afm.data import list_afm_files
+from backend.afm.routes import bp
 from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 

@@ -1,6 +1,6 @@
 """chat <-> RAG answer 계약을 이 기계에서 검사합니다.
 
-계약 자체는 `back_dev_home/chat/answer/contract.py` 이며, chat 이 사무실 turn
+계약 자체는 `backend/chat/answer/contract.py` 이며, chat 이 사무실 turn
 마다 같은 `validate_answer()` 를 호출합니다. 이 스크립트는 그 모듈을 사람이
 손으로 돌릴 수 있게 감싼 것뿐입니다 - 규칙을 여기에 적지 않습니다.
 
@@ -27,7 +27,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
 
-from back_dev_home.chat.answer.contract import main  # noqa: E402
+from backend.chat.answer.contract import main  # noqa: E402
 
 
 if __name__ == "__main__":

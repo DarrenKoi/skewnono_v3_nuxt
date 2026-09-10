@@ -2,8 +2,8 @@
 
 - **작성일:** 2026-08-04
 - **상태:** 승인된 설계, 구현 계획 작성 전 문서 검토 대기
-- **적용 범위:** `back_dev_home/_logging`, `back_dev_home/activity`,
-  `front-dev-home/app/composables`, `front-dev-home/app/pages/activity.vue`,
+- **적용 범위:** `backend/_logging`, `backend/activity`,
+  `frontend/app/composables`, `frontend/app/pages/activity.vue`,
   `docs/datatables/hitachi/skewnono_logging.txt`, `docs/api-contracts/`
 
 ## 1. 배경
@@ -19,7 +19,7 @@ lens가 실제로 쓰이는지입니다.
 
 ### 1.1 현재 구조가 view를 볼 수 없는 이유
 
-`back_dev_home/_logging/feature_map.py`의 `route_to_feature(path)`가 기능
+`backend/_logging/feature_map.py`의 `route_to_feature(path)`가 기능
 분류의 **유일한** 입력입니다. 즉 기능 slug는 전적으로 API 경로에서 파생됩니다.
 
 Skewvoir의 view 전환은 **대부분** HTTP 요청을 발생시키지 않습니다.
@@ -81,7 +81,7 @@ view 전환이 요청을 만들지 않으므로, **로그에 남는 것만이 �
 하나 추가합니다.
 
 ```python
-# back_dev_home/activity/routes.py
+# backend/activity/routes.py
 @bp.post("/skewvoir/view/<kind>")
 def skewvoir_view_beacon(kind: str):
     if kind not in SKEWVOIR_VIEW_KINDS:
@@ -112,7 +112,7 @@ def skewvoir_view_beacon(kind: str):
 즉 이 선택은 예외 규칙을 피하려는 것이 아니라 — 어느 쪽이든 `policy.py`에
 분기 하나는 추가됩니다 — **그 분기가 가드 뒤에 오도록** 하기 위한 것입니다.
 
-**감수하는 비용:** `/api/skewvoir/*`는 `back_dev_home/` 아래에 대응 폴더가 없는
+**감수하는 비용:** `/api/skewvoir/*`는 `backend/` 아래에 대응 폴더가 없는
 최상위 API namespace가 되며, feature-sliced 레이아웃과 어긋나 보입니다. 다만
 폴더와 경로 namespace가 다른 사례는 이미 있습니다(`api_tokens` →
 `/account/api-tokens`, `access_control` → `/admin/access`). 또한 경로 문자열이
@@ -342,7 +342,7 @@ watch 하여 POST를 발신합니다.
   자료구조는 `Map<kind, dateString>`으로 두어 자정을 넘겨도 재발신됩니다.
 - watch 콜백에서 즉시 쏘지 않고 다음 idle에 미룹니다. beacon은 선택 변경과 같은
   tick에 발생할 수 있고, `/api/*`는 사용자당 **전역** 20요청/5초를
-  공유하므로(`back_dev_home/__init__.py:72-78`) 같은 순간의 `msr-file` 요청이
+  공유하므로(`backend/__init__.py:72-78`) 같은 순간의 `msr-file` 요청이
   429를 맞으면 `useMsrFileApi.ts:180`의 700 ms 백오프가 view 전환을 눈에 띄게
   느리게 만듭니다.
 - 실패는 무시합니다(fire-and-forget).
@@ -443,7 +443,7 @@ const SKEWVOIR_VIEW_LABELS = Object.fromEntries(
 - `docs/api-contracts/activity.yaml`: `SummaryResponse` 신규 두 필드,
   `ViewUsageCount` 타입, `activity_filter` 설명 수정. beacon은 `base_path:
   /api/activity` 밖이므로 별도 절이나 주석으로 위치를 명시합니다.
-- `back_dev_home/activity/MIGRATION.md`: office adapter가 구현해야 할 두 번째
+- `backend/activity/MIGRATION.md`: office adapter가 구현해야 할 두 번째
   검색과 그 실패 정책.
 - 사무실 DB에서 확인되지 않은 가정은 `OFFICE-VERIFY`로 표시합니다.
 

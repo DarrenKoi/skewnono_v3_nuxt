@@ -109,7 +109,7 @@ tat_index(t) = actual(t) / expected(t)
 않습니다.** 위 문단은 또래 집단을 더 잘게 **나누지** 말라는 규칙이고 그대로
 유효하지만, 나누지 않은 채로 여러 fab을 한 또래 집단에 넣으면 배지가 장비
 상태가 아니라 fab을 읽습니다. 구현은 `isPeerGroupComparable`
-(`front-dev-home/app/utils/equipmentSignals.ts`)로 이 경우 배지를 전부
+(`frontend/app/utils/equipmentSignals.ts`)로 이 경우 배지를 전부
 억제하며, 이 절이 그 동작을 승인합니다.
 
 근거는 정규화 부재입니다. `usage_ratio`·`occupancy` 어느 쪽에도 fab 단위
@@ -155,7 +155,7 @@ fab 간 비교를 배지로 되살리려면 fab 단위 정규화가 먼저 필�
 장비만 배지를 답니다. 분위수가 잘못된 상수를 막아주고, 절대 기준이 건강한
 플릿에서의 헛경보를 막아줍니다.
 
-`front-dev-home/app/utils/equipmentSignals.ts` 순수 함수 + 단위 테스트.
+`frontend/app/utils/equipmentSignals.ts` 순수 함수 + 단위 테스트.
 
 | 배지 | 조건 |
 | --- | --- |
@@ -185,7 +185,7 @@ export const SHARE_CEIL  = 0.50
 > 한꺼번에 도장)은 구현 과정에서 틀린 것으로 드러났습니다. fab을 섞어 조회하면
 > 배지가 장비가 아니라 fab을 줄세우고, `TAT_CEIL`은 분위수만으로 검증되지
 > 않습니다. **사무실에서는 이 문서가 아니라
-> `back_dev_home/ebeam/hitachi/recipe_tat/MIGRATION.md`의 절차를 따르십시오.**
+> `backend/ebeam/hitachi/recipe_tat/MIGRATION.md`의 절차를 따르십시오.**
 > 이 문서는 착수 시점의 설계 기록으로 그대로 남깁니다.
 
 임계값 조정에 필요한 정보를 응답이 이미 싣고 있으므로, 사무실에서 별도
@@ -317,7 +317,7 @@ provider가 봉투(scope 에코)까지 포함한 payload를 반환합니다 — 
 이미 근거와 함께 기록돼 있고, 이 절은 그 결정을 spec 쪽에 반영한 것입니다.
 
 같은 날 백엔드 상수 이름을 `MAX_EQP_IDS` → `MAX_COMPARE_EQPS`로 바꿔
-프론트엔드(`front-dev-home/app/utils/analyticsLimits.ts`)와 맞췄습니다.
+프론트엔드(`frontend/app/utils/analyticsLimits.ts`)와 맞췄습니다.
 한 숫자가 두 이름으로 살면 한쪽만 바뀌어도 아무 신호가 나지 않습니다.
 
 ### 4.3 office 어댑터 방향 (`office_example.py`)

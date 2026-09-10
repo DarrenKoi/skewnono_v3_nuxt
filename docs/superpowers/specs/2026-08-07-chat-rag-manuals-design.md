@@ -15,7 +15,7 @@ mock provider가 모두 동작합니다. 남은 것은 사무실 adapter가 **�
 `AccessScope` 생성 위치, 오류 계약은 변경하지 않습니다.** 계약 변경이 아니라
 `_execute()`가 무엇을 치느냐의 결정입니다.
 
-관련 문서는 `back_dev_home/chat/MIGRATION.md`(전환 순서·selector·상한),
+관련 문서는 `backend/chat/MIGRATION.md`(전환 순서·selector·상한),
 `docs/datatables/hitachi/chat_rag_contract.txt`(인덱스 스키마의 진실 원천),
 `docs/research/llm-rag-chatbot-feasibility.md`(최초 타당성 조사)입니다.
 
@@ -234,12 +234,12 @@ semantic 매칭이 없고, `score`가 float 거리가 아닌 작은 정수이며
 | 파일 | 정정 내용 |
 | --- | --- |
 | `docs/datatables/hitachi/chat_rag_contract.txt` | multilingual OFFICE-VERIFY → BGE-M3 user-confirmed. Nori 확정. 2-leg hybrid + `bge-reranker-v2-m3` 명시. `element_type` 인덱스 내부 전용 명시. 매뉴얼 우선 범위. C2 호출 경로. |
-| `back_dev_home/chat/MIGRATION.md` | 4소스 동시 전제 → 소스별 준비 상태. Revision/superseded 항목 축소. `available_sources()`와 `_rerank()` seam 추가. C1/C2 분기. |
+| `backend/chat/MIGRATION.md` | 4소스 동시 전제 → 소스별 준비 상태. Revision/superseded 항목 축소. `available_sources()`와 `_rerank()` seam 추가. C1/C2 분기. |
 | `knowledge/providers/mock.py` docstring | 무엇을 대신하는지, 어디서 의도적으로 다른지. |
 
 ## 12. 검증 순서
 
-1. 홈 계약 — `pytest back_dev_home/chat/tests/test_knowledge.py test_runtime.py test_scope.py -q`
+1. 홈 계약 — `pytest backend/chat/tests/test_knowledge.py test_runtime.py test_scope.py -q`
    에 `available_sources()`와 tool 노출 테스트를 추가합니다.
 2. Fake-client 계약 — `test_knowledge_office.py`의 `OFFICE-TODO` skip test를 채웁니다.
    질의 단계 접근 필터 증명, raw row 정규화, client 오류 mapping, 그리고 **리랭크 후
@@ -248,7 +248,7 @@ semantic 매칭이 없고, `score`가 float 거리가 아닌 작은 정수이며
    비민감 query 한 건으로 source type·provenance·접근 거부를 확인합니다. Thread
    storage는 mock으로 고정하여 RAG smoke와 분리합니다. 이 단계에서 왕복 3회 지연을
    실측합니다.
-4. 저장소 gate — `pytest tests back_dev_home -q`, `ruff check back_dev_home/chat`,
+4. 저장소 gate — `pytest tests backend -q`, `ruff check backend/chat`,
    `npm run lint:md`, 그리고 frontend의 `npm test / typecheck / lint / build`.
 
 실제 source content, query 결과, 내부 경로, credential은 assertion·fixture·로그·commit
@@ -258,7 +258,7 @@ semantic 매칭이 없고, `score`가 float 거리가 아닌 작은 정수이며
 
 - ~~Figure serving endpoint (`GET /api/chat/figures/<figure_id>`)~~ — **2026-08-19에
   구현했습니다**(Phase 1은 디스크, `SKEWNONO_CHAT_FIGURES_DIR`; Phase 2 MinIO 전환은
-  저장소 읽기 한 줄). 현재 계약은 `back_dev_home/chat/MIGRATION.md`의 "Figure
+  저장소 읽기 한 줄). 현재 계약은 `backend/chat/MIGRATION.md`의 "Figure
   serving" 절과 `docs/datatables/hitachi/chat_rag_contract.txt`를 봅니다.
 
   이때 검증 charset을 `^[A-Za-z0-9_-]{1,128}$` → `^[A-Za-z0-9._-]{1,128}$`로

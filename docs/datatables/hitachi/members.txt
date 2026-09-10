@@ -71,8 +71,8 @@ Key
 
 소비 코드
 
-  back_dev_home/_auth/directory.py  — 조회·정규화·캐시(TTL 600초)
-  back_dev_home/_auth/routes.py     — GET /api/me 로 노출, POST /api/identify 로 검증
+  backend/_auth/directory.py  — 조회·정규화·캐시(TTL 600초)
+  backend/_auth/routes.py     — GET /api/me 로 노출, POST /api/identify 로 검증
 
   읽는 쪽이 둘이며 요구가 서로 반대입니다 (2026-07-31 추가).
 

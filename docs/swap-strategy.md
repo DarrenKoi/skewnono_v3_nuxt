@@ -6,7 +6,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 | 환경 | 데이터 소스 | LLM | 역할 |
 | --- | --- | --- | --- |
-| 댁 (Home) | `back_dev_home/` 모의(Flask + 인메모리) | Claude Code | 프론트 + 모의 데이터 + 계약 작성 |
+| 댁 (Home) | `backend/` 모의(Flask + 인메모리) | Claude Code | 프론트 + 모의 데이터 + 계약 작성 |
 | 사무실 (Office) | OpenSearch / Redis / 사내 DB (실제) | 사내 로컬 LLM | 모의 → 실제 구현으로 스왑 |
 
 두 환경은 직접 동기화되지 않습니다. 따라서 **명세 계층(spec layer)** 이 두 환경을 잇는 유일한 다리입니다. 본 문서는 그 명세 계층을 어떻게 구성하고, **어떻게 지속적으로 양방향 동기화** 하는지를 설명합니다.
@@ -17,7 +17,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 ### 2.1 프론트엔드 — 이미 스왑 가능 상태입니다
 
-- `front-dev-home/nuxt.config.ts`는 `NUXT_API_TARGET`으로 `/api/*`를 Flask에 proxy합니다.
+- `frontend/nuxt.config.ts`는 `NUXT_API_TARGET`으로 `/api/*`를 Flask에 proxy합니다.
 - 프론트엔드 컴포저블은 `NUXT_PUBLIC_API_BASE`와 `$fetch<T>()`를 사용합니다.
 - Phase별 데이터 source 분기는 Flask 내부 provider 선택에만 둡니다.
 
@@ -37,7 +37,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 - `docs/api-contracts/` — HTTP YAML 계약과 작성 규칙이 있습니다.
 - `docs/datatables/*.txt` — 사무실 측 원본 테이블 스키마(`meas_hist.txt`, `r3_device_grp.txt` 등)가 정리되어 있습니다.
-- `back_dev_home/<feature>/__fixtures__/` — 대표 HTTP 응답 예시가 있습니다.
+- `backend/<feature>/__fixtures__/` — 대표 HTTP 응답 예시가 있습니다.
 - `scripts/verify/capture_fixtures.py`, `scripts/verify/check_contract.py` — 기준 응답 캡처와 구조 비교 도구가 있습니다.
 
 **원칙:** 새 규약을 만들지 말고, 위 구조의 **빈 칸을 채우는 방향** 으로 작업합니다.
@@ -64,12 +64,12 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 | 산출물 | 위치 | 갱신 시점 |
 | --- | --- | --- |
-| 프론트엔드 코드 | `front-dev-home/` | 기능 변경 시 |
-| Python 계약 | `back_dev_home/<feature>/contracts.py` | 반환 키·타입 변경 시 |
-| mock adapter | `back_dev_home/<feature>/providers/mock.py` | mock 동작 변경 시 |
-| provider dispatcher | `back_dev_home/<feature>/data.py` | 공개 함수 또는 provider 선택 변경 시 |
+| 프론트엔드 코드 | `frontend/` | 기능 변경 시 |
+| Python 계약 | `backend/<feature>/contracts.py` | 반환 키·타입 변경 시 |
+| mock adapter | `backend/<feature>/providers/mock.py` | mock 동작 변경 시 |
+| provider dispatcher | `backend/<feature>/data.py` | 공개 함수 또는 provider 선택 변경 시 |
 | API 계약 YAML | `docs/api-contracts/<feature>.yaml` | 엔드포인트·필드 추가/변경 시 |
-| 고정 픽스처 JSON | `back_dev_home/<feature>/__fixtures__/*.json` | 응답 형태 변경 시 재생성 |
+| 고정 픽스처 JSON | `backend/<feature>/__fixtures__/*.json` | 응답 형태 변경 시 재생성 |
 | 원본 테이블 스키마 | `docs/datatables/<table>.txt` | 댁에서 변경할 일 거의 없음 |
 
 규칙: **공개 계약이 바뀌면 같은 커밋에 `contracts.py`, mock adapter, YAML, 픽스처를 함께 갱신** 합니다. 그렇지 않으면 사무실 측에서 LLM 스왑이 깨집니다.
@@ -83,7 +83,7 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 | 사무실 측 인덱스/스키마 | `docs/datatables/<table>.txt` | 실 OpenSearch 매핑 변경·신규 발견 시 |
 | 계약 변경 사항 | `docs/api-contracts/<feature>.yaml` | 실 데이터에서 새 필드/제약 발견 시 |
 | 드리프트 기록 | `docs/datatables/<table>.txt` + 해당 기능의 `MIGRATION.md` | 픽스처 vs 실 데이터 차이를 발견했을 때 |
-| 사무실 픽스처 (선택) | `back_dev_home/<feature>/__fixtures__/office/*.json` | 사외 유출 위험 없는 익명화 가능 시 |
+| 사무실 픽스처 (선택) | `backend/<feature>/__fixtures__/office/*.json` | 사외 유출 위험 없는 익명화 가능 시 |
 
 ### 4.3 사이클 한 바퀴 표준 절차
 
@@ -97,14 +97,14 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 [사무실 세션 시작 시]
 6. git pull
-7. cd back_dev_home/<feature>
+7. cd backend/<feature>
 8. 사무실 LLM에 다음 자료 투입:
    - docs/api-contracts/<feature>.yaml
-   - back_dev_home/<feature>/data.py
-   - back_dev_home/<feature>/contracts.py
-   - back_dev_home/<feature>/providers/mock.py
-   - back_dev_home/<feature>/providers/office.py
-   - back_dev_home/<feature>/__fixtures__/*.json
+   - backend/<feature>/data.py
+   - backend/<feature>/contracts.py
+   - backend/<feature>/providers/mock.py
+   - backend/<feature>/providers/office.py
+   - backend/<feature>/__fixtures__/*.json
    - docs/datatables/<source>.txt
    - ops_store/ 또는 minio_handler/ 의 관련 interface 문서
    - (사무실 LLM만 보는) 실제 OpenSearch 매핑
@@ -153,11 +153,11 @@ SKEWNONO은 두 개의 분리된 작업 환경을 오가며 개발됩니다.
 
 [입력]
 - 계약(YAML):       docs/api-contracts/<feature>.yaml
-- 공개 interface:   back_dev_home/<feature>/data.py
-- Python 계약:      back_dev_home/<feature>/contracts.py
-- 댁 mock adapter:  back_dev_home/<feature>/providers/mock.py
-- 사무실 adapter:   back_dev_home/<feature>/providers/office.py
-- 기대 출력 예시:   back_dev_home/<feature>/__fixtures__/<endpoint>.json
+- 공개 interface:   backend/<feature>/data.py
+- Python 계약:      backend/<feature>/contracts.py
+- 댁 mock adapter:  backend/<feature>/providers/mock.py
+- 사무실 adapter:   backend/<feature>/providers/office.py
+- 기대 출력 예시:   backend/<feature>/__fixtures__/<endpoint>.json
 - 원본 테이블 명세: docs/datatables/<source>.txt
 - 사무실 매핑:      [붙여넣기 — OpenSearch 인덱스 매핑 / 테이블 DDL]
 

@@ -337,7 +337,7 @@ imports it turns the parity suite red.
 `canonical_json()` are still the row→event conversion and the ZSET member form.
 It becomes `live_alarm/normalize.py`, and its constants stop being duplicated
 from `contracts.py` — the duplication existed only because the writer was copied
-to a service that could not import `back_dev_home`.
+to a service that could not import `backend`.
 
 `live_alarm` consequently drops from **two swap surfaces to one**. Its
 `MIGRATION.md` is rewritten, and the multi-surface note in

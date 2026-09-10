@@ -2,7 +2,7 @@
 
 Status: approved
 Date: 2026-07-29
-Feature: `back_dev_home/ebeam/hitachi/recipe_search`
+Feature: `backend/ebeam/hitachi/recipe_search`
 Surface: `providers/office_example.py` (template; `office.py` is the gitignored copy)
 
 ## Problem
@@ -179,7 +179,7 @@ gitignored `office.py`), requiring no Redis, OpenSearch, or FTP:
 ## Verify
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q
 npm run lint:md
 ```
 
@@ -187,7 +187,7 @@ Office-side (Phase 2), after `cp office_example.py office.py`:
 
 ```bash
 SKEWNONO_RECIPE_SEARCH_PROVIDER=office \
-  .venv/bin/pytest back_dev_home/ebeam/hitachi/recipe_search
+  .venv/bin/pytest backend/ebeam/hitachi/recipe_search
 ```
 
 ## Open at the office

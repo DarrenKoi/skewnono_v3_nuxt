@@ -288,7 +288,7 @@ def test_client_configuration_comes_only_from_ops_store(monkeypatch):
 def test_an_exported_opensearch_host_is_never_overwritten_by_the_env_file(
     monkeypatch,
 ):
-    """The script self-loads ``back_dev_home/.env`` so a bare run finds
+    """The script self-loads ``backend/.env`` so a bare run finds
     credentials, but an operator who exported a host on the command line is
     pointing at a specific cluster on purpose."""
     monkeypatch.setenv("OPENSEARCH_HOST", "exported.example")
@@ -502,11 +502,11 @@ def test_the_backend_log_handler_and_this_script_agree_on_the_alias():
     create; if the two names drift, production logging lands in an
     auto-created index with no template and no retention policy.
 
-    ``back_dev_home/_logging/tests/test_opensearch_handler.py`` asserts the
+    ``backend/_logging/tests/test_opensearch_handler.py`` asserts the
     same equality from the other side — kept here too so a change to
     ``ops_index_mgmt`` fails in its own suite rather than only in the feature's.
     """
-    from back_dev_home._logging import opensearch_handler
+    from backend._logging import opensearch_handler
 
     assert (
         opensearch_handler.DEFAULT_INDEX
@@ -521,7 +521,7 @@ def test_provisioned_aliases_match_the_runtime_logging_targets():
     """The environment→alias map exists twice on purpose — the provisioning
     script must not import Flask plumbing — but if the strings drift, requests
     silently land in an auto-created index the readers never query."""
-    from back_dev_home._logging.target import resolve_logging_target
+    from backend._logging.target import resolve_logging_target
 
     for environment in ("local", "production"):
         runtime = resolve_logging_target({"SKEWNONO_LOG_ENV": environment})

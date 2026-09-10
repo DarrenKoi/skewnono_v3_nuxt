@@ -14,7 +14,7 @@ Spec: [`../spec.md`](../spec.md) · 결정: D1
 **Files:**
 
 - Edit: `DESIGN.md` — `### Semantic` 절 (`:58` 근처)
-- Edit: `front-dev-home/app/assets/css/main.css` — light `:root` (`:168-170`)
+- Edit: `frontend/app/assets/css/main.css` — light `:root` (`:168-170`)
   와 dark 블록 (`:229-231`) **양쪽**
 
 **정할 것:**

@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Work in the worktree** `/Users/daeyoung/Codes/skewnono-rcp-loc` on branch `work/rcp-loc`. Every path below is relative to that root.
-- **Edit only** `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` and the new test file. Never touch `routes.py`, `data.py`, `contracts.py`, `tests/test_contract.py`, `tests/test_idp_mapping.py`, or `providers/mock.py` **behavior** (its docstring is edited in Task 6).
+- **Edit only** `backend/ebeam/hitachi/recipe_search/providers/office_example.py` and the new test file. Never touch `routes.py`, `data.py`, `contracts.py`, `tests/test_contract.py`, `tests/test_idp_mapping.py`, or `providers/mock.py` **behavior** (its docstring is edited in Task 6).
 - **`providers/office.py` is gitignored.** Never edit, never `git add`, never commit it.
 - **Run tests from the repo root as** `.venv/bin/python -m pytest ...`. The `-m` is what puts the root on `sys.path`.
 - **Commit with explicit pathspecs only.** Form: `git commit -m "msg" -- path/a path/b`. The `-m` must come *before* `--`. `git add -A`, `git add .`, and `git commit -a` are banned — other agent sessions share this repo.
@@ -26,12 +26,12 @@
 
 | File | Responsibility | Task |
 | --- | --- | --- |
-| `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` | The whole change: helpers, both strategies, the retry loop | 1–5 |
-| `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py` | New. Home-runnable gate for every new pure function and the retry loop | 1–5 |
+| `backend/ebeam/hitachi/recipe_search/providers/office_example.py` | The whole change: helpers, both strategies, the retry loop | 1–5 |
+| `backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py` | New. Home-runnable gate for every new pure function and the retry loop | 1–5 |
 | `docs/datatables/hitachi/recipe_name_list.txt` | Schema of record for the Redis recipe hashes | 6 |
 | `docs/datatables/hitachi/recipe_idp.txt` | Schema of record for the IDP source chain | 6 |
-| `back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py` | Docstring only — what the mock stands in for | 6 |
-| `back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md` | Office adapter status and error table | 6 |
+| `backend/ebeam/hitachi/recipe_search/providers/mock.py` | Docstring only — what the mock stands in for | 6 |
+| `backend/ebeam/hitachi/recipe_search/MIGRATION.md` | Office adapter status and error table | 6 |
 
 `office_example.py` grows by roughly 150 lines. That is acceptable here: the file's organizing principle is the four-step pipeline marked by its `# ── step ──` banners, and the new code slots into step 1 rather than adding a new concern.
 
@@ -41,8 +41,8 @@
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py`
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py` (create)
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py`
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py` (create)
 
 **Interfaces:**
 
@@ -55,7 +55,7 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`:
+Create `backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`:
 
 ```python
 """Gate for the .idp LOCATION step of the office adapter (Redis + OpenSearch).
@@ -72,7 +72,7 @@ Redis, OpenSearch, sem_list and FTP are all stubbed; nothing here does I/O.
 
 import pytest
 
-from back_dev_home.ebeam.hitachi.recipe_search.providers import office_example as oe
+from backend.ebeam.hitachi.recipe_search.providers import office_example as oe
 
 
 class TestFabHash:
@@ -129,7 +129,7 @@ class TestParseStrList:
 Run from the repo root:
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
 ```
 
 Expected: FAIL — `AttributeError: module ... has no attribute '_fab_hash'`.
@@ -216,7 +216,7 @@ def _class_name(recipe_id: str) -> str:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q
 ```
 
 Expected: PASS, including the pre-existing `test_contract.py` and `test_idp_mapping.py` (the rename must not have broken the catalog path).
@@ -230,8 +230,8 @@ Adds _fab_hash (per-fab Redis registry key, lowercased at the boundary) and
 _class_name (the FTP class directory, derived from the full_name prefix since
 neither new hash carries it). Renames _parse_recipe_list to _parse_str_list:
 it now serves all three per-recipe hashes, not just the name catalog.
-" -- back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py \
-     back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
+" -- backend/ebeam/hitachi/recipe_search/providers/office_example.py \
+     backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
 ```
 
 ---
@@ -240,8 +240,8 @@ it now serves all three per-recipe hashes, not just the name catalog.
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py`
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py`
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
 
 **Interfaces:**
 
@@ -318,7 +318,7 @@ class TestEqpIpIndex:
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
 ```
 
 Expected: FAIL — `AttributeError: module ... has no attribute '_order_candidates'`.
@@ -328,13 +328,13 @@ Expected: FAIL — `AttributeError: module ... has no attribute '_order_candidat
 In `office_example.py`, extend the existing `_office_search` import and add the `sem_list` one:
 
 ```python
-from back_dev_home.ebeam.hitachi._office_search import fetch_hits, query, ttl_cache
+from backend.ebeam.hitachi._office_search import fetch_hits, query, ttl_cache
 ```
 
 and, after the `recipe_search.contracts` import block:
 
 ```python
-from back_dev_home.sem_list.data import get_sem_list
+from backend.sem_list.data import get_sem_list
 ```
 
 - [ ] **Step 4: Add both functions**
@@ -406,7 +406,7 @@ def _order_candidates(
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q
 ```
 
 Expected: PASS.
@@ -422,8 +422,8 @@ roster (the same source lateral check uses, so tool inventory cannot disagree
 between screens), TTL-cached because the roster read deserializes two parquet
 blobs. _order_candidates sorts available tools first, keeps registry order
 within each group, and drops ids the roster does not know.
-" -- back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py \
-     back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
+" -- backend/ebeam/hitachi/recipe_search/providers/office_example.py \
+     backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
 ```
 
 ---
@@ -432,8 +432,8 @@ within each group, and drops ids the roster does not know.
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py`
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py`
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
 
 **Interfaces:**
 
@@ -538,7 +538,7 @@ class TestLocateViaRedis:
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
 ```
 
 Expected: FAIL — `AttributeError: module ... has no attribute '_locate_via_redis'`.
@@ -635,7 +635,7 @@ def _locate_via_redis(
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q
 ```
 
 Expected: PASS.
@@ -650,8 +650,8 @@ v3_{family}_tools_in_rcp_{fab} for the tool list, then resolves and orders the
 tools into candidate locations. Returns None rather than raising when it cannot
 answer — the registry is newer than meas_hist and need not cover every fab, so
 a miss is a fallback, not a fault. Every bail logs which step produced it.
-" -- back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py \
-     back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
+" -- backend/ebeam/hitachi/recipe_search/providers/office_example.py \
+     backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
 ```
 
 ---
@@ -660,8 +660,8 @@ a miss is a fallback, not a fault. Every bail logs which step produced it.
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` (the existing `_locate_idp`, currently at the `# ── recipe open, step 1 ──` banner)
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py` (the existing `_locate_idp`, currently at the `# ── recipe open, step 1 ──` banner)
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
 
 **Interfaces:**
 
@@ -739,7 +739,7 @@ class TestLocateIdpDispatch:
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
 ```
 
 Expected: FAIL — `AttributeError: module ... has no attribute '_locate_via_meas_hist'`.
@@ -853,7 +853,7 @@ def _locate_idp(
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q
 ```
 
 Expected: PASS.
@@ -868,8 +868,8 @@ is the fallback and remains the only source for fabs the registry does not
 cover. The meas_hist path (now _locate_via_meas_hist) returns every complete
 document rather than only the newest, so a recipe whose latest tool is
 unreachable falls through to the previous run's tool instead of 502-ing.
-" -- back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py \
-     back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
+" -- backend/ebeam/hitachi/recipe_search/providers/office_example.py \
+     backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
 ```
 
 ---
@@ -878,8 +878,8 @@ unreachable falls through to the previous run's tool instead of 502-ing.
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` (add `_download_first` after `_download_idp`; rewire `get_recipe_open_data`)
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py` (add `_download_first` after `_download_idp`; rewire `get_recipe_open_data`)
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py`
 
 **Interfaces:**
 
@@ -892,7 +892,7 @@ Append to `tests/test_idp_locate.py`. No new stdlib import is needed — `tmp_pa
 is already a `Path`.
 
 ```python
-from back_dev_home.msr_image.errors import InvalidToolIp
+from backend.msr_image.errors import InvalidToolIp
 
 THREE = [
     oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "A"),
@@ -956,7 +956,7 @@ class TestDownloadFirst:
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py -q
 ```
 
 Expected: FAIL — `AttributeError: module ... has no attribute '_download_first'`.
@@ -977,7 +977,7 @@ def _download_first(candidates: list[_IdpLocation], dest_dir: Path) -> Path:
     # the msr_image imports. InvalidToolIp is NOT a LookupError subclass
     # (msr_image/errors.py: it descends from MsrImageError), so the two except
     # clauses below are disjoint.
-    from back_dev_home.msr_image.errors import InvalidToolIp
+    from backend.msr_image.errors import InvalidToolIp
 
     failures = []
     blocked = []
@@ -1040,7 +1040,7 @@ Update that function's docstring paragraph to match:
 - [ ] **Step 5: Run the whole feature suite**
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q
 ```
 
 Expected: PASS.
@@ -1064,8 +1064,8 @@ several. An out-of-subnet IP is skipped with a WARNING rather than propagated,
 since a single stale roster entry should not fail every recipe on that tool —
 but if EVERY candidate is blocked the guard's InvalidToolIp is re-raised as
 itself, which is the configuration fault MIGRATION.md documents it for.
-" -- back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py \
-     back_dev_home/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
+" -- backend/ebeam/hitachi/recipe_search/providers/office_example.py \
+     backend/ebeam/hitachi/recipe_search/tests/test_idp_locate.py
 ```
 
 ---
@@ -1080,9 +1080,9 @@ code change makes false.
 
 - Modify: `docs/datatables/hitachi/recipe_name_list.txt`
 - Modify: `docs/datatables/hitachi/recipe_idp.txt`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py` (docstring only)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` (module docstring only)
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/mock.py` (docstring only)
+- Modify: `backend/ebeam/hitachi/recipe_search/MIGRATION.md`
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py` (module docstring only)
 
 **Interfaces:**
 
@@ -1332,9 +1332,9 @@ needs no sem_list join (true only on the meas_hist fallback now), and mock.py
 still claimed recipe open runs off the mock at the office (wired 2026-07-27).
 " -- docs/datatables/hitachi/recipe_name_list.txt \
      docs/datatables/hitachi/recipe_idp.txt \
-     back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py \
-     back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md \
-     back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py
+     backend/ebeam/hitachi/recipe_search/providers/mock.py \
+     backend/ebeam/hitachi/recipe_search/MIGRATION.md \
+     backend/ebeam/hitachi/recipe_search/providers/office_example.py
 ```
 
 ---

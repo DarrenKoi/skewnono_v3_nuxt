@@ -89,7 +89,7 @@ Herdr 또는 agent 도구를 업데이트한 뒤에는 skill과 integration을 �
 
 다음 작업은 T3 후보입니다.
 
-- `back_dev_home/`과 `front-dev-home/`을 함께 바꾸는 신규 feature
+- `backend/`과 `frontend/`을 함께 바꾸는 신규 feature
 - 새 tool family를 여러 feature에 연결하는 작업
 - 여러 feature의 provider contract를 동시에 바꾸는 refactoring
 
@@ -329,7 +329,7 @@ main checkout의 skip 수 차이가 환경 차이인지 collection 회귀인지 
 판단할 수 있어야 합니다.
 
 Backend 전체 suite는 반드시 repo root에서 `python -m pytest` 형태로 실행합니다.
-`pytest tests/`만 실행하면 `back_dev_home/**/tests/`의 provider-contract suite를
+`pytest tests/`만 실행하면 `backend/**/tests/`의 provider-contract suite를
 건너뜁니다.
 
 ## 8. 복구와 사실의 우선순위

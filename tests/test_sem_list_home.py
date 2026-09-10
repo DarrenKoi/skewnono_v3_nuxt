@@ -4,10 +4,10 @@ Run only this file:
     .venv/bin/python -m pytest tests/test_sem_list_home.py -q
 
 Run the complete backend suite:
-    .venv/bin/python -m pytest tests back_dev_home -q
+    .venv/bin/python -m pytest tests backend -q
 
 `unittest discover tests` also runs this file, but it is NOT the suite: it
-sees nothing under `back_dev_home/**/tests/`, where most of the backend tests
+sees nothing under `backend/**/tests/`, where most of the backend tests
 now live as pytest functions.
 
 Nothing here imports `providers.office`: that module is gitignored, so a
@@ -24,10 +24,10 @@ from unittest.mock import MagicMock
 
 from flask import Flask
 
-from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.sem_list import data
-from back_dev_home.sem_list.providers import mock as mock_provider
-from back_dev_home.sem_list.routes import bp
+from backend._runtime.data_provider import get_data_provider
+from backend.sem_list import data
+from backend.sem_list.providers import mock as mock_provider
+from backend.sem_list.routes import bp
 from tests._office_state import (
     MISSING_ADAPTER_MESSAGE,
     fake_office_adapter,

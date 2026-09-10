@@ -4,7 +4,7 @@ Status: resolved
 
 ## 문제
 
-`back_dev_home/msr_image/single_flight.py` 의 `_Attempt` 는 `threading.Lock` 을
+`backend/msr_image/single_flight.py` 의 `_Attempt` 는 `threading.Lock` 을
 handoff 방식으로 씁니다. 선두가 락을 잡고 본문을 돌고, 대기자들은 그 락에
 블록됐다가 **한 명씩 순서대로** 깨어납니다. 각 대기자는 깨어난 뒤 게이트 안에서
 `cache.get()` 을 한 번씩 합니다.
@@ -48,7 +48,7 @@ attempt 를 unpublish 하므로, 이전 시도의 대기자가 아직 본문에 
 
 ## 검증
 
-- 기존 테스트는 전부 통과해야 합니다: `back_dev_home/msr_image/tests/test_single_flight.py`,
+- 기존 테스트는 전부 통과해야 합니다: `backend/msr_image/tests/test_single_flight.py`,
   `test_routes_serve.py` 의 동시성 3건
 - **새 테스트**: 느린 `cache.get` 을 주입하고 대기자 3명을 붙였을 때, 전체 소요가
   캐시 읽기 1회 수준이어야 하고 3회가 누적되면 안 됩니다. 지금 코드에 대해 실패해야

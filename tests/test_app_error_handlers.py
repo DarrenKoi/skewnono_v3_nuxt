@@ -37,7 +37,7 @@ import pytest
 import redis
 from flask import Flask
 
-from back_dev_home import _install_json_error_handlers
+from backend import _install_json_error_handlers
 
 
 def _client(exc: BaseException):

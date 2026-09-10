@@ -77,8 +77,8 @@ from pathlib import Path
 
 import pytest
 
-from back_dev_home._runtime.office_registry import backend_root, features
-from back_dev_home._runtime.office_template import Adapter, discover
+from backend._runtime.office_registry import backend_root, features
+from backend._runtime.office_template import Adapter, discover
 
 
 # chat is PARKED — not an established page, and its office store is a stub with
@@ -94,7 +94,7 @@ def _adapters() -> list[Adapter]:
 
 
 def _module_name(path: Path) -> str:
-    """back_dev_home/sem_list/providers/mock.py -> back_dev_home.sem_list...mock."""
+    """backend/sem_list/providers/mock.py -> backend.sem_list...mock."""
     return ".".join(path.relative_to(backend_root().parent).with_suffix("").parts)
 
 

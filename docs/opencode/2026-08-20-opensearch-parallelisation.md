@@ -8,7 +8,7 @@
 
 ## 배경 조사 결과
 
-`back_dev_home/ebeam/_office_search.py` 가 모든 e-beam office 어댑터의 단일
+`backend/ebeam/_office_search.py` 가 모든 e-beam office 어댑터의 단일
 접근 계층이며, 노출하는 진입점은 `aggregate()` 와 `fetch_hits()` 두 개입니다.
 둘 다 동기 blocking 호출이고 `msearch` 도 async 클라이언트도 쓰지 않습니다.
 저장소 전체에서 실제로 팬아웃하는 경로는 `msr_image` 의 FTP 다운로더

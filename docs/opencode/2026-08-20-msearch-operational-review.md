@@ -35,8 +35,8 @@
 
 **BLOCKING — error semantics inversion.** msearch answers HTTP 200 with per-sub-request `{"error":…, "status":404}` bodies, so the driver never raises `NotFoundError`. The entire current failure path dies silently:
 
-- `back_dev_home/ebeam/_office_search.py:153` — `except NotFoundError as exc: raise _missing_index_error(index, exc)` stops firing. A missing alias no longer becomes the SPA's `502 upstream_data_error` ("OpenSearch index/alias 'x' not found").
-- Instead the body falls into the ladder and dies at `_office_search.py:161` — `timed_out = result.get("timed_out"); if timed_out is not False: raise RuntimeError(...)` — which `back_dev_home/__init__.py:140` maps to **503 `backend_unavailable`**. User sees "backend unavailable" for a data problem, with a message about `timed_out` metadata that names nothing actionable.
+- `backend/ebeam/_office_search.py:153` — `except NotFoundError as exc: raise _missing_index_error(index, exc)` stops firing. A missing alias no longer becomes the SPA's `502 upstream_data_error` ("OpenSearch index/alias 'x' not found").
+- Instead the body falls into the ladder and dies at `_office_search.py:161` — `timed_out = result.get("timed_out"); if timed_out is not False: raise RuntimeError(...)` — which `backend/__init__.py:140` maps to **503 `backend_unavailable`**. User sees "backend unavailable" for a data problem, with a message about `timed_out` metadata that names nothing actionable.
 
 **BLOCKING if skipped, MANAGEABLE if done — the validation ladder.** `timed_out is not False`, `_shards.failed != 0` (`refusing partial aggregation results`), and the `aggregations` Mapping check are written against one response. Under msearch they must be re-applied **per sub-response**; msearch has no envelope `_shards`. Skip that and `_shards.failed>0` partial results reach `office_example.py`'s bucket math as valid numbers — user sees plausible-but-wrong `para_*` totals, no error anywhere.
 
@@ -60,7 +60,7 @@ A new `def msearch(self, bodies, *, index=None)` reusing `_resolve_index` and ca
 
 But the real edit surface is elsewhere, and cannot be additive:
 
-- `back_dev_home/ebeam/_office_search.py:148` `aggregate(index, aggs, query_body)` and `:231` `fetch_hits(index, query_body, size, sort, source)` are the only entry points adapters use. A batching variant means a new `aggregate_many()` **plus** rewriting every consumer loop — `office_example.py:1005` `for start in range(0, len(unique), _IDP_CHUNK):`, `_r3_steps`, `_mfab_steps` — to collect queries and split sub-responses. That is the per-sub-response validation problem from §1, now duplicated per adapter unless centralized in `_office_search.py`.
+- `backend/ebeam/_office_search.py:148` `aggregate(index, aggs, query_body)` and `:231` `fetch_hits(index, query_body, size, sort, source)` are the only entry points adapters use. A batching variant means a new `aggregate_many()` **plus** rewriting every consumer loop — `office_example.py:1005` `for start in range(0, len(unique), _IDP_CHUNK):`, `_r3_steps`, `_mfab_steps` — to collect queries and split sub-responses. That is the per-sub-response validation problem from §1, now duplicated per adapter unless centralized in `_office_search.py`.
 - `ops_store/` is a vendored byte-copy: the new method must land in upstream `flask_modules` simultaneously (Vendored-module edit smell), and the office runtime may load the upstream copy.
 - `office.py` is gitignored — adapter edits ship only via re-copy.
 

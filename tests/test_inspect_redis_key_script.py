@@ -27,7 +27,7 @@ def _office_redis_module(
     dataframe: pd.DataFrame,
     connection_calls: list[bool],
 ) -> ModuleType:
-    module = ModuleType("back_dev_home._runtime.office_redis")
+    module = ModuleType("backend._runtime.office_redis")
     module.STORE_ERRORS = (ConnectionError,)
     module.read_dataframe = lambda raw, key: dataframe
     module.redis_text = lambda value: value.decode() if isinstance(value, bytes) else str(value)
@@ -45,7 +45,7 @@ def test_console_execution_exposes_redis_and_dataframe_variables(monkeypatch) ->
     dataframe = pd.DataFrame({"eqp_id": ["SEM-01"]})
     connection_calls: list[bool] = []
     fake_module = _office_redis_module(fake_client, dataframe, connection_calls)
-    monkeypatch.setitem(sys.modules, "back_dev_home._runtime.office_redis", fake_module)
+    monkeypatch.setitem(sys.modules, "backend._runtime.office_redis", fake_module)
     monkeypatch.setattr(sys, "argv", [str(SCRIPT)])
 
     try:
@@ -66,7 +66,7 @@ def test_importing_helpers_does_not_connect_to_redis(monkeypatch) -> None:
     dataframe = pd.DataFrame({"eqp_id": ["SEM-01"]})
     connection_calls: list[bool] = []
     fake_module = _office_redis_module(fake_client, dataframe, connection_calls)
-    monkeypatch.setitem(sys.modules, "back_dev_home._runtime.office_redis", fake_module)
+    monkeypatch.setitem(sys.modules, "backend._runtime.office_redis", fake_module)
 
     namespace = runpy.run_path(str(SCRIPT), run_name="inspect_redis_key_import")
 
@@ -87,7 +87,7 @@ def test_passing_the_key_as_an_argument_is_refused(monkeypatch) -> None:
     dataframe = pd.DataFrame({"eqp_id": ["SEM-01"]})
     connection_calls: list[bool] = []
     fake_module = _office_redis_module(fake_client, dataframe, connection_calls)
-    monkeypatch.setitem(sys.modules, "back_dev_home._runtime.office_redis", fake_module)
+    monkeypatch.setitem(sys.modules, "backend._runtime.office_redis", fake_module)
     monkeypatch.setattr(sys, "argv", [str(SCRIPT), "v3_df_sem_avail"])
 
     with pytest.raises(SystemExit) as err:

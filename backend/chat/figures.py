@@ -1,0 +1,205 @@
+"""Manual figure store — turns an opaque ``figure_id`` into WebP bytes.
+
+The RAG index emits ``figure_id`` for figure chunks (``None`` for text and
+table chunks), and this module is the ONLY place that knows how that token
+becomes a storage key. Two backends sit behind one function:
+
+| knowledge provider | store | object                                              |
+| ------------------ | ----- | --------------------------------------------------- |
+| ``mock``           | disk  | ``{SKEWNONO_CHAT_FIGURES_DIR}/{figure_id}.webp``     |
+| ``office``         | MinIO | ``{client prefix}/{figure prefix}{figure_id}.webp`` |
+
+The store follows the knowledge provider rather than carrying a selector of
+its own: a ``figure_id`` is only meaningful against the index that minted it
+(the office ingestion writes the index and the figure objects together), so
+"office index, disk figures" is not a configuration anyone can want.
+
+Office layout (RAG 측 확인 2026-08-31; supersedes the 2026-08-27
+``hitachi_sem/manual_figures/`` layout)::
+
+    user/2067928/skewnono_rag/hitachi_manuals/figures/CG6300_1.HHTSEM_SYSTEM_p100_i0.webp
+    ^bucket ^client prefix ^SKEWNONO_CHAT_FIGURE_PREFIX (default) ^figure_id
+
+The ``figure_id`` is built from the manual's filename, so it is arbitrary text
+— spaces and Hangul are the norm, not the exception, and the key carries them
+verbatim (the HTTP layer percent-encodes them, storage does not).
+
+The user namespace (``2067928/``) is the MinIO client's own default prefix —
+``minio_handler``'s ``PREFIX`` / ``MINIO_PREFIX`` — and this module passes the
+key BELOW it: ``MinioObject().get("skewnono_rag/hitachi_manuals/figures/<id>.webp")``.
+That is the opposite of ``msr_image/minio_cache.py``, which clears the client
+prefix and spells the namespace into its own prefix. Both work; the trap is
+mixing them — spelling ``2067928/`` into ``SKEWNONO_CHAT_FIGURE_PREFIX`` here
+would double it to ``2067928/2067928/...`` and every figure 404s. The prefix
+is the RAG ingestion's namespace (``skewnono_rag/`` + a per-manual-family
+segment), so another family's figures land under another prefix, never
+another bucket.
+
+Every failure is a miss (``None`` → 404), by design: distinguishing "bad id"
+from "not stored" from "no store configured" would make the endpoint an
+oracle for which figure_ids exist. Storage errors that are NOT a plain miss
+are logged WITH the bucket and resolved key, because the log line is then the
+only signal — and the thing that differs between machines is the key itself.
+The user namespace comes from ``minio_handler/minio_config.py``, which is
+gitignored: on a checkout without that file ``default_prefix`` is ``None``,
+the key loses ``2067928/``, and credentials scoped to that prefix answer
+``AccessDenied``. Printing the key turns "AccessDenied" into "AccessDenied on
+a key you can see is missing its namespace". Note that BUCKET and PREFIX have
+no environment fallback — unlike the connection settings, they are read from
+that module alone (``minio_handler/base.py`` ``_module_values``), so the only
+other way to supply them here is ``SKEWNONO_CHAT_FIGURE_BUCKET`` and folding
+the namespace into ``SKEWNONO_CHAT_FIGURE_PREFIX``.
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+from pathlib import Path
+from typing import Callable
+
+from backend.chat import config, rag
+
+log = logging.getLogger(__name__)
+
+# The office derives a figure id as ``{stem}_p{page}_i{idx}``, where the stem
+# is the manual's own filename. That is arbitrary text typed by whoever named
+# the file, so dots, spaces and Hangul are all ordinary — both
+# ``CG6300_1.HHTSEM_SYSTEM_p100_i0`` (office 확인 2026-08-19) and
+# ``CD-SEM 사용 설명서 v1.2_p12_i0`` are real shapes. The charset is therefore
+# a Unicode word-char whitelist plus ``.``, ``-`` and space; ``\w`` on a str
+# pattern is already Unicode-aware, so Hangul needs no range of its own.
+# Anything narrower 404s real office figures while every ASCII mock fixture
+# keeps passing — a failure that only ever shows up at the office.
+_FIGURE_ID = re.compile(r"^[\w .-]{1,128}$")
+
+# minio raises S3Error with one of these in ``.code`` when the object is gone.
+# Matched on the attribute rather than ``isinstance(exc, S3Error)`` because
+# ``minio`` is an office-only dependency (same reason as msr_image's cache).
+_NOT_FOUND_CODES = frozenset({"NoSuchKey", "NoSuchObject", "NotFound"})
+
+
+def is_valid_figure_id(figure_id: str) -> bool:
+    r"""Charset + length + no ``..`` — checked before any storage call.
+
+    Validation happens before storage, not after: on the MinIO path a
+    malformed id would otherwise cost a network round trip to learn what the
+    charset already knows. The charset admits what a filename stem normally
+    carries, spaces and Hangul included, so traversal cannot be left to it and
+    is refused by name instead: ``..`` anywhere, and a LEADING dot — a bare
+    ``.`` matches the charset, and on the MinIO path it was reaching storage
+    as ``.../..webp`` (the disk path only survived it through the containment
+    check). Real ids start with the stem's first character, never a dot.
+    Separators stay out on both counts: ``/`` and ``\`` are outside ``\w``,
+    and a slash never arrives anyway — Flask routing refuses it before the
+    view runs.
+    """
+    return (
+        bool(_FIGURE_ID.match(figure_id))
+        and ".." not in figure_id
+        and not figure_id.startswith(".")
+    )
+
+
+def figure_key(figure_id: str) -> str:
+    """The object key below the client's namespace prefix (MinIO store)."""
+    return f"{config.get_figure_prefix()}{figure_id}.webp"
+
+
+def read_figure(figure_id: str) -> bytes | None:
+    """WebP bytes for ``figure_id``, or ``None`` when it must not be served."""
+    if not is_valid_figure_id(figure_id):
+        # The client cannot be told these apart — a rejected id, an absent
+        # object and an unconfigured store are all 404, deliberately. The
+        # SERVER can, and this is the one failure whose cause is knowable:
+        # the id never reached storage. Without the line, an office manual
+        # whose filename carries a character the charset misses looks exactly
+        # like a manual indexed without figures — the SPA drops the thumbnail
+        # and says nothing. Same reasoning as the MinIO warning below.
+        log.warning("[chat-figure] id rejected by charset: %r", figure_id[:160])
+        return None
+    # Same switch as the answer seam: the figures belong to the corpus the
+    # RAG indexed, so a checkout means the office store holds them.
+    if rag.rag_ready():
+        return _read_minio(figure_id)
+    return _read_disk(figure_id)
+
+
+def _read_disk(figure_id: str) -> bytes | None:
+    figures_dir = config.get_figures_dir()
+    if figures_dir is None:
+        return None
+    # Containment is the backstop for the charset check above — it also
+    # catches a figure symlinked out of the store.
+    root = Path(figures_dir).resolve()
+    path = (root / f"{figure_id}.webp").resolve()
+    if path.parent != root:
+        return None
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
+def _default_client():
+    # Lazy: office-only dependency, keeps home boot free of minio_handler.
+    from minio_handler import MinioObject
+
+    client = MinioObject()
+    bucket = config.get_figure_bucket()
+    if bucket:
+        client = client.use_bucket(bucket)
+    # Deliberately NOT ``use_prefix(None)``: the client's default prefix is the
+    # user namespace and the whole point (see the module docstring).
+    return client
+
+
+# Swapped by tests; the office never touches this.
+_client_factory: Callable[[], object] = _default_client
+_client: object | None = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = _client_factory()
+    return _client
+
+
+def reset_client() -> None:
+    """Drop the cached MinIO client (tests, and any future config reload)."""
+    global _client
+    _client = None
+
+
+def _store_location(key: str) -> str:
+    """``bucket/resolved-key``, for the warning below.
+
+    Read off the cached client rather than the config, so it reports what the
+    failing call actually used. Defensive throughout: the client may have
+    failed to construct (no credentials), and tests inject a double.
+    """
+    client = _client
+    if client is None:
+        return "no client"
+    bucket = getattr(client, "default_bucket", None) or "<no bucket>"
+    prefix = getattr(client, "default_prefix", None)
+    return f"{bucket}/{prefix + '/' if prefix else ''}{key}"
+
+
+def _read_minio(figure_id: str) -> bytes | None:
+    key = figure_key(figure_id)
+    try:
+        return _get_client().get(key)
+    except Exception as error:  # noqa: BLE001 — every failure is a miss
+        code = getattr(error, "code", None)
+        if code in _NOT_FOUND_CODES:
+            return None
+        log.warning(
+            "chat figure store read failed for %s at %s: %s%s",
+            figure_id,
+            _store_location(key),
+            type(error).__name__,
+            f" ({code})" if code else "",
+        )
+        return None

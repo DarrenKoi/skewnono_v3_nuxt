@@ -75,10 +75,10 @@ Nuxt UI Chat 타입이 `ai` package의 `UIMessage`를 참조하는 사용 경로
 
 Chat은 특정 SEM feature가 아니라 전역 기능으로 두는 것이 적합합니다.
 
-- route: `front-dev-home/app/pages/chat.vue`
-- components: `front-dev-home/app/components/chat/*`
-- API/stream state: `front-dev-home/app/composables/useChatApi.ts`
-- top navigation: `front-dev-home/app/components/nav/FeatureTabs.vue`
+- route: `frontend/app/pages/chat.vue`
+- components: `frontend/app/components/chat/*`
+- API/stream state: `frontend/app/composables/useChatApi.ts`
+- top navigation: `frontend/app/components/nav/FeatureTabs.vue`
 
 `chat`을 기존 `FEATURE_SLUGS`에 넣으면 tool type과 FAB를 바꾸는 route rewrite 규칙에 결합될 수 있습니다. `FeatureTabs.vue`가 direct route를 지원하게 하고 `/chat`을 전역 tab으로 추가하는 편이 명확합니다.
 
@@ -140,7 +140,7 @@ Provider SDK 대신 `requests.Session`을 감싼 작은 client를 권장합니�
 
 구현 원칙은 다음과 같습니다.
 
-- `back_dev_home/requirements.txt`에 `requests>=2.32,<3`을 직접 명시합니다.
+- `backend/requirements.txt`에 `requests>=2.32,<3`을 직접 명시합니다.
 - API key, base URL, upstream model ID는 server-side 설정으로만 관리합니다.
 - frontend는 allowlisted logical `model_id`만 전송합니다.
 - 각 worker에서 생성된 thread-local `Session`을 사용하고 process 간 Session을 공유하지 않습니다.
@@ -374,7 +374,7 @@ Prompt, retrieved chunk, answer 원문을 기본 index에 저장하지 않습니
 기존 `routes.py -> data.py -> providers/mock.py|office.py` 규칙을 유지하면 다음 구조가 적합합니다.
 
 ```text
-back_dev_home/chat/
+backend/chat/
 |-- routes.py
 |-- data.py
 |-- contracts.py
@@ -531,17 +531,17 @@ Chunking, embedding model, vector dimension, index mapping은 SKEWNONO 구현 �
 
 ### 현재 repository evidence
 
-- `front-dev-home/package.json`
-- `front-dev-home/nuxt.config.ts`
-- `front-dev-home/app/layouts/default.vue`
-- `front-dev-home/app/components/nav/FeatureTabs.vue`
-- `front-dev-home/app/components/nav/AppHeader.vue`
-- `back_dev_home/__init__.py`
-- `back_dev_home/_auth/middleware.py`
-- `back_dev_home/_runtime/data_provider.py`
-- `back_dev_home/requirements.txt`
-- `back_dev_home/_infra/opensearch.py`
-- `back_dev_home/_infra/redis.py`
+- `frontend/package.json`
+- `frontend/nuxt.config.ts`
+- `frontend/app/layouts/default.vue`
+- `frontend/app/components/nav/FeatureTabs.vue`
+- `frontend/app/components/nav/AppHeader.vue`
+- `backend/__init__.py`
+- `backend/_auth/middleware.py`
+- `backend/_runtime/data_provider.py`
+- `backend/requirements.txt`
+- `backend/_infra/opensearch.py`
+- `backend/_infra/redis.py`
 - `wsgi.ini`
 - `docs/back-end/office-data-adapters.md`
 - `docs/development-workflow.md` (이후 삭제 — git 이력에서만 확인 가능합니다)

@@ -28,12 +28,12 @@ TTTM 페이지는 존재하며, 디자인 재작업 중이라 네비게이션의
 
 관련 파일은 다음과 같습니다.
 
-- `front-dev-home/app/pages/ebeam/cd-sem/[fab]/tttm.vue`: 라우트 래퍼
-- `front-dev-home/app/components/ebeam/TttmView.vue`: 메인 뷰
-- `front-dev-home/app/utils/tttmGrouping.ts`: 클라이언트 측 TTTM 엔진
+- `frontend/app/pages/ebeam/cd-sem/[fab]/tttm.vue`: 라우트 래퍼
+- `frontend/app/components/ebeam/TttmView.vue`: 메인 뷰
+- `frontend/app/utils/tttmGrouping.ts`: 클라이언트 측 TTTM 엔진
   (Bron–Kerbosch 최대 클리크, 인접 행렬 AND-fold, tolerance 기반 판정)
-- `front-dev-home/app/utils/fleetMap.ts`: 장비 그룹 배치도 엔진(고전 MDS)
-- `back_dev_home/ebeam/tttm/`: 백엔드 feature (`GET /api/cdsem/tttm/check`)
+- `frontend/app/utils/fleetMap.ts`: 장비 그룹 배치도 엔진(고전 MDS)
+- `backend/ebeam/tttm/`: 백엔드 feature (`GET /api/cdsem/tttm/check`)
 
 문서의 핵심 개념과 현재 페이지의 대응 관계는 아래와 같습니다.
 
@@ -172,4 +172,4 @@ Monitoring)이 페이지 섹션 재편의 뼈대로 자연스럽게 맞습니다
 - 기법 원본 정리: `cdsem-tttm-evolution-2009-2026.md` (동일 폴더)
 - 2009 원 논문: `docs/research/Methodologies_for_evaluating_CD-matching_of_CD-SEM.pdf`
   (git 에 넣지 않습니다 — SPIE 유료 논문이고 이 저장소는 공개입니다)
-- 백엔드 계약: `back_dev_home/ebeam/tttm/contracts.py`, `MIGRATION.md`
+- 백엔드 계약: `backend/ebeam/tttm/contracts.py`, `MIGRATION.md`

@@ -90,7 +90,7 @@ env = FTP_PROXY_FTP_PASSWORD=hid
 
 이 두 값은 이제 **계정을 싣지 않은 요청에만 쓰이는 최후의 기본값**입니다.
 2026-08-28 부터 클라이언트가 spec 마다 계정을 실어 보내며(fab/tool 별 계정은
-`SKEWNONO_TOOL_FTP_ACCOUNTS`, [`msr_image/MIGRATION.md`](../back_dev_home/msr_image/MIGRATION.md)),
+`SKEWNONO_TOOL_FTP_ACCOUNTS`, [`msr_image/MIGRATION.md`](../backend/msr_image/MIGRATION.md)),
 `os.getenv` 로 읽으므로 **없어도 500 이 나지 않습니다**.
 
 장비 계정을 여기서 관리하지 마십시오. 이 쌍은 하나뿐이라 fab/tool 마다 갈리는

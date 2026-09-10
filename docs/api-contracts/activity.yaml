@@ -6,8 +6,8 @@ description: >-
 base_path: /api/activity
 
 source:
-  home: back_dev_home/activity/providers/mock.py
-  office: back_dev_home/activity/providers/opensearch_reader.py
+  home: backend/activity/providers/mock.py
+  office: backend/activity/providers/opensearch_reader.py
   office_storage: skewnono_logging*
   office_client: ops_store.OSSearch
   office_fallback: none

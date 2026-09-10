@@ -1,6 +1,6 @@
 """Route-level rules for GET /api/<slug>/tttm/check's scope arguments.
 
-The provider contract (back_dev_home/ebeam/tttm/tests/test_contract.py) covers
+The provider contract (backend/ebeam/tttm/tests/test_contract.py) covers
 what the payload must look like. This file covers the part only the route can
 get wrong: which query arguments are legal together, and whether they actually
 reach the provider.
@@ -12,8 +12,8 @@ import unittest
 
 from flask import Flask
 
-from back_dev_home.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS
-from back_dev_home.ebeam.tttm.routes import bp
+from backend.ebeam._analysis_window import DEFAULT_WINDOW_WEEKS
+from backend.ebeam.tttm.routes import bp
 
 
 FAB = "R3"

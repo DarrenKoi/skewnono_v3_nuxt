@@ -52,20 +52,20 @@ STUB_TEMPLATE = (
 
 @pytest.fixture
 def checkout(tmp_path, monkeypatch):
-    """Factory: a git checkout whose back_dev_home holds the given templates.
+    """Factory: a git checkout whose backend holds the given templates.
 
     Aims both scripts at it. ``setup_office_adapters`` does a from-import of
     REPO_ROOT, so it holds its own binding and needs patching separately —
     the functions it imported read sync's globals at call time and do not.
     """
     root = tmp_path / "checkout"
-    backend = root / "back_dev_home"
+    backend = root / "backend"
     backend.mkdir(parents=True)
     # Both rules from the real .gitignore, so git_ignores() has something to
     # say about a per-tab adapter as well as a feature-level one.
     (root / ".gitignore").write_text(
-        "back_dev_home/**/providers/office.py\n"
-        "back_dev_home/**/providers/**/office.py\n"
+        "backend/**/providers/office.py\n"
+        "backend/**/providers/**/office.py\n"
     )
     _git(root, "init", "-q", "-b", "main")
     monkeypatch.setattr(sync, "REPO_ROOT", root)
@@ -109,11 +109,11 @@ def _providers_dir(backend, key):
 
 
 def _target(root, key):
-    return _providers_dir(root / "back_dev_home", key) / "office.py"
+    return _providers_dir(root / "backend", key) / "office.py"
 
 
 def _template(root, key):
-    return _providers_dir(root / "back_dev_home", key) / "office_example.py"
+    return _providers_dir(root / "backend", key) / "office_example.py"
 
 
 def _make_synced(root, key):
@@ -407,8 +407,8 @@ def test_git_does_not_ignore_the_template(checkout):
 
 
 @pytest.mark.parametrize("relative", [
-    "back_dev_home/sem_list/providers/office.py",
-    "back_dev_home/ebeam/hardware/providers/fdc/office.py",
+    "backend/sem_list/providers/office.py",
+    "backend/ebeam/hardware/providers/fdc/office.py",
 ])
 def test_this_repo_ignores_every_shape_of_office_py(relative):
     """Against the REAL .gitignore, not the fixture's reduction of it.
@@ -860,7 +860,7 @@ def test_setup_tells_the_office_to_restart_flask(checkout, capsys):
 
 def test_the_cli_reuses_the_runtime_adapter_type():
     """One tested copy of the traversal, not two that can drift apart."""
-    from back_dev_home._runtime import office_template
+    from backend._runtime import office_template
 
     assert sync.Adapter is office_template.Adapter
 

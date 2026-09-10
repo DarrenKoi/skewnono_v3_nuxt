@@ -1,7 +1,7 @@
 # AFM Data Platform 통합 마이그레이션 계획
 
-> **완료 기록입니다.** 이 계획의 기능은 모두 `back_dev_home/afm/` 과
-> `front-dev-home/` 으로 흡수되었고, 원본 `afm_data_platform/` 폴더는
+> **완료 기록입니다.** 이 계획의 기능은 모두 `backend/afm/` 과
+> `frontend/` 으로 흡수되었고, 원본 `afm_data_platform/` 폴더는
 > 2026-07-26 에 저장소에서 제거되었습니다. 따라서 아래에서 `afm_data_platform/`
 > 경로를 가리키는 표와 설명은 제거 이전의 원본 구조를 기록한 이력이며, 현재
 > 트리에는 존재하지 않습니다. 사내 규격 문서 두 건은 `docs/afm/` 으로
@@ -9,7 +9,7 @@
 
 ## 1. 개요
 
-본 문서는 별도 URL에서 동작하는 `afm_data_platform/` (Vue 3 + Vuetify 3 + Flask) 애플리케이션을 SKEWNONO Nuxt 4 + Flask 통합 환경 (`back_dev_home/` + `front-dev-home/`) 으로 흡수하기 위한 마이그레이션 전략입니다.
+본 문서는 별도 URL에서 동작하는 `afm_data_platform/` (Vue 3 + Vuetify 3 + Flask) 애플리케이션을 SKEWNONO Nuxt 4 + Flask 통합 환경 (`backend/` + `frontend/`) 으로 흡수하기 위한 마이그레이션 전략입니다.
 
 ### 1.1 통합 목적
 
@@ -67,11 +67,11 @@
 | 원본 | 대상 |
 | --- | --- |
 | `afm_data_platform/api/__init__.py` | (제거; 통합 앱 팩토리에서 등록) |
-| `afm_data_platform/api/routes.py` | `back_dev_home/afm/__init__.py` (blueprint export) |
-| `afm_data_platform/api/afm_routes.py` | `back_dev_home/afm/routes.py` 의 일부 (files 그룹) |
-| `afm_data_platform/api/image_routes.py` | `back_dev_home/afm/routes.py` 의 일부 (image 그룹) |
-| `afm_data_platform/api/activity_routes.py` | `back_dev_home/afm/routes.py` 의 일부 (activity 그룹) |
-| `afm_data_platform/api/utils/file_parser.py` | `back_dev_home/afm/data.py` (데이터 액세스 레이어) |
+| `afm_data_platform/api/routes.py` | `backend/afm/__init__.py` (blueprint export) |
+| `afm_data_platform/api/afm_routes.py` | `backend/afm/routes.py` 의 일부 (files 그룹) |
+| `afm_data_platform/api/image_routes.py` | `backend/afm/routes.py` 의 일부 (image 그룹) |
+| `afm_data_platform/api/activity_routes.py` | `backend/afm/routes.py` 의 일부 (activity 그룹) |
+| `afm_data_platform/api/utils/file_parser.py` | `backend/afm/data.py` (데이터 액세스 레이어) |
 | `afm_data_platform/api/utils/app_logger_standard.py` | 표준 `logging` 으로 단순화 |
 | `afm_data_platform/api/utils/standard_logger.py` | 제거 |
 
@@ -95,7 +95,7 @@ skewnono blueprint 컨벤션 (`/api/sem-list`, `/api/tool-inventory`) 에 맞춰
 
 ### 3.3 데이터 레이어 분리
 
-`back_dev_home/afm/data.py` 가 노출할 함수입니다.
+`backend/afm/data.py` 가 노출할 함수입니다.
 
 | 함수 | 책임 |
 | --- | --- |
@@ -112,7 +112,7 @@ skewnono blueprint 컨벤션 (`/api/sem-list`, `/api/tool-inventory`) 에 맞춰
 ### 3.4 데이터 경로의 환경설정화
 
 - 환경변수 `AFM_DB_ROOT` (default: `./itc-afm-data-platform-pjt-shared/AFM_DB`).
-- `back_dev_home/afm/data.py` 모듈 로드 시 `os.environ.get("AFM_DB_ROOT", ...)` 로 해석합니다.
+- `backend/afm/data.py` 모듈 로드 시 `os.environ.get("AFM_DB_ROOT", ...)` 로 해석합니다.
 - Phase 1 home 환경: 기본값을 사용해 로컬 dummy 데이터를 가리킵니다.
 - Phase 2/3: 회사 공유 경로 또는 마운트된 네트워크 드라이브를 가리킵니다.
 
@@ -121,7 +121,7 @@ skewnono blueprint 컨벤션 (`/api/sem-list`, `/api/tool-inventory`) 에 맞춰
 기존 3-RotatingFileHandler 시스템은 Phase 1 mock 환경에 과도합니다.
 
 - 표준 `logging.getLogger("skewnono.afm")` 으로 통일합니다.
-- 공통 로깅 설정이 필요해지면 `back_dev_home/logging_config.py` 같은 명시적인 모듈로 둡니다.
+- 공통 로깅 설정이 필요해지면 `backend/logging_config.py` 같은 명시적인 모듈로 둡니다.
 - activity 로그는 *파일 파싱 의존*에서 *메모리 또는 SQLite* 기반으로 단계적으로 이전합니다. 마이그레이션 첫 단계에서는 빈 리스트를 돌려주는 stub 으로 두고, 활동 추적 기능은 후속 작업으로 분리합니다.
 
 ### 3.6 `LASTUSER` 쿠키 의존성
@@ -136,11 +136,11 @@ skewnono blueprint 컨벤션 (`/api/sem-list`, `/api/tool-inventory`) 에 맞춰
 
 | 원본 (Vue Router) | 대상 (Nuxt 파일 기반) |
 | --- | --- |
-| `/` (MainPage) | `front-dev-home/app/pages/afm/index.vue` |
-| `/about` | `front-dev-home/app/pages/afm/about.vue` (또는 기존 `/information` 으로 흡수) |
+| `/` (MainPage) | `frontend/app/pages/afm/index.vue` |
+| `/about` | `frontend/app/pages/afm/about.vue` (또는 기존 `/information` 으로 흡수) |
 | `/contact` | (제거 검토) |
-| `/result/:recipeId/:filename` | `front-dev-home/app/pages/afm/result/[recipeId]/[filename].vue` |
-| `/result/data_trend` | `front-dev-home/app/pages/afm/result/data-trend.vue` |
+| `/result/:recipeId/:filename` | `frontend/app/pages/afm/result/[recipeId]/[filename].vue` |
+| `/result/data_trend` | `frontend/app/pages/afm/result/data-trend.vue` |
 
 ### 4.2 페이지·컴포넌트 이전 매핑
 
@@ -225,8 +225,8 @@ CLAUDE.md 에 따르면 TanStack Query 는 도입하지 않으며 `useAsyncData(
 
 | 원본 | 대상 |
 | --- | --- |
-| `front-end/src/assets/afm_logo.png` | `front-dev-home/app/assets/afm/afm_logo.png` |
-| `front-end/src/assets/custom_logo.png` | `front-dev-home/app/assets/afm/custom_logo.png` |
+| `front-end/src/assets/afm_logo.png` | `frontend/app/assets/afm/afm_logo.png` |
+| `front-end/src/assets/custom_logo.png` | `frontend/app/assets/afm/custom_logo.png` |
 | `front-end/src/styles/fonts.css` | skewnono 글로벌 스타일에 병합 검토 |
 | `front-end/src/styles/settings.scss` | 빈 파일이므로 제거 |
 
@@ -270,10 +270,10 @@ defaultState.category = 'ebeam'
 
 ### Phase A — 백엔드 이전
 
-1. `back_dev_home/afm/__init__.py`, `routes.py`, `data.py` 골격 생성.
+1. `backend/afm/__init__.py`, `routes.py`, `data.py` 골격 생성.
 2. `afm_data_platform/api/utils/file_parser.py` 의 함수를 `data.py` 로 이전 (시그니처 정리).
 3. 라우트 핸들러를 3.2 절의 새 prefix 로 작성.
-4. `back_dev_home/__init__.py` 에서 blueprint 등록.
+4. `backend/__init__.py` 에서 blueprint 등록.
 5. `AFM_DB_ROOT` 환경변수 도입 및 dummy 데이터 경로 설정.
 6. `curl` / Postman 으로 12 개 엔드포인트 회귀 검증.
 
@@ -314,7 +314,7 @@ defaultState.category = 'ebeam'
 | `v-data-table` 대체 라이브러리 결정 | 결과 페이지 사용성 | Phase C 시점에 사용자 피드백 후 결정 |
 | `LASTUSER` 쿠키 부재 | 활동 로깅 정확도 | 단기 anonymous, 장기 skewnono 인증 통합 |
 | 파일명 다중 패턴 매칭 | 새 데이터 양식 도입 시 깨짐 | 인덱스 테이블 또는 메타 캐시 도입 검토 |
-| AFM_DB Phase 1 dummy 데이터 | 홈 환경 동작 검증 곤란 | `afm_data_platform/generate_*.py` 를 `back_dev_home/afm/scripts/` 로 이전·재사용 |
+| AFM_DB Phase 1 dummy 데이터 | 홈 환경 동작 검증 곤란 | `afm_data_platform/generate_*.py` 를 `backend/afm/scripts/` 로 이전·재사용 |
 | Vue Query 의 캐시 정책 손실 | 결과 페이지 재방문 시 재요청 | `useAsyncData` 키 공유 + Pinia 캐시로 보완 |
 | ECharts 번들 크기 | 초기 로딩 시간 | Nuxt `vite.build.rollupOptions` 청크 분리 |
 
@@ -323,7 +323,7 @@ defaultState.category = 'ebeam'
 ### 8.1 로컬 통합 검증
 
 - `python index.py` (skewnono Flask, port 5000) 단일 기동.
-- `npm --prefix front-dev-home run dev` (Nuxt, port 3100 — `nuxt.config.ts` `devServer.port` 기본값).
+- `npm --prefix frontend run dev` (Nuxt, port 3100 — `nuxt.config.ts` `devServer.port` 기본값).
 - 브라우저에서 `http://localhost:3100` 접속, 다음 흐름 수동 확인:
   - 랜딩 → AFM 카드 클릭 → `/afm`
   - 도구 선택 → 검색 → 결과 클릭 → `/afm/result/<recipe>/<filename>`
@@ -347,10 +347,10 @@ defaultState.category = 'ebeam'
 
 ## 9. 참고 파일
 
-- `back_dev_home/__init__.py` — 통합 앱 팩토리 패턴
-- `back_dev_home/sem_list/{routes.py,data.py}` — feature 모범 사례
-- `front-dev-home/app/composables/useSemListApi.ts` — `useAsyncData` 패턴
-- `front-dev-home/app/pages/index.vue` — 랜딩 카드 구조
-- `front-dev-home/app/components/nav/AppHeader.vue` — 카테고리 nav
+- `backend/__init__.py` — 통합 앱 팩토리 패턴
+- `backend/sem_list/{routes.py,data.py}` — feature 모범 사례
+- `frontend/app/composables/useSemListApi.ts` — `useAsyncData` 패턴
+- `frontend/app/pages/index.vue` — 랜딩 카드 구조
+- `frontend/app/components/nav/AppHeader.vue` — 카테고리 nav
 - `afm_data_platform/api/{__init__.py,routes.py,afm_routes.py,image_routes.py,activity_routes.py,utils/}` — 이전 대상 백엔드
 - `afm_data_platform/front-end/src/{router,pages,components,stores,composables}` — 이전 대상 프런트엔드

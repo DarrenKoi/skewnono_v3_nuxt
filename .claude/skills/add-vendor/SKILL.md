@@ -13,8 +13,8 @@ running order. Do not restate the rules here — two copies drift apart.
 
 ## Scope check
 
-- Target must be an existing feature under `back_dev_home/ebeam/<feature>/`.
-- Family name must already be in `back_dev_home/ebeam/_tool_specs.py`
+- Target must be an existing feature under `backend/ebeam/<feature>/`.
+- Family name must already be in `backend/ebeam/_tool_specs.py`
   (`SLUG_TO_ADAPTER`). If it is not, that registry entry comes first — the
   adapter folder name is read from there, never invented here.
 - `afm`, `skew`, `chat` are deferred: skip them.
@@ -43,9 +43,9 @@ contract makes the contract follow the mock.
       feature level). The 501 policy belongs to the `office_example.py`
       dispatcher alone — the `mock.py` one just resolves the
       `<family>/mock.py` written in step 3. `AdapterNotWired` lives in
-      `back_dev_home/ebeam/_adapters.py`, created with the first family and
+      `backend/ebeam/_adapters.py`, created with the first family and
       never per feature. Keep the `exc.name` guard. Copy the shape from
-      `back_dev_home/ebeam/hardware/providers/office_example.py`'s `_tab()`,
+      `backend/ebeam/hardware/providers/office_example.py`'s `_tab()`,
       then change the fallback policy.
 - [ ] **6. 문서 갱신** — `<feature>/MIGRATION.md`: endpoint, contract, mock
       behaviour, office source. Four items, one block per endpoint.
@@ -59,7 +59,7 @@ contract makes the contract follow the mock.
 ## Gates before reporting done
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/<feature> -q
+.venv/bin/python -m pytest backend/ebeam/<feature> -q
 npm run lint:md          # from the repo root, if any Markdown changed
 ```
 

@@ -1,0 +1,45 @@
+Flask>=3.0
+flask-cors>=4.0
+flask-limiter>=3.5
+opensearch-py>=2,<3
+# These two floors move with numpy's, below. pandas gained numpy-2 support in
+# 2.2.2 and pyarrow in 16; the earlier releases their old floors allowed are
+# built against the numpy 1 ABI and raise on `import` under numpy 2, so a pip
+# resolver free to pick pandas 2.2.0 would trade the pickle error for a boot
+# error. Do not lower either without lowering numpy too.
+pandas>=2.2.2
+pyarrow>=16
+# Not a direct import of ours -- pandas pulls it in -- but the floor is
+# load-bearing and pandas does NOT enforce it (pandas 2.x still accepts numpy
+# 1.26). The MSR-file pickles in MinIO are written by an upstream process on
+# numpy 2, and a numpy-2 pickle names `numpy._core.*` as its reconstructor -- a
+# module that does not exist in numpy 1, so get_pickle() dies with
+# `ModuleNotFoundError: No module named 'numpy._core'` (hit on the cloud
+# 2026-08-03). The reverse direction is safe: numpy 2 keeps a `numpy.core`
+# shim, so numpy-1 pickles still load. Raising the reader's floor is the fix.
+numpy>=2
+redis>=5
+minio>=7
+# TIFF→WebP previews (msr_image/preview.py, ?preview=1). Imported lazily, so a
+# host missing it still boots and serves everything except previews — the floor
+# is here so the cloud install cannot lose it to a transitive change.
+Pillow>=10
+httpx>=0.27
+# ftp_handler/proxy/proxy_downloader.py imports this at module level, and that
+# file ships in the deploy bundle. It only resolved until now because
+# opensearch-py happens to pull it in transitively -- declared here so the
+# cloud install cannot lose it to a dependency change upstream.
+requests>=2.31
+python-dotenv>=1.0
+apscheduler>=3.10
+# The co-located 사내 RAG (backend/chat/_rag) imports these IN THIS
+# PROCESS, so they are our install's problem even though no skewnono module
+# imports them any more — chat's own agent loop was removed 2026-08-31.
+langchain>=1,<2
+langgraph>=1,<2
+langchain-openai>=1,<2
+faiss-cpu
+rank_bm25
+# langchain-openai needs openai but does not pin a 2.x floor; 2.45 is what the
+# RAG code path was checked against.
+openai>=2.45,<4

@@ -1,6 +1,6 @@
 # 10. 백엔드 Provider 아키텍처 (mock ↔ office)
 
-이 문서는 프론트엔드가 아니라 **`back_dev_home/`(Flask 백엔드)의 핵심 아키텍처**를 다룹니다. 백엔드 개발자에게 가장 익숙한 영역이자 이 프로젝트에서 가장 자주 반복되는 패턴이니, 먼저 확실히 익혀 두면 좋습니다.
+이 문서는 프론트엔드가 아니라 **`backend/`(Flask 백엔드)의 핵심 아키텍처**를 다룹니다. 백엔드 개발자에게 가장 익숙한 영역이자 이 프로젝트에서 가장 자주 반복되는 패턴이니, 먼저 확실히 익혀 두면 좋습니다.
 
 한 줄 요약: **"한 벌의 라우트/계약을 두고, 데이터 소스(집의 mock ↔ 회사의 office)만 런타임에 갈아끼운다."** 이것이 CLAUDE.md가 말하는 "설정 변경만으로 Phase를 바꾼다"의 백엔드 구현입니다.
 
@@ -70,7 +70,7 @@ def get_data_provider(feature: str) -> DataProvider:
 feature-sliced 레이아웃. 각 기능 폴더는 아래 구조를 그대로 따릅니다.
 
 ```text
-back_dev_home/sem_list/
+backend/sem_list/
 ├── __init__.py
 ├── contracts.py            # 안정적인 반환 계약 (SemListRow TypedDict)
 ├── data.py                 # ★ SWAP SURFACE (디스패처)
@@ -89,7 +89,7 @@ back_dev_home/sem_list/
 ```python
 from flask import Blueprint, jsonify
 
-from back_dev_home.sem_list.data import get_sem_list
+from backend.sem_list.data import get_sem_list
 
 bp = Blueprint("sem_list", __name__)
 
@@ -112,19 +112,19 @@ Routes import only this module. The selected adapter lives in
 ``SemListRow`` contract.
 """
 
-from back_dev_home._runtime.data_provider import get_data_provider
-from back_dev_home.sem_list.contracts import SemListRow
+from backend._runtime.data_provider import get_data_provider
+from backend.sem_list.contracts import SemListRow
 
 __all__ = ["SemListRow", "get_sem_list"]
 
 
 def get_sem_list() -> list[SemListRow]:
     if get_data_provider("sem_list") == "office":
-        from back_dev_home.sem_list.providers.office import (
+        from backend.sem_list.providers.office import (
             get_sem_list as load_sem_list,
         )
     else:
-        from back_dev_home.sem_list.providers.mock import (
+        from backend.sem_list.providers.mock import (
             get_sem_list as load_sem_list,
         )
 
@@ -220,7 +220,7 @@ office 어댑터는 **소스 포맷의 모든 지저분함을 흡수**합니다.
 ```gitignore
 # providers/office_example.py -> providers/office.py, then implemented at the
 # office. Never tracked, so `git pull` at the office can never conflict on it.
-back_dev_home/**/providers/office.py
+backend/**/providers/office.py
 ```
 
 - `office_example.py` — **git에 추적되는 스켈레톤/템플릿**. 함수 시그니처와 구현 힌트가 들어 있음.
@@ -242,13 +242,13 @@ back_dev_home/**/providers/office.py
 Verify 명령 (repo 루트에서):
 
 ```bash
-.venv/bin/python -m back_dev_home.sem_list.providers.office
-SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/pytest back_dev_home/sem_list
+.venv/bin/python -m backend.sem_list.providers.office
+SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/pytest backend/sem_list
 ```
 
-접속 정보는 `back_dev_home/.env`의 `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`에서 읽습니다.
+접속 정보는 `backend/.env`의 `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`에서 읽습니다.
 
-## 6. 앱 팩토리 — `back_dev_home/__init__.py`
+## 6. 앱 팩토리 — `backend/__init__.py`
 
 Blueprint를 **자동 발견**하는 방식이 인상적입니다. 각 기능의 `routes.py`를 손으로 일일이 등록하지 않습니다.
 

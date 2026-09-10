@@ -1,6 +1,6 @@
 # Provider 선택 규칙
 
-이 문서는 `back_dev_home/<feature>/providers/{mock,office}.py` 중 무엇이 실제로 응답을
+이 문서는 `backend/<feature>/providers/{mock,office}.py` 중 무엇이 실제로 응답을
 만드는지가 어떻게 결정되는지를 설명합니다. adapter 구현 규칙은
 [`docs/back-end/office-data-adapters.md`](office-data-adapters.md), 환경 간 전달 절차는
 [`docs/swap-strategy.md`](../swap-strategy.md)가 기준입니다. 새 장비 계열을 붙일 때의
@@ -49,7 +49,7 @@ Mode를 환경 변수로 지정하지 않으면 `_runtime/site.py`가 아래 순
 ## 4. `health/` introspection 엔드포인트의 예외
 
 라우트는 원칙적으로 `from .data import ...`만 사용하며 phase에 따라 분기하지
-않습니다. 예외는 `back_dev_home/health/`의 introspection 엔드포인트들이며, 이들은
+않습니다. 예외는 `backend/health/`의 introspection 엔드포인트들이며, 이들은
 `_runtime`을 직접 읽습니다. **스왑 메커니즘 자체를 보고하는 엔드포인트가 그
 메커니즘을 거치면, 정작 그것을 조회해야 하는 상황에서 잘못된 값을 보고할 수 있기
 때문입니다.**
@@ -61,7 +61,7 @@ Mode를 환경 변수로 지정하지 않으면 `_runtime/site.py`가 아래 순
 
 이 예외는 `health/`에 한정됩니다. 다른 feature의 `routes.py`가 `_runtime`을 직접
 import한다면 그것은 예외가 아니라 위반입니다. 엔드포인트별 auth gate와 그 이유는
-[`back_dev_home/health/MIGRATION.md`](../../back_dev_home/health/MIGRATION.md)의
+[`backend/health/MIGRATION.md`](../../backend/health/MIGRATION.md)의
 표에 있습니다 — carve-out이라는 사실이 admin 전용을 뜻하지는 않습니다.
 
 ## 5. 복사본이 낡는 문제

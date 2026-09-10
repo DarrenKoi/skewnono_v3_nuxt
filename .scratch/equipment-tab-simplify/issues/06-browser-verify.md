@@ -24,7 +24,7 @@ Playwright MCP가) 실제로 띄워 보는 것입니다. 특히 **워크북 다�
 .venv/bin/python index.py                 # Flask :5050
 ```
 
-그리고 워크트리의 `front-dev-home/`에서:
+그리고 워크트리의 `frontend/`에서:
 
 ```bash
 npm run dev                               # Nuxt :3000

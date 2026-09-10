@@ -10,8 +10,8 @@
 
 ## Global Constraints
 
-- 작업 디렉터리는 워크트리 `/Users/daeyoung/Codes/skewnono-activity-echarts`입니다. 프런트엔드 명령은 그 아래 `front-dev-home/`에서 실행합니다.
-- 워크트리에는 `node_modules`가 없으므로 메인 체크아웃 것을 심볼릭 링크로 연결해 두었습니다 (`front-dev-home/node_modules` → 메인 트리의 같은 경로). `.gitignore`가 덮으므로 커밋에 들어가지 않고, `node --test`와 `eslint`가 워크트리 안에서 그대로 돕니다. 루트 Markdown 린터만 메인 트리 바이너리를 절대경로로 부릅니다: `/Users/daeyoung/Codes/skewnono_v3_nuxt/node_modules/.bin/markdownlint-cli2`.
+- 작업 디렉터리는 워크트리 `/Users/daeyoung/Codes/skewnono-activity-echarts`입니다. 프런트엔드 명령은 그 아래 `frontend/`에서 실행합니다.
+- 워크트리에는 `node_modules`가 없으므로 메인 체크아웃 것을 심볼릭 링크로 연결해 두었습니다 (`frontend/node_modules` → 메인 트리의 같은 경로). `.gitignore`가 덮으므로 커밋에 들어가지 않고, `node --test`와 `eslint`가 워크트리 안에서 그대로 돕니다. 루트 Markdown 린터만 메인 트리 바이너리를 절대경로로 부릅니다: `/Users/daeyoung/Codes/skewnono_v3_nuxt/node_modules/.bin/markdownlint-cli2`.
 - Node는 v24이므로 `node --test`가 `.ts` 파일을 그대로 실행합니다. 트랜스파일 단계가 필요 없습니다.
 - `formatSparklineDay`의 ko-KR 출력은 이 환경에서 `"07. 01."`(공백과 마침표 포함)로 확인했습니다. 테스트 기대값은 이 값을 씁니다.
 - 색 리터럴을 컴포넌트에 직접 쓰지 않습니다. `app/assets/css/main.css:175-177`이 명시하듯 차트 색은 `utils/chartPalette.ts`에서만 옵니다. `--sk-*` CSS 변수는 캔버스에서 읽히지 않으므로 사용 금지입니다.
@@ -28,12 +28,12 @@
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/activitySparkline.ts`
-- Test: `front-dev-home/app/utils/activitySparkline.test.ts`
+- Create: `frontend/app/utils/activitySparkline.ts`
+- Test: `frontend/app/utils/activitySparkline.test.ts`
 
 **Interfaces:**
 
-- Consumes: `DailyCount` (`front-dev-home/app/composables/useActivityApi.ts:8` — `{ date: string, count: number }`)
+- Consumes: `DailyCount` (`frontend/app/composables/useActivityApi.ts:8` — `{ date: string, count: number }`)
 - Produces:
   - `formatSparklineDay(iso: string): string`
   - `sparklineTotal(series: DailyCount[]): number`
@@ -43,7 +43,7 @@
 
 - [ ] **Step 1: 실패하는 테스트를 작성한다**
 
-`front-dev-home/app/utils/activitySparkline.test.ts`:
+`frontend/app/utils/activitySparkline.test.ts`:
 
 ```ts
 import assert from 'node:assert/strict'
@@ -123,7 +123,7 @@ test('renders the tooltip as date and count', () => {
 - [ ] **Step 2: 테스트가 실패하는지 확인한다**
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono-activity-echarts/front-dev-home
+cd /Users/daeyoung/Codes/skewnono-activity-echarts/frontend
 node --test "app/utils/activitySparkline.test.ts" 2>&1 | tail -20
 ```
 
@@ -131,7 +131,7 @@ node --test "app/utils/activitySparkline.test.ts" 2>&1 | tail -20
 
 - [ ] **Step 3: 최소 구현을 작성한다**
 
-`front-dev-home/app/utils/activitySparkline.ts`:
+`frontend/app/utils/activitySparkline.ts`:
 
 ```ts
 import type { EChartsOption } from 'echarts'
@@ -223,7 +223,7 @@ export const buildSparklineOption = (
 - [ ] **Step 4: 테스트가 통과하는지 확인한다**
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono-activity-echarts/front-dev-home
+cd /Users/daeyoung/Codes/skewnono-activity-echarts/frontend
 node --test "app/utils/activitySparkline.test.ts" 2>&1 | tail -20
 ```
 
@@ -233,7 +233,7 @@ node --test "app/utils/activitySparkline.test.ts" 2>&1 | tail -20
 
 ```bash
 cd /Users/daeyoung/Codes/skewnono-activity-echarts
-git add front-dev-home/app/utils/activitySparkline.ts front-dev-home/app/utils/activitySparkline.test.ts
+git add frontend/app/utils/activitySparkline.ts frontend/app/utils/activitySparkline.test.ts
 git commit -m "feat(activity): sparkline ECharts option을 순수 함수로 분리
 
 Sparkline.vue가 쓸 option/라벨 계산을 echarts 의존 없는 모듈로 옮긴다.
@@ -252,8 +252,8 @@ SVG를 걷어내고 차트 호스트를 놓습니다. 합계/양끝 날짜 HTML�
 
 **Files:**
 
-- Modify: `front-dev-home/app/components/activity/Sparkline.vue` (전면 재작성, 현재 127줄)
-- Modify: `front-dev-home/app/components/activity/Sparkline.test.ts:41` (`<svg>` 앵커 교체)
+- Modify: `frontend/app/components/activity/Sparkline.vue` (전면 재작성, 현재 127줄)
+- Modify: `frontend/app/components/activity/Sparkline.test.ts:41` (`<svg>` 앵커 교체)
 
 **Interfaces:**
 
@@ -264,7 +264,7 @@ SVG를 걷어내고 차트 호스트를 놓습니다. 합계/양끝 날짜 HTML�
 
 - [ ] **Step 1: 컴포넌트를 재작성한다**
 
-`front-dev-home/app/components/activity/Sparkline.vue` 전체를 아래로 교체합니다:
+`frontend/app/components/activity/Sparkline.vue` 전체를 아래로 교체합니다:
 
 ```vue
 <template>
@@ -348,7 +348,7 @@ const lastLabel = computed(() =>
 
 `Sparkline.test.ts`는 SFC의 **템플릿만** 컴파일해 가짜 `data`로 SSR 렌더합니다. 스크립트를 실행하지 않으므로 ECharts도 Nuxt 런타임도 필요 없고, 전환 후에도 유효합니다. `data`에서 SVG 전용 키를 빼고 `zoomable`을 넣은 뒤, `<svg>`를 찾던 자리를 호스트 div로 바꿉니다.
 
-`front-dev-home/app/components/activity/Sparkline.test.ts`의 `renderToString` 호출과 그 아래 단언부를 아래로 교체합니다:
+`frontend/app/components/activity/Sparkline.test.ts`의 `renderToString` 호출과 그 아래 단언부를 아래로 교체합니다:
 
 ```ts
   const html = await renderToString(createSSRApp({
@@ -435,7 +435,7 @@ test('renders the empty state instead of a chart host', async () => {
 - [ ] **Step 4: 테스트를 실행한다**
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono-activity-echarts/front-dev-home
+cd /Users/daeyoung/Codes/skewnono-activity-echarts/frontend
 node --test "app/components/activity/Sparkline.test.ts" 2>&1 | tail -25
 ```
 
@@ -445,7 +445,7 @@ node --test "app/components/activity/Sparkline.test.ts" 2>&1 | tail -25
 
 ```bash
 cd /Users/daeyoung/Codes/skewnono-activity-echarts
-git add front-dev-home/app/components/activity/Sparkline.vue front-dev-home/app/components/activity/Sparkline.test.ts
+git add frontend/app/components/activity/Sparkline.vue frontend/app/components/activity/Sparkline.test.ts
 git commit -m "feat(activity): Sparkline을 ECharts 호스트로 재작성
 
 손코딩 SVG(rect 30개 + useId gradient)를 걷어내고 useEchart 호스트를 놓는다.
@@ -470,8 +470,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 
-- Modify: `front-dev-home/app/pages/activity.vue:128-131` (메인 "30일 활동" 카드)
-- Modify: `front-dev-home/app/pages/activity.vue:578-581` (사용자 상세 확장 행)
+- Modify: `frontend/app/pages/activity.vue:128-131` (메인 "30일 활동" 카드)
+- Modify: `frontend/app/pages/activity.vue:578-581` (사용자 상세 확장 행)
 
 **Interfaces:**
 
@@ -479,7 +479,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: 메인 카드 호출부를 바꾼다**
 
-`front-dev-home/app/pages/activity.vue`에서:
+`frontend/app/pages/activity.vue`에서:
 
 ```vue
         <ActivitySparkline
@@ -522,7 +522,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 3: `color` prop이 남아있지 않은지 확인한다**
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono-activity-echarts/front-dev-home
+cd /Users/daeyoung/Codes/skewnono-activity-echarts/frontend
 grep -rn "ActivitySparkline" -A 4 app/ | grep -n "color=" || echo "clean"
 ```
 
@@ -531,7 +531,7 @@ grep -rn "ActivitySparkline" -A 4 app/ | grep -n "color=" || echo "clean"
 - [ ] **Step 4: 전체 검증을 돌린다**
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono-activity-echarts/front-dev-home
+cd /Users/daeyoung/Codes/skewnono-activity-echarts/frontend
 npm test 2>&1 | tail -15
 npm run lint 2>&1 | tail -20
 ```
@@ -544,7 +544,7 @@ npm run lint 2>&1 | tail -20
 
 ```bash
 cd /Users/daeyoung/Codes/skewnono-activity-echarts
-git add front-dev-home/app/pages/activity.vue
+git add frontend/app/pages/activity.vue
 git commit -m "feat(activity): sparkline 호출부를 tone/zoomable prop으로 교체
 
 메인 30일 활동 카드는 zoomable(툴팁+기간 줌), 사용자 상세 확장 행은
@@ -572,7 +572,7 @@ git merge --ff-only work/activity-echarts
 `--ff-only`가 실패하면 그동안 `main`이 움직인 것입니다. 그때는 워크트리에서 `git rebase main` 후 다시 시도합니다.
 
 ```bash
-cd /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home
+cd /Users/daeyoung/Codes/skewnono_v3_nuxt/frontend
 npm run typecheck 2>&1 | tail -20
 npm test 2>&1 | tail -10
 npm run lint 2>&1 | tail -10
@@ -586,7 +586,7 @@ npm run lint 2>&1 | tail -10
 
 ```bash
 cd /Users/daeyoung/Codes/skewnono_v3_nuxt && .venv/bin/python index.py
-cd /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home && npm run dev
+cd /Users/daeyoung/Codes/skewnono_v3_nuxt/frontend && npm run dev
 ```
 
 `http://localhost:3000/activity`에서 확인할 것:

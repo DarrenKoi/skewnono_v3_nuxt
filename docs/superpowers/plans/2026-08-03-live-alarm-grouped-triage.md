@@ -19,7 +19,7 @@ Spec: `docs/superpowers/specs/2026-08-03-live-alarm-grouped-triage-design.md`
 
 ## Global Constraints
 
-- **Frontend only.** Do not touch `back_dev_home/`, `contracts.py`, or the
+- **Frontend only.** Do not touch `backend/`, `contracts.py`, or the
   response payload. The 10-minute horizon (`BOARD_WINDOW_SEC = 600`) stays.
 - **Do not modify `app/components/live-alarm/AlarmRow.vue`.** It is reused
   verbatim inside groups.
@@ -37,7 +37,7 @@ Spec: `docs/superpowers/specs/2026-08-03-live-alarm-grouped-triage-design.md`
 - **Never stage broadly.** Every commit passes explicit pathspecs
   (`git commit -- path/a path/b`). `git add -A` / `git add .` / `git commit -a`
   are banned in this repo.
-- Work happens in `front-dev-home/`; all `npm` commands below run from there
+- Work happens in `frontend/`; all `npm` commands below run from there
   unless stated otherwise.
 
 ---
@@ -46,9 +46,9 @@ Spec: `docs/superpowers/specs/2026-08-03-live-alarm-grouped-triage-design.md`
 
 **Files:**
 
-- Modify: `front-dev-home/app/utils/liveAlarm.ts` (append after
+- Modify: `frontend/app/utils/liveAlarm.ts` (append after
   `distinctLotCount`, line 93)
-- Test: `front-dev-home/app/utils/liveAlarm.test.ts` (append)
+- Test: `frontend/app/utils/liveAlarm.test.ts` (append)
 
 **Interfaces:**
 
@@ -66,7 +66,7 @@ Spec: `docs/superpowers/specs/2026-08-03-live-alarm-grouped-triage-design.md`
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `front-dev-home/app/utils/liveAlarm.test.ts`:
+Append to `frontend/app/utils/liveAlarm.test.ts`:
 
 ```ts
 describe('filterEvents', () => {
@@ -166,7 +166,7 @@ import type { LiveAlarmEvent } from './liveAlarm.ts'
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run from `front-dev-home/`:
+Run from `frontend/`:
 
 ```bash
 npm test
@@ -177,7 +177,7 @@ provide an export named 'filterEvents'`.
 
 - [ ] **Step 3: Write the implementation**
 
-Append to `front-dev-home/app/utils/liveAlarm.ts`:
+Append to `frontend/app/utils/liveAlarm.ts`:
 
 ```ts
 // Which kinds the board is showing. 'all' is the default and renders the
@@ -291,7 +291,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 
-- Create: `front-dev-home/app/composables/useLiveAlarmFilter.ts`
+- Create: `frontend/app/composables/useLiveAlarmFilter.ts`
 
 **Interfaces:**
 
@@ -307,7 +307,7 @@ it would be more machinery than the code it guards.
 
 - [ ] **Step 1: Write the composable**
 
-Create `front-dev-home/app/composables/useLiveAlarmFilter.ts`:
+Create `frontend/app/composables/useLiveAlarmFilter.ts`:
 
 ```ts
 // Which alarm kinds the 라이브 알람 board is showing.
@@ -372,7 +372,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 
-- Create: `front-dev-home/app/components/live-alarm/MeasGroup.vue`
+- Create: `frontend/app/components/live-alarm/MeasGroup.vue`
 
 **Interfaces:**
 
@@ -393,7 +393,7 @@ know that is leaking the rule into two places.
 
 - [ ] **Step 1: Write the component**
 
-Create `front-dev-home/app/components/live-alarm/MeasGroup.vue`:
+Create `frontend/app/components/live-alarm/MeasGroup.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -527,7 +527,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 
-- Modify: `front-dev-home/app/components/ebeam/LiveAlarmView.vue`
+- Modify: `frontend/app/components/ebeam/LiveAlarmView.vue`
 
 **Interfaces:**
 
@@ -542,7 +542,7 @@ counts while someone does PPID triage is the one thing this filter must not do.
 
 - [ ] **Step 1: Extend the script block**
 
-In `front-dev-home/app/components/ebeam/LiveAlarmView.vue`, change the import on
+In `frontend/app/components/ebeam/LiveAlarmView.vue`, change the import on
 line 5 and add the filter state after `const counts = ...` (line 19):
 
 ```ts
@@ -741,7 +741,7 @@ From the repo root:
 .venv/bin/python index.py
 ```
 
-From `front-dev-home/` in a second shell:
+From `frontend/` in a second shell:
 
 ```bash
 npm run dev
@@ -810,7 +810,7 @@ group list means two groups produced the same `key`, which should be impossible
 - [ ] **Step 9: Run the full gate and push**
 
 ```bash
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 cd .. && npm run lint:md
 git push
 ```
@@ -830,4 +830,4 @@ Stated here so implementation does not drift into them:
 - Redesigning `AlarmRow.vue`.
 - Grouping align alarms.
 - Per-fab or per-tool filter memory.
-- Any change under `back_dev_home/`.
+- Any change under `backend/`.

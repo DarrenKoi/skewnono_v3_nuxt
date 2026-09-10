@@ -79,7 +79,7 @@ Phase 1의 지배 규약을 그대로 씁니다.
   확장되었습니다. 그 결과 fallback 행도 카탈로그 행과 동일하게 FAB 배지를
   달고 소유 FAB 쿼리로 상세 라우팅됩니다. 이름만 담는 구형 office 어댑터가
   응답하면 fab이 빈 문자열로 남아, 배지 없이 `primaryFab`으로 대체되는
-  기존 동작이 유지됩니다. 세부는 `back_dev_home/meas_hist/MIGRATION.md`를
+  기존 동작이 유지됩니다. 세부는 `backend/meas_hist/MIGRATION.md`를
   참고합니다.
 - 목록은 지금도 클라이언트 페이지네이션(메모리 내 배열)이므로 2 FAB 시
   약 10만 행은 구조 변경 없이 수용합니다. 문자열 → 객체 행 전환에 따른
@@ -202,7 +202,7 @@ feature 모두** 해당합니다 — ranking/카탈로그 집계 로직이 공�
 
 후속 작업(2026-08-08)으로 **meas_hist도 재복사 대상에 추가**되었습니다 —
 `recipe_names` 스냅샷이 `{full_name, fab_name}` 쌍으로 확장되었기
-때문입니다(4.3절, `back_dev_home/meas_hist/MIGRATION.md` 참고).
+때문입니다(4.3절, `backend/meas_hist/MIGRATION.md` 참고).
 
 ## 11. 하지 않는 것
 

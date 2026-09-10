@@ -1,6 +1,6 @@
 # 07. 프로젝트 고유 코드 패턴
 
-이 문서는 `front-dev-home`에서 **실제 적용된 아키텍처 결정**과 그 배경을 정리합니다. Phase 1 → Phase 2 → Phase 3 이식을 쉽게 하기 위한 추상화가 핵심입니다.
+이 문서는 `frontend`에서 **실제 적용된 아키텍처 결정**과 그 배경을 정리합니다. Phase 1 → Phase 2 → Phase 3 이식을 쉽게 하기 위한 추상화가 핵심입니다.
 
 ## 1. 레이어 구조 한눈에
 
@@ -272,7 +272,7 @@ FeatureTabs.vue   → useRoute()로 현재 경로 파악
 
 > **갱신 메모(2026-07):** 아래 목록은 이 노트를 처음 쓸 때의 것이며, 상당수가 이후 **구현되었습니다.** 각 항목에 현재 상태를 병기합니다.
 
-1. **Mock API endpoint 구현** — ✅ **해결됨.** Phase 1도 Flask mock 서버(`back_dev_home/`)가 `/api/*`를 서빙합니다. Nitro mock 라우트로 분기하던 옛 설계는 폐기됐습니다(`06-vite-config/` 참고).
+1. **Mock API endpoint 구현** — ✅ **해결됨.** Phase 1도 Flask mock 서버(`backend/`)가 `/api/*`를 서빙합니다. Nitro mock 라우트로 분기하던 옛 설계는 폐기됐습니다(`06-vite-config/` 참고).
 2. **`useNavigation` 타입 좁히기** — `useRoute().params.fab`의 타입이 `string | string[]`이라서 `as Fab` 없이 쓰려면 runtime guard 함수가 필요. (`Fab`는 이제 `string` 별칭이 되어 상황이 조금 달라짐.)
 3. **Favorites 영속화** — ⚠️ **부분 완료.** localStorage 영속 인프라(`usePersistedState`)가 생겨 8개 컴포저블이 씁니다(`persisted-state.md`). 다만 `stores/navigation.ts`의 `favorites`는 **아직 그 팩토리에 연결되지 않아** 인메모리 전용입니다. (`recent` 필드는 제거됨 — 최근 본 항목은 전용 컴포저블로 이동.)
 4. **Error boundary** — `useAsyncData`의 `error`를 받아 UI로 표시.

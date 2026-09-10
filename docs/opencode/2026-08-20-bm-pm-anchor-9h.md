@@ -113,5 +113,5 @@ STEP 1~4 는 전부 성립하고 중간 정규화도 없음을 모델이 직접 
 ## 남는 것
 
 수정은 아직 하지 않았습니다. 전제가 갈리면 수정도 갈리므로, 사무실에서
-`python -m back_dev_home.ebeam.hardware.providers.bm_pm.office` 의 diagnose 로
+`python -m backend.ebeam.hardware.providers.bm_pm.office` 의 diagnose 로
 원본 저장값의 접미사를 먼저 확인하는 것이 순서입니다.

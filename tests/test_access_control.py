@@ -16,9 +16,9 @@ _TMP_DIR = tempfile.mkdtemp(prefix="skn-access-test-")
 _STORE = Path(_TMP_DIR) / "access_exceptions.json"
 os.environ["SKEWNONO_ACCESS_EXCEPTIONS_FILE"] = str(_STORE)
 
-from back_dev_home import create_app  # noqa: E402
-from back_dev_home.access_control import data as ac_data  # noqa: E402
-from back_dev_home.access_control.providers import mock as ac_mock  # noqa: E402
+from backend import create_app  # noqa: E402
+from backend.access_control import data as ac_data  # noqa: E402
+from backend.access_control.providers import mock as ac_mock  # noqa: E402
 
 ADMIN = "local-dev"  # home-phase default admin
 NORMAL = "1234567"

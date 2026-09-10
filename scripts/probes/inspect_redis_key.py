@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -45,7 +45,7 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import (  # noqa: E402
+from backend._runtime.office_redis import (  # noqa: E402
     STORE_ERRORS,
     read_dataframe,
     redis_client,

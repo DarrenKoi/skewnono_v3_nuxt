@@ -43,7 +43,7 @@ opencode 는 작업 트리에 뿌리내린 읽기 전용 샌드박스로 읽으�
 
 ### HARD — DESIGN.md breach: data value rendered in muted ink
 
-`front-dev-home/app/components/ebeam/skewvoir/fdc/SetStatusMatrix.vue`:
+`frontend/app/components/ebeam/skewvoir/fdc/SetStatusMatrix.vue`:
 
 ```ts
 const TONE: Record<FdcStatus, string> = {
@@ -242,7 +242,7 @@ All constraints pass:
 생성기 artifact이며 방법 검증 근거가 아닙니다. 단일 sequence(§6)와 다중 run
 화면 모두에 `데모 데이터` 표식을 답니다."*
 
-`front-dev-home/app` 전체에 그 표식이 없습니다. 새 Across-MSR Outcome mode 는
+`frontend/app` 전체에 그 표식이 없습니다. 새 Across-MSR Outcome mode 는
 CD feature 와 FDC feature 를 두 축에 놓을 수 있으므로, home 에서는 조작된
 상관을 경고 없이 보여줍니다. 기존 단일 범위 CD↔FDC 뷰도 같은 빈틈을 이미
 갖고 있습니다.

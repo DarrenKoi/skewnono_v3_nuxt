@@ -10,7 +10,7 @@ Blocked by: 01
 
 **Files:**
 
-- Edit: `front-dev-home/app/components/cdsem/comparison/LotTable.vue` — `:200`
+- Edit: `frontend/app/components/cdsem/comparison/LotTable.vue` — `:200`
   (클릭 가능한 배지, hover 있음) 과 `:346` (`countPill`, hover 없음)
 
 **두 자리의 성격이 다릅니다:**

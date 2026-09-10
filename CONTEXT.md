@@ -24,7 +24,7 @@ Recipe와 쌍을 이루는 측정 step 식별자. 같은 recipe_id라도 oper_id
 
 한 [[recipe]]가 측정하는 개별 항목. 각 파라미터는 **이름**과 **측정 포인트 수**를 가지며, **타입**(WAFER / LEVEL / EDGE / EDGE_EX / 기타)은 이름에서 파생됩니다. WAFER·LEVEL·EDGE·EDGE_EX 는 "WAFER 파라들"로 통칭되는 가장 중요한 파라미터 타입으로, 항상 측정을 기본으로 합니다. [[계측-룰]]은 (타입 → 기대 측정 포인트 수)로 기술되므로, 룰 검증의 입력 데이터는 **파라미터 단위(이름·타입·포인트수)** 여야 합니다.
 
-**para_* 구간 버킷과의 관계**: device-statistics 의 `para_N` 컬럼(= point 수가 그 **구간**에 드는 파라미터 *개수*. 2026-08-10 부터 정확 일치가 아니라 구간이며, `para_over_16` 이 열린 위 구간입니다 — `back_dev_home/ebeam/device_statistics/para_buckets.py`)은 파라미터 단위 데이터에서 **파생되는 집계 view** 입니다. `para_N` bin 만으로는 `EDGE_EX=0`·`LEVEL=4` 같은 타입별 룰을 표현할 수 없어, raw 파라미터 데이터가 source of truth 입니다.
+**para_* 구간 버킷과의 관계**: device-statistics 의 `para_N` 컬럼(= point 수가 그 **구간**에 드는 파라미터 *개수*. 2026-08-10 부터 정확 일치가 아니라 구간이며, `para_over_16` 이 열린 위 구간입니다 — `backend/ebeam/device_statistics/para_buckets.py`)은 파라미터 단위 데이터에서 **파생되는 집계 view** 입니다. `para_N` bin 만으로는 `EDGE_EX=0`·`LEVEL=4` 같은 타입별 룰을 표현할 수 없어, raw 파라미터 데이터가 source of truth 입니다.
 
 ### Recipe Class (Main / Sample / 추가계측)
 
@@ -74,7 +74,7 @@ Turn-Around Time. 한 측정의 소요 시간. recipe 최적화의 주요 KPI �
 
 룰은 코드 상수가 아니라 사용자가 입력·수정하는 도메인 객체이며, 룰을 벗어나는 정도가 [[lot-health-signal]]의 입력입니다. 상세 모델·결정은 `docs/issues/ground_rules/`(grilling-log · rule-editor-structure) 참조.
 
-**편집 권한과 위치**: 룰·어노테이션 편집은 **인증된 엔지니어 누구나** `device-statistics/measurement-rules` 페이지에서 수행하며, SSO 신원 추적 + 버전 이력 + rollback 으로 무결성을 확보합니다(ADR 0004 — ADR 0003 의 관리자 전용을 supersede). seed 룰은 `back_dev_home/ebeam/device_statistics/providers/rules.py` 에 있고, feature 밖에서는 `device_statistics.data` 의 `get_rules()` 로만 읽습니다. 앱 내 편집 저장(save/history/rollback)은 이후 **하지 않기로 결정**했습니다(grilling-log D12) — 룰은 그 파일을 직접 고쳐 배포하고 git 이력이 곧 버전 이력이며, office 어댑터도 같은 seed 를 반환합니다(user-confirmed 2026-08-04). 따라서 이 문단의 SSO 편집 권한 서술은 ADR 0004 당시의 계획이고 현재 구현이 아닙니다.
+**편집 권한과 위치**: 룰·어노테이션 편집은 **인증된 엔지니어 누구나** `device-statistics/measurement-rules` 페이지에서 수행하며, SSO 신원 추적 + 버전 이력 + rollback 으로 무결성을 확보합니다(ADR 0004 — ADR 0003 의 관리자 전용을 supersede). seed 룰은 `backend/ebeam/device_statistics/providers/rules.py` 에 있고, feature 밖에서는 `device_statistics.data` 의 `get_rules()` 로만 읽습니다. 앱 내 편집 저장(save/history/rollback)은 이후 **하지 않기로 결정**했습니다(grilling-log D12) — 룰은 그 파일을 직접 고쳐 배포하고 git 이력이 곧 버전 이력이며, office 어댑터도 같은 seed 를 반환합니다(user-confirmed 2026-08-04). 따라서 이 문단의 SSO 편집 권한 서술은 ADR 0004 당시의 계획이고 현재 구현이 아닙니다.
 
 ### Product Family (Core / Pool제 / VG·RTC·Cubic)
 

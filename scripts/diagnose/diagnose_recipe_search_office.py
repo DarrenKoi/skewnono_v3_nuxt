@@ -42,7 +42,7 @@ stage per step, printing what each step READ and what it DERIVED from it::
     7. FTP     raw folder              --fetch: the five raw readers
 
 Run FROM THE REPO ROOT at the office (reads REDIS_* / OPENSEARCH_* from
-back_dev_home/.env the same way the adapter does)::
+backend/.env the same way the adapter does)::
 
     .venv/bin/python -m scripts.diagnose.diagnose_recipe_search_office "1/AC_M2_TAT"
     .venv/bin/python -m scripts.diagnose.diagnose_recipe_search_office "ADI/X" --fab M14A
@@ -64,7 +64,7 @@ the strength of ``combined_idp_info`` accepting bytes - user-confirmed, but
 never executed at the office and untestable from home. Stage 6 parses the same
 bytes both ways and reports whether they agree, so the claim is checked by a
 command instead of by a user hitting a 502. If it turns out to be wrong,
-``SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1`` in ``back_dev_home/.env`` restores the
+``SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1`` in ``backend/.env`` restores the
 old behaviour without an edit.
 
 Still nothing writes to the tool, and with the hatch off nothing writes to the
@@ -84,7 +84,7 @@ from types import ModuleType
 
 import redis
 
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -97,15 +97,15 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime import office_template  # noqa: E402
-from back_dev_home._runtime.office_redis import (  # noqa: E402
+from backend._runtime import office_template  # noqa: E402
+from backend._runtime.office_redis import (  # noqa: E402
     STORE_ERRORS,
     load_env_file,
     redis_client,
 )
 
 
-_PACKAGE = "back_dev_home.ebeam.recipe_search.providers"
+_PACKAGE = "backend.ebeam.recipe_search.providers"
 _SLUG = "ebeam/recipe_search"
 
 _TOOL_TYPE = {"cdsem": "cd-sem", "hvsem": "hv-sem"}
@@ -269,7 +269,7 @@ def _check_redis_inventory(adapter: ModuleType, family: str, fab: str) -> bool:
         client.ping()
     except STORE_ERRORS as exc:
         _bad(f"cannot reach {where}: {type(exc).__name__}: {exc}")
-        _info("REDIS_HOST/REDIS_PORT/REDIS_PASSWORD come from back_dev_home/.env. "
+        _info("REDIS_HOST/REDIS_PORT/REDIS_PASSWORD come from backend/.env. "
               "At home the host is set but unreachable - run this at the office.")
         return False
     _ok(f"connected to {where}  db={db}")
@@ -327,7 +327,7 @@ def _check_redis_inventory(adapter: ModuleType, family: str, fab: str) -> bool:
                  + ", ".join(found[:6]) + (" ..." if len(found) > 6 else ""))
             _info("The loader wrote to a DB the adapter never reads. Either the "
                   "loader must SELECT 0, or redis_client() needs a REDIS_DB "
-                  "setting - it has none today (back_dev_home/_runtime/office_redis.py).")
+                  "setting - it has none today (backend/_runtime/office_redis.py).")
     return True
 
 
@@ -431,7 +431,7 @@ def _check_roster(adapter: ModuleType, eqp_ids: list[str]) -> None:
 def _check_meas_hist(adapter: ModuleType, family: str, fab: str, recipe: str) -> None:
     _rule("4. meas_hist - the fallback, and the source the 502 message names")
 
-    from back_dev_home.ebeam._office_search import aggregate, fetch_hits, query
+    from backend.ebeam._office_search import aggregate, fetch_hits, query
 
     index = adapter._MEAS_HIST_INDEX[_TOOL_TYPE[family]]
 
@@ -546,7 +546,7 @@ def _check_fetch(
         _bad(f"combined_idp_info(bytes) -> {type(exc).__name__}: {exc}")
         _info("If this is a TypeError or an encoding error, the parser wants a "
               "path after all. Set SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 in "
-              "back_dev_home/.env, restart Flask to restore the temp file, and "
+              "backend/.env, restart Flask to restore the temp file, and "
               "tell home - docs/datatables/hitachi/recipe_idp.txt records the opposite.")
         return None
 
@@ -627,7 +627,7 @@ def _compare_with_tempfile(
         mine, theirs = frames[name], via_path.get(name)
         _info(f"{name}: bytes {mine.shape} vs path "
               f"{getattr(theirs, 'shape', type(theirs).__name__)}")
-    _info("Set SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 in back_dev_home/.env and "
+    _info("Set SKEWNONO_RECIPE_IDP_VIA_TEMPFILE=1 in backend/.env and "
           "restart: the path result is the one that was in production before "
           "2026-08-05. Then send this output home.")
 

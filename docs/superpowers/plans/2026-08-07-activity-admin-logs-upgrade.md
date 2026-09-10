@@ -12,11 +12,11 @@
 
 - **Work in a git worktree.** This touches ~12 files across both trees. Per `CLAUDE.md`, create `git worktree add ../skewnono-activity-logs -b work/activity-logs` from the repo root, do everything there, then `git -C . merge --ff-only work/activity-logs && git push`, then `git worktree remove` and `git branch -d`. The task is not done until `git worktree list` shows the main tree alone.
 - **Never stage broadly.** `git add -A`, `git add .`, `git commit -a` and bare `git stash` are banned — other agent sessions share this working tree. Every commit passes explicit pathspecs.
-- **Slug vocabulary is append-only.** `back_dev_home/_logging/feature_map.py` writes into the OpenSearch `usage_events` index. Never rename a slug that has already been written. `tool_inventory` is a NEW slug; `cdsem`/`hvsem`/`provision`/`verity_sem`/`home` stop being written but their labels stay.
+- **Slug vocabulary is append-only.** `backend/_logging/feature_map.py` writes into the OpenSearch `usage_events` index. Never rename a slug that has already been written. `tool_inventory` is a NEW slug; `cdsem`/`hvsem`/`provision`/`verity_sem`/`home` stop being written but their labels stay.
 - **Do not edit `data.py` in any feature folder.** It is a stable dispatcher.
 - **Do not edit `providers/mock.py` or `providers/office_example.py` for Task 5.** The directory join belongs in the route — the OpenSearch document holds employee numbers and no names.
 - **Backend commands run from the repo root** with `.venv/bin/python -m pytest` (the `-m` is what puts the root on `sys.path`).
-- **Frontend commands run from `front-dev-home/`.**
+- **Frontend commands run from `frontend/`.**
 - **Run `npm run lint:md` from the repo root after any Markdown edit.**
 - **Comment density matches the surrounding code.** Both files being edited most (`feature_map.py`, `pageIdentity.ts`) carry long explanatory comments on every non-obvious rule. Match that; a bare `return "tool_inventory"` will look wrong beside its neighbours.
 
@@ -24,20 +24,20 @@
 
 | File | Responsibility | Tasks |
 | --- | --- | --- |
-| `back_dev_home/_logging/feature_map.py` | Route/page → slug. Owns the vocabulary. | 1, 2 |
-| `back_dev_home/_logging/tests/test_feature_map.py` | Unit pins on that vocabulary. | 1, 2 |
-| `front-dev-home/app/utils/pageIdentity.ts` | Frontend half of the same partition. | 1, 2 |
-| `front-dev-home/app/utils/pageIdentity.test.ts` | Unit pins + the fixture contract. | 1, 2 |
-| `front-dev-home/app/utils/__fixtures__/pageIdentityContract.json` | The shared table both halves are tested against. | 1, 2 |
-| `front-dev-home/app/utils/activity.ts` | Feature labels, fab-row filtering. | 1, 3 |
-| `front-dev-home/app/utils/activity.test.ts` | Unit pins for the above. | 3 |
-| `front-dev-home/app/pages/activity.vue` | 사용 통계 page. | 3 |
-| `front-dev-home/app/composables/useActivityUserTable.ts` | Admin user-table search/sort/export. | 4 |
-| `back_dev_home/admin_logs/contracts.py` | Response shapes. | 5 |
-| `back_dev_home/admin_logs/routes.py` | Blueprint + the directory join. | 5 |
-| `back_dev_home/admin_logs/tests/test_routes.py` | **New.** Pins the join. | 5 |
-| `front-dev-home/app/composables/useAdminLogsApi.ts` | Response types + fetch. | 5 |
-| `front-dev-home/app/pages/admin/logs.vue` | 운영 로그 page. | 5, 6 |
+| `backend/_logging/feature_map.py` | Route/page → slug. Owns the vocabulary. | 1, 2 |
+| `backend/_logging/tests/test_feature_map.py` | Unit pins on that vocabulary. | 1, 2 |
+| `frontend/app/utils/pageIdentity.ts` | Frontend half of the same partition. | 1, 2 |
+| `frontend/app/utils/pageIdentity.test.ts` | Unit pins + the fixture contract. | 1, 2 |
+| `frontend/app/utils/__fixtures__/pageIdentityContract.json` | The shared table both halves are tested against. | 1, 2 |
+| `frontend/app/utils/activity.ts` | Feature labels, fab-row filtering. | 1, 3 |
+| `frontend/app/utils/activity.test.ts` | Unit pins for the above. | 3 |
+| `frontend/app/pages/activity.vue` | 사용 통계 page. | 3 |
+| `frontend/app/composables/useActivityUserTable.ts` | Admin user-table search/sort/export. | 4 |
+| `backend/admin_logs/contracts.py` | Response shapes. | 5 |
+| `backend/admin_logs/routes.py` | Blueprint + the directory join. | 5 |
+| `backend/admin_logs/tests/test_routes.py` | **New.** Pins the join. | 5 |
+| `frontend/app/composables/useAdminLogsApi.ts` | Response types + fetch. | 5 |
+| `frontend/app/pages/admin/logs.vue` | 운영 로그 page. | 5, 6 |
 
 ---
 
@@ -57,7 +57,7 @@ All backend commands in this plan use the MAIN checkout's venv, which the worktr
 
 ```bash
 cd ../skewnono-activity-logs
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/_logging -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/_logging -q
 ```
 
 Expected: PASS. If it errors on imports, you are in the wrong directory — `python -m pytest` must run from the worktree root.
@@ -65,22 +65,22 @@ Expected: PASS. If it errors on imports, you are in the wrong directory — `pyt
 - [ ] **Step 3: Install frontend deps in the worktree**
 
 ```bash
-cd front-dev-home && npm install
+cd frontend && npm install
 ```
 
-Note: some `back_dev_home/**/providers/office.py` files are gitignored and therefore absent from a fresh worktree. Skip counts in pytest will legitimately differ from the main checkout. Compare `passed + skipped` totals, not `passed` alone.
+Note: some `backend/**/providers/office.py` files are gitignored and therefore absent from a fresh worktree. Skip counts in pytest will legitimately differ from the main checkout. Compare `passed + skipped` totals, not `passed` alone.
 
 ---
 
 ### Task 1: `tool_inventory` slug for the 장비 상태 page
 
 **Files:**
-- Modify: `back_dev_home/_logging/feature_map.py:186-212`
-- Modify: `back_dev_home/_logging/tests/test_feature_map.py:150-215`
-- Modify: `front-dev-home/app/utils/pageIdentity.ts:38-65, 87-102`
-- Modify: `front-dev-home/app/utils/pageIdentity.test.ts` (the `tool landing pages keep their tool` test)
-- Modify: `front-dev-home/app/utils/__fixtures__/pageIdentityContract.json`
-- Modify: `front-dev-home/app/utils/activity.ts:30-62`
+- Modify: `backend/_logging/feature_map.py:186-212`
+- Modify: `backend/_logging/tests/test_feature_map.py:150-215`
+- Modify: `frontend/app/utils/pageIdentity.ts:38-65, 87-102`
+- Modify: `frontend/app/utils/pageIdentity.test.ts` (the `tool landing pages keep their tool` test)
+- Modify: `frontend/app/utils/__fixtures__/pageIdentityContract.json`
+- Modify: `frontend/app/utils/activity.ts:30-62`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -90,7 +90,7 @@ Note: some `back_dev_home/**/providers/office.py` files are gitignored and there
 
 - [ ] **Step 1: Write the failing backend tests**
 
-In `back_dev_home/_logging/tests/test_feature_map.py`, add these five rows to the `test_page_to_feature_maps_frontend_paths` parametrize list, immediately after the `# Fabless ebeam pages.` group:
+In `backend/_logging/tests/test_feature_map.py`, add these five rows to the `test_page_to_feature_maps_frontend_paths` parametrize list, immediately after the `# Fabless ebeam pages.` group:
 
 ```python
         # The fab hub: /ebeam/<tool>[/<fab>] with no page after it is
@@ -136,14 +136,14 @@ def test_bare_ebeam_is_not_the_tool_inventory_page():
 - [ ] **Step 2: Run the backend tests to verify they fail**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/_logging/tests/test_feature_map.py -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/_logging/tests/test_feature_map.py -q
 ```
 
 Expected: FAIL. The five new parametrize rows return `cdsem`/`hvsem`/`provision`/`verity_sem` instead of `tool_inventory`; `test_unknown_pages_fall_back_to_a_derived_slug` passes already.
 
 - [ ] **Step 3: Implement the backend rule**
 
-In `back_dev_home/_logging/feature_map.py`, inside `page_to_feature`'s `parts[0] == "ebeam"` branch, insert the new rule immediately after the fab segment is dropped (currently line 194-195), before the `recipe-status` check:
+In `backend/_logging/feature_map.py`, inside `page_to_feature`'s `parts[0] == "ebeam"` branch, insert the new rule immediately after the fab segment is dropped (currently line 194-195), before the `recipe-status` check:
 
 ```python
         rest = parts[2:]
@@ -166,14 +166,14 @@ In `back_dev_home/_logging/feature_map.py`, inside `page_to_feature`'s `parts[0]
 - [ ] **Step 4: Run the backend tests**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/_logging -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/_logging -q
 ```
 
 Expected: `test_feature_map.py` PASSES. `test_feature_map_contract.py` FAILS on the three landing rows, because the shared fixture still claims `cdsem`/`hvsem` for them — Step 5 fixes that. If anything OTHER than those contract rows fails, stop and investigate.
 
 - [ ] **Step 5: Update the shared fixture**
 
-In `front-dev-home/app/utils/__fixtures__/pageIdentityContract.json`, change these three rows:
+In `frontend/app/utils/__fixtures__/pageIdentityContract.json`, change these three rows:
 
 ```json
   {
@@ -220,7 +220,7 @@ And add these three rows after them:
 - [ ] **Step 6: Run the backend contract test to verify it passes**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/_logging -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/_logging -q
 ```
 
 Expected: PASS, all of it.
@@ -228,14 +228,14 @@ Expected: PASS, all of it.
 - [ ] **Step 7: Run the frontend tests to verify they now fail**
 
 ```bash
-cd front-dev-home && npm test
+cd frontend && npm test
 ```
 
 Expected: FAIL in `pageIdentity.test.ts` — the fixture now claims `tool_inventory` for rows the frontend still resolves to `/ebeam/cd-sem`, and `/ebeam/cd-sem/M14/unmapped-page` collides with them.
 
 - [ ] **Step 8: Implement the frontend half**
 
-In `front-dev-home/app/utils/pageIdentity.ts`, add the constant directly above `IDENTITY_RULES`:
+In `frontend/app/utils/pageIdentity.ts`, add the constant directly above `IDENTITY_RULES`:
 
 ```ts
 // The canonical path for the fab-hub shape: /ebeam/<tool> and
@@ -268,7 +268,7 @@ And change the empty-remainder branch of `canonicalize` (currently line 97):
 
 - [ ] **Step 9: Rewrite the frontend unit test**
 
-In `front-dev-home/app/utils/pageIdentity.test.ts`, replace the whole `test('tool landing pages keep their tool and stay off the home identity', ...)` block with these two tests. Leave the `/` assertion out entirely — Task 2 owns it and `/` still resolves to `home` at this point.
+In `frontend/app/utils/pageIdentity.test.ts`, replace the whole `test('tool landing pages keep their tool and stay off the home identity', ...)` block with these two tests. Leave the `/` assertion out entirely — Task 2 owns it and `/` still resolves to `home` at this point.
 
 ```ts
 test('the fab hub is one identity across every tool family', () => {
@@ -300,14 +300,14 @@ test('an unmapped e-beam page falls back to its tool, not to the fab hub', () =>
 - [ ] **Step 10: Run the frontend tests to verify they pass**
 
 ```bash
-cd front-dev-home && npm test
+cd frontend && npm test
 ```
 
 Expected: PASS.
 
 - [ ] **Step 11: Add the label**
 
-In `front-dev-home/app/utils/activity.ts`, add to `FEATURE_LABELS` between `thickness` and `verity_sem` (the map is alphabetical by key):
+In `frontend/app/utils/activity.ts`, add to `FEATURE_LABELS` between `thickness` and `verity_sem` (the map is alphabetical by key):
 
 ```ts
   thickness: 'Thickness Metrology',
@@ -318,7 +318,7 @@ In `front-dev-home/app/utils/activity.ts`, add to `FEATURE_LABELS` between `thic
 Then update the comment block above `FEATURE_LABELS` (currently lines 30-34) so it stops describing the old fallback behaviour:
 
 ```ts
-// Page-level slugs — see back_dev_home/_logging/feature_map.py, which owns both
+// Page-level slugs — see backend/_logging/feature_map.py, which owns both
 // the API-path map and the frontend-path map used by the page-view beacon.
 // `cdsem`, `hvsem`, `provision`, `verity_sem` and `home` are no longer written:
 // the fab hub became `tool_inventory` and `/` stopped being ranked. Their labels
@@ -329,7 +329,7 @@ Then update the comment block above `FEATURE_LABELS` (currently lines 30-34) so 
 - [ ] **Step 12: Typecheck and lint**
 
 ```bash
-cd front-dev-home && npm run typecheck && npm run lint
+cd frontend && npm run typecheck && npm run lint
 ```
 
 Expected: both clean.
@@ -337,12 +337,12 @@ Expected: both clean.
 - [ ] **Step 13: Commit**
 
 ```bash
-git add back_dev_home/_logging/feature_map.py \
-        back_dev_home/_logging/tests/test_feature_map.py \
-        front-dev-home/app/utils/pageIdentity.ts \
-        front-dev-home/app/utils/pageIdentity.test.ts \
-        front-dev-home/app/utils/__fixtures__/pageIdentityContract.json \
-        front-dev-home/app/utils/activity.ts
+git add backend/_logging/feature_map.py \
+        backend/_logging/tests/test_feature_map.py \
+        frontend/app/utils/pageIdentity.ts \
+        frontend/app/utils/pageIdentity.test.ts \
+        frontend/app/utils/__fixtures__/pageIdentityContract.json \
+        frontend/app/utils/activity.ts
 git commit -m "feat(activity): give the 장비 상태 page its own slug
 
 /ebeam/<tool>[/<fab>] with no page after it is [fab]/index.vue, which renders
@@ -361,11 +361,11 @@ readable until the 30-day window rolls past them."
 ### Task 2: Drop 홈 from the feature ranking
 
 **Files:**
-- Modify: `back_dev_home/_logging/feature_map.py:180-181`
-- Modify: `back_dev_home/_logging/tests/test_feature_map.py`
-- Modify: `front-dev-home/app/utils/pageIdentity.ts:38-65, 119-142`
-- Modify: `front-dev-home/app/utils/pageIdentity.test.ts`
-- Modify: `front-dev-home/app/utils/__fixtures__/pageIdentityContract.json`
+- Modify: `backend/_logging/feature_map.py:180-181`
+- Modify: `backend/_logging/tests/test_feature_map.py`
+- Modify: `frontend/app/utils/pageIdentity.ts:38-65, 119-142`
+- Modify: `frontend/app/utils/pageIdentity.test.ts`
+- Modify: `frontend/app/utils/__fixtures__/pageIdentityContract.json`
 
 **Interfaces:**
 - Consumes: `TOOL_INVENTORY_PATH` from Task 1 (already in `IDENTITY_RULES`; do not remove it).
@@ -375,7 +375,7 @@ readable until the 30-day window rolls past them."
 
 - [ ] **Step 1: Write the failing backend test**
 
-In `back_dev_home/_logging/tests/test_feature_map.py`, delete the `("/", "home"),` row from the `test_page_to_feature_maps_frontend_paths` parametrize list (it sits in the `# Standalone pages.` group), and add this test immediately after `test_ops_pages_are_not_ranked`:
+In `backend/_logging/tests/test_feature_map.py`, delete the `("/", "home"),` row from the `test_page_to_feature_maps_frontend_paths` parametrize list (it sits in the `# Standalone pages.` group), and add this test immediately after `test_ops_pages_are_not_ranked`:
 
 ```python
 def test_the_home_hub_is_not_ranked():
@@ -392,14 +392,14 @@ def test_the_home_hub_is_not_ranked():
 - [ ] **Step 2: Run the backend test to verify it fails**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/_logging/tests/test_feature_map.py -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/_logging/tests/test_feature_map.py -q
 ```
 
 Expected: FAIL — `test_the_home_hub_is_not_ranked` gets `'home'` instead of `None`.
 
 - [ ] **Step 3: Implement the backend change**
 
-In `back_dev_home/_logging/feature_map.py`, replace the root-path branch of `page_to_feature` (currently lines 180-181):
+In `backend/_logging/feature_map.py`, replace the root-path branch of `page_to_feature` (currently lines 180-181):
 
 ```python
     if clean == "/":
@@ -416,14 +416,14 @@ In `back_dev_home/_logging/feature_map.py`, replace the root-path branch of `pag
 - [ ] **Step 4: Run the backend tests to verify**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/_logging -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/_logging -q
 ```
 
 Expected: `test_feature_map.py` PASSES; `test_feature_map_contract.py` FAILS on the `/` row (the fixture still says `home`). Step 5 fixes it.
 
 - [ ] **Step 5: Update the shared fixture**
 
-In `front-dev-home/app/utils/__fixtures__/pageIdentityContract.json`, change the `/` row:
+In `frontend/app/utils/__fixtures__/pageIdentityContract.json`, change the `/` row:
 
 ```json
   {
@@ -437,7 +437,7 @@ In `front-dev-home/app/utils/__fixtures__/pageIdentityContract.json`, change the
 - [ ] **Step 6: Run the backend tests again**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/_logging -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/_logging -q
 ```
 
 Expected: PASS, all of it.
@@ -445,14 +445,14 @@ Expected: PASS, all of it.
 - [ ] **Step 7: Run the frontend tests to verify they now fail**
 
 ```bash
-cd front-dev-home && npm test
+cd frontend && npm test
 ```
 
 Expected: FAIL — the fixture's `contract: null slug rows must produce null identity` assertion, because `resolvePageIdentity('/', {})` still returns `'/'`.
 
 - [ ] **Step 8: Implement the frontend half**
 
-In `front-dev-home/app/utils/pageIdentity.ts`, remove the trailing `'/'` entry from `IDENTITY_RULES` (it is the last item in the `// Standalone pages.` group). Removing it changes nothing for other paths — the rule only ever matched the root exactly, since `startsWith('//')` is never true.
+In `frontend/app/utils/pageIdentity.ts`, remove the trailing `'/'` entry from `IDENTITY_RULES` (it is the last item in the `// Standalone pages.` group). Removing it changes nothing for other paths — the rule only ever matched the root exactly, since `startsWith('//')` is never true.
 
 Then add the early return in `resolvePageIdentity`, immediately after the `canonicalize` call and before the `recipe-status` check:
 
@@ -468,7 +468,7 @@ Then add the early return in `resolvePageIdentity`, immediately after the `canon
 
 - [ ] **Step 9: Add the frontend unit test**
 
-In `front-dev-home/app/utils/pageIdentity.test.ts`, add this beside the existing `test('ops pages have no rankable identity', ...)`:
+In `frontend/app/utils/pageIdentity.test.ts`, add this beside the existing `test('ops pages have no rankable identity', ...)`:
 
 ```ts
 test('the home hub has no rankable identity', () => {
@@ -481,7 +481,7 @@ test('the home hub has no rankable identity', () => {
 - [ ] **Step 10: Run the frontend tests to verify they pass**
 
 ```bash
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: all PASS and clean.
@@ -489,11 +489,11 @@ Expected: all PASS and clean.
 - [ ] **Step 11: Commit**
 
 ```bash
-git add back_dev_home/_logging/feature_map.py \
-        back_dev_home/_logging/tests/test_feature_map.py \
-        front-dev-home/app/utils/pageIdentity.ts \
-        front-dev-home/app/utils/pageIdentity.test.ts \
-        front-dev-home/app/utils/__fixtures__/pageIdentityContract.json
+git add backend/_logging/feature_map.py \
+        backend/_logging/tests/test_feature_map.py \
+        frontend/app/utils/pageIdentity.ts \
+        frontend/app/utils/pageIdentity.test.ts \
+        frontend/app/utils/__fixtures__/pageIdentityContract.json
 git commit -m "feat(activity): stop ranking the home hub
 
 / is a real page but a waypoint — everyone passes through it, so its rank
@@ -510,19 +510,19 @@ label stays in FEATURE_LABELS for rows already indexed."
 ### Task 3: Drop the 미지정 bucket from the Fab card
 
 **Files:**
-- Modify: `front-dev-home/app/utils/activity.ts`
-- Modify: `front-dev-home/app/utils/activity.test.ts`
-- Modify: `front-dev-home/app/pages/activity.vue:249-263, 774-779`
+- Modify: `frontend/app/utils/activity.ts`
+- Modify: `frontend/app/utils/activity.test.ts`
+- Modify: `frontend/app/pages/activity.vue:249-263, 774-779`
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces: `UNASSIGNED_FAB: string` and `rankableFabRows<T extends { fab: string }>(rows: readonly T[]): T[]`, both exported from `~/utils/activity`.
 
-**Background the implementer needs:** the backend groups documents whose `fab_name_list` is empty into a bucket literally named `미지정` (`back_dev_home/activity/providers/opensearch_reader.py:566-570`). Those are not users who skipped a fab — they are requests from pages that have no fab: `device_statistics` queries by `fac_id`, AFM and parts of skewvoir never send one. Listing it beside M14 and R3 invites reading it as an unattributed remainder of the same population.
+**Background the implementer needs:** the backend groups documents whose `fab_name_list` is empty into a bucket literally named `미지정` (`backend/activity/providers/opensearch_reader.py:566-570`). Those are not users who skipped a fab — they are requests from pages that have no fab: `device_statistics` queries by `fac_id`, AFM and parts of skewvoir never send one. Listing it beside M14 and R3 invites reading it as an unattributed remainder of the same population.
 
 - [ ] **Step 1: Write the failing test**
 
-In `front-dev-home/app/utils/activity.test.ts`, add the import and the tests. Extend the existing import on line 3 to include the new names:
+In `frontend/app/utils/activity.test.ts`, add the import and the tests. Extend the existing import on line 3 to include the new names:
 
 ```ts
 import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, PAGE_VIEW_SINCE, rankableFabRows, UNASSIGNED_FAB, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
@@ -553,20 +553,20 @@ test('rankableFabRows can empty the list entirely', () => {
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-cd front-dev-home && npm test
+cd frontend && npm test
 ```
 
 Expected: FAIL — `rankableFabRows` is not exported from `./activity.ts`.
 
 - [ ] **Step 3: Implement the helper**
 
-In `front-dev-home/app/utils/activity.ts`, add directly below `userSearchText`:
+In `frontend/app/utils/activity.ts`, add directly below `userSearchText`:
 
 ```ts
 /** The FAB bucket name the backend gives documents that carry no fab_name.
  *
  *  The same literal lives in
- *  back_dev_home/activity/providers/opensearch_reader.py, which writes it.
+ *  backend/activity/providers/opensearch_reader.py, which writes it.
  *  Two copies of one string, so changing either alone silently stops the
  *  filter below from matching and the bucket reappears. */
 export const UNASSIGNED_FAB = '미지정'
@@ -589,14 +589,14 @@ export const rankableFabRows = <T extends { fab: string }>(
 - [ ] **Step 4: Run the test to verify it passes**
 
 ```bash
-cd front-dev-home && npm test
+cd frontend && npm test
 ```
 
 Expected: PASS.
 
 - [ ] **Step 5: Apply the filter on the page**
 
-In `front-dev-home/app/pages/activity.vue`, extend the existing import from `~/utils/activity` (line 601) to include `rankableFabRows`:
+In `frontend/app/pages/activity.vue`, extend the existing import from `~/utils/activity` (line 601) to include `rankableFabRows`:
 
 ```ts
 import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, rankableFabRows, userDisplayName, userTeamLabel } from '~/utils/activity'
@@ -644,7 +644,7 @@ In the same file, in the `Fab별 페이지 사용` card's `#header` template (cu
 - [ ] **Step 7: Typecheck and lint**
 
 ```bash
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: all PASS and clean.
@@ -652,9 +652,9 @@ Expected: all PASS and clean.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add front-dev-home/app/utils/activity.ts \
-        front-dev-home/app/utils/activity.test.ts \
-        front-dev-home/app/pages/activity.vue
+git add frontend/app/utils/activity.ts \
+        frontend/app/utils/activity.test.ts \
+        frontend/app/pages/activity.vue
 git commit -m "fix(activity): drop the fab-less bucket from the Fab card
 
 The 미지정 bucket is not users who skipped a fab — it is requests from pages
@@ -672,7 +672,7 @@ line to revert. The card header now states the omission; a silent one reads as
 ### Task 4: Default the user table to 최근 활동 순
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useActivityUserTable.ts:15, 55-58, 71, 77`
+- Modify: `frontend/app/composables/useActivityUserTable.ts:15, 55-58, 71, 77`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -682,7 +682,7 @@ line to revert. The card header now states the omission; a silent one reads as
 
 - [ ] **Step 1: Change the default**
 
-In `front-dev-home/app/composables/useActivityUserTable.ts`, line 15:
+In `frontend/app/composables/useActivityUserTable.ts`, line 15:
 
 ```ts
   // 최근 활동 순 by default: the question that opens this table is almost
@@ -730,7 +730,7 @@ Leave `sortOptions` in its current order. The dropdown order and the default are
 - [ ] **Step 4: Typecheck and lint**
 
 ```bash
-cd front-dev-home && npm run typecheck && npm run lint
+cd frontend && npm run typecheck && npm run lint
 ```
 
 Expected: both clean. There is no unit test for this file — `npm test` covers pure functions only, and this sort lives behind Vue refs. It is verified in the browser in Task 7.
@@ -738,7 +738,7 @@ Expected: both clean. There is no unit test for this file — `npm test` covers 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add front-dev-home/app/composables/useActivityUserTable.ts
+git add frontend/app/composables/useActivityUserTable.ts
 git commit -m "feat(activity): default the admin user table to 최근 활동 순
 
 The question that opens this table is 'who is using it now', not 'who used it
@@ -756,11 +756,11 @@ backend sent."
 ### Task 5: Show member names in the 운영 로그 User column
 
 **Files:**
-- Modify: `back_dev_home/admin_logs/contracts.py`
-- Modify: `back_dev_home/admin_logs/routes.py`
-- Create: `back_dev_home/admin_logs/tests/test_routes.py`
-- Modify: `front-dev-home/app/composables/useAdminLogsApi.ts`
-- Modify: `front-dev-home/app/pages/admin/logs.vue:228-233, 275-277`
+- Modify: `backend/admin_logs/contracts.py`
+- Modify: `backend/admin_logs/routes.py`
+- Create: `backend/admin_logs/tests/test_routes.py`
+- Modify: `frontend/app/composables/useAdminLogsApi.ts`
+- Modify: `frontend/app/pages/admin/logs.vue:228-233, 275-277`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -770,7 +770,7 @@ backend sent."
 
 - [ ] **Step 1: Write the failing route test**
 
-Create `back_dev_home/admin_logs/tests/test_routes.py`:
+Create `backend/admin_logs/tests/test_routes.py`:
 
 ```python
 """The member-name join on the admin log page.
@@ -784,11 +784,11 @@ the names and never the rows.
 import pytest
 from flask import Flask, g
 
-from back_dev_home._auth.directory import bare_member
-from back_dev_home._auth.provider import SOURCE_LOCAL
-from back_dev_home._core.contract_check import assert_matches
-from back_dev_home.admin_logs import routes
-from back_dev_home.admin_logs.contracts import NamedLogQueryResponse
+from backend._auth.directory import bare_member
+from backend._auth.provider import SOURCE_LOCAL
+from backend._core.contract_check import assert_matches
+from backend.admin_logs import routes
+from backend.admin_logs.contracts import NamedLogQueryResponse
 
 
 def _item(user_id):
@@ -926,14 +926,14 @@ def test_rows_without_a_user_id_do_not_reach_the_directory(make_client):
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/admin_logs -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/admin_logs -q
 ```
 
 Expected: FAIL on the import of `NamedLogQueryResponse`.
 
 - [ ] **Step 3: Add the contract**
 
-In `back_dev_home/admin_logs/contracts.py`, extend `__all__` and add the class at the end:
+In `backend/admin_logs/contracts.py`, extend `__all__` and add the class at the end:
 
 ```python
 __all__ = ["LogItem", "LogQueryResponse", "NamedLogQueryResponse"]
@@ -964,16 +964,16 @@ class NamedLogQueryResponse(LogQueryResponse):
 
 - [ ] **Step 4: Implement the join**
 
-Rewrite `back_dev_home/admin_logs/routes.py`:
+Rewrite `backend/admin_logs/routes.py`:
 
 ```python
 import logging
 
 from flask import Blueprint, jsonify, request
 
-from back_dev_home._auth.admin import require_admin
-from back_dev_home._auth.directory import lookup_members
-from back_dev_home._auth.errors import error_json
+from backend._auth.admin import require_admin
+from backend._auth.directory import lookup_members
+from backend._auth.errors import error_json
 
 from .contracts import NamedLogQueryResponse
 from .data import query_logs
@@ -1028,14 +1028,14 @@ def admin_logs():
 - [ ] **Step 5: Run the backend tests to verify they pass**
 
 ```bash
-/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest back_dev_home/admin_logs -q
+/Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python -m pytest backend/admin_logs -q
 ```
 
 Expected: PASS.
 
 - [ ] **Step 6: Add the frontend response type**
 
-In `front-dev-home/app/composables/useAdminLogsApi.ts`, add to `AdminLogsResponse` after `filters`:
+In `frontend/app/composables/useAdminLogsApi.ts`, add to `AdminLogsResponse` after `filters`:
 
 ```ts
   /** Employee number → directory name, for the rows on this page only.
@@ -1050,7 +1050,7 @@ In `front-dev-home/app/composables/useAdminLogsApi.ts`, add to `AdminLogsRespons
 
 - [ ] **Step 7: Render the name in the User cell**
 
-In `front-dev-home/app/pages/admin/logs.vue`, add this helper to the `<script setup>` block, beside `formatTime`:
+In `frontend/app/pages/admin/logs.vue`, add this helper to the `<script setup>` block, beside `formatTime`:
 
 ```ts
 // Name leads, employee number underneath rather than instead of — the same
@@ -1085,7 +1085,7 @@ The name drops `font-mono` because it is Korean text; the employee number keeps 
 - [ ] **Step 8: Typecheck and lint**
 
 ```bash
-cd front-dev-home && npm run typecheck && npm run lint
+cd frontend && npm run typecheck && npm run lint
 ```
 
 Expected: both clean.
@@ -1093,11 +1093,11 @@ Expected: both clean.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add back_dev_home/admin_logs/contracts.py \
-        back_dev_home/admin_logs/routes.py \
-        back_dev_home/admin_logs/tests/test_routes.py \
-        front-dev-home/app/composables/useAdminLogsApi.ts \
-        front-dev-home/app/pages/admin/logs.vue
+git add backend/admin_logs/contracts.py \
+        backend/admin_logs/routes.py \
+        backend/admin_logs/tests/test_routes.py \
+        frontend/app/composables/useAdminLogsApi.ts \
+        frontend/app/pages/admin/logs.vue
 git commit -m "feat(admin-logs): name the employee numbers in the User column
 
 Joined in the route with lookup_members, the way activity/routes.py does and
@@ -1119,7 +1119,7 @@ HGET-by-empno hash with no reverse index."
 ### Task 6: One-click 4XX/5XX filter on 운영 로그
 
 **Files:**
-- Modify: `front-dev-home/app/pages/admin/logs.vue:45-97, 417-464`
+- Modify: `frontend/app/pages/admin/logs.vue:45-97, 417-464`
 
 **Interfaces:**
 - Consumes: the `draft`, `applyFilters` and `DraftFilters` symbols already in the file; the User cell from Task 5 must survive untouched.
@@ -1129,7 +1129,7 @@ HGET-by-empno hash with no reverse index."
 
 - [ ] **Step 1: Add the preset table and handlers**
 
-In `front-dev-home/app/pages/admin/logs.vue`, add to `<script setup>` directly above `applyFilters`:
+In `frontend/app/pages/admin/logs.vue`, add to `<script setup>` directly above `applyFilters`:
 
 ```ts
 // Status presets. This page exists to find what broke, and status_min/max
@@ -1191,7 +1191,7 @@ Chips rather than `UTabs`: a preset can be inactive (a hand-typed range matches 
 - [ ] **Step 3: Typecheck and lint**
 
 ```bash
-cd front-dev-home && npm run typecheck && npm run lint
+cd frontend && npm run typecheck && npm run lint
 ```
 
 Expected: both clean.
@@ -1199,7 +1199,7 @@ Expected: both clean.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add front-dev-home/app/pages/admin/logs.vue
+git add frontend/app/pages/admin/logs.vue
 git commit -m "feat(admin-logs): add 4XX/5XX status presets
 
 Error triage is what this page is for, and it was buried behind two free-text
@@ -1236,7 +1236,7 @@ Expected: PASS (~2180 tests, ~72 s). Skip counts will differ from the main check
 - [ ] **Step 2: Run the full frontend suite**
 
 ```bash
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: all PASS and clean.
@@ -1255,7 +1255,7 @@ Expected: `0 error(s)`.
 
 ```bash
 /Users/daeyoung/Codes/skewnono_v3_nuxt/.venv/bin/python index.py     # :5050
-cd front-dev-home && npm run dev                                      # :3000
+cd frontend && npm run dev                                      # :3000
 ```
 
 If every route renders `<!---->` with no console errors, Flask is down — check :5050 before blaming a component.

@@ -8,7 +8,7 @@
 #
 # The backend run documented in docs/ is:
 #
-#   .venv/bin/python -m pytest tests back_dev_home -q
+#   .venv/bin/python -m pytest tests backend -q
 #
 # `testpaths` below makes a bare `.venv/bin/python -m pytest -q` collect that
 # exact set, so the two forms are interchangeable.
@@ -16,8 +16,8 @@
 [tool.pytest.ini_options]
 
 # The two Python test roots: the root Flask/integration tests, plus the
-# per-feature provider contract suites colocated under `back_dev_home/**/tests/`.
-# Nothing else in the tree holds Python tests — front-dev-home/ runs node:test,
+# per-feature provider contract suites colocated under `backend/**/tests/`.
+# Nothing else in the tree holds Python tests — frontend/ runs node:test,
 # and scripts/ has none — so this pins the documented invocation rather than
 # widening it.
 #
@@ -26,18 +26,18 @@
 # Inheriting that default beats copying it here, where the copy would silently
 # suppress any entry a future pytest adds. `testpaths` is the real guard for the
 # bare run anyway — it never walks either directory in the first place.
-testpaths = ["tests", "back_dev_home"]
+testpaths = ["tests", "backend"]
 
 # --- import mode: load-bearing, please do not "clean this up" ---------------
 # Nothing in this repo is pip-installed, yet tests import its top-level packages
-# by absolute path — `back_dev_home.*` and `tests._office_state`, but also
+# by absolute path — `backend.*` and `tests._office_state`, but also
 # `scripts`, `ops_store` and `ftp_handler`. That resolves only because the repo
 # root ends up on `sys.path`, which two independent mechanisms arrange:
 #
 #   1. `python -m pytest` — the form used throughout docs/ — puts
 #      the CWD on `sys.path` as a plain side effect of `-m`.
 #   2. `prepend` import mode walks up from a test module past every consecutive
-#      `__init__.py` (`tests/__init__.py`, plus one in each `back_dev_home/**/
+#      `__init__.py` (`tests/__init__.py`, plus one in each `backend/**/
 #      tests/` dir) to find the package root, then inserts THAT directory at
 #      `sys.path[0]` — again the repo root.
 #
@@ -45,28 +45,28 @@ testpaths = ["tests", "back_dev_home"]
 # runners and `uv run pytest` invoke. Measured on this tree, switching the
 # console script to `--import-mode=importlib` drops 81 tests and adds 7
 # collection errors: `No module named 'ops_store'` (x4), `'scripts'` (x2),
-# `'ftp_handler'` (x1). Note that `back_dev_home.*` keeps importing fine there —
-# loading `back_dev_home/conftest.py` registers that package as a side effect —
+# `'ftp_handler'` (x1). Note that `backend.*` keeps importing fine there —
+# loading `backend/conftest.py` registers that package as a side effect —
 # so a spot check makes `importlib` look harmless when it is not.
 #
 # `prepend` is pinned not because it is today's default, but because a future
 # pytest changing that default would break the console script while
 # `python -m pytest` kept passing. Deleting `tests/__init__.py` costs the same
-# `sys.path` insertion; deleting one of the nested `back_dev_home/**/tests/
+# `sys.path` insertion; deleting one of the nested `backend/**/tests/
 # __init__.py` files instead collides test basenames (many of those dirs share a
 # `test_contract.py`). Neither is a cleanup.
-# `--ignore` of the chat RAG checkout: `back_dev_home/chat/_rag/` is a separate
+# `--ignore` of the chat RAG checkout: `backend/chat/_rag/` is a separate
 # 사내 git repository (gitignored here, see chat/rag.py) with its own tests and
-# heavy model dependencies. `testpaths` walks back_dev_home, and pytest does not
+# heavy model dependencies. `testpaths` walks backend, and pytest does not
 # honour .gitignore, so without this line the office run would collect the
 # RAG's suite as ours. Absent at home, so the ignore is a no-op there.
-addopts = ["--import-mode=prepend", "--ignore=back_dev_home/chat/_rag"]
+addopts = ["--import-mode=prepend", "--ignore=backend/chat/_rag"]
 
 # No `markers` key on purpose: the only marker used anywhere in the suite is the
 # builtin `@pytest.mark.parametrize`. Likewise no `-q`, no `--strict-*` and no
 # coverage in `addopts`, so ad-hoc and CI runs behave exactly as they did before
-# this file existed. `back_dev_home/conftest.py` — which loads
-# `back_dev_home/.env` so office-mode gates (`SKEWNONO_<FEATURE>_PROVIDER=office`)
+# this file existed. `backend/conftest.py` — which loads
+# `backend/.env` so office-mode gates (`SKEWNONO_<FEATURE>_PROVIDER=office`)
 # see the same connection vars as app startup — is still discovered the usual
 # way; it is not registered here.
 
@@ -104,7 +104,7 @@ target-version = "py311"
 # lint failure here should block:
 #
 #   ops_store, ftp_handler — vendored copies of the shared 사내 flask_modules
-#   (confirmed 2026-07-26). back_dev_home imports them (6 and 1 call sites), but
+#   (confirmed 2026-07-26). backend imports them (6 and 1 call sites), but
 #   a fix applied only here would silently drift from the upstream copy, so the
 #   rule is "change both or neither" — which a CI gate cannot enforce. These
 #   hold 1 and 7 findings respectively.
@@ -115,8 +115,8 @@ target-version = "py311"
 #   is a no-op today and the right move is to delete it from this list.
 #
 # (afm_data_platform was also excluded, carrying 42 findings. The folder was
-# removed in 2026-07 once its features had been absorbed into back_dev_home/afm
-# and front-dev-home; its two 사내 spec docs live on in docs/afm/.)
+# removed in 2026-07 once its features had been absorbed into backend/afm
+# and frontend; its two 사내 spec docs live on in docs/afm/.)
 #
 # Dropping the vendored exclusions means adopting 8 findings in code the backend
 # gate has no business failing on. Re-scope deliberately, not by widening this
@@ -135,7 +135,7 @@ select = ["E4", "E7", "E9", "F", "B"]
 # suppressions of a house style, not of a finding:
 #
 #   F401 in `__init__.py` — a feature package re-exports its blueprint
-#   (`from .routes import bp`) so `back_dev_home/__init__.py`'s auto-discovery
+#   (`from .routes import bp`) so `backend/__init__.py`'s auto-discovery
 #   can find it. The import IS the point; it is never referenced locally.
 #
 #   E402 in tests — several suites arrange `sys.path` or set

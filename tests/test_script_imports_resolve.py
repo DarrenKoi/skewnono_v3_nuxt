@@ -40,7 +40,7 @@ SCRIPTS = REPO_ROOT / "scripts"
 # refactor that left a caller behind; a missing third-party package is an
 # environment question and not this test's business.
 INTERNAL_ROOTS = {
-    "back_dev_home",
+    "backend",
     "ftp_handler",
     "minio_handler",
     "ops_index_mgmt",

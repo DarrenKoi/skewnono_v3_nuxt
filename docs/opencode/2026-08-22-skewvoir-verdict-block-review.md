@@ -8,7 +8,7 @@
 - 소요: standards 93s (`ses_fd980dc2effeIc1q31B6tMtd4o`) · spec 86s
   (`ses_fd980dc11ffeSL3Qe8sJN0kNYZ`), 두 축 모두 exit 0
 - 표준 출처로 지정한 문서: `CLAUDE.md`, `DESIGN.md`,
-  `front-dev-home/app/assets/css/main.css`
+  `frontend/app/assets/css/main.css`
 - 스펙 출처: claude.ai/design 프로젝트가 저장소 밖이라 opencode 샌드박스가 읽지
   못하므로, 시안 원본(`proposed.dc.html`)과 시안 주석에서 옮긴 스펙을
   `.playwright-mcp/design-spec/` (gitignore) 아래에 넣고 저장소 상대 경로로

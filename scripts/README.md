@@ -40,7 +40,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 import scripts  # noqa: E402,F401  (applies the stdout UTF-8 fix)
 
-from back_dev_home... import ...  # noqa: E402
+from backend... import ...  # noqa: E402
 ```
 
 `import scripts` 는 불필요해 보이지만 필요합니다. `scripts/__init__.py` 가

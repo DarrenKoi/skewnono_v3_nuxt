@@ -5,7 +5,7 @@
 - 모델: `opencode-go/glm-5.3` variant=high (tier=heavy)
 - 대상: `git diff 7169eb99...HEAD` — 6개 파일, 223 insertions
 - 소요: standards 63s (`ses_fe9765cb2ffe7fNTldjvS9p7Sd`) · spec 52s (`ses_fe9765cc7ffeLkQ8zu22vm2Rxc`)
-- Standards 기준 문서: `CLAUDE.md`, `DESIGN.md`, `docs/back-end/provider-selection.md`, `back_dev_home/health/MIGRATION.md`
+- Standards 기준 문서: `CLAUDE.md`, `DESIGN.md`, `docs/back-end/provider-selection.md`, `backend/health/MIGRATION.md`
 - Spec: `.scratch/lab-cloud-hide/spec.md` (대화에서 확정된 요구사항을 그대로 옮긴 문서. diff 에서 유추한 항목 없음)
 
 Tier 선정 근거: 6개 파일로 규모는 작으나, 변경 전체가 `is_cloud()` 뒤에 놓여
@@ -17,15 +17,15 @@ Tier 선정 근거: 6개 파일로 규모는 작으나, 변경 전체가 `is_clo
 
 **Findings**
 
-**1. HARD — `back_dev_home/health/MIGRATION.md` not updated (stale endpoint table).**
-The MIGRATION.md opens "This feature has three endpoints, and only one of them swaps" and lists `/health/services`, `/health/providers`, `/health/logging`. The diff adds a fourth endpoint, `GET /api/health/deployment` (back_dev_home/health/routes.py:65), open-auth and reading `_runtime` directly — i.e., a second runtime carve-out in this very feature — without touching the doc. AGENTS.md points readers to `<feature>/MIGRATION.md` as the per-feature authority; it now misstates the feature.
+**1. HARD — `backend/health/MIGRATION.md` not updated (stale endpoint table).**
+The MIGRATION.md opens "This feature has three endpoints, and only one of them swaps" and lists `/health/services`, `/health/providers`, `/health/logging`. The diff adds a fourth endpoint, `GET /api/health/deployment` (backend/health/routes.py:65), open-auth and reading `_runtime` directly — i.e., a second runtime carve-out in this very feature — without touching the doc. AGENTS.md points readers to `<feature>/MIGRATION.md` as the per-feature authority; it now misstates the feature.
 
 **2. HARD — `docs/back-end/provider-selection.md` §4 "single exception" claim now false.**
-§4 states routes use `from .data import ...` exclusively and "단 하나의 예외는 `/health/providers`" (the one endpoint reading `_runtime` directly). The new route imports `from back_dev_home._runtime.env import is_cloud` inside `routes.py` (back_dev_home/health/routes.py:9), becoming a second exception the authoritative doc doesn't acknowledge. The route's docstring justifies itself well, but the doc of record contradicts the code. Both docs and code must change together per CLAUDE.md's two-places rule in spirit and AGENTS.md's doc conventions.
+§4 states routes use `from .data import ...` exclusively and "단 하나의 예외는 `/health/providers`" (the one endpoint reading `_runtime` directly). The new route imports `from backend._runtime.env import is_cloud` inside `routes.py` (backend/health/routes.py:9), becoming a second exception the authoritative doc doesn't acknowledge. The route's docstring justifies itself well, but the doc of record contradicts the code. Both docs and code must change together per CLAUDE.md's two-places rule in spirit and AGENTS.md's doc conventions.
 
-**3. JUDGEMENT — Duplicated Code (comment shape).** The "ssr:false bakes `runtimeConfig.public` at build time / pack.py ships the same artifact / is_cloud() is a filesystem-path check" rationale appears nearly verbatim in both back_dev_home/health/routes.py:67-78 and front-dev-home/app/composables/useDeployment.ts:3-17. Comments, not logic — acceptable for cross-boundary rationale, but the next editor updates one and not the other.
+**3. JUDGEMENT — Duplicated Code (comment shape).** The "ssr:false bakes `runtimeConfig.public` at build time / pack.py ships the same artifact / is_cloud() is a filesystem-path check" rationale appears nearly verbatim in both backend/health/routes.py:67-78 and frontend/app/composables/useDeployment.ts:3-17. Comments, not logic — acceptable for cross-boundary rationale, but the next editor updates one and not the other.
 
-**4. JUDGEMENT — weak assertion, `test_deployment_is_open_to_a_normal_user`** (back_dev_home/health/tests/test_deployment_route.py:41): `assert response.get_json()["is_cloud"] in (True, False)` is tautological — any boolean passes. The test's real claim (200 for a non-admin) is carried by the status assert alone; the second line adds false confidence.
+**4. JUDGEMENT — weak assertion, `test_deployment_is_open_to_a_normal_user`** (backend/health/tests/test_deployment_route.py:41): `assert response.get_json()["is_cloud"] in (True, False)` is tautological — any boolean passes. The test's real claim (200 for a non-admin) is carried by the status assert alone; the second line adds false confidence.
 
 **Clean:** `hiddenOnCloud` as a row property, the `visibleHeaderLinksIn` / `headerLinksIn` split, tab-derivation test guarding hidden rows, single `useAsyncData` cache key, `payloadCache` reuse, and the default-false cloud guess are all consistent with CLAUDE.md's fetching/state patterns. No overlay smells (no mock/office pair touched, no localStorage plumbing, no raw colors).
 
@@ -118,7 +118,7 @@ trigger 만 활성으로 칠해지면, 열었을 때 대응하는 행이 없어 
   이것이 이 작업의 출발점이었고, `_runtime/data_provider.py:180` 의 mock 폴백
   때문에 "숨김"이 "가짜 데이터 노출"이 된다는 점이 채택된 설계의 근거 전부입니다.
   Spec 축은 요구사항 2 를 "만족"으로만 표시했습니다.
-- **`front-dev-home/app/data/apiCatalog.ts`** 에 새 엔드포인트를 넣지 않았습니다.
+- **`frontend/app/data/apiCatalog.ts`** 에 새 엔드포인트를 넣지 않았습니다.
   의도적입니다 — 이 목록은 health 엔드포인트를 모두 담지 않고 `/health/services`
   만 담고 있어, `/health/data-mode` 의 선례를 따랐습니다.
 

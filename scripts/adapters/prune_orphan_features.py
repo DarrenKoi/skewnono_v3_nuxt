@@ -49,7 +49,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_ROOT = REPO_ROOT / "back_dev_home"
+BACKEND_ROOT = REPO_ROOT / "backend"
 
 # Mirrors _runtime/office_registry.py: a feature is a directory with a
 # providers/ child holding one of these. Both are globbed because a moved
@@ -166,8 +166,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"error: {_rel(BACKEND_ROOT)} not found -- run this from the skewnono repo.")
     # A shallow/partial checkout would report every directory as untracked and
     # this script would happily delete the whole backend. Refuse instead.
-    if not _git("ls-files", "--", "back_dev_home"):
-        raise SystemExit("error: git tracks no files under back_dev_home/ -- refusing to guess.")
+    if not _git("ls-files", "--", "backend"):
+        raise SystemExit("error: git tracks no files under backend/ -- refusing to guess.")
 
     feature_dirs = _feature_dirs()
     orphans = [feature_dir for feature_dir in sorted(feature_dirs) if _is_orphan(feature_dir)]

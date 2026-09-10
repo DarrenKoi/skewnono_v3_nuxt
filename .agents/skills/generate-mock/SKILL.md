@@ -15,9 +15,9 @@ You are generating a mock data composable for the SKEWNONO project (Phase 1 — 
 
 Read these files to understand the current conventions:
 
-- `front-dev-home/app/composables/useEquipmentData.ts` — reference composable with typed interfaces, mock data array, and promise-based fetch functions
-- `front-dev-home/app/composables/useToolData.ts` — simpler composable returning static config data
-- `front-dev-home/app/mock-data/` — browse existing data description files for domain context and naming conventions
+- `frontend/app/composables/useEquipmentData.ts` — reference composable with typed interfaces, mock data array, and promise-based fetch functions
+- `frontend/app/composables/useToolData.ts` — simpler composable returning static config data
+- `frontend/app/mock-data/` — browse existing data description files for domain context and naming conventions
 
 ### 2. Parse the data description from the user's message
 
@@ -31,7 +31,7 @@ The user provides the data schema together with the `/generate-mock` invocation.
 
 ### 3. Generate the composable
 
-Create `front-dev-home/app/composables/use<EndpointName>Data.ts` with:
+Create `frontend/app/composables/use<EndpointName>Data.ts` with:
 
 #### TypeScript interface
 
@@ -76,7 +76,7 @@ export const use<EndpointName>Data = () => {
 
 ### 4. Save the data description
 
-Also save the user's data description to `front-dev-home/app/mock-data/<endpoint-name>.md` as a reference file, formatted with:
+Also save the user's data description to `frontend/app/mock-data/<endpoint-name>.md` as a reference file, formatted with:
 
 - A title header
 - Column definitions with description, examples, and format

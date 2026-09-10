@@ -58,9 +58,9 @@ state.status = nextWarmState(poll, Date.now() - startedAt)
 
 ## 참고
 
-- `front-dev-home/app/utils/imageWarm.ts` — `WARM_CEILING_MS`, `nextWarmState`
-- `front-dev-home/app/composables/useMsrImageWarmer.ts` — `runWarm`
-- `front-dev-home/app/composables/useMsrImageApi.ts` — `startDownloadAll`, `pollJob`
+- `frontend/app/utils/imageWarm.ts` — `WARM_CEILING_MS`, `nextWarmState`
+- `frontend/app/composables/useMsrImageWarmer.ts` — `runWarm`
+- `frontend/app/composables/useMsrImageApi.ts` — `startDownloadAll`, `pollJob`
 
 ## Answer
 

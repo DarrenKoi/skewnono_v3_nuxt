@@ -3,35 +3,35 @@
 ## Project Structure & Architecture
 This repository now follows the two-app plan described in `CLAUDE.md`.
 
-- `front-dev-home/`: Nuxt frontend workspace. The app currently runs on Nuxt 4 with `@nuxt/ui`, `ssr: false`, and a Nitro dev proxy that forwards `/api/*` to `NUXT_API_TARGET`.
-- `back_dev_home/`: Flask mock backend for the home/offline phase. It mirrors the office backend shape so the frontend can keep the same API contract across environments.
+- `frontend/`: Nuxt frontend workspace. The app currently runs on Nuxt 4 with `@nuxt/ui`, `ssr: false`, and a Nitro dev proxy that forwards `/api/*` to `NUXT_API_TARGET`.
+- `backend/`: Flask mock backend for the home/offline phase. It mirrors the office backend shape so the frontend can keep the same API contract across environments.
 - `docs/`: shared documentation and teammate-facing Markdown.
 - root `package.json`: repo-level Markdown lint tooling. Root `node_modules/` is still required for `lint:md`.
 
 Key frontend paths:
-- `front-dev-home/app/pages/`: route-driven views.
-- `front-dev-home/app/components/`: reusable UI components.
-- `front-dev-home/app/composables/`: shared Composition API logic.
-- `front-dev-home/app/stores/`: shared client state. **Not Pinia** — Pinia is not
+- `frontend/app/pages/`: route-driven views.
+- `frontend/app/components/`: reusable UI components.
+- `frontend/app/composables/`: shared Composition API logic.
+- `frontend/app/stores/`: shared client state. **Not Pinia** — Pinia is not
   a dependency of this project. `navigation.ts` is a `useState`-backed store in
   the Nuxt-built-ins style described in CLAUDE.md; anything that must survive a
   reload goes through `composables/usePersistedState.ts`.
-- `front-dev-home/app/assets/css/`: global styles.
-- `front-dev-home/public/`: static assets.
-- `front-dev-home/app/data/`: local reference content used by the frontend.
+- `frontend/app/assets/css/`: global styles.
+- `frontend/public/`: static assets.
+- `frontend/app/data/`: local reference content used by the frontend.
 
 Key backend paths:
-- `index.py` (repo root): WSGI entry that exposes `app` and `application`; imports `create_app` from `back_dev_home`.
+- `index.py` (repo root): WSGI entry that exposes `app` and `application`; imports `create_app` from `backend`.
 - `wsgi.ini` (repo root): uWSGI config (`module = index`, `callable = application`).
-- `back_dev_home/__init__.py`: Flask app factory; registers each feature's blueprint under `/api`.
-- `back_dev_home/health/`: service health API for backend dependencies.
-- `back_dev_home/<feature>/routes.py`: blueprint + route handlers for one Nuxt-tab-aligned feature.
-- `back_dev_home/<feature>/data.py`: stable dispatcher that picks the feature's adapter — do **not** edit it. The Phase 2/3 swap surface is `providers/office.py`; see `docs/back-end/provider-selection.md`.
+- `backend/__init__.py`: Flask app factory; registers each feature's blueprint under `/api`.
+- `backend/health/`: service health API for backend dependencies.
+- `backend/<feature>/routes.py`: blueprint + route handlers for one Nuxt-tab-aligned feature.
+- `backend/<feature>/data.py`: stable dispatcher that picks the feature's adapter — do **not** edit it. The Phase 2/3 swap surface is `providers/office.py`; see `docs/back-end/provider-selection.md`.
 
 ## Deployment Phases
 The repo is structured around configuration-only environment switching.
 
-- Phase 1, home/offline: run `back_dev_home/` locally on `http://localhost:5050` with in-memory mock data.
+- Phase 1, home/offline: run `backend/` locally on `http://localhost:5050` with in-memory mock data.
 - Phase 2, company/localhost: keep the same Flask API shape but swap to company-local data sources.
 - Phase 3, company/production: Flask serves the built frontend and uses production infrastructure.
 
@@ -55,7 +55,7 @@ From the repo root:
 - `npm run lint:md`: lint Markdown files.
 - `npm run lint:md:fix`: auto-fix supported Markdown issues.
 
-From `front-dev-home/`:
+From `frontend/`:
 - `npm install`: install frontend dependencies.
 - `npm run dev`: start Nuxt at `http://localhost:3000`.
 - `npm run dev:remote`: start Nuxt bound to `0.0.0.0`.
@@ -67,11 +67,11 @@ From `front-dev-home/`:
 
 Backend (run from the repo root):
 - `python3 -m venv .venv`: create a local virtual environment.
-- `.venv/bin/python -m pip install -r back_dev_home/requirements.txt`: install Flask backend dependencies.
-- `.venv/bin/python -m pip install -r back_dev_home/requirements-dev.txt`: same plus pytest and ruff, for running the gates.
+- `.venv/bin/python -m pip install -r backend/requirements.txt`: install Flask backend dependencies.
+- `.venv/bin/python -m pip install -r backend/requirements-dev.txt`: same plus pytest and ruff, for running the gates.
 - `.venv/bin/python index.py`: start the Flask dev server on `http://localhost:5050`.
 - `.venv/bin/python -m ruff check .`: run the Python static gate (~0.02 s).
-- `.venv/bin/python -m pytest tests back_dev_home -q`: run the backend test suite (~2 min).
+- `.venv/bin/python -m pytest tests backend -q`: run the backend test suite (~2 min).
 - `uwsgi --ini wsgi.ini`: serve via uWSGI (production-style).
 
 Environment notes:
@@ -81,9 +81,9 @@ Environment notes:
 - `PORT` overrides the Flask port; the default is `5050` because `5000` conflicts with macOS AirPlay.
 
 ## Coding Style & Naming Conventions
-- Use Vue 3 + TypeScript patterns with Nuxt file-based routing in `front-dev-home/`.
+- Use Vue 3 + TypeScript patterns with Nuxt file-based routing in `frontend/`.
 - Follow ESLint via `@nuxt/eslint`; do not bypass lint failures.
-- `front-dev-home/nuxt.config.ts` enforces no trailing commas and `1tbs` brace style.
+- `frontend/nuxt.config.ts` enforces no trailing commas and `1tbs` brace style.
 - Prefer 2-space indentation and keep files formatter-friendly.
 - Name composables as `useXxx.ts`, stores by domain, and Vue components in PascalCase.
 - Keep route files descriptive and colocated by feature.
@@ -108,28 +108,28 @@ both on every push: a `lint + pytest` job for the backend and a
 week as "pytest Failed". Frontend `npm run lint` is deliberately not gated yet,
 because `main` still carries pre-existing lint errors in untouched files.
 
-Backend — pytest on CPython 3.14, installed from `back_dev_home/requirements-dev.txt`
+Backend — pytest on CPython 3.14, installed from `backend/requirements-dev.txt`
 (kept out of `requirements.txt` so the Phase 3 production install ships no test
 runner). Always run from the repo root, in the `python -m pytest` form: `-m` is
-what puts the repo root on `sys.path` so tests can import `back_dev_home.*`.
+what puts the repo root on `sys.path` so tests can import `backend.*`.
 
 - `.venv/bin/python -m ruff check .`: the Python static gate (~0.02 s), scoped to pyflakes `F` plus the core `E4`/`E7`/`E9` and `B` rules. Run it first — CI does, and it is the cheapest way to catch a symbol renamed in one place and not another.
-- `.venv/bin/python -m pytest tests back_dev_home -q`: the whole backend suite (~3040 tests, ~115 s — budget the two minutes; the device-statistics weekly-snapshot tests each build a real 4000-lot payload). Both roots matter — `tests/` holds the cross-feature Flask suites, and `back_dev_home/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
-- `.venv/bin/python -m pytest -q`: identical collection. Root `pyproject.toml` sets `testpaths = ["tests", "back_dev_home"]`, so the bare form and the explicit one are interchangeable.
-- `.venv/bin/python -m pytest back_dev_home/<feature> -q`: one feature, against whichever provider currently resolves (mock at home).
-- `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest back_dev_home/<feature> -q`: the Phase 2 office gate. Run it at the office after `cp back_dev_home/<feature>/providers/office_example.py back_dev_home/<feature>/providers/office.py`. Without that copy the run fails loudly with a `RuntimeError` naming the exact `cp` command — it never silently falls back to mock, so a green run really did exercise the office adapter.
+- `.venv/bin/python -m pytest tests backend -q`: the whole backend suite (~3040 tests, ~115 s — budget the two minutes; the device-statistics weekly-snapshot tests each build a real 4000-lot payload). Both roots matter — `tests/` holds the cross-feature Flask suites, and `backend/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
+- `.venv/bin/python -m pytest -q`: identical collection. Root `pyproject.toml` sets `testpaths = ["tests", "backend"]`, so the bare form and the explicit one are interchangeable.
+- `.venv/bin/python -m pytest backend/<feature> -q`: one feature, against whichever provider currently resolves (mock at home).
+- `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest backend/<feature> -q`: the Phase 2 office gate. Run it at the office after `cp backend/<feature>/providers/office_example.py backend/<feature>/providers/office.py`. Without that copy the run fails loudly with a `RuntimeError` naming the exact `cp` command — it never silently falls back to mock, so a green run really did exercise the office adapter.
 
 Frontend — Node's built-in test runner (`node --test "app/**/*.test.ts"`). There
 is no Vitest, Jest, jsdom, or `@vue/test-utils` in the tree.
 
-- `npm test` from `front-dev-home/`: colocated `*.test.ts` files next to the code they cover.
+- `npm test` from `frontend/`: colocated `*.test.ts` files next to the code they cover.
 - `npm run typecheck` and `npm run lint` remain the other frontend gates.
 - Only pure functions are covered. Without a mounting harness, `.vue` components have no unit tests, and there is **no automated E2E suite** — no Playwright config and no spec files exist. `@playwright/test` is present only as a devDependency behind the Playwright MCP server, which is an interactive tool a developer or agent drives by hand, not a suite CI can run.
 
 Other notes:
 
 - For docs-only changes, rerun `npm run lint:md` from the repo root.
-- Colocate new tests with the code they cover: `X.test.ts` beside `X.ts`, and `back_dev_home/<feature>/tests/` beside the feature.
+- Colocate new tests with the code they cover: `X.test.ts` beside `X.ts`, and `backend/<feature>/tests/` beside the feature.
 
 ## Commit Guidelines
 

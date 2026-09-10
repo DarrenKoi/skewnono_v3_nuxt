@@ -2,8 +2,8 @@
 
 - **작성일:** 2026-08-04
 - **상태:** 승인된 설계, 구현 계획 작성 전 문서 검토 대기
-- **적용 범위:** `back_dev_home/_logging`, `back_dev_home/activity`,
-  `front-dev-home/app/plugins`, `front-dev-home/app/utils`
+- **적용 범위:** `backend/_logging`, `backend/activity`,
+  `frontend/app/plugins`, `frontend/app/utils`
 
 ## 1. 배경
 

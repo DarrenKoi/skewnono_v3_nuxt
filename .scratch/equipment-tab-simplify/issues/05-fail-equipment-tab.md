@@ -9,9 +9,9 @@ Blocked by: 03
 
 **Files:**
 
-- Modify: `front-dev-home/app/components/ebeam/FailIssueFleetTable.vue`
-- Modify: `front-dev-home/app/components/ebeam/FailIssueEquipmentView.vue`
-- Modify: `front-dev-home/app/components/ebeam/FailIssueEquipmentCompare.vue`
+- Modify: `frontend/app/components/ebeam/FailIssueFleetTable.vue`
+- Modify: `frontend/app/components/ebeam/FailIssueEquipmentView.vue`
+- Modify: `frontend/app/components/ebeam/FailIssueEquipmentCompare.vue`
 
 **Interfaces:**
 
@@ -276,7 +276,7 @@ const copyFleetTable = async (rows: FailIssueEquipmentRow[]) => {
 - [ ] **Step 13: 정적 게이트**
 
 ```bash
-cd front-dev-home
+cd frontend
 npm test 2>&1 | tail -5
 npm run typecheck
 npm run lint
@@ -287,7 +287,7 @@ Expected: 전부 통과. `failEquipmentSignals.test.ts`도 계속 통과해야 �
 - [ ] **Step 14: 미사용 참조 확인**
 
 ```bash
-cd front-dev-home/app
+cd frontend/app
 grep -rn "failEquipmentSignals\|FAIL_SIGNAL_META\|isIndexConclusive\|isPeerGroupComparable" \
   components/ebeam/FailIssue*.vue
 ```
@@ -297,9 +297,9 @@ Expected: 히트 0건.
 - [ ] **Step 15: 커밋**
 
 ```bash
-git add front-dev-home/app/components/ebeam/FailIssueFleetTable.vue \
-        front-dev-home/app/components/ebeam/FailIssueEquipmentView.vue \
-        front-dev-home/app/components/ebeam/FailIssueEquipmentCompare.vue
+git add frontend/app/components/ebeam/FailIssueFleetTable.vue \
+        frontend/app/components/ebeam/FailIssueEquipmentView.vue \
+        frontend/app/components/ebeam/FailIssueEquipmentCompare.vue
 git commit -m "feat(fail-issue): 장비별 탭을 관측만 남기고 Excel 내보내기로 바꾼다
 
 recipe-tat 쪽과 같은 변경입니다. 플릿 표에서 fail index·신호 열과 다중

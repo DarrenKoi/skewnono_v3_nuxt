@@ -27,8 +27,8 @@
 프론트엔드의 결정 로직을 먼저 순수 함수로 만든다. `imageWarm.ts` 가 이미 `nextWarmState` 를 같은 방식으로 분리해 두었고, 그래야 `node --test` 로 검사할 수 있다.
 
 **Files:**
-- Modify: `front-dev-home/app/utils/imageWarm.ts` (파일 끝에 추가)
-- Test: `front-dev-home/app/utils/imageWarm.test.ts` (신규)
+- Modify: `frontend/app/utils/imageWarm.ts` (파일 끝에 추가)
+- Test: `frontend/app/utils/imageWarm.test.ts` (신규)
 
 **Interfaces:**
 - Consumes: 기존 `WARM_CEILING_MS` (같은 파일).
@@ -36,7 +36,7 @@
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-`front-dev-home/app/utils/imageWarm.test.ts` 를 만든다:
+`frontend/app/utils/imageWarm.test.ts` 를 만든다:
 
 ```ts
 // Pure-logic tests for the warm-job retry policy. Run:
@@ -103,12 +103,12 @@ test('jitter stays inside +/-25% and moves with rand', () => {
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `cd front-dev-home && node --test app/utils/imageWarm.test.ts`
+Run: `cd frontend && node --test app/utils/imageWarm.test.ts`
 Expected: FAIL — `WARM_RETRY_DELAYS_MS` / `warmErrorCode` / `jittered` / `warmRetryDelayMs` 를 export 하지 않음.
 
 - [ ] **Step 3: 최소 구현을 쓴다**
 
-`front-dev-home/app/utils/imageWarm.ts` 끝에 추가:
+`frontend/app/utils/imageWarm.ts` 끝에 추가:
 
 ```ts
 /** Waits before re-POSTing a refused warm job, in order. Sized so the whole
@@ -157,16 +157,16 @@ export const warmRetryDelayMs = (
 
 - [ ] **Step 4: 통과를 확인한다**
 
-Run: `cd front-dev-home && node --test app/utils/imageWarm.test.ts`
+Run: `cd frontend && node --test app/utils/imageWarm.test.ts`
 Expected: PASS (7 tests)
 
-Run: `cd front-dev-home && npm run typecheck && npm run lint`
+Run: `cd frontend && npm run typecheck && npm run lint`
 Expected: 오류 없음
 
 - [ ] **Step 5: 커밋한다**
 
 ```bash
-git add front-dev-home/app/utils/imageWarm.ts front-dev-home/app/utils/imageWarm.test.ts
+git add frontend/app/utils/imageWarm.ts frontend/app/utils/imageWarm.test.ts
 git commit -m "feat(msr-image): warm job 거부를 기다릴지 판단하는 정책을 추가한다
 
 429 를 상태 코드로만 보면 안 된다. /api/* 전역 rate limit(20 req/5s)도 429 를
@@ -182,7 +182,7 @@ code=too_many_jobs 를 실으므로 그것이 유일하게 안전한 판별자�
 ### Task 2: `runWarm` 이 거부를 기다리게 한다
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useMsrImageWarmer.ts:38-58` (`runWarm`)
+- Modify: `frontend/app/composables/useMsrImageWarmer.ts:38-58` (`runWarm`)
 
 **Interfaces:**
 - Consumes: Task 1 의 `warmRetryDelayMs(err, attempt, elapsedMs, rand)`.
@@ -190,7 +190,7 @@ code=too_many_jobs 를 실으므로 그것이 유일하게 안전한 판별자�
 
 - [ ] **Step 1: 현재 동작을 확인한다**
 
-Run: `sed -n '33,60p' front-dev-home/app/composables/useMsrImageWarmer.ts`
+Run: `sed -n '33,60p' frontend/app/composables/useMsrImageWarmer.ts`
 Expected: `catch { state.status = 'gaveup' }` 한 블록이 보임. 이것이 429 와 죽은 장비를 똑같이 처리하는 지점이다.
 
 - [ ] **Step 2: 재시도 루프로 바꾼다**
@@ -248,18 +248,18 @@ const runWarm = async (
 
 `state.status` 는 `useMsrImageWarmer` 의 watch 에서 `'warming'` 으로 초기화되고 이 루프는 그것을 낮추지 않는다. 따라서 재시도 중 `SemImage.vue` 의 `holdForWarm` 이 계속 참이며 이미지가 보류된다 — 이 변경의 목적 그 자체다.
 
-Run: `grep -n "status: 'warming'" front-dev-home/app/composables/useMsrImageWarmer.ts`
+Run: `grep -n "status: 'warming'" frontend/app/composables/useMsrImageWarmer.ts`
 Expected: watch 안의 초기화 한 줄이 그대로 있음.
 
 - [ ] **Step 4: 타입·린트·테스트를 돌린다**
 
-Run: `cd front-dev-home && npm run typecheck && npm run lint && npm test`
+Run: `cd frontend && npm run typecheck && npm run lint && npm test`
 Expected: 전부 통과
 
 - [ ] **Step 5: 커밋한다**
 
 ```bash
-git add front-dev-home/app/composables/useMsrImageWarmer.ts
+git add frontend/app/composables/useMsrImageWarmer.ts
 git commit -m "fix(msr-image): warm job 거부에 이미지 폭주로 답하지 않는다
 
 429 를 받으면 gaveup 으로 떨어져 보류가 풀리고, 화면의 모든 이미지가 예산 없는
@@ -276,8 +276,8 @@ job 은 지금처럼 gaveup 이다. 총 대기는 기존 WARM_CEILING_MS 예산�
 ### Task 3: single-flight 게이트 (백엔드, 순수 모듈)
 
 **Files:**
-- Create: `back_dev_home/msr_image/single_flight.py`
-- Test: `back_dev_home/msr_image/tests/test_single_flight.py`
+- Create: `backend/msr_image/single_flight.py`
+- Test: `backend/msr_image/tests/test_single_flight.py`
 
 **Interfaces:**
 - Consumes: 없음 (표준 라이브러리만).
@@ -285,7 +285,7 @@ job 은 지금처럼 gaveup 이다. 총 대기는 기존 WARM_CEILING_MS 예산�
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-`back_dev_home/msr_image/tests/test_single_flight.py`:
+`backend/msr_image/tests/test_single_flight.py`:
 
 ```python
 """The gate that keeps concurrent requests for one image to one tool visit.
@@ -301,7 +301,7 @@ import time
 
 import pytest
 
-from back_dev_home.msr_image.single_flight import _locks, fetch_gate
+from backend.msr_image.single_flight import _locks, fetch_gate
 
 
 @pytest.fixture(autouse=True)
@@ -390,12 +390,12 @@ def test_a_waiter_keeps_the_entry_alive_while_it_waits():
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_single_flight.py -q`
-Expected: FAIL — `ModuleNotFoundError: back_dev_home.msr_image.single_flight`
+Run: `.venv/bin/python -m pytest backend/msr_image/tests/test_single_flight.py -q`
+Expected: FAIL — `ModuleNotFoundError: backend.msr_image.single_flight`
 
 - [ ] **Step 3: 최소 구현을 쓴다**
 
-`back_dev_home/msr_image/single_flight.py`:
+`backend/msr_image/single_flight.py`:
 
 ```python
 """Keep concurrent requests for ONE image to one visit to the tool.
@@ -464,16 +464,16 @@ def fetch_gate(key: str) -> Iterator[None]:
 
 - [ ] **Step 4: 통과를 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_single_flight.py -q`
+Run: `.venv/bin/python -m pytest backend/msr_image/tests/test_single_flight.py -q`
 Expected: PASS (5 tests)
 
-Run: `.venv/bin/python -m ruff check back_dev_home/msr_image/`
+Run: `.venv/bin/python -m ruff check backend/msr_image/`
 Expected: `All checks passed!`
 
 - [ ] **Step 5: 커밋한다**
 
 ```bash
-git add back_dev_home/msr_image/single_flight.py back_dev_home/msr_image/tests/test_single_flight.py
+git add backend/msr_image/single_flight.py backend/msr_image/tests/test_single_flight.py
 git commit -m "feat(msr_image): 이미지별 single-flight 게이트를 추가한다
 
 계측 장비 FTP 는 엔지니어들과 나눠 쓰는 희소 자원인데, 같은 파일에 대한 동시
@@ -493,17 +493,17 @@ git commit -m "feat(msr_image): 이미지별 single-flight 게이트를 추가�
 ### Task 4: serve 경로에 배선하고 기록한다
 
 **Files:**
-- Modify: `back_dev_home/msr_image/routes.py:9-16` (import), `:170-174` (serve 블록)
-- Test: `back_dev_home/msr_image/tests/test_routes_serve.py` (테스트 추가)
-- Modify: `back_dev_home/msr_image/MIGRATION.md`
+- Modify: `backend/msr_image/routes.py:9-16` (import), `:170-174` (serve 블록)
+- Test: `backend/msr_image/tests/test_routes_serve.py` (테스트 추가)
+- Modify: `backend/msr_image/MIGRATION.md`
 
 **Interfaces:**
-- Consumes: Task 3 의 `fetch_gate`, 기존 `cache_key` (`back_dev_home.msr_image.cache`).
+- Consumes: Task 3 의 `fetch_gate`, 기존 `cache_key` (`backend.msr_image.cache`).
 - Produces: 없음 (라우트 동작은 관측 가능한 범위에서 동일하다).
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-`back_dev_home/msr_image/tests/test_routes_serve.py` 끝에 추가:
+`backend/msr_image/tests/test_routes_serve.py` 끝에 추가:
 
 ```python
 def test_concurrent_gets_for_one_image_make_one_tool_visit(tmp_path, monkeypatch):
@@ -518,8 +518,8 @@ def test_concurrent_gets_for_one_image_make_one_tool_visit(tmp_path, monkeypatch
 
     from flask import Flask
 
-    from back_dev_home.msr_image import data, routes
-    from back_dev_home.msr_image.contracts import FetchedImage
+    from backend.msr_image import data, routes
+    from backend.msr_image.contracts import FetchedImage
 
     monkeypatch.setenv("SKEWNONO_MSR_IMAGE_PROVIDER", "mock")
     monkeypatch.setenv("IMAGE_CACHE_DIR", str(tmp_path))
@@ -564,8 +564,8 @@ def test_concurrent_gets_for_different_images_both_fetch(tmp_path, monkeypatch):
 
     from flask import Flask
 
-    from back_dev_home.msr_image import data, routes
-    from back_dev_home.msr_image.contracts import FetchedImage
+    from backend.msr_image import data, routes
+    from backend.msr_image.contracts import FetchedImage
 
     monkeypatch.setenv("SKEWNONO_MSR_IMAGE_PROVIDER", "mock")
     monkeypatch.setenv("IMAGE_CACHE_DIR", str(tmp_path))
@@ -599,7 +599,7 @@ def test_concurrent_gets_for_different_images_both_fetch(tmp_path, monkeypatch):
 
 - [ ] **Step 2: 실패를 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_routes_serve.py -q -k concurrent`
+Run: `.venv/bin/python -m pytest backend/msr_image/tests/test_routes_serve.py -q -k concurrent`
 Expected: 첫 테스트 FAIL — `the tool was visited 2 times`. 두 번째는 PASS (게이트가 없어도 통과하는, 회귀 방지용 테스트).
 
 - [ ] **Step 3: serve 블록을 게이트로 감싼다**
@@ -607,8 +607,8 @@ Expected: 첫 테스트 FAIL — `the tool was visited 2 times`. 두 번째는 P
 `routes.py` 의 import 에 두 줄을 더한다:
 
 ```python
-from back_dev_home.msr_image.cache import cache_key, make_cache
-from back_dev_home.msr_image.single_flight import fetch_gate
+from backend.msr_image.cache import cache_key, make_cache
+from backend.msr_image.single_flight import fetch_gate
 ```
 
 `:170-174` 의 캐시 미스 분기를 교체한다 (앞뒤 줄은 그대로):
@@ -635,7 +635,7 @@ from back_dev_home.msr_image.single_flight import fetch_gate
 
 - [ ] **Step 4: 통과를 확인한다**
 
-Run: `.venv/bin/python -m pytest back_dev_home/msr_image -q`
+Run: `.venv/bin/python -m pytest backend/msr_image -q`
 Expected: PASS (기존 137 + 신규 7)
 
 Run: `.venv/bin/python -m ruff check .`
@@ -643,7 +643,7 @@ Expected: `All checks passed!`
 
 - [ ] **Step 5: MIGRATION.md 에 기록한다**
 
-`back_dev_home/msr_image/MIGRATION.md` 의 "실측값" 절 바로 뒤에 추가:
+`backend/msr_image/MIGRATION.md` 의 "실측값" 절 바로 뒤에 추가:
 
 ```markdown
 ## 장비 부하 — 무엇이 세션을 여는가 (2026-08-10)
@@ -670,7 +670,7 @@ Expected: `Summary: 0 error(s)`
 - [ ] **Step 6: 커밋한다**
 
 ```bash
-git add back_dev_home/msr_image/routes.py back_dev_home/msr_image/tests/test_routes_serve.py back_dev_home/msr_image/MIGRATION.md
+git add backend/msr_image/routes.py backend/msr_image/tests/test_routes_serve.py backend/msr_image/MIGRATION.md
 git commit -m "fix(msr_image): 같은 이미지에 대한 동시 요청을 장비 방문 1회로 합친다
 
 serve 경로의 캐시 미스 분기를 이미지별 게이트로 감싸고, 게이트 안에서 캐시를 다시
@@ -698,7 +698,7 @@ Expected: 기존 대비 신규 7건 증가, 실패 0
 
 - [ ] **Step 2: 프론트엔드 전체**
 
-Run: `cd front-dev-home && npm test && npm run typecheck && npm run lint`
+Run: `cd frontend && npm test && npm run typecheck && npm run lint`
 Expected: 전부 통과
 
 - [ ] **Step 3: 정적 게이트**
@@ -708,7 +708,7 @@ Expected: 둘 다 초록
 
 - [ ] **Step 4: 집에서 실제로 띄워본다**
 
-`.venv/bin/python index.py` 와 `cd front-dev-home && npm run dev` 를 띄우고
+`.venv/bin/python index.py` 와 `cd frontend && npm run dev` 를 띄우고
 Skewvoir 의 SEM 이미지 패널을 연다. 집은 mock provider 라 장비 부하 자체는
 재현되지 않지만, **이미지가 여전히 뜨는지**(계약 불변)와 콘솔 오류가 없는지를 본다.
 

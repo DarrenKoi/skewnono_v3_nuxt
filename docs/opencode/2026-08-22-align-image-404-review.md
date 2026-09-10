@@ -7,7 +7,7 @@ escalation surface 에 해당하여 `heavy` (glm-5.3, variant high) 로 두 축�
 
 - Standards 기준 문서: `CLAUDE.md`, `DESIGN.md`,
   `docs/back-end/provider-selection.md`,
-  `back_dev_home/ebeam/recipe_search/MIGRATION.md`,
+  `backend/ebeam/recipe_search/MIGRATION.md`,
   `docs/datatables/hitachi/recipe_idp.txt`
 - Spec: `.scratch/align-image-404/spec.md`
 
@@ -20,7 +20,7 @@ escalation surface 에 해당하여 `heavy` (glm-5.3, variant high) 로 두 축�
 >
 > ### HARD
 >
-> 1. **`back_dev_home/ebeam/recipe_search/MIGRATION.md` not updated.** Its endpoint table still reads `` `/align-images` | Redis recipe registry (fallback: meas_hist) — resolution only, no FTP | wired`` and its narrative says "No FTP happens in this endpoint. Align image names are computable … so the tool is only dialed when `/recipe-image` is asked for the bytes." The change makes `/align-images` perform an NLST round trip via `_list_raw_dirs` (office_example.py:1891). CLAUDE.md defers per-feature specifics to MIGRATION.md; it now states the opposite of the code. `recipe_idp.txt` was rewritten but this doc was left contradicting it.
+> 1. **`backend/ebeam/recipe_search/MIGRATION.md` not updated.** Its endpoint table still reads `` `/align-images` | Redis recipe registry (fallback: meas_hist) — resolution only, no FTP | wired`` and its narrative says "No FTP happens in this endpoint. Align image names are computable … so the tool is only dialed when `/recipe-image` is asked for the bytes." The change makes `/align-images` perform an NLST round trip via `_list_raw_dirs` (office_example.py:1891). CLAUDE.md defers per-feature specifics to MIGRATION.md; it now states the opposite of the code. `recipe_idp.txt` was rewritten but this doc was left contradicting it.
 >
 > ### JUDGEMENT
 >

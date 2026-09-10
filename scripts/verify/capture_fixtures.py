@@ -26,7 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # 픽스처 트리의 뿌리. 테스트가 tmp_path 로 갈아끼우므로 함수 안에서
 # 모듈 전역을 읽습니다 - 기본 인자로 굳히면 monkeypatch 가 먹지 않습니다.
-BACKEND_ROOT = REPO_ROOT / "back_dev_home"
+BACKEND_ROOT = REPO_ROOT / "backend"
 
 # 댁(Phase 1) Flask 는 :5050 입니다 - :5000 은 macOS AirPlay 와 충돌합니다.
 # 사무실(Phase 2) Flask 는 :5000 이므로 포트는 고정할 수 없습니다. index.py

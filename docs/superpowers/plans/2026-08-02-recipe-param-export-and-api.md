@@ -24,16 +24,16 @@
 
 | File | Responsibility |
 | --- | --- |
-| `back_dev_home/ebeam/hitachi/recipe_search/contracts.py` | **Modify** — add `ParameterListResponse`, `MeasurementPointsResponse`, `ParamInfoImage`, `ParamOccurrence`, `ParamInfoResponse` |
-| `back_dev_home/ebeam/hitachi/recipe_search/param_info.py` | **Create** — pure composition: roll-ups, parameter filtering, slot trimming, `SettingBlock` flattening. No Flask, no I/O of its own |
-| `back_dev_home/ebeam/hitachi/recipe_search/routes.py` | **Modify** — three `GET` routes: validate, call `data.py`, hand to `param_info` |
-| `back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info.py` | **Create** — composition unit tests with an injected fetcher |
-| `back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py` | **Create** — route status codes and guards |
-| `back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md` | **Modify** — record that the new endpoints need no adapter work |
-| `front-dev-home/app/utils/recipeParamExport.ts` | **Create** — `buildParamWorkbook()` (pure) + `downloadParamWorkbook()` (exceljs, image fetch) |
-| `front-dev-home/app/utils/recipeParamExport.test.ts` | **Create** — `node --test` over the pure builder |
-| `front-dev-home/app/components/ebeam/RecipeOpenView.vue` | **Modify** — export button + options popover in the `SELECTED` header |
-| `front-dev-home/app/pages/endpoints.vue` | **Modify** — six entries in the `Recipe Search` group |
+| `backend/ebeam/hitachi/recipe_search/contracts.py` | **Modify** — add `ParameterListResponse`, `MeasurementPointsResponse`, `ParamInfoImage`, `ParamOccurrence`, `ParamInfoResponse` |
+| `backend/ebeam/hitachi/recipe_search/param_info.py` | **Create** — pure composition: roll-ups, parameter filtering, slot trimming, `SettingBlock` flattening. No Flask, no I/O of its own |
+| `backend/ebeam/hitachi/recipe_search/routes.py` | **Modify** — three `GET` routes: validate, call `data.py`, hand to `param_info` |
+| `backend/ebeam/hitachi/recipe_search/tests/test_param_info.py` | **Create** — composition unit tests with an injected fetcher |
+| `backend/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py` | **Create** — route status codes and guards |
+| `backend/ebeam/hitachi/recipe_search/MIGRATION.md` | **Modify** — record that the new endpoints need no adapter work |
+| `frontend/app/utils/recipeParamExport.ts` | **Create** — `buildParamWorkbook()` (pure) + `downloadParamWorkbook()` (exceljs, image fetch) |
+| `frontend/app/utils/recipeParamExport.test.ts` | **Create** — `node --test` over the pure builder |
+| `frontend/app/components/ebeam/RecipeOpenView.vue` | **Modify** — export button + options popover in the `SELECTED` header |
+| `frontend/app/pages/endpoints.vue` | **Modify** — six entries in the `Recipe Search` group |
 
 ---
 
@@ -41,9 +41,9 @@
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/contracts.py`
-- Create: `back_dev_home/ebeam/hitachi/recipe_search/param_info.py`
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/contracts.py`
+- Create: `backend/ebeam/hitachi/recipe_search/param_info.py`
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_param_info.py`
 
 **Interfaces:**
 
@@ -147,7 +147,7 @@ test that needs a parameter occupying TWO rows — the case the whole
 
 import pytest
 
-from back_dev_home.ebeam.hitachi.recipe_search import param_info
+from backend.ebeam.hitachi.recipe_search import param_info
 
 
 LOCATOR = {"eqp_ip": "10.1.2.3", "class_name": "CLS", "idw": "IDW_A", "idp": "IDP_B"}
@@ -345,7 +345,7 @@ def test_parse_include_rejects_an_unknown_part():
 From `/Users/daeyoung/Codes/skewnono_v3_nuxt`:
 
 ```bash
-.venv/bin/python -m pytest ../skewnono-param-export/back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info.py -q
+.venv/bin/python -m pytest ../skewnono-param-export/backend/ebeam/hitachi/recipe_search/tests/test_param_info.py -q
 ```
 
 Expected: collection error, `ModuleNotFoundError: ... param_info`.
@@ -369,7 +369,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
-from back_dev_home.ebeam.hitachi.recipe_search.contracts import (
+from backend.ebeam.hitachi.recipe_search.contracts import (
     IdpImageInfoRow,
     MeasurementPointsResponse,
     ParamDetailRequestItem,
@@ -566,7 +566,7 @@ def build_param_info(
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest ../skewnono-param-export/back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info.py -q
+.venv/bin/python -m pytest ../skewnono-param-export/backend/ebeam/hitachi/recipe_search/tests/test_param_info.py -q
 ```
 
 Expected: all pass.
@@ -574,9 +574,9 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/recipe_search/contracts.py \
-        back_dev_home/ebeam/hitachi/recipe_search/param_info.py \
-        back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info.py
+git add backend/ebeam/hitachi/recipe_search/contracts.py \
+        backend/ebeam/hitachi/recipe_search/param_info.py \
+        backend/ebeam/hitachi/recipe_search/tests/test_param_info.py
 git commit -m "feat(recipe-search): compose tiered parameter read responses
 
 param_info.py turns one RecipeDetailResponse into the three tier payloads.
@@ -590,9 +590,9 @@ the response, so an omitted part is an FTP read that never happens."
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/routes.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md`
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/routes.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/MIGRATION.md`
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py`
 
 **Interfaces:**
 
@@ -615,7 +615,7 @@ itself is tested in test_param_info.py against a fixed payload.
 import pytest
 from flask import Flask
 
-from back_dev_home.ebeam.hitachi.recipe_search import routes
+from backend.ebeam.hitachi.recipe_search import routes
 
 
 @pytest.fixture()
@@ -747,7 +747,7 @@ def test_param_info_turns_an_unreachable_tool_into_503(client, monkeypatch):
 
     Same contract param-detail, align-detail and recipe-image already keep.
     """
-    from back_dev_home.msr_image.errors import SourceUnavailable
+    from backend.msr_image.errors import SourceUnavailable
 
     def boom(_items):
         raise SourceUnavailable("tool refused the connection")
@@ -764,7 +764,7 @@ def test_param_info_turns_an_unreachable_tool_into_503(client, monkeypatch):
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-.venv/bin/python -m pytest ../skewnono-param-export/back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py -q
+.venv/bin/python -m pytest ../skewnono-param-export/backend/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py -q
 ```
 
 Expected: 404s from Flask for every new path (the routes do not exist yet).
@@ -772,7 +772,7 @@ Expected: 404s from Flask for every new path (the routes do not exist yet).
 Before implementing, confirm the exception name used in the last test really exists:
 
 ```bash
-grep -n "class .*Error\|class .*Unavailable" ../skewnono-param-export/back_dev_home/msr_image/errors.py
+grep -n "class .*Error\|class .*Unavailable" ../skewnono-param-export/backend/msr_image/errors.py
 ```
 
 If `SourceUnavailable` is not there, use whatever `MsrImageError` subclass is, and keep the test's intent (a coded 503, not a 500).
@@ -782,7 +782,7 @@ If `SourceUnavailable` is not there, use whatever `MsrImageError` subclass is, a
 Add to the imports at the top of `routes.py`:
 
 ```python
-from back_dev_home.ebeam.hitachi.recipe_search import param_info
+from backend.ebeam.hitachi.recipe_search import param_info
 ```
 
 All three routes resolve the recipe through the same helper, so an office
@@ -904,7 +904,7 @@ def recipe_search_param_info(tool_slug: str):
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-.venv/bin/python -m pytest ../skewnono-param-export/back_dev_home/ebeam/hitachi/recipe_search -q
+.venv/bin/python -m pytest ../skewnono-param-export/backend/ebeam/hitachi/recipe_search -q
 ```
 
 Expected: the new file passes and no existing recipe_search test regresses.
@@ -931,13 +931,13 @@ reads through `slot_sources` for that to hold.
 
 ```bash
 # from /Users/daeyoung/Codes/skewnono_v3_nuxt
-npx markdownlint-cli2 "../skewnono-param-export/back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md"
+npx markdownlint-cli2 "../skewnono-param-export/backend/ebeam/hitachi/recipe_search/MIGRATION.md"
 ```
 
 ```bash
-git add back_dev_home/ebeam/hitachi/recipe_search/routes.py \
-        back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md \
-        back_dev_home/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py
+git add backend/ebeam/hitachi/recipe_search/routes.py \
+        backend/ebeam/hitachi/recipe_search/MIGRATION.md \
+        backend/ebeam/hitachi/recipe_search/tests/test_param_info_routes.py
 git commit -m "feat(recipe-search): serve parameters, measurement-points, param-info
 
 Three GET endpoints tiered by read cost: the first two answer from the .idp
@@ -951,7 +951,7 @@ into the same coded 503 the rest of the FTP surface returns."
 
 **Files:**
 
-- Modify: `front-dev-home/app/pages/endpoints.vue` (the `Recipe Search` group, currently at `endpoints.vue:211-289`)
+- Modify: `frontend/app/pages/endpoints.vue` (the `Recipe Search` group, currently at `endpoints.vue:211-289`)
 
 **Interfaces:**
 
@@ -1091,7 +1091,7 @@ Insert into the `Recipe Search` group's `endpoints` array, **after** the `recipe
 - [ ] **Step 2: Typecheck and lint**
 
 ```bash
-# from /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home
+# from /Users/daeyoung/Codes/skewnono_v3_nuxt/frontend
 npm run typecheck
 npm run lint
 ```
@@ -1101,7 +1101,7 @@ Both must pass. If `typecheck` complains that `example.body` is not assignable, 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add front-dev-home/app/pages/endpoints.vue
+git add frontend/app/pages/endpoints.vue
 git commit -m "docs(endpoints): catalog the recipe-search parameter read API
 
 Adds the three new tiered endpoints and the three that were shipped but never
@@ -1115,8 +1115,8 @@ expensive so the no-tool-I/O tier is what a reader meets first."
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/recipeParamExport.ts`
-- Test: `front-dev-home/app/utils/recipeParamExport.test.ts`
+- Create: `frontend/app/utils/recipeParamExport.ts`
+- Test: `frontend/app/utils/recipeParamExport.test.ts`
 
 **Interfaces:**
 
@@ -1286,8 +1286,8 @@ test('filename is recipe and parameter, sanitised', () => {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-# from /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home
-node --test ../../skewnono-param-export/front-dev-home/app/utils/recipeParamExport.test.ts
+# from /Users/daeyoung/Codes/skewnono_v3_nuxt/frontend
+node --test ../../skewnono-param-export/frontend/app/utils/recipeParamExport.test.ts
 ```
 
 Expected: `ERR_MODULE_NOT_FOUND`. (If running the test from the worktree is awkward without `node_modules`, copy the two files into the main tree only to run them, then move them back — do not commit them from the main tree.)
@@ -1459,7 +1459,7 @@ export function paramExportFilename(recipeId: string, parameter: string): string
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-node --test ../../skewnono-param-export/front-dev-home/app/utils/recipeParamExport.test.ts
+node --test ../../skewnono-param-export/frontend/app/utils/recipeParamExport.test.ts
 ```
 
 Expected: all pass.
@@ -1467,8 +1467,8 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add front-dev-home/app/utils/recipeParamExport.ts \
-        front-dev-home/app/utils/recipeParamExport.test.ts
+git add frontend/app/utils/recipeParamExport.ts \
+        frontend/app/utils/recipeParamExport.test.ts
 git commit -m "feat(recipe-open): build one parameter's export workbook
 
 Pure builder returning sheets plus image PLACEMENTS, so the layout is
@@ -1482,8 +1482,8 @@ section as its own column because a row's identity is (section, key)."
 
 **Files:**
 
-- Modify: `front-dev-home/app/utils/recipeParamExport.ts` (add `downloadParamWorkbook`)
-- Modify: `front-dev-home/app/components/ebeam/RecipeOpenView.vue:83-128` (the `SELECTED` header) and its `<script setup>`
+- Modify: `frontend/app/utils/recipeParamExport.ts` (add `downloadParamWorkbook`)
+- Modify: `frontend/app/components/ebeam/RecipeOpenView.vue:83-128` (the `SELECTED` header) and its `<script setup>`
 
 **Interfaces:**
 
@@ -1580,7 +1580,7 @@ Note the off-by-one that matters: `addRow` is 1-based and a `source` line shifts
 - [ ] **Step 2: Re-run the pure tests**
 
 ```bash
-node --test ../../skewnono-param-export/front-dev-home/app/utils/recipeParamExport.test.ts
+node --test ../../skewnono-param-export/frontend/app/utils/recipeParamExport.test.ts
 ```
 
 Expected: still all pass — the writer is additive and untested here by design (it needs a browser).
@@ -1701,7 +1701,7 @@ const downloadExcel = async () => {
 - [ ] **Step 5: Typecheck, lint, and run every frontend test**
 
 ```bash
-# from /Users/daeyoung/Codes/skewnono_v3_nuxt/front-dev-home
+# from /Users/daeyoung/Codes/skewnono_v3_nuxt/frontend
 npm run typecheck
 npm run lint
 npm test
@@ -1712,8 +1712,8 @@ All three must pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add front-dev-home/app/utils/recipeParamExport.ts \
-        front-dev-home/app/components/ebeam/RecipeOpenView.vue
+git add frontend/app/utils/recipeParamExport.ts \
+        frontend/app/components/ebeam/RecipeOpenView.vue
 git commit -m "feat(recipe-open): download the selected parameter as xlsx
 
 Embeds the measurement image always and the two addressing images on request;

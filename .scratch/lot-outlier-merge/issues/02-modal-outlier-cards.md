@@ -13,8 +13,8 @@ point_count 와 꼬리표가 나오게 합니다. 슬라이드오버에서 옮�
 
 **Files:**
 
-- Create: `front-dev-home/app/components/cdsem/comparison/StepOutlierCard.vue`
-- Modify: `front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue`
+- Create: `frontend/app/components/cdsem/comparison/StepOutlierCard.vue`
+- Modify: `frontend/app/components/cdsem/comparison/LotDetailModal.vue`
   (161-223 카드 루프, 236-254 import, props 255-268, 301-331 computed)
 
 **Interfaces:**
@@ -283,10 +283,10 @@ Expected: 셋 다 clean, 테스트 무회귀
 - [ ] **Step 8: 커밋**
 
 ```bash
-git add front-dev-home/app/components/cdsem/comparison/StepOutlierCard.vue
-git commit -- front-dev-home/app/components/cdsem/comparison/StepOutlierCard.vue \
-  front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue \
-  front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue \
+git add frontend/app/components/cdsem/comparison/StepOutlierCard.vue
+git commit -- frontend/app/components/cdsem/comparison/StepOutlierCard.vue \
+  frontend/app/components/cdsem/comparison/LotDetailModal.vue \
+  frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue \
   -m "feat(device-statistics): show outlier badges and params on lot step cards
 
 Lot 상세 팝업의 스텝 카드를 StepOutlierCard 로 빼고, 초과 배지·분석 제외

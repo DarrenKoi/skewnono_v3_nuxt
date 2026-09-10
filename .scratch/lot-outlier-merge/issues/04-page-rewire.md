@@ -13,9 +13,9 @@ Blocked by: 03
 
 **Files:**
 
-- Modify: `front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue`
+- Modify: `frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue`
   (204-216 오버레이, 637-674 핸들러, 232-233 import)
-- Modify: `front-dev-home/app/components/cdsem/comparison/LotTable.vue`
+- Modify: `frontend/app/components/cdsem/comparison/LotTable.vue`
   (408-409 안내 문구)
 
 **Interfaces:**
@@ -146,7 +146,7 @@ outlier 를 보고 싶다" 고 말할 뿐, 그것을 무엇으로 여는지는 �
 
 - [ ] **Step 6: 슬라이드오버의 다른 호출처가 멀쩡한지 확인한다**
 
-Run: `grep -rn "DrillSlideover" front-dev-home/app`
+Run: `grep -rn "DrillSlideover" frontend/app`
 Expected: `components/ebeam/devstat/DrillSlideover.vue` 자신과
 `components/ebeam/rules/ComplianceTable.vue` 두 곳만. `comparison.vue` 는 없어야
 합니다.
@@ -159,8 +159,8 @@ Expected: 셋 다 clean. `toOutlierDrill` 미사용 경고가 없어야 합니�
 - [ ] **Step 8: 커밋**
 
 ```bash
-git commit -- front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue \
-  front-dev-home/app/components/cdsem/comparison/LotTable.vue \
+git commit -- frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue \
+  frontend/app/components/cdsem/comparison/LotTable.vue \
   -m "feat(device-statistics): outlier badge opens the lot modal, not a slideover
 
 같은 lot 의 같은 버킷을 두 오버레이가 나눠 그리던 것을 하나로 합칩니다. 배지는

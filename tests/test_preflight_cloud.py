@@ -22,12 +22,12 @@ HEALTHY_ENV = "SKEWNONO_SECRET_KEY=real-key\n" + LOGGING_ENV_LINES
 
 def _make_bundle(tmp_path: Path) -> Path:
     root = tmp_path / "bundle"
-    (root / "back_dev_home" / "_runtime").mkdir(parents=True)
-    (root / "back_dev_home" / "_runtime" / "env.py").write_text("")
-    (root / "front-dev-home" / ".output" / "public").mkdir(parents=True)
-    (root / "front-dev-home" / ".output" / "public" / "index.html").write_text("<!doctype html>")
-    (root / "back_dev_home" / ".env").write_text(HEALTHY_ENV)
-    (root / "back_dev_home" / "requirements.txt").write_text("Flask>=3.0\n")
+    (root / "backend" / "_runtime").mkdir(parents=True)
+    (root / "backend" / "_runtime" / "env.py").write_text("")
+    (root / "frontend" / ".output" / "public").mkdir(parents=True)
+    (root / "frontend" / ".output" / "public" / "index.html").write_text("<!doctype html>")
+    (root / "backend" / ".env").write_text(HEALTHY_ENV)
+    (root / "backend" / "requirements.txt").write_text("Flask>=3.0\n")
     (root / "index.py").write_text("")
     (root / "wsgi.ini").write_text("[uwsgi]\n")
     return root
@@ -60,7 +60,7 @@ def test_layout_reports_a_bundle_outside_the_cloud_prefix(tmp_path):
 
 
 def test_layout_reports_missing_spa(bundle):
-    (bundle / "front-dev-home" / ".output" / "public" / "index.html").unlink()
+    (bundle / "frontend" / ".output" / "public" / "index.html").unlink()
 
     failures = preflight_cloud.check_layout(bundle)
 
@@ -70,10 +70,10 @@ def test_layout_reports_missing_spa(bundle):
 def test_layout_reports_broken_depth_invariant(bundle):
     """env.py must sit exactly 2 levels below the root or spa_dir() misses."""
     root = bundle
-    nested = root / "extra" / "back_dev_home" / "_runtime"
+    nested = root / "extra" / "backend" / "_runtime"
     nested.mkdir(parents=True)
     nested.joinpath("env.py").write_text("")
-    (root / "back_dev_home" / "_runtime" / "env.py").unlink()
+    (root / "backend" / "_runtime" / "env.py").unlink()
 
     failures = preflight_cloud.check_layout(root)
 
@@ -119,7 +119,7 @@ def test_config_treats_an_unreadable_env_as_not_its_call(bundle):
     different failure that load_dotenv surfaces at boot. The checker must
     neither crash on it nor manufacture a SKEWNONO_SECRET_KEY verdict from a
     file it could not read."""
-    env_path = bundle / "back_dev_home" / ".env"
+    env_path = bundle / "backend" / ".env"
     env_path.write_bytes(b"\xff")
 
     assert preflight_cloud.check_config(bundle) == ([], [])
@@ -127,7 +127,7 @@ def test_config_treats_an_unreadable_env_as_not_its_call(bundle):
 
 def test_config_fails_when_env_missing(bundle):
     root = bundle
-    (root / "back_dev_home" / ".env").unlink()
+    (root / "backend" / ".env").unlink()
 
     failures, _warnings = preflight_cloud.check_config(root)
 
@@ -153,7 +153,7 @@ def test_config_fails_when_the_secret_key_is_missing_or_blank(bundle, env_body):
     """create_app() treats a blank as absent and refuses to start on the
     cloud; a preflight that disagrees passes a bundle uwsgi will boot-loop on,
     with the reason visible only in uwsgi logs."""
-    (bundle / "back_dev_home" / ".env").write_text(LOGGING_ENV_LINES + env_body)
+    (bundle / "backend" / ".env").write_text(LOGGING_ENV_LINES + env_body)
 
     failures, _warnings = preflight_cloud.check_config(bundle)
 
@@ -171,7 +171,7 @@ def test_config_fails_when_the_secret_key_is_missing_or_blank(bundle, env_body):
 def test_config_accepts_the_dotenv_spellings_load_dotenv_accepts(bundle, env_body):
     """False FAILs erode trust in the checker: every spelling python-dotenv
     would load as a non-blank key must pass here too."""
-    (bundle / "back_dev_home" / ".env").write_text(LOGGING_ENV_LINES + env_body)
+    (bundle / "backend" / ".env").write_text(LOGGING_ENV_LINES + env_body)
 
     assert preflight_cloud.check_config(bundle) == ([], [])
 
@@ -183,7 +183,7 @@ def test_config_fails_when_the_logging_target_is_the_office_local_alias(bundle):
     into `skewnono_logging_local`, and /admin-logs reads that same alias back,
     so the app looks healthy while the production index stays empty.
     """
-    (bundle / "back_dev_home" / ".env").write_text(
+    (bundle / "backend" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=real-key\n"
         "SKEWNONO_LOG_ENV=local\n"
         "OPENSEARCH_PASSWORD=real-password\n"
@@ -198,7 +198,7 @@ def test_config_fails_when_the_logging_target_is_unset_but_reachable(bundle):
     """OPENSEARCH_PASSWORD set + SKEWNONO_LOG_ENV unset is the boot-loop combo:
     install_opensearch_logging() clears its own guards and then
     resolve_logging_target() raises inside create_app()."""
-    (bundle / "back_dev_home" / ".env").write_text(
+    (bundle / "backend" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=real-key\nOPENSEARCH_PASSWORD=real-password\n"
     )
 
@@ -208,7 +208,7 @@ def test_config_fails_when_the_logging_target_is_unset_but_reachable(bundle):
 
 
 def test_config_fails_when_the_logging_target_is_not_a_known_environment(bundle):
-    (bundle / "back_dev_home" / ".env").write_text(
+    (bundle / "backend" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=real-key\nSKEWNONO_LOG_ENV=prod\n"
     )
 
@@ -221,7 +221,7 @@ def test_config_only_warns_about_a_deploy_that_ships_no_logs(bundle):
     """No target and no credentials is a coherent choice -- logging off. It
     still deserves a line, because the alternative reading is that someone
     forgot, and /admin-logs will be empty either way."""
-    (bundle / "back_dev_home" / ".env").write_text("SKEWNONO_SECRET_KEY=real-key\n")
+    (bundle / "backend" / ".env").write_text("SKEWNONO_SECRET_KEY=real-key\n")
 
     failures, warnings = preflight_cloud.check_config(bundle)
 
@@ -232,7 +232,7 @@ def test_config_only_warns_about_a_deploy_that_ships_no_logs(bundle):
 def test_config_warns_when_the_named_target_has_no_credentials(bundle):
     """SKEWNONO_LOG_ENV=production alone reads as "logging is configured", but
     the handler is skipped without a password and the alias stays empty."""
-    (bundle / "back_dev_home" / ".env").write_text(
+    (bundle / "backend" / ".env").write_text(
         "SKEWNONO_SECRET_KEY=real-key\nSKEWNONO_LOG_ENV=production\n"
     )
 
@@ -245,7 +245,7 @@ def test_config_warns_when_the_named_target_has_no_credentials(bundle):
 @pytest.mark.parametrize("raw", ["true", "TRUE", "1", "yes"])
 def test_config_warns_while_the_write_kill_switch_is_on(bundle, raw):
     """An emergency switch that outlives the emergency is a silent outage."""
-    (bundle / "back_dev_home" / ".env").write_text(
+    (bundle / "backend" / ".env").write_text(
         HEALTHY_ENV + f"OPENSEARCH_LOGGING_DISABLED={raw}\n"
     )
 
@@ -257,7 +257,7 @@ def test_config_warns_while_the_write_kill_switch_is_on(bundle, raw):
 
 def test_config_accepts_the_logging_target_values_the_app_accepts():
     """Preflight's notion of a valid target must not drift from the app's."""
-    from back_dev_home._logging.target import _TARGETS
+    from backend._logging.target import _TARGETS
 
     source = Path(preflight_cloud.__file__).read_text(encoding="utf-8")
 
@@ -280,7 +280,7 @@ def _requirement_names(text: str) -> set[str]:
 
 
 def test_versions_pass_when_the_installed_release_clears_the_floor(bundle):
-    (bundle / "back_dev_home" / "requirements.txt").write_text("pytest>=1\n")
+    (bundle / "backend" / "requirements.txt").write_text("pytest>=1\n")
 
     failures, notes = preflight_cloud.check_versions(bundle)
 
@@ -292,7 +292,7 @@ def test_versions_report_a_preinstalled_package_below_the_floor(bundle):
     """The cloud image ships its own copies, and `pip install -r` upgrades one
     only when a specifier we wrote down excludes it. This check is what turns
     'the install quietly did nothing' into a line the operator can act on."""
-    (bundle / "back_dev_home" / "requirements.txt").write_text("pytest>=9999\n")
+    (bundle / "backend" / "requirements.txt").write_text("pytest>=9999\n")
 
     failures, _notes = preflight_cloud.check_versions(bundle)
 
@@ -306,7 +306,7 @@ def test_versions_name_the_numpy_symptom_not_just_the_number(bundle):
     """A bare '2.5.0 does not satisfy >=9999' tells an operator nothing about
     why they should care. numpy's violation surfaces as a MinIO traceback hours
     later, so the remedy line has to carry the symptom."""
-    (bundle / "back_dev_home" / "requirements.txt").write_text("numpy>=9999\n")
+    (bundle / "backend" / "requirements.txt").write_text("numpy>=9999\n")
 
     failures, _notes = preflight_cloud.check_versions(bundle)
 
@@ -319,7 +319,7 @@ def test_versions_stay_silent_about_a_package_that_is_not_installed(bundle):
     """check_imports() owns absence. Reporting it twice, under two different
     remedies, sends the operator looking for a version problem that is really a
     missing install."""
-    (bundle / "back_dev_home" / "requirements.txt").write_text("definitely-not-installed>=5\n")
+    (bundle / "backend" / "requirements.txt").write_text("definitely-not-installed>=5\n")
 
     failures, _notes = preflight_cloud.check_versions(bundle)
 
@@ -327,7 +327,7 @@ def test_versions_stay_silent_about_a_package_that_is_not_installed(bundle):
 
 
 def test_versions_degrade_to_a_note_when_requirements_are_unreadable(bundle):
-    (bundle / "back_dev_home" / "requirements.txt").write_bytes(b"\xff")
+    (bundle / "backend" / "requirements.txt").write_bytes(b"\xff")
 
     failures, notes = preflight_cloud.check_versions(bundle)
 
@@ -370,7 +370,7 @@ def test_every_declared_dependency_is_preflight_checked():
     Pinning the containment here rather than adding literals to the tuple
     means a future requirements.txt entry cannot silently reopen the gap.
     """
-    reqs = REPO_ROOT / "back_dev_home" / "requirements.txt"
+    reqs = REPO_ROOT / "backend" / "requirements.txt"
     declared = _requirement_names(reqs.read_text(encoding="utf-8"))
     checked = {
         re.sub(r"[-_.]+", "-", pip_name).lower()
@@ -387,7 +387,7 @@ def test_preflight_checked_packages_are_all_declared():
     """The converse: a RUNTIME_PACKAGES entry with no requirements.txt line
     tells the operator to `pip install -r requirements.txt` to fix an import
     that command will never fix."""
-    reqs = REPO_ROOT / "back_dev_home" / "requirements.txt"
+    reqs = REPO_ROOT / "backend" / "requirements.txt"
     declared = _requirement_names(reqs.read_text(encoding="utf-8"))
     checked = {
         re.sub(r"[-_.]+", "-", pip_name).lower()

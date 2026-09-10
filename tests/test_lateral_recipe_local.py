@@ -33,7 +33,7 @@ _READY = all((
 class TestLateralRecipeOfficeConsistency(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from back_dev_home.ebeam.lateral_recipe.providers import office
+        from backend.ebeam.lateral_recipe.providers import office
 
         cls.provider = office
         cls.fab = os.environ["TEST_LATERAL_FAB"]

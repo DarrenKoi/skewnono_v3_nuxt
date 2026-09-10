@@ -10,8 +10,8 @@ Plan: [`../plan.md`](../plan.md) · Spec: [`../spec.md`](../spec.md)
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/lotOutlierSteps.ts`
-- Create: `front-dev-home/app/utils/lotOutlierSteps.test.ts`
+- Create: `frontend/app/utils/lotOutlierSteps.ts`
+- Create: `frontend/app/utils/lotOutlierSteps.test.ts`
 
 **Interfaces:**
 
@@ -28,7 +28,7 @@ Plan: [`../plan.md`](../plan.md) · Spec: [`../spec.md`](../spec.md)
 ```bash
 cd /Users/daeyoung/Codes/skewnono_v3_nuxt
 git worktree add ../skewnono-lot-outlier-merge -b work/lot-outlier-merge
-cd ../skewnono-lot-outlier-merge/front-dev-home
+cd ../skewnono-lot-outlier-merge/frontend
 ```
 
 이후 모든 티켓은 이 워크트리 안에서 작업합니다.
@@ -242,8 +242,8 @@ Expected: 둘 다 clean
 
 ```bash
 cd /Users/daeyoung/Codes/skewnono-lot-outlier-merge
-git add front-dev-home/app/utils/lotOutlierSteps.ts \
-  front-dev-home/app/utils/lotOutlierSteps.test.ts
+git add frontend/app/utils/lotOutlierSteps.ts \
+  frontend/app/utils/lotOutlierSteps.test.ts
 git commit -m "feat(device-statistics): join step cards with per-recipe outlier info
 
 Lot 상세 팝업이 스텝 카드에 과다 측정 정보를 함께 그릴 수 있도록, 스텝(step

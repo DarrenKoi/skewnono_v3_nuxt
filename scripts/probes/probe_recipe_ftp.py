@@ -88,7 +88,7 @@ RecipeDetailResponse stays out - that is the adapter's job
 written against rather than assumed ones.
 
 Run FROM THE REPO ROOT at the office (reads OPENSEARCH_* and SKEWNONO_TOOL_FTP_*
-from back_dev_home/.env, like the adapters do). Bare, it probes the newest
+from backend/.env, like the adapters do). Bare, it probes the newest
 document in the index; every filter is opt-in:
 
     .venv/bin/python -m scripts.probes.probe_recipe_ftp
@@ -131,7 +131,7 @@ from platform import system
 from typing import Any
 from zoneinfo import ZoneInfo
 
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -144,11 +144,11 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import load_env_file  # noqa: E402
-from back_dev_home.ebeam.recipe_search import rawfiles  # noqa: E402
-from back_dev_home.msr_image.config import load_config  # noqa: E402
-from back_dev_home.msr_image.ftp_accounts import ftp_account_lookup  # noqa: E402
-from back_dev_home.msr_image.paths import validate_tool_ip  # noqa: E402
+from backend._runtime.office_redis import load_env_file  # noqa: E402
+from backend.ebeam.recipe_search import rawfiles  # noqa: E402
+from backend.msr_image.config import load_config  # noqa: E402
+from backend.msr_image.ftp_accounts import ftp_account_lookup  # noqa: E402
+from backend.msr_image.paths import validate_tool_ip  # noqa: E402
 from ops_store import OSSearch, create_client  # noqa: E402
 
 # ── EDIT ME ───────────────────────────────────────────────────────────────

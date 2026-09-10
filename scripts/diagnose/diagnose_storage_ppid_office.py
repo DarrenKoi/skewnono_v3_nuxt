@@ -21,7 +21,7 @@ Two of those steps are the usual suspects:
                          panel for 8 real tools; the mock could not catch it
                          because it fabricates its IPs from that same list.
 
-Run FROM THE REPO ROOT at the office (reads REDIS_* from back_dev_home/.env
+Run FROM THE REPO ROOT at the office (reads REDIS_* from backend/.env
 exactly like the adapter does):
 
     .venv/bin/python -m scripts.diagnose.diagnose_storage_ppid_office
@@ -34,7 +34,7 @@ from collections import Counter
 from datetime import datetime
 
 from pathlib import Path
-# Make `back_dev_home` importable however this file was started. `-m` puts the
+# Make `backend` importable however this file was started. `-m` puts the
 # working directory on sys.path and works from the repo root; running the file
 # by path puts scripts/ there instead and fails on the first import below. Both
 # forms get typed -- a file manager, an IDE "run this file" button and tab
@@ -47,15 +47,15 @@ if str(_REPO_ROOT) not in sys.path:
 # and would then die on the ANSI code page. One line covers both.
 import scripts  # noqa: E402,F401
 
-from back_dev_home._runtime.office_redis import redis_client  # noqa: E402
-from back_dev_home.ebeam._tool_specs import (  # noqa: E402
+from backend._runtime.office_redis import redis_client  # noqa: E402
+from backend.ebeam._tool_specs import (  # noqa: E402
     _TOOL_TYPE_BY_PREFIX,
     SLUG_TO_TOOL_TYPE,
     model_to_tool_type,
 )
 
 try:
-    from back_dev_home.ebeam.storage.providers.office import (  # type: ignore[attr-defined]
+    from backend.ebeam.storage.providers.office import (  # type: ignore[attr-defined]
         _PPID_HASH,
         _load_ppid_snapshots,
     )
@@ -123,7 +123,7 @@ def main() -> int:
 
     # -- 3. the sem_list join ------------------------------------------------
     rule("3. Join against sem_list on eqp_ip")
-    from back_dev_home.sem_list.data import get_sem_list
+    from backend.sem_list.data import get_sem_list
 
     sem_rows = get_sem_list()
     sem_by_ip = {row["eqp_ip"]: row for row in sem_rows}
@@ -164,7 +164,7 @@ def main() -> int:
     if unknown_total:
         print(f"\n!! {unknown_total}/{len(matched)} matched IPs classify as None.")
         print("   These codes match no known series prefix. Add the series to")
-        print("   _TOOL_TYPE_BY_PREFIX in back_dev_home/ebeam/_tool_specs.py")
+        print("   _TOOL_TYPE_BY_PREFIX in backend/ebeam/_tool_specs.py")
         print("   AND to classifyToolType() in app/composables/useSemListApi.ts --")
         print("   the two must agree or the frontend re-drops what the API returns.")
         findings.append(f"{unknown_total} IPs match no series prefix")

@@ -22,10 +22,10 @@ This method set is robust enough for a first release, maps cleanly to user-visib
 
 The current frontend evaluates the selected comparison set rather than an automatic official cohort:
 
-- [`peer.ts`](../../../front-dev-home/app/utils/anomaly/peer.ts) computes, for each point, the mean and sample standard deviation of the other finite points.
-- [`score.ts`](../../../front-dev-home/app/utils/anomaly/score.ts) applies either signed percentage deviation from that leave-one-out mean or signed distance in leave-one-out standard deviations.
-- [`types.ts`](../../../front-dev-home/app/utils/anomaly/types.ts) uses fixed defaults of 10%/20%, 2/3 sigma, and effective minimum counts of 3 for percentage scoring and 5 for sigma scoring.
-- [`useSkewvoirAnalysis.ts`](../../../front-dev-home/app/composables/useSkewvoirAnalysis.ts) evaluates parameter mean and spread independently, then keeps the worst evaluated severity.
+- [`peer.ts`](../../../frontend/app/utils/anomaly/peer.ts) computes, for each point, the mean and sample standard deviation of the other finite points.
+- [`score.ts`](../../../frontend/app/utils/anomaly/score.ts) applies either signed percentage deviation from that leave-one-out mean or signed distance in leave-one-out standard deviations.
+- [`types.ts`](../../../frontend/app/utils/anomaly/types.ts) uses fixed defaults of 10%/20%, 2/3 sigma, and effective minimum counts of 3 for percentage scoring and 5 for sigma scoring.
+- [`useSkewvoirAnalysis.ts`](../../../frontend/app/composables/useSkewvoirAnalysis.ts) evaluates parameter mean and spread independently, then keeps the worst evaluated severity.
 
 Leaving the candidate out is a useful protection against the candidate inflating its own reference center or scale. It does not protect against two or more contaminated peers influencing one another. NIST calls this failure **masking**, and notes the related risk of **swamping** legitimate points when the assumed number of outliers is wrong ([NIST, Detection of Outliers](https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm)).
 

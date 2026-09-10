@@ -223,7 +223,7 @@ def build_initial_index_body(target: LoggingIndexTarget) -> dict[str, Any]:
 
 
 def load_env_file() -> None:
-    """Load ``back_dev_home/.env`` so a bare script run finds OPENSEARCH_*.
+    """Load ``backend/.env`` so a bare script run finds OPENSEARCH_*.
 
     The credentials this script needs live in the same .env the Flask app
     factory loads, but nothing loads it for a standalone run. Best-effort:
@@ -236,7 +236,7 @@ def load_env_file() -> None:
         from dotenv import load_dotenv
     except ModuleNotFoundError:
         return
-    load_dotenv(REPO_ROOT / "back_dev_home" / ".env")
+    load_dotenv(REPO_ROOT / "backend" / ".env")
 
 
 def create_skewnono_client() -> Any:

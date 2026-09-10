@@ -51,8 +51,8 @@ D1–D4(이전 세션) · **D5–D15(2026-05-30)** · **D16–D18(2026-05-31, �
 | `docs/issues/ground_rules/rule-editor-structure.md` | 데이터 모델·컴포넌트·composable·백엔드·**데이터 계약(§8-bis)**·빌드 순서 |
 | `docs/issues/ground_rules/adr-0004-open-rule-editing.md` | 편집 권한 ADR (ADR 0003 supersede) |
 | `docs/issues/ground_rules/rule-dashboard.prototype.html` | UI 프로토타입 3변형 (A 매트릭스 채택) |
-| `front-dev-home/app/utils/ruleEngine.ts` | 순수 룰 엔진 (D1–D15) |
-| `front-dev-home/app/utils/ruleEngine.test.ts` | 단위 테스트 13개 (전부 통과) |
+| `frontend/app/utils/ruleEngine.ts` | 순수 룰 엔진 (D1–D15) |
+| `frontend/app/utils/ruleEngine.test.ts` | 단위 테스트 13개 (전부 통과) |
 | `CONTEXT.md`, `docs/adr/0003` | 신규 모델로 동기화 (admin-only/para_N/stage 서술 갱신) |
 
 ## 구현 진행 (`rule-editor-structure.md §8`)

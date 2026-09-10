@@ -4,9 +4,9 @@
 
 **Goal:** Give the Flask backend one shared scheduler that runs exactly one copy of each periodic job across all uWSGI workers, records every run, and carries three jobs — image_cache purge, device-statistics weekly snapshot, and snapshot retention sweep.
 
-**Architecture:** A new `back_dev_home/_scheduler/` package (underscore-prefixed, so blueprint autodiscovery skips it). Election decides which process owns the scheduler; each job is wrapped `job_lock(run_log.wrap(fn))` so a blocked run emits exactly one `skip` record. Home and office differ only in two swappable pieces — the run log (memory ring buffer vs Redis list) and the lock (no-op vs `redis.lock.Lock` with TTL renewal). Both use APScheduler's default memory jobstore.
+**Architecture:** A new `backend/_scheduler/` package (underscore-prefixed, so blueprint autodiscovery skips it). Election decides which process owns the scheduler; each job is wrapped `job_lock(run_log.wrap(fn))` so a blocked run emits exactly one `skip` record. Home and office differ only in two swappable pieces — the run log (memory ring buffer vs Redis list) and the lock (no-op vs `redis.lock.Lock` with TTL renewal). Both use APScheduler's default memory jobstore.
 
-**Tech Stack:** Python 3.14, Flask 3, APScheduler 3.10+ (`BackgroundScheduler`), redis-py 5+, pytest. No new dependencies — `apscheduler` is already in `back_dev_home/requirements.txt:16`.
+**Tech Stack:** Python 3.14, Flask 3, APScheduler 3.10+ (`BackgroundScheduler`), redis-py 5+, pytest. No new dependencies — `apscheduler` is already in `backend/requirements.txt:16`.
 
 **Spec:** `docs/superpowers/specs/2026-08-01-scheduler-runtime-design.md`
 
@@ -26,36 +26,36 @@
 ### Task 1: Scheduler config
 
 **Files:**
-- Create: `back_dev_home/_scheduler/__init__.py`
-- Create: `back_dev_home/_scheduler/config.py`
-- Create: `back_dev_home/_scheduler/tests/__init__.py`
-- Test: `back_dev_home/_scheduler/tests/test_config.py`
+- Create: `backend/_scheduler/__init__.py`
+- Create: `backend/_scheduler/config.py`
+- Create: `backend/_scheduler/tests/__init__.py`
+- Test: `backend/_scheduler/tests/test_config.py`
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces: `SchedulerConfig` (frozen dataclass) with fields `lock_ttl: int`, `lock_key_prefix: str`, `log_list_key: str`, `log_list_max: int`, `timezone: str`; and `load_scheduler_config(env: Mapping[str, str] | None = None) -> SchedulerConfig`.
 
-This mirrors `back_dev_home/msr_image/config.py` exactly — same `_int` helper shape, same "env is a parameter with an `os.environ` default" signature, so it is testable without monkeypatching.
+This mirrors `backend/msr_image/config.py` exactly — same `_int` helper shape, same "env is a parameter with an `os.environ` default" signature, so it is testable without monkeypatching.
 
 - [ ] **Step 1: Create the package directories**
 
 ```bash
-mkdir -p back_dev_home/_scheduler/tasks back_dev_home/_scheduler/tests
-touch back_dev_home/_scheduler/tasks/__init__.py back_dev_home/_scheduler/tests/__init__.py
+mkdir -p backend/_scheduler/tasks backend/_scheduler/tests
+touch backend/_scheduler/tasks/__init__.py backend/_scheduler/tests/__init__.py
 ```
 
-Leave `back_dev_home/_scheduler/__init__.py` empty for now; Task 9 fills it in.
+Leave `backend/_scheduler/__init__.py` empty for now; Task 9 fills it in.
 
 ```bash
-touch back_dev_home/_scheduler/__init__.py
+touch backend/_scheduler/__init__.py
 ```
 
 - [ ] **Step 2: Write the failing test**
 
-Create `back_dev_home/_scheduler/tests/test_config.py`:
+Create `backend/_scheduler/tests/test_config.py`:
 
 ```python
-from back_dev_home._scheduler.config import SchedulerConfig, load_scheduler_config
+from backend._scheduler.config import SchedulerConfig, load_scheduler_config
 
 
 def test_defaults_when_env_is_empty():
@@ -98,13 +98,13 @@ def test_is_a_schedulerconfig():
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_config.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_config.py -q`
 
-Expected: FAIL — `ModuleNotFoundError: No module named 'back_dev_home._scheduler.config'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'backend._scheduler.config'`
 
 - [ ] **Step 4: Write the implementation**
 
-Create `back_dev_home/_scheduler/config.py`:
+Create `backend/_scheduler/config.py`:
 
 ```python
 """Environment-driven config for the shared scheduler.
@@ -152,17 +152,17 @@ def load_scheduler_config(env: Mapping[str, str] | None = None) -> SchedulerConf
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_config.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_config.py -q`
 
 Expected: PASS — 5 passed
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/_scheduler/__init__.py back_dev_home/_scheduler/config.py \
-        back_dev_home/_scheduler/tasks/__init__.py \
-        back_dev_home/_scheduler/tests/__init__.py \
-        back_dev_home/_scheduler/tests/test_config.py
+git add backend/_scheduler/__init__.py backend/_scheduler/config.py \
+        backend/_scheduler/tasks/__init__.py \
+        backend/_scheduler/tests/__init__.py \
+        backend/_scheduler/tests/test_config.py
 git commit -m "feat(scheduler): add SchedulerConfig with env overrides"
 ```
 
@@ -171,8 +171,8 @@ git commit -m "feat(scheduler): add SchedulerConfig with env overrides"
 ### Task 2: Election
 
 **Files:**
-- Create: `back_dev_home/_scheduler/election.py`
-- Test: `back_dev_home/_scheduler/tests/test_election.py`
+- Create: `backend/_scheduler/election.py`
+- Test: `backend/_scheduler/tests/test_election.py`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -182,7 +182,7 @@ Three cases in order: uWSGI (worker 1 only), Werkzeug reloader (app child only, 
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/_scheduler/tests/test_election.py`:
+Create `backend/_scheduler/tests/test_election.py`:
 
 ```python
 import sys
@@ -191,7 +191,7 @@ import types
 import pytest
 from flask import Flask
 
-from back_dev_home._scheduler.election import is_scheduler_worker
+from backend._scheduler.election import is_scheduler_worker
 
 
 def _app(debug: bool) -> Flask:
@@ -250,13 +250,13 @@ Note: `monkeypatch.delitem(sys.modules, "uwsgi", raising=False)` is required bec
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_election.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_election.py -q`
 
-Expected: FAIL — `ModuleNotFoundError: No module named 'back_dev_home._scheduler.election'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'backend._scheduler.election'`
 
 - [ ] **Step 3: Write the implementation**
 
-Create `back_dev_home/_scheduler/election.py`:
+Create `backend/_scheduler/election.py`:
 
 ```python
 """Which process owns the scheduler thread.
@@ -308,14 +308,14 @@ def is_scheduler_worker(app) -> bool:
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_election.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_election.py -q`
 
 Expected: PASS — 5 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_scheduler/election.py back_dev_home/_scheduler/tests/test_election.py
+git add backend/_scheduler/election.py backend/_scheduler/tests/test_election.py
 git commit -m "feat(scheduler): elect one scheduler process
 
 Handles uWSGI worker-1 election and the Werkzeug reloader's two-process
@@ -329,8 +329,8 @@ so the home dev server has been running two msr_image purge schedulers
 ### Task 3: Run log
 
 **Files:**
-- Create: `back_dev_home/_scheduler/runlog.py`
-- Test: `back_dev_home/_scheduler/tests/test_runlog.py`
+- Create: `backend/_scheduler/runlog.py`
+- Test: `backend/_scheduler/tests/test_runlog.py`
 
 **Interfaces:**
 - Consumes: `SchedulerConfig` (Task 1).
@@ -344,12 +344,12 @@ so the home dev server has been running two msr_image purge schedulers
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/_scheduler/tests/test_runlog.py`:
+Create `backend/_scheduler/tests/test_runlog.py`:
 
 ```python
 import pytest
 
-from back_dev_home._scheduler.runlog import MemoryRunLog, utc_stamp
+from backend._scheduler.runlog import MemoryRunLog, utc_stamp
 
 
 def test_records_are_newest_first():
@@ -418,13 +418,13 @@ def test_utc_stamp_is_second_precision_aware_utc():
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_runlog.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_runlog.py -q`
 
-Expected: FAIL — `ModuleNotFoundError: No module named 'back_dev_home._scheduler.runlog'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'backend._scheduler.runlog'`
 
 - [ ] **Step 3: Write the implementation**
 
-Create `back_dev_home/_scheduler/runlog.py`:
+Create `backend/_scheduler/runlog.py`:
 
 ```python
 """Job-run records, in memory at home and in a Redis list at the office.
@@ -566,11 +566,11 @@ class RedisRunLog(_WrapMixin):
 def make_run_log(cfg) -> RunLog:
     """Pick the backend by mode. Office falls back to memory if Redis is not
     configured -- a scheduler with no run log is far better than no scheduler."""
-    from back_dev_home._runtime.data_provider import get_mode
+    from backend._runtime.data_provider import get_mode
 
     if get_mode() == "mock":
         return MemoryRunLog(cfg.log_list_max)
-    from back_dev_home._runtime.office_redis import redis_client_or_none
+    from backend._runtime.office_redis import redis_client_or_none
 
     client = redis_client_or_none()
     if client is None:
@@ -581,14 +581,14 @@ def make_run_log(cfg) -> RunLog:
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_runlog.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_runlog.py -q`
 
 Expected: PASS — 7 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_scheduler/runlog.py back_dev_home/_scheduler/tests/test_runlog.py
+git add backend/_scheduler/runlog.py backend/_scheduler/tests/test_runlog.py
 git commit -m "feat(scheduler): add run log with memory and Redis backends"
 ```
 
@@ -597,8 +597,8 @@ git commit -m "feat(scheduler): add run log with memory and Redis backends"
 ### Task 4: Job lock
 
 **Files:**
-- Create: `back_dev_home/_scheduler/locks.py`
-- Test: `back_dev_home/_scheduler/tests/test_locks.py`
+- Create: `backend/_scheduler/locks.py`
+- Test: `backend/_scheduler/tests/test_locks.py`
 
 **Interfaces:**
 - Consumes: `SchedulerConfig` (Task 1), `RunLog` (Task 3).
@@ -607,14 +607,14 @@ git commit -m "feat(scheduler): add run log with memory and Redis backends"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/_scheduler/tests/test_locks.py`:
+Create `backend/_scheduler/tests/test_locks.py`:
 
 ```python
 import json
 import time
 
-from back_dev_home._scheduler.config import load_scheduler_config
-from back_dev_home._scheduler.locks import (
+from backend._scheduler.config import load_scheduler_config
+from backend._scheduler.locks import (
     _redis_lock,
     lock_owner_token,
     make_job_lock,
@@ -743,13 +743,13 @@ def test_renewal_stops_when_the_job_finishes():
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_locks.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_locks.py -q`
 
-Expected: FAIL — `ModuleNotFoundError: No module named 'back_dev_home._scheduler.locks'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'backend._scheduler.locks'`
 
 - [ ] **Step 3: Write the implementation**
 
-Create `back_dev_home/_scheduler/locks.py`:
+Create `backend/_scheduler/locks.py`:
 
 ```python
 """Skip-if-held job lock: a no-op at home, a Redis lock at the office.
@@ -773,7 +773,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from back_dev_home._scheduler.runlog import utc_stamp
+from backend._scheduler.runlog import utc_stamp
 
 log = logging.getLogger("skewnono.scheduler")
 
@@ -897,11 +897,11 @@ def make_job_lock(cfg, job: str, on_skip: Callable[[dict], None] | None = None):
     Home is a pass-through: election already guarantees one process, and there
     is no reachable Redis to coordinate through anyway.
     """
-    from back_dev_home._runtime.data_provider import get_mode
+    from backend._runtime.data_provider import get_mode
 
     if get_mode() == "mock":
         return _passthrough
-    from back_dev_home._runtime.office_redis import redis_client_or_none
+    from backend._runtime.office_redis import redis_client_or_none
 
     client = redis_client_or_none()
     if client is None:
@@ -925,14 +925,14 @@ def make_job_lock(cfg, job: str, on_skip: Callable[[dict], None] | None = None):
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_locks.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_locks.py -q`
 
 Expected: PASS — 8 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_scheduler/locks.py back_dev_home/_scheduler/tests/test_locks.py
+git add backend/_scheduler/locks.py backend/_scheduler/tests/test_locks.py
 git commit -m "feat(scheduler): add skip-if-held job lock with TTL renewal"
 ```
 
@@ -941,10 +941,10 @@ git commit -m "feat(scheduler): add skip-if-held job lock with TTL renewal"
 ### Task 5: Relocate the image_cache purge job
 
 **Files:**
-- Create: `back_dev_home/_scheduler/tasks/image_cache.py`
-- Delete: `back_dev_home/msr_image/scheduler.py`
-- Modify: `back_dev_home/msr_image/tests/test_scheduler.py` (retarget the import)
-- Modify: `back_dev_home/__init__.py:287-288` (drop the old start call)
+- Create: `backend/_scheduler/tasks/image_cache.py`
+- Delete: `backend/msr_image/scheduler.py`
+- Modify: `backend/msr_image/tests/test_scheduler.py` (retarget the import)
+- Modify: `backend/__init__.py:287-288` (drop the old start call)
 
 **Interfaces:**
 - Consumes: `msr_image.cache.make_cache`, `msr_image.config.load_config`, `msr_image.data.provider_name`.
@@ -954,16 +954,16 @@ The old module mixed a task body (`purge_now`) with scheduling policy (`start_pu
 
 - [ ] **Step 1: Write the failing test**
 
-Replace `back_dev_home/msr_image/tests/test_scheduler.py` entirely:
+Replace `backend/msr_image/tests/test_scheduler.py` entirely:
 
 ```python
 import os
 import time
 
-from back_dev_home._scheduler.tasks.image_cache import purge_image_cache
-from back_dev_home.msr_image.cache import DiskImageCache
-from back_dev_home.msr_image.config import load_config
-from back_dev_home.msr_image.contracts import FetchedImage, ImageLocator
+from backend._scheduler.tasks.image_cache import purge_image_cache
+from backend.msr_image.cache import DiskImageCache
+from backend.msr_image.config import load_config
+from backend.msr_image.contracts import FetchedImage, ImageLocator
 
 
 def test_purge_image_cache_removes_expired(tmp_path, monkeypatch):
@@ -993,13 +993,13 @@ def test_purge_image_cache_keeps_fresh_objects(tmp_path, monkeypatch):
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/msr_image/tests/test_scheduler.py -q`
+Run: `.venv/bin/python -m pytest backend/msr_image/tests/test_scheduler.py -q`
 
-Expected: FAIL — `ModuleNotFoundError: No module named 'back_dev_home._scheduler.tasks.image_cache'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'backend._scheduler.tasks.image_cache'`
 
 - [ ] **Step 3: Create the task module**
 
-Create `back_dev_home/_scheduler/tasks/image_cache.py`:
+Create `backend/_scheduler/tasks/image_cache.py`:
 
 ```python
 """Nightly image-cache purge.
@@ -1015,9 +1015,9 @@ BackgroundScheduler. Scheduling policy now lives in ``_scheduler/registry.py``.
 
 import logging
 
-from back_dev_home.msr_image import data
-from back_dev_home.msr_image.cache import make_cache
-from back_dev_home.msr_image.config import ImageConfig, load_config
+from backend.msr_image import data
+from backend.msr_image.cache import make_cache
+from backend.msr_image.config import ImageConfig, load_config
 
 logger = logging.getLogger("skewnono.scheduler")
 
@@ -1033,13 +1033,13 @@ def purge_image_cache(cfg: ImageConfig | None = None) -> int:
 - [ ] **Step 4: Delete the old module and unwire the factory**
 
 ```bash
-git rm back_dev_home/msr_image/scheduler.py
+git rm backend/msr_image/scheduler.py
 ```
 
-In `back_dev_home/__init__.py`, delete these two lines (currently at 287-288, just before `return app`):
+In `backend/__init__.py`, delete these two lines (currently at 287-288, just before `return app`):
 
 ```python
-    from back_dev_home.msr_image.scheduler import start_purge_scheduler
+    from backend.msr_image.scheduler import start_purge_scheduler
     start_purge_scheduler(app)
 ```
 
@@ -1047,13 +1047,13 @@ Task 9 puts `start_scheduler(app)` in their place. Between now and then the app 
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `.venv/bin/python -m pytest back_dev_home/msr_image -q`
+Run: `.venv/bin/python -m pytest backend/msr_image -q`
 
 Expected: PASS — the whole msr_image suite, with no import errors from the deleted module.
 
 - [ ] **Step 6: Confirm nothing else referenced the old module**
 
-Run: `grep -rn "msr_image.scheduler\|start_purge_scheduler\|purge_now" back_dev_home docs --include='*.py' --include='*.md' | grep -v docs/superpowers/plans`
+Run: `grep -rn "msr_image.scheduler\|start_purge_scheduler\|purge_now" backend docs --include='*.py' --include='*.md' | grep -v docs/superpowers/plans`
 
 Expected: no output. (Plans under `docs/superpowers/plans/` are historical records of past work and are not updated.)
 
@@ -1061,9 +1061,9 @@ Expected: no output. (Plans under `docs/superpowers/plans/` are historical recor
 
 ```bash
 # Step 4's `git rm` already staged the deletion -- do not re-stage it here.
-git add back_dev_home/_scheduler/tasks/image_cache.py \
-        back_dev_home/msr_image/tests/test_scheduler.py \
-        back_dev_home/__init__.py
+git add backend/_scheduler/tasks/image_cache.py \
+        backend/msr_image/tests/test_scheduler.py \
+        backend/__init__.py
 git commit -m "refactor(scheduler): move the image-cache purge into _scheduler/tasks
 
 Splits the task body from the scheduling policy. msr_image/scheduler.py
@@ -1077,9 +1077,9 @@ purge nightly. The body moves here; the registry takes over scheduling."
 ### Task 6: Home snapshot store
 
 **Files:**
-- Create: `back_dev_home/ebeam/cdsem/device_statistics/providers/snapshot_store.py`
-- Modify: `back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py` (re-export)
-- Test: `back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py`
+- Create: `backend/ebeam/cdsem/device_statistics/providers/snapshot_store.py`
+- Modify: `backend/ebeam/cdsem/device_statistics/providers/mock.py` (re-export)
+- Test: `backend/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py`
 
 **Interfaces:**
 - Consumes: `providers/statistics.py`'s `get_weekly_trend_data`, `RCP_BUCKETS`, `_trend_dates`.
@@ -1094,13 +1094,13 @@ A separate module rather than growing `mock.py`, which is already the interlocki
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py`:
+Create `backend/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py`:
 
 ```python
 import json
 
-from back_dev_home.ebeam.cdsem.device_statistics.data import get_weekly_trend_data
-from back_dev_home.ebeam.cdsem.device_statistics.providers.snapshot_store import (
+from backend.ebeam.cdsem.device_statistics.data import get_weekly_trend_data
+from backend.ebeam.cdsem.device_statistics.providers.snapshot_store import (
     build_weekly_snapshot,
     sweep_weekly_snapshots,
     write_weekly_snapshot,
@@ -1138,7 +1138,7 @@ def test_default_date_matches_a_week_the_trend_returns():
     #
     # One lot, not all 4000: this asserts which DATE KEYS come back, and the
     # key set is identical either way -- while all-lots costs ~35s here.
-    from back_dev_home.ebeam.cdsem.device_statistics.providers.statistics import (
+    from backend.ebeam.cdsem.device_statistics.providers.statistics import (
         _lot_index,
     )
 
@@ -1194,7 +1194,7 @@ def test_trend_still_returns_every_week_with_no_snapshots(tmp_path, monkeypatch)
     # have physically passed. The mock computes every week live, on purpose.
     # One lot, for the same reason as the anchor test above: the guard is
     # about which dates appear, not which lots.
-    from back_dev_home.ebeam.cdsem.device_statistics.providers.statistics import (
+    from backend.ebeam.cdsem.device_statistics.providers.statistics import (
         _lot_index,
     )
 
@@ -1205,13 +1205,13 @@ def test_trend_still_returns_every_week_with_no_snapshots(tmp_path, monkeypatch)
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py -q`
 
 Expected: FAIL — `ModuleNotFoundError: No module named '...providers.snapshot_store'`
 
 - [ ] **Step 3: Write the implementation**
 
-Create `back_dev_home/ebeam/cdsem/device_statistics/providers/snapshot_store.py`:
+Create `backend/ebeam/cdsem/device_statistics/providers/snapshot_store.py`:
 
 ```python
 """주차 스냅샷의 집(home) 구현 — 디스크에 JSON 을 씁니다.
@@ -1240,7 +1240,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from back_dev_home.ebeam.cdsem.device_statistics.providers.statistics import (
+from backend.ebeam.cdsem.device_statistics.providers.statistics import (
     RCP_BUCKETS,
     _trend_dates,
     get_weekly_trend_data,
@@ -1353,7 +1353,7 @@ __all__ = [
 
 - [ ] **Step 4: Re-export from mock.py**
 
-In `back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py`, next to the existing trailing imports (`from .recipe_params import ...`, `from .rules import ...` around line 210), add:
+In `backend/ebeam/cdsem/device_statistics/providers/mock.py`, next to the existing trailing imports (`from .recipe_params import ...`, `from .rules import ...` around line 210), add:
 
 ```python
 from .snapshot_store import (  # noqa: E402  (의도된 후위 import)
@@ -1371,16 +1371,16 @@ And add both names to `mock.py`'s `__all__`:
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/cdsem/device_statistics -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/cdsem/device_statistics -q`
 
 Expected: PASS — the new file's 10 tests plus the existing device_statistics suite.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/ebeam/cdsem/device_statistics/providers/snapshot_store.py \
-        back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py \
-        back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py
+git add backend/ebeam/cdsem/device_statistics/providers/snapshot_store.py \
+        backend/ebeam/cdsem/device_statistics/providers/mock.py \
+        backend/ebeam/cdsem/device_statistics/tests/test_snapshot_store.py
 git commit -m "feat(device-statistics): write weekly snapshots to disk at home
 
 Mirrors the office adapter's payload so home exercises the shape before the
@@ -1394,10 +1394,10 @@ instead of 8 and blank the trend chart. Pinned by a regression test."
 ### Task 7: Dispatch the snapshot functions
 
 **Files:**
-- Modify: `back_dev_home/ebeam/cdsem/device_statistics/data.py`
-- Modify: `back_dev_home/ebeam/cdsem/device_statistics/providers/office_example.py`
-- Modify: `back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md`
-- Test: `back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py`
+- Modify: `backend/ebeam/cdsem/device_statistics/data.py`
+- Modify: `backend/ebeam/cdsem/device_statistics/providers/office_example.py`
+- Modify: `backend/ebeam/cdsem/device_statistics/MIGRATION.md`
+- Test: `backend/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py`
 
 **Interfaces:**
 - Consumes: Task 6's mock functions.
@@ -1407,13 +1407,13 @@ The office adapter already has `write_weekly_snapshot` (`office_example.py:966`)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py`:
+Create `backend/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py`:
 
 ```python
 import inspect
 
-from back_dev_home.ebeam.cdsem.device_statistics import data
-from back_dev_home.ebeam.cdsem.device_statistics.providers import (
+from backend.ebeam.cdsem.device_statistics import data
+from backend.ebeam.cdsem.device_statistics.providers import (
     mock,
     office_example,
 )
@@ -1444,13 +1444,13 @@ def test_office_template_offers_the_same_two_functions():
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py -q`
 
 Expected: FAIL — `AssertionError` on `data.__all__`
 
 - [ ] **Step 3: Extend the dispatcher**
 
-In `back_dev_home/ebeam/cdsem/device_statistics/data.py`, add both names to `__all__`:
+In `backend/ebeam/cdsem/device_statistics/data.py`, add both names to `__all__`:
 
 ```python
 __all__ = [
@@ -1485,7 +1485,7 @@ def sweep_weekly_snapshots(keep_weeks: int = 12) -> int:
 
 - [ ] **Step 4: Add the office sweep**
 
-In `back_dev_home/ebeam/cdsem/device_statistics/providers/office_example.py`, add `"sweep_weekly_snapshots"` to `__all__` (near the existing `"write_weekly_snapshot"` at line 151), and append after `write_weekly_snapshot`:
+In `backend/ebeam/cdsem/device_statistics/providers/office_example.py`, add `"sweep_weekly_snapshots"` to `__all__` (near the existing `"write_weekly_snapshot"` at line 151), and append after `write_weekly_snapshot`:
 
 ```python
 def sweep_weekly_snapshots(keep_weeks: int = 12) -> int:
@@ -1540,12 +1540,12 @@ Add `import re` to the module's imports if it is not already there.
 
 - [ ] **Step 5: Update MIGRATION.md**
 
-In `back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md`:
+In `backend/ebeam/cdsem/device_statistics/MIGRATION.md`:
 
 Replace the "weekly-snapshot scheduler does not exist yet" paragraph in `## Status` with:
 
 ```markdown
-주차 스냅샷 스케줄러는 이제 존재합니다(`back_dev_home/_scheduler/`). 월요일
+주차 스냅샷 스케줄러는 이제 존재합니다(`backend/_scheduler/`). 월요일
 01:00 에 `write_weekly_snapshot()`, 02:30 에 `sweep_weekly_snapshots()` 가
 돕니다. 사무실에서는 `cp office_example.py office.py` 만 하면 켜집니다.
 ```
@@ -1571,7 +1571,7 @@ And add to the list of functions to implement:
 
 - [ ] **Step 6: Run the tests**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/cdsem/device_statistics -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/cdsem/device_statistics -q`
 
 Expected: PASS. If `tests/test_office_template.py` fails on a function-set assertion, extend its expected set with the two new names — that test exists to catch exactly this drift.
 
@@ -1584,10 +1584,10 @@ Expected: `Summary: 0 error(s)`
 - [ ] **Step 8: Commit**
 
 ```bash
-git add back_dev_home/ebeam/cdsem/device_statistics/data.py \
-        back_dev_home/ebeam/cdsem/device_statistics/providers/office_example.py \
-        back_dev_home/ebeam/cdsem/device_statistics/MIGRATION.md \
-        back_dev_home/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py
+git add backend/ebeam/cdsem/device_statistics/data.py \
+        backend/ebeam/cdsem/device_statistics/providers/office_example.py \
+        backend/ebeam/cdsem/device_statistics/MIGRATION.md \
+        backend/ebeam/cdsem/device_statistics/tests/test_snapshot_dispatch.py
 git commit -m "feat(device-statistics): dispatch snapshot write and sweep
 
 Adds both scheduler entry points to the dispatcher so the scheduler never
@@ -1601,8 +1601,8 @@ last_modified, so a backfilled old week is still collected."
 ### Task 8: Snapshot task module
 
 **Files:**
-- Create: `back_dev_home/_scheduler/tasks/device_statistics.py`
-- Test: `back_dev_home/_scheduler/tests/test_tasks_device_statistics.py`
+- Create: `backend/_scheduler/tasks/device_statistics.py`
+- Test: `backend/_scheduler/tests/test_tasks_device_statistics.py`
 
 **Interfaces:**
 - Consumes: `device_statistics.data` (Task 7).
@@ -1610,10 +1610,10 @@ last_modified, so a backfilled old week is still collected."
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/_scheduler/tests/test_tasks_device_statistics.py`:
+Create `backend/_scheduler/tests/test_tasks_device_statistics.py`:
 
 ```python
-from back_dev_home._scheduler.tasks.device_statistics import (
+from backend._scheduler.tasks.device_statistics import (
     keep_weeks,
     sweep_weekly_snapshots,
     write_weekly_snapshot,
@@ -1654,13 +1654,13 @@ def test_write_then_sweep_end_to_end(tmp_path, monkeypatch):
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_tasks_device_statistics.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_tasks_device_statistics.py -q`
 
 Expected: FAIL — `ModuleNotFoundError`
 
 - [ ] **Step 3: Write the implementation**
 
-Create `back_dev_home/_scheduler/tasks/device_statistics.py`:
+Create `backend/_scheduler/tasks/device_statistics.py`:
 
 ```python
 """Weekly device-statistics snapshot: write, then sweep.
@@ -1680,7 +1680,7 @@ more it under-counts. See docs/datatables/hitachi/device_statistics_weekly_trend
 import logging
 import os
 
-from back_dev_home.ebeam.cdsem.device_statistics import data
+from backend.ebeam.cdsem.device_statistics import data
 
 logger = logging.getLogger("skewnono.scheduler")
 
@@ -1709,15 +1709,15 @@ def sweep_weekly_snapshots() -> int:
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_tasks_device_statistics.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_tasks_device_statistics.py -q`
 
 Expected: PASS — 5 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/_scheduler/tasks/device_statistics.py \
-        back_dev_home/_scheduler/tests/test_tasks_device_statistics.py
+git add backend/_scheduler/tasks/device_statistics.py \
+        backend/_scheduler/tests/test_tasks_device_statistics.py
 git commit -m "feat(scheduler): add the weekly snapshot write and sweep tasks"
 ```
 
@@ -1726,10 +1726,10 @@ git commit -m "feat(scheduler): add the weekly snapshot write and sweep tasks"
 ### Task 9: Registry and startup
 
 **Files:**
-- Create: `back_dev_home/_scheduler/registry.py`
-- Modify: `back_dev_home/_scheduler/__init__.py`
-- Modify: `back_dev_home/__init__.py` (start the scheduler where the old call was)
-- Test: `back_dev_home/_scheduler/tests/test_registry.py`
+- Create: `backend/_scheduler/registry.py`
+- Modify: `backend/_scheduler/__init__.py`
+- Modify: `backend/__init__.py` (start the scheduler where the old call was)
+- Test: `backend/_scheduler/tests/test_registry.py`
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–4, 5, 8.
@@ -1738,16 +1738,16 @@ git commit -m "feat(scheduler): add the weekly snapshot write and sweep tasks"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/_scheduler/tests/test_registry.py`:
+Create `backend/_scheduler/tests/test_registry.py`:
 
 ```python
 import pytest
 from flask import Flask
 
-from back_dev_home._scheduler import start_scheduler
-from back_dev_home._scheduler.config import load_scheduler_config
-from back_dev_home._scheduler.registry import JOB_REGISTRY, build_jobs
-from back_dev_home._scheduler.runlog import MemoryRunLog
+from backend._scheduler import start_scheduler
+from backend._scheduler.config import load_scheduler_config
+from backend._scheduler.registry import JOB_REGISTRY, build_jobs
+from backend._scheduler.runlog import MemoryRunLog
 
 
 def test_every_entry_has_a_function_and_a_trigger():
@@ -1847,13 +1847,13 @@ def test_start_exposes_the_run_log_on_the_app(monkeypatch):
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler/tests/test_registry.py -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler/tests/test_registry.py -q`
 
-Expected: FAIL — `ModuleNotFoundError: No module named 'back_dev_home._scheduler.registry'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'backend._scheduler.registry'`
 
 - [ ] **Step 3: Write the registry**
 
-Create `back_dev_home/_scheduler/registry.py`:
+Create `backend/_scheduler/registry.py`:
 
 ```python
 """What runs, when, and with which knobs.
@@ -1885,12 +1885,12 @@ from collections.abc import Callable
 
 from apscheduler.triggers.cron import CronTrigger
 
-from back_dev_home._scheduler.locks import make_job_lock
-from back_dev_home._scheduler.tasks.device_statistics import (
+from backend._scheduler.locks import make_job_lock
+from backend._scheduler.tasks.device_statistics import (
     sweep_weekly_snapshots,
     write_weekly_snapshot,
 )
-from back_dev_home._scheduler.tasks.image_cache import purge_image_cache
+from backend._scheduler.tasks.image_cache import purge_image_cache
 
 JOB_REGISTRY: dict[str, dict] = {
     "image_cache_purge": {
@@ -1954,7 +1954,7 @@ def build_jobs(cfg, run_log, registry: dict[str, dict] | None = None) -> dict[st
 
 - [ ] **Step 4: Write the package entry point**
 
-Replace `back_dev_home/_scheduler/__init__.py`:
+Replace `backend/_scheduler/__init__.py`:
 
 ```python
 """One scheduler for the whole backend.
@@ -1976,10 +1976,10 @@ than detected as missed.
 import atexit
 import logging
 
-from back_dev_home._scheduler.config import load_scheduler_config
-from back_dev_home._scheduler.election import is_scheduler_worker
-from back_dev_home._scheduler.registry import JOB_REGISTRY, build_jobs
-from back_dev_home._scheduler.runlog import make_run_log
+from backend._scheduler.config import load_scheduler_config
+from backend._scheduler.election import is_scheduler_worker
+from backend._scheduler.registry import JOB_REGISTRY, build_jobs
+from backend._scheduler.runlog import make_run_log
 
 logger = logging.getLogger("skewnono.scheduler")
 
@@ -2073,16 +2073,16 @@ def _shutdown(scheduler) -> None:
 
 - [ ] **Step 5: Wire the app factory**
 
-In `back_dev_home/__init__.py`, where the old `start_purge_scheduler` call was (just before `return app`), add:
+In `backend/__init__.py`, where the old `start_purge_scheduler` call was (just before `return app`), add:
 
 ```python
-    from back_dev_home._scheduler import start_scheduler
+    from backend._scheduler import start_scheduler
     start_scheduler(app)
 ```
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
-Run: `.venv/bin/python -m pytest back_dev_home/_scheduler -q`
+Run: `.venv/bin/python -m pytest backend/_scheduler -q`
 
 Expected: PASS — 10 passed in test_registry.py plus the earlier modules.
 
@@ -2095,8 +2095,8 @@ Expected: PASS. Compare `passed + skipped` against the pre-change total, not `pa
 - [ ] **Step 8: Commit**
 
 ```bash
-git add back_dev_home/_scheduler/registry.py back_dev_home/_scheduler/__init__.py \
-        back_dev_home/_scheduler/tests/test_registry.py back_dev_home/__init__.py
+git add backend/_scheduler/registry.py backend/_scheduler/__init__.py \
+        backend/_scheduler/tests/test_registry.py backend/__init__.py
 git commit -m "feat(scheduler): add the job registry and start the scheduler
 
 Replaces msr_image's per-feature BackgroundScheduler with one elected
@@ -2110,9 +2110,9 @@ because max-requests=1000 makes worker recycles routine."
 ### Task 10: The run-log endpoint
 
 **Files:**
-- Modify: `back_dev_home/health/routes.py`
-- Modify: `back_dev_home/health/contracts.py`
-- Test: `back_dev_home/health/tests/test_jobs_endpoint.py`
+- Modify: `backend/health/routes.py`
+- Modify: `backend/health/contracts.py`
+- Test: `backend/health/tests/test_jobs_endpoint.py`
 
 **Interfaces:**
 - Consumes: `app.extensions["scheduler_run_log"]` (Task 9).
@@ -2122,13 +2122,13 @@ Admin-gated, like `/health/providers` and `/health/logging`: it names internal j
 
 - [ ] **Step 1: Write the failing test**
 
-Create `back_dev_home/health/tests/test_jobs_endpoint.py`:
+Create `backend/health/tests/test_jobs_endpoint.py`:
 
 ```python
 import pytest
 
-from back_dev_home import create_app
-from back_dev_home._scheduler.runlog import MemoryRunLog
+from backend import create_app
+from backend._scheduler.runlog import MemoryRunLog
 
 
 @pytest.fixture
@@ -2191,13 +2191,13 @@ def test_normal_user_is_refused(client):
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `.venv/bin/python -m pytest back_dev_home/health/tests/test_jobs_endpoint.py -q`
+Run: `.venv/bin/python -m pytest backend/health/tests/test_jobs_endpoint.py -q`
 
 Expected: FAIL — 404 on `/api/health/jobs`
 
 - [ ] **Step 3: Add the contract**
 
-In `back_dev_home/health/contracts.py`, extend `__all__` and append:
+In `backend/health/contracts.py`, extend `__all__` and append:
 
 ```python
 __all__ = [
@@ -2223,7 +2223,7 @@ class JobsHealthResponse(TypedDict):
 
 - [ ] **Step 4: Add the route**
 
-In `back_dev_home/health/routes.py`, add `current_app` and `request` to the Flask import, then append:
+In `backend/health/routes.py`, add `current_app` and `request` to the Flask import, then append:
 
 ```python
 _DEFAULT_JOB_LIMIT = 200
@@ -2243,7 +2243,7 @@ def jobs_health():
     rather than duplicated here. A worker that never elected still answers:
     at the office every worker reads the same Redis list.
     """
-    from back_dev_home._scheduler.config import load_scheduler_config
+    from backend._scheduler.config import load_scheduler_config
 
     ceiling = load_scheduler_config().log_list_max
     raw_limit = request.args.get("limit", "")
@@ -2260,15 +2260,15 @@ def jobs_health():
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `.venv/bin/python -m pytest back_dev_home/health -q`
+Run: `.venv/bin/python -m pytest backend/health -q`
 
 Expected: PASS — 6 new tests plus the existing health suite.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add back_dev_home/health/routes.py back_dev_home/health/contracts.py \
-        back_dev_home/health/tests/test_jobs_endpoint.py
+git add backend/health/routes.py backend/health/contracts.py \
+        backend/health/tests/test_jobs_endpoint.py
 git commit -m "feat(health): add GET /api/health/jobs for scheduler run records"
 ```
 
@@ -2279,7 +2279,7 @@ git commit -m "feat(health): add GET /api/health/jobs for scheduler run records"
 **Files:**
 - Modify: `docs/deployment.md`
 - Modify: `docs/datatables/hitachi/device_statistics_weekly_trend.txt`
-- Modify: `back_dev_home/.env.example`
+- Modify: `backend/.env.example`
 - Modify: `CLAUDE.md`
 
 - [ ] **Step 1: Record the load-bearing uWSGI settings**
@@ -2310,7 +2310,7 @@ A comment in the local `wsgi.ini` never reaches the cloud host's permanent copy,
 In `docs/datatables/hitachi/device_statistics_weekly_trend.txt`, replace the "적재 (스케줄러)" section's closing line `스케줄러 자체는 아직 없습니다 — 사무실에서 붙일 작업입니다.` with:
 
 ```text
-스케줄러는 2026-08-01 에 붙었습니다 — back_dev_home/_scheduler/ 의
+스케줄러는 2026-08-01 에 붙었습니다 — backend/_scheduler/ 의
 weekly_snapshot_write 작업이 월요일 01:00 에 이 함수를 부릅니다.
 사무실에서는 cp office_example.py office.py 만 하면 켜집니다.
 ```
@@ -2329,7 +2329,7 @@ And in the `OFFICE-VERIFY` section, replace the retention bullet with:
 
 - [ ] **Step 3: Document the new environment variables**
 
-In `back_dev_home/.env.example`, add:
+In `backend/.env.example`, add:
 
 ```bash
 # ── Scheduler ────────────────────────────────────────────────────
@@ -2357,7 +2357,7 @@ In the "Feature-sliced Backend Layout" section, the sentence listing underscore 
 And add to "Runtime gotchas":
 
 ```markdown
-- Periodic jobs live in `back_dev_home/_scheduler/`, not in feature folders.
+- Periodic jobs live in `backend/_scheduler/`, not in feature folders.
   Exactly one process runs them (uWSGI worker 1; the Werkzeug reloader's app
   child at home). `wsgi.ini`'s `lazy-apps` and `enable-threads` are
   load-bearing for this — see `docs/deployment.md`. Check runs with
@@ -2380,7 +2380,7 @@ Expected: PASS
 
 ```bash
 git add docs/deployment.md docs/datatables/hitachi/device_statistics_weekly_trend.txt \
-        back_dev_home/.env.example CLAUDE.md
+        backend/.env.example CLAUDE.md
 git commit -m "docs(scheduler): record the load-bearing uWSGI flags and new env vars
 
 wsgi.ini is excluded from the deploy bundle and lives permanently on the
@@ -2416,9 +2416,9 @@ Check the startup log for `scheduler started with 3 jobs`. It must appear **once
 
 ```bash
 .venv/bin/python -c "
-from back_dev_home._scheduler.config import load_scheduler_config
-from back_dev_home._scheduler.registry import build_jobs
-from back_dev_home._scheduler.runlog import MemoryRunLog
+from backend._scheduler.config import load_scheduler_config
+from backend._scheduler.registry import build_jobs
+from backend._scheduler.runlog import MemoryRunLog
 log = MemoryRunLog(10)
 build_jobs(load_scheduler_config(), log)['weekly_snapshot_write']()
 for record in log.read(10): print(record)
@@ -2448,7 +2448,7 @@ tree's copies; nothing needs installing:
 
 # markdown lint (Tasks 7 and 11 only)
 /Users/daeyoung/Codes/skewnono_v3_nuxt/node_modules/.bin/markdownlint-cli2 \
-  "*.md" "docs/**/*.md" "back_dev_home/**/*.md" "front-dev-home/**/*.md"
+  "*.md" "docs/**/*.md" "backend/**/*.md" "frontend/**/*.md"
 ```
 
 

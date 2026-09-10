@@ -52,9 +52,9 @@ git worktree remove ../skewnono-fail-eqp && git branch -d work/fail-eqp
 **명령어** (worktree 루트에서):
 
 ```bash
-.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue -q
+.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue -q
 .venv/bin/python -m pytest -q                    # 전체 (~2180개, ~72초)
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 `.venv` 는 메인 체크아웃에 있습니다. worktree 에서는 절대 경로로 부르거나
@@ -66,7 +66,7 @@ cd front-dev-home && npm test && npm run typecheck && npm run lint
 
 | 파일 | 책임 |
 | --- | --- |
-| `back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py` (신규) | mock·office 공용 조립. Byar 구간, 간접표준화, 분위수. 이 기능에서 유일하게 자명하지 않은 수식이 전부 여기 있습니다. |
+| `backend/ebeam/hitachi/fail_issue/providers/_shape.py` (신규) | mock·office 공용 조립. Byar 구간, 간접표준화, 분위수. 이 기능에서 유일하게 자명하지 않은 수식이 전부 여기 있습니다. |
 | `.../fail_issue/contracts.py` (수정) | 새 TypedDict 9개와 상수 2개. |
 | `.../fail_issue/providers/mock.py` (수정) | 격자 2종을 만드는 함수 2개 추가. 기존 집계 함수는 불변. |
 | `.../fail_issue/providers/office_example.py` (수정) | 같은 격자를 composite 집계로 만드는 템플릿 2개. |
@@ -75,13 +75,13 @@ cd front-dev-home && npm test && npm run typecheck && npm run lint
 | `.../fail_issue/tests/test_byar.py` (신규) | 신뢰구간 함수 단독. |
 | `.../fail_issue/tests/test_shape.py` (신규) | 조립기 단독 — provider 를 거치지 않습니다. |
 | `.../fail_issue/tests/test_contract.py` (수정) | 활성 provider 를 통한 계약 검사. |
-| `front-dev-home/app/composables/useFailIssueApi.ts` (수정) | 응답 타입 + fetcher 2개. |
-| `front-dev-home/app/utils/failEquipmentSignals.ts` (신규) | 배지 판정 정책. 경계값 2개. |
-| `front-dev-home/app/utils/failEquipmentSignals.test.ts` (신규) | 위 파일의 경계 검사. |
-| `front-dev-home/app/components/ebeam/FailIssueFleetTable.vue` (신규) | 플릿 표. 검색·정렬·체크박스·배지. |
-| `front-dev-home/app/components/ebeam/FailIssueEquipmentCompare.vue` (신규) | 선택 요약 + 추이 오버레이 + 레시피 매트릭스. |
-| `front-dev-home/app/components/ebeam/FailIssueEquipmentView.vue` (신규) | 데이터 로드 + 빈 상태 + 선택 상태 소유. |
-| `front-dev-home/app/components/ebeam/FailIssueView.vue` (수정) | 세 번째 모드 분기 + SkNavPill 전환. |
+| `frontend/app/composables/useFailIssueApi.ts` (수정) | 응답 타입 + fetcher 2개. |
+| `frontend/app/utils/failEquipmentSignals.ts` (신규) | 배지 판정 정책. 경계값 2개. |
+| `frontend/app/utils/failEquipmentSignals.test.ts` (신규) | 위 파일의 경계 검사. |
+| `frontend/app/components/ebeam/FailIssueFleetTable.vue` (신규) | 플릿 표. 검색·정렬·체크박스·배지. |
+| `frontend/app/components/ebeam/FailIssueEquipmentCompare.vue` (신규) | 선택 요약 + 추이 오버레이 + 레시피 매트릭스. |
+| `frontend/app/components/ebeam/FailIssueEquipmentView.vue` (신규) | 데이터 로드 + 빈 상태 + 선택 상태 소유. |
+| `frontend/app/components/ebeam/FailIssueView.vue` (수정) | 세 번째 모드 분기 + SkNavPill 전환. |
 | `docs/api-contracts/fail-issue.yaml` (수정) | 두 엔드포인트 계약. |
 | `.../fail_issue/MIGRATION.md` (수정) | office 어댑터 지침 + OFFICE-VERIFY 목록. |
 
@@ -91,9 +91,9 @@ cd front-dev-home && npm test && npm run typecheck && npm run lint
 
 **Files:**
 
-- Create: `back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py`
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/contracts.py`
-- Test: `back_dev_home/ebeam/hitachi/fail_issue/tests/test_byar.py`
+- Create: `backend/ebeam/hitachi/fail_issue/providers/_shape.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/contracts.py`
+- Test: `backend/ebeam/hitachi/fail_issue/tests/test_byar.py`
 
 **Interfaces:**
 
@@ -127,7 +127,7 @@ CONFIDENCE_Z = 1.96
 
 - [ ] **Step 2: 실패하는 테스트를 쓴다**
 
-`back_dev_home/ebeam/hitachi/fail_issue/tests/test_byar.py` 를 만듭니다.
+`backend/ebeam/hitachi/fail_issue/tests/test_byar.py` 를 만듭니다.
 
 ```python
 """Byar 근사 신뢰구간 단독 검증.
@@ -142,11 +142,11 @@ import math
 
 import pytest
 
-from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
+from backend.ebeam.hitachi.fail_issue.contracts import (
     CONFIDENCE_Z,
     FAIL_INDEX_MIN_EXPECTED,
 )
-from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+from backend.ebeam.hitachi.fail_issue.providers._shape import (
     byar_interval,
     standardised,
 )
@@ -216,14 +216,14 @@ def test_z_is_the_two_sided_95_percent_value():
 
 - [ ] **Step 3: 테스트가 실패하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue/tests/test_byar.py -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue/tests/test_byar.py -q`
 
 Expected: FAIL — `ModuleNotFoundError: No module named
-'back_dev_home.ebeam.hitachi.fail_issue.providers._shape'`
+'backend.ebeam.hitachi.fail_issue.providers._shape'`
 
 - [ ] **Step 4: 최소 구현**
 
-`back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py` 를 만듭니다.
+`backend/ebeam/hitachi/fail_issue/providers/_shape.py` 를 만듭니다.
 
 ```python
 """mock·office 공용 payload 조립.
@@ -238,7 +238,7 @@ from __future__ import annotations
 
 from math import sqrt
 
-from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
+from backend.ebeam.hitachi.fail_issue.contracts import (
     CONFIDENCE_Z,
     FAIL_INDEX_MIN_EXPECTED,
 )
@@ -291,16 +291,16 @@ def standardised(
 
 - [ ] **Step 5: 테스트가 통과하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue/tests/test_byar.py -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue/tests/test_byar.py -q`
 
 Expected: PASS (7 passed)
 
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py \
-        back_dev_home/ebeam/hitachi/fail_issue/contracts.py \
-        back_dev_home/ebeam/hitachi/fail_issue/tests/test_byar.py
+git add backend/ebeam/hitachi/fail_issue/providers/_shape.py \
+        backend/ebeam/hitachi/fail_issue/contracts.py \
+        backend/ebeam/hitachi/fail_issue/tests/test_byar.py
 git commit -m "feat(fail-issue): 실패 지수의 신뢰구간(Byar 근사)을 더한다
 
 이 지수는 간접표준화 비(SMR)라 점추정값을 상수와 비교하면 표본이 작을 때
@@ -314,14 +314,14 @@ git commit -m "feat(fail-issue): 실패 지수의 신뢰구간(Byar 근사)을 �
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/contracts.py`
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py`
-- Test: `back_dev_home/ebeam/hitachi/fail_issue/tests/test_shape.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/contracts.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/providers/_shape.py`
+- Test: `backend/ebeam/hitachi/fail_issue/tests/test_shape.py`
 
 **Interfaces:**
 
 - Consumes: `_shape.standardised` (Task 1),
-  `back_dev_home.ebeam.hitachi._analytics.percentile_summary`.
+  `backend.ebeam.hitachi._analytics.percentile_summary`.
 - Produces:
   - `_shape.EquipmentGridRow = tuple[str, str, str, str, int, int, int]`
     — `(eqp_id, fab_name, eqp_model_cd, full_name, exec_count, align_fails, meas_fails)`
@@ -394,7 +394,7 @@ class EquipmentsPayload(TypedDict):
 
 - [ ] **Step 2: 실패하는 테스트를 쓴다**
 
-`back_dev_home/ebeam/hitachi/fail_issue/tests/test_shape.py` 를 만듭니다.
+`backend/ebeam/hitachi/fail_issue/tests/test_shape.py` 를 만듭니다.
 
 ```python
 """`build_equipments_payload` 자체를 격자 하나로 직접 검증합니다.
@@ -413,7 +413,7 @@ office 어댑터는 mock 을 전혀 거치지 않고 이 함수를 부르므로,
 
 import pytest
 
-from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+from backend.ebeam.hitachi.fail_issue.providers._shape import (
     build_equipments_payload,
 )
 
@@ -594,7 +594,7 @@ def test_empty_grid_yields_an_empty_but_well_formed_payload():
 
 - [ ] **Step 3: 테스트가 실패하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue/tests/test_shape.py -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue/tests/test_shape.py -q`
 
 Expected: FAIL — `ImportError: cannot import name 'build_equipments_payload'`
 
@@ -609,8 +609,8 @@ import statistics
 from math import sqrt
 from typing import Sequence
 
-from back_dev_home.ebeam.hitachi._analytics import percentile_summary
-from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
+from backend.ebeam.hitachi._analytics import percentile_summary
+from backend.ebeam.hitachi.fail_issue.contracts import (
     CONFIDENCE_Z,
     EquipmentRow,
     EquipmentsPayload,
@@ -651,7 +651,7 @@ def build_equipments_payload(
     fab 장비 *전부*의 지수가 됩니다. mock 의 FAB_ALIGN_FAIL_RATE 는 fab 별로
     0.05~0.15 로 3배 차이가 나므로 이 편향은 집에서 즉시 재현됩니다. 그래서
     프론트엔드는 조회 범위에 fab 이 2개 이상이면 배지를 아예 달지 않습니다
-    (front-dev-home/app/utils/equipmentSignals.ts 의 isPeerGroupComparable).
+    (frontend/app/utils/equipmentSignals.ts 의 isPeerGroupComparable).
     사무실에서도 같은 상관이 나타나는지는 OFFICE-VERIFY 입니다(MIGRATION.md).
     """
     per_tool: dict[str, dict] = {}
@@ -806,16 +806,16 @@ def build_equipments_payload(
 
 - [ ] **Step 5: 테스트가 통과하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue/tests/ -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue/tests/ -q`
 
 Expected: PASS (test_byar 7 + test_shape 10 + 기존 test_contract 전부)
 
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py \
-        back_dev_home/ebeam/hitachi/fail_issue/contracts.py \
-        back_dev_home/ebeam/hitachi/fail_issue/tests/test_shape.py
+git add backend/ebeam/hitachi/fail_issue/providers/_shape.py \
+        backend/ebeam/hitachi/fail_issue/contracts.py \
+        backend/ebeam/hitachi/fail_issue/tests/test_shape.py
 git commit -m "feat(fail-issue): 장비별 집계 조립기를 더한다
 
 레시피 난이도가 다른 두 레시피를 정반대 비율로 도는 두 장비가 원 실패율은
@@ -831,9 +831,9 @@ git commit -m "feat(fail-issue): 장비별 집계 조립기를 더한다
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/contracts.py`
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py`
-- Test: `back_dev_home/ebeam/hitachi/fail_issue/tests/test_shape.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/contracts.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/providers/_shape.py`
+- Test: `backend/ebeam/hitachi/fail_issue/tests/test_shape.py`
 
 **Interfaces:**
 
@@ -1020,7 +1020,7 @@ def test_recipes_sort_by_combined_fails_then_name():
 
 - [ ] **Step 3: 테스트가 실패하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue/tests/test_shape.py -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue/tests/test_shape.py -q`
 
 Expected: FAIL — `ImportError: cannot import name 'build_equipment_compare_payload'`
 
@@ -1029,7 +1029,7 @@ Expected: FAIL — `ImportError: cannot import name 'build_equipment_compare_pay
 `_shape.py` 의 import 블록에 추가합니다.
 
 ```python
-from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
+from backend.ebeam.hitachi.fail_issue.contracts import (
     CONFIDENCE_Z,
     EquipmentComparePayload,
     EquipmentRecipeRow,
@@ -1040,7 +1040,7 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
 )
 # 날짜 채움 규칙은 recipe_tat 이 이미 갖고 있습니다. 복제하면 두 화면의 x축이
 # 서로 다른 날 개수를 그리게 되고, 그 어긋남은 조용합니다.
-from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import days_in_range
+from backend.ebeam.hitachi.recipe_tat.providers._shape import days_in_range
 ```
 
 파일 끝에 추가합니다.
@@ -1181,16 +1181,16 @@ def build_equipment_compare_payload(
 
 - [ ] **Step 5: 테스트가 통과하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue/tests/ -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue/tests/ -q`
 
 Expected: PASS (test_shape 17개 포함 전부)
 
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/fail_issue/providers/_shape.py \
-        back_dev_home/ebeam/hitachi/fail_issue/contracts.py \
-        back_dev_home/ebeam/hitachi/fail_issue/tests/test_shape.py
+git add backend/ebeam/hitachi/fail_issue/providers/_shape.py \
+        backend/ebeam/hitachi/fail_issue/contracts.py \
+        backend/ebeam/hitachi/fail_issue/tests/test_shape.py
 git commit -m "feat(fail-issue): 장비 비교 조립기를 더한다
 
 합집합·0채움·정렬을 조립기가 소유합니다. 클라이언트가 장비별 응답을
@@ -1205,7 +1205,7 @@ git commit -m "feat(fail-issue): 장비 비교 조립기를 더한다
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/providers/mock.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/providers/mock.py`
 
 **Interfaces:**
 
@@ -1220,7 +1220,7 @@ git commit -m "feat(fail-issue): 장비 비교 조립기를 더한다
 `mock.py` 의 contracts import 블록에 다섯 타입을 추가합니다.
 
 ```python
-from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
+from backend.ebeam.hitachi.fail_issue.contracts import (
     AlignOutcome,
     AlignRankingRow,
     DailyTrendPoint,
@@ -1232,7 +1232,7 @@ from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
     MsrCheck,
     SummaryPayload,
 )
-from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+from backend.ebeam.hitachi.fail_issue.providers._shape import (
     build_equipment_compare_payload,
     build_equipments_payload,
 )
@@ -1361,7 +1361,7 @@ Run:
 ```bash
 .venv/bin/python -c "
 from datetime import timedelta
-from back_dev_home.ebeam.hitachi.fail_issue.providers import mock as m
+from backend.ebeam.hitachi.fail_issue.providers import mock as m
 end = m.ANCHOR_TIME.date().isoformat()
 start = (m.ANCHOR_TIME - timedelta(days=90)).date().isoformat()
 p = m.get_equipments('cd-sem', ('M14A',), start, end)
@@ -1381,14 +1381,14 @@ Expected: 장비 5대, 각 행의 `align_index_low <= align_index <= align_index
 
 - [ ] **Step 5: 전체 테스트**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue -q`
 
 Expected: PASS
 
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/fail_issue/providers/mock.py
+git add backend/ebeam/hitachi/fail_issue/providers/mock.py
 git commit -m "feat(fail-issue): mock 에 장비별 격자 2종을 더한다
 
 기존 _filter_rows(lru_cache)를 그대로 쓰고 행을 격자로 접기만 합니다.
@@ -1403,9 +1403,9 @@ docstring 에 이 mock 이 흉내내지 **못하는** 것을 적었습니다: �
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/data.py`
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/routes.py`
-- Test: `back_dev_home/ebeam/hitachi/fail_issue/tests/test_contract.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/data.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/routes.py`
+- Test: `backend/ebeam/hitachi/fail_issue/tests/test_contract.py`
 
 **Interfaces:**
 
@@ -1422,7 +1422,7 @@ docstring 에 이 mock 이 흉내내지 **못하는** 것을 적었습니다: �
 `test_contract.py` 의 contracts import 에 세 타입을 추가합니다.
 
 ```python
-from back_dev_home.ebeam.hitachi.fail_issue.contracts import (
+from backend.ebeam.hitachi.fail_issue.contracts import (
     AlignRankingRow,
     DailyTrendPoint,
     DeviceRow,
@@ -1534,7 +1534,7 @@ def test_compare_with_no_selection_is_empty_not_everything():
 
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue/tests/test_contract.py -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue/tests/test_contract.py -q`
 
 Expected: FAIL — `AttributeError: module '...fail_issue.data' has no attribute 'get_equipments'`
 
@@ -1603,7 +1603,7 @@ def fail_issue_equipment_compare(tool_slug: str):
 
 - [ ] **Step 5: 테스트가 통과하는지 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue -q`
 
 Expected: PASS
 
@@ -1632,9 +1632,9 @@ Expected: 첫 응답은 `fleet` 과 `equipments` 를 가진 200. 두 번째는 �
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/fail_issue/data.py \
-        back_dev_home/ebeam/hitachi/fail_issue/routes.py \
-        back_dev_home/ebeam/hitachi/fail_issue/tests/test_contract.py
+git add backend/ebeam/hitachi/fail_issue/data.py \
+        backend/ebeam/hitachi/fail_issue/routes.py \
+        backend/ebeam/hitachi/fail_issue/tests/test_contract.py
 git commit -m "feat(fail-issue): 장비별 엔드포인트 2개를 연다
 
 resolve_analytics_scope 가 eqp_id 를 이미 파싱하고 5개로 자르므로 요청
@@ -1649,7 +1649,7 @@ lot_cd 를 받지 않습니다 — 범위 안에 어떤 장비가 있는지에 �
 
 **Files:**
 
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/providers/office_example.py`
+- Modify: `backend/ebeam/hitachi/fail_issue/providers/office_example.py`
 
 **Interfaces:**
 
@@ -1666,7 +1666,7 @@ lot_cd 를 받지 않습니다 — 범위 안에 어떤 장비가 있는지에 �
 추가하고, `_shape` 의 두 조립기와 격자 타입을 import 합니다.
 
 ```python
-from back_dev_home.ebeam.hitachi.fail_issue.providers._shape import (
+from backend.ebeam.hitachi.fail_issue.providers._shape import (
     EquipmentGridRow,
     RecipeGridRow,
     TrendGridRow,
@@ -1861,12 +1861,12 @@ Run:
 
 ```bash
 .venv/bin/python -c "
-import back_dev_home.ebeam.hitachi.fail_issue.providers.office_example as o
+import backend.ebeam.hitachi.fail_issue.providers.office_example as o
 for name in ('get_equipments', 'get_equipment_compare'):
     assert hasattr(o, name), name
     assert name in o.__all__, name
 import inspect
-from back_dev_home.ebeam.hitachi.fail_issue.providers import mock as m
+from backend.ebeam.hitachi.fail_issue.providers import mock as m
 for name in ('get_equipments', 'get_equipment_compare'):
     a = inspect.signature(getattr(o, name))
     b = inspect.signature(getattr(m, name))
@@ -1888,7 +1888,7 @@ passed+skipped 합계를 비교하십시오.
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/fail_issue/providers/office_example.py
+git add backend/ebeam/hitachi/fail_issue/providers/office_example.py
 git commit -m "feat(fail-issue/office): 장비별 composite 집계 템플릿
 
 버킷당 filter 서브집계 2개로 align/meas 실패를 한 번에 셉니다. 비교는
@@ -1906,7 +1906,7 @@ composite 를 두 번 도는데, (eqp × 날짜 × 레시피) 3중 소스는 90�
 **Files:**
 
 - Modify: `docs/api-contracts/fail-issue.yaml`
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/MIGRATION.md`
+- Modify: `backend/ebeam/hitachi/fail_issue/MIGRATION.md`
 
 **Interfaces:**
 
@@ -1972,7 +1972,7 @@ Expected: PASS
    가져오고, 격자만 만들고 조립기를 부른다는 규약.
 2. **OFFICE-VERIFY 목록** (설계 9절과 같은 내용):
    - `FAIL_INDEX_CEIL = 1.25` / `FAIL_INDEX_FLOOR = 0.75`
-     (`front-dev-home/app/utils/failEquipmentSignals.ts`) — 조정 절차는
+     (`frontend/app/utils/failEquipmentSignals.ts`) — 조정 절차는
      설계 9.2절.
    - `eqp_model_cd.keyword` 의 존재 — 없으면 빈 표가 나오고 예외는 없습니다.
    - composite 날짜 소스의 키 형식(문자열이냐 epoch millis 냐).
@@ -2001,7 +2001,7 @@ Expected: `Summary: 0 error(s)`
 
 ```bash
 git add docs/api-contracts/fail-issue.yaml \
-        back_dev_home/ebeam/hitachi/fail_issue/MIGRATION.md
+        backend/ebeam/hitachi/fail_issue/MIGRATION.md
 git commit -m "docs(fail-issue): 장비별 엔드포인트 계약과 이관 지침
 
 OFFICE-VERIFY 는 배지 상수 2개와 매핑 가정 2개뿐입니다. 대조 절차를
@@ -2016,7 +2016,7 @@ OFFICE-VERIFY 는 배지 상수 2개와 매핑 가정 2개뿐입니다. 대조 �
 
 **Files:**
 
-- Modify: `front-dev-home/app/composables/useFailIssueApi.ts`
+- Modify: `frontend/app/composables/useFailIssueApi.ts`
 
 **Interfaces:**
 
@@ -2189,14 +2189,14 @@ export interface FailIssueEquipmentCompareResponse {
 
 - [ ] **Step 4: 타입 검사**
 
-Run (`front-dev-home/` 에서): `npm run typecheck && npm run lint`
+Run (`frontend/` 에서): `npm run typecheck && npm run lint`
 
 Expected: 오류 없음
 
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add front-dev-home/app/composables/useFailIssueApi.ts
+git add frontend/app/composables/useFailIssueApi.ts
 git commit -m "feat(fail-issue): 장비별 응답 타입과 fetcher 2개
 
 fetchEquipments 는 /devices 와 같이 scope 전용이라 lotCd·eqpIds 를
@@ -2210,8 +2210,8 @@ fetchEquipments 는 /devices 와 같이 scope 전용이라 lotCd·eqpIds 를
 
 **Files:**
 
-- Create: `front-dev-home/app/utils/failEquipmentSignals.ts`
-- Test: `front-dev-home/app/utils/failEquipmentSignals.test.ts`
+- Create: `frontend/app/utils/failEquipmentSignals.ts`
+- Test: `frontend/app/utils/failEquipmentSignals.test.ts`
 
 **Interfaces:**
 
@@ -2225,7 +2225,7 @@ fetchEquipments 는 /devices 와 같이 scope 전용이라 lotCd·eqpIds 를
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
-`front-dev-home/app/utils/failEquipmentSignals.test.ts`:
+`frontend/app/utils/failEquipmentSignals.test.ts`:
 
 ```typescript
 import { test } from 'node:test'
@@ -2351,13 +2351,13 @@ test('the ceiling and floor sit either side of 1.0', () => {
 
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
-Run (`front-dev-home/` 에서): `npm test`
+Run (`frontend/` 에서): `npm test`
 
 Expected: FAIL — `Cannot find module './failEquipmentSignals.ts'`
 
 - [ ] **Step 3: 최소 구현**
 
-`front-dev-home/app/utils/failEquipmentSignals.ts`:
+`frontend/app/utils/failEquipmentSignals.ts`:
 
 ```typescript
 // 실패 장비별 뷰의 배지 판정. 백엔드는 지수와 그 신뢰구간을 계산하고,
@@ -2466,15 +2466,15 @@ export const failEquipmentSignals = (
 
 - [ ] **Step 4: 테스트가 통과하는지 확인**
 
-Run (`front-dev-home/` 에서): `npm test && npm run typecheck && npm run lint`
+Run (`frontend/` 에서): `npm test && npm run typecheck && npm run lint`
 
 Expected: PASS
 
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add front-dev-home/app/utils/failEquipmentSignals.ts \
-        front-dev-home/app/utils/failEquipmentSignals.test.ts
+git add frontend/app/utils/failEquipmentSignals.ts \
+        frontend/app/utils/failEquipmentSignals.test.ts
 git commit -m "feat(fail-issue): 장비 배지 판정을 더한다
 
 구간 AND 상수입니다. 구간은 '잡음과 구별되는가', 상수는 '볼 가치가 있는가'
@@ -2489,7 +2489,7 @@ git commit -m "feat(fail-issue): 장비 배지 판정을 더한다
 
 **Files:**
 
-- Create: `front-dev-home/app/components/ebeam/FailIssueFleetTable.vue`
+- Create: `frontend/app/components/ebeam/FailIssueFleetTable.vue`
 
 **Interfaces:**
 
@@ -2839,14 +2839,14 @@ const tableUi = {
 
 - [ ] **Step 2: 타입·린트 검사**
 
-Run (`front-dev-home/` 에서): `npm run typecheck && npm run lint`
+Run (`frontend/` 에서): `npm run typecheck && npm run lint`
 
 Expected: 오류 없음
 
 - [ ] **Step 3: 커밋**
 
 ```bash
-git add front-dev-home/app/components/ebeam/FailIssueFleetTable.vue
+git add frontend/app/components/ebeam/FailIssueFleetTable.vue
 git commit -m "feat(fail-issue): 장비 플릿 표
 
 section 별 필드 접근자를 함수 6개로 가둬서 열 정의·정렬·툴팁이 서로 다른
@@ -2861,7 +2861,7 @@ section 별 필드 접근자를 함수 6개로 가둬서 열 정의·정렬·툴
 
 **Files:**
 
-- Create: `front-dev-home/app/components/ebeam/FailIssueEquipmentCompare.vue`
+- Create: `frontend/app/components/ebeam/FailIssueEquipmentCompare.vue`
 
 **Interfaces:**
 
@@ -3179,14 +3179,14 @@ const tableUi = {
 
 - [ ] **Step 2: 타입·린트 검사**
 
-Run (`front-dev-home/` 에서): `npm run typecheck && npm run lint`
+Run (`frontend/` 에서): `npm run typecheck && npm run lint`
 
 Expected: 오류 없음
 
 - [ ] **Step 3: 커밋**
 
 ```bash
-git add front-dev-home/app/components/ebeam/FailIssueEquipmentCompare.vue
+git add frontend/app/components/ebeam/FailIssueEquipmentCompare.vue
 git commit -m "feat(fail-issue): 장비 비교 패널
 
 캐시 키에 section 을 넣지 않습니다 — 응답이 두 축을 다 담고 있어 탭을
@@ -3200,7 +3200,7 @@ git commit -m "feat(fail-issue): 장비 비교 패널
 
 **Files:**
 
-- Create: `front-dev-home/app/components/ebeam/FailIssueEquipmentView.vue`
+- Create: `frontend/app/components/ebeam/FailIssueEquipmentView.vue`
 
 **Interfaces:**
 
@@ -3338,14 +3338,14 @@ const selectedRows = computed(
 
 - [ ] **Step 2: 타입·린트 검사**
 
-Run (`front-dev-home/` 에서): `npm run typecheck && npm run lint`
+Run (`frontend/` 에서): `npm run typecheck && npm run lint`
 
 Expected: 오류 없음
 
 - [ ] **Step 3: 커밋**
 
 ```bash
-git add front-dev-home/app/components/ebeam/FailIssueEquipmentView.vue
+git add frontend/app/components/ebeam/FailIssueEquipmentView.vue
 git commit -m "feat(fail-issue): 장비별 뷰 컨테이너
 
 캐시 키에서 section 을 뺐습니다 — 한 응답이 두 축을 다 담고 있어 Align ⇄
@@ -3360,7 +3360,7 @@ fab_names 가 아니라 실제로 돌아온 행의 fab 을 셉니다: fab 없이
 
 **Files:**
 
-- Modify: `front-dev-home/app/components/ebeam/FailIssueView.vue`
+- Modify: `frontend/app/components/ebeam/FailIssueView.vue`
 
 **Interfaces:**
 
@@ -3448,14 +3448,14 @@ const metaSubtitle = computed(() => {
 
 - [ ] **Step 5: 타입·린트·단위 테스트**
 
-Run (`front-dev-home/` 에서): `npm run typecheck && npm run lint && npm test`
+Run (`frontend/` 에서): `npm run typecheck && npm run lint && npm test`
 
 Expected: 전부 통과
 
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add front-dev-home/app/components/ebeam/FailIssueView.vue
+git add frontend/app/components/ebeam/FailIssueView.vue
 git commit -m "feat(fail-issue): Align/Meas 탭에 장비별 모드를 연다
 
 디바이스 안내문의 v-if 를 v-else-if 로 바꾸는 것이 핵심입니다 — 그대로
@@ -3484,7 +3484,7 @@ git commit -m "feat(fail-issue): Align/Meas 탭에 장비별 모드를 연다
 
 ```bash
 .venv/bin/python index.py                     # :5050
-cd front-dev-home && npm run dev              # :3000
+cd frontend && npm run dev              # :3000
 ```
 
 - [ ] **Step 2: Align 탭에서 장비별을 연다**
@@ -3545,7 +3545,7 @@ cd front-dev-home && npm run dev              # :3000
 
 ```bash
 .venv/bin/python -m pytest -q
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 cd .. && npm run lint:md
 ```
 

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import unittest
 
-from back_dev_home.activity import data
-from back_dev_home.activity.providers import mock as activity_mock
+from backend.activity import data
+from backend.activity.providers import mock as activity_mock
 
 
 class FabPageUsageTestCase(unittest.TestCase):

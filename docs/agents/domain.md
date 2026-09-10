@@ -18,7 +18,7 @@ This is a single-context repository:
 ├── CONTEXT.md
 ├── docs/
 │   └── adr/
-└── front-dev-home/
+└── frontend/
 ```
 
 ## Use the glossary's vocabulary

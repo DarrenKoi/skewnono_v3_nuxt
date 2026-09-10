@@ -29,27 +29,27 @@
 >
 > **1. Contract drift — the backend half of three payloads was deleted, the frontend types weren't.** Verified by grep: no runtime reads of any of these, so removal is type-only, no behaviour change.
 >
-> - `front-dev-home/app/composables/usePmPlanningApi.ts:38-40,52`: **delete** `FleetDefaults` interface and `defaults: FleetDefaults` field — backend stopped shipping `defaults` in this very diff. (−3)
-> - `front-dev-home/app/utils/pmPlanning.ts:7-9`: this comment now *lies* — "The backend still ships `defaults.focus_n` and `defaults.advisory_threshold`" was the documented reason to leave the contract alone, and the same change-series removed it. Rewrite or delete; leaving it invites someone to "restore" the field. (−2)
-> - `front-dev-home/app/composables/useFailIssueApi.ts:142-143`: **delete** `min_expected_fails` / `confidence_z` from `FailIssueFleetReference` — `fail_issue/providers/_shape.py` stopped sending them. (−2)
-> - `front-dev-home/app/composables/useChatApi.ts:7`: **delete** `supports_vision: boolean` — dropped from `chat/config.py`, `contracts.py`, fixtures, and `.env.example` in this diff. (−1)
+> - `frontend/app/composables/usePmPlanningApi.ts:38-40,52`: **delete** `FleetDefaults` interface and `defaults: FleetDefaults` field — backend stopped shipping `defaults` in this very diff. (−3)
+> - `frontend/app/utils/pmPlanning.ts:7-9`: this comment now *lies* — "The backend still ships `defaults.focus_n` and `defaults.advisory_threshold`" was the documented reason to leave the contract alone, and the same change-series removed it. Rewrite or delete; leaving it invites someone to "restore" the field. (−2)
+> - `frontend/app/composables/useFailIssueApi.ts:142-143`: **delete** `min_expected_fails` / `confidence_z` from `FailIssueFleetReference` — `fail_issue/providers/_shape.py` stopped sending them. (−2)
+> - `frontend/app/composables/useChatApi.ts:7`: **delete** `supports_vision: boolean` — dropped from `chat/config.py`, `contracts.py`, fixtures, and `.env.example` in this diff. (−1)
 >
 > **2. REUSE — `_core/timefmt.iso_z` was built but not applied in files this diff touched:**
 >
-> - `back_dev_home/ebeam/pm_planning/providers/mock.py:84`: `FETCHED_AT` hand-rolls it (`NOW` is tz-aware UTC — safe swap).
-> - `back_dev_home/ebeam/device_statistics/providers/mock.py:241`: `chg_tm` same (`BASE_TIME` is aware UTC).
+> - `backend/ebeam/pm_planning/providers/mock.py:84`: `FETCHED_AT` hand-rolls it (`NOW` is tz-aware UTC — safe swap).
+> - `backend/ebeam/device_statistics/providers/mock.py:241`: `chg_tm` same (`BASE_TIME` is aware UTC).
 > - Not swap-safe: `recipe_tat/providers/mock.py:361` `_format_iso` — its inputs are KST-aware, so the existing `.replace("+00:00","Z")` is a no-op and `iso_z` would silently convert to UTC. BEHAVIOUR-CHANGE — leave it, but it deserves a comment.
 > - Tail for a follow-up (untouched files): `sem_list`, `access_control` ×2, `storage`, `meas_hist` mocks still hand-roll ~8 more.
 >
-> **3. shrink:** `back_dev_home/chat/tools/_shared.py:36` — `trace["result_count"] = len(rows)` is unconditionally overwritten at line 41; the first assignment is dead. (−1)
+> **3. shrink:** `backend/chat/tools/_shared.py:36` — `trace["result_count"] = len(rows)` is unconditionally overwritten at line 41; the first assignment is dead. (−1)
 >
-> **4. shrink:** `back_dev_home/ebeam/recipe_tat/tests/test_contract.py:100,120,134,149` — four identical function-local `_generate_meas_hist` imports; one module-level import. (−3)
+> **4. shrink:** `backend/ebeam/recipe_tat/tests/test_contract.py:100,120,134,149` — four identical function-local `_generate_meas_hist` imports; one module-level import. (−3)
 >
-> **5.** `front-dev-home/app/utils/stats.ts:150` — comment says CorrelationScatter *and FdcAnalysis* "both now call here"; FdcAnalysis.vue was deleted here, so "both" is stale. Comment fix.
+> **5.** `frontend/app/utils/stats.ts:150` — comment says CorrelationScatter *and FdcAnalysis* "both now call here"; FdcAnalysis.vue was deleted here, so "both" is stale. Comment fix.
 >
 > Efficiency and altitude: nothing real — the hoists all moved logic to the right layer. Net: −12 lines possible.
 >
-> File read but not in the diff: `front-dev-home/app/utils/pmPlanning.ts`.
+> File read but not in the diff: `frontend/app/utils/pmPlanning.ts`.
 
 ## 판단
 
@@ -81,7 +81,7 @@ worktree 에서 본 checkout 의 도구로 실행했습니다.
 | 검사 | 결과 |
 | --- | --- |
 | `ruff check .` | clean |
-| `pytest back_dev_home/ebeam/pm_planning back_dev_home/ebeam/device_statistics back_dev_home/chat -q` | 469 passed, 1 skipped (office 게이트, worktree 에 `office.py` 없음) |
+| `pytest backend/ebeam/pm_planning backend/ebeam/device_statistics backend/chat -q` | 469 passed, 1 skipped (office 게이트, worktree 에 `office.py` 없음) |
 | `nuxt typecheck` | exit 0 |
 | `node --test` | 1718 / 1718 |
 | `eslint .` | 0 errors (경고 2건은 미접촉 `ImageViewer.vue` 의 기존 것) |

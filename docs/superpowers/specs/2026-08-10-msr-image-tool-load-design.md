@@ -70,8 +70,8 @@ path — cache-miss fetch plus auto-retry — still runs and may well win"*). �
 
 ### 4.1 P1 — warm 거부를 기다림으로 바꿉니다
 
-대상: `front-dev-home/app/composables/useMsrImageWarmer.ts`,
-`front-dev-home/app/utils/imageWarm.ts`.
+대상: `frontend/app/composables/useMsrImageWarmer.ts`,
+`frontend/app/utils/imageWarm.ts`.
 
 `runWarm` 의 실패 처리를 **거부(429)와 그 외**로 나눕니다.
 
@@ -109,8 +109,8 @@ job 이 끝나면 슬롯이 납니다)인 반면, 나머지는 그렇지 않습�
 
 ### 4.2 A — serve 경로 single-flight
 
-대상: `back_dev_home/msr_image/single_flight.py`(신규, 약 40줄),
-`back_dev_home/msr_image/routes.py`(한 블록 교체).
+대상: `backend/msr_image/single_flight.py`(신규, 약 40줄),
+`backend/msr_image/routes.py`(한 블록 교체).
 
 serve 경로의 `fetch_image` + `cache.put` 쌍을 캐시키별 락으로 감쌉니다. **락 안에서
 캐시를 다시 읽는 것이 이 패턴의 정확성 근거입니다** — 그것이 없으면 대기자들이
@@ -189,7 +189,7 @@ A 가 들어가면 **재시도가 싸집니다** — 재시도 요청이 진행 
 
 ## 6. 테스트
 
-### 6.1 백엔드 (`back_dev_home/msr_image/tests/`)
+### 6.1 백엔드 (`backend/msr_image/tests/`)
 
 | 테스트 | 확인하는 것 |
 | --- | --- |
@@ -201,7 +201,7 @@ A 가 들어가면 **재시도가 싸집니다** — 재시도 요청이 진행 
 두 번째가 없으면 전역 락과 구분되지 않고, 세 번째가 없으면 장비 오류 한 번이 워커
 스레드를 영구히 잡습니다.
 
-### 6.2 프론트엔드 (`front-dev-home/app/utils/*.test.ts`)
+### 6.2 프론트엔드 (`frontend/app/utils/*.test.ts`)
 
 재시도·backoff 판정을 순수 함수로 분리해 `node --test` 로 검사합니다(`imageWarm.ts`
 가 이미 `nextWarmState` 를 그렇게 분리해 둔 방식).

@@ -22,7 +22,7 @@
 - **UI 색상은 `--sk-*` 토큰만 사용합니다.** 인라인 hex 금지. UI 작업 전 `DESIGN.md`를 읽습니다.
 - **차트 옵션은 커서 상태에 의존하면 안 됩니다** (`useEchart`의 `notMerge` 재빌드 규약). 다중 시리즈 라인에 `areaStyle`을 쓰지 않습니다 — hover 시 blur가 채움을 지웁니다.
 - 백엔드 테스트: `.venv/bin/python -m pytest -q` (반드시 `python -m`, 저장소 루트에서).
-- 프론트엔드: `npm test`, `npm run typecheck`, `npm run lint` (`front-dev-home/`에서). Markdown 편집 후 루트에서 `npm run lint:md`.
+- 프론트엔드: `npm test`, `npm run typecheck`, `npm run lint` (`frontend/`에서). Markdown 편집 후 루트에서 `npm run lint:md`.
 
 **작업 격리:** 이 계획은 여러 파일을 건드리므로 worktree에서 진행합니다.
 
@@ -39,23 +39,23 @@ worktree에는 gitignore된 `office.py` 사본이 없으므로 `pytest`의 **ski
 
 | 파일 | 책임 | Task |
 | --- | --- | --- |
-| `back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py` | lot 풀의 fab 어휘 (M12 → M10) | 1 |
-| `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py` | 장비 플릿 · 행 생성 · 집계 | 2, 4, 5 |
-| `back_dev_home/ebeam/hitachi/_analytics.py` | 공유 분위수 헬퍼 | 4 |
-| `back_dev_home/ebeam/hitachi/recipe_tat/contracts.py` | 새 TypedDict + 상수 | 4, 5 |
-| `back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py` | mock·office 공용 payload 조립 (지수·중앙값·분위수) | 4, 5 |
-| `back_dev_home/ebeam/hitachi/recipe_tat/data.py` | dispatcher 함수 2개 추가 | 4, 5 |
-| `back_dev_home/ebeam/hitachi/recipe_tat/routes.py` | 라우트 2개 추가 | 4, 5 |
-| `back_dev_home/ebeam/hitachi/_analytics_routes.py` | `eqp_ids` 파싱 | 5 |
-| `back_dev_home/ebeam/hitachi/_office_meas_hist.py` | 다중 소스 composite (하위호환) | 6 |
-| `back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py` | office 집계 템플릿 | 6 |
-| `front-dev-home/app/utils/equipmentSignals.ts` | 배지 판정 순수 함수 | 7 |
-| `front-dev-home/app/composables/useRecipeTatApi.ts` | 타입 + fetcher 2개 | 8 |
-| `front-dev-home/app/components/ebeam/RecipeTatFleetTable.vue` | 플릿 표 (표시 전용) | 8 |
-| `front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue` | 오케스트레이터 (fetch + 선택 상태) | 8 |
-| `front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue` | 트렌드 오버레이 + 레시피 매트릭스 | 9 |
-| `front-dev-home/app/components/ebeam/RecipeTatView.vue` | 모드 토글 + 분기 (최소 편집) | 8 |
-| `front-dev-home/app/components/ebeam/DateRangePopover.vue` | 60/90일 프리셋 | 10 |
+| `backend/ebeam/cdsem/device_statistics/providers/mock.py` | lot 풀의 fab 어휘 (M12 → M10) | 1 |
+| `backend/ebeam/hitachi/recipe_tat/providers/mock.py` | 장비 플릿 · 행 생성 · 집계 | 2, 4, 5 |
+| `backend/ebeam/hitachi/_analytics.py` | 공유 분위수 헬퍼 | 4 |
+| `backend/ebeam/hitachi/recipe_tat/contracts.py` | 새 TypedDict + 상수 | 4, 5 |
+| `backend/ebeam/hitachi/recipe_tat/providers/_shape.py` | mock·office 공용 payload 조립 (지수·중앙값·분위수) | 4, 5 |
+| `backend/ebeam/hitachi/recipe_tat/data.py` | dispatcher 함수 2개 추가 | 4, 5 |
+| `backend/ebeam/hitachi/recipe_tat/routes.py` | 라우트 2개 추가 | 4, 5 |
+| `backend/ebeam/hitachi/_analytics_routes.py` | `eqp_ids` 파싱 | 5 |
+| `backend/ebeam/hitachi/_office_meas_hist.py` | 다중 소스 composite (하위호환) | 6 |
+| `backend/ebeam/hitachi/recipe_tat/providers/office_example.py` | office 집계 템플릿 | 6 |
+| `frontend/app/utils/equipmentSignals.ts` | 배지 판정 순수 함수 | 7 |
+| `frontend/app/composables/useRecipeTatApi.ts` | 타입 + fetcher 2개 | 8 |
+| `frontend/app/components/ebeam/RecipeTatFleetTable.vue` | 플릿 표 (표시 전용) | 8 |
+| `frontend/app/components/ebeam/RecipeTatEquipmentView.vue` | 오케스트레이터 (fetch + 선택 상태) | 8 |
+| `frontend/app/components/ebeam/RecipeTatEquipmentCompare.vue` | 트렌드 오버레이 + 레시피 매트릭스 | 9 |
+| `frontend/app/components/ebeam/RecipeTatView.vue` | 모드 토글 + 분기 (최소 편집) | 8 |
+| `frontend/app/components/ebeam/DateRangePopover.vue` | 60/90일 프리셋 | 10 |
 | `docs/datatables/hitachi/meas_hist.txt`, `docs/api-contracts/recipe-tat.yaml` | 문서 | 2, 10 |
 
 ---
@@ -67,9 +67,9 @@ worktree에는 gitignore된 `office.py` 사본이 없으므로 `pytest`의 **ski
 `sem_list` mock은 이미 고쳐졌지만 `device_statistics`의 lot 풀은 아직 M12를 만들고 M10을 만들지 않습니다. Task 2에서 "장비의 fac_id에 맞는 lot"을 뽑아야 하는데, 장비는 M10에 있고 lot은 M12에 있으면 둘이 절대 만나지 못합니다. 폴백으로 덮으면 문서가 틀렸다고 기록해 둔 값이 mock 안에 영원히 남습니다.
 
 **Files:**
-- Modify: `back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py:66`, `:78-84`, docstring `:10`
+- Modify: `backend/ebeam/cdsem/device_statistics/providers/mock.py:66`, `:78-84`, docstring `:10`
 - Modify: `docs/datatables/hitachi/device_info.txt:9`, `docs/datatables/hitachi/meas_hist.txt:11`
-- Test: `back_dev_home/ebeam/cdsem/device_statistics/tests/test_contract.py`
+- Test: `backend/ebeam/cdsem/device_statistics/tests/test_contract.py`
 
 **Interfaces:**
 - Consumes: 없음 (첫 task)
@@ -77,7 +77,7 @@ worktree에는 gitignore된 `office.py` 사본이 없으므로 `pytest`의 **ski
 
 - [ ] **Step 1: 현재 fac 분포를 기록해 두는 실패 테스트 작성**
 
-`back_dev_home/ebeam/cdsem/device_statistics/tests/test_contract.py` 끝에 추가:
+`backend/ebeam/cdsem/device_statistics/tests/test_contract.py` 끝에 추가:
 
 ```python
 def test_lot_index_fac_ids_match_the_operating_fabs():
@@ -85,8 +85,8 @@ def test_lot_index_fac_ids_match_the_operating_fabs():
     # 2026-08-03). sem_list가 장비 명부의 진실이고, lot 풀의 fac_id는 그
     # 어휘를 벗어나면 안 됩니다. 벗어나면 recipe_tat의 장비<->lot 짝짓기가
     # 조용히 폴백 경로로 새어 나갑니다.
-    from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import _lot_index
-    from back_dev_home.sem_list.providers.mock import FAC_IDS
+    from backend.ebeam.cdsem.device_statistics.providers.mock import _lot_index
+    from backend.sem_list.providers.mock import FAC_IDS
 
     fac_ids = set(_lot_index().values())
     assert fac_ids <= set(FAC_IDS), f"sem_list에 없는 fac_id: {fac_ids - set(FAC_IDS)}"
@@ -95,13 +95,13 @@ def test_lot_index_fac_ids_match_the_operating_fabs():
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/cdsem/device_statistics/tests/test_contract.py::test_lot_index_fac_ids_match_the_operating_fabs -v`
+Run: `.venv/bin/python -m pytest backend/ebeam/cdsem/device_statistics/tests/test_contract.py::test_lot_index_fac_ids_match_the_operating_fabs -v`
 
 Expected: FAIL — `sem_list에 없는 fac_id: {'M12'}`
 
 - [ ] **Step 3: M12 → M10 치환**
 
-`back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py`:
+`backend/ebeam/cdsem/device_statistics/providers/mock.py`:
 
 ```python
 M_FAC_IDS = ["M10", "M11", "M14", "M15", "M16"]
@@ -128,7 +128,7 @@ docstring 10번째 줄의 `M11/M12/M14/M15/M16`을 `M10/M11/M14/M15/M16`으로 �
 
 - [ ] **Step 4: 통과 확인 + device_statistics 전체 회귀**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/cdsem/device_statistics -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/cdsem/device_statistics -q`
 
 Expected: 전부 PASS. 이 스위트가 저장소에서 가장 크므로(전체 ~72초의 대부분) 여기서 깨지면 즉시 멈추고 원인을 봅니다. lot_cd 접두사가 `2*` → `0*`로 바뀌므로, 특정 lot_cd 문자열을 하드코딩한 테스트가 있으면 그 테스트가 잘못된 것입니다(생성값에 의존해야 함).
 
@@ -146,8 +146,8 @@ fac_id -> string: fab 대표 코드. 예: M10, M11, M14, M15, M16, R3
 ```bash
 .venv/bin/python -m pytest -q
 npm run lint:md
-git add back_dev_home/ebeam/cdsem/device_statistics/providers/mock.py \
-        back_dev_home/ebeam/cdsem/device_statistics/tests/test_contract.py \
+git add backend/ebeam/cdsem/device_statistics/providers/mock.py \
+        backend/ebeam/cdsem/device_statistics/tests/test_contract.py \
         docs/datatables/hitachi/device_info.txt docs/datatables/hitachi/meas_hist.txt
 git commit -m "fix(mock): M12 -> M10, 실재하지 않는 fab을 lot 풀에서 제거
 
@@ -170,9 +170,9 @@ lot_cd 접두사도 함께 이동합니다(M12='2' -> M10='0')."
 또한 지어낸 eqp_id는 fab에도 meastime에도 묶여 있지 않아서, 같은 장비가 7개 fab에 동시에 나타나고 `tat_index`는 잡음이 됩니다.
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py` (전면 — docstring, 상수, 생성 함수)
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/mock.py` (전면 — docstring, 상수, 생성 함수)
 - Modify: `docs/datatables/hitachi/meas_hist.txt` (생성 규칙 1·6)
-- Test: `back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py`
+- Test: `backend/ebeam/hitachi/recipe_tat/tests/test_contract.py`
 
 **Interfaces:**
 - Consumes: Task 1의 `_lot_index()` (fac_id ∈ sem_list 어휘)
@@ -184,7 +184,7 @@ lot_cd 접두사도 함께 이동합니다(M12='2' -> M10='0')."
 
 - [ ] **Step 1: 플릿 정합성 실패 테스트 4개 작성**
 
-`back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py` 끝에 추가:
+`backend/ebeam/hitachi/recipe_tat/tests/test_contract.py` 끝에 추가:
 
 ```python
 def test_mock_rows_carry_real_sem_list_tools():
@@ -192,7 +192,7 @@ def test_mock_rows_carry_real_sem_list_tools():
     # (_tool_specs.py 모듈 docstring, meas_hist.txt 생성 규칙 1).
     if get_data_provider("recipe_tat") != "mock":
         return
-    from back_dev_home.sem_list.providers.mock import _generate_rows
+    from backend.sem_list.providers.mock import _generate_rows
 
     roster = {}
     for row in _generate_rows():
@@ -222,7 +222,7 @@ def test_mock_lot_fac_matches_tool_fac():
     # 측정은 장비가 있는 fab에서 일어나고 lot이 거기 들어옵니다.
     if get_data_provider("recipe_tat") != "mock":
         return
-    from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import _lot_index
+    from backend.ebeam.cdsem.device_statistics.providers.mock import _lot_index
 
     lot_fac = _lot_index()
     for row in data.get_meas_hist():
@@ -254,13 +254,13 @@ def test_mock_density_supports_the_tat_index():
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat -q -k "mock_"`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat -q -k "mock_"`
 
 Expected: 4개 모두 FAIL. 각각 `sem_list에 없는 eqp_id: CG63-04`, `여러 fab에 걸친 장비: {...}`, `KeyError`/불일치, 밀도 미달.
 
 - [ ] **Step 3: 플릿 빌더 구현**
 
-`back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`에서 `FAB_NAMES_BY_FAC`, `_build_eqp_id()`, `TOOL_MODELS`를 **삭제**하고 아래를 추가합니다. import에 `from back_dev_home.ebeam.hitachi._tool_specs import model_to_tool_type`와 `from back_dev_home.sem_list.providers import mock as sem_list_mock`를 더합니다.
+`backend/ebeam/hitachi/recipe_tat/providers/mock.py`에서 `FAB_NAMES_BY_FAC`, `_build_eqp_id()`, `TOOL_MODELS`를 **삭제**하고 아래를 추가합니다. import에 `from backend.ebeam.hitachi._tool_specs import model_to_tool_type`와 `from backend.sem_list.providers import mock as sem_list_mock`를 더합니다.
 
 ```python
 ACTIVE_TOOLS_PER_FAB = 5    # (tool_type, fab_name) 칸마다 실제로 측정하는 장비 수
@@ -519,13 +519,13 @@ def _locked_recipes(
 `Random`을 쓰는 이유: 고정 레시피는 **장비의 성질**이라 행을 몇 개 만들든
 같아야 합니다. 공유 `rng`를 쓰면 호출 순서에 따라 달라집니다.
 
-파일 상단 import에 `import bisect`를 추가하고, `from back_dev_home.ebeam.cdsem.device_statistics.providers.mock import _lot_index`는 그대로 둡니다.
+파일 상단 import에 `import bisect`를 추가하고, `from backend.ebeam.cdsem.device_statistics.providers.mock import _lot_index`는 그대로 둡니다.
 
 `FAB_MEASTIME_MULTIPLIER`와 `FAB_CLASS_MIX`의 `"M12"` 키를 `"M10"`으로 고칩니다 (Task 1과 같은 이유).
 
 - [ ] **Step 5: 통과 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat back_dev_home/ebeam/hitachi/fail_issue -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat backend/ebeam/hitachi/fail_issue -q`
 
 Expected: 전부 PASS. `fail_issue`는 같은 행을 읽으므로 함께 돌립니다.
 
@@ -586,8 +586,8 @@ eqp_model_cd / vendor_nm 을 sem_list row에서 그대로 복사하며, 지어�
 ```bash
 .venv/bin/python -m pytest -q
 npm run lint:md
-git add back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py \
+git add backend/ebeam/hitachi/recipe_tat/providers/mock.py \
+        backend/ebeam/hitachi/recipe_tat/tests/test_contract.py \
         docs/datatables/hitachi/meas_hist.txt
 git commit -m "fix(recipe-tat/mock): 장비 플릿을 sem_list에서 가져오고 생성 순서를 뒤집기
 
@@ -617,8 +617,8 @@ fail_issue가 같은 행을 읽으므로 함께 개선됩니다."
 `/equipments`가 배지 임계값을 사무실에서 조정할 수 있도록 분포 요약을 함께 내려보냅니다. 이게 없으면 사무실에서 임계값 맞추는 일이 raw 데이터를 따로 뽑아 분석하는 별도 과제가 됩니다.
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/_analytics.py`
-- Test: `back_dev_home/ebeam/hitachi/tests/test_analytics.py` (없으면 생성; `back_dev_home/ebeam/hitachi/tests/__init__.py`도 함께)
+- Modify: `backend/ebeam/hitachi/_analytics.py`
+- Test: `backend/ebeam/hitachi/tests/test_analytics.py` (없으면 생성; `backend/ebeam/hitachi/tests/__init__.py`도 함께)
 
 **Interfaces:**
 - Consumes: 없음
@@ -626,10 +626,10 @@ fail_issue가 같은 행을 읽으므로 함께 개선됩니다."
 
 - [ ] **Step 1: 실패 테스트 작성**
 
-`back_dev_home/ebeam/hitachi/tests/test_analytics.py`:
+`backend/ebeam/hitachi/tests/test_analytics.py`:
 
 ```python
-from back_dev_home.ebeam.hitachi._analytics import percentile_summary
+from backend.ebeam.hitachi._analytics import percentile_summary
 
 
 def test_percentile_summary_is_empty_for_no_values():
@@ -661,13 +661,13 @@ def test_percentile_summary_handles_a_single_value():
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/tests/test_analytics.py -v`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/tests/test_analytics.py -v`
 
 Expected: FAIL — `ImportError: cannot import name 'percentile_summary'`
 
 - [ ] **Step 3: 구현**
 
-`back_dev_home/ebeam/hitachi/_analytics.py` 끝에 추가하고, 상단에 `import math`를 더합니다:
+`backend/ebeam/hitachi/_analytics.py` 끝에 추가하고, 상단에 `import math`를 더합니다:
 
 ```python
 _PERCENTILE_POINTS: tuple[tuple[str, float], ...] = (
@@ -698,16 +698,16 @@ def percentile_summary(values: Iterable[float]) -> dict[str, float]:
 
 - [ ] **Step 4: 통과 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/tests/test_analytics.py -v`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/tests/test_analytics.py -v`
 
 Expected: 4 passed
 
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/_analytics.py \
-        back_dev_home/ebeam/hitachi/tests/__init__.py \
-        back_dev_home/ebeam/hitachi/tests/test_analytics.py
+git add backend/ebeam/hitachi/_analytics.py \
+        backend/ebeam/hitachi/tests/__init__.py \
+        backend/ebeam/hitachi/tests/test_analytics.py
 git commit -m "feat(analytics): nearest-rank 분위수 요약 헬퍼
 
 장비별 뷰가 배지 임계값을 '분위수 꼬리 AND 절대 기준'으로 판정합니다.
@@ -721,12 +721,12 @@ git commit -m "feat(analytics): nearest-rank 분위수 요약 헬퍼
 ### Task 4: `/equipments` 엔드포인트
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/contracts.py`
-- Create: `back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/data.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/routes.py`
-- Test: `back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/contracts.py`
+- Create: `backend/ebeam/hitachi/recipe_tat/providers/_shape.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/mock.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/data.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/routes.py`
+- Test: `backend/ebeam/hitachi/recipe_tat/tests/test_contract.py`
 
 **Interfaces:**
 - Consumes: Task 3의 `percentile_summary`, Task 2의 `_filter_rows`
@@ -741,7 +741,7 @@ git commit -m "feat(analytics): nearest-rank 분위수 요약 헬퍼
 
 - [ ] **Step 1: 계약 정의**
 
-`back_dev_home/ebeam/hitachi/recipe_tat/contracts.py`의 `__all__`에 `"EquipmentRow"`, `"FleetReference"`, `"EquipmentsPayload"`, `"TAT_INDEX_MIN_SAMPLE"`를 더하고 파일 끝에 추가:
+`backend/ebeam/hitachi/recipe_tat/contracts.py`의 `__all__`에 `"EquipmentRow"`, `"FleetReference"`, `"EquipmentsPayload"`, `"TAT_INDEX_MIN_SAMPLE"`를 더하고 파일 끝에 추가:
 
 ```python
 # 이 미만의 실행 수를 가진 장비는 tat_index 가 None 입니다. 3건짜리 장비의
@@ -800,7 +800,7 @@ class EquipmentsPayload(TypedDict):
 
 - [ ] **Step 2: 실패 테스트 작성**
 
-`back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py`에 `EquipmentsPayload`, `TAT_INDEX_MIN_SAMPLE` import를 더하고 추가:
+`backend/ebeam/hitachi/recipe_tat/tests/test_contract.py`에 `EquipmentsPayload`, `TAT_INDEX_MIN_SAMPLE` import를 더하고 추가:
 
 ```python
 def test_get_equipments_matches_contract():
@@ -916,7 +916,7 @@ def test_get_equipments_mock_exercises_every_badge_state():
 
 - [ ] **Step 3: 실패 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat -q -k equipments`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat -q -k equipments`
 
 Expected: 전부 FAIL — `AttributeError: module ... has no attribute 'get_equipments'`
 
@@ -927,7 +927,7 @@ Expected: 전부 FAIL — `AttributeError: module ... has no attribute 'get_equi
 provider는 `(eqp_id, fab_name, eqp_model_cd, full_name, meas_counts,
 total_meastime)` 격자만 만들고, 조립은 새 파일 하나가 담당합니다.
 
-`back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py`를 새로 만듭니다:
+`backend/ebeam/hitachi/recipe_tat/providers/_shape.py`를 새로 만듭니다:
 
 ```python
 """mock·office 공용 payload 조립.
@@ -942,8 +942,8 @@ from __future__ import annotations
 import statistics
 from typing import Sequence
 
-from back_dev_home.ebeam.hitachi._analytics import parse_iso_date, percentile_summary
-from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
+from backend.ebeam.hitachi._analytics import parse_iso_date, percentile_summary
+from backend.ebeam.hitachi.recipe_tat.contracts import (
     EquipmentRow,
     EquipmentsPayload,
     TAT_INDEX_MIN_SAMPLE,
@@ -1076,7 +1076,7 @@ def build_equipments_payload(
     }
 ```
 
-그리고 `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`의 `__all__`에
+그리고 `backend/ebeam/hitachi/recipe_tat/providers/mock.py`의 `__all__`에
 `"get_equipments"`를 더하고, 격자만 만들어 넘기는 얇은 래퍼를 추가합니다:
 
 ```python
@@ -1110,12 +1110,12 @@ def get_equipments(
     )
 ```
 
-import에 `from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import
+import에 `from backend.ebeam.hitachi.recipe_tat.providers._shape import
 build_equipments_payload`와 계약 타입 `EquipmentsPayload`를 더합니다.
 
 - [ ] **Step 5: dispatcher + 라우트 추가**
 
-`back_dev_home/ebeam/hitachi/recipe_tat/data.py`의 `__all__`에 `"get_equipments"`를 더하고 파일 끝에 추가:
+`backend/ebeam/hitachi/recipe_tat/data.py`의 `__all__`에 `"get_equipments"`를 더하고 파일 끝에 추가:
 
 ```python
 def get_equipments(
@@ -1129,7 +1129,7 @@ def get_equipments(
 
 import 블록에 `EquipmentsPayload`를 더합니다.
 
-`back_dev_home/ebeam/hitachi/recipe_tat/routes.py`의 import에 `get_equipments`를 더하고 파일 끝에 추가:
+`backend/ebeam/hitachi/recipe_tat/routes.py`의 import에 `get_equipments`를 더하고 파일 끝에 추가:
 
 ```python
 @bp.get("/<tool_slug>/recipe-tat/equipments")
@@ -1150,7 +1150,7 @@ def recipe_tat_equipments(tool_slug: str):
 
 - [ ] **Step 6: 통과 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat -q`
 
 Expected: 전부 PASS
 
@@ -1172,12 +1172,12 @@ Expected: 첫 호출은 `fleet.percentiles`가 채워진 payload, 두 번째는 
 - [ ] **Step 8: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/recipe_tat/contracts.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/data.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/routes.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py
+git add backend/ebeam/hitachi/recipe_tat/contracts.py \
+        backend/ebeam/hitachi/recipe_tat/providers/_shape.py \
+        backend/ebeam/hitachi/recipe_tat/providers/mock.py \
+        backend/ebeam/hitachi/recipe_tat/data.py \
+        backend/ebeam/hitachi/recipe_tat/routes.py \
+        backend/ebeam/hitachi/recipe_tat/tests/test_contract.py
 git commit -m "feat(recipe-tat): GET /<slug>/recipe-tat/equipments
 
 장비(eqp_id)별 측정 부하·소요 시간·레시피 커버리지 집계입니다.
@@ -1202,12 +1202,12 @@ fleet.percentiles를 함께 내려보냅니다. 배지 임계값을 사무실에
 기존 `/ranking`·`/daily-trend`에 `eqp_id`를 붙이지 않는 이유: 5대 선택 시 요청이 10건인데 `/api/*`는 5초에 20건 제한이라 체크박스 클릭 한 번이 예산의 절반을 씁니다. 그리고 레시피 비교표는 선택 장비들의 레시피 **합집합에 0을 채운** 형태여야 하는데, 서버에서 한 번 만드는 편이 클라이언트에서 5개 응답을 조인하는 것보다 단순합니다.
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/_analytics_routes.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/contracts.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/data.py`, `routes.py`
-- Test: `back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py`
+- Modify: `backend/ebeam/hitachi/_analytics_routes.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/contracts.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/_shape.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/mock.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/data.py`, `routes.py`
+- Test: `backend/ebeam/hitachi/recipe_tat/tests/test_contract.py`
 
 **Interfaces:**
 - Consumes: Task 4의 `_filter_rows`, `_shape.window_seconds`, `_shape.parse_iso_date` 경로
@@ -1327,7 +1327,7 @@ def test_request_scope_caps_and_echoes_eqp_ids():
     # 응답에 드러나야 합니다.
     from flask import Flask
 
-    from back_dev_home.ebeam.hitachi._analytics_routes import (
+    from backend.ebeam.hitachi._analytics_routes import (
         MAX_EQP_IDS,
         resolve_analytics_scope,
     )
@@ -1344,7 +1344,7 @@ def test_request_scope_caps_and_echoes_eqp_ids():
 def test_request_scope_eqp_ids_default_to_empty():
     from flask import Flask
 
-    from back_dev_home.ebeam.hitachi._analytics_routes import resolve_analytics_scope
+    from backend.ebeam.hitachi._analytics_routes import resolve_analytics_scope
 
     app = Flask(__name__)
     with app.test_request_context("/?fab_name=R3"):
@@ -1354,13 +1354,13 @@ def test_request_scope_eqp_ids_default_to_empty():
 
 - [ ] **Step 3: 실패 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat -q -k "compare or scope"`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat -q -k "compare or scope"`
 
 Expected: 전부 FAIL
 
 - [ ] **Step 4: 요청 파싱 확장**
 
-`back_dev_home/ebeam/hitachi/_analytics_routes.py`:
+`backend/ebeam/hitachi/_analytics_routes.py`:
 
 ```python
 # equipment-compare 가 한 번에 받는 장비 수 상한. 요청 형태에 관한 값이라
@@ -1604,20 +1604,20 @@ def recipe_tat_equipment_compare(tool_slug: str):
 
 - [ ] **Step 7: 통과 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi -q`
 
 Expected: 전부 PASS (`fail_issue`도 같은 파서를 쓰므로 함께 확인)
 
 - [ ] **Step 8: 커밋**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/_analytics_routes.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/contracts.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/providers/_shape.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/data.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/routes.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py
+git add backend/ebeam/hitachi/_analytics_routes.py \
+        backend/ebeam/hitachi/recipe_tat/contracts.py \
+        backend/ebeam/hitachi/recipe_tat/providers/_shape.py \
+        backend/ebeam/hitachi/recipe_tat/providers/mock.py \
+        backend/ebeam/hitachi/recipe_tat/data.py \
+        backend/ebeam/hitachi/recipe_tat/routes.py \
+        backend/ebeam/hitachi/recipe_tat/tests/test_contract.py
 git commit -m "feat(recipe-tat): GET /<slug>/recipe-tat/equipment-compare
 
 선택한 장비들(최대 5대)의 일별 트렌드와 레시피 구성을 한 응답에 담습니다.
@@ -1636,10 +1636,10 @@ git commit -m "feat(recipe-tat): GET /<slug>/recipe-tat/equipment-compare
 ### Task 6: office 어댑터 템플릿
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/_office_meas_hist.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py`
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/MIGRATION.md`
-- Test: `back_dev_home/ebeam/hitachi/tests/test_office_meas_hist.py` (생성)
+- Modify: `backend/ebeam/hitachi/_office_meas_hist.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/office_example.py`
+- Modify: `backend/ebeam/hitachi/recipe_tat/MIGRATION.md`
+- Test: `backend/ebeam/hitachi/tests/test_office_meas_hist.py` (생성)
 
 **Interfaces:**
 - Consumes: Task 4·5의 계약
@@ -1647,7 +1647,7 @@ git commit -m "feat(recipe-tat): GET /<slug>/recipe-tat/equipment-compare
 
 - [ ] **Step 1: 하위호환 실패 테스트 작성**
 
-`back_dev_home/ebeam/hitachi/tests/test_office_meas_hist.py`:
+`backend/ebeam/hitachi/tests/test_office_meas_hist.py`:
 
 ```python
 """composite_buckets 의 소스 빌더 단위 테스트.
@@ -1657,7 +1657,7 @@ OpenSearch 없이 순수 함수만 검사합니다. 기존 `field: str` 호출�
 전체를 죽입니다 — 그래서 하위호환이 테스트로 고정되어야 합니다.
 """
 
-from back_dev_home.ebeam.hitachi._office_meas_hist import _composite_sources
+from backend.ebeam.hitachi._office_meas_hist import _composite_sources
 
 
 def test_single_field_keeps_the_legacy_group_source():
@@ -1678,13 +1678,13 @@ def test_multiple_sources_preserve_order_and_names():
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/tests/test_office_meas_hist.py -v`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/tests/test_office_meas_hist.py -v`
 
 Expected: FAIL — `ImportError: cannot import name '_composite_sources'`
 
 - [ ] **Step 3: 다중 소스 지원 추가**
 
-`back_dev_home/ebeam/hitachi/_office_meas_hist.py`에 추가:
+`backend/ebeam/hitachi/_office_meas_hist.py`에 추가:
 
 ```python
 def _composite_sources(field: str | Sequence[tuple[str, str]]) -> list[dict[str, Any]]:
@@ -1728,7 +1728,7 @@ docstring 첫 줄을 고칩니다: `"""Every bucket for a terms/composite groupi
 
 - [ ] **Step 4: 통과 확인**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi -q`
 
 Expected: 전부 PASS. 기존 office_example 들의 `composite_buckets(..., _FULL_KW, ...)` 호출은 변경 없이 그대로 동작해야 합니다.
 
@@ -1871,15 +1871,15 @@ def get_equipment_compare(
 import 블록에 다음을 더합니다:
 
 ```python
-from back_dev_home.ebeam.hitachi._office_meas_hist import (
+from backend.ebeam.hitachi._office_meas_hist import (
     EQP_MODEL_CD_KW as _EQP_MODEL_KW,
     FAB_NAME_KW as _FAB_KW,
 )
-from back_dev_home.ebeam.hitachi.recipe_tat.contracts import (
+from backend.ebeam.hitachi.recipe_tat.contracts import (
     EquipmentComparePayload,
     EquipmentsPayload,
 )
-from back_dev_home.ebeam.hitachi.recipe_tat.providers._shape import (
+from backend.ebeam.hitachi.recipe_tat.providers._shape import (
     build_equipment_compare_payload,
     build_equipments_payload,
 )
@@ -1894,7 +1894,7 @@ def test_office_example_exposes_the_equipment_endpoints():
     import pytest
 
     office_example = pytest.importorskip(
-        "back_dev_home.ebeam.hitachi.recipe_tat.providers.office_example"
+        "backend.ebeam.hitachi.recipe_tat.providers.office_example"
     )
     assert callable(office_example.get_equipments)
     assert callable(office_example.get_equipment_compare)
@@ -1921,7 +1921,7 @@ def test_office_example_exposes_the_equipment_endpoints():
    `text`라고만 적고 있습니다. 없으면 `_EQP_MODEL_KW`를 `eqp_model_cd`로
    바꾸거나 `top_hits`로 대체합니다.
 2. 배지 임계값. 첫 실행에서 아래를 호출하고 `fleet.percentiles`를 읽어
-   `front-dev-home/app/utils/equipmentSignals.ts`의 상수 네 개를 맞춘 뒤
+   `frontend/app/utils/equipmentSignals.ts`의 상수 네 개를 맞춘 뒤
    `OFFICE-VERIFY` 주석을 `office 확인 YYYY-MM-DD`로 바꿉니다.
 
     curl -s "$BASE/api/cdsem/recipe-tat/equipments?start_date=…&end_date=…" | python -m json.tool
@@ -1936,11 +1936,11 @@ def test_office_example_exposes_the_equipment_endpoints():
 ```bash
 .venv/bin/python -m pytest -q
 npm run lint:md
-git add back_dev_home/ebeam/hitachi/_office_meas_hist.py \
-        back_dev_home/ebeam/hitachi/tests/test_office_meas_hist.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py \
-        back_dev_home/ebeam/hitachi/recipe_tat/MIGRATION.md
+git add backend/ebeam/hitachi/_office_meas_hist.py \
+        backend/ebeam/hitachi/tests/test_office_meas_hist.py \
+        backend/ebeam/hitachi/recipe_tat/providers/office_example.py \
+        backend/ebeam/hitachi/recipe_tat/tests/test_contract.py \
+        backend/ebeam/hitachi/recipe_tat/MIGRATION.md
 git commit -m "feat(recipe-tat/office): 장비별 집계 템플릿 + 다중 소스 composite
 
 composite_buckets가 (이름, 필드) 목록을 받도록 확장합니다. 문자열 하나를
@@ -1960,8 +1960,8 @@ OFFICE-VERIFY 2건을 MIGRATION.md에 남겼습니다: eqp_model_cd.keyword 존�
 ### Task 7: 배지 판정 순수 함수
 
 **Files:**
-- Create: `front-dev-home/app/utils/equipmentSignals.ts`
-- Test: `front-dev-home/app/utils/equipmentSignals.test.ts`
+- Create: `frontend/app/utils/equipmentSignals.ts`
+- Test: `frontend/app/utils/equipmentSignals.test.ts`
 
 **Interfaces:**
 - Consumes: 없음 (순수 함수)
@@ -1974,7 +1974,7 @@ OFFICE-VERIFY 2건을 MIGRATION.md에 남겼습니다: eqp_model_cd.keyword 존�
 
 - [ ] **Step 1: 실패 테스트 작성**
 
-`front-dev-home/app/utils/equipmentSignals.test.ts`:
+`frontend/app/utils/equipmentSignals.test.ts`:
 
 ```ts
 import { test } from 'node:test'
@@ -2087,13 +2087,13 @@ test('모든 신호에 표시용 메타가 있다', () => {
 
 - [ ] **Step 2: 실패 확인**
 
-Run (from `front-dev-home/`): `npm test`
+Run (from `frontend/`): `npm test`
 
 Expected: FAIL — `Cannot find module './equipmentSignals.ts'`
 
 - [ ] **Step 3: 구현**
 
-`front-dev-home/app/utils/equipmentSignals.ts`:
+`frontend/app/utils/equipmentSignals.ts`:
 
 ```ts
 // 장비별 뷰의 배지 판정. 백엔드는 비율과 분포(분위수)를 계산하고, 여기서는
@@ -2178,15 +2178,15 @@ export const equipmentSignals = (
 
 - [ ] **Step 4: 통과 확인**
 
-Run (from `front-dev-home/`): `npm test && npm run typecheck && npm run lint`
+Run (from `frontend/`): `npm test && npm run typecheck && npm run lint`
 
 Expected: 전부 PASS
 
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add front-dev-home/app/utils/equipmentSignals.ts \
-        front-dev-home/app/utils/equipmentSignals.test.ts
+git add frontend/app/utils/equipmentSignals.ts \
+        frontend/app/utils/equipmentSignals.test.ts
 git commit -m "feat(recipe-tat): 장비 배지 판정 — 분위수 AND 절대 기준
 
 절대 기준만 쓰면 상수가 실 분포와 어긋나는 순간 전부 정상이거나 전부
@@ -2204,10 +2204,10 @@ tat_index === null(표본 미달)은 어느 쪽으로도 판정하지 않습니�
 ### Task 8: 플릿 표 + 모드 추가
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useRecipeTatApi.ts`
-- Create: `front-dev-home/app/components/ebeam/RecipeTatFleetTable.vue`
-- Create: `front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue`
-- Modify: `front-dev-home/app/components/ebeam/RecipeTatView.vue`
+- Modify: `frontend/app/composables/useRecipeTatApi.ts`
+- Create: `frontend/app/components/ebeam/RecipeTatFleetTable.vue`
+- Create: `frontend/app/components/ebeam/RecipeTatEquipmentView.vue`
+- Modify: `frontend/app/components/ebeam/RecipeTatView.vue`
 
 **Interfaces:**
 - Consumes: Task 4의 `/equipments`, Task 7의 `equipmentSignals`
@@ -2219,7 +2219,7 @@ tat_index === null(표본 미달)은 어느 쪽으로도 판정하지 않습니�
 
 - [ ] **Step 1: API 타입 + fetcher 추가**
 
-`front-dev-home/app/composables/useRecipeTatApi.ts`에 추가:
+`frontend/app/composables/useRecipeTatApi.ts`에 추가:
 
 ```ts
 export const MAX_COMPARE_EQPS = 5
@@ -2291,7 +2291,7 @@ export interface RecipeTatEquipmentsResponse {
 
 작업 전 `DESIGN.md`를 읽습니다. 색상은 `--sk-*` 토큰만 씁니다.
 
-`front-dev-home/app/components/ebeam/RecipeTatFleetTable.vue`:
+`frontend/app/components/ebeam/RecipeTatFleetTable.vue`:
 
 ```vue
 <template>
@@ -2508,7 +2508,7 @@ const tableUi = {
 
 - [ ] **Step 3: 오케스트레이터 작성**
 
-`front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue`:
+`frontend/app/components/ebeam/RecipeTatEquipmentView.vue`:
 
 ```vue
 <template>
@@ -2656,7 +2656,7 @@ const metaSubtitle = computed(() => {
 
 - [ ] **Step 5: 검증**
 
-Run (from `front-dev-home/`): `npm run typecheck && npm run lint && npm test`
+Run (from `frontend/`): `npm run typecheck && npm run lint && npm test`
 
 Expected: 전부 PASS. 이 시점에 장비를 선택하면 "장비를 선택해주세요" 안내가
 사라지고 아무것도 나오지 않습니다 — 비교 패널은 Task 9가 채웁니다.
@@ -2664,10 +2664,10 @@ Expected: 전부 PASS. 이 시점에 장비를 선택하면 "장비를 선택해
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add front-dev-home/app/composables/useRecipeTatApi.ts \
-        front-dev-home/app/components/ebeam/RecipeTatFleetTable.vue \
-        front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue \
-        front-dev-home/app/components/ebeam/RecipeTatView.vue
+git add frontend/app/composables/useRecipeTatApi.ts \
+        frontend/app/components/ebeam/RecipeTatFleetTable.vue \
+        frontend/app/components/ebeam/RecipeTatEquipmentView.vue \
+        frontend/app/components/ebeam/RecipeTatView.vue
 git commit -m "feat(recipe-tat): 장비별 모드와 플릿 표
 
 RecipeTatView는 모드 토글 항목 하나와 v-if 분기 하나만 늘어납니다. 이미
@@ -2686,9 +2686,9 @@ TAT index가 null인 행은 정렬 방향과 무관하게 항상 맨 뒤로 보�
 ### Task 9: 비교 패널
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useRecipeTatApi.ts`
-- Create: `front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue`
-- Modify: `front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue` (비교 패널 분기 연결)
+- Modify: `frontend/app/composables/useRecipeTatApi.ts`
+- Create: `frontend/app/components/ebeam/RecipeTatEquipmentCompare.vue`
+- Modify: `frontend/app/components/ebeam/RecipeTatEquipmentView.vue` (비교 패널 분기 연결)
 
 **Interfaces:**
 - Consumes: Task 5의 `/equipment-compare`, Task 8의 `RecipeTatEquipmentRow`
@@ -2762,7 +2762,7 @@ fetcher:
 
 - [ ] **Step 2: 비교 컴포넌트 작성**
 
-`front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue`:
+`frontend/app/components/ebeam/RecipeTatEquipmentCompare.vue`:
 
 ```vue
 <template>
@@ -3017,16 +3017,16 @@ const selectedRows = computed(
 
 - [ ] **Step 4: 검증**
 
-Run (from `front-dev-home/`): `npm run typecheck && npm run lint && npm test`
+Run (from `frontend/`): `npm run typecheck && npm run lint && npm test`
 
 Expected: 전부 PASS
 
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add front-dev-home/app/composables/useRecipeTatApi.ts \
-        front-dev-home/app/components/ebeam/RecipeTatEquipmentCompare.vue \
-        front-dev-home/app/components/ebeam/RecipeTatEquipmentView.vue
+git add frontend/app/composables/useRecipeTatApi.ts \
+        frontend/app/components/ebeam/RecipeTatEquipmentCompare.vue \
+        frontend/app/components/ebeam/RecipeTatEquipmentView.vue
 git commit -m "feat(recipe-tat): 장비 비교 패널 — 트렌드 오버레이 + 레시피 매트릭스
 
 1대만 골라도 열립니다. '이 장비가 무슨 레시피를 도는가'가 원 요청의 첫
@@ -3044,9 +3044,9 @@ cells를 같은 순서로 0채움해 길이를 보장하므로 인덱스로 바�
 ### Task 10: 긴 기간 프리셋 · 계약 문서 · 브라우저 검증
 
 **Files:**
-- Modify: `front-dev-home/app/components/ebeam/DateRangePopover.vue`
+- Modify: `frontend/app/components/ebeam/DateRangePopover.vue`
 - Modify: `docs/api-contracts/recipe-tat.yaml`
-- Modify: `front-dev-home/app/pages/endpoints.vue`
+- Modify: `frontend/app/pages/endpoints.vue`
 
 **Interfaces:**
 - Consumes: Task 1–9 전부
@@ -3054,7 +3054,7 @@ cells를 같은 순서로 0채움해 길이를 보장하므로 인덱스로 바�
 
 - [ ] **Step 1: 60/90일 프리셋 추가**
 
-`front-dev-home/app/components/ebeam/DateRangePopover.vue`:
+`frontend/app/components/ebeam/DateRangePopover.vue`:
 
 ```ts
 const DEFAULT_PRESETS = [
@@ -3073,7 +3073,7 @@ const DEFAULT_PRESETS = [
 
 `docs/api-contracts/recipe-tat.yaml`에 두 엔드포인트를 기존 항목과 같은 형식으로 추가합니다. 필드는 Task 4·5의 TypedDict와 1:1로 맞춥니다 — `EquipmentRow`(12필드), `FleetReference`(8필드, `percentiles`는 `object`), `EquipmentsPayload`, `EquipmentTrendSeries`, `EquipmentRecipeCell`, `EquipmentRecipeRow`, `EquipmentComparePayload`. `tat_index`는 `nullable: true`, `top_recipe`도 `nullable: true`입니다.
 
-`front-dev-home/app/pages/endpoints.vue`의 recipe-tat 블록에 두 항목을 추가합니다:
+`frontend/app/pages/endpoints.vue`의 recipe-tat 블록에 두 항목을 추가합니다:
 
 ```ts
       {
@@ -3096,7 +3096,7 @@ const DEFAULT_PRESETS = [
 ```bash
 .venv/bin/python -m pytest -q
 npm run lint:md
-cd front-dev-home && npm test && npm run typecheck && npm run lint && cd ..
+cd frontend && npm test && npm run typecheck && npm run lint && cd ..
 ```
 
 Expected: 전부 PASS. worktree에는 gitignore된 `office.py` 사본이 없으므로 **skip 수가 main 체크아웃과 다릅니다** — passed 수만 비교하지 말고 passed+skipped 합계로 비교하세요.
@@ -3124,8 +3124,8 @@ Expected: 전부 PASS. worktree에는 gitignore된 `office.py` 사본이 없으�
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add front-dev-home/app/components/ebeam/DateRangePopover.vue \
-        front-dev-home/app/pages/endpoints.vue \
+git add frontend/app/components/ebeam/DateRangePopover.vue \
+        frontend/app/pages/endpoints.vue \
         docs/api-contracts/recipe-tat.yaml
 git commit -m "feat(recipe-tat): 60/90일 프리셋 + 장비별 엔드포인트 계약 문서
 

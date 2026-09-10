@@ -90,4 +90,4 @@ mock 을 그대로 re-export 하고 있습니다 — 열람에서 파생되는 �
 
 연결 설정
 
-REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (back_dev_home/.env).
+REDIS_HOST / REDIS_PORT / REDIS_PASSWORD (backend/.env).

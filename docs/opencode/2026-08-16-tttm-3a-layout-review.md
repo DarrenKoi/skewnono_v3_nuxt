@@ -8,7 +8,7 @@
 - 대상: `git diff main...HEAD` — 커밋 `1612abf5`
   (`feat(tttm): rebuild 장비간 스큐 관리 on the 3a control-rail layout`)
 - Standards 근거 문서: `CLAUDE.md`, `DESIGN.md`,
-  `front-dev-home/app/assets/css/main.css`
+  `frontend/app/assets/css/main.css`
 - Spec: claude.ai/design 프로젝트 `cad32336` 의 `TTTM 개선안.dc.html` 중
   "Turn 3" 절입니다. opencode 는 워킹 트리 밖을 읽지 못하므로 해당 절만
   `.scratch/tttm-3a/design-3a.html` 로 복사한 뒤 그 저장소 상대 경로를

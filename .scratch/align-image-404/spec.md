@@ -20,7 +20,7 @@
 
 `recipe-image` 라우트의 404 는 출처가 하나뿐입니다 — `fetch_recipe_image` 의
 `LookupError`, 즉 **장비 FTP 에 그 파일이 없다**는 뜻입니다
-(`back_dev_home/ebeam/recipe_search/routes.py`). 따라서 404 한 건은 백엔드가
+(`backend/ebeam/recipe_search/routes.py`). 따라서 404 한 건은 백엔드가
 브라우저에게 없는 파일 이름을 내려보냈다는 뜻입니다.
 
 이름을 내려보내는 경로는 두 갈래입니다.

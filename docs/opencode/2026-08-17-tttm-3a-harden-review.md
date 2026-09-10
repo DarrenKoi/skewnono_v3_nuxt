@@ -4,7 +4,7 @@
 - 스킬: `oc-review` (Standards + Spec), 이어서 `/simplify` 4각 패스
 - 모델: `glm-5.3` (`heavy`) — 23개 파일 · 약 2,100줄 추가
 - 기준점: `b57fe504` → `HEAD` (`1612abf5`, `b5123df0`, `6f2a9c0d`)
-- Standards 근거 문서: `CLAUDE.md`, `DESIGN.md`, `front-dev-home/app/assets/css/main.css`
+- Standards 근거 문서: `CLAUDE.md`, `DESIGN.md`, `frontend/app/assets/css/main.css`
 - Spec: `.scratch/tttm-3a/design-3a.html`
 - 결과 커밋: `96d352e4`, `e986cd97`
 

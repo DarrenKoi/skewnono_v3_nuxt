@@ -10,10 +10,10 @@ Blocked by: 02
 
 **Files:**
 
-- Modify: `front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue`
+- Modify: `frontend/app/components/cdsem/comparison/LotDetailModal.vue`
   (44-67 헤더 메타줄, 107-159 recipe 헤더줄, 224-229 빈 상태, script 전반)
-- Modify: `front-dev-home/app/utils/lotParamExport.ts` (71-74)
-- Modify: `front-dev-home/app/utils/lotParamExport.test.ts` (파일 끝에 추가)
+- Modify: `frontend/app/utils/lotParamExport.ts` (71-74)
+- Modify: `frontend/app/utils/lotParamExport.test.ts` (파일 끝에 추가)
 
 **Interfaces:**
 
@@ -229,10 +229,10 @@ Expected: 셋 다 clean
 - [ ] **Step 12: 커밋**
 
 ```bash
-git commit -- front-dev-home/app/components/cdsem/comparison/LotDetailModal.vue \
-  front-dev-home/app/utils/lotParamExport.ts \
-  front-dev-home/app/utils/lotParamExport.test.ts \
-  front-dev-home/app/pages/ebeam/cd-sem/device-statistics/comparison.vue \
+git commit -- frontend/app/components/cdsem/comparison/LotDetailModal.vue \
+  frontend/app/utils/lotParamExport.ts \
+  frontend/app/utils/lotParamExport.test.ts \
+  frontend/app/pages/ebeam/cd-sem/device-statistics/comparison.vue \
   -m "feat(device-statistics): add 전체/초과만 filter and outlier baseline to lot modal
 
 기본은 전체이고 초과만은 토글입니다 — 이 목록을 여는 질문이 '이 device 가

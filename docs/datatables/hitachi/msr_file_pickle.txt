@@ -25,7 +25,7 @@ minio_config.py 가 공급). minio_handler.MinioObject().get_pickle 로 로드.
 매일 04:05 KST 에 dict_pkl 파티션만 61일 기준으로 지웁니다. raw_msr 은
 건드리지 않습니다. 61 은 meas_hist 의 60일 조회 창에서 나온 값이며, 그 창은
 now 가 아니라 anchor=max(timestamp) 기준이라 적재 지연 L일이면 실질 여유가
-1-L일로 줄어듭니다 — 자세한 내용은 back_dev_home/msr_file/MIGRATION.md.
+1-L일로 줄어듭니다 — 자세한 내용은 backend/msr_file/MIGRATION.md.
 
 =====
 
@@ -77,7 +77,7 @@ columns : value (examples)
                     compatibility.ts), parameter 집합이 실행마다 다르면
                     사용자가 직접 고른 세트의 상당수가 Time-Series 에서
                     조용히 빠집니다. mock 이 이 성질을 재현합니다 —
-                    back_dev_home/msr_file/providers/mock.py 의
+                    backend/msr_file/providers/mock.py 의
                     _program_params 를 참고하시기 바랍니다.
 "cd_value" :43.14, None
                     단위 컬럼은 없습니다. cd_value 는 단위 없는 숫자이고, 그
@@ -462,7 +462,7 @@ FDC 처리
 
 msr_file 은 MSR 1건을 열지만, tttm 과 pm_planning 은 **장비 그룹 전체의 최근
 실행**을 열어 (장비 × beam × 방향) 별 대표 CD 를 만듭니다. 공용 코드는
-back_dev_home/ebeam/_office_msr_cd.py 입니다.
+backend/ebeam/_office_msr_cd.py 입니다.
 
 읽는 컬럼 — "parameter", "cd_value", "meas_condition vac".
 

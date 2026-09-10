@@ -17,7 +17,7 @@ Produce an implementation-ready specification for a contextual MSR review system
 - Search uses OpenSearch metadata plus precomputed review summaries. After row click or multi-selection, Flask resolves the MinIO path, reads the object, and returns normalized versioned JSON through `/api/msr-file` or `/api/msr-files`; the browser never accesses MinIO directly.
 - Human Review Outcomes are retained with user, time, comment, detector version, and evidence snapshot. Online retraining is not part of the initial system.
 - Release requires one offline acceptance evaluation against engineer-reviewed historical MSRs. A mandatory shadow phase is not required.
-- Current source anchors: [analysis composition](../../front-dev-home/app/composables/useSkewvoirAnalysis.ts), [anomaly utilities](../../front-dev-home/app/utils/anomaly/), [search results](../../front-dev-home/app/components/ebeam/skewvoir/search/ResultTable.vue), [measurement search API](../../back_dev_home/meas_hist/routes.py), and [MSR detail API](../../back_dev_home/msr_file/routes.py).
+- Current source anchors: [analysis composition](../../frontend/app/composables/useSkewvoirAnalysis.ts), [anomaly utilities](../../frontend/app/utils/anomaly/), [search results](../../frontend/app/components/ebeam/skewvoir/search/ResultTable.vue), [measurement search API](../../backend/meas_hist/routes.py), and [MSR detail API](../../backend/msr_file/routes.py).
 - Phase 1 remains mock-backed. Office-specific OpenSearch mappings, MinIO formats, and operational characteristics must be inventoried before the final contract is locked.
 
 ## Decisions so far

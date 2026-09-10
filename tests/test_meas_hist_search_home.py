@@ -14,13 +14,13 @@ import unittest
 
 from flask import Flask
 
-from back_dev_home.meas_hist.data import MOCK_SEARCH_FIXTURES, search_meas_hist
-from back_dev_home.meas_hist.opensearch_query import (
+from backend.meas_hist.data import MOCK_SEARCH_FIXTURES, search_meas_hist
+from backend.meas_hist.opensearch_query import (
     SEARCH_ALL_MAPPING,
     build_q_fallback_clause,
     build_search_all_value,
 )
-from back_dev_home.meas_hist.routes import bp
+from backend.meas_hist.routes import bp
 from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 

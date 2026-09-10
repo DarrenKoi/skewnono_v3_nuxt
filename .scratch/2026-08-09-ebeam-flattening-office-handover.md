@@ -8,7 +8,7 @@
 
 ## 1. 무엇이 바뀌었나
 
-`back_dev_home/ebeam/` 아래의 벤더/계열 중간 폴더를 없앴습니다.
+`backend/ebeam/` 아래의 벤더/계열 중간 폴더를 없앴습니다.
 
 | 이전 | 이후 |
 | --- | --- |
@@ -24,7 +24,7 @@
 | `ebeam/cdsem/device_statistics/` | `ebeam/device_statistics/` |
 | `ebeam/hitachi/_tool_specs.py` 등 공용 모듈 | `ebeam/_tool_specs.py` 등 |
 
-**이유**: `back_dev_home/_runtime/office_registry.py` 는 feature 를
+**이유**: `backend/_runtime/office_registry.py` 는 feature 를
 디렉터리 이름 **하나로만** 식별하고 전역 유일성을 강제합니다. 계열이
 `hitachi` 하나가 아니게 되는 순간(VeritySEM·Provision 추가) 벤더 폴더 구조는
 `ebeam/amat/storage/` 와 `ebeam/hitachi/storage/` 같은 중복 슬러그를 만들고,
@@ -58,22 +58,22 @@ git pull
 # 1) 옛 경로에 남은 파일을 찾습니다. .bak 도 함께 찾아야 합니다 —
 #    `sync_office_adapters --force` 가 남기는 백업이고, .gitignore 는
 #    office.py 와 office.py.bak 을 모두 무시합니다.
-find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem \
+find backend/ebeam/hitachi backend/ebeam/cdsem \
   \( -name "office.py" -o -name "office.py.bak" \) 2>/dev/null
 
 # 2) 나온 파일을 새 경로로 옮깁니다. 예:
-mv back_dev_home/ebeam/hitachi/storage/providers/office.py \
-   back_dev_home/ebeam/storage/providers/office.py
-mv back_dev_home/ebeam/hitachi/recipe_tat/providers/office.py \
-   back_dev_home/ebeam/recipe_tat/providers/office.py
-mv back_dev_home/ebeam/hitachi/recipe_search/providers/office.py \
-   back_dev_home/ebeam/recipe_search/providers/office.py
-mv back_dev_home/ebeam/hitachi/lateral_recipe/providers/office.py \
-   back_dev_home/ebeam/lateral_recipe/providers/office.py
+mv backend/ebeam/hitachi/storage/providers/office.py \
+   backend/ebeam/storage/providers/office.py
+mv backend/ebeam/hitachi/recipe_tat/providers/office.py \
+   backend/ebeam/recipe_tat/providers/office.py
+mv backend/ebeam/hitachi/recipe_search/providers/office.py \
+   backend/ebeam/recipe_search/providers/office.py
+mv backend/ebeam/hitachi/lateral_recipe/providers/office.py \
+   backend/ebeam/lateral_recipe/providers/office.py
 # .bak 도 같은 자리로. 필요 없다고 판단하면 지우되, 남길 거면 새 경로에 둡니다.
 
 # 3) 빈 디렉터리를 정리합니다.
-find back_dev_home/ebeam/hitachi back_dev_home/ebeam/cdsem -type d -empty -delete 2>/dev/null
+find backend/ebeam/hitachi backend/ebeam/cdsem -type d -empty -delete 2>/dev/null
 ```
 
 > `mv` 대신 `cp` 를 쓰면 옛 경로의 사본이 남아 다음 사람이 어느 쪽이 진짜인지
@@ -118,7 +118,7 @@ data providers: site=office mode=office — N/24 features on office
 ## 4. 함께 알아두면 좋은 변경
 
 - 장비 계열 레지스트리가 2계열(CD-SEM/HV-SEM)에서 4계열(+ AMAT VeritySEM,
-  Provision)로 넓어졌습니다. 단일 원천은 `back_dev_home/ebeam/_tool_specs.py`.
+  Provision)로 넓어졌습니다. 단일 원천은 `backend/ebeam/_tool_specs.py`.
 - CD/HV 전용 기능(storage, lateral_recipe, recipe_tat, fail_issue,
   recipe_search, skew, hardware, pm_planning, live_alarm)의 라우트는
   `SEM_TOOL_SLUGS`(`cdsem`, `hvsem`) 밖의 슬러그를 **400** 으로 거절합니다.

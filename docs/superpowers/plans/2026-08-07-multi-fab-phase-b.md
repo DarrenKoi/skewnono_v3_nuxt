@@ -17,7 +17,7 @@
 - localStorage v2 keys: `skewnono:recipe-search.selection.v2.{toolType}` and `skewnono:recipe-search.recent.v2.{toolType}`. Old keys are orphaned, not migrated.
 - `AlarmEvent.fab_name` is reader-stamped from the roster at board-build time; it is NEVER written into stored ZSET members.
 - Ranking `fab_names` = fabs contributing ANY execution to the aggregate (not just failing rows), sorted ascending.
-- Backend tests: `.venv/bin/python -m pytest back_dev_home/<feature> -q` from the repo root (never bare `pytest`). Frontend: `npm test` / `npm run typecheck` / `npm run lint` from `front-dev-home/`.
+- Backend tests: `.venv/bin/python -m pytest backend/<feature> -q` from the repo root (never bare `pytest`). Frontend: `npm test` / `npm run typecheck` / `npm run lint` from `frontend/`.
 - Commit style `type(scope): summary`, explicit pathspecs only (`git add <paths>` / `git commit -- <paths>`; `git add -A`/`.`/`-a` are banned).
 - Korean UI copy uses formal endings (~입니다/~합니다).
 - No Pinia, no TanStack Query; `useAsyncData` + `useState` + `usePersistedState` only.
@@ -28,10 +28,10 @@
 
 Backend (per feature: contracts → routes → data → providers → tests):
 
-- `back_dev_home/ebeam/hitachi/recipe_search/` — catalog row TypedDict, comma parse, tagged mock/office rows, compare body (`contracts.py`, `routes.py`, `data.py`, `providers/{mock,office_example}.py`, `tests/{test_contract,test_routes,test_contracts_shape}.py`)
-- `back_dev_home/ebeam/hitachi/recipe_tat/` — RankingRow.fab_names (`contracts.py`, `providers/{mock,office_example}.py`, `tests/test_contract.py`) + `docs/api-contracts/recipe-tat.yaml`
-- `back_dev_home/ebeam/hitachi/fail_issue/` — Align/MeasRankingRow.fab_names (same file set) + `docs/api-contracts/fail-issue.yaml`
-- `back_dev_home/ebeam/hitachi/live_alarm/` — multi-fac board (`contracts.py`, `routes.py`, `data.py`, `board.py`, `providers/{mock,office_example}.py`, `tests/`)
+- `backend/ebeam/hitachi/recipe_search/` — catalog row TypedDict, comma parse, tagged mock/office rows, compare body (`contracts.py`, `routes.py`, `data.py`, `providers/{mock,office_example}.py`, `tests/{test_contract,test_routes,test_contracts_shape}.py`)
+- `backend/ebeam/hitachi/recipe_tat/` — RankingRow.fab_names (`contracts.py`, `providers/{mock,office_example}.py`, `tests/test_contract.py`) + `docs/api-contracts/recipe-tat.yaml`
+- `backend/ebeam/hitachi/fail_issue/` — Align/MeasRankingRow.fab_names (same file set) + `docs/api-contracts/fail-issue.yaml`
+- `backend/ebeam/hitachi/live_alarm/` — multi-fac board (`contracts.py`, `routes.py`, `data.py`, `board.py`, `providers/{mock,office_example}.py`, `tests/`)
 
 Frontend:
 
@@ -44,12 +44,12 @@ Frontend:
 ### Task 1: Backend — recipe_search catalog tagged rows
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/contracts.py` (`RecipeSearchRow` ~line 36, `RecipeSearchResponse` ~line 186)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/routes.py` (`_resolve_fab_name` ~line 95, catalog endpoint ~line 152)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/data.py` (`get_recipe_catalog` ~line 42)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py` (`get_recipe_catalog` ~line 372)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` (`_recipes_for_fab`/`_all_recipes`/`get_recipe_catalog` ~lines 264–320)
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_contract.py`, `tests/test_routes.py`, `tests/test_contracts_shape.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/contracts.py` (`RecipeSearchRow` ~line 36, `RecipeSearchResponse` ~line 186)
+- Modify: `backend/ebeam/hitachi/recipe_search/routes.py` (`_resolve_fab_name` ~line 95, catalog endpoint ~line 152)
+- Modify: `backend/ebeam/hitachi/recipe_search/data.py` (`get_recipe_catalog` ~line 42)
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/mock.py` (`get_recipe_catalog` ~line 372)
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py` (`_recipes_for_fab`/`_all_recipes`/`get_recipe_catalog` ~lines 264–320)
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_contract.py`, `tests/test_routes.py`, `tests/test_contracts_shape.py`
 
 **Interfaces:**
 - Consumes: existing `_generate_recipe_rows(tool_type, fab_name) -> tuple[str, ...]` (mock), `_parse_str_list` / `_missing_key_error` / `_RECIPE_HASH` (office_example), `promote_request_fab_names(*values)` (already imported in routes.py).
@@ -148,7 +148,7 @@ def test_recipes_route_parses_comma_fab_list(client):
 
 - [ ] **Step 2: Run the new tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q`
 Expected: new tests FAIL (rows are still bare strings / signature mismatch).
 
 - [ ] **Step 3: Implement**
@@ -295,13 +295,13 @@ Update any existing assertions in `tests/test_contract.py` / `tests/test_contrac
 
 - [ ] **Step 4: Run the feature suite**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/recipe_search
+git add backend/ebeam/hitachi/recipe_search
 git commit -m "feat(recipe-search): catalog rows become (recipe, fab) pairs with fab_names meta"
 ```
 
@@ -310,12 +310,12 @@ git commit -m "feat(recipe-search): catalog rows become (recipe, fab) pairs with
 ### Task 2: Backend — recipe_search compare takes per-recipe fabs
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/contracts.py` (add `CompareRequestItem`; `RecipeCompareResponse` ~line 224)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/routes.py` (compare endpoint ~line 251)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/data.py` (`get_recipe_compare_data` ~line 55)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/mock.py` (`get_recipe_compare_data` ~line 1077)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/providers/office_example.py` (only if its compare re-export names the old signature — verify the re-export still resolves)
-- Test: `back_dev_home/ebeam/hitachi/recipe_search/tests/test_contract.py`, `tests/test_routes.py`
+- Modify: `backend/ebeam/hitachi/recipe_search/contracts.py` (add `CompareRequestItem`; `RecipeCompareResponse` ~line 224)
+- Modify: `backend/ebeam/hitachi/recipe_search/routes.py` (compare endpoint ~line 251)
+- Modify: `backend/ebeam/hitachi/recipe_search/data.py` (`get_recipe_compare_data` ~line 55)
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/mock.py` (`get_recipe_compare_data` ~line 1077)
+- Modify: `backend/ebeam/hitachi/recipe_search/providers/office_example.py` (only if its compare re-export names the old signature — verify the re-export still resolves)
+- Test: `backend/ebeam/hitachi/recipe_search/tests/test_contract.py`, `tests/test_routes.py`
 
 **Interfaces:**
 - Consumes: `get_recipe_open_data(recipe_id, fab_name, tool_category)` (unchanged), Task 1's contract style.
@@ -363,7 +363,7 @@ def test_compare_route_rejects_legacy_body(client):
 
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q`
+Run: `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q`
 
 - [ ] **Step 3: Implement**
 
@@ -450,12 +450,12 @@ def get_recipe_compare_data(
 
 `office_example.py`: compare is re-exported from the mock — confirm the re-export line still imports a name that exists and leave it.
 
-- [ ] **Step 4: Run the feature suite** — `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_search -q` → PASS.
+- [ ] **Step 4: Run the feature suite** — `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_search -q` → PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/recipe_search
+git add backend/ebeam/hitachi/recipe_search
 git commit -m "feat(recipe-search): compare body carries per-recipe fab, enabling cross-fab compare"
 ```
 
@@ -464,14 +464,14 @@ git commit -m "feat(recipe-search): compare body carries per-recipe fab, enablin
 ### Task 3: Backend — recipe_tat ranking rows gain contributing fab_names
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/contracts.py` (`RankingRow` ~line 40)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/mock.py` (`get_ranking` ~line 342)
-- Modify: `back_dev_home/ebeam/hitachi/recipe_tat/providers/office_example.py` (`get_ranking` ~line 83)
+- Modify: `backend/ebeam/hitachi/recipe_tat/contracts.py` (`RankingRow` ~line 40)
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/mock.py` (`get_ranking` ~line 342)
+- Modify: `backend/ebeam/hitachi/recipe_tat/providers/office_example.py` (`get_ranking` ~line 83)
 - Modify: `docs/api-contracts/recipe-tat.yaml` (ranking row schema)
-- Test: `back_dev_home/ebeam/hitachi/recipe_tat/tests/test_contract.py`
+- Test: `backend/ebeam/hitachi/recipe_tat/tests/test_contract.py`
 
 **Interfaces:**
-- Consumes: `FAB_NAME_KW = "fab_name.keyword"` from `back_dev_home/ebeam/hitachi/_office_meas_hist.py:85`.
+- Consumes: `FAB_NAME_KW = "fab_name.keyword"` from `backend/ebeam/hitachi/_office_meas_hist.py:85`.
 - Produces: `RankingRow` gains `fab_names: list[str]` — fabs contributing ANY execution, sorted ascending. Frontend (Task 8) relies on the key name `fab_names`.
 
 - [ ] **Step 1: Write the failing test**
@@ -491,7 +491,7 @@ def test_single_fab_ranking_tags_that_fab_only():
     assert all(row["fab_names"] == ["R3"] for row in rows)
 ```
 
-- [ ] **Step 2: Run to verify failure** — `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat -q`
+- [ ] **Step 2: Run to verify failure** — `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat -q`
 
 - [ ] **Step 3: Implement**
 
@@ -505,7 +505,7 @@ def test_single_fab_ranking_tags_that_fab_only():
 
 `providers/mock.py` `get_ranking` — in the bucket setdefault add `"fabs": set()`; after the setdefault add `bucket["fabs"].add(str(row["fab_name"]).upper())`; in the output dict add `"fab_names": sorted(bucket["fabs"])`.
 
-`providers/office_example.py` `get_ranking` — import `FAB_NAME_KW` from `back_dev_home.ebeam.hitachi._office_meas_hist` (extend the existing import), add to `sub_aggs`:
+`providers/office_example.py` `get_ranking` — import `FAB_NAME_KW` from `backend.ebeam.hitachi._office_meas_hist` (extend the existing import), add to `sub_aggs`:
 
 ```python
         "fabs": {"terms": {"field": FAB_NAME_KW, "size": 16}},
@@ -522,12 +522,12 @@ then `fab_names=fab_names` in the `RankingRow(...)` call.
 
 `docs/api-contracts/recipe-tat.yaml`: add `fab_names` (array of string, sorted asc, "fabs contributing to the aggregate") to the ranking row schema.
 
-- [ ] **Step 4: Run** — `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/recipe_tat -q` → PASS. Then `npm run lint:md` from the repo root (YAML is not Markdown, but run it anyway if any .md changed; skip otherwise).
+- [ ] **Step 4: Run** — `.venv/bin/python -m pytest backend/ebeam/hitachi/recipe_tat -q` → PASS. Then `npm run lint:md` from the repo root (YAML is not Markdown, but run it anyway if any .md changed; skip otherwise).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/recipe_tat docs/api-contracts/recipe-tat.yaml
+git add backend/ebeam/hitachi/recipe_tat docs/api-contracts/recipe-tat.yaml
 git commit -m "feat(recipe-tat): ranking rows carry contributing fab_names"
 ```
 
@@ -536,11 +536,11 @@ git commit -m "feat(recipe-tat): ranking rows carry contributing fab_names"
 ### Task 4: Backend — fail_issue ranking rows gain contributing fab_names
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/contracts.py` (`AlignRankingRow` ~line 72, `MeasRankingRow` ~line 84)
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/providers/mock.py` (`get_align_ranking` ~line 314, `get_meas_ranking` ~line 369)
-- Modify: `back_dev_home/ebeam/hitachi/fail_issue/providers/office_example.py` (`_ranked_recipe_buckets` ~line 223, both `get_*_ranking`)
+- Modify: `backend/ebeam/hitachi/fail_issue/contracts.py` (`AlignRankingRow` ~line 72, `MeasRankingRow` ~line 84)
+- Modify: `backend/ebeam/hitachi/fail_issue/providers/mock.py` (`get_align_ranking` ~line 314, `get_meas_ranking` ~line 369)
+- Modify: `backend/ebeam/hitachi/fail_issue/providers/office_example.py` (`_ranked_recipe_buckets` ~line 223, both `get_*_ranking`)
 - Modify: `docs/api-contracts/fail-issue.yaml`
-- Test: `back_dev_home/ebeam/hitachi/fail_issue/tests/test_contract.py`
+- Test: `backend/ebeam/hitachi/fail_issue/tests/test_contract.py`
 
 **Interfaces:**
 - Consumes: `FAB_NAME_KW` (as Task 3).
@@ -574,7 +574,7 @@ def test_single_fab_rankings_tag_that_fab_only():
     assert all(row["fab_names"] == ["R3"] for row in meas)
 ```
 
-- [ ] **Step 2: Run to verify failure** — `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue -q`
+- [ ] **Step 2: Run to verify failure** — `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue -q`
 
 - [ ] **Step 3: Implement**
 
@@ -600,12 +600,12 @@ and pass `fab_names=_bucket_fab_names(bucket)` in both `AlignRankingRow(...)` an
 
 `docs/api-contracts/fail-issue.yaml`: add `fab_names` to both ranking row schemas.
 
-- [ ] **Step 4: Run** — `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/fail_issue -q` → PASS.
+- [ ] **Step 4: Run** — `.venv/bin/python -m pytest backend/ebeam/hitachi/fail_issue -q` → PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/fail_issue docs/api-contracts/fail-issue.yaml
+git add backend/ebeam/hitachi/fail_issue docs/api-contracts/fail-issue.yaml
 git commit -m "feat(fail-issue): align/meas ranking rows carry contributing fab_names"
 ```
 
@@ -614,13 +614,13 @@ git commit -m "feat(fail-issue): align/meas ranking rows carry contributing fab_
 ### Task 5: Backend — live_alarm multi-fab board
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/contracts.py` (`AlarmEvent` ~line 82, `LiveAlarmPayload` ~line 117)
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/board.py` (`payload` ~line 56; add `merged_meta`)
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/routes.py` (~line 16)
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/data.py` (`get_board`)
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/providers/mock.py` (`get_board` ~line 242)
-- Modify: `back_dev_home/ebeam/hitachi/live_alarm/providers/office_example.py` (`_build_board` ~line 85, `get_board` ~line 131)
-- Test: `back_dev_home/ebeam/hitachi/live_alarm/tests/test_board.py`, `tests/test_mock.py`, `tests/test_contract.py`, `tests/test_office_reader.py`
+- Modify: `backend/ebeam/hitachi/live_alarm/contracts.py` (`AlarmEvent` ~line 82, `LiveAlarmPayload` ~line 117)
+- Modify: `backend/ebeam/hitachi/live_alarm/board.py` (`payload` ~line 56; add `merged_meta`)
+- Modify: `backend/ebeam/hitachi/live_alarm/routes.py` (~line 16)
+- Modify: `backend/ebeam/hitachi/live_alarm/data.py` (`get_board`)
+- Modify: `backend/ebeam/hitachi/live_alarm/providers/mock.py` (`get_board` ~line 242)
+- Modify: `backend/ebeam/hitachi/live_alarm/providers/office_example.py` (`_build_board` ~line 85, `get_board` ~line 131)
+- Test: `backend/ebeam/hitachi/live_alarm/tests/test_board.py`, `tests/test_mock.py`, `tests/test_contract.py`, `tests/test_office_reader.py`
 
 **Interfaces:**
 - Consumes: `roster.RosterIndex.fac_id_for(fab, tool_type)`, `roster.norm(fab)`, `refresh.ensure_fresh(client, fac_id, now, fetch)`, `refresh.keys(fac_id)`, `board.parse_members` (requires only `id`+`occurred_epoch`, so stamping an extra key at read time is safe), `board.dedupe_by_id`, `feed_status_for` (unchanged).
@@ -678,7 +678,7 @@ def test_mock_board_all_unconfigured_is_not_configured():
     assert payload["not_configured_fabs"] == ["NOPE1", "NOPE2"]
 ```
 
-- [ ] **Step 2: Run to verify failure** — `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm -q`
+- [ ] **Step 2: Run to verify failure** — `.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm -q`
 
 - [ ] **Step 3: Implement**
 
@@ -914,12 +914,12 @@ def get_board(tool_type: ToolType, fab_names: Sequence[str]) -> LiveAlarmPayload
 
 Update every existing test that calls `get_board(tool, "R3")` to `get_board(tool, ("R3",))` and payload assertions from `fab_name` to `fab_names`/`not_configured_fabs` (in `test_mock.py`, `test_contract.py`, `test_office_reader.py`).
 
-- [ ] **Step 4: Run** — `.venv/bin/python -m pytest back_dev_home/ebeam/hitachi/live_alarm -q` → PASS.
+- [ ] **Step 4: Run** — `.venv/bin/python -m pytest backend/ebeam/hitachi/live_alarm -q` → PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/live_alarm
+git add backend/ebeam/hitachi/live_alarm
 git commit -m "feat(live-alarm): board merges N fac feeds, stamps event fab, reports partial config"
 ```
 
@@ -928,9 +928,9 @@ git commit -m "feat(live-alarm): board merges N fac feeds, stamps event fab, rep
 ### Task 6: Frontend — catalog API types + match plumbing
 
 **Files:**
-- Modify: `front-dev-home/app/composables/useRecipeSearchApi.ts` (types lines 6–20, `fetchRecipeList` lines 112–132)
-- Modify: `front-dev-home/app/utils/recipeSearchMatch.ts` (`RecipeSearchResult` line 107, `toRecipeSearchResults` line 112)
-- Test: `front-dev-home/app/utils/recipeSearchMatch.test.ts`
+- Modify: `frontend/app/composables/useRecipeSearchApi.ts` (types lines 6–20, `fetchRecipeList` lines 112–132)
+- Modify: `frontend/app/utils/recipeSearchMatch.ts` (`RecipeSearchResult` line 107, `toRecipeSearchResults` line 112)
+- Test: `frontend/app/utils/recipeSearchMatch.test.ts`
 
 **Interfaces:**
 - Consumes: `canonicalFabList(fabs)` from `~/utils/fab` (Phase 1).
@@ -964,7 +964,7 @@ test('toRecipeSearchResults blank fab is allowed (opensearch fallback)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify failure** — `cd front-dev-home && npm test`
+- [ ] **Step 2: Run to verify failure** — `cd frontend && npm test`
 
 - [ ] **Step 3: Implement**
 
@@ -1053,11 +1053,11 @@ git commit -m "feat(recipe-search): fab-tagged row types in catalog API and matc
 ### Task 7: Frontend — selection/recent v2 + compare API
 
 **Files:**
-- Modify: `front-dev-home/app/utils/recipeSelection.ts` (whole-file interface change)
-- Modify: `front-dev-home/app/composables/useRecipeSelectionSet.ts`
-- Modify: `front-dev-home/app/composables/useRecipeRecentSearches.ts`
-- Modify: `front-dev-home/app/composables/useRecipeCompareApi.ts`
-- Test: `front-dev-home/app/utils/recipeSelection.test.ts`
+- Modify: `frontend/app/utils/recipeSelection.ts` (whole-file interface change)
+- Modify: `frontend/app/composables/useRecipeSelectionSet.ts`
+- Modify: `frontend/app/composables/useRecipeRecentSearches.ts`
+- Modify: `frontend/app/composables/useRecipeCompareApi.ts`
+- Test: `frontend/app/utils/recipeSelection.test.ts`
 
 **Interfaces:**
 - Produces:
@@ -1202,14 +1202,14 @@ git commit -m "feat(recipe-search): (name, fab) selection identity, v2 storage k
 ### Task 8: Frontend — detail route builder, RowActions fab picker, ranking views
 
 **Files:**
-- Modify: `front-dev-home/app/utils/recipeView.ts` (`recipeDetailRoute` line 150, `buildRecipeDetailNavItems` line 181; add `readRecipeOwnerFabQuery`)
-- Modify: `front-dev-home/app/components/ebeam/RecipeRowActions.vue`
-- Modify: `front-dev-home/app/components/ebeam/RecipeDetailNav.vue` (prop rename `fab` → `fabSegment`, new `ownerFab`)
-- Modify: `front-dev-home/app/components/ebeam/RecipeTatView.vue` (primaryFab downgrade ~line 311, RowActions usage ~line 243)
-- Modify: `front-dev-home/app/components/ebeam/FailIssueView.vue` (same, ~lines 300/232/255)
-- Modify: `front-dev-home/app/composables/useRecipeTatApi.ts` + `useFailIssueApi.ts` (ranking row interfaces gain `fab_names: string[]`)
-- Modify: `front-dev-home/app/components/ebeam/skewvoir/workspace/LeftRail.vue` (line 270 — pass ownerFab explicitly)
-- Test: `front-dev-home/app/utils/recipeView.test.ts`, `front-dev-home/app/utils/recipeDetailNavigation.test.ts`
+- Modify: `frontend/app/utils/recipeView.ts` (`recipeDetailRoute` line 150, `buildRecipeDetailNavItems` line 181; add `readRecipeOwnerFabQuery`)
+- Modify: `frontend/app/components/ebeam/RecipeRowActions.vue`
+- Modify: `frontend/app/components/ebeam/RecipeDetailNav.vue` (prop rename `fab` → `fabSegment`, new `ownerFab`)
+- Modify: `frontend/app/components/ebeam/RecipeTatView.vue` (primaryFab downgrade ~line 311, RowActions usage ~line 243)
+- Modify: `frontend/app/components/ebeam/FailIssueView.vue` (same, ~lines 300/232/255)
+- Modify: `frontend/app/composables/useRecipeTatApi.ts` + `useFailIssueApi.ts` (ranking row interfaces gain `fab_names: string[]`)
+- Modify: `frontend/app/components/ebeam/skewvoir/workspace/LeftRail.vue` (line 270 — pass ownerFab explicitly)
+- Test: `frontend/app/utils/recipeView.test.ts`, `frontend/app/utils/recipeDetailNavigation.test.ts`
 
 **Interfaces:**
 - Consumes: `buildFabSegment(fabs)` from `~/utils/fab`; Task 3/4's `fab_names` on ranking rows.
@@ -1373,9 +1373,9 @@ git commit -m "feat(recipe-search): owner-fab detail routing + per-fab picker in
 ### Task 9: Frontend — RecipeSearchView multi-fab + index pages
 
 **Files:**
-- Modify: `front-dev-home/app/components/ebeam/RecipeSearchView.vue`
-- Modify: `front-dev-home/app/pages/ebeam/cd-sem/[fab]/recipe-search/index.vue`
-- Modify: `front-dev-home/app/pages/ebeam/hv-sem/[fab]/recipe-search/index.vue`
+- Modify: `frontend/app/components/ebeam/RecipeSearchView.vue`
+- Modify: `frontend/app/pages/ebeam/cd-sem/[fab]/recipe-search/index.vue`
+- Modify: `frontend/app/pages/ebeam/hv-sem/[fab]/recipe-search/index.vue`
 
 **Interfaces:**
 - Consumes: Tasks 6–8 (`fetchRecipeList({toolType, fabNames})`, `toRecipeSearchResults(rows, source)`, `useRecipeSelectionSet(toolType)`, `useRecipeRecentSearches(toolType)`, `recipeDetailRoute(..., ownerFab)`, `buildFabSegment`).
@@ -1455,7 +1455,7 @@ const { fabs } = useFabRoute('cd-sem')
 
 (NavFabScopeNotice and the wrapper div are gone; the boundary is the single root.)
 
-- [ ] **Step 3: Verify** — `npm test && npm run typecheck && npm run lint` from `front-dev-home/`. Typecheck is the gate here: it must be clean for every file touched in Tasks 6–9.
+- [ ] **Step 3: Verify** — `npm test && npm run typecheck && npm run lint` from `frontend/`. Typecheck is the gate here: it must be clean for every file touched in Tasks 6–9.
 
 - [ ] **Step 4: Commit**
 
@@ -1469,9 +1469,9 @@ git commit -m "feat(recipe-search): multi-fab catalog with per-row fab badges"
 ### Task 10: Frontend — compare/detail views, detail pages, RecipeSwitcher
 
 **Files:**
-- Modify: `front-dev-home/app/components/ebeam/RecipeCompareView.vue`
-- Modify: `front-dev-home/app/components/ebeam/RecipeOpenView.vue`, `RecipeLateralView.vue`, `RecipeMeasHistView.vue` (backRoute + RecipeDetailNav usage only)
-- Modify: `front-dev-home/app/components/ebeam/RecipeSwitcher.vue`
+- Modify: `frontend/app/components/ebeam/RecipeCompareView.vue`
+- Modify: `frontend/app/components/ebeam/RecipeOpenView.vue`, `RecipeLateralView.vue`, `RecipeMeasHistView.vue` (backRoute + RecipeDetailNav usage only)
+- Modify: `frontend/app/components/ebeam/RecipeSwitcher.vue`
 - Modify: 8 pages — `pages/ebeam/{cd-sem,hv-sem}/[fab]/recipe-search/{compare,open,lateral,meas-hist}.vue`
 
 **Interfaces:**
@@ -1576,12 +1576,12 @@ git commit -m "feat(recipe-search): owner-fab detail screens, cross-fab compare 
 ### Task 11: Frontend — live-alarm multi-fab
 
 **Files:**
-- Modify: `front-dev-home/app/utils/liveAlarm.ts` (`LiveAlarmEvent` line 9, `LiveAlarmPayload` line 36)
-- Modify: `front-dev-home/app/composables/useLiveAlarmFeed.ts`
-- Modify: `front-dev-home/app/components/ebeam/LiveAlarmView.vue`
-- Modify: `front-dev-home/app/components/live-alarm/AlarmRow.vue`, `front-dev-home/app/components/live-alarm/MeasGroup.vue`
-- Modify: `front-dev-home/app/pages/ebeam/cd-sem/[fab]/live-alarm.vue`, `.../hv-sem/[fab]/live-alarm.vue`
-- Test: `front-dev-home/app/composables/useLiveAlarmFeed.test.ts`, `front-dev-home/app/utils/liveAlarm.test.ts`
+- Modify: `frontend/app/utils/liveAlarm.ts` (`LiveAlarmEvent` line 9, `LiveAlarmPayload` line 36)
+- Modify: `frontend/app/composables/useLiveAlarmFeed.ts`
+- Modify: `frontend/app/components/ebeam/LiveAlarmView.vue`
+- Modify: `frontend/app/components/live-alarm/AlarmRow.vue`, `frontend/app/components/live-alarm/MeasGroup.vue`
+- Modify: `frontend/app/pages/ebeam/cd-sem/[fab]/live-alarm.vue`, `.../hv-sem/[fab]/live-alarm.vue`
+- Test: `frontend/app/composables/useLiveAlarmFeed.test.ts`, `frontend/app/utils/liveAlarm.test.ts`
 
 **Interfaces:**
 - Consumes: Task 5's payload (`fab_names`, `not_configured_fabs`, `events[].fab_name`); `buildFabSegment`.
@@ -1695,7 +1695,7 @@ git commit -m "feat(live-alarm): merged multi-fab board with per-row fab badges"
 ### Task 12: Docs, conveyance notes, full suites
 
 **Files:**
-- Modify: `back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md`, `back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md`, `back_dev_home/ebeam/hitachi/recipe_tat/MIGRATION.md`, `back_dev_home/ebeam/hitachi/fail_issue/MIGRATION.md`
+- Modify: `backend/ebeam/hitachi/recipe_search/MIGRATION.md`, `backend/ebeam/hitachi/live_alarm/MIGRATION.md`, `backend/ebeam/hitachi/recipe_tat/MIGRATION.md`, `backend/ebeam/hitachi/fail_issue/MIGRATION.md`
 - Modify: `docs/superpowers/specs/2026-08-07-multi-fab-phase-b-design.md` (section 10)
 
 **Interfaces:** none — documentation of Tasks 1–5's signatures.
@@ -1712,7 +1712,7 @@ git commit -m "feat(live-alarm): merged multi-fab board with per-row fab badges"
 ```bash
 npm run lint:md
 .venv/bin/python -m pytest -q
-cd front-dev-home && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
 Expected: all clean (~2740+ backend, ~1220+ frontend).
@@ -1720,7 +1720,7 @@ Expected: all clean (~2740+ backend, ~1220+ frontend).
 - [ ] **Step 3: Commit**
 
 ```bash
-git add back_dev_home/ebeam/hitachi/recipe_search/MIGRATION.md back_dev_home/ebeam/hitachi/live_alarm/MIGRATION.md back_dev_home/ebeam/hitachi/recipe_tat/MIGRATION.md back_dev_home/ebeam/hitachi/fail_issue/MIGRATION.md docs/superpowers/specs/2026-08-07-multi-fab-phase-b-design.md
+git add backend/ebeam/hitachi/recipe_search/MIGRATION.md backend/ebeam/hitachi/live_alarm/MIGRATION.md backend/ebeam/hitachi/recipe_tat/MIGRATION.md backend/ebeam/hitachi/fail_issue/MIGRATION.md docs/superpowers/specs/2026-08-07-multi-fab-phase-b-design.md
 git commit -m "docs(multi-fab): Phase B MIGRATION notes — four office.py copies need re-cp"
 ```
 
