@@ -44,19 +44,6 @@ export const useMsrImageApi = () => {
     return { blobUrl: URL.createObjectURL(blob), cond: condOf(res) }
   }
 
-  // The cond.txt sidecar alone. Usually the URL the <img> loaded, so the
-  // browser's HTTP cache (max-age=3600) answers; after an auto-retry the <img>
-  // cached a `?retry=N` variant instead (utils/imageRetry.ts), and this GET
-  // reaches Flask — still a server cache hit, since the sidecar was stored
-  // beside the image. The tool is never revisited either way, and the body is
-  // cancelled once the header is in.
-  const fetchCond = async (url: string) => {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`cond: ${res.status}`)
-    void res.body?.cancel()
-    return condOf(res)
-  }
-
   // `timeoutMs` is the caller's REMAINING budget, not a constant of this
   // module: the warmer holds images back for WARM_CEILING_MS, and a request
   // that never answers must not outlive that (utils/imageWarm.ts).
@@ -86,5 +73,5 @@ export const useMsrImageApi = () => {
       budgeted(timeoutMs)
     )
 
-  return { imageUrl, fetchImageWithCond, fetchCond, startDownloadAll, pollJob }
+  return { imageUrl, fetchImageWithCond, startDownloadAll, pollJob }
 }

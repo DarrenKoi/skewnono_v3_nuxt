@@ -88,7 +88,7 @@
       />
       <!-- 전체 mode: every sub-image of the point at once, labeled by its
            variant. Same preview URLs the single mode uses, so switching modes
-           costs no extra fetch. A thumb click enlarges in the lightbox. -->
+           costs no extra fetch. A thumb click opens the viewer on that one. -->
       <div
         v-else-if="showAllGrid"
         class="grid min-h-0 flex-1 auto-rows-fr content-start gap-2 overflow-auto"
@@ -103,7 +103,7 @@
             type="button"
             class="block h-full w-full cursor-zoom-in"
             :aria-label="`이미지 ${imageLabels[i]} 확대해서 보기`"
-            @click="zoomSrc = displayImageUrl(name)"
+            @click="openViewer(i)"
           >
             <img
               :src="displayImageUrl(name)!"
@@ -162,7 +162,7 @@
             type="button"
             class="rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface)/90 p-1.5 text-(--sk-ink-muted) shadow-sm backdrop-blur-sm transition-colors duration-200 hover:text-(--sk-ink)"
             aria-label="전체 화면"
-            @click="zoomSrc = displayImageUrl(measuredName)"
+            @click="openViewer(variantIndex)"
           >
             <UIcon
               name="i-lucide-maximize-2"
@@ -208,7 +208,28 @@
       </div>
     </EbeamSkewvoirPanelFrame>
 
-    <EbeamSkewvoirImageLightbox v-model="zoomSrc" />
+    <!-- Enlarging opens the gallery's viewer, not a bare lightbox: the same
+         rail (metadata, 취득 조건, wafer 위치 이동, 측정 근거 레이어) and ← →
+         across this parameter's sites. -->
+    <EbeamSkewvoirGalleryImageViewer
+      :open="viewerOpen"
+      :entries="entries"
+      :index="viewerIndex"
+      :geo="analysis.waferGeo.value"
+      :eqp_ip="focusCtx.eqp_ip"
+      :class_name="focusCtx.class_name"
+      :msr="focusCtx.msr"
+      :variant-key="variantKey"
+      :keyboard="!drawerOpen"
+      @update:index="viewerIndex = $event"
+      @close="viewerOpen = false"
+      @move-to-site="onMoveToSite"
+      @evidence="onEvidence"
+    />
+    <EbeamSkewvoirGalleryImageEvidenceDrawer
+      v-model:open="drawerOpen"
+      :entry="drawerEntry"
+    />
   </div>
 </template>
 
@@ -218,14 +239,13 @@ import type { WarmState } from '~/composables/useMsrImageWarmer'
 import { imageVariantLabels, isTiffName } from '~/utils/imageKind'
 import { warmProgressLabel } from '~/utils/imageWarm'
 import { measuredRows, rowImageNames } from '~/utils/msrRows'
+import { buildReviewQueue, type ReviewEntry } from '~/utils/skewvoirAnalysis/gallery'
 
 // `warm` is optional so the panel still renders standalone; without it the
 // image is requested straight away, which is the pre-gate behaviour.
 const props = defineProps<{ analysis: SkewvoirAnalysis, warm?: WarmState }>()
 
 const { imageUrl } = useMsrImageApi()
-
-const zoomSrc = ref<string | null>(null)
 
 // The SEM micrograph belongs to the FOCUS MSR — same context as the gallery.
 const focusCtx = useFocusImageCtx(props.analysis)
@@ -292,6 +312,44 @@ const variantKey = useSkewvoirVariantKey(props.analysis)
 const variantIndex = useSkewvoirVariantIndex(imageNames, variantKey)
 
 const measuredName = computed(() => imageNames.value[variantIndex.value] ?? imageNames.value[0] ?? null)
+
+// ── Enlarged viewer (the gallery's) ─────────────────────────────────────────
+// The review queue the gallery builds for this parameter, so the viewer opens
+// on THIS point and ← → steps its sibling sites. Same handlers as views/Gallery.
+const entries = computed<ReviewEntry[]>(() =>
+  buildReviewQueue(
+    props.analysis.siteRows.value,
+    props.analysis.activeParam.value,
+    props.analysis.waferGeo.value,
+    { unit: props.analysis.activeUnit.value }
+  ).entries)
+const viewerOpen = ref(false)
+const viewerIndex = ref(0)
+const drawerOpen = ref(false)
+const drawerEntry = ref<ReviewEntry | null>(null)
+
+// `variant` is which sub-image was clicked; the viewer reads the same
+// remembered pick, so setting it here is what makes the viewer open on it.
+const openViewer = (variant: number) => {
+  const row = measuredRow.value
+  const idx = row ? entries.value.findIndex(e => e.sequence === row.sequence) : -1
+  if (idx < 0) return
+  variantIndex.value = variant
+  viewerIndex.value = idx
+  viewerOpen.value = true
+}
+
+const onMoveToSite = (chip: string) => {
+  const entry = entries.value.find(e => e.chip === chip)
+  if (entry) props.analysis.setFocusedSequence(entry.sequence)
+  viewerOpen.value = false
+  props.analysis.openSiteInView(chip, 'position-stack')
+}
+
+const onEvidence = (entry: ReviewEntry) => {
+  drawerEntry.value = entry
+  drawerOpen.value = true
+}
 
 // A failed load is per-image: switching to another image retries cleanly.
 const loadFailed = ref(false)
