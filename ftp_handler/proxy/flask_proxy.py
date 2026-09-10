@@ -54,6 +54,7 @@ Standalone run (without an existing app):
 """
 
 import base64
+import hmac
 import os
 from pathlib import Path
 
@@ -133,7 +134,9 @@ def _unauthorized():
     ``None``. Token is read per request so it can be configured independently of
     when the host app (and this blueprint) were imported."""
     token = os.getenv("FTP_PROXY_TOKEN")
-    if token is not None and request.headers.get("Authorization", "") != f"Bearer {token}":
+    if token is not None and not hmac.compare_digest(
+        request.headers.get("Authorization", ""), f"Bearer {token}"
+    ):
         return jsonify({"error": "unauthorized"}), 401
     return None
 

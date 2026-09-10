@@ -285,6 +285,12 @@ class ListingReport:
         ]
 
 
+# ftplib also raises ValueError -- int() on a malformed SIZE reply, a filename
+# the control connection can't decode, CRLF in a command -- and all_errors
+# doesn't list it. Catch it wherever the per-file/per-host isolation matters.
+_FTP_ERRORS = (*all_errors, ValueError)
+
+
 def _binary_mode(ftp: FTP) -> None:
     """Switch the session to TYPE I for SIZE, best effort.
 
@@ -294,7 +300,7 @@ def _binary_mode(ftp: FTP) -> None:
     """
     try:
         ftp.voidcmd("TYPE I")
-    except all_errors:
+    except _FTP_ERRORS:
         pass
 
 
@@ -633,7 +639,11 @@ class FtpFleetDownloader:
         The fallback is what keeps every existing single-account call site
         working untouched.
         """
-        with FTP(timeout=self.connect_timeout) as ftp:
+        # Not ``with FTP(...)``: its __exit__ sends QUIT and lets an error reply
+        # to it propagate, turning a host that served every file into a
+        # failure. close() never raises -- same choice as core/client.py.
+        ftp = FTP(timeout=self.connect_timeout)
+        try:
             ftp.connect(host=spec.host, port=self.port, timeout=self.connect_timeout)
             ftp.login(
                 user=spec.user or self.user,
@@ -641,6 +651,8 @@ class FtpFleetDownloader:
             )
             ftp.set_pasv(self.passive)
             yield ftp
+        finally:
+            ftp.close()
 
     def _run_fleet(
         self,
@@ -759,7 +771,7 @@ class FtpFleetDownloader:
                     if getattr(on_file, "closed", False):
                         break
                     self._fetch_one(ftp, spec.host, remote_path, on_file, files, failures)
-        except all_errors as exc:
+        except _FTP_ERRORS as exc:
             # connect / login / quit failed — no file got a chance.
             failures.append(
                 HostFailure(host=spec.host, error=f"{type(exc).__name__}: {exc}")
@@ -781,7 +793,7 @@ class FtpFleetDownloader:
                 for listing in spec.listings:
                     try:
                         names = ftp.nlst(listing.remote_dir)
-                    except all_errors as exc:
+                    except _FTP_ERRORS as exc:
                         failures.append(
                             HostFailure(
                                 host=spec.host,
@@ -793,7 +805,7 @@ class FtpFleetDownloader:
                     paths.extend(
                         _normalize_listing(names, listing.remote_dir, listing.pattern)
                     )
-        except all_errors as exc:
+        except _FTP_ERRORS as exc:
             # connect / login failed — host discovered nothing.
             failures.append(
                 HostFailure(host=spec.host, error=f"{type(exc).__name__}: {exc}")
@@ -825,7 +837,7 @@ class FtpFleetDownloader:
                 for remote_path in paths:
                     try:
                         size = ftp.size(remote_path)
-                    except all_errors as exc:
+                    except _FTP_ERRORS as exc:
                         failures.append(
                             HostFailure(
                                 host=spec.host,
@@ -852,7 +864,7 @@ class FtpFleetDownloader:
                             modified=_mdtm(ftp, remote_path),
                         )
                     )
-        except all_errors as exc:
+        except _FTP_ERRORS as exc:
             # connect / login failed — host measured nothing.
             failures.append(
                 HostFailure(host=spec.host, error=f"{type(exc).__name__}: {exc}")
@@ -874,7 +886,7 @@ class FtpFleetDownloader:
                 for item in spec.files:
                     try:
                         ftp.storbinary(f"STOR {item.remote_path}", BytesIO(item.data))
-                    except all_errors as exc:
+                    except _FTP_ERRORS as exc:
                         failures.append(
                             HostFailure(
                                 host=spec.host,
@@ -886,7 +898,7 @@ class FtpFleetDownloader:
                         results.append(
                             UploadResult(host=spec.host, remote_path=item.remote_path)
                         )
-        except all_errors as exc:
+        except _FTP_ERRORS as exc:
             # connect / login failed — no file got a chance.
             failures.append(
                 HostFailure(host=spec.host, error=f"{type(exc).__name__}: {exc}")
@@ -905,7 +917,7 @@ class FtpFleetDownloader:
         for listing in spec.listings:
             try:
                 names = ftp.nlst(listing.remote_dir)
-            except all_errors as exc:
+            except _FTP_ERRORS as exc:
                 failures.append(
                     HostFailure(
                         host=spec.host,
@@ -1176,7 +1188,7 @@ def local_target(
         rel = _strip_components(rel, strip_components)
     if keep_last is not None:
         rel = _keep_last_components(rel, keep_last)
-    return Path(dest_dir) / _ILLEGAL_COMPONENT.sub("_", host) / rel
+    return Path(dest_dir) / _safe_relative(host) / rel
 
 
 def save_to_dir(

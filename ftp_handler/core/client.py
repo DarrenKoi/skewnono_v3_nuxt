@@ -212,7 +212,7 @@ class FtpClient:
         files: list[str] = []
         for name, facts in self._ftp.mlsd(remote_dir):
             full = f"{remote_dir.rstrip('/')}/{name}"
-            entry_type = facts.get("type")
+            entry_type = facts.get("type", "").lower()  # RFC 3659: case-insensitive
             if entry_type == "dir":
                 dirs.append(full)
             elif entry_type == "file":

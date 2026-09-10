@@ -449,11 +449,8 @@ class FakeFTP:
     def __init__(self, timeout=None):
         self.timeout = timeout
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
+    def close(self):  # _session closes, it never QUITs
+        pass
 
     def connect(self, host=None, port=None, timeout=None):
         if host == "dead":
