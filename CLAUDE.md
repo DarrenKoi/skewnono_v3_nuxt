@@ -26,14 +26,6 @@ Web application for metrology, specified for tool management and data analytics.
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Frontend framework | Nuxt 4 + NuxtUI |
-| State management | Nuxt `useState` composables + `usePersistedState` factory (no Pinia) |
-| Data fetching | Nuxt `useAsyncData` + `$fetch` |
-| Backend | Flask with Blueprints (auth, data, search, etc.) |
-| Frontend serving (prod) | Flask serves built frontend files |
-
 **Data fetching note:** Use `useAsyncData(key, fn)` for cached, deduplicated reads. Share one cache key per resource (e.g. `'sem-list'`) so multiple components reuse the same fetch — see `composables/useSemListApi.ts`'s `useSemList()` for the pattern. TanStack Query (Vue Query) is **not** used; introduce it only if you need TTL (`staleTime`), background refetch on focus, polling, or key-prefix invalidation — none of which apply to the current mock-data flows.
 
 **State management note:** Pinia is **not** used — prefer Nuxt built-ins. Client state shared across pages lives in `useState`-backed composables; anything that must survive a full reload goes through `composables/usePersistedState.ts` (one `useState` ref + a detached-scope `flush: 'sync'` watcher persisting to localStorage — sync so an acknowledged click is durable even if the tab closes immediately). Do not hand-roll new localStorage read/write/watch plumbing in a composable; call `usePersistedState` instead. Revisit Pinia only if a real need appears (e.g. devtools time-travel debugging or cross-store orchestration that composables can't express cleanly).
@@ -105,14 +97,10 @@ assumption).
   `_scheduler/`, `_spa/`) are shared plumbing, **not** features — the app
   factory skips them.
 - Each feature folder contains `routes.py` (blueprint), `contracts.py` (shared return type), `data.py` (dispatcher), and `providers/{mock,office}.py` (adapters). Optional `__init__.py` re-exports `bp`. See `<feature>/MIGRATION.md` for what each office adapter needs. A feature whose home and office behaviour are the same code keeps `routes.py` and skips the rest — `chat`'s thread store is plain `chat/store.py`, so `chat` has no `providers/` and never appears in the provider table. Don't add a seam back until a second adapter actually exists.
-- `back_dev_home/health/` owns the backend service health API. Add shared backend helpers only when a concrete feature needs them.
 - `back_dev_home/__init__.py` is the app factory. Blueprints are **auto-discovered**: it rglobs for `routes.py`, skips any `_`-prefixed path, and registers each module's `bp` under `/api` — raising if a `routes.py` does not export a `Blueprint` named `bp`. Adding a feature means adding the folder; never edit the factory to register it.
 - Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `providers/office.py`. Office adapters must normalize results to the `contracts.py` type — "resemble the mock" means match the contract shape, not the mock's data.
 
 ### Repository Layout
-- `front-dev-home/` — Nuxt 4 SPA (same code runs in all phases; `ssr: false`). Under `app/`: `pages/` (file-based routes), `components/`, `composables/`, `stores/` (`useState`-backed, not Pinia), `utils/`, `data/`, `assets/css/`.
-- `back_dev_home/` — Flask mock backend for Phase 1; mirrors office Flask structure
-- WSGI entry is root `index.py` (exposes `app` and `application`), which imports `create_app` from `back_dev_home`
 - **`DESIGN.md` is the single source of truth for the frontend's visual language** — read it before any UI change. Colors come from `--sk-*` tokens only, never inline hex; where the code and `DESIGN.md` disagree, the code is what gets corrected.
 
 ## Commands
@@ -150,8 +138,8 @@ From the repo root: `npm run lint:md` after any Markdown edit.
 
 There is **no automated E2E suite** — no Playwright config, no spec files, and
 no component tests (no mounting harness). Browser verification means driving a
-browser by hand — Claude-in-Chrome or Playwright MCP, see "Browser
-verification" below.
+browser by hand — Claude-in-Chrome or Playwright MCP; load the
+`browser-verify` skill first.
 
 ### Runtime gotchas
 - `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `back_dev_home/__init__.py`.
@@ -182,10 +170,6 @@ verification" below.
   This is the one sanctioned exception to "work directly on `main`" — the branch exists only to carry the worktree and is deleted on merge, so it is not a feature branch. Single-file edits stay in the main tree; the worktree setup is not worth it there.
 - **Always tear the worktree down once the work is on `main`.** Merging and pushing is not the end of the task: run `git worktree remove` and `git branch -d` in the same session, immediately after the push succeeds. A task is only done when `git worktree list` shows the main tree alone. Leftover worktrees accumulate stale checkouts, hold onto merged branches, and mislead the next session about what work is still open.
 
-- Git-based workflow with separated workspaces per phase (home vs. office cannot sync directly)
-- Flask backend is only accessible on company network
-- Production secured within private cloud (no public internet exposure)
-
 ### Deployment (Phase 3)
 
 Pack at the office with `python scripts/deploy/pack.py` (after building the
@@ -194,37 +178,6 @@ frontend), then overlay the bundle contents onto the existing
 its permanent `index.py` and `wsgi.ini` are intentionally outside the bundle.
 The path remains exact because `is_cloud()` is a filesystem check, not a config
 flag. Full steps, including the bundle's `preflight.py`: `docs/deployment.md`.
-
-## Browser verification
-
-Two tools, both fine — pick by situation:
-
-| Situation | Tool |
-| --- | --- |
-| Reviewing a feature the way I will see it; my real session, cookies, extensions | Claude-in-Chrome (`mcp__claude-in-chrome__*`) |
-| Scripted or repeatable driving, precise cookie/identity control, a clean profile | Playwright MCP |
-
-Default to the Chrome extension for "does this look and behave right?"; reach
-for Playwright when the check needs a controlled browser rather than mine — e.g.
-setting `LASTUSER` per-identity with `addCookies`, or replaying a sequence.
-If the extension reports "Browser extension is not connected", switching to
-Playwright is a fine answer — just say which one is being used.
-
-- **Chrome extension:** load the tools in **one** `ToolSearch` call
-  (`select:…tabs_context_mcp,…navigate,…computer,…read_page,…tabs_create_mcp,…tabs_close_mcp`,
-  plus `…read_console_messages` / `…read_network_requests` when debugging), call
-  `tabs_context_mcp` first, and close tabs you opened. Console and network
-  readers are **not retroactive** — call them before triggering the action.
-  Batch click/type/screenshot sequences through `browser_batch`.
-  Screenshots return via `computer`'s `save_to_disk`, which names the file itself.
-- **Playwright MCP:** pass a relative `filename` under
-  `.playwright-mcp/screenshots/` to `browser_take_screenshot` — the server
-  resolves relative paths from the project cwd, so omitting it dumps PNGs at
-  the repo root. That folder is in `.gitignore`.
-- App URL is `http://localhost:3000` (Nuxt takes the next free port when 3000
-  is busy — read the dev-server log rather than assuming). Identity is the
-  `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix =
-  blocked.
 
 ## Markdown Notes
 
@@ -242,14 +195,6 @@ Playwright is a fine answer — just say which one is being used.
 - Use formal Korean sentence endings such as `~입니다.` and `~합니다.` consistently in those documents.
 
 ## Agent skills
-
-### Project skills (`.claude/skills/`)
-
-| Skill | Use for |
-| --- | --- |
-| `home-to-office` | Audit features against the mock→office provider convention before conveying work |
-| `generate-mock` | Scaffold a mock data composable for a new endpoint |
-| `add-vendor` | Wire a new e-beam tool family (VeritySEM, Provision, …) into a feature — rules in `docs/back-end/vendor-onboarding.md` |
 
 ### Global skills that read this repo: the `oc-*` family
 
