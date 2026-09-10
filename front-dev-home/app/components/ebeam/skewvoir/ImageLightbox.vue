@@ -43,12 +43,12 @@
 
         <aside
           v-if="showCond"
-          class="max-h-full w-72 shrink-0 self-start overflow-auto"
+          class="max-h-full w-72 shrink-0 self-start overflow-auto rounded-xl bg-(--sk-surface)"
           aria-label="취득 조건"
         >
           <p
             v-if="cond === 'error'"
-            class="rounded-(--sk-r-chip) bg-(--sk-surface) px-3.5 py-3 text-xs text-(--sk-ink-muted)"
+            class="px-3.5 py-3 text-xs text-(--sk-ink-muted)"
           >
             취득 조건을 불러오지 못했습니다
           </p>
