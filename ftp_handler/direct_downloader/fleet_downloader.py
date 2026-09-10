@@ -285,6 +285,19 @@ class ListingReport:
         ]
 
 
+def _binary_mode(ftp: FTP) -> None:
+    """Switch the session to TYPE I for SIZE, best effort.
+
+    A server that rejects TYPE I is left in whatever mode it is in: each SIZE
+    then succeeds or fails on its own and is recorded per file, instead of one
+    refused TYPE I sinking every measurement on the host.
+    """
+    try:
+        ftp.voidcmd("TYPE I")
+    except all_errors:
+        pass
+
+
 def _mdtm(ftp: FTP, remote_path: str) -> "datetime | None":
     """One file's modification time via ``MDTM``, or ``None`` if unavailable.
 
@@ -803,10 +816,13 @@ class FtpFleetDownloader:
             with self._session(spec) as ftp:
                 # SIZE is only reliable in binary mode: RFC 3659 lets a server
                 # report a different (line-ending-adjusted) count for an
-                # ASCII-mode SIZE than the bytes a binary RETR transfers, so we
-                # switch to TYPE I first to size what download would actually pull.
-                ftp.voidcmd("TYPE I")
-                for remote_path in self._resolve_paths(ftp, spec, failures):
+                # ASCII-mode SIZE than the bytes a binary RETR transfers, and a
+                # strict server (pyftpdlib) refuses SIZE in ASCII mode outright.
+                # Resolve the listings FIRST: ftplib's nlst() sends TYPE A on
+                # its own, so a TYPE I issued before it is silently undone.
+                paths = self._resolve_paths(ftp, spec, failures)
+                _binary_mode(ftp)
+                for remote_path in paths:
                     try:
                         size = ftp.size(remote_path)
                     except all_errors as exc:

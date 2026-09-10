@@ -676,6 +676,55 @@ def test_a_tool_without_mdtm_still_yields_its_sizes(fleet):
     assert [f.modified for f in report.files if f.remote_path.endswith("nomtime")] == [None]
 
 
+class StrictFTP(FakeFTP):
+    """A pyftpdlib-style server: ``nlst()`` flips the session to ASCII, exactly
+    as ``ftplib``'s does, and SIZE is refused until ``TYPE I`` is sent again."""
+
+    refuse_type_i = False
+
+    def __init__(self, timeout=None):
+        super().__init__(timeout)
+        self.mode = "A"
+
+    def voidcmd(self, command):
+        if command == "TYPE I":
+            if self.refuse_type_i:
+                raise ftplib.error_perm("504 TYPE I not implemented")
+            self.mode = "I"
+            return "200 Type set to I"
+        return super().voidcmd(command)
+
+    def nlst(self, remote_dir):
+        self.mode = "A"
+        return super().nlst(remote_dir)
+
+    def size(self, remote_path):
+        if self.mode != "I":
+            raise ftplib.error_perm("550 SIZE not allowed in ASCII mode.")
+        return super().size(remote_path)
+
+
+def test_a_listing_does_not_undo_binary_mode_before_sizing(monkeypatch):
+    """``TYPE I`` must follow the listings: ``nlst`` sends ``TYPE A`` on its own,
+    and a strict server then refuses every SIZE, so a listing-driven sizing
+    pass measured nothing at all."""
+    monkeypatch.setattr(direct, "FTP", StrictFTP)
+    fleet = direct.FtpFleetDownloader(user="u", password="p", host_timeout=30.0)
+    report = fleet.size_dirs([direct.HostSpec("10.0.0.1", listings=[direct.ListDir("/MEAS")])])
+    assert [f.remote_path for f in report.files] == ["/MEAS/a.dat", "/MEAS/b.txt"]
+    assert report.ng == 0
+
+
+def test_a_refused_type_i_does_not_sink_the_host(monkeypatch):
+    """The refusal lands per file, in the same shape as any other SIZE failure."""
+    monkeypatch.setattr(direct, "FTP", type("Refusing", (StrictFTP,), {"refuse_type_i": True}))
+    fleet = direct.FtpFleetDownloader(user="u", password="p", host_timeout=30.0)
+    report = fleet.size_dirs([direct.HostSpec("10.0.0.1", listings=[direct.ListDir("/MEAS")])])
+    assert report.files == []
+    assert [f.remote_path for f in report.failures] == ["/MEAS/a.dat", "/MEAS/b.txt"]
+    assert all(f.error.startswith("error_perm:") for f in report.failures)
+
+
 def test_upload_isolates_a_rejected_stor_from_the_hosts_other_files(fleet):
     report = fleet.upload(
         [direct.UploadSpec("10.0.0.1", files=[
