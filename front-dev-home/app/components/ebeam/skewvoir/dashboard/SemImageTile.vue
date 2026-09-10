@@ -48,7 +48,7 @@
       @click="retry"
     >
       <UIcon
-        name="i-lucide-refresh-cw"
+        name="i-lucide-rotate-ccw"
         class="h-3 w-3"
       />
       재시도
@@ -60,13 +60,11 @@
 const props = defineProps<{ src: string, name: string, label: string }>()
 const emit = defineEmits<{ open: [] }>()
 
-const { src: displaySrc, onError, exhausted: failed, reset } = useAutoRetrySrc(() => props.src)
+const { src: displaySrc, onError, exhausted: failed, reset: retry } = useAutoRetrySrc(() => props.src)
 const loaded = ref(false)
-watch(() => props.src, () => {
+// Keyed on the retry-decorated src, as EvidenceCard does: every re-request is
+// a new src, and each one starts unpainted.
+watch(displaySrc, () => {
   loaded.value = false
 })
-const retry = () => {
-  loaded.value = false
-  reset()
-}
 </script>

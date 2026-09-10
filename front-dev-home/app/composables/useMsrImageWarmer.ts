@@ -1,6 +1,7 @@
 import type { ComputedRef } from 'vue'
 import type { FocusImageCtx } from '~/composables/useFocusImageCtx'
 import {
+  WARM_HOLD_MAX_MS,
   WARM_POLL_MS,
   type WarmStatus,
   nextWarmState,
@@ -22,6 +23,11 @@ export interface WarmState {
   status: WarmStatus
   done: number
   total: number
+  /** The server job this state tracks, once one was created. Kept across a
+   * 'gaveup' so a revisit resumes polling it instead of POSTing a twin. */
+  jobId?: string
+  /** A runWarm is currently polling this state. */
+  active?: boolean
 }
 
 // (ctx, scope-id) → the job's live state. Module-level on purpose, twice over:
@@ -38,7 +44,8 @@ const IDLE: WarmState = { status: 'idle', done: 0, total: 0 }
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
-/** POST the job, then poll it to completion, writing progress into `state`.
+/** POST the job (unless `state` already names one), then poll it, writing
+ * progress into `state`.
  *
  * A refused POST (the 2-job cap) is WAITED OUT rather than surfaced. Giving up
  * used to look harmless — the per-image cold GET still runs — but that path has
@@ -53,50 +60,55 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
  * ends the wait. One shared `try` used to collapse both into "give up", which
  * let a single rate-limited poll release the panel mid-job.
  *
- * Every request is capped at the REMAINING ceiling budget, so a call that
- * never answers cannot hold the panel past WARM_CEILING_MS. Aborting a POST
- * can leave a job the server already created running unattended — it still
- * fills the shared cache, and it only happens at the point we were about to
- * give up anyway. */
+ * Two clocks bound the wait. The STALL clock restarts on every progress report
+ * and is what every request timeout and retry ladder is sized against: a job
+ * that stops advancing for WARM_CEILING_MS is stuck or lost and is given up
+ * on. The HOLD clock runs from the start and caps how long the panel is kept
+ * blank at WARM_HOLD_MAX_MS, whatever the job is doing — a large HV-SEM
+ * parameter is not stuck, but a reviewer should not stare at a spinner for
+ * its whole run either. Past it the panel is released and per-image
+ * auto-retry covers whatever the job has not reached yet. A resumed run (see
+ * useMsrImageWarmer) never holds, so only the stall clock applies to it.
+ *
+ * Aborting a POST can leave a job the server already created running
+ * unattended — it still fills the shared cache, and it only happens at the
+ * point we were about to give up anyway. */
 const runWarm = async (
   state: WarmState,
   api: ReturnType<typeof useMsrImageApi>,
   ctx: FocusImageCtx,
   names: string[]
 ) => {
-  // "Elapsed" is measured from the last PROGRESS, not from the POST. The
-  // ceiling exists to catch a stuck or lost job; a large HV-SEM parameter
-  // (points x U/T/M/L, sometimes JPEG+TIF twins) is not stuck, it is just
-  // bigger than 15s of FTP, and giving up on it released every tile into a
-  // cold-GET storm against the very sessions the job was holding. A job whose
-  // `done` keeps advancing therefore keeps its budget; one that stalls still
-  // runs out of it at the same ceiling as before.
-  let progressAt = Date.now()
-  const elapsed = () => Date.now() - progressAt
+  const startedAt = Date.now()
+  let progressAt = startedAt
+  const sinceProgress = () => Date.now() - progressAt
+  const holding = state.status === 'warming'
   const giveUp = () => {
     state.status = 'gaveup'
   }
-
-  for (let postAttempt = 0; ; postAttempt++) {
-    let jobId: string
-    const postBudget = remainingBudgetMs(elapsed())
-    if (postBudget === 0) return giveUp()
-    try {
-      jobId = await api.startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr, names, postBudget)
-    } catch (err) {
-      // `postAttempt` counts POST refusals, and a refusal means no job was
-      // created — so the retry re-POSTs rather than resuming a poll. There is
-      // no job_id to resume.
-      const delay = warmRetryDelayMs(err, postAttempt, elapsed(), Math.random())
-      if (delay === null) return giveUp()
-      await sleep(delay)
-      continue
+  state.active = true
+  try {
+    let jobId = state.jobId
+    for (let postAttempt = 0; jobId === undefined; postAttempt++) {
+      const postBudget = remainingBudgetMs(sinceProgress())
+      if (postBudget === 0) return giveUp()
+      try {
+        jobId = await api.startDownloadAll(ctx.eqp_ip, ctx.class_name, ctx.msr, names, postBudget)
+      } catch (err) {
+        // A refusal means no job was created — so the retry re-POSTs rather
+        // than resuming a poll. There is no job_id to resume.
+        const delay = warmRetryDelayMs(err, postAttempt, sinceProgress(), Math.random())
+        if (delay === null) return giveUp()
+        await sleep(delay)
+      }
     }
+    // From here a job exists, and it is remembered on the state: a run that
+    // gives up leaves it there, so a later visit RESUMES this job instead of
+    // POSTing a second one for files it is still fetching. Never re-POST: the
+    // running one keeps its max_jobs slot, so a second job is a second visit
+    // to the tool.
+    state.jobId = jobId
 
-    // From here a job exists. Never re-POST: the running one keeps its
-    // max_jobs slot, so a second job is a second visit to the tool for files
-    // the first is already fetching.
-    //
     // A retry's backoff REPLACES the next poll interval rather than preceding
     // it. Sleeping both would make one retry cost delay + WARM_POLL_MS while
     // the ladder's ceiling check counted only `delay` — so the panel could
@@ -106,24 +118,32 @@ const runWarm = async (
     for (let pollFailures = 0; ;) {
       await sleep(wait)
       wait = WARM_POLL_MS // reset here, not in the for-update: `continue` runs that
-      const pollBudget = remainingBudgetMs(elapsed())
+      const pollBudget = remainingBudgetMs(sinceProgress())
       if (pollBudget === 0) return giveUp()
       let poll
       try {
         poll = await api.pollJob(jobId, pollBudget)
       } catch (err) {
-        const delay = pollRetryDelayMs(err, pollFailures++, elapsed(), Math.random())
+        const delay = pollRetryDelayMs(err, pollFailures++, sinceProgress(), Math.random())
         if (delay === null) return giveUp()
         wait = delay
         continue
       }
       pollFailures = 0 // consecutive, so a long job survives scattered hiccups
-      if (poll.done > state.done) progressAt = Date.now()
+      // `total` landing counts as progress too: it is the first thing a job
+      // reports, before any file has finished.
+      if (poll.done > state.done || poll.total !== state.total) progressAt = Date.now()
       state.done = poll.done
       state.total = poll.total
-      state.status = nextWarmState(poll, elapsed())
-      if (state.status !== 'warming') return
+      const next = nextWarmState(poll, sinceProgress())
+      if (next !== 'warming') {
+        state.status = next
+        return
+      }
+      if (holding && Date.now() - startedAt >= WARM_HOLD_MAX_MS) return giveUp()
     }
+  } finally {
+    state.active = false
   }
 }
 
@@ -146,9 +166,14 @@ const runWarm = async (
  * A refusal (429) is retried with backoff and the panel keeps holding, since
  * the tool being busy is exactly when a cold GET storm must not happen, and a
  * poll that fails while the job runs is retried for the same reason. No job
- * can hold a panel forever even so: WARM_CEILING_MS bounds the total wait —
- * retries and unanswered requests included — and anything past it resolves to
- * 'gaveup'.
+ * can hold a panel forever even so: WARM_CEILING_MS gives up on a job that
+ * stops making progress, and WARM_HOLD_MAX_MS releases the panel from a job
+ * that is merely long — see runWarm.
+ *
+ * A 'gaveup' is not final for the session. Coming back to that parameter
+ * resumes polling the same job in the background (or POSTs one if none was
+ * ever created) WITHOUT holding the panel again: the tiles that already
+ * painted stay put, and the state flips to 'ready' once the job is done.
  */
 export const useMsrImageWarmer = (
   ctx: ComputedRef<FocusImageCtx>,
@@ -174,10 +199,13 @@ export const useMsrImageWarmer = (
       const { eqp_ip, class_name, msr } = ctx.value
       const { names } = scope.value
       if (!eqp_ip || !class_name || !msr || !names.length) return
-      // Already warmed, or warming, this session. A 'gaveup' is NOT kept: it
-      // meant "stop holding the panel", not "this parameter can never be
-      // warmed" — pinning it made a refresh the only way to try again.
-      if (warmStore[k] && warmStore[k].status !== 'gaveup') return
+      const prev = warmStore[k]
+      if (prev) {
+        // Warmed, warming, or a given-up run that is idle: only the last one
+        // gets another go, and it resumes as 'gaveup' (no hold) — see above.
+        if (prev.status === 'gaveup' && !prev.active) void runWarm(prev, api, ctx.value, names)
+        return
+      }
       const state: WarmState = reactive({ status: 'warming', done: 0, total: 0 })
       warmStore[k] = state
       void runWarm(state, api, ctx.value, names)

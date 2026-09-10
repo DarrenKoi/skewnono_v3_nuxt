@@ -18,10 +18,20 @@ import { httpStatus } from './httpError.ts'
 /** How often the warm job is polled while it runs. */
 export const WARM_POLL_MS = 600
 
-/** Longest the SEM panel will hold an image back waiting for the warm job.
- * Past this the image is requested anyway and the auto-retry takes over — a
- * stuck or lost job must never hide the panel forever. */
+/** Longest the warmer waits WITHOUT PROGRESS before treating the job as stuck
+ * or lost and giving up. Measured from the last poll that advanced `done` (or
+ * landed `total`), not from the POST: a large HV-SEM parameter is slow, not
+ * stuck, and giving up on it mid-run released every tile into cold GETs
+ * against the FTP sessions the job was still holding. Every request timeout
+ * and retry ladder below is sized against this window. */
 export const WARM_CEILING_MS = 15_000
+
+/** Longest the SEM panel is kept blank waiting for a FIRST-VISIT warm job,
+ * however well it is progressing. Past this the images are requested anyway
+ * and per-image auto-retry covers what the job has not reached — a reviewer
+ * should not sit through a whole 500-file run to see one point. Sized for
+ * ~300 files at the office-measured 0.2 s/file (msr_image_ftp.txt). */
+export const WARM_HOLD_MAX_MS = 60_000
 
 /** 'warming' — hold the image; anything else — request it now. */
 export type WarmStatus = 'idle' | 'warming' | 'ready' | 'gaveup'
@@ -33,16 +43,18 @@ export interface WarmPoll {
 }
 
 /**
- * The state one poll implies. `elapsedMs` is measured from the POST, so a job
- * that outlives the ceiling releases the image instead of holding it.
+ * The state one poll implies. `sinceProgressMs` is the time since the job
+ * last advanced, so a job that stalls past the ceiling releases the image
+ * instead of holding it. (The absolute hold cap, WARM_HOLD_MAX_MS, is applied
+ * by the caller — it depends on whether the panel is being held at all.)
  *
  * 'gaveup' is not a failure the user needs to see: it only means "stop waiting
  * and go ask for the image", which is exactly the pre-gate behaviour.
  */
-export const nextWarmState = (poll: WarmPoll, elapsedMs: number): WarmStatus => {
+export const nextWarmState = (poll: WarmPoll, sinceProgressMs: number): WarmStatus => {
   if (poll.status === 'done') return 'ready'
   if (poll.status === 'error') return 'gaveup'
-  return elapsedMs >= WARM_CEILING_MS ? 'gaveup' : 'warming'
+  return sinceProgressMs >= WARM_CEILING_MS ? 'gaveup' : 'warming'
 }
 
 /** Panel copy while warming. `total` is 0 until the server-side listing lands,
@@ -57,15 +69,16 @@ export const warmProgressLabel = (done: number, total: number): string =>
  * the whole ladder fits inside WARM_CEILING_MS with polling time to spare. */
 export const WARM_RETRY_DELAYS_MS = [1000, 2000, 4000] as const
 
-/** What is left of the ceiling — and therefore the longest a warm request may
- * take. Handed to `$fetch` as its timeout, which is what makes WARM_CEILING_MS
- * an actual ceiling: before this it was only ever checked BETWEEN responses,
- * so a POST or poll that simply never answered held the panel indefinitely.
+/** What is left of the stall window — and therefore the longest a warm
+ * request may take. Handed to `$fetch` as its timeout, which is what makes
+ * WARM_CEILING_MS an actual ceiling: before this it was only ever checked
+ * BETWEEN responses, so a POST or poll that simply never answered held the
+ * panel indefinitely.
  *
  * Clamped at 0 rather than going negative — a negative timeout would reach
  * `$fetch` as one. Callers treat 0 as "budget spent, give up". */
-export const remainingBudgetMs = (elapsedMs: number): number =>
-  Math.max(0, WARM_CEILING_MS - elapsedMs)
+export const remainingBudgetMs = (sinceProgressMs: number): number =>
+  Math.max(0, WARM_CEILING_MS - sinceProgressMs)
 
 /** The `code` a rejected $fetch carries, whatever shape Nuxt hands us. */
 export const warmErrorCode = (err: unknown): string | undefined =>
@@ -93,7 +106,7 @@ export const jittered = (baseMs: number, rand: number): number =>
 /** The ladder rung for `attempt`, or `null` when there is none left or the
  * ceiling would swallow the wait. Shared by the POST and poll policies below;
  * they differ only in WHICH errors get here. */
-const ladderDelayMs = (attempt: number, elapsedMs: number, rand: number): number | null => {
+const ladderDelayMs = (attempt: number, sinceProgressMs: number, rand: number): number | null => {
   // Indexing past the ladder yields undefined, which IS the "stop" signal —
   // one check instead of a separate length guard, and no non-null assertion.
   const base = WARM_RETRY_DELAYS_MS[attempt]
@@ -101,7 +114,7 @@ const ladderDelayMs = (attempt: number, elapsedMs: number, rand: number): number
   const delay = jittered(base, rand)
   // Checked before sleeping: waiting 4s only to then give up would hold the
   // panel for nothing.
-  if (elapsedMs + delay >= WARM_CEILING_MS) return null
+  if (sinceProgressMs + delay >= WARM_CEILING_MS) return null
   return delay
 }
 
@@ -118,11 +131,11 @@ const ladderDelayMs = (attempt: number, elapsedMs: number, rand: number): number
 export const warmRetryDelayMs = (
   err: unknown,
   attempt: number,
-  elapsedMs: number,
+  sinceProgressMs: number,
   rand: number
 ): number | null => {
   if (!isWarmRefusal(err)) return null
-  return ladderDelayMs(attempt, elapsedMs, rand)
+  return ladderDelayMs(attempt, sinceProgressMs, rand)
 }
 
 /** A poll failure meaning the job is gone for good rather than that the
@@ -155,9 +168,9 @@ const isJobGone = (err: unknown): boolean =>
 export const pollRetryDelayMs = (
   err: unknown,
   attempt: number,
-  elapsedMs: number,
+  sinceProgressMs: number,
   rand: number
 ): number | null => {
   if (isJobGone(err)) return null
-  return ladderDelayMs(attempt, elapsedMs, rand)
+  return ladderDelayMs(attempt, sinceProgressMs, rand)
 }
