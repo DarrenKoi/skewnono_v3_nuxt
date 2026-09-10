@@ -39,7 +39,7 @@
                 {{ setting.key }}
               </td>
               <td
-                class="border-b border-zinc-100 px-3 py-1.5 text-right break-all dark:border-zinc-800/60"
+                class="border-b border-zinc-100 px-3 py-1.5 text-right whitespace-nowrap dark:border-zinc-800/60"
                 :class="formatSettingValue(setting.value) === '—'
                   ? 'text-(--sk-ink-muted)'
                   : 'text-zinc-900 dark:text-zinc-100'"

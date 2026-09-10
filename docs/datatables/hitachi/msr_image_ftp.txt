@@ -112,6 +112,15 @@ df_result_data 에 적힌 mp_image_name 집합과 장비 FTP 가 실제로 서�
     에 쓰지 않는 이유는 정리 단계가 purge(0) 으로 접두어 전체를 쓸기 때문입니다 —
     실제 접두어였다면 그 한 줄이 사용자들의 캐시를 통째로 지웠을 것입니다.
 
+cond.txt 본문 형식
+
+  `# Observation condition` 헤더 한 줄 뒤에 `키<TAB>값` 이 한 줄씩 옵니다. 값은 단위를
+  품은 문자열("500 V")이고 키 어휘는 recipe 쪽과 같습니다(docs/datatables/hitachi/
+  recipe_idp.txt 의 cond.txt 절). 측정 이미지 cond 에는 `Scope` 줄이 **없습니다**
+  (user-confirmed 2026-06-08 — recipe 의 align cond 에만 있음). OFFICE-VERIFY: 측정
+  cond 가 실제로 어떤 빔 키를 어떤 순서로 담는지(확인된 표본은 recipe align 이미지).
+  mock 은 back_dev_home/msr_image/providers/mock.py `_cond` 가 이 형식으로 씁니다.
+
 cond.txt 의 십자선 좌표 — `Pixel` + `!Cursor_info` (user-confirmed 2026-09-03)
 
   측정 이미지에는 장비가 측정점 십자선을 **그려 넣어** 저장하고, 그 위치를 cond.txt 의

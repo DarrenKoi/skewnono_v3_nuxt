@@ -41,22 +41,32 @@
           </template>
         </EbeamSkewvoirZoomableImage>
 
+        <!-- Raw, as the gallery rail and site drawer show the same sidecar:
+             cond parsing stays server-side (f9d72bbc, "파서는 하나만"). -->
         <aside
           v-if="showCond"
-          class="max-h-full w-72 shrink-0 self-start overflow-auto rounded-xl bg-(--sk-surface)"
+          class="max-h-full w-72 shrink-0 self-start overflow-auto rounded-xl bg-(--sk-surface) px-4 py-3"
           aria-label="취득 조건"
         >
+          <p class="sk-title">
+            취득 조건
+          </p>
           <p
             v-if="cond === 'error'"
-            class="px-3.5 py-3 text-xs text-(--sk-ink-muted)"
+            class="mt-2 text-xs text-(--sk-ink-muted)"
           >
             취득 조건을 불러오지 못했습니다
           </p>
-          <EbeamRecipeOpenSettingTable
-            v-else-if="cond !== 'pending'"
-            title="취득 조건"
-            :block="cond ?? null"
-          />
+          <p
+            v-else-if="cond && cond !== 'pending' && cond.text === null"
+            class="mt-2 text-xs text-(--sk-ink-muted)"
+          >
+            파일 없음
+          </p>
+          <pre
+            v-else-if="cond && cond !== 'pending'"
+            class="mt-2 rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-chip-bg) p-2 font-mono text-xs break-all whitespace-pre-wrap text-(--sk-ink-muted)"
+          >{{ cond.text }}</pre>
         </aside>
       </div>
       <button
@@ -78,27 +88,23 @@
 // A single enlarged, pan/zoomable image over a dimmed backdrop. `modelValue` is
 // the image URL (null = closed); backdrop / ✕ / Esc all dismiss. The zoom bar
 // carries a 취득 조건 toggle that lazily reads the image's cond.txt sidecar.
-import type { SettingBlock } from '~/composables/useRecipeParamDetail'
-import { parseCondText } from '~/utils/condText'
-
 const props = defineProps<{ modelValue: string | null }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
 
 const { fetchCond } = useMsrImageApi()
 
 const showCond = ref(false)
-// undefined = not asked yet, null = the image has no sidecar.
-const cond = ref<SettingBlock | null | 'pending' | 'error'>()
+// undefined = not asked yet; text null = the image has no sidecar.
+const cond = ref<{ text: string | null } | 'pending' | 'error'>()
 
 const toggleCond = async () => {
   showCond.value = !showCond.value
   const url = props.modelValue
   if (!showCond.value || !url || cond.value !== undefined) return
   cond.value = 'pending'
-  let next: SettingBlock | null | 'error'
+  let next: { text: string | null } | 'error'
   try {
-    const text = await fetchCond(url)
-    next = text ? parseCondText(text) : null
+    next = { text: await fetchCond(url) }
   } catch {
     next = 'error'
   }

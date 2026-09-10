@@ -103,15 +103,16 @@ def _cond(locator: ImageLocator) -> str:
     2026-06-08) and the key vocabulary of recipe_search/providers/mock.py's
     ``_COND_KEYS_SEM``.
 
-    Pixel and !Cursor_info are user-confirmed (2026-09-03). OFFICE-VERIFY:
-    which beam keys a MEASUREMENT sidecar carries, and in what order — the
-    confirmed sample is a recipe align image.
+    Pixel and !Cursor_info are user-confirmed (2026-09-03). A measurement
+    sidecar has NO ``Scope`` line (user-confirmed 2026-06-08, the
+    auto_recipe_creator align work infers OM/SEM from the other keys), so
+    none is written. OFFICE-VERIFY: which beam keys a MEASUREMENT sidecar
+    carries, and in what order — the confirmed sample is a recipe align image.
     """
     s = _seed(locator.name)
     crosshair = (2560 + s % 400 - 200, 2560 + (s // 7) % 400 - 200)
     return "\n".join((
         "# Observation condition",
-        "Scope\tSEM",
         f"Accelerating_voltage\t{500 + (s % 5) * 100} V",
         f"Probe_current\t{8 + s % 5} pA",
         f"Magnification\t{30000 + s % 40000}",

@@ -18,7 +18,7 @@ def test_fetch_returns_svg_and_synthetic_cond():
     img = mock.fetch_image(ImageLocator("10.0.0.1", "ADI", "MSR_1", name))
     assert img.content_type == "image/svg+xml"
     assert b"<svg" in img.data
-    assert img.cond and "mag" in img.cond.lower()
+    assert img.cond and "Magnification\t" in img.cond and "Scope" not in img.cond
 
 
 def test_download_all_invokes_callback_per_name():

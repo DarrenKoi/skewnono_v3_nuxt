@@ -44,9 +44,12 @@ export const useMsrImageApi = () => {
     return { blobUrl: URL.createObjectURL(blob), cond: condOf(res) }
   }
 
-  // The cond.txt sidecar alone. Same URL the <img> loaded, so the browser's
-  // HTTP cache (max-age=3600) answers and the tool is never revisited; on a
-  // miss the body is cancelled once the header is in.
+  // The cond.txt sidecar alone. Usually the URL the <img> loaded, so the
+  // browser's HTTP cache (max-age=3600) answers; after an auto-retry the <img>
+  // cached a `?retry=N` variant instead (utils/imageRetry.ts), and this GET
+  // reaches Flask — still a server cache hit, since the sidecar was stored
+  // beside the image. The tool is never revisited either way, and the body is
+  // cancelled once the header is in.
   const fetchCond = async (url: string) => {
     const res = await fetch(url)
     if (!res.ok) throw new Error(`cond: ${res.status}`)
