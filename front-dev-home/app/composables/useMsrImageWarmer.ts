@@ -64,8 +64,15 @@ const runWarm = async (
   ctx: FocusImageCtx,
   names: string[]
 ) => {
-  const startedAt = Date.now()
-  const elapsed = () => Date.now() - startedAt
+  // "Elapsed" is measured from the last PROGRESS, not from the POST. The
+  // ceiling exists to catch a stuck or lost job; a large HV-SEM parameter
+  // (points x U/T/M/L, sometimes JPEG+TIF twins) is not stuck, it is just
+  // bigger than 15s of FTP, and giving up on it released every tile into a
+  // cold-GET storm against the very sessions the job was holding. A job whose
+  // `done` keeps advancing therefore keeps its budget; one that stalls still
+  // runs out of it at the same ceiling as before.
+  let progressAt = Date.now()
+  const elapsed = () => Date.now() - progressAt
   const giveUp = () => {
     state.status = 'gaveup'
   }
@@ -111,6 +118,7 @@ const runWarm = async (
         continue
       }
       pollFailures = 0 // consecutive, so a long job survives scattered hiccups
+      if (poll.done > state.done) progressAt = Date.now()
       state.done = poll.done
       state.total = poll.total
       state.status = nextWarmState(poll, elapsed())
@@ -166,7 +174,10 @@ export const useMsrImageWarmer = (
       const { eqp_ip, class_name, msr } = ctx.value
       const { names } = scope.value
       if (!eqp_ip || !class_name || !msr || !names.length) return
-      if (warmStore[k]) return // already warmed, or warming, this session
+      // Already warmed, or warming, this session. A 'gaveup' is NOT kept: it
+      // meant "stop holding the panel", not "this parameter can never be
+      // warmed" — pinning it made a refresh the only way to try again.
+      if (warmStore[k] && warmStore[k].status !== 'gaveup') return
       const state: WarmState = reactive({ status: 'warming', done: 0, total: 0 })
       warmStore[k] = state
       void runWarm(state, api, ctx.value, names)

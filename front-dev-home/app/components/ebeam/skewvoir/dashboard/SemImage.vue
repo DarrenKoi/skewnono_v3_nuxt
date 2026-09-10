@@ -99,20 +99,12 @@
           :key="name"
           class="relative min-h-0 overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border)"
         >
-          <button
-            type="button"
-            class="block h-full w-full cursor-zoom-in"
-            :aria-label="`이미지 ${imageLabels[i]} 확대해서 보기`"
-            @click="openViewer(i)"
-          >
-            <img
-              :src="displayImageUrl(name)!"
-              :alt="name"
-              loading="lazy"
-              decoding="async"
-              class="h-full w-full object-cover"
-            >
-          </button>
+          <EbeamSkewvoirDashboardSemImageTile
+            :src="displayImageUrl(name)!"
+            :name="name"
+            :label="imageLabels[i]!"
+            @open="openViewer(i)"
+          />
           <span class="absolute top-1 left-1 rounded-(--sk-r-sidebar) bg-(--sk-ink)/85 px-1.5 py-0.5 font-mono text-xs font-medium text-(--sk-ink-fg)">
             {{ imageLabels[i] }}
           </span>
