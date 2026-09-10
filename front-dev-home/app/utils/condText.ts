@@ -11,13 +11,15 @@ import type { SettingBlock, SettingRow } from '../composables/useRecipeParamDeta
  * back_dev_home/_core/cond_cursor.py; the msr-image route ships the raw body
  * in the `X-Msr-Cond` header rather than parsing it, so the split lives here.
  */
-export function parseCondText(text: string, source = 'cond.txt'): SettingBlock {
+export function parseCondText(text: string): SettingBlock {
   const rows: SettingRow[] = []
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim()
     if (!line || line.startsWith('#')) continue
-    const [, key = '', value = ''] = /^(\S+)\s*(.*)$/.exec(line) ?? []
-    if (key) rows.push({ key, value: value.trim() })
+    const gap = line.search(/\s/)
+    rows.push(gap < 0
+      ? { key: line, value: '' }
+      : { key: line.slice(0, gap), value: line.slice(gap).trim() })
   }
-  return { source, rows }
+  return { source: 'cond.txt', rows }
 }

@@ -44,16 +44,13 @@ export const useMsrImageApi = () => {
     return { blobUrl: URL.createObjectURL(blob), cond: condOf(res) }
   }
 
-  // The cond.txt sidecar alone, for a viewer whose <img> already holds the
-  // bytes. Re-requesting the SAME URL the <img> loaded is what keeps this
-  // cheap: the route answers with max-age=3600, so the browser serves it from
-  // its HTTP cache, and even a miss is a server cache hit — the sidecar was
-  // fetched in the image's own tool session and stored beside it. The tool is
-  // never revisited for a cond, which is why it can be lazy (click-to-show)
-  // without a dedicated endpoint.
+  // The cond.txt sidecar alone. Same URL the <img> loaded, so the browser's
+  // HTTP cache (max-age=3600) answers and the tool is never revisited; on a
+  // miss the body is cancelled once the header is in.
   const fetchCond = async (url: string) => {
     const res = await fetch(url)
     if (!res.ok) throw new Error(`cond: ${res.status}`)
+    void res.body?.cancel()
     return condOf(res)
   }
 

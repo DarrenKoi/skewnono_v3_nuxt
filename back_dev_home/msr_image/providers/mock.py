@@ -101,8 +101,7 @@ def _cond(locator: ImageLocator) -> str:
     ``key<TAB>value`` line each, units INSIDE the value ("500 V") — the layout
     of the office sample (docs/datatables/hitachi/recipe_idp.txt, office 확인
     2026-06-08) and the key vocabulary of recipe_search/providers/mock.py's
-    ``_COND_KEYS_SEM``. Until 2026-09-10 this wrote ``mag=30000`` lines, a
-    shape no tool writes, which a line parser turned into value-less keys.
+    ``_COND_KEYS_SEM``.
 
     Pixel and !Cursor_info are user-confirmed (2026-09-03). OFFICE-VERIFY:
     which beam keys a MEASUREMENT sidecar carries, and in what order — the
