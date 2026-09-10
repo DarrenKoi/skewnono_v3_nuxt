@@ -43,22 +43,47 @@
           </template>
         </EbeamSkewvoirZoomableImage>
 
+        <!-- Own rows rather than EbeamRecipeOpenSettingTable: that table is
+             nowrap, and a !Cursor_info value is wider than this rail, which
+             scrolled every other value out of view. -->
         <aside
           v-if="showCond"
-          class="w-72 shrink-0 overflow-auto rounded-(--sk-r-chip) bg-(--sk-surface) p-2"
+          class="max-h-full w-72 shrink-0 self-start overflow-auto rounded-(--sk-r-chip) bg-(--sk-surface) px-4 py-3"
           aria-label="취득 조건"
         >
+          <p class="sk-title">
+            취득 조건
+          </p>
           <p
             v-if="condError"
-            class="px-3.5 py-3 text-xs text-(--sk-ink-muted)"
+            class="mt-2.5 text-xs text-(--sk-ink-muted)"
           >
             취득 조건을 불러오지 못했습니다
           </p>
-          <EbeamRecipeOpenSettingTable
-            v-else-if="!condPending"
-            title="취득 조건"
-            :block="condBlock"
-          />
+          <p
+            v-else-if="!condPending && !condBlock"
+            class="mt-2.5 text-xs text-(--sk-ink-muted)"
+          >
+            파일 없음
+          </p>
+          <div
+            v-else-if="condBlock"
+            class="mt-2.5"
+          >
+            <p class="mb-1.5 font-mono text-xs text-(--sk-ink-subtle)">
+              {{ condBlock.source }}
+            </p>
+            <div
+              v-for="setting in condBlock.rows"
+              :key="setting.key"
+              class="flex items-baseline justify-between gap-3 border-b border-(--sk-border) py-1.5"
+            >
+              <span class="shrink-0 sk-label">{{ setting.key }}</span>
+              <span class="text-right break-all sk-value-num">
+                {{ formatSettingValue(setting.value) }}
+              </span>
+            </div>
+          </div>
         </aside>
       </div>
       <button
@@ -82,6 +107,7 @@
 // carries a 취득 조건 toggle that lazily reads the image's cond.txt sidecar.
 import type { SettingBlock } from '~/composables/useRecipeParamDetail'
 import { parseCondText } from '~/utils/condText'
+import { formatSettingValue } from '~/utils/recipeView'
 
 const props = defineProps<{ modelValue: string | null }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
