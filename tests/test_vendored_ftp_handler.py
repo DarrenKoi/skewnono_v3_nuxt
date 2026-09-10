@@ -466,7 +466,13 @@ class FakeFTP:
         pass
 
     def voidcmd(self, command):
-        pass
+        # Real ``voidcmd`` always returns the reply line, and ``size_dirs`` now
+        # reads one: ``TYPE I`` before sizing, then ``MDTM`` per file. ``nomtime``
+        # answers unparseably, standing in for a server without MDTM support.
+        if command.startswith("MDTM "):
+            path = command.split(" ", 1)[1]
+            return "200 ok" if path.endswith("nomtime") else "213 20260910123456"
+        return "200 ok"
 
     def nlst(self, remote_dir):
         if remote_dir == "/BAD":
@@ -637,6 +643,37 @@ def test_size_dirs_records_unsupported_size_rather_than_counting_zero(fleet):
     assert report.total_bytes == 42
     assert report.failures[0].error == "SIZE unsupported by server"
     assert report.failures[0].remote_path == "/x/nosize"
+
+
+def test_size_dirs_carries_each_files_utc_mtime(fleet):
+    """The sizing pass answers "how big" and "how old" on one connection.
+
+    ``msr_image`` decides what to pull from listings that carry paths only;
+    ``MDTM`` rides along with the ``SIZE`` already being issued, so nothing has
+    to open a second connection to date a file. RFC 3659 fixes MDTM to GMT, so
+    unlike parsing ``LIST`` this needs no guess about the tool's local zone.
+    """
+    report = fleet.size_dirs([direct.HostSpec("10.0.0.1", files=["/x/a.dat"])])
+
+    assert report.files[0].modified == dt.datetime(
+        2026, 9, 10, 12, 34, 56, tzinfo=dt.timezone.utc
+    )
+
+
+def test_a_tool_without_mdtm_still_yields_its_sizes(fleet):
+    """An unusable MDTM reply costs the mtime and nothing else.
+
+    The probe runs inside the per-file loop, after a ``SIZE`` that already
+    succeeded, so anything escaping it would sink the whole host's measurements
+    to learn nothing. Unknown is the only acceptable failure.
+    """
+    report = fleet.size_dirs(
+        [direct.HostSpec("10.0.0.1", files=["/x/a.dat", "/x/nomtime"])]
+    )
+
+    assert report.total_bytes == 84
+    assert report.ng == 0
+    assert [f.modified for f in report.files if f.remote_path.endswith("nomtime")] == [None]
 
 
 def test_upload_isolates_a_rejected_stor_from_the_hosts_other_files(fleet):

@@ -243,7 +243,14 @@ def size_dirs():
     return jsonify(
         {
             "files": [
-                {"host": f.host, "remote_path": f.remote_path, "size": f.size}
+                {
+                    "host": f.host,
+                    "remote_path": f.remote_path,
+                    "size": f.size,
+                    # UTC ISO-8601, or null when the server has no MDTM. Absent
+                    # from an older proxy's reply, which the client reads as None.
+                    "modified": f.modified.isoformat() if f.modified else None,
+                }
                 for f in report.files
             ],
             "failures": [

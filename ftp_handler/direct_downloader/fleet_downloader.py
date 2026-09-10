@@ -38,6 +38,7 @@ Memory:
 import re
 import threading
 import time
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -284,14 +285,46 @@ class ListingReport:
         ]
 
 
+def _mdtm(ftp: FTP, remote_path: str) -> "datetime | None":
+    """One file's modification time via ``MDTM``, or ``None`` if unavailable.
+
+    Deliberately non-fatal: this runs beside a ``SIZE`` that already succeeded,
+    and an equipment server too old for ``MDTM`` (or one file that races a
+    rename) must not cost the caller the size it did get. The caller sees a
+    ``None`` mtime, not a failure entry.
+
+    RFC 3659 fixes the reply to ``213 YYYYMMDDHHMMSS`` in GMT, optionally with
+    fractional seconds; the fraction is dropped rather than parsed, since no
+    caller needs sub-second resolution here.
+
+    The catch is deliberately total. Anything this raises would propagate out of
+    the per-file loop and sink the whole host -- costing the caller every size
+    already measured on that connection, to learn nothing. There is no reply
+    malformed enough to be worth that, so every failure is the same answer:
+    the mtime is unknown.
+    """
+    try:
+        raw = ftp.voidcmd(f"MDTM {remote_path}")[4:].strip().split(".")[0]
+        return datetime.strptime(raw, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+    except Exception:  # noqa: BLE001 - best-effort by contract; see above
+        return None
+
+
 @dataclass(slots=True)
 class FileSize:
-    """The size in bytes of one remote file, as reported by the server's ``SIZE``
-    command — no bytes were transferred to learn it."""
+    """One remote file's size and modification time, as reported by the server's
+    ``SIZE`` and ``MDTM`` commands — no bytes were transferred to learn either.
+
+    ``modified`` is timezone-aware UTC: RFC 3659 fixes ``MDTM`` output to GMT, so
+    unlike ``LIST`` parsing this needs no guess about the server's local zone. It
+    is ``None`` when the server has no ``MDTM`` support or that one file's probe
+    failed — a missing mtime never sinks the size already measured.
+    """
 
     host: str
     remote_path: str
     size: int
+    modified: "datetime | None" = None
 
 
 @dataclass(slots=True)
@@ -796,7 +829,12 @@ class FtpFleetDownloader:
                         )
                         continue
                     sizes.append(
-                        FileSize(host=spec.host, remote_path=remote_path, size=size)
+                        FileSize(
+                            host=spec.host,
+                            remote_path=remote_path,
+                            size=size,
+                            modified=_mdtm(ftp, remote_path),
+                        )
                     )
         except all_errors as exc:
             # connect / login failed — host measured nothing.

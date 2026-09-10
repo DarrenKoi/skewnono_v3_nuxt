@@ -43,6 +43,7 @@ Run: pip install requests
 
 import base64
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -137,6 +138,16 @@ __all__ = [
 # auth (leave None for the trusted single-user, no-auth case).
 PROXY_URL = "http://skewnono-scheduler1-webapp.aipp01.skhynix.com"
 PROXY_TOKEN = None
+
+
+def _parse_modified(raw: "str | None") -> "datetime | None":
+    """Read a ``FileSize.modified`` back off the wire.
+
+    Tolerates both a null and a missing key so a client can talk to a proxy
+    deployed before sizing carried mtimes: the caller gets ``None``, the same
+    answer an FTP server without ``MDTM`` produces.
+    """
+    return datetime.fromisoformat(raw) if raw else None
 
 
 def _credentials_to_wire(
@@ -489,6 +500,7 @@ class FtpFleetDownloader:
                 host=item["host"],
                 remote_path=item["remote_path"],
                 size=item["size"],
+                modified=_parse_modified(item.get("modified")),
             )
             for item in data.get("files", [])
         ]
