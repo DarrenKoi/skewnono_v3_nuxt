@@ -5,47 +5,10 @@
     </p>
     <div
       v-if="series.length"
-      class="overflow-x-auto pb-2"
-    >
-      <div class="flex gap-1 w-max mx-auto">
-        <div class="grid grid-rows-8 gap-1 text-xs text-(--sk-ink-muted) pr-2">
-          <span />
-          <span
-            v-for="day in ['월', '화', '수', '목', '금', '토', '일']"
-            :key="day"
-            class="h-8 leading-8"
-          >{{ day }}</span>
-        </div>
-        <div
-          v-for="week in weeks"
-          :key="week.start"
-          class="grid grid-rows-8 gap-1"
-        >
-          <span class="text-xs h-8 w-8 leading-8 whitespace-nowrap text-(--sk-ink-muted)">{{ week.month }}</span>
-          <template
-            v-for="(day, index) in week.days"
-            :key="index"
-          >
-            <button
-              v-if="day"
-              type="button"
-              class="size-8 rounded-[var(--sk-r-sidebar)] border border-(--sk-border) focus-visible:outline-2 focus-visible:outline-(--sk-focus-ring)"
-              :style="{ background: day.count ? `color-mix(in srgb, var(--sk-brand) ${25 + 75 * Math.min(day.count / maximum, 1)}%, var(--sk-surface))` : 'var(--sk-muted-surface)' }"
-              :aria-label="visitLabel(day)"
-              :title="visitLabel(day)"
-              :aria-pressed="selected?.date === day.date"
-              :class="{ 'outline-2 outline-(--sk-ink)': selected?.date === day.date }"
-              @click="selected = day"
-              @focus="selected = day"
-            />
-            <span
-              v-else
-              class="size-8"
-            />
-          </template>
-        </div>
-      </div>
-    </div>
+      ref="chartEl"
+      data-testid="visit-calendar-canvas"
+      class="w-full h-44 cursor-pointer"
+    />
     <p
       v-else
       class="sk-body"
@@ -60,20 +23,39 @@
       class="sk-value min-h-5"
       aria-live="polite"
     >
-      {{ selected ? visitLabel(selected) : '날짜를 선택하면 페이지 조회 수를 확인합니다.' }}
+      {{ selected ? visitLabel(selected) : '날짜를 누르면 페이지 조회 수를 확인합니다.' }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { calendarWeeks, visitLabel, type VisitDay } from '~/utils/activityCalendar'
+import { buildCalendarOption, visitLabel, type VisitDay } from '~/utils/activityCalendar'
 
 const props = defineProps<{ series: VisitDay[] }>()
-const weeks = computed(() => calendarWeeks(props.series))
+
+const chartEl = ref<HTMLDivElement | null>(null)
+const sk = useChartPalette()
+
 const activeDays = computed(() => props.series.filter(day => day.count > 0).length)
-const maximum = computed(() => props.series.reduce((max, day) => Math.max(max, day.count), 1))
+// Zero-visit days sit at the palette's neutral band, so an empty day reads as
+// "nothing" rather than as the faintest shade of the series color.
+const option = computed(() => buildCalendarOption(props.series, {
+  empty: sk.value.sand,
+  full: sk.value.series,
+  ink: sk.value.ink,
+  muted: sk.value.muted
+}))
+
 const selected = ref<VisitDay | null>(null)
 watch(() => props.series, () => {
   selected.value = null
+})
+
+useEchart(chartEl, option, {
+  exportName: 'visit-calendar',
+  onDataIndex: (dataIndex) => {
+    const day = props.series[dataIndex] ?? null
+    selected.value = selected.value?.date === day?.date ? null : day
+  }
 })
 </script>
