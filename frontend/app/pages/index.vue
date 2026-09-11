@@ -107,15 +107,18 @@ const systemStatus = computed(() => {
         />
         <!-- 전사 반출 금지 고지. 개별 페이지가 아니라 진입점에 두어, 어떤 탭으로
              들어가든 한 번은 읽고 지나가게 합니다. -->
+        <!-- BackendHealthCard 의 카드 · 제목 · 구분선 스타일을 그대로 따릅니다. -->
         <div
-          class="flex items-start gap-2.5 rounded-xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-3 lg:max-w-64 lg:self-stretch"
+          class="flex flex-col gap-2 rounded-xl border border-(--sk-border) bg-(--sk-muted-surface) px-3.5 py-3 lg:max-w-64 lg:self-stretch"
         >
-          <UIcon
-            name="i-lucide-triangle-alert"
-            class="mt-0.5 size-5 shrink-0 text-(--sk-warn)"
-          />
-          <p class="sk-meta leading-relaxed">
-            <span class="sk-title block">데이터 반출 금지</span>
+          <div class="flex items-center gap-1.5 border-b border-(--sk-border-soft) pb-1.5">
+            <UIcon
+              name="i-lucide-triangle-alert"
+              class="size-3.5 shrink-0 text-(--sk-warn)"
+            />
+            <span class="text-xs font-bold uppercase tracking-[0.2em] text-(--sk-ink-subtle)">데이터 반출 금지</span>
+          </div>
+          <p class="sk-meta flex flex-1 items-center justify-center text-center leading-relaxed">
             스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.
           </p>
         </div>
