@@ -16,3 +16,4 @@ TOP_FEATURES_CAP = 10
 #: the point — five rows of the same page is not a history.
 RECENT_FEATURES_CAP = 5
 SPARKLINE_DAYS = 30
+VISIT_DAYS = 90

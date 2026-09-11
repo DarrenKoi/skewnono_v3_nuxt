@@ -25,6 +25,7 @@ from backend.activity.providers.shared import (
     KST,
     RECENT_FEATURES_CAP,
     TOP_FEATURES_CAP,
+    VISIT_DAYS,
 )
 
 COMPOSITE_PAGE_SIZE = 1000
@@ -186,6 +187,8 @@ class ActivityOpenSearchReader:
         self,
         user_id: str,
         now: datetime,
+        *,
+        include_visits: bool = False,
     ) -> dict[str, Any]:
         day_30 = _kst_day_start(now, 29)
         local = now.astimezone(KST)
@@ -210,6 +213,30 @@ class ActivityOpenSearchReader:
             "track_total_hits": True,
             "query": {"bool": {"filter": _activity_filters(user_id)}},
             "aggs": {
+                **(
+                    {
+                        "visits": {
+                            "filter": _kind_window(
+                                _kst_day_start(now, VISIT_DAYS - 1), now, [RANKING_KIND]
+                            ),
+                            "aggs": {
+                                "days": {
+                                    "date_histogram": {
+                                        **daily_histogram,
+                                        "extended_bounds": {
+                                            "min": _kst_day_start(now, VISIT_DAYS - 1)
+                                            .date()
+                                            .isoformat(),
+                                            "max": local.date().isoformat(),
+                                        },
+                                    }
+                                }
+                            },
+                        }
+                    }
+                    if include_visits
+                    else {}
+                ),
                 # Deliberately NOT kind-filtered. "When did we first/last see
                 # this person" is a presence question, not a request-volume
                 # one, so page views count. Some pages (mag-pixel) issue no
@@ -274,9 +301,13 @@ class ActivityOpenSearchReader:
     def _history(
         self,
         user_id: str,
+        *,
+        include_visits: bool = False,
     ) -> tuple[int, dict[str, Any]]:
         now = self._now()
-        response = self._search(self._history_query(user_id, now))
+        response = self._search(
+            self._history_query(user_id, now, include_visits=include_visits)
+        )
         total = _hits_total(response)
         aggregations = response.get("aggregations", {})
         day_30 = _kst_day_start(now, 29).date()
@@ -321,6 +352,21 @@ class ActivityOpenSearchReader:
             return node.get("value_as_string")
 
         return total, {
+            **(
+                {
+                    "visits": [
+                        {
+                            "date": str(bucket["key_as_string"]).split("T", 1)[0],
+                            "count": int(bucket.get("doc_count", 0)),
+                        }
+                        for bucket in aggregations.get("visits", {})
+                        .get("days", {})
+                        .get("buckets", [])
+                    ]
+                }
+                if include_visits
+                else {}
+            ),
             "user_id": user_id,
             "this_month": {
                 "requests": int(this_month.get("doc_count", 0)),
@@ -333,13 +379,14 @@ class ActivityOpenSearchReader:
         }
 
     def get_me(self, user_id: str) -> MeResponse:
-        _total, history = self._history(user_id)
+        _total, history = self._history(user_id, include_visits=True)
         return {
             "user_id": user_id,
             "is_admin": self._admin_check(user_id),
             "this_month": history["this_month"],
             "recent_features": history["recent_features"],
             "daily": history["daily"],
+            "visits": history["visits"],
             "first_seen": history["first_seen"],
             "last_seen": history["last_seen"],
         }
@@ -627,13 +674,9 @@ class ActivityOpenSearchReader:
                 rows.append(
                     {
                         "fab": (
-                            str(raw_fab)
-                            if raw_fab not in (None, "")
-                            else "미지정"
+                            str(raw_fab) if raw_fab not in (None, "") else "미지정"
                         ),
-                        "total": int(
-                            bucket.get("active_users", {}).get("value", 0)
-                        ),
+                        "total": int(bucket.get("active_users", {}).get("value", 0)),
                         "pages": _feature_rows(
                             bucket.get("feature_only", {}).get("pages", {})
                         ),

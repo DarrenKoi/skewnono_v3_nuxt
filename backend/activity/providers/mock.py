@@ -42,6 +42,7 @@ from .shared import (
     RECENT_FEATURES_CAP,
     SPARKLINE_DAYS,
     TOP_FEATURES_CAP,
+    VISIT_DAYS,
 )
 
 
@@ -56,6 +57,7 @@ class _UserState:
     last_opened: dict[str, datetime] = field(default_factory=dict)
     daily: dict[date, int] = field(default_factory=dict)
     daily_features: dict[date, dict[str, int]] = field(default_factory=dict)
+    visits: dict[date, int] = field(default_factory=dict)
     # Requests per feature per day, counted ONCE per request. Not derivable
     # from daily_fab_features, which counts a request once per FAB it names —
     # correct for the FAB card, double-counting for a per-day total. The
@@ -174,9 +176,12 @@ def _merge_counts(
 def _prune_old_days(state: _UserState, today: date) -> None:
     """Drop day buckets no read window can reach, so state stays bounded.
 
-    The widest windows are the 30-day series and ``this_month``, which on the
-    31st of a month reaches one day further back than the sparkline does.
+    Visits retain 90 days. Request and ranking detail retain 30 days or the
+    whole current month, whichever is wider.
     """
+    for day in list(state.visits):
+        if day < today - timedelta(days=VISIT_DAYS - 1):
+            del state.visits[day]
     cutoff = min(
         today - timedelta(days=SPARKLINE_DAYS - 1),
         today.replace(day=1),
@@ -228,7 +233,8 @@ def record_request(
             _users[user_id] = state
 
         if activity_kind == "page_view":
-            # Rankings only. A page open is not a request, so it must not
+            state.visits[today] = state.visits.get(today, 0) + 1
+            # Rankings and visits. A page open is not a request, so it must not
             # touch state.daily / daily_fabs / daily_fab_features.
             # last_seen is the exception: presence, not volume.
             state.last_seen = now
@@ -282,6 +288,16 @@ def get_me(user_id: str) -> MeResponse:
     today = _today()
     with _lock:
         fields = _history_fields(_users.get(user_id), today)
+        state = _users.get(user_id)
+        fields["visits"] = [
+            {
+                "date": (today - timedelta(days=offset)).isoformat(),
+                "count": state.visits.get(today - timedelta(days=offset), 0)
+                if state
+                else 0,
+            }
+            for offset in range(VISIT_DAYS - 1, -1, -1)
+        ]
     return {"user_id": user_id, "is_admin": is_admin(user_id), **fields}
 
 
@@ -458,7 +474,12 @@ _DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
     (
         "choi.eunwoo",
         "R3",
-        {"recipe_tat": 70, "sem_list": 60, "recipe_search": 40, "device_statistics": 25},
+        {
+            "recipe_tat": 70,
+            "sem_list": 60,
+            "recipe_search": 40,
+            "device_statistics": 25,
+        },
         {"recipe_tat": 12, "recipe_search": 9, "device_statistics": 7, "chat": 3},
         6,
     ),
@@ -533,6 +554,7 @@ def _seed_page_views(
         day = today - timedelta(days=offset)
         daily = state.daily_features.setdefault(day, {})
         daily[feature] = daily.get(feature, 0) + count
+        state.visits[day] = state.visits.get(day, 0) + count
 
 
 def seed_demo_users() -> None:

@@ -17,14 +17,20 @@ Both aliases live in the same in-house cluster, and
 reader. Connection settings are read from the `OPENSEARCH_*` environment
 variables.
 
-`providers/shared.py` holds the four constants both adapters must agree on —
+`providers/shared.py` holds the constants both adapters must agree on —
 the `Asia/Seoul` calendar zone, the top-features cap of 10, the
-recent-features cap of 5, and the 30-day sparkline window. It exists so the home adapter never imports the office
+recent-features cap of 5, the 30-day sparkline window, and the 90-day visit calendar. It exists so the home adapter never imports the office
 module: `mock.py` used to take `KST` from `opensearch_reader.py`, which made
 every home boot load office-only code. Change a window size there, not in one
 adapter.
 
 ## What the data means
+
+`GET /api/activity/me`의 `visits`는 최근 90일의 페이지 조회 달력입니다.
+KST 날짜별 `page_view` 문서만 집계하며 기존 `daily`의 API 요청 집계와 별개입니다.
+보존된 기록이 없는 날짜는 0이며 수집 시작 전 기록은 복원하지 않습니다.
+사내에서는 갱신된 `opensearch_reader.py`가 배포되어야 합니다.
+실제 사내 조회와 보존 범위는 사내 배포 후 확인해야 합니다.
 
 The base query behind every aggregation (`_activity_filters()` in
 `providers/opensearch_reader.py`) requires:

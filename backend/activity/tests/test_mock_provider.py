@@ -37,6 +37,27 @@ def test_record_request_trims_day_buckets_to_the_read_window(fresh_store):
     assert state.daily[mock._today()] == 2
 
 
+def test_visit_calendar_keeps_90_days_of_page_views_separate_from_requests(
+    fresh_store, monkeypatch
+):
+    monkeypatch.setattr(
+        mock, "_now", lambda: datetime(2026, 9, 11, 16, tzinfo=timezone.utc)
+    )
+    mock.record_request("u1", "mag_pixel", "page_view", [])
+    mock.record_request("u1", "storage", "feature", [])
+    state = fresh_store["u1"]
+    today = date(2026, 9, 12)
+    state.visits[today - timedelta(days=89)] = 2
+    state.visits[today - timedelta(days=90)] = 3
+    mock.record_request("u1", "mag_pixel", "page_view", [])
+    visits = mock.get_me("u1")["visits"]
+    assert len(visits) == 90
+    assert visits[0]["count"] == 2
+    assert visits[-1] == {"date": "2026-09-12", "count": 2}
+    assert len(state.visits) == 2
+    assert mock.get_me("u1")["daily"][-1]["count"] == 1
+
+
 def test_record_request_keeps_the_whole_current_month(monkeypatch, fresh_store):
     """this_month reaches one day beyond the 30-day sparkline window on the
     31st of a 31-day month, so trimming must not use the sparkline cutoff

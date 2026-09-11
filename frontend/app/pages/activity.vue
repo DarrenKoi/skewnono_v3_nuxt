@@ -130,55 +130,12 @@
 
       <UCard class="dashboard-surface lg:col-span-3">
         <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
-              <UIcon name="i-lucide-gauge" />
-              내 활동 인사이트
-            </span>
-            <span class="sk-meta">
-              최근 30일 기준
-            </span>
-          </div>
+          <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
+            <UIcon name="i-lucide-calendar-days" />
+            내 방문 달력 · 최근 3개월 (90일)
+          </span>
         </template>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <div class="text-2xl font-semibold font-mono tabular-nums">
-              {{ personalInsights.recent7Requests.toLocaleString() }}
-            </div>
-            <div class="sk-meta">
-              최근 7일 요청
-            </div>
-          </div>
-          <div>
-            <div class="text-2xl font-semibold font-mono tabular-nums flex items-center gap-1.5">
-              <UIcon
-                :name="weeklyChange.icon"
-                :class="weeklyChange.color"
-                class="text-lg"
-              />
-              {{ weeklyChange.label }}
-            </div>
-            <div class="sk-meta">
-              이전 7일 대비
-            </div>
-          </div>
-          <div>
-            <div class="text-2xl font-semibold font-mono tabular-nums">
-              {{ personalInsights.activeDays7 }}<span class="text-sm font-normal text-(--sk-ink-muted)"> / 7일</span>
-            </div>
-            <div class="sk-meta">
-              최근 활동일
-            </div>
-          </div>
-          <div>
-            <div class="text-2xl font-semibold font-mono tabular-nums">
-              {{ personalInsights.averagePerActiveDay30.toLocaleString() }}
-            </div>
-            <div class="sk-meta">
-              활동일당 평균 요청
-            </div>
-          </div>
-        </div>
+        <ActivityCalendar :series="me.visits ?? []" />
       </UCard>
     </section>
 
@@ -607,7 +564,7 @@ import {
   type FeatureCount,
   type FabUsageRow
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, rankableFabRows, userDisplayName, userTeamLabel } from '~/utils/activity'
+import { activityFeatureLabel, pageViewNotice, rankableFabRows, userDisplayName, userTeamLabel } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 import { formatKoreanDateTime } from '~/utils/dateTime'
@@ -693,19 +650,6 @@ const myRecent = computed(() => activityFeatureLabel(me.value?.recent_features?.
 const formatTime = (iso: string | null | undefined) => formatKoreanDateTime(iso)
 
 const lastSeenLabel = computed(() => formatTime(me.value?.last_seen))
-
-const personalInsights = computed(() => summarizePersonalActivity(me.value?.daily ?? []))
-const weeklyChange = computed(() => {
-  const change = personalInsights.value.changePercent
-  if (change === null) {
-    return personalInsights.value.recent7Requests > 0
-      ? { label: '새 활동', icon: 'i-lucide-sparkles', color: 'text-violet-500' }
-      : { label: '변화 없음', icon: 'i-lucide-minus', color: 'text-(--sk-ink-muted)' }
-  }
-  if (change > 0) return { label: `+${change}%`, icon: 'i-lucide-trending-up', color: 'text-emerald-500' }
-  if (change < 0) return { label: `${change}%`, icon: 'i-lucide-trending-down', color: 'text-amber-500' }
-  return { label: '0%', icon: 'i-lucide-minus', color: 'text-(--sk-ink-muted)' }
-})
 
 // --- shared usage: KPI cards ---
 const kpiCards = computed(() => {

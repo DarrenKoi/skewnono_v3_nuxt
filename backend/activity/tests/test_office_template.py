@@ -200,11 +200,28 @@ def _kind_terms(node, found=None):
 
 
 def test_history_query_uses_kst_bounds_and_page_view_ranking():
-    reader, search, aliases = _reader([_history_response()])
+    response = _history_response()
+    response["aggregations"]["visits"] = {
+        "days": {
+            "buckets": [
+                {"key_as_string": "2026-07-27", "doc_count": 3},
+            ]
+        }
+    }
+    reader, search, aliases = _reader([response])
 
     payload = reader.get_me("u1")
 
     assert aliases == ["skewnono_logging_local"]
+    assert payload["visits"] == [{"date": "2026-07-27", "count": 3}]
+    visits = search.bodies[0]["aggs"]["visits"]
+    assert _kind_terms(visits["filter"]) == ["page_view"]
+    visit_histogram = visits["aggs"]["days"]["date_histogram"]
+    assert visit_histogram["time_zone"] == "Asia/Seoul"
+    assert visit_histogram["extended_bounds"] == {
+        "min": "2026-04-29",
+        "max": "2026-07-27",
+    }
     common = [
         {"term": {"event": "request"}},
         {"term": {"activity_weight": 1}},

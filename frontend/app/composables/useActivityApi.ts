@@ -40,6 +40,7 @@ export interface MeResponse {
   this_month: MeThisMonth
   recent_features: FeatureUse[]
   daily: DailyCount[]
+  visits: Pick<DailyCount, 'date' | 'count'>[]
   first_seen: string | null
   last_seen: string | null
 }

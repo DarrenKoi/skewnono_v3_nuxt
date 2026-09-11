@@ -9,6 +9,7 @@ __all__ = [
     "FeatureCount",
     "FeatureUse",
     "DailyCount",
+    "VisitCount",
     "MeThisMonth",
     "MeResponse",
     "SummaryResponse",
@@ -68,8 +69,16 @@ class MeResponse(TypedDict):
     this_month: MeThisMonth
     recent_features: list[FeatureUse]
     daily: list[DailyCount]
+    visits: list[VisitCount]
     first_seen: str | None
     last_seen: str | None
+
+
+class VisitCount(TypedDict):
+    """Daily page opens, independent of API request volume (KST)."""
+
+    date: str
+    count: int
 
 
 class SummaryResponse(TypedDict):

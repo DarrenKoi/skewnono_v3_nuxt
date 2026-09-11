@@ -84,6 +84,12 @@ types:
       description: 현재 KST 월의 distinct 활동일 수입니다.
 
   MeResponse:
+    visits:
+      type: array
+      description: >-
+        오늘을 포함한 최근 90개 KST 날짜의 page_view 기록입니다.
+        각 항목은 date(YYYY-MM-DD), count(페이지 조회 수)이며 API 요청 수와 별개입니다.
+        기록이 없는 날짜는 0입니다. 수집 시작 이전이나 보존 기간 밖의 기록은 복원하지 않습니다.
     user_id:
       type: string
     is_admin:
