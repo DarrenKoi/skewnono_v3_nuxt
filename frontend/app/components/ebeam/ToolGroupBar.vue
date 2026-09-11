@@ -133,8 +133,8 @@
           color="neutral"
           variant="ghost"
           icon="i-lucide-list-checks"
-          :disabled="!isCustomised"
-          @click="emit('update:selected', null)"
+          :disabled="selected.length === tools.length"
+          @click="emit('update:selected', fleetIds)"
         >
           전체 선택
         </UButton>
@@ -167,8 +167,8 @@ import type { ToolRef } from '~/composables/useTttmApi'
  * choice among three and its 해제 was quietly refused (see `apply`). See
  * DESIGN.md §Layout — the scope-bar rule.
  *
- * Selection is `string[] | null`: null is the whole fleet (a fresh user, and
- * what "전체 선택" writes), an array is exactly those tools — including none.
+ * Selection is exactly the listed tools. A fresh user starts with none
+ * (2026-09-11): picking a few is easier than clearing the rest.
  */
 
 // NuxtUI pins a menu to its trigger (`w-(--reka-select-trigger-width)` in
@@ -180,7 +180,7 @@ const MENU_CONTENT = 'w-auto min-w-full max-w-[min(24rem,calc(100vw-2rem))]'
 
 const props = withDefaults(defineProps<{
   tools: ToolRef[]
-  /** Resolved ids actually in play — a null stored selection already expanded. */
+  /** Resolved ids actually in play — stale stored ids already dropped. */
   selected: string[]
   /** Fleet-wide consensus deviation per tool, for the dropdown rows. */
   deviations: Record<string, number>
@@ -201,7 +201,7 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  (e: 'update:selected', value: string[] | null): void
+  (e: 'update:selected', value: string[]): void
 }>()
 
 const fleetIds = computed(() => props.tools.map(t => t.eqp_id))
@@ -229,22 +229,16 @@ const groupPicks = computed(() =>
 const idsIn = (group: ToolGroup<ToolRef>) => groupIds.value.get(group.model) ?? []
 const pickedIn = (group: ToolGroup<ToolRef>) => groupPicks.value.get(group.model) ?? []
 
-const isCustomised = computed(() => props.selected.length !== props.tools.length)
-
-// Every change funnels through here: fleet order first, then the all-selected
-// collapse to null, so no caller has to remember either rule.
+// Every change funnels through here, in fleet order.
 //
 // No lower bound. This used to refuse any change that left fewer than two
 // tools, which is why 해제 "did not work": on a fab whose tools are one model
 // group, or when the other groups held one tool, the click was silently
-// dropped — and clearing the last group produced `[]`, which the store then
-// read as "all". The comparison needs two tools, and the views say so
+// dropped. The comparison needs two tools, and the views say so
 // ("2대 이상이어야 합니다") in place of results; the control itself stays
 // honest and does what was clicked.
-const apply = (wanted: Set<string>) => {
-  const next = orderSelection(fleetIds.value, wanted)
-  emit('update:selected', next.length === props.tools.length ? null : next)
-}
+const apply = (wanted: Set<string>) =>
+  emit('update:selected', orderSelection(fleetIds.value, wanted))
 
 // A group's menu speaks only for its own tools, so the other groups' picks are
 // carried across unchanged. Without this the second dropdown would silently

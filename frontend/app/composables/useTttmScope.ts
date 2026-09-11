@@ -114,8 +114,8 @@ export const useTttmScope = (
   const roster = computed(() =>
     rosterFromSemList(filterRows(semList.value, toolType as ToolType, fabName))
   )
-  // The stored selection resolved against that roster: null is all, ids that
-  // no longer exist are dropped. What the request names.
+  // The stored selection resolved against that roster: ids that no longer
+  // exist are dropped. What the request names.
   const pickedTools = computed(() =>
     resolveSelection(roster.value.map(t => t.eqp_id), scoped.value.tools)
   )
@@ -201,7 +201,7 @@ export const useTttmScope = (
     { immediate: true }
   )
 
-  const onSelectedTools = (next: string[] | null) => settings.setTools(toolType, fabName, next)
+  const onSelectedTools = (next: string[]) => settings.setTools(toolType, fabName, next)
   const onRecipe = (next: string | null) => settings.setRecipe(toolType, fabName, next)
   const onParameters = (next: string[]) => settings.setParameters(toolType, fabName, next)
   const onWindow = (next: WindowWeeks) => settings.setWindow(toolType, fabName, next)

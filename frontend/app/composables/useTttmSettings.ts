@@ -13,12 +13,10 @@ import { DEFAULT_WINDOW_WEEKS, normalizeWindowWeeks, type WindowWeeks } from '~/
 
 export interface TttmScopeSettings {
   /**
-   * Selected eqp_ids. NULL MEANS ALL, EMPTY MEANS NONE — see resolveSelection
-   * in utils/tttmFleetSubset. Empty is what 해제 on the last model group
-   * leaves; it is not persisted as a working setup (a reload normalises it
-   * back to all), because nobody reopens the page to compare nothing.
+   * Selected eqp_ids — empty (the default) means none; see resolveSelection
+   * in utils/tttmFleetSubset.
    */
-  tools: string[] | null
+  tools: string[]
   /** null = every recipe the server chooses to answer with. */
   recipeId: string | null
   /**
@@ -63,7 +61,7 @@ export const tttmScopeKey = (toolType: string, fabName: string) =>
   `${toolType}:${fabName.toUpperCase()}`
 
 const EMPTY: TttmScopeSettings = {
-  tools: null,
+  tools: [],
   recipeId: null,
   parameters: [],
   windowWeeks: DEFAULT_WINDOW_WEEKS,
@@ -79,16 +77,13 @@ const normalizeScope = (raw: unknown): TttmScopeSettings => {
   if (typeof raw !== 'object' || raw === null) return { ...EMPTY }
   const value = raw as Partial<TttmScopeSettings>
   const recipeId = typeof value.recipeId === 'string' ? value.recipeId : null
-  const tools = strings(value.tools)
-  // Entries written while `[]` meant all (before 2026-08-27) — and a
-  // deliberately emptied selection — both land as "all": neither is a
-  // working setup worth restoring as "compare nothing".
   const legacyParameter = (value as { parameter?: unknown }).parameter
   const parameters = strings(value.parameters).concat(
     typeof legacyParameter === 'string' ? [legacyParameter] : []
   )
   return {
-    tools: tools.length ? tools : null,
+    // A stored `null` (the old "all") lands as none: picking is opt-in now.
+    tools: strings(value.tools),
     recipeId,
     // Dropped when the recipe did not survive normalisation: a parameter
     // without its recipe is a feature name with nothing to resolve it against,
@@ -136,7 +131,7 @@ export const useTttmSettings = () => {
     all.value = { ...all.value, [tttmScopeKey(toolType, fabName)]: next }
   }
 
-  const setTools = (toolType: string, fabName: string, tools: string[] | null) =>
+  const setTools = (toolType: string, fabName: string, tools: string[]) =>
     write(toolType, fabName, { ...read(toolType, fabName), tools })
 
   // Changing the recipe CLEARS the parameter rather than carrying it across:
