@@ -63,7 +63,7 @@ const systemStatus = computed(() => {
 <template>
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
     <section class="dashboard-surface rounded-3xl p-6 md:p-8">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div>
           <p class="text-xs uppercase tracking-[0.18em] text-(--sk-ink-muted) font-semibold mb-2">
             측정 데이터 검색, 분석, 상태 확인을 한 곳에서
@@ -105,22 +105,22 @@ const systemStatus = computed(() => {
           :services="healthData?.services ?? []"
           :error="!!healthError"
         />
+        <!-- 전사 반출 금지 고지. 개별 페이지가 아니라 진입점에 두어, 어떤 탭으로
+             들어가든 한 번은 읽고 지나가게 합니다. -->
+        <div
+          class="flex items-start gap-2.5 rounded-xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-3 lg:max-w-64"
+        >
+          <UIcon
+            name="i-lucide-triangle-alert"
+            class="mt-0.5 size-5 shrink-0 text-(--sk-warn)"
+          />
+          <p class="sk-meta leading-relaxed">
+            <span class="sk-title block">데이터 반출 금지</span>
+            스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.
+          </p>
+        </div>
       </div>
     </section>
-
-    <!-- 전사 반출 금지 고지. 개별 페이지가 아니라 진입점에 두어, 어떤 탭으로
-         들어가든 한 번은 읽고 지나가게 합니다. -->
-    <div
-      class="flex items-start gap-2.5 rounded-3xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-5 py-3.5"
-    >
-      <UIcon
-        name="i-lucide-triangle-alert"
-        class="mt-0.5 size-5 shrink-0 text-(--sk-warn)"
-      />
-      <p class="sk-meta leading-relaxed">
-        <span class="sk-title">데이터 반출 금지</span> — 스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.
-      </p>
-    </div>
 
     <!-- Category Cards -->
     <div
