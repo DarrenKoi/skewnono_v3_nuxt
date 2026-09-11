@@ -18,6 +18,7 @@ production about "today" for nine hours a day.
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
@@ -440,6 +441,10 @@ def get_fab_page_usage() -> FabUsageResponse:
 # (user_id, fab, request feature totals, page-view totals, days of activity
 # ending today). ``sem_list`` stands in for entry traffic — see _seed_feature.
 #
+# ``local-dev`` is home's own identity, so it is the one row /activity renders
+# as "me". It gets the full 90-day visit window so the calendar has something
+# to draw; the peers keep short histories so the user table still shows a range.
+#
 # Page-view totals are listed separately, not derived from the request totals:
 # the two have no fixed ratio in reality (mag-pixel makes no requests at all,
 # live-alarm makes hundreds per open), and a derived number would teach a
@@ -485,7 +490,55 @@ _DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
         {"skewvoir": 19, "afm": 6, "meas_hist": 5, "mag_pixel": 3},
         4,
     ),
+    (
+        "local-dev",
+        "M16B",
+        {"sem_list": 620, "recipe_search": 430, "storage": 260, "meas_hist": 140},
+        {
+            "recipe_search": 150,
+            "storage": 110,
+            "live_alarm": 70,
+            "meas_hist": 45,
+            "mag_pixel": 25,
+        },
+        VISIT_DAYS,
+    ),
 ]
+
+
+def _day_weights(user_id: str, days_back: int, today: date) -> list[float]:
+    """Relative activity per day, index = days before today. Deterministic.
+
+    An even spread renders a flat calendar and teaches that everyone works
+    every day at the same rate. Weekends run lighter and roughly one day in
+    six is skipped outright. OFFICE-VERIFY: the weekend ratio and the skip
+    rate are guesses — fab metrology runs shifts, so real weekends may not
+    be this quiet.
+    """
+    rng = random.Random(user_id)
+    weights = []
+    for offset in range(days_back):
+        # Both draws happen every day so the stream never shifts with the branch.
+        skipped = rng.random() < 0.16
+        spread = rng.uniform(0.2, 1.8)
+        weekend = (today - timedelta(days=offset)).weekday() >= 5
+        weights.append(0.0 if skipped else spread * (0.3 if weekend else 1.0))
+    if not any(weights):
+        weights[0] = 1.0
+    return weights
+
+
+def _spread(total: int, weights: list[float]) -> list[int]:
+    """Split ``total`` in proportion to ``weights``, keeping the exact sum."""
+    scale = sum(weights)
+    raw = [total * weight / scale for weight in weights]
+    counts = [int(value) for value in raw]
+    by_remainder = sorted(
+        range(len(raw)), key=lambda i: raw[i] - counts[i], reverse=True
+    )
+    for i in by_remainder[: total - sum(counts)]:
+        counts[i] += 1
+    return counts
 
 
 def _seed_feature(
@@ -493,10 +546,10 @@ def _seed_feature(
     fab: str,
     feature: str,
     total: int,
-    days_back: int,
+    weights: list[float],
     today: date,
 ) -> None:
-    """Spread ``total`` requests evenly over the last ``days_back`` days.
+    """Spread ``total`` requests over the days ``weights`` covers.
 
     ``sem_list`` stands in for entry traffic: it counts toward daily totals
     and FAB active users but never toward the FAB-page rankings or the
@@ -505,10 +558,7 @@ def _seed_feature(
     by ``seed_demo_users`` itself — requests no longer feed either.
     """
     is_entry = feature == "sem_list"
-    for offset in range(days_back):
-        count = total // days_back
-        if offset < total % days_back:
-            count += 1
+    for offset, count in enumerate(_spread(total, weights)):
         if count == 0:
             continue
         day = today - timedelta(days=offset)
@@ -529,21 +579,19 @@ def _seed_page_views(
     state: _UserState,
     feature: str,
     total: int,
-    days_back: int,
+    weights: list[float],
     today: date,
 ) -> None:
-    """Spread ``total`` page opens evenly over the last ``days_back`` days.
+    """Spread ``total`` page opens over the days ``weights`` covers.
 
     Deliberately does NOT touch state.daily or daily_fab_features: page views
     feed the rankings only, exactly as record_request splits them.
     ``last_opened`` is set by the caller, which knows the whole feature order
     and can stagger it into a believable history.
     """
-    if days_back <= 0 or total <= 0:
+    if not weights or total <= 0:
         return
-    per_day, remainder = divmod(total, days_back)
-    for offset in range(days_back):
-        count = per_day + (1 if offset < remainder else 0)
+    for offset, count in enumerate(_spread(total, weights)):
         if count == 0:
             continue
         day = today - timedelta(days=offset)
@@ -567,14 +615,20 @@ def seed_demo_users() -> None:
                 first_seen=now - timedelta(days=days_back),
                 last_seen=now - timedelta(hours=1),
             )
+            # One pattern per user, shared by requests and page opens, so a
+            # day off is a day off in both series.
+            weights = _day_weights(user_id, days_back, today)
             for feature, total in features.items():
-                _seed_feature(state, fab, feature, total, days_back, today)
+                _seed_feature(state, fab, feature, total, weights, today)
             for feature, total in page_views.items():
-                _seed_page_views(state, feature, total, days_back, today)
+                _seed_page_views(state, feature, total, weights, today)
             # Staggered an hour apart in declaration order so every demo user
             # has a readable 최근 쓴 기능 list. Seeding them all at `now` would
             # tie, and the tiebreak is alphabetical — an order that says
             # nothing about how the person actually works.
             for index, feature in enumerate(page_views):
                 state.last_opened[feature] = now - timedelta(hours=index + 1)
+            # A 90-day seed would otherwise leave request detail older than any
+            # read window in memory until this user's first live request.
+            _prune_old_days(state, today)
             _users[user_id] = state

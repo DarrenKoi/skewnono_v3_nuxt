@@ -209,3 +209,20 @@ def test_fab_page_rankings_stay_request_based(fresh_store):
     fabs = {row["fab"]: row for row in mock.get_fab_page_usage()["fabs_30d"]}
 
     assert [row["feature"] for row in fabs["M14"]["pages"]] == ["storage"]
+
+
+def test_seeded_home_identity_fills_the_visit_calendar_without_losing_counts(
+    fresh_store,
+):
+    mock.seed_demo_users()
+
+    visits = [day["count"] for day in mock.get_me("local-dev")["visits"]]
+    _user, _fab, _requests, page_views, _days = next(
+        row for row in mock._DEMO_USERS if row[0] == "local-dev"
+    )
+    assert sum(visits) == sum(page_views.values())
+    assert 0 in visits and len(set(visits)) > 5
+    # The weighted spread must not drop or invent requests for any peer.
+    for user_id, _fab, requests, _views, days_back in mock._DEMO_USERS:
+        if days_back <= mock.SPARKLINE_DAYS:
+            assert sum(fresh_store[user_id].daily.values()) == sum(requests.values())
