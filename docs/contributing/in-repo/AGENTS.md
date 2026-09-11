@@ -48,8 +48,9 @@
 10. **요청 수.** 사용자당 `/api/*` 예산이 50 req / 5 s 이고 SKEWNONO 전체와 공유합니다.
     한 화면에서 반복 호출을 만들지 않습니다.
 11. **프런트엔드는 `apps/<slug>/` 의 Vite 앱입니다.** `base: '/ws/<slug>/'`,
-    `outDir: '../../frontend/public/ws/<slug>'`, 해시 라우터. `frontend/app/` 안에
-    컴포넌트를 만들지 않습니다 (승격 전).
+    `outDir: '../../frontend/public/ws/<slug>'`, 해시 라우터. 빌드 산출물은 gitignore
+    되어 있으니 commit 하지 않습니다. `frontend/app/` 안에 컴포넌트를 만들지 않습니다
+    (승격 전).
 12. **git.** 자기 폴더의 파일만 명시해서 stage 합니다. `git add -A`, `git add .`,
     `git commit -a` 는 쓰지 않습니다. 넘기기 전에 commit 하고 `git status` 가 깨끗한지
     확인합니다.
@@ -62,6 +63,7 @@
 .venv/bin/python -m pytest backend/contrib/<slug> -q   # 저장소 루트
 .venv/bin/python -m ruff check .
 npm run lint:md                                        # 저장소 루트
+npm run typecheck && npm run lint && npm test          # frontend/. 진입 페이지나 headerNav.ts 를 만졌다면
 ```
 
-세 개가 모두 통과하고 `git status` 가 깨끗할 때만 "끝났다" 고 말합니다.
+해당하는 것이 모두 통과하고 `git status` 가 깨끗할 때만 "끝났다" 고 말합니다.

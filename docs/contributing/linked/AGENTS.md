@@ -33,4 +33,4 @@
    `/<slug>` 이고 이 앱의 URL 은 그 뒤에 숨습니다. 나중에 위치가 바뀌어도 링크가
    살아남게 하기 위해서입니다.
 6. **SKEWNONO 저장소를 고치지 않습니다.** 진입 페이지와 메뉴 한 줄은 SKEWNONO
-   소유자에게 patch 로 넘깁니다 (`docs/contributing/linked/README.md`).
+   소유자에게 patch 로 넘깁니다 (SKEWNONO 저장소의 `docs/contributing/linked/README.md`).

@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | 진입 페이지 | `frontend/app/pages/<slug>.vue` | 상위 안내의 redirect 한 장 |
 | 메뉴 항목 | `frontend/app/utils/headerNav.ts` 한 줄 | `to: '/<slug>'`, `group: 'lab'` |
-| 빌드 순서 | `frontend/package.json` 의 `build` 앞에 Vite 빌드 한 줄 | 소유자와 상의 |
+| 빌드 순서 | `frontend/package.json` 의 `build` 앞에 Vite 빌드 한 줄 | **소유자가 편집.** 동료는 `MIGRATION.md` 에 요청만 적습니다 |
 
 이 밖의 공유 파일은 건드리지 않습니다. 필요해 보이면 `MIGRATION.md` 에 이유를 적고
 소유자에게 맡깁니다. 자주 나오는 경우는 아래 백엔드 절에 있습니다.
@@ -79,15 +79,16 @@ apps/<slug>/                          # 저장소 루트. frontend/ 밖이라 SK
 ```
 
 - 빌드 결과가 `frontend/public/ws/<slug>/` 에 놓이고, Nuxt 는 `public/` 을 빌드 결과에
-  그대로 복사합니다. 클라우드의 Flask 는 요청 경로와 정확히 일치하는 파일이 있으면
+  그대로 복사합니다. 이 경로는 gitignore 되어 있으므로 산출물은 commit 하지 않고,
+  사무실 빌드 때 Vite 빌드가 다시 만듭니다. 클라우드의 Flask 는 요청 경로와 정확히 일치하는 파일이 있으면
   그 파일을, 없으면 SPA 의 `index.html` 을 돌려주므로 `/ws/<slug>/index.html` 이 그대로
   열립니다. 진입 페이지 `pages/<slug>.vue` 는 이 주소로 보냅니다.
 - `/ws/` 접두어는 SKEWNONO 페이지가 아닌 경로여야 합니다. `nuxt generate` 가 페이지마다
   `<경로>/index.html` 을 만들기 때문에, Vite 앱을 `public/<slug>/` 에 두면 진입
   페이지의 출력물과 같은 자리에서 충돌합니다.
-- **해시 라우터**를 씁니다. `/ws/<slug>/foo` 같은 깊은 경로는 파일이 없어 SPA 의
-  `index.html` 로 떨어집니다. 디렉터리 index 도 찾지 않으므로 진입 주소는 파일명까지
-  적습니다.
+- **해시 라우터**를 씁니다. `/ws/<slug>/foo` 같은 깊은 경로는 파일이 없어 SKEWNONO 의
+  404 화면이 뜨고, 페이지 조회 비콘까지 `ws` 슬러그로 찍힙니다. 디렉터리 index 도
+  찾지 않으므로 링크는 항상 `/ws/<slug>/index.html#/...` 형태입니다.
 - 같은 origin 이므로 LASTUSER 쿠키와 `/api/*` 호출이 그대로 동작합니다. API 주소는
   `/api/<slug>/...` 상대 경로입니다.
 - 개발 중에는 `vite build` 뒤 SKEWNONO 의 Nuxt dev 서버(`public/` 을 서빙)에서
@@ -127,7 +128,7 @@ Nuxt 를 몰라도 됩니다. 페이지는 그냥 Vue SFC 입니다. 본보기�
 .venv/bin/python -m pytest backend/contrib/<slug> -q   # 저장소 루트
 .venv/bin/python -m ruff check .
 npm run lint:md                                        # Markdown 을 고쳤다면, 저장소 루트
-npm run typecheck && npm run lint && npm test          # frontend/. 승격 뒤 화면을 만졌다면
+npm run typecheck && npm run lint && npm test          # frontend/. 진입 페이지나 headerNav.ts 를 포함해 frontend/app/ 을 만졌다면
 ```
 
 Vite 앱의 게이트는 자기 `package.json` 에 둡니다. SKEWNONO 의 게이트는 그 앱을 보지

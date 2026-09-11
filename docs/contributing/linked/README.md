@@ -20,7 +20,8 @@
   자기 신원 게이트를 두거나, 같은 상위 도메인의 서브도메인에서 쿠키 도메인을 맞춥니다.
 - **화면.** 헤더, 툴/fab 컨텍스트, 디자인 토큰, NuxtUI 는 없습니다. 디자인을 맞추고
   싶으면 `DESIGN.md` 의 토큰 값을 CSS 로 옮깁니다.
-- **활동 로그.** SKEWNONO 는 `/<slug>` 진입만 셉니다.
+- **활동 로그.** 랭킹은 `/<slug>` 진입만 셉니다. 토큰으로 부른 API 는 토큰 소유자의
+  요청 통계에 기록됩니다.
 - **요청 제한과 에러 규약.** 동료 앱 기준입니다.
 
 ## SKEWNONO 의 데이터가 필요하면
@@ -29,14 +30,9 @@
 `backend/__init__.py` 에 하나로 박혀 있고, 쿠키도 넘어가지 않기 때문입니다. 대신
 **동료 앱의 서버가 API 토큰으로 부릅니다.**
 
-- 토큰은 SKEWNONO 의 세팅 화면에서 발급합니다. `skn_` 로 시작하는 문자열이고,
-  `Authorization: Bearer skn_...` 헤더로 보냅니다. 토큰의 소유자가 요청한 사용자로
-  기록됩니다. 자세한 것은 [`docs/back-end/api-tokens.md`](../../back-end/api-tokens.md)
-  입니다.
-- 응답은 JSON 이고, 실패는 `{"error": {"code": "...", "message": "..."}}` 형태로
-  `4xx`/`5xx` 와 함께 옵니다. 사내 소스를 못 읽으면 503 입니다.
-- 요청 제한은 토큰 소유자 기준으로 `/api/*` 전체 50 req / 5 s 입니다. 서버에서
-  캐시하고 사용자 요청마다 SKEWNONO 를 두드리지 않습니다.
+- 토큰은 SKEWNONO 의 세팅 화면에서 발급하고 `Authorization: Bearer skn_...` 로
+  보냅니다. 규약의 원본은 [`docs/back-end/api-tokens.md`](../../back-end/api-tokens.md)
+  이고, 에러 JSON 과 요청 예산의 LLM 용 요약은 이 폴더 `AGENTS.md` 의 규칙 3·4 입니다.
 - 어떤 엔드포인트가 무엇을 주는지는 `docs/api-contracts/*.yaml` 과 각 기능의
   `MIGRATION.md` 에 있습니다.
 

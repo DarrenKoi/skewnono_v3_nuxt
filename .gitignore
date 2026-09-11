@@ -65,6 +65,10 @@ node_modules/
 # Nuxt build / dev outputs
 .nuxt/
 .output/
+# Teammate Vite apps (apps/<slug>/) build into frontend/public/ws/<slug>/ so
+# the SPA build ships them. Built at the office before `nuxt generate`, never
+# committed -- docs/contributing/in-repo/README.md.
+frontend/public/ws/
 .nitro/
 .cache/
 .data/
