@@ -298,7 +298,7 @@ def create_app() -> Flask:
             app.register_blueprint(bp, url_prefix="/api")
         except Exception:
             # contrib/<slug>/ is the teammates' area (docs/contributing/
-            # new-workspace.md). A broken package there must not take the
+            # in-repo/README.md). A broken package there must not take the
             # app down with it: log it, list it, serve everything else. Core
             # features keep failing loud — a boot error is cheaper than a
             # request-time one.

@@ -42,7 +42,9 @@ has none. Audit the **template**, not `office.py`.
 - Otherwise auto-detect: `git status --porcelain` + `git diff HEAD~5 --name-only`,
   map touched files under `backend/<feature>/` to features (a route-owning
   folder = has `routes.py`). Also flag NEW route-owning folders that have no
-  provider split at all.
+  provider split at all — except under `backend/contrib/**`, which is
+  office-only by design (`docs/contributing/in-repo/README.md`) and is
+  skipped entirely.
 
 ## 2. Audit each feature (report table, one row per check)
 
