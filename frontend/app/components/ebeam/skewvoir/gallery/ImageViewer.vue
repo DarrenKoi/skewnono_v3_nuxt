@@ -180,18 +180,6 @@
           wafer 위치 이동
         </button>
 
-        <button
-          type="button"
-          class="inline-flex items-center justify-center gap-1.5 rounded-(--sk-r-nav) border border-(--sk-border) px-3 py-1.5 font-mono text-xs text-(--sk-ink-muted) transition-colors hover:text-(--sk-ink)"
-          @click="emit('evidence', entry)"
-        >
-          <UIcon
-            name="i-lucide-layers"
-            class="h-3.5 w-3.5"
-          />
-          측정 근거 레이어
-        </button>
-
         <p class="mt-auto font-mono text-xs text-(--sk-ink-subtle)">
           {{ index + 1 }} / {{ entries.length }} · ← → 로 이동
         </p>
@@ -217,18 +205,11 @@ const props = defineProps<{
    * than derived here because this viewer takes review entries, not the
    * analysis context that knows the recipe. Null disables the memory. */
   variantKey: string | null
-  /** False while another layer sits ON TOP of this viewer (the 측정 근거 레이어
-   * drawer). Arrow/Esc are bound to `window`, so without this the viewer keeps
-   * answering keys meant for the layer above it: one Esc tore down the drawer
-   * AND the viewer together, and ← → stepped the image behind an open drawer
-   * whose contents still described the image it had left. */
-  keyboard?: boolean
 }>()
 const emit = defineEmits<{
   'close': []
   'update:index': [value: number]
   'moveToSite': [chip: string]
-  'evidence': [entry: ReviewEntry]
 }>()
 
 const { fetchImageWithCond, imageUrl } = useMsrImageApi()
@@ -385,19 +366,13 @@ const roleClass = (role: 'bad' | 'warn' | 'muted'): string => {
   return 'bg-(--sk-chip-bg) text-(--sk-ink-muted)'
 }
 
-// Keyboard nav — arrows step, Esc closes. Bound only while this viewer is the
-// TOP layer: `keyboard` goes false under the 측정 근거 레이어 drawer, so Esc
-// dismisses the drawer alone and ← → cannot step the image out from under it.
-//
-// Deliberately its OWN watcher rather than a wider source on the lifecycle
-// watch below: that one also revokes the decoded blob when it goes false, so
-// folding `keyboard` into it would blank the micrograph behind the drawer.
+// Keyboard nav — arrows step, Esc closes; bound only while open.
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') emit('close')
   else if (e.key === 'ArrowLeft') step(-1)
   else if (e.key === 'ArrowRight') step(1)
 }
-watch(() => props.open && props.keyboard !== false, (listening) => {
+watch(() => props.open, (listening) => {
   if (!import.meta.client) return
   if (listening) window.addEventListener('keydown', onKey)
   else window.removeEventListener('keydown', onKey)

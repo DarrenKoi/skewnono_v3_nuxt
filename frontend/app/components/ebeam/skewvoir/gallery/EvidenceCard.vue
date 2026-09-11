@@ -109,8 +109,7 @@
 
       <!-- File-kind tag. The vendor acquisition-score badge used to sit beside it;
            it is neither a verdict nor actionable at thumbnail size, so it now
-           lives only where it can be read next to its scores — the viewer rail
-           and the evidence drawer. -->
+           lives only where it can be read next to its score — the viewer rail. -->
       <span
         v-if="isTiff"
         class="absolute top-1 right-1 rounded-(--sk-r-sidebar) bg-(--sk-surface)/85 px-1 py-0.5 font-mono text-xs text-(--sk-ink-muted) shadow-sm backdrop-blur-sm"

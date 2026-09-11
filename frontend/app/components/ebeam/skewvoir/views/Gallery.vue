@@ -140,7 +140,7 @@
       {{ analysis.activeParamLabel.value }} 이미지가 없습니다.
     </div>
 
-    <!-- Enlarged viewer + measurement-evidence drawer (single scope). -->
+    <!-- Enlarged viewer (single scope). -->
     <EbeamSkewvoirGalleryImageViewer
       :open="viewerOpen"
       :entries="filteredEntries"
@@ -150,15 +150,9 @@
       :class_name="focusCtx.class_name"
       :msr="focusCtx.msr"
       :variant-key="variantKey"
-      :keyboard="!drawerOpen"
       @update:index="viewerIndex = $event"
       @close="viewerOpen = false"
       @move-to-site="onMoveToSite"
-      @evidence="onEvidence"
-    />
-    <EbeamSkewvoirGalleryImageEvidenceDrawer
-      v-model:open="drawerOpen"
-      :entry="drawerEntry"
     />
   </EbeamSkewvoirPanelFrame>
 </template>
@@ -286,11 +280,9 @@ const frameMeta = computed(() => {
   return `${images.value.length} sites · MP: ${props.analysis.activeParamLabel.value}`
 })
 
-// ── Viewer + drawer state ────────────────────────────────────────────────────
+// ── Viewer state ────────────────────────────────────────────────────
 const viewerOpen = ref(false)
 const viewerIndex = ref(0)
-const drawerOpen = ref(false)
-const drawerEntry = ref<ReviewEntry | null>(null)
 
 const openViewer = (entry: ReviewEntry) => {
   const idx = filteredEntries.value.findIndex(e => e.chip === entry.chip && e.sequence === entry.sequence)
@@ -313,11 +305,6 @@ const onMoveToSite = (chip: string) => {
   if (entry) props.analysis.setFocusedSequence(entry.sequence)
   viewerOpen.value = false
   props.analysis.openSiteInView(chip, 'position-stack')
-}
-
-const onEvidence = (entry: ReviewEntry) => {
-  drawerEntry.value = entry
-  drawerOpen.value = true
 }
 
 // ── SET scope: existing filename grid ────────────────────────────────────────

@@ -201,7 +201,7 @@
     </EbeamSkewvoirPanelFrame>
 
     <!-- Enlarging opens the gallery's viewer, not a bare lightbox: the same
-         rail (metadata, 취득 조건, wafer 위치 이동, 측정 근거 레이어) and ← →
+         rail (metadata, 취득 조건, wafer 위치 이동) and ← →
          across this parameter's sites. -->
     <EbeamSkewvoirGalleryImageViewer
       :open="viewerOpen"
@@ -212,15 +212,9 @@
       :class_name="focusCtx.class_name"
       :msr="focusCtx.msr"
       :variant-key="variantKey"
-      :keyboard="!drawerOpen"
       @update:index="viewerIndex = $event"
       @close="viewerOpen = false"
       @move-to-site="onMoveToSite"
-      @evidence="onEvidence"
-    />
-    <EbeamSkewvoirGalleryImageEvidenceDrawer
-      v-model:open="drawerOpen"
-      :entry="drawerEntry"
     />
   </div>
 </template>
@@ -317,8 +311,6 @@ const entries = computed<ReviewEntry[]>(() =>
   ).entries)
 const viewerOpen = ref(false)
 const viewerIndex = ref(0)
-const drawerOpen = ref(false)
-const drawerEntry = ref<ReviewEntry | null>(null)
 
 // `variant` is which sub-image was clicked; the viewer reads the same
 // remembered pick, so setting it here is what makes the viewer open on it.
@@ -336,11 +328,6 @@ const onMoveToSite = (chip: string) => {
   if (entry) props.analysis.setFocusedSequence(entry.sequence)
   viewerOpen.value = false
   props.analysis.openSiteInView(chip, 'position-stack')
-}
-
-const onEvidence = (entry: ReviewEntry) => {
-  drawerEntry.value = entry
-  drawerOpen.value = true
 }
 
 // A failed load is per-image: switching to another image retries cleanly.

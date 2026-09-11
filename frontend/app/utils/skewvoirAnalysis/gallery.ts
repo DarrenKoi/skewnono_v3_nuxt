@@ -55,7 +55,6 @@ export interface VendorMonitor {
   addressing2Score: number | null
   low: boolean
   channels: string[] // the channel labels that tripped the low fence (Korean)
-  detail: string
 }
 
 /**
@@ -168,18 +167,6 @@ export const resolveEvidenceOnly = (
   choice: boolean | null,
   evidenceBackedCount: number
 ): boolean => choice ?? evidenceBackedCount > 0
-
-/** Artifact-suspicion review TAGS — a SEPARATE axis from any pattern verdict. The
- * reviewer picks these by eye; Phase-1 provides no algorithmic backing for them,
- * so they are review prompts, never machine classifications. */
-export const ARTIFACT_TAGS: { key: string, label: string }[] = [
-  { key: 'charging', label: '차징/콘트라스트' },
-  { key: 'focus', label: '포커스/비점수차' },
-  { key: 'drift', label: '이미지 드리프트' },
-  { key: 'contamination', label: '오염/반복 노광' },
-  { key: 'edge-algo', label: '엣지 알고리즘' },
-  { key: 'pixel-cal', label: '픽셀 보정' }
-]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -359,9 +346,6 @@ const buildMonitor = (
     addressing1Score,
     addressing2Score,
     low: channels.length > 0,
-    channels,
-    detail: channels.length > 0
-      ? `${channels.join(', ')} 점수 낮음 — 취득 품질 모니터링(판정 아님)`
-      : '취득 점수 정상'
+    channels
   }
 }
