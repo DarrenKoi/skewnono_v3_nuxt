@@ -12,7 +12,13 @@ SKEWNONO 는 장비별 작업 공간의 **허브**입니다. 사용자는 장비
 코드를 고치자고 제안하는 것을 막는 방법은 문서를 늘리는 것이 아니라 **읽는 범위를
 자기 폴더와 이 세 파일로 좁히는 것**입니다.
 
-## 원칙 세 가지
+## 원칙 네 가지
+
+- **동료 폴더가 깨져도 SKEWNONO 는 뜹니다.** 백엔드는 `backend/contrib/<slug>/` 아래만
+  fail-soft 로 로드합니다. import 가 실패하면 그 패키지만 건너뛰고 부팅 로그와
+  `SKEWNONO_CONTRIB_FAILED` 에 이름이 남습니다. 프런트엔드는 같은 Nuxt 빌드에 들어간
+  코드가 빌드를 막을 수 있으므로, 검증 전 작업 공간은 **자기 빌드를 따로 가지는
+  2단계나 3단계**로 시작하고 1단계는 승격 뒤에 씁니다.
 
 - **폴더가 곧 기능입니다.** 백엔드는 `routes.py` 가 있는 폴더를 자동 등록하고,
   프런트엔드는 `components/<slug>/` 에 접두어를 자동으로 붙입니다. 아래 표의 "손대는
@@ -31,7 +37,7 @@ SKEWNONO 는 장비별 작업 공간의 **허브**입니다. 사용자는 장비
 
 슬러그 하나가 백엔드 폴더, API 경로, 페이지 경로, 활동 로그 키를 모두 정합니다.
 
-- 백엔드 폴더와 API 접두어는 **snake_case** 입니다: `backend/my_tool/`, `/api/my_tool/...`.
+- 백엔드 폴더와 API 접두어는 **snake_case** 입니다: `backend/contrib/my_tool/`, `/api/my_tool/...`.
 - 페이지 경로는 **kebab-case** 입니다: `/my-tool`. 활동 로그가 페이지 경로의 `-` 를
   `_` 로 바꾸고 API 경로는 첫 세그먼트를 그대로 쓰므로, 이렇게 해야 둘이 같은
   `my_tool` 로 모입니다. API 경로를 kebab 으로 쓰면 `backend/_logging/feature_map.py`
@@ -43,7 +49,7 @@ SKEWNONO 는 장비별 작업 공간의 **허브**입니다. 사용자는 장비
 ## 백엔드
 
 ```text
-backend/<slug>/
+backend/contrib/<slug>/
 ├── __init__.py            # from .routes import bp  (앱 팩토리는 이 패키지에서 bp 를 찾습니다)
 ├── routes.py              # bp = Blueprint("<slug>", __name__), 경로는 /<slug>/... 로 시작
 ├── data.py                # 사내 OpenSearch/Redis 를 직접 읽습니다
@@ -54,9 +60,10 @@ backend/<slug>/
 `MIGRATION.md` 에는 세 가지를 적습니다. 소유자와 목적 한 줄, 읽는 사내 소스와 부르는
 SKEWNONO API, 그리고 자기 폴더 밖 공유 파일을 건드렸다면 어느 줄을 왜 건드렸는지.
 
-- 앱 팩토리가 `routes.py` 를 찾아 `backend.<slug>` 패키지를 import 하고 그 `bp` 를
-  `/api` 아래에 등록합니다. `__init__.py` 의 re-export 가 없으면 부팅이 실패합니다.
-  등록 코드는 고치지 않습니다.
+- 앱 팩토리가 `routes.py` 를 찾아 `backend.contrib.<slug>` 패키지를 import 하고 그
+  `bp` 를 `/api` 아래에 등록합니다. `contrib/` 아래에서는 import 실패나 `bp` 누락이
+  부팅을 막지 않고 그 패키지만 빠집니다. 자기 엔드포인트가 404 면 부팅 로그에서
+  `contrib feature ... failed to load` 를 찾습니다. 등록 코드는 고치지 않습니다.
 - 신원(LASTUSER 쿠키), 요청 제한, 에러 JSON, 활동 로그는 자동으로 상속됩니다.
 - `data.py` 는 **import 시점에 사내 자원을 만지지 않습니다.** 연결은 첫 호출에서
   엽니다. import 시점에 실패하면 앱 전체가 부팅되지 않습니다.
@@ -71,13 +78,14 @@ SKEWNONO API, 그리고 자기 폴더 밖 공유 파일을 건드렸다면 어�
   하나로 정해져 있기 때문입니다. `backend/_scheduler/tasks/<slug>.py` 에 두고
   `backend/_scheduler/registry.py` 에 등록하는데, 이 등록은 공유 파일 편집이므로
   소유자와 상의합니다.
-- 게이트: `.venv/bin/python -m pytest backend/<slug> -q`, `.venv/bin/python -m ruff check .`
+- 게이트: `.venv/bin/python -m pytest backend/contrib/<slug> -q`, `.venv/bin/python -m ruff check .`
 
 ## 프런트엔드: 세 단계 중 하나를 고릅니다
 
-독립성이 낮은 쪽부터 높은 쪽 순서입니다. SKEWNONO 의 데이터와 화면을 많이 쓰는
-기능이면 앞쪽, 자기 데이터로 자기 도구를 만드는 것이면 뒤쪽이 맞습니다. 작업 공간마다
-따로 골라도 됩니다.
+독립성이 낮은 쪽부터 높은 쪽 순서입니다. **검증 전 작업 공간은 2단계나 3단계로
+시작합니다.** 1단계는 SKEWNONO 와 같은 빌드에 들어가므로 문법 오류 하나가 전체 빌드를
+막고, 그래서 승격된 기능만 씁니다. SKEWNONO 의 데이터와 화면을 많이 쓰면 2단계,
+자기 데이터로 자기 도구를 만들면 3단계가 맞습니다.
 
 | 단계 | 형태 | 공유되는 것 | SKEWNONO 쪽에 손대는 줄 |
 | --- | --- | --- | --- |
@@ -85,7 +93,7 @@ SKEWNONO API, 그리고 자기 폴더 밖 공유 파일을 건드렸다면 어�
 | 2 | 같은 origin 의 별도 Vite 앱 | 신원, API | `headerNav.ts` 1 줄 + 빌드 순서 |
 | 3 | 별도 URL 로 이동 | 없음 | `headerNav.ts` 1 줄 + 페이지 1 개, API 를 쓰면 CORS |
 
-### 1단계: 같은 Nuxt 안의 폴더
+### 1단계: 같은 Nuxt 안의 폴더 (승격 뒤)
 
 ```text
 frontend/app/
@@ -171,7 +179,7 @@ Nuxt 는 `frontend/public/` 을 빌드 결과에 그대로 복사하고, 클라�
 ## 게이트 요약
 
 ```bash
-.venv/bin/python -m pytest backend/<slug> -q    # 저장소 루트
+.venv/bin/python -m pytest backend/contrib/<slug> -q   # 저장소 루트
 .venv/bin/python -m ruff check .
 npm run typecheck && npm run lint && npm test   # frontend/
 npm run lint:md                                 # Markdown 을 고쳤다면, 저장소 루트

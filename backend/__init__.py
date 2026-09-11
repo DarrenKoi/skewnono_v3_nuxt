@@ -76,6 +76,10 @@ def _rate_limit_storage() -> dict:
 # read-only aggregations and the analytics scope caps their row counts.
 _EXEMPT_BLUEPRINTS = ("msr_image.", "fail_issue.", "recipe_tat.")
 
+# Teammate-owned feature packages live here and load fail-soft (see the
+# discovery loop in create_app).
+CONTRIB_DIR = "contrib"
+
 
 def _install_rate_limit(app: Flask) -> None:
     from flask_limiter import Limiter
@@ -284,13 +288,24 @@ def create_app() -> Flask:
         if any(part.startswith("_") for part in rel_parts):
             continue
         module_path = ".".join((__name__, *rel_parts))
-        module = importlib.import_module(module_path)
-        bp = getattr(module, "bp", None)
-        if not isinstance(bp, Blueprint):
-            raise RuntimeError(
-                f"{module_path} has routes.py but does not export a Blueprint named 'bp'"
-            )
-        app.register_blueprint(bp, url_prefix="/api")
+        try:
+            module = importlib.import_module(module_path)
+            bp = getattr(module, "bp", None)
+            if not isinstance(bp, Blueprint):
+                raise RuntimeError(
+                    f"{module_path} has routes.py but does not export a Blueprint named 'bp'"
+                )
+            app.register_blueprint(bp, url_prefix="/api")
+        except Exception:
+            # contrib/<slug>/ is the teammates' area (docs/contributing/
+            # new-workspace.md). A broken package there must not take the
+            # app down with it: log it, list it, serve everything else. Core
+            # features keep failing loud — a boot error is cheaper than a
+            # request-time one.
+            if rel_parts[0] != CONTRIB_DIR:
+                raise
+            app.logger.exception("contrib feature %s failed to load, skipped", module_path)
+            app.config.setdefault("SKEWNONO_CONTRIB_FAILED", []).append(module_path)
 
     # Identity exists in every phase, so /api/me does too — a home session that
     # could not answer it would develop against a screen the cloud never shows.
