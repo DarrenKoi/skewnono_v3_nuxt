@@ -118,8 +118,9 @@ const systemStatus = computed(() => {
             />
             <span class="text-xs font-bold uppercase tracking-[0.2em] text-(--sk-ink-subtle)">데이터 반출 금지</span>
           </div>
-          <p class="sk-meta flex flex-1 items-center justify-center text-center leading-relaxed">
-            스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.
+          <p class="sk-meta flex flex-1 flex-col items-center justify-center gap-1 text-center leading-relaxed">
+            <span>스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.</span>
+            <span>반출 시 담당 MI팀 승인이 필요합니다.</span>
           </p>
         </div>
       </div>
