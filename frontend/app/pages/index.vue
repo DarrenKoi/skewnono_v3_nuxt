@@ -108,7 +108,7 @@ const systemStatus = computed(() => {
         <!-- 전사 반출 금지 고지. 개별 페이지가 아니라 진입점에 두어, 어떤 탭으로
              들어가든 한 번은 읽고 지나가게 합니다. -->
         <div
-          class="flex items-start gap-2.5 rounded-xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-3 lg:max-w-64"
+          class="flex items-start gap-2.5 rounded-xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-3 lg:max-w-64 lg:self-stretch"
         >
           <UIcon
             name="i-lucide-triangle-alert"
