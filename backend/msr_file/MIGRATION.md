@@ -193,6 +193,25 @@ pickle 은 **사무실 컬럼 철자**(`meas_condition mag`, `mp_image_name 01`,
 `object`)로 되돌려 담습니다 — 홈에서 쓴 파서가 사무실에서 `KeyError` 를 내는
 드리프트를 막기 위한 것이며 `tests/test_artifact.py` 가 이를 고정합니다.
 
+## 일괄 원본 다운로드 — `POST /api/msr-files/download`
+
+본문 `{"msrs": [str, ...], "kind": "raw" | "pkl"}` 를 받아 각 MSR 의 원본을 zip
+하나로 묶어 보냅니다. API token 스크립트가 MSR 마다 단건 다운로드를 부르면
+5초 50회 rate limit 에 걸리므로, 한 번의 요청(rate limit 1회)으로 받게 한
+것입니다. 최대 100건이며 중복 MSR 은 한 번만 담습니다.
+
+어댑터를 새로 요구하지 않습니다. route 가 단건과 같은 `get_msr_artifact` 를
+MSR 마다 부르므로 office 쪽 추가 작업은 없습니다.
+
+- 404/410 인 MSR 은 요청을 실패시키지 않고 건너뛰며, zip 안의 `_skipped.json`
+  에 `{msr, status, error}` 로 남깁니다. 보존 기간이 지난 몇 건 때문에 나머지를
+  못 받는 일이 없게 하기 위함입니다.
+- `kind` 가 잘못되면(400) zip 을 만들지 않고 요청 전체를 400 으로 거절합니다.
+- zip 안 파일명은 단건과 같이 key 의 basename 이고, 이름이 겹치면
+  `<msr>/<basename>` 으로 담습니다.
+- zip 전체를 메모리에서 만듭니다. office pickle 크기가 확인되지 않았으므로
+  (OFFICE-VERIFY) 100건 상한이 메모리 상한을 겸합니다.
+
 ## 픽클 보존(retention) — 이 앱은 읽기만 합니다
 
 `minio_pkl` 픽클은 **캐시가 아니라 원천 데이터**입니다. 이 어댑터는

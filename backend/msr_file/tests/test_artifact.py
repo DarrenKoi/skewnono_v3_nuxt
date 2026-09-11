@@ -153,6 +153,81 @@ def test_route_is_not_cached(client):
     assert response.headers["Cache-Control"] == "no-cache"
 
 
+# ── bulk route ─────────────────────────────────────────────────────────────
+
+_OTHER_MSR = "20260509_CNT_CONTACT_CHECK_001_RKPB240012_MCD018"
+
+
+def _zip(response):
+    import io
+    import zipfile
+
+    assert response.status_code == 200, response.data
+    assert response.headers["Content-Type"] == "application/zip"
+    return zipfile.ZipFile(io.BytesIO(response.data))
+
+
+def test_bulk_zips_each_msrs_original_under_the_stores_filename(client):
+    response = client.post(
+        "/api/msr-files/download",
+        json={"msrs": [_MSR, _OTHER_MSR, _MSR], "kind": "pkl"},
+    )
+
+    with _zip(response) as archive:
+        # The duplicate _MSR is packed once.
+        assert sorted(archive.namelist()) == sorted(
+            [f"{_MSR}.pkl", f"{_OTHER_MSR}.pkl", "_skipped.json"]
+        )
+        document = pickle.loads(archive.read(f"{_MSR}.pkl"))
+        assert "df_result_data" in document
+        assert archive.read(f"{_MSR}.pkl") == mock.get_msr_artifact(_MSR, "pkl")["data"]
+
+
+def test_bulk_skips_missing_msrs_instead_of_failing_the_batch(client):
+    """Retention expiry is routine; a few gone files must not cost the rest."""
+    import json
+
+    response = client.post(
+        "/api/msr-files/download",
+        json={"msrs": ["NOPE_XYZ", _MSR], "kind": "raw"},
+    )
+
+    with _zip(response) as archive:
+        assert f"{_MSR}.MSR" in archive.namelist()
+        skipped = json.loads(archive.read("_skipped.json"))
+    assert [(s["msr"], s["status"]) for s in skipped] == [("NOPE_XYZ", 404)]
+
+
+def test_bulk_bad_kind_rejects_the_whole_request(client):
+    response = client.post("/api/msr-files/download", json={"msrs": [_MSR], "kind": "zip"})
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("body", [
+    {"kind": "raw"},
+    {"msrs": _MSR, "kind": "raw"},
+    {"msrs": [1], "kind": "raw"},
+    {"msrs": ["  "], "kind": "raw"},
+    {"msrs": [f"M{i}" for i in range(101)], "kind": "raw"},
+])
+def test_bulk_rejects_malformed_msrs(client, body):
+    assert client.post("/api/msr-files/download", json=body).status_code == 400
+
+
+def test_bulk_name_clash_moves_the_later_file_into_its_msr_folder(client, monkeypatch):
+    from backend.msr_file import routes
+
+    monkeypatch.setattr(routes, "get_msr_artifact", lambda msr, kind: {
+        "kind": kind, "filename": "same.pkl",
+        "content_type": "application/octet-stream", "data": msr.encode(),
+    })
+    response = client.post("/api/msr-files/download", json={"msrs": ["A", "B"], "kind": "pkl"})
+
+    with _zip(response) as archive:
+        assert archive.read("same.pkl") == b"A"
+        assert archive.read("B/same.pkl") == b"B"
+
+
 # ── office adapter ─────────────────────────────────────────────────────────
 
 

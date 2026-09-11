@@ -39,6 +39,11 @@ export const pythonExample = (endpoint: ApiEndpoint): string => {
   if (endpoint.example.body !== undefined) {
     lines.push(`    json=${JSON.stringify(endpoint.example.body)},`)
   }
-  lines.push('    timeout=10,', ')', 'resp.raise_for_status()', 'data = resp.json()')
+  lines.push(
+    `    timeout=${endpoint.example.timeout ?? 10},`,
+    ')',
+    'resp.raise_for_status()',
+    endpoint.example.read ?? 'data = resp.json()'
+  )
   return lines.join('\n')
 }

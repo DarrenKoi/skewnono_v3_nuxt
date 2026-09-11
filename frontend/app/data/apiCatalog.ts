@@ -23,6 +23,11 @@ export type ApiExample = {
   path: string
   query?: Record<string, string>
   body?: unknown
+  // Python lines after raise_for_status(). Omitted = `resp.json()`, which is
+  // wrong for any endpoint answering with bytes (files, images, zips).
+  read?: string
+  // Seconds; the snippet default is 10, too short for a batch of originals.
+  timeout?: number
 }
 
 export type ApiEndpoint = {
@@ -225,7 +230,7 @@ export const apiGroups: ApiGroup[] = [
   },
   {
     name: 'Recipe Search',
-    description: 'recipe catalog, open recipe, lateral recipe, measurement history, MSR file 데이터입니다.',
+    description: 'recipe catalog, open recipe, lateral recipe, measurement history 데이터입니다.',
     icon: 'i-lucide-search-code',
     endpoints: [
       {
@@ -401,7 +406,10 @@ export const apiGroups: ApiGroup[] = [
           path: '/cdsem/recipe-search/recipe-image',
           query: {
             eqp_ip: '10.1.2.3', class_name: 'CLS', idw: 'IDW_A', idp: 'IDP_B', name: 'IMMP0004.jpeg'
-          }
+          },
+          read: `from pathlib import Path
+
+Path("IMMP0004.jpeg").write_bytes(resp.content)`
         }
       },
       {
@@ -429,11 +437,18 @@ export const apiGroups: ApiGroup[] = [
         response: 'MeasHistPayload',
         auth: '토큰 가능',
         example: { path: '/meas-hist', query: { tool_type: 'cd-sem', fab_name: 'M11' } }
-      },
+      }
+    ]
+  },
+  {
+    name: 'Skewvoir',
+    description: '스큐보아가 쓰는 MSR 측정 데이터입니다. MSR id는 Recipe Search의 /api/meas-hist에서 얻고, 파싱된 JSON, MinIO에 저장된 원본(raw .MSR / pickle), 장비 이미지를 가져갈 수 있습니다.',
+    icon: 'i-lucide-eye',
+    endpoints: [
       {
         method: 'GET',
         path: '/api/msr-file',
-        summary: 'MSR identifier로 raw measurement file 정보를 조회합니다.',
+        summary: 'MSR 하나의 pickle을 파싱한 JSON을 반환합니다 — 측정 row, parameter 요약, FDC, exe_detail_info, 응답의 eqp_ip(이미지 조회에 필요)까지 담깁니다.',
         args: [
           { name: 'msr', kind: 'query', required: true, note: 'MSR identifier' },
           { name: 'class_name', kind: 'query', required: false, note: 'measurement class 이름' },
@@ -446,7 +461,7 @@ export const apiGroups: ApiGroup[] = [
       {
         method: 'POST',
         path: '/api/msr-files',
-        summary: '여러 MSR의 raw measurement file 정보를 한 번에 조회합니다 (스큐보아 다중 선택).',
+        summary: '여러 MSR의 파싱된 JSON을 한 번에 조회합니다. 요청 1회로 처리되므로 MSR마다 /api/msr-file을 부르는 것보다 rate limit에 여유가 있습니다. 없는 MSR은 results에서 빠집니다.',
         args: [
           { name: 'items', kind: 'body', required: true, note: '[{ msr, class_name?, total_images? }] — 최대 200건' }
         ],
@@ -469,7 +484,87 @@ export const apiGroups: ApiGroup[] = [
         ],
         response: '파일 바이트 (Content-Disposition: attachment)',
         auth: '토큰 가능',
-        example: { path: '/msr-file/download', query: { msr: 'MSR_001', kind: 'raw' } }
+        example: {
+          path: '/msr-file/download',
+          query: { msr: 'MSR_001', kind: 'pkl' },
+          read: `import pickle
+from pathlib import Path
+
+# 메모리에서 바로 열기
+document = pickle.loads(resp.content)
+df = document["df_result_data"]
+
+# 또는 파일로 저장 (kind=raw 도 같은 방식 — 텍스트 인코딩은 확인 전이므로 bytes 그대로 저장)
+Path("MSR_001.pkl").write_bytes(resp.content)`
+        }
+      },
+      {
+        method: 'POST',
+        path: '/api/msr-files/download',
+        summary: '여러 MSR의 원본을 zip 하나로 내려받습니다. 요청 1회라 rate limit에 걸리지 않습니다. 404/410으로 받지 못한 MSR은 요청을 실패시키지 않고 zip 안의 _skipped.json에 { msr, status, error }로 남습니다.',
+        args: [
+          { name: 'msrs', kind: 'body', required: true, note: 'MSR identifier 목록 — 최대 100건, 중복은 한 번만 담습니다' },
+          { name: 'kind', kind: 'body', required: true, note: 'raw 또는 pkl — 목록 전체에 같은 kind가 적용됩니다' }
+        ],
+        response: 'application/zip (원본 파일들 + _skipped.json)',
+        auth: '토큰 가능',
+        example: {
+          path: '/msr-files/download',
+          body: { msrs: ['MSR_001', 'MSR_002'], kind: 'pkl' },
+          timeout: 120,
+          read: `import io
+import json
+import pickle
+import zipfile
+
+with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+    skipped = json.loads(archive.read("_skipped.json"))  # 받지 못한 MSR
+    documents = {
+        name: pickle.loads(archive.read(name))
+        for name in archive.namelist()
+        if name != "_skipped.json"
+    }
+    # 또는 디스크에 풀기: archive.extractall("msr_pkl")`
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/msr-images',
+        summary: 'MSR의 측정 이미지 파일명 목록을 반환합니다. 사내에서는 장비 FTP 디렉터리를 조회하므로 몇 초 걸릴 수 있습니다.',
+        args: [
+          { name: 'eqp_ip', kind: 'query', required: true, note: '/api/msr-file 응답의 eqp_ip' },
+          { name: 'class_name', kind: 'query', required: true, note: '/api/msr-file 응답의 class_name' },
+          { name: 'msr', kind: 'query', required: true, note: 'MSR identifier' },
+          { name: 'ext', kind: 'query', required: false, note: 'jpg(.jpg/.jpeg) 또는 tif(.tif/.tiff)로 필터. 대소문자 무관' }
+        ],
+        response: '{ msr, class_name, images: string[], total }',
+        auth: '토큰 가능',
+        example: {
+          path: '/msr-images',
+          query: { eqp_ip: '10.1.2.3', class_name: 'CLS', msr: 'MSR_001', ext: 'jpg' }
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/msr-image',
+        summary: '측정 이미지 1장을 원본 바이트로 반환합니다. HV-SEM은 한 측정 point에 -U/-T/-M/-L 여러 파일이 있으므로 파일명은 /api/msr-images 목록에서 얻습니다. 측정 조건이 있으면 X-Msr-Cond 헤더(URL 인코딩)로 함께 내려갑니다.',
+        args: [
+          { name: 'eqp_ip', kind: 'query', required: true, note: '/api/msr-file 응답의 eqp_ip' },
+          { name: 'class_name', kind: 'query', required: true, note: '/api/msr-file 응답의 class_name' },
+          { name: 'msr', kind: 'query', required: true, note: 'MSR identifier' },
+          { name: 'name', kind: 'query', required: true, note: '이미지 파일명 (최대 256자)' },
+          { name: 'preview', kind: 'query', required: false, note: '1이면 TIFF를 브라우저용 WebP로 변환해 반환. 분석용이면 생략해 원본을 받으십시오' }
+        ],
+        response: 'image/jpeg | image/tiff',
+        auth: '토큰 가능',
+        example: {
+          path: '/msr-image',
+          query: { eqp_ip: '10.1.2.3', class_name: 'CLS', msr: 'MSR_001', name: 'S04_M0004-01MP.jpeg' },
+          timeout: 60,
+          read: `from pathlib import Path
+
+Path("S04_M0004-01MP.jpeg").write_bytes(resp.content)`
+        }
       }
     ]
   },

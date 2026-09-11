@@ -1,3 +1,6 @@
+import io
+import json
+import zipfile
 from urllib.parse import quote
 
 from flask import Blueprint, Response, jsonify, request
@@ -120,6 +123,75 @@ def msr_file_download():
             # An MSR's originals never change once written, but they DO get
             # deleted at retention, so a long browser cache would keep serving
             # a file the store no longer has. Revalidate instead.
+            "Cache-Control": "no-cache",
+        },
+    )
+
+
+# ponytail: the whole zip is built in memory, and office pickle sizes are
+# unverified (OFFICE-VERIFY) — so this cap doubles as the memory ceiling. Stream
+# the archive instead if real batches outgrow it.
+MAX_BULK_DOWNLOAD = 100
+
+# Inside the archive, beside the originals: which MSRs were left out and why.
+SKIPPED_ENTRY = "_skipped.json"
+
+
+@bp.post("/msr-files/download")
+def msr_files_download():
+    """Batch sibling of /msr-file/download: many MSRs' originals in one zip.
+
+    For API-token scripts. One GET per MSR spends one rate-limit slot each
+    (50/5s), so a notebook pulling a few hundred pickles would 429; this is
+    one slot for the whole batch.
+
+    Body: {"msrs": [str, ...], "kind": "raw" | "pkl"}. Same msr-keyed lookup as
+    the single endpoint, so the MinIO-key reasoning there holds here too.
+
+    404 / 410 MSRs do not fail the batch — retention expiry is routine, and a
+    few expired pickles must not cost the rest. They are listed in
+    SKIPPED_ENTRY as {msr, status, error}. A bad `kind` is the caller's
+    mistake for every item alike, so it rejects the whole request instead.
+
+    Sits under /msr-files so the activity logger files it as `skewvoir`.
+    """
+    payload = request.get_json(silent=True) or {}
+    msrs = payload.get("msrs")
+    if not isinstance(msrs, list) or not all(isinstance(m, str) for m in msrs):
+        return jsonify({"error": "msrs must be a list of strings"}), 400
+    msrs = list(dict.fromkeys(m.strip() for m in msrs if m.strip()))
+    if not msrs:
+        return jsonify({"error": "msrs is empty"}), 400
+    if len(msrs) > MAX_BULK_DOWNLOAD:
+        return jsonify({"error": f"msrs exceeds the {MAX_BULK_DOWNLOAD}-MSR limit"}), 400
+    kind = str(payload.get("kind") or "").strip()
+
+    buffer = io.BytesIO()
+    skipped = []
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        used = set()
+        for msr in msrs:
+            try:
+                artifact = get_msr_artifact(msr, kind)
+            except MsrArtifactError as exc:
+                if exc.status == 400:
+                    return jsonify({"error": exc.message, "kind": kind}), 400
+                skipped.append({"msr": msr, "status": exc.status, "error": exc.message})
+                continue
+            # The store's basename, as the single endpoint serves it; only a
+            # clash between two MSRs earns the msr folder.
+            name = artifact["filename"]
+            if name in used:
+                name = f"{msr}/{name}"
+            used.add(name)
+            archive.writestr(name, artifact["data"])
+        archive.writestr(SKIPPED_ENTRY, json.dumps(skipped, ensure_ascii=False, indent=2))
+
+    return Response(
+        buffer.getvalue(),
+        content_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="msr_{kind}_{len(msrs)}.zip"',
             "Cache-Control": "no-cache",
         },
     )
