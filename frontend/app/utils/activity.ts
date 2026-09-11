@@ -1,4 +1,4 @@
-import type { CountedDay, UserListRow } from '~/composables/useActivityApi'
+import type { UserListRow } from '~/composables/useActivityApi'
 
 /** Who a listed person is — the columns the member-directory join touches.
  *  Narrower than `UserListRow` so these read as row-identity helpers rather
@@ -108,38 +108,6 @@ export const activityFeatureLabel = (feature: string | null | undefined): string
       .filter(Boolean)
       .map(part => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ')
-}
-
-const sumCounts = (series: readonly CountedDay[]): number =>
-  series.reduce((sum, day) => sum + day.count, 0)
-
-export interface PersonalActivityInsights {
-  recent7Requests: number
-  previous7Requests: number
-  activeDays7: number
-  averagePerActiveDay30: number
-  changePercent: number | null
-}
-
-export const summarizePersonalActivity = (
-  series: readonly CountedDay[]
-): PersonalActivityInsights => {
-  const recent7 = series.slice(-7)
-  const previous7 = series.slice(-14, -7)
-  const recent7Requests = sumCounts(recent7)
-  const previous7Requests = sumCounts(previous7)
-  const activeDays30 = series.filter(day => day.count > 0).length
-  const total30 = sumCounts(series)
-
-  return {
-    recent7Requests,
-    previous7Requests,
-    activeDays7: recent7.filter(day => day.count > 0).length,
-    averagePerActiveDay30: activeDays30 > 0 ? Math.round((total30 / activeDays30) * 10) / 10 : 0,
-    changePercent: previous7Requests > 0
-      ? Math.round(((recent7Requests - previous7Requests) / previous7Requests) * 100)
-      : null
-  }
 }
 
 /** The day page-view ranking began. Rows logged before this are

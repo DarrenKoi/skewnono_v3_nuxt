@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { activityFeatureLabel, summarizePersonalActivity, pageViewNotice, PAGE_VIEW_SINCE, rankableFabRows, FABLESS_BUCKET, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
+import { activityFeatureLabel, pageViewNotice, PAGE_VIEW_SINCE, rankableFabRows, FABLESS_BUCKET, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
 
 /** A listed row's identity fields, with the directory having answered fully. */
 const listed = (over = {}) => ({
@@ -41,31 +41,6 @@ test('userSearchText matches on the name, the employee number or the team', () =
   // A row the directory knows nothing about is still findable by its id.
   const bare = userSearchText(listed({ user_id: '1234567', emp_nm: null, dept_nm: null }))
   assert.ok(bare.includes('1234567'))
-})
-
-test('summarizePersonalActivity compares the latest two seven-day windows', () => {
-  const daily = Array.from({ length: 30 }, (_, index) => ({
-    date: `2026-06-${String(index + 1).padStart(2, '0')}`,
-    count: index >= 23 ? 4 : index >= 16 ? 2 : 0
-  }))
-
-  assert.deepEqual(summarizePersonalActivity(daily), {
-    recent7Requests: 28,
-    previous7Requests: 14,
-    activeDays7: 7,
-    averagePerActiveDay30: 3,
-    changePercent: 100
-  })
-})
-
-test('summarizePersonalActivity handles an empty comparison window', () => {
-  const daily = Array.from({ length: 7 }, (_, index) => ({
-    date: `2026-07-${String(index + 1).padStart(2, '0')}`,
-    count: index === 6 ? 3 : 0
-  }))
-
-  assert.equal(summarizePersonalActivity(daily).changePercent, null)
-  assert.equal(summarizePersonalActivity([]).averagePerActiveDay30, 0)
 })
 
 test('the notice shows while the window reaches before collection started', () => {

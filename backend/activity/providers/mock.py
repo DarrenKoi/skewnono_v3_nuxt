@@ -179,9 +179,9 @@ def _prune_old_days(state: _UserState, today: date) -> None:
     Visits retain 90 days. Request and ranking detail retain 30 days or the
     whole current month, whichever is wider.
     """
-    for day in list(state.visits):
-        if day < today - timedelta(days=VISIT_DAYS - 1):
-            del state.visits[day]
+    visit_cutoff = today - timedelta(days=VISIT_DAYS - 1)
+    for day in [day for day in state.visits if day < visit_cutoff]:
+        del state.visits[day]
     cutoff = min(
         today - timedelta(days=SPARKLINE_DAYS - 1),
         today.replace(day=1),
@@ -270,6 +270,7 @@ def _history_fields(
     # empty _UserState rather than a hand-written second copy that has to be
     # edited in step whenever a field is added.
     state = state or _UserState(user_id="")
+    visit_days = [today - timedelta(days=offset) for offset in range(VISIT_DAYS - 1, -1, -1)]
     return {
         "this_month": _this_month_stats(state.daily, today),
         "recent_features": _recent_features(state.last_opened),
@@ -279,6 +280,10 @@ def _history_fields(
             today,
             SPARKLINE_DAYS,
         ),
+        "visits": [
+            {"date": day.isoformat(), "count": state.visits.get(day, 0)}
+            for day in visit_days
+        ],
         "first_seen": _iso_or_none(state.first_seen),
         "last_seen": _iso_or_none(state.last_seen),
     }
@@ -288,16 +293,6 @@ def get_me(user_id: str) -> MeResponse:
     today = _today()
     with _lock:
         fields = _history_fields(_users.get(user_id), today)
-        state = _users.get(user_id)
-        fields["visits"] = [
-            {
-                "date": (today - timedelta(days=offset)).isoformat(),
-                "count": state.visits.get(today - timedelta(days=offset), 0)
-                if state
-                else 0,
-            }
-            for offset in range(VISIT_DAYS - 1, -1, -1)
-        ]
     return {"user_id": user_id, "is_admin": is_admin(user_id), **fields}
 
 

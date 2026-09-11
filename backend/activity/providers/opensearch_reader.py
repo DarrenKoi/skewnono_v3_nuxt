@@ -145,6 +145,14 @@ def _recent_feature_rows(node: dict[str, Any]) -> list[FeatureUse]:
     ]
 
 
+def _day_buckets(node: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """``{YYYY-MM-DD: bucket}`` for a ``days`` date_histogram under ``node``."""
+    return {
+        str(bucket.get("key_as_string", "")).split("T", 1)[0]: bucket
+        for bucket in node.get("days", {}).get("buckets", [])
+    }
+
+
 def _hits_total(response: dict[str, Any]) -> int:
     total = response.get("hits", {}).get("total", 0)
     if isinstance(total, dict):
@@ -187,56 +195,39 @@ class ActivityOpenSearchReader:
         self,
         user_id: str,
         now: datetime,
-        *,
-        include_visits: bool = False,
     ) -> dict[str, Any]:
         day_30 = _kst_day_start(now, 29)
+        day_90 = _kst_day_start(now, VISIT_DAYS - 1)
         local = now.astimezone(KST)
         month_start = datetime.combine(
             local.date().replace(day=1),
             time.min,
             tzinfo=KST,
         )
-        daily_histogram = {
-            "field": "@timestamp",
-            "calendar_interval": "day",
-            "time_zone": "Asia/Seoul",
-            "format": "yyyy-MM-dd",
-            "min_doc_count": 0,
-            "extended_bounds": {
-                "min": day_30.date().isoformat(),
-                "max": local.date().isoformat(),
-            },
-        }
+
+        def day_histogram(start: datetime) -> dict[str, Any]:
+            return {
+                "field": "@timestamp",
+                "calendar_interval": "day",
+                "time_zone": "Asia/Seoul",
+                "format": "yyyy-MM-dd",
+                "min_doc_count": 0,
+                "extended_bounds": {
+                    "min": start.date().isoformat(),
+                    "max": local.date().isoformat(),
+                },
+            }
+
+        daily_histogram = day_histogram(day_30)
         return {
             "size": 0,
             "track_total_hits": True,
             "query": {"bool": {"filter": _activity_filters(user_id)}},
             "aggs": {
-                **(
-                    {
-                        "visits": {
-                            "filter": _kind_window(
-                                _kst_day_start(now, VISIT_DAYS - 1), now, [RANKING_KIND]
-                            ),
-                            "aggs": {
-                                "days": {
-                                    "date_histogram": {
-                                        **daily_histogram,
-                                        "extended_bounds": {
-                                            "min": _kst_day_start(now, VISIT_DAYS - 1)
-                                            .date()
-                                            .isoformat(),
-                                            "max": local.date().isoformat(),
-                                        },
-                                    }
-                                }
-                            },
-                        }
-                    }
-                    if include_visits
-                    else {}
-                ),
+                "visits": {
+                    "filter": _kind_window(day_90, now, [RANKING_KIND]),
+                    "aggs": {"days": {"date_histogram": day_histogram(day_90)}},
+                },
                 # Deliberately NOT kind-filtered. "When did we first/last see
                 # this person" is a presence question, not a request-volume
                 # one, so page views count. Some pages (mag-pixel) issue no
@@ -301,21 +292,13 @@ class ActivityOpenSearchReader:
     def _history(
         self,
         user_id: str,
-        *,
-        include_visits: bool = False,
     ) -> tuple[int, dict[str, Any]]:
         now = self._now()
-        response = self._search(
-            self._history_query(user_id, now, include_visits=include_visits)
-        )
+        response = self._search(self._history_query(user_id, now))
         total = _hits_total(response)
         aggregations = response.get("aggregations", {})
         day_30 = _kst_day_start(now, 29).date()
-        daily_node = aggregations.get("daily", {}).get("days", {})
-        by_day = {
-            str(bucket.get("key_as_string", "")).split("T", 1)[0]: bucket
-            for bucket in daily_node.get("buckets", [])
-        }
+        by_day = _day_buckets(aggregations.get("daily", {}))
         daily: list[DailyCount] = []
         for offset in range(30):
             day = (day_30 + timedelta(days=offset)).isoformat()
@@ -352,21 +335,6 @@ class ActivityOpenSearchReader:
             return node.get("value_as_string")
 
         return total, {
-            **(
-                {
-                    "visits": [
-                        {
-                            "date": str(bucket["key_as_string"]).split("T", 1)[0],
-                            "count": int(bucket.get("doc_count", 0)),
-                        }
-                        for bucket in aggregations.get("visits", {})
-                        .get("days", {})
-                        .get("buckets", [])
-                    ]
-                }
-                if include_visits
-                else {}
-            ),
             "user_id": user_id,
             "this_month": {
                 "requests": int(this_month.get("doc_count", 0)),
@@ -374,12 +342,16 @@ class ActivityOpenSearchReader:
             },
             "recent_features": _recent_feature_rows(features),
             "daily": daily,
+            "visits": [
+                {"date": day, "count": int(bucket.get("doc_count", 0))}
+                for day, bucket in _day_buckets(aggregations.get("visits", {})).items()
+            ],
             "first_seen": metric("first_seen"),
             "last_seen": metric("last_seen"),
         }
 
     def get_me(self, user_id: str) -> MeResponse:
-        _total, history = self._history(user_id, include_visits=True)
+        _total, history = self._history(user_id)
         return {
             "user_id": user_id,
             "is_admin": self._admin_check(user_id),

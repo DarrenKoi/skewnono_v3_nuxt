@@ -139,6 +139,7 @@ class UserHistoryResponse(TypedDict):
     this_month: MeThisMonth
     recent_features: list[FeatureUse]
     daily: list[DailyCount]
+    visits: list[VisitCount]
     first_seen: str | None
     last_seen: str | None
 

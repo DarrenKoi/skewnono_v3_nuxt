@@ -23,6 +23,9 @@ export interface DailyCount {
  *  a sum. */
 export type CountedDay = Pick<DailyCount, 'count'>
 
+/** One calendar day of page opens (KST), independent of request volume. */
+export type VisitCount = Pick<DailyCount, 'date' | 'count'>
+
 /** A feature and when this person last opened it. */
 export interface FeatureUse {
   feature: string
@@ -40,7 +43,7 @@ export interface MeResponse {
   this_month: MeThisMonth
   recent_features: FeatureUse[]
   daily: DailyCount[]
-  visits: Pick<DailyCount, 'date' | 'count'>[]
+  visits: VisitCount[]
   first_seen: string | null
   last_seen: string | null
 }
@@ -96,6 +99,7 @@ export interface UserHistoryResponse {
   this_month: MeThisMonth
   recent_features: FeatureUse[]
   daily: DailyCount[]
+  visits: VisitCount[]
   first_seen: string | null
   last_seen: string | null
 }

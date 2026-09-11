@@ -1,6 +1,9 @@
+import type { VisitCount } from '~/composables/useActivityApi'
 import { shiftIsoDate } from './dateTime.ts'
 
-export interface VisitDay { date: string, count: number }
+export type VisitDay = VisitCount
+
+export const visitLabel = (day: VisitDay) => `${day.date} · 페이지 조회 ${day.count.toLocaleString()}회`
 
 export const calendarWeeks = (days: readonly VisitDay[]) => {
   if (!days.length) return []

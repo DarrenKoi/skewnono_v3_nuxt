@@ -190,6 +190,9 @@ types:
         OpenSearch composite aggregation을 끝까지 순회하며 HTTP pagination은 없습니다.
 
   UserHistoryResponse:
+    visits:
+      type: array
+      description: MeResponse.visits와 같은 90일 page_view 기록입니다.
     user_id:
       type: string
     this_month:

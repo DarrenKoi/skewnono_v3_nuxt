@@ -31,8 +31,8 @@
               type="button"
               class="size-8 rounded-[var(--sk-r-sidebar)] border border-(--sk-border) focus-visible:outline-2 focus-visible:outline-(--sk-focus-ring)"
               :style="{ background: day.count ? `color-mix(in srgb, var(--sk-brand) ${25 + 75 * Math.min(day.count / maximum, 1)}%, var(--sk-surface))` : 'var(--sk-muted-surface)' }"
-              :aria-label="`${day.date} · 페이지 조회 ${day.count}회`"
-              :title="`${day.date} · 페이지 조회 ${day.count}회`"
+              :aria-label="visitLabel(day)"
+              :title="visitLabel(day)"
               :aria-pressed="selected?.date === day.date"
               :class="{ 'outline-2 outline-(--sk-ink)': selected?.date === day.date }"
               @click="selected = day"
@@ -60,18 +60,18 @@
       class="sk-value min-h-5"
       aria-live="polite"
     >
-      {{ selected ? `${selected.date} · 페이지 조회 ${selected.count.toLocaleString()}회` : '날짜를 선택하면 페이지 조회 수를 확인합니다.' }}
+      {{ selected ? visitLabel(selected) : '날짜를 선택하면 페이지 조회 수를 확인합니다.' }}
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { calendarWeeks, type VisitDay } from '~/utils/activityCalendar'
+import { calendarWeeks, visitLabel, type VisitDay } from '~/utils/activityCalendar'
 
 const props = defineProps<{ series: VisitDay[] }>()
 const weeks = computed(() => calendarWeeks(props.series))
 const activeDays = computed(() => props.series.filter(day => day.count > 0).length)
-const maximum = computed(() => Math.max(1, ...props.series.map(day => day.count)))
+const maximum = computed(() => props.series.reduce((max, day) => Math.max(max, day.count), 1))
 const selected = ref<VisitDay | null>(null)
 watch(() => props.series, () => {
   selected.value = null
