@@ -141,14 +141,6 @@ const formatLatency = (ms: number | null) => (ms == null ? '—' : `${ms}ms`)
   font-family: 'Public Sans', 'Spoqa Han Sans Neo', system-ui, sans-serif;
 }
 
-@media (min-width: 768px) {
-  .sk-health-card {
-    width: auto;
-    min-width: 340px;
-    max-width: 420px;
-  }
-}
-
 /* Card-level color follows the worst status — summary dot inherits via
    currentColor, expanded rows override per-row. */
 .sk-health-card--up {

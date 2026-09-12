@@ -101,27 +101,31 @@ const systemStatus = computed(() => {
             </USelectMenu>
           </div>
         </div>
-        <HomeBackendHealthCard
-          :services="healthData?.services ?? []"
-          :error="!!healthError"
-        />
-        <!-- 전사 반출 금지 고지. 개별 페이지가 아니라 진입점에 두어, 어떤 탭으로
-             들어가든 한 번은 읽고 지나가게 합니다. -->
-        <!-- BackendHealthCard 의 카드 · 제목 · 구분선 스타일을 그대로 따릅니다. -->
-        <div
-          class="flex flex-col gap-2 rounded-xl border border-(--sk-border) bg-(--sk-muted-surface) px-3.5 py-3 lg:max-w-64 lg:self-stretch"
-        >
-          <div class="flex items-center gap-1.5 border-b border-(--sk-border-soft) pb-1.5">
-            <UIcon
-              name="i-lucide-triangle-alert"
-              class="size-3.5 shrink-0 text-(--sk-warn)"
-            />
-            <span class="text-xs font-bold uppercase tracking-[0.2em] text-(--sk-ink-subtle)">데이터 반출 금지</span>
+        <!-- 상태 카드와 반출 고지를 같은 폭의 한 쌍으로 묶어 오른쪽에 둡니다.
+             카드 높이는 grid 가 맞춰 주므로 각 카드는 stretch 만 하면 됩니다. -->
+        <div class="grid gap-4 sm:grid-cols-2 lg:w-[600px] lg:shrink-0">
+          <HomeBackendHealthCard
+            :services="healthData?.services ?? []"
+            :error="!!healthError"
+          />
+          <!-- 전사 반출 금지 고지. 개별 페이지가 아니라 진입점에 두어, 어떤 탭으로
+               들어가든 한 번은 읽고 지나가게 합니다. -->
+          <!-- BackendHealthCard 의 카드 · 제목 · 구분선 스타일을 그대로 따릅니다. -->
+          <div
+            class="flex flex-col gap-2 rounded-xl border border-(--sk-border) bg-(--sk-muted-surface) px-3.5 py-3"
+          >
+            <div class="flex items-center gap-1.5 border-b border-(--sk-border-soft) pb-1.5">
+              <UIcon
+                name="i-lucide-triangle-alert"
+                class="size-3.5 shrink-0 text-(--sk-warn)"
+              />
+              <span class="text-xs font-bold uppercase tracking-[0.2em] text-(--sk-ink-subtle)">데이터 반출 금지</span>
+            </div>
+            <p class="sk-meta flex flex-1 flex-col items-center justify-center gap-1 text-center leading-relaxed">
+              <span>스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.</span>
+              <span>반출 시 담당 MI팀 승인이 필요합니다.</span>
+            </p>
           </div>
-          <p class="sk-meta flex flex-1 flex-col items-center justify-center gap-1 text-center leading-relaxed">
-            <span>스큐노노에서 볼 수 있는 모든 데이터의 사외 반출을 엄격히 금지합니다.</span>
-            <span>반출 시 담당 MI팀 승인이 필요합니다.</span>
-          </p>
         </div>
       </div>
     </section>
