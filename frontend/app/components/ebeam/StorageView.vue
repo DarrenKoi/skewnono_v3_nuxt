@@ -431,18 +431,6 @@ const sortPreset = computed({
 
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') {
-    return 'i-lucide-arrow-up-narrow-wide'
-  }
-
-  if (direction === 'desc') {
-    return 'i-lucide-arrow-down-wide-narrow'
-  }
-
-  return 'i-lucide-arrow-up-down'
-}
-
 const readStorageSortValue = (row: StorageRow, key: keyof StorageRow) => {
   if (key === 'percent') return parsePercent(row.percent)
   if (key === 'total' || key === 'used' || key === 'avail') return parseSizeGb(row[key])

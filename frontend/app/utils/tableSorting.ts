@@ -26,3 +26,9 @@ export const MANUAL_SORTING_OPTIONS = {
   enableSortingRemoval: false,
   manualSorting: true
 } as const
+
+export const getSortIcon = (direction: false | 'asc' | 'desc') => {
+  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
+  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
+  return 'i-lucide-arrow-up-down'
+}

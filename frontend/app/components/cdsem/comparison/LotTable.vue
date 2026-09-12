@@ -568,12 +568,6 @@ watch(() => props.sort, (key) => {
   sorting.value = chipSorting(key)
 })
 
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
-}
-
 const tableUi = {
   tr: 'cursor-pointer select-none transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
   td: 'py-2 px-3 text-sm whitespace-nowrap overflow-hidden text-ellipsis tabular-nums text-(--sk-ink)',

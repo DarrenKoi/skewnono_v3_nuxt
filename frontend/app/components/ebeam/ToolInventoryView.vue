@@ -245,12 +245,6 @@ const modelFilterOptions = computed(() => [
 
 const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
-}
-
 // One source of truth per filter rule, reused by both the table and the
 // meta-bar segment counts so the two can never drift apart.
 const searchableFields = (row: SemListRow) => [

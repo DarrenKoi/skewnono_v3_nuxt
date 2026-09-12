@@ -315,32 +315,6 @@ def delete_thread(user_id, thread_id):
     return changed
 
 
-def append_message(thread_id, role, content, meta=None):
-    meta = meta or {}
-    mid = uuid.uuid4().hex
-    now = _now()
-    conn = _connect()
-    with conn:
-        conn.execute(
-            "INSERT INTO messages (id,thread_id,request_id,role,content,model,runtime,"
-            "scope_status,scope_reason_code,prompt_tokens,completion_tokens,latency_ms,"
-            "created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (
-                mid, thread_id, meta.get("request_id"), role, content,
-                meta.get("model"), meta.get("runtime"), meta.get("scope_status"),
-                meta.get("scope_reason_code"), meta.get("prompt_tokens"),
-                meta.get("completion_tokens"), meta.get("latency_ms"), now,
-            ),
-        )
-        conn.execute("UPDATE threads SET updated_at=? WHERE id=?", (now, thread_id))
-    row = conn.execute(
-        f"SELECT {_MESSAGE_COLUMNS} FROM messages WHERE id=?", (mid,)
-    ).fetchone()
-    message = _hydrate_message(conn, row)
-    conn.close()
-    return message
-
-
 def get_message_by_request(thread_id, request_id, role):
     conn = _connect()
     message = _get_message_by_request(conn, thread_id, request_id, role)

@@ -245,10 +245,4 @@ const columns: TableColumn<PpidUnavailableRow>[] = columnConfigs.map(({ id, ...c
   ...column
 }))
 const sortableHeaders = columnConfigs.map(column => ({ id: column.id, label: column.header }))
-
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
-}
 </script>

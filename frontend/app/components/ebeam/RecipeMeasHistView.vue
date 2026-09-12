@@ -129,12 +129,6 @@ const columns: TableColumn<MeasHistRow>[] = [
 // Empty by default so rows keep the API's 최신순 order until the user sorts.
 const sorting = ref<SortingState>([])
 
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
-}
-
 // The section title used to read "(최신순)" unconditionally, which stops being
 // true the moment a column is sorted. Header text is read back off the column
 // defs so the title can never drift from what the header button says.

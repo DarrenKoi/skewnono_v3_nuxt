@@ -62,8 +62,11 @@ def test_threads_scoped_by_user():
 
 def test_get_thread_returns_messages_in_order():
     t = store.create_thread("u1")
-    store.append_message(t["id"], "user", "hello")
-    store.append_message(t["id"], "assistant", "hi", meta={"latency_ms": 10, "model": "m1"})
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29408"
+    store.append_user_message(t["id"], "hello", request_id)
+    store.complete_turn(
+        t["id"], request_id, _result("hi") | {"latency_ms": 10, "model": "m1"}
+    )
     detail = store.get_thread("u1", t["id"])
     assert [m["role"] for m in detail["messages"]] == ["user", "assistant"]
     assert detail["messages"][1]["latency_ms"] == 10

@@ -129,12 +129,6 @@ type SortableColumnId = typeof sortableColumnIds[number]
 
 const sorting = ref<SortingState>([{ id: 'total_meastime', desc: true }])
 
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
-}
-
 // 이 표는 자기 행을 스스로 정렬합니다(`filteredRows` 를 검색으로 줄인 뒤
 // `sortedRows` 에서 정렬). `manualSorting` 이 왜 지워지면 안 되는지는
 // utils/tableSorting.ts 에 한 번만 적혀 있습니다 — 지우면 UTable 이

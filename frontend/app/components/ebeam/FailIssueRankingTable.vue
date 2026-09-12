@@ -181,12 +181,6 @@ const tableUi = {
   th: 'py-2 px-3 sk-label'
 }
 
-const getSortIcon = (direction: false | 'asc' | 'desc') => {
-  if (direction === 'asc') return 'i-lucide-arrow-up-narrow-wide'
-  if (direction === 'desc') return 'i-lucide-arrow-down-wide-narrow'
-  return 'i-lucide-arrow-up-down'
-}
-
 const getSortableNumber = (row: T, id: string) => {
   const value = (row as Record<string, unknown>)[id]
   return typeof value === 'number' ? value : 0
