@@ -10,7 +10,7 @@
           {{ primary.n }}대
         </span>
         <span class="text-base font-semibold text-(--sk-ink-muted)">
-          가 모든 비교 셀에서 서로 허용 오차 안에 맞습니다.
+          모든 비교 셀에서 서로 허용 오차 안에 맞는 장비입니다.
         </span>
       </div>
 

@@ -101,6 +101,8 @@ const chartOption = computed<EChartsOption>(() => {
     // the selector adds 전체/반전 so one tool can be isolated in two clicks.
     legend: {
       top: 0,
+      // Clear of useEchart's save-image button in the top-right corner.
+      right: 40,
       type: 'scroll',
       selector: [{ type: 'all', title: '전체' }, { type: 'inverse', title: '반전' }],
       selectorLabel: { fontSize: 12 }
