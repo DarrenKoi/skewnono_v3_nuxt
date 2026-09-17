@@ -24,10 +24,9 @@ report to absorb them here, and a single-server caller wants the real exception.
 import fnmatch
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from ftplib import FTP
 from io import BytesIO
-from zoneinfo import ZoneInfo
 
 # Shared NLST normalization lives in core.listing so single-server and fan-out
 # listing behave identically.
@@ -35,8 +34,10 @@ from ftp_handler.core.listing import _normalize_listing
 
 # Server-local time of equipment FTP servers. Project convention: ingested
 # timestamps are KST, and these servers sit in that zone, so a naive LIST mtime
-# is interpreted as Asia/Seoul unless the caller overrides.
-_DEFAULT_TZ = ZoneInfo("Asia/Seoul")
+# is interpreted as KST unless the caller overrides. A fixed UTC+09:00 rather
+# than a zoneinfo lookup: Korea has kept no DST since 1988, and the lookup made
+# the package unimportable on Windows, which ships no tz database.
+_DEFAULT_TZ = timezone(timedelta(hours=9), "KST")
 
 
 @dataclass(slots=True)
@@ -227,7 +228,7 @@ class FtpClient:
         remote_dir: str,
         pattern: str | None = None,
         *,
-        tz: ZoneInfo = _DEFAULT_TZ,
+        tz: tzinfo = _DEFAULT_TZ,
     ) -> list[FileInfo]:
         """List ``remote_dir`` with sizes and modified times (LIST).
 
