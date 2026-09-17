@@ -14,7 +14,7 @@
       class="mt-2 h-80 w-full"
     />
     <p class="mt-1.5 sk-field-label">
-      점은 일별 잔차이며, 빨간 굵은 선은 MDC 변경(hard), 주황 가는 선은 MDC가 그대로인 정비(soft)입니다.
+      점은 장비별 일별 잔차입니다. 빨간 선은 MDC가 바뀐 PM, 주황 선은 MDC가 그대로인 BM입니다.
       범례로 장비를 숨기고 휠이나 슬라이더로 기간을 확대합니다.
     </p>
   </div>
@@ -74,7 +74,7 @@ const markLineFor = (eqp: string): ScatterSeriesOption['markLine'] => {
         type: 'solid'
       },
       label: {
-        formatter: `${eqp} · ${m.kind}`,
+        formatter: `${eqp} ${m.kind === 'hard' ? 'PM' : 'BM'}`,
         color: markerColor(m.kind)
       }
     }))
