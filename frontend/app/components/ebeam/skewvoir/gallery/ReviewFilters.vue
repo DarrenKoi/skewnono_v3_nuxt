@@ -16,7 +16,7 @@
       이상·실패 우선
     </button>
 
-    <!-- Image-present filter. -->
+    <!-- Hide sites with no image file (their evidence card stays otherwise). -->
     <button
       type="button"
       class="inline-flex items-center gap-1.5 rounded-(--sk-r-chip) border px-2.5 py-1 font-mono text-xs font-medium transition-colors duration-200"
@@ -29,7 +29,7 @@
         name="i-lucide-image"
         class="h-3.5 w-3.5"
       />
-      이미지 있음
+      이미지 없음 제외
     </button>
 
     <div class="h-4 w-px bg-(--sk-border)" />
