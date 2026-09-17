@@ -181,6 +181,36 @@ export const resolvePageIdentity = (
   return ebeam ? null : canonical
 }
 
+/** Decides which navigations are page OPENS worth a beacon. It remembers the
+ *  previous page, so the plugin holds exactly one for the app's lifetime.
+ *
+ *  An unresolvable page (null identity) still ENDS the previous one, so it
+ *  resets the memory rather than leaving it standing. Two cases produce null:
+ *   - recipe-status before its tab lands: harmless to reset, since this step
+ *     never had a beacon to suppress and the mount-time router.replace
+ *     resolves within a tick, firing exactly once either way.
+ *   - every other unresolvable path (chiefly `/`, the fab/tool picker):
+ *     keeping the previous identity would make the NEXT visit to that same
+ *     page look like a filter change and drop its beacon — and
+ *     "home -> pick a fab -> a page" is exactly that loop. */
+export const createPageViewTracker = () => {
+  let previous: string | null = null
+  return (path: string, query: Record<string, unknown>): boolean => {
+    const identity = resolvePageIdentity(path, query)
+    const before = previous
+    previous = identity
+    // Unchanged = a fab switch or a filter change, not a new page open.
+    if (identity === null || identity === before) return false
+    // 장비 상태 is where picking a tool LANDS: home's tool cards and the fab
+    // redirect both go to /ebeam/<tool>/<fab>. Arriving with no ranked page
+    // before it (from /, an ops page, or a fresh load) is a waypoint, not a
+    // choice. From another ranked page it is a tab the user clicked, so it
+    // counts. Excluding it outright, as / is, would rank a page people do
+    // open on purpose as unused.
+    return !(identity === TOOL_INVENTORY_PATH && before === null)
+  }
+}
+
 export const buildPageViewPath = (
   path: string,
   query: Record<string, unknown>

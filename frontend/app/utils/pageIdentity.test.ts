@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolvePageIdentity, buildPageViewPath } from './pageIdentity.ts'
+import { resolvePageIdentity, buildPageViewPath, createPageViewTracker } from './pageIdentity.ts'
 
 // Contract test: frontend identity must partition paths the same way the backend's
 // page_to_feature does — two paths share an identity IFF their slugs are identical.
@@ -258,6 +258,47 @@ test('the home hub has no rankable identity', () => {
   // Not an ops page — product surface excluded for a different reason: it is
   // a waypoint, and DAU already counts how many people passed through.
   assert.equal(resolvePageIdentity('/', {}), null)
+})
+
+// Which navigations in a sequence the beacon reports, in order.
+const reported = (...paths: string[]) => {
+  const track = createPageViewTracker()
+  return paths.map(path => track(path, {}))
+}
+
+test('a fab switch on the same page is one page open, not two', () => {
+  assert.deepEqual(
+    reported('/ebeam/cd-sem/M14/storage', '/ebeam/cd-sem/M16B/storage'),
+    [true, false]
+  )
+})
+
+test('landing on 장비 상태 from home is not a page open', () => {
+  // Home's tool cards link to /ebeam/<tool>/<fab>, so every "pick a tool" trip
+  // passes through 장비 상태 on the way to wherever the user was going. Counting
+  // it would rank "entered e-beam", which DAU already reports — the same reason
+  // / itself is unranked. Switching fab on arrival changes nothing.
+  assert.deepEqual(
+    reported('/', '/ebeam/cd-sem/M14', '/ebeam/cd-sem/R3', '/ebeam/cd-sem/R3/storage'),
+    [false, false, false, true]
+  )
+})
+
+test('choosing 장비 상태 from another page is a page open', () => {
+  // The 장비 상태 tab clicked from a feature page is intent, and it is the only
+  // way the page earns a count. A rule that dropped the page outright would
+  // still pass the landing test above; this is what stops it.
+  assert.deepEqual(
+    reported('/', '/ebeam/cd-sem/M14', '/ebeam/cd-sem/M14/storage', '/ebeam/cd-sem/M14'),
+    [false, false, true, true]
+  )
+})
+
+test('a fresh load straight onto 장비 상태 is not a page open', () => {
+  // A reload or a restored tab arrives with nothing before it — the same
+  // waypoint as coming from home.
+  assert.deepEqual(reported('/ebeam/hv-sem/R3'), [false])
+  assert.deepEqual(reported('/ebeam/hv-sem/R3/storage'), [true])
 })
 
 test('skewvoir does not share the msr-file identity', () => {

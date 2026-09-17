@@ -1,4 +1,4 @@
-import { resolvePageIdentity, buildPageViewPath } from '~/utils/pageIdentity'
+import { createPageViewTracker, buildPageViewPath } from '~/utils/pageIdentity'
 import { joinApiPath } from '~/utils/apiPath'
 
 /** Reports page opens for 사용 통계. See
@@ -11,27 +11,12 @@ export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
   const url = joinApiPath(config.public.apiBase, '/page-view')
 
-  let lastIdentity: string | null = null
+  // Which navigations count as a page open lives in the tracker, where it is
+  // tested: fab switches, filter changes and the 장비 상태 landing do not.
+  const isPageOpen = createPageViewTracker()
 
   const report = (path: string, query: Record<string, unknown>) => {
-    const identity = resolvePageIdentity(path, query)
-    // An unresolvable page still ENDS the previous one, so it must clear the
-    // key rather than leave it standing. Two cases produce null:
-    //  - recipe-status before its tab lands: harmless to clear, since this
-    //    step never had a beacon to suppress and the mount-time
-    //    router.replace resolves within a tick, firing exactly once either
-    //    way.
-    //  - every other unresolvable path (chiefly `/`, the fab/tool picker):
-    //    leaving lastIdentity standing would make the NEXT visit to that same
-    //    page look like a filter change and drop its beacon — and
-    //    "home -> pick a fab -> 장비 상태" is exactly that loop.
-    if (!identity) {
-      lastIdentity = null
-      return
-    }
-    // Unchanged = a fab switch or a filter change, not a new page open.
-    if (identity === lastIdentity) return
-    lastIdentity = identity
+    if (!isPageOpen(path, query)) return
 
     $fetch(url, {
       method: 'POST',

@@ -221,6 +221,10 @@ def page_to_feature(path: str) -> str | None:
         # both [fab]/index.vue, which renders EbeamToolInventoryView (장비 상태)
         # for all four tool families. One page, so one slug.
         #
+        # This slug only ever sees CHOSEN visits: picking a tool on home lands
+        # here, so the frontend's createPageViewTracker (utils/pageIdentity.ts)
+        # sends no beacon unless a ranked page came right before it.
+        #
         # `len(parts) >= 2` because a bare /ebeam names no tool and is not that
         # page; it falls through to None below, as the frontend does.
         if len(parts) >= 2 and not rest:
