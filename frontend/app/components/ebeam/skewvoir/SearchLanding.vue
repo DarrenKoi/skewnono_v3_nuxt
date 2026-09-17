@@ -116,6 +116,7 @@ import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi
 import type { SkewvoirRecentEntry } from '~/composables/useSkewvoirRecentlyViewed'
 import type { SkewvoirSelection } from '~/composables/useSkewvoirWorkspace'
 import { toSkewvoirRecentMeasurement, type SkewvoirRecentMeasurement } from '~/utils/skewvoirRecent'
+import { qstr } from '~/utils/skewvoirAnalysis/routeQuery'
 
 const props = defineProps<{
   toolLabel: string
@@ -128,6 +129,27 @@ const ws = useSkewvoirWorkspace(props.toolType, props.toolLabel)
 // SEM families, and the 카테고리 dropdown is the only thing that scopes it to
 // one index.
 const search = useMeasHistSearch(props.toolType)
+// Deep link from another page (utils/skewvoirLinks.ts): `?q=eq:X recipe:Y&fab=R3`
+// seeds the search bar + FAB filter, runs ONE search once facets are ready,
+// and is then dropped from the URL so a reload keeps whatever the user typed.
+const route = useRoute()
+const router = useRouter()
+const linkedQuery = qstr(route.query.q)
+const linkedFab = qstr(route.query.fab)
+if (linkedQuery || linkedFab) {
+  if (linkedQuery) search.queryText.value = linkedQuery
+  if (linkedFab) search.filters.value = { ...search.filters.value, fab: [linkedFab.toUpperCase()] }
+  void router.replace({ path: route.path })
+  if (!search.searchDisabled.value) {
+    void search.search()
+  } else {
+    const stop = watch(search.searchDisabled, (disabled) => {
+      if (disabled) return
+      stop()
+      void search.search()
+    })
+  }
+}
 const selection = useSkewvoirSearchSelection(props.toolType)
 const recent = useSkewvoirRecentlyViewed(props.toolType)
 const recentOpen = ref(false)

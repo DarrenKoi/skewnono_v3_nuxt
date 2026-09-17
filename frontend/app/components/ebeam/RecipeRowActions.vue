@@ -34,10 +34,42 @@
         />
       </UTooltip>
     </template>
+    <template v-if="hasSkewvoir(props.toolType)">
+      <UDropdownMenu
+        v-if="multiFab"
+        :items="fabNames.map(fab => ({ label: fab, onSelect: () => openSkewvoir(fab) }))"
+      >
+        <UTooltip text="스큐보아 — FAB 선택">
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            class="-my-1"
+            icon="i-lucide-telescope"
+            :aria-label="`${recipeName} 스큐보아`"
+          />
+        </UTooltip>
+      </UDropdownMenu>
+      <UTooltip
+        v-else
+        text="스큐보아"
+      >
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          class="-my-1"
+          icon="i-lucide-telescope"
+          :aria-label="`${recipeName} 스큐보아`"
+          @click="openSkewvoir(fabNames[0] ?? '')"
+        />
+      </UTooltip>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 import {
   RECIPE_ROW_ACTIONS,
   recipeDetailId,
@@ -79,4 +111,10 @@ const open = (screen: RecipeDetailScreen, ownerFab: string) => {
 
 const itemsFor = (screen: RecipeDetailScreen) =>
   props.fabNames.map(fab => ({ label: fab, onSelect: () => open(screen, fab) }))
+
+const openSkewvoir = (ownerFab: string) => {
+  if (hasSkewvoir(props.toolType)) {
+    router.push(skewvoirSearchRoute(props.toolType, { recipe: detailId.value, fab: ownerFab }))
+  }
+}
 </script>

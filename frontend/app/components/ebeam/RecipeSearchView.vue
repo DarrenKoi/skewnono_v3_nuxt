@@ -21,6 +21,7 @@ import {
 import { buildFabSegment } from '~/utils/fab'
 import { recipeRecentSearchKey, type RecipeRecentSearch } from '~/utils/recipeRecentSearches'
 import { recipePairKey } from '~/utils/recipePair'
+import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 
 const props = defineProps<{
   fabs: string[]
@@ -933,6 +934,15 @@ const openMeasHist = (row: RecipeSearchResult) => {
                     icon="i-lucide-history"
                     label="측정 이력"
                     @click="openMeasHist(row.original)"
+                  />
+                  <UButton
+                    v-if="hasSkewvoir(props.toolType)"
+                    size="sm"
+                    color="neutral"
+                    variant="outline"
+                    icon="i-lucide-telescope"
+                    label="스큐보아"
+                    :to="skewvoirSearchRoute(props.toolType, { recipe: row.original.recipe_name, fab: row.original.fab_name })"
                   />
                 </div>
               </template>

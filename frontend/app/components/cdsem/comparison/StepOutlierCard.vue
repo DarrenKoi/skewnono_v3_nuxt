@@ -8,10 +8,7 @@
   >
     <!-- 펼칠 것이 있을 때만 button 이 됩니다. 파라미터가 없는 스텝까지 눌리게
          해 두면 눌러도 아무 일이 없는 카드가 목록에 섞입니다. -->
-    <component
-      :is="expandable ? 'button' : 'div'"
-      :type="expandable ? 'button' : undefined"
-      :aria-expanded="expandable ? expanded : undefined"
+    <div
       class="flex w-full flex-wrap items-start gap-x-5 gap-y-3 px-4 py-3 text-left"
       @click="expandable && emit('toggle')"
     >
@@ -20,20 +17,55 @@
            이고, recipe 이름은 그 스텝을 재는 job 의 이름일 뿐입니다. -->
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <span class="flex min-w-0 items-center gap-1.5">
+          <component
+            :is="expandable ? 'button' : 'span'"
+            :type="expandable ? 'button' : undefined"
+            :aria-expanded="expandable ? expanded : undefined"
+            class="flex min-w-0 items-center gap-1.5 text-left"
+          >
             <UIcon
               v-if="expandable"
               :name="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
               class="h-4 w-4 flex-none text-(--sk-ink-subtle)"
             />
             <span class="sk-card-id">{{ step.oper_desc || '—' }}</span>
-          </span>
+          </component>
           <span class="sk-field-label">
             oper_seq <span class="sk-field-value font-semibold text-(--sk-ink)">{{ step.oper_seq }}</span>
           </span>
         </div>
         <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span class="sk-field-value">{{ step.recipe_id }}</span>
+          <span class="inline-flex items-center gap-2">
+            <UTooltip
+              v-for="action in RECIPE_ROW_ACTIONS"
+              :key="action.screen"
+              :text="action.label"
+            >
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                :icon="action.icon"
+                :aria-label="`${step.recipe_id} ${action.label}`"
+                :to="recipeDetailRoute('cd-sem', step.fac_id.toLowerCase(), action.screen, step.recipe_id, 'redis', step.fac_id)"
+                target="_blank"
+                @click.stop
+              />
+            </UTooltip>
+            <UTooltip text="스큐보아">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-telescope"
+                :aria-label="`${step.recipe_id} 스큐보아`"
+                :to="skewvoirSearchRoute('cd-sem', { recipe: step.recipe_id, fab: step.fac_id })"
+                target="_blank"
+                @click.stop
+              />
+            </UTooltip>
+          </span>
           <span class="sk-badge bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ step.oper_id }}</span>
           <span class="sk-field-label">
             samp_seq <span class="sk-field-value">{{ step.samp_seq }}</span>
@@ -79,7 +111,7 @@
           파라미터 없음
         </p>
       </div>
-    </component>
+    </div>
 
     <EbeamDevstatDrillParamRows
       v-if="expanded && card.drill"
@@ -92,6 +124,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { isFlaggedStep, type StepOutlier } from '~/utils/lotOutlierSteps'
+import { RECIPE_ROW_ACTIONS, recipeDetailRoute } from '~/utils/recipeView'
+import { skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 
 // 판정하지 않는 카드입니다. flagged 도 note 도 toOutlierDrill 이 이미 정한
 // 값을 그대로 읽습니다 (utils/deviceDrill.ts) — 여기서 다시 계산하면 그쪽

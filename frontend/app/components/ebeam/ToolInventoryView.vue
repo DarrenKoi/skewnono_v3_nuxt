@@ -148,6 +148,16 @@
               :aria-label="`${row.original.eqp_id} H/W 상태 열기`"
               @click="goToHardware(row.original.eqp_id)"
             />
+            <UButton
+              v-if="hasSkewvoir(props.toolType)"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              trailing-icon="i-lucide-arrow-right"
+              label="스큐보아"
+              :aria-label="`${row.original.eqp_id} 스큐보아 검색 열기`"
+              :to="skewvoirSearchRoute(props.toolType, { eq: row.original.eqp_id, fab: row.original.fab_name })"
+            />
           </div>
         </template>
 
@@ -193,6 +203,7 @@ import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard } from '~/utils/tableExport'
 import { hasStorageView } from '~/utils/toolType'
+import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
 
