@@ -1,20 +1,12 @@
 <template>
-  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
+  <div class="dashboard-surface min-w-0 rounded-[var(--sk-r-card)] px-5 py-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
         <p class="sk-title">
           튜닝 목표 — 그룹 중심
         </p>
-        <!-- Whose numbers these are. Every row below is a distance measured FOR
-             one tool, and the card used to name it nowhere — the id lived only
-             in the picker bar and in the sibling gate card. Drawn off `target`
-             because that is the only thing here that knows the pick, and it is
-             null in exactly the empty branches whose wording already names the
-             missing piece: an id beside "장비를 선택하면…" would contradict the
-             sentence under it. Identity styling is the picker trigger's — id at
-             `sk-card-id`, model muted beside it. -->
-        <template v-if="target">
-          <span class="sk-card-id text-[16px]">{{ target.eqp_id }}</span>
+        <template v-if="pickedTool">
+          <span class="sk-card-id text-[16px]">{{ pickedTool }}</span>
           <span
             v-if="pickedModel"
             class="sk-field-label"
@@ -25,7 +17,7 @@
         v-if="target?.rows.length"
         class="sk-badge"
         :class="offCount ? 'bg-(--sk-bad-soft) text-(--sk-bad)' : 'bg-(--sk-ok-soft) text-(--sk-ink)'"
-      >{{ offCount ? `조정 필요 ${offCount}개` : '전 항목 중심 안쪽' }}</span>
+      >{{ offCount ? `조정 필요 ${offCount}개` : '전 항목 허용 오차 이내' }}</span>
     </div>
 
     <!-- Every branch below is a DIFFERENT reason for an empty table, and they
@@ -33,34 +25,36 @@
          "this tool is not on the map" and "no member is on the map" would
          otherwise collapse into one line that names the wrong cause. -->
     <p
-      v-if="n === 0"
+      v-if="!pickedTool"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
-      현재 tolerance에서는 N배화 그룹 자체가 만들어지지 않아, 중심을 정의할 기준이 없습니다.
+      배치도에서 장비를 클릭하면 튜닝 목표를 확인할 수 있습니다.
     </p>
-
+    <p
+      v-else-if="n === 0"
+      class="mt-2 sk-body text-(--sk-ink-muted)"
+    >
+      현재 허용 오차로는 그룹이 없어 튜닝 목표를 계산할 수 없습니다.
+    </p>
     <p
       v-else-if="!target"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
-      장비를 선택하면 그 장비를 그룹 중심으로 옮기는 데 필요한 parameter 별 조정량을 보여줍니다.
+      측정 항목 데이터가 없어 튜닝 목표를 계산할 수 없습니다.
     </p>
 
     <p
       v-else-if="!target.placed"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
-      <strong class="font-mono">{{ labelFor(target.eqp_id) }}</strong> 는 고른 parameter
-      ({{ target.parameters.join(', ') }}) 중 측정하지 않은 것이 있어 배치도에 놓이지 않습니다 —
-      중심까지의 거리를 낼 수 없습니다. 위 분석 조건에서 이 장비가 측정한 parameter 만 고르시면
-      계산됩니다.
+      선택한 장비에 누락된 측정 항목이 있어 조정량을 계산할 수 없습니다.
     </p>
 
     <p
       v-else-if="!target.rows.length"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
-      1차 그룹 구성원 중 이 parameter 들을 모두 측정한 장비가 없어 중심을 낼 수 없습니다.
+      그룹에서 선택한 항목을 모두 측정한 장비가 없어 중심을 계산할 수 없습니다.
     </p>
 
     <template v-else>
@@ -69,11 +63,9 @@
            which point before reading any of them — and that it is the point the
            배치도 already draws its ring around, not a second calculation. -->
       <p class="mt-1.5 sk-field-label leading-relaxed">
-        왼쪽 <strong>장비 그룹 배치도</strong>의 1차 그룹 {{ target.members }}대가 만드는
-        중심(무게중심)이 목표 좌표입니다. parameter 마다 지금 위치와 그 중심의 차이가
-        <strong>조정량</strong>입니다.
+        그룹 {{ target.members }}대의 중심까지 필요한 항목별 조정량입니다.
         <template v-if="target.inGroup">
-          이 장비도 구성원이라 중심을 함께 만듭니다 — 유지가 목표입니다.
+          선택한 장비는 이미 이 그룹에 속합니다.
         </template>
       </p>
 
@@ -142,61 +134,29 @@
       </div>
 
       <p class="mt-2 sk-field-label leading-relaxed">
-        값은 모두 fleet median 기준 offset (nm) 입니다 · 허용은 각 parameter 자신의 CD 대비
-        {{ ACTION_LIMIT_PERCENT }}% 에 tolerance 를 곱한 값이라 parameter 마다 다릅니다.
-        허용은 원래 <strong>쌍</strong>에 대한 기준이며 여기서는 중심까지의 거리를 재는 잣대로
-        쓰므로, 중심 안쪽에 들어와도 개별 쌍 판정(N배화)은 위 요약 바를 보십시오.
+        단위는 nm이며, +는 높임, −는 낮춤입니다. 중심에 맞추어도 모든 장비쌍의 허용 오차 충족을 보장하지는 않습니다.
       </p>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-// 셀 단위 진입 조건에서 parameter 단위 중심 좌표로 바뀌었습니다 (2026-08-28).
-//
-// 이전 표는 pmAdmission 의 점유 셀별 "최악 쌍 · 필요 조정량" 목록이었고 고른
-// parameter 와 아무 관계가 없었습니다 — 분석 조건에서 parameter 를 골라도 이
-// 카드는 그대로였고, 기본 선택 장비(PM 직후 장비)는 대개 이미 1차 그룹
-// 구성원이라 표가 아예 없는 문장 한 줄만 남았습니다.
-//
-// 셀별 미충족 내역은 위 요약 바가 "미충족 셀 N개 · 최대 조정 X nm" 로 계속
-// 말합니다 — admissionReport 는 그대로 살아 있습니다. 이 카드는 이제 그 판정이
-// 아니라 좌표 하나를 가리킵니다.
 import type { ToolRef } from '~/composables/useTttmApi'
 import type { TuningTarget } from '~/utils/pmTuningTarget'
-import { ACTION_LIMIT_PERCENT, formatSignedNm } from '~/utils/tttmLimits'
-import { toolLabels } from '~/utils/toolLabels'
+import { formatSignedNm } from '~/utils/tttmLimits'
 
 const props = defineProps<{
-  /** null = nothing to aim at; `n` says whether that is "no group" or "no pick". */
+  pickedTool: string | null
   target: TuningTarget | null
   /** The primary group's size; 0 = no group exists (a null target means two things). */
   n: number
   /** The payload's tools, narrowed to the comparison — labels and models. */
   tools: ToolRef[]
-  /** The fab's whole sem_list fleet, for a pick `tools` cannot describe. */
-  roster: ToolRef[]
 }>()
 
-const labels = computed(() => toolLabels(props.tools))
-
-// Payload first, roster second, because `tools` is the narrower list in TWO
-// ways and the target survives both narrowings: `tuning` is built from
-// `parameter_profile` and the pick alone, while `tools` is the payload's list
-// filtered to the current comparison. So a tool DESELECTED from 장비 모델 그룹
-// still has a target and is no longer in `tools`, and a tool just ADDED to the
-// group and picked before the next 데이터 요청 is in neither the payload nor
-// `tools` — the id would render bare in both. The roster is the fab's whole
-// fleet from sem_list and carries the same `eqp_model_cd`, so it answers both.
-// Falls back to '' rather than a placeholder: the model is a second identifier
-// for an id that is already legible, so an absent one drops out silently.
-const pickedModel = computed(() => {
-  const eqp = props.target?.eqp_id
-  if (!eqp) return ''
-  const from = (tools: ToolRef[]) => tools.find(t => t.eqp_id === eqp)?.eqp_model_cd
-  return from(props.tools) ?? from(props.roster) ?? ''
-})
-const labelFor = (eqp: string) => labels.value.labelFor(eqp)
+const pickedModel = computed(() =>
+  props.tools.find(t => t.eqp_id === props.pickedTool)?.eqp_model_cd ?? ''
+)
 
 const offCount = computed(() => props.target?.rows.filter(r => !r.withinTolerance).length ?? 0)
 </script>

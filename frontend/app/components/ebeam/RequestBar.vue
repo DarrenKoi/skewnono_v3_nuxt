@@ -14,17 +14,17 @@
         수집 기간 · 데이터 요청
       </p>
       <p class="sk-hint">
-        고른 recipe · 장비 · 기간으로 서버에서 run 을 모읍니다. recipe · 장비 · 기간을 바꾸면 다시 요청해야 반영되고, parameter 는 바로 다시 계산합니다.
+        수집 기간을 정한 뒤 데이터를 요청합니다.
       </p>
     </div>
 
-    <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div class="mt-3 flex flex-col items-start gap-3">
       <EbeamScopeWindow
         :window-weeks="windowWeeks"
         @update:window-weeks="emit('update:windowWeeks', $event)"
       />
 
-      <div class="flex shrink-0 flex-col items-start gap-1.5 lg:items-end">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <!-- `button-default` (DESIGN.md §Buttons): a plain action with no
              selected state. Disabled with the reason spelled out below it
              rather than hidden — the procedure has to read as three steps. -->
@@ -76,14 +76,14 @@ const canRequest = computed(() => props.hasRecipe && props.toolCount >= 2 && !pr
 // disabled reasons name the step that is missing; the stale line is the one
 // that keeps an old answer from being read as the current one.
 const status = computed(() => {
-  if (!props.hasRecipe) return '먼저 위에서 recipe 를 고르십시오.'
-  if (props.toolCount < 2) return '장비를 2대 이상 고르십시오.'
+  if (!props.hasRecipe) return '레시피 선택이 필요합니다.'
+  if (props.toolCount < 2) return '장비를 2대 이상 선택해야 합니다.'
   const scope = `장비 ${props.toolCount}대 · 최근 ${props.windowWeeks}주`
-  if (props.pending) return `${scope}의 run 을 모으는 중입니다.`
+  if (props.pending) return `${scope}의 측정 데이터를 모으는 중입니다.`
   if (props.stale) {
     return props.fetchedAt
       ? '조건이 바뀌었습니다 — 다시 요청하면 반영됩니다.'
-      : `${scope}의 run 을 서버에서 모읍니다.`
+      : `${scope}의 측정 데이터를 서버에서 모읍니다.`
   }
   return `마지막 요청 ${props.fetchedAt?.replace('T', ' ').slice(0, 16)} · ${scope}`
 })

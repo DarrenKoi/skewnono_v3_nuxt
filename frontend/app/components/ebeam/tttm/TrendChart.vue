@@ -14,20 +14,21 @@
       class="mt-2 h-80 w-full"
     />
     <p class="mt-1.5 sk-field-label">
-      실선 = hard(MDC 변경 · epoch 리셋) · 점선 = soft(BM/PM · MDC 불변) ·
-      범례를 누르면 그 장비의 선을 숨기고 · 휠/슬라이더로 기간을 확대합니다.
+      점은 일별 잔차이며, 빨간 굵은 선은 MDC 변경(hard), 주황 가는 선은 MDC가 그대로인 정비(soft)입니다.
+      범례로 장비를 숨기고 휠이나 슬라이더로 기간을 확대합니다.
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { EChartsOption, LineSeriesOption } from 'echarts'
+import type { EChartsOption, ScatterSeriesOption } from 'echarts'
 import { SK_STATE } from '~/utils/chartPalette'
 import type { TrendPoint, EpochMarker } from '~/composables/useTttmApi'
 
 const props = defineProps<{ trend: TrendPoint[], markers: EpochMarker[] }>()
 
 const el = ref<HTMLDivElement | null>(null)
+const { surface } = useEchartsTheme()
 
 // The window the series actually cover, from the data rather than from a
 // hardcoded "최근 5주": the payload decides how far back the trend goes, and a
@@ -56,24 +57,24 @@ const markerColor = (kind: EpochMarker['kind']) =>
 // A VERTICAL LINE per marker, on the tool's own series — so hiding a tool
 // through the legend hides its markers with it, and a line spans the whole
 // plot rather than sitting as a 14px dot on one point that the eye skipped.
-const markLineFor = (eqp: string): LineSeriesOption['markLine'] => {
+const markLineFor = (eqp: string): ScatterSeriesOption['markLine'] => {
   const own = props.markers.filter(m => m.eqp_id === eqp)
   if (!own.length) return undefined
   return {
     silent: true,
     symbol: 'none',
     animation: false,
-    label: { show: true, position: 'insideEndTop', fontSize: 10, distance: 4 },
+    label: { show: true, position: 'insideEndTop', fontSize: 12, distance: 4 },
     data: own.map(m => ({
       xAxis: m.date,
       name: m.label,
       lineStyle: {
         color: markerColor(m.kind),
         width: m.kind === 'hard' ? 2 : 1.5,
-        type: m.kind === 'hard' ? 'solid' : 'dashed'
+        type: 'solid'
       },
       label: {
-        formatter: `${eqp} ${m.kind === 'hard' ? 'PM' : 'BM'}`,
+        formatter: `${eqp} · ${m.kind}`,
         color: markerColor(m.kind)
       }
     }))
@@ -81,10 +82,12 @@ const markLineFor = (eqp: string): LineSeriesOption['markLine'] => {
 }
 
 const chartOption = computed<EChartsOption>(() => {
-  const series: LineSeriesOption[] = [...byTool.value.entries()].map(([eqp, pts]) => ({
+  const series: ScatterSeriesOption[] = [...byTool.value.entries()].map(([eqp, pts]) => ({
     name: eqp,
-    type: 'line',
-    showSymbol: true,
+    type: 'scatter',
+    symbolSize: 10,
+    itemStyle: { opacity: 1, borderColor: surface.value.surface, borderWidth: 1 },
+    emphasis: { scale: 1.4 },
     // A time axis rather than a category one: a marker can fall on a day no
     // tool measured, and a category axis has no place to draw it.
     data: [...pts].sort((a, b) => a.date.localeCompare(b.date)).map(p => [p.date, p.skew]),
@@ -92,18 +95,18 @@ const chartOption = computed<EChartsOption>(() => {
   }))
 
   return {
-    grid: { top: 36, right: 16, bottom: 52, left: 44 },
-    tooltip: { trigger: 'axis' },
-    // Clicking an entry hides that tool's line (ECharts' default `selectedMode`);
+    grid: { top: 58, right: 16, bottom: 52, left: 44 },
+    tooltip: { trigger: 'item' },
+    // Clicking an entry hides that tool's points (ECharts' default `selectedMode`);
     // the selector adds 전체/반전 so one tool can be isolated in two clicks.
     legend: {
       top: 0,
       type: 'scroll',
       selector: [{ type: 'all', title: '전체' }, { type: 'inverse', title: '반전' }],
-      selectorLabel: { fontSize: 10 }
+      selectorLabel: { fontSize: 12 }
     },
-    xAxis: { type: 'time' },
-    yAxis: { type: 'value', name: 'skew (nm)', scale: true },
+    xAxis: { type: 'time', splitLine: { lineStyle: { type: 'solid' } } },
+    yAxis: { type: 'value', name: '잔차 (nm)', scale: true, splitLine: { lineStyle: { type: 'solid' } } },
     // Stable literal: useEchart carries the live window across rebuilds by
     // index (utils/chartZoom), so the two entries must keep their positions.
     dataZoom: [

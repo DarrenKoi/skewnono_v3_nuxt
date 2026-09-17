@@ -2,7 +2,7 @@
   <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <p class="sk-title">
-        오늘 consensus 잔차
+        consensus 잔차 · {{ windowLabel }}
       </p>
       <span class="sk-meta">PM/BM 한계 ±{{ actionLimit.toFixed(3) }} nm</span>
     </div>
@@ -12,7 +12,7 @@
         :key="d.eqp_id"
         class="flex items-center gap-3 text-sm"
       >
-        <span class="w-24 shrink-0 font-mono text-xs text-(--sk-ink-muted)">{{ labelFor(d.eqp_id) }}</span>
+        <span class="w-24 shrink-0 font-mono text-xs text-(--sk-ink)">{{ labelFor(d.eqp_id) }}</span>
         <div class="flex-1 relative h-3.5 rounded-[var(--sk-r-sidebar)] bg-(--sk-muted-surface)">
           <div
             class="absolute inset-y-0 left-1/2 w-px"
@@ -45,13 +45,8 @@
       </div>
     </div>
     <p class="mt-3 sk-field-label leading-relaxed">
-      잔차 = tool − consensus(중앙값). {{ verdict }}
-      <EbeamTttmCaptionMore>
-        <span :style="{ color: 'var(--sk-bad)' }">빨간 선 ±{{ actionLimit.toFixed(3) }} nm</span>
-        밖으로 나가면 PM/BM 대상입니다 ({{ cdBasis }}). 안쪽 옅은 선
-        ±{{ MEASUREMENT_FLOOR_NM.toFixed(2) }} nm 는 시험 자체의 불확도라, 그보다
-        작은 차이는 구별 불가입니다.
-      </EbeamTttmCaptionMore>
+      기간 내 일별 잔차의 중앙값을 선택한 장비 기준으로 다시 맞춘 값입니다. {{ verdict }}
+      빨간 선은 PM/BM 한계({{ cdBasis }}), 옅은 선은 측정 불확도 ±{{ MEASUREMENT_FLOOR_NM.toFixed(2) }} nm입니다.
     </p>
   </div>
 </template>
@@ -80,6 +75,7 @@ const props = defineProps<{
    */
   deviations: DeviationRow[]
   tools: ToolRef[]
+  windowLabel: string
   /**
    * The CD this card's limit is drawn against, resolved by the parent.
    *
@@ -101,11 +97,11 @@ const actionLimit = computed(() => actionLimitNm(props.cd.nm))
 // Built as a string rather than as `<template v-if>` branches in the caption:
 // those are block elements to the formatter, so it breaks them onto their own
 // lines and the rendered sentence picks up a stray space before the closing
-// paren. FleetMap's `thresholdBasis` exists for the same reason.
+// paren.
 const cdBasis = computed(() =>
   props.cd.assumed
-    ? `기준은 CD의 ${ACTION_LIMIT_PERCENT}%인데 이 데이터에는 CD가 없어 모니터 wafer ${props.cd.nm} nm 를 가정했습니다`
-    : `기준은 CD의 ${ACTION_LIMIT_PERCENT}%이며, 측정 CD 중앙값 ${props.cd.nm.toFixed(1)} nm 기준입니다`
+    ? `CD 미상으로 모니터 웨이퍼 ${props.cd.nm} nm 가정`
+    : `마지막 측정 CD ${props.cd.nm.toFixed(1)} nm의 ${ACTION_LIMIT_PERCENT}%`
 )
 
 // Rebuilt when the payload swaps the fleet; destructuring at setup would pin
@@ -143,8 +139,8 @@ const verdict = computed(() => {
   const out = props.deviations.filter(d => overLimit(d.deviation)).length
   if (total === 0) return '표시할 장비가 없습니다.'
   return out === 0
-    ? `${total}대 모두 PM/BM 한계 안.`
-    : `${total}대 중 ${out}대가 PM/BM 한계 밖.`
+    ? `${total}대 모두 PM/BM 한계 안입니다.`
+    : `${total}대 중 ${out}대가 PM/BM 한계 밖입니다.`
 })
 
 // Bar grows from the center line toward the sign direction.

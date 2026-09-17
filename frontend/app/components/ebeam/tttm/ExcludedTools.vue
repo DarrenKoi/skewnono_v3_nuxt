@@ -32,19 +32,18 @@
             :class="lead.exceeds ? 'text-(--sk-bad)' : 'text-(--sk-ink)'"
           >{{ lead.blocker.skewNm.toFixed(3) }} nm</strong>
           <template v-if="lead.exceeds">
-            — tolerance {{ lead.thresholdNm.toFixed(3) }} nm 초과.
+            — 허용 오차 {{ lead.thresholdNm.toFixed(3) }} nm를 초과합니다.
           </template>
           <template v-else>
-            — tolerance {{ lead.thresholdNm.toFixed(3) }} nm 안쪽이지만, 그룹 안에
-            겹치는 측정이 없는 장비가 있어 함께 묶이지 않았습니다.
+            — 허용 오차 안이지만, 일부 장비와 공통 측정이 없어 그룹에 포함되지 않습니다.
           </template>
         </template>
         <template v-else>
-          그룹 안의 어떤 장비와도 겹치는 측정이 없어 N배화를 판정할 수 없습니다.
+          그룹과 공통 측정이 없어 비교할 수 없습니다.
         </template>
         <template v-if="leadDeviation !== null">
-          잔차 {{ formatSignedNm(leadDeviation) }} nm 로 PM/BM 한계 ±{{ actionLimit.toFixed(3) }} nm
-          {{ Math.abs(leadDeviation) > actionLimit ? '초과' : '안쪽' }}.
+          기간 잔차는 {{ formatSignedNm(leadDeviation) }} nm이며, PM/BM 한계 ±{{ actionLimit.toFixed(3) }} nm
+          {{ Math.abs(leadDeviation) > actionLimit ? '밖입니다.' : '안입니다.' }}
         </template>
       </p>
 
@@ -92,7 +91,7 @@
         선택한 장비가 모두 1차 추천 그룹에 들어 있습니다.
       </template>
       <template v-else>
-        현재 tolerance에서는 그룹 자체가 만들어지지 않아, 빠진 장비를 말할 기준이 없습니다.
+        현재 허용 오차로는 기준이 될 장비 그룹이 없습니다.
       </template>
     </p>
   </div>

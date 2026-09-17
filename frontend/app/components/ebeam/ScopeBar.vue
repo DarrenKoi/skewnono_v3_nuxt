@@ -51,15 +51,8 @@
  * first thing read and the first thing acted on, and a page-wide bar is what
  * puts it in reading order. See DESIGN.md §Layout — the scope-bar rule.
  *
- * Recipe and 수집 기간 only, since 2026-08-27. The tool cell moved out to its
- * own bar (`EbeamToolGroupBar`): which tools to compare is decided AMONG the
- * roster the recipe's payload returns, so it is the second step, not a third
- * cell of the first. The parameter and the page-specific judging control
- * (TTTM's tolerance knob) sit in the 분석 조건 bar (`EbeamAnalysisBar`) below.
- * The PM 튜닝 panel's 튜닝할 장비 is NOT one of these three: it names the
- * subject the page reports on rather than the data it reports from, so it has
- * its own bar (`EbeamPmPlanningToolPicker`, 2026-08-27) — below 분석 조건 since
- * 2026-09-01, directly under the PM 튜닝 chip that summons it.
+ * Recipe lives here; tools and the collection window have their own bars.
+ * Parameters live in AnalysisBar, and map clicks select the tuning subject.
  */
 withDefaults(defineProps<{
   hint?: string

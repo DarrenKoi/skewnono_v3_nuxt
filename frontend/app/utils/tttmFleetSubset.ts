@@ -81,3 +81,19 @@ export const resolveSelection = (
   const wanted = new Set(selected)
   return [...new Set(available)].filter(eqp => wanted.has(eqp))
 }
+
+/** Each tool's median daily residual over the payload's collection window.
+ * Missing/non-finite readings stay absent; callers rebase on their own basis.
+ */
+export const windowResiduals = (
+  trend: readonly { eqp_id: string, skew: number }[]
+): DeviationRow[] => {
+  const byTool = new Map<string, number[]>()
+  for (const point of trend) {
+    if (!Number.isFinite(point.skew)) continue
+    const values = byTool.get(point.eqp_id) ?? []
+    values.push(point.skew)
+    byTool.set(point.eqp_id, values)
+  }
+  return [...byTool].map(([eqp_id, values]) => ({ eqp_id, deviation: median(values) }))
+}

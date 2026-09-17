@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm test  (node --test, Node 24+ strips types)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { subsetSkewMatrix, rebaseDeviations, resolveSelection } from './tttmFleetSubset.ts'
+import { subsetSkewMatrix, rebaseDeviations, windowResiduals, resolveSelection } from './tttmFleetSubset.ts'
 import type { SkewMatrix } from './tttmGrouping.ts'
 
 const matrix: SkewMatrix = {
@@ -111,4 +111,21 @@ test('resolveSelection: a wholly stale selection resolves to none, not the fleet
   // Picking is opt-in: a selection whose tools are all gone leaves the user to
   // pick again rather than silently comparing the whole fleet.
   assert.deepEqual(resolveSelection(['A', 'B'], ['X', 'Y']), [])
+})
+
+test('window residuals use per-tool medians, omit missing readings, and rebase on the visible basis', () => {
+  const rows = windowResiduals([
+    { eqp_id: 'A', skew: -3 }, { eqp_id: 'A', skew: -1 }, { eqp_id: 'A', skew: 100 },
+    { eqp_id: 'B', skew: 2 }, { eqp_id: 'B', skew: 4 },
+    { eqp_id: 'C', skew: 20 }, { eqp_id: 'missing', skew: NaN }
+  ])
+  assert.deepEqual(rows, [
+    { eqp_id: 'A', deviation: -1 }, { eqp_id: 'B', deviation: 3 }, { eqp_id: 'C', deviation: 20 }
+  ])
+  assert.deepEqual(rebaseDeviations(rows, ['A', 'B']), [
+    { eqp_id: 'A', deviation: -2 }, { eqp_id: 'B', deviation: 2 }
+  ])
+  assert.deepEqual(rebaseDeviations(rows, ['A']), [{ eqp_id: 'A', deviation: 0 }])
+  assert.deepEqual(windowResiduals([]), [])
+  assert.deepEqual(rebaseDeviations(rows, []), [])
 })

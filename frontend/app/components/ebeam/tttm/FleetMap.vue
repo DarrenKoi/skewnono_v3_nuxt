@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-surface rounded-[var(--sk-r-card)] px-5 py-4">
+  <div class="dashboard-surface min-w-0 rounded-[var(--sk-r-card)] px-5 py-4">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <div class="flex flex-wrap items-baseline gap-2">
         <p class="sk-title">
@@ -32,6 +32,30 @@
         stress {{ map.stress.toFixed(3) }} · {{ stress.text }}
       </p>
     </div>
+
+    <div
+      v-if="$slots.default"
+      class="mt-3 max-w-md"
+    >
+      <slot />
+    </div>
+    <select
+      class="sr-only focus:not-sr-only"
+      aria-label="배치도에서 튜닝할 장비 선택"
+      :value="pickedTool ?? ''"
+      @change="emit('update:pickedTool', ($event.target as HTMLSelectElement).value || null)"
+    >
+      <option value="">
+        선택 해제
+      </option>
+      <option
+        v-for="point in map.points"
+        :key="point.eqp_id"
+        :value="point.eqp_id"
+      >
+        {{ labelFor(point.eqp_id) }}
+      </option>
+    </select>
 
     <!-- Square by construction. Both axes share one domain (see `domain`), so
          the box has to be square too — on a wide box the same nm would be
@@ -67,14 +91,14 @@
           class="h-3 w-3 shrink-0 rounded-full"
           :style="{ backgroundColor: sk.series }"
         />
-        허용오차 안에 드는 짝이 있음
+        허용 오차 안에 맞는 장비 있음
       </span>
       <span class="inline-flex items-center gap-1">
         <span
           class="h-3 w-3 shrink-0 rounded-full"
           :style="{ backgroundColor: SK_STATE.bad }"
         />
-        가장 가까운 장비마저 허용오차 밖
+        허용 오차 안에 맞는 장비 없음
       </span>
       <span
         v-if="groupCentroid"
@@ -86,7 +110,7 @@
         />
         1차 N배화 그룹 소속
       </span>
-      <span class="text-(--sk-ink-subtle)">· 색은 tolerance 판정이지 그룹 소속이 아닙니다.</span>
+      <span class="text-(--sk-ink-subtle)">초록 테두리는 그룹 소속, 진한 테두리는 선택한 장비입니다.</span>
     </div>
 
     <div
@@ -100,53 +124,27 @@
         class="sk-badge bg-(--sk-chip-bg) text-(--sk-chip-text)"
       >{{ labelFor(eqp) }}</span>
       <span class="sk-field-label">
-        <template v-if="pca">— 고른 parameter 중 측정하지 않은 것이 있어 놓을 수 없습니다.</template>
-        <template v-else>— 다른 장비와 겹치는 측정이 없어 거리를 정의할 수 없습니다.</template>
+        <template v-if="pca">선택한 측정 항목이 누락되어 배치할 수 없습니다.</template>
+        <template v-else>공통 측정이 없어 거리를 계산할 수 없습니다.</template>
       </span>
     </div>
 
-    <p
-      v-if="pca"
-      class="mt-1.5 sk-field-label leading-relaxed"
-    >
-      고른 parameter 별 consensus 잔차(CD 대비 배수)를 주성분 분석한 배치입니다. 점 크기 = 평균 거리(Score).
-      휠로 확대·축소, 끌어서 이동합니다.
-      <EbeamTttmCaptionMore>
-        <span class="block">PC1 ← {{ loadingText(0) }}</span>
-        <span class="block">PC2 ← {{ loadingText(1) }}</span>
-        <span class="mt-1 block">
-          각 parameter 는 그 parameter 의 CD 대비 배수로 먼저 맞춘 뒤 분석하므로 패턴 크기가 달라도
-          같은 잣대입니다. 빨강은 <strong>어느 한 parameter 에서라도</strong> 가장 가까운 장비와
-          허용오차 CD 대비 {{ toleranceIndex.toFixed(2) }}× 밖인 장비이며, 파랑은 맞는 짝이 하나라도
-          있다는 뜻일 뿐 <strong>1차 그룹 소속이 아닙니다</strong>. 소속은 점의 <strong>초록 테두리</strong>가
-          말합니다 — <strong>N배화 그룹</strong>(점유 셀 전체에서 서로 허용오차 안인 장비 — 완전연결 군집)이라
-          위치가 아니라 판정으로 그려집니다. 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>이며,
-          오른쪽 튜닝 목표 표가 가리키는 좌표가 바로 이 점입니다. 그래서 중심 가까이 있는데 테두리가 없는 장비가
-          나올 수 있고, 그것이 두 계산이 갈라진 지점입니다.
-        </span>
-      </EbeamTttmCaptionMore>
-    </p>
-    <p
-      v-else
-      class="mt-1.5 sk-field-label leading-relaxed"
-    >
-      점 사이 거리만 의미가 있습니다. 점 크기 = 평균 skew(Score). 휠로 확대·축소, 끌어서 이동합니다.
-      <EbeamTttmCaptionMore>
-        축에는 단위가 없고 회전·반전해도 같은 지도입니다. 빨강은 <strong>오늘 장비
-          그룹 행렬 기준</strong>으로 가장 가까운 장비마저 허용오차
-        {{ thresholdBasis }} 밖인 장비이며, N배화 판정은 점유 셀 전체를 교차한
-        결과라 이 지도와 다를 수 있습니다 — 그쪽은 위 추천 카드를 보십시오.
-        점의 초록 테두리가 그 <strong>N배화 그룹</strong> 소속이라 위치가 아니라 판정으로
-        그려지고, 초록 십자는 구성원들의 <strong>중심(무게중심)</strong>입니다. 파랑은 맞는 짝이
-        하나라도 있다는 뜻일 뿐 소속이 아니므로, 중심 가까이 있는데 테두리가 없는 장비가 나올 수 있고,
-        그것이 두 계산이 갈라진 지점입니다.
-      </EbeamTttmCaptionMore>
+    <p class="mt-1.5 sk-field-label leading-relaxed">
+      <template v-if="pca">
+        선택한 측정 항목의 잔차로 배치하며, 초록 십자가 튜닝 목표인 그룹 중심입니다.
+      </template>
+      <template v-else>
+        장비별 마지막 측정의 쌍별 거리로 배치하며, 측정 항목이 없어 튜닝 목표는 계산하지 않습니다.
+      </template>
+      점을 누르면 튜닝 목표가 표시되며, 다시 누르거나 빈 곳을 누르면 선택이 해제됩니다.
+      휠로 확대하고 끌어서 이동합니다.
     </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { EChartsOption, SeriesOption } from 'echarts'
+import { nearestPoint } from '~/utils/chartNearest'
 import { fleetMap } from '~/utils/fleetMap'
 import type { PcaResult } from '~/utils/parameterPca'
 import { mean } from '~/utils/stats'
@@ -158,7 +156,7 @@ import { effectiveToleranceNm, resolveNominalCd } from '~/utils/tttmLimits'
 import type { FleetToday, ToolRef } from '~/composables/useTttmApi'
 
 const props = defineProps<{
-  fleet: FleetToday
+  fleet: Pick<FleetToday, 'matrix' | 'median_cd_nm'>
   tools: ToolRef[]
   /** CD-relative; converted against THIS matrix's own CD below, not against nm. */
   toleranceIndex: number
@@ -180,7 +178,7 @@ const props = defineProps<{
   groupTools?: string[]
   /**
    * The blocking pair to annotate — which two tools produced the worst blocked
-   * skew, and how large it was. Drawn as the dashed connector in the design.
+   * skew, and how large it was. Drawn as a solid connector.
    *
    * The reading itself, not a restatement of its fields: the same object the
    * exclusion card explains in words, so the two cannot describe different
@@ -188,18 +186,11 @@ const props = defineProps<{
    */
   blockedPair?: PairReading | null
   /**
-   * One tool to visually anchor — the PM 튜닝 panel's picked tool, the one in (or fresh
-   * out of) its PM window. Drawn as an ink ring around its point plus a bold
+   * The tool selected by a map click. Drawn as an ink ring around its point plus a bold
    * label, never a recolor: red already means "no partner inside tolerance",
    * and overloading it would make the pick look like a finding.
    */
   pickedTool?: string | null
-  /**
-   * Overrides the header badge's `N배화 그룹 · {n}대` caption — the PM 튜닝 panel
-   * writes the prospective form (`… → {n+1}대 (튜닝 시)`). The green outlines
-   * still mark only the CURRENT members; only the words change.
-   */
-  haloLabel?: string
   /**
    * PCA placement over the picked parameters (utils/parameterPca). When
    * given, positions, `score` and `nearest` are in CD-relative index units
@@ -215,13 +206,7 @@ const props = defineProps<{
 const cd = computed(() => resolveNominalCd(props.fleet.median_cd_nm))
 const thresholdNm = computed(() => effectiveToleranceNm(props.toleranceIndex, cd.value.nm))
 
-// A string rather than `<template v-if>` branches in the caption — see the
-// note on FleetStatus's `cdBasis` for why.
-const thresholdBasis = computed(() => {
-  const basis = cd.value.assumed ? ' 가정' : ''
-  return `${thresholdNm.value.toFixed(3)} nm`
-    + ` (CD 대비 ${props.toleranceIndex.toFixed(2)}× · 이 행렬의 CD ${cd.value.nm.toFixed(1)} nm${basis})`
-})
+const emit = defineEmits<{ 'update:pickedTool': [value: string | null] }>()
 
 const el = ref<HTMLDivElement | null>(null)
 const sk = useChartPalette()
@@ -248,19 +233,6 @@ const explainedTone = computed(() => {
   if (carried >= 0.5) return { text: ' · 위치는 참고만', color: 'var(--sk-ink-muted)' }
   return { text: ' · 2축으로 부족 — 셀 행렬을 보십시오', color: 'var(--sk-bad)' }
 })
-// The parameters that make up an axis, largest weight first, signed so the
-// reader can tell "CD_X up" from "CD_X down". Three is enough to name a
-// direction; the rest is noise for this caption.
-const loadingText = (axis: 0 | 1) => {
-  const key = axis === 0 ? 'pc1' : 'pc2'
-  const ranked = [...(props.pca?.loadings ?? [])]
-    .filter(l => Math.abs(l[key]) > 1e-6)
-    .sort((a, b) => Math.abs(b[key]) - Math.abs(a[key]))
-    .slice(0, 3)
-  if (!ranked.length) return '없음'
-  return ranked.map(l => `${l.name} (${l[key] >= 0 ? '+' : '−'}${Math.abs(l[key]).toFixed(2)})`).join(' · ')
-}
-
 const labels = computed(() => toolLabels(props.tools))
 const labelFor = (eqp: string) => labels.value.labelFor(eqp)
 
@@ -321,13 +293,13 @@ const groupSet = computed(() => new Set(props.groupTools ?? []))
  *
  * Members the map dropped (`map.detached` — a tool sharing no measurement with
  * anyone has no defined distance, so MDS cannot place it) do not move the
- * centroid. Under two placeable members there is no centre worth drawing.
+ * centroid. Even one placed member defines the same centre that tuningTarget uses.
  */
 const groupCentroid = computed(() => {
   const members = (props.groupTools ?? [])
     .map(eqp => pointAt.value.get(eqp))
     .filter(p => p !== undefined)
-  if (members.length < 2) return null
+  if (members.length === 0) return null
 
   return {
     cx: mean(members.map(p => p.x)),
@@ -336,12 +308,8 @@ const groupCentroid = computed(() => {
   }
 })
 
-/**
- * The group's size, for the header badge — `haloLabel` when the caller wrote a
- * prospective form (PM 튜닝's `13대 → 14대 (튜닝 시)`), else the plain count.
- */
 const groupCaption = computed(() =>
-  groupCentroid.value ? props.haloLabel ?? `N배화 그룹 · ${groupCentroid.value.n}대` : null
+  groupCentroid.value ? `N배화 그룹 · ${groupCentroid.value.n}대` : null
 )
 
 /** The blocked pair as map coordinates, when both ends were placed. */
@@ -426,7 +394,7 @@ const backdrop = computed<SeriesOption[]>(() => {
       silent: true,
       z: 2,
       data: [{ coords: [[link.a.x, link.a.y], [link.b.x, link.b.y]] }],
-      lineStyle: { color: SK_STATE.bad, width: 1.5, type: [5, 4], opacity: 0.9 },
+      lineStyle: { color: SK_STATE.bad, width: 1.5, type: 'solid', opacity: 0.9 },
       label: {
         show: true,
         position: 'middle',
@@ -451,7 +419,7 @@ const chartOption = computed<EChartsOption>(() => {
     min: domain.value.min,
     max: domain.value.max,
     axisLabel: { show: false },
-    splitLine: { lineStyle: { color: sk.value.muted, opacity: 0.25 } }
+    splitLine: { lineStyle: { color: sk.value.muted, opacity: 0.25, type: 'solid' as const } }
   })
 
   return {
@@ -511,10 +479,7 @@ const chartOption = computed<EChartsOption>(() => {
           ...(groupSet.value.has(p.eqp_id)
             ? { borderColor: SK_STATE.ok, borderWidth: 2 }
             : {}),
-          // The picked tool takes the border instead, in ink: the page is
-          // arguing about that one point, and two rings on one symbol read as
-          // neither. Nothing is lost — the 튜닝할 장비 card states the picked
-          // tool's 1차 그룹 membership in words, right beside the picker.
+          // Selection uses an ink outline; group membership is also named in Targets.
           ...(p.eqp_id === props.pickedTool
             ? { borderColor: sk.value.ink, borderWidth: 2 }
             : {})
@@ -559,5 +524,12 @@ const chartOption = computed<EChartsOption>(() => {
   }
 })
 
-useEchart(el, chartOption, { exportName: 'tttm-fleet-map' })
+const clickable = computed(() => map.value.points.map(p => ({ x: p.x, y: p.y, item: p.eqp_id })))
+useEchart(el, chartOption, {
+  exportName: 'tttm-fleet-map',
+  onGridClick: (detail) => {
+    const tool = nearestPoint(clickable.value, detail, { maxDistancePx: 18 })
+    emit('update:pickedTool', tool === props.pickedTool ? null : tool)
+  }
+})
 </script>

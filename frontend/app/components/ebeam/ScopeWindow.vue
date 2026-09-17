@@ -25,7 +25,7 @@
          a wider window is more evidence — at the price of mixing in a state
          the tool may since have left. -->
     <p class="mt-2 sk-field-label leading-relaxed">
-      최근 <strong class="font-mono tabular-nums text-(--sk-ink)">{{ windowDays(windowWeeks) }}일</strong>의 run 을 모읍니다 · 길수록 근거가 늘지만 지난 상태가 섞입니다.
+      최근 <strong class="font-mono tabular-nums text-(--sk-ink)">{{ windowDays(windowWeeks) }}일</strong>의 측정 데이터를 모으며, 기간이 길면 이전 장비 상태도 포함됩니다.
     </p>
   </div>
 </template>

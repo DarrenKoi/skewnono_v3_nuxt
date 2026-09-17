@@ -12,7 +12,7 @@ test('unknown names are dropped', () => {
 })
 
 test('canonical order is restored, not the stored order', () => {
-  assert.deepEqual(normalizePanels(['pm', 'verdict', 'map']), ['verdict', 'map', 'pm'])
+  assert.deepEqual(normalizePanels(['pm', 'verdict', 'map']), ['verdict', 'map'])
 })
 
 test('duplicates collapse', () => {
@@ -33,8 +33,8 @@ test('the preset names real panels, in canonical order', () => {
   assert.deepEqual(normalizePanels(DEFAULT_PANELS), DEFAULT_PANELS)
 })
 
-test('the preset leaves pm off — ticking it is what summons 튜닝할 장비', () => {
-  assert.ok(!DEFAULT_PANELS.includes('pm'))
+test('retired pm selections are silently dropped', () => {
+  assert.deepEqual(normalizePanels(['pm']), [])
 })
 
 // The stored shape changed on 2026-09-01, when /pm-planning stopped being a
@@ -53,7 +53,7 @@ test('a pre-merge value with no tttm key falls back to the preset', () => {
 })
 
 test('the current form is read as itself', () => {
-  assert.deepEqual(storedPanels(['pm', 'map']), ['map', 'pm'])
+  assert.deepEqual(storedPanels(['pm', 'map']), ['map'])
 })
 
 test('everything unticked survives the read — it is a choice, not a missing value', () => {
@@ -69,6 +69,6 @@ test('junk falls back to the preset rather than an empty page', () => {
 
 test('the preset is copied, so a caller cannot mutate it', () => {
   const first = storedPanels(null)
-  first.push('pm')
+  first.pop()
   assert.deepEqual(storedPanels(null), DEFAULT_PANELS)
 })

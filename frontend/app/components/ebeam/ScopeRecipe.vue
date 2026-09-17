@@ -13,7 +13,7 @@
       :model-value="recipeId ?? ALL_RECIPES"
       ignore-filter
       :items="items"
-      :search-input="{ placeholder: 'recipe 이름 검색 — 비우면 전체' }"
+      :search-input="{ placeholder: '레시피 이름 검색' }"
       :loading="recipesPending"
       icon="i-lucide-search"
       color="neutral"
@@ -39,13 +39,13 @@
         <span
           v-if="recipesWithoutAPair.has(String(item))"
           class="ml-auto sk-signal-badge bg-(--sk-warn-soft) text-(--sk-warn)"
-          title="이 recipe 를 측정한 장비가 1대뿐이라 장비쌍이 없습니다"
+          title="측정한 장비가 1대여서 비교할 수 없습니다."
         >장비 1대</span>
       </template>
     </USelectMenu>
     <p class="mt-1.5 sk-field-label leading-relaxed">
       <template v-if="overflowed">
-        {{ matched.length.toLocaleString() }}건 중 {{ RECIPE_LIMIT }}건만 표시합니다 — 더 좁혀서 검색하십시오.
+        {{ matched.length.toLocaleString() }}건 중 {{ RECIPE_LIMIT }}건을 표시하며, 검색어로 범위를 좁힐 수 있습니다.
       </template>
       <template v-else-if="recipeId">
         <!-- `break-all`, not truncate: this is the one place the whole name is
@@ -57,7 +57,7 @@
         <span class="font-mono break-all text-(--sk-ink)">{{ recipeId }}</span>
       </template>
       <template v-else>
-        {{ recipeNames.length.toLocaleString() }}건 측정됨 · recipe 를 골라야 결과가 계산됩니다.
+        {{ recipeNames.length.toLocaleString() }}개 레시피에 측정 데이터가 있습니다.
       </template>
     </p>
   </div>
@@ -67,7 +67,7 @@
 import { useMenuFilter } from '~/composables/useMenuFilter'
 import { scopeMenuUi } from '~/utils/scopeMenuUi'
 
-const ALL_RECIPES = '전체 (서버 기본)'
+const ALL_RECIPES = '레시피 선택'
 // The measured-recipe list is hundreds of names, not the catalogue's ~50,000,
 // but the cap stays: it costs nothing and the caption says when it bound.
 const RECIPE_LIMIT = 100

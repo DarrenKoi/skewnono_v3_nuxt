@@ -10,7 +10,7 @@
           {{ primary.n }}대
         </span>
         <span class="text-base font-semibold text-(--sk-ink-muted)">
-          가 현재 tolerance에서 서로 N배화됩니다
+          가 모든 비교 셀에서 서로 허용 오차 안에 맞습니다.
         </span>
       </div>
 
@@ -64,7 +64,7 @@
       v-else
       class="mt-2 sk-body text-(--sk-bad)"
     >
-      현재 tolerance에서 모든 점유 셀을 동시에 만족하는 N배화 그룹이 없습니다.
+      현재 허용 오차를 모든 비교 셀에서 만족하는 장비 그룹이 없습니다.
     </p>
   </div>
 </template>
@@ -89,7 +89,7 @@ const confColor = computed(() => {
     ? 'var(--sk-ok)'
     : props.primary.confidence === 'Low'
       ? 'var(--sk-bad)'
-      : 'var(--sk-accent)'
+      : 'var(--sk-warn)'
 })
 
 // "N=3 그룹 2개" rather than every runner-up spelled out: this line sits in a

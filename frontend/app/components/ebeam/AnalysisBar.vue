@@ -17,17 +17,10 @@
           </p>
         </div>
 
-        <!-- Capped rather than stretched: one dropdown across the full bar
-             width reads as a text field, and a parameter name is short. -->
-        <div class="mt-3 max-w-md">
+        <div class="mt-3">
           <slot name="parameter" />
         </div>
 
-        <!-- 보기 — which analyses get drawn. UNCAPPED, unlike the parameter
-             above it: this is a row of chips that has to be readable at a
-             glance, and max-w-md would wrap five of them into three lines.
-             Optional, like the trailing cell — a page with one fixed set of
-             cards has nothing to offer here. -->
         <div
           v-if="$slots.panels"
           class="mt-4 border-t border-(--sk-border-soft) pt-4"
@@ -78,10 +71,7 @@ import type { AnalysisLock } from '~/utils/tttmRecipeScope'
  * Both cells arrive as slots for the reason ScopeBar's recipe cell does: a
  * prop relay through a wrapper is a place to forget a prop, and the knob in
  * the trailing cell fires on every drag frame. The trailing cell is optional:
- * PM 플래닝 gave it up on 2026-08-27, when 튜닝할 장비 left this cell for a bar
- * of its own, and an empty divided column reads as a missing control. That bar
- * has since moved twice and now sits below this one; where it sits does not
- * bear on the cell being optional — that it left does.
+ * it holds the tolerance knob when the map panel is off.
  */
 const props = withDefaults(defineProps<{
   lock: AnalysisLock
@@ -89,7 +79,7 @@ const props = withDefaults(defineProps<{
   /** A page-specific sentence appended to the hint. */
   note?: string
 }>(), {
-  hint: '비교 대상의 측정 데이터에서 읽은 parameter 로 판정 조건을 정합니다.',
+  hint: '측정 항목과 표시할 분석을 선택합니다.',
   note: undefined
 })
 

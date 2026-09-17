@@ -57,16 +57,13 @@
           <AppSelectCheck :checked="isSelected(item)" />
         </template>
 
-        <!-- The tool's standing against the WHOLE fleet's consensus, so the
-             choice is informed before it is made. Deliberately the payload's
-             own number rather than the re-based one the charts below show:
-             re-basing is defined against a selection, and this row is where
-             the selection gets decided. -->
+        <!-- Window medians re-centred on all answered tools; the cards below
+             re-centre on the visible selection instead. -->
         <template #item-trailing="{ item }">
           <span
             v-if="deviations[item] !== undefined"
-            class="ml-auto font-mono text-xs tabular-nums text-(--sk-ink-muted)"
-            title="장비 그룹 전체 기준 consensus 잔차"
+            class="ml-auto font-mono text-xs tabular-nums text-(--sk-ink)"
+            :title="`consensus 잔차 · ${windowLabel} · 요청한 장비 기준`"
           >{{ formatSignedNm(deviations[item]!) }}</span>
           <span
             v-else-if="isAnswered(item)"
@@ -184,6 +181,7 @@ const props = withDefaults(defineProps<{
   selected: string[]
   /** Fleet-wide consensus deviation per tool, for the dropdown rows. */
   deviations: Record<string, number>
+  windowLabel: string
   /** The payload carrying the roster is still in flight — empty is not yet empty. */
   pending?: boolean
   /**
@@ -197,7 +195,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   pending: false,
   answered: undefined,
-  hint: '비교에 넣을 장비를 모델 그룹별로 고릅니다 — 그룹 전체를 켜고 끄거나, 펼쳐서 한 대씩 고릅니다. 이 설정은 이 브라우저에 저장됩니다.'
+  hint: '비교할 장비를 모델별로 선택합니다.'
 })
 
 const emit = defineEmits<{

@@ -4,28 +4,17 @@
       보기
     </p>
 
-    <!-- Chips rather than a dropdown: there are five, they all fit on one row,
-         and the point of the control is that you can SEE what the page could be
-         showing you. Behind a menu, a panel nobody has opened is a panel nobody
-         knows exists — which is the failure mode of every "customise your
-         dashboard" control. The four DEFAULT_PANELS (utils/labView) therefore
-         start ON; PM 튜닝 is the one deliberate opt-in, because ticking it is
-         what summons 튜닝할 장비 and asks for a pick. -->
     <div
       class="mt-2 flex flex-wrap gap-1.5"
       role="group"
       aria-label="보여 줄 분석"
     >
-      <button
+      <SkChip
         v-for="panel in LAB_PANELS"
         :key="panel.value"
-        type="button"
-        :aria-pressed="isOn(panel.value)"
+        :active="isOn(panel.value)"
         :title="panel.hint"
-        class="inline-flex h-[30px] items-center gap-1.5 rounded-full border px-3 text-sm font-semibold transition-colors"
-        :class="isOn(panel.value)
-          ? 'border-(--sk-brand) bg-(--sk-brand-soft) text-(--sk-brand-ink)'
-          : 'border-(--sk-border) bg-(--sk-surface) text-(--sk-ink-muted) hover:text-(--sk-ink)'"
+        tone="ink"
         @click="toggle(panel.value)"
       >
         <UIcon
@@ -33,12 +22,11 @@
           class="h-3.5 w-3.5 shrink-0"
         />
         {{ panel.label }}
-      </button>
+      </SkChip>
     </div>
 
     <p class="mt-2 sk-field-label leading-relaxed">
-      이 화면에 그릴 분석을 고릅니다 — 데이터는 한 번만 모으므로 켜고 끄는 데
-      다시 요청하지 않습니다. 선택은 이 브라우저에 저장됩니다.
+      표시할 분석을 선택하며, 데이터를 다시 요청할 필요는 없습니다.
     </p>
   </div>
 </template>
