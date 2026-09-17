@@ -11,6 +11,7 @@ export interface AdminLogQuery {
   feature?: string
   method?: string
   activity_kind?: string
+  identity_source?: string
   fab_name?: string
   path?: string
   q?: string
@@ -32,6 +33,8 @@ export interface AdminLogItem {
   event: string | null
   logger: string | null
   user_id: string | null
+  identity_source: string | null
+  api_token_id: string | null
   method: string | null
   path: string | null
   status: number | null

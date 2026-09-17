@@ -12,6 +12,11 @@ so the default time window always has hits, and one row carries the legacy
 ``request_path`` field to exercise ``item_from_hit``'s fallback for documents
 written before ``c11fbc2``. See ``docs/datatables/hitachi/skewnono_logging.txt``.
 
+Every real request document carries ``identity_source``, so each row defaults
+to ``cookie``; one row is an API-token request (``token`` plus
+``api_token_id``) from a different ``remote_addr`` than the same user's browser
+row, so the /admin/logs identity-source filter has something to find at home.
+
 Query semantics are shared with the office adapter: ``parse_log_query``
 validates ``from``/``to`` (malformed values raise the same 400), the ``q``
 free-text filter covers ``query.FREE_TEXT_FIELDS``, and the response is built
@@ -88,6 +93,28 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "error_name": "Not Found",
         },
         {
+            "@timestamp": iso_z(now - timedelta(minutes=12)),
+            "level": "INFO",
+            "logger": "skewnono.activity",
+            "message": "user=park.jinho method=GET path=/api/sem-list status=200 ms=22 remote=10.40.1.20",
+            "host": "local-demo",
+            "event": "request",
+            "user_id": "park.jinho",
+            "identity_source": "token",
+            "api_token_id": "a1b2c3d4e5f6",
+            "method": "GET",
+            "path": "/api/sem-list",
+            "request_path": "/api/sem-list",
+            "query_string": "",
+            "status": 200,
+            "latency_ms": 22,
+            "remote_addr": "10.40.1.20",
+            "feature": "sem_list",
+            "activity_kind": "operation",
+            "activity_weight": 0,
+            "fab_name_list": [],
+        },
+        {
             "@timestamp": iso_z(now - timedelta(minutes=16)),
             "level": "INFO",
             "logger": "skewnono.activity",
@@ -154,6 +181,7 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
     # request_id on every request log. Injected here rather than repeated in
     # each literal above so the two lists cannot drift apart.
     for position, row in enumerate(rows, start=1):
+        row.setdefault("identity_source", "cookie")
         row.setdefault("event_id", f"demo-event-{position:04d}")
         row.setdefault("service", "skewnono")
         row.setdefault("deployment", "local")
@@ -197,7 +225,7 @@ def _matches_demo(
     if level and str(row.get("level")) not in split_csv(level):
         return False
 
-    for key in ("event", "method", "user_id", "feature", "activity_kind"):
+    for key in ("event", "method", "user_id", "feature", "activity_kind", "identity_source"):
         value = str(filters.get(key) or "")
         if value and str(row.get(key) or "") != value:
             return False

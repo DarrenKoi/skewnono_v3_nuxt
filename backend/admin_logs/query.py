@@ -121,6 +121,7 @@ def _build_filter_query(
         "user_id": _read_str(params, "user_id"),
         "feature": _read_str(params, "feature"),
         "activity_kind": _read_str(params, "activity_kind"),
+        "identity_source": _read_str(params, "identity_source"),
     }
     for field, value in term_values.items():
         if value:
@@ -223,6 +224,8 @@ def item_from_hit(hit: dict[str, Any]) -> LogItem:
         "event": source.get("event"),
         "logger": source.get("logger"),
         "user_id": source.get("user_id"),
+        "identity_source": source.get("identity_source"),
+        "api_token_id": source.get("api_token_id"),
         "method": source.get("method"),
         "path": source.get("path") or source.get("request_path"),
         "status": source.get("status"),

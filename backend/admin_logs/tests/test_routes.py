@@ -14,6 +14,7 @@ from backend._auth.provider import SOURCE_LOCAL
 from backend._core.contract_check import assert_matches
 from backend.admin_logs import routes
 from backend.admin_logs.contracts import NamedLogQueryResponse
+from backend.admin_logs.providers import mock
 
 
 def _item(user_id):
@@ -26,6 +27,8 @@ def _item(user_id):
         "event": "request",
         "logger": "skewnono.activity",
         "user_id": user_id,
+        "identity_source": "cookie",
+        "api_token_id": None,
         "method": "GET",
         "path": "/api/sem-list",
         "status": 200,
@@ -146,3 +149,27 @@ def test_rows_without_a_user_id_do_not_reach_the_directory(make_client):
 
     assert asked == ["2067928"]
     assert payload["members"] == {}
+
+
+def test_identity_source_filter_returns_only_token_requests(make_client, monkeypatch):
+    client = make_client(_page(), {})
+    monkeypatch.setattr(routes, "query_logs", mock.query_logs)
+
+    response = client.get("/api/admin/logs?identity_source=token")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["filters"]["identity_source"] == "token"
+    assert payload["total"] == len(payload["items"]) == 1
+    item = payload["items"][0]
+    assert item["identity_source"] == "token"
+    assert item["user_id"] == "park.jinho"
+    assert item["path"] == "/api/sem-list"
+    assert item["api_token_id"] == "a1b2c3d4e5f6"
+    assert item["raw"]["activity_kind"] == "operation"
+    assert item["raw"]["activity_weight"] == 0
+    assert_matches(payload, NamedLogQueryResponse)
+
+    cookies = client.get("/api/admin/logs?identity_source=cookie").get_json()
+    assert cookies["total"] == 5
+    assert all(row["identity_source"] == "cookie" for row in cookies["items"])

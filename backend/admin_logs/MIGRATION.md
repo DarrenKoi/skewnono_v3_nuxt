@@ -87,6 +87,11 @@ Supported query parameters:
   `feature`, `page_view`, `background` or `operation`. A `page_view` row is a
   page-open beacon (`POST /api/page-view`); its `feature` field holds the slug
   of the page the user opened, not the beacon's own path.
+- `identity_source`: narrows by how the caller was identified — `token`,
+  `cookie`, `declared`, `local` or `anonymous`. `token` isolates API-token
+  requests; `user_id` on those rows is the token's OWNER, not whoever runs
+  the script, and `api_token_id` / `remote_addr` tell the calling machines
+  apart. Each `LogItem` carries both `identity_source` and `api_token_id`.
 - `fab_name`: narrows by FAB name. Several may be given comma-separated; they go
   through the same `normalize_fab_name_list` normalization as the writer and are
   matched as a terms query against `fab_name_list`.

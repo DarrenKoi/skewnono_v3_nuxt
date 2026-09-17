@@ -19,10 +19,13 @@ def test_parse_log_query_keeps_existing_filter_contract():
         {
             "level": "error,warning",
             "method": "get",
+            "identity_source": "token",
             "page": "2",
             "page_size": "500",
         }
     )
+    assert parsed.filters["identity_source"] == "token"
+    assert {"term": {"identity_source": "token"}} in parsed.query["bool"]["filter"]
     assert parsed.page == 2
     assert parsed.page_size == 200
     assert parsed.filters["level"] == "ERROR,WARNING"
@@ -262,3 +265,11 @@ def test_mock_filters_by_activity_kind_and_fab_name():
     assert all(
         "M16B" in item["raw"]["fab_name_list"] for item in by_fab["items"]
     )
+
+
+@pytest.mark.parametrize("source", [{}, {"identity_source": "token", "api_token_id": "a1b2c3d4e5f6"}])
+def test_hit_normalization_carries_identity_and_token_id(source):
+    item = item_from_hit({"_source": source})
+
+    assert item["identity_source"] == source.get("identity_source")
+    assert item["api_token_id"] == source.get("api_token_id")

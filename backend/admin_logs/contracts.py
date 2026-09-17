@@ -19,6 +19,8 @@ class LogItem(TypedDict):
     event: str | None
     logger: str | None
     user_id: str | None
+    identity_source: str | None
+    api_token_id: str | None
     method: str | None
     path: str | None
     status: int | None

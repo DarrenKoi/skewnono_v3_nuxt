@@ -101,6 +101,14 @@
           :items="activityKindOptions"
         />
         <USelect
+          v-model="draft.identity_source"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          aria-label="Identity source"
+          :items="identitySourceOptions"
+        />
+        <USelect
           :model-value="pageSize"
           size="xs"
           color="neutral"
@@ -287,8 +295,21 @@
                   {{ row.event || '-' }}
                 </td>
                 <td class="whitespace-nowrap px-3 py-2">
-                  <div class="text-xs">
+                  <div class="flex items-center gap-1.5 text-xs">
                     {{ userCell(row.user_id).name }}
+                    <UTooltip
+                      v-if="row.identity_source === 'token'"
+                      :text="row.api_token_id ? `API token ${row.api_token_id}` : 'API token'"
+                    >
+                      <UBadge
+                        color="warning"
+                        variant="subtle"
+                        size="sm"
+                        tabindex="0"
+                      >
+                        token
+                      </UBadge>
+                    </UTooltip>
                   </div>
                   <div
                     v-if="userCell(row.user_id).empno"
@@ -391,6 +412,7 @@ type DraftFilters = {
   event: string
   method: string
   activity_kind: string
+  identity_source: string
   user_id: string
   feature: string
   fab_name: string
@@ -418,6 +440,7 @@ const makeDefaultFilters = (): DraftFilters => {
     event: ALL_SENTINEL,
     method: ALL_SENTINEL,
     activity_kind: ALL_SENTINEL,
+    identity_source: ALL_SENTINEL,
     user_id: '',
     feature: '',
     fab_name: '',
@@ -468,6 +491,15 @@ const activityKindOptions = [
   { label: 'Operation', value: 'operation' }
 ]
 
+const identitySourceOptions = [
+  { label: 'All identities', value: ALL_SENTINEL },
+  { label: 'Token', value: 'token' },
+  { label: 'Cookie', value: 'cookie' },
+  { label: 'Declared', value: 'declared' },
+  { label: 'Local', value: 'local' },
+  { label: 'Anonymous', value: 'anonymous' }
+]
+
 const fromAll = (value: string) => (value === ALL_SENTINEL ? '' : value)
 
 const pageSizeOptions = [
@@ -484,6 +516,7 @@ const query = computed<AdminLogQuery>(() => ({
   event: fromAll(applied.value.event),
   method: fromAll(applied.value.method),
   activity_kind: fromAll(applied.value.activity_kind),
+  identity_source: fromAll(applied.value.identity_source),
   user_id: applied.value.user_id,
   feature: applied.value.feature,
   fab_name: applied.value.fab_name,
