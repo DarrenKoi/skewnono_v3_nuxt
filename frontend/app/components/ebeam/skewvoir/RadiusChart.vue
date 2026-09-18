@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { radialYExtent, type RadialBandMode, type RadialProfileResult } from '~/utils/radialAnalysis'
-import { SK_STATE } from '~/utils/chartPalette'
+import { sectorColors as sectorColorMap } from '~/utils/chartPalette'
 import { nearestPoint } from '~/utils/chartNearest'
 
 const props = withDefaults(defineProps<{
@@ -52,14 +52,7 @@ interface ValueAxisConfig {
 
 const sk = useChartPalette()
 
-// Wafer sector identities. E/N take theme colors because they only need to be
-// told apart; W/S keep the semantic amber and green they have always used.
-const sectorColors = computed<Record<string, string>>(() => ({
-  E: sk.value.series,
-  N: sk.value.brand,
-  W: SK_STATE.warn,
-  S: SK_STATE.ok
-}))
+const sectorColors = computed(() => sectorColorMap(sk.value))
 
 const scatterData = computed(() => props.profile.points.map(point => ({
   name: String(point.sequence),
@@ -112,9 +105,8 @@ const bandSeries = computed(() => {
       name: 'band lower',
       type: 'line' as const,
       stack: 'radial-band',
-      // Default 'samesign' stacks positives and negatives separately, so for a
-      // negative-valued parameter (OVERLAY_X) the positive band height stacked
-      // on 0 and the fill drew off-screen above the plot.
+      // 'all', not the default 'samesign': see TimeSeriesChart's band series.
+      // A negative-valued parameter (OVERLAY_X) otherwise draws the band on 0.
       stackStrategy: 'all' as const,
       data: bandPoints.value.map(point => [point.radius, point.lower]),
       lineStyle: { opacity: 0 },
@@ -191,15 +183,20 @@ const option = computed<EChartsOption>(() => {
   const mainGrid = hasResiduals
     ? { left: 52, right: 20, top: 20, height: '55%', containLabel: true }
     : { left: 40, right: 44, top: 30, bottom: 36, containLabel: true }
-  const xAxes: ValueAxisConfig[] = [{
+  // Both panes share the radius axis; only the window and the caption differ.
+  const radiusAxis: ValueAxisConfig = {
     type: 'value',
-    min: props.profile.metrics.n ? props.profile.metrics.radiusMin : 0,
-    max: props.profile.metrics.n ? props.profile.metrics.radiusMax : undefined,
-    name: hasResiduals ? '' : '중심 거리 (mm)',
+    name: '중심 거리 (mm)',
     nameLocation: 'middle',
     nameGap: 24,
-    nameTextStyle: { fontSize: 11 },
+    nameTextStyle: { fontSize: 10 },
     axisLabel: { fontSize: 10, formatter: (value: number) => String(Math.round(value)) }
+  }
+  const xAxes: ValueAxisConfig[] = [{
+    ...radiusAxis,
+    min: props.profile.metrics.n ? props.profile.metrics.radiusMin : 0,
+    max: props.profile.metrics.n ? props.profile.metrics.radiusMax : undefined,
+    name: hasResiduals ? '' : radiusAxis.name
   }]
   // Explicit y window from the plotted data (points + band + curve) so a new
   // data selection ALWAYS re-fits the axis — `scale: true` alone left the
@@ -216,14 +213,9 @@ const option = computed<EChartsOption>(() => {
   }]
   if (hasResiduals) {
     xAxes.push({
-      type: 'value',
+      ...radiusAxis,
       min: props.profile.metrics.radiusMin,
       max: props.profile.metrics.radiusMax,
-      name: '중심 거리 (mm)',
-      nameLocation: 'middle',
-      nameGap: 24,
-      nameTextStyle: { fontSize: 10 },
-      axisLabel: { fontSize: 10, formatter: (value: number) => String(Math.round(value)) },
       gridIndex: 1
     })
     yAxes.push({
@@ -255,9 +247,6 @@ const option = computed<EChartsOption>(() => {
         return lines.join('<br/>')
       }
     },
-    legend: props.colorBySector
-      ? { data: [], show: false }
-      : undefined,
     grid: hasResiduals
       ? [mainGrid, { left: 52, right: 20, top: '72%', bottom: 38, containLabel: true }]
       : mainGrid,

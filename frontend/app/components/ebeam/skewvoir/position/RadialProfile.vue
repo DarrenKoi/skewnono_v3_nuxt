@@ -151,8 +151,8 @@ const option = computed<EChartsOption>(() => ({
   series: [
     // IQR band via stacked transparent lower + filled span.
     {
-      // stackStrategy 'all': the default stacks negatives apart from positives,
-      // which put the band height on 0 for negative-valued parameters.
+      // stackStrategy 'all': see TimeSeriesChart's band series — the default
+      // 'samesign' draws the band on 0 for negative-valued parameters.
       type: 'line', stack: 'iqr', stackStrategy: 'all', symbol: 'none', silent: true, tooltip: { show: false },
       lineStyle: { opacity: 0 }, data: bins.value.map(b => [b.radiusMm, b.q1]), z: 1
     },

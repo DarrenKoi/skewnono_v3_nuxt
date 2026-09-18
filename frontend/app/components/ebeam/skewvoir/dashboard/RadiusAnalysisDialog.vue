@@ -26,49 +26,22 @@
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
-            <!-- 세그먼트 버튼: 드롭다운은 body 로 portal 되어 이 z-50 다이얼로그 뒤에 깔렸다.
-                 PanelFrame 의 토글과 같은 모양. -->
-            <div
-              class="inline-flex items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
-              role="group"
-              aria-label="추세 모델"
-            >
-              <button
-                v-for="item in modelItems"
-                :key="item.value"
-                type="button"
-                class="rounded-[6px] px-2.5 py-1 font-mono text-xs font-medium transition-colors duration-200"
-                :class="item.value === model
-                  ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
-                  : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-                :aria-pressed="item.value === model"
-                @click="model = item.value"
-              >
-                {{ item.label }}
-              </button>
-            </div>
+            <!-- Segmented buttons, not USelect: NuxtUI portals the select menu to
+                 body with no z-index, so inside this z-50 dialog it fell behind
+                 the backdrop and read as unresponsive. -->
+            <SkSegmentedToggle
+              :model-value="model"
+              :items="modelItems"
+              label="추세 모델"
+              @update:model-value="model = $event as RadialModel"
+            />
             <div class="inline-flex items-center gap-1">
-              <div
-                class="inline-flex items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5"
-                role="group"
-                aria-label="산포 밴드"
-              >
-                <button
-                  v-for="item in bandItems"
-                  :key="item.value"
-                  type="button"
-                  class="rounded-[6px] px-2.5 py-1 font-mono text-xs font-medium transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  :class="item.value === band
-                    ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
-                    : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
-                  :aria-pressed="item.value === band"
-                  :disabled="item.needsFit && profile.status !== 'fitted'"
-                  :title="item.needsFit && profile.status !== 'fitted' ? '추세선이 있어야 계산됩니다' : undefined"
-                  @click="band = item.value"
-                >
-                  {{ item.label }}
-                </button>
-              </div>
+              <SkSegmentedToggle
+                :model-value="effectiveBand"
+                :items="bandItems"
+                label="산포 밴드"
+                @update:model-value="band = $event as RadialBandMode"
+              />
               <EbeamSkewvoirDashboardInfoTip
                 label="산포 밴드"
                 :text="bandHint"
@@ -103,7 +76,7 @@
               v-if="profile.warning"
               class="mb-2 rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-3 py-2 text-(--sk-warn) sk-meta"
             >
-              {{ warningKo }} 원본 점과 반경 구간 중앙값은 그대로 표시됩니다.
+              {{ profile.warning }} 원본 점과 반경 구간 중앙값은 그대로 표시됩니다.
             </div>
             <EbeamSkewvoirRadiusChart
               class="min-h-0 flex-1"
@@ -111,7 +84,7 @@
               :parameter="parameter"
               :unit="unit"
               :focused-sequence="focusedSequence"
-              :band="band"
+              :band="effectiveBand"
               :color-by-sector="colorBySector"
               show-residuals
               height-class="h-full min-h-[32rem]"
@@ -188,7 +161,7 @@
                   v-for="sector in sectorLegend"
                   :key="sector.key"
                   :style="{ color: sector.color }"
-                >● {{ sector.key }} {{ sector.name }}</span>
+                >● {{ sector.label }}</span>
               </div>
             </section>
           </aside>
@@ -201,11 +174,13 @@
 <script setup lang="ts">
 import {
   analyzeRadialProfile,
+  MODEL_LABEL,
   type RadialBandMode,
   type RadialModel,
   type RadialSample
 } from '~/utils/radialAnalysis'
-import { SK_STATE } from '~/utils/chartPalette'
+import { sectorColors } from '~/utils/chartPalette'
+import { SECTOR_LABEL } from '~/utils/skewvoirAnalysis/spatial'
 
 const props = defineProps<{
   modelValue: boolean
@@ -226,30 +201,30 @@ const colorBySector = ref(true)
 
 const modelItems: { label: string, value: RadialModel }[] = [
   { label: '원본만', value: 'none' },
-  { label: '1차', value: 'linear' },
-  { label: '2차', value: 'quadratic' },
-  { label: '3차', value: 'cubic' }
+  ...(Object.keys(MODEL_LABEL) as Exclude<RadialModel, 'none'>[]).map(value => ({ label: MODEL_LABEL[value], value }))
 ]
-const bandItems: { label: string, value: RadialBandMode, needsFit: boolean }[] = [
-  { label: 'IQR', value: 'iqr', needsFit: false },
-  { label: '95% 신뢰', value: 'confidence', needsFit: true },
-  { label: '95% 예측', value: 'prediction', needsFit: true },
-  { label: '없음', value: 'none', needsFit: false }
-]
-const bandHints: Record<RadialBandMode, string> = {
+
+const profile = computed(() => analyzeRadialProfile(props.samples, { model: model.value }))
+
+// The two model-based bands need a fitted curve. Clamping here (rather than a
+// watcher writing `band` back) keeps `profile` lazy: this component is mounted
+// while closed, and a watcher would run the fit on every parameter switch.
+const fitted = computed(() => profile.value.status === 'fitted')
+const BAND_HINT: Record<RadialBandMode, string> = {
   iqr: 'IQR: 반경 구간별 실측값의 가운데 50% 범위입니다. 모델과 무관하게 관측만으로 그립니다.',
   confidence: '95% 신뢰: 추세선(평균) 자체가 어디에 있을지의 불확실성입니다. 같은 조건이면 점이 많을수록 대체로 좁아집니다. 최소제곱(OLS) 가정 위에서 계산하며, 웨이퍼 점들은 공간적으로 상관되어 있어 실제보다 낙관적일 수 있습니다.',
   prediction: '95% 예측: 새 측정점 하나가 떨어질 범위입니다. 신뢰 밴드에 잔차 산포가 더해지므로 대체로 더 넓습니다. 최소제곱(OLS) 가정 위에서 계산하며, 웨이퍼 점들은 공간적으로 상관되어 있어 실제보다 낙관적일 수 있습니다.',
   none: '산포 밴드를 표시하지 않습니다.'
 }
-const bandHint = computed(() => bandHints[band.value])
-
-const profile = computed(() => analyzeRadialProfile(props.samples, { model: model.value }))
-
-// A model change can leave a model-based band with nothing to draw.
-watch(() => profile.value.status, (status) => {
-  if (status !== 'fitted' && (band.value === 'confidence' || band.value === 'prediction')) band.value = 'iqr'
-})
+const MODEL_BANDS = new Set<RadialBandMode>(['confidence', 'prediction'])
+const bandItems = computed(() => (['iqr', 'confidence', 'prediction', 'none'] as RadialBandMode[]).map(value => ({
+  value,
+  label: { iqr: 'IQR', confidence: '95% 신뢰', prediction: '95% 예측', none: '없음' }[value],
+  disabled: MODEL_BANDS.has(value) && !fitted.value,
+  disabledReason: '추세선이 있어야 계산됩니다'
+})))
+const effectiveBand = computed<RadialBandMode>(() => MODEL_BANDS.has(band.value) && !fitted.value ? 'iqr' : band.value)
+const bandHint = computed(() => BAND_HINT[effectiveBand.value])
 
 const format = (value: number | null, digits: number): string =>
   value != null && Number.isFinite(value) ? value.toFixed(digits) : '—'
@@ -289,19 +264,6 @@ const metricItems = computed(() => [
     hint: '가장 바깥 반경의 추세값에서 가장 안쪽 반경의 추세값을 뺀 값입니다. 부호가 중심→가장자리 방향을, 크기가 그 폭을 나타냅니다.'
   }
 ])
-// radialAnalysis.ts phrases its warnings in English; translate at the
-// presentation layer so the math module stays language-free.
-const MODEL_KO: Record<string, string> = { linear: '1차', quadratic: '2차', cubic: '3차' }
-const warningKo = computed(() => {
-  const warning = profile.value.warning
-  if (!warning) return ''
-  let match = warning.match(/^(\w+) fit requires at least (\d+) measured sites$/)
-  if (match) return `${MODEL_KO[match[1]!] ?? match[1]} 추세선에는 측정점이 최소 ${match[2]}개 필요합니다.`
-  match = warning.match(/^(\w+) fit requires at least (\d+) distinct radii$/)
-  if (match) return `${MODEL_KO[match[1]!] ?? match[1]} 추세선에는 서로 다른 반경이 최소 ${match[2]}개 필요합니다.`
-  if (warning.startsWith('fit is singular')) return '이 반경 배치로는 추세선을 구할 수 없습니다.'
-  return `${warning}.`
-})
 const equation = computed(() => {
   const coefficients = profile.value.coefficients
   if (!coefficients) return model.value === 'none' ? '추세 모델을 선택하지 않았습니다.' : '이 반경 배치로는 추세선을 구할 수 없습니다.'
@@ -312,14 +274,9 @@ const equation = computed(() => {
   }).join(' ')
 })
 
-// Same source RadiusChart paints from, so the legend cannot drift from the dots.
 const sk = useChartPalette()
-const sectorLegend = computed(() => [
-  { key: 'E', name: '동', color: sk.value.series },
-  { key: 'N', name: '북', color: sk.value.brand },
-  { key: 'W', name: '서', color: SK_STATE.warn },
-  { key: 'S', name: '남', color: SK_STATE.ok }
-])
+const sectorLegend = computed(() => Object.entries(sectorColors(sk.value))
+  .map(([key, color]) => ({ key, color, label: SECTOR_LABEL[key] ?? key })))
 
 const close = () => emit('update:modelValue', false)
 const onKey = (event: KeyboardEvent) => {

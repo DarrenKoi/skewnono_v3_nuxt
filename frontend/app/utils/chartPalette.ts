@@ -121,3 +121,13 @@ export const buildChartPalette = (
     ink
   }
 }
+
+/** Wafer sector identities (E/N/W/S). E/N take theme colors because they only
+ *  need telling apart; W/S keep the semantic amber and green. One map so the
+ *  RadiusChart dots and the dialog legend cannot drift. */
+export const sectorColors = (palette: ChartPalette): Record<string, string> => ({
+  E: palette.series,
+  N: palette.brand,
+  W: SK_STATE.warn,
+  S: SK_STATE.ok
+})

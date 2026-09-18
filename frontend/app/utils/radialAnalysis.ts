@@ -78,6 +78,13 @@ const MODEL_DEGREE: Record<Exclude<RadialModel, 'none'>, number> = {
   cubic: 3
 }
 
+/** Korean label per model, shared by the warning text and the dialog's buttons. */
+export const MODEL_LABEL: Record<Exclude<RadialModel, 'none'>, string> = {
+  linear: '1차',
+  quadratic: '2차',
+  cubic: '3차'
+}
+
 const dot = (a: number[], b: number[]): number => {
   let sum = 0
   for (let i = 0; i < a.length; i++) sum += a[i]! * b[i]!
@@ -260,7 +267,7 @@ export const analyzeRadialProfile = (
       model,
       degree,
       status: 'insufficient',
-      warning: `${model} fit requires at least ${parameterCount + 1} measured sites`,
+      warning: `${MODEL_LABEL[model]} 추세선에는 측정점이 최소 ${parameterCount + 1}개 필요합니다.`,
       points: samples.map(sample => ({ ...sample, fitted: null, residual: null, leverage: null })),
       curve: [],
       bins,
@@ -273,7 +280,7 @@ export const analyzeRadialProfile = (
       model,
       degree,
       status: 'insufficient',
-      warning: `${model} fit requires at least ${parameterCount} distinct radii`,
+      warning: `${MODEL_LABEL[model]} 추세선에는 서로 다른 반경이 최소 ${parameterCount}개 필요합니다.`,
       points: samples.map(sample => ({ ...sample, fitted: null, residual: null, leverage: null })),
       curve: [],
       bins,
@@ -293,7 +300,7 @@ export const analyzeRadialProfile = (
       model,
       degree,
       status: 'insufficient',
-      warning: 'fit is singular for the available radius layout',
+      warning: '이 반경 배치로는 추세선을 구할 수 없습니다.',
       points: samples.map(sample => ({ ...sample, fitted: null, residual: null, leverage: null })),
       curve: [],
       bins,
