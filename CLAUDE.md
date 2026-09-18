@@ -26,6 +26,8 @@ Web application for metrology, specified for tool management and data analytics.
 
 ## Tech Stack
 
+Nuxt 4 (`ssr: false`, SPA) + NuxtUI 4 + ECharts 6 · Flask on CPython 3.14.
+
 **Data fetching note:** Use `useAsyncData(key, fn)` for cached, deduplicated reads. Share one cache key per resource (e.g. `'sem-list'`) so multiple components reuse the same fetch — see `composables/useSemListApi.ts`'s `useSemList()` for the pattern. TanStack Query (Vue Query) is **not** used; introduce it only if you need TTL (`staleTime`), background refetch on focus, polling, or key-prefix invalidation — none of which apply to the current mock-data flows.
 
 **State management note:** Pinia is **not** used — prefer Nuxt built-ins. Client state shared across pages lives in `useState`-backed composables; anything that must survive a full reload goes through `composables/usePersistedState.ts` (one `useState` ref + a detached-scope `flush: 'sync'` watcher persisting to localStorage — sync so an acknowledged click is durable even if the tab closes immediately). Do not hand-roll new localStorage read/write/watch plumbing in a composable; call `usePersistedState` instead. Revisit Pinia only if a real need appears (e.g. devtools time-travel debugging or cross-store orchestration that composables can't express cleanly).
@@ -98,6 +100,7 @@ assumption).
   factory skips them.
 - Each feature folder contains `routes.py` (blueprint), `contracts.py` (shared return type), `data.py` (dispatcher), and `providers/{mock,office}.py` (adapters). Optional `__init__.py` re-exports `bp`. See `<feature>/MIGRATION.md` for what each office adapter needs. A feature whose home and office behaviour are the same code keeps `routes.py` and skips the rest — `chat`'s thread store is plain `chat/store.py`, so `chat` has no `providers/` and never appears in the provider table. Don't add a seam back until a second adapter actually exists.
 - `backend/__init__.py` is the app factory. Blueprints are **auto-discovered**: it rglobs for `routes.py`, skips any `_`-prefixed path, and registers each module's `bp` under `/api` — raising if a `routes.py` does not export a `Blueprint` named `bp`. Adding a feature means adding the folder; never edit the factory to register it.
+- `backend/contrib/<slug>/` is the teammates' area and the one exception: it loads **fail-soft** (a broken package is skipped and listed in `app.config["SKEWNONO_CONTRIB_FAILED"]` + the boot log). Procedure: `docs/contributing/in-repo/README.md`.
 - Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `providers/office.py`. Office adapters must normalize results to the `contracts.py` type — "resemble the mock" means match the contract shape, not the mock's data.
 
 ### Repository Layout
@@ -109,7 +112,7 @@ Backend, from the repo root (CPython 3.14 venv; no activation step needed):
 
 ```bash
 .venv/bin/python index.py                              # Flask on :5050, hot-reloads at home
-.venv/bin/python -m pytest -q                          # full suite (~3040 tests, ~115 s)
+.venv/bin/python -m pytest -q                          # full suite (~2 min)
 .venv/bin/python -m pytest backend/<feature> -q  # one feature
 .venv/bin/python -m ruff check .                       # static gate, ~0.02 s — must be clean
 ```
@@ -138,8 +141,8 @@ From the repo root: `npm run lint:md` after any Markdown edit.
 
 There is **no automated E2E suite** — no Playwright config, no spec files, and
 no component tests (no mounting harness). Browser verification means driving a
-browser by hand — Claude-in-Chrome or Playwright MCP; load the
-`browser-verify` skill first.
+browser by hand — load the `browser-verify` skill first (it picks the tool;
+`agent-browser` is the default).
 
 ### Runtime gotchas
 - `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `backend/__init__.py`.
