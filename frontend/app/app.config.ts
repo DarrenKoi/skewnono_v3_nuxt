@@ -56,6 +56,11 @@ export default defineAppConfig({
         overlay: 'z-[60]',
         content: 'z-[60]'
       }
+    },
+    // Same story for tooltips: portalled to body with no z-index, so one opened
+    // inside a z-50 dialog (Radius Analysis) rendered behind its own backdrop.
+    tooltip: {
+      slots: { content: 'z-[60]' }
     }
   }
 })

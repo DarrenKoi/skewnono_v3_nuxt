@@ -151,11 +151,13 @@ const option = computed<EChartsOption>(() => ({
   series: [
     // IQR band via stacked transparent lower + filled span.
     {
-      type: 'line', stack: 'iqr', symbol: 'none', silent: true, tooltip: { show: false },
+      // stackStrategy 'all': the default stacks negatives apart from positives,
+      // which put the band height on 0 for negative-valued parameters.
+      type: 'line', stack: 'iqr', stackStrategy: 'all', symbol: 'none', silent: true, tooltip: { show: false },
       lineStyle: { opacity: 0 }, data: bins.value.map(b => [b.radiusMm, b.q1]), z: 1
     },
     {
-      type: 'line', stack: 'iqr', symbol: 'none', silent: true, tooltip: { show: false },
+      type: 'line', stack: 'iqr', stackStrategy: 'all', symbol: 'none', silent: true, tooltip: { show: false },
       lineStyle: { opacity: 0 }, areaStyle: { color: sk.value.sand, opacity: 0.35 },
       data: bins.value.map(b => [b.radiusMm, b.q3 - b.q1]), z: 1
     },

@@ -112,6 +112,10 @@ const bandSeries = computed(() => {
       name: 'band lower',
       type: 'line' as const,
       stack: 'radial-band',
+      // Default 'samesign' stacks positives and negatives separately, so for a
+      // negative-valued parameter (OVERLAY_X) the positive band height stacked
+      // on 0 and the fill drew off-screen above the plot.
+      stackStrategy: 'all' as const,
       data: bandPoints.value.map(point => [point.radius, point.lower]),
       lineStyle: { opacity: 0 },
       symbol: 'none',
@@ -123,6 +127,7 @@ const bandSeries = computed(() => {
       name: props.band === 'iqr' ? 'radial IQR' : `${props.band} 95%`,
       type: 'line' as const,
       stack: 'radial-band',
+      stackStrategy: 'all' as const,
       data: bandPoints.value.map(point => [point.radius, point.upper - point.lower]),
       lineStyle: { opacity: 0 },
       areaStyle: { color: props.band === 'iqr' ? sk.value.sand : sk.value.series, opacity: 0.2 },
@@ -190,7 +195,7 @@ const option = computed<EChartsOption>(() => {
     type: 'value',
     min: props.profile.metrics.n ? props.profile.metrics.radiusMin : 0,
     max: props.profile.metrics.n ? props.profile.metrics.radiusMax : undefined,
-    name: hasResiduals ? '' : 'distance from center (mm)',
+    name: hasResiduals ? '' : '중심 거리 (mm)',
     nameLocation: 'middle',
     nameGap: 24,
     nameTextStyle: { fontSize: 11 },
@@ -214,17 +219,17 @@ const option = computed<EChartsOption>(() => {
       type: 'value',
       min: props.profile.metrics.radiusMin,
       max: props.profile.metrics.radiusMax,
-      name: 'distance from center (mm)',
+      name: '중심 거리 (mm)',
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: { fontSize: 10 },
-      axisLabel: { fontSize: 10 },
+      axisLabel: { fontSize: 10, formatter: (value: number) => String(Math.round(value)) },
       gridIndex: 1
     })
     yAxes.push({
       type: 'value',
       scale: true,
-      name: `residual${props.unit ? ` (${props.unit})` : ''}`,
+      name: `잔차${props.unit ? ` (${props.unit})` : ''}`,
       nameTextStyle: { fontSize: 10 },
       axisLabel: { fontSize: 10 },
       gridIndex: 1
@@ -238,14 +243,14 @@ const option = computed<EChartsOption>(() => {
         const data = (params as { data?: { name?: string, value?: number[], fitted?: number | null, residual?: number | null, sector?: string } }).data
         if (!data?.value || !data.name) return ''
         const lines = [
-          `seq ${data.name}${data.sector ? ` · sector ${data.sector}` : ''}`,
+          `seq ${data.name}${data.sector ? ` · 섹터 ${data.sector}` : ''}`,
           `r: <b>${data.value[0]?.toFixed(2)}</b> mm`
         ]
         if (data.residual != null && (params as { seriesName?: string }).seriesName === 'residual') {
-          lines.push(`residual: <b>${data.residual.toFixed(4)}</b> ${props.unit}`)
+          lines.push(`잔차: <b>${data.residual.toFixed(4)}</b> ${props.unit}`)
         } else {
           lines.push(`${props.parameter}: <b>${data.value[1]?.toFixed(4)}</b> ${props.unit}`)
-          if (data.fitted != null) lines.push(`fit: ${data.fitted.toFixed(4)} · residual: ${data.residual?.toFixed(4)}`)
+          if (data.fitted != null) lines.push(`추세: ${data.fitted.toFixed(4)} · 잔차: ${data.residual?.toFixed(4)}`)
         }
         return lines.join('<br/>')
       }
