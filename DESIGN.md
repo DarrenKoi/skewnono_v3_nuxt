@@ -1,6 +1,8 @@
 # DESIGN.md — SKEWNONO Design System
 
-> This document is the **single source of truth** for the SKEWNONO frontend's visual language. Code follows this document; where they disagree, the code is corrected. Token identifiers stay in English to match Tailwind/NuxtUI class names. Implemented in `frontend/app/assets/css/main.css` (tokens), `frontend/app/app.config.ts` (NuxtUI mapping), and verified against `preview.html` / `preview-dark.html`.
+> This document is the **single source of truth** for the SKEWNONO frontend's visual language. Code follows this document; where they disagree, the code is corrected. Token identifiers stay in English to match Tailwind/NuxtUI class names. Implemented in `frontend/app/assets/css/main.css` (tokens) and `frontend/app/app.config.ts` (NuxtUI mapping).
+>
+> **Teammates building a page to merge into SKEWNONO:** start at [Building a Page That Merges Cleanly](#building-a-page-that-merges-cleanly) — it carries a copy-paste token block, plain-CSS recipes and the pre-merge checklist, and tells you which other sections to read.
 
 ## Overview
 
@@ -24,9 +26,273 @@ The system has three surface roles that carry every page:
 - Bilingual: Korean UI labels, English tokens/keys/identifiers.
 - Content deliberately capped at 1280px on FHD screens — calm reading width over full-bleed density.
 
+## Building a Page That Merges Cleanly
+
+This section is for a teammate building a page **outside** SKEWNONO's Nuxt app — a standalone Vite app under `apps/<slug>/`, or a tool on its own server — that should look like it belongs here and be promotable into `frontend/app/` later without a redesign. It is self-contained: everything below is plain CSS and plain HTML, with no Tailwind, NuxtUI or Vue assumed. Where and how such a page is hosted is covered by `docs/contributing/README.md`; this section covers only how it looks.
+
+### What you have, by where you build
+
+| You are building | You get for free | You bring yourself |
+|---|---|---|
+| Inside `frontend/app/` (after promotion) | Tokens, fonts, the app shell, `<SkNavPill>` / `<SkChip>`, `EbeamMetaBar`, `AppLoadingState` / `AppEmptyState`, and NuxtUI components themed by the bridge | Nothing — use the components named in §Components |
+| A Vite app in `apps/<slug>/`, or your own stack | Nothing. No header, no tokens, no NuxtUI | Steps 1–4 below |
+
+### 1. Tokens — copy this block verbatim
+
+Every color, radius and the focus ring. Generated from `frontend/app/assets/css/main.css`; do not retype values from the prose in §Colors, and do not add a hue that is not here. Dark mode is the class `dark` on `<html>` — the page never reads `prefers-color-scheme` directly.
+
+```css
+:root {
+  --sk-canvas: oklch(0.96 0.012 80);
+  --sk-surface: oklch(0.99 0.006 80);
+  --sk-muted-surface: oklch(0.97 0.01 80);
+  --sk-border: oklch(0.91 0.014 80);
+  --sk-border-soft: oklch(0.94 0.01 80);
+  --sk-nav-bg: oklch(0.97 0.01 80 / 0.82);
+  --sk-nav-border: oklch(0.90 0.014 80);
+  --sk-ink-muted: oklch(0.47 0.014 60);
+  --sk-ink-subtle: oklch(0.66 0.012 70);
+  --sk-chip-bg: oklch(0.95 0.014 80);
+  --sk-chip-text: oklch(0.45 0.014 60);
+  --sk-on-bg: #d9f5e8;
+  --sk-on-fg: #0f5132;
+  --sk-off-bg: oklch(0.95 0.014 80);
+  --sk-off-fg: oklch(0.45 0.014 60);
+  --sk-field: oklch(0.21 0.008 70);
+  --sk-field-ink: oklch(0.94 0.008 80);
+  --sk-field-core: oklch(0.40 0.014 60);
+  --sk-accent: oklch(0.58 0.13 35);
+  --sk-accent-soft: oklch(0.95 0.025 60);
+  --sk-accent-border: oklch(0.58 0.13 35 / 0.22);
+  --sk-accent-tint: oklch(0.58 0.13 35 / 0.06);
+  --sk-ok: oklch(0.62 0.13 145);
+  --sk-ok-soft: oklch(0.94 0.05 145);
+  --sk-ok-border: oklch(0.62 0.13 145 / 0.32);
+  --sk-bad: oklch(0.58 0.18 28);
+  --sk-bad-soft: oklch(0.94 0.04 30);
+  --sk-bad-border: oklch(0.58 0.18 28 / 0.32);
+  --sk-bad-soft-hover: oklch(0.89 0.07 30);
+  --sk-bad-tint: oklch(0.58 0.18 28 / 0.06);
+  --sk-warn: oklch(0.70 0.15 75);
+  --sk-warn-soft: oklch(0.94 0.06 85);
+  --sk-warn-border: oklch(0.70 0.15 75 / 0.32);
+  --sk-ink: #15110D;
+  --sk-ink-fg: #F8F4EC;
+  --sk-brand: #C75A3C;
+  --sk-brand-fg: #FFF7F1;
+  --sk-brand-soft: #F3DCD2;
+  --sk-brand-ink: #8A3D27;
+  --sk-r-sidebar: 6px;
+  --sk-r-chip: 8px;
+  --sk-r-nav: 10px;
+  --sk-r-card: 14px;
+  --sk-focus-ring: oklch(0.58 0.13 35 / 0.45);
+}
+
+.dark {
+  --sk-canvas: oklch(0.21 0.008 70);
+  --sk-surface: oklch(0.245 0.008 70);
+  --sk-muted-surface: oklch(0.225 0.008 70);
+  --sk-border: oklch(0.295 0.008 70);
+  --sk-border-soft: oklch(0.265 0.008 70);
+  --sk-nav-bg: oklch(0.225 0.008 70 / 0.78);
+  --sk-nav-border: oklch(0.30 0.008 70);
+  --sk-ink-muted: oklch(0.74 0.008 70);
+  --sk-ink-subtle: oklch(0.56 0.008 70);
+  --sk-chip-bg: oklch(0.285 0.008 70);
+  --sk-chip-text: oklch(0.74 0.008 70);
+  --sk-on-bg: #052e16;
+  --sk-on-fg: #bbf7d0;
+  --sk-off-bg: oklch(0.285 0.008 70);
+  --sk-off-fg: oklch(0.74 0.008 70);
+  --sk-accent: oklch(0.74 0.14 38);
+  --sk-accent-soft: oklch(0.34 0.05 38);
+  --sk-accent-border: oklch(0.74 0.14 38 / 0.32);
+  --sk-accent-tint: oklch(0.74 0.14 38 / 0.10);
+  --sk-ok: oklch(0.78 0.14 150);
+  --sk-ok-soft: oklch(0.32 0.06 150);
+  --sk-ok-border: oklch(0.78 0.14 150 / 0.32);
+  --sk-bad: oklch(0.72 0.17 28);
+  --sk-bad-soft: oklch(0.32 0.06 28);
+  --sk-bad-border: oklch(0.72 0.17 28 / 0.32);
+  --sk-bad-soft-hover: oklch(0.38 0.08 28);
+  --sk-bad-tint: oklch(0.72 0.17 28 / 0.10);
+  --sk-warn: oklch(0.80 0.15 78);
+  --sk-warn-soft: oklch(0.34 0.06 78);
+  --sk-warn-border: oklch(0.80 0.15 78 / 0.32);
+  --sk-ink: #F4EFE6;
+  --sk-ink-fg: #15110D;
+  --sk-brand: #E0553F;
+  --sk-brand-fg: #FFF7F1;
+  --sk-brand-soft: oklch(0.30 0.05 38);
+  --sk-brand-ink: #F3DCD2;
+  --sk-focus-ring: oklch(0.74 0.14 38 / 0.45);
+}
+```
+
+`--sk-field*` has no `.dark` value on purpose (§Colors → Dark Field).
+
+### 2. Fonts — copy the files, never link a CDN
+
+Production is an offline internal network, so a `<link>` to Google Fonts renders as a fallback font there. Copy the eleven woff2 files from `frontend/public/fonts/` and the matching `@font-face` blocks from the top of `main.css`. Only the Medium face is unusual: Spoqa Han Sans Neo has no 600, so its 500 file declares `font-weight: 500 600`.
+
+```css
+:root {
+  --font-sans: 'Spoqa Han Sans Neo', 'Public Sans', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Segoe UI Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+```
+
+### 3. Base and the recipes you will actually need
+
+These restate the app's own rules in plain CSS. Class names match the app's so a promoted page keeps its markup.
+
+```css
+html { scrollbar-gutter: stable; }
+body {
+  margin: 0;
+  background: var(--sk-canvas);
+  color: var(--sk-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+:focus-visible { outline: 2px solid var(--sk-focus-ring); outline-offset: 2px; }
+button:not(:disabled) { cursor: pointer; }
+
+/* Page container — 1280px, centered. Do not go full-bleed. */
+.sk-page { max-width: 1280px; margin: 0 auto; padding: 32px; display: grid; gap: 24px; }
+
+/* Card — the only elevated surface. One border, one loose shadow, 14px radius. */
+.dashboard-surface {
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-r-card);
+  background: var(--sk-surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 8px 22px -18px rgba(0, 0, 0, 0.18);
+  padding: 16px;
+}
+.dark .dashboard-surface {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 22px -18px rgba(0, 0, 0, 0.6);
+}
+
+/* NAVIGATE — anything that changes the view. Active = ink. */
+.sk-nav-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px; font: 500 14px var(--font-sans); white-space: nowrap;
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-nav);
+  background: transparent; color: var(--sk-ink-muted);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.sk-nav-pill:hover { background: var(--sk-muted-surface); color: var(--sk-ink); }
+.sk-nav-pill[aria-pressed='true'] {
+  background: var(--sk-ink); color: var(--sk-ink-fg); border-color: var(--sk-ink); font-weight: 600;
+}
+
+/* FILTER — anything that narrows the data on the same view. Active = terracotta. */
+.sk-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; font: 500 13px var(--font-sans); white-space: nowrap;
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-chip);
+  background: var(--sk-surface); color: var(--sk-ink-muted);
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.sk-chip:hover { background: var(--sk-muted-surface); color: var(--sk-ink); }
+.sk-chip[aria-pressed='true'] {
+  background: var(--sk-brand); color: var(--sk-brand-fg); border-color: var(--sk-brand); font-weight: 600;
+}
+
+/* ACTION — a button that does something. Primary = ink fill; everything else is quiet. */
+.sk-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; font: 500 14px var(--font-sans);
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-nav);
+  background: var(--sk-surface); color: var(--sk-ink);
+}
+.sk-btn:hover { background: var(--sk-muted-surface); }
+.sk-btn--primary { background: var(--sk-ink); color: var(--sk-ink-fg); border-color: var(--sk-ink); }
+.sk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Inputs share the button's radius and the card's border. */
+.sk-input {
+  padding: 8px 12px; font: 400 14px var(--font-sans);
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-nav);
+  background: var(--sk-surface); color: var(--sk-ink);
+}
+
+/* Type roles — values are ink, labels are muted. A value is never below 12px. */
+.sk-page-title { font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; color: var(--sk-ink); }
+.sk-heading    { font-size: 18px; font-weight: 600; line-height: 1.4; color: var(--sk-ink); }
+.sk-body       { font-size: 14px; font-weight: 400; line-height: 1.5; color: var(--sk-ink); }
+.sk-meta       { font-size: 12px; font-weight: 400; line-height: 1.4; color: var(--sk-ink-muted); }
+.sk-label      { font-size: 11px; font-weight: 600; line-height: 1.35; color: var(--sk-ink-muted); }
+.sk-value      { font-size: 12px; font-weight: 500; line-height: 1.35; color: var(--sk-ink); }
+.sk-value-num  { font: 500 12px/1.35 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--sk-ink); }
+.sk-eyebrow    { font: 600 10px/1.4 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--sk-ink-muted); }
+
+/* Table — quiet. Headers are labels, cells are values, numbers are mono and right-aligned. */
+.sk-table { width: 100%; border-collapse: collapse; }
+.sk-table th { text-align: left; padding: 8px 12px; white-space: nowrap; border-bottom: 1px solid var(--sk-border);
+               font-size: 11px; font-weight: 600; color: var(--sk-ink-muted); }
+.sk-table td { padding: 8px 12px; border-bottom: 1px solid var(--sk-border-soft); font-size: 12px; color: var(--sk-ink); }
+.sk-table td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sk-table tbody tr:hover { background: var(--sk-muted-surface); }
+
+/* Status — always with a text label, never color alone. */
+.sk-status { display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid; border-radius: var(--sk-r-sidebar);
+             font-size: 12px; font-weight: 600; }
+.sk-status--ok   { background: var(--sk-ok-soft);   border-color: var(--sk-ok-border);   color: var(--sk-ok); }
+.sk-status--warn { background: var(--sk-warn-soft); border-color: var(--sk-warn-border); color: var(--sk-warn); }
+.sk-status--bad  { background: var(--sk-bad-soft);  border-color: var(--sk-bad-border);  color: var(--sk-bad); }
+```
+
+`.sk-page`, `.sk-btn`, `.sk-input`, `.sk-table` and `.sk-status` exist only in this starter: inside the Nuxt app those jobs are done by the layout, `UButton`, `UInput`, `UTable` and `UBadge` through the token bridge. On promotion they are swapped for the components, which is a mechanical change because the values are the same.
+
+### 4. Page skeleton
+
+Every page opens with the same one-line header — mono eyebrow, a Korean `<h1>` that never changes when a tab does, then view toggles — followed by cards at a 24px rhythm.
+
+```html
+<main class="sk-page">
+  <header style="display: flex; align-items: center; gap: 12px;">
+    <span class="sk-eyebrow">CD-SEM · R3</span>
+    <h1 class="sk-page-title">페이지 제목</h1>
+    <nav style="display: flex; gap: 4px; margin-left: 12px;">
+      <button class="sk-nav-pill" aria-pressed="true">요약</button>
+      <button class="sk-nav-pill" aria-pressed="false">상세</button>
+    </nav>
+  </header>
+
+  <section class="dashboard-surface" style="display: flex; flex-wrap: wrap; gap: 12px;">
+    <button class="sk-chip" aria-pressed="true">DRAM</button>
+    <button class="sk-chip" aria-pressed="false">NAND</button>
+  </section>
+
+  <section class="dashboard-surface">
+    <table class="sk-table">
+      <thead><tr><th>장비</th><th>상태</th><th style="text-align: right;">CD (nm)</th></tr></thead>
+      <tbody><tr><td>ECD101</td><td><span class="sk-status sk-status--ok">정상</span></td><td class="num">24.18</td></tr></tbody>
+    </table>
+  </section>
+</main>
+```
+
+### 5. Before you ask for a merge
+
+- [ ] No hex, `rgb()` or named color outside the token block — search the source for `#` and `rgb(`. Chart series are the one exception (§Iteration Guide, rule 2).
+- [ ] Every selected state passes the litmus test: changes the view → ink `sk-nav-pill`; narrows the data → terracotta `sk-chip`. Never both on one control, and crimson (`--sk-accent`) is never a fill.
+- [ ] Data values are `--sk-ink` and at least 12px; only labels are `--sk-ink-muted`. Numbers and IDs are mono with `tabular-nums`.
+- [ ] Every radius is one of `--sk-r-sidebar / chip / nav / card` (6 / 8 / 10 / 14px). No `border-radius: 9999px`, no other value.
+- [ ] One shadow only — the card's. Depth comes from canvas → surface → muted-surface.
+- [ ] Checked in **both** themes by toggling `class="dark"` on `<html>`. A color that did not come from a token is the usual reason dark mode breaks.
+- [ ] No network fonts, icon CDNs or external images. Icons are Lucide, bundled.
+- [ ] UI copy is Korean with the endings in §Do's and Don'ts; identifiers and keys stay English.
+- [ ] Loading shows a spinner and a `~중입니다.` line, an empty result shows a `~없습니다.` line. No skeletons or shimmers.
+- [ ] Content stays within 1280px at 1920×1080.
+
+Read next, in this order: §Overview, §Colors, §Typography → Semantic type classes, §Components → Selection Primitives, §Do's and Don'ts. The long scope-bar history under §Layout and the §Changelog describe SKEWNONO's own lab pages and can be skipped.
+
 ## Colors
 
-All colors are defined as light/dark pairs on `:root` and `.dark` and must be consumed through the `--sk-*` variables (`bg-(--sk-surface)`, `text-(--sk-ink)`), never as inline hex. Values below read **light / dark**.
+Every token's exact light and dark value is in the copy-paste block under [Building a Page That Merges Cleanly](#1-tokens--copy-this-block-verbatim); the entries below say what each one is *for*. All colors are defined as light/dark pairs on `:root` and `.dark` and must be consumed through the `--sk-*` variables (`bg-(--sk-surface)`, `text-(--sk-ink)`), never as inline hex. Values below read **light / dark**.
 
 ### Brand & Accent
 - **Ink / Navigate fill** (`--sk-ink` — `#15110D` / `#F4EFE6`): Near-black fill for every active NAVIGATE state (nav pills, section toggles, primary buttons) and for primary text. Inverts to cream in dark mode so nav stays "the darkest thing on the page" conceptually.
@@ -45,6 +311,7 @@ All colors are defined as light/dark pairs on `:root` and `.dark` and must be co
 - **Muted Surface** (`--sk-muted-surface` — `oklch(0.97 0.01 80)` / `oklch(0.225 0.008 70)`): Inset panels, secondary surfaces.
 - **Border** (`--sk-border` — `oklch(0.91 0.014 80)` / `oklch(0.295 0.008 70)`): Default 1px border.
 - **Border Soft** (`--sk-border-soft` — `oklch(0.94 0.01 80)` / `oklch(0.265 0.008 70)`): Hairline dividers between nav rows and stat cells.
+- **Chip Bg / Text** (`--sk-chip-bg` — `oklch(0.95 0.014 80)` / `oklch(0.285 0.008 70)`, `--sk-chip-text`): The recessed track a segmented control sits in (`sk/SegmentedToggle.vue`), and the hover fill of a bare icon button. One step darker than canvas, so the raised segment reads as lifted without a shadow.
 - **Nav Bg / Border** (`--sk-nav-bg`, `--sk-nav-border`): Translucent sticky-header pair (canvas tone at ~80% alpha + `backdrop-blur-md`).
 
 ### Text
@@ -62,6 +329,7 @@ All colors are defined as light/dark pairs on `:root` and `.dark` and must be co
 - **On pill** (`--sk-on-bg`/`--sk-on-fg` — `#d9f5e8`/`#0f5132` / `#052e16`/`#bbf7d0`): Equipment running state, via `.sk-pill-on`.
 - **Off pill** (`--sk-off-bg`/`--sk-off-fg` — warm gray pair): Idle/maintenance, via `.sk-pill-off`.
 - **Error text** (`text-rose-600 dark:text-rose-400`): Message lines only.
+- **Focus ring** (`--sk-focus-ring` — accent at 45% alpha): `outline: 2px solid; outline-offset: 2px` on `:focus-visible`, one ring color for both selection families.
 
 ### Dark Field (SEM imagery only)
 
@@ -72,7 +340,6 @@ Real CD-SEM images are dark-field, so a simulated micrograph cannot invert with 
 - **Field Core** (`--sk-field-core` — `oklch(0.40 0.014 60)`): The duller line top/interior between rims.
 
 Scope is exactly the simulated imagery (`magpixel/PatternSchematic.vue`, `magpixel/SemSimulation.vue`). Chrome around the image — captions, legends, margin labels — stays on the normal inverting tokens. Margin hatching over the field uses **terracotta** (`--sk-brand`), because the margin is the value the 여유 마진 filter produces; crimson stays trim-only and is not used here. `SemSimulation.vue` additionally hard-codes the sRGB resolution of these three (`27,24,20` / `78,70,64` / `238,235,229`) because it interpolates between them in JS; if a value here changes, that triple changes with it.
-- **Focus ring** (`--sk-focus-ring` — accent at 45% alpha): `outline: 2px solid; outline-offset: 2px` on `:focus-visible`, one ring color for both selection families.
 
 ### NuxtUI Token Bridge
 
@@ -171,7 +438,7 @@ Adopted by: CD-SEM 디바이스 통계 (`index.vue`), 디바이스 분석 (`comp
 
 ### Grid & Container
 - **Max content width:** `max-w-7xl mx-auto` (1280px), centered. **The target screen is FHD (1920×1080) but content does not fill it** — the side margins are a deliberate calm-first decision bounding the reading width of metrology data. Full-bleed optimization is not adopted; widening at the `2xl` breakpoint requires explicit agreement.
-- **Dense exception (1440px):** list-plus-detail pages may widen one step to `max-w-[1440px]`. Current member: Mag/Pixel 가이드 (`pages/mag-pixel.vue`, 392px sticky input-and-answer rail + `1fr` drawings and reference table). The two lab pages — 장비간 스큐 관리 (`ebeam/TttmView.vue`) and PM 플래닝 (`ebeam/PmPlanningView.vue`) — keep the same width on the **scope-bar** layout below rather than the rail one; H/W 관리 (`ebeam/HardwareView.vue`, since 2026-08-25) runs that layout's *model-gated* strip, named inside the rule. Device Statistics and Time-Series are candidates. Agreed pattern — do not revert.
+- **Dense exception (1440px):** list-plus-detail pages may widen one step to `max-w-[1440px]`. Current member: Mag/Pixel 가이드 (`pages/mag-pixel.vue`, 392px sticky input-and-answer rail + `1fr` drawings and reference table). Recipe 비교 (`ebeam/RecipeCompareView.vue`) runs the same width. The 실험실 page (`ebeam/LabView.vue`, routed at `pages/ebeam/cd-sem/[fab]/tttm.vue`) — 장비간 스큐 관리 and PM 플래닝 were separate views until 2026-09-01 and are one page whose 보기 chips choose the panels — keeps the same width on the **scope-bar** layout below rather than the rail one; H/W 관리 (`ebeam/HardwareView.vue`, since 2026-08-25) runs that layout's *model-gated* strip, named inside the rule. Device Statistics and Time-Series are candidates. Agreed pattern — do not revert.
   - **The rail rule:** every control that changes *what is being analysed* — the selection, the filter, the threshold — lives in the rail, together with the roll-up of what it costs. The results column may still switch *which view of the same answer* it shows (TTTM's cell tab strip above the pairwise matrix), because that changes nothing the rest of the page is computed from. The split is why the width is granted: a page whose results column re-filters the data has stopped being list-plus-detail and should go back to one column.
   - **The scope-bar rule (2026-08-18):** where the analysis is meaningless until the user has *said what to analyse*, the controls stop being a rail and become one full-width bar above the results — `EbeamScopeBar`, titled **비교 대상**. The rail rule's substance is unchanged (controls above, results below, never mixed); what changes is the axis, and the reason is reading order. A rail puts the first decision to the side of a screen already full of numbers; a bar puts it first, which is where a required decision belongs. Two conditions make this the right choice over a rail, and both must hold:
     - **The results are gated.** Until the scope is set, the results area carries an explicit `AppEmptyState` naming the missing choice — never a skeleton (which promises data that is not coming) and never a zeroed card (which reads as a computed verdict). TTTM and PM 플래닝 gate on the **recipe** alone; the parameter stays optional because folding every measured feature is a legitimate answer, and its list only exists once the recipe's payload has landed.
@@ -230,19 +497,21 @@ No photography, no illustration — this is a data tool. One icon set: **Lucide*
 
 ### Selection Primitives
 
-> The single source of truth for the *Selection & Button System (Bolder)* v1.0. When a control has a selected state, use one of these three — not `UButton`.
+> The single source of truth for the *Selection & Button System (Bolder)* v1.0. When a control has a selected state, use `sk-nav-pill` or `sk-chip` — not `UButton`.
 
 **`sk-nav-pill`** (`<SkNavPill>`) — NAVIGATE. Active fill `--sk-ink`, text `--sk-ink-fg`, radius `--sk-r-nav` (10px). Used for product tabs, feature tabs, section toggles (BSM/FDC/BM·PM), sub-tabs, sidebar items. `aria-pressed` mandatory.
 
 **`sk-chip`** (`<SkChip>`) — FILTER. Active fill `--sk-brand` (or `tone="ink"`), text `--sk-brand-fg`, radius `--sk-r-chip` (8px). Used for Fab, Category, Lot, Tech, Status chips.
 
-**`sk-btn`** (`<SkBtn>`) — ACTION. `kind="primary"` fills `--sk-ink`; `kind="brand"` fills `--sk-brand` (only inside emphasized panels like "selected device"). Radius `--sk-r-nav`.
+**`sk-btn`** — ACTION. Inside the app this is **`UButton`, not a component of its own**: `<SkBtn>` was specified in v1.0 and never built, because the token bridge already makes `<UButton color="primary">` an ink fill at `--sk-r-nav`. The `kind="brand"` terracotta button was never used and is withdrawn — terracotta stays a filter color. Outside the app, the `.sk-btn` recipe in the starter section is the same button in plain CSS.
 
-Decision flow: changes route/view → `sk-nav-pill` · narrows data on the same page → `sk-chip` · mutates data or triggers an action → `sk-btn`.
+Decision flow: changes route/view → `sk-nav-pill` · narrows data on the same page → `sk-chip` · mutates data or triggers an action → `UButton` (§Buttons).
 
 ### Buttons (NuxtUI)
 
-**`button-default`** — `UButton color="neutral" variant="solid"` for plain actions with no selected state (close modal, submit form).
+**`button-primary`** — `UButton color="primary"` for the one action a panel exists for (submit, 데이터 요청). Ink fill through the bridge.
+
+**`button-default`** — `UButton color="neutral"` in `outline` or `subtle` for plain actions with no selected state (close modal, reset, export). These two variants are what the app overwhelmingly uses; `solid` neutral is rare.
 
 **`button-ghost`** — `UButton color="neutral" variant="ghost"` for incidental actions (info, settings, dark-mode toggle).
 
@@ -264,7 +533,7 @@ All buttons use Lucide icons; icon-only buttons require `aria-label`; Korean lab
 
 ### Navigation
 
-**`top-nav`** (`nav/AppHeader.vue`) — Sticky translucent header: `bg-(--sk-nav-bg)` + `backdrop-blur-md`, bottom border `--sk-nav-border`, `shadow-none`. Category pills; active = `--sk-ink` fill + `.sk-nav-accent` crimson underline.
+**`top-nav`** (`nav/AppHeader.vue`) — Sticky translucent header: `bg-(--sk-nav-bg)` + `backdrop-blur-md`, bottom border `--sk-nav-border`, `shadow-none`. Left to right: logo, `feature-tabs`, then the two `header-menu`s. Active tab = `--sk-ink` fill + `.sk-nav-accent` crimson underline.
 
 **`header-menu`** (`nav/LabMenu.vue`, `nav/AccountMenu.vue`, rows in `nav/HeaderMenuItem.vue`) — The header's right side is **two labelled menus, never a row of icons**. 실험실 holds the tools that answer to no feature tab; 계정 holds the caller and the pages about their own use. Both draw their rows from the one `utils/headerNav` array the feature tabs also read, so a page cannot be reachable from the header while rendering no tabs.
 
@@ -272,13 +541,11 @@ Trigger states: 실험실 is a `sk-nav-pill` and goes `--sk-ink` fill + `.sk-nav
 
 Row anatomy: `--sk-r-chip` radius, icon at `--sk-ink-muted`, `.sk-title` label, optional `.sk-meta` description. The **active** row takes the crimson left edge (`inset 2px 0 0 var(--sk-accent)`) on `--sk-muted-surface` — the FAB sidebar's indicator without its paper shadow, since a row inside an already-elevated panel must not cast a second one. A hairline (`--sk-border-soft`) marks a change of *kind* inside one menu, not merely a gap: 채팅 is conversational where the rows above it are things you look up. The one fab-scoped row states its destination inline as a mono `CD-SEM · R3` chip, because that destination moves under the user.
 
-**`tool-type-tabs`** (`nav/ToolTypeTabs.vue`) — Horizontally scrollable pill group with count badges; 1px `--sk-border-soft` bottom divider.
+**`feature-tabs`** (`nav/FeatureTabs.vue`) — 4–7 feature tabs per tool type, rendered inside the header and scrolling horizontally rather than wrapping; `aria-disabled` when inactive.
 
-**`feature-tabs`** (`nav/FeatureTabs.vue`) — 4–7 feature tabs per tool type; `aria-disabled` when inactive; same hairline divider.
+**`fab-sidebar`** (`nav/FabSidebar.vue`) — Collapsible rail (`w-52` ↔ `w-16`) holding **both** pickers: the 장비모델 list on top (CD-SEM / HV-SEM / VeritySEM / Provision, each with a tool count; two-letter codes at rail width) and the fab list with favorite stars under it. The tool-type pill row that used to sit above the feature tabs (`nav/ToolTypeTabs.vue`) was folded into this rail. The active row takes `.sk-fab-active` (2px crimson left edge, readable even at icon-rail width).
 
-**`fab-sidebar`** (`nav/FabSidebar.vue`) — Collapsible rail with favorite stars; the active row takes `.sk-fab-active` (2px crimson left edge, readable even at icon-rail width).
-
-**Row divider rule** — a 1px `--sk-border-soft` hairline separates the *tool row* from the *feature row*. Both rows are pills and visually peers; without the divider the boundary between *"which tool"* and *"how I'm viewing it"* disappears. Drawn **full-bleed** (`border-b` on the `px-*` parent, outside the `max-w-7xl` container) so it runs unbroken across the FAB sidebar.
+**Row divider rule (retired)** — a full-bleed `--sk-border-soft` hairline used to separate the tool-type pill row from the feature-tab row. Both were pills and read as peers, so the line was what kept *"which tool"* apart from *"how I'm viewing it"*. Moving the tool types into the sidebar put that boundary on a different axis, and the row and its divider went with it. The principle survives: two pill groups that answer different questions never sit on one line without a separator.
 
 ### Tables
 
@@ -288,7 +555,7 @@ Row anatomy: `--sk-r-chip` radius, icon at `--sk-ink-muted`, `.sk-title` label, 
 
 **`text-input`** — `<UInput icon="i-lucide-search" placeholder="검색" />`. Border and radius come from the theme (`--sk-border`, `--sk-r-nav`) via the NuxtUI bridge — do not restate them at the call site. Focus uses the `--sk-focus-ring` treatment.
 
-**`select`** — `<USelect>` / `<USelectMenu>`, same themed border and radius as the input. Option labels Korean, values English. Multi-select filters (Category, Lot, Tech) use the `sk-chip` pattern instead — see `device-statistics.vue`.
+**`select`** — `<USelect>` / `<USelectMenu>`, same themed border and radius as the input. Option labels Korean, values English. Multi-select filters (Category, Lot, Tech) use the `sk-chip` pattern instead — see `pages/ebeam/cd-sem/device-statistics/index.vue`.
 
 ### Tags / Badges
 
@@ -341,7 +608,7 @@ Rules:
 
 - **Never nest surfaces.** `variant="inline"` exists because a block variant
   inside a `UCard` renders a card within a card. When the inline row *is* the
-  top-level panel, pass `dashboard-surface rounded-2xl` to it instead.
+  top-level panel, pass `dashboard-surface rounded-(--sk-r-card)` to it instead.
 - **Don't fight the padding.** The variants own their padding; pass sizing
   (`h-72`, `flex-1`) rather than a competing `py-*`, which is a specificity
   coin-flip. Tailwind v4 has no `!py-*` prefix escape hatch.
@@ -362,7 +629,7 @@ Rules:
 |---|---|---|
 | Target | 1920×1080 (FHD) | The design target. Content centered at `max-w-7xl` (1280px); dense pages at 1440px; sides stay as margin |
 | `xl` | 1280–1536px | Content fills the container; no layout change |
-| `lg` | 1024–1280px | Filter bars wrap (`flex-wrap`); tool-type tabs scroll horizontally |
+| `lg` | 1024–1280px | Filter bars wrap (`flex-wrap`); feature tabs scroll horizontally |
 | below `lg` | < 1024px | Not a primary target (internal FHD tool); FAB sidebar collapses to icon rail, tables scroll horizontally inside their cards |
 
 ### Touch & Pointer Targets
@@ -373,7 +640,7 @@ Rules:
 - The FAB sidebar narrows to an icon rail; the `.sk-fab-active` left edge stays legible at rail width.
 - Sidebar pages guard against horizontal scroll with `flex` + `min-w-0` on the main pane.
 - Tables never wrap numeric content; they scroll horizontally within their card.
-- Tool-type tabs scroll horizontally rather than wrapping to a second row.
+- Feature tabs scroll horizontally rather than wrapping to a second row.
 
 ## Iteration Guide
 
@@ -384,13 +651,16 @@ Rules:
 4. New radii must come from the 4-step scale; new text sizes from the Tailwind scale with the 12px floor.
 5. When in doubt about emphasis: one weight step up (400→500→600→700) before any color change.
 6. Paper + walnut + ink + terracotta + crimson-trim is the complete palette. Don't introduce a new hue; status colors are already provided (`--sk-ok/bad/warn`).
-7. This document changes first; `main.css`, `app.config.ts`, and the preview HTML files are updated in the same change.
+7. This document changes first; `main.css` and `app.config.ts` are updated in the same change. A token added, removed or retoned also changes the copy-paste block in §Building a Page That Merges Cleanly — teammates build from that block, not from `main.css`.
 
 ## Known Gaps
 
 - **Call-site drift to sweep (doc + theme are correct):** some pages still carry chrome classes that predate the NuxtUI bridge — `rounded-2xl` on cards (which *beats* the themed 14px), `border-zinc-*` toolbar dividers, `bg-zinc-*` table headers, `text-zinc-900` card titles, and raw `rose`/`amber`/`emerald` where the `--sk-ok/warn/bad` families belong. These are **deletions**, not replacements: the correct value already sits underneath. `장비 리스트` / `스토리지` (`ToolInventoryView.vue`, `StorageView.vue`) have been **swept and now read as the reference case** — data tables at `text-xs` full-`--sk-ink` values, `text-[11px]` muted headers, sanctioned zinc only in the row hover.
 - **Font-tier + dim-colour sweep (done, 2026-07-15):** non-sanctioned type tiers (`text-[9px]`, `text-[9.5px]`, `text-[10.5px]`, `text-[11.5px]`) were normalised to the sanctioned 11px/12px, and cool `text-zinc-400/500` supporting text was replaced with the warmer, higher-contrast `--sk-ink-muted`. Going forward, prefer the **semantic type classes** (§Typography → Semantic type classes) over re-introducing ad-hoc `text-[…]` sizes; adopting them across the remaining components is the open follow-up.
 - **`.sk-eyebrow` misused as a table header.** The eyebrow is a *meta-bar kicker*; a `<th>` is a `.sk-label`. Rendering column headers as 10px mono UPPERCASE at +0.06em in ink-muted gives the densest part of a page the weakest type in the system. 계측 룰 (`ebeam/rules/*`) was swept on 2026-08-05 and is the reference case; grep for `sk-eyebrow` inside a `<th>` before adding a table.
+- **`chipClass(active)` fills with crimson.** `utils/chipClass.ts` paints the active row-card chip `bg-(--sk-accent)` with `text-white`, and rests on `bg-white` / `ring-zinc-*` — a crimson *fill* on a filter, against the two hardest rules in this document. It reaches six files (디바이스 통계, 디바이스 분석, `LotDetailModal`, `AnalyticsDevicePicker`, two AFM detail components). The fix is one function: active → `--sk-brand` / `--sk-brand-fg`, rest → `--sk-surface` / `--sk-border` / `--sk-ink-muted`, and `CHIP_BASE`'s `rounded-lg` → `--sk-r-chip`. Do not copy this chip; copy `sk-chip`.
+- **`fab-sidebar` is hand-rolled zinc.** `nav/FabSidebar.vue` draws its active row as `bg-zinc-900` / `dark:bg-zinc-100` rather than `--sk-ink`, its dividers as `border-zinc-200/70`, and its corners as `rounded-2xl` / `rounded-lg`. It looks right only because zinc-900 sits close to ink; it does not follow a retone.
+- **`AppLoadingState`'s block variant is `rounded-2xl`** (16px through NuxtUI's ramp) where a card is `--sk-r-card` (14px), so a loading card and the card that replaces it differ by 2px of corner.
 - Equipment status sub-tabs (`EquipmentStatusSubTabs.vue`) are a hand-rolled white/zinc segmented control; they are a NAVIGATE control and must become `<SkNavPill>` (ink fill).
 - Several pages are still English in the UI copy (placeholders, `Reset`, empty states, error lines) against the Korean-voice rule.
 - The `--sk-accent-soft` hover on interactive stat cells is specified but not yet applied everywhere.
@@ -409,15 +679,16 @@ Rules:
 - 2026-05-24: Ink text hierarchy codified — data values get `--sk-ink`, muted ink for labels only.
 - 2026-07-13: Full polish — translated to English, promoted to source of truth, token values synced to the Paper/Walnut theme, missing tokens documented, focus ring + type refinements added.
 - 2026-07-13: **Reformatted to the standard design-system document format** (Overview / Colors / Typography / Layout / Elevation & Depth / Shapes / Components / Do's and Don'ts / Responsive Behavior / Iteration Guide / Known Gaps). Voice & tone and accessibility rules folded into Do's and Don'ts; code-drift items moved to Known Gaps.
+- 2026-07-13: **NuxtUI token bridge** — `app.config.ts` now genuinely implements the mapping this document always claimed it did. NuxtUI's `primary`/`neutral` point at a new warm `paper` ramp instead of cool zinc, and the `--ui-*` semantic tokens are bridged to `--sk-*` (unlayered, `:root`-only, so dark mode follows the `--sk-*` inversion automatically). NuxtUI components now inherit the design system with no call-site classes. Resolved three doc↔code conflicts: **(1)** the §Shapes-vs-§Inputs radius contradiction — components are pinned to the 6/8/10/14 scale by slot in `app.config.ts`, since NuxtUI's geometric `--ui-radius` ramp cannot express a non-geometric scale; **(2)** the 12px floor, which the code broke 311× — two sub-12px tiers (10px mono eyebrow, 11px micro-label) are now sanctioned for *labels only*, with data values still hard-floored at 12px; **(3)** the cool-zinc neutral underlying every NuxtUI component on a warm page. Also landed the previously-missing `--sk-focus-ring` and removed the duplicate `--sk-ink` definition.
 - 2026-07-26: **Mag/Pixel 가이드 aligned to the system** (design option 2a). The page adopts `meta-bar` as its first body component, joins the 1440px dense exception with a 392px sticky input-and-answer rail, and moves its cards to `dashboard-surface` + `--sk-r-card` (they were `rounded-lg` + `bg-white dark:bg-zinc-950`, i.e. off the radius scale and outside the bridge). Series and 여유 마진 became `SkChip` by the litmus test — they narrow data, they don't change the view. Raw `emerald`/`amber`/`red`/`indigo` were replaced by the `--sk-ok/warn/bad` families and terracotta. Added the **Dark Field** token family (§Colors) for simulated SEM imagery, the one sanctioned non-inverting set in the system.
 - 2026-08-05: **계측 룰 (measurement-rules) readability sweep.** Column headers moved from `.sk-eyebrow` to `.sk-label`; family group headers became a `--sk-muted-surface` band at `.sk-value` weight instead of a 10px kicker. Emphasised caps stopped rendering `text-(--sk-accent)` on `--sk-accent-tint` — crimson is now trim only (border + wash) and the digit sits at full `--sk-ink`, per §Colors. `0` (측정 금지) lifted from ink-subtle to ink-muted on a muted fill, since a cap is a data value in every state. Raw `sky-*`/`amber-*` DRAM/NAND pills and the `rose-*` violation badge moved into the palette — the memory chip as **tint vs neutral** (below), the badge onto the `--sk-bad` family. `text-[12.5px]`/`text-[10px]` normalised to the sanctioned tiers, `rounded-2xl`/`rounded-md` to `--sk-r-card`/`--sk-r-chip`, and the accent-tint row hover to the documented `--sk-accent-soft`. Column widths were pinned with a trailing spacer column so the caps sit beside their row label rather than ~600px away.
 - 2026-08-15: **Top nav 재구성** (design option 2a). The header's eight unlabelled right-side icons became two labelled menus, `header-menu` above. The icons were a second hierarchy on the feature tabs' own line with nothing to distinguish a fab-scoped feature from a global page, they had to be hovered to be read, and two of them collided with icons the tabs already used (`bar-chart-3` for both 사용 통계 and 디바이스 통계; a magnifier for both Recipe 검색 and Mag/Pixel). 사용 통계 moved to `activity` to break the first collision; the second stopped mattering once every header item draws its label. `IdentityPill` became the 계정 trigger rather than a ninth icon, and now renders in every identity state — it used to hide itself when it had no declaration to release, which would have stranded the three pages it now carries.
-- 2026-07-13: **NuxtUI token bridge** — `app.config.ts` now genuinely implements the mapping this document always claimed it did. NuxtUI's `primary`/`neutral` point at a new warm `paper` ramp instead of cool zinc, and the `--ui-*` semantic tokens are bridged to `--sk-*` (unlayered, `:root`-only, so dark mode follows the `--sk-*` inversion automatically). NuxtUI components now inherit the design system with no call-site classes. Resolved three doc↔code conflicts: **(1)** the §Shapes-vs-§Inputs radius contradiction — components are pinned to the 6/8/10/14 scale by slot in `app.config.ts`, since NuxtUI's geometric `--ui-radius` ramp cannot express a non-geometric scale; **(2)** the 12px floor, which the code broke 311× — two sub-12px tiers (10px mono eyebrow, 11px micro-label) are now sanctioned for *labels only*, with data values still hard-floored at 12px; **(3)** the cool-zinc neutral underlying every NuxtUI component on a warm page. Also landed the previously-missing `--sk-focus-ring` and removed the duplicate `--sk-ink` definition.
-- 2026-08-25: **The scope bar split in two along the data flow.** 비교 대상 keeps 장비·모델 그룹 + RECIPE; PARAMETER moved to a new 분석 조건 bar (`ebeam/AnalysisBar.vue`, with `ebeam/ScopeParameter.vue`) beneath it, together with the page-specific trailing cell that used to share the first bar. The parameter list is no longer fetched from recipe-open over FTP: it rides on the check payload itself (`parameters`), read from the same measurement rows the skew is, so the picker offers exactly what the filter can match and the error caption for a failed lookup is gone. §Layout's scope-bar rule gained the second-bar bullet.
 - 2026-08-18: **The two lab pages moved from a control rail to a 비교 대상 scope bar**, and §Layout gained the scope-bar rule beside the rail rule. 장비간 스큐 관리 and PM 플래닝 put 장비·모델 그룹 + RECIPE + PARAMETER in one full-width bar above the results, with the page-specific control (tolerance knob / 튜닝할 장비) in a divided trailing cell; `tttm/ScopePanel.vue` is gone and `ebeam/ScopeBar.vue` is shared by both. The results are now **gated** on the recipe and carry an explicit `AppEmptyState` until one is picked — the server does answer without a recipe, but that answer is a fleet-wide fold of every measured recipe and it rendered identically to a deliberately scoped one, so the page was quoting a comparison nobody chose. The parameter stays optional: its list comes from recipe-open over FTP, and a required field behind a failable request is a page that can lock shut. PM 플래닝 also gained the tool selector it previously could only read, on the same reasoning that made recipe and parameter editable there. Both pages keep 1440px, now justified by their four rows of paired result cards rather than by a list-plus-detail split.
+- 2026-08-25: **The scope bar split in two along the data flow.** 비교 대상 keeps 장비·모델 그룹 + RECIPE; PARAMETER moved to a new 분석 조건 bar (`ebeam/AnalysisBar.vue`, with `ebeam/ScopeParameter.vue`) beneath it, together with the page-specific trailing cell that used to share the first bar. The parameter list is no longer fetched from recipe-open over FTP: it rides on the check payload itself (`parameters`), read from the same measurement rows the skew is, so the picker offers exactly what the filter can match and the error caption for a failed lookup is gone. §Layout's scope-bar rule gained the second-bar bullet.
 - 2026-08-25: **비교 대상 gained a 수집 기간 cell** (`ebeam/ScopeWindow.vue`): `SkChip`s — 1주 / 2주 / 3주 / 4주, default 2주 (user decision, 2026-08-26; it shipped as three chips defaulting to 3주) — that set `window_weeks` on the check, the recipe picker and PM 플래닝's fleet fetch alike, from the one persisted scope both lab pages share. The meta bar's cadence readout (`N주 윈도우`) is now read off the payload's echo instead of a hardcoded "1주 윈도우" that the server never honoured (it gathered a fixed 10 runs per tool over 60 days). §Layout's scope-bar rule names the cell.
 - 2026-08-25: **H/W 관리 moved its 320px tool rail to a 장비 선택 strip above the results.** The page has one required decision — the tool — and every card and chart below is computed for it, so it now reads first, and the detail (FDC's per-key grid, the MDC/SCE comparison charts) takes the full width. The strip is two chip rows by the litmus test: model chips narrow the roster (terracotta `SkChip`, with counts that respect the other controls), and the tool row picks one subject among peers (`tone="ink"` `SkChip`, the same choice `skewvoir/timeseries/ParamCoverageList.vue` makes) — different roles, so the two fills do not mix. Availability chips and search sit at the trailing edge; the vendor / model / fab / IP / version line that each rail row carried now describes the selected tool under the chips. The tool row caps at about four rows and scrolls, because a multi-fab union can reach 60+ tools. Same day, on the user's call, the strip became **gated on the model**: the All Models chip went, tool chips appear only for the picked model, and the results show an `AppEmptyState` until then — the point being that the reader is never unsure which model they are working on.
 - 2026-08-27: **Three bars on the lab pages, and a PCA 배치도.** 장비·모델 그룹 moved out of 비교 대상 into its own **장비 모델 그룹** bar (`ebeam/ToolGroupBar.vue`; 비교 대상 now holds RECIPE + 수집 기간 only), with the below-two-tools refusal removed — it was why 해제 could not empty a group — and a `"2대 이상"` empty state in its place. PARAMETER became a multi-select: the check takes a repeated `parameter` key, the N배화 group is the intersection over the picks, and 장비 그룹 배치도 is placed by PCA over the payload's new tool × parameter `parameter_profile` (`utils/parameterPca.ts`, CD-relative columns, Chebyshev red rule, explained variance in the header, loadings in the caption), falling back to the MDS map only when no usable column exists. §Layout's scope-bar rule gained the third-bar bullet and the multi-select note.
 - 2026-08-27: **PM 플래닝's 튜닝할 장비 became the page's first bar.** It had been the divided trailing cell of 분석 조건 — a 264px column at the far right of the third bar, under a title that did not name it — while the three bars above it hold settings shared with TTTM. The page reports on one tool, so that tool now reads before the data it is judged against: its own full-width bar under the meta bar, the picked id at `.sk-card-id` size, and the Up gate / 1차 그룹 / last-PM facts beside the trigger instead of in a caption under it. It no longer takes the 분석 조건 lock (the PM roster is a separate request from the recipe's payload), and `ebeam/AnalysisBar.vue`'s trailing cell became optional so the bar does not render an empty divided column. §Layout's scope-bar rule gained the subject-bar bullet.
 - 2026-09-01: **튜닝할 장비 moved from above 분석 조건 to directly below it.** The two lab pages merged into one 실험실 route whose 보기 chips choose the panels, which made this bar conditional rather than permanent — the **PM 튜닝 chip, inside 분석 조건, is what summons it**. It had kept its 2026-08-28 slot above 분석 조건, so turning the chip on made a bar appear *above* the control just clicked, which is the one place the reader was not looking; chip and bar are now adjacent. Nothing about the earlier reasoning is given up: 비교 대상 and 장비 모델 그룹 are still above it, so the tool is still picked out of an already-defined set. Same change, the **튜닝 목표 card names its subject** — the picked `eqp_id` at `.sk-card-id` with `eqp_model_cd` beside it in the picker trigger's own identity styling, drawn only once a tool is picked, because every row of that table is a distance measured for one tool the card had never named. §Layout's subject-bar bullet rewritten to the new rule.
 - 2026-09-18: **TTTM renovated: PM 튜닝 chip and 튜닝할 장비 bar removed; tuning is a map click.** The Up gate card and the pm_planning request left the page with them (`backend/ebeam/pm_planning` and the `/pm-planning` redirect are untouched). The residual card reads the selected 수집 기간 (median of each tool's daily residuals, re-based on the visible tools) instead of "오늘", parameters became chips, the tolerance slider moved into the map card, the trend became a scatter, and dashed lines were dropped.
+- 2026-09-19: **Made shareable with teammates.** Added §Building a Page That Merges Cleanly: a copy-paste token block generated from `main.css` (seven tokens — the `-soft` / `-border` status members and `--sk-chip-*` — had no value anywhere in this document, so the palette could not be reproduced from it), plain-CSS recipes for the card, nav pill, chip, button, input, table and status tag, a page skeleton, and a pre-merge checklist. Corrected references to files that no longer exist (`ebeam/TttmView.vue`, `ebeam/PmPlanningView.vue`, `nav/ToolTypeTabs.vue`, `device-statistics.vue`, both preview HTML files) and the navigation description they belonged to — tool types live in the FAB sidebar now, and the row-divider rule is retired. `<SkBtn>` is recorded as never built: the action button is `UButton color="primary"` through the bridge. The focus-ring bullet moved out of §Dark Field, where it had been stranded. §Known Gaps gained three code-side findings from the same audit (`chipClass`'s crimson fill, the hand-rolled FAB sidebar, `AppLoadingState`'s radius). Changelog re-sorted chronologically.
