@@ -208,16 +208,26 @@ onBeforeUnmount(() => {
             :key="name"
             type="button"
             class="notice-tag"
+            :class="{ 'notice-tag--on': area === name }"
+            :aria-pressed="area === name"
             title="이 영역만 보기"
-            @click="area = name"
+            @click="area = area === name ? null : name"
           >{{ name }}</button>
         </span>
         <span class="sk-value-num flex-none text-[12px] text-(--sk-ink-muted)">{{ notice.date }}</span>
-        <UIcon
-          name="i-lucide-chevron-down"
-          class="notice-chevron"
-          :class="{ 'rotate-180': open.has(notice.date) }"
-        />
+        <button
+          type="button"
+          tabindex="-1"
+          aria-hidden="true"
+          class="notice-chevron-btn"
+          @click="toggle(notice.date)"
+        >
+          <UIcon
+            name="i-lucide-chevron-down"
+            class="notice-chevron"
+            :class="{ 'rotate-180': open.has(notice.date) }"
+          />
+        </button>
       </div>
       <NoticeBody
         v-if="open.has(notice.date)"
@@ -266,10 +276,7 @@ onBeforeUnmount(() => {
                 :aria-expanded="open.has(notice.date)"
                 @click="toggle(notice.date)"
               >
-                <span
-                  class="notice-cat"
-                  :class="`notice-cat--${notice.category}`"
-                >{{ notice.category }}</span>
+                <span class="notice-cat">{{ notice.category }}</span>
                 <span
                   class="notice-title"
                   :class="isNew(notice) ? 'font-semibold' : 'font-normal'"
@@ -282,8 +289,10 @@ onBeforeUnmount(() => {
                   :key="name"
                   type="button"
                   class="notice-tag"
+                  :class="{ 'notice-tag--on': area === name }"
+                  :aria-pressed="area === name"
                   title="이 영역만 보기"
-                  @click="area = name"
+                  @click="area = area === name ? null : name"
                 >{{ name }}</button>
                 <span
                   v-if="notice.sections.length > 2"
@@ -291,11 +300,19 @@ onBeforeUnmount(() => {
                 >+{{ notice.sections.length - 2 }}</span>
               </span>
               <span class="flex-none text-[12px] whitespace-nowrap text-(--sk-ink-muted) max-sm:hidden">변경 {{ changeCount(notice) }}건</span>
-              <UIcon
-                name="i-lucide-chevron-down"
-                class="notice-chevron"
-                :class="{ 'rotate-180': open.has(notice.date) }"
-              />
+              <button
+                type="button"
+                tabindex="-1"
+                aria-hidden="true"
+                class="notice-chevron-btn"
+                @click="toggle(notice.date)"
+              >
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="notice-chevron"
+                  :class="{ 'rotate-180': open.has(notice.date) }"
+                />
+              </button>
             </div>
             <NoticeBody
               v-if="open.has(notice.date)"
@@ -356,7 +373,7 @@ onBeforeUnmount(() => {
   border-radius: var(--sk-r-sidebar);
   background: var(--sk-brand);
   color: var(--sk-brand-fg);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
 }
@@ -402,6 +419,19 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.notice-chevron-btn {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sk-r-sidebar);
+  cursor: pointer;
+}
+.notice-chevron-btn:hover {
+  background: var(--sk-muted-surface);
+}
 .notice-chevron {
   width: 16px;
   height: 16px;
@@ -423,16 +453,8 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: var(--sk-ink);
 }
-.notice-cat--수정 {
-  border-color: var(--sk-border-soft);
-  background: transparent;
-  font-weight: 500;
-  color: var(--sk-ink-muted);
-}
-.notice-cat--공지 {
-  border-color: var(--sk-warn-border);
-  background: var(--sk-warn-soft);
-}
+/* 기능추가 · 수정 · 공지 are peers: told apart by the label, never by a colour
+   (DESIGN.md §Tags — three or more values get no colour encoding). */
 .notice-cat--pinned {
   border-color: var(--sk-accent-border);
   background: var(--sk-accent-soft);
@@ -452,6 +474,11 @@ onBeforeUnmount(() => {
 }
 .notice-tag:hover {
   border-color: var(--sk-brand);
+  color: var(--sk-brand-ink);
+}
+.notice-tag--on {
+  border-color: var(--sk-brand);
+  background: var(--sk-brand-soft);
   color: var(--sk-brand-ink);
 }
 
