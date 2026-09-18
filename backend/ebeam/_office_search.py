@@ -200,7 +200,8 @@ def aggregate(
     )
     _require(
         index, failed == 0,
-        f"reports _shards.failed={failed}; refusing partial aggregation results.",
+        f"reports _shards.failed={failed}; refusing partial aggregation results. "
+        f"failures={shards.get('failures')!r}",
     )
     aggregations = result.get("aggregations")
     _require(
