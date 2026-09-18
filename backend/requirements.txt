@@ -1,7 +1,7 @@
 Flask>=3.0
 flask-cors>=4.0
 flask-limiter>=3.5
-opensearch-py>=2,<3
+opensearch-py>=3,<4
 # These two floors move with numpy's, below. pandas gained numpy-2 support in
 # 2.2.2 and pyarrow in 16; the earlier releases their old floors allowed are
 # built against the numpy 1 ABI and raise on `import` under numpy 2, so a pip
