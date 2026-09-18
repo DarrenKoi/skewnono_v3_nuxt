@@ -178,3 +178,57 @@ python -m scripts.verify.check_answer_contract --live "지난 7일 CD-SEM recipe
 `Evidence` 12 필드, 예외 3종, 300초 상한, `_rag/skewnono_rag/` 통째 교체
 원칙 — 전부 그대로입니다. 이 편지는 **키 하나를 더하고 모듈 하나를 내놓는
 것**이 전부입니다.
+
+## 후기 — 사용자 회신 (2026-09-19, 사용자 전달)
+
+3절 세 항목 중 둘이 닫혔고, 목표가 한 단계 넓어졌습니다.
+
+| # | 회신 | 결과 |
+| --- | --- | --- |
+| 1 | 사무실 gateway 는 **JSON Schema function calling 을 지원**합니다 (user-confirmed) | 펜스 JSON 대안은 폐기. 카탈로그의 `parameters` 를 그대로 tool 정의로 씁니다 |
+| 2 | 컨텍스트 창은 **256K 토큰**입니다 (user-confirmed) | 200 행 상한은 예산 문제가 아닙니다. 상한의 근거는 이제 **화면 가독성과 응답 시간**이며, 표 attachment 는 200, 모델에 돌려주는 tool 결과는 그보다 커도 됩니다 |
+| 3 | 5개 질문은 아직 없습니다. 대신 **목표**가 왔습니다 — 아래 | 첫 tool 선정은 아래 목표에 맞춰 다시 봅니다 |
+
+**`scope.fabs`**: chat 이 비워 보내는 상태를 "제한 없음" 으로 정의합니다.
+`fabs` 가 비어 있으면 tool 은 모델이 채운 fab 인자를 그대로 쓰고, 비어
+있지 않으면 지금까지처럼 덮어씁니다. 어느 fab 을 볼지는 대화 안에서 모델이
+사용자에게 확인하면 됩니다 (user-confirmed). `access_control` 연동은 chat
+측 후속 과제로 남기되, tool 이 켜지는 조건에서는 뺍니다.
+
+**서비스는 이미 사용자에게 공개되어 쓰이고 있습니다.** 따라서 이 변경은 전부
+**추가만** 이어야 합니다 — `attachments` 가 선택 키인 것, 카탈로그가 없어도
+`agent_query` 가 그대로 도는 것이 그 조건입니다.
+
+### 목표 — 단건 조회가 아니라 보고서
+
+> 단일 이벤트·단일 데이터는 사용자가 skewnono 페이지에서 직접 봅니다.
+> chat 은 **시간이 좀 걸려도** 여러 정보를 모아 분석해 **넓은 시야가 필요한
+> 판단** — 기간 단위의 장비 상태, 이상 상황·이상 데이터 — 을 보고서로 내야
+> 합니다. (user-confirmed 2026-09-19)
+
+이 목표가 1·2절에 주는 변화는 넷입니다.
+
+| 항목 | 1·2절 초안 | 목표에 맞춘 조정 |
+| --- | --- | --- |
+| tool 의 결과 단위 | 행 목록 | **집계·추세**가 기본입니다. `search_measurements` 같은 raw 목록 tool 보다 `recipe_tat_daily_trend`, fail 요약, 알람 일별 건수처럼 **이미 화면이 그리는 집계 함수**가 우선입니다. 각 feature 의 `get_summary` / `get_daily_trend` 계열이 그대로 후보입니다 |
+| 한 turn 의 tool 호출 수 | 한두 번 | **여러 번, 여러 feature** 를 섞는 것이 정상입니다. 300초 상한(2026-09-01 확정) 안에서 그쪽이 loop 를 돌리십니다. 상한이 보고서에 부족하면 그때 "보고서 turn" 을 별도 예산으로 논의합니다 — 지금은 올리지 않습니다 |
+| `attachments` 상한 | 3 | **6** 으로 올립니다. 보고서 하나가 추세 차트 둘·표 둘을 싣는 것이 자연스럽기 때문입니다 |
+| `content` 의 모양 | 짧은 답 | 절 제목·목록이 있는 보고서입니다. chat 측 markdown 렌더러는 지금 제목·목록·표를 그리지 않으므로(코드·굵게·링크만) **chat 측이 렌더러를 넓힙니다** — 4절 chat 측 할 일에 6번으로 추가 |
+
+첫 tool 둘은 이렇게 바꿉니다 — 둘 다 `office_example.py` 완성, 화면 사용 중.
+
+| tool | 부르는 함수 | 왜 이것부터 |
+| --- | --- | --- |
+| `recipe_tat_daily_trend` | `ebeam.recipe_tat.data.get_daily_trend(...)` | 기간 추세 + 차트 — 목표의 최소 사례 |
+| `fail_issue_summary` | `ebeam.fail_issue.data.get_summary(...)` / `get_daily_trend(...)` | "이상 상황" 의 기간 집계. TAT 와 같은 인자 모양(`fab_names, start_date, end_date, lot_cd`)이라 모델이 둘을 같은 기간으로 묶기 쉽습니다 |
+
+`search_measurements` 는 대기 목록으로 내립니다 — "이 장비의 최근 측정" 은
+사용자가 페이지에서 직접 보는 단건 조회이기 때문입니다.
+
+### 다음
+
+- chat 측: 4절 1·2 (카탈로그·계약 검증)를 지금 시작합니다. 회신에 의존하는
+  항목이 남지 않았습니다. 4절 6번 — 렌더러 확장(제목·목록·표) — 을 추가합니다.
+- RAG 측: `attachments` 를 실어 보내는 `agent_query` 는 chat 측 1·2 가
+  `main` 에 오른 뒤 `check_answer_contract` 출력의 스키마를 보고 붙이시면
+  됩니다. 그 전에는 할 일이 없습니다.
