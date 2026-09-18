@@ -86,6 +86,11 @@ PRUNE_SUFFIXES = (".pyc", ".pyo", ".md", ".log")
 # overlaying it onto /project/workSpace/ would replace the cloud's threads.
 PRUNE_NAMES = frozenset({"conftest.py", ".DS_Store", "Thumbs.db", "chat.db"})
 
+# Name prefixes removed anywhere. index_backup_* are the RAG checkout's
+# (backend/chat/_rag/) previous index snapshots - rollback material for the
+# office PC, not runtime files, and large enough to dominate the bundle.
+PRUNE_PREFIXES = ("index_backup_",)
+
 
 def prunes_by_name(name: str) -> bool:
     """Prune decision for a single directory entry, from its name alone.
@@ -99,6 +104,7 @@ def prunes_by_name(name: str) -> bool:
         name in PRUNE_NAMES
         or name in PRUNE_DIRS
         or Path(name).suffix in PRUNE_SUFFIXES
+        or name.startswith(PRUNE_PREFIXES)
     )
 
 

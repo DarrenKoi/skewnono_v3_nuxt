@@ -40,6 +40,11 @@ def test_prunes_markdown_and_compiled_files():
     assert pack.should_prune(Path("backend/.DS_Store"))
 
 
+def test_prunes_rag_index_backups():
+    assert pack.should_prune(Path("backend/chat/_rag/index_backup_20260901"))
+    assert not pack.should_prune(Path("backend/chat/_rag/index"))
+
+
 def test_keeps_the_files_that_must_ship():
     """office.py and .env are gitignored — losing them is the failure mode."""
     assert not pack.should_prune(Path("backend/sem_list/providers/office.py"))
