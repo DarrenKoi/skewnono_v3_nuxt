@@ -103,7 +103,7 @@
               v-if="profile.warning"
               class="mb-2 rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-3 py-2 text-(--sk-warn) sk-meta"
             >
-              {{ profile.warning }}. 원본 점과 반경 구간 중앙값은 그대로 표시됩니다.
+              {{ warningKo }} 원본 점과 반경 구간 중앙값은 그대로 표시됩니다.
             </div>
             <EbeamSkewvoirRadiusChart
               class="min-h-0 flex-1"
@@ -238,8 +238,8 @@ const bandItems: { label: string, value: RadialBandMode, needsFit: boolean }[] =
 ]
 const bandHints: Record<RadialBandMode, string> = {
   iqr: 'IQR: 반경 구간별 실측값의 가운데 50% 범위입니다. 모델과 무관하게 관측만으로 그립니다.',
-  confidence: '95% 신뢰: 추세선(평균) 자체가 어디에 있을지의 불확실성입니다. 점이 많아지면 좁아집니다. 웨이퍼 점들은 공간적으로 상관되어 있어 실제보다 낙관적일 수 있습니다.',
-  prediction: '95% 예측: 새 측정점 하나가 떨어질 범위입니다. 신뢰 밴드보다 항상 넓습니다. 웨이퍼 점들은 공간적으로 상관되어 있어 실제보다 낙관적일 수 있습니다.',
+  confidence: '95% 신뢰: 추세선(평균) 자체가 어디에 있을지의 불확실성입니다. 같은 조건이면 점이 많을수록 대체로 좁아집니다. 최소제곱(OLS) 가정 위에서 계산하며, 웨이퍼 점들은 공간적으로 상관되어 있어 실제보다 낙관적일 수 있습니다.',
+  prediction: '95% 예측: 새 측정점 하나가 떨어질 범위입니다. 신뢰 밴드에 잔차 산포가 더해지므로 대체로 더 넓습니다. 최소제곱(OLS) 가정 위에서 계산하며, 웨이퍼 점들은 공간적으로 상관되어 있어 실제보다 낙관적일 수 있습니다.',
   none: '산포 밴드를 표시하지 않습니다.'
 }
 const bandHint = computed(() => bandHints[band.value])
@@ -261,7 +261,7 @@ const metricItems = computed(() => [
   {
     label: '조정 R²',
     value: format(profile.value.metrics.adjustedR2, 3),
-    hint: '값 변동 중 추세선이 설명하는 비율입니다. 1 에 가까울수록 반경 추세가 뚜렷하고, 0 이하이면 추세가 평균선보다 나을 게 없습니다. 차수를 올려도 공짜로 오르지 않도록 보정한 값입니다.'
+    hint: '추세선이 값 변동을 얼마나 설명하는지를 차수(복잡도) 벌점을 준 뒤 매긴 점수입니다. 1 에 가까울수록 반경 추세가 뚜렷하고, 0 이하이면 벌점을 감안하면 평균선보다 나을 게 없다는 뜻입니다. 차수를 올려도 공짜로 오르지 않습니다.'
   },
   {
     label: 'RMSE',
@@ -289,6 +289,19 @@ const metricItems = computed(() => [
     hint: '가장 바깥 반경의 추세값에서 가장 안쪽 반경의 추세값을 뺀 값입니다. 부호가 중심→가장자리 방향을, 크기가 그 폭을 나타냅니다.'
   }
 ])
+// radialAnalysis.ts phrases its warnings in English; translate at the
+// presentation layer so the math module stays language-free.
+const MODEL_KO: Record<string, string> = { linear: '1차', quadratic: '2차', cubic: '3차' }
+const warningKo = computed(() => {
+  const warning = profile.value.warning
+  if (!warning) return ''
+  let match = warning.match(/^(\w+) fit requires at least (\d+) measured sites$/)
+  if (match) return `${MODEL_KO[match[1]!] ?? match[1]} 추세선에는 측정점이 최소 ${match[2]}개 필요합니다.`
+  match = warning.match(/^(\w+) fit requires at least (\d+) distinct radii$/)
+  if (match) return `${MODEL_KO[match[1]!] ?? match[1]} 추세선에는 서로 다른 반경이 최소 ${match[2]}개 필요합니다.`
+  if (warning.startsWith('fit is singular')) return '이 반경 배치로는 추세선을 구할 수 없습니다.'
+  return `${warning}.`
+})
 const equation = computed(() => {
   const coefficients = profile.value.coefficients
   if (!coefficients) return model.value === 'none' ? '추세 모델을 선택하지 않았습니다.' : '이 반경 배치로는 추세선을 구할 수 없습니다.'
@@ -310,7 +323,8 @@ const sectorLegend = computed(() => [
 
 const close = () => emit('update:modelValue', false)
 const onKey = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') close()
+  // An open (i) tooltip owns the first Escape; Reka does not stop propagation.
+  if (event.key === 'Escape' && !document.querySelector('[role="tooltip"]')) close()
 }
 watch(() => props.modelValue, (open) => {
   if (!import.meta.client) return

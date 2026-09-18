@@ -12,7 +12,7 @@
   >
     <button
       type="button"
-      class="inline-flex text-(--sk-ink-subtle) transition-colors duration-200 hover:text-(--sk-ink)"
+      class="inline-flex rounded-full p-1 text-(--sk-ink-subtle) transition-colors duration-200 hover:text-(--sk-ink)"
       :aria-label="`${label} 설명`"
     >
       <UIcon
