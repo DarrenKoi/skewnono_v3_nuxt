@@ -33,21 +33,25 @@ markAllSeen()
             </h2>
           </template>
 
-          <ul class="space-y-2.5">
-            <li
-              v-for="(item, index) in notice.items"
-              :key="index"
-              class="flex items-start gap-2.5"
+          <div class="space-y-4">
+            <section
+              v-for="section in notice.sections"
+              :key="section.area"
             >
-              <UBadge
-                :label="item.area"
-                color="neutral"
-                variant="subtle"
-                class="mt-0.5 shrink-0"
-              />
-              <span class="sk-body">{{ item.text }}</span>
-            </li>
-          </ul>
+              <h3 class="sk-label">
+                {{ section.area }}
+              </h3>
+              <ul class="mt-1.5 list-disc space-y-1 pl-5 marker:text-(--sk-ink-subtle)">
+                <li
+                  v-for="(item, index) in section.items"
+                  :key="index"
+                  class="sk-body"
+                >
+                  {{ item }}
+                </li>
+              </ul>
+            </section>
+          </div>
         </UCard>
       </li>
     </ol>

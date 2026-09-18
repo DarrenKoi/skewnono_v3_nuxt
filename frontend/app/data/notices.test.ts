@@ -9,7 +9,7 @@ import { NOTICES } from './notices.ts'
 test('dates are ISO YYYY-MM-DD, unique, newest first', () => {
   for (const notice of NOTICES) {
     assert.match(notice.date, /^\d{4}-\d{2}-\d{2}$/, `${notice.title}: ${notice.date}`)
-    assert.ok(notice.items.length > 0, `${notice.date} has no items`)
+    assert.ok(notice.sections.every(section => section.items.length > 0), `${notice.date} has an empty section`)
   }
   const dates = NOTICES.map(notice => notice.date)
   assert.deepEqual(dates, [...new Set(dates)].sort().reverse())
