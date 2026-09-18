@@ -37,6 +37,13 @@ Other office properties this mock cannot demonstrate:
   where documents LACK the field — surfacing in the `recipe_names` snapshot as
   `fab_name: ""` ("owner unknown", OFFICE-VERIFY) — never exercises at home.
 
+Recipe vocabulary: the seeded universe draws from RECIPE_CATALOG (a small,
+fixture-pinned list). Recipe 현황 (recipe_tat / fail_issue) ranks a DIFFERENT,
+generated vocabulary, and its 스큐보아 / 측정 이력 links search this index by
+`full_name` — so a second, separately seeded block (`_recipe_status_rows`)
+carries every recipe_tat recipe on every fab. At the office all of these read
+one alias and the vocabularies are the same thing; only the mock has two.
+
 ★ INGESTION PREREQUISITE for `q` free-text search: it queries the `search_all`
 wildcard field (`meas_hist/opensearch_query.py`). If the loader has not indexed
 that field, a `q` condition matches NOTHING and raises no error — an empty
@@ -331,6 +338,65 @@ def _all_rows() -> tuple[MeasHistRow, ...]:
         if row is not None:
             rows.append(row)
 
+    # Appended AFTER the seeded universe, from its own rng: the 600 rows above
+    # stay byte-identical (their fixtures and downstream seeds do not move).
+    rows.extend(_recipe_status_rows())
+    return tuple(rows)
+
+
+RECIPE_STATUS_ROWS_PER_PAIR = (2, 4)   # rows per (recipe, fab) pair
+
+
+def _with_recipe(base: MeasHistRow, class_part: str, recipe_part: str) -> MeasHistRow:
+    """Re-address a built row to another recipe. Same rules as _build_row: msr
+    exists only where msr_check == "Yes", and id IS the msr."""
+    date_str = base["end_time"][:10].replace("-", "")
+    msr = (
+        _make_msr(date_str, recipe_part, base["lot_id"], base["eqp_id"])
+        if base["msr_check"] == "Yes"
+        else ""
+    )
+    return {
+        **base,
+        "id": msr,
+        "class_name": class_part,
+        "recipe_name": recipe_part,
+        "full_name": f"{class_part}/{recipe_part}",
+        "idp_name": f"/Recipe/{class_part}/{recipe_part}.idp",
+        "idw_name": f"/Recipe/{class_part}/{recipe_part}.idw",
+        "msr": msr
+    }
+
+
+@lru_cache(maxsize=1)
+def _recipe_status_rows() -> tuple[MeasHistRow, ...]:
+    """A few in-retention rows for every recipe Recipe 현황 can rank, on every
+    fab that has a tool of that family — so the 스큐보아 / 측정 이력 links from
+    recipe_tat and fail_issue rows land on data at home, whichever fab is
+    picked. Mock-only alignment: the office reads one alias for all three.
+
+    One-way, lazy import: recipe_tat's vocabulary is the source of truth and
+    recipe_tat itself never imports this module (fail_issue already depends on
+    recipe_tat the same way).
+    """
+    from backend.ebeam.recipe_tat.providers.mock import _recipe_definitions
+
+    rng = random.Random(_seed("meas_hist", "recipe-status", "v1"))
+    tools_by_fab: dict[tuple[ToolType, str], list[SemListRow]] = {}
+    for eqp in _eligible_sem_rows():
+        tool_type = model_to_tool_type(eqp["eqp_model_cd"])
+        if tool_type is not None:
+            tools_by_fab.setdefault((tool_type, eqp["fab_name"]), []).append(eqp)
+
+    rows: list[MeasHistRow] = []
+    for recipe in _recipe_definitions():
+        for (tool_type, _fab), eqps in tools_by_fab.items():
+            if tool_type != recipe["tool_type"]:
+                continue
+            for _ in range(rng.randint(*RECIPE_STATUS_ROWS_PER_PAIR)):
+                base = _build_row(rng.choice(eqps), rng, len(rows))
+                if base is not None:
+                    rows.append(_with_recipe(base, recipe["class_name"], recipe["recipe_name"]))
     return tuple(rows)
 
 
@@ -379,7 +445,6 @@ def _synthesize_for_recipe(
         return []
 
     class_part, recipe_part = _split_recipe(recipe_name)
-    full_name = f"{class_part}/{recipe_part}"
 
     count = rng.randint(*SYNTH_ROW_COUNT_RANGE)
     rows: list[MeasHistRow] = []
@@ -392,27 +457,9 @@ def _synthesize_for_recipe(
         base = _build_row(eqp, rng, 900_000 + index, max_age_days=RECIPE_HISTORY_DAYS)
         if base is None:
             continue
-
-        date_str = base["end_time"][:10].replace("-", "")
-        # Same rules as _build_row: msr exists only where msr_check == "Yes",
-        # and id IS the msr. Overriding msr without id left the synthesized
-        # rows keyed by the base recipe's msr -- a latent id != msr drift the
-        # contract test now pins.
-        msr = (
-            _make_msr(date_str, recipe_part, base["lot_id"], base["eqp_id"])
-            if base["msr_check"] == "Yes"
-            else ""
-        )
-        rows.append({
-            **base,
-            "id": msr,
-            "class_name": class_part,
-            "recipe_name": recipe_part,
-            "full_name": full_name,
-            "idp_name": f"/Recipe/{class_part}/{recipe_part}.idp",
-            "idw_name": f"/Recipe/{class_part}/{recipe_part}.idw",
-            "msr": msr
-        })
+        # Overriding msr without id once left synthesized rows keyed by the
+        # base recipe's msr -- an id != msr drift the contract test pins.
+        rows.append(_with_recipe(base, class_part, recipe_part))
 
     return rows
 

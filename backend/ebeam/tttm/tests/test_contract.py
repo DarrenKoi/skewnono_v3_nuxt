@@ -426,7 +426,10 @@ def test_a_profile_column_is_centred_on_the_fleet_median():
         column = [row[j] for row in profile["values"] if row[j] is not None]
         assert len(column) == axis["tools"], axis["name"]
         if axis["tools"] >= 2:
-            assert abs(median(column)) < 1e-6, f"{axis['name']} is not median-centred"
+            # Each residual is rounded to 3 dp AFTER the subtraction
+            # (profile.py), so with an even tool count the median of the two
+            # middle residuals can sit half a rounding unit off zero.
+            assert abs(median(column)) <= 0.0005 + 1e-9, f"{axis['name']} is not median-centred"
             assert axis["median_cd_nm"] is None or axis["median_cd_nm"] > 0
         else:
             assert column == [], "one tool has no consensus to be offset from"

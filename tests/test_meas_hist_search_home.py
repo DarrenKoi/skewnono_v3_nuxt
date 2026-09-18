@@ -24,6 +24,17 @@ from backend.meas_hist.routes import bp
 from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, skip_reason
 
 
+def _all_pages(**params) -> list[dict]:
+    """Every matching row, paged past the server-side `limit` clamp."""
+    rows: list[dict] = []
+    while True:
+        page = search_meas_hist(**params, offset=len(rows), limit=500)
+        rows.extend(page["rows"])
+        if not page["rows"] or len(rows) >= page["total"]:
+            return rows
+
+
+
 class TestMeasHistFallbackSearch(unittest.TestCase):
     def setUp(self):
         self._provider = os.environ.pop("SKEWNONO_MEAS_HIST_PROVIDER", None)
@@ -78,41 +89,49 @@ class TestMeasHistFallbackSearch(unittest.TestCase):
         self.assertIn("recipe_names_complete", result)
         self.assertEqual(len(result["rows"]), 1)
         # The snapshot must cover the FULL matching row set — as (name, fab)
-        # pairs — even though only one raw row was requested.
-        full = search_meas_hist(recipe=["CD_BIAS"], limit=10000)
+        # pairs — even though only one raw row was requested. `limit` is
+        # clamped server-side, so the full set is gathered page by page.
         self.assertEqual(
             result["recipe_names"],
             [
                 {"full_name": name, "fab_name": fab}
                 for name, fab in sorted(
-                    {(row["full_name"], row["fab_name"]) for row in full["rows"]}
+                    {(row["full_name"], row["fab_name"]) for row in _all_pages(recipe=["CD_BIAS"])}
                 )
             ],
         )
-        self.assertEqual(
-            sorted({entry["full_name"] for entry in result["recipe_names"]}),
-            [
+        names = {entry["full_name"] for entry in result["recipe_names"]}
+        # The seeded catalogue's three CD_BIAS recipes are always there; the
+        # recipe-status block adds recipe_tat's numbered ones beside them.
+        self.assertLessEqual(
+            {
                 "ADI/ADI_CD_BIAS_001",
                 "ADI/ADI_CD_BIAS_ABC123_PROD_00006",
                 "ADI/ADI_CD_BIAS_ABC123_STD_00001",
-            ],
+            },
+            names,
         )
+        self.assertTrue(any(name.startswith("AEI/AEI_CD_BIAS_") for name in names))
         self.assertTrue(all(entry["fab_name"] for entry in result["recipe_names"]))
         self.assertTrue(result["recipe_names_complete"])
 
     def test_recipe_names_keep_the_broad_or_candidate_set_for_multiple_terms(self):
         result = search_meas_hist(recipe=["CD_BIAS", "GATE_PITCH"], limit=1)
 
-        self.assertEqual(
-            sorted({entry["full_name"] for entry in result["recipe_names"]}),
-            [
+        names = {entry["full_name"] for entry in result["recipe_names"]}
+        # Both terms' candidates survive (OR, not AND) …
+        self.assertLessEqual(
+            {
                 "ADI/ADI_CD_BIAS_001",
                 "ADI/ADI_CD_BIAS_ABC123_PROD_00006",
                 "ADI/ADI_CD_BIAS_ABC123_STD_00001",
                 "GATE/GATE_PITCH_001",
                 "GATE/GATE_PITCH_MON_ABC123_ENG_00009",
-            ],
+            },
+            names,
         )
+        # … and nothing that matches neither term sneaks in.
+        self.assertTrue(all("CD_BIAS" in name or "GATE_PITCH" in name for name in names))
         self.assertTrue(result["recipe_names_complete"])
 
     def test_recipe_names_are_not_requested_without_a_recipe_filter(self):
