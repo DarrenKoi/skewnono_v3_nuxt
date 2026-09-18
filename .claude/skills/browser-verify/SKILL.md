@@ -1,11 +1,39 @@
 ---
 name: browser-verify
-description: How to verify SKEWNONO in a real browser — choosing Claude-in-Chrome vs Playwright MCP, tool-loading, screenshot paths, app URL and LASTUSER identity. Use before any browser check, screenshot, or "does this look right?" review of the Nuxt app.
+description: How to verify SKEWNONO in a real browser — agent-browser CLI first, Claude-in-Chrome or Playwright MCP when the situation calls for them; tool-loading, screenshot paths, app URL and LASTUSER identity. Use before any browser check, screenshot, or "does this look right?" review of the Nuxt app.
 ---
 
 # Browser verification
 
-Two tools, both fine — pick by situation:
+**Default: `agent-browser`** (user preference, 2026-09-19). It replaced the
+Playwright MCP run for the chat attachments check one-for-one: open, fill,
+press, `wait --text`, `eval --stdin` for DOM assertions, `screenshot`,
+`console`, `close`. Load the `agent-browser` skill first, then
+`agent-browser skills get core` for the current command set. Always work in a
+named session so a parallel agent cannot hijack the tab:
+
+```bash
+export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --prefix verify)"
+agent-browser open http://localhost:3000/chat
+agent-browser snapshot -i -c          # refs @eN; re-snapshot after navigation
+agent-browser fill @e28 "질문" && agent-browser press Enter
+agent-browser wait --text "어시스턴트"  # wait on text you KNOW the answer contains
+cat <<'EOF' | agent-browser eval --stdin
+(() => ({ charts: document.querySelectorAll('.sk-chat-attachment canvas').length }))()
+EOF
+agent-browser screenshot .playwright-mcp/screenshots/<name>.png
+agent-browser console | grep -c "\[error\]"
+agent-browser close
+```
+
+Gotchas seen so far: `wait --text` times out at 25 s with no partial output,
+so wait on a string the mock is guaranteed to emit, not on one branch of it;
+a fresh profile has no persisted chart theme, so ECharts may render with a
+different theme than your own browser shows — compare structure, not colour,
+unless the theme is what you are checking. Identity works with no cookie step
+because the dev server's default `LASTUSER` is admin.
+
+The other two remain available — pick by situation:
 
 | Situation | Tool |
 | --- | --- |
