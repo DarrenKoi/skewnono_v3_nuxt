@@ -35,7 +35,7 @@ const features: FeatureTab[] = [
   // TTTM (tttm) is hidden from the nav while its design is reworked.
   // The route and page still exist and remain reachable by URL.
   // { label: 'TTTM', routeValue: 'tttm', icon: 'i-lucide-git-compare', enabledToolTypes: ['cd-sem'] },
-  { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-eye', enabledToolTypes: ['cd-sem', 'hv-sem'] }
+  { label: '스큐보아', routeValue: 'skewvoir', icon: 'i-lucide-telescope', enabledToolTypes: ['cd-sem', 'hv-sem'] }
 ]
 
 const toolTypes: ToolType[] = ['cd-sem', 'hv-sem', 'veritysem', 'provision']
