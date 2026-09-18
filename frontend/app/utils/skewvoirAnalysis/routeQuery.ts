@@ -192,7 +192,10 @@ export const toAnalysisQuery = (
   lot: sel.lot,
   recipe: sel.recipe,
   eq: sel.eq,
-  mp: encodeParam(sel.mp),
+  // A set link carries no mp: the selection's mp is the search landing's WAFER
+  // placeholder, not a pick, and resolveActiveParam would honour it over the
+  // coverage ranking whenever any one set member carries it.
+  ...(scope === 'set' ? {} : { mp: encodeParam(sel.mp) }),
   msr: sel.msr,
   msrs: (msrs && msrs.length ? msrs : [sel.msr]).filter(Boolean).join(','),
   cap: sel.capturedAt,

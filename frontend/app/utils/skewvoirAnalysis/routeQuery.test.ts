@@ -131,6 +131,16 @@ test('toAnalysisQuery falls back to [sel.msr] when the explicit set is empty', (
   assert.equal(q.msrs, 'msr-focus')
 })
 
+// A set link carries NO mp: the search landing's selection has a placeholder
+// WAFER, and resolveActiveParam honours any URL mp the set pool contains — so a
+// set whose focus recipe alone had WAFER opened on a 1-of-N parameter and the
+// Time-Series view blanked with "공유하는 파라미터가 없습니다". Absent, the
+// coverage ranking picks the parameter the most measurements share.
+test('toAnalysisQuery drops mp from a set link so the placeholder cannot pose as a pick', () => {
+  assert.equal('mp' in toAnalysisQuery(selection, 'time-series', ['msr-a', 'msr-b'], 'set'), false)
+  assert.equal(toAnalysisQuery(selection).mp, 'WAFER')
+})
+
 test('toAnalysisQuery emits scope only when one is given', () => {
   assert.equal('scope' in toAnalysisQuery(selection), false)
   assert.equal(toAnalysisQuery(selection, 'time-series', ['msr-a'], 'set').scope, 'set')

@@ -64,6 +64,7 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     eqType,
     viewModes: SKEWVOIR_VIEW_MODES,
     selection,
+    mpParam: skRoute.mpParam,
     activeKind,
     msrList,
     scope,

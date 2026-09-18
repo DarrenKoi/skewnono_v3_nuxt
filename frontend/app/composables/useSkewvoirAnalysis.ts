@@ -231,7 +231,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // against the focus file alone.
   const paramInput = computed(() => ({
     scope: ws.scope.value,
-    urlMp: ws.selection.value?.mp,
+    urlMp: ws.mpParam.value,
     focusParams: availableParams.value,
     setParams: setParams.value,
     setCoverage: setParamCoverage.value
@@ -598,7 +598,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   watch([
     () => writeBackPool.value.authoritative,
     () => writeBackPool.value.params,
-    () => ws.selection.value?.mp
+    () => ws.mpParam.value
   ], ([authoritative, pool, mp]) => {
     if (!authoritative) return
     if (pool.length === 0) return

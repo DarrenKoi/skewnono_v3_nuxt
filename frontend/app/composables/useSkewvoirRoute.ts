@@ -5,6 +5,7 @@ import {
   DEFAULT_VIEW,
   applyQueryPatch,
   encodeFdcAxis,
+  decodeParam,
   encodeParam,
   encodeTsAxis,
   encodeTsBaseline,
@@ -41,6 +42,11 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const analysisPath = `${basePath}/analysis`
 
   const selection = computed<SkewvoirSelection | null>(() => parseSelection(route.query))
+
+  // The URL `mp` AS WRITTEN — undefined when absent. `selection.mp` defaults an
+  // absent mp to WAFER, which is right for display but makes a placeholder
+  // indistinguishable from a pick; the active-parameter rule needs the raw one.
+  const mpParam = computed<string | undefined>(() => decodeParam(route.query.mp))
 
   const view = computed<SkewvoirViewKind>(() => parseView(route.query.view))
 
@@ -141,6 +147,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     basePath,
     analysisPath,
     selection,
+    mpParam,
     view,
     msrList,
     scope,
