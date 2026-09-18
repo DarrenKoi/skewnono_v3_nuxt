@@ -294,6 +294,8 @@ Row anatomy: `--sk-r-chip` radius, icon at `--sk-ink-muted`, `.sk-title` label, 
 
 **`badge-count`** — `<UBadge color="neutral" variant="subtle">` for row counts and filter counts.
 
+**`notice-new-badge`** (`<NoticeNewBadge>`) — the 16px `N` marking an unread 공지사항: on the App 정보 trigger, on its menu row, and on each notice that was new when `/notices` opened. Solid `--sk-brand` fill with `--sk-brand-fg` text at `--sk-r-sidebar` — terracotta because "new" is not a verdict and crimson is trim only. The letter is `aria-hidden` beside an `sr-only` "새 공지", so it never signals by colour alone.
+
 **`pill-on` / `pill-off`** — `.sk-pill-on` / `.sk-pill-off` status pills: 12px, weight 600, 9999px radius (the sanctioned legacy exception), `--sk-on-*` / `--sk-off-*` pairs. Always carry a text label — never color alone.
 
 **`category-tag`** — a tag naming which *kind* of thing a row is, where the kinds are peers and none is a status (DRAM/NAND on a rule row; `ebeam/rules/MemoryChip.vue` is the reference). The reflex is one hue per value, and that is what pulls `sky-*`/`amber-*`/`violet-*` into a warm page. Encode it as **tint vs neutral** instead: one value takes `--sk-brand-soft` + `--sk-brand-ink`, the rest stay `--sk-muted-surface` + `--sk-border` + `--sk-ink-muted`. Both at the same size and weight, so the tint distinguishes without ranking.

@@ -62,6 +62,9 @@ export const HEADER_LINKS: HeaderLink[] = [
   { to: null, icon: 'i-lucide-git-compare', label: '장비간 스큐(TTTM)', group: 'lab', description: '장비끼리 얼마나 맞는지 비교 · PM 튜닝 목표', activeMatch: '/tttm', scope: 'tttm' },
   { to: '/chat', icon: 'i-lucide-message-square', label: '채팅', group: 'lab', description: '데이터에 대해 물어보기', separated: true },
 
+  // First in App 정보: it is the row that carries the N badge, and the reason a user opens
+  // the menu when the trigger shows one.
+  { to: '/notices', icon: 'i-lucide-megaphone', label: '공지사항', group: 'account' },
   { to: '/intro', icon: 'i-lucide-panels-top-left', label: '앱 소개', group: 'account' },
   // API 리스트 lists this app's own endpoints — it asks nothing of a CD-SEM or HV-SEM tool,
   // so it belongs with the pages about the app rather than in 실험실. Being here also keeps

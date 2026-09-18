@@ -57,7 +57,7 @@ const TOOL_INVENTORY_PATH = '#tool-inventory'
 
 // Ops pages are logged but never ranked — the backend returns None for them.
 // Mirrors _OPS_PAGE_PREFIXES.
-const OPS_PREFIXES = ['/activity', '/admin', '/settings', '/endpoints', '/identify', '/intro']
+const OPS_PREFIXES = ['/activity', '/admin', '/settings', '/endpoints', '/identify', '/intro', '/notices']
 
 // Ordered rules: longest/most specific first. Each entry is a path fragment of
 // the canonical path (fab and, under /ebeam, the tool already removed). A path

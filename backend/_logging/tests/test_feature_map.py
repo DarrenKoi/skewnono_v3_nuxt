@@ -209,6 +209,7 @@ def test_page_to_feature_maps_frontend_paths(path, expected):
         "/endpoints",
         "/identify",
         "/intro",
+        "/notices",
     ],
 )
 def test_ops_pages_are_not_ranked(path):

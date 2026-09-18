@@ -20,6 +20,9 @@ import { headerLinksIn, isHeaderLinkActive } from '~/utils/headerNav'
 
 const route = useRoute()
 const { identity, isAnonymous, signOut } = useIdentity()
+// 공지사항 lives in this menu, so an unread notice marks the trigger — the only part of the
+// menu that is visible without opening it.
+const { hasNew: hasNewNotice } = useNotices()
 
 const open = ref(false)
 const releasing = ref(false)
@@ -28,6 +31,11 @@ const links = headerLinksIn('account')
 const isActive = (link: HeaderLink) => isHeaderLinkActive(link, route.path)
 
 const hasActiveLink = computed(() => links.some(isActive))
+
+const triggerLabel = computed(() => {
+  const base = identity.value ? `App 정보 — ${displayName(identity.value)}` : 'App 정보'
+  return hasNewNotice.value ? `${base}, 새 공지 있음` : base
+})
 
 // The panel's avatar is the name's first character — a Korean name has no spaces to build
 // initials from, so the first syllable is the whole convention. Only drawn beside a real
@@ -68,7 +76,7 @@ const releaseDeclaration = async () => {
       type="button"
       class="sk-nav-pill sk-nav-pill--sm"
       :class="hasActiveLink ? 'sk-nav-pill--active sk-nav-accent' : 'sk-nav-pill--rest'"
-      :aria-label="identity ? `App 정보 — ${displayName(identity)}` : 'App 정보'"
+      :aria-label="triggerLabel"
       aria-haspopup="menu"
       :aria-expanded="open"
     >
@@ -77,6 +85,7 @@ const releaseDeclaration = async () => {
         class="account-trigger__icon"
       />
       App 정보
+      <NoticeNewBadge v-if="hasNewNotice" />
       <UIcon
         :name="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
         class="account-trigger__icon account-trigger__chevron"
@@ -117,7 +126,11 @@ const releaseDeclaration = async () => {
             :to="link.to ?? undefined"
             :active="isActive(link)"
             @select="open = false"
-          />
+          >
+            <template #meta>
+              <NoticeNewBadge v-if="link.to === '/notices' && hasNewNotice" />
+            </template>
+          </NavHeaderMenuItem>
           <!-- Only a *declared* identity can be released; a cookie one is authoritative
                rather than chosen, so there is nothing to undo. -->
           <NavHeaderMenuItem

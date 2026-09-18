@@ -112,6 +112,7 @@ _OPS_PAGE_PREFIXES = (
     "/endpoints",
     "/identify",
     "/intro",
+    "/notices",
 )
 
 # Page segment (after /ebeam/<tool>/<fab>/) → slug. Longest match wins, so the
