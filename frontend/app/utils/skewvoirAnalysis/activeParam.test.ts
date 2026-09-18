@@ -180,6 +180,27 @@ test('no shared param: the ranking still returns a drawable single-coverage para
   }), 'ASPECT_RATIO')
 })
 
+test('when NO named param is shared, a shared unnamed MP beats a 1-of-N named one', () => {
+  // Several recipes from one tool: each named parameter lives in exactly one
+  // file, only the settling MP recurs. A 1/N named default blanks the view;
+  // the shared unnamed MP still draws a trend.
+  assert.equal(resolveActiveParam({
+    scope: 'set',
+    urlMp: undefined,
+    focusParams: [],
+    setParams: ['', 'ASPECT_RATIO', 'GATE_CD'],
+    setCoverage: new Map([['', 3], ['ASPECT_RATIO', 1], ['GATE_CD', 1]])
+  }), '')
+  // …but never over a named parameter two measurements share (the rule above).
+  assert.equal(resolveActiveParam({
+    scope: 'set',
+    urlMp: undefined,
+    focusParams: [],
+    setParams: ['', 'ASPECT_RATIO', 'GATE_CD'],
+    setCoverage: new Map([['', 3], ['ASPECT_RATIO', 2], ['GATE_CD', 1]])
+  }), 'ASPECT_RATIO')
+})
+
 test('coverage is OPTIONAL — omitting it keeps the first-named-param behaviour', () => {
   assert.equal(resolveActiveParam({
     scope: 'set', urlMp: undefined, focusParams: [], setParams: ['ASPECT_RATIO', 'CD_BOTTOM']

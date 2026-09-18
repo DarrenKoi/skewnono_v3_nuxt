@@ -120,6 +120,12 @@ export const resolveActiveParam = (input: ActiveParamInput): string => {
     for (const parameter of named) {
       if ((coverage.get(parameter) ?? 0) > (coverage.get(best) ?? 0)) best = parameter
     }
+    // Nothing named is comparable (every named parameter sits in ONE
+    // measurement — a set of different recipes from one tool), but the
+    // settling MP is shared: draw that rather than a blank panel. The sentinel
+    // rule above guards against it outranking a comparable named parameter;
+    // it never meant "show nothing instead".
+    if ((coverage.get(best) ?? 0) < 2 && (coverage.get('') ?? 0) >= 2 && pool.includes('')) return ''
     return best
   }
 
