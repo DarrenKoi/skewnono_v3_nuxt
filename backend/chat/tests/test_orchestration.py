@@ -129,6 +129,7 @@ class FakeStore:
                 "sources": result["sources"],
                 "rewrite": result.get("rewrite"),
                 "follow_ups": list(result.get("follow_ups", [])),
+                "attachments": list(result.get("attachments", [])),
             }
         )
         return dict(message)
@@ -179,6 +180,10 @@ class FakeAnswerer:
             "follow_ups": ["질문 1", "질문 2", "질문 3"],
             "rewrite": "확장된 질문",
             "tool_traces": [],
+            "attachments": [{"kind": "table", "title": "표", "tool_name": "t",
+                             "data": {"columns": ["a"], "rows": [[1]],
+                                      "row_count": 1, "truncated": False},
+                             "chart": None}],
             "prompt_tokens": 3,
             "completion_tokens": 1,
         }
@@ -352,6 +357,7 @@ def test_bundled_rewrite_and_follow_ups_are_persisted(orchestrator, fake_store):
     assistant = _settled(fake_store)
     assert assistant["rewrite"] == "확장된 질문"
     assert assistant["follow_ups"] == ["질문 1", "질문 2", "질문 3"]
+    assert assistant["attachments"][0]["title"] == "표"
 
 
 def test_the_answer_names_no_model(orchestrator, fake_store):

@@ -47,7 +47,7 @@ one agreed exception is the token counts, which the RAG may omit entirely
 from __future__ import annotations
 
 import inspect
-from typing import Any, Mapping, TypedDict
+from typing import Any, Literal, Mapping, TypedDict
 
 from backend.chat.contracts import (
     Evidence,
@@ -58,7 +58,10 @@ from backend.chat.contracts import (
 )
 
 __all__ = [
+    "ATTACHMENT_LIMIT",
     "AnswerResult",
+    "Attachment",
+    "ChartSpec",
     "CONTRACT_VERSION",
     "ContractViolation",
     "CALL_TARGET",
@@ -76,7 +79,36 @@ __all__ = [
 # so an office failure log says which contract it ran rather than leaving that
 # to be matched by hand. A date rather than semver: two parties and one
 # function, and this repo already dates its provenance marks.
-CONTRACT_VERSION = "2026-09-01"
+CONTRACT_VERSION = "2026-09-19"
+
+
+class ChartSpec(TypedDict):
+    """How to draw an attachment's data. Four fields, never an ECharts option.
+
+    The model decides WHAT to show; chat draws it with the app palette. Every
+    named column must exist in ``data.columns`` — a dangling name is a 503,
+    not an empty chart.
+    """
+
+    type: Literal["line", "bar", "scatter"]
+    x: str
+    y: list[str]
+    series_by: str | None
+
+
+class Attachment(TypedDict):
+    """Structured data riding on an answer, from one data-tool call.
+
+    ``data`` is the tool's ``ToolResult`` copied verbatim — the model never
+    retypes numbers. ``chart`` is None for a plain table. Proposed in
+    ``chat/docs/2026-09-18-chat-to-rag-data-tools-contract.md`` §2.
+    """
+
+    kind: Literal["table", "chart"]
+    title: str
+    tool_name: str
+    data: dict[str, Any]  # backend.chat.data_tools.ToolResult
+    chart: ChartSpec | None
 
 
 class AnswerResult(TypedDict):
@@ -92,6 +124,7 @@ class AnswerResult(TypedDict):
     follow_ups: list[str]
     rewrite: str | None
     tool_traces: list[ToolTrace]
+    attachments: list[Attachment]
     prompt_tokens: int | None
     completion_tokens: int | None
 
@@ -113,8 +146,20 @@ EXCEPTION_MAP: dict[type[BaseException], tuple[type[Exception], int]] = {
 # truncated here, not rejected: sending six is not a contract breach.
 RESULT_LIMIT = 5
 
+# Attachments per answer. Raised from the proposed 3 on 2026-09-19 when the
+# goal became time-ranged reports: two charts and two tables is a normal one.
+# Truncated like sources, never rejected.
+ATTACHMENT_LIMIT = 6
+
 _REQUIRED_ANSWER_KEYS = ("content", "sources", "follow_ups", "rewrite", "tool_traces")
-_OPTIONAL_ANSWER_KEYS = ("prompt_tokens", "completion_tokens")
+# `attachments` is optional so a RAG built before 2026-09-19 still passes:
+# the service is live, and this change had to be purely additive.
+_OPTIONAL_ANSWER_KEYS = ("prompt_tokens", "completion_tokens", "attachments")
+
+_ATTACHMENT_KEYS = ("kind", "title", "tool_name", "data")
+_ATTACHMENT_KINDS = frozenset({"table", "chart"})
+_CHART_TYPES = frozenset({"line", "bar", "scatter"})
+_DATA_KEYS = ("columns", "rows")
 
 _REQUIRED_SOURCE_KEYS = ("source_id", "source_type", "title", "snippet")
 _OPTIONAL_SOURCE_KEYS = (
@@ -212,10 +257,108 @@ def validate_answer(raw: Any, *, question: str) -> AnswerResult:
         "follow_ups": [str(item) for item in follow_ups],
         "rewrite": rewrite,
         "tool_traces": [dict(trace) for trace in traces],
+        "attachments": _attachments(raw.get("attachments")),
         # The one agreed-optional pair: absent and None are both fine.
         "prompt_tokens": raw.get("prompt_tokens"),
         "completion_tokens": raw.get("completion_tokens"),
     }
+
+
+def _attachments(raw: Any) -> list[Attachment]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise _fail(f"attachments must be a list, got {type(raw).__name__}.")
+    return [
+        _to_attachment(item, index)
+        for index, item in enumerate(raw[:ATTACHMENT_LIMIT])
+    ]
+
+
+def _to_attachment(item: Any, index: int) -> Attachment:
+    where = f"attachments[{index}]"
+    if not isinstance(item, Mapping):
+        raise _fail(f"{where} must be a mapping, got {type(item).__name__}.")
+    absent = [key for key in _ATTACHMENT_KEYS if key not in item]
+    if absent:
+        raise _fail(
+            f"{where} is missing {', '.join(absent)}. "
+            f"Expected keys: {', '.join(_ATTACHMENT_KEYS)}, chart."
+        )
+    kind = item["kind"]
+    if kind not in _ATTACHMENT_KINDS:
+        raise _fail(
+            f"{where}.kind is {kind!r}; expected one of "
+            f"{', '.join(sorted(_ATTACHMENT_KINDS))}."
+        )
+    title = item["title"]
+    if not isinstance(title, str) or not title.strip():
+        raise _fail(f"{where}.title must be a nonempty string.")
+    tool_name = item["tool_name"]
+    if not isinstance(tool_name, str) or not tool_name:
+        raise _fail(f"{where}.tool_name must name the data tool that produced the rows.")
+
+    data = item["data"]
+    if not isinstance(data, Mapping):
+        raise _fail(f"{where}.data must be a mapping (the tool's ToolResult).")
+    missing = [key for key in _DATA_KEYS if key not in data]
+    if missing:
+        raise _fail(
+            f"{where}.data is missing {', '.join(missing)}. Copy the tool's result "
+            "verbatim; do not rebuild it."
+        )
+    columns = data["columns"]
+    rows = data["rows"]
+    if not isinstance(columns, list) or not all(isinstance(c, str) for c in columns):
+        raise _fail(f"{where}.data.columns must be a list of strings.")
+    if not isinstance(rows, list):
+        raise _fail(f"{where}.data.rows must be a list of rows.")
+    for row_index, row in enumerate(rows):
+        if not isinstance(row, list) or len(row) != len(columns):
+            raise _fail(
+                f"{where}.data.rows[{row_index}] must be a list of "
+                f"{len(columns)} cells, one per column."
+            )
+
+    chart = _to_chart(item.get("chart"), columns, where) if kind == "chart" else None
+    return {
+        "kind": kind,
+        "title": title.strip(),
+        "tool_name": tool_name,
+        "data": {
+            "columns": list(columns),
+            "rows": [list(row) for row in rows],
+            "row_count": int(data.get("row_count", len(rows))),
+            "truncated": bool(data.get("truncated", False)),
+        },
+        "chart": chart,
+    }
+
+
+def _to_chart(chart: Any, columns: list[str], where: str) -> ChartSpec:
+    if not isinstance(chart, Mapping):
+        raise _fail(f"{where}.chart is required when kind is 'chart'.")
+    chart_type = chart.get("type")
+    if chart_type not in _CHART_TYPES:
+        raise _fail(
+            f"{where}.chart.type is {chart_type!r}; expected one of "
+            f"{', '.join(sorted(_CHART_TYPES))}."
+        )
+    x = chart.get("x")
+    y = chart.get("y")
+    series_by = chart.get("series_by")
+    if not isinstance(y, list) or not y:
+        raise _fail(f"{where}.chart.y must be a nonempty list of column names.")
+    named = [("x", x), *(("y", name) for name in y)]
+    if series_by is not None:
+        named.append(("series_by", series_by))
+    for field, name in named:
+        if name not in columns:
+            raise _fail(
+                f"{where}.chart.{field} names column {name!r}, which is not in "
+                f"data.columns ({', '.join(columns)}). Chat draws nothing it cannot find."
+            )
+    return {"type": chart_type, "x": x, "y": list(y), "series_by": series_by}
 
 
 def _to_evidence(hit: Any, index: int) -> Evidence:
@@ -348,6 +491,43 @@ def golden_answer() -> dict[str, Any]:
                 "result_count": 2,
                 "duration_ms": 412,
                 "status": "success",
+            },
+            {
+                "tool_name": "fail_issue_daily_trend",
+                "query": '{"start_date": "2026-09-12", "end_date": "2026-09-18"}',
+                "result_count": 7,
+                "duration_ms": 96,
+                "status": "success",
+            },
+        ],
+        # One chart attachment: the tool's dataframe dict, verbatim, plus how
+        # to draw it. The office answer to a manual-only question carries
+        # none — this is here so the shape has an example.
+        "attachments": [
+            {
+                "kind": "chart",
+                "title": "최근 7일 align 실패 추세 (CD-SEM)",
+                "tool_name": "fail_issue_daily_trend",
+                "data": {
+                    "columns": ["date", "exec_count", "align_fail_count", "meas_fail_count"],
+                    "rows": [
+                        ["2026-09-12", 131, 9, 30],
+                        ["2026-09-13", 128, 12, 27],
+                        ["2026-09-14", 140, 31, 33],
+                        ["2026-09-15", 137, 28, 35],
+                        ["2026-09-16", 133, 11, 29],
+                        ["2026-09-17", 129, 10, 31],
+                        ["2026-09-18", 135, 8, 28],
+                    ],
+                    "row_count": 7,
+                    "truncated": False,
+                },
+                "chart": {
+                    "type": "line",
+                    "x": "date",
+                    "y": ["align_fail_count", "meas_fail_count"],
+                    "series_by": None,
+                },
             }
         ],
     }
@@ -371,8 +551,19 @@ def _report() -> list[str]:
         f"             at most {RESULT_LIMIT} rows - chat truncates, it does not reject",
         f"  trace item {', '.join(_TRACE_KEYS)}",
         "",
-        "  exceptions",
+        f"  attachment {', '.join(_ATTACHMENT_KEYS)} required; chart required when kind=chart",
+        f"             kind in {{{', '.join(sorted(_ATTACHMENT_KINDS))}}}; "
+        "data = the tool's ToolResult verbatim (columns, rows[, row_count, truncated])",
+        f"             chart = {{type in {{{', '.join(sorted(_CHART_TYPES))}}}, x, y[], series_by}}"
+        " - every name must be in data.columns",
+        f"             at most {ATTACHMENT_LIMIT} per answer - chat truncates, it does not reject",
+        "             optional key: a RAG that sends none is still in contract",
+        "",
     ]
+    from backend.chat.data_tools import describe
+
+    lines.extend(describe())
+    lines.extend(["", "  exceptions"])
     for raised, (translated, status) in EXCEPTION_MAP.items():
         lines.append(
             f"             {raised.__name__:<16} -> {translated.__name__} -> HTTP {status}"
@@ -458,6 +649,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"        follow_ups   {len(result['follow_ups'])}")
     print(f"        rewrite      {'yes' if result['rewrite'] else 'none (unchanged)'}")
     print(f"        tool_traces  {len(result['tool_traces'])}")
+    print(f"        attachments  {len(result['attachments'])} (cap {ATTACHMENT_LIMIT})")
+    for attachment in result["attachments"]:
+        shape = f"{len(attachment['data']['rows'])}x{len(attachment['data']['columns'])}"
+        print(f"          - {attachment['kind']:<5} {shape:<8} {attachment['title']}")
     figure_less = sum(1 for hit in result["sources"] if hit["figure_id"] is None)
     print(f"        figure_id    {len(result['sources']) - figure_less} of "
           f"{len(result['sources'])} citations carry one")

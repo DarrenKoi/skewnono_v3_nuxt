@@ -24,6 +24,7 @@ RAG 측이 지식·검색·답변 생성을 전담하고, chat 측은 front 를 
 | HTTP routes, 스레드 저장(SQLite), rate limit, 신원 | chat 측 |
 | scope 사전 게이트 | chat 측 — 2026-09-01 부터 **deny-list** 입니다. 명시적 off-topic·unsafe 마커가 있는 질의만 막히고, 나머지는 마커가 없어도 RAG 에 도달합니다(`scope/policy.py`) |
 | figure 서빙 (`figure_id` → MinIO webp), SPA 화면 | chat 측 |
+| 정형 데이터 tool 카탈로그 (`data_tools.py` — 이름·JSON Schema·`call()`), `attachments` 검증·저장·화면 | chat 측 — 정의·제공만 합니다. **부르는 쪽은 RAG** (`agent_query` 안에서 function calling 으로 묶음, 2026-09-19 편지) |
 | agent loop (검색 반복·답변 생성) | RAG 측 (`agent_query`) — chat 측 구 경로는 2026-08-31 삭제되었습니다 |
 | 모델 선택·system prompt | RAG 측 — chat 은 자체 LLM 호출이 없습니다 |
 

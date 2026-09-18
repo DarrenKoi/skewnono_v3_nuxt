@@ -135,7 +135,7 @@ const send = async (text: string) => {
     id: `local-${Date.now()}`, thread_id: thread.id, role: 'user',
     request_id: null, content: text, runtime: null, scope_status: null,
     status: 'done', error_code: null, error_message: null,
-    sources: [], feedback: null, rewrite: null, follow_ups: [],
+    sources: [], feedback: null, rewrite: null, follow_ups: [], attachments: [],
     created_at: new Date().toISOString()
   })
   const succeeded = await deliver(thread.id, text, generateUuid())

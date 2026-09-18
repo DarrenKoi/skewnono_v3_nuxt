@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import time
 
+from backend.chat import data_tools
 from backend.chat.answer.contract import AnswerResult
 from backend.chat.contracts import AccessScope
 from backend.chat.answer.providers import corpus
@@ -43,6 +44,61 @@ _SEARCHES = (
 
 # The application cap, same as the office adapter's _RESULT_LIMIT.
 _RESULT_LIMIT = 5
+
+# Words that make the mock reach for a data tool, the way the office model
+# would on a report-style question. Deliberately crude: the mock has no LLM,
+# and the point is only that a home session can SEE an attachment render.
+_TREND_WORDS = ("추세", "trend", "tat", "처리량")
+_FAIL_WORDS = ("실패", "fail", "이상", "abnormal")
+
+
+def _data_attachments(question: str, scope: AccessScope) -> tuple[list[dict], list[dict]]:
+    """(attachments, traces) for a question that asks about a period.
+
+    Runs the catalogue exactly as the RAG would — ``TOOLS[name].call(args,
+    scope)`` — so the mock exercises the real tool path, mock ``data.py`` and
+    all. Last 30 days, the tools' own default window.
+    """
+    lowered = question.lower()
+    wanted: list[tuple[str, str, dict | None]] = []
+    if any(word in lowered for word in _TREND_WORDS):
+        wanted.append((
+            "recipe_tat_daily_trend",
+            "최근 30일 Recipe TAT 일별 추세 (CD-SEM)",
+            {"type": "line", "x": "date", "y": ["total_meastime"], "series_by": None},
+        ))
+    if any(word in lowered for word in _FAIL_WORDS):
+        wanted.append((
+            "fail_issue_summary",
+            "최근 30일 측정 실패 요약 (CD-SEM)",
+            None,
+        ))
+        wanted.append((
+            "fail_issue_daily_trend",
+            "최근 30일 실패 일별 추세 (CD-SEM)",
+            {"type": "bar", "x": "date", "y": ["align_fail_count", "meas_fail_count"],
+             "series_by": None},
+        ))
+    attachments: list[dict] = []
+    traces: list[dict] = []
+    for name, title, chart in wanted:
+        started = time.perf_counter()
+        result = data_tools.TOOLS[name].call({}, scope)
+        traces.append({
+            "tool_name": name,
+            "query": "{}",
+            "result_count": result["row_count"],
+            "duration_ms": int((time.perf_counter() - started) * 1000),
+            "status": "success" if result["rows"] else "empty",
+        })
+        attachments.append({
+            "kind": "chart" if chart else "table",
+            "title": title,
+            "tool_name": name,
+            "data": result,
+            "chart": chart,
+        })
+    return attachments, traces
 
 
 def answer_question(
@@ -72,11 +128,22 @@ def answer_question(
     hits.sort(key=lambda hit: (-float(hit["score"] or 0), hit["source_id"]))
     sources = hits[:_RESULT_LIMIT]
 
+    attachments, data_traces = _data_attachments(question, scope)
+    traces.extend(data_traces)
+
     if sources:
         cited = "\n".join(
             f"- {hit['title']} ({hit['locator']})" for hit in sources
         )
         content = f"찾은 근거로 답변합니다.\n\n{cited}"
+    elif attachments:
+        # A report-shaped answer: headings and a list, the markdown the office
+        # model writes and the renderer must therefore handle.
+        titles = "\n".join(f"- {item['title']}" for item in attachments)
+        content = (
+            "## 기간 요약\n\n요청하신 기간의 데이터를 아래 표와 차트로 정리했습니다.\n\n"
+            f"### 포함된 자료\n\n{titles}"
+        )
     else:
         content = _NO_HIT_ANSWER
     return {
@@ -85,6 +152,7 @@ def answer_question(
         "follow_ups": corpus.generate_follow_ups(question, content, sources),
         "rewrite": rewritten if rewritten != question else None,
         "tool_traces": traces,
+        "attachments": attachments,
         "prompt_tokens": None,
         "completion_tokens": None,
     }

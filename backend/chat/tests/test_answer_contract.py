@@ -217,3 +217,68 @@ def test_the_runner_reports_green_without_a_checkout(capsys):
         assert raised.__name__ in printed
         assert translated.__name__ in printed
         assert str(status) in printed
+
+
+# --- attachments (2026-09-19) ------------------------------------------------
+
+
+def _attachment(**overrides):
+    item = contract.golden_answer()["attachments"][0]
+    item.update(overrides)
+    return item
+
+
+def test_the_golden_payload_carries_a_valid_chart_attachment():
+    result = validate_answer(contract.golden_answer(), question=_Q)
+    assert len(result["attachments"]) == 1
+    chart = result["attachments"][0]
+    assert chart["kind"] == "chart"
+    assert chart["chart"]["type"] == "line"
+    assert chart["data"]["rows"] == contract.golden_answer()["attachments"][0]["data"]["rows"]
+
+
+def test_attachments_stay_optional_for_a_rag_that_predates_them():
+    """The service is live: an answer with no attachments key is in contract."""
+    payload = _answer()
+    del payload["attachments"]
+    assert validate_answer(payload, question=_Q)["attachments"] == []
+    assert validate_answer(_answer(attachments=None), question=_Q)["attachments"] == []
+
+
+def test_a_chart_naming_an_unknown_column_is_a_violation():
+    bad = _attachment(chart={"type": "line", "x": "date", "y": ["nope"], "series_by": None})
+    with pytest.raises(ContractViolation, match="names column 'nope'"):
+        validate_answer(_answer(attachments=[bad]), question=_Q)
+
+
+def test_a_chart_attachment_without_a_chart_is_a_violation():
+    with pytest.raises(ContractViolation, match="chart is required"):
+        validate_answer(_answer(attachments=[_attachment(chart=None)]), question=_Q)
+
+
+def test_a_table_ignores_any_chart_it_carries():
+    result = validate_answer(
+        _answer(attachments=[_attachment(kind="table")]), question=_Q
+    )
+    assert result["attachments"][0]["chart"] is None
+
+
+def test_a_ragged_row_is_a_violation():
+    item = _attachment()
+    item["data"] = dict(item["data"], rows=[["2026-09-12", 1]])
+    with pytest.raises(ContractViolation, match="rows\\[0\\] must be a list of 4 cells"):
+        validate_answer(_answer(attachments=[item]), question=_Q)
+
+
+def test_over_long_attachment_lists_are_truncated_not_rejected():
+    many = [_attachment() for _ in range(contract.ATTACHMENT_LIMIT + 2)]
+    result = validate_answer(_answer(attachments=many), question=_Q)
+    assert len(result["attachments"]) == contract.ATTACHMENT_LIMIT
+
+
+def test_the_report_names_the_data_tools():
+    from backend.chat.data_tools import TOOLS
+
+    text = "\n".join(contract._report())
+    for name in TOOLS:
+        assert name in text

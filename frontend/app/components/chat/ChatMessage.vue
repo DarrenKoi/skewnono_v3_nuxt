@@ -89,6 +89,14 @@ const removeFeedback = () => {
         v-html="html"
       />
       <!-- eslint-enable vue/no-v-html -->
+      <!-- Data attachments sit between the prose and the citations: the text
+           says what was found, the tables and charts show it, the sources say
+           where the prose came from. -->
+      <ChatAttachment
+        v-for="(attachment, index) in message.attachments ?? []"
+        :key="index"
+        :attachment="attachment"
+      />
       <ChatSources
         v-if="isAssistant"
         :sources="message.sources"
@@ -218,6 +226,58 @@ const removeFeedback = () => {
   color: var(--sk-ink);
   white-space: pre;
 }
+
+/* Report blocks (2026-09-19): headings, lists and pipe tables from the model.
+   Sized to sit inside a 0.9375rem prose lane, not to compete with the page. */
+.sk-chat-prose :deep(.sk-chat-h) {
+  margin: 0.875rem 0 0.375rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--sk-ink);
+}
+
+.sk-chat-prose :deep(h2.sk-chat-h) { font-size: 1.0625rem; }
+.sk-chat-prose :deep(h3.sk-chat-h) { font-size: 1rem; }
+.sk-chat-prose :deep(h4.sk-chat-h) { font-size: 0.9375rem; color: var(--sk-ink-muted); }
+.sk-chat-prose :deep(.sk-chat-h:first-child) { margin-top: 0; }
+
+.sk-chat-prose :deep(.sk-chat-list) {
+  margin: 0.375rem 0;
+  padding-left: 1.375rem;
+}
+
+.sk-chat-prose :deep(ul.sk-chat-list) { list-style: disc; }
+.sk-chat-prose :deep(ol.sk-chat-list) { list-style: decimal; }
+.sk-chat-prose :deep(.sk-chat-list li) { margin: 0.125rem 0; }
+
+.sk-chat-prose :deep(.sk-chat-table-wrap) {
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--sk-border-soft);
+  border-radius: var(--sk-r-card, 0.625rem);
+}
+
+.sk-chat-prose :deep(.sk-chat-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.sk-chat-prose :deep(.sk-chat-table th),
+.sk-chat-prose :deep(.sk-chat-table td) {
+  padding: 0.3rem 0.625rem;
+  border-bottom: 1px solid var(--sk-border-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sk-chat-prose :deep(.sk-chat-table th) {
+  background: var(--sk-muted-surface);
+  font-weight: 600;
+  color: var(--sk-ink-muted);
+}
+
+.sk-chat-prose :deep(.sk-chat-table tr:last-child td) { border-bottom: none; }
 
 .sk-chat-rewrite {
   margin-top: 0.5rem;

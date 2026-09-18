@@ -859,3 +859,31 @@ def test_rows_written_before_turns_had_a_lifecycle_read_as_done(
 
     assert thread["messages"][0]["status"] == "done"
     assert thread["messages"][0]["content"] == "옛 답변"
+
+
+def test_complete_turn_round_trips_attachments(monkeypatch, tmp_path):
+    """An attachment survives the reload, and an answer without one reads []."""
+    monkeypatch.setenv("SKEWNONO_CHAT_DB", str(tmp_path / "chat.db"))
+    thread = store.create_thread("u1")
+    request_id = "64d35cd4-9e07-4be8-90a3-683f94c29409"
+    store.append_user_message(thread["id"], "trend", request_id)
+    attachment = {
+        "kind": "chart",
+        "title": "추세",
+        "tool_name": "recipe_tat_daily_trend",
+        "data": {"columns": ["date", "n"], "rows": [["2026-09-01", 3]],
+                 "row_count": 1, "truncated": False},
+        "chart": {"type": "line", "x": "date", "y": ["n"], "series_by": None},
+    }
+    store.complete_turn(
+        thread["id"],
+        request_id,
+        {
+            "content": "report", "runtime": "rag", "model": None,
+            "prompt_tokens": None, "completion_tokens": None, "latency_ms": 1,
+            "sources": [], "tool_traces": [], "attachments": [attachment],
+        },
+    )
+    messages = store.get_thread("u1", thread["id"])["messages"]
+    assert messages[-1]["attachments"] == [attachment]
+    assert messages[0]["attachments"] == []

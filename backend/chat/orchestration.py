@@ -239,6 +239,7 @@ class ChatOrchestrator:
             "tool_traces": answer["tool_traces"],
             "rewrite": answer["rewrite"],
             "follow_ups": answer["follow_ups"],
+            "attachments": answer.get("attachments", []),
         }
 
     def _record_conversation(

@@ -25,7 +25,7 @@ from pathlib import Path
 _MESSAGE_COLUMNS = (
     "id,thread_id,request_id,role,content,model,runtime,scope_status,"
     "scope_reason_code,prompt_tokens,completion_tokens,latency_ms,created_at,"
-    "rewrite,follow_ups_json,status,error_code,error_message"
+    "rewrite,follow_ups_json,attachments_json,status,error_code,error_message"
 )
 
 # How long past the turn budget a `pending` row may sit before a reader stops
@@ -94,6 +94,9 @@ def _connect() -> sqlite3.Connection:
         _ensure_column(conn, "messages", "scope_reason_code", "TEXT")
         _ensure_column(conn, "messages", "rewrite", "TEXT")
         _ensure_column(conn, "messages", "follow_ups_json", "TEXT")
+        # One JSON column, not a child table: an attachment is read whole or
+        # not at all, and nothing queries inside it.
+        _ensure_column(conn, "messages", "attachments_json", "TEXT")
         # DEFAULT 'done' backfills every row written before turns had a
         # lifecycle: they are all finished, by definition. Only assistant rows
         # carry meaning here — a user row is done the moment it exists.
@@ -173,6 +176,7 @@ def _stale_pending(message: dict) -> bool:
 def _hydrate_message(conn: sqlite3.Connection, row: sqlite3.Row) -> dict:
     message = dict(row)
     message["follow_ups"] = json.loads(message.pop("follow_ups_json") or "[]")
+    message["attachments"] = json.loads(message.pop("attachments_json") or "[]")
     if _stale_pending(message):
         message["status"] = "failed"
         message["error_code"] = "gateway_timeout"
@@ -457,6 +461,7 @@ def complete_turn(thread_id, request_id, result):
             cur = conn.execute(
                 "UPDATE messages SET content=?, model=?, runtime=?, prompt_tokens=?, "
                 "completion_tokens=?, latency_ms=?, rewrite=?, follow_ups_json=?, "
+                "attachments_json=?, "
                 "status='done', error_code=NULL, error_message=NULL "
                 "WHERE id=? AND status='pending'",
                 (
@@ -464,6 +469,7 @@ def complete_turn(thread_id, request_id, result):
                     result["prompt_tokens"], result["completion_tokens"],
                     result["latency_ms"], result.get("rewrite"),
                     json.dumps(list(result.get("follow_ups") or []), ensure_ascii=False),
+                    json.dumps(list(result.get("attachments") or []), ensure_ascii=False),
                     message_id,
                 ),
             )

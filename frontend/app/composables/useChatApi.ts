@@ -40,6 +40,39 @@ export interface MessageFeedback extends FeedbackInput {
   updated_at: string
 }
 
+/**
+ * How a data attachment is drawn. Four fields, never an ECharts option: the
+ * model picks what to show, the app draws it with its own palette. Every
+ * named column exists in `data.columns` — the backend contract rejects an
+ * answer where one does not.
+ */
+export interface ChatChartSpec {
+  type: 'line' | 'bar' | 'scatter'
+  x: string
+  y: string[]
+  series_by: string | null
+}
+
+/** A dataframe dict: rows are positional against columns. */
+export interface ChatFrame {
+  columns: string[]
+  rows: (string | number | boolean | null)[][]
+  row_count: number
+  truncated: boolean
+}
+
+/**
+ * Structured data riding on an assistant turn, from one data-tool call
+ * (backend/chat/answer/contract.py Attachment). `chart` is null for a table.
+ */
+export interface ChatAttachment {
+  kind: 'table' | 'chart'
+  title: string
+  tool_name: string
+  data: ChatFrame
+  chart: ChatChartSpec | null
+}
+
 export interface ChatMessage {
   id: string
   thread_id: string
@@ -79,6 +112,8 @@ export interface ChatMessage {
    */
   rewrite: string | null
   follow_ups: string[]
+  /** Tables and charts from data tools, in answer order. Empty on most turns. */
+  attachments: ChatAttachment[]
   created_at: string
 }
 

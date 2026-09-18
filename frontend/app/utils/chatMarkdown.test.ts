@@ -45,4 +45,32 @@ describe('renderChatMarkdown', () => {
   it('returns empty string for empty input', () => {
     assert.equal(renderChatMarkdown(''), '')
   })
+
+  it('keeps two prose paragraphs as a double <br>', () => {
+    assert.equal(renderChatMarkdown('a\n\nb'), 'a<br><br>b')
+  })
+
+  it('renders headings one level down, with escaped text', () => {
+    const out = renderChatMarkdown('# 기간 요약\n### <b>세부</b>')
+    assert.match(out, /<h2 class="sk-chat-h">기간 요약<\/h2>/)
+    assert.match(out, /<h4 class="sk-chat-h">&lt;b&gt;세부&lt;\/b&gt;<\/h4>/)
+    assert.doesNotMatch(out, /<br>/)
+  })
+
+  it('renders bullet and numbered lists', () => {
+    const out = renderChatMarkdown('intro\n- one **b**\n* two\n\n1. first\n2) second')
+    assert.match(out, /^intro<ul class="sk-chat-list"><li>one <strong>b<\/strong><\/li><li>two<\/li><\/ul>/)
+    assert.match(out, /<ol class="sk-chat-list"><li>first<\/li><li>second<\/li><\/ol>$/)
+  })
+
+  it('renders a pipe table with a header row', () => {
+    const out = renderChatMarkdown('| 날짜 | 건수 |\n|---|:--:|\n| 09-12 | 9 |\n| 09-13 | 12 |\nafter')
+    assert.match(out, /<table class="sk-chat-table"><thead><tr><th>날짜<\/th><th>건수<\/th><\/tr><\/thead>/)
+    assert.match(out, /<tbody><tr><td>09-12<\/td><td>9<\/td><\/tr><tr><td>09-13<\/td><td>12<\/td><\/tr><\/tbody>/)
+    assert.match(out, /<\/table><\/div>after$/)
+  })
+
+  it('leaves a lone pipe line without a separator as prose', () => {
+    assert.equal(renderChatMarkdown('| not | a table |'), '| not | a table |')
+  })
 })

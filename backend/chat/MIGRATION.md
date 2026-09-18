@@ -250,6 +250,27 @@ checkout 이 없거나 사내 의존성이 빠진 모든 실패를 `KnowledgeUna
 seam)는 **사무실 full-path 검증 전에** 사용자 결정으로 삭제했습니다
 (2026-08-31). 되살릴 곳은 git 이며 삭제 커밋 하나를 되돌리면 됩니다.
 
+## 정형 데이터 tool — chat 이 내고 RAG 가 부릅니다 (2026-09-19)
+
+`backend/chat/data_tools.py` 의 `TOOLS` 가 카탈로그입니다. tool 하나가 feature
+의 `data.py` 함수 하나를 감싸므로 **chat 쪽에는 새 provider 가 없습니다** —
+사무실에서 어느 데이터가 나오는지는 그 feature 의 `office.py` 가 있는지에
+달려 있고, 그것은 `GET /api/health/providers` 가 이미 답합니다. 첫 세 tool
+(`recipe_tat_daily_trend`, `fail_issue_summary`, `fail_issue_daily_trend`)은
+`recipe_tat` 과 `fail_issue` 의 adapter 를 씁니다.
+
+| 사무실에서 할 일 | 누가 |
+| --- | --- |
+| `python -m scripts.verify.check_answer_contract` 로 tool 이름·인자·`attachments` 규칙을 읽습니다 | RAG 측 |
+| `agent_query` 안에서 `TOOLS` 를 function-calling tool 로 묶고, 결과를 `attachments` 로 실어 보냅니다 | RAG 측 |
+| `--live "지난 7일 CD-SEM recipe TAT 추세"` 로 한 turn 검증 — `attachments N (cap 6)` 줄이 찍히면 끝 | RAG 측 |
+| `recipe_tat` · `fail_issue` 의 `office.py` 가 최신인지 부팅 로그 `STALE office.py` 로 확인 | chat 측 |
+
+`attachments` 키는 **선택**이므로 RAG 가 아직 붙이지 않은 상태로도 서비스는
+그대로 돕니다. 자세한 뜻은 `docs/datatables/hitachi/chat_rag_contract.txt` 의
+"정형 데이터 tool 과 attachments" 절, 협상 경위는
+`docs/2026-09-18-chat-to-rag-data-tools-contract.md` 입니다.
+
 ## Figure serving — 디스크(2026-08-19)와 MinIO(2026-08-27) 모두 구현 완료
 
 `GET /api/chat/figures/<figure_id>`는 구현되어 있고, 저장소 접근은 `chat/figures.py`의

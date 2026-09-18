@@ -390,6 +390,38 @@ backend/chat/docs/)
   집에서는 전부 통과하고 사무실에서만 모든 그림이 404 나는 상태를 만들기
   때문입니다. 형식만 진짜이고 내용은 합성입니다.
 
+정형 데이터 tool 과 attachments (2026-09-19)
+- 실행 규칙(키 이름·상한·열 참조 검사)은 backend/chat/answer/contract.py 가
+  이깁니다. 여기는 뜻만 적습니다.
+- 카탈로그는 backend/chat/data_tools.py 의 TOOLS 하나이고 chat 측 소유입니다.
+  tool 하나는 feature 의 data.py 함수 하나를 감쌉니다 — 집에서는 mock.py,
+  사무실에서는 office.py 가 답하며 chat 은 어느 쪽인지 모릅니다. RAG 측은 이
+  카탈로그를 function-calling tool 로 묶어 agent_query 안에서 부릅니다
+  (사무실 gateway 가 JSON Schema tool 을 지원함, user-confirmed 2026-09-19).
+- 첫 tool 은 집계입니다: recipe_tat_daily_trend, fail_issue_summary,
+  fail_issue_daily_trend. 단건 조회(측정 행 목록)는 사용자가 페이지에서 직접
+  보므로 뒤로 미룹니다. 목표는 기간 단위의 보고서입니다 — 여러 tool 을 한
+  turn 에서 섞는 것이 정상이고, 300초 상한 안에서 RAG 가 loop 를 돕니다.
+- scope.fabs 가 비어 있으면 "제한 없음" 입니다: tool 은 모델이 채운 fab 인자를
+  그대로 씁니다. 비어 있지 않으면 모델 인자를 덮어씁니다. chat 은 지금 빈
+  값을 보내므로(orchestration.py) 실제 fab 권한 집행은 access_control 연동이
+  들어와야 시작됩니다 — tool 을 켜는 조건은 아닙니다(user-confirmed 2026-09-19).
+- attachment.data 는 tool 의 ToolResult(dataframe dict) 를 그대로 옮긴 것입니다.
+  모델은 숫자를 다시 쓰지 않습니다 — 값이 틀리면 tool(즉 data.py)이 틀린 것이고
+  모델이 틀린 것이 아닙니다. 모델이 정하는 것은 kind·title·chart 네 필드뿐입니다.
+- chart 는 ECharts option 이 아닙니다. type/x/y/series_by 만 오고 색·축·툴팁은
+  chat 이 앱 팔레트로 그립니다(frontend/app/utils/chatAttachmentChart.ts).
+  series_by 는 long-form 행을 시리즈로 나누는 열입니다.
+- 상한: 표 200 행(data_tools.ROW_LIMIT, 화면 가독성 기준 — 모델 컨텍스트 256K
+  는 이유가 아님), attachment 6 개(contract.ATTACHMENT_LIMIT, 보고서 하나가
+  차트 둘·표 둘을 싣는 것이 자연스러움). 둘 다 자릅니다, 거절하지 않습니다.
+- attachments 키는 선택입니다. 서비스가 공개 운영 중이므로 이 변경은 전부
+  추가만이어야 했고, 2026-09-19 이전 RAG 는 손대지 않아도 계약을 통과합니다.
+- 집(mock)과의 차이: answer/providers/mock.py 는 질문에 추세/실패 계열 단어가
+  있으면 카탈로그를 실제로 호출해 attachment 를 붙입니다. 어떤 tool 을 고르는지는
+  키워드 매칭이고 사무실은 모델 판단입니다 — 붙는 모양만 계약이며 고르는
+  이유는 계약이 아닙니다.
+
 관련 문서
 - backend/chat/docs/2026-09-01-chat-to-rag-structure-changes.md —
   실행 가능한 계약, 바깥 guard 삭제, turn-as-resource, 예산 240/300 을 RAG 측에

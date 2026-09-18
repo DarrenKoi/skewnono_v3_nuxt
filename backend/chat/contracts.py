@@ -105,6 +105,9 @@ class TurnResult(TypedDict):
     tool_traces: list[ToolTrace]
     rewrite: NotRequired[str | None]
     follow_ups: NotRequired[list[str]]
+    # Structured data-tool results (answer/contract.Attachment). Empty for a
+    # manual-only answer and for every scope rejection.
+    attachments: NotRequired[list[dict]]
 
 
 class MessageFeedback(TypedDict):
@@ -160,6 +163,8 @@ class Message(TypedDict):
     # on the assistant turn; user turns carry None / [].
     rewrite: str | None
     follow_ups: list[str]
+    # Tables and charts from data tools, in answer order (≤ ATTACHMENT_LIMIT).
+    attachments: list[dict]
     created_at: str
 
 
