@@ -218,7 +218,6 @@
         <EbeamPmPlanningTargets
           :target="tuning"
           :picked-tool="picked"
-          :n="primary?.n ?? 0"
           :tools="visibleTools"
         />
       </div>
@@ -498,13 +497,17 @@ const excluded = computed(() =>
   excludedTools(basis.value, primary.value?.tools ?? [], rankedCells.value)
 )
 
-// Reuse the same parameter space and group centre as the map.
+// Same parameter space as the map. The basis goes along so that, when the
+// knob leaves no group, the card can fall back to the COMPARED tools rather
+// than to everything the profile knows about (a deselected tool must not
+// quietly rejoin as a reference).
 const tuning = computed(() =>
   payload.value
     ? tuningTarget(
         payload.value.parameter_profile,
         parameters.value,
         primary.value?.tools ?? [],
+        basis.value,
         picked.value,
         toleranceIndex.value
       )

@@ -1,32 +1,42 @@
 // 튜닝 목표 — where the PM window should move one tool TO, per parameter.
 //
-// The target is the N배화 group's CENTRE OF GRAVITY: the mean position of the
-// group's members in the same space the 장비 그룹 배치도 draws. Aim a tool at
-// the centre and it is, by construction, no further from any member than the
-// group's own spread — which is the thing a PM can actually be planned against,
-// unlike a pairwise verdict that only names the one partner you are worst with.
+// The target is a REFERENCE CENTRE the picked tool is not part of, per
+// parameter, in the same nm the 장비 그룹 배치도 places tools by:
 //
-// Why this is the SAME point the map's group ring is drawn around, not merely a
-// similar one: `parameterPca` places tools by centring each column and
-// projecting onto eigenvectors, and both steps are linear. So
+//   - with an N배화 group: the MEAN of the OTHER members on that parameter.
+//     Leave-one-out, because "move to the group" is a question about the other
+//     tools' positions; an inclusive mean drags the target toward the tool being
+//     tuned and understates its delta by (n-1)/n. Reaching the LOO target makes
+//     the inclusive mean land on the same point, so the map's green cross (the
+//     inclusive centroid, see FleetMap.groupCentroid) and this table agree
+//     after the move, not before — the card labels the target so a reader
+//     does not expect the two to coincide.
+//   - with NO group at the current tolerance: the per-parameter MEDIAN of the
+//     other compared tools. Median rather than mean because the tool being
+//     tuned is often the outlier, and the fleet's mean would lean toward it.
+//     The card says this is not an N배화 centre. Zero is NOT used: the profile
+//     is an offset from the WHOLE fleet's median, not from the compared subset.
 //
-//     mean_over_members( project(row) ) === project( mean_over_members(row) )
+// Missing values are handled per COLUMN: a reference tool that did not measure
+// parameter j drops out of j's centre only, and a picked tool that did not
+// measure j gets no row for j (listed in `unmeasured`). The map keeps its
+// whole-row completeness rule — a point needs every coordinate — but a table
+// of independent per-parameter instructions does not, and gating the whole
+// card on one hole is what left it blank.
 //
-// and the centroid computed here in parameter space lands exactly on the ring's
-// centre. That is asserted in the tests rather than left as a comment, because
-// the whole value of this table is that it quotes a point the reader can see.
+// The tolerance never decides WHETHER a number is shown. It sets the group
+// (upstream) and colours the verdict per row; that is all.
 //
 // Contrast `pmAdmission.ts`, which answers a different question over a
 // different axis: whether every OCCUPIED CELL admits the tool. That is the
-// membership verdict; this is the tuning instruction. Both are true at once and
-// neither derives from the other.
+// membership verdict; this is the tuning instruction.
 //
 // Pure by construction like its neighbours: plain data in, plain data out, runs
 // under `node --test`, imports nothing from composables.
 
-import { profileRows, usableColumns, type ParameterProfile } from './parameterPca.ts'
-import { mean } from './stats.ts'
-import { effectiveToleranceNm, fractionOfLimit, type ToleranceIndex } from './tttmLimits.ts'
+import { usableColumns, type ParameterProfile } from './parameterPca.ts'
+import { mean, median } from './stats.ts'
+import { effectiveToleranceNm, fractionOfLimit, isMeasured, type ToleranceIndex } from './tttmLimits.ts'
 
 /** One parameter's tuning target for the picked tool. */
 export interface TuningTargetRow {
@@ -35,8 +45,10 @@ export interface TuningTargetRow {
   cdNm: number
   /** The picked tool's offset from the fleet median, nm. */
   currentNm: number
-  /** The group's centre of gravity on this parameter, nm — the target. */
+  /** The reference centre on this parameter, nm — the target. */
   centroidNm: number
+  /** Reference tools that measured this parameter (never the picked tool). */
+  refs: number
   /** centroid − current: signed, and the instruction. + = raise, − = lower. */
   deltaNm: number
   /** What the current tolerance allows on this parameter, in its own nm. */
@@ -48,88 +60,81 @@ export interface TuningTargetRow {
 
 export interface TuningTarget {
   eqp_id: string
-  /** Already one of the members whose mean defines the target. */
+  /** 'group': LOO mean of the N배화 group. 'basis': median of the other compared tools. */
+  source: 'group' | 'basis'
+  /** Already one of the group's members (always false for 'basis'). */
   inGroup: boolean
-  /** Group members that were placeable, and so define the centroid. */
-  members: number
   /** The columns the map and this table share, in profile order. */
   parameters: string[]
-  /**
-   * False when the picked tool did not measure every used parameter. The map
-   * cannot place it either (it is in `pca.detached`), so there is no position
-   * to take a difference from and `rows` is empty.
-   */
-  placed: boolean
+  /** Used columns with no row: the picked tool, or every reference, did not measure them. */
+  unmeasured: string[]
   /** Worst first, by |delta| against that parameter's own allowance. */
   rows: TuningTargetRow[]
   worst: TuningTargetRow | null
 }
 
 /**
- * The per-parameter tuning targets for one tool against the group's centroid.
+ * The per-parameter tuning targets for one tool.
  *
- * `null` when there is nothing to aim at: no usable column (no recipe picked,
- * so no parameter profile), no tool picked, or no group to have a centre. Those
- * are three different empty states and the caller words them separately — the
- * distinction it needs is carried by the inputs it already has, not by a
- * discriminated return.
+ * `null` only when there is nothing to compute over: no tool picked, or no
+ * usable column (no recipe, so no profile). A group is NOT required — `basis`
+ * (the compared tools) stands in, and `source` says which one answered.
  */
 export const tuningTarget = (
   profile: ParameterProfile,
   selected: readonly string[],
   group: readonly string[],
+  basis: readonly string[],
   eqpId: string | null,
   tolerance: ToleranceIndex
 ): TuningTarget | null => {
-  if (!eqpId || group.length === 0) return null
+  if (!eqpId) return null
 
   const columns = usableColumns(profile, selected)
   if (columns.length === 0) return null
   const parameters = columns.map(c => c.name)
 
-  // Placed under the SAME completeness rule the map uses, so the centroid is
-  // the mean of the tools the map actually drew. Members the map dropped are
-  // not in its ring and must not be in this mean either.
-  const { placed } = profileRows(profile, columns, [...new Set([...group, eqpId])])
-  const at = new Map(placed.map(p => [p.eqp_id, p.row]))
-
-  // `.map().filter()`, never `flatMap`: a row IS an array, so flatMap would
-  // splice the numbers of every member into one flat list and the "centroid"
-  // would be a mean over the wrong axis.
-  const memberRows = group
-    .map(eqp => at.get(eqp))
-    .filter((row): row is number[] => row !== undefined)
-  const self = at.get(eqpId)
+  const source = group.length > 0 ? 'group' : 'basis'
   const inGroup = group.includes(eqpId)
+  const refTools = (source === 'group' ? group : basis).filter(eqp => eqp !== eqpId)
+  const centre = source === 'group' ? mean : median
 
-  if (memberRows.length === 0 || !self) {
-    return {
-      eqp_id: eqpId,
-      inGroup,
-      members: memberRows.length,
-      parameters,
-      placed: self !== undefined,
-      rows: [],
-      worst: null
-    }
+  const rowOf = new Map(profile.tools.map((eqp, i) => [eqp, i]))
+  const valueOf = (eqp: string, index: number): number | null => {
+    const r = rowOf.get(eqp)
+    const v = r === undefined ? undefined : profile.values[r]?.[index]
+    return isMeasured(v) ? v : null
   }
 
-  const rows = columns.map((column, j): TuningTargetRow => {
-    const centroidNm = mean(memberRows.map(row => row[j]!))
-    const currentNm = self[j]!
+  const rows: TuningTargetRow[] = []
+  const unmeasured: string[] = []
+  for (const column of columns) {
+    const currentNm = valueOf(eqpId, column.index)
+    const refValues = refTools
+      .map(eqp => valueOf(eqp, column.index))
+      .filter((v): v is number => v !== null)
+    // No current value, or no reference on this parameter: nothing to aim
+    // from or at, and a NaN row would render as "NaN nm". Named rather than
+    // dropped, so the reader knows the parameter was asked for.
+    if (currentNm === null || refValues.length === 0) {
+      unmeasured.push(column.name)
+      continue
+    }
+    const centroidNm = centre(refValues)
     const deltaNm = centroidNm - currentNm
     const toleranceNm = effectiveToleranceNm(tolerance, column.limitCd)
-    return {
+    rows.push({
       name: column.name,
       cdNm: column.limitCd,
       currentNm,
       centroidNm,
+      refs: refValues.length,
       deltaNm,
       toleranceNm,
       index: Math.abs(fractionOfLimit(deltaNm, column.limitCd)),
       withinTolerance: Math.abs(deltaNm) <= toleranceNm
-    }
-  })
+    })
+  }
 
   // Worst first, by the CD-relative index rather than raw nm — the same
   // ranking every other TTTM surface uses, and the only one under which a
@@ -138,10 +143,10 @@ export const tuningTarget = (
 
   return {
     eqp_id: eqpId,
+    source,
     inGroup,
-    members: memberRows.length,
     parameters,
-    placed: true,
+    unmeasured,
     rows,
     worst: rows[0] ?? null
   }

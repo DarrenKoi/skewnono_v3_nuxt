@@ -20,10 +20,10 @@
       >{{ offCount ? `조정 필요 ${offCount}개` : '전 항목 허용 오차 이내' }}</span>
     </div>
 
-    <!-- Every branch below is a DIFFERENT reason for an empty table, and they
-         are worded separately on purpose: "no group exists", "no tool picked",
-         "this tool is not on the map" and "no member is on the map" would
-         otherwise collapse into one line that names the wrong cause. -->
+    <!-- Three reasons for no table, worded apart: nothing picked, nothing to
+         compute over (no profile column), and a picked tool with no measured
+         row on any used column. A missing N배화 group is NOT one of them —
+         the compared tools' median stands in, and is labelled below. -->
     <p
       v-if="!pickedTool"
       class="mt-2 sk-body text-(--sk-ink-muted)"
@@ -31,41 +31,33 @@
       배치도에서 장비를 클릭하면 튜닝 목표를 확인할 수 있습니다.
     </p>
     <p
-      v-else-if="n === 0"
-      class="mt-2 sk-body text-(--sk-ink-muted)"
-    >
-      현재 허용 오차로는 그룹이 없어 튜닝 목표를 계산할 수 없습니다.
-    </p>
-    <p
       v-else-if="!target"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
       측정 항목 데이터가 없어 튜닝 목표를 계산할 수 없습니다.
     </p>
-
-    <p
-      v-else-if="!target.placed"
-      class="mt-2 sk-body text-(--sk-ink-muted)"
-    >
-      선택한 장비에 누락된 측정 항목이 있어 조정량을 계산할 수 없습니다.
-    </p>
-
     <p
       v-else-if="!target.rows.length"
       class="mt-2 sk-body text-(--sk-ink-muted)"
     >
-      그룹에서 선택한 항목을 모두 측정한 장비가 없어 중심을 계산할 수 없습니다.
+      선택한 항목을 선택한 장비와 기준 장비가 함께 측정한 경우가 없어 조정량을 계산할 수 없습니다.
     </p>
 
     <template v-else>
-      <!-- Stated once above the rows: the target is a POSITION, not a verdict.
-           Every row is a distance to that one point, so the reader has to know
-           which point before reading any of them — and that it is the point the
-           배치도 already draws its ring around, not a second calculation. -->
+      <!-- Stated once above the rows: WHICH centre. The target is the mean of
+           the OTHER group members (leave-one-out — the point the inclusive
+           centroid will sit on once this tool gets there), or, when the current
+           tolerance yields no group, the median of the other compared tools.
+           The second is not an N배화 centre and says so. -->
       <p class="mt-1.5 sk-field-label leading-relaxed">
-        그룹 {{ target.members }}대의 중심까지 필요한 항목별 조정량입니다.
-        <template v-if="target.inGroup">
-          선택한 장비는 이미 이 그룹에 속합니다.
+        <template v-if="target.source === 'group'">
+          N배화 그룹의 다른 장비 평균까지 필요한 항목별 조정량입니다.
+          <template v-if="target.inGroup">
+            선택한 장비는 이미 이 그룹에 속합니다.
+          </template>
+        </template>
+        <template v-else>
+          현재 허용 오차로는 N배화 그룹이 없어, 비교 중인 다른 장비의 항목별 중앙값을 기준으로 계산했습니다.
         </template>
       </p>
 
@@ -80,7 +72,10 @@
                 현재
               </th>
               <th class="px-3 py-2 text-right sk-label">
-                그룹 중심
+                기준 중심
+              </th>
+              <th class="px-3 py-2 text-right sk-label">
+                기준 장비
               </th>
               <th class="px-3 py-2 text-right sk-label">
                 조정량
@@ -113,6 +108,9 @@
               <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)">
                 {{ formatSignedNm(row.centroidNm) }}
               </td>
+              <td class="px-3 py-2 text-right font-mono tabular-nums text-(--sk-ink)">
+                {{ row.refs }}대
+              </td>
               <!-- The instruction, and the only bold column: everything else on
                    the row exists to explain this one number. -->
               <td
@@ -134,7 +132,10 @@
       </div>
 
       <p class="mt-2 sk-field-label leading-relaxed">
-        단위는 nm이며, +는 높임, −는 낮춤입니다. 중심에 맞추어도 모든 장비쌍의 허용 오차 충족을 보장하지는 않습니다.
+        단위는 nm이며, +는 높임, −는 낮춤입니다. 항목마다 따로 계산한 값이라, 중심에 맞추어도 모든 장비쌍의 허용 오차 충족을 보장하지는 않습니다.
+        <template v-if="target.unmeasured.length">
+          측정값이 없어 제외한 항목: {{ target.unmeasured.join(', ') }}.
+        </template>
       </p>
     </template>
   </div>
@@ -148,8 +149,6 @@ import { formatSignedNm } from '~/utils/tttmLimits'
 const props = defineProps<{
   pickedTool: string | null
   target: TuningTarget | null
-  /** The primary group's size; 0 = no group exists (a null target means two things). */
-  n: number
   /** The payload's tools, narrowed to the comparison — labels and models. */
   tools: ToolRef[]
 }>()

@@ -131,7 +131,7 @@
 
     <p class="mt-1.5 sk-field-label leading-relaxed">
       <template v-if="pca">
-        선택한 측정 항목의 잔차로 배치하며, 초록 십자가 튜닝 목표인 그룹 중심입니다.
+        선택한 측정 항목의 잔차로 배치하며, 초록 십자가 N배화 그룹의 중심입니다.
       </template>
       <template v-else>
         장비별 마지막 측정의 쌍별 거리로 배치하며, 측정 항목이 없어 튜닝 목표는 계산하지 않습니다.
@@ -293,7 +293,12 @@ const groupSet = computed(() => new Set(props.groupTools ?? []))
  *
  * Members the map dropped (`map.detached` — a tool sharing no measurement with
  * anyone has no defined distance, so MDS cannot place it) do not move the
- * centroid. Even one placed member defines the same centre that tuningTarget uses.
+ * centroid.
+ *
+ * This is the INCLUSIVE centroid — every placed member, the picked one too.
+ * The 튜닝 목표 card aims at the mean of the OTHER members (leave-one-out),
+ * which is where this cross ends up once the picked tool gets there; the two
+ * differ before the move by design, and the card says which centre it quotes.
  */
 const groupCentroid = computed(() => {
   const members = (props.groupTools ?? [])
