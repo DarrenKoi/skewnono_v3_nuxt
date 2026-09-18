@@ -294,7 +294,7 @@ Row anatomy: `--sk-r-chip` radius, icon at `--sk-ink-muted`, `.sk-title` label, 
 
 **`badge-count`** — `<UBadge color="neutral" variant="subtle">` for row counts and filter counts.
 
-**`notice-new-badge`** (`<NoticeNewBadge>`) — the 16px `N` marking an unread 공지사항: on the App 정보 trigger, on its menu row, and on each notice that was new when `/notices` opened. Solid `--sk-brand` fill with `--sk-brand-fg` text at `--sk-r-sidebar` — terracotta because "new" is not a verdict and crimson is trim only. The letter is `aria-hidden` beside an `sr-only` "새 공지", so it never signals by colour alone.
+**`notice-new-badge`** (`<NoticeNewBadge>`) — the 16px `N` marking an unread 공지사항: on the App 정보 trigger, on its menu row, and on each unread notice in the `/notices` timeline, where reading is explicit (모두 읽음 처리) rather than marked on open. Solid `--sk-brand` fill with `--sk-brand-fg` text at `--sk-r-sidebar` — terracotta because "new" is not a verdict and crimson is trim only. The letter is `aria-hidden` beside an `sr-only` "새 공지", so it never signals by colour alone.
 
 **`pill-on` / `pill-off`** — `.sk-pill-on` / `.sk-pill-off` status pills: 12px, weight 600, 9999px radius (the sanctioned legacy exception), `--sk-on-*` / `--sk-off-*` pairs. Always carry a text label — never color alone.
 
