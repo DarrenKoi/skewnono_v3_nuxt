@@ -36,36 +36,6 @@
         </div>
         <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span class="sk-field-value">{{ step.recipe_id }}</span>
-          <span class="inline-flex items-center gap-2">
-            <UTooltip
-              v-for="action in RECIPE_ROW_ACTIONS"
-              :key="action.screen"
-              :text="action.label"
-            >
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :icon="action.icon"
-                :aria-label="`${step.recipe_id} ${action.label}`"
-                :to="recipeDetailRoute('cd-sem', step.fac_id.toLowerCase(), action.screen, step.recipe_id, 'redis', step.fac_id)"
-                target="_blank"
-                @click.stop
-              />
-            </UTooltip>
-            <UTooltip text="스큐보아">
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-telescope"
-                :aria-label="`${step.recipe_id} 스큐보아`"
-                :to="skewvoirSearchRoute('cd-sem', { recipe: step.recipe_id, fab: step.fac_id })"
-                target="_blank"
-                @click.stop
-              />
-            </UTooltip>
-          </span>
           <span class="sk-badge bg-(--sk-muted-surface) text-(--sk-ink-muted) ring-1 ring-(--sk-border) ring-inset">{{ step.oper_id }}</span>
           <span class="sk-field-label">
             samp_seq <span class="sk-field-value">{{ step.samp_seq }}</span>
@@ -124,8 +94,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { isFlaggedStep, type StepOutlier } from '~/utils/lotOutlierSteps'
-import { RECIPE_ROW_ACTIONS, recipeDetailRoute } from '~/utils/recipeView'
-import { skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 
 // 판정하지 않는 카드입니다. flagged 도 note 도 toOutlierDrill 이 이미 정한
 // 값을 그대로 읽습니다 (utils/deviceDrill.ts) — 여기서 다시 계산하면 그쪽
