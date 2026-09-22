@@ -493,15 +493,25 @@ def search_meas_hist(
             # context scores 0 for every hit, so a whole-name `should` is the
             # only thing that scores, and `_score desc` puts those rows ahead
             # of the substring hits. constant_score keeps it a flat 1/0 tier
-            # rather than a BM25 number that varies with term rarity.
+            # rather than a BM25 number that varies with term rarity. `term`
+            # (not `terms`) because only `term` takes case_insensitive — the
+            # substring wildcard above ignores case, so the exact tier must too.
             query["bool"]["should"] = [
                 {
                     "constant_score": {
                         "filter": {
                             "bool": {
                                 "should": [
-                                    {"terms": {_FULL_KW: recipe_terms}},
-                                    {"terms": {_RECIPE_KW: recipe_terms}},
+                                    {
+                                        "term": {
+                                            field: {
+                                                "value": term.strip(),
+                                                "case_insensitive": True,
+                                            }
+                                        }
+                                    }
+                                    for term in recipe_terms
+                                    for field in (_FULL_KW, _RECIPE_KW)
                                 ],
                                 "minimum_should_match": 1,
                             }

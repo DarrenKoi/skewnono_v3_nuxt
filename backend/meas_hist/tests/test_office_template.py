@@ -425,14 +425,16 @@ def test_recipe_search_scores_exact_names_ahead_of_substring_hits(monkeypatch):
         office_example, "_composite_buckets", lambda *_a, **_k: [], raising=False
     )
 
-    office_example.search_meas_hist(recipe=["RJ1BXXX_CG6300/RJ1B_BG"], limit=1)
+    office_example.search_meas_hist(recipe=["rj1bxxx_cg6300/RJ1B_BG"], limit=1)
 
     body = captured["raw_body"]
     assert body["sort"][0] == {"_score": "desc"}
     should = body["query"]["bool"]["should"]
+    # case_insensitive on every term: the mock folds case for the exact tier,
+    # and a lower-cased search must rank the same at the office.
     assert should[0]["constant_score"]["filter"]["bool"]["should"] == [
-        {"terms": {office_example._FULL_KW: ["RJ1BXXX_CG6300/RJ1B_BG"]}},
-        {"terms": {office_example._RECIPE_KW: ["RJ1BXXX_CG6300/RJ1B_BG"]}},
+        {"term": {field: {"value": "rj1bxxx_cg6300/RJ1B_BG", "case_insensitive": True}}}
+        for field in (office_example._FULL_KW, office_example._RECIPE_KW)
     ]
 
     office_example.search_meas_hist(limit=1)
