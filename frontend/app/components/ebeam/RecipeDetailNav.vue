@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 import {
   buildRecipeDetailNavItems,
   readRecipeSourceQuery,
@@ -58,6 +59,19 @@ const items = computed(() => buildRecipeDetailNavItems(
           @click="item.active && $event.preventDefault()"
         />
       </div>
+      <!-- 스큐보아 is a separate page, not a detail screen, so it sits beside
+           the screen switcher rather than inside it — same link the
+           recipe-search row offers. -->
+      <UButton
+        v-if="hasSkewvoir(toolType)"
+        size="sm"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-telescope"
+        label="스큐보아"
+        class="font-semibold"
+        :to="skewvoirSearchRoute(toolType, { recipe: recipeName, fab: ownerFab })"
+      />
     </nav>
 
     <!-- Recipe identity lives on the right, mirroring the stats cluster in the
