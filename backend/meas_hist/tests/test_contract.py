@@ -203,3 +203,35 @@ def test_synthesized_rows_keep_id_equals_msr():
     for row in rows:
         if row["msr_check"] == "No":
             assert row["msr"] == ""
+
+
+def test_exact_recipe_hits_rank_ahead_of_substring_hits(monkeypatch):
+    """`recipe:A/B` 는 A/B 행을 먼저, A/B_LONGER 같은 부분 일치 행은 그 뒤에
+    보여 줍니다 (각 그룹 안에서는 최신순). office 는 should 절 점수로 같은
+    순서를 만듭니다 — test_office_template 이 그 body 를 고정합니다."""
+    from backend.meas_hist.providers import mock
+
+    base = mock._all_rows()[0]
+    older = dict(mock._with_recipe(base, "RJ1BXXX_CG6300", "RJ1B_BG"))
+    older["timestamp"] = "2026-06-01T00:00:00+00:00"
+    newer = dict(mock._with_recipe(base, "RJ1BXXX_CG6300", "RJ1B_BGHMPOEB"))
+    newer["timestamp"] = "2026-06-02T00:00:00+00:00"
+    monkeypatch.setattr(mock, "_all_rows", lambda: [newer, older])
+    monkeypatch.setattr(mock, "_resolve_window", lambda *_a: (
+        mock.datetime(2026, 5, 1, tzinfo=mock.timezone.utc),
+        mock.datetime(2026, 7, 1, tzinfo=mock.timezone.utc),
+        False,
+        mock.datetime(2026, 7, 1, tzinfo=mock.timezone.utc),
+    ))
+
+    rows = mock.search_meas_hist(recipe=["RJ1BXXX_CG6300/RJ1B_BG"])["rows"]
+    assert [r["full_name"] for r in rows] == [
+        "RJ1BXXX_CG6300/RJ1B_BG",
+        "RJ1BXXX_CG6300/RJ1B_BGHMPOEB",
+    ]
+    # Without a recipe term the order is plain newest-first.
+    rows = mock.search_meas_hist()["rows"]
+    assert [r["full_name"] for r in rows] == [
+        "RJ1BXXX_CG6300/RJ1B_BGHMPOEB",
+        "RJ1BXXX_CG6300/RJ1B_BG",
+    ]

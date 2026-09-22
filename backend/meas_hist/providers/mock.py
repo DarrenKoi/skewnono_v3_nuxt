@@ -610,6 +610,13 @@ def _matches_recipe_term(row: MeasHistRow, term: str) -> bool:
     return needle in row["full_name"].lower() or needle in row["recipe_name"].lower()
 
 
+def _is_exact_recipe(row: MeasHistRow, terms: list[str]) -> bool:
+    """Whole-name hit on full_name or recipe_name (same case rule as the
+    substring match) — the tier that sorts ahead of fragment hits."""
+    needles = {term.lower() for term in terms}
+    return row["full_name"].lower() in needles or row["recipe_name"].lower() in needles
+
+
 def _matches_any_term(row: MeasHistRow, terms: list[str]) -> bool:
     """OR fallback terms across an explicit field allowlist."""
     needles = [term.casefold() for term in terms if term]
@@ -691,6 +698,12 @@ def search_meas_hist(
     )
 
     rows.sort(key=lambda r: r["timestamp"], reverse=True)
+    if recipe_terms:
+        # Exact recipe hits first, then the substring hits, newest-first within
+        # each tier (stable sort keeps the timestamp order). `recipe:A/B`
+        # otherwise drowns in the newer runs of `A/B_LONGER_NAME`. The office
+        # ranks the same way via a should-clause score; keep the two aligned.
+        rows.sort(key=lambda r: not _is_exact_recipe(r, recipe_terms))
 
     total = len(rows)
     capped = total > MAX_RESULT_WINDOW

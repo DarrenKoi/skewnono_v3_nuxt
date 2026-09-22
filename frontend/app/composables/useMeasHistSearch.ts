@@ -291,10 +291,15 @@ export const useMeasHistSearch = (toolType: MeasHistToolType) => {
   //
   // Session state like the rest of the search, so returning from an analysis
   // finds the table ordered the way it was left. Defaults to the backend's own
-  // timestamp-desc, meaning nothing moves until a header is actually clicked.
+  // order, meaning nothing moves until a header is actually clicked — and the
+  // rows are passed through untouched at that default, because the backend's
+  // order is not plain timestamp-desc: a `recipe:` search ranks exact-name
+  // hits ahead of substring hits, which a client re-sort would flatten.
   const sort = useState<MeasHistSort>(key('sort'), () => ({ ...DEFAULT_MEAS_HIST_SORT }))
 
-  const sortedRows = computed(() => sortMeasHistRows(narrowedRows.value, sort.value))
+  const sortedRows = computed(() =>
+    isReordered(sort.value) ? sortMeasHistRows(narrowedRows.value, sort.value) : narrowedRows.value
+  )
 
   const toggleSort = (column: MeasHistSortKey) => {
     sort.value = nextMeasHistSort(sort.value, column)

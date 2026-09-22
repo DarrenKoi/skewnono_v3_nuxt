@@ -413,3 +413,27 @@ def test_msr_filter_and_q_both_reach_id_only_documents(monkeypatch):
     # Both the explicit msr= filter and the pasted-into-the-search-bar path
     # must carry an ids clause; _id cannot be wildcarded, only matched whole.
     assert str(captured["raw_body"]).count("ids") >= 2
+
+
+def test_recipe_search_scores_exact_names_ahead_of_substring_hits(monkeypatch):
+    """Mirror of the mock's exact-first tier: the body sorts on _score before
+    time, and the only scoring clause is a whole-name should on the term."""
+    captured = {}
+    _stable_window(monkeypatch)
+    monkeypatch.setattr(office_example, "_os_search", lambda _i: _FakeSearch(captured))
+    monkeypatch.setattr(
+        office_example, "_composite_buckets", lambda *_a, **_k: [], raising=False
+    )
+
+    office_example.search_meas_hist(recipe=["RJ1BXXX_CG6300/RJ1B_BG"], limit=1)
+
+    body = captured["raw_body"]
+    assert body["sort"][0] == {"_score": "desc"}
+    should = body["query"]["bool"]["should"]
+    assert should[0]["constant_score"]["filter"]["bool"]["should"] == [
+        {"terms": {office_example._FULL_KW: ["RJ1BXXX_CG6300/RJ1B_BG"]}},
+        {"terms": {office_example._RECIPE_KW: ["RJ1BXXX_CG6300/RJ1B_BG"]}},
+    ]
+
+    office_example.search_meas_hist(limit=1)
+    assert "should" not in captured["raw_body"]["query"]["bool"]

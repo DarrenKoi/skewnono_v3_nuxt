@@ -487,10 +487,31 @@ def search_meas_hist(
         # the mock truncates to); a page starting past it is legally empty.
         from_ = min(offset, MAX_RESULT_WINDOW)
         size = max(min(limit, MAX_RESULT_WINDOW - from_), 0)
-        query = {"bool": {"filter": clauses}}
+        query: dict[str, Any] = {"bool": {"filter": clauses}}
+        if recipe_terms:
+            # Exact recipe hits first (mock's _is_exact_recipe): the filter
+            # context scores 0 for every hit, so a whole-name `should` is the
+            # only thing that scores, and `_score desc` puts those rows ahead
+            # of the substring hits. constant_score keeps it a flat 1/0 tier
+            # rather than a BM25 number that varies with term rarity.
+            query["bool"]["should"] = [
+                {
+                    "constant_score": {
+                        "filter": {
+                            "bool": {
+                                "should": [
+                                    {"terms": {_FULL_KW: recipe_terms}},
+                                    {"terms": {_RECIPE_KW: recipe_terms}},
+                                ],
+                                "minimum_should_match": 1,
+                            }
+                        }
+                    }
+                }
+            ]
         body: dict[str, Any] = {
             "query": query,
-            "sort": [{_TIME_F: "desc"}],
+            "sort": [{"_score": "desc"}, {_TIME_F: "desc"}],
             "from": from_,
             "size": size,
             "track_total_hits": True,
