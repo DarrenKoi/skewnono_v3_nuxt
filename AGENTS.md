@@ -1,164 +1,85 @@
 # Repository Guidelines
 
-## Project Structure & Architecture
-This repository now follows the two-app plan described in `CLAUDE.md`.
+**Read [`CLAUDE.md`](CLAUDE.md) first.** It is the canonical agent guide for
+this repo. It is written for Claude Code, but it binds every agent. This file
+only adds what `CLAUDE.md` does not carry, and where the two disagree,
+`CLAUDE.md` wins.
 
-- `frontend/`: Nuxt frontend workspace. The app currently runs on Nuxt 4 with `@nuxt/ui`, `ssr: false`, and a Nitro dev proxy that forwards `/api/*` to `NUXT_API_TARGET`.
-- `backend/`: Flask mock backend for the home/offline phase. It mirrors the office backend shape so the frontend can keep the same API contract across environments.
-- `docs/`: shared documentation and teammate-facing Markdown.
-- root `package.json`: repo-level Markdown lint tooling. Root `node_modules/` is still required for `lint:md`.
+## Covered in CLAUDE.md
 
-Key frontend paths:
-- `frontend/app/pages/`: route-driven views.
-- `frontend/app/components/`: reusable UI components.
-- `frontend/app/composables/`: shared Composition API logic.
-- `frontend/app/stores/`: shared client state. **Not Pinia** — Pinia is not
-  a dependency of this project. `navigation.ts` is a `useState`-backed store in
-  the Nuxt-built-ins style described in CLAUDE.md; anything that must survive a
-  reload goes through `composables/usePersistedState.ts`.
-- `frontend/app/assets/css/`: global styles.
-- `frontend/public/`: static assets.
-- `frontend/app/data/`: local reference content used by the frontend.
+| Topic | `CLAUDE.md` section |
+| --- | --- |
+| Home / office / cloud phases, config-only switching | Three-Phase Deployment Strategy |
+| Provider swap (`providers/office.py` vs `mock.py`; never edit `data.py`) | Architecture Patterns → API Abstraction Layer |
+| Mock fidelity, `OFFICE-VERIFY`, datatables sync | Office DB knowledge lands in TWO places |
+| Feature folders, blueprint auto-discovery, `contrib/` | Feature-sliced Backend Layout |
+| `useAsyncData` caching, no Pinia, `usePersistedState` | Tech Stack |
+| Colors and visual rules (`DESIGN.md`) | Visual language |
+| Everyday run / test / lint commands | Commands |
+| Rate limits, `LASTUSER` identity, pyarrow pool, scheduler | Runtime gotchas |
+| Commit messages, explicit-path staging, worktrees | Development Notes → Git Workflow |
+| Markdown lint, `MD060` compact tables, Korean docs | Markdown Notes |
 
-Key backend paths:
-- `index.py` (repo root): WSGI entry that exposes `app` and `application`; imports `create_app` from `backend`.
+## Key Paths
+
+- `frontend/`: Nuxt 4 SPA. `app/pages/` routes, `app/components/`, `app/composables/`, `app/stores/` (`useState`-backed, not Pinia), `app/assets/css/`, `app/data/` (local reference content), `public/`.
+- `backend/`: Flask API. The same code runs in every phase; only the adapter under each feature's `providers/` changes.
+- `index.py` (repo root): WSGI entry exposing `app` and `application`; imports `create_app` from `backend`.
 - `wsgi.ini` (repo root): uWSGI config (`module = index`, `callable = application`).
-- `backend/__init__.py`: Flask app factory; registers each feature's blueprint under `/api`.
-- `backend/health/`: service health API for backend dependencies.
-- `backend/<feature>/routes.py`: blueprint + route handlers for one Nuxt-tab-aligned feature.
-- `backend/<feature>/data.py`: stable dispatcher that picks the feature's adapter — do **not** edit it. The Phase 2/3 swap surface is `providers/office.py`; see `docs/back-end/provider-selection.md`.
+- `backend/health/`: health API, including `GET /api/health/providers`.
+- `docs/`: teammate-facing documentation.
+- Root `package.json`: Markdown lint tooling only; root `node_modules/` is required for `lint:md`.
 
-## Deployment Phases
-The repo is structured around configuration-only environment switching.
+## Setup and Extra Commands
 
-- Phase 1, home/offline: run `backend/` locally on `http://localhost:5050` with in-memory mock data.
-- Phase 2, company/localhost: keep the same Flask API shape but swap to company-local data sources.
-- Phase 3, company/production: Flask serves the built frontend and uses production infrastructure.
+The day-to-day commands are in `CLAUDE.md` → Commands. First-time setup and the
+less common ones:
 
-Cross-phase rule:
-- Keep frontend API usage stable.
-- Change configuration and backend data-access wiring, not frontend feature code.
-- Preserve response shapes when replacing mock modules with real implementations.
-- Make mock data resemble the office data as closely as what we know allows —
-  identifier shape, which axes vary independently, spread, nulls. A mock tidier
-  than the office hides the office's bugs. Fabricate what is genuinely unknown
-  and mark it `OFFICE-VERIFY`.
+- Backend venv: CPython 3.11 at `.venv/`, matching the office interpreter. The
+  home venv is uv-built and has no `pip`, so `.venv/bin/python -m pip` fails
+  there. Create and fill it with
+  `uv venv --python 3.11 .venv && uv pip install -r backend/requirements-dev.txt`.
+  `requirements-dev.txt` adds pytest and ruff to `requirements.txt`, which stays
+  test-free so the Phase 3 install ships no test runner.
+- `uwsgi --ini wsgi.ini`: serve production-style.
+- From `frontend/`: `npm run dev:remote` (bind `0.0.0.0`), `npm run build`
+  (`nuxt generate`), `npm run preview`.
+- From the repo root: `npm run lint:md:fix` auto-fixes supported Markdown issues.
 
-## Build, Test, and Development Commands
-Use the command set that matches the workspace you are editing.
+Environment variables:
 
-Development happens on macOS: `npm` on PATH, and a CPython 3.14 virtualenv at
-`.venv/` driven as `.venv/bin/python` (no activation step needed).
+- `NUXT_API_TARGET`: where Nuxt proxies `/api/*`; defaults to `http://localhost:5050`.
+- `NUXT_PUBLIC_API_BASE`: defaults to `/api`.
+- `NUXT_PORT`: frontend dev port; default `3000`.
+- `PORT`: Flask port; default `5050` because `5000` conflicts with macOS AirPlay.
 
-From the repo root:
-- `npm install`: install repo-level Markdown tooling.
-- `npm run lint:md`: lint Markdown files.
-- `npm run lint:md:fix`: auto-fix supported Markdown issues.
+## Coding Style
 
-From `frontend/`:
-- `npm install`: install frontend dependencies.
-- `npm run dev`: start Nuxt at `http://localhost:3000`.
-- `npm run dev:remote`: start Nuxt bound to `0.0.0.0`.
-- `npm run build`: create a production build (`nuxt generate`).
-- `npm run preview`: preview the production build.
-- `npm run lint`: run ESLint.
-- `npm run typecheck`: run Nuxt/Vue TypeScript checks.
-- `npm test`: run the Node test runner over `app/**/*.test.ts`.
+- Vue 3 + TypeScript with Nuxt file-based routing.
+- ESLint via `@nuxt/eslint`; do not bypass lint failures. `frontend/nuxt.config.ts` enforces no trailing commas and `1tbs` braces.
+- 2-space indentation; keep files formatter-friendly.
+- Composables are `useXxx.ts`, stores are named by domain, components are PascalCase.
+- In Flask, keep `routes.py` to routes and response behaviour; data access goes through the feature's `data.py` dispatcher.
 
-Backend (run from the repo root):
-- `python3 -m venv .venv`: create a local virtual environment.
-- `.venv/bin/python -m pip install -r backend/requirements.txt`: install Flask backend dependencies.
-- `.venv/bin/python -m pip install -r backend/requirements-dev.txt`: same plus pytest and ruff, for running the gates.
-- `.venv/bin/python index.py`: start the Flask dev server on `http://localhost:5050`.
-- `.venv/bin/python -m ruff check .`: run the Python static gate (~0.02 s).
-- `.venv/bin/python -m pytest tests backend -q`: run the backend test suite (~2 min).
-- `uwsgi --ini wsgi.ini`: serve via uWSGI (production-style).
+## Testing
 
-Environment notes:
-- `NUXT_API_TARGET` controls where Nuxt proxies `/api/*`; `nuxt.config.ts` already defaults it to `http://localhost:5050`, matching the home Flask port.
-- `NUXT_PUBLIC_API_BASE` defaults to `/api`.
-- `NUXT_PORT` overrides the frontend dev port; default is `3000`.
-- `PORT` overrides the Flask port; the default is `5050` because `5000` conflicts with macOS AirPlay.
+`.github/workflows/ci.yml` gates every push with two jobs: `lint + pytest` for
+the backend, which runs `ruff check .` **before** pytest, and `typecheck + test`
+for the frontend. The backend job's name says `lint` on purpose. While it was
+called `pytest`, a ruff break that stopped pytest from ever running was reported
+for a week as "pytest Failed". CI runs CPython 3.14; the home and office venvs
+run 3.11. Frontend `npm run lint` is not gated yet because `main` still carries
+pre-existing lint errors in untouched files.
 
-## Coding Style & Naming Conventions
-- Use Vue 3 + TypeScript patterns with Nuxt file-based routing in `frontend/`.
-- Follow ESLint via `@nuxt/eslint`; do not bypass lint failures.
-- `frontend/nuxt.config.ts` enforces no trailing commas and `1tbs` brace style.
-- Prefer 2-space indentation and keep files formatter-friendly.
-- Name composables as `useXxx.ts`, stores by domain, and Vue components in PascalCase.
-- Keep route files descriptive and colocated by feature.
-- For cached frontend reads, use Nuxt's `useAsyncData(key, fn)` and share one key per resource (see `composables/useSemListApi.ts` `useSemList()`). TanStack Query (Vue Query) is not used in this project — Nuxt's built-in caching covers our needs.
-- In Flask, keep `routes.py` focused on route and response behavior. The environment swap should happen in each feature's `data.py`, not inside route handlers.
-- Preserve API response shapes when moving from mock data to real backends.
+- Office gate: after `cp backend/<feature>/providers/office_example.py backend/<feature>/providers/office.py`, run `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest backend/<feature> -q`. Without the copy the run fails with a `RuntimeError` naming the exact `cp` command. It never falls back to mock silently, so a green run really did exercise the office adapter.
+- Frontend tests use Node's built-in runner. The tree has no Vitest, Jest, jsdom, or `@vue/test-utils`, so only pure functions are covered. `@playwright/test` is a devDependency only because the Playwright MCP server needs it; it is not a suite.
+- Colocate new tests: `X.test.ts` beside `X.ts`, and `backend/<feature>/tests/` beside the feature.
 
-## Markdown Conventions
-- Run `npm run lint:md` after editing Markdown files.
-- Avoid markdownlint `MD060` by using the `compact` table style consistently.
-- Write tables like `| Column | Value |` with delimiter rows like `| --- | --- |`.
-- Do not vertically align pipes with extra hyphens or mix table styles in the same file.
-- Write Markdown under `docs/` and teammate-facing study material in Korean when it is meant for internal sharing.
-- In those documents, use formal sentence endings such as `~입니다.` and `~합니다.` consistently.
+## Commits
 
-## Testing Guidelines
-Both workspaces have a working test runner, and `.github/workflows/ci.yml` gates
-both on every push: a `lint + pytest` job for the backend and a
-`typecheck + test` job for the frontend. The backend job runs `ruff check .`
-**before** pytest, and its name says so on purpose — while it was called
-`pytest`, a ruff break that stopped pytest from ever running was reported for a
-week as "pytest Failed". Frontend `npm run lint` is deliberately not gated yet,
-because `main` still carries pre-existing lint errors in untouched files.
-
-Backend — pytest on CPython 3.14, installed from `backend/requirements-dev.txt`
-(kept out of `requirements.txt` so the Phase 3 production install ships no test
-runner). Always run from the repo root, in the `python -m pytest` form: `-m` is
-what puts the repo root on `sys.path` so tests can import `backend.*`.
-
-- `.venv/bin/python -m ruff check .`: the Python static gate (~0.02 s), scoped to pyflakes `F` plus the core `E4`/`E7`/`E9` and `B` rules. Run it first — CI does, and it is the cheapest way to catch a symbol renamed in one place and not another.
-- `.venv/bin/python -m pytest tests backend -q`: the whole backend suite (~3040 tests, ~115 s — budget the two minutes; the device-statistics weekly-snapshot tests each build a real 4000-lot payload). Both roots matter — `tests/` holds the cross-feature Flask suites, and `backend/**/tests/` holds the per-feature provider contract suites, which are the larger half and the part that guards the mock→office swap.
-- `.venv/bin/python -m pytest -q`: identical collection. Root `pyproject.toml` sets `testpaths = ["tests", "backend"]`, so the bare form and the explicit one are interchangeable.
-- `.venv/bin/python -m pytest backend/<feature> -q`: one feature, against whichever provider currently resolves (mock at home).
-- `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest backend/<feature> -q`: the Phase 2 office gate. Run it at the office after `cp backend/<feature>/providers/office_example.py backend/<feature>/providers/office.py`. Without that copy the run fails loudly with a `RuntimeError` naming the exact `cp` command — it never silently falls back to mock, so a green run really did exercise the office adapter.
-
-Frontend — Node's built-in test runner (`node --test "app/**/*.test.ts"`). There
-is no Vitest, Jest, jsdom, or `@vue/test-utils` in the tree.
-
-- `npm test` from `frontend/`: colocated `*.test.ts` files next to the code they cover.
-- `npm run typecheck` and `npm run lint` remain the other frontend gates.
-- Only pure functions are covered. Without a mounting harness, `.vue` components have no unit tests, and there is **no automated E2E suite** — no Playwright config and no spec files exist. `@playwright/test` is present only as a devDependency behind the Playwright MCP server, which is an interactive tool a developer or agent drives by hand, not a suite CI can run.
-
-Other notes:
-
-- For docs-only changes, rerun `npm run lint:md` from the repo root.
-- Colocate new tests with the code they cover: `X.test.ts` beside `X.ts`, and `backend/<feature>/tests/` beside the feature.
-
-## Commit Guidelines
-
-This is a solo project developed directly on `main`: no pull requests, no
-feature branches (see CLAUDE.md's Git Workflow). Everything a PR description
-would have carried goes in the commit body instead, because the commit log is
-the only record anyone reads later.
-
-- Subject line in the existing `type(scope): summary` style, scoped to one change.
-- Add a body whenever the subject alone is not self-evident, covering what changed and why. Impacted routes or APIs, environment variables, and phase-specific assumptions belong here.
-- Keep commits reviewable: avoid mixing unrelated frontend, backend, and docs changes unless they are part of the same feature.
-- Verify UI changes in the running app before committing — see the `verify` skill. There is no reviewer downstream to catch a regression.
-
-### Staging and isolation (several sessions share one tree)
-
-More than one agent session usually runs against this single working tree, so
-staging is not a private act — a broad stage picks up whatever another session
-has mid-edit.
-
-- **Stage only the files you edited yourself, by explicit path**: `git commit -- path/a path/b`, or `git add <exact paths>` then `git commit`.
-- **Banned outright**: `git add -A`, `git add .`, `git commit -a`, bare `git stash`, and whole-tree `git checkout` / `git restore`. These fail silently rather than loudly — the commit succeeds and carries someone else's unfinished work.
-- **Touching more than one file? Work in a `git worktree`** so your index is your own:
-
-  ```bash
-  git worktree add ../skewnono-<task> -b work/<task>
-  # edit / test / commit inside ../skewnono-<task>
-  git merge --ff-only work/<task> && git push      # back in the main tree
-  git worktree remove ../skewnono-<task> && git branch -d work/<task>
-  ```
-
-- **Remove the worktree as soon as the work is pushed to `main`** — the last two commands above are part of the task, not cleanup for later. Confirm with `git worktree list` that only the main tree remains.
-- `work/<task>` is scaffolding for the worktree, not a feature branch; it is deleted on merge, so this does not contradict "developed directly on `main`" above.
+This is a solo project developed on `main` with no pull requests, so the commit
+body carries what a PR description would have: impacted routes or APIs,
+environment variables, and phase-specific assumptions. Keep unrelated frontend,
+backend, and docs changes in separate commits. Verify UI changes in the running
+app before committing, following `.claude/skills/browser-verify/SKILL.md`,
+because no reviewer downstream will catch a regression.
