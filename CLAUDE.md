@@ -26,7 +26,7 @@ Web application for metrology, specified for tool management and data analytics.
 
 ## Tech Stack
 
-Nuxt 4 (`ssr: false`, SPA) + NuxtUI 4 + ECharts 6 · Flask on CPython 3.14.
+Nuxt 4 (`ssr: false`, SPA) + NuxtUI 4 + ECharts 6 · Flask on CPython 3.11 (the office's interpreter; ruff targets `py311`, CI also runs 3.14).
 
 **Data fetching note:** Use `useAsyncData(key, fn)` for cached, deduplicated reads. Share one cache key per resource (e.g. `'sem-list'`) so multiple components reuse the same fetch — see `composables/useSemListApi.ts`'s `useSemList()` for the pattern. TanStack Query (Vue Query) is **not** used; introduce it only if you need TTL (`staleTime`), background refetch on focus, polling, or key-prefix invalidation — none of which apply to the current mock-data flows.
 
@@ -103,12 +103,12 @@ assumption).
 - `backend/contrib/<slug>/` is the teammates' area and the one exception: it loads **fail-soft** (a broken package is skipped and listed in `app.config["SKEWNONO_CONTRIB_FAILED"]` + the boot log). Procedure: `docs/contributing/in-repo/README.md`.
 - Handlers depend only on data-access functions (e.g. `get_sem_list()`), never on DB drivers directly, so the home↔office swap is isolated to `providers/office.py`. Office adapters must normalize results to the `contracts.py` type — "resemble the mock" means match the contract shape, not the mock's data.
 
-### Repository Layout
+### Visual language
 - **`DESIGN.md` is the single source of truth for the frontend's visual language** — read it before any UI change. Colors come from `--sk-*` tokens only, never inline hex; where the code and `DESIGN.md` disagree, the code is what gets corrected.
 
 ## Commands
 
-Backend, from the repo root (CPython 3.14 venv; no activation step needed):
+Backend, from the repo root (CPython 3.11 venv, matching the office; no activation step needed):
 
 ```bash
 .venv/bin/python index.py                              # Flask on :5050, hot-reloads at home
@@ -147,7 +147,7 @@ browser by hand — load the `browser-verify` skill first (it picks the tool;
 ### Runtime gotchas
 - `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `backend/__init__.py`.
 - Identity at home is the `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix = blocked by access control.
-- `index.py` sets `ARROW_DEFAULT_MEMORY_POOL=system` before any import — **do not remove**. PyArrow 25's bundled mimalloc segfaults on macOS/Python 3.14 when a fresh thread first allocates, and the dev server runs every request on a fresh thread.
+- `index.py` sets `ARROW_DEFAULT_MEMORY_POOL=system` before any import — **do not remove**. PyArrow 25's bundled mimalloc segfaulted on macOS (seen under Python 3.14) when a fresh thread first allocates, and the dev server runs every request on a fresh thread.
 - Periodic jobs live in `backend/_scheduler/`, not in feature folders.
   Exactly one process runs them (uWSGI worker 1; the Werkzeug reloader's app
   child at home). `wsgi.ini`'s `lazy-apps` and `enable-threads` are
