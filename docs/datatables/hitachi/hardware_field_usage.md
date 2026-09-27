@@ -371,7 +371,7 @@ keyword, so this index may be too. Check the mapping.
 | `beam_condition` | string, e.g. `HR0500_IP0080` | the page always shows **one** condition (first in sorted order) | — |
 | `CenterX`, `CenterY` | float or numeric string | scatter plot | non-numeric → null, a blank point |
 | `BestReso`, `ResoIScenter` | float | two trend lines on one nm axis | same as above |
-| `ResoDelta` | float, stored (`ResoIScenter − BestReso`, ≥ 0) | tooltip; **never recomputed** | missing → `—` |
+| `ResoData` | float, stored (`ResoIScenter − BestReso`, ≥ 0). Spelled `ResoData`, not `ResoDelta` (user-confirmed 2026-09-28) | tooltip; **never recomputed** | missing → `—` |
 | `eqp_id`, `fac_id`, `category` | string | passed through | a missing `eqp_id` is filled from the request |
 
 The index also carries `Resolution_Range*` and `fdc_category`. They are
@@ -396,7 +396,7 @@ Mapping excerpt. The `.keyword` subfields are **assumed** (OFFICE-VERIFY).
   "CenterY": -0.99,
   "BestReso": 2.98,
   "ResoIScenter": 3.04,
-  "ResoDelta": 0.06,
+  "ResoData": 0.06,
   "beam_condition": "HR0500_IP0080",
   "timestamp": "2026-04-20T12:55:16",
   "timestamp_date": "2026-04-20",

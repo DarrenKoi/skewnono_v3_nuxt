@@ -14,7 +14,7 @@ plausibly break:
 * the doc is exactly the mock's 13 flat fields. Focus Sweep was removed but
   its wide `Resolution_Range*` objects still ride along in `_source`
   (`enabled: false`), so they must not reach the page;
-* `ResoDelta` is passed through as indexed, never recomputed from
+* `ResoData` is passed through as indexed, never recomputed from
   `ResoIScenter - BestReso`. Recomputing would silently repair the exact
   ingestion bug the two-line trend chart is meant to expose.
 """
@@ -43,7 +43,7 @@ RAW_HIT = {
     "CenterY": "-0.99",
     "BestReso": 2.98,
     "ResoIScenter": "3.04",
-    "ResoDelta": 0.06,
+    "ResoData": 0.06,
     "beam_condition": "HR0500_IP0080",
     "timestamp": "2026-05-20T12:55:16",
     "timestamp_date": "2026-05-20",
@@ -108,14 +108,14 @@ def test_normalize_coerces_numeric_strings_to_floats():
     assert all(isinstance(out[f], float) for f in office._NUMERIC_FIELDS)
 
 
-def test_reso_delta_is_passed_through_as_indexed_not_recomputed():
-    """A stored ResoDelta that disagrees with the difference is DATA, not a bug
+def test_reso_data_is_passed_through_as_indexed_not_recomputed():
+    """A stored ResoData that disagrees with the difference is DATA, not a bug
     to fix here. Recomputing it would hide an ingestion fault behind a chart
     whose two lines then always match their own gap."""
     inconsistent = {**RAW_HIT, "BestReso": 2.98, "ResoIScenter": 3.04,
-                    "ResoDelta": 0.99}
+                    "ResoData": 0.99}
     out = office._normalize(inconsistent, EQP, IP)
-    assert out["ResoDelta"] == 0.99  # not 0.06
+    assert out["ResoData"] == 0.99  # not 0.06
 
 
 def test_normalize_rejects_a_hit_belonging_to_another_tool():

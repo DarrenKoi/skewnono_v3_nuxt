@@ -22,10 +22,10 @@
           class="h-72 w-full"
         />
       </div>
-      <!-- Resolution trend: BestReso + ResoIScenter share one axis; gap = ResoDelta -->
+      <!-- Resolution trend: BestReso + ResoIScenter share one axis; gap = ResoData -->
       <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
         <div class="mb-1 px-1 sk-title">
-          BestReso · ResoIScenter <span class="font-normal text-(--sk-ink-muted)">(gap = ResoDelta)</span>
+          BestReso · ResoIScenter <span class="font-normal text-(--sk-ink-muted)">(gap = ResoData)</span>
         </div>
         <div
           ref="trendEl"
@@ -124,7 +124,7 @@ const trendOption = computed<EChartsOption>(() => {
   const rows = ordered.value
   // BestReso and ResoIScenter are the same physical quantity (resolution, nm),
   // so they share one y-axis — the visible vertical gap between them IS
-  // ResoDelta. Fit the range over both series together.
+  // ResoData. Fit the range over both series together.
   const yRange = stableYRange(rows.flatMap(d => [num(d.BestReso), num(d.ResoIScenter)])) ?? { scale: true }
   const bestData = rows.map(d => [toEpoch(tsOf(d)), num(d.BestReso)])
   const iscData = rows.map(d => [toEpoch(tsOf(d)), num(d.ResoIScenter)])
@@ -139,7 +139,7 @@ const trendOption = computed<EChartsOption>(() => {
         const arr = Array.isArray(params) ? params : [params]
         const d = rows[arr[0]?.dataIndex ?? -1]
         if (!d) return ''
-        return `${tsOf(d)}<br/>Best ${fmt(d.BestReso)} · ISCenter ${fmt(d.ResoIScenter)} · Δ ${fmt(d.ResoDelta)}`
+        return `${tsOf(d)}<br/>Best ${fmt(d.BestReso)} · ISCenter ${fmt(d.ResoIScenter)} · Δ ${fmt(d.ResoData)}`
       }
     },
     legend: { top: 0, textStyle: { fontSize: 10 } },

@@ -4,8 +4,10 @@ Raw doc shape from `docs/datatables/hitachi/hardware_reso_center_data.txt`: cent
 (`CenterX`/`CenterY`) plus three resolution scalars, then the metadata tail.
 `BestReso` is the best-focus resolution (the minimum over the focus sweep);
 `ResoIScenter` is the resolution at center focus, so it sits at or above
-`BestReso`. `ResoDelta` is their difference (`ResoIScenter - BestReso`, >= 0),
+`BestReso`. `ResoData` is their difference (`ResoIScenter - BestReso`, >= 0),
 derived here rather than rolled independently so the three stay consistent.
+The office field is spelled `ResoData`, not `ResoDelta` (user-confirmed
+2026-09-28); the name reads oddly for a difference, but it is the source's.
 
 Focus Sweep is intentionally not modeled — the wide `Resolution_Range*` objects
 were dropped along with the sweep chart. Deterministic per eqp_id; ascending
@@ -69,7 +71,7 @@ def _build_doc(
 ) -> dict:
     best = round(rng.uniform(2.90, 3.10), 2)
     # Center focus is at or worse than best focus, so ResoIScenter >= BestReso
-    # and ResoDelta (their difference) is a small non-negative degradation.
+    # and ResoData (their difference) is a small non-negative degradation.
     reso_is_center = round(best + rng.uniform(0.0, 0.12), 2)
     reso_delta = round(reso_is_center - best, 2)
     doc: dict = {
@@ -78,7 +80,7 @@ def _build_doc(
         "CenterY": round(rng.uniform(-1.5, 1.5), 2),
         "BestReso": best,
         "ResoIScenter": reso_is_center,
-        "ResoDelta": reso_delta,
+        "ResoData": reso_delta,
         "beam_condition": beam_condition,
         "timestamp": moment.strftime("%Y-%m-%dT%H:%M:%S"),
         "timestamp_date": moment.strftime("%Y-%m-%d"),

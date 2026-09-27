@@ -2,7 +2,7 @@
 
 Pins the flat field contract after Focus Sweep removal: the doc carries exactly
 the 13 scalar/metadata fields — none of the wide `Resolution_Range*` sweep
-objects, no `fdc_category` — and `ResoDelta` is the derived difference
+objects, no `fdc_category` — and `ResoData` is the derived difference
 `ResoIScenter - BestReso` (>= 0), not an independent random value.
 """
 
@@ -19,7 +19,7 @@ EXPECTED_FIELDS = {
     "CenterY",
     "BestReso",
     "ResoIScenter",
-    "ResoDelta",
+    "ResoData",
     "beam_condition",
     "timestamp",
     "timestamp_date",
@@ -51,7 +51,7 @@ def test_docs_carry_exactly_the_flat_field_set():
         assert REMOVED_FIELDS.isdisjoint(doc)
 
 
-def test_resodelta_is_iscenter_minus_bestreso_and_non_negative():
+def test_resodata_is_iscenter_minus_bestreso_and_non_negative():
     for doc in _docs():
-        assert doc["ResoDelta"] == round(doc["ResoIScenter"] - doc["BestReso"], 2)
-        assert doc["ResoDelta"] >= 0
+        assert doc["ResoData"] == round(doc["ResoIScenter"] - doc["BestReso"], 2)
+        assert doc["ResoData"] >= 0

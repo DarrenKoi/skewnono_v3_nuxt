@@ -34,7 +34,9 @@ and ``fdc_category`` are NOT returned. They are mapped ``enabled: false`` and so
 still ride along in ``_source``; the explicit ``SOURCE_FIELDS`` projection is
 what keeps them off the wire rather than a post-hoc delete.
 
-``ResoDelta`` is the stored difference ``ResoIScenter - BestReso`` (>= 0) — it is
+``ResoData`` (spelled so at the office — user-confirmed 2026-09-28; this file
+said ``ResoDelta`` until then) is the stored difference
+``ResoIScenter - BestReso`` (>= 0) — it is
 passed through as indexed and never recomputed. Recomputing would paper over an
 ingestion bug that the two-line trend chart is meant to expose.
 
@@ -95,7 +97,7 @@ SOURCE_FIELDS = [
     "CenterY",
     "BestReso",
     "ResoIScenter",
-    "ResoDelta",
+    "ResoData",
     "beam_condition",
     "timestamp",
     "timestamp_date",
@@ -107,7 +109,7 @@ SOURCE_FIELDS = [
 
 # Numeric scalars: the source mixes floats and numeric strings within one index
 # (the same pattern beam_shape shows), so every one is coerced.
-_NUMERIC_FIELDS = ("CenterX", "CenterY", "BestReso", "ResoIScenter", "ResoDelta")
+_NUMERIC_FIELDS = ("CenterX", "CenterY", "BestReso", "ResoIScenter", "ResoData")
 
 
 def _as_float(value: Any) -> float | None:
@@ -316,9 +318,9 @@ if __name__ == "__main__":  # pragma: no cover
     print(f"  category      : {first['category']!r}")
     for key in _NUMERIC_FIELDS:
         print(f"  {key:<13} : {first[key]!r}")
-    delta = first["ResoDelta"]
+    delta = first["ResoData"]
     derived = (first["ResoIScenter"] or 0) - (first["BestReso"] or 0)
-    print(f"  ResoDelta stored={delta!r}  vs ResoIScenter-BestReso={derived:.2f}")
+    print(f"  ResoData stored={delta!r}  vs ResoIScenter-BestReso={derived:.2f}")
     print("  (stored value is passed through as indexed; a mismatch here is an")
     print("   ingestion bug to report, NOT something this adapter should fix)")
     print("\nOK — roster and index both answered.")
