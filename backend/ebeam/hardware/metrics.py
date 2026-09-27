@@ -32,6 +32,8 @@ BEAM_SHAPE_METRICS: list[BeamShapeMetric] = [
     {"key": "Reso Detector", "kind": "profile16", "low": 0.0030, "high": 0.0070},
     {"key": "Noise", "kind": "profile16", "low": 6.00, "high": 6.50},
     {"key": "Focus offset", "kind": "profile16", "low": 4.00, "high": 8.00},
+    # "Apature" is the fab tool's own spelling (user-confirmed 2026-09-28) —
+    # not a typo; "Aperture" would match nothing at the office.
     {"key": "Apature angle factor", "kind": "profile16", "low": 0.00100, "high": 0.00160},
     # --- scalars ----------------------------------------------------------
     {"key": "Major Axis", "kind": "scalar", "low": 8.05, "high": 8.20},

@@ -23,6 +23,8 @@ for the type total we have a doc like this.
 'Ave. Reso Detector':float 0.003042
 'Ave. Noise': float 6.27704
 'Ave. Apature angle factor': float 0.001214
+               (★ 'Apature' 는 오타가 아니라 장비(fab tool)가 정한 실제 field 이름입니다.
+                'Aperture' 로 고치지 마십시오 — user-confirmed 2026-09-28.)
 'type': str 'total'
 'beam_condition':str 'HR0800_IP0080'
 'timestamp'

@@ -287,7 +287,8 @@ tab is empty.
 dropped.** A real metric whose name differs from this list, even by one
 character, vanishes silently. `Ellipticity` was spelled `Ellipicity` here
 until 2026-09-28 and was corrected on the user's word (user-confirmed).
-`Apature` still follows the home sample and is **OFFICE-VERIFY**; check it.
+`Apature` (not `Aperture`) is the real spelling, set by the fab tool
+(user-confirmed 2026-09-28). Do not report it as a mismatch.
 
 | Key | Expected source shape | Output | If wrong |
 | --- | --- | --- | --- |
