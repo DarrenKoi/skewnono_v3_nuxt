@@ -65,11 +65,10 @@ Environment variables:
 
 `.github/workflows/ci.yml` gates every push with two jobs: `lint + pytest` for
 the backend, which runs `ruff check .` **before** pytest, and `typecheck + test`
-for the frontend. The backend job's name says `lint` on purpose. While it was
-called `pytest`, a ruff break that stopped pytest from ever running was reported
-for a week as "pytest Failed". CI runs CPython 3.14; the home and office venvs
-run 3.11. Frontend `npm run lint` is not gated yet because `main` still carries
-pre-existing lint errors in untouched files.
+for the frontend. The backend job's name says `lint` on purpose: ruff runs
+first, so a lint break must not show up as a pytest failure. CI runs CPython
+3.14; the home and office venvs run 3.11. Frontend `npm run lint` is not gated
+yet because `main` still carries pre-existing lint errors in untouched files.
 
 - Office gate: after `cp backend/<feature>/providers/office_example.py backend/<feature>/providers/office.py`, run `SKEWNONO_<FEATURE>_PROVIDER=office .venv/bin/python -m pytest backend/<feature> -q`. Without the copy the run fails with a `RuntimeError` naming the exact `cp` command. It never falls back to mock silently, so a green run really did exercise the office adapter.
 - Frontend tests use Node's built-in runner. The tree has no Vitest, Jest, jsdom, or `@vue/test-utils`, so only pure functions are covered. `@playwright/test` is a devDependency only because the Playwright MCP server needs it; it is not a suite.
