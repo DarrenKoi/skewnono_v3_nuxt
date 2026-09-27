@@ -57,7 +57,8 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          # Must match local dev (.venv is CPython 3.14).
+          # Not the home/office interpreter: those venvs are CPython 3.11
+          # (ruff targets py311). CI runs 3.14 on top of that.
           python-version: '3.14'
           cache: pip
           cache-dependency-path: backend/requirements*.txt
