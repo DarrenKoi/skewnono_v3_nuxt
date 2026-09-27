@@ -1,8 +1,8 @@
 # Dev/test dependencies. Kept out of requirements.txt so the Phase 3 production
 # install (private cloud) does not ship a test runner.
 #
-#   uv pip install -r backend/requirements-dev.txt   # home venv is uv-built, no pip
-#   (a pip-based venv: .venv/bin/python -m pip install -r backend/requirements-dev.txt)
+#   .venv/bin/python -m pip install -r backend/requirements-dev.txt   # office (pip)
+#   uv pip install -r backend/requirements-dev.txt                    # home (uv, no pip)
 #   .venv/bin/python -m pytest tests backend -q
 #
 # Both paths matter: `tests/` alone omits every backend/<feature>/tests/
