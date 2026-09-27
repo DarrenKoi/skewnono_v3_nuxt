@@ -73,6 +73,62 @@ Notation below: `kw` means the term query uses the `.keyword` subfield (the
 base field is assumed to be analyzed `text`). `bare` means it queries the
 field directly (it is assumed to be `keyword` or `date`).
 
+**About the "Expected sample" blocks.** Each section ends with what the code
+expects to find in the database: a mapping excerpt and one `_source` document
+for OpenSearch, or the raw value for Redis and MinIO.
+
+- The samples are **built from what the code accepts, not copied from real
+  data.** IPs, ids and note text are illustrative. Where a value's real
+  spelling is unknown, the sample says `OFFICE-VERIFY`.
+- `jsonc` blocks use `/* … */` comments to mark elided keys.
+- The mapping excerpts list only the fields the code relies on.
+- Put one real sample next to each block and diff them. That is the fastest
+  way to find a `NAME`, `TYPE` or `VALUE` mismatch.
+
+## 0. Tool roster — `sem_list` (shared by several tabs)
+
+The Hardware page reads only three columns of this roster: `eqp_id` (the
+tool selector), `eqp_ip` (used by sharpness and reso-center) and `fab_name`
+(used by mdc history). The full schema is in `sem_list.txt`. This source has
+been live at the office since 2026-07-20.
+
+### Expected sample — `sem_list`
+
+Redis holds pandas DataFrames serialized with `to_parquet()`. The raw bytes
+start with `PAR1`.
+
+```text
+GET v3_df_sem_avail    -> b"PAR1..."   columns: fac_id, eqp_id, eqp_model_cd, eqp_grp_id,
+                                                vendor_nm, eqp_ip, fab_name, updt_dt, available
+GET v3_df_sem_version  -> b"PAR1..."   columns: eqp_ip, version
+```
+
+The two keys are LEFT-merged on `eqp_ip`. One row after the merge:
+
+```json
+{
+  "fac_id": "M16",
+  "eqp_id": "6MCDE305",
+  "eqp_model_cd": "CG6300",
+  "eqp_grp_id": "CDSEM_G1",
+  "vendor_nm": "HITACHI",
+  "eqp_ip": "10.0.12.41",
+  "fab_name": "M16A",
+  "updt_dt": "2021-03-04T00:00:00",
+  "available": "On",
+  "version": "7.20"
+}
+```
+
+The rules the hardware tabs rely on:
+
+- `eqp_id` is spelled exactly as in `network_fdc_cdsem`, `beam_shape_cdsem`
+  and `fab_inform_notes` (the FDC match was confirmed 2026-07-23).
+- `eqp_ip` is spelled exactly as in `sharpness_monitor_cdsem.ip` and
+  `reso_center_cdsem.eqp_ip`: a bare dotted quad, no port.
+- `fab_name` is uppercase and matches the Redis hash fields of
+  `mdc_setting`/`sce_info` and the MinIO file names `{FAB}.json`.
+
 ## 1. FDC — OpenSearch `network_fdc_cdsem`
 
 **Query:**
@@ -115,6 +171,36 @@ Items arrive as strings and are parsed as numbers where needed.
   - Note that the sample in `hardware_network_fdc_cdsem.txt` has `'25,0'`, with
     a comma. It does not parse as a number and would drop out of the list.
 
+### Expected sample — `network_fdc_cdsem`
+
+Mapping excerpt. This one is office-confirmed: the index is dynamic-mapped.
+
+```json
+{
+  "eqp_id":    { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+  "fdc_key":   { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+  "timestamp": { "type": "date" },
+  "values":    { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } }
+}
+```
+
+One `_source` per `fdc_key`. Every item in `values` is a string.
+
+```jsonc
+{ "eqp_id": "6MCDE305", "eqp_model_cd": "CG6300", "fab_name": "M16A", "eqp_ip": "10.0.12.41",
+  "fdc_key": "TemperatureEChuck", "timestamp": "2026-06-17T09:20:00",
+  "values": ["TemperatureEChuck", "0", "1", "23.39053"] }
+
+{ "fdc_key": "SPMVoltages", "timestamp": "2026-06-17T09:20:00", /* + the 4 identity fields */
+  "values": ["SPMVoltages", "0", "B", "7", "1", "1", "spline", "-0.2", "0", "-0.4", "0.0", "-1.2" /* … ~100 numbers */] }
+
+{ "fdc_key": "LaserPower", "timestamp": "2026-06-17T09:20:00",
+  "values": ["LaserPower", "0", "0.78", "0.73", "341990938", "46504250"] }
+
+{ "fdc_key": "ContactpinConductionInfo", "timestamp": "2026-06-17T09:20:00",
+  "values": ["ContactpinConductionInfo", "0", "B", "3", "Conduction", "-5.0", "-5.0", "0.0", "5.0", "182671"] }
+```
+
 ## 2. Sharpness — OpenSearch `sharpness_monitor_cdsem`
 
 **Query:**
@@ -142,6 +228,46 @@ roster.
 Expected pairing: `SEM_Cond_No` 5 ↔ `Vacc` 500 and 6 ↔ 800. Report any other
 pair you find. Other `beam_condition` sub-keys (`Vsup`, `Ip`, `Optics`, …) are
 ignored by the page.
+
+### Expected sample — `sharpness_monitor_cdsem`
+
+Mapping excerpt, user-confirmed 2026-07-22 (explicit mapping, not dynamic).
+
+```json
+{
+  "ip":             { "type": "keyword" },
+  "timestamp":      { "type": "date" },
+  "os_inserted":    { "type": "date" },
+  "beam_condition": { "type": "object" },
+  "reso_detector":  { "type": "object" },
+  "noise":          { "type": "object" },
+  "reso_eb":        { "type": "object" },
+  "summ_beam":      { "type": "object" }
+}
+```
+
+```jsonc
+{
+  "ip": "10.0.12.41",
+  "timestamp": "2026-06-17T09:20:00",
+  "os_inserted": "2026-06-17T09:31:12",
+  "beam_condition": {
+    "Serial_No": "OFFICE-VERIFY", "SEM_Cond_No": 6, "Vacc": 800, "Vsup": 1.80,
+    "Ip": "OFFICE-VERIFY", "Optics": "OFFICE-VERIFY", "Detector": "OFFICE-VERIFY"
+    /* … AL3_x_offset, AL3_y_offset and other keys, unread by the page */
+  },
+  "reso_detector": { "0.0": 0.0051, "22.5": 0.0049 /* … 16 keys, step 22.5, up to "337.5" */ },
+  "noise":         { "0.0": 6.10,   "22.5": 6.12   /* … same 16 keys */ },
+  "reso_eb":       { "0.0": 8.01,   "22.5": 7.98   /* … same 16 keys */ },
+  "summ_beam": {
+    "Ellipticity": 1.023, "Major Axis": 8.12, "Minor Axis": 7.94,
+    "Offset": 0.31, "Tilt": -35.1, "x_range": 8.07, "y_range": 8.00
+  }
+}
+```
+
+The degree keys must be the strings `"0.0"`, `"22.5"` … `"337.5"`. A key
+spelled `"0"` would be read as a different angle from `"0.0"`.
 
 ## 3. BSM (beam shape) — OpenSearch `beam_shape_cdsem`
 
@@ -176,6 +302,51 @@ Default charts: trend A `Ellipicity`, trend B `Ave. Noise`, radar A `Reso EB`,
 radar B `Reso Detector`. If a default key is absent, the chart falls back to
 the first available metric.
 
+### Expected sample — `beam_shape_cdsem`
+
+Mapping excerpt. The `text+keyword` types are **assumed** (OFFICE-VERIFY).
+
+```json
+{
+  "type":         { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+  "fdc_category": { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+  "eqp_id":       { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+  "fab_name":     { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+  "timestamp":    { "type": "date" }
+}
+```
+
+The `_source` of a `type: "total"` document, as the adapter expects to
+receive it. This is the source shape, before the adapter reshapes it:
+
+```jsonc
+{
+  "category": "I-diff_hp",
+  "type": "total",
+  "fdc_category": "bsi_beam_shape",
+  "beam_condition": "HR0800_IP0080",
+  "timestamp": "2026-06-17T09:20:00",
+  "timestamp_date": "2026-06-17",
+  "eqp_id": "6MCDE305", "eqp_ip": "10.0.12.41", "fac_id": "M16", "fab_name": "M16A",
+
+  "degree":        [0.0, 22.5 /* … 16 numbers, up to 337.5 */],
+  "Reso EB":       [8.0668 /* … exactly 16 */],
+  "Reso Detector": [0.005665, 0.005116 /* … exactly 16 */],
+  "Noise":         [6.069593, "6.118456" /* … exactly 16; numeric strings are fine */],
+  "Focus offset":  [4.6745, 7.53525 /* … exactly 16 */],
+  "Apature angle factor": [0.00117, 0.001521 /* … exactly 16 */],
+  "Reso EB Focus":        [["8.94623", "8.096161" /* … 16 inside ONE inner list */]],
+  "Reso EB Focus Range":  ["8.0000"],
+
+  "Major Axis": 8.124588, "Minor Axis": 7.941668, "Ellipicity": 1.023033,
+  "Tilt": -35.09035, "X range": 8.06693, "Y range": 7.995835, "Area": 202.704313,
+  "Ave. Reso Detector": 0.003042, "Ave. Noise": 6.27704, "Ave. Apature angle factor": 0.001214
+}
+```
+
+Documents with `type: "index2"` (`RR00 Reso EB`, `RR90 Reso EB`) also live in
+this index. The page does not read them.
+
 ## 4. Reso Center — OpenSearch `reso_center_cdsem`
 
 The office alias was confirmed 2026-07-27. `reso_center_log` is the value of
@@ -205,6 +376,36 @@ keyword, so this index may be too. Check the mapping.
 
 The index also carries `Resolution_Range*` and `fdc_category`. They are
 deliberately not fetched.
+
+### Expected sample — `reso_center_cdsem`
+
+Mapping excerpt. The `.keyword` subfields are **assumed** (OFFICE-VERIFY).
+
+```json
+{
+  "eqp_ip":    { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+  "fab_name":  { "type": "text", "fields": { "keyword": { "type": "keyword" } } },
+  "timestamp": { "type": "date" }
+}
+```
+
+```json
+{
+  "category": "reso_center_log",
+  "CenterX": 1.15,
+  "CenterY": -0.99,
+  "BestReso": 2.98,
+  "ResoIScenter": 3.04,
+  "ResoDelta": 0.06,
+  "beam_condition": "HR0500_IP0080",
+  "timestamp": "2026-04-20T12:55:16",
+  "timestamp_date": "2026-04-20",
+  "eqp_id": "6MCDE305",
+  "eqp_ip": "10.0.12.41",
+  "fac_id": "M16",
+  "fab_name": "M16A"
+}
+```
 
 ## 5. BM/PM — OpenSearch `fab_inform_notes` + `tool_maintenance_plan`
 
@@ -250,6 +451,60 @@ every marker disappears.** List the distinct values you find.
 Cards: `Last BM` = the newest past row with category BM. `Next PM` = the
 soonest future row with category PM.
 
+### Expected sample — `fab_inform_notes` / `tool_maintenance_plan`
+
+Mapping excerpt, taken from `ops_index_mgmt/*.py` as described in
+`hardware_bm_pm.txt`. The date fields are mapped explicitly; everything else
+is dynamic `text+keyword`.
+
+```json
+{
+  "fab_inform_notes": {
+    "eqp_id":      { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+    "down_dt":     { "type": "date" },
+    "equp_dt":     { "type": "date" },
+    "hub_load_tm": { "type": "date" }
+  },
+  "tool_maintenance_plan": {
+    "eqp_id":        { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } },
+    "tool_start_tm": { "type": "date" },
+    "tool_end_tm":   { "type": "date" },
+    "chg_tm":        { "type": "date" }
+  }
+}
+```
+
+The category values below come from the mock and are **OFFICE-VERIFY**. What
+matters is that `PM` or `BM` appears somewhere in one of the classifying
+fields.
+
+```jsonc
+// fab_inform_notes — one maintenance that happened
+{
+  "aufnr": "OFFICE-VERIFY", "doc_id": "OFFICE-VERIFY",
+  "eqp_id": "6MCDE305", "fab_name": "M16A", "fac_id": "M16",
+  "down_dt": "2026-05-31T08:57:00",      // office 확인 2026-08-20: no offset
+  "equp_dt": "2026-05-31T14:20:00",      // empty while the tool is still down
+  "hub_load_tm": "2026-05-31T15:02:00",
+  "pm_type": "PM2",                      // may be empty
+  "eq_event": "PM_WEEKLY",
+  "lot_id": "MONI0001", "last_recipe_id": "M16_CDMEAS_01",
+  "note_comment": "free text, may contain newlines",
+  "zzproblem": "free text", "hltext": "free text"
+}
+
+// tool_maintenance_plan — one planned maintenance
+{
+  "eqp_id": "6MCDE305", "det_fac_id": "M16A", "fac_id": "M16",
+  "chg_tm": "2026-06-20T10:00:00",
+  "tool_start_tm": "2026-06-25T09:00:00",  // timezone OFFICE-VERIFY
+  "tool_end_tm": "2026-06-25T18:00:00",
+  "event_name": "PM_QUARTER",
+  "work_item_nm": "정기 PM — 컬럼 청소 및 정렬 확인",
+  "work_user_cd": "OFFICE-VERIFY"
+}
+```
+
 ## 6. MDC — Redis hash `mdc_setting` + MinIO archive
 
 **Snapshot** (the 비교 sub-tab):
@@ -291,6 +546,43 @@ soonest future row with category PM.
 Check that the real keys follow `<voltage>_<mode>_<0|90>Deg`, and list the
 ones that do not.
 
+### Expected sample — `mdc_setting`
+
+The Redis value is UTF-8 JSON bytes. Field names are uppercase `fab_name`.
+
+```text
+HKEYS mdc_setting        -> ["M16A", "M16B", "M15A", "R3", "R4", ...]   (every fab, R3/R4 included)
+HGET  mdc_setting M16A   -> b'{"6MCDE305": {...}, "4CCD6701": {...}, ...}'
+```
+
+```json
+{
+  "4CCD6701": {
+    "800V_HR_0Deg": "1.004984",
+    "800V_HR_90Deg": "1.005625",
+    "500V_HR_0Deg": "1.004096",
+    "500V_HR_90Deg": "1.003888"
+  },
+  "6MCDE305": {
+    "800V_HR_0Deg": "1.002110",
+    "800V_HR_90Deg": "1.002870",
+    "3000V": "0.998700"
+  }
+}
+```
+
+The MinIO archive holds the same JSON shape for every collection date:
+
+```text
+<default bucket>/<default prefix>/hitachi_sem/cdsem/mdc_setting/2026/07/24/M16A.json
+```
+
+The history sub-tab turns each (date, condition) pair into one record, for
+example `{"timestamp": "2026-07-24 00:00", "beam_condition": "800V_HR_0Deg",
+"mdc_value": 1.004984}`. If the archived JSON carries its own collection time,
+report it as `EXTRA`. The code currently assumes the file has no time of day
+and uses `00:00`.
+
 ## 7. SCE — Redis hash `sce_info` + MinIO archive
 
 The same two-tier layout as MDC:
@@ -318,6 +610,50 @@ Per-tool shape `settings[eqp_id]`:
   **exactly equal**. If every collection is its own revision ("중복 없음"),
   suspect float or serialization jitter in the writer.
 - History docs are `{date: "YYYY-MM-DD", SemCond, ImgCond, SCEParam, Coefficients}`.
+
+### Expected sample — `sce_info`
+
+The Redis value is UTF-8 JSON bytes; pickle is accepted as a fallback. It has
+no R3/R4 fields.
+
+```text
+HKEYS sce_info          -> ["M16A", "M16E", "M15A", ...]
+HGET  sce_info M16A     -> b'{"6MCD1201": {...}, ...}'
+MinIO                   -> .../hitachi_sem/cdsem/sce_info/2026/07/24/M16E.json   (same JSON shape)
+```
+
+```jsonc
+{
+  "6MCD1201": {
+    "FileInfo": { "SharpCharFile": "/HITACHI/...", "BaseSharpCharFile": "/HITACHI/..." },
+    "SemCond": {
+      "SemCond_No": "6", "SemCond_Optics": "High Reso.", "SemCond_Vacc": "800",
+      "SemCond_Ip": "8.0000", "SemCond_IpMode": "Middle", "SemCond_Detector": "SE+EF"
+    },
+    "ImgCond": {
+      "ImgCond_FocusOffset": ["-2"],
+      "ImgCond_Mag": ["150003298", "150003298"],
+      "ImgCond_Pixel": ["1024", "1024"]
+    },
+    "SCEParam": {
+      "SCEParam_CycleUpperTh": "6.000", "SCEParam_CycleLowerTh": "22.500000",
+      "SCEParam_SmoothRadius": "7", "SCEParam_SmoothTheta": "7",
+      "SCEParam_FitRangeSt": "40", "SCEParam_FitRangeEd": "79",
+      "SCEParam_CorrCoefLimit": "0.20000"
+    },
+    "Coefficients": [
+      { "index": 0, "values": [0.00884, 0.964293] },
+      { "index": 1, "values": [0.000927, 0.972554] }
+      /* … one entry per index, 0 to 359 */
+    ]
+  }
+}
+```
+
+`hardware_sce_setting.txt` writes `Coefficients` as one dict with repeated
+`index`/`values` keys. A JSON parser keeps only the last pair of such a
+dict, so read it as shorthand for the list above. Report which shape the real
+data uses.
 
 ## What a mismatch report should look like
 
