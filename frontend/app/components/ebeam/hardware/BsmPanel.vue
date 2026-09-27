@@ -191,7 +191,7 @@ const angles = computed(() => degreeLabels(props.docs))
 const pick = (opts: { key: string }[], preferred: string, fallbackIdx: number) =>
   opts.some(o => o.key === preferred) ? preferred : (opts[fallbackIdx]?.key ?? opts[0]?.key ?? '')
 
-const trendA = ref(pick(scalarOptions.value, 'Ellipicity', 0))
+const trendA = ref(pick(scalarOptions.value, 'Ellipticity', 0))
 const trendB = ref(pick(scalarOptions.value, 'Ave. Noise', 1))
 const radarA = ref(pick(profileOptions.value, 'Reso EB', 0))
 const radarB = ref(pick(profileOptions.value, 'Reso Detector', 1))

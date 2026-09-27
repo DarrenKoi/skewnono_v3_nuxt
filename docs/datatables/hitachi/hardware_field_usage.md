@@ -285,8 +285,9 @@ tab is empty.
 
 **The adapter copies an explicit list of keys; every other key in the doc is
 dropped.** A real metric whose name differs from this list, even by one
-character, vanishes silently. The spellings follow the source, including its
-typos (`Ellipicity`, `Apature`).
+character, vanishes silently. `Ellipticity` was spelled `Ellipicity` here
+until 2026-09-28 and was corrected on the user's word (user-confirmed).
+`Apature` still follows the home sample and is **OFFICE-VERIFY**; check it.
 
 | Key | Expected source shape | Output | If wrong |
 | --- | --- | --- | --- |
@@ -294,11 +295,11 @@ typos (`Ellipicity`, `Apature`).
 | `Reso EB`, `Reso Detector`, `Noise`, `Focus offset`, `Apature angle factor` | list of exactly 16 numbers (floats or numeric strings mixed) | radar metric | not exactly 16 clean numbers → **dropped** |
 | `Reso EB Focus` | doubly nested `[[16 numbers]]` (flat is also accepted) | radar metric | same as above |
 | `Reso EB Focus Range` | one-element list `['8.0000']` | unwrapped to a float trend metric | non-numeric → dropped |
-| `Major Axis`, `Minor Axis`, `Ellipicity`, `Tilt`, `X range`, `Y range`, `Area`, `Ave. Reso Detector`, `Ave. Noise`, `Ave. Apature angle factor` | float or numeric string | trend metric | non-numeric → dropped |
+| `Major Axis`, `Minor Axis`, `Ellipticity`, `Tilt`, `X range`, `Y range`, `Area`, `Ave. Reso Detector`, `Ave. Noise`, `Ave. Apature angle factor` | float or numeric string | trend metric | non-numeric → dropped |
 | `beam_condition` | **string**, e.g. `HR0800_IP0080` (not an object, unlike sharpness) | condition filter; measurement id = `timestamp`+`beam_condition` | — |
 | `category`, `type`, `fdc_category`, `timestamp`, `timestamp_date`, `eqp_ip`, `eqp_id`, `fac_id`, `fab_name` | string | passed through; `category` is shown as a badge | — |
 
-Default charts: trend A `Ellipicity`, trend B `Ave. Noise`, radar A `Reso EB`,
+Default charts: trend A `Ellipticity`, trend B `Ave. Noise`, radar A `Reso EB`,
 radar B `Reso Detector`. If a default key is absent, the chart falls back to
 the first available metric.
 
@@ -338,7 +339,7 @@ receive it. This is the source shape, before the adapter reshapes it:
   "Reso EB Focus":        [["8.94623", "8.096161" /* … 16 inside ONE inner list */]],
   "Reso EB Focus Range":  ["8.0000"],
 
-  "Major Axis": 8.124588, "Minor Axis": 7.941668, "Ellipicity": 1.023033,
+  "Major Axis": 8.124588, "Minor Axis": 7.941668, "Ellipticity": 1.023033,
   "Tilt": -35.09035, "X range": 8.06693, "Y range": 7.995835, "Area": 202.704313,
   "Ave. Reso Detector": 0.003042, "Ave. Noise": 6.27704, "Ave. Apature angle factor": 0.001214
 }

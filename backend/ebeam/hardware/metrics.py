@@ -36,7 +36,7 @@ BEAM_SHAPE_METRICS: list[BeamShapeMetric] = [
     # --- scalars ----------------------------------------------------------
     {"key": "Major Axis", "kind": "scalar", "low": 8.05, "high": 8.20},
     {"key": "Minor Axis", "kind": "scalar", "low": 7.85, "high": 8.00},
-    {"key": "Ellipicity", "kind": "scalar", "low": 1.000, "high": 1.060},
+    {"key": "Ellipticity", "kind": "scalar", "low": 1.000, "high": 1.060},
     {"key": "Tilt", "kind": "scalar", "low": -45.0, "high": -25.0},
     {"key": "X range", "kind": "scalar", "low": 8.00, "high": 8.15},
     {"key": "Y range", "kind": "scalar", "low": 7.95, "high": 8.05},

@@ -13,7 +13,9 @@ for the type total we have a doc like this.
 'Apature angle factor': list [0.00117, 0.001521,...] 16 numbers total
 'Major Axis': float 8.124588
 'Minor Axis': flaot 7.941668
-'Ellipicity': float 1.023033
+'Ellipticity': float 1.023033
+               (★ 2026-09-28 까지 이 문서와 코드는 'Ellipicity' 로 적고 있었습니다.
+                올바른 이름은 Ellipticity 입니다 — user-confirmed 2026-09-28.)
 'Tilt':float -35.09035
 'X range': float 8.06693
 'Y range': float 7.995835

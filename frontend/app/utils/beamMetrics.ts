@@ -10,8 +10,9 @@ export interface BeamMetricOption { key: string, label: string }
 // Keys that look like profile arrays but are NOT selectable metrics.
 const PROFILE_DENY = new Set(['degree', 'Reso EB Focus Range'])
 
-// Prettify known keys; unknown keys fall through verbatim (source spellings
-// like "Ellipicity" / "Apature angle factor" are intentional).
+// Prettify known keys; unknown keys fall through verbatim (the source spelling
+// "Apature angle factor" is intentional; "Ellipticity" was "Ellipicity" until
+// 2026-09-28).
 export const BEAM_LABELS: Record<string, string> = {
   'Reso EB': 'Reso EB',
   'Reso Detector': 'Reso Detector',
@@ -19,7 +20,7 @@ export const BEAM_LABELS: Record<string, string> = {
   'Focus offset': 'Focus offset',
   'Apature angle factor': 'Apature angle factor',
   'Reso EB Focus': 'Reso EB Focus',
-  'Ellipicity': 'Ellipicity',
+  'Ellipticity': 'Ellipticity',
   'Major Axis': 'Major Axis',
   'Minor Axis': 'Minor Axis',
   'Tilt': 'Tilt',

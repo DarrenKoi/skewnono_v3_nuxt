@@ -39,7 +39,7 @@
       "Ave. Apature angle factor": 0.001242,
       "Ave. Noise": 6.3265,
       "Ave. Reso Detector": 0.003444,
-      "Ellipicity": 1.0096,
+      "Ellipticity": 1.0096,
       "Focus offset": [
         6.0925,
         6.5009,
@@ -188,7 +188,7 @@
       "Ave. Apature angle factor": 0.001172,
       "Ave. Noise": 6.2044,
       "Ave. Reso Detector": 0.003351,
-      "Ellipicity": 1.041,
+      "Ellipticity": 1.041,
       "Focus offset": [
         6.3176,
         5.8975,
@@ -337,7 +337,7 @@
       "Ave. Apature angle factor": 0.001177,
       "Ave. Noise": 6.2495,
       "Ave. Reso Detector": 0.003793,
-      "Ellipicity": 1.0338,
+      "Ellipticity": 1.0338,
       "Focus offset": [
         5.6448,
         5.8866,
@@ -486,7 +486,7 @@
       "Ave. Apature angle factor": 0.00114,
       "Ave. Noise": 6.2717,
       "Ave. Reso Detector": 0.002664,
-      "Ellipicity": 1.0361,
+      "Ellipticity": 1.0361,
       "Focus offset": [
         6.1066,
         6.117,
@@ -635,7 +635,7 @@
       "Ave. Apature angle factor": 0.001278,
       "Ave. Noise": 6.2229,
       "Ave. Reso Detector": 0.003438,
-      "Ellipicity": 1.0422,
+      "Ellipticity": 1.0422,
       "Focus offset": [
         5.6803,
         5.6504,
@@ -784,7 +784,7 @@
       "Ave. Apature angle factor": 0.001294,
       "Ave. Noise": 6.3109,
       "Ave. Reso Detector": 0.003719,
-      "Ellipicity": 1.0567,
+      "Ellipticity": 1.0567,
       "Focus offset": [
         5.9546,
         5.264,
@@ -933,7 +933,7 @@
       "Ave. Apature angle factor": 0.001115,
       "Ave. Noise": 6.2008,
       "Ave. Reso Detector": 0.003577,
-      "Ellipicity": 1.0542,
+      "Ellipticity": 1.0542,
       "Focus offset": [
         6.4619,
         6.1483,
@@ -1082,7 +1082,7 @@
       "Ave. Apature angle factor": 0.001144,
       "Ave. Noise": 6.312,
       "Ave. Reso Detector": 0.002654,
-      "Ellipicity": 1.0598,
+      "Ellipticity": 1.0598,
       "Focus offset": [
         5.9426,
         6.2229,
@@ -1231,7 +1231,7 @@
       "Ave. Apature angle factor": 0.001278,
       "Ave. Noise": 6.3052,
       "Ave. Reso Detector": 0.003326,
-      "Ellipicity": 1.0319,
+      "Ellipticity": 1.0319,
       "Focus offset": [
         5.9117,
         6.2721,
@@ -1380,7 +1380,7 @@
       "Ave. Apature angle factor": 0.001229,
       "Ave. Noise": 6.2088,
       "Ave. Reso Detector": 0.002849,
-      "Ellipicity": 1.0376,
+      "Ellipticity": 1.0376,
       "Focus offset": [
         6.0875,
         5.478,
@@ -1529,7 +1529,7 @@
       "Ave. Apature angle factor": 0.0012,
       "Ave. Noise": 6.2252,
       "Ave. Reso Detector": 0.003364,
-      "Ellipicity": 1.0263,
+      "Ellipticity": 1.0263,
       "Focus offset": [
         5.0297,
         5.79,
@@ -1678,7 +1678,7 @@
       "Ave. Apature angle factor": 0.001222,
       "Ave. Noise": 6.3105,
       "Ave. Reso Detector": 0.002687,
-      "Ellipicity": 1.0312,
+      "Ellipticity": 1.0312,
       "Focus offset": [
         6.1722,
         6.2657,
@@ -1827,7 +1827,7 @@
       "Ave. Apature angle factor": 0.001106,
       "Ave. Noise": 6.2297,
       "Ave. Reso Detector": 0.003896,
-      "Ellipicity": 1.0412,
+      "Ellipticity": 1.0412,
       "Focus offset": [
         5.091,
         5.8256,
@@ -1976,7 +1976,7 @@
       "Ave. Apature angle factor": 0.001171,
       "Ave. Noise": 6.2095,
       "Ave. Reso Detector": 0.003726,
-      "Ellipicity": 1.0379,
+      "Ellipticity": 1.0379,
       "Focus offset": [
         6.3357,
         6.1408,
@@ -2125,7 +2125,7 @@
       "Ave. Apature angle factor": 0.001188,
       "Ave. Noise": 6.2504,
       "Ave. Reso Detector": 0.002751,
-      "Ellipicity": 1.0051,
+      "Ellipticity": 1.0051,
       "Focus offset": [
         5.9902,
         6.0975,
@@ -2274,7 +2274,7 @@
       "Ave. Apature angle factor": 0.001214,
       "Ave. Noise": 6.2358,
       "Ave. Reso Detector": 0.002979,
-      "Ellipicity": 1.0287,
+      "Ellipticity": 1.0287,
       "Focus offset": [
         5.561,
         6.1147,
@@ -2423,7 +2423,7 @@
       "Ave. Apature angle factor": 0.001237,
       "Ave. Noise": 6.2004,
       "Ave. Reso Detector": 0.003439,
-      "Ellipicity": 1.0467,
+      "Ellipticity": 1.0467,
       "Focus offset": [
         6.316,
         5.8123,
@@ -2572,7 +2572,7 @@
       "Ave. Apature angle factor": 0.001153,
       "Ave. Noise": 6.3312,
       "Ave. Reso Detector": 0.003857,
-      "Ellipicity": 1.0441,
+      "Ellipticity": 1.0441,
       "Focus offset": [
         6.8524,
         6.0442,
@@ -2721,7 +2721,7 @@
       "Ave. Apature angle factor": 0.001264,
       "Ave. Noise": 6.2662,
       "Ave. Reso Detector": 0.003028,
-      "Ellipicity": 1.0285,
+      "Ellipticity": 1.0285,
       "Focus offset": [
         6.1203,
         5.5779,
@@ -2870,7 +2870,7 @@
       "Ave. Apature angle factor": 0.001252,
       "Ave. Noise": 6.2622,
       "Ave. Reso Detector": 0.002968,
-      "Ellipicity": 1.0043,
+      "Ellipticity": 1.0043,
       "Focus offset": [
         6.2895,
         6.631,
@@ -3019,7 +3019,7 @@
       "Ave. Apature angle factor": 0.001249,
       "Ave. Noise": 6.2847,
       "Ave. Reso Detector": 0.002527,
-      "Ellipicity": 1.0118,
+      "Ellipticity": 1.0118,
       "Focus offset": [
         6.3884,
         6.5425,
@@ -3168,7 +3168,7 @@
       "Ave. Apature angle factor": 0.001243,
       "Ave. Noise": 6.2691,
       "Ave. Reso Detector": 0.003796,
-      "Ellipicity": 1.0258,
+      "Ellipticity": 1.0258,
       "Focus offset": [
         5.7622,
         5.5191,
@@ -3317,7 +3317,7 @@
       "Ave. Apature angle factor": 0.001142,
       "Ave. Noise": 6.2458,
       "Ave. Reso Detector": 0.002896,
-      "Ellipicity": 1.0007,
+      "Ellipticity": 1.0007,
       "Focus offset": [
         5.6395,
         5.9328,
@@ -3466,7 +3466,7 @@
       "Ave. Apature angle factor": 0.001186,
       "Ave. Noise": 6.3392,
       "Ave. Reso Detector": 0.003354,
-      "Ellipicity": 1.0054,
+      "Ellipticity": 1.0054,
       "Focus offset": [
         5.9381,
         5.7181,
@@ -3615,7 +3615,7 @@
       "Ave. Apature angle factor": 0.001132,
       "Ave. Noise": 6.2423,
       "Ave. Reso Detector": 0.002603,
-      "Ellipicity": 1.0295,
+      "Ellipticity": 1.0295,
       "Focus offset": [
         6.9583,
         6.8813,
@@ -3764,7 +3764,7 @@
       "Ave. Apature angle factor": 0.001287,
       "Ave. Noise": 6.2667,
       "Ave. Reso Detector": 0.002817,
-      "Ellipicity": 1.0514,
+      "Ellipticity": 1.0514,
       "Focus offset": [
         6.2143,
         6.4358,
@@ -3913,7 +3913,7 @@
       "Ave. Apature angle factor": 0.001235,
       "Ave. Noise": 6.35,
       "Ave. Reso Detector": 0.003768,
-      "Ellipicity": 1.0538,
+      "Ellipticity": 1.0538,
       "Focus offset": [
         5.6301,
         6.1121,
@@ -4062,7 +4062,7 @@
       "Ave. Apature angle factor": 0.001156,
       "Ave. Noise": 6.3452,
       "Ave. Reso Detector": 0.003599,
-      "Ellipicity": 1.0203,
+      "Ellipticity": 1.0203,
       "Focus offset": [
         5.8099,
         6.1387,
@@ -4211,7 +4211,7 @@
       "Ave. Apature angle factor": 0.001242,
       "Ave. Noise": 6.2528,
       "Ave. Reso Detector": 0.002821,
-      "Ellipicity": 1.0496,
+      "Ellipticity": 1.0496,
       "Focus offset": [
         5.5424,
         5.8323,
@@ -4360,7 +4360,7 @@
       "Ave. Apature angle factor": 0.001287,
       "Ave. Noise": 6.2741,
       "Ave. Reso Detector": 0.002904,
-      "Ellipicity": 1.0062,
+      "Ellipticity": 1.0062,
       "Focus offset": [
         5.832,
         5.1444,

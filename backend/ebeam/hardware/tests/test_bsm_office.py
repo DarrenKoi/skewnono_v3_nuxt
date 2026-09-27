@@ -43,7 +43,7 @@ RAW_HIT = {
     "Apature angle factor": _arr16(0.00117),
     "Major Axis": 8.124588,
     "Minor Axis": 7.941668,
-    "Ellipicity": 1.023033,
+    "Ellipticity": 1.023033,
     "Tilt": -35.09035,
     "X range": 8.06693,
     "Y range": 7.995835,

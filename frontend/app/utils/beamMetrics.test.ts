@@ -12,7 +12,7 @@ const doc = (overrides: Record<string, unknown> = {}): Record<string, unknown> =
   'Reso EB': arr16(8.0),
   'Reso Detector': arr16(0.005),
   'Reso EB Focus Range': 8.0, // scalar (focus scan/operating window) → trend/KPI
-  'Ellipicity': 1.023,
+  'Ellipticity': 1.023,
   'Major Axis': 8.12,
   'Ave. Noise': '6.277', // numeric string scalar
   'type': 'total',
@@ -33,7 +33,7 @@ test('profileMetricKeys: rejects a short array', () => {
 
 test('scalarMetricKeys: numbers and numeric strings (incl. Reso EB Focus Range), no arrays/metadata', () => {
   const keys = scalarMetricKeys([doc()]).map(o => o.key).sort()
-  assert.deepEqual(keys, ['Ave. Noise', 'Ellipicity', 'Major Axis', 'Reso EB Focus Range'])
+  assert.deepEqual(keys, ['Ave. Noise', 'Ellipticity', 'Major Axis', 'Reso EB Focus Range'])
 })
 
 test('radialRange: global min/max across docs, padded, never zero span', () => {
