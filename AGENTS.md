@@ -36,8 +36,8 @@ The day-to-day commands are in `CLAUDE.md` → Commands. First-time setup and th
 less common ones:
 
 - Backend venv: CPython 3.11 at `.venv/`, matching the office interpreter. The
-  home venv is uv-built and has no `pip`, so `.venv/bin/python -m pip` fails
-  there. Create and fill it with
+  office uses pip (`.venv/bin/python -m pip install -r backend/requirements-dev.txt`);
+  home uses uv, whose venv has no `pip`, so there create and fill it with
   `uv venv --python 3.11 .venv && uv pip install -r backend/requirements-dev.txt`.
   `requirements-dev.txt` adds pytest and ruff to `requirements.txt`, which stays
   test-free so the Phase 3 install ships no test runner.
