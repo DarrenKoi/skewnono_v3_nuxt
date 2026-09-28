@@ -83,7 +83,7 @@ class TestSemListAdapters(ProviderEnvironmentTestCase):
         second = mock_provider.get_sem_list()
 
         self.assertEqual(first, second)
-        self.assertEqual(len(first), 300)
+        self.assertEqual(len(first), 304)  # 300 + 4 CG5000
         self.assertEqual(set(first[0]), {
             "fac_id",
             "eqp_id",
@@ -126,7 +126,7 @@ class TestSemListRoute(ProviderEnvironmentTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.get_json(), list)
-        self.assertEqual(len(response.get_json()), 300)
+        self.assertEqual(len(response.get_json()), 304)
 
 
 if __name__ == "__main__":

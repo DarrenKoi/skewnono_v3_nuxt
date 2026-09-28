@@ -40,6 +40,8 @@ def _first_row() -> MeasHistRow:
         # The mock's row set is fabricated at import time, so an empty result
         # means the generator broke. An empty office index is valid data.
         assert rows, "mock meas hist must not be empty"
+    # A row with msr_check "No" has no MSR file and an empty msr.
+    rows = [row for row in rows if row["msr"]]
     if not rows:
         pytest.skip("active provider returned no meas_hist rows")
     return rows[0]

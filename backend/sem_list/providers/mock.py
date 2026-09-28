@@ -115,6 +115,13 @@ CDSEM_SHARE = 0.62
 
 EQP_GRP_PREFIXES = ["G-ECD-", "G-MCD-", "G-KCD-", "G-MDS-", "G-PCD-", "G-ACD-"]
 
+# CG5000 is in the office roster (office 확인 2026-09-29: M16A's FDC fleet
+# carries CG5000 rows). It is not in CDSEM_MODELS because adding a model there
+# re-rolls every row after the first draw; these rows come from their own
+# stream after the 300 instead. How many there are, and the R3 one, are
+# OFFICE-VERIFY.
+_CG5000_FABS = [("M16", "M16A"), ("M16", "M16A"), ("M16", "M16A"), ("R3", "R3")]
+
 # Newly installed tools awaiting an IT firewall exception. An explicit table,
 # not a random draw: what this fixture has to stand in for is the SHAPE of an
 # arrival batch — a few fab x model cells holding several tools each — and a
@@ -199,6 +206,31 @@ def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
             version="" if rng.random() < 0.05 else f"{rng.randint(1, 3)}{rng.choice('AB')}"
         ))
 
+    return rows + _cg5000_rows({row["eqp_id"] for row in rows}, now)
+
+
+def _cg5000_rows(taken: set[str], now: datetime, seed: int = 44) -> list[SemListRow]:
+    rng = random.Random(seed)
+    rows: list[SemListRow] = []
+    for fac_id, fab_name in _CG5000_FABS:
+        eqp_id = f"{rng.choice(CDSEM_EQP_PREFIXES)}{rng.randint(100, 999)}"
+        while eqp_id in taken:
+            eqp_id = f"{rng.choice(CDSEM_EQP_PREFIXES)}{rng.randint(100, 999)}"
+        taken.add(eqp_id)
+        ip_prefix = "177" if rng.random() < 0.5 else "197"
+        rows.append(SemListRow(
+            fac_id=fac_id,
+            eqp_id=eqp_id,
+            eqp_model_cd="CG5000",
+            eqp_grp_id=f"{rng.choice(EQP_GRP_PREFIXES)}{rng.randint(1, 3):02d}",
+            vendor_nm="HITACHI",
+            eqp_ip=f"{ip_prefix}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}",
+            fab_name=fab_name,
+            # An older generation: arrived years ago.
+            updt_dt=(now - timedelta(days=rng.randint(1500, 2555))).isoformat().replace("+00:00", "Z"),
+            available="On",
+            version=f"{rng.randint(1, 3)}{rng.choice('AB')}",
+        ))
     return rows
 
 

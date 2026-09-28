@@ -44,9 +44,8 @@ The per-tool adapter does not fetch them (`SOURCE_FIELDS`), so these docs
 carry the seven fields the page sees. `build_fdc_fleet` applies the same
 `side_fields` and emulates the aggregation OpenSearch would answer. Live
 since 2026-09-28 (office 확인 2026-09-29). CG5000 docs get no spm_judgment,
-so a CG5000 fleet row has every compared field empty; that is a normal row.
-The sem_list mock has no CG5000 tool, so home never shows one (the office
-roster does). Not emulated: the ~6.8% of docs written 2026-09-28
+so a CG5000 fleet row has every compared field empty; that is a normal row
+(the sem_list mock carries CG5000 tools in M16A and R3 for it). Not emulated: the ~6.8% of docs written 2026-09-28
 11:20-12:45 without side-fields (an old-code twin task wrote them first and
 the create-dedup locked them).
 
@@ -85,7 +84,8 @@ __all__ = ["build_fdc_docs", "build_fdc_fleet"]
 
 
 _ABC: tuple[str, ...] = ("A", "B", "C")
-# CG5000 carries FDC rows at the office but is not in the cd-sem roster list.
+# CG5000 is not in TOOL_SPECS' model list but is in the roster (sem_list mock
+# appends a few); this list only serves eqp_ids outside the roster.
 _FDC_MODELS: list[str] = [*TOOL_SPECS["cdsem"]["eqp_models"], "CG5000"]
 
 _ALL_KEYS = frozenset(

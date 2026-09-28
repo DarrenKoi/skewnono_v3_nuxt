@@ -186,6 +186,15 @@ def test_mock_fleet_covers_only_the_fabs_cdsem_roster_and_follows_model_coverage
     }
 
 
+def test_mock_fleet_shows_the_rosters_cg5000_tools_as_spm_only_rows():
+    out = mock.build_fdc_fleet("M16A", START, END)
+    cg5000 = [t for t in out["tools"] if t["eqp_model_cd"] == "CG5000"]
+    assert len(cg5000) == 3
+    for tool in cg5000:
+        assert tool["temp_c"] is None and tool["laser_x1"] is None
+        assert tool["pin_counts"] == {} and tool["counter_rates"] == []
+
+
 def test_a_cg5000_tool_is_an_spm_only_fleet_row_not_an_error():
     # Office 확인 2026-09-29: CG5000 logs SPMVoltages only, so its fleet row
     # carries the tool with every compared field empty.

@@ -62,6 +62,9 @@ fac_id -> string: fab 대표 코드. 현재 운영 중인 값의 전부는
                   않는 값이었습니다.
 eqp_id -> string: 장비 ID. 예: 6MCDE305, 4CCD6701
 eqp_model_cd -> string: 장비 모델. 예: CG6300, CG6380, GT2000, TP4000
+  CG5000 도 명부에 있습니다 (office 확인 2026-09-29: M16A 의 FDC fab 전체 집계에
+  CG5000 행이 나옵니다). _tool_specs 의 eqp_models 목록에는 없지만 계열 접두사 CG 로
+  cd-sem 으로 분류됩니다. mock 은 M16A 3대 + R3 1대를 둡니다 (대수는 OFFICE-VERIFY).
 eqp_grp_id -> string: 장비 그룹 ID
 vendor_nm -> string: vendor. HITACHI 또는 AMAT 두 값만 허용됩니다.
                      그 외 값이 오면 어댑터가 에러를 냅니다(조용히 넘기지 않음).

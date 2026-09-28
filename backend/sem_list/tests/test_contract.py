@@ -44,4 +44,4 @@ def test_every_pending_tool_has_an_ip():
 
 def test_connected_fleet_size_is_unchanged():
     if get_data_provider("sem_list") == "mock":
-        assert len(data.get_sem_list()) == 300
+        assert len(data.get_sem_list()) == 304  # 300 + 4 CG5000

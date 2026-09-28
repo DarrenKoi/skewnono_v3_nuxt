@@ -13,7 +13,8 @@ from tests._office_state import MISSING_ADAPTER_MESSAGE, has_office_adapter, ski
 def sample_msr() -> str:
     """A real MSR id from the meas_hist fixture — never hardcode one."""
     rows = get_meas_hist()["rows"]
-    return rows[0]["msr"]
+    # A row with msr_check "No" has no MSR file and an empty msr.
+    return next(row["msr"] for row in rows if row["msr"])
 
 
 def _row(**over):
