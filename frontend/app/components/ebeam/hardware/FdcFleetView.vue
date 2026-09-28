@@ -230,14 +230,14 @@ const pinOption = computed<EChartsOption>(() => ({
     formatter: (params: unknown) => {
       const entries = params as { dataIndex: number }[]
       const row = pinRows.value[entries[0]?.dataIndex ?? -1]
-      return row ? `${row.eqpId}\nConduction: ${row.ok}\nUnstableConduction: ${row.warn}\nNonConduction: ${row.bad}` : ''
+      return row ? `${row.eqpId}\nConduction: ${row.ok}\nUnstableConduction: ${row.warn}\nNotConduction: ${row.bad}` : ''
     }
   },
   legend: { top: 0 },
   xAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%' } },
   yAxis: { type: 'category', data: pinRows.value.map(row => row.eqpId), inverse: true, axisLabel: labelStyle.value },
   series: ([
-    ['Conduction', 'ok'], ['UnstableConduction', 'warn'], ['NonConduction', 'bad']
+    ['Conduction', 'ok'], ['UnstableConduction', 'warn'], ['NotConduction', 'bad']
   ] as const).map(([name, key]) => ({
     name, type: 'bar' as const, stack: 'total', barMaxWidth: 18,
     itemStyle: { color: colors.value[key] },

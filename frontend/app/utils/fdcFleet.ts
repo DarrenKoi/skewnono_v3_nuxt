@@ -24,7 +24,7 @@ export const fdcFleetPinRows = (tools: FdcFleetTool[]) =>
     const counts = tool.pin_counts
     const ok = counts.Conduction ?? 0
     const warn = counts.UnstableConduction ?? 0
-    const bad = counts.NonConduction ?? 0
+    const bad = counts.NotConduction ?? 0
     const total = ok + warn + bad
     return {
       eqpId: tool.eqp_id, ok, warn, bad, total,
@@ -36,7 +36,7 @@ export const fdcFleetPinRows = (tools: FdcFleetTool[]) =>
 
 export const fdcFleetHistogram = (fleet: FdcFleet) => {
   const bins = [...new Set(fleet.spread_bins.map(bin => bin.lo))].sort((a, b) => a - b)
-  const judgments = ['Conduction', 'UnstableConduction', 'NonConduction'] as const
+  const judgments = ['Conduction', 'UnstableConduction', 'NotConduction'] as const
   const series = judgments.map(judgment => ({
     judgment,
     counts: bins.map(lo => fleet.spread_bins

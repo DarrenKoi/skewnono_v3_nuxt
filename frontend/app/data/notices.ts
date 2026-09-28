@@ -45,7 +45,7 @@ export const NOTICES: Notice[] = [
         area: 'H/W 관리',
         items: [
           'FDC 탭에 장비 / fab 전체 전환이 생겼습니다. fab 전체에서는 척 온도 히트맵, LaserPower 순위, Contactpin 판정 비율과 pin 편차 분포, 카운터 증가율을 장비 그룹 전체로 비교하고, 선택한 장비를 강조합니다. 새 수집 항목이 쌓이는 대로 채워지므로 처음 며칠은 비어 보일 수 있습니다.',
-          'FDC Contactpin 은 Conduction / UnstableConduction / NonConduction 세 단계로 표시하고, pin 간 편차와 채널별 카운터의 하루 증가량을 함께 보여 줍니다.',
+          'FDC Contactpin 은 Conduction / UnstableConduction / NotConduction 세 단계로 표시하고, pin 간 편차와 채널별 카운터의 하루 증가량을 함께 보여 줍니다.',
           'FDC LaserPower 는 x1/y1 의 기준 대비 % 로, 척 온도는 일 평균 굵은 선으로, SPM 은 채널별 편차 추이로 보여 줍니다.',
           '기록이 많은 장비에서 FDC 데이터를 불러오지 못하던 문제와 같은 기록이 두 번 잡히던 문제를 고쳤습니다.',
           'SCE 는 장비 그룹 전체에서 같은 설정값은 숨기고 다른 값만 보여 주며, 기준 파일을 공유하는 장비 묶음과 fab 전체 요약을 추가했습니다. 수집되지 않는 fab 은 그렇다고 안내합니다.',

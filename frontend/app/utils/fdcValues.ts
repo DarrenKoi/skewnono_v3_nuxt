@@ -79,7 +79,7 @@ export const parseFdcValues = (values: unknown[]): FdcParsed => {
 export const contactpinState = (judgment: string): 'ok' | 'warn' | 'bad' | 'unknown' => {
   if (judgment === 'Conduction') return 'ok'
   if (judgment === 'UnstableConduction') return 'warn'
-  if (judgment === 'NonConduction') return 'bad'
+  if (judgment === 'NotConduction') return 'bad'
   return 'unknown'
 }
 

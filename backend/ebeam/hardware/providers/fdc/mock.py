@@ -30,7 +30,7 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
   numbers stay in front of its profile is OFFICE-VERIFY.
 * LaserPower: x1/y1 are stable per tool; x2/y2 wander (drift that is noise).
 * ContactpinConductionInfo: the judgment is Conduction / UnstableConduction /
-  NonConduction. The spread of the first 4 numbers separates them (medians
+  NotConduction ('Not', not 'Non': user-confirmed 2026-09-29). The spread of the first 4 numbers separates them (medians
   6.4 / - / 38.0, threshold ~15-20); the last number is a per-channel counter
   that only grows. values[3] is the pin number, 1-25 (user-confirmed
   2026-09-28). Class rates, the Unstable spread band and the events per log
@@ -100,11 +100,11 @@ _KEYS_BY_MODEL: dict[str, frozenset[str]] = {
 SPM_PROFILE_LEN = 107
 
 # (judgment, share, spread band of the first 4 numbers). Office medians:
-# Conduction 6.4, NonConduction 38.0. Shares and the Unstable band OFFICE-VERIFY.
+# Conduction 6.4, NotConduction 38.0. Shares and the Unstable band OFFICE-VERIFY.
 _CONTACTPIN_CLASSES: tuple[tuple[str, float, tuple[float, float]], ...] = (
     ("Conduction", 0.75, (2.0, 11.0)),
     ("UnstableConduction", 0.10, (14.0, 24.0)),
-    ("NonConduction", 0.15, (28.0, 48.0)),
+    ("NotConduction", 0.15, (28.0, 48.0)),
 )
 _CONTACTPIN_WEIGHTS = [share for _, share, _ in _CONTACTPIN_CLASSES]
 

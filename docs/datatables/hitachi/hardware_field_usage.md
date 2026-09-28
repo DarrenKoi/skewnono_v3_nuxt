@@ -167,7 +167,7 @@ Items arrive as strings and are parsed as numbers where needed.
 - `ContactpinConductionInfo`
   - `[2]` = channel.
   - The first non-numeric token from `[3]` on is the judgment:
-    `Conduction` (green), `UnstableConduction` (amber) or `NonConduction`
+    `Conduction` (green), `UnstableConduction` (amber) or `NotConduction`
     (red) (office 확인 2026-09-28).
   - The first 4 numbers after the judgment are listed with their spread
     (max − min), the margin that separates the classes. The last number is a

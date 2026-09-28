@@ -28,10 +28,10 @@ test('SPMVoltages without a fit-model token (CG5000) → profile starts after th
 })
 
 test('ContactpinConductionInfo → channel, judgment, 5 values', () => {
-  const p = parseFdcValues(['ContactpinConductionInfo', '0', 'A', '5', 'NonConduction', '-25.5', '-0.9', '24.6', '25.0', '182501'])
+  const p = parseFdcValues(['ContactpinConductionInfo', '0', 'A', '5', 'NotConduction', '-25.5', '-0.9', '24.6', '25.0', '182501'])
   assert.equal(p.key, 'ContactpinConductionInfo')
   assert.equal((p.data as ContactpinValue).channel, 'A')
-  assert.equal((p.data as ContactpinValue).judgment, 'NonConduction')
+  assert.equal((p.data as ContactpinValue).judgment, 'NotConduction')
   assert.deepEqual((p.data as ContactpinValue).values, [-25.5, -0.9, 24.6, 25.0, 182501])
 })
 
@@ -40,7 +40,7 @@ test('contactpin states, spread, per-channel daily rate, first row and reset', (
     timestamp, values: ['ContactpinConductionInfo', '0', channel, '5', judgment, ...values]
   })
   const rows = contactpinRows([
-    doc('2026-09-29T00:00:00', 'A', 'NonConduction', [0, 10, 20, 38, 2]),
+    doc('2026-09-29T00:00:00', 'A', 'NotConduction', [0, 10, 20, 38, 2]),
     doc('2026-09-28T12:00:00', 'B', 'UnstableConduction', [0, 1, 2, 3, 50]),
     doc('2026-09-28T00:00:00', 'A', 'Conduction', [0, 2, 4, 6.4, 1]),
     doc('2026-09-30T00:00:00', 'A', 'Mystery', [0, 1, 2, 3, 0])
@@ -49,7 +49,7 @@ test('contactpin states, spread, per-channel daily rate, first row and reset', (
   assert.deepEqual(rows.map(r => r.rate), [null, null, 1, null])
   assert.deepEqual(rows.map(r => r.spread), [6.4, 3, 38, 3])
   assert.deepEqual(rows[0]?.values, [0, 2, 4, 6.4])
-  assert.equal(contactpinState('NotConduction'), 'unknown')
+  assert.equal(contactpinState('NonConduction'), 'unknown') // the real spelling is 'Not' (user-confirmed 2026-09-29)
   assert.equal(contactpinRows([doc('2026-09-28T00:00:00', 'A', 'Conduction', [0, 1, 2, 3, 1]), doc('2026-09-28T00:00:00', 'A', 'Conduction', [0, 1, 2, 3, 2])])[1]?.rate, null)
 })
 
@@ -80,9 +80,9 @@ test('daily mean pools positions by calendar day and places point at noon', () =
 })
 
 test('ContactpinConductionInfo → comma decimal read positionally, counter stays last', () => {
-  const p = parseFdcValues(['ContactpinConductionInfo', '0', 'A', '5', 'NonConduction', '-25.5', '-0.9', '24.6', '25,0', '182501'])
+  const p = parseFdcValues(['ContactpinConductionInfo', '0', 'A', '5', 'NotConduction', '-25.5', '-0.9', '24.6', '25,0', '182501'])
   assert.deepEqual((p.data as ContactpinValue).values, [-25.5, -0.9, 24.6, 25.0, 182501])
-  const [row] = contactpinRows([{ timestamp: '2026-05-01T00:00:00', values: ['ContactpinConductionInfo', '0', 'A', '5', 'NonConduction', '-25.5', '-0.9', '24.6', 'x', '182501'] }])
+  const [row] = contactpinRows([{ timestamp: '2026-05-01T00:00:00', values: ['ContactpinConductionInfo', '0', 'A', '5', 'NotConduction', '-25.5', '-0.9', '24.6', 'x', '182501'] }])
   // An unreadable margin cell leaves no spread, but never shifts the counter into the margin.
   assert.equal(row!.spread, null)
   assert.deepEqual(row!.values.slice(0, 3), [-25.5, -0.9, 24.6])

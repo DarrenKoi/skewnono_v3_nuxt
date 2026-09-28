@@ -575,14 +575,14 @@ def test_side_fields_read_a_comma_decimal_and_drop_a_bad_cell():
     # its field out rather than writing a wrong number; values stays the truth.
     got = fdc_index.side_fields(_fdc(
         "ContactpinConductionInfo",
-        ["A", "5", "NonConduction", "-25.5", "-0.9", "24.6", "25,0", "182501"],
+        ["A", "5", "NotConduction", "-25.5", "-0.9", "24.6", "25,0", "182501"],
     ))
     assert got["pin_spread"] == pytest.approx(50.5)
     bad = fdc_index.side_fields(_fdc(
         "ContactpinConductionInfo",
-        ["A", "x", "NonConduction", "-25.5", "?", "24.6", "25.0", "182501"],
+        ["A", "x", "NotConduction", "-25.5", "?", "24.6", "25.0", "182501"],
     ))
-    assert bad == {"pin_channel": "A", "pin_judgment": "NonConduction", "pin_counter": 182501}
+    assert bad == {"pin_channel": "A", "pin_judgment": "NotConduction", "pin_counter": 182501}
     assert fdc_index.side_fields(_fdc("TemperatureEChuck", ["1.5", "nan"])) == {}
     assert fdc_index.side_fields({"fdc_key": "LaserPower", "values": None}) == {}
 

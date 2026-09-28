@@ -25,10 +25,13 @@ CG5000 은 피팅 모델 token 을 쓰지 않습니다 (office 확인 2026-09-29
 ['LaserPower', '0', '0.78', '0.73', '341990938', '46504250']
 '0'뒤에 2개의 쌍 (x, y)로 이루어짐 각각 스케일이 다른게 포인트. 아직 무슨 의미인지 파악 못함. 둘 다 의미있는 측정 value로 추정
 ====
-['ContactpinConductionInfo', '0', 'A', '5', 'NonConduction', '-25.5', '-0.9', '24.6', '25,0', '182501']
+['ContactpinConductionInfo', '0', 'A', '5', 'NotConduction', '-25.5', '-0.9', '24.6', '25,0', '182501']
 ['ContactpinConductionInfo', '0', 'B', '3', 'Conduction', '-5.0', '-5.0', '0.0', '5.0', '182671']
 'A'/'B'/'C' 뒤의 정수 (위 '5', '3') 는 pin 번호 1-25 입니다 (user-confirmed 2026-09-28).
-판정은 Conduction / UnstableConduction / NonConduction 세 값 (office 확인 2026-09-28). 
+판정은 Conduction / UnstableConduction / NotConduction 세 값 (office 확인 2026-09-28).
+철자는 NotConduction 입니다 (user-confirmed 2026-09-29). 2026-09-28 문서는 NonConduction
+으로 적었고 코드가 그 철자로 비교해, 실데이터의 NotConduction 건이 fab 전체 view 에서
+빠지고 장비 view 에서 색이 없었습니다. 판정 문자열이 틀려도 에러가 나지 않습니다.
 
 A, B, C들은 주기적으로 한번씩 측정되기 때문에 timestamp상 서로 근접한 상태
 
@@ -128,9 +131,9 @@ LaserPower
   - 네 숫자가 무엇인지 설명한 문서는 없습니다. 라벨은 x1/y1 그대로 둡니다.
 
 ContactpinConductionInfo
-  - 판정 어휘: Conduction / UnstableConduction / NonConduction.
+  - 판정 어휘: Conduction / UnstableConduction / NotConduction.
   - 판정 뒤 처음 4개 숫자의 spread (max - min) 가 등급을 가릅니다.
-    Conduction 중앙값 6.4, NonConduction 중앙값 38.0, 경계 약 15-20.
+    Conduction 중앙값 6.4, NotConduction 중앙값 38.0, 경계 약 15-20.
   - 마지막 숫자는 채널별로 단조 증가하는 counter 입니다 (event 당 +1). 원값이 아니라
     증가율을 봅니다.
   - 등급별 비율, UnstableConduction 의 spread 대역, 콤마 소수점 ('25,0') 빈도는

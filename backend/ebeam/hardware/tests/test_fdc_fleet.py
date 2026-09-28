@@ -79,7 +79,7 @@ RESPONSE = {
             ]},
             "judgment": {"buckets": [
                 {"key": "Conduction", "doc_count": 11, "docs": {"value": 10}},
-                {"key": "NonConduction", "doc_count": 2, "docs": {"value": 2}},
+                {"key": "NotConduction", "doc_count": 2, "docs": {"value": 2}},
             ]},
             "channels": {"buckets": [{
                 "key": "B", "doc_count": 4,
@@ -103,7 +103,7 @@ def test_fleet_from_aggs_normalizes_an_opensearch_shaped_response():
     assert [first["eqp_id"], second["eqp_id"]] == ["ECX001", "ECX002"]  # sorted
     assert first["eqp_model_cd"] == "CG6300" and second["eqp_model_cd"] is None
     assert first["temp_days"] == [{"day": "2026-05-01", "temp_c": 23.39}]  # null day dropped
-    assert first["pin_counts"] == {"Conduction": 10, "NonConduction": 2}  # cardinality, not doc_count
+    assert first["pin_counts"] == {"Conduction": 10, "NotConduction": 2}  # cardinality, not doc_count
     assert first["counter_rates"] == [{"channel": "B", "per_day": 20.0}]  # a rate, not the raw 1060
     # A tool with no docs of a key reads null/empty, never 0.
     assert second["temp_c"] is None and second["temp_days"] == [] and second["pin_counts"] == {}
@@ -182,7 +182,7 @@ def test_mock_fleet_covers_only_the_fabs_cdsem_roster_and_follows_model_coverage
         if tool["eqp_model_cd"] in ("GT2000", "GT2000S"):
             assert tool["pin_counts"] == {} and tool["counter_rates"] == []
     assert {b["judgment"] for b in out["spread_bins"]} == {
-        "Conduction", "UnstableConduction", "NonConduction",
+        "Conduction", "UnstableConduction", "NotConduction",
     }
 
 

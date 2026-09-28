@@ -28,9 +28,9 @@ test('laser ranking skips missing x1 and retains missing y1', () => {
 
 test('pin rows exclude zero totals and rank by Conduction share, not raw count', () => {
   const rows = fdcFleetPinRows([
-    tool('good', { pin_counts: { Conduction: 9, UnstableConduction: 1, NonConduction: 0 } }),
+    tool('good', { pin_counts: { Conduction: 9, UnstableConduction: 1, NotConduction: 0 } }),
     tool('empty'),
-    tool('bad', { pin_counts: { Conduction: 1, UnstableConduction: 1, NonConduction: 2 } })
+    tool('bad', { pin_counts: { Conduction: 1, UnstableConduction: 1, NotConduction: 2 } })
   ])
   assert.deepEqual(rows.map(row => row.eqpId), ['bad', 'good'])
   assert.equal(rows[0]?.greenRate, 0.25)
@@ -40,7 +40,7 @@ test('pin rows exclude zero totals and rank by Conduction share, not raw count',
 
 test('histogram sorts bins and fills absent judgments with zero', () => {
   const result = fdcFleetHistogram({ tools: [], spread_bin_width: 2, spread_bins: [
-    { judgment: 'Conduction', lo: 6, count: 3 }, { judgment: 'NonConduction', lo: 4, count: 2 }
+    { judgment: 'Conduction', lo: 6, count: 3 }, { judgment: 'NotConduction', lo: 4, count: 2 }
   ] })
   assert.deepEqual(result.labels, ['4–6', '6–8'])
   assert.deepEqual(result.series.map(series => series.counts), [[0, 3], [0, 0], [2, 0]])

@@ -77,7 +77,7 @@
             </th>
             <th
               class="px-3 py-2 text-right sk-label"
-              title="office 확인 2026-09-28 · 중앙값: Conduction 6.4, NonConduction 38.0"
+              title="office 확인 2026-09-28 · 중앙값: Conduction 6.4, NotConduction 38.0"
             >
               범위 (max−min)
             </th>
