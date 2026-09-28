@@ -32,6 +32,61 @@ aggregations read real fields and return real numbers.
 | Transition | ~6.8 % of docs written 2026-09-28 11:20-12:45 stay fieldless for good: an old-code twin task wrote them first and the create-dedup locked the `_id`. They add nothing to the aggregates; no action needed |
 | CG5000 | SPMVoltages lines carry no fit-model token, so `spm_judgment` is always absent. CG5000 is SPM-only, so its fleet row has empty temperature, laser and Contactpin fields; that is a normal row |
 
+## Run 2: what to check now
+
+**Start here.** Run this section, not the whole brief. The V-ids refer to the
+tables further down, which also give the method for each check. Follow
+[Rules for the run](#rules-for-the-run) and
+[Before you start](#before-you-start), and answer in the
+[Report format](#report-format).
+
+### A. Before you check anything: deployment
+
+Home fixed three things after the post-deploy letter. None of them touches
+`fdc/office_example.py`, so `office.py` needs no re-copy, but the deployed
+frontend must include them. Report the deployed commit first; A1 and A2
+below mean nothing on an older build.
+
+| Commit | What it fixes | Seen where |
+| --- | --- | --- |
+| `0e47cd51` | A CG5000 SPM line has no fit-model token, so the parser read an **empty profile** | per-tool FDC → SPMVoltages on a CG5000 tool |
+| `65be19ac` | The verdict is `NotConduction`. The code compared `NonConduction`, so those docs were **dropped** from the fleet charts and uncoloured in the per-tool table | `fab 전체` Contactpin sections; per-tool Contactpin |
+| CG5000 roster rows | Home mock only; nothing to check at the office | - |
+
+| Check | Question | Decides |
+| --- | --- | --- |
+| A0 | Is the deployed build at or after both commits above? `git log --oneline -1` on the deployed tree | Whether A1 and A2 can run |
+| A1 | On `fab 전체` for M16A: do 6MCD2201's `NotConduction` docs (16 Conduction / 2 NotConduction in the post-deploy letter) now appear in the Contactpin ratio strip and the margin histogram? | The spelling fix reached the page |
+| A2 | Open a CG5000 tool's per-tool FDC → SPMVoltages. Is a profile drawn, with no "피팅 모델" badge? | The CG5000 parser fix works on real lines |
+| A3 | Paste **one raw CG5000 `SPMVoltages` `values` list**, first 10 entries and its length | Whether the three header numbers (`'7','1','1'` position) come before the profile on CG5000. The fix assumes they do (OFFICE-VERIFY); if the header is shorter, header numbers leak into the profile |
+| A4 | The CG5000 tools per fab: `eqp_id`, `fab_name` from `sem_list` | The home mock guesses 3 in M16A + 1 in R3 (OFFICE-VERIFY) |
+
+### B. From 2026-10-01 (2-3 days of side-field data)
+
+| Check | Short form |
+| --- | --- |
+| V0.3 | Docs per `fdc_key` since 2026-09-28, and how many carry each side-field |
+| V0.4 | The earliest `timestamp` carrying a side-field |
+| V1.1 | `build_fdc_fleet` for each sample fab; M16A is done (57 ms, 34 tools). Do the others |
+| V1.2 | Fleet tools vs the fab's CD-SEM roster; name each missing tool and its model. A CG5000 row with empty fields is **normal** |
+| V1.3 | `took` and bucket count (tools × days) of the raw aggregation |
+| V1.4 | Does R3 behave like the M-fabs? |
+| V2.1 | Temperature means vs raw docs, plus one day near midnight: are day buckets KST days? |
+| V2.2 | Laser `x1`/`y1` means vs raw docs |
+| V2.3 | `pin_counts` vs a hand count of distinct docs, with plain `doc_count` and the duplicate share. Count `NotConduction` too |
+| V2.4 | Counter rates vs raw docs; did any channel's counter decrease (a reset)? |
+| V2.5 | Histogram totals per judgment vs Contactpin docs with 4 parseable numbers; how many `'25,0'` comma cells, and were they read as 25.0? |
+| V4.1-V4.4 | The page checks, if A0-A2 did not already cover them |
+
+### C. Not FDC, same trip
+
+| Check | Question | Decides |
+| --- | --- | --- |
+| C1 | Is `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD` set on the proxy host? Open one MSR image and one recipe on the Windows path | Since `4eb8d675` the proxy reads its own credentials and answers 500 without them. See the top of `backend/msr_image/MIGRATION.md` |
+
+Already closed, do not re-run: V0.1, V0.2, V3.1-V3.3, and the
+`NotConduction` spelling (user-confirmed 2026-09-29).
+
 Written 2026-09-28 from `backend/ebeam/hardware/providers/fdc/fleet.py`,
 `fdc/office_example.py` (`build_fdc_fleet`) and
 `frontend/app/components/ebeam/hardware/FdcFleetView.vue`.
