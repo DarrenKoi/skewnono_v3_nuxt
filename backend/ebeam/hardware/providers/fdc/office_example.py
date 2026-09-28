@@ -57,13 +57,22 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from backend.ebeam._office_search import (
+    aggregate,
     fetch_hits,
     query as _query,
     text as _text,
 )
+from backend.ebeam.hardware.contracts import FdcFleet
+from backend.ebeam.hardware.providers.fdc.fleet import (
+    SPREAD_BIN_WIDTH,
+    fab_roster,
+    fleet_aggs,
+    fleet_from_aggs,
+)
+from backend.sem_list.data import get_sem_list
 
 
-__all__ = ["build_fdc_docs"]
+__all__ = ["build_fdc_docs", "build_fdc_fleet"]
 
 
 INDEX = "network_fdc_cdsem"
@@ -206,6 +215,25 @@ def build_fdc_docs(
     # providers hand the chart the same sequence.
     docs.sort(key=lambda d: (d["timestamp"], d["fdc_key"], str(d["values"][2:3])))
     return docs
+
+
+def build_fdc_fleet(fab_name: str, start: datetime, end: datetime) -> FdcFleet:
+    """Fab-wide FDC view: ONE aggregation over the writer's typed side-fields
+    (see ``fdc/fleet.py``) for the fab's CD-SEM roster tools.
+
+    The tools come from the sem_list roster rather than a ``fab_name`` term,
+    for the reason ``build_fdc_docs`` gives: a stale fab label on the doc must
+    not silently drop a tool. Docs written before the side-fields shipped
+    carry none, so they add nothing to the averages or counts.
+    """
+    roster = fab_roster(get_sem_list(), fab_name)
+    if not roster:
+        return {"tools": [], "spread_bins": [], "spread_bin_width": SPREAD_BIN_WIDTH}
+    clauses: list[dict[str, Any]] = [
+        {"terms": {EQP_ID_KW: sorted(roster)}},
+        {"range": {TS_FIELD: {"gte": start.isoformat(), "lte": end.isoformat()}}},
+    ]
+    return fleet_from_aggs(aggregate(INDEX, fleet_aggs(), _query(clauses)), roster)
 
 
 # --------------------------------------------------------------------------- #

@@ -28,17 +28,10 @@ ID_FIELDS = ("fab_name", "eqp_id", "fdc_key", "timestamp")
 
 # Typed side-fields derived from `values` at write time (see side_fields).
 # `values` is a positional string list, which OpenSearch cannot aggregate by
-# position; these typed copies make fleet views native aggregations.
-SIDE_FIELD_MAPPINGS = {
-    "temp_pos": {"type": "integer"},      # TemperatureEChuck position 1-3
-    "temp_c": {"type": "float"},          # TemperatureEChuck degC
-    "laser_x1": {"type": "float"},        # LaserPower x1
-    "laser_y1": {"type": "float"},        # LaserPower y1
-    "pin": {"type": "integer"},           # ContactpinConductionInfo pin 1-25
-    "first4_spread": {"type": "float"},   # max - min of the 4 margin numbers
-    "counter": {"type": "long"},          # per-pin monotonic event counter
-}
-_INT_SIDE_FIELDS = {"temp_pos", "pin", "counter"}
+# position; these typed copies make fleet views native aggregations. The
+# names are the office writer's (office 확인 2026-09-28) and the index stays
+# dynamically mapped: numbers land as long/float, strings as text + .keyword.
+_INT_SIDE_FIELDS = {"temp_pos", "pin_no", "pin_counter"}
 
 
 def index_pattern() -> str:
@@ -109,14 +102,19 @@ def side_fields(doc: Mapping[str, Any]) -> dict[str, Any]:
 
     Layouts (values[0] repeats fdc_key, values[1] is always '0'):
 
-    - TemperatureEChuck        [key, '0', pos, temp]          -> temp_pos, temp_c
-    - LaserPower               [key, '0', x1, y1, x2, y2]     -> laser_x1, laser_y1
-    - ContactpinConductionInfo [key, '0', ch, pin, judgment,
-                                n1, n2, n3, n4, counter]      -> pin, first4_spread, counter
+    - TemperatureEChuck        [key, '0', pos, temp]        -> temp_pos, temp_c
+    - LaserPower               [key, '0', x1, y1, x2, y2]   -> laser_x1, laser_y1
+    - SPMVoltages              [key, '0', ch, n, n, n, fit model, 107 nums]
+                                                            -> spm_channel, spm_judgement
+    - ContactpinConductionInfo [key, '0', ch, pin, judgement,
+                                n1, n2, n3, n4, counter]    -> pin_channel, pin_no,
+                                                               pin_judgement, pin_spread,
+                                                               pin_counter
 
-    A cell that does not parse leaves its field out, so a bad cell never
-    becomes a wrong number; `values` itself stays the record of truth. Other
-    keys (SPMVoltages) get no side-fields.
+    SPM gets strings only: its profile's unit scale differs up to 100x
+    between tools, so no SPM number is fleet-comparable. A cell that does
+    not parse leaves its field out, so a bad cell never becomes a wrong
+    number; `values` itself stays the record of truth.
     """
 
     values = doc.get("values")
@@ -125,15 +123,18 @@ def side_fields(doc: Mapping[str, Any]) -> dict[str, Any]:
     nums = [_number(v) for v in values]
     key = doc.get("fdc_key")
     fields: dict[str, float | None] = {}
+    out: dict[str, Any] = {}
     if key == "TemperatureEChuck" and len(nums) == 4:
         fields = {"temp_pos": nums[2], "temp_c": nums[3]}
     elif key == "LaserPower" and len(nums) == 6:
         fields = {"laser_x1": nums[2], "laser_y1": nums[3]}
+    elif key == "SPMVoltages" and len(values) > 7:
+        out = {"spm_channel": str(values[2]), "spm_judgement": str(values[6])}
     elif key == "ContactpinConductionInfo" and len(nums) == 10:
         first4 = nums[5:9]
         spread = None if None in first4 else max(first4) - min(first4)
-        fields = {"pin": nums[3], "first4_spread": spread, "counter": nums[9]}
-    out: dict[str, Any] = {}
+        out = {"pin_channel": str(values[2]), "pin_judgement": str(values[4])}
+        fields = {"pin_no": nums[3], "pin_spread": spread, "pin_counter": nums[9]}
     for name, number in fields.items():
         if number is None:
             continue
@@ -185,8 +186,6 @@ def build_mappings() -> dict[str, Any]:
     `*_dt` column to `date`; everything else falls through to default
     dynamic mapping.
 
-    - side-fields   : SIDE_FIELD_MAPPINGS, typed so aggregations never
-                      depend on which value dynamic mapping saw first.
     - `os_inserted` : KST timestamp refreshed on every write (bulk index,
                       update, upsert, bulk update). Despite the name it
                       means "last touched in OS", used for operational
@@ -198,7 +197,6 @@ def build_mappings() -> dict[str, Any]:
     return {
         "properties": {
             "os_inserted": {"type": "date"},
-            **SIDE_FIELD_MAPPINGS,
         },
         "dynamic_templates": [
             {

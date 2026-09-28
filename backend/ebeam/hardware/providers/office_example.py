@@ -36,8 +36,10 @@ from backend.ebeam.hardware.contracts import HardwarePayload, ServiceKey
 from backend.ebeam.hardware.normalizers import (
     bm_pm_history_payload,
     docs_payload,
+    fleet_payload,
     service_gate,
     settings_payload,
+    unavailable_payload,
 )
 
 
@@ -112,6 +114,13 @@ def get_hardware_service(
             docs=docs,
             summary="network_fdc_cdsem 원시 문서(fdc_key별)를 시간순으로 제공합니다.",
         )
+
+    if service == "fdc-fleet":
+        if not fab_name:
+            return unavailable_payload(
+                service, tool_slug, eqp_id, fab_name, "fab 을 알 수 없어 FDC fab 집계를 만들 수 없습니다."
+            )
+        return fleet_payload(tool_slug, eqp_id, fab_name, fleet=_tab("fdc").build_fdc_fleet(fab_name, start, end))
 
     if service == "sharpness":
         docs = _tab("sharpness").build_network_sharpness_docs(

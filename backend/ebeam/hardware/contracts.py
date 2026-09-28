@@ -9,9 +9,11 @@ returns. Faithful raw docs ride in `docs` (time-series) / `settings`
 from typing import Literal, NotRequired, TypeAlias, TypedDict
 
 
-ServiceKey = Literal["bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm", "sharpness"]
+ServiceKey = Literal[
+    "bsm", "reso-center", "fdc", "fdc-fleet", "mdc", "sce", "bm-pm", "sharpness"
+]
 VALID_SERVICES: frozenset[str] = frozenset(
-    {"bsm", "reso-center", "fdc", "mdc", "sce", "bm-pm", "sharpness"}
+    {"bsm", "reso-center", "fdc", "fdc-fleet", "mdc", "sce", "bm-pm", "sharpness"}
 )
 
 MetricTone = Literal["neutral", "ok", "warning", "bad"]
@@ -41,6 +43,43 @@ class HardwareTableSection(TypedDict):
     rows: list[dict[str, RecordValue]]
 
 
+class FdcFleetDay(TypedDict):
+    day: str  # YYYY-MM-DD
+    temp_c: float
+
+
+class FdcCounterRate(TypedDict):
+    channel: str
+    # (max - min) pin_counter / days between the channel's first and last doc;
+    # None when that span is zero. A rate, never the raw counter.
+    per_day: float | None
+
+
+class FdcFleetTool(TypedDict):
+    eqp_id: str
+    eqp_model_cd: str | None
+    # Window means; None when the tool has no docs of that key.
+    temp_c: float | None
+    temp_days: list[FdcFleetDay]  # ascending, days with data only
+    laser_x1: float | None
+    laser_y1: float | None
+    # Deduped Contactpin doc counts per judgement; {} when none.
+    pin_counts: dict[str, int]
+    counter_rates: list[FdcCounterRate]
+
+
+class FdcSpreadBin(TypedDict):
+    judgement: str
+    lo: float  # bin = [lo, lo + spread_bin_width)
+    count: int
+
+
+class FdcFleet(TypedDict):
+    tools: list[FdcFleetTool]
+    spread_bins: list[FdcSpreadBin]
+    spread_bin_width: float
+
+
 class HardwarePayload(TypedDict):
     tool_slug: str
     service: ServiceKey
@@ -56,4 +95,6 @@ class HardwarePayload(TypedDict):
     docs: NotRequired[list[dict]]
     # Faithful dict-of-dict (mdc / sce): selected eqp + in-fab siblings.
     settings: NotRequired[dict[str, dict]]
+    # fdc-fleet: fab-wide native aggregations over the FDC side-fields.
+    fleet: NotRequired[FdcFleet]
     raw: NotRequired[dict]

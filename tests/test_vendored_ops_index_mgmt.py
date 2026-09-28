@@ -534,6 +534,7 @@ def test_provisioned_aliases_match_the_runtime_logging_targets():
 
 
 # ── network_fdc_cdsem: write-time typed side-fields ─────────────────────────
+# Field names are the office writer's (office 확인 2026-09-28).
 
 
 def _fdc(key: str, values: list[str]) -> dict:
@@ -541,7 +542,7 @@ def _fdc(key: str, values: list[str]) -> dict:
             "timestamp": "2026-09-28T09:00:00", "values": [key, "0", *values]}
 
 
-def test_side_fields_type_each_aggregated_fdc_key():
+def test_side_fields_type_each_fdc_key_with_the_office_names():
     # `values` is a positional string list, which OpenSearch cannot aggregate
     # by position; the typed copies are what a fleet view averages.
     assert fdc_index.side_fields(_fdc("TemperatureEChuck", ["2", "23.39053"])) == {
@@ -554,10 +555,14 @@ def test_side_fields_type_each_aggregated_fdc_key():
         "ContactpinConductionInfo",
         ["B", "3", "Conduction", "-5.0", "-5.0", "0.0", "5.0", "182671"],
     ))
-    assert pin == {"pin": 3, "first4_spread": 10.0, "counter": 182671}
-    assert type(pin["pin"]) is int and type(pin["counter"]) is int
-    # SPMVoltages is undecided (no scalar separated BM/PM), so no side-fields.
-    assert fdc_index.side_fields(_fdc("SPMVoltages", ["A", "7", "1", "1", "spline", "-0.2"])) == {}
+    assert pin == {"pin_channel": "B", "pin_no": 3, "pin_judgement": "Conduction",
+                   "pin_spread": 10.0, "pin_counter": 182671}
+    assert type(pin["pin_no"]) is int and type(pin["pin_counter"]) is int
+    # SPM gets strings only: per-tool unit scales differ 100x, so no SPM
+    # number is fleet-comparable.
+    assert fdc_index.side_fields(
+        _fdc("SPMVoltages", ["A", "7", "1", "1", "spline", "-0.2", "0"])
+    ) == {"spm_channel": "A", "spm_judgement": "spline"}
 
 
 def test_side_fields_read_a_comma_decimal_and_drop_a_bad_cell():
@@ -567,12 +572,12 @@ def test_side_fields_read_a_comma_decimal_and_drop_a_bad_cell():
         "ContactpinConductionInfo",
         ["A", "5", "NonConduction", "-25.5", "-0.9", "24.6", "25,0", "182501"],
     ))
-    assert got == pytest.approx({"pin": 5, "first4_spread": 50.5, "counter": 182501})
+    assert got["pin_spread"] == pytest.approx(50.5)
     bad = fdc_index.side_fields(_fdc(
         "ContactpinConductionInfo",
         ["A", "x", "NonConduction", "-25.5", "?", "24.6", "25.0", "182501"],
     ))
-    assert bad == {"counter": 182501}
+    assert bad == {"pin_channel": "A", "pin_judgement": "NonConduction", "pin_counter": 182501}
     assert fdc_index.side_fields(_fdc("TemperatureEChuck", ["1.5", "nan"])) == {}
     assert fdc_index.side_fields({"fdc_key": "LaserPower", "values": None}) == {}
 
@@ -585,13 +590,12 @@ def test_bulk_actions_add_side_fields_and_keep_values_untouched():
     assert "temp_pos" not in doc  # the caller's dict is not mutated
 
 
-def test_side_fields_are_mapped_explicitly_in_the_template():
-    # Typed up front, so an aggregation never depends on which value dynamic
-    # mapping happened to see first (an int-looking first temp would pin long).
+def test_the_index_stays_dynamically_mapped_for_the_side_fields():
+    # Office 확인 2026-09-28: no explicit side-field mapping. Numbers land as
+    # long/float and strings as text + .keyword, so fleet queries aggregate
+    # strings on `<field>.keyword`, the same as eqp_id.
     props = fdc_index.build_index_template_body()["template"]["mappings"]["properties"]
-    for name, mapping in fdc_index.SIDE_FIELD_MAPPINGS.items():
-        assert props[name] == mapping
-    assert props["counter"] == {"type": "long"}
+    assert set(props) == {"os_inserted"}
 
 
 def test_every_mock_fdc_doc_yields_its_full_side_field_set():
@@ -604,13 +608,15 @@ def test_every_mock_fdc_doc_yields_its_full_side_field_set():
     expected = {
         "TemperatureEChuck": {"temp_pos", "temp_c"},
         "LaserPower": {"laser_x1", "laser_y1"},
-        "ContactpinConductionInfo": {"pin", "first4_spread", "counter"},
+        "SPMVoltages": {"spm_channel", "spm_judgement"},
+        "ContactpinConductionInfo": {
+            "pin_channel", "pin_no", "pin_judgement", "pin_spread", "pin_counter",
+        },
     }
     end = datetime(2026, 5, 24, 9, 0)
     seen = set()
     for n in range(1, 13):
         for doc in fdc_mock.build_fdc_docs(f"CDX{n:03d}", "M16A", end - timedelta(days=10), end):
-            want = expected.get(doc["fdc_key"], set())
-            assert set(fdc_index.side_fields(doc)) == want, doc
+            assert set(fdc_index.side_fields(doc)) == expected[doc["fdc_key"]], doc
             seen.add(doc["fdc_key"])
-    assert seen >= set(expected)
+    assert seen == set(expected)

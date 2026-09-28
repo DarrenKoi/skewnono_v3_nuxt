@@ -130,30 +130,38 @@ ContactpinConductionInfo
     아직 모릅니다 - OFFICE-VERIFY.
 
 ========================================================================
-typed side-field (write 시점 파생, user-confirmed 2026-09-28)
+typed side-field (write 시점 파생, office 확인 2026-09-28)
 ========================================================================
 
 values 는 위치 기반 문자열 list 라 OpenSearch 가 위치별로 집계하지 못합니다. 그래서
-적재 시 ops_index_mgmt/network_fdc_cdsem.iter_bulk_actions 가 values 는 그대로 두고
-아래 typed field 를 _source 에 함께 씁니다 (side_fields 함수). template 에 명시
-mapping 이 있어 fleet 화면은 원문을 끌어오지 않고 집계 한 번으로 그립니다.
+사무실 FDC 적재 task 가 values 는 그대로 두고 아래 typed field 를 _source 에 함께
+씁니다. 이 저장소의 기준 구현은 ops_index_mgmt/network_fdc_cdsem.side_fields 입니다.
 
-  fdc_key                   field          type     출처
-  TemperatureEChuck         temp_pos       integer  values[2] (1-3)
-                            temp_c         float    values[3]
-  LaserPower                laser_x1       float    values[2]
-                            laser_y1       float    values[3]
-  ContactpinConductionInfo  pin            integer  values[3] (1-25)
-                            first4_spread  float    max - min of values[5:9]
-                            counter        long     values[9]
+  fdc_key                   field          type (dynamic)    출처
+  TemperatureEChuck         temp_pos       long              values[2] (1-3)
+                            temp_c         float             values[3]
+  LaserPower                laser_x1       float             values[2]
+                            laser_y1       float             values[3]
+  SPMVoltages               spm_channel    text + .keyword   values[2]
+                            spm_judgement  text + .keyword   values[6] (피팅 모델 이름)
+  ContactpinConductionInfo  pin_channel    text + .keyword   values[2]
+                            pin_no         long              values[3] (1-25)
+                            pin_judgement  text + .keyword   values[4]
+                            pin_spread     float             max - min of values[5:9]
+                            pin_counter    long              values[9]
 
-  - SPMVoltages 는 side-field 가 없습니다 (BM/PM 을 가르는 scalar 미정).
-  - LaserPower x2/y2 는 noise 라 side-field 를 두지 않습니다.
-  - 파싱되지 않는 칸은 그 field 만 빠집니다. 잘못된 숫자를 쓰지 않습니다.
-    '25,0' 같은 콤마 소수점은 25.0 으로 읽습니다.
-  - 사무실 FDC 적재 task 가 iter_bulk_actions 를 거쳐야 field 가 생깁니다.
-    이 변경 이전에 적재된 문서에는 field 가 없습니다 (backfill 전까지) - OFFICE-VERIFY.
-  - 이미 있는 write index 에는 template 이 소급 적용되지 않습니다. 첫 write 때
-    dynamic mapping 이 int -> long, float -> float 으로 잡습니다. 다음 rollover 부터는
-    template 의 명시 타입을 씁니다.
-  - 화면용 per-tool 어댑터(fdc/office_example.py)는 이 field 를 가져오지 않습니다.
+  - index 는 dynamic mapping 그대로입니다. 문자열 field 는 eqp_id 처럼 .keyword 로
+    집계합니다.
+  - SPM 은 숫자 field 가 없습니다. 장비마다 단위 scale 이 100배까지 달라 fab 비교를
+    하지 않습니다.
+  - pin_counter 는 채널별 단조 증가 counter (event 당 +1) 입니다. 원값이 아니라
+    증가율을 봅니다.
+  - 이전 문서에는 field 가 없습니다. backfill 이 아직 없어 fleet 화면은 배포 후
+    약 30일에 걸쳐 채워집니다.
+  - 중복 문서: 평균은 byte 동일 중복에 영향이 없지만, 문서 수 기반 비율은 ~1% 부풀려
+    집니다. fleet 집계는 Contactpin 수를 cardinality(timestamp) 로 셉니다 (_id 가
+    fab_eqp_key_timestamp 라 timestamp 하나가 곧 중복 제거된 문서 하나).
+  - pin_judgement 철자: 사무실 회신이 field 목록에는 pin_judgement, 집계 예시에는
+    pin_judgment 로 적었습니다 - OFFICE-VERIFY.
+  - 화면용 per-tool 어댑터(fdc/office_example.build_fdc_docs)는 이 field 를 가져오지
+    않고, fleet 어댑터(build_fdc_fleet, fdc/fleet.py)만 집계합니다.

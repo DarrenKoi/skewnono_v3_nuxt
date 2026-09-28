@@ -33,12 +33,13 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
   2026-09-28). Class rates, the Unstable spread band and the events per log
   interval are OFFICE-VERIFY.
 
-At the office the writer (`ops_index_mgmt/network_fdc_cdsem.iter_bulk_actions`)
-also stores typed side-fields derived from `values` (temp_pos, temp_c,
-laser_x1, laser_y1, pin, first4_spread, counter) for the fleet aggregations.
+At the office the writer also stores typed side-fields derived from `values`
+(`ops_index_mgmt/network_fdc_cdsem.side_fields`: temp_pos, temp_c, laser_x1,
+laser_y1, spm_channel, spm_judgement, pin_channel, pin_no, pin_judgement,
+pin_spread, pin_counter; office 확인 2026-09-28) for the fleet aggregations.
 The per-tool adapter does not fetch them (`SOURCE_FIELDS`), so these docs
-carry the seven fields the page sees; `side_fields()` over them yields the
-same set the office writes (pinned in tests/test_vendored_ops_index_mgmt.py).
+carry the seven fields the page sees. `build_fdc_fleet` applies the same
+`side_fields` and emulates the aggregation OpenSearch would answer.
 
 The office index also holds byte-identical duplicates (the rollover alias
 spans two backing indices). The office adapter strips them, so this mock
@@ -51,18 +52,27 @@ from __future__ import annotations
 
 import math
 import random
-from datetime import datetime, timedelta
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
 from functools import cache
+from statistics import fmean
 
 from backend.ebeam._tool_specs import TOOL_SPECS
 from backend.ebeam.hardware.providers._siblings import (
     eqp_ip_for,
     seed_for,
 )
+from backend.ebeam.hardware.contracts import FdcFleet
+from backend.ebeam.hardware.providers.fdc.fleet import (
+    SPREAD_BIN_WIDTH,
+    fab_roster,
+    fleet_from_aggs,
+)
 from backend.sem_list.providers.mock import get_sem_list
+from ops_index_mgmt.network_fdc_cdsem import side_fields
 
 
-__all__ = ["build_fdc_docs"]
+__all__ = ["build_fdc_docs", "build_fdc_fleet"]
 
 
 _ABC: tuple[str, ...] = ("A", "B", "C")
@@ -272,3 +282,78 @@ def build_fdc_docs(
             docs += build(rng, base, start, end)
     docs.sort(key=lambda d: (d["timestamp"], d["fdc_key"], str(d["values"][2:3])))
     return docs
+
+
+def _epoch_ms(timestamp: str) -> float:
+    # OpenSearch reads the offset-less KST wall clock as UTC; only differences
+    # are used, so mirroring that reading is enough.
+    return datetime.fromisoformat(timestamp).replace(tzinfo=timezone.utc).timestamp() * 1000
+
+
+def _emulate_fleet_aggs(docs_by_tool: dict[str, list[dict]]) -> dict:
+    """What OpenSearch answers for `fleet.fleet_aggs()` over these docs, whose
+    side-fields are already applied: the same bucket JSON, so the shared
+    `fleet_from_aggs` normalizer is what turns it into the contract."""
+    def avg(values: list[float]) -> dict:
+        return {"value": fmean(values) if values else None}
+
+    tools: list[dict] = []
+    margin: dict[str, Counter] = defaultdict(Counter)
+    for eqp_id, docs in docs_by_tool.items():
+        if not docs:
+            continue
+        days: dict[str, list[float]] = defaultdict(list)
+        stamps: dict[str, set[str]] = defaultdict(set)
+        channels: dict[str, list[tuple[float, int]]] = defaultdict(list)
+        for doc in docs:
+            if "temp_c" in doc:
+                days[doc["timestamp"][:10]].append(doc["temp_c"])
+            judgement = doc.get("pin_judgement")
+            if judgement is not None:
+                stamps[judgement].add(doc["timestamp"])  # cardinality(timestamp)
+                if "pin_spread" in doc:
+                    margin[judgement][math.floor(doc["pin_spread"] / SPREAD_BIN_WIDTH)] += 1
+            if "pin_counter" in doc:
+                channels[doc["pin_channel"]].append((_epoch_ms(doc["timestamp"]), doc["pin_counter"]))
+        tools.append({
+            "key": eqp_id,
+            "temp_c": avg([d["temp_c"] for d in docs if "temp_c" in d]),
+            "laser_x1": avg([d["laser_x1"] for d in docs if "laser_x1" in d]),
+            "laser_y1": avg([d["laser_y1"] for d in docs if "laser_y1" in d]),
+            "days": {"buckets": [
+                {"key_as_string": day, "temp_c": avg(temps)} for day, temps in sorted(days.items())
+            ]},
+            "judgement": {"buckets": [
+                {"key": j, "docs": {"value": len(ts)}} for j, ts in stamps.items()
+            ]},
+            "channels": {"buckets": [
+                {
+                    "key": ch,
+                    "c_min": {"value": min(c for _, c in points)},
+                    "c_max": {"value": max(c for _, c in points)},
+                    "t_min": {"value": min(t for t, _ in points)},
+                    "t_max": {"value": max(t for t, _ in points)},
+                }
+                for ch, points in channels.items()
+            ]},
+        })
+    # A histogram agg fills the empty bins between the lowest and highest.
+    bins = [b for counts in margin.values() for b in counts]
+    margin_buckets = [
+        {"key": j, "spread": {"buckets": [
+            {"key": b * SPREAD_BIN_WIDTH, "doc_count": counts[b]}
+            for b in range(min(counts), max(counts) + 1)
+        ]}}
+        for j, counts in margin.items()
+    ] if bins else []
+    return {"tools": {"buckets": tools}, "margin": {"buckets": margin_buckets}}
+
+
+def build_fdc_fleet(fab_name: str, start: datetime, end: datetime) -> FdcFleet:
+    """The fab's CD-SEM roster tools, aggregated like the office's one request."""
+    roster = fab_roster(get_sem_list(), fab_name)
+    docs_by_tool = {
+        eqp_id: [{**doc, **side_fields(doc)} for doc in build_fdc_docs(eqp_id, fab_name, start, end)]
+        for eqp_id in roster
+    }
+    return fleet_from_aggs(_emulate_fleet_aggs(docs_by_tool), roster)

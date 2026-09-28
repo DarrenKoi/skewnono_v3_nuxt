@@ -9,7 +9,7 @@ feature switch (`SKEWNONO_HARDWARE_PROVIDER`) is set once; a tab without an
 
 | Tab folder | Builder(s) | Office source | Template |
 | --- | --- | --- | --- |
-| `fdc/` | `build_fdc_docs` | OpenSearch `network_fdc_cdsem` | written — `cp` + verify |
+| `fdc/` | `build_fdc_docs` + `build_fdc_fleet` | OpenSearch `network_fdc_cdsem` | written — `cp` + verify |
 | `sharpness/` | `build_network_sharpness_docs` | OpenSearch `sharpness_monitor_cdsem` | written — `cp` + verify |
 | `bm_pm/` | `build_bm_pm_data` | OpenSearch `fab_inform_notes` + `tool_maintenance_plan` | written — `cp` + verify |
 | `bsm/` | `build_beam_shape_docs` | OpenSearch `beam_shape_cdsem` (type:total) | written — `cp` + verify |
@@ -51,6 +51,17 @@ two OFFICE-VERIFY checks in its docstring (offset-less `timestamp`, and
 `eqp_id` carrying a `.keyword` subfield). FDC is CD-SEM only — an HV-SEM tool
 matches no documents and renders an empty chart, which is the intended
 result until HV-SEM FDC is ingested.
+
+The same file carries `build_fdc_fleet`, the `fdc-fleet` service behind the
+FDC tab's `fab 전체` view. It is ONE aggregation over the typed side-fields
+the office writer stores next to `values` (`temp_c`, `laser_x1`,
+`pin_judgement`, ...; office 확인 2026-09-28). The request body and the
+response normalizer live in `fdc/fleet.py`, shared with the mock, which
+emulates the response from its own docs. Two things to verify after `cp`:
+the stored spelling `pin_judgement` versus `pin_judgment` (the office letter
+used both; the constant is `fleet.JUDGEMENT_KW`), and that the view fills in.
+Docs written before the side-fields shipped carry none (no backfill), so the
+view covers roughly 30 days from that deployment onward.
 
 `bm_pm/office_example.py` is implemented too, over two indices: `fab_inform_notes`
 for the past-work table (`down_dt`/`equp_dt` plus the three engineer notes)

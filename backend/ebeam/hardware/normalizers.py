@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from backend.ebeam.hardware.contracts import (
+    FdcFleet,
     HardwareMetricCard,
     HardwarePayload,
     HardwareTableSection,
@@ -15,20 +16,24 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-# bsm / reso-center / sce / sharpness are CD-SEM-only checks.
-CDSEM_ONLY_SERVICES: frozenset[str] = frozenset({"bsm", "reso-center", "sce", "sharpness"})
+# bsm / reso-center / sce / sharpness / fdc-fleet are CD-SEM-only checks.
+CDSEM_ONLY_SERVICES: frozenset[str] = frozenset(
+    {"bsm", "reso-center", "sce", "sharpness", "fdc-fleet"}
+)
 
 _CDSEM_ONLY_MSG: dict[str, str] = {
     "bsm": "BSM는 CD-SEM 장비에서만 제공됩니다.",
     "reso-center": "Reso Center는 CD-SEM 장비에서만 제공됩니다.",
     "sce": "SCE는 CD-SEM 장비에서만 제공됩니다.",
     "sharpness": "Sharpness는 CD-SEM 장비에서만 제공됩니다.",
+    "fdc-fleet": "FDC fab 집계는 CD-SEM 장비에서만 제공됩니다.",
 }
 
 _EMPTY_HINT: dict[str, str] = {
     "bsm": "장비를 선택하면 BSM 추세와 360° 빔 형상을 확인할 수 있습니다.",
     "reso-center": "장비를 선택하면 Reso Center 추세를 확인할 수 있습니다.",
     "fdc": "장비를 선택하면 FDC 신호/판정 추세를 확인할 수 있습니다.",
+    "fdc-fleet": "장비를 선택하면 그 fab 의 FDC 집계를 확인할 수 있습니다.",
     "mdc": "장비를 선택하면 MDC 보정 계수와 동일 fab skew를 확인할 수 있습니다.",
     "sce": "장비를 선택하면 SCE 설정과 계수 곡선을 확인할 수 있습니다.",
     "bm-pm": "장비를 선택하면 BM/PM 작업 이력과 예정 작업을 확인할 수 있습니다.",
@@ -215,6 +220,32 @@ def docs_payload(
         "cards": cards,
         "tables": [],
         "docs": docs,
+    }
+
+
+def fleet_payload(
+    tool_slug: str,
+    eqp_id: str | None,
+    fab_name: str | None,
+    *,
+    fleet: FdcFleet,
+) -> HardwarePayload:
+    """Wrap the fab-wide FDC aggregation (fdc-fleet)."""
+    return {
+        "tool_slug": tool_slug,
+        "service": "fdc-fleet",
+        "eqp_id": eqp_id,
+        "fab_name": fab_name,
+        "available": True,
+        "fetched_at": now_iso(),
+        "summary": "network_fdc_cdsem side-field 를 fab 단위로 집계합니다. "
+                   "side-field 는 적재 배포 이후 문서에만 있어 약 30일에 걸쳐 채워집니다.",
+        "cards": [
+            {"key": "fleet_tools", "label": "집계 장비", "value": len(fleet["tools"]),
+             "unit": "대", "tone": "neutral"},
+        ],
+        "tables": [],
+        "fleet": fleet,
     }
 
 

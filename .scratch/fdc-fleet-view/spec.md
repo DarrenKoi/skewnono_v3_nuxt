@@ -1,6 +1,6 @@
 # FDC fab 단위 장비 순위 뷰 (TemperatureEChuck · LaserPower x1/y1)
 
-Status: ready-for-agent
+Status: resolved
 작성: 2026-09-28
 
 ## 배경
@@ -56,3 +56,16 @@ office 확인 2026-09-28) 결과, 두 신호는 장비 간 차이가 장비 내 
 - 사무실 FDC 적재 task 가 `iter_bulk_actions` 를 쓰는지 확인하고, 아니면 호출을 추가.
 - 과거 문서 backfill 여부 (없으면 fleet 화면은 적재 시작일부터 채워집니다).
 - 읽는 쪽: hardware 에 fleet service/adapter (mock + office_example) 와 화면.
+
+## 구현 (2026-09-28)
+
+사무실이 field 이름을 확정해 회신했습니다 (temp_pos/temp_c, laser_x1/laser_y1,
+spm_channel/spm_judgement, pin_channel/pin_no/pin_judgement/pin_spread/pin_counter,
+dynamic mapping 유지). 그 이름으로 `fdc-fleet` service 를 만들었습니다.
+
+- backend: `providers/fdc/fleet.py` (집계 body + 정규화), `build_fdc_fleet` (office 는
+  집계 1회, mock 은 같은 응답을 흉내).
+- frontend: FDC 탭의 `장비 | fab 전체` 전환. heatmap, laser 순위, Contactpin 판정 비율,
+  margin 분포, counter 증가율.
+
+남은 것: backfill (없으면 배포 후 약 30일에 걸쳐 채워짐), `pin_judgement` 철자 확인.
