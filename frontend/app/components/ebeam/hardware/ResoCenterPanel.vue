@@ -47,6 +47,9 @@ const props = defineProps<{
 }>()
 
 const num = (v: unknown): number => {
+  // null / '' are missing, not zero — Number(null) is 0 and would plot a
+  // blanked CenterX at the origin.
+  if (v == null || v === '') return NaN
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : NaN
 }
@@ -89,7 +92,12 @@ const trendEl = ref<HTMLDivElement | null>(null)
 const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
 
 const scatterOption = computed<EChartsOption>(() => {
-  const pts = ordered.value.map(d => ({ ts: tsOf(d), x: num(d.CenterX), y: num(d.CenterY) }))
+  // A doc without both coordinates has no position — e.g. the office blanks
+  // CenterX on docs written before its 2026-09-28 fix — so it is skipped here
+  // and the "latest" marker is the newest point that can actually be drawn.
+  const pts = ordered.value
+    .map(d => ({ ts: tsOf(d), x: num(d.CenterX), y: num(d.CenterY) }))
+    .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
   const latest = pts[pts.length - 1]
   const xAxisRange = stableYRange(pts.map(p => p.x)) ?? { scale: true }
   const yAxisRange = stableYRange(pts.map(p => p.y)) ?? { scale: true }

@@ -104,10 +104,26 @@ def test_normalize_drops_stray_focus_sweep_fields():
 
 
 def test_normalize_coerces_numeric_strings_to_floats():
-    out = office._normalize(RAW_HIT, EQP, IP)
+    # Dated after the CenterX fix, so every numeric field survives.
+    out = office._normalize({**RAW_HIT, "timestamp": "2026-09-28T10:00:00"}, EQP, IP)
     assert out["CenterY"] == -0.99
     assert out["ResoIScenter"] == 3.04
     assert all(isinstance(out[f], float) for f in office._NUMERIC_FIELDS)
+
+
+def test_normalize_blanks_the_corrupted_centerx_of_docs_before_the_fix():
+    """Docs written before 2026-09-28 store the CenterXY magnitude in CenterX
+    (office 확인 2026-09-28). Blanking it drops the point from the scatter;
+    CenterY and the resolution trend fields are genuine and stay."""
+    out = office._normalize({**RAW_HIT, "timestamp": "2026-09-27T23:59:59"}, EQP, IP)
+    assert out["CenterX"] is None
+    assert out["CenterY"] == -0.99
+    assert out["BestReso"] == 2.98
+
+
+def test_normalize_keeps_centerx_from_the_fix_date_on():
+    out = office._normalize({**RAW_HIT, "timestamp": "2026-09-28T00:00:00"}, EQP, IP)
+    assert out["CenterX"] == 1.15
 
 
 def test_reso_data_is_passed_through_as_indexed_not_recomputed():

@@ -29,8 +29,9 @@ explicit field list as a guard, and this mock emits exactly those 13 fields, so
 
 Deliberate difference: every office doc written before 2026-09-28 has a
 CORRUPTED `CenterX` (the CenterXY magnitude, not the X offset — office 확인
-2026-09-28). This mock emits a clean X offset throughout rather than
-reproducing that, so home scatters look right where old office windows won't.
+2026-09-28). The office adapter blanks those values, so old points drop out
+of the office scatter. This mock emits a clean X offset throughout rather than
+reproducing the corruption, so its pre-2026-09-28 points still plot at home.
 """
 
 from __future__ import annotations

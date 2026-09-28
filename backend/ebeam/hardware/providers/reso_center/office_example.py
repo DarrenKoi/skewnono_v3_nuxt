@@ -38,8 +38,9 @@ and ``fdc_category`` are NOT returned. The office ingestion pops
 
 ``CenterX`` is CORRUPTED in every doc written before 2026-09-28: it holds the
 CenterXY magnitude, not the X offset (office 확인 2026-09-28). Newer docs are
-correct. It is passed through as stored, so an odd-looking scatter over an old
-window is this, not the adapter.
+correct. ``_normalize`` blanks ``CenterX`` on any doc dated before
+``CENTERX_FIXED_FROM``, so those points drop out of the scatter while CenterY
+and the resolution trend stay.
 
 ``ResoData`` (spelled so at the office — user-confirmed 2026-09-28; this file
 said ``ResoDelta`` until then) is the stored difference
@@ -117,6 +118,13 @@ SOURCE_FIELDS = [
 # Numeric scalars: the source mixes floats and numeric strings within one index
 # (the same pattern beam_shape shows), so every one is coerced.
 _NUMERIC_FIELDS = ("CenterX", "CenterY", "BestReso", "ResoIScenter", "ResoData")
+
+# Docs dated before this hold the CenterXY magnitude in CenterX, not the X
+# offset (office 확인 2026-09-28), so their CenterX is blanked and the point
+# drops out of the scatter. ISO strings compare correctly as text.
+# ponytail: keyed on the tool `timestamp` as a proxy for write time — a doc
+# backfilled after the fix with an older timestamp would be blanked too.
+CENTERX_FIXED_FROM = "2026-09-28"
 
 
 def _as_float(value: Any) -> float | None:
@@ -207,6 +215,8 @@ def _normalize(doc: dict[str, Any], eqp_id: str, ip: str) -> dict[str, Any]:
     }
     for field in _NUMERIC_FIELDS:
         out[field] = _as_float(doc.get(field))
+    if timestamp < CENTERX_FIXED_FROM:
+        out["CenterX"] = None
     return out
 
 

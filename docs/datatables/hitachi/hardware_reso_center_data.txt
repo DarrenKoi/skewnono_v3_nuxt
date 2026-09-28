@@ -22,8 +22,11 @@ doc 하나에는 다음과 같은 필드가 있다.
                               # ★ 2026-09-28 이전에 적재된 doc 은 CenterX 가 오염되어
                               #   있습니다 — X offset 이 아니라 CenterXY 크기
                               #   (sqrt(X²+Y²))가 들어 있습니다. 그날 이후 새로 적재된
-                              #   doc 부터 올바릅니다 (office 확인 2026-09-28). 옛 구간의
-                              #   scatter 가 이상해 보이면 이 때문입니다.
+                              #   doc 부터 올바릅니다 (office 확인 2026-09-28).
+                              #   office 어댑터는 timestamp 가 2026-09-28 이전인 doc 의
+                              #   CenterX 를 비워서(None) 보내고, 화면은 X/Y 가 둘 다 있는
+                              #   점만 scatter 에 그립니다 — 옛 점은 숨겨지고 CenterY 와
+                              #   resolution 추이는 그대로 남습니다.
 'CenterY': float -0.99
 'BestReso': float 2.98         # best-focus resolution (focus sweep의 최소값)
 'ResoIScenter': float 3.04     # 중심 focus에서의 resolution (>= BestReso)

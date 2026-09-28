@@ -375,7 +375,7 @@ keyword, so this index may be too. Check the mapping.
 | `timestamp` | `date`, offset-less KST | range, sort, x-axis | empty → raise |
 | `timestamp_date` | string `YYYY-MM-DD` | passed through | filled from `timestamp` |
 | `beam_condition` | string, e.g. `HR0500_IP0080` | the page always shows **one** condition (first in sorted order) | — |
-| `CenterX`, `CenterY` | float or numeric string | scatter plot | non-numeric → null, a blank point. **`CenterX` is corrupted in every doc written before 2026-09-28**: it holds the CenterXY magnitude, not the X offset (office 확인 2026-09-28) |
+| `CenterX`, `CenterY` | float or numeric string | scatter plot | a point needs both, so non-numeric or null skips it. **`CenterX` is corrupted in every doc written before 2026-09-28**: it holds the CenterXY magnitude, not the X offset (office 확인 2026-09-28). The adapter blanks `CenterX` when `timestamp` < `2026-09-28`, so those points are hidden |
 | `BestReso`, `ResoIScenter` | float | two trend lines on one nm axis | same as above |
 | `ResoData` | float, stored (`ResoIScenter − BestReso`, ≥ 0). Spelled `ResoData`, not `ResoDelta` (user-confirmed 2026-09-28) | tooltip; **never recomputed** | missing → `—` |
 | `eqp_id`, `fac_id`, `category` | string | passed through | a missing `eqp_id` is filled from the request |
