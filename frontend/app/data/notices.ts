@@ -5,9 +5,9 @@
 // why this is a frontend data file and not the `announcements` banner feed, which is
 // operational (Redis at the office, editable without a deploy) and for urgent notes.
 //
-// Adding an entry is the whole act of publishing: the header's N badge compares each `date`
-// against the newest date this browser has seen (useNotices), so a new date lights it up
-// for everyone. `date` is therefore the id — one notice per date, ISO `YYYY-MM-DD` so string
+// Adding an entry is the whole act of publishing: /notices compares each `date` against the
+// newest date this browser has seen (useNotices), so a new date reads as unread for
+// everyone. `date` is therefore the id — one notice per date, ISO `YYYY-MM-DD` so string
 // comparison is date order. A second change on the same day goes into that day's `sections`.
 // notices.test.ts guards the format and the order.
 //
@@ -36,6 +36,37 @@ export interface Notice {
 }
 
 export const NOTICES: Notice[] = [
+  {
+    date: '2026-09-28',
+    category: '기능추가',
+    title: 'H/W 관리 FDC fab 전체 보기와 SCE 비교 개선',
+    sections: [
+      {
+        area: 'H/W 관리',
+        items: [
+          'FDC 탭에 장비 / fab 전체 전환이 생겼습니다. fab 전체에서는 척 온도 히트맵, LaserPower 순위, Contactpin 판정 비율과 pin 편차 분포, 카운터 증가율을 장비 그룹 전체로 비교하고, 선택한 장비를 강조합니다. 새 수집 항목이 쌓이는 대로 채워지므로 처음 며칠은 비어 보일 수 있습니다.',
+          'FDC Contactpin 은 Conduction / UnstableConduction / NonConduction 세 단계로 표시하고, pin 간 편차와 채널별 카운터의 하루 증가량을 함께 보여 줍니다.',
+          'FDC LaserPower 는 x1/y1 의 기준 대비 % 로, 척 온도는 일 평균 굵은 선으로, SPM 은 채널별 편차 추이로 보여 줍니다.',
+          '기록이 많은 장비에서 FDC 데이터를 불러오지 못하던 문제와 같은 기록이 두 번 잡히던 문제를 고쳤습니다.',
+          'SCE 는 장비 그룹 전체에서 같은 설정값은 숨기고 다른 값만 보여 주며, 기준 파일을 공유하는 장비 묶음과 fab 전체 요약을 추가했습니다. 수집되지 않는 fab 은 그렇다고 안내합니다.',
+          'Reso Center 툴팁의 ResoData 가 비어 있던 문제를 고치고, 9월 28일 이전에 잘못 저장된 CenterX 점은 산점도에서 뺐습니다.',
+          'BSM 의 Ellipticity 추이가 비어 있던 문제와 Sharpness 의 Vacc 800 조건이 버튼 두 개로 나뉘던 문제를 고쳤습니다.'
+        ]
+      },
+      {
+        area: '스큐보아',
+        items: [
+          'recipe: 로 검색하면 이름이 정확히 일치하는 Recipe 가 같은 접두어를 가진 다른 Recipe 보다 먼저 나옵니다.'
+        ]
+      },
+      {
+        area: 'Recipe 검색',
+        items: [
+          '열어 보기 · 횡전개 · 측정 이력 화면에서도 스큐보아 버튼으로 바로 이동할 수 있습니다.'
+        ]
+      }
+    ]
+  },
   {
     date: '2026-09-18',
     category: '기능추가',
