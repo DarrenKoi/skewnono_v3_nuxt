@@ -39,9 +39,7 @@ const months = computed(() => groupNoticesByMonth(pageRows.value))
 const unreadCount = computed(() => notices.filter(isNew).length)
 
 // A category with no notices yet would be a chip that can only ever empty the list.
-const categoryChips = computed(() => CATEGORIES
-  .map(label => ({ label, count: notices.filter(n => n.category === label).length }))
-  .filter(chip => chip.count > 0))
+const categoryChips = computed(() => CATEGORIES.filter(label => notices.some(n => n.category === label)))
 
 const visibleDates = computed(() => [...pinned.value, ...pageRows.value].map(n => n.date))
 const allOpen = computed(() => visibleDates.value.length > 0 && visibleDates.value.every(d => open.value.has(d)))
@@ -138,17 +136,15 @@ onBeforeUnmount(() => {
         >
           <SkChip
             label="전체"
-            :count="notices.length"
             :active="category === null"
             @click="category = null"
           />
           <SkChip
-            v-for="chip in categoryChips"
-            :key="chip.label"
-            :label="chip.label"
-            :count="chip.count"
-            :active="category === chip.label"
-            @click="category = chip.label"
+            v-for="label in categoryChips"
+            :key="label"
+            :label="label"
+            :active="category === label"
+            @click="category = label"
           />
         </div>
 
