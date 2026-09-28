@@ -563,6 +563,11 @@ def test_side_fields_type_each_fdc_key_with_the_office_names():
     assert fdc_index.side_fields(
         _fdc("SPMVoltages", ["A", "7", "1", "1", "spline", "-0.2", "0"])
     ) == {"spm_channel": "A", "spm_judgment": "spline"}
+    # CG5000 lines carry no fit-model token (office 확인 2026-09-29): values[6]
+    # is the first profile number, never a fit model.
+    assert fdc_index.side_fields(
+        _fdc("SPMVoltages", ["A", "7", "1", "1", "-0.2", "0", "-0.4"])
+    ) == {"spm_channel": "A"}
 
 
 def test_side_fields_read_a_comma_decimal_and_drop_a_bad_cell():
@@ -617,6 +622,10 @@ def test_every_mock_fdc_doc_yields_its_full_side_field_set():
     seen = set()
     for n in range(1, 13):
         for doc in fdc_mock.build_fdc_docs(f"CDX{n:03d}", "M16A", end - timedelta(days=10), end):
-            assert set(fdc_index.side_fields(doc)) == expected[doc["fdc_key"]], doc
-            seen.add(doc["fdc_key"])
-    assert seen == set(expected)
+            want = expected[doc["fdc_key"]]
+            if doc["eqp_model_cd"] == "CG5000":  # no fit-model token, no spm_judgment
+                want = want - {"spm_judgment"}
+            assert set(fdc_index.side_fields(doc)) == want, doc
+            seen.add((doc["fdc_key"], doc["eqp_model_cd"] == "CG5000"))
+    assert {key for key, _ in seen} == set(expected)
+    assert ("SPMVoltages", True) in seen  # the CG5000 branch ran

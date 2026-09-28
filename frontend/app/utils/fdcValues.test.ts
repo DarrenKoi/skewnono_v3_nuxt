@@ -22,6 +22,11 @@ test('SPMVoltages → channel, fit model, numeric profile after fit model', () =
   assert.deepEqual((p.data as SpmVoltagesValue).profile, [-0.2, 0, -0.4])
 })
 
+test('SPMVoltages without a fit-model token (CG5000) → profile starts after the header', () => {
+  const p = parseFdcValues(['SPMVoltages', '0', 'A', '7', '1', '1', '-0.2', '0', '-0.4'])
+  assert.deepEqual(p.data, { channel: 'A', fitModel: '', profile: [-0.2, 0, -0.4] })
+})
+
 test('ContactpinConductionInfo → channel, judgment, 5 values', () => {
   const p = parseFdcValues(['ContactpinConductionInfo', '0', 'A', '5', 'NonConduction', '-25.5', '-0.9', '24.6', '25.0', '182501'])
   assert.equal(p.key, 'ContactpinConductionInfo')

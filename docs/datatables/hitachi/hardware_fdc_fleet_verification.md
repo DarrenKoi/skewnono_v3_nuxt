@@ -20,7 +20,17 @@ aggregations read real fields and return real numbers.
 | V3.3 | OK: no SPM numbers are aggregated |
 | Duplicates | Contactpin 0.38 %, TemperatureEChuck 0.76 % on the busiest tools |
 | V3.2 | Busiest tools log ~2.7k Contactpin docs per 30 days, at the edge of the ~3000 default, so the query now sets `precision_threshold` 40000 |
-| **Pending** | V0.2-V0.4, V1, V2 and V4. Re-run them 2-3 days after deployment |
+| **Pending** | V0.3, V0.4, V1, V2 and V4. Re-run them 2-3 days after deployment |
+
+## Status after the post-deploy check (2026-09-29)
+
+| Check | Result |
+| --- | --- |
+| Deployment | Live since 2026-09-28. Side-fields exist in backing index 000005 only; older backing indices have none, as expected |
+| V0.2 | OK: numbers are `float` / `long`, strings are `text` + `.keyword` |
+| Fleet run | M16A: 57 ms, 34 tools, real temperature and laser means |
+| Transition | ~6.8 % of docs written 2026-09-28 11:20-12:45 stay fieldless for good: an old-code twin task wrote them first and the create-dedup locked the `_id`. They add nothing to the aggregates; no action needed |
+| CG5000 | SPMVoltages lines carry no fit-model token, so `spm_judgment` is always absent. CG5000 is SPM-only, so its fleet row has empty temperature, laser and Contactpin fields; that is a normal row |
 
 Written 2026-09-28 from `backend/ebeam/hardware/providers/fdc/fleet.py`,
 `fdc/office_example.py` (`build_fdc_fleet`) and
@@ -81,7 +91,7 @@ body = {"size": 0, "aggs": fleet.fleet_aggs()}      # the exact aggregation it s
 
 | # | Question | How | Decides |
 | --- | --- | --- | --- |
-| V0.1 | The mapping of `temp_pos`, `temp_c`, `laser_x1`, `laser_y1`, `spm_channel`, `spm_judgement`, `pin_channel`, `pin_no`, `pin_judgement`, `pin_judgment`, `pin_spread`, `pin_counter` in **every** backing index behind the alias | `GET network_fdc_cdsem/_mapping/field/<names>` | Whether any name in `fleet.py` is wrong. **Is it `pin_judgement` or `pin_judgment`?** The letter used both; the code reads `fleet.JUDGEMENT_KW = "pin_judgement.keyword"` |
+| V0.1 | The mapping of `temp_pos`, `temp_c`, `laser_x1`, `laser_y1`, `spm_channel`, `spm_judgment`, `pin_channel`, `pin_no`, `pin_judgment`, `pin_spread`, `pin_counter` in **every** backing index behind the alias | `GET network_fdc_cdsem/_mapping/field/<names>` | Whether any name in `fleet.py` is wrong. Settled 2026-09-28: `judgment`, no 'e'; the code reads `fleet.JUDGMENT_KW = "pin_judgment.keyword"` |
 | V0.2 | Are the numeric fields `long`/`float` in every backing index? Are the string fields `text` + `.keyword`? | same | If one backing index mapped `temp_c` as `long` (the first write looked integral), its averages are truncated |
 | V0.3 | Since the deployment date: docs per `fdc_key`, and how many of them carry each side-field | `exists` filter per field, `terms fdc_key.keyword` | Whether the writer runs on every doc or only some tasks. A Temperature doc without `temp_c` means a gap in the writer |
 | V0.4 | The earliest `timestamp` that carries a side-field | `min` agg under an `exists` filter | Whether the page needs a "집계 시작일" note while the 30-day window is only partly filled |
@@ -136,7 +146,7 @@ after the deployment date, as the side-fields are.
    ```
 
 2. **Fixes needed**: each `FIX:` with the file and the exact change. The most
-   likely one is `fleet.JUDGEMENT_KW` if V0.1 finds `pin_judgment`.
+   likely one is a field name in `fleet.py`.
 3. **Deployment facts** for the datatables doc: the writer's deployment date,
    the side-field coverage per key (V0.3), and the duplicate share (V2.3).
 

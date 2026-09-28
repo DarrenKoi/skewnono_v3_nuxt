@@ -137,7 +137,10 @@
       />
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
         <div class="flex items-center gap-2">
-          <span class="sk-label">피팅 모델</span>
+          <span
+            v-if="spmFits.length"
+            class="sk-label"
+          >피팅 모델</span>
           <span
             v-for="b in spmFits"
             :key="b.channel"
@@ -286,8 +289,10 @@ const spmSelected = computed(() => {
     .sort((a, b) => (a.data as SpmVoltagesValue).channel.localeCompare((b.data as SpmVoltagesValue).channel))
 })
 // spline/quartic names describe the fit algorithm, not equipment health.
+// CG5000 writes none, so its channels get no badge.
 const spmFits = computed(() =>
   spmSelected.value.map(p => ({ channel: (p.data as SpmVoltagesValue).channel, fitModel: (p.data as SpmVoltagesValue).fitModel }))
+    .filter(b => b.fitModel)
 )
 const spmDeviations = computed(() => spmDeviationSeries(grouped.value.SPMVoltages ?? []))
 // Office 2026-09-28: no scalar separated BM/PM events; this is a deviation trend, not a PM detector.

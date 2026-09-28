@@ -108,6 +108,7 @@ def side_fields(doc: Mapping[str, Any]) -> dict[str, Any]:
     - LaserPower               [key, '0', x1, y1, x2, y2]   -> laser_x1, laser_y1
     - SPMVoltages              [key, '0', ch, n, n, n, fit model, 107 nums]
                                                             -> spm_channel, spm_judgment
+                               CG5000 omits the fit model   -> spm_channel only
     - ContactpinConductionInfo [key, '0', ch, pin, judgment,
                                 n1, n2, n3, n4, counter]    -> pin_channel, pin_no,
                                                                pin_judgment, pin_spread,
@@ -131,7 +132,11 @@ def side_fields(doc: Mapping[str, Any]) -> dict[str, Any]:
     elif key == "LaserPower" and len(nums) == 6:
         fields = {"laser_x1": nums[2], "laser_y1": nums[3]}
     elif key == "SPMVoltages" and len(values) > 7:
-        out = {"spm_channel": str(values[2]), "spm_judgment": str(values[6])}
+        out = {"spm_channel": str(values[2])}
+        # CG5000 writes no fit-model token, so values[6] is already the first
+        # profile number and spm_judgment stays absent (office 확인 2026-09-29).
+        if nums[6] is None:
+            out["spm_judgment"] = str(values[6])
     elif key == "ContactpinConductionInfo" and len(nums) == 10:
         first4 = nums[5:9]
         spread = None if None in first4 else max(first4) - min(first4)

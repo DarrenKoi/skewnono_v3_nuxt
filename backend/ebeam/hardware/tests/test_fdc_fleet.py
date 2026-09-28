@@ -186,6 +186,22 @@ def test_mock_fleet_covers_only_the_fabs_cdsem_roster_and_follows_model_coverage
     }
 
 
+def test_a_cg5000_tool_is_an_spm_only_fleet_row_not_an_error():
+    # Office 확인 2026-09-29: CG5000 logs SPMVoltages only, so its fleet row
+    # carries the tool with every compared field empty.
+    start = datetime(2026, 5, 1)
+    docs = [d for d in mock._spm_docs(mock.random.Random(1), {"eqp_model_cd": "CG5000"},
+                                      start, start + timedelta(days=5))]
+    docs = [{**d, "eqp_id": "CG5K01", **side_fields(d)} for d in docs]
+    out = fleet.fleet_from_aggs(mock._emulate_fleet_aggs({"CG5K01": docs}), {"CG5K01": "CG5000"})
+    assert_matches(out, FdcFleet)
+    assert out["tools"] == [{
+        "eqp_id": "CG5K01", "eqp_model_cd": "CG5000", "temp_c": None, "temp_days": [],
+        "laser_x1": None, "laser_y1": None, "pin_counts": {}, "counter_rates": [],
+    }]
+    assert out["spread_bins"] == []
+
+
 # ───────────────────────────── dispatcher ───────────────────────────────────
 
 def test_fdc_fleet_payload_and_gates():

@@ -57,7 +57,9 @@ export const parseFdcValues = (values: unknown[]): FdcParsed => {
     const channel = String(values[2] ?? '')
     const ji = judgmentIndex(values, 3)
     const fitModel = ji >= 0 ? String(values[ji]) : ''
-    const profile = (ji >= 0 ? values.slice(ji + 1) : []).map(num).filter(Number.isFinite)
+    // CG5000 writes no fit-model token: the profile follows the three header
+    // numbers directly (office 확인 2026-09-29).
+    const profile = values.slice(ji >= 0 ? ji + 1 : 6).map(num).filter(Number.isFinite)
     return { key, data: { channel, fitModel, profile } }
   }
 

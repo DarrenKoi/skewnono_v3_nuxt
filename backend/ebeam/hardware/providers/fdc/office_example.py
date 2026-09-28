@@ -14,6 +14,7 @@ fields — ``eqp_id``, ``eqp_model_cd``, ``fab_name``, ``eqp_ip``, ``fdc_key``,
 
 * ``TemperatureEChuck``        ``[key, '0', pos('1'|'2'|'3'), temp]``
 * ``SPMVoltages``              ``[key, '0', A/B/C, n, n, n, fit model, 107 nums]``
+  (CG5000 omits the fit model)
 * ``LaserPower``               ``[key, '0', x1, y1, x2, y2]``
 * ``ContactpinConductionInfo`` ``[key, '0', A/B/C, pin, judgment, 4 nums, counter]``
 

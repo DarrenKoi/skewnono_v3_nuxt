@@ -6,6 +6,7 @@ follows that key's own layout:
 
   TemperatureEChuck        [key, '0', pos('1'|'2'|'3'), temp]
   SPMVoltages              [key, '0', A/B/C, '7','1','1', fit model, 107 nums]
+                           (CG5000: no fit model token)
   LaserPower               [key, '0', x1, y1, x2, y2]   (two differing scales)
   ContactpinConductionInfo [key, '0', A/B/C, pin, judgment, 4 nums, counter]
 
@@ -24,7 +25,9 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
 * SPMVoltages: the profile is always 107 numbers; A/B/C never share a
   timestamp; some tools emit only two channels; the unit scale differs up to
   100x between tools. `spline`/`quartic` is the fit-model name, not a verdict.
-  The profile SHAPE (a single smooth dip) is OFFICE-VERIFY.
+  The profile SHAPE (a single smooth dip) is OFFICE-VERIFY. CG5000 lines
+  carry no fit-model token (office 확인 2026-09-29); that the three header
+  numbers stay in front of its profile is OFFICE-VERIFY.
 * LaserPower: x1/y1 are stable per tool; x2/y2 wander (drift that is noise).
 * ContactpinConductionInfo: the judgment is Conduction / UnstableConduction /
   NonConduction. The spread of the first 4 numbers separates them (medians
@@ -39,7 +42,13 @@ laser_y1, spm_channel, spm_judgment, pin_channel, pin_no, pin_judgment,
 pin_spread, pin_counter; office 확인 2026-09-28) for the fleet aggregations.
 The per-tool adapter does not fetch them (`SOURCE_FIELDS`), so these docs
 carry the seven fields the page sees. `build_fdc_fleet` applies the same
-`side_fields` and emulates the aggregation OpenSearch would answer.
+`side_fields` and emulates the aggregation OpenSearch would answer. Live
+since 2026-09-28 (office 확인 2026-09-29). CG5000 docs get no spm_judgment,
+so a CG5000 fleet row has every compared field empty; that is a normal row.
+The sem_list mock has no CG5000 tool, so home never shows one (the office
+roster does). Not emulated: the ~6.8% of docs written 2026-09-28
+11:20-12:45 without side-fields (an old-code twin task wrote them first and
+the create-dedup locked them).
 
 The office index also holds byte-identical duplicates (the rollover alias
 spans two backing indices). The office adapter strips them, so this mock
@@ -179,6 +188,7 @@ def _spm_docs(
     """107-point profile per channel; tool-specific unit scale; sparse cadence."""
     scale = 10 ** rng.uniform(-1.0, 1.0)  # up to 100x between tools
     channels = _ABC if rng.random() < 0.75 else _ABC[:2]
+    no_fit_model = base.get("eqp_model_cd") == "CG5000"
     shapes = {ch: _spm_shape(rng) for ch in channels}
     out: list[dict] = []
     cursor = start + timedelta(hours=rng.randint(2, 12))
@@ -187,14 +197,14 @@ def _spm_docs(
             moment = cursor + timedelta(minutes=i * 2, seconds=rng.randint(0, 50))
             if moment > end:
                 continue
-            fit_model = rng.choice(["spline", "quartic"])
+            fit_model = [] if no_fit_model else [rng.choice(["spline", "quartic"])]
             wobble = rng.gauss(1.0, 0.02)
             nums = [
                 f"{scale * (v * wobble + rng.gauss(0.0, 0.03)):.4f}" for v in shapes[ch]
             ]
             token = rng.choice(["6", "7"])
             out.append(
-                _doc(base, "SPMVoltages", moment, [ch, token, "1", "1", fit_model, *nums])
+                _doc(base, "SPMVoltages", moment, [ch, token, "1", "1", *fit_model, *nums])
             )
         cursor += timedelta(days=rng.choice([1, 2, 3]))
     return out
