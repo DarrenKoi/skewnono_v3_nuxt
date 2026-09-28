@@ -90,7 +90,6 @@ export const NOTICES: Notice[] = [
     date: '2026-09-10',
     category: '공지',
     title: 'SKEWNONO v3 정식 출시',
-    pinned: true,
     sections: [
       {
         area: '전체',
