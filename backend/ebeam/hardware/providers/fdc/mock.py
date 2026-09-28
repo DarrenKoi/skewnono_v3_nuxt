@@ -7,7 +7,7 @@ follows that key's own layout:
   TemperatureEChuck        [key, '0', pos('1'|'2'|'3'), temp]
   SPMVoltages              [key, '0', A/B/C, '7','1','1', fit model, 107 nums]
   LaserPower               [key, '0', x1, y1, x2, y2]   (two differing scales)
-  ContactpinConductionInfo [key, '0', A/B/C, n, judgment, 4 nums, counter]
+  ContactpinConductionInfo [key, '0', A/B/C, pin, judgment, 4 nums, counter]
 
 Calibrated to the office characterization run (office 확인 2026-09-28,
 `docs/datatables/hitachi/hardware_fdc_sce_characterization.md`):
@@ -29,8 +29,16 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
 * ContactpinConductionInfo: the judgment is Conduction / UnstableConduction /
   NonConduction. The spread of the first 4 numbers separates them (medians
   6.4 / - / 38.0, threshold ~15-20); the last number is a per-channel counter
-  that only grows. Class rates, the Unstable spread band and the events per
-  log interval are OFFICE-VERIFY.
+  that only grows. values[3] is the pin number, 1-25 (user-confirmed
+  2026-09-28). Class rates, the Unstable spread band and the events per log
+  interval are OFFICE-VERIFY.
+
+At the office the writer (`ops_index_mgmt/network_fdc_cdsem.iter_bulk_actions`)
+also stores typed side-fields derived from `values` (temp_pos, temp_c,
+laser_x1, laser_y1, pin, first4_spread, counter) for the fleet aggregations.
+The per-tool adapter does not fetch them (`SOURCE_FIELDS`), so these docs
+carry the seven fields the page sees; `side_fields()` over them yields the
+same set the office writes (pinned in tests/test_vendored_ops_index_mgmt.py).
 
 The office index also holds byte-identical duplicates (the rollover alias
 spans two backing indices). The office adapter strips them, so this mock
@@ -230,7 +238,7 @@ def _contactpin_docs(
             counters[ch] += rng.randint(5, 60)  # events since the last log
             values = [
                 ch,
-                str(rng.randint(2, 6)),
+                str(rng.randint(1, 25)),  # pin
                 judgment,
                 *_contactpin_numbers(rng, rng.uniform(low, high)),
                 str(counters[ch]),

@@ -1,6 +1,6 @@
 # FDC fab 단위 장비 순위 뷰 (TemperatureEChuck · LaserPower x1/y1)
 
-Status: needs-triage
+Status: ready-for-agent
 작성: 2026-09-28
 
 ## 배경
@@ -38,3 +38,21 @@ office 확인 2026-09-28) 결과, 두 신호는 장비 간 차이가 장비 내 
 - 1안과 2안 중 어느 쪽인가.
 - 보여 줄 모양: 장비 × 날짜 heatmap 인가, fab 중앙값 대비 편차 순위표인가.
 - LaserPower x1/y1 을 같은 뷰에 둘 것인가.
+
+## 결정 (2026-09-28)
+
+2안의 변형으로 정했습니다. 적재 시점에 values 는 그대로 두고 typed side-field 를
+함께 씁니다 (`ops_index_mgmt/network_fdc_cdsem.side_fields`, `iter_bulk_actions` 에서
+적용). field 와 타입은 `docs/datatables/hitachi/hardware_network_fdc_cdsem.txt` 의
+`typed side-field` 절에 있습니다. fleet 화면은 이제 집계 한 번으로 그립니다.
+
+- TemperatureEChuck: `terms eqp_id.keyword` × `date_histogram(1d)` × `avg temp_c`.
+- LaserPower: 같은 모양으로 `avg laser_x1` / `avg laser_y1`.
+- Contactpin: `terms eqp_id.keyword` × `filter values.keyword=NonConduction` 비율,
+  `avg first4_spread`, counter 증가율 (`max counter - min counter`).
+
+남은 것:
+
+- 사무실 FDC 적재 task 가 `iter_bulk_actions` 를 쓰는지 확인하고, 아니면 호출을 추가.
+- 과거 문서 backfill 여부 (없으면 fleet 화면은 적재 시작일부터 채워집니다).
+- 읽는 쪽: hardware 에 fleet service/adapter (mock + office_example) 와 화면.

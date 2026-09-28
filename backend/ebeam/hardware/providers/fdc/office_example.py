@@ -15,7 +15,7 @@ fields — ``eqp_id``, ``eqp_model_cd``, ``fab_name``, ``eqp_ip``, ``fdc_key``,
 * ``TemperatureEChuck``        ``[key, '0', pos('1'|'2'|'3'), temp]``
 * ``SPMVoltages``              ``[key, '0', A/B/C, n, n, n, fit model, 107 nums]``
 * ``LaserPower``               ``[key, '0', x1, y1, x2, y2]``
-* ``ContactpinConductionInfo`` ``[key, '0', A/B/C, n, judgment, 4 nums, counter]``
+* ``ContactpinConductionInfo`` ``[key, '0', A/B/C, pin, judgment, 4 nums, counter]``
 
 Matches ``fdc/mock.py``, which fabricates these same four shapes. CD-SEM ONLY:
 ``fdc`` is not in ``normalizers.CDSEM_ONLY_SERVICES``, so an HV-SEM tool just
@@ -86,8 +86,11 @@ KNOWN_FDC_KEYS = frozenset({
 # again from the page's last timestamp rather than drawing a partial history.
 MAX_FDC_DOCS = 10_000
 
-# The index's full field set, listed explicitly so a new ingestion field cannot
-# ride along in every doc (values alone runs ~100 entries on SPMVoltages).
+# The page's field set, listed explicitly so an ingestion field cannot ride
+# along in every doc (values alone runs 107 entries on SPMVoltages). The typed
+# side-fields the writer adds (temp_c, pin, counter, ...; see
+# ops_index_mgmt/network_fdc_cdsem.side_fields) are for fleet aggregations and
+# deliberately stay out.
 SOURCE_FIELDS = [
     "eqp_id", "eqp_model_cd", "fab_name", "eqp_ip", "fdc_key", "timestamp",
     "values",

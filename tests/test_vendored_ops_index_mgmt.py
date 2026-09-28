@@ -14,6 +14,8 @@ on them:
   an auto-created index with no template and no expiry.
 * ``hitachi_sem_msr_info`` — the ``meas_hist_cdsem`` / ``meas_hist_hvsem``
   families the office adapters read.
+* ``network_fdc_cdsem`` — the write-time typed side-fields (``side_fields``)
+  that make the hardware FDC fleet views native aggregations.
 
 Nothing here contacts a cluster: the ``build_*`` functions are pure, and the
 ``ensure_*`` guard rails are driven with a fake client.
@@ -31,6 +33,7 @@ import pytest
 from opensearchpy.exceptions import NotFoundError
 
 from ops_index_mgmt import hitachi_sem_msr_info as sem_msr
+from ops_index_mgmt import network_fdc_cdsem as fdc_index
 from ops_index_mgmt import skewnono_logging as logging_setup
 
 
@@ -528,3 +531,86 @@ def test_provisioned_aliases_match_the_runtime_logging_targets():
         provisioned = logging_setup.target_for(environment)
         assert runtime.alias == provisioned.alias
         assert runtime.deployment == environment
+
+
+# ── network_fdc_cdsem: write-time typed side-fields ─────────────────────────
+
+
+def _fdc(key: str, values: list[str]) -> dict:
+    return {"fab_name": "M16A", "eqp_id": "6MCDE305", "fdc_key": key,
+            "timestamp": "2026-09-28T09:00:00", "values": [key, "0", *values]}
+
+
+def test_side_fields_type_each_aggregated_fdc_key():
+    # `values` is a positional string list, which OpenSearch cannot aggregate
+    # by position; the typed copies are what a fleet view averages.
+    assert fdc_index.side_fields(_fdc("TemperatureEChuck", ["2", "23.39053"])) == {
+        "temp_pos": 2, "temp_c": 23.39053,
+    }
+    assert fdc_index.side_fields(
+        _fdc("LaserPower", ["0.78", "0.73", "341990938", "46504250"])
+    ) == {"laser_x1": 0.78, "laser_y1": 0.73}
+    pin = fdc_index.side_fields(_fdc(
+        "ContactpinConductionInfo",
+        ["B", "3", "Conduction", "-5.0", "-5.0", "0.0", "5.0", "182671"],
+    ))
+    assert pin == {"pin": 3, "first4_spread": 10.0, "counter": 182671}
+    assert type(pin["pin"]) is int and type(pin["counter"]) is int
+    # SPMVoltages is undecided (no scalar separated BM/PM), so no side-fields.
+    assert fdc_index.side_fields(_fdc("SPMVoltages", ["A", "7", "1", "1", "spline", "-0.2"])) == {}
+
+
+def test_side_fields_read_a_comma_decimal_and_drop_a_bad_cell():
+    # The documented sample carries '25,0'. A cell that does not parse leaves
+    # its field out rather than writing a wrong number; values stays the truth.
+    got = fdc_index.side_fields(_fdc(
+        "ContactpinConductionInfo",
+        ["A", "5", "NonConduction", "-25.5", "-0.9", "24.6", "25,0", "182501"],
+    ))
+    assert got == pytest.approx({"pin": 5, "first4_spread": 50.5, "counter": 182501})
+    bad = fdc_index.side_fields(_fdc(
+        "ContactpinConductionInfo",
+        ["A", "x", "NonConduction", "-25.5", "?", "24.6", "25.0", "182501"],
+    ))
+    assert bad == {"counter": 182501}
+    assert fdc_index.side_fields(_fdc("TemperatureEChuck", ["1.5", "nan"])) == {}
+    assert fdc_index.side_fields({"fdc_key": "LaserPower", "values": None}) == {}
+
+
+def test_bulk_actions_add_side_fields_and_keep_values_untouched():
+    doc = _fdc("TemperatureEChuck", ["1", "23.41"])
+    action = next(fdc_index.iter_bulk_actions([doc], index="network_fdc_cdsem"))
+    assert action["_source"]["values"] == ["TemperatureEChuck", "0", "1", "23.41"]
+    assert action["_source"]["temp_pos"] == 1 and action["_source"]["temp_c"] == 23.41
+    assert "temp_pos" not in doc  # the caller's dict is not mutated
+
+
+def test_side_fields_are_mapped_explicitly_in_the_template():
+    # Typed up front, so an aggregation never depends on which value dynamic
+    # mapping happened to see first (an int-looking first temp would pin long).
+    props = fdc_index.build_index_template_body()["template"]["mappings"]["properties"]
+    for name, mapping in fdc_index.SIDE_FIELD_MAPPINGS.items():
+        assert props[name] == mapping
+    assert props["counter"] == {"type": "long"}
+
+
+def test_every_mock_fdc_doc_yields_its_full_side_field_set():
+    # The writer's layouts and the home mock's must agree, or the fleet
+    # adapter built at home would aggregate fields the office never writes.
+    from datetime import datetime, timedelta
+
+    from backend.ebeam.hardware.providers.fdc import mock as fdc_mock
+
+    expected = {
+        "TemperatureEChuck": {"temp_pos", "temp_c"},
+        "LaserPower": {"laser_x1", "laser_y1"},
+        "ContactpinConductionInfo": {"pin", "first4_spread", "counter"},
+    }
+    end = datetime(2026, 5, 24, 9, 0)
+    seen = set()
+    for n in range(1, 13):
+        for doc in fdc_mock.build_fdc_docs(f"CDX{n:03d}", "M16A", end - timedelta(days=10), end):
+            want = expected.get(doc["fdc_key"], set())
+            assert set(fdc_index.side_fields(doc)) == want, doc
+            seen.add(doc["fdc_key"])
+    assert seen >= set(expected)

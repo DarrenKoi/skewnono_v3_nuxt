@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 from typing import Any, Iterable, Iterator, Mapping
 
 from ops_store import OSIndex, create_client
@@ -24,6 +25,20 @@ POLICY_PRIORITY = 100
 
 # Fields whose combined value identifies one FDC record; joined to form _id.
 ID_FIELDS = ("fab_name", "eqp_id", "fdc_key", "timestamp")
+
+# Typed side-fields derived from `values` at write time (see side_fields).
+# `values` is a positional string list, which OpenSearch cannot aggregate by
+# position; these typed copies make fleet views native aggregations.
+SIDE_FIELD_MAPPINGS = {
+    "temp_pos": {"type": "integer"},      # TemperatureEChuck position 1-3
+    "temp_c": {"type": "float"},          # TemperatureEChuck degC
+    "laser_x1": {"type": "float"},        # LaserPower x1
+    "laser_y1": {"type": "float"},        # LaserPower y1
+    "pin": {"type": "integer"},           # ContactpinConductionInfo pin 1-25
+    "first4_spread": {"type": "float"},   # max - min of the 4 margin numbers
+    "counter": {"type": "long"},          # per-pin monotonic event counter
+}
+_INT_SIDE_FIELDS = {"temp_pos", "pin", "counter"}
 
 
 def index_pattern() -> str:
@@ -76,6 +91,61 @@ def has_id_fields(doc: Mapping[str, Any]) -> bool:
     return True
 
 
+def _number(value: Any) -> float | None:
+    """Parse one `values` cell; a comma decimal (`'25,0'`) reads as 25.0."""
+
+    text = str(value).strip()
+    if "," in text and "." not in text:
+        text = text.replace(",", ".", 1)
+    try:
+        number = float(text)
+    except ValueError:
+        return None
+    return number if math.isfinite(number) else None
+
+
+def side_fields(doc: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the typed side-fields for one record, derived from `values`.
+
+    Layouts (values[0] repeats fdc_key, values[1] is always '0'):
+
+    - TemperatureEChuck        [key, '0', pos, temp]          -> temp_pos, temp_c
+    - LaserPower               [key, '0', x1, y1, x2, y2]     -> laser_x1, laser_y1
+    - ContactpinConductionInfo [key, '0', ch, pin, judgment,
+                                n1, n2, n3, n4, counter]      -> pin, first4_spread, counter
+
+    A cell that does not parse leaves its field out, so a bad cell never
+    becomes a wrong number; `values` itself stays the record of truth. Other
+    keys (SPMVoltages) get no side-fields.
+    """
+
+    values = doc.get("values")
+    if not isinstance(values, list):
+        return {}
+    nums = [_number(v) for v in values]
+    key = doc.get("fdc_key")
+    fields: dict[str, float | None] = {}
+    if key == "TemperatureEChuck" and len(nums) == 4:
+        fields = {"temp_pos": nums[2], "temp_c": nums[3]}
+    elif key == "LaserPower" and len(nums) == 6:
+        fields = {"laser_x1": nums[2], "laser_y1": nums[3]}
+    elif key == "ContactpinConductionInfo" and len(nums) == 10:
+        first4 = nums[5:9]
+        spread = None if None in first4 else max(first4) - min(first4)
+        fields = {"pin": nums[3], "first4_spread": spread, "counter": nums[9]}
+    out: dict[str, Any] = {}
+    for name, number in fields.items():
+        if number is None:
+            continue
+        if name in _INT_SIDE_FIELDS:
+            if not number.is_integer():
+                continue
+            out[name] = int(number)
+        else:
+            out[name] = number
+    return out
+
+
 def iter_bulk_actions(
     docs: Iterable[Mapping[str, Any]],
     *,
@@ -85,8 +155,9 @@ def iter_bulk_actions(
     """Yield raw bulk actions for `docs`, skipping any missing an id field.
 
     Each yielded action carries the composite `_id` from `make_doc_id`, and
-    the record is stored in `_source` as-is — no `os_inserted` (or any other)
-    field is added. Records that fail `has_id_fields` are silently skipped.
+    the record is stored in `_source` with its `values` untouched plus the
+    typed `side_fields` derived from them — no `os_inserted` is added.
+    Records that fail `has_id_fields` are silently skipped.
     `op_type="create"` surfaces duplicate ids on re-runs (dedup); `"index"`
     overwrites by id (upsert).
 
@@ -101,7 +172,7 @@ def iter_bulk_actions(
             "_op_type": op_type,
             "_index": index,
             "_id": make_doc_id(doc),
-            "_source": dict(doc),
+            "_source": {**doc, **side_fields(doc)},
         }
 
 
@@ -114,6 +185,8 @@ def build_mappings() -> dict[str, Any]:
     `*_dt` column to `date`; everything else falls through to default
     dynamic mapping.
 
+    - side-fields   : SIDE_FIELD_MAPPINGS, typed so aggregations never
+                      depend on which value dynamic mapping saw first.
     - `os_inserted` : KST timestamp refreshed on every write (bulk index,
                       update, upsert, bulk update). Despite the name it
                       means "last touched in OS", used for operational
@@ -125,6 +198,7 @@ def build_mappings() -> dict[str, Any]:
     return {
         "properties": {
             "os_inserted": {"type": "date"},
+            **SIDE_FIELD_MAPPINGS,
         },
         "dynamic_templates": [
             {
@@ -397,8 +471,8 @@ if __name__ == "__main__":
 # # `records` is your list[dict] — each dict carries fab_name, eqp_id,
 # # fdc_key, timestamp (the composite _id) plus the rest of the payload.
 # # iter_bulk_actions builds _id = fab_name_eqp_id_fdc_key_timestamp, skips
-# # any record missing one of those four, and stores _source as-is (no
-# # os_inserted is added). op_type="create" surfaces duplicate ids on
+# # any record missing one of those four, and stores _source with the typed
+# # side_fields added (values untouched; no os_inserted is added). op_type="create" surfaces duplicate ids on
 # # re-runs (dedup); switch to "index" for upsert-by-id semantics.
 # success_count, errors = doc_service.bulk(
 #     iter_bulk_actions(records, index=INDEX_ALIAS, op_type="create"),

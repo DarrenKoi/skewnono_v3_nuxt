@@ -24,6 +24,7 @@ values:list (starts with fdc_key) ->
 ====
 ['ContactpinConductionInfo', '0', 'A', '5', 'NonConduction', '-25.5', '-0.9', '24.6', '25,0', '182501']
 ['ContactpinConductionInfo', '0', 'B', '3', 'Conduction', '-5.0', '-5.0', '0.0', '5.0', '182671']
+'A'/'B'/'C' 뒤의 정수 (위 '5', '3') 는 pin 번호 1-25 입니다 (user-confirmed 2026-09-28).
 판정은 Conduction / UnstableConduction / NonConduction 세 값 (office 확인 2026-09-28). 
 
 A, B, C들은 주기적으로 한번씩 측정되기 때문에 timestamp상 서로 근접한 상태
@@ -127,3 +128,32 @@ ContactpinConductionInfo
     증가율을 봅니다.
   - 등급별 비율, UnstableConduction 의 spread 대역, 콤마 소수점 ('25,0') 빈도는
     아직 모릅니다 - OFFICE-VERIFY.
+
+========================================================================
+typed side-field (write 시점 파생, user-confirmed 2026-09-28)
+========================================================================
+
+values 는 위치 기반 문자열 list 라 OpenSearch 가 위치별로 집계하지 못합니다. 그래서
+적재 시 ops_index_mgmt/network_fdc_cdsem.iter_bulk_actions 가 values 는 그대로 두고
+아래 typed field 를 _source 에 함께 씁니다 (side_fields 함수). template 에 명시
+mapping 이 있어 fleet 화면은 원문을 끌어오지 않고 집계 한 번으로 그립니다.
+
+  fdc_key                   field          type     출처
+  TemperatureEChuck         temp_pos       integer  values[2] (1-3)
+                            temp_c         float    values[3]
+  LaserPower                laser_x1       float    values[2]
+                            laser_y1       float    values[3]
+  ContactpinConductionInfo  pin            integer  values[3] (1-25)
+                            first4_spread  float    max - min of values[5:9]
+                            counter        long     values[9]
+
+  - SPMVoltages 는 side-field 가 없습니다 (BM/PM 을 가르는 scalar 미정).
+  - LaserPower x2/y2 는 noise 라 side-field 를 두지 않습니다.
+  - 파싱되지 않는 칸은 그 field 만 빠집니다. 잘못된 숫자를 쓰지 않습니다.
+    '25,0' 같은 콤마 소수점은 25.0 으로 읽습니다.
+  - 사무실 FDC 적재 task 가 iter_bulk_actions 를 거쳐야 field 가 생깁니다.
+    이 변경 이전에 적재된 문서에는 field 가 없습니다 (backfill 전까지) - OFFICE-VERIFY.
+  - 이미 있는 write index 에는 template 이 소급 적용되지 않습니다. 첫 write 때
+    dynamic mapping 이 int -> long, float -> float 으로 잡습니다. 다음 rollover 부터는
+    template 의 명시 타입을 씁니다.
+  - 화면용 per-tool 어댑터(fdc/office_example.py)는 이 field 를 가져오지 않습니다.
