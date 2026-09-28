@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   sceCoeffIndexSeries, sceCoeffRevisions, sceParamLabel, sceParamSeries,
-  sceRevisionLabel, sceRevisionSpan, sceTrendKeys, type SceCoeffRevision
+  sceRevisionChange, sceRevisionLabel, sceRevisionSpan, sceTrendKeys, type SceCoeffRevision
 } from './sceHistory.ts'
 
 const docs = [
@@ -31,7 +31,8 @@ const docs = [
 
 test('sceTrendKeys: numeric fields across all three blocks, block-ordered', () => {
   // FileInfo (paths) and non-numeric strings (SemCond_Optics) are excluded;
-  // list-valued ImgCond fields count via their first element.
+  // list-valued ImgCond fields count via their first element. The SCEParam
+  // fields are fleet-constant, but they MOVE in this window, so they stay.
   assert.deepEqual(sceTrendKeys(docs), [
     { block: 'SCEParam', key: 'SCEParam_CorrCoefLimit', label: 'CorrCoefLimit' },
     { block: 'SCEParam', key: 'SCEParam_FitRangeSt', label: 'FitRangeSt' },
@@ -41,6 +42,12 @@ test('sceTrendKeys: numeric fields across all three blocks, block-ordered', () =
     { block: 'ImgCond', key: 'ImgCond_Mag', label: 'Mag' }
   ])
   assert.deepEqual(sceTrendKeys([]), [])
+  assert.deepEqual(sceTrendKeys([{ SemCond: { SemCond_Ip: '8', SemCond_Vacc: '800' } }]), [
+    { block: 'SemCond', key: 'SemCond_Vacc', label: 'Vacc' }
+  ])
+  // A fleet-constant field that holds flat across the window gets no chip.
+  const flat = [1, 2].map(() => ({ SCEParam: { SCEParam_SmoothRadius: '7' }, SemCond: { SemCond_Vacc: '800' } }))
+  assert.deepEqual(sceTrendKeys(flat), [{ block: 'SemCond', key: 'SemCond_Vacc', label: 'Vacc' }])
 })
 
 test('sceParamLabel: strips any block prefix, leaves bare keys alone', () => {
@@ -169,6 +176,20 @@ test('sceRevisionLabel / Span: single date bare, run shows span, label adds coun
   const crossing = rev('2025-12-28', ['2025-12-28', '2026-01-06'])
   assert.equal(sceRevisionSpan(crossing), '2025-12-28 ~ 2026-01-06')
   assert.equal(sceRevisionLabel(crossing), '2025-12-28 ~ 2026-01-06 · 2회')
+})
+
+test('revision change prefers Mag first element, counts other changed settings', () => {
+  const previous = { ImgCond: { ImgCond_Mag: ['150003298', '150003298'] }, SemCond: { SemCond_Vacc: '800' } }
+  const current = { ImgCond: { ImgCond_Mag: ['150004120', '150004120'] }, SemCond: { SemCond_Vacc: '500' } }
+  assert.equal(sceRevisionChange(undefined, current), '')
+  assert.equal(sceRevisionChange(previous, previous), '')
+  assert.equal(sceRevisionChange(previous, current), 'Mag 150003298→150004120 +1')
+  assert.equal(sceRevisionLabel({ ...rev('2026-09-28', ['2026-09-28']), change: sceRevisionChange(previous, current) }), '2026-09-28 · Mag 150003298→150004120 +1')
+  const revisions = sceCoeffRevisions([
+    { date: '2026-09-27', ...previous, Coefficients: curve(1, 1) },
+    { date: '2026-09-28', ...current, Coefficients: curve(2, 1) }
+  ])
+  assert.equal(revisions[1]?.change, 'Mag 150003298→150004120 +1')
 })
 
 test('sceCoeffIndexSeries: values[0]/values[1] at one index across dates', () => {

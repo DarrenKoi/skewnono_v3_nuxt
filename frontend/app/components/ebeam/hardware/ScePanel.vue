@@ -4,7 +4,7 @@
       v-if="!hasSelected && docs.length === 0"
       class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
     >
-      SCE 설정 데이터가 없습니다. (R3/R4 등 일부 fab은 SCE를 사용하지 않습니다)
+      SCE 설정 데이터가 없습니다. M10A·M10C·R3·R4 는 SCE 미수집 fab 입니다.
     </div>
 
     <template v-else>
@@ -209,7 +209,7 @@
         v-else-if="!hasSelected"
         class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
       >
-        SCE 설정 데이터가 없습니다. (R3/R4 등 일부 fab은 SCE를 사용하지 않습니다)
+        SCE 설정 데이터가 없습니다. M10A·M10C·R3·R4 는 SCE 미수집 fab 입니다.
       </div>
       <template v-else>
         <!-- Shared comparison-tool picker (drives both the table and the curve) -->
@@ -251,7 +251,7 @@
                 v-for="row in rows"
                 :key="row.path"
                 class="border-t border-(--sk-border-soft)"
-                :class="row.differs ? 'bg-amber-50 dark:bg-amber-950/30' : ''"
+                :class="row.differs ? 'bg-(--sk-warn-soft)' : ''"
               >
                 <td class="px-3 py-2 font-mono text-(--sk-ink-muted)">
                   {{ row.path }}
@@ -276,6 +276,59 @@
           >
             위에서 비교할 장비를 선택하면 열이 추가됩니다.
           </p>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl bg-(--sk-surface) p-3 ring-1 ring-(--sk-border-soft)">
+          <div class="sk-title">
+            values[0] 고조파 요약 · fab 전체
+          </div>
+          <p class="my-2 sk-meta">
+            office 확인 2026-09-28: v0는 1–4차 고조파가 분산의 82–97%를 설명해 수치로 비교합니다. v1은 64–91%라 곡선으로 봅니다.
+          </p>
+          <table class="min-w-full text-right text-xs">
+            <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
+              <tr>
+                <th class="px-3 py-2 text-left sk-label">
+                  장비
+                </th>
+                <th
+                  v-for="label in ['평균', 'A1', 'A2', 'A3', 'A4', '설명력 %']"
+                  :key="label"
+                  class="px-3 py-2 sk-label"
+                >
+                  {{ label }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in harmonicRows"
+                :key="row.id"
+                class="border-t border-(--sk-border-soft)"
+                :class="row.id === selectedEqp ? 'bg-(--sk-brand-soft)' : ''"
+              >
+                <td
+                  class="px-3 py-2 text-left sk-value-num"
+                  :class="row.id === selectedEqp ? 'font-bold' : ''"
+                >
+                  {{ row.id }}
+                </td>
+                <td class="px-3 py-2 sk-value-num">
+                  {{ formatFixed(row.mean, 5, '-') }}
+                </td>
+                <td
+                  v-for="(amp, i) in row.amp"
+                  :key="i"
+                  class="px-3 py-2 sk-value-num"
+                >
+                  {{ formatFixed(amp, 5, '-') }}
+                </td>
+                <td class="px-3 py-2 sk-value-num">
+                  {{ formatFixed(row.share * 100, 1, '-') }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Coefficients[0..359] overlay: values[0] / values[1] in stacked
@@ -304,13 +357,14 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { compareSettings, coefficientSeries } from '~/utils/sceCompare'
+import { compareSettings, coefficientSeries, sceHarmonicRows } from '~/utils/sceCompare'
 import {
   sceCoeffIndexSeries, sceCoeffRevisions, sceParamLabel, sceParamSeries,
   sceRevisionLabel, sceRevisionSpan, sceTrendKeys, type SceTrendKey
 } from '~/utils/sceHistory'
 import { assignCompareColors, assignSeriesColors, filterByTerm } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
+import { formatFixed } from '~/utils/recipeView'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -370,10 +424,11 @@ watch(siblingIds, (ids) => {
 }, { immediate: true })
 
 const rows = computed(() => compareSettings(props.settings, props.selectedEqp, compareIds.value))
+const harmonicRows = computed(() => sceHarmonicRows(props.settings, props.selectedEqp))
 
 const { palette } = useEchartsTheme()
-const c0 = computed(() => palette.value[0] ?? '#C75A3C')
-const c1 = computed(() => palette.value[1] ?? '#3F5D52')
+const c0 = computed(() => palette.value[0]!)
+const c1 = computed(() => palette.value[1]!)
 
 const colorMode = useColorMode()
 const maintenanceMarkLine = computed(() =>
@@ -510,7 +565,7 @@ const chartOption = computed<EChartsOption>(() => {
   const cmp: CompareCoeff[] = compareIds.value.map(id => ({
     id,
     pair: coefficientSeries(props.settings[id]),
-    color: compareColors.value[id] ?? '#2F5D8A'
+    color: compareColors.value[id] ?? c0.value
   }))
   return viewMode.value === 'radar' ? radarOption(sel, cmp) : lineOption(sel, cmp)
 })
@@ -580,7 +635,8 @@ const collectionCount = computed(() =>
 // Nothing collapsed. Office data whose per-collection float jitter defeats the
 // curve comparison lands here, and it looks identical to a genuinely churning
 // tool — so say it outright rather than leaving a sparse-looking picker as the
-// only symptom. See hardware/MIGRATION.md's sce section.
+// only symptom. The office run of 2026-09-28 found no jitter; this stays as
+// the tell if a writer change ever brings it. See hardware/MIGRATION.md.
 const nothingCollapsed = computed(() =>
   revisions.value.length > 1 && revisions.value.length === collectionCount.value
 )
@@ -634,7 +690,7 @@ const evolutionEl = ref<HTMLDivElement | null>(null)
 // year rule for a span crossing new year cannot drift between the two).
 const evolutionOption = computed<EChartsOption>(() => {
   const picked = evolutionSeries.value
-  return stackedCoeffOption(picked.flatMap((rev, i) => {
+  const option = stackedCoeffOption(picked.flatMap((rev, i) => {
     const pair = coefficientSeries(rev.doc)
     const name = sceRevisionSpan(rev)
     const style = {
@@ -644,6 +700,20 @@ const evolutionOption = computed<EChartsOption>(() => {
     }
     return [coeffLine(name, pair.v0, 0, style), coeffLine(name, pair.v1, 1, style)]
   }))
+  return {
+    ...option,
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const entries = (Array.isArray(params) ? params : [params]) as unknown as { seriesName: string, seriesIndex: number, axisValue?: unknown, value: number }[]
+        return [`index ${entries[0]?.axisValue ?? ''}`, ...entries.map((entry) => {
+          // Each revision draws two series in order (v0, v1).
+          const change = picked[Math.floor(entry.seriesIndex / 2)]?.change
+          return `${entry.seriesName}${change ? ` · ${change}` : ''}: ${Number(entry.value).toFixed(5)}`
+        })].join('<br/>')
+      }
+    }
+  }
 })
 // Clicking anywhere in either panel picks that index for the trend above. It
 // has to be onGridClick rather than onClick: these curves draw with

@@ -44,6 +44,15 @@
             <th class="px-3 py-2 text-right sk-label">
               Values
             </th>
+            <th
+              class="px-3 py-2 text-right sk-label"
+              title="office 확인 2026-09-28 · 중앙값: Conduction 6.4, NonConduction 38.0"
+            >
+              범위 (max−min)
+            </th>
+            <th class="px-3 py-2 text-right sk-label">
+              카운터 증가율 (/일)
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -61,31 +70,48 @@
             <td class="px-3 py-2">
               <span
                 class="rounded px-1.5 py-0.5 text-xs font-bold"
-                :class="row.judgment === 'Conduction'
-                  ? 'bg-(--sk-ok-soft) text-(--sk-ok)'
-                  : 'bg-(--sk-bad-soft) text-(--sk-bad)'"
+                :class="{
+                  ok: 'bg-(--sk-ok-soft) text-(--sk-ok)',
+                  warn: 'bg-(--sk-warn-soft) text-(--sk-warn)',
+                  bad: 'bg-(--sk-bad-soft) text-(--sk-bad)',
+                  unknown: 'bg-(--sk-muted-surface) text-(--sk-ink-muted)'
+                }[row.state]"
               >{{ row.judgment }}</span>
             </td>
             <td class="px-3 py-2 text-right sk-value-num">
-              {{ row.values.join(' · ') }}
+              {{ row.values.map(v => formatFixed(v, 1, '-')).join(' · ') }}
+            </td>
+            <td class="px-3 py-2 text-right sk-value-num">
+              {{ formatFixed(row.spread, 1, '-') }}
+            </td>
+            <td class="px-3 py-2 text-right sk-value-num">
+              {{ formatFixed(row.rate, 1, '-') }}
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- SPMVoltages → profile per A/B/C + judgment badge, timestamp-selectable -->
+    <!-- SPMVoltages → deviation trend and cycle profile -->
     <div
       v-else-if="activeKey === 'SPMVoltages'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
+      <div class="px-1 sk-title">
+        채널별 중앙 프로파일 대비 RMS 편차
+      </div>
+      <div
+        ref="spmTrendEl"
+        class="h-60 w-full"
+      />
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
         <div class="flex items-center gap-2">
+          <span class="sk-label">피팅 모델</span>
           <span
-            v-for="b in spmJudgments"
+            v-for="b in spmFits"
             :key="b.channel"
             class="rounded bg-(--sk-muted-surface) px-1.5 py-0.5 font-mono text-xs font-bold text-(--sk-ink)"
-          >{{ b.channel }}: {{ b.judgment }}</span>
+          >{{ b.channel }} · {{ b.fitModel }}</span>
         </div>
         <USelect
           v-model="spmCycleKey"
@@ -101,27 +127,13 @@
       />
     </div>
 
-    <!-- LaserPower → multi-view explorer (원본 / 편차% / Pair 산점도) -->
+    <!-- LaserPower → stable x1/y1 signals against baseline -->
     <div
       v-else-if="activeKey === 'LaserPower'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
-      <div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-        <span class="sk-title">LaserPower</span>
-        <div class="flex overflow-hidden rounded-lg border border-(--sk-border)">
-          <button
-            v-for="m in laserViews"
-            :key="m.value"
-            type="button"
-            class="px-2.5 py-1 text-xs font-semibold transition-colors"
-            :class="m.value === laserView
-              ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
-              : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
-            @click="laserView = m.value"
-          >
-            {{ m.label }}
-          </button>
-        </div>
+      <div class="mb-2 px-1 sk-title">
+        LaserPower · 기준선 대비 %
       </div>
       <div
         ref="chartEl"
@@ -147,7 +159,12 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { parseFdcValues, type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue } from '~/utils/fdcValues'
+import {
+  parseFdcValues, contactpinRows as deriveContactpinRows, spmDeviationSeries, fdcDailyMeans,
+  fdcDocTs as tsOf, fdcDocValues as valuesOf, fdcEpoch as toEpoch,
+  type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue
+} from '~/utils/fdcValues'
+import { formatFixed } from '~/utils/recipeView'
 import { stableYRange, tightYRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
@@ -156,24 +173,11 @@ const props = defineProps<{
   maintenanceEvents?: BmPmEvent[]
 }>()
 
-const tsOf = (d: Record<string, unknown>) => String(d.timestamp ?? '')
-const valuesOf = (d: Record<string, unknown>) => (Array.isArray(d.values) ? d.values : [])
-
 const { palette } = useEchartsTheme()
-const c0 = computed(() => palette.value[0] ?? '#C75A3C')
-const c1 = computed(() => palette.value[1] ?? '#3F5D52')
-const c2 = computed(() => palette.value[2] ?? '#7B6CC4')
-const c3 = computed(() => palette.value[3] ?? '#6E7074')
-
-// LaserPower counts reach ~3×10^8; abbreviate axis ticks / tooltips so the
-// magnitudes fit the narrow gutters instead of overflowing as raw integers.
-const abbr = (v: number): string => {
-  if (!Number.isFinite(v)) return '-'
-  const a = Math.abs(v)
-  if (a >= 1e6) return `${(v / 1e6).toFixed(a >= 1e8 ? 0 : 1)}M`
-  if (a >= 1e3) return `${(v / 1e3).toFixed(0)}k`
-  return `${v}`
-}
+const c0 = computed(() => palette.value[0]!)
+const c1 = computed(() => palette.value[1]!)
+const c2 = computed(() => palette.value[2]!)
+const c3 = computed(() => palette.value[3]!)
 
 const colorMode = useColorMode()
 const maintenanceMarkLine = computed(() =>
@@ -197,29 +201,12 @@ watch(availableKeys, (keys) => {
 }, { immediate: true })
 
 const activeDocs = computed(() => grouped.value[activeKey.value] ?? [])
-const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
 
 const chartEl = ref<HTMLDivElement | null>(null)
-
-// LaserPower carries four numbers of two scales (two ~0.8 ratios x1/y1, two
-// ~10^8 counts x2/y2) whose physical meaning is still unconfirmed, so we offer
-// several lenses on the same series rather than commit to one fixed layout.
-type LaserView = 'raw' | 'deviation' | 'scatter'
-const laserViews: { value: LaserView, label: string }[] = [
-  { value: 'raw', label: '원본 · 스케일별' },
-  { value: 'deviation', label: '기준선 대비 %' },
-  { value: 'scatter', label: 'Pair 산점도' }
-]
-const laserView = ref<LaserView>('raw')
+const spmTrendEl = ref<HTMLDivElement | null>(null)
 
 // --- ContactpinConductionInfo ---
-const contactpinRows = computed(() =>
-  activeDocs.value.map((d) => {
-    const p = parseFdcValues(valuesOf(d))
-    const data = p.key === 'ContactpinConductionInfo' ? p.data : null
-    return { ts: tsOf(d), channel: data?.channel ?? '', judgment: data?.judgment ?? '', values: data?.values ?? [] }
-  })
-)
+const contactpinRows = computed(() => deriveContactpinRows(activeDocs.value))
 
 // --- SPMVoltages ---
 // A/B/C are logged a few minutes apart within one measurement cycle, and
@@ -260,9 +247,30 @@ const spmSelected = computed(() => {
     .filter(p => p.key === 'SPMVoltages')
     .sort((a, b) => (a.data as SpmVoltagesValue).channel.localeCompare((b.data as SpmVoltagesValue).channel))
 })
-const spmJudgments = computed(() =>
-  spmSelected.value.map(p => ({ channel: (p.data as SpmVoltagesValue).channel, judgment: (p.data as SpmVoltagesValue).judgment }))
+// spline/quartic names describe the fit algorithm, not equipment health.
+const spmFits = computed(() =>
+  spmSelected.value.map(p => ({ channel: (p.data as SpmVoltagesValue).channel, fitModel: (p.data as SpmVoltagesValue).fitModel }))
 )
+const spmDeviations = computed(() => spmDeviationSeries(grouped.value.SPMVoltages ?? []))
+// Office 2026-09-28: no scalar separated BM/PM events; this is a deviation trend, not a PM detector.
+const spmTrendOption = computed<EChartsOption>(() => ({
+  grid: { left: 48, right: 16, top: 24, bottom: 52 },
+  tooltip: { trigger: 'axis' },
+  legend: { top: 0, textStyle: { fontSize: 10 } },
+  xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
+  yAxis: { type: 'value', name: 'RMS', scale: true, axisLabel: { fontSize: 10 } },
+  dataZoom: sliderZoom(),
+  series: spmDeviations.value.map((series, i) => {
+    const color = [c0.value, c1.value, c2.value][i % 3]
+    return {
+      name: series.channel, type: 'line', showSymbol: false,
+      lineStyle: { color }, itemStyle: { color },
+      data: series.points.map(p => [toEpoch(p.ts), p.value]),
+      ...(i === 0 ? { markLine: maintenanceMarkLine.value } : {})
+    }
+  })
+}))
+useEchart(spmTrendEl, spmTrendOption)
 
 // Shared chart helpers: one inside+slider zoom pair for single-grid time/index
 // charts, and the stable-telemetry range with ECharts' tight auto-fit fallback.
@@ -270,77 +278,25 @@ const sliderZoom = (): EChartsOption['dataZoom'] =>
   [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }]
 const stableAxis = (values: number[]) => stableYRange(values) ?? { scale: true }
 
-// --- LaserPower chart builders -------------------------------------------
-// The four numbers span two scales, so each lens is its own option builder
-// (raw / deviation / scatter) instead of one sprawling branch.
-type LaserCh = 'x1' | 'y1' | 'x2' | 'y2'
-interface LaserRow { ts: string, epoch: number, x1: number, y1: number, x2: number, y2: number }
-const laserVal = (r: LaserRow, k: LaserCh) => r[k]
+// --- LaserPower: stable x1/y1 baseline deviation ---
+type LaserCh = 'x1' | 'y1'
+interface LaserRow { ts: string, epoch: number, x1: number, y1: number }
 const laserRows = computed<LaserRow[]>(() =>
   activeDocs.value.map((d) => {
     const p = parseFdcValues(valuesOf(d))
     const lp = p.key === 'LaserPower' ? (p.data as LaserPowerValue) : null
-    return {
-      ts: tsOf(d),
-      epoch: toEpoch(tsOf(d)),
-      x1: lp?.pairs[0]?.x ?? NaN,
-      y1: lp?.pairs[0]?.y ?? NaN,
-      x2: lp?.pairs[1]?.x ?? NaN,
-      y2: lp?.pairs[1]?.y ?? NaN
-    }
+    return { ts: tsOf(d), epoch: toEpoch(tsOf(d)), x1: lp?.pairs[0]?.x ?? NaN, y1: lp?.pairs[0]?.y ?? NaN }
   })
 )
 
-// Raw · by scale (default): ratios (x1,y1) share one axis on top; counts
-// (x2,y2) get a dual axis below (x2 ≈ 7× y2). All four values visible.
-const laserRawOption = (): EChartsOption => {
-  const rows = laserRows.value
-  const timePts = (k: LaserCh) => rows.map(r => ({ name: r.ts, value: [r.epoch, laserVal(r, k)] }))
-  const ratioAxis = stableAxis(rows.flatMap(r => [r.x1, r.y1]))
-  const x2Axis = stableAxis(rows.map(r => r.x2))
-  const y2Axis = stableAxis(rows.map(r => r.y2))
-  return {
-    grid: [
-      { left: 58, right: 64, top: '9%', height: '34%' },
-      { left: 58, right: 64, top: '57%', height: '30%' }
-    ],
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    axisPointer: { link: [{ xAxisIndex: 'all' }] },
-    legend: { top: 2, textStyle: { fontSize: 10 } },
-    dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1] },
-      { type: 'slider', xAxisIndex: [0, 1], bottom: 6, height: 16 }
-    ],
-    xAxis: [
-      { type: 'time', gridIndex: 0, axisLabel: { show: false } },
-      { type: 'time', gridIndex: 1, axisLabel: { fontSize: 10 } }
-    ],
-    // No horizontal splitLines on any of these: the dual count axes have
-    // independent intervals that never align, and on the ratio axis a flat
-    // series sits so close to the lines that they read as data.
-    yAxis: [
-      { type: 'value', gridIndex: 0, name: 'ratio', nameTextStyle: { fontSize: 10 }, ...ratioAxis, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
-      { type: 'value', gridIndex: 1, name: 'x2', position: 'left', nameTextStyle: { fontSize: 10 }, ...x2Axis, axisLabel: { fontSize: 10, formatter: (v: number) => abbr(v) }, splitLine: { show: false } },
-      { type: 'value', gridIndex: 1, name: 'y2', position: 'right', nameTextStyle: { fontSize: 10 }, ...y2Axis, axisLabel: { fontSize: 10, formatter: (v: number) => abbr(v) }, splitLine: { show: false } }
-    ],
-    series: [
-      { name: 'x1', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value }, data: timePts('x1'), markLine: maintenanceMarkLine.value },
-      { name: 'y1', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value }, data: timePts('y1') },
-      { name: 'x2', type: 'scatter', xAxisIndex: 1, yAxisIndex: 1, symbol: 'circle', symbolSize: 6, itemStyle: { color: c2.value }, data: timePts('x2'), markLine: maintenanceMarkLine.value },
-      { name: 'y2', type: 'scatter', xAxisIndex: 1, yAxisIndex: 2, symbol: 'triangle', symbolSize: 6, itemStyle: { color: c3.value }, data: timePts('y2') }
-    ]
-  }
-}
-
-// Deviation %: each channel normalized to its first finite sample, so all four
-// share one axis and relative drift is comparable across the scale gap.
+// Deviation %: each stable channel normalized to its first finite sample.
 const laserDeviationOption = (): EChartsOption => {
   const rows = laserRows.value
   const pct = (k: LaserCh) => {
-    const base = rows.map(r => laserVal(r, k)).find(Number.isFinite)
+    const base = rows.map(r => r[k]).find(Number.isFinite)
     return rows.map(r => ({
       name: r.ts,
-      value: [r.epoch, Number.isFinite(laserVal(r, k)) && base ? (laserVal(r, k) / base - 1) * 100 : NaN]
+      value: [r.epoch, Number.isFinite(r[k]) && base ? (r[k] / base - 1) * 100 : NaN]
     }))
   }
   return {
@@ -352,63 +308,27 @@ const laserDeviationOption = (): EChartsOption => {
     dataZoom: sliderZoom(),
     series: [
       { name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value }, data: pct('x1'), markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] } },
-      { name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value }, data: pct('y1'), markLine: maintenanceMarkLine.value },
-      { name: 'x2', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c2.value }, data: pct('x2') },
-      { name: 'y2', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c3.value }, data: pct('y2') }
+      { name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value }, data: pct('y1'), markLine: maintenanceMarkLine.value }
     ]
   }
 }
 
-// Pair scatter: x vs y within each pair, points colored oldest→newest —
-// reveals per-pair correlation/structure the time-series hides.
-const laserScatterOption = (): EChartsOption => {
-  const rows = laserRows.value
-  const finiteEpochs = rows.map(r => r.epoch).filter(Number.isFinite)
-  const minE = finiteEpochs.length ? Math.min(...finiteEpochs) : 0
-  const maxE = finiteEpochs.length ? Math.max(...finiteEpochs) : 1
-  const pairPts = (kx: LaserCh, ky: LaserCh) => rows
-    .filter(r => Number.isFinite(laserVal(r, kx)) && Number.isFinite(laserVal(r, ky)))
-    .map(r => ({ name: r.ts, value: [laserVal(r, kx), laserVal(r, ky), r.epoch] }))
-  return {
-    title: [
-      { text: 'pair 1 · x1×y1', left: '26%', top: 6, textAlign: 'center', textStyle: { fontSize: 11, fontWeight: 'normal' } },
-      { text: 'pair 2 · x2×y2', left: '77%', top: 6, textAlign: 'center', textStyle: { fontSize: 11, fontWeight: 'normal' } }
-    ],
-    grid: [
-      { left: 52, right: '54%', top: 40, bottom: 40 },
-      { left: '52%', right: 62, top: 40, bottom: 40 }
-    ],
-    tooltip: {
-      trigger: 'item',
-      formatter: (params) => {
-        const item = Array.isArray(params) ? params[0] : params
-        const d = item?.data as { name: string, value: number[] } | undefined
-        return d ? `${d.name}<br/>x ${abbr(d.value[0]!)}<br/>y ${abbr(d.value[1]!)}` : ''
-      }
-    },
-    // Continuous time→color ramp shared by both scatters (older=c1, newer=c0).
-    visualMap: {
-      type: 'continuous', dimension: 2, min: minE, max: maxE, seriesIndex: [0, 1],
-      inRange: { color: [c1.value, c0.value] }, calculable: false, show: false
-    },
-    xAxis: [
-      { type: 'value', gridIndex: 0, name: 'x1', nameLocation: 'middle', nameGap: 22, nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9 } },
-      { type: 'value', gridIndex: 1, name: 'x2', nameLocation: 'middle', nameGap: 26, nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9, formatter: (v: number) => abbr(v) } }
-    ],
-    yAxis: [
-      { type: 'value', gridIndex: 0, name: 'y1', nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9 } },
-      { type: 'value', gridIndex: 1, name: 'y2', nameTextStyle: { fontSize: 10 }, scale: true, axisLabel: { fontSize: 9, formatter: (v: number) => abbr(v) } }
-    ],
-    dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1], filterMode: 'none' },
-      { type: 'inside', yAxisIndex: [0, 1], filterMode: 'none' }
-    ],
-    series: [
-      { name: 'pair 1', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, symbolSize: 7, data: pairPts('x1', 'y1') },
-      { name: 'pair 2', type: 'scatter', xAxisIndex: 1, yAxisIndex: 1, symbolSize: 7, data: pairPts('x2', 'y2') }
-    ]
+// TemperatureEChuck parsed once per docs change — up to ~16k docs per 30 days
+// at the office — rather than inside chartOption, which also re-runs on every
+// theme or BM/PM-marker change.
+const tempSeries = computed(() => {
+  const byPos: Record<string, { ts: string, epoch: number, temp: number }[]> = {}
+  if (activeKey.value !== 'TemperatureEChuck') return { byPos, temps: [], daily: [] }
+  for (const d of activeDocs.value) {
+    const p = parseFdcValues(valuesOf(d))
+    if (p.key !== 'TemperatureEChuck') continue
+    const { position, temp } = p.data as TemperatureValue
+    ;(byPos[position] ??= []).push({ ts: tsOf(d), epoch: toEpoch(tsOf(d)), temp })
   }
-}
+  const all = Object.values(byPos).flat()
+  const daily = fdcDailyMeans(all.map(r => ({ ts: r.ts, value: r.temp }))).map(p => [toEpoch(p.ts), p.value])
+  return { byPos, temps: all.map(r => r.temp), daily }
+})
 
 const chartOption = computed<EChartsOption>(() => {
   if (activeKey.value === 'SPMVoltages') {
@@ -433,26 +353,16 @@ const chartOption = computed<EChartsOption>(() => {
     }
   }
 
-  if (activeKey.value === 'LaserPower') {
-    if (laserView.value === 'deviation') return laserDeviationOption()
-    if (laserView.value === 'scatter') return laserScatterOption()
-    return laserRawOption()
-  }
+  if (activeKey.value === 'LaserPower') return laserDeviationOption()
 
   // TemperatureEChuck → one line per position (1/2/3)
-  const byPos: Record<string, { ts: string, temp: number }[]> = {}
-  for (const d of activeDocs.value) {
-    const p = parseFdcValues(valuesOf(d))
-    if (p.key !== 'TemperatureEChuck') continue
-    const pos = (p.data as TemperatureValue).position
-    ;(byPos[pos] ??= []).push({ ts: tsOf(d), temp: (p.data as TemperatureValue).temp })
-  }
+  const { byPos, temps, daily } = tempSeries.value
   const colors = [c0.value, c1.value, c2.value]
   // °C is an offset scale, so stableYRange's magnitude-based min span (~5°C
   // around 23) drowns the ~0.6°C of real drift. tightYRange hugs the data
   // (falling through to scale:true when it varies) and only guards the
   // flat-series case, so trend changes stay legible.
-  const tempAxis = tightYRange(Object.values(byPos).flat().map(r => r.temp)) ?? { scale: true }
+  const tempAxis = tightYRange(temps) ?? { scale: true }
   return {
     grid: { left: 56, right: 16, top: 24, bottom: 52 },
     tooltip: { trigger: 'axis' },
@@ -460,12 +370,18 @@ const chartOption = computed<EChartsOption>(() => {
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: '°C', ...tempAxis, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
     dataZoom: sliderZoom(),
-    series: Object.keys(byPos).sort().map((pos, i) => ({
-      name: `pos ${pos}`, type: 'line', showSymbol: true,
-      lineStyle: { color: colors[i % colors.length] }, itemStyle: { color: colors[i % colors.length] },
-      data: byPos[pos]!.map(r => ({ name: r.ts, value: [toEpoch(r.ts), r.temp] })),
+    series: [...Object.keys(byPos).sort().map((pos, i) => ({
+      name: `pos ${pos}`, type: 'line' as const, showSymbol: false, sampling: 'lttb' as const,
+      lineStyle: { color: colors[i % colors.length], width: 1, opacity: 0.45 }, itemStyle: { color: colors[i % colors.length] },
+      data: byPos[pos]!.map(r => ({ name: r.ts, value: [r.epoch, r.temp] })),
       ...(i === 0 ? { markLine: maintenanceMarkLine.value } : {})
-    }))
+    })), {
+      name: '일평균', type: 'line', showSymbol: false, sampling: 'lttb',
+      // Its own hue: c0..c2 are the three positions, and a bold line in pos 1's
+      // color would read as "pos 1, emphasised".
+      lineStyle: { color: c3.value, width: 3 }, itemStyle: { color: c3.value },
+      data: daily
+    }]
   }
 })
 

@@ -2,6 +2,7 @@
 // series. A doc is one collection-date snapshot: { date, FileInfo, SemCond,
 // ImgCond, SCEParam, Coefficients } — the same block shape `settings` holds
 // per eqp, plus `date`.
+import { flattenSettings, SCE_FLEET_CONSTANT_FIELDS } from './sceCompare.ts'
 
 export interface SceTrendPoint { ts: string, key: string, value: number }
 export interface SceTrendKey { block: string, key: string, label: string }
@@ -43,6 +44,14 @@ export const sceTrendKeys = (docs: Record<string, unknown>[]): SceTrendKey[] => 
         if (!found.has(k) && fieldNum(v) !== null) found.set(k, block)
       }
     }
+  }
+  // A fleet-constant field (office 확인 2026-09-28) earns a chip only when it
+  // actually moved inside the window — the same rule the compare table uses,
+  // so a tool drifting off the fleet value is never hidden.
+  const moved = (block: string, key: string) =>
+    new Set(docs.map(doc => JSON.stringify(blockOf(doc, block)[key] ?? null))).size > 1
+  for (const [k, block] of [...found]) {
+    if (SCE_FLEET_CONSTANT_FIELDS.has(`${block}.${k}`) && !moved(block, k)) found.delete(k)
   }
   const rank = (b: string) => TREND_BLOCKS.indexOf(b as (typeof TREND_BLOCKS)[number])
   return [...found.entries()]
@@ -86,6 +95,23 @@ export interface SceCoeffRevision {
    * wrong (a wrong doc still renders a plausible curve, silently).
    */
   doc: Record<string, unknown>
+  change?: string
+}
+
+export const sceRevisionChange = (prevDoc: Record<string, unknown> | undefined, doc: Record<string, unknown>): string => {
+  if (!prevDoc) return ''
+  const previous = flattenSettings(prevDoc)
+  const current = flattenSettings(doc)
+  const changed = [...new Set([...Object.keys(previous), ...Object.keys(current)])]
+    .filter(path => previous[path] !== current[path])
+  if (changed.length === 0) return ''
+  // Mag is the field a re-tune most often moves (office 확인 2026-09-28).
+  const mag = 'ImgCond.ImgCond_Mag'
+  const first = changed.includes(mag) ? mag : changed.sort()[0]!
+  // List fields (Mag is ['150003298', '150003298']) show their first element.
+  const value = (flat: Record<string, string>) => (flat[first] ?? '').split(',')[0]
+  const name = sceParamLabel(first.slice(first.indexOf('.') + 1))
+  return `${name} ${value(previous)}→${value(current)}${changed.length > 1 ? ` +${changed.length - 1}` : ''}`
 }
 
 // Coefficients equality between two docs. Compares structurally and bails on
@@ -126,7 +152,10 @@ export const sceCoeffRevisions = (docs: Record<string, unknown>[]): SceCoeffRevi
     if (!date) continue
     const last = out[out.length - 1]
     if (last && sameCoefficients(last.doc.Coefficients, doc.Coefficients)) last.dates.push(date)
-    else out.push({ date, dates: [date], doc })
+    else {
+      const change = sceRevisionChange(last?.doc, doc)
+      out.push({ date, dates: [date], doc, ...(change ? { change } : {}) })
+    }
   }
   return out
 }
@@ -146,7 +175,7 @@ export const sceRevisionSpan = (rev: SceCoeffRevision): string => {
 // IS the "이 값이 유지된 기간" signal. The chart legend uses the bare span
 // (see sceRevisionSpan) because it has to fit several entries side by side.
 export const sceRevisionLabel = (rev: SceCoeffRevision): string =>
-  rev.dates.length <= 1 ? rev.date : `${sceRevisionSpan(rev)} · ${rev.dates.length}회`
+  `${rev.dates.length <= 1 ? rev.date : `${sceRevisionSpan(rev)} · ${rev.dates.length}회`}${rev.change ? ` · ${rev.change}` : ''}`
 
 // values[0] / values[1] at a single Coefficients index across the window —
 // "how did this one point of the curve move?". Reads only the target entry, so
