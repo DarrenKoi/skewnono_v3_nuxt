@@ -30,9 +30,16 @@ tell which is right.
 
 FIELD SET — exactly the 13 flat fields the mock emits. Focus Sweep was removed,
 so ``Resolution_Range`` / ``Resolution_Range_Raw`` / ``Resolution_Range_Smooth``
-and ``fdc_category`` are NOT returned. They are mapped ``enabled: false`` and so
-still ride along in ``_source``; the explicit ``SOURCE_FIELDS`` projection is
-what keeps them off the wire rather than a post-hoc delete.
+and ``fdc_category`` are NOT returned. The office ingestion pops
+``Resolution_Range*`` before indexing, so the index has never carried them
+(office 확인 2026-09-28 — this docstring used to claim they rode along in
+``_source`` under ``enabled: false``, a home assumption). The explicit
+``SOURCE_FIELDS`` projection stays as a guard against any stray field.
+
+``CenterX`` is CORRUPTED in every doc written before 2026-09-28: it holds the
+CenterXY magnitude, not the X offset (office 확인 2026-09-28). Newer docs are
+correct. It is passed through as stored, so an odd-looking scatter over an old
+window is this, not the adapter.
 
 ``ResoData`` (spelled so at the office — user-confirmed 2026-09-28; this file
 said ``ResoDelta`` until then) is the stored difference

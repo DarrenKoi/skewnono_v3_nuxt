@@ -220,7 +220,7 @@ roster.
 | `os_inserted` | `date` | fetched, not used | — |
 | `beam_condition` | **object** | `SEM_Cond_No` + `Vacc` build the condition selector | not an object, or either key missing → **raise** |
 | `beam_condition.SEM_Cond_No` | number, or numeric string (coerced to int) | selector key `"{No}_{Vacc}"` | non-numeric → raise |
-| `beam_condition.Vacc` | number or string | default condition = first doc where `String(Vacc) === '800'` | `"800.0"` or `"800V"` → the default falls back to the first condition |
+| `beam_condition.Vacc` | number or numeric string | compared as a number: default condition = first doc where `Vacc == 800`; `800`, `"800"` and `800.0` are one condition | non-numeric (e.g. `"800V"`) → its own button, and the default falls back to the first condition |
 | `reso_eb`, `noise` | object keyed `"0.0"`…`"337.5"` (16 keys, step 22.5) | radar charts | empty or not an object → **raise**; a missing degree key → a gap in the radar |
 | `reso_detector` | same shape | 0–360° line chart | same as above |
 | `summ_beam` | object of floats: `Ellipticity`, `Major Axis`, `Minor Axis`, `Offset`, `Tilt`, `x_range`, `y_range` | trend dropdown; default `Ellipticity` | empty → raise; **only `docs[0]`'s keys are offered**, so a key that first appears in a later doc never shows |
@@ -294,8 +294,8 @@ until 2026-09-28 and was corrected on the user's word (user-confirmed).
 | --- | --- | --- | --- |
 | `degree` | 16 numbers | angle labels | missing → falls back to 0…337.5 |
 | `Reso EB`, `Reso Detector`, `Noise`, `Focus offset`, `Apature angle factor` | list of exactly 16 numbers (floats or numeric strings mixed) | radar metric | not exactly 16 clean numbers → **dropped** |
-| `Reso EB Focus` | doubly nested `[[16 numbers]]` (flat is also accepted) | radar metric | same as above |
-| `Reso EB Focus Range` | one-element list `['8.0000']` | unwrapped to a float trend metric | non-numeric → dropped |
+| `Reso EB Focus` | doubly nested `[[16 numbers]]` (flat is also accepted). Holds only the **last of the source CSV's 5 focus rows, the +10 focus row** (office 확인 2026-09-28) | radar metric | same as above |
+| `Reso EB Focus Range` | one-element list `['8.0000']`: the focus value of the row kept in `Reso EB Focus` | unwrapped to a float trend metric | non-numeric → dropped |
 | `Major Axis`, `Minor Axis`, `Ellipticity`, `Tilt`, `X range`, `Y range`, `Area`, `Ave. Reso Detector`, `Ave. Noise`, `Ave. Apature angle factor` | float or numeric string | trend metric | non-numeric → dropped |
 | `beam_condition` | **string**, e.g. `HR0800_IP0080` (not an object, unlike sharpness) | condition filter; measurement id = `timestamp`+`beam_condition` | — |
 | `category`, `type`, `fdc_category`, `timestamp`, `timestamp_date`, `eqp_ip`, `eqp_id`, `fac_id`, `fab_name` | string | passed through; `category` is shown as a badge | — |
@@ -303,6 +303,10 @@ until 2026-09-28 and was corrected on the user's word (user-confirmed).
 Default charts: trend A `Ellipticity`, trend B `Ave. Noise`, radar A `Reso EB`,
 radar B `Reso Detector`. If a default key is absent, the chart falls back to
 the first available metric.
+
+`Reso EB Focus Range` records **which** focus row was kept, not a focus-range
+drift. If its trend moves, suspect a change in the ingestion rule, not the
+tool. Keeping a different row is a one-line change on the office ingestion side.
 
 ### Expected sample — `beam_shape_cdsem`
 
@@ -371,13 +375,14 @@ keyword, so this index may be too. Check the mapping.
 | `timestamp` | `date`, offset-less KST | range, sort, x-axis | empty → raise |
 | `timestamp_date` | string `YYYY-MM-DD` | passed through | filled from `timestamp` |
 | `beam_condition` | string, e.g. `HR0500_IP0080` | the page always shows **one** condition (first in sorted order) | — |
-| `CenterX`, `CenterY` | float or numeric string | scatter plot | non-numeric → null, a blank point |
+| `CenterX`, `CenterY` | float or numeric string | scatter plot | non-numeric → null, a blank point. **`CenterX` is corrupted in every doc written before 2026-09-28**: it holds the CenterXY magnitude, not the X offset (office 확인 2026-09-28) |
 | `BestReso`, `ResoIScenter` | float | two trend lines on one nm axis | same as above |
 | `ResoData` | float, stored (`ResoIScenter − BestReso`, ≥ 0). Spelled `ResoData`, not `ResoDelta` (user-confirmed 2026-09-28) | tooltip; **never recomputed** | missing → `—` |
 | `eqp_id`, `fac_id`, `category` | string | passed through | a missing `eqp_id` is filled from the request |
 
-The index also carries `Resolution_Range*` and `fdc_category`. They are
-deliberately not fetched.
+The index has **never** carried `Resolution_Range*`: the office ingestion
+pops them before indexing (office 확인 2026-09-28; an earlier version of this
+brief said otherwise). `fdc_category` is not fetched even if present.
 
 ### Expected sample — `reso_center_cdsem`
 

@@ -155,14 +155,23 @@ const numOf = (v: unknown): number => {
 const asRecord = (v: unknown): Record<string, unknown> =>
   (v && typeof v === 'object' && !Array.isArray(v)) ? v as Record<string, unknown> : {}
 
+// Vacc compared as a NUMBER: the index may store 800, "800" or 800.0, and a
+// string compare would split one condition into two buttons and miss the
+// 800V default. A non-numeric value falls back to its raw text.
+const vaccOf = (bc: Record<string, unknown>): string => {
+  if (bc.Vacc == null || bc.Vacc === '') return ''
+  const n = numOf(bc.Vacc)
+  return Number.isFinite(n) ? String(n) : String(bc.Vacc)
+}
+
 // beam_condition is an object; group by the paired (SEM_Cond_No, Vacc).
 const condKeyOf = (d: Record<string, unknown>): string => {
   const bc = asRecord(d.beam_condition)
-  return `${String(bc.SEM_Cond_No ?? '')}_${String(bc.Vacc ?? '')}`
+  return `${String(bc.SEM_Cond_No ?? '')}_${vaccOf(bc)}`
 }
 const condLabelOf = (d: Record<string, unknown>): string => {
   const bc = asRecord(d.beam_condition)
-  return `Cond ${String(bc.SEM_Cond_No ?? '—')} · ${String(bc.Vacc ?? '—')}V`
+  return `Cond ${String(bc.SEM_Cond_No ?? '—')} · ${vaccOf(bc) || '—'}V`
 }
 
 // Condition options (data-driven, stable order) — usually just two, so they
@@ -181,12 +190,12 @@ const conditions = computed(() => {
 // (e.g. "800 V") can no longer silently break the default and fall through to
 // conds[0]. Whatever SEM_Cond_No the office pairs with 800V (Cond 6 in
 // practice) is selected; falls back to the first condition when none match.
-const DEFAULT_VACC = '800'
+const DEFAULT_VACC = 800
 const condition = ref('')
 watch(conditions, (conds) => {
   if (conds.some(([key]) => key === condition.value)) return
   const preferredDoc = props.docs.find(
-    d => String(asRecord(d.beam_condition).Vacc ?? '') === DEFAULT_VACC
+    d => numOf(asRecord(d.beam_condition).Vacc) === DEFAULT_VACC
   )
   condition.value = (preferredDoc ? condKeyOf(preferredDoc) : conds[0]?.[0]) ?? ''
 }, { immediate: true })

@@ -11,9 +11,10 @@ plausibly break:
   doc's `category` field and names no index — every .py and .md in this repo
   said otherwise until 2026-07-27, so it is pinned here rather than left to
   the next reader's judgement;
-* the doc is exactly the mock's 13 flat fields. Focus Sweep was removed but
-  its wide `Resolution_Range*` objects still ride along in `_source`
-  (`enabled: false`), so they must not reach the page;
+* the doc is exactly the mock's 13 flat fields. The office ingestion pops the
+  Focus Sweep `Resolution_Range*` objects before indexing, so the index has
+  never carried them (office 확인 2026-09-28); the projection still keeps any
+  stray field off the page should that ever change;
 * `ResoData` is passed through as indexed, never recomputed from
   `ResoIScenter - BestReso`. Recomputing would silently repair the exact
   ingestion bug the two-line trend chart is meant to expose.
@@ -51,7 +52,8 @@ RAW_HIT = {
     "eqp_id": EQP,
     "fac_id": "R3",
     "fab_name": "R3",
-    # Focus Sweep leftovers — mapped enabled:false, still in _source.
+    # Stray fields the real index does not carry (office 확인 2026-09-28) —
+    # kept to prove the projection would stop them if ingestion ever did.
     "Resolution_Range": {"0": 1.0},
     "Resolution_Range_Raw": {"0": 1.0},
     "fdc_category": "reso_center",
@@ -95,7 +97,7 @@ def test_normalized_doc_key_set_matches_the_mock_exactly():
     assert set(office._normalize(RAW_HIT, EQP, IP)) == set(mock_doc)
 
 
-def test_normalize_drops_the_focus_sweep_leftovers_riding_in_source():
+def test_normalize_drops_stray_focus_sweep_fields():
     out = office._normalize(RAW_HIT, EQP, IP)
     for dropped in ("Resolution_Range", "Resolution_Range_Raw", "fdc_category"):
         assert dropped not in out
@@ -165,8 +167,8 @@ def test_build_filters_on_ip_window_and_fab(monkeypatch):
     assert {"term": {office.FAB_NAME_KW: "R3"}} in clauses
     window = next(c for c in clauses if "range" in c)["range"][office.TIME_FIELD]
     assert window == {"gte": START.isoformat(), "lte": ANCHOR.isoformat()}
-    # Only the 13 contract fields are requested, which is what keeps the
-    # enabled:false Focus Sweep objects off the wire in the first place.
+    # Only the 13 contract fields are requested, so no stray field can reach
+    # the wire.
     assert calls["source"] == office.SOURCE_FIELDS
 
 

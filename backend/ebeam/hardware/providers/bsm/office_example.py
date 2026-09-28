@@ -20,9 +20,17 @@ numeric array, and ignores anything else):
   so it classifies as a radar (profile) metric like the other per-degree keys.
 * ``Reso EB Focus Range`` arrives as a one-element list — ``['8.0000']``. That
   is neither a length-16 array nor a scalar, so the panel ignores it entirely.
-  Unwrapped to a bare float here so it surfaces as a scalar trend / KPI metric
-  (focus-range drift over time). ``bsm/mock.py`` emits the same float scalar so
-  home and office render this field identically.
+  Unwrapped to a bare float here so it surfaces as a scalar trend / KPI metric.
+  ``bsm/mock.py`` emits the same float scalar so home and office render this
+  field identically.
+
+What the two focus fields ARE (office 확인 2026-09-28): the source CSV has FIVE
+Reso EB Focus rows, one per focus step, and the stored doc keeps only the LAST
+one — the +10 focus row — and always has. So ``Reso EB Focus`` is that row's
+16-degree profile and ``Reso EB Focus Range`` is that row's focus value. It
+records WHICH row was kept, not a focus-range drift: a moving Range trend means
+the ingestion rule changed, not the tool. Keeping a different row is a
+one-line change on the office ingestion side, not here.
 
 Per-degree arrays and scalars are coerced to floats (the source mixes floats
 and numeric strings — ``'6.118456'`` — within the same array). Anything that

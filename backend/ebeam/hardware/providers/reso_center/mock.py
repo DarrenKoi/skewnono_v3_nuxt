@@ -20,11 +20,17 @@ doc's `category` VALUE and names no index — every .py and .md in this repo
 conflated the two until 2026-07-27. CD-SEM only, enforced upstream by
 `normalizers.CDSEM_ONLY_SERVICES`.
 
-Office `_source` still carries the dropped `Resolution_Range*` and
-`fdc_category` fields (mapped `enabled: false`), which is why the office adapter
-projects an explicit field list. This mock emits only the 13 that survive, so
+The office index never carried the Focus Sweep `Resolution_Range*` fields —
+the ingestion pops them before indexing (office 확인 2026-09-28; this docstring
+used to say they rode along in `_source`). The office adapter still projects an
+explicit field list as a guard, and this mock emits exactly those 13 fields, so
 `set(mock_doc) == set(office_doc)` is a live test
 (tests/test_reso_center_office.py).
+
+Deliberate difference: every office doc written before 2026-09-28 has a
+CORRUPTED `CenterX` (the CenterXY magnitude, not the X offset — office 확인
+2026-09-28). This mock emits a clean X offset throughout rather than
+reproducing that, so home scatters look right where old office windows won't.
 """
 
 from __future__ import annotations

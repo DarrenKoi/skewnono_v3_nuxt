@@ -106,11 +106,12 @@ def _build_doc(
             doc[metric["key"]] = _profile16(rng, metric["low"], metric["high"])
         else:
             doc[metric["key"]] = _scalar(rng, metric["low"], metric["high"])
-    # `Reso EB Focus` is a per-degree array (radar metric); `Reso EB Focus
-    # Range` is a scalar — the focus scan/operating window — surfaced as a
-    # trend / KPI metric. The source stores it as a 1-element list
-    # (`['8.0000']`); the office adapter unwraps it to this same float so home
-    # and office render the field identically.
+    # `Reso EB Focus` is a per-degree array (radar metric): the office keeps
+    # only the LAST of five focus rows, the +10 focus row (office 확인
+    # 2026-09-28). `Reso EB Focus Range` is that kept row's focus value. The
+    # source stores it as a 1-element list (`['8.0000']`); the office adapter
+    # unwraps it to this same float. The random drift below is fabricated —
+    # the real value should hold still unless the ingestion rule changes.
     doc["Reso EB Focus"] = _profile16(rng, 7.90, 9.00)
     doc["Reso EB Focus Range"] = round(rng.uniform(7.5, 8.5), 4)
     # Faithful tail.

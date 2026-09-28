@@ -19,6 +19,11 @@ OpenSearch index alias: reso_center_cdsem (category "reso_center_log").
 doc 하나에는 다음과 같은 필드가 있다.
 'category': str "reso_center_log"
 'CenterX': float 예 = 1.15
+                              # ★ 2026-09-28 이전에 적재된 doc 은 CenterX 가 오염되어
+                              #   있습니다 — X offset 이 아니라 CenterXY 크기
+                              #   (sqrt(X²+Y²))가 들어 있습니다. 그날 이후 새로 적재된
+                              #   doc 부터 올바릅니다 (office 확인 2026-09-28). 옛 구간의
+                              #   scatter 가 이상해 보이면 이 때문입니다.
 'CenterY': float -0.99
 'BestReso': float 2.98         # best-focus resolution (focus sweep의 최소값)
 'ResoIScenter': float 3.04     # 중심 focus에서의 resolution (>= BestReso)
@@ -73,9 +78,12 @@ build_reso_center_docs(eqp_id, fab_name, start, end) -> list[dict]
 
   ResoData 는 저장된 값을 그대로 통과시킵니다. 다시 계산하지 않습니다.
   Focus Sweep 은 제거되었으므로 Resolution_Range / Resolution_Range_Raw /
-  Resolution_Range_Smooth 와 fdc_category 는 돌려주지 않습니다. mapping 이
-  enabled:false 라 _source 에는 여전히 따라오므로, doc 에서 **떼어내야** office
-  payload 가 mock 과 같은 모양이 됩니다.
+  Resolution_Range_Smooth 와 fdc_category 는 돌려주지 않습니다.
+  ★ 정정 (office 확인 2026-09-28): 이 문서는 Resolution_Range* 가 enabled:false 로
+    mapping 되어 _source 에 따라온다고 적고 있었지만 틀렸습니다. 사무실 적재가
+    색인 전에 이 field 들을 pop 하므로, index 에는 **한 번도 들어간 적이
+    없습니다**. 어댑터의 SOURCE_FIELDS 명시 목록은 그대로 두되, 그것이 무언가를
+    떼어낸다고 읽지 마십시오.
 
 CD-SEM 전용입니다.
 

@@ -74,9 +74,18 @@ bare field 에 term 을 걸면 아무것도 매칭하지 않습니다.
                            분류됩니다.
   "Reso EB Focus Range" -> ['8.0000'] 처럼 원소 1개짜리 list 로 옵니다. 길이 16도
                            아니고 scalar 도 아니라 패널이 통째로 무시합니다. bare
-                           float 로 벗겨서 scalar 추이(focus range drift)로
-                           노출합니다. mock 도 같은 float scalar 를 내보내므로 집과
-                           사무실이 같게 렌더됩니다.
+                           float 로 벗겨서 scalar 로 노출합니다. mock 도 같은
+                           float scalar 를 내보내므로 집과 사무실이 같게
+                           렌더됩니다.
+
+  ★ Reso EB Focus 의 정체 (office 확인 2026-09-28)
+    원본 CSV 에는 Reso EB Focus 행이 **5개**(focus 단계별) 있지만, 적재된 doc 은 그중
+    **마지막 행 하나만** 담습니다 — 처음부터 그랬습니다. 그래서
+      "Reso EB Focus"       = 마지막 행, 즉 **+10 focus 행**의 16-degree profile
+      "Reso EB Focus Range" = 그 행의 focus 값
+    입니다. Range 는 "focus range 추이" 가 아니라 **어느 focus 행을 담았는지**를
+    말하는 값이므로, 그 추이가 움직이면 장비 변화가 아니라 적재 규칙 변화를
+    의심하십시오. 다른 행을 담게 하려면 사무실 적재 쪽 한 줄 변경입니다.
 
   per-degree 배열과 scalar 는 모두 float 로 강제 변환합니다 — 원본은 한 배열 안에
   float 와 숫자 문자열('6.118456')이 섞여 있습니다. 깨끗한 길이 16 숫자 배열을 만들
