@@ -35,7 +35,7 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
 
 At the office the writer also stores typed side-fields derived from `values`
 (`ops_index_mgmt/network_fdc_cdsem.side_fields`: temp_pos, temp_c, laser_x1,
-laser_y1, spm_channel, spm_judgement, pin_channel, pin_no, pin_judgement,
+laser_y1, spm_channel, spm_judgment, pin_channel, pin_no, pin_judgment,
 pin_spread, pin_counter; office 확인 2026-09-28) for the fleet aggregations.
 The per-tool adapter does not fetch them (`SOURCE_FIELDS`), so these docs
 carry the seven fields the page sees. `build_fdc_fleet` applies the same
@@ -308,11 +308,11 @@ def _emulate_fleet_aggs(docs_by_tool: dict[str, list[dict]]) -> dict:
         for doc in docs:
             if "temp_c" in doc:
                 days[doc["timestamp"][:10]].append(doc["temp_c"])
-            judgement = doc.get("pin_judgement")
-            if judgement is not None:
-                stamps[judgement].add(doc["timestamp"])  # cardinality(timestamp)
+            judgment = doc.get("pin_judgment")
+            if judgment is not None:
+                stamps[judgment].add(doc["timestamp"])  # cardinality(timestamp)
                 if "pin_spread" in doc:
-                    margin[judgement][math.floor(doc["pin_spread"] / SPREAD_BIN_WIDTH)] += 1
+                    margin[judgment][math.floor(doc["pin_spread"] / SPREAD_BIN_WIDTH)] += 1
             if "pin_counter" in doc:
                 channels[doc["pin_channel"]].append((_epoch_ms(doc["timestamp"]), doc["pin_counter"]))
         tools.append({
@@ -323,7 +323,7 @@ def _emulate_fleet_aggs(docs_by_tool: dict[str, list[dict]]) -> dict:
             "days": {"buckets": [
                 {"key_as_string": day, "temp_c": avg(temps)} for day, temps in sorted(days.items())
             ]},
-            "judgement": {"buckets": [
+            "judgment": {"buckets": [
                 {"key": j, "docs": {"value": len(ts)}} for j, ts in stamps.items()
             ]},
             "channels": {"buckets": [

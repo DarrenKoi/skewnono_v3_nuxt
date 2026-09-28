@@ -135,7 +135,10 @@ typed side-field (write 시점 파생, office 확인 2026-09-28)
 
 values 는 위치 기반 문자열 list 라 OpenSearch 가 위치별로 집계하지 못합니다. 그래서
 사무실 FDC 적재 task 가 values 는 그대로 두고 아래 typed field 를 _source 에 함께
-씁니다. 이 저장소의 기준 구현은 ops_index_mgmt/network_fdc_cdsem.side_fields 입니다.
+씁니다. 실제 writer 는 사무실 scheduler 저장소의 FDC task 에 있습니다. 이 저장소의
+ops_index_mgmt/network_fdc_cdsem.side_fields 는 집 mock 이 쓰는 사본이며, scheduler
+writer 와 이름과 규칙이 같아야 합니다 (office 확인 2026-09-28: 사무실 쪽 ops_index_mgmt
+에는 이 함수가 없습니다).
 
   fdc_key                   field          type (dynamic)    출처
   TemperatureEChuck         temp_pos       long              values[2] (1-3)
@@ -143,25 +146,34 @@ values 는 위치 기반 문자열 list 라 OpenSearch 가 위치별로 집계�
   LaserPower                laser_x1       float             values[2]
                             laser_y1       float             values[3]
   SPMVoltages               spm_channel    text + .keyword   values[2]
-                            spm_judgement  text + .keyword   values[6] (피팅 모델 이름)
+                            spm_judgment   text + .keyword   values[6] (피팅 모델 이름)
   ContactpinConductionInfo  pin_channel    text + .keyword   values[2]
                             pin_no         long              values[3] (1-25)
-                            pin_judgement  text + .keyword   values[4]
+                            pin_judgment   text + .keyword   values[4]
                             pin_spread     float             max - min of values[5:9]
                             pin_counter    long              values[9]
 
-  - index 는 dynamic mapping 그대로입니다. 문자열 field 는 eqp_id 처럼 .keyword 로
-    집계합니다.
+  - index 는 dynamic mapping 그대로이며 field 는 첫 write 때 mapping 됩니다. 문자열
+    field 는 eqp_id 처럼 .keyword 로 집계합니다.
+  - 철자는 judgment ('e' 없음) 입니다 (office 확인 2026-09-28). 이름이 틀려도 에러가
+    나지 않고 빈 bucket 만 돌아오므로, 틀린 철자는 화면을 영원히 비워 둡니다.
   - SPM 은 숫자 field 가 없습니다. 장비마다 단위 scale 이 100배까지 달라 fab 비교를
     하지 않습니다.
   - pin_counter 는 채널별 단조 증가 counter (event 당 +1) 입니다. 원값이 아니라
     증가율을 봅니다.
+  - 배포 상태 (2026-09-28): 아직 배포 전입니다. index 에 side-field 를 가진 문서가
+    0건입니다. scheduler 배포 후 재시작하면 다음 6시간 주기 FDC 적재부터 field 가
+    생깁니다. 그 전에는 fleet 집계가 빈 결과를 돌려줍니다 (500 아님).
   - 이전 문서에는 field 가 없습니다. backfill 이 아직 없어 fleet 화면은 배포 후
     약 30일에 걸쳐 채워집니다.
-  - 중복 문서: 평균은 byte 동일 중복에 영향이 없지만, 문서 수 기반 비율은 ~1% 부풀려
-    집니다. fleet 집계는 Contactpin 수를 cardinality(timestamp) 로 셉니다 (_id 가
-    fab_eqp_key_timestamp 라 timestamp 하나가 곧 중복 제거된 문서 하나).
-  - pin_judgement 철자: 사무실 회신이 field 목록에는 pin_judgement, 집계 예시에는
-    pin_judgment 로 적었습니다 - OFFICE-VERIFY.
+  - 중복 문서 비율 (가장 바쁜 장비): Contactpin 0.38%, TemperatureEChuck 0.76%
+    (office 확인 2026-09-28). 모두 byte 동일합니다. 평균은 영향이 없고, 문서 수 기반
+    비율만 그만큼 부풀려집니다.
+  - fleet 집계는 Contactpin 수를 cardinality(timestamp) 로 셉니다. 한 장비에서 서로 다른
+    문서가 timestamp 를 공유한 경우는 0건입니다 (office 확인 2026-09-28). 따라서 이
+    값이 곧 중복 제거된 건수입니다. 가장 바쁜 장비가 30일에 ~2.7k 건이라 기본
+    precision_threshold(~3000) 경계에 있어, 집계는 40000 을 명시합니다.
+  - 집계 body 를 실제 index 에 dry run 했습니다: 27ms, 아직 mapping 되지 않은 field 는
+    빈 결과로 처리됩니다 (office 확인 2026-09-28).
   - 화면용 per-tool 어댑터(fdc/office_example.build_fdc_docs)는 이 field 를 가져오지
     않고, fleet 어댑터(build_fdc_fleet, fdc/fleet.py)만 집계합니다.

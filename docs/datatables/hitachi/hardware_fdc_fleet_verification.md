@@ -9,6 +9,19 @@ Home built that view against the field list from the office letter of
 2026-09-28, not against the index. Only the office can say whether the
 aggregations read real fields and return real numbers.
 
+## Status after the first run (2026-09-28)
+
+| Check | Result |
+| --- | --- |
+| V0.1 | The field is `pin_judgment` / `spm_judgment`, with no 'e'. The code now reads those names, and a test pins them |
+| Deployment | Not yet: the writer lives in the scheduler repo and prod was not restarted, so 0 docs carry side-fields. They appear from the next 6 h FDC run after the restart |
+| Dry run | The aggregation body runs on the real index in 27 ms. Unmapped fields return empty buckets, not a 500 |
+| V3.1 | OK: no distinct docs of one tool share a timestamp, and every duplicate is byte-identical |
+| V3.3 | OK: no SPM numbers are aggregated |
+| Duplicates | Contactpin 0.38 %, TemperatureEChuck 0.76 % on the busiest tools |
+| V3.2 | Busiest tools log ~2.7k Contactpin docs per 30 days, at the edge of the ~3000 default, so the query now sets `precision_threshold` 40000 |
+| **Pending** | V0.2-V0.4, V1, V2 and V4. Re-run them 2-3 days after deployment |
+
 Written 2026-09-28 from `backend/ebeam/hardware/providers/fdc/fleet.py`,
 `fdc/office_example.py` (`build_fdc_fleet`) and
 `frontend/app/components/ebeam/hardware/FdcFleetView.vue`.

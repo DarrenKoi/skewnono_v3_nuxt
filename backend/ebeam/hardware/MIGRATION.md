@@ -55,13 +55,16 @@ result until HV-SEM FDC is ingested.
 The same file carries `build_fdc_fleet`, the `fdc-fleet` service behind the
 FDC tab's `fab 전체` view. It is ONE aggregation over the typed side-fields
 the office writer stores next to `values` (`temp_c`, `laser_x1`,
-`pin_judgement`, ...; office 확인 2026-09-28). The request body and the
+`pin_judgment`, ...; office 확인 2026-09-28). The request body and the
 response normalizer live in `fdc/fleet.py`, shared with the mock, which
-emulates the response from its own docs. Two things to verify after `cp`:
-the stored spelling `pin_judgement` versus `pin_judgment` (the office letter
-used both; the constant is `fleet.JUDGEMENT_KW`), and that the view fills in.
-Docs written before the side-fields shipped carry none (no backfill), so the
-view covers roughly 30 days from that deployment onward.
+emulates the response from its own docs. The spelling is `pin_judgment`, with
+no 'e' (office 확인 2026-09-28). A wrong field name returns empty buckets, not
+an error, so `fleet.JUDGMENT_KW` is pinned by a test. The body was dry-run on
+the real index (27 ms). Before the scheduler writer is deployed it returns an
+empty view, not a 500. Docs written before the side-fields shipped carry none
+(no backfill), so the view covers roughly 30 days from that deployment onward.
+The remaining checks are in
+`docs/datatables/hitachi/hardware_fdc_fleet_verification.md`.
 
 `bm_pm/office_example.py` is implemented too, over two indices: `fab_inform_notes`
 for the past-work table (`down_dt`/`equp_dt` plus the three engineer notes)

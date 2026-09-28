@@ -555,14 +555,14 @@ def test_side_fields_type_each_fdc_key_with_the_office_names():
         "ContactpinConductionInfo",
         ["B", "3", "Conduction", "-5.0", "-5.0", "0.0", "5.0", "182671"],
     ))
-    assert pin == {"pin_channel": "B", "pin_no": 3, "pin_judgement": "Conduction",
+    assert pin == {"pin_channel": "B", "pin_no": 3, "pin_judgment": "Conduction",
                    "pin_spread": 10.0, "pin_counter": 182671}
     assert type(pin["pin_no"]) is int and type(pin["pin_counter"]) is int
     # SPM gets strings only: per-tool unit scales differ 100x, so no SPM
     # number is fleet-comparable.
     assert fdc_index.side_fields(
         _fdc("SPMVoltages", ["A", "7", "1", "1", "spline", "-0.2", "0"])
-    ) == {"spm_channel": "A", "spm_judgement": "spline"}
+    ) == {"spm_channel": "A", "spm_judgment": "spline"}
 
 
 def test_side_fields_read_a_comma_decimal_and_drop_a_bad_cell():
@@ -577,7 +577,7 @@ def test_side_fields_read_a_comma_decimal_and_drop_a_bad_cell():
         "ContactpinConductionInfo",
         ["A", "x", "NonConduction", "-25.5", "?", "24.6", "25.0", "182501"],
     ))
-    assert bad == {"pin_channel": "A", "pin_judgement": "NonConduction", "pin_counter": 182501}
+    assert bad == {"pin_channel": "A", "pin_judgment": "NonConduction", "pin_counter": 182501}
     assert fdc_index.side_fields(_fdc("TemperatureEChuck", ["1.5", "nan"])) == {}
     assert fdc_index.side_fields({"fdc_key": "LaserPower", "values": None}) == {}
 
@@ -608,9 +608,9 @@ def test_every_mock_fdc_doc_yields_its_full_side_field_set():
     expected = {
         "TemperatureEChuck": {"temp_pos", "temp_c"},
         "LaserPower": {"laser_x1", "laser_y1"},
-        "SPMVoltages": {"spm_channel", "spm_judgement"},
+        "SPMVoltages": {"spm_channel", "spm_judgment"},
         "ContactpinConductionInfo": {
-            "pin_channel", "pin_no", "pin_judgement", "pin_spread", "pin_counter",
+            "pin_channel", "pin_no", "pin_judgment", "pin_spread", "pin_counter",
         },
     }
     end = datetime(2026, 5, 24, 9, 0)

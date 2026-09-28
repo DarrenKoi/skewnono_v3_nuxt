@@ -36,11 +36,11 @@ export const fdcFleetPinRows = (tools: FdcFleetTool[]) =>
 
 export const fdcFleetHistogram = (fleet: FdcFleet) => {
   const bins = [...new Set(fleet.spread_bins.map(bin => bin.lo))].sort((a, b) => a - b)
-  const judgements = ['Conduction', 'UnstableConduction', 'NonConduction'] as const
-  const series = judgements.map(judgement => ({
-    judgement,
+  const judgments = ['Conduction', 'UnstableConduction', 'NonConduction'] as const
+  const series = judgments.map(judgment => ({
+    judgment,
     counts: bins.map(lo => fleet.spread_bins
-      .filter(bin => bin.judgement === judgement && bin.lo === lo)
+      .filter(bin => bin.judgment === judgment && bin.lo === lo)
       .reduce((sum, bin) => sum + bin.count, 0))
   }))
   return {

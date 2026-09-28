@@ -258,7 +258,7 @@ const histogramOption = computed<EChartsOption>(() => ({
   },
   yAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10 } },
   series: histogram.value.series.map((series, index) => ({
-    name: series.judgement, type: 'bar' as const, stack: 'total',
+    name: series.judgment, type: 'bar' as const, stack: 'total',
     itemStyle: { color: [colors.value.ok, colors.value.warn, colors.value.bad][index] },
     data: series.points,
     ...(index === 0

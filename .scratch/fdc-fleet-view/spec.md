@@ -60,7 +60,7 @@ office 확인 2026-09-28) 결과, 두 신호는 장비 간 차이가 장비 내 
 ## 구현 (2026-09-28)
 
 사무실이 field 이름을 확정해 회신했습니다 (temp_pos/temp_c, laser_x1/laser_y1,
-spm_channel/spm_judgement, pin_channel/pin_no/pin_judgement/pin_spread/pin_counter,
+spm_channel/spm_judgment, pin_channel/pin_no/pin_judgment/pin_spread/pin_counter,
 dynamic mapping 유지). 그 이름으로 `fdc-fleet` service 를 만들었습니다.
 
 - backend: `providers/fdc/fleet.py` (집계 body + 정규화), `build_fdc_fleet` (office 는
@@ -68,4 +68,13 @@ dynamic mapping 유지). 그 이름으로 `fdc-fleet` service 를 만들었습�
 - frontend: FDC 탭의 `장비 | fab 전체` 전환. heatmap, laser 순위, Contactpin 판정 비율,
   margin 분포, counter 증가율.
 
-남은 것: backfill (없으면 배포 후 약 30일에 걸쳐 채워짐), `pin_judgement` 철자 확인.
+남은 것: backfill (없으면 배포 후 약 30일에 걸쳐 채워짐).
+
+## 사무실 1차 검증 (2026-09-28)
+
+- 철자는 `pin_judgment` / `spm_judgment` 입니다. 코드를 모두 그 이름으로 바꿨습니다.
+- writer 는 사무실 scheduler 저장소에 있고 아직 배포 전입니다 (side-field 문서 0건).
+  배포 후 다음 6시간 주기부터 채워집니다.
+- 집계 body dry run: 27ms, 빈 field 는 빈 결과로 처리됩니다.
+- 중복 제거 (cardinality) 는 확인됐고, SPM 숫자는 집계하지 않습니다.
+- V0.3-V4 는 배포 2-3일 뒤 `hardware_fdc_fleet_verification.md` 로 다시 돌립니다.

@@ -31,6 +31,8 @@ ID_FIELDS = ("fab_name", "eqp_id", "fdc_key", "timestamp")
 # position; these typed copies make fleet views native aggregations. The
 # names are the office writer's (office 확인 2026-09-28) and the index stays
 # dynamically mapped: numbers land as long/float, strings as text + .keyword.
+# The real writer is the FDC task in the office scheduler repo; this copy is
+# the home mirror the mock runs, so its names and rules must match that one.
 _INT_SIDE_FIELDS = {"temp_pos", "pin_no", "pin_counter"}
 
 
@@ -105,10 +107,10 @@ def side_fields(doc: Mapping[str, Any]) -> dict[str, Any]:
     - TemperatureEChuck        [key, '0', pos, temp]        -> temp_pos, temp_c
     - LaserPower               [key, '0', x1, y1, x2, y2]   -> laser_x1, laser_y1
     - SPMVoltages              [key, '0', ch, n, n, n, fit model, 107 nums]
-                                                            -> spm_channel, spm_judgement
-    - ContactpinConductionInfo [key, '0', ch, pin, judgement,
+                                                            -> spm_channel, spm_judgment
+    - ContactpinConductionInfo [key, '0', ch, pin, judgment,
                                 n1, n2, n3, n4, counter]    -> pin_channel, pin_no,
-                                                               pin_judgement, pin_spread,
+                                                               pin_judgment, pin_spread,
                                                                pin_counter
 
     SPM gets strings only: its profile's unit scale differs up to 100x
@@ -129,11 +131,11 @@ def side_fields(doc: Mapping[str, Any]) -> dict[str, Any]:
     elif key == "LaserPower" and len(nums) == 6:
         fields = {"laser_x1": nums[2], "laser_y1": nums[3]}
     elif key == "SPMVoltages" and len(values) > 7:
-        out = {"spm_channel": str(values[2]), "spm_judgement": str(values[6])}
+        out = {"spm_channel": str(values[2]), "spm_judgment": str(values[6])}
     elif key == "ContactpinConductionInfo" and len(nums) == 10:
         first4 = nums[5:9]
         spread = None if None in first4 else max(first4) - min(first4)
-        out = {"pin_channel": str(values[2]), "pin_judgement": str(values[4])}
+        out = {"pin_channel": str(values[2]), "pin_judgment": str(values[4])}
         fields = {"pin_no": nums[3], "pin_spread": spread, "pin_counter": nums[9]}
     for name, number in fields.items():
         if number is None:

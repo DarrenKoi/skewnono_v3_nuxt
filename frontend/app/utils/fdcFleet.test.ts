@@ -38,9 +38,9 @@ test('pin rows exclude zero totals and rank by Conduction share, not raw count',
   assert.deepEqual(rows[0]?.percent, { ok: 25, warn: 25, bad: 50 })
 })
 
-test('histogram sorts bins and fills absent judgements with zero', () => {
+test('histogram sorts bins and fills absent judgments with zero', () => {
   const result = fdcFleetHistogram({ tools: [], spread_bin_width: 2, spread_bins: [
-    { judgement: 'Conduction', lo: 6, count: 3 }, { judgement: 'NonConduction', lo: 4, count: 2 }
+    { judgment: 'Conduction', lo: 6, count: 3 }, { judgment: 'NonConduction', lo: 4, count: 2 }
   ] })
   assert.deepEqual(result.labels, ['4–6', '6–8'])
   assert.deepEqual(result.series.map(series => series.counts), [[0, 3], [0, 0], [2, 0]])

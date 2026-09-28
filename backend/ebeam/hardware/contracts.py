@@ -63,13 +63,13 @@ class FdcFleetTool(TypedDict):
     temp_days: list[FdcFleetDay]  # ascending, days with data only
     laser_x1: float | None
     laser_y1: float | None
-    # Deduped Contactpin doc counts per judgement; {} when none.
+    # Deduped Contactpin doc counts per judgment; {} when none.
     pin_counts: dict[str, int]
     counter_rates: list[FdcCounterRate]
 
 
 class FdcSpreadBin(TypedDict):
-    judgement: str
+    judgment: str
     lo: float  # bin = [lo, lo + spread_bin_width)
     count: int
 

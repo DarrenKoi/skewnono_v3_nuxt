@@ -25,13 +25,19 @@ from backend.ebeam.hardware.contracts import FdcFleet, FdcFleetTool
 __all__ = ["SPREAD_BIN_WIDTH", "fab_roster", "fleet_aggs", "fleet_from_aggs"]
 
 # Office field names (dynamic mapping: strings aggregate on .keyword). The
-# office letter spells the field `pin_judgement` in its field list but
-# `pin_judgment` in its query examples — OFFICE-VERIFY which one is stored.
-JUDGEMENT_KW = "pin_judgement.keyword"
+# writer stores `pin_judgment` / `spm_judgment`, no 'e' (office 확인
+# 2026-09-28). A wrong name is not an error: OpenSearch answers an unmapped
+# field with empty buckets, so the view would stay blank forever.
+JUDGMENT_KW = "pin_judgment.keyword"
 CHANNEL_KW = "pin_channel.keyword"
 SPREAD_BIN_WIDTH = 2.0
 # Tools in one fab are tens, so one terms page holds them all.
 _TOOLS_SIZE = 500
+# cardinality is exact only below its precision_threshold (default ~3000). The
+# busiest tools log ~2.7k Contactpin docs per 30 days (office 확인
+# 2026-09-28), so the default sits at the edge; 40000 is the cap and keeps a
+# longer window exact.
+_CARDINALITY_PRECISION = 40_000
 
 
 def fab_roster(rows: list[dict], fab_name: str) -> dict[str, str]:
@@ -65,9 +71,11 @@ def fleet_aggs() -> dict[str, Any]:
                     },
                     "aggs": {"temp_c": {"avg": {"field": "temp_c"}}},
                 },
-                "judgement": {
-                    "terms": {"field": JUDGEMENT_KW, "size": 10},
-                    "aggs": {"docs": {"cardinality": {"field": "timestamp"}}},
+                "judgment": {
+                    "terms": {"field": JUDGMENT_KW, "size": 10},
+                    "aggs": {"docs": {"cardinality": {
+                        "field": "timestamp", "precision_threshold": _CARDINALITY_PRECISION,
+                    }}},
                 },
                 "channels": {
                     "terms": {"field": CHANNEL_KW, "size": 10},
@@ -81,7 +89,7 @@ def fleet_aggs() -> dict[str, Any]:
             },
         },
         "margin": {
-            "terms": {"field": JUDGEMENT_KW, "size": 10},
+            "terms": {"field": JUDGMENT_KW, "size": 10},
             "aggs": {"spread": {"histogram": {"field": "pin_spread", "interval": SPREAD_BIN_WIDTH}}},
         },
     }
@@ -121,12 +129,12 @@ def fleet_from_aggs(aggs: dict[str, Any], roster: dict[str, str]) -> FdcFleet:
             "laser_x1": _value(bucket, "laser_x1"),
             "laser_y1": _value(bucket, "laser_y1"),
             "pin_counts": {
-                str(j["key"]): int(_value(j, "docs") or 0) for j in _buckets(bucket, "judgement")
+                str(j["key"]): int(_value(j, "docs") or 0) for j in _buckets(bucket, "judgment")
             },
             "counter_rates": sorted(rates, key=lambda r: r["channel"]),
         })
     spread_bins = [
-        {"judgement": str(j["key"]), "lo": float(h["key"]), "count": int(h["doc_count"])}
+        {"judgment": str(j["key"]), "lo": float(h["key"]), "count": int(h["doc_count"])}
         for j in _buckets(aggs, "margin")
         for h in _buckets(j, "spread")
     ]

@@ -46,7 +46,7 @@ export interface FdcFleetTool {
 
 export interface FdcFleet {
   tools: FdcFleetTool[]
-  spread_bins: { judgement: string, lo: number, count: number }[]
+  spread_bins: { judgment: string, lo: number, count: number }[]
   spread_bin_width: number
 }
 

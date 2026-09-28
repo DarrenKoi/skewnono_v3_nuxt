@@ -30,20 +30,27 @@ def test_fleet_aggs_read_strings_on_keyword_and_numbers_bare():
     # are text + .keyword (a terms agg on the bare field errors on fielddata)
     # while the numeric side-fields aggregate bare.
     body = json.dumps(fleet.fleet_aggs())
-    for keyword in ("eqp_id.keyword", "pin_judgement.keyword", "pin_channel.keyword"):
+    for keyword in ("eqp_id.keyword", "pin_judgment.keyword", "pin_channel.keyword"):
         assert keyword in body
     for bare in ('"temp_c"', '"laser_x1"', '"laser_y1"', '"pin_spread"', '"pin_counter"'):
         assert bare in body
     # SPM is never fleet-compared: per-tool unit scales differ up to 100x.
     assert "spm_" not in body
+    # The writer spells it `pin_judgment` (office 확인 2026-09-28). A wrong
+    # name is not an error, just empty buckets forever, so pin it.
+    assert "pin_judgment.keyword" in body and "judgement" not in body
 
 
 def test_contactpin_counts_are_deduped_by_timestamp_cardinality():
-    # The index holds exact duplicates (~1 %). _id is fab_eqp_key_timestamp,
-    # so a distinct timestamp is exactly one deduped doc; doc_count would
-    # inflate the rates.
-    judgement = fleet.fleet_aggs()["tools"]["aggs"]["judgement"]
-    assert judgement["aggs"] == {"docs": {"cardinality": {"field": "timestamp"}}}
+    # The index holds byte-identical duplicates (0.38 % of Contactpin, 0.76 %
+    # of Temperature on the busiest tools; office 확인 2026-09-28) and no two
+    # DISTINCT docs of one tool share a timestamp, so cardinality(timestamp)
+    # is exactly the deduped count, where doc_count would inflate the rates.
+    # The threshold is explicit: busiest tools sit near the ~3000 default.
+    judgment = fleet.fleet_aggs()["tools"]["aggs"]["judgment"]
+    assert judgment["aggs"] == {"docs": {"cardinality": {
+        "field": "timestamp", "precision_threshold": 40_000,
+    }}}
 
 
 # ───────────────────────────── normalizer ───────────────────────────────────
@@ -56,7 +63,7 @@ RESPONSE = {
             "key": "ECX002", "doc_count": 40,
             "temp_c": {"value": None}, "laser_x1": {"value": None}, "laser_y1": {"value": None},
             "days": {"buckets": [{"key_as_string": "2026-05-01", "doc_count": 3, "temp_c": {"value": None}}]},
-            "judgement": {"buckets": []},
+            "judgment": {"buckets": []},
             "channels": {"buckets": [{
                 "key": "A", "doc_count": 1,
                 "c_min": {"value": 100.0}, "c_max": {"value": 100.0},
@@ -70,7 +77,7 @@ RESPONSE = {
                 {"key_as_string": "2026-05-01", "doc_count": 300, "temp_c": {"value": 23.39}},
                 {"key_as_string": "2026-05-02", "doc_count": 1, "temp_c": {"value": None}},
             ]},
-            "judgement": {"buckets": [
+            "judgment": {"buckets": [
                 {"key": "Conduction", "doc_count": 11, "docs": {"value": 10}},
                 {"key": "NonConduction", "doc_count": 2, "docs": {"value": 2}},
             ]},
@@ -102,8 +109,8 @@ def test_fleet_from_aggs_normalizes_an_opensearch_shaped_response():
     assert second["temp_c"] is None and second["temp_days"] == [] and second["pin_counts"] == {}
     assert second["counter_rates"] == [{"channel": "A", "per_day": None}]  # zero span
     assert out["spread_bins"] == [
-        {"judgement": "Conduction", "lo": 4.0, "count": 7},
-        {"judgement": "Conduction", "lo": 6.0, "count": 0},
+        {"judgment": "Conduction", "lo": 4.0, "count": 7},
+        {"judgment": "Conduction", "lo": 6.0, "count": 0},
     ]
     assert out["spread_bin_width"] == fleet.SPREAD_BIN_WIDTH
 
@@ -174,7 +181,7 @@ def test_mock_fleet_covers_only_the_fabs_cdsem_roster_and_follows_model_coverage
     for tool in out["tools"]:
         if tool["eqp_model_cd"] in ("GT2000", "GT2000S"):
             assert tool["pin_counts"] == {} and tool["counter_rates"] == []
-    assert {b["judgement"] for b in out["spread_bins"]} == {
+    assert {b["judgment"] for b in out["spread_bins"]} == {
         "Conduction", "UnstableConduction", "NonConduction",
     }
 
