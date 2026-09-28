@@ -71,6 +71,7 @@ const windowEnd = ref(qp('end') || toIso(defaultEnd))
 // view (DESIGN.md handoff RULE 5). Search and the On/Off filter stay local —
 // they're per-visit scratch, not worth persisting.
 const activeService = useState<HardwareServiceKey>('hw-section', () => defaultHardwareService.key)
+const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
 // The model is the page's GATE, not a filter (user decision 2026-08-25): no
 // tool shows until at least one is picked, so the reader always knows which
 // models the page is about. Several models may be picked together (chips
@@ -273,6 +274,23 @@ const { data: bmPmPayload } = await useAsyncData<HardwarePayload | null>(
     })
   },
   { watch: [() => props.toolType, fabsKey, () => selectedTool.value?.eqp_id] }
+)
+
+const { data: fdcFleetPayload, pending: fdcFleetPending, error: fdcFleetError } = await useAsyncData<HardwarePayload | null>(
+  `hardware:fdc-fleet:${props.toolType}:${props.fabs.join(',')}`,
+  () => {
+    const tool = selectedTool.value
+    if (props.toolType !== 'cd-sem' || activeService.value !== 'fdc' || fdcView.value !== 'fleet' || !tool) return Promise.resolve(null)
+    return fetchService({
+      toolType: props.toolType,
+      service: 'fdc-fleet',
+      eqpId: tool.eqp_id,
+      fabName: tool.fab_name,
+      start: windowStart.value,
+      end: windowEnd.value
+    })
+  },
+  { watch: [() => props.toolType, fabsKey, activeService, fdcView, () => selectedTool.value?.eqp_id, windowStart, windowEnd] }
 )
 
 const overlayEvents = computed<BmPmEvent[]>(() =>
@@ -673,6 +691,9 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 v-else-if="activeService === 'fdc'"
                 :docs="servicePayload.docs ?? []"
                 :maintenance-events="overlayEvents"
+                :fleet="fdcFleetError ? null : fdcFleetPayload?.fleet ?? null"
+                :fleet-pending="fdcFleetPending"
+                :selected-eqp="selectedTool?.eqp_id ?? ''"
               />
 
               <!-- Sharpness: chamber-stub beam quality — condition filter + summ_beam trends + per-degree radars -->

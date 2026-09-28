@@ -5,7 +5,7 @@ import type { SEM_TOOL_TYPES } from '~/utils/toolType'
 // adapter exists or is planned, so this stays narrower than the full
 // ToolType registry on purpose. @deprecated name kept for call sites.
 export type HardwareToolType = (typeof SEM_TOOL_TYPES)[number]
-export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'mdc' | 'sce' | 'bm-pm' | 'sharpness'
+export type HardwareServiceKey = 'bsm' | 'reso-center' | 'fdc' | 'fdc-fleet' | 'mdc' | 'sce' | 'bm-pm' | 'sharpness'
 export type HardwareMetricTone = 'neutral' | 'ok' | 'warning' | 'bad'
 export type HardwareMetricValue = string | number | boolean | null
 
@@ -33,6 +33,23 @@ export interface HardwareTableSection {
   rows: Record<string, HardwareMetricValue>[]
 }
 
+export interface FdcFleetTool {
+  eqp_id: string
+  eqp_model_cd: string | null
+  temp_c: number | null
+  temp_days: { day: string, temp_c: number }[]
+  laser_x1: number | null
+  laser_y1: number | null
+  pin_counts: Record<string, number>
+  counter_rates: { channel: string, per_day: number | null }[]
+}
+
+export interface FdcFleet {
+  tools: FdcFleetTool[]
+  spread_bins: { judgement: string, lo: number, count: number }[]
+  spread_bin_width: number
+}
+
 export interface HardwarePayload {
   tool_slug: 'cdsem' | 'hvsem'
   service: HardwareServiceKey
@@ -48,6 +65,7 @@ export interface HardwarePayload {
   // mdc / sce → dict-of-dict keyed by eqp_id (selected eqp + in-fab siblings).
   settings?: Record<string, Record<string, unknown>>
   raw?: Record<string, HardwareMetricValue>
+  fleet?: FdcFleet
 }
 
 export interface HardwareQuery {

@@ -1,7 +1,38 @@
 <template>
   <div class="mt-3 space-y-3">
+    <div
+      role="tablist"
+      aria-label="FDC 보기"
+      class="flex w-fit overflow-hidden rounded-[var(--sk-r-nav)] border border-(--sk-border)"
+    >
+      <SkNavPill
+        v-for="view in viewOptions"
+        :key="view.key"
+        role="tab"
+        :aria-selected="fdcView === view.key"
+        :active="fdcView === view.key"
+        :label="view.label"
+        size="sm"
+        class="!rounded-none !border-0"
+        @click="fdcView = view.key"
+      />
+    </div>
+
+    <EbeamHardwareFdcFleetView
+      v-if="fdcView === 'fleet' && (fleetPending || fleet)"
+      :fleet="fleet"
+      :pending="fleetPending"
+      :selected-eqp="selectedEqp"
+    />
+    <AppEmptyState
+      v-else-if="fdcView === 'fleet'"
+      title="fab 전체 FDC 집계가 없습니다."
+    />
     <!-- fdc_key sub-tabs -->
-    <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border) w-fit">
+    <div
+      v-show="fdcView === 'tool'"
+      class="flex overflow-hidden rounded-[10px] border border-(--sk-border) w-fit"
+    >
       <button
         v-for="key in availableKeys"
         :key="key"
@@ -18,7 +49,7 @@
     </div>
 
     <div
-      v-if="availableKeys.length === 0"
+      v-if="fdcView === 'tool' && availableKeys.length === 0"
       class="rounded-xl bg-(--sk-surface) px-4 py-8 text-center sk-body ring-1 ring-(--sk-border-soft)"
     >
       FDC 데이터가 없습니다.
@@ -26,7 +57,7 @@
 
     <!-- ContactpinConductionInfo → status table -->
     <div
-      v-else-if="activeKey === 'ContactpinConductionInfo'"
+      v-else-if="fdcView === 'tool' && activeKey === 'ContactpinConductionInfo'"
       class="overflow-x-auto rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
     >
       <table class="min-w-full text-left text-xs">
@@ -94,7 +125,7 @@
 
     <!-- SPMVoltages → deviation trend and cycle profile -->
     <div
-      v-else-if="activeKey === 'SPMVoltages'"
+      v-else-if="fdcView === 'tool' && activeKey === 'SPMVoltages'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
       <div class="px-1 sk-title">
@@ -129,7 +160,7 @@
 
     <!-- LaserPower → stable x1/y1 signals against baseline -->
     <div
-      v-else-if="activeKey === 'LaserPower'"
+      v-else-if="fdcView === 'tool' && activeKey === 'LaserPower'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
       <div class="mb-2 px-1 sk-title">
@@ -143,7 +174,7 @@
 
     <!-- TemperatureEChuck → trend chart -->
     <div
-      v-else
+      v-else-if="fdcView === 'tool'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
       <div class="mb-1 px-1 sk-title">
@@ -167,11 +198,18 @@ import {
 import { formatFixed } from '~/utils/recipeView'
 import { stableYRange, tightYRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
+import type { FdcFleet } from '~/composables/useHardwareApi'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
   maintenanceEvents?: BmPmEvent[]
+  fleet: FdcFleet | null
+  fleetPending: boolean
+  selectedEqp: string
 }>()
+
+const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
+const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'fab 전체' }] as const
 
 const { palette } = useEchartsTheme()
 const c0 = computed(() => palette.value[0]!)
@@ -253,6 +291,14 @@ const spmFits = computed(() =>
 )
 const spmDeviations = computed(() => spmDeviationSeries(grouped.value.SPMVoltages ?? []))
 // Office 2026-09-28: no scalar separated BM/PM events; this is a deviation trend, not a PM detector.
+// Shared chart helpers: one inside+slider zoom pair for single-grid time/index
+// charts, and the stable-telemetry range with ECharts' tight auto-fit fallback.
+// Declared before the first option computed: useEchart's watch reads the
+// option during setup, so a helper declared below it is a TDZ ReferenceError.
+const sliderZoom = (): EChartsOption['dataZoom'] =>
+  [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }]
+const stableAxis = (values: number[]) => stableYRange(values) ?? { scale: true }
+
 const spmTrendOption = computed<EChartsOption>(() => ({
   grid: { left: 48, right: 16, top: 24, bottom: 52 },
   tooltip: { trigger: 'axis' },
@@ -271,12 +317,6 @@ const spmTrendOption = computed<EChartsOption>(() => ({
   })
 }))
 useEchart(spmTrendEl, spmTrendOption)
-
-// Shared chart helpers: one inside+slider zoom pair for single-grid time/index
-// charts, and the stable-telemetry range with ECharts' tight auto-fit fallback.
-const sliderZoom = (): EChartsOption['dataZoom'] =>
-  [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }]
-const stableAxis = (values: number[]) => stableYRange(values) ?? { scale: true }
 
 // --- LaserPower: stable x1/y1 baseline deviation ---
 type LaserCh = 'x1' | 'y1'
