@@ -51,7 +51,8 @@ indice in Coefficients are 360 (0~359)
 1) 최신 스냅샷 — Redis hash, key = "sce_info"
    - field: fab_name ("M15A", "M14B", ...), value: 해당 fab의 dict of dict (위 형태)
    - 수집 시 매번 덮어써지므로 항상 최신 데이터
-   - R3/R4 는 SCE 미사용이라 field 없음; "M10" 도 현재 데이터 없음 (2026-07 기준)
+   - field 는 13개 fab 이지만 M10A / M10C / R3 / R4 는 비어 있음 = SCE 미수집 fab
+     (office 확인 2026-09-28)
 
 2) 이력 (trend) — MinIO, 기본 bucket/prefix (minio_handler/minio_config.py)
    - path: hitachi_sem/cdsem/sce_info/YYYY/MM/DD/{fab_name}.json  (예: .../2026/07/24/M16E.json)
@@ -84,8 +85,8 @@ block key 4종: FileInfo, SemCond, ImgCond, SCEParam (+ Coefficients)
 
 빈 결과는 에러가 아닙니다
 
-  SCE 는 양산 M-fab 에서만 돕니다. R3/R4 는 미사용이고 M10 은 아직 데이터가
-  없습니다(2026-07 기준). hash field 나 아카이브 파일이 없는 것은 **정상적인 빈
+  SCE 는 양산 M-fab 에서만 돕니다. M10A / M10C / R3 / R4 는 hash field 는 있으나
+  비어 있는 SCE 미수집 fab 입니다 (office 확인 2026-09-28). hash field 나 아카이브 파일이 없는 것은 **정상적인 빈
   상태**이므로 {} / [] 를 돌려주고 화면의 빈 상태를 보여줍니다. 502 를 내지
   않습니다. 다만 sce_info key 자체가 통째로 없으면 그것은 에러입니다.
 
@@ -98,6 +99,37 @@ block key 4종: FileInfo, SemCond, ImgCond, SCEParam (+ Coefficients)
   - 곡선을 건드리지 않는 SCEParam 변경은 새 버전을 열지 **않습니다**. 접기가
     Coefficients 만 보기 때문입니다.
 
-  또한 SCE 의 재튜닝 시점은 BM/PM marker 와 일치하지 않습니다 — 사무실에서도
-  스냅샷은 Redis hash, 추이는 날짜별 MinIO JSON, marker 는 fab_inform_notes 로
-  서로를 묶는 것이 없습니다. 설계상 그렇습니다.
+  SCE 의 재튜닝을 BM/PM 에 묶는 데이터는 없습니다 (스냅샷은 Redis hash, 추이는 날짜별
+  MinIO JSON, marker 는 fab_inform_notes). 실측으로는 재튜닝 5건 중 2건이 BM/PM
+  +-2일 안이었습니다 (office 확인 2026-09-28). 그래서 marker 는 유지합니다.
+
+========================================================================
+실측 특성 (office 확인 2026-09-28)
+========================================================================
+
+hardware_fdc_sce_characterization.md 를 사무실 LLM 이 실데이터로 돌린 결과입니다.
+mock (backend/ebeam/hardware/providers/sce/mock.py) 도 같은 값으로 맞췄습니다.
+
+커버리지
+  - HKEYS sce_info = 13개 fab. M10A / M10C / R3 / R4 는 비어 있음 (SCE 미수집 fab).
+
+Coefficients
+  - 항상 360 x 2, index 0..359, NaN 없음. 정확 일치로 revision 을 접는 방식이 맞습니다.
+  - 고조파 1-4 가 values[0] 분산의 82-97 %, values[1] 분산의 64-91 % 를 설명합니다.
+    values[0] 은 scalar (평균, A1-A4) 로 줄여 비교하고, values[1] 은 곡선으로 봅니다.
+
+재튜닝 (revision)
+  - 드뭅니다. 관측된 5건 중 4건은 같은 날 settings field 도 바뀌었고, 가장 흔한 것이
+    ImgCond_Mag 입니다. revision 라벨은 ImgCond_Mag 변화로 붙입니다.
+  - 5건 중 2건이 BM/PM +-2일 안입니다.
+  - 장비당 재튜닝 빈도의 정확한 값은 보고되지 않았습니다 - OFFICE-VERIFY.
+
+fleet 전체에서 항상 같은 field (화면에서 기본 숨김)
+  SemCond_Detector, SemCond_Ip, SemCond_IpMode, SemCond_Optics, ImgCond_Pixel,
+  SCEParam_ 7종 전부 (CycleUpperTh, CycleLowerTh, SmoothRadius, SmoothTheta,
+  FitRangeSt, FitRangeEd, CorrCoefLimit).
+  위 샘플의 값이 곧 fleet 값인지는 확인하지 않았습니다 - OFFICE-VERIFY.
+
+기준 장비
+  - fab 마다 기준 장비 하나가 있지는 않습니다. FileInfo.BaseSharpCharFile 을 공유하는
+    장비끼리 묶을 수는 있습니다.

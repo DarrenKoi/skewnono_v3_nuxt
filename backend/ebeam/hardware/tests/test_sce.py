@@ -15,6 +15,8 @@ from backend.ebeam.hardware.providers.sce import mock, office_example
 
 
 ANCHOR = datetime(2026, 5, 20, 9, 0)
+# An SCE-collecting fab; M10A/M10C/R3/R4 are SCE 미수집 and come back empty.
+FAB = "M16A"
 
 BLOCKS = {"FileInfo", "SemCond", "ImgCond", "SCEParam", "Coefficients"}
 
@@ -23,7 +25,7 @@ BLOCKS = {"FileInfo", "SemCond", "ImgCond", "SCEParam", "Coefficients"}
 
 
 def test_snapshot_blocks_and_faithful_file_info_keys():
-    settings = mock.build_sce_settings("CDX001", "R3", ANCHOR)
+    settings = mock.build_sce_settings("CDX001", FAB, ANCHOR)
     assert "CDX001" in settings
     for entry in settings.values():
         assert set(entry.keys()) == BLOCKS
@@ -39,7 +41,7 @@ def test_snapshot_blocks_and_faithful_file_info_keys():
 
 
 def _history(days: int = 14):
-    return mock.build_sce_history("CDX001", "R3", ANCHOR - timedelta(days=days), ANCHOR)
+    return mock.build_sce_history("CDX001", FAB, ANCHOR - timedelta(days=days), ANCHOR)
 
 
 def test_history_is_bidaily_ascending_with_date():
@@ -69,10 +71,51 @@ def test_config_blocks_stable_for_the_tools_whole_life():
     # SemCond/ImgCond are tool configuration: in production they hold the same
     # values collection after collection AND across re-tunes, so the 시계열
     # param trend must render them as a flat "stable" line, not re-rolled noise.
-    docs = _history(days=30)
+    # ImgCond_Mag is the exception (it changes at most re-tunes), so it is
+    # left out here and pinned in the re-tune test below.
+    docs = _history(days=400)
     assert len(docs) >= 3, "need several collection dates to compare"
-    for block in ("SemCond", "ImgCond"):
-        assert len({_fingerprint(doc, block) for doc in docs}) == 1
+    assert len({_fingerprint(doc, "SemCond") for doc in docs}) == 1
+    no_mag = {json.dumps({k: v for k, v in d["ImgCond"].items() if k != "ImgCond_Mag"}) for d in docs}
+    assert len(no_mag) == 1
+
+
+def test_sce_is_empty_for_the_fabs_that_do_not_collect_it():
+    # Office 확인 2026-09-28: `sce_info` carries 13 fab fields, but M10A, M10C,
+    # R3 and R4 are empty. The page's empty state, not a curve, is the truth.
+    for fab in ("M10A", "M10C", "R3", "R4", "r3"):
+        assert mock.build_sce_settings("CDX001", fab, ANCHOR) == {}
+        assert mock.build_sce_history("CDX001", fab, ANCHOR - timedelta(days=30), ANCHOR) == []
+
+
+FLEET_CONSTANT = {
+    "SemCond": ("SemCond_Detector", "SemCond_Ip", "SemCond_IpMode", "SemCond_Optics"),
+    "ImgCond": ("ImgCond_Pixel",),
+}
+
+
+def test_fleet_constant_fields_are_equal_across_every_tool():
+    # Office 확인 2026-09-28: these fields and all 7 SCEParam_* never vary
+    # across the fleet. A mock that rolled them per tool would light up every
+    # row of the compare table as a difference.
+    entries = [
+        entry
+        for fab in ("M16A", "M15A", "M14B")
+        for entry in mock.build_sce_settings("CDX007", fab, ANCHOR).values()
+    ]
+    for block, keys in FLEET_CONSTANT.items():
+        for key in keys:
+            assert len({json.dumps(e[block][key]) for e in entries}) == 1, key
+    assert len({json.dumps(e["SCEParam"]) for e in entries}) == 1
+    assert len(entries[0]["SCEParam"]) == 7
+
+
+def test_tools_share_base_files_in_groups():
+    # Office 확인 2026-09-28: no single reference tool per fab, but tools can
+    # be grouped by a shared BaseSharpCharFile.
+    settings = mock.build_sce_settings("CDX001", FAB, ANCHOR)
+    bases = [e["FileInfo"]["BaseSharpCharFile"] for e in settings.values()]
+    assert len(set(bases)) < len(bases)
 
 
 def test_retune_outputs_step_at_retunes_rather_than_drifting_per_collection():
@@ -80,11 +123,12 @@ def test_retune_outputs_step_at_retunes_rather_than_drifting_per_collection():
     # SharpChar file, so consecutive collections read back identical. A value
     # that changed on every collection date would be the old (wrong) model —
     # and would make the 버전 revision picker collapse nothing.
-    docs = _history(days=120)
+    # Re-tunes are rare (office 확인 2026-09-28), so the window is long.
+    docs = _history(days=400)
     assert len(docs) >= 10, "need a long window to span more than one re-tune"
 
     retunes = {day.isoformat() for day in mock._retune_dates("CDX001", ANCHOR.date())}
-    for block in ("FileInfo", "SCEParam", "Coefficients"):
+    for block in ("FileInfo", "Coefficients"):
         prints = [_fingerprint(doc, block) for doc in docs]
         assert len(set(prints)) > 1, f"{block} must step at least once"
         assert len(set(prints)) < len(prints), f"{block} must hold between re-tunes"
@@ -114,7 +158,7 @@ def test_retune_schedule_is_a_prefix_so_the_past_never_changes():
 def test_siblings_are_re_tuned_on_their_own_schedules():
     # The 비교 tab exists to show curves of differing ages side by side, which
     # only works if siblings do not all share one revision.
-    settings = mock.build_sce_settings("CDX001", "R3", ANCHOR)
+    settings = mock.build_sce_settings("CDX001", FAB, ANCHOR)
     assert len(settings) > 2
     curves = {_fingerprint(entry, "Coefficients") for entry in settings.values()}
     assert len(curves) > 1
@@ -129,7 +173,7 @@ def test_history_doc_matches_snapshot_for_every_date():
     assert len(docs) >= 10
     for doc in docs:
         as_of = datetime.fromisoformat(doc["date"])
-        snapshot = mock.build_sce_settings("CDX001", "R3", as_of)["CDX001"]
+        snapshot = mock.build_sce_settings("CDX001", FAB, as_of)["CDX001"]
         assert {k: v for k, v in doc.items() if k != "date"} == snapshot, doc["date"]
 
 
@@ -142,7 +186,7 @@ def test_history_values_do_not_change_when_the_window_moves():
     later = {
         d["date"]: d
         for d in mock.build_sce_history(
-            "CDX001", "R3", ANCHOR - timedelta(days=30), ANCHOR + timedelta(days=10)
+            "CDX001", FAB, ANCHOR - timedelta(days=30), ANCHOR + timedelta(days=10)
         )
     }
     assert narrow and set(narrow) <= set(wide)
@@ -163,6 +207,14 @@ def test_parse_fab_blob_json_and_pickle():
     fab_map = {"ECX001": {"SemCond": {"SemCond_No": "6"}}}
     assert office_example._parse_fab_blob(b'{"ECX001": {}}', "M15A") == {"ECX001": {}}
     assert office_example._parse_fab_blob(pickle.dumps(fab_map), "M15A") == fab_map
+
+
+def test_parse_fab_blob_reads_a_blank_field_as_an_empty_fab():
+    # M10A/M10C/R3/R4 appear in HKEYS but are empty (office 확인 2026-09-28).
+    # A blank value must read as "no tools", the page's empty state, not as
+    # an unparseable blob that surfaces as a 502.
+    for raw in (b"", b"  ", b"{}"):
+        assert office_example._parse_fab_blob(raw, "M10A") == {}
 
 
 def test_parse_fab_blob_rejects_garbage_with_lookup_error():

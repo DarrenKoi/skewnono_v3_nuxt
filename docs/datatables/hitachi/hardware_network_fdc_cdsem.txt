@@ -16,15 +16,15 @@ values:list (starts with fdc_key) ->
 ===
 ['SPMVoltages', '0', 'B', '7', '1', '1', 'spline', '-0.2', '0', '-0.4', '0.0', '-1.2',.... 100개량 이어짐]
 ['SPMVoltages', '0', 'A', '6', '1', '1', 'quartic', '-0.2', '0', '-0.4', '0.0', '-1.2',.... 100개량 이어짐]
-'A' 'B' 'C' 구분, string (spline, quartic,..)은 판정. 그 뒤 숫자는 측정 값들. 
+'A' 'B' 'C' 구분, string (spline, quartic,..)은 판정이 아니라 피팅 모델 이름 (office 확인 2026-09-28). 그 뒤 숫자는 측정 값들 (항상 107개, office 확인 2026-09-28). 
 'A', 'B', 'C'와 판정 (pline, quartic) 사이에 숫자 7, 6, 1, 1, 도 변함. 아직 무슨 의미인지는 파악 못함.
 ====
 ['LaserPower', '0', '0.78', '0.73', '341990938', '46504250']
 '0'뒤에 2개의 쌍 (x, y)로 이루어짐 각각 스케일이 다른게 포인트. 아직 무슨 의미인지 파악 못함. 둘 다 의미있는 측정 value로 추정
 ====
-['ContactpinConductionInfo', '0', 'A', '5', 'NotConduction', '-25.5', '-0.9', '24.6', '25,0', '182501']
+['ContactpinConductionInfo', '0', 'A', '5', 'NonConduction', '-25.5', '-0.9', '24.6', '25,0', '182501']
 ['ContactpinConductionInfo', '0', 'B', '3', 'Conduction', '-5.0', '-5.0', '0.0', '5.0', '182671']
-판정 (NotConduction, Condition)은 장비 알고리즘에 의해 판정되는 것으로 추정. 
+판정은 Conduction / UnstableConduction / NonConduction 세 값 (office 확인 2026-09-28). 
 
 A, B, C들은 주기적으로 한번씩 측정되기 때문에 timestamp상 서로 근접한 상태
 
@@ -36,8 +36,12 @@ doc 하나는 고유의 eqp_id, timestamp, values를 가짐.
 
 Index -> network_fdc_cdsem   (CD-SEM 전용)
 조회   -> eqp_id.keyword term + timestamp range, timestamp 오름차순
-상한   -> MAX_FDC_DOCS = 10000. 한 장비 30일치는 수천 건이므로 상한에 닿으면 가정이
-          깨진 것입니다. 부분 이력을 조용히 그리지 않고 에러를 냅니다.
+상한   -> MAX_FDC_DOCS = 10000 (요청 1회당). 가장 바쁜 장비는 30일에 16.5k 건이라
+          (office 확인 2026-09-28) 한 번에 담기지 않습니다. 요청이 상한을 채우면 창을
+          반으로 나눠 다시 묻고, 1시간 창에서도 채우면 에러를 냅니다.
+중복   -> 같은 _id 의 byte 동일 문서가 rollover alias 의 두 backing index 에 함께
+          있습니다 (office 확인 2026-09-28). 어댑터가 (eqp_id, fdc_key, timestamp,
+          values) 기준으로 중복을 제거합니다.
 
 가져오는 field (명시 목록 — 새 적재 컬럼이 모든 doc 에 딸려오지 못하게)
   eqp_id, eqp_model_cd, fab_name, eqp_ip, fdc_key, timestamp, values
@@ -74,3 +78,52 @@ eqp_id 표기
 
 CD-SEM 전용: fdc 는 normalizers.CDSEM_ONLY_SERVICES 에 없으므로, HV-SEM 장비는
 에러가 아니라 "매칭 0건" 이라는 정상적인 빈 결과가 됩니다.
+
+========================================================================
+실측 특성 (office 확인 2026-09-28)
+========================================================================
+
+hardware_fdc_sce_characterization.md 를 사무실 LLM 이 90일치 실데이터로 돌린 결과
+입니다. mock (backend/ebeam/hardware/providers/fdc/mock.py) 도 같은 값으로 맞췄습니다.
+
+공통
+  - 문서 수: 가장 바쁜 장비가 30일에 16.5k 건 (key 4종 합계). 10000 상한을 넘습니다.
+  - 중복: 같은 _id 의 byte 동일 문서가 두 backing index 에 있습니다. 제거 대상입니다.
+  - values[1] 은 항상 '0' 입니다. 무시합니다.
+  - key 커버리지는 모델별로 다릅니다. 빈 sub-tab 은 정상입니다.
+      CG6300          : 4종 모두
+      GT2000 / GT2000S: ContactpinConductionInfo 없음
+      CG5000          : SPMVoltages 만
+    (CG6320/CG6340/CG6360/CG6380 은 CG6300 과 같다고 가정 - OFFICE-VERIFY)
+
+TemperatureEChuck
+  - 주기: 장비별 중앙값 4-16분.
+  - 한 주기의 위치 1/2/3 은 +-30초 안에 기록되며 timestamp 가 같은 적은 없습니다.
+  - 위치 간 offset 은 0.02 도 미만입니다. 절대 온도를 한 축에 그립니다.
+  - drift 는 일평균이 담고 있습니다. BM/PM marker 는 유지할 가치가 있습니다.
+  - 장비 간 편차가 장비 내 noise 의 15배입니다. fab 단위 ranking/heatmap 이 의미가
+    있습니다 (미구현 - .scratch/fdc-fleet-view/ 참고).
+
+SPMVoltages
+  - profile 길이는 항상 107 입니다.
+  - 채널 A/B/C 는 같은 timestamp 를 쓰지 않습니다. 주기는 시간 창으로 묶습니다.
+  - 채널을 2개만 내는 장비가 있습니다.
+  - 단위 scale 이 장비마다 100배까지 다릅니다. 장비 간 원본 profile 을 비교하지 않고,
+    그 장비의 중앙 profile 대비 편차를 추세로 봅니다.
+  - spline / quartic 은 피팅 모델 이름입니다. 합격/불합격 판정이 아닙니다.
+  - BM/PM 에서 갈리는 scalar 는 찾지 못했습니다 (step 이 noise 이하). 미결입니다.
+  - values[3..5] ('7','1','1') 의 의미와 profile 모양은 아직 모릅니다 - OFFICE-VERIFY.
+
+LaserPower
+  - x1/y1 은 안정적인 신호입니다. x2/y2 의 drift 는 noise 입니다.
+  - 화면은 x1/y1 의 기준선 대비 % 만 봅니다. fleet 비교도 x1/y1 만 의미가 있습니다.
+  - 네 숫자가 무엇인지 설명한 문서는 없습니다. 라벨은 x1/y1 그대로 둡니다.
+
+ContactpinConductionInfo
+  - 판정 어휘: Conduction / UnstableConduction / NonConduction.
+  - 판정 뒤 처음 4개 숫자의 spread (max - min) 가 등급을 가릅니다.
+    Conduction 중앙값 6.4, NonConduction 중앙값 38.0, 경계 약 15-20.
+  - 마지막 숫자는 채널별로 단조 증가하는 counter 입니다 (event 당 +1). 원값이 아니라
+    증가율을 봅니다.
+  - 등급별 비율, UnstableConduction 의 spread 대역, 콤마 소수점 ('25,0') 빈도는
+    아직 모릅니다 - OFFICE-VERIFY.

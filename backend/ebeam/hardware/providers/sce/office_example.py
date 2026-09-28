@@ -16,10 +16,10 @@ Two builders, matching ``sce/mock.py``:
   the cadence is bidaily-ish (07/17, 07/22, 07/24, ...), not strictly
   regular.
 
-Coverage: SCE runs in 양산 M-fabs only. R3/R4 don't use it, and M10 has no
-data yet — an absent hash field / archive file is a legitimate empty, NOT an
-error, so those fabs return ``{}`` / ``[]`` and the page shows its graceful
-empty state instead of a 502.
+Coverage: ``sce_info`` has 13 fab fields, but M10A/M10C/R3/R4 are empty
+(SCE 미수집 fab, office 확인 2026-09-28). An absent or empty hash field /
+archive file is a legitimate empty, NOT an error, so those fabs return ``{}`` /
+``[]`` and the page shows its graceful empty state instead of a 502.
 
 The top-level ``providers/office.py`` dispatcher wraps both with
 ``normalizers.settings_payload`` (settings + docs), like ``mdc``.
@@ -62,7 +62,13 @@ def _parse_fab_blob(raw: bytes, fab: str) -> dict[str, Any]:
     The writer stores JSON; the pickle branch is a fallback in case a fab
     lands via ``pickle.dumps`` instead. Anything else is an upstream data
     problem → bare LookupError, which the app factory maps to a JSON 502.
+
+    A blank value is the SCE 미수집 fabs' empty field (M10A/M10C/R3/R4 are
+    listed by HKEYS but empty, office 확인 2026-09-28): an empty fab, not
+    garbage — ``pickle.loads(b"")`` would otherwise turn it into a 502.
     """
+    if not raw.strip():
+        return {}
     if raw.lstrip()[:1] in (b"{", b"["):
         try:
             value = json.loads(raw.decode("utf-8"))
@@ -172,8 +178,8 @@ def build_sce_settings(
 
     Redis holds only the latest collection (the hash is overwritten per run),
     so ``as_of`` exists for signature parity with the mock and does not select
-    an older snapshot — ``build_sce_history`` covers that. A fab with no hash
-    field (R3/R4 don't run SCE; M10 has no data yet) returns ``{}``.
+    an older snapshot — ``build_sce_history`` covers that. A fab with no or an
+    empty hash field (M10A/M10C/R3/R4 are SCE 미수집 fabs) returns ``{}``.
     """
     del as_of
     client = redis_client()

@@ -1,5 +1,10 @@
 # FDC and SCE — characterize the real data before we redesign the views
 
+> **Answered 2026-09-28.** The confirmed facts now live in
+> `hardware_network_fdc_cdsem.txt` and `hardware_sce_setting.txt` (section
+> `실측 특성`) and in the `fdc` / `sce` mocks. The fleet-view follow-up is
+> `.scratch/fdc-fleet-view/spec.md`.
+
 This brief is for an LLM running **at the office**, next to the real data.
 Its sibling, `hardware_field_usage.md`, asks whether each field *exists* in the
 shape the code reads. This one asks what the data *behaves* like: cadence,

@@ -122,9 +122,35 @@ def test_validate_rejects_a_doc_whose_values_head_disagrees_with_its_fdc_key():
 def test_known_fdc_keys_are_exactly_the_four_documented_shapes():
     # Pinned against the mock, which fabricates the same four layouts: adding
     # a key to one side only would make the two providers disagree about which
-    # docs are legal.
-    docs = mock.build_fdc_docs("CDX001", "R3", ANCHOR - timedelta(days=14), ANCHOR)
-    assert {doc["fdc_key"] for doc in docs} == office.KNOWN_FDC_KEYS
+    # docs are legal. A union over tools, because coverage differs by model.
+    keys = {
+        doc["fdc_key"]
+        for n in range(1, 13)
+        for doc in mock.build_fdc_docs(f"CDX{n:03d}", "M16A", ANCHOR - timedelta(days=14), ANCHOR)
+    }
+    assert keys == office.KNOWN_FDC_KEYS
+
+
+@pytest.mark.parametrize(
+    ("model", "expected"),
+    [
+        ("CG6300", office.KNOWN_FDC_KEYS),
+        ("GT2000", office.KNOWN_FDC_KEYS - {"ContactpinConductionInfo"}),
+        ("GT2000S", office.KNOWN_FDC_KEYS - {"ContactpinConductionInfo"}),
+        ("CG5000", {"SPMVoltages"}),
+    ],
+)
+def test_mock_key_coverage_follows_the_model(model, expected):
+    # Office 확인 2026-09-28: which keys a tool emits depends on its model, and
+    # a missing sub-tab is normal. A mock that gave every tool all four keys
+    # would hide the empty-sub-tab path from home.
+    tools = [f"CDX{n:03d}" for n in range(1, 80)]
+    for tool in tools:
+        docs = mock.build_fdc_docs(tool, "M16A", ANCHOR - timedelta(days=14), ANCHOR)
+        if docs and docs[0]["eqp_model_cd"] == model:
+            assert {d["fdc_key"] for d in docs} == expected, tool
+            return
+    pytest.fail(f"no mock tool of model {model} among {len(tools)} ids")
 
 
 def test_requested_source_fields_match_the_mock_doc_key_set_exactly():
@@ -226,13 +252,54 @@ def test_build_returns_an_empty_list_rather_than_raising_for_a_tool_with_no_docs
     assert office.build_fdc_docs("TP0001", None, ANCHOR - timedelta(days=30), ANCHOR) == []
 
 
-def test_build_raises_when_the_result_fills_the_cap(monkeypatch):
-    # One non-paginated request. Filling the cap means the "a few thousand docs
-    # per 30-day window" assumption broke, and a truncated history drawn as a
-    # complete one is unfalsifiable from the chart.
-    _capture(monkeypatch, hits=[RAW_HIT] * office.MAX_FDC_DOCS)
-    with pytest.raises(LookupError, match="cap"):
-        office.build_fdc_docs("6MCDE305", None, ANCHOR - timedelta(days=30), ANCHOR)
+def _gte(call) -> str:
+    return next(c["range"][office.TS_FIELD] for c in call["query"]["bool"]["filter"] if "range" in c)["gte"]
+
+
+def test_build_pages_on_the_last_timestamp_when_a_request_fills_the_cap(monkeypatch):
+    # Office 확인 2026-09-28: the busiest tool logs ~16.5k docs per 30 days, so
+    # a single capped request cannot hold the page's window. A full page is
+    # complete up to its last timestamp, so the next request starts THERE;
+    # the docs sharing that instant come back twice and are drawn once.
+    stamps = [f"2026-05-{day:02d}T00:00:00" for day in range(1, 21)]
+    index = [dict(RAW_HIT, timestamp=ts, values=["TemperatureEChuck", "0", pos, "23.4"])
+             for ts in stamps for pos in ("1", "2", "3")]  # 60 docs
+    monkeypatch.setattr(office, "MAX_FDC_DOCS", 25)
+    calls = []
+
+    def fake_fetch_hits(index_name, query_body, size, sort=None, source=None):
+        call = {"query": query_body}
+        calls.append(call)
+        return [dict(d) for d in index if d["timestamp"] >= _gte(call)][:size]
+
+    monkeypatch.setattr(office, "fetch_hits", fake_fetch_hits)
+    docs = office.build_fdc_docs("6MCDE305", None, datetime(2026, 5, 1), ANCHOR)
+
+    assert [_gte(c) for c in calls] == ["2026-05-01T00:00:00", "2026-05-09T00:00:00", "2026-05-17T00:00:00"]
+    assert [(d["timestamp"], d["values"][2]) for d in docs] == [
+        (d["timestamp"], d["values"][2]) for d in index
+    ]
+
+
+def test_build_raises_when_one_timestamp_alone_fills_the_cap(monkeypatch):
+    # Paging on the timestamp cannot advance past an instant holding a whole
+    # page; a truncated history drawn as complete is unfalsifiable, so raise.
+    monkeypatch.setattr(office, "MAX_FDC_DOCS", 5)
+    calls = _capture(monkeypatch, hits=[RAW_HIT] * 5)
+    with pytest.raises(LookupError, match="cannot advance"):
+        office.build_fdc_docs("6MCDE305", None, datetime(2026, 5, 18), ANCHOR)
+    assert len(calls) == 2
+
+
+def test_build_drops_exact_duplicate_docs_but_keeps_near_duplicates(monkeypatch):
+    # Office 확인 2026-09-28: the rollover alias spans two backing indices
+    # holding byte-identical copies, which double-draw points and inflate the
+    # sub-tab counts. Only an exact copy is a duplicate; a doc differing in
+    # one value is a real reading.
+    near = _hit(values=["TemperatureEChuck", "0", "1", "23.41001"])
+    _capture(monkeypatch, hits=[RAW_HIT, RAW_HIT, near, RAW_HIT])
+    docs = office.build_fdc_docs("6MCDE305", None, ANCHOR - timedelta(days=5), ANCHOR)
+    assert [d["values"][3] for d in docs] == ["23.41000", "23.41001"]
 
 
 # ───────────────────── dispatcher → contract, office path ───────────────────
@@ -265,3 +332,20 @@ def test_office_fdc_payload_matches_the_hardware_contract(monkeypatch):
     assert payload["fab_name"] == "M16A"  # the label comes from the payload…
     latest = next(c for c in payload["cards"] if c["key"] == "latest_ts")
     assert latest["value"] == RAW_HIT["timestamp"]  # …not from the docs
+
+
+def test_mock_model_is_the_roster_model_of_the_selected_tool():
+    # The model decides which sub-tabs a tool has, so it must be the one the
+    # tool selector shows. An independent pick gave the roster's GT2000S tool
+    # ECDX204 a CG6300 model and with it a Contactpin tab it never emits.
+    from backend.sem_list.providers.mock import get_sem_list
+
+    rows = [r for r in get_sem_list() if r["eqp_model_cd"] in {"GT2000", "GT2000S", "CG6300"}][:20]
+    assert rows
+    seen: set[str] = set()
+    for row in rows:
+        if row["eqp_id"] in seen:  # the roster repeats a few ids; first wins
+            continue
+        seen.add(row["eqp_id"])
+        docs = mock.build_fdc_docs(row["eqp_id"], row["fab_name"], ANCHOR - timedelta(days=14), ANCHOR)
+        assert {d["eqp_model_cd"] for d in docs} == {row["eqp_model_cd"]}, row["eqp_id"]

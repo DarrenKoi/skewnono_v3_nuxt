@@ -160,16 +160,22 @@ Items arrive as strings and are parsed as numbers where needed.
   - A missing position becomes NaN, so points go missing.
 - `SPMVoltages`
   - `[2]` = channel `A`, `B` or `C`.
-  - The **first non-numeric token from `[3]` on** is the judgment
-    (`spline`, `quartic` …). Every number after it is the ~100-point profile.
+  - The **first non-numeric token from `[3]` on** is the fit-model name
+    (`spline`, `quartic`), not a verdict. Every number after it is the profile,
+    always 107 points (office 확인 2026-09-28).
   - Docs more than 30 min apart start a new cycle.
 - `ContactpinConductionInfo`
   - `[2]` = channel.
-  - The first non-numeric token from `[3]` on is the judgment. The exact
-    string `Conduction` shows green; anything else shows red.
-  - The numbers after the judgment are listed as values.
-  - Note that the sample in `hardware_network_fdc_cdsem.txt` has `'25,0'`, with
-    a comma. It does not parse as a number and would drop out of the list.
+  - The first non-numeric token from `[3]` on is the judgment:
+    `Conduction` (green), `UnstableConduction` (amber) or `NonConduction`
+    (red) (office 확인 2026-09-28).
+  - The first 4 numbers after the judgment are listed with their spread
+    (max − min), the margin that separates the classes. The last number is a
+    per-channel counter, shown as a rate per day.
+  - The sample in `hardware_network_fdc_cdsem.txt` has `'25,0'`, with a comma.
+    The parser reads a comma decimal as `25.0`, and keeps every number in its
+    position, so an unreadable cell leaves a gap instead of shifting the
+    counter. How often commas occur is still unknown (OFFICE-VERIFY).
 
 ### Expected sample — `network_fdc_cdsem`
 

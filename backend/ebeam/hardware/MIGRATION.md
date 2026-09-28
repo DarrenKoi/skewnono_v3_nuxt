@@ -38,7 +38,7 @@ Two specifics worth knowing before that diff. mdc's history builder receives no
 archive is filed per fab, so the template recovers the fab from the `sem_list`
 roster — check whether the office copy does the same or takes another route.
 And `sce/` treats a missing hash field or archive file as a legitimate empty,
-because R3/R4 don't run SCE and M10 has no data yet; MDC covers every fab
+because M10A/M10C/R3/R4 are SCE 미수집 fabs (office 확인 2026-09-28); MDC covers every fab
 including R3/R4, so the same absence is a collection failure. The template logs
 a warning and returns empty. Silently reusing SCE's graceful-empty path would
 hide a real outage behind a blank tab, and `tests/test_mdc_office.py` pins
@@ -106,7 +106,8 @@ one `{fab_name}.json` per collection date under
 `minio_handler/minio_config.py`). Collection dates are discovered via
 `list_date_folders` — the cadence is bidaily-ish, not strictly regular — so
 the adapter never computes expected dates. Coverage caveat baked into the
-adapter: R3/R4 don't run SCE and M10 has no data yet, so an absent hash field
+adapter: M10A/M10C/R3/R4 are SCE 미수집 fabs (empty hash fields, office 확인
+2026-09-28), so an absent or empty hash field
 or archive file returns `{}`/`[]` (the page's graceful empty state), never a
 502; only a missing `sce_info` key altogether raises. The pure
 parse/normalize helpers are unit-tested at home in `tests/test_sce.py`. Run
@@ -114,18 +115,20 @@ its `__main__` smoke block (`... .providers.sce.office <eqp_id> <fab_name>`)
 after `cp`.
 
 **Mock-only fiction — do not expect it office-side.** `sce/mock.py` makes
-`FileInfo`/`SCEParam`/`Coefficients` hold flat between re-tunes and step at
-one, so the home mock exercises the frontend's revision collapse
-(`sceCoeffRevisions`). The re-tune calendar is SCE's OWN — a ~2-4 week cadence
+`FileInfo`/`Coefficients` (and, at 4 of 5 re-tunes, `ImgCond_Mag`) hold flat
+between re-tunes and step at one, so the home mock exercises the frontend's
+revision collapse (`sceCoeffRevisions`). `SCEParam` is constant fleet-wide
+(office 확인 2026-09-28). The re-tune calendar is SCE's OWN — a rare, 60-240 day cadence
 walked forward from a fixed origin (`_retune_dates`), NOT `bm_pm`'s PM rows.
 Those rows are generated relative to the caller's anchor and the page sends a
 live clock, so seeding from them would make a past collection date's curve
 change whenever the window moved; the archive file for a date is immutable, so
-stability wins over lining the step up with a BM/PM marker. **Steps therefore
-do not coincide with PM markers, by design, in the mock or at the office** —
-office-side the snapshot is a Redis hash, the trend is per-date MinIO JSON,
-and markers come from `fab_inform_notes`, with nothing coupling the three.
-Office parity is SHAPE only.
+stability wins over lining the step up with a BM/PM marker. **Mock steps
+therefore never coincide with PM markers.** Office-side nothing in the data
+couples them either (the snapshot is a Redis hash, the trend is per-date MinIO
+JSON, markers come from `fab_inform_notes`), yet 2 of 5 observed re-tunes fell
+within ±2 days of a BM/PM (office 확인 2026-09-28), which is why the markers
+stay on the SCE charts. Office parity is SHAPE only.
 
 Two more things worth knowing before reading the 시계열 tab at the office.
 Per-collection float or serialization jitter defeats the curve-equality
