@@ -104,6 +104,7 @@ from backend.meas_hist.providers.mock import (
 __all__ = [
     "get_meas_hist",
     "find_meas_hist_by_msr",
+    "find_meas_hist_in_window",
     "search_meas_hist",
     "get_meas_hist_facets",
 ]
@@ -431,6 +432,35 @@ def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
     result = _os_search(_ALL_INDICES).search_raw(body)
     rows = _rows(result, None)
     return rows[0] if rows else None  # None (not raise) keeps 404 handling
+
+
+# Measurements of one tool in +-30 min are tens at most; this is a ceiling.
+_WINDOW_SIZE = 200
+
+
+def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> list[MeasHistRow]:
+    """The tool's measurements whose start-end span overlaps ``start``..``end``
+    (naive KST wall clock, sent offset-less like every range here).
+
+    start_time/end_time are date fields (docs/datatables/hitachi/meas_hist.txt).
+    A doc missing them - msr_check "No" docs lack meastime, and whether they
+    keep start/end is OFFICE-VERIFY - still matches on its timestamp, so a
+    failed measurement is never the one silently left out.
+    """
+    overlap = {"bool": {"filter": [
+        {"range": {"start_time": {"lt": _ts(end)}}},
+        {"range": {"end_time": {"gt": _ts(start)}}},
+    ]}}
+    body = {
+        "query": {"bool": {
+            "filter": [{"term": {_EQP_KW: eqp_id.upper()}}],
+            "should": [overlap, _time_range_clause(start, end)],
+            "minimum_should_match": 1,
+        }},
+        "size": _WINDOW_SIZE,
+        "sort": [{_TIME_F: {"order": "asc"}}],
+    }
+    return _rows(_os_search(_ALL_INDICES).search_raw(body), None)
 
 
 def search_meas_hist(

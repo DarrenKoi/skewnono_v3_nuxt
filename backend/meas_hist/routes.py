@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from flask import Blueprint, jsonify, request
 
 from backend._core.request_args import resolve_fab_name
@@ -5,6 +7,7 @@ from backend.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 from backend.meas_hist.data import (
     DEFAULT_LIMIT,
     ToolType,
+    find_meas_hist_in_window,
     get_meas_hist,
     get_meas_hist_facets,
     search_meas_hist,
@@ -90,3 +93,36 @@ def meas_hist_search():
 @bp.get("/meas-hist/facets")
 def meas_hist_facets():
     return jsonify(get_meas_hist_facets(tool_type=_resolve_tool_type()))
+
+
+# The hardware tabs ask which recipes ran around a clicked time (user decision
+# 2026-09-29: +-30 min, a measurement counts when its span overlaps).
+_WINDOW_HALF = timedelta(minutes=30)
+_KST = timezone(timedelta(hours=9))
+
+
+def _kst_wall(raw: str) -> datetime | None:
+    """An ISO time as a naive KST wall clock. Offset-less input already is one
+    (the hardware timestamps); an offset is an instant and is converted, never
+    stripped, or the window slides nine hours."""
+    try:
+        parsed = datetime.fromisoformat(raw.strip())
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is None else parsed.astimezone(_KST).replace(tzinfo=None)
+
+
+@bp.get("/meas-hist/window")
+def meas_hist_window():
+    eqp_id = (request.args.get("eqp_id") or "").strip()
+    at = _kst_wall(request.args.get("at") or "")
+    if not eqp_id or at is None:
+        return jsonify({"error": "eqp_id and an ISO `at` are required"}), 400
+    start, end = at - _WINDOW_HALF, at + _WINDOW_HALF
+    return jsonify({
+        "eqp_id": eqp_id,
+        "at": at.isoformat(timespec="seconds"),
+        "start": start.isoformat(timespec="seconds"),
+        "end": end.isoformat(timespec="seconds"),
+        "rows": find_meas_hist_in_window(eqp_id, start, end),
+    })

@@ -202,14 +202,16 @@ def _build_row(
     eqp: SemListRow,
     rng: random.Random,
     index: int,
-    max_age_days: int = HISTORY_DAYS
+    max_age_days: int = HISTORY_DAYS,
+    end_at: datetime | None = None,
 ) -> MeasHistRow | None:
     """One measurement row aged 0..``max_age_days`` before ``NOW``.
 
     ``max_age_days`` exists so recipe synthesis can land inside the narrower
     측정 이력 window; the default keeps the 600-row universe spread across
     full retention, and consumes the same one rng draw either way, so the
-    seeded universe is byte-identical.
+    seeded universe is byte-identical. ``end_at`` pins the end time instead
+    (the on-demand window rows); the age draws still happen.
     """
     tool_type = model_to_tool_type(eqp["eqp_model_cd"])
     if tool_type is None:
@@ -227,6 +229,8 @@ def _build_row(
         hours=rng.randint(0, 23),
         minutes=rng.randint(0, 59)
     )
+    if end_at is not None:
+        end_time = end_at
     meastime = rng.randint(60, 1800)
     start_time = end_time - timedelta(seconds=meastime)
     timestamp = end_time
@@ -771,3 +775,40 @@ def get_meas_hist_facets(tool_type: ToolType | None = None) -> MeasHistFacetsRes
         model=_facet_counts(rows, "eqp_model_cd"),
         eq=_facet_counts(rows, "eqp_id")
     )
+
+
+# How many measurements end in one hour of one tool, and how often. A busy
+# CD-SEM measures a lot every 20-40 min; the real density is OFFICE-VERIFY.
+_WINDOW_COUNTS = (0, 1, 2, 3)
+_WINDOW_WEIGHTS = (0.25, 0.35, 0.25, 0.15)
+
+
+def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> list[MeasHistRow]:
+    """The tool's measurements whose start-end span overlaps ``start``..``end``.
+
+    The seeded 600-row universe sits months before the hardware tabs' dates,
+    so this builds the tool's measurements on demand instead: one rng per
+    (tool, hour), so every window that sees a measurement sees the same one.
+    ``start``/``end`` are naive KST wall clock; rows carry it with a Z tag,
+    like every other row here (the office's KST-wearing-UTC convention).
+    """
+    eqp = next((row for row in _eligible_sem_rows() if row["eqp_id"] == eqp_id), None)
+    if eqp is None:
+        return []
+    rows: list[MeasHistRow] = []
+    # meastime is at most 30 min, so a measurement ending an hour before the
+    # window can still reach into it; one extra hour covers that.
+    hour = (start - timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    while hour <= end:
+        rng = random.Random(_seed("meas_hist-window", eqp_id, hour.isoformat()))
+        for index in range(rng.choices(_WINDOW_COUNTS, weights=_WINDOW_WEIGHTS)[0]):
+            end_at = hour + timedelta(minutes=rng.randint(0, 59), seconds=rng.randint(0, 59))
+            row = _build_row(eqp, rng, index, end_at=end_at.replace(tzinfo=timezone.utc))
+            if row and _wall(row["start_time"]) < end and _wall(row["end_time"]) > start:
+                rows.append(row)
+        hour += timedelta(hours=1)
+    return sorted(rows, key=lambda row: row["timestamp"])
+
+
+def _wall(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "")).replace(tzinfo=None)

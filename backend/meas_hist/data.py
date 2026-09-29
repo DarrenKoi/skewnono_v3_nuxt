@@ -1,5 +1,7 @@
 """Stable measurement-history data seam with mock/office adapters."""
 
+from datetime import datetime
+
 from backend._runtime.data_provider import get_data_provider
 from backend.meas_hist.contracts import (
     MeasHistFacetsResponse,
@@ -24,6 +26,7 @@ __all__ = [
     "ToolType",
     "get_meas_hist",
     "find_meas_hist_by_msr",
+    "find_meas_hist_in_window",
     "search_meas_hist",
     "get_meas_hist_facets",
     "RETENTION_DAYS",
@@ -51,6 +54,10 @@ def get_meas_hist(
 
 def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
     return _provider().find_meas_hist_by_msr(msr)
+
+
+def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> list[MeasHistRow]:
+    return _provider().find_meas_hist_in_window(eqp_id, start, end)
 
 
 def search_meas_hist(

@@ -91,3 +91,16 @@ class MeasHistFacetsResponse(TypedDict):
     fab: list[MeasHistFacetValue]
     model: list[MeasHistFacetValue]
     eq: list[MeasHistFacetValue]
+
+
+class MeasHistWindowResponse(TypedDict):
+    """Measurements of one tool whose start-end span overlaps `start`..`end`.
+
+    `at` is the hardware timestamp the window was built around; all three are
+    offset-less KST wall clock, like the hardware indices.
+    """
+    eqp_id: str
+    at: str
+    start: str
+    end: str
+    rows: list[MeasHistRow]
