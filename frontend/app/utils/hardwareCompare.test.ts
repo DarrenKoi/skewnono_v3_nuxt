@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix frontend test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assignCompareColors, assignSeriesColors, compareBoxPoints, filterByTerm } from './hardwareCompare.ts'
+import { assignCompareColors, assignSeriesColors, compareBoxPoints, conditionToolRows, filterByTerm } from './hardwareCompare.ts'
 
 // The tool picker's items are their own label, so it filters on identity.
 const filterToolIds = (ids: readonly string[], term: string) => filterByTerm(ids, term, id => id)
@@ -89,4 +89,17 @@ test('filterByTerm: matches the field `text` picks, not the whole object', () =>
   // The value is not searched, so a term only present there matches nothing.
   assert.deepEqual(filterByTerm(revs, '07-03', r => r.value), [])
   assert.deepEqual(filterByTerm(revs, '', r => r.label), revs)
+})
+
+test('conditionToolRows: highest first, delta vs median, drops tools lacking the mode', () => {
+  const settings = {
+    T1: { c0: '1.001' },
+    T2: { c0: '1.004' },
+    T3: { c1: '0.998' }, // lacks c0
+    T4: { c0: 'n/a' } // non-numeric
+  }
+  const rows = conditionToolRows(settings, 'c0', 1.002)
+  assert.deepEqual(rows.map(r => r.eqpId), ['T2', 'T1'])
+  assert.ok(Math.abs(rows[0]!.delta - 0.002) < 1e-12)
+  assert.ok(Math.abs(rows[1]!.delta + 0.001) < 1e-12)
 })

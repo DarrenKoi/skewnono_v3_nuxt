@@ -85,3 +85,25 @@ export const compareBoxPoints = (
     })
     return { id, values }
   })
+
+export interface ConditionToolRow {
+  eqpId: string
+  value: number
+  // Signed gap to the fleet median for this condition — the boxplot's centre
+  // line, so the table and the box it explains agree on "typical".
+  delta: number
+}
+
+// Every tool's value for one beam condition, highest first — the 비교 tab's
+// detail table for a clicked box. Tools lacking the condition (or holding a
+// non-numeric value) are omitted, exactly as the boxplot omits them.
+export const conditionToolRows = (
+  settings: Record<string, Record<string, unknown>>,
+  cond: string,
+  median: number
+): ConditionToolRow[] =>
+  Object.entries(settings)
+    .map(([eqpId, s]) => ({ eqpId, value: toNum(s?.[cond]) }))
+    .filter((r): r is { eqpId: string, value: number } => r.value !== null)
+    .map(r => ({ ...r, delta: r.value - median }))
+    .sort((a, b) => b.value - a.value || a.eqpId.localeCompare(b.eqpId))

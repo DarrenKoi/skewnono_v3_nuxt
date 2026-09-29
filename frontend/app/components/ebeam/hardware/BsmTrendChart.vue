@@ -50,6 +50,9 @@ const props = defineProps<{
   // key, so the reader decides whether to open a detail (Sharpness → recipes
   // measured around that time). Off → the plain tooltip.
   inspectLabel?: string
+  // Axis ticks show MM/DD only, one per day at most — for slow-moving series
+  // (MDC corrections change a few times a week) where hh:mm is noise.
+  dateOnly?: boolean
 }>()
 
 const emit = defineEmits<{ select: [key: string], inspect: [key: string] }>()
@@ -69,6 +72,8 @@ const formatTime = (value: number | string) => {
   const mi = String(d.getMinutes()).padStart(2, '0')
   return `${mm}/${dd} ${hh}:${mi}`
 }
+const formatAxisTime = (value: number | string) =>
+  props.dateOnly ? formatTime(value).slice(0, 5) : formatTime(value)
 
 // Points arrive ascending (oldest first) from the panel.
 const overlays = computed(() => props.overlays ?? [])
@@ -124,7 +129,11 @@ const chartOption = computed<EChartsOption>(() => ({
   grid: { left: 56, right: 16, top: hasOverlays.value ? 28 : 16, bottom: 56 },
   tooltip: props.inspectLabel ? inspectTooltip.value : plainTooltip,
   ...(hasOverlays.value ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
-  xAxis: { type: 'time', axisLabel: { fontSize: 10, formatter: formatTime } },
+  xAxis: {
+    type: 'time',
+    ...(props.dateOnly ? { minInterval: 24 * 3600 * 1000 } : {}),
+    axisLabel: { fontSize: 10, formatter: formatAxisTime }
+  },
   yAxis: {
     type: 'value',
     ...(props.yMode === 'tight'
