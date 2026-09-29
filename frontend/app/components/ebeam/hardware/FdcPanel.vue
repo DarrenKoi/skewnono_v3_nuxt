@@ -202,12 +202,34 @@
           class="flex items-center gap-1"
           @submit.prevent="inspectTyped && emit('inspect-time', `${inspectTyped}:00`)"
         >
-          <input
-            v-model="inspectTyped"
-            type="datetime-local"
-            aria-label="측정 recipe 를 볼 시각"
-            class="rounded border border-(--sk-border) bg-(--sk-surface) px-1.5 py-0.5 text-xs text-(--sk-ink)"
-          >
+          <!-- Same popover + UCalendar as EbeamDateRangePopover, single date + time. -->
+          <UPopover :content="{ align: 'start' }">
+            <UButton
+              icon="i-lucide-calendar-clock"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              class="font-medium tabular-nums"
+              aria-label="측정 recipe 를 볼 시각"
+            >
+              {{ inspectTyped ? inspectTyped.replace('T', ' ') : '----/--/-- --:--' }}
+            </UButton>
+            <template #content>
+              <div class="flex flex-col gap-2 p-3">
+                <UCalendar
+                  v-model="inspectDate"
+                  :max-value="todayDate"
+                  size="sm"
+                />
+                <UInputTime
+                  v-model="inspectTime"
+                  :hour-cycle="24"
+                  size="sm"
+                  aria-label="시각"
+                />
+              </div>
+            </template>
+          </UPopover>
           <UButton
             type="submit"
             size="xs"
@@ -232,6 +254,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+import { Time, getLocalTimeZone, today, type DateValue } from '@internationalized/date'
 import {
   parseFdcValues, contactpinRows as deriveContactpinRows, spmDeviationSeries, fdcDailyMeans,
   fdcDocTs as tsOf, fdcDocValues as valuesOf, fdcEpoch as toEpoch,
@@ -254,8 +277,13 @@ const props = defineProps<{
 
 // A timestamp the reader wants the measured recipes for (offset-less KST).
 const emit = defineEmits<{ 'inspect-time': [at: string] }>()
-// datetime-local gives "YYYY-MM-DDTHH:mm" in local (KST) wall clock.
-const inspectTyped = ref('')
+// Picked date + time compose "YYYY-MM-DDTHH:mm" in local (KST) wall clock.
+const todayDate = today(getLocalTimeZone())
+const inspectDate = shallowRef<DateValue>()
+const inspectTime = shallowRef(new Time(0, 0))
+const inspectTyped = computed(() => inspectDate.value && inspectTime.value
+  ? `${inspectDate.value.toString()}T${inspectTime.value.toString().slice(0, 5)}`
+  : '')
 
 const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
 const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'fab 전체' }] as const
