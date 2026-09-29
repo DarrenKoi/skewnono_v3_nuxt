@@ -221,3 +221,19 @@ def test_fdc_fleet_payload_and_gates():
     assert not no_fab["available"]
     hvsem = dispatcher.get_hardware_service("hvsem", "fdc-fleet", "TP0001", "R3", START, END)
     assert not hvsem["available"]
+
+
+def test_mock_temperature_pos3_repeats_pos1():
+    # User-confirmed 2026-09-29: pos 3 carries the same value as pos 1.
+    last_pos1 = None
+    pairs = 0
+    for doc in mock.build_fdc_docs("CDX001", "M16A", START, END):
+        if doc["fdc_key"] != "TemperatureEChuck":
+            continue
+        pos, temp = doc["values"][2], doc["values"][3]
+        if pos == "1":
+            last_pos1 = temp
+        elif pos == "3":
+            assert temp == last_pos1
+            pairs += 1
+    assert pairs > 100

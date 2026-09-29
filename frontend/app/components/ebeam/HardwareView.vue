@@ -3,6 +3,7 @@ import type { SemListRow } from '~/composables/useSemListApi'
 import type { HardwareMetricTone, HardwareMetricValue, HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { parseBmPmEvents, type BmPmEvent } from '~/utils/bmPmMarkers'
+import { getLocalTimeZone, today } from '@internationalized/date'
 
 const props = defineProps<{
   fabs: string[]
@@ -59,13 +60,23 @@ const qp = (k: string): string => {
 }
 const deepLinkEqpId = qp('eqp_id')
 
-// 30-day default window when start/end omitted (spec §3, §13).
-const DAY_MS = 86_400_000
-const defaultEnd = new Date()
-const defaultStart = new Date(defaultEnd.getTime() - 30 * DAY_MS)
-const toIso = (d: Date) => d.toISOString()
-const windowStart = ref(qp('start') || toIso(defaultStart))
-const windowEnd = ref(qp('end') || toIso(defaultEnd))
+// Time window, in whole KST days. The daily tabs log thousands of points a
+// month, so they open on 2 weeks; the quarterly tabs are sparse and keep 30
+// days (user decision 2026-09-29). Each category keeps its own window; a
+// deep link's start/end seeds both.
+type DayRange = { start: string, end: string }
+const WINDOW_PRESETS: Record<HardwareCategory, { label: string, days: number }[]> = {
+  데일리: [{ label: '2주', days: 14 }, { label: '3주', days: 21 }, { label: '4주', days: 28 }],
+  분기: [{ label: '30일', days: 30 }, { label: '60일', days: 60 }, { label: '90일', days: 90 }]
+}
+const todayIso = () => today(getLocalTimeZone()).toString()
+const lastDays = (days: number): DayRange =>
+  ({ start: today(getLocalTimeZone()).subtract({ days }).toString(), end: todayIso() })
+const linkedWindow = qp('start') && qp('end') ? { start: qp('start').slice(0, 10), end: qp('end').slice(0, 10) } : null
+const windows = reactive<Record<HardwareCategory, DayRange>>({
+  데일리: linkedWindow ?? lastDays(14),
+  분기: linkedWindow ?? lastDays(30)
+})
 
 // Section tab is page-scoped state so navigating away and back keeps the last
 // view (DESIGN.md handoff RULE 5). Search and the On/Off filter stay local —
@@ -198,6 +209,22 @@ const activeServiceDetail = computed<HardwareService>(() =>
   hardwareServices.find(service => service.key === activeService.value) ?? defaultHardwareService
 )
 
+const windowPresets = computed(() => WINDOW_PRESETS[activeServiceDetail.value.category])
+const activeWindow = computed<DayRange>({
+  get: () => windows[activeServiceDetail.value.category],
+  set: (value) => { windows[activeServiceDetail.value.category] = value }
+})
+const isPresetActive = (days: number) => {
+  const preset = lastDays(days)
+  return activeWindow.value.start === preset.start && activeWindow.value.end === preset.end
+}
+// Offset-less timestamps: the route reads them as a KST wall clock, and the
+// end day is inclusive.
+const windowStart = computed(() => `${activeWindow.value.start}T00:00:00`)
+const windowEnd = computed(() => `${activeWindow.value.end}T23:59:59`)
+// BM/PM reads only `end` (past history + future schedule), so no picker there.
+const windowPickerVisible = computed(() => activeService.value !== 'bm-pm')
+
 const selectTool = (eqpId: string) => {
   selectedToolId.value = eqpId
 }
@@ -246,7 +273,7 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
     })
   },
   {
-    watch: [() => props.toolType, fabsKey, activeService, () => selectedTool.value?.eqp_id]
+    watch: [() => props.toolType, fabsKey, activeService, () => selectedTool.value?.eqp_id, windowStart, windowEnd]
   }
 )
 
@@ -273,7 +300,7 @@ const { data: bmPmPayload } = await useAsyncData<HardwarePayload | null>(
       end: windowEnd.value
     })
   },
-  { watch: [() => props.toolType, fabsKey, () => selectedTool.value?.eqp_id] }
+  { watch: [() => props.toolType, fabsKey, () => selectedTool.value?.eqp_id, windowStart, windowEnd] }
 )
 
 const { data: fdcFleetPayload, pending: fdcFleetPending, error: fdcFleetError } = await useAsyncData<HardwarePayload | null>(
@@ -592,14 +619,36 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
               {{ activeServiceDetail.description }}
             </p>
           </div>
-          <!-- BM/PM 수직 마커 오버레이 on/off — 시간축 차트가 있는 탭에서만 -->
-          <USwitch
-            v-if="overlayToggleVisible"
-            v-model="showBmPmOverlay"
-            size="sm"
-            label="BM/PM 표시"
-            class="shrink-0"
-          />
+          <div class="flex shrink-0 flex-wrap items-center justify-end gap-3">
+            <div
+              v-if="windowPickerVisible"
+              class="flex items-center gap-2"
+            >
+              <div class="flex overflow-hidden rounded-[10px] border border-(--sk-border)">
+                <SkNavPill
+                  v-for="preset in windowPresets"
+                  :key="preset.days"
+                  :label="preset.label"
+                  :active="isPresetActive(preset.days)"
+                  size="sm"
+                  class="!rounded-none !border-0 !px-3"
+                  @click="activeWindow = lastDays(preset.days)"
+                />
+              </div>
+              <EbeamDateRangePopover
+                v-model="activeWindow"
+                :presets="windowPresets"
+                :anchor-date="todayIso()"
+              />
+            </div>
+            <!-- BM/PM 수직 마커 오버레이 on/off — 시간축 차트가 있는 탭에서만 -->
+            <USwitch
+              v-if="overlayToggleVisible"
+              v-model="showBmPmOverlay"
+              size="sm"
+              label="BM/PM 표시"
+            />
+          </div>
         </div>
 
         <div class="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">

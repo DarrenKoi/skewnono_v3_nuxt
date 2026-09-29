@@ -18,7 +18,8 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
   to follow CG6300 (OFFICE-VERIFY). An empty sub-tab is normal.
 * TemperatureEChuck: a per-tool cadence with median 4-16 min, the 3 positions
   logged within +-30 s of each other (never the same second), position
-  offsets under 0.02 degC. Tool means spread ~15x wider than within-tool
+  offsets under 0.02 degC. pos 3 carries the same value as pos 1 of its
+  cycle (user-confirmed 2026-09-29). Tool means spread ~15x wider than within-tool
   noise, and a slow daily walk carries the drift. The idle stretches that keep
   the busiest tool near the office's 16.5k docs / 30 days, and the step size
   at BM/PM, are OFFICE-VERIFY.
@@ -156,11 +157,13 @@ def _temperature_docs(
             if rng.random() < 0.03:  # occasional step, BM/PM-like (OFFICE-VERIFY)
                 level += rng.choice((-1, 1)) * rng.uniform(0.03, 0.08)
         moment = cursor
+        temps: dict[str, str] = {}
         for pos in ("1", "2", "3"):
             if moment > end:
                 break
-            temp = level + offsets[pos] + rng.gauss(0.0, noise)
-            out.append(_doc(base, "TemperatureEChuck", moment, [pos, f"{temp:.5f}"]))
+            # pos 3 repeats pos 1's value (user-confirmed 2026-09-29).
+            temps[pos] = temps["1"] if pos == "3" else f"{level + offsets[pos] + rng.gauss(0.0, noise):.5f}"
+            out.append(_doc(base, "TemperatureEChuck", moment, [pos, temps[pos]]))
             moment += timedelta(seconds=rng.randint(3, 14))
         gap = median_gap * rng.uniform(0.7, 1.3)
         # Idle stretches: about half the wall clock logs nothing (OFFICE-VERIFY).

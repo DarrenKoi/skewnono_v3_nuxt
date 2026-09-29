@@ -128,8 +128,9 @@
       v-else-if="fdcView === 'tool' && activeKey === 'SPMVoltages'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
-      <div class="px-1 sk-title">
-        채널별 중앙 프로파일 대비 RMS 편차
+      <div class="flex flex-wrap items-baseline justify-between gap-2 px-1">
+        <span class="sk-title">채널별 중앙 프로파일 대비 RMS 편차</span>
+        <span class="sk-meta">차트를 누르면 그 시점의 cycle 이 아래에 표시됩니다.</span>
       </div>
       <div
         ref="spmTrendEl"
@@ -180,8 +181,12 @@
       v-else-if="fdcView === 'tool'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
-      <div class="mb-1 px-1 sk-title">
-        {{ activeKey }} trend
+      <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2 px-1">
+        <span class="sk-title">{{ activeKey }} trend</span>
+        <span
+          v-if="activeKey === 'TemperatureEChuck'"
+          class="sk-meta"
+        >pos 3 은 pos 1 과 같은 값이라 표시하지 않습니다.</span>
       </div>
       <div
         ref="chartEl"
@@ -214,7 +219,7 @@ const props = defineProps<{
 const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
 const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'fab 전체' }] as const
 
-const { palette } = useEchartsTheme()
+const { palette, surface } = useEchartsTheme()
 const c0 = computed(() => palette.value[0]!)
 const c1 = computed(() => palette.value[1]!)
 const c2 = computed(() => palette.value[2]!)
@@ -247,7 +252,8 @@ const chartEl = ref<HTMLDivElement | null>(null)
 const spmTrendEl = ref<HTMLDivElement | null>(null)
 
 // --- ContactpinConductionInfo ---
-const contactpinRows = computed(() => deriveContactpinRows(activeDocs.value))
+// Rates need oldest-first order; the table reads newest first.
+const contactpinRows = computed(() => deriveContactpinRows(activeDocs.value).reverse())
 
 // --- SPMVoltages ---
 // A/B/C are logged a few minutes apart within one measurement cycle, and
@@ -304,24 +310,49 @@ const sliderZoom = (): EChartsOption['dataZoom'] =>
   [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }]
 const stableAxis = (values: number[]) => stableYRange(values) ?? { scale: true }
 
+// Clicking the trend picks the cycle nearest the clicked time; the profile
+// chart below and the dropdown follow it.
+const pickSpmCycleAt = (epoch: number) => {
+  let best: { key: string, gap: number } | null = null
+  for (const cycle of spmCycles.value) {
+    const gap = Math.abs(cycle.items[0]!.epoch - epoch)
+    if (!best || gap < best.gap) best = { key: cycle.key, gap }
+  }
+  if (best) spmCycleKey.value = best.key
+}
+const spmSelectedEpoch = computed(() => spmCycles.value.find(c => c.key === spmCycleKey.value)?.items[0]?.epoch)
+
 const spmTrendOption = computed<EChartsOption>(() => ({
   grid: { left: 48, right: 16, top: 24, bottom: 52 },
   tooltip: { trigger: 'axis' },
-  legend: { top: 0, textStyle: { fontSize: 10 } },
+  legend: { top: 0, textStyle: { fontSize: 10 }, data: spmDeviations.value.map(series => series.channel) },
   xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
   yAxis: { type: 'value', name: 'RMS', scale: true, axisLabel: { fontSize: 10 } },
   dataZoom: sliderZoom(),
-  series: spmDeviations.value.map((series, i) => {
-    const color = [c0.value, c1.value, c2.value][i % 3]
-    return {
-      name: series.channel, type: 'line', showSymbol: false,
-      lineStyle: { color }, itemStyle: { color },
-      data: series.points.map(p => [toEpoch(p.ts), p.value]),
-      ...(i === 0 ? { markLine: maintenanceMarkLine.value } : {})
-    }
-  })
+  series: [
+    ...spmDeviations.value.map((series, i) => {
+      const color = [c0.value, c1.value, c2.value][i % 3]
+      return {
+        name: series.channel, type: 'line' as const, showSymbol: false,
+        lineStyle: { color }, itemStyle: { color },
+        data: series.points.map(p => [toEpoch(p.ts), p.value]),
+        ...(i === 0 ? { markLine: maintenanceMarkLine.value } : {})
+      }
+    }),
+    // Carrier for the selected-cycle marker: series 0 already holds the BM/PM markLine.
+    ...(spmSelectedEpoch.value === undefined
+      ? []
+      : [{
+          type: 'line' as const, data: [],
+          markLine: {
+            silent: true, symbol: 'none', label: { show: false },
+            lineStyle: { color: surface.value.ink, type: 'solid' as const, width: 1.5 },
+            data: [{ xAxis: spmSelectedEpoch.value }]
+          }
+        }])
+  ]
 }))
-useEchart(spmTrendEl, spmTrendOption)
+useEchart(spmTrendEl, spmTrendOption, { onGridClick: ({ x }) => pickSpmCycleAt(x) })
 
 // --- LaserPower: stable x1/y1 baseline deviation ---
 type LaserCh = 'x1' | 'y1'
@@ -368,6 +399,9 @@ const tempSeries = computed(() => {
     const p = parseFdcValues(valuesOf(d))
     if (p.key !== 'TemperatureEChuck') continue
     const { position, temp } = p.data as TemperatureValue
+    // pos 3 repeats pos 1's value (user-confirmed 2026-09-29): drawing it would
+    // hide pos 1 and weight it twice in the daily mean.
+    if (position === '3') continue
     ;(byPos[position] ??= []).push({ ts: tsOf(d), epoch: toEpoch(tsOf(d)), temp })
   }
   const all = Object.values(byPos).flat()

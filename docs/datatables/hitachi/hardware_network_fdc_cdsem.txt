@@ -108,6 +108,9 @@ TemperatureEChuck
   - 주기: 장비별 중앙값 4-16분.
   - 한 주기의 위치 1/2/3 은 +-30초 안에 기록되며 timestamp 가 같은 적은 없습니다.
   - 위치 간 offset 은 0.02 도 미만입니다. 절대 온도를 한 축에 그립니다.
+  - pos 3 은 같은 주기 pos 1 과 같은 값입니다 (user-confirmed 2026-09-29). 장비 view 는
+    pos 3 을 그리지 않고 그 사실을 표기합니다. fleet 의 temp_c 평균은 pos 3 을 포함하므로
+    pos 1 이 두 번 반영되지만, 위치 간 offset 이 0.02 도 미만이라 영향은 무시할 만합니다.
   - drift 는 일평균이 담고 있습니다. BM/PM marker 는 유지할 가치가 있습니다.
   - 장비 간 편차가 장비 내 noise 의 15배입니다. fab 단위 ranking/heatmap 이 의미가
     있습니다 (미구현 - .scratch/fdc-fleet-view/ 참고).
