@@ -183,6 +183,20 @@
 - Notes: must return `None` (not raise, not an empty dict) for an unknown
   `msr` so downstream 404 handling keeps working unmodified.
 
+## Endpoint: GET /api/meas-hist/window
+
+- Handler: `routes.py` → `data.find_meas_hist_in_window(eqp_id, start, end)`,
+  where `start`/`end` are `at` ∓ 30 min as naive KST wall clock. An `at` with
+  an offset is converted to KST, an offset-less one is taken as KST.
+- Contract: `MeasHistWindowRows` (`rows`, `capped`) from the provider;
+  the route wraps it in `MeasHistWindowResponse`.
+- Office data source: one query on both aliases, written in
+  `office_example.py`. Nothing to write at the office. **Re-copy** it: an
+  `office.py` copied before 2026-09-29 lacks the function, and the boot log
+  names it `STALE office.py: meas_hist`.
+- OFFICE-VERIFY: whether msr_check "No" docs keep `start_time`/`end_time`
+  (they fall back to `timestamp` when not), and the real per-hour density.
+
 ## Verify
 
     SKEWNONO_MEAS_HIST_PROVIDER=office .venv/bin/pytest backend/meas_hist

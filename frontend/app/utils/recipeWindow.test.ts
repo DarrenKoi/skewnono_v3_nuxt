@@ -41,3 +41,13 @@ test('an epoch from a time axis turns back into the offset-less wall clock it ca
   const epoch = new Date('2026-09-29T10:05:30').getTime()
   assert.equal(wallClockIso(epoch), '2026-09-29T10:05:30')
 })
+
+test('sorts on the exact distance, rounding only what it shows', () => {
+  // Codex review: rounding first put a run 89 s away ahead of one 31 s away.
+  const rows = recipeWindowRows([
+    row({ timestamp: '2026-09-29T09:58:31Z' }),
+    row({ timestamp: '2026-09-29T10:00:59Z' }),
+    row({ timestamp: '2026-09-29T10:00:31Z' })
+  ], '2026-09-29T10:00:00')
+  assert.deepEqual(rows.map(r => r.row.timestamp), ['2026-09-29T10:00:31Z', '2026-09-29T10:00:59Z', '2026-09-29T09:58:31Z'])
+})

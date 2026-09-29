@@ -29,9 +29,11 @@ const flagsOf = (row: MeasHistRow): RecipeWindowFlag[] => [
 
 export const recipeWindowRows = (rows: MeasHistRow[], at: string): RecipeWindowRow[] => {
   const atEpoch = wallEpoch(at)
+  // Sorted on the exact distance; only the displayed minutes are rounded.
   return rows
-    .map(row => ({ row, offsetMin: Math.round((wallEpoch(row.timestamp) - atEpoch) / 60_000), flags: flagsOf(row) }))
-    .sort((a, b) => Math.abs(a.offsetMin) - Math.abs(b.offsetMin) || a.offsetMin - b.offsetMin)
+    .map(row => ({ row, ms: wallEpoch(row.timestamp) - atEpoch }))
+    .sort((a, b) => Math.abs(a.ms) - Math.abs(b.ms) || a.ms - b.ms)
+    .map(({ row, ms }) => ({ row, offsetMin: Math.round(ms / 60_000), flags: flagsOf(row) }))
 }
 
 export const recipeWindowSummary = (rows: RecipeWindowRow[]) => ({

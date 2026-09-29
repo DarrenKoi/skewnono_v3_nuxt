@@ -51,7 +51,7 @@
           <table class="min-w-full text-left text-xs">
             <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
               <tr>
-                <th class="px-3 py-2 text-right sk-label">
+                <th class="whitespace-nowrap px-3 py-2 text-right sk-label">
                   시각 차
                 </th>
                 <th class="px-3 py-2 sk-label">
@@ -66,7 +66,7 @@
                 <th class="px-3 py-2 sk-label">
                   Align
                 </th>
-                <th class="px-3 py-2 text-right sk-label">
+                <th class="whitespace-nowrap px-3 py-2 text-right sk-label">
                   불량 이미지
                 </th>
                 <th class="px-3 py-2 sk-label">
@@ -81,7 +81,7 @@
                 class="border-t border-(--sk-border-soft)"
                 :class="item.flags.length ? 'bg-(--sk-bad-soft)/50' : ''"
               >
-                <td class="px-3 py-2 text-right sk-value-num">
+                <td class="whitespace-nowrap px-3 py-2 text-right sk-value-num">
                   {{ item.offsetMin > 0 ? '+' : '' }}{{ item.offsetMin }}분
                 </td>
                 <td class="px-3 py-2 sk-value-num whitespace-nowrap">
@@ -90,7 +90,7 @@
                 <td class="px-3 py-2">
                   <NuxtLink
                     :to="recipeLink(item.row)"
-                    class="font-mono text-(--sk-accent) hover:underline"
+                    class="font-mono text-(--sk-ink) underline decoration-(--sk-border) underline-offset-2 hover:decoration-(--sk-ink) focus-visible:decoration-(--sk-ink)"
                   >
                     {{ item.row.full_name }}
                   </NuxtLink>

@@ -102,14 +102,24 @@ const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]!))
 
 // An axis tooltip snaps on x only, so it opens straight below the cursor:
-// moving down into it keeps the same point, and the button stays reachable.
+// moving down into it keeps the same point. ECharts re-positions on every
+// pointer move, so the spot is pinned per point - otherwise the tooltip
+// stays 6 px ahead of a slowly moving pointer and the button is never
+// reached (Codex review).
+let pinned: { key: string, at: number[], fromY: number } | null = null
 const inspectTooltip = computed(() => ({
   ...plainTooltip,
   enterable: true,
   confine: true,
   hideDelay: 400,
-  position: (point: number[], _params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) =>
-    [point[0]! - size.contentSize[0]! / 2, point[1]! + 6],
+  position: (point: number[], params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) => {
+    const key = ((Array.isArray(params) ? params[0] : params)?.name as string | undefined) ?? ''
+    // Held only while the pointer travels from where it opened down into the
+    // tooltip; hovering the same point again from elsewhere re-opens it there.
+    const travelling = pinned?.key === key && point[1]! >= pinned.fromY - 2 && point[1]! <= pinned.at[1]! + size.contentSize[1]!
+    if (!travelling) pinned = { key, at: [point[0]! - size.contentSize[0]! / 2, point[1]! + 6], fromY: point[1]! }
+    return pinned!.at
+  },
   formatter: (params: unknown) => {
     const items = (Array.isArray(params) ? params : [params]) as { seriesIndex: number, name: string, marker: string, seriesName: string, value: [number, number] }[]
     const main = items.find(item => item.seriesIndex === 0)

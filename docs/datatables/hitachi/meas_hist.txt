@@ -227,6 +227,17 @@ Field(mapping) -> Type: 설명
    버킷마다 terms(fab_name.keyword, size 16) sub-agg 를 붙여 얻습니다.
    fab 버킷이 비면 fab_name "" 로 이름을 살립니다 — fab_name 없는 문서가
    실제로 존재하는지는 OFFICE-VERIFY.
+7. 하드웨어 시각 → 측정 recipe (GET /api/meas-hist/window, 2026-09-29):
+   H/W 관리 데일리 탭에서 누른 시각 앞뒤 30분에 start_time~end_time 이
+   겹치는 그 장비의 측정을 찾습니다 (user decision 2026-09-29: 겹침 기준).
+   query 는 term eqp_id.keyword AND (start_time < 끝 AND end_time > 시작,
+   또는 start_time/end_time 중 하나가 없는 문서의 timestamp 가 창 안).
+   경계는 양쪽 모두 strict 입니다. 시각은 offset 없는 KST wall clock 으로
+   보냅니다. size 200, 넘치면 응답의 capped 로 알립니다.
+   - msr_check "No" 문서에 start_time/end_time 이 있는지는 OFFICE-VERIFY
+     입니다 (meastime 은 없음). 없으면 timestamp 로 잡힙니다.
+   - 한 장비가 한 시간에 몇 건을 측정하는지(mock 은 0-3 건) 는
+     OFFICE-VERIFY 입니다.
 
 장비 가동률 — 장비별(eqp_id) 뷰의 임계값을 정할 때 읽어야 하는 절
 
