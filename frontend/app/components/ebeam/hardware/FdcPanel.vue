@@ -60,6 +60,9 @@
       v-else-if="fdcView === 'tool' && activeKey === 'ContactpinConductionInfo'"
       class="overflow-x-auto rounded-xl bg-(--sk-surface) ring-1 ring-(--sk-border-soft)"
     >
+      <p class="px-3 pt-2 sk-meta">
+        행을 누르면 그 시점 앞뒤 30분의 측정 recipe 를 봅니다.
+      </p>
       <table class="min-w-full text-left text-xs">
         <thead class="bg-(--sk-muted-surface) text-(--sk-ink-muted)">
           <tr>
@@ -90,7 +93,11 @@
           <tr
             v-for="(row, i) in contactpinRows"
             :key="i"
-            class="border-t border-(--sk-border-soft)"
+            class="cursor-pointer border-t border-(--sk-border-soft) hover:bg-(--sk-accent-tint) focus-visible:bg-(--sk-accent-tint) focus-visible:outline-none"
+            tabindex="0"
+            :aria-label="`${row.ts} ${row.channel} ${row.judgment} — 이 시점 측정 recipe 보기`"
+            @click="emit('inspect-time', row.ts)"
+            @keydown.enter="emit('inspect-time', row.ts)"
           >
             <td class="px-3 py-2 sk-value-num">
               {{ row.ts }}
@@ -192,7 +199,7 @@
         <span
           v-if="activeKey === 'TemperatureEChuck'"
           class="sk-meta"
-        >pos 3 은 pos 1 과 같은 값이라 표시하지 않습니다.</span>
+        >pos 3 은 pos 1 과 같은 값이라 표시하지 않습니다 · 차트를 누르면 그 시점 앞뒤 30분의 측정 recipe 를 봅니다.</span>
       </div>
       <div
         ref="chartEl"
@@ -210,6 +217,7 @@ import {
   type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue
 } from '~/utils/fdcValues'
 import { formatFixed } from '~/utils/recipeView'
+import { wallClockIso } from '~/utils/recipeWindow'
 import { stableYRange, tightYRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 import type { FdcFleet } from '~/composables/useHardwareApi'
@@ -222,6 +230,9 @@ const props = defineProps<{
   fleetPending: boolean
   selectedEqp: string
 }>()
+
+// A timestamp the reader wants the measured recipes for (offset-less KST).
+const emit = defineEmits<{ 'inspect-time': [at: string] }>()
 
 const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
 const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'fab 전체' }] as const
@@ -493,5 +504,11 @@ const chartOption = computed<EChartsOption>(() => {
   }
 })
 
-useEchart(chartEl, chartOption)
+// Temperature: a click anywhere in the plot asks for the recipes measured
+// around that moment (the time under the cursor, not a hit on a line).
+useEchart(chartEl, chartOption, {
+  onGridClick: ({ x }) => {
+    if (activeKey.value === 'TemperatureEChuck' && Number.isFinite(x)) emit('inspect-time', wallClockIso(x))
+  }
+})
 </script>

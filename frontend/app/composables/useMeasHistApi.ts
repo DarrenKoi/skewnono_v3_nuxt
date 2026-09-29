@@ -100,6 +100,18 @@ export interface MeasHistSearchResponse {
   rows: MeasHistRow[]
 }
 
+/** Measurements of one tool whose start-end span overlaps `at` +-30 min.
+ * All three times are offset-less KST wall clock. */
+export interface MeasHistWindowResponse {
+  eqp_id: string
+  at: string
+  start: string
+  end: string
+  rows: MeasHistRow[]
+  /** More measurements matched than were returned. */
+  capped: boolean
+}
+
 const inFlight = new Map<string, Promise<MeasHistResponse>>()
 
 export const useMeasHistApi = () => {
@@ -133,6 +145,9 @@ export const useMeasHistApi = () => {
     return await request
   }
 
+  const fetchMeasHistWindow = (eqpId: string, at: string): Promise<MeasHistWindowResponse> =>
+    $fetch<MeasHistWindowResponse>(joinApiPath(base, '/meas-hist/window'), { query: { eqp_id: eqpId, at } })
+
   const searchMeasHist = async (params: MeasHistSearchParams): Promise<MeasHistSearchResponse> => {
     // Repeated params (?eq=A&eq=B) are how a field ORs its values.
     const query: Record<string, string | string[] | number> = {}
@@ -155,5 +170,5 @@ export const useMeasHistApi = () => {
       query: toolType ? { tool_type: toolType } : undefined
     })
 
-  return { fetchMeasHist, searchMeasHist, fetchMeasHistFacets }
+  return { fetchMeasHist, fetchMeasHistWindow, searchMeasHist, fetchMeasHistFacets }
 }

@@ -65,7 +65,9 @@
         :selected="selectedTs"
         :events="maintenanceEvents"
         :y-options="TREND_Y_OPTIONS"
+        inspect-label="이 시점 측정 recipe 보기"
         @select="selectedTs = $event"
+        @inspect="emit('inspect-time', $event)"
       />
     </div>
 
@@ -133,6 +135,8 @@ const props = defineProps<{
   docs: Record<string, unknown>[]
   maintenanceEvents?: BmPmEvent[]
 }>()
+// A measurement time the reader asked the recipes for, from the trend tooltip.
+const emit = defineEmits<{ 'inspect-time': [at: string] }>()
 
 // The three per-degree fields (dicts keyed "0.0".."337.5"), all shown at once:
 // reso_eb and noise read well as radar shapes; reso_detector's tiny magnitudes

@@ -11,10 +11,13 @@
     >
       추세 데이터가 없습니다.
     </div>
+    <!-- The click listener only serves the tooltip's inspect button, which
+         ECharts renders inside this element; canvas clicks fall through. -->
     <div
       v-else
       ref="chartEl"
       class="h-72 w-full"
+      @click="onTooltipClick"
     />
   </div>
 </template>
@@ -42,9 +45,13 @@ const props = defineProps<{
   // Optional comparison tools drawn as thin extra lines (empty/omitted → the
   // chart stays single-series, so BsmPanel/SharpnessPanel are unaffected).
   overlays?: { name: string, points: { ts: string, value: number }[], color?: string }[]
+  // Adds a button to the tooltip that emits `inspect` with the hovered point's
+  // key, so the reader decides whether to open a detail (Sharpness → recipes
+  // measured around that time). Off → the plain tooltip.
+  inspectLabel?: string
 }>()
 
-const emit = defineEmits<{ select: [key: string] }>()
+const emit = defineEmits<{ select: [key: string], inspect: [key: string] }>()
 
 const chartEl = ref<HTMLDivElement | null>(null)
 const { palette } = useEchartsTheme()
@@ -85,13 +92,44 @@ const yValues = computed(() => [
   ...overlays.value.flatMap(o => o.points.map(p => p.value))
 ])
 
+const plainTooltip = {
+  trigger: 'axis' as const,
+  axisPointer: { type: 'line' as const },
+  valueFormatter: (v: unknown) => (typeof v === 'number' ? v.toFixed(4) : String(v))
+}
+
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]!))
+
+// An axis tooltip snaps on x only, so it opens straight below the cursor:
+// moving down into it keeps the same point, and the button stays reachable.
+const inspectTooltip = computed(() => ({
+  ...plainTooltip,
+  enterable: true,
+  confine: true,
+  hideDelay: 400,
+  position: (point: number[], _params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) =>
+    [point[0]! - size.contentSize[0]! / 2, point[1]! + 6],
+  formatter: (params: unknown) => {
+    const items = (Array.isArray(params) ? params : [params]) as { seriesIndex: number, name: string, marker: string, seriesName: string, value: [number, number] }[]
+    const main = items.find(item => item.seriesIndex === 0)
+    const lines = items.map(item =>
+      `${item.marker}${escapeHtml(item.seriesName && hasOverlays.value ? `${item.seriesName} ` : '')}<b>${item.value[1].toFixed(4)}</b>`)
+    const button = main
+      ? `<button type="button" data-inspect-key="${escapeHtml(main.name)}" style="margin-top:6px;padding:2px 8px;border-radius:6px;border:1px solid var(--sk-border);background:var(--sk-surface);color:var(--sk-ink);font-size:11px;cursor:pointer">${escapeHtml(props.inspectLabel!)}</button>`
+      : ''
+    return `${formatTime(items[0]?.value[0] ?? '')}<br/>${lines.join('<br/>')}<br/>${button}`
+  }
+}))
+
+const onTooltipClick = (event: MouseEvent) => {
+  const key = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-inspect-key]')?.dataset.inspectKey
+  if (key) emit('inspect', key)
+}
+
 const chartOption = computed<EChartsOption>(() => ({
   grid: { left: 56, right: 16, top: hasOverlays.value ? 28 : 16, bottom: 56 },
-  tooltip: {
-    trigger: 'axis',
-    axisPointer: { type: 'line' },
-    valueFormatter: v => (typeof v === 'number' ? v.toFixed(4) : String(v))
-  },
+  tooltip: props.inspectLabel ? inspectTooltip.value : plainTooltip,
   ...(hasOverlays.value ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
   xAxis: { type: 'time', axisLabel: { fontSize: 10, formatter: formatTime } },
   yAxis: {

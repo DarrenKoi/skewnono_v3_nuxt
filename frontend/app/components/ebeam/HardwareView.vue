@@ -277,6 +277,14 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
   }
 )
 
+// ---- Recipes measured around a clicked hardware time (데일리 tabs) ----
+// null = closed. Cleared when the tool, tab or window changes: the answer
+// would describe a moment the page no longer shows.
+const inspectAt = ref<string | null>(null)
+watch([() => selectedTool.value?.eqp_id, activeService, windowStart, windowEnd], () => {
+  inspectAt.value = null
+})
+
 // ---- BM/PM overlay (spec Part B) ----
 // Tabs whose charts have a time x-axis; the toggle only shows there.
 const OVERLAY_SERVICES: HardwareServiceKey[] = ['bsm', 'reso-center', 'mdc', 'fdc', 'sharpness', 'sce']
@@ -594,6 +602,13 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
       <!-- Service detail — gated on the model (DESIGN.md §Layout, scope-bar
            rule): until one is picked there is no tool, and the results name
            the missing choice instead of showing a tool nobody chose. -->
+      <EbeamHardwareRecipeWindowSlideover
+        v-if="selectedTool"
+        :tool-type="toolType"
+        :eqp-id="selectedTool.eqp_id"
+        :at="inspectAt"
+        @close="inspectAt = null"
+      />
       <AppEmptyState
         v-if="!modelPicked"
         title="모델을 선택하세요."
@@ -743,6 +758,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 :fleet="fdcFleetError ? null : fdcFleetPayload?.fleet ?? null"
                 :fleet-pending="fdcFleetPending"
                 :selected-eqp="selectedTool?.eqp_id ?? ''"
+                @inspect-time="inspectAt = $event"
               />
 
               <!-- Sharpness: chamber-stub beam quality — condition filter + summ_beam trends + per-degree radars -->
@@ -750,6 +766,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 v-else-if="activeService === 'sharpness'"
                 :docs="servicePayload.docs ?? []"
                 :maintenance-events="overlayEvents"
+                @inspect-time="inspectAt = $event"
               />
 
               <!-- MDC: 시계열 (trajectory + per-axis trends) / 비교 sub-tabs -->
