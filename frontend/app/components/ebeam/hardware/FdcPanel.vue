@@ -162,14 +162,20 @@
       />
     </div>
 
-    <!-- LaserPower → stable x1/y1 signals against baseline -->
+    <!-- LaserPower → x1/y1 outliers against the median -->
     <div
       v-else-if="fdcView === 'tool' && activeKey === 'LaserPower'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
       <div class="mb-2 px-1 sk-title">
-        LaserPower · 기준선 대비 %
+        LaserPower · 중앙값 대비 이상치 %
       </div>
+      <p class="mb-2 px-1 sk-meta">
+        정상 범위(중앙값 ± {{ LASER_OUTLIER_SIGMA }}σ, MAD 추정) 안의 점은 숨기고 벗어난 점만 표시합니다 ·
+        x1 이상치 {{ laserStats.x1.points.length }} / 전체 {{ laserStats.x1.total }},
+        y1 이상치 {{ laserStats.y1.points.length }} / 전체 {{ laserStats.y1.total }} (유효값 기준)
+        <span v-if="laserStats.x1.baseline === 0 || laserStats.y1.baseline === 0"> · 중앙값이 0인 채널은 편차 %를 계산할 수 없습니다.</span>
+      </p>
       <div
         ref="chartEl"
         class="h-[26rem] w-full"
@@ -207,6 +213,7 @@ import { formatFixed } from '~/utils/recipeView'
 import { stableYRange, tightYRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 import type { FdcFleet } from '~/composables/useHardwareApi'
+import { laserOutliers, LASER_OUTLIER_SIGMA, type LaserRow } from '~/utils/fdcLaser'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
@@ -354,9 +361,7 @@ const spmTrendOption = computed<EChartsOption>(() => ({
 }))
 useEchart(spmTrendEl, spmTrendOption, { onGridClick: ({ x }) => pickSpmCycleAt(x) })
 
-// --- LaserPower: stable x1/y1 baseline deviation ---
-type LaserCh = 'x1' | 'y1'
-interface LaserRow { ts: string, epoch: number, x1: number, y1: number }
+// --- LaserPower: x1/y1 outliers against a robust baseline ---
 const laserRows = computed<LaserRow[]>(() =>
   activeDocs.value.map((d) => {
     const p = parseFdcValues(valuesOf(d))
@@ -365,26 +370,49 @@ const laserRows = computed<LaserRow[]>(() =>
   })
 )
 
-// Deviation %: each stable channel normalized to its first finite sample.
+const laserStats = computed(() => ({
+  x1: laserOutliers(laserRows.value, 'x1'),
+  y1: laserOutliers(laserRows.value, 'y1')
+}))
+
 const laserDeviationOption = (): EChartsOption => {
-  const rows = laserRows.value
-  const pct = (k: LaserCh) => {
-    const base = rows.map(r => r[k]).find(Number.isFinite)
-    return rows.map(r => ({
-      name: r.ts,
-      value: [r.epoch, Number.isFinite(r[k]) && base ? (r[k] / base - 1) * 100 : NaN]
-    }))
-  }
+  const { x1, y1 } = laserStats.value
+  const times = laserRows.value.map(r => r.epoch).filter(Number.isFinite)
+  // Keep the full time window and normal bands visible even without outliers.
+  const bandLo = Math.min(x1.band?.lo ?? 0, y1.band?.lo ?? 0)
+  const bandHi = Math.max(x1.band?.hi ?? 0, y1.band?.hi ?? 0)
   return {
     grid: { left: 52, right: 18, top: 28, bottom: 56 },
-    tooltip: { trigger: 'axis', valueFormatter: v => Number.isFinite(v as number) ? `${(v as number).toFixed(2)}%` : '-' },
+    tooltip: {
+      trigger: 'item', renderMode: 'richText',
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params
+        const pct = p && Array.isArray(p.value) ? p.value[1] : null
+        return p && typeof pct === 'number' ? `${p.name}\n${p.seriesName}: ${pct.toFixed(2)}%` : ''
+      }
+    },
     legend: { top: 2, textStyle: { fontSize: 10 } },
-    xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '% vs baseline', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10, formatter: '{value}%' }, scale: true, splitLine: { show: false } },
+    xAxis: { type: 'time', min: times[0], max: times[times.length - 1], axisLabel: { fontSize: 10 } },
+    yAxis: {
+      type: 'value', name: '중앙값 대비 %', nameTextStyle: { fontSize: 10 },
+      axisLabel: { fontSize: 10, formatter: '{value}%' }, scale: true, splitLine: { show: false },
+      min: extent => Math.min(Number.isFinite(extent.min) ? extent.min : 0, bandLo),
+      max: extent => Math.max(Number.isFinite(extent.max) ? extent.max : 0, bandHi)
+    },
     dataZoom: sliderZoom(),
     series: [
-      { name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value }, data: pct('x1'), markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] } },
-      { name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value }, data: pct('y1'), markLine: maintenanceMarkLine.value }
+      {
+        name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value },
+        data: x1.points.map(p => ({ name: p.ts, value: [p.epoch, p.deviation] })),
+        markArea: { silent: true, itemStyle: { color: c0.value, opacity: 0.08 }, data: x1.band ? [[{ yAxis: x1.band.lo }, { yAxis: x1.band.hi }]] : [] },
+        markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] }
+      },
+      {
+        name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value },
+        data: y1.points.map(p => ({ name: p.ts, value: [p.epoch, p.deviation] })),
+        markArea: { silent: true, itemStyle: { color: c1.value, opacity: 0.08 }, data: y1.band ? [[{ yAxis: y1.band.lo }, { yAxis: y1.band.hi }]] : [] },
+        markLine: maintenanceMarkLine.value
+      }
     ]
   }
 }
