@@ -3,7 +3,6 @@ import type { SemListRow } from '~/composables/useSemListApi'
 import type { HardwareMetricTone, HardwareMetricValue, HardwarePayload, HardwareServiceKey, HardwareToolType } from '~/composables/useHardwareApi'
 import type { MetaBarStat } from '~/components/ebeam/MetaBar.vue'
 import { parseBmPmEvents, type BmPmEvent } from '~/utils/bmPmMarkers'
-import { getLocalTimeZone, today } from '@internationalized/date'
 
 const props = defineProps<{
   fabs: string[]
@@ -69,9 +68,7 @@ const WINDOW_PRESETS: Record<HardwareCategory, { label: string, days: number }[]
   데일리: [{ label: '2주', days: 14 }, { label: '3주', days: 21 }, { label: '4주', days: 28 }],
   분기: [{ label: '30일', days: 30 }, { label: '60일', days: 60 }, { label: '90일', days: 90 }]
 }
-const todayIso = () => today(getLocalTimeZone()).toString()
-const lastDays = (days: number): DayRange =>
-  ({ start: today(getLocalTimeZone()).subtract({ days }).toString(), end: todayIso() })
+const lastDays = (days: number): DayRange => ({ start: shiftIsoDate(todayStamp(), days), end: todayStamp() })
 const linkedWindow = qp('start') && qp('end') ? { start: qp('start').slice(0, 10), end: qp('end').slice(0, 10) } : null
 const windows = reactive<Record<HardwareCategory, DayRange>>({
   데일리: linkedWindow ?? lastDays(14),
@@ -308,7 +305,9 @@ const { data: bmPmPayload } = await useAsyncData<HardwarePayload | null>(
       end: windowEnd.value
     })
   },
-  { watch: [() => props.toolType, fabsKey, () => selectedTool.value?.eqp_id, windowStart, windowEnd] }
+  // BM/PM reads only `end`, so a start-only change (switching 데일리/분기, a
+  // preset keeping today) must not refetch it.
+  { watch: [() => props.toolType, fabsKey, () => selectedTool.value?.eqp_id, windowEnd] }
 )
 
 const { data: fdcFleetPayload, pending: fdcFleetPending, error: fdcFleetError } = await useAsyncData<HardwarePayload | null>(
@@ -653,7 +652,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
               <EbeamDateRangePopover
                 v-model="activeWindow"
                 :presets="windowPresets"
-                :anchor-date="todayIso()"
+                :anchor-date="todayStamp()"
               />
             </div>
             <!-- BM/PM 수직 마커 오버레이 on/off — 시간축 차트가 있는 탭에서만 -->

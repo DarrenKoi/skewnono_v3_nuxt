@@ -104,10 +104,6 @@ const SYMBOLS: Record<ParaKey, string> = {
   para_5: 'diamond'
 }
 
-const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => (
-  c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;'
-))
-
 const formatTooltip = (raw: TopLevelFormatterParams) => {
   const arr = Array.isArray(raw) ? raw : [raw]
   if (arr.length === 0) return ''

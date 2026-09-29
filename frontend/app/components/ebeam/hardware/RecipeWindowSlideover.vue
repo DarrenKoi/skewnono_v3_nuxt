@@ -17,7 +17,7 @@
         v-else-if="error"
         class="sk-body text-(--sk-bad)"
       >
-        측정 이력 요청 실패: {{ error }}
+        측정 이력 요청 실패: {{ error.message }}
       </div>
       <div
         v-else-if="!rows.length"
@@ -128,7 +128,7 @@
 <script setup lang="ts">
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { HardwareToolType } from '~/composables/useHardwareApi'
-import { recipeWindowRows, recipeWindowSummary, RECIPE_WINDOW_FAIL_RATIO, type RecipeWindowRow } from '~/utils/recipeWindow'
+import { recipeWindowRows, recipeWindowSummary, RECIPE_WINDOW_FAIL_RATIO } from '~/utils/recipeWindow'
 import { recipeDetailRoute } from '~/utils/recipeView'
 
 // Which recipes ran on the tool around a hardware timestamp (user request
@@ -143,33 +143,14 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const { fetchMeasHistWindow } = useMeasHistApi()
-const rows = ref<RecipeWindowRow[]>([])
-const capped = ref(false)
-const pending = ref(false)
-const error = ref('')
-
-// A click on another point while one request is still in flight must not be
-// overwritten by the older answer.
-let request = 0
-watch(() => [props.eqpId, props.at] as const, async ([eqpId, at]) => {
-  const id = ++request
-  rows.value = []
-  capped.value = false
-  error.value = ''
-  if (!at || !eqpId) return
-  pending.value = true
-  try {
-    const response = await fetchMeasHistWindow(eqpId, at)
-    if (id === request) {
-      rows.value = recipeWindowRows(response.rows, response.at)
-      capped.value = response.capped
-    }
-  } catch (err) {
-    if (id === request) error.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    if (id === request) pending.value = false
-  }
-}, { immediate: true })
+// Keyed on tool + time: a newer click switches the key, so an older answer
+// never lands on it, and reopening a seen time is served from the cache.
+const { data, pending, error } = await useAsyncData(
+  () => `meas-hist-window:${props.eqpId}:${props.at ?? ''}`,
+  () => (props.at ? fetchMeasHistWindow(props.eqpId, props.at) : Promise.resolve(null))
+)
+const rows = computed(() => (data.value ? recipeWindowRows(data.value.rows, data.value.at) : []))
+const capped = computed(() => data.value?.capped ?? false)
 
 const summary = computed(() => recipeWindowSummary(rows.value))
 const failureChips = computed(() => [
@@ -178,7 +159,7 @@ const failureChips = computed(() => [
   { label: 'Raw 없음', count: summary.value.msr }
 ])
 
-const clock = (value: string) => value.replace('Z', '').slice(11, 16)
+const clock = (value: string) => value.slice(11, 16)
 // The detail screens need the class-qualified name AND the measurement's fab.
 const recipeLink = (row: MeasHistRow) =>
   recipeDetailRoute(props.toolType, row.fab_name, 'meas-hist', row.full_name, 'redis', row.fab_name)

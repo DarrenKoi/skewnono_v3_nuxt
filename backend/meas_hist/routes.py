@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from flask import Blueprint, jsonify, request
 
-from backend._core.request_args import resolve_fab_name
+from backend._core.request_args import parse_kst_wall, resolve_fab_name
 from backend.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
+from backend.meas_hist.contracts import MeasHistWindowResponse
 from backend.meas_hist.data import (
     DEFAULT_LIMIT,
     ToolType,
@@ -98,33 +99,19 @@ def meas_hist_facets():
 # The hardware tabs ask which recipes ran around a clicked time (user decision
 # 2026-09-29: +-30 min, a measurement counts when its span overlaps).
 _WINDOW_HALF = timedelta(minutes=30)
-_KST = timezone(timedelta(hours=9))
-
-
-def _kst_wall(raw: str) -> datetime | None:
-    """An ISO time as a naive KST wall clock. Offset-less input already is one
-    (the hardware timestamps); an offset is an instant and is converted, never
-    stripped, or the window slides nine hours."""
-    try:
-        parsed = datetime.fromisoformat(raw.strip())
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo is None else parsed.astimezone(_KST).replace(tzinfo=None)
 
 
 @bp.get("/meas-hist/window")
 def meas_hist_window():
     eqp_id = (request.args.get("eqp_id") or "").strip()
-    at = _kst_wall(request.args.get("at") or "")
+    at = parse_kst_wall(request.args.get("at"))
     if not eqp_id or at is None:
         return jsonify({"error": "eqp_id and an ISO `at` are required"}), 400
     start, end = at - _WINDOW_HALF, at + _WINDOW_HALF
-    found = find_meas_hist_in_window(eqp_id, start, end)
-    return jsonify({
-        "eqp_id": eqp_id,
-        "at": at.isoformat(timespec="seconds"),
-        "start": start.isoformat(timespec="seconds"),
-        "end": end.isoformat(timespec="seconds"),
-        "rows": found["rows"],
-        "capped": found["capped"],
-    })
+    return jsonify(MeasHistWindowResponse(
+        eqp_id=eqp_id,
+        at=at.isoformat(timespec="seconds"),
+        start=start.isoformat(timespec="seconds"),
+        end=end.isoformat(timespec="seconds"),
+        **find_meas_hist_in_window(eqp_id, start, end),
+    ))

@@ -1,3 +1,5 @@
+import { escapeHtml } from './html.ts'
+
 // Pure: turn BM/PM history rows into an ECharts markLine fragment — vertical
 // dashed lines at each job start on any time-x-axis trend chart. BM/PM colors
 // mirror the category chips on the BM/PM tab (rose = BM, emerald = PM).
@@ -58,9 +60,6 @@ export const parseBmPmEvents = (tables: TableSectionLike[]): BmPmEvent[] => {
 }
 
 const toEpoch = (ts: string) => new Date(ts.replace(' ', 'T')).getTime()
-
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 export const bmPmMarkLine = (
   events: BmPmEvent[],

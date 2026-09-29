@@ -813,4 +813,4 @@ def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> Mea
 
 
 def _wall(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "")).replace(tzinfo=None)
+    return datetime.fromisoformat(value.replace("Z", ""))

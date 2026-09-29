@@ -76,12 +76,14 @@ export const parseFdcValues = (values: unknown[]): FdcParsed => {
   return { key, data: null }
 }
 
-export const contactpinState = (judgment: string): 'ok' | 'warn' | 'bad' | 'unknown' => {
-  if (judgment === 'Conduction') return 'ok'
-  if (judgment === 'UnstableConduction') return 'warn'
-  if (judgment === 'NotConduction') return 'bad'
-  return 'unknown'
-}
+// The stored Contactpin verdicts by state (office 확인 2026-09-28; 'Not', not
+// 'Non': user-confirmed 2026-09-29). The one place they are spelled: a wrong
+// string fails silently, so every reader goes through this map.
+export const CONTACTPIN_JUDGMENT = { ok: 'Conduction', warn: 'UnstableConduction', bad: 'NotConduction' } as const
+export type ContactpinState = keyof typeof CONTACTPIN_JUDGMENT
+
+export const contactpinState = (judgment: string): ContactpinState | 'unknown' =>
+  (Object.keys(CONTACTPIN_JUDGMENT) as ContactpinState[]).find(state => CONTACTPIN_JUDGMENT[state] === judgment) ?? 'unknown'
 
 // Raw-doc accessors shared with FdcPanel, so the doc shape is read in one place.
 export const fdcDocValues = (doc: Record<string, unknown>): unknown[] => Array.isArray(doc.values) ? doc.values : []

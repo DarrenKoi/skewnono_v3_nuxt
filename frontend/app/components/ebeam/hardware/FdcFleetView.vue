@@ -171,6 +171,7 @@ import type { FdcFleet } from '~/composables/useHardwareApi'
 import { formatFixed } from '~/utils/recipeView'
 import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
 import { fdcFleetHeatmap, fdcFleetLaserRows, fdcFleetPinRows, fdcFleetHistogram, fdcFleetCounterRows } from '~/utils/fdcFleet'
+import { CONTACTPIN_JUDGMENT } from '~/utils/fdcValues'
 
 const props = defineProps<{ fleet: FdcFleet | null, pending: boolean, selectedEqp: string }>()
 const { palette, surface } = useEchartsTheme()
@@ -230,14 +231,14 @@ const pinOption = computed<EChartsOption>(() => ({
     formatter: (params: unknown) => {
       const entries = params as { dataIndex: number }[]
       const row = pinRows.value[entries[0]?.dataIndex ?? -1]
-      return row ? `${row.eqpId}\nConduction: ${row.ok}\nUnstableConduction: ${row.warn}\nNotConduction: ${row.bad}` : ''
+      return row ? `${row.eqpId}\n${CONTACTPIN_JUDGMENT.ok}: ${row.ok}\n${CONTACTPIN_JUDGMENT.warn}: ${row.warn}\n${CONTACTPIN_JUDGMENT.bad}: ${row.bad}` : ''
     }
   },
   legend: { top: 0 },
   xAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%' } },
   yAxis: { type: 'category', data: pinRows.value.map(row => row.eqpId), inverse: true, axisLabel: labelStyle.value },
   series: ([
-    ['Conduction', 'ok'], ['UnstableConduction', 'warn'], ['NotConduction', 'bad']
+    [CONTACTPIN_JUDGMENT.ok, 'ok'], [CONTACTPIN_JUDGMENT.warn, 'warn'], [CONTACTPIN_JUDGMENT.bad, 'bad']
   ] as const).map(([name, key]) => ({
     name, type: 'bar' as const, stack: 'total', barMaxWidth: 18,
     itemStyle: { color: colors.value[key] },

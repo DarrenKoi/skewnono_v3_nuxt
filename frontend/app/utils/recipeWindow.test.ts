@@ -34,7 +34,7 @@ test('summary counts measurements, distinct recipes and each failure kind', () =
     row({ full_name: 'CLS/R1' }),
     row({ full_name: 'CLS/R2', msr_check: 'No' })
   ], '2026-09-29T10:00:00'))
-  assert.deepEqual(summary, { total: 3, recipes: 2, align: 1, msr: 1, images: 1, flagged: 2 })
+  assert.deepEqual(summary, { total: 3, recipes: 2, align: 1, msr: 1, images: 1 })
 })
 
 test('an epoch from a time axis turns back into the offset-less wall clock it came from', () => {

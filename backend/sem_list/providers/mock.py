@@ -213,9 +213,8 @@ def _cg5000_rows(taken: set[str], now: datetime, seed: int = 44) -> list[SemList
     rng = random.Random(seed)
     rows: list[SemListRow] = []
     for fac_id, fab_name in _CG5000_FABS:
-        eqp_id = f"{rng.choice(CDSEM_EQP_PREFIXES)}{rng.randint(100, 999)}"
-        while eqp_id in taken:
-            eqp_id = f"{rng.choice(CDSEM_EQP_PREFIXES)}{rng.randint(100, 999)}"
+        while (eqp_id := f"{rng.choice(CDSEM_EQP_PREFIXES)}{rng.randint(100, 999)}") in taken:
+            pass
         taken.add(eqp_id)
         ip_prefix = "177" if rng.random() < 0.5 else "197"
         rows.append(SemListRow(

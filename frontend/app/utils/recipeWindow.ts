@@ -1,4 +1,5 @@
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
+import { formatDateTimeInput } from './dateTime.ts'
 
 // Pure: the measurements around one hardware timestamp, as the recipe-window
 // popup lists them. Both sides are KST wall clock: hardware timestamps are
@@ -41,14 +42,12 @@ export const recipeWindowSummary = (rows: RecipeWindowRow[]) => ({
   recipes: new Set(rows.map(r => r.row.full_name)).size,
   align: rows.filter(r => r.flags.includes('align')).length,
   msr: rows.filter(r => r.flags.includes('msr')).length,
-  images: rows.filter(r => r.flags.includes('images')).length,
-  flagged: rows.filter(r => r.flags.length).length
+  images: rows.filter(r => r.flags.includes('images')).length
 })
 
 /** An epoch read off a chart's time axis, back to the offset-less wall clock
  * it was parsed from (the browser's local zone, KST at the office). */
 export const wallClockIso = (epoch: number): string => {
   const d = new Date(epoch)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${formatDateTimeInput(d)}:${String(d.getSeconds()).padStart(2, '0')}`
 }

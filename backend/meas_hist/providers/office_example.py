@@ -473,9 +473,7 @@ def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> Mea
         "track_total_hits": True,
     }
     result = _os_search(_ALL_INDICES).search_raw(body)
-    total = result.get("hits", {}).get("total", {})
-    matched = total.get("value", 0) if isinstance(total, dict) else int(total or 0)
-    return MeasHistWindowRows(rows=_rows(result, None), capped=matched > _WINDOW_SIZE)
+    return MeasHistWindowRows(rows=_rows(result, None), capped=_total(result) > _WINDOW_SIZE)
 
 
 def search_meas_hist(

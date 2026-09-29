@@ -1,3 +1,5 @@
+import { escapeHtml } from './html.ts'
+
 // Minimal, dependency-free markdown for assistant chat replies.
 //
 // Inline: fenced code, inline code, bold, http(s) links. Block (added
@@ -11,13 +13,6 @@
 // <strong>, <a> (http/https links only), <h2>-<h4>, <ul>/<ol>/<li>,
 // <table>/<thead>/<tbody>/<tr>/<th>/<td>, <div> and <br>. There is no path
 // for source text to reach the DOM as markup, so the result is safe for v-html.
-
-const escapeHtml = (s: string): string =>
-  s.replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 
 // Inline transforms applied to already-escaped, non-code text.
 const renderInline = (escaped: string): string =>

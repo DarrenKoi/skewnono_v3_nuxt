@@ -98,9 +98,6 @@ const plainTooltip = {
   valueFormatter: (v: unknown) => (typeof v === 'number' ? v.toFixed(4) : String(v))
 }
 
-const escapeHtml = (text: string) =>
-  text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]!))
-
 // An axis tooltip snaps on x only, so it opens straight below the cursor:
 // moving down into it keeps the same point. ECharts re-positions on every
 // pointer move, so the spot is pinned per point - otherwise the tooltip
