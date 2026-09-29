@@ -72,6 +72,7 @@ const formatTime = (value: number | string) => {
   const mi = String(d.getMinutes()).padStart(2, '0')
   return `${mm}/${dd} ${hh}:${mi}`
 }
+const zoomFloor = computed(() => (props.dateOnly ? { minValueSpan: 2 * 24 * 3600 * 1000 } : {}))
 const formatAxisTime = (value: number | string) =>
   props.dateOnly ? formatTime(value).slice(0, 5) : formatTime(value)
 
@@ -144,9 +145,13 @@ const chartOption = computed<EChartsOption>(() => ({
     // behind the series, where they read as data. Vertical (time) lines stay.
     splitLine: { show: false }
   },
+  // dateOnly: a zoom window under a day makes ECharts ignore minInterval and
+  // tick hourly, and every hourly tick would print the same MM/DD — so the
+  // zoom stops at two days. (Data spanning under a day still repeats; MDC
+  // history spans weeks, so that is left alone.)
   dataZoom: [
-    { type: 'inside', start: 0, end: 100 },
-    { type: 'slider', start: 0, end: 100, height: 16, bottom: 12 }
+    { type: 'inside', start: 0, end: 100, ...zoomFloor.value },
+    { type: 'slider', start: 0, end: 100, height: 16, bottom: 12, ...zoomFloor.value }
   ],
   series: [
     {

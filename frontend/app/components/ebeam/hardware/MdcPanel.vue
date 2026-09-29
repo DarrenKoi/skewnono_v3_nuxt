@@ -119,13 +119,25 @@
           />
         </div>
 
-        <!-- clicked condition → every tool's value for it -->
+        <!-- clicked condition → every tool's value for it. The chips are the
+             keyboard path to the same selection a box click makes. -->
         <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+          <div class="mb-2 flex flex-wrap items-center gap-1.5 px-1">
+            <SkChip
+              v-for="cond in conditions"
+              :key="cond"
+              size="sm"
+              :active="cond === activeCond"
+              @click="activeCond = cond"
+            >
+              {{ cond }}
+            </SkChip>
+          </div>
           <div
             v-if="!activeRow"
             class="px-4 py-6 text-center sk-body"
           >
-            박스를 클릭하면 해당 조건의 장비별 값이 표시됩니다.
+            박스나 조건을 클릭하면 해당 조건의 장비별 값이 표시됩니다.
           </div>
           <template v-else>
             <div class="mb-1 flex items-center justify-between px-1">
@@ -338,7 +350,8 @@ watch(conditions, (conds) => {
 const compareBoxSeries = computed(() => compareBoxPoints(props.settings, compareIds.value, conditions.value))
 
 const boxEl = ref<HTMLDivElement | null>(null)
-const fmtVal = (v: number) => v.toFixed(4)
+// MDC values are stored to 6 decimals; 4 printed 1.004984 and 1.005000 alike.
+const fmtVal = (v: number) => v.toFixed(6)
 const boxOption = computed<EChartsOption>(() => ({
   grid: { left: 64, right: 16, top: compareIds.value.length ? 28 : 24, bottom: 48 },
   ...(compareIds.value.length ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
