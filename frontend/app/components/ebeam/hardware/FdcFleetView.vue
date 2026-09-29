@@ -3,7 +3,7 @@
     v-if="pending"
     class="rounded-[var(--sk-r-card)] bg-(--sk-muted-surface) px-4 py-6 text-center sk-body"
   >
-    fab 전체 FDC 집계를 불러오는 중...
+    Fab 전체 FDC 집계를 불러오는 중...
   </div>
   <div
     v-else-if="fleet"
@@ -12,17 +12,44 @@
     <section class="dashboard-surface">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h3 class="sk-title">
-          Chuck 온도 · fab 비교
+          Chuck 온도 · Fab 비교
         </h3>
-        <span class="sk-meta">선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong></span>
+        <div class="flex items-center gap-3">
+          <div
+            role="tablist"
+            aria-label="Chuck 온도 차트"
+            class="flex overflow-hidden rounded-[var(--sk-r-nav)] border border-(--sk-border)"
+          >
+            <SkNavPill
+              v-for="option in TEMP_CHART_OPTIONS"
+              :key="option.key"
+              role="tab"
+              :aria-selected="tempChart === option.key"
+              :active="tempChart === option.key"
+              :label="option.label"
+              size="sm"
+              class="!rounded-none !border-0"
+              @click="tempChart = option.key"
+            />
+          </div>
+          <span class="sk-meta">선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong></span>
+        </div>
       </div>
       <p class="mt-1 sk-meta">
-        장비 간 편차가 장비 내 noise 의 15배라 fab 비교가 의미 있습니다 (office 확인 2026-09-28).
+        장비 간 편차가 장비 내 noise 의 15배라 Fab 비교가 의미 있습니다 (office 확인 2026-09-28).
+        <template v-if="tempChart === 'line'">
+          범례에서 장비를 눌러 켜고 끌 수 있습니다.
+        </template>
       </p>
       <div
-        v-if="heatmap.points.length"
+        v-if="heatmap.points.length && tempChart === 'heatmap'"
         ref="heatmapEl"
         class="mt-2 h-80 w-full"
+      />
+      <div
+        v-else-if="heatmap.points.length"
+        ref="tempLineEl"
+        class="mt-2 h-96 w-full"
       />
       <p
         v-else
@@ -85,7 +112,7 @@
         <h3 class="sk-title">
           Contactpin margin 분포
         </h3>
-        <span class="sk-meta">선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong> · fab 전체 합산</span>
+        <span class="sk-meta">선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong> · Fab 전체 합산</span>
       </div>
       <p class="mt-1 sk-meta">
         점선 영역 15–20: 현장 보고 기준 구간입니다.
@@ -105,8 +132,12 @@
 
     <section class="dashboard-surface">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 class="sk-title">
+        <h3 class="flex items-center gap-1 sk-title">
           Counter 증가율
+          <EbeamSkewvoirDashboardInfoTip
+            label="Counter 증가율"
+            :text="COUNTER_RATE_INFO"
+          />
         </h3>
         <span class="sk-meta">원값이 아니라 증가율 (/일) · 선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong></span>
       </div>
@@ -160,7 +191,7 @@
     </section>
 
     <p class="px-1 sk-meta">
-      SPMVoltages 는 장비마다 단위 scale 이 100배까지 달라 fab 비교에서 제외합니다.
+      SPMVoltages 는 장비마다 단위 scale 이 100배까지 달라 Fab 비교에서 제외합니다.
     </p>
   </div>
 </template>
@@ -174,6 +205,8 @@ import { fdcFleetHeatmap, fdcFleetLaserRows, fdcFleetPinRows, fdcFleetHistogram,
 import { CONTACTPIN_JUDGMENT } from '~/utils/fdcValues'
 
 const props = defineProps<{ fleet: FdcFleet | null, pending: boolean, selectedEqp: string }>()
+const COUNTER_RATE_INFO = 'Contactpin 채널마다 event 가 기록될 때마다 1씩 늘어나는 누적 counter 가 하루에 몇 늘었는지입니다: 기간 안 (최대 − 최소) ÷ 첫·마지막 기록 사이 일수. 원값은 장비마다 시작점이 달라 비교할 수 없어 증가율로 봅니다. 높을수록 그 채널의 event 가 잦습니다. 기간 안에 counter 가 초기화된 채널은 값이 부풀려질 수 있습니다.'
+
 const { palette, surface } = useEchartsTheme()
 // Canvas cannot resolve CSS custom properties: status colors are the fixed
 // SK_STATE literals (the same in every theme), ink follows the chart surface.
@@ -186,6 +219,11 @@ const counterRows = computed(() => fdcFleetCounterRows(props.fleet?.tools ?? [])
 
 const selectedLabel = (value: string) => value === props.selectedEqp ? `{selected|${value}}` : value
 const labelStyle = computed(() => ({ formatter: selectedLabel, rich: { selected: { fontWeight: 'bold' as const, color: colors.value.ink } } }))
+
+// Heatmap reads the whole fab at a glance; the dot-connected lines read one
+// tool's trend against the others (user request 2026-09-30).
+const TEMP_CHART_OPTIONS = [{ key: 'heatmap', label: 'Heatmap' }, { key: 'line', label: '추세선' }] as const
+const tempChart = useState<'heatmap' | 'line'>('hw-fdc-temp-chart', () => 'heatmap')
 
 const heatmapEl = ref<HTMLDivElement | null>(null)
 const heatmapOption = computed<EChartsOption>(() => ({
@@ -206,6 +244,39 @@ const heatmapOption = computed<EChartsOption>(() => ({
   series: [{ type: 'heatmap', data: heatmap.value.points, emphasis: { itemStyle: { borderWidth: 2, borderColor: colors.value.ink } } }]
 }))
 useEchart(heatmapEl, heatmapOption)
+
+// Same daily means as the heatmap, one line per tool; the selected tool is drawn
+// bold on top so it stands out of the bundle.
+const tempLineEl = ref<HTMLDivElement | null>(null)
+const tempLineOption = computed<EChartsOption>(() => {
+  const { tools, days, points } = heatmap.value
+  const byTool = tools.map(() => days.map((): number | null => null))
+  for (const [day, tool, value] of points) byTool[tool]![day] = value
+  return {
+    grid: { left: 56, right: 16, top: 56, bottom: 56 },
+    tooltip: {
+      trigger: 'axis', order: 'valueDesc',
+      valueFormatter: value => `${formatFixed(value as number, 3, '-')} °C`
+    },
+    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
+    xAxis: { type: 'category', data: days, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: '°C', scale: true, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
+    dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
+    series: tools.map((tool, i) => {
+      const selected = tool === props.selectedEqp
+      const color = selected ? colors.value.ink : palette.value[i % palette.value.length]!
+      return {
+        name: tool, type: 'line' as const, connectNulls: true, symbol: 'circle',
+        symbolSize: selected ? 7 : 5, z: selected ? 3 : 2,
+        lineStyle: { color, width: selected ? 2.5 : 1, opacity: selected ? 1 : 0.7 },
+        itemStyle: { color },
+        emphasis: { focus: 'series' as const },
+        data: byTool[i]!
+      }
+    })
+  }
+})
+useEchart(tempLineEl, tempLineOption)
 
 const laserEl = ref<HTMLDivElement | null>(null)
 const laserOption = computed<EChartsOption>(() => ({

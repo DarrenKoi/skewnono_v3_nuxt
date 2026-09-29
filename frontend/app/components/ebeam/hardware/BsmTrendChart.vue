@@ -28,6 +28,7 @@ import { stableYRange, tightYRange, type StableYRangeOptions } from '~/utils/cha
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 import { trendSymbolSize } from '~/utils/chartSymbolSize'
 import { nearestPoint } from '~/utils/chartNearest'
+import { inspectButtonHtml, inspectKeyOf, inspectTooltipBase } from '~/utils/chartInspectTooltip'
 
 const props = defineProps<{
   label: string
@@ -99,42 +100,23 @@ const plainTooltip = {
 }
 
 // An axis tooltip snaps on x only, so it opens straight below the cursor:
-// moving down into it keeps the same point. ECharts re-positions on every
-// pointer move, so the spot is pinned per point - otherwise the tooltip
-// stays 6 px ahead of a slowly moving pointer and the button is never
-// reached (Codex review).
-let pinned: { key: string, at: number[], fromX: number, fromY: number } | null = null
+// moving down into it keeps the same point (pinned in chartInspectTooltip).
+const inspectBase = inspectTooltipBase()
 const inspectTooltip = computed(() => ({
   ...plainTooltip,
-  enterable: true,
-  confine: true,
-  hideDelay: 400,
-  position: (point: number[], params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) => {
-    const key = ((Array.isArray(params) ? params[0] : params)?.name as string | undefined) ?? ''
-    // Held only while the pointer travels from where it opened straight down
-    // into the tooltip (inside its width, below the opening point); the same
-    // point hovered again from anywhere else re-opens it under the pointer.
-    const [x, y] = [point[0]!, point[1]!]
-    const [w, h] = [size.contentSize[0]!, size.contentSize[1]!]
-    const travelling = pinned?.key === key && Math.abs(x - pinned.fromX) <= w / 2
-      && y >= pinned.fromY - 2 && y <= pinned.at[1]! + h
-    if (!travelling) pinned = { key, at: [x - w / 2, y + 6], fromX: x, fromY: y }
-    return pinned!.at
-  },
+  ...inspectBase,
   formatter: (params: unknown) => {
     const items = (Array.isArray(params) ? params : [params]) as { seriesIndex: number, name: string, marker: string, seriesName: string, value: [number, number] }[]
     const main = items.find(item => item.seriesIndex === 0)
     const lines = items.map(item =>
       `${item.marker}${escapeHtml(item.seriesName && hasOverlays.value ? `${item.seriesName} ` : '')}<b>${item.value[1].toFixed(4)}</b>`)
-    const button = main
-      ? `<button type="button" data-inspect-key="${escapeHtml(main.name)}" style="margin-top:6px;padding:2px 8px;border-radius:6px;border:1px solid var(--sk-border);background:var(--sk-surface);color:var(--sk-ink);font-size:11px;cursor:pointer">${escapeHtml(props.inspectLabel!)}</button>`
-      : ''
+    const button = main ? inspectButtonHtml(main.name, props.inspectLabel!) : ''
     return `${formatTime(items[0]?.value[0] ?? '')}<br/>${lines.join('<br/>')}<br/>${button}`
   }
 }))
 
 const onTooltipClick = (event: MouseEvent) => {
-  const key = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-inspect-key]')?.dataset.inspectKey
+  const key = inspectKeyOf(event)
   if (key) emit('inspect', key)
 }
 

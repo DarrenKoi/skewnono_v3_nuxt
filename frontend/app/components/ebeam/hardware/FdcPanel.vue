@@ -26,7 +26,7 @@
     />
     <AppEmptyState
       v-else-if="fdcView === 'fleet'"
-      title="fab 전체 FDC 집계가 없습니다."
+      title="Fab 전체 FDC 집계가 없습니다."
     />
     <!-- fdc_key sub-tabs -->
     <div
@@ -137,11 +137,13 @@
     >
       <div class="flex flex-wrap items-baseline justify-between gap-2 px-1">
         <span class="sk-title">채널별 중앙 프로파일 대비 RMS 편차</span>
-        <span class="sk-meta">차트를 누르면 그 시점의 cycle 이 아래에 표시됩니다.</span>
+        <span class="sk-meta">차트를 누르면 그 시점의 cycle 이 아래에 표시됩니다 · 툴팁의 버튼으로 그 시점 앞뒤 30분의 측정 recipe 를 봅니다.</span>
       </div>
+      <!-- Clicks here only serve the tooltip's inspect button (rendered inside). -->
       <div
         ref="spmTrendEl"
         class="h-60 w-full"
+        @click="onInspectClick"
       />
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
         <div class="flex items-center gap-2">
@@ -155,13 +157,25 @@
             class="rounded bg-(--sk-muted-surface) px-1.5 py-0.5 font-mono text-xs font-bold text-(--sk-ink)"
           >{{ b.channel }} · {{ b.fitModel }}</span>
         </div>
-        <USelect
-          v-model="spmCycleKey"
-          :items="spmCycleItems"
-          size="xs"
-          icon="i-lucide-clock"
-          class="w-72"
-        />
+        <div class="flex items-center gap-2">
+          <USelect
+            v-model="spmCycleKey"
+            :items="spmCycleItems"
+            size="xs"
+            icon="i-lucide-clock"
+            class="w-72"
+          />
+          <!-- The keyboard path to the same popup as the trend tooltip's button. -->
+          <UButton
+            v-if="spmCycleKey"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-list-search"
+            label="이 시점 측정 recipe"
+            @click="emit('inspect-time', spmCycleKey)"
+          />
+        </div>
       </div>
       <div
         ref="chartEl"
@@ -182,10 +196,12 @@
         x1 이상치 {{ laserStats.x1.points.length }} / 전체 {{ laserStats.x1.total }},
         y1 이상치 {{ laserStats.y1.points.length }} / 전체 {{ laserStats.y1.total }} (유효값 기준)
         <span v-if="laserStats.x1.baseline === 0 || laserStats.y1.baseline === 0"> · 중앙값이 0인 채널은 편차 %를 계산할 수 없습니다.</span>
+        · 점을 누르면 그 시점 앞뒤 30분의 측정 recipe 를 봅니다.
       </p>
       <div
         ref="chartEl"
         class="h-[26rem] w-full"
+        @click="onInspectClick"
       />
     </div>
 
@@ -196,57 +212,15 @@
     >
       <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2 px-1">
         <span class="sk-title">{{ activeKey }} trend</span>
-        <!-- Keyboard / exact-time path to the same popup as a chart click. -->
-        <form
-          v-if="activeKey === 'TemperatureEChuck'"
-          class="flex items-center gap-1"
-          @submit.prevent="inspectTyped && emit('inspect-time', `${inspectTyped}:00`)"
-        >
-          <!-- Same popover + UCalendar as EbeamDateRangePopover, single date + time. -->
-          <UPopover :content="{ align: 'start' }">
-            <UButton
-              icon="i-lucide-calendar-clock"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              class="font-medium tabular-nums"
-              aria-label="측정 recipe 를 볼 시각"
-            >
-              {{ inspectTyped ? inspectTyped.replace('T', ' ') : '----/--/-- --:--' }}
-            </UButton>
-            <template #content>
-              <div class="flex flex-col gap-2 p-3">
-                <UCalendar
-                  v-model="inspectDate"
-                  :max-value="todayDate"
-                  size="sm"
-                />
-                <UInputTime
-                  v-model="inspectTime"
-                  :hour-cycle="24"
-                  size="sm"
-                  aria-label="시각"
-                />
-              </div>
-            </template>
-          </UPopover>
-          <UButton
-            type="submit"
-            size="xs"
-            color="neutral"
-            variant="outline"
-            label="이 시각 측정 recipe"
-            :disabled="!inspectTyped"
-          />
-        </form>
         <span
           v-if="activeKey === 'TemperatureEChuck'"
           class="sk-meta"
-        >pos 3 은 pos 1 과 같은 값이라 표시하지 않습니다 · 차트를 누르면 그 시점 앞뒤 30분의 측정 recipe 를 봅니다.</span>
+        >pos 3 은 pos 1 과 같은 값이라 표시하지 않습니다 · 툴팁의 버튼으로 그 시점 앞뒤 30분의 측정 recipe 를 봅니다.</span>
       </div>
       <div
         ref="chartEl"
         class="h-72 w-full"
+        @click="onInspectClick"
       />
     </div>
   </div>
@@ -254,14 +228,13 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { Time, getLocalTimeZone, today, type DateValue } from '@internationalized/date'
 import {
   parseFdcValues, contactpinRows as deriveContactpinRows, spmDeviationSeries, fdcDailyMeans,
   fdcDocTs as tsOf, fdcDocValues as valuesOf, fdcEpoch as toEpoch,
   type SpmVoltagesValue, type LaserPowerValue, type TemperatureValue
 } from '~/utils/fdcValues'
 import { formatFixed } from '~/utils/recipeView'
-import { wallClockIso } from '~/utils/recipeWindow'
+import { inspectButtonHtml, inspectKeyOf, inspectTooltipBase } from '~/utils/chartInspectTooltip'
 import { stableYRange, tightYRange } from '~/utils/chartRange'
 import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 import type { FdcFleet } from '~/composables/useHardwareApi'
@@ -277,16 +250,9 @@ const props = defineProps<{
 
 // A timestamp the reader wants the measured recipes for (offset-less KST).
 const emit = defineEmits<{ 'inspect-time': [at: string] }>()
-// Picked date + time compose "YYYY-MM-DDTHH:mm" in local (KST) wall clock.
-const todayDate = today(getLocalTimeZone())
-const inspectDate = shallowRef<DateValue>()
-const inspectTime = shallowRef(new Time(0, 0))
-const inspectTyped = computed(() => inspectDate.value && inspectTime.value
-  ? `${inspectDate.value.toString()}T${inspectTime.value.toString().slice(0, 5)}`
-  : '')
 
 const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
-const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'fab 전체' }] as const
+const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'Fab 전체' }] as const
 
 const { palette, surface } = useEchartsTheme()
 const c0 = computed(() => palette.value[0]!)
@@ -310,7 +276,10 @@ const grouped = computed(() => {
   return g
 })
 const availableKeys = computed(() => Object.keys(grouped.value).sort())
-const activeKey = ref('')
+// Page-scoped like the 장비/Fab 전체 view: a period switch remounts this panel
+// (the results area shows a spinner while it refetches), and a local ref would
+// drop the reader back on the first sub-tab.
+const activeKey = useState('hw-fdc-key', () => '')
 watch(availableKeys, (keys) => {
   if (!keys.includes(activeKey.value)) activeKey.value = keys[0] ?? ''
 }, { immediate: true })
@@ -379,6 +348,26 @@ const sliderZoom = (): EChartsOption['dataZoom'] =>
   [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }]
 const stableAxis = (values: number[]) => stableYRange(values) ?? { scale: true }
 
+// "이 시점 측정 recipe 보기" in the tooltip (the Sharpness pattern): hovering
+// explains a point, the button opens the recipes measured around its time.
+// One pinned position per chart host; points carry their doc ts as `name`.
+const INSPECT_LABEL = '이 시점 측정 recipe 보기'
+const inspectTooltip = (base: ReturnType<typeof inspectTooltipBase>, trigger: 'axis' | 'item', digits: number, unit: string) => ({
+  trigger, ...base,
+  formatter: (params: unknown) => {
+    const items = (Array.isArray(params) ? params : [params]) as { name?: string, marker: string, seriesName: string, value: [number, number] }[]
+    const key = items.find(item => item.name)?.name
+    const lines = items.map(item => `${item.marker}${escapeHtml(item.seriesName)} <b>${formatFixed(item.value[1], digits, '-')}${unit}</b>`)
+    return [key ? escapeHtml(key.replace('T', ' ')) : '', ...lines, key ? inspectButtonHtml(key, INSPECT_LABEL) : ''].filter(Boolean).join('<br/>')
+  }
+})
+const spmTrendTooltip = inspectTooltipBase()
+const mainTooltip = inspectTooltipBase()
+const onInspectClick = (event: MouseEvent) => {
+  const key = inspectKeyOf(event)
+  if (key) emit('inspect-time', key)
+}
+
 // Clicking the trend picks the cycle nearest the clicked time; the profile
 // chart below and the dropdown follow it.
 const pickSpmCycleAt = (epoch: number) => {
@@ -393,7 +382,7 @@ const spmSelectedEpoch = computed(() => spmCycles.value.find(c => c.key === spmC
 
 const spmTrendOption = computed<EChartsOption>(() => ({
   grid: { left: 48, right: 16, top: 24, bottom: 52 },
-  tooltip: { trigger: 'axis' },
+  tooltip: inspectTooltip(spmTrendTooltip, 'axis', 3, ''),
   legend: { top: 0, textStyle: { fontSize: 10 }, data: spmDeviations.value.map(series => series.channel) },
   xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
   yAxis: { type: 'value', name: 'RMS', scale: true, axisLabel: { fontSize: 10 } },
@@ -404,7 +393,7 @@ const spmTrendOption = computed<EChartsOption>(() => ({
       return {
         name: series.channel, type: 'line' as const, showSymbol: false,
         lineStyle: { color }, itemStyle: { color },
-        data: series.points.map(p => [toEpoch(p.ts), p.value]),
+        data: series.points.map(p => ({ name: p.ts, value: [toEpoch(p.ts), p.value] })),
         ...(i === 0 ? { markLine: maintenanceMarkLine.value } : {})
       }
     }),
@@ -437,6 +426,9 @@ const laserStats = computed(() => ({
   y1: laserOutliers(laserRows.value, 'y1')
 }))
 
+// Outliers are few, so the dots can be big click targets (user request
+// 2026-09-30: 6px was hard to hit). The triangle gets 2px more to read the same size.
+const LASER_SYMBOL = 11
 const laserDeviationOption = (): EChartsOption => {
   const { x1, y1 } = laserStats.value
   const times = laserRows.value.map(r => r.epoch).filter(Number.isFinite)
@@ -445,14 +437,7 @@ const laserDeviationOption = (): EChartsOption => {
   const bandHi = Math.max(x1.band?.hi ?? 0, y1.band?.hi ?? 0)
   return {
     grid: { left: 52, right: 18, top: 28, bottom: 56 },
-    tooltip: {
-      trigger: 'item', renderMode: 'richText',
-      formatter: (params) => {
-        const p = Array.isArray(params) ? params[0] : params
-        const pct = p && Array.isArray(p.value) ? p.value[1] : null
-        return p && typeof pct === 'number' ? `${p.name}\n${p.seriesName}: ${pct.toFixed(2)}%` : ''
-      }
-    },
+    tooltip: inspectTooltip(mainTooltip, 'item', 2, '%'),
     legend: { top: 2, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', min: times[0], max: times[times.length - 1], axisLabel: { fontSize: 10 } },
     yAxis: {
@@ -465,13 +450,13 @@ const laserDeviationOption = (): EChartsOption => {
     dataZoom: sliderZoom(),
     series: [
       {
-        name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: 6, itemStyle: { color: c0.value },
+        name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: LASER_SYMBOL, itemStyle: { color: c0.value },
         data: x1.points.map(p => ({ name: p.ts, value: [p.epoch, p.deviation] })),
         markArea: { silent: true, itemStyle: { color: c0.value, opacity: 0.08 }, data: x1.band ? [[{ yAxis: x1.band.lo }, { yAxis: x1.band.hi }]] : [] },
         markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] }
       },
       {
-        name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: 6, itemStyle: { color: c1.value },
+        name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: LASER_SYMBOL + 2, itemStyle: { color: c1.value },
         data: y1.points.map(p => ({ name: p.ts, value: [p.epoch, p.deviation] })),
         markArea: { silent: true, itemStyle: { color: c1.value, opacity: 0.08 }, data: y1.band ? [[{ yAxis: y1.band.lo }, { yAxis: y1.band.hi }]] : [] },
         markLine: maintenanceMarkLine.value
@@ -535,7 +520,7 @@ const chartOption = computed<EChartsOption>(() => {
   const tempAxis = tightYRange(temps) ?? { scale: true }
   return {
     grid: { left: 56, right: 16, top: 24, bottom: 52 },
-    tooltip: { trigger: 'axis' },
+    tooltip: inspectTooltip(mainTooltip, 'axis', 2, ' °C'),
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: '°C', ...tempAxis, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
@@ -555,11 +540,11 @@ const chartOption = computed<EChartsOption>(() => {
   }
 })
 
-// Temperature: a click anywhere in the plot asks for the recipes measured
-// around that moment (the time under the cursor, not a hit on a line).
+// LaserPower: a click on a dot opens its recipes straight away - the dots are
+// the outliers the reader came for. The other charts open from the tooltip.
 useEchart(chartEl, chartOption, {
-  onGridClick: ({ x }) => {
-    if (activeKey.value === 'TemperatureEChuck' && Number.isFinite(x)) emit('inspect-time', wallClockIso(x))
+  onClick: (ts) => {
+    if (activeKey.value === 'LaserPower') emit('inspect-time', ts)
   }
 })
 </script>

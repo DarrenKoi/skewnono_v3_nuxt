@@ -30,6 +30,10 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
   carry no fit-model token (office 확인 2026-09-29); that the three header
   numbers stay in front of its profile is OFFICE-VERIFY.
 * LaserPower: x1/y1 are stable per tool; x2/y2 wander (drift that is noise).
+  A month of office x1/y1 spans roughly -10..+10 % around the median (user
+  report 2026-09-29), so ~6 % of docs step 3-9 % off the level - enough that
+  the outlier-only chart has points at home. The rate and size are
+  OFFICE-VERIFY.
 * ContactpinConductionInfo: the judgment is Conduction / UnstableConduction /
   NotConduction ('Not', not 'Non': user-confirmed 2026-09-29). The spread of the first 4 numbers separates them (medians
   6.4 / - / 38.0, threshold ~15-20); the last number is a per-channel counter
@@ -213,6 +217,13 @@ def _spm_docs(
     return out
 
 
+def _excursion(rng: random.Random) -> float:
+    """1.0 most of the time; now and then a 3-9 % step either way."""
+    if rng.random() >= 0.06:
+        return 1.0
+    return 1 + rng.choice([-1, 1]) * rng.uniform(0.03, 0.09)
+
+
 def _laser_docs(
     rng: random.Random, base: dict, start: datetime, end: datetime
 ) -> list[dict]:
@@ -221,6 +232,9 @@ def _laser_docs(
     y1_level = rng.uniform(0.68, 0.80)
     x2 = float(rng.randint(300_000_000, 360_000_000))
     y2 = float(rng.randint(40_000_000, 50_000_000))
+    # Excursions draw from their own stream: an extra draw on the shared `rng`
+    # would re-roll every key built after this one (Contactpin).
+    spikes = random.Random(f"{base['eqp_id']}:laser-excursions")
     out: list[dict] = []
     cursor = start
     while cursor <= end:
@@ -228,8 +242,8 @@ def _laser_docs(
         x2 *= rng.gauss(1.0, 0.02)
         y2 *= rng.gauss(1.0, 0.02)
         if start <= moment <= end:
-            x1 = f"{x1_level + rng.gauss(0.0, 0.004):.2f}"
-            y1 = f"{y1_level + rng.gauss(0.0, 0.004):.2f}"
+            x1 = f"{(x1_level + rng.gauss(0.0, 0.004)) * _excursion(spikes):.2f}"
+            y1 = f"{(y1_level + rng.gauss(0.0, 0.004)) * _excursion(spikes):.2f}"
             out.append(
                 _doc(base, "LaserPower", moment, [x1, y1, f"{x2:.0f}", f"{y2:.0f}"])
             )
