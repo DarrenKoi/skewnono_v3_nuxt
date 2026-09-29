@@ -196,6 +196,27 @@
     >
       <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2 px-1">
         <span class="sk-title">{{ activeKey }} trend</span>
+        <!-- Keyboard / exact-time path to the same popup as a chart click. -->
+        <form
+          v-if="activeKey === 'TemperatureEChuck'"
+          class="flex items-center gap-1"
+          @submit.prevent="inspectTyped && emit('inspect-time', `${inspectTyped}:00`)"
+        >
+          <input
+            v-model="inspectTyped"
+            type="datetime-local"
+            aria-label="측정 recipe 를 볼 시각"
+            class="rounded border border-(--sk-border) bg-(--sk-surface) px-1.5 py-0.5 text-xs text-(--sk-ink)"
+          >
+          <UButton
+            type="submit"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            label="이 시각 측정 recipe"
+            :disabled="!inspectTyped"
+          />
+        </form>
         <span
           v-if="activeKey === 'TemperatureEChuck'"
           class="sk-meta"
@@ -233,6 +254,8 @@ const props = defineProps<{
 
 // A timestamp the reader wants the measured recipes for (offset-less KST).
 const emit = defineEmits<{ 'inspect-time': [at: string] }>()
+// datetime-local gives "YYYY-MM-DDTHH:mm" in local (KST) wall clock.
+const inspectTyped = ref('')
 
 const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
 const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'fab 전체' }] as const

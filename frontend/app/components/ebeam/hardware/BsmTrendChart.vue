@@ -106,7 +106,7 @@ const escapeHtml = (text: string) =>
 // pointer move, so the spot is pinned per point - otherwise the tooltip
 // stays 6 px ahead of a slowly moving pointer and the button is never
 // reached (Codex review).
-let pinned: { key: string, at: number[], fromY: number } | null = null
+let pinned: { key: string, at: number[], fromX: number, fromY: number } | null = null
 const inspectTooltip = computed(() => ({
   ...plainTooltip,
   enterable: true,
@@ -114,10 +114,14 @@ const inspectTooltip = computed(() => ({
   hideDelay: 400,
   position: (point: number[], params: unknown, _dom: unknown, _rect: unknown, size: { contentSize: number[] }) => {
     const key = ((Array.isArray(params) ? params[0] : params)?.name as string | undefined) ?? ''
-    // Held only while the pointer travels from where it opened down into the
-    // tooltip; hovering the same point again from elsewhere re-opens it there.
-    const travelling = pinned?.key === key && point[1]! >= pinned.fromY - 2 && point[1]! <= pinned.at[1]! + size.contentSize[1]!
-    if (!travelling) pinned = { key, at: [point[0]! - size.contentSize[0]! / 2, point[1]! + 6], fromY: point[1]! }
+    // Held only while the pointer travels from where it opened straight down
+    // into the tooltip (inside its width, below the opening point); the same
+    // point hovered again from anywhere else re-opens it under the pointer.
+    const [x, y] = [point[0]!, point[1]!]
+    const [w, h] = [size.contentSize[0]!, size.contentSize[1]!]
+    const travelling = pinned?.key === key && Math.abs(x - pinned.fromX) <= w / 2
+      && y >= pinned.fromY - 2 && y <= pinned.at[1]! + h
+    if (!travelling) pinned = { key, at: [x - w / 2, y + 6], fromX: x, fromY: y }
     return pinned!.at
   },
   formatter: (params: unknown) => {
