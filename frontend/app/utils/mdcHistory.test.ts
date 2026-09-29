@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix frontend test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildMdcFamilies, trajectoryPoints } from './mdcHistory.ts'
+import { buildMdcFamilies, trajectoryPoints, mdcChanges } from './mdcHistory.ts'
 
 const doc = (ts: string, cond: string, value: number) =>
   ({ timestamp: ts, beam_condition: cond, mdc_value: value })
@@ -68,4 +68,35 @@ test('trajectoryPoints: drops events missing one axis', () => {
 test('trajectoryPoints: unpaired family yields no points', () => {
   const valley = buildMdcFamilies(docs)[1]!
   assert.deepEqual(trajectoryPoints(valley), [])
+})
+
+test('mdcChanges: repeated snapshots are not changes; newest first with ppm', () => {
+  // Office history is one snapshot per collection date, so an unchanged value
+  // repeats — only a differing consecutive value counts as a change.
+  const fam = {
+    key: '800V_HR',
+    zero: [
+      { ts: '2026-09-01 09:00', value: 1.000000 },
+      { ts: '2026-09-02 09:00', value: 1.000000 },
+      { ts: '2026-09-03 09:00', value: 1.001000 },
+      { ts: '2026-09-04 09:00', value: 1.001000 }
+    ],
+    ninety: [
+      { ts: '2026-09-01 09:00', value: 0.999000 },
+      { ts: '2026-09-05 09:00', value: 0.998001 }
+    ]
+  }
+  const changes = mdcChanges(fam)
+  assert.deepEqual(changes.map(c => [c.ts, c.axis]), [['2026-09-05 09:00', '90°'], ['2026-09-03 09:00', '0°']])
+  assert.equal(changes[1]!.prev, 1.0)
+  assert.equal(changes[1]!.next, 1.001)
+  assert.equal(Math.round(changes[1]!.ppm), 1000)
+  assert.equal(Math.round(changes[0]!.ppm), -1000)
+})
+
+test('mdcChanges: single-axis family labels no axis; first point is never a change', () => {
+  const fam = { key: 'Valley', zero: [{ ts: 'a', value: 1.002 }, { ts: 'b', value: 1.001 }], ninety: [] }
+  const changes = mdcChanges(fam)
+  assert.equal(changes.length, 1)
+  assert.equal(changes[0]!.axis, '')
 })

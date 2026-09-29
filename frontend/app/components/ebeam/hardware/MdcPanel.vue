@@ -93,6 +93,28 @@
               />
             </div>
           </div>
+
+          <!-- where the value actually moved in the window -->
+          <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+            <div class="mb-1 flex flex-wrap items-center justify-between gap-2 px-1">
+              <span class="sk-title">{{ activeFamily.key }} · 변경 이력</span>
+              <span class="font-mono text-xs text-(--sk-ink-muted)">
+                {{ changeCountLabel }} · 관측일 = 새 값이 처음 수집된 날
+              </span>
+            </div>
+            <div
+              v-if="changes.length === 0"
+              class="px-4 py-6 text-center sk-body"
+            >
+              조회 기간 안에 값이 바뀐 적이 없습니다.
+            </div>
+            <UTable
+              v-else
+              :columns="changeColumns"
+              :data="changes"
+              :ui="analyticsTableUi"
+            />
+          </div>
         </template>
       </template>
     </template>
@@ -119,42 +141,47 @@
           />
         </div>
 
-        <!-- clicked condition → every tool's value for it. The chips are the
-             keyboard path to the same selection a box click makes. -->
-        <div class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-          <div class="mb-2 flex flex-wrap items-center gap-1.5 px-1">
-            <SkChip
-              v-for="cond in conditions"
-              :key="cond"
-              size="sm"
-              :active="cond === activeCond"
-              @click="activeCond = cond"
-            >
-              {{ cond }}
-            </SkChip>
-          </div>
-          <div
-            v-if="!activeRow"
-            class="px-4 py-6 text-center sk-body"
-          >
-            박스나 조건을 클릭하면 해당 조건의 장비별 값이 표시됩니다.
-          </div>
-          <template v-else>
+        <div class="grid gap-3 lg:grid-cols-2">
+          <!-- where to look first: one row per condition, ranked by the selected
+               tool's gap to the fleet median. The condition buttons are also the
+               keyboard path to the detail table a box click opens. -->
+          <div class="min-w-0 rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
             <div class="mb-1 flex items-center justify-between px-1">
-              <span class="sk-title">{{ activeRow.cond }} · 장비별 값</span>
-              <span
-                v-if="activeRow.stats"
-                class="font-mono text-xs text-(--sk-ink-muted)"
-              >
-                median {{ fmtVal(activeRow.stats.median) }} · Q1–Q3 {{ fmtVal(activeRow.stats.q1) }}–{{ fmtVal(activeRow.stats.q3) }}
-              </span>
+              <span class="sk-title">조건별 편차 요약</span>
+              <span class="font-mono text-xs text-(--sk-ink-muted)">ppm = (값 / median − 1) × 10⁶</span>
             </div>
             <UTable
-              :columns="detailColumns"
-              :data="detailRows"
+              :columns="summaryColumns"
+              :data="summaryRows"
               :ui="analyticsTableUi"
+              :meta="summaryMeta"
             />
-          </template>
+          </div>
+
+          <div class="min-w-0 rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
+            <div
+              v-if="!activeRow"
+              class="px-4 py-6 text-center sk-body"
+            >
+              박스나 요약표의 조건을 클릭하면 해당 조건의 장비별 값이 표시됩니다.
+            </div>
+            <template v-else>
+              <div class="mb-1 flex items-center justify-between px-1">
+                <span class="sk-title">{{ activeRow.cond }} · 장비별 값</span>
+                <span
+                  v-if="activeRow.stats"
+                  class="font-mono text-xs text-(--sk-ink-muted)"
+                >
+                  median {{ fmtVal(activeRow.stats.median) }} · Q1–Q3 {{ fmtVal(activeRow.stats.q1) }}–{{ fmtVal(activeRow.stats.q3) }}
+                </span>
+              </div>
+              <UTable
+                :columns="detailColumns"
+                :data="detailRows"
+                :ui="analyticsTableUi"
+              />
+            </template>
+          </div>
         </div>
       </template>
     </template>
@@ -167,8 +194,8 @@ import type { EChartsOption } from 'echarts'
 import type { TableColumn } from '@nuxt/ui'
 import { boxStats } from '~/utils/boxplotStats'
 import { tightYRange } from '~/utils/chartRange'
-import { buildMdcFamilies, trajectoryPoints, type MdcFamily, type MdcHistoryPoint } from '~/utils/mdcHistory'
-import { assignCompareColors, compareBoxPoints, conditionToolRows, type ConditionToolRow } from '~/utils/hardwareCompare'
+import { buildMdcFamilies, mdcChanges, trajectoryPoints, type MdcChange, type MdcFamily, type MdcHistoryPoint } from '~/utils/mdcHistory'
+import { assignCompareColors, compareBoxPoints, conditionSummary, conditionToolRows, type ConditionSummary, type ConditionToolRow } from '~/utils/hardwareCompare'
 import { analyticsTableUi } from '~/utils/tableUi'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
@@ -450,4 +477,56 @@ const detailColumns: TableColumn<ConditionToolRow>[] = [
     meta: NUM_COL
   }
 ]
+
+const fmtPpm = (v: number) => {
+  const r = Math.round(v) || 0 // no "-0"
+  return `${r > 0 ? '+' : ''}${r.toLocaleString()}`
+}
+
+// --- 비교 summary: which condition to open first ---
+const summaryRows = computed(() => conditionSummary(props.settings, props.selectedEqp, conditions.value))
+const summaryMeta = {
+  class: { tr: (row: { original: ConditionSummary }) => (row.original.cond === activeCond.value ? 'bg-(--sk-muted-surface)' : '') }
+}
+const summaryColumns = computed<TableColumn<ConditionSummary>[]>(() => [
+  {
+    accessorKey: 'cond',
+    header: '조건',
+    cell: ({ row }) => h('button', {
+      type: 'button',
+      class: ['underline-offset-2 hover:underline', row.original.cond === activeCond.value ? 'font-semibold' : ''],
+      onClick: () => { activeCond.value = row.original.cond }
+    }, row.original.cond)
+  },
+  { accessorKey: 'n', header: 'n', size: 40, meta: NUM_COL },
+  {
+    accessorKey: 'minePpm',
+    header: `${props.selectedEqp || '선택'} 편차 (ppm)`,
+    cell: ({ row }) => (row.original.minePpm === null ? '—' : fmtPpm(row.original.minePpm)),
+    meta: NUM_COL
+  },
+  {
+    accessorKey: 'spreadPpm',
+    header: 'fleet 범위 (ppm)',
+    cell: ({ row }) => Math.round(row.original.spreadPpm).toLocaleString(),
+    meta: NUM_COL
+  }
+])
+
+// --- 시계열 change log ---
+const changes = computed(() => (activeFamily.value ? mdcChanges(activeFamily.value) : []))
+const changeCountLabel = computed(() => {
+  const n = changes.value.length
+  if (!isPaired.value) return `변경 ${n}회`
+  const zero = changes.value.filter(c => c.axis === '0°').length
+  return `변경 ${n}회 (0° ${zero} · 90° ${n - zero})`
+})
+const changeColumns = computed<TableColumn<MdcChange>[]>(() => [
+  // Office snapshots carry a fixed collection time, so only the date means anything.
+  { accessorKey: 'ts', header: '관측일', cell: ({ row }) => row.original.ts.slice(0, 10) },
+  ...(isPaired.value ? [{ accessorKey: 'axis', header: '축' } as TableColumn<MdcChange>] : []),
+  { accessorKey: 'prev', header: '이전', cell: ({ row }) => fmtVal(row.original.prev), meta: NUM_COL },
+  { accessorKey: 'next', header: '이후', cell: ({ row }) => fmtVal(row.original.next), meta: NUM_COL },
+  { accessorKey: 'ppm', header: '변경 (ppm)', cell: ({ row }) => fmtPpm(row.original.ppm), meta: NUM_COL }
+])
 </script>

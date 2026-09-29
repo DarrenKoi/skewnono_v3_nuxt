@@ -60,3 +60,32 @@ export const trajectoryPoints = (
   }
   return out
 }
+
+export interface MdcChange {
+  // First collection that carried the new value. Office history is one snapshot
+  // per collection date, so this is when the change was OBSERVED, not made.
+  ts: string
+  axis: '0°' | '90°' | ''
+  prev: number
+  next: number
+  ppm: number
+}
+
+// Values are stored to 6 decimals; anything under half a unit is the same value.
+const SAME_VALUE = 5e-7
+
+// Where the value actually moved, newest first. Repeated snapshots of an
+// unchanged value are not changes, and a window's first point has nothing
+// before it to compare with, so it is never one either.
+export const mdcChanges = (family: MdcFamily): MdcChange[] => {
+  const paired = family.ninety.length > 0
+  const walk = (pts: MdcHistoryPoint[], axis: MdcChange['axis']) =>
+    pts.slice(1).flatMap((p, i) => {
+      const prev = pts[i]!.value
+      return Math.abs(p.value - prev) < SAME_VALUE
+        ? []
+        : [{ ts: p.ts, axis, prev, next: p.value, ppm: (p.value / prev - 1) * 1e6 }]
+    })
+  return [...walk(family.zero, paired ? '0°' : ''), ...walk(family.ninety, '90°')]
+    .sort((a, b) => b.ts.localeCompare(a.ts) || a.axis.localeCompare(b.axis))
+}

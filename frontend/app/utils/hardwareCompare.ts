@@ -5,6 +5,8 @@
 
 // Fallback ramp when the active ECharts theme exposes no (or a 1-entry) palette:
 // hue-distant, mid-saturation tones that stay legible on both surfaces.
+import { boxStats } from './boxplotStats.ts'
+
 const FALLBACK_COMPARE_COLORS = [
   '#2F5D8A', '#B7791F', '#4C956C', '#A64253',
   '#6D6875', '#0F766E', '#9A6D3F', '#5B6C8F'
@@ -107,3 +109,43 @@ export const conditionToolRows = (
     .filter((r): r is { eqpId: string, value: number } => r.value !== null)
     .map(r => ({ ...r, delta: r.value - median }))
     .sort((a, b) => b.value - a.value || a.eqpId.localeCompare(b.eqpId))
+
+export interface ConditionSummary {
+  cond: string
+  n: number
+  median: number
+  mine: number | null
+  // Selected tool's gap to the fleet median, in ppm (null: it lacks the mode).
+  minePpm: number | null
+  // Fleet max − min relative to the median, in ppm.
+  spreadPpm: number
+}
+
+// One row per beam condition for the 비교 tab's "where to look first" table:
+// conditions where the selected tool sits furthest from the fleet median come
+// first; conditions it lacks go last, widest fleet spread first. The median
+// includes the selected tool, and with 4-6 tools this ranks, it does not judge.
+export const conditionSummary = (
+  settings: Record<string, Record<string, unknown>>,
+  selectedEqp: string,
+  conditions: readonly string[]
+): ConditionSummary[] =>
+  conditions
+    .flatMap((cond) => {
+      const values = Object.values(settings).map(s => toNum(s?.[cond])).filter((v): v is number => v !== null)
+      const stats = boxStats(values)
+      if (!stats) return []
+      const mine = toNum(settings[selectedEqp]?.[cond])
+      return [{
+        cond,
+        n: values.length,
+        median: stats.median,
+        mine,
+        minePpm: mine === null ? null : (mine / stats.median - 1) * 1e6,
+        spreadPpm: (stats.max - stats.min) / stats.median * 1e6
+      }]
+    })
+    .sort((a, b) =>
+      (a.minePpm === null ? 1 : 0) - (b.minePpm === null ? 1 : 0)
+      || Math.abs(b.minePpm ?? 0) - Math.abs(a.minePpm ?? 0)
+      || b.spreadPpm - a.spreadPpm)
