@@ -47,8 +47,11 @@ export const buildMdcFamilies = (docs: Record<string, unknown>[]): MdcFamily[] =
   return [...byKey.values()]
 }
 
-// (0°, 90°) pairs matched by timestamp — a recalibration event refreshes both
-// axes at once, so timestamps align; unmatched events are skipped.
+// (0°, 90°) pairs matched by timestamp — each snapshot carries both axes, so
+// timestamps align; unmatched ones are skipped. Consecutive snapshots of the
+// same pair collapse to the first (office history repeats unchanged values
+// every collection date), so each point is a calibration state and its ts is
+// when that state was first observed.
 export const trajectoryPoints = (
   family: MdcFamily
 ): { ts: string, x: number, y: number }[] => {
@@ -56,7 +59,8 @@ export const trajectoryPoints = (
   const out: { ts: string, x: number, y: number }[] = []
   for (const p of family.zero) {
     const y = ninetyByTs.get(p.ts)
-    if (y !== undefined) out.push({ ts: p.ts, x: p.value, y })
+    const last = out[out.length - 1]
+    if (y !== undefined && !(last && last.x === p.value && last.y === y)) out.push({ ts: p.ts, x: p.value, y })
   }
   return out
 }

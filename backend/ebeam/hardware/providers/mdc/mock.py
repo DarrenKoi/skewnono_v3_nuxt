@@ -19,18 +19,25 @@ collection failed (`mdc/office_example.py` logs rather than returning a quiet
 empty, pinned in tests/test_mdc_office.py). `sibling_eqp_ids` is fab-agnostic,
 so this mock already emits for R3/R4 tools — deliberate, not an oversight.
 
-TIMESTAMP GRAIN differs from the office on purpose. This mock places
-recalibration events at real hours (`2026-05-11 04:00`) so the 시계열 chart has
-something to lay out; the office archive is filed per DATE and its adapter emits
-`00:00`. Same format string, different resolution — a time-of-day pattern here
-is a Phase-1 fabrication, never an office property.
+HISTORY GRAIN matches the office archive: one snapshot per collection DATE,
+stamped `00:00` like the office adapter's `_ARCHIVE_TIME`, carrying every
+condition whether or not it changed. So an unchanged value repeats date after
+date, and a change shows only between two consecutive snapshots — what the
+시계열 change log and `_office_mdc.py`'s epoch boundaries both rely on.
+Values move only on recalibration days (every 3-10 days, a Phase-1 cadence).
+Two further properties are guesses, marked so:
+  - a recalibration moves each condition with probability `_STEP_PROB`, so
+    0°/90° can change apart — OFFICE-VERIFY (whether a recal touches all).
+  - `_GAP_RATE` of dates have no snapshot for any tool (a fab JSON that was
+    never written, which the office adapter skips and logs) — OFFICE-VERIFY
+    (how often collection actually misses).
 """
 
 from __future__ import annotations
 
 import random
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from backend.ebeam.hardware.providers._siblings import (
     seed_for,
@@ -81,11 +88,20 @@ def build_mdc_settings(
     return out
 
 
-_TS_FMT = "%Y-%m-%d %H:%M"
+# The office adapter's `_ARCHIVE_TIME`: archive dates carry no time of day.
+_ARCHIVE_TIME = "00:00"
 # Random-walk band: the same envelope the snapshot values use.
 _BAND_LO, _BAND_HI = 0.995, 1.006
 # Walk origin far enough back to cover any plausible request window.
-_WALK_ANCHOR = datetime(2025, 1, 1, 9, 0)
+_WALK_ANCHOR = date(2025, 1, 1)
+# OFFICE-VERIFY: both rates are Phase-1 guesses (see the module docstring).
+_STEP_PROB = 0.7
+_GAP_RATE = 0.06
+
+
+def _collection_missed(day: date) -> bool:
+    # Seeded by the date alone: a missing fab JSON drops the date for every tool.
+    return random.Random(day.toordinal() ^ 0x4D445F47).random() < _GAP_RATE
 
 
 def build_mdc_history(
@@ -93,13 +109,12 @@ def build_mdc_history(
     start: datetime,
     end: datetime,
 ) -> list[dict[str, str | float]]:
-    """Timestamped MDC history for one tool across [start, end], ascending.
+    """Daily MDC snapshots for one tool across [start, end] dates, ascending.
 
-    Recalibration events land every 3-10 days; each event refreshes every
-    beam_condition the tool carries (long format: one record per condition).
-    Values drift as a clamped random walk inside the snapshot band. The walk
-    always replays from a fixed anchor, so a given eqp_id yields identical
-    values for the same dates regardless of the requested window.
+    Long format: one record per (collection date, beam_condition). Values move
+    only on recalibration days and repeat otherwise. The walk always replays
+    from a fixed anchor, so a given eqp_id yields identical values for the same
+    dates regardless of the requested window.
     """
     struct_seed = seed_for(eqp_id) ^ 0x4D44_4332          # same tool/condition set as settings
     conds = _conditions_for(random.Random(struct_seed))
@@ -107,21 +122,25 @@ def build_mdc_history(
     values = {cond: rng.uniform(_BAND_LO, _BAND_HI) for cond in conds}
 
     records: list[dict[str, str | float]] = []
-    moment = _WALK_ANCHOR
-    while moment <= end:
-        if moment >= start:
+    next_recal = _WALK_ANCHOR + timedelta(days=rng.randint(3, 10))
+    day = _WALK_ANCHOR
+    while day <= end.date():
+        if day >= next_recal:
+            for cond in conds:
+                if rng.random() < _STEP_PROB:
+                    stepped = values[cond] + rng.gauss(0.0, 0.0012)
+                    values[cond] = min(_BAND_HI, max(_BAND_LO, stepped))
+            next_recal = day + timedelta(days=rng.randint(3, 10))
+        if day >= start.date() and not _collection_missed(day):
             for cond in conds:
                 records.append(
                     {
-                        "timestamp": moment.strftime(_TS_FMT),
+                        "timestamp": f"{day.isoformat()} {_ARCHIVE_TIME}",
                         "beam_condition": cond,
                         "mdc_value": round(values[cond], 6),
                     }
                 )
-        moment += timedelta(days=rng.randint(3, 10), hours=rng.randint(0, 5))
-        for cond in conds:
-            stepped = values[cond] + rng.gauss(0.0, 0.0012)
-            values[cond] = min(_BAND_HI, max(_BAND_LO, stepped))
+        day += timedelta(days=1)
     # Same key the office adapter re-sorts on, and the line every sibling
     # family (bsm, reso_center, sharpness, fdc) already carries. Without it the
     # per-moment order here is whatever _conditions_for produced, so the two

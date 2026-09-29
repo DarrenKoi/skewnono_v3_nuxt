@@ -49,6 +49,10 @@ redis에는 가장 최근 mdc 값들을 fab_name 별로 저장
   2) 이력 (trend) — MinIO, 기본 bucket/prefix (minio_handler/minio_config.py)
      - path: hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/{fab_name}.json
      - 각 JSON = 그 날짜의 fab 전체 dict of dict (Redis field 값과 같은 형태)
+     - 즉 이력은 **수집일마다의 스냅샷**입니다. 값이 바뀌지 않아도 날마다 같은
+       값이 반복되며, 변경은 연속한 두 수집일을 비교해야만 보입니다. 파일에는
+       수집 시각이 없어 어댑터가 00:00 으로 찍습니다(_ARCHIVE_TIME, OFFICE-VERIFY).
+       mdc/mock.py 도 같은 모양으로 냅니다 — 보정일에만 값이 움직이는 일별 스냅샷.
 
   ★ SCE 와 같은 2단 구조이며 이름만 다릅니다
     (hardware_sce_setting.txt: Redis "sce_info" + hitachi_sem/cdsem/sce_info/...).

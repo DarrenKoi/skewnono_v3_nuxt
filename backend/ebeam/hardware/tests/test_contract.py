@@ -139,3 +139,37 @@ def test_mdc_history_is_sorted_like_the_office_adapter():
     assert records
     keys = [(r["timestamp"], r["beam_condition"]) for r in records]
     assert keys == sorted(keys)
+
+
+def test_mdc_mock_history_is_daily_snapshots_like_the_office_archive():
+    """The office history is one fab JSON per collection DATE, stamped 00:00,
+    so an unchanged value repeats date after date and a change is only visible
+    between two consecutive snapshots. The mock must look the same — an
+    events-only mock hid the repeat-dropping the 시계열 change log depends on.
+    """
+    from collections import defaultdict
+    from itertools import pairwise
+    from datetime import datetime, timedelta
+
+    from backend.ebeam.hardware.providers.mdc import mock as mdc_mock
+
+    end = datetime(2026, 9, 30, 14, 0)
+    records = mdc_mock.build_mdc_history("MCD018", end - timedelta(days=60), end)
+    assert {r["timestamp"][-5:] for r in records} == {"00:00"}
+
+    by_cond: dict[str, list[float]] = defaultdict(list)
+    for r in records:
+        by_cond[r["beam_condition"]].append(r["mdc_value"])
+    for values in by_cond.values():
+        repeats = sum(a == b for a, b in pairwise(values))
+        changes = len(values) - 1 - repeats
+        assert repeats > changes > 0  # mostly unchanged, but it does move
+
+    # Collection gaps (a missing fab file) skip dates rather than inventing them.
+    dates = sorted({r["timestamp"][:10] for r in records})
+    assert len(dates) < 61
+
+    # Window-independent: a narrower request returns the same values per date.
+    narrow = mdc_mock.build_mdc_history("MCD018", end - timedelta(days=10), end)
+    wide = {(r["timestamp"], r["beam_condition"]): r["mdc_value"] for r in records}
+    assert all(wide[(r["timestamp"], r["beam_condition"])] == r["mdc_value"] for r in narrow)

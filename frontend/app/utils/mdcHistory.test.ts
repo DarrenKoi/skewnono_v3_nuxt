@@ -65,6 +65,23 @@ test('trajectoryPoints: drops events missing one axis', () => {
   ])
 })
 
+test('trajectoryPoints: daily snapshots of an unchanged pair collapse to its first date', () => {
+  // Office history repeats unchanged values every collection date; the
+  // trajectory is a path of calibration states, not a stack of identical dots.
+  const fams = buildMdcFamilies([
+    doc('2026-06-01 00:00', '800V_HR_0Deg', 1.001),
+    doc('2026-06-01 00:00', '800V_HR_90Deg', 0.999),
+    doc('2026-06-02 00:00', '800V_HR_0Deg', 1.001),
+    doc('2026-06-02 00:00', '800V_HR_90Deg', 0.999),
+    doc('2026-06-03 00:00', '800V_HR_0Deg', 1.003),
+    doc('2026-06-03 00:00', '800V_HR_90Deg', 0.999)
+  ])
+  assert.deepEqual(trajectoryPoints(fams[0]!), [
+    { ts: '2026-06-01 00:00', x: 1.001, y: 0.999 },
+    { ts: '2026-06-03 00:00', x: 1.003, y: 0.999 }
+  ])
+})
+
 test('trajectoryPoints: unpaired family yields no points', () => {
   const valley = buildMdcFamilies(docs)[1]!
   assert.deepEqual(trajectoryPoints(valley), [])
