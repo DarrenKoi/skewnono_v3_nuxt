@@ -131,7 +131,10 @@ const onTooltipClick = (event: MouseEvent) => {
 }
 
 const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 56, right: 16, top: hasOverlays.value ? 28 : 16, bottom: 56 },
+  // The legend (top 0, ~20px) and the BM/PM markLine labels (just above the
+  // grid's top edge) would share one band at top 28 - the grid drops to 40 so
+  // the labels get their own row under the legend.
+  grid: { left: 56, right: 16, top: hasOverlays.value ? 40 : 16, bottom: 56 },
   tooltip: props.inspectLabel ? inspectTooltip.value : plainTooltip,
   ...(hasOverlays.value ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
   xAxis: {
