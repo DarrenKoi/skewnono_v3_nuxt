@@ -8,6 +8,7 @@ from backend.meas_hist.contracts import (
     MeasHistResponse,
     MeasHistRow,
     MeasHistSearchResponse,
+    MeasHistWindowRows,
 )
 from backend.meas_hist.providers.mock import (
     DEFAULT_LIMIT,
@@ -56,7 +57,7 @@ def find_meas_hist_by_msr(msr: str) -> MeasHistRow | None:
     return _provider().find_meas_hist_by_msr(msr)
 
 
-def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> list[MeasHistRow]:
+def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> MeasHistWindowRows:
     return _provider().find_meas_hist_in_window(eqp_id, start, end)
 
 

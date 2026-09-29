@@ -93,6 +93,13 @@ class MeasHistFacetsResponse(TypedDict):
     eq: list[MeasHistFacetValue]
 
 
+class MeasHistWindowRows(TypedDict):
+    """A provider's answer for one window. `capped` = more rows matched than
+    were returned; the page says so instead of dropping them silently."""
+    rows: list[MeasHistRow]
+    capped: bool
+
+
 class MeasHistWindowResponse(TypedDict):
     """Measurements of one tool whose start-end span overlaps `start`..`end`.
 
@@ -104,3 +111,4 @@ class MeasHistWindowResponse(TypedDict):
     start: str
     end: str
     rows: list[MeasHistRow]
+    capped: bool

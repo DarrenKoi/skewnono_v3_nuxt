@@ -119,10 +119,12 @@ def meas_hist_window():
     if not eqp_id or at is None:
         return jsonify({"error": "eqp_id and an ISO `at` are required"}), 400
     start, end = at - _WINDOW_HALF, at + _WINDOW_HALF
+    found = find_meas_hist_in_window(eqp_id, start, end)
     return jsonify({
         "eqp_id": eqp_id,
         "at": at.isoformat(timespec="seconds"),
         "start": start.isoformat(timespec="seconds"),
         "end": end.isoformat(timespec="seconds"),
-        "rows": find_meas_hist_in_window(eqp_id, start, end),
+        "rows": found["rows"],
+        "capped": found["capped"],
     })

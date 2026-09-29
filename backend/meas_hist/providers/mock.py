@@ -64,6 +64,7 @@ from backend.meas_hist.contracts import (
     MeasHistResponse,
     MeasHistRow,
     MeasHistSearchResponse,
+    MeasHistWindowRows,
 )
 from backend.meas_hist.opensearch_query import SEARCHABLE_SOURCE_FIELDS
 from backend.meas_hist.providers._shared import fail_ratio_percent
@@ -783,7 +784,7 @@ _WINDOW_COUNTS = (0, 1, 2, 3)
 _WINDOW_WEIGHTS = (0.25, 0.35, 0.25, 0.15)
 
 
-def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> list[MeasHistRow]:
+def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> MeasHistWindowRows:
     """The tool's measurements whose start-end span overlaps ``start``..``end``.
 
     The seeded 600-row universe sits months before the hardware tabs' dates,
@@ -794,12 +795,13 @@ def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> lis
     """
     eqp = next((row for row in _eligible_sem_rows() if row["eqp_id"] == eqp_id), None)
     if eqp is None:
-        return []
+        return MeasHistWindowRows(rows=[], capped=False)
     rows: list[MeasHistRow] = []
-    # meastime is at most 30 min, so a measurement ending an hour before the
-    # window can still reach into it; one extra hour covers that.
-    hour = (start - timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-    while hour <= end:
+    # Rows are bucketed by the hour they END in. An overlapping measurement
+    # ends after `start` and, since meastime is at most 30 min, before
+    # `end` + 30 min - so those are the hours to build.
+    hour = start.replace(minute=0, second=0, microsecond=0)
+    while hour <= end + timedelta(minutes=30):
         rng = random.Random(_seed("meas_hist-window", eqp_id, hour.isoformat()))
         for index in range(rng.choices(_WINDOW_COUNTS, weights=_WINDOW_WEIGHTS)[0]):
             end_at = hour + timedelta(minutes=rng.randint(0, 59), seconds=rng.randint(0, 59))
@@ -807,7 +809,7 @@ def find_meas_hist_in_window(eqp_id: str, start: datetime, end: datetime) -> lis
             if row and _wall(row["start_time"]) < end and _wall(row["end_time"]) > start:
                 rows.append(row)
         hour += timedelta(hours=1)
-    return sorted(rows, key=lambda row: row["timestamp"])
+    return MeasHistWindowRows(rows=sorted(rows, key=lambda row: row["timestamp"]), capped=False)
 
 
 def _wall(value: str) -> datetime:
