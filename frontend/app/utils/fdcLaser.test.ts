@@ -29,10 +29,10 @@ test('selects y1 independently of x1', () => {
   assert.deepEqual(result.points.map(p => p.deviation), [-30, 30])
 })
 
-test('equal samples have zero MAD, no outliers and a zero-width band', () => {
+test('equal samples have zero MAD, no outliers and a one-step band', () => {
   const result = laserOutliers(rows([100, 100, 100]), 'x1')
   assert.deepEqual(result.points, [])
-  assert.deepEqual(result.band, { lo: 0, hi: 0 })
+  assert.ok(Math.abs(result.band!.hi - 0.01) < 1e-6 && Math.abs(result.band!.lo + 0.01) < 1e-6)
 })
 
 test('empty or entirely non-finite input has no baseline or band', () => {
@@ -48,4 +48,10 @@ test('non-finite samples do not affect the baseline, band or valid sample count'
 
 test('a zero median cannot produce percentage deviations', () => {
   assert.deepEqual(laserOutliers(rows([-1, 0, 1]), 'x1'), { baseline: 0, total: 3, points: [], band: null })
+})
+
+test('a one-step change at the 0.01 recording resolution is not an outlier', () => {
+  // Office values carry two decimals ('0.78'); a stable tool has MAD 0.
+  const result = laserOutliers(rows([0.74, 0.74, 0.74, 0.75, 0.74, 0.73, 0.74, 0.80]), 'x1')
+  assert.deepEqual(result.points.map(p => Number(p.deviation.toFixed(2))), [8.11])
 })

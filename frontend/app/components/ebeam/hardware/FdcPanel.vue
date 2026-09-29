@@ -395,7 +395,8 @@ const laserDeviationOption = (): EChartsOption => {
     xAxis: { type: 'time', min: times[0], max: times[times.length - 1], axisLabel: { fontSize: 10 } },
     yAxis: {
       type: 'value', name: '중앙값 대비 %', nameTextStyle: { fontSize: 10 },
-      axisLabel: { fontSize: 10, formatter: '{value}%' }, scale: true, splitLine: { show: false },
+      // The band-aware min/max land on raw bounds; round the labels they get.
+      axisLabel: { fontSize: 10, formatter: (value: number) => `${Number(value.toFixed(2))}%` }, scale: true, splitLine: { show: false },
       min: extent => Math.min(Number.isFinite(extent.min) ? extent.min : 0, bandLo),
       max: extent => Math.max(Number.isFinite(extent.max) ? extent.max : 0, bandHi)
     },

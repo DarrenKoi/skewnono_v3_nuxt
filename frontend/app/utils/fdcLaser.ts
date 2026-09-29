@@ -1,6 +1,10 @@
 import { median, medianAbsoluteDeviation, MAD_TO_SIGMA } from './stats.ts'
 
 export const LASER_OUTLIER_SIGMA = 3
+// x1/y1 are written with two decimals ('0.78'). A stable tool has MAD 0, and
+// a one-step change is quantization, not an outlier, so the band never
+// shrinks below one step.
+export const LASER_RESOLUTION = 0.01
 
 export interface LaserRow { ts: string, epoch: number, x1: number, y1: number }
 
@@ -11,12 +15,13 @@ export const laserOutliers = (rows: LaserRow[], channel: 'x1' | 'y1') => {
   const points: { ts: string, epoch: number, deviation: number }[] = []
   if (baseline === null || baseline === 0) return { baseline, total: valid.length, points, band: null }
 
-  const threshold = LASER_OUTLIER_SIGMA * MAD_TO_SIGMA * medianAbsoluteDeviation(values)
+  // The epsilon keeps 0.75 - 0.74 (= 0.010000000000000009) inside the band.
+  const threshold = Math.max(LASER_OUTLIER_SIGMA * MAD_TO_SIGMA * medianAbsoluteDeviation(values), LASER_RESOLUTION + 1e-9)
   const width = threshold / Math.abs(baseline) * 100
   for (const row of valid) {
     if (Math.abs(row[channel] - baseline) > threshold && Number.isFinite(row.epoch)) {
       points.push({ ts: row.ts, epoch: row.epoch, deviation: (row[channel] - baseline) / baseline * 100 })
     }
   }
-  return { baseline, total: valid.length, points, band: { lo: width === 0 ? 0 : -width, hi: width } }
+  return { baseline, total: valid.length, points, band: { lo: -width, hi: width } }
 }
