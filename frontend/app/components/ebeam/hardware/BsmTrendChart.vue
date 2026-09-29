@@ -53,6 +53,10 @@ const props = defineProps<{
   // Axis ticks show MM/DD only, one per day at most — for slow-moving series
   // (MDC corrections change a few times a week) where hh:mm is noise.
   dateOnly?: boolean
+  // Draw as a step line: the value holds until the next point, then jumps.
+  // For snapshot series that change in discrete adjustments (MDC), where a
+  // slope between two snapshots would suggest a gradual drift that never was.
+  step?: boolean
 }>()
 
 const emit = defineEmits<{ select: [key: string], inspect: [key: string] }>()
@@ -158,6 +162,7 @@ const chartOption = computed<EChartsOption>(() => ({
       // Named only when overlays share the chart, so a solo chart keeps no legend.
       ...(hasOverlays.value ? { name: props.label } : {}),
       type: 'line',
+      ...(props.step ? { step: 'end' as const } : {}),
       showSymbol: true,
       lineStyle: { color: color.value, width: 1.8 },
       itemStyle: { color: color.value },
@@ -172,6 +177,7 @@ const chartOption = computed<EChartsOption>(() => ({
     ...overlays.value.map(o => ({
       name: o.name,
       type: 'line' as const,
+      ...(props.step ? { step: 'end' as const } : {}),
       showSymbol: false,
       smooth: false,
       lineStyle: { color: o.color ?? '#94a3b8', width: 1, opacity: 0.9 },

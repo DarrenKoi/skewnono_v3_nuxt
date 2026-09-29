@@ -75,6 +75,7 @@
                 selected=""
                 y-mode="tight"
                 date-only
+                step
                 :events="maintenanceEvents"
               />
             </div>
@@ -89,6 +90,7 @@
                 selected=""
                 y-mode="tight"
                 date-only
+                step
                 :events="maintenanceEvents"
               />
             </div>
