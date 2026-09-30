@@ -1,22 +1,10 @@
 <template>
   <div class="mt-3 space-y-3">
-    <div
-      role="tablist"
-      aria-label="FDC 보기"
-      class="flex w-fit overflow-hidden rounded-[var(--sk-r-nav)] border border-(--sk-border)"
-    >
-      <SkNavPill
-        v-for="view in viewOptions"
-        :key="view.key"
-        role="tab"
-        :aria-selected="fdcView === view.key"
-        :active="fdcView === view.key"
-        :label="view.label"
-        size="sm"
-        class="!rounded-none !border-0"
-        @click="fdcView = view.key"
-      />
-    </div>
+    <SkNavPillGroup
+      v-model="fdcView"
+      :items="viewOptions"
+      label="FDC 보기"
+    />
 
     <EbeamHardwareFdcFleetView
       v-if="fdcView === 'fleet' && (fleetPending || fleet)"
@@ -29,24 +17,12 @@
       title="Fab 전체 FDC 집계가 없습니다."
     />
     <!-- fdc_key sub-tabs -->
-    <div
+    <SkNavPillGroup
       v-show="fdcView === 'tool'"
-      class="flex overflow-hidden rounded-[10px] border border-(--sk-border) w-fit"
-    >
-      <button
-        v-for="key in availableKeys"
-        :key="key"
-        type="button"
-        class="px-3.5 py-1.5 text-xs font-semibold transition-colors"
-        :class="key === activeKey
-          ? 'bg-(--sk-ink) text-white dark:text-zinc-900'
-          : 'text-(--sk-ink-muted) hover:bg-(--sk-muted-surface)'"
-        @click="activeKey = key"
-      >
-        {{ key }}
-        <span class="ml-1 font-mono text-xs opacity-70">{{ grouped[key]?.length ?? 0 }}</span>
-      </button>
-    </div>
+      v-model="activeKey"
+      :items="keyItems"
+      label="FDC 항목"
+    />
 
     <div
       v-if="fdcView === 'tool' && availableKeys.length === 0"
@@ -87,7 +63,7 @@
             <th class="px-3 py-2 text-right sk-label">
               <span class="inline-flex items-center gap-0.5">
                 카운터 증가율 (/일)
-                <EbeamSkewvoirDashboardInfoTip
+                <SkInfoTip
                   label="카운터 증가율"
                   :text="COUNTER_RATE_ROW_INFO"
                 />
@@ -177,7 +153,7 @@
             size="xs"
             color="neutral"
             variant="outline"
-            icon="i-lucide-list-search"
+            icon="i-lucide-file-search"
             label="이 시점 측정 recipe"
             @click="emit('inspect-time', spmCycleKey)"
           />
@@ -194,8 +170,31 @@
       v-else-if="fdcView === 'tool' && activeKey === 'LaserPower'"
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
-      <div class="mb-2 px-1 sk-title">
-        LaserPower · 중앙값 대비 이상치 %
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+        <span class="sk-title">LaserPower · 중앙값 대비 이상치 %</span>
+        <!-- The keyboard path to the same popup as a dot click. -->
+        <div
+          v-if="laserPickItems.length"
+          class="flex items-center gap-2"
+        >
+          <USelect
+            v-model="laserPick"
+            :items="laserPickItems"
+            size="xs"
+            icon="i-lucide-clock"
+            class="w-80"
+            aria-label="이상치 시각"
+          />
+          <UButton
+            v-if="laserPick"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-file-search"
+            label="이 시점 측정 recipe"
+            @click="emit('inspect-time', laserPick)"
+          />
+        </div>
       </div>
       <p class="mb-2 px-1 sk-meta">
         정상 범위(중앙값 ± {{ LASER_OUTLIER_SIGMA }}σ, MAD 추정) 안의 점은 숨기고 벗어난 점만 표시합니다 ·
@@ -218,6 +217,49 @@
     >
       <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2 px-1">
         <span class="sk-title">{{ activeKey }} trend</span>
+        <!-- Keyboard / exact-time path to the same popup as the tooltip button. -->
+        <form
+          v-if="activeKey === 'TemperatureEChuck'"
+          class="flex items-center gap-1"
+          @submit.prevent="inspectTyped && emit('inspect-time', `${inspectTyped}:00`)"
+        >
+          <!-- Same popover + UCalendar as EbeamDateRangePopover, single date + time. -->
+          <UPopover :content="{ align: 'start' }">
+            <UButton
+              icon="i-lucide-calendar-clock"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              class="font-medium tabular-nums"
+              aria-label="측정 recipe 를 볼 시각"
+            >
+              {{ inspectTyped ? inspectTyped.replace('T', ' ') : '----/--/-- --:--' }}
+            </UButton>
+            <template #content>
+              <div class="flex flex-col gap-2 p-3">
+                <UCalendar
+                  v-model="inspectDate"
+                  :max-value="todayDate"
+                  size="sm"
+                />
+                <UInputTime
+                  v-model="inspectTime"
+                  :hour-cycle="24"
+                  size="sm"
+                  aria-label="시각"
+                />
+              </div>
+            </template>
+          </UPopover>
+          <UButton
+            type="submit"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            label="이 시각 측정 recipe"
+            :disabled="!inspectTyped"
+          />
+        </form>
         <span
           v-if="activeKey === 'TemperatureEChuck'"
           class="sk-meta"
@@ -234,6 +276,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+import { Time, getLocalTimeZone, parseDate, today, type DateValue } from '@internationalized/date'
 import {
   parseFdcValues, contactpinRows as deriveContactpinRows, spmDeviationSeries, fdcDailyMeans,
   fdcDocTs as tsOf, fdcDocValues as valuesOf, fdcEpoch as toEpoch,
@@ -258,7 +301,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'inspect-time': [at: string] }>()
 
 const fdcView = useState<'tool' | 'fleet'>('hw-fdc-view', () => 'tool')
-const viewOptions = [{ key: 'tool', label: '장비' }, { key: 'fleet', label: 'Fab 전체' }] as const
+const viewOptions = [{ value: 'tool', label: '장비' }, { value: 'fleet', label: 'Fab 전체' }] as const
 
 const { palette, surface } = useEchartsTheme()
 const c0 = computed(() => palette.value[0]!)
@@ -282,6 +325,7 @@ const grouped = computed(() => {
   return g
 })
 const availableKeys = computed(() => Object.keys(grouped.value).sort())
+const keyItems = computed(() => availableKeys.value.map(key => ({ value: key, label: key, count: grouped.value[key]!.length })))
 // Page-scoped like the 장비/Fab 전체 view: a period switch remounts this panel
 // (the results area shows a spinner while it refetches), and a local ref would
 // drop the reader back on the first sub-tab.
@@ -433,6 +477,21 @@ const laserStats = computed(() => ({
   x1: laserOutliers(laserRows.value, 'x1'),
   y1: laserOutliers(laserRows.value, 'y1')
 }))
+// One entry per outlier time, newest first; x1 and y1 at the same time share it.
+const laserPickItems = computed(() => {
+  const byTs = new Map<string, string[]>()
+  for (const channel of ['x1', 'y1'] as const) {
+    for (const p of laserStats.value[channel].points) {
+      byTs.set(p.ts, [...(byTs.get(p.ts) ?? []), `${channel} ${p.deviation > 0 ? '+' : ''}${formatFixed(p.deviation, 2, '-')}%`])
+    }
+  }
+  return [...byTs].sort(([a], [b]) => b.localeCompare(a))
+    .map(([ts, parts]) => ({ value: ts, label: `${ts.replace('T', ' ')} · ${parts.join(', ')}` }))
+})
+const laserPick = ref('')
+watch(laserPickItems, (items) => {
+  if (!items.some(i => i.value === laserPick.value)) laserPick.value = items[0]?.value ?? ''
+}, { immediate: true })
 
 // Outliers are few, so the dots can be big click targets (user request
 // 2026-09-30: 6px was hard to hit). The triangle gets 2px more to read the same size.
@@ -476,6 +535,22 @@ const laserDeviationOption = (): EChartsOption => {
 // TemperatureEChuck parsed once per docs change — up to ~16k docs per 30 days
 // at the office — rather than inside chartOption, which also re-runs on every
 // theme or BM/PM-marker change.
+// Temperature's exact-time picker composes "YYYY-MM-DDTHH:mm" in KST wall
+// clock. It starts on the latest reading, so its button is never dead (it sat
+// disabled until a date was picked - user request 2026-09-30).
+const todayDate = today(getLocalTimeZone())
+const inspectDate = shallowRef<DateValue>()
+const inspectTime = shallowRef<Time>()
+const inspectTyped = computed(() => inspectDate.value && inspectTime.value
+  ? `${inspectDate.value.toString()}T${inspectTime.value.toString().slice(0, 5)}`
+  : '')
+const latestTempTs = computed(() => activeKey.value === 'TemperatureEChuck' ? tsOf(activeDocs.value.at(-1) ?? {}) : '')
+watch(latestTempTs, (ts) => {
+  if (ts.length < 16) return
+  inspectDate.value = parseDate(ts.slice(0, 10))
+  inspectTime.value = new Time(Number(ts.slice(11, 13)), Number(ts.slice(14, 16)))
+}, { immediate: true })
+
 const tempSeries = computed(() => {
   const byPos: Record<string, { ts: string, epoch: number, temp: number }[]> = {}
   if (activeKey.value !== 'TemperatureEChuck') return { byPos, temps: [], daily: [] }

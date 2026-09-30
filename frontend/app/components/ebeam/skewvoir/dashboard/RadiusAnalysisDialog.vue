@@ -42,7 +42,7 @@
                 label="산포 밴드"
                 @update:model-value="band = $event as RadialBandMode"
               />
-              <EbeamSkewvoirDashboardInfoTip
+              <SkInfoTip
                 label="산포 밴드"
                 :text="bandHint"
               />
@@ -104,7 +104,7 @@
                 >
                   <dt class="flex items-center gap-1 sk-meta">
                     {{ metric.label }}
-                    <EbeamSkewvoirDashboardInfoTip
+                    <SkInfoTip
                       :label="metric.label"
                       :text="metric.hint"
                     />
@@ -119,7 +119,7 @@
             <section class="rounded-(--sk-r-chip) border border-(--sk-border) p-3">
               <h3 class="mb-2 flex items-center gap-1 sk-title">
                 가장 큰 잔차
-                <EbeamSkewvoirDashboardInfoTip
+                <SkInfoTip
                   label="가장 큰 잔차"
                   text="추세선에서 가장 멀리 떨어진 측정점입니다. 진단용 단서일 뿐, 측정 개요의 사이트 판정을 대신하지 않습니다."
                 />
@@ -135,7 +135,7 @@
             <section class="rounded-(--sk-r-chip) border border-(--sk-border) p-3">
               <h3 class="mb-2 flex items-center gap-1 sk-title">
                 모델 식
-                <EbeamSkewvoirDashboardInfoTip
+                <SkInfoTip
                   label="모델 식"
                   text="t 는 관측 반경 범위를 -1~1 로 정규화한 값입니다. 측정하지 않은 중심·가장자리 구간으로는 곡선을 연장하지 않습니다."
                 />
@@ -151,7 +151,7 @@
             >
               <h3 class="mb-2 flex items-center gap-1 sk-title">
                 섹터
-                <EbeamSkewvoirDashboardInfoTip
+                <SkInfoTip
                   label="섹터"
                   text="웨이퍼 중심 기준 방위로 점을 4등분해 색을 입혔습니다. 한 방향만 추세선에서 벗어나면 반경이 아니라 방향(틸트·정렬) 문제를 의심할 수 있습니다."
                 />

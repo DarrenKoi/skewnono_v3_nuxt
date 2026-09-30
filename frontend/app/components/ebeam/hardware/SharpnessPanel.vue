@@ -93,7 +93,7 @@
             size="xs"
             color="neutral"
             variant="outline"
-            icon="i-lucide-list-search"
+            icon="i-lucide-file-search"
             label="이 시점 측정 recipe"
             @click="emit('inspect-time', selectedTs)"
           />

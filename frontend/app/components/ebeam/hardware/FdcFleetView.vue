@@ -15,23 +15,11 @@
           Chuck 온도 · Fab 비교
         </h3>
         <div class="flex items-center gap-3">
-          <div
-            role="tablist"
-            aria-label="Chuck 온도 차트"
-            class="flex overflow-hidden rounded-[var(--sk-r-nav)] border border-(--sk-border)"
-          >
-            <SkNavPill
-              v-for="option in TEMP_CHART_OPTIONS"
-              :key="option.key"
-              role="tab"
-              :aria-selected="tempChart === option.key"
-              :active="tempChart === option.key"
-              :label="option.label"
-              size="sm"
-              class="!rounded-none !border-0"
-              @click="tempChart = option.key"
-            />
-          </div>
+          <SkNavPillGroup
+            v-model="tempChart"
+            :items="TEMP_CHART_OPTIONS"
+            label="Chuck 온도 차트"
+          />
           <span class="sk-meta">선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong></span>
         </div>
       </div>
@@ -134,7 +122,7 @@
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h3 class="flex items-center gap-1 sk-title">
           Counter 증가율
-          <EbeamSkewvoirDashboardInfoTip
+          <SkInfoTip
             label="Counter 증가율"
             :text="COUNTER_RATE_INFO"
           />
@@ -223,7 +211,7 @@ const labelStyle = computed(() => ({ formatter: selectedLabel, rich: { selected:
 
 // Heatmap reads the whole Fab at a glance; the dot-connected lines read one
 // tool's trend against the others (user request 2026-09-30).
-const TEMP_CHART_OPTIONS = [{ key: 'heatmap', label: 'Heatmap' }, { key: 'line', label: '추세선' }] as const
+const TEMP_CHART_OPTIONS = [{ value: 'heatmap', label: 'Heatmap' }, { value: 'line', label: '추세선' }] as const
 const tempChart = useState<'heatmap' | 'line'>('hw-fdc-temp-chart', () => 'heatmap')
 
 const heatmapEl = ref<HTMLDivElement | null>(null)
