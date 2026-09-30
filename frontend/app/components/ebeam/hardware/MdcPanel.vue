@@ -67,26 +67,15 @@
             class="grid gap-3"
             :class="isPaired ? 'lg:grid-cols-2' : ''"
           >
-            <div class="min-w-0 rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)">
-              <EbeamHardwareBsmTrendChart
-                :label="isPaired ? `${activeFamily.key} · 0°` : activeFamily.key"
-                :points="axisPoints(activeFamily.zero)"
-                :overlays="overlaysFor('zero')"
-                selected=""
-                y-mode="tight"
-                date-only
-                step
-                :events="maintenanceEvents"
-              />
-            </div>
             <div
-              v-if="isPaired"
+              v-for="ax in axes"
+              :key="ax.key"
               class="min-w-0 rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
             >
               <EbeamHardwareBsmTrendChart
-                :label="`${activeFamily.key} · 90°`"
-                :points="axisPoints(activeFamily.ninety)"
-                :overlays="overlaysFor('ninety')"
+                :label="ax.label ? `${activeFamily.key} · ${ax.label}` : activeFamily.key"
+                :points="axisPoints(activeFamily[ax.key])"
+                :overlays="overlaysFor(ax.key)"
                 selected=""
                 y-mode="tight"
                 date-only
@@ -104,14 +93,8 @@
                 {{ changeCountLabel }} · 관측일 = 새 값이 처음 수집된 날
               </span>
             </div>
-            <div
-              v-if="changes.length === 0"
-              class="px-4 py-6 text-center sk-body"
-            >
-              조회 기간 안에 값이 바뀐 적이 없습니다.
-            </div>
             <UTable
-              v-else
+              empty="조회 기간 안에 값이 바뀐 적이 없습니다."
               :columns="changeColumns"
               :data="changes"
               :ui="analyticsTableUi"
@@ -194,11 +177,11 @@
 import { h } from 'vue'
 import type { EChartsOption } from 'echarts'
 import type { TableColumn } from '@nuxt/ui'
-import { boxStats } from '~/utils/boxplotStats'
 import { tightYRange } from '~/utils/chartRange'
 import { buildMdcFamilies, mdcChanges, trajectoryPoints, type MdcChange, type MdcFamily, type MdcHistoryPoint } from '~/utils/mdcHistory'
-import { assignCompareColors, compareBoxPoints, conditionSummary, conditionToolRows, type ConditionSummary, type ConditionToolRow } from '~/utils/hardwareCompare'
+import { assignCompareColors, compareBoxPoints, conditionBoxRows, conditionSummary, conditionToolRows, type ConditionSummary, type ConditionToolRow } from '~/utils/hardwareCompare'
 import { analyticsTableUi } from '~/utils/tableUi'
+import { formatFixed } from '~/utils/recipeView'
 import type { BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
@@ -237,6 +220,9 @@ watch(families, (fams) => {
 }, { immediate: true })
 const activeFamily = computed(() => families.value.find(f => f.key === activeFamilyKey.value))
 const isPaired = computed(() => (activeFamily.value?.ninety.length ?? 0) > 0)
+const axes = computed(() => isPaired.value
+  ? [{ key: 'zero', label: '0°' }, { key: 'ninety', label: '90°' }] as const
+  : [{ key: 'zero', label: '' }] as const)
 
 // BsmTrendChart wants {ts, key, value}; MDC has no per-point selection, so
 // the timestamp doubles as the key.
@@ -346,11 +332,6 @@ const xyOption = computed<EChartsOption>(() => {
 useEchart(xyEl, xyOption)
 
 // --- 비교: per-condition fleet distribution + selected + picked-tool markers ---
-const toNum = (v: unknown): number | null => {
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
 const fleetSize = computed(() => Object.keys(props.settings).length)
 
 const conditions = computed(() => {
@@ -361,26 +342,18 @@ const conditions = computed(() => {
   return [...set].sort()
 })
 
-const boxRows = computed(() => conditions.value.map((cond) => {
-  const fleet = Object.keys(props.settings)
-    .map(tool => toNum(props.settings[tool]?.[cond]))
-    .filter((v): v is number => v !== null)
-  return { cond, stats: boxStats(fleet), mine: toNum(props.settings[props.selectedEqp]?.[cond]) }
-}))
+const boxRows = computed(() => conditionBoxRows(props.settings, props.selectedEqp, conditions.value))
 
 // The 비교 box the reader clicked ('' → none); declared above boxOption,
 // which reads it during useEchart's setup-time evaluation.
 const activeCond = ref('')
-watch(conditions, (conds) => {
-  if (!conds.includes(activeCond.value)) activeCond.value = ''
-})
 
 // Picked tools mapped to [conditionIndex, value] scatter points (color per tool).
 const compareBoxSeries = computed(() => compareBoxPoints(props.settings, compareIds.value, conditions.value))
 
 const boxEl = ref<HTMLDivElement | null>(null)
 // MDC values are stored to 6 decimals; 4 printed 1.004984 and 1.005000 alike.
-const fmtVal = (v: number) => v.toFixed(6)
+const fmtVal = (v: number) => formatFixed(v, 6)
 const boxOption = computed<EChartsOption>(() => ({
   grid: { left: 64, right: 16, top: compareIds.value.length ? 28 : 24, bottom: 48 },
   ...(compareIds.value.length ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
@@ -486,7 +459,7 @@ const fmtPpm = (v: number) => {
 }
 
 // --- 비교 summary: which condition to open first ---
-const summaryRows = computed(() => conditionSummary(props.settings, props.selectedEqp, conditions.value))
+const summaryRows = computed(() => conditionSummary(boxRows.value))
 const summaryMeta = {
   class: { tr: (row: { original: ConditionSummary }) => (row.original.cond === activeCond.value ? 'bg-(--sk-muted-surface)' : '') }
 }
@@ -496,7 +469,7 @@ const summaryColumns = computed<TableColumn<ConditionSummary>[]>(() => [
     header: '조건',
     cell: ({ row }) => h('button', {
       type: 'button',
-      class: ['underline-offset-2 hover:underline', row.original.cond === activeCond.value ? 'font-semibold' : ''],
+      class: 'underline-offset-2 hover:underline',
       onClick: () => { activeCond.value = row.original.cond }
     }, row.original.cond)
   },

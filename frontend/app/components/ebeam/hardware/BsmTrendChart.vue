@@ -76,9 +76,14 @@ const formatTime = (value: number | string) => {
   const mi = String(d.getMinutes()).padStart(2, '0')
   return `${mm}/${dd} ${hh}:${mi}`
 }
-const zoomFloor = computed(() => (props.dateOnly ? { minValueSpan: 2 * 24 * 3600 * 1000 } : {}))
-const formatAxisTime = (value: number | string) =>
-  props.dateOnly ? formatTime(value).slice(0, 5) : formatTime(value)
+// dateOnly labels midnight ticks only. Under a day's span ECharts ignores
+// minInterval and ticks hourly (zoomed in, or at the extent's ragged ends);
+// printing MM/DD on those would repeat the same date, so they stay blank.
+const formatAxisTime = (value: number | string) => {
+  const full = formatTime(value)
+  if (!props.dateOnly) return full
+  return full.endsWith(' 00:00') ? full.slice(0, 5) : ''
+}
 
 // Points arrive ascending (oldest first) from the panel.
 const overlays = computed(() => props.overlays ?? [])
@@ -152,20 +157,16 @@ const chartOption = computed<EChartsOption>(() => ({
     // behind the series, where they read as data. Vertical (time) lines stay.
     splitLine: { show: false }
   },
-  // dateOnly: a zoom window under a day makes ECharts ignore minInterval and
-  // tick hourly, and every hourly tick would print the same MM/DD — so the
-  // zoom stops at two days. (Data spanning under a day still repeats; MDC
-  // history spans weeks, so that is left alone.)
   dataZoom: [
-    { type: 'inside', start: 0, end: 100, ...zoomFloor.value },
-    { type: 'slider', start: 0, end: 100, height: 16, bottom: 12, ...zoomFloor.value }
+    { type: 'inside', start: 0, end: 100 },
+    { type: 'slider', start: 0, end: 100, height: 16, bottom: 12 }
   ],
   series: [
     {
       // Named only when overlays share the chart, so a solo chart keeps no legend.
       ...(hasOverlays.value ? { name: props.label } : {}),
       type: 'line',
-      ...(props.step ? { step: 'end' as const } : {}),
+      step: props.step ? 'end' : false,
       showSymbol: true,
       lineStyle: { color: color.value, width: 1.8 },
       itemStyle: { color: color.value },
@@ -180,7 +181,7 @@ const chartOption = computed<EChartsOption>(() => ({
     ...overlays.value.map(o => ({
       name: o.name,
       type: 'line' as const,
-      ...(props.step ? { step: 'end' as const } : {}),
+      step: props.step ? 'end' as const : false as const,
       showSymbol: false,
       smooth: false,
       lineStyle: { color: o.color ?? '#94a3b8', width: 1, opacity: 0.9 },

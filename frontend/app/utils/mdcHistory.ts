@@ -75,9 +75,6 @@ export interface MdcChange {
   ppm: number
 }
 
-// Values are stored to 6 decimals; anything under half a unit is the same value.
-const SAME_VALUE = 5e-7
-
 // Where the value actually moved, newest first. Repeated snapshots of an
 // unchanged value are not changes, and a window's first point has nothing
 // before it to compare with, so it is never one either.
@@ -86,7 +83,9 @@ export const mdcChanges = (family: MdcFamily): MdcChange[] => {
   const walk = (pts: MdcHistoryPoint[], axis: MdcChange['axis']) =>
     pts.slice(1).flatMap((p, i) => {
       const prev = pts[i]!.value
-      return Math.abs(p.value - prev) < SAME_VALUE
+      // Both providers round to 6 decimals server-side, so an unchanged value
+      // parses to the identical float — the same test trajectoryPoints uses.
+      return p.value === prev
         ? []
         : [{ ts: p.ts, axis, prev, next: p.value, ppm: (p.value / prev - 1) * 1e6 }]
     })

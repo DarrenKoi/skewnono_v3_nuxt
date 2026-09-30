@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix frontend test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assignCompareColors, assignSeriesColors, compareBoxPoints, conditionSummary, conditionToolRows, filterByTerm } from './hardwareCompare.ts'
+import { assignCompareColors, assignSeriesColors, compareBoxPoints, conditionBoxRows, conditionSummary, conditionToolRows, filterByTerm } from './hardwareCompare.ts'
 
 // The tool picker's items are their own label, so it filters on identity.
 const filterToolIds = (ids: readonly string[], term: string) => filterByTerm(ids, term, id => id)
@@ -104,20 +104,31 @@ test('conditionToolRows: highest first, delta vs median, drops tools lacking the
   assert.ok(Math.abs(rows[1]!.delta + 0.001) < 1e-12)
 })
 
+test('conditionBoxRows: per-condition n, stats and the selected value, in axis order', () => {
+  const settings = {
+    ME: { a: '1.001' },
+    T1: { a: '1.000', b: 'n/a' },
+    T2: { a: '1.002' }
+  }
+  const [a, b] = conditionBoxRows(settings, 'ME', ['a', 'b'])
+  assert.equal(a!.n, 3)
+  assert.equal(a!.stats!.median, 1.001)
+  assert.equal(a!.mine, 1.001)
+  assert.deepEqual([b!.n, b!.stats, b!.mine], [0, null, null])
+})
+
 test('conditionSummary: ranks by my |ppm| gap, tools-lacking-mode last, spread in ppm', () => {
   const settings = {
     ME: { a: '1.001', b: '0.990' },
     T1: { a: '1.000', b: '1.000', c: '1.000' },
     T2: { a: '1.002', b: '1.010', c: '1.004' }
   }
-  const rows = conditionSummary(settings, 'ME', ['a', 'b', 'c'])
-  assert.deepEqual(rows.map(r => r.cond), ['b', 'a', 'c'])
+  const rows = conditionSummary(conditionBoxRows(settings, 'ME', ['a', 'b', 'c', 'empty']))
+  assert.deepEqual(rows.map(r => r.cond), ['b', 'a', 'c']) // 'empty' has no stats
   const b = rows[0]!
   assert.equal(b.n, 3)
-  assert.equal(b.median, 1.0)
   assert.equal(Math.round(b.minePpm!), -10000)
   assert.equal(Math.round(b.spreadPpm), 20000) // (1.010 - 0.990) / 1.000
   assert.equal(rows[1]!.minePpm, 0) // ME is the median of a
-  assert.equal(rows[2]!.mine, null) // ME lacks c
-  assert.equal(rows[2]!.minePpm, null)
+  assert.equal(rows[2]!.minePpm, null) // ME lacks c
 })

@@ -5,7 +5,7 @@
 
 // Fallback ramp when the active ECharts theme exposes no (or a 1-entry) palette:
 // hue-distant, mid-saturation tones that stay legible on both surfaces.
-import { boxStats } from './boxplotStats.ts'
+import { boxStats, type BoxStats } from './boxplotStats.ts'
 
 const FALLBACK_COMPARE_COLORS = [
   '#2F5D8A', '#B7791F', '#4C956C', '#A64253',
@@ -110,41 +110,51 @@ export const conditionToolRows = (
     .map(r => ({ ...r, delta: r.value - median }))
     .sort((a, b) => b.value - a.value || a.eqpId.localeCompare(b.eqpId))
 
+export interface ConditionBoxRow {
+  cond: string
+  // Tools with a numeric value for this condition — conditions differ in who
+  // carries them, so every per-condition figure needs its own n.
+  n: number
+  stats: BoxStats | null
+  mine: number | null
+}
+
+// The one pass over the fleet per beam condition, in axis order. The boxplot,
+// the summary table and the detail table's median all read these rows, so
+// they cannot disagree on which values count or where the median is.
+export const conditionBoxRows = (
+  settings: Record<string, Record<string, unknown>>,
+  selectedEqp: string,
+  conditions: readonly string[]
+): ConditionBoxRow[] =>
+  conditions.map((cond) => {
+    const values = Object.values(settings).map(s => toNum(s?.[cond])).filter((v): v is number => v !== null)
+    return { cond, n: values.length, stats: boxStats(values), mine: toNum(settings[selectedEqp]?.[cond]) }
+  })
+
 export interface ConditionSummary {
   cond: string
   n: number
-  median: number
-  mine: number | null
   // Selected tool's gap to the fleet median, in ppm (null: it lacks the mode).
   minePpm: number | null
   // Fleet max − min relative to the median, in ppm.
   spreadPpm: number
 }
 
-// One row per beam condition for the 비교 tab's "where to look first" table:
-// conditions where the selected tool sits furthest from the fleet median come
-// first; conditions it lacks go last, widest fleet spread first. The median
-// includes the selected tool, and with 4-6 tools this ranks, it does not judge.
-export const conditionSummary = (
-  settings: Record<string, Record<string, unknown>>,
-  selectedEqp: string,
-  conditions: readonly string[]
-): ConditionSummary[] =>
-  conditions
-    .flatMap((cond) => {
-      const values = Object.values(settings).map(s => toNum(s?.[cond])).filter((v): v is number => v !== null)
-      const stats = boxStats(values)
-      if (!stats) return []
-      const mine = toNum(settings[selectedEqp]?.[cond])
-      return [{
-        cond,
-        n: values.length,
-        median: stats.median,
-        mine,
-        minePpm: mine === null ? null : (mine / stats.median - 1) * 1e6,
-        spreadPpm: (stats.max - stats.min) / stats.median * 1e6
-      }]
-    })
+// The 비교 tab's "where to look first" table: conditions where the selected
+// tool sits furthest from the fleet median come first; conditions it lacks go
+// last, widest fleet spread first. The median includes the selected tool, and
+// with 4-6 tools this ranks, it does not judge.
+export const conditionSummary = (rows: readonly ConditionBoxRow[]): ConditionSummary[] =>
+  rows
+    .flatMap(({ cond, n, stats, mine }) => stats
+      ? [{
+          cond,
+          n,
+          minePpm: mine === null ? null : (mine / stats.median - 1) * 1e6,
+          spreadPpm: (stats.max - stats.min) / stats.median * 1e6
+        }]
+      : [])
     .sort((a, b) =>
       (a.minePpm === null ? 1 : 0) - (b.minePpm === null ? 1 : 0)
       || Math.abs(b.minePpm ?? 0) - Math.abs(a.minePpm ?? 0)
