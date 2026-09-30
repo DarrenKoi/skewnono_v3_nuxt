@@ -234,12 +234,10 @@ const heatmapOption = computed<EChartsOption>(() => ({
 }))
 useEchart(heatmapEl, heatmapOption)
 
-// Same daily means as the heatmap, one line per tool; the selected tool is drawn
-// bold on top so it stands out of the bundle.
+// The heatmap's daily means as one line per tool, the selected tool bold. A
+// time axis, not a category one: onGridHover's pixel scale needs real axis
+// values, and a category axis answers in whole indices (it picked by y alone).
 const tempLineEl = ref<HTMLDivElement | null>(null)
-// One series per tool, one dot per day it logged. A time axis, not a category
-// one: onGridHover converts pixels to axis values, and a category axis answers
-// in whole indices, which breaks the pick's pixel scale (it chose by y alone).
 const tempLines = computed(() => {
   const { tools, days, points } = heatmap.value
   const byTool = tools.map(() => [] as { name: string, value: [number, number] }[])
@@ -248,8 +246,7 @@ const tempLines = computed(() => {
 })
 const tempLineOption = computed<EChartsOption>(() => ({
   grid: { left: 56, right: 16, top: 56, bottom: 56 },
-  // One tool per hover: an axis tooltip lists the whole Fab and outgrows the
-  // screen. The pick radius comes from onGridHover below, not the 5px dot.
+  // One tool per hover: an axis tooltip lists the whole Fab and outgrows the screen.
   tooltip: {
     trigger: 'item', confine: true,
     formatter: (param: unknown) => {
@@ -278,7 +275,8 @@ const tempLinePickable = computed(() =>
   tempLines.value.flatMap((line, seriesIndex) =>
     line.map((point, dataIndex) => ({ x: point.value[0], y: point.value[1], item: { seriesIndex, dataIndex } })))
 )
-// Tight radius, as in SequenceTrend: the lines are dense and overlaid.
+// A 22px pick radius instead of a hit on the 5px dot; tight, as in
+// SequenceTrend, because the lines are dense and overlaid.
 useEchart(tempLineEl, tempLineOption, {
   onGridHover: detail => nearestPoint(tempLinePickable.value, detail, { maxDistancePx: 22 })
 })

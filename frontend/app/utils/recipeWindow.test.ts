@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { recipeWindowRows, recipeWindowSummary, wallClockIso, RECIPE_WINDOW_FAIL_RATIO } from './recipeWindow.ts'
+import { recipeWindowRows, recipeWindowSummary, RECIPE_WINDOW_FAIL_RATIO } from './recipeWindow.ts'
 
 const row = (over: Record<string, unknown>) => ({
   timestamp: '2026-09-29T10:00:00Z', full_name: 'CLS/R1', align_fail: 'Pass', msr_check: 'Yes', fail_ratio: 1,
@@ -35,11 +35,6 @@ test('summary counts measurements, distinct recipes and each failure kind', () =
     row({ full_name: 'CLS/R2', msr_check: 'No' })
   ], '2026-09-29T10:00:00'))
   assert.deepEqual(summary, { total: 3, recipes: 2, align: 1, msr: 1, images: 1 })
-})
-
-test('an epoch from a time axis turns back into the offset-less wall clock it came from', () => {
-  const epoch = new Date('2026-09-29T10:05:30').getTime()
-  assert.equal(wallClockIso(epoch), '2026-09-29T10:05:30')
 })
 
 test('sorts on the exact distance, rounding only what it shows', () => {

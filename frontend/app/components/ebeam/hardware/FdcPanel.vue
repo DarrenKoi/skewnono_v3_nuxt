@@ -1,5 +1,10 @@
 <template>
-  <div class="mt-3 space-y-3">
+  <!-- Clicks bubble up from the charts' tooltip "이 시점 측정 recipe 보기"
+       buttons, which ECharts renders inside each chart host. -->
+  <div
+    class="mt-3 space-y-3"
+    @click="onInspectClick"
+  >
     <SkNavPillGroup
       v-model="fdcView"
       :items="viewOptions"
@@ -121,11 +126,9 @@
         <span class="sk-title">채널별 중앙 프로파일 대비 RMS 편차</span>
         <span class="sk-meta">차트를 누르면 그 시점의 cycle 이 아래에 표시됩니다 · 툴팁의 버튼으로 그 시점 앞뒤 30분의 측정 recipe 를 봅니다.</span>
       </div>
-      <!-- Clicks here only serve the tooltip's inspect button (rendered inside). -->
       <div
         ref="spmTrendEl"
         class="h-60 w-full"
-        @click="onInspectClick"
       />
       <div class="mb-1 flex items-center justify-between gap-2 px-1">
         <div class="flex items-center gap-2">
@@ -139,25 +142,13 @@
             class="rounded bg-(--sk-muted-surface) px-1.5 py-0.5 font-mono text-xs font-bold text-(--sk-ink)"
           >{{ b.channel }} · {{ b.fitModel }}</span>
         </div>
-        <div class="flex items-center gap-2">
-          <USelect
-            v-model="spmCycleKey"
-            :items="spmCycleItems"
-            size="xs"
-            icon="i-lucide-clock"
-            class="w-72"
-          />
-          <!-- The keyboard path to the same popup as the trend tooltip's button. -->
-          <UButton
-            v-if="spmCycleKey"
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-file-search"
-            label="이 시점 측정 recipe"
-            @click="emit('inspect-time', spmCycleKey)"
-          />
-        </div>
+        <EbeamHardwareInspectTimePicker
+          v-model="spmCycleKey"
+          :items="spmCycleItems"
+          label="SPM cycle"
+          select-class="w-72"
+          @inspect="emit('inspect-time', $event)"
+        />
       </div>
       <div
         ref="chartEl"
@@ -172,29 +163,14 @@
     >
       <div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
         <span class="sk-title">LaserPower · 중앙값 대비 이상치 %</span>
-        <!-- The keyboard path to the same popup as a dot click. -->
-        <div
+        <EbeamHardwareInspectTimePicker
           v-if="laserPickItems.length"
-          class="flex items-center gap-2"
-        >
-          <USelect
-            v-model="laserPick"
-            :items="laserPickItems"
-            size="xs"
-            icon="i-lucide-clock"
-            class="w-80"
-            aria-label="이상치 시각"
-          />
-          <UButton
-            v-if="laserPick"
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-file-search"
-            label="이 시점 측정 recipe"
-            @click="emit('inspect-time', laserPick)"
-          />
-        </div>
+          v-model="laserPick"
+          :items="laserPickItems"
+          label="이상치 시각"
+          select-class="w-80"
+          @inspect="emit('inspect-time', $event)"
+        />
       </div>
       <p class="mb-2 px-1 sk-meta">
         정상 범위(중앙값 ± {{ LASER_OUTLIER_SIGMA }}σ, MAD 추정) 안의 점은 숨기고 벗어난 점만 표시합니다 ·
@@ -206,7 +182,6 @@
       <div
         ref="chartEl"
         class="h-[26rem] w-full"
-        @click="onInspectClick"
       />
     </div>
 
@@ -268,7 +243,6 @@
       <div
         ref="chartEl"
         class="h-72 w-full"
-        @click="onInspectClick"
       />
     </div>
   </div>
@@ -276,7 +250,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import { Time, getLocalTimeZone, parseDate, today, type DateValue } from '@internationalized/date'
+import { getLocalTimeZone, parseDateTime, toCalendarDate, toTime, today, type DateValue, type Time } from '@internationalized/date'
 import {
   parseFdcValues, contactpinRows as deriveContactpinRows, spmDeviationSeries, fdcDailyMeans,
   fdcDocTs as tsOf, fdcDocValues as valuesOf, fdcEpoch as toEpoch,
@@ -465,13 +439,16 @@ const spmTrendOption = computed<EChartsOption>(() => ({
 useEchart(spmTrendEl, spmTrendOption, { onGridClick: ({ x }) => pickSpmCycleAt(x) })
 
 // --- LaserPower: x1/y1 outliers against a robust baseline ---
-const laserRows = computed<LaserRow[]>(() =>
-  activeDocs.value.map((d) => {
+// Gated like tempSeries: the outlier picker's watch reads this on every tab,
+// and TemperatureEChuck alone is ~16k docs a month at the office.
+const laserRows = computed<LaserRow[]>(() => {
+  if (activeKey.value !== 'LaserPower') return []
+  return activeDocs.value.map((d) => {
     const p = parseFdcValues(valuesOf(d))
     const lp = p.key === 'LaserPower' ? (p.data as LaserPowerValue) : null
     return { ts: tsOf(d), epoch: toEpoch(tsOf(d)), x1: lp?.pairs[0]?.x ?? NaN, y1: lp?.pairs[0]?.y ?? NaN }
   })
-)
+})
 
 const laserStats = computed(() => ({
   x1: laserOutliers(laserRows.value, 'x1'),
@@ -482,7 +459,9 @@ const laserPickItems = computed(() => {
   const byTs = new Map<string, string[]>()
   for (const channel of ['x1', 'y1'] as const) {
     for (const p of laserStats.value[channel].points) {
-      byTs.set(p.ts, [...(byTs.get(p.ts) ?? []), `${channel} ${p.deviation > 0 ? '+' : ''}${formatFixed(p.deviation, 2, '-')}%`])
+      let parts = byTs.get(p.ts)
+      if (!parts) byTs.set(p.ts, parts = [])
+      parts.push(`${channel} ${p.deviation > 0 ? '+' : ''}${formatFixed(p.deviation, 2, '-')}%`)
     }
   }
   return [...byTs].sort(([a], [b]) => b.localeCompare(a))
@@ -546,9 +525,10 @@ const inspectTyped = computed(() => inspectDate.value && inspectTime.value
   : '')
 const latestTempTs = computed(() => activeKey.value === 'TemperatureEChuck' ? tsOf(activeDocs.value.at(-1) ?? {}) : '')
 watch(latestTempTs, (ts) => {
-  if (ts.length < 16) return
-  inspectDate.value = parseDate(ts.slice(0, 10))
-  inspectTime.value = new Time(Number(ts.slice(11, 13)), Number(ts.slice(14, 16)))
+  // A tool with no reading clears the picker rather than keep the last tool's time.
+  const at = ts.length >= 16 ? parseDateTime(ts.slice(0, 16)) : undefined
+  inspectDate.value = at && toCalendarDate(at)
+  inspectTime.value = at && toTime(at)
 }, { immediate: true })
 
 const tempSeries = computed(() => {

@@ -6,7 +6,7 @@ import { escapeHtml } from './html.ts'
 // charts. The host element listens for clicks and reads the key back with
 // `inspectKeyOf`; ECharts renders the tooltip inside that element.
 
-// Offset-less KST wall clock (or any string key) goes out on the button.
+// `key` goes out on the button.
 export const inspectButtonHtml = (key: string, label: string): string =>
   `<button type="button" data-inspect-key="${escapeHtml(key)}" style="margin-top:6px;padding:2px 8px;border-radius:6px;border:1px solid var(--sk-border);background:var(--sk-surface);color:var(--sk-ink);font-size:11px;cursor:pointer">${escapeHtml(label)}</button>`
 

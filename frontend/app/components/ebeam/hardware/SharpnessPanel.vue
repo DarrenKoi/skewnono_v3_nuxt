@@ -78,26 +78,14 @@
         <div class="sk-title">
           360° 빔 형상
         </div>
-        <div class="flex items-center gap-2">
-          <USelect
-            v-model="selectedTs"
-            :items="timestampItems"
-            size="xs"
-            icon="i-lucide-clock"
-            placeholder="측정 시각 선택"
-            class="w-56"
-          />
-          <!-- The keyboard path to the same popup as the trend tooltip's button. -->
-          <UButton
-            v-if="selectedTs"
-            size="xs"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-file-search"
-            label="이 시점 측정 recipe"
-            @click="emit('inspect-time', selectedTs)"
-          />
-        </div>
+        <EbeamHardwareInspectTimePicker
+          v-model="selectedTs"
+          :items="timestampItems"
+          label="측정 시각"
+          placeholder="측정 시각 선택"
+          select-class="w-56"
+          @inspect="emit('inspect-time', $event)"
+        />
       </div>
       <div class="grid gap-2 lg:grid-cols-3">
         <div
