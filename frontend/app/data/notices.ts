@@ -37,6 +37,27 @@ export interface Notice {
 
 export const NOTICES: Notice[] = [
   {
+    date: '2026-09-30',
+    category: '기능추가',
+    title: 'H/W 관리 기간 선택, 시점별 측정 Recipe 보기, MDC 비교 개선',
+    sections: [
+      {
+        area: 'H/W 관리',
+        items: [
+          '조회 기간을 고를 수 있습니다. FDC · Sharpness 는 2주로 열리며 2주 / 3주 / 4주, BSM · Reso Center · MDC · SCE 는 30일 / 60일 / 90일 중에서 고르거나 달력으로 직접 지정합니다. 기간을 바꿔도 고른 조건과 확대 상태는 그대로 남습니다.',
+          'FDC 차트나 Sharpness 툴팁에서 한 시점을 고르면 그 앞뒤 30분 동안 측정한 Recipe 를 보여 줍니다. Align 실패, raw data 누락, 이미지 실패가 많은 측정은 강조되며, Recipe 를 누르면 측정 이력 상세로 이동합니다.',
+          'FDC LaserPower 는 채널 중앙값에서 크게 벗어난 점만 표시하고, 정상 범위는 띠로 보여 줍니다.',
+          'FDC fab 전체 보기는 장비 선택에서 고른 모델의 장비만 비교합니다.',
+          'FDC Contactpin 표는 최신 순으로 보여 주고, SPM 추이에서 한 cycle 을 누르면 아래 profile 이 그 cycle 로 바뀝니다. TemperatureEChuck 에서는 pos 1 과 같은 값인 pos 3 을 뺐습니다.',
+          'MDC 시계열은 보정값을 날짜 단위의 계단형 선으로 그리고, 값이 바뀐 시점을 변경 이력 표로 정리합니다.',
+          'MDC 비교는 조건별로 선택 장비와 fab 중앙값의 차이(ppm)를 요약하고, 조건을 누르면 장비별 값을 표로 보여 줍니다.',
+          'HV-SEM 의 MDC 비교에 CD-SEM 장비가 섞여 나오던 문제를 고쳤습니다.',
+          'BM/PM 표시가 차트 범례와 겹치던 문제를 고쳤습니다.'
+        ]
+      }
+    ]
+  },
+  {
     date: '2026-09-28',
     category: '기능추가',
     title: 'H/W 관리 FDC fab 전체 보기와 SCE 비교 개선',
