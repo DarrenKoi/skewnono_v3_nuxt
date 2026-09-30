@@ -141,9 +141,11 @@ def _normalize_conditions(entry: Any) -> dict[str, str]:
 
 def _normalize_fab_map(fab_map: dict[str, Any]) -> dict[str, dict[str, str]]:
     return {
-        str(eqp): conditions
+        eqp_id: conditions
         for eqp, entry in fab_map.items()
-        if (conditions := _normalize_conditions(entry))
+        # Keys become URL segments (the page fetches each sibling's history by
+        # id), so a padded key must not reach the frontend.
+        if (eqp_id := _text(eqp)) and (conditions := _normalize_conditions(entry))
     }
 
 
@@ -183,9 +185,11 @@ def _family_by_eqp_id() -> dict[str, str | None]:
     The snapshot's fab map carries every tool in the fab, CD-SEM and HV-SEM
     alike, so the 비교 cohort must be cut to the selected tool's family by the
     model code — never by parsing the eqp_id (see ``sem_list/roster.py``).
+    Keyed upper-case: the Redis map and the roster are written by different
+    collectors, and a casing drift must not silently drop a sibling.
     """
     return {
-        eqp_id: model_to_tool_type(row.get("eqp_model_cd") or "")
+        eqp_id.upper(): model_to_tool_type(row.get("eqp_model_cd") or "")
         for row in _office_roster()
         if (eqp_id := _text(row.get("eqp_id")))
     }
@@ -193,11 +197,15 @@ def _family_by_eqp_id() -> dict[str, str | None]:
 
 def _same_family(eqp_id: str, settings: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
     families = _family_by_eqp_id()
-    family = families.get(eqp_id)
+    selected = eqp_id.strip().upper()
+    family = families.get(selected)
+    # An unclassified selected tool matches nothing: None == None would pair it
+    # with every other unclassified tool, of whatever real family.
     return {
         tool: conditions
         for tool, conditions in settings.items()
-        if tool == eqp_id or families.get(tool) == family
+        if tool.upper() == selected
+        or (family is not None and families.get(tool.upper()) == family)
     }
 
 

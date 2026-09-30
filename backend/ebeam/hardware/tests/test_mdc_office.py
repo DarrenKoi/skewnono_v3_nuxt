@@ -209,6 +209,40 @@ def test_settings_keeps_only_the_selected_tools_family(monkeypatch):
     assert set(office.build_mdc_settings("ECDX100", "M16A", ANCHOR)) == set(OFFICE_SETTINGS)
 
 
+def _wire_roster(monkeypatch, fab_map, roster):
+    monkeypatch.setattr(
+        office, "redis_client",
+        lambda: _FakeRedis(fields={"M16A": json.dumps(fab_map).encode()}),
+    )
+    monkeypatch.setattr(office, "_office_roster", lambda: roster)
+    office._family_by_eqp_id.cache_clear()
+
+
+def test_an_unclassified_selected_tool_is_compared_against_nothing(monkeypatch):
+    # family None must not match other unknown tools: an HV tool missing from
+    # the roster would otherwise be compared against unknown CD tools.
+    fab_map = {"NEW001": {"800V_HR_0Deg": "1.0"}, "ODD002": {"800V_HR_0Deg": "1.0"},
+               "ECDX100": {"800V_HR_0Deg": "1.0"}}
+    _wire_roster(monkeypatch, fab_map, [{"eqp_id": "ECDX100", "eqp_model_cd": "CG6300"}])
+    try:
+        assert set(office.build_mdc_settings("NEW001", "M16A", ANCHOR)) == {"NEW001"}
+    finally:
+        office._family_by_eqp_id.cache_clear()
+
+
+def test_family_match_ignores_case_and_whitespace_between_redis_and_roster(monkeypatch):
+    fab_map = {" mcd242 ": {"800V_HR_0Deg": "1.0"}, "MCD300": {"800V_HR_0Deg": "1.0"},
+               "ECDX100": {"800V_HR_0Deg": "1.0"}}
+    roster = [{"eqp_id": "MCD242", "eqp_model_cd": "TP3500"},
+              {"eqp_id": "mcd300 ", "eqp_model_cd": "tp4000"},
+              {"eqp_id": "ECDX100", "eqp_model_cd": "CG6300"}]
+    _wire_roster(monkeypatch, fab_map, roster)
+    try:
+        assert set(office.build_mdc_settings("MCD300", "M16A", ANCHOR)) == {"mcd242", "MCD300"}
+    finally:
+        office._family_by_eqp_id.cache_clear()
+
+
 # ──────────────────── history: long format from the archive ─────────────────
 
 class _FakeFolder:

@@ -81,8 +81,9 @@ builder 2개
     fab map 에는 그 fab 의 CD-SEM 과 HV-SEM 장비가 **섞여** 있습니다
     (user-confirmed 2026-09-30 — HV-SEM 비교에 CD-SEM 장비가 나온다는 보고).
     그래서 어댑터는 sem_list roster 의 eqp_model_cd 로 선택 장비와 **같은 계열**
-    (model_to_tool_type)만 남깁니다. roster 에 없는 장비는 계열을 알 수 없으므로
-    선택 장비의 계열이 확인되면 제외됩니다.
+    (model_to_tool_type)만 남깁니다. roster 에 없거나 계열을 알 수 없는 장비는
+    비교 집단에서 빠지고, 선택 장비 자체의 계열을 모르면 선택 장비만 남습니다.
+    eqp_id 는 Redis key 와 roster 사이에서 대소문자·공백을 무시하고 맞춥니다.
 
   build_mdc_history(eqp_id, start, end) -> list[{...}]
     선택 장비 **하나만**, [start, end] 구간을 오름차순으로. beam_condition 당

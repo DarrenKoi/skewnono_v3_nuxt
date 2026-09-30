@@ -350,11 +350,13 @@ const overlayEvents = computed<BmPmEvent[]>(() =>
 // ---- Multi-tool comparison (MDC/SCE) ----
 // Page-scoped picked set, shared with the MDC & SCE panels. The primary tool's
 // sibling cohort changes when you switch tools, so clear the picks on switch —
-// the panels also prune defensively against their own settings keys.
+// the panels also prune defensively against their own settings keys. Immediate:
+// the state outlives this page, and picks carried over from the CD-SEM page
+// would otherwise drive the awaited compare fetch below before any panel prunes.
 const compareIds = useState<string[]>('hw-compare-tools', () => [])
 watch(() => selectedTool.value?.eqp_id, () => {
   compareIds.value = []
-})
+}, { immediate: true })
 
 // SCE compares from `settings` already in the payload; MDC 시계열 needs each
 // picked tool's own history, so fetch their mdc docs on demand.
