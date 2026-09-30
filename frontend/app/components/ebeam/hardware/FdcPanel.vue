@@ -300,9 +300,8 @@ const grouped = computed(() => {
 })
 const availableKeys = computed(() => Object.keys(grouped.value).sort())
 const keyItems = computed(() => availableKeys.value.map(key => ({ value: key, label: key, count: grouped.value[key]!.length })))
-// Page-scoped like the 장비/Fab 전체 view: a period switch remounts this panel
-// (the results area shows a spinner while it refetches), and a local ref would
-// drop the reader back on the first sub-tab.
+// Page-scoped like the 장비/Fab 전체 view: leaving the FDC tab unmounts this
+// panel, and a local ref would bring the reader back on the first sub-tab.
 const activeKey = useState('hw-fdc-key', () => '')
 watch(availableKeys, (keys) => {
   if (!keys.includes(activeKey.value)) activeKey.value = keys[0] ?? ''

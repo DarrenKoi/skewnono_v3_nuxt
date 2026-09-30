@@ -58,8 +58,8 @@ export const nearestPoint = <T>(
   return best.item
 }
 
-// The category-axis case: `x` arrives as a fractional position between category
-// indices, so the nearest point is just the rounded index. Returns null when
+// The category-axis case: `x` arrives as the category index, so the nearest
+// point is that index (rounded, in case a caller passes a fractional one). Returns null when
 // the click rounds outside the data — clicking the padding past the last
 // category should not select the last point.
 export const nearestIndex = (x: number, length: number): number | null => {

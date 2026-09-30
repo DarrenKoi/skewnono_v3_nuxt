@@ -6,8 +6,8 @@ import { chartExportFilename } from '~/utils/chartExport'
 import { withPreservedZoom, type ZoomWindow } from '~/utils/chartZoom'
 
 export interface GridClickDetail {
-  // Axis values under the cursor: a fractional category position for a category
-  // axis (round it for the index), the data value for a value/time axis.
+  // Axis values under the cursor: the category index for a category axis, the
+  // data value for a value/time axis.
   x: number
   y: number
   // Which grid was hit — matters for multi-grid charts (small multiples, matrix
@@ -27,9 +27,9 @@ interface UseEchartOptions {
   // space no series covers. `onClick` only fires on a hit against a series
   // element, so it never fires for curves drawn with `showSymbol: false`
   // (nothing to hit) — use this instead for "pick the x position I clicked".
-  // Receives the x-axis value under the cursor: a fractional category position
-  // for a category axis (round it to get the index), the data value for a
-  // value/time axis. Both callbacks fire if both are supplied.
+  // Receives the x-axis value under the cursor: the category index for a
+  // category axis, the data value for a value/time axis. Both callbacks fire if
+  // both are supplied.
   //
   // Also receives the index of the grid that was hit. That matters for
   // multi-grid charts — small multiples, matrix cells — where the same x value
@@ -175,19 +175,18 @@ export const useEchart = (
       const x = Number(at[0])
       const y = Number(at[1])
       if (!Number.isFinite(x)) return null
-      // One pixel right and down, converted the same way: the difference is
-      // what a pixel is worth in data units on each axis. Two conversions
-      // instead of one per candidate point, and it costs nothing on a chart
-      // with no y component to weigh (the caller simply ignores it).
-      const stepped = chart.convertFromPixel({ gridIndex }, [point[0] + 1, point[1] + 1])
-      const at1 = Array.isArray(stepped) ? stepped : [x, y]
-      return {
-        x,
-        y,
-        gridIndex,
-        dataPerPixelX: Math.abs(Number(at1[0]) - x) || 1,
-        dataPerPixelY: Math.abs(Number(at1[1]) - y) || 1
+      // What one data unit spans on screen, measured data -> pixel: the pixel
+      // -> data direction cannot, because a category axis answers in whole
+      // indices, so a 1px step read as "one category per pixel" and the pick
+      // went by y alone. One unit up the axis, converted forward, gives the
+      // band width there and the plain scale on a value or time axis.
+      const px0 = chart.convertToPixel({ gridIndex }, [x, y])
+      const px1 = chart.convertToPixel({ gridIndex }, [x + 1, y + 1])
+      const perPixel = (axis: 0 | 1) => {
+        const span = Array.isArray(px0) && Array.isArray(px1) ? Math.abs(Number(px1[axis]) - Number(px0[axis])) : 0
+        return span > 0 && Number.isFinite(span) ? 1 / span : 1
       }
+      return { x, y, gridIndex, dataPerPixelX: perPixel(0), dataPerPixelY: perPixel(1) }
     }
     return null
   }

@@ -274,6 +274,15 @@ const { data: servicePayload, pending: servicePending, error: serviceError } = a
   }
 )
 
+// A refetch for the same tool and tab (2주/3주/4주, a date pick) keeps the
+// panel mounted on the previous answer, so its sub-tab, filters and chart zoom
+// survive; the spinner used to unmount every panel and reset all of them. A new
+// tool or tab still gets the spinner rather than the old one's data.
+const refreshingInPlace = computed(() => servicePending.value
+  && !!servicePayload.value?.eqp_id
+  && servicePayload.value.service === activeService.value
+  && servicePayload.value.eqp_id === selectedTool.value?.eqp_id)
+
 // ---- Recipes measured around a clicked hardware time (데일리 tabs) ----
 // null = closed. Cleared when the tool, tab or window changes: the answer
 // would describe a moment the page no longer shows.
@@ -666,7 +675,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
         </div>
 
         <div class="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
-          <template v-if="servicePending">
+          <template v-if="servicePending && !refreshingInPlace">
             <span class="inline-flex items-center gap-2">
               <UIcon
                 name="i-lucide-loader-circle"
@@ -695,6 +704,16 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                   </span>
                   <span class="font-mono text-xs text-(--sk-ink-muted)">
                     {{ servicePayload.fetched_at }}
+                  </span>
+                  <span
+                    v-if="refreshingInPlace"
+                    class="inline-flex items-center gap-1 text-xs text-(--sk-ink-muted)"
+                  >
+                    <UIcon
+                      name="i-lucide-loader-circle"
+                      class="h-3.5 w-3.5 animate-spin"
+                    />
+                    갱신 중
                   </span>
                 </div>
                 <!-- Compact metric strip (문서수 · 기준일 · 최신 측정 …) -->
