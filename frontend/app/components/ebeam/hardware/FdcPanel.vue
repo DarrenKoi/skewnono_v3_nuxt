@@ -236,7 +236,7 @@ import {
 import { formatFixed } from '~/utils/recipeView'
 import { inspectButtonHtml, inspectKeyOf, inspectTooltipBase } from '~/utils/chartInspectTooltip'
 import { stableYRange, tightYRange } from '~/utils/chartRange'
-import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
+import { BM_PM_LEGEND_GRID_TOP, bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 import type { FdcFleet } from '~/composables/useHardwareApi'
 import { laserOutliers, LASER_OUTLIER_SIGMA, type LaserRow } from '~/utils/fdcLaser'
 
@@ -381,7 +381,7 @@ const pickSpmCycleAt = (epoch: number) => {
 const spmSelectedEpoch = computed(() => spmCycles.value.find(c => c.key === spmCycleKey.value)?.items[0]?.epoch)
 
 const spmTrendOption = computed<EChartsOption>(() => ({
-  grid: { left: 48, right: 16, top: 24, bottom: 52 },
+  grid: { left: 48, right: 16, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 24, bottom: 52 },
   tooltip: inspectTooltip(spmTrendTooltip, 'axis', 3, ''),
   legend: { top: 0, textStyle: { fontSize: 10 }, data: spmDeviations.value.map(series => series.channel) },
   xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
@@ -436,7 +436,7 @@ const laserDeviationOption = (): EChartsOption => {
   const bandLo = Math.min(x1.band?.lo ?? 0, y1.band?.lo ?? 0)
   const bandHi = Math.max(x1.band?.hi ?? 0, y1.band?.hi ?? 0)
   return {
-    grid: { left: 52, right: 18, top: 28, bottom: 56 },
+    grid: { left: 52, right: 18, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 28, bottom: 56 },
     tooltip: inspectTooltip(mainTooltip, 'item', 2, '%'),
     legend: { top: 2, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', min: times[0], max: times[times.length - 1], axisLabel: { fontSize: 10 } },
@@ -519,7 +519,7 @@ const chartOption = computed<EChartsOption>(() => {
   // flat-series case, so trend changes stay legible.
   const tempAxis = tightYRange(temps) ?? { scale: true }
   return {
-    grid: { left: 56, right: 16, top: 24, bottom: 52 },
+    grid: { left: 56, right: 16, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 24, bottom: 52 },
     tooltip: inspectTooltip(mainTooltip, 'axis', 2, ' °C'),
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },

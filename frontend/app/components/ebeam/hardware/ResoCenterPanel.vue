@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { stableYRange } from '~/utils/chartRange'
-import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
+import { BM_PM_LEGEND_GRID_TOP, bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   docs: Record<string, unknown>[]
@@ -137,7 +137,7 @@ const trendOption = computed<EChartsOption>(() => {
   const bestData = rows.map(d => [toEpoch(tsOf(d)), num(d.BestReso)])
   const iscData = rows.map(d => [toEpoch(tsOf(d)), num(d.ResoIScenter)])
   return {
-    grid: { left: 56, right: 16, top: 24, bottom: 36 },
+    grid: { left: 56, right: 16, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 24, bottom: 36 },
     tooltip: {
       trigger: 'axis',
       // Both series are in row order, so dataIndex maps straight back to the

@@ -25,7 +25,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { stableYRange, tightYRange, type StableYRangeOptions } from '~/utils/chartRange'
-import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
+import { BM_PM_LEGEND_GRID_TOP, bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 import { trendSymbolSize } from '~/utils/chartSymbolSize'
 import { nearestPoint } from '~/utils/chartNearest'
 import { inspectButtonHtml, inspectKeyOf, inspectTooltipBase } from '~/utils/chartInspectTooltip'
@@ -136,10 +136,8 @@ const onTooltipClick = (event: MouseEvent) => {
 }
 
 const chartOption = computed<EChartsOption>(() => ({
-  // The legend (top 0, ~20px) and the BM/PM markLine labels (just above the
-  // grid's top edge) would share one band at top 28 - the grid drops to 40 so
-  // the labels get their own row under the legend.
-  grid: { left: 56, right: 16, top: hasOverlays.value ? 40 : 16, bottom: 56 },
+  // Only overlays bring a legend; without one the BM/PM labels fit in top 16.
+  grid: { left: 56, right: 16, top: hasOverlays.value ? BM_PM_LEGEND_GRID_TOP : 16, bottom: 56 },
   tooltip: props.inspectLabel ? inspectTooltip.value : plainTooltip,
   ...(hasOverlays.value ? { legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } } } : {}),
   xAxis: {

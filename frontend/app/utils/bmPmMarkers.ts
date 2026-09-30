@@ -21,6 +21,12 @@ export interface BmPmMarkLineData {
   tooltip: { formatter: string }
 }
 
+// Grid top for a chart that pairs these labels with a top legend. The labels
+// sit just above the grid's top edge (position 'end', ~13px tall), and a
+// legend at top 0-2 fills y 5-21 — at the usual grid top 24-28 they share one
+// band and "PM" prints through the legend.
+export const BM_PM_LEGEND_GRID_TOP = 40
+
 export interface BmPmMarkLine {
   silent: boolean
   symbol: 'none'

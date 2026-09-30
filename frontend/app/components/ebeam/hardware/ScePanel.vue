@@ -365,7 +365,7 @@ import {
 import { assignCompareColors, assignSeriesColors, filterByTerm } from '~/utils/hardwareCompare'
 import { stableRadialRange } from '~/utils/chartRange'
 import { formatFixed } from '~/utils/recipeView'
-import { bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
+import { BM_PM_LEGEND_GRID_TOP, bmPmMarkLine, type BmPmEvent } from '~/utils/bmPmMarkers'
 
 const props = defineProps<{
   settings: Record<string, Record<string, unknown>>
@@ -586,7 +586,7 @@ const coeffTrendOption = computed<EChartsOption>(() => {
     splitLine: { show: false }
   })
   return {
-    grid: { left: 64, right: 64, top: 24, bottom: 36 },
+    grid: { left: 64, right: 64, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 24, bottom: 36 },
     tooltip: { trigger: 'axis' },
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
