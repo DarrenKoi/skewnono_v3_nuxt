@@ -42,11 +42,11 @@ export interface FdcFleetTool {
   laser_y1: number | null
   pin_counts: Record<string, number>
   counter_rates: { channel: string, per_day: number | null }[]
+  spread_bins: { judgment: string, lo: number, count: number }[]
 }
 
 export interface FdcFleet {
   tools: FdcFleetTool[]
-  spread_bins: { judgment: string, lo: number, count: number }[]
   spread_bin_width: number
 }
 

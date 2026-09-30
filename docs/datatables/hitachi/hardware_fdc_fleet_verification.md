@@ -173,7 +173,7 @@ after the deployment date, as the side-fields are.
 | V2.2 | `laser_x1`, `laser_y1` | mean of `values[2]` / `values[3]` | The laser ranking is right |
 | V2.3 | `pin_counts` per judgement | distinct `(timestamp, values)` per `values[4]` | The dedupe is right. Also report the plain `doc_count` beside it and the duplicate share |
 | V2.4 | `counter_rates` per channel | per `values[2]`: `(max - min)` of `values[9]` ÷ days between first and last doc | The rate is right. Also say whether any channel's counter **decreased** inside the window, which would mean a reset: `(max - min)` then overstates |
-| V2.5 | `spread_bins` for the fab: total count per judgement | the count of Contactpin docs with 4 parseable numbers | The histogram covers every doc. `'25,0'`-style comma cells: how many, and did the writer read them as 25.0? |
+| V2.5 | `spread_bins` summed over the fab's tools (each tool carries its own): total count per judgement | the count of Contactpin docs with 4 parseable numbers | The histogram covers every doc. `'25,0'`-style comma cells: how many, and did the writer read them as 25.0? |
 
 ## V3. The two cautions from the letter
 

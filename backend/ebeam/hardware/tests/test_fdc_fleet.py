@@ -86,12 +86,12 @@ RESPONSE = {
                 "c_min": {"value": 1000.0}, "c_max": {"value": 1060.0},
                 "t_min": {"value": 0.0}, "t_max": {"value": 3 * 86_400_000.0},
             }]},
+            "margin": {"buckets": [
+                {"key": "Conduction", "spread": {"buckets": [
+                    {"key": 4.0, "doc_count": 7}, {"key": 6.0, "doc_count": 0},
+                ]}},
+            ]},
         },
-    ]},
-    "margin": {"buckets": [
-        {"key": "Conduction", "spread": {"buckets": [
-            {"key": 4.0, "doc_count": 7}, {"key": 6.0, "doc_count": 0},
-        ]}},
     ]},
 }
 
@@ -108,10 +108,11 @@ def test_fleet_from_aggs_normalizes_an_opensearch_shaped_response():
     # A tool with no docs of a key reads null/empty, never 0.
     assert second["temp_c"] is None and second["temp_days"] == [] and second["pin_counts"] == {}
     assert second["counter_rates"] == [{"channel": "A", "per_day": None}]  # zero span
-    assert out["spread_bins"] == [
+    assert first["spread_bins"] == [
         {"judgment": "Conduction", "lo": 4.0, "count": 7},
         {"judgment": "Conduction", "lo": 6.0, "count": 0},
     ]
+    assert second["spread_bins"] == []  # no margin bucket
     assert out["spread_bin_width"] == fleet.SPREAD_BIN_WIDTH
 
 
@@ -181,7 +182,7 @@ def test_mock_fleet_covers_only_the_fabs_cdsem_roster_and_follows_model_coverage
     for tool in out["tools"]:
         if tool["eqp_model_cd"] in ("GT2000", "GT2000S"):
             assert tool["pin_counts"] == {} and tool["counter_rates"] == []
-    assert {b["judgment"] for b in out["spread_bins"]} == {
+    assert {b["judgment"] for t in out["tools"] for b in t["spread_bins"]} == {
         "Conduction", "UnstableConduction", "NotConduction",
     }
 
@@ -207,8 +208,8 @@ def test_a_cg5000_tool_is_an_spm_only_fleet_row_not_an_error():
     assert out["tools"] == [{
         "eqp_id": "CG5K01", "eqp_model_cd": "CG5000", "temp_c": None, "temp_days": [],
         "laser_x1": None, "laser_y1": None, "pin_counts": {}, "counter_rates": [],
+        "spread_bins": [],
     }]
-    assert out["spread_bins"] == []
 
 
 # ───────────────────────────── dispatcher ───────────────────────────────────

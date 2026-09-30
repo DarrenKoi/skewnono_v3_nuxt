@@ -229,7 +229,7 @@ def build_fdc_fleet(fab_name: str, start: datetime, end: datetime) -> FdcFleet:
     """
     roster = fab_roster(get_sem_list(), fab_name)
     if not roster:
-        return {"tools": [], "spread_bins": [], "spread_bin_width": SPREAD_BIN_WIDTH}
+        return {"tools": [], "spread_bin_width": SPREAD_BIN_WIDTH}
     clauses: list[dict[str, Any]] = [
         {"terms": {EQP_ID_KW: sorted(roster)}},
         {"range": {TS_FIELD: {"gte": start.isoformat(), "lte": end.isoformat()}}},

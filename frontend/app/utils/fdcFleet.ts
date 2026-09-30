@@ -35,12 +35,14 @@ export const fdcFleetPinRows = (tools: FdcFleetTool[]) =>
   }).filter(row => row.total > 0)
     .sort((a, b) => a.greenRate - b.greenRate || a.eqpId.localeCompare(b.eqpId))
 
+// Sums the tools' own histograms, so a model subset gets its own distribution.
 export const fdcFleetHistogram = (fleet: FdcFleet) => {
-  const bins = [...new Set(fleet.spread_bins.map(bin => bin.lo))].sort((a, b) => a - b)
+  const spreadBins = fleet.tools.flatMap(tool => tool.spread_bins)
+  const bins = [...new Set(spreadBins.map(bin => bin.lo))].sort((a, b) => a - b)
   const judgments = Object.values(CONTACTPIN_JUDGMENT)
   const series = judgments.map(judgment => ({
     judgment,
-    counts: bins.map(lo => fleet.spread_bins
+    counts: bins.map(lo => spreadBins
       .filter(bin => bin.judgment === judgment && bin.lo === lo)
       .reduce((sum, bin) => sum + bin.count, 0))
   }))

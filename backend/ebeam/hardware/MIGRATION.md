@@ -59,7 +59,9 @@ the office writer stores next to `values` (`temp_c`, `laser_x1`,
 response normalizer live in `fdc/fleet.py`, shared with the mock, which
 emulates the response from its own docs. The spelling is `pin_judgment`, with
 no 'e' (office 확인 2026-09-28). A wrong field name returns empty buckets, not
-an error, so `fleet.JUDGMENT_KW` is pinned by a test. The body was dry-run on
+an error, so `fleet.JUDGMENT_KW` is pinned by a test. Every aggregation,
+the margin histogram included, is per tool, so the page narrows the fab to
+the models picked in 장비 선택 without a refetch. The body was dry-run on
 the real index (27 ms). Before the scheduler writer is deployed it returns an
 empty view, not a 500. Docs written before the side-fields shipped carry none
 (no backfill), so the view covers roughly 30 days from that deployment onward.

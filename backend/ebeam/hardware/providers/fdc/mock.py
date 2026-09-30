@@ -325,10 +325,10 @@ def _emulate_fleet_aggs(docs_by_tool: dict[str, list[dict]]) -> dict:
         return {"value": fmean(values) if values else None}
 
     tools: list[dict] = []
-    margin: dict[str, Counter] = defaultdict(Counter)
     for eqp_id, docs in docs_by_tool.items():
         if not docs:
             continue
+        margin: dict[str, Counter] = defaultdict(Counter)
         days: dict[str, list[float]] = defaultdict(list)
         stamps: dict[str, set[str]] = defaultdict(set)
         channels: dict[str, list[tuple[float, int]]] = defaultdict(list)
@@ -363,17 +363,16 @@ def _emulate_fleet_aggs(docs_by_tool: dict[str, list[dict]]) -> dict:
                 }
                 for ch, points in channels.items()
             ]},
+            # A histogram agg fills the empty bins between the lowest and highest.
+            "margin": {"buckets": [
+                {"key": j, "spread": {"buckets": [
+                    {"key": b * SPREAD_BIN_WIDTH, "doc_count": counts[b]}
+                    for b in range(min(counts), max(counts) + 1)
+                ]}}
+                for j, counts in margin.items()
+            ]},
         })
-    # A histogram agg fills the empty bins between the lowest and highest.
-    bins = [b for counts in margin.values() for b in counts]
-    margin_buckets = [
-        {"key": j, "spread": {"buckets": [
-            {"key": b * SPREAD_BIN_WIDTH, "doc_count": counts[b]}
-            for b in range(min(counts), max(counts) + 1)
-        ]}}
-        for j, counts in margin.items()
-    ] if bins else []
-    return {"tools": {"buckets": tools}, "margin": {"buckets": margin_buckets}}
+    return {"tools": {"buckets": tools}}
 
 
 def build_fdc_fleet(fab_name: str, start: datetime, end: datetime) -> FdcFleet:

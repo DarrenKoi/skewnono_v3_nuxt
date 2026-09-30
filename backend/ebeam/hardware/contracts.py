@@ -55,6 +55,12 @@ class FdcCounterRate(TypedDict):
     per_day: float | None
 
 
+class FdcSpreadBin(TypedDict):
+    judgment: str
+    lo: float  # bin = [lo, lo + spread_bin_width)
+    count: int
+
+
 class FdcFleetTool(TypedDict):
     eqp_id: str
     eqp_model_cd: str | None
@@ -66,17 +72,12 @@ class FdcFleetTool(TypedDict):
     # Deduped Contactpin doc counts per judgment; {} when none.
     pin_counts: dict[str, int]
     counter_rates: list[FdcCounterRate]
-
-
-class FdcSpreadBin(TypedDict):
-    judgment: str
-    lo: float  # bin = [lo, lo + spread_bin_width)
-    count: int
+    # Contactpin margin histogram; per tool so a model subset sums its own.
+    spread_bins: list[FdcSpreadBin]
 
 
 class FdcFleet(TypedDict):
     tools: list[FdcFleetTool]
-    spread_bins: list[FdcSpreadBin]
     spread_bin_width: float
 
 

@@ -5,7 +5,7 @@ import { fdcFleetHeatmap, fdcFleetLaserRows, fdcFleetPinRows, fdcFleetHistogram,
 
 const tool = (eqp_id: string, values: Partial<FdcFleetTool> = {}): FdcFleetTool => ({
   eqp_id, eqp_model_cd: null, temp_c: null, temp_days: [], laser_x1: null, laser_y1: null,
-  pin_counts: {}, counter_rates: [], ...values
+  pin_counts: {}, counter_rates: [], spread_bins: [], ...values
 })
 
 test('heatmap sorts hot tools first and days chronologically, omitting tools without temperatures', () => {
@@ -38,12 +38,13 @@ test('pin rows exclude zero totals and rank by Conduction share, not raw count',
   assert.deepEqual(rows[0]?.percent, { ok: 25, warn: 25, bad: 50 })
 })
 
-test('histogram sorts bins and fills absent judgments with zero', () => {
-  const result = fdcFleetHistogram({ tools: [], spread_bin_width: 2, spread_bins: [
-    { judgment: 'Conduction', lo: 6, count: 3 }, { judgment: 'NotConduction', lo: 4, count: 2 }
+test('histogram sums the tools\' bins, sorts them and fills absent judgments with zero', () => {
+  const result = fdcFleetHistogram({ spread_bin_width: 2, tools: [
+    tool('a', { spread_bins: [{ judgment: 'Conduction', lo: 6, count: 3 }, { judgment: 'NotConduction', lo: 4, count: 2 }] }),
+    tool('b', { spread_bins: [{ judgment: 'Conduction', lo: 6, count: 1 }] })
   ] })
   assert.deepEqual(result.labels, ['4–6', '6–8'])
-  assert.deepEqual(result.series.map(series => series.counts), [[0, 3], [0, 0], [2, 0]])
+  assert.deepEqual(result.series.map(series => series.counts), [[0, 4], [0, 0], [2, 0]])
   assert.deepEqual(result.series[2]?.points, [[5, 2], [7, 0]])
 })
 

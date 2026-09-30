@@ -55,8 +55,9 @@ def fab_roster(rows: list[dict], fab_name: str) -> dict[str, str]:
 
 
 def fleet_aggs() -> dict[str, Any]:
-    """The request's `aggs`: per tool, window means, daily temp means, deduped
-    Contactpin counts and counter spans; fleet-wide, the margin histogram."""
+    """The request's `aggs`, all per tool: window means, daily temp means,
+    deduped Contactpin counts, counter spans and the margin histogram. Per tool
+    so the page can narrow the fab to the picked models without a refetch."""
     return {
         "tools": {
             "terms": {"field": "eqp_id.keyword", "size": _TOOLS_SIZE},
@@ -86,11 +87,11 @@ def fleet_aggs() -> dict[str, Any]:
                         "t_max": {"max": {"field": "timestamp"}},
                     },
                 },
+                "margin": {
+                    "terms": {"field": JUDGMENT_KW, "size": 10},
+                    "aggs": {"spread": {"histogram": {"field": "pin_spread", "interval": SPREAD_BIN_WIDTH}}},
+                },
             },
-        },
-        "margin": {
-            "terms": {"field": JUDGMENT_KW, "size": 10},
-            "aggs": {"spread": {"histogram": {"field": "pin_spread", "interval": SPREAD_BIN_WIDTH}}},
         },
     }
 
@@ -132,14 +133,13 @@ def fleet_from_aggs(aggs: dict[str, Any], roster: dict[str, str]) -> FdcFleet:
                 str(j["key"]): int(_value(j, "docs") or 0) for j in _buckets(bucket, "judgment")
             },
             "counter_rates": sorted(rates, key=lambda r: r["channel"]),
+            "spread_bins": [
+                {"judgment": str(j["key"]), "lo": float(h["key"]), "count": int(h["doc_count"])}
+                for j in _buckets(bucket, "margin")
+                for h in _buckets(j, "spread")
+            ],
         })
-    spread_bins = [
-        {"judgment": str(j["key"]), "lo": float(h["key"]), "count": int(h["doc_count"])}
-        for j in _buckets(aggs, "margin")
-        for h in _buckets(j, "spread")
-    ]
     return {
         "tools": sorted(tools, key=lambda t: t["eqp_id"]),
-        "spread_bins": spread_bins,
         "spread_bin_width": SPREAD_BIN_WIDTH,
     }

@@ -9,6 +9,9 @@
     v-else-if="fleet"
     class="space-y-3"
   >
+    <p class="px-1 sk-meta">
+      장비 선택의 모델만 비교합니다 · <strong class="text-(--sk-ink)">{{ models.join(', ') || '-' }}</strong> {{ fleet.tools.length }}대
+    </p>
     <section class="dashboard-surface">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h3 class="sk-title">
@@ -100,7 +103,7 @@
         <h3 class="sk-title">
           Contactpin margin 분포
         </h3>
-        <span class="sk-meta">선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong> · Fab 전체 합산</span>
+        <span class="sk-meta">선택 장비 <strong class="font-mono text-(--sk-ink)">{{ selectedEqp }}</strong> · 선택 모델 합산</span>
       </div>
       <p class="mt-1 sk-meta">
         점선 영역 15–20: 현장 보고 기준 구간입니다.
@@ -203,7 +206,8 @@ const colors = computed(() => ({ ink: surface.value.ink, ...SK_STATE }))
 const heatmap = computed(() => fdcFleetHeatmap(props.fleet?.tools ?? []))
 const laserRows = computed(() => fdcFleetLaserRows(props.fleet?.tools ?? []))
 const pinRows = computed(() => fdcFleetPinRows(props.fleet?.tools ?? []))
-const histogram = computed(() => fdcFleetHistogram(props.fleet ?? { tools: [], spread_bins: [], spread_bin_width: 1 }))
+const histogram = computed(() => fdcFleetHistogram(props.fleet ?? { tools: [], spread_bin_width: 1 }))
+const models = computed(() => [...new Set((props.fleet?.tools ?? []).map(tool => tool.eqp_model_cd ?? '-'))].sort())
 const counterRows = computed(() => fdcFleetCounterRows(props.fleet?.tools ?? []))
 
 const selectedLabel = (value: string) => value === props.selectedEqp ? `{selected|${value}}` : value

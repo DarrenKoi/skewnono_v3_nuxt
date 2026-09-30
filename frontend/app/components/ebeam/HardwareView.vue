@@ -336,6 +336,13 @@ const { data: fdcFleetPayload, pending: fdcFleetPending, error: fdcFleetError } 
   { watch: [() => props.toolType, fabsKey, activeService, fdcView, () => selectedTool.value?.eqp_id, windowStart, windowEnd] }
 )
 
+// The fab payload narrowed to the picked models, client-side: the model gate
+// governs Fab 전체 as it does the roster, and a chip toggle needs no refetch.
+const fdcFleet = computed(() => {
+  const fleet = fdcFleetError.value ? null : fdcFleetPayload.value?.fleet
+  return fleet ? { ...fleet, tools: fleet.tools.filter(tool => modelFilters.value.includes(tool.eqp_model_cd ?? '')) } : null
+})
+
 const overlayEvents = computed<BmPmEvent[]>(() =>
   showBmPmOverlay.value ? parseBmPmEvents(bmPmPayload.value?.tables ?? []) : []
 )
@@ -773,7 +780,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
                 v-else-if="activeService === 'fdc'"
                 :docs="servicePayload.docs ?? []"
                 :maintenance-events="overlayEvents"
-                :fleet="fdcFleetError ? null : fdcFleetPayload?.fleet ?? null"
+                :fleet="fdcFleet"
                 :fleet-pending="fdcFleetPending"
                 :selected-eqp="selectedTool?.eqp_id ?? ''"
                 @inspect-time="inspectAt = $event"
