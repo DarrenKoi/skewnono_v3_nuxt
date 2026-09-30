@@ -78,7 +78,11 @@ builder 2개
 
   build_mdc_settings(eqp_id, fab_name, as_of) -> {eqp_id: {beam_condition: str}}
     선택 장비 **와 같은 fab 의 형제 장비들**의 as-of 스냅샷입니다(비교 sub-tab).
-    SCE 처럼 fab map 전체가 곧 비교 집단이 됩니다.
+    fab map 에는 그 fab 의 CD-SEM 과 HV-SEM 장비가 **섞여** 있습니다
+    (user-confirmed 2026-09-30 — HV-SEM 비교에 CD-SEM 장비가 나온다는 보고).
+    그래서 어댑터는 sem_list roster 의 eqp_model_cd 로 선택 장비와 **같은 계열**
+    (model_to_tool_type)만 남깁니다. roster 에 없는 장비는 계열을 알 수 없으므로
+    선택 장비의 계열이 확인되면 제외됩니다.
 
   build_mdc_history(eqp_id, start, end) -> list[{...}]
     선택 장비 **하나만**, [start, end] 구간을 오름차순으로. beam_condition 당
@@ -87,7 +91,9 @@ builder 2개
   상위 dispatcher 가 둘을 normalizers.settings_payload(settings + docs)로
   묶습니다. sce 와 같은 구조입니다.
 
-CD-SEM / HV-SEM 구분은 이 sub-tab 에 별도로 걸려 있지 않습니다.
+CD-SEM / HV-SEM 모두 이 탭을 씁니다(CDSEM_ONLY_SERVICES 가 아님). 단, 비교
+집단은 위와 같이 선택 장비의 계열로 잘라야 합니다 — 계열이 다른 장비와의 MDC
+차이는 tool-to-tool skew 가 아닙니다.
 
 
 ========================================================================

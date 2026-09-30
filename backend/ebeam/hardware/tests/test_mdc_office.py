@@ -177,15 +177,36 @@ def test_a_missing_redis_key_raises_because_the_collector_never_ran(monkeypatch)
 
 def test_settings_returns_the_whole_fab_map_as_the_comparison_cohort(monkeypatch):
     # The 비교 sub-tab compares the selected tool against its in-fab siblings,
-    # and the fab map IS that cohort — filtering it down to the selected tool
-    # would leave nothing to compare against.
+    # and the fab map (cut to the tool's family) IS that cohort — filtering it
+    # down to the selected tool would leave nothing to compare against.
     blob = json.dumps(OFFICE_SETTINGS).encode()
     monkeypatch.setattr(
         office, "redis_client", lambda: _FakeRedis(fields={"M16A": blob})
     )
+    monkeypatch.setattr(
+        office, "_family_by_eqp_id",
+        lambda: {"ECDX100": "cd-sem", "ECDX214": "cd-sem"},
+    )
     out = office.build_mdc_settings("ECDX100", "M16A", ANCHOR)
     assert set(out) == set(OFFICE_SETTINGS)
     assert "ECDX100" in out
+
+
+def test_settings_keeps_only_the_selected_tools_family(monkeypatch):
+    # The fab map holds every tool in the fab, CD-SEM and HV-SEM alike. An
+    # HV-SEM tool compared against CD-SEM tools reads as tool-to-tool skew
+    # that is only a different tool family (user report 2026-09-30).
+    mixed = {**OFFICE_SETTINGS, "MCD242": {"800V_HR_0Deg": "1.003000"}}
+    blob = json.dumps(mixed).encode()
+    monkeypatch.setattr(
+        office, "redis_client", lambda: _FakeRedis(fields={"M16A": blob})
+    )
+    monkeypatch.setattr(
+        office, "_family_by_eqp_id",
+        lambda: {"ECDX100": "cd-sem", "ECDX214": "cd-sem", "MCD242": "hv-sem"},
+    )
+    assert set(office.build_mdc_settings("MCD242", "M16A", ANCHOR)) == {"MCD242"}
+    assert set(office.build_mdc_settings("ECDX100", "M16A", ANCHOR)) == set(OFFICE_SETTINGS)
 
 
 # ──────────────────── history: long format from the archive ─────────────────

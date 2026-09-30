@@ -15,7 +15,9 @@ Two builders, matching ``mdc/mock.py``:
 - ``build_mdc_settings`` — the LATEST collection from the Redis hash
   ``mdc_setting``: one field per fab_name (``M15A``, ``M14B``, ...), each value
   the fab's ``{eqp_id: {beam_condition: value}}`` map. The whole fab map IS the
-  "selected tool + in-fab siblings" cohort the 비교 sub-tab compares.
+  "selected tool + in-fab siblings" cohort the 비교 sub-tab compares — after
+  cutting it to the selected tool's family, since the map mixes CD-SEM and
+  HV-SEM tools of the fab (user report 2026-09-30).
 - ``build_mdc_history`` — the dated archive from MinIO: one ``{fab_name}.json``
   per collection date under ``hitachi_sem/cdsem/mdc_setting/YYYY/MM/DD/``
   (default bucket/prefix from ``minio_handler/minio_config.py``). Dates are
@@ -61,6 +63,7 @@ from backend._logging.providers import logger as _LOG
 from backend._runtime.data_provider import get_data_provider
 from backend._runtime.office_redis import redis_client
 from backend.ebeam._office_search import text as _text, ttl_cache
+from backend.ebeam._tool_specs import model_to_tool_type
 from backend.sem_list.data import get_sem_list
 
 
@@ -144,6 +147,17 @@ def _normalize_fab_map(fab_map: dict[str, Any]) -> dict[str, dict[str, str]]:
     }
 
 
+def _office_roster() -> list:
+    if get_data_provider("sem_list") != "office":
+        raise LookupError(
+            f"{REDIS_KEY}: the hardware provider is 'office' but sem_list is on "
+            "the mock provider, so eqp_id -> fab_name / tool family resolution "
+            "would use fabricated roster rows. Unset "
+            "SKEWNONO_SEM_LIST_PROVIDER or set it to 'office'."
+        )
+    return get_sem_list()
+
+
 @ttl_cache
 def _fab_by_eqp_id() -> dict[str, str]:
     """``eqp_id -> fab_name`` from the sem_list roster, on the shared TTL.
@@ -155,17 +169,35 @@ def _fab_by_eqp_id() -> dict[str, str]:
     would let this tab disagree with the inventory with no way to tell which is
     right.
     """
-    if get_data_provider("sem_list") != "office":
-        raise LookupError(
-            f"{REDIS_KEY}: the hardware provider is 'office' but sem_list is on "
-            "the mock provider, so eqp_id -> fab_name resolution would use "
-            "fabricated fab labels and read the wrong MinIO path. Unset "
-            "SKEWNONO_SEM_LIST_PROVIDER or set it to 'office'."
-        )
     return {
         eqp_id: fab
-        for row in get_sem_list()
+        for row in _office_roster()
         if (eqp_id := _text(row.get("eqp_id"))) and (fab := _text(row.get("fab_name")))
+    }
+
+
+@ttl_cache
+def _family_by_eqp_id() -> dict[str, str | None]:
+    """``eqp_id -> tool family`` (``cd-sem`` / ``hv-sem`` / ...) from the roster.
+
+    The snapshot's fab map carries every tool in the fab, CD-SEM and HV-SEM
+    alike, so the 비교 cohort must be cut to the selected tool's family by the
+    model code — never by parsing the eqp_id (see ``sem_list/roster.py``).
+    """
+    return {
+        eqp_id: model_to_tool_type(row.get("eqp_model_cd") or "")
+        for row in _office_roster()
+        if (eqp_id := _text(row.get("eqp_id")))
+    }
+
+
+def _same_family(eqp_id: str, settings: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
+    families = _family_by_eqp_id()
+    family = families.get(eqp_id)
+    return {
+        tool: conditions
+        for tool, conditions in settings.items()
+        if tool == eqp_id or families.get(tool) == family
     }
 
 
@@ -229,6 +261,8 @@ def build_mdc_settings(
         fab_map = _parse_fab_blob(raw, field)
         if fab_name or eqp_id in fab_map:
             settings = _normalize_fab_map(fab_map)
+            if settings:
+                settings = _same_family(eqp_id, settings)
             if not settings:
                 _warn_empty(
                     f"fab {field!r} snapshot has no usable tool entries",
