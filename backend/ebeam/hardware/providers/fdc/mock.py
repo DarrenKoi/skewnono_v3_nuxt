@@ -30,8 +30,8 @@ Calibrated to the office characterization run (office 확인 2026-09-28,
   carry no fit-model token (office 확인 2026-09-29); that the three header
   numbers stay in front of its profile is OFFICE-VERIFY.
 * LaserPower: x1/y1 are stable per tool; x2/y2 wander (drift that is noise).
-  A month of office x1/y1 spans roughly -10..+10 % around the median (user
-  report 2026-09-29), so ~6 % of docs step 3-9 % off the level - enough that
+  A month of office x1/y1 spans roughly -10..+10 % around the median
+  (user-confirmed 2026-09-29), so ~6 % of docs step 3-9 % off the level - enough that
   the outlier-only chart has points at home. The rate and size are
   OFFICE-VERIFY.
 * ContactpinConductionInfo: the judgment is Conduction / UnstableConduction /

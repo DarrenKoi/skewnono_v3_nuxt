@@ -85,7 +85,13 @@
               범위 (max−min)
             </th>
             <th class="px-3 py-2 text-right sk-label">
-              카운터 증가율 (/일)
+              <span class="inline-flex items-center gap-0.5">
+                카운터 증가율 (/일)
+                <EbeamSkewvoirDashboardInfoTip
+                  label="카운터 증가율"
+                  :text="COUNTER_RATE_ROW_INFO"
+                />
+              </span>
             </th>
           </tr>
         </thead>
@@ -290,6 +296,8 @@ const chartEl = ref<HTMLDivElement | null>(null)
 const spmTrendEl = ref<HTMLDivElement | null>(null)
 
 // --- ContactpinConductionInfo ---
+// Per row, unlike Fab 전체's whole-window rate (FdcFleetView's COUNTER_RATE_INFO).
+const COUNTER_RATE_ROW_INFO = 'Contactpin 채널마다 event 가 기록될 때마다 1씩 늘어나는 누적 counter 가, 같은 채널의 바로 앞 기록 이후 하루에 몇 늘었는지입니다: (이 행 counter − 앞 행 counter) ÷ 두 기록 사이 일수. 채널의 첫 기록, 같은 시각의 기록, counter 가 초기화된(줄어든) 기록은 계산하지 않고 - 로 표시합니다.'
 // Rates need oldest-first order; the table reads newest first.
 const contactpinRows = computed(() => deriveContactpinRows(activeDocs.value).reverse())
 
@@ -352,7 +360,7 @@ const stableAxis = (values: number[]) => stableYRange(values) ?? { scale: true }
 // explains a point, the button opens the recipes measured around its time.
 // One pinned position per chart host; points carry their doc ts as `name`.
 const INSPECT_LABEL = '이 시점 측정 recipe 보기'
-const inspectTooltip = (base: ReturnType<typeof inspectTooltipBase>, trigger: 'axis' | 'item', digits: number, unit: string) => ({
+const fdcInspectTooltip = (base: ReturnType<typeof inspectTooltipBase>, trigger: 'axis' | 'item', digits: number, unit: string) => ({
   trigger, ...base,
   formatter: (params: unknown) => {
     const items = (Array.isArray(params) ? params : [params]) as { name?: string, marker: string, seriesName: string, value: [number, number] }[]
@@ -382,7 +390,7 @@ const spmSelectedEpoch = computed(() => spmCycles.value.find(c => c.key === spmC
 
 const spmTrendOption = computed<EChartsOption>(() => ({
   grid: { left: 48, right: 16, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 24, bottom: 52 },
-  tooltip: inspectTooltip(spmTrendTooltip, 'axis', 3, ''),
+  tooltip: fdcInspectTooltip(spmTrendTooltip, 'axis', 3, ''),
   legend: { top: 0, textStyle: { fontSize: 10 }, data: spmDeviations.value.map(series => series.channel) },
   xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
   yAxis: { type: 'value', name: 'RMS', scale: true, axisLabel: { fontSize: 10 } },
@@ -437,7 +445,7 @@ const laserDeviationOption = (): EChartsOption => {
   const bandHi = Math.max(x1.band?.hi ?? 0, y1.band?.hi ?? 0)
   return {
     grid: { left: 52, right: 18, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 28, bottom: 56 },
-    tooltip: inspectTooltip(mainTooltip, 'item', 2, '%'),
+    tooltip: fdcInspectTooltip(mainTooltip, 'item', 2, '%'),
     legend: { top: 2, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', min: times[0], max: times[times.length - 1], axisLabel: { fontSize: 10 } },
     yAxis: {
@@ -520,7 +528,7 @@ const chartOption = computed<EChartsOption>(() => {
   const tempAxis = tightYRange(temps) ?? { scale: true }
   return {
     grid: { left: 56, right: 16, top: maintenanceMarkLine.value ? BM_PM_LEGEND_GRID_TOP : 24, bottom: 52 },
-    tooltip: inspectTooltip(mainTooltip, 'axis', 2, ' °C'),
+    tooltip: fdcInspectTooltip(mainTooltip, 'axis', 2, ' °C'),
     legend: { top: 0, textStyle: { fontSize: 10 } },
     xAxis: { type: 'time', axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: '°C', ...tempAxis, axisLabel: { fontSize: 10 }, splitLine: { show: false } },

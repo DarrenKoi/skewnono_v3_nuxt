@@ -202,7 +202,8 @@ import type { FdcFleet } from '~/composables/useHardwareApi'
 import { formatFixed } from '~/utils/recipeView'
 import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
 import { fdcFleetHeatmap, fdcFleetLaserRows, fdcFleetPinRows, fdcFleetHistogram, fdcFleetCounterRows } from '~/utils/fdcFleet'
-import { CONTACTPIN_JUDGMENT } from '~/utils/fdcValues'
+import { CONTACTPIN_JUDGMENT, fdcEpoch } from '~/utils/fdcValues'
+import { nearestPoint } from '~/utils/chartNearest'
 
 const props = defineProps<{ fleet: FdcFleet | null, pending: boolean, selectedEqp: string }>()
 const COUNTER_RATE_INFO = 'Contactpin 채널마다 event 가 기록될 때마다 1씩 늘어나는 누적 counter 가 하루에 몇 늘었는지입니다: 기간 안 (최대 − 최소) ÷ 첫·마지막 기록 사이 일수. 원값은 장비마다 시작점이 달라 비교할 수 없어 증가율로 봅니다. 높을수록 그 채널의 event 가 잦습니다. 기간 안에 counter 가 초기화된 채널은 값이 부풀려질 수 있습니다.'
@@ -220,7 +221,7 @@ const counterRows = computed(() => fdcFleetCounterRows(props.fleet?.tools ?? [])
 const selectedLabel = (value: string) => value === props.selectedEqp ? `{selected|${value}}` : value
 const labelStyle = computed(() => ({ formatter: selectedLabel, rich: { selected: { fontWeight: 'bold' as const, color: colors.value.ink } } }))
 
-// Heatmap reads the whole fab at a glance; the dot-connected lines read one
+// Heatmap reads the whole Fab at a glance; the dot-connected lines read one
 // tool's trend against the others (user request 2026-09-30).
 const TEMP_CHART_OPTIONS = [{ key: 'heatmap', label: 'Heatmap' }, { key: 'line', label: '추세선' }] as const
 const tempChart = useState<'heatmap' | 'line'>('hw-fdc-temp-chart', () => 'heatmap')
@@ -248,35 +249,51 @@ useEchart(heatmapEl, heatmapOption)
 // Same daily means as the heatmap, one line per tool; the selected tool is drawn
 // bold on top so it stands out of the bundle.
 const tempLineEl = ref<HTMLDivElement | null>(null)
-const tempLineOption = computed<EChartsOption>(() => {
+// One series per tool, one dot per day it logged. A time axis, not a category
+// one: onGridHover converts pixels to axis values, and a category axis answers
+// in whole indices, which breaks the pick's pixel scale (it chose by y alone).
+const tempLines = computed(() => {
   const { tools, days, points } = heatmap.value
-  const byTool = tools.map(() => days.map((): number | null => null))
-  for (const [day, tool, value] of points) byTool[tool]![day] = value
-  return {
-    grid: { left: 56, right: 16, top: 56, bottom: 56 },
-    tooltip: {
-      trigger: 'axis', order: 'valueDesc',
-      valueFormatter: value => `${formatFixed(value as number, 3, '-')} °C`
-    },
-    legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
-    xAxis: { type: 'category', data: days, axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'value', name: '°C', scale: true, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
-    dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
-    series: tools.map((tool, i) => {
-      const selected = tool === props.selectedEqp
-      const color = selected ? colors.value.ink : palette.value[i % palette.value.length]!
-      return {
-        name: tool, type: 'line' as const, connectNulls: true, symbol: 'circle',
-        symbolSize: selected ? 7 : 5, z: selected ? 3 : 2,
-        lineStyle: { color, width: selected ? 2.5 : 1, opacity: selected ? 1 : 0.7 },
-        itemStyle: { color },
-        emphasis: { focus: 'series' as const },
-        data: byTool[i]!
-      }
-    })
-  }
+  const byTool = tools.map(() => [] as { name: string, value: [number, number] }[])
+  for (const [day, tool, value] of points) byTool[tool]!.push({ name: days[day]!, value: [fdcEpoch(`${days[day]}T00:00:00`), value] })
+  return byTool.map(line => line.sort((a, b) => a.value[0] - b.value[0]))
 })
-useEchart(tempLineEl, tempLineOption)
+const tempLineOption = computed<EChartsOption>(() => ({
+  grid: { left: 56, right: 16, top: 56, bottom: 56 },
+  // One tool per hover: an axis tooltip lists the whole Fab and outgrows the
+  // screen. The pick radius comes from onGridHover below, not the 5px dot.
+  tooltip: {
+    trigger: 'item', confine: true,
+    formatter: (param: unknown) => {
+      const { seriesName, name, marker, value } = param as { seriesName: string, name: string, marker: string, value: [number, number] }
+      return `${escapeHtml(seriesName)}<br/>${marker}${escapeHtml(name)} <b>${formatFixed(value[1], 3, '-')} °C</b>`
+    }
+  },
+  legend: { top: 0, type: 'scroll', textStyle: { fontSize: 10 } },
+  xAxis: { type: 'time', axisLabel: { fontSize: 10, formatter: '{MM}-{dd}' } },
+  yAxis: { type: 'value', name: '°C', scale: true, axisLabel: { fontSize: 10 }, splitLine: { show: false } },
+  dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16 }],
+  series: heatmap.value.tools.map((tool, i) => {
+    const selected = tool === props.selectedEqp
+    const color = selected ? colors.value.ink : palette.value[i % palette.value.length]!
+    return {
+      name: tool, type: 'line' as const, symbol: 'circle',
+      symbolSize: selected ? 7 : 5, z: selected ? 3 : 2,
+      lineStyle: { color, width: selected ? 2.5 : 1, opacity: selected ? 1 : 0.7 },
+      itemStyle: { color },
+      emphasis: { focus: 'series' as const },
+      data: tempLines.value[i]!
+    }
+  })
+}))
+const tempLinePickable = computed(() =>
+  tempLines.value.flatMap((line, seriesIndex) =>
+    line.map((point, dataIndex) => ({ x: point.value[0], y: point.value[1], item: { seriesIndex, dataIndex } })))
+)
+// Tight radius, as in SequenceTrend: the lines are dense and overlaid.
+useEchart(tempLineEl, tempLineOption, {
+  onGridHover: detail => nearestPoint(tempLinePickable.value, detail, { maxDistancePx: 22 })
+})
 
 const laserEl = ref<HTMLDivElement | null>(null)
 const laserOption = computed<EChartsOption>(() => ({
