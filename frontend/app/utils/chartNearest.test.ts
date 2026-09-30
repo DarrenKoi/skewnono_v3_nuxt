@@ -1,7 +1,7 @@
 // Pure-logic tests for chartNearest. Run: node --test app/utils/chartNearest.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { nearestPoint, nearestIndex } from './chartNearest.ts'
+import { gridDetail, nearestPoint, nearestIndex } from './chartNearest.ts'
 
 // A click at (x, y) on a chart where one pixel is worth one data unit on both
 // axes, so distances in the tests read directly as pixels.
@@ -80,4 +80,40 @@ test('nearestIndex rejects a click past the last category', () => {
   assert.equal(nearestIndex(-0.6, 10), null)
   assert.equal(nearestIndex(NaN, 10), null)
   assert.equal(nearestIndex(0, 0), null)
+})
+
+// Category x axis with 80px bands centred at 90 + 80i; value y axis where
+// pixel = 300 - 100·y. Codex's case: the pointer at (131, 200) sits in band 1
+// but 41px from the dot in band 0 and 126px from the one in band 1.
+const bandDetail = (pointer: [number, number]) => {
+  const index = Math.floor((pointer[0] - 50) / 80)
+  const y = (300 - pointer[1]) / 100
+  return gridDetail(pointer, [index, y], [90 + 80 * index, 300 - 100 * y], [90 + 80 * (index + 1), 300 - 100 * (y + 1)], 0)
+}
+
+test('a category axis keeps the pointer\'s place inside the band and measures bands in pixels', () => {
+  const detail = bandDetail([131, 200])
+  assert.equal(detail.x, 1 + (131 - 170) / 80)
+  assert.equal(detail.dataPerPixelX, 1 / 80)
+  assert.equal(detail.dataPerPixelY, 1 / 100)
+  const dots = [{ x: 0, y: 1, item: 'band 0' }, { x: 1, y: 2.2, item: 'band 1' }]
+  assert.equal(nearestPoint(dots, detail), 'band 0')
+})
+
+test('a value or time axis is not snapped, so its position passes through', () => {
+  const detail = gridDetail([200, 150], [1234.5, 7], [200, 150], [200.5, 140], 0)
+  assert.equal(detail.x, 1234.5)
+  assert.equal(detail.y, 7)
+  assert.equal(detail.dataPerPixelX, 2)
+  assert.equal(detail.dataPerPixelY, 0.1)
+})
+
+test('an inverse axis moves the in-band position the other way', () => {
+  const detail = gridDetail([131, 0], [1, 0], [170, 0], [90, 0], 0)
+  assert.equal(detail.x, 1 + (131 - 170) / -80)
+})
+
+test('without pixel positions (no cartesian grid) the snapped answer stands', () => {
+  const detail = gridDetail([10, 10], [3, 4], null, null, 2)
+  assert.deepEqual(detail, { x: 3, y: 4, gridIndex: 2, dataPerPixelX: 1, dataPerPixelY: 1 })
 })
