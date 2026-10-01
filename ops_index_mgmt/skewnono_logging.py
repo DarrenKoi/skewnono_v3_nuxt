@@ -117,6 +117,11 @@ LOG_MAPPING_PROPERTIES: dict[str, Any] = {
     "activity_kind": {"type": "keyword"},
     "activity_weight": {"type": "integer"},
     "fab_name_list": {"type": "keyword"},
+    # cdsem | hvsem | veritysem | provision | afm, absent on a row that belongs
+    # to no family. Added 2026-10-02: an index created before then needs this
+    # module re-run (it updates the template AND the existing indices) before
+    # the field can be aggregated — until then it sits in _source unindexed.
+    "tool_family": {"type": "keyword"},
     "error_code": {"type": "keyword"},
     "error_name": {"type": "keyword"},
     # OpenSearch round trips one request spent. `query_count` is the field the

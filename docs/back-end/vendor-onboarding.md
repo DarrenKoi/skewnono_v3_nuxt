@@ -205,6 +205,16 @@ def _adapter(name: str):
 | 7 | 테스트 | `tests/test_contract.py`, `tests/test_office_template.py` | 새 계열을 파라미터로 추가합니다 |
 | 8 | 사무실 연결 | `cp office_example.py office.py` | 이 복사가 곧 스위치입니다. `GET /api/health/providers` 로 확인합니다 |
 
+사용 통계는 이 8단계에 들어 있지 않습니다. 계열을 `_tool_specs.py` 에
+등록하면 `_logging/feature_map.py` 가 그 명부에서 로그의 `tool_family` 값,
+`/api/<tool_slug>/<page>` 의 feature slug 규칙, `/api/activity/families` 의 행을
+모두 파생하므로 backend 쪽에서 따로 할 일이 없습니다. 손으로 고칠 곳은 하나,
+`frontend/app/utils/activityFamily.ts` 의 `KNOWN_FAMILIES` 표시 이름입니다
+(없으면 slug 그대로 보입니다). 새 계열의 **화면**을 추가할 때는 그 경로를
+`_logging/feature_map.py` 의 `_PAGE_RULES` 와 `frontend/app/utils/pageIdentity.ts`
+의 `IDENTITY_RULES` 양쪽에 등록해야 page open 이 기록됩니다 — 등록되지 않은
+e-beam 화면은 beacon 을 보내지 않습니다.
+
 AMAT 계열의 오피스 키 이름과 스키마는 **아직 아무것도 알려지지 않았습니다.**
 2단계에서 추측한 이름을 사실처럼 적지 말고 `OFFICE-VERIFY` 로 표기합니다.
 

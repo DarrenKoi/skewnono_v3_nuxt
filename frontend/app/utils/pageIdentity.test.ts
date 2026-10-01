@@ -5,8 +5,9 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolvePageIdentity, buildPageViewPath, createPageViewTracker } from './pageIdentity.ts'
 
-// Contract test: frontend identity must partition paths the same way the backend's
-// page_to_feature does — two paths share an identity IFF their slugs are identical.
+// Contract test: frontend identity must partition paths the same way the backend
+// does — two paths share an identity IFF page_to_feature gives them the same slug
+// AND page_to_family gives them the same tool family.
 const loadContract = () => {
   const __dir = dirname(fileURLToPath(import.meta.url))
   const fixture = readFileSync(join(__dir, '__fixtures__/pageIdentityContract.json'), 'utf-8')
@@ -14,6 +15,7 @@ const loadContract = () => {
     path: string
     query: Record<string, unknown>
     slug: string | null
+    family: string | null
     finerThanSlug?: boolean
     comment?: string
   }>
@@ -126,14 +128,19 @@ test('fab switch invariance holds on collapsed pages', () => {
   assert.equal(m14stats, m16stats)
 })
 
-test('tool segment is normalized (cd-sem and hv-sem are the same identity)', () => {
-  const cdsemStorage = resolvePageIdentity('/ebeam/cd-sem/M14/storage', {})
-  const hvsemStorage = resolvePageIdentity('/ebeam/hv-sem/M14/storage', {})
-  const cdsemStats = resolvePageIdentity('/ebeam/cd-sem/device-statistics', {})
-  const hvsemStats = resolvePageIdentity('/ebeam/hv-sem/device-statistics', {})
-
-  assert.equal(cdsemStorage, hvsemStorage)
-  assert.equal(cdsemStats, hvsemStats)
+test('the same page under another tool family is a different identity', () => {
+  // The slug is shared (both are `storage`), but the row is logged with its
+  // tool family, and the families are growing their own UI. Collapsing them
+  // here made a CD-SEM → HV-SEM move look like a filter change, so the second
+  // page open sent no beacon and the family it belonged to was never counted.
+  assert.notEqual(
+    resolvePageIdentity('/ebeam/cd-sem/M14/storage', {}),
+    resolvePageIdentity('/ebeam/hv-sem/M14/storage', {})
+  )
+  assert.notEqual(
+    resolvePageIdentity('/ebeam/cd-sem/device-statistics', {}),
+    resolvePageIdentity('/ebeam/hv-sem/device-statistics', {})
+  )
 })
 
 test('skewvoir is the same identity for both index and analysis', () => {
@@ -143,27 +150,33 @@ test('skewvoir is the same identity for both index and analysis', () => {
   assert.equal(index, analysis)
 })
 
-test('skewvoir is the same across tool types', () => {
+test('skewvoir is one identity per tool family', () => {
   const cdsemSkewvoir = resolvePageIdentity('/ebeam/cd-sem/skewvoir', {})
   const hvsemSkewvoir = resolvePageIdentity('/ebeam/hv-sem/skewvoir', {})
 
-  assert.equal(cdsemSkewvoir, hvsemSkewvoir)
+  assert.notEqual(cdsemSkewvoir, hvsemSkewvoir)
 })
 
-test('the fab hub is one identity across every tool family', () => {
+test('the fab hub is one identity per tool family', () => {
   // /ebeam/<tool> and /ebeam/<tool>/<fab> both land on [fab]/index.vue, which
-  // renders EbeamToolInventoryView (장비 상태) for all four tool families.
-  // One page, so one identity — matching the backend's tool_inventory slug.
-  const identities = new Set([
+  // renders EbeamToolInventoryView (장비 상태). Within a family the fab does not
+  // matter; across families it is the backend's one tool_inventory slug under
+  // four different tool_family values.
+  assert.equal(
     resolvePageIdentity('/ebeam/cd-sem', {}),
+    resolvePageIdentity('/ebeam/cd-sem/M14', {})
+  )
+  const identities = [
     resolvePageIdentity('/ebeam/cd-sem/M14', {}),
     resolvePageIdentity('/ebeam/hv-sem/R3', {}),
     resolvePageIdentity('/ebeam/provision/R3', {}),
     resolvePageIdentity('/ebeam/veritysem/M14', {})
-  ])
+  ]
 
-  assert.equal(identities.size, 1)
-  assert.ok(identities.has('#tool-inventory'))
+  assert.equal(new Set(identities).size, 4)
+  // All four are still the synthesized inventory page — the marker the
+  // landing rule keys on.
+  for (const identity of identities) assert.ok(identity?.endsWith('#tool-inventory'), String(identity))
 })
 
 test('the fab list is not part of a page identity', () => {
@@ -301,6 +314,27 @@ test('a fresh load straight onto 장비 상태 is not a page open', () => {
   assert.deepEqual(reported('/ebeam/hv-sem/R3/storage'), [true])
 })
 
+test('moving to the same page of another family is a new page open', () => {
+  assert.deepEqual(
+    reported('/ebeam/cd-sem/M14/storage', '/ebeam/hv-sem/M14/storage', '/ebeam/hv-sem/R3/storage'),
+    [true, true, false]
+  )
+})
+
+test('switching family between two 장비 상태 landings is still a landing', () => {
+  // Picking HV-SEM while standing on CD-SEM's 장비 상태 is the same act as
+  // picking it from home: choosing a tool, not opening a page. Only a ranked
+  // page before it makes 장비 상태 a choice.
+  assert.deepEqual(
+    reported('/', '/ebeam/cd-sem/M14', '/ebeam/hv-sem/M14', '/ebeam/hv-sem/M14/storage'),
+    [false, false, false, true]
+  )
+  assert.deepEqual(
+    reported('/ebeam/cd-sem/M14/storage', '/ebeam/hv-sem/M14'),
+    [true, true]
+  )
+})
+
 test('skewvoir does not share the msr-file identity', () => {
   // /msr-file, /msr-files and /msr-image are API paths with their own slugs;
   // fusing them onto /skewvoir would merge four distinct backend slugs.
@@ -352,8 +386,9 @@ test('contract: the finerThanSlug marker is exactly the three recipe-status tabs
   assert.deepEqual(marked, [...APPROVED_FINER_ROWS].sort())
 })
 
-test('contract: identity partitions match backend slug partitions', () => {
-  // Two paths must produce the same identity IFF the backend maps them to the same slug.
+test('contract: identity partitions match backend (slug, family) partitions', () => {
+  // Two paths must produce the same identity IFF the backend maps them to the same slug
+  // AND the same tool family. A null slug is unresolved whatever its family.
   // Exception: finerThanSlug rows are intentional — they differ in identity despite
   // sharing a slug, as a product decision. This test ensures drift is caught mechanically.
 
@@ -361,10 +396,11 @@ test('contract: identity partitions match backend slug partitions', () => {
   const markedRows = contract.filter(r => r.finerThanSlug)
   const unmarkedRows = contract.filter(r => !r.finerThanSlug)
 
-  // Build maps by slug for each group
+  // Build maps by (slug, family) for each group. The map keeps the name
+  // "slug" below, but its keys are the pair — spelled `slug|family`.
   const slugToUnmarkedRows = new Map<string | null, typeof unmarkedRows>()
   for (const row of unmarkedRows) {
-    const key = row.slug
+    const key = row.slug === null ? null : `${row.slug}|${row.family ?? ''}`
     if (!slugToUnmarkedRows.has(key)) {
       slugToUnmarkedRows.set(key, [])
     }

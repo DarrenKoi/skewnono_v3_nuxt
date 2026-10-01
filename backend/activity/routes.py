@@ -5,11 +5,12 @@ from flask import Blueprint, g, jsonify, request
 from .._auth.admin import require_admin
 from .._auth.directory import lookup_members
 from .._auth.errors import error_json
-from .._logging.feature_map import page_to_feature
+from .._logging.feature_map import page_to_family, page_to_feature
 from .contracts import NamedUserListResponse
 from .data import (
     get_daily_visitors,
     get_fab_page_usage,
+    get_family_page_usage,
     get_me,
     get_summary,
     get_user_history,
@@ -50,6 +51,11 @@ def activity_fabs():
     return _query(get_fab_page_usage)
 
 
+@bp.get("/activity/families")
+def activity_families():
+    return _query(get_family_page_usage)
+
+
 def _named_users_list() -> NamedUserListResponse:
     """The users list with each employee number expanded into a person.
 
@@ -84,7 +90,7 @@ def _named_users_list() -> NamedUserListResponse:
 
 
 # Per-employee enumeration is admin-only; the aggregate views above
-# (/me, /summary, /fabs) stay open to every identified user.
+# (/me, /summary, /fabs, /families) stay open to every identified user.
 @bp.get("/activity/users")
 @require_admin
 def activity_users():
@@ -129,7 +135,7 @@ def page_view():
         # circular. By request time every module is fully initialized.
         from .._logging.activity import promote_page_view
 
-        promote_page_view(slug)
+        promote_page_view(slug, page_to_family(path))
     # An unresolvable path (ops page, tab not yet in the URL) is still a 204:
     # the client cannot know which paths rank, and a 400 would be console noise
     # for something that is not an error.

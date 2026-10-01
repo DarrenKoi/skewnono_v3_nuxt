@@ -1,6 +1,7 @@
 import logging
 import time
 from http import HTTPStatus
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from flask import Flask, g, request
@@ -8,7 +9,7 @@ from flask.signals import got_request_exception
 
 from ..activity.data import record_request
 from . import os_timing
-from .feature_map import route_to_feature
+from .feature_map import page_to_family, route_to_family, route_to_feature
 from .opensearch_handler import install_opensearch_logging
 from .providers import install_console_logger
 from .policy import (
@@ -59,14 +60,46 @@ def promote_request_fab_names(*values: str | None) -> None:
     g._activity_fab_name_list = normalize_fab_name_list([*existing, *values])
 
 
-def promote_page_view(slug: str) -> None:
+def promote_page_view(slug: str, family: str | None = None) -> None:
     """Declare which PAGE this request represents, overriding the path.
 
     The beacon's own path is /api/page-view, which says nothing about what
     the user opened. Same mechanism as promote_request_fab_names: the handler
     puts it on ``g``, the after_request middleware reads it.
+
+    ``family`` is that page's tool family, or None for a page that belongs to
+    none. It is taken as given, None included — see ``_tool_family``.
     """
     g._activity_page_slug = slug
+    g._activity_page_family = family
+
+
+def _tool_family(path: str) -> str | None:
+    """Which tool family this request's activity belongs to, or None.
+
+    Three sources, strongest first:
+
+    1. A page-view beacon names the page that was opened, so its family is
+       authoritative — None included. The beacon's own Referer is not
+       consulted: it is whichever page the router had not left yet.
+    2. For every other request, the page the caller is on, read from the
+       Referer. Also authoritative including None: a request from 장비 목록
+       belongs to no family even when it calls /api/cdsem/…, and a page may
+       legitimately call another family's API.
+    3. The API path, only when there is no page to read — no Referer at all,
+       or just a bare origin (what an origin-only referrer policy sends).
+
+    Only the URL's path is read; its origin is deliberately not validated.
+    This is a telemetry dimension on rows from already-identified users, the
+    dev proxy rewrites Host so there is no dependable origin to compare
+    against, and the worst outcome is one mis-filed row.
+    """
+    if getattr(g, "_activity_page_slug", None):
+        return getattr(g, "_activity_page_family", None)
+    page_path = urlsplit(request.referrer or "").path.rstrip("/")
+    if page_path:
+        return page_to_family(page_path)
+    return route_to_family(path)
 
 
 def _build_extra(
@@ -123,6 +156,9 @@ def _build_extra(
         "activity_kind": decision.kind,
         "activity_weight": decision.weight,
         "fab_name_list": fab_name_list,
+        # None is dropped by the shipper, so a row outside every family
+        # carries no field at all rather than an empty one.
+        "tool_family": _tool_family(path),
         "error_code": error_code,
         "error_name": error_name,
     }
@@ -216,6 +252,7 @@ def install_activity_logging(app: Flask) -> None:
                     feature,
                     extra["activity_kind"],
                     extra["fab_name_list"],
+                    extra["tool_family"],
                 )
             except Exception:
                 _note_record_request_failure()

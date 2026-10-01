@@ -16,6 +16,7 @@ from backend._runtime.data_provider import get_data_provider
 from backend.activity import data
 from backend.activity.contracts import (
     FabUsageResponse,
+    FamilyUsageResponse,
     MeResponse,
     SummaryResponse,
     UserHistoryResponse,
@@ -30,6 +31,10 @@ def test_summary_matches_contract():
 
 def test_fab_page_usage_matches_contract():
     assert_matches(data.get_fab_page_usage(), FabUsageResponse)
+
+
+def test_family_page_usage_matches_contract():
+    assert_matches(data.get_family_page_usage(), FamilyUsageResponse)
 
 
 def test_daily_visitors_matches_contract():

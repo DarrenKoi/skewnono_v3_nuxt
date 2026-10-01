@@ -16,7 +16,10 @@ from backend._logging.feature_map import (
     _FEATURE_RULES,
     _TOOL_PAGE_RULES,
     _TOOL_SLUGS,
+    TOOL_FAMILIES,
+    page_to_family,
     page_to_feature,
+    route_to_family,
     route_to_feature,
 )
 from backend._logging.policy import PAGE_VIEW_PATH
@@ -301,3 +304,98 @@ def test_bare_ebeam_is_not_the_tool_inventory_page():
     resolves it to null too, so the two halves would disagree if this drifted.
     """
     assert page_to_feature("/ebeam") is None
+
+
+# ---------------------------------------------------------------------------
+# Tool family: a second axis beside the feature slug, never a slug itself.
+
+
+def test_the_family_vocabulary_is_the_registry_plus_afm():
+    """Five values, and nothing spelled with a dash: the page segment is
+    cd-sem, but the logged value is the registry slug."""
+    assert TOOL_FAMILIES == ("cdsem", "hvsem", "veritysem", "provision", "afm")
+
+
+@pytest.mark.parametrize(
+    "path,family",
+    [
+        ("/ebeam/cd-sem/M14/storage", "cdsem"),
+        ("/ebeam/hv-sem/R3/storage", "hvsem"),
+        ("/ebeam/veritysem/M14", "veritysem"),
+        ("/ebeam/provision/R3", "provision"),
+        # Fabless and multi-fab shapes: the family is the tool segment alone.
+        ("/ebeam/cd-sem/device-statistics", "cdsem"),
+        ("/ebeam/hv-sem/m14,r3/hardware", "hvsem"),
+        # The query is state within a page, never part of its family.
+        ("/ebeam/cd-sem/M14/recipe-status?tab=tat", "cdsem"),
+        ("/afm", "afm"),
+        ("/afm/map608/a.tif", "afm"),
+    ],
+)
+def test_a_page_belongs_to_the_family_in_its_path(path, family):
+    assert page_to_family(path) == family
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/",
+        "",
+        "/chat",
+        "/tool-roster",
+        "/mag-pixel",
+        "/activity",
+        "/admin/logs",
+        # A bare /ebeam names no tool, and an unregistered one is not a family.
+        "/ebeam",
+        "/ebeam/unknown/M14/storage",
+        # A segment match, not a prefix match.
+        "/afm-other",
+    ],
+)
+def test_a_page_outside_every_family_has_none(path):
+    assert page_to_family(path) is None
+
+
+@pytest.mark.parametrize(
+    "path,family",
+    [
+        ("/api/cdsem/storage", "cdsem"),
+        ("/api/hvsem/live-alarm", "hvsem"),
+        ("/api/veritysem/storage", "veritysem"),
+        ("/api/provision/hardware", "provision"),
+        ("/api/afm", "afm"),
+        ("/api/afm/detail", "afm"),
+        ("/api/afm-files", "afm"),
+    ],
+)
+def test_an_api_path_names_its_family_when_it_carries_one(path, family):
+    assert route_to_family(path) == family
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        # Shared by more than one family: the path alone cannot say which.
+        "/api/msr-file",
+        "/api/meas-hist",
+        "/api/sem-list",
+        "/api/page-view",
+        "/api/chat",
+        "/api",
+        "/login",
+        "",
+    ],
+)
+def test_an_api_path_with_no_family_segment_has_none(path):
+    assert route_to_family(path) is None
+
+
+@pytest.mark.parametrize("page,slug", _TOOL_PAGE_RULES)
+def test_a_new_family_reuses_the_page_slugs(page, slug):
+    """The API rules are generated per registered family, so the day
+    /api/veritysem/storage exists it is `storage`. Hard-coding cdsem and hvsem
+    sent it to the first-segment fallback — a phantom feature named
+    `veritysem`, which is a family and never a page."""
+    assert route_to_feature(f"/api/veritysem/{page}") == slug
+    assert route_to_feature(f"/api/provision/{page}") == slug

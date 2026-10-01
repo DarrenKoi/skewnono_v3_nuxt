@@ -13,6 +13,8 @@ from backend.activity.contracts import (
     DailyCount,
     FabUsageResponse,
     FabUsageRow,
+    FamilyUsageResponse,
+    FamilyUsageRow,
     FeatureCount,
     FeatureUse,
     MeResponse,
@@ -25,6 +27,7 @@ from backend.activity.contracts import (
 from backend.activity.providers.shared import (
     KST,
     RECENT_FEATURES_CAP,
+    TOOL_FAMILIES,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
     VISITOR_LOOKBACK_DAYS,
@@ -771,4 +774,91 @@ class ActivityOpenSearchReader:
                 now,
                 _kst_day_start(now, 29),
             ),
+        }
+
+    def get_family_page_usage(self) -> FamilyUsageResponse:
+        """Page opens per tool family over the last 7 and 30 KST days.
+
+        One request: the vocabulary is five values, so a plain ``terms`` holds
+        every family and no composite paging is needed.
+        """
+        now = self._now()
+
+        def window(start: datetime) -> dict[str, Any]:
+            return {
+                "filter": _kind_window(start, now, [RANKING_KIND]),
+                "aggs": {
+                    "families": {
+                        "terms": {
+                            "field": "tool_family",
+                            "size": len(TOOL_FAMILIES),
+                            # Exact values only. A row carrying anything else
+                            # is a writer bug, and the card must not grow a
+                            # sixth family to display it.
+                            "include": list(TOOL_FAMILIES),
+                        },
+                        "aggs": {
+                            "openers": {
+                                "cardinality": {
+                                    "field": "user_id",
+                                    "precision_threshold": (
+                                        CARDINALITY_PRECISION
+                                    ),
+                                }
+                            },
+                            "pages": {
+                                "terms": {
+                                    "field": "feature",
+                                    "size": TOP_FEATURES_CAP,
+                                    "order": {"_count": "desc"},
+                                }
+                            },
+                        },
+                    }
+                },
+            }
+
+        def rows(node: dict[str, Any]) -> list[FamilyUsageRow]:
+            by_family = {
+                str(bucket.get("key")): bucket
+                for bucket in node.get("families", {}).get("buckets", [])
+            }
+            # Walked from the vocabulary, not from the buckets: a family
+            # nobody opened has no bucket, and it is still a row of zeros.
+            # Rows written before the field existed carry no tool_family and
+            # so fall in no bucket at all — see MIGRATION.md.
+            return [
+                {
+                    "family": family,
+                    "total": int(
+                        by_family.get(family, {})
+                        .get("openers", {})
+                        .get("value", 0)
+                    ),
+                    "pages": _feature_rows(
+                        by_family.get(family, {}).get("pages", {})
+                    ),
+                }
+                for family in TOOL_FAMILIES
+            ]
+
+        response = self._search(
+            {
+                "size": 0,
+                # Narrowed for the whole query: request rows carry a family
+                # too, and this card counts page opens only.
+                "query": {
+                    "bool": {"filter": _activity_filters(kinds=[RANKING_KIND])}
+                },
+                "aggs": {
+                    "families_7d": window(_kst_day_start(now, 6)),
+                    "families_30d": window(_kst_day_start(now, 29)),
+                },
+            }
+        )
+        aggregations = response.get("aggregations", {})
+        return {
+            "generated_at": _iso_utc(now),
+            "families_7d": rows(aggregations.get("families_7d", {})),
+            "families_30d": rows(aggregations.get("families_30d", {})),
         }

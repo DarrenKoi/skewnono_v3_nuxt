@@ -270,3 +270,90 @@ def test_daily_visitors_roll_dau_wau_mau_over_60_kst_days(
     assert (summary["dau"], summary["wau"], summary["mau"]) == (2, 2, 2)
     assert date(2026, 6, 15) not in u1.daily
     assert date(2026, 6, 16) in u2.daily
+
+
+def _family_rows(payload, window):
+    return {row["family"]: row for row in payload[window]}
+
+
+def test_family_usage_counts_people_and_page_opens_per_family(fresh_store):
+    mock.record_request("u1", "storage", "page_view", [], "cdsem")
+    mock.record_request("u1", "storage", "page_view", [], "cdsem")
+    mock.record_request("u2", "storage", "page_view", [], "cdsem")
+    mock.record_request("u2", "hardware", "page_view", [], "hvsem")
+    mock.record_request("u2", "afm", "page_view", [], "afm")
+    # Neither of these is a page of a family: a page that belongs to none,
+    # and a REQUEST that happens to carry one. The card counts page opens.
+    mock.record_request("u3", "mag_pixel", "page_view", [], None)
+    mock.record_request("u3", "storage", "feature", ["M14"], "cdsem")
+
+    payload = mock.get_family_page_usage()
+
+    # Every family is listed, in registry order, whether or not anyone came:
+    # VeritySEM and Provision have no pages yet and must still read as 0.
+    assert payload["families_7d"] == [
+        {
+            "family": "cdsem",
+            "total": 2,
+            "pages": [{"feature": "storage", "count": 3}],
+        },
+        {
+            "family": "hvsem",
+            "total": 1,
+            "pages": [{"feature": "hardware", "count": 1}],
+        },
+        {"family": "veritysem", "total": 0, "pages": []},
+        {"family": "provision", "total": 0, "pages": []},
+        {"family": "afm", "total": 1, "pages": [{"feature": "afm", "count": 1}]},
+    ]
+    assert payload["families_30d"] == payload["families_7d"]
+
+
+def test_family_usage_windows_are_7_and_30_kst_days_and_stay_bounded(
+    fresh_store, monkeypatch
+):
+    monkeypatch.setattr(
+        mock, "_now", lambda: datetime(2026, 9, 11, 16, tzinfo=timezone.utc)
+    )
+    today = date(2026, 9, 12)
+    mock.record_request("u1", "storage", "page_view", [], "cdsem")
+    state = fresh_store["u1"]
+    state.daily_family_features[today - timedelta(days=6)] = {
+        "hvsem": {"hardware": 2}
+    }
+    state.daily_family_features[today - timedelta(days=7)] = {
+        "afm": {"afm": 5}
+    }
+    state.daily_family_features[today - timedelta(days=200)] = {
+        "afm": {"afm": 9}
+    }
+    mock.record_request("u1", "storage", "page_view", [], "cdsem")
+
+    payload = mock.get_family_page_usage()
+    week = _family_rows(payload, "families_7d")
+    month = _family_rows(payload, "families_30d")
+
+    assert week["cdsem"]["pages"] == [{"feature": "storage", "count": 2}]
+    assert week["hvsem"]["total"] == 1  # 6 days back: the week's first day
+    assert week["afm"]["total"] == 0  # 7 days back: outside it
+    assert month["afm"]["pages"] == [{"feature": "afm", "count": 5}]
+    assert today - timedelta(days=200) not in state.daily_family_features
+
+
+def test_seeded_demo_users_open_pages_in_more_than_one_family(fresh_store):
+    """The card is unreadable at home if every demo user lives in one family."""
+    mock.seed_demo_users()
+
+    month = _family_rows(mock.get_family_page_usage(), "families_30d")
+
+    assert month["cdsem"]["total"] > 0
+    assert month["hvsem"]["total"] > 0
+    assert month["afm"]["total"] > 0
+    # Not built yet, and the mock must not pretend otherwise.
+    assert month["veritysem"] == {"family": "veritysem", "total": 0, "pages": []}
+    assert month["provision"] == {"family": "provision", "total": 0, "pages": []}
+    # A page that belongs to no family never shows up under one.
+    listed = {
+        page["feature"] for row in month.values() for page in row["pages"]
+    }
+    assert "mag_pixel" not in listed and "chat" not in listed

@@ -47,6 +47,12 @@ activity_filter:
   presence_metrics: >-
     kind로 거르지 않습니다. first_seen/last_seen은 요청량이 아니라 "마지막으로
     본 시각"을 묻는 질문이라 page_view도 포함합니다.
+  family_page_rankings: >-
+    page_view만 읽습니다. /api/activity/families의 total(그 장비군의 화면을 연
+    distinct user 수)과 pages(feature별 page open 수)가 모두 여기 속합니다.
+    fab_page_rankings와 달리 request 행을 쓰지 않습니다 — beacon은 화면 경로를
+    보내므로 tool_family가 page_view 행에 정확히 실립니다. total은 DAU식
+    active user가 아니며 장비군끼리 더할 수 없습니다.
   no_backfill: >-
     2026-08-04 이전에 기록된 문서는 모두 activity_kind=feature이며 page_view로
     재분류되지 않습니다. 따라서 feature_rankings는 배포 시점부터 빈 상태로
@@ -226,6 +232,38 @@ types:
       items: FeatureCount
       description: 해당 FAB에서 발생한 feature request 수 기준 상위 10개입니다.
 
+  FamilyUsageRow:
+    family:
+      type: string
+      enum: [cdsem, hvsem, veritysem, provision, afm]
+      description: >-
+        로그의 tool_family 값입니다. registry slug이며 화면 경로의 `cd-sem`
+        표기가 아닙니다.
+    total:
+      type: integer
+      description: >-
+        해당 기간에 그 장비군의 화면을 연 distinct user 수입니다(page_view 기준).
+        DAU식 active user 수가 아니고, 두 장비군을 쓰는 사람은 양쪽에 모두
+        들어가므로 더할 수 없습니다.
+    pages:
+      type: array
+      items: FeatureCount
+      description: 그 장비군에서 열린 page_view 수 기준 상위 10개 feature입니다.
+
+  FamilyUsageResponse:
+    generated_at:
+      type: string
+      format: ISO 8601 UTC
+    families_7d:
+      type: array
+      items: FamilyUsageRow
+      description: >-
+        모든 장비군을 registry 순서(cdsem, hvsem, veritysem, provision, afm)로
+        담습니다. 아무도 열지 않은 장비군도 total=0, pages=[]로 포함합니다.
+    families_30d:
+      type: array
+      items: FamilyUsageRow
+
   FabUsageResponse:
     generated_at:
       type: string
@@ -310,6 +348,14 @@ endpoints:
         code: not_found
         when: 선택한 alias의 보존 구간에 해당 사용자의 활동 문서가 없음
 
+  - path: /api/activity/families
+    method: GET
+    auth: signed-in user
+    description: trailing 7일과 30일의 장비군별 page open 사용자 수와 화면 순위입니다.
+    response:
+      status: 200
+      body: FamilyUsageResponse
+
   - path: /api/activity/visitors
     method: GET
     auth: admin
@@ -337,8 +383,11 @@ endpoints:
       Nuxt SPA가 다른 페이지를 열 때마다 쏘는 beacon입니다. /api/activity 하위가
       아니라 최상위에 마운트되어 있습니다 — /api/activity는 operation prefix라
       거기 두면 모든 page view가 activity_weight=0으로 분류됩니다. path가 알려진
-      페이지로 resolve되면 activity_kind=page_view, feature=해당 페이지 slug인
-      로그 행 1건이 기록됩니다(beacon 자신의 경로가 아닙니다). resolve되지
+      페이지로 resolve되면 activity_kind=page_view, feature=해당 페이지 slug,
+      tool_family=그 페이지가 속한 장비군(없으면 필드 생략)인 로그 행 1건이
+      기록됩니다(beacon 자신의 경로가 아닙니다). SPA는 (slug, 장비군)이 바뀔
+      때 beacon을 보내므로 CD-SEM storage에서 HV-SEM storage로 옮기면 한 번 더
+      기록됩니다. resolve되지
       않는 path(운영 페이지, 아직 URL에 반영되지 않은 tab 등)는 조용히
       무시하고 204를 돌려줍니다 — 클라이언트는 어떤 path가 순위에 들어가는지
       알 수 없으므로 400으로 취급하지 않습니다.

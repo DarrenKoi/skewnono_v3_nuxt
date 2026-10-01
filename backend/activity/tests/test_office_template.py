@@ -605,3 +605,91 @@ def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
     # Users per page x days per user must stay under search.max_buckets
     # (65,535 by default), or the cluster answers 503 instead of a page.
     assert users["composite"]["size"] * 89 < 65_535
+
+
+def _family_bucket(family, people, *pages):
+    return {
+        "key": family,
+        "doc_count": sum(count for _page, count in pages),
+        "openers": {"value": people},
+        "pages": {
+            "buckets": [
+                {"key": page, "doc_count": count} for page, count in pages
+            ]
+        },
+    }
+
+
+def test_family_usage_lists_every_family_from_page_view_rows():
+    reader, search, _aliases = _reader(
+        [
+            {
+                "aggregations": {
+                    "families_7d": {
+                        "doc_count": 9,
+                        "families": {
+                            "buckets": [
+                                _family_bucket(
+                                    "cdsem", 2, ("storage", 5), ("hardware", 1)
+                                ),
+                                _family_bucket("afm", 1, ("afm", 3)),
+                            ]
+                        },
+                    },
+                    "families_30d": {
+                        "doc_count": 0,
+                        "families": {"buckets": []},
+                    },
+                }
+            }
+        ]
+    )
+
+    payload = reader.get_family_page_usage()
+
+    assert payload["generated_at"] == "2026-07-27T03:00:00Z"
+    # Registry order with the absent families filled in as zeros — a terms
+    # aggregation returns no bucket at all for a family nobody opened.
+    assert payload["families_7d"] == [
+        {
+            "family": "cdsem",
+            "total": 2,
+            "pages": [
+                {"feature": "storage", "count": 5},
+                {"feature": "hardware", "count": 1},
+            ],
+        },
+        {"family": "hvsem", "total": 0, "pages": []},
+        {"family": "veritysem", "total": 0, "pages": []},
+        {"family": "provision", "total": 0, "pages": []},
+        {"family": "afm", "total": 1, "pages": [{"feature": "afm", "count": 3}]},
+    ]
+    assert [row["total"] for row in payload["families_30d"]] == [0, 0, 0, 0, 0]
+
+    (body,) = search.bodies
+    # Page opens only, for the whole query: a request row can carry a family
+    # too, and counting it would turn "opened a page" into "made a request".
+    assert body["query"]["bool"]["filter"] == [
+        {"term": {"event": "request"}},
+        {"term": {"activity_weight": 1}},
+        {"terms": {"activity_kind": ["page_view"]}},
+    ]
+
+    def window_start(name):
+        clauses = body["aggs"][name]["filter"]["bool"]["filter"]
+        return clauses[0]["range"]["@timestamp"]["gte"]
+
+    assert window_start("families_7d").startswith("2026-07-21T00:00:00+09:00")
+    assert window_start("families_30d").startswith("2026-06-28T00:00:00+09:00")
+    families = body["aggs"]["families_7d"]["aggs"]["families"]
+    assert families["terms"]["field"] == "tool_family"
+    # Only the known vocabulary: a stray value is not a sixth family.
+    assert families["terms"]["include"] == [
+        "cdsem",
+        "hvsem",
+        "veritysem",
+        "provision",
+        "afm",
+    ]
+    assert families["aggs"]["openers"]["cardinality"]["field"] == "user_id"
+    assert families["aggs"]["pages"]["terms"]["field"] == "feature"

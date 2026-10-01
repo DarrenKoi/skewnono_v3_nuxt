@@ -12,6 +12,7 @@ __all__ = [
     "get_me",
     "get_summary",
     "get_fab_page_usage",
+    "get_family_page_usage",
     "get_daily_visitors",
     "get_users_list",
     "get_user_history",
@@ -40,6 +41,10 @@ def get_fab_page_usage():
     return _provider().get_fab_page_usage()
 
 
+def get_family_page_usage():
+    return _provider().get_family_page_usage()
+
+
 def get_daily_visitors():
     return _provider().get_daily_visitors()
 
@@ -57,12 +62,14 @@ def record_request(
     feature: str,
     activity_kind: str,
     fab_name_list: list[str],
+    tool_family: str | None = None,
 ) -> None:
     return _provider().record_request(
         user_id,
         feature,
         activity_kind,
         fab_name_list,
+        tool_family,
     )
 
 

@@ -56,3 +56,14 @@ def test_backend_maps_correctly(fixture_row):
     assert actual == expected, (
         f"page_to_feature({path!r}) returned {actual!r}, fixture expects {expected!r}"
     )
+
+
+@pytest.mark.parametrize(
+    'fixture_row', load_contract(), ids=lambda row: f"{contract_path(row)} -> {row['family']}"
+)
+def test_backend_names_the_family_the_fixture_claims(fixture_row):
+    """The family column is the second half of a page's identity: the frontend
+    dedups page opens on (slug, family), so both sides must read it the same."""
+    path = contract_path(fixture_row)
+
+    assert feature_map.page_to_family(path) == fixture_row['family']

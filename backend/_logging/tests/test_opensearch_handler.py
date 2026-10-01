@@ -184,6 +184,22 @@ def test_the_document_carries_how_the_caller_was_identified(parked):
     assert doc["identity_source"] == "declared"
 
 
+def test_the_document_carries_the_tool_family(parked):
+    """Asserted on the DOCUMENT for the reason spelled out above: the family
+    reaches the LogRecord long before it reaches the allowlist."""
+    doc = parked._record_to_doc(_record(user_id="2067928", tool_family="hvsem"))
+
+    assert doc["tool_family"] == "hvsem"
+
+
+def test_a_record_with_no_family_omits_the_field(parked):
+    """Most rows have none (the hub, 장비 목록, chat). Absent, not null, so a
+    terms aggregation over the field needs no missing-bucket handling."""
+    doc = parked._record_to_doc(_record(user_id="2067928", tool_family=None))
+
+    assert "tool_family" not in doc
+
+
 def test_a_record_without_an_identity_source_omits_the_field(parked):
     """Consistent with every other optional field here: absent rather than
     null, so the index carries no empty column to filter around."""

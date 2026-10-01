@@ -52,6 +52,7 @@ _KNOWN_EXTRA_KEYS = (
     "activity_kind",
     "activity_weight",
     "fab_name_list",
+    "tool_family",
     "error_code",
     "error_name",
     # OpenSearch round trips this request spent (see _logging/os_timing.py).

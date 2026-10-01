@@ -120,6 +120,42 @@ The same applies again to the production deploy if local and production are
 switched on separately: the date belongs to whichever alias the ranking reads
 (`SKEWNONO_LOG_ENV`).
 
+### Deploy step: `tool_family`
+
+`tool_family` (2026-10-02) is a new field on the logging index, and that index
+is `dynamic: false`. Three things have to happen at the office, **in this
+order**, or the 장비군별 페이지 사용 card stays empty while looking healthy:
+
+1. **Update the index mapping before anything else.** Re-run the provisioning
+   module on the company network:
+
+   ```bash
+   python -m ops_index_mgmt.skewnono_logging --environment all --dry-run
+   python -m ops_index_mgmt.skewnono_logging --environment all
+   ```
+
+   It rewrites the index template *and* calls `put_current_mapping()` against
+   the alias, so the existing indices get the field too — editing
+   `LOG_MAPPING_PROPERTIES` alone changes neither. Until it has run, the
+   writer still ships `tool_family`, and OpenSearch keeps it in `_source`
+   without indexing it: every aggregation on it returns nothing.
+2. **Refresh the adapter copy.** `providers/office.py` is a copy of
+   `office_example.py` and does not have `get_family_page_usage` until it is
+   refreshed (`python -m scripts.adapters.sync_office_adapters activity`); a
+   stale copy answers `/api/activity/families` with
+   `503 activity_query_failed`.
+3. **Set `TOOL_FAMILY_SINCE`** in `frontend/app/utils/activityFamily.ts` to
+   the day step 1 ran, before building the frontend — the same rule and the
+   same reason as `PAGE_VIEW_SINCE` above. Documents shipped before step 1 are
+   not re-indexed by a mapping update, and page-view documents never stored the
+   page path, so earlier rows cannot be given a family after the fact.
+
+`OFFICE-VERIFY`: request rows read their family from the `Referer` header
+(see `_logging/activity.py::_tool_family`). Whether the office proxy forwards
+it untouched has not been checked. It does not affect this card — page-view
+rows take the family from the beacon body — only the family on request rows,
+which nothing reads yet.
+
 Document timestamps are stored in UTC. The following calendar windows are
 computed in `Asia/Seoul`:
 
@@ -174,6 +210,31 @@ nothing from either adapter. Both fields are `null` when the directory has no
 row for that empno or cannot be reached, and either can be `null` on its own
 because a member document may be partial; the table then shows the employee
 number alone and a dash for the team.
+
+### `GET /api/activity/families`
+
+Returns page opens per tool family over the last 7 and 30 days, as
+`families_7d` / `families_30d`. **Every** family is listed, in registry order
+(`cdsem`, `hvsem`, `veritysem`, `provision`, `afm`), including the ones nobody
+opened — a family with no pages built yet is a row of zeros, not a missing row.
+
+Both numbers come from `page_view` documents, unlike `/fabs`: `total` is the
+distinct people who opened a page of that family (`user_id` cardinality) and
+`pages` is the page-open count per `feature`. `total` is therefore **not** a
+DAU-style active-user count, and the families do not add up — someone who
+works in two is in both. A page that belongs to no family (the hub, 장비 목록,
+chat, mag-pixel) is in no row.
+
+The office query is one request: a `terms` aggregation on `tool_family`
+restricted with `include` to the five known values, with `cardinality` and a
+`terms` on `feature` under it. No composite paging — the vocabulary is five
+values. Documents written before the field existed fall in no bucket.
+
+Adding a family to `backend/ebeam/_tool_specs.py` adds it to the logging
+vocabulary, the API slug rules and this response automatically
+(`_logging/feature_map.py` derives all three from the registry). The frontend
+shows an unknown family under its raw slug until
+`frontend/app/utils/activityFamily.ts` gives it a label.
 
 ### `GET /api/activity/visitors`
 
@@ -231,7 +292,7 @@ happen once, in the shared middleware, not in a provider adapter.
 
 ## Who may read what
 
-`/me`, `/summary` and `/fabs` are open to every identified user — they are
+`/me`, `/summary`, `/fabs` and `/families` are open to every identified user — they are
 aggregates, and a person's own history is theirs to see. The two `/users`
 routes enumerate activity per employee, and `/visitors` is the site's traffic
 over time, which is shown to the administrator only, so all three are
@@ -288,7 +349,7 @@ SKEWNONO_LOG_ENV=local \
   .venv/bin/python -m pytest backend/activity -q
 ```
 
-Then start Flask and check `/api/activity/me`, `/summary`, `/fabs`, `/users` and
-`/visitors`.
+Then start Flask and check `/api/activity/me`, `/summary`, `/fabs`, `/families`,
+`/users` and `/visitors`.
 Also confirm that with the OpenSearch connection briefly blocked, the response
 returns `503 activity_query_failed` rather than leaking a raw cluster error.

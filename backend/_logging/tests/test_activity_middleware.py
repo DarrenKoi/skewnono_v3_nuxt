@@ -14,7 +14,7 @@ mock adapter keeps process-global counters that would leak between tests.
 import logging
 
 import pytest
-from flask import Flask, abort, g
+from flask import Flask, abort, g, request
 
 from backend._logging import activity as activity_mod
 from backend._logging import os_timing
@@ -122,7 +122,12 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
             # Stands in for the beacon route Task 5 adds: a handler that
             # knows what page it represents and promotes that slug onto the
             # log row before the middleware's after_request runs.
-            activity_mod.promote_page_view("mag_pixel")
+            # The page it promotes is the body's when one is sent, so a test
+            # can stand in for any page; mag_pixel (no family) otherwise.
+            page = request.get_json(silent=True) or {}
+            activity_mod.promote_page_view(
+                page.get("slug", "mag_pixel"), page.get("family")
+            )
             return "", 204
 
         activity_mod.install_activity_logging(app)
@@ -281,7 +286,7 @@ def test_only_weighted_requests_become_usage_events(make_app, recorded):
     client.get("/api/nope")
     client.get("/login")
 
-    assert recorded == [("2067928", "sem_list", "entry", ["M16"])]
+    assert recorded == [("2067928", "sem_list", "entry", ["M16"], None)]
 
 
 def test_a_cors_preflight_is_logged_but_not_recorded(make_app, records, recorded):
@@ -516,3 +521,102 @@ def test_a_failing_usage_store_never_fails_the_request(
     assert second.status_code == 200
     notes = [r for r in records if "record_request failed" in r.getMessage()]
     assert len(notes) == 1
+
+
+# ---------------------------------------------------------------------------
+# tool_family: which family's page the caller was on.
+
+_PAGE = "http://localhost:3000"
+
+
+def _family(records) -> str | None:
+    return _only(records, "request").tool_family
+
+
+def test_a_request_takes_the_family_of_the_page_it_came_from(make_app, records):
+    """/api/sem-list is shared by every family, so its own path says nothing.
+    The page that issued it does."""
+    client = make_app(user_id="2067928")
+
+    client.get("/api/sem-list", headers={"Referer": f"{_PAGE}/ebeam/hv-sem/R3"})
+
+    assert _family(records) == "hvsem"
+
+
+def test_the_page_outranks_the_api_path(make_app, records):
+    """A page may call another family's API (a CD/HV comparison does). The
+    activity belongs to the page the person is looking at."""
+    client = make_app(user_id="2067928")
+
+    client.get(
+        "/api/cdsem/ppid-unavailable",
+        headers={"Referer": f"{_PAGE}/ebeam/hv-sem/M14/storage?ppid=X1"},
+    )
+
+    assert _family(records) == "hvsem"
+
+
+def test_a_shared_page_stays_unattributed_even_on_a_family_api(make_app, records):
+    """A known page with no family is an answer, not a gap to fill in from
+    the API path."""
+    client = make_app(user_id="2067928")
+
+    client.get(
+        "/api/cdsem/ppid-unavailable", headers={"Referer": f"{_PAGE}/tool-roster"}
+    )
+
+    assert _family(records) is None
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {},
+        # An origin-only referrer policy sends the bare origin: it names no
+        # page, which is "cannot tell" rather than "the hub".
+        {"Referer": f"{_PAGE}/"},
+        {"Referer": _PAGE},
+    ],
+)
+def test_with_no_page_to_read_the_api_path_decides(make_app, records, headers):
+    client = make_app(user_id="2067928")
+
+    client.get("/api/cdsem/ppid-unavailable", headers=headers)
+
+    assert _family(records) == "cdsem"
+
+
+def test_a_beacon_reports_the_family_of_the_page_it_names(make_app, records, recorded):
+    client = make_app(user_id="2067928")
+
+    client.post("/api/page-view", json={"slug": "storage", "family": "veritysem"})
+
+    assert _family(records) == "veritysem"
+    assert recorded == [("2067928", "storage", "page_view", [], "veritysem")]
+
+
+def test_a_beacon_for_a_shared_page_is_not_given_the_referers_family(
+    make_app, records
+):
+    """The beacon body is the page that was opened. Its Referer is whatever
+    page the router had not left yet — the previous one, as often as not."""
+    client = make_app(user_id="2067928")
+
+    client.post(
+        "/api/page-view",
+        json={"slug": "mag_pixel"},
+        headers={"Referer": f"{_PAGE}/ebeam/cd-sem/M14/storage"},
+    )
+
+    assert _family(records) is None
+
+
+def test_the_usage_store_receives_the_family_the_log_row_carries(
+    make_app, records, recorded
+):
+    client = make_app(user_id="2067928")
+
+    client.get("/api/sem-list", headers={"Referer": f"{_PAGE}/afm/map608/a.tif"})
+
+    assert _family(records) == "afm"
+    assert recorded[0][4] == "afm"

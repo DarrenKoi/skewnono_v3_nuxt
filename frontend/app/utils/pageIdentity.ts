@@ -2,10 +2,16 @@
  *  docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md
  *
  *  THE GOVERNING RULE: two paths produce the same identity if and only if the
- *  backend's `page_to_feature` (backend/_logging/feature_map.py) maps them
- *  to the same slug. Finer than that double-counts one page; coarser silently
- *  loses a real page open. `__fixtures__/pageIdentityContract.json` is the
- *  shared table both sides are tested against.
+ *  backend (backend/_logging/feature_map.py) gives them the same slug
+ *  (`page_to_feature`) AND the same tool family (`page_to_family`). Finer than
+ *  that double-counts one page; coarser silently loses a real page open.
+ *  `__fixtures__/pageIdentityContract.json` is the shared table both sides are
+ *  tested against.
+ *
+ *  The family half arrived 2026-10-02, when the log row gained `tool_family`.
+ *  Before it, CD-SEM's Storage and HV-SEM's Storage were one identity, so
+ *  moving between them was deduped as a filter change and the second family's
+ *  page open was never reported.
  *
  *  The ONE approved exception: recipe-status ?tab=align and ?tab=meas share the
  *  backend slug `fail_issue`, but the product counts Align Fail and Meas Fail as
@@ -42,9 +48,9 @@ const VALID_TABS = new Set(['tat', 'align', 'meas'])
 // [fab]/index.vue — EbeamToolInventoryView, 장비 상태.
 //
 // Unlike every other entry in IDENTITY_RULES this is NOT a route fragment.
-// The four tool families share no path segment for this page, so the identity
-// they must all collapse onto has to be synthesized. Matches the backend's
-// `tool_inventory` slug.
+// The page has no path segment of its own, so its identity has to be
+// synthesized. Matches the backend's `tool_inventory` slug; the tool family is
+// prefixed onto it like any other e-beam identity (`cd-sem#tool-inventory`).
 //
 // Deliberately spelled with a leading `#`, not `/`: a canonical path is always
 // built as `'/' + segments.join('/')`, so no real route can ever produce a
@@ -110,6 +116,11 @@ const firstValue = (raw: unknown): string | null => {
 interface Canonical {
   /** Path with fab (and, under /ebeam, the tool) removed. */
   path: string
+  /** The /ebeam tool segment, kept apart from `path` so the page rules stay
+   *  family-agnostic and the family rejoins the identity at the end. Absent
+   *  outside /ebeam: a standalone page's path already says which family it is
+   *  (/afm) or that it has none. */
+  family?: string
   /** True for /ebeam routes. An unmapped e-beam page has no identity at all
    *  (the backend returns None for it) — there is deliberately no tool-family
    *  fallback, because "CD-SEM" is not a page and must never be ranked as one. */
@@ -122,11 +133,11 @@ const canonicalize = (rawPath: string): Canonical => {
   if (segments[0] === 'ebeam') {
     // A bare /ebeam names no tool and is not a page.
     if (!segments[1]) return { path: '/ebeam', ebeam: true }
+    const family = segments[1].toLowerCase()
     const rest = segments.slice(2).filter(segment => !FAB_SEGMENT.test(segment))
-    // /ebeam/<tool> and /ebeam/<tool>/<fab> are the same page (the fab hub);
-    // the synthetic path is what all four tool families collapse onto.
-    if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, ebeam: true }
-    return { path: '/' + rest.join('/'), ebeam: true }
+    // /ebeam/<tool> and /ebeam/<tool>/<fab> are the same page (the fab hub).
+    if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, ebeam: true, family }
+    return { path: '/' + rest.join('/'), ebeam: true, family }
   }
 
   return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), ebeam: false }
@@ -147,15 +158,12 @@ const isOpsPath = (path: string): boolean => {
   return OPS_PREFIXES.some(prefix => trimmed === prefix || trimmed.startsWith(prefix + '/'))
 }
 
-export const resolvePageIdentity = (
-  path: string,
+/** The identity of the PAGE alone, family aside — what `page_to_feature`'s
+ *  slug partitions. `resolvePageIdentity` adds the family half. */
+const resolvePage = (
+  { path: canonical, ebeam }: Canonical,
   query: Record<string, unknown>
 ): string | null => {
-  if (!path) return null
-  if (isOpsPath(path)) return null
-
-  const { path: canonical, ebeam } = canonicalize(path)
-
   // The hub at / is a waypoint everyone passes through, not a ranked feature.
   // The backend returns None for it, so the beacon must not fire either — and
   // a null here means report() returns before its $fetch, so no row is written
@@ -180,6 +188,24 @@ export const resolvePageIdentity = (
   // matching backend rule); a standalone page still falls back to its own path.
   return ebeam ? null : canonical
 }
+
+export const resolvePageIdentity = (
+  path: string,
+  query: Record<string, unknown>
+): string | null => {
+  if (!path) return null
+  if (isOpsPath(path)) return null
+
+  const canonical = canonicalize(path)
+  const page = resolvePage(canonical, query)
+  if (page === null) return null
+  // `page` always starts with `/` or `#`, so the family prefix cannot run
+  // into it: `cd-sem/storage`, `hv-sem#tool-inventory`.
+  return canonical.family ? canonical.family + page : page
+}
+
+const isToolInventory = (identity: string | null): boolean =>
+  identity !== null && identity.endsWith(TOOL_INVENTORY_PATH)
 
 /** Decides which navigations are page OPENS worth a beacon. It remembers the
  *  previous page, so the plugin holds exactly one for the app's lifetime.
@@ -207,7 +233,12 @@ export const createPageViewTracker = () => {
     // choice. From another ranked page it is a tab the user clicked, so it
     // counts. Excluding it outright, as / is, would rank a page people do
     // open on purpose as unused.
-    return !(identity === TOOL_INVENTORY_PATH && before === null)
+    //
+    // Another family's 장비 상태 is not "a ranked page before it": going from
+    // one landing to the next is picking a tool again. That case only exists
+    // since the family joined the identity — before, the two were equal and
+    // the unchanged-identity check above already dropped it.
+    return !(isToolInventory(identity) && (before === null || isToolInventory(before)))
   }
 }
 

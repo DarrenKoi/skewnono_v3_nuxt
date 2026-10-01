@@ -122,12 +122,22 @@ export const activityFeatureLabel = (feature: string | null | undefined): string
  *  backend/activity/MIGRATION.md, "Deploy step: PAGE_VIEW_SINCE". */
 export const PAGE_VIEW_SINCE = '2026-08-04'
 
+/** Whether a window of `windowDays` ending today starts before `since` (a KST
+ *  date) — i.e. reaches back past the day something began being collected.
+ *  Shared by every "…부터 집계합니다" caption so they agree on the boundary. */
+export const windowReachesBefore = (
+  since: string,
+  windowDays: number,
+  today: Date
+): boolean => {
+  const windowStart = new Date(today.getTime() - (windowDays - 1) * 86_400_000)
+  return windowStart < new Date(`${since}T00:00:00+09:00`)
+}
+
 export const pageViewNotice = (
   windowDays: number,
   today: Date
-): string | null => {
-  const since = new Date(`${PAGE_VIEW_SINCE}T00:00:00+09:00`)
-  const windowStart = new Date(today.getTime() - (windowDays - 1) * 86_400_000)
-  if (windowStart >= since) return null
-  return `${PAGE_VIEW_SINCE}부터 페이지 조회 기준으로 집계합니다`
-}
+): string | null =>
+  windowReachesBefore(PAGE_VIEW_SINCE, windowDays, today)
+    ? `${PAGE_VIEW_SINCE}부터 페이지 조회 기준으로 집계합니다`
+    : null

@@ -21,6 +21,8 @@ __all__ = [
     "FabPageCount",
     "FabUsageRow",
     "FabUsageResponse",
+    "FamilyUsageRow",
+    "FamilyUsageResponse",
     "DailyVisitors",
     "VisitorsResponse",
 ]
@@ -188,3 +190,35 @@ class VisitorsResponse(TypedDict):
 
     generated_at: str
     days: list[DailyVisitors]
+
+
+class FamilyUsageRow(TypedDict):
+    """Page opens under one tool family.
+
+    Both numbers come from ``page_view`` rows — unlike ``FabUsageRow``, whose
+    beacons carry no fab and so had to count requests. A beacon names the page
+    that was opened, and the page names its family, so this is exact.
+
+    ``total`` is the distinct people who opened a page of this family. It is
+    NOT a DAU-style active-user count (that one reads request rows) and the
+    families do not add up: someone who works in two is in both.
+    """
+
+    #: ``cdsem | hvsem | veritysem | provision | afm`` — the logged
+    #: ``tool_family`` value, never the dashed page segment.
+    family: str
+    total: int
+    pages: list[FeatureCount]
+
+
+class FamilyUsageResponse(TypedDict):
+    """Every family, in registry order, including the ones nobody opened.
+
+    A family with no pages built yet is a row of zeros rather than a missing
+    row: the page lists all five so a new family's first visit has somewhere
+    to appear.
+    """
+
+    generated_at: str
+    families_7d: list[FamilyUsageRow]
+    families_30d: list[FamilyUsageRow]

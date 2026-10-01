@@ -94,6 +94,23 @@ export interface UserListResponse {
   users: UserListRow[]
 }
 
+/** Page opens under one tool family. `family` is the logged `tool_family`
+ *  value (`cdsem`, not `cd-sem`). Both numbers count page views: `total` is
+ *  the distinct people who opened a page of the family — not a DAU-style
+ *  active-user count, and not additive across families. */
+export interface FamilyUsageRow {
+  family: string
+  total: number
+  pages: FeatureCount[]
+}
+
+/** Every family, in the backend's registry order, zero rows included. */
+export interface FamilyUsageResponse {
+  generated_at: string
+  families_7d: FamilyUsageRow[]
+  families_30d: FamilyUsageRow[]
+}
+
 /** How many distinct people were active on, and up to, one KST day.
  *
  *  `visitors` is that day alone (DAU). `wau` and `mau` are the distinct people
@@ -127,12 +144,14 @@ const ME_KEY = 'activity-me'
 const SUMMARY_KEY = 'activity-summary'
 const USERS_KEY = 'activity-users'
 const FABS_KEY = 'activity-fabs'
+const FAMILIES_KEY = 'activity-families'
 const VISITORS_KEY = 'activity-visitors'
 
 const meSlot = createInFlightSlot<MeResponse>()
 const summarySlot = createInFlightSlot<SummaryResponse>()
 const usersSlot = createInFlightSlot<UserListResponse>()
 const fabsSlot = createInFlightSlot<FabUsageResponse>()
+const familiesSlot = createInFlightSlot<FamilyUsageResponse>()
 const visitorsSlot = createInFlightSlot<VisitorsResponse>()
 
 const useActivityUrls = () => {
@@ -143,6 +162,7 @@ const useActivityUrls = () => {
     summaryUrl: joinApiPath(base, '/activity/summary'),
     usersUrl: joinApiPath(base, '/activity/users'),
     fabsUrl: joinApiPath(base, '/activity/fabs'),
+    familiesUrl: joinApiPath(base, '/activity/families'),
     visitorsUrl: joinApiPath(base, '/activity/visitors'),
     userDetailUrl: (userId: string) =>
       joinApiPath(base, `/activity/users/${encodeURIComponent(userId)}`)
@@ -181,6 +201,14 @@ export const useActivityFabs = () => {
   })
 }
 
+export const useActivityFamilies = () => {
+  const { familiesUrl } = useActivityUrls()
+  const fetchOnce = () => familiesSlot.run(() => $fetch<FamilyUsageResponse>(familiesUrl))
+  return useAsyncData(FAMILIES_KEY, fetchOnce, {
+    getCachedData: payloadCacheOnInitial
+  })
+}
+
 export const useActivityVisitors = () => {
   const { visitorsUrl } = useActivityUrls()
   const fetchOnce = () => visitorsSlot.run(() => $fetch<VisitorsResponse>(visitorsUrl))
@@ -202,5 +230,6 @@ export const resetActivityCache = () => {
   summarySlot.reset()
   usersSlot.reset()
   fabsSlot.reset()
+  familiesSlot.reset()
   visitorsSlot.reset()
 }

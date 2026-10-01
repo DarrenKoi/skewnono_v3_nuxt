@@ -2,281 +2,352 @@
   {
     "path": "/ebeam/cd-sem/M14/storage",
     "query": {},
-    "slug": "storage"
+    "slug": "storage",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/hv-sem/R3/storage",
     "query": {},
-    "slug": "storage"
+    "slug": "storage",
+    "family": "hvsem"
   },
   {
     "path": "/ebeam/cd-sem/m14,r3/storage",
     "query": {},
     "slug": "storage",
+    "family": "cdsem",
     "comment": "Multi-fab [fab] segment: buildFabSegment joins the selection, so this is the shape a two-fab session actually routes through. Same page, same slug — the fab list is not part of the identity"
   },
   {
     "path": "/ebeam/cd-sem/m14,r3",
     "query": {},
     "slug": "tool_inventory",
+    "family": "cdsem",
     "comment": "Fab hub under a multi-fab segment — still [fab]/index.vue"
   },
   {
     "path": "/ebeam/cd-sem/m14,r3/recipe-search/meas-hist",
     "query": {},
     "slug": "meas_hist",
+    "family": "cdsem",
     "comment": "The nested child still wins over its parent once the fab list is stripped"
   },
   {
     "path": "/ebeam/cd-sem/device-statistics",
     "query": {},
-    "slug": "device_statistics"
+    "slug": "device_statistics",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/device-statistics/comparison",
     "query": {},
-    "slug": "device_statistics"
+    "slug": "device_statistics",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/hv-sem/device-statistics",
     "query": {},
-    "slug": "device_statistics"
+    "slug": "device_statistics",
+    "family": "hvsem"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-search",
     "query": {},
-    "slug": "recipe_search"
+    "slug": "recipe_search",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-search/compare",
     "query": {},
-    "slug": "recipe_search"
+    "slug": "recipe_search",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-search/open",
     "query": {},
-    "slug": "recipe_search"
+    "slug": "recipe_search",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-search/lateral",
     "query": {},
-    "slug": "recipe_search"
+    "slug": "recipe_search",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-search/meas-hist",
     "query": {},
     "slug": "meas_hist",
+    "family": "cdsem",
     "comment": "Own slug, so a distinct identity is required by the rule — not an exception"
   },
   {
     "path": "/ebeam/hv-sem/R3/recipe-search",
     "query": {},
-    "slug": "recipe_search"
+    "slug": "recipe_search",
+    "family": "hvsem"
   },
   {
     "path": "/ebeam/cd-sem/M14/hardware",
     "query": {},
-    "slug": "hardware"
+    "slug": "hardware",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/hardware",
     "query": {},
     "slug": "hardware",
+    "family": "cdsem",
     "comment": "Fabless shape of the same page"
   },
   {
     "path": "/ebeam/hv-sem/R3/hardware",
     "query": {},
-    "slug": "hardware"
+    "slug": "hardware",
+    "family": "hvsem"
   },
   {
     "path": "/ebeam/cd-sem/R3/pm-planning",
     "query": {},
     "slug": "pm_planning",
+    "family": "cdsem",
     "comment": "Page path again since 2026-08-27 (it was pm-tune 2026-08-17..27); slug kept so the series stays continuous"
   },
   {
     "path": "/ebeam/cd-sem/M14/pm-tune",
     "query": {},
     "slug": "pm_planning",
+    "family": "cdsem",
     "comment": "Interim page path (2026-08-17..27), kept as an alias; must share pm-planning's identity"
   },
   {
     "path": "/ebeam/cd-sem/pm-planning",
     "query": {},
     "slug": "pm_planning",
+    "family": "cdsem",
     "comment": "Fabless shape of the same page"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-tat",
     "query": {},
     "slug": "recipe_tat",
+    "family": "cdsem",
     "comment": "Legacy _PAGE_RULES route; middleware redirects to recipe-status"
   },
   {
     "path": "/ebeam/cd-sem/M14/fail-issue",
     "query": {},
     "slug": "fail_issue",
+    "family": "cdsem",
     "comment": "Legacy _PAGE_RULES route; middleware redirects to recipe-status"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-status",
     "query": {},
     "slug": null,
+    "family": "cdsem",
     "comment": "No tab yet — the component writes ?tab= back on mount"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-status",
-    "query": { "tab": "tat" },
+    "query": {
+      "tab": "tat"
+    },
     "slug": "recipe_tat",
+    "family": "cdsem",
     "finerThanSlug": true,
     "comment": "Approved exception: the three tabs are three opens"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-status",
-    "query": { "tab": "align" },
+    "query": {
+      "tab": "align"
+    },
     "slug": "fail_issue",
+    "family": "cdsem",
     "finerThanSlug": true,
     "comment": "Approved exception: Align Fail counts separately from Meas Fail"
   },
   {
     "path": "/ebeam/cd-sem/M14/recipe-status",
-    "query": { "tab": "meas" },
+    "query": {
+      "tab": "meas"
+    },
     "slug": "fail_issue",
+    "family": "cdsem",
     "finerThanSlug": true,
     "comment": "Approved exception: Meas Fail counts separately from Align Fail"
   },
   {
     "path": "/ebeam/cd-sem/M14/live-alarm",
     "query": {},
-    "slug": "live_alarm"
+    "slug": "live_alarm",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/hv-sem/R3/live-alarm",
     "query": {},
-    "slug": "live_alarm"
+    "slug": "live_alarm",
+    "family": "hvsem"
   },
   {
     "path": "/ebeam/cd-sem/M14/tttm",
     "query": {},
-    "slug": "skew_check"
+    "slug": "skew_check",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/skewvoir",
     "query": {},
-    "slug": "skewvoir"
+    "slug": "skewvoir",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/cd-sem/skewvoir/analysis",
     "query": {},
-    "slug": "skewvoir"
+    "slug": "skewvoir",
+    "family": "cdsem"
   },
   {
     "path": "/ebeam/hv-sem/skewvoir",
     "query": {},
-    "slug": "skewvoir"
+    "slug": "skewvoir",
+    "family": "hvsem"
   },
   {
     "path": "/ebeam/cd-sem",
     "query": {},
     "slug": "tool_inventory",
+    "family": "cdsem",
     "comment": "Fab hub, fabless shape — redirects to the fab shape below"
   },
   {
     "path": "/ebeam/cd-sem/M14",
     "query": {},
     "slug": "tool_inventory",
+    "family": "cdsem",
     "comment": "Fab hub: [fab]/index.vue renders EbeamToolInventoryView (장비 상태)"
   },
   {
     "path": "/ebeam/hv-sem/R3",
     "query": {},
     "slug": "tool_inventory",
+    "family": "hvsem",
     "comment": "Same page under a different tool family, so the same slug"
   },
   {
     "path": "/ebeam/provision/R3",
     "query": {},
-    "slug": "tool_inventory"
+    "slug": "tool_inventory",
+    "family": "provision"
   },
   {
     "path": "/ebeam/veritysem/M14",
     "query": {},
-    "slug": "tool_inventory"
+    "slug": "tool_inventory",
+    "family": "veritysem"
   },
   {
     "path": "/ebeam/cd-sem/M14/unmapped-page",
     "query": {},
     "slug": null,
+    "family": "cdsem",
     "comment": "Unmapped e-beam page is not ranked: no tool-family fallback (that is how CD-SEM got in), and NOT tool_inventory either"
   },
   {
     "path": "/afm",
     "query": {},
-    "slug": "afm"
+    "slug": "afm",
+    "family": "afm"
   },
   {
     "path": "/afm/map608/a.tif",
     "query": {},
-    "slug": "afm"
+    "slug": "afm",
+    "family": "afm"
   },
   {
     "path": "/afm/mapc01/b.tif",
     "query": {},
-    "slug": "afm"
+    "slug": "afm",
+    "family": "afm"
   },
   {
     "path": "/msr-file",
     "query": {},
-    "slug": "msr_file"
+    "slug": "msr_file",
+    "family": null
   },
   {
     "path": "/msr-files",
     "query": {},
-    "slug": "msr_files"
+    "slug": "msr_files",
+    "family": null
   },
   {
     "path": "/msr-image",
     "query": {},
-    "slug": "msr_image"
+    "slug": "msr_image",
+    "family": null
   },
   {
     "path": "/sem-list",
     "query": {},
     "slug": "sem_list",
+    "family": null,
     "comment": "Alias of /tool-roster — same slug, so it must share its identity"
   },
   {
     "path": "/tool-roster",
     "query": {},
-    "slug": "sem_list"
+    "slug": "sem_list",
+    "family": null
   },
   {
     "path": "/mag-pixel",
     "query": {},
-    "slug": "mag_pixel"
+    "slug": "mag_pixel",
+    "family": null
   },
   {
     "path": "/chat",
     "query": {},
-    "slug": "chat"
+    "slug": "chat",
+    "family": null
   },
   {
     "path": "/",
     "query": {},
     "slug": null,
+    "family": null,
     "comment": "The hub is a waypoint, not a ranked feature — no beacon fires"
   },
   {
     "path": "/admin/logs",
     "query": {},
     "slug": null,
+    "family": null,
     "comment": "Ops page: logged but never ranked"
   },
   {
     "path": "/unknown-page",
     "query": {},
     "slug": "unknown_page",
+    "family": null,
     "comment": "Unmapped page falls back to its first segment"
+  },
+  {
+    "path": "/ebeam/hv-sem/R3/pm-planning",
+    "query": {},
+    "slug": "pm_planning",
+    "family": "hvsem",
+    "comment": "Same slug as the cd-sem pm-planning rows, different family: one feature, two identities"
+  },
+  {
+    "path": "/ebeam/veritysem/M14/storage",
+    "query": {},
+    "slug": "storage",
+    "family": "veritysem",
+    "comment": "A family with no pages built yet still resolves — the page rules are family-agnostic"
   }
 ]

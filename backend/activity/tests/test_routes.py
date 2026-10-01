@@ -1,7 +1,7 @@
 """Route-level auth gate: per-employee enumeration is admin-only.
 
-/activity/me, /activity/summary and /activity/fabs stay open to every
-identified user (aggregates), while /activity/users, /activity/users/<id> and
+/activity/me, /activity/summary, /activity/fabs and /activity/families stay
+open to every identified user (aggregates), while /activity/users, /activity/users/<id> and
 /activity/visitors require a trusted admin identity.
 """
 
@@ -21,6 +21,9 @@ def make_client(monkeypatch):
     monkeypatch.setattr(routes, "get_me", lambda user_id: {"user_id": user_id})
     monkeypatch.setattr(routes, "get_summary", lambda: {"dau": 0})
     monkeypatch.setattr(routes, "get_fab_page_usage", lambda: {"fabs_7d": []})
+    monkeypatch.setattr(
+        routes, "get_family_page_usage", lambda: {"families_7d": []}
+    )
     monkeypatch.setattr(
         routes,
         "get_users_list",
@@ -79,7 +82,12 @@ def test_user_enumeration_is_allowed_for_the_home_admin(make_client, path):
 
 @pytest.mark.parametrize(
     "path",
-    ["/api/activity/me", "/api/activity/summary", "/api/activity/fabs"],
+    [
+        "/api/activity/me",
+        "/api/activity/summary",
+        "/api/activity/fabs",
+        "/api/activity/families",
+    ],
 )
 def test_aggregate_views_stay_open_to_normal_users(make_client, path):
     client = make_client("1234567", "cookie")
@@ -292,3 +300,34 @@ def test_an_unresolvable_page_is_accepted_but_not_ranked(beacon_client, path):
     assert client.post("/api/page-view", json={"path": path}).status_code == 204
 
     assert store == {}
+
+
+def test_a_beacon_files_the_page_under_its_family(beacon_client):
+    """End to end through the real route and middleware: the beacon names a
+    page, the page names a family, and the family card reads it back."""
+    client, _store = beacon_client
+
+    for path in (
+        "/ebeam/hv-sem/R3/storage",
+        "/ebeam/hv-sem/m14,r3/storage",
+        "/ebeam/cd-sem/M14/storage",
+        "/afm/map608/a.tif",
+        # A shared page: ranked, but under no family.
+        "/mag-pixel",
+    ):
+        assert client.post("/api/page-view", json={"path": path}).status_code == 204
+
+    rows = {
+        row["family"]: row
+        for row in client.get("/api/activity/families").json["families_7d"]
+    }
+
+    assert rows["hvsem"] == {
+        "family": "hvsem",
+        "total": 1,
+        "pages": [{"feature": "storage", "count": 2}],
+    }
+    assert rows["cdsem"]["pages"] == [{"feature": "storage", "count": 1}]
+    assert rows["afm"]["pages"] == [{"feature": "afm", "count": 1}]
+    assert rows["veritysem"]["total"] == 0
+    assert sum(len(row["pages"]) for row in rows.values()) == 3

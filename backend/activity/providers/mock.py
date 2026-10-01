@@ -15,6 +15,15 @@ but day buckets follow ``Asia/Seoul``, matching the office reader's
 ``time_zone`` aggregations — a UTC calendar here would disagree with
 production about "today" for nine hours a day.
 
+``get_family_page_usage`` stands in for the office's ``tool_family`` terms
+aggregation over page-view rows: per family, the people who opened one of its
+pages and the opens per feature. The family arrives with each page view (the
+middleware derives it from the page path), is kept only for page views, and
+every family is listed whether or not anyone came. Seeded page opens are filed
+under a family per demo user (``_DEMO_FAMILY``); VeritySEM and Provision stay
+at zero because no page of theirs exists yet — a mock that showed traffic
+there would be inventing a product.
+
 ``get_daily_visitors`` reads the same request rows as the summary counts: a
 person is a visitor on a day they made at least one request, and page opens
 do not count. Each of its ``VISITOR_DAYS`` rows also carries the rolling WAU
@@ -37,6 +46,8 @@ from ..contracts import (
     DailyCount,
     FabUsageResponse,
     FabUsageRow,
+    FamilyUsageResponse,
+    FamilyUsageRow,
     FeatureCount,
     FeatureUse,
     MeResponse,
@@ -51,6 +62,7 @@ from .shared import (
     KST,
     RECENT_FEATURES_CAP,
     SPARKLINE_DAYS,
+    TOOL_FAMILIES,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
     VISITOR_DAYS,
@@ -77,6 +89,13 @@ class _UserState:
     # office reader counts each document once, so deriving it here would put
     # home and office on different numbers for the same field.
     daily_feature_requests: dict[date, dict[str, int]] = field(
+        default_factory=dict
+    )
+    # Page opens per feature per FAMILY per day. Separate from daily_features
+    # because a page open may belong to no family at all (the hub's children,
+    # chat, mag-pixel) and still counts in the global ranking; folding the
+    # family into that dict's key would drop those from it.
+    daily_family_features: dict[date, dict[str, dict[str, int]]] = field(
         default_factory=dict
     )
     daily_fabs: dict[date, set[str]] = field(default_factory=dict)
@@ -203,6 +222,7 @@ def _prune_old_days(state: _UserState, today: date) -> None:
         state.daily_fabs,
         state.daily_fab_features,
         state.daily_feature_requests,
+        state.daily_family_features,
     ):
         for day in [day for day in bucket if day < cutoff]:
             del bucket[day]
@@ -213,6 +233,7 @@ def record_request(
     feature: str,
     activity_kind: str,
     fab_name_list: list[str],
+    tool_family: str | None = None,
 ) -> None:
     """Record one already-classified human entry, feature or page-view event.
 
@@ -222,6 +243,10 @@ def record_request(
       active-user counts and the FAB page rankings;
     * page_view rows drive the feature rankings only — plus ``last_seen``,
       which is a presence signal rather than a counter (see module docstring).
+
+    ``tool_family`` is which family's page this was, or None for a page that
+    belongs to none. It is kept for page views only: the per-family card
+    counts page opens, and a request's family says nothing it needs.
 
     Mixing them would silently redefine this_month.requests. See
     docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md.
@@ -252,6 +277,11 @@ def record_request(
             state.last_opened[feature] = now
             daily_features = state.daily_features.setdefault(today, {})
             daily_features[feature] = daily_features.get(feature, 0) + 1
+            if tool_family:
+                family_features = state.daily_family_features.setdefault(
+                    today, {}
+                ).setdefault(tool_family, {})
+                family_features[feature] = family_features.get(feature, 0) + 1
             _prune_old_days(state, today)
             return
 
@@ -463,6 +493,48 @@ def get_fab_page_usage() -> FabUsageResponse:
     }
 
 
+def _family_window(
+    users: dict[str, _UserState],
+    today: date,
+    cutoff: date,
+) -> list[FamilyUsageRow]:
+    openers: dict[str, set[str]] = {family: set() for family in TOOL_FAMILIES}
+    pages: dict[str, dict[str, int]] = {family: {} for family in TOOL_FAMILIES}
+
+    for state in users.values():
+        for day, families in state.daily_family_features.items():
+            if not cutoff <= day <= today:
+                continue
+            for family, counts in families.items():
+                if family not in openers:
+                    # A value outside the vocabulary is not a sixth family.
+                    continue
+                openers[family].add(state.user_id)
+                _merge_counts(pages[family], counts)
+
+    # Registry order and every family, zero or not — see FamilyUsageResponse.
+    return [
+        {
+            "family": family,
+            "total": len(openers[family]),
+            "pages": _top_features(pages[family]),
+        }
+        for family in TOOL_FAMILIES
+    ]
+
+
+def get_family_page_usage() -> FamilyUsageResponse:
+    today = _today()
+    with _lock:
+        rows_7d = _family_window(_users, today, today - timedelta(days=6))
+        rows_30d = _family_window(_users, today, today - timedelta(days=29))
+    return {
+        "generated_at": _iso(_now()),
+        "families_7d": rows_7d,
+        "families_30d": rows_30d,
+    }
+
+
 # (user_id, fab, request feature totals, page-view totals, days of activity
 # ending today). ``sem_list`` stands in for entry traffic — see _seed_feature.
 #
@@ -561,6 +633,34 @@ _DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
     ),
 ]
 
+# Which family's pages a demo user opens. Everyone not listed works in CD-SEM.
+# OFFICE-VERIFY: the split is fabricated — which families people actually use,
+# and how many people work across more than one, is unknown until the field
+# has been collected at the office.
+_DEMO_FAMILY = {
+    "park.jinho": "hvsem",
+    "lee.soyoung": "hvsem",
+    "seo.dohyun": "hvsem",
+}
+_DEFAULT_DEMO_FAMILY = "cdsem"
+# Pages whose family does not depend on who opens them. `afm` is its own
+# family; the rest are shared pages that belong to none, and
+# device_statistics exists under CD-SEM only.
+_PAGE_FAMILY: dict[str, str | None] = {
+    "afm": "afm",
+    "chat": None,
+    "mag_pixel": None,
+    "sem_list": None,
+    "device_statistics": "cdsem",
+}
+
+
+def _demo_page_family(user_id: str, feature: str) -> str | None:
+    if feature in _PAGE_FAMILY:
+        return _PAGE_FAMILY[feature]
+    return _DEMO_FAMILY.get(user_id, _DEFAULT_DEMO_FAMILY)
+
+
 # Share of days a demo user does not show up at all. Everyone else skips
 # about one day in six; these three come roughly weekly, fortnightly and
 # monthly, which is what puts daylight between the WAU and MAU lines.
@@ -645,6 +745,7 @@ def _seed_page_views(
     total: int,
     weights: list[float],
     today: date,
+    family: str | None,
 ) -> None:
     """Spread ``total`` page opens over the days ``weights`` covers.
 
@@ -662,6 +763,11 @@ def _seed_page_views(
         daily = state.daily_features.setdefault(day, {})
         daily[feature] = daily.get(feature, 0) + count
         state.visits[day] = state.visits.get(day, 0) + count
+        if family:
+            by_family = state.daily_family_features.setdefault(
+                day, {}
+            ).setdefault(family, {})
+            by_family[feature] = by_family.get(feature, 0) + count
 
 
 def seed_demo_users() -> None:
@@ -685,7 +791,14 @@ def seed_demo_users() -> None:
             for feature, total in features.items():
                 _seed_feature(state, fab, feature, total, weights, today)
             for feature, total in page_views.items():
-                _seed_page_views(state, feature, total, weights, today)
+                _seed_page_views(
+                    state,
+                    feature,
+                    total,
+                    weights,
+                    today,
+                    _demo_page_family(user_id, feature),
+                )
             # Staggered an hour apart in declaration order so every demo user
             # has a readable 최근 쓴 기능 list. Seeding them all at `now` would
             # tie, and the tiebreak is alphabetical — an order that says
