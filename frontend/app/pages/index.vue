@@ -5,7 +5,7 @@ definePageMeta({
 
 const { toolTypes } = useToolData()
 const { fabs: afmFabs, afmToolHref } = useAfmToolData()
-// AFM is hidden until the feature is ready — see useAfmAvailability.ts.
+// The AFM card follows the AFM_ENABLED switch — see useAfmAvailability.ts.
 const afmEnabled = useAfmEnabled()
 const { fabs, setFabs, toolTypeHref } = useNavigation()
 
@@ -208,7 +208,7 @@ const systemStatus = computed(() => {
         </nav>
       </UCard>
 
-      <!-- AFM Metrology Card — hidden while the feature is under construction -->
+      <!-- AFM Metrology Card -->
       <UCard
         v-if="afmEnabled"
         class="dashboard-surface rounded-3xl"

@@ -60,7 +60,7 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 | tttm | SKEWNONO_TTTM_PROVIDER | ebeam/tttm/contracts.py | ebeam/tttm/MIGRATION.md | 보류 | - |
 | storage | SKEWNONO_STORAGE_PROVIDER | ebeam/storage/contracts.py | ebeam/storage/MIGRATION.md | office | 2026-07-21 |
 | meas_hist | SKEWNONO_MEAS_HIST_PROVIDER | meas_hist/contracts.py | meas_hist/MIGRATION.md | 구현완료 | - |
-| afm | SKEWNONO_AFM_PROVIDER | afm/contracts.py | afm/MIGRATION.md | 보류 | - |
+| afm | SKEWNONO_AFM_PROVIDER | afm/contracts.py | afm/MIGRATION.md | mock | - |
 | recipe_tat | SKEWNONO_RECIPE_TAT_PROVIDER | ebeam/recipe_tat/contracts.py | ebeam/recipe_tat/MIGRATION.md | 구현완료 | - |
 | fail_issue | SKEWNONO_FAIL_ISSUE_PROVIDER | ebeam/fail_issue/contracts.py | ebeam/fail_issue/MIGRATION.md | 구현완료 | - |
 | msr_file | SKEWNONO_MSR_FILE_PROVIDER | msr_file/contracts.py | msr_file/MIGRATION.md | 구현완료(부분) | - |
@@ -69,8 +69,11 @@ msr_file의 office 어댑터는 위 절차 외에 4개의 office-gated 메타데
 
 ## 비고
 
-- **afm과 tttm(구 skew)은 이번 버전에서 전환하지 않습니다(보류).** 두 화면은 랜딩
-  페이지에서 감춰져 있고 차기 SKEWNONO 버전에서 열 예정이므로, office 어댑터
+- **afm은 2026-10-02에 랜딩 페이지에 다시 공개했습니다(보류 → mock).**
+  `afm/providers/office_example.py`는 아직 뼈대뿐이라, `office.py`가 없는 사내
+  배포에서는 AFM 화면이 mock 데이터를 200으로 내보냅니다. office 어댑터를
+  채우기 전까지는 사내에서 보이는 AFM 수치가 실데이터가 아닙니다.
+- **tttm(구 skew)은 이번 버전에서 전환하지 않습니다(보류).** office 어댑터
   구현도 office 연결 점검(`/home-to-office` 감사, `office_example.py` 채우기)도
   대상에서 제외합니다. 표에 행을 남겨 두는 이유는 기능이 사라진 것이 아니라
   뒤로 미뤄졌음을 기록하기 위해서입니다. chat도 같은 이유로 보류 상태이며,

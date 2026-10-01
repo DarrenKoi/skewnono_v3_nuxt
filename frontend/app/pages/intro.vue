@@ -457,9 +457,8 @@ const sectionMeta: { key: GuideSection, label: string, icon: string }[] = [
   { key: 'admin', label: '관리자', icon: 'i-lucide-shield-check' }
 ]
 
-// 안내에 싣는 section. 관리자 전용 화면은 일반 사용자에게 노출하지 않고,
-// AFM Metrology는 다음 버전에 공개하므로 지금은 감춰 둡니다 (guide 정의는 그대로 둡니다).
-const visibleSections: GuideSection[] = ['common', 'ebeam', 'lab']
+// 안내에 싣는 section. 관리자 전용 화면은 일반 사용자에게 노출하지 않습니다.
+const visibleSections: GuideSection[] = ['common', 'ebeam', 'lab', 'afm']
 
 const pageGuides: PageGuide[] = [
   {
