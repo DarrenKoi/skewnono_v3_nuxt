@@ -94,12 +94,17 @@ export interface UserListResponse {
   users: UserListRow[]
 }
 
-/** How many distinct people were active on one KST day — the DAU card's
- *  definition, so the last entry equals `SummaryResponse.dau`. Days are not
- *  additive: someone active on two days is counted in both. */
+/** How many distinct people were active on, and up to, one KST day.
+ *
+ *  `visitors` is that day alone (DAU). `wau` and `mau` are the distinct people
+ *  over the 7 and 30 days ending that day — sent rather than derived, because
+ *  days are not additive: someone active on two days is counted in both. The
+ *  last entry equals `SummaryResponse`'s `dau`, `wau` and `mau`. */
 export interface DailyVisitors {
   date: string
   visitors: number
+  wau: number
+  mau: number
 }
 
 /** 60 consecutive KST days, oldest first, today last. Admin-only. */

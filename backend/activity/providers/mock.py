@@ -15,10 +15,13 @@ but day buckets follow ``Asia/Seoul``, matching the office reader's
 ``time_zone`` aggregations — a UTC calendar here would disagree with
 production about "today" for nine hours a day.
 
-``get_daily_visitors`` reads the same request rows as the DAU count, one KST
-day at a time over ``VISITOR_DAYS``: a person is a visitor on a day they made
-at least one request. Page opens do not count, so today's entry always equals
-``get_summary()["dau"]`` — the office reader filters to the same kinds.
+``get_daily_visitors`` reads the same request rows as the summary counts: a
+person is a visitor on a day they made at least one request, and page opens
+do not count. Each of its ``VISITOR_DAYS`` rows also carries the rolling WAU
+and MAU ending that day, so today's row always equals ``get_summary()``'s
+``dau``/``wau``/``mau``. The arithmetic is ``shared.daily_visitor_rows``, which
+the office reader calls too — the two adapters differ only in where a
+person's active days come from.
 """
 
 from __future__ import annotations
@@ -51,6 +54,8 @@ from .shared import (
     TOP_FEATURES_CAP,
     VISIT_DAYS,
     VISITOR_DAYS,
+    VISITOR_LOOKBACK_DAYS,
+    daily_visitor_rows,
 )
 
 
@@ -184,17 +189,14 @@ def _merge_counts(
 def _prune_old_days(state: _UserState, today: date) -> None:
     """Drop day buckets no read window can reach, so state stays bounded.
 
-    Visits retain 90 days. Request and ranking detail retain 60 days (the
-    일별 방문자 chart reads ``daily`` that far back) or the whole current
-    month, whichever is wider.
+    Visits retain 90 days. Request and ranking detail retain 89 days — the
+    방문자 추이 chart's first day is 59 back and its MAU reads ``daily``
+    another 29 behind that — which always covers the current month too.
     """
     visit_cutoff = today - timedelta(days=VISIT_DAYS - 1)
     for day in [day for day in state.visits if day < visit_cutoff]:
         del state.visits[day]
-    cutoff = min(
-        today - timedelta(days=max(SPARKLINE_DAYS, VISITOR_DAYS) - 1),
-        today.replace(day=1),
-    )
+    cutoff = today - timedelta(days=VISITOR_LOOKBACK_DAYS - 1)
     for bucket in (
         state.daily,
         state.daily_features,
@@ -355,23 +357,18 @@ def get_summary() -> SummaryResponse:
 
 
 def get_daily_visitors() -> VisitorsResponse:
-    """Distinct active people per KST day — the DAU card, one bar per day."""
+    """DAU with rolling WAU and MAU, one row per KST day."""
     today = _today()
-    days = [
-        today - timedelta(days=offset)
-        for offset in range(VISITOR_DAYS - 1, -1, -1)
-    ]
     with _lock:
-        rows = [
-            {
-                "date": day.isoformat(),
-                "visitors": sum(
-                    1 for state in _users.values() if state.daily.get(day, 0) > 0
-                ),
-            }
-            for day in days
+        # Copied out under the lock; the counting needs no lock at all.
+        active_days = [
+            [day for day, count in state.daily.items() if count > 0]
+            for state in _users.values()
         ]
-    return {"generated_at": _iso(_now()), "days": rows}
+    return {
+        "generated_at": _iso(_now()),
+        "days": daily_visitor_rows(active_days, today),
+    }
 
 
 def get_users_list() -> UserListResponse:
@@ -472,11 +469,16 @@ def get_fab_page_usage() -> FabUsageResponse:
 # ``local-dev`` is home's own identity, so it is the one row /activity renders
 # as "me". It gets the full 90-day visit window so the calendar has something
 # to draw. The peers' histories are staggered — 60, 40, 21, 6 and 4 days — so
-# the user table still shows a range AND the admin 일별 방문자 chart has more
+# the user table still shows a range AND the admin 방문자 추이 chart has more
 # than one person to count on its 1개월/2개월 tabs; with every peer inside two
-# weeks it drew a flat 1 for the six weeks before that. OFFICE-VERIFY: the
-# head-count and its slow climb are fabricated — the real daily visitor
-# numbers have not been read off the office index.
+# weeks it drew a flat 1 for the six weeks before that.
+#
+# The last three are occasional visitors (see _SKIP_RATE). Without them every
+# peer came nearly every day, so WAU equalled MAU on all sixty days: two lines
+# drawn on top of each other and a stickiness of 100%, which no real product
+# has. OFFICE-VERIFY: the head-count, its slow climb and the share of
+# occasional visitors are all fabricated — the real numbers have not been
+# read off the office index.
 #
 # Page-view totals are listed separately, not derived from the request totals:
 # the two have no fixed ratio in reality (mag-pixel makes no requests at all,
@@ -536,7 +538,34 @@ _DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
         },
         VISIT_DAYS,
     ),
+    (
+        "han.jiwoo",
+        "M14",
+        {"sem_list": 26, "recipe_search": 18},
+        {"recipe_search": 9, "meas_hist": 3},
+        VISITOR_DAYS,
+    ),
+    (
+        "seo.dohyun",
+        "M16B",
+        {"sem_list": 15, "storage": 9},
+        {"storage": 6},
+        VISITOR_DAYS,
+    ),
+    (
+        "yoon.chaewon",
+        "R3",
+        {"sem_list": 9, "device_statistics": 6},
+        {"device_statistics": 4},
+        45,
+    ),
 ]
+
+# Share of days a demo user does not show up at all. Everyone else skips
+# about one day in six; these three come roughly weekly, fortnightly and
+# monthly, which is what puts daylight between the WAU and MAU lines.
+_DEFAULT_SKIP_RATE = 0.16
+_SKIP_RATE = {"han.jiwoo": 0.8, "seo.dohyun": 0.9, "yoon.chaewon": 0.95}
 
 
 def _day_weights(user_id: str, days_back: int, today: date) -> list[float]:
@@ -544,15 +573,17 @@ def _day_weights(user_id: str, days_back: int, today: date) -> list[float]:
 
     An even spread renders a flat calendar and teaches that everyone works
     every day at the same rate. Weekends run lighter and roughly one day in
-    six is skipped outright. OFFICE-VERIFY: the weekend ratio and the skip
-    rate are guesses — fab metrology runs shifts, so real weekends may not
-    be this quiet.
+    six is skipped outright (more for the occasional visitors in
+    ``_SKIP_RATE``). OFFICE-VERIFY: the weekend ratio and the skip rates are
+    guesses — fab metrology runs shifts, so real weekends may not be this
+    quiet.
     """
+    skip_rate = _SKIP_RATE.get(user_id, _DEFAULT_SKIP_RATE)
     rng = random.Random(user_id)
     weights = []
     for offset in range(days_back):
         # Both draws happen every day so the stream never shifts with the branch.
-        skipped = rng.random() < 0.16
+        skipped = rng.random() < skip_rate
         spread = rng.uniform(0.2, 1.8)
         weekend = (today - timedelta(days=offset)).weekday() >= 5
         weights.append(0.0 if skipped else spread * (0.3 if weekend else 1.0))

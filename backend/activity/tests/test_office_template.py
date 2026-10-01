@@ -517,29 +517,51 @@ def test_activity_query_failures_are_normalized_to_503(
     }
 
 
-def test_daily_visitors_fills_60_kst_days_with_distinct_request_users():
+def _user_days(user_id, *days):
+    return {
+        "key": {"user_id": user_id},
+        "doc_count": sum(count for _day, count in days),
+        "days": {
+            "buckets": [
+                {"key_as_string": day, "doc_count": count}
+                for day, count in days
+            ]
+        },
+    }
+
+
+def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
     reader, search, _aliases = _reader(
         [
             {
                 "aggregations": {
-                    "days": {
+                    "users": {
                         "buckets": [
-                            # 40 requests from 3 people is 3 visitors: the
-                            # bar is the cardinality, never the doc_count.
-                            {
-                                "key_as_string": "2026-07-26",
-                                "doc_count": 40,
-                                "users": {"value": 3},
-                            },
-                            {
-                                "key_as_string": "2026-07-27",
-                                "doc_count": 12,
-                                "users": {"value": 2},
-                            },
+                            # 30 requests in a day is still one visitor.
+                            _user_days(
+                                "u1", ("2026-07-26", 30), ("2026-07-27", 2)
+                            ),
+                            _user_days("u2", ("2026-07-26", 1)),
+                        ],
+                        "after_key": {"user_id": "u2"},
+                    }
+                }
+            },
+            {
+                "aggregations": {
+                    "users": {
+                        "buckets": [
+                            # Off the chart (88 days back) but inside the
+                            # first day's MAU window. The empty bucket is what
+                            # a date_histogram emits between two active days;
+                            # it must not read as a visit.
+                            _user_days(
+                                "u3", ("2026-04-30", 4), ("2026-07-27", 0)
+                            ),
                         ]
                     }
                 }
-            }
+            },
         ]
     )
 
@@ -548,25 +570,38 @@ def test_daily_visitors_fills_60_kst_days_with_distinct_request_users():
     assert payload["generated_at"] == "2026-07-27T03:00:00Z"
     days = payload["days"]
     assert len(days) == 60
-    # A day the index has no bucket for is a real zero, not a gap.
-    assert days[0] == {"date": "2026-05-29", "visitors": 0}
+    assert days[0] == {"date": "2026-05-29", "visitors": 0, "wau": 0, "mau": 1}
+    assert days[1] == {"date": "2026-05-30", "visitors": 0, "wau": 0, "mau": 0}
     assert days[-2:] == [
-        {"date": "2026-07-26", "visitors": 3},
-        {"date": "2026-07-27", "visitors": 2},
+        {"date": "2026-07-26", "visitors": 2, "wau": 2, "mau": 2},
+        # u2 did not come back today, but is still this week's and this
+        # month's user — the reason these cannot be summed from `visitors`.
+        {"date": "2026-07-27", "visitors": 1, "wau": 2, "mau": 2},
     ]
-    body = search.bodies[0]
-    filters = body["query"]["bool"]["filter"]
-    # Same population as the DAU card: request rows only, so a page-view-only
-    # opener is not a visitor and today's bar equals SummaryResponse.dau.
+
+    first, second = search.bodies
+    filters = first["query"]["bool"]["filter"]
+    # Same population as the summary cards: request rows only, so a
+    # page-view-only opener is not a visitor and today's row equals them.
     assert filters[:3] == [
         {"term": {"event": "request"}},
         {"term": {"activity_weight": 1}},
         {"terms": {"activity_kind": ["entry", "feature"]}},
     ]
+    # 88 days back, not 59: the first charted day's MAU reaches that far.
     assert filters[3]["range"]["@timestamp"]["gte"].startswith(
-        "2026-05-29T00:00:00+09:00"
+        "2026-04-30T00:00:00+09:00"
     )
-    days_agg = body["aggs"]["days"]
-    assert days_agg["date_histogram"]["calendar_interval"] == "day"
-    assert days_agg["date_histogram"]["time_zone"] == "Asia/Seoul"
-    assert days_agg["aggs"]["users"]["cardinality"]["field"] == "user_id"
+    users = first["aggs"]["users"]
+    assert users["composite"]["sources"] == [
+        {"user_id": {"terms": {"field": "user_id"}}}
+    ]
+    assert "after" not in users["composite"]
+    assert second["aggs"]["users"]["composite"]["after"] == {"user_id": "u2"}
+    histogram = users["aggs"]["days"]["date_histogram"]
+    assert histogram["calendar_interval"] == "day"
+    assert histogram["time_zone"] == "Asia/Seoul"
+    assert histogram["format"] == "yyyy-MM-dd"
+    # Users per page x days per user must stay under search.max_buckets
+    # (65,535 by default), or the cluster answers 503 instead of a page.
+    assert users["composite"]["size"] * 89 < 65_535

@@ -164,17 +164,23 @@ class FabUsageResponse(TypedDict):
 
 
 class DailyVisitors(TypedDict):
-    """How many distinct people were active on one KST day.
+    """How many distinct people were active on, and up to, one KST day.
 
     Not ``VisitCount``: that one counts one person's page opens, this one
-    counts people. The definition is the DAU card's — a person with at least
-    one request row that day — so the last entry equals ``SummaryResponse.dau``.
-    Days are not additive: someone active on two days is in both, so summing
-    a window overstates how many people it held.
+    counts people. A person counts on a day they made at least one request —
+    the summary cards' definition — so the last entry's three numbers equal
+    ``SummaryResponse``'s ``dau``, ``wau`` and ``mau``.
+
+    ``visitors`` is that day alone. ``wau`` and ``mau`` are the distinct people
+    over the 7 and 30 days ENDING that day, which is why they are sent rather
+    than left to the reader: days are not additive (someone active on two days
+    is in both), so no sum of ``visitors`` reproduces them.
     """
 
     date: str
     visitors: int
+    wau: int
+    mau: int
 
 
 class VisitorsResponse(TypedDict):

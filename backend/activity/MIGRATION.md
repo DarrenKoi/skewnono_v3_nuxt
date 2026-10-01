@@ -177,17 +177,35 @@ number alone and a dash for the team.
 
 ### `GET /api/activity/visitors`
 
-**Admin only** (`403 forbidden` otherwise). Returns `days`: 60 consecutive KST
-days, oldest first and today last, each with `visitors` — the `user_id`
-cardinality of that day's request rows (`entry` and `feature`). That is the DAU
-definition applied per day, so the last entry equals `/summary`'s `dau`, and a
-person who only opened a page (a `page_view` row) is not counted. A day with
-no documents is returned as `0`, not omitted. The page offers 2주 / 1개월 /
-2개월 and slices this one response for all three. The values are not
-additive: someone active on two days is in both.
+**Admin only** (`403 forbidden` otherwise). Feeds the `/admin/visitors` page.
+Returns `days`: 60 consecutive KST days, oldest first and today last. Each
+carries `visitors` (that day's distinct people, i.e. DAU), `wau` and `mau` (the
+distinct people over the 7 and 30 days **ending** that day — rolling windows,
+not calendar weeks or months). A person counts on a day they have at least one
+request row (`entry` or `feature`); someone who only opened a page (a
+`page_view` row) does not. That is the summary cards' definition, so the last
+entry equals `/summary`'s `dau`, `wau` and `mau`. A day with no documents is
+returned as zeros, not omitted. The page offers 2주 / 1개월 / 2개월 and slices
+this one response for all three.
 
-It is one `date_histogram` (`time_zone: Asia/Seoul`) with a `cardinality`
-sub-aggregation — no composite paging.
+`wau` and `mau` are sent because they cannot be derived: days are not additive
+(someone active on two days is in both), and OpenSearch has no rolling distinct
+count. So the reader does not ask for a per-day cardinality. It pages a
+`composite` on `user_id` with a nested `date_histogram`
+(`time_zone: Asia/Seoul`, `min_doc_count: 1`) to get **each person's active
+days**, and `providers/shared.py::daily_visitor_rows` does the counting — the
+same function the mock calls, so the two adapters differ only in where the
+active days come from.
+
+Two things to check on the first office run (both `OFFICE-VERIFY`):
+
+- The query reads 89 days, not 60: the first charted day's MAU looks 30 days
+  behind it. An alias holding less history under-reports the left edge of the
+  MAU line rather than failing.
+- The composite page is 500 users, not the 1000 the users list uses, because
+  each user bucket carries up to 89 day buckets and the cluster rejects a
+  response over `search.max_buckets` (65,535 by default) with a 503. If the
+  office cluster's limit is lower, lower `VISITOR_PAGE_SIZE` to match.
 
 ### `GET /api/activity/users/<user_id>`
 
@@ -216,11 +234,12 @@ happen once, in the shared middleware, not in a provider adapter.
 `/me`, `/summary` and `/fabs` are open to every identified user — they are
 aggregates, and a person's own history is theirs to see. The two `/users`
 routes enumerate activity per employee, and `/visitors` is the site's traffic
-over time, which the page shows to the administrator only, so all three are
+over time, which is shown to the administrator only, so all three are
 gated with `_auth.admin.require_admin`, which requires both an admin id **and** a trusted
 identity source (a self-declared identity that types an admin's employee
 number does not pass). The frontend reads `is_admin` off `/api/activity/me`
-and skips the users and visitors fetches entirely for non-admins, so the gate is never the
+and `/admin/visitors` — the only page that fetches the three — skips them
+entirely for non-admins, so the gate is never the
 first thing a normal user hits.
 
 ## Write path

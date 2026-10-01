@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 from backend._auth.admin import is_admin
@@ -27,10 +27,17 @@ from backend.activity.providers.shared import (
     RECENT_FEATURES_CAP,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
-    VISITOR_DAYS,
+    VISITOR_LOOKBACK_DAYS,
+    daily_visitor_rows,
 )
 
 COMPOSITE_PAGE_SIZE = 1000
+# Smaller than COMPOSITE_PAGE_SIZE on purpose. Every user bucket of the
+# visitors query carries up to VISITOR_LOOKBACK_DAYS (89) day buckets, and the
+# cluster refuses a response over search.max_buckets — 65,535 by default — with
+# a 503. 500 x 89 stays under it; 1000 x 89 would not. OFFICE-VERIFY: the
+# office cluster's actual max_buckets has not been read.
+VISITOR_PAGE_SIZE = 500
 CARDINALITY_PRECISION = 40000
 
 # Two units share one index. Request rows answer "how much work happened";
@@ -435,71 +442,92 @@ class ActivityOpenSearchReader:
         }
 
     def get_daily_visitors(self) -> VisitorsResponse:
-        """Distinct active people per KST day — the DAU card, one bar per day."""
+        """DAU with rolling WAU and MAU, one row per KST day.
+
+        Reads each person's active days rather than a per-day cardinality:
+        OpenSearch has no rolling distinct count, and a weekly user is not a
+        sum of daily ones. ``daily_visitor_rows`` does the counting, the same
+        function the mock calls.
+        """
         now = self._now()
-        start = _kst_day_start(now, VISITOR_DAYS - 1)
-        response = self._search(
-            {
-                "size": 0,
-                "query": {
-                    "bool": {
-                        "filter": [
-                            # Narrowed for the whole query, as in _fab_window:
-                            # the DAU card counts request rows, so admitting
-                            # page views here would make today's bar disagree
-                            # with the number printed above it.
-                            *_activity_filters(kinds=REQUEST_KINDS),
-                            {
-                                "range": {
-                                    "@timestamp": {
-                                        "gte": start.isoformat(),
-                                        "lte": now.isoformat(),
+        start = _kst_day_start(now, VISITOR_LOOKBACK_DAYS - 1)
+        active_days: list[list[date]] = []
+        after_key: dict[str, Any] | None = None
+
+        while True:
+            composite: dict[str, Any] = {
+                "size": VISITOR_PAGE_SIZE,
+                "sources": [
+                    {"user_id": {"terms": {"field": "user_id"}}},
+                ],
+            }
+            if after_key is not None:
+                composite["after"] = after_key
+            response = self._search(
+                {
+                    "size": 0,
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                # Narrowed for the whole query, as in
+                                # _fab_window: the summary cards count request
+                                # rows, so admitting page views here would
+                                # make today's row disagree with them.
+                                *_activity_filters(kinds=REQUEST_KINDS),
+                                {
+                                    "range": {
+                                        "@timestamp": {
+                                            "gte": start.isoformat(),
+                                            "lte": now.isoformat(),
+                                        }
+                                    }
+                                },
+                            ]
+                        }
+                    },
+                    "aggs": {
+                        "users": {
+                            "composite": composite,
+                            "aggs": {
+                                "days": {
+                                    "date_histogram": {
+                                        "field": "@timestamp",
+                                        "calendar_interval": "day",
+                                        "time_zone": "Asia/Seoul",
+                                        "format": "yyyy-MM-dd",
+                                        # Only the days someone came: the
+                                        # default 0 pads every gap between two
+                                        # visits with an empty bucket, which
+                                        # is most of the response.
+                                        "min_doc_count": 1,
                                     }
                                 }
                             },
-                        ]
-                    }
-                },
-                "aggs": {
-                    "days": {
-                        "date_histogram": {
-                            "field": "@timestamp",
-                            "calendar_interval": "day",
-                            "time_zone": "Asia/Seoul",
-                            "format": "yyyy-MM-dd",
-                        },
-                        "aggs": {
-                            "users": {
-                                "cardinality": {
-                                    "field": "user_id",
-                                    "precision_threshold": (
-                                        CARDINALITY_PRECISION
-                                    ),
-                                }
-                            }
-                        },
-                    }
-                },
-            }
-        )
-        by_day = _day_buckets(response.get("aggregations", {}))
-        first = start.date()
-        # Walked in Python rather than left to extended_bounds, like _history:
-        # a quiet day has no bucket at all, and the chart needs it as a zero.
+                        }
+                    },
+                }
+            )
+            users = response.get("aggregations", {}).get("users", {})
+            for bucket in users.get("buckets", []):
+                active_days.append(
+                    [
+                        date.fromisoformat(day)
+                        for day, day_bucket in _day_buckets(bucket).items()
+                        # Still checked: min_doc_count is a request, and a
+                        # padded bucket read as a visit would inflate all
+                        # three series.
+                        if int(day_bucket.get("doc_count", 0)) > 0
+                    ]
+                )
+            after_key = users.get("after_key")
+            if not after_key:
+                break
+
         return {
             "generated_at": _iso_utc(now),
-            "days": [
-                {
-                    "date": day,
-                    "visitors": int(
-                        by_day.get(day, {}).get("users", {}).get("value", 0)
-                    ),
-                }
-                for day in (
-                    (first + timedelta(days=offset)).isoformat()
-                    for offset in range(VISITOR_DAYS)
-                )
-            ],
+            "days": daily_visitor_rows(
+                active_days, now.astimezone(KST).date()
+            ),
         }
 
     def get_users_list(self) -> UserListResponse:

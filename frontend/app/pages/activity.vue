@@ -159,7 +159,7 @@
       </div>
 
       <!-- KPI row -->
-      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <ActivityKpiCard
           v-for="kpi in kpiCards"
           :key="kpi.label"
@@ -170,42 +170,6 @@
           :color="kpi.color"
         />
       </section>
-
-      <!-- Daily visitors: the DAU card above, one bar per day. Admin-only on
-           the backend (403 otherwise), so the card follows the fetch. -->
-      <UCard
-        v-if="isAdmin"
-        class="dashboard-surface"
-      >
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
-              <UIcon name="i-lucide-user-round-check" />
-              일별 방문자
-              <!-- Says what a bar is: the same people-not-requests count as
-                   DAU, so a reader does not add the bars up into a total the
-                   series cannot give. -->
-              <span class="sk-meta font-normal">· 그날 활동한 사용자 수 (DAU)</span>
-            </span>
-            <div class="flex items-center gap-2">
-              <UBadge
-                color="warning"
-                variant="subtle"
-                size="sm"
-              >
-                관리자 전용
-              </UBadge>
-              <UTabs
-                v-model="visitorWindowKey"
-                :items="VISITOR_WINDOW_TABS"
-                variant="pill"
-                size="xs"
-              />
-            </div>
-          </div>
-        </template>
-        <ActivityVisitorsChart :series="visitorDays" />
-      </UCard>
 
       <!-- Top features bar chart -->
       <UCard class="dashboard-surface">
@@ -293,7 +257,7 @@
         </div>
       </UCard>
 
-      <!-- Admin tools: the two /admin pages are deliberately kept out of the
+      <!-- Admin tools: the /admin pages are deliberately kept out of the
            nav (see intro.vue's visibleSections), so this is the only place an
            admin can reach them without typing the URL. -->
       <UCard
@@ -315,7 +279,7 @@
             </UBadge>
           </div>
         </template>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <NuxtLink
             v-for="link in adminLinks"
             :key="link.to"
@@ -341,251 +305,6 @@
           </NuxtLink>
         </div>
       </UCard>
-
-      <!-- Users table: per-employee rows are admin-only (backend returns 403) -->
-      <UCard
-        v-if="isAdmin"
-        class="dashboard-surface"
-      >
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
-              <UIcon name="i-lucide-users" />
-              사용자
-            </span>
-            <div class="flex items-center gap-2">
-              <UBadge
-                color="warning"
-                variant="subtle"
-                size="sm"
-              >
-                관리자 전용
-              </UBadge>
-              <UBadge
-                color="neutral"
-                variant="subtle"
-              >
-                {{ filteredUsers.length }} / {{ users?.users.length ?? 0 }}
-              </UBadge>
-              <span
-                v-if="users"
-                class="sk-meta"
-              >
-                {{ formatTime(users.generated_at) }}
-              </span>
-            </div>
-          </div>
-        </template>
-        <div class="flex flex-wrap items-center gap-2 pb-3 mb-1 border-b border-(--sk-border)">
-          <UInput
-            v-model="userQuery"
-            class="flex-1 min-w-56"
-            size="sm"
-            icon="i-lucide-search"
-            color="neutral"
-            variant="subtle"
-            placeholder="이름·사번·팀 또는 기능 검색"
-          />
-          <USelect
-            v-model="featureFilter"
-            class="w-44"
-            size="sm"
-            color="neutral"
-            variant="subtle"
-            :items="featureFilterOptions"
-          />
-          <USelect
-            v-model="userSort"
-            class="w-44"
-            size="sm"
-            color="neutral"
-            variant="subtle"
-            :items="userSortOptions"
-          />
-          <UTooltip text="클립보드 복사">
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-clipboard"
-              aria-label="표를 클립보드에 복사"
-              :disabled="filteredUsers.length === 0"
-              @click="copyUsersTable"
-            />
-          </UTooltip>
-          <UButton
-            size="sm"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-download"
-            label="Excel 다운로드"
-            :disabled="filteredUsers.length === 0"
-            @click="downloadUsersExcel"
-          />
-          <!-- Deliberately NOT 새로고침: the page header already has a button
-               by that name, and it does something else entirely (refetches
-               every activity query from the server). This one only clears the
-               toolbar above — search box, feature filter, sort — and touches
-               nothing on the server. Naming the target is also what keeps it
-               from reading as destructive next to a table of per-employee
-               records, which is why it is not 초기화 either. -->
-          <UTooltip text="검색어·기능 필터·정렬을 기본값으로 되돌립니다">
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-filter-x"
-              label="필터 해제"
-              :disabled="!hasActiveUserControls"
-              @click="resetUserControls"
-            />
-          </UTooltip>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left sk-label border-b border-(--sk-border)">
-                <th class="py-2 pr-4">
-                  사용자
-                </th>
-                <th class="py-2 pr-4">
-                  팀
-                </th>
-                <th class="py-2 pr-4 text-right">
-                  요청 (30일)
-                </th>
-                <th class="py-2 pr-4 text-right">
-                  활동일 (30일)
-                </th>
-                <th class="py-2 pr-4">
-                  가장 최근 쓴 기능
-                </th>
-                <th class="py-2 pr-4">
-                  마지막 활동
-                </th>
-                <th class="py-2 w-8" />
-              </tr>
-            </thead>
-            <tbody>
-              <template
-                v-for="row in filteredUsers"
-                :key="row.user_id"
-              >
-                <tr
-                  class="border-b border-(--sk-border) last:border-b-0 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                  tabindex="0"
-                  :aria-expanded="expandedUser === row.user_id"
-                  @click="toggleUser(row.user_id)"
-                  @keydown.enter="toggleUser(row.user_id)"
-                  @keydown.space.prevent="toggleUser(row.user_id)"
-                >
-                  <!-- Name leads, employee number underneath rather than
-                       instead of: every other screen and the activity log
-                       itself key on the empno, so it has to stay readable.
-                       No second line when there is no name — the id is
-                       already the first one. -->
-                  <td class="py-2.5 pr-4">
-                    <div class="sk-value">
-                      {{ userDisplayName(row) }}
-                    </div>
-                    <div
-                      v-if="row.emp_nm"
-                      class="sk-meta"
-                    >
-                      {{ row.user_id }}
-                    </div>
-                  </td>
-                  <!-- Its own column rather than a third line under the name:
-                       the team is a different axis from "who is this", and a
-                       column is what an admin scans down to compare orgs. -->
-                  <td class="py-2.5 pr-4 sk-value">
-                    {{ userTeamLabel(row) }}
-                  </td>
-                  <td class="py-2.5 pr-4 text-right sk-value-num">
-                    {{ row.requests_30d.toLocaleString() }}
-                  </td>
-                  <td class="py-2.5 pr-4 text-right sk-value-num">
-                    {{ row.days_active_30d }}
-                  </td>
-                  <td class="py-2.5 pr-4 sk-value">
-                    {{ activityFeatureLabel(row.recent_feature) }}
-                  </td>
-                  <td class="py-2.5 pr-4 sk-value-num">
-                    {{ formatTime(row.last_seen) }}
-                  </td>
-                  <td class="py-2.5 text-(--sk-ink-muted)">
-                    <UIcon :name="expandedUser === row.user_id ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" />
-                  </td>
-                </tr>
-                <tr
-                  v-if="expandedUser === row.user_id"
-                  class="border-b border-(--sk-border)"
-                >
-                  <td
-                    colspan="7"
-                    class="py-3 pl-4 pr-4 bg-zinc-50/60 dark:bg-zinc-900/40"
-                  >
-                    <div
-                      v-if="userDetailLoading"
-                      class="sk-body"
-                    >
-                      로딩 중…
-                    </div>
-                    <div
-                      v-else-if="userDetailError"
-                      class="sk-body text-rose-500"
-                    >
-                      불러오기 실패: {{ userDetailError }}
-                    </div>
-                    <div
-                      v-else-if="userDetail"
-                      class="grid grid-cols-1 lg:grid-cols-3 gap-4"
-                    >
-                      <div>
-                        <div class="sk-label mb-2">
-                          이번 달
-                        </div>
-                        <div class="text-2xl font-semibold tabular-nums">
-                          {{ userDetail.this_month.requests }}
-                        </div>
-                        <div class="sk-meta">
-                          요청 · {{ userDetail.this_month.days_active }}일 활동
-                        </div>
-                      </div>
-                      <div class="lg:col-span-1">
-                        <div class="sk-label mb-2">
-                          최근 쓴 기능 5개
-                        </div>
-                        <ActivityRecentFeatureList
-                          :items="userDetail.recent_features"
-                          empty-text="—"
-                        />
-                      </div>
-                      <div>
-                        <div class="sk-label mb-2">
-                          30일 활동
-                        </div>
-                        <ActivitySparkline
-                          :series="userDetail.daily"
-                          tone="brand"
-                        />
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </template>
-              <tr v-if="filteredUsers.length === 0">
-                <td
-                  colspan="7"
-                  class="py-10 text-center sk-body"
-                >
-                  검색·필터 조건에 맞는 사용자가 없습니다.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </UCard>
     </template>
   </div>
 </template>
@@ -596,13 +315,10 @@ import {
   useActivityMe,
   useActivityFabs,
   useActivitySummary,
-  useActivityUsers,
-  useActivityVisitors,
   type FeatureCount,
   type FabUsageRow
 } from '~/composables/useActivityApi'
-import { VISITOR_WINDOW_TABS, visitorWindow, type VisitorWindowKey } from '~/utils/activityVisitors'
-import { activityFeatureLabel, pageViewNotice, rankableFabRows, userDisplayName, userTeamLabel } from '~/utils/activity'
+import { activityFeatureLabel, pageViewNotice, rankableFabRows } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 import { formatKoreanDateTime } from '~/utils/dateTime'
@@ -624,6 +340,12 @@ const isAdmin = computed(() => me.value?.is_admin === true)
 // Kept in sync with intro.vue's `section: 'admin'` page guides.
 const adminLinks = [
   {
+    to: '/admin/visitors',
+    icon: 'i-lucide-user-round-search',
+    title: '방문자 분석',
+    description: 'DAU·WAU·MAU 추이와 누가 얼마나 자주 방문하는지 봅니다.'
+  },
+  {
     to: '/admin/logs',
     icon: 'i-lucide-file-search',
     title: '운영 로그',
@@ -638,28 +360,20 @@ const adminLinks = [
 ]
 
 // Summary + fab breakdown are shared activity views, so every viewer fetches
-// them. The users list and the daily visitors are admin-only on the backend
-// (403 otherwise), so they are fetched only when /activity/me says the viewer
-// is an admin.
+// them. Everything per-employee is admin-only and lives on /admin/visitors.
 const sharedQueries = await Promise.all([
   useActivitySummary(),
   useActivityFabs()
 ]).then(
   ([summary, fabs]) => ({ summary, fabs })
 )
-const [usersQuery, visitorsQuery] = isAdmin.value
-  ? await Promise.all([useActivityUsers(), useActivityVisitors()])
-  : [null, null]
 
 const summary = computed(() => sharedQueries.summary.data.value ?? null)
-const users = computed(() => usersQuery?.data.value ?? null)
 const fabs = computed(() => sharedQueries.fabs.data.value ?? null)
 
 const loadError = computed(() => {
   const error = meError.value
     ?? sharedQueries.summary.error.value
-    ?? usersQuery?.error.value
-    ?? visitorsQuery?.error.value
     ?? sharedQueries.fabs.error.value
   if (!error) return null
   return operationalDataErrorMessage(
@@ -671,8 +385,6 @@ const loadError = computed(() => {
 const refreshing = computed(() => {
   if (meStatus.value === 'pending') return true
   if (sharedQueries.summary.status.value === 'pending') return true
-  if (usersQuery?.status.value === 'pending') return true
-  if (visitorsQuery?.status.value === 'pending') return true
   if (sharedQueries.fabs.status.value === 'pending') return true
   return false
 })
@@ -684,8 +396,6 @@ const refreshAll = async () => {
     sharedQueries.summary.refresh(),
     sharedQueries.fabs.refresh()
   )
-  if (usersQuery) jobs.push(usersQuery.refresh())
-  if (visitorsQuery) jobs.push(visitorsQuery.refresh())
   await Promise.all(jobs)
 }
 
@@ -698,11 +408,6 @@ const lastSeenLabel = computed(() => formatTime(me.value?.last_seen))
 // --- shared usage: KPI cards ---
 const kpiCards = computed(() => {
   if (!summary.value) return []
-  // The request total is derived from the admin-only users list, so it is
-  // dropped rather than shown as 0 for a viewer who cannot fetch it.
-  const totalRequests30d = users.value
-    ? users.value.users.reduce((sum, row) => sum + row.requests_30d, 0)
-    : null
   const returnRate = summary.value.mau > 0
     ? Math.round((summary.value.wau / summary.value.mau) * 100)
     : 0
@@ -728,15 +433,6 @@ const kpiCards = computed(() => {
       icon: 'i-lucide-user-check',
       color: 'text-emerald-500'
     },
-    ...(totalRequests30d === null
-      ? []
-      : [{
-          label: '30D 요청',
-          value: totalRequests30d.toLocaleString(),
-          hint: '전체 사용자의 요청 합계',
-          icon: 'i-lucide-mouse-pointer-click',
-          color: 'text-amber-500'
-        }]),
     {
       label: 'WAU / MAU',
       value: `${returnRate}%`,
@@ -746,12 +442,6 @@ const kpiCards = computed(() => {
     }
   ]
 })
-
-// --- admin: daily visitors window toggle ---
-const visitorWindowKey = ref<VisitorWindowKey>('2w')
-const visitorDays = computed(() =>
-  visitorWindow(visitorsQuery?.data.value?.days ?? [], visitorWindowKey.value)
-)
 
 // --- shared usage: top features window toggle ---
 const windowKey = ref<'7d' | '30d'>('7d')
@@ -793,23 +483,4 @@ const selectedFabPages = computed<FeatureCount[]>(() => {
   const row = fabsForWindow.value.find(item => item.fab === selectedFab.value)
   return row?.pages ?? []
 })
-
-const userRows = computed(() => users.value?.users ?? [])
-const {
-  query: userQuery,
-  featureFilter,
-  sort: userSort,
-  sortOptions: userSortOptions,
-  featureFilterOptions,
-  filteredRows: filteredUsers,
-  hasActiveControls: hasActiveUserControls,
-  resetControls: resetUserControls,
-  download: downloadUsersExcel,
-  copy: copyUsersTable,
-  expandedUser,
-  userDetail,
-  userDetailLoading,
-  userDetailError,
-  toggleUser
-} = useActivityUserTable(userRows)
 </script>

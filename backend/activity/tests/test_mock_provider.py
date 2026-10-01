@@ -228,7 +228,7 @@ def test_seeded_home_identity_fills_the_visit_calendar_without_losing_counts(
             assert sum(fresh_store[user_id].daily.values()) == sum(requests.values())
 
 
-def test_daily_visitors_counts_distinct_people_per_kst_day_over_60_days(
+def test_daily_visitors_roll_dau_wau_mau_over_60_kst_days(
     fresh_store, monkeypatch
 ):
     # 2026-09-12 01:00 KST — still the 11th in UTC, so a UTC calendar would
@@ -237,22 +237,36 @@ def test_daily_visitors_counts_distinct_people_per_kst_day_over_60_days(
         mock, "_now", lambda: datetime(2026, 9, 11, 16, tzinfo=timezone.utc)
     )
     mock.record_request("u1", "storage", "feature", ["M14"])
-    state = fresh_store["u1"]
-    state.daily[date(2026, 7, 15)] = 4  # 59 days back: the window's first day
-    state.daily[date(2026, 7, 14)] = 9  # 60 days back: out of every window
+    mock.record_request("u2", "sem_list", "entry", [])
+    u1, u2 = fresh_store["u1"], fresh_store["u2"]
+    u1.daily[date(2026, 7, 15)] = 4  # 59 days back: the chart's first day
+    u1.daily[date(2026, 6, 15)] = 9  # 89 days back: no window reaches it
+    # 88 days back: off the chart, but inside the first day's 30-day MAU
+    # window (06-16..07-15), so it has to survive the prune.
+    u2.daily[date(2026, 6, 16)] = 1
     # Three requests from one person are one visitor, not three.
     mock.record_request("u1", "storage", "feature", ["M14"])
     mock.record_request("u1", "storage", "feature", ["M14"])
     mock.record_request("u2", "sem_list", "entry", [])
-    # A page open alone is not a visitor: the DAU card beside this chart
-    # counts request rows, and today's bar has to agree with it.
+    # A page open alone is not a visitor: the DAU card counts request rows,
+    # and today's bar has to agree with it.
     mock.record_request("u3", "mag_pixel", "page_view", [])
 
     days = mock.get_daily_visitors()["days"]
 
     assert len(days) == 60
-    assert days[0] == {"date": "2026-07-15", "visitors": 1}
-    assert days[-2] == {"date": "2026-09-11", "visitors": 0}
-    assert days[-1] == {"date": "2026-09-12", "visitors": 2}
-    assert days[-1]["visitors"] == mock.get_summary()["dau"]
-    assert date(2026, 7, 14) not in state.daily
+    assert days[0] == {"date": "2026-07-15", "visitors": 1, "wau": 1, "mau": 2}
+    # u2's 06-16 has left the 30-day window; u1's 07-15 is still in both.
+    assert days[1] == {"date": "2026-07-16", "visitors": 0, "wau": 1, "mau": 1}
+    # 07-15 is the 7th day back from 07-21 and the 8th from 07-22.
+    assert days[6] == {"date": "2026-07-21", "visitors": 0, "wau": 1, "mau": 1}
+    assert days[7] == {"date": "2026-07-22", "visitors": 0, "wau": 0, "mau": 1}
+    # ...and the 30th day back from 08-13, the 31st from 08-14.
+    assert days[29] == {"date": "2026-08-13", "visitors": 0, "wau": 0, "mau": 1}
+    assert days[30] == {"date": "2026-08-14", "visitors": 0, "wau": 0, "mau": 0}
+    assert days[-2] == {"date": "2026-09-11", "visitors": 0, "wau": 0, "mau": 0}
+    assert days[-1] == {"date": "2026-09-12", "visitors": 2, "wau": 2, "mau": 2}
+    summary = mock.get_summary()
+    assert (summary["dau"], summary["wau"], summary["mau"]) == (2, 2, 2)
+    assert date(2026, 6, 15) not in u1.daily
+    assert date(2026, 6, 16) in u2.daily

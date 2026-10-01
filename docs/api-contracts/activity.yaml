@@ -248,6 +248,18 @@ types:
         user_id 수입니다. DAU와 같은 정의이므로 마지막 항목은
         SummaryResponse.dau와 같습니다. page_view만 있는 사용자는 세지 않습니다.
         날짜별 값은 더할 수 없습니다 — 이틀 활동한 사람은 양쪽에 모두 들어갑니다.
+    wau:
+      type: integer
+      description: >-
+        해당 날짜를 마지막으로 하는 7 KST 날짜 동안의 distinct user_id 수입니다.
+        달력 주가 아니라 rolling window이며, 마지막 항목은 SummaryResponse.wau와
+        같습니다. visitors를 더해서는 얻을 수 없어 따로 보냅니다.
+    mau:
+      type: integer
+      description: >-
+        해당 날짜를 마지막으로 하는 30 KST 날짜 동안의 distinct user_id 수입니다.
+        마지막 항목은 SummaryResponse.mau와 같습니다. 첫 날짜의 mau를 계산하려고
+        provider는 60일이 아니라 89일치 request 행을 읽습니다.
 
   VisitorsResponse:
     generated_at:
@@ -258,7 +270,7 @@ types:
       items: DailyVisitors
       description: >-
         오늘을 마지막으로 하는 연속 60 KST 날짜이며 오래된 날짜가 먼저 옵니다.
-        활동이 없는 날도 visitors=0으로 포함합니다. 화면의 2주/1개월/2개월
+        활동이 없는 날도 0으로 포함합니다. /admin/visitors 화면의 2주/1개월/2개월
         선택은 이 배열을 뒤에서 잘라 쓰며 요청을 다시 보내지 않습니다.
 
 endpoints:
@@ -301,7 +313,7 @@ endpoints:
   - path: /api/activity/visitors
     method: GET
     auth: admin
-    description: trailing 60 KST 날짜의 일별 방문자(distinct 활동 사용자) 수입니다.
+    description: trailing 60 KST 날짜의 일별 DAU와 rolling WAU·MAU입니다.
     response:
       status: 200
       body: VisitorsResponse
