@@ -19,7 +19,6 @@ from backend._logging.feature_map import (
     TOOL_FAMILIES,
     page_to_family,
     page_to_feature,
-    route_to_family,
     route_to_feature,
 )
 from backend._logging.policy import PAGE_VIEW_PATH
@@ -141,7 +140,7 @@ def test_no_registered_route_still_needs_the_fallback():
             path = re.sub(r"<[^>]+>", "x", raw.replace("<tool_slug>", tool))
             # The beacon's feature is the page it REPORTS, not its own path —
             # the middleware overrides route_to_feature for it.
-            if path == PAGE_VIEW_PATH:
+            if path == PAGE_VIEW_PATH or path.startswith(PAGE_VIEW_PATH + "/"):
                 continue
             slug = route_to_feature(path)
             if slug in _TOOL_SLUGS or "-" in slug:
@@ -355,40 +354,6 @@ def test_a_page_belongs_to_the_family_in_its_path(path, family):
 )
 def test_a_page_outside_every_family_has_none(path):
     assert page_to_family(path) is None
-
-
-@pytest.mark.parametrize(
-    "path,family",
-    [
-        ("/api/cdsem/storage", "cdsem"),
-        ("/api/hvsem/live-alarm", "hvsem"),
-        ("/api/veritysem/storage", "veritysem"),
-        ("/api/provision/hardware", "provision"),
-        ("/api/afm", "afm"),
-        ("/api/afm/detail", "afm"),
-        ("/api/afm-files", "afm"),
-    ],
-)
-def test_an_api_path_names_its_family_when_it_carries_one(path, family):
-    assert route_to_family(path) == family
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        # Shared by more than one family: the path alone cannot say which.
-        "/api/msr-file",
-        "/api/meas-hist",
-        "/api/sem-list",
-        "/api/page-view",
-        "/api/chat",
-        "/api",
-        "/login",
-        "",
-    ],
-)
-def test_an_api_path_with_no_family_segment_has_none(path):
-    assert route_to_family(path) is None
 
 
 @pytest.mark.parametrize("page,slug", _TOOL_PAGE_RULES)

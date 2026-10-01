@@ -302,20 +302,20 @@ def test_an_unresolvable_page_is_accepted_but_not_ranked(beacon_client, path):
     assert store == {}
 
 
-def test_a_beacon_files_the_page_under_its_family(beacon_client):
-    """End to end through the real route and middleware: the beacon names a
-    page, the page names a family, and the family card reads it back."""
+def test_a_beacon_files_the_page_under_the_family_in_its_url(beacon_client):
+    """End to end through the real route and middleware: the beacon is posted
+    to its family's URL, and the family card reads it back."""
     client, _store = beacon_client
 
-    for path in (
-        "/ebeam/hv-sem/R3/storage",
-        "/ebeam/hv-sem/m14,r3/storage",
-        "/ebeam/cd-sem/M14/storage",
-        "/afm/map608/a.tif",
+    for url, path in (
+        ("/api/page-view/hvsem", "/ebeam/hv-sem/R3/storage"),
+        ("/api/page-view/hvsem", "/ebeam/hv-sem/m14,r3/storage"),
+        ("/api/page-view/cdsem", "/ebeam/cd-sem/M14/storage"),
+        ("/api/page-view/afm", "/afm/map608/a.tif"),
         # A shared page: ranked, but under no family.
-        "/mag-pixel",
+        ("/api/page-view", "/mag-pixel"),
     ):
-        assert client.post("/api/page-view", json={"path": path}).status_code == 204
+        assert client.post(url, json={"path": path}).status_code == 204, url
 
     rows = {
         row["family"]: row
@@ -331,3 +331,40 @@ def test_a_beacon_files_the_page_under_its_family(beacon_client):
     assert rows["afm"]["pages"] == [{"feature": "afm", "count": 1}]
     assert rows["veritysem"]["total"] == 0
     assert sum(len(row["pages"]) for row in rows.values()) == 3
+
+
+@pytest.mark.parametrize(
+    "url,path",
+    [
+        # The URL says HV-SEM, the page is CD-SEM's.
+        ("/api/page-view/hvsem", "/ebeam/cd-sem/M14/storage"),
+        # A family URL for a page that belongs to none.
+        ("/api/page-view/cdsem", "/mag-pixel"),
+        # Not a family at all.
+        ("/api/page-view/nonsense", "/ebeam/cd-sem/M14/storage"),
+    ],
+)
+def test_a_beacon_whose_url_and_page_disagree_is_rejected(beacon_client, url, path):
+    """The URL is what the office query groups on, so it must be true. A
+    mismatch is a client bug: 400, and — because a failed request is never a
+    usage event — no page open recorded under either family."""
+    client, store = beacon_client
+
+    assert client.post(url, json={"path": path}).status_code == 400
+
+    assert store == {}
+
+
+def test_a_family_page_posted_to_the_plain_url_is_ranked_without_a_family(
+    beacon_client,
+):
+    """What a browser still running the previous bundle sends. The page open
+    counts in the global ranking as before; it just belongs to no family row,
+    exactly as the office query — which groups on the URL — will see it."""
+    client, store = beacon_client
+
+    response = client.post("/api/page-view", json={"path": "/ebeam/cd-sem/M14/storage"})
+
+    assert response.status_code == 204
+    assert list(store["1234567"].last_opened) == ["storage"]
+    assert all(row["total"] == 0 for row in mock.get_family_page_usage()["families_7d"])

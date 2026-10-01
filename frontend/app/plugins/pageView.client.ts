@@ -1,4 +1,4 @@
-import { createPageViewTracker, buildPageViewPath } from '~/utils/pageIdentity'
+import { createPageViewTracker, buildPageViewPath, pageViewEndpoint } from '~/utils/pageIdentity'
 import { joinApiPath } from '~/utils/apiPath'
 
 /** Reports page opens for 사용 통계. See
@@ -9,7 +9,6 @@ import { joinApiPath } from '~/utils/apiPath'
 export default defineNuxtPlugin(() => {
   const router = useRouter()
   const config = useRuntimeConfig()
-  const url = joinApiPath(config.public.apiBase, '/page-view')
 
   // Which navigations count as a page open lives in the tracker, where it is
   // tested: fab switches, filter changes and the 장비 상태 landing do not.
@@ -18,7 +17,9 @@ export default defineNuxtPlugin(() => {
   const report = (path: string, query: Record<string, unknown>) => {
     if (!isPageOpen(path, query)) return
 
-    $fetch(url, {
+    // The URL carries the page's tool family (/page-view/cdsem), which is how
+    // the family reaches the log row without a field of its own.
+    $fetch(joinApiPath(config.public.apiBase, pageViewEndpoint(path)), {
       method: 'POST',
       body: { path: buildPageViewPath(path, query) }
     }).catch(() => {

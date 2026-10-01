@@ -121,12 +121,27 @@ def activity_user_detail(user_id: str):
 # middleware logs a row, which is what carries the page view to OpenSearch at
 # the office and to the mock store at home — no new store, and no office write
 # path, which no office_example.py in this repo has.
+#
+# The second rule is the same beacon for a page that belongs to a tool family
+# (/api/page-view/cdsem). The family sits in the URL, not in a log field, so
+# that it lands in the row's `path` — which the index already maps and the
+# family card can therefore group on without any change to the index.
 @bp.post("/page-view")
-def page_view():
+@bp.post("/page-view/<family>")
+def page_view(family: str | None = None):
     payload = request.get_json(silent=True)
     path = payload.get("path") if isinstance(payload, dict) else None
     if not isinstance(path, str) or not path.strip():
         return error_json("bad_request", "path is required", 400)
+    # The URL is what gets counted, so it has to be true. A page posted under
+    # another family's URL — or under something that is not a family — is a
+    # client bug; a 400 is never a usage event, so it is counted nowhere.
+    # A family page posted to the PLAIN url is allowed: that is what a browser
+    # still on the previous bundle sends, and it ranks without a family.
+    if family is not None and family != page_to_family(path):
+        return error_json(
+            "bad_request", "family does not match the page", 400
+        )
     slug = page_to_feature(path)
     if slug:
         # Imported here, not at module load: _logging.activity imports
@@ -135,7 +150,7 @@ def page_view():
         # circular. By request time every module is fully initialized.
         from .._logging.activity import promote_page_view
 
-        promote_page_view(slug, page_to_family(path))
+        promote_page_view(slug, family)
     # An unresolvable path (ops page, tab not yet in the URL) is still a 204:
     # the client cannot know which paths rank, and a 400 would be console noise
     # for something that is not an error.

@@ -8,11 +8,13 @@ OpenSearch usage_events index and the Redis HINCRBY hashes.
 Never rename an existing slug after it has been written; that splits the
 historical series. Add aliases instead (multiple paths → same slug).
 
-Tool family is a SECOND axis, decided here too (``page_to_family``,
-``route_to_family``) and logged as ``tool_family``. It is never folded into
-the slug: ``storage`` is one feature whether it was opened under CD-SEM or
-VeritySEM, and the family says which. That is what lets the families grow
-their own UI without splitting — or merging — the page series.
+Tool family is a SECOND axis, decided here too (``page_to_family``). It is
+never folded into the slug: ``storage`` is one feature whether it was opened
+under CD-SEM or VeritySEM, and the family says which. That is what lets the
+families grow their own UI without splitting — or merging — the page series.
+The family is not a log field: a page open is reported to
+/api/page-view/<family>, so it travels in the row's existing ``path``
+(see ``policy.page_view_path``).
 """
 
 from __future__ import annotations
@@ -35,10 +37,11 @@ from backend.ebeam._tool_specs import SLUG_TO_TOOL_TYPE
 # and taken the first-segment fallback — a phantom feature named `veritysem`.
 _TOOL_SLUGS = tuple(SLUG_TO_TOOL_TYPE)
 
-# What `tool_family` may hold. The e-beam families come from the registry
+# The family vocabulary. The e-beam families come from the registry
 # (backend/ebeam/_tool_specs.py); AFM is not an e-beam tool and has no entry
 # there, so it is named here, where the logging vocabulary lives. Registry
-# slugs, never the dashed page segment: `cdsem`, not `cd-sem`.
+# slugs, never the dashed page segment: `cdsem`, not `cd-sem` — these are the
+# values that appear in the beacon URL and in /api/activity/families.
 AFM_FAMILY = "afm"
 TOOL_FAMILIES: tuple[str, ...] = (*_TOOL_SLUGS, AFM_FAMILY)
 
@@ -47,12 +50,6 @@ TOOL_FAMILIES: tuple[str, ...] = (*_TOOL_SLUGS, AFM_FAMILY)
 # only place that knows they are the same family.
 _PAGE_SEGMENT_TO_FAMILY = {
     tool_type: slug for slug, tool_type in SLUG_TO_TOOL_TYPE.items()
-}
-# First segment after /api/ → family, for the APIs that carry one.
-_API_SEGMENT_TO_FAMILY = {
-    **{slug: slug for slug in _TOOL_SLUGS},
-    "afm": AFM_FAMILY,
-    "afm-files": AFM_FAMILY,
 }
 
 # Shared Hitachi e-beam pages mounted at /api/<tool_slug>/<page>.
@@ -292,6 +289,9 @@ def page_to_family(path: str) -> str | None:
     of ``page_to_feature``: a page can have a family before it has a rankable
     slug, and the family is only ever recorded alongside one.
 
+    The beacon route uses this to check the URL a page open was posted to:
+    /api/page-view/<family> must name the family of the page in its body.
+
     Segment matches, like the slug rules above — ``/afm-other`` is not AFM.
     """
     clean, _query = _split_query(path or "")
@@ -304,16 +304,3 @@ def page_to_family(path: str) -> str | None:
         return _PAGE_SEGMENT_TO_FAMILY.get(parts[1].lower())
     return None
 
-
-def route_to_family(path: str) -> str | None:
-    """The tool family an API path names, or None when it names none.
-
-    The weaker of the two signals. Shared APIs (msr-file, meas-hist, sem-list)
-    carry no family at all, and a page may call another family's API, so the
-    middleware prefers the page the caller is on and falls back to this only
-    when it cannot tell (see ``_logging/activity.py``).
-    """
-    parts = [part for part in (path or "").split("/") if part]
-    if len(parts) < 2 or parts[0] != "api":
-        return None
-    return _API_SEGMENT_TO_FAMILY.get(parts[1])

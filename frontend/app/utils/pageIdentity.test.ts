@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolvePageIdentity, buildPageViewPath, createPageViewTracker } from './pageIdentity.ts'
+import { resolvePageIdentity, buildPageViewPath, createPageViewTracker, pageFamily, pageViewEndpoint } from './pageIdentity.ts'
 
 // Contract test: frontend identity must partition paths the same way the backend
 // does — two paths share an identity IFF page_to_feature gives them the same slug
@@ -161,7 +161,7 @@ test('the fab hub is one identity per tool family', () => {
   // /ebeam/<tool> and /ebeam/<tool>/<fab> both land on [fab]/index.vue, which
   // renders EbeamToolInventoryView (장비 상태). Within a family the fab does not
   // matter; across families it is the backend's one tool_inventory slug under
-  // four different tool_family values.
+  // four different tool families.
   assert.equal(
     resolvePageIdentity('/ebeam/cd-sem', {}),
     resolvePageIdentity('/ebeam/cd-sem/M14', {})
@@ -345,6 +345,28 @@ test('skewvoir does not share the msr-file identity', () => {
     resolvePageIdentity('/msr-file', {}),
     resolvePageIdentity('/msr-files', {})
   )
+})
+
+test('contract: every page names the family the backend names', () => {
+  // The frontend picks the beacon URL from this, and the backend rejects a
+  // beacon whose URL disagrees with its page — so a drift here is not a
+  // miscount, it is every page open of that family failing with a 400.
+  for (const row of contract) {
+    assert.equal(pageFamily(row.path), row.family, rowLabel(row))
+  }
+})
+
+test('a page open is posted to its family’s beacon URL', () => {
+  // The family travels in the URL because the log row's `path` is a field the
+  // index already has; a separate field would have needed a mapping change.
+  assert.equal(pageViewEndpoint('/ebeam/cd-sem/M14/storage'), '/page-view/cdsem')
+  assert.equal(pageViewEndpoint('/ebeam/hv-sem/m14,r3/hardware'), '/page-view/hvsem')
+  assert.equal(pageViewEndpoint('/ebeam/veritysem/M14'), '/page-view/veritysem')
+  assert.equal(pageViewEndpoint('/afm/map608/a.tif'), '/page-view/afm')
+  // No family, no segment: the endpoint every shared page has always used.
+  assert.equal(pageViewEndpoint('/mag-pixel'), '/page-view')
+  assert.equal(pageViewEndpoint('/chat'), '/page-view')
+  assert.equal(pageViewEndpoint('/ebeam/unknown/M14/storage'), '/page-view')
 })
 
 // The ONE approved exception, enumerated so the fixture cannot quietly grow a fourth.

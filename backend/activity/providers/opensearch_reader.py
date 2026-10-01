@@ -8,6 +8,7 @@ from typing import Any
 
 from backend._auth.admin import is_admin
 from backend._core.timefmt import iso_z
+from backend._logging.policy import page_view_path
 from backend._logging.target import resolve_logging_target
 from backend.activity.contracts import (
     DailyCount,
@@ -781,8 +782,16 @@ class ActivityOpenSearchReader:
 
         One request: the vocabulary is five values, so a plain ``terms`` holds
         every family and no composite paging is needed.
+
+        There is no family field in the index. A page open is posted to
+        /api/page-view/<family>, so the family is the row's ``path`` — a
+        keyword that has been mapped from the start — and grouping on it needs
+        no change to the index.
         """
         now = self._now()
+        family_by_path = {
+            page_view_path(family): family for family in TOOL_FAMILIES
+        }
 
         def window(start: datetime) -> dict[str, Any]:
             return {
@@ -790,12 +799,12 @@ class ActivityOpenSearchReader:
                 "aggs": {
                     "families": {
                         "terms": {
-                            "field": "tool_family",
-                            "size": len(TOOL_FAMILIES),
-                            # Exact values only. A row carrying anything else
-                            # is a writer bug, and the card must not grow a
-                            # sixth family to display it.
-                            "include": list(TOOL_FAMILIES),
+                            "field": "path",
+                            "size": len(family_by_path),
+                            # Exact URLs only. The plain /api/page-view is a
+                            # page with no family and is not a row; anything
+                            # else under it is not a sixth family.
+                            "include": list(family_by_path),
                         },
                         "aggs": {
                             "openers": {
@@ -820,13 +829,14 @@ class ActivityOpenSearchReader:
 
         def rows(node: dict[str, Any]) -> list[FamilyUsageRow]:
             by_family = {
-                str(bucket.get("key")): bucket
+                family_by_path[key]: bucket
                 for bucket in node.get("families", {}).get("buckets", [])
+                if (key := str(bucket.get("key"))) in family_by_path
             }
             # Walked from the vocabulary, not from the buckets: a family
             # nobody opened has no bucket, and it is still a row of zeros.
-            # Rows written before the field existed carry no tool_family and
-            # so fall in no bucket at all — see MIGRATION.md.
+            # Page opens from before the family URLs existed were all posted
+            # to the plain path and so fall in no bucket — see MIGRATION.md.
             return [
                 {
                     "family": family,

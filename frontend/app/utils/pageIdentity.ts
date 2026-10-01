@@ -1,3 +1,5 @@
+import { TOOL_TYPES, toolSlug, type ToolType } from './toolType.ts'
+
 /** Page identity for usage beaconing — see
  *  docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md
  *
@@ -8,10 +10,16 @@
  *  `__fixtures__/pageIdentityContract.json` is the shared table both sides are
  *  tested against.
  *
- *  The family half arrived 2026-10-02, when the log row gained `tool_family`.
- *  Before it, CD-SEM's Storage and HV-SEM's Storage were one identity, so
- *  moving between them was deduped as a filter change and the second family's
- *  page open was never reported.
+ *  The family half arrived 2026-10-02, when page opens began being counted
+ *  per tool family. Before it, CD-SEM's Storage and HV-SEM's Storage were one
+ *  identity, so moving between them was deduped as a filter change and the
+ *  second family's page open was never reported.
+ *
+ *  The family is not a log field. A page open is POSTed to
+ *  /api/page-view/<family> (`pageViewEndpoint`), so it rides in the log row's
+ *  existing `path` and the index needed no change. The backend rejects a
+ *  beacon whose URL disagrees with its page, which is why `pageFamily` is
+ *  pinned to the fixture's family column.
  *
  *  The ONE approved exception: recipe-status ?tab=align and ?tab=meas share the
  *  backend slug `fail_issue`, but the product counts Align Fail and Meas Fail as
@@ -50,7 +58,7 @@ const VALID_TABS = new Set(['tat', 'align', 'meas'])
 // Unlike every other entry in IDENTITY_RULES this is NOT a route fragment.
 // The page has no path segment of its own, so its identity has to be
 // synthesized. Matches the backend's `tool_inventory` slug; the tool family is
-// prefixed onto it like any other e-beam identity (`cd-sem#tool-inventory`).
+// prefixed onto it like any other e-beam identity (`cdsem#tool-inventory`).
 //
 // Deliberately spelled with a leading `#`, not `/`: a canonical path is always
 // built as `'/' + segments.join('/')`, so no real route can ever produce a
@@ -113,14 +121,40 @@ const firstValue = (raw: unknown): string | null => {
   return typeof value === 'string' && value ? value : null
 }
 
+/** The family an /ebeam tool segment names, as the backend spells it
+ *  (`cd-sem` → `cdsem`), or null for a segment that is no registered tool. */
+const ebeamFamily = (segment: string | undefined): string | null => {
+  const toolType = segment?.toLowerCase()
+  return (TOOL_TYPES as readonly string[]).includes(toolType ?? '')
+    ? toolSlug(toolType as ToolType)
+    : null
+}
+
+/** Which tool family a page belongs to — the backend's `page_to_family`.
+ *  /ebeam/<tool>/… belongs to that tool, /afm… to AFM, everything else to none. */
+export const pageFamily = (path: string): string | null => {
+  const segments = (path.split('?')[0] ?? '').split('/').filter(Boolean)
+  if (segments[0] === 'afm') return 'afm'
+  if (segments[0] === 'ebeam') return ebeamFamily(segments[1])
+  return null
+}
+
+/** Where a page open is reported, relative to the API base: the family's own
+ *  beacon URL, or the plain one for a page that belongs to none. Mirrors the
+ *  backend's `page_view_path`. */
+export const pageViewEndpoint = (path: string): string => {
+  const family = pageFamily(path)
+  return family ? `/page-view/${family}` : '/page-view'
+}
+
 interface Canonical {
   /** Path with fab (and, under /ebeam, the tool) removed. */
   path: string
-  /** The /ebeam tool segment, kept apart from `path` so the page rules stay
-   *  family-agnostic and the family rejoins the identity at the end. Absent
-   *  outside /ebeam: a standalone page's path already says which family it is
-   *  (/afm) or that it has none. */
-  family?: string
+  /** The /ebeam page's tool family, kept apart from `path` so the page rules
+   *  stay family-agnostic and the family rejoins the identity at the end.
+   *  Null outside /ebeam: a standalone page's path already says which family
+   *  it is (/afm) or that it has none. */
+  family: string | null
   /** True for /ebeam routes. An unmapped e-beam page has no identity at all
    *  (the backend returns None for it) — there is deliberately no tool-family
    *  fallback, because "CD-SEM" is not a page and must never be ranked as one. */
@@ -132,15 +166,15 @@ const canonicalize = (rawPath: string): Canonical => {
 
   if (segments[0] === 'ebeam') {
     // A bare /ebeam names no tool and is not a page.
-    if (!segments[1]) return { path: '/ebeam', ebeam: true }
-    const family = segments[1].toLowerCase()
+    if (!segments[1]) return { path: '/ebeam', ebeam: true, family: null }
+    const family = ebeamFamily(segments[1])
     const rest = segments.slice(2).filter(segment => !FAB_SEGMENT.test(segment))
     // /ebeam/<tool> and /ebeam/<tool>/<fab> are the same page (the fab hub).
     if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, ebeam: true, family }
     return { path: '/' + rest.join('/'), ebeam: true, family }
   }
 
-  return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), ebeam: false }
+  return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), ebeam: false, family: null }
 }
 
 const matchRule = (canonical: string): string | null => {
@@ -200,7 +234,7 @@ export const resolvePageIdentity = (
   const page = resolvePage(canonical, query)
   if (page === null) return null
   // `page` always starts with `/` or `#`, so the family prefix cannot run
-  // into it: `cd-sem/storage`, `hv-sem#tool-inventory`.
+  // into it: `cdsem/storage`, `hvsem#tool-inventory`.
   return canonical.family ? canonical.family + page : page
 }
 

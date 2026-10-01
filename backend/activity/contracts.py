@@ -204,8 +204,8 @@ class FamilyUsageRow(TypedDict):
     families do not add up: someone who works in two is in both.
     """
 
-    #: ``cdsem | hvsem | veritysem | provision | afm`` — the logged
-    #: ``tool_family`` value, never the dashed page segment.
+    #: ``cdsem | hvsem | veritysem | provision | afm`` — the registry slug
+    #: that appears in the beacon URL, never the dashed page segment.
     family: str
     total: int
     pages: list[FeatureCount]

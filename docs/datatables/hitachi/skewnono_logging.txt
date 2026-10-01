@@ -35,6 +35,22 @@ identity_source -> keyword: 그 ID 를 무엇이 정했는지 — token | cookie
 api_token_id -> keyword: token 자동화 요청 식별자. 없으면 생략합니다.
 method -> keyword: HTTP method
 path -> keyword: query 제외 request path
+  page_view 행의 path 는 그 화면이 속한 장비군도 함께 말합니다. 장비군이 있는
+  화면의 page open 은 /api/page-view/<family> 로 보내며
+  (family = cdsem | hvsem | veritysem | provision | afm), 어느 장비군에도 속하지
+  않는 화면(허브, 장비 목록, chat, mag-pixel)은 /api/page-view 그대로입니다.
+  /api/activity/families 는 이 필드를 terms 로 묶어 장비군별 사용을 셉니다.
+  장비군을 위한 별도 필드는 **없습니다** — 인덱스가 dynamic: false 라 새 필드는
+  mapping 변경(ops_index_mgmt 재실행)이 필요한데, 사용 통계는 핵심 기능이 아니어서
+  인덱스를 건드리지 않기로 했습니다 (user-confirmed 2026-10-02). 그래서 이미
+  mapping 된 path 에 실었습니다. feature 는 여전히 계열과 무관한 page slug 입니다
+  (CD-SEM 의 storage 도 VeritySEM 의 storage 도 `storage`).
+  route 는 URL 의 장비군이 body 의 화면 경로와 다르면 400 으로 거절하므로
+  (실패한 요청은 집계되지 않습니다) path 의 장비군은 항상 화면과 일치합니다.
+  2026-10-02 이전의 page_view 행은 모두 /api/page-view 이고 화면 경로를 저장하지
+  않았으므로 소급해 장비군을 알 수 없습니다. 일반 요청(entry/feature)에는 장비군이
+  기록되지 않습니다 — 공용 API(msr-file, meas-hist, sem-list)는 경로에 계열이 없어
+  path 만으로는 알 수 없고, 장비군 집계는 page_view 만 읽습니다.
 query_string -> keyword(ignore_above 2048): 민감 key 는 [REDACTED] 치환, 2,048자 제한
 status -> integer: HTTP status
 latency_ms -> integer: 요청 처리 시간
@@ -48,29 +64,6 @@ activity_kind -> keyword: entry | feature | background | operation | page_view
 activity_weight -> integer: 활동 집계 대상이면 1, 아니면 0
 fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M14"] 형태이며
   context 가 없으면 빈 list 입니다. scalar fab_name 과 혼동하지 않습니다.
-tool_family -> keyword: 그 활동이 속한 장비군 — cdsem | hvsem | veritysem | provision | afm.
-  feature 와는 별개의 축입니다. feature 는 계열과 무관한 page slug 이고
-  (CD-SEM 의 storage 도 VeritySEM 의 storage 도 `storage`), 어느 계열의 화면인지는
-  이 필드가 말합니다. 값은 registry slug 이며 화면 경로의 `cd-sem` 같은 하이픈
-  표기가 아닙니다. 벤더(Hitachi = cdsem + hvsem)는 기록하지 않고 표시할 때 파생합니다.
-  어느 계열에도 속하지 않는 행(허브, 장비 목록, chat, mag-pixel, 운영 화면)에는
-  필드 자체가 없습니다 (null 컬럼 없음). (2026-10-02)
-  값을 정하는 순서 (_logging/activity.py 의 _tool_family):
-    1. page_view 행 — beacon 이 보낸 화면 경로의 계열입니다 (page_to_family).
-       계열이 없는 화면이면 없음으로 확정하며 Referer 를 보지 않습니다.
-    2. 그 밖의 요청 — Referer 의 화면 경로가 속한 계열입니다. 공용 API
-       (msr-file, meas-hist, sem-list)는 경로에 계열이 없고, 한 화면이 다른
-       계열의 API 를 부를 수도 있어서 "사용자가 보고 있던 화면"을 기준으로
-       합니다. 계열이 없는 화면(허브 `/` 포함)에서 온 요청은 /api/cdsem/… 을
-       불렀어도 없음입니다. SPA 와 API 는 모든 phase 에서 same-origin 이라
-       브라우저가 화면 경로 전체를 보내므로 `/` 는 잘린 경로가 아니라 허브입니다.
-    3. Referer 가 없거나 해석할 수 없을 때에만 API 경로(/api/<tool_slug>/…,
-       /api/afm, /api/afm-files)로 추정합니다 (route_to_family).
-  2026-10-02 이전 문서에는 이 필드가 없고, page_view 문서는 화면 경로를 저장하지
-  않았으므로 소급해 채울 수 없습니다. 장비군별 집계는 배포 시점부터 채워집니다.
-  OFFICE-VERIFY: 사무실 proxy 가 Referer 를 그대로 넘기는지 확인하지 않았습니다.
-  넘기지 않으면 요청 행은 3번(API 경로)으로만 분류되지만, 장비군 카드가 읽는
-  page_view 행은 1번이라 영향이 없습니다.
 error_code -> keyword: HTTP status 또는 예외 타입 이름
 error_name -> keyword(최대 1,024자): bounded 오류 이름
 opensearch_query_count -> integer: 이 요청이 쓴 OpenSearch 왕복 횟수

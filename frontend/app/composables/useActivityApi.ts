@@ -94,8 +94,8 @@ export interface UserListResponse {
   users: UserListRow[]
 }
 
-/** Page opens under one tool family. `family` is the logged `tool_family`
- *  value (`cdsem`, not `cd-sem`). Both numbers count page views: `total` is
+/** Page opens under one tool family. `family` is the backend's registry slug
+ *  (`cdsem`, not `cd-sem`). Both numbers count page views: `total` is
  *  the distinct people who opened a page of the family — not a DAU-style
  *  active-user count, and not additive across families. */
 export interface FamilyUsageRow {

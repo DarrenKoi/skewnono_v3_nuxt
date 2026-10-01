@@ -4,9 +4,9 @@ import type { FamilyUsageRow, FeatureCount } from '~/composables/useActivityApi'
 /**
  * The 장비군별 페이지 사용 card's vocabulary and arithmetic.
  *
- * `family` is the logged `tool_family` value — the backend's registry slug
- * (`cdsem`), never the dashed page segment (`cd-sem`). See
- * backend/_logging/feature_map.py, which owns the vocabulary.
+ * `family` is the backend's registry slug (`cdsem`), never the dashed page
+ * segment (`cd-sem`) — the value in the beacon URL a page open is posted to.
+ * See backend/_logging/feature_map.py, which owns the vocabulary.
  */
 
 interface KnownFamily {
@@ -61,13 +61,13 @@ export const familyRail = (rows: readonly FamilyUsageRow[]): FamilyRailItem[] =>
   return [...known, ...unknown]
 }
 
-/** The day `tool_family` began being logged. Page opens before it carry no
- *  family and cannot be back-filled — the beacon never stored the page path —
- *  so a window reaching past this date shows only part of itself.
+/** The day page opens began being posted to a per-family beacon URL. Opens
+ *  before it all went to the plain URL, so they carry no family and cannot be
+ *  back-filled — a window reaching past this date shows only part of itself.
  *
  *  DEPLOY STEP, same as PAGE_VIEW_SINCE: this is the HOME date. Reset it to
- *  the day the office (and again, production) index actually starts indexing
- *  the field. See backend/activity/MIGRATION.md, "Deploy step: tool_family". */
+ *  the day this frontend build goes live at the office (and again, in
+ *  production). See backend/activity/MIGRATION.md, "Deploy step: tool family". */
 export const TOOL_FAMILY_SINCE = '2026-10-02'
 
 export const toolFamilyNotice = (windowDays: number, today: Date): string | null =>

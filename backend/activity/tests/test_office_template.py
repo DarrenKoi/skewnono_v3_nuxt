@@ -609,7 +609,8 @@ def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
 
 def _family_bucket(family, people, *pages):
     return {
-        "key": family,
+        # The bucket key is the beacon URL the page open was posted to.
+        "key": f"/api/page-view/{family}",
         "doc_count": sum(count for _page, count in pages),
         "openers": {"value": people},
         "pages": {
@@ -682,14 +683,17 @@ def test_family_usage_lists_every_family_from_page_view_rows():
     assert window_start("families_7d").startswith("2026-07-21T00:00:00+09:00")
     assert window_start("families_30d").startswith("2026-06-28T00:00:00+09:00")
     families = body["aggs"]["families_7d"]["aggs"]["families"]
-    assert families["terms"]["field"] == "tool_family"
-    # Only the known vocabulary: a stray value is not a sixth family.
+    # `path` is a keyword the index has always mapped: grouping on the beacon
+    # URL is what lets this run with no change to the index.
+    assert families["terms"]["field"] == "path"
+    # Only the known vocabulary: a stray URL is not a sixth family, and the
+    # plain /api/page-view (a page with no family) is not a row at all.
     assert families["terms"]["include"] == [
-        "cdsem",
-        "hvsem",
-        "veritysem",
-        "provision",
-        "afm",
+        "/api/page-view/cdsem",
+        "/api/page-view/hvsem",
+        "/api/page-view/veritysem",
+        "/api/page-view/provision",
+        "/api/page-view/afm",
     ]
     assert families["aggs"]["openers"]["cardinality"]["field"] == "user_id"
     assert families["aggs"]["pages"]["terms"]["field"] == "feature"

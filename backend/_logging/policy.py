@@ -46,6 +46,12 @@ _BACKGROUND_EXACT = {
 # /api/activity on purpose: that prefix is in _OPERATION_PREFIXES, and
 # nesting the beacon there would need a carve-out inside the precedence
 # chain below — the one place in this module that must stay readable.
+#
+# A page that belongs to a tool family is reported one segment deeper, at
+# /api/page-view/<family>. That is the whole mechanism for knowing the family
+# of a page open: the row's `path` is a keyword the logging index has always
+# mapped, so the activity reader can group on it and the index needs no new
+# field. See page_view_path().
 PAGE_VIEW_PATH = "/api/page-view"
 _BACKGROUND_CHILD_PREFIXES = ("/api/msr-images",)
 _SENSITIVE_QUERY_PARTS = (
@@ -61,6 +67,16 @@ _SENSITIVE_QUERY_PARTS = (
 
 def _at_or_below(path: str, prefix: str) -> bool:
     return path == prefix or path.startswith(prefix + "/")
+
+
+def page_view_path(family: str | None) -> str:
+    """The beacon URL for a page of ``family``, or the plain one for None.
+
+    One definition, used by the route that validates an incoming beacon and by
+    the office reader that groups page opens by family — the two must agree on
+    the spelling or the card reads zeros.
+    """
+    return f"{PAGE_VIEW_PATH}/{family}" if family else PAGE_VIEW_PATH
 
 
 def classify_activity(
@@ -85,7 +101,7 @@ def classify_activity(
         or any(_at_or_below(path, prefix) for prefix in _OPERATION_PREFIXES)
     ):
         return ActivityDecision("operation", 0)
-    if path == PAGE_VIEW_PATH:
+    if _at_or_below(path, PAGE_VIEW_PATH):
         # Promotion is the signal. The handler calls promote_page_view() only
         # when page_to_feature resolved the reported path, so no slug means the
         # page was unrankable (an ops page, a recipe-status without its tab).

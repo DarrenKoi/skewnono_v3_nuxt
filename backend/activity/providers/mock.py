@@ -15,11 +15,12 @@ but day buckets follow ``Asia/Seoul``, matching the office reader's
 ``time_zone`` aggregations — a UTC calendar here would disagree with
 production about "today" for nine hours a day.
 
-``get_family_page_usage`` stands in for the office's ``tool_family`` terms
-aggregation over page-view rows: per family, the people who opened one of its
-pages and the opens per feature. The family arrives with each page view (the
-middleware derives it from the page path), is kept only for page views, and
-every family is listed whether or not anyone came. Seeded page opens are filed
+``get_family_page_usage`` stands in for the office's terms aggregation over
+page-view rows grouped by beacon URL (/api/page-view/<family>): per family,
+the people who opened one of its pages and the opens per feature. There is no
+family field in the index; here the family arrives with each page view (the
+beacon route hands the middleware the family from its URL), is kept only for
+page views, and every family is listed whether or not anyone came. Seeded page opens are filed
 under a family per demo user (``_DEMO_FAMILY``); VeritySEM and Provision stay
 at zero because no page of theirs exists yet — a mock that showed traffic
 there would be inventing a product.

@@ -120,41 +120,31 @@ The same applies again to the production deploy if local and production are
 switched on separately: the date belongs to whichever alias the ranking reads
 (`SKEWNONO_LOG_ENV`).
 
-### Deploy step: `tool_family`
+### Deploy step: tool family
 
-`tool_family` (2026-10-02) is a new field on the logging index, and that index
-is `dynamic: false`. Three things have to happen at the office, **in this
-order**, or the 장비군별 페이지 사용 card stays empty while looking healthy:
+Per-family usage (2026-10-02) needs **no change to the logging index** and
+nothing run against the cluster. There is no family field: a page open is
+posted to `/api/page-view/<family>`, so the family is the row's `path`, a
+keyword the index has mapped from the start. (A dedicated `tool_family` field
+was built first and dropped — the index is `dynamic: false`, so it would have
+required re-running `ops_index_mgmt.skewnono_logging`, and usage statistics
+are not worth changing the index for. `user-confirmed 2026-10-02`.)
 
-1. **Update the index mapping before anything else.** Re-run the provisioning
-   module on the company network:
+Two things at the office:
 
-   ```bash
-   python -m ops_index_mgmt.skewnono_logging --environment all --dry-run
-   python -m ops_index_mgmt.skewnono_logging --environment all
-   ```
-
-   It rewrites the index template *and* calls `put_current_mapping()` against
-   the alias, so the existing indices get the field too — editing
-   `LOG_MAPPING_PROPERTIES` alone changes neither. Until it has run, the
-   writer still ships `tool_family`, and OpenSearch keeps it in `_source`
-   without indexing it: every aggregation on it returns nothing.
-2. **Refresh the adapter copy.** `providers/office.py` is a copy of
+1. **Refresh the adapter copy.** `providers/office.py` is a copy of
    `office_example.py` and does not have `get_family_page_usage` until it is
    refreshed (`python -m scripts.adapters.sync_office_adapters activity`); a
    stale copy answers `/api/activity/families` with
    `503 activity_query_failed`.
-3. **Set `TOOL_FAMILY_SINCE`** in `frontend/app/utils/activityFamily.ts` to
-   the day step 1 ran, before building the frontend — the same rule and the
-   same reason as `PAGE_VIEW_SINCE` above. Documents shipped before step 1 are
-   not re-indexed by a mapping update, and page-view documents never stored the
-   page path, so earlier rows cannot be given a family after the fact.
+2. **Set `TOOL_FAMILY_SINCE`** in `frontend/app/utils/activityFamily.ts` to
+   the day this frontend build goes live, before building — the same rule and
+   the same reason as `PAGE_VIEW_SINCE` above. Page opens before that were all
+   posted to the plain `/api/page-view` and never stored the page path, so
+   they cannot be given a family after the fact.
 
-`OFFICE-VERIFY`: request rows read their family from the `Referer` header
-(see `_logging/activity.py::_tool_family`). Whether the office proxy forwards
-it untouched has not been checked. It does not affect this card — page-view
-rows take the family from the beacon body — only the family on request rows,
-which nothing reads yet.
+A browser still running the previous bundle keeps posting to the plain URL
+until it reloads. Those page opens still rank; they just sit in no family row.
 
 Document timestamps are stored in UTC. The following calendar windows are
 computed in `Asia/Seoul`:
@@ -225,10 +215,12 @@ DAU-style active-user count, and the families do not add up — someone who
 works in two is in both. A page that belongs to no family (the hub, 장비 목록,
 chat, mag-pixel) is in no row.
 
-The office query is one request: a `terms` aggregation on `tool_family`
-restricted with `include` to the five known values, with `cardinality` and a
-`terms` on `feature` under it. No composite paging — the vocabulary is five
-values. Documents written before the field existed fall in no bucket.
+The office query is one request: a `terms` aggregation on `path`, restricted
+with `include` to the five beacon URLs (`/api/page-view/cdsem`, …), with
+`cardinality` and a `terms` on `feature` under it. No composite paging — the
+vocabulary is five values. Page opens posted to the plain `/api/page-view`
+(a page with no family, or one from before the family URLs existed) fall in no
+bucket.
 
 Adding a family to `backend/ebeam/_tool_specs.py` adds it to the logging
 vocabulary, the API slug rules and this response automatically
@@ -274,7 +266,14 @@ Two things to check on the first office run (both `OFFICE-VERIFY`):
 No result is `404 not_found`; a failed OpenSearch query is
 `503 activity_query_failed`.
 
-### `POST /api/page-view`
+### `POST /api/page-view` and `POST /api/page-view/<family>`
+
+The second form is the same beacon for a page that belongs to a tool family;
+the frontend picks it with `pageViewEndpoint()` (`utils/pageIdentity.ts`). The
+handler returns `400` when the URL's family is not the family of the page in
+the body — the URL is what `/families` counts, so it has to be true, and a
+failed request is never a usage event. A family page posted to the plain URL
+is accepted and ranked without a family.
 
 Registered on this same blueprint but deliberately mounted at `/api/page-view`,
 not under `/api/activity` — that prefix is an operation prefix

@@ -206,9 +206,14 @@ def _adapter(name: str):
 | 8 | 사무실 연결 | `cp office_example.py office.py` | 이 복사가 곧 스위치입니다. `GET /api/health/providers` 로 확인합니다 |
 
 사용 통계는 이 8단계에 들어 있지 않습니다. 계열을 `_tool_specs.py` 에
-등록하면 `_logging/feature_map.py` 가 그 명부에서 로그의 `tool_family` 값,
-`/api/<tool_slug>/<page>` 의 feature slug 규칙, `/api/activity/families` 의 행을
-모두 파생하므로 backend 쪽에서 따로 할 일이 없습니다. 손으로 고칠 곳은 하나,
+등록하면 `_logging/feature_map.py` 가 그 명부에서 장비군 목록
+(`/api/page-view/<family>` 로 받는 값), `/api/<tool_slug>/<page>` 의 feature slug
+규칙, `/api/activity/families` 의 행을 모두 파생하므로 backend 쪽에서 따로 할
+일이 없습니다. 로그 인덱스에도 손댈 것이 없습니다 — 장비군은 별도 필드가 아니라
+beacon URL 에 실립니다. frontend 에서 고칠 곳은 둘입니다:
+`frontend/app/utils/toolType.ts` 의 `TOOL_TYPES` · `TOOL_SLUGS` (beacon URL 의
+장비군이 여기서 나오며, backend 와 어긋나면 그 계열의 page open 이 400 으로
+거절됩니다 — `pageIdentityContract.json` 의 `family` 열이 양쪽을 고정합니다)와
 `frontend/app/utils/activityFamily.ts` 의 `KNOWN_FAMILIES` 표시 이름입니다
 (없으면 slug 그대로 보입니다). 새 계열의 **화면**을 추가할 때는 그 경로를
 `_logging/feature_map.py` 의 `_PAGE_RULES` 와 `frontend/app/utils/pageIdentity.ts`
