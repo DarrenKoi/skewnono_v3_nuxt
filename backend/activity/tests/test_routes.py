@@ -1,8 +1,8 @@
 """Route-level auth gate: per-employee enumeration is admin-only.
 
 /activity/me, /activity/summary and /activity/fabs stay open to every
-identified user (aggregates), while /activity/users and /activity/users/<id>
-require a trusted admin identity.
+identified user (aggregates), while /activity/users, /activity/users/<id> and
+/activity/visitors require a trusted admin identity.
 """
 
 import pytest
@@ -29,6 +29,7 @@ def make_client(monkeypatch):
     monkeypatch.setattr(
         routes, "get_user_history", lambda user_id: {"user_id": user_id}
     )
+    monkeypatch.setattr(routes, "get_daily_visitors", lambda: {"days": []})
 
     def build(user_id, identity_source):
         app = Flask(__name__)
@@ -46,7 +47,11 @@ def make_client(monkeypatch):
 
 @pytest.mark.parametrize(
     "path",
-    ["/api/activity/users", "/api/activity/users/2067928"],
+    [
+        "/api/activity/users",
+        "/api/activity/users/2067928",
+        "/api/activity/visitors",
+    ],
 )
 def test_user_enumeration_is_forbidden_for_non_admins(make_client, path):
     client = make_client("1234567", "cookie")
@@ -59,7 +64,11 @@ def test_user_enumeration_is_forbidden_for_non_admins(make_client, path):
 
 @pytest.mark.parametrize(
     "path",
-    ["/api/activity/users", "/api/activity/users/2067928"],
+    [
+        "/api/activity/users",
+        "/api/activity/users/2067928",
+        "/api/activity/visitors",
+    ],
 )
 def test_user_enumeration_is_allowed_for_the_home_admin(make_client, path):
     # local-dev via the trusted local identity source is home's admin.

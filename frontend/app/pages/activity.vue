@@ -171,6 +171,42 @@
         />
       </section>
 
+      <!-- Daily visitors: the DAU card above, one bar per day. Admin-only on
+           the backend (403 otherwise), so the card follows the fetch. -->
+      <UCard
+        v-if="isAdmin"
+        class="dashboard-surface"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-sm font-medium text-(--sk-ink-muted) flex items-center gap-1.5">
+              <UIcon name="i-lucide-user-round-check" />
+              일별 방문자
+              <!-- Says what a bar is: the same people-not-requests count as
+                   DAU, so a reader does not add the bars up into a total the
+                   series cannot give. -->
+              <span class="sk-meta font-normal">· 그날 활동한 사용자 수 (DAU)</span>
+            </span>
+            <div class="flex items-center gap-2">
+              <UBadge
+                color="warning"
+                variant="subtle"
+                size="sm"
+              >
+                관리자 전용
+              </UBadge>
+              <UTabs
+                v-model="visitorWindowKey"
+                :items="VISITOR_WINDOW_TABS"
+                variant="pill"
+                size="xs"
+              />
+            </div>
+          </div>
+        </template>
+        <ActivityVisitorsChart :series="visitorDays" />
+      </UCard>
+
       <!-- Top features bar chart -->
       <UCard class="dashboard-surface">
         <template #header>
@@ -561,9 +597,11 @@ import {
   useActivityFabs,
   useActivitySummary,
   useActivityUsers,
+  useActivityVisitors,
   type FeatureCount,
   type FabUsageRow
 } from '~/composables/useActivityApi'
+import { VISITOR_WINDOW_TABS, visitorWindow, type VisitorWindowKey } from '~/utils/activityVisitors'
 import { activityFeatureLabel, pageViewNotice, rankableFabRows, userDisplayName, userTeamLabel } from '~/utils/activity'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
@@ -600,15 +638,18 @@ const adminLinks = [
 ]
 
 // Summary + fab breakdown are shared activity views, so every viewer fetches
-// them. The users list is admin-only on the backend (403 otherwise), so it is
-// fetched only when /activity/me says the viewer is an admin.
+// them. The users list and the daily visitors are admin-only on the backend
+// (403 otherwise), so they are fetched only when /activity/me says the viewer
+// is an admin.
 const sharedQueries = await Promise.all([
   useActivitySummary(),
   useActivityFabs()
 ]).then(
   ([summary, fabs]) => ({ summary, fabs })
 )
-const usersQuery = isAdmin.value ? await useActivityUsers() : null
+const [usersQuery, visitorsQuery] = isAdmin.value
+  ? await Promise.all([useActivityUsers(), useActivityVisitors()])
+  : [null, null]
 
 const summary = computed(() => sharedQueries.summary.data.value ?? null)
 const users = computed(() => usersQuery?.data.value ?? null)
@@ -618,6 +659,7 @@ const loadError = computed(() => {
   const error = meError.value
     ?? sharedQueries.summary.error.value
     ?? usersQuery?.error.value
+    ?? visitorsQuery?.error.value
     ?? sharedQueries.fabs.error.value
   if (!error) return null
   return operationalDataErrorMessage(
@@ -630,6 +672,7 @@ const refreshing = computed(() => {
   if (meStatus.value === 'pending') return true
   if (sharedQueries.summary.status.value === 'pending') return true
   if (usersQuery?.status.value === 'pending') return true
+  if (visitorsQuery?.status.value === 'pending') return true
   if (sharedQueries.fabs.status.value === 'pending') return true
   return false
 })
@@ -642,6 +685,7 @@ const refreshAll = async () => {
     sharedQueries.fabs.refresh()
   )
   if (usersQuery) jobs.push(usersQuery.refresh())
+  if (visitorsQuery) jobs.push(visitorsQuery.refresh())
   await Promise.all(jobs)
 }
 
@@ -702,6 +746,12 @@ const kpiCards = computed(() => {
     }
   ]
 })
+
+// --- admin: daily visitors window toggle ---
+const visitorWindowKey = ref<VisitorWindowKey>('2w')
+const visitorDays = computed(() =>
+  visitorWindow(visitorsQuery?.data.value?.days ?? [], visitorWindowKey.value)
+)
 
 // --- shared usage: top features window toggle ---
 const windowKey = ref<'7d' | '30d'>('7d')

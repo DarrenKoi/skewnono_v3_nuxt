@@ -237,6 +237,30 @@ types:
       type: array
       items: FabUsageRow
 
+  DailyVisitors:
+    date:
+      type: string
+      format: YYYY-MM-DD (KST)
+    visitors:
+      type: integer
+      description: >-
+        해당 KST 날짜에 request 행(entry, feature)이 1건 이상 있는 distinct
+        user_id 수입니다. DAU와 같은 정의이므로 마지막 항목은
+        SummaryResponse.dau와 같습니다. page_view만 있는 사용자는 세지 않습니다.
+        날짜별 값은 더할 수 없습니다 — 이틀 활동한 사람은 양쪽에 모두 들어갑니다.
+
+  VisitorsResponse:
+    generated_at:
+      type: string
+      format: ISO 8601 UTC
+    days:
+      type: array
+      items: DailyVisitors
+      description: >-
+        오늘을 마지막으로 하는 연속 60 KST 날짜이며 오래된 날짜가 먼저 옵니다.
+        활동이 없는 날도 visitors=0으로 포함합니다. 화면의 2주/1개월/2개월
+        선택은 이 배열을 뒤에서 잘라 쓰며 요청을 다시 보내지 않습니다.
+
 endpoints:
   - path: /api/activity/me
     method: GET
@@ -273,6 +297,18 @@ endpoints:
       - status: 404
         code: not_found
         when: 선택한 alias의 보존 구간에 해당 사용자의 활동 문서가 없음
+
+  - path: /api/activity/visitors
+    method: GET
+    auth: admin
+    description: trailing 60 KST 날짜의 일별 방문자(distinct 활동 사용자) 수입니다.
+    response:
+      status: 200
+      body: VisitorsResponse
+    errors:
+      - status: 403
+        code: forbidden
+        when: 관리자가 아니거나 신뢰할 수 없는 identity source임
 
   - path: /api/activity/fabs
     method: GET

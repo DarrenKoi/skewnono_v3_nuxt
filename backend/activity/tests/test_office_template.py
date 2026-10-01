@@ -515,3 +515,58 @@ def test_activity_query_failures_are_normalized_to_503(
             "message": "Could not query OpenSearch activity",
         }
     }
+
+
+def test_daily_visitors_fills_60_kst_days_with_distinct_request_users():
+    reader, search, _aliases = _reader(
+        [
+            {
+                "aggregations": {
+                    "days": {
+                        "buckets": [
+                            # 40 requests from 3 people is 3 visitors: the
+                            # bar is the cardinality, never the doc_count.
+                            {
+                                "key_as_string": "2026-07-26",
+                                "doc_count": 40,
+                                "users": {"value": 3},
+                            },
+                            {
+                                "key_as_string": "2026-07-27",
+                                "doc_count": 12,
+                                "users": {"value": 2},
+                            },
+                        ]
+                    }
+                }
+            }
+        ]
+    )
+
+    payload = reader.get_daily_visitors()
+
+    assert payload["generated_at"] == "2026-07-27T03:00:00Z"
+    days = payload["days"]
+    assert len(days) == 60
+    # A day the index has no bucket for is a real zero, not a gap.
+    assert days[0] == {"date": "2026-05-29", "visitors": 0}
+    assert days[-2:] == [
+        {"date": "2026-07-26", "visitors": 3},
+        {"date": "2026-07-27", "visitors": 2},
+    ]
+    body = search.bodies[0]
+    filters = body["query"]["bool"]["filter"]
+    # Same population as the DAU card: request rows only, so a page-view-only
+    # opener is not a visitor and today's bar equals SummaryResponse.dau.
+    assert filters[:3] == [
+        {"term": {"event": "request"}},
+        {"term": {"activity_weight": 1}},
+        {"terms": {"activity_kind": ["entry", "feature"]}},
+    ]
+    assert filters[3]["range"]["@timestamp"]["gte"].startswith(
+        "2026-05-29T00:00:00+09:00"
+    )
+    days_agg = body["aggs"]["days"]
+    assert days_agg["date_histogram"]["calendar_interval"] == "day"
+    assert days_agg["date_histogram"]["time_zone"] == "Asia/Seoul"
+    assert days_agg["aggs"]["users"]["cardinality"]["field"] == "user_id"

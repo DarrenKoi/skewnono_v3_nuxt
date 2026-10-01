@@ -8,6 +8,7 @@ from .._auth.errors import error_json
 from .._logging.feature_map import page_to_feature
 from .contracts import NamedUserListResponse
 from .data import (
+    get_daily_visitors,
     get_fab_page_usage,
     get_me,
     get_summary,
@@ -88,6 +89,14 @@ def _named_users_list() -> NamedUserListResponse:
 @require_admin
 def activity_users():
     return _query(_named_users_list)
+
+
+# An aggregate, but one the page offers to the administrator only: it is the
+# site's traffic over time rather than a snapshot every user already sees.
+@bp.get("/activity/visitors")
+@require_admin
+def activity_visitors():
+    return _query(get_daily_visitors)
 
 
 @bp.get("/activity/users/<user_id>")

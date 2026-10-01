@@ -94,6 +94,20 @@ export interface UserListResponse {
   users: UserListRow[]
 }
 
+/** How many distinct people were active on one KST day — the DAU card's
+ *  definition, so the last entry equals `SummaryResponse.dau`. Days are not
+ *  additive: someone active on two days is counted in both. */
+export interface DailyVisitors {
+  date: string
+  visitors: number
+}
+
+/** 60 consecutive KST days, oldest first, today last. Admin-only. */
+export interface VisitorsResponse {
+  generated_at: string
+  days: DailyVisitors[]
+}
+
 export interface UserHistoryResponse {
   user_id: string
   this_month: MeThisMonth
@@ -108,11 +122,13 @@ const ME_KEY = 'activity-me'
 const SUMMARY_KEY = 'activity-summary'
 const USERS_KEY = 'activity-users'
 const FABS_KEY = 'activity-fabs'
+const VISITORS_KEY = 'activity-visitors'
 
 const meSlot = createInFlightSlot<MeResponse>()
 const summarySlot = createInFlightSlot<SummaryResponse>()
 const usersSlot = createInFlightSlot<UserListResponse>()
 const fabsSlot = createInFlightSlot<FabUsageResponse>()
+const visitorsSlot = createInFlightSlot<VisitorsResponse>()
 
 const useActivityUrls = () => {
   const config = useRuntimeConfig()
@@ -122,6 +138,7 @@ const useActivityUrls = () => {
     summaryUrl: joinApiPath(base, '/activity/summary'),
     usersUrl: joinApiPath(base, '/activity/users'),
     fabsUrl: joinApiPath(base, '/activity/fabs'),
+    visitorsUrl: joinApiPath(base, '/activity/visitors'),
     userDetailUrl: (userId: string) =>
       joinApiPath(base, `/activity/users/${encodeURIComponent(userId)}`)
   }
@@ -159,6 +176,14 @@ export const useActivityFabs = () => {
   })
 }
 
+export const useActivityVisitors = () => {
+  const { visitorsUrl } = useActivityUrls()
+  const fetchOnce = () => visitorsSlot.run(() => $fetch<VisitorsResponse>(visitorsUrl))
+  return useAsyncData(VISITORS_KEY, fetchOnce, {
+    getCachedData: payloadCacheOnInitial
+  })
+}
+
 // User detail is fetched on-demand (not cached via useAsyncData) because the
 // admin clicks individual rows ad hoc; each click is a fresh read.
 export const fetchUserHistory = async (userId: string): Promise<UserHistoryResponse> => {
@@ -172,4 +197,5 @@ export const resetActivityCache = () => {
   summarySlot.reset()
   usersSlot.reset()
   fabsSlot.reset()
+  visitorsSlot.reset()
 }

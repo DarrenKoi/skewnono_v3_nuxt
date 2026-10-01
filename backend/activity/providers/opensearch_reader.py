@@ -20,12 +20,14 @@ from backend.activity.contracts import (
     UserHistoryResponse,
     UserListResponse,
     UserListRow,
+    VisitorsResponse,
 )
 from backend.activity.providers.shared import (
     KST,
     RECENT_FEATURES_CAP,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
+    VISITOR_DAYS,
 )
 
 COMPOSITE_PAGE_SIZE = 1000
@@ -430,6 +432,74 @@ class ActivityOpenSearchReader:
             "top_features_30d": _feature_rows(
                 aggregations.get("top_features_30d", {}).get("items", {})
             ),
+        }
+
+    def get_daily_visitors(self) -> VisitorsResponse:
+        """Distinct active people per KST day — the DAU card, one bar per day."""
+        now = self._now()
+        start = _kst_day_start(now, VISITOR_DAYS - 1)
+        response = self._search(
+            {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            # Narrowed for the whole query, as in _fab_window:
+                            # the DAU card counts request rows, so admitting
+                            # page views here would make today's bar disagree
+                            # with the number printed above it.
+                            *_activity_filters(kinds=REQUEST_KINDS),
+                            {
+                                "range": {
+                                    "@timestamp": {
+                                        "gte": start.isoformat(),
+                                        "lte": now.isoformat(),
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                },
+                "aggs": {
+                    "days": {
+                        "date_histogram": {
+                            "field": "@timestamp",
+                            "calendar_interval": "day",
+                            "time_zone": "Asia/Seoul",
+                            "format": "yyyy-MM-dd",
+                        },
+                        "aggs": {
+                            "users": {
+                                "cardinality": {
+                                    "field": "user_id",
+                                    "precision_threshold": (
+                                        CARDINALITY_PRECISION
+                                    ),
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        )
+        by_day = _day_buckets(response.get("aggregations", {}))
+        first = start.date()
+        # Walked in Python rather than left to extended_bounds, like _history:
+        # a quiet day has no bucket at all, and the chart needs it as a zero.
+        return {
+            "generated_at": _iso_utc(now),
+            "days": [
+                {
+                    "date": day,
+                    "visitors": int(
+                        by_day.get(day, {}).get("users", {}).get("value", 0)
+                    ),
+                }
+                for day in (
+                    (first + timedelta(days=offset)).isoformat()
+                    for offset in range(VISITOR_DAYS)
+                )
+            ],
         }
 
     def get_users_list(self) -> UserListResponse:

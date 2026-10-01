@@ -21,6 +21,8 @@ __all__ = [
     "FabPageCount",
     "FabUsageRow",
     "FabUsageResponse",
+    "DailyVisitors",
+    "VisitorsResponse",
 ]
 
 
@@ -159,3 +161,24 @@ class FabUsageResponse(TypedDict):
     generated_at: str
     fabs_7d: list[FabUsageRow]
     fabs_30d: list[FabUsageRow]
+
+
+class DailyVisitors(TypedDict):
+    """How many distinct people were active on one KST day.
+
+    Not ``VisitCount``: that one counts one person's page opens, this one
+    counts people. The definition is the DAU card's — a person with at least
+    one request row that day — so the last entry equals ``SummaryResponse.dau``.
+    Days are not additive: someone active on two days is in both, so summing
+    a window overstates how many people it held.
+    """
+
+    date: str
+    visitors: int
+
+
+class VisitorsResponse(TypedDict):
+    """``VISITOR_DAYS`` consecutive KST days, oldest first, today last."""
+
+    generated_at: str
+    days: list[DailyVisitors]

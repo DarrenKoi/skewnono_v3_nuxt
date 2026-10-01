@@ -226,3 +226,33 @@ def test_seeded_home_identity_fills_the_visit_calendar_without_losing_counts(
     for user_id, _fab, requests, _views, days_back in mock._DEMO_USERS:
         if days_back <= mock.SPARKLINE_DAYS:
             assert sum(fresh_store[user_id].daily.values()) == sum(requests.values())
+
+
+def test_daily_visitors_counts_distinct_people_per_kst_day_over_60_days(
+    fresh_store, monkeypatch
+):
+    # 2026-09-12 01:00 KST — still the 11th in UTC, so a UTC calendar would
+    # put today's visitors on the wrong day.
+    monkeypatch.setattr(
+        mock, "_now", lambda: datetime(2026, 9, 11, 16, tzinfo=timezone.utc)
+    )
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    state = fresh_store["u1"]
+    state.daily[date(2026, 7, 15)] = 4  # 59 days back: the window's first day
+    state.daily[date(2026, 7, 14)] = 9  # 60 days back: out of every window
+    # Three requests from one person are one visitor, not three.
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u2", "sem_list", "entry", [])
+    # A page open alone is not a visitor: the DAU card beside this chart
+    # counts request rows, and today's bar has to agree with it.
+    mock.record_request("u3", "mag_pixel", "page_view", [])
+
+    days = mock.get_daily_visitors()["days"]
+
+    assert len(days) == 60
+    assert days[0] == {"date": "2026-07-15", "visitors": 1}
+    assert days[-2] == {"date": "2026-09-11", "visitors": 0}
+    assert days[-1] == {"date": "2026-09-12", "visitors": 2}
+    assert days[-1]["visitors"] == mock.get_summary()["dau"]
+    assert date(2026, 7, 14) not in state.daily

@@ -20,6 +20,7 @@ from backend.activity.contracts import (
     SummaryResponse,
     UserHistoryResponse,
     UserListResponse,
+    VisitorsResponse,
 )
 
 
@@ -29,6 +30,10 @@ def test_summary_matches_contract():
 
 def test_fab_page_usage_matches_contract():
     assert_matches(data.get_fab_page_usage(), FabUsageResponse)
+
+
+def test_daily_visitors_matches_contract():
+    assert_matches(data.get_daily_visitors(), VisitorsResponse)
 
 
 def test_users_list_matches_contract():

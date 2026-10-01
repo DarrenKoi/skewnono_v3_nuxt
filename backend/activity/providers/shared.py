@@ -17,3 +17,6 @@ TOP_FEATURES_CAP = 10
 RECENT_FEATURES_CAP = 5
 SPARKLINE_DAYS = 30
 VISIT_DAYS = 90
+#: How far back the admin 일별 방문자 chart reads. The page offers 2주 /
+#: 1개월 / 2개월 and slices this one series for all three.
+VISITOR_DAYS = 60

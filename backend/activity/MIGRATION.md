@@ -175,6 +175,20 @@ row for that empno or cannot be reached, and either can be `null` on its own
 because a member document may be partial; the table then shows the employee
 number alone and a dash for the team.
 
+### `GET /api/activity/visitors`
+
+**Admin only** (`403 forbidden` otherwise). Returns `days`: 60 consecutive KST
+days, oldest first and today last, each with `visitors` — the `user_id`
+cardinality of that day's request rows (`entry` and `feature`). That is the DAU
+definition applied per day, so the last entry equals `/summary`'s `dau`, and a
+person who only opened a page (a `page_view` row) is not counted. A day with
+no documents is returned as `0`, not omitted. The page offers 2주 / 1개월 /
+2개월 and slices this one response for all three. The values are not
+additive: someone active on two days is in both.
+
+It is one `date_histogram` (`time_zone: Asia/Seoul`) with a `cardinality`
+sub-aggregation — no composite paging.
+
 ### `GET /api/activity/users/<user_id>`
 
 **Admin only** (`403 forbidden` otherwise). Returns the personal history shape.
@@ -201,11 +215,12 @@ happen once, in the shared middleware, not in a provider adapter.
 
 `/me`, `/summary` and `/fabs` are open to every identified user — they are
 aggregates, and a person's own history is theirs to see. The two `/users`
-routes enumerate activity per employee, so they are gated with
-`_auth.admin.require_admin`, which requires both an admin id **and** a trusted
+routes enumerate activity per employee, and `/visitors` is the site's traffic
+over time, which the page shows to the administrator only, so all three are
+gated with `_auth.admin.require_admin`, which requires both an admin id **and** a trusted
 identity source (a self-declared identity that types an admin's employee
 number does not pass). The frontend reads `is_admin` off `/api/activity/me`
-and skips the users fetch entirely for non-admins, so the gate is never the
+and skips the users and visitors fetches entirely for non-admins, so the gate is never the
 first thing a normal user hits.
 
 ## Write path
@@ -254,6 +269,7 @@ SKEWNONO_LOG_ENV=local \
   .venv/bin/python -m pytest backend/activity -q
 ```
 
-Then start Flask and check `/api/activity/me`, `/summary`, `/fabs` and `/users`.
+Then start Flask and check `/api/activity/me`, `/summary`, `/fabs`, `/users` and
+`/visitors`.
 Also confirm that with the OpenSearch connection briefly blocked, the response
 returns `503 activity_query_failed` rather than leaking a raw cluster error.

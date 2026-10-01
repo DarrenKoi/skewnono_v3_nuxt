@@ -14,6 +14,11 @@ read as never-seen while ranking in the page list. Timestamps stay UTC
 but day buckets follow ``Asia/Seoul``, matching the office reader's
 ``time_zone`` aggregations — a UTC calendar here would disagree with
 production about "today" for nine hours a day.
+
+``get_daily_visitors`` reads the same request rows as the DAU count, one KST
+day at a time over ``VISITOR_DAYS``: a person is a visitor on a day they made
+at least one request. Page opens do not count, so today's entry always equals
+``get_summary()["dau"]`` — the office reader filters to the same kinds.
 """
 
 from __future__ import annotations
@@ -37,6 +42,7 @@ from ..contracts import (
     UserHistoryResponse,
     UserListResponse,
     UserListRow,
+    VisitorsResponse,
 )
 from .shared import (
     KST,
@@ -44,6 +50,7 @@ from .shared import (
     SPARKLINE_DAYS,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
+    VISITOR_DAYS,
 )
 
 
@@ -177,14 +184,15 @@ def _merge_counts(
 def _prune_old_days(state: _UserState, today: date) -> None:
     """Drop day buckets no read window can reach, so state stays bounded.
 
-    Visits retain 90 days. Request and ranking detail retain 30 days or the
-    whole current month, whichever is wider.
+    Visits retain 90 days. Request and ranking detail retain 60 days (the
+    일별 방문자 chart reads ``daily`` that far back) or the whole current
+    month, whichever is wider.
     """
     visit_cutoff = today - timedelta(days=VISIT_DAYS - 1)
     for day in [day for day in state.visits if day < visit_cutoff]:
         del state.visits[day]
     cutoff = min(
-        today - timedelta(days=SPARKLINE_DAYS - 1),
+        today - timedelta(days=max(SPARKLINE_DAYS, VISITOR_DAYS) - 1),
         today.replace(day=1),
     )
     for bucket in (
@@ -346,6 +354,26 @@ def get_summary() -> SummaryResponse:
     }
 
 
+def get_daily_visitors() -> VisitorsResponse:
+    """Distinct active people per KST day — the DAU card, one bar per day."""
+    today = _today()
+    days = [
+        today - timedelta(days=offset)
+        for offset in range(VISITOR_DAYS - 1, -1, -1)
+    ]
+    with _lock:
+        rows = [
+            {
+                "date": day.isoformat(),
+                "visitors": sum(
+                    1 for state in _users.values() if state.daily.get(day, 0) > 0
+                ),
+            }
+            for day in days
+        ]
+    return {"generated_at": _iso(_now()), "days": rows}
+
+
 def get_users_list() -> UserListResponse:
     today = _today()
     cutoff = today - timedelta(days=29)
@@ -443,7 +471,12 @@ def get_fab_page_usage() -> FabUsageResponse:
 #
 # ``local-dev`` is home's own identity, so it is the one row /activity renders
 # as "me". It gets the full 90-day visit window so the calendar has something
-# to draw; the peers keep short histories so the user table still shows a range.
+# to draw. The peers' histories are staggered — 60, 40, 21, 6 and 4 days — so
+# the user table still shows a range AND the admin 일별 방문자 chart has more
+# than one person to count on its 1개월/2개월 tabs; with every peer inside two
+# weeks it drew a flat 1 for the six weeks before that. OFFICE-VERIFY: the
+# head-count and its slow climb are fabricated — the real daily visitor
+# numbers have not been read off the office index.
 #
 # Page-view totals are listed separately, not derived from the request totals:
 # the two have no fixed ratio in reality (mag-pixel makes no requests at all,
@@ -455,21 +488,21 @@ _DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
         "M14",
         {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},
         {"recipe_search": 34, "meas_hist": 12, "fail_issue": 9, "mag_pixel": 4},
-        14,
+        VISITOR_DAYS,
     ),
     (
         "park.jinho",
         "M16B",
         {"recipe_search": 190, "sem_list": 120, "recipe_tat": 65, "storage": 25},
         {"recipe_search": 28, "recipe_tat": 15, "storage": 11, "live_alarm": 6},
-        12,
+        40,
     ),
     (
         "lee.soyoung",
         "M11",
         {"sem_list": 140, "storage": 80, "fail_issue": 55, "hardware": 20},
         {"storage": 22, "fail_issue": 14, "hardware": 8, "live_alarm": 5},
-        9,
+        21,
     ),
     (
         "choi.eunwoo",

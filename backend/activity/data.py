@@ -12,6 +12,7 @@ __all__ = [
     "get_me",
     "get_summary",
     "get_fab_page_usage",
+    "get_daily_visitors",
     "get_users_list",
     "get_user_history",
     "record_request",
@@ -37,6 +38,10 @@ def get_summary():
 
 def get_fab_page_usage():
     return _provider().get_fab_page_usage()
+
+
+def get_daily_visitors():
+    return _provider().get_daily_visitors()
 
 
 def get_users_list():
