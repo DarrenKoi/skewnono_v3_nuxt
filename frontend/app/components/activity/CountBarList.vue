@@ -3,9 +3,13 @@
     v-if="visible.length"
     class="space-y-2.5"
   >
+    <!-- Keyed by position, not by label: a label is a display name, and two
+         people can share one. Duplicate keys made Vue reuse the wrong node on
+         refresh and leave a stale extra row behind. The rows hold no state,
+         so position is all the identity they need. -->
     <div
-      v-for="row in visible"
-      :key="row.label"
+      v-for="(row, index) in visible"
+      :key="index"
       class="space-y-1"
     >
       <div class="flex items-baseline justify-between gap-2 text-xs">

@@ -568,22 +568,41 @@ def test_a_shared_page_stays_unattributed_even_on_a_family_api(make_app, records
     assert _family(records) is None
 
 
-@pytest.mark.parametrize(
-    "headers",
-    [
-        {},
-        # An origin-only referrer policy sends the bare origin: it names no
-        # page, which is "cannot tell" rather than "the hub".
-        {"Referer": f"{_PAGE}/"},
-        {"Referer": _PAGE},
-    ],
-)
-def test_with_no_page_to_read_the_api_path_decides(make_app, records, headers):
+def test_the_hub_is_a_page_with_no_family_too(make_app, records):
+    """`/` is the hub, not a missing page. The SPA and the API are same-origin
+    in every phase, so the browser sends the full page URL and a bare `/` means
+    exactly what it says."""
     client = make_app(user_id="2067928")
 
-    client.get("/api/cdsem/ppid-unavailable", headers=headers)
+    for referer in (f"{_PAGE}/", _PAGE):
+        records.clear()
+        client.get("/api/cdsem/ppid-unavailable", headers={"Referer": referer})
+        assert _family(records) is None, referer
+
+
+def test_with_no_referer_the_api_path_decides(make_app, records):
+    """The only case the weaker signal is used: there is no page to read."""
+    client = make_app(user_id="2067928")
+
+    client.get("/api/cdsem/ppid-unavailable")
 
     assert _family(records) == "cdsem"
+
+
+@pytest.mark.parametrize(
+    "referer",
+    ["http://[", "http://example.test:not-a-port/ebeam/hv-sem/R3/storage"],
+)
+def test_an_unparsable_referer_never_fails_the_request(make_app, records, referer):
+    """The header is whatever the client sent. urlsplit raises on a broken
+    IPv6 literal, and this runs in after_request — so an unguarded parse
+    turned a successful response into a 500, over a telemetry field."""
+    client = make_app(user_id="2067928")
+
+    response = client.get("/api/cdsem/ppid-unavailable", headers={"Referer": referer})
+
+    assert response.status_code == 200
+    assert _only(records, "request").status == 200
 
 
 def test_a_beacon_reports_the_family_of_the_page_it_names(make_app, records, recorded):

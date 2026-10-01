@@ -84,10 +84,13 @@ def _tool_family(path: str) -> str | None:
        consulted: it is whichever page the router had not left yet.
     2. For every other request, the page the caller is on, read from the
        Referer. Also authoritative including None: a request from 장비 목록
-       belongs to no family even when it calls /api/cdsem/…, and a page may
-       legitimately call another family's API.
-    3. The API path, only when there is no page to read — no Referer at all,
-       or just a bare origin (what an origin-only referrer policy sends).
+       or from the hub at ``/`` belongs to no family even when it calls
+       /api/cdsem/…, and a page may legitimately call another family's API.
+       The SPA and the API are same-origin in every phase, so the browser
+       sends the full page URL and a bare ``/`` is the hub, not a stripped
+       path.
+    3. The API path, only when there is no page to read — no Referer, or one
+       that does not parse.
 
     Only the URL's path is read; its origin is deliberately not validated.
     This is a telemetry dimension on rows from already-identified users, the
@@ -96,9 +99,16 @@ def _tool_family(path: str) -> str | None:
     """
     if getattr(g, "_activity_page_slug", None):
         return getattr(g, "_activity_page_family", None)
-    page_path = urlsplit(request.referrer or "").path.rstrip("/")
-    if page_path:
-        return page_to_family(page_path)
+    referrer = request.referrer
+    if referrer:
+        try:
+            return page_to_family(urlsplit(referrer).path)
+        except ValueError:
+            # The header is whatever the client sent, and urlsplit raises on
+            # e.g. a broken IPv6 literal. This runs in after_request: letting
+            # it escape would turn a response that already succeeded into a
+            # 500 over a telemetry field. An unreadable page is no page.
+            pass
     return route_to_family(path)
 
 

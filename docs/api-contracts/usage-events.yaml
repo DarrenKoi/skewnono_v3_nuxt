@@ -143,8 +143,9 @@ mapping:
     description: >-
       그 활동이 속한 장비군입니다. feature slug와 별개의 축이며, 어느 계열에도
       속하지 않는 행에는 필드가 없습니다. page_view 행은 beacon이 보낸 화면
-      경로에서, 그 밖의 요청은 Referer의 화면 경로에서, Referer가 없을 때에만
-      API 경로에서 정합니다. 2026-10-02부터 기록하며 이전 문서에는 없습니다.
+      경로에서, 그 밖의 요청은 Referer의 화면 경로에서(허브 `/` 포함, 계열이
+      없는 화면이면 없음으로 확정), Referer가 없거나 해석할 수 없을 때에만 API
+      경로에서 정합니다. 2026-10-02부터 기록하며 이전 문서에는 없습니다.
   error_code:
     type: keyword
     optional: true

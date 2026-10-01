@@ -61,8 +61,10 @@ tool_family -> keyword: 그 활동이 속한 장비군 — cdsem | hvsem | verit
     2. 그 밖의 요청 — Referer 의 화면 경로가 속한 계열입니다. 공용 API
        (msr-file, meas-hist, sem-list)는 경로에 계열이 없고, 한 화면이 다른
        계열의 API 를 부를 수도 있어서 "사용자가 보고 있던 화면"을 기준으로
-       합니다. 계열이 없는 화면에서 온 요청은 /api/cdsem/… 을 불렀어도 없음입니다.
-    3. Referer 가 없거나 origin 만 있을 때에만 API 경로(/api/<tool_slug>/…,
+       합니다. 계열이 없는 화면(허브 `/` 포함)에서 온 요청은 /api/cdsem/… 을
+       불렀어도 없음입니다. SPA 와 API 는 모든 phase 에서 same-origin 이라
+       브라우저가 화면 경로 전체를 보내므로 `/` 는 잘린 경로가 아니라 허브입니다.
+    3. Referer 가 없거나 해석할 수 없을 때에만 API 경로(/api/<tool_slug>/…,
        /api/afm, /api/afm-files)로 추정합니다 (route_to_family).
   2026-10-02 이전 문서에는 이 필드가 없고, page_view 문서는 화면 경로를 저장하지
   않았으므로 소급해 채울 수 없습니다. 장비군별 집계는 배포 시점부터 채워집니다.
