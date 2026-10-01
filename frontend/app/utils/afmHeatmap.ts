@@ -1,21 +1,15 @@
 // Pure heatmap analysis helpers for the AFM wafer heat map. No DOM/Nuxt imports
 // so they run under `node --test`; HeatmapChart.vue wires them into useEchart.
+import { meanOf, populationStd } from './afmHistogram.ts'
+import { quantileSorted } from './stats.ts'
 import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
 
 export type OutlierMethod = 'none' | 'iqr' | 'zscore'
-export type HeatmapColorScheme = 'spectral' | 'viridis' | 'grayscale'
 
 export const OUTLIER_DEFAULT_THRESHOLD: Record<OutlierMethod, number> = {
   none: 0,
   iqr: 1.5,
   zscore: 3
-}
-
-// 'spectral' MUST match the pre-existing heatmap ramp so the default look is unchanged.
-export const HEATMAP_COLOR_RAMPS: Record<HeatmapColorScheme, string[]> = {
-  spectral: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
-  viridis: ['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725'],
-  grayscale: ['#111827', '#6b7280', '#e5e7eb']
 }
 
 export interface HeatmapFilterResult {
@@ -28,25 +22,6 @@ export interface HeatmapStats {
   min: number
   max: number
   mean: number
-}
-
-const mean = (nums: number[]): number =>
-  nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0
-
-const stdev = (nums: number[], mu: number): number => {
-  if (nums.length < 2) return 0
-  const variance = nums.reduce((a, b) => a + (b - mu) ** 2, 0) / nums.length
-  return Math.sqrt(variance)
-}
-
-// Linear-interpolated quantile on an ascending-sorted array; p in [0, 1].
-const quantile = (sortedAsc: number[], p: number): number => {
-  if (sortedAsc.length === 0) return 0
-  if (sortedAsc.length === 1) return sortedAsc[0]!
-  const pos = (sortedAsc.length - 1) * p
-  const lo = Math.floor(pos)
-  const hi = Math.ceil(pos)
-  return sortedAsc[lo]! + (sortedAsc[hi]! - sortedAsc[lo]!) * (pos - lo)
 }
 
 export const filterProfileByOutlier = (
@@ -63,15 +38,15 @@ export const filterProfileByOutlier = (
   let upper: number
 
   if (method === 'zscore') {
-    const mu = mean(zs)
-    const sd = stdev(zs, mu)
+    const mu = meanOf(zs)
+    const sd = populationStd(zs, mu)
     if (sd === 0) return { kept: points, removed: 0 }
     lower = mu - threshold * sd
     upper = mu + threshold * sd
   } else {
     const sorted = [...zs].sort((a, b) => a - b)
-    const q1 = quantile(sorted, 0.25)
-    const q3 = quantile(sorted, 0.75)
+    const q1 = quantileSorted(sorted, 0.25)
+    const q3 = quantileSorted(sorted, 0.75)
     const iqr = q3 - q1
     if (iqr === 0) return { kept: points, removed: 0 }
     lower = q1 - threshold * iqr

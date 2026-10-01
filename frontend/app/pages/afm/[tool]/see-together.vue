@@ -1,333 +1,193 @@
 <template>
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
-    <section class="dashboard-surface rounded-3xl p-5 md:p-6">
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div class="flex min-w-0 items-start gap-3">
-          <AppBackButton
-            :to="`/afm/${toolId}`"
-            label="Back to search"
-            class="mt-0.5 shrink-0"
-          />
-          <div class="min-w-0">
-            <AfmBreadcrumb
-              :tool="toolId"
-              current="See Together"
-              class="mb-2"
-            />
-            <h1 class="text-xl md:text-2xl font-semibold tracking-tight">
-              Time series comparison
-            </h1>
-            <p class="sk-meta mt-1">
-              {{ toolName }} - {{ groupedItems.length }} selected measurements
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section
-      v-if="groupedItems.length === 0"
-      class="dashboard-surface rounded-2xl px-4 py-14 text-center"
+    <EbeamMetaBar
+      :eyebrow="`AFM · ${toolName}`"
+      title="AFM 시계열 비교"
+      :subtitle="`선택한 측정 ${groupedItems.length}건`"
     >
-      <UIcon
-        name="i-lucide-layers-2"
-        class="mx-auto h-10 w-10 text-(--sk-ink-muted)"
-      />
-      <h2 class="mt-3 text-base font-semibold">
-        No grouped measurements
-      </h2>
-      <p class="mt-1 sk-body">
-        Add AFM recipes to Data Grouping before opening See Together.
-      </p>
-    </section>
+      <template #leading>
+        <AppBackButton
+          :to="`/afm/${toolId}`"
+          label="검색으로"
+        />
+      </template>
+    </EbeamMetaBar>
+
+    <AppEmptyState
+      v-if="groupedItems.length === 0"
+      icon="i-lucide-layers-2"
+      title="그룹에 담긴 측정이 없습니다."
+      description="검색 화면에서 측정을 데이터 그룹에 추가한 뒤 다시 여세요."
+    />
 
     <template v-else>
-      <section class="dashboard-surface rounded-2xl">
-        <header class="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-list-checks"
-              class="h-4 w-4 text-(--sk-ink-muted)"
-            />
-            <h2 class="sk-title">
-              Selected measurements
-            </h2>
-          </div>
-          <UBadge
-            :label="String(groupedItems.length)"
-            color="primary"
-            size="xs"
-            variant="subtle"
-          />
-        </header>
-
-        <ul class="grid gap-px divide-y divide-zinc-200 dark:divide-zinc-800">
+      <AfmCard
+        icon="i-lucide-list-checks"
+        title="선택한 측정"
+        :count="groupedItems.length"
+        flush
+      >
+        <ul class="divide-y divide-(--sk-border-soft)">
           <li
             v-for="item in sortedGroupedItems"
             :key="item.filename"
             class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5"
           >
-            <span class="font-mono text-xs font-semibold tabular-nums">
+            <span class="sk-value-num font-semibold">
               {{ item.formattedDate }}
             </span>
             <span class="truncate text-sm font-medium">
               {{ item.recipeName }}
             </span>
-            <span class="font-mono text-xs text-(--sk-ink-muted)">
+            <span class="sk-value-num">
               {{ item.lotId }}
             </span>
             <UBadge
               :label="`Slot ${item.slotNumber}`"
-              size="xs"
               color="neutral"
               variant="subtle"
             />
             <UBadge
               :label="item.measuredInfo"
-              size="xs"
               color="neutral"
               variant="outline"
             />
           </li>
         </ul>
-      </section>
+      </AfmCard>
 
       <UAlert
-        v-if="failedLoads.length > 0"
+        v-if="failedCount > 0"
         color="warning"
         variant="soft"
         icon="i-lucide-triangle-alert"
-        :title="`${failedLoads.length} measurements could not be loaded`"
-        description="The chart below uses the measurements that returned valid AFM detail data."
+        :title="`측정 ${failedCount}건을 불러오지 못했습니다.`"
+        description="아래 차트는 불러온 측정만 사용합니다."
       />
 
-      <section class="dashboard-surface rounded-2xl">
-        <header class="flex flex-col gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800 lg:flex-row lg:items-center lg:justify-between">
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-chart-no-axes-combined"
-              class="h-4 w-4 text-(--sk-ink-muted)"
-            />
-            <h2 class="sk-title">
-              Time series
-            </h2>
-            <span class="sk-meta">
-              {{ loadedPayloads.length }} loaded
-            </span>
-          </div>
-
+      <AfmCard
+        icon="i-lucide-chart-no-axes-combined"
+        title="시계열"
+        :count="loaded.length"
+      >
+        <template #actions>
           <div class="flex flex-wrap items-center gap-2">
             <USelect
               v-model="selectedSite"
               :items="siteItems"
               size="xs"
               class="min-w-28"
-              aria-label="Site"
+              aria-label="사이트"
             />
             <USelect
               v-model="selectedItem"
-              :items="statisticItems"
+              :items="AFM_SUMMARY_ITEMS"
               size="xs"
               class="min-w-28"
-              aria-label="Statistic"
+              aria-label="통계 항목"
             />
             <USelect
               v-model="selectedColumn"
-              :items="measurementColumnItems"
+              :items="columnItems"
               size="xs"
               class="min-w-36"
-              aria-label="Measurement column"
+              aria-label="측정 항목"
             />
           </div>
-        </header>
+        </template>
 
-        <div class="p-4">
-          <AppLoadingState
-            v-if="pending"
-            variant="inline"
-            class="h-96"
-            title="측정 상세 데이터를 불러오는 중입니다."
-          />
-          <div
-            v-else-if="loadedPayloads.length === 0"
-            class="flex h-96 items-center justify-center text-center sk-body"
-          >
-            No measurement details were loaded.
-          </div>
-          <div
-            v-else-if="!selectedSite || !selectedColumn"
-            class="flex h-96 items-center justify-center text-center sk-body"
-          >
-            Select a site and measurement column.
-          </div>
-          <AfmTrendTimeSeriesChart
-            v-else
-            :series="chartSeries"
-            :selected-column="selectedColumn"
-            :export-name="`${toolId}-trend`"
-          />
-        </div>
-      </section>
+        <AppLoadingState
+          v-if="pending"
+          variant="inline"
+          class="h-96"
+          title="측정 상세 데이터를 불러오는 중입니다."
+        />
+        <AfmTrendTimeSeriesChart
+          v-else
+          :points="chartPoints"
+          :series-name="selectedSite"
+          :y-name="selectedColumn"
+          :export-name="`${toolId}-trend`"
+        />
+      </AfmCard>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { AfmGroupedEntry } from '~/composables/useAfmCart'
-import type {
-  AfmDetailPayload,
-  AfmSummaryItem,
-  AfmSummaryRow
-} from '~/composables/useAfmDetailApi'
+import type { AfmSummaryItem } from '~/composables/useAfmDetailApi'
 import { AFM_SUMMARY_ITEMS } from '~/composables/useAfmDetailApi'
 
+// `key` remounts the page per tool, so the route params are read once.
 definePageMeta({
   layout: 'hub',
   key: route => route.path
 })
 
-interface LoadedMeasurement {
-  measurement: AfmGroupedEntry
-  payload: AfmDetailPayload | null
-  error: string | null
-}
-
-interface AfmTrendPoint {
-  timestamp: string
-  value: number
-  lotId: string
-  recipe: string
-  filename: string
-  site: string
-}
-
-interface AfmTrendSeries {
-  name: string
-  data: AfmTrendPoint[]
-}
-
-const route = useRoute()
-const toolId = computed(() => String(route.params.tool ?? ''))
-const toolName = computed(() => toolId.value.toUpperCase())
-const cart = useAfmCart(toolId.value)
+const toolId = String(useRoute().params.tool ?? '')
+const toolName = toolId.toUpperCase()
+const { groupedData: groupedItems } = useAfmCart(toolId)
 const { fetchDetail } = useAfmDetailApi()
 
-const groupedItems = computed(() => cart.groupedData.value)
 const sortedGroupedItems = computed(() =>
   [...groupedItems.value].sort((a, b) => a.formattedDate.localeCompare(b.formattedDate))
 )
-const groupKey = computed(() =>
-  groupedItems.value.map(item => `${item.toolId}:${item.filename}`).sort().join('|')
+const groupKey = computed(() => groupedItems.value.map(item => item.filename).sort().join('|'))
+
+// One request per grouped measurement. A failed one resolves to a null payload,
+// so the rest still chart and the alert above the chart counts what is missing.
+const { data: results, pending } = useAsyncData(
+  `afm-see-together:${toolName}`,
+  () => Promise.all(groupedItems.value.map(async measurement => ({
+    measurement,
+    payload: await fetchDetail(toolName, measurement.filename)
+      .then(res => res.success ? res.data : null, () => null)
+  }))),
+  { watch: [groupKey], default: () => [] }
 )
 
-const { data: loadedMeasurements, pending } = await useAsyncData(
-  `afm-see-together:${toolName.value}`,
-  async (): Promise<LoadedMeasurement[]> => {
-    if (groupedItems.value.length === 0) return []
-
-    return await Promise.all(groupedItems.value.map(async (measurement) => {
-      const measurementTool = measurement.toolId ? measurement.toolId.toUpperCase() : toolName.value
-      try {
-        const response = await fetchDetail(measurementTool, measurement.filename)
-        return {
-          measurement,
-          payload: response.success ? response.data : null,
-          error: response.success ? null : 'Detail response was not successful'
-        }
-      } catch (error) {
-        return {
-          measurement,
-          payload: null,
-          error: error instanceof Error ? error.message : 'Detail request failed'
-        }
-      }
-    }))
-  },
-  { watch: [groupKey] }
+const loaded = computed(() =>
+  results.value.flatMap(({ measurement, payload }) => payload ? [{ measurement, payload }] : [])
 )
+const failedCount = computed(() => results.value.length - loaded.value.length)
 
-const loadedRows = computed(() => loadedMeasurements.value ?? [])
-const loadedPayloads = computed(() => loadedRows.value.filter(row => row.payload))
-const failedLoads = computed(() => loadedRows.value.filter(row => row.error))
-
-const statisticItems = [...AFM_SUMMARY_ITEMS]
 const selectedSite = ref('')
 const selectedItem = ref<AfmSummaryItem>('MEAN')
 const selectedColumn = ref('')
 
-const naturalCompare = (a: string, b: string) =>
-  a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+const naturalSort = (values: Iterable<string>) =>
+  [...new Set(values)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
 
-const siteItems = computed(() => {
-  const sites = new Set<string>()
-  for (const row of loadedPayloads.value) {
-    for (const site of row.payload?.available_points ?? []) sites.add(site)
-    for (const summaryRow of row.payload?.summary ?? []) {
-      if (summaryRow.Site) sites.add(summaryRow.Site)
-    }
-  }
-  return Array.from(sites).sort(naturalCompare)
-})
+const siteItems = computed(() =>
+  naturalSort(loaded.value.flatMap(({ payload }) => payload.summary.map(row => row.Site)))
+)
+const columnItems = computed(() =>
+  naturalSort(loaded.value.flatMap(({ payload }) => summaryColumns(payload.summary)))
+    .filter(column => column.toLowerCase().includes('nm'))
+)
 
-const measurementColumnItems = computed(() => {
-  const columns = new Set<string>()
-  for (const row of loadedPayloads.value) {
-    const summary = row.payload?.summary ?? []
-    for (const summaryRow of summary) {
-      for (const key of Object.keys(summaryRow)) {
-        if (key !== 'Site' && key !== 'ITEM' && key.toLowerCase().includes('nm')) {
-          columns.add(key)
-        }
-      }
-    }
-  }
-  return Array.from(columns).sort(naturalCompare)
-})
-
+// Keep each pick valid as the loaded set changes; default to the first option.
 watch(siteItems, (next) => {
   if (!next.includes(selectedSite.value)) selectedSite.value = next[0] ?? ''
 }, { immediate: true })
 
-watch(measurementColumnItems, (next) => {
+watch(columnItems, (next) => {
   if (!next.includes(selectedColumn.value)) selectedColumn.value = next[0] ?? ''
 }, { immediate: true })
 
-const parseTimestamp = (payload: AfmDetailPayload, measurement: AfmGroupedEntry) => {
-  const startTime = payload.information['Start Time']
-  if (typeof startTime === 'string' && startTime.trim()) return startTime
-  return measurement.formattedDate
-}
-
-const valueFromSummary = (summary: AfmSummaryRow[], site: string, item: AfmSummaryItem, column: string) => {
-  const row = summary.find(candidate => candidate.Site === site && candidate.ITEM === item)
-  const raw = row?.[column]
-  if (typeof raw === 'number') return raw
-  if (typeof raw === 'string') {
-    const parsed = Number.parseFloat(raw)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
-}
-
-const chartSeries = computed<AfmTrendSeries[]>(() => {
-  if (!selectedSite.value || !selectedColumn.value) return []
-
-  const points = loadedPayloads.value.flatMap((row) => {
-    if (!row.payload) return []
-    const value = valueFromSummary(row.payload.summary, selectedSite.value, selectedItem.value, selectedColumn.value)
+const chartPoints = computed(() =>
+  loaded.value.flatMap(({ measurement, payload }) => {
+    const row = payload.summary.find(r => r.Site === selectedSite.value && r.ITEM === selectedItem.value)
+    const value = summaryNumber(row?.[selectedColumn.value])
     if (value === null) return []
+    const startTime = payload.information['Start Time']
     return [{
-      timestamp: parseTimestamp(row.payload, row.measurement),
+      timestamp: typeof startTime === 'string' && startTime.trim() ? startTime : measurement.formattedDate,
       value,
-      lotId: row.measurement.lotId,
-      recipe: row.measurement.recipeName,
-      filename: row.measurement.filename,
-      site: selectedSite.value
+      lotId: measurement.lotId,
+      recipe: measurement.recipeName,
+      filename: measurement.filename
     }]
-  }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-
-  return points.length > 0
-    ? [{ name: selectedSite.value, data: points }]
-    : []
-})
+  }).sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp))
+)
 </script>

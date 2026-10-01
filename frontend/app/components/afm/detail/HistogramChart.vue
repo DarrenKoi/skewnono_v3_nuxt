@@ -1,50 +1,34 @@
 <template>
-  <UCard
-    class="dashboard-surface rounded-2xl"
-    :ui="{ body: 'p-4 sm:p-5', header: 'px-4 sm:px-5 py-3' }"
+  <AfmCard
+    icon="i-lucide-bar-chart-3"
+    title="Z값 분포"
   >
-    <template #header>
-      <div class="flex flex-col gap-1">
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-bar-chart-3"
-            class="h-4 w-4 text-(--sk-ink-muted)"
-          />
-          <h2 class="sk-title">
-            Z-value distribution
-          </h2>
-        </div>
-        <p
-          v-if="stats.count"
-          class="sk-meta tabular-nums"
-        >
-          μ={{ stats.mean.toFixed(2) }} · σ={{ stats.stdev.toFixed(2) }}
-          · Q1={{ stats.q1.toFixed(2) }} · Md={{ stats.median.toFixed(2) }} · Q3={{ stats.q3.toFixed(2) }}
-          · skew={{ stats.skewness.toFixed(2) }} · kurt={{ stats.kurtosis.toFixed(2) }} · CV={{ stats.cv.toFixed(1) }}%
-        </p>
-      </div>
-    </template>
-
     <AppLoadingState
       v-if="loading"
       variant="inline"
       class="h-60"
       title="분포를 불러오는 중입니다."
     />
-    <div
+    <p
       v-else-if="profile.length === 0"
-      class="flex h-60 items-center justify-center text-center sk-body"
+      class="flex h-60 items-center justify-center sk-body"
     >
-      No distribution data
-    </div>
+      분포 데이터가 없습니다.
+    </p>
     <template v-else>
+      <p class="mb-3 flex flex-wrap gap-x-3 gap-y-1 sk-meta">
+        <span
+          v-for="item in statItems"
+          :key="item.label"
+        >{{ item.label }} <b class="sk-value-num">{{ item.value }}</b></span>
+      </p>
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <USelect
           v-model="binMethod"
           :items="binMethodItems"
           size="xs"
           class="min-w-28"
-          aria-label="Bin method"
+          aria-label="구간 방식"
         />
         <UInput
           v-if="binMethod === 'custom'"
@@ -54,23 +38,23 @@
           class="w-20"
           :min="5"
           :max="200"
-          aria-label="Bin count"
+          aria-label="구간 수"
         />
         <USelect
           v-model="displayMode"
           :items="displayModeItems"
           size="xs"
           class="min-w-28"
-          aria-label="Display mode"
+          aria-label="표시 방식"
         />
         <UCheckbox
           v-model="showNormal"
-          label="Normal"
+          label="정규분포"
           size="xs"
         />
         <UCheckbox
           v-model="showPercentiles"
-          label="Quartiles"
+          label="사분위"
           size="xs"
         />
       </div>
@@ -79,7 +63,7 @@
         class="h-60 w-full"
       />
     </template>
-  </UCard>
+  </AfmCard>
 </template>
 
 <script setup lang="ts">
@@ -102,84 +86,78 @@ const showNormal = ref(true)
 const showPercentiles = ref(true)
 
 const binMethodItems: { label: string, value: BinMethod }[] = [
-  { label: 'Auto bins', value: 'auto' },
-  { label: 'Custom bins', value: 'custom' }
+  { label: '자동 구간', value: 'auto' },
+  { label: '사용자 구간', value: 'custom' }
 ]
 const displayModeItems: { label: string, value: HistogramMode }[] = [
-  { label: 'Frequency', value: 'frequency' },
-  { label: 'Density', value: 'density' },
-  { label: 'Cumulative', value: 'cumulative' }
+  { label: '빈도', value: 'frequency' },
+  { label: '밀도', value: 'density' },
+  { label: '누적', value: 'cumulative' }
 ]
 
 const zs = computed(() => props.profile.map(p => p.z))
 const stats = computed(() => histogramStats(zs.value))
-const binCount = computed(() => resolveBinCount(zs.value, binMethod.value, customBins.value))
-const hist = computed(() => computeHistogram(zs.value, binCount.value, displayMode.value))
-
-const centerLabels = computed(() => hist.value.centers.map(c => c.toFixed(2)))
-
-const normalSeriesData = computed(() =>
-  showNormal.value
-    ? normalCurveOverCenters(stats.value, displayMode.value, hist.value.binWidth, hist.value.centers)
-    : []
+const hist = computed(() =>
+  computeHistogram(zs.value, resolveBinCount(zs.value, binMethod.value, customBins.value), displayMode.value)
 )
 
-const percentileMarks = computed(() => {
-  if (!showPercentiles.value || !stats.value.count) return []
-  const edges = hist.value.edges
+const statItems = computed(() => {
+  const s = stats.value
   return [
-    { name: 'Q1', xAxis: binIndexForValue(edges, stats.value.q1) },
-    { name: 'Md', xAxis: binIndexForValue(edges, stats.value.median) },
-    { name: 'Q3', xAxis: binIndexForValue(edges, stats.value.q3) }
+    { label: 'μ', value: s.mean.toFixed(2) },
+    { label: 'σ', value: s.stdev.toFixed(2) },
+    { label: 'Q1', value: s.q1.toFixed(2) },
+    { label: 'Md', value: s.median.toFixed(2) },
+    { label: 'Q3', value: s.q3.toFixed(2) },
+    { label: 'skew', value: s.skewness.toFixed(2) },
+    { label: 'kurt', value: s.kurtosis.toFixed(2) },
+    { label: 'CV', value: `${s.cv.toFixed(1)}%` }
   ]
 })
 
-const yAxisName = computed(() =>
-  displayMode.value === 'density'
-    ? 'Density'
-    : displayMode.value === 'cumulative' ? 'Cumulative' : 'Frequency'
-)
-
 const chartOption = computed<EChartsOption>(() => {
+  const { centers, edges, values, binWidth } = hist.value
+  const normal = showNormal.value
+    ? normalCurveOverCenters(stats.value, displayMode.value, binWidth, centers)
+    : []
+  const quartiles = showPercentiles.value
+    ? [
+        { name: 'Q1', xAxis: binIndexForValue(edges, stats.value.q1) },
+        { name: 'Md', xAxis: binIndexForValue(edges, stats.value.median) },
+        { name: 'Q3', xAxis: binIndexForValue(edges, stats.value.q3) }
+      ]
+    : []
+
   const series: EChartsOption['series'] = [{
     type: 'bar',
-    data: hist.value.values,
-    itemStyle: { borderRadius: [3, 3, 0, 0] },
-    markLine: percentileMarks.value.length
+    data: values,
+    markLine: quartiles.length
       ? {
           symbol: 'none',
           silent: true,
-          lineStyle: { type: 'dashed', color: '#94a3b8' },
-          label: { fontSize: 9, formatter: (p: { name?: string }) => p.name ?? '' },
-          data: percentileMarks.value
+          label: { ...CHART_LEGEND_LABEL, formatter: (p: { name?: string }) => p.name ?? '' },
+          data: quartiles
         }
       : undefined
   }]
 
-  if (normalSeriesData.value.length) {
-    series.push({
-      type: 'line',
-      data: normalSeriesData.value,
-      smooth: true,
-      symbol: 'none',
-      lineStyle: { color: '#ef4444', width: 2 },
-      z: 3
-    })
+  if (normal.length) {
+    series.push({ type: 'line', data: normal, smooth: true, symbol: 'none', z: 3 })
   }
 
   return {
-    grid: { left: 46, right: 12, top: 16, bottom: 32 },
+    grid: { left: 56, right: 12, top: 28, bottom: 32 },
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
-      data: centerLabels.value,
-      axisLabel: { fontSize: 10, interval: Math.max(0, Math.ceil(centerLabels.value.length / 8) - 1) }
+      data: centers.map(c => c.toFixed(2)),
+      axisLabel: { ...CHART_AXIS_LABEL, interval: Math.max(0, Math.ceil(centers.length / 6) - 1) }
     },
     yAxis: {
       type: 'value',
-      name: yAxisName.value,
-      nameTextStyle: { fontSize: 9 },
-      axisLabel: { fontSize: 10 }
+      name: displayModeItems.find(item => item.value === displayMode.value)?.label,
+      nameTextStyle: CHART_LEGEND_LABEL,
+      axisLabel: CHART_AXIS_LABEL
     },
     series
   }

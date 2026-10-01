@@ -29,7 +29,7 @@ export interface AfmInformation {
 
 export type AfmSummaryItem = 'MEAN' | 'STDEV' | 'MIN' | 'MAX' | 'RANGE'
 
-export const AFM_SUMMARY_ITEMS: readonly AfmSummaryItem[] = ['MEAN', 'STDEV', 'MIN', 'MAX', 'RANGE']
+export const AFM_SUMMARY_ITEMS: AfmSummaryItem[] = ['MEAN', 'STDEV', 'MIN', 'MAX', 'RANGE']
 
 export interface AfmSummaryRow {
   Site: string
@@ -110,13 +110,6 @@ export interface AfmAnalysisImagesResponse {
   tool: string
 }
 
-export interface AfmSiteInfo {
-  site_id?: string
-  site_x?: string | number
-  site_y?: string | number
-  point_no?: string | number
-}
-
 // Backend rows carry the measurement time as a raw HHMMSS code separate from
 // formatted_date; fold it into the display date so lists show "YYYY-MM-DD HH:MM:SS".
 const formatMeasuredAt = (row: AfmFileRow): string => {
@@ -126,142 +119,48 @@ const formatMeasuredAt = (row: AfmFileRow): string => {
   return `${row.formatted_date} ${padded.slice(0, 2)}:${padded.slice(2, 4)}:${padded.slice(4, 6)}`
 }
 
-const inFlightFiles = new Map<string, Promise<AfmFilesResponse>>()
-const inFlightDetail = new Map<string, Promise<AfmDetailResponse>>()
-const inFlightProfile = new Map<string, Promise<AfmProfileResponse>>()
-const inFlightImage = new Map<string, Promise<AfmImageResponse>>()
-const inFlightAnalysis = new Map<string, Promise<AfmAnalysisImagesResponse>>()
-
 export const useAfmDetailApi = () => {
-  const config = useRuntimeConfig()
-  const base = config.public.apiBase
+  const base = useRuntimeConfig().public.apiBase
 
-  const fetchFiles = async (toolName: string): Promise<AfmFilesResponse> => {
-    const cacheKey = toolName
-    const existing = inFlightFiles.get(cacheKey)
-    if (existing) return await existing
-
-    const request = $fetch<AfmFilesResponse>(
-      joinApiPath(base, `/afm/files`),
-      { query: { tool: toolName } }
-    ).finally(() => inFlightFiles.delete(cacheKey))
-
-    inFlightFiles.set(cacheKey, request)
-    return await request
-  }
-
-  const useAfmFiles = (toolName: string) =>
-    useAsyncData(
-      `afm-files:${toolName}`,
-      async () => {
-        const res = await fetchFiles(toolName)
-        return res.data.map<AfmMeasurement>(row => ({
-          filename: row.filename,
-          recipeName: row.recipe_name,
-          lotId: row.lot_id,
-          slotNumber: row.slot_number,
-          measuredInfo: row.measured_info,
-          formattedDate: formatMeasuredAt(row),
-          hasProfile: row.has_profile,
-          hasData: row.has_data,
-          hasImage: row.has_image,
-          hasAlign: row.has_align,
-          hasTip: row.has_tip
-        }))
-      }
+  // Every AFM read is GET /afm/files[/<filename>/<rest>]?tool=<TOOL>.
+  const get = <T>(tool: string, filename = '', rest = '') =>
+    $fetch<T>(
+      joinApiPath(base, `/afm/files${filename && `/${encodeURIComponent(filename)}`}${rest}`),
+      { query: { tool } }
     )
 
-  const fetchDetail = async (toolName: string, filename: string): Promise<AfmDetailResponse> => {
-    const cacheKey = `${toolName}::${filename}`
-    const existing = inFlightDetail.get(cacheKey)
-    if (existing) return await existing
+  const useAfmFiles = (tool: string) =>
+    useAsyncData(`afm-files:${tool}`, async () => {
+      const res = await get<AfmFilesResponse>(tool)
+      return res.data.map<AfmMeasurement>(row => ({
+        filename: row.filename,
+        recipeName: row.recipe_name,
+        lotId: row.lot_id,
+        slotNumber: row.slot_number,
+        measuredInfo: row.measured_info,
+        formattedDate: formatMeasuredAt(row),
+        hasProfile: row.has_profile,
+        hasData: row.has_data,
+        hasImage: row.has_image,
+        hasAlign: row.has_align,
+        hasTip: row.has_tip
+      }))
+    })
 
-    const request = $fetch<AfmDetailResponse>(
-      joinApiPath(base, `/afm/files/${encodeURIComponent(filename)}`),
-      { query: { tool: toolName } }
-    ).finally(() => inFlightDetail.delete(cacheKey))
+  const fetchDetail = (tool: string, filename: string) =>
+    get<AfmDetailResponse>(tool, filename)
 
-    inFlightDetail.set(cacheKey, request)
-    return await request
-  }
+  const useAfmDetail = (tool: string, filename: string) =>
+    useAsyncData(`afm-detail:${tool}:${filename}`, () => fetchDetail(tool, filename))
 
-  const fetchProfile = async (
-    toolName: string,
-    filename: string,
-    point: string,
-    site?: AfmSiteInfo
-  ): Promise<AfmProfileResponse> => {
-    const cacheKey = `${toolName}::${filename}::${point}::${JSON.stringify(site ?? {})}`
-    const existing = inFlightProfile.get(cacheKey)
-    if (existing) return await existing
+  const fetchProfile = (tool: string, filename: string, point: string) =>
+    get<AfmProfileResponse>(tool, filename, `/profile/${encodeURIComponent(point)}`)
 
-    const query: Record<string, string | number> = { tool: toolName }
-    if (site?.site_id) query.site_id = site.site_id
-    if (site?.site_x !== undefined) query.site_x = site.site_x
-    if (site?.site_y !== undefined) query.site_y = site.site_y
-    if (site?.point_no !== undefined) query.point_no = site.point_no
+  const fetchImage = (tool: string, filename: string, point: string) =>
+    get<AfmImageResponse>(tool, filename, `/image/${encodeURIComponent(point)}`)
 
-    const path = `/afm/files/${encodeURIComponent(filename)}/profile/${encodeURIComponent(point)}`
-    const request = $fetch<AfmProfileResponse>(
-      joinApiPath(base, path),
-      { query }
-    ).finally(() => inFlightProfile.delete(cacheKey))
+  const fetchAnalysisImages = (tool: string, filename: string, imageType: AfmImageType) =>
+    get<AfmAnalysisImagesResponse>(tool, filename, `/images/${imageType}`)
 
-    inFlightProfile.set(cacheKey, request)
-    return await request
-  }
-
-  const fetchImage = async (
-    toolName: string,
-    filename: string,
-    point: string
-  ): Promise<AfmImageResponse> => {
-    const cacheKey = `${toolName}::${filename}::${point}`
-    const existing = inFlightImage.get(cacheKey)
-    if (existing) return await existing
-
-    const path = `/afm/files/${encodeURIComponent(filename)}/image/${encodeURIComponent(point)}`
-    const request = $fetch<AfmImageResponse>(
-      joinApiPath(base, path),
-      { query: { tool: toolName } }
-    ).finally(() => inFlightImage.delete(cacheKey))
-
-    inFlightImage.set(cacheKey, request)
-    return await request
-  }
-
-  const fetchAnalysisImages = async (
-    toolName: string,
-    filename: string,
-    imageType: AfmImageType
-  ): Promise<AfmAnalysisImagesResponse> => {
-    const cacheKey = `${toolName}::${filename}::${imageType}`
-    const existing = inFlightAnalysis.get(cacheKey)
-    if (existing) return await existing
-
-    const path = `/afm/files/${encodeURIComponent(filename)}/images/${imageType}`
-    const request = $fetch<AfmAnalysisImagesResponse>(
-      joinApiPath(base, path),
-      { query: { tool: toolName } }
-    ).finally(() => inFlightAnalysis.delete(cacheKey))
-
-    inFlightAnalysis.set(cacheKey, request)
-    return await request
-  }
-
-  const useAfmDetail = (toolName: string, filename: string) =>
-    useAsyncData(
-      `afm-detail:${toolName}:${filename}`,
-      () => fetchDetail(toolName, filename)
-    )
-
-  return {
-    fetchFiles,
-    useAfmFiles,
-    fetchDetail,
-    fetchProfile,
-    fetchImage,
-    fetchAnalysisImages,
-    useAfmDetail
-  }
+  return { useAfmFiles, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages }
 }

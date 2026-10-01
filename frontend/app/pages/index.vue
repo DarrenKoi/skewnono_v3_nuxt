@@ -4,7 +4,6 @@ definePageMeta({
 })
 
 const { toolTypes } = useToolData()
-const { fabs: afmFabs, afmToolHref } = useAfmToolData()
 // The AFM card follows the AFM_ENABLED switch — see useAfmAvailability.ts.
 const afmEnabled = useAfmEnabled()
 const { fabs, setFabs, toolTypeHref } = useNavigation()
@@ -226,38 +225,7 @@ const systemStatus = computed(() => {
           />
         </div>
 
-        <nav class="space-y-3">
-          <div
-            v-for="fabGroup in afmFabs"
-            :key="fabGroup.fab"
-            class="space-y-1"
-          >
-            <div class="px-3 text-xs uppercase tracking-[0.16em] text-(--sk-ink-muted) font-semibold">
-              {{ fabGroup.fab }}
-            </div>
-            <NuxtLink
-              v-for="tool in fabGroup.tools"
-              :key="tool.id"
-              :to="afmToolHref(tool)"
-              class="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors group"
-            >
-              <span class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-arrow-right"
-                  class="w-4 h-4 text-(--sk-ink-muted) group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors"
-                />
-                <span class="font-medium">
-                  {{ tool.label }}
-                </span>
-              </span>
-              <UBadge
-                :label="fabGroup.fab"
-                color="neutral"
-                variant="subtle"
-              />
-            </NuxtLink>
-          </div>
-        </nav>
+        <AfmToolList />
       </UCard>
     </div>
 

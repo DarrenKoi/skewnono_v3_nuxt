@@ -4,8 +4,7 @@ import assert from 'node:assert/strict'
 import {
   filterProfileByOutlier,
   heatmapStats,
-  OUTLIER_DEFAULT_THRESHOLD,
-  HEATMAP_COLOR_RAMPS
+  OUTLIER_DEFAULT_THRESHOLD
 } from './afmHeatmap.ts'
 
 const pts = (zs: number[]) => zs.map((z, i) => ({ x: i, y: i, z }))
@@ -52,14 +51,7 @@ test('heatmapStats on empty → zeros', () => {
   assert.deepEqual(heatmapStats([]), { count: 0, min: 0, max: 0, mean: 0 })
 })
 
-test('spectral ramp is unchanged from the current heatmap', () => {
-  assert.deepEqual(HEATMAP_COLOR_RAMPS.spectral, ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'])
-})
-
-test('every color ramp is a non-empty string array; defaults present', () => {
-  for (const ramp of Object.values(HEATMAP_COLOR_RAMPS)) {
-    assert.ok(Array.isArray(ramp) && ramp.length > 0)
-  }
+test('outlier threshold defaults', () => {
   assert.equal(OUTLIER_DEFAULT_THRESHOLD.iqr, 1.5)
   assert.equal(OUTLIER_DEFAULT_THRESHOLD.zscore, 3)
 })

@@ -1,51 +1,39 @@
 <template>
-  <UCard
-    class="dashboard-surface rounded-2xl"
-    :ui="{ body: 'p-4 sm:p-5', header: 'px-4 sm:px-5 py-3' }"
+  <AfmCard
+    icon="i-lucide-info"
+    title="측정 정보"
   >
-    <template #header>
-      <div class="flex items-center gap-2">
-        <UIcon
-          name="i-lucide-info"
-          class="h-4 w-4 text-(--sk-ink-muted)"
-        />
-        <h2 class="sk-title">
-          Information
-        </h2>
-      </div>
-    </template>
-
     <dl class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
       <div
-        v-for="entry in informationEntries"
-        :key="entry.key"
-        class="flex items-baseline justify-between gap-3 border-b border-zinc-100 pb-1.5 last:border-0 dark:border-zinc-800/60"
+        v-for="(value, key) in information"
+        :key="key"
+        class="flex items-baseline justify-between gap-3 border-b border-(--sk-border-soft) pb-1.5"
       >
         <dt class="sk-label">
-          {{ entry.key }}
+          {{ key }}
         </dt>
-        <dd class="sk-value-num text-right truncate">
-          {{ entry.value }}
+        <dd class="truncate text-right sk-value-num">
+          {{ value === null || value === '' ? '–' : value }}
         </dd>
       </div>
     </dl>
 
     <div
-      v-if="summarySites.length > 0"
+      v-if="meanRows.length"
       class="mt-5"
     >
       <p class="mb-2 sk-label">
-        Summary by site (MEAN)
+        사이트별 요약 (MEAN)
       </p>
-      <div class="overflow-x-auto rounded-lg ring-1 ring-zinc-200 dark:ring-zinc-800">
-        <table class="w-full text-[12px] font-mono">
-          <thead class="bg-zinc-50/70 text-(--sk-ink-muted) dark:bg-zinc-900/50">
-            <tr>
+      <div class="overflow-x-auto rounded-(--sk-r-chip) border border-(--sk-border)">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-(--sk-border)">
               <th class="px-2 py-1.5 text-left sk-label">
                 Site
               </th>
               <th
-                v-for="col in measurementColumns"
+                v-for="col in columns"
                 :key="col"
                 class="px-2 py-1.5 text-right sk-label"
               >
@@ -53,28 +41,27 @@
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-(--sk-border-soft)">
             <tr
-              v-for="site in summarySites"
-              :key="site.site"
-              class="border-t border-zinc-100 dark:border-zinc-800/60"
+              v-for="row in meanRows"
+              :key="row.Site"
             >
               <td class="px-2 py-1 text-left sk-value-num">
-                {{ site.site }}
+                {{ row.Site }}
               </td>
               <td
-                v-for="col in measurementColumns"
+                v-for="col in columns"
                 :key="col"
                 class="px-2 py-1 text-right sk-value-num"
               >
-                {{ site.values[col] ?? '–' }}
+                {{ summaryNumber(row[col])?.toFixed(2) ?? '–' }}
               </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-  </UCard>
+  </AfmCard>
 </template>
 
 <script setup lang="ts">
@@ -85,30 +72,6 @@ const props = defineProps<{
   summary: AfmSummaryRow[]
 }>()
 
-const informationEntries = computed(() =>
-  Object.entries(props.information ?? {}).map(([key, value]) => ({
-    key,
-    value: value === null || value === undefined || value === '' ? '–' : String(value)
-  }))
-)
-
-const measurementColumns = computed(() => {
-  if (!props.summary?.length) return []
-  const first = props.summary[0]!
-  return Object.keys(first).filter(k => k !== 'Site' && k !== 'ITEM')
-})
-
-const summarySites = computed(() => {
-  const bySite = new Map<string, Record<string, string>>()
-  for (const row of props.summary ?? []) {
-    if (row.ITEM !== 'MEAN') continue
-    const values: Record<string, string> = {}
-    for (const col of measurementColumns.value) {
-      const v = row[col]
-      values[col] = typeof v === 'number' ? v.toFixed(2) : String(v ?? '–')
-    }
-    bySite.set(row.Site, values)
-  }
-  return Array.from(bySite, ([site, values]) => ({ site, values }))
-})
+const columns = computed(() => summaryColumns(props.summary))
+const meanRows = computed(() => props.summary.filter(row => row.ITEM === 'MEAN'))
 </script>

@@ -1,16 +1,10 @@
 <template>
-  <AppLoadingState
-    v-if="loading"
-    variant="inline"
-    class="h-96"
-    title="시계열 데이터를 불러오는 중입니다."
-  />
-  <div
-    v-else-if="series.length === 0"
-    class="flex h-96 items-center justify-center text-center sk-body"
+  <p
+    v-if="points.length === 0"
+    class="flex h-96 items-center justify-center sk-body"
   >
-    No time series data
-  </div>
+    시계열 데이터가 없습니다.
+  </p>
   <div
     v-else
     ref="chartEl"
@@ -21,113 +15,69 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 
-interface AfmTrendPoint {
+export interface AfmTrendPoint {
   timestamp: string
   value: number
   lotId: string
   recipe: string
   filename: string
-  site: string
-}
-
-interface AfmTrendSeries {
-  name: string
-  data: AfmTrendPoint[]
-}
-
-interface TooltipParam {
-  seriesName?: string
-  marker?: string
-  data?: {
-    value?: [number, number]
-    lotId?: string
-    recipe?: string
-    filename?: string
-    site?: string
-  }
 }
 
 const props = defineProps<{
-  series: AfmTrendSeries[]
-  selectedColumn: string
-  loading?: boolean
+  points: AfmTrendPoint[]
+  seriesName: string
+  yName: string
   exportName?: string
 }>()
 
 const chartEl = ref<HTMLDivElement | null>(null)
 
-const formatTime = (timestamp: number | string) => {
-  const date = new Date(timestamp)
-  if (Number.isNaN(date.getTime())) return String(timestamp)
-  const year = String(date.getFullYear()).slice(2)
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}/${month}/${day} ${hours}:${minutes}`
-}
-
+// Lot, recipe and filename come from the server, so they are escaped before
+// they reach the tooltip's innerHTML.
 const formatTooltip = (params: unknown) => {
-  const item = (Array.isArray(params) ? params[0] : params) as TooltipParam
-  const data = item.data
-  const rawTime = data?.value?.[0]
-  const rawValue = data?.value?.[1]
-  const value = typeof rawValue === 'number' ? rawValue.toFixed(3) : '-'
-
+  const item = (Array.isArray(params) ? params[0] : params) as { marker?: string, data?: { point: AfmTrendPoint } }
+  const point = item.data?.point
+  if (!point) return ''
   return [
-    `<strong>${item.marker ?? ''}${item.seriesName ?? data?.site ?? ''}</strong>`,
-    `Time: ${rawTime ? formatTime(rawTime) : '-'}`,
-    `Value: ${value} nm`,
-    `Lot: ${data?.lotId ?? '-'}`,
-    `Recipe: ${data?.recipe ?? '-'}`,
-    `File: ${data?.filename ?? '-'}`
+    `<strong>${item.marker ?? ''}${escapeHtml(props.seriesName)}</strong>`,
+    `시간: ${escapeHtml(formatDateTimeLocal(point.timestamp))}`,
+    `값: ${point.value.toFixed(3)} nm`,
+    `Lot: ${escapeHtml(point.lotId)}`,
+    `Recipe: ${escapeHtml(point.recipe)}`,
+    `파일: ${escapeHtml(point.filename)}`
   ].join('<br>')
 }
 
 const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 54, right: 28, top: 42, bottom: 72, containLabel: true },
+  grid: { left: 56, right: 28, top: 36, bottom: 72 },
   tooltip: {
     trigger: 'item',
     formatter: formatTooltip
   },
-  legend: {
-    type: 'scroll',
-    top: 0,
-    right: 8,
-    textStyle: { fontSize: 11 }
-  },
   xAxis: {
     type: 'time',
-    axisLabel: {
-      fontSize: 10,
-      formatter: (value: string | number) => formatTime(value)
-    }
+    axisLabel: { ...CHART_AXIS_LABEL, formatter: '{yy}/{MM}/{dd} {HH}:{mm}' }
   },
   yAxis: {
     type: 'value',
-    name: props.selectedColumn,
+    name: props.yName,
+    nameTextStyle: CHART_LEGEND_LABEL,
     scale: true,
-    axisLabel: { fontSize: 10 }
+    axisLabel: CHART_AXIS_LABEL
   },
   dataZoom: [
     { type: 'inside', start: 0, end: 100 },
     { type: 'slider', start: 0, end: 100, height: 24, bottom: 24 }
   ],
-  series: props.series.map(siteSeries => ({
-    name: siteSeries.name,
+  series: [{
+    name: props.seriesName,
     type: 'line',
-    smooth: false,
-    showSymbol: true,
     symbolSize: 8,
-    emphasis: { focus: 'series' as const },
-    data: siteSeries.data.map(point => ({
-      value: [new Date(point.timestamp).getTime(), point.value],
-      lotId: point.lotId,
-      recipe: point.recipe,
-      filename: point.filename,
-      site: point.site
+    data: props.points.map(point => ({
+      value: [Date.parse(point.timestamp), point.value],
+      point
     }))
-  }))
+  }]
 }))
 
 useEchart(chartEl, chartOption, { exportName: props.exportName })

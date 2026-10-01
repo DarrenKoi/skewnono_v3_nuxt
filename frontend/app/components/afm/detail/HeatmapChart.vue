@@ -1,36 +1,25 @@
 <template>
-  <UCard
-    class="dashboard-surface rounded-2xl"
-    :ui="{ body: 'p-4 sm:p-5', header: 'px-4 sm:px-5 py-3' }"
+  <AfmCard
+    icon="i-lucide-grid-3x3"
+    title="웨이퍼 히트맵"
   >
-    <template #header>
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <UIcon
-            name="i-lucide-grid-3x3"
-            class="h-4 w-4 text-(--sk-ink-muted)"
-          />
-          <h2 class="sk-title">
-            Wafer heat map
-          </h2>
-        </div>
-        <div
-          v-if="stats.count"
-          class="flex items-center gap-2 sk-meta tabular-nums"
-        >
-          <span>{{ stats.count.toLocaleString() }} pts</span>
-          <span>min {{ stats.min.toFixed(2) }}</span>
-          <span>max {{ stats.max.toFixed(2) }}</span>
-          <span>μ {{ stats.mean.toFixed(2) }}</span>
-          <UBadge
-            v-if="filtered.removed > 0"
-            :label="`${filtered.removed} removed`"
-            color="warning"
-            size="xs"
-            variant="subtle"
-          />
-        </div>
-      </div>
+    <template
+      v-if="stats.count"
+      #actions
+    >
+      <p class="flex flex-wrap items-center gap-x-2 sk-meta">
+        <span><b class="sk-value-num">{{ stats.count.toLocaleString() }}</b> pts</span>
+        <span>min <b class="sk-value-num">{{ stats.min.toFixed(2) }}</b></span>
+        <span>max <b class="sk-value-num">{{ stats.max.toFixed(2) }}</b></span>
+        <span>μ <b class="sk-value-num">{{ stats.mean.toFixed(2) }}</b></span>
+        <UBadge
+          v-if="filtered.removed > 0"
+          :label="`${filtered.removed}개 제외`"
+          color="warning"
+          size="xs"
+          variant="subtle"
+        />
+      </p>
     </template>
 
     <AppLoadingState
@@ -39,12 +28,12 @@
       class="h-72"
       title="히트맵을 불러오는 중입니다."
     />
-    <div
+    <p
       v-else-if="profile.length === 0"
-      class="flex h-72 items-center justify-center text-center sk-body"
+      class="flex h-72 items-center justify-center sk-body"
     >
-      Heat map data unavailable
-    </div>
+      히트맵 데이터가 없습니다.
+    </p>
     <template v-else>
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <USelect
@@ -52,7 +41,7 @@
           :items="outlierMethodItems"
           size="xs"
           class="min-w-36"
-          aria-label="Outlier method"
+          aria-label="이상치 필터"
         />
         <UInput
           v-if="outlierMethod !== 'none'"
@@ -61,14 +50,7 @@
           size="xs"
           class="w-24"
           :step="0.1"
-          aria-label="Outlier threshold"
-        />
-        <USelect
-          v-model="colorScheme"
-          :items="colorSchemeItems"
-          size="xs"
-          class="min-w-28"
-          aria-label="Color scheme"
+          aria-label="이상치 기준값"
         />
       </div>
       <div
@@ -76,13 +58,13 @@
         class="h-72 w-full"
       />
     </template>
-  </UCard>
+  </AfmCard>
 </template>
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
-import type { OutlierMethod, HeatmapColorScheme } from '~/utils/afmHeatmap'
+import type { OutlierMethod } from '~/utils/afmHeatmap'
 
 const props = defineProps<{
   profile: AfmProfilePoint[]
@@ -94,17 +76,11 @@ const chartEl = ref<HTMLDivElement | null>(null)
 
 const outlierMethod = ref<OutlierMethod>('none')
 const threshold = ref<number>(OUTLIER_DEFAULT_THRESHOLD.iqr)
-const colorScheme = ref<HeatmapColorScheme>('spectral')
 
 const outlierMethodItems: { label: string, value: OutlierMethod }[] = [
-  { label: 'No outlier filter', value: 'none' },
+  { label: '이상치 필터 없음', value: 'none' },
   { label: 'IQR', value: 'iqr' },
   { label: 'Z-Score', value: 'zscore' }
-]
-const colorSchemeItems: { label: string, value: HeatmapColorScheme }[] = [
-  { label: 'Spectral', value: 'spectral' },
-  { label: 'Viridis', value: 'viridis' },
-  { label: 'Grayscale', value: 'grayscale' }
 ]
 
 watch(outlierMethod, (method) => {
@@ -124,26 +100,22 @@ const formatTooltip = (params: unknown) => {
   return `x: ${x.toFixed(1)}<br/>y: ${y.toFixed(1)}<br/>z: ${z.toFixed(2)}`
 }
 
-const zRange = computed(() =>
-  stats.value.count ? [stats.value.min, stats.value.max] : [0, 1]
-)
-
 const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 50, right: 60, top: 16, bottom: 36 },
+  grid: { left: 56, right: 72, top: 16, bottom: 36 },
   tooltip: {
     formatter: formatTooltip
   },
-  xAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
-  yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
+  xAxis: { type: 'value', scale: true, axisLabel: CHART_AXIS_LABEL },
+  yAxis: { type: 'value', scale: true, axisLabel: CHART_AXIS_LABEL },
   visualMap: {
-    min: zRange.value[0],
-    max: zRange.value[1],
+    min: stats.value.count ? stats.value.min : 0,
+    max: stats.value.count ? stats.value.max : 1,
     calculable: true,
     orient: 'vertical',
     right: 4,
     top: 'center',
-    inRange: { color: HEATMAP_COLOR_RAMPS[colorScheme.value] },
-    textStyle: { fontSize: 10 }
+    inRange: { color: [...SK_SCALE] },
+    textStyle: CHART_LEGEND_LABEL
   },
   series: [{
     type: 'scatter',

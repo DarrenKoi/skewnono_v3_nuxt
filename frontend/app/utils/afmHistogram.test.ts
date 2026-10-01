@@ -77,6 +77,11 @@ test('computeHistogram: zero span → single bin holding all', () => {
   assert.deepEqual(h.values, [3])
 })
 
+test('computeHistogram: zero span density still integrates to 1', () => {
+  const h = computeHistogram([5, 5, 5], 4, 'density')
+  assert.equal(h.values[0]! * h.binWidth, 1)
+})
+
 test('computeHistogram: empty → single zero bin', () => {
   const h = computeHistogram([], 5, 'frequency')
   assert.equal(h.values.length, 1)

@@ -1,82 +1,49 @@
 <template>
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
-    <section class="dashboard-surface rounded-3xl px-5 py-6 md:px-7 md:py-7">
-      <div class="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-        <div class="min-w-0">
-          <p class="mb-3 sk-eyebrow">
-            AFM Metrology
-          </p>
-          <h1 class="text-4xl font-semibold tracking-normal text-zinc-950 md:text-5xl dark:text-zinc-50">
-            {{ toolLabel }}
-          </h1>
-          <p class="mt-2 text-base font-medium text-(--sk-ink-muted)">
-            <span v-if="fabLabel">{{ fabLabel }} fab</span>
-            <span v-if="fabLabel && conceptLabel"> · </span>
-            <span v-if="conceptLabel">{{ conceptLabel }}</span>
-            <span v-if="fabLabel || conceptLabel"> · </span>
-            row routes to a dedicated detail page
-          </p>
-        </div>
+    <EbeamMetaBar
+      :eyebrow="fab ? `AFM · ${fab}` : 'AFM'"
+      title="AFM 측정 검색"
+    >
+      <template #toggle>
         <nav
-          class="grid gap-4 sm:grid-cols-2 xl:flex xl:items-center"
-          aria-label="AFM tool selector"
+          class="flex flex-wrap gap-1"
+          aria-label="AFM 장비"
         >
-          <div
-            v-for="fabGroup in fabs"
-            :key="fabGroup.fab"
-            class="rounded-2xl border border-[var(--sk-border)] bg-[var(--sk-muted-surface)] px-4 py-3"
-          >
-            <span class="mb-3 flex items-center gap-2 sk-label">
-              <span class="h-2 w-2 rounded-full bg-[var(--sk-accent)]" />
-              {{ fabGroup.fab }} FAB
-            </span>
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="tool in fabGroup.tools"
-                :key="tool.id"
-                :to="afmToolHref(tool)"
-                :aria-current="tool.id === toolId ? 'page' : undefined"
-                size="sm"
-                color="neutral"
-                :variant="tool.id === toolId ? 'solid' : 'outline'"
-                class="min-w-28 justify-center rounded-full px-5 text-base font-bold tracking-normal"
-                :class="tool.id === toolId ? 'sk-nav-accent' : ''"
-              >
-                {{ tool.label }}
-              </UButton>
-            </div>
-          </div>
+          <SkNavPill
+            v-for="tool in fabs.flatMap(group => group.tools)"
+            :key="tool.id"
+            size="sm"
+            :to="afmToolHref(tool)"
+            :active="tool.id === toolId"
+            :label="tool.label"
+          />
         </nav>
-      </div>
-    </section>
+      </template>
+    </EbeamMetaBar>
 
     <div class="grid gap-6 lg:grid-cols-12">
-      <div class="lg:col-span-7">
-        <AfmSearchBar
-          :tool-id="toolId"
-          :is-in-group="cart.isInGroup"
-          @add-to-group="cart.addToGroup"
-          @remove-from-group="measurement => cart.removeFromGroup(measurement.filename)"
-          @view-details="onViewDetails"
-        />
-      </div>
+      <AfmSearchBar
+        class="lg:col-span-7"
+        :tool-id="toolId"
+        @view-details="onViewDetails"
+      />
 
-      <div class="space-y-4 lg:col-span-5">
+      <div class="space-y-6 lg:col-span-5">
         <AfmViewHistoryCard
-          :items="cart.viewHistory.value"
+          :items="viewHistory"
           @view-details="onViewDetails"
           @remove="cart.removeFromHistory"
           @clear="cart.clearHistory"
         />
         <AfmDataGroupingCard
-          :items="cart.groupedData.value"
+          :items="groupedData"
           @remove="cart.removeFromGroup"
           @clear="cart.clearGroup"
-          @see-together="onSeeTogether"
-          @save="onSaveGroup"
+          @see-together="navigateTo(`/afm/${toolId}/see-together`)"
+          @save="({ name, description }) => cart.saveCurrentGroup(name, description)"
         />
         <AfmSavedGroupsCard
-          :groups="cart.savedGroups.value"
+          :groups="savedGroups"
           @load="cart.loadSavedGroup"
           @remove="cart.removeSavedGroup"
           @clear="cart.clearSavedGroups"
@@ -89,40 +56,21 @@
 <script setup lang="ts">
 import type { AfmMeasurement } from '~/composables/useAfmCart'
 
+// `key` remounts the page per tool, so the route params are read once.
 definePageMeta({
   layout: 'hub',
   key: route => route.path
 })
 
-const route = useRoute()
+const toolId = String(useRoute().params.tool ?? '')
 const { fabs, afmToolHref } = useAfmToolData()
+const fab = fabs.find(group => group.tools.some(tool => tool.id === toolId))?.fab
 
-const toolId = computed(() => String(route.params.tool ?? ''))
-
-const matched = computed(() => {
-  for (const fabGroup of fabs) {
-    const tool = fabGroup.tools.find(t => t.id === toolId.value)
-    if (tool) return { fab: fabGroup.fab, tool }
-  }
-  return null
-})
-
-const toolLabel = computed(() => matched.value?.tool.label ?? toolId.value.toUpperCase())
-const fabLabel = computed(() => matched.value?.fab ?? '')
-const conceptLabel = computed(() => matched.value?.tool.concept ?? '')
-
-const cart = useAfmCart(toolId.value)
+const cart = useAfmCart(toolId)
+const { viewHistory, groupedData, savedGroups } = cart
 
 const onViewDetails = (measurement: AfmMeasurement) => {
   cart.addToHistory(measurement)
-  navigateTo(`/afm/${toolId.value}/${encodeURIComponent(measurement.filename)}`)
-}
-
-const onSeeTogether = () => {
-  navigateTo(`/afm/${toolId.value}/see-together`)
-}
-
-const onSaveGroup = (payload: { name: string, description: string }) => {
-  cart.saveCurrentGroup(payload.name, payload.description)
+  navigateTo(`/afm/${toolId}/${encodeURIComponent(measurement.filename)}`)
 }
 </script>

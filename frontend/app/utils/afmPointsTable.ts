@@ -1,5 +1,6 @@
 // Pure helpers for the AFM measurement-points table (column derivation, filtering,
 // summary, paging). No DOM/Nuxt imports so they run under `node --test`.
+import { collectColumns } from './afmExport.ts'
 import type { AfmDetailRow } from '~/composables/useAfmDetailApi'
 
 export interface PointColumn {
@@ -26,17 +27,8 @@ const humanizeKey = (key: string): string =>
   LABEL_OVERRIDES[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
 export const derivePointColumns = (rows: AfmDetailRow[]): PointColumn[] => {
-  const seen = new Set<string>()
-  const keys: string[] = []
-  for (const row of rows) {
-    for (const k of Object.keys(row)) {
-      if (!seen.has(k)) {
-        seen.add(k)
-        keys.push(k)
-      }
-    }
-  }
-  const preferred = DEFAULT_POINT_COLUMN_KEYS.filter(k => seen.has(k))
+  const keys = collectColumns(rows, [])
+  const preferred = DEFAULT_POINT_COLUMN_KEYS.filter(k => keys.includes(k))
   const rest = keys.filter(k => !DEFAULT_POINT_COLUMN_KEYS.includes(k))
   const nm = rest.filter(k => k.includes('(nm)'))
   const others = rest.filter(k => !k.includes('(nm)'))

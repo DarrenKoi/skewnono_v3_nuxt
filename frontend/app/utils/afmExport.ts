@@ -9,6 +9,10 @@ import type {
   AfmProfilePoint
 } from '~/composables/useAfmDetailApi'
 
+// A point id ("1_UL", "Site 3") as a safe piece of a download filename.
+export const safeFilePart = (value: string): string =>
+  value.replace(/[^a-zA-Z0-9]+/g, '_') || 'point'
+
 export interface ExportTable {
   headers: string[]
   rows: unknown[][]
@@ -16,7 +20,7 @@ export interface ExportTable {
 
 // Column order = the given leading columns, then every other key in the order
 // it first appears across rows. Ragged rows never drop a column.
-const collectColumns = (
+export const collectColumns = (
   rows: Record<string, unknown>[],
   leading: string[]
 ): string[] => {

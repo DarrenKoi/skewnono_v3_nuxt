@@ -32,9 +32,7 @@ export interface AfmSavedGroup {
   name: string
   description: string
   items: AfmGroupedEntry[]
-  tools: string[]
   createdAt: string
-  itemCount: number
 }
 
 const MAX_HISTORY = 10
@@ -42,29 +40,19 @@ const MAX_SAVED_GROUPS = 10
 const MAX_RECENT_SEARCHES = 5
 
 type StorageKind = 'viewHistory' | 'groupedData' | 'savedGroups' | 'recentSearches'
-const storageKey = (kind: StorageKind, toolId: string) => `skewnono:afm.${kind}.${toolId}`
 
-const arrayOf = <T>(parsed: unknown): T[] => Array.isArray(parsed) ? parsed as T[] : []
-
-const persistedSlice = <T>(kind: StorageKind, stateKind: string, toolId: string) =>
+const persistedSlice = <T>(kind: StorageKind, toolId: string) =>
   usePersistedState<T[]>(
-    `afm-cart:${stateKind}:${toolId}`,
-    storageKey(kind, toolId),
-    { default: () => [], normalize: arrayOf<T> }
+    `afm-cart:${kind}:${toolId}`,
+    `skewnono:afm.${kind}.${toolId}`,
+    { default: () => [], normalize: parsed => Array.isArray(parsed) ? parsed as T[] : [] }
   )
 
-function generateId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID()
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
 export const useAfmCart = (toolId: string) => {
-  const viewHistory = persistedSlice<AfmHistoryEntry>('viewHistory', 'viewHistory', toolId)
-  const groupedData = persistedSlice<AfmGroupedEntry>('groupedData', 'grouped', toolId)
-  const savedGroups = persistedSlice<AfmSavedGroup>('savedGroups', 'saved', toolId)
-  const recentSearches = persistedSlice<string>('recentSearches', 'recent', toolId)
+  const viewHistory = persistedSlice<AfmHistoryEntry>('viewHistory', toolId)
+  const groupedData = persistedSlice<AfmGroupedEntry>('groupedData', toolId)
+  const savedGroups = persistedSlice<AfmSavedGroup>('savedGroups', toolId)
+  const recentSearches = persistedSlice<string>('recentSearches', toolId)
 
   const groupedFilenames = computed(() => new Set(groupedData.value.map(item => item.filename)))
   const isInGroup = (filename: string) => groupedFilenames.value.has(filename)
@@ -99,16 +87,15 @@ export const useAfmCart = (toolId: string) => {
     groupedData.value = []
   }
 
-  const saveCurrentGroup = (name: string, description = '') => {
+  // The save dialog is the only caller: it trims both fields and refuses an empty name.
+  const saveCurrentGroup = (name: string, description: string) => {
     if (groupedData.value.length === 0) return
     const snapshot: AfmSavedGroup = {
-      id: generateId(),
-      name: name.trim() || `Group ${new Date().toLocaleString()}`,
-      description: description.trim(),
+      id: generateUuid(),
+      name,
+      description,
       items: [...groupedData.value],
-      tools: Array.from(new Set(groupedData.value.map(item => item.toolId))),
-      createdAt: new Date().toISOString(),
-      itemCount: groupedData.value.length
+      createdAt: new Date().toISOString()
     }
     const deduped = savedGroups.value.filter(group => group.name !== snapshot.name)
     savedGroups.value = [snapshot, ...deduped].slice(0, MAX_SAVED_GROUPS)

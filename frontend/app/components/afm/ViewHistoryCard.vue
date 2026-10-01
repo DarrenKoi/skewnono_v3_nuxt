@@ -1,51 +1,42 @@
 <template>
-  <section class="dashboard-surface rounded-2xl">
-    <header class="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-      <div class="flex items-center gap-2">
-        <UIcon
-          name="i-lucide-eye"
-          class="h-4 w-4 text-(--sk-ink-muted)"
-        />
-        <h3 class="sk-title">
-          View History
-        </h3>
-        <UBadge
-          :label="String(items.length)"
-          color="neutral"
-          size="xs"
-          variant="subtle"
-        />
-      </div>
+  <AfmCard
+    icon="i-lucide-eye"
+    title="조회 기록"
+    :count="items.length"
+    flush
+  >
+    <template
+      v-if="items.length"
+      #actions
+    >
       <UButton
-        v-if="items.length > 0"
         size="xs"
         color="neutral"
         variant="ghost"
+        label="전체 삭제"
         @click="$emit('clear')"
-      >
-        Clear All
-      </UButton>
-    </header>
+      />
+    </template>
 
     <ul
-      v-if="items.length > 0"
-      class="divide-y divide-zinc-200 dark:divide-zinc-800"
+      v-if="items.length"
+      class="divide-y divide-(--sk-border-soft)"
     >
       <li
         v-for="item in items"
         :key="item.filename"
-        class="group flex items-start gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+        class="group flex items-start gap-2 px-4 py-2.5 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
       >
         <button
           type="button"
-          class="min-w-0 flex-1 cursor-pointer text-left"
+          class="min-w-0 flex-1 text-left"
           @click="$emit('view-details', item)"
         >
           <p class="truncate sk-value">
-            {{ item.formattedDate }} • {{ item.recipeName }} • {{ item.lotId }}
+            {{ item.formattedDate }} · {{ item.recipeName }} · {{ item.lotId }}
           </p>
           <p class="truncate sk-meta">
-            Slot {{ item.slotNumber }} · {{ item.measuredInfo }} · {{ formatViewedAt(item.viewedAt) }}
+            Slot {{ item.slotNumber }} · {{ item.measuredInfo }} · {{ formatKoreanDateTime(item.viewedAt) }}
           </p>
         </button>
         <UButton
@@ -53,8 +44,8 @@
           color="neutral"
           variant="ghost"
           icon="i-lucide-x"
-          aria-label="Remove from history"
-          class="opacity-0 transition group-hover:opacity-100"
+          aria-label="조회 기록에서 삭제"
+          class="opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
           @click="$emit('remove', item.filename)"
         />
       </li>
@@ -63,9 +54,9 @@
       v-else
       class="px-4 py-6 text-center sk-body"
     >
-      No view history yet
+      조회 기록이 없습니다.
     </p>
-  </section>
+  </AfmCard>
 </template>
 
 <script setup lang="ts">
@@ -76,16 +67,8 @@ defineProps<{
 }>()
 
 defineEmits<{
-  (event: 'view-details', item: AfmHistoryEntry): void
-  (event: 'remove', filename: string): void
-  (event: 'clear'): void
+  'view-details': [item: AfmHistoryEntry]
+  'remove': [filename: string]
+  'clear': []
 }>()
-
-const formatViewedAt = (iso: string) => {
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return iso
-  }
-}
 </script>

@@ -1,35 +1,26 @@
 <template>
-  <section class="dashboard-surface rounded-2xl">
-    <header class="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-      <div class="flex items-center gap-2">
-        <UIcon
-          name="i-lucide-layers"
-          class="h-4 w-4 text-(--sk-ink-muted)"
-        />
-        <h3 class="sk-title">
-          Data Grouping
-        </h3>
-        <UBadge
-          :label="String(items.length)"
-          color="primary"
-          size="xs"
-          variant="subtle"
-        />
-      </div>
+  <AfmCard
+    icon="i-lucide-layers"
+    title="데이터 그룹"
+    :count="items.length"
+    flush
+  >
+    <template
+      v-if="items.length"
+      #actions
+    >
       <UButton
-        v-if="items.length > 0"
         size="xs"
         color="neutral"
         variant="ghost"
+        label="전체 삭제"
         @click="$emit('clear')"
-      >
-        Clear All
-      </UButton>
-    </header>
+      />
+    </template>
 
     <ul
-      v-if="items.length > 0"
-      class="divide-y divide-zinc-200 dark:divide-zinc-800"
+      v-if="items.length"
+      class="divide-y divide-(--sk-border-soft)"
     >
       <li
         v-for="item in sortedItems"
@@ -38,7 +29,7 @@
       >
         <div class="min-w-0 flex-1">
           <p class="truncate sk-value">
-            {{ item.formattedDate }} • {{ item.recipeName }} • {{ item.lotId }}
+            {{ item.formattedDate }} · {{ item.recipeName }} · {{ item.lotId }}
           </p>
           <p class="truncate sk-meta">
             Slot {{ item.slotNumber }} · {{ item.measuredInfo }}
@@ -49,8 +40,8 @@
           color="neutral"
           variant="ghost"
           icon="i-lucide-x"
-          aria-label="Remove from group"
-          class="opacity-0 transition group-hover:opacity-100"
+          aria-label="그룹에서 제거"
+          class="opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
           @click="$emit('remove', item.filename)"
         />
       </li>
@@ -59,94 +50,80 @@
       v-else
       class="px-4 py-6 text-center sk-body"
     >
-      No grouped data yet
+      그룹에 담긴 측정이 없습니다.
     </p>
 
-    <footer
-      v-if="items.length > 0"
-      class="flex flex-wrap items-center gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800"
+    <template
+      v-if="items.length"
+      #footer
     >
-      <UButton
-        size="xs"
-        color="primary"
-        variant="solid"
-        icon="i-lucide-line-chart"
-        @click="$emit('see-together')"
-      >
-        See Together
-      </UButton>
-      <UButton
-        v-if="items.length > 1"
-        size="xs"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-save"
-        @click="openSaveDialog"
-      >
-        Save Group
-      </UButton>
-    </footer>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          size="xs"
+          color="primary"
+          icon="i-lucide-line-chart"
+          label="함께 보기"
+          @click="$emit('see-together')"
+        />
+        <UButton
+          v-if="items.length > 1"
+          size="xs"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-save"
+          label="그룹 저장"
+          @click="openSaveDialog"
+        />
+      </div>
+    </template>
 
-    <UModal v-model:open="showSaveDialog">
-      <template #content>
-        <div class="space-y-4 p-6">
-          <div class="flex items-center gap-2">
-            <UIcon
-              name="i-lucide-save"
-              class="h-5 w-5 text-primary-500"
-            />
-            <h3 class="text-base font-semibold">
-              Save Data Group
-            </h3>
-          </div>
-
+    <UModal
+      v-model:open="showSaveDialog"
+      title="그룹 저장"
+      :description="`측정 ${items.length}건을 그룹으로 저장합니다.`"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <div class="space-y-4">
           <UFormField
-            label="Group name"
+            label="그룹 이름"
             required
           >
             <UInput
               v-model="groupName"
-              placeholder="Enter a name for this group"
               maxlength="50"
               autofocus
+              class="w-full"
             />
           </UFormField>
-
-          <UFormField label="Description">
+          <UFormField label="설명">
             <UTextarea
               v-model="groupDescription"
-              placeholder="Optional description"
+              placeholder="선택 사항입니다."
               :rows="3"
               maxlength="200"
+              class="w-full"
             />
           </UFormField>
-
-          <div class="rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-900 sk-meta">
-            <strong>Group contains:</strong> {{ items.length }} measurements
-          </div>
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              @click="closeSaveDialog"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="primary"
-              variant="solid"
-              icon="i-lucide-save"
-              :disabled="!groupName.trim()"
-              @click="confirmSave"
-            >
-              Save Group
-            </UButton>
-          </div>
         </div>
       </template>
+      <template #footer>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="취소"
+          @click="showSaveDialog = false"
+        />
+        <UButton
+          color="primary"
+          icon="i-lucide-save"
+          label="그룹 저장"
+          :disabled="!groupName.trim()"
+          @click="confirmSave"
+        />
+      </template>
     </UModal>
-  </section>
+  </AfmCard>
 </template>
 
 <script setup lang="ts">
@@ -157,9 +134,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (event: 'remove', filename: string): void
-  (event: 'clear' | 'see-together'): void
-  (event: 'save', payload: { name: string, description: string }): void
+  'remove': [filename: string]
+  'clear': []
+  'see-together': []
+  'save': [payload: { name: string, description: string }]
 }>()
 
 const sortedItems = computed(() =>
@@ -171,23 +149,15 @@ const groupName = ref('')
 const groupDescription = ref('')
 
 const openSaveDialog = () => {
-  const stamp = new Date()
-  const dateStr = stamp.toLocaleDateString()
-  const timeStr = stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  groupName.value = `Group ${dateStr} ${timeStr}`
+  groupName.value = `그룹 ${formatDateTimeLocal(new Date().toISOString())}`
   groupDescription.value = ''
   showSaveDialog.value = true
 }
 
-const closeSaveDialog = () => {
-  showSaveDialog.value = false
-  groupName.value = ''
-  groupDescription.value = ''
-}
-
 const confirmSave = () => {
-  if (!groupName.value.trim()) return
-  emit('save', { name: groupName.value.trim(), description: groupDescription.value.trim() })
-  closeSaveDialog()
+  const name = groupName.value.trim()
+  if (!name) return
+  emit('save', { name, description: groupDescription.value.trim() })
+  showSaveDialog.value = false
 }
 </script>

@@ -1,5 +1,6 @@
 // Pure histogram helpers for the AFM Z-value distribution. No DOM/Nuxt imports
 // so they run under `node --test`; HistogramChart.vue wires them into useEchart.
+import { quantileSorted as quantile } from './stats.ts'
 
 export type BinMethod = 'auto' | 'custom'
 export type HistogramMode = 'frequency' | 'density' | 'cumulative'
@@ -28,22 +29,13 @@ export interface HistogramBins {
 const clampBins = (n: number): number =>
   !Number.isFinite(n) ? 5 : Math.max(5, Math.min(200, Math.round(n)))
 
-const meanOf = (nums: number[]): number =>
+// 0 on empty (not utils/stats' NaN): these feed chart axes and a stats line.
+export const meanOf = (nums: number[]): number =>
   nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0
 
-const populationStd = (nums: number[], mu: number): number => {
+export const populationStd = (nums: number[], mu: number): number => {
   if (nums.length < 2) return 0
   return Math.sqrt(nums.reduce((a, b) => a + (b - mu) ** 2, 0) / nums.length)
-}
-
-// Linear-interpolated quantile on an ascending-sorted array; p in [0, 1].
-const quantile = (sortedAsc: number[], p: number): number => {
-  if (sortedAsc.length === 0) return 0
-  if (sortedAsc.length === 1) return sortedAsc[0]!
-  const pos = (sortedAsc.length - 1) * p
-  const lo = Math.floor(pos)
-  const hi = Math.ceil(pos)
-  return sortedAsc[lo]! + (sortedAsc[hi]! - sortedAsc[lo]!) * (pos - lo)
 }
 
 // Abramowitz-Stegun erf approximation (max error ~1.5e-7).
@@ -134,7 +126,8 @@ export const computeHistogram = (
     if (z > max) max = z
   }
   if (max - min === 0) {
-    return { centers: [min], values: [n], binWidth: 1, edges: [min - 0.5, min + 0.5] }
+    // One unit-width bin holds everything, so its density is n / (n · 1) = 1.
+    return { centers: [min], values: [mode === 'density' ? 1 : n], binWidth: 1, edges: [min - 0.5, min + 0.5] }
   }
 
   const binWidth = (max - min) / bins
