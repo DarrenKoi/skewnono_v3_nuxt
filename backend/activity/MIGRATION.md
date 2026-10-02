@@ -352,3 +352,11 @@ Then start Flask and check `/api/activity/me`, `/summary`, `/fabs`, `/families`,
 `/users` and `/visitors`.
 Also confirm that with the OpenSearch connection briefly blocked, the response
 returns `503 activity_query_failed` rather than leaking a raw cluster error.
+
+A search that comes back incomplete is refused, not served: when the response
+reports `timed_out: true` or `_shards.failed > 0`, the reader raises and the
+route answers `503 activity_query_failed` (the message, with the shard
+failures, is in the log). OpenSearch otherwise answers 200 with whatever the
+healthy shards returned, which reads as a quiet week — low, plausible and
+wrong. Same rule as `ebeam/_office_search.aggregate`. A response that carries
+no such metadata is served as usual.

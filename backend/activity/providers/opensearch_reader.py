@@ -202,7 +202,25 @@ class ActivityOpenSearchReader:
         if self._search_service is None or self._search_alias != target.alias:
             self._search_service = self._search_factory(target.alias)
             self._search_alias = target.alias
-        return self._search_service.search_raw(body)
+        response = self._search_service.search_raw(body)
+        # OpenSearch answers 200 with whatever the healthy shards returned, so
+        # a search that timed out or lost a shard looks like a quiet week:
+        # low, plausible, wrong. Refuse it — the route turns the raise into a
+        # 503 and the page offers a retry. Same rule, same reason, as
+        # ebeam/_office_search.aggregate.
+        #
+        # Only a response that SAYS it is incomplete is refused. The metadata
+        # is not required to be present: its absence is not evidence, and
+        # demanding it would add a second way to fail that proves nothing.
+        shards = response.get("_shards")
+        failed = shards.get("failed") if isinstance(shards, dict) else None
+        if response.get("timed_out") or (type(failed) is int and failed > 0):
+            raise RuntimeError(
+                f"OpenSearch returned a partial result for {target.alias!r}: "
+                f"timed_out={response.get('timed_out')!r} failed={failed!r} "
+                f"failures={shards.get('failures') if isinstance(shards, dict) else None!r}"
+            )
+        return response
 
     def _history_query(
         self,

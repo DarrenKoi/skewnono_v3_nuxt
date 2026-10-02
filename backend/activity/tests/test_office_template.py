@@ -482,8 +482,10 @@ def test_fab_totals_use_distinct_users_and_normalize_missing_keys():
         ("/api/activity/me", "get_me"),
         ("/api/activity/summary", "get_summary"),
         ("/api/activity/fabs", "get_fab_page_usage"),
+        ("/api/activity/families", "get_family_page_usage"),
         ("/api/activity/users", "get_users_list"),
         ("/api/activity/users/u1", "get_user_history"),
+        ("/api/activity/visitors", "get_daily_visitors"),
     ],
 )
 def test_activity_query_failures_are_normalized_to_503(
@@ -697,3 +699,98 @@ def test_family_usage_lists_every_family_from_page_view_rows():
     ]
     assert families["aggs"]["openers"]["cardinality"]["field"] == "user_id"
     assert families["aggs"]["pages"]["terms"]["field"] == "feature"
+
+
+# ---------------------------------------------------------------------------
+# Partial results. OpenSearch answers 200 with whatever the healthy shards
+# returned unless told otherwise, so "the search did not finish" arrives as
+# two fields on an otherwise ordinary response.
+
+
+@pytest.mark.parametrize(
+    "incomplete",
+    [
+        {"timed_out": True},
+        {
+            "timed_out": False,
+            "_shards": {
+                "total": 4,
+                "successful": 3,
+                "failed": 1,
+                "failures": [{"shard": 2, "reason": {"type": "boom"}}],
+            },
+        },
+    ],
+    ids=["timed-out", "failed-shard"],
+)
+def test_a_partial_search_result_is_refused_not_served(incomplete):
+    """Served as-is, a search that lost a shard reads as a quiet week: the
+    numbers are low, plausible and wrong, and nobody re-checks a number that
+    looks plausible. Same rule ebeam/_office_search.aggregate applies."""
+    reader, _search, _aliases = _reader([{**_summary_response(), **incomplete}])
+
+    with pytest.raises(RuntimeError, match="partial"):
+        reader.get_summary()
+
+
+def test_the_refusal_names_what_failed():
+    """The message is all an operator gets — the route answers a generic 503
+    and logs this."""
+    failure = {"shard": 2, "index": "skewnono_logging-000007", "reason": "x"}
+    response = {
+        **_summary_response(),
+        "_shards": {"total": 4, "successful": 3, "failed": 1, "failures": [failure]},
+    }
+    reader, _search, _aliases = _reader([response])
+
+    with pytest.raises(RuntimeError) as raised:
+        reader.get_summary()
+
+    message = str(raised.value)
+    assert "skewnono_logging_local" in message
+    assert "failed=1" in message
+    assert "skewnono_logging-000007" in message
+
+
+@pytest.mark.parametrize(
+    "complete",
+    [
+        {},
+        {"timed_out": False, "_shards": {"total": 4, "successful": 4, "failed": 0}},
+        # Skipped shards are an optimisation, not a failure.
+        {"_shards": {"total": 4, "successful": 4, "skipped": 2, "failed": 0}},
+    ],
+    ids=["no-metadata", "all-shards-ok", "skipped-shards"],
+)
+def test_a_complete_search_result_is_served(complete):
+    """Only a response that SAYS it is incomplete is refused. A missing field
+    is not evidence of anything."""
+    reader, _search, _aliases = _reader([{**_summary_response(), **complete}])
+
+    assert reader.get_summary()["dau"] == 2
+
+
+def test_a_partial_page_stops_a_paged_query_instead_of_being_skipped():
+    """A composite walk must not return the pages it could read: half the
+    users is not a smaller answer, it is a wrong one."""
+    reader, search, _aliases = _reader(
+        [
+            {
+                "aggregations": {
+                    "users": {
+                        "buckets": [_user_days("u1", ("2026-07-27", 1))],
+                        "after_key": {"user_id": "u1"},
+                    }
+                }
+            },
+            {
+                "timed_out": True,
+                "aggregations": {"users": {"buckets": []}},
+            },
+        ]
+    )
+
+    with pytest.raises(RuntimeError, match="partial"):
+        reader.get_daily_visitors()
+
+    assert len(search.bodies) == 2
