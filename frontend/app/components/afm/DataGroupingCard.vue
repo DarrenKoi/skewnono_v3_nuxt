@@ -27,12 +27,25 @@
         :key="item.filename"
         class="group flex items-start gap-2 px-4 py-2.5"
       >
-        <div class="min-w-0 flex-1">
-          <p class="truncate sk-value">
-            {{ item.formattedDate }} · {{ item.recipeName }} · {{ item.lotId }}
+        <div class="min-w-0 flex-1 space-y-1">
+          <p class="flex items-baseline gap-2">
+            <span class="shrink-0 font-mono text-xs tabular-nums text-(--sk-ink-muted)">
+              {{ item.formattedDate }}
+            </span>
+            <span class="truncate text-sm font-semibold text-(--sk-ink)">
+              {{ item.recipeName }}
+            </span>
           </p>
-          <p class="truncate sk-meta">
-            Slot {{ item.slotNumber }} · {{ item.measuredInfo }}
+          <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <AfmLotSlotTags
+              :lot-id="item.lotId"
+              :slot-number="item.slotNumber"
+            />
+            <UBadge
+              :label="item.measuredInfo"
+              color="neutral"
+              variant="outline"
+            />
           </p>
         </div>
         <UButton

@@ -120,19 +120,19 @@
             <span class="text-sm font-semibold text-(--sk-ink)">
               {{ result.recipeName }}
             </span>
-            <span class="inline-flex h-[22px] items-center gap-1.5 rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface) px-1.5">
-              <span class="sk-eyebrow">Lot</span>
-              <span class="sk-value-num font-semibold">{{ result.lotId }}</span>
+            <!-- One unit, so a narrow row wraps the tags together instead of
+                 stranding the slot on a line of its own. -->
+            <span class="flex items-center gap-x-3">
+              <AfmLotSlotTags
+                :lot-id="result.lotId"
+                :slot-number="result.slotNumber"
+              />
+              <UBadge
+                :label="result.measuredInfo"
+                color="neutral"
+                variant="outline"
+              />
             </span>
-            <span class="inline-flex h-[22px] items-center gap-1.5 rounded-(--sk-r-sidebar) bg-(--sk-chip-bg) px-1.5">
-              <span class="sk-eyebrow">Slot</span>
-              <span class="sk-value-num font-semibold">{{ result.slotNumber }}</span>
-            </span>
-            <UBadge
-              :label="result.measuredInfo"
-              color="neutral"
-              variant="outline"
-            />
           </div>
 
           <div class="flex shrink-0 items-center gap-1">

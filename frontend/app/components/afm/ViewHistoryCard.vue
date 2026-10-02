@@ -29,15 +29,31 @@
       >
         <button
           type="button"
-          class="min-w-0 flex-1 text-left"
+          class="min-w-0 flex-1 space-y-1 text-left"
           @click="$emit('view-details', item)"
         >
-          <p class="truncate sk-value">
-            {{ item.formattedDate }} · {{ item.recipeName }} · {{ item.lotId }}
-          </p>
-          <p class="truncate sk-meta">
-            Slot {{ item.slotNumber }} · {{ item.measuredInfo }} · {{ formatKoreanDateTime(item.viewedAt) }}
-          </p>
+          <span class="flex items-baseline gap-2">
+            <span class="shrink-0 font-mono text-xs tabular-nums text-(--sk-ink-muted)">
+              {{ item.formattedDate }}
+            </span>
+            <span class="truncate text-sm font-semibold text-(--sk-ink)">
+              {{ item.recipeName }}
+            </span>
+          </span>
+          <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <AfmLotSlotTags
+              :lot-id="item.lotId"
+              :slot-number="item.slotNumber"
+            />
+            <UBadge
+              :label="item.measuredInfo"
+              color="neutral"
+              variant="outline"
+            />
+            <span class="sk-meta">
+              {{ formatKoreanDateTime(item.viewedAt) }}
+            </span>
+          </span>
         </button>
         <UButton
           size="xs"
