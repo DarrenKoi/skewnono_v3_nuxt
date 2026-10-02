@@ -75,9 +75,11 @@ export const buildSummaryTable = (summary: AfmSummaryRow[]): ExportTable => {
 // Nothing is lost by widening: the backend-shape claim lives on
 // AfmDetailPayload.data, the sole caller still passes an AfmDetailRow[]
 // through here, and afmPointsTable.test.ts pins the full row shape.
+// `Block` (utils/afmPoints tagBlocks) leads when present: in a multi-block file
+// the same point appears once per block, and without it the rows are twins.
 export const buildDetailedTable = (data: Record<string, unknown>[]): ExportTable => {
   if (data.length === 0) return { headers: [], rows: [] }
-  return tableFromRows(data, [])
+  return tableFromRows(data, data.some(row => 'Block' in row) ? ['Block'] : [])
 }
 
 // The headers carry the file's own units: the same numbers mean um in one file and

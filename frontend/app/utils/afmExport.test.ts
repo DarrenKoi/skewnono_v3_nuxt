@@ -49,6 +49,15 @@ test('buildDetailedTable unions keys across ragged rows, missing → empty', () 
   assert.deepEqual(t.rows[1], ['B', 2, 9])
 })
 
+test('buildDetailedTable leads with Block so a point measured in two blocks stays two distinguishable rows', () => {
+  const t = buildDetailedTable([
+    { 'measurement_point': '1', 'Left_H (nm)': 93, 'Block': 'Profile_LEFT_UL' },
+    { 'measurement_point': '1', 'Left_H (nm)': 97, 'Block': 'Profile_RIGHT_UL' }
+  ])
+  assert.deepEqual(t.headers, ['Block', 'measurement_point', 'Left_H (nm)'])
+  assert.deepEqual(t.rows, [['Profile_LEFT_UL', '1', 93], ['Profile_RIGHT_UL', '1', 97]])
+})
+
 test('buildProfileTable puts the file\'s own units in the headers when it declares them', () => {
   const meta = { x_unit: 'um', y_unit: 'Pixel', z_unit: 'pm', data_size: '2 x 1', surface_size: '1 x 0' }
   const t = buildProfileTable([{ x: 1, y: 2, z: 3 }], meta)

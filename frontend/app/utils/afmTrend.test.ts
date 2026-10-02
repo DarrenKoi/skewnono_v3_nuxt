@@ -237,3 +237,13 @@ test('trendTable writes one numeric cell per column and names the reason for a g
   const missing = trendTable(trendRows([entry!], 'Z', COL, 'MEAN', true).rows)
   assert.equal(missing.rows[0]![12], '블록 없음')
 })
+
+// The chart tick can drop the year; a sheet cannot — it outlives the screen,
+// and a group can straddle New Year.
+test('trendTable writes the full start time, year included', () => {
+  const [entry] = prepareEntries([{
+    source: source('a.csv'),
+    payload: payload(summaryOf('B', { MEAN: 2 }), [], { 'Start Time': '2025-12-31 23:45:00' })
+  }])
+  assert.equal(trendTable(trendRows([entry!], 'B', COL, 'MEAN', true).rows).rows[0]![0], '2025-12-31 23:45')
+})

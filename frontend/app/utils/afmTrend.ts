@@ -7,6 +7,7 @@ import type { AfmDetailPayload, AfmDetailRow, AfmSummaryItem } from '~/composabl
 import { blockNames, pointState, tagBlocks } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { boxStats, type BoxStats } from './boxplotStats.ts'
+import { formatDateTimeLocal } from './dateTime.ts'
 import { MAD_TO_SIGMA, mean, medianAbsoluteDeviation, sampleStd } from './stats.ts'
 
 export interface TrendSource {
@@ -216,11 +217,14 @@ export const trendRows = (
 }
 
 // 측정별 요약 as a sheet: the on-screen columns, with Lot · Slot and n (유효)
-// split so each cell holds one number Excel can sort.
+// split so each cell holds one number Excel can sort. The time keeps its year,
+// which the screen's `shortTime` drops: a sheet outlives the screen. A time that
+// never parsed stays blank — `toISOString` on NaN would throw out of the export.
 export const trendTable = (rows: TrendRow[]): { headers: string[], rows: unknown[][] } => ({
   headers: ['시각', 'Recipe', 'Lot', 'Slot', 'n', 'n (유효)', 'MEAN', 'STDEV', 'MIN', 'MAX', 'RANGE', 'Δ μ', '상태', '파일'],
   rows: rows.map(({ entry, stats, delta, state, reason }) => [
-    shortTime(entry.time), entry.recipe, entry.lot, entry.slot,
+    Number.isFinite(entry.time) ? formatDateTimeLocal(new Date(entry.time).toISOString()) : '',
+    entry.recipe, entry.lot, entry.slot,
     stats?.n ?? null, stats?.nValid ?? null,
     stats?.MEAN ?? null, stats?.STDEV ?? null, stats?.MIN ?? null, stats?.MAX ?? null, stats?.RANGE ?? null,
     delta, stats ? state : reason, entry.key

@@ -207,7 +207,7 @@ const downloadCombined = async () => {
     await downloadWorkbook(`${filename}-all.xlsx`, buildCombinedSheets([
       { label: '측정 정보', table: buildInfoTable(information.value) },
       { label: '사이트별 요약', table: buildSummaryTable(summaryRows.value) },
-      { label: '측정 포인트', table: buildDetailedTable(detailRows.value) },
+      { label: '측정 포인트', table: buildDetailedTable(tableRows.value) },
       { label: `프로파일 (포인트 ${selectedPoint.value || '없음'})`, table: buildProfileTable(profile.value, profileMeta.value) }
     ]))
   } catch {
@@ -242,7 +242,7 @@ const exportItems = computed<DropdownMenuItem[][]>(() => [
       label: `측정 포인트 (${detailRows.value.length})`,
       icon: 'i-lucide-list',
       disabled: detailRows.value.length === 0,
-      onSelect: () => downloadSection('detailed', buildDetailedTable(detailRows.value))
+      onSelect: () => downloadSection('detailed', buildDetailedTable(tableRows.value))
     },
     {
       label: `프로파일 — 포인트 ${selectedPoint.value || '없음'} (${profile.value.length})`,
