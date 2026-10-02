@@ -1,3 +1,5 @@
+import io
+import zipfile
 from urllib.parse import quote, unquote
 
 from flask import Blueprint, Response, jsonify, request
@@ -192,15 +194,54 @@ def afm_tiff_original(filename: str, name: str):
     if original is None:
         return "TIFF file not found", 404
 
+    return _attachment(original["data"], original["content_type"], original["filename"])
+
+
+@bp.get("/afm/files/<path:filename>/tiff.zip")
+def afm_tiff_zip(filename: str):
+    """Every original TIFF of one measurement in a single zip.
+
+    Built from the same two seams as the single download, so the office adapter
+    needs nothing new: the Result list says which images have an original, and
+    `get_tiff_original` fetches each. One that vanished between the two (past
+    retention) is left out rather than failing the whole archive.
+    """
+    tool_name = _tool_name()
+    decoded_filename = unquote(filename)
+    names = [
+        image["name"]
+        for image in list_analysis_images(decoded_filename, "tiff", tool_name)
+        if image.get("original_url")
+    ]
+
+    # ponytail: the archive is built in memory, so its peak is the sum of the
+    # originals (36 points x the TIFF size, OFFICE-VERIFY). Stream it through
+    # a SpooledTemporaryFile if office TIFFs turn out to be tens of MB each.
+    buffer = io.BytesIO()
+    count = 0
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name in names:
+            original = get_tiff_original(decoded_filename, name, tool_name)
+            if original is not None:
+                archive.writestr(original["filename"], original["data"])
+                count += 1
+
+    if count == 0:
+        return "TIFF file not found", 404
+
+    stem = decoded_filename.removesuffix(".csv").removesuffix(".pkl")
+    return _attachment(buffer.getvalue(), "application/zip", f"{stem}_TIFF.zip")
+
+
+def _attachment(data: bytes, content_type: str, name: str) -> Response:
     # RFC 5987: a recipe name can carry spaces and parentheses, and a bare
     # filename= with anything non-ASCII makes the browser mangle the name.
-    stored_name = original["filename"]
     return Response(
-        original["data"],
-        content_type=original["content_type"],
+        data,
+        content_type=content_type,
         headers={
             "Content-Disposition": (
-                f"attachment; filename=\"{stored_name}\"; filename*=UTF-8''{quote(stored_name)}"
+                f"attachment; filename=\"{name}\"; filename*=UTF-8''{quote(name)}"
             ),
             # Originals do not change once written but may be deleted at
             # retention, so revalidate rather than cache.

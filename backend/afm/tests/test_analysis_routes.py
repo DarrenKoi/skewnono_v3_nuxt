@@ -111,3 +111,24 @@ def test_original_route_404s_for_an_unknown_image_or_measurement(client):
     tool = row["tool_name"]
     assert client.get(f"/api/afm/files/{fn}/tiff/not-real.webp?tool={tool}").status_code == 404
     assert client.get(f"/api/afm/files/no-such-file/tiff/{nm}?tool={tool}").status_code == 404
+
+
+def test_tiff_zip_holds_every_original_of_the_measurement(client):
+    import io
+    import zipfile
+
+    row, names = _tiff_row()
+    fn = quote(row["filename"], safe="")
+    r = client.get(f"/api/afm/files/{fn}/tiff.zip?tool={row['tool_name']}")
+    assert r.status_code == 200
+    assert r.mimetype == "application/zip"
+    assert r.headers["Content-Disposition"].startswith("attachment;")
+    archive = zipfile.ZipFile(io.BytesIO(r.data))
+    assert archive.namelist() == [n.rsplit(".", 1)[0] + ".tiff" for n in names]
+    first = archive.read(archive.namelist()[0])
+    nm = quote(names[0], safe="")
+    assert first == client.get(f"/api/afm/files/{fn}/tiff/{nm}?tool={row['tool_name']}").data
+
+
+def test_tiff_zip_404s_for_an_unknown_measurement(client):
+    assert client.get("/api/afm/files/no-such-file/tiff.zip").status_code == 404

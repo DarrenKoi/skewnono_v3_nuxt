@@ -208,6 +208,11 @@
   object that is not there. Emit `original_url` from `list_analysis_images`
   only for images whose original actually exists; that key is the page's only
   signal. The route sends `content_type` verbatim (`image/tiff`).
+- `GET /api/afm/files/<filename>/tiff.zip` (all originals of one measurement
+  in one zip) is composed in `routes.py` from `list_analysis_images` and
+  `get_tiff_original`, so it needs **no extra office function**. An image whose
+  original returns `None` is left out of the archive; none at all is a `404`.
+  The zip is built in memory, so tell us if office TIFFs are tens of MB each.
 
 ## Verify
 

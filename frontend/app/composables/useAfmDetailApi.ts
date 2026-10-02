@@ -153,5 +153,10 @@ export const useAfmDetailApi = () => {
   const fetchAnalysisImages = (tool: string, filename: string, imageType: AfmImageType) =>
     get<AfmAnalysisImagesResponse>(tool, filename, `/images/${imageType}`)
 
-  return { useAfmFiles, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages }
+  // A plain link, not a fetch: the browser streams the zip to disk and names
+  // it from Content-Disposition.
+  const tiffZipUrl = (tool: string, filename: string) =>
+    `${joinApiPath(base, `/afm/files/${encodeURIComponent(filename)}/tiff.zip`)}?tool=${encodeURIComponent(tool)}`
+
+  return { useAfmFiles, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, tiffZipUrl }
 }

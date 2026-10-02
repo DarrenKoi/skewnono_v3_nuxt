@@ -19,6 +19,16 @@
           :label="`팝업에서 보기 · ${images.length}장`"
           @click="openBrowser()"
         />
+        <UButton
+          v-if="originalCount"
+          size="sm"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-file-archive"
+          :to="tiffZipUrl(tool, filename)"
+          external
+          :label="`원본 TIFF 전체 · ${originalCount}장`"
+        />
       </div>
     </template>
 
@@ -284,7 +294,7 @@ const props = defineProps<{
 // clicking a thumbnail selects its point.
 const selectedPoint = defineModel<string>('selectedPoint', { required: true })
 
-const { fetchAnalysisImages } = useAfmDetailApi()
+const { fetchAnalysisImages, tiffZipUrl } = useAfmDetailApi()
 
 const TYPES: { value: AfmImageType, label: string }[] = [
   { value: 'align', label: 'Align' },
@@ -301,6 +311,8 @@ const states = reactive({ align: newState(), tip: newState(), capture: newState(
 // Result opens first: it is the one type with an image per point.
 const activeType = ref<AfmImageType>('tiff')
 const state = computed(() => states[activeType.value])
+// How many originals the zip will hold — only Result images have one.
+const originalCount = computed(() => state.value.images.filter(image => image.original_url).length)
 const tabItems = computed(() =>
   TYPES.map(t => ({ ...t, count: states[t.value].images.length || undefined }))
 )

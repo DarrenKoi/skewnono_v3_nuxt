@@ -238,7 +238,9 @@ D5 이미지
     함수는 `get_tiff_original(filename, name, tool_name)` 이고 `AfmOriginalFile`
     (filename, content_type, data) 을 돌려줍니다. `name` 은 `tiff_dir_list` 의 표시용
     이름이며, 저장 key 로 바꾸는 일은 office adapter 가 맡습니다. Result 이미지 목록의
-    각 항목은 이 주소를 `original_url` 로 싣습니다.
+    각 항목은 이 주소를 `original_url` 로 싣습니다. 측정 하나의 원본 전체는
+    `GET /api/afm/files/<filename>/tiff.zip` 으로 한 번에 받습니다(route 가 위 두 함수로
+    조립하므로 office 함수가 따로 없습니다).
   - 그 밖의 계약(`AfmMeasurementRow`, 상세의 summary·data)은 Redis·MinIO 명세를
     받을 때까지 그대로 둡니다. 특히 **Data 행이 어느 block 에 속하는지**를 담을 자리가
     아직 없습니다 — Method ID 로는 가릴 수 없으므로 적재 형태가 정해지면 정합니다.
