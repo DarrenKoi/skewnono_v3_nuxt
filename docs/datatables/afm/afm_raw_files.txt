@@ -215,7 +215,14 @@ D5 이미지
   못 그리는 문제는 webp 변환본으로 해결됩니다. 유무는 recipe 설정이 정하고, 파일명의
   위치 키 규칙은 profile 과 같습니다(D4).
 
+  원본 TIFF 는 MinIO 에 저장되어 있고, 사용자가 웹에서 내려받을 수 있어야 합니다
+  [user-confirmed 2026-10-03]. 화면에는 webp 변환본을 그리고, 다운로드는 원본을 그대로
+  (변환 없이) 내보냅니다.
+
   회신에 없는 것 [가정]: 종류(Height·align·tip·capture)별 파일명의 나머지 부분.
+  원본 TIFF 의 MinIO bucket·key 규칙, 원본 파일명이 webp 변환본과 확장자만 다른지,
+  확장자가 `.tif` 인지 `.tiff` 인지, 크기·bit 수·장비 전용 태그, 보존 기간. align·tip·
+  capture 에도 TIFF 원본이 있는지(현재는 Result 이미지에만 있다고 가정).
 
 
 웹 계약에 반영된 것 (backend/afm)
@@ -227,6 +234,11 @@ D5 이미지
   - 화면은 축과 Excel 헤더에 그 단위를 그대로 씁니다. data_size 가 한 줄(`1024 x 1`)
     이라고 하면 히트맵 대신 선 그래프로 그립니다. data_size 를 읽을 수 없을 때만
     "Y 가 한 값뿐인가"로 판단합니다.
+  - 원본 TIFF 다운로드는 `GET /api/afm/files/<filename>/tiff/<name>` 입니다. provider
+    함수는 `get_tiff_original(filename, name, tool_name)` 이고 `AfmOriginalFile`
+    (filename, content_type, data) 을 돌려줍니다. `name` 은 `tiff_dir_list` 의 표시용
+    이름이며, 저장 key 로 바꾸는 일은 office adapter 가 맡습니다. Result 이미지 목록의
+    각 항목은 이 주소를 `original_url` 로 싣습니다.
   - 그 밖의 계약(`AfmMeasurementRow`, 상세의 summary·data)은 Redis·MinIO 명세를
     받을 때까지 그대로 둡니다. 특히 **Data 행이 어느 block 에 속하는지**를 담을 자리가
     아직 없습니다 — Method ID 로는 가릴 수 없으므로 적재 형태가 정해지면 정합니다.

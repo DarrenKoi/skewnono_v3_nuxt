@@ -110,6 +110,10 @@ export type AfmImageType = 'align' | 'tip' | 'capture' | 'tiff'
 export interface AfmAnalysisImage {
   name: string
   url: string
+  // Result images only: the stored TIFF this display rendition was converted
+  // from. The server names the download (Content-Disposition), so link to it
+  // without a `download` name of our own.
+  original_url?: string
 }
 
 export interface AfmAnalysisImagesResponse {

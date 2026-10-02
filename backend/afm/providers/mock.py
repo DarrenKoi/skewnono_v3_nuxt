@@ -79,10 +79,15 @@ X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가
   간격으로 되풀이되는 구간으로 냅니다(오늘 기준 목록에도 항상 섞이도록).
 - profile metadata 의 `SurfaceSize` 값 형식, Pixel 축의 길이 환산(근거 없음).
 - 이미지는 자리 표시 SVG 입니다. 실제는 webp 변환본이 있습니다.
+- 원본 TIFF 는 MinIO 에 있고 내려받을 수 있어야 합니다(user-confirmed 2026-10-03). mock 은
+  Result 이미지마다 256x256 8bit 회색조 TIFF 를 지어냅니다. 원본의 파일명(변환본 이름에서
+  확장자만 `.tiff` 로 바꾼 것으로 가정), 크기·bit 수·장비 전용 태그, MinIO 경로, 보존
+  기간은 모두 OFFICE-VERIFY 입니다.
 """
 
 import hashlib
 import html
+import io
 import math
 import random
 import statistics
@@ -91,7 +96,7 @@ from functools import lru_cache
 from typing import Any
 from urllib.parse import quote
 
-from backend.afm.contracts import AfmMeasurementRow, AfmProfileMeta
+from backend.afm.contracts import AfmMeasurementRow, AfmOriginalFile, AfmProfileMeta
 
 
 __all__ = [
@@ -105,6 +110,7 @@ __all__ = [
     "get_profile_image_svg",
     "list_analysis_images",
     "get_analysis_image_svg",
+    "get_tiff_original",
 ]
 
 
@@ -562,14 +568,50 @@ def list_analysis_images(
         if not name or name == "no files":
             continue
         encoded_name = quote(name, safe="")
-        images.append({
+        image = {
             "name": name,
             "url": (
                 f"/api/afm/files/{encoded_filename}/images/{image_type}/{encoded_name}"
                 f"?tool={encoded_tool}"
             ),
-        })
+        }
+        # Only a Result image is a conversion of a stored TIFF; align / tip /
+        # capture have no original behind them.
+        if image_type == "tiff":
+            image["original_url"] = (
+                f"/api/afm/files/{encoded_filename}/tiff/{encoded_name}?tool={encoded_tool}"
+            )
+        images.append(image)
     return images
+
+
+def get_tiff_original(
+    filename: str,
+    name: str,
+    tool_name: str | None = None,
+) -> AfmOriginalFile | None:
+    row = _find_measurement(filename, tool_name)
+    if row is None or name not in row["tiff_dir_list"] or name == "no files":
+        return None
+
+    # Lazy: Pillow is only needed for this one download.
+    from PIL import Image
+
+    rng = random.Random(_seed_for("tiff-original", row["tool_name"], row["filename"], name))
+    fx, fy, phase = rng.uniform(0.02, 0.09), rng.uniform(0.02, 0.09), rng.uniform(0, math.tau)
+    size = 256
+    pixels = bytes(
+        int(127.5 + 127.5 * math.sin(x * fx + phase) * math.cos(y * fy))
+        for y in range(size)
+        for x in range(size)
+    )
+    buffer = io.BytesIO()
+    Image.frombytes("L", (size, size), pixels).save(buffer, format="TIFF")
+    return {
+        "filename": f"{name.rsplit('.', 1)[0]}.tiff",
+        "content_type": "image/tiff",
+        "data": buffer.getvalue(),
+    }
 
 
 def get_analysis_image_svg(

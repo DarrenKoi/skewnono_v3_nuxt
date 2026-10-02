@@ -175,6 +175,40 @@
   return value) — office only needs to return the SVG string; the route
   wiring is unaffected.
 
+## Endpoint family: GET /api/afm/files/&lt;filename&gt;/tiff/&lt;name&gt;
+
+- Handler: `routes.py` → `data.get_tiff_original(filename, name, tool_name)`
+  (`filename`/`name` URL-decoded; `tool_name` from `?tool=`). `name` is an
+  entry of the measurement's `tiff_dir_list` — the **display** image name, not
+  the stored key.
+- Contract: `AfmOriginalFile | None` —
+
+  ```python
+  class AfmOriginalFile(TypedDict):
+      filename: str
+      content_type: str
+      data: bytes
+  ```
+
+- Mock behavior: returns a fabricated 256×256 8-bit grayscale TIFF, seeded
+  from `(tool_name, filename, name)`, named after the listed image with its
+  extension swapped to `.tiff`. Returns `None` when the measurement is unknown
+  or `name` is not in its `tiff_dir_list`, which the route turns into a plain
+  `404`. `list_analysis_images(..., "tiff", ...)` adds an `original_url` key
+  pointing at this route to every entry; the other three image types carry no
+  such key, and the page shows the 원본 TIFF 다운로드 button only where the key
+  is present.
+- Office data source: <!-- OFFICE: MinIO bucket / key of the original TIFF -->
+  — `OFFICE-VERIFY`: the bucket, the key layout, whether the original's
+  basename equals the webp's with another extension, `.tif` vs `.tiff`, and
+  the retention period.
+- Notes: read the object with `minio_handler.MinioObject().get(key)` (lazy
+  import, raw bytes) and return its **key basename** as `filename` — the route
+  sends it as the download name, so do not compose one. Return `None` for an
+  object that is not there. Emit `original_url` from `list_analysis_images`
+  only for images whose original actually exists; that key is the page's only
+  signal. The route sends `content_type` verbatim (`image/tiff`).
+
 ## Verify
 
     SKEWNONO_AFM_PROVIDER=office .venv/bin/pytest backend/afm

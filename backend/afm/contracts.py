@@ -11,6 +11,7 @@ __all__ = [
     "AfmFileDetail",
     "AfmProfilePoint",
     "AfmProfileMeta",
+    "AfmOriginalFile",
 ]
 
 
@@ -76,3 +77,12 @@ class AfmProfileMeta(TypedDict):
     z_unit: str
     data_size: str
     surface_size: str
+
+
+class AfmOriginalFile(TypedDict):
+    # One stored object handed to the caller byte for byte — the only AFM
+    # contract that carries bytes. `filename` is the basename of the stored key,
+    # not a name we compose, so a download keeps the identity it has in storage.
+    filename: str
+    content_type: str
+    data: bytes

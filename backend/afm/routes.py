@@ -8,6 +8,7 @@ from backend.afm.data import (
     get_profile_image_svg,
     get_profile_meta,
     get_profile_points,
+    get_tiff_original,
     get_tools,
     list_afm_files,
     list_analysis_images,
@@ -177,6 +178,35 @@ def afm_analysis_image_file(filename: str, image_type: str, name: str):
         return "Image file not found", 404
 
     return Response(svg, mimetype="image/svg+xml")
+
+
+@bp.get("/afm/files/<path:filename>/tiff/<path:name>")
+def afm_tiff_original(filename: str, name: str):
+    """The untouched TIFF behind one Result image, as a download.
+
+    `name` is the listed (display) image name; the provider maps it to the
+    stored original, so the page never has to know the storage layout.
+    """
+    original = get_tiff_original(unquote(filename), unquote(name), _tool_name())
+
+    if original is None:
+        return "TIFF file not found", 404
+
+    # RFC 5987: a recipe name can carry spaces and parentheses, and a bare
+    # filename= with anything non-ASCII makes the browser mangle the name.
+    stored_name = original["filename"]
+    return Response(
+        original["data"],
+        content_type=original["content_type"],
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{stored_name}\"; filename*=UTF-8''{quote(stored_name)}"
+            ),
+            # Originals do not change once written but may be deleted at
+            # retention, so revalidate rather than cache.
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 def _tool_name() -> str:

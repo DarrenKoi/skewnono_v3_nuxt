@@ -44,3 +44,7 @@ def list_analysis_images(*args, **kwargs):
 
 def get_analysis_image_svg(*args, **kwargs):
     return _not_connected()
+
+
+def get_tiff_original(*args, **kwargs):
+    return _not_connected()

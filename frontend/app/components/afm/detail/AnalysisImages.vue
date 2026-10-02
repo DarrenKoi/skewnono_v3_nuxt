@@ -240,6 +240,16 @@
                   icon="i-lucide-download"
                   label="이미지 다운로드"
                 />
+                <UButton
+                  v-if="picked.original_url"
+                  block
+                  :to="picked.original_url"
+                  external
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-file-down"
+                  label="원본 TIFF 다운로드"
+                />
               </div>
               <div
                 v-else

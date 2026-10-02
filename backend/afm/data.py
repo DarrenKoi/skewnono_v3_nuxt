@@ -3,7 +3,7 @@
 from typing import Any
 
 from backend._runtime.data_provider import get_data_provider
-from backend.afm.contracts import AfmMeasurementRow, AfmProfileMeta
+from backend.afm.contracts import AfmMeasurementRow, AfmOriginalFile, AfmProfileMeta
 
 
 __all__ = [
@@ -17,6 +17,7 @@ __all__ = [
     "get_profile_image_svg",
     "list_analysis_images",
     "get_analysis_image_svg",
+    "get_tiff_original",
 ]
 
 
@@ -87,3 +88,11 @@ def get_analysis_image_svg(
     tool_name: str | None = None,
 ) -> str | None:
     return _provider().get_analysis_image_svg(filename, image_type, name, tool_name)
+
+
+def get_tiff_original(
+    filename: str,
+    name: str,
+    tool_name: str | None = None,
+) -> AfmOriginalFile | None:
+    return _provider().get_tiff_original(filename, name, tool_name)

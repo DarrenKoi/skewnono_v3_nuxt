@@ -68,3 +68,46 @@ def test_serve_route_unknown_type_404(client):
     nm = quote(names[0], safe="")
     r = client.get(f"/api/afm/files/{fn}/images/bogus/{nm}?tool={row['tool_name']}")
     assert r.status_code == 404
+
+
+def _tiff_row():
+    field = mock.IMAGE_TYPE_FIELDS["tiff"]
+    for row in data.list_afm_files(None):
+        names = [n for n in row.get(field, []) if n != "no files"]
+        if names:
+            return row, names
+    raise AssertionError("no tiff row")
+
+
+def test_only_result_images_offer_an_original(client):
+    row, _ = _tiff_row()
+    fn = quote(row["filename"], safe="")
+    tiff = client.get(f"/api/afm/files/{fn}/images/tiff?tool={row['tool_name']}").get_json()["data"]
+    capture = client.get(f"/api/afm/files/{fn}/images/capture?tool={row['tool_name']}").get_json()["data"]
+    assert all("/tiff/" in img["original_url"] for img in tiff)
+    assert all("original_url" not in img for img in capture)
+
+
+def test_original_url_downloads_a_real_tiff_under_its_stored_name(client):
+    row, names = _tiff_row()
+    fn = quote(row["filename"], safe="")
+    listed = client.get(f"/api/afm/files/{fn}/images/tiff?tool={row['tool_name']}").get_json()["data"]
+    r = client.get(listed[0]["original_url"])
+    assert r.status_code == 200
+    assert r.mimetype == "image/tiff"
+    # TIFF magic: little- or big-endian byte-order mark + 42.
+    assert r.data[:4] in (b"II*\x00", b"MM\x00*")
+    stored_name = names[0].rsplit(".", 1)[0] + ".tiff"
+    disposition = r.headers["Content-Disposition"]
+    assert disposition.startswith("attachment;")
+    assert f"filename*=UTF-8''{quote(stored_name)}" in disposition
+    assert r.data == client.get(listed[0]["original_url"]).data
+
+
+def test_original_route_404s_for_an_unknown_image_or_measurement(client):
+    row, names = _tiff_row()
+    fn = quote(row["filename"], safe="")
+    nm = quote(names[0], safe="")
+    tool = row["tool_name"]
+    assert client.get(f"/api/afm/files/{fn}/tiff/not-real.webp?tool={tool}").status_code == 404
+    assert client.get(f"/api/afm/files/no-such-file/tiff/{nm}?tool={tool}").status_code == 404
