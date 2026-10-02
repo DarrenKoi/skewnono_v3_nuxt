@@ -151,7 +151,7 @@ const chartOption = computed<EChartsOption>(() => {
     xAxis: {
       type: 'category',
       data: centers.map(c => c.toFixed(2)),
-      axisLabel: { ...CHART_AXIS_LABEL, interval: Math.max(0, Math.ceil(centers.length / 6) - 1) }
+      axisLabel: { ...CHART_AXIS_LABEL, interval: Math.max(0, Math.ceil(centers.length / 6) - 1), hideOverlap: true }
     },
     yAxis: {
       type: 'value',

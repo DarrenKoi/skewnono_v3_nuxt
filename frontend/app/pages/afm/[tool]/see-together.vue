@@ -22,10 +22,10 @@
 
     <div
       v-else
-      class="grid items-start gap-6 min-[112.5rem]:grid-cols-12"
+      class="grid grid-cols-1 items-start gap-6 2xl:grid-cols-12"
     >
       <AfmCard
-        class="min-[112.5rem]:col-span-4"
+        class="2xl:col-span-4"
         icon="i-lucide-list-checks"
         title="선택한 측정"
         :count="groupedItems.length"
@@ -60,7 +60,7 @@
         </ul>
       </AfmCard>
 
-      <div class="space-y-6 min-[112.5rem]:col-span-8">
+      <div class="space-y-6 2xl:col-span-8">
         <UAlert
           v-if="failedCount > 0"
           color="warning"

@@ -41,7 +41,7 @@
     </p>
     <div
       v-else
-      class="grid gap-6 lg:grid-cols-12"
+      class="grid grid-cols-1 gap-6 lg:grid-cols-12"
     >
       <div class="space-y-6 lg:col-span-5 min-[112.5rem]:col-span-4">
         <AfmDetailInfoPanel
@@ -54,44 +54,49 @@
           :available-points="payload.available_points"
         />
       </div>
-      <div class="grid content-start gap-6 lg:col-span-7 min-[112.5rem]:col-span-8 min-[112.5rem]:grid-cols-8">
-        <div class="space-y-6 min-[112.5rem]:col-span-5">
-          <AfmDetailSummaryScatterChart
-            :summary="payload.summary"
-            :export-name="`${filename}-summary-scatter`"
+      <!-- grid-cols-1, not a bare grid: an implicit auto track grows to the 분석 이미지
+           strip's full width and pushes the page sideways. From 112.5rem (1800px) the
+           order utilities pull 프로파일 이미지 up beside the scatter. -->
+      <div class="grid grid-cols-1 content-start gap-6 lg:col-span-7 min-[112.5rem]:col-span-8 min-[112.5rem]:grid-cols-8">
+        <AfmDetailSummaryScatterChart
+          class="min-[112.5rem]:col-span-5"
+          :summary="payload.summary"
+          :export-name="`${filename}-summary-scatter`"
+        />
+        <UAlert
+          v-if="profileError || imageError"
+          class="min-[112.5rem]:order-1 min-[112.5rem]:col-span-full"
+          color="error"
+          variant="soft"
+          icon="i-lucide-triangle-alert"
+          :title="`포인트 ${selectedPoint}의 프로파일을 불러오지 못했습니다.`"
+        />
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 min-[112.5rem]:order-1 min-[112.5rem]:col-span-full min-[112.5rem]:grid-cols-8">
+          <AfmDetailHeatmapChart
+            class="min-[112.5rem]:col-span-3"
+            :profile="profile"
+            :loading="profilePending"
+            :export-name="`${filename}-heatmap`"
           />
-          <UAlert
-            v-if="profileError || imageError"
-            color="error"
-            variant="soft"
-            icon="i-lucide-triangle-alert"
-            :title="`포인트 ${selectedPoint}의 프로파일을 불러오지 못했습니다.`"
-          />
-          <div class="grid gap-6 md:grid-cols-2">
-            <AfmDetailHeatmapChart
-              :profile="profile"
-              :loading="profilePending"
-              :export-name="`${filename}-heatmap`"
-            />
-            <AfmDetailHistogramChart
-              :profile="profile"
-              :loading="profilePending"
-              :export-name="`${filename}-histogram`"
-            />
-          </div>
-        </div>
-        <div class="space-y-6 min-[112.5rem]:col-span-3">
-          <AfmDetailProfileImage
-            :url="imageUrl"
-            :point="selectedPoint"
-            :filename="filename"
-            :loading="imagePending"
-          />
-          <AfmDetailAnalysisImages
-            :tool="toolName"
-            :filename="filename"
+          <AfmDetailHistogramChart
+            class="min-[112.5rem]:order-first min-[112.5rem]:col-span-5"
+            :profile="profile"
+            :loading="profilePending"
+            :export-name="`${filename}-histogram`"
           />
         </div>
+        <AfmDetailProfileImage
+          class="min-[112.5rem]:col-span-3"
+          :url="imageUrl"
+          :point="selectedPoint"
+          :filename="filename"
+          :loading="imagePending"
+        />
+        <AfmDetailAnalysisImages
+          class="min-[112.5rem]:order-1 min-[112.5rem]:col-span-full"
+          :tool="toolName"
+          :filename="filename"
+        />
       </div>
     </div>
   </div>
