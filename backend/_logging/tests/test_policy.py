@@ -121,7 +121,6 @@ def test_a_family_beacon_is_a_page_view_too():
     the row's `path`, a field the index already maps, is what says which
     family the page belonged to. No new field, no mapping change."""
     assert page_view_path("hvsem") == "/api/page-view/hvsem"
-    assert page_view_path(None) == "/api/page-view"
     assert classify_activity(
         user_id="u1",
         api_token_id=None,

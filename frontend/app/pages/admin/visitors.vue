@@ -32,7 +32,7 @@
           사용 통계
         </UButton>
         <UButton
-          v-if="isAdmin"
+          v-if="!blocked"
           :loading="refreshing"
           icon="i-lucide-refresh-cw"
           color="neutral"
@@ -44,21 +44,8 @@
       </div>
     </header>
 
-    <!-- Not knowing is not the same as "not an admin": a failed identity
-         check used to fall into the branch below and tell a real admin they
-         had no access, with nothing to press. -->
-    <UAlert
-      v-if="meError"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-circle-alert"
-      title="관리자 여부를 확인하지 못했습니다."
-      :description="identityError"
-      :actions="[{ label: '다시 시도', onClick: retryIdentity }]"
-    />
-
     <section
-      v-else-if="!isAdmin"
+      v-if="blocked"
       class="dashboard-surface rounded-lg border border-(--sk-border) p-6 text-center sk-body"
     >
       관리자만 접근할 수 있는 페이지입니다.
@@ -165,10 +152,10 @@
 <script setup lang="ts">
 import {
   resetActivityCache,
-  useActivityMe,
   useActivityUsers,
   useActivityVisitors
 } from '~/composables/useActivityApi'
+import { activeUserKpis } from '~/utils/activity'
 import {
   VISITOR_WINDOW_TABS,
   frequentVisitors,
@@ -182,24 +169,18 @@ import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 
 useHead({ title: '방문자 분석 | SKEWNONO' })
 
-// Same gate as the other /admin pages: /activity/me says who is an admin, and
-// a non-admin never issues the two requests below (both answer 403).
-const { data: me, error: meError } = await useActivityMe()
-const isAdmin = computed(() => me.value?.is_admin === true)
+// The route middleware has already asked /api/me who this is, and its
+// `is_admin` is the same decision the backend's admin gate makes. So only a
+// caller KNOWN not to be an admin is turned away here. When the identity could
+// not be fetched at all, the queries are issued anyway and the backend's own
+// answer — a 403, or the outage — shows in the alert below, which has a retry.
+// Asking /activity/me for one boolean cost a request and a second way to fail.
+const { identity } = useIdentity()
+const blocked = computed(() => identity.value !== null && !identity.value.is_admin)
 
-const identityError = computed(() =>
-  meError.value
-    ? operationalDataErrorMessage(meError.value, '사용자 정보를 불러오지 못했습니다.')
-    : undefined
-)
-// A full reload rather than a refetch: the two admin queries below are only
-// created when this setup runs with an admin identity, so re-fetching `me`
-// alone would flip isAdmin and leave the page with nothing to show.
-const retryIdentity = () => reloadNuxtApp()
-
-const [usersQuery, visitorsQuery] = isAdmin.value
-  ? await Promise.all([useActivityUsers(), useActivityVisitors()])
-  : [null, null]
+const [usersQuery, visitorsQuery] = blocked.value
+  ? [null, null]
+  : await Promise.all([useActivityUsers(), useActivityVisitors()])
 
 const users = computed(() => usersQuery?.data.value ?? null)
 const days = computed(() => visitorsQuery?.data.value?.days ?? [])
@@ -226,27 +207,7 @@ const kpiCards = computed(() => {
   const stickiness = stickinessPercent(today)
   const requests30d = users.value?.users.reduce((sum, row) => sum + row.requests_30d, 0)
   return [
-    {
-      label: 'DAU',
-      value: today.visitors,
-      hint: '오늘 활동한 사용자',
-      icon: 'i-lucide-user',
-      color: 'text-sky-500'
-    },
-    {
-      label: 'WAU',
-      value: today.wau,
-      hint: '최근 7일 활동한 사용자',
-      icon: 'i-lucide-users',
-      color: 'text-violet-500'
-    },
-    {
-      label: 'MAU',
-      value: today.mau,
-      hint: '최근 30일 활동한 사용자',
-      icon: 'i-lucide-user-check',
-      color: 'text-emerald-500'
-    },
+    ...activeUserKpis({ dau: today.visitors, wau: today.wau, mau: today.mau }),
     {
       label: 'DAU / MAU',
       value: stickiness === null ? '—' : `${stickiness}%`,

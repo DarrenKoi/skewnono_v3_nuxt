@@ -40,6 +40,7 @@ import random
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
+from typing import NamedTuple
 
 from ..._auth.admin import is_admin
 from ..._core.timefmt import iso_z as _iso
@@ -60,15 +61,16 @@ from ..contracts import (
     VisitorsResponse,
 )
 from .shared import (
+    FAMILY_BY_BEACON_PATH,
     KST,
     RECENT_FEATURES_CAP,
     SPARKLINE_DAYS,
-    TOOL_FAMILIES,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
     VISITOR_DAYS,
     VISITOR_LOOKBACK_DAYS,
     daily_visitor_rows,
+    family_usage_rows,
 )
 
 
@@ -209,15 +211,15 @@ def _merge_counts(
 def _prune_old_days(state: _UserState, today: date) -> None:
     """Drop day buckets no read window can reach, so state stays bounded.
 
-    Visits retain 90 days. Request and ranking detail retain 89 days — the
-    방문자 추이 chart's first day is 59 back and its MAU reads ``daily``
-    another 29 behind that — which always covers the current month too.
+    One retention for every bucket: the widest window any reader has. Today
+    that is the 90-day visit calendar, with the 방문자 추이 chart (60 days plus
+    the 30 its first MAU looks behind) a day short of it. Readers filter by
+    their own window, so a bucket kept a little longer than its reader needs
+    is invisible.
     """
-    visit_cutoff = today - timedelta(days=VISIT_DAYS - 1)
-    for day in [day for day in state.visits if day < visit_cutoff]:
-        del state.visits[day]
-    cutoff = today - timedelta(days=VISITOR_LOOKBACK_DAYS - 1)
+    cutoff = today - timedelta(days=max(VISIT_DAYS, VISITOR_LOOKBACK_DAYS) - 1)
     for bucket in (
+        state.visits,
         state.daily,
         state.daily_features,
         state.daily_fabs,
@@ -234,7 +236,7 @@ def record_request(
     feature: str,
     activity_kind: str,
     fab_name_list: list[str],
-    tool_family: str | None = None,
+    path: str | None = None,
 ) -> None:
     """Record one already-classified human entry, feature or page-view event.
 
@@ -245,9 +247,10 @@ def record_request(
     * page_view rows drive the feature rankings only — plus ``last_seen``,
       which is a presence signal rather than a counter (see module docstring).
 
-    ``tool_family`` is which family's page this was, or None for a page that
-    belongs to none. It is kept for page views only: the per-family card
-    counts page opens, and a request's family says nothing it needs.
+    ``path`` is the request path of the row. For a page view it names the tool
+    family — a page open is posted to /api/page-view/<family> — and that is
+    the only thing it is read for, exactly as the office reader groups on the
+    log row's ``path``. A page view on the plain beacon URL has no family.
 
     Mixing them would silently redefine this_month.requests. See
     docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md.
@@ -278,10 +281,11 @@ def record_request(
             state.last_opened[feature] = now
             daily_features = state.daily_features.setdefault(today, {})
             daily_features[feature] = daily_features.get(feature, 0) + 1
-            if tool_family:
+            family = FAMILY_BY_BEACON_PATH.get(path)
+            if family:
                 family_features = state.daily_family_features.setdefault(
                     today, {}
-                ).setdefault(tool_family, {})
+                ).setdefault(family, {})
                 family_features[feature] = family_features.get(feature, 0) + 1
             _prune_old_days(state, today)
             return
@@ -347,41 +351,39 @@ def get_user_history(user_id: str) -> UserHistoryResponse | None:
         return {"user_id": user_id, **_history_fields(state, today)}
 
 
+def _active_days() -> list[list[date]]:
+    """Each person's active KST days. Call with ``_lock`` held."""
+    return [
+        [day for day, count in state.daily.items() if count > 0]
+        for state in _users.values()
+    ]
+
+
 def get_summary() -> SummaryResponse:
     today = _today()
     week_start = today - timedelta(days=6)
     last30_start = today - timedelta(days=29)
-    dau = 0
-    wau = 0
-    mau = 0
     feature_7d: dict[str, int] = {}
     feature_30d: dict[str, int] = {}
 
     with _lock:
+        active_days = _active_days()
         for state in _users.values():
-            if state.daily.get(today, 0) > 0:
-                dau += 1
-            if any(
-                week_start <= day <= today and count > 0
-                for day, count in state.daily.items()
-            ):
-                wau += 1
-            if any(
-                last30_start <= day <= today and count > 0
-                for day, count in state.daily.items()
-            ):
-                mau += 1
             for day, counts in state.daily_features.items():
                 if week_start <= day <= today:
                     _merge_counts(feature_7d, counts)
                 if last30_start <= day <= today:
                     _merge_counts(feature_30d, counts)
 
+    # Today's row of the visitors series IS the three summary counts, so they
+    # are taken from it rather than counted a second way that has to be kept
+    # equal by hand.
+    now_row = daily_visitor_rows(active_days, today)[-1]
     return {
         "generated_at": _iso(_now()),
-        "dau": dau,
-        "wau": wau,
-        "mau": mau,
+        "dau": now_row["visitors"],
+        "wau": now_row["wau"],
+        "mau": now_row["mau"],
         "top_features_7d": _top_features(feature_7d),
         "top_features_30d": _top_features(feature_30d),
     }
@@ -392,10 +394,7 @@ def get_daily_visitors() -> VisitorsResponse:
     today = _today()
     with _lock:
         # Copied out under the lock; the counting needs no lock at all.
-        active_days = [
-            [day for day, count in state.daily.items() if count > 0]
-            for state in _users.values()
-        ]
+        active_days = _active_days()
     return {
         "generated_at": _iso(_now()),
         "days": daily_visitor_rows(active_days, today),
@@ -499,29 +498,21 @@ def _family_window(
     today: date,
     cutoff: date,
 ) -> list[FamilyUsageRow]:
-    openers: dict[str, set[str]] = {family: set() for family in TOOL_FAMILIES}
-    pages: dict[str, dict[str, int]] = {family: {} for family in TOOL_FAMILIES}
+    openers: dict[str, set[str]] = {}
+    pages: dict[str, dict[str, int]] = {}
 
     for state in users.values():
         for day, families in state.daily_family_features.items():
             if not cutoff <= day <= today:
                 continue
             for family, counts in families.items():
-                if family not in openers:
-                    # A value outside the vocabulary is not a sixth family.
-                    continue
-                openers[family].add(state.user_id)
-                _merge_counts(pages[family], counts)
+                openers.setdefault(family, set()).add(state.user_id)
+                _merge_counts(pages.setdefault(family, {}), counts)
 
-    # Registry order and every family, zero or not — see FamilyUsageResponse.
-    return [
-        {
-            "family": family,
-            "total": len(openers[family]),
-            "pages": _top_features(pages[family]),
-        }
-        for family in TOOL_FAMILIES
-    ]
+    return family_usage_rows(
+        {family: len(people) for family, people in openers.items()},
+        {family: _top_features(counts) for family, counts in pages.items()},
+    )
 
 
 def get_family_page_usage() -> FamilyUsageResponse:
@@ -536,9 +527,25 @@ def get_family_page_usage() -> FamilyUsageResponse:
     }
 
 
-# (user_id, fab, request feature totals, page-view totals, days of activity
-# ending today). ``sem_list`` stands in for entry traffic — see _seed_feature.
-#
+class _DemoUser(NamedTuple):
+    """One seeded person. ``sem_list`` in ``requests`` stands in for entry
+    traffic — see _seed_feature."""
+
+    user_id: str
+    fab: str
+    requests: dict[str, int]
+    page_views: dict[str, int]
+    #: Days of activity, ending today.
+    days: int
+    #: Which family's pages this person opens. OFFICE-VERIFY: fabricated —
+    #: which families people use, and how many work across more than one, is
+    #: unknown until it has been collected at the office.
+    family: str = "cdsem"
+    #: Share of days they do not show up at all. About one in six by default;
+    #: the occasional visitors below skip most days.
+    skip_rate: float = 0.16
+
+
 # ``local-dev`` is home's own identity, so it is the one row /activity renders
 # as "me". It gets the full 90-day visit window so the calendar has something
 # to draw. The peers' histories are staggered — 60, 40, 21, 6 and 4 days — so
@@ -546,7 +553,8 @@ def get_family_page_usage() -> FamilyUsageResponse:
 # than one person to count on its 1개월/2개월 tabs; with every peer inside two
 # weeks it drew a flat 1 for the six weeks before that.
 #
-# The last three are occasional visitors (see _SKIP_RATE). Without them every
+# The last three are occasional visitors (their ``skip_rate`` has them come
+# roughly weekly, fortnightly and monthly). Without them every
 # peer came nearly every day, so WAU equalled MAU on all sixty days: two lines
 # drawn on top of each other and a stickiness of 100%, which no real product
 # has. OFFICE-VERIFY: the head-count, its slow climb and the share of
@@ -557,29 +565,31 @@ def get_family_page_usage() -> FamilyUsageResponse:
 # the two have no fixed ratio in reality (mag-pixel makes no requests at all,
 # live-alarm makes hundreds per open), and a derived number would teach a
 # relationship the office data does not have.
-_DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
-    (
+_DEMO_USERS: list[_DemoUser] = [
+    _DemoUser(
         "kim.minju",
         "M14",
         {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},
         {"recipe_search": 34, "meas_hist": 12, "fail_issue": 9, "mag_pixel": 4},
         VISITOR_DAYS,
     ),
-    (
+    _DemoUser(
         "park.jinho",
         "M16B",
         {"recipe_search": 190, "sem_list": 120, "recipe_tat": 65, "storage": 25},
         {"recipe_search": 28, "recipe_tat": 15, "storage": 11, "live_alarm": 6},
         40,
+        family="hvsem",
     ),
-    (
+    _DemoUser(
         "lee.soyoung",
         "M11",
         {"sem_list": 140, "storage": 80, "fail_issue": 55, "hardware": 20},
         {"storage": 22, "fail_issue": 14, "hardware": 8, "live_alarm": 5},
         21,
+        family="hvsem",
     ),
-    (
+    _DemoUser(
         "choi.eunwoo",
         "R3",
         {
@@ -591,14 +601,14 @@ _DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
         {"recipe_tat": 12, "recipe_search": 9, "device_statistics": 7, "chat": 3},
         6,
     ),
-    (
+    _DemoUser(
         "jung.hari",
         "M15",
         {"skewvoir": 90, "sem_list": 30, "afm": 25, "meas_hist": 15},
         {"skewvoir": 19, "afm": 6, "meas_hist": 5, "mag_pixel": 3},
         4,
     ),
-    (
+    _DemoUser(
         "local-dev",
         "M16B",
         {"sem_list": 620, "recipe_search": 430, "storage": 260, "meas_hist": 140},
@@ -611,80 +621,58 @@ _DEMO_USERS: list[tuple[str, str, dict[str, int], dict[str, int], int]] = [
         },
         VISIT_DAYS,
     ),
-    (
+    _DemoUser(
         "han.jiwoo",
         "M14",
         {"sem_list": 26, "recipe_search": 18},
         {"recipe_search": 9, "meas_hist": 3},
         VISITOR_DAYS,
+        skip_rate=0.8,
     ),
-    (
+    _DemoUser(
         "seo.dohyun",
         "M16B",
         {"sem_list": 15, "storage": 9},
         {"storage": 6},
         VISITOR_DAYS,
+        family="hvsem",
+        skip_rate=0.9,
     ),
-    (
+    _DemoUser(
         "yoon.chaewon",
         "R3",
         {"sem_list": 9, "device_statistics": 6},
         {"device_statistics": 4},
         45,
+        skip_rate=0.95,
     ),
 ]
 
-# Which family's pages a demo user opens. Everyone not listed works in CD-SEM.
-# OFFICE-VERIFY: the split is fabricated — which families people actually use,
-# and how many people work across more than one, is unknown until the field
-# has been collected at the office.
-_DEMO_FAMILY = {
-    "park.jinho": "hvsem",
-    "lee.soyoung": "hvsem",
-    "seo.dohyun": "hvsem",
-}
-_DEFAULT_DEMO_FAMILY = "cdsem"
 # Pages whose family does not depend on who opens them. `afm` is its own
-# family; the rest are shared pages that belong to none, and
+# family; chat and mag-pixel are shared pages that belong to none; and
 # device_statistics exists under CD-SEM only.
 _PAGE_FAMILY: dict[str, str | None] = {
     "afm": "afm",
     "chat": None,
     "mag_pixel": None,
-    "sem_list": None,
     "device_statistics": "cdsem",
 }
 
 
-def _demo_page_family(user_id: str, feature: str) -> str | None:
-    if feature in _PAGE_FAMILY:
-        return _PAGE_FAMILY[feature]
-    return _DEMO_FAMILY.get(user_id, _DEFAULT_DEMO_FAMILY)
-
-
-# Share of days a demo user does not show up at all. Everyone else skips
-# about one day in six; these three come roughly weekly, fortnightly and
-# monthly, which is what puts daylight between the WAU and MAU lines.
-_DEFAULT_SKIP_RATE = 0.16
-_SKIP_RATE = {"han.jiwoo": 0.8, "seo.dohyun": 0.9, "yoon.chaewon": 0.95}
-
-
-def _day_weights(user_id: str, days_back: int, today: date) -> list[float]:
+def _day_weights(user: _DemoUser, today: date) -> list[float]:
     """Relative activity per day, index = days before today. Deterministic.
 
     An even spread renders a flat calendar and teaches that everyone works
-    every day at the same rate. Weekends run lighter and roughly one day in
-    six is skipped outright (more for the occasional visitors in
-    ``_SKIP_RATE``). OFFICE-VERIFY: the weekend ratio and the skip rates are
-    guesses — fab metrology runs shifts, so real weekends may not be this
-    quiet.
+    every day at the same rate. Weekends run lighter and a share of days
+    (``skip_rate``) is skipped outright. OFFICE-VERIFY: the weekend ratio and
+    the skip rates are guesses — fab metrology runs shifts, so real weekends
+    may not be this quiet.
     """
-    skip_rate = _SKIP_RATE.get(user_id, _DEFAULT_SKIP_RATE)
-    rng = random.Random(user_id)
+    rng = random.Random(user.user_id)
     weights = []
-    for offset in range(days_back):
+    for offset in range(user.days):
         # Both draws happen every day so the stream never shifts with the branch.
-        skipped = rng.random() < skip_rate
+        skipped = rng.random() < user.skip_rate
         spread = rng.uniform(0.2, 1.8)
         weekend = (today - timedelta(days=offset)).weekday() >= 5
         weights.append(0.0 if skipped else spread * (0.3 if weekend else 1.0))
@@ -778,35 +766,35 @@ def seed_demo_users() -> None:
     now = _now()
 
     with _lock:
-        for user_id, fab, features, page_views, days_back in _DEMO_USERS:
-            if user_id in _users:
+        for user in _DEMO_USERS:
+            if user.user_id in _users:
                 continue
             state = _UserState(
-                user_id=user_id,
-                first_seen=now - timedelta(days=days_back),
+                user_id=user.user_id,
+                first_seen=now - timedelta(days=user.days),
                 last_seen=now - timedelta(hours=1),
             )
             # One pattern per user, shared by requests and page opens, so a
             # day off is a day off in both series.
-            weights = _day_weights(user_id, days_back, today)
-            for feature, total in features.items():
-                _seed_feature(state, fab, feature, total, weights, today)
-            for feature, total in page_views.items():
+            weights = _day_weights(user, today)
+            for feature, total in user.requests.items():
+                _seed_feature(state, user.fab, feature, total, weights, today)
+            for feature, total in user.page_views.items():
                 _seed_page_views(
                     state,
                     feature,
                     total,
                     weights,
                     today,
-                    _demo_page_family(user_id, feature),
+                    _PAGE_FAMILY.get(feature, user.family),
                 )
             # Staggered an hour apart in declaration order so every demo user
             # has a readable 최근 쓴 기능 list. Seeding them all at `now` would
             # tie, and the tiebreak is alphabetical — an order that says
             # nothing about how the person actually works.
-            for index, feature in enumerate(page_views):
+            for index, feature in enumerate(user.page_views):
                 state.last_opened[feature] = now - timedelta(hours=index + 1)
             # A 90-day seed would otherwise leave request detail older than any
             # read window in memory until this user's first live request.
             _prune_old_days(state, today)
-            _users[user_id] = state
+            _users[user.user_id] = state

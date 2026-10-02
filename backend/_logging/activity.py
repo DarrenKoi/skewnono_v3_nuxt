@@ -59,20 +59,14 @@ def promote_request_fab_names(*values: str | None) -> None:
     g._activity_fab_name_list = normalize_fab_name_list([*existing, *values])
 
 
-def promote_page_view(slug: str, family: str | None = None) -> None:
+def promote_page_view(slug: str) -> None:
     """Declare which PAGE this request represents, overriding the path.
 
     The beacon's own path is /api/page-view, which says nothing about what
     the user opened. Same mechanism as promote_request_fab_names: the handler
     puts it on ``g``, the after_request middleware reads it.
-
-    ``family`` is that page's tool family, or None for a page that belongs to
-    none. It is not a log field — the family is already in the beacon's URL,
-    and so in the row's ``path`` — but the usage store is handed it directly,
-    so the mock keeps the same per-family counts the office reads off the URL.
     """
     g._activity_page_slug = slug
-    g._activity_page_family = family
 
 
 def _build_extra(
@@ -222,9 +216,10 @@ def install_activity_logging(app: Flask) -> None:
                     feature,
                     extra["activity_kind"],
                     extra["fab_name_list"],
-                    # Only a beacon sets this; every other request has no
-                    # family (see promote_page_view).
-                    getattr(g, "_activity_page_family", None),
+                    # A page open's tool family is its beacon URL. The store
+                    # gets the same `path` the log row carries, so the mock
+                    # reads the family exactly where the office does.
+                    path,
                 )
             except Exception:
                 _note_record_request_failure()

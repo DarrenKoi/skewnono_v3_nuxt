@@ -75,19 +75,21 @@ test('stickiness is DAU over MAU, and absent when nobody came all month', () => 
   assert.equal(stickinessPercent(undefined), null)
 })
 
-test('ranks people by active days, requests breaking ties, and caps the list', () => {
+test('ranks people by active days, requests then employee number breaking ties', () => {
   const rows = frequentVisitors([
     user('100', 3, 'A팀', '김하나'),
     user('200', 20, 'B팀', null),
     user('300', 20, null, '이두리', 99),
     user('400', 1)
-  ], 3)
+  ])
 
+  // Every person, ranked — the list component is what shows the first ten.
   assert.deepEqual(rows, [
     { label: '이두리', hint: '—', count: 20 },
     // No directory name: the employee number stands in, as in the table.
     { label: '200', hint: 'B팀', count: 20 },
-    { label: '김하나', hint: 'A팀', count: 3 }
+    { label: '김하나', hint: 'A팀', count: 3 },
+    { label: '400', hint: '—', count: 1 }
   ])
 })
 

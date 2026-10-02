@@ -8,7 +8,6 @@ from typing import Any
 
 from backend._auth.admin import is_admin
 from backend._core.timefmt import iso_z
-from backend._logging.policy import page_view_path
 from backend._logging.target import resolve_logging_target
 from backend.activity.contracts import (
     DailyCount,
@@ -27,12 +26,13 @@ from backend.activity.contracts import (
 )
 from backend.activity.providers.shared import (
     KST,
+    FAMILY_BY_BEACON_PATH,
     RECENT_FEATURES_CAP,
-    TOOL_FAMILIES,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
     VISITOR_LOOKBACK_DAYS,
     daily_visitor_rows,
+    family_usage_rows,
 )
 
 COMPOSITE_PAGE_SIZE = 1000
@@ -70,6 +70,36 @@ def _kst_day_start(now: datetime, days_ago: int) -> datetime:
     return datetime.combine(day, time.min, tzinfo=KST)
 
 
+def _time_range(start: datetime, now: datetime) -> dict[str, Any]:
+    return {
+        "range": {
+            "@timestamp": {
+                "gte": start.isoformat(),
+                "lte": now.isoformat(),
+            }
+        }
+    }
+
+
+def _distinct_users_agg() -> dict[str, Any]:
+    return {
+        "cardinality": {
+            "field": "user_id",
+            "precision_threshold": CARDINALITY_PRECISION,
+        }
+    }
+
+
+def _top_features_agg() -> dict[str, Any]:
+    return {
+        "terms": {
+            "field": "feature",
+            "size": TOP_FEATURES_CAP,
+            "order": {"_count": "desc"},
+        }
+    }
+
+
 def _kind_window(
     start: datetime,
     now: datetime,
@@ -78,14 +108,7 @@ def _kind_window(
     return {
         "bool": {
             "filter": [
-                {
-                    "range": {
-                        "@timestamp": {
-                            "gte": start.isoformat(),
-                            "lte": now.isoformat(),
-                        }
-                    }
-                },
+                _time_range(start, now),
                 {"terms": {"activity_kind": kinds}},
             ]
         }
@@ -298,13 +321,7 @@ class ActivityOpenSearchReader:
                                         }
                                     },
                                     "aggs": {
-                                        "items": {
-                                            "terms": {
-                                                "field": "feature",
-                                                "size": TOP_FEATURES_CAP,
-                                                "order": {"_count": "desc"},
-                                            }
-                                        }
+                                        "items": _top_features_agg()
                                     },
                                 }
                             },
@@ -413,12 +430,7 @@ class ActivityOpenSearchReader:
             return {
                 "filter": _kind_window(start, now, REQUEST_KINDS),
                 "aggs": {
-                    "users": {
-                        "cardinality": {
-                            "field": "user_id",
-                            "precision_threshold": CARDINALITY_PRECISION,
-                        }
-                    }
+                    "users": _distinct_users_agg()
                 },
             }
 
@@ -426,13 +438,7 @@ class ActivityOpenSearchReader:
             return {
                 "filter": _kind_window(start, now, [RANKING_KIND]),
                 "aggs": {
-                    "items": {
-                        "terms": {
-                            "field": "feature",
-                            "size": TOP_FEATURES_CAP,
-                            "order": {"_count": "desc"},
-                        }
-                    }
+                    "items": _top_features_agg()
                 },
             }
 
@@ -496,14 +502,7 @@ class ActivityOpenSearchReader:
                                 # rows, so admitting page views here would
                                 # make today's row disagree with them.
                                 *_activity_filters(kinds=REQUEST_KINDS),
-                                {
-                                    "range": {
-                                        "@timestamp": {
-                                            "gte": start.isoformat(),
-                                            "lte": now.isoformat(),
-                                        }
-                                    }
-                                },
+                                _time_range(start, now),
                             ]
                         }
                     },
@@ -574,14 +573,7 @@ class ActivityOpenSearchReader:
                         "bool": {
                             "filter": [
                                 *_activity_filters(),
-                                {
-                                    "range": {
-                                        "@timestamp": {
-                                            "gte": day_30.isoformat(),
-                                            "lte": now.isoformat(),
-                                        }
-                                    }
-                                },
+                                _time_range(day_30, now),
                             ]
                         }
                     },
@@ -708,14 +700,7 @@ class ActivityOpenSearchReader:
                                 # its opener as an active user of a fab they
                                 # never selected.
                                 *_activity_filters(kinds=REQUEST_KINDS),
-                                {
-                                    "range": {
-                                        "@timestamp": {
-                                            "gte": start.isoformat(),
-                                            "lte": now.isoformat(),
-                                        }
-                                    }
-                                },
+                                _time_range(start, now),
                             ]
                         }
                     },
@@ -723,14 +708,7 @@ class ActivityOpenSearchReader:
                         "fabs": {
                             "composite": composite,
                             "aggs": {
-                                "active_users": {
-                                    "cardinality": {
-                                        "field": "user_id",
-                                        "precision_threshold": (
-                                            CARDINALITY_PRECISION
-                                        ),
-                                    }
-                                },
+                                "active_users": _distinct_users_agg(),
                                 "feature_only": {
                                     "filter": {
                                         "term": {
@@ -744,15 +722,7 @@ class ActivityOpenSearchReader:
                                         }
                                     },
                                     "aggs": {
-                                        "pages": {
-                                            "terms": {
-                                                "field": "feature",
-                                                "size": TOP_FEATURES_CAP,
-                                                "order": {
-                                                    "_count": "desc"
-                                                },
-                                            }
-                                        }
+                                        "pages": _top_features_agg()
                                     },
                                 },
                             },
@@ -807,80 +777,67 @@ class ActivityOpenSearchReader:
         no change to the index.
         """
         now = self._now()
-        family_by_path = {
-            page_view_path(family): family for family in TOOL_FAMILIES
-        }
+        day_30 = _kst_day_start(now, 29)
 
         def window(start: datetime) -> dict[str, Any]:
             return {
-                "filter": _kind_window(start, now, [RANKING_KIND]),
+                "filter": _time_range(start, now),
                 "aggs": {
                     "families": {
                         "terms": {
                             "field": "path",
-                            "size": len(family_by_path),
+                            "size": len(FAMILY_BY_BEACON_PATH),
                             # Exact URLs only. The plain /api/page-view is a
                             # page with no family and is not a row; anything
                             # else under it is not a sixth family.
-                            "include": list(family_by_path),
+                            "include": list(FAMILY_BY_BEACON_PATH),
                         },
                         "aggs": {
-                            "openers": {
-                                "cardinality": {
-                                    "field": "user_id",
-                                    "precision_threshold": (
-                                        CARDINALITY_PRECISION
-                                    ),
-                                }
-                            },
-                            "pages": {
-                                "terms": {
-                                    "field": "feature",
-                                    "size": TOP_FEATURES_CAP,
-                                    "order": {"_count": "desc"},
-                                }
-                            },
+                            "openers": _distinct_users_agg(),
+                            "pages": _top_features_agg(),
                         },
                     }
                 },
             }
 
         def rows(node: dict[str, Any]) -> list[FamilyUsageRow]:
-            by_family = {
-                family_by_path[key]: bucket
-                for bucket in node.get("families", {}).get("buckets", [])
-                if (key := str(bucket.get("key"))) in family_by_path
-            }
-            # Walked from the vocabulary, not from the buckets: a family
-            # nobody opened has no bucket, and it is still a row of zeros.
             # Page opens from before the family URLs existed were all posted
             # to the plain path and so fall in no bucket — see MIGRATION.md.
-            return [
+            buckets = {
+                FAMILY_BY_BEACON_PATH[key]: bucket
+                for bucket in node.get("families", {}).get("buckets", [])
+                if (key := str(bucket.get("key"))) in FAMILY_BY_BEACON_PATH
+            }
+            return family_usage_rows(
                 {
-                    "family": family,
-                    "total": int(
-                        by_family.get(family, {})
-                        .get("openers", {})
-                        .get("value", 0)
-                    ),
-                    "pages": _feature_rows(
-                        by_family.get(family, {}).get("pages", {})
-                    ),
-                }
-                for family in TOOL_FAMILIES
-            ]
+                    family: int(bucket.get("openers", {}).get("value", 0))
+                    for family, bucket in buckets.items()
+                },
+                {
+                    family: _feature_rows(bucket.get("pages", {}))
+                    for family, bucket in buckets.items()
+                },
+            )
 
         response = self._search(
             {
                 "size": 0,
-                # Narrowed for the whole query: request rows carry a family
-                # too, and this card counts page opens only.
                 "query": {
-                    "bool": {"filter": _activity_filters(kinds=[RANKING_KIND])}
+                    "bool": {
+                        "filter": [
+                            # Page opens only, stated once for the whole
+                            # query, and bounded to the wider window: the
+                            # alias holds up to a year, and matching all of it
+                            # only for the two windows to discard most of it
+                            # is work that grows with retention.
+                            *_activity_filters(kinds=[RANKING_KIND]),
+                            _time_range(day_30, now),
+                        ]
+                    }
                 },
                 "aggs": {
                     "families_7d": window(_kst_day_start(now, 6)),
-                    "families_30d": window(_kst_day_start(now, 29)),
+                    "families_30d": window(day_30),
                 },
             }
         )

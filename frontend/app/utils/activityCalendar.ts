@@ -10,7 +10,7 @@ export type VisitDay = VisitCount
 
 export const visitLabel = (day: VisitDay) => `${day.date} · 페이지 조회 ${day.count.toLocaleString()}회`
 
-const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
+export const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
 export const buildCalendarOption = (
   series: readonly VisitDay[],

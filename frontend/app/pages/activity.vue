@@ -221,42 +221,14 @@
             />
           </div>
         </template>
-        <div class="grid grid-cols-1 md:grid-cols-[minmax(0,13rem)_1fr] gap-4">
-          <nav
-            aria-label="장비군 선택"
-            class="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible border-b md:border-b-0 md:border-r border-(--sk-border) pb-2 md:pb-0 md:pr-3"
-          >
-            <button
-              v-for="item in familiesForWindow"
-              :key="item.family"
-              type="button"
-              :aria-pressed="selectedFamily === item.family"
-              class="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm shrink-0 w-full text-left transition-colors"
-              :class="selectedFamily === item.family
-                ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-sm'
-                : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
-              @click="selectedFamily = item.family"
-            >
-              <span class="truncate">
-                <span
-                  v-if="item.vendor"
-                  class="text-xs font-normal opacity-70 mr-1"
-                >{{ item.vendor }}</span>
-                <span class="font-semibold tracking-wide">{{ item.label }}</span>
-              </span>
-              <!-- 조회, not 활성: these are people who opened a page of the
-                   family, a different count from the DAU-style 활성 on the
-                   Fab card below. -->
-              <span class="tabular-nums text-xs shrink-0 opacity-80">
-                조회 {{ item.total.toLocaleString() }}명
-              </span>
-            </button>
-          </nav>
-          <ActivityFeatureBarList
-            :items="selectedFamilyPages"
-            empty-text="이 기간에 이 장비군의 페이지를 연 기록이 없습니다."
-          />
-        </div>
+        <!-- 조회, not 활성: people who opened a page of the family, a different
+             count from the DAU-style 활성 on the Fab card below. -->
+        <ActivityUsageRail
+          :rows="familiesForWindow"
+          count-label="조회"
+          nav-label="장비군 선택"
+          empty-text="이 기간에 이 장비군의 페이지를 연 기록이 없습니다."
+        />
         <p
           v-if="familyNotice"
           class="mt-2 text-xs text-(--sk-ink-subtle)"
@@ -285,42 +257,12 @@
             />
           </div>
         </template>
-        <div
-          v-if="fabsForWindow.length"
-          class="grid grid-cols-1 md:grid-cols-[minmax(0,11rem)_1fr] gap-4"
-        >
-          <nav
-            aria-label="Fab 선택"
-            class="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible border-b md:border-b-0 md:border-r border-(--sk-border) pb-2 md:pb-0 md:pr-3"
-          >
-            <button
-              v-for="row in fabsForWindow"
-              :key="row.fab"
-              type="button"
-              :aria-pressed="selectedFab === row.fab"
-              class="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm shrink-0 w-full text-left transition-colors"
-              :class="selectedFab === row.fab
-                ? 'bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-sm'
-                : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
-              @click="selectedFab = row.fab"
-            >
-              <span class="font-semibold tracking-wide truncate">{{ row.fab }}</span>
-              <span class="tabular-nums text-xs shrink-0 opacity-80">
-                활성 {{ row.total.toLocaleString() }}명
-              </span>
-            </button>
-          </nav>
-          <ActivityFeatureBarList
-            :items="selectedFabPages"
-            empty-text="아직 데이터가 없습니다."
-          />
-        </div>
-        <div
-          v-else
-          class="sk-body"
-        >
-          아직 데이터가 없습니다.
-        </div>
+        <ActivityUsageRail
+          :rows="fabsForWindow"
+          count-label="활성"
+          nav-label="Fab 선택"
+          empty-text="아직 데이터가 없습니다."
+        />
       </UCard>
 
       <!-- Admin tools: the /admin pages are deliberately kept out of the
@@ -382,11 +324,10 @@ import {
   useActivityFabs,
   useActivityFamilies,
   useActivitySummary,
-  type FeatureCount,
-  type FabUsageRow
+  type FeatureCount
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel, pageViewNotice, rankableFabRows } from '~/utils/activity'
-import { familyRail, toolFamilyNotice } from '~/utils/activityFamily'
+import { activeUserKpis, activityFeatureLabel, pageViewNotice, rankableFabRows } from '~/utils/activity'
+import { familyRail, toolFamilyNotice, type RailRow } from '~/utils/activityFamily'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
 import { formatKoreanDateTime } from '~/utils/dateTime'
@@ -396,12 +337,21 @@ useHead({ title: '사용 통계 | SKEWNONO' })
 // Already fetched by the route middleware — no extra /api/me request here.
 const { identity } = useIdentity()
 
+// All four start together. /activity/me used to be awaited first because the
+// admin-only queries depended on its answer; those moved to /admin/visitors,
+// and nothing here waits on it any more.
+const [meQuery, summaryQuery, fabsQuery, familiesQuery] = await Promise.all([
+  useActivityMe(),
+  useActivitySummary(),
+  useActivityFabs(),
+  useActivityFamilies()
+])
 const {
   data: me,
   error: meError,
   refresh: refreshMe,
   status: meStatus
-} = await useActivityMe()
+} = meQuery
 
 const isAdmin = computed(() => me.value?.is_admin === true)
 
@@ -428,14 +378,9 @@ const adminLinks = [
 ]
 
 // Summary + the fab and tool-family breakdowns are shared activity views, so
-// every viewer fetches them. Everything per-employee is admin-only and lives on /admin/visitors.
-const sharedQueries = await Promise.all([
-  useActivitySummary(),
-  useActivityFabs(),
-  useActivityFamilies()
-]).then(
-  ([summary, fabs, families]) => ({ summary, fabs, families })
-)
+// every viewer fetches them. Everything per-employee is admin-only and lives
+// on /admin/visitors.
+const sharedQueries = { summary: summaryQuery, fabs: fabsQuery, families: familiesQuery }
 
 const summary = computed(() => sharedQueries.summary.data.value ?? null)
 const fabs = computed(() => sharedQueries.fabs.data.value ?? null)
@@ -485,27 +430,7 @@ const kpiCards = computed(() => {
     ? Math.round((summary.value.wau / summary.value.mau) * 100)
     : 0
   return [
-    {
-      label: 'DAU',
-      value: summary.value.dau,
-      hint: '오늘 활동한 사용자',
-      icon: 'i-lucide-user',
-      color: 'text-sky-500'
-    },
-    {
-      label: 'WAU',
-      value: summary.value.wau,
-      hint: '최근 7일 활동한 사용자',
-      icon: 'i-lucide-users',
-      color: 'text-violet-500'
-    },
-    {
-      label: 'MAU',
-      value: summary.value.mau,
-      hint: '최근 30일 활동한 사용자',
-      icon: 'i-lucide-user-check',
-      color: 'text-emerald-500'
-    },
+    ...activeUserKpis(summary.value),
     {
       label: 'WAU / MAU',
       value: `${returnRate}%`,
@@ -541,44 +466,17 @@ const familiesForWindow = computed(() =>
       : families.value?.families_30d ?? []
   )
 )
-// The rail is never empty (every family is listed), so there is always
-// something to select. It opens on the first family anyone actually visited
-// rather than on a row of zeros.
-const selectedFamily = ref<string | null>(null)
-watchEffect(() => {
-  const rail = familiesForWindow.value
-  if (selectedFamily.value && rail.some(item => item.family === selectedFamily.value)) return
-  selectedFamily.value = (rail.find(item => item.total > 0) ?? rail[0])?.family ?? null
-})
-const selectedFamilyPages = computed<FeatureCount[]>(() =>
-  familiesForWindow.value.find(item => item.family === selectedFamily.value)?.pages ?? []
-)
 const familyNotice = computed(() =>
   toolFamilyNotice(familyWindowKey.value === '7d' ? 7 : 30, new Date())
 )
 
 // --- shared usage: Fab page breakdown ---
 const fabWindowKey = ref<'7d' | '30d'>('7d')
-const fabsForWindow = computed<FabUsageRow[]>(() =>
+const fabsForWindow = computed<RailRow[]>(() =>
   rankableFabRows(
     fabWindowKey.value === '7d'
       ? fabs.value?.fabs_7d ?? []
       : fabs.value?.fabs_30d ?? []
-  )
+  ).map(row => ({ key: row.fab, label: row.fab, total: row.total, pages: row.pages }))
 )
-const selectedFab = ref<string | null>(null)
-watchEffect(() => {
-  const rows = fabsForWindow.value
-  if (!rows.length) {
-    selectedFab.value = null
-    return
-  }
-  if (!selectedFab.value || !rows.some(row => row.fab === selectedFab.value)) {
-    selectedFab.value = rows[0]?.fab ?? null
-  }
-})
-const selectedFabPages = computed<FeatureCount[]>(() => {
-  const row = fabsForWindow.value.find(item => item.fab === selectedFab.value)
-  return row?.pages ?? []
-})
 </script>

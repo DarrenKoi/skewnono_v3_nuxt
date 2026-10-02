@@ -1,5 +1,6 @@
 import type { EChartsOption } from 'echarts'
-import { userDisplayName, userTeamLabel } from './activity.ts'
+import { byActiveDays, userDisplayName, userTeamLabel } from './activity.ts'
+import { DAY_NAMES } from './activityCalendar.ts'
 import { CHART_AXIS_LABEL, CHART_LEGEND_LABEL } from './chartType.ts'
 import type { DailyVisitors, UserListRow } from '~/composables/useActivityApi'
 
@@ -27,8 +28,6 @@ export const visitorWindow = (
   series: readonly DailyVisitors[],
   key: VisitorWindowKey
 ): DailyVisitors[] => series.slice(-WINDOW_DAYS[key])
-
-const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
 /** '2026-10-02' → '10.02'. The year is on the tooltip; the axis has no room for it. */
 export const visitorAxisLabel = (iso: string): string => iso.slice(5).replace('-', '.')
@@ -103,26 +102,21 @@ export const stickinessPercent = (
 export interface CountRow {
   label: string
   hint?: string
+  /** Hover text, for a label that abbreviates something (a feature slug). */
+  title?: string
   count: number
 }
 
 type Visitor = Pick<UserListRow, 'user_id' | 'emp_nm' | 'dept_nm' | 'days_active_30d' | 'requests_30d'>
 
-/** Who comes most often: active days first, because "often" is about showing
- *  up — one heavy afternoon is a lot of requests and a single visit. */
-export const frequentVisitors = (users: readonly Visitor[], cap = 10): CountRow[] =>
-  [...users]
-    .sort((left, right) =>
-      right.days_active_30d - left.days_active_30d
-      || right.requests_30d - left.requests_30d
-      || left.user_id.localeCompare(right.user_id)
-    )
-    .slice(0, cap)
-    .map(row => ({
-      label: userDisplayName(row),
-      hint: userTeamLabel(row),
-      count: row.days_active_30d
-    }))
+/** Everyone, most frequent visitor first (see `byActiveDays`). The list that
+ *  shows it decides how many rows to draw. */
+export const frequentVisitors = (users: readonly Visitor[]): CountRow[] =>
+  [...users].sort(byActiveDays).map(row => ({
+    label: userDisplayName(row),
+    hint: userTeamLabel(row),
+    count: row.days_active_30d
+  }))
 
 // [upper bound in active days, label, what that habit looks like]
 const FREQUENCY_BANDS: [number, string, string][] = [

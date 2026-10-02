@@ -150,7 +150,7 @@ def page_view(family: str | None = None):
         # circular. By request time every module is fully initialized.
         from .._logging.activity import promote_page_view
 
-        promote_page_view(slug, family)
+        promote_page_view(slug)
     # An unresolvable path (ops page, tab not yet in the URL) is still a 204:
     # the client cannot know which paths rank, and a 400 would be console noise
     # for something that is not an error.

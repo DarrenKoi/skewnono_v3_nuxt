@@ -69,14 +69,14 @@ def _at_or_below(path: str, prefix: str) -> bool:
     return path == prefix or path.startswith(prefix + "/")
 
 
-def page_view_path(family: str | None) -> str:
-    """The beacon URL for a page of ``family``, or the plain one for None.
+def page_view_path(family: str) -> str:
+    """The beacon URL a page open of ``family`` is posted to.
 
-    One definition, used by the route that validates an incoming beacon and by
-    the office reader that groups page opens by family — the two must agree on
-    the spelling or the card reads zeros.
+    The one spelling of it on the backend: the activity readers map this path
+    back to its family, and the frontend's ``pageViewEndpoint`` builds the
+    same string. A page with no family uses the plain ``PAGE_VIEW_PATH``.
     """
-    return f"{PAGE_VIEW_PATH}/{family}" if family else PAGE_VIEW_PATH
+    return f"{PAGE_VIEW_PATH}/{family}"
 
 
 def classify_activity(

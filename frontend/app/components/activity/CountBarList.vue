@@ -13,7 +13,10 @@
       class="space-y-1"
     >
       <div class="flex items-baseline justify-between gap-2 text-xs">
-        <span class="min-w-0 truncate">
+        <span
+          class="min-w-0 truncate"
+          :title="row.title"
+        >
           <span class="sk-value">{{ row.label }}</span>
           <span
             v-if="row.hint"
@@ -24,8 +27,6 @@
           {{ row.count.toLocaleString() }}{{ unit }}
         </span>
       </div>
-      <!-- Same track and fill as ActivityFeatureBarList, so the two read as
-           one kind of list on pages that show both. -->
       <div class="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
         <div
           class="h-full bg-gradient-to-r from-sky-400 to-violet-500"
@@ -45,9 +46,10 @@
 <script setup lang="ts">
 import type { CountRow } from '~/utils/activityVisitors'
 
-// ActivityFeatureBarList's shape for rows that are not features: it runs every
-// label through activityFeatureLabel, which would rewrite a person's or a
-// team's name as if it were a slug.
+// The one bar list. ActivityFeatureBarList wraps it for feature slugs; rows
+// that are people, teams or bands come here directly, because running their
+// names through the feature-label lookup would rewrite them as if they were
+// slugs.
 const props = withDefaults(
   defineProps<{
     items: CountRow[]

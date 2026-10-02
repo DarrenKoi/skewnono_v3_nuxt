@@ -14,7 +14,7 @@ mock adapter keeps process-global counters that would leak between tests.
 import logging
 
 import pytest
-from flask import Flask, abort, g, request
+from flask import Flask, abort, g
 
 from backend._logging import activity as activity_mod
 from backend._logging import os_timing
@@ -122,12 +122,14 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
             # Stands in for the beacon route Task 5 adds: a handler that
             # knows what page it represents and promotes that slug onto the
             # log row before the middleware's after_request runs.
-            # The page it promotes is the body's when one is sent, so a test
-            # can stand in for any page; mag_pixel (no family) otherwise.
-            page = request.get_json(silent=True) or {}
-            activity_mod.promote_page_view(
-                page.get("slug", "mag_pixel"), page.get("family")
-            )
+            activity_mod.promote_page_view("mag_pixel")
+            return "", 204
+
+        @app.post("/api/page-view/<family>")
+        def _family_beacon(family):
+            # The same beacon for a page of a tool family: the family is in
+            # the URL, so it reaches the log row and the usage store as `path`.
+            activity_mod.promote_page_view("storage")
             return "", 204
 
         activity_mod.install_activity_logging(app)
@@ -286,7 +288,7 @@ def test_only_weighted_requests_become_usage_events(make_app, recorded):
     client.get("/api/nope")
     client.get("/login")
 
-    assert recorded == [("2067928", "sem_list", "entry", ["M16"], None)]
+    assert recorded == [("2067928", "sem_list", "entry", ["M16"], "/api/sem-list")]
 
 
 def test_a_cors_preflight_is_logged_but_not_recorded(make_app, records, recorded):
@@ -524,42 +526,20 @@ def test_a_failing_usage_store_never_fails_the_request(
 
 
 # ---------------------------------------------------------------------------
-# Tool family: carried by the beacon, never derived from an ordinary request.
+# Tool family: it is the beacon's URL, so the usage store is handed the path.
 
 
-def test_a_beacon_hands_its_family_to_the_usage_store(make_app, recorded):
-    client = make_app(user_id="2067928")
-
-    client.post("/api/page-view", json={"slug": "storage", "family": "veritysem"})
-
-    assert recorded == [("2067928", "storage", "page_view", [], "veritysem")]
-
-
-def test_an_ordinary_request_has_no_family_whatever_page_it_came_from(
+def test_the_usage_store_is_handed_the_path_the_log_row_carries(
     make_app, records, recorded
 ):
-    """Only a page open has a family. A request's Referer used to be read for
-    one, into a `tool_family` log field — but that field needed a change to
-    the index mapping, which this feature is not worth, and nothing could
-    aggregate it without one."""
+    """The office reads a page open's family off the row's `path`. The mock is
+    given that same path, not a separately-computed family, so the two cannot
+    count a page under different families."""
     client = make_app(user_id="2067928")
 
-    client.get(
-        "/api/sem-list",
-        headers={"Referer": "http://localhost:3000/ebeam/hv-sem/R3"},
-    )
+    client.post("/api/page-view/veritysem")
 
-    assert recorded == [("2067928", "sem_list", "entry", [], None)]
-    assert not hasattr(_only(records, "request"), "tool_family")
-
-
-def test_a_malformed_referer_is_none_of_the_middlewares_business(make_app, records):
-    """Kept from the review that found it: `Referer: http://[` once made
-    after_request raise and turned a 200 into a 500. The header is no longer
-    read at all; this pins that it stays that way."""
-    client = make_app(user_id="2067928")
-
-    response = client.get("/api/sem-list", headers={"Referer": "http://["})
-
-    assert response.status_code == 200
-    assert _only(records, "request").status == 200
+    assert _only(records, "request").path == "/api/page-view/veritysem"
+    assert recorded == [
+        ("2067928", "storage", "page_view", [], "/api/page-view/veritysem")
+    ]

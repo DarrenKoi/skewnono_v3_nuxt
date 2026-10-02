@@ -150,11 +150,6 @@ export const pageViewEndpoint = (path: string): string => {
 interface Canonical {
   /** Path with fab (and, under /ebeam, the tool) removed. */
   path: string
-  /** The /ebeam page's tool family, kept apart from `path` so the page rules
-   *  stay family-agnostic and the family rejoins the identity at the end.
-   *  Null outside /ebeam: a standalone page's path already says which family
-   *  it is (/afm) or that it has none. */
-  family: string | null
   /** True for /ebeam routes. An unmapped e-beam page has no identity at all
    *  (the backend returns None for it) — there is deliberately no tool-family
    *  fallback, because "CD-SEM" is not a page and must never be ranked as one. */
@@ -166,15 +161,14 @@ const canonicalize = (rawPath: string): Canonical => {
 
   if (segments[0] === 'ebeam') {
     // A bare /ebeam names no tool and is not a page.
-    if (!segments[1]) return { path: '/ebeam', ebeam: true, family: null }
-    const family = ebeamFamily(segments[1])
+    if (!segments[1]) return { path: '/ebeam', ebeam: true }
     const rest = segments.slice(2).filter(segment => !FAB_SEGMENT.test(segment))
     // /ebeam/<tool> and /ebeam/<tool>/<fab> are the same page (the fab hub).
-    if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, ebeam: true, family }
-    return { path: '/' + rest.join('/'), ebeam: true, family }
+    if (rest.length === 0) return { path: TOOL_INVENTORY_PATH, ebeam: true }
+    return { path: '/' + rest.join('/'), ebeam: true }
   }
 
-  return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), ebeam: false, family: null }
+  return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), ebeam: false }
 }
 
 const matchRule = (canonical: string): string | null => {
@@ -233,9 +227,13 @@ export const resolvePageIdentity = (
   const canonical = canonicalize(path)
   const page = resolvePage(canonical, query)
   if (page === null) return null
-  // `page` always starts with `/` or `#`, so the family prefix cannot run
+  // The same derivation the beacon URL uses (pageViewEndpoint), so the dedup
+  // identity and the URL a page open is posted to cannot name different
+  // families. Only /ebeam identities take the prefix: /afm's own path already
+  // says AFM. `page` always starts with `/` or `#`, so the prefix cannot run
   // into it: `cdsem/storage`, `hvsem#tool-inventory`.
-  return canonical.family ? canonical.family + page : page
+  const family = canonical.ebeam ? pageFamily(path) : null
+  return family ? family + page : page
 }
 
 const isToolInventory = (identity: string | null): boolean =>

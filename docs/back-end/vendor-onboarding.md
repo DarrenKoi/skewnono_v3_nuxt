@@ -214,7 +214,7 @@ beacon URL 에 실립니다. frontend 에서 고칠 곳은 둘입니다:
 `frontend/app/utils/toolType.ts` 의 `TOOL_TYPES` · `TOOL_SLUGS` (beacon URL 의
 장비군이 여기서 나오며, backend 와 어긋나면 그 계열의 page open 이 400 으로
 거절됩니다 — `pageIdentityContract.json` 의 `family` 열이 양쪽을 고정합니다)와
-`frontend/app/utils/activityFamily.ts` 의 `KNOWN_FAMILIES` 표시 이름입니다
+`frontend/app/utils/activityFamily.ts` 의 `FAMILY_LABELS` 표시 이름입니다
 (없으면 slug 그대로 보입니다). 새 계열의 **화면**을 추가할 때는 그 경로를
 `_logging/feature_map.py` 의 `_PAGE_RULES` 와 `frontend/app/utils/pageIdentity.ts`
 의 `IDENTITY_RULES` 양쪽에 등록해야 page open 이 기록됩니다 — 등록되지 않은

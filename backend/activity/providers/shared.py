@@ -9,26 +9,13 @@ would couple home boot to office-only code.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Mapping
 from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from ..._logging.feature_map import TOOL_FAMILIES
-from ..contracts import DailyVisitors
-
-__all__ = [
-    "KST",
-    "MAU_DAYS",
-    "RECENT_FEATURES_CAP",
-    "SPARKLINE_DAYS",
-    "TOOL_FAMILIES",
-    "TOP_FEATURES_CAP",
-    "VISITOR_DAYS",
-    "VISITOR_LOOKBACK_DAYS",
-    "VISIT_DAYS",
-    "WAU_DAYS",
-    "daily_visitor_rows",
-]
+from ..._logging.policy import page_view_path
+from ..contracts import DailyVisitors, FamilyUsageRow, FeatureCount
 
 KST = ZoneInfo("Asia/Seoul")
 TOP_FEATURES_CAP = 10
@@ -65,25 +52,54 @@ def daily_visitor_rows(
     weekly user. Summing daily counts instead would count them twice.
     """
     spans = {"visitors": 1, "wau": WAU_DAYS, "mau": MAU_DAYS}
-    counts: dict[str, Counter[date]] = {name: Counter() for name in spans}
+    # Keyed by day NUMBER (date.toordinal), not by date: spreading a day
+    # forward is then integer addition, about seven times cheaper than
+    # building a date per step, and the sets work the same.
+    counts: dict[str, Counter[int]] = {name: Counter() for name in spans}
     for days in active_days_by_user:
+        ordinals = [day.toordinal() for day in days]
         for name, span in spans.items():
             counts[name].update(
-                {
-                    day + timedelta(days=offset)
-                    for day in days
-                    for offset in range(span)
-                }
+                {ordinal + offset for ordinal in ordinals for offset in range(span)}
             )
     return [
         {
             "date": day.isoformat(),
-            "visitors": counts["visitors"][day],
-            "wau": counts["wau"][day],
-            "mau": counts["mau"][day],
+            "visitors": counts["visitors"][day.toordinal()],
+            "wau": counts["wau"][day.toordinal()],
+            "mau": counts["mau"][day.toordinal()],
         }
         for day in (
             today - timedelta(days=offset)
             for offset in range(VISITOR_DAYS - 1, -1, -1)
         )
+    ]
+
+
+#: Beacon URL → tool family. A page open's family is the URL it was posted to
+#: (/api/page-view/<family>), which is the log row's ``path``. Both adapters
+#: read it from here: the office maps its ``terms`` buckets, the mock maps the
+#: path the middleware hands it.
+FAMILY_BY_BEACON_PATH = {
+    page_view_path(family): family for family in TOOL_FAMILIES
+}
+
+
+def family_usage_rows(
+    openers: Mapping[str, int],
+    pages: Mapping[str, list[FeatureCount]],
+) -> list[FamilyUsageRow]:
+    """Every family, in registry order, whether or not anyone opened it.
+
+    The guarantee ``FamilyUsageResponse`` makes, kept in one place: an adapter
+    supplies whatever it counted, keyed by family, and a family it has nothing
+    for is a row of zeros rather than a missing row.
+    """
+    return [
+        {
+            "family": family,
+            "total": openers.get(family, 0),
+            "pages": pages.get(family, []),
+        }
+        for family in TOOL_FAMILIES
     ]

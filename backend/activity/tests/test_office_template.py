@@ -670,17 +670,22 @@ def test_family_usage_lists_every_family_from_page_view_rows():
     assert [row["total"] for row in payload["families_30d"]] == [0, 0, 0, 0, 0]
 
     (body,) = search.bodies
-    # Page opens only, for the whole query: a request row can carry a family
-    # too, and counting it would turn "opened a page" into "made a request".
-    assert body["query"]["bool"]["filter"] == [
+    filters = body["query"]["bool"]["filter"]
+    # Page opens only, stated once for the whole query.
+    assert filters[:3] == [
         {"term": {"event": "request"}},
         {"term": {"activity_weight": 1}},
         {"terms": {"activity_kind": ["page_view"]}},
     ]
+    # ...and bounded to the wider window. Production keeps a year behind the
+    # alias; without this every view matched all of it and the two windows
+    # below threw eleven twelfths away.
+    assert filters[3]["range"]["@timestamp"]["gte"].startswith(
+        "2026-06-28T00:00:00+09:00"
+    )
 
     def window_start(name):
-        clauses = body["aggs"][name]["filter"]["bool"]["filter"]
-        return clauses[0]["range"]["@timestamp"]["gte"]
+        return body["aggs"][name]["filter"]["range"]["@timestamp"]["gte"]
 
     assert window_start("families_7d").startswith("2026-07-21T00:00:00+09:00")
     assert window_start("families_30d").startswith("2026-06-28T00:00:00+09:00")

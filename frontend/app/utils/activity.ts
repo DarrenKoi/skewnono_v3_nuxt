@@ -27,6 +27,46 @@ export const userTeamLabel = (row: ListedUser): string =>
 export const userSearchText = (row: ListedUser): string =>
   `${row.emp_nm ?? ''} ${row.user_id} ${row.dept_nm ?? ''}`
 
+/** "Who comes most often": active days first, because often is about showing
+ *  up — one heavy afternoon is a lot of requests and a single visit. Requests
+ *  break a tie, and the employee number breaks the rest so the order is the
+ *  same on every refresh. One comparator for the 자주 방문하는 사용자 card and
+ *  the users table's 활동일 많은 순, which sit on the same page. */
+export const byActiveDays = (
+  left: Pick<UserListRow, 'user_id' | 'days_active_30d' | 'requests_30d'>,
+  right: Pick<UserListRow, 'user_id' | 'days_active_30d' | 'requests_30d'>
+): number =>
+  right.days_active_30d - left.days_active_30d
+  || right.requests_30d - left.requests_30d
+  || left.user_id.localeCompare(right.user_id)
+
+/** The DAU / WAU / MAU cards, shared by 사용 통계 and 방문자 분석 so the two
+ *  pages cannot describe the same three numbers differently. Each page adds
+ *  its own ratio card after them. */
+export const activeUserKpis = (counts: { dau: number, wau: number, mau: number }) => [
+  {
+    label: 'DAU',
+    value: counts.dau,
+    hint: '오늘 활동한 사용자',
+    icon: 'i-lucide-user',
+    color: 'text-sky-500'
+  },
+  {
+    label: 'WAU',
+    value: counts.wau,
+    hint: '최근 7일 활동한 사용자',
+    icon: 'i-lucide-users',
+    color: 'text-violet-500'
+  },
+  {
+    label: 'MAU',
+    value: counts.mau,
+    hint: '최근 30일 활동한 사용자',
+    icon: 'i-lucide-user-check',
+    color: 'text-emerald-500'
+  }
+]
+
 /** The FAB bucket name the backend gives documents that carry no fab_name.
  *
  *  The literal '미지정' also lives in

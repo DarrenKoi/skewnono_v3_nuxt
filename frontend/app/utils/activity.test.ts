@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { activityFeatureLabel, pageViewNotice, PAGE_VIEW_SINCE, rankableFabRows, FABLESS_BUCKET, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
+import { activeUserKpis, activityFeatureLabel, byActiveDays, pageViewNotice, PAGE_VIEW_SINCE, rankableFabRows, FABLESS_BUCKET, userDisplayName, userSearchText, userTeamLabel } from './activity.ts'
 
 /** A listed row's identity fields, with the directory having answered fully. */
 const listed = (over = {}) => ({
@@ -74,4 +74,21 @@ test('rankableFabRows can empty the list entirely', () => {
   // A window in which only fab-less pages were used. The card must render its
   // empty state, not a one-row chart of nothing.
   assert.deepEqual(rankableFabRows([{ fab: FABLESS_BUCKET }]), [])
+})
+
+test('active days rank people, then requests, then employee number', () => {
+  const people = [
+    { user_id: '300', days_active_30d: 5, requests_30d: 10 },
+    { user_id: '100', days_active_30d: 9, requests_30d: 1 },
+    { user_id: '200', days_active_30d: 5, requests_30d: 40 },
+    { user_id: '250', days_active_30d: 5, requests_30d: 10 }
+  ]
+
+  assert.deepEqual([...people].sort(byActiveDays).map(p => p.user_id), ['100', '200', '250', '300'])
+})
+
+test('the three active-user cards carry the numbers they are given', () => {
+  const cards = activeUserKpis({ dau: 5, wau: 8, mau: 9 })
+
+  assert.deepEqual(cards.map(card => [card.label, card.value]), [['DAU', 5], ['WAU', 8], ['MAU', 9]])
 })

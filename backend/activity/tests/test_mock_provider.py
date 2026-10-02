@@ -217,15 +217,15 @@ def test_seeded_home_identity_fills_the_visit_calendar_without_losing_counts(
     mock.seed_demo_users()
 
     visits = [day["count"] for day in mock.get_me("local-dev")["visits"]]
-    _user, _fab, _requests, page_views, _days = next(
-        row for row in mock._DEMO_USERS if row[0] == "local-dev"
-    )
-    assert sum(visits) == sum(page_views.values())
+    home = next(user for user in mock._DEMO_USERS if user.user_id == "local-dev")
+    assert sum(visits) == sum(home.page_views.values())
     assert 0 in visits and len(set(visits)) > 5
     # The weighted spread must not drop or invent requests for any peer.
-    for user_id, _fab, requests, _views, days_back in mock._DEMO_USERS:
-        if days_back <= mock.SPARKLINE_DAYS:
-            assert sum(fresh_store[user_id].daily.values()) == sum(requests.values())
+    for user in mock._DEMO_USERS:
+        if user.days <= mock.SPARKLINE_DAYS:
+            assert sum(fresh_store[user.user_id].daily.values()) == sum(
+                user.requests.values()
+            )
 
 
 def test_daily_visitors_roll_dau_wau_mau_over_60_kst_days(
@@ -240,7 +240,7 @@ def test_daily_visitors_roll_dau_wau_mau_over_60_kst_days(
     mock.record_request("u2", "sem_list", "entry", [])
     u1, u2 = fresh_store["u1"], fresh_store["u2"]
     u1.daily[date(2026, 7, 15)] = 4  # 59 days back: the chart's first day
-    u1.daily[date(2026, 6, 15)] = 9  # 89 days back: no window reaches it
+    u1.daily[date(2026, 6, 14)] = 9  # 90 days back: past the retention
     # 88 days back: off the chart, but inside the first day's 30-day MAU
     # window (06-16..07-15), so it has to survive the prune.
     u2.daily[date(2026, 6, 16)] = 1
@@ -268,7 +268,7 @@ def test_daily_visitors_roll_dau_wau_mau_over_60_kst_days(
     assert days[-1] == {"date": "2026-09-12", "visitors": 2, "wau": 2, "mau": 2}
     summary = mock.get_summary()
     assert (summary["dau"], summary["wau"], summary["mau"]) == (2, 2, 2)
-    assert date(2026, 6, 15) not in u1.daily
+    assert date(2026, 6, 14) not in u1.daily
     assert date(2026, 6, 16) in u2.daily
 
 
@@ -277,15 +277,16 @@ def _family_rows(payload, window):
 
 
 def test_family_usage_counts_people_and_page_opens_per_family(fresh_store):
-    mock.record_request("u1", "storage", "page_view", [], "cdsem")
-    mock.record_request("u1", "storage", "page_view", [], "cdsem")
-    mock.record_request("u2", "storage", "page_view", [], "cdsem")
-    mock.record_request("u2", "hardware", "page_view", [], "hvsem")
-    mock.record_request("u2", "afm", "page_view", [], "afm")
-    # Neither of these is a page of a family: a page that belongs to none,
-    # and a REQUEST that happens to carry one. The card counts page opens.
-    mock.record_request("u3", "mag_pixel", "page_view", [], None)
-    mock.record_request("u3", "storage", "feature", ["M14"], "cdsem")
+    mock.record_request("u1", "storage", "page_view", [], "/api/page-view/cdsem")
+    mock.record_request("u1", "storage", "page_view", [], "/api/page-view/cdsem")
+    mock.record_request("u2", "storage", "page_view", [], "/api/page-view/cdsem")
+    mock.record_request("u2", "hardware", "page_view", [], "/api/page-view/hvsem")
+    mock.record_request("u2", "afm", "page_view", [], "/api/page-view/afm")
+    # Neither of these is a page of a family: a page open posted to the plain
+    # beacon URL, and an ordinary request to a family's API. Only the beacon
+    # URL names a family.
+    mock.record_request("u3", "mag_pixel", "page_view", [], "/api/page-view")
+    mock.record_request("u3", "storage", "feature", ["M14"], "/api/cdsem/storage")
 
     payload = mock.get_family_page_usage()
 
@@ -316,7 +317,7 @@ def test_family_usage_windows_are_7_and_30_kst_days_and_stay_bounded(
         mock, "_now", lambda: datetime(2026, 9, 11, 16, tzinfo=timezone.utc)
     )
     today = date(2026, 9, 12)
-    mock.record_request("u1", "storage", "page_view", [], "cdsem")
+    mock.record_request("u1", "storage", "page_view", [], "/api/page-view/cdsem")
     state = fresh_store["u1"]
     state.daily_family_features[today - timedelta(days=6)] = {
         "hvsem": {"hardware": 2}
@@ -327,7 +328,7 @@ def test_family_usage_windows_are_7_and_30_kst_days_and_stay_bounded(
     state.daily_family_features[today - timedelta(days=200)] = {
         "afm": {"afm": 9}
     }
-    mock.record_request("u1", "storage", "page_view", [], "cdsem")
+    mock.record_request("u1", "storage", "page_view", [], "/api/page-view/cdsem")
 
     payload = mock.get_family_page_usage()
     week = _family_rows(payload, "families_7d")

@@ -4,7 +4,7 @@ import {
   type UserHistoryResponse,
   type UserListRow
 } from '~/composables/useActivityApi'
-import { activityFeatureLabel, userDisplayName, userSearchText } from '~/utils/activity'
+import { activityFeatureLabel, byActiveDays, userDisplayName, userSearchText } from '~/utils/activity'
 import { copyTableToClipboard } from '~/utils/tableExport'
 import { todayStamp } from '../utils/dateTime.ts'
 
@@ -54,10 +54,7 @@ export const useActivityUserTable = (rows: ComputedRef<readonly UserListRow[]>) 
     })
 
     return [...matched].sort((left, right) => {
-      if (sort.value === 'days') {
-        return right.days_active_30d - left.days_active_30d
-          || right.requests_30d - left.requests_30d
-      }
+      if (sort.value === 'days') return byActiveDays(left, right)
       if (sort.value === 'recent') {
         return (right.last_seen ? Date.parse(right.last_seen) : 0)
           - (left.last_seen ? Date.parse(left.last_seen) : 0)

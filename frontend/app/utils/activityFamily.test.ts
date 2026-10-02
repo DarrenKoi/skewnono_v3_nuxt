@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TOOL_FAMILY_SINCE, familyRail, toolFamilyLabel, toolFamilyNotice } from './activityFamily.ts'
+import { TOOL_FAMILY_SINCE, familyRail, toolFamilyNotice } from './activityFamily.ts'
 
 const row = (family: string, total = 0, pages: { feature: string, count: number }[] = []) =>
   ({ family, total, pages })
 
-test('the rail lists every family in a fixed order, Hitachi named on its two', () => {
+test('each family row gets its label, with Hitachi named on its two', () => {
+  // Order and zero rows are the backend's promise (every family, registry
+  // order), so the rail keeps what it is given and only names it.
   const rail = familyRail([
     row('cdsem', 6, [{ feature: 'storage', count: 39 }]),
     row('hvsem', 2),
@@ -15,40 +17,24 @@ test('the rail lists every family in a fixed order, Hitachi named on its two', (
   ])
 
   assert.deepEqual(
-    rail.map(item => [item.vendor ?? null, item.label, item.total]),
+    rail.map(item => [item.key, item.prefix ?? null, item.label, item.total]),
     [
-      ['Hitachi', 'CD-SEM', 6],
-      ['Hitachi', 'HV-SEM', 2],
-      [null, 'VeritySEM', 0],
-      [null, 'Provision', 0],
-      [null, 'AFM', 1]
+      ['cdsem', 'Hitachi', 'CD-SEM', 6],
+      ['hvsem', 'Hitachi', 'HV-SEM', 2],
+      ['veritysem', null, 'VeritySEM', 0],
+      ['provision', null, 'Provision', 0],
+      ['afm', null, 'AFM', 1]
     ]
   )
   assert.deepEqual(rail[0]!.pages, [{ feature: 'storage', count: 39 }])
 })
 
-test('the order is the rail’s, not the response’s, and a missing family is a zero', () => {
-  const rail = familyRail([row('afm', 3), row('cdsem', 1)])
-
-  assert.deepEqual(
-    rail.map(item => [item.family, item.total]),
-    [['cdsem', 1], ['hvsem', 0], ['veritysem', 0], ['provision', 0], ['afm', 3]]
-  )
-})
-
 test('a family the frontend has no label for still shows, under its own slug', () => {
   // The backend lists families from its registry. One added there must not
   // vanish here just because this file has not caught up.
-  const rail = familyRail([row('cdsem', 1), row('thickness', 4)])
-
-  assert.deepEqual(rail[rail.length - 1], {
-    family: 'thickness',
-    label: 'thickness',
-    total: 4,
-    pages: []
-  })
-  assert.equal(toolFamilyLabel('thickness'), 'thickness')
-  assert.equal(toolFamilyLabel('hvsem'), 'HV-SEM')
+  assert.deepEqual(familyRail([row('thickness', 4)]), [
+    { key: 'thickness', label: 'thickness', total: 4, pages: [] }
+  ])
 })
 
 test('the notice shows while the window reaches before families were recorded', () => {

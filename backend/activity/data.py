@@ -62,14 +62,14 @@ def record_request(
     feature: str,
     activity_kind: str,
     fab_name_list: list[str],
-    tool_family: str | None = None,
+    path: str | None = None,
 ) -> None:
     return _provider().record_request(
         user_id,
         feature,
         activity_kind,
         fab_name_list,
-        tool_family,
+        path,
     )
 
 
