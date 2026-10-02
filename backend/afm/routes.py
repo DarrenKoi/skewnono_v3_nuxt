@@ -215,8 +215,9 @@ def afm_tiff_zip(filename: str):
     ]
 
     # ponytail: the archive is built in memory, so its peak is the sum of the
-    # originals (36 points x the TIFF size, OFFICE-VERIFY). Stream it through
-    # a SpooledTemporaryFile if office TIFFs turn out to be tens of MB each.
+    # originals (36 points x the TIFF size, OFFICE-VERIFY). Accepted on purpose:
+    # the server has 8 GB (user-confirmed 2026-10-03), so even 36 x 50 MB fits.
+    # Stream through a SpooledTemporaryFile only if concurrent zips run it out.
     buffer = io.BytesIO()
     count = 0
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
