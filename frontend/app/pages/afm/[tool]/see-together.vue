@@ -1,5 +1,5 @@
 <template>
-  <div class="px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
+  <div class="space-y-6">
     <EbeamMetaBar
       :eyebrow="`AFM · ${toolName}`"
       title="AFM 시계열 비교"
@@ -126,7 +126,6 @@ import { AFM_SUMMARY_ITEMS } from '~/composables/useAfmDetailApi'
 
 // `key` remounts the page per tool, so the route params are read once.
 definePageMeta({
-  layout: 'hub',
   key: route => route.path
 })
 
