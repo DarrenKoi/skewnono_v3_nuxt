@@ -1,0 +1,80 @@
+<template>
+  <AfmCard
+    icon="i-lucide-heart-pulse"
+    title="측정별 상태 지표"
+  >
+    <template #actions>
+      <span class="sk-meta">포인트별 data 행에서 집계 · 블록·항목 선택과 무관 · x축은 01 추세와 같은 시각</span>
+    </template>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+      <AfmTrendHealthChart
+        v-for="c in charts"
+        :key="c.label"
+        v-bind="c"
+        :selected="selected"
+        :export-name="`${exportName}-${c.slug}`"
+        @select="emit('select', $event)"
+      />
+    </div>
+  </AfmCard>
+</template>
+
+<script setup lang="ts">
+import type { HealthPoint } from '~/utils/afmTrend'
+import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
+
+const props = defineProps<{
+  health: HealthPoint[]
+  selected: string | null
+  exportName: string
+}>()
+const emit = defineEmits<{ select: [key: string] }>()
+
+const series = (pick: (h: HealthPoint) => number | null) =>
+  props.health.map(h => ({ key: h.key, time: h.time, value: pick(h) }))
+
+const sum = (values: (number | null)[]) => values.reduce<number>((a, v) => a + (v ?? 0), 0)
+
+const charts = computed(() => {
+  const approaches = props.health.flatMap(h => h.approach ?? [])
+  const lastMileage = props.health.findLast(h => h.mileage !== null)?.mileage ?? null
+  return [
+    {
+      slug: 'not-completed',
+      label: 'FAILED + STOPPED 포인트',
+      summary: `${sum(props.health.map(h => h.notCompleted))}건`,
+      note: '0이 정상. 한 측정에 몰리면 그 측정만, 꾸준히 늘면 팁.',
+      kind: 'bar' as const,
+      color: SK_STATE.bad,
+      points: series(h => h.notCompleted)
+    },
+    {
+      slug: 'invalid',
+      label: 'Valid = FALSE 포인트',
+      summary: `${sum(props.health.map(h => h.invalid))}건`,
+      note: '완료됐지만 recipe 기준을 못 넘긴 포인트.',
+      kind: 'bar' as const,
+      color: SK_STATE.warn,
+      points: series(h => h.invalid)
+    },
+    {
+      slug: 'approach',
+      label: 'Approach Count 평균',
+      summary: approaches.length ? `${fmt2(approaches.reduce((a, b) => a + b, 0) / approaches.length)}회` : '–',
+      note: '재접근이 늘면 표면·팁 상태 의심.',
+      kind: 'line' as const,
+      color: SK_SCALE[0],
+      points: series(h => h.approach)
+    },
+    {
+      slug: 'mileage',
+      label: 'Mileage 평균',
+      summary: lastMileage === null ? '–' : `${lastMileage.toFixed(1)} 마지막`,
+      note: '단조 증가가 정상. 뚝 떨어지면 팁 교체 시점.',
+      kind: 'line' as const,
+      color: SK_STATE.ok,
+      points: series(h => h.mileage)
+    }
+  ]
+})
+</script>
