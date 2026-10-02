@@ -162,18 +162,30 @@
       class="rounded-xl bg-(--sk-surface) p-2 ring-1 ring-(--sk-border-soft)"
     >
       <div class="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-        <span class="sk-title">LaserPower · 중앙값 대비 이상치 %</span>
-        <EbeamHardwareInspectTimePicker
-          v-if="laserPickItems.length"
-          v-model="laserPick"
-          :items="laserPickItems"
-          label="이상치 시각"
-          select-class="w-80"
-          @inspect="emit('inspect-time', $event)"
-        />
+        <span class="sk-title">LaserPower · 중앙값 대비 {{ laserShowAll ? '편차' : '이상치' }} %</span>
+        <div class="flex flex-wrap items-center gap-3">
+          <USwitch
+            v-model="laserShowAll"
+            size="sm"
+            label="전체 보기"
+          />
+          <EbeamHardwareInspectTimePicker
+            v-if="laserPickItems.length"
+            v-model="laserPick"
+            :items="laserPickItems"
+            label="이상치 시각"
+            select-class="w-80"
+            @inspect="emit('inspect-time', $event)"
+          />
+        </div>
       </div>
       <p class="mb-2 px-1 sk-meta">
-        정상 범위(중앙값 ± {{ LASER_OUTLIER_SIGMA }}σ, MAD 추정) 안의 점은 숨기고 벗어난 점만 표시합니다 ·
+        <template v-if="laserShowAll">
+          정상 범위(중앙값 ± {{ LASER_OUTLIER_SIGMA }}σ, MAD 추정) 안의 점까지 모두 표시합니다 (이상치는 크게) ·
+        </template>
+        <template v-else>
+          정상 범위(중앙값 ± {{ LASER_OUTLIER_SIGMA }}σ, MAD 추정) 안의 점은 숨기고 벗어난 점만 표시합니다 ·
+        </template>
         x1 이상치 {{ laserStats.x1.points.length }} / 전체 {{ laserStats.x1.total }},
         y1 이상치 {{ laserStats.y1.points.length }} / 전체 {{ laserStats.y1.total }} (유효값 기준)
         <span v-if="laserStats.x1.baseline === 0 || laserStats.y1.baseline === 0"> · 중앙값이 0인 채널은 편차 %를 계산할 수 없습니다.</span>
@@ -474,6 +486,17 @@ watch(laserPickItems, (items) => {
 // Outliers are few, so the dots can be big click targets (user request
 // 2026-09-30: 6px was hard to hit). The triangle gets 2px more to read the same size.
 const LASER_SYMBOL = 11
+// Off by default: the outlier view is the agreed design; the full view is
+// on request (user request 2026-10-03: readers also want the whole series).
+const laserShowAll = ref(false)
+// In the full view the in-band points shrink and fade so outliers still lead.
+const laserData = (stats: ReturnType<typeof laserOutliers>, size: number) => {
+  if (!laserShowAll.value) return stats.points.map(p => ({ name: p.ts, value: [p.epoch, p.deviation] }))
+  const outliers = new Set(stats.points)
+  return stats.all.map(p => outliers.has(p)
+    ? { name: p.ts, value: [p.epoch, p.deviation] }
+    : { name: p.ts, value: [p.epoch, p.deviation], symbolSize: size / 2, itemStyle: { opacity: 0.45 } })
+}
 const laserDeviationOption = (): EChartsOption => {
   const { x1, y1 } = laserStats.value
   const times = laserRows.value.map(r => r.epoch).filter(Number.isFinite)
@@ -496,13 +519,13 @@ const laserDeviationOption = (): EChartsOption => {
     series: [
       {
         name: 'x1', type: 'scatter', symbol: 'circle', symbolSize: LASER_SYMBOL, itemStyle: { color: c0.value },
-        data: x1.points.map(p => ({ name: p.ts, value: [p.epoch, p.deviation] })),
+        data: laserData(x1, LASER_SYMBOL),
         markArea: { silent: true, itemStyle: { color: c0.value, opacity: 0.08 }, data: x1.band ? [[{ yAxis: x1.band.lo }, { yAxis: x1.band.hi }]] : [] },
         markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: 'rgba(127,127,127,0.55)' }, label: { show: false }, data: [{ yAxis: 0 }] }
       },
       {
         name: 'y1', type: 'scatter', symbol: 'triangle', symbolSize: LASER_SYMBOL + 2, itemStyle: { color: c1.value },
-        data: y1.points.map(p => ({ name: p.ts, value: [p.epoch, p.deviation] })),
+        data: laserData(y1, LASER_SYMBOL + 2),
         markArea: { silent: true, itemStyle: { color: c1.value, opacity: 0.08 }, data: y1.band ? [[{ yAxis: y1.band.lo }, { yAxis: y1.band.hi }]] : [] },
         markLine: maintenanceMarkLine.value
       }
