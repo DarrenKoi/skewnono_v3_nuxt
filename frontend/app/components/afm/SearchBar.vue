@@ -111,20 +111,23 @@
           class="flex items-center gap-3 px-4 py-3 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
         >
           <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-            <span class="font-mono text-sm font-semibold tabular-nums">
+            <!-- Three identifiers, three forms: the date steps back so the
+                 recipe is the row's headline, and lot / slot each carry the
+                 eyebrow that names them. -->
+            <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
               {{ result.formattedDate }}
             </span>
-            <span class="text-sm font-semibold">
+            <span class="text-sm font-semibold text-(--sk-ink)">
               {{ result.recipeName }}
             </span>
-            <span class="sk-value-num">
-              {{ result.lotId }}
+            <span class="inline-flex h-[22px] items-center gap-1.5 rounded-(--sk-r-sidebar) border border-(--sk-border) bg-(--sk-surface) px-1.5">
+              <span class="sk-eyebrow">Lot</span>
+              <span class="sk-value-num font-semibold">{{ result.lotId }}</span>
             </span>
-            <UBadge
-              :label="`Slot ${result.slotNumber}`"
-              color="neutral"
-              variant="subtle"
-            />
+            <span class="inline-flex h-[22px] items-center gap-1.5 rounded-(--sk-r-sidebar) bg-(--sk-chip-bg) px-1.5">
+              <span class="sk-eyebrow">Slot</span>
+              <span class="sk-value-num font-semibold">{{ result.slotNumber }}</span>
+            </span>
             <UBadge
               :label="result.measuredInfo"
               color="neutral"
