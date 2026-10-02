@@ -2,7 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmMeasurement } from '~/composables/useAfmCart'
-import { dateWindow, filterMeasurements } from './afmSearch.ts'
+import type { AfmFileRow } from '~/composables/useAfmDetailApi'
+import { dateWindow, filterMeasurements, toMeasurement } from './afmSearch.ts'
 
 const row = (recipeName: string, lotId: string, formattedDate: string): AfmMeasurement => ({
   filename: `#${formattedDate}#${recipeName}#${lotId}#.csv`,
@@ -44,11 +45,27 @@ test('filterMeasurements: each filter narrows, and they combine', () => {
     ['T7HQR1A']
   )
   assert.deepEqual(filterMeasurements([], { ...all, days: 3 }), [])
-  // A row with no date or lot stays in 전체, leaves a dated window, and breaks nothing.
-  const odd = [...rows, { ...row('CMP_POST', 'X', ''), formattedDate: null, lotId: null } as unknown as AfmMeasurement]
-  assert.equal(filterMeasurements(odd, { ...all, terms: ['cmp'] }).length, 3)
-  assert.equal(filterMeasurements(odd, { ...all, days: 7, lot: 't7' }).length, 1)
-  assert.deepEqual(dateWindow(odd, null, today), ['2026-04-13', '2026-04-24'])
+  // A row with no date stays in 전체 and leaves every dated window.
+  const undated = [...rows, row('CMP_POST', 'X', '')]
+  assert.equal(filterMeasurements(undated, { ...all, terms: ['cmp'] }).length, 3)
+  assert.equal(filterMeasurements(undated, { ...all, days: 30 }).length, 4)
+  assert.deepEqual(dateWindow(undated, null, today), ['2026-04-13', '2026-04-24'])
   // Nothing measured today: "오늘" is empty, it does not fall back to the newest day.
   assert.deepEqual(filterMeasurements(rows, { ...all, days: 1, today: '2026-04-25' }), [])
+})
+
+test('toMeasurement: folds the time into the date; a missing cell becomes an empty string', () => {
+  const full = toMeasurement({
+    filename: 'a.csv', recipe_name: 'CMP_POST', lot_id: 'T7HQR16', slot_number: '01',
+    measured_info: 'standard', formatted_date: '2026-04-24', time: '0930', has_data: true
+  })
+  assert.equal(full.formattedDate, '2026-04-24 09:30:00')
+  assert.equal(full.hasData, true)
+  // What an office row might leave out, however the type reads.
+  const bare = toMeasurement({ filename: 'b.csv', time: '093000' } as AfmFileRow)
+  assert.deepEqual(
+    [bare.recipeName, bare.lotId, bare.slotNumber, bare.measuredInfo, bare.formattedDate],
+    ['', '', '', '', '']
+  )
+  assert.deepEqual(filterMeasurements([full, bare], { ...all, terms: ['cmp'], lot: 't7' }), [full])
 })

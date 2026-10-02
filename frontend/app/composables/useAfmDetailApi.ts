@@ -1,5 +1,4 @@
 import { joinApiPath } from '~/utils/apiPath'
-import type { AfmMeasurement } from '~/composables/useAfmCart'
 
 export interface AfmFileRow {
   filename: string
@@ -123,15 +122,6 @@ export interface AfmAnalysisImagesResponse {
   tool: string
 }
 
-// Backend rows carry the measurement time as a raw HHMMSS code separate from
-// formatted_date; fold it into the display date so lists show "YYYY-MM-DD HH:MM:SS".
-const formatMeasuredAt = (row: AfmFileRow): string => {
-  const code = row.time ?? ''
-  if (!/^\d{4,6}$/.test(code)) return row.formatted_date
-  const padded = code.padEnd(6, '0')
-  return `${row.formatted_date} ${padded.slice(0, 2)}:${padded.slice(2, 4)}:${padded.slice(4, 6)}`
-}
-
 export const useAfmDetailApi = () => {
   const base = useRuntimeConfig().public.apiBase
 
@@ -145,19 +135,7 @@ export const useAfmDetailApi = () => {
   const useAfmFiles = (tool: string) =>
     useAsyncData(`afm-files:${tool}`, async () => {
       const res = await get<AfmFilesResponse>(tool)
-      return res.data.map<AfmMeasurement>(row => ({
-        filename: row.filename,
-        recipeName: row.recipe_name,
-        lotId: row.lot_id,
-        slotNumber: row.slot_number,
-        measuredInfo: row.measured_info,
-        formattedDate: formatMeasuredAt(row),
-        hasProfile: row.has_profile,
-        hasData: row.has_data,
-        hasImage: row.has_image,
-        hasAlign: row.has_align,
-        hasTip: row.has_tip
-      }))
+      return res.data.map(toMeasurement)
     })
 
   const fetchDetail = (tool: string, filename: string) =>

@@ -53,27 +53,13 @@
             :key="item.filename"
             class="flex items-start gap-2 px-4 py-2.5"
           >
-            <div class="min-w-0 flex-1 space-y-1">
-              <p class="flex items-baseline gap-2">
-                <span class="shrink-0 font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-                  {{ item.formattedDate }}
-                </span>
-                <span class="truncate text-sm font-semibold text-(--sk-ink)">
-                  {{ item.recipeName }}
-                </span>
-              </p>
-              <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <AfmLotSlotTags
-                  :lot-id="item.lotId"
-                  :slot-number="item.slotNumber"
-                />
-                <UBadge
-                  :label="item.measuredInfo"
-                  color="neutral"
-                  variant="outline"
-                />
-              </p>
-            </div>
+            <AfmMeasurementLine :item="item">
+              <UBadge
+                :label="item.measuredInfo"
+                color="neutral"
+                variant="outline"
+              />
+            </AfmMeasurementLine>
             <UButton
               size="xs"
               color="neutral"
@@ -138,7 +124,7 @@
               icon="i-lucide-line-chart"
               :label="`함께 보기 · ${items.length}건`"
               class="flex-1"
-              @click="$emit('see-together')"
+              :to="`/afm/${toolId}/see-together`"
             />
             <UButton
               color="neutral"
@@ -246,10 +232,6 @@ const props = defineProps<{
   toolId: string
 }>()
 
-defineEmits<{
-  'see-together': []
-}>()
-
 const STEPS = [
   '검색 결과 왼쪽의 체크박스로 측정을 담습니다.',
   '함께 보기로 담은 측정을 한 화면에서 비교합니다.',
@@ -271,12 +253,13 @@ const tabItems = computed(() => [
 ])
 
 // One line confirming the last save or load; it goes when the user moves on.
+// Sync, so a load can switch the tab and then say what it loaded.
 const flash = ref('')
 const confirmId = ref('')
 watch(tab, () => {
   flash.value = ''
   confirmId.value = ''
-})
+}, { flush: 'sync' })
 
 const saving = ref(false)
 const groupName = ref('')
@@ -302,15 +285,13 @@ const confirmSave = () => {
   flash.value = `'${name}' 그룹을 저장했습니다. 저장된 그룹에서 다시 불러올 수 있습니다.`
 }
 
-const load = async (group: AfmSavedGroup, mode?: 'replace' | 'merge') => {
+const load = (group: AfmSavedGroup, mode?: 'replace' | 'merge') => {
   if (!mode && items.value.length) {
     confirmId.value = group.id
     return
   }
   cart.loadSavedGroup(group.id, mode === 'merge')
   tab.value = 'group'
-  // The tab watcher clears the flash, so it is set once that has run.
-  await nextTick()
   flash.value = mode === 'replace'
     ? `'${group.name}' 그룹으로 바꿨습니다.`
     : `'${group.name}' 그룹을 ${mode === 'merge' ? '합쳤습니다' : '불러왔습니다'}.`

@@ -70,7 +70,7 @@ export const STATE_BADGE: Record<string, 'success' | 'error' | 'warning'> = {
   STOPPED: 'warning'
 }
 
-export interface SiteDot {
+interface SiteDot {
   siteId: string
   // The first point measured at the site — what clicking the dot selects.
   point: string
@@ -117,7 +117,3 @@ export const imagePoint = (name: string, stem: string, points: string[]): string
     .filter(point => tail.includes(`_${point}_`))
     .sort((a, b) => b.length - a.length)[0] ?? ''
 }
-
-// "+1.23" / "−1.23": a difference always shows its sign.
-export const formatDelta = (value: number): string =>
-  `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(2)}`

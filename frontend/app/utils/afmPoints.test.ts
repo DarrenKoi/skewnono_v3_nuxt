@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
-import { blocksOfPoint, formatDelta, imagePoint, measurementStem, pointState, siteDots, tagBlocks } from './afmPoints.ts'
+import { blocksOfPoint, imagePoint, measurementStem, pointState, siteDots, tagBlocks } from './afmPoints.ts'
 
 const row = (point: string, state: string, extra: Record<string, string | number> = {}): AfmDetailRow => ({
   'measurement_point': point,
@@ -91,10 +91,4 @@ test('imagePoint: read after the measurement stem, longest key wins', () => {
 test('measurementStem: drops .csv, and the _Info of a MAPC01 list name', () => {
   assert.equal(measurementStem('#260424#093000#R#01#NA#NA#MON69683.01_Info.csv'), '#260424#093000#R#01#NA#NA#MON69683.01')
   assert.equal(measurementStem('#260424#093000#R#L.01#L#093400#.csv'), '#260424#093000#R#L.01#L#093400#')
-})
-
-test('formatDelta: always signed', () => {
-  assert.equal(formatDelta(1.234), '+1.23')
-  assert.equal(formatDelta(-0.5), '−0.50')
-  assert.equal(formatDelta(0), '+0.00')
 })

@@ -33,10 +33,7 @@
           :tool-id="toolId"
           @view-details="onViewDetails"
         />
-        <AfmDataGroupingCard
-          :tool-id="toolId"
-          @see-together="navigateTo(`/afm/${toolId}/see-together`)"
-        />
+        <AfmDataGroupingCard :tool-id="toolId" />
       </div>
     </div>
   </div>

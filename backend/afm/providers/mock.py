@@ -79,7 +79,7 @@ X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가
   거르지 않습니다.
 - "method 명 줄만 있는 빈 Summary" 는 행 목록으로는 "Summary 없음"과 구분되지 않아 같은 모양으로 냅니다.
 - 시각의 시간대는 미정입니다(장비 현지 시각, KST 로 추정).
-- 목록은 **오늘 날짜에서 끝납니다**(서버의 현지 날짜). 하루가 지나면 하루치가 새로 생기고
+- 목록은 **오늘 날짜에서 끝납니다**(KST 기준). 하루가 지나면 하루치가 새로 생기고
   가장 오래된 하루치가 빠지며, 이미 있던 파일의 이름·lot·내용은 바뀌지 않습니다. 오늘
   측정의 시각은 고정이라 조회 시각보다 뒤일 수 있습니다.
 - 시작 시각이 `NA` 인 "오래된 파일"은 실제로는 어느 시점 이전의 파일이지만, mock 은 며칠
@@ -129,9 +129,17 @@ ToolConfig = dict[str, Any]
 BASE_TIME = datetime(2026, 4, 24, 9, 30, 0, tzinfo=timezone.utc)
 
 
+# Korea has no DST, so a fixed offset is exact (the same choice, for the same
+# reason, as ebeam/recipe_tat's mock).
+KST = timezone(timedelta(hours=9), "KST")
+
+
 def _today() -> date:
-    """The list's newest day. A function so a test can pin it."""
-    return datetime.now().date()
+    """The list's newest day, in KST: the viewer's "오늘" is a Korean date, and
+    a UTC host would otherwise serve yesterday's list until 09:00.
+    A function so a test can pin it.
+    """
+    return datetime.now(KST).date()
 
 
 # (Site X, Site Y) of each measured position, centre outwards; 36 is the most seen.
@@ -711,7 +719,7 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
         recipe_name = config["recipes"][sample_no % len(config["recipes"])]
         recipe = RECIPES[recipe_name]
         lot_prefixes = config["lot_prefixes"]
-        lot_id = f"{lot_prefixes[sample_no % len(lot_prefixes)]}{_base36((sample_no + 42) % 36 ** 2, 2)}"
+        lot_id = f"{lot_prefixes[sample_no % len(lot_prefixes)]}{_base36(sample_no + 42, 2)}"
         slot_number = f"{(sample_no % 25) + 1:02d}"
         measured_info = measured_values[index % len(measured_values)]
         filename = config["filename"].format(
@@ -934,6 +942,10 @@ def _seed_for(*parts: str) -> int:
 
 def _base36(value: int, width: int) -> str:
     alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    # Only the last `width` digits are kept, so wrap first: the result is the
+    # same for any non-negative value, and a negative one (a day after
+    # BASE_TIME) no longer divides forever.
+    value %= len(alphabet) ** width
     if value == 0:
         encoded = "0"
     else:

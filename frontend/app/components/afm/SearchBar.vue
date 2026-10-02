@@ -68,7 +68,7 @@
           :items="recipeNames"
           :search-input="recipeNames.length > 8 ? { placeholder: 'Recipe 검색' } : false"
           :content="{ align: 'start' }"
-          :ui="{ content: 'w-auto min-w-full max-w-[min(24rem,calc(100vw-2rem))]', itemTrailingIcon: 'hidden' }"
+          :ui="{ content: scopeMenuUi.content, itemTrailingIcon: 'hidden' }"
           aria-label="Recipe 필터"
           size="sm"
           color="neutral"
@@ -281,9 +281,8 @@ const recipes = ref<string[]>([])
 const lot = ref('')
 const days = ref<number | null>(null)
 
-// 기간 counts back from today, in the viewer's own time zone. `sv-SE` is the
-// locale that writes a date as YYYY-MM-DD.
-const today = new Date().toLocaleDateString('sv-SE')
+// 기간 counts back from today, in the viewer's own time zone.
+const today = todayStamp()
 const PRESETS = [
   { label: '전체', days: null },
   { label: '오늘', days: 1 },
@@ -328,11 +327,8 @@ const viewed = computed(() => new Set(cart.viewHistory.value.map(item => item.fi
 const someInGroup = computed(() => filteredResults.value.some(row => cart.isInGroup(row.filename)))
 const allInGroup = computed(() => filteredResults.value.every(row => cart.isInGroup(row.filename)))
 const toggleAll = () => {
-  const remove = allInGroup.value
-  for (const row of filteredResults.value) {
-    if (remove) cart.removeFromGroup(row.filename)
-    else cart.addToGroup(row)
-  }
+  if (allInGroup.value) cart.removeFromGroup(...filteredResults.value.map(row => row.filename))
+  else cart.addToGroup(...filteredResults.value)
 }
 
 const DATA_TYPES = [

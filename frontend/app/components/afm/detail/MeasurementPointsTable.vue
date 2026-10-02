@@ -111,10 +111,9 @@
               :key="i"
               tabindex="0"
               class="cursor-pointer transition-colors duration-200 hover:bg-(--sk-muted-surface)"
-              :class="row.measurement_point === selectedPoint ? 'bg-(--sk-muted-surface) font-semibold' : ''"
+              :class="row.measurement_point === selectedPoint ? 'bg-(--sk-muted-surface)' : ''"
               @click="selectedPoint = row.measurement_point"
-              @keydown.enter="selectedPoint = row.measurement_point"
-              @keydown.space.prevent="selectedPoint = row.measurement_point"
+              @keydown.enter.space.prevent="selectedPoint = row.measurement_point"
             >
               <td
                 v-for="col in visibleColumns"
@@ -125,7 +124,7 @@
                   row[col.key] === false ? 'text-(--sk-bad)' : ''
                 ]"
               >
-                {{ formatCell(row[col.key]) }}
+                {{ formatPointCell(row[col.key]) }}
               </td>
             </tr>
           </tbody>
@@ -164,7 +163,7 @@ const PAGE_SIZE = 25
 // 전체 is one click away and keeps the point's rows marked.
 const scope = ref<'all' | 'point'>('point')
 const scopedPoint = computed(() => scope.value === 'point' ? selectedPoint.value : '')
-const scopeTotal = computed(() => filterPointRows(props.data, scopedPoint.value, '', []).length)
+const scopeTotal = computed(() => filterPointRows(props.data, { point: scopedPoint.value }).length)
 
 const search = ref('')
 const page = ref(1)
@@ -193,19 +192,23 @@ const visibleColumns = computed(() => allColumns.value.filter(c => visibleKeys.v
 
 // Exact-match filters per column; '' = not filtered. Block is offered only on a
 // file that has more than one.
-const equals = reactive<Record<string, string>>({ State: '', Valid: '', Block: '' })
+const equals = reactive<Record<string, string>>({})
 const FACET_KEYS = ['State', 'Valid', 'Block']
 
-const filteredRows = computed(() =>
-  filterPointRows(props.data, scopedPoint.value, search.value, visibleKeys.value, equals)
-)
+const filters = computed(() => ({
+  point: scopedPoint.value,
+  search: search.value,
+  visibleKeys: visibleKeys.value,
+  equals
+}))
+const filteredRows = computed(() => filterPointRows(props.data, filters.value))
 
 // Options are the values the file actually has; each count is what picking it
 // would show with the other filters left as they are.
 const facets = computed(() => FACET_KEYS
   .map((key) => {
     const values = [...new Set(props.data.filter(row => key in row).map(row => String(row[key])))]
-    const counts = facetCounts(props.data, scopedPoint.value, search.value, visibleKeys.value, equals, key)
+    const counts = facetCounts(props.data, filters.value, key)
     return {
       key,
       options: values.map(value => ({
@@ -230,11 +233,4 @@ const validCount = computed(() => pointsSummary(filteredRows.value).valid)
 watch(filteredRows, () => {
   page.value = 1
 })
-
-const formatCell = (v: unknown) => {
-  if (v === null || v === undefined || v === '') return '–'
-  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE'
-  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(2)
-  return String(v)
-}
 </script>

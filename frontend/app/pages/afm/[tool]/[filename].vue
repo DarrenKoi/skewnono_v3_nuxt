@@ -191,7 +191,7 @@ const { data: imageUrl, pending: imagePending, error: imageError } = usePointDat
 )
 
 const infoCount = computed(() => Object.keys(information.value).length)
-const siteCount = computed(() => new Set(summaryRows.value.map(r => r.Site)).size)
+const siteCount = computed(() => blockNames(summaryRows.value).length)
 
 const toast = useToast()
 const downloadTable = useTableDownload()

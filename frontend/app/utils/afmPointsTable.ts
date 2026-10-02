@@ -47,47 +47,47 @@ export const defaultPointColumnKeys = (columns: PointColumn[]): string[] => {
   ]
 }
 
-// `equals` narrows by exact cell text per column (`{ State: 'FAILED', Valid: 'false' }`);
-// an empty value means that column is not filtered.
+export interface PointFilters {
+  // '' = every point.
+  point?: string
+  // Case-insensitive, over the visible columns only.
+  search?: string
+  visibleKeys?: string[]
+  // Exact cell text per column (`{ State: 'FAILED', Valid: 'false' }`); an
+  // empty value means that column is not filtered.
+  equals?: Record<string, string>
+}
+
 export const filterPointRows = (
   rows: AfmDetailRow[],
-  selectedPoint: string,
-  search: string,
-  visibleKeys: string[],
-  equals: Record<string, string> = {}
+  { point = '', search = '', visibleKeys = [], equals = {} }: PointFilters = {}
 ): AfmDetailRow[] => {
   const wanted = Object.entries(equals).filter(([, value]) => value)
-  let out = rows.filter(r =>
-    (!selectedPoint || r.measurement_point === selectedPoint)
-    && wanted.every(([key, value]) => String(r[key]) === value)
-  )
   const q = search.trim().toLowerCase()
-  if (q) {
-    out = out.filter(r =>
-      visibleKeys.some(k =>
-        String((r as Record<string, unknown>)[k] ?? '').toLowerCase().includes(q)
-      )
-    )
-  }
-  return out
+  return rows.filter(r =>
+    (!point || r.measurement_point === point)
+    && wanted.every(([key, value]) => String(r[key]) === value)
+    && (!q || visibleKeys.some(k => String(r[k] ?? '').toLowerCase().includes(q)))
+  )
 }
 
 // How many rows each value of `key` would leave, with every OTHER filter still
 // applied — so a chip's count is what clicking it shows.
-export const facetCounts = (
-  rows: AfmDetailRow[],
-  selectedPoint: string,
-  search: string,
-  visibleKeys: string[],
-  equals: Record<string, string>,
-  key: string
-): Map<string, number> => {
+export const facetCounts = (rows: AfmDetailRow[], filters: PointFilters, key: string): Map<string, number> => {
   const counts = new Map<string, number>()
-  for (const row of filterPointRows(rows, selectedPoint, search, visibleKeys, { ...equals, [key]: '' })) {
+  for (const row of filterPointRows(rows, { ...filters, equals: { ...filters.equals, [key]: '' } })) {
     const value = String(row[key])
     counts.set(value, (counts.get(value) ?? 0) + 1)
   }
   return counts
+}
+
+// A cell as the table prints it. Unknown is a dash, never FALSE or 0.
+export const formatPointCell = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return '–'
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
+  if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(2)
+  return String(value)
 }
 
 export interface PointsSummary {

@@ -52,11 +52,11 @@
           :key="image.name"
           type="button"
           class="shrink-0 overflow-hidden rounded-(--sk-r-chip) border bg-(--sk-muted-surface) text-left transition-colors duration-200"
-          :class="image.point && image.point === selectedPoint
+          :class="isSelected(image.point)
             ? 'border-(--sk-ink) outline-1 outline-(--sk-ink)'
             : 'border-(--sk-border) hover:border-(--sk-ink-muted)'"
-          :data-selected="image.point && image.point === selectedPoint ? '' : undefined"
-          :aria-pressed="image.point ? image.point === selectedPoint : undefined"
+          :data-selected="isSelected(image.point) ? '' : undefined"
+          :aria-pressed="image.point ? isSelected(image.point) : undefined"
           :title="image.name"
           @click="image.point ? selectedPoint = image.point : openBrowser(image.name)"
         >
@@ -141,7 +141,7 @@
                   <span class="sk-value-num font-semibold">{{ group.point || '기타' }}</span>
                   <span class="sk-meta">{{ group.images.length }}장</span>
                   <span
-                    v-if="group.point && group.point === selectedPoint"
+                    v-if="isSelected(group.point)"
                     class="sk-label"
                   >선택 포인트</span>
                 </p>
@@ -156,7 +156,7 @@
                     class="overflow-hidden rounded-(--sk-r-chip) border bg-(--sk-surface) text-left transition-colors duration-200"
                     :class="image.name === pickedName
                       ? 'border-(--sk-ink) outline-2 outline-(--sk-ink)'
-                      : image.point && image.point === selectedPoint
+                      : isSelected(image.point)
                         ? 'border-(--sk-ink-muted)'
                         : 'border-(--sk-border) hover:border-(--sk-ink-muted)'"
                     :aria-pressed="image.name === pickedName"
@@ -330,6 +330,10 @@ const images = computed(() => state.value.images.map(image => ({
   kind: image.name.replace(/\.\w+$/, '').split('_').pop() ?? image.name
 })))
 
+// '' is "no point", on an image and before the payload lands alike, so it never
+// counts as the selected one.
+const isSelected = (point: string) => !!point && point === selectedPoint.value
+
 // Keep the selected point's thumbnail in view without scrollIntoView, which
 // would also scroll the page down to the strip.
 const stripEl = ref<HTMLDivElement | null>(null)
@@ -368,7 +372,11 @@ const shown = computed(() => {
 // the tiles run together and each is labelled with its point instead.
 const groups = computed(() => {
   const byPoint = new Map<string, typeof shown.value>()
-  for (const image of shown.value) byPoint.set(image.point, [...(byPoint.get(image.point) ?? []), image])
+  for (const image of shown.value) {
+    const list = byPoint.get(image.point)
+    if (list) list.push(image)
+    else byPoint.set(image.point, [image])
+  }
   return byPoint.size < shown.value.length
     ? [...byPoint].map(([point, list]) => ({ point, images: list }))
     : [{ point: '', images: shown.value }]

@@ -1,6 +1,38 @@
-// Pure filters for the AFM 측정 검색 list. No DOM/Nuxt imports so they run
-// under `node --test`.
+// Pure logic for the AFM 측정 검색 list: turning a backend row into the row the
+// pages use, and filtering the list. No DOM/Nuxt imports so it runs under
+// `node --test`.
+import { shiftIsoDate } from './dateTime.ts'
 import type { AfmMeasurement } from '~/composables/useAfmCart'
+import type { AfmFileRow } from '~/composables/useAfmDetailApi'
+
+// Backend rows carry the measurement time as a raw HHMMSS code separate from
+// formatted_date; fold it into the display date so lists show
+// "YYYY-MM-DD HH:MM:SS". A row with no date stays '' rather than a bare time.
+const measuredAt = (row: AfmFileRow): string => {
+  const day = row.formatted_date ?? ''
+  const code = row.time ?? ''
+  if (!day || !/^\d{4,6}$/.test(code)) return day
+  const padded = code.padEnd(6, '0')
+  return `${day} ${padded.slice(0, 2)}:${padded.slice(2, 4)}:${padded.slice(4, 6)}`
+}
+
+// The one place a backend list row becomes an AfmMeasurement. The row type
+// says every text cell is a string, but nobody has seen an office response at
+// home: a missing cell becomes '' here, so the list, the cart and 시계열 비교
+// never meet a null.
+export const toMeasurement = (row: AfmFileRow): AfmMeasurement => ({
+  filename: row.filename,
+  recipeName: row.recipe_name ?? '',
+  lotId: row.lot_id ?? '',
+  slotNumber: row.slot_number ?? '',
+  measuredInfo: row.measured_info ?? '',
+  formattedDate: measuredAt(row),
+  hasProfile: row.has_profile,
+  hasData: row.has_data,
+  hasImage: row.has_image,
+  hasAlign: row.has_align,
+  hasTip: row.has_tip
+})
 
 export interface AfmSearchFilters {
   // Free text: every term must match somewhere in the row.
@@ -14,39 +46,35 @@ export interface AfmSearchFilters {
   today: string
 }
 
-// The list is typed as all strings, but it is built from an office response
-// nobody has seen at home: a missing cell reads as empty here instead of
-// throwing, so one odd row cannot take the whole list down.
-const text = (value: unknown) => String(value ?? '').toLowerCase()
-
 // formattedDate is "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"; '' when unknown.
-const dayOf = (row: AfmMeasurement) => String(row.formattedDate ?? '').slice(0, 10)
+const dayOf = (row: AfmMeasurement) => row.formattedDate.slice(0, 10)
 
 const matchesTerm = (row: AfmMeasurement, term: string) =>
-  [row.filename, row.recipeName, row.lotId, row.formattedDate, row.slotNumber, row.measuredInfo]
-    .some(value => text(value).includes(term))
+  [row.filename, row.recipeName, row.lotId, row.formattedDate, String(row.slotNumber), row.measuredInfo]
+    .some(value => value.toLowerCase().includes(term))
 
-// The days a 기간 preset keeps, as [from, to] day strings: the last `days` days
-// ending today, so "오늘" on a tool that has not measured today is empty rather
-// than quietly showing an older day. With no preset it is the span of the list.
+// The first day a 기간 preset keeps: the last `days` days ending today, so
+// "오늘" on a tool that has not measured today is empty rather than quietly
+// showing an older day.
+const windowStart = (today: string, days: number) => shiftIsoDate(today, days - 1)
+
+// What the range label shows, as [from, to] day strings: the preset's window,
+// or with no preset the span of the dated rows in the list.
 export const dateWindow = (rows: AfmMeasurement[], days: number | null, today: string): [string, string] | null => {
-  if (days) {
-    const from = new Date(`${today}T00:00:00Z`)
-    from.setUTCDate(from.getUTCDate() - (days - 1))
-    return [from.toISOString().slice(0, 10), today]
-  }
+  if (days) return [windowStart(today, days), today]
   const sorted = rows.map(dayOf).filter(Boolean).sort()
   if (!sorted.length) return null
   return [sorted[0]!, sorted[sorted.length - 1]!]
 }
 
+// A row with no date stays in 전체 and leaves every dated window.
 export const filterMeasurements = (rows: AfmMeasurement[], filters: AfmSearchFilters): AfmMeasurement[] => {
   const terms = filters.terms.map(t => t.toLowerCase().trim()).filter(Boolean)
   const lot = filters.lot.trim().toLowerCase()
-  const from = filters.days ? dateWindow(rows, filters.days, filters.today)![0] : ''
+  const from = filters.days ? windowStart(filters.today, filters.days) : ''
   return rows.filter(row =>
     (!filters.recipes.length || filters.recipes.includes(row.recipeName))
-    && (!lot || text(row.lotId).includes(lot))
+    && (!lot || row.lotId.toLowerCase().includes(lot))
     && dayOf(row) >= from
     && terms.every(term => matchesTerm(row, term))
   )

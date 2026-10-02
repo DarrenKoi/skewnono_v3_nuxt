@@ -8,7 +8,8 @@ import {
   pointsSummary,
   pagePointRows,
   defaultPointColumnKeys,
-  facetCounts
+  facetCounts,
+  formatPointCell
 } from './afmPointsTable.ts'
 
 // Full AfmDetailRow rows, not partials: this fixture is the one place that
@@ -73,34 +74,41 @@ test('defaultPointColumnKeys: ids, the first six (nm) columns, then State', () =
 })
 
 test('filterPointRows: point filter only', () => {
-  assert.equal(filterPointRows(rows, '0001_X000_Y000', '', ['State']).length, 2)
-  assert.equal(filterPointRows(rows, '', '', ['State']).length, 3)
+  assert.equal(filterPointRows(rows, { point: '0001_X000_Y000' }).length, 2)
+  assert.equal(filterPointRows(rows).length, 3)
 })
 
 test('filterPointRows: search is case-insensitive over visible columns only', () => {
   // 'failed' matches State on row 2
-  assert.equal(filterPointRows(rows, '', 'failed', ['State']).length, 1)
+  assert.equal(filterPointRows(rows, { search: 'failed', visibleKeys: ['State'] }).length, 1)
   // searching a value that lives only in a HIDDEN column returns nothing
-  assert.equal(filterPointRows(rows, '', '3', ['State']).length, 0) // Mileage 3 hidden
-  assert.equal(filterPointRows(rows, '', '3', ['Mileage']).length, 1) // Mileage visible
+  assert.equal(filterPointRows(rows, { search: '3', visibleKeys: ['State'] }).length, 0) // Mileage 3 hidden
+  assert.equal(filterPointRows(rows, { search: '3', visibleKeys: ['Mileage'] }).length, 1) // Mileage visible
 })
 
 test('filterPointRows: point + search combined', () => {
-  assert.equal(filterPointRows(rows, '0001_X000_Y000', 'completed', ['State']).length, 1)
+  assert.equal(filterPointRows(rows, { point: '0001_X000_Y000', search: 'completed', visibleKeys: ['State'] }).length, 1)
 })
 
 test('filterPointRows: equals narrows by exact cell text; empty value is no filter', () => {
-  assert.equal(filterPointRows(rows, '', '', ['State'], { State: 'FAILED' }).length, 1)
-  assert.equal(filterPointRows(rows, '', '', ['State'], { State: '', Valid: 'true' }).length, 2)
-  assert.equal(filterPointRows(rows, '0002_X002_Y-001', '', ['State'], { Valid: 'false' }).length, 0)
+  assert.equal(filterPointRows(rows, { equals: { State: 'FAILED' } }).length, 1)
+  assert.equal(filterPointRows(rows, { equals: { State: '', Valid: 'true' } }).length, 2)
+  assert.equal(filterPointRows(rows, { point: '0002_X002_Y-001', equals: { Valid: 'false' } }).length, 0)
 })
 
 test('facetCounts: counts ignore the facet\'s own filter, keep the others', () => {
-  const equals = { State: 'FAILED', Valid: 'true' }
+  const filters = { equals: { State: 'FAILED', Valid: 'true' } }
   // State counts: Valid=true still applies, State=FAILED does not.
-  assert.deepEqual([...facetCounts(rows, '', '', ['State'], equals, 'State')], [['COMPLETED', 2]])
+  assert.deepEqual([...facetCounts(rows, filters, 'State')], [['COMPLETED', 2]])
   // Valid counts: State=FAILED still applies.
-  assert.deepEqual([...facetCounts(rows, '', '', ['State'], equals, 'Valid')], [['false', 1]])
+  assert.deepEqual([...facetCounts(rows, filters, 'Valid')], [['false', 1]])
+})
+
+test('formatPointCell: an unknown cell is a dash, never FALSE or 0', () => {
+  assert.deepEqual(
+    [undefined, null, '', true, false, 3, 79.236, 'COMPLETED'].map(formatPointCell),
+    ['–', '–', '–', 'TRUE', 'FALSE', '3', '79.24', 'COMPLETED']
+  )
 })
 
 test('pointsSummary: total and valid', () => {

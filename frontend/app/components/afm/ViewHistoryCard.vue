@@ -32,25 +32,11 @@
           label="그룹에 담기"
           @toggle="cart.toggleGroup(item)"
         />
-        <div class="min-w-0 flex-1 space-y-1">
-          <p class="flex items-baseline gap-2">
-            <span class="shrink-0 font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-              {{ item.formattedDate }}
-            </span>
-            <span class="truncate text-sm font-semibold text-(--sk-ink)">
-              {{ item.recipeName }}
-            </span>
-          </p>
-          <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <AfmLotSlotTags
-              :lot-id="item.lotId"
-              :slot-number="item.slotNumber"
-            />
-            <span class="sk-meta">
-              {{ formatKoreanDateTime(item.viewedAt) }} 조회
-            </span>
-          </p>
-        </div>
+        <AfmMeasurementLine :item="item">
+          <span class="sk-meta">
+            {{ formatKoreanDateTime(item.viewedAt) }} 조회
+          </span>
+        </AfmMeasurementLine>
         <UButton
           size="sm"
           color="neutral"

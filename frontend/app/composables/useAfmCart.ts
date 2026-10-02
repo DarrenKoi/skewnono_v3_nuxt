@@ -67,16 +67,21 @@ export const useAfmCart = (toolId: string) => {
     viewHistory.value = []
   }
 
-  const addToGroup = (measurement: AfmMeasurement) => {
-    if (isInGroup(measurement.filename)) return
+  // Both take any number of rows and assign once: every assignment rewrites the
+  // whole group to localStorage, so "모두 담기" row by row is quadratic.
+  const addToGroup = (...measurements: AfmMeasurement[]) => {
+    const fresh = measurements.filter(measurement => !isInGroup(measurement.filename))
+    if (!fresh.length) return
+    const addedAt = new Date().toISOString()
     groupedData.value = [
       ...groupedData.value,
-      { ...measurement, toolId, addedAt: new Date().toISOString() }
+      ...fresh.map(measurement => ({ ...measurement, toolId, addedAt }))
     ]
   }
 
-  const removeFromGroup = (filename: string) => {
-    groupedData.value = groupedData.value.filter(item => item.filename !== filename)
+  const removeFromGroup = (...filenames: string[]) => {
+    const dropped = new Set(filenames)
+    groupedData.value = groupedData.value.filter(item => !dropped.has(item.filename))
   }
 
   const toggleGroup = (measurement: AfmMeasurement) =>

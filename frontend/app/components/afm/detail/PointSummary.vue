@@ -94,7 +94,7 @@
             <span
               class="ml-auto shrink-0 sk-value-num font-semibold"
               :class="block.row.Valid === false ? 'text-(--sk-bad)' : ''"
-            >Valid {{ block.row.Valid === true ? 'TRUE' : block.row.Valid === false ? 'FALSE' : '–' }}</span>
+            >Valid {{ formatPointCell(block.row.Valid) }}</span>
           </p>
         </div>
       </div>
@@ -145,7 +145,7 @@ const cards = computed(() =>
         return {
           block: block.name,
           value: value?.toFixed(2) ?? '–',
-          delta: value !== null && mean !== null ? formatDelta(value - mean) : ''
+          delta: value !== null && mean !== null ? formatSignedNm(value - mean, 2) : ''
         }
       })
     }))

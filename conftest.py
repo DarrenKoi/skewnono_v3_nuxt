@@ -16,6 +16,7 @@ cover both roots.
 """
 
 import os
+from datetime import date
 
 import pytest
 
@@ -29,7 +30,10 @@ def _afm_mock_reads_one_fixed_day(monkeypatch):
     changes with the calendar. Tests that pick rows out of it (three files
     across both roots) would pass or fail by date; pinning the day gives them
     one fixed set. A test about the rolling window sets its own day.
+
+    The day is one after the mock's anchor on purpose: that is the side of the
+    index line every real "today" is on.
     """
     from backend.afm.providers import mock
 
-    monkeypatch.setattr(mock, "_today", lambda: mock.BASE_TIME.date())
+    monkeypatch.setattr(mock, "_today", lambda: date(2026, 10, 3))
