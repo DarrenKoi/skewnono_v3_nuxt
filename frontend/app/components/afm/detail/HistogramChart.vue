@@ -2,31 +2,29 @@
   <AfmCard
     icon="i-lucide-bar-chart-3"
     title="Z값 분포"
+    :subject="point ? `포인트 ${point}` : undefined"
   >
     <AppLoadingState
       v-if="loading"
       variant="inline"
-      class="h-60"
+      class="h-full min-h-80"
       title="분포를 불러오는 중입니다."
     />
     <p
       v-else-if="profile.length === 0"
-      class="flex h-60 items-center justify-center sk-body"
+      class="flex h-full min-h-80 items-center justify-center sk-body"
     >
       분포 데이터가 없습니다.
     </p>
-    <template v-else>
-      <p class="mb-3 flex flex-wrap gap-x-3 gap-y-1 sk-meta">
-        <span
-          v-for="item in statItems"
-          :key="item.label"
-        >{{ item.label }} <b class="sk-value-num">{{ item.value }}</b></span>
-      </p>
-      <div class="mb-3 flex flex-wrap items-center gap-2">
+    <div
+      v-else
+      class="flex h-full flex-col gap-3"
+    >
+      <div class="flex flex-wrap items-center gap-2">
         <USelect
           v-model="binMethod"
           :items="binMethodItems"
-          size="xs"
+          size="sm"
           class="min-w-28"
           aria-label="구간 방식"
         />
@@ -34,7 +32,7 @@
           v-if="binMethod === 'custom'"
           v-model.number="customBins"
           type="number"
-          size="xs"
+          size="sm"
           class="w-20"
           :min="5"
           :max="200"
@@ -43,26 +41,25 @@
         <USelect
           v-model="displayMode"
           :items="displayModeItems"
-          size="xs"
-          class="min-w-28"
+          size="sm"
+          class="min-w-24"
           aria-label="표시 방식"
         />
         <UCheckbox
           v-model="showNormal"
           label="정규분포"
-          size="xs"
         />
         <UCheckbox
           v-model="showPercentiles"
           label="사분위"
-          size="xs"
         />
       </div>
+      <AfmDetailStatStrip :items="statItems" />
       <div
         ref="chartEl"
-        class="h-60 w-full"
+        class="min-h-72 w-full flex-1"
       />
-    </template>
+    </div>
   </AfmCard>
 </template>
 
@@ -73,6 +70,7 @@ import type { BinMethod, HistogramMode } from '~/utils/afmHistogram'
 
 const props = defineProps<{
   profile: AfmProfilePoint[]
+  point?: string
   loading?: boolean
   exportName?: string
 }>()

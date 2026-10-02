@@ -35,25 +35,9 @@
           <li
             v-for="item in sortedGroupedItems"
             :key="item.filename"
-            class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5"
+            class="px-4 py-3"
           >
-            <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-              {{ item.formattedDate }}
-            </span>
-            <span class="truncate text-sm font-semibold text-(--sk-ink)">
-              {{ item.recipeName }}
-            </span>
-            <span class="flex items-center gap-x-3">
-              <AfmLotSlotTags
-                :lot-id="item.lotId"
-                :slot-number="item.slotNumber"
-              />
-              <UBadge
-                :label="item.measuredInfo"
-                color="neutral"
-                variant="outline"
-              />
-            </span>
+            <AfmMeasurementSummary :measurement="item" />
           </li>
         </ul>
       </AfmCard>
@@ -74,28 +58,30 @@
           :count="loaded.length"
         >
           <template #actions>
-            <div class="flex flex-wrap items-center gap-2">
-              <USelect
-                v-model="selectedSite"
-                :items="siteItems"
-                size="xs"
-                class="min-w-28"
-                aria-label="사이트"
-              />
-              <USelect
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="flex items-center gap-1.5 sk-meta">
+                사이트
+                <USelect
+                  v-model="selectedSite"
+                  :items="siteItems"
+                  size="sm"
+                  class="min-w-32"
+                />
+              </label>
+              <SkSegmentedToggle
                 v-model="selectedItem"
-                :items="AFM_SUMMARY_ITEMS"
-                size="xs"
-                class="min-w-28"
-                aria-label="통계 항목"
+                :items="STATISTIC_ITEMS"
+                label="통계 항목"
               />
-              <USelect
-                v-model="selectedColumn"
-                :items="columnItems"
-                size="xs"
-                class="min-w-36"
-                aria-label="측정 항목"
-              />
+              <label class="flex items-center gap-1.5 sk-meta">
+                측정 항목
+                <USelect
+                  v-model="selectedColumn"
+                  :items="columnItems"
+                  size="sm"
+                  class="min-w-44"
+                />
+              </label>
             </div>
           </template>
 
@@ -155,7 +141,9 @@ const loaded = computed(() =>
 const failedCount = computed(() => results.value.length - loaded.value.length)
 
 const selectedSite = ref('')
-const selectedItem = ref<AfmSummaryItem>('MEAN')
+// A string, not AfmSummaryItem: SkSegmentedToggle emits plain strings.
+const selectedItem = ref<string>('MEAN' satisfies AfmSummaryItem)
+const STATISTIC_ITEMS = AFM_SUMMARY_ITEMS.map(item => ({ label: item, value: item }))
 const selectedColumn = ref('')
 
 const naturalSort = (values: Iterable<string>) =>

@@ -2,44 +2,29 @@
   <AfmCard
     icon="i-lucide-grid-3x3"
     title="웨이퍼 히트맵"
+    :subject="point ? `포인트 ${point}` : undefined"
   >
-    <template
-      v-if="stats.count"
-      #actions
-    >
-      <p class="flex flex-wrap items-center gap-x-2 sk-meta">
-        <span><b class="sk-value-num">{{ stats.count.toLocaleString() }}</b> pts</span>
-        <span>min <b class="sk-value-num">{{ stats.min.toFixed(2) }}</b></span>
-        <span>max <b class="sk-value-num">{{ stats.max.toFixed(2) }}</b></span>
-        <span>μ <b class="sk-value-num">{{ stats.mean.toFixed(2) }}</b></span>
-        <UBadge
-          v-if="filtered.removed > 0"
-          :label="`${filtered.removed}개 제외`"
-          color="warning"
-          size="xs"
-          variant="subtle"
-        />
-      </p>
-    </template>
-
     <AppLoadingState
       v-if="loading"
       variant="inline"
-      class="h-72"
+      class="h-full min-h-80"
       title="히트맵을 불러오는 중입니다."
     />
     <p
       v-else-if="profile.length === 0"
-      class="flex h-72 items-center justify-center sk-body"
+      class="flex h-full min-h-80 items-center justify-center sk-body"
     >
       히트맵 데이터가 없습니다.
     </p>
-    <template v-else>
-      <div class="mb-3 flex flex-wrap items-center gap-2">
+    <div
+      v-else
+      class="flex h-full flex-col gap-3"
+    >
+      <div class="flex flex-wrap items-center gap-2">
         <USelect
           v-model="outlierMethod"
           :items="outlierMethodItems"
-          size="xs"
+          size="sm"
           class="min-w-36"
           aria-label="이상치 필터"
         />
@@ -47,17 +32,25 @@
           v-if="outlierMethod !== 'none'"
           v-model.number="threshold"
           type="number"
-          size="xs"
+          size="sm"
           class="w-24"
           :step="0.1"
           aria-label="이상치 기준값"
         />
       </div>
+      <AfmDetailStatStrip :items="statItems">
+        <UBadge
+          v-if="filtered.removed > 0"
+          :label="`${filtered.removed}개 제외`"
+          color="warning"
+          variant="subtle"
+        />
+      </AfmDetailStatStrip>
       <div
         ref="chartEl"
-        class="h-72 w-full"
+        class="min-h-72 w-full flex-1"
       />
-    </template>
+    </div>
   </AfmCard>
 </template>
 
@@ -68,6 +61,7 @@ import type { OutlierMethod } from '~/utils/afmHeatmap'
 
 const props = defineProps<{
   profile: AfmProfilePoint[]
+  point?: string
   loading?: boolean
   exportName?: string
 }>()
@@ -91,6 +85,14 @@ const filtered = computed(() =>
   filterProfileByOutlier(props.profile, outlierMethod.value, threshold.value)
 )
 const stats = computed(() => heatmapStats(filtered.value.kept))
+const statItems = computed(() => stats.value.count
+  ? [
+      { label: '포인트', value: stats.value.count.toLocaleString() },
+      { label: 'min', value: stats.value.min.toFixed(2) },
+      { label: 'max', value: stats.value.max.toFixed(2) },
+      { label: 'μ', value: stats.value.mean.toFixed(2) }
+    ]
+  : [])
 
 const formatTooltip = (params: unknown) => {
   const value = (params as { value?: unknown }).value

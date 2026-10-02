@@ -1,54 +1,45 @@
 <template>
   <AfmCard
-    icon="i-lucide-target"
+    icon="i-lucide-table"
     title="측정 포인트"
     :count="filteredRows.length"
     flush
   >
     <template #actions>
-      <div class="flex flex-wrap items-center gap-1.5">
+      <div class="flex flex-wrap items-center gap-2">
         <SkChip
           size="sm"
-          tone="ink"
-          label="전체"
-          :active="!selectedPoint"
-          @click="selectedPoint = ''"
+          icon="i-lucide-crosshair"
+          :label="selectedPoint ? `${selectedPoint}만` : '선택 포인트만'"
+          :active="onlySelected"
+          :disabled="!selectedPoint"
+          @click="onlySelected = !onlySelected"
         />
-        <SkChip
-          v-for="point in availablePoints"
-          :key="point"
+        <UInput
+          v-model="search"
+          icon="i-lucide-search"
           size="sm"
-          tone="ink"
-          :label="point"
-          :active="selectedPoint === point"
-          @click="selectedPoint = point"
+          placeholder="행 검색"
+          aria-label="행 검색"
+          class="w-44"
         />
+        <USelectMenu
+          v-model="visibleKeys"
+          :items="columnItems"
+          value-key="value"
+          multiple
+          size="sm"
+          icon="i-lucide-columns-3"
+          placeholder="컬럼"
+          class="w-48"
+          :search-input="{ placeholder: '컬럼 검색' }"
+        />
+        <p class="sk-meta">
+          유효 <b class="font-mono text-[13px] font-semibold tabular-nums text-(--sk-ink)">{{ validCount }}</b>
+          / <span class="font-mono text-[13px] tabular-nums text-(--sk-ink)">{{ filteredRows.length }}</span>
+        </p>
       </div>
     </template>
-
-    <div class="flex flex-wrap items-center gap-2 border-b border-(--sk-border-soft) px-4 py-2.5">
-      <UInput
-        v-model="search"
-        icon="i-lucide-search"
-        size="xs"
-        placeholder="행 검색"
-        class="w-44"
-      />
-      <USelectMenu
-        v-model="visibleKeys"
-        :items="columnItems"
-        value-key="value"
-        multiple
-        size="xs"
-        icon="i-lucide-columns-3"
-        placeholder="컬럼"
-        class="min-w-40"
-        :search-input="{ placeholder: '컬럼 검색' }"
-      />
-      <p class="ml-auto sk-meta">
-        유효 <b class="sk-value-num">{{ validCount }}</b>
-      </p>
-    </div>
 
     <p
       v-if="filteredRows.length === 0"
@@ -60,29 +51,41 @@
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
-            <tr class="border-b border-(--sk-border)">
+            <tr class="border-b border-(--sk-border) bg-(--sk-muted-surface)">
               <th
                 v-for="col in visibleColumns"
                 :key="col.key"
-                class="whitespace-nowrap px-2.5 py-1.5 text-right sk-label first:text-left"
+                class="px-4 py-2 text-right text-xs font-semibold whitespace-nowrap text-(--sk-ink-muted) first:text-left"
               >
                 {{ col.label }}
               </th>
+              <!-- Trailing spacer: the columns pack left at their own width
+                   instead of spreading a 1800px row into far-apart numbers. -->
+              <th class="w-full" />
             </tr>
           </thead>
           <tbody class="divide-y divide-(--sk-border-soft)">
+            <!-- A row picks its point for the 포인트 분석 cards above; the picked
+                 point's rows keep the accent wash with the header-menu's 2px left
+                 edge (DESIGN.md §Navigation), so table and charts name one point. -->
             <tr
               v-for="(row, i) in pagedRows"
               :key="i"
-              class="transition-colors duration-200 hover:bg-(--sk-muted-surface)"
+              class="cursor-pointer transition-colors duration-200"
+              :class="row.measurement_point === selectedPoint
+                ? 'bg-(--sk-accent-tint) shadow-[inset_2px_0_0_var(--sk-accent)]'
+                : 'hover:bg-(--sk-muted-surface)'"
+              :aria-selected="row.measurement_point === selectedPoint"
+              @click="selectedPoint = String(row.measurement_point)"
             >
               <td
                 v-for="col in visibleColumns"
                 :key="col.key"
-                class="px-2.5 py-1 text-right sk-value-num first:text-left"
+                class="px-4 py-1.5 text-right font-mono text-[13px] whitespace-nowrap tabular-nums text-(--sk-ink) first:text-left first:font-semibold"
               >
                 {{ formatCell(row[col.key]) }}
               </td>
+              <td />
             </tr>
           </tbody>
         </table>
@@ -96,7 +99,7 @@
           :total="filteredRows.length"
           :items-per-page="PAGE_SIZE"
           :sibling-count="1"
-          size="xs"
+          size="sm"
         />
       </div>
     </template>
@@ -108,11 +111,12 @@ import type { AfmDetailRow } from '~/composables/useAfmDetailApi'
 
 const props = defineProps<{
   data: AfmDetailRow[]
-  availablePoints: string[]
 }>()
 
-// '' = every point. The pick is also the subject of the profile cards beside this one.
+// The point the 포인트 분석 cards are drawn for. The table lists every point
+// unless 선택 포인트만 narrows it; clicking a row picks that row's point.
 const selectedPoint = defineModel<string>('selectedPoint', { required: true })
+const onlySelected = ref(false)
 
 const PAGE_SIZE = 25
 
@@ -142,14 +146,21 @@ const visibleKeys = computed({
 const visibleColumns = computed(() => allColumns.value.filter(c => visibleKeys.value.includes(c.key)))
 
 const filteredRows = computed(() =>
-  filterPointRows(props.data, selectedPoint.value, search.value, visibleKeys.value)
+  filterPointRows(props.data, onlySelected.value ? selectedPoint.value : '', search.value, visibleKeys.value)
 )
 const pagedRows = computed(() => pagePointRows(filteredRows.value, page.value, PAGE_SIZE))
 const validCount = computed(() => pointsSummary(filteredRows.value).valid)
 
-// Back to page 1 whenever the row set changes.
-watch(filteredRows, () => {
-  page.value = 1
+// Back to page 1 whenever the row set changes — but not when a row click only
+// moves the highlight, or the clicked row would jump off the page.
+watch(
+  () => [props.data, onlySelected.value && selectedPoint.value, search.value, visibleKeys.value.join('|')],
+  () => {
+    page.value = 1
+  }
+)
+watch(selectedPoint, (next) => {
+  if (!next) onlySelected.value = false
 })
 
 const formatCell = (v: unknown) => {
