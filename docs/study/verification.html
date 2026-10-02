@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="8c2f274c6e478da460fbe7e516c671fbcfe453a8ba802a41e56e4b613fad95f6"><meta name="body-sha256" content="b88b162e84e4aa3e2acbc5b734f25102862c101f671d18983090db118f23adff"><title>2026-10-03 학습 문서 검증 기록 · SKEWNONO 학습</title><link rel="stylesheet" href="assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="README.html">SKEWNONO 학습 홈</a><a href="questions.html">학습 질문</a><a href="verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="verification.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#기초-개념과-검증-용어">기초 개념과 검증 용어</a></li><li><a href="#1차-현재-구현과-대조">1차: 현재 구현과 대조</a></li><li><a href="#2차-초심자-관점">2차: 초심자 관점</a></li><li><a href="#3차-링크명령markdown브라우저">3차: 링크·명령·Markdown·브라우저</a></li><li><a href="#남은-사내-확인">남은 사내 확인</a></li><li><a href="#선택-이유와-흔한-실수">선택 이유와 흔한 실수</a></li></ol></details></nav><article><h1 id="2026-10-03-학습-문서-검증-기록">2026-10-03 학습 문서 검증 기록</h1>
+<p>이 기록은 학습 문서·HTML의 확인 범위를 설명합니다. runtime 코드를 변경하거나 사내 서비스에 접속해 검증한 기록이 아닙니다.</p>
+<h2 id="기초-개념과-검증-용어">기초 개념과 검증 용어</h2>
+<p>코드 대조는 설명이 실제 호출 경로·설정과 같은지 확인하는 일입니다. 초심자 점검은 용어와 선행 지식·작은 예제·실습의 기대 결과를 확인하는 일입니다. 정적 검사는 파일·링크·원본 hash처럼 실행 없이 확인하는 항목이며 browser 검사는 실제 화면과 이동을 확인하는 일입니다. 서로 대체하지 않습니다.</p>
+<h2 id="1차-현재-구현과-대조">1차: 현재 구현과 대조</h2>
+<p>검사 대상은 기존 01~13 전체와 01·07 보조 문서, home·questions, 새 14~16입니다. <code>CLAUDE.md</code>를 먼저 읽고 frontend 설정·package/lock/설치, API composable·cache·persisted state, design tokens, backend factory·provider·auth·logging·scheduler·SPA, 차트·좌표·통계 함수 및 테스트, CI·pack·deployment를 대조했습니다.</p>
+<p>중요한 정정은 실제 설치 버전과 선언 범위 분리, 과거 frontend mock 경로 제거, 현재 API 타입 소유자, Nuxt 캐시와 성공 Promise 캐시의 수명, sync watcher의 영속화 범위, Blueprint package export, 사내 office readiness, 실제 uWSGI HTTP 설정과 SPA mount의 cloud 경로 조건입니다. 사내 template와 실제 실행 adapter는 구분합니다.</p>
+<h2 id="2차-초심자-관점">2차: 초심자 관점</h2>
+<p>각 장에서 기초 개념·용어·구현·이유와 한계·실수·안전한 확인으로 학습 흐름을 연결했습니다. Python/TypeScript 값의 차이, 반응성과 영속성, API 교환 계약, process/thread, 신원과 권한을 작은 예시로 분리했습니다. 기존 문법 예제·Q1·Q2를 유지하고 실제 파일의 위치를 고쳤습니다.</p>
+<p>실습은 저장소 루트 또는 frontend 디렉터리를 표시하고 읽기 전용 탐색·작은 순수 함수 확인·이미 준비된 home mock의 진단을 우선합니다. 사내 pack·배포·삭제·token 작업은 home 실습과 구분합니다. 신뢰되지 않은 pickle 열기, localStorage 전체 삭제, 운영 DB 쓰기와 같은 연습을 피합니다.</p>
+<h2 id="3차-링크명령markdown브라우저">3차: 링크·명령·Markdown·브라우저</h2>
+<p>정적 검사와 실제 브라우저 결과는 최종 실행 후 아래에 기록합니다. HTML은 같은 Markdown parse 결과로 생성하며 각 파일의 <code>source-sha256</code>와 본문을 검증합니다. 전체 내부 문서·anchor·이미지·code 링크를 검사하며, 외부 공식 문서 링크는 생성된 페이지의 실행 의존성이 아닙니다.</p>
+<h3 id="재현-명령">재현 명령</h3>
+<p>저장소 루트에서 다음 명령을 사용합니다. 첫 명령은 HTML 문서만 생성하며 두 번째는 읽기 전용 검사입니다.</p>
+<pre tabindex="0"><code class="language-bash">node docs/study/build-html.mjs
+node docs/study/check-site.mjs
+npm run lint:md
+</code></pre>
+<h3 id="실제-결과">실제 결과</h3>
+<ul>
+<li><strong>내용 대응:</strong> Markdown 23개와 대응 HTML 23개, 추가 입구 <code>index.html</code>을 생성했습니다. 원본 SHA-256(Secure Hash Algorithm 256-bit)과 렌더 본문 hash를 비교하고, 코드 블록 142개를 원문과 비교했습니다. 변경된 HTML 본문을 일부러 넣은 음성 검사에서 검증기가 실패하는 것도 확인한 뒤 원복했습니다.</li>
+<li><strong>링크:</strong> 로컬 링크·anchor 1005개를 검사했고 누락 0건입니다. 원본 Markdown 링크, HTML 학습 문서 링크, 저장소 코드 링크, 온라인 공식 문서 링크를 구분합니다.</li>
+<li><strong>Markdown:</strong> 저장소 전체 <code>npm run lint:md</code>는 당시 203개 파일을 검사해 오류 0건입니다. 따라서 별도로 남은 기존 Markdown 오류도 없습니다. <code>git diff --check</code>도 통과했습니다.</li>
+<li><strong>실제 브라우저:</strong> Playwright의 Chromium으로 <code>file://</code> 파일을 직접 열고 네트워크 offline 상태에서 HTML 24개를 1280·390·320px 너비로 모두 순회했습니다(72회). 각 문서의 목차 anchor와 이전·다음 이동을 실제 클릭했습니다. 문서 가로 넘침·깨진 이미지·page error·HTTP 원격 요청은 0건입니다.</li>
+<li><strong>모바일·긴 자료:</strong> 긴 table과 code는 자신의 영역에서 overflow하도록 확인했습니다. 390px에서 긴 코드와 SVG의 scrollLeft가 실제 변하는 것을 확인했습니다. 여섯 SVG를 각각 열어 text bounding box가 viewBox 밖으로 잘리지 않는지 검사했습니다. 홈의 desktop 화면과 통계 그림의 mobile 화면은 screenshot으로 눈으로 확인했습니다. 그림의 실제 비례 축척 여부를 본문에 구분했습니다.</li>
+<li><strong>접근성:</strong> <code>lang=ko</code>, viewport, 단일 h1, 표·그림 스크롤 focus, native details 목차를 확인했습니다. Tab의 첫 focus가 ‘본문으로 건너뛰기’에 보이는 outline으로 도착하고 Enter 후 main으로 이동했습니다. 본문·링크·상단·주석·코드·그림 강조 색 쌍의 대비는 모두 4.5:1 이상(최저 7.01:1)이었습니다. 스크린리더 사용자 시험까지 수행했다는 의미는 아닙니다.</li>
+<li><strong>실습:</strong> 문서에 연결된 순수 함수 Node 테스트 125개와 backend site/provider·sem_list 테스트 55개가 통과했습니다. TypeScript strict 작은 실습, JSON/불리언 예시, Vue 배열 교체·sync watcher 메모리 예시, 실제 cache helper의 성공 Promise 유지/reset/실패 재시도, 통계·좌표 수치 예시를 실행했습니다. 수정 runtime에 대한 full suite가 아니라 학습 예시의 확인입니다.</li>
+</ul>
+<p><strong>기존 실행 환경 오류:</strong> 기본 PATH의 Homebrew Node 25.6.1은 <code>libllhttp.9.3.dylib</code> 누락으로 기동하지 않았습니다. 별도로 설치된 NVM의 Node 24.13.0과 npm 11.19.1을 선택해 검사했습니다. 패키지·시스템 라이브러리는 수정하지 않았습니다. agent-browser는 sandbox 내 daemon을 시작하지 못해 Playwright 브라우저로 확인했습니다.</p>
+<h2 id="남은-사내-확인">남은 사내 확인</h2>
+<ul>
+<li>실제 Python·Node 빌드 환경과 package 버전, 사내 영구 <code>index.py</code>·<code>wsgi.ini</code>의 내용입니다.</li>
+<li>office adapter 사본 freshness, DB schema·null·분포, Redis·OpenSearch·MinIO·FTP 응답과 권한입니다.</li>
+<li>cookie 전달·token 폐기·admin allowlist·실제 proxy 신뢰 경계·TLS 종료 위치입니다.</li>
+<li>worker 1 scheduler 선출, Redis 잠금 갱신, reboot 중 작업 처리, 로그 alias 적재와 dropped 지표입니다.</li>
+<li>SQLite 파일 권한·WAL·동시 사용·backup, RAG checkout/index 준비 여부입니다.</li>
+</ul>
+<h2 id="선택-이유와-흔한-실수">선택 이유와 흔한 실수</h2>
+<p>완료라고 표시하는 것은 위 문서·HTML의 확인 범위에 한정합니다. 사내 gate를 local mock test로 대체하면 배포 후에만 발견되는 오류가 생깁니다. 문서를 다시 고칠 때 Markdown만 수정하고 HTML을 재생성해야 두 형식이 어긋나지 않습니다.</p>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="questions.html">이전: 학습 질문 모음</a><span></span></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

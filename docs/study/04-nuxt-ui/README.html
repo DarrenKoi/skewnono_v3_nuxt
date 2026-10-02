@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="38ac898dac850fdcc474e5c3dd33d97ff4159ab93a206938bfe369ccab2ec317"><meta name="body-sha256" content="1d4add8b86ca0f28a9f72debf63133f5d5dd280968d52597c2369e081014c053"><title>04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="README.html" aria-current="page">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-반복되는-ui-동작을-컴포넌트로-사용합니다">1. 기초: 반복되는 UI 동작을 컴포넌트로 사용합니다</a></li><li><a href="#2-용어-props-slot-theme-slot-color-variant">2. 용어: props, slot, theme slot, color, variant</a></li><li><a href="#3-실제-구현">3. 실제 구현</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li><li><a href="#7-공식-근거">7. 공식 근거</a></li></ol></details></nav><article><h1 id="04-nuxt-ui-준비된-화면-부품과-프로젝트-디자인">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</h1>
+<h2 id="1-기초-반복되는-ui-동작을-컴포넌트로-사용합니다">1. 기초: 반복되는 UI 동작을 컴포넌트로 사용합니다</h2>
+<p>Nuxt UI는 버튼, 입력, 테이블, 모달 같은 Vue 컴포넌트를 제공합니다. Tailwind가 CSS 유틸리티를 제공한다면 Nuxt UI는 동작과 구조가 있는 화면 부품을 제공합니다. 버튼의 텍스트, 클릭 행동, disabled 상태와 화면 의미는 여전히 앱이 결정해야 합니다.</p>
+<p><strong>2026-10-03 확인:</strong> <a href="../../../frontend/package.json" class="source-link">package.json</a>의 <code>@nuxt/ui: ^4.6.1</code>은 허용 범위입니다. <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>과 원본 <code>frontend/node_modules/@nuxt/ui/package.json</code>의 실제 버전은 <strong>4.10.0</strong>입니다. 예제는 v4 기준이며 v2의 props나 컴포넌트 이름을 혼합하지 않습니다. 온라인 문서가 더 새 버전을 설명할 수 있으므로 <a href="https://github.com/nuxt/ui/tree/v4.10.0/src/runtime/components" class="external">v4.10.0 공식 소스</a>도 확인합니다.</p>
+<p>목표는 설치 방법을 외우는 것이 아니라, 현재 컴포넌트의 props와 slot을 읽고 프로젝트 토큰을 유지하면서 수정할 위치를 찾는 것입니다.</p>
+<h2 id="2-용어-props-slot-theme-slot-color-variant">2. 용어: props, slot, theme slot, color, variant</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>의미</th>
+<th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>props</td>
+<td>컴포넌트의 데이터 / 동작 입력</td>
+<td><code>disabled</code>, <code>loading</code>, <code>to</code></td>
+</tr>
+<tr>
+<td>Vue slot</td>
+<td>부모가 넣는 화면 내용</td>
+<td><code>#header</code>, 기본 slot</td>
+</tr>
+<tr>
+<td>theme slot</td>
+<td>내부 요소에 클래스가 적용되는 자리</td>
+<td><code>root</code>, <code>body</code>, <code>leadingIcon</code></td>
+</tr>
+<tr>
+<td>color</td>
+<td>의미 있는 색 역할</td>
+<td><code>primary</code>, <code>neutral</code>, <code>success</code></td>
+</tr>
+<tr>
+<td>variant</td>
+<td>같은 역할의 표현 방식</td>
+<td><code>solid</code>, <code>outline</code>, <code>ghost</code></td>
+</tr>
+<tr>
+<td><code>class</code></td>
+<td>보통 루트 요소를 조정하는 클래스</td>
+<td><code>flex-1</code></td>
+</tr>
+<tr>
+<td><code>ui</code></td>
+<td>개별 내부 파트의 클래스 설정</td>
+<td><code>:ui=&quot;{ body: 'p-0' }&quot;</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Vue의 <code>#header</code> slot과 테마의 <code>header</code> slot은 이름이 같더라도 책임이 다릅니다. 앞의 것은 <strong>내용</strong>, 뒤의 것은 <strong>스타일</strong>입니다. 컴포넌트마다 유효한 props, variant, slot 이름이 다르므로 모든 <code>U*</code>에 같은 키가 있다고 생각하면 안 됩니다.</p>
+<h2 id="3-실제-구현">3. 실제 구현</h2>
+<h3 id="31-등록-css와-최상위-uapp">3.1 등록, CSS와 최상위 UApp</h3>
+<p><a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>에 <code>@nuxt/ui</code>가 등록되어 있고 <a href="../../../frontend/app/assets/css/main.css" class="source-link">main.css</a>에서 두 스타일을 가져옵니다.</p>
+<pre tabindex="0"><code class="language-css">@import &quot;tailwindcss&quot;;
+@import &quot;@nuxt/ui&quot;;
+</code></pre>
+<p>이 프로젝트에서는 Nuxt UI 모듈이 Tailwind Vite 통합도 구성합니다. 따라서 초보 실습을 위해 플러그인을 다시 설치하거나 별도 PostCSS 구성을 중복 추가하지 않습니다.</p>
+<p><a href="../../../frontend/app/app.vue" class="source-link">app.vue</a>는 다음 구조를 갖습니다. 접근 제한 분기 부분을 생략한 <strong>구조 설명</strong>입니다.</p>
+<pre tabindex="0"><code class="language-vue">&lt;UApp&gt;
+  &lt;NuxtLayout&gt;
+    &lt;NuxtPage /&gt;
+  &lt;/NuxtLayout&gt;
+&lt;/UApp&gt;
+</code></pre>
+<p>UApp은 tooltip/config provider, toaster, overlay provider를 묶습니다. “모든 확인창을 자동 생성하는 ConfirmDialog 컨테이너”라고 설명하면 안 됩니다. 확인 UI는 실제 Modal이나 앱 컴포넌트로 작성해야 합니다. <a href="https://github.com/nuxt/ui/blob/v4.10.0/src/runtime/components/App.vue" class="external">4.10.0 UApp 소스</a>에서 이 구성을 확인할 수 있습니다.</p>
+<h3 id="32-ubutton과-uicon">3.2 UButton과 UIcon</h3>
+<pre tabindex="0"><code class="language-vue">&lt;UButton
+  icon=&quot;i-lucide-search&quot;
+  color=&quot;neutral&quot;
+  variant=&quot;ghost&quot;
+  aria-label=&quot;검색&quot;
+/&gt;
+
+&lt;UButton to=&quot;/settings&quot; color=&quot;neutral&quot; variant=&quot;outline&quot;&gt;
+  설정
+&lt;/UButton&gt;
+</code></pre>
+<p><code>to</code>를 사용하는 버튼은 링크 동작을 갖습니다. 동작 실행용 버튼과 페이지 이동용 링크를 구분합니다. 아이콘만 있는 버튼에는 읽을 수 있는 이름이 필요하므로 <code>aria-label</code>을 제공합니다. disabled는 시각 표현뿐 아니라 클릭 가능 여부도 바꿉니다. loading 상태가 언제 끝나는지는 앱의 비동기 로직이 결정합니다.</p>
+<p>아이콘 이름은 보통 <code>i-lucide-search</code>처럼 씁니다. 현재 lucide와 simple-icons JSON 패키지가 선언되어 있습니다. 하지만 패키지가 존재한다고 모든 동적 아이콘이 정적 배포에 자동 포함되는 것은 아닙니다.</p>
+<p><a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>의 <code>icon.fallbackToApi: false</code>는 런타임 외부 Iconify API 호출을 막습니다. <code>clientBundle.scan</code>은 앱 소스와 Nuxt UI 컴포넌트를 검색하고, 동적 이름은 <code>clientBundle.icons</code>에 <code>lucide:search</code> 형태로 명시합니다. Template 이름의 <code>i-lucide-*</code>와 설정의 <code>lucide:*</code> 표기를 구분합니다. 사내에서는 fallback을 켜서 빈 아이콘 문제를 덮지 않고 번들 포함 여부를 고칩니다.</p>
+<h3 id="33-ucard-uheader-ubadge">3.3 UCard, UHeader, UBadge</h3>
+<p><a href="../../../frontend/app/components/ebeam/ToolInventoryView.vue" class="source-link">ToolInventoryView.vue</a>의 축약 예시입니다.</p>
+<pre tabindex="0"><code class="language-vue">&lt;UCard class=&quot;dashboard-surface&quot; :ui=&quot;{ body: 'p-0 sm:p-0' }&quot;&gt;
+  &lt;template #header&gt;
+    &lt;h2 class=&quot;sk-heading&quot;&gt;장비 리스트&lt;/h2&gt;
+    &lt;UBadge color=&quot;neutral&quot; variant=&quot;subtle&quot;&gt;
+      {{ filteredRows.length }} / {{ rows.length }}
+    &lt;/UBadge&gt;
+  &lt;/template&gt;
+  &lt;!-- 표는 기본 slot에 들어갑니다. --&gt;
+&lt;/UCard&gt;
+</code></pre>
+<p><code>class</code>만으로 내부 body의 padding을 없앨 수 있다고 가정하지 않습니다. 내부 파트는 <code>ui</code>를 확인합니다. 기본 테마에 <code>sm:p-*</code>가 있으면 <code>p-0</code>만으로 모든 화면 크기의 padding을 덮는 것이 아닐 수 있습니다. 실제 클래스와 브라우저 computed style을 확인합니다.</p>
+<p>UHeader의 left / right 같은 named slot에는 로고나 제어 버튼을 넣습니다. UBadge는 짧은 상태나 수량을 표시하며 클릭 필터와는 의미가 다릅니다. 프로젝트에서는 정보 라벨, 필터 칩, 탐색 pill의 역할을 <a href="../../../DESIGN.md" class="source-link">DESIGN.md</a>로 구분합니다.</p>
+<h3 id="34-입력과-표">3.4 입력과 표</h3>
+<p>현재 앱에는 <code>UInput</code>, <code>UTextarea</code>, <code>USelect</code>, <code>UTable</code>, <code>UModal</code>, <code>UTooltip</code> 등이 이미 사용됩니다. 미래 후보 목록처럼 적지 않습니다. <a href="../../../frontend/app/components/chat/ChatComposer.vue" class="source-link">ChatComposer.vue</a>는 UTextarea의 <code>v-model</code>, autoresize, disabled와 UButton 이벤트를 연결합니다.</p>
+<p>UTable은 TanStack Table을 바탕으로 행과 열을 다룹니다. 열 타입 <code>TableColumn&lt;T&gt;</code>는 Nuxt UI에서 가져오며 실제 정렬 상태 타입 등은 해당 라이브러리의 타입을 사용합니다. 현재 <code>@tanstack/vue-table</code>은 Nuxt UI 의존성 경로로 lock에 있습니다. 테이블이 있다는 이유로 서버 조회, 정렬 버튼, 페이지 이동 UI가 모두 자동 완성되는 것은 아닙니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">API rows
+  → 앱 검색 / 필터 정책
+      → UTable의 columns + data + 상태
+          → 사용자가 헤더 / 페이지 버튼을 조작
+              → 앱 상태 또는 API 요청 갱신
+</code></pre>
+<p>클라이언트 정렬은 내려받은 데이터만 정렬합니다. 서버 페이지의 일부만 받은 상황에서 전체 목록 정렬이라고 표시하면 잘못된 의미가 됩니다. 대용량 데이터의 필터/페이지 정책은 별도 요구 사항입니다.</p>
+<p>v4에서 <code>URadioGroup</code>, <code>USeparator</code> 등 현재 이름을 확인합니다. 예전 문서의 <code>URadio</code>, <code>UDivider</code>, <code>UConfirmModal</code>을 v4 공식 컴포넌트라고 그대로 복사하지 않습니다. 원하는 확인창은 UModal 내용으로 구현할 수 있습니다.</p>
+<h3 id="35-프로젝트-테마와-css-토큰">3.5 프로젝트 테마와 CSS 토큰</h3>
+<p><a href="../../../frontend/app/app.config.ts" class="source-link">app.config.ts</a>는 거의 비어 있지 않습니다. 현재 primary와 neutral을 <code>paper</code> 팔레트로 매핑하며 카드/버튼/입력의 radius와 header, slideover, tooltip 파트를 설정합니다.</p>
+<pre tabindex="0"><code class="language-ts">// 실제 설정 중 색 역할 부분입니다.
+ui: {
+  colors: {
+    primary: 'paper',
+    neutral: 'paper'
+  }
+}
+</code></pre>
+<p><code>paper</code>는 main.css의 <code>@theme static</code>에서 정의합니다. <code>--ui-*</code>와 <code>--sk-*</code> 연결로 Nuxt UI와 앱 스타일의 의미를 맞춥니다. “기본 primary는 blue이니 개별 버튼을 파란색으로 바꿉니다”라는 식으로 테마를 우회하면 안 됩니다. 개별 사용처에서 반복 수정하기 전에 app.config의 기존 공통 설정을 확인합니다.</p>
+<p><code>.dashboard-surface</code>는 현재 <code>--sk-border</code>, <code>--sk-surface</code>와 부드러운 shadow를 쓰는 종이 느낌의 표면입니다. 예전의 반투명 흰 배경 + blur 카드가 아닙니다. 헤더에는 별도의 반투명 / backdrop blur 설정이 있으므로 모든 표면이 같은 blur 효과라고 설명하지 않습니다.</p>
+<p>UColorModeButton은 color-mode 통합으로 테마를 바꿉니다. Nuxt UI 모듈이 이를 구성하며 <code>.dark</code>에 따른 CSS 토큰도 바뀝니다. 다크모드를 위해 모든 컴포넌트에 색상 hex를 따로 넣는 대신 의미 토큰을 재사용합니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>Nuxt UI는 기본 구조와 키보드/포커스 동작을 재사용하는 데 도움이 됩니다. 프로젝트 디자인은 <code>DESIGN.md</code>, app.config, main.css로 통일합니다. 다만 라이브러리가 있다고 앱 전체 접근성이 자동 검증되는 것은 아닙니다. 버튼 이름, 제목 계층, 입력 label, 표 의미, 모달 포커스가 실제 사용처에서 맞는지 확인해야 합니다.</p>
+<p><code>zod</code>, <code>valibot</code>는 현재 lock과 설치에 있지만 프런트 package의 직접 선언은 아닙니다. Form 검증과 통합 가능한 라이브러리라는 사실을 이 앱의 모든 API가 런타임 검증된다는 주장으로 바꾸지 않습니다. 실제 사용처를 확인한 뒤 설명합니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ol>
+<li>v2 예제의 props와 컴포넌트 이름을 v4에 사용합니다. 4.10.0 타입과 문서를 대조합니다.</li>
+<li><code>class</code>로 내부 파트를 고치려 합니다. 컴포넌트의 Theme slot을 확인합니다.</li>
+<li>JSX/HTML 주석을 Vue 태그 속성 중간에 넣습니다. 주석은 태그 밖에 작성합니다.</li>
+<li>아이콘 패키지 설치만으로 사내 배포 아이콘이 보장된다고 생각합니다. scan과 동적 번들 목록을 확인합니다.</li>
+<li>새 색과 radius를 임의로 추가합니다. DESIGN과 <code>--sk-*</code> 토큰을 먼저 읽습니다.</li>
+<li>UTable이 서버 페이지 처리까지 수행한다고 생각합니다. 데이터 범위와 앱의 요청 로직을 확인합니다.</li>
+</ol>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>저장소 루트에서 읽기만 하는 실습입니다.</p>
+<pre tabindex="0"><code class="language-bash">cat frontend/app/app.config.ts
+rg -n 'fallbackToApi|clientBundle|fonts:' frontend/nuxt.config.ts
+rg -n 'UCard|UBadge|:ui=|aria-label' frontend/app/components/ebeam/ToolInventoryView.vue
+rg -n 'dashboard-surface|--sk-surface|--ui-' frontend/app/assets/css/main.css
+</code></pre>
+<p>완료 기준은 다음과 같습니다.</p>
+<ul>
+<li>UCard header의 내용은 Vue slot, body padding은 theme slot이라고 구분합니다.</li>
+<li>primary와 neutral의 실제 팔레트가 <code>paper</code>라고 답합니다.</li>
+<li>아이콘이 없는 이유를 외부 네트워크 실패만으로 단정하지 않고 정적 번들 목록도 확인합니다.</li>
+<li>표의 클라이언트 정렬과 서버 정렬이 같은 기능이 아니라고 설명합니다.</li>
+</ul>
+<p>UI 변경을 실습할 때는 개인 학습 사본에서 버튼 하나의 <code>variant</code>만 바꾸고, 밝은/어두운 테마, 키보드 focus, 좁은 화면을 확인합니다. 공유 앱이나 운영 설정을 수정하지 않습니다. 타입 검사는 props 실수를 찾지만 시각 결과는 브라우저에서 확인해야 합니다.</p>
+<h2 id="7-공식-근거">7. 공식 근거</h2>
+<ul>
+<li><a href="https://ui.nuxt.com/docs/getting-started/installation/nuxt" class="external">Nuxt UI Nuxt 설치</a></li>
+<li><a href="https://ui.nuxt.com/docs/components/button" class="external">Nuxt UI Button</a></li>
+<li><a href="https://ui.nuxt.com/docs/components/card" class="external">Nuxt UI Card</a></li>
+<li><a href="https://ui.nuxt.com/docs/components/table" class="external">Nuxt UI Table</a></li>
+<li><a href="https://github.com/nuxt/ui/blob/v4.10.0/src/runtime/components/Table.vue" class="external">Nuxt UI v4.10.0 Table 소스</a></li>
+<li><a href="https://github.com/nuxt/ui/blob/v4.10.0/src/module.ts" class="external">Nuxt UI v4.10.0 모듈 소스</a></li>
+<li><a href="../05-tailwind/README.html">다음: Tailwind CSS</a></li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../03-nuxt/README.html">이전: 03. Nuxt 4 핵심 개념</a><a href="../05-tailwind/README.html">다음: 05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

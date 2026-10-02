@@ -1,5 +1,9 @@
 # 03. `null`, `undefined`, `false`, `None`, `""`
 
+**2026-10-03 기준 JavaScript/TypeScript와 Python JSON 계약을 함께 설명합니다.** 현재 TypeScript는 선언 `^5.9.3`, lock/설치 5.9.3입니다. [package.json](../../../frontend/package.json)과 [package-lock.json](../../../frontend/package-lock.json)을 기준으로 합니다.
+
+## 1. 기초: 값 없음과 아니오를 구분합니다
+
 이 주제는 매우 중요합니다. 이 값들은 개념적으로 자주 섞여서 사용되지만, 실제 의미는 서로 같지 않기 때문입니다.
 
 TypeScript와 JavaScript에서 핵심 질문은 보통 다음과 같습니다.
@@ -8,17 +12,17 @@ TypeScript와 JavaScript에서 핵심 질문은 보통 다음과 같습니다.
 
 이것들은 서로 다른 의미이며, 대부분의 경우 타입 모델도 다르게 잡아야 합니다.
 
-## 짧은 요약
+## 2. 용어와 값의 차이
 
 | 값 | 언어 | 의미 |
 | --- | --- | --- |
 | `undefined` | JavaScript / TypeScript | 아직 전달되지 않았거나, 할당되지 않았거나, 누락된 값입니다. |
 | `null` | JavaScript / TypeScript | 의도적으로 비워 두었거나, 명시적으로 값이 없음을 뜻합니다. |
-| `false` | JavaScript / TypeScript / Python | 불리언 거짓 값입니다. |
+| `false` / `False` | JavaScript·TypeScript는 `false`, Python은 `False` | 불리언 거짓 값입니다. |
 | `None` | Python | 값이 없음을 나타내는 객체입니다. |
 | `""` | JavaScript / TypeScript / Python | 빈 문자열이지만, 여전히 문자열 값입니다. |
 
-## 가장 중요한 구분
+### 2.1 가장 중요한 구분
 
 이 값들은 서로 바꿔 쓸 수 없습니다.
 
@@ -33,9 +37,9 @@ TypeScript와 JavaScript에서 핵심 질문은 보통 다음과 같습니다.
 - "`""`는 null이다"
 - "`undefined`와 `null`은 완전히 같다"
 
-이 값들은 조건식에서 모두 falsy처럼 동작할 수 있지만, 의미적으로는 서로 다릅니다.
+이 값들은 조건식에서 모두 falsy처럼 동작할 수 있지만, 의미적으로는 서로 다릅니다. Python의 거짓 리터럴은 대문자로 시작하는 `False`이며 `false`가 아닙니다. 또 JavaScript의 빈 배열 `[]`와 빈 객체 `{}`는 truthy이지만 Python의 빈 list/dict는 falsy입니다. 언어가 바뀌면 조건식 관례도 그대로 복사하지 않습니다.
 
-## 1. `undefined`
+### 2.2 `undefined`
 
 JavaScript와 TypeScript에서 `undefined`는 보통 다음 뜻으로 쓰입니다.
 
@@ -73,13 +77,16 @@ interface User {
 }
 ```
 
-여기서 `nickname?: string`은 실질적으로 다음과 비슷한 의미입니다.
+읽을 때 `nickname`은 string 또는 undefined일 수 있습니다. 그러나 다음 필수 속성 선언과는 같지 않습니다.
 
 ```ts
-nickname: string | undefined
+type OptionalUser = { nickname?: string }
+type RequiredUser = { nickname: string | undefined }
+const optional: OptionalUser = {}        // 속성 자체를 생략할 수 있습니다.
+const required: RequiredUser = { nickname: undefined } // 속성은 필수입니다.
 ```
 
-## 2. `null`
+### 2.3 `null`
 
 `null`은 보통 다음 의미를 가집니다.
 
@@ -94,7 +101,7 @@ let selectedTool: string | null = null
 
 일반적인 해석은 다음과 같습니다.
 
-- "확인해 봤지만 결과가 없습니다"
+- 계약에 따라 "확인해 봤지만 결과가 없습니다"
 - "현재 선택을 의도적으로 지웠습니다"
 
 관례적으로는 다음과 같이 구분하는 편이 좋습니다.
@@ -110,9 +117,9 @@ function findTool(id: string): string | null {
 }
 ```
 
-이 함수는 단순히 `undefined`를 반환하는 것보다 더 많은 정보를 줍니다. 의도적으로 "일치하는 항목이 없습니다"를 반환하기 때문입니다.
+이 함수는 계약으로 "일치하는 항목이 없습니다"를 null에 부여합니다. 언어 자체가 null에 undefined보다 더 많은 업무 의미를 부여하는 것은 아닙니다.
 
-## 3. `false`
+### 2.4 `false`
 
 `false`는 "비어 있음"이 아닙니다. `false`는 유효한 불리언 값입니다.
 
@@ -147,7 +154,7 @@ type Example = {
 
 이 구분은 UI 설정, 필터, 기능 플래그에서 자주 중요합니다.
 
-## 4. Python `None`
+### 2.5 Python `None`
 
 Python의 `None`은 의미상 다음 값과 가장 가깝습니다.
 
@@ -169,10 +176,10 @@ value = None
 
 따라서 Python에 익숙하다면 다음처럼 이해하면 편합니다.
 
-- Python의 `None`은 대략 TypeScript의 `null | undefined`와 비슷합니다.
+- Python의 `None`은 값 없음의 의미를 설명할 때 null/undefined와 비교할 수 있지만, JSON 전송에서는 null에 대응합니다.
 - 실제 코드에서는 의도에 따라 둘 중 더 정확한 쪽을 선택하면 됩니다.
 
-## 5. `""` 빈 문자열
+### 2.6 `""` 빈 문자열
 
 `""`는 `null`도 아니고 `undefined`도 아닙니다.
 
@@ -198,7 +205,7 @@ console.log(name.length) // 0
 - 백엔드가 빈 텍스트 필드를 반환했습니다.
 - 값이 누락된 것이 아니라, 의도적으로 빈 텍스트입니다.
 
-## Falsy 동작은 오해를 만들 수 있습니다
+### 2.7 Falsy 동작은 오해를 만들 수 있습니다
 
 JavaScript에서 다음 값들은 모두 falsy입니다.
 
@@ -226,7 +233,7 @@ if (!value) {
 
 그래서 넓은 범위의 falsy 체크는 보통 너무 느슨합니다.
 
-## 더 나은 체크 방법
+### 2.8 더 나은 체크 방법
 
 ### 누락 여부만 확인하기
 
@@ -274,7 +281,7 @@ if (value === false) {
 }
 ```
 
-## Optional chaining과 nullish coalescing
+### 2.9 Optional chaining과 nullish coalescing
 
 이 연산자들은 모든 falsy 값을 기준으로 동작하는 것이 아니라, `null`과 `undefined`를 기준으로 설계되어 있습니다.
 
@@ -311,7 +318,32 @@ const d = false ?? true      // false
 
 TypeScript 코드에서는 `false`, `0`, `""`가 유효한 값일 수 있다면 `??`가 더 안전한 선택인 경우가 많습니다.
 
-## 권장 관례
+## 3. 실제 구현과 API 경계
+
+### 3.1 현재 저장소의 값 없음
+
+[useSemListApi.ts](../../../frontend/app/composables/useSemListApi.ts)의 version은 string이고 빈 문자열은 알 수 없는 버전을 나타낼 수 있습니다. `available`은 `On` 또는 `Off`입니다. 빈 version을 “장비가 꺼짐”으로 바꾸면 데이터 의미가 달라집니다. [utils/toolType.ts](../../../frontend/app/utils/toolType.ts)의 분류 함수는 알 수 없는 모델에 null을 반환합니다. 미확인 모델을 임의로 cd-sem으로 바꾸지 않습니다.
+
+[usePersistedState.ts](../../../frontend/app/composables/usePersistedState.ts)는 localStorage `getItem()` 결과가 null인지 검사합니다. 여기서 null은 저장 키가 없다는 플랫폼 계약입니다. normalizer는 JSON 파싱 후 unknown 입력을 확인합니다. 문자열 `"false"`와 boolean false는 별개이며 정상 JSON 파싱 결과를 확인해야 합니다.
+
+### 3.2 JSON 직렬화와 Python 대응
+
+Python `None`은 JSON에서 **null**이고 Python `False`는 JSON **false**입니다. JavaScript undefined와 1:1 전송 대응이 아닙니다. Python dict의 키가 없는 것과 키의 값이 None인 것도 다른 상태입니다.
+
+```js
+JSON.stringify({ absent: undefined, empty: null, enabled: false })
+// '{"empty":null,"enabled":false}' — undefined 속성은 빠집니다.
+JSON.stringify([undefined, null, false])
+// '[null,null,false]' — 배열 슬롯의 undefined는 null로 직렬화됩니다.
+```
+
+객체 키가 있는지는 `Object.hasOwn(obj, 'key')`, 값이 null인지는 `obj.key === null`로 구분합니다. `nickname?: string`와 `nickname: string | undefined`는 읽기 결과가 비슷해도 속성 필수 여부가 다릅니다. `exactOptionalPropertyTypes`를 켜면 명시적 undefined 대입의 허용도 달라지므로 모든 tsconfig에 같은 규칙을 단정하지 않습니다.
+
+## 4. 선택 이유와 한계
+
+값에 어떤 의미를 부여할지는 API/도메인 계약입니다. JavaScript가 null을 반드시 “조회했지만 없음”으로 정해 주는 것이 아닙니다. 기존 계약을 읽고 일관된 표현을 사용하면 미확인 상태를 false로 바꾸는 실수를 줄일 수 있습니다. 화면에 기본값을 보여 주는 것과 원본 상태를 바꾸는 것도 구분합니다.
+
+### 4.1 권장 관례
 
 코드를 읽기 쉽게 유지하려면 다음과 같은 관례가 실용적입니다.
 
@@ -363,7 +395,7 @@ const searchText = ''
 
 만약 "검색어가 아직 초기화되지 않았습니다"를 뜻하고 싶다면, 보통 `undefined`나 `null`이 더 명확합니다.
 
-## 프론트엔드 코드에서의 예시
+### 4.2 프론트엔드 학습 예시
 
 ### 폼 입력
 
@@ -397,7 +429,7 @@ type ApiResult = {
 - `detail: null`은 API가 명시적으로 상세 정보가 없다고 말하는 상태입니다.
 - `detail: ''`는 상세 정보 필드는 존재하지만 텍스트가 비어 있다는 뜻입니다.
 
-## 자주 하는 실수
+## 5. 흔한 실수
 
 ### 실수 1. `""`나 `false`가 유효한데 `||`를 쓰는 경우
 
@@ -433,14 +465,47 @@ if (!config.enabled) {
 - optional / omitted -> `undefined`
 - explicit empty -> `null`
 
-## 짧은 답
+### 5.4 값의 의미 점검
 
 다음 의미를 일관되게 사용하면 됩니다.
 
 - `undefined`: 누락되었거나 전달되지 않았습니다.
 - `null`: 의도적으로 값이 없습니다.
 - `false`: 명시적인 불리언 거짓입니다.
-- `None`: Python의 값 없음 객체이며, 대략 `null | undefined`에 가깝습니다.
+- `None`: Python의 값 없음 객체이며 JSON 전송에서는 null입니다.
 - `""`: 빈 텍스트이지만 여전히 문자열입니다.
 
 코드에서 이 상태들을 구분해야 한다면, `if (!value)` 같은 넓은 falsy 체크에 의존하면 안 됩니다.
+
+## 6. 안전 실습
+
+브라우저 개발자 도구 console에서 아래 JavaScript를 실행합니다. API나 저장소 파일을 변경하지 않습니다.
+
+```js
+console.assert((false ?? true) === false)
+console.assert((0 ?? 10) === 0)
+console.assert(('' ?? 'default') === '')
+console.assert((null ?? 'default') === 'default')
+console.assert(JSON.stringify({ value: undefined }) === '{}')
+console.assert(JSON.stringify({ value: null }) === '{"value":null}')
+console.assert(Object.hasOwn({ value: undefined }, 'value') === true)
+console.assert(Object.hasOwn({}, 'value') === false)
+console.assert(Boolean('false') === true)
+```
+
+마지막 결과는 문자열이 비어 있지 않아 true입니다. boolean false와 비교해야 한다면 문자열을 Boolean()으로 감싸는 대신 입력 계약을 파싱/검증합니다.
+
+완료 기준은 `false`, `0`, 빈 문자열을 유지해야 하는 이유와 JSON에서 undefined 필드가 빠지는 이유를 설명하는 것입니다. Python을 확인하려면 아래 읽기 전용 명령을 실행할 수 있습니다.
+
+```bash
+python3 -c 'import json; print(json.dumps({"empty": None, "enabled": False}))'
+```
+
+출력은 `{"empty": null, "enabled": false}`입니다. 이 실습은 표준 언어 계약 확인이며 실제 office 응답 검증은 아닙니다.
+
+## 7. 공식 근거
+
+- [TypeScript narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+- [TypeScript exactOptionalPropertyTypes](https://www.typescriptlang.org/tsconfig/exactOptionalPropertyTypes.html)
+- [MDN JSON.stringify](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify)
+- [Python json 변환 표](https://docs.python.org/3/library/json.html#encoders-and-decoders)

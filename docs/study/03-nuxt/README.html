@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="fddfe3ae30d271084965fedde9ceef4f5f0e7bb78bab282117a273c1d200b2da"><meta name="body-sha256" content="16da2acc71793123ebef7bc5f98e8c3106e262ea8dacb02935a50c6c063dc6ce"><title>03. Nuxt 4 핵심 개념 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="README.html" aria-current="page">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-vue에-프로젝트-규칙을-더합니다">1. 기초: Vue에 프로젝트 규칙을 더합니다</a></li><li><a href="#2-용어-렌더링과-실행-위치">2. 용어: 렌더링과 실행 위치</a></li><li><a href="#3-실제-구현-파일-화면-api">3. 실제 구현: 파일 → 화면 → API</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습과-완료-기준">6. 안전 실습과 완료 기준</a></li><li><a href="#7-공식-근거와-다음-문서">7. 공식 근거와 다음 문서</a></li></ol></details></nav><article><h1 id="03-nuxt-4-핵심-개념">03. Nuxt 4 핵심 개념</h1>
+<p>CSR(Client-Side Rendering)은 브라우저 렌더링, SSR(Server-Side Rendering)은 서버 렌더링, SSG(Static Site Generation)는 빌드 시 정적 파일 생성, SPA(Single Page Application)는 브라우저 라우터로 이동하는 앱입니다. TTL(Time To Live)은 캐시의 시간 기반 유효 수명이며 현재 helper에 자동으로 존재하지 않습니다.</p>
+<h2 id="1-기초-vue에-프로젝트-규칙을-더합니다">1. 기초: Vue에 프로젝트 규칙을 더합니다</h2>
+<p>Vue는 상태와 화면을 연결합니다. Nuxt는 그 위에서 페이지 파일을 URL로 연결하고, 컴포넌트와 함수를 자동 등록하며, 개발 서버와 빌드 도구를 묶습니다. Flask의 라우트 데코레이터처럼 URL 규칙이 필요하지만, Nuxt에서는 <code>pages/</code>의 파일 경로가 그 규칙입니다.</p>
+<p><strong>확인 기준은 2026-10-03입니다.</strong> <a href="../../../frontend/package.json" class="source-link">package.json</a>의 <code>nuxt: ^4.4.2</code>는 설치 허용 범위입니다. <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>은 <strong>4.5.0</strong>을 고정하며, 원본 작업 공간의 <code>frontend/node_modules/nuxt/package.json</code>도 4.5.0입니다. <code>^4.4.2</code>를 현재 설치 버전이라고 읽으면 안 됩니다. 온라인 4.x 문서는 이후 버전 기능도 포함하므로 <a href="https://github.com/nuxt/nuxt/blob/v4.5.0/packages/nuxt/src/app/composables/asyncData.ts" class="external">4.5.0 소스</a>와 대조합니다.</p>
+<p>학습 목표는 다음 세 질문에 답하는 것입니다.</p>
+<ol>
+<li>화면을 여는 파일은 어디에 있습니까?</li>
+<li>API 응답과 화면의 임시 상태는 각각 누가 보관합니까?</li>
+<li>개발 서버에서 되는 기능이 정적 배포에서도 동작합니까?</li>
+</ol>
+<h2 id="2-용어-렌더링과-실행-위치">2. 용어: 렌더링과 실행 위치</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>뜻</th>
+<th>이 프로젝트</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSR</td>
+<td>브라우저 JavaScript가 화면을 만듭니다.</td>
+<td><code>ssr: false</code>인 SPA입니다.</td>
+</tr>
+<tr>
+<td>SSR</td>
+<td>요청마다 서버가 화면 HTML을 렌더링합니다.</td>
+<td>현재 사용하지 않습니다.</td>
+</tr>
+<tr>
+<td>SSG / generate</td>
+<td>빌드 시 정적 배포 파일을 만듭니다.</td>
+<td><code>npm run build</code>가 <code>nuxt generate</code>입니다.</td>
+</tr>
+<tr>
+<td>SPA</td>
+<td>페이지 이동을 브라우저 라우터가 처리합니다.</td>
+<td>회사 배포에서 Flask가 정적 결과를 제공합니다.</td>
+</tr>
+<tr>
+<td>Nitro</td>
+<td>Nuxt의 서버 엔진입니다.</td>
+<td>개발 프록시에 사용하며 배포 API 서버는 Flask입니다.</td>
+</tr>
+<tr>
+<td>payload</td>
+<td>Nuxt가 비동기 결과와 상태를 담는 데이터입니다.</td>
+<td>클라이언트에서도 데이터 공유에 사용됩니다.</td>
+</tr>
+<tr>
+<td>composable</td>
+<td>Vue/Nuxt 기능을 묶는 함수입니다.</td>
+<td><code>useSemList()</code> 같은 함수입니다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>SSG라는 명령을 사용한다고 API 데이터까지 서버 HTML로 미리 렌더링하는 것은 아닙니다. 이 저장소는 CSR 앱의 정적 파일을 생성합니다. 최초 HTML만 읽는 검색 로봇에 완성된 데이터 화면이 전달된다고 가정하면 안 됩니다.</p>
+<h2 id="3-실제-구현-파일-화면-api">3. 실제 구현: 파일 → 화면 → API</h2>
+<h3 id="31-디렉토리와-라우트">3.1 디렉토리와 라우트</h3>
+<pre tabindex="0" class="diagram"><code class="language-text">frontend/
+  app/app.vue          UApp → NuxtLayout → NuxtPage
+  app/pages/           URL을 만드는 페이지 파일
+  app/layouts/         공통 화면 틀, slot에 페이지를 넣습니다.
+  app/components/      재사용 화면 조각
+  app/composables/      API / 반응형 로직
+  app/stores/          프로젝트 규칙: useState 기반 공유 상태
+  app/utils/           순수 계산과 경계 처리
+  app/plugins/         클라이언트 초기화 / 페이지 활동 기록
+  app/assets/          빌드하는 CSS 등의 자원
+  public/              그대로 배포하는 폰트 / 아이콘
+  .nuxt/               생성된 타입과 내부 파일
+  .output/public/      generate의 정적 배포 결과
+  nuxt.config.ts       개발 / 빌드 설정
+</code></pre>
+<p><code>stores/</code>, <code>utils/</code>의 의미를 Nuxt의 마법과 프로젝트 규칙으로 구분합니다. <code>stores/</code>라는 이름이 Pinia 사용을 뜻하지 않습니다. 예전 프런트 <code>mock-data/</code>와 <code>useEbeamToolApi.ts</code>는 현재 존재하지 않습니다. Mock도 Flask의 provider에서 응답합니다. <code>plugins/</code>에는 <a href="../../../frontend/app/plugins/persist-fab.client.ts" class="source-link">persist-fab.client.ts</a>와 <a href="../../../frontend/app/plugins/pageView.client.ts" class="source-link">pageView.client.ts</a>가 존재합니다.</p>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>실제 페이지 파일</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../frontend/app/pages/index.vue" class="source-link">index.vue</a></td>
+<td><code>/</code></td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/pages/settings.vue" class="source-link">settings.vue</a></td>
+<td><code>/settings</code></td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/pages/ebeam/cd-sem/index.vue" class="source-link">CD-SEM 허브</a></td>
+<td><code>/ebeam/cd-sem</code></td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/pages/ebeam/cd-sem/%5Bfab%5D/index.vue" class="source-link">FAB 장비 목록</a></td>
+<td><code>/ebeam/cd-sem/:fab</code></td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/pages/ebeam/cd-sem/%5Bfab%5D/hardware.vue" class="source-link">FAB 하드웨어</a></td>
+<td><code>/ebeam/cd-sem/:fab/hardware</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>[fab]</code>는 경로 인자를 뜻합니다. <code>/ebeam/cd-sem/R3/hardware</code>에서 <code>useRoute().params.fab</code>는 <code>R3</code>입니다. 파일이 있다는 사실과 인자가 유효하다는 사실은 별개입니다. URL 입력은 정규화와 유효성 처리가 필요합니다. 예전 <code>monitor.vue</code>를 실제 파일 예시로 사용하지 않습니다.</p>
+<p><code>definePageMeta({ layout: 'hub' })</code>는 허브 레이아웃을 지정합니다. 기본 레이아웃은 <code>default.vue</code>입니다. <a href="../../../frontend/app/app.vue" class="source-link">app.vue</a>는 접근 제한 여부도 판단하므로, 실제로 모든 요청이 무조건 레이아웃으로 들어가는 것은 아닙니다.</p>
+<h3 id="32-자동-등록과-nuxt-컨텍스트">3.2 자동 등록과 Nuxt 컨텍스트</h3>
+<p><code>components/nav/AppHeader.vue</code>는 <code>&lt;NavAppHeader /&gt;</code>, <code>components/ebeam/ToolInventoryView.vue</code>는 <code>&lt;EbeamToolInventoryView /&gt;</code>로 자동 등록됩니다. Vue의 <code>ref</code>, <code>computed</code>, <code>watch</code>, Nuxt의 <code>useState</code>, <code>useRoute</code>, <code>useAsyncData</code> 등은 Nuxt가 처리하는 코드에서 자동 import할 수 있습니다.</p>
+<p>그러나 <code>useRuntimeConfig()</code>와 <code>useState()</code>는 앱 컨텍스트가 필요한 함수입니다. 아무 모듈의 최상위나 Node 테스트에서 마음대로 호출하는 함수가 아닙니다. 자동 import 변환도 일반 <code>node --test</code>에는 없습니다. 그래서 순수 함수 테스트는 명시적인 상대 import를 사용합니다. Composable 하위 폴더까지 모두 자동 검색된다고 가정하지 말고 <a href="https://nuxt.com/docs/4.x/guide/concepts/auto-imports" class="external">자동 import 규칙</a>을 확인합니다.</p>
+<pre tabindex="0"><code class="language-ts">// 페이지 / 컴포넌트 setup에서 사용하는 학습 예시입니다.
+const route = useRoute()
+const router = useRouter()
+const fab = computed(() =&gt; String(route.params.fab ?? ''))
+const goToSettings = () =&gt; router.push('/settings')
+</code></pre>
+<p><code>router.push</code>는 이력을 추가하고, <code>replace</code>는 현재 이력을 바꾸며, <code>back</code>은 뒤로 갑니다. <code>&lt;NuxtLink&gt;</code>는 내부 이동에 사용합니다. <code>route.query</code>는 사용자 입력이며 문자열, 배열, null 등의 가능성을 고려해야 합니다.</p>
+<h3 id="33-fetch-useasyncdata-usefetch">3.3 <code>$fetch</code>, <code>useAsyncData</code>, <code>useFetch</code></h3>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>API</th>
+<th>책임</th>
+<th>주의점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$fetch&lt;T&gt;(url)</code></td>
+<td>HTTP 요청과 응답 파싱</td>
+<td>타입 매개변수는 JSON 검증기가 아닙니다.</td>
+</tr>
+<tr>
+<td><code>useAsyncData(key, handler)</code></td>
+<td>결과 / 오류 / 로딩 상태의 공유와 실행 관리</td>
+<td>키와 옵션, 캐시 정책이 필요합니다.</td>
+</tr>
+<tr>
+<td><code>useFetch(url)</code></td>
+<td><code>$fetch</code>를 <code>useAsyncData</code>와 연결</td>
+<td>TTL을 자동 제공하지 않습니다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>현재 <a href="../../../frontend/app/composables/useSemListApi.ts" class="source-link">useSemListApi.ts</a>는 <code>$fetch&lt;SemListResponse&gt;</code>로 <code>/api/sem-list</code>를 요청합니다. 같은 파일의 <code>useSemList()</code>는 키 <code>'sem-list'</code>를 사용합니다. 페이지, 사이드바, 목록이 같은 원본 데이터를 공유한 뒤 <code>computed</code>로 필요한 목록을 계산합니다.</p>
+<pre tabindex="0"><code class="language-ts">// 현재 저장소에서 바로 읽을 수 있는 사용 패턴입니다.
+const { data: rows, status, error } = await useSemList()
+const total = computed(() =&gt; rows.value.length)
+</code></pre>
+<p><code>data</code>, <code>error</code>, <code>status</code>, <code>pending</code>은 ref입니다. <code>refresh</code>, <code>execute</code>, <code>clear</code>는 함수입니다. <code>status</code>는 <code>idle</code>, <code>pending</code>, <code>success</code>, <code>error</code>를 구분합니다. <code>useSemList()</code>는 <code>default: () =&gt; []</code>를 지정하므로 초기 목록은 빈 배열입니다. 빈 배열만 보고 “조회 완료인데 결과 없음”이라고 단정하지 말고 상태도 확인합니다. 일반 <code>useAsyncData</code>는 기본값을 지정하지 않으면 <code>undefined</code> 가능성이 있습니다.</p>
+<p>같은 키는 같은 자원 / 같은 상태를 뜻합니다. 서로 다른 FAB의 서로 다른 서버 결과를 같은 <code>'rows'</code> 키에 넣으면 충돌합니다. 반대로 SEM 전체 목록을 한 번 받아 클라이언트에서 FAB로 필터링한다면 FAB별 키를 만드는 것이 불필요할 수 있습니다. 동적 서버 조회에서는 응답을 결정하는 인자를 키에 포함하거나 <code>watch</code>를 명시합니다.</p>
+<h3 id="34-deep-false와-캐시의-실제-한계">3.4 <code>deep: false</code>와 캐시의 실제 한계</h3>
+<p>Nuxt 4의 기본 <code>deep</code>은 <strong>false</strong>입니다. 설치된 4.5.0도 옵션에 따라 <code>shallowRef</code>를 사용합니다. 응답을 읽기 전용 원본으로 다루고 <code>.value</code> 전체 교체로 갱신하는 패턴에 적합합니다. <code>data.value[0].available = 'Off'</code>처럼 중첩 필드만 바꾸면 그 변경을 Vue가 추적하지 않을 수 있습니다. 수정 가능한 폼 데이터가 필요하면 원본과 별도 로컬 상태로 분리하는 이유입니다.</p>
+<p>공유 키에서 handler, <code>deep</code>, <code>default</code>, <code>transform</code>, <code>pick</code>, <code>getCachedData</code>를 일관되게 유지합니다. API composable 한곳으로 모으는 것은 이 계약을 유지하기 위한 선택입니다. <a href="https://nuxt.com/docs/4.x/api/composables/use-async-data" class="external">공식 useAsyncData 설명</a>은 기본값과 공유 옵션을 설명하지만, 뒤 버전의 추가 옵션을 그대로 복사하지 않습니다.</p>
+<p>이 저장소의 캐시는 <a href="../../../frontend/app/utils/asyncDataCache.ts" class="source-link">asyncDataCache.ts</a>에 있습니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">useSemList()
+  → useAsyncData('sem-list', fetchOnce, getCachedData: payloadCache)
+      → 기존 payload/static 값이 있으면 재사용
+      → 없으면 createInFlightSlot의 Promise를 사용
+          → $fetch('/api/sem-list')
+              → Flask mock 또는 office provider
+</code></pre>
+<ul>
+<li><code>payloadCache</code>는 <code>payload.data[key] ?? static.data[key]</code>를 반환합니다. 시간 검사를 하지 않습니다.</li>
+<li><code>payloadCacheOnInitial</code>은 첫 실행에만 캐시를 주고, 수동 refresh 등에는 <code>undefined</code>를 반환합니다.</li>
+<li><code>createInFlightSlot</code>은 진행 중 요청뿐 아니라 <strong>성공한 Promise도 <code>reset()</code> 전까지 유지</strong>합니다. 실패하면 비워 재시도할 수 있게 합니다. 이름만 보고 완료 직후 사라진다고 읽으면 안 됩니다.</li>
+<li>Nuxt 4.5.0의 캐시 조회는 refresh 때도 적용될 수 있습니다. <code>payloadCache</code>를 붙인 곳에서 <code>refresh()</code>가 반드시 새 HTTP 요청을 보장한다고 말할 수 없습니다. 슬롯을 유지하는 곳은 슬롯 reset 정책도 봅니다.</li>
+<li>이것들은 TTL, <code>staleTime</code>, 창 포커스 재조회, 브라우저 새로고침 후 영속 캐시가 아닙니다. Nuxt의 기본 캐시 수명도 앱 사용 여부와 옵션의 영향을 받으므로 “영원히 재사용”이라고 가르치지 않습니다.</li>
+</ul>
+<h3 id="35-공유-상태와-영속-상태">3.5 공유 상태와 영속 상태</h3>
+<p><a href="../../../frontend/app/stores/navigation.ts" class="source-link">stores/navigation.ts</a>는 <code>useState&lt;NavigationState&gt;('navigation', ...)</code>로 상태를 공유하고, setter에서 FAB 정규화와 중복 제거를 수행합니다. 단순 <code>ref</code>는 컴포넌트마다 새로 만들어질 수 있지만 같은 키의 <code>useState</code>는 Nuxt 앱에서 공유합니다. SSR 안전성은 Nuxt의 일반 장점이며, 이 SPA에서 당장 쓰는 이유는 앱 안의 공유입니다.</p>
+<p><code>useState</code>는 새로고침 후 저장을 보장하지 않습니다. 그런 상태는 <a href="../../../frontend/app/composables/usePersistedState.ts" class="source-link">usePersistedState.ts</a>를 사용합니다. <code>unknown</code> JSON을 <code>normalize</code>로 확인하고, 앱 수명의 detached effect scope에서 <code>flush: 'sync'</code> watcher를 한 번 붙입니다. 현재 watcher는 기본적으로 얕으므로 배열 <code>push</code> 등 중첩 변경보다 새 배열 대입 방식에 주의합니다. 저장이 차단되면 읽기/쓰기 예외를 처리하지만 저장 성공을 보장하지는 않습니다. Pinia를 별도로 도입하지 않습니다.</p>
+<h3 id="36-개발-프록시와-배포-설정">3.6 개발 프록시와 배포 설정</h3>
+<p><a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>의 기본값은 API base <code>/api</code>, 개발 대상 <code>http://localhost:5050</code>입니다. 개발 시 Nitro가 <code>/api</code>를 Flask로 프록시합니다. 세 단계 모두 프런트가 Flask를 호출하며, 집에서는 Flask mock provider가 답합니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">개발: 브라우저 :3000 /api/* → Nitro devProxy → Flask :5050 /api/*
+배포: 브라우저 → Flask의 정적 SPA + Flask /api/*
+</code></pre>
+<p><code>NUXT_API_TARGET</code>은 개발 프록시 대상이고 <code>NUXT_PUBLIC_API_BASE</code>는 브라우저 코드에 공개되는 API base입니다. <code>public</code> 설정에 비밀키를 넣으면 안 됩니다. <strong>정적 배포에는 실행 중인 Nitro가 없으므로 배포 후 환경 변수만 바꿔 이미 생성된 JavaScript를 다시 설정할 수 없습니다.</strong> base를 바꾸려면 빌드 입력과 재생성을 고려합니다. provider 전환은 백엔드의 별도 설정입니다.</p>
+<p><code>server/api/*.ts</code>는 Nuxt 일반 기능이지만 현재 <code>frontend/server/</code>는 없습니다. 정적 generate 결과에 새로운 서버 API가 실행되는 것도 아닙니다. 이 앱의 서버 기능은 Flask feature 폴더에 만듭니다.</p>
+<p><code>useHead</code> / <code>useSeoMeta</code>는 제목과 메타데이터를 관리합니다. 이 SPA에서는 브라우저에서 갱신되는 부분과 빌드 때 들어간 초기 메타데이터를 구분합니다. SSR에서의 SEO 이점을 현재 구성의 이점으로 옮겨 쓰지 않습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>Nuxt는 파일 규칙과 자동 생성 타입을 제공해 반복 작업을 줄입니다. API composable과 <code>useState</code>만으로 현재 공유 요구를 처리하므로 새로운 query/store 라이브러리를 추가하지 않습니다. TTL이나 포커스 재조회가 실제 요구가 되면 그때 정책을 설계합니다. 파일 규칙은 숨은 계약이므로 파일 이동, 키 변경, 실행 위치 변경을 단순 정리로 취급하면 안 됩니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ol>
+<li>package 선언 하한을 실제 설치 버전으로 적습니다. lock과 설치된 package를 확인합니다.</li>
+<li><code>useAsyncData</code>를 영속 저장이나 TTL 캐시로 이해합니다. 현재 helper의 반환값과 reset 정책을 봅니다.</li>
+<li>API 결과의 중첩 필드를 바꾸고 화면 갱신을 기대합니다. Nuxt 4 기본 shallow data임을 확인합니다.</li>
+<li>정적 배포에서 Nitro 서버 API와 runtime 환경 변수 변경을 기대합니다. 실제 실행 서버는 Flask입니다.</li>
+<li><code>.nuxt/</code> 생성 파일을 직접 고칩니다. <code>nuxt.config.ts</code>의 입력 설정을 고칩니다.</li>
+<li>Nuxt 컨텍스트 함수를 일반 Node 테스트에서 호출합니다. 순수 로직을 명시적으로 import해서 검사합니다.</li>
+</ol>
+<h2 id="6-안전-실습과-완료-기준">6. 안전 실습과 완료 기준</h2>
+<p>서비스를 띄우거나 의존성을 설치하지 않고도 다음을 확인할 수 있습니다. 저장소 루트에서 실행합니다.</p>
+<pre tabindex="0"><code class="language-bash">cat frontend/package.json
+cat frontend/tsconfig.json
+rg --files frontend/app/pages frontend/app/plugins
+rg -n 'ssr:|devProxy|runtimeConfig|apiBase' frontend/nuxt.config.ts
+rg -n 'getCachedData|reset|inFlight' frontend/app/utils/asyncDataCache.ts
+</code></pre>
+<p>읽기 실습의 답은 <code>ssr: false</code>, 정적 generate, <code>/api</code> base, Flask 개발 프록시, 초기 전용 캐시와 일반 캐시의 차이입니다. <code>createInFlightSlot</code>의 성공 경로에서 <code>inFlight = null</code>이 실행되지 않는 것도 찾아야 합니다.</p>
+<p>설치가 완료된 개인 학습 환경에서는 <code>frontend/</code>에서 다음 검사만 실행합니다. <code>postinstall</code>은 타입 생성에 필요한 경우에만 사용하며 <code>.nuxt/</code>를 생성합니다.</p>
+<pre tabindex="0"><code class="language-bash">npm run typecheck
+npm test
+</code></pre>
+<p>이 검사는 타입과 순수 함수를 확인합니다. 페이지 렌더링, 라우터 이동, 실제 서버 응답, office DB 정합성까지 검증하지 않습니다. 앱 수동 확인은 별도의 브라우저 단계입니다.</p>
+<h2 id="7-공식-근거와-다음-문서">7. 공식 근거와 다음 문서</h2>
+<ul>
+<li><a href="https://nuxt.com/docs/4.x/directory-structure/app" class="external">Nuxt 4 디렉토리 구조</a></li>
+<li><a href="https://nuxt.com/docs/4.x/getting-started/data-fetching" class="external">Nuxt 4 데이터 fetching</a></li>
+<li><a href="https://nuxt.com/docs/4.x/guide/going-further/runtime-config" class="external">Runtime config와 정적 배포 한계</a></li>
+<li><a href="https://github.com/nuxt/nuxt/blob/v4.5.0/packages/nuxt/src/app/composables/asyncData.ts" class="external">Nuxt 4.5.0 asyncData 구현</a></li>
+<li><a href="../04-nuxt-ui/README.html">다음: Nuxt UI</a></li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../02-vue-basics/README.html">이전: 02. Vue 3 기본: 상태와 화면의 연결</a><a href="../04-nuxt-ui/README.html">다음: 04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

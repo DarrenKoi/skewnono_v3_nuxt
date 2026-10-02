@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="a9256f0205b7fba32a1753fc896426c0485cf7a70a502ae911595f16b121360d"><meta name="body-sha256" content="4286c2b5108f06c0c57bb916e920308e3505fe2ff40442e473c9eed3d004fc8c"><title>05. Tailwind CSS v4: 화면 배치와 디자인 토큰 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="README.html" aria-current="page">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-작은-css-기능을-조합합니다">1. 기초: 작은 CSS 기능을 조합합니다</a></li><li><a href="#2-용어와-v3-v4-변화">2. 용어와 v3 → v4 변화</a></li><li><a href="#3-실제-구현-maincss에서-화면까지">3. 실제 구현: main.css에서 화면까지</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li><li><a href="#7-공식-근거">7. 공식 근거</a></li></ol></details></nav><article><h1 id="05-tailwind-css-v4-화면-배치와-디자인-토큰">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</h1>
+<p>CSS는 Cascading Style Sheets(스타일 규칙), HTML은 Hypertext Markup Language(문서 구조), DOM은 Document Object Model(브라우저 문서 객체 구조)입니다. 클래스는 HTML 요소에 붙이는 이름이고 실제 표시 규칙은 CSS가 결정합니다.</p>
+<h2 id="1-기초-작은-css-기능을-조합합니다">1. 기초: 작은 CSS 기능을 조합합니다</h2>
+<p>Tailwind는 <code>flex</code>, <code>gap-4</code>, <code>p-4</code>처럼 한 목적을 가진 CSS 클래스를 제공합니다. <code>class=&quot;flex items-center gap-4&quot;</code>는 가로 배치, 교차축 정렬, 자식 간격을 한 요소에 적용하는 표현입니다. CSS를 대신하는 언어가 아니라 CSS를 정해진 이름으로 사용하는 도구이므로, flex/grid/box model의 의미를 함께 익혀야 합니다.</p>
+<p><strong>2026-10-03 확인:</strong> <a href="../../../frontend/package.json" class="source-link">package.json</a>의 <code>tailwindcss: ^4.1.18</code>은 허용 범위입니다. <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>과 원본 <code>frontend/node_modules/tailwindcss/package.json</code>은 <strong>4.3.3</strong>입니다. Nuxt UI 4.10.0이 구성하는 <code>@tailwindcss/vite</code>도 lock/설치에서 4.3.3입니다. 이 문서는 v4 기준이며 v3 설정을 그대로 복사하지 않습니다.</p>
+<h2 id="2-용어와-v3-v4-변화">2. 용어와 v3 → v4 변화</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>utility</td>
+<td>특정 CSS 기능을 적용하는 클래스입니다.</td>
+</tr>
+<tr>
+<td>variant</td>
+<td>조건에 따라 utility를 적용합니다. 예: <code>md:</code>, <code>hover:</code></td>
+</tr>
+<tr>
+<td>theme variable</td>
+<td><code>--color-*</code>, <code>--font-*</code>처럼 utility 생성과 연결되는 변수입니다.</td>
+</tr>
+<tr>
+<td>CSS custom property</td>
+<td><code>var(--sk-surface)</code>처럼 실행 시 읽는 CSS 변수입니다.</td>
+</tr>
+<tr>
+<td>arbitrary value</td>
+<td><code>w-[420px]</code>처럼 미리 이름 없는 값입니다.</td>
+</tr>
+<tr>
+<td>cascade layer</td>
+<td>CSS 우선순위를 묶는 계층입니다.</td>
+</tr>
+<tr>
+<td>source detection</td>
+<td>파일에서 완전한 클래스 문자열을 찾아 CSS를 생성하는 과정입니다.</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>주제</th>
+<th>v3의 흔한 구성</th>
+<th>현재 v4 구성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSS 입력</td>
+<td><code>@tailwind</code> 지시문</td>
+<td><code>@import &quot;tailwindcss&quot;</code></td>
+</tr>
+<tr>
+<td>테마</td>
+<td>JS config의 theme.extend</td>
+<td>CSS의 <code>@theme</code></td>
+</tr>
+<tr>
+<td>Vite 통합</td>
+<td>구성에 따라 PostCSS 사용</td>
+<td>Nuxt UI 모듈이 Tailwind Vite 플러그인을 등록</td>
+</tr>
+<tr>
+<td>소스 검색</td>
+<td>content 목록</td>
+<td>자동 검색과 필요 시 <code>@source</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>v3에서 모든 프로젝트가 반드시 같은 설정을 쓰는 것은 아닙니다. v4도 CSS import만 브라우저에 그대로 보내면 동작하는 것이 아닙니다. <strong>빌드 통합이 그 지시문을 처리</strong>해야 하며 이 프로젝트에서는 기존 Nuxt UI 모듈이 담당합니다.</p>
+<h2 id="3-실제-구현-maincss에서-화면까지">3. 실제 구현: main.css에서 화면까지</h2>
+<h3 id="31-css-입력과-폰트">3.1 CSS 입력과 폰트</h3>
+<p><a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>는 <code>css: ['~/assets/css/main.css']</code>를 등록합니다. <a href="../../../frontend/app/assets/css/main.css" class="source-link">main.css</a>는 Tailwind와 Nuxt UI를 import하고 폰트를 등록합니다.</p>
+<pre tabindex="0"><code class="language-css">@import &quot;tailwindcss&quot;;
+@import &quot;@nuxt/ui&quot;;
+
+/* 실제 설정의 일부입니다. */
+@theme static {
+  --font-sans: 'Spoqa Han Sans Neo', 'Public Sans', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+</code></pre>
+<p><code>@theme static</code>은 정의한 테마 변수를 사용 여부와 무관하게 출력하도록 합니다. <code>--font-sans</code>는 <code>font-sans</code>, <code>--color-paper-*</code>는 paper 색 utility와 연결됩니다. 일반 <code>:root { --sk-surface: ... }</code> 변수는 단지 CSS 변수이므로 이름 하나만 만들었다고 <code>bg-sk-surface</code>가 자동 생성되지는 않습니다.</p>
+<p>폰트 파일은 <a href="../../../frontend/public/fonts/" class="source-link">public/fonts</a>의 woff2를 <code>/fonts/...</code> URL로 읽습니다. Public Sans / JetBrains Mono의 출처는 Fontsource 패키지이고 Spoqa 파일의 출처는 CSS 주석에 적혀 있습니다. <strong><code>spoqa-han-sans</code>가 현재 dependency로 설치되어 있다는 뜻은 아닙니다.</strong> 현재 앱은 이미 복사한 정적 파일을 사용합니다. Nuxt UI 자동 폰트 해석은 <code>ui.fonts: false</code>로 꺼져 사내 외부 CDN 요청을 피합니다.</p>
+<p>Spoqa에는 별도 600 파일이 없으므로 Medium face에 <code>font-weight: 500 600</code>을 선언합니다. <code>font-semibold</code> 요청을 Medium 파일로 매핑하는 선택이며 진짜 600 굵기의 글꼴이 생기는 것은 아닙니다. <code>--font-korean</code>은 한글 폴백 순서를 별도로 지정합니다.</p>
+<h3 id="32-프로젝트-색과-표면">3.2 프로젝트 색과 표면</h3>
+<p>현재 새 화면의 색 기준은 <a href="../../../DESIGN.md" class="source-link">DESIGN.md</a>와 <code>--sk-*</code> 토큰입니다. 일반 Tailwind 색상 문법을 알기 위해 <code>text-zinc-500</code>을 읽을 수 있지만, 새 제품 색을 임의의 blue/hex로 추가하는 근거가 되지 않습니다.</p>
+<pre tabindex="0"><code class="language-vue">&lt;section class=&quot;dashboard-surface p-4&quot;&gt;
+  &lt;h2 class=&quot;sk-heading&quot;&gt;장비 목록&lt;/h2&gt;
+  &lt;p class=&quot;text-(--sk-ink-muted)&quot;&gt;조회한 결과를 표시합니다.&lt;/p&gt;
+&lt;/section&gt;
+</code></pre>
+<p><code>text-(--sk-ink-muted)</code>는 v4의 CSS 변수 단축 표현이며 <code>text-[var(--sk-ink-muted)]</code>와 같은 용도로 읽습니다. <code>bg-(--sk-surface)</code>, <code>border-(--sk-border)</code>도 같은 방식입니다. <code>.dashboard-surface</code>는 현재 토큰 배경과 테두리, 부드러운 shadow입니다. 예전의 반투명/blur 카드 설명은 맞지 않습니다.</p>
+<p><code>sk-value</code>, <code>sk-value-num</code>, <code>sk-meta</code>, <code>sk-heading</code>은 글자 역할을 묶습니다. 데이터 값과 라벨은 읽기 크기가 다릅니다. 화면마다 <code>text-[10px]</code>로 값을 줄이지 않고 기존 역할 클래스를 먼저 확인합니다.</p>
+<h3 id="33-레이아웃과-크기-utility">3.3 레이아웃과 크기 utility</h3>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>클래스</th>
+<th>CSS 의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flex</code>, <code>inline-flex</code></td>
+<td>flex layout을 시작합니다.</td>
+</tr>
+<tr>
+<td><code>flex-col</code></td>
+<td>주축을 세로로 둡니다.</td>
+</tr>
+<tr>
+<td><code>items-center</code></td>
+<td>교차축 중심 정렬입니다.</td>
+</tr>
+<tr>
+<td><code>justify-between</code></td>
+<td>주축의 양끝으로 공간을 나눕니다.</td>
+</tr>
+<tr>
+<td><code>grid</code>, <code>grid-cols-2</code></td>
+<td>grid와 두 열을 만듭니다.</td>
+</tr>
+<tr>
+<td><code>gap-4</code></td>
+<td>기본 spacing 기준 1rem 간격입니다.</td>
+</tr>
+<tr>
+<td><code>p-4</code>, <code>px-4</code>, <code>py-3</code></td>
+<td>전체 / 좌우 / 위아래 padding입니다.</td>
+</tr>
+<tr>
+<td><code>w-full</code>, <code>min-w-0</code></td>
+<td>전체 너비 / 최소 너비 제한 해제입니다.</td>
+</tr>
+<tr>
+<td><code>flex-1</code>, <code>min-h-0</code></td>
+<td>남은 공간 사용 / flex 자식의 넘침 제어입니다.</td>
+</tr>
+<tr>
+<td><code>size-4</code></td>
+<td>width와 height를 함께 지정합니다.</td>
+</tr>
+<tr>
+<td><code>hidden</code></td>
+<td><code>display: none</code>입니다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>기본 <code>--spacing</code>은 0.25rem이며 <code>p-4</code>는 1rem입니다. 1rem=16px인 브라우저 기본 설정에서 16px이고, 사용자가 루트 글자 크기를 바꾸면 px 값도 달라집니다. “1은 언제나 4px”이라고 외우면 안 됩니다.</p>
+<p><a href="../../../frontend/app/components/ebeam/ToolInventoryView.vue" class="source-link">ToolInventoryView.vue</a>의 <code>flex flex-col ... h-full min-h-0</code>는 제한된 높이 안에서 도구 영역과 표를 배치하는 데 사용됩니다. <code>min-h-0</code>는 장식이 아니라 flex 자식이 내용의 최소 높이 때문에 바깥으로 밀려나는 문제를 제어합니다.</p>
+<h3 id="34-반응형과-상태-variant">3.4 반응형과 상태 variant</h3>
+<pre tabindex="0"><code class="language-html">&lt;div class=&quot;grid grid-cols-1 gap-4 md:grid-cols-2&quot;&gt;
+  &lt;!-- 작은 화면은 1열, md 이상은 2열입니다. --&gt;
+&lt;/div&gt;
+</code></pre>
+<p>prefix 없는 utility가 기본이고 <code>md:</code>는 기본 breakpoint 48rem 이상에서 적용됩니다. 기본값은 <code>sm</code> 40rem, <code>md</code> 48rem, <code>lg</code> 64rem, <code>xl</code> 80rem, <code>2xl</code> 96rem입니다. 이는 16px 기준 640/768/1024/1280/1536px이며 테마가 breakpoint를 바꾸면 달라집니다. <code>sm:</code>는 “모바일만”이 아니라 그 이상입니다.</p>
+<p><code>hover:</code>는 포인터 상태, <code>focus-visible:</code>은 키보드 등으로 드러나는 focus, <code>disabled:</code>는 비활성 상태에 적용됩니다. 입력이나 버튼에서 focus 표시를 지우면 안 됩니다. <code>group-hover:</code>는 상위 <code>group</code> 상태를 사용합니다.</p>
+<p>Tailwind 자체의 dark variant 기본은 시스템 선호와 연결될 수 있습니다. <strong>이 앱은 Nuxt UI/color-mode 통합으로 <code>.dark</code> 클래스 전환을 사용</strong>하며 토큰도 <code>.dark</code>에서 바뀝니다. 이를 Tailwind의 모든 설치에 적용되는 기본이라고 일반화하지 않습니다.</p>
+<h3 id="35-vue-동적-class와-정적-문자열">3.5 Vue 동적 class와 정적 문자열</h3>
+<p><a href="../../../frontend/app/components/sk/SegmentedToggle.vue" class="source-link">SegmentedToggle.vue</a>의 실제 패턴입니다.</p>
+<pre tabindex="0"><code class="language-vue">&lt;button
+  class=&quot;px-2.5 py-1 font-mono text-xs&quot;
+  :class=&quot;active
+    ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
+    : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'&quot;
+&gt;
+  선택
+&lt;/button&gt;
+</code></pre>
+<p>위 예시의 <code>active</code>는 설명용 boolean입니다. 실제 파일은 <code>item.value === modelValue</code>를 사용합니다. <code>class</code>는 공통 스타일, <code>:class</code>는 Vue가 계산하는 조건부 스타일입니다. 문자열 전체가 소스에 있으므로 Tailwind가 찾을 수 있습니다.</p>
+<pre tabindex="0"><code class="language-ts">// 학습 예시: 클래스 전체 문자열을 보관합니다.
+const tones = {
+  normal: 'text-(--sk-ink)',
+  muted: 'text-(--sk-ink-muted)'
+}
+</code></pre>
+<p><code>'text-' + color + '-500'</code>처럼 실행 중 조합한 클래스는 Tailwind가 자동 추론하지 않습니다. 존재하는 전체 문자열을 매핑하거나 필요한 경우 CSS 변수 / 명시적 source 정책을 사용합니다. <a href="https://tailwindcss.com/docs/detecting-classes-in-source-files" class="external">소스 검색 공식 설명</a>을 확인합니다.</p>
+<h3 id="36-css-우선순위-arbitrary-value와-apply">3.6 CSS 우선순위, arbitrary value와 @apply</h3>
+<p><code>w-[420px]</code>, <code>tracking-[0.18em]</code>은 유효한 arbitrary value입니다. 그러나 <code>bg-[#FF5733]</code>가 문법상 가능하다고 프로젝트의 토큰 규칙까지 허용하는 것은 아닙니다. 크기도 기존 radius 역할 토큰을 먼저 사용합니다.</p>
+<p>Nuxt UI의 <code>ui</code> prop은 내부 파트 조정에 사용합니다. 일반 <code>class</code> 목록에서 뒤에 쓴 utility가 무조건 승리한다는 규칙은 없습니다. 생성된 CSS 순서, specificity, layer와 라이브러리의 class 병합이 결정합니다. main.css의 역할 클래스는 <code>@layer components</code> 안에 두어 utility 조정이 이길 수 있게 하고, 일부 chrome 규칙은 의도적으로 layer 밖에 둡니다.</p>
+<p>SFC <code>&lt;style scoped&gt;</code>에서 Tailwind v4의 <code>@apply</code>를 사용할 때는 별도 CSS 처리 맥락에 테마를 알려야 할 수 있습니다.</p>
+<pre tabindex="0"><code class="language-vue">&lt;!-- components/ 바로 아래에 있는 학습용 파일 기준 경로입니다. --&gt;
+&lt;style scoped&gt;
+@reference &quot;../assets/css/main.css&quot;;
+
+.panel {
+  @apply flex items-center gap-4;
+}
+&lt;/style&gt;
+</code></pre>
+<p><code>@reference</code>는 CSS를 다시 출력하지 않고 테마/utility 정보를 참조합니다. 실제 파일 위치에 맞게 경로를 바꿔야 합니다. 단순 스타일은 template utility나 일반 CSS로 충분하며, 기존 프로젝트가 @apply를 요구하는 것은 아닙니다. <a href="https://tailwindcss.com/docs/upgrade-guide#using-apply-with-vue-svelte-or-css-modules" class="external">v4 마이그레이션의 Vue 관련 설명</a>을 확인합니다.</p>
+<p><code>@tailwindcss/typography</code>는 현재 package 선언, lock, 설치에서 없습니다. <code>prose</code>를 클래스 하나만 추가한다고 typography 플러그인이 생기지 않습니다. 필요가 확인되기 전에는 설치하지 않습니다. IntelliSense는 에디터 편의이며 빌드 동작과 별개입니다. 일반 Vue class 인식을 위해 오래된 실험 <code>classRegex</code> 설정을 무조건 추가할 필요는 없습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>Tailwind는 간격과 배치 같은 반복 표현을 짧게 만들고 Nuxt UI와 잘 연결됩니다. 의미 있는 색과 글자 역할은 custom CSS 토큰과 역할 클래스로 유지합니다. 긴 class 목록을 줄이기 위해 모든 요소를 새 컴포넌트로 감쌀 필요는 없지만, 반복되는 역할이 이미 존재하면 재사용합니다.</p>
+<p>유틸리티를 알아도 화면이 좁아질 때 넘침, 표의 읽기 크기, contrast, focus, motion을 자동으로 검증하지는 않습니다. CSS 문법 검사와 실제 브라우저 결과를 구분합니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ol>
+<li>v3의 config/content/PostCSS 튜토리얼을 현재 구성에 추가합니다. 기존 모듈 통합을 먼저 봅니다.</li>
+<li>CSS 변수를 만들면 이름이 같은 utility도 생긴다고 생각합니다. <code>@theme</code>와 일반 변수의 차이를 확인합니다.</li>
+<li>런타임 문자열 조합이 CSS 생성기에 보인다고 기대합니다. 완전한 클래스 문자열을 사용합니다.</li>
+<li><code>sm:</code>를 좁은 화면 전용으로 읽습니다. 최소 너비 조건입니다.</li>
+<li>class 순서만 바꾸어 우선순위를 고치려 합니다. computed style과 CSS layer를 확인합니다.</li>
+<li>토큰 대신 새 hex와 작은 글자 크기를 추가합니다. DESIGN 기준을 유지합니다.</li>
+</ol>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>첫 단계는 저장소 루트에서 파일을 읽는 것입니다.</p>
+<pre tabindex="0"><code class="language-bash">rg -n '@import|@theme|--font-|dashboard-surface' frontend/app/assets/css/main.css
+rg -n 'flex|min-h-0|:class=' frontend/app/components/ebeam/ToolInventoryView.vue
+rg -n 'modelValue|text-\(|bg-\(' frontend/app/components/sk/SegmentedToggle.vue
+</code></pre>
+<p>두 번째 단계는 개인 학습 HTML이나 <a href="https://play.tailwindcss.com/" class="external">Tailwind Play</a>에서 <code>grid-cols-1 md:grid-cols-2</code>를 비교하는 것입니다. 온라인 도구는 사내 배포 경로가 아닙니다. 너비를 경계 전후로 바꾸고 열 개수가 바뀌는지 확인합니다. 프로젝트의 <code>--sk-*</code>는 일반 Playground에 없으므로 토큰 없는 화면에서 색이 보이지 않는 것을 Tailwind 버그로 오해하지 않습니다.</p>
+<p>완료 기준은 <code>p-4</code>를 rem으로 설명하고, utility와 역할 클래스의 책임을 구분하며, 현재 표면이 blur 카드가 아니라고 확인하는 것입니다. 운영 디자인이나 패키지 설정은 이 실습에서 바꾸지 않습니다.</p>
+<h2 id="7-공식-근거">7. 공식 근거</h2>
+<ul>
+<li><a href="https://tailwindcss.com/docs/theme" class="external">Tailwind theme variables</a></li>
+<li><a href="https://tailwindcss.com/docs/detecting-classes-in-source-files" class="external">Tailwind source detection</a></li>
+<li><a href="https://tailwindcss.com/docs/responsive-design" class="external">Tailwind responsive design</a></li>
+<li><a href="https://tailwindcss.com/docs/dark-mode" class="external">Tailwind dark mode</a></li>
+<li><a href="https://tailwindcss.com/docs/upgrade-guide" class="external">Tailwind v4 upgrade guide</a></li>
+<li><a href="../06-vite-config/README.html">다음: Vite 설정</a></li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../04-nuxt-ui/README.html">이전: 04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a><a href="../06-vite-config/README.html">다음: 06. Vite와 Nuxt 설정을 읽는 법</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

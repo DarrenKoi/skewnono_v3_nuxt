@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="5d9f69c931ffc6ddc7b6344b25133e1083df56890abd5c57318910461c023ccb"><meta name="body-sha256" content="bd322c10624d0546dc2c47c2fb4fa371908e119570f58adfa77783917061f28b"><title>08. ESLint 규칙과 코드 스타일 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="README.html" aria-current="page">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-각-검사에-다른-질문을-합니다">1. 기초: 각 검사에 다른 질문을 합니다</a></li><li><a href="#2-용어와-버전">2. 용어와 버전</a></li><li><a href="#3-실제-구성">3. 실제 구성</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li></ol></details></nav><article><h1 id="08-eslint-규칙과-코드-스타일">08. ESLint 규칙과 코드 스타일</h1>
+<p>2026-10-03 기준으로 ESLint 설정·타입 검사·테스트·CI를 구분합니다. ESLint는 코드를 실행하기 전에 잠재 오류와 정해진 스타일을 검사하는 도구입니다. 컴파일러나 브라우저 검증을 대체하지 않습니다.</p>
+<h2 id="1-기초-각-검사에-다른-질문을-합니다">1. 기초: 각 검사에 다른 질문을 합니다</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>검사</th>
+<th>질문</th>
+<th>명령 위치</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESLint</td>
+<td>정적 규칙과 스타일에 맞는가?</td>
+<td>frontend: <code>npm run lint</code></td>
+</tr>
+<tr>
+<td>TypeScript/vue-tsc</td>
+<td>값과 API 타입이 맞는가?</td>
+<td>frontend: <code>npm run typecheck</code></td>
+</tr>
+<tr>
+<td>node:test</td>
+<td>순수 함수의 기대 동작이 맞는가?</td>
+<td>frontend: <code>npm test</code></td>
+</tr>
+<tr>
+<td>Markdown lint</td>
+<td>문서 구조와 표 스타일이 맞는가?</td>
+<td>저장소 루트: <code>npm run lint:md</code></td>
+</tr>
+<tr>
+<td>브라우저 확인</td>
+<td>화면과 실제 상호작용이 맞는가?</td>
+<td>프로젝트 browser-verify 절차</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Type string is not assignable to ToolType</code> 같은 메시지는 보통 타입 검사입니다. 콤마 스타일 메시지와 같은 종류의 오류로 묶지 않습니다. <code>as ToolType</code>로 검사만 통과시키는 것보다 입력 guard로 실제 허용 값인지 확인합니다.</p>
+<h2 id="2-용어와-버전">2. 용어와 버전</h2>
+<p>flat config는 설정 객체 배열을 순서대로 적용하는 ESLint 구성 방식입니다. <code>.mjs</code>는 ESM JavaScript 파일입니다. rule은 검사 하나, severity는 off/warn/error, fix는 자동 수정 가능 여부입니다. warn도 <code>--max-warnings</code> 같은 실행 옵션에 따라 실패 조건이 될 수 있습니다.</p>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>직접 선언</th>
+<th>lock</th>
+<th>확인한 설치본</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESLint</td>
+<td><code>^9.39.2</code></td>
+<td>9.39.5</td>
+<td>9.39.5</td>
+</tr>
+<tr>
+<td><code>@nuxt/eslint</code></td>
+<td><code>^1.13.0</code></td>
+<td>1.16.0</td>
+<td>1.16.0</td>
+</tr>
+<tr>
+<td>TypeScript</td>
+<td><code>^5.9.3</code></td>
+<td>5.9.3</td>
+<td>5.9.3</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>@nuxt/eslint</code>의 버전이 9.39라는 옛 설명은 ESLint 본체와 모듈을 혼동한 것입니다. 근거는 <a href="../../../frontend/package.json" class="source-link">package.json</a>과 <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>입니다. <a href="https://eslint.org/docs/v9.x/use/configure/configuration-files" class="external">ESLint 9 flat config</a>를 기준으로 읽습니다.</p>
+<h2 id="3-실제-구성">3. 실제 구성</h2>
+<h3 id="31-생성-설정과-저장소-설정">3.1 생성 설정과 저장소 설정</h3>
+<p><a href="../../../frontend/eslint.config.mjs" class="source-link">eslint.config.mjs</a>는 생성된 <code>.nuxt/eslint.config.mjs</code>의 <code>withNuxt</code>를 불러옵니다. 저장소 자체 추가 설정은 ECharts의 vendor UMD 테마 파일 <code>app/assets/echarts-theme/**</code>를 ignore합니다. 그대로 보존하는 외부 파일을 프로젝트 스타일로 바꾸지 않기 위한 것입니다. <code>.nuxt</code> 설정은 직접 편집하지 않고 Nuxt 설정 또는 withNuxt 인자로 조정합니다.</p>
+<p><a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>는 다음을 명시합니다.</p>
+<pre tabindex="0"><code class="language-ts">eslint: {
+  config: {
+    stylistic: {
+      commaDangle: 'never',
+      braceStyle: '1tbs'
+    }
+  }
+}
+</code></pre>
+<p>객체·배열 마지막 항목 뒤 콤마를 금지하고 여는 중괄호를 같은 줄에 둡니다. 코드의 일반 관례는 2칸 들여쓰기·단일 따옴표·세미콜론 생략입니다. 다만 관찰한 관례와 활성 rule은 구분합니다. import 순서, 함수 선언 스타일, 속성 개수 제한 등을 이 저장소의 확인 없는 강제 규칙으로 선언하지 않습니다.</p>
+<h3 id="32-vue와-typescript를-읽는-예">3.2 Vue와 TypeScript를 읽는 예</h3>
+<pre tabindex="0"><code class="language-vue">&lt;button
+  type=&quot;button&quot;
+  :aria-expanded=&quot;!sidebarCollapsed&quot;
+  :aria-controls=&quot;sidebarNavId&quot;
+  @click=&quot;sidebarCollapsed = !sidebarCollapsed&quot;
+&gt;
+  팹 메뉴
+&lt;/button&gt;
+</code></pre>
+<p><code>type=&quot;button&quot;</code>은 form 안에서 의도하지 않은 submit을 막습니다. <code>aria-expanded</code>는 펼침 상태, <code>aria-controls</code>는 연결한 요소의 id를 전달합니다. <code>v-for</code>에는 안정적인 key가 필요합니다. 이런 작성 이유를 이해하되 <strong>현재 ESLint가 모든 접근성 누락을 잡는다고 보장하지 않습니다.</strong></p>
+<p>Vue 3는 template의 여러 root를 허용합니다. Vue 2의 <code>vue/no-multiple-template-root</code>를 복사해 현재 앱의 필수 규칙이라고 가르치지 않습니다. <code>any</code>나 미사용 변수 처리도 생성 설정을 확인합니다. underscore를 붙이면 어떤 rule에서도 면제된다는 일반 규칙은 없습니다.</p>
+<h3 id="33-현재-ci">3.3 현재 CI</h3>
+<p><a href="../../../.github/workflows/ci.yml" class="source-link">ci.yml</a>의 frontend job은 Node 24에서 <code>npm ci</code> → <code>npm run typecheck</code> → <code>npm test</code>입니다. <strong>frontend ESLint는 아직 CI gate가 아닙니다.</strong> 기존 untouched 파일의 오류 때문에 의도적으로 빠져 있다는 주석이 있습니다. backend job은 ruff를 먼저 실행한 뒤 pytest를 실행합니다. 문서 검사 명령과 backend lint를 frontend ESLint gate로 혼동하지 않습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>ESLint Stylistic과 Nuxt 생성 설정으로 현재 스타일을 처리합니다. 별도 Prettier가 반드시 필요하지는 않지만 이것은 프로젝트 선택이며 Nuxt 전체가 Prettier를 금지하는 관례가 아닙니다. <code>--fix</code>는 가능한 규칙만 고치므로 타입 오류·데이터 계약·UI 동작까지 수정하지 않습니다.</p>
+<p>에디터 설정은 개인 환경에 의존합니다. <code>.vscode/settings.json</code> 파일을 확인하지 않고 저장 시 fix가 구성되어 있다고 주장하지 않습니다. ESLint 9의 flat config는 기본 방식이므로 옛 실험용 <code>eslint.experimental.useFlatConfig</code> 설정을 필수로 추가하지 않습니다. 필요하면 <a href="https://github.com/microsoft/vscode-eslint" class="external">VS Code ESLint 공식 확장 설명</a>을 따릅니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ul>
+<li>frontend lint가 CI에 없으니 로컬 오류도 무시해도 된다고 생각합니다.</li>
+<li>경고를 없애려고 타입 assertion이나 rule disable을 먼저 추가합니다.</li>
+<li>루트에서 frontend 명령을 실행하거나 <code>.nuxt</code>를 직접 수정합니다.</li>
+<li><code>npm run lint -- --fix</code>를 읽기 전용 검사로 실행합니다. 이 명령은 파일을 바꿉니다.</li>
+<li>문서 작업 때문에 관련 없는 앱 파일 전체를 자동 수정합니다.</li>
+</ul>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>먼저 설정을 읽고, 생성 설정과 설치본이 있는 환경에서 읽기 전용 검사를 합니다.</p>
+<pre tabindex="0"><code class="language-bash"># 저장소 루트
+cat frontend/eslint.config.mjs
+rg -n 'stylistic|commaDangle|braceStyle' frontend/nuxt.config.ts
+rg -n 'Typecheck|Lint|npm run lint|npm test' .github/workflows/ci.yml
+
+# frontend에서: 파일 변경 없는 검사
+npx eslint app/composables/usePersistedState.ts
+</code></pre>
+<p>검사 결과의 파일·행·rule id를 읽어 어떤 규칙인지 확인하면 성공입니다. <code>.nuxt</code>가 없다면 설치/prepare가 필요한 환경이지 문법 오류라는 결론이 아닙니다. 자동 수정은 별도 작업 공간에서 diff를 검토하는 학습 단계로 남깁니다.</p>
+<p>공식 참고는 <a href="https://eslint.nuxt.com/packages/module" class="external">Nuxt ESLint 설정</a>, <a href="https://eslint.org/docs/v9.x/use/command-line-interface" class="external">ESLint 9 CLI</a>, <a href="https://eslint.style/rules/comma-dangle" class="external">Stylistic comma-dangle</a>, <a href="https://vuejs.org/guide/essentials/template-syntax.html" class="external">Vue 3 template 기초</a>입니다.</p>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../07-code-patterns/sem-list-caching.html">이전: sem-list 캐싱: 재요청과 결과 재사용을 구분합니다</a><a href="../09-ui-terminology/README.html">다음: 09. UI 용어 및 문구 가이드</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

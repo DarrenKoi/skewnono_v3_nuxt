@@ -1,306 +1,103 @@
 # 07. 프로젝트 고유 코드 패턴
 
-이 문서는 `frontend`에서 **실제 적용된 아키텍처 결정**과 그 배경을 정리합니다. Phase 1 → Phase 2 → Phase 3 이식을 쉽게 하기 위한 추상화가 핵심입니다.
+2026-10-03의 실제 코드 기준입니다. 컴포저블은 화면에서 함께 쓰는 동작을 함수로 묶은 것이고, store는 페이지를 넘어서 공유하는 상태의 진입점입니다. 이 저장소는 Pinia나 Vue Query를 사용하지 않고 Nuxt와 Vue 내장 기능으로 현재 요구를 처리합니다.
 
-## 1. 레이어 구조 한눈에
+## 1. 기초: 서버 데이터와 화면 상태를 구분합니다
 
-```text
-┌─────────────────────────────────────────┐
-│  pages/*.vue                            │ ← 라우트, data 요청
-│    ↓ uses                               │
-├─────────────────────────────────────────┤
-│  components/*.vue                       │ ← UI 렌더링
-│    ↓ uses                               │
-├─────────────────────────────────────────┤
-│  composables/useX.ts                    │ ← 비즈니스 로직, fetch 추상화
-│    ↓ uses                               │
-├─────────────────────────────────────────┤
-│  stores/*.ts                            │ ← 전역 상태 (useState 기반)
-│    ↓ reads                              │
-├─────────────────────────────────────────┤
-│  mock-data/*.ts  (Phase 1)              │ ← 데이터 소스
-│  Flask API     (Phase 2/3)              │
-└─────────────────────────────────────────┘
-```
-
-상위 레이어만 교체해도 하위는 영향이 없도록 설계되어 있습니다. 가장 중요한 경계선은 **composable 레이어**입니다.
-
-## 2. Store 패턴 (`stores/navigation.ts`)
-
-Pinia 대신 Nuxt의 `useState`를 활용한 경량 store.
-
-```ts
-import { useState } from 'nuxt/app'
-import { computed, readonly } from 'vue'
-
-export type Category = 'ebeam' | 'thickness'
-export type ToolType = 'cd-sem' | 'hv-sem' | 'veritysem' | 'provision'
-export type Fab = 'all' | 'R3' | 'M11' | 'M12' | 'M14' | 'M15' | 'M16'
-
-export interface NavigationState {
-  category: Category
-  toolType: ToolType
-  fab: Fab
-  favorites: string[]
-  recent: string[]
-}
-
-const defaultState: NavigationState = {
-  category: 'ebeam', toolType: 'cd-sem', fab: 'all', favorites: [], recent: []
-}
-
-export function useNavigationStore() {
-  const state = useState<NavigationState>('navigation', () => ({ ...defaultState }))
-
-  const setCategory = (category: Category) => { state.value.category = category }
-  // ... 나머지 setter들
-
-  return {
-    state: readonly(state),              // 읽기 전용으로 노출 (직접 수정 방지)
-    category: computed(() => state.value.category),
-    toolType: computed(() => state.value.toolType),
-    // ... computed getter들
-    setCategory, setToolType, setFab, addFavorite, removeFavorite, toggleFavorite, addRecent
-  }
-}
-```
-
-### 왜 이 패턴?
-
-1. **`useState<T>('key', factory)`** — SSR 안전. 서버/클라이언트가 같은 state를 공유하며 hydration 문제가 없음.
-2. **`readonly(state)`** — 외부에 전체 state를 노출하되 수정은 막음 (action 함수로만 수정).
-3. **`computed()`** — 개별 필드를 selector로 노출. 컴포넌트가 필요한 필드만 구독.
-4. **Pinia는 아직 도입 안 함** — 현재 규모에선 오버엔지니어링. 스토어가 여러 개 생기고 서로 의존하면 Pinia로 마이그레이션 고려.
-
-### 사용 패턴
-
-```ts
-// composables/useNavigation.ts
-const store = useNavigationStore()
-const router = useRouter()
-
-const navigateToCategory = (category: Category) => {
-  store.setCategory(category)           // action 호출
-  if (category === 'thickness') {
-    router.push('/thickness')
-  } else {
-    router.push(`/ebeam/${store.toolType.value}`)  // .value로 computed 언랩
-  }
-}
-
-return { ...store, navigateToCategory }
-```
-
-`useNavigation`은 store + router를 묶은 얇은 파사드입니다. 컴포넌트는 이것만 쓰면 됩니다.
-
-## 3. API 추상화 패턴 (`composables/useEbeamToolApi.ts`)
-
-Phase 1 ↔ Phase 2/3 이식성을 위한 핵심 추상화.
-
-```ts
-import type { Fab, ToolType } from '~/stores/navigation'
-import type { EbeamToolInventoryResponse, EbeamToolRow } from '~/mock-data/...'
-
-const joinApiPath = (base: string, path: string) => {
-  const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  return `${normalizedBase}${normalizedPath}`
-}
-
-export const summarizeRowsByFab = (rows: EbeamToolRow[]): FabToolSummary[] => {
-  // 순수 함수 — 서버/클라이언트 어디서 호출해도 동일
-  const summaryMap = new Map<Exclude<Fab, 'all'>, FabToolSummary>()
-  for (const row of rows) { ... }
-  return Array.from(summaryMap.values())
-}
-
-export const useEbeamToolApi = () => {
-  const config = useRuntimeConfig()
-  const inventoryUrl = joinApiPath(config.public.apiBase, '/ebeam/tools')
-
-  const fetchToolInventory = async (): Promise<EbeamToolInventoryResponse> => {
-    return await $fetch<EbeamToolInventoryResponse>(inventoryUrl)
-  }
-
-  const filterRows = (inventory, toolType, fab='all'): EbeamToolRow[] => { ... }
-  const fetchToolRows = async (toolType, fab='all'): Promise<EbeamToolRow[]> => {
-    const inventory = await fetchToolInventory()
-    return filterRows(inventory, toolType, fab)
-  }
-  const fetchFabSummaries = async (toolType): Promise<FabToolSummary[]> => { ... }
-
-  return { fetchToolInventory, fetchToolRows, fetchFabSummaries, filterRows }
-}
-```
-
-### 설계 포인트
-
-1. **URL 계산은 `useRuntimeConfig().public.apiBase`에서** — Phase 마다 다르지만 코드는 하나.
-2. **`$fetch<T>` 제네릭 사용** — 응답 타입을 명시하면 호출 측에서 자동완성 가능.
-3. **순수 함수와 fetch 함수 분리** — `summarizeRowsByFab`, `filterRows`는 데이터만 받으면 되므로 단위 테스트가 쉬움.
-4. **Composable은 함수 모음을 반환하는 팩토리**. Python에서 module-level 함수를 노출하는 것과 비슷하지만, `useRuntimeConfig()` 같은 Nuxt 컨텍스트를 포착할 수 있어야 하므로 꼭 함수 안에 둡니다.
-
-### Phase 전환 시 바뀌는 부분
-
-- **Phase 1**: `/mock-api/ebeam/tools`로 가는데, 현재 코드에서는 실제로 `$fetch`가 `mockEbeamToolInventoryResponse`를 직접 내려주는 mock middleware 또는 경로 없음 처리가 필요. (⚠ 추후 확장 필요 — 아래 섹션 참고)
-- **Phase 2**: `/api/ebeam/tools` → Nitro devProxy → Flask
-- **Phase 3**: 동일 경로, 프로덕션 Flask가 처리
-
-### Phase 1에서 mock을 실제로 연결하는 방법 (현재 미구현)
-
-지금 `useEbeamToolApi`는 `$fetch`를 호출하지만, Phase 1에선 `/mock-api/ebeam/tools` 엔드포인트가 없어서 실제로는 요청이 실패할 수 있습니다. 세 가지 해결책:
-
-1. **Nuxt server 라우트를 만들기**
-
-   ```ts
-   // server/api/ebeam/tools.ts
-   import { mockEbeamToolInventoryResponse } from '~/mock-data/...'
-   export default defineEventHandler(() => mockEbeamToolInventoryResponse)
-   ```
-
-   `apiBase='/api'`로 맞추면 `/api/ebeam/tools`가 자동으로 mock을 리턴.
-
-2. **Composable 내부에서 분기**
-
-   ```ts
-   const USE_MOCK = config.public.apiBase === '/mock-api'
-   const fetchToolInventory = async () => {
-     if (USE_MOCK) return mockEbeamToolInventoryResponse
-     return await $fetch<...>(inventoryUrl)
-   }
-   ```
-
-3. **`$fetch` 인터셉터 사용** — 전역 플러그인에서 `/mock-api/*` 요청을 가로채 mock 반환.
-
-현재 코드를 보면 1번 또는 2번을 곧 도입해야 하는 상태로 보입니다. 다음 스터디 세션에서 이 부분을 직접 구현해보는 것을 추천합니다.
-
-## 4. Page ↔ Component 역할 분리
-
-### 4.1 Page는 얇게
-
-```vue
-<!-- pages/ebeam/cd-sem/index.vue -->
-<script setup lang="ts">
-const { setToolType, setFab } = useNavigation()
-
-onMounted(() => {
-  setToolType('cd-sem')
-  setFab('all')
-})
-</script>
-
-<template>
-  <EbeamToolInventoryView
-    tool-type="cd-sem"
-    title="CD-SEM Overview"
-    subtitle="Mocked backend inventory loaded from ..."
-  />
-</template>
-```
-
-- navigation store 동기화 + 재사용 가능한 View 컴포넌트에 props 전달
-- 실제 데이터 fetch, 테이블 렌더링은 View 컴포넌트가 담당
-- 같은 View를 `hv-sem`, `veritysem`, `provision` 페이지에서 props만 바꿔 재사용
-
-### 4.2 View Component가 fetch를 수행
-
-```vue
-<!-- components/ebeam/ToolInventoryView.vue -->
-<script setup lang="ts">
-const props = withDefaults(defineProps<{
-  fab?: Fab; subtitle: string; title: string; toolType: ToolType
-}>(), { fab: 'all' })
-
-const { fetchToolInventory, filterRows } = useEbeamToolApi()
-
-const asyncKey = `ebeam-tool-inventory:${props.toolType}:${props.fab}`
-const { data } = await useAsyncData(asyncKey, async () => {
-  const inventory = await fetchToolInventory()
-  const rows = filterRows(inventory, props.toolType, props.fab)
-  const fabSummaries = props.fab === 'all' ? summarizeRowsByFab(rows) : []
-  return { rows, fabSummaries }
-})
-
-const rows = computed(() => data.value?.rows ?? [])
-const fabSummaries = computed(() => data.value?.fabSummaries ?? [])
-const onlineCount = computed(() => rows.value.filter(row => row.available === 'On').length)
-const offlineCount = computed(() => rows.value.filter(row => row.available === 'Off').length)
-const fabCount = computed(() => new Set(rows.value.map(row => row.fab_name)).size)
-</script>
-```
-
-### 포인트
-
-- **`asyncKey`를 props로부터 생성** — props 조합마다 다른 캐시 키. 다른 `toolType`/`fab` 조합으로 전환하면 새 fetch.
-- **하나의 `useAsyncData`로 결과를 묶고, 개별 값은 `computed`로 파생** — 필요한 필드마다 따로 fetch하지 않음. 네트워크 효율.
-- **`data.value?.rows ?? []`** — 로딩 중 null 안전 처리 + 기본값.
-
-## 5. 레이아웃 선택 패턴
-
-두 개의 layout이 있습니다.
-
-- `layouts/hub.vue` — 헤더 + footer만. 홈(`pages/index.vue`)이 사용.
-- `layouts/default.vue` — 헤더 + 사이드바 + feature tabs. 나머지 모든 페이지 기본.
-
-홈만 다른 layout을 쓰려면 `definePageMeta({ layout: 'hub' })`를 명시.
-
-**확장 아이디어**: 인증이 필요한 페이지에는 `layout: 'authenticated'`, 에러 페이지에는 `layout: 'error'` 같은 식으로 layout을 늘려갈 수 있습니다.
-
-## 6. 네비게이션 일관성 패턴
-
-여러 컴포넌트가 `useNavigation`을 통해 같은 상태를 공유합니다.
+장비 목록은 서버가 관리하는 데이터입니다. 선택한 팹과 비교할 장비는 사용자가 만든 화면 상태입니다. 둘을 같은 보관소에 넣어야 하는 것은 아닙니다.
 
 ```text
-AppHeader.vue     → navigateToCategory
-FabSidebar.vue    → navigateToFab
-ToolTypeTabs.vue  → navigateToToolType
-FeatureTabs.vue   → useRoute()로 현재 경로 파악
+페이지 / 컴포넌트
+  ├─ API composable → $fetch('/api/...') → Flask → data.py → provider
+  ├─ useAsyncData → 요청 결과와 상태 공유
+  ├─ useState store → 현재 SPA의 화면 상태 공유
+  └─ usePersistedState → useState + localStorage 복원/저장
 ```
 
-각 컴포넌트가 독립적으로 `useRouter`를 부르지 않고, store를 거쳐서 라우팅 + 상태 업데이트가 한 번에 일어나도록 했습니다. Page `onMounted`에서 store를 동기화하는 것도 이 방향성과 일치.
+모든 단계에서 Flask를 호출합니다. 프론트의 `mock-data`로 집 데이터를 읽는 옛 구조와 `useEbeamToolApi` 예제는 현재 구조가 아닙니다. provider만 바꾸는 백엔드 경계는 [10장](../10-backend-providers/README.md)에 있습니다.
 
-## 7. 아이콘 / 색상 / 스페이싱의 톤 통일
+## 2. 용어
 
-- 팔레트는 `zinc` 계열만 (중성 무채색)
-- accent color는 거의 없음 (모노톤 대시보드 감성)
-- icon collection은 `lucide`로 통일 (`i-lucide-*`)
-- 카드는 전부 `rounded-2xl` + `.dashboard-surface`
-
-디자인 시스템이 소규모일수록 일관성 유지가 중요합니다. 새 컴포넌트를 만들 때도 이 토큰들을 지키세요.
-
-## 8. 개선 아이디어 (다음 학습 주제)
-
-> **갱신 메모(2026-07):** 아래 목록은 이 노트를 처음 쓸 때의 것이며, 상당수가 이후 **구현되었습니다.** 각 항목에 현재 상태를 병기합니다.
-
-1. **Mock API endpoint 구현** — ✅ **해결됨.** Phase 1도 Flask mock 서버(`backend/`)가 `/api/*`를 서빙합니다. Nitro mock 라우트로 분기하던 옛 설계는 폐기됐습니다(`06-vite-config/` 참고).
-2. **`useNavigation` 타입 좁히기** — `useRoute().params.fab`의 타입이 `string | string[]`이라서 `as Fab` 없이 쓰려면 runtime guard 함수가 필요. (`Fab`는 이제 `string` 별칭이 되어 상황이 조금 달라짐.)
-3. **Favorites 영속화** — ⚠️ **부분 완료.** localStorage 영속 인프라(`usePersistedState`)가 생겨 8개 컴포저블이 씁니다(`persisted-state.md`). 다만 `stores/navigation.ts`의 `favorites`는 **아직 그 팩토리에 연결되지 않아** 인메모리 전용입니다. (`recent` 필드는 제거됨 — 최근 본 항목은 전용 컴포저블로 이동.)
-4. **Error boundary** — `useAsyncData`의 `error`를 받아 UI로 표시.
-5. **Loading skeleton** — `pending` 값을 써서 스켈레톤 UI 표시.
-6. **Pinia 도입 검토** — ❌ **명시적으로 거부됨.** CLAUDE.md가 "no Pinia"를 확정했고 설치돼 있지도 않습니다. `useState` + `usePersistedState`로 충분(`persisted-state.md` 7절).
-7. **단위 테스트 기반 마련** — ✅ **대규모로 구현됨.** 다만 Vitest가 아니라 **`node --test`(Node 내장 러너)**로, 순수 함수 옆에 57개의 `*.test.ts`가 있습니다(`13-testing/`).
-
-## 9. 요약
-
-| 패턴 | 어디서 | 핵심 |
+| 용어 | 쉬운 뜻 | 수명/주의점 |
 | --- | --- | --- |
-| `useState` 기반 store | `stores/navigation.ts` | SSR-safe 전역 상태 + readonly 노출 |
-| URL 계산 추상화 | `useSemListApi.ts`, `useStorageApi.ts`, `useDeviceStatisticsApi.ts` | `apiBase + path` 조합 |
-| 순수 헬퍼 함수 | `extractFabNames`, `filterRows`, `classifyToolType` | 테스트 쉬움, 재사용 |
-| View 컴포넌트 + Page 분리 | `ToolInventoryView.vue` + `pages/ebeam/*` | Page는 얇게, View는 재사용 |
-| Layout 선택 | `definePageMeta({layout})` | 페이지 단위 shell 전환 |
-| 단일 키 `useAsyncData` 통합 | `useSemList()` 컴포저블 | 모든 소비자가 같은 키를 공유해 SPA 세션 내내 캐시 |
-| 모듈 스코프 in-flight promise | `useSemListApi.ts`의 `inFlightSemList` | Suspense 경계를 가로지르는 동시 요청 dedupe 보강 |
-| `computed`로 파생 값 | 어디서나 | 반응형 + 캐시 |
+| `ref` | 바뀌면 화면도 반응하는 값 | script에서는 `.value` |
+| `computed` | 다른 값에서 계산한 결과 | 원본을 다시 보관하는 저장소가 아님 |
+| composable | Vue/Nuxt 상태와 동작을 묶는 함수 | `useXxx` 이름을 사용 |
+| store | 공유 상태와 변경 함수 묶음 | 이 앱에서는 `useState` 기반 |
+| 캐시 | 이미 얻은 결과 재사용 | 최신값이라는 보장은 별도 |
+| dedupe | 겹친 요청 처리 방식 | 캐시·영속화와 다름 |
+| normalize | 외부 값 구조를 검증/정리 | 서버에 아직 존재하는지까지 보장하지 않음 |
 
-## 10. 심화 주제 — 별도 문서
+lock과 확인한 설치본은 Nuxt 4.5.0, Vue 3.5.40입니다. Nuxt 직접 선언은 `^4.4.2`, Vue는 간접 의존성입니다. 선언·lock·설치의 구분은 [06장](../06-vite-config/README.md)에 있습니다.
 
-이 챕터에서 다 담기 어려운 주제는 별도 파일로 분리되어 있습니다.
+## 3. 실제 구현
 
-- [`sem-list-caching.md`](./sem-list-caching.md) — `useSemList()` 통합, Nuxt `useAsyncData` 중복 제거의 함정, TanStack Query 미도입 결정, 페이지 간 캐시 유지와 Pinia 도입 시점 (2026-04-26 세션 요약).
-- [`persisted-state.md`](./persisted-state.md) — `usePersistedState` localStorage 영속 팩토리(detached scope + `flush:'sync'`), 클라이언트 다중 선택 "카트" 관용구, Pinia 미도입 확정. **아래 8절의 옛 "개선 아이디어" 중 영속화·단위 테스트 항목은 이미 구현되었습니다.**
+### 3.1 navigation store
 
-관련 신규 챕터도 참고하세요.
+[stores/navigation.ts](../../../frontend/app/stores/navigation.ts)의 현재 필드는 `toolType`, `fabs`, `favorites`, `selectedToolId`입니다. 예전 `category`, `recent` 필드는 없습니다. `Fab`은 서버의 `fab_name`을 담는 `string`이며 고정된 팹 문자열 union이 아닙니다.
 
-- `10-backend-providers/` — 백엔드 mock↔office Ports & Adapters (이 폴더가 말하는 "Phase 전환"의 백엔드 구현).
-- `11-echarts-dataviz/` · `12-statistics-wafer/` · `13-testing/` — 차트·통계·순수함수 테스트로 성장한 실제 코드베이스.
+`useState('navigation', factory)`가 상태를 공유하고 `readonly(state)`가 직접 수정을 제한합니다. 필드별 `computed`와 `setToolType`, `setFabs`, `setSelectedTool` 등의 액션을 반환합니다. `setFabs`는 `canonicalFabList`를 이용해 대문자 정규화·중복 제거·순서 유지·sentinel 제거를 한 곳에서 처리합니다. `fab` 접근자는 `fabs[0]` 또는 선택 없음 값 `all`을 반환하는 단일 선택 호환 경로입니다.
+
+[useNavigation.ts](../../../frontend/app/composables/useNavigation.ts)는 store와 router를 묶습니다. 지원하는 기능을 유지하며 장비군을 전환하고, 같은 기능이면 query를 유지하며, fabless 기능과 단일 팹 기능을 별도로 처리합니다. 화면이 URL 조립 규칙을 복제하지 않도록 이 진입점을 사용합니다.
+
+### 3.2 API와 순수 함수
+
+[useSemListApi.ts](../../../frontend/app/composables/useSemListApi.ts)는 `useRuntimeConfig().public.apiBase`와 기존 [joinApiPath](../../../frontend/app/utils/apiPath.ts)를 이용해 URL을 만듭니다. `fetchSemList()`는 `$fetch`이고 `filterRows()`는 장비 모델 분류와 팹 필터입니다. 필터의 서버 팹 값과 선택 팹 값은 대소문자를 정규화해서 비교합니다.
+
+타입 `SemListRow`는 응답을 읽는 개발 계약입니다. `$fetch<SemListResponse>`라는 타입 표기만으로 잘못된 서버 JSON이 런타임에 검증되는 것은 아닙니다. 응답 계약을 바꾸면 백엔드·fixture·사용 화면을 함께 확인해야 합니다.
+
+### 3.3 데이터 요청과 영속 상태
+
+[sem-list 캐싱](sem-list-caching.md)은 `useAsyncData('sem-list')`, `payloadCache`, Promise slot을 함께 설명합니다. `refresh()`를 호출했다고 항상 새 HTTP 요청이 생기지 않는 것이 핵심입니다.
+
+[영속 상태](persisted-state.md)는 `usePersistedState`의 복원, detached scope, 동기 watcher, 배열 교체 규칙을 설명합니다. `navigation.favorites` 자체는 현재 인메모리이며 영속 팩토리가 있다는 사실과 별개입니다. 반면 device cart와 레시피 선택 등은 실제로 영속 팩토리를 사용합니다.
+
+### 3.4 Page, View, Layout의 역할 분리
+
+[CD-SEM 팹 페이지](../../../frontend/app/pages/ebeam/cd-sem/[fab]/index.vue)는 `useFabRoute('cd-sem')`로 선택 팹을 얻고 재사용 View에 `tool-type`, `fabs`, 제목 등을 넘깁니다. `AppAsyncBoundary`는 로딩 경계를 감쌉니다. 페이지가 모든 표 로직을 복사할 필요가 없는 구조입니다.
+
+[ToolInventoryView.vue](../../../frontend/app/components/ebeam/ToolInventoryView.vue)는 `useSemList()`의 전체 목록에서 `computed(() => filterRows(...))`로 장비군과 팹에 해당하는 행을 계산합니다. 검색·모델·상태 조건과 정렬도 파생 결과로 만듭니다. 예전 팹별 API key로 원본 목록을 중복 fetch하는 예제와 다릅니다.
+
+```text
+공유 sem-list 응답
+ → 장비군 / 선택 팹 filterRows
+ → 검색 / 모델 / 상태 조건
+ → 정렬 결과
+ → 화면 표 / 카운터 / 내보내기에 필요한 파생 결과
+```
+
+null 또는 undefined일 때 `?? []`를 쓰는 것은 로딩 중 계산 오류를 막기 위한 것입니다. 오류가 발생했을 때도 항상 빈 배열만 보여 주면 사용자가 0건과 실패를 구분하지 못하므로 오류·로딩 상태 표시는 별도 필요합니다.
+
+[홈 페이지](../../../frontend/app/pages/index.vue)는 `definePageMeta({ layout: 'hub' })`를 지정합니다. [default layout](../../../frontend/app/layouts/default.vue)은 현재 route가 e-beam인지와 `hideFabSidebar` 메타를 함께 보고 팹 사이드바 표시를 결정합니다. '기본 레이아웃이면 항상 사이드바가 있다'고 단정하지 않습니다.
+
+### 3.5 시각 규칙도 공유 계약입니다
+
+[DESIGN.md](../../../DESIGN.md)가 시각 언어의 기준입니다. 현재 규칙은 종이색 표면·따뜻한 잉크·terracotta 필터 강조이며 'zinc만 쓰는 모노톤'이라는 옛 설명은 유효하지 않습니다. 색은 `--sk-*` 토큰을 사용하고 navigation과 filter의 강조 의미를 구분합니다. 컴포넌트에 보이는 옛 클래스가 새 화면의 기준을 자동으로 결정하지는 않습니다.
+
+## 4. 선택 이유와 한계
+
+내장 `useState`로 공유 상태를 만들 수 있고 `useAsyncData`로 서버 응답을 공유할 수 있으므로 같은 기능을 위한 라이브러리를 추가하지 않습니다. Pinia 재검토 사유는 store 개수 자체가 아니라 시간 여행 디버깅이나 기존 컴포저블로 표현하기 어려운 상태 조정 같은 실제 요구입니다. TTL·focus refetch 같은 서버 캐시 요구가 생기면 별도로 평가합니다.
+
+한계도 있습니다. localStorage에는 서버 존재 여부를 판단하는 정보가 없고, 데이터 캐시는 시간만 지나도 자동 최신화되지 않습니다. 모듈 scope 변수와 detached watcher를 가진 이 구현은 현재의 client SPA 전제를 이해하고 써야 합니다. SSR을 켜는 작업에서 그대로 재사용한다고 가정하지 않습니다.
+
+## 5. 흔한 실수
+
+- `useState`를 localStorage라고 생각해서 F5 뒤에도 유지된다고 기대합니다.
+- 새 배열이 필요한 영속 ref를 `.push()`로 바꿔 저장 watcher를 건너뜁니다.
+- 정규화된 팹을 다시 raw 문자열과 비교합니다.
+- 같은 API를 여러 컴포넌트에서 직접 `$fetch`하여 공유 진입점을 우회합니다.
+- 타입 검사 성공을 실제 데이터 소비 또는 회사 응답 검증의 증거로 봅니다.
+
+## 6. 안전 실습
+
+저장소 루트에서 호출자와 변경 지점을 읽습니다.
+
+```bash
+rg -n 'useSemList\(' frontend/app
+rg -n 'usePersistedState|entries.value =' frontend/app/composables/useRecipeSelectionSet.ts
+rg -n 'setFabs|canonicalFabList|readonly' frontend/app/stores/navigation.ts
+```
+
+홈과 사이드바가 같은 서버 데이터 진입점을 쓰는지, 레시피 변경이 배열을 교체하는지, 팹 정규화가 store 쓰기 경계에 있는지 설명하면 성공입니다. 다음 단계는 두 상세 문서의 무해한 실습입니다.
+
+공식 기초는 [Nuxt 4 useState](https://nuxt.com/docs/4.x/api/composables/use-state), [Vue 3 computed](https://vuejs.org/guide/essentials/computed.html), [Nuxt 4.5.0 asyncData 소스](https://github.com/nuxt/nuxt/blob/v4.5.0/packages/nuxt/src/app/composables/asyncData.ts)입니다.

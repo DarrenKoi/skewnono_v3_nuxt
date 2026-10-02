@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="b0ac93618a128211fb7a99b5317f764537b565d4cf38b71e297992ec6c315a1d"><meta name="body-sha256" content="c559357bcc1fdb433b137c3c6c75598efb43ed5ebe40324a5c3061108602ef01"><title>01. TypeScript 문법 (백엔드 개발자용) · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="README.html" aria-current="page">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-타입은-실행-전에-검사합니다">1. 기초: 타입은 실행 전에 검사합니다</a></li><li><a href="#2-용어">2. 용어</a></li><li><a href="#3-문법에서-실제-코드로">3. 문법에서 실제 코드로</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li><li><a href="#7-더-읽을-거리">7. 더 읽을 거리</a></li></ol></details></nav><article><h1 id="01-typescript-문법-백엔드-개발자용">01. TypeScript 문법 (백엔드 개발자용)</h1>
+<p>TypeScript는 JavaScript에 <strong>정적 타입 시스템</strong>을 얹은 언어입니다. Python의 <code>typing</code> 모듈이나 <code>mypy</code>와 비슷한 역할이지만, TS는 컴파일 타임에 타입 검사를 하고 최종적으로 JS로 변환됩니다.</p>
+<p><strong>2026-10-03 확인:</strong> <a href="../../../frontend/package.json" class="source-link">package.json</a>의 <code>typescript: ^5.9.3</code>은 허용 범위입니다. <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>과 원본 작업 공간의 설치 버전은 <strong>5.9.3</strong>입니다. <code>vue-tsc</code>는 선언 <code>^3.2.4</code>, lock/설치 <strong>3.3.8</strong>입니다. 이 문서의 문법 예시는 학습용이며 아래에서 현재 소스와 별도로 연결합니다.</p>
+<p>이 장에서 API는 Application Programming Interface(프로그램 간 입출력 약속), JSON은 JavaScript Object Notation(텍스트 데이터 교환 형식), TS는 TypeScript의 줄임말입니다. 네트워크 응답을 타입으로 표현하는 일과 실제 값을 검증하는 일은 다릅니다.</p>
+<h2 id="1-기초-타입은-실행-전에-검사합니다">1. 기초: 타입은 실행 전에 검사합니다</h2>
+<p>TypeScript 타입은 보통 JavaScript로 변환할 때 제거됩니다. 브라우저는 타입이 아니라 JavaScript를 실행합니다. 따라서 타입 검사 통과와 서버 JSON 검증은 다른 일입니다. <code>npm run typecheck</code>는 Nuxt/Vue 타입 검사이며, Vite 개발 변환이나 <code>npm run build</code>만으로 동일한 검사를 했다고 가정하지 않습니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">TypeScript / Vue 소스
+  → vue-tsc와 Nuxt typecheck: 정적 계약 검사
+  → Vite 변환 / 번들링: 브라우저 JavaScript 생성
+  → 실행 중 API JSON 수신: 실제 값 확인은 별도 책임
+</code></pre>
+<h2 id="2-용어">2. 용어</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>inference / 추론</td>
+<td>타입을 적지 않아도 값과 문맥으로 타입을 계산합니다.</td>
+</tr>
+<tr>
+<td>annotation / 주석</td>
+<td><code>: string</code>처럼 기대 타입을 명시합니다.</td>
+</tr>
+<tr>
+<td>union / 유니온</td>
+<td>여러 타입 중 하나입니다.</td>
+</tr>
+<tr>
+<td>generic / 제네릭</td>
+<td>타입을 인자로 받는 계약입니다.</td>
+</tr>
+<tr>
+<td>narrowing / 좁히기</td>
+<td>조건 확인으로 가능한 타입의 범위를 줄입니다.</td>
+</tr>
+<tr>
+<td>assertion / 단언</td>
+<td>값 검증 없이 컴파일러에게 타입 가정을 전달합니다.</td>
+</tr>
+<tr>
+<td>structural typing</td>
+<td>이름보다 필요한 필드 모양을 기준으로 호환성을 판단합니다.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3-문법에서-실제-코드로">3. 문법에서 실제 코드로</h2>
+<p>아래 조각은 각 문법의 형태를 보여 줍니다. 모든 코드 블록을 한 파일에 합쳐 실행하는 예제가 아니며, 생략된 문맥의 이름은 설명용입니다. 실행 가능한 작은 예제는 6절에 별도로 제공합니다.</p>
+<h3 id="31-기본-타입">3.1 기본 타입</h3>
+<pre tabindex="0"><code class="language-ts">let count: number = 10          // 숫자
+let userName: string = 'Claude'     // 문자열
+let active: boolean = true      // 불리언
+let ids: number[] = [1, 2, 3]   // 배열
+let pair: [string, number] = ['a', 1]  // 튜플 (고정 길이)
+let anything: any = 'whatever'  // any — 타입 검사 우회, 경계 입력에는 unknown 우선
+let nothing: null = null
+let notYet: undefined = undefined
+</code></pre>
+<p>Python 비교:</p>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>Python</th>
+<th>TypeScript</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>int</code>, <code>float</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td><code>str</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td><code>bool</code></td>
+<td><code>boolean</code></td>
+</tr>
+<tr>
+<td><code>list[int]</code></td>
+<td><code>number[]</code> 또는 <code>Array&lt;number&gt;</code></td>
+</tr>
+<tr>
+<td><code>tuple[str, int]</code></td>
+<td><code>[string, number]</code></td>
+</tr>
+<tr>
+<td><code>None</code></td>
+<td><code>null</code> / <code>undefined</code></td>
+</tr>
+<tr>
+<td><code>Optional[int]</code></td>
+<td><code>number | undefined</code> 또는 <code>number | null</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="32-타입-별칭type-alias과-인터페이스interface">3.2. 타입 별칭(type alias)과 인터페이스(interface)</h3>
+<pre tabindex="0"><code class="language-ts">// type alias — 어떤 타입이든 가능
+// 학습용 유니온입니다. 현재 navigation store에 Category는 없습니다.
+type Category = 'ebeam' | 'thickness'
+type ExampleFab = 'all' | 'R3' | 'M11'
+
+// interface — 객체 모양 전용 (extends 가능)
+interface EbeamToolRow {
+  fab_name: Exclude&lt;ExampleFab, 'all'&gt;     // 유틸리티 타입: 'all' 제외
+  eqp_id: string
+  eqp_model_cd: string
+  eqp_ip: string
+  version: string
+  available: 'On' | 'Off'           // 리터럴 유니온
+}
+</code></pre>
+<p><strong>실무 팁</strong>: 객체 모양에는 <code>interface</code>, 유니온/교차/기본 타입에는 <code>type</code>을 쓰는 것이 Nuxt 커뮤니티 관례입니다. 프로젝트가 주로 사용하는 스타일이며 Nuxt가 강제하는 규칙은 아닙니다. 현재 <code>ToolType</code> 원본은 <a href="../../../frontend/app/utils/toolType.ts" class="source-link">utils/toolType.ts</a>, <code>Fab</code>는 <a href="../../../frontend/app/stores/navigation.ts" class="source-link">stores/navigation.ts</a>의 <code>string</code> 별칭입니다. 위 <code>ExampleFab</code>처럼 고정 유니온으로 현재 FAB 전체를 제한하지 않습니다.</p>
+<h3 id="33-유니온-타입과-리터럴-타입">3.3. 유니온 타입과 리터럴 타입</h3>
+<p>프로젝트에서 가장 많이 쓰이는 패턴입니다.</p>
+<pre tabindex="0"><code class="language-ts">// 리터럴 유니온 — 허용되는 값을 미리 제한
+export type ToolType = 'cd-sem' | 'hv-sem' | 'veritysem' | 'provision'
+
+// 함수 인자에서 실수로 오타가 나면 컴파일러가 잡아줌
+function setToolType(t: ToolType) { /* ... */ }
+setToolType('cd-sm')  // ❌ 컴파일 에러
+setToolType('cd-sem') // ✅
+</code></pre>
+<p>이는 Python의 <code>Literal['cd-sem', 'hv-sem']</code> (typing.Literal)과 같은 역할입니다.</p>
+<h3 id="34-제네릭generics">3.4. 제네릭(Generics)</h3>
+<p>Python의 <code>TypeVar</code>처럼 여러 타입에 대해 관계를 유지하는 표현입니다. 아래 InventoryResponse는 제네릭 학습용 모델이며 현재 SEM API의 응답은 <code>SemListRow[]</code>입니다.</p>
+<pre tabindex="0"><code class="language-ts">// Record&lt;K, V&gt;: 키가 K이고 값이 V인 객체 타입
+export type EbeamToolInventoryResponse = Record&lt;ToolType, EbeamToolRow[]&gt;
+// 내부적으로는 {
+//   'cd-sem': EbeamToolRow[],
+//   'hv-sem': EbeamToolRow[],
+//   'veritysem': EbeamToolRow[],
+//   'provision': EbeamToolRow[]
+// } 와 같음
+
+// Map&lt;K, V&gt;: 자바스크립트의 Map 객체
+const summaryMap = new Map&lt;Exclude&lt;ExampleFab, 'all'&gt;, FabToolSummary&gt;()
+
+// Promise&lt;T&gt;: T를 resolve하는 Promise
+const fetchToolInventory = async (): Promise&lt;EbeamToolInventoryResponse&gt; =&gt; { /* 구현 생략 */ }
+
+// 사용자 정의 제네릭 함수
+function identity&lt;T&gt;(value: T): T { return value }
+</code></pre>
+<h3 id="35-유틸리티-타입">3.5. 유틸리티 타입</h3>
+<p>TS가 내장한 제네릭 타입들. 자주 쓰는 것만 기록합니다.</p>
+<pre tabindex="0"><code class="language-ts">type A = { a: number; b: string; c: boolean }
+
+Partial&lt;A&gt;   // { a?: number; b?: string; c?: boolean } — 모든 속성 선택적
+Required&lt;A&gt;  // 모든 속성 필수 (반대)
+Readonly&lt;A&gt;  // 모든 속성 readonly
+Pick&lt;A, 'a' | 'b'&gt;  // { a: number; b: string } — 고르기
+Omit&lt;A, 'c'&gt;        // { a: number; b: string } — 제외
+Record&lt;'x' | 'y', number&gt;  // { x: number; y: number }
+
+type U = 'all' | 'R3' | 'M11'
+Exclude&lt;U, 'all'&gt;   // 'R3' | 'M11'  ← 이 프로젝트에서 사용됨
+Extract&lt;U, 'all'&gt;   // 'all'
+
+type F = (a: number) =&gt; string
+ReturnType&lt;F&gt;       // string
+Parameters&lt;F&gt;       // [number]
+
+type P = Promise&lt;number&gt;
+Awaited&lt;P&gt;          // number
+</code></pre>
+<h3 id="36-함수-타입">3.6. 함수 타입</h3>
+<pre tabindex="0"><code class="language-ts">// 화살표 함수
+const add = (a: number, b: number): number =&gt; a + b
+
+// 함수 타입 정의
+type BinaryOp = (a: number, b: number) =&gt; number
+const sub: BinaryOp = (a, b) =&gt; a - b
+
+// 기본값 + 옵션 인자 (?)
+function greet(name: string, msg: string = 'Hello', title?: string) {
+  return `${msg}, ${title ?? ''} ${name}`
+}
+
+// 함수 계약을 보여 주는 학습용 composable입니다. 현재 API 모듈과 구분합니다.
+const makeInventoryFilter = () =&gt; {
+  const filterRows = (
+    inventory: EbeamToolInventoryResponse,
+    toolType: ToolType,
+    fab: ExampleFab = 'all'          // 기본값
+  ): EbeamToolRow[] =&gt; inventory[toolType].filter(row =&gt; fab === 'all' || row.fab_name === fab)
+  return { filterRows }
+}
+</code></pre>
+<h3 id="37-import-type-vs-import">3.7. <code>import type</code> vs <code>import</code></h3>
+<p>TS에서는 타입 전용 import와 값 import를 구분할 수 있습니다.</p>
+<pre tabindex="0"><code class="language-ts">// 타입만 필요할 때 — 컴파일 후 완전히 제거됨
+import type { Fab, ToolType } from '~/stores/navigation'
+
+// 실제 값(함수/상수/클래스)을 import
+import { useNavigationStore } from '~/stores/navigation'
+</code></pre>
+<p><strong>왜 구분하나?</strong> 타입은 런타임에 존재하지 않으므로, <code>import type</code>으로 표시하면 번들 최적화에 유리하고 순환 참조를 줄일 수 있습니다. 이 프로젝트는 composable 상단에서 일관되게 <code>import type</code>을 사용합니다.</p>
+<h3 id="38-옵셔널-체이닝과-널-병합">3.8. 옵셔널 체이닝(<code>?.</code>)과 널 병합(<code>??</code>)</h3>
+<pre tabindex="0"><code class="language-ts">// 예전: (a &amp;&amp; a.b &amp;&amp; a.b.c) 체크
+// 지금: a?.b?.c — 중간이 null/undefined면 undefined 반환
+inventory.value?.[tool.id]?.length ?? tool.count
+//        ^^                        ^^
+//        옵셔널 체이닝             널 병합 (왼쪽이 null/undefined면 오른쪽)
+
+const summary = summaryMap.get(row.fab_name) ?? {
+  fab_name: row.fab_name, total: 0, online: 0, offline: 0
+}
+</code></pre>
+<p>Python 비교: <code>a.b.c if a and a.b else None</code> → <code>a?.b?.c</code></p>
+<h3 id="39-as-타입-단언type-assertion">3.9. <code>as</code> 타입 단언(type assertion)</h3>
+<pre tabindex="0"><code class="language-ts">const match = route.match(/\/ebeam\/(cd-sem|hv-sem|veritysem|provision)/)
+return match ? match[1] as ToolType : null
+//                        ^^^^^^^^^
+//                        &quot;나는 이 문자열이 ToolType임을 보증한다&quot;
+</code></pre>
+<p><code>as</code>는 검사 결과를 만들어 내는 장치가 아닙니다. 외부 입력은 먼저 실제 값을 검사하고 그 결과로 타입을 좁힙니다. 단언은 컴파일러가 표현하기 어려운 사실을 별도 근거로 보장할 수 있을 때만 제한적으로 사용합니다.</p>
+<pre tabindex="0"><code class="language-ts">function parseAvailable(value: unknown): 'On' | 'Off' | null {
+  if (value === 'On' || value === 'Off') return value
+  return null
+}
+</code></pre>
+<p><code>unknown</code>은 사용 전에 확인하도록 강제합니다. <code>any</code>는 검사를 우회합니다. 오류가 난다고 외부 JSON을 <code>any</code>로 바꾸지 않습니다. <code>satisfies</code>는 추론을 유지한 채 타입 적합성을 검사하며 런타임 검증은 아닙니다.</p>
+<p><code>as const</code>는 조금 다릅니다 — 값을 리터럴 타입으로 고정합니다.</p>
+<pre tabindex="0"><code class="language-ts">const cats = [
+  { id: 'ebeam' as const, label: 'E-Beam' },
+  { id: 'thickness' as const, label: 'Thickness' }
+]
+// id의 타입이 string이 아닌 'ebeam' | 'thickness'로 좁혀짐
+</code></pre>
+<p>현재 단일 원천에서 읽을 수 있는 예시는 utils/toolType.ts의 TOOL_TYPES입니다. UI 목록도 같은 owner 타입과 맞춰 읽습니다.</p>
+<h3 id="310-strict-모드">3.10. <code>strict</code> 모드</h3>
+<p><a href="../../../frontend/tsconfig.json" class="source-link">frontend/tsconfig.json</a>은 <code>.nuxt/tsconfig.app.json</code> 등 네 개의 생성 설정을 project reference로 연결합니다. 루트 파일에 strict를 직접 적은 구조가 아닙니다. Nuxt는 strict 타입 검사를 기본으로 구성하며 strict가 켜지면 다음을 확인합니다.</p>
+<ul>
+<li><code>strictNullChecks</code> — <code>null</code>/<code>undefined</code>를 명시적으로 처리해야 함</li>
+<li><code>noImplicitAny</code> — 타입을 추론 못 하면 에러</li>
+<li><code>strictFunctionTypes</code> — 함수 시그니처 엄격 검사</li>
+</ul>
+<p><strong>처음 익힐 때 흔한 오류</strong>는 값이 <code>undefined</code>일 수 있다는 것입니다. 없는 상태가 실제로 허용되면 <code>?.</code>와 <code>??</code>로 처리하고, 필수 데이터라면 존재 여부를 검사해 오류나 로딩 상태를 표현합니다. 단순히 에러를 없애려고 모든 필드에 <code>!</code>나 기본값을 붙이면 계약 문제를 숨길 수 있습니다. <code>.nuxt/</code> 설정은 직접 고치지 않고 <a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>의 입력 설정을 고칩니다.</p>
+<h3 id="311-실제-저장소-연결">3.11 실제 저장소 연결</h3>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>파일</th>
+<th>현재 사용한 타입 기능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../frontend/app/utils/toolType.ts" class="source-link">utils/toolType.ts</a></td>
+<td><code>as const</code>, indexed access, satisfies, 분류 결과 <code>ToolType | null</code></td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/stores/navigation.ts" class="source-link">stores/navigation.ts</a></td>
+<td><code>Fab = string</code>, <code>NavigationState</code>, ToolType 재수출</td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/composables/useSemListApi.ts" class="source-link">useSemListApi.ts</a></td>
+<td><code>SemListRow</code>, <code>SemListResponse</code>, <code>$fetch&lt;T&gt;</code>, API 필터</td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/components/ebeam/ToolInventoryView.vue" class="source-link">ToolInventoryView.vue</a></td>
+<td>props, Nuxt UI TableColumn, 화면 계산</td>
+</tr>
+<tr>
+<td><a href="../../../frontend/app/components/chat/ChatComposer.vue" class="source-link">ChatComposer.vue</a></td>
+<td>typed emits, <code>defineModel&lt;string&gt;</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>현재 SEM 응답은 배열이며 <code>version</code>은 숫자가 아니라 string입니다. <code>'1A'</code> 같은 값도 표현합니다. 프런트 <code>mock-data/</code>와 <code>useEbeamToolApi.ts</code>는 현재 존재하지 않으며 위의 과거 Inventory 모델을 실제 소스라고 찾지 않습니다. 집/office 모두 Flask API를 사용합니다.</p>
+<p>API 타입 매개변수와 Python <a href="../../../backend/sem_list/contracts.py" class="source-link">contracts.py</a>는 기대 계약입니다. 타입 검사만으로 실제 office 데이터가 이 계약을 만족함을 증명하지는 않습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>TypeScript는 오타와 누락된 필드, 함수 인자 오류를 실행 전에 찾는 데 유용합니다. 짧은 지역 변수는 추론을 사용하고 API 경계와 재사용 함수의 계약을 명시하면 불필요한 타입 표기를 줄일 수 있습니다. Python <code>int</code>/<code>float</code>가 모두 TS number와 같다는 비교는 기본 이해용입니다. JavaScript number는 부동소수점이므로 매우 큰 정수에는 정밀도 한계가 있습니다.</p>
+<p>튜플과 Readonly 타입도 실행 중 배열 길이나 객체 변경을 막는 장치가 아닙니다. <code>readonly</code> 타입과 Vue <code>readonly()</code> Proxy 역시 다른 기능입니다. 컴파일러 보장, 실제 값 검증, 화면 반응성을 분리해서 읽습니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ol>
+<li><code>as</code>로 외부 JSON 검증을 대체합니다. unknown을 실제 조건으로 좁힙니다.</li>
+<li><code>||</code>로 0, false, 빈 문자열을 없애 버립니다. null/undefined만 대체할 때는 <code>??</code>를 사용합니다.</li>
+<li><code>array?.[index].length</code>가 모든 단계의 누락을 막는다고 생각합니다. 요소도 없을 수 있으면 <code>array?.[index]?.length</code>처럼 해당 경계를 확인합니다.</li>
+<li>IDE 오류를 없애려고 <code>.nuxt/</code>를 고칩니다. 생성 입력을 수정하고 필요한 경우 다시 prepare합니다.</li>
+<li>단언이나 <code>!</code>로 필수 값 부재를 감춥니다. 로딩, 실패, 누락을 명시합니다.</li>
+<li>Nuxt alias / auto-import가 일반 Node 테스트에도 있다고 기대합니다. 순수 함수는 상대 import를 사용합니다.</li>
+</ol>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p><a href="https://www.typescriptlang.org/play/" class="external">TypeScript Playground</a>의 strict 설정에서 다음 코드만 실행합니다. 저장소 파일은 수정하지 않습니다.</p>
+<pre tabindex="0"><code class="language-ts">type Available = 'On' | 'Off'
+function parseAvailable(value: unknown): Available | null {
+  return value === 'On' || value === 'Off' ? value : null
+}
+
+console.assert(parseAvailable('On') === 'On')
+console.assert(parseAvailable(false) === null)
+console.assert(parseAvailable('on') === null)
+const sampleCount: number | null = 0
+console.assert((sampleCount ?? 10) === 0)
+</code></pre>
+<p><code>parseAvailable</code>의 반환 타입에 <code>null</code>을 빼면 strict 검사에 오류가 나야 합니다. 실제 타입 좁히기는 코드를 실행할 때도 잘못된 값에 null을 반환합니다. 입력 뒤에 <code>as Available</code>만 붙이는 경우와의 차이를 설명하면 완료입니다.</p>
+<p>설치가 완료된 로컬에서는 <code>frontend/</code>에서 <code>npm run typecheck</code>와 <code>npm test</code>를 실행할 수 있습니다. npm test는 Node의 순수 함수 검사이며 Vue 컴포넌트 mount나 브라우저 검사가 아닙니다. <code>.nuxt/</code>가 없는 학습 사본에서 typecheck가 실패하면 설정 생성/의존성 상태 문제와 코드 타입 오류를 구분합니다.</p>
+<h2 id="7-더-읽을-거리">7. 더 읽을 거리</h2>
+<ul>
+<li><a href="https://www.typescriptlang.org/docs/handbook/2/everyday-types.html" class="external">TypeScript Handbook 기본</a></li>
+<li><a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html" class="external">TypeScript 타입 좁히기</a></li>
+<li><a href="https://www.typescriptlang.org/docs/handbook/utility-types.html" class="external">TypeScript utility types</a></li>
+<li><a href="https://vuejs.org/guide/typescript/overview.html" class="external">Vue 공식 TypeScript 가이드</a></li>
+<li><a href="02-type-management-conventions.html">다음: 타입 소유권 관례</a></li>
+<li><a href="03-null-undefined-false-none-empty-string.html">값 없음의 의미</a></li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../README.html">이전: SKEWNONO 구현을 설명하는 한국어 학습 공간</a><a href="02-type-management-conventions.html">다음: 02. 타입 관리 관례: 계약을 누가 소유합니까?</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

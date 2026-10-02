@@ -2,11 +2,16 @@
 
 이 문서는 `frontend` UI를 한국 회사 내부 엔지니어가 사용하는 것을 전제로, 화면 용어와 문구 톤을 일관되게 맞추기 위한 기준입니다.
 
+2026-10-03에 실제 화면 소스를 확인했습니다. **아래 용어집은 권장 기준이며 모든 화면에 이미 적용됐다는 뜻은 아닙니다.** 문구만 보고 서버 상태 의미를 확대 해석하지 않는 것을 먼저 배웁니다.
+
 목표는 다음과 같습니다.
 
 - 영어 직역보다 현업에서 바로 이해되는 표현을 사용합니다.
 - 같은 개념은 화면마다 같은 한국어로 유지합니다.
 - 라벨만 번역하지 않고, 클릭성과 가독성까지 함께 고려합니다.
+
+
+UI(User Interface)는 사람이 보는 화면과 조작 수단입니다. SEM(Scanning Electron Microscope)은 주사 전자 현미경, CD(Critical Dimension)는 핵심 치수, HV(High Voltage)는 고전압입니다. CD-SEM·HV-SEM은 이 장비군 이름이고 Fab은 fabrication plant(반도체 제조 시설)를 뜻합니다.
 
 ## 1. 기본 원칙
 
@@ -41,8 +46,8 @@
 | Overview | 전체 현황 | 장비군 또는 팹 단위 종합 화면 |
 | Dashboard | 대시보드 | 이미 널리 쓰이는 메뉴/화면명 |
 | Storage | 보관 현황 | 보관 장비/보관 상태 중심 화면 |
-| Online | 온라인 | 연결/가동 가능 상태 |
-| Offline | 오프라인 | 비연결/미가동 상태 |
+| Online | 온라인 | 연결 상태 근거가 있는 화면에서 사용 |
+| Offline | 오프라인 | 표시 상태의 기준을 함께 확인; 장애 원인 단정 금지 |
 | Available | 사용 가능 | 상세 상태 문구 |
 | Unavailable | 사용 불가 | 상세 상태 문구 |
 | Search | 검색 | 버튼, 입력창 placeholder |
@@ -53,9 +58,30 @@
 | Last Updated | 최근 갱신 | 시간 정보 라벨 |
 | Total Count | 전체 수량 | 카드/요약 지표 |
 
-## 3. 화면 문구 작성 규칙
+## 3. 실제 구현에서 용어를 확인합니다
 
-### 3.1 메뉴/탭/페이지 제목
+[ToolInventoryView.vue](../../../frontend/app/components/ebeam/ToolInventoryView.vue)는 서버 `available` 값이 `Off`이면 `Offline`, 그 외에는 `Available`이라는 영문 배지를 표시합니다. [홈 페이지](../../../frontend/app/pages/index.vue)는 `available === 'On'` 행 수를 online 항목으로 집계합니다. 따라서 권장 한국어 용어와 현재 표시 문구는 다릅니다. 이 문서 작업은 실제 UI의 번역이나 판정 코드를 바꾸지 않습니다.
+
+`available: 'On' | 'Off'`는 [SemListRow 타입](../../../frontend/app/composables/useSemListApi.ts)의 상태 필드입니다. 이 값만으로 실시간 ping 성공·장비 가동·측정 품질을 모두 보장하지 않습니다. frontend 타입 표기만으로 예상하지 못한 서버 값이 차단되는 것도 아닙니다. 실제 의미는 해당 provider 계약과 데이터 근거를 확인합니다.
+
+[FabSidebar.vue](../../../frontend/app/components/nav/FabSidebar.vue)의 팹 목록은 sem-list의 `fab_name`에서 파생되고, [navigation store](../../../frontend/app/stores/navigation.ts)의 `all`은 선택 없음 sentinel입니다. `fac_id`와 `fab_name`은 서로 다른 데이터 식별자일 수 있으므로 두 항목을 모두 '팹'이라고 번역해 같은 값으로 비교하지 않습니다. 기초 데이터 구분은 [07장](../07-code-patterns/README.md)을 참고합니다.
+
+### 3.0 화면 요소 이름
+
+| 용어 | 화면 역할 | 확인 질문 |
+| --- | --- | --- |
+| label | 항목의 이름 | 입력 또는 상태가 무엇인지 알 수 있는가? |
+| placeholder | 입력 전 힌트 | 실제 label을 대신하고 있지는 않은가? |
+| badge | 짧은 상태/분류 표시 | 색 없이 텍스트로 이해되는가? |
+| tooltip | 보조 설명 | 키보드·터치에서도 핵심 정보가 보이는가? |
+| empty state | 데이터가 없을 때 안내 | 로딩·오류·0건이 구분되는가? |
+| refresh | 데이터 재조회 동작 | 실제 새 요청과 새 값 반영이 이루어지는가? |
+
+'새로고침'이라고 썼어도 캐시 정책 때문에 기존 값을 재사용할 수 있습니다. 버튼의 동작 근거는 [sem-list 캐싱](../07-code-patterns/sem-list-caching.md)처럼 실제 handler까지 추적합니다. 문구와 동작을 함께 맞추는 이유입니다.
+
+### 3.1 화면 문구 작성 규칙
+
+### 3.2 메뉴/탭/페이지 제목
 
 - 제목은 짧고 단정하게 작성합니다.
 - 현업 사용자가 스캔하기 쉬운 명사형을 우선 사용합니다.
@@ -75,7 +101,7 @@
 - `FAB Select`
 - `Storage Dashboard`
 
-### 3.2 버튼/링크
+### 3.3 버튼/링크
 
 - 동작이 보이도록 동사형을 사용합니다.
 - 링크처럼 보이는 작은 텍스트보다 버튼 라벨이 더 분명해야 합니다.
@@ -94,7 +120,7 @@
 - `이동`
 - `Click here`
 
-### 3.3 상태 배지/카운트
+### 3.4 상태 배지/카운트
 
 - 상태는 짧고 즉시 구분 가능해야 합니다.
 - 배지 색상에만 의존하지 말고, 텍스트만 봐도 의미가 전달되어야 합니다.
@@ -107,7 +133,7 @@
 - `사용 불가`
 - `N/A`
 
-## 4. UI 친화성 기준
+## 4. 선택 이유와 한계: UI 친화성 기준
 
 이 저장소에서는 번역 자체보다도 "현장 엔지니어가 빠르게 이해하고 조작할 수 있는가"가 더 중요합니다.
 
@@ -119,7 +145,7 @@
 - 긴 영어 문장을 억지로 번역하기보다, 짧고 명확한 한국어 문구로 다시 씁니다.
 - 표가 길어지면 검색, 페이지네이션, 요약 정보를 함께 제공해 탐색 부담을 줄입니다.
 
-## 5. 이 프로젝트에서 바로 적용할 기본 매핑
+### 4.1 이 프로젝트에서 적용할 기본 매핑
 
 현재까지 우선 적용할 기본 표현은 다음과 같습니다.
 
@@ -132,3 +158,26 @@
 | Offline | 오프라인 |
 
 추가 용어가 생기면 이 문서에 계속 누적해서 같은 기준을 유지합니다.
+
+
+## 5. 흔한 실수
+
+- 용어집의 권장 표현을 현재 모든 UI의 실측 결과처럼 씁니다.
+- '오프라인'을 센서 고장이나 측정 불가 원인의 확정 표현으로 사용합니다.
+- API 키·라우트·tool slug까지 한국어로 바꾸어 계약을 깨뜨립니다. 사용자 라벨과 내부 식별자는 별개입니다.
+- 색만으로 상태를 전달하거나 아이콘 버튼의 접근 가능한 이름을 생략합니다.
+- 빈 결과·로딩·에러를 모두 '데이터 없음'으로 표시합니다.
+
+## 6. 안전 실습
+
+실제 화면을 바꾸기 전에 텍스트와 상태의 근거를 읽습니다. 저장소 루트에서 실행합니다.
+
+```bash
+rg -n 'Offline|Available|available' frontend/app/components/ebeam/ToolInventoryView.vue
+rg -n 'online:|available' frontend/app/pages/index.vue
+rg -n 'aria-label|aria-expanded|type="button"' frontend/app/components/nav/FabSidebar.vue
+```
+
+표의 `Off → Offline`, 홈의 `On → online 집계`를 찾고 그것이 '실시간 연결 시험'과 어떻게 다른지 설명하면 성공입니다. 종이에 라벨·상태·동작을 각각 하나씩 한국어로 다시 써 보고, API 키는 원문 그대로 둡니다. 실제 UI 수정은 [DESIGN.md](../../../DESIGN.md)의 토큰과 대비 기준 및 브라우저 검증을 따르는 별도 작업입니다.
+
+접근성 원칙은 [W3C WCAG 2.2 색상 사용](https://www.w3.org/TR/WCAG22/#use-of-color), [WAI 버튼 패턴](https://www.w3.org/WAI/ARIA/apg/patterns/button/)을 참고합니다. Vue 3.5.40과 Nuxt UI 4.10.0이 lock·확인한 설치본이며, 문구·접근성은 특정 라이브러리가 자동 보장하는 기능으로 가정하지 않습니다.

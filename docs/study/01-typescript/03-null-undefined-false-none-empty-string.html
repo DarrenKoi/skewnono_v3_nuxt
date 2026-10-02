@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="b25e8ff047e511f8d7b33634d631c028df63652bf05e0381e6aa44ee54f32f22"><meta name="body-sha256" content="4c1048f16eed0fc8d97dc5f15d5c3e5721ad2649874d43cdebedb1513d853667"><title>03. `null`, `undefined`, `false`, `None`, `&quot;&quot;` · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="03-null-undefined-false-none-empty-string.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-값-없음과-아니오를-구분합니다">1. 기초: 값 없음과 아니오를 구분합니다</a></li><li><a href="#2-용어와-값의-차이">2. 용어와 값의 차이</a></li><li><a href="#3-실제-구현과-api-경계">3. 실제 구현과 API 경계</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li><li><a href="#7-공식-근거">7. 공식 근거</a></li></ol></details></nav><article><h1 id="03-null-undefined-false-none-">03. <code>null</code>, <code>undefined</code>, <code>false</code>, <code>None</code>, <code>&quot;&quot;</code></h1>
+<p><strong>2026-10-03 기준 JavaScript/TypeScript와 Python JSON 계약을 함께 설명합니다.</strong> 현재 TypeScript는 선언 <code>^5.9.3</code>, lock/설치 5.9.3입니다. <a href="../../../frontend/package.json" class="source-link">package.json</a>과 <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>을 기준으로 합니다.</p>
+<h2 id="1-기초-값-없음과-아니오를-구분합니다">1. 기초: 값 없음과 아니오를 구분합니다</h2>
+<p>이 주제는 매우 중요합니다. 이 값들은 개념적으로 자주 섞여서 사용되지만, 실제 의미는 서로 같지 않기 때문입니다.</p>
+<p>TypeScript와 JavaScript에서 핵심 질문은 보통 다음과 같습니다.</p>
+<p>&quot;이 값이 없는 것인가, 의도적으로 비어 있는 것인가, 비활성 상태인가, 아니면 단순히 falsy인가?&quot;</p>
+<p>이것들은 서로 다른 의미이며, 대부분의 경우 타입 모델도 다르게 잡아야 합니다.</p>
+<h2 id="2-용어와-값의-차이">2. 용어와 값의 차이</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>값</th>
+<th>언어</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>undefined</code></td>
+<td>JavaScript / TypeScript</td>
+<td>아직 전달되지 않았거나, 할당되지 않았거나, 누락된 값입니다.</td>
+</tr>
+<tr>
+<td><code>null</code></td>
+<td>JavaScript / TypeScript</td>
+<td>의도적으로 비워 두었거나, 명시적으로 값이 없음을 뜻합니다.</td>
+</tr>
+<tr>
+<td><code>false</code> / <code>False</code></td>
+<td>JavaScript·TypeScript는 <code>false</code>, Python은 <code>False</code></td>
+<td>불리언 거짓 값입니다.</td>
+</tr>
+<tr>
+<td><code>None</code></td>
+<td>Python</td>
+<td>값이 없음을 나타내는 객체입니다.</td>
+</tr>
+<tr>
+<td><code>&quot;&quot;</code></td>
+<td>JavaScript / TypeScript / Python</td>
+<td>빈 문자열이지만, 여전히 문자열 값입니다.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="21-가장-중요한-구분">2.1 가장 중요한 구분</h3>
+<p>이 값들은 서로 바꿔 쓸 수 없습니다.</p>
+<ul>
+<li><code>undefined</code>는 값이 없거나 빠졌음을 뜻합니다.</li>
+<li><code>null</code>은 명시적으로 비어 있음을 뜻합니다.</li>
+<li><code>false</code>는 실제 불리언 값입니다.</li>
+<li><code>&quot;&quot;</code>는 실제 문자열 값입니다.</li>
+</ul>
+<p>즉, 다음과 같은 사고방식은 잘못된 경우가 많습니다.</p>
+<ul>
+<li>&quot;<code>false</code>는 값이 없다는 뜻이다&quot;</li>
+<li>&quot;<code>&quot;&quot;</code>는 null이다&quot;</li>
+<li>&quot;<code>undefined</code>와 <code>null</code>은 완전히 같다&quot;</li>
+</ul>
+<p>이 값들은 조건식에서 모두 falsy처럼 동작할 수 있지만, 의미적으로는 서로 다릅니다. Python의 거짓 리터럴은 대문자로 시작하는 <code>False</code>이며 <code>false</code>가 아닙니다. 또 JavaScript의 빈 배열 <code>[]</code>와 빈 객체 <code>{}</code>는 truthy이지만 Python의 빈 list/dict는 falsy입니다. 언어가 바뀌면 조건식 관례도 그대로 복사하지 않습니다.</p>
+<h3 id="22-undefined">2.2 <code>undefined</code></h3>
+<p>JavaScript와 TypeScript에서 <code>undefined</code>는 보통 다음 뜻으로 쓰입니다.</p>
+<ul>
+<li>값이 한 번도 할당되지 않았습니다.</li>
+<li>함수 인자가 생략되었습니다.</li>
+<li>객체 속성이 존재하지 않습니다.</li>
+<li>함수가 아무것도 반환하지 않았습니다.</li>
+</ul>
+<p>예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">let a: string | undefined
+console.log(a) // undefined
+
+function greet(name?: string) {
+  return name
+}
+
+console.log(greet()) // undefined
+</code></pre>
+<p>일반적인 해석은 다음과 같습니다.</p>
+<ul>
+<li>&quot;전달되지 않았습니다&quot;</li>
+<li>&quot;아직 설정되지 않았습니다&quot;</li>
+<li>&quot;누락되었습니다&quot;</li>
+</ul>
+<p>TypeScript에서는 선택적 값(optional value)의 기본 표현으로 <code>undefined</code>를 쓰는 경우가 많습니다.</p>
+<p>예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">interface User {
+  nickname?: string
+}
+</code></pre>
+<p>읽을 때 <code>nickname</code>은 string 또는 undefined일 수 있습니다. 그러나 다음 필수 속성 선언과는 같지 않습니다.</p>
+<pre tabindex="0"><code class="language-ts">type OptionalUser = { nickname?: string }
+type RequiredUser = { nickname: string | undefined }
+const optional: OptionalUser = {}        // 속성 자체를 생략할 수 있습니다.
+const required: RequiredUser = { nickname: undefined } // 속성은 필수입니다.
+</code></pre>
+<h3 id="23-null">2.3 <code>null</code></h3>
+<p><code>null</code>은 보통 다음 의미를 가집니다.</p>
+<ul>
+<li>값을 의도적으로 비워 두었습니다.</li>
+<li>프로그램이 &quot;여기에는 객체가 없습니다&quot;를 표현하려고 합니다.</li>
+</ul>
+<p>예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">let selectedTool: string | null = null
+</code></pre>
+<p>일반적인 해석은 다음과 같습니다.</p>
+<ul>
+<li>계약에 따라 &quot;확인해 봤지만 결과가 없습니다&quot;</li>
+<li>&quot;현재 선택을 의도적으로 지웠습니다&quot;</li>
+</ul>
+<p>관례적으로는 다음과 같이 구분하는 편이 좋습니다.</p>
+<ul>
+<li>빠졌거나 누락된 값에는 <code>undefined</code>를 사용합니다.</li>
+<li>코드가 명시적으로 빈 상태를 전달하고 싶을 때는 <code>null</code>을 사용합니다.</li>
+</ul>
+<p>예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">function findTool(id: string): string | null {
+  return id === 'cd-sem' ? 'CD-SEM' : null
+}
+</code></pre>
+<p>이 함수는 계약으로 &quot;일치하는 항목이 없습니다&quot;를 null에 부여합니다. 언어 자체가 null에 undefined보다 더 많은 업무 의미를 부여하는 것은 아닙니다.</p>
+<h3 id="24-false">2.4 <code>false</code></h3>
+<p><code>false</code>는 &quot;비어 있음&quot;이 아닙니다. <code>false</code>는 유효한 불리언 값입니다.</p>
+<p>예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">const enabled: boolean = false
+const isOnline: boolean = false
+</code></pre>
+<p>의미는 다음과 같습니다.</p>
+<ul>
+<li>답이 아니오입니다.</li>
+<li>플래그가 꺼져 있습니다.</li>
+<li>조건이 만족되지 않았습니다.</li>
+</ul>
+<p>이것은 <code>undefined</code>와 매우 다릅니다.</p>
+<p>예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">type Example = {
+  enabled?: boolean
+}
+</code></pre>
+<p>가능한 해석은 다음과 같습니다.</p>
+<ul>
+<li><code>enabled === true</code>: 명시적으로 활성화되었습니다.</li>
+<li><code>enabled === false</code>: 명시적으로 비활성화되었습니다.</li>
+<li><code>enabled === undefined</code>: 설정되지 않았습니다.</li>
+</ul>
+<p>이 구분은 UI 설정, 필터, 기능 플래그에서 자주 중요합니다.</p>
+<h3 id="25-python-none">2.5 Python <code>None</code></h3>
+<p>Python의 <code>None</code>은 의미상 다음 값과 가장 가깝습니다.</p>
+<ul>
+<li><code>null</code></li>
+<li>경우에 따라서는 <code>undefined</code></li>
+</ul>
+<p>다만 둘과 완전히 1:1로 대응되지는 않습니다.</p>
+<p>Python에는 대표적인 &quot;값 없음&quot; 객체가 하나 있습니다.</p>
+<pre tabindex="0"><code class="language-py">value = None
+</code></pre>
+<p>반면 JavaScript는 이 개념을 보통 두 가지 의미로 나눕니다.</p>
+<ul>
+<li><code>undefined</code>: 누락됨 / 생략됨</li>
+<li><code>null</code>: 명시적으로 비어 있음</li>
+</ul>
+<p>따라서 Python에 익숙하다면 다음처럼 이해하면 편합니다.</p>
+<ul>
+<li>Python의 <code>None</code>은 값 없음의 의미를 설명할 때 null/undefined와 비교할 수 있지만, JSON 전송에서는 null에 대응합니다.</li>
+<li>실제 코드에서는 의도에 따라 둘 중 더 정확한 쪽을 선택하면 됩니다.</li>
+</ul>
+<h3 id="26-빈-문자열">2.6 <code>&quot;&quot;</code> 빈 문자열</h3>
+<p><code>&quot;&quot;</code>는 <code>null</code>도 아니고 <code>undefined</code>도 아닙니다.</p>
+<p>길이가 <code>0</code>인 실제 문자열 값입니다.</p>
+<p>예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">const name = ''
+console.log(typeof name) // &quot;string&quot;
+console.log(name.length) // 0
+</code></pre>
+<p>의미는 다음과 같습니다.</p>
+<ul>
+<li>값은 존재합니다.</li>
+<li>텍스트입니다.</li>
+<li>다만 텍스트 내용이 비어 있습니다.</li>
+</ul>
+<p>이것이 중요한 이유는, 빈 문자열이 보통 다음 뜻으로 쓰이기 때문입니다.</p>
+<ul>
+<li>사용자가 빈 입력을 제출했습니다.</li>
+<li>백엔드가 빈 텍스트 필드를 반환했습니다.</li>
+<li>값이 누락된 것이 아니라, 의도적으로 빈 텍스트입니다.</li>
+</ul>
+<h3 id="27-falsy-동작은-오해를-만들-수-있습니다">2.7 Falsy 동작은 오해를 만들 수 있습니다</h3>
+<p>JavaScript에서 다음 값들은 모두 falsy입니다.</p>
+<ul>
+<li><code>false</code></li>
+<li><code>0</code></li>
+<li><code>&quot;&quot;</code></li>
+<li><code>null</code></li>
+<li><code>undefined</code></li>
+<li><code>NaN</code></li>
+</ul>
+<p>그래서 다음과 같은 체크는:</p>
+<pre tabindex="0"><code class="language-ts">if (!value) {
+  // ...
+}
+</code></pre>
+<p>다음 상태를 구분하지 못합니다.</p>
+<ul>
+<li>값이 누락된 상태</li>
+<li>빈 문자열</li>
+<li>불리언 false</li>
+<li>숫자 0</li>
+</ul>
+<p>그래서 넓은 범위의 falsy 체크는 보통 너무 느슨합니다.</p>
+<h3 id="28-더-나은-체크-방법">2.8 더 나은 체크 방법</h3>
+<h3 id="누락-여부만-확인하기">누락 여부만 확인하기</h3>
+<pre tabindex="0"><code class="language-ts">if (value == null) {
+  // null과 undefined를 함께 잡습니다.
+}
+</code></pre>
+<p>이 경우는 느슨한 동등 비교를 의도적으로 쓰는 몇 안 되는 예입니다.</p>
+<p>이 의미는 다음과 같습니다.</p>
+<ul>
+<li><code>value === null || value === undefined</code></li>
+</ul>
+<h3 id="undefined만-확인하기"><code>undefined</code>만 확인하기</h3>
+<pre tabindex="0"><code class="language-ts">if (value === undefined) {
+  // 생략되었거나 아직 할당되지 않았습니다.
+}
+</code></pre>
+<h3 id="null만-확인하기"><code>null</code>만 확인하기</h3>
+<pre tabindex="0"><code class="language-ts">if (value === null) {
+  // 명시적으로 비어 있습니다.
+}
+</code></pre>
+<h3 id="빈-문자열만-확인하기">빈 문자열만 확인하기</h3>
+<pre tabindex="0"><code class="language-ts">if (value === '') {
+  // 빈 텍스트입니다.
+}
+</code></pre>
+<h3 id="불리언-false만-확인하기">불리언 false만 확인하기</h3>
+<pre tabindex="0"><code class="language-ts">if (value === false) {
+  // 명시적인 아니오 상태입니다.
+}
+</code></pre>
+<h3 id="29-optional-chaining과-nullish-coalescing">2.9 Optional chaining과 nullish coalescing</h3>
+<p>이 연산자들은 모든 falsy 값을 기준으로 동작하는 것이 아니라, <code>null</code>과 <code>undefined</code>를 기준으로 설계되어 있습니다.</p>
+<h3 id=""><code>?.</code></h3>
+<pre tabindex="0"><code class="language-ts">const name = user?.profile?.name
+</code></pre>
+<p>이 연산은 왼쪽 값이 <code>null</code> 또는 <code>undefined</code>일 때만 멈춥니다.</p>
+<h3 id="-1"><code>??</code></h3>
+<pre tabindex="0"><code class="language-ts">const label = input ?? 'default'
+</code></pre>
+<p>이 연산은 <code>input</code>이 <code>null</code> 또는 <code>undefined</code>일 때만 <code>'default'</code>를 사용합니다.</p>
+<p>중요한 예시는 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">const a = '' || 'fallback'   // &quot;fallback&quot;
+const b = '' ?? 'fallback'   // &quot;&quot;
+
+const c = false || true      // true
+const d = false ?? true      // false
+</code></pre>
+<p>정리하면 다음과 같습니다.</p>
+<ul>
+<li><code>||</code>는 많은 falsy 값을 &quot;없음&quot;처럼 취급합니다.</li>
+<li><code>??</code>는 <code>null</code>과 <code>undefined</code>만 &quot;없음&quot;처럼 취급합니다.</li>
+</ul>
+<p>TypeScript 코드에서는 <code>false</code>, <code>0</code>, <code>&quot;&quot;</code>가 유효한 값일 수 있다면 <code>??</code>가 더 안전한 선택인 경우가 많습니다.</p>
+<h2 id="3-실제-구현과-api-경계">3. 실제 구현과 API 경계</h2>
+<h3 id="31-현재-저장소의-값-없음">3.1 현재 저장소의 값 없음</h3>
+<p><a href="../../../frontend/app/composables/useSemListApi.ts" class="source-link">useSemListApi.ts</a>의 version은 string이고 빈 문자열은 알 수 없는 버전을 나타낼 수 있습니다. <code>available</code>은 <code>On</code> 또는 <code>Off</code>입니다. 빈 version을 “장비가 꺼짐”으로 바꾸면 데이터 의미가 달라집니다. <a href="../../../frontend/app/utils/toolType.ts" class="source-link">utils/toolType.ts</a>의 분류 함수는 알 수 없는 모델에 null을 반환합니다. 미확인 모델을 임의로 cd-sem으로 바꾸지 않습니다.</p>
+<p><a href="../../../frontend/app/composables/usePersistedState.ts" class="source-link">usePersistedState.ts</a>는 localStorage <code>getItem()</code> 결과가 null인지 검사합니다. 여기서 null은 저장 키가 없다는 플랫폼 계약입니다. normalizer는 JSON 파싱 후 unknown 입력을 확인합니다. 문자열 <code>&quot;false&quot;</code>와 boolean false는 별개이며 정상 JSON 파싱 결과를 확인해야 합니다.</p>
+<h3 id="32-json-직렬화와-python-대응">3.2 JSON 직렬화와 Python 대응</h3>
+<p>Python <code>None</code>은 JSON에서 <strong>null</strong>이고 Python <code>False</code>는 JSON <strong>false</strong>입니다. JavaScript undefined와 1:1 전송 대응이 아닙니다. Python dict의 키가 없는 것과 키의 값이 None인 것도 다른 상태입니다.</p>
+<pre tabindex="0"><code class="language-js">JSON.stringify({ absent: undefined, empty: null, enabled: false })
+// '{&quot;empty&quot;:null,&quot;enabled&quot;:false}' — undefined 속성은 빠집니다.
+JSON.stringify([undefined, null, false])
+// '[null,null,false]' — 배열 슬롯의 undefined는 null로 직렬화됩니다.
+</code></pre>
+<p>객체 키가 있는지는 <code>Object.hasOwn(obj, 'key')</code>, 값이 null인지는 <code>obj.key === null</code>로 구분합니다. <code>nickname?: string</code>와 <code>nickname: string | undefined</code>는 읽기 결과가 비슷해도 속성 필수 여부가 다릅니다. <code>exactOptionalPropertyTypes</code>를 켜면 명시적 undefined 대입의 허용도 달라지므로 모든 tsconfig에 같은 규칙을 단정하지 않습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>값에 어떤 의미를 부여할지는 API/도메인 계약입니다. JavaScript가 null을 반드시 “조회했지만 없음”으로 정해 주는 것이 아닙니다. 기존 계약을 읽고 일관된 표현을 사용하면 미확인 상태를 false로 바꾸는 실수를 줄일 수 있습니다. 화면에 기본값을 보여 주는 것과 원본 상태를 바꾸는 것도 구분합니다.</p>
+<h3 id="41-권장-관례">4.1 권장 관례</h3>
+<p>코드를 읽기 쉽게 유지하려면 다음과 같은 관례가 실용적입니다.</p>
+<h3 id="선택-필드에는-undefined를-사용합니다">선택 필드에는 <code>undefined</code>를 사용합니다</h3>
+<pre tabindex="0"><code class="language-ts">interface Filters {
+  fab?: string
+}
+</code></pre>
+<p>의미는 다음과 같습니다.</p>
+<ul>
+<li>fab 필터가 전달되지 않았습니다.</li>
+</ul>
+<h3 id="의도적인-선택-없음에는-null을-사용합니다">의도적인 &quot;선택 없음&quot;에는 <code>null</code>을 사용합니다</h3>
+<pre tabindex="0"><code class="language-ts">const selectedFab: string | null = null
+</code></pre>
+<p>의미는 다음과 같습니다.</p>
+<ul>
+<li>UI에 현재 선택된 항목이 의도적으로 없습니다.</li>
+</ul>
+<h3 id="false는-오직-불리언에만-사용합니다"><code>false</code>는 오직 불리언에만 사용합니다</h3>
+<pre tabindex="0"><code class="language-ts">const hasAlerts = false
+</code></pre>
+<p>의미는 다음과 같습니다.</p>
+<ul>
+<li>알림이 없습니다.</li>
+</ul>
+<p>다음 의미로 쓰면 안 됩니다.</p>
+<ul>
+<li>&quot;알림 데이터가 누락되었습니다&quot;</li>
+</ul>
+<h3 id="빈-텍스트가-유효한-상태일-때만-를-사용합니다">빈 텍스트가 유효한 상태일 때만 <code>&quot;&quot;</code>를 사용합니다</h3>
+<pre tabindex="0"><code class="language-ts">const searchText = ''
+</code></pre>
+<p>의미는 다음과 같습니다.</p>
+<ul>
+<li>사용자 입력은 존재하지만 현재 빈 상태입니다.</li>
+</ul>
+<p>만약 &quot;검색어가 아직 초기화되지 않았습니다&quot;를 뜻하고 싶다면, 보통 <code>undefined</code>나 <code>null</code>이 더 명확합니다.</p>
+<h3 id="42-프론트엔드-학습-예시">4.2 프론트엔드 학습 예시</h3>
+<h3 id="폼-입력">폼 입력</h3>
+<pre tabindex="0"><code class="language-ts">type FormState = {
+  keyword: string
+  description?: string
+  selectedTool: string | null
+  includeOffline: boolean
+}
+</code></pre>
+<p>해석은 다음과 같습니다.</p>
+<ul>
+<li><code>keyword: ''</code>는 빈 텍스트 박스를 뜻합니다.</li>
+<li><code>description: undefined</code>는 선택 필드가 제공되지 않았다는 뜻입니다.</li>
+<li><code>selectedTool: null</code>은 현재 선택이 없다는 뜻입니다.</li>
+<li><code>includeOffline: false</code>는 명시적으로 꺼 두었다는 뜻입니다.</li>
+</ul>
+<h3 id="api-결과">API 결과</h3>
+<pre tabindex="0"><code class="language-ts">type ApiResult = {
+  message: string
+  detail: string | null
+}
+</code></pre>
+<p>해석은 다음과 같습니다.</p>
+<ul>
+<li><code>detail: null</code>은 API가 명시적으로 상세 정보가 없다고 말하는 상태입니다.</li>
+<li><code>detail: ''</code>는 상세 정보 필드는 존재하지만 텍스트가 비어 있다는 뜻입니다.</li>
+</ul>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<h3 id="실수-1-나-false가-유효한데-를-쓰는-경우">실수 1. <code>&quot;&quot;</code>나 <code>false</code>가 유효한데 <code>||</code>를 쓰는 경우</h3>
+<pre tabindex="0"><code class="language-ts">const label = value || 'default'
+</code></pre>
+<p><code>value</code>가 <code>''</code> 또는 <code>false</code>일 수 있다면 잘못된 결과가 나올 수 있습니다.</p>
+<p>더 안전한 방식은 다음과 같습니다.</p>
+<pre tabindex="0"><code class="language-ts">const label = value ?? 'default'
+</code></pre>
+<h3 id="실수-2-false를-누락값처럼-다루는-경우">실수 2. <code>false</code>를 누락값처럼 다루는 경우</h3>
+<pre tabindex="0"><code class="language-ts">if (!config.enabled) {
+  // false일 수도 있고
+  // undefined일 수도 있습니다.
+}
+</code></pre>
+<p>이 차이가 중요하다면 더 정확하게 검사해야 합니다.</p>
+<h3 id="실수-3-기준-없이-null과-undefined를-섞어-쓰는-경우">실수 3. 기준 없이 <code>null</code>과 <code>undefined</code>를 섞어 쓰는 경우</h3>
+<p>같은 의미에 대해 코드베이스가 <code>null</code>과 <code>undefined</code>를 무작위로 섞어 쓰면, 코드를 추론하기가 어려워집니다.</p>
+<p>명확한 규칙을 정하는 편이 좋습니다.</p>
+<ul>
+<li>optional / omitted -&gt; <code>undefined</code></li>
+<li>explicit empty -&gt; <code>null</code></li>
+</ul>
+<h3 id="54-값의-의미-점검">5.4 값의 의미 점검</h3>
+<p>다음 의미를 일관되게 사용하면 됩니다.</p>
+<ul>
+<li><code>undefined</code>: 누락되었거나 전달되지 않았습니다.</li>
+<li><code>null</code>: 의도적으로 값이 없습니다.</li>
+<li><code>false</code>: 명시적인 불리언 거짓입니다.</li>
+<li><code>None</code>: Python의 값 없음 객체이며 JSON 전송에서는 null입니다.</li>
+<li><code>&quot;&quot;</code>: 빈 텍스트이지만 여전히 문자열입니다.</li>
+</ul>
+<p>코드에서 이 상태들을 구분해야 한다면, <code>if (!value)</code> 같은 넓은 falsy 체크에 의존하면 안 됩니다.</p>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>브라우저 개발자 도구 console에서 아래 JavaScript를 실행합니다. API나 저장소 파일을 변경하지 않습니다.</p>
+<pre tabindex="0"><code class="language-js">console.assert((false ?? true) === false)
+console.assert((0 ?? 10) === 0)
+console.assert(('' ?? 'default') === '')
+console.assert((null ?? 'default') === 'default')
+console.assert(JSON.stringify({ value: undefined }) === '{}')
+console.assert(JSON.stringify({ value: null }) === '{&quot;value&quot;:null}')
+console.assert(Object.hasOwn({ value: undefined }, 'value') === true)
+console.assert(Object.hasOwn({}, 'value') === false)
+console.assert(Boolean('false') === true)
+</code></pre>
+<p>마지막 결과는 문자열이 비어 있지 않아 true입니다. boolean false와 비교해야 한다면 문자열을 Boolean()으로 감싸는 대신 입력 계약을 파싱/검증합니다.</p>
+<p>완료 기준은 <code>false</code>, <code>0</code>, 빈 문자열을 유지해야 하는 이유와 JSON에서 undefined 필드가 빠지는 이유를 설명하는 것입니다. Python을 확인하려면 아래 읽기 전용 명령을 실행할 수 있습니다.</p>
+<pre tabindex="0"><code class="language-bash">python3 -c 'import json; print(json.dumps({&quot;empty&quot;: None, &quot;enabled&quot;: False}))'
+</code></pre>
+<p>출력은 <code>{&quot;empty&quot;: null, &quot;enabled&quot;: false}</code>입니다. 이 실습은 표준 언어 계약 확인이며 실제 office 응답 검증은 아닙니다.</p>
+<h2 id="7-공식-근거">7. 공식 근거</h2>
+<ul>
+<li><a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html" class="external">TypeScript narrowing</a></li>
+<li><a href="https://www.typescriptlang.org/tsconfig/exactOptionalPropertyTypes.html" class="external">TypeScript exactOptionalPropertyTypes</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify" class="external">MDN JSON.stringify</a></li>
+<li><a href="https://docs.python.org/3/library/json.html#encoders-and-decoders" class="external">Python json 변환 표</a></li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="02-type-management-conventions.html">이전: 02. 타입 관리 관례: 계약을 누가 소유합니까?</a><a href="../02-vue-basics/README.html">다음: 02. Vue 3 기본: 상태와 화면의 연결</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

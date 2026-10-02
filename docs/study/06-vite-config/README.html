@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="6c08973e00ce0fff920ca8e200ec5fe75ce444c9c46bc34fdf4a4b9d7aefdd2b"><meta name="body-sha256" content="0327ea96e4a8ea6ec89a75d6be940d30aef040371db474c067a613b91175aee7"><title>06. Vite와 Nuxt 설정을 읽는 법 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="README.html" aria-current="page">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-개발-서버와-배포-서버는-역할이-다릅니다">1. 기초: 개발 서버와 배포 서버는 역할이 다릅니다</a></li><li><a href="#2-용어와-버전의-세-층">2. 용어와 버전의 세 층</a></li><li><a href="#3-실제-설정을-읽는-순서">3. 실제 설정을 읽는 순서</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li></ol></details></nav><article><h1 id="06-vite와-nuxt-설정을-읽는-법">06. Vite와 Nuxt 설정을 읽는 법</h1>
+<p>기준일은 2026-10-03입니다. 이 장은 설정의 이름보다 <strong>누가 언제 읽고 어떤 요청에 영향을 주는지</strong>를 먼저 설명합니다. 실제 설정은 <a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>, 명령은 <a href="../../../frontend/package.json" class="source-link">package.json</a>, 고정 버전은 <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>에서 확인합니다.</p>
+<p>HMR(Hot Module Replacement)은 전체 재로드 대신 변경 모듈을 교체하는 기능입니다. WSGI(Web Server Gateway Interface)는 Python 서버와 앱의 호출 규약입니다. HTML(Hypertext Markup Language)·JS(JavaScript)·CSS(Cascading Style Sheets)는 브라우저가 받는 구조·동작·스타일 자원입니다. ESM(ECMAScript Modules)은 import/export를 사용하는 JavaScript 모듈 방식입니다.</p>
+<h2 id="1-기초-개발-서버와-배포-서버는-역할이-다릅니다">1. 기초: 개발 서버와 배포 서버는 역할이 다릅니다</h2>
+<p>브라우저는 Vue 파일과 TypeScript를 그대로 실행하지 않습니다. 개발할 때 Nuxt가 Vite를 이용해 소스를 브라우저용 모듈로 변환합니다. HMR은 변경된 코드를 반영하면서 가능한 범위에서 화면 상태를 유지하는 기능입니다. Vite는 Python 코드를 실행하는 WSGI 서버가 아니며 Flask API를 대신하지 않습니다.</p>
+<p>이 저장소의 <code>build</code> 스크립트는 <code>nuxt build</code>가 아니라 **<code>nuxt generate</code>**입니다. <code>ssr: false</code>이므로 앱 화면은 브라우저에서 렌더링됩니다. 생성된 정적 파일은 사내 배포에서 Flask가 제공하며, Node/Nitro 서버를 배포 런타임으로 요구하지 않습니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">개발: 브라우저 → Nuxt 개발 서버(:3000)
+                   ├─ 화면 모듈: Vite
+                   └─ /api/*: Nitro devProxy → Flask(:5050 기본값)
+배포: 브라우저 → Flask
+                   ├─ 생성한 HTML/JS/CSS
+                   └─ /api/* → 기능 Blueprint → data.py → 선택된 provider
+</code></pre>
+<p>세 단계 모두 API는 Flask입니다. 프론트에 별도 mock-api 서버가 있는 구조가 아닙니다. 회사용 어댑터는 <code>providers/office.py</code>이며 <strong><code>data.py</code>를 회사용으로 교체하지 않습니다.</strong> 단계별 상세 설명은 <a href="../10-backend-providers/README.html">백엔드 provider</a>에서 이어집니다.</p>
+<h2 id="2-용어와-버전의-세-층">2. 용어와 버전의 세 층</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>의미</th>
+<th>이 저장소에서 읽는 곳</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>번들러</td>
+<td>모듈을 배포용 파일로 묶는 도구</td>
+<td>Nuxt가 사용하는 Vite</td>
+</tr>
+<tr>
+<td>Nitro</td>
+<td>Nuxt 서버 도구와 정적 생성 기반</td>
+<td><code>nitro.devProxy</code></td>
+</tr>
+<tr>
+<td>SPA</td>
+<td>브라우저가 화면을 그리는 앱</td>
+<td><code>ssr: false</code></td>
+</tr>
+<tr>
+<td>origin</td>
+<td>프로토콜·호스트·포트 조합</td>
+<td>브라우저는 <code>/api</code>를 화면과 같은 origin에 요청</td>
+</tr>
+<tr>
+<td>선언</td>
+<td>허용하는 버전 범위</td>
+<td>package.json의 <code>^</code></td>
+</tr>
+<tr>
+<td>lock</td>
+<td>의존성 해결 결과의 정확한 버전</td>
+<td>package-lock.json</td>
+</tr>
+<tr>
+<td>설치</td>
+<td>지금 디스크에 있는 패키지 버전</td>
+<td>node_modules 안 package.json</td>
+</tr>
+</tbody>
+</table></div>
+<p>2026-10-03에 lock과 원본 작업 공간의 설치본을 각각 읽었습니다. 아래 둘은 우연히 일치하지만 언제나 같다고 가정하지 않습니다. Vite는 직접 dependency 선언이 아니라 Nuxt의 간접 의존성입니다.</p>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>직접 선언</th>
+<th>lock</th>
+<th>확인한 설치본</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nuxt</td>
+<td><code>^4.4.2</code></td>
+<td>4.5.0</td>
+<td>4.5.0</td>
+</tr>
+<tr>
+<td>Nuxt UI</td>
+<td><code>^4.6.1</code></td>
+<td>4.10.0</td>
+<td>4.10.0</td>
+</tr>
+<tr>
+<td>Vite</td>
+<td>직접 선언 없음</td>
+<td>8.1.5</td>
+<td>8.1.5</td>
+</tr>
+<tr>
+<td>TypeScript</td>
+<td><code>^5.9.3</code></td>
+<td>5.9.3</td>
+<td>5.9.3</td>
+</tr>
+</tbody>
+</table></div>
+<p>옛 Vite 문서의 Rollup 기반 설명을 현재 Vite 8에 그대로 적용하지 않습니다. Vite 8의 빌드 기반은 Rolldown입니다. 설정을 바꾸기 전에 lock의 실제 주 버전에 맞는 <a href="https://github.com/vitejs/vite/tree/v8.1.5/docs" class="external">Vite 8 문서 원본</a>을 읽습니다.</p>
+<h2 id="3-실제-설정을-읽는-순서">3. 실제 설정을 읽는 순서</h2>
+<h3 id="31-모듈-렌더링-전역-자원">3.1 모듈, 렌더링, 전역 자원</h3>
+<p><code>modules</code>에 <code>@nuxt/eslint</code>와 <code>@nuxt/ui</code>를 <strong>등록</strong>합니다. 패키지를 설치했다는 이유만으로 모든 Nuxt 모듈이 자동 활성화되는 것은 아닙니다. <code>ssr: false</code>는 SPA 선택입니다. <code>devtools.enabled</code>는 항상 true가 아니라 <code>isDev</code>입니다. <code>css</code>는 <code>~/assets/css/main.css</code>를 전역 로드하며 Nuxt 4에서 <code>~</code>는 기본 <code>app/</code> 소스 디렉터리를 가리킵니다.</p>
+<p><code>app.head</code>는 문서 제목, favicon, theme-color를 설정합니다. 현재 SVG favicon은 data URI로 인라인되어 있고 ICO와 apple-touch 파일 링크도 있습니다. SVG를 파일 URL로 바꾸면 클라이언트 내비게이션 중 favicon 재검증 요청이 증가할 수 있다는 프로젝트 주석이 있습니다.</p>
+<h3 id="32-환경-변수와-포트">3.2 환경 변수와 포트</h3>
+<pre tabindex="0"><code class="language-ts">const apiTarget = import.meta.env.NUXT_API_TARGET || 'http://localhost:5050'
+const apiBase = import.meta.env.NUXT_PUBLIC_API_BASE || '/api'
+</code></pre>
+<p><code>devServer.port</code>는 유한한 <code>NUXT_PORT</code> 파싱 결과를 쓰고 아니면 3000입니다. 집 Flask 기본값 5050은 macOS AirPlay의 5000 충돌을 피합니다. 회사에서 Flask가 5000에 있다면 <code>NUXT_API_TARGET</code>을 명시합니다. 기본값이 자동으로 회사의 5000으로 바뀌지는 않습니다.</p>
+<p><code>runtimeConfig.public.apiBase</code>는 브라우저에 공개됩니다. 비밀 정보를 넣지 않습니다. 이 앱은 정적 생성 산출물을 제공하므로 배포 뒤 Flask 환경 변수만 바꿔서 이미 생성된 브라우저 설정을 갱신한다고 기대하면 안 됩니다. 설정 반영에는 생성 시점도 확인해야 합니다.</p>
+<h3 id="33-개발-프록시">3.3 개발 프록시</h3>
+<pre tabindex="0"><code class="language-ts">nitro: {
+  devProxy: {
+    '/api': {
+      target: `${apiTarget.replace(/\/$/, '')}/api`,
+      changeOrigin: true
+    }
+  }
+}
+</code></pre>
+<p>브라우저의 <code>/api/sem-list</code> 요청은 개발 프록시를 거쳐 Flask의 <code>/api/sem-list</code>로 전달됩니다. 현재 구성에서 mount 접두사가 제거되는 경로를 보완하려고 target에 <code>/api</code>가 포함됩니다. 이 설정은 <code>vite.server.proxy</code>가 아니며 다른 프록시 라이브러리의 옵션을 그대로 복사하지 않습니다. <code>changeOrigin</code>은 대상에 보내는 Host를 바꾸는 설정이지 브라우저 CORS를 끄는 설정이 아닙니다. 브라우저가 같은 origin의 <code>/api</code>를 요청하기 때문에 이 경로에서 교차 origin 요청을 만들지 않습니다.</p>
+<p><code>devProxy</code>는 개발 전용입니다. Flask가 정적 SPA와 API를 함께 제공하는 배포에서는 둘이 같은 origin이므로 이 개발 프록시가 필요하지 않습니다.</p>
+<h3 id="34-원격-접속과-host-허용">3.4 원격 접속과 Host 허용</h3>
+<p><code>dev:remote</code>는 <code>nuxt dev --host 0.0.0.0</code>입니다. 이것은 서버가 듣는 주소를 바꾸는 설정이고, <code>vite.server.allowedHosts</code>는 요청의 Host 허용 여부입니다. 둘은 별개입니다. 현재 목록은 <code>.ts.net</code>, <code>.trycloudflare.com</code>이며 IP 주소는 Vite에서 기본 허용됩니다. 앞의 점은 해당 도메인과 하위 도메인들을 허용합니다. 편의를 위해 <code>allowedHosts: true</code>로 바꾸지 않습니다. <a href="https://vite.dev/config/server-options#server-allowedhosts" class="external">Vite 서버 옵션</a>을 참고합니다.</p>
+<h3 id="35-오프라인-폰트와-아이콘">3.5 오프라인 폰트와 아이콘</h3>
+<p><code>ui.fonts: false</code>로 폰트 자동 해석을 끄고 프로젝트의 자체 자원을 사용합니다. 아이콘은 <code>fallbackToApi: false</code>로 외부 Iconify API 폴백을 끕니다. <code>clientBundle.scan</code>은 앱 소스와 Nuxt UI 컴파일된 컴포넌트를 함께 스캔합니다. 이름이 동적으로 조립되는 아이콘은 <code>icons</code>에 <code>lucide:x</code>처럼 등록합니다. template의 <code>i-lucide-x</code>와 등록 형식이 다릅니다. <code>sizeLimitKb: 2048</code>은 번들 크기 허용 한도이며 모든 아이콘을 자동 포함하는 옵션은 아닙니다.</p>
+<h3 id="36-typescript-eslint-compatibilitydate">3.6 TypeScript, ESLint, compatibilityDate</h3>
+<p><code>typescript.tsConfig.compilerOptions.allowImportingTsExtensions: true</code>는 <code>node --test</code>용 <code>.ts</code> 확장자 import를 허용합니다. <strong>테스트 파일 exclude는 없습니다.</strong> 테스트 fixture도 실제 API 타입과 함께 검사하여 계약 변화가 보이도록 유지합니다. Node 타입은 <code>@types/node</code>로 제공합니다.</p>
+<p><a href="../../../frontend/tsconfig.json" class="source-link">tsconfig.json</a>은 <code>.nuxt/tsconfig.app.json</code> 등 네 개 생성 설정을 참조하는 solution 구조입니다. <code>.nuxt</code> 파일은 수정하지 않습니다. <code>postinstall</code>의 <code>nuxt prepare</code> 등이 재생성하기 때문입니다. ESLint 스타일은 trailing comma 금지와 <code>1tbs</code>이며 <a href="../08-eslint-style/README.html">08장</a>에서 검사 범위를 구분합니다.</p>
+<p><code>compatibilityDate: '2025-01-15'</code>는 날짜 기반 호환 동작을 선택하는 설정입니다. Nuxt 전체 코드와 의존성 버전을 그 날짜로 고정하는 설정이 아닙니다. 버전 재현은 lock 파일이 담당합니다. 현재 <code>routeRules</code> 블록은 없으므로 홈 페이지에만 <code>prerender: true</code>를 설정했다는 옛 설명은 적용되지 않습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>SPA와 Flask 정적 제공은 배포에 Node 서버를 추가하지 않는 선택입니다. 대신 첫 화면 내용은 브라우저 JS 실행에 의존합니다. <code>nuxt generate</code> 산출물 중 배포에 쓰는 위치는 <code>.output/public/</code>이며 SSR 서버를 실행하는 것이 아닙니다. 회사 내부 배포 절차는 <a href="../../deployment.md" class="source-link">deployment.md</a>를 따릅니다. 외부 CDN 배포는 이 프로젝트의 기본 절차가 아닙니다.</p>
+<p>자체 폰트와 아이콘은 외부 서비스 의존성을 줄이지만 누락된 아이콘이 자동으로 복구되지는 않습니다. 개발 프록시는 API 주소 차이를 가리지만 회사 DB 연결과 provider 계약까지 검증하지는 않습니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ul>
+<li>Nuxt의 3000과 Vite 독립 실행 기본 포트 5173을 혼동합니다.</li>
+<li><code>NUXT_API_TARGET</code>만 바꾸면 백엔드 provider까지 바뀐다고 생각합니다. Flask provider 선택은 별도 설정입니다.</li>
+<li><code>ssr: false</code>와 생성 명령을 보고 실제 API 응답까지 빌드 때 고정된다고 생각합니다. API는 브라우저 실행 중 요청합니다.</li>
+<li><code>.nuxt</code> 설정을 직접 편집하거나 테스트를 typecheck에서 빼서 오류를 숨깁니다.</li>
+<li>회사 5000을 쓰면서 proxy target은 5050 기본값으로 둡니다.</li>
+</ul>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>아래는 저장소 루트에서 설정을 읽기만 하는 실습입니다. 패키지 설치나 서버 실행은 필요하지 않습니다.</p>
+<pre tabindex="0"><code class="language-bash">rg -n '&quot;build&quot;|&quot;dev:remote&quot;|&quot;postinstall&quot;' frontend/package.json
+rg -n 'ssr:|devProxy:|allowedHosts:|compatibilityDate:|allowImporting' frontend/nuxt.config.ts
+cat frontend/tsconfig.json
+</code></pre>
+<p><code>build=nuxt generate</code>, <code>ssr=false</code>, <code>/api</code> 프록시, 두 Host suffix, <code>.ts</code> import 허용을 찾으면 성공입니다. 이어서 종이에 <code>/api/sem-list</code> 요청이 개발·배포에서 각각 어느 서버를 거치는지 그립니다. 설정을 읽는 실습은 실제 회사 API 연결 검증과 구분합니다.</p>
+<p>공식 자료는 <a href="https://nuxt.com/docs/4.x/api/nuxt-config" class="external">Nuxt 4 설정</a>, <a href="https://nuxt.com/docs/4.x/guide/concepts/rendering" class="external">Nuxt 4 렌더링</a>, <a href="https://github.com/vitejs/vite/blob/v8.1.5/docs/config/server-options.md" class="external">Vite 8.1.5 서버 옵션 원본</a>입니다. Nuxt 문서 사이트는 4.x 전체 설명이며 패치 버전별 동작은 설치본과 같은 버전 소스로 확인합니다.</p>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../05-tailwind/README.html">이전: 05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a><a href="../07-code-patterns/README.html">다음: 07. 프로젝트 고유 코드 패턴</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

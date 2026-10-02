@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="2122ab097c20a1da404e01f20d4e3387a5f04f7708744529d2b3731faad79849"><meta name="body-sha256" content="4fe775e43b8997baa940229a74d570cff760c6b4b77dd2b649bfad4063783659"><title>16. 저장소·데이터 형식·사내 빌드와 배포 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="README.html" aria-current="page">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-개념-데이터가-사는-곳과-모양">1. 기초 개념: 데이터가 사는 곳과 모양</a></li><li><a href="#2-전문-용어">2. 전문 용어</a></li><li><a href="#3-이-저장소의-구현">3. 이 저장소의 구현</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수와-영향">5. 흔한 실수와 영향</a></li><li><a href="#6-안전한-실습과-사내-확인">6. 안전한 실습과 사내 확인</a></li><li><a href="#근거와-공식-문서">근거와 공식 문서</a></li></ol></details></nav><article><h1 id="16-저장소데이터-형식사내-빌드와-배포">16. 저장소·데이터 형식·사내 빌드와 배포</h1>
+<blockquote>
+<p><strong>2026-10-03.</strong> 이 장의 office 설명은 추적된 template와 배포 코드의 의도입니다. 현재 사내 데이터·배포된 gitignored adapter는 여기서 실행 검증하지 않았습니다.</p>
+</blockquote>
+<h2 id="1-기초-개념-데이터가-사는-곳과-모양">1. 기초 개념: 데이터가 사는 곳과 모양</h2>
+<p>‘데이터베이스에 있다’는 말만으로는 수정 영향을 알 수 없습니다. 장비 목록은 Redis에서 올 수 있고, 측정 이력은 OpenSearch에서 찾아 실제 파일은 MinIO에서 가져올 수 있습니다. 브라우저 선택 상태는 localStorage, 대화 이력은 SQLite입니다. 각 저장소는 수명·공유 범위·장애 방식이 다릅니다.</p>
+<p>데이터 형식은 내용을 담는 규칙입니다. JSON은 교환하기 편하지만 Python DataFrame 타입과 실행 코드를 보존하지 않습니다. pickle은 Python 객체를 복원하지만 신뢰와 라이브러리 버전에 의존합니다. 이미지의 TIFF와 WebP는 저장·열람 목적이 다릅니다. 파일 확장자를 바꾸는 것과 내용을 변환하는 것도 다릅니다.</p>
+<h2 id="2-전문-용어">2. 전문 용어</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Redis</td>
+<td>key-value·hash·list 등 자료구조를 빠르게 읽고 쓰는 서비스입니다. 단순히 ‘캐시’라는 말만으로 영속 정책을 단정하지 않습니다.</td>
+</tr>
+<tr>
+<td>OpenSearch index / alias</td>
+<td>검색 문서 저장 단위 / 하나 이상의 index를 가리키는 이름입니다. rollover alias는 쓰기 대상 index를 바꾸며 유지됩니다.</td>
+</tr>
+<tr>
+<td>MinIO / object storage</td>
+<td>S3 호환 객체 저장 서비스 / key로 파일 바이트를 보관하는 저장 방식입니다. bucket은 객체들의 논리적 묶음입니다.</td>
+</tr>
+<tr>
+<td>SQLite</td>
+<td>별도 DB 서버 없이 파일에 저장하는 관계형 데이터베이스입니다. 여러 worker가 같은 파일을 사용할 수 있지만 쓰기 경합은 존재합니다.</td>
+</tr>
+<tr>
+<td>WAL (Write-Ahead Logging)</td>
+<td>수정 내용을 먼저 별도 로그에 쓰는 SQLite 모드입니다. 읽기와 쓰기의 공존을 돕지만 동시 writer를 무제한 허용하지 않습니다.</td>
+</tr>
+<tr>
+<td>serialization, 직렬화</td>
+<td>객체를 저장·전달 가능한 형태로 바꾸는 것입니다. 역직렬화는 원래 구조를 복원합니다.</td>
+</tr>
+<tr>
+<td>pickle</td>
+<td>Python 객체 직렬화 형식입니다. 역직렬화 과정에서 코드가 실행될 수 있으므로 신뢰되지 않은 파일에 사용하지 않습니다.</td>
+</tr>
+<tr>
+<td>TIFF (Tagged Image File Format)</td>
+<td>계측 원본에도 쓰이는 이미지 형식입니다. 브라우저가 직접 표시하기 어려울 수 있습니다.</td>
+</tr>
+<tr>
+<td>WebP</td>
+<td>브라우저 열람용 이미지 형식입니다. preview는 원본 계측 데이터와 목적이 다릅니다.</td>
+</tr>
+<tr>
+<td>RAG (Retrieval-Augmented Generation)</td>
+<td>자료를 검색해 생성 모델의 답변에 연결하는 방식입니다. 검색 index와 대화 이력은 다른 저장소입니다.</td>
+</tr>
+<tr>
+<td>overlay, 오버레이</td>
+<td>기존 디렉터리에 배포 파일을 덮어 넣는 방식입니다. 운영 영속 파일까지 통째로 교체하는 것이 아닙니다.</td>
+</tr>
+<tr>
+<td>preflight</td>
+<td>실행 전 구조·설정을 검사하는 사전 점검입니다. 실제 네트워크·데이터 정확성을 모두 증명하지 않습니다.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3-이-저장소의-구현">3. 이 저장소의 구현</h2>
+<h3 id="31-저장소별-역할과-확인-범위">3.1 저장소별 역할과 확인 범위</h3>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>저장소·형식</th>
+<th>코드에서 확인한 사용</th>
+<th>집·사내 검증 구분</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Redis</td>
+<td>office adapter 데이터, rate limit, scheduler lock/runlog 등입니다.</td>
+<td>home mock의 dict가 실제 Redis 영속성·권한을 증명하지 않습니다.</td>
+</tr>
+<tr>
+<td>OpenSearch</td>
+<td>office 측정/업무 검색·집계, 활동 로그 적재·조회입니다.</td>
+<td>index schema·alias·부분 응답은 실제 사내 확인이 필요합니다.</td>
+</tr>
+<tr>
+<td>MinIO</td>
+<td>MSR pickle·원본 파일 등 객체를 가져옵니다.</td>
+<td>실제 bucket/key와 보존 정책은 사내 확인입니다.</td>
+</tr>
+<tr>
+<td>FTP</td>
+<td>장비 파일을 직접 또는 proxy 경로로 읽는 기능입니다.</td>
+<td>네트워크 연결과 배포된 adapter 선택은 미확인입니다.</td>
+</tr>
+<tr>
+<td>SQLite <code>chat.db</code></td>
+<td>집·사무실 모두 대화 thread와 message 저장입니다.</td>
+<td>로컬 순수 테스트와 사내 공유 파일·동시성·backup은 분리합니다.</td>
+</tr>
+<tr>
+<td>localStorage</td>
+<td>브라우저 화면 설정·선택 상태입니다.</td>
+<td>서버 데이터의 원본 저장소가 아닙니다.</td>
+</tr>
+<tr>
+<td>JSON</td>
+<td>API 계약과 파일 내 중첩 자료를 표현합니다.</td>
+<td><code>null</code>, 누락 필드, 숫자 문자열은 구분해야 합니다.</td>
+</tr>
+<tr>
+<td>pickle</td>
+<td>MSR 처리 결과를 Python 객체로 읽습니다.</td>
+<td>신뢰된 upstream과 NumPy 호환 조건이 필요합니다.</td>
+</tr>
+<tr>
+<td>ExcelJS</td>
+<td>프런트엔드에서 <code>.xlsx</code> export를 만듭니다.</td>
+<td>원본 API 데이터의 보존·권한을 대체하지 않습니다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>구체적인 schema의 기준은 <a href="../../datatables/README.md" class="source-link">datatables 안내</a>입니다. 새로운 사내 사실은 schema 문서와 mock에 함께 반영하는 규칙이 있지만, 이번 작업은 학습 문서만 수정하므로 새로운 runtime schema를 만들어 넣지 않습니다.</p>
+<h3 id="32-msr-이력-문서에서-pickle까지">3.2 MSR: 이력 문서에서 pickle까지</h3>
+<p><a href="../../../backend/msr_file/providers/office_example.py" class="source-link">msr_file office template</a>은 측정 이력 문서의 <code>minio_pkl</code> 경로에서 처리된 pickle을 읽어 API 계약으로 정규화합니다. raw <code>.MSR</code>와 처리된 pickle은 같은 파일이 아닙니다. 생산자의 NumPy 2 pickle이 <code>numpy._core</code> 복원 경로를 사용하므로 reader의 <a href="../../../backend/requirements.txt" class="source-link">requirements</a>는 <code>numpy&gt;=2</code>를 요구합니다. pandas·PyArrow 하한도 NumPy 2 호환성과 함께 정해져 있습니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">측정 이력 검색 → minio_pkl 객체 key → 신뢰된 pickle 읽기
+             → 값·좌표·컬럼 정규화 → contracts.py 모양 → JSON → 차트
+</code></pre>
+<p>학습 예시에서 인터넷에서 받은 pickle이나 사용자 업로드를 <code>pickle.load</code>로 열지 않습니다. 파일 내용이 악의적이면 코드가 실행될 수 있다는 Python 공식 경고가 적용됩니다. 이 저장소가 사용한다고 형식 자체가 안전해지는 것은 아닙니다.</p>
+<h3 id="33-이미지-preview와-원본">3.3 이미지 preview와 원본</h3>
+<p><a href="../../../backend/msr_image/preview.py" class="source-link">msr_image/preview.py</a>는 TIFF를 브라우저용 WebP preview로 바꾸는 기능을 갖습니다. Pillow를 지연 import하므로 패키지 부재는 전체 앱 기동과 preview 실패에서 다르게 보입니다. <code>?preview=1</code> 열람 결과와 원본 다운로드를 구분합니다. 원본의 측정 단위·픽셀·메타데이터를 preview 그림만 보고 새로 해석하지 않습니다.</p>
+<p>FTP 직접/proxy 경로는 <a href="../../deployment-ftp-proxy.md" class="source-link">배포 FTP 안내</a>와 각 feature template를 함께 읽습니다. 현재 checkout의 template가 바뀌어도 사내 <code>office.py</code> 사본이 자동으로 바뀌지 않습니다.</p>
+<h3 id="34-대화-저장소와-검색-index">3.4 대화 저장소와 검색 index</h3>
+<p><a href="../../../backend/chat/store.py" class="source-link">chat/store.py</a>는 기본 <code>backend/chat/chat.db</code>, 설정 시 <code>SKEWNONO_CHAT_DB</code> 파일을 사용합니다. 연결마다 <code>busy_timeout=5000</code>을 설정하고 WAL을 시도합니다. 지원하지 않는 파일시스템이면 기본 journal로 진행할 수 있으므로 ‘WAL 설정 줄이 있다’와 ‘사내에서 WAL이 활성화됐다’는 다른 주장입니다. additive migration은 기존 파일에 새 컬럼을 추가합니다. 코드만 배포한다고 기존 DB schema가 초기 생성 SQL로 다시 만들어지는 것은 아닙니다.</p>
+<p><a href="../../../backend/chat/rag.py" class="source-link">chat/rag.py</a>는 별도의 <code>_rag</code> checkout과 index 준비 여부를 확인합니다. <code>faiss-cpu</code>, <code>rank_bm25</code>, LangChain·LangGraph·OpenAI 관련 requirements는 이 프로세스 안의 사내 RAG 경로를 위한 의존성입니다. 설치 선언이 있다는 사실은 home에서 실제 모델·FAISS (Facebook AI Similarity Search) index를 사용했다는 증거가 아닙니다. <code>_rag</code> 및 검색 자료의 내부 구현은 추적된 앱과 별도 확인 대상입니다.</p>
+<h3 id="35-빌드와-패킹-운영-오버레이">3.5 빌드와 패킹, 운영 오버레이</h3>
+<p><span class="diagram-image" role="group" aria-label="로컬 구조도: 좁은 화면에서는 좌우로 스크롤합니다" tabindex="0"><img src="../assets/build-deploy.svg" alt="개발 코드가 정적 프런트엔드와 Python 배포 묶음으로 바뀌는 흐름"></span></p>
+<p><a href="../../../scripts/deploy/pack.py" class="source-link">pack.py</a>는 git archive가 아니라 <strong>현재 작업 디렉터리</strong>를 읽습니다. 이유는 gitignored <code>office.py</code>, <code>.env</code>, MinIO 설정 등 실제 실행에 필요한 사내 파일도 있어야 하기 때문입니다. 포함 경로는 <code>backend</code>, <code>frontend/.output/public</code>, <code>ops_store</code>, <code>minio_handler</code>, <code>ftp_handler</code>, <code>office_utils</code>입니다. tests·Markdown·git 이력·local <code>chat.db</code> 등은 제외합니다.</p>
+<p>루트 <code>index.py</code>와 <code>wsgi.ini</code>는 번들에 포함하지 않습니다. cloud의 영구 사본을 유지하기 위한 구조입니다. 따라서 추적된 진입점을 고쳤다고 cloud 진입점도 자동 갱신됐다고 생각하면 안 됩니다. 학습 사이트도 runtime bundle에 자동 포함되지 않으며 <code>docs/study</code>를 별도로 복사해서 읽습니다.</p>
+<p>실제 배포는 기존 <code>/project/workSpace</code>에 오버레이합니다. 디렉터리를 새로 교체하면 운영 <code>.env</code>·대화 DB·영구 진입점 등을 잃을 수 있습니다. 경로는 <code>is_cloud()</code> 조건이므로 이름도 의미가 있습니다. 사내 운영은 외부 SaaS나 공개 클라우드가 아니라 사내망 서비스입니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>각 저장소의 장점을 기능별로 사용하고 provider에서 정규화하면 프런트엔드가 저장소별 schema를 알 필요가 줄어듭니다. 반면 한 화면에 Redis·검색·객체·FTP가 연쇄적으로 필요하면 어느 경계에서 실패했는지 진단해야 합니다. HTTP 200만으로 전체 내용의 완전성을 증명할 수 없습니다. OpenSearch 응답의 <code>timed_out</code>, <code>_shards.failed</code>처럼 명시적인 불완전성 신호도 검토해야 합니다.</p>
+<p>오버레이는 사내 영속 파일을 유지하지만 오래된 파일을 자동 삭제하는 배포가 아닙니다. template와 active adapter의 차이, frontend build의 최신성, 기존 파일 보존을 별도로 관리해야 합니다. requirements 하한만으로 Python 환경을 완전히 재현할 수 없다는 점도 운영 부채의 일부입니다.</p>
+<h2 id="5-흔한-실수와-영향">5. 흔한 실수와 영향</h2>
+<ul>
+<li>MinIO key를 로컬 경로처럼 처리하면 bucket·leading slash·객체 이름을 잘못 해석할 수 있습니다.</li>
+<li>DataFrame을 그대로 <code>jsonify</code>에 넣거나 <code>NaN</code>을 일반 숫자로 기대하면 API 계약이 깨집니다. 정규화와 frontend 타입을 같이 확인합니다.</li>
+<li>사내 <code>office.py</code>를 template와 동일하다고 가정하면 수정 후에도 옛 응답을 받습니다. sync 도구의 실제 판단과 restart를 확인합니다.</li>
+<li>local <code>chat.db</code>를 배포하면 실제 사용자의 대화 이력을 덮어쓸 수 있습니다. pack의 제외 규칙을 지킵니다.</li>
+<li>Python venv나 Node <code>node_modules</code> 전체를 다른 운영체제로 복사하면 바이너리 호환 문제가 생깁니다.</li>
+<li>임의로 pack을 연습하면 민감한 <code>.env</code>와 사내 adapter가 포함될 수 있습니다. home 학습은 도움말과 제외 규칙 읽기에 한정합니다.</li>
+</ul>
+<h2 id="6-안전한-실습과-사내-확인">6. 안전한 실습과 사내 확인</h2>
+<p><strong>저장소 루트</strong>에서 다음 읽기 전용 명령을 실행합니다. pickle 역직렬화·자료 삭제·pack 생성·업로드는 하지 않습니다.</p>
+<pre tabindex="0"><code class="language-bash">rg -n 'INCLUDED_ROOTS|PRUNE_NAMES|PRUNE_SUFFIXES' scripts/deploy/pack.py
+rg -n 'numpy|pandas|pyarrow' backend/requirements.txt
+rg -n 'SKEWNONO_CHAT_DB|journal_mode|busy_timeout' backend/chat/store.py
+</code></pre>
+<p>한 측정 화면의 데이터가 ‘검색 문서 → 객체 → 계약 → JSON’으로 지나갈 때 각 단계의 실패를 적습니다. key 부재, 객체 보존 기간 만료, pickle 버전 불일치, 계약 누락은 서로 다른 실패입니다. mock contract 테스트로 모양을 확인할 수 있지만 실제 객체 존재는 확인할 수 없습니다.</p>
+<p>다음 명령은 <strong>사내 배포 담당자의 작업 순서 설명</strong>이며 home 실습에서 실행하지 않습니다. 실제 절차·인자는 <a href="../../deployment.md" class="source-link">deployment.md</a>를 기준으로 합니다.</p>
+<pre tabindex="0"><code class="language-bash">npm --prefix frontend run build
+.venv/bin/python -m scripts.deploy.pack
+# bundle을 기존 /project/workSpace에 오버레이한 뒤, 대상 호스트에서:
+python preflight.py
+</code></pre>
+<p>남은 확인은 운영 Python/package 버전, 실제 office adapter freshness, Redis/OpenSearch/MinIO/FTP 연결과 schema, SQLite 파일 권한·WAL·backup, <code>SKEWNONO_SECRET_KEY</code>와 로그 alias, 영구 uWSGI worker 설정과 reload입니다. 실제 secret 값은 문서나 검사 출력에 넣지 않습니다.</p>
+<h2 id="근거와-공식-문서">근거와 공식 문서</h2>
+<ul>
+<li><a href="https://docs.python.org/3.11/library/pickle.html" class="external">Python 3.11 pickle</a> — 신뢰되지 않은 pickle의 위험과 Python 객체 복원 의미입니다.</li>
+<li><a href="https://www.sqlite.org/wal.html" class="external">SQLite WAL</a> — 읽기·쓰기 공존과 파일시스템 조건입니다.</li>
+<li><a href="../../deployment.md" class="source-link">배포 절차</a>, <a href="../../back-end/provider-selection.md" class="source-link">provider 선택 규칙</a>, <a href="../../../backend/chat/MIGRATION.md" class="source-link">chat migration</a></li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../15-process-auth-operations/README.html">이전: 15. 프로세스·스레드·신원·활동 로그</a><a href="../questions.html">다음: 학습 질문 모음</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

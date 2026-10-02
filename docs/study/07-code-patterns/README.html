@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="87cfffba11da28a9aa450b05c837a4fb6c97b9158eb19e6cf6f05b70a8b35fe4"><meta name="body-sha256" content="cd7a21bce224af2dba53b00f8860d49410d4c4800db805c175502476f9d326c2"><title>07. 프로젝트 고유 코드 패턴 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="README.html" aria-current="page">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-서버-데이터와-화면-상태를-구분합니다">1. 기초: 서버 데이터와 화면 상태를 구분합니다</a></li><li><a href="#2-용어">2. 용어</a></li><li><a href="#3-실제-구현">3. 실제 구현</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li></ol></details></nav><article><h1 id="07-프로젝트-고유-코드-패턴">07. 프로젝트 고유 코드 패턴</h1>
+<p>2026-10-03의 실제 코드 기준입니다. 컴포저블은 화면에서 함께 쓰는 동작을 함수로 묶은 것이고, store는 페이지를 넘어서 공유하는 상태의 진입점입니다. 이 저장소는 Pinia나 Vue Query를 사용하지 않고 Nuxt와 Vue 내장 기능으로 현재 요구를 처리합니다.</p>
+<h2 id="1-기초-서버-데이터와-화면-상태를-구분합니다">1. 기초: 서버 데이터와 화면 상태를 구분합니다</h2>
+<p>장비 목록은 서버가 관리하는 데이터입니다. 선택한 팹과 비교할 장비는 사용자가 만든 화면 상태입니다. 둘을 같은 보관소에 넣어야 하는 것은 아닙니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">페이지 / 컴포넌트
+  ├─ API composable → $fetch('/api/...') → Flask → data.py → provider
+  ├─ useAsyncData → 요청 결과와 상태 공유
+  ├─ useState store → 현재 SPA의 화면 상태 공유
+  └─ usePersistedState → useState + localStorage 복원/저장
+</code></pre>
+<p>모든 단계에서 Flask를 호출합니다. 프론트의 <code>mock-data</code>로 집 데이터를 읽는 옛 구조와 <code>useEbeamToolApi</code> 예제는 현재 구조가 아닙니다. provider만 바꾸는 백엔드 경계는 <a href="../10-backend-providers/README.html">10장</a>에 있습니다.</p>
+<h2 id="2-용어">2. 용어</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>쉬운 뜻</th>
+<th>수명/주의점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ref</code></td>
+<td>바뀌면 화면도 반응하는 값</td>
+<td>script에서는 <code>.value</code></td>
+</tr>
+<tr>
+<td><code>computed</code></td>
+<td>다른 값에서 계산한 결과</td>
+<td>원본을 다시 보관하는 저장소가 아님</td>
+</tr>
+<tr>
+<td>composable</td>
+<td>Vue/Nuxt 상태와 동작을 묶는 함수</td>
+<td><code>useXxx</code> 이름을 사용</td>
+</tr>
+<tr>
+<td>store</td>
+<td>공유 상태와 변경 함수 묶음</td>
+<td>이 앱에서는 <code>useState</code> 기반</td>
+</tr>
+<tr>
+<td>캐시</td>
+<td>이미 얻은 결과 재사용</td>
+<td>최신값이라는 보장은 별도</td>
+</tr>
+<tr>
+<td>dedupe</td>
+<td>겹친 요청 처리 방식</td>
+<td>캐시·영속화와 다름</td>
+</tr>
+<tr>
+<td>normalize</td>
+<td>외부 값 구조를 검증/정리</td>
+<td>서버에 아직 존재하는지까지 보장하지 않음</td>
+</tr>
+</tbody>
+</table></div>
+<p>lock과 확인한 설치본은 Nuxt 4.5.0, Vue 3.5.40입니다. Nuxt 직접 선언은 <code>^4.4.2</code>, Vue는 간접 의존성입니다. 선언·lock·설치의 구분은 <a href="../06-vite-config/README.html">06장</a>에 있습니다.</p>
+<h2 id="3-실제-구현">3. 실제 구현</h2>
+<h3 id="31-navigation-store">3.1 navigation store</h3>
+<p><a href="../../../frontend/app/stores/navigation.ts" class="source-link">stores/navigation.ts</a>의 현재 필드는 <code>toolType</code>, <code>fabs</code>, <code>favorites</code>, <code>selectedToolId</code>입니다. 예전 <code>category</code>, <code>recent</code> 필드는 없습니다. <code>Fab</code>은 서버의 <code>fab_name</code>을 담는 <code>string</code>이며 고정된 팹 문자열 union이 아닙니다.</p>
+<p><code>useState('navigation', factory)</code>가 상태를 공유하고 <code>readonly(state)</code>가 직접 수정을 제한합니다. 필드별 <code>computed</code>와 <code>setToolType</code>, <code>setFabs</code>, <code>setSelectedTool</code> 등의 액션을 반환합니다. <code>setFabs</code>는 <code>canonicalFabList</code>를 이용해 대문자 정규화·중복 제거·순서 유지·sentinel 제거를 한 곳에서 처리합니다. <code>fab</code> 접근자는 <code>fabs[0]</code> 또는 선택 없음 값 <code>all</code>을 반환하는 단일 선택 호환 경로입니다.</p>
+<p><a href="../../../frontend/app/composables/useNavigation.ts" class="source-link">useNavigation.ts</a>는 store와 router를 묶습니다. 지원하는 기능을 유지하며 장비군을 전환하고, 같은 기능이면 query를 유지하며, fabless 기능과 단일 팹 기능을 별도로 처리합니다. 화면이 URL 조립 규칙을 복제하지 않도록 이 진입점을 사용합니다.</p>
+<h3 id="32-api와-순수-함수">3.2 API와 순수 함수</h3>
+<p><a href="../../../frontend/app/composables/useSemListApi.ts" class="source-link">useSemListApi.ts</a>는 <code>useRuntimeConfig().public.apiBase</code>와 기존 <a href="../../../frontend/app/utils/apiPath.ts" class="source-link">joinApiPath</a>를 이용해 URL을 만듭니다. <code>fetchSemList()</code>는 <code>$fetch</code>이고 <code>filterRows()</code>는 장비 모델 분류와 팹 필터입니다. 필터의 서버 팹 값과 선택 팹 값은 대소문자를 정규화해서 비교합니다.</p>
+<p>타입 <code>SemListRow</code>는 응답을 읽는 개발 계약입니다. <code>$fetch&lt;SemListResponse&gt;</code>라는 타입 표기만으로 잘못된 서버 JSON이 런타임에 검증되는 것은 아닙니다. 응답 계약을 바꾸면 백엔드·fixture·사용 화면을 함께 확인해야 합니다.</p>
+<h3 id="33-데이터-요청과-영속-상태">3.3 데이터 요청과 영속 상태</h3>
+<p><a href="sem-list-caching.html">sem-list 캐싱</a>은 <code>useAsyncData('sem-list')</code>, <code>payloadCache</code>, Promise slot을 함께 설명합니다. <code>refresh()</code>를 호출했다고 항상 새 HTTP 요청이 생기지 않는 것이 핵심입니다.</p>
+<p><a href="persisted-state.html">영속 상태</a>는 <code>usePersistedState</code>의 복원, detached scope, 동기 watcher, 배열 교체 규칙을 설명합니다. <code>navigation.favorites</code> 자체는 현재 인메모리이며 영속 팩토리가 있다는 사실과 별개입니다. 반면 device cart와 레시피 선택 등은 실제로 영속 팩토리를 사용합니다.</p>
+<h3 id="34-page-view-layout의-역할-분리">3.4 Page, View, Layout의 역할 분리</h3>
+<p><a href="../../../frontend/app/pages/ebeam/cd-sem/%5Bfab%5D/index.vue" class="source-link">CD-SEM 팹 페이지</a>는 <code>useFabRoute('cd-sem')</code>로 선택 팹을 얻고 재사용 View에 <code>tool-type</code>, <code>fabs</code>, 제목 등을 넘깁니다. <code>AppAsyncBoundary</code>는 로딩 경계를 감쌉니다. 페이지가 모든 표 로직을 복사할 필요가 없는 구조입니다.</p>
+<p><a href="../../../frontend/app/components/ebeam/ToolInventoryView.vue" class="source-link">ToolInventoryView.vue</a>는 <code>useSemList()</code>의 전체 목록에서 <code>computed(() =&gt; filterRows(...))</code>로 장비군과 팹에 해당하는 행을 계산합니다. 검색·모델·상태 조건과 정렬도 파생 결과로 만듭니다. 예전 팹별 API key로 원본 목록을 중복 fetch하는 예제와 다릅니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">공유 sem-list 응답
+ → 장비군 / 선택 팹 filterRows
+ → 검색 / 모델 / 상태 조건
+ → 정렬 결과
+ → 화면 표 / 카운터 / 내보내기에 필요한 파생 결과
+</code></pre>
+<p>null 또는 undefined일 때 <code>?? []</code>를 쓰는 것은 로딩 중 계산 오류를 막기 위한 것입니다. 오류가 발생했을 때도 항상 빈 배열만 보여 주면 사용자가 0건과 실패를 구분하지 못하므로 오류·로딩 상태 표시는 별도 필요합니다.</p>
+<p><a href="../../../frontend/app/pages/index.vue" class="source-link">홈 페이지</a>는 <code>definePageMeta({ layout: 'hub' })</code>를 지정합니다. <a href="../../../frontend/app/layouts/default.vue" class="source-link">default layout</a>은 현재 route가 e-beam인지와 <code>hideFabSidebar</code> 메타를 함께 보고 팹 사이드바 표시를 결정합니다. '기본 레이아웃이면 항상 사이드바가 있다'고 단정하지 않습니다.</p>
+<h3 id="35-시각-규칙도-공유-계약입니다">3.5 시각 규칙도 공유 계약입니다</h3>
+<p><a href="../../../DESIGN.md" class="source-link">DESIGN.md</a>가 시각 언어의 기준입니다. 현재 규칙은 종이색 표면·따뜻한 잉크·terracotta 필터 강조이며 'zinc만 쓰는 모노톤'이라는 옛 설명은 유효하지 않습니다. 색은 <code>--sk-*</code> 토큰을 사용하고 navigation과 filter의 강조 의미를 구분합니다. 컴포넌트에 보이는 옛 클래스가 새 화면의 기준을 자동으로 결정하지는 않습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>내장 <code>useState</code>로 공유 상태를 만들 수 있고 <code>useAsyncData</code>로 서버 응답을 공유할 수 있으므로 같은 기능을 위한 라이브러리를 추가하지 않습니다. Pinia 재검토 사유는 store 개수 자체가 아니라 시간 여행 디버깅이나 기존 컴포저블로 표현하기 어려운 상태 조정 같은 실제 요구입니다. TTL·focus refetch 같은 서버 캐시 요구가 생기면 별도로 평가합니다.</p>
+<p>한계도 있습니다. localStorage에는 서버 존재 여부를 판단하는 정보가 없고, 데이터 캐시는 시간만 지나도 자동 최신화되지 않습니다. 모듈 scope 변수와 detached watcher를 가진 이 구현은 현재의 client SPA 전제를 이해하고 써야 합니다. SSR을 켜는 작업에서 그대로 재사용한다고 가정하지 않습니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ul>
+<li><code>useState</code>를 localStorage라고 생각해서 F5 뒤에도 유지된다고 기대합니다.</li>
+<li>새 배열이 필요한 영속 ref를 <code>.push()</code>로 바꿔 저장 watcher를 건너뜁니다.</li>
+<li>정규화된 팹을 다시 raw 문자열과 비교합니다.</li>
+<li>같은 API를 여러 컴포넌트에서 직접 <code>$fetch</code>하여 공유 진입점을 우회합니다.</li>
+<li>타입 검사 성공을 실제 데이터 소비 또는 회사 응답 검증의 증거로 봅니다.</li>
+</ul>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>저장소 루트에서 호출자와 변경 지점을 읽습니다.</p>
+<pre tabindex="0"><code class="language-bash">rg -n 'useSemList\(' frontend/app
+rg -n 'usePersistedState|entries.value =' frontend/app/composables/useRecipeSelectionSet.ts
+rg -n 'setFabs|canonicalFabList|readonly' frontend/app/stores/navigation.ts
+</code></pre>
+<p>홈과 사이드바가 같은 서버 데이터 진입점을 쓰는지, 레시피 변경이 배열을 교체하는지, 팹 정규화가 store 쓰기 경계에 있는지 설명하면 성공입니다. 다음 단계는 두 상세 문서의 무해한 실습입니다.</p>
+<p>공식 기초는 <a href="https://nuxt.com/docs/4.x/api/composables/use-state" class="external">Nuxt 4 useState</a>, <a href="https://vuejs.org/guide/essentials/computed.html" class="external">Vue 3 computed</a>, <a href="https://github.com/nuxt/nuxt/blob/v4.5.0/packages/nuxt/src/app/composables/asyncData.ts" class="external">Nuxt 4.5.0 asyncData 소스</a>입니다.</p>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../06-vite-config/README.html">이전: 06. Vite와 Nuxt 설정을 읽는 법</a><a href="persisted-state.html">다음: usePersistedState — localStorage 영속 상태 팩토리</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

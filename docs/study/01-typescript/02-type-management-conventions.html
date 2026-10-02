@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="0f22312b68d7a8ef3b9c88a08c662b0a0aebf959f35c83c5be62169daa59fe80"><meta name="body-sha256" content="accb380e54cf388fa22af112a494244861b6ec0f7b6bef4bf5f8dfd71a07d70e"><title>02. 타입 관리 관례: 계약을 누가 소유합니까? · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="02-type-management-conventions.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-타입의-위치는-책임의-위치입니다">1. 기초: 타입의 위치는 책임의 위치입니다</a></li><li><a href="#2-용어-원본-계약-파생-타입-타입-소유자">2. 용어: 원본 계약, 파생 타입, 타입 소유자</a></li><li><a href="#3-실제-구현과-타입-추적">3. 실제 구현과 타입 추적</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li><li><a href="#7-공식-근거">7. 공식 근거</a></li></ol></details></nav><article><h1 id="02-타입-관리-관례-계약을-누가-소유합니까">02. 타입 관리 관례: 계약을 누가 소유합니까?</h1>
+<h2 id="1-기초-타입의-위치는-책임의-위치입니다">1. 기초: 타입의 위치는 책임의 위치입니다</h2>
+<p>타입은 데이터의 의미와 사용할 수 있는 모양을 설명합니다. 모든 타입을 거대한 전역 파일에 모으는 것보다, 타입을 정의하는 책임이 있는 기능 가까이에 두면 변경 이유와 영향 범위를 읽기 쉽습니다. 한 컴포넌트에서만 필요한 props는 그 컴포넌트 안에, API 응답 계약은 API composable 가까이에 둡니다.</p>
+<p><strong>2026-10-03 기준</strong> <a href="../../../frontend/package.json" class="source-link">package.json</a>의 TypeScript 선언은 <code>^5.9.3</code>이며 <a href="../../../frontend/package-lock.json" class="source-link">package-lock.json</a>과 원본 node_modules에서 확인한 버전은 5.9.3입니다. 이전 노트가 가리키던 Windows 절대 링크와 프런트 <code>mock-data/sem-list/</code>는 현재 구조와 맞지 않습니다. 현재 모든 환경의 화면은 Flask API를 소비합니다.</p>
+<h2 id="2-용어-원본-계약-파생-타입-타입-소유자">2. 용어: 원본 계약, 파생 타입, 타입 소유자</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DTO (Data Transfer Object) / 전송 타입</td>
+<td>API가 전송하는 필드 모양입니다.</td>
+</tr>
+<tr>
+<td>도메인 타입</td>
+<td>앱이 사용하는 업무 개념입니다.</td>
+</tr>
+<tr>
+<td>뷰 모델</td>
+<td>표시를 위해 계산한 값의 모양입니다.</td>
+</tr>
+<tr>
+<td>owner</td>
+<td>타입의 기준 정의를 관리하는 모듈입니다.</td>
+</tr>
+<tr>
+<td>re-export</td>
+<td>기존 정의를 다른 경로에서 다시 공개합니다.</td>
+</tr>
+<tr>
+<td>runtime validation</td>
+<td>실제 들어온 값이 계약에 맞는지 실행 중 확인합니다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>예를 들어 서버의 <code>fab_name</code>과 앱의 “현재 선택한 FAB 목록”은 관련되지만 같은 책임은 아닙니다. 서버 row는 원본 계약이고, 선택 목록은 화면 상태입니다. 두 값이 현재 문자열이라는 이유만으로 하나의 거대한 인터페이스에 합치지 않습니다.</p>
+<h2 id="3-실제-구현과-타입-추적">3. 실제 구현과 타입 추적</h2>
+<h3 id="31-현재-소유자-표">3.1 현재 소유자 표</h3>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>종류</th>
+<th>현재 소유자</th>
+<th>확인할 계약</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>장비 계열 값 / 타입</td>
+<td><a href="../../../frontend/app/utils/toolType.ts" class="source-link">utils/toolType.ts</a></td>
+<td><code>TOOL_TYPES</code>, <code>ToolType</code>, 분류 함수</td>
+</tr>
+<tr>
+<td>내비게이션 상태</td>
+<td><a href="../../../frontend/app/stores/navigation.ts" class="source-link">stores/navigation.ts</a></td>
+<td><code>Fab = string</code>, <code>NavigationState</code>, ToolType 재수출</td>
+</tr>
+<tr>
+<td>SEM API row</td>
+<td><a href="../../../frontend/app/composables/useSemListApi.ts" class="source-link">useSemListApi.ts</a></td>
+<td><code>SemListRow</code>, <code>SemListResponse</code></td>
+</tr>
+<tr>
+<td>저장 상태 옵션</td>
+<td><a href="../../../frontend/app/composables/usePersistedState.ts" class="source-link">usePersistedState.ts</a></td>
+<td><code>PersistedStateOptions&lt;T&gt;</code>, unknown normalizer</td>
+</tr>
+<tr>
+<td>컴포넌트 이벤트</td>
+<td><a href="../../../frontend/app/components/chat/ChatComposer.vue" class="source-link">ChatComposer.vue</a></td>
+<td><code>send: [text: string]</code></td>
+</tr>
+<tr>
+<td>테이블 열 / 상태</td>
+<td><a href="../../../frontend/app/components/ebeam/ToolInventoryView.vue" class="source-link">ToolInventoryView.vue</a></td>
+<td>Nuxt UI와 TanStack의 타입 사용</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>stores/navigation.ts</code>는 ToolType의 현재 원본 owner가 아닙니다. 원본은 utils/toolType이며 store가 재수출합니다. <code>Category</code>, 고정 FAB 유니온과 옛 <code>FacToolSummary</code>를 현재 정의처럼 찾으면 안 됩니다. <code>Fab</code>는 DB에서 들어오는 이름을 담는 <code>string</code>이고, 값의 정규화와 sentinel 처리는 <a href="../../../frontend/app/utils/fab.ts" class="source-link">utils/fab.ts</a>가 담당합니다.</p>
+<h3 id="32-런타임-목록에서-타입을-파생합니다">3.2 런타임 목록에서 타입을 파생합니다</h3>
+<p>현재 utils/toolType.ts의 실제 패턴입니다.</p>
+<pre tabindex="0"><code class="language-ts">export const TOOL_TYPES = ['cd-sem', 'hv-sem', 'veritysem', 'provision'] as const
+export type ToolType = (typeof TOOL_TYPES)[number]
+
+export const SEM_TOOL_TYPES = ['cd-sem', 'hv-sem'] as const satisfies readonly ToolType[]
+</code></pre>
+<p><code>as const</code>는 배열을 readonly tuple과 좁은 문자열 리터럴로 추론하게 합니다. <code>(typeof TOOL_TYPES)[number]</code>는 각 요소의 타입을 모아 유니온을 만듭니다. 목록과 유니온을 따로 수정할 필요가 없습니다. <code>satisfies</code>는 실제 추론을 유지하면서 값이 주어진 타입을 만족하는지 확인합니다.</p>
+<p><code>as const</code>가 JavaScript 객체를 실행 중 <code>Object.freeze()</code>한다는 뜻은 아닙니다. readonly 타입을 런타임 불변성이나 입력 검증과 혼동하지 않습니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">TOOL_TYPES 런타임 상수
+  → typeof로 배열 타입 읽기
+      → [number]로 요소 타입 읽기
+          → ToolType 유니온
+              → setter / API 필터 / 컴포넌트 입력에서 사용
+</code></pre>
+<h3 id="33-api-타입은-api-응답-가까이에-둡니다">3.3 API 타입은 API 응답 가까이에 둡니다</h3>
+<p>현재 SemListRow의 <code>version</code>은 숫자가 아닌 <strong>string</strong>이며 <code>1A</code> 같은 값이나 알 수 없는 빈 문자열을 담을 수 있습니다. <code>fab_name</code>도 string입니다. 타입을 단순화해 숫자나 고정 목록으로 좁히면 office 응답을 잘못 표현합니다.</p>
+<pre tabindex="0"><code class="language-ts">// 현재 필드 중 일부를 고른 타입 예시입니다.
+import type { SemListRow } from '~/composables/useSemListApi'
+
+type ToolLabel = Pick&lt;SemListRow, 'eqp_id' | 'fab_name' | 'version'&gt;
+</code></pre>
+<p>백엔드 계약은 <a href="../../../backend/sem_list/contracts.py" class="source-link">sem_list/contracts.py</a>도 함께 읽습니다. Python과 TypeScript의 타입 선언은 현재 자동 생성으로 동기화되지 않습니다. API row를 사용하는 TypeScript 테스트가 drift를 찾는 데 도움이 되지만 실제 office DB 값까지 증명하지는 않습니다.</p>
+<h3 id="34-파생-타입-props와-라이브러리-타입">3.4 파생 타입, props와 라이브러리 타입</h3>
+<p>화면에서 원본 row를 요약하면 <code>total</code>, <code>online</code>, <code>offline</code> 같은 새 의미가 생깁니다. 실제로 새 데이터 모양이 필요할 때만 계산하는 함수 가까이에 타입을 둡니다. 계산 없이 원본 row를 표시한다면 같은 필드의 UI 인터페이스를 복제할 필요가 없습니다.</p>
+<p>컴포넌트의 props/emits는 재사용되기 전까지 SFC 내부에 둡니다. 외부 라이브러리 타입은 직접 가져옵니다.</p>
+<pre tabindex="0"><code class="language-ts">import type { TableColumn } from '@nuxt/ui'
+import type { SemListRow } from '~/composables/useSemListApi'
+
+const columns: TableColumn&lt;SemListRow&gt;[] = [
+  { accessorKey: 'eqp_id', header: '장비 ID' }
+]
+</code></pre>
+<p>이 예시는 프로젝트의 Nuxt UI 타입이 있는 환경용입니다. Node만으로 Nuxt alias <code>~</code>를 해석할 수 있는 예시는 아닙니다. 라이브러리 API를 설명하기 위해 새 인터페이스를 다시 만들지 않습니다.</p>
+<h3 id="35-interface-type-import-type">3.5 <code>interface</code>, <code>type</code>, <code>import type</code></h3>
+<p>객체 계약에는 interface, 문자열 유니온과 타입 조합에는 type을 쓰는 관례가 있습니다. 객체에 type도 사용할 수 있으므로 Nuxt가 강제하는 규칙은 아닙니다. 기존 소유자의 스타일을 따르는 편이 더 일관됩니다.</p>
+<p><code>import type</code>은 실행 코드가 아닌 타입만 필요함을 표시하며 JavaScript 결과에서 제거됩니다. API 함수 호출에 필요한 import는 일반 import입니다. 타입 import를 썼다고 구조적 의존성과 모든 순환 의존성 문제가 해결되는 것은 아닙니다.</p>
+<h3 id="36-typescript와-런타임-경계를-구분합니다">3.6 TypeScript와 런타임 경계를 구분합니다</h3>
+<p><code>$fetch&lt;SemListResponse&gt;</code>의 제네릭은 컴파일러에게 기대하는 타입을 알려 줍니다. 응답 JSON에 모든 필드가 실제로 있는지 검사하는 코드가 생성되는 것은 아닙니다. <code>as SemListRow</code>도 검증이 아닙니다.</p>
+<p><a href="../../../frontend/app/composables/usePersistedState.ts" class="source-link">usePersistedState.ts</a>는 JSON 파싱 결과를 <code>unknown</code>으로 받아 <code>normalize</code>로 확인합니다. 이것은 이미 존재하는 런타임 경계 검증의 예시입니다. 현재 저장소가 real API를 아직 쓰지 않는다는 옛 전제는 틀렸습니다. 모든 단계에서 Flask API를 사용합니다.</p>
+<p>Zod/Valibot은 lock에 있는 의존성입니다. 설치 사실과 실제 특정 API에 적용된 사실은 다르므로, 도구 이름을 나열하는 대신 현재 경계에 어떤 확인이 필요한지 먼저 설명합니다. OpenAPI에서 생성된 타입도 별도 런타임 검증이 없으면 응답 값을 자동 검증하지 않습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>소유자 가까이 두면 한 기능의 변경을 따라갈 파일 수가 줄어듭니다. 여러 기능이 실제로 공유하는 안정된 어휘만 재수출합니다. 공유 pagination 같은 계약이 실제로 생기면 작은 공통 모듈을 만들 수 있지만 미래를 위해 빈 <code>types/</code> 체계를 먼저 만들지 않습니다.</p>
+<p>순수 타입 import는 실행 의존성을 만들지 않으므로 “큰 타입 파일은 항상 런타임 순환 import를 만든다”도 과한 주장입니다. 핵심 문제는 서로 무관한 계약을 찾고 변경하기 어려워지는 것입니다. 위치 규칙만으로 타입 품질과 런타임 안전성이 보장되지는 않습니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ol>
+<li>ToolType 문자열 목록을 여러 곳에 다시 선언합니다. 현재 owner에서 가져옵니다.</li>
+<li>Fab를 옛 고정 유니온으로 복원합니다. 실제 서버 FAB 범위와 정규화 함수를 확인합니다.</li>
+<li>API row version을 숫자로 가정합니다. 실제 계약은 string입니다.</li>
+<li>값이 한 번 쓰였다고 바로 공통 types 폴더로 옮깁니다. 실제 공유 요구를 기다립니다.</li>
+<li><code>as</code>, <code>$fetch&lt;T&gt;</code>, 생성 타입을 검증기로 오해합니다. 입력 경계의 실행 코드를 확인합니다.</li>
+<li>optional과 null을 섞고 모든 값 없음 상태를 같은 의미로 사용합니다. <a href="03-null-undefined-false-none-empty-string.html">값 없음 문서</a>로 이어집니다.</li>
+</ol>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>저장소 루트에서 읽기만 합니다.</p>
+<pre tabindex="0"><code class="language-bash">rg -n 'TOOL_TYPES|type ToolType|satisfies' frontend/app/utils/toolType.ts
+rg -n 'type Fab|type.*ToolType|interface NavigationState' frontend/app/stores/navigation.ts
+rg -n 'interface SemListRow|version:|SemListResponse' frontend/app/composables/useSemListApi.ts
+rg -n 'unknown|normalize' frontend/app/composables/usePersistedState.ts
+</code></pre>
+<p>완료 기준은 ToolType의 선언, 재수출, 소비자를 구분하고 SemListRow의 현재 소유자와 version 타입을 답하는 것입니다. 임의 타입 이동이나 패키지 설치를 하지 않습니다.</p>
+<p>개인 TypeScript Playground에서 <code>SEM_TOOL_TYPES</code>에 <code>'unknown-tool'</code>을 추가하면 satisfies 검사에 오류가 생겨야 합니다. 그러나 <code>JSON.parse</code>로 읽은 입력에 타입 단언만 추가하면 잘못된 문자열이 런타임에서 거부되지 않는다는 차이를 확인합니다.</p>
+<h2 id="7-공식-근거">7. 공식 근거</h2>
+<ul>
+<li><a href="https://www.typescriptlang.org/docs/handbook/2/objects.html" class="external">TypeScript 객체 타입</a></li>
+<li><a href="https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html" class="external">TypeScript typeof와 indexed access</a></li>
+<li><a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html" class="external">TypeScript satisfies</a></li>
+<li><a href="https://vuejs.org/guide/typescript/composition-api.html" class="external">Vue props와 emits 타입</a></li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="README.html">이전: 01. TypeScript 문법 (백엔드 개발자용)</a><a href="03-null-undefined-false-none-empty-string.html">다음: 03. `null`, `undefined`, `false`, `None`, `&quot;&quot;`</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="06fea46b9fe6cdc8a03df80d9ef65b040668c7ba21a6e4bd498e1f7f882c0b98"><meta name="body-sha256" content="516203b92d17fc9ece3242e50c36bb7a671b23f3560a3d064c4a1afe5c6fe5dd"><title>학습 질문 모음 · SKEWNONO 학습</title><link rel="stylesheet" href="assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="README.html">SKEWNONO 학습 홈</a><a href="questions.html">학습 질문</a><a href="verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="questions.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-개념-좋은-질문은-예상과-관측을-연결합니다">1. 기초 개념: 좋은 질문은 예상과 관측을 연결합니다</a></li><li><a href="#2-용어와-질문-형식">2. 용어와 질문 형식</a></li><li><a href="#3-기존-질문과-현재-구현의-답">3. 기존 질문과 현재 구현의 답</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전한-학습-실습과-다음-질문">6. 안전한 학습 실습과 다음 질문</a></li></ol></details></nav><article><h1 id="학습-질문-모음">학습 질문 모음</h1>
+<p>이 문서는 질문과 관측을 모으는 수정 가능한 원본입니다. 자동 답변 작업의 현재 실행 여부는 확인되지 않았으므로, 저장했다고 답변이 자동 생성된다고 가정하지 않습니다. <a href="README.html">학습 홈</a>의 읽는 순서와 아래 연결 문서를 함께 사용합니다.</p>
+<h2 id="1-기초-개념-좋은-질문은-예상과-관측을-연결합니다">1. 기초 개념: 좋은 질문은 예상과 관측을 연결합니다</h2>
+<p>‘캐시가 뭔가요?’에서 시작해도 됩니다. 다음 단계에서는 어떤 값이 어디에 남고 언제 사라질지 예상한 뒤 실제 코드와 비교합니다. 이 차이를 설명하는 능력이 안전하게 수정하는 능력으로 이어집니다.</p>
+<h2 id="2-용어와-질문-형식">2. 용어와 질문 형식</h2>
+<p>가설은 아직 확인하지 않은 예상입니다. 관측은 실제 검사에서 본 값입니다. 근거는 관측이나 주장을 다시 확인할 수 있는 파일·테스트·공식 문서입니다. 미확인은 특히 사내에서만 검증할 수 있어 현재 결론을 내리지 않은 항목입니다.</p>
+<pre tabindex="0"><code class="language-md">## Q번호. 질문 제목
+
+- 배경: 어떤 화면·기능을 이해하려고 합니까?
+- 예상: 값·요청·권한이 어떻게 흐른다고 생각합니까?
+- 읽은 파일: 저장소 상대 경로와 함수 이름입니다.
+- 관측: 사용한 명령·환경과 실제 결과입니다.
+- 남은 의문: 어느 단계가 아직 설명되지 않습니까?
+- 확인 범위: 일반 개념 / 로컬 mock 확인 / 사내 미확인입니다.
+</code></pre>
+<h2 id="3-기존-질문과-현재-구현의-답">3. 기존 질문과 현재 구현의 답</h2>
+<h3 id="q1-fetch와-usefetch-useasyncdata를-언제-무엇을-써야-하나">Q1. <code>$fetch</code>와 <code>useFetch</code>, <code>useAsyncData</code>를 언제 무엇을 써야 하나?</h3>
+<p><strong>기존 질문:</strong> 사용 맥락이 헷갈립니다. composable 안에서는 <code>$fetch</code>만 쓰는 것이 맞는지, page에서는 무조건 <code>useAsyncData</code>로 감싸야 하는지 궁금합니다.</p>
+<p><code>$fetch</code>는 요청 도구이고, <code>useAsyncData</code>는 key 기반의 데이터·pending·error·갱신 상태를 관리합니다. <code>useFetch</code>는 둘을 결합한 Nuxt 도구입니다. 위치가 page인지 composable인지보다 자원의 공유·수명·갱신 요구가 선택 기준입니다. 이 저장소의 실제 장비 목록은 <code>$fetch</code>를 <code>useAsyncData</code>와 cache helper로 감싼 composable이며 성공 Promise를 유지하는 정책이 추가되어 있습니다. 따라서 모든 page에 같은 래퍼를 중복해서 만드는 것이 답은 아닙니다.</p>
+<ul>
+<li><a href="03-nuxt/README.html">03 Nuxt의 요청과 캐시</a></li>
+<li><a href="07-code-patterns/sem-list-caching.html">07 장비 목록 캐싱의 실제 수명</a></li>
+<li><a href="../../frontend/app/composables/useSemListApi.ts" class="source-link">useSemListApi.ts</a></li>
+</ul>
+<h3 id="q2-phase-2로-넘어가면-mock-data-폴더는-삭제해야-하는가">Q2. Phase 2로 넘어가면 mock-data 폴더는 삭제해야 하는가?</h3>
+<p><strong>기존 질문:</strong> Phase 1 전용 데이터를 어디까지 유지할지, 테스트용으로 남겨둘지 기준을 세우고 싶습니다.</p>
+<p>현재 API 업무 데이터는 모든 phase에서 Flask를 통하며 home용 mock은 기능의 <code>providers/mock.py</code>에 있습니다. 과거 frontend의 <code>app/mock-data</code> 설명을 현재 데이터 경로로 읽지 않습니다. mock는 home 개발과 contract 검증의 기반이므로 office 전환했다고 삭제하지 않습니다. frontend <code>app/data</code>의 local reference 자료와 업무 API mock도 같은 종류가 아닙니다.</p>
+<ul>
+<li><a href="10-backend-providers/README.html">10 provider의 환경 선택과 계약</a></li>
+<li><a href="13-testing/README.html">13 검증 범위</a></li>
+<li><a href="16-storage-deployment/README.html">16 저장소별 역할</a></li>
+</ul>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>질문을 실제 경로와 연결하면 같은 개념을 여러 장에서 반복 설명하는 대신 기존 설명을 다시 사용할 수 있습니다. 그러나 로컬에서 직접 확인하지 않은 사내 현상을 단정적으로 답하지 않습니다. ‘template에 있다’는 근거는 ‘실제 office에서 실행됐다’는 근거와 다릅니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<p>secret·token·실제 사번을 관측 예제에 복사하지 않습니다. 에러 로그에서 민감한 값을 지운 뒤 현상·상태 코드·함수 이름만 기록합니다. 테스트가 통과했다는 사실만 적고 어떤 환경과 경계를 확인했는지 생략하지 않습니다.</p>
+<h2 id="6-안전한-학습-실습과-다음-질문">6. 안전한 학습 실습과 다음 질문</h2>
+<p>아래 질문마다 먼저 링크된 장을 읽고 실행 없이 종이에 답합니다. 실행 검사가 필요하면 해당 장의 안전한 실습만 사용합니다.</p>
+<ol>
+<li><a href="02-vue-basics/README.html">02</a>·<a href="07-code-patterns/persisted-state.html">07</a>: <code>ref</code>, <code>useState</code>, localStorage 중 새로고침 뒤 남는 것은 무엇이며 왜입니까?</li>
+<li><a href="14-runtime-http/README.html">14</a>: 직접 Flask 요청은 성공하고 Nuxt 경유 요청만 실패하면 어디부터 확인합니까?</li>
+<li><a href="10-backend-providers/README.html">10</a>: office mode인데 한 기능만 mock인 것은 어떤 조건에서 정상입니까?</li>
+<li><a href="15-process-auth-operations/README.html">15</a>: 관리자 사번을 자기 입력한 사람이 왜 관리자 API를 사용할 수 없습니까?</li>
+<li><a href="12-statistics-wafer/README.html">12</a>: 차트의 화면 y축을 반전하는 것과 물리 좌표 원점을 바꾸는 것은 어떻게 다릅니까?</li>
+<li><a href="16-storage-deployment/README.html">16</a>: bundle에서 <code>chat.db</code>, <code>index.py</code>, <code>wsgi.ini</code>를 제외하는 이유는 무엇입니까?</li>
+</ol>
+<h3 id="내가-쓸-질문들">내가 쓸 질문들</h3>
+<p>여기부터 Q3 등의 번호로 추가합니다. 질문을 추가한 뒤 HTML 재생성 방법은 <a href="README.html">학습 홈</a>의 안내를 따릅니다.</p>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="16-storage-deployment/README.html">이전: 16. 저장소·데이터 형식·사내 빌드와 배포</a><a href="verification.html">다음: 2026-10-03 학습 문서 검증 기록</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

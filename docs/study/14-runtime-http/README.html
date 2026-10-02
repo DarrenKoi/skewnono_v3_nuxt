@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="a2a7f1fc14225d26e36d8c7a895f625637d2a2a8bc9d0a7821c146db533c101f"><meta name="body-sha256" content="3ab45d39eb120a8b27347e7e543307995cd8a7fa9ee2381436a0293a3e67296a"><title>14. 실행 환경과 HTTP 요청의 여행 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="README.html" aria-current="page">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-개념-파일이-실행되는-곳을-구분합니다">1. 기초 개념: 파일이 실행되는 곳을 구분합니다</a></li><li><a href="#2-전문-용어-요청과-실행-환경">2. 전문 용어: 요청과 실행 환경</a></li><li><a href="#3-이-저장소의-구현-화면에서-provider까지">3. 이 저장소의 구현: 화면에서 provider까지</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수와-수정의-영향">5. 흔한 실수와 수정의 영향</a></li><li><a href="#6-안전한-실습과-확인-방법">6. 안전한 실습과 확인 방법</a></li><li><a href="#근거와-공식-문서">근거와 공식 문서</a></li></ol></details></nav><article><h1 id="14-실행-환경과-http-요청의-여행">14. 실행 환경과 HTTP 요청의 여행</h1>
+<blockquote>
+<p><strong>기준: 2026-10-03.</strong> 이 문서의 ‘구현’은 현재 추적된 코드와 로컬 설치를 확인한 사실입니다. 사내 호스트의 실제 설정·버전·응답은 미확인입니다. 먼저 <a href="../README.html">학습 홈</a>의 버전 표를 읽습니다.</p>
+</blockquote>
+<h2 id="1-기초-개념-파일이-실행되는-곳을-구분합니다">1. 기초 개념: 파일이 실행되는 곳을 구분합니다</h2>
+<p>웹 화면을 만드는 프로그램과 데이터를 계산하는 프로그램은 서로 다른 곳에서 실행됩니다. 브라우저는 내려받은 JavaScript를 실행해 화면을 만들고, Python 프로세스는 데이터 요청을 받아 JSON을 돌려줍니다. 개발 중 Node.js는 화면 코드를 변환하고 개발 서버를 실행합니다. 운영에서도 Node 서버가 꼭 필요한 것은 아닙니다. 이 저장소는 Nuxt를 정적 파일로 생성하고 Flask가 그 파일과 API를 함께 제공합니다.</p>
+<p>파일을 수정했다는 사실과 실행 중인 프로세스가 새 파일을 읽었다는 사실은 다릅니다. 서버 재시작, 프런트엔드 재빌드, 브라우저 새로고침 중 무엇이 필요한지 구분해야 ‘코드를 고쳤는데 그대로’인 문제를 설명할 수 있습니다.</p>
+<h2 id="2-전문-용어-요청과-실행-환경">2. 전문 용어: 요청과 실행 환경</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>뜻과 작은 예시</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTTP (Hypertext Transfer Protocol)</td>
+<td>클라이언트가 요청하고 서버가 응답하는 규약입니다. <code>GET /api/sem-list</code>는 목록을 읽는 요청입니다.</td>
+</tr>
+<tr>
+<td>URL (Uniform Resource Locator)</td>
+<td>자원 위치입니다. <code>http://localhost:3000/api/sem-list</code>는 스킴·호스트·포트·경로로 나뉩니다.</td>
+</tr>
+<tr>
+<td>origin, 오리진</td>
+<td>스킴·호스트·포트의 조합입니다. 3000과 5050은 서로 다른 오리진입니다.</td>
+</tr>
+<tr>
+<td>API (Application Programming Interface)</td>
+<td>다른 프로그램이 사용하는 입출력 약속입니다. HTTP 상태와 JSON 필드도 약속에 포함됩니다.</td>
+</tr>
+<tr>
+<td>JSON (JavaScript Object Notation)</td>
+<td>문자열·수·불리언·배열·객체·null로 표현하는 교환 형식입니다. Python DataFrame 자체는 JSON이 아닙니다.</td>
+</tr>
+<tr>
+<td>프록시</td>
+<td>요청을 대신 전달합니다. 브라우저가 3000으로 보낸 요청을 개발 서버가 5050으로 전달할 수 있습니다.</td>
+</tr>
+<tr>
+<td>CORS (Cross-Origin Resource Sharing)</td>
+<td>브라우저가 다른 오리진의 응답을 읽어도 되는지 정하는 HTTP 헤더 규칙입니다. 서버의 권한 검사를 대체하지 않습니다.</td>
+</tr>
+<tr>
+<td>WSGI (Web Server Gateway Interface)</td>
+<td>Python 웹 서버와 애플리케이션 사이의 호출 규약입니다. 네트워크 프로토콜 이름이 아닙니다.</td>
+</tr>
+<tr>
+<td>uWSGI</td>
+<td>WSGI 애플리케이션을 실행하는 서버 제품입니다. <code>uwsgi</code> 프로토콜과 HTTP 중 어느 것을 듣는지는 설정으로 결정합니다.</td>
+</tr>
+<tr>
+<td>venv (virtual environment)</td>
+<td>특정 Python 실행 파일과 패키지를 분리하는 가상 환경입니다. 가상 머신이나 컨테이너는 아닙니다.</td>
+</tr>
+<tr>
+<td>PATH</td>
+<td>명령어 실행 파일을 찾는 디렉터리 순서입니다. <code>python</code>이 <code>.venv/bin/python</code>과 같은 실행 파일인지 확인해야 합니다.</td>
+</tr>
+<tr>
+<td>잠금 파일</td>
+<td>의존성을 실제 선택 버전으로 기록합니다. 설치 허용 범위와 의미가 다릅니다.</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>localhost</code>는 그 명령이나 브라우저가 실행되는 컴퓨터입니다. 태블릿에서 <code>localhost:3000</code>을 입력하면 개발 PC가 아니라 태블릿 자신을 찾습니다. <code>0.0.0.0</code>은 서버가 모든 인터페이스에서 수신하도록 하는 주소이며 브라우저 접속 주소로 쓰는 값이 아닙니다.</p>
+<h2 id="3-이-저장소의-구현-화면에서-provider까지">3. 이 저장소의 구현: 화면에서 provider까지</h2>
+<p><span class="diagram-image" role="group" aria-label="로컬 구조도: 좁은 화면에서는 좌우로 스크롤합니다" tabindex="0"><img src="../assets/request-flow.svg" alt="개발과 운영 요청 흐름: 브라우저, Nuxt 개발 서버, Flask, provider의 경계"></span></p>
+<h3 id="31-개발-요청을-끝까지-추적합니다">3.1 개발 요청을 끝까지 추적합니다</h3>
+<ol>
+<li><code>frontend</code>에서 <code>npm run dev</code>를 실행하면 Nuxt 개발 서버가 기본 3000 포트를 사용합니다.</li>
+<li>브라우저의 Vue 화면은 composable을 통해 <code>$fetch</code>로 <code>/api/…</code>를 호출합니다.</li>
+<li><a href="../../../frontend/nuxt.config.ts" class="source-link">nuxt.config.ts</a>의 Nitro <code>devProxy</code>가 <code>/api</code>를 Flask로 전달합니다. 기본 대상은 <code>http://localhost:5050</code>입니다.</li>
+<li>프록시 내부에서 <code>/api</code> 접두사가 제거되므로 대상 URL에도 <code>/api</code>를 넣는 설정이 있습니다. 이를 제거하면 Flask가 기대한 경로와 달라집니다.</li>
+<li><a href="../../../backend/__init__.py" class="source-link">Flask factory</a>가 신원·활동 로그·제한 정책을 적용하고 기능 Blueprint의 route를 호출합니다.</li>
+<li>route는 기능의 <code>data.py</code>를 거쳐 선택된 provider를 호출합니다. <a href="../10-backend-providers/README.html">10장</a>에서 선택 조건을 다룹니다.</li>
+<li>provider의 Python 데이터가 응답 계약에 맞는 dict로 정규화되고 JSON 응답이 브라우저로 돌아옵니다. Vue가 받은 상태를 읽어 화면을 갱신합니다.</li>
+</ol>
+<p><code>/api</code> 상대 경로를 쓰면 브라우저는 3000과만 통신합니다. 따라서 이 개발 경로에는 다른 오리진으로 직접 요청할 때와 같은 CORS 설정이 필요하지 않습니다. 현재 Flask CORS 허용 값 <code>http://localhost:3100</code>을 보고 Nuxt 기본 포트가 3100이라고 결론 내리면 안 됩니다.</p>
+<h3 id="32-운영-요청과-spa-fallback">3.2 운영 요청과 SPA fallback</h3>
+<p><a href="../../../frontend/package.json" class="source-link">package.json</a>의 <code>build</code>는 <code>nuxt generate</code>입니다. 결과는 <code>frontend/.output/public</code>에 있는 HTML·JavaScript·CSS 등입니다. <code>ssr: false</code>이므로 서버가 각 페이지의 업무 데이터까지 Vue로 렌더링하지 않습니다. 브라우저가 JavaScript 실행 후 데이터를 요청합니다. SPA (Single Page Application)는 이러한 클라이언트 라우팅 방식입니다.</p>
+<p><a href="../../../backend/_spa/serving.py" class="source-link">SPA serving</a>은 실제 정적 파일이 있으면 파일을 보내고, 페이지 경로면 <code>index.html</code>을 보냅니다. <code>/api/…</code>의 누락 route는 JSON 오류로 남겨야 하므로 SPA 화면으로 대체하지 않습니다. 내용 해시가 붙은 <code>/_nuxt/</code> 파일에는 긴 캐시 수명을 주고 <code>index.html</code>은 같은 방식으로 영구 캐시하지 않습니다. HTML이 새 파일 이름을 가리키도록 갱신되어야 하기 때문입니다.</p>
+<p><strong>구현상 중요한 조건:</strong> SPA mount는 <code>is_cloud()</code>가 참일 때만 등록됩니다. <a href="../../../backend/_runtime/env.py" class="source-link">env.py</a>는 자신의 파일이 <code>/project/workSpace</code> 아래인지 확인합니다. 따라서 사무실 localhost도 무조건 Flask가 SPA를 제공한다고 말할 수 없습니다. Nuxt 개발 서버·preview·실제 uWSGI 설정 중 어떤 것으로 화면을 제공하는지 사내에서 확인해야 합니다.</p>
+<h3 id="33-wsgi-진입점과-포트">3.3 WSGI 진입점과 포트</h3>
+<p><a href="../../../index.py" class="source-link">index.py</a>는 <code>create_app()</code>을 호출한 뒤 <code>app</code>과 <code>application</code>을 같은 Flask 객체로 노출합니다. 직접 실행하면 Flask/Werkzeug 개발 서버이고, <a href="../../../wsgi.ini" class="source-link">wsgi.ini</a>의 <code>module = index</code>, <code>callable = application</code>은 uWSGI가 이 객체를 가져오도록 합니다.</p>
+<p>현재 추적된 uWSGI 설정은 <code>http-socket = 0.0.0.0:5000</code>입니다. nginx와 Unix socket 설정은 주석으로 제시된 대안입니다. nginx가 실제 앞에 있다고 단정하지 않습니다. 회사의 ingress·도메인·TLS (Transport Layer Security) 종료 위치와 영구 <code>wsgi.ini</code>는 별도 확인 대상입니다.</p>
+<p>직접 <code>index.py</code> 실행의 기본 포트는 5050입니다. 저장소 안내의 ‘사무실 5000’은 환경 설정 또는 uWSGI 경로와 함께 읽어야 하며, 실행 파일 자체의 기본값은 5050이라는 점을 구분합니다.</p>
+<h3 id="34-실행-버전과-설치-규칙">3.4 실행 버전과 설치 규칙</h3>
+<p>Python은 집·사무실 기준 3.11이고 CI (Continuous Integration, 지속적 통합)는 3.14입니다. 로컬 <code>.venv</code>의 현재 확인 버전은 3.11.14입니다. Python 패키지 선언에는 <code>&gt;=</code> 하한이 많으며 재설치 시 같은 버전을 보장하는 Python 잠금 파일은 발견되지 않았습니다. NumPy <code>&gt;=2</code>는 MSR pickle 생산자의 <code>numpy._core</code> 경로를 읽기 위한 실제 호환성 조건입니다.</p>
+<p>Node는 CI에서 24를 선택하고 로컬 확인은 24.13.0입니다. Node 24의 TypeScript type stripping은 실행 전에 타입 구문을 지우는 기능이며 타입 검사기가 아닙니다. <code>npm test</code>가 통과해도 <code>npm run typecheck</code>가 별도로 필요합니다. 프런트엔드 <code>packageManager</code>는 <code>npm@11.9.0</code>을 선언하지만 실행한 npm 버전은 별도 확인해야 합니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>상대 <code>/api</code> 경로와 provider 경계는 화면을 집·사무실·사내 운영에서 재사용하게 합니다. 정적 생성은 운영 Node 서버 관리 부담을 줄입니다. 하지만 업무 API 장애가 없어지는 것은 아니며, 브라우저는 JavaScript가 실행되어야 실제 업무 화면을 만듭니다.</p>
+<p>개발 프록시는 개발 서버 기능입니다. 정적 빌드에 <code>NUXT_API_TARGET</code> 값을 넣었다고 운영 프록시 서버가 생기지 않습니다. 다른 오리진으로 배포 구조를 바꾼다면 쿠키·CORS·API 주소·권한을 함께 검토해야 합니다.</p>
+<h2 id="5-흔한-실수와-수정의-영향">5. 흔한 실수와 수정의 영향</h2>
+<ul>
+<li>포트가 안 맞으면 provider보다 먼저 직접 Flask 요청과 Nuxt 경유 요청을 비교합니다. 오래된 서버 프로세스가 응답할 수도 있습니다.</li>
+<li><code>data.py</code>에 사내 연결 코드를 넣으면 안정된 교체 경계가 깨집니다. 사내 데이터 접근은 provider에 둡니다.</li>
+<li><code>ssr: false</code>를 제거하면 인증 쿠키 전달·서버 렌더링·브라우저 전용 API·배포 산출물까지 영향이 있습니다. 단순 성능 옵션이 아닙니다.</li>
+<li><code>/project/workSpace</code>를 다른 경로로 옮기면 SPA 등록뿐 아니라 신원 fallback도 바뀝니다. 실제 경로 확인은 배포의 필수 단계입니다.</li>
+<li><code>.venv</code> 폴더를 다른 운영체제로 복사하면 실행 파일과 바이너리 패키지가 맞지 않습니다. 대상 환경에서 다시 설치합니다.</li>
+</ul>
+<h2 id="6-안전한-실습과-확인-방법">6. 안전한 실습과 확인 방법</h2>
+<p>아래 명령은 <strong>저장소 루트</strong>, 이미 준비된 환경에서 실행합니다. 설치·재기동·배포는 하지 않습니다. 버전 확인은 서비스 상태를 바꾸지 않습니다.</p>
+<pre tabindex="0"><code class="language-bash">.venv/bin/python -c &quot;import sys; print(sys.executable); print(sys.version)&quot;
+.venv/bin/python -c &quot;import importlib.metadata as m; print(m.version('Flask'))&quot;
+node --version
+npm --version
+node -e &quot;const p=require('./frontend/package-lock.json'); console.log(p.packages['node_modules/nuxt'].version)&quot;
+</code></pre>
+<p>집에서 <strong>이미 실행 중인 mock 개발 서버</strong>를 확인할 때만 다음 두 요청을 한 번씩 보냅니다. 기대 결과는 상태 200과 같은 provider 선택 정보입니다. 연결 거부는 서버 미기동·포트 오류를, 403은 관리자 신원 문제를 의미합니다. 실제 사번·토큰을 학습 문서에 저장하지 않습니다.</p>
+<pre tabindex="0"><code class="language-bash">curl -i http://localhost:5050/api/health/providers
+curl -i http://localhost:3000/api/health/providers
+</code></pre>
+<p>종이에 <code>브라우저 → Nitro → Flask → route → data → provider</code>를 그린 뒤 ‘프록시 대상만 바꾸면 되는 문제’와 ‘응답 계약을 바꿔야 하는 문제’를 하나씩 설명합니다. 전자는 포트 변경, 후자는 응답 필드 이름 변경입니다. 상세 검사 경계는 <a href="../13-testing/README.html">13장</a>, 배포는 <a href="../16-storage-deployment/README.html">16장</a>으로 이어집니다.</p>
+<h2 id="근거와-공식-문서">근거와 공식 문서</h2>
+<ul>
+<li><a href="https://flask.palletsprojects.com/en/stable/lifecycle/" class="external">Flask 3.1 요청 lifecycle</a> — 현재 stable 문서의 3.1 계열 표시를 확인했습니다. hook 동작은 이 문서와 factory 코드를 함께 대조합니다.</li>
+<li><a href="https://nodejs.org/download/release/v24.13.0/docs/api/typescript.html" class="external">Node 24.13.0 TypeScript 실행</a></li>
+<li><a href="https://docs.python.org/3.11/library/venv.html" class="external">Python 3.11 venv</a></li>
+<li><a href="https://uwsgi-docs.readthedocs.io/en/latest/Options.html" class="external">uWSGI 2.0 설정 옵션</a> — 서버 버전은 사내 미확인입니다. 설정 의미의 일반 근거로 사용합니다.</li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../13-testing/README.html">이전: 13. 테스트: 무엇을 증명하고 무엇이 남는가</a><a href="../15-process-auth-operations/README.html">다음: 15. 프로세스·스레드·신원·활동 로그</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

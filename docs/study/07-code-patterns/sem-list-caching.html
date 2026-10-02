@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="1e563d09736faddc4aa7dd71f87345e531269d595a0edf3bf1575d0d68817dcc"><meta name="body-sha256" content="73987285ca1179291495c77a41814d968ecfe3ab49289da3095473715a5981a0"><title>sem-list 캐싱: 재요청과 결과 재사용을 구분합니다 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="sem-list-caching.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-캐시는-보관이고-dedupe는-요청-처리입니다">1. 기초: 캐시는 보관이고 dedupe는 요청 처리입니다</a></li><li><a href="#2-용어">2. 용어</a></li><li><a href="#3-실제-구현-세-층을-통과합니다">3. 실제 구현: 세 층을 통과합니다</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li><li><a href="#7-보존한-역사-사례-2026-04-26">7. 보존한 역사 사례: 2026-04-26</a></li></ol></details></nav><article><h1 id="sem-list-캐싱-재요청과-결과-재사용을-구분합니다">sem-list 캐싱: 재요청과 결과 재사용을 구분합니다</h1>
+<p>2026-10-03의 구현은 <a href="../../../frontend/app/composables/useSemListApi.ts" class="source-link">useSemListApi.ts</a>와 <a href="../../../frontend/app/utils/asyncDataCache.ts" class="source-link">asyncDataCache.ts</a>를 기준으로 합니다. 아래의 2026-04-26 사례는 당시 문제를 이해하는 역사 기록이며 현재 Nuxt 4.5.0의 결함이나 현재 브라우저 측정 결과를 뜻하지 않습니다.</p>
+<h2 id="1-기초-캐시는-보관이고-dedupe는-요청-처리입니다">1. 기초: 캐시는 보관이고 dedupe는 요청 처리입니다</h2>
+<p>같은 장비 목록을 홈·사이드바·장비 표가 읽습니다. 소비자마다 <code>$fetch</code>하면 요청과 오류 처리가 흩어집니다. <code>useSemList()</code>는 결과를 공유할 진입점입니다. 캐시가 있다는 말은 최신값이라는 뜻이 아닙니다. 또한 HTTP 요청을 합치는 것과 완료된 결과를 오래 쓰는 것은 별개입니다.</p>
+<h2 id="2-용어">2. 용어</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><code>sem-list</code>라는 리소스 식별자</td>
+</tr>
+<tr>
+<td>payload</td>
+<td>Nuxt 앱의 <code>payload.data[key]</code> 결과</td>
+</tr>
+<tr>
+<td>static data</td>
+<td><code>static.data[key]</code>에서 읽을 수 있는 정적 payload 데이터</td>
+</tr>
+<tr>
+<td><code>getCachedData</code></td>
+<td>handler 실행 전에 재사용 결과를 고르는 함수</td>
+</tr>
+<tr>
+<td>handler</td>
+<td>실제 데이터를 만드는 함수, 여기서는 slot을 거친 fetch</td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td>AsyncData 재실행 요청, 반드시 새 HTTP 요청이라는 뜻은 아님</td>
+</tr>
+<tr>
+<td>dedupe <code>cancel</code></td>
+<td>기존 Nuxt 실행을 취소하고 새 실행을 시도</td>
+</tr>
+<tr>
+<td>dedupe <code>defer</code></td>
+<td>이미 진행 중이면 그 Nuxt 실행을 기다림</td>
+</tr>
+<tr>
+<td>slot</td>
+<td>앱이 따로 보관하는 Promise 한 칸</td>
+</tr>
+</tbody>
+</table></div>
+<p>lock과 설치본 모두 Nuxt 4.5.0입니다. <code>package.json</code> 선언은 <code>^4.4.2</code>입니다. 패치 버전별 동작은 <a href="https://github.com/nuxt/nuxt/blob/v4.5.0/packages/nuxt/src/app/composables/asyncData.ts" class="external">4.5.0 공식 소스</a>와 설치본을 대조했습니다. 최신 설명만 보고 다른 버전의 <code>force</code> 옵션을 복사하지 않습니다.</p>
+<h2 id="3-실제-구현-세-층을-통과합니다">3. 실제 구현: 세 층을 통과합니다</h2>
+<pre tabindex="0" class="diagram"><code class="language-text">useSemList()
+ → useAsyncData('sem-list', fetchOnce, { default: () =&gt; [], getCachedData: payloadCache })
+ → 캐시가 반환되면 handler 생략
+ → 없으면 fetchOnce()
+ → semListSlot.run(fetchSemList)
+ → slot이 없으면 $fetch('/api/sem-list'), 있으면 같은 Promise 반환
+</code></pre>
+<p><code>payloadCache</code>는 <code>payload.data[key] ?? static.data[key]</code>를 반환합니다. 배열이 <code>[]</code>여도 존재하는 결과이므로 캐시입니다. <code>default: () =&gt; []</code>는 초기 화면의 안전한 값이며 그 자체를 서버가 답했다는 증거로 쓰면 안 됩니다.</p>
+<p><code>createInFlightSlot</code>은 <strong>성공한 Promise를 완료 후에도 유지합니다.</strong> 이름만 보고 요청 중에만 유지한다고 읽으면 안 됩니다. 실패하면 catch에서 null로 비워 재시도할 수 있습니다. <code>reset()</code>은 별도 기능이지만 <code>semListSlot</code>의 reset을 호출하는 코드는 현재 없습니다.</p>
+<p>Nuxt의 key 기반 상태 공유와 dedupe는 내장 기능입니다. 프로젝트 주석은 과거 SPA 형제 컴포넌트 마운트 경쟁에 대비한 별도 slot의 배경을 설명합니다. 그것만으로 현재 Nuxt 4.5.0이 dedupe를 못 한다는 일반 결론을 내리지 않습니다. 중요한 현재 사실은 <strong>Nuxt의 실행 Promise와 앱의 slot Promise가 서로 다른 보관소</strong>라는 것입니다.</p>
+<h3 id="31-refresh-force-clear를-정확히-읽습니다">3.1 refresh, force, clear를 정확히 읽습니다</h3>
+<p>Nuxt 4.5.0의 실행 옵션에는 <code>dedupe</code>, <code>timeout</code>, <code>signal</code> 등이 있으며 <strong>공개 <code>force</code> 옵션은 없습니다.</strong> <code>refresh({ force: true })</code>는 이 버전의 해법이 아닙니다. 현재 <code>execute</code> 구현은 granular cache 설정 아래서 명시적 refresh도 <code>getCachedData</code>에 <code>refresh:manual</code> 또는 <code>refresh:hook</code> cause를 전달합니다. 이 앱의 <code>payloadCache</code>는 cause를 무시하므로 refresh에도 캐시를 돌려줄 수 있습니다.</p>
+<p><a href="../../../frontend/app/utils/asyncDataCache.ts" class="source-link">같은 유틸</a>의 <code>payloadCacheOnInitial</code>은 cause가 <code>initial</code>일 때만 캐시를 쓰므로 별도 의미가 있습니다. 하지만 sem-list는 그것을 사용하지 않습니다. <code>clearNuxtData('sem-list')</code>로 Nuxt 결과만 비워도 slot의 완료 Promise는 남아 있습니다. handler가 실행되어도 기존 응답을 받을 수 있습니다. <code>dedupe: 'cancel'</code>도 앱 slot을 reset하지 않고, 이 fetcher는 Nuxt가 전달하는 abort signal을 <code>$fetch</code>에 넘기지도 않습니다.</p>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>상황</th>
+<th>현재 구현의 결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>첫 진입, 두 캐시가 없음</td>
+<td>slot이 비었으면 HTTP 요청</td>
+</tr>
+<tr>
+<td>겹친 handler 호출</td>
+<td>slot이 같은 Promise 반환</td>
+</tr>
+<tr>
+<td>페이지 이동</td>
+<td>남은 payload 또는 성공 Promise 재사용 가능</td>
+</tr>
+<tr>
+<td>명시적 refresh</td>
+<td>payload가 있으면 재사용 가능; handler가 실행돼도 성공 slot 재사용 가능</td>
+</tr>
+<tr>
+<td>Nuxt cache만 clear</td>
+<td>slot까지 비운다는 뜻이 아님</td>
+</tr>
+<tr>
+<td>최초 요청 실패 후 다시 실행</td>
+<td>slot이 비워져 HTTP 재시도 가능</td>
+</tr>
+<tr>
+<td>F5, 새 앱 인스턴스</td>
+<td>메모리 cache와 모듈 slot이 새로 만들어짐</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>static.data</code>는 모든 API 응답을 자동 영구 보관하는 브라우저 DB가 아닙니다. 두 cache의 수명은 Nuxt 앱·payload와 소비자 생명주기에 영향을 받습니다. 영속 장비 카탈로그가 필요하다는 요구는 현재 없습니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>현재 목록 재사용에는 Pinia가 필요하지 않습니다. 서버 응답은 <code>useAsyncData</code>, 영속 사용자 선택은 <a href="persisted-state.html">usePersistedState</a>로 구분합니다. Vue Query의 TTL, focus 재조회, polling, key-prefix 무효화가 필요한 실제 요구가 생겼을 때 평가하며 즐겨찾기 구현만으로 Pinia를 자동 도입하지 않습니다. Nuxt UI 내부의 TanStack <strong>Table</strong> 사용과 TanStack <strong>Query</strong> 도입도 별개입니다.</p>
+<p>현재 sem-list는 SPA 안에서 성공한 목록을 계속 재사용하는 방향입니다. 새 목록 보장이 필요한 버튼을 만들 때는 cache 정책, slot reset, signal 전달을 함께 설계해야 합니다. 이 장의 갱신은 런타임 동작을 바꾸는 작업이 아니므로 이 한계를 설명만 합니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ul>
+<li>Promise가 resolve되면 slot도 자동으로 비워진다고 생각합니다.</li>
+<li>refresh/clear/dedupe를 모두 캐시 무효화의 동의어로 사용합니다.</li>
+<li>모듈 변수는 페이지 이동 때마다 초기화된다고 생각합니다.</li>
+<li>과거 Playwright 요청 횟수를 현재 코드의 새 측정처럼 인용합니다.</li>
+<li>표가 쓰는 행과 카운터·다운로드가 쓰는 행을 서로 다르게 필터링합니다.</li>
+</ul>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>실제 API에 요청하지 않고 소스에서 다음 세 사실을 찾습니다.</p>
+<pre tabindex="0"><code class="language-bash">rg -n 'SEM_LIST_CACHE_KEY|semListSlot|getCachedData' frontend/app/composables/useSemListApi.ts
+rg -n 'cause|inFlight|reset' frontend/app/utils/asyncDataCache.ts
+rg -n 'useSemList\(' frontend/app
+</code></pre>
+<p>Promise 성공 뒤 null 대입이 없다는 점, reset 함수와 sem-list 호출의 차이, <code>payloadCacheOnInitial</code>의 cause 분기를 설명하면 성공입니다. 기존 <a href="../../../frontend/app/composables/useIdentity.test.ts" class="source-link">identity 회귀 테스트</a>는 다른 리소스가 payload와 slot을 함께 비우는 사례입니다. 이 테스트 통과를 sem-list refresh나 실제 브라우저 중복 요청 검증으로 확대 해석하지 않습니다.</p>
+<h3 id="61-실제-유틸로-promise-보관을-확인합니다">6.1 실제 유틸로 Promise 보관을 확인합니다</h3>
+<p>저장소 루트에서 Node 24로 실행합니다. Nuxt 앱이나 Flask 서버는 실행하지 않으며 HTTP 요청도 만들지 않습니다. <code>.ts</code>의 type-only import는 Node의 type stripping으로 제거됩니다.</p>
+<pre tabindex="0"><code class="language-bash">node --input-type=module &lt;&lt;'JS'
+import assert from 'node:assert/strict'
+import { createInFlightSlot } from './frontend/app/utils/asyncDataCache.ts'
+let calls = 0
+const slot = createInFlightSlot()
+const fetcher = async () =&gt; ++calls
+assert.equal(await slot.run(fetcher), 1)
+assert.equal(await slot.run(fetcher), 1)
+assert.equal(calls, 1)
+slot.reset()
+assert.equal(await slot.run(fetcher), 2)
+console.log('성공 Promise 재사용과 reset 확인 완료')
+JS
+</code></pre>
+<p>완료된 첫 결과를 두 번째 run도 재사용하고 reset 이후만 새 fetcher 호출이 생기면 성공입니다. 이것은 이 유틸의 실행 검증이며 Nuxt 전체 마운트·dedupe 또는 브라우저 요청 횟수의 측정은 아닙니다.</p>
+<h2 id="7-보존한-역사-사례-2026-04-26">7. 보존한 역사 사례: 2026-04-26</h2>
+<p>당시 정리한 유용한 학습 내용은 아래에 남깁니다. 절 번호와 과거 before/after 예제는 당시 맥락입니다. 현재 <code>ToolInventoryView</code>를 읽을 때도 화면·카운터·내보내기가 동일 파이프라인을 쓰는지 확인하는 질문은 유효합니다.</p>
+<h3 id="71-죽은-코드와-write-only-state-패턴">7.1 죽은 코드와 &quot;write-only state&quot; 패턴</h3>
+<h4 id="711-발견한-것">7.1.1 발견한 것</h4>
+<p><code>/simplify</code> 리뷰 결과 다음 코드가 <strong>사용되지 않는데도 작동하고 있었습니다.</strong></p>
+<ul>
+<li><code>composables/useFavorites.ts</code> — 어디서도 <code>import</code>되지 않음</li>
+<li><code>composables/useRecent.ts</code> — 어디서도 <code>import</code>되지 않음</li>
+<li><code>stores/navigation.ts</code>의 <code>recent</code> 상태 + <code>addRecent</code> 액션</li>
+<li><code>pages/ebeam/{cd-sem,hv-sem,veritysem,provision}/[fab]/index.vue</code> 4개 파일의 <code>addRecent(next)</code> 호출</li>
+</ul>
+<p>흥미로운 점은 <code>recent</code>가 단순히 안 쓰인 게 아니라 <strong>쓰이긴 하지만 읽히지 않았다</strong>는 것입니다. 4개의 fab 페이지가 이동할 때마다 충실히 <code>addRecent</code>를 호출했지만, 그 결과를 화면에 보여줄 코드는 한 줄도 없었습니다. <code>pages/index.vue</code>의 &quot;Recent&quot; 카드는 단순히 <code>&quot;No recent activity&quot;</code>라는 하드코딩된 문자열만 표시하고 있었습니다.</p>
+<h4 id="712-왜-이런-코드가-살아남았는가">7.1.2 왜 이런 코드가 살아남았는가</h4>
+<p>타입 검사기는 <strong>양 끝이 모두 정상이면</strong> 통과시킵니다.</p>
+<ul>
+<li>쓰는 쪽: <code>addRecent(next)</code> — 진짜 함수 호출, 시그니처 일치, 통과</li>
+<li>받는 쪽: <code>state.value.recent = [...]</code> — 진짜 배열 mutation, 통과</li>
+</ul>
+<p>타입스크립트가 잡지 못하는 것은 &quot;이 데이터를 누군가 <em>읽긴 하는가?</em>&quot; 입니다. 컴파일러는 함수가 호출되었는지, 변수가 쓰여졌는지는 알지만, 그 결과가 <em>소비</em>되는지는 모릅니다.</p>
+<p>이런 패턴을 <strong>write-only state</strong> 또는 <strong>dangling pipeline</strong>이라고 부릅니다. 보통 다음과 같은 경위로 생깁니다.</p>
+<ol>
+<li>처음에 기능 A를 절반 구현하다 &quot;Recent 표시는 나중에&quot; 하고 미룬다.</li>
+<li>그 사이에 &quot;쓰는 쪽&quot;만 머지된다.</li>
+<li>시간이 지나면 누가 왜 만들었는지 잊힌다.</li>
+<li>컴파일도 되고 테스트도 통과하니 그 상태로 굳는다.</li>
+</ol>
+<h4 id="713-발견-방법">7.1.3 발견 방법</h4>
+<p><code>rg</code>으로 <em>읽기</em>와 <em>쓰기</em>를 분리해서 보면 드러납니다.</p>
+<pre tabindex="0"><code class="language-bash"># recent를 쓰는 곳
+rg -n &quot;addRecent|state\.recent\s*=&quot; frontend/app
+
+# recent를 읽는 곳
+rg -n &quot;store\.recent|\.recent\b&quot; frontend/app
+</code></pre>
+<p>쓰는 곳은 5곳(상태 정의 + 4개 페이지), 읽는 곳은 0곳이었습니다. 배경 노이즈가 0이라면 그 파이프라인은 죽은 것입니다.</p>
+<h4 id="714-교훈">7.1.4 교훈</h4>
+<ul>
+<li><strong>타입 검사 통과 ≠ 코드가 의미 있다.</strong> 양 끝이 일치해도 중간에 소비자가 없으면 죽은 파이프라인입니다.</li>
+<li>새 기능을 추가할 때 <strong>소비자(UI 표시)부터</strong> 만드는 것이 안전합니다. 표시할 곳이 없는 데이터는 일단 모으지 않습니다.</li>
+<li>정기적으로 <code>useXxx</code>, <code>addXxx</code> 같은 함수의 호출자를 <em>읽기 측</em>만 따로 카운트해 보면 좋습니다.</li>
+</ul>
+<h3 id="72-utable-필터-파이프라인-일치-single-source-of-truth">7.2 UTable 필터 파이프라인 일치 (single source of truth)</h3>
+<h4 id="721-문제">7.2.1 문제</h4>
+<p><code>components/ebeam/ToolInventoryView.vue</code>에서 <code>&lt;UTable&gt;</code>이 두 개의 필터 파이프라인을 동시에 돌리고 있었습니다.</p>
+<pre tabindex="0"><code class="language-vue">&lt;!-- before --&gt;
+&lt;UTable
+  v-model:global-filter=&quot;globalFilter&quot;
+  v-model:column-filters=&quot;columnFilters&quot;
+  v-model:sorting=&quot;sorting&quot;
+  :data=&quot;rows&quot;
+  ...
+/&gt;
+</code></pre>
+<p>여기서 <code>:data=&quot;rows&quot;</code>는 <strong>원본 데이터</strong>입니다. TanStack Table 내부가 <code>globalFilter</code>/<code>columnFilters</code>/<code>sorting</code>을 기준으로 자기만의 필터를 다시 돌렸습니다.</p>
+<p>동시에 같은 컴포넌트 안에서:</p>
+<pre tabindex="0"><code class="language-ts">const filteredRows = computed(() =&gt; rows.value.filter(matchesActiveFilters))
+const exportRows = computed(() =&gt; /* filteredRows를 sorting에 맞게 정렬 */)
+</code></pre>
+<p>이 JavaScript 파이프라인이 **헤더 카운터(<code>X of Y tools</code>)**와 <strong>표 다운로드</strong> 결과를 만들고 있었습니다.</p>
+<p>즉, 사용자가 화면에서 보는 표는 <em>TanStack의 결과</em>, 카운터와 다운로드는 <em>JS의 결과</em>였습니다. 대부분의 입력에서는 두 결과가 일치했지만, 두 필터 구현체가 미묘하게 다를 수 있는 지점(예: 숫자 컬럼 <code>version</code>에 대한 globalFilter 동작)에서는 어긋날 수 있었습니다.</p>
+<h4 id="722-수정">7.2.2 수정</h4>
+<pre tabindex="0"><code class="language-vue">&lt;!-- after --&gt;
+&lt;UTable
+  v-model:sorting=&quot;sorting&quot;
+  :data=&quot;exportRows&quot;
+  ...
+/&gt;
+</code></pre>
+<ul>
+<li>이미 필터링·정렬된 <code>exportRows</code>를 데이터로 넘깁니다.</li>
+<li><code>v-model:global-filter</code>/<code>v-model:column-filters</code> 바인딩은 제거합니다 — 이중 필터를 막기 위함입니다.</li>
+<li><code>v-model:sorting</code>만 유지합니다. 이건 컬럼 헤더의 정렬 화살표 아이콘이 방향을 표시하기 위해 필요한 <em>시각 상태</em>입니다.</li>
+</ul>
+<p>이제 화면 표시, 헤더 카운터, 표 다운로드 모두 <strong>하나의 진실 공급원</strong>(<code>exportRows</code>)에서 나옵니다.</p>
+<h4 id="723-교훈">7.2.3 교훈</h4>
+<p>UI 라이브러리가 제공하는 &quot;내부 필터링&quot; 기능과 직접 작성한 <code>computed</code> 필터를 <strong>같은 데이터에 대해 동시에 돌리지 마세요.</strong> 둘 중 하나만 골라야 합니다.</p>
+<ul>
+<li>라이브러리 내부에 맡길 거면: 카운터·내보내기 같은 부수 정보도 라이브러리 API(<code>getRowModel()</code> 등)에서 읽어야 합니다.</li>
+<li>직접 만들 거면: 라이브러리에는 이미 처리된 데이터를 넘기고 라이브러리의 필터 기능은 끕니다.</li>
+</ul>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="persisted-state.html">이전: usePersistedState — localStorage 영속 상태 팩토리</a><a href="../08-eslint-style/README.html">다음: 08. ESLint 규칙과 코드 스타일</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

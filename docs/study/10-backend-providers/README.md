@@ -1,332 +1,182 @@
-# 10. 백엔드 Provider 아키텍처 (mock ↔ office)
+# 10. Flask 백엔드와 Provider 경계
 
-이 문서는 프론트엔드가 아니라 **`backend/`(Flask 백엔드)의 핵심 아키텍처**를 다룹니다. 백엔드 개발자에게 가장 익숙한 영역이자 이 프로젝트에서 가장 자주 반복되는 패턴이니, 먼저 확실히 익혀 두면 좋습니다.
+이 문서는 HTTP 요청이 백엔드 함수를 거쳐 데이터로 바뀌는 과정을 설명합니다. 프론트엔드 기초를 몰라도 Python 함수와 딕셔너리를 이해하면 시작할 수 있습니다. 먼저 [03-nuxt](../03-nuxt/README.md)의 API 요청·응답 흐름을 읽고, 다음에는 [13-testing](../13-testing/README.md)에서 경계를 검증합니다.
 
-한 줄 요약: **"한 벌의 라우트/계약을 두고, 데이터 소스(집의 mock ↔ 회사의 office)만 런타임에 갈아끼운다."** 이것이 CLAUDE.md가 말하는 "설정 변경만으로 Phase를 바꾼다"의 백엔드 구현입니다.
-
-이 패턴은 소프트웨어 설계에서 **Ports & Adapters**(육각형 아키텍처)로 불립니다.
-
-- **Port** = 라우트/계약이 기대하는 함수 시그니처 (`get_sem_list() -> list[SemListRow]`)
-- **Adapter** = 그 시그니처를 실제 데이터 소스로 구현한 것 (`providers/mock.py`, `providers/office.py`)
-
-## 1. 두 개의 독립된 축을 구분하라
-
-가장 먼저 잡아야 할 개념입니다. 이 시스템에는 **서로 다른 두 축**이 있고, 이 둘을 일부러 갈라놓았습니다.
-
-| 축 | 무엇을 결정하나 | 어떻게 선택되나 |
-| --- | --- | --- |
-| **배포 위치** (deployment location) | 집인가 / 사내 클라우드인가 | `is_cloud()` → `LocalIdentityProvider` vs `CloudIdentityProvider` |
-| **데이터 소스** (data source) | mock dict인가 / 실제 Redis·OpenSearch인가 | `SKEWNONO_<FEATURE>_PROVIDER` 환경변수 |
-
-`_runtime/data_provider.py`의 docstring이 이 원칙을 명시합니다: *"The deployment location and the data source are separate decisions."*
-
-**왜 분리하나?** 회사 노트북에서 실제 Redis를 붙이지 않고 mock으로 UI만 확인하고 싶을 때가 있고, 반대로 집에서 인증 로직(cloud identity)을 테스트하고 싶을 때도 있습니다. 두 축이 엮여 있으면 이런 조합을 못 만듭니다.
-
-## 2. Provider 셀렉터 — `_runtime/data_provider.py`
-
-데이터 소스 축의 심장입니다. 전체가 35줄밖에 안 됩니다.
-
-```python
-DataProvider = Literal["mock", "office"]
-
-_GLOBAL_ENV = "SKEWNONO_DATA_PROVIDER"
-_VALID_PROVIDERS = frozenset({"mock", "office"})
+2026-10-03 기준 `backend/__init__.py`, `_runtime/{data_provider,site,office_registry}.py`, `sem_list/`와 provider 테스트를 확인했습니다. 원본 개발 환경은 Python 3.11.14, Flask 3.1.3입니다. `backend/requirements.txt`는 `Flask>=3.0` 같은 허용 범위를 적으며, 설치 버전을 고정한 lock 파일은 아닙니다. CI의 Python 3.14와 개발·회사 Python 3.11을 구분해야 합니다.
 
 
-def _feature_env_name(feature: str) -> str:
-    normalized = feature.strip().upper().replace("-", "_")
-    return f"SKEWNONO_{normalized}_PROVIDER"
+HTTP(Hypertext Transfer Protocol)는 요청·응답 규약, URL(Uniform Resource Locator)은 자원 주소, JSON(JavaScript Object Notation)은 텍스트 교환 형식입니다. API(Application Programming Interface)는 호출자와 제공자의 입출력 약속입니다. IP(Internet Protocol) 주소는 네트워크 호스트 주소입니다.
 
+## 1. 기초: 서버는 요청을 함수에 연결합니다
 
-def get_data_provider(feature: str) -> DataProvider:
-    """Return a feature override, the global provider, or the home-safe default."""
-    feature_env = _feature_env_name(feature)
-    raw = os.environ.get(feature_env) or os.environ.get(_GLOBAL_ENV) or "mock"
-    provider = raw.strip().lower()
+브라우저가 `GET /api/sem-list`를 보내면 Flask는 URL과 HTTP 메서드에 맞는 함수를 찾습니다. 이 함수가 반환한 장비 목록을 JSON으로 보내면 브라우저가 표를 그립니다. JSON은 네트워크를 건너는 표현이고, Python 내부에서는 `list[dict]` 같은 값으로 다룹니다.
 
-    if provider not in _VALID_PROVIDERS:
-        raise RuntimeError(
-            f"Invalid data provider {raw!r} for {feature!r}. "
-            f"Set {feature_env} or {_GLOBAL_ENV} to 'mock' or 'office'."
-        )
-
-    return cast(DataProvider, provider)
+```text
+브라우저 GET /api/sem-list
+            |
+            v
+Flask routes.py: 입력 확인, 응답 상태, JSON
+            |
+            v
+       data.py: 선택된 provider에 전달
+            |
+        +---+-------------------+
+        |                       |
+ providers/mock.py       providers/office.py
+ 가짜 장비 목록           회사 Redis 등의 실제 값
+        |                       |
+        +----- 같은 계약 -------+
+                  |
+          JSON -> 브라우저 표
 ```
 
-우선순위 (fallback 체인):
+집에서 회사 저장소에 접근하지 못해도 같은 URL과 같은 열 이름으로 UI를 개발할 수 있습니다. 회사에서는 데이터 어댑터를 준비하고 설정·파일 배치를 바꾸면 됩니다. 회사 운영은 사내 네트워크의 클라우드이며, 공개 인터넷 서비스 배포를 뜻하지 않습니다.
 
-1. **기능별 override** — `SKEWNONO_SEM_LIST_PROVIDER` (기능마다 개별 제어)
-2. **전역** — `SKEWNONO_DATA_PROVIDER` (한 방에 전부 전환)
-3. **기본값** — `"mock"` (집에서 안전한 기본값. env를 아무것도 안 걸면 항상 mock)
+## 2. 용어: 어떤 파일이 무엇을 책임지는가
 
-**설계 관찰**:
+| 용어 | 초심자용 뜻 | 이 저장소의 예 |
+| --- | --- | --- |
+| Route / handler | 요청을 받을 주소와 그 요청을 처리하는 함수 | `sem_list/routes.py` |
+| Blueprint | 관련 라우트를 묶고 앱에 등록할 묶음 | `Blueprint("sem_list", __name__)` |
+| App factory | 설정과 라우트를 합쳐 Flask 앱을 만드는 함수 | `backend.create_app()` |
+| Contract | 두 데이터 소스가 반환해야 하는 공통 모양 | `sem_list/contracts.py` |
+| Dispatcher | 요청을 어느 구현에 전달할지 정하는 얇은 함수 | `sem_list/data.py` |
+| Provider / adapter | 실제 데이터를 읽고 계약 모양으로 만드는 구현 | `providers/mock.py`, `office.py` |
+| Mock | 개발·테스트용 재현 가능한 가짜 데이터 | 고정 시드로 만든 장비 목록 |
+| Lazy import | 모듈을 처음부터 읽지 않고 필요한 함수 실행 때 읽는 방식 | `get_sem_list()` 안의 import |
 
-- `"mock"`이 기본값이라 **집에서는 아무 설정 없이 그냥 돈다**. 실수로 office 의존성(redis 등)을 건드릴 일이 없습니다.
-- 잘못된 값(`"redis"` 같은 오타)은 조용히 넘어가지 않고 `RuntimeError`로 **즉시 터집니다**. 애매한 fallback보다 큰 소리로 실패하는 편이 낫습니다.
-- 기능별 override가 전역보다 우선하므로, "전부 office인데 sem_list만 mock으로 격리" 같은 세밀한 조합이 가능합니다.
+이 구조는 Ports & Adapters와 연결해 이해할 수 있습니다. Port는 `get_sem_list() -> list[SemListRow]`라는 약속이고, adapter는 그 약속을 mock 또는 회사 저장소로 구현합니다. 이름을 외우는 것보다 “외부 저장소가 달라도 호출부는 같은 함수를 사용한다”는 경계를 이해하는 편이 중요합니다.
 
-## 3. 기능 하나의 해부 — `sem_list/`
+`TypedDict`는 딕셔너리 키·값 타입을 설명합니다. 실행 중 JSON을 자동 검증하거나 DB 값을 자동 정규화하지 않습니다. 어댑터의 정규화와 계약 테스트가 별도로 필요합니다.
 
-feature-sliced 레이아웃. 각 기능 폴더는 아래 구조를 그대로 따릅니다.
+## 3. 현재 구현: 선택부터 응답까지
+
+### 3.1 배포 위치와 데이터 소스를 구분합니다
+
+배포 위치 판단인 `is_cloud()`는 인증 provider 같은 실행 환경을 정합니다. 데이터 선택은 `_runtime/data_provider.py`가 담당합니다. 사이트 판별이 데이터 mode의 기본값에 영향을 주지만, 회사 위치에서 mock을 쓰는 것은 가능합니다.
+
+데이터 선택은 **mode와 readiness** 두 질문으로 나뉩니다.
+
+- Mode: 이 프로세스가 office 데이터를 사용하려는가입니다.
+- Readiness: 해당 기능의 `providers/office.py`가 실제로 있는가입니다.
+
+현재 선택 순서는 다음과 같습니다.
+
+1. `SKEWNONO_<FEATURE>_PROVIDER`가 있으면 해당 기능을 명시적으로 선택합니다.
+2. 기능 override가 없으면 `SKEWNONO_DATA_PROVIDER`로 mode를 정합니다.
+3. 전역 mode도 없으면 `detect_site()`의 결과를 사용합니다. 회사는 office, 집·알 수 없는 호스트는 mock입니다.
+4. office mode이고 해당 기능의 `office.py`가 있을 때 office가 선택됩니다. 그 외에는 mock입니다.
+
+| 기능 override | 전역 mode | 해당 `office.py` | 결과 |
+| --- | --- | --- | --- |
+| 없음 | mock | 있음 또는 없음 | mock |
+| 없음 | office | 있음 | office |
+| 없음 | office | 없음 | mock |
+| office | mock 또는 office | 있음 | office |
+| office | mock 또는 office | 없음 | `RuntimeError` |
+| mock | office | 있음 | mock |
+
+**전역 `office`는 모든 기능의 office 사용을 강제하지 않습니다.** 기능별 준비 여부를 확인합니다. 반면 명시적인 기능 `office` 요청은 어댑터가 없을 때 mock으로 숨기지 않고 복사 명령을 담은 오류로 실패합니다. 전역 `mock`은 기능 override가 없는 기능들을 mock으로 돌리므로, 전체를 mock으로 확인하려면 남아 있는 기능별 `office` override도 점검해야 합니다.
+
+사이트 확인 순서는 `SKEWNONO_SITE=home|office`, 사내 cloud 배포 경로, 호스트 이름입니다. 집 호스트, `pc` 접두사 회사 PC, `SKEWNONO_OFFICE_HOSTNAMES` 목록을 확인합니다. 모르는 호스트는 회사로 추측하지 않습니다. provider 오타와 잘못된 사이트 값은 오류입니다. 기능 이름 `sem-list`와 `sem_list`는 같은 정규 키로 해석됩니다.
+
+부팅 때 `validate_env()`가 명시적 office 선택과 기능 간 의존성을 확인합니다. `storage`, `pm_planning`, `tttm`가 office인데 `sem_list`가 mock이면 부팅을 거부합니다. 실제 IP·장비 ID와 가짜 목록을 조인하면 HTTP 200이면서 빈 표가 나올 수 있기 때문입니다. 최종 선택과 이유는 부팅 로그 및 `/api/health/providers`에서 확인합니다. 세부 규칙은 [provider-selection](../../back-end/provider-selection.md)에 있습니다.
+
+### 3.2 `sem_list`로 파일 경계를 읽습니다
 
 ```text
 backend/sem_list/
-├── __init__.py
-├── contracts.py            # 안정적인 반환 계약 (SemListRow TypedDict)
-├── data.py                 # ★ SWAP SURFACE (디스패처)
-├── routes.py               # Blueprint. .data만 import
-├── MIGRATION.md            # office 어댑터 구현 지침
-├── __fixtures__/
+├── __init__.py            # routes의 bp를 패키지에서 다시 노출
+├── routes.py              # URL, 응답, 입력 경계
+├── contracts.py           # SemListRow 등 공통 반환 타입
+├── data.py                # 안정적인 dispatcher; 교체할 파일이 아님
+├── MIGRATION.md           # 회사 연결·검증 절차
 ├── tests/
 └── providers/
-    ├── __init__.py         # 일부러 아무 provider도 import 안 함
-    ├── mock.py             # Phase 1 결정론적 어댑터
-    └── office_example.py   # 추적되는 스켈레톤 (cp → office.py)
+    ├── __init__.py
+    ├── mock.py
+    └── office_example.py  # git에 추적하는 템플릿
+        office.py          # 회사 복사본; gitignore
 ```
 
-### 3.1 `routes.py` — Phase 간 절대 안 바뀌는 부분
+라우트는 `data.py`의 함수를 사용합니다. `data.py`는 `get_data_provider("sem_list")`를 확인하고, 함수 내부에서 선택된 어댑터만 import합니다. 회사 어댑터가 집에 없어도 mock 경로가 그 모듈을 읽지 않습니다. 이는 office 전용 의존성을 불필요하게 실행하지 않는 경계이지, “모든 회사 관련 패키지가 requirements에서 빠져 있다”는 뜻은 아닙니다.
+
+`SemListRow`는 `eqp_id`, `eqp_ip`, `vendor_nm`, `available`, `version` 등을 가집니다. `vendor_nm`은 `HITACHI|AMAT`, `available`은 `On|Off`, 버전 미상은 빈 문자열입니다. `updt_dt`는 이름만 보면 갱신 시각 같지만 현재 계약은 장비 최초 반입 시각입니다. 미연결 장비는 별도 `PendingToolRow`이며, 아직 존재하지 않는 `available`·`version`을 가짜로 채우지 않습니다.
+
+mock은 고정 시드의 `random.Random`을 사용하여 다시 실행해도 같은 표본을 제공합니다. 계약이 같다는 것은 실제 장비 값·행 수까지 같다는 뜻이 아닙니다. mock 생성 규칙과 회사 자료에서 확인된 사실, 아직 가정인 `OFFICE-VERIFY`를 구분합니다.
+
+회사 `sem_list` 템플릿은 Redis의 fleet와 version DataFrame을 읽어 `eqp_ip`로 LEFT 조인합니다. 오른쪽 버전 테이블의 중복 IP를 먼저 정리해서 장비 행이 증식하지 않게 합니다. 버전이 없어도 장비 자체는 남기고 빈 문자열로 정규화합니다. parquet 디코딩과 pandas 결측값 처리는 어댑터의 일입니다. 라우트와 브라우저는 Redis 직렬화 포맷을 알 필요가 없습니다.
+
+### 3.3 Blueprint는 발견과 import를 모두 이해해야 합니다
+
+`backend/__init__.py`는 `routes.py`를 재귀 검색합니다. 다만 실제 import 대상은 `backend.sem_list.routes`가 아니라 **부모 패키지 `backend.sem_list`**입니다. 이 패키지에서 `bp`를 가져와 `/api` 아래에 등록합니다. `backend/sem_list/__init__.py`가 다음 역할을 합니다.
 
 ```python
-from flask import Blueprint, jsonify
+from backend.sem_list.routes import bp
 
-from backend.sem_list.data import get_sem_list
-
-bp = Blueprint("sem_list", __name__)
-
-
-@bp.get("/sem-list")
-def sem_list():
-    rows = get_sem_list()
-    return jsonify(rows)
+__all__ = ["bp"]
 ```
 
-라우트는 `.data`에서 `get_sem_list`만 가져오고, `providers/`를 직접 import하지 **않습니다.** 그래서 이 파일은 mock/office 어느 Phase에서도 **한 글자도 안 바뀝니다.** 교체는 전부 `data.py` 뒤에서 벌어집니다.
+따라서 새 기능에 `routes.py` 안의 `bp`만 만들고 패키지에서 내보내지 않으면 현재 factory가 등록하지 못합니다. `routes.py`는 발견 표식이고, 패키지의 `bp` export가 등록 계약입니다. 등록된 URL은 `/api` prefix와 라우트 경로의 조합입니다. Blueprint 이름은 Python endpoint 이름에 영향을 주며, 이름 자체가 URL을 만들지는 않습니다. [Flask 3.1 Blueprint 공식 설명](https://flask.palletsprojects.com/en/stable/blueprints/)과 저장소의 자동 발견 규칙을 구분합니다.
 
-### 3.2 `data.py` — 디스패처 (교체 지점)
+경로 조각이 `_`로 시작하는 공용 폴더는 자동 발견에서 제외합니다. 일반 기능의 import·`bp` 오류는 부팅 실패로 드러납니다. `backend/contrib/<slug>/`만 예외로 실패한 기능을 건너뛰고 `SKEWNONO_CONTRIB_FAILED` 및 로그에 기록합니다.
 
-```python
-"""SWAP SURFACE for the SEM equipment list.
+e-beam 기능은 `backend/ebeam/storage/`, `hardware/`, `tttm/`처럼 평평하게 배치합니다. 예전 vendor 중간 폴더를 기준으로 찾지 않습니다. tool family는 `providers/<family>/` 축이며, 기능 이름이 중복되면 registry가 거부합니다.
 
-Routes import only this module. The selected adapter lives in
-``providers/mock.py`` or ``providers/office.py`` and must return the shared
-``SemListRow`` contract.
-"""
+### 3.4 예외도 기존 경계를 먼저 읽습니다
 
-from backend._runtime.data_provider import get_data_provider
-from backend.sem_list.contracts import SemListRow
+`chat`은 일반 provider 환경변수 표의 사례가 아닙니다. 답변 경로는 `chat/answer/data.py`와 `rag_ready()`가 사내 `_rag` 체크아웃·인덱스 파일 준비 여부로 정합니다. readiness는 무거운 모델 모듈 import 성공을 검사하는 것과 다릅니다. 답변 엔진의 모델·프롬프트는 RAG 코드의 책임이고, 스레드 저장은 SQLite입니다.
 
-__all__ = ["SemListRow", "get_sem_list"]
+`msr_file`은 상세 데이터와 이미지 진입점을 같은 dispatcher 뒤에 둡니다. `office_example.py`의 미구현 함수는 실제 연결 완료의 증거가 아닙니다. 회사 상세 메타데이터 계약을 mock이 지어내도 안 됩니다. 각 기능의 `MIGRATION.md`를 읽고 개별 연결 범위를 확인해야 합니다.
 
+## 4. 선택 이유와 한계
 
-def get_sem_list() -> list[SemListRow]:
-    if get_data_provider("sem_list") == "office":
-        from backend.sem_list.providers.office import (
-            get_sem_list as load_sem_list,
-        )
-    else:
-        from backend.sem_list.providers.mock import (
-            get_sem_list as load_sem_list,
-        )
+라우트·계약을 한 벌만 유지하면 두 환경의 URL과 응답 차이가 줄어듭니다. 지연 import와 파일 준비 여부는 회사에서 기능을 하나씩 연결할 수 있게 합니다. `data.py`를 안정적으로 유지하고 실제 교체는 `providers/`에서 수행합니다.
 
-    return load_sem_list()
-```
+`office_example.py`는 공유 가능한 구현 템플릿이고 `office.py`는 회사 복사본입니다. gitignore는 Git 충돌·노출 범위를 줄이지만 보안 정책 전체를 대신하지 않습니다. 템플릿이 바뀌어도 기존 복사본이 자동 갱신되지는 않습니다. 부팅 로그의 `STALE office.py`와 [어댑터 동기화 절차](../../back-end/provider-selection.md)를 확인해야 합니다.
 
-핵심 두 가지:
+이 경계가 보장하는 것은 선택·반환 모양입니다. 사내 Redis/OpenSearch 접근, 인증·권한, 최신 데이터, 실제 스키마는 집 mock 테스트만으로 증명하지 못합니다. 회사 DB 사실을 새로 알면 `docs/datatables/`의 해당 스키마와 mock 설명·생성 규칙 두 곳에 반영해야 합니다.
 
-1. **`get_data_provider("sem_list")`로 축을 읽고** 분기합니다.
-2. **함수 내부 지연 import** (`from ...providers.office import ...`가 함수 안에 있음). 일부러 이렇게 짰습니다. office 어댑터는 `redis`, `pandas`, `pyarrow` 같은 무거운 의존성을 쓰는데, 이걸 모듈 최상단에서 import하면 **집에서 mock만 돌릴 때조차 그 패키지들이 깔려 있어야** 합니다. 지연 import에 빈 `providers/__init__.py`가 더해진 덕분에, office가 선택될 때만 그 코드에 닿고, gitignore된 `office.py`는 집에 아예 없어도 됩니다.
+## 5. 흔한 실수와 읽는 순서
 
-> **백엔드 관점 비유**: `data.py`는 Flask의 라우트와 실제 저장소 사이에 낀 **얇은 서비스 레이어**입니다. 라우트는 "장비 목록 줘"라고만 하고, 그게 in-memory dict에서 오는지 Redis에서 오는지는 이 레이어가 숨깁니다. 의존성 주입(DI)을 환경변수 + 지연 import로 가난하게 구현한 셈입니다.
+- 전역 office를 기능 전체 강제 전환으로 이해하면 준비하지 않은 기능이 mock인 이유를 놓칩니다. 선택 결과와 `reason`을 확인합니다.
+- `office.py`가 있다는 사실을 연결 정상으로 해석하면 안 됩니다. 함수 실행과 실제 소스 검증이 별도로 필요합니다.
+- routes에서 DB 드라이버를 직접 import하면 계약 뒤의 교체 경계가 깨집니다.
+- 새 기능에서 패키지 `bp` export를 빠뜨리면 현재 자동 발견이 실패합니다.
+- 템플릿 변경 뒤 회사 복사본을 그대로 두면 200 응답으로 오래된 동작이 남습니다.
+- `TypedDict`만으로 런타임 검증이 된다고 생각하면 결측·중복·단위 문제를 놓칩니다.
 
-### 3.3 `contracts.py` — 두 어댑터가 반드시 반환해야 하는 모양
+문제가 생기면 `routes.py → data.py → get_data_provider() → 선택된 provider → contracts.py → tests/` 순서로 읽습니다. 호출부에서 땜질하기 전에 어느 경계에서 잘못된 값을 만들었는지 찾습니다.
 
-```python
-class SemListRow(TypedDict):
-    fac_id: str
-    eqp_id: str
-    eqp_model_cd: str
-    eqp_grp_id: str
-    vendor_nm: Literal["HITACHI", "AMAT"]
-    eqp_ip: str
-    fab_name: str
-    updt_dt: str
-    available: Literal["On", "Off"]
-    version: str
-```
+## 6. 안전한 실습
 
-이것이 **Port의 타입 계약**입니다. mock이든 office든 결국 `list[SemListRow]`를 돌려줘야 합니다. 프론트엔드의 `SemListRow` 인터페이스(TS)와 이 TypedDict가 서로 거울처럼 맞물립니다.
-
-> "office가 mock을 닮게 만든다"는 말은 **데이터 값을 똑같이 만들라는 게 아니라 이 계약(shape)을 맞추라는 뜻**입니다. office는 실제 장비를, mock은 가짜 300대를 반환하지만, 둘 다 `SemListRow` 리스트여야 합니다.
-
-### 3.4 `providers/mock.py` — 집(Phase 1) 어댑터
-
-```python
-def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
-    rng = random.Random(seed)
-    now = datetime(2026, 4, 19, tzinfo=timezone.utc)
-    rows: list[SemListRow] = []
-    ...
-        rows.append(SemListRow(
-            fac_id=fac_id,
-            eqp_id=eqp_id,
-            ...
-            version="" if rng.random() < 0.05 else f"{rng.randint(1, 3)}{rng.choice('AB')}"
-        ))
-    return rows
-
-
-def get_sem_list() -> list[SemListRow]:
-    return _generate_rows()
-```
-
-**`random.Random(42)`로 시드를 고정**한 것이 포인트입니다. mock은 매번 **똑같은 300대 fleet**을 찍어냅니다. 결정론적이니 프론트엔드 개발·테스트·스크린샷을 그대로 재현할 수 있습니다. (약 5%는 version을 빈 문자열로 두어, "버전 미상" 케이스까지 UI가 처리하도록 유도합니다.)
-
-### 3.5 `providers/office_example.py` — 회사(Phase 2/3) 어댑터 스켈레톤
-
-```python
-def _attach_version(fleet: pd.DataFrame, versions: pd.DataFrame) -> pd.DataFrame:
-    """LEFT-merge the version string onto the fleet by ``eqp_ip``."""
-    ...
-    right = versions[[_MERGE_KEY, "version"]].drop_duplicates(
-        subset=[_MERGE_KEY], keep="last"
-    )
-    return fleet.merge(right, on=_MERGE_KEY, how="left")
-
-
-def get_sem_list() -> list[SemListRow]:
-    client = _redis_client()
-    fleet = _load_dataframe(client, _REDIS_KEY)
-    versions = _load_dataframe(client, _VERSION_KEY)
-    fleet = _attach_version(fleet, versions)
-    if fleet.empty:
-        return []
-    return _normalize(fleet)
-```
-
-office 어댑터는 **소스 포맷의 모든 지저분함을 흡수**합니다.
-
-- Redis에 두 개의 키(`v3_df_sem_avail` = fleet, `v3_df_sem_version` = `[eqp_ip, version]`)가 각각 **parquet으로 직렬화된 DataFrame**으로 저장돼 있음.
-- parquet magic byte(`PAR1`) 감지, UTF-8 디코딩, `NaN → ""` 정규화, vendor/available 값 정규화.
-- 두 DataFrame을 `eqp_ip` 기준 **LEFT 조인**해서 version을 붙임.
-
-이 모든 걸 어댑터가 처리하고 나면, 라우트와 프론트엔드는 소스가 Redis + parquet + pandas였다는 사실조차 **전혀 모릅니다.** 좋은 어댑터란 바로 이런 것입니다. 경계 안쪽의 복잡함이 밖으로 새어 나가지 않습니다.
-
-> 이 `sem_list`가 이 프로젝트에서 **회사 쪽에서 실제로 라이브 검증된 첫 기능**입니다(2026-07-20).
-
-## 4. `office_example.py` vs `office.py` 컨벤션
-
-이 저장소는 **집과 회사를 직접 sync할 수 없습니다**(git 워크스페이스가 분리됨). 그래서 다음 규칙을 둡니다.
-
-```gitignore
-# providers/office_example.py -> providers/office.py, then implemented at the
-# office. Never tracked, so `git pull` at the office can never conflict on it.
-backend/**/providers/office.py
-```
-
-- `office_example.py` — **git에 추적되는 스켈레톤/템플릿**. 함수 시그니처와 구현 힌트가 들어 있음.
-- `office.py` — **gitignore됨.** 회사에서 `cp office_example.py office.py` 한 뒤 그 안을 실제 구현으로 채움.
-
-**왜 이렇게?** `office.py`가 추적된다면, 회사에서 실제 Redis 접속 코드를 짜 넣고 커밋한 뒤 집에서 `git pull` 할 때 **매번 충돌**이 납니다(또는 회사 비밀이 집 저장소로 흘러 들어옵니다). `office.py`를 ignore하면 `git pull`이 이 파일에서 충돌할 일이 아예 없고, 회사 전용 접속 로직도 공용 저장소에 노출되지 않습니다.
-
-집 저장소에는 `office.py`가 아예 없어도 됩니다. `data.py`의 지연 import가 env에서 office를 고를 때만 그 줄에 닿기 때문입니다.
-
-## 5. `MIGRATION.md` — office 어댑터가 지켜야 할 규칙
-
-각 기능 폴더의 `MIGRATION.md`가 회사에서 무엇을 해야 하는지 짚어 줍니다. `sem_list` 기준 요약:
-
-1. **먼저 복사, 그다음 복사본만 수정** — `cp providers/office_example.py providers/office.py`.
-2. **`providers/office.py`만 건드린다.** `routes.py`, `data.py`, `office_example.py`, `mock.py`, `contracts.py`, `tests/`는 절대 수정 금지.
-3. **반환 전에 모든 결과를 `contracts.py` 모양으로 정규화한다.**
-4. **완료 기준 = Verify 명령이 green.**
-
-Verify 명령 (repo 루트에서):
+실습은 저장소 루트에서 수행합니다. 회사 DB 호출이나 `office.py` 생성 없이 선택 규칙부터 확인합니다. 원본 개발 환경 `.venv`를 사용하며, 별도 worktree에는 `.venv`가 없을 수 있습니다.
 
 ```bash
-.venv/bin/python -m backend.sem_list.providers.office
-SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/pytest backend/sem_list
+SKEWNONO_DATA_PROVIDER=mock SKEWNONO_SEM_LIST_PROVIDER=mock \
+  .venv/bin/python -c 'from backend._runtime.data_provider import get_data_provider; print(get_data_provider("sem-list"))'
 ```
 
-접속 정보는 `backend/.env`의 `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`에서 읽습니다.
+기대 출력은 `mock`입니다. 두 환경변수는 이 명령 프로세스에만 적용됩니다. 기존 `.env`를 수정하거나 shell 전체에 `export`하지 않습니다.
 
-## 6. 앱 팩토리 — `backend/__init__.py`
-
-Blueprint를 **자동 발견**하는 방식이 인상적입니다. 각 기능의 `routes.py`를 손으로 일일이 등록하지 않습니다.
-
-```python
-def create_app() -> Flask:
-    load_dotenv(Path(__file__).parent / ".env")
-    app = Flask(__name__)
-    app.secret_key = os.environ.get("SKEWNONO_SECRET_KEY", "dev-only-not-for-prod")
-
-    CORS(
-        app,
-        resources={r"/api/*": {"origins": ["http://localhost:3100"]}},
-        supports_credentials=True,
-    )
-    _install_json_error_handlers(app)
-
-    provider = CloudIdentityProvider() if is_cloud() else LocalIdentityProvider()
-    install_identity_middleware(app, provider)
-    install_activity_logging(app)
-    ...
-    package_root = Path(__file__).parent
-    for routes_file in sorted(package_root.rglob("routes.py")):
-        rel_parts = routes_file.relative_to(package_root).parts[:-1]
-        if any(part.startswith("_") for part in rel_parts):
-            continue
-        module_path = ".".join((__name__, *rel_parts))
-        module = importlib.import_module(module_path)
-        bp = getattr(module, "bp", None)
-        if not isinstance(bp, Blueprint):
-            raise RuntimeError(
-                f"{module_path} has routes.py but does not export a Blueprint named 'bp'"
-            )
-        app.register_blueprint(bp, url_prefix="/api")
+```bash
+.venv/bin/python -m pytest backend/_runtime/tests/test_site_provider.py -q
+.venv/bin/python -m pytest backend/sem_list -q
 ```
 
-동작:
+첫 명령은 사이트·mode·선택 경계를, 둘째는 기능 계약을 확인합니다. 테스트가 임시 환경·가짜 client를 쓰는지 읽고 통과가 보장하는 범위를 설명해 봅니다. 다음 질문에 답하면 이 챕터의 핵심을 이해한 것입니다.
 
-- `rglob("routes.py")`로 패키지 전체를 훑어 **모든 `routes.py`를 찾아** 그 안의 `bp` Blueprint를 `/api` 하위에 등록.
-- 경로 조각이 `_`로 시작하는 폴더(`_auth`, `_runtime`, `_spa`, `_core` 등)는 **건너뜀** — 이들은 기능이 아니라 공용 인프라이므로.
-- `bp`를 export하지 않으면 **큰 소리로 실패**(`RuntimeError`). "규칙을 안 지킨 기능"이 조용히 누락되지 않습니다.
+1. 전역 office인데 `sem_list/office.py`가 없다면 결과는 무엇입니까?
+2. 기능 override가 office인데 파일이 없다면 앞 사례와 어떻게 다릅니까?
+3. Blueprint가 routes에만 있고 패키지에서 보이지 않으면 왜 등록에 실패합니까?
+4. LEFT 조인에서 버전 없는 장비를 제거하면 어떤 정보가 사라집니까?
 
-**교훈**: 새 기능 추가 = 폴더 하나 만들고 그 안에 `routes.py`(+`bp`) 두면 끝. 중앙 등록 파일을 손댈 필요가 없습니다. "대규모 리팩터링 없이 페이지/기능을 점진적으로 추가"라는 CLAUDE.md 목표가 여기서 실현됩니다.
+회사 연결은 별도 단계입니다. 아래 명령은 학습 예시이며 집 실습에서 실행할 필요가 없습니다. 기존 회사 복사본을 무작정 덮어쓰지 않고 해당 `MIGRATION.md`와 동기화 절차를 먼저 확인합니다.
 
-> `is_cloud()`로 identity provider를 고르는 부분이 §1에서 말한 **배포 위치 축**입니다. 데이터 소스 축(`get_data_provider`)과 완전히 별개로 동작합니다.
+```bash
+# 아직 복사본이 없는 회사 기능을 준비하는 경우
+cp backend/sem_list/providers/office_example.py backend/sem_list/providers/office.py
+SKEWNONO_SEM_LIST_PROVIDER=office .venv/bin/python -m pytest backend/sem_list -q
+```
 
-## 7. 교체 지점이 둘 이상인 기능
-
-대부분의 기능은 교체 지점이 하나(`data.py`)지만, 일부는 여럿입니다. `MIGRATION.md`를 늘 확인하세요.
-
-### `chat` — 파일 존재로 정해지는 단 하나의 seam
-
-- **답변 교체**: `chat/answer/data.py`가 `rag.rag_ready()` 하나로 mock/office를 고릅니다. 환경 변수도, `cp office_example.py office.py`도 없습니다 — 사내 RAG 체크아웃(`chat/_rag/skewnono_rag/`)의 진입 모듈과 빌드된 인덱스가 있으면 office, 없으면 mock. 그림 서빙도 같은 스위치를 따릅니다.
-- **판정은 import이 아니라 파일 확인**입니다. 부팅 때 faiss·torch를 끌어오면 앱이 죽을 수 있기 때문입니다. 그래서 "체크아웃은 있는데 import이 깨진" 경우는 office로 판정된 뒤 요청마다 503이 됩니다 — 조용히 mock으로 내려가 가짜 답을 내놓는 것보다 낫습니다.
-- **chat에는 LLM 클라이언트가 없습니다.** 모델·프롬프트·게이트웨이 키는 전부 RAG 소유입니다(2026-08-31에 `llm.py`, egress guard, agent 루프, 검색 tool을 삭제). 스레드 저장은 집·사무실 모두 SQLite입니다.
-
-### `msr_file` — 데이터 seam + 이미지 seam (하나의 디스패처 뒤 두 진입점)
-
-- `msr_file/data.py`가 `get_msr_file`(상세/rows)과 `get_msr_image`(이미지 서빙) 두 함수를 같은 `_provider()`로 라우팅.
-- 주의: **추적되는 `office_example.py`는 현재 미구현 stub**입니다(둘 다 `NotImplementedError`). 다만 docstring이 office 어댑터가 추가로 채워야 할 **정규 메타데이터 계약**(`site_layout_hash`, `recipe_revision`, `coordinate_transform_version`, `sequence_timestamp`)을 강제하며, **mock은 이 값들을 지어내면 안 됩니다**(`tests/test_contract.py`가 강제). 구체적 저장 백엔드(FTP/MinIO 등)는 회사 쪽 `office.py`에서 결정됩니다.
-
-## 8. 현재 기능 목록
-
-`data.py` 디스패처를 갖춘 기능(총 20개, 모두 `office_example.py` 보유):
-
-- 최상위: `access_control`, `activity`, `admin_logs`, `afm`, `announcements`, `api_tokens`, `chat`, `health`, `meas_hist`, `msr_file`, `sem_list`
-- `ebeam/` 아래: `ebeam/cdsem/device_statistics`, `ebeam/hitachi/{fail_issue, hardware, lateral_recipe, pm_planning, recipe_search, recipe_tat, skew, storage}`
-
-## 9. 이 챕터의 큰 교훈
-
-- **경계를 하나로 좁혀라.** 라우트·계약·테스트는 한 벌, 갈아끼우는 건 `providers/`의 어댑터 하나뿐.
-- **두 개의 독립 축(배포 위치 / 데이터 소스)을 섞지 마라.** 각각 다른 스위치로 제어.
-- **기본값은 가장 안전한 쪽(mock)으로.** 아무 설정 없이 집에서 그냥 돌아야 한다.
-- **큰 소리로 실패하라.** 잘못된 provider 값, `bp` 누락은 조용히 넘기지 말고 즉시 RuntimeError.
-- **어댑터가 소스의 지저분함을 흡수한다.** parquet·Redis·pandas가 경계 밖으로 새면 안 된다.
-- **비밀/충돌 유발 파일은 gitignore하고, 추적되는 건 스켈레톤(`office_example.py`)만.**
-
-## 10. 더 읽을거리
-
-- 이 아키텍처의 이름: Ports & Adapters (Hexagonal Architecture, Alistair Cockburn)
-- 각 기능의 `MIGRATION.md` — 회사에서 무엇을 채워야 하는지의 단일 진실 공급원
-- 루트 `CLAUDE.md`의 "API Abstraction Layer" 절 — 이 문서의 상위 요약
+office 선택이 확인되더라도 테스트가 DB를 대체하면 실제 연결 증거는 아닙니다. 회사 서비스에서 실제 응답·로그·계약을 함께 확인합니다.

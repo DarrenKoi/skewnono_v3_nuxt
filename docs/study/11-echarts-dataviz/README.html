@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="407f20af15ebf389ceb7445aa684f0e3947c25662fdffd2583b0c1e768fa1024"><meta name="body-sha256" content="9d4a9a78c7ed9334cdb81be5eadc3d8075eb60cad13ce7410ad50a02b255d19f"><title>11. ECharts: 데이터에서 차트와 선택 좌표까지 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="../09-ui-terminology/README.html">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="README.html" aria-current="page">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기초-vue의-값과-캔버스의-그림은-별개입니다">1. 기초: Vue의 값과 캔버스의 그림은 별개입니다</a></li><li><a href="#2-용어-옵션을-읽는-최소-어휘">2. 용어: 옵션을 읽는 최소 어휘</a></li><li><a href="#3-현재-구현-생성갱신입력정리">3. 현재 구현: 생성·갱신·입력·정리</a></li><li><a href="#4-선택-이유와-한계">4. 선택 이유와 한계</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전한-실습">6. 안전한 실습</a></li></ol></details></nav><article><h1 id="11-echarts-데이터에서-차트와-선택-좌표까지">11. ECharts: 데이터에서 차트와 선택 좌표까지</h1>
+<p>차트는 숫자를 화면의 위치·색·모양으로 바꿉니다. 이 문서는 Vue 반응성과 명령형 차트 라이브러리가 만나는 지점을 설명합니다. <a href="../02-vue-basics/README.html">02-vue-basics</a>에서 <code>ref</code>·<code>computed</code>·생명주기를 먼저 익히고, 계산 자체는 <a href="../12-statistics-wafer/README.html">12-statistics-wafer</a>에서 이어집니다.</p>
+<p>2026-10-03 기준 <code>frontend/package.json</code>의 허용 범위는 <code>echarts@^6.1.0</code>, <code>package-lock.json</code>의 해석 버전은 <strong>6.1.0</strong>입니다. <code>useEchart.ts</code>, <code>useEchartsTheme.ts</code>, <code>echartsThemes.ts</code>, <code>chartNearest.ts</code>, AFM <code>detail/HeatmapChart.vue</code>를 확인했습니다. 공식 설명은 <a href="https://echarts.apache.org/handbook/en/basics/release-note/v6-upgrade-guide/" class="external">ECharts 6 업그레이드 안내</a>와 <a href="https://echarts.apache.org/handbook/en/concepts/chart-size/" class="external">차트 컨테이너 크기·정리</a>를 참고합니다. 공식 handbook은 공용 문서이고, 프로젝트의 정확한 옵션은 현재 코드를 기준으로 확인합니다.</p>
+<p>DOM(Document Object Model)은 브라우저 문서 객체 구조, API(Application Programming Interface)는 라이브러리를 호출하는 약속입니다. TS는 TypeScript이며 순수 계산과 차트 생명주기를 분리해서 읽습니다.</p>
+<h2 id="1-기초-vue의-값과-캔버스의-그림은-별개입니다">1. 기초: Vue의 값과 캔버스의 그림은 별개입니다</h2>
+<p>Vue는 템플릿과 반응형 값을 연결합니다. ECharts는 DOM 컨테이너에 인스턴스를 만든 뒤 메서드를 호출하는 라이브러리입니다. <code>computed</code> 값이 바뀐 사실만으로 ECharts 화면이 알아서 갱신되지는 않습니다. 둘 사이에서 변경을 감지하고 <code>setOption()</code>을 호출해야 합니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">API rows -&gt; 순수 계산 함수 -&gt; computed&lt;EChartsOption&gt;
+                                    |
+                              useEchart의 watch
+                                    |
+                                setOption()
+                                    |
+                             canvas 화면의 차트
+</code></pre>
+<p>이 저장소는 계산을 <code>utils/*.ts</code>에, 옵션 조립을 Vue 컴포넌트에, 인스턴스 생명주기를 <code>useEchart()</code>에 둡니다. “계산은 순수 TS, 그리기는 ECharts”라는 기존 원칙입니다. 모든 컴포넌트가 통계 공식을 되풀이하지 않으면서, 계산은 브라우저 없이 테스트할 수 있습니다.</p>
+<h2 id="2-용어-옵션을-읽는-최소-어휘">2. 용어: 옵션을 읽는 최소 어휘</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>뜻</th>
+<th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Instance</td>
+<td>한 컨테이너에 연결한 살아 있는 차트 객체</td>
+<td><code>echarts.init(el, themeId)</code></td>
+</tr>
+<tr>
+<td>Option</td>
+<td>그림의 축·계열·설명을 지정하는 설정 객체</td>
+<td><code>EChartsOption</code></td>
+</tr>
+<tr>
+<td>Series</td>
+<td>함께 그릴 데이터 한 묶음</td>
+<td>장비별 line, 측정점 scatter</td>
+</tr>
+<tr>
+<td>Axis</td>
+<td>데이터 값을 화면 위치로 바꾸는 기준</td>
+<td><code>category</code>, <code>value</code>, <code>time</code></td>
+</tr>
+<tr>
+<td>Grid</td>
+<td>Cartesian 차트가 들어가는 플롯 영역</td>
+<td>상하 두 패널 각각의 grid</td>
+</tr>
+<tr>
+<td>Tooltip</td>
+<td>포인터 위치의 데이터를 설명하는 상자</td>
+<td><code>trigger: 'axis'</code> 또는 <code>'item'</code></td>
+</tr>
+<tr>
+<td>DataZoom</td>
+<td>화면에서 볼 데이터 범위</td>
+<td>확대된 구간</td>
+</tr>
+<tr>
+<td>ZRender</td>
+<td>ECharts 아래에서 실제 캔버스 입력·그리기를 처리하는 계층</td>
+<td><code>chart.getZr()</code></td>
+</tr>
+<tr>
+<td>Dispose</td>
+<td>인스턴스의 자원과 연결을 정리하는 메서드</td>
+<td><code>chart.dispose()</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>category</code> 축은 장비 이름·lot 이름 같은 순서 목록입니다. 좌표 2는 목록의 세 번째 칸입니다. <code>value</code> 축의 2는 실제 수치 2이고, <code>time</code> 축은 시간 좌표입니다. 세 축의 숫자가 같은 타입이어도 의미가 같지 않습니다.</p>
+<h2 id="3-현재-구현-생성갱신입력정리">3. 현재 구현: 생성·갱신·입력·정리</h2>
+<h3 id="31-공통-래퍼가-생명주기를-소유합니다">3.1 공통 래퍼가 생명주기를 소유합니다</h3>
+<p><code>useEchart(elRef, optionRef, options)</code>의 입력은 DOM ref, computed 옵션, 클릭·hover·다운로드 설정입니다. 아래는 API를 설명하는 짧은 사용 예시이며 특정 컴포넌트의 전체 소스는 아닙니다.</p>
+<pre tabindex="0"><code class="language-ts">const chartEl = ref&lt;HTMLDivElement | null&gt;(null)
+const option = computed&lt;EChartsOption&gt;(() =&gt; ({
+  xAxis: { type: 'category', data: labels.value },
+  yAxis: { type: 'value' },
+  series: [{ type: 'line', data: values.value }]
+}))
+useEchart(chartEl, option, { exportName: 'measurement-trend' })
+</code></pre>
+<p>실제 공통 래퍼의 순서는 다음과 같습니다.</p>
+<ol>
+<li>테마를 등록하고, DOM이 생긴 <code>onMounted</code>에서 <code>init()</code>·최초 <code>setOption()</code>을 수행합니다.</li>
+<li>series 클릭, index 클릭, grid 클릭·hover를 필요한 경우 연결합니다.</li>
+<li>컨테이너를 <code>ResizeObserver</code>로 관찰해 <code>chart.resize()</code>를 호출합니다.</li>
+<li>옵션이 바뀌면 현재 zoom을 읽고 <code>withPreservedZoom(next, live)</code>로 이어 붙여 갱신합니다.</li>
+<li>컨테이너가 바뀌거나 테마 ID가 바뀌면 이전 인스턴스를 dispose하고 새로 만듭니다.</li>
+<li>unmount에서 hover 예약 프레임, observer, 다운로드 버튼, 차트 자원을 정리합니다.</li>
+</ol>
+<p><strong>현재 크기 관찰 대상은 window가 아니라 컨테이너입니다.</strong> 창 크기가 같아도 행 숨기기·패널 높이 변경으로 카드 크기는 변합니다. window resize만 감지하면 캔버스가 이전 높이를 유지할 수 있습니다. 컨테이너에는 초기 크기가 있어야 하며, 숨겨진 상태의 0 크기도 브라우저에서 확인해야 합니다.</p>
+<p>옵션 갱신의 <code>setOption(..., true)</code>는 <code>notMerge</code>입니다. 이전 계열과 병합하지 않으므로 장비가 3대에서 2대로 줄었을 때 남은 가짜 세 번째 선을 방지합니다. 대신 모든 옵션을 다시 주므로 확대 구간이 초기화될 수 있습니다. 프로젝트는 <code>chartZoom.ts</code>로 live <code>dataZoom</code>을 보존합니다. 테마 재생성과 옵션 갱신은 다른 경로이므로, 모든 종류의 갱신에서 모든 상호작용 상태가 보존된다고 확대 해석하지 않습니다.</p>
+<h3 id="32-클릭에는-두-종류의-대상이-있습니다">3.2 클릭에는 두 종류의 대상이 있습니다</h3>
+<p>series 클릭은 그려진 선·점·막대 요소를 맞혀야 합니다. 빈 플롯을 눌러 가까운 측정점을 선택하는 기능은 <code>onGridClick</code>을 사용합니다. <code>showSymbol: false</code>인 선에서 작은 표식만 클릭하도록 기대하면 사용자가 쉽게 선택을 놓칩니다.</p>
+<ul>
+<li><code>onClick(name)</code>은 표시 이름을 줍니다. 표시 문자열은 고유 ID가 아닐 수 있습니다.</li>
+<li><code>onDataIndex(dataIndex, seriesIndex)</code>는 해당 series 안의 위치를 줍니다. 호출부가 자신의 데이터 배열로 되돌립니다.</li>
+<li><code>onGridClick(detail)</code>은 포인터의 축 좌표, grid 번호, 축별 한 픽셀의 데이터 크기를 줍니다.</li>
+<li><code>onGridHover(detail)</code>은 호출부가 고른 <code>{ seriesIndex, dataIndex }</code>로 tooltip을 보여 줍니다. <code>null</code>이면 자신의 hover tooltip을 숨깁니다.</li>
+</ul>
+<p>multi-grid에서는 같은 x 값이라도 어느 패널인지에 따라 데이터가 다릅니다. <code>gridIndex</code>를 버리고 첫 번째 패널의 배열로만 찾으면 아래 패널 클릭이 위 데이터로 연결됩니다.</p>
+<h3 id="33-category-좌표의-소수를-보존하는-이유">3.3 category 좌표의 소수를 보존하는 이유</h3>
+<p>ECharts의 <code>convertFromPixel()</code>은 category 축에서 칸의 정수 위치로 snap할 수 있습니다. 프로젝트의 <code>gridDetail()</code>은 <code>convertToPixel()</code>의 한 단위 기울기를 사용해 <strong>그 칸 안에서 포인터가 어디에 있는지</strong> 소수 좌표를 복원합니다.</p>
+<pre tabindex="0" class="diagram"><code class="language-text">칸 중심의 화면 x       100px                 180px
+category index          1                     2
+포인터 x                           132px
+복원한 축 x              1 + (132 - 100) / 80 = 1.4
+</code></pre>
+<p>클릭이 1.4인 사실은 최근접 거리를 재는 동안 필요합니다. 곧바로 1로 둥글리면 32px 떨어진 포인터가 칸 중심에 있었다고 계산되어 잘못된 점을 고를 수 있습니다. <code>gridDetail()</code>은 signed 기울기로 역방향 축과 화면 y가 아래로 증가하는 방향도 처리합니다.</p>
+<p>배열의 한 칸을 고르는 소비자만 <code>nearestIndex(x, length)</code>에서 반올림합니다. <code>nearestIndex(1.4, 3)</code>은 1, <code>nearestIndex(1.6, 3)</code>은 2입니다. 범위 밖·비유한 값은 <code>null</code>입니다. <strong>value/time 축에서 x를 배열 인덱스로 반올림하지 않습니다.</strong> 연속 축은 후보들의 실제 x 값과 비교합니다.</p>
+<p><code>nearestPoint()</code>는 축별 차이를 <code>dataPerPixelX/Y</code>로 나눠 화면 픽셀 거리를 계산합니다. nm와 초처럼 다른 단위를 그냥 더하면 숫자가 큰 축이 선택을 지배합니다. 기본 반경은 44px이고, 그보다 멀면 <code>null</code>입니다. 시간 추세처럼 세로 위치가 선택 의도가 아닌 경우에는 <code>xOnly</code>가 가능합니다. hover와 클릭에 같은 후보·규칙을 사용해야 설명한 점과 선택한 점이 맞습니다.</p>
+<p>hover는 마우스 이동마다 전체 후보를 찾는 대신 animation frame당 최신 위치 한 번을 처리합니다. 옵션 재구성 때 기존 tooltip이 지워지므로 hover의 “이미 표시한 index” 기억도 초기화합니다. dispose 전에 예약 frame을 취소해야 예전 좌표가 새 인스턴스에 dispatch되지 않습니다.</p>
+<h3 id="34-한-점만-남아도-보여야-합니다">3.4 한 점만 남아도 보여야 합니다</h3>
+<p>선은 적어도 두 점을 이어야 길이가 생깁니다. 필터 결과가 한 점이고 <code>showSymbol: false</code>이면 데이터가 있어도 화면이 빈 것처럼 보입니다. AFM <code>components/afm/detail/HeatmapChart.vue</code>는 profile line에 다음 규칙을 사용합니다.</p>
+<pre tabindex="0"><code class="language-ts">// 현재 profile line의 핵심 옵션을 발췌한 것입니다.
+tooltip: { trigger: 'axis', formatter: formatTooltip }
+// series 안의 설정입니다.
+showSymbol: filtered.value.kept.length === 1
+</code></pre>
+<p>한 점이면 표식을 보여 주고, 여러 점에서는 표식을 줄여 복잡도를 낮춥니다. axis tooltip은 선 위의 작은 표식 직접 hit에만 의존하지 않습니다. <code>HeatmapChart</code>라는 파일명만 보고 모든 모드가 heatmap이라고 생각하지 않고 현재 선택한 series 종류를 읽습니다. 이 규칙은 해당 컴포넌트에 구현되어 있으며 공통 래퍼가 모든 차트의 single-point 표시를 자동 고쳐 주지는 않습니다.</p>
+<h3 id="35-테마와-색-데이터-의미와-장식의-경계">3.5 테마와 색: 데이터 의미와 장식의 경계</h3>
+<p><code>useEchartsTheme()</code>는 <code>usePersistedState</code>로 선택값을 저장하고, 선택·color mode에서 <code>themeId</code>, palette, surface를 계산합니다. 기본 선택은 light에서 <code>matlab</code>, dark에서 <code>dark</code>입니다. 테마 이름만 보는 대신 테마와 light/dark를 조합한 ID를 관찰하므로 둘 중 하나가 바뀌어도 재생성됩니다.</p>
+<p>등록 테마의 canvas 배경은 투명하며 카드 표면색이 보입니다. 명시적으로 선택한 테마와 color mode가 다르면 축·글자색도 실제 표면에 맞아야 합니다. PNG는 투명 캔버스 그대로가 아니라 <code>surface.value.surface</code>를 배경으로 사용합니다.</p>
+<p><code>chartPalette.ts</code>는 의미가 고정된 <code>SK_SCALE</code>·<code>SK_STATE</code>와 테마에 따라 변하는 series 색을 나눕니다. low→high 램프나 경고 의미는 테마를 바꾸어도 유지해야 합니다. 장비 A·B 계열 색은 활성 palette를 사용할 수 있습니다. DOM 뱃지가 차트 색을 따라야 할 때도 같은 TS 값을 바인딩해 사본을 만들지 않습니다.</p>
+<p>canvas 색 설정에 <code>var(--sk-...)</code> 문자열을 그대로 주면 DOM의 CSS 계산처럼 해결되지 않습니다. 필요하면 계산한 실제 색을 넘겨야 합니다. 이 프로젝트 차트의 색 경계는 <code>chartPalette.ts</code>·<code>echartsThemes.ts</code>이고 일반 UI 토큰 규칙은 <code>DESIGN.md</code>를 따릅니다.</p>
+<h3 id="36-png-저장도-부수효과입니다">3.6 PNG 저장도 부수효과입니다</h3>
+<p><code>getDataURL({ type: 'png', pixelRatio: 2, backgroundColor })</code>로 이미지를 만들고 임시 <code>&lt;a download&gt;</code>를 클릭합니다. 파일명은 순수 <code>chartExportFilename()</code>이 만듭니다. 옵션의 <code>exportName</code>, 차트 제목, 기본 이름 순서로 결정합니다.</p>
+<p>이 앱의 공통 다운로드는 PNG입니다. ECharts 자체의 SVG renderer 지원이 곧 이 다운로드 기능의 SVG 지원을 뜻하지는 않습니다. 표 저장은 별도 <code>xlsx.ts</code> 경로이고 그림 데이터와 표의 원본 수치도 구분합니다.</p>
+<h2 id="4-선택-이유와-한계">4. 선택 이유와 한계</h2>
+<p>인스턴스 생명주기를 한곳에 모으면 크기·테마·정리 버그를 개별 차트마다 고칠 필요가 줄어듭니다. ECharts full build를 사용하므로 각 컴포넌트마다 renderer를 등록하는 절차는 없습니다. 새 래퍼·별도 tooltip 선택 엔진을 만들기 전에 기존 함수와 callback을 찾습니다.</p>
+<p>순수 좌표 테스트는 실제 canvas hit, 브라우저 크기, tooltip 배치·겹침을 증명하지 못합니다. 한 점·빈 배열·다중 grid·역방향 축·zoom·테마 변경을 실제 화면에서 확인해야 합니다. resize observer가 있어도 의도한 카드 CSS 높이를 만들어 주는 것은 아닙니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ul>
+<li>category index와 value/time 숫자를 같은 방식으로 배열 접근하면 다른 측정점이 선택됩니다.</li>
+<li>소수 category 좌표를 너무 일찍 반올림하면 픽셀 거리 계산이 틀어집니다.</li>
+<li>tooltip과 클릭이 별도 반경을 쓰면 “누르면 선택되지만 hover 설명은 없는” 영역이 생깁니다.</li>
+<li><code>notMerge</code>만 보고 zoom 보존을 생략하면 점을 선택할 때 화면이 전체 범위로 돌아갑니다.</li>
+<li>한 점 profile에서 표식을 숨기면 측정값이 없는 것처럼 보입니다.</li>
+<li>테마 이름만 저장하고 color mode 대비를 확인하지 않으면 dark 카드에서 축이 안 보일 수 있습니다.</li>
+<li>unmount 정리를 빠뜨리면 observer·frame·인스턴스가 남을 수 있습니다.</li>
+</ul>
+<h2 id="6-안전한-실습">6. 안전한 실습</h2>
+<p>먼저 브라우저나 API 없이 순수 함수를 확인합니다. <code>frontend/</code>에서 실행합니다.</p>
+<pre tabindex="0"><code class="language-bash">node --test app/utils/chartNearest.test.ts app/utils/chartZoom.test.ts \
+  app/utils/chartExport.test.ts app/utils/echartsThemes.test.ts
+</code></pre>
+<p>Node 24를 사용합니다. Node 실행 파일이 깨져 있다면 정상 설치의 Node 경로를 사용하며 의존성을 새로 설치할 필요는 없습니다. 이어서 작은 값으로 인덱스를 확인합니다.</p>
+<pre tabindex="0"><code class="language-bash">node --input-type=module -e 'import { nearestIndex } from &quot;./app/utils/chartNearest.ts&quot;; console.log(nearestIndex(1.4, 3), nearestIndex(1.6, 3), nearestIndex(3, 3))'
+</code></pre>
+<p>기대 출력은 <code>1 2 null</code>입니다. 출력의 마지막 <code>null</code>을 2로 강제하면 플롯 밖을 클릭해도 마지막 점을 선택하는 버그가 됩니다.</p>
+<p>브라우저 확인은 이미 실행 중인 집 mock 앱에서 수행할 수 있습니다. 서버를 새로 켜기 전 실행 위치·포트를 확인합니다. 앱은 보통 frontend <code>:3000</code>, backend <code>:5050</code>이며, 검증 도구 선택은 <code>.claude/skills/browser-verify/SKILL.md</code>를 따릅니다.</p>
+<ol>
+<li>데이터 여러 점과 한 점만 남기는 필터를 각각 확인합니다. 한 점이 실제로 보이는지 봅니다.</li>
+<li>점 주변 빈 영역에서 hover와 클릭이 같은 점을 설명·선택하는지 확인합니다.</li>
+<li>multi-grid가 있으면 위·아래 패널에서 선택한 데이터를 각각 비교합니다.</li>
+<li>zoom 후 선택으로 옵션을 다시 만들 때 확대 구간이 유지되는지 확인합니다.</li>
+<li>light/dark·테마 변경 뒤 축·tooltip·PNG 배경 대비를 확인합니다.</li>
+</ol>
+<p>학습 완료 기준은 “차트가 그려졌다”가 아닙니다. category x=1.4를 왜 보존하며, 어느 소비자에서 정수로 바꾸고, 한 점 profile에는 왜 표식이 필요한지를 설명할 수 있어야 합니다.</p>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../10-backend-providers/README.html">이전: 10. Flask 백엔드와 Provider 경계</a><a href="../12-statistics-wafer/README.html">다음: 12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>

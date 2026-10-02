@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="source-sha256" content="1885a7af23ab16f6174bd4efe57326bb80bff791e1d007cf1cbcfa020363cf80"><meta name="body-sha256" content="21b30bfdd4d2e8de9a539b708aafb370e8dd0d4f68f717c1754d85ef4b0e0087"><title>09. UI 용어 및 문구 가이드 · SKEWNONO 학습</title><link rel="stylesheet" href="../assets/site.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header class="top"><a href="../README.html">SKEWNONO 학습 홈</a><a href="../questions.html">학습 질문</a><a href="../verification.html">검증 기록</a></header><div class="layout"><aside><details open><summary>전체 학습 목차</summary><ol><li><a href="../01-typescript/README.html">01. TypeScript 문법 (백엔드 개발자용)</a></li><li><a href="../02-vue-basics/README.html">02. Vue 3 기본: 상태와 화면의 연결</a></li><li><a href="../03-nuxt/README.html">03. Nuxt 4 핵심 개념</a></li><li><a href="../04-nuxt-ui/README.html">04. Nuxt UI: 준비된 화면 부품과 프로젝트 디자인</a></li><li><a href="../05-tailwind/README.html">05. Tailwind CSS v4: 화면 배치와 디자인 토큰</a></li><li><a href="../06-vite-config/README.html">06. Vite와 Nuxt 설정을 읽는 법</a></li><li><a href="../07-code-patterns/README.html">07. 프로젝트 고유 코드 패턴</a></li><li><a href="../08-eslint-style/README.html">08. ESLint 규칙과 코드 스타일</a></li><li><a href="README.html" aria-current="page">09. UI 용어 및 문구 가이드</a></li><li><a href="../10-backend-providers/README.html">10. Flask 백엔드와 Provider 경계</a></li><li><a href="../11-echarts-dataviz/README.html">11. ECharts: 데이터에서 차트와 선택 좌표까지</a></li><li><a href="../12-statistics-wafer/README.html">12. 통계와 웨이퍼 좌표: 값·단위·집계 수준</a></li><li><a href="../13-testing/README.html">13. 테스트: 무엇을 증명하고 무엇이 남는가</a></li><li><a href="../14-runtime-http/README.html">14. 실행 환경과 HTTP 요청의 여행</a></li><li><a href="../15-process-auth-operations/README.html">15. 프로세스·스레드·신원·활동 로그</a></li><li><a href="../16-storage-deployment/README.html">16. 저장소·데이터 형식·사내 빌드와 배포</a></li></ol></details></aside><main id="main" tabindex="-1"><p class="source">2026-10-03 구현 기준 · <a href="README.md">이 문서의 Markdown 원본</a> · 외부 공식 자료는 온라인 참고 링크입니다.</p><nav class="toc" aria-label="이 문서 목차"><details><summary>이 문서에서 배우는 것</summary><ol><li><a href="#1-기본-원칙">1. 기본 원칙</a></li><li><a href="#2-기본-용어집">2. 기본 용어집</a></li><li><a href="#3-실제-구현에서-용어를-확인합니다">3. 실제 구현에서 용어를 확인합니다</a></li><li><a href="#4-선택-이유와-한계-ui-친화성-기준">4. 선택 이유와 한계: UI 친화성 기준</a></li><li><a href="#5-흔한-실수">5. 흔한 실수</a></li><li><a href="#6-안전-실습">6. 안전 실습</a></li></ol></details></nav><article><h1 id="09-ui-용어-및-문구-가이드">09. UI 용어 및 문구 가이드</h1>
+<p>이 문서는 <code>frontend</code> UI를 한국 회사 내부 엔지니어가 사용하는 것을 전제로, 화면 용어와 문구 톤을 일관되게 맞추기 위한 기준입니다.</p>
+<p>2026-10-03에 실제 화면 소스를 확인했습니다. <strong>아래 용어집은 권장 기준이며 모든 화면에 이미 적용됐다는 뜻은 아닙니다.</strong> 문구만 보고 서버 상태 의미를 확대 해석하지 않는 것을 먼저 배웁니다.</p>
+<p>목표는 다음과 같습니다.</p>
+<ul>
+<li>영어 직역보다 현업에서 바로 이해되는 표현을 사용합니다.</li>
+<li>같은 개념은 화면마다 같은 한국어로 유지합니다.</li>
+<li>라벨만 번역하지 않고, 클릭성과 가독성까지 함께 고려합니다.</li>
+</ul>
+<p>UI(User Interface)는 사람이 보는 화면과 조작 수단입니다. SEM(Scanning Electron Microscope)은 주사 전자 현미경, CD(Critical Dimension)는 핵심 치수, HV(High Voltage)는 고전압입니다. CD-SEM·HV-SEM은 이 장비군 이름이고 Fab은 fabrication plant(반도체 제조 시설)를 뜻합니다.</p>
+<h2 id="1-기본-원칙">1. 기본 원칙</h2>
+<h3 id="11-사용자-기준">1.1 사용자 기준</h3>
+<ul>
+<li>이 웹 앱의 기본 사용자는 한국 엔지니어입니다.</li>
+<li>가능하면 UI는 한국어를 우선 사용합니다.</li>
+<li>다만 장비명, 공정명, 제품명, 시스템 약어처럼 현업에서 영어/약어가 더 익숙한 항목은 그대로 유지합니다.</li>
+</ul>
+<p>예시:</p>
+<ul>
+<li><code>CD-SEM</code> -&gt; <code>CD-SEM</code></li>
+<li><code>HV-SEM</code> -&gt; <code>HV-SEM</code></li>
+<li><code>Fab</code> -&gt; <code>팹</code></li>
+</ul>
+<h3 id="12-번역-원칙">1.2 번역 원칙</h3>
+<ul>
+<li><code>Overview</code>는 막연한 <code>개요</code>보다 운영 화면 의미가 분명한 <code>전체 현황</code>을 우선 사용합니다.</li>
+<li><code>Inventory</code>는 재고 의미로 오해되지 않도록 이 프로젝트에서는 <code>장비 현황</code>을 기본값으로 사용합니다.</li>
+<li><code>Online</code> / <code>Offline</code>은 <code>활성</code>, <code>비활성</code>보다 설비 연결 상태가 바로 보이는 <code>온라인</code>, <code>오프라인</code>을 사용합니다.</li>
+<li>탭, 카드, 버튼, 표 제목이 서로 다른 표현을 쓰지 않도록 같은 개념은 동일한 용어를 유지합니다.</li>
+</ul>
+<h2 id="2-기본-용어집">2. 기본 용어집</h2>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>원문</th>
+<th>기본 한국어</th>
+<th>사용 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FAB</td>
+<td>팹</td>
+<td>반도체 생산 사이트/라인 단위 표기</td>
+</tr>
+<tr>
+<td>Fab List</td>
+<td>팹 목록</td>
+<td>사이드바, 선택 목록</td>
+</tr>
+<tr>
+<td>Tool Inventory</td>
+<td>장비 현황</td>
+<td>장비 목록, 표 제목, 메뉴명</td>
+</tr>
+<tr>
+<td>Tool List</td>
+<td>장비 목록</td>
+<td>단순 나열 성격이 더 강할 때</td>
+</tr>
+<tr>
+<td>CD-SEM Overview</td>
+<td>CD-SEM 전체 현황</td>
+<td>대시보드/요약 화면 제목</td>
+</tr>
+<tr>
+<td>Overview</td>
+<td>전체 현황</td>
+<td>장비군 또는 팹 단위 종합 화면</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>대시보드</td>
+<td>이미 널리 쓰이는 메뉴/화면명</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>보관 현황</td>
+<td>보관 장비/보관 상태 중심 화면</td>
+</tr>
+<tr>
+<td>Online</td>
+<td>온라인</td>
+<td>연결 상태 근거가 있는 화면에서 사용</td>
+</tr>
+<tr>
+<td>Offline</td>
+<td>오프라인</td>
+<td>표시 상태의 기준을 함께 확인; 장애 원인 단정 금지</td>
+</tr>
+<tr>
+<td>Available</td>
+<td>사용 가능</td>
+<td>상세 상태 문구</td>
+</tr>
+<tr>
+<td>Unavailable</td>
+<td>사용 불가</td>
+<td>상세 상태 문구</td>
+</tr>
+<tr>
+<td>Search</td>
+<td>검색</td>
+<td>버튼, 입력창 placeholder</td>
+</tr>
+<tr>
+<td>Filter</td>
+<td>필터</td>
+<td>조건 좁히기 기능</td>
+</tr>
+<tr>
+<td>Refresh</td>
+<td>새로고침</td>
+<td>데이터 재조회</td>
+</tr>
+<tr>
+<td>Detail</td>
+<td>상세</td>
+<td>상세 페이지, 상세 보기 버튼</td>
+</tr>
+<tr>
+<td>View Details</td>
+<td>상세 보기</td>
+<td>행 액션, 카드 액션</td>
+</tr>
+<tr>
+<td>Last Updated</td>
+<td>최근 갱신</td>
+<td>시간 정보 라벨</td>
+</tr>
+<tr>
+<td>Total Count</td>
+<td>전체 수량</td>
+<td>카드/요약 지표</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3-실제-구현에서-용어를-확인합니다">3. 실제 구현에서 용어를 확인합니다</h2>
+<p><a href="../../../frontend/app/components/ebeam/ToolInventoryView.vue" class="source-link">ToolInventoryView.vue</a>는 서버 <code>available</code> 값이 <code>Off</code>이면 <code>Offline</code>, 그 외에는 <code>Available</code>이라는 영문 배지를 표시합니다. <a href="../../../frontend/app/pages/index.vue" class="source-link">홈 페이지</a>는 <code>available === 'On'</code> 행 수를 online 항목으로 집계합니다. 따라서 권장 한국어 용어와 현재 표시 문구는 다릅니다. 이 문서 작업은 실제 UI의 번역이나 판정 코드를 바꾸지 않습니다.</p>
+<p><code>available: 'On' | 'Off'</code>는 <a href="../../../frontend/app/composables/useSemListApi.ts" class="source-link">SemListRow 타입</a>의 상태 필드입니다. 이 값만으로 실시간 ping 성공·장비 가동·측정 품질을 모두 보장하지 않습니다. frontend 타입 표기만으로 예상하지 못한 서버 값이 차단되는 것도 아닙니다. 실제 의미는 해당 provider 계약과 데이터 근거를 확인합니다.</p>
+<p><a href="../../../frontend/app/components/nav/FabSidebar.vue" class="source-link">FabSidebar.vue</a>의 팹 목록은 sem-list의 <code>fab_name</code>에서 파생되고, <a href="../../../frontend/app/stores/navigation.ts" class="source-link">navigation store</a>의 <code>all</code>은 선택 없음 sentinel입니다. <code>fac_id</code>와 <code>fab_name</code>은 서로 다른 데이터 식별자일 수 있으므로 두 항목을 모두 '팹'이라고 번역해 같은 값으로 비교하지 않습니다. 기초 데이터 구분은 <a href="../07-code-patterns/README.html">07장</a>을 참고합니다.</p>
+<h3 id="30-화면-요소-이름">3.0 화면 요소 이름</h3>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>용어</th>
+<th>화면 역할</th>
+<th>확인 질문</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>label</td>
+<td>항목의 이름</td>
+<td>입력 또는 상태가 무엇인지 알 수 있는가?</td>
+</tr>
+<tr>
+<td>placeholder</td>
+<td>입력 전 힌트</td>
+<td>실제 label을 대신하고 있지는 않은가?</td>
+</tr>
+<tr>
+<td>badge</td>
+<td>짧은 상태/분류 표시</td>
+<td>색 없이 텍스트로 이해되는가?</td>
+</tr>
+<tr>
+<td>tooltip</td>
+<td>보조 설명</td>
+<td>키보드·터치에서도 핵심 정보가 보이는가?</td>
+</tr>
+<tr>
+<td>empty state</td>
+<td>데이터가 없을 때 안내</td>
+<td>로딩·오류·0건이 구분되는가?</td>
+</tr>
+<tr>
+<td>refresh</td>
+<td>데이터 재조회 동작</td>
+<td>실제 새 요청과 새 값 반영이 이루어지는가?</td>
+</tr>
+</tbody>
+</table></div>
+<p>'새로고침'이라고 썼어도 캐시 정책 때문에 기존 값을 재사용할 수 있습니다. 버튼의 동작 근거는 <a href="../07-code-patterns/sem-list-caching.html">sem-list 캐싱</a>처럼 실제 handler까지 추적합니다. 문구와 동작을 함께 맞추는 이유입니다.</p>
+<h3 id="31-화면-문구-작성-규칙">3.1 화면 문구 작성 규칙</h3>
+<h3 id="32-메뉴탭페이지-제목">3.2 메뉴/탭/페이지 제목</h3>
+<ul>
+<li>제목은 짧고 단정하게 작성합니다.</li>
+<li>현업 사용자가 스캔하기 쉬운 명사형을 우선 사용합니다.</li>
+<li>영어와 한국어를 섞어야 할 때는 핵심 장비명은 유지하고, 의미 설명 부분만 한국어로 바꿉니다.</li>
+</ul>
+<p>권장 예시:</p>
+<ul>
+<li><code>CD-SEM 전체 현황</code></li>
+<li><code>장비 현황</code></li>
+<li><code>팹 선택</code></li>
+<li><code>보관 현황</code></li>
+</ul>
+<p>비권장 예시:</p>
+<ul>
+<li><code>CD-SEM Overview</code></li>
+<li><code>Tool Inventory</code></li>
+<li><code>FAB Select</code></li>
+<li><code>Storage Dashboard</code></li>
+</ul>
+<h3 id="33-버튼링크">3.3 버튼/링크</h3>
+<ul>
+<li>동작이 보이도록 동사형을 사용합니다.</li>
+<li>링크처럼 보이는 작은 텍스트보다 버튼 라벨이 더 분명해야 합니다.</li>
+<li>가능하면 사용자가 클릭 결과를 바로 예측할 수 있게 씁니다.</li>
+</ul>
+<p>권장 예시:</p>
+<ul>
+<li><code>상세 보기</code></li>
+<li><code>장비 검색</code></li>
+<li><code>필터 초기화</code></li>
+<li><code>새로고침</code></li>
+</ul>
+<p>비권장 예시:</p>
+<ul>
+<li><code>보기</code></li>
+<li><code>이동</code></li>
+<li><code>Click here</code></li>
+</ul>
+<h3 id="34-상태-배지카운트">3.4 상태 배지/카운트</h3>
+<ul>
+<li>상태는 짧고 즉시 구분 가능해야 합니다.</li>
+<li>배지 색상에만 의존하지 말고, 텍스트만 봐도 의미가 전달되어야 합니다.</li>
+</ul>
+<p>권장 예시:</p>
+<ul>
+<li><code>온라인</code></li>
+<li><code>오프라인</code></li>
+<li><code>사용 가능</code></li>
+<li><code>사용 불가</code></li>
+<li><code>N/A</code></li>
+</ul>
+<h2 id="4-선택-이유와-한계-ui-친화성-기준">4. 선택 이유와 한계: UI 친화성 기준</h2>
+<p>이 저장소에서는 번역 자체보다도 &quot;현장 엔지니어가 빠르게 이해하고 조작할 수 있는가&quot;가 더 중요합니다.</p>
+<p>따라서 문구를 정할 때 다음을 함께 확인합니다.</p>
+<ul>
+<li>사이드바, 탭, 카드, 표 제목이 같은 개념을 서로 다른 단어로 부르지 않는지 확인합니다.</li>
+<li>클릭 가능한 요소는 본문 텍스트보다 버튼이나 명확한 액션 라벨로 보이게 합니다.</li>
+<li>다크 모드와 라이트 모드 모두에서 배지/버튼 대비가 충분한지 확인합니다.</li>
+<li>긴 영어 문장을 억지로 번역하기보다, 짧고 명확한 한국어 문구로 다시 씁니다.</li>
+<li>표가 길어지면 검색, 페이지네이션, 요약 정보를 함께 제공해 탐색 부담을 줄입니다.</li>
+</ul>
+<h3 id="41-이-프로젝트에서-적용할-기본-매핑">4.1 이 프로젝트에서 적용할 기본 매핑</h3>
+<p>현재까지 우선 적용할 기본 표현은 다음과 같습니다.</p>
+<div class="table-wrap" role="region" aria-label="표: 좌우로 스크롤할 수 있습니다" tabindex="0"><table>
+<thead>
+<tr>
+<th>원문</th>
+<th>기본 표현</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FAB</td>
+<td>팹</td>
+</tr>
+<tr>
+<td>Tool Inventory</td>
+<td>장비 현황</td>
+</tr>
+<tr>
+<td>CD-SEM Overview</td>
+<td>CD-SEM 전체 현황</td>
+</tr>
+<tr>
+<td>Online</td>
+<td>온라인</td>
+</tr>
+<tr>
+<td>Offline</td>
+<td>오프라인</td>
+</tr>
+</tbody>
+</table></div>
+<p>추가 용어가 생기면 이 문서에 계속 누적해서 같은 기준을 유지합니다.</p>
+<h2 id="5-흔한-실수">5. 흔한 실수</h2>
+<ul>
+<li>용어집의 권장 표현을 현재 모든 UI의 실측 결과처럼 씁니다.</li>
+<li>'오프라인'을 센서 고장이나 측정 불가 원인의 확정 표현으로 사용합니다.</li>
+<li>API 키·라우트·tool slug까지 한국어로 바꾸어 계약을 깨뜨립니다. 사용자 라벨과 내부 식별자는 별개입니다.</li>
+<li>색만으로 상태를 전달하거나 아이콘 버튼의 접근 가능한 이름을 생략합니다.</li>
+<li>빈 결과·로딩·에러를 모두 '데이터 없음'으로 표시합니다.</li>
+</ul>
+<h2 id="6-안전-실습">6. 안전 실습</h2>
+<p>실제 화면을 바꾸기 전에 텍스트와 상태의 근거를 읽습니다. 저장소 루트에서 실행합니다.</p>
+<pre tabindex="0"><code class="language-bash">rg -n 'Offline|Available|available' frontend/app/components/ebeam/ToolInventoryView.vue
+rg -n 'online:|available' frontend/app/pages/index.vue
+rg -n 'aria-label|aria-expanded|type=&quot;button&quot;' frontend/app/components/nav/FabSidebar.vue
+</code></pre>
+<p>표의 <code>Off → Offline</code>, 홈의 <code>On → online 집계</code>를 찾고 그것이 '실시간 연결 시험'과 어떻게 다른지 설명하면 성공입니다. 종이에 라벨·상태·동작을 각각 하나씩 한국어로 다시 써 보고, API 키는 원문 그대로 둡니다. 실제 UI 수정은 <a href="../../../DESIGN.md" class="source-link">DESIGN.md</a>의 토큰과 대비 기준 및 브라우저 검증을 따르는 별도 작업입니다.</p>
+<p>접근성 원칙은 <a href="https://www.w3.org/TR/WCAG22/#use-of-color" class="external">W3C WCAG 2.2 색상 사용</a>, <a href="https://www.w3.org/WAI/ARIA/apg/patterns/button/" class="external">WAI 버튼 패턴</a>을 참고합니다. Vue 3.5.40과 Nuxt UI 4.10.0이 lock·확인한 설치본이며, 문구·접근성은 특정 라이브러리가 자동 보장하는 기능으로 가정하지 않습니다.</p>
+</article><nav class="pager" aria-label="이전 다음 문서"><a href="../08-eslint-style/README.html">이전: 08. ESLint 규칙과 코드 스타일</a><a href="../10-backend-providers/README.html">다음: 10. Flask 백엔드와 Provider 경계</a></nav></main></div><footer>Markdown을 수정한 뒤 build-html.mjs로 다시 생성합니다. 본문·그림·탐색은 로컬 파일로 작동합니다. 코드/원본 링크는 저장소 전체가 있을 때 열립니다.</footer></body></html>
