@@ -8,9 +8,18 @@
 ## 1. 진행 단계와 역할 분담
 
 ```text
-AFM 장비 파일 추출 → 정제 → 적재(MinIO + Redis 또는 SQLite) → 웹 화면이 조회
-└──────────────────── Office ────────────────────┘   └──── Home ────┘
+AFM 장비 파일 추출 → 정제 → 적재(Redis 색인 + MinIO 파일) → 웹 화면이 조회
+└─────────────────── Office ───────────────────┘   └──── Home ────┘
 ```
+
+저장 구조는 아래와 같이 정했습니다(user-confirmed 2026-10-02).
+
+- **Redis**에는 측정 이력(목록)과, 그 측정의 파일이 놓인 MinIO 경로만 담습니다.
+- **MinIO**에는 측정 본문인 상세·Profile·이미지 파일을 둡니다.
+- SQLite는 쓰지 않습니다.
+- 보존 기간은 **최근 3개월**입니다. 그보다 오래된 측정은 Redis와 MinIO 양쪽에서 지웁니다.
+
+역할은 이렇게 나눕니다.
 
 - Office는 추출·정제·적재를 맡고, 적재 결과의 명세를 5절 양식으로 공유합니다.
 - Home은 그 명세를 근거로 웹 쪽 읽기 코드와, 사내망 밖에서 같은 형태를 재현하는
@@ -21,13 +30,16 @@ AFM 장비 파일 추출 → 정제 → 적재(MinIO + Redis 또는 SQLite) → 
 
 ## 2. 웹 화면이 읽는 dataset
 
-| ID | Dataset | 화면에서의 쓰임 | 한 번에 읽는 단위 |
-| --- | --- | --- | --- |
-| D1 | 장비 목록 | 장비 선택 | 전체 |
-| D2 | 측정 목록 | 장비별 검색·최근 측정, 파일 보유 표시 | 장비 하나의 전체 목록 |
-| D3 | 측정 상세 | Information, Site별 요약 표·산점도, Measurement points 표, 측정 간 시계열 비교, Excel 내보내기 | 측정 한 건 |
-| D4 | Profile | Heatmap·Histogram | 측정 한 건의 위치 하나 |
-| D5 | 이미지 | Profile 이미지, Align·Tip·Capture·TIFF 갤러리 | 이미지 한 장 |
+| ID | Dataset | 저장소 | 화면에서의 쓰임 | 한 번에 읽는 단위 |
+| --- | --- | --- | --- | --- |
+| D1 | 장비 목록 | Redis | 장비 선택 | 전체 |
+| D2 | 측정 목록 | Redis | 장비별 검색·최근 측정, 파일 보유 표시 | 장비 하나의 전체 목록 |
+| D3 | 측정 상세 | MinIO | Information, Site별 요약 표·산점도, Measurement points 표, 측정 간 시계열 비교, Excel 내보내기 | 측정 한 건 |
+| D4 | Profile | MinIO | Heatmap·Histogram | 측정 한 건의 위치 하나 |
+| D5 | 이미지 | MinIO | Profile 이미지, Align·Tip·Capture·TIFF 갤러리 | 이미지 한 장 |
+
+D1은 D2의 장비별 key에서 알 수 있다면 따로 적재하지 않아도 됩니다. 그 경우 장비와
+fab의 대응만 알려 주십시오.
 
 조회 이력·그룹·최근 검색은 브라우저에 저장하므로 적재 대상이 아닙니다.
 
@@ -60,9 +72,9 @@ AFM 장비 파일 추출 → 정제 → 적재(MinIO + Redis 또는 SQLite) → 
 | `time` | str | `093000` | hhmmss. 과거 요구사항은 `None` 허용 |
 | `measured_info` | str | `1`, `repeat2` | 반복 횟수 등. 과거 요구사항은 `None` 허용 |
 | `tool_name`, `fab` | str | `MAP608`, `R3` | |
-| `data_dir_list` | list[str] | 상세 파일명 | 파일이 없으면 `["no files"]` |
-| `profile_dir_list` | list[str] | 위치별 profile 파일명 | 위와 같음 |
-| `tiff_dir_list`, `align_dir_list`, `tip_dir_list`, `capture_dir_list` | list[str] | 이미지 파일명 | 위와 같음 |
+| `data_dir_list` | list[str] | 상세 파일의 MinIO 경로 | 과거 요구사항은 파일명만 담고, 없으면 `["no files"]` |
+| `profile_dir_list` | list[str] | 위치별 profile 파일의 MinIO 경로 | 위와 같음 |
+| `tiff_dir_list`, `align_dir_list`, `tip_dir_list`, `capture_dir_list` | list[str] | 이미지 파일의 MinIO 경로 | 위와 같음 |
 | `point_count` | int | `5` | 측정 위치(Site) 수. 목록에 있으면 상세를 열지 않고 표시 가능 |
 
 ### 3.3 D3 측정 상세 — 세 부분
@@ -89,18 +101,21 @@ Height(위치별 profile 이미지), align, tip, capture, tiff 다섯 가지를 
 
 ## 4. 적재 설계에 참고할 웹 쪽 조건
 
-- **Redis** — 웹의 기존 리더는 DataFrame을 parquet(`df.to_parquet()`)로 읽습니다.
+- **Redis 형식** — 웹의 기존 리더는 DataFrame을 parquet(`df.to_parquet()`)로 읽습니다.
   pickle은 numpy·pandas 버전이 다른 호스트에서 역직렬화가 깨진 전례가 있어 권하지
   않습니다.
-- **MinIO** — 웹의 자격 증명은 bucket `user`의 `2067928/` prefix 아래 객체만 읽을 수
-  있고 bucket 단위 권한은 없습니다(office 확인 2026-07-24). 다른 위치에 적재한다면
+- **Redis에 담는 경로** — 웹은 prefix listing 없이, 목록 행에 적힌 경로로 MinIO 객체를
+  바로 읽습니다. 따라서 경로는 bucket을 뺀 객체 key 전체여야 하고, 측정 한 건에
+  딸린 파일을 빠짐없이 담아야 합니다.
+- **MinIO 위치** — 웹의 자격 증명은 bucket `user`의 `2067928/` prefix 아래 객체만 읽을
+  수 있고 bucket 단위 권한은 없습니다(office 확인 2026-07-24). 다른 위치에 적재한다면
   웹이 읽을 방법을 함께 알려 주십시오.
-- **SQLite** — 웹은 사무실 로컬 PC와 사내 클라우드 두 곳에서 실행됩니다. SQLite는
-  파일이므로 두 환경이 같은 파일을 읽을 경로가 있어야 합니다. Redis와 MinIO는 두
-  환경 모두에서 이미 다른 기능이 읽고 있습니다.
-- **직접 조회** — D3·D4·D5는 D2의 행 하나에서 조회 key를 바로 만들 수 있어야 합니다.
-  prefix listing 없이 읽을 수 있도록, 목록 행에 key를 그대로 담는 방식이 가장
-  단순합니다.
+- **3개월 보존** — bucket 단위 권한이 없어 MinIO의 lifecycle 만료를 쓸 수 없으므로,
+  삭제는 적재 쪽 작업이 직접 해야 합니다. Redis 목록의 행을 먼저 지우고 MinIO 파일을
+  나중에 지워 주십시오. 순서가 반대면 목록에는 있는데 파일이 없는 측정이 화면에
+  나타납니다. 3개월을 세는 기준 시각(측정 시각인지 적재 시각인지)도 알려 주십시오.
+- **Redis 유실 대비** — Redis의 목록이 사라져도 MinIO의 파일에서 다시 만들 수 있으면
+  좋습니다. 재생성이 가능한지 알려 주십시오.
 - **이미지 형식** — WebP·PNG는 웹이 변환 없이 전달합니다. TIFF는 대부분의 브라우저가
   표시하지 못하므로, TIFF만 적재한다면 알려 주십시오.
 - **key의 특수 문자** — 현재 웹은 `filename`을 URL 경로에 넣습니다. key에 `#`·공백·
@@ -111,20 +126,19 @@ Height(위치별 profile 이미지), align, tip, capture, tiff 다섯 가지를 
 
 ## 5. Office가 회신할 적재 명세
 
-dataset마다 아래 양식을 한 벌씩 채워 주십시오. 한 dataset이 여러 저장소에 나뉘면
-저장소마다 한 벌입니다.
+dataset마다 아래 양식을 한 벌씩 채워 주십시오.
 
 ```text
 dataset : D2 측정 목록
 상태    : 적재 완료 | 설계 확정 | 설계 중 | 미정
-저장소  : MinIO | Redis | SQLite
-위치    : bucket과 key 패턴 | Redis key와 자료형 | DB 파일 경로와 table
+저장소  : Redis | MinIO
+위치    : Redis key와 자료형 | bucket과 객체 key 패턴
 형식    : parquet | json | csv | webp 등 (인코딩·압축 포함)
 구조    : 행 하나의 의미, 전체 shape, index
 스키마  : 필드 → 타입(dtype) → null 가능 여부 → 단위 → 대표값
-연결 키 : 다른 dataset을 찾는 필드와 key 조립 규칙
-갱신    : 주기, 덮어쓰기 또는 추가, 보존 기간
-규모    : 건수, 값·파일 크기의 대표값과 큰 사례
+연결 키 : MinIO 경로를 담은 필드, 또는 다른 dataset을 찾는 key 조립 규칙
+갱신    : 적재 주기, 덮어쓰기 또는 추가, 3개월 삭제 작업의 주기와 기준 시각
+규모    : 3개월치 건수, 값·파일 크기의 대표값과 큰 사례
 샘플    : 실제 값 2건 이상 (발췌 여부 표시)
 확인    : 확인 날짜와 조회 방법
 ```
@@ -168,4 +182,6 @@ dataset별로 함께 적어 주실 내용입니다.
 2. mock이 확인된 key·타입·결측·단위·dataset 간 연결 관계를 재현하도록 고칩니다.
    확인되지 않은 부분은 `OFFICE-VERIFY`로 표시합니다.
 3. 적재 명세에 맞춰 웹 쪽 읽기 코드를 작성하고, 화면이 가정과 다른 부분을 고칩니다.
-4. 실제 저장소 연결 확인은 사무실에서 마무리합니다.
+4. 브라우저에 저장된 조회 이력·그룹이 3개월이 지나 삭제된 측정을 가리킬 때, 오류가
+   아니라 "보존 기간이 지난 측정"으로 보이도록 처리합니다.
+5. 실제 저장소 연결 확인은 사무실에서 마무리합니다.
