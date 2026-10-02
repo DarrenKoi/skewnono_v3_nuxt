@@ -19,6 +19,7 @@ from backend.afm import data
 from backend.afm.contracts import (
     AfmFileDetail,
     AfmMeasurementRow,
+    AfmProfileMeta,
     AfmProfilePoint,
     AfmToolRow,
 )
@@ -78,17 +79,49 @@ def test_get_afm_file_detail_matches_contract():
     assert_matches(_detail_of(_first_file()), AfmFileDetail)
 
 
+def _first_profiled_file() -> AfmMeasurementRow:
+    """A measurement whose recipe wrote a profile.
+
+    Which files exist is recipe configuration, so a listing can open with a
+    measurement that has none — that is a normal state, not a broken provider.
+    """
+    for row in data.list_afm_files(None):
+        if row["has_profile"]:
+            return row
+    pytest.skip("active provider listed no AFM file with a profile")
+
+
 def test_get_profile_points_returns_xyz_points():
-    row = _first_file()
+    row = _first_profiled_file()
     point = _first_point(_detail_of(row))
     points = data.get_profile_points(row["filename"], point, row["tool_name"])
     assert isinstance(points, list)
-    # A point advertised by available_points must have a height map behind it —
-    # the profile view has nothing to plot otherwise. The mock's fixed 20x20
-    # (400-point) grid size is deliberately NOT asserted; office grids differ.
+    # A measurement that claims a profile must have samples behind its points —
+    # the profile view has nothing to plot otherwise. The grid size is deliberately
+    # NOT asserted; it differs per recipe.
     assert points, f"point {point!r} must resolve to profile samples"
     for entry in points:
         assert_matches(entry, AfmProfilePoint)
+
+
+def test_get_profile_meta_matches_contract():
+    row = _first_profiled_file()
+    point = _first_point(_detail_of(row))
+    meta = data.get_profile_meta(row["filename"], point, row["tool_name"])
+    # A profile file always declares its units, so samples never travel without them.
+    assert meta is not None, f"point {point!r} must resolve to profile metadata"
+    assert_matches(meta, AfmProfileMeta)
+
+
+def test_a_measurement_without_a_profile_has_neither_samples_nor_metadata():
+    for tool in data.get_tools():
+        for row in data.list_afm_files(tool["name"]):
+            if not row["has_profile"]:
+                point = _first_point(_detail_of(row))
+                assert data.get_profile_points(row["filename"], point, row["tool_name"]) is None
+                assert data.get_profile_meta(row["filename"], point, row["tool_name"]) is None
+                return
+    pytest.skip("active provider listed no AFM file without a profile")
 
 
 def test_get_profile_image_svg_returns_string():

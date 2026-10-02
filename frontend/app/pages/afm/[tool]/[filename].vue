@@ -75,12 +75,14 @@
           <AfmDetailHeatmapChart
             class="min-[112.5rem]:col-span-3"
             :profile="profile"
+            :meta="profileMeta"
             :loading="profilePending"
             :export-name="`${filename}-heatmap`"
           />
           <AfmDetailHistogramChart
             class="min-[112.5rem]:order-first min-[112.5rem]:col-span-5"
             :profile="profile"
+            :meta="profileMeta"
             :loading="profilePending"
             :export-name="`${filename}-histogram`"
           />
@@ -103,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
+import type { AfmProfileMeta, AfmProfilePoint } from '~/composables/useAfmDetailApi'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { ExportTable } from '~/utils/afmExport'
 
@@ -150,11 +152,23 @@ function usePointData<T>(kind: string, load: (point: string) => Promise<T>, empt
   )
 }
 
-const { data: profile, pending: profilePending, error: profileError } = usePointData(
+// The samples travel with what their file declares (units, grid size): the same
+// numbers are um in one file and Pixel in the next.
+interface PointProfile {
+  points: AfmProfilePoint[]
+  meta: AfmProfileMeta | null
+}
+
+const { data: pointProfile, pending: profilePending, error: profileError } = usePointData<PointProfile>(
   'profile',
-  async point => (await fetchProfile(toolName, filename, point)).data ?? [],
-  [] as AfmProfilePoint[]
+  async (point) => {
+    const res = await fetchProfile(toolName, filename, point)
+    return { points: res.data ?? [], meta: res.meta ?? null }
+  },
+  { points: [], meta: null }
 )
+const profile = computed(() => pointProfile.value.points)
+const profileMeta = computed(() => pointProfile.value.meta)
 const { data: imageUrl, pending: imagePending, error: imageError } = usePointData(
   'image',
   async point => (await fetchImage(toolName, filename, point)).data?.url ?? null,
@@ -179,7 +193,7 @@ const downloadCombined = async () => {
       { label: '측정 정보', table: buildInfoTable(information.value) },
       { label: '사이트별 요약', table: buildSummaryTable(summaryRows.value) },
       { label: '측정 포인트', table: buildDetailedTable(detailRows.value) },
-      { label: `프로파일 (포인트 ${selectedPoint.value || '없음'})`, table: buildProfileTable(profile.value) }
+      { label: `프로파일 (포인트 ${selectedPoint.value || '없음'})`, table: buildProfileTable(profile.value, profileMeta.value) }
     ]))
   } catch {
     toast.add({ ...EXCEL_DOWNLOAD_FAILED })
@@ -219,7 +233,7 @@ const exportItems = computed<DropdownMenuItem[][]>(() => [
       label: `프로파일 — 포인트 ${selectedPoint.value || '없음'} (${profile.value.length})`,
       icon: 'i-lucide-line-chart',
       disabled: profilePending.value || profile.value.length === 0,
-      onSelect: () => downloadSection(`profile-point${safeFilePart(selectedPoint.value)}`, buildProfileTable(profile.value))
+      onSelect: () => downloadSection(`profile-point${safeFilePart(selectedPoint.value)}`, buildProfileTable(profile.value, profileMeta.value))
     }
   ]
 ])

@@ -81,9 +81,20 @@ export interface AfmProfilePoint {
   z: number
 }
 
+// What one profile file declares about itself. Units are one of um / nm / pm / Pixel,
+// differ from file to file and are never unified; data_size reads like "1024 x 1".
+export interface AfmProfileMeta {
+  x_unit: string
+  y_unit: string
+  z_unit: string
+  data_size: string
+  surface_size: string
+}
+
 export interface AfmProfileResponse {
   success: boolean
   data: AfmProfilePoint[]
+  meta?: AfmProfileMeta | null
   count: number
   tool: string
 }

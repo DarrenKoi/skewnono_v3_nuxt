@@ -8,6 +8,8 @@
   않습니다**. 그쪽 5절의 적재 명세(Redis·MinIO의 위치·형식·스키마)는 ETL이 끝난 뒤
   받기로 한 그대로입니다. 이 문서는 raw 파일에 대한 질문만 담습니다.
 - 회신 기한: 날짜 기한은 없습니다. 아는 것부터 부분 회신해 주시면 됩니다.
+- 회신 현황: 2026-10-02에 15문항과 P1·P2 모두 답을 받았습니다. 답과 그 반영은
+  [`office-data-findings.md`](office-data-findings.md)의 4차 회신에 있습니다.
 
 지금까지의 회신 원문은 [`office-data-findings.md`](office-data-findings.md)에,
 정리본은 `docs/datatables/afm/afm_raw_files.txt`에 있습니다.

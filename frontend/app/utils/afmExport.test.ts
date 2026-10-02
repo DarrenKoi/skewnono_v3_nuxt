@@ -49,6 +49,13 @@ test('buildDetailedTable unions keys across ragged rows, missing → empty', () 
   assert.deepEqual(t.rows[1], ['B', 2, 9])
 })
 
+test('buildProfileTable puts the file\'s own units in the headers when it declares them', () => {
+  const meta = { x_unit: 'um', y_unit: 'Pixel', z_unit: 'pm', data_size: '2 x 1', surface_size: '1 x 0' }
+  const t = buildProfileTable([{ x: 1, y: 2, z: 3 }], meta)
+  assert.deepEqual(t.headers, ['x (um)', 'y (Pixel)', 'z (pm)'])
+  assert.deepEqual(t.rows, [[1, 2, 3]])
+})
+
 test('buildProfileTable → x,y,z', () => {
   const t = buildProfileTable([{ x: 1, y: 2, z: 3 }])
   assert.deepEqual(t.headers, ['x', 'y', 'z'])

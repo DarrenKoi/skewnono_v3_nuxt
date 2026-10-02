@@ -3,7 +3,7 @@
 from typing import Any
 
 from backend._runtime.data_provider import get_data_provider
-from backend.afm.contracts import AfmMeasurementRow
+from backend.afm.contracts import AfmMeasurementRow, AfmProfileMeta
 
 
 __all__ = [
@@ -13,6 +13,7 @@ __all__ = [
     "list_afm_files",
     "get_afm_file_detail",
     "get_profile_points",
+    "get_profile_meta",
     "get_profile_image_svg",
     "list_analysis_images",
     "get_analysis_image_svg",
@@ -53,6 +54,14 @@ def get_profile_points(
     site_info: dict[str, str | int | None] | None = None,
 ) -> list[dict[str, float]] | None:
     return _provider().get_profile_points(filename, point, tool_name, site_info)
+
+
+def get_profile_meta(
+    filename: str,
+    point: str,
+    tool_name: str | None = None,
+) -> AfmProfileMeta | None:
+    return _provider().get_profile_meta(filename, point, tool_name)
 
 
 def get_profile_image_svg(

@@ -6,6 +6,7 @@ import type { WorkbookSheet } from './xlsx.ts'
 import type {
   AfmInformation,
   AfmSummaryRow,
+  AfmProfileMeta,
   AfmProfilePoint
 } from '~/composables/useAfmDetailApi'
 
@@ -79,8 +80,12 @@ export const buildDetailedTable = (data: Record<string, unknown>[]): ExportTable
   return tableFromRows(data, [])
 }
 
-export const buildProfileTable = (points: AfmProfilePoint[]): ExportTable => ({
-  headers: ['x', 'y', 'z'],
+// The headers carry the file's own units: the same numbers mean um in one file and
+// Pixel in the next, and a sheet outlives the screen that said which.
+export const buildProfileTable = (points: AfmProfilePoint[], meta?: AfmProfileMeta | null): ExportTable => ({
+  headers: meta
+    ? [`x (${meta.x_unit})`, `y (${meta.y_unit})`, `z (${meta.z_unit})`]
+    : ['x', 'y', 'z'],
   rows: points.map(p => [p.x, p.y, p.z])
 })
 
