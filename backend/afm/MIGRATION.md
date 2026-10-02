@@ -46,9 +46,13 @@
 - Mock behavior: deterministically generates rows per tool from a static
   `TOOL_CONFIGS` table (fixed row count per tool). `filename` follows each
   tool's own raw file-name field order (`#`-separated, `NA` for an empty
-  slot — see `docs/datatables/afm/afm_raw_files.txt`), so `MAPC01` rows have
-  `lot_id == "NA"`, and a recipe name may hold spaces and parentheses
-  (`RQQA_PFH_MONF (1)`). **Which files exist is decided by the recipe**
+  slot — see `docs/datatables/afm/afm_raw_files.txt`), and a recipe name may
+  hold spaces and parentheses (`RQQA_PFH_MONF (1)`). Three per-tool facts shape
+  the rows: `MAP608`'s leading time is the session start, so several rows
+  share one `date`/`time`; `MAPC01` names its lot in the Info section rather
+  than the file name, and re-measures one sample several times a day so only
+  `time` tells those rows apart (a measurement is `date#time#recipe#slot`);
+  `5EAP1501`'s name ends with the tool's original file name. **Which files exist is decided by the recipe**
   (the `RECIPES` table), never by the tool or the row: a recipe with no data
   CSV has `has_data == False` and `data_dir_list == ["no files"]`, and the
   same goes for profile and images. Absence is a normal state, not an error.
@@ -91,11 +95,15 @@
   **method** name of its block (one file can hold several, e.g.
   `Profile_LEFT_UL` + `Profile_RIGHT_UL`), while a data row's `Site ID`
   (`0002_X002_Y-001`) is the **position** and is what `available_points`
-  lists and the profile file name carries. On every tool some recipes record
-  no `Site ID`/`Site X`/`Site Y` at all; the mock then keys the position on
-  the running number (`0001`), which is a guess. `State` is one of
-  `COMPLETED` / `FAILED` / `STOPPED`, and `Method_ID` is a number on some
-  recipes and a string on others. Either table can be empty on its
+  the profile file name carries. `available_points` lists the **position
+  keys**: the 4-digit point number (`0001`), or on a recipe that records
+  `Site ID` the Site ID followed by the point number
+  (`0004_X000_Y-002_0002`) — the same text the point's profile and image
+  files are named after. `State` is one of `COMPLETED` / `FAILED` /
+  `STOPPED`. `Method_ID` is a number on some recipes and a string on others
+  and is the same in every block of a file, so **blocks are matched by
+  position, never by `Method_ID`**; a stopped measurement leaves its later
+  block with rows that have no measurement columns and no summary. Either table can be empty on its
   own: a recipe with no data CSV empties both, and real files were also seen
   with no Summary, or with a Data section that has no table.
 - Office data source: <!-- OFFICE: AFM measurement detail / summary export API -->
@@ -109,27 +117,44 @@
   site_info)` (`filename`/`point` URL-decoded; `tool_name` from `?tool=`;
   `site_info` built from `?site_id=`/`?site_x=`/`?site_y=`/`?point_no=` query
   args — `point_no` parsed to `int` or `None`)
-- Contract: `list[AfmProfilePoint]` —
+- Contract: `list[AfmProfilePoint]`, plus `AfmProfileMeta | None` from
+  `data.get_profile_meta(filename, point, tool_name)`, which the route sends
+  as `meta` —
 
   ```python
   class AfmProfilePoint(TypedDict):
       x: float
       y: float
       z: float
+
+
+  class AfmProfileMeta(TypedDict):
+      x_unit: str
+      y_unit: str
+      z_unit: str
+      data_size: str
+      surface_size: str
   ```
 
 - Mock behavior: generates synthetic height samples per
   `(filename, point, site_info)` on the tool's real grid shape — 512×64 on
-  `MAP608`, a mix of 1D lines (1024×1 … 16384×1) and 2D grids on `MAPC01`.
+  `MAP608`, a mix of 1D lines (1024×1 … 16384×1) and 2D grids on `MAPC01`,
+  in the units that file declares (`um`/`nm`/`pm`/`Pixel`, varying per file
+  on `MAPC01`). A 1D line has `y == 0` throughout.
   Returns `None` if the file isn't found or the measurement's recipe writes
   no profile (and every `5EAP1501` row), which the route turns into a `404`
   that the page shows as an empty state. Any `point`
   string is otherwise accepted — the mock does not validate it against
   `available_points`.
 - Office data source: <!-- OFFICE: AFM profile/height-map export API -->
-- Notes: route wraps the list in `{success, data, count, tool, message}`.
-  The raw profile txt states its X/Y/Z units in the header and they differ
-  per file (um / nm / pm / Pixel); `AfmProfilePoint` has no unit field yet.
+- Notes: route wraps the list in `{success, data, meta, count, tool, message}`.
+  The loaded profile is an X/Y/Z parquet whose object metadata carries
+  `XUnit`, `YUnit`, `ZUnit`, `DataSize` and `SurfaceSize`; map those five onto
+  `AfmProfileMeta` and lower-case the columns to `x`/`y`/`z`. Units are kept
+  per file and never unified, so do not convert them — the page prints
+  whatever unit arrives, and draws a profile as a line instead of a heat map
+  when `data_size` declares one row (`"1024 x 1"`), falling back to "`y` never
+  varies" only if `data_size` is missing. A `Pixel` axis has no known length; pass it through.
 
 ## Endpoint family: GET /api/afm/files/&lt;filename&gt;/image/&lt;point&gt;, GET /api/afm-files/image/&lt;filename&gt;/&lt;point&gt;, and GET .../image-file/&lt;point&gt; variants
 

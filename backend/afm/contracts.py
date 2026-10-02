@@ -10,6 +10,7 @@ __all__ = [
     "AfmToolRow",
     "AfmFileDetail",
     "AfmProfilePoint",
+    "AfmProfileMeta",
 ]
 
 
@@ -63,3 +64,15 @@ class AfmProfilePoint(TypedDict):
     x: float
     y: float
     z: float
+
+
+class AfmProfileMeta(TypedDict):
+    # What one profile file declares about itself. Units are never unified —
+    # each is one of um / nm / pm / Pixel and differs from file to file — so
+    # they travel with the points. `data_size` ("1024 x 1") tells a 1D line from
+    # a 2D grid.
+    x_unit: str
+    y_unit: str
+    z_unit: str
+    data_size: str
+    surface_size: str

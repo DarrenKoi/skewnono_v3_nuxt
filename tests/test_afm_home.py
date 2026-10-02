@@ -57,6 +57,7 @@ class TestAfmRoutes(unittest.TestCase):
         self.assertTrue(detail.get_json()["success"])
         self.assertEqual(profile.status_code, 200)
         self.assertEqual(profile.get_json()["count"], len(profile.get_json()["data"]))
+        self.assertEqual(profile.get_json()["meta"]["z_unit"], "nm")
         self.assertEqual(image.status_code, 200)
         self.assertTrue(image.get_json()["data"]["url"].startswith("/api/afm/files/"))
 

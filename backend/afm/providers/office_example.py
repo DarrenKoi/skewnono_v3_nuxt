@@ -30,6 +30,10 @@ def get_profile_points(*args, **kwargs):
     return _not_connected()
 
 
+def get_profile_meta(*args, **kwargs):
+    return _not_connected()
+
+
 def get_profile_image_svg(*args, **kwargs):
     return _not_connected()
 

@@ -4,22 +4,6 @@
     title="프로파일 이미지"
     :subject="point ? `포인트 ${point}` : undefined"
   >
-    <template
-      v-if="url"
-      #actions
-    >
-      <UButton
-        :to="url"
-        external
-        :download="`${filename}-point${safeFilePart(point)}.svg`"
-        size="sm"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-download"
-        aria-label="프로파일 이미지 다운로드"
-      />
-    </template>
-
     <AppLoadingState
       v-if="loading"
       variant="inline"
@@ -34,8 +18,21 @@
     </p>
     <div
       v-else
-      class="flex h-full min-h-80 items-center justify-center overflow-hidden rounded-(--sk-r-chip) bg-(--sk-muted-surface)"
+      class="relative flex h-full min-h-80 items-center justify-center overflow-hidden rounded-(--sk-r-chip) bg-(--sk-muted-surface)"
     >
+      <!-- In the image area, not the header: a long point name in the header
+           badge would otherwise push the button onto a line of its own. -->
+      <UButton
+        :to="url"
+        external
+        :download="`${filename}-point${safeFilePart(point)}.svg`"
+        size="sm"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-download"
+        aria-label="프로파일 이미지 다운로드"
+        class="absolute top-2 right-2 bg-(--sk-surface)"
+      />
       <img
         :src="url"
         :alt="`포인트 ${point} 프로파일 이미지`"

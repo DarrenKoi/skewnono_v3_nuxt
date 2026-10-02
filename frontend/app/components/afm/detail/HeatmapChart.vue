@@ -1,7 +1,7 @@
 <template>
   <AfmCard
     icon="i-lucide-grid-3x3"
-    title="웨이퍼 히트맵"
+    :title="isLine ? '라인 프로파일' : '웨이퍼 히트맵'"
     :subject="point ? `포인트 ${point}` : undefined"
   >
     <AppLoadingState
@@ -56,12 +56,13 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
+import type { AfmProfileMeta, AfmProfilePoint } from '~/composables/useAfmDetailApi'
 import type { OutlierMethod } from '~/utils/afmHeatmap'
 
 const props = defineProps<{
   profile: AfmProfilePoint[]
   point?: string
+  meta?: AfmProfileMeta | null
   loading?: boolean
   exportName?: string
 }>()
@@ -90,25 +91,57 @@ const statItems = computed(() => stats.value.count
       { label: '포인트', value: stats.value.count.toLocaleString() },
       { label: 'min', value: stats.value.min.toFixed(2) },
       { label: 'max', value: stats.value.max.toFixed(2) },
-      { label: 'μ', value: stats.value.mean.toFixed(2) }
+      { label: 'μ', value: stats.value.mean.toFixed(2) },
+      ...(props.meta ? [{ label: '단위', value: zName.value }] : [])
     ]
   : [])
 
+// A 1D profile has no second lateral axis to map, so it is drawn as height along the line.
+const isLine = computed(() => isLineProfile(props.profile, props.meta?.data_size))
+
+const axisName = (name: string, gap: number) => ({
+  name,
+  nameLocation: 'middle' as const,
+  nameGap: gap,
+  nameTextStyle: CHART_LEGEND_LABEL
+})
+// A file in nm or pm labels its lateral axis in five- and six-digit numbers.
+const tickLabel = { ...CHART_AXIS_LABEL, hideOverlap: true }
+const xName = computed(() => axisTitle('X', props.meta?.x_unit))
+const yName = computed(() => axisTitle('Y', props.meta?.y_unit))
+const zName = computed(() => axisTitle('Z', props.meta?.z_unit))
+
+// The line's axis trigger hands over one entry per series, the map's item trigger a single one.
 const formatTooltip = (params: unknown) => {
-  const value = (params as { value?: unknown }).value
-  if (!Array.isArray(value)) return ''
-  const [x, y, z] = value
-  if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number') return ''
-  return `x: ${x.toFixed(1)}<br/>y: ${y.toFixed(1)}<br/>z: ${z.toFixed(2)}`
+  const value = ((Array.isArray(params) ? params[0] : params) as { value?: unknown } | undefined)?.value
+  if (!Array.isArray(value) || !value.every(v => typeof v === 'number')) return ''
+  const names = value.length === 2 ? [xName.value, zName.value] : [xName.value, yName.value, zName.value]
+  return value.map((v, i) => `${names[i]}: ${v.toFixed(2)}`).join('<br/>')
 }
 
-const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 56, right: 72, top: 16, bottom: 36 },
+const lineOption = computed<EChartsOption>(() => ({
+  grid: { left: 72, right: 16, top: 16, bottom: 48 },
+  // Axis-triggered: with no symbols drawn there is no item under the cursor to hit.
+  tooltip: { trigger: 'axis', formatter: formatTooltip },
+  xAxis: { type: 'value', scale: true, axisLabel: tickLabel, ...axisName(xName.value, 30) },
+  yAxis: { type: 'value', scale: true, axisLabel: CHART_AXIS_LABEL, ...axisName(zName.value, 52) },
+  series: [{
+    type: 'line',
+    // A single sample has no segment to draw, so it alone gets a symbol.
+    showSymbol: filtered.value.kept.length === 1,
+    // A line can hold 16384 samples; lttb keeps its shape at the canvas's width.
+    sampling: 'lttb',
+    data: filtered.value.kept.map(p => [p.x, p.z])
+  }]
+}))
+
+const mapOption = computed<EChartsOption>(() => ({
+  grid: { left: 72, right: 72, top: 16, bottom: 48 },
   tooltip: {
     formatter: formatTooltip
   },
-  xAxis: { type: 'value', scale: true, axisLabel: CHART_AXIS_LABEL },
-  yAxis: { type: 'value', scale: true, axisLabel: CHART_AXIS_LABEL },
+  xAxis: { type: 'value', scale: true, axisLabel: tickLabel, ...axisName(xName.value, 30) },
+  yAxis: { type: 'value', scale: true, axisLabel: CHART_AXIS_LABEL, ...axisName(yName.value, 52) },
   visualMap: {
     min: stats.value.count ? stats.value.min : 0,
     max: stats.value.count ? stats.value.max : 1,
@@ -125,6 +158,8 @@ const chartOption = computed<EChartsOption>(() => ({
     data: filtered.value.kept.map(p => [p.x, p.y, p.z])
   }]
 }))
+
+const chartOption = computed(() => isLine.value ? lineOption.value : mapOption.value)
 
 useEchart(chartEl, chartOption, { exportName: props.exportName })
 </script>

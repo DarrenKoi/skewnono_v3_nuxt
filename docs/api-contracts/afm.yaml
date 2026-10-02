@@ -120,6 +120,21 @@ types:
     z:
       type: number
 
+  AfmProfileMeta:
+    x_unit:
+      type: string
+      description: Unit the file declares for X — one of um / nm / pm / Pixel. Differs per file and is never unified.
+    y_unit:
+      type: string
+    z_unit:
+      type: string
+    data_size:
+      type: string
+      description: Grid shape as the file states it; tells a 1D line from a 2D grid
+      examples: ["512 x 64", "1024 x 1"]
+    surface_size:
+      type: string
+
   AfmActivity:
     timestamp:
       type: string
@@ -194,7 +209,7 @@ endpoints:
 
   - path: /api/afm/files/{filename}/profile/{point}
     method: GET
-    description: 20×20 grid of (x,y,z) points for the named site
+    description: (x,y,z) samples of the named point's profile, with the units its file declares. A 1D line has y = 0 throughout.
     query_params:
       tool:
         type: string
@@ -219,6 +234,9 @@ endpoints:
         data:
           type: array
           items: AfmProfilePoint
+        meta:
+          type: AfmProfileMeta
+          nullable: true
         count:
           type: integer
         tool:

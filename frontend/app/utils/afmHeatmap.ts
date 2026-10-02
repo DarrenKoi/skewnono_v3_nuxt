@@ -69,3 +69,17 @@ export const heatmapStats = (points: AfmProfilePoint[]): HeatmapStats => {
   }
   return { count: points.length, min, max, mean: sum / points.length }
 }
+
+// A 1D profile is one scan line, stored in the same X/Y/Z shape as a grid with Y fixed
+// at 0. The file's DataSize ("1024 x 1") is what tells the two apart; only when it is
+// missing or unreadable do the samples decide, by all sharing one y.
+export const isLineProfile = (points: AfmProfilePoint[], dataSize?: string | null): boolean => {
+  const declared = /^\s*(\d+)\s*x\s*(\d+)\s*$/i.exec(dataSize ?? '')
+  if (declared) return Number(declared[2]) === 1
+  return points.length > 1 && points.every(p => p.y === points[0]!.y)
+}
+
+// An axis name with the unit its file declared ("X (μm)"). Units differ from file to
+// file (um / nm / pm / Pixel) and are never unified, so none is ever assumed.
+export const axisTitle = (axis: string, unit?: string | null): string =>
+  unit ? `${axis} (${unit === 'um' ? 'μm' : unit})` : axis

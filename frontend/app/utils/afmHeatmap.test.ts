@@ -2,8 +2,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  axisTitle,
   filterProfileByOutlier,
   heatmapStats,
+  isLineProfile,
   OUTLIER_DEFAULT_THRESHOLD
 } from './afmHeatmap.ts'
 
@@ -54,4 +56,35 @@ test('heatmapStats on empty → zeros', () => {
 test('outlier threshold defaults', () => {
   assert.equal(OUTLIER_DEFAULT_THRESHOLD.iqr, 1.5)
   assert.equal(OUTLIER_DEFAULT_THRESHOLD.zscore, 3)
+})
+
+const line = [{ x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 2 }, { x: 2, y: 0, z: 3 }]
+const grid = [{ x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 2 }, { x: 0, y: 1, z: 3 }]
+
+test('isLineProfile: the file\'s DataSize decides, whatever the samples look like', () => {
+  assert.equal(isLineProfile(line, '1024 x 1'), true)
+  assert.equal(isLineProfile(grid, '512 x 64'), false)
+  // A grid that came back with a single row is still a grid, and a line with one
+  // sample is still a line.
+  assert.equal(isLineProfile(line, '512 x 64'), false)
+  assert.equal(isLineProfile([{ x: 0, y: 0, z: 1 }], '1 x 1'), true)
+  assert.equal(isLineProfile(grid, ' 16384 X 1 '), true)
+})
+
+test('isLineProfile: with no readable DataSize, a line is every sample on one y', () => {
+  for (const dataSize of [undefined, null, '', '1024', 'n/a']) {
+    assert.equal(isLineProfile(line, dataSize), true)
+    assert.equal(isLineProfile(grid, dataSize), false)
+  }
+  // Too few samples to call it a line; the heat map handles them.
+  assert.equal(isLineProfile([{ x: 0, y: 0, z: 1 }]), false)
+  assert.equal(isLineProfile([]), false)
+})
+
+test('axisTitle: carries the unit the file declared, and none when it declared none', () => {
+  assert.equal(axisTitle('X', 'um'), 'X (μm)')
+  assert.equal(axisTitle('Z', 'pm'), 'Z (pm)')
+  assert.equal(axisTitle('X', 'Pixel'), 'X (Pixel)')
+  assert.equal(axisTitle('Y', undefined), 'Y')
+  assert.equal(axisTitle('Y', ''), 'Y')
 })

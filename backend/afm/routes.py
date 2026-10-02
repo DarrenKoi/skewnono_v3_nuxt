@@ -6,6 +6,7 @@ from backend.afm.data import (
     get_afm_file_detail,
     get_analysis_image_svg,
     get_profile_image_svg,
+    get_profile_meta,
     get_profile_points,
     get_tools,
     list_afm_files,
@@ -83,6 +84,8 @@ def afm_profile(filename: str, point: str):
     return jsonify({
         "success": True,
         "data": profile_points,
+        # The file's own X/Y/Z units; they differ per file and are never unified.
+        "meta": get_profile_meta(decoded_filename, decoded_point, tool_name),
         "count": len(profile_points),
         "tool": tool_name,
         "message": f"Successfully loaded profile data for {decoded_filename}, point {decoded_point}"

@@ -65,12 +65,13 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
+import type { AfmProfileMeta, AfmProfilePoint } from '~/composables/useAfmDetailApi'
 import type { BinMethod, HistogramMode } from '~/utils/afmHistogram'
 
 const props = defineProps<{
   profile: AfmProfilePoint[]
   point?: string
+  meta?: AfmProfileMeta | null
   loading?: boolean
   exportName?: string
 }>()
@@ -144,10 +145,14 @@ const chartOption = computed<EChartsOption>(() => {
   }
 
   return {
-    grid: { left: 56, right: 12, top: 28, bottom: 32 },
+    grid: { left: 56, right: 12, top: 28, bottom: 48 },
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
+      name: axisTitle('Z', props.meta?.z_unit),
+      nameLocation: 'middle',
+      nameGap: 30,
+      nameTextStyle: CHART_LEGEND_LABEL,
       data: centers.map(c => c.toFixed(2)),
       axisLabel: { ...CHART_AXIS_LABEL, interval: Math.max(0, Math.ceil(centers.length / 6) - 1), hideOverlap: true }
     },
