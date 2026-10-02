@@ -15,7 +15,7 @@
         <!-- The header pill is icon-only (no width for a name in the top nav),
              so this page is where the caller reads who they are signed in as. -->
         <p
-          v-if="identity"
+          v-if="identity && !isAnonymous"
           class="sk-meta mt-1 flex items-center gap-1.5"
         >
           <UIcon
@@ -64,9 +64,18 @@
       />
     </UCard>
 
-    <!-- Personal panel: always visible -->
+    <UAlert
+      v-if="isAnonymous || me?.user_id === 'anonymous'"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-user-round"
+      title="본인 확인 후 개인 통계를 볼 수 있습니다."
+      :actions="[{ label: '본인 확인', to: '/identify?next=/activity' }]"
+    />
+
+    <!-- Anonymous callers share an ID and have no personal statistics. -->
     <section
-      v-if="me"
+      v-if="me && !isAnonymous && me.user_id !== 'anonymous'"
       class="grid grid-cols-1 lg:grid-cols-3 gap-4"
     >
       <UCard class="dashboard-surface">
@@ -335,7 +344,7 @@ import { formatKoreanDateTime } from '~/utils/dateTime'
 useHead({ title: '사용 통계 | SKEWNONO' })
 
 // Already fetched by the route middleware — no extra /api/me request here.
-const { identity } = useIdentity()
+const { identity, isAnonymous } = useIdentity()
 
 // All four start together. /activity/me used to be awaited first because the
 // admin-only queries depended on its answer; those moved to /admin/visitors,

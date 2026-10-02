@@ -233,3 +233,9 @@ export const resetActivityCache = () => {
   familiesSlot.reset()
   visitorsSlot.reset()
 }
+
+// Identity changes must also discard Nuxt's payload, not just the promises.
+export const clearActivityData = () => {
+  resetActivityCache()
+  clearNuxtData([ME_KEY, SUMMARY_KEY, USERS_KEY, FABS_KEY, FAMILIES_KEY, VISITORS_KEY])
+}

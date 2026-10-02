@@ -11,6 +11,8 @@
  * or after a sign-out in another tab, and the stale copy would win on boot.
  */
 
+import { clearActivityData } from '~/composables/useActivityApi'
+
 export interface Member {
   empno: string
   emp_nm: string | null
@@ -36,6 +38,14 @@ export const useIdentity = () => {
   const identity = useState<Identity | null>('identity', () => null)
   const pending = useState<boolean>('identity-pending', () => false)
 
+  const setIdentity = (next: Identity | null) => {
+    if (identity.value?.user_id !== next?.user_id
+      || identity.value?.identity_source !== next?.identity_source) {
+      clearActivityData()
+    }
+    identity.value = next
+  }
+
   /**
    * True only for the shared fallback id. A `declared` identity is weak but
    * attributable, so it is NOT anonymous — that distinction is the whole
@@ -46,12 +56,12 @@ export const useIdentity = () => {
   const refresh = async () => {
     pending.value = true
     try {
-      identity.value = await $fetch<Identity>('/api/me')
+      setIdentity(await $fetch<Identity>('/api/me'))
     } catch {
       // A failed /api/me must not strand the SPA. Leaving `identity` null lets
       // the middleware fall through rather than trapping the user behind a
       // gate it could not evaluate — the backend is what actually refuses data.
-      identity.value = null
+      setIdentity(null)
     } finally {
       pending.value = false
     }
@@ -60,10 +70,10 @@ export const useIdentity = () => {
   /** Declare an identity. Returns null on success, or the message to show. */
   const identify = async (empno: string, empNm: string): Promise<string | null> => {
     try {
-      identity.value = await $fetch<Identity>('/api/identify', {
+      setIdentity(await $fetch<Identity>('/api/identify', {
         method: 'POST',
         body: { empno, emp_nm: empNm }
-      })
+      }))
       return null
     } catch (error: unknown) {
       const message = (error as { data?: { message?: string } })?.data?.message
@@ -74,7 +84,7 @@ export const useIdentity = () => {
   /** "본인이 아닙니다" — drop the declaration. The response describes who the
    * caller becomes, which may still be a cookie identity. */
   const signOut = async () => {
-    identity.value = await $fetch<Identity>('/api/identify', { method: 'DELETE' })
+    setIdentity(await $fetch<Identity>('/api/identify', { method: 'DELETE' }))
   }
 
   return { identity, pending, isAnonymous, refresh, identify, signOut }
