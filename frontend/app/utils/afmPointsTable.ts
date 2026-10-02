@@ -8,31 +8,42 @@ export interface PointColumn {
   label: string
 }
 
-export const DEFAULT_POINT_COLUMN_KEYS: string[] = [
-  'measurement_point', 'Point No', 'X (um)', 'Y (um)',
-  'Left_H (nm)', 'Right_H (nm)', 'Ref_H (nm)', 'State'
-]
+const ID_COLUMN_KEYS: string[] = ['measurement_point', 'Point No', 'X (um)', 'Y (um)']
+
+// Measurement columns are named by the recipe (`Pad_1_H (nm)`, `1_Minimum (nm)`, …),
+// so they are recognised by their unit, never by name.
+const isMeasurementKey = (key: string) => key.includes('(nm)')
+
+// A recipe can carry 51 measurement columns; the default view shows the first few.
+const DEFAULT_MEASUREMENT_COLUMNS = 6
 
 const LABEL_OVERRIDES: Record<string, string> = {
   'measurement_point': 'Site',
   'Point No': '#',
   'X (um)': 'X (μm)',
-  'Y (um)': 'Y (μm)',
-  'Left_H (nm)': 'Left_H',
-  'Right_H (nm)': 'Right_H',
-  'Ref_H (nm)': 'Ref_H'
+  'Y (um)': 'Y (μm)'
 }
 
 const humanizeKey = (key: string): string =>
-  LABEL_OVERRIDES[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  LABEL_OVERRIDES[key] ?? (isMeasurementKey(key)
+    ? key.replace(' (nm)', '')
+    : key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
 
 export const derivePointColumns = (rows: AfmDetailRow[]): PointColumn[] => {
   const keys = collectColumns(rows, [])
-  const preferred = DEFAULT_POINT_COLUMN_KEYS.filter(k => keys.includes(k))
-  const rest = keys.filter(k => !DEFAULT_POINT_COLUMN_KEYS.includes(k))
-  const nm = rest.filter(k => k.includes('(nm)'))
-  const others = rest.filter(k => !k.includes('(nm)'))
-  return [...preferred, ...nm, ...others].map(k => ({ key: k, label: humanizeKey(k) }))
+  const ids = ID_COLUMN_KEYS.filter(k => keys.includes(k))
+  const nm = keys.filter(isMeasurementKey)
+  const others = keys.filter(k => !ids.includes(k) && !isMeasurementKey(k))
+  return [...ids, ...nm, ...others].map(k => ({ key: k, label: humanizeKey(k) }))
+}
+
+export const defaultPointColumnKeys = (columns: PointColumn[]): string[] => {
+  const keys = columns.map(c => c.key)
+  return [
+    ...keys.filter(k => ID_COLUMN_KEYS.includes(k)),
+    ...keys.filter(isMeasurementKey).slice(0, DEFAULT_MEASUREMENT_COLUMNS),
+    ...keys.filter(k => k === 'State')
+  ]
 }
 
 export const filterPointRows = (

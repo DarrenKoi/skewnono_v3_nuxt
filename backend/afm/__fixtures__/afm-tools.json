@@ -1,14 +1,20 @@
 [
   {
-    "fab": "R3",
+    "fab": "PKG",
     "id": "map608",
     "label": "MAP608",
     "name": "MAP608"
   },
   {
-    "fab": "M12",
+    "fab": "R3",
     "id": "mapc01",
     "label": "MAPC01",
     "name": "MAPC01"
+  },
+  {
+    "fab": "M15",
+    "id": "5eap1501",
+    "label": "5EAP1501",
+    "name": "5EAP1501"
   }
 ]

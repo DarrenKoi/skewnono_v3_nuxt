@@ -1,0 +1,129 @@
+AFM 장비 raw 파일 — ETL 이전 원본 (Redis/MinIO 적재 형태 아님)
+
+이 문서는 각 AFM 장비에서 추출한 **raw 파일**의 구조입니다. 사무실 agent 가
+skewnono-pjt-shared/AFM/ 의 raw 데이터를 보고 확인한 내용이며(office 확인
+2026-10-02), 회신 원문은 docs/afm/office-data-findings.md 에 그대로 있습니다.
+
+웹이 실제로 읽을 것은 이 raw 파일이 아니라 ETL 이후의 적재물입니다 — Redis 색인
+(측정 목록 + MinIO 경로)과 MinIO 객체(상세·Profile·이미지). 그 형태는 ETL 이
+끝난 뒤 다시 회신받기로 했으므로 **아직 미정**입니다. key 이름·형식·dtype 이
+정해지면 이 폴더에 적재 형태 문서를 따로 추가합니다. 질문서는
+docs/afm/to-questionnaire-afm.md 입니다.
+
+표기: [확인] = office 확인 2026-10-02, [가정] = OFFICE-VERIFY.
+
+
+D1 장비 목록
+
+  장비 ID   fab    근거
+  MAP608    PKG    [가정] docs/afm/tool_info.txt 뿐입니다. 회신은 이 장비의 fab 을 말하지 않았습니다.
+  MAPC01    R3     [확인] 코드로 확인
+  5EAP1501  M15    [확인] 코드로 확인
+
+  ⚠ raw 데이터 어디에도 fab 필드가 없습니다 [확인]. fab 은 장비 ID 에서 대응표로
+    붙여야 하고, 그 대응표가 어디에 실릴지는 미정입니다.
+  ⚠ 이전 mock 의 대응(R3→MAP608, M12→MAPC01, M15→5MAPT01)은 틀렸습니다.
+    5MAPT01 이라는 장비는 없습니다.
+
+
+D2 측정 식별자 — 파일명
+
+  파일명은 `#` 으로 필드를 구분하고, 장비마다 **필드 순서가 다릅니다** [확인].
+  값이 없는 자리는 NA 입니다.
+
+  MAP608   : #YYMMDD#hhmmss#RECIPE#SAMPLE_ID#LOT_ID#hhmmss#.csv
+  MAPC01   : #YYMMDD#hhmmss#RECIPE#SLOT#NA#NA#SAMPLE_ID_Info.csv
+  5EAP1501 : #YYMMDD#HHMMSS#RECIPE#SAMPLE_ID#LOT_ID#NA#...csv
+
+  - MAP608 은 시각이 두 번 나오고, **마지막 시각이 측정 시작 시각**입니다 [확인].
+    첫 번째 시각이 무엇인지(저장 시각인지 종료 시각인지)는 회신에 없습니다 [가정].
+  - MAPC01 은 LOT_ID 자리가 NA 입니다. lot 을 다른 곳(Info 섹션 등)에서 얻을 수
+    있는지는 미정입니다 [가정] — mock 은 lot_id 를 "NA" 로 둡니다.
+  - MAPC01 만 SLOT 필드가 따로 있습니다. 나머지 두 장비의 slot 이 SAMPLE_ID 안에
+    들어 있는지는 미정입니다 [가정].
+  - 5EAP1501 의 `...` 는 회신에서 생략된 부분입니다. 마지막 `#` 와 `.csv` 사이에
+    무엇이 오는지 모릅니다 [가정] — mock 은 비워 둡니다.
+  - SAMPLE_ID 의 생김새, 시간대, 재측정 시 파일명이 겹치는지는 회신에 없습니다 [가정].
+
+  ⚠ 한 파서로 세 장비를 읽을 수 없습니다. 다섯 번째 필드가 MAP608·5EAP1501 에서는
+    LOT_ID 이고 MAPC01 에서는 NA 이며, 네 번째 필드는 SAMPLE_ID 또는 SLOT 입니다.
+
+
+D3 측정 상세 — CSV
+
+  CSV 한 파일이 섹션 셋입니다 [확인].
+
+    Info    : key, value
+    Summary : MEAN / STDEV / MIN / MAX / RANGE
+    Data    : 측정 point 하나가 한 행
+
+  측정 컬럼은 **recipe 마다 다릅니다** [확인]. 실측 예:
+
+    MAP608   : Pad_1_H (nm) ...
+    5EAP1501 : 1_Minimum (nm) ~ 51_Minimum (nm)
+               (회신 표기는 "1~51_Minimum (nm)" 입니다. 1번부터 51번까지 컬럼
+                51개로 읽었습니다 [가정])
+
+  Home 이 가정하던 Left_H / Right_H / Ref_H 는 실제 컬럼이 아닙니다. 다만 실측한
+  컬럼이 모두 `nm` 를 포함하므로, 이름에 nm 가 든 컬럼만 고르는 시계열 필터는
+  그대로 동작합니다 [확인].
+
+  장비별 예외 [확인]:
+    MAPC01   : data CSV 가 없습니다. Summary·Data 표를 만들 수 없습니다.
+               (파일명이 _Info.csv 로 끝나는 것으로 보아 Info 만 있습니다 [가정])
+    5EAP1501 : profile txt 가 없습니다. Heatmap 을 그릴 수 없습니다.
+
+  Site [확인, 단 결정 아님]:
+    - CSV 헤더에 Site 컬럼은 없습니다. 각 섹션 앞에 site 이름 줄이 있고, 파서가
+      그것을 Site 필드로 저장합니다.
+    - 현재 샘플은 block 이 하나이고 그 이름은 **method 명**입니다.
+    - 파서는 다중 site block 을 전제합니다. 오래된 데이터나 다른 fab 데이터에서는
+      Site ID 가 나올 수 있습니다. 데이터가 쌓이면 다시 검증합니다.
+
+  회신에 없는 것 [가정]: Info 의 key 목록, Data 행의 측정 컬럼 밖 컬럼(좌표·State·
+  Valid 등), `<측정명>_Valid` 의 존재와 값, Summary 가 장비 값인지 계산값인지와
+  STDEV 의 ddof, 유효값 제외 규칙.
+
+
+D4 Profile — txt
+
+  2D 격자 txt 입니다 [확인].
+
+    헤더 : Data Size / Surface Size / X·Y·Z unit
+    본문 : 탭으로 구분한 X  Y  Z
+
+  장비별 격자 [확인]:
+    MAP608 : 512 × 64, 단위 um / um / nm
+    MAPC01 : 격자가 다양합니다. 1024×1 ~ 16384×1 등이며 **1D 와 2D 가 섞여** 있습니다.
+    5EAP1501 : profile 없음 (D3 참고)
+
+  ⚠ 단위가 **파일마다 다릅니다** — um / nm / pm / Pixel. 반드시 헤더에서 읽어야
+    하고, 장비나 축 이름으로 단위를 정해 두면 안 됩니다 [확인].
+  ⚠ 현재 계약(`AfmProfilePoint` = x, y, z)에는 단위를 실을 자리가 없습니다. ETL 이
+    단위를 통일해 주지 않는다면 profile 응답에 단위를 추가해야 합니다 — 적재 형태가
+    회신되면 결정합니다.
+
+  회신에 없는 것 [가정]: 위치(Site·Point) 하나를 가리키는 파일명 규칙, MAPC01 의
+  2D 격자 크기, 격자 간격·원점, leveling/flattening 여부, 오류·포화 값의 표현.
+
+
+D5 이미지
+
+  webp 변환본이 있습니다. TIFF 는 문제가 되지 않습니다 [확인] — 브라우저가 TIFF 를
+  못 그리는 문제는 webp 변환본으로 해결됩니다.
+
+  회신에 없는 것 [가정]: 종류(Height·align·tip·capture)별 존재 여부와 파일명 규칙.
+
+
+mock 반영 (backend/afm/providers/mock.py)
+
+  위 [확인] 항목은 mock 이 그대로 재현하고 backend/afm/tests/
+  test_mock_office_facts.py 가 고정합니다. [가정] 항목은 mock 의 docstring 에
+  OFFICE-VERIFY 로 나열되어 있습니다.
+
+  mock 이 일부러 다르게 둔 곳:
+    - 여섯 행에 하나는 Site 를 여러 개 냅니다. 현재 샘플은 block 하나뿐이지만 파서와
+      화면이 다중 block 을 전제하므로, 그 경로가 집에서 계속 실행되게 하려는 것입니다.
+    - Profile 좌표는 um/um/nm 로 읽히는 값 하나로 통일했습니다. 계약에 단위 필드가
+      없어 파일별 단위 차이를 재현할 수 없습니다.
+    - Summary 는 Data 행에서 직접 계산합니다(STDEV 는 ddof=1). 실제 계산 규칙은 모릅니다.

@@ -18,8 +18,13 @@ export interface ExportTable {
   rows: unknown[][]
 }
 
+const naturalOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
 // Column order = the given leading columns, then every other key in the order
 // it first appears across rows. Ragged rows never drop a column.
+// The API delivers keys in codepoint order, which puts `10_Minimum (nm)` ahead of
+// `1_Minimum (nm)`, so the measurement columns are re-placed in natural order
+// among themselves; every other column keeps its slot.
 export const collectColumns = (
   rows: Record<string, unknown>[],
   leading: string[]
@@ -34,7 +39,9 @@ export const collectColumns = (
       }
     }
   }
-  return cols
+  const measured = cols.filter(col => col.includes('(nm)')).sort(naturalOrder.compare)
+  let next = 0
+  return cols.map(col => col.includes('(nm)') ? measured[next++]! : col)
 }
 
 const tableFromRows = (
@@ -61,7 +68,7 @@ export const buildSummaryTable = (summary: AfmSummaryRow[]): ExportTable => {
 // backend contract for the AFM detail payload is `list[dict[str, Any]]`
 // (backend/afm/contracts.py) — the per-recipe column set genuinely
 // varies, so two rows of the same response need not carry the same keys.
-// AfmDetailRow's 20 required fields describe only what the mock happens to
+// AfmDetailRow's required fields describe only what the mock happens to
 // emit; the office adapter is still an unimplemented stub, so pinning this
 // signature to them would assert a guarantee no backend has ever made.
 // Nothing is lost by widening: the backend-shape claim lives on

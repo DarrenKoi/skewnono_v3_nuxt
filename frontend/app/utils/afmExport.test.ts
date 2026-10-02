@@ -24,6 +24,15 @@ test('buildSummaryTable collects dynamic measurement columns after Site/ITEM', (
   assert.deepEqual(t.rows[0], ['1', 'MEAN', 12, 3])
 })
 
+test('numbered measurement columns come out in natural order, other columns keep their slot', () => {
+  // Key order as the API sends it: codepoint-sorted.
+  const t = buildDetailedTable([
+    { '10_Minimum (nm)': 1, '1_Minimum (nm)': 2, '2_Minimum (nm)': 3, 'Mileage': 4, 'Pad_1_H (nm)': 5 }
+  ])
+  assert.deepEqual(t.headers, ['1_Minimum (nm)', '2_Minimum (nm)', '10_Minimum (nm)', 'Mileage', 'Pad_1_H (nm)'])
+  assert.deepEqual(t.rows[0], [2, 3, 1, 4, 5])
+})
+
 test('buildSummaryTable on empty input → headers only, no rows', () => {
   const t = buildSummaryTable([])
   assert.deepEqual(t.headers, ['Site', 'ITEM'])

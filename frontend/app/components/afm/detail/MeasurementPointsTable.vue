@@ -133,7 +133,7 @@ const visibleKeys = computed({
   get: () => {
     const present = allColumns.value.map(c => c.key)
     const picked = storedKeys.value.filter(k => present.includes(k))
-    return picked.length ? picked : DEFAULT_POINT_COLUMN_KEYS.filter(k => present.includes(k))
+    return picked.length ? picked : defaultPointColumnKeys(allColumns.value)
   },
   set: (keys: string[]) => {
     storedKeys.value = keys

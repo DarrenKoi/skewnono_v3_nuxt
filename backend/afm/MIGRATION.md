@@ -24,8 +24,11 @@
   ```
 
 - Mock behavior: returns one row per configured tool
-  (`MAP608`, `MAPC01`, `5MAPT01`), each with a lowercase `id`, the tool name
-  as both `name` and `label`, and the tool's fab.
+  (`MAP608`, `MAPC01`, `5EAP1501`), each with a lowercase `id`, the tool name
+  as both `name` and `label`, and the tool's fab. `MAPC01`=R3 and
+  `5EAP1501`=M15 are office-confirmed (2026-10-02); `MAP608`=PKG is still
+  `OFFICE-VERIFY`. The raw files carry no fab field, so the mapping has to
+  come from a table keyed on the tool id.
 - Office data source: <!-- OFFICE: AFM tool/asset registry query -->
 - Notes: the route wraps this directly in a bare JSON array (no envelope).
 
@@ -41,8 +44,11 @@
   `tip_dir_list` each holding either real file names or the literal
   `["no files"]` sentinel when that dir has no files for the row.)
 - Mock behavior: deterministically generates rows per tool from a static
-  `TOOL_CONFIGS` table (fixed row count per tool); `filename`/`unique_key`
-  encode date, recipe, lot, time, and slot.
+  `TOOL_CONFIGS` table (fixed row count per tool). `filename` follows each
+  tool's own raw file-name field order (`#`-separated, `NA` for an empty
+  slot — see `docs/datatables/afm/afm_raw_files.txt`), so `MAPC01` rows have
+  `lot_id == "NA"`, `has_data == False` and `data_dir_list == ["no files"]`,
+  and every `5EAP1501` row has `has_profile == False`.
 - Office data source: <!-- OFFICE: AFM measurement file index / listing API -->
 - Notes: route wraps the list in
   `{success, data, total, tool, message}`. `total` and `message` are derived
@@ -74,9 +80,11 @@
   filename with `.csv`/`.pkl` stripped); returns `None` if no row matches,
   which the route turns into a `404` with
   `{success: false, error, message, tool}`. `summary` rows have
-  unit-suffixed dynamic keys (e.g. `"Left_H (nm)"`, `"Right_H (nm)"`,
-  `"Ref_H (nm)"`) alongside stable `Site`/`ITEM` keys — hence the loose
-  `dict[str, Any]` typing rather than a fully-keyed TypedDict.
+  unit-suffixed keys named by the recipe (e.g. `"Pad_1_H (nm)"` on
+  `MAP608`, `"1_Minimum (nm)"`…`"51_Minimum (nm)"` on `5EAP1501`)
+  alongside stable `Site`/`ITEM` keys — hence the loose `dict[str, Any]`
+  typing rather than a fully-keyed TypedDict. `MAPC01` has no data CSV, so
+  its `summary` and `data` are empty lists while `information` is filled.
 - Office data source: <!-- OFFICE: AFM measurement detail / summary export API -->
 - Notes: `get_afm_file_detail` is `@lru_cache`d in mock — pure function of
   `(filename, tool_name)`; office does not need to replicate caching but
@@ -97,13 +105,17 @@
       z: float
   ```
 
-- Mock behavior: generates a fixed 20×20 grid (400 points) of synthetic
-  height-map samples per `(filename, point, site_info)`; returns `None` if
-  the file isn't found (any `point` string is otherwise accepted — the mock
-  does not validate it against `available_points`), which the route turns
-  into a `404`.
+- Mock behavior: generates synthetic height samples per
+  `(filename, point, site_info)` on the tool's real grid shape — 512×64 on
+  `MAP608`, a mix of 1D lines (1024×1 … 16384×1) and 2D grids on `MAPC01`.
+  Returns `None` if the file isn't found or the measurement has no profile
+  (every `5EAP1501` row), which the route turns into a `404`. Any `point`
+  string is otherwise accepted — the mock does not validate it against
+  `available_points`.
 - Office data source: <!-- OFFICE: AFM profile/height-map export API -->
 - Notes: route wraps the list in `{success, data, count, tool, message}`.
+  The raw profile txt states its X/Y/Z units in the header and they differ
+  per file (um / nm / pm / Pixel); `AfmProfilePoint` has no unit field yet.
 
 ## Endpoint family: GET /api/afm/files/&lt;filename&gt;/image/&lt;point&gt;, GET /api/afm-files/image/&lt;filename&gt;/&lt;point&gt;, and GET .../image-file/&lt;point&gt; variants
 

@@ -48,12 +48,8 @@ export interface AfmDetailRow {
   'Method ID': number
   'State': string
   'Valid': boolean
-  'Left_H (nm)': number
-  'Left_H_Valid': boolean
-  'Right_H (nm)': number
-  'Right_H_Valid': boolean
-  'Ref_H (nm)': number
-  'Ref_H_Valid': boolean
+  // Measurement columns (`<name> (nm)` + `<name>_Valid`) are named by the recipe,
+  // so they arrive through the index signature below.
   'Pick Up Count': number
   'Sample Count': number
   'Approach Count': number

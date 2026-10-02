@@ -151,7 +151,7 @@ endpoints:
       - id: "map608"
         name: "MAP608"
         label: "MAP608"
-        fab: "R3"
+        fab: "PKG"
 
   - path: /api/afm/files
     method: GET
@@ -310,6 +310,6 @@ endpoints:
           description: "{ daily_stats: [{date, unique_users, total_sessions, total_actions, avg_actions_per_session}], summary: {period_days, total_unique_users, avg_daily_users, avg_daily_sessions} }"
 
 notes:
-  - Phase 1 implementation in backend/afm/data.py uses TOOL_CONFIGS for two tools (MAP608 on R3, MAPC01 on M12) with deterministic seeds derived from filename + tool + point.
+  - Phase 1 implementation in backend/afm/providers/mock.py uses TOOL_CONFIGS for three tools (MAP608 on PKG, MAPC01 on R3, 5EAP1501 on M15) with deterministic seeds derived from filename + tool + point. Raw-file facts behind it are in docs/datatables/afm/afm_raw_files.txt.
   - The frontend expects both snake_case (has_profile) and camelCase (hasProfile) flags on AfmMeasurementRow. Office must emit both.
   - Source schema reference: docs/afm-migration-plan.md (afm_data_platform mock spec).
