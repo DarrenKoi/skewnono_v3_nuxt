@@ -8,6 +8,7 @@ rows.
 
 import re
 from collections import Counter
+from datetime import date, timedelta
 
 from backend.afm.providers import mock
 
@@ -85,6 +86,27 @@ def test_map608_measurements_of_one_session_share_the_leading_time():
     # Within a session the starts differ, which is what tells its measurements apart.
     known = [(row["date"], row["time"], start) for row, start in zip(rows, starts, strict=True) if start.isdigit()]
     assert len(set(known)) == len(known)
+
+
+def test_the_list_ends_today_and_a_file_does_not_change_as_it_ages(monkeypatch):
+    # Not an office fact but the mock's own promise: home sessions search by
+    # "오늘", and a group saved yesterday must still open today.
+    day = date(2026, 10, 3)
+    monkeypatch.setattr(mock, "_today", lambda: day)
+    today = {tool: _rows(tool) for tool in TOOLS}
+    monkeypatch.setattr(mock, "_today", lambda: day + timedelta(days=1))
+    for tool in TOOLS:
+        before = today[tool]
+        after = {row["filename"]: row for row in _rows(tool)}
+        assert before[0]["formatted_date"] == "2026-10-03"
+        assert max(row["formatted_date"] for row in after.values()) == "2026-10-04"
+        # One day's worth is new and one has left; every file still listed is identical.
+        kept = [row for row in before if row["filename"] in after]
+        assert 0 < len(kept) < len(before)
+        assert all(after[row["filename"]] == row for row in kept)
+        # The oddities the office confirmed are still in a window far from the anchor.
+        assert all(mock.get_afm_file_detail(name, tool) is not None for name in after)
+    assert "NA" in [row["filename"].split("#")[6] for row in today["MAP608"]]
 
 
 def test_mapc01_lot_comes_from_info_and_a_sample_is_remeasured_within_a_day():

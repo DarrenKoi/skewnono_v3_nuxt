@@ -17,4 +17,19 @@ cover both roots.
 
 import os
 
+import pytest
+
 os.environ["SKEWNONO_SCHEDULER_ENABLED"] = "0"
+
+
+@pytest.fixture(autouse=True)
+def _afm_mock_reads_one_fixed_day(monkeypatch):
+    """The AFM mock's file list ends today, and a file's contents are seeded
+    by its name -- so which recipe, block count or oddity the list holds
+    changes with the calendar. Tests that pick rows out of it (three files
+    across both roots) would pass or fail by date; pinning the day gives them
+    one fixed set. A test about the rolling window sets its own day.
+    """
+    from backend.afm.providers import mock
+
+    monkeypatch.setattr(mock, "_today", lambda: mock.BASE_TIME.date())

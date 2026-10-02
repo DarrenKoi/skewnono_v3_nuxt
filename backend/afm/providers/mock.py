@@ -72,6 +72,11 @@ X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가
   거르지 않습니다.
 - "method 명 줄만 있는 빈 Summary" 는 행 목록으로는 "Summary 없음"과 구분되지 않아 같은 모양으로 냅니다.
 - 시각의 시간대는 미정입니다(장비 현지 시각, KST 로 추정).
+- 목록은 **오늘 날짜에서 끝납니다**(서버의 현지 날짜). 하루가 지나면 하루치가 새로 생기고
+  가장 오래된 하루치가 빠지며, 이미 있던 파일의 이름·lot·내용은 바뀌지 않습니다. 오늘
+  측정의 시각은 고정이라 조회 시각보다 뒤일 수 있습니다.
+- 시작 시각이 `NA` 인 "오래된 파일"은 실제로는 어느 시점 이전의 파일이지만, mock 은 며칠
+  간격으로 되풀이되는 구간으로 냅니다(오늘 기준 목록에도 항상 섞이도록).
 - profile metadata 의 `SurfaceSize` 값 형식, Pixel 축의 길이 환산(근거 없음).
 - 이미지는 자리 표시 SVG 입니다. 실제는 webp 변환본이 있습니다.
 """
@@ -81,7 +86,7 @@ import html
 import math
 import random
 import statistics
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any
 from urllib.parse import quote
@@ -105,7 +110,17 @@ __all__ = [
 
 ToolConfig = dict[str, Any]
 
+# The day the row numbering is anchored on. Row 0 is this day's first
+# measurement; every later day counts down from it, so a day's files are the
+# same whichever day the list is read on.
 BASE_TIME = datetime(2026, 4, 24, 9, 30, 0, tzinfo=timezone.utc)
+
+
+def _today() -> date:
+    """The list's newest day. A function so a test can pin it."""
+    return datetime.now().date()
+
+
 # (Site X, Site Y) of each measured position, centre outwards; 36 is the most seen.
 SITE_LAYOUT = tuple(sorted(
     ((site_x, site_y) for site_x in range(-3, 3) for site_y in range(-3, 3)),
@@ -312,7 +327,7 @@ def get_tools() -> list[dict[str, str]]:
 
 def list_afm_files(tool_name: str | None = None) -> list[AfmMeasurementRow]:
     tool = normalize_tool(tool_name)
-    return list(_generate_measurements(tool))
+    return list(_generate_measurements(tool, _today()))
 
 
 @lru_cache(maxsize=256)
@@ -598,8 +613,11 @@ def get_analysis_image_svg(
 </svg>"""
 
 
-@lru_cache(maxsize=None)
-def _generate_measurements(tool_name: str) -> tuple[AfmMeasurementRow, ...]:
+# ponytail: only today's window is searched, so a file older than the list
+# (12 days on MAP608) answers 404 to a saved group that still names it. Derive
+# the day from the file name if home use ever keeps groups that long.
+@lru_cache(maxsize=8)
+def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementRow, ...]:
     config = TOOL_CONFIGS.get(tool_name)
     if config is None:
         return tuple()
@@ -610,10 +628,16 @@ def _generate_measurements(tool_name: str) -> tuple[AfmMeasurementRow, ...]:
     session_size = config.get("session_size", 1)
     repeats = config.get("repeats", 1)
 
-    for index in range(config["row_count"]):
+    # The list ends today: each day after BASE_TIME moves the window one group
+    # on, into negative indices. Everything below is a function of the index
+    # alone, so a file keeps its name, lot and contents as it ages.
+    group_size = session_size * repeats
+    newest = (BASE_TIME.date() - today).days * group_size
+
+    for index in range(newest, newest + config["row_count"]):
         # A day holds one group: a session of different samples (MAP608) or the
         # repeated runs of one sample (MAPC01). Elsewhere a group is a single row.
-        day, member = divmod(index, session_size * repeats)
+        day, member = divmod(index, group_size)
         sample_no = index // repeats
         timestamp = (
             BASE_TIME - timedelta(days=day, hours=day % 6)
@@ -621,15 +645,16 @@ def _generate_measurements(tool_name: str) -> tuple[AfmMeasurementRow, ...]:
         )
         date_code = timestamp.strftime("%y%m%d")
         time_code = timestamp.strftime("%H%M%S")
-        # Old files carry NA where the start time goes.
+        # Old files carry NA where the start time goes. Here it is a stretch of
+        # days that comes round again, so the list always holds some.
         start_code = (
-            "NA" if index >= 24
+            "NA" if index % config["row_count"] >= 24
             else (timestamp + timedelta(minutes=4 + 11 * member)).strftime("%H%M%S")
         )
         recipe_name = config["recipes"][sample_no % len(config["recipes"])]
         recipe = RECIPES[recipe_name]
         lot_prefixes = config["lot_prefixes"]
-        lot_id = f"{lot_prefixes[sample_no % len(lot_prefixes)]}{_base36(sample_no + 42, 2)}"
+        lot_id = f"{lot_prefixes[sample_no % len(lot_prefixes)]}{_base36((sample_no + 42) % 36 ** 2, 2)}"
         slot_number = f"{(sample_no % 25) + 1:02d}"
         measured_info = measured_values[index % len(measured_values)]
         filename = config["filename"].format(
