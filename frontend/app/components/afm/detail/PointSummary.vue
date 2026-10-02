@@ -90,10 +90,11 @@
               :color="STATE_BADGE[block.row.State] ?? 'neutral'"
               variant="subtle"
             />
+            <!-- Only a stated false is a failure; a missing cell is unknown. -->
             <span
               class="ml-auto shrink-0 sk-value-num font-semibold"
-              :class="block.row.Valid ? '' : 'text-(--sk-bad)'"
-            >Valid {{ block.row.Valid ? 'TRUE' : 'FALSE' }}</span>
+              :class="block.row.Valid === false ? 'text-(--sk-bad)' : ''"
+            >Valid {{ block.row.Valid === true ? 'TRUE' : block.row.Valid === false ? 'FALSE' : '–' }}</span>
           </p>
         </div>
       </div>
@@ -137,14 +138,14 @@ const cards = computed(() =>
     .map(column => ({
       column: column.key,
       cells: blocks.value.map((block) => {
-        const value = block.row[column.key]
+        const value = summaryNumber(block.row[column.key])
         const mean = summaryNumber(
           props.summary.find(row => row.Site === block.name && row.ITEM === 'MEAN')?.[column.key]
         )
         return {
           block: block.name,
-          value: typeof value === 'number' ? value.toFixed(2) : '–',
-          delta: typeof value === 'number' && mean !== null ? formatDelta(value - mean) : ''
+          value: value?.toFixed(2) ?? '–',
+          delta: value !== null && mean !== null ? formatDelta(value - mean) : ''
         }
       })
     }))

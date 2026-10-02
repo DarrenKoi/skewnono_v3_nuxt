@@ -8,10 +8,25 @@ export const blockNames = (summary: AfmSummaryRow[]): string[] =>
   [...new Set(summary.map(row => row.Site))]
 
 // A block has no key of its own — `Method_ID` repeats across every block of a
-// file — so a row's block is its ordinal among the rows of its point, and the
-// name is the Summary block at that ordinal. A block the measurement stopped in
-// has rows but no Summary, and some files have no Summary at all: those get a
-// numbered name.
+// file. Rows arrive block by block and a block holds a point at most once, so a
+// point coming round again is where the next block starts. (Counting a point's
+// own rows instead would misfile a point that an earlier block never measured.)
+const blockOrdinals = (data: AfmDetailRow[]): number[] => {
+  let block = 0
+  let seen = new Set<string>()
+  return data.map((row) => {
+    if (seen.has(row.measurement_point)) {
+      block += 1
+      seen = new Set()
+    }
+    seen.add(row.measurement_point)
+    return block
+  })
+}
+
+// The name is the Summary block at the same ordinal. A block the measurement
+// stopped in has rows but no Summary, and some files have no Summary at all:
+// those get a numbered name.
 const blockName = (names: string[], index: number) => names[index] ?? `Block ${index + 1}`
 
 export interface PointBlock {
@@ -21,21 +36,17 @@ export interface PointBlock {
 
 export const blocksOfPoint = (data: AfmDetailRow[], summary: AfmSummaryRow[], point: string): PointBlock[] => {
   const names = blockNames(summary)
-  return data
-    .filter(row => row.measurement_point === point)
-    .map((row, index) => ({ name: blockName(names, index), row }))
+  const ordinals = blockOrdinals(data)
+  return data.flatMap((row, i) =>
+    row.measurement_point === point ? [{ name: blockName(names, ordinals[i]!), row }] : []
+  )
 }
 
 // Rows with a `Block` column, added only where a file has more than one block:
 // on a single-block file the column would repeat one name down the table.
 export const tagBlocks = (data: AfmDetailRow[], summary: AfmSummaryRow[]): AfmDetailRow[] => {
   const names = blockNames(summary)
-  const seen = new Map<string, number>()
-  const ordinals = data.map((row) => {
-    const index = seen.get(row.measurement_point) ?? 0
-    seen.set(row.measurement_point, index + 1)
-    return index
-  })
+  const ordinals = blockOrdinals(data)
   if (!ordinals.some(index => index > 0)) return data
   return data.map((row, i) => ({ ...row, Block: blockName(names, ordinals[i]!) }))
 }
@@ -90,13 +101,18 @@ export const siteDots = (data: AfmDetailRow[]): SiteDot[] => {
   }))
 }
 
-// Which point an image file shows. An image is named after its measurement
-// (`stem`, the data file name without `.csv`) followed by `_<point>_<kind>`, so
-// the point is looked for after the stem — a lot or a time that happens to
-// contain `_0001_` must not claim the image. A site-form key contains the
-// plain point number, so the longest match wins.
+// The name every other file of a measurement starts with: its list file name
+// without `.csv`, and without the `_Info` a MAPC01 list name carries.
+export const measurementStem = (filename: string): string => filename.replace(/(_Info)?\.csv$/i, '')
+
+// Which point an image file shows. An image is named `<stem>_<point>_<kind>`,
+// and the point is read only after the stem: a recipe or lot that happens to
+// contain `_0001_` must not claim the image, so a name that does not start with
+// the stem has no point rather than a guessed one. A site-form key contains
+// the plain point number, so the longest match wins.
 export const imagePoint = (name: string, stem: string, points: string[]): string => {
-  const tail = name.startsWith(stem) ? name.slice(stem.length) : name
+  if (!name.startsWith(stem)) return ''
+  const tail = name.slice(stem.length)
   return points
     .filter(point => tail.includes(`_${point}_`))
     .sort((a, b) => b.length - a.length)[0] ?? ''

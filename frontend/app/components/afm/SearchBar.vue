@@ -281,10 +281,12 @@ const recipes = ref<string[]>([])
 const lot = ref('')
 const days = ref<number | null>(null)
 
-// 기간 counts back from the newest measurement in the list (utils/afmSearch).
+// 기간 counts back from today, in the viewer's own time zone. `sv-SE` is the
+// locale that writes a date as YYYY-MM-DD.
+const today = new Date().toLocaleDateString('sv-SE')
 const PRESETS = [
   { label: '전체', days: null },
-  { label: '1일', days: 1 },
+  { label: '오늘', days: 1 },
   { label: '3일', days: 3 },
   { label: '7일', days: 7 }
 ]
@@ -305,7 +307,7 @@ const recipeLabel = computed(() =>
   recipes.value.length > 1 ? `${recipes.value.length}개 선택` : recipes.value[0] ?? '전체'
 )
 
-const range = computed(() => dateWindow(rows.value, days.value))
+const range = computed(() => dateWindow(rows.value, days.value, today))
 const hasFilters = computed(() => recipes.value.length > 0 || !!lot.value.trim() || days.value !== null)
 const resetFilters = () => {
   recipes.value = []
@@ -317,7 +319,8 @@ const filteredResults = computed(() => filterMeasurements(rows.value, {
   terms: [activeQuery.value, innerFilter.value],
   recipes: recipes.value,
   lot: lot.value,
-  days: days.value
+  days: days.value,
+  today
 }))
 
 const viewed = computed(() => new Set(cart.viewHistory.value.map(item => item.filename)))

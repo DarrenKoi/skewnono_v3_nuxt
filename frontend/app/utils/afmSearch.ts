@@ -8,38 +8,45 @@ export interface AfmSearchFilters {
   // Empty = every recipe.
   recipes: string[]
   lot: string
-  // How many days to keep, counted back from the newest measurement. null = all.
+  // How many days to keep, counted back from `today` inclusive. null = all.
   days: number | null
+  // The viewer's local date, "YYYY-MM-DD".
+  today: string
 }
 
-// formattedDate is "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS".
-const dayOf = (row: AfmMeasurement) => row.formattedDate.slice(0, 10)
+// The list is typed as all strings, but it is built from an office response
+// nobody has seen at home: a missing cell reads as empty here instead of
+// throwing, so one odd row cannot take the whole list down.
+const text = (value: unknown) => String(value ?? '').toLowerCase()
+
+// formattedDate is "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"; '' when unknown.
+const dayOf = (row: AfmMeasurement) => String(row.formattedDate ?? '').slice(0, 10)
 
 const matchesTerm = (row: AfmMeasurement, term: string) =>
-  [row.filename, row.recipeName, row.lotId, row.formattedDate, String(row.slotNumber), row.measuredInfo]
-    .some(value => value.toLowerCase().includes(term))
+  [row.filename, row.recipeName, row.lotId, row.formattedDate, row.slotNumber, row.measuredInfo]
+    .some(value => text(value).includes(term))
 
-// The days a 기간 preset keeps, as [from, to] day strings. The window ends at
-// the newest measurement in the list rather than at today: a tool that has not
-// measured since Friday still answers "1일" with Friday's lots, and the range
-// is shown beside the presets so the anchor is never a guess.
-export const dateWindow = (rows: AfmMeasurement[], days: number | null): [string, string] | null => {
-  if (!rows.length) return null
-  const sorted = rows.map(dayOf).sort()
-  const to = sorted[sorted.length - 1]!
-  if (!days) return [sorted[0]!, to]
-  const from = new Date(`${to}T00:00:00Z`)
-  from.setUTCDate(from.getUTCDate() - (days - 1))
-  return [from.toISOString().slice(0, 10), to]
+// The days a 기간 preset keeps, as [from, to] day strings: the last `days` days
+// ending today, so "오늘" on a tool that has not measured today is empty rather
+// than quietly showing an older day. With no preset it is the span of the list.
+export const dateWindow = (rows: AfmMeasurement[], days: number | null, today: string): [string, string] | null => {
+  if (days) {
+    const from = new Date(`${today}T00:00:00Z`)
+    from.setUTCDate(from.getUTCDate() - (days - 1))
+    return [from.toISOString().slice(0, 10), today]
+  }
+  const sorted = rows.map(dayOf).filter(Boolean).sort()
+  if (!sorted.length) return null
+  return [sorted[0]!, sorted[sorted.length - 1]!]
 }
 
 export const filterMeasurements = (rows: AfmMeasurement[], filters: AfmSearchFilters): AfmMeasurement[] => {
   const terms = filters.terms.map(t => t.toLowerCase().trim()).filter(Boolean)
   const lot = filters.lot.trim().toLowerCase()
-  const from = dateWindow(rows, filters.days)?.[0] ?? ''
+  const from = filters.days ? dateWindow(rows, filters.days, filters.today)![0] : ''
   return rows.filter(row =>
     (!filters.recipes.length || filters.recipes.includes(row.recipeName))
-    && (!lot || row.lotId.toLowerCase().includes(lot))
+    && (!lot || text(row.lotId).includes(lot))
     && dayOf(row) >= from
     && terms.every(term => matchesTerm(row, term))
   )

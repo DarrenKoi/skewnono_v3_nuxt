@@ -104,13 +104,17 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-(--sk-border-soft)">
-            <!-- A row is its point: clicking it moves the whole page there. -->
+            <!-- A row is its point: clicking it, or Enter / Space on it, moves
+                 the whole page there. -->
             <tr
               v-for="(row, i) in pagedRows"
               :key="i"
+              tabindex="0"
               class="cursor-pointer transition-colors duration-200 hover:bg-(--sk-muted-surface)"
               :class="row.measurement_point === selectedPoint ? 'bg-(--sk-muted-surface) font-semibold' : ''"
               @click="selectedPoint = row.measurement_point"
+              @keydown.enter="selectedPoint = row.measurement_point"
+              @keydown.space.prevent="selectedPoint = row.measurement_point"
             >
               <td
                 v-for="col in visibleColumns"

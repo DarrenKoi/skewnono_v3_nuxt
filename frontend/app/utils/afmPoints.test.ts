@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
-import { blocksOfPoint, formatDelta, imagePoint, pointState, siteDots, tagBlocks } from './afmPoints.ts'
+import { blocksOfPoint, formatDelta, imagePoint, measurementStem, pointState, siteDots, tagBlocks } from './afmPoints.ts'
 
 const row = (point: string, state: string, extra: Record<string, string | number> = {}): AfmDetailRow => ({
   'measurement_point': point,
@@ -31,7 +31,7 @@ const twoBlocks = [
   row('0001', 'STOPPED'), row('0002', 'FAILED')
 ]
 
-test('blocksOfPoint: a block is the row\'s ordinal within its point', () => {
+test('blocksOfPoint: a block starts where a point comes round again', () => {
   assert.deepEqual(blocksOfPoint(twoBlocks, summary, '0002').map(b => [b.name, b.row.State]), [
     ['Profile_LEFT_UL', 'COMPLETED'],
     ['Profile_RIGHT_UL', 'FAILED']
@@ -39,6 +39,10 @@ test('blocksOfPoint: a block is the row\'s ordinal within its point', () => {
   // A block without a Summary (stopped early, or a file with none) is numbered.
   assert.deepEqual(blocksOfPoint(twoBlocks, summary.slice(0, 1), '0001').map(b => b.name), ['Profile_LEFT_UL', 'Block 2'])
   assert.deepEqual(blocksOfPoint(twoBlocks, [], '9999'), [])
+  // A point the first block never measured still belongs to the second.
+  const uneven = [row('0001', 'COMPLETED'), row('0001', 'COMPLETED'), row('0002', 'COMPLETED')]
+  assert.deepEqual(blocksOfPoint(uneven, summary, '0002').map(b => b.name), ['Profile_RIGHT_UL'])
+  assert.deepEqual(tagBlocks(uneven, summary).map(r => r.Block), ['Profile_LEFT_UL', 'Profile_RIGHT_UL', 'Profile_RIGHT_UL'])
 })
 
 test('tagBlocks: adds Block only where a file has more than one', () => {
@@ -80,6 +84,13 @@ test('imagePoint: read after the measurement stem, longest key wins', () => {
     '0002_X-001_Y000_0001'
   )
   assert.equal(imagePoint(`${stem}_overview.webp`, stem, ['0001']), '')
+  // A name that is not this measurement's is not searched for a lookalike token.
+  assert.equal(imagePoint('#other#ETCH_0001_TRIM#_0003_Height.webp', stem, ['0001', '0003']), '')
+})
+
+test('measurementStem: drops .csv, and the _Info of a MAPC01 list name', () => {
+  assert.equal(measurementStem('#260424#093000#R#01#NA#NA#MON69683.01_Info.csv'), '#260424#093000#R#01#NA#NA#MON69683.01')
+  assert.equal(measurementStem('#260424#093000#R#L.01#L#093400#.csv'), '#260424#093000#R#L.01#L#093400#')
 })
 
 test('formatDelta: always signed', () => {

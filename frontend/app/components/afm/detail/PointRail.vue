@@ -47,7 +47,9 @@
       <span>Point</span>
       <span>{{ firstColumn }}</span>
     </p>
-    <ul class="max-h-64 space-y-0.5 overflow-y-auto px-2 pb-2 pt-1">
+    <!-- The card is sticky, so it has to fit a short window: everything but
+         this list is about 28rem tall, and the list takes what is left. -->
+    <ul class="max-h-[clamp(6rem,calc(100dvh-28rem),16rem)] space-y-0.5 overflow-y-auto px-2 pb-2 pt-1">
       <li
         v-for="point in points"
         :key="point.key"
@@ -116,11 +118,10 @@ const firstColumn = computed(() => derivePointColumns(props.data).find(c => isMe
 
 const points = computed(() => props.availablePoints.map((key) => {
   const rows = rowsOf(key)
-  const value = rows[0]?.[firstColumn.value]
   return {
     key,
     state: pointState(rows),
-    first: typeof value === 'number' ? value.toFixed(2) : ''
+    first: summaryNumber(rows[0]?.[firstColumn.value])?.toFixed(2) ?? ''
   }
 }))
 </script>

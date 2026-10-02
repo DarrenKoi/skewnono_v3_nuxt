@@ -56,6 +56,7 @@
             ? 'border-(--sk-ink) outline-1 outline-(--sk-ink)'
             : 'border-(--sk-border) hover:border-(--sk-ink-muted)'"
           :data-selected="image.point && image.point === selectedPoint ? '' : undefined"
+          :aria-pressed="image.point ? image.point === selectedPoint : undefined"
           :title="image.name"
           @click="image.point ? selectedPoint = image.point : openBrowser(image.name)"
         >
@@ -120,7 +121,8 @@
             />
           </div>
 
-          <div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_380px]">
+          <!-- Side by side from lg; stacked below it, where 380px would not fit. -->
+          <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-1">
             <div class="overflow-y-auto bg-(--sk-muted-surface) p-4">
               <p
                 v-if="!shown.length"
@@ -145,7 +147,7 @@
                 </p>
                 <div
                   class="mb-4 grid gap-2.5"
-                  :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${TILE_PX[density]}px, 1fr))` }"
+                  :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${TILE_PX[density]}px, 100%), 1fr))` }"
                 >
                   <button
                     v-for="image in group.images"
@@ -175,7 +177,7 @@
               </template>
             </div>
 
-            <div class="flex min-h-0 flex-col overflow-y-auto border-l border-(--sk-border)">
+            <div class="flex min-h-0 flex-col overflow-y-auto border-(--sk-border) max-lg:max-h-[45vh] max-lg:border-t lg:border-l">
               <div
                 v-if="picked"
                 class="space-y-3 p-4"
@@ -311,7 +313,7 @@ const loadType = async (type: AfmImageType) => {
 watch(activeType, loadType, { immediate: true })
 
 // Each image with the point it shows and the kind its name ends in (`Height`, `tip`).
-const stem = props.filename.replace(/\.csv$/i, '')
+const stem = measurementStem(props.filename)
 const images = computed(() => state.value.images.map(image => ({
   ...image,
   point: imagePoint(image.name, stem, props.points),
