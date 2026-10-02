@@ -62,6 +62,10 @@ activity_kind -> keyword: entry | feature | background | operation | page_view
   (_logging/activity.py 의 promote_page_view). 순위 집계는 page_view 를,
   요청 총계·활성 사용자·FAB 순위는 entry|feature 를 읽습니다. (2026-08-04)
 activity_weight -> integer: 활동 집계 대상이면 1, 아니면 0
+  identity_source=anonymous 요청은 여러 사람이 공유하는 신원이므로 0 입니다.
+  운영 로그는 유지하되 개인 통계·활성 사용자·방문자·기능/FAB/장비군 순위에서
+  제외합니다. 기존 weight=1 기록도 identity_source=anonymous 또는
+  user_id=anonymous 이면 조회에서 제외합니다 (user-confirmed 2026-10-02).
 fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M14"] 형태이며
   context 가 없으면 빈 list 입니다. scalar fab_name 과 혼동하지 않습니다.
 error_code -> keyword: HTTP status 또는 예외 타입 이름

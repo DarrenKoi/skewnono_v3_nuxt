@@ -27,6 +27,13 @@ time_semantics:
 activity_filter:
   event: request
   activity_weight: 1
+  excluded_identity_source: anonymous
+  excluded_user_id: anonymous
+  anonymous: >-
+    여러 사람이 공유하는 anonymous 신원은 모든 활동 집계에서 제외합니다.
+    새 익명 요청은 activity_weight=0이며 운영 로그만 남습니다. 기존 weight=1
+    기록도 identity_source=anonymous 또는 user_id=anonymous이면 제외합니다.
+    /me는 빈 개인 통계를 반환하고 /users/anonymous는 404를 반환합니다.
   activity_kind:
     - entry
     - feature

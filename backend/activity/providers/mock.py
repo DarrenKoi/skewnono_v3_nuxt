@@ -32,17 +32,23 @@ and MAU ending that day, so today's row always equals ``get_summary()``'s
 ``dau``/``wau``/``mau``. The arithmetic is ``shared.daily_visitor_rows``, which
 the office reader calls too — the two adapters differ only in where a
 person's active days come from.
+
+Anonymous callers share one ID, so their events are never stored. Reads also
+exclude legacy anonymous state, matching the office reader's source/ID filter
+(user-confirmed 2026-10-02). Operational request logs are retained separately.
 """
 
 from __future__ import annotations
 
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from threading import RLock
 from typing import NamedTuple
 
 from ..._auth.admin import is_admin
+from ..._auth.provider import ANONYMOUS
 from ..._core.timefmt import iso_z as _iso
 from ..contracts import (
     DailyCount,
@@ -111,6 +117,10 @@ class _UserState:
 
 _users: dict[str, _UserState] = {}
 _lock = RLock()
+
+
+def _identified_users(users: dict[str, _UserState]) -> Iterable[_UserState]:
+    return (state for user_id, state in users.items() if user_id != ANONYMOUS)
 
 
 def _now() -> datetime:
@@ -256,7 +266,7 @@ def record_request(
     docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md.
     """
 
-    if activity_kind not in {"entry", "feature", "page_view"}:
+    if user_id == ANONYMOUS or activity_kind not in {"entry", "feature", "page_view"}:
         return
 
     now = _now()
@@ -338,11 +348,15 @@ def _history_fields(
 def get_me(user_id: str) -> MeResponse:
     today = _today()
     with _lock:
-        fields = _history_fields(_users.get(user_id), today)
+        fields = _history_fields(
+            _users.get(user_id) if user_id != ANONYMOUS else None, today
+        )
     return {"user_id": user_id, "is_admin": is_admin(user_id), **fields}
 
 
 def get_user_history(user_id: str) -> UserHistoryResponse | None:
+    if user_id == ANONYMOUS:
+        return None
     today = _today()
     with _lock:
         state = _users.get(user_id)
@@ -355,7 +369,7 @@ def _active_days() -> list[list[date]]:
     """Each person's active KST days. Call with ``_lock`` held."""
     return [
         [day for day, count in state.daily.items() if count > 0]
-        for state in _users.values()
+        for state in _identified_users(_users)
     ]
 
 
@@ -368,7 +382,7 @@ def get_summary() -> SummaryResponse:
 
     with _lock:
         active_days = _active_days()
-        for state in _users.values():
+        for state in _identified_users(_users):
             for day, counts in state.daily_features.items():
                 if week_start <= day <= today:
                     _merge_counts(feature_7d, counts)
@@ -407,7 +421,7 @@ def get_users_list() -> UserListResponse:
     rows: list[UserListRow] = []
 
     with _lock:
-        for state in _users.values():
+        for state in _identified_users(_users):
             active = {
                 day: count
                 for day, count in state.daily.items()
@@ -466,7 +480,7 @@ def _fab_window(
     active_users: dict[str, set[str]] = {}
     page_counts: dict[str, dict[str, int]] = {}
 
-    for state in users.values():
+    for state in _identified_users(users):
         for day, fabs in state.daily_fabs.items():
             if not cutoff <= day <= today:
                 continue
@@ -501,7 +515,7 @@ def _family_window(
     openers: dict[str, set[str]] = {}
     pages: dict[str, dict[str, int]] = {}
 
-    for state in users.values():
+    for state in _identified_users(users):
         for day, families in state.daily_family_features.items():
             if not cutoff <= day <= today:
                 continue

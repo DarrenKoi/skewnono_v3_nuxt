@@ -226,6 +226,10 @@ def test_history_query_uses_kst_bounds_and_page_view_ranking():
         {"term": {"event": "request"}},
         {"term": {"activity_weight": 1}},
         {"terms": {"activity_kind": ["entry", "feature", "page_view"]}},
+        {"bool": {"must_not": [
+            {"term": {"identity_source": "anonymous"}},
+            {"term": {"user_id": "anonymous"}},
+        ]}},
         {"term": {"user_id": "u1"}},
     ]
     body = search.bodies[0]
@@ -591,7 +595,7 @@ def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
         {"terms": {"activity_kind": ["entry", "feature"]}},
     ]
     # 88 days back, not 59: the first charted day's MAU reaches that far.
-    assert filters[3]["range"]["@timestamp"]["gte"].startswith(
+    assert filters[4]["range"]["@timestamp"]["gte"].startswith(
         "2026-04-30T00:00:00+09:00"
     )
     users = first["aggs"]["users"]
@@ -680,7 +684,7 @@ def test_family_usage_lists_every_family_from_page_view_rows():
     # ...and bounded to the wider window. Production keeps a year behind the
     # alias; without this every view matched all of it and the two windows
     # below threw eleven twelfths away.
-    assert filters[3]["range"]["@timestamp"]["gte"].startswith(
+    assert filters[4]["range"]["@timestamp"]["gte"].startswith(
         "2026-06-28T00:00:00+09:00"
     )
 

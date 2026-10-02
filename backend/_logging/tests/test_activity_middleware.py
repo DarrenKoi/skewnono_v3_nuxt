@@ -313,6 +313,21 @@ def test_an_anonymous_request_is_logged_but_not_recorded(make_app, records, reco
     assert recorded == []
 
 
+@pytest.mark.parametrize("user_id", ["anonymous", "shared-id"])
+def test_anonymous_identity_source_keeps_only_the_operational_log(
+    make_app, records, recorded, user_id
+):
+    client = make_app(user_id=user_id, identity_source="anonymous")
+
+    assert client.get("/api/sem-list").status_code == 200
+
+    record = _only(records, "request")
+    assert record.user_id == user_id
+    assert record.identity_source == "anonymous"
+    assert record.activity_weight == 0
+    assert recorded == []
+
+
 def test_early_identity_response_gets_request_id_and_operation_semantics(
     make_app, records, recorded
 ):

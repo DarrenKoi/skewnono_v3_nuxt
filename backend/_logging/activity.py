@@ -89,6 +89,7 @@ def _build_extra(
     )
     decision = classify_activity(
         user_id=user_id,
+        identity_source=getattr(g, "identity_source", None),
         api_token_id=getattr(g, "api_token_id", None),
         method=request.method,
         path=path,

@@ -7,6 +7,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 from backend._auth.admin import is_admin
+from backend._auth.provider import ANONYMOUS, SOURCE_ANONYMOUS
 from backend._core.timefmt import iso_z
 from backend._logging.target import resolve_logging_target
 from backend.activity.contracts import (
@@ -127,6 +128,16 @@ def _activity_filters(
         # would silently start counting page views — so each one states it.
         # A query needing none of them narrows here instead (see _fab_window).
         {"terms": {"activity_kind": kinds}},
+        # Exclude old weight-1 anonymous rows too. Older documents may have
+        # no identity_source, but still carry the shared anonymous ID.
+        {
+            "bool": {
+                "must_not": [
+                    {"term": {"identity_source": SOURCE_ANONYMOUS}},
+                    {"term": {"user_id": ANONYMOUS}},
+                ]
+            }
+        },
     ]
     if user_id is not None:
         filters.append({"term": {"user_id": user_id}})

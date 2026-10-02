@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from typing import Literal, NamedTuple
 from urllib.parse import parse_qsl, urlencode
 
+from .._auth.provider import ANONYMOUS, SOURCE_ANONYMOUS
+
 ActivityKind = Literal["entry", "feature", "background", "operation", "page_view"]
 
 
@@ -88,10 +90,13 @@ def classify_activity(
     status: int,
     feature: str,
     page_slug: str | None,
+    identity_source: str | None = None,
 ) -> ActivityDecision:
     if (
         not user_id
         or user_id == "-"
+        or user_id == ANONYMOUS
+        or identity_source == SOURCE_ANONYMOUS
         or api_token_id
         # CORS preflights and probes run the full middleware pipeline but are
         # browser plumbing, not a person using the product.
