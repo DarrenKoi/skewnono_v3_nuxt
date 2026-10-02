@@ -185,11 +185,16 @@
             체크하면 오른쪽 <b class="font-semibold text-(--sk-ink)">그룹</b>에 담깁니다
           </span>
         </div>
-        <ul class="max-h-[620px] divide-y divide-(--sk-border-soft) overflow-y-auto">
+        <!-- One row per measurement, laid out as a table: fixed tracks keep
+             the date, lot, slot and data columns aligned down the list, and
+             only the recipe column flexes (and truncates). Its 11rem floor
+             is what makes a narrow card scroll sideways rather than squeeze
+             the recipe to nothing. -->
+        <ul class="max-h-[620px] divide-y divide-(--sk-border-soft) overflow-auto">
           <li
             v-for="result in filteredResults"
             :key="result.filename"
-            class="flex items-center gap-3 px-4 py-2.5 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
+            class="grid grid-cols-[auto_9.5rem_minmax(11rem,1fr)_6.5rem_4rem_5.5rem_3.5rem_auto] items-center gap-3 px-4 py-2.5 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
             :class="cart.isInGroup(result.filename) ? 'bg-(--sk-muted-surface)' : ''"
           >
             <AfmGroupCheck
@@ -198,49 +203,48 @@
               @toggle="cart.toggleGroup(result)"
             />
 
-            <!-- Two lines: the recipe is the row's headline; the date steps
-                 back to the second line, where lot / slot each carry the
-                 eyebrow that names them. -->
-            <div class="min-w-0 flex-1 space-y-1">
-              <div class="flex min-w-0 items-center gap-2">
-                <span class="truncate text-sm font-semibold text-(--sk-ink)">
-                  {{ result.recipeName }}
-                </span>
-                <UBadge
-                  :label="result.measuredInfo"
-                  color="neutral"
-                  variant="outline"
-                  class="shrink-0"
-                />
-                <span
-                  v-if="viewed.has(result.filename)"
-                  class="flex shrink-0 items-center gap-1 sk-label"
-                >
-                  <UIcon
-                    name="i-lucide-eye"
-                    class="size-3"
-                  />조회함
-                </span>
-              </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-                  {{ result.formattedDate }}
-                </span>
-                <AfmLotSlotTags
-                  :lot-id="result.lotId"
-                  :slot-number="result.slotNumber"
-                />
-                <span class="flex items-center gap-1">
-                  <UIcon
-                    v-for="dt in DATA_TYPES.filter(dt => result[dt.key])"
-                    :key="dt.key"
-                    :name="dt.icon"
-                    class="size-3.5 text-(--sk-ink-muted)"
-                    :title="dt.tooltip"
-                  />
-                </span>
-              </div>
-            </div>
+            <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
+              {{ result.formattedDate }}
+            </span>
+
+            <span class="flex min-w-0 items-center gap-2">
+              <span class="truncate text-sm font-semibold text-(--sk-ink)">
+                {{ result.recipeName }}
+              </span>
+              <UBadge
+                :label="result.measuredInfo"
+                color="neutral"
+                variant="outline"
+                class="shrink-0"
+              />
+            </span>
+
+            <!-- Two roots, so Lot and Slot land in their own tracks. -->
+            <AfmLotSlotTags
+              :lot-id="result.lotId"
+              :slot-number="result.slotNumber"
+            />
+
+            <span class="flex items-center gap-1">
+              <UIcon
+                v-for="dt in DATA_TYPES.filter(dt => result[dt.key])"
+                :key="dt.key"
+                :name="dt.icon"
+                class="size-3.5 text-(--sk-ink-muted)"
+                :title="dt.tooltip"
+              />
+            </span>
+
+            <span
+              v-if="viewed.has(result.filename)"
+              class="flex items-center gap-1 sk-label"
+            >
+              <UIcon
+                name="i-lucide-eye"
+                class="size-3"
+              />조회함
+            </span>
+            <span v-else />
 
             <UButton
               size="sm"
@@ -248,7 +252,6 @@
               variant="outline"
               trailing-icon="i-lucide-arrow-up-right"
               label="상세 보기"
-              class="shrink-0"
               @click="$emit('view-details', result)"
             />
           </li>
