@@ -19,15 +19,15 @@ import {
 // unrecognised columns by first appearance, so the extra 'CD (nm)' supplied
 // via overrides lands after the base keys.
 const row = (overrides: Partial<AfmDetailRow>): AfmDetailRow => ({
-  'measurement_point': '1_UL',
-  'Site ID': '1_UL',
-  'Site X': -30000,
-  'Site Y': 15000,
+  'measurement_point': '0001_X000_Y000',
+  'Site ID': '0001_X000_Y000',
+  'Site X': 0,
+  'Site Y': 0,
   'Point No': 1,
   'X (um)': 10,
   'Y (um)': 12,
-  'Method ID': 1,
-  'State': 'OK',
+  'Method_ID': 'Profile_LEFT_UL',
+  'State': 'COMPLETED',
   'Valid': true,
   'Pad_1_H (nm)': 88.4,
   'Pad_1_H_Valid': true,
@@ -41,9 +41,9 @@ const row = (overrides: Partial<AfmDetailRow>): AfmDetailRow => ({
 })
 
 const rows: AfmDetailRow[] = [
-  row({ 'measurement_point': '1_UL', 'Point No': 1, 'X (um)': 10, 'State': 'OK', 'Valid': true, 'CD (nm)': 5, 'Mileage': 3 }),
-  row({ 'measurement_point': '1_UL', 'Point No': 2, 'X (um)': 11, 'State': 'NG', 'Valid': false, 'CD (nm)': 6, 'Mileage': 4 }),
-  row({ 'measurement_point': '2_UR', 'Point No': 1, 'X (um)': 20, 'State': 'OK', 'Valid': true, 'CD (nm)': 7, 'Mileage': 5 })
+  row({ 'measurement_point': '0001_X000_Y000', 'Point No': 1, 'X (um)': 10, 'State': 'COMPLETED', 'Valid': true, 'CD (nm)': 5, 'Mileage': 3 }),
+  row({ 'measurement_point': '0001_X000_Y000', 'Point No': 2, 'X (um)': 11, 'State': 'FAILED', 'Valid': false, 'CD (nm)': 6, 'Mileage': 4 }),
+  row({ 'measurement_point': '0002_X002_Y-001', 'Point No': 1, 'X (um)': 20, 'State': 'COMPLETED', 'Valid': true, 'CD (nm)': 7, 'Mileage': 5 })
 ]
 
 test('derivePointColumns: ids first, then (nm), then others; labels applied', () => {
@@ -72,20 +72,20 @@ test('defaultPointColumnKeys: ids, the first six (nm) columns, then State', () =
 })
 
 test('filterPointRows: point filter only', () => {
-  assert.equal(filterPointRows(rows, '1_UL', '', ['State']).length, 2)
+  assert.equal(filterPointRows(rows, '0001_X000_Y000', '', ['State']).length, 2)
   assert.equal(filterPointRows(rows, '', '', ['State']).length, 3)
 })
 
 test('filterPointRows: search is case-insensitive over visible columns only', () => {
-  // 'ng' matches State on row 2
-  assert.equal(filterPointRows(rows, '', 'ng', ['State']).length, 1)
+  // 'failed' matches State on row 2
+  assert.equal(filterPointRows(rows, '', 'failed', ['State']).length, 1)
   // searching a value that lives only in a HIDDEN column returns nothing
   assert.equal(filterPointRows(rows, '', '3', ['State']).length, 0) // Mileage 3 hidden
   assert.equal(filterPointRows(rows, '', '3', ['Mileage']).length, 1) // Mileage visible
 })
 
 test('filterPointRows: point + search combined', () => {
-  assert.equal(filterPointRows(rows, '1_UL', 'ok', ['State']).length, 1)
+  assert.equal(filterPointRows(rows, '0001_X000_Y000', 'completed', ['State']).length, 1)
 })
 
 test('pointsSummary: total and valid', () => {

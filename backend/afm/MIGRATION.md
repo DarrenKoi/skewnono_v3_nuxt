@@ -47,8 +47,12 @@
   `TOOL_CONFIGS` table (fixed row count per tool). `filename` follows each
   tool's own raw file-name field order (`#`-separated, `NA` for an empty
   slot — see `docs/datatables/afm/afm_raw_files.txt`), so `MAPC01` rows have
-  `lot_id == "NA"`, `has_data == False` and `data_dir_list == ["no files"]`,
-  and every `5EAP1501` row has `has_profile == False`.
+  `lot_id == "NA"`, and a recipe name may hold spaces and parentheses
+  (`RQQA_PFH_MONF (1)`). **Which files exist is decided by the recipe**
+  (the `RECIPES` table), never by the tool or the row: a recipe with no data
+  CSV has `has_data == False` and `data_dir_list == ["no files"]`, and the
+  same goes for profile and images. Absence is a normal state, not an error.
+  `point_count` is recipe configuration too, and ranges from 1 to 36.
 - Office data source: <!-- OFFICE: AFM measurement file index / listing API -->
 - Notes: route wraps the list in
   `{success, data, total, tool, message}`. `total` and `message` are derived
@@ -80,11 +84,20 @@
   filename with `.csv`/`.pkl` stripped); returns `None` if no row matches,
   which the route turns into a `404` with
   `{success: false, error, message, tool}`. `summary` rows have
-  unit-suffixed keys named by the recipe (e.g. `"Pad_1_H (nm)"` on
-  `MAP608`, `"1_Minimum (nm)"`…`"51_Minimum (nm)"` on `5EAP1501`)
-  alongside stable `Site`/`ITEM` keys — hence the loose `dict[str, Any]`
-  typing rather than a fully-keyed TypedDict. `MAPC01` has no data CSV, so
-  its `summary` and `data` are empty lists while `information` is filled.
+  unit-suffixed keys named by the recipe (`"Left_H (nm)"`, `"Dishing_H (nm)"`,
+  `"Ra (nm)"`, `"1_Minimum (nm)"`…`"51_Minimum (nm)"`, …) alongside stable
+  `Site`/`ITEM` keys — hence the loose `dict[str, Any]` typing rather than a
+  fully-keyed TypedDict. Two axes, not one: a summary row's `Site` is the
+  **method** name of its block (one file can hold several, e.g.
+  `Profile_LEFT_UL` + `Profile_RIGHT_UL`), while a data row's `Site ID`
+  (`0002_X002_Y-001`) is the **position** and is what `available_points`
+  lists and the profile file name carries. On every tool some recipes record
+  no `Site ID`/`Site X`/`Site Y` at all; the mock then keys the position on
+  the running number (`0001`), which is a guess. `State` is one of
+  `COMPLETED` / `FAILED` / `STOPPED`, and `Method_ID` is a number on some
+  recipes and a string on others. Either table can be empty on its
+  own: a recipe with no data CSV empties both, and real files were also seen
+  with no Summary, or with a Data section that has no table.
 - Office data source: <!-- OFFICE: AFM measurement detail / summary export API -->
 - Notes: `get_afm_file_detail` is `@lru_cache`d in mock — pure function of
   `(filename, tool_name)`; office does not need to replicate caching but
@@ -108,8 +121,9 @@
 - Mock behavior: generates synthetic height samples per
   `(filename, point, site_info)` on the tool's real grid shape — 512×64 on
   `MAP608`, a mix of 1D lines (1024×1 … 16384×1) and 2D grids on `MAPC01`.
-  Returns `None` if the file isn't found or the measurement has no profile
-  (every `5EAP1501` row), which the route turns into a `404`. Any `point`
+  Returns `None` if the file isn't found or the measurement's recipe writes
+  no profile (and every `5EAP1501` row), which the route turns into a `404`
+  that the page shows as an empty state. Any `point`
   string is otherwise accepted — the mock does not validate it against
   `available_points`.
 - Office data source: <!-- OFFICE: AFM profile/height-map export API -->

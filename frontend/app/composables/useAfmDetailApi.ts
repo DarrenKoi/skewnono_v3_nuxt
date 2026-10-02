@@ -38,14 +38,16 @@ export interface AfmSummaryRow {
 }
 
 export interface AfmDetailRow {
+  // The key the point picker filters on. It repeats `Site ID` where the recipe
+  // records one (`0002_X002_Y-001`, also in the profile file name). `Site ID`,
+  // `Site X` and `Site Y` exist only on such recipes, so they arrive through
+  // the index signature below rather than as required fields.
   'measurement_point': string
-  'Site ID': string
-  'Site X': number
-  'Site Y': number
   'Point No': number
   'X (um)': number
   'Y (um)': number
-  'Method ID': number
+  // The method's name, or a number on recipes that number their methods.
+  'Method_ID': string | number
   'State': string
   'Valid': boolean
   // Measurement columns (`<name> (nm)` + `<name>_Valid`) are named by the recipe,
