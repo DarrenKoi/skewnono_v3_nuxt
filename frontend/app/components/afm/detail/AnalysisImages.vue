@@ -14,18 +14,18 @@
     <AppLoadingState
       v-if="state.pending"
       variant="inline"
-      class="h-56"
+      class="h-40"
       title="이미지를 불러오는 중입니다."
     />
     <p
       v-else-if="state.failed"
-      class="flex h-56 items-center justify-center text-sm text-rose-600 dark:text-rose-400"
+      class="flex h-40 items-center justify-center text-sm text-rose-600 dark:text-rose-400"
     >
       이미지를 불러오지 못했습니다.
     </p>
     <p
       v-else-if="state.images.length === 0"
-      class="flex h-56 items-center justify-center sk-body"
+      class="flex h-40 items-center justify-center sk-body"
     >
       이미지가 없습니다.
     </p>
@@ -43,10 +43,10 @@
         <img
           :src="image.url"
           :alt="image.name"
-          class="h-40 w-56 object-cover"
+          class="h-44 w-64 object-cover"
           loading="lazy"
         >
-        <p class="w-56 truncate px-2 py-1.5 sk-value">
+        <p class="w-64 truncate px-2.5 py-2 text-[13px] font-medium text-(--sk-ink)">
           {{ image.name }}
         </p>
       </button>

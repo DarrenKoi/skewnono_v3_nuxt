@@ -10,7 +10,7 @@
       #actions
     >
       <UButton
-        size="xs"
+        size="sm"
         color="neutral"
         variant="ghost"
         label="전체 삭제"
@@ -25,31 +25,14 @@
       <li
         v-for="item in sortedItems"
         :key="item.filename"
-        class="group flex items-start gap-2 px-4 py-2.5"
+        class="group flex items-start gap-2 px-4 py-3"
       >
-        <div class="min-w-0 flex-1 space-y-1">
-          <p class="flex items-baseline gap-2">
-            <span class="shrink-0 font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-              {{ item.formattedDate }}
-            </span>
-            <span class="truncate text-sm font-semibold text-(--sk-ink)">
-              {{ item.recipeName }}
-            </span>
-          </p>
-          <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <AfmLotSlotTags
-              :lot-id="item.lotId"
-              :slot-number="item.slotNumber"
-            />
-            <UBadge
-              :label="item.measuredInfo"
-              color="neutral"
-              variant="outline"
-            />
-          </p>
-        </div>
+        <AfmMeasurementSummary
+          class="flex-1"
+          :measurement="item"
+        />
         <UButton
-          size="xs"
+          size="sm"
           color="neutral"
           variant="ghost"
           icon="i-lucide-x"
@@ -61,9 +44,10 @@
     </ul>
     <p
       v-else
-      class="px-4 py-6 text-center sk-body"
+      class="px-4 py-5 text-center sk-body"
     >
       그룹에 담긴 측정이 없습니다.
+      <span class="mt-1 block sk-meta">검색 결과의 그룹 버튼으로 측정을 담아 함께 봅니다.</span>
     </p>
 
     <template
@@ -72,7 +56,7 @@
     >
       <div class="flex flex-wrap items-center gap-2">
         <UButton
-          size="xs"
+          size="sm"
           color="primary"
           icon="i-lucide-line-chart"
           label="함께 보기"
@@ -80,7 +64,7 @@
         />
         <UButton
           v-if="items.length > 1"
-          size="xs"
+          size="sm"
           color="neutral"
           variant="outline"
           icon="i-lucide-save"

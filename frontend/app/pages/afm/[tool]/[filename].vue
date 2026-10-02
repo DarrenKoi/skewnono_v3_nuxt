@@ -3,7 +3,6 @@
     <EbeamMetaBar
       :eyebrow="`AFM · ${toolName}`"
       title="AFM 측정 상세"
-      :subtitle="filename"
     >
       <template #leading>
         <AppBackButton
@@ -39,68 +38,83 @@
     >
       측정 상세 정보를 불러오지 못했습니다.
     </p>
-    <div
-      v-else
-      class="grid grid-cols-1 gap-6 lg:grid-cols-12"
-    >
-      <div class="space-y-6 lg:col-span-5 min-[112.5rem]:col-span-4">
+    <template v-else>
+      <!-- 1. What file this is. -->
+      <AfmDetailOverview
+        :filename="filename"
+        :measurement="listEntry"
+        :information="information"
+        :point-count="payload.available_points.length"
+        :site-count="siteCount"
+        :valid-count="validRowCount"
+        :row-count="detailRows.length"
+      />
+
+      <!-- 2. File-level: the information block beside the per-site summary. -->
+      <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <AfmDetailInfoPanel
-          :information="payload.information"
-          :summary="payload.summary"
+          class="xl:col-span-5 2xl:col-span-4"
+          :information="information"
         />
-        <AfmDetailMeasurementPointsTable
-          v-model:selected-point="selectedPoint"
-          :data="payload.data"
-          :available-points="payload.available_points"
-        />
-      </div>
-      <!-- grid-cols-1, not a bare grid: an implicit auto track grows to the 분석 이미지
-           strip's full width and pushes the page sideways. From 112.5rem (1800px) the
-           order utilities pull 프로파일 이미지 up beside the scatter. -->
-      <div class="grid grid-cols-1 content-start gap-6 lg:col-span-7 min-[112.5rem]:col-span-8 min-[112.5rem]:grid-cols-8">
         <AfmDetailSummaryScatterChart
-          class="min-[112.5rem]:col-span-5"
+          class="xl:col-span-7 2xl:col-span-8"
           :summary="payload.summary"
           :export-name="`${filename}-summary-scatter`"
         />
-        <UAlert
-          v-if="profileError || imageError"
-          class="min-[112.5rem]:order-1 min-[112.5rem]:col-span-full"
-          color="error"
-          variant="soft"
-          icon="i-lucide-triangle-alert"
-          :title="`포인트 ${selectedPoint}의 프로파일을 불러오지 못했습니다.`"
+      </div>
+
+      <!-- 3. Point-level: the picker heads the three cards it drives, which
+           share one row and one height — 4/4/4 from xl, 5/4/3 from 112.5rem
+           (1800px; rem, so it outranks xl in the cascade — DESIGN.md). -->
+      <AfmDetailPointBar
+        v-model="selectedPoint"
+        :points="payload.available_points"
+        :data="payload.data"
+      />
+      <UAlert
+        v-if="profileError || imageError"
+        color="error"
+        variant="soft"
+        icon="i-lucide-triangle-alert"
+        :title="`포인트 ${selectedPoint}의 프로파일을 불러오지 못했습니다.`"
+      />
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-12">
+        <AfmDetailHistogramChart
+          class="md:col-span-2 xl:col-span-4 min-[112.5rem]:col-span-5"
+          :profile="profile"
+          :meta="profileMeta"
+          :point="selectedPoint"
+          :loading="profilePending"
+          :export-name="`${filename}-histogram`"
         />
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 min-[112.5rem]:order-1 min-[112.5rem]:col-span-full min-[112.5rem]:grid-cols-8">
-          <AfmDetailHeatmapChart
-            class="min-[112.5rem]:col-span-3"
-            :profile="profile"
-            :meta="profileMeta"
-            :loading="profilePending"
-            :export-name="`${filename}-heatmap`"
-          />
-          <AfmDetailHistogramChart
-            class="min-[112.5rem]:order-first min-[112.5rem]:col-span-5"
-            :profile="profile"
-            :meta="profileMeta"
-            :loading="profilePending"
-            :export-name="`${filename}-histogram`"
-          />
-        </div>
+        <AfmDetailHeatmapChart
+          class="xl:col-span-4"
+          :profile="profile"
+          :meta="profileMeta"
+          :point="selectedPoint"
+          :loading="profilePending"
+          :export-name="`${filename}-heatmap`"
+        />
         <AfmDetailProfileImage
-          class="min-[112.5rem]:col-span-3"
+          class="xl:col-span-4 min-[112.5rem]:col-span-3"
           :url="imageUrl"
           :point="selectedPoint"
           :filename="filename"
           :loading="imagePending"
         />
-        <AfmDetailAnalysisImages
-          class="min-[112.5rem]:order-1 min-[112.5rem]:col-span-full"
-          :tool="toolName"
-          :filename="filename"
-        />
       </div>
-    </div>
+
+      <!-- 4. The rows behind it all, at full width so more columns fit. -->
+      <AfmDetailMeasurementPointsTable
+        v-model:selected-point="selectedPoint"
+        :data="payload.data"
+      />
+
+      <AfmDetailAnalysisImages
+        :tool="toolName"
+        :filename="filename"
+      />
+    </template>
   </div>
 </template>
 
@@ -119,9 +133,13 @@ const toolId = String(route.params.tool ?? '')
 const filename = String(route.params.filename ?? '')
 const toolName = toolId.toUpperCase()
 
-const { useAfmDetail, fetchProfile, fetchImage } = useAfmDetailApi()
+const { useAfmDetail, useAfmFiles, fetchProfile, fetchImage } = useAfmDetailApi()
 
 const { data: detailResponse, pending } = useAfmDetail(toolName, filename)
+// The list row carries recipe / lot / slot exactly as the search page showed
+// them; it is already cached when the user came from there.
+const { data: files } = useAfmFiles(toolName)
+const listEntry = computed(() => files.value?.find(row => row.filename === filename))
 
 const payload = computed(() => detailResponse.value?.data)
 const information = computed(() => payload.value?.information ?? {})
@@ -177,6 +195,7 @@ const { data: imageUrl, pending: imagePending, error: imageError } = usePointDat
 
 const infoCount = computed(() => Object.keys(information.value).length)
 const siteCount = computed(() => new Set(summaryRows.value.map(r => r.Site)).size)
+const validRowCount = computed(() => detailRows.value.filter(row => row.Valid === true).length)
 
 const toast = useToast()
 const downloadTable = useTableDownload()

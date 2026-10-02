@@ -1,68 +1,58 @@
 <template>
   <div class="space-y-6">
     <form
-      class="dashboard-surface flex flex-wrap items-center gap-2 rounded-(--sk-r-card) p-4"
+      class="dashboard-surface space-y-3 rounded-(--sk-r-card) p-4"
       @submit.prevent="commitSearch"
     >
-      <UInput
-        v-model="query"
-        type="search"
-        icon="i-lucide-search"
-        autocomplete="off"
-        placeholder="Lot ID, Recipe, 날짜로 검색 (예: CMP, T7HQR42TA, 250609)"
-        aria-label="AFM 측정 검색"
-        class="min-w-0 flex-1"
-      />
-      <UPopover v-if="recentTerms.length">
+      <div class="flex items-center gap-2">
+        <UInput
+          v-model="query"
+          type="search"
+          size="lg"
+          icon="i-lucide-search"
+          autocomplete="off"
+          placeholder="Lot ID, Recipe, 날짜로 검색 (예: CMP, T7HQR42TA, 250609)"
+          aria-label="AFM 측정 검색"
+          class="min-w-0 flex-1"
+        />
         <UButton
-          type="button"
+          type="submit"
+          size="lg"
+          color="primary"
+          icon="i-lucide-search"
+          label="검색"
+        />
+      </div>
+      <!-- Recent terms sit in the open rather than behind an icon: one click
+           re-runs a search, and the active one shows which search is on. -->
+      <div
+        v-if="recentTerms.length"
+        class="flex flex-wrap items-center gap-1.5"
+      >
+        <span class="mr-1 inline-flex items-center gap-1 sk-meta">
+          <UIcon
+            name="i-lucide-history"
+            class="size-3.5"
+          />
+          최근 검색어
+        </span>
+        <SkChip
+          v-for="term in recentTerms"
+          :key="term"
+          size="sm"
+          :label="term"
+          :active="activeQuery === term"
+          @click="activeQuery === term ? clearSearch() : applyTerm(term)"
+        />
+        <UButton
+          size="xs"
           color="neutral"
           variant="ghost"
-          icon="i-lucide-history"
-          aria-label="최근 검색어"
+          icon="i-lucide-trash-2"
+          label="지우기"
+          @click="cart.clearRecentSearches"
         />
-        <template #content>
-          <div class="w-64 p-2">
-            <p class="px-2 pb-2 sk-label">
-              최근 검색어
-            </p>
-            <UButton
-              v-for="term in recentTerms"
-              :key="term"
-              block
-              size="sm"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-history"
-              :label="term"
-              class="justify-start"
-              @click="applyTerm(term)"
-            />
-            <UButton
-              block
-              size="sm"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              label="최근 검색어 지우기"
-              class="mt-1 justify-start"
-              @click="cart.clearRecentSearches"
-            />
-          </div>
-        </template>
-      </UPopover>
-      <UButton
-        type="submit"
-        color="primary"
-        icon="i-lucide-search"
-        label="검색"
-      />
-      <p
-        v-if="activeQuery"
-        class="w-full sk-meta"
-      >
-        "{{ activeQuery }}" 검색 결과 {{ filteredResults.length }}건
-      </p>
+      </div>
     </form>
 
     <AfmCard
@@ -72,15 +62,23 @@
       flush
     >
       <template #actions>
-        <UInput
-          v-model="innerFilter"
-          type="search"
-          size="xs"
-          icon="i-lucide-filter"
-          placeholder="결과 내 필터"
-          aria-label="결과 내 필터"
-          class="w-48"
-        />
+        <div class="flex items-center gap-3">
+          <p
+            v-if="activeQuery"
+            class="sk-meta"
+          >
+            "<b class="font-semibold text-(--sk-ink)">{{ activeQuery }}</b>" 검색 결과
+          </p>
+          <UInput
+            v-model="innerFilter"
+            type="search"
+            size="sm"
+            icon="i-lucide-filter"
+            placeholder="결과 내 필터"
+            aria-label="결과 내 필터"
+            class="w-52"
+          />
+        </div>
       </template>
 
       <AppLoadingState
@@ -101,70 +99,93 @@
       >
         표시할 측정이 없습니다.
       </p>
-      <ul
+      <!-- A container query, not a viewport breakpoint: the card's own width
+           decides whether the row fits as aligned columns (the header names each
+           value once) or wraps into the stacked summary the side lists use. -->
+      <div
         v-else
-        class="max-h-[640px] divide-y divide-(--sk-border-soft) overflow-y-auto"
+        class="@container max-h-[680px] overflow-y-auto"
       >
-        <li
-          v-for="result in filteredResults"
-          :key="result.filename"
-          class="flex items-center gap-3 px-4 py-3 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
+        <div
+          :class="ROW_GRID"
+          class="sticky top-0 z-10 hidden border-b border-(--sk-border) bg-(--sk-surface) px-4 py-2 text-xs font-semibold whitespace-nowrap text-(--sk-ink-muted) @4xl:grid"
+          aria-hidden="true"
         >
-          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-            <!-- Three identifiers, three forms: the date steps back so the
-                 recipe is the row's headline, and lot / slot each carry the
-                 eyebrow that names them. -->
-            <span class="font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-              {{ result.formattedDate }}
-            </span>
-            <span class="text-sm font-semibold text-(--sk-ink)">
-              {{ result.recipeName }}
-            </span>
-            <!-- One unit, so a narrow row wraps the tags together instead of
-                 stranding the slot on a line of its own. -->
-            <span class="flex items-center gap-x-3">
-              <AfmLotSlotTags
-                :lot-id="result.lotId"
-                :slot-number="result.slotNumber"
-              />
-              <UBadge
-                :label="result.measuredInfo"
-                color="neutral"
-                variant="outline"
-              />
-            </span>
-          </div>
-
-          <div class="flex shrink-0 items-center gap-1">
-            <UIcon
-              v-for="dt in DATA_TYPES.filter(dt => result[dt.key])"
-              :key="dt.key"
-              :name="dt.icon"
-              class="size-3.5 text-(--sk-ink-muted)"
-              :title="dt.tooltip"
-            />
-          </div>
-
-          <UButton
-            size="xs"
-            color="neutral"
-            :variant="cart.isInGroup(result.filename) ? 'subtle' : 'outline'"
-            :icon="cart.isInGroup(result.filename) ? 'i-lucide-check' : 'i-lucide-plus'"
-            :aria-label="cart.isInGroup(result.filename) ? '그룹에서 제거' : '그룹에 추가'"
-            :aria-pressed="cart.isInGroup(result.filename)"
-            class="shrink-0"
-            @click="toggleGroup(result)"
-          />
-          <UButton
-            size="xs"
-            color="primary"
-            icon="i-lucide-square-arrow-out-up-right"
-            label="상세 보기"
-            class="shrink-0"
+          <span>측정 일시</span>
+          <span>Recipe</span>
+          <span>Lot</span>
+          <span>Slot</span>
+          <span>측정</span>
+          <span>데이터</span>
+          <span class="text-right">그룹</span>
+        </div>
+        <ul class="divide-y divide-(--sk-border-soft)">
+          <li
+            v-for="result in filteredResults"
+            :key="result.filename"
+            class="group cursor-pointer px-4 py-2.5 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
             @click="$emit('view-details', result)"
-          />
-        </li>
-      </ul>
+          >
+            <!-- Wide: one aligned row under the header. -->
+            <div
+              :class="ROW_GRID"
+              class="hidden items-center @4xl:grid"
+            >
+              <span class="font-mono text-[13px] tabular-nums text-(--sk-ink)">
+                {{ result.formattedDate }}
+              </span>
+              <button
+                type="button"
+                class="flex min-w-0 items-center gap-1.5 text-left"
+                :title="result.filename"
+                @click.stop="$emit('view-details', result)"
+              >
+                <span class="truncate text-sm font-semibold text-(--sk-ink) group-hover:underline">
+                  {{ result.recipeName }}
+                </span>
+              </button>
+              <span class="truncate font-mono text-[13px] font-medium tabular-nums text-(--sk-ink)">
+                {{ result.lotId }}
+              </span>
+              <span class="font-mono text-[13px] font-medium tabular-nums text-(--sk-ink)">
+                {{ result.slotNumber }}
+              </span>
+              <span class="truncate text-[13px] text-(--sk-ink)">
+                {{ result.measuredInfo }}
+              </span>
+              <AfmDataAvailability :measurement="result" />
+              <div class="flex items-center justify-end gap-1">
+                <AfmGroupToggle
+                  :in-group="cart.isInGroup(result.filename)"
+                  @toggle="toggleGroup(result)"
+                />
+                <UIcon
+                  name="i-lucide-chevron-right"
+                  class="size-4 text-(--sk-ink-subtle) transition-colors duration-200 group-hover:text-(--sk-ink)"
+                />
+              </div>
+            </div>
+
+            <!-- Narrow: the stacked summary, actions on the right. -->
+            <div class="flex items-center gap-3 @4xl:hidden">
+              <button
+                type="button"
+                class="min-w-0 flex-1 text-left"
+                :title="result.filename"
+                @click.stop="$emit('view-details', result)"
+              >
+                <AfmMeasurementSummary :measurement="result">
+                  <AfmDataAvailability :measurement="result" />
+                </AfmMeasurementSummary>
+              </button>
+              <AfmGroupToggle
+                :in-group="cart.isInGroup(result.filename)"
+                @toggle="toggleGroup(result)"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
     </AfmCard>
   </div>
 </template>
@@ -179,6 +200,9 @@ const props = defineProps<{
 defineEmits<{
   'view-details': [measurement: AfmMeasurement]
 }>()
+
+// 측정 일시 | Recipe | Lot | Slot | 측정 | 데이터 | 그룹 — shared by the header and every row.
+const ROW_GRID = 'grid-cols-[10.5rem_minmax(0,1fr)_6rem_3rem_6.5rem_6.5rem_7rem] gap-x-3'
 
 const cart = useAfmCart(props.toolId)
 const recentTerms = cart.recentSearches
@@ -202,14 +226,6 @@ const filteredResults = computed(() => {
   return (files.value ?? []).filter(row => terms.every(term => matchesTerm(row, term)))
 })
 
-const DATA_TYPES = [
-  { key: 'hasProfile', icon: 'i-lucide-line-chart', tooltip: '프로파일 데이터' },
-  { key: 'hasData', icon: 'i-lucide-database', tooltip: '측정 데이터' },
-  { key: 'hasImage', icon: 'i-lucide-image', tooltip: '프로파일 이미지' },
-  { key: 'hasAlign', icon: 'i-lucide-align-vertical-justify-center', tooltip: 'Align 이미지' },
-  { key: 'hasTip', icon: 'i-lucide-pin', tooltip: 'Tip 이미지' }
-] as const
-
 const toggleGroup = (row: AfmMeasurement) =>
   cart.isInGroup(row.filename) ? cart.removeFromGroup(row.filename) : cart.addToGroup(row)
 
@@ -221,5 +237,10 @@ const commitSearch = () => {
 const applyTerm = (term: string) => {
   query.value = term
   activeQuery.value = term
+}
+
+const clearSearch = () => {
+  query.value = ''
+  activeQuery.value = ''
 }
 </script>

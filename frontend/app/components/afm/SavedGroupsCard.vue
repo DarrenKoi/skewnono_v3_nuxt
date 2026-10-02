@@ -10,7 +10,7 @@
       #actions
     >
       <UButton
-        size="xs"
+        size="sm"
         color="neutral"
         variant="ghost"
         label="전체 삭제"
@@ -25,14 +25,14 @@
       <li
         v-for="group in groups"
         :key="group.id"
-        class="group flex items-start gap-2 px-4 py-2.5 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
+        class="group flex items-start gap-2 px-4 py-3 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
       >
         <button
           type="button"
           class="min-w-0 flex-1 text-left"
           @click="$emit('load', group.id)"
         >
-          <p class="truncate sk-value">
+          <p class="truncate text-sm font-semibold text-(--sk-ink)">
             {{ group.name }}
           </p>
           <p
@@ -41,12 +41,15 @@
           >
             {{ group.description }}
           </p>
-          <p class="mt-1 sk-meta">
-            측정 {{ group.items.length }}건 · {{ formatKoreanDateTime(group.createdAt) }}
+          <p class="mt-1 flex items-center gap-2 sk-meta">
+            <span class="sk-badge border border-(--sk-border-soft) bg-(--sk-muted-surface) px-2 font-sans text-xs text-(--sk-ink)">
+              측정 {{ group.items.length }}건
+            </span>
+            {{ formatKoreanDateTime(group.createdAt) }}
           </p>
         </button>
         <UButton
-          size="xs"
+          size="sm"
           color="neutral"
           variant="ghost"
           icon="i-lucide-x"
@@ -58,9 +61,10 @@
     </ul>
     <p
       v-else
-      class="px-4 py-6 text-center sk-body"
+      class="px-4 py-5 text-center sk-body"
     >
       저장된 그룹이 없습니다.
+      <span class="mt-1 block sk-meta">2건 이상 담은 그룹을 저장하면 다시 불러올 수 있습니다.</span>
     </p>
   </AfmCard>
 </template>
