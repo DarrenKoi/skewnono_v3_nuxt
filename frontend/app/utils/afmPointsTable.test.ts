@@ -7,7 +7,8 @@ import {
   filterPointRows,
   pointsSummary,
   pagePointRows,
-  defaultPointColumnKeys
+  defaultPointColumnKeys,
+  facetCounts
 } from './afmPointsTable.ts'
 
 // Full AfmDetailRow rows, not partials: this fixture is the one place that
@@ -86,6 +87,20 @@ test('filterPointRows: search is case-insensitive over visible columns only', ()
 
 test('filterPointRows: point + search combined', () => {
   assert.equal(filterPointRows(rows, '0001_X000_Y000', 'completed', ['State']).length, 1)
+})
+
+test('filterPointRows: equals narrows by exact cell text; empty value is no filter', () => {
+  assert.equal(filterPointRows(rows, '', '', ['State'], { State: 'FAILED' }).length, 1)
+  assert.equal(filterPointRows(rows, '', '', ['State'], { State: '', Valid: 'true' }).length, 2)
+  assert.equal(filterPointRows(rows, '0002_X002_Y-001', '', ['State'], { Valid: 'false' }).length, 0)
+})
+
+test('facetCounts: counts ignore the facet\'s own filter, keep the others', () => {
+  const equals = { State: 'FAILED', Valid: 'true' }
+  // State counts: Valid=true still applies, State=FAILED does not.
+  assert.deepEqual([...facetCounts(rows, '', '', ['State'], equals, 'State')], [['COMPLETED', 2]])
+  // Valid counts: State=FAILED still applies.
+  assert.deepEqual([...facetCounts(rows, '', '', ['State'], equals, 'Valid')], [['false', 1]])
 })
 
 test('pointsSummary: total and valid', () => {

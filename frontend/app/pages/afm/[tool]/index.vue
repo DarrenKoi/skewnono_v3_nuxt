@@ -30,23 +30,12 @@
 
       <div class="space-y-6 lg:col-span-5 2xl:col-span-4">
         <AfmViewHistoryCard
-          :items="viewHistory"
+          :tool-id="toolId"
           @view-details="onViewDetails"
-          @remove="cart.removeFromHistory"
-          @clear="cart.clearHistory"
         />
         <AfmDataGroupingCard
-          :items="groupedData"
-          @remove="cart.removeFromGroup"
-          @clear="cart.clearGroup"
+          :tool-id="toolId"
           @see-together="navigateTo(`/afm/${toolId}/see-together`)"
-          @save="({ name, description }) => cart.saveCurrentGroup(name, description)"
-        />
-        <AfmSavedGroupsCard
-          :groups="savedGroups"
-          @load="cart.loadSavedGroup"
-          @remove="cart.removeSavedGroup"
-          @clear="cart.clearSavedGroups"
         />
       </div>
     </div>
@@ -66,7 +55,6 @@ const { fabs, afmToolHref } = useAfmToolData()
 const fab = fabs.find(group => group.tools.some(tool => tool.id === toolId))?.fab
 
 const cart = useAfmCart(toolId)
-const { viewHistory, groupedData, savedGroups } = cart
 
 const onViewDetails = (measurement: AfmMeasurement) => {
   cart.addToHistory(measurement)

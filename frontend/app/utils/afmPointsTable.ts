@@ -8,11 +8,12 @@ export interface PointColumn {
   label: string
 }
 
-const ID_COLUMN_KEYS: string[] = ['measurement_point', 'Point No', 'X (um)', 'Y (um)']
+// `Block` exists only on files with more than one block (utils/afmPoints tagBlocks).
+const ID_COLUMN_KEYS: string[] = ['Block', 'measurement_point', 'Point No', 'X (um)', 'Y (um)']
 
 // Measurement columns are named by the recipe (`Pad_1_H (nm)`, `1_Minimum (nm)`, …),
 // so they are recognised by their unit, never by name.
-const isMeasurementKey = (key: string) => key.includes('(nm)')
+export const isMeasurementKey = (key: string) => key.includes('(nm)')
 
 // A recipe can carry 51 measurement columns; the default view shows the first few.
 const DEFAULT_MEASUREMENT_COLUMNS = 6
@@ -46,15 +47,20 @@ export const defaultPointColumnKeys = (columns: PointColumn[]): string[] => {
   ]
 }
 
+// `equals` narrows by exact cell text per column (`{ State: 'FAILED', Valid: 'false' }`);
+// an empty value means that column is not filtered.
 export const filterPointRows = (
   rows: AfmDetailRow[],
   selectedPoint: string,
   search: string,
-  visibleKeys: string[]
+  visibleKeys: string[],
+  equals: Record<string, string> = {}
 ): AfmDetailRow[] => {
-  let out = selectedPoint
-    ? rows.filter(r => r.measurement_point === selectedPoint)
-    : rows
+  const wanted = Object.entries(equals).filter(([, value]) => value)
+  let out = rows.filter(r =>
+    (!selectedPoint || r.measurement_point === selectedPoint)
+    && wanted.every(([key, value]) => String(r[key]) === value)
+  )
   const q = search.trim().toLowerCase()
   if (q) {
     out = out.filter(r =>
@@ -64,6 +70,24 @@ export const filterPointRows = (
     )
   }
   return out
+}
+
+// How many rows each value of `key` would leave, with every OTHER filter still
+// applied — so a chip's count is what clicking it shows.
+export const facetCounts = (
+  rows: AfmDetailRow[],
+  selectedPoint: string,
+  search: string,
+  visibleKeys: string[],
+  equals: Record<string, string>,
+  key: string
+): Map<string, number> => {
+  const counts = new Map<string, number>()
+  for (const row of filterPointRows(rows, selectedPoint, search, visibleKeys, { ...equals, [key]: '' })) {
+    const value = String(row[key])
+    counts.set(value, (counts.get(value) ?? 0) + 1)
+  }
+  return counts
 }
 
 export interface PointsSummary {

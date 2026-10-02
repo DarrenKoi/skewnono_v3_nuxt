@@ -63,10 +63,6 @@ export const useAfmCart = (toolId: string) => {
     viewHistory.value = next.slice(0, MAX_HISTORY)
   }
 
-  const removeFromHistory = (filename: string) => {
-    viewHistory.value = viewHistory.value.filter(item => item.filename !== filename)
-  }
-
   const clearHistory = () => {
     viewHistory.value = []
   }
@@ -83,11 +79,14 @@ export const useAfmCart = (toolId: string) => {
     groupedData.value = groupedData.value.filter(item => item.filename !== filename)
   }
 
+  const toggleGroup = (measurement: AfmMeasurement) =>
+    isInGroup(measurement.filename) ? removeFromGroup(measurement.filename) : addToGroup(measurement)
+
   const clearGroup = () => {
     groupedData.value = []
   }
 
-  // The save dialog is the only caller: it trims both fields and refuses an empty name.
+  // The save form is the only caller: it trims both fields and refuses an empty name.
   const saveCurrentGroup = (name: string, description: string) => {
     if (groupedData.value.length === 0) return
     const snapshot: AfmSavedGroup = {
@@ -101,17 +100,17 @@ export const useAfmCart = (toolId: string) => {
     savedGroups.value = [snapshot, ...deduped].slice(0, MAX_SAVED_GROUPS)
   }
 
-  const loadSavedGroup = (groupId: string) => {
+  // `merge` keeps what is already in the group and appends only the new files.
+  const loadSavedGroup = (groupId: string, merge = false) => {
     const found = savedGroups.value.find(group => group.id === groupId)
-    if (found) groupedData.value = [...found.items]
+    if (!found) return
+    groupedData.value = merge
+      ? [...groupedData.value, ...found.items.filter(item => !isInGroup(item.filename))]
+      : [...found.items]
   }
 
   const removeSavedGroup = (groupId: string) => {
     savedGroups.value = savedGroups.value.filter(group => group.id !== groupId)
-  }
-
-  const clearSavedGroups = () => {
-    savedGroups.value = []
   }
 
   const recordRecentSearch = (term: string) => {
@@ -132,15 +131,14 @@ export const useAfmCart = (toolId: string) => {
     recentSearches,
     isInGroup,
     addToHistory,
-    removeFromHistory,
     clearHistory,
     addToGroup,
     removeFromGroup,
+    toggleGroup,
     clearGroup,
     saveCurrentGroup,
     loadSavedGroup,
     removeSavedGroup,
-    clearSavedGroups,
     recordRecentSearch,
     clearRecentSearches
   }

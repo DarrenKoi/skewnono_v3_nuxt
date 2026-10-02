@@ -39,65 +39,73 @@
     >
       측정 상세 정보를 불러오지 못했습니다.
     </p>
+    <!-- Point rail: the left column says which point, the right column is about
+         that point. The rail's cells stretch to the row so 측정 포인트 can stay in
+         view (sticky) while the right column scrolls. -->
     <div
       v-else
-      class="grid grid-cols-1 gap-6 lg:grid-cols-12"
+      class="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)]"
     >
-      <div class="space-y-6 lg:col-span-5 min-[112.5rem]:col-span-4">
+      <div class="space-y-6">
         <AfmDetailInfoPanel
           :information="payload.information"
-          :summary="payload.summary"
+          :slot-number="slotNumber"
         />
-        <AfmDetailMeasurementPointsTable
+        <AfmDetailPointRail
           v-model:selected-point="selectedPoint"
+          class="lg:sticky lg:top-0"
           :data="payload.data"
           :available-points="payload.available_points"
         />
       </div>
       <!-- grid-cols-1, not a bare grid: an implicit auto track grows to the 분석 이미지
-           strip's full width and pushes the page sideways. From 112.5rem (1800px) the
-           order utilities pull 프로파일 이미지 up beside the scatter. -->
-      <div class="grid grid-cols-1 content-start gap-6 lg:col-span-7 min-[112.5rem]:col-span-8 min-[112.5rem]:grid-cols-8">
-        <AfmDetailSummaryScatterChart
-          class="min-[112.5rem]:col-span-5"
+           strip's full width and pushes the page sideways. -->
+      <div class="grid grid-cols-1 content-start gap-6">
+        <AfmDetailPointSummary
+          v-model:selected-point="selectedPoint"
+          :data="payload.data"
           :summary="payload.summary"
+          :points="payload.available_points"
           :export-name="`${filename}-summary-scatter`"
         />
         <UAlert
           v-if="profileError || imageError"
-          class="min-[112.5rem]:order-1 min-[112.5rem]:col-span-full"
           color="error"
           variant="soft"
           icon="i-lucide-triangle-alert"
           :title="`포인트 ${selectedPoint}의 프로파일을 불러오지 못했습니다.`"
         />
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 min-[112.5rem]:order-1 min-[112.5rem]:col-span-full min-[112.5rem]:grid-cols-8">
+        <AfmDetailAnalysisImages
+          v-model:selected-point="selectedPoint"
+          :tool="toolName"
+          :filename="filename"
+          :points="payload.available_points"
+        />
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
           <AfmDetailHeatmapChart
-            class="min-[112.5rem]:col-span-3"
+            class="xl:col-span-7"
             :profile="profile"
             :meta="profileMeta"
             :loading="profilePending"
             :export-name="`${filename}-heatmap`"
           />
-          <AfmDetailHistogramChart
-            class="min-[112.5rem]:order-first min-[112.5rem]:col-span-5"
-            :profile="profile"
-            :meta="profileMeta"
-            :loading="profilePending"
-            :export-name="`${filename}-histogram`"
+          <AfmDetailProfileImage
+            class="xl:col-span-5"
+            :url="imageUrl"
+            :point="selectedPoint"
+            :filename="filename"
+            :loading="imagePending"
           />
         </div>
-        <AfmDetailProfileImage
-          class="min-[112.5rem]:col-span-3"
-          :url="imageUrl"
-          :point="selectedPoint"
-          :filename="filename"
-          :loading="imagePending"
+        <AfmDetailHistogramChart
+          :profile="profile"
+          :meta="profileMeta"
+          :loading="profilePending"
+          :export-name="`${filename}-histogram`"
         />
-        <AfmDetailAnalysisImages
-          class="min-[112.5rem]:order-1 min-[112.5rem]:col-span-full"
-          :tool="toolName"
-          :filename="filename"
+        <AfmDetailMeasurementPointsTable
+          v-model:selected-point="selectedPoint"
+          :data="tableRows"
         />
       </div>
     </div>
@@ -127,6 +135,13 @@ const payload = computed(() => detailResponse.value?.data)
 const information = computed(() => payload.value?.information ?? {})
 const summaryRows = computed(() => payload.value?.summary ?? [])
 const detailRows = computed(() => payload.value?.data ?? [])
+
+// The table's rows, with a Block column where the file has more than one block.
+const tableRows = computed(() => tagBlocks(detailRows.value, summaryRows.value))
+
+// The payload carries the lot but not the slot; a measurement opened from the
+// list is in this tool's 조회 기록, which has it.
+const slotNumber = useAfmCart(toolId).viewHistory.value.find(item => item.filename === filename)?.slotNumber
 
 const selectedPoint = ref('')
 
