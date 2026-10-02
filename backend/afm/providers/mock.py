@@ -68,6 +68,13 @@ X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가
   그 모양입니다). 컬럼 이름이 `Method_ID` 인지 `Method ID` 인지도 회신마다 달랐습니다.
 - `Valid` 는 FALSE 가 아직 실측되지 않았습니다. mock 은 일부를 False 로 냅니다.
 - data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Mileage` …)와 Information 의 다른 키.
+- 측정값의 수준·추세·퍼짐은 전부 지어낸 것입니다. recipe·컬럼마다 고정된 수준(55~120 nm)에
+  측정 시각에 비례하는 완만한 드리프트(하루 ±0.4 nm 이내), sample(lot+slot) 공통 오프셋
+  (σ 0.8 nm, 재측정끼리 같음), 중심에서 바깥으로 커지는 site 패턴(반지름²당 0.25 nm),
+  포인트 노이즈(σ 0.6 nm)를 더하고, 9건에 1건꼴로 +7.5 nm 이탈이 FAILED·Valid=FALSE·
+  Approach Count 증가와 함께 옵니다. 시계열 비교가 집에서도 추세·관리선 밖·포인트 패턴·
+  재현성을 잡을 수 있게 둔 구조이지 실측 값 범위가 아닙니다. 드리프트는 BASE_TIME 기준
+  절대 시각의 함수라 파일이 오래돼도 값이 바뀌지 않습니다.
 - Summary 는 그 block 의 행에서 계산합니다. STDEV 는 표본 표준편차(ddof=1)이고 Valid 는
   거르지 않습니다.
 - "method 명 줄만 있는 빈 Summary" 는 행 목록으로는 "Summary 없음"과 구분되지 않아 같은 모양으로 냅니다.
@@ -133,7 +140,9 @@ SITE_LAYOUT = tuple(sorted(
     key=lambda position: (position[0] ** 2 + position[1] ** 2, position)
 ))
 SUMMARY_ITEMS = ("MEAN", "STDEV", "MIN", "MAX", "RANGE")
-STATE_CODES = ("COMPLETED",) * 7 + ("FAILED",) + ("STOPPED",) * 2
+# A point fails now and then; STOPPED rows come only from a block that stopped
+# (OFFICE-VERIFY: the real failure rate is unknown).
+STATE_CODES = ("COMPLETED",) * 24 + ("FAILED",)
 
 # A profile file states its own X/Y/Z units; nothing unifies them. The factors turn
 # the mock's um (lateral) and nm (height) into the unit a file declares.
@@ -356,12 +365,13 @@ def get_afm_file_detail(
         len(recipe["methods"]) > 1
         and _seed_for("stopped", row["tool_name"], row["filename"]) % 3 == 0
     )
+    excursion = _is_excursion(row)
     summary: list[dict[str, Any]] = []
     detail: list[dict[str, Any]] = []
 
     for method_index, method in enumerate(recipe["methods"]):
         stopped = stopped_early and method_index > 0
-        bases = [rng.uniform(55, 120) + method_index * rng.uniform(-6, 6) for _ in columns]
+        bases = [_baseline(row, column, method_index) for column in columns]
         block_rows: list[dict[str, Any]] = []
 
         for key, site_id, (site_x, site_y), point_no in positions:
@@ -373,17 +383,22 @@ def get_afm_file_detail(
                 "X (um)": round(site_x * 8000 + rng.uniform(-100, 100), 1),
                 "Y (um)": round(site_y * 8000 + rng.uniform(-100, 100), 1),
                 "Method_ID": method_id,
-                "State": "STOPPED" if stopped else rng.choice(STATE_CODES),
-                "Valid": rng.random() > 0.08
+                "State": (
+                    "STOPPED" if stopped
+                    else "FAILED" if excursion and rng.random() < 0.3
+                    else rng.choice(STATE_CODES)
+                ),
+                "Valid": rng.random() > (0.3 if excursion else 0.08)
             })
             if not stopped:
+                bowl = _BOWL_NM * (site_x ** 2 + site_y ** 2)
                 for column, base in zip(columns, bases, strict=True):
-                    record[column] = round(base + rng.uniform(-9, 9), 2)
+                    record[column] = round(base + bowl + rng.gauss(0, _POINT_NOISE_NM), 2)
                     record[f"{column.removesuffix(' (nm)')}_Valid"] = rng.random() > 0.06
             record.update({
                 "Pick Up Count": rng.randint(1, 10),
                 "Sample Count": rng.randint(1, 5),
-                "Approach Count": rng.randint(1, 3),
+                "Approach Count": rng.randint(1, 3) + (rng.randint(1, 2) if excursion else 0),
                 "Mileage": round(rng.uniform(2, 98), 1)
             })
             block_rows.append(record)
@@ -777,6 +792,44 @@ def _find_measurement(
             return row
 
     return None
+
+
+# The value model is fabricated (OFFICE-VERIFY): the real levels, drift and spread
+# are unknown. It is shaped so the trend views have something to find at home.
+_POINT_NOISE_NM = 0.6
+_BOWL_NM = 0.25           # centre-out site pattern, per unit of site radius²
+_SAMPLE_SIGMA_NM = 0.8    # one offset per sample, shared by its re-measurements
+_DRIFT_PER_DAY_NM = 0.4   # bound of the slow drift a recipe's column follows
+_EXCURSION_NM = 7.5
+_EXCURSION_EVERY = 9      # about one measurement in nine
+
+
+def _is_excursion(row: AfmMeasurementRow) -> bool:
+    return _seed_for("excursion", row["tool_name"], row["filename"]) % _EXCURSION_EVERY == 0
+
+
+def _baseline(row: AfmMeasurementRow, column: str, method_index: int) -> float:
+    """A column's level on this measurement, before the per-point terms.
+
+    Recipe level (shared by every lot of the recipe) + a slow drift keyed on the
+    measurement's own timestamp, so a file reads the same as it ages + an offset
+    per sample, so re-measurements of one sample agree + an excursion on about
+    one file in nine.
+    """
+    recipe_rng = random.Random(_seed_for("level", row["recipe_name"], column))
+    level = recipe_rng.uniform(55, 120)
+    method_offset = method_index * recipe_rng.uniform(-6, 6)
+    drift_per_day = recipe_rng.uniform(-_DRIFT_PER_DAY_NM, _DRIFT_PER_DAY_NM)
+    measured_at = datetime.strptime(row["date"] + row["time"], "%y%m%d%H%M%S")
+    days = (measured_at.replace(tzinfo=timezone.utc) - BASE_TIME).total_seconds() / 86400
+    sample_rng = random.Random(
+        _seed_for("sample", row["tool_name"], row["lot_id"], row["slot_number"])
+    )
+    return (
+        level + method_offset + drift_per_day * days
+        + sample_rng.gauss(0, _SAMPLE_SIGMA_NM)
+        + (_EXCURSION_NM if _is_excursion(row) else 0.0)
+    )
 
 
 def _summary_records(
