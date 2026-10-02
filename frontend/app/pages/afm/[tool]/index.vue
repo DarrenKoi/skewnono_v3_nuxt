@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
+  <div class="px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
     <EbeamMetaBar
       :eyebrow="fab ? `AFM · ${fab}` : 'AFM'"
       title="AFM 측정 검색"
@@ -23,12 +23,12 @@
 
     <div class="grid gap-6 lg:grid-cols-12">
       <AfmSearchBar
-        class="lg:col-span-7"
+        class="lg:col-span-7 2xl:col-span-8"
         :tool-id="toolId"
         @view-details="onViewDetails"
       />
 
-      <div class="space-y-6 lg:col-span-5">
+      <div class="space-y-6 lg:col-span-5 2xl:col-span-4">
         <AfmViewHistoryCard
           :items="viewHistory"
           @view-details="onViewDetails"

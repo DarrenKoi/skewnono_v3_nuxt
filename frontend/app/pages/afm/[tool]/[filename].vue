@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
+  <div class="px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
     <EbeamMetaBar
       :eyebrow="`AFM · ${toolName}`"
       title="AFM 측정 상세"
@@ -43,7 +43,7 @@
       v-else
       class="grid gap-6 lg:grid-cols-12"
     >
-      <div class="space-y-6 lg:col-span-5">
+      <div class="space-y-6 lg:col-span-5 min-[112.5rem]:col-span-4">
         <AfmDetailInfoPanel
           :information="payload.information"
           :summary="payload.summary"
@@ -54,40 +54,44 @@
           :available-points="payload.available_points"
         />
       </div>
-      <div class="space-y-6 lg:col-span-7">
-        <AfmDetailSummaryScatterChart
-          :summary="payload.summary"
-          :export-name="`${filename}-summary-scatter`"
-        />
-        <UAlert
-          v-if="profileError || imageError"
-          color="error"
-          variant="soft"
-          icon="i-lucide-triangle-alert"
-          :title="`포인트 ${selectedPoint}의 프로파일을 불러오지 못했습니다.`"
-        />
-        <div class="grid gap-6 md:grid-cols-2">
-          <AfmDetailHeatmapChart
-            :profile="profile"
-            :loading="profilePending"
-            :export-name="`${filename}-heatmap`"
+      <div class="grid content-start gap-6 lg:col-span-7 min-[112.5rem]:col-span-8 min-[112.5rem]:grid-cols-8">
+        <div class="space-y-6 min-[112.5rem]:col-span-5">
+          <AfmDetailSummaryScatterChart
+            :summary="payload.summary"
+            :export-name="`${filename}-summary-scatter`"
           />
-          <AfmDetailHistogramChart
-            :profile="profile"
-            :loading="profilePending"
-            :export-name="`${filename}-histogram`"
+          <UAlert
+            v-if="profileError || imageError"
+            color="error"
+            variant="soft"
+            icon="i-lucide-triangle-alert"
+            :title="`포인트 ${selectedPoint}의 프로파일을 불러오지 못했습니다.`"
+          />
+          <div class="grid gap-6 md:grid-cols-2">
+            <AfmDetailHeatmapChart
+              :profile="profile"
+              :loading="profilePending"
+              :export-name="`${filename}-heatmap`"
+            />
+            <AfmDetailHistogramChart
+              :profile="profile"
+              :loading="profilePending"
+              :export-name="`${filename}-histogram`"
+            />
+          </div>
+        </div>
+        <div class="space-y-6 min-[112.5rem]:col-span-3">
+          <AfmDetailProfileImage
+            :url="imageUrl"
+            :point="selectedPoint"
+            :filename="filename"
+            :loading="imagePending"
+          />
+          <AfmDetailAnalysisImages
+            :tool="toolName"
+            :filename="filename"
           />
         </div>
-        <AfmDetailProfileImage
-          :url="imageUrl"
-          :point="selectedPoint"
-          :filename="filename"
-          :loading="imagePending"
-        />
-        <AfmDetailAnalysisImages
-          :tool="toolName"
-          :filename="filename"
-        />
       </div>
     </div>
   </div>

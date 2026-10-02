@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
+  <div class="px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6">
     <EbeamMetaBar
       :eyebrow="`AFM · ${toolName}`"
       title="AFM 시계열 비교"
@@ -20,8 +20,12 @@
       description="검색 화면에서 측정을 데이터 그룹에 추가한 뒤 다시 여세요."
     />
 
-    <template v-else>
+    <div
+      v-else
+      class="grid items-start gap-6 min-[112.5rem]:grid-cols-12"
+    >
       <AfmCard
+        class="min-[112.5rem]:col-span-4"
         icon="i-lucide-list-checks"
         title="선택한 측정"
         :count="groupedItems.length"
@@ -56,61 +60,63 @@
         </ul>
       </AfmCard>
 
-      <UAlert
-        v-if="failedCount > 0"
-        color="warning"
-        variant="soft"
-        icon="i-lucide-triangle-alert"
-        :title="`측정 ${failedCount}건을 불러오지 못했습니다.`"
-        description="아래 차트는 불러온 측정만 사용합니다."
-      />
-
-      <AfmCard
-        icon="i-lucide-chart-no-axes-combined"
-        title="시계열"
-        :count="loaded.length"
-      >
-        <template #actions>
-          <div class="flex flex-wrap items-center gap-2">
-            <USelect
-              v-model="selectedSite"
-              :items="siteItems"
-              size="xs"
-              class="min-w-28"
-              aria-label="사이트"
-            />
-            <USelect
-              v-model="selectedItem"
-              :items="AFM_SUMMARY_ITEMS"
-              size="xs"
-              class="min-w-28"
-              aria-label="통계 항목"
-            />
-            <USelect
-              v-model="selectedColumn"
-              :items="columnItems"
-              size="xs"
-              class="min-w-36"
-              aria-label="측정 항목"
-            />
-          </div>
-        </template>
-
-        <AppLoadingState
-          v-if="pending"
-          variant="inline"
-          class="h-96"
-          title="측정 상세 데이터를 불러오는 중입니다."
+      <div class="space-y-6 min-[112.5rem]:col-span-8">
+        <UAlert
+          v-if="failedCount > 0"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-triangle-alert"
+          :title="`측정 ${failedCount}건을 불러오지 못했습니다.`"
+          description="아래 차트는 불러온 측정만 사용합니다."
         />
-        <AfmTrendTimeSeriesChart
-          v-else
-          :points="chartPoints"
-          :series-name="selectedSite"
-          :y-name="selectedColumn"
-          :export-name="`${toolId}-trend`"
-        />
-      </AfmCard>
-    </template>
+
+        <AfmCard
+          icon="i-lucide-chart-no-axes-combined"
+          title="시계열"
+          :count="loaded.length"
+        >
+          <template #actions>
+            <div class="flex flex-wrap items-center gap-2">
+              <USelect
+                v-model="selectedSite"
+                :items="siteItems"
+                size="xs"
+                class="min-w-28"
+                aria-label="사이트"
+              />
+              <USelect
+                v-model="selectedItem"
+                :items="AFM_SUMMARY_ITEMS"
+                size="xs"
+                class="min-w-28"
+                aria-label="통계 항목"
+              />
+              <USelect
+                v-model="selectedColumn"
+                :items="columnItems"
+                size="xs"
+                class="min-w-36"
+                aria-label="측정 항목"
+              />
+            </div>
+          </template>
+
+          <AppLoadingState
+            v-if="pending"
+            variant="inline"
+            class="h-96"
+            title="측정 상세 데이터를 불러오는 중입니다."
+          />
+          <AfmTrendTimeSeriesChart
+            v-else
+            :points="chartPoints"
+            :series-name="selectedSite"
+            :y-name="selectedColumn"
+            :export-name="`${toolId}-trend`"
+          />
+        </AfmCard>
+      </div>
+    </div>
   </div>
 </template>
 
