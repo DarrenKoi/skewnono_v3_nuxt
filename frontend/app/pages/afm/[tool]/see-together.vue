@@ -113,7 +113,7 @@
       <AfmTrendSection
         num="01"
         title="추세"
-        hint="측정마다 분포를 입히고, 그룹의 평균 ± 3σ 관리선을 긋습니다. 관리선 밖은 테라코타."
+        hint="측정마다 분포를 입히고, 그룹의 평균 ± 3σ 관리선을 긋습니다. 관리선 밖의 측정은 붉은 점으로 표시합니다."
       />
       <div class="grid grid-cols-1 gap-6 2xl:grid-cols-12">
         <AfmTrendChart
