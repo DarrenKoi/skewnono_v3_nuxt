@@ -6,6 +6,6 @@
     "lint:md:fix": "markdownlint-cli2 --fix \"*.md\" \"docs/**/*.md\" \"backend/**/*.md\" \"scripts/*.md\" \"frontend/**/*.md\""
   },
   "devDependencies": {
-    "markdownlint-cli2": "^0.18.1"
+    "markdownlint-cli2": "^0.23.3"
   }
 }

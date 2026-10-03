@@ -45,7 +45,7 @@ cond = load_cond("…/IMAP0001.jpeg")  # 없으면 None
 한 줄 형식은 `key<공백/탭>값,값,...` 이다. crosshair 를 그리는 데 필요한 키는 셋:
 
 | 키 | 뽑는 것 | 용도 |
-|---|---|---|
+| --- | --- | --- |
 | `Pixel` | `(width, height)` — 예 `512,512` | 좌표 스케일 기준 |
 | `Scope` | `OM` / `OMDF` / `SEM` 토큰 | modality 구분 (rcp 만 존재) |
 | `!Cursor_info` | 콤마 구분 숫자열 | crosshair + white box 좌표 |
@@ -53,7 +53,7 @@ cond = load_cond("…/IMAP0001.jpeg")  # 없으면 None
 `!Cursor_info` 값 배열의 **0-base 인덱스**:
 
 | 인덱스 | 의미 |
-|---|---|
+| --- | --- |
 | `[4], [5]` | **crosshair (cx, cy)** — 이 둘이 `-1` 이 아니면 crosshair 존재 |
 | `[6], [7], [8], [9]` | white box `(left, top, right, bottom)` — `[8],[9]` 가 `-1` 이 아니면 존재 |
 

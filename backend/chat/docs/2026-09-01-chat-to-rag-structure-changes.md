@@ -277,7 +277,7 @@ MinIO webp 는 `--live` 가 전혀 지나가지 않는 유일한 경로였습니
 그림 한 장이 한 번에 증명한 것들입니다.
 
 | 확인된 것 | 왜 이걸로 확인되는가 |
-|---|---|
+| --- | --- |
 | MinIO prefix 규약 | `skewnono_rag/hitachi_manuals/figures/` 아래 키가 client 기본 prefix 와 겹치지 않았습니다 — 겹쳤으면 전부 404 였습니다 |
 | `figure_id` charset | 실제 매뉴얼 파일 이름이 `^[\w .-]{1,128}$` 를 통과했습니다 |
 | 202 + 폴링 turn 수명 | 답변과 인용이 화면에 도달했다는 것이 곧 background worker → `complete_turn` → 폴링이 사무실에서 돈다는 뜻입니다 |

@@ -33,7 +33,7 @@ This section is for a teammate building a page **outside** SKEWNONO's Nuxt app �
 ### What you have, by where you build
 
 | You are building | You get for free | You bring yourself |
-|---|---|---|
+| --- | --- | --- |
 | Inside `frontend/app/` (after promotion) | Tokens, fonts, the app shell, `<SkNavPill>` / `<SkChip>`, `EbeamMetaBar`, `AppLoadingState` / `AppEmptyState`, and NuxtUI components themed by the bridge | Nothing — use the components named in §Components |
 | A Vite app in `apps/<slug>/`, or your own stack | Nothing. No header, no tokens, no NuxtUI | Steps 1–4 below |
 
@@ -368,7 +368,7 @@ All fonts are **self-hosted**: woff2 only, in `frontend/public/fonts/`. Public S
 ### Hierarchy
 
 | Token | Size | Weight | Line Height | Letter Spacing | Use |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | `text-3xl` | 30px | 700 | 36px | tracking-tight | Page titles (`<h1>`) |
 | `text-2xl` | 24px | 600 | 32px | 0 | Page subtitles, KPI numbers (`tabular-nums`) |
 | `text-xl` | 20px | 600 | 28px | 0 | Section titles |
@@ -389,7 +389,7 @@ Weight carries hierarchy, not color: 400 body → 500 nav labels/buttons → 600
 The hierarchy above is implemented as a small set of **role-named classes** in `main.css`, so type is styled by *purpose and location*, not by ad-hoc `text-[…]` / `text-(--sk-…)` utilities scattered per call site. Each class bundles size + weight + colour + family; a change to a role lands in **one place**, and the class name documents intent. This is the mechanism that keeps the type consistent — hand-written `text-[9.5px]`, `text-[10.5px]`, `text-[11.5px]` and `text-zinc-400/500` on content are the drift these replace.
 
 | Class | Role — purpose / location | Size · weight · colour |
-|---|---|---|
+| --- | --- | --- |
 | `.sk-eyebrow` | Mono uppercase kicker (meta-bar, section kicker) | 10px · 600 · mono +0.06em uppercase · ink-muted |
 | `.sk-label` | Field / column / caption **label** (table headers) | 11px · 600 · ink-muted |
 | `.sk-value` | A data **value** (table cell, stat text, ID) | 12px · 500 · **ink** |
@@ -407,7 +407,7 @@ Rules that fall out of the table, enforced by which class you pick: **values are
 The table above is calibrated for a **real table**: a shared column header carries the field name once, and the eye compares straight down a column. Some screens trade that density away — one record becomes one card, read top-to-bottom in passing rather than scanned across a grid. A card has no column header, so every value carries its own inline label, and both have to survive a single reading. The table tiers are too small for that job, so those screens use a second, larger set of roles:
 
 | Class | Role — purpose / location | Size · weight · colour |
-|---|---|---|
+| --- | --- | --- |
 | `.sk-card-id` | The identifier the card is **about** (`lot_cd`, `recipe_id`) | 18px · 700 · mono tabular -0.01em · ink |
 | `.sk-card-desc` | Prose on a card (`ctn_desc`, `oper_desc`) — never truncated | 15px/1.45 · 400 · ink |
 | `.sk-field-label` | Inline label on a meta line (`상한 초과`, `판정 범위`) | 13px · 400 · ink-subtle |
@@ -464,7 +464,7 @@ Calm-first: vertical rhythm between cards is a uniform `space-y-6` (24px), card 
 ## Elevation & Depth
 
 | Level | Treatment | Use |
-|---|---|---|
+| --- | --- | --- |
 | Flat | No shadow, no border | Page body, toggles, pills |
 | Hairline | 1px `--sk-border-soft` | Dividers between nav rows and stat cells |
 | Bordered | 1px `--sk-border` | Default card/input edge |
@@ -482,7 +482,7 @@ The philosophy is **material first, shadow rare**: depth comes from the canvas �
 ### Border Radius Scale
 
 | Token | Value | Use |
-|---|---|---|
+| --- | --- | --- |
 | `--sk-r-sidebar` | 6px | FAB sidebar cells, fine notices |
 | `--sk-r-chip` | 8px | Filter chips (`<SkChip>`) |
 | `--sk-r-nav` | 10px | Nav pills and buttons (`<SkNavPill>`, `<SkBtn>`) |
@@ -601,7 +601,7 @@ Loading is never hand-rolled. Four surfaces cover every case, and a page that
 fetches must use one of them — a frozen previous page is not a loading state.
 
 | Case | Use | Renders |
-|---|---|---|
+| --- | --- | --- |
 | A panel that has not rendered yet | `<AppLoadingState>` (default `variant="block"`) | Own `dashboard-surface` card, indeterminate `UProgress`, centered title + optional `description` |
 | A row *inside* a card that already exists | `<AppLoadingState variant="inline">` | `loader-circle` + `animate-spin` and the title on one centered line, no second surface |
 | A page whose view `await`s its data in setup | `<AppAsyncBoundary title="…">` wrapping the view | A `<Suspense :timeout="0">` whose fallback is the block variant |
@@ -629,7 +629,7 @@ Rules:
 ### Breakpoints
 
 | Name | Width | Key Changes |
-|---|---|---|
+| --- | --- | --- |
 | Target | 1920×1080 (FHD) | The design target. Content centered at `max-w-7xl` (1280px); dense pages at 1440px; sides stay as margin; the AFM pages fill the e-beam shell and reflow at `2xl` and 1800px (§Grid & Container) |
 | `xl` | 1280–1536px | Content fills the container; no layout change |
 | `lg` | 1024–1280px | Filter bars wrap (`flex-wrap`); feature tabs scroll horizontally |
