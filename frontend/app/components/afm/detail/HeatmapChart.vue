@@ -148,6 +148,8 @@ const visualMap = computed(() => ({
   textStyle: CHART_LEGEND_LABEL
 }))
 const mapGrid = { left: 72, right: 72, top: 16, bottom: 48 }
+// A category tick is a sample's own position, not a round number, so it is trimmed to read.
+const cellLabel = { ...tickLabel, formatter: (value: string) => String(Number(Number(value).toFixed(2))) }
 
 // A grid of any density fills the plot: category bands are sized by the chart, so a
 // 512 x 64 scan and a 16 x 16 one both come out as touching cells, at any card width.
@@ -165,8 +167,8 @@ const cellOption = (xs: number[], ys: number[]): EChartsOption => {
           .map(([name, v]) => `${name}: ${(v as number).toFixed(2)}`).join('<br/>')
       }
     },
-    xAxis: { type: 'category', data: xs.map(String), axisLabel: tickLabel, ...axisName(xName.value, 30) },
-    yAxis: { type: 'category', data: ys.map(String), axisLabel: tickLabel, ...axisName(yName.value, 52) },
+    xAxis: { type: 'category', data: xs.map(String), axisLabel: cellLabel, ...axisName(xName.value, 30) },
+    yAxis: { type: 'category', data: ys.map(String), axisLabel: cellLabel, ...axisName(yName.value, 52) },
     visualMap: visualMap.value,
     series: [{
       type: 'heatmap',
