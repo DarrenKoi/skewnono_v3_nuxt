@@ -12,6 +12,17 @@
         />
       </template>
       <template #actions>
+        <UTooltip text="이 측정으로 바로 오는 링크 복사">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-link"
+            aria-label="링크 복사"
+            :loading="copyingLink"
+            @click="copyLink"
+          />
+        </UTooltip>
         <UDropdownMenu
           :items="exportItems"
           :content="{ align: 'end' }"
@@ -195,6 +206,22 @@ const siteCount = computed(() => blockNames(summaryRows.value).length)
 
 const toast = useToast()
 const downloadTable = useTableDownload()
+
+// The page loads from its own URL, so a link skips the search. The filename
+// makes that URL long (%23…), hence a /s/ link when the shortener answers and the
+// full one when it does not. copyTextToClipboard carries the http:// fallback.
+const { createShortLink } = useShortLink()
+const copyingLink = ref(false)
+const copyLink = async () => {
+  copyingLink.value = true
+  const link = (await createShortLink(route.fullPath)) ?? window.location.href
+  copyingLink.value = false
+  if (await copyTextToClipboard(link)) {
+    toast.add({ title: '링크를 복사했습니다', icon: 'i-lucide-clipboard-check', color: 'success' })
+  } else {
+    toast.add({ title: '복사하지 못했습니다', description: link, icon: 'i-lucide-triangle-alert', color: 'warning', ui: { description: 'break-all' } })
+  }
+}
 
 const downloadSection = (suffix: string, table: ExportTable) =>
   downloadTable(`${filename}-${suffix}.xlsx`, table.headers, table.rows)
