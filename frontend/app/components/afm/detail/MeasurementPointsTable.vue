@@ -70,17 +70,26 @@
         label="필터 초기화"
         @click="resetFilters"
       />
-      <USelectMenu
-        v-model="visibleKeys"
-        :items="columnItems"
-        value-key="value"
-        multiple
-        size="xs"
-        icon="i-lucide-columns-3"
-        placeholder="컬럼"
-        class="ml-auto w-48"
-        :search-input="{ placeholder: '컬럼 검색' }"
-      />
+      <!-- Labelled and counted rather than listing the picked names, which
+           truncate to an unreadable "Point, X, Y, …" that hides what it is. -->
+      <div class="ml-auto flex items-center gap-1.5">
+        <span class="sk-eyebrow">표시 컬럼</span>
+        <USelectMenu
+          v-model="visibleKeys"
+          :items="columnItems"
+          value-key="value"
+          multiple
+          size="xs"
+          icon="i-lucide-columns-3"
+          aria-label="표시 컬럼 선택"
+          class="w-36"
+          :search-input="{ placeholder: '컬럼 검색' }"
+        >
+          <span class="truncate">
+            컬럼 <b class="sk-value-num">{{ visibleKeys.length }}</b> / {{ columnItems.length }}
+          </span>
+        </USelectMenu>
+      </div>
     </div>
 
     <p
