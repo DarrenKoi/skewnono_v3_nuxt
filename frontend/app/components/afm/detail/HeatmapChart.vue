@@ -133,29 +133,68 @@ const lineOption = computed<EChartsOption>(() => ({
   }]
 }))
 
-const mapOption = computed<EChartsOption>(() => ({
-  grid: { left: 72, right: 72, top: 16, bottom: 48 },
+// Measured on the unfiltered profile, so removing outliers leaves holes rather than
+// reshaping the map.
+const grid = computed(() => profileGrid(props.profile))
+
+const visualMap = computed(() => ({
+  min: stats.value.count ? stats.value.min : 0,
+  max: stats.value.count ? stats.value.max : 1,
+  calculable: true,
+  orient: 'vertical' as const,
+  right: 4,
+  top: 'center',
+  inRange: { color: [...SK_SCALE] },
+  textStyle: CHART_LEGEND_LABEL
+}))
+const mapGrid = { left: 72, right: 72, top: 16, bottom: 48 }
+
+// A grid of any density fills the plot: category bands are sized by the chart, so a
+// 512 x 64 scan and a 16 x 16 one both come out as touching cells, at any card width.
+const cellOption = (xs: number[], ys: number[]): EChartsOption => {
+  const xIndex = new Map(xs.map((x, i) => [x, i]))
+  const yIndex = new Map(ys.map((y, i) => [y, i]))
+  return {
+    grid: mapGrid,
+    tooltip: {
+      formatter: (params: unknown) => {
+        const value = (params as { value?: number[] }).value
+        if (!value) return ''
+        const [ix, iy, z] = value as [number, number, number]
+        return [[xName.value, xs[ix]!], [yName.value, ys[iy]!], [zName.value, z]]
+          .map(([name, v]) => `${name}: ${(v as number).toFixed(2)}`).join('<br/>')
+      }
+    },
+    xAxis: { type: 'category', data: xs.map(String), axisLabel: tickLabel, ...axisName(xName.value, 30) },
+    yAxis: { type: 'category', data: ys.map(String), axisLabel: tickLabel, ...axisName(yName.value, 52) },
+    visualMap: visualMap.value,
+    series: [{
+      type: 'heatmap',
+      animation: false,
+      data: filtered.value.kept.map(p => [xIndex.get(p.x)!, yIndex.get(p.y)!, p.z])
+    }]
+  }
+}
+
+// Samples that form no lattice have no cell to fill, so they stay dots at their positions.
+const dotOption = computed<EChartsOption>(() => ({
+  grid: mapGrid,
   tooltip: {
     formatter: formatTooltip
   },
   xAxis: { type: 'value', scale: true, axisLabel: tickLabel, ...axisName(xName.value, 30) },
   yAxis: { type: 'value', scale: true, axisLabel: CHART_AXIS_LABEL, ...axisName(yName.value, 52) },
-  visualMap: {
-    min: stats.value.count ? stats.value.min : 0,
-    max: stats.value.count ? stats.value.max : 1,
-    calculable: true,
-    orient: 'vertical',
-    right: 4,
-    top: 'center',
-    inRange: { color: [...SK_SCALE] },
-    textStyle: CHART_LEGEND_LABEL
-  },
+  visualMap: visualMap.value,
   series: [{
     type: 'scatter',
     symbolSize: 8,
     data: filtered.value.kept.map(p => [p.x, p.y, p.z])
   }]
 }))
+
+const mapOption = computed<EChartsOption>(() =>
+  grid.value ? cellOption(grid.value.xs, grid.value.ys) : dotOption.value
+)
 
 const chartOption = computed(() => isLine.value ? lineOption.value : mapOption.value)
 

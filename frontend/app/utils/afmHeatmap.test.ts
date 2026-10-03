@@ -6,7 +6,8 @@ import {
   filterProfileByOutlier,
   heatmapStats,
   isLineProfile,
-  OUTLIER_DEFAULT_THRESHOLD
+  OUTLIER_DEFAULT_THRESHOLD,
+  profileGrid
 } from './afmHeatmap.ts'
 
 const pts = (zs: number[]) => zs.map((z, i) => ({ x: i, y: i, z }))
@@ -87,4 +88,14 @@ test('axisTitle: carries the unit the file declared, and none when it declared n
   assert.equal(axisTitle('X', 'Pixel'), 'X (Pixel)')
   assert.equal(axisTitle('Y', undefined), 'Y')
   assert.equal(axisTitle('Y', ''), 'Y')
+})
+
+test('profileGrid: a full lattice yields its sorted axes, whatever order the samples came in', () => {
+  const lattice = [3, 1, 2].flatMap(x => [20, 10].map(y => ({ x, y, z: x * y })))
+  assert.deepEqual(profileGrid(lattice), { xs: [1, 2, 3], ys: [10, 20] })
+})
+
+test('profileGrid: ragged or empty samples are no grid', () => {
+  assert.equal(profileGrid(grid), null)
+  assert.equal(profileGrid([]), null)
 })

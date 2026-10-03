@@ -79,6 +79,21 @@ export const isLineProfile = (points: AfmProfilePoint[], dataSize?: string | nul
   return points.length > 1 && points.every(p => p.y === points[0]!.y)
 }
 
+export interface ProfileGrid {
+  xs: number[]
+  ys: number[]
+}
+
+// The scan's lateral positions, ascending, when the samples form a full lattice: one
+// per (x, y) pair. That is what lets the map draw each sample as a cell sized by the
+// chart itself. Anything else (ragged rows, repeated positions) is no grid, and the
+// caller keeps drawing dots.
+export const profileGrid = (points: AfmProfilePoint[]): ProfileGrid | null => {
+  const xs = [...new Set(points.map(p => p.x))].sort((a, b) => a - b)
+  const ys = [...new Set(points.map(p => p.y))].sort((a, b) => a - b)
+  return points.length > 0 && xs.length * ys.length === points.length ? { xs, ys } : null
+}
+
 // An axis name with the unit its file declared ("X (μm)"). Units differ from file to
 // file (um / nm / pm / Pixel) and are never unified, so none is ever assumed.
 export const axisTitle = (axis: string, unit?: string | null): string =>
