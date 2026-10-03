@@ -99,3 +99,16 @@ test('profileGrid: ragged or empty samples are no grid', () => {
   assert.equal(profileGrid(grid), null)
   assert.equal(profileGrid([]), null)
 })
+
+test('profileGrid: a repeated position cannot stand in for a missing one', () => {
+  const doubled = [{ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: 2 }, { x: 0, y: 1, z: 3 }]
+  assert.equal(profileGrid(doubled), null)
+})
+
+test('profileGrid: uneven steps are no grid, but rounded even ones are', () => {
+  const lattice = (xs: number[]) => xs.flatMap(x => [0, 1].map(y => ({ x, y, z: 1 })))
+  assert.equal(profileGrid(lattice([0, 1, 100])), null)
+  // 50 um over 512 samples, printed to four decimals, as the profile txt does.
+  const xs = Array.from({ length: 512 }, (_, i) => Number((i * 50 / 511).toFixed(4)))
+  assert.deepEqual(profileGrid(lattice(xs))?.xs, xs)
+})

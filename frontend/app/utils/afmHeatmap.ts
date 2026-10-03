@@ -84,14 +84,25 @@ export interface ProfileGrid {
   ys: number[]
 }
 
-// The scan's lateral positions, ascending, when the samples form a full lattice: one
-// per (x, y) pair. That is what lets the map draw each sample as a cell sized by the
-// chart itself. Anything else (ragged rows, repeated positions) is no grid, and the
-// caller keeps drawing dots.
+// Positions along one axis step evenly, give or take the rounding the file prints them with.
+const evenlySpaced = (sorted: number[]): boolean => {
+  if (sorted.length < 3) return true
+  const step = (sorted.at(-1)! - sorted[0]!) / (sorted.length - 1)
+  return sorted.every((v, i) => i === 0 || Math.abs(v - sorted[i - 1]! - step) <= step * 0.05)
+}
+
+// The scan's lateral positions, ascending, when the samples form a full, evenly stepped
+// lattice: exactly one per (x, y) pair. That is what lets the map draw each sample as a
+// cell sized by the chart itself. Category bands are all one width, so anything else
+// (ragged rows, repeated positions, uneven steps) would be drawn somewhere it is not;
+// the caller keeps those as dots at their real positions.
 export const profileGrid = (points: AfmProfilePoint[]): ProfileGrid | null => {
   const xs = [...new Set(points.map(p => p.x))].sort((a, b) => a - b)
   const ys = [...new Set(points.map(p => p.y))].sort((a, b) => a - b)
-  return points.length > 0 && xs.length * ys.length === points.length ? { xs, ys } : null
+  const full = points.length > 0
+    && xs.length * ys.length === points.length
+    && new Set(points.map(p => `${p.x},${p.y}`)).size === points.length
+  return full && evenlySpaced(xs) && evenlySpaced(ys) ? { xs, ys } : null
 }
 
 // An axis name with the unit its file declared ("X (μm)"). Units differ from file to
