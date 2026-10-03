@@ -147,7 +147,8 @@ const visualMap = computed(() => ({
   inRange: { color: [...SK_SCALE] },
   textStyle: CHART_LEGEND_LABEL
 }))
-const mapGrid = { left: 72, right: 72, top: 16, bottom: 48 }
+// The right margin holds the colour bar and its handle labels, which sit beside it.
+const mapGrid = { left: 72, right: 96, top: 16, bottom: 48 }
 // A category tick is a sample's own position, not a round number, so it is trimmed to read.
 const cellLabel = { ...tickLabel, formatter: (value: string) => String(Number(Number(value).toFixed(2))) }
 
@@ -173,6 +174,9 @@ const cellOption = (xs: number[], ys: number[]): EChartsOption => {
     series: [{
       type: 'heatmap',
       animation: false,
+      // Painted in one go: left progressive, a dense scan fills in over a second or two
+      // and a screenshot or export taken meanwhile catches half a map.
+      progressive: 0,
       data: filtered.value.kept.map(p => [xIndex.get(p.x)!, yIndex.get(p.y)!, p.z])
     }]
   }
