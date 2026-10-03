@@ -21,7 +21,7 @@
 
     <p
       v-if="!summary.length"
-      class="flex h-44 items-center justify-center sk-body"
+      class="flex h-64 items-center justify-center sk-body"
     >
       통계 데이터가 없습니다.
     </p>
@@ -42,7 +42,7 @@
       </p>
       <div
         ref="chartEl"
-        class="h-44 w-full"
+        class="h-64 w-full"
       />
     </template>
   </div>

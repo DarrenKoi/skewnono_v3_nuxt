@@ -32,7 +32,7 @@
     </div>
 
     <div class="grid grid-cols-1 border-t border-(--sk-border) xl:grid-cols-12">
-      <div class="flex min-w-0 flex-col border-(--sk-border) max-xl:border-b xl:col-span-7 xl:border-r">
+      <div class="flex min-w-0 flex-col border-(--sk-border) max-xl:border-b xl:col-span-5 xl:border-r">
         <p
           v-if="!cards.length"
           class="flex flex-1 items-center justify-center px-4 py-10 sk-body"
@@ -40,10 +40,12 @@
           이 포인트의 측정값이 없습니다.
         </p>
         <!-- One card per measurement column. A recipe can carry 51 of them, so
-             the grid wraps and scrolls rather than fixing three across. -->
+             the grid wraps and scrolls rather than fixing three across. Beside
+             the chart (xl) it takes no height of its own (basis-0) and fills what
+             the chart sets, so neither side leaves a gap. -->
         <div
           v-else
-          class="grid max-h-72 flex-1 grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] overflow-y-auto"
+          class="grid max-h-72 flex-1 grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] overflow-y-auto xl:basis-0 xl:max-h-none"
         >
           <div
             v-for="card in cards"
@@ -100,7 +102,7 @@
       </div>
 
       <AfmDetailSummaryScatterChart
-        class="min-w-0 p-4 xl:col-span-5"
+        class="min-w-0 p-4 xl:col-span-7"
         :summary="summary"
         :point="selectedPoint"
         :blocks="blocks"
