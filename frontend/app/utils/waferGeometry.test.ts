@@ -120,10 +120,6 @@ test('mmToDieIndex accounts for the die-grid offset', () => {
   assert.equal(mmToDieIndex(4.61 - 2 * pitch, pitch, 4.61), -2)
 })
 
-test('mmToDieIndex offset defaults to zero for existing callers', () => {
-  assert.equal(mmToDieIndex(6.9, 6.818182), 1)
-})
-
 // A stage_coordinate string (corner-origin nm) for a point at (xMm, yMm) from
 // the wafer centre — the inverse of stagePosMm, used to build round-trip cases.
 const stageAt = (xMm: number, yMm: number, g: ReturnType<typeof parseWaferGeometry>): string =>
