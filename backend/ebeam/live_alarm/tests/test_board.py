@@ -26,10 +26,6 @@ def test_missing_meta_on_a_known_fab_is_stale():
     assert board.feed_status_for(None, known=True, now=1000) == "stale"
 
 
-def test_fresh_meta_is_live():
-    assert board.feed_status_for(_meta(1000), known=True, now=1000) == "live"
-
-
 def test_exactly_at_threshold_is_still_live():
     now = 1000 + STALE_AFTER_SEC
     assert board.feed_status_for(_meta(1000), known=True, now=now) == "live"

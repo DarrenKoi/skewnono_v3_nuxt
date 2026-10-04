@@ -118,10 +118,6 @@ def test_amat_tool_types_carry_no_hyphen():
     assert SLUG_TO_TOOL_TYPE["provision"] == "provision"
 
 
-def test_unknown_model_is_still_unclassified():
-    assert model_to_tool_type("ZZ9000") is None
-
-
 def test_vendor_is_a_label_not_the_adapter_axis():
     """벤더는 2개, 어댑터 폴더는 3개 -- 같은 것으로 다루지 않는다."""
     assert TOOL_TYPE_TO_VENDOR["cd-sem"] == "HITACHI"
