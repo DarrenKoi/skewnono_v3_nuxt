@@ -216,3 +216,23 @@ test('selectorSummary 는 selector 에 있는 축만 적습니다', () => {
   assert.equal(selectorSummary(coreTvPv), 'R3 · Main · Core · TV/PV')
   assert.equal(selectorSummary(sampleDram), 'R3 · Sample · DRAM')
 })
+
+// 회귀: cap 없는 mother 를 물려받아 null 이 된 son 은 면제가 아닙니다.
+test('cap 없는 mother 를 상속한 son 은 "면제" 가 아니라 "cap 없음" 으로 셉니다', () => {
+  const noLevel: RuleCell = {
+    ...coreEarlyDram,
+    caps: { WAFER: 13, EDGE: 10, EDGE_EX: 0, _other: 9 },
+    name_overrides: []
+  }
+  const { ex, result } = explain(recipe([
+    { name: 'LEVEL_1', point_count: 40, mother: true, region: 1 },
+    { name: 'CELL_SP', point_count: 13, mother: false, region: 1 }
+  ]), { cells: [noLevel] })
+  assert.deepEqual(ex.params.map(p => [p.name, p.cap, p.cap_source]), [
+    ['LEVEL_1', null, 'unset'],
+    ['CELL_SP', null, 'inherited']
+  ])
+  assert.equal(result.pass, true)
+  assert.doesNotMatch(ex.sentence, /면제/)
+  assert.match(ex.sentence, /cap 이 있는 파라미터가 없습니다\(2개 cap 없음\)\.$/)
+})
