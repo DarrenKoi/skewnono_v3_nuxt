@@ -211,6 +211,11 @@ import {
   buildTatSummaryItems,
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
+import {
+  isAnchorIncluded,
+  previousWindow,
+  tatDeltaItems
+} from '~/utils/recipeStatusDelta'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
@@ -345,6 +350,56 @@ const dateRange = computed({
   }
 })
 
+// 이전 동일 기간 대비 -------------------------------------------------------
+// The same summary endpoint, asked once more for the window just before the
+// one on screen. The window comes from `dateRange` — the user's range, else
+// the echo of the server default — so until the main summary has landed there
+// is nothing to shift and the key stays on its idle value, whose handler
+// fetches nothing. Fab list and lot scope are the main request's own.
+const prevWindow = computed(() => {
+  const { start, end } = dateRange.value
+  return start && end ? previousWindow(start, end) : null
+})
+
+const prevCacheKey = computed(() => {
+  const win = prevWindow.value
+  if (!win) return 'recipe-tat:prev:idle'
+  return `recipe-tat:prev:${queryParams.value.toolType}:${queryParams.value.fabNames?.join(',') ?? 'ALL'}`
+    + `:${win.start}:${win.end}:${queryParams.value.lotCd ?? '*'}`
+})
+
+// Not awaited: the comparison must never hold the dashboard back.
+const { data: prevSummary, status: prevStatus } = useAsyncData(
+  () => prevCacheKey.value,
+  async () => {
+    const win = prevWindow.value
+    if (!win) return null
+    return await fetchRecipeTatSummary({
+      ...queryParams.value,
+      startDate: win.start,
+      endDate: win.end
+    })
+  },
+  { watch: [prevCacheKey] }
+)
+
+const tatDeltaOptions = computed(() => {
+  const win = prevWindow.value
+  const anchorIncluded = isAnchorIncluded(dateRange.value.end, summary.value?.anchor_date ?? '')
+  if (status.value === 'pending' || prevStatus.value === 'pending' || !summary.value || !win) {
+    return { pending: true, anchorIncluded }
+  }
+  // A failed request shows no comparison rather than a wrong one. The date
+  // check drops a retained answer for a window that is no longer on screen.
+  const prev = prevSummary.value
+  if (prevStatus.value !== 'success' || !prev
+    || prev.start_date !== win.start || prev.end_date !== win.end) return undefined
+  return {
+    items: tatDeltaItems(summary.value, prev, formatSecondsAsDuration),
+    anchorIncluded
+  }
+})
+
 const tatSummaryItems = computed(() => buildTatSummaryItems({
   totalTat: resolveRecipeStatusSummaryValue(
     status.value === 'pending',
@@ -364,7 +419,7 @@ const tatSummaryItems = computed(() => buildTatSummaryItems({
       ? formatSecondsAsDuration(Math.round(summary.value.avg_meastime))
       : undefined
   )
-}))
+}, tatDeltaOptions.value))
 
 // Daily trend line
 

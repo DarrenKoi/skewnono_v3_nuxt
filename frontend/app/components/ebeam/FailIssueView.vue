@@ -284,6 +284,11 @@ import {
   buildFailSummaryItems,
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
+import {
+  failDeltaItems,
+  isAnchorIncluded,
+  previousWindow
+} from '~/utils/recipeStatusDelta'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
@@ -421,6 +426,51 @@ const dateRange = computed({
   }
 })
 
+// 이전 동일 기간 대비 -------------------------------------------------------
+// Same shape as RecipeTatView: one more summary request for the window just
+// before the one on screen, idle until `dateRange` knows that window. Align
+// and Meas share this instance, so one answer serves both tabs.
+const prevWindow = computed(() => {
+  const { start, end } = dateRange.value
+  return start && end ? previousWindow(start, end) : null
+})
+
+const prevCacheKey = computed(() => {
+  const win = prevWindow.value
+  if (!win) return 'fail-issue:prev:idle'
+  return `fail-issue:prev:${queryParams.value.toolType}:${queryParams.value.fabNames?.join(',') ?? 'ALL'}`
+    + `:${win.start}:${win.end}:${queryParams.value.lotCd ?? '*'}`
+})
+
+// Not awaited: the comparison must never hold the dashboard back.
+const { data: prevSummary, status: prevStatus } = useAsyncData(
+  () => prevCacheKey.value,
+  async () => {
+    const win = prevWindow.value
+    if (!win) return null
+    return await fetchSummary({
+      ...queryParams.value,
+      startDate: win.start,
+      endDate: win.end
+    })
+  },
+  { watch: [prevCacheKey] }
+)
+
+const failDeltaOptions = (section: 'align' | 'meas') => {
+  const win = prevWindow.value
+  const anchorIncluded = isAnchorIncluded(dateRange.value.end, summary.value?.anchor_date ?? '')
+  if (status.value === 'pending' || prevStatus.value === 'pending' || !summary.value || !win) {
+    return { pending: true, anchorIncluded }
+  }
+  // A failed request shows no comparison rather than a wrong one. The date
+  // check drops a retained answer for a window that is no longer on screen.
+  const prev = prevSummary.value
+  if (prevStatus.value !== 'success' || !prev
+    || prev.start_date !== win.start || prev.end_date !== win.end) return undefined
+  return { items: failDeltaItems(summary.value, prev, section), anchorIncluded }
+}
+
 const alignSummaryItems = computed(() => buildFailSummaryItems({
   failLabel: 'Align fails',
   failCount: resolveRecipeStatusSummaryValue(
@@ -435,7 +485,7 @@ const alignSummaryItems = computed(() => buildFailSummaryItems({
     status.value === 'pending',
     summary.value ? formatRate(summary.value.align_fail_rate) : undefined
   )
-}))
+}, failDeltaOptions('align')))
 
 const measSummaryItems = computed(() => buildFailSummaryItems({
   failLabel: 'Meas fails',
@@ -451,7 +501,7 @@ const measSummaryItems = computed(() => buildFailSummaryItems({
     status.value === 'pending',
     summary.value ? formatRate(summary.value.meas_fail_rate) : undefined
   )
-}))
+}, failDeltaOptions('meas')))
 
 // Trend charts --------------------------------------------------------------
 // One series per chart instead of stacking Align and Meas together. A single
