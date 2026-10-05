@@ -64,10 +64,15 @@
               </span>
             </button>
 
-            <EbeamDevstatDrillParamRows
-              v-if="expanded.has(recipe.recipe_id)"
-              :parameters="recipe.parameters"
-            />
+            <template v-if="expanded.has(recipe.recipe_id)">
+              <!-- 룰 판정 drill 에만 있습니다. outlier drill 은 cap 판정이 아니라
+                   근거로 적을 셀이 없습니다. -->
+              <EbeamDevstatRecipeExplain
+                v-if="recipe.explanation"
+                :explanation="recipe.explanation"
+              />
+              <EbeamDevstatDrillParamRows :parameters="recipe.parameters" />
+            </template>
           </div>
         </div>
       </div>

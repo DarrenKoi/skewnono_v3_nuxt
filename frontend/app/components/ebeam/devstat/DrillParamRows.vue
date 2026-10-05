@@ -31,7 +31,22 @@
           class="w-16 flex-none text-right font-semibold text-(--sk-ink)"
           :class="dense ? 'sk-field-value' : 'font-mono text-base tabular-nums'"
         >{{ param.point_count }}</span>
-        <span class="w-28 flex-none text-right sk-field-label tabular-nums">{{ param.note ?? '' }}</span>
+        <span class="w-28 flex-none text-right sk-field-label tabular-nums">
+          {{ param.note ?? '' }}
+          <!-- cap 을 넘긴 만큼. 꼬리표의 "cap 10" 바로 옆이라 16 − 10 을 머리로
+               하지 않아도 됩니다. 행 tint 와 같은 --sk-bad 입니다. -->
+          <span
+            v-if="param.over_by"
+            class="font-mono font-semibold text-(--sk-bad)"
+          >+{{ param.over_by }}</span>
+        </span>
+        <!-- cap 출처. 룰 판정 행에만 있어서, 없는 목록(outlier)에서는 열 자체를
+             그리지 않습니다 — 빈 열이 숫자를 왼쪽으로 밀기만 합니다. -->
+        <span
+          v-if="hasSource"
+          class="w-36 flex-none whitespace-nowrap sk-field-label"
+          title="cap 출처"
+        >{{ param.source ?? '' }}</span>
       </div>
     </div>
   </div>
@@ -41,12 +56,13 @@
 import type { DrillParameter } from '~/utils/deviceDrill'
 
 // 파라미터 행 목록의 단일 원천. 두 화면이 같은 네 열(이름 · mother/son ·
-// point_count · 꼬리표)을 같은 폭으로 그립니다.
+// point_count · 꼬리표)을 같은 폭으로 그립니다. 룰 판정 목록은 다섯째 열로 cap
+// 출처를 더합니다.
 //
 // **색은 공유하고 크기는 나눕니다.** 초과 tint 는 어느 화면에서나 --sk-bad 라야
 // 하지만 글자 크기는 그렇지 않습니다 — 뷰포트 80% 슬라이드오버와 모달 카드
 // 안쪽은 서로 다른 타입 스케일 위에 있고, 하나로 맞추면 한쪽이 반드시 틀립니다.
-defineProps<{
+const props = defineProps<{
   parameters: DrillParameter[]
   /**
    * 모달 카드 안쪽인가. 참이면 카드용 유틸리티 클래스(13/14px)를, 거짓이면
@@ -54,4 +70,6 @@ defineProps<{
    */
   dense?: boolean
 }>()
+
+const hasSource = computed(() => props.parameters.some(p => p.source != null))
 </script>

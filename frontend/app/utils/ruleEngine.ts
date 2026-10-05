@@ -273,16 +273,54 @@ export const effectiveCap = (
   cell: RuleCell,
   caps: Map<number, number | null>,
   type?: ParamType
-): number | null => {
+): number | null => explainCap(param, cell, caps, type).cap
+
+/**
+ * 판정 결과에 남기는 cap 의 출처. `CapSource` 셋에 **그 뒤에 일어난 일**을 더한
+ * 것입니다.
+ *
+ *   inherited — 자기 cap 이 `_other` fallback 이던 son 이 mother 의 cap 을 받음
+ *   exempt    — name_override 가 `null` 을 줌 (상한 없음이 룰의 뜻)
+ *   unset     — 그 타입의 cap 이 셀에 아예 없음. gray recipe 의 파라미터도
+ *               이 값입니다 — 셀이 없으니 cap 을 정한 곳도 없습니다.
+ *
+ * exempt 와 unset 은 둘 다 `cap === null` 이라 숫자만 봐서는 갈리지 않습니다.
+ */
+export type ParamCapSource = CapSource | 'inherited' | 'exempt' | 'unset'
+
+/**
+ * `effectiveCap` 과 **같은 한 번의 계산**에서 cap 과 출처를 함께 냅니다.
+ * `effectiveCap` 이 이 함수의 `.cap` 이라, 판정이 쓰는 숫자와 화면이 적는 근거가
+ * 갈릴 자리가 없습니다. 상속 조건은 위 `effectiveCap` 의 주석 그대로입니다.
+ */
+export const explainCap = (
+  param: Parameter,
+  cell: RuleCell,
+  caps: Map<number, number | null>,
+  type?: ParamType
+): { cap: number | null, source: ParamCapSource } => {
   const { cap, source } = resolveCap(param, cell, type)
-  if (param.mother || param.region == null || source !== 'fallback') return cap
-  return caps.has(param.region) ? caps.get(param.region)! : cap
+  if (source === 'fallback') {
+    return !param.mother && param.region != null && caps.has(param.region)
+      ? { cap: caps.get(param.region)!, source: 'inherited' }
+      : { cap, source }
+  }
+  if (cap === null) return { cap, source: source === 'name' ? 'exempt' : 'unset' }
+  return { cap, source }
 }
 
 // =================== Cell resolution (D8 / D14) ===================
 
+/**
+ * `memory_class` 가 어디서 왔는가. `applyAnnotation` 의 `??` 사슬 순서 그대로입니다
+ * — 어노테이션, backend 자동 파생, VG·RTC·Cubic 의 잠정 DRAM 환원(D7).
+ */
+export type MemoryClassOrigin = 'annotation' | 'auto' | 'family'
+
 export interface MergedRecipe extends Omit<RecipeInput, 'memory_class_auto'> {
   memory_class: MemoryClass | null
+  /** `memory_class` 가 null 이면 null. */
+  memory_class_origin: MemoryClassOrigin | null
   yield_check: 'before' | 'after' | null
 }
 
@@ -296,6 +334,7 @@ export const applyAnnotation = (recipe: RecipeInput, ann?: Annotation): MergedRe
   return {
     ...rest,
     memory_class: ann?.memory_class ?? auto ?? vgFallback,
+    memory_class_origin: ann?.memory_class ? 'annotation' : auto ? 'auto' : vgFallback ? 'family' : null,
     yield_check: ann?.yield_check ?? null
   }
 }
@@ -360,6 +399,8 @@ export interface ParamResult {
    * 파라미터와 판정에서 뺀 파라미터를 똑같이 그립니다 (deviceDrill 의 `note`).
    */
   judged: boolean
+  /** `cap` 이 어디서 왔는가 (`ParamCapSource`). 판정에는 쓰이지 않는 기록입니다. */
+  cap_source: ParamCapSource
   /**
    * point_count 가 cap 을 넘었는가 — **판정 대상이었는지와 무관하게**.
    *
@@ -371,6 +412,8 @@ export interface ParamResult {
    */
   over_cap: boolean
   violation: boolean
+  /** 위반이면 `point_count - cap`, 아니면 null. 판정에서 뺀 파라미터도 null 입니다. */
+  over_by: number | null
   /** mother / son — `paramRole`(idp Mother_Para). 판정이 아니라 recipe 의 사실이라 gray 에도 실립니다. */
   role: ParamRole
 }
@@ -403,6 +446,16 @@ export interface RecipeResult {
   pass: boolean
   gray: 'A' | 'B' | null
   gray_reason?: string
+  /** 적용된 `RuleCell` 의 id. gray 면 null. */
+  cell_id: string | null
+  /**
+   * 이 판정이 **무엇을 무엇으로** 쟀는가 — 복사가 아니라 참조입니다.
+   *
+   * 근거 설명(`ruleExplain`)이 입력과 셀을 다시 찾지 않게 하려고 둡니다. 다시
+   * 찾으려면 `applyAnnotation` 과 `resolveRuleCell` 을 한 번 더 불러야 하고,
+   * 그러면 판정한 입력과 설명한 입력이 다를 수 있습니다.
+   */
+  basis: { recipe: MergedRecipe, cell: RuleCell | null }
   results: ParamResult[]
 }
 
@@ -420,7 +473,9 @@ export const evaluateRecipe = (
       pass: true, // conservative: gray ≠ violation (D14)
       gray: res.gray,
       gray_reason: res.reason,
-      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, over_cap: false, violation: false, role: paramRole(p) }))
+      cell_id: null,
+      basis: { recipe, cell: null },
+      results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, cap_source: 'unset', over_cap: false, violation: false, over_by: null, role: paramRole(p) }))
     }
   }
   // son 은 mother 와 같은 image 를 쓰므로 자기 타입 cap 이 아니라 그룹 mother 의
@@ -429,16 +484,17 @@ export const evaluateRecipe = (
   const regions = motherRegions(recipe.parameters)
   const judgeSons = opts.judgeSons ?? true
   const results = recipe.parameters.map((p): ParamResult => {
-    // 타입은 여기서 한 번만 구해 `effectiveCap` 까지 넘깁니다 — 사무실 규모에서
+    // 타입은 여기서 한 번만 구해 `explainCap` 까지 넘깁니다 — 사무실 규모에서
     // 파라미터당 `deriveType` 한 번이 판정 시간의 10% 대입니다.
     const type = deriveType(p.name)
-    const cap = effectiveCap(p, res.cell, caps, type)
+    const { cap, source: cap_source } = explainCap(p, res.cell, caps, type)
     // 빼는 것은 이름표가 son 인 파라미터가 아니라 **mother 의 측정에 얹혀 가는**
     // 파라미터입니다 (`ridesOnMother` 의 주석). `effectiveCap` 이 상속을 거는
     // 파라미터와 같은 술어입니다.
     const judged = judgeSons || !ridesOnMother(p, regions)
     const over_cap = typeof cap === 'number' && p.point_count > cap
-    return { name: p.name, point_count: p.point_count, type, cap, judged, over_cap, violation: judged && over_cap, role: paramRole(p) }
+    const violation = judged && over_cap
+    return { name: p.name, point_count: p.point_count, type, cap, judged, cap_source, over_cap, violation, over_by: violation ? p.point_count - cap! : null, role: paramRole(p) }
   })
   const violation_params = results.filter(r => r.violation)
   return {
@@ -447,6 +503,8 @@ export const evaluateRecipe = (
     violation_params,
     pass: violation_params.length === 0,
     gray: null,
+    cell_id: res.cell.id,
+    basis: { recipe, cell: res.cell },
     results
   }
 }

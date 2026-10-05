@@ -676,3 +676,47 @@ test('role: judgeSons=false 는 mother 있는 region 의 son 만 뺀다 — 이�
     ['mother', true], ['son', false], ['son', true]
   ])
 })
+
+// ---- 판정 근거 필드 (cap_source · over_by · cell_id) — 판정을 바꾸지 않는 기록 ----
+test('over_by 는 위반일 때만 point_count - cap 이고, cell_id 는 적용된 셀입니다', () => {
+  const merged = applyAnnotation(recipe({ parameters: [
+    { name: 'WAFER_CD', point_count: 13 },
+    { name: 'EDGE_L', point_count: 16 },
+    { name: 'CELL_SP', point_count: 9 }
+  ] }))
+  const res = evaluateRecipe(merged, resolveRuleCell(merged, [coreEarlyDram]))
+  assert.equal(res.cell_id, 'r3-core-tev-dram')
+  assert.deepEqual(res.results.map(p => [p.name, p.cap_source, p.over_by]), [
+    ['WAFER_CD', 'type', null],
+    ['EDGE_L', 'type', 6],
+    ['CELL_SP', 'fallback', null]
+  ])
+  assert.ok(res.results.every(p => (p.over_by !== null) === p.violation))
+})
+
+test('judgeSons=false 로 뺀 son 은 cap 을 넘어도 over_by 가 null 입니다', () => {
+  const merged = applyAnnotation(recipe({ parameters: [
+    { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+    { name: 'EDGE_L', point_count: 16, mother: false, region: 1 }
+  ] }))
+  const res = evaluateRecipe(merged, resolveRuleCell(merged, [coreEarlyDram]), { judgeSons: false })
+  const son = res.results[1]!
+  assert.deepEqual([son.over_cap, son.violation, son.over_by], [true, false, null])
+})
+
+test('gray 는 cell_id 가 null 이고 파라미터의 cap_source 는 unset 입니다', () => {
+  const merged = applyAnnotation(recipe({ parameters: [{ name: 'EDGE_L', point_count: 99 }] }))
+  const res = evaluateRecipe(merged, resolveRuleCell(merged, []))
+  assert.equal(res.gray, 'A')
+  assert.equal(res.cell_id, null)
+  assert.deepEqual(res.results.map(p => [p.cap_source, p.over_by]), [['unset', null]])
+})
+
+test('applyAnnotation 은 memory_class 의 출처를 남깁니다', () => {
+  const base = recipe({})
+  assert.equal(applyAnnotation(base).memory_class_origin, 'auto')
+  assert.equal(applyAnnotation(base, { memory_class: 'NAND' }).memory_class_origin, 'annotation')
+  const unknown = { ...base, memory_class_auto: 'unknown' as const }
+  assert.equal(applyAnnotation(unknown).memory_class_origin, null)
+  assert.equal(applyAnnotation({ ...unknown, family: 'VG_RTC_Cubic' }).memory_class_origin, 'family')
+})

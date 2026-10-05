@@ -4,6 +4,7 @@
 import { isExemptJob } from './lotHealth.ts'
 import { dropLeadingHelperParams } from './outlierDetect.ts'
 import { paramRole } from './ruleEngine.ts'
+import { explainRecipe, type RecipeExplanation } from './ruleExplain.ts'
 import type { ParamRole, RecipeInput, LotHealth } from './ruleEngine'
 import type { DeviceOutlierResult } from './outlierDetect'
 
@@ -22,6 +23,13 @@ export interface DrillParameter {
   note?: string
   /** mother / son (idp Mother_Para). 판정이 아니라 recipe 의 사실이라 두 어댑터가 모두 싣습니다. */
   role: ParamRole
+  /**
+   * cap 이 어디서 왔는가 — `ruleExplain.CAP_SOURCE_LABEL` 의 말 그대로. 룰 판정
+   * 어댑터만 싣습니다: outlier 에는 cap 이 없고, gray recipe 에는 셀이 없습니다.
+   */
+  source?: string
+  /** 위반이면 cap 을 넘긴 point 수. 화면이 cap 옆에 `+N` 으로 적습니다. */
+  over_by?: number | null
 }
 
 export interface DrillRecipe {
@@ -39,6 +47,8 @@ export interface DrillRecipe {
    * 디바이스가 실제로 돌리는 recipe 가 목록에서 사라집니다.
    */
   exempt?: boolean
+  /** 룰 판정의 근거(`ruleExplain`). outlier 어댑터에는 판정이 없어 싣지 않습니다. */
+  explanation?: RecipeExplanation
 }
 
 export interface DrillDevice {
@@ -115,11 +125,16 @@ export const toViolationDrill = (
   health: LotHealth
 ): DrillDevice => {
   const drillRecipes: DrillRecipe[] = health.recipes.map((r) => {
-    const parameters: DrillParameter[] = r.results.map(p => ({
+    // 판정이 실제로 쓴 입력과 셀로 설명합니다 — 여기서 다시 찾지 않습니다.
+    const explanation = explainRecipe(r.basis.recipe, r, r.basis.cell)
+    const parameters: DrillParameter[] = r.results.map((p, i) => ({
       name: p.name,
       point_count: p.point_count,
       flagged: p.violation,
       role: p.role,
+      // explanation.params 는 r.results 를 같은 순서로 옮긴 것입니다.
+      source: explanation.params[i]?.source_label ?? undefined,
+      over_by: p.over_by,
       // 판정에서 뺀 son 이 상한을 넘었으면 그 사실을 적습니다. 적지 않으면
       // "재 봤더니 상한 안" 과 "아예 안 쟀다" 가 화면에서 같은 모습이 되어,
       // son 판정 토글을 껐다는 사실이 숫자가 줄었다는 것 말고는 드러나지 않습니다.
@@ -137,7 +152,8 @@ export const toViolationDrill = (
       flagged: !r.pass && r.gray == null,
       total_params: r.total_params,
       flagged_count: r.violation_params.length,
-      parameters
+      parameters,
+      explanation
     }
   })
   return {

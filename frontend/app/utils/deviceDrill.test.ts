@@ -174,3 +174,27 @@ test('violation drill carries mother/son role per parameter', () => {
   const params = toViolationDrill('R000', '', health).recipes[0]!.parameters
   assert.deepEqual(params.map(p => p.role), ['mother', 'son'])
 })
+
+test('violation drill: cap 출처·초과분·판정 근거를 행 모델에 싣습니다', () => {
+  const health = evaluateLot('R000', [dramRecipe('B', 16)], [coreEarlyDram])
+  const rec = toViolationDrill('R000', '', health).recipes[0]!
+  const edge = rec.parameters.find(p => p.name === 'EDGE_L')!
+  assert.equal(edge.source, '타입 cap')
+  assert.equal(edge.over_by, 6)
+  assert.equal(rec.parameters.find(p => p.name === 'WAFER_CD')!.over_by, null)
+  assert.equal(rec.explanation?.cell.kind, 'cell')
+  assert.match(rec.explanation!.sentence, /EDGE_L 가 cap 10 를 6 초과했습니다\.$/)
+})
+
+test('violation drill: gray recipe 는 근거 문장만 있고 cap 출처가 없습니다', () => {
+  const rec = toViolationDrill('R000', '', evaluateLot('R000', [dramRecipe('A', 99)], [])).recipes[0]!
+  assert.ok(rec.parameters.every(p => p.source === undefined))
+  assert.match(rec.explanation!.sentence, /Gray-A/)
+})
+
+test('outlier drill 은 cap 판정이 아니라 출처도 근거도 싣지 않습니다', () => {
+  const recipes = [dramRecipe('A', 8)]
+  const rec = toOutlierDrill('R000', '', recipes, detectDeviceOutliers(recipes)).recipes[0]!
+  assert.equal(rec.explanation, undefined)
+  assert.ok(rec.parameters.every(p => p.source === undefined))
+})
