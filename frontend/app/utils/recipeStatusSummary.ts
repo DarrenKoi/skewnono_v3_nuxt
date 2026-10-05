@@ -59,6 +59,16 @@ const DELTA_CLASS: Record<RecipeStatusDeltaTone, string> = {
 export const recipeStatusDeltaClass = (tone: RecipeStatusDeltaTone): string =>
   DELTA_CLASS[tone]
 
+/**
+ * Tooltip for a delta. The delta text leads because the strip ellipsizes a
+ * delta wider than its item, and the tooltip is then the only place the whole
+ * value can be read.
+ */
+export const recipeStatusDeltaTitle = (
+  delta: RecipeStatusSummaryDelta
+): string | undefined =>
+  [delta.text, delta.title].filter(Boolean).join(' · ') || undefined
+
 /** One caption per strip, or `null` when no item carries a comparison. */
 export const recipeStatusDeltaCaption = (
   items: readonly RecipeStatusSummaryItem[]

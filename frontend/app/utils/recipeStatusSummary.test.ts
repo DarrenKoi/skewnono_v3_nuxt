@@ -5,6 +5,7 @@ import {
   buildTatSummaryItems,
   recipeStatusDeltaCaption,
   recipeStatusDeltaClass,
+  recipeStatusDeltaTitle,
   recipeStatusSummaryValueClass,
   resolveRecipeStatusSummaryValue
 } from './recipeStatusSummary.ts'
@@ -114,4 +115,13 @@ test('recipeStatusDeltaClass maps every tone to a token colour', () => {
   assert.equal(recipeStatusDeltaClass('bad'), 'text-(--sk-bad)')
   assert.equal(recipeStatusDeltaClass('neutral'), 'text-(--sk-ink)')
   assert.equal(recipeStatusDeltaClass('none'), 'text-(--sk-ink-muted)')
+})
+
+test('recipeStatusDeltaTitle leads with the full delta text so a clipped value stays readable', () => {
+  assert.equal(
+    recipeStatusDeltaTitle({ text: '+120h 00m 00s (+150.0%)', tone: 'bad', title: '이전 15일 400건 대비 · 현재 1,000건' }),
+    '+120h 00m 00s (+150.0%) · 이전 15일 400건 대비 · 현재 1,000건'
+  )
+  assert.equal(recipeStatusDeltaTitle({ text: '이전 기간 없음', tone: 'none', title: '' }), '이전 기간 없음')
+  assert.equal(recipeStatusDeltaTitle({ text: '', tone: 'none', title: '' }), undefined)
 })
