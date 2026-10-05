@@ -378,6 +378,7 @@ export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolut
 
   const needsMem = byClassFam.some(c => c.selector.memory_class) && r.memory_class == null
   const needsYield = byClassFam.some(c => c.selector.yield_check) && r.yield_check == null
+  // `ruleExplain.graySentence` 가 Gray-B 사유의 **첫 단어**(필드 이름)를 읽습니다 — 문구를 바꾸면 ruleExplain 과 그 테스트도 함께 고칩니다.
   if (needsMem) return { kind: 'gray', gray: 'B', reason: 'memory_class 미설정' }
   if (needsYield) return { kind: 'gray', gray: 'B', reason: 'yield_check 미설정' }
   return { kind: 'gray', gray: 'A', reason: '룰 미정' }

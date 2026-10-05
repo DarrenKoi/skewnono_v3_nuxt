@@ -128,11 +128,26 @@ const verdictClause = (result: RecipeResult): string => {
   if (result.results.length === 0) return '판정할 파라미터가 없습니다.'
   const over = result.violation_params
   if (over.length === 0) {
-    // 판정에서 뺀 파라미터가 있으면 "모든" 이라고 하지 않습니다 — 안 잰 것까지
-    // 깨끗하다고 말하게 됩니다.
-    return result.results.every(p => p.judged)
-      ? '모든 파라미터가 cap 이내입니다.'
-      : '판정한 파라미터는 모두 cap 이내입니다.'
+    const judged = result.results.filter(p => p.judged)
+    // cap 이 없는 파라미터(cap 없음 · 면제)는 견줄 숫자가 없었던 것이지 "이내" 가
+    // 아닙니다. 한데 묶어 "모두 cap 이내" 라고 하면 재지 않은 것을 쟀다고 말하게
+    // 됩니다.
+    const uncapped = judged.filter(p => p.cap === null)
+    const capped = judged.length - uncapped.length
+    // 판정에서 뺀 파라미터가 있을 때도 "모든" 이라고 하지 않습니다 — 같은 이유입니다.
+    const allJudged = judged.length === result.results.length
+    if (uncapped.length === 0) {
+      return allJudged ? '모든 파라미터가 cap 이내입니다.' : '판정한 파라미터는 모두 cap 이내입니다.'
+    }
+    const why = uncapped.every(p => p.cap_source === 'exempt')
+      ? CAP_SOURCE_LABEL.exempt
+      : uncapped.every(p => p.cap_source === 'unset')
+        ? CAP_SOURCE_LABEL.unset
+        : `${CAP_SOURCE_LABEL.unset}·${CAP_SOURCE_LABEL.exempt}`
+    const scope = allJudged ? '' : '판정한 파라미터 중 '
+    return capped === 0
+      ? `${scope}cap 이 있는 파라미터가 없습니다(${uncapped.length}개 ${why}).`
+      : `${scope}cap 이 있는 파라미터 ${capped}개는 모두 이내이고, ${uncapped.length}개는 ${why}입니다.`
   }
   // 가장 많이 넘긴 하나를 이름으로 듭니다. 동률이면 측정 순서상 앞선 것.
   const worst = over.reduce((a, b) => (b.over_by ?? 0) > (a.over_by ?? 0) ? b : a)

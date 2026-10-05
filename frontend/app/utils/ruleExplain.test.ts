@@ -73,7 +73,8 @@ test('이름 예외: 숫자를 주면 "이름 예외", null 을 주면 "면제" 
   assert.equal(result.pass, true)
   // Sample 셀은 family·phase 를 키로 쓰지 않으므로 문장 머리에도 없습니다.
   assert.equal(ex.inputs.axis, null)
-  assert.equal(ex.sentence, 'Sample · DRAM 으로 읽혀 r3-sample-dram 셀이 적용됐고, 모든 파라미터가 cap 이내입니다.')
+  // 면제는 견줄 cap 이 없었던 것이라 "cap 이내" 라고 하지 않습니다.
+  assert.equal(ex.sentence, 'Sample · DRAM 으로 읽혀 r3-sample-dram 셀이 적용됐고, cap 이 있는 파라미터가 없습니다(1개 면제).')
 })
 
 test('셀에 그 타입의 cap 이 없으면 면제가 아니라 "cap 없음" 입니다', () => {
@@ -81,6 +82,42 @@ test('셀에 그 타입의 cap 이 없으면 면제가 아니라 "cap 없음" �
   const { ex } = explain(recipe([{ name: 'LEVEL_1', point_count: 40 }]), { cells: [noLevel] })
   assert.equal(param(ex, 'LEVEL_1').cap, null)
   assert.equal(param(ex, 'LEVEL_1').source_label, 'cap 없음')
+  assert.match(ex.sentence, /cap 이 있는 파라미터가 없습니다\(1개 cap 없음\)\.$/)
+})
+
+// 회귀: cap 이 null 인 파라미터(cap 없음 · 면제)를 "cap 이내" 로 세면 안 됩니다.
+test('cap 없는 파라미터가 섞이면 이내인 개수와 cap 없는 개수를 나눠 말합니다', () => {
+  const noLevel: RuleCell = { ...coreEarlyDram, caps: { WAFER: 13, EDGE: 10, EDGE_EX: 0, _other: 9 } }
+  const params = [
+    { name: 'WAFER_CD', point_count: 13 },
+    { name: 'EDGE_L', point_count: 10 },
+    { name: 'CELL_SP', point_count: 9 },
+    { name: 'LEVEL_1', point_count: 40 }
+  ]
+  const unset = explain(recipe(params), { cells: [noLevel] })
+  assert.equal(unset.result.pass, true, '판정 자체는 그대로입니다')
+  assert.match(unset.ex.sentence, /cap 이 있는 파라미터 3개는 모두 이내이고, 1개는 cap 없음입니다\.$/)
+
+  // 면제(Sample 의 Dummy)도 같습니다.
+  const exempt = explain(recipe([{ name: 'WAFER_CD', point_count: 13 }, { name: 'Dummy', point_count: 1 }], { recipe_class: 'Sample' })).ex
+  assert.match(exempt.sentence, /cap 이 있는 파라미터 1개는 모두 이내이고, 1개는 면제입니다\.$/)
+
+  // 둘이 섞이면 둘 다 적습니다.
+  const mixedCell: RuleCell = { ...sampleDram, caps: { WAFER: 13, EDGE: 10, EDGE_EX: 0, _other: 0 } }
+  const mixed = explain(recipe([
+    { name: 'WAFER_CD', point_count: 13 }, { name: 'LEVEL_1', point_count: 40 }, { name: 'Dummy', point_count: 1 }
+  ], { recipe_class: 'Sample' }), { cells: [mixedCell] }).ex
+  assert.match(mixed.sentence, /cap 이 있는 파라미터 1개는 모두 이내이고, 2개는 cap 없음·면제입니다\.$/)
+})
+
+test('판정에서 뺀 son 과 cap 없는 파라미터가 함께 있으면 범위를 "판정한 파라미터 중" 으로 좁힙니다', () => {
+  const noLevel: RuleCell = { ...coreEarlyDram, caps: { WAFER: 13, EDGE: 10, EDGE_EX: 0, _other: 9 } }
+  const { ex } = explain(recipe([
+    { name: 'WAFER_CD', point_count: 13, mother: true, region: 1 },
+    { name: 'EDGE_L', point_count: 16, mother: false, region: 1 },
+    { name: 'LEVEL_1', point_count: 40, mother: true, region: 2 }
+  ]), { cells: [noLevel], judgeSons: false })
+  assert.match(ex.sentence, /판정한 파라미터 중 cap 이 있는 파라미터 1개는 모두 이내이고, 1개는 cap 없음입니다\.$/)
 })
 
 // son 이 mother 의 cap 을 받는 것은 `effectiveCap` 의 한 경로뿐입니다: 자기 cap 이
