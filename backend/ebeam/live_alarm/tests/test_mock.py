@@ -92,6 +92,20 @@ def test_the_repeat_is_pronounced_enough_to_rank(at_minute):
     assert best >= 4
 
 
+def test_every_non_empty_board_has_one_lot_on_two_tools(at_minute):
+    # The 사건 범위 card's "한 lot · 여러 장비" column keeps only lots seen on 2+
+    # tools. Cycling gives every event its own lot_id, so without the pattern
+    # `get_board` places deliberately that column is permanently 해당 없음 at
+    # home — a mock quietly asserting a lot never trips two tools.
+    for board in _cycle_boards(at_minute):
+        if not board["events"]:
+            continue
+        tools_by_lot = collections.defaultdict(set)
+        for event in board["events"]:
+            tools_by_lot[event["lot_id"]].add(event["eqp_id"])
+        assert any(len(tools) >= 2 for tools in tools_by_lot.values())
+
+
 def test_an_empty_board_stays_reachable(at_minute):
     # Raising the volume must not cost the empty state. "최근 20분간 알람이
     # 없습니다." is a real screen, and a mock that is never quiet means nobody
