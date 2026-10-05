@@ -190,9 +190,6 @@ export interface ScopeGroup {
   toolCount: number
   recipeCount: number
   lotCount: number
-  eqpIds: string[]
-  recipeIds: string[]
-  lotIds: string[]
   firstEpoch: number
   lastEpoch: number
   kinds: { align: number, meas: number }
@@ -217,7 +214,6 @@ const distinctSorted = (values: string[]): string[] =>
 const summarizeScope = (key: string, label: string, events: LiveAlarmEvent[]): ScopeGroup => {
   const eqpIds = distinctSorted(events.map(e => e.eqp_id))
   const recipeIds = distinctSorted(events.map(e => e.recipe_id))
-  const lotIds = distinctSorted(events.map(e => e.lot_id))
   const epochs = events.map(e => e.occurred_epoch)
   const alids: Record<string, number> = {}
   for (const event of events) alids[event.alid] = (alids[event.alid] ?? 0) + 1
@@ -229,9 +225,6 @@ const summarizeScope = (key: string, label: string, events: LiveAlarmEvent[]): S
     toolCount: eqpIds.length,
     recipeCount: recipeIds.length,
     lotCount: distinctLotCount(events),
-    eqpIds,
-    recipeIds,
-    lotIds,
     firstEpoch: Math.min(...epochs),
     lastEpoch: Math.max(...epochs),
     kinds: boardCounts(events),

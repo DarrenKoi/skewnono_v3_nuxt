@@ -226,11 +226,7 @@ describe('scopeGroups', () => {
     assert.equal(recipe?.toolCount, 2)
     assert.equal(recipe?.recipeCount, 1)
     assert.equal(recipe?.lotCount, 2)
-    assert.deepEqual(recipe?.eqpIds, ['EQ1', 'EQ2'])
-    assert.deepEqual(recipe?.recipeIds, ['RA'])
-    assert.deepEqual(recipe?.lotIds, ['L1', 'L2'])
     assert.equal(scope.toolAcrossRecipes[0]?.recipeCount, 2)
-    assert.deepEqual(scope.toolAcrossRecipes[0]?.recipeIds, ['RB', 'RC'])
   })
 
   it('treats one recipe_id in R3 and R4 as two groups', () => {
@@ -241,10 +237,10 @@ describe('scopeGroups', () => {
       ev('4', { fab_name: 'R3', eqp_id: 'EQ2', recipe_id: 'RA' })
     ])
     assert.deepEqual(
-      scope.recipeAcrossTools.map(g => [g.key, g.label, g.fabNames, g.eqpIds]),
+      scope.recipeAcrossTools.map(g => [g.key, g.label, g.fabNames, g.toolCount]),
       [
-        ['recipe:R3:RA', 'RA', ['R3'], ['EQ1', 'EQ2']],
-        ['recipe:R4:RA', 'RA', ['R4'], ['EQ3', 'EQ4']]
+        ['recipe:R3:RA', 'RA', ['R3'], 2],
+        ['recipe:R4:RA', 'RA', ['R4'], 2]
       ]
     )
   })
