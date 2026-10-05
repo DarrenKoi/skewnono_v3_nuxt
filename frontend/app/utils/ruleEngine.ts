@@ -362,9 +362,12 @@ const selectorMatches = (cell: RuleCell, r: MergedRecipe): boolean => {
   return true
 }
 
+/** Gray-B 에서 비어 있던 어노테이션 필드. 화면 문장은 이 값으로 만듭니다. */
+export type GrayField = 'memory_class' | 'yield_check'
+
 export type CellResolution
   = | { kind: 'cell', cell: RuleCell }
-    | { kind: 'gray', gray: 'A' | 'B', reason: string }
+    | { kind: 'gray', gray: 'A' | 'B', reason: string, field?: GrayField }
 
 /** D8 + D14 — find the cell, or classify why it's gray (A=룰미정, B=어노테이션미설정). */
 export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolution => {
@@ -378,9 +381,8 @@ export const resolveRuleCell = (r: MergedRecipe, cells: RuleCell[]): CellResolut
 
   const needsMem = byClassFam.some(c => c.selector.memory_class) && r.memory_class == null
   const needsYield = byClassFam.some(c => c.selector.yield_check) && r.yield_check == null
-  // `ruleExplain.graySentence` 가 Gray-B 사유의 **첫 단어**(필드 이름)를 읽습니다 — 문구를 바꾸면 ruleExplain 과 그 테스트도 함께 고칩니다.
-  if (needsMem) return { kind: 'gray', gray: 'B', reason: 'memory_class 미설정' }
-  if (needsYield) return { kind: 'gray', gray: 'B', reason: 'yield_check 미설정' }
+  if (needsMem) return { kind: 'gray', gray: 'B', reason: 'memory_class 미설정', field: 'memory_class' }
+  if (needsYield) return { kind: 'gray', gray: 'B', reason: 'yield_check 미설정', field: 'yield_check' }
   return { kind: 'gray', gray: 'A', reason: '룰 미정' }
 }
 
@@ -447,8 +449,7 @@ export interface RecipeResult {
   pass: boolean
   gray: 'A' | 'B' | null
   gray_reason?: string
-  /** 적용된 `RuleCell` 의 id. gray 면 null. */
-  cell_id: string | null
+  gray_field?: GrayField
   /**
    * 이 판정이 **무엇을 무엇으로** 쟀는가 — 복사가 아니라 참조입니다.
    *
@@ -474,7 +475,7 @@ export const evaluateRecipe = (
       pass: true, // conservative: gray ≠ violation (D14)
       gray: res.gray,
       gray_reason: res.reason,
-      cell_id: null,
+      gray_field: res.field,
       basis: { recipe, cell: null },
       results: recipe.parameters.map(p => ({ name: p.name, point_count: p.point_count, type: deriveType(p.name), cap: null, judged: false, cap_source: 'unset', over_cap: false, violation: false, over_by: null, role: paramRole(p) }))
     }
@@ -504,7 +505,6 @@ export const evaluateRecipe = (
     violation_params,
     pass: violation_params.length === 0,
     gray: null,
-    cell_id: res.cell.id,
     basis: { recipe, cell: res.cell },
     results
   }

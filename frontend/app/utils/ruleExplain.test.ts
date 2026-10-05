@@ -6,7 +6,7 @@ import {
   applyAnnotation, evaluateRecipe, resolveRuleCell,
   type Annotation, type JudgeOptions, type Parameter, type RecipeInput, type RuleCell
 } from './ruleEngine.ts'
-import { explainRecipe, selectorSummary } from './ruleExplain.ts'
+import { capSourceLabel, explainRecipe, selectorSummary } from './ruleExplain.ts'
 
 // --- fixtures: providers/rules.py 의 R3 seed 셀 모양 그대로 ---
 const wfOverride = { patterns: ['DSPT', 'WF', 'WAFER'], match: 'contains' as const, cap: 13 }
@@ -42,7 +42,11 @@ const recipe = (parameters: Parameter[], over: Partial<RecipeInput> = {}): Recip
 const explain = (input: RecipeInput, opts: JudgeOptions & { cells?: RuleCell[] } = {}) => {
   const merged = applyAnnotation(input, opts.annotation)
   const result = evaluateRecipe(merged, resolveRuleCell(merged, opts.cells ?? CELLS), opts)
-  return { result, ex: explainRecipe(result.basis.recipe, result, result.basis.cell) }
+  const ex = explainRecipe(result.basis.recipe, result, result.basis.cell)
+  // 파라미터 행은 deviceDrill 이 그리는 그대로: 엔진 결과 + 화면 출처 표기.
+  const gray = ex.cell.kind === 'gray'
+  const params = result.results.map(p => ({ ...p, source_label: capSourceLabel(p, gray) }))
+  return { result, ex: { ...ex, params } }
 }
 const param = (ex: ReturnType<typeof explain>['ex'], name: string) => ex.params.find(p => p.name === name)!
 
@@ -71,8 +75,8 @@ test('이름 예외: 숫자를 주면 "이름 예외", null 을 주면 "면제" 
   assert.equal(dummy.source_label, '면제')
   assert.equal(dummy.over_by, null)
   assert.equal(result.pass, true)
-  // Sample 셀은 family·phase 를 키로 쓰지 않으므로 문장 머리에도 없습니다.
-  assert.equal(ex.inputs.axis, null)
+  // Sample 셀은 family·phase 를 키로 쓰지 않으므로 입력 줄에도 문장 머리에도 없습니다.
+  assert.ok(!ex.input_rows.some(r => r.label === 'phase' || r.label === 'yield_check'))
   // 면제는 견줄 cap 이 없었던 것이라 "cap 이내" 라고 하지 않습니다.
   assert.equal(ex.sentence, 'Sample · DRAM 으로 읽혀 r3-sample-dram 셀이 적용됐고, cap 이 있는 파라미터가 없습니다(1개 면제).')
 })
@@ -166,8 +170,6 @@ test('Pool 은 phase 를 이깁니다: 셀 축은 yield_check 이고 phase 는 �
   const pool = recipe([{ name: 'EDGE_L', point_count: 16 }], { family: 'Pool', phase: 'PV' })
   const { ex } = explain(pool, { annotation: { yield_check: 'before' } })
   assert.deepEqual(ex.cell, { kind: 'cell', id: 'r3-pool-before-dram', summary: 'R3 · Main · Pool · 수율 전 · DRAM' })
-  assert.equal(ex.inputs.axis, 'yield_check')
-  assert.equal(ex.inputs.phase, 'PV', 'phase 값 자체는 남깁니다')
   assert.equal(ex.sentence, 'Pool · 수율 전 · DRAM 으로 읽혀 r3-pool-before-dram 셀이 적용됐고, EDGE_L 가 cap 10 를 6 초과했습니다.')
   assert.deepEqual(ex.input_rows.filter(r => r.label === 'phase' || r.label === 'yield_check'), [
     { label: 'yield_check', value: '수율 전' },
@@ -179,8 +181,9 @@ test('Gray-B: 빠진 어노테이션을 이름으로 말하고 cap 출처는 적
   const noMem = explain(recipe([{ name: 'EDGE_L', point_count: 99 }], { memory_class_auto: 'unknown' })).ex
   assert.deepEqual(noMem.cell, { kind: 'gray', gray: 'B', reason: 'memory_class 미설정' })
   assert.equal(noMem.sentence, 'memory_class 가 없어 판정하지 않았습니다(Gray-B).')
-  assert.deepEqual(noMem.params.map(p => [p.cap, p.cap_source, p.source_label, p.over_by]), [[null, null, null, null]])
-  assert.equal(noMem.inputs.axis, null)
+  assert.deepEqual(noMem.params.map(p => [p.cap, p.cap_source, p.source_label, p.over_by]), [[null, 'unset', null, null]])
+  // gray 는 셀이 없으니 어느 축이 비었는지 보이도록 두 축을 다 적습니다.
+  assert.ok(noMem.input_rows.some(r => r.label === 'phase') && noMem.input_rows.some(r => r.label === 'yield_check'))
   assert.ok(noMem.input_rows.some(r => r.label === 'memory_class' && r.value === '미설정'))
 
   const noYield = explain(recipe([{ name: 'EDGE_L', point_count: 99 }], { family: 'Pool' })).ex

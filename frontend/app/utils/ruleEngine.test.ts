@@ -677,15 +677,15 @@ test('role: judgeSons=false 는 mother 있는 region 의 son 만 뺀다 — 이�
   ])
 })
 
-// ---- 판정 근거 필드 (cap_source · over_by · cell_id) — 판정을 바꾸지 않는 기록 ----
-test('over_by 는 위반일 때만 point_count - cap 이고, cell_id 는 적용된 셀입니다', () => {
+// ---- 판정 근거 필드 (cap_source · over_by · basis) — 판정을 바꾸지 않는 기록 ----
+test('over_by 는 위반일 때만 point_count - cap 이고, basis 는 적용된 셀을 가리킵니다', () => {
   const merged = applyAnnotation(recipe({ parameters: [
     { name: 'WAFER_CD', point_count: 13 },
     { name: 'EDGE_L', point_count: 16 },
     { name: 'CELL_SP', point_count: 9 }
   ] }))
   const res = evaluateRecipe(merged, resolveRuleCell(merged, [coreEarlyDram]))
-  assert.equal(res.cell_id, 'r3-core-tev-dram')
+  assert.equal(res.basis.cell?.id, 'r3-core-tev-dram')
   assert.deepEqual(res.results.map(p => [p.name, p.cap_source, p.over_by]), [
     ['WAFER_CD', 'type', null],
     ['EDGE_L', 'type', 6],
@@ -704,12 +704,19 @@ test('judgeSons=false 로 뺀 son 은 cap 을 넘어도 over_by 가 null 입니�
   assert.deepEqual([son.over_cap, son.violation, son.over_by], [true, false, null])
 })
 
-test('gray 는 cell_id 가 null 이고 파라미터의 cap_source 는 unset 입니다', () => {
+test('gray 는 basis.cell 이 null 이고 파라미터의 cap_source 는 unset 입니다', () => {
   const merged = applyAnnotation(recipe({ parameters: [{ name: 'EDGE_L', point_count: 99 }] }))
   const res = evaluateRecipe(merged, resolveRuleCell(merged, []))
   assert.equal(res.gray, 'A')
-  assert.equal(res.cell_id, null)
+  assert.equal(res.basis.cell, null)
+  assert.equal(res.gray_field, undefined)
   assert.deepEqual(res.results.map(p => [p.cap_source, p.over_by]), [['unset', null]])
+})
+
+test('Gray-B 는 비어 있던 어노테이션 필드를 gray_field 로 남깁니다', () => {
+  const merged = applyAnnotation(recipe({ memory_class_auto: 'unknown', parameters: [{ name: 'EDGE_L', point_count: 1 }] }))
+  const res = evaluateRecipe(merged, resolveRuleCell(merged, [coreEarlyDram]))
+  assert.deepEqual([res.gray, res.gray_field], ['B', 'memory_class'])
 })
 
 test('applyAnnotation 은 memory_class 의 출처를 남깁니다', () => {

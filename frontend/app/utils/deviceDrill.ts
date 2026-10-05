@@ -4,7 +4,7 @@
 import { isExemptJob } from './lotHealth.ts'
 import { dropLeadingHelperParams } from './outlierDetect.ts'
 import { paramRole } from './ruleEngine.ts'
-import { explainRecipe, type RecipeExplanation } from './ruleExplain.ts'
+import { capSourceLabel, explainRecipe, type RecipeExplanation } from './ruleExplain.ts'
 import type { ParamRole, RecipeInput, LotHealth } from './ruleEngine'
 import type { DeviceOutlierResult } from './outlierDetect'
 
@@ -127,13 +127,13 @@ export const toViolationDrill = (
   const drillRecipes: DrillRecipe[] = health.recipes.map((r) => {
     // 판정이 실제로 쓴 입력과 셀로 설명합니다 — 여기서 다시 찾지 않습니다.
     const explanation = explainRecipe(r.basis.recipe, r, r.basis.cell)
-    const parameters: DrillParameter[] = r.results.map((p, i) => ({
+    const gray = explanation.cell.kind === 'gray'
+    const parameters: DrillParameter[] = r.results.map(p => ({
       name: p.name,
       point_count: p.point_count,
       flagged: p.violation,
       role: p.role,
-      // explanation.params 는 r.results 를 같은 순서로 옮긴 것입니다.
-      source: explanation.params[i]?.source_label ?? undefined,
+      source: capSourceLabel(p, gray) ?? undefined,
       over_by: p.over_by,
       // 판정에서 뺀 son 이 상한을 넘었으면 그 사실을 적습니다. 적지 않으면
       // "재 봤더니 상한 안" 과 "아예 안 쟀다" 가 화면에서 같은 모습이 되어,
