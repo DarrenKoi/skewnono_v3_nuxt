@@ -302,18 +302,18 @@ const tableUi = {
         <template #msr_check-cell="{ row }">
           <UTooltip
             v-if="skewvoirAnalysisRouteForRow(props.toolType, row.original)"
-            text="스큐보아에서 열기"
+            :text="`스큐보아에서 열기 · ${row.original.msr}`"
           >
             <NuxtLink
               :to="skewvoirAnalysisRouteForRow(props.toolType, row.original) ?? undefined"
               :aria-label="`${row.original.msr} 스큐보아에서 열기`"
-              class="inline-flex items-center gap-1 font-mono text-xs tabular-nums text-(--sk-ink) hover:underline"
+              class="inline-flex items-center gap-1 text-xs text-(--sk-ink) hover:underline"
             >
               <UIcon
                 name="i-lucide-telescope"
                 class="size-3.5 shrink-0"
               />
-              {{ row.original.msr.slice(0, 8) }}
+              열기
             </NuxtLink>
           </UTooltip>
           <UBadge

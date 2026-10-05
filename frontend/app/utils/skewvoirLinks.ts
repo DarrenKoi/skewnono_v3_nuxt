@@ -5,6 +5,7 @@
 // search. Pure, so it is unit-tested under raw `node --test`.
 import type { MeasHistRow } from '../composables/useMeasHistApi.ts'
 import type { SkewvoirSelection } from '../composables/useSkewvoirWorkspace.ts'
+import { hasMsrIdentity } from './measHistSelection.ts'
 import { toAnalysisQuery } from './skewvoirAnalysis/routeQuery.ts'
 
 export const SKEWVOIR_TOOL_TYPES = ['cd-sem', 'hv-sem'] as const
@@ -45,7 +46,7 @@ export const skewvoirAnalysisRouteForRow = (
   toolType: string,
   row: MeasHistRow
 ): { path: string, query: Record<string, string> } | null => {
-  if (!row.msr.trim() || !hasSkewvoir(toolType)) return null
+  if (!hasMsrIdentity(row) || !hasSkewvoir(toolType)) return null
   return {
     path: `/ebeam/${toolType}/skewvoir/analysis`,
     query: toAnalysisQuery(measHistRowToSelection(row))
