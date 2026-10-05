@@ -177,9 +177,15 @@ export const groupMeasEvents = (events: LiveAlarmEvent[]): MeasGroupItem[] => {
 // 문제인가" question the chronological list cannot answer at a glance.
 export interface ScopeGroup {
   // `${axis}:${label}` — derived from the data, never from an index, so a
-  // group keeps its identity across the 15-second polls.
+  // group keeps its identity across the 15-second polls. The recipe axis is
+  // `recipe:${fab_name}:${label}`: a PPID is only a name inside one fab, and
+  // the same spelling in R3 and R4 can be two unrelated recipes.
   key: string
   label: string
+  // Every fab the group's alarms came from, distinct and sorted. Exactly one
+  // on the recipe axis (it is part of the key); a lot or a tool is keyed by
+  // label alone, so this can hold more than one there.
+  fabNames: string[]
   eventCount: number
   toolCount: number
   recipeCount: number
@@ -218,6 +224,7 @@ const summarizeScope = (key: string, label: string, events: LiveAlarmEvent[]): S
   return {
     key,
     label,
+    fabNames: distinctSorted(events.map(e => e.fab_name)),
     eventCount: events.length,
     toolCount: eqpIds.length,
     recipeCount: recipeIds.length,
@@ -232,31 +239,35 @@ const summarizeScope = (key: string, label: string, events: LiveAlarmEvent[]): S
   }
 }
 
-// Buckets by `field`, keeps only the groups that reach across 2+ of `span`,
-// and ranks them by that reach. Blank labels are skipped here and counted by
-// the caller.
+// Buckets by `field` (and by fab too when `perFab`), keeps only the groups
+// that reach across 2+ of `span`, and ranks them by that reach. Blank labels
+// are skipped here and counted by the caller.
 const scopeAxis = (
   events: LiveAlarmEvent[],
   axis: string,
   field: ScopeField,
-  span: 'toolCount' | 'recipeCount'
+  span: 'toolCount' | 'recipeCount',
+  perFab = false
 ): ScopeGroup[] => {
   const buckets = new Map<string, LiveAlarmEvent[]>()
   for (const event of events) {
     const label = event[field]
     if (!label) continue
-    const bucket = buckets.get(label)
+    const key = perFab ? `${axis}:${event.fab_name}:${label}` : `${axis}:${label}`
+    const bucket = buckets.get(key)
     if (bucket) bucket.push(event)
-    else buckets.set(label, [event])
+    else buckets.set(key, [event])
   }
   return [...buckets.entries()]
-    .map(([label, bucket]) => summarizeScope(`${axis}:${label}`, label, bucket))
+    .map(([key, bucket]) => summarizeScope(key, bucket[0]?.[field] ?? '', bucket))
     .filter(group => group[span] >= 2)
+    // The key is the last tiebreak because two fabs can share a label.
     .sort((a, b) =>
       b[span] - a[span]
       || b.eventCount - a.eventCount
       || b.lastEpoch - a.lastEpoch
       || a.label.localeCompare(b.label)
+      || a.key.localeCompare(b.key)
     )
 }
 
@@ -264,7 +275,7 @@ const scopeAxis = (
 // not depend on which alarm it raised, and `kinds` reports the split. That is
 // why this does not go through groupMeasEvents, which is meas-only by design.
 export const scopeGroups = (events: LiveAlarmEvent[]): ScopeGroups => ({
-  recipeAcrossTools: scopeAxis(events, 'recipe', 'recipe_id', 'toolCount'),
+  recipeAcrossTools: scopeAxis(events, 'recipe', 'recipe_id', 'toolCount', true),
   toolAcrossRecipes: scopeAxis(events, 'tool', 'eqp_id', 'recipeCount'),
   lotAcrossTools: scopeAxis(events, 'lot', 'lot_id', 'toolCount'),
   omitted: {

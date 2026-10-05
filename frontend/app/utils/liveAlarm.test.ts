@@ -204,21 +204,25 @@ describe('scopeGroups', () => {
     makeAlarmEvent({ id, lot_id: '', ...over, ppid: over.recipe_id ?? '' })
 
   it('keeps only groups spanning two or more on each axis', () => {
+    // RA's rows arrive out of order and repeat a tool and a lot, so the id
+    // arrays below only pass if they are both de-duplicated and sorted.
     const scope = scopeGroups([
-      ev('1', { eqp_id: 'EQ1', recipe_id: 'RA', lot_id: 'L1' }),
-      ev('2', { eqp_id: 'EQ2', recipe_id: 'RA', lot_id: 'L2' }),
+      ev('1', { eqp_id: 'EQ2', recipe_id: 'RA', lot_id: 'L2' }),
+      ev('2', { eqp_id: 'EQ1', recipe_id: 'RA', lot_id: 'L1' }),
+      ev('7', { eqp_id: 'EQ2', recipe_id: 'RA', lot_id: 'L2' }),
       ev('3', { eqp_id: 'EQ3', recipe_id: 'RB', lot_id: 'L3' }),
       ev('4', { eqp_id: 'EQ3', recipe_id: 'RC', lot_id: 'L3' }),
       ev('5', { eqp_id: 'EQ4', recipe_id: 'RD', lot_id: 'L4' }),
       ev('6', { eqp_id: 'EQ4', recipe_id: 'RD', lot_id: 'L4' })
     ])
-    assert.deepEqual(scope.recipeAcrossTools.map(g => g.key), ['recipe:RA'])
+    assert.deepEqual(scope.recipeAcrossTools.map(g => g.key), ['recipe:R3:RA'])
     assert.deepEqual(scope.toolAcrossRecipes.map(g => g.key), ['tool:EQ3'])
     assert.deepEqual(scope.lotAcrossTools, [])
 
     const recipe = scope.recipeAcrossTools[0]
     assert.equal(recipe?.label, 'RA')
-    assert.equal(recipe?.eventCount, 2)
+    assert.deepEqual(recipe?.fabNames, ['R3'])
+    assert.equal(recipe?.eventCount, 3)
     assert.equal(recipe?.toolCount, 2)
     assert.equal(recipe?.recipeCount, 1)
     assert.equal(recipe?.lotCount, 2)
@@ -226,6 +230,40 @@ describe('scopeGroups', () => {
     assert.deepEqual(recipe?.recipeIds, ['RA'])
     assert.deepEqual(recipe?.lotIds, ['L1', 'L2'])
     assert.equal(scope.toolAcrossRecipes[0]?.recipeCount, 2)
+    assert.deepEqual(scope.toolAcrossRecipes[0]?.recipeIds, ['RB', 'RC'])
+  })
+
+  it('treats one recipe_id in R3 and R4 as two groups', () => {
+    const scope = scopeGroups([
+      ev('1', { fab_name: 'R4', eqp_id: 'EQ3', recipe_id: 'RA' }),
+      ev('2', { fab_name: 'R4', eqp_id: 'EQ4', recipe_id: 'RA' }),
+      ev('3', { fab_name: 'R3', eqp_id: 'EQ1', recipe_id: 'RA' }),
+      ev('4', { fab_name: 'R3', eqp_id: 'EQ2', recipe_id: 'RA' })
+    ])
+    assert.deepEqual(
+      scope.recipeAcrossTools.map(g => [g.key, g.label, g.fabNames, g.eqpIds]),
+      [
+        ['recipe:R3:RA', 'RA', ['R3'], ['EQ1', 'EQ2']],
+        ['recipe:R4:RA', 'RA', ['R4'], ['EQ3', 'EQ4']]
+      ]
+    )
+  })
+
+  it('does not join one recipe_id across fabs into a multi-tool group', () => {
+    const scope = scopeGroups([
+      ev('1', { fab_name: 'R3', eqp_id: 'EQ1', recipe_id: 'RA' }),
+      ev('2', { fab_name: 'R4', eqp_id: 'EQ3', recipe_id: 'RA' })
+    ])
+    assert.deepEqual(scope.recipeAcrossTools, [])
+  })
+
+  it('keys a lot by label alone and lists every fab it was seen in', () => {
+    const scope = scopeGroups([
+      ev('1', { fab_name: 'R4', eqp_id: 'EQ3', lot_id: 'L1' }),
+      ev('2', { fab_name: 'R3', eqp_id: 'EQ1', lot_id: 'L1' })
+    ])
+    assert.deepEqual(scope.lotAcrossTools.map(g => g.key), ['lot:L1'])
+    assert.deepEqual(scope.lotAcrossTools[0]?.fabNames, ['R3', 'R4'])
   })
 
   it('sends a blank ppid/recipe and a blank lot to omitted instead of grouping them', () => {

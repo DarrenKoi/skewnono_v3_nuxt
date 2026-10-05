@@ -212,6 +212,7 @@ useHead({
       v-if="feedStatus !== 'not_configured' && events.length > 0"
       :scope="scope"
       :server-now="Date.now() + serverOffsetMs"
+      :multi-fab="multiFab"
     />
 
     <!-- The tablist is conditional, so the panel only claims to be its

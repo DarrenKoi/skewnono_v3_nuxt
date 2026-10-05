@@ -14,6 +14,13 @@ board — see `_HOT_BURST`. That correlation is FABRICATED: the shape is real
 (it is what the screen was built for), the RATE is not something home can
 know, and is marked OFFICE-VERIFY.
 
+The 사건 범위 card also reads the board along a lot axis ("한 lot · 여러 장비"),
+and cycling alone gives every event its own lot_id, so that column could never
+fill at home. `get_board` therefore makes ONE lot fail on two tools on every
+non-empty board — see the `lot_id` copy there. Same status as the burst: the
+shape is what the screen was built for; whether and how often a lot actually
+trips two tools inside the 20-minute window is OFFICE-VERIFY.
+
 Until 2026-08-03 the volume was `(now // 60) % 4`, i.e. 0..3 events spread
 over a dozen tools, and two alarms sharing a tool AND a recipe essentially
 never occurred. Every path the grouped view added was unreachable at home
@@ -306,6 +313,11 @@ def get_board(tool_type: ToolType, fab_names: Sequence[str]) -> LiveAlarmPayload
                 )
                 for n in range(_HOT_BURST if count else 0)
             ]
+        if offset == 0 and len(fab_events) >= 2:
+            # One lot on two tools: events 0 and 1 sit on eqp_ids[0] and
+            # eqp_ids[1], 137 s apart. FABRICATED, OFFICE-VERIFY — see the
+            # module docstring. First fab only, like the burst.
+            fab_events[1]["lot_id"] = fab_events[0]["lot_id"]
         for event in fab_events:
             event["fab_name"] = roster.norm(fab)
         events += fab_events
