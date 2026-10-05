@@ -115,6 +115,7 @@
 import type { MeasHistRow, MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { SkewvoirRecentEntry } from '~/composables/useSkewvoirRecentlyViewed'
 import type { SkewvoirSelection } from '~/composables/useSkewvoirWorkspace'
+import { measHistRowToSelection } from '~/utils/skewvoirLinks'
 import { toSkewvoirRecentMeasurement, type SkewvoirRecentMeasurement } from '~/utils/skewvoirRecent'
 import { qstr } from '~/utils/skewvoirAnalysis/routeQuery'
 
@@ -158,18 +159,9 @@ const recentOpen = ref(false)
 // anchor, not wall clock.
 watch(search.anchor, value => recent.setAnchor(value), { immediate: true })
 
-const toSelection = (row: MeasHistRow): SkewvoirSelection => ({
-  lot: row.lot_id,
-  recipe: row.recipe_name,
-  eq: row.eqp_id,
-  mp: 'WAFER',
-  msr: row.msr,
-  capturedAt: row.timestamp
-})
-
 const open = (row: MeasHistRow) => {
   recent.record('single', [toSkewvoirRecentMeasurement(row)])
-  ws.openAnalysis(toSelection(row))
+  ws.openAnalysis(measHistRowToSelection(row))
 }
 
 const openSet = () => {
@@ -177,7 +169,7 @@ const openSet = () => {
   const first = rows[0]
   if (!first) return
   recent.record('time-series', rows.map(toSkewvoirRecentMeasurement))
-  ws.openAnalysisSet(toSelection(first), rows.map(r => r.msr), 'time-series')
+  ws.openAnalysisSet(measHistRowToSelection(first), rows.map(r => r.msr), 'time-series')
 }
 
 const recentSelection = (measurement: SkewvoirRecentMeasurement): SkewvoirSelection => ({

@@ -1,8 +1,11 @@
-// Deep links INTO 스큐보아's search screen from other pages (장비 리스트,
+// Deep links INTO 스큐보아 from other pages (장비 리스트,
 // Recipe 현황 / 검색, 디바이스 통계). The link carries the search-bar text the
 // user would have typed (`eq:` / `recipe:` tokens, see utils/measHistQuery.ts)
 // plus an optional FAB filter; SearchLanding applies both once and runs the
 // search. Pure, so it is unit-tested under raw `node --test`.
+import type { MeasHistRow } from '../composables/useMeasHistApi.ts'
+import type { SkewvoirSelection } from '../composables/useSkewvoirWorkspace.ts'
+import { toAnalysisQuery } from './skewvoirAnalysis/routeQuery.ts'
 
 export const SKEWVOIR_TOOL_TYPES = ['cd-sem', 'hv-sem'] as const
 export type SkewvoirToolType = typeof SKEWVOIR_TOOL_TYPES[number]
@@ -26,5 +29,25 @@ export const skewvoirSearchRoute = (toolType: SkewvoirToolType, target: Skewvoir
   return {
     path: `/ebeam/${toolType}/skewvoir`,
     query: { ...(tokens.length ? { q: tokens.join(' ') } : {}), ...(fab ? { fab } : {}) }
+  }
+}
+
+export const measHistRowToSelection = (row: MeasHistRow): SkewvoirSelection => ({
+  lot: row.lot_id,
+  recipe: row.recipe_name,
+  eq: row.eqp_id,
+  mp: 'WAFER',
+  msr: row.msr,
+  capturedAt: row.timestamp
+})
+
+export const skewvoirAnalysisRouteForRow = (
+  toolType: string,
+  row: MeasHistRow
+): { path: string, query: Record<string, string> } | null => {
+  if (!row.msr.trim() || !hasSkewvoir(toolType)) return null
+  return {
+    path: `/ebeam/${toolType}/skewvoir/analysis`,
+    query: toAnalysisQuery(measHistRowToSelection(row))
   }
 }

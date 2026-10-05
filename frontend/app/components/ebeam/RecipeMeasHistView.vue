@@ -8,6 +8,7 @@ import type {
   MeasHistToolType
 } from '~/composables/useMeasHistApi'
 import { formatRecipeTimestamp, readRecipeNameQuery, recipeTableUi } from '~/utils/recipeView'
+import { skewvoirAnalysisRouteForRow } from '~/utils/skewvoirLinks'
 
 const props = defineProps<{
   fab: Fab
@@ -299,7 +300,24 @@ const tableUi = {
         </template>
 
         <template #msr_check-cell="{ row }">
+          <UTooltip
+            v-if="skewvoirAnalysisRouteForRow(props.toolType, row.original)"
+            text="스큐보아에서 열기"
+          >
+            <NuxtLink
+              :to="skewvoirAnalysisRouteForRow(props.toolType, row.original) ?? undefined"
+              :aria-label="`${row.original.msr} 스큐보아에서 열기`"
+              class="inline-flex items-center gap-1 font-mono text-xs tabular-nums text-(--sk-ink) hover:underline"
+            >
+              <UIcon
+                name="i-lucide-telescope"
+                class="size-3.5 shrink-0"
+              />
+              {{ row.original.msr.slice(0, 8) }}
+            </NuxtLink>
+          </UTooltip>
           <UBadge
+            v-else
             :label="row.original.msr_check"
             :color="row.original.msr_check === 'Yes' ? 'success' : 'error'"
             size="sm"
