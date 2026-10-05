@@ -14,6 +14,7 @@
         <EbeamRecipeStatusInlineSummary
           v-if="summaryItems?.length"
           :items="summaryItems"
+          :anchor-included="summaryAnchorIncluded"
         />
       </div>
       <div class="flex items-center gap-2">
@@ -136,6 +137,7 @@ import type { RankingTableState } from '~/utils/rankingTable'
 const props = defineProps<{
   title: string
   summaryItems?: readonly RecipeStatusSummaryItem[]
+  summaryAnchorIncluded?: boolean
   searchPlaceholder: string
   rows: readonly T[]
   columns: TableColumn<T>[]

@@ -21,6 +21,11 @@ const pad = (n: number) => String(n).padStart(2, '0')
  */
 export const todayStamp = (): string => formatDateStamp(new Date())
 
+const utcMidnight = (iso: string): number => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)
+}
+
 /**
  * Subtract days from a `YYYY-MM-DD` string, staying on calendar days.
  *
@@ -29,11 +34,18 @@ export const todayStamp = (): string => formatDateStamp(new Date())
  * the neighbouring day. There is no wall clock here to preserve.
  */
 export const shiftIsoDate = (iso: string, days: number): string => {
-  const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1))
+  const dt = new Date(utcMidnight(iso))
   dt.setUTCDate(dt.getUTCDate() - days)
   return dt.toISOString().slice(0, 10)
 }
+
+/**
+ * Calendar days from `start` to `end` with both ends counted — what the range
+ * presets and the backend default both mean by an N-day window. Same parse as
+ * `shiftIsoDate`, so a window and its shift cannot disagree.
+ */
+export const inclusiveDayCount = (start: string, end: string): number =>
+  Math.round((utcMidnight(end) - utcMidnight(start)) / 86_400_000) + 1
 
 export interface FormatDateTimeOptions {
   /** Append `:ss`. */

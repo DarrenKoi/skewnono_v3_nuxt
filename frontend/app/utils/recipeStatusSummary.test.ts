@@ -73,39 +73,35 @@ const failInput = {
 }
 
 test('build*SummaryItems attach each delta to the KPI with the matching key', () => {
-  const items = buildTatSummaryItems(tatInput, {
-    items: [
-      { key: 'avgMeastime', delta: '−1s (−16.7%)', tone: 'ok', title: 't' },
-      { key: 'totalExecutions', delta: '+78 (+13.0%)', tone: 'neutral', title: 't' }
-    ]
-  })
+  const items = buildTatSummaryItems(tatInput, [
+    { key: 'avgMeastime', delta: '−1s (−16.7%)', tone: 'ok', title: 't' },
+    { key: 'totalExecutions', delta: '+78 (+13.0%)', tone: 'neutral', title: 't' }
+  ])
   assert.deepEqual(items.map(item => item.delta?.text), [
     undefined, undefined, '+78 (+13.0%)', '−1s (−16.7%)'
   ])
   assert.deepEqual(items[3]?.delta, { text: '−1s (−16.7%)', tone: 'ok', title: 't' })
 
-  const fail = buildFailSummaryItems(failInput, {
-    items: [{ key: 'failRatio', delta: '+0.4%p', tone: 'bad', title: 't' }]
-  })
+  const fail = buildFailSummaryItems(failInput, [{ key: 'failRatio', delta: '+0.4%p', tone: 'bad', title: 't' }])
   assert.deepEqual(fail.map(item => item.delta?.text), [undefined, undefined, '+0.4%p'])
 })
 
 test('a pending comparison reserves an empty delta on every KPI', () => {
-  const items = buildTatSummaryItems(tatInput, { pending: true, anchorIncluded: true })
+  const items = buildTatSummaryItems(tatInput, 'pending')
   for (const item of items) {
-    assert.deepEqual(item.delta, { text: '', tone: 'none', title: '', anchorIncluded: true })
+    assert.deepEqual(item.delta, { text: '', tone: 'none', title: '' })
   }
 })
 
 test('recipeStatusDeltaCaption appears once a delta exists and flags the anchor day', () => {
   assert.equal(recipeStatusDeltaCaption(buildTatSummaryItems(tatInput)), null)
-  assert.equal(recipeStatusDeltaCaption(buildTatSummaryItems(tatInput, {})), null)
+  assert.equal(recipeStatusDeltaCaption(buildTatSummaryItems(tatInput), true), null, '비교가 없으면 기준일 힌트도 없습니다')
   assert.equal(
-    recipeStatusDeltaCaption(buildFailSummaryItems(failInput, { pending: true })),
+    recipeStatusDeltaCaption(buildFailSummaryItems(failInput, 'pending')),
     '이전 동일 기간 대비(원시 변화)'
   )
   assert.equal(
-    recipeStatusDeltaCaption(buildFailSummaryItems(failInput, { pending: true, anchorIncluded: true })),
+    recipeStatusDeltaCaption(buildFailSummaryItems(failInput, 'pending'), true),
     '이전 동일 기간 대비(원시 변화) · 기준일 포함'
   )
 })

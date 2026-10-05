@@ -8,7 +8,7 @@
 
 import type { RecipeTatSummary } from '~/composables/useRecipeTatApi'
 import type { FailIssueSummary } from '~/composables/useFailIssueApi'
-import { shiftIsoDate } from './dateTime.ts'
+import { inclusiveDayCount, shiftIsoDate } from './dateTime.ts'
 
 export type RecipeStatusDeltaTone = 'ok' | 'bad' | 'neutral' | 'none'
 
@@ -24,16 +24,6 @@ export interface RecipeStatusDeltaItem<K extends string = string> {
 
 export const NO_PREVIOUS_PERIOD = '이전 기간 없음'
 
-const DAY_MS = 86_400_000
-
-const utcDay = (iso: string): number => {
-  const [y, m, d] = iso.split('-').map(Number)
-  return Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)
-}
-
-const inclusiveDays = (start: string, end: string): number =>
-  Math.round((utcDay(end) - utcDay(start)) / DAY_MS) + 1
-
 /**
  * The window of the same length immediately before `[start, end]`.
  *
@@ -45,7 +35,7 @@ export const previousWindow = (
   start: string,
   end: string
 ): { start: string, end: string } => {
-  const len = Math.max(1, inclusiveDays(start, end))
+  const len = Math.max(1, inclusiveDayCount(start, end))
   return { start: shiftIsoDate(start, len), end: shiftIsoDate(start, 1) }
 }
 
@@ -108,7 +98,7 @@ interface WindowedSummary {
 
 const windowLabel = (prev: WindowedSummary): string => {
   if (!prev.start_date || !prev.end_date) return '이전 기간'
-  const days = inclusiveDays(prev.start_date, prev.end_date)
+  const days = inclusiveDayCount(prev.start_date, prev.end_date)
   return `이전 ${days}일(${prev.start_date.slice(5)}~${prev.end_date.slice(5)})`
 }
 
@@ -116,11 +106,11 @@ const count = (n: number): string => n.toLocaleString('en-US')
 
 type Computed = { delta: string, tone: RecipeStatusDeltaTone }
 
-const assemble = <K extends string>(
-  cur: WindowedSummary,
-  prev: WindowedSummary | null | undefined,
-  compute: (key: K) => Computed,
-  keys: readonly K[]
+const assemble = <K extends string, S extends WindowedSummary>(
+  cur: S,
+  prev: S | null | undefined,
+  keys: readonly K[],
+  compute: (key: K, prev: S) => Computed
 ): RecipeStatusDeltaItem<K>[] => {
   if (!prev || !(prev.total_executions > 0)) {
     const title = prev
@@ -130,7 +120,7 @@ const assemble = <K extends string>(
   }
   const title = `${windowLabel(prev)} ${count(prev.total_executions)}건 대비`
     + ` · 현재 ${count(cur.total_executions)}건`
-  return keys.map(key => ({ key, ...compute(key), title }))
+  return keys.map(key => ({ key, ...compute(key, prev), title }))
 }
 
 const TAT_KEYS = ['totalTat', 'distinctRecipes', 'totalExecutions', 'avgMeastime'] as const
@@ -147,15 +137,14 @@ export const tatDeltaItems = (
   cur: RecipeTatSummary,
   prev: RecipeTatSummary | null | undefined,
   formatSeconds: (seconds: number) => string
-): RecipeStatusDeltaItem<TatDeltaKey>[] => assemble(cur, prev, (key) => {
-  const p = prev as RecipeTatSummary
+): RecipeStatusDeltaItem<TatDeltaKey>[] => assemble(cur, prev, TAT_KEYS, (key, p) => {
   switch (key) {
     case 'totalTat': return secondsDelta(cur.total_tat_seconds, p.total_tat_seconds, formatSeconds)
     case 'distinctRecipes': return countDelta(cur.total_recipes, p.total_recipes)
     case 'totalExecutions': return countDelta(cur.total_executions, p.total_executions)
     case 'avgMeastime': return secondsDelta(cur.avg_meastime, p.avg_meastime, formatSeconds)
   }
-}, TAT_KEYS)
+})
 
 /**
  * Per-KPI change for the Align / Meas fail strip.
@@ -167,8 +156,7 @@ export const failDeltaItems = (
   cur: FailIssueSummary,
   prev: FailIssueSummary | null | undefined,
   section: 'align' | 'meas'
-): RecipeStatusDeltaItem<FailDeltaKey>[] => assemble(cur, prev, (key) => {
-  const p = prev as FailIssueSummary
+): RecipeStatusDeltaItem<FailDeltaKey>[] => assemble(cur, prev, FAIL_KEYS, (key, p) => {
   const countKey = section === 'align' ? 'align_fail_count' : 'meas_fail_count'
   const rateKey = section === 'align' ? 'align_fail_rate' : 'meas_fail_rate'
   switch (key) {
@@ -176,4 +164,4 @@ export const failDeltaItems = (
     case 'totalMeasurements': return countDelta(cur.total_executions, p.total_executions)
     case 'failRatio': return rateDelta(cur[rateKey], p[rateKey])
   }
-}, FAIL_KEYS)
+})

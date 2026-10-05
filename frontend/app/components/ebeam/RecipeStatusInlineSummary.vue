@@ -51,7 +51,9 @@ import {
 
 const props = defineProps<{
   items: readonly RecipeStatusSummaryItem[]
+  /** The compared window still contains the unfinished anchor day (one fact per strip). */
+  anchorIncluded?: boolean
 }>()
 
-const deltaCaption = computed(() => recipeStatusDeltaCaption(props.items))
+const deltaCaption = computed(() => recipeStatusDeltaCaption(props.items, props.anchorIncluded))
 </script>

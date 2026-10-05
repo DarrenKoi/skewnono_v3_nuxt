@@ -10,8 +10,6 @@ export interface RecipeStatusSummaryDelta {
   text: string
   tone: RecipeStatusDeltaTone
   title: string
-  /** The compared window still contains the unfinished anchor day. */
-  anchorIncluded?: boolean
 }
 
 export interface RecipeStatusSummaryItem {
@@ -22,31 +20,24 @@ export interface RecipeStatusSummaryItem {
 }
 
 /**
- * What the strip should show beside each value.
+ * The comparison the strip should show beside the values.
  *
- * `pending` reserves the slot with an empty delta so the strip does not jump
- * when the previous-window request lands. Neither `items` nor `pending` means
- * the strip has no comparison at all (the recipe-open tables, a failed
- * previous-window request).
+ * `'pending'` reserves every slot with an empty delta so the strip does not
+ * jump when the previous-window request lands; `undefined` means no comparison
+ * at all (the recipe-open tables, a failed previous-window request).
  */
-export interface RecipeStatusDeltaOptions<K extends string> {
-  items?: readonly RecipeStatusDeltaItem<K>[]
-  pending?: boolean
-  anchorIncluded?: boolean
-}
+export type RecipeStatusDeltaInput<K extends string> = 'pending' | readonly RecipeStatusDeltaItem<K>[]
 
 const PENDING_DELTA: RecipeStatusSummaryDelta = { text: '', tone: 'none', title: '' }
 
 const resolveDelta = <K extends string>(
   key: K,
-  options: RecipeStatusDeltaOptions<K> | undefined
+  delta: RecipeStatusDeltaInput<K> | undefined
 ): Pick<RecipeStatusSummaryItem, 'delta'> => {
-  if (!options) return {}
-  const flag = options.anchorIncluded ? { anchorIncluded: true } : {}
-  if (options.pending) return { delta: { ...PENDING_DELTA, ...flag } }
-  const found = options.items?.find(item => item.key === key)
-  if (!found) return {}
-  return { delta: { text: found.delta, tone: found.tone, title: found.title, ...flag } }
+  if (!delta) return {}
+  if (delta === 'pending') return { delta: PENDING_DELTA }
+  const found = delta.find(item => item.key === key)
+  return found ? { delta: { text: found.delta, tone: found.tone, title: found.title } } : {}
 }
 
 const DELTA_CLASS: Record<RecipeStatusDeltaTone, string> = {
@@ -69,13 +60,16 @@ export const recipeStatusDeltaTitle = (
 ): string | undefined =>
   [delta.text, delta.title].filter(Boolean).join(' · ') || undefined
 
-/** One caption per strip, or `null` when no item carries a comparison. */
+/**
+ * One caption per strip, or `null` when no item carries a comparison.
+ * `anchorIncluded`: the compared window still contains the unfinished anchor day.
+ */
 export const recipeStatusDeltaCaption = (
-  items: readonly RecipeStatusSummaryItem[]
+  items: readonly RecipeStatusSummaryItem[],
+  anchorIncluded = false
 ): string | null => {
-  const deltas = items.flatMap(item => item.delta ? [item.delta] : [])
-  if (!deltas.length) return null
-  return deltas.some(delta => delta.anchorIncluded)
+  if (!items.some(item => item.delta)) return null
+  return anchorIncluded
     ? '이전 동일 기간 대비(원시 변화) · 기준일 포함'
     : '이전 동일 기간 대비(원시 변화)'
 }
@@ -105,7 +99,7 @@ interface TatSummaryInput {
 
 export const buildFailSummaryItems = (
   input: FailSummaryInput,
-  delta?: RecipeStatusDeltaOptions<FailDeltaKey>
+  delta?: RecipeStatusDeltaInput<FailDeltaKey>
 ): RecipeStatusSummaryItem[] => [
   { label: input.failLabel, value: input.failCount, tone: 'danger', ...resolveDelta('failCount', delta) },
   { label: 'Total measurements', value: input.totalMeasurements, ...resolveDelta('totalMeasurements', delta) },
@@ -114,7 +108,7 @@ export const buildFailSummaryItems = (
 
 export const buildTatSummaryItems = (
   input: TatSummaryInput,
-  delta?: RecipeStatusDeltaOptions<TatDeltaKey>
+  delta?: RecipeStatusDeltaInput<TatDeltaKey>
 ): RecipeStatusSummaryItem[] => [
   { label: 'Total TAT', value: input.totalTat, ...resolveDelta('totalTat', delta) },
   { label: 'Distinct recipes', value: input.distinctRecipes, ...resolveDelta('distinctRecipes', delta) },
