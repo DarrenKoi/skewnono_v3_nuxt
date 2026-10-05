@@ -170,3 +170,105 @@ export const groupMeasEvents = (events: LiveAlarmEvent[]): MeasGroupItem[] => {
       || a.key.localeCompare(b.key)
     )
 }
+
+// One slice of the board seen along a single axis: every alarm sharing one
+// recipe, one tool or one lot. The counts say how far that one thing reaches
+// across the other two — which is the "장비 문제인가, recipe 문제인가, lot
+// 문제인가" question the chronological list cannot answer at a glance.
+export interface ScopeGroup {
+  // `${axis}:${label}` — derived from the data, never from an index, so a
+  // group keeps its identity across the 15-second polls.
+  key: string
+  label: string
+  eventCount: number
+  toolCount: number
+  recipeCount: number
+  lotCount: number
+  eqpIds: string[]
+  recipeIds: string[]
+  lotIds: string[]
+  firstEpoch: number
+  lastEpoch: number
+  kinds: { align: number, meas: number }
+  alids: Record<string, number>
+}
+
+export interface ScopeGroups {
+  recipeAcrossTools: ScopeGroup[]
+  toolAcrossRecipes: ScopeGroup[]
+  lotAcrossTools: ScopeGroup[]
+  // Alarms that could not be placed on an axis because the field is blank.
+  // Reported rather than grouped: a "" bucket would read as one shared recipe
+  // (or lot) spanning every tool that happened to omit it.
+  omitted: { blankRecipe: number, blankLot: number }
+}
+
+type ScopeField = 'recipe_id' | 'eqp_id' | 'lot_id'
+
+const distinctSorted = (values: string[]): string[] =>
+  [...new Set(values.filter(Boolean))].sort()
+
+const summarizeScope = (key: string, label: string, events: LiveAlarmEvent[]): ScopeGroup => {
+  const eqpIds = distinctSorted(events.map(e => e.eqp_id))
+  const recipeIds = distinctSorted(events.map(e => e.recipe_id))
+  const lotIds = distinctSorted(events.map(e => e.lot_id))
+  const epochs = events.map(e => e.occurred_epoch)
+  const alids: Record<string, number> = {}
+  for (const event of events) alids[event.alid] = (alids[event.alid] ?? 0) + 1
+  return {
+    key,
+    label,
+    eventCount: events.length,
+    toolCount: eqpIds.length,
+    recipeCount: recipeIds.length,
+    lotCount: distinctLotCount(events),
+    eqpIds,
+    recipeIds,
+    lotIds,
+    firstEpoch: Math.min(...epochs),
+    lastEpoch: Math.max(...epochs),
+    kinds: boardCounts(events),
+    alids
+  }
+}
+
+// Buckets by `field`, keeps only the groups that reach across 2+ of `span`,
+// and ranks them by that reach. Blank labels are skipped here and counted by
+// the caller.
+const scopeAxis = (
+  events: LiveAlarmEvent[],
+  axis: string,
+  field: ScopeField,
+  span: 'toolCount' | 'recipeCount'
+): ScopeGroup[] => {
+  const buckets = new Map<string, LiveAlarmEvent[]>()
+  for (const event of events) {
+    const label = event[field]
+    if (!label) continue
+    const bucket = buckets.get(label)
+    if (bucket) bucket.push(event)
+    else buckets.set(label, [event])
+  }
+  return [...buckets.entries()]
+    .map(([label, bucket]) => summarizeScope(`${axis}:${label}`, label, bucket))
+    .filter(group => group[span] >= 2)
+    .sort((a, b) =>
+      b[span] - a[span]
+      || b.eventCount - a.eventCount
+      || b.lastEpoch - a.lastEpoch
+      || a.label.localeCompare(b.label)
+    )
+}
+
+// Align and meas are counted together: how far a recipe or a lot reaches does
+// not depend on which alarm it raised, and `kinds` reports the split. That is
+// why this does not go through groupMeasEvents, which is meas-only by design.
+export const scopeGroups = (events: LiveAlarmEvent[]): ScopeGroups => ({
+  recipeAcrossTools: scopeAxis(events, 'recipe', 'recipe_id', 'toolCount'),
+  toolAcrossRecipes: scopeAxis(events, 'tool', 'eqp_id', 'recipeCount'),
+  lotAcrossTools: scopeAxis(events, 'lot', 'lot_id', 'toolCount'),
+  omitted: {
+    blankRecipe: events.filter(e => !e.recipe_id).length,
+    blankLot: events.filter(e => !e.lot_id).length
+  }
+})

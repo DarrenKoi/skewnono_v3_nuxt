@@ -2,7 +2,7 @@
 // Shared view for the 라이브 알람 board, one per tool type. Same shape as the
 // other Ebeam*View components: the page files stay thin wrappers that only
 // resolve the fab and sync navigation state.
-import { boardCounts, distinctLotCount, formatElapsed, filterEvents, groupMeasEvents } from '~/utils/liveAlarm'
+import { boardCounts, distinctLotCount, formatElapsed, filterEvents, groupMeasEvents, scopeGroups } from '~/utils/liveAlarm'
 import type { AlarmFilter } from '~/utils/liveAlarm'
 import { buildFabSegment } from '~/utils/fab'
 
@@ -22,6 +22,11 @@ const {
 
 const highlightSet = computed(() => new Set(highlightIds.value))
 const counts = computed(() => boardCounts(events.value))
+
+// Every event on the board, align and meas alike, regardless of the selected
+// tab: how far a recipe, tool or lot reaches is a property of the window, not
+// of the view the user happens to be in.
+const scope = computed(() => scopeGroups(events.value))
 
 const filter = useLiveAlarmFilter()
 
@@ -199,6 +204,14 @@ useHead({
       color="error"
       variant="subtle"
       :description="error"
+    />
+
+    <!-- `Date.now()` is read at render, and a poll replaces `events`, so the
+         clock advances once per poll — the same cadence the rows below use. -->
+    <LiveAlarmScopePanel
+      v-if="feedStatus !== 'not_configured' && events.length > 0"
+      :scope="scope"
+      :server-now="Date.now() + serverOffsetMs"
     />
 
     <!-- The tablist is conditional, so the panel only claims to be its
