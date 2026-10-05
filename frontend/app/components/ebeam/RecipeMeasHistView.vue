@@ -8,13 +8,18 @@ import type {
   MeasHistToolType
 } from '~/composables/useMeasHistApi'
 import { formatRecipeTimestamp, readRecipeNameQuery, recipeTableUi } from '~/utils/recipeView'
-import { skewvoirAnalysisRouteForRow } from '~/utils/skewvoirLinks'
+import { hasMsrIdentity } from '~/utils/measHistSelection'
+import { hasSkewvoir, skewvoirAnalysisRouteForRow } from '~/utils/skewvoirLinks'
 
 const props = defineProps<{
   fab: Fab
   toolLabel: string
   toolType: MeasHistToolType
 }>()
+
+// Loop-invariant: the table can hold up to 10,000 rows, so the per-row test is
+// just the row's own MSR identity.
+const skewvoirLinkable = hasSkewvoir(props.toolType)
 
 const route = useRoute()
 const { fetchMeasHist } = useMeasHistApi()
@@ -300,22 +305,19 @@ const tableUi = {
         </template>
 
         <template #msr_check-cell="{ row }">
-          <UTooltip
-            v-if="skewvoirAnalysisRouteForRow(props.toolType, row.original)"
-            :text="`스큐보아에서 열기 · ${row.original.msr}`"
+          <NuxtLink
+            v-if="skewvoirLinkable && hasMsrIdentity(row.original)"
+            :to="skewvoirAnalysisRouteForRow(props.toolType, row.original) ?? undefined"
+            :title="`스큐보아에서 열기 · ${row.original.msr}`"
+            :aria-label="`${row.original.msr} 스큐보아에서 열기`"
+            class="inline-flex items-center gap-1 text-xs text-(--sk-ink) hover:underline"
           >
-            <NuxtLink
-              :to="skewvoirAnalysisRouteForRow(props.toolType, row.original) ?? undefined"
-              :aria-label="`${row.original.msr} 스큐보아에서 열기`"
-              class="inline-flex items-center gap-1 text-xs text-(--sk-ink) hover:underline"
-            >
-              <UIcon
-                name="i-lucide-telescope"
-                class="size-3.5 shrink-0"
-              />
-              열기
-            </NuxtLink>
-          </UTooltip>
+            <UIcon
+              name="i-lucide-telescope"
+              class="size-3.5 shrink-0"
+            />
+            열기
+          </NuxtLink>
           <UBadge
             v-else
             :label="row.original.msr_check"

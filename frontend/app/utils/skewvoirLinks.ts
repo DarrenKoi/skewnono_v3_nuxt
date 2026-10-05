@@ -15,6 +15,9 @@ export type SkewvoirToolType = typeof SKEWVOIR_TOOL_TYPES[number]
 export const hasSkewvoir = (toolType: string): toolType is SkewvoirToolType =>
   (SKEWVOIR_TOOL_TYPES as readonly string[]).includes(toolType)
 
+/** The one place the 스큐보아 route prefix is spelled; search and analysis hang off it. */
+export const skewvoirBasePath = (toolType: SkewvoirToolType): string => `/ebeam/${toolType}/skewvoir`
+
 export interface SkewvoirSearchTarget {
   eq?: string
   /** The class-qualified recipe name (`full_name`) — see recipeDetailId. */
@@ -28,7 +31,7 @@ export const skewvoirSearchRoute = (toolType: SkewvoirToolType, target: Skewvoir
   if (target.recipe?.trim()) tokens.push(`recipe:${target.recipe.trim()}`)
   const fab = target.fab?.trim().toUpperCase()
   return {
-    path: `/ebeam/${toolType}/skewvoir`,
+    path: skewvoirBasePath(toolType),
     query: { ...(tokens.length ? { q: tokens.join(' ') } : {}), ...(fab ? { fab } : {}) }
   }
 }
@@ -48,7 +51,7 @@ export const skewvoirAnalysisRouteForRow = (
 ): { path: string, query: Record<string, string> } | null => {
   if (!hasMsrIdentity(row) || !hasSkewvoir(toolType)) return null
   return {
-    path: `/ebeam/${toolType}/skewvoir/analysis`,
+    path: `${skewvoirBasePath(toolType)}/analysis`,
     query: toAnalysisQuery(measHistRowToSelection(row))
   }
 }

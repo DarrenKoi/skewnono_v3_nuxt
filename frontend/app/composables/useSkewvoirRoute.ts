@@ -1,3 +1,4 @@
+import { skewvoirBasePath } from '~/utils/skewvoirLinks'
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
 import type { AnalysisScope, SequenceAxisMode, TsAxisMode, TsBaseline, TsView } from '~/utils/skewvoirAnalysis/types'
@@ -38,7 +39,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const router = useRouter()
 
   const tool = toolType === 'hv-sem' ? 'hv-sem' : 'cd-sem'
-  const basePath = `/ebeam/${tool}/skewvoir`
+  const basePath = skewvoirBasePath(tool)
   const analysisPath = `${basePath}/analysis`
 
   const selection = computed<SkewvoirSelection | null>(() => parseSelection(route.query))
