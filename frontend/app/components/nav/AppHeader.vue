@@ -14,7 +14,9 @@
       </NuxtLink>
     </template>
 
+    <!-- At most one draws: the first on a tool-scoped e-beam route, the second under /afm/<tool>. -->
     <NavFeatureTabs />
+    <NavAfmTabs />
 
     <template #right>
       <NavLabMenu />

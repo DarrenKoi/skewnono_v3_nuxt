@@ -5,11 +5,20 @@
       title="AFM 팁 모니터링"
       :subtitle="`팁 값이 있는 측정 ${points.length}건${missing ? ` · 없는 측정 ${missing}건` : ''}`"
     >
-      <template #leading>
-        <AppBackButton
-          :to="`/afm/${toolId}`"
-          label="검색으로"
-        />
+      <template #toggle>
+        <nav
+          class="flex flex-wrap gap-1"
+          aria-label="AFM 장비"
+        >
+          <SkNavPill
+            v-for="tool in fabs.flatMap(group => group.tools)"
+            :key="tool.id"
+            size="sm"
+            :to="`/afm/${tool.id}/tips`"
+            :active="tool.id === toolId"
+            :label="tool.label"
+          />
+        </nav>
       </template>
     </EbeamMetaBar>
 
@@ -237,6 +246,7 @@ definePageMeta({
 
 const toolId = String(useRoute().params.tool ?? '')
 const toolName = toolId.toUpperCase()
+const { fabs } = useAfmToolData()
 
 const { data: rows, pending, error } = useAfmDetailApi().useAfmTipRows(toolName)
 

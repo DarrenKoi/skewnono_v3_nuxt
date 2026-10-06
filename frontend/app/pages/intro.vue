@@ -754,7 +754,7 @@ const pageGuides: PageGuide[] = [
     purpose: '장비의 팁 상태를 팁 종류별로 살핍니다.',
     description: '측정 목록의 팁 값(Tip Width, Approach Count, Mileage, FAILED·Valid=FALSE 포인트)을 팁 종류(Tip ID)별로 묶어 통계 관리선 밖의 측정을 짚습니다.',
     users: 'AFM 담당 엔지니어',
-    notes: ['AFM 검색 화면의 "팁 모니터링" 버튼에서 이동합니다.', 'spec은 아직 없고 μ ± 3σ 로 판정합니다.']
+    notes: ['장비를 고른 뒤 상단 탭(측정 결과 · 팁 모니터링)에서 이동합니다.', 'spec은 아직 없고 μ ± 3σ 로 판정합니다.']
   },
   {
     id: 'coming-soon',
