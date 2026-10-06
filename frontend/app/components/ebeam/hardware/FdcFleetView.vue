@@ -35,7 +35,8 @@
       <div
         v-if="heatmap.points.length && tempChart === 'heatmap'"
         ref="heatmapEl"
-        class="mt-2 h-80 w-full"
+        class="mt-2 w-full"
+        :style="{ height: `${Math.max(320, heatmap.tools.length * 22 + 70)}px` }"
       />
       <div
         v-else-if="heatmap.points.length"
@@ -229,7 +230,7 @@ const heatmapOption = computed<EChartsOption>(() => ({
     }
   },
   xAxis: { type: 'category', data: heatmap.value.days, axisLabel: { fontSize: 10, rotate: 45 } },
-  yAxis: { type: 'category', data: heatmap.value.tools, inverse: true, axisLabel: labelStyle.value },
+  yAxis: { type: 'category', data: heatmap.value.tools, inverse: true, axisLabel: { ...labelStyle.value, interval: 0 } },
   visualMap: {
     type: 'continuous', min: heatmap.value.min, max: heatmap.value.max === heatmap.value.min ? heatmap.value.max + 0.001 : heatmap.value.max,
     calculable: true, right: 0, top: 'middle', orient: 'vertical', inRange: { color: [...SK_SCALE] }
