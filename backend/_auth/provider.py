@@ -98,8 +98,10 @@ class CloudIdentityProvider:
 
     Same convention `afm/routes.py:196` has always used. An unidentified caller
     is a real caller on the private cloud — the network is already internal —
-    so they get a usable app rather than a locked door, and the activity log
-    gets a name for the traffic instead of a null.
+    so they get a page that can ask who they are rather than a locked door,
+    and the activity log gets a name for the traffic instead of a null. Data
+    is another matter: `middleware._refuse_anonymous_data` answers 401 until
+    the caller declares an identity or sends an API token.
 
     `anonymous` is a shared id, not an identity: it must never be admin. Three
     independent things keep that true — it is absent from both allowlists in

@@ -56,6 +56,20 @@ def client(no_access_control):
     def _sem_list():
         return {"rows": [], "user": getattr(g, "user_id", None)}
 
+    for shell_path in (
+        "/api/me",
+        "/api/identify",
+        "/api/activity/me",
+        "/api/announcements",
+        "/api/page-view/<family>",
+        "/api/me-too",
+    ):
+        app.add_url_rule(
+            shell_path,
+            endpoint=shell_path,
+            view_func=lambda **_: {"user": getattr(g, "user_id", None)},
+        )
+
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def _spa(path: str):
@@ -92,15 +106,36 @@ def test_static_assets_load_for_an_unidentified_visitor(client):
     assert client.get("/favicon.ico").status_code == 200
 
 
-def test_an_api_request_without_a_cookie_runs_as_anonymous(client):
-    """The cloud substitutes `anonymous` rather than refusing — the network is
-    already internal, so an unidentified caller gets a working app. What
-    matters is that the request is still *attributed*: a null user in the
-    activity log is indistinguishable from a logging bug."""
+def test_a_data_request_without_an_identity_is_refused_with_the_token_hint(client):
+    """A cookie-less caller that never passed /identify is a script, not a
+    visitor — the SPA sends every anonymous browser there first. Scripts are
+    told how to become attributable instead of reading as `anonymous`."""
     response = client.get("/api/sem-list")
 
-    assert response.status_code == 200
-    assert response.get_json()["user"] == "anonymous"
+    assert response.status_code == 401
+    error = response.get_json()["error"]
+    assert error["code"] == "api_token_required"
+    assert "Bearer" in error["message"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/me",
+        "/api/identify",
+        "/api/activity/me",
+        "/api/announcements",
+        "/api/page-view/cdsem",
+    ],
+)
+def test_the_calls_the_identify_screen_makes_stay_open_to_anonymous(client, path):
+    """Refusing any of these strands the visitor: /api/me is how the SPA
+    learns it must show /identify, and the rest fire while that screen is up."""
+    assert client.get(path).get_json()["user"] == "anonymous"
+
+
+def test_a_lookalike_path_is_not_let_through_by_prefix(client):
+    assert client.get("/api/me-too").status_code == 401
 
 
 def test_the_refusal_path_survives_a_provider_that_identifies_nobody(

@@ -42,7 +42,7 @@ SKEWNONO의 모든 데이터는 `/api/*` 엔드포인트를 통해 노출됩니�
 | 1 | `/api/*` 요청 + `Authorization: Bearer skn_...` 헤더 | 토큰 조회 → 일치하면 `g.user_id = 소유자`, `g.api_token_id = 토큰 ID` |
 | 2 | `LASTUSER` 신원 쿠키 | `g.user_id` 설정 (`SOURCE_COOKIE`) |
 | 3 | 사용자가 직접 선언한 신원 | `g.user_id` 설정 (`SOURCE_DECLARED`) — 쿠키보다 아래입니다 |
-| 4 | 위 모두 실패 | 단계별 대체 신원 (`IdentityProvider.fallback_identity()`) — 홈은 개발용 대역, 클라우드는 `anonymous` |
+| 4 | 위 모두 실패 | 단계별 대체 신원 (`IdentityProvider.fallback_identity()`) — 홈은 개발용 대역, 클라우드는 `anonymous` (데이터 경로는 `401 api_token_required`) |
 | 5 | 신원이 전혀 없고 `/api/*` | 401 응답 |
 | 6 | 신원이 전혀 없고 그 외 경로 | 그대로 통과 — SPA mount가 응답합니다 |
 

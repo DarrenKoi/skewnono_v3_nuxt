@@ -7,6 +7,7 @@ from ..api_tokens.data import find_by_plaintext, touch_last_used
 from .admin import is_admin_request
 from .errors import error_json
 from .provider import (
+    SOURCE_ANONYMOUS,
     SOURCE_COOKIE,
     SOURCE_DECLARED,
     SOURCE_TOKEN,
@@ -72,6 +73,40 @@ def _deny_if_blocked():
     return error_json("access_denied", "member id is not allowed to access this service", 403)
 
 
+# What the SPA calls before a visitor has typed in who they are: /api/me is how
+# it learns it must show /identify, and the others fire while that screen is
+# up (app.vue, the announcement banner, the page-view beacon). Everything else
+# under /api/ is data, and an anonymous caller asking for data is a script —
+# the route middleware sends every anonymous BROWSER to /identify first.
+_ANONYMOUS_OPEN_PATHS = (
+    "/api/me",
+    "/api/identify",
+    "/api/activity/me",
+    "/api/announcements",
+    "/api/page-view",
+)
+
+
+def _refuse_anonymous_data():
+    """Scripts must be attributable: anonymous gets the shell, not the data.
+
+    Like `_deny_if_blocked`, this can only ever answer an /api/* path — the
+    page and its bundles must load so /identify can render.
+    """
+    if g.identity_source != SOURCE_ANONYMOUS or not request.path.startswith("/api/"):
+        return None
+    path = request.path
+    if any(path == p or path.startswith(p + "/") for p in _ANONYMOUS_OPEN_PATHS):
+        return None
+    return error_json(
+        "api_token_required",
+        "사용자를 확인할 수 없습니다. 브라우저에서는 사번을 입력해 주시고, 스크립트는 "
+        "설정 > API 토큰에서 발급한 토큰을 'Authorization: Bearer <token>' 헤더로 "
+        "보내 주세요.",
+        401,
+    )
+
+
 # Where the installed provider is parked so routes can ask what THIS phase
 # substitutes for an unidentified caller. `DELETE /api/identify` needs it to
 # describe the identity its own response leaves the caller with, and deciding
@@ -126,7 +161,7 @@ def install_identity_middleware(app: Flask, provider: IdentityProvider) -> None:
         if user_id:
             g.user_id = user_id
             g.identity_source = source
-            return _deny_if_blocked()
+            return _refuse_anonymous_data() or _deny_if_blocked()
 
         # Nobody identified. Data is refused, but the page is not: this hook is
         # the app's first before_request, so returning a response here answers

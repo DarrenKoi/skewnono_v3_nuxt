@@ -46,14 +46,14 @@ def make_client():
         app.secret_key = "test-key-not-the-real-one"
         install_identity_middleware(app, provider)
 
-        @app.get("/api/whoami")
+        @app.get("/api/me")
         def _whoami():
             return {
                 "user_id": getattr(g, "user_id", None),
                 "identity_source": getattr(g, "identity_source", None),
             }
 
-        @app.post("/api/declare")
+        @app.post("/api/identify")
         def _declare():
             write_declared(
                 empno="7654321",
@@ -91,7 +91,7 @@ def test_an_api_token_is_tagged_token_and_outranks_everything(make_client, monke
     client.set_cookie("LASTUSER", "9999999")
 
     body = client.get(
-        "/api/whoami", headers={"Authorization": "Bearer skn_whatever"}
+        "/api/me", headers={"Authorization": "Bearer skn_whatever"}
     ).get_json()
 
     assert body == {"user_id": "2067928", "identity_source": SOURCE_TOKEN}
@@ -100,14 +100,14 @@ def test_an_api_token_is_tagged_token_and_outranks_everything(make_client, monke
 def test_a_cookie_identity_is_tagged_cookie(cloud):
     cloud.set_cookie("LASTUSER", "2067928")
 
-    assert cloud.get("/api/whoami").get_json() == {
+    assert cloud.get("/api/me").get_json() == {
         "user_id": "2067928",
         "identity_source": SOURCE_COOKIE,
     }
 
 
 def test_no_cookie_on_the_cloud_is_tagged_anonymous(cloud):
-    assert cloud.get("/api/whoami").get_json() == {
+    assert cloud.get("/api/me").get_json() == {
         "user_id": "anonymous",
         "identity_source": SOURCE_ANONYMOUS,
     }
@@ -118,16 +118,16 @@ def test_no_cookie_at_home_is_tagged_local(make_client):
     distinction is what lets `local` hold admin while `anonymous` cannot."""
     home = make_client(LocalIdentityProvider())
 
-    assert home.get("/api/whoami").get_json() == {
+    assert home.get("/api/me").get_json() == {
         "user_id": "local-dev",
         "identity_source": SOURCE_LOCAL,
     }
 
 
 def test_a_declared_session_beats_the_fallback(cloud):
-    cloud.post("/api/declare")
+    cloud.post("/api/identify")
 
-    assert cloud.get("/api/whoami").get_json() == {
+    assert cloud.get("/api/me").get_json() == {
         "user_id": "7654321",
         "identity_source": SOURCE_DECLARED,
     }
@@ -137,10 +137,10 @@ def test_a_cookie_beats_a_declared_session(cloud):
     """Precedence in the direction that matters: infrastructure identity
     outranks a typed one, so a user who is later given a real cookie stops
     being their own declaration without having to clear anything."""
-    cloud.post("/api/declare")
+    cloud.post("/api/identify")
     cloud.set_cookie("LASTUSER", "2067928")
 
-    assert cloud.get("/api/whoami").get_json() == {
+    assert cloud.get("/api/me").get_json() == {
         "user_id": "2067928",
         "identity_source": SOURCE_COOKIE,
     }
@@ -149,16 +149,16 @@ def test_a_cookie_beats_a_declared_session(cloud):
 def test_a_declaration_survives_the_request_that_made_it(cloud):
     """The session round trip. A declaration that did not outlive its own POST
     would send the user back to the form on the very next navigation."""
-    cloud.post("/api/declare")
+    cloud.post("/api/identify")
 
-    assert cloud.get("/api/whoami").get_json()["user_id"] == "7654321"
-    assert cloud.get("/api/whoami").get_json()["user_id"] == "7654321"
+    assert cloud.get("/api/me").get_json()["user_id"] == "7654321"
+    assert cloud.get("/api/me").get_json()["user_id"] == "7654321"
 
 
 def test_a_declared_page_request_still_reaches_the_spa(cloud):
     """The invariant re-checked on the new branch: nothing added to the chain
     may answer a non-/api path, or index.html dies with it."""
-    cloud.post("/api/declare")
+    cloud.post("/api/identify")
     response = cloud.get("/")
 
     assert response.status_code == 200
@@ -186,7 +186,7 @@ def test_a_declared_identity_cannot_escape_access_control(make_client, monkeypat
     def _sem_list():
         return {"rows": [], "user": getattr(g, "user_id", None)}
 
-    @app.post("/api/declare-admin")
+    @app.post("/api/identify")
     def _declare_admin():
         write_declared(
             empno="X1234567", emp_nm=None, verified=False, declared_from=None
@@ -199,7 +199,7 @@ def test_a_declared_identity_cannot_escape_access_control(make_client, monkeypat
     # declaring POST is itself denied, the session is never written, and the
     # 403 below would arrive for an anonymous caller — the test would pass
     # while proving nothing about declared identities.
-    client.post("/api/declare-admin")
+    client.post("/api/identify")
     assert client.get("/api/sem-list").get_json()["user"] == "X1234567"
 
     monkeypatch.setattr(middleware_mod, "is_blocked", lambda user_id: True)
