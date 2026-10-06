@@ -5,7 +5,7 @@
     flush
   >
     <template #actions>
-      <span class="sk-meta">{{ toolId.toUpperCase() }} 에서만 유지됩니다</span>
+      <span class="sk-meta">{{ toolId.toUpperCase() }} 에서만 유지됩니다 · 최대 {{ AFM_GROUP_MAX }}건</span>
     </template>
 
     <!-- 그룹 and 저장된 그룹 are one flow — pick, save, load back — so they share
@@ -291,10 +291,11 @@ const load = (group: AfmSavedGroup, mode?: 'replace' | 'merge') => {
     confirmId.value = group.id
     return
   }
-  cart.loadSavedGroup(group.id, mode === 'merge')
+  const leftOut = cart.loadSavedGroup(group.id, mode === 'merge')
   tab.value = 'group'
-  flash.value = mode === 'replace'
+  const done = mode === 'replace'
     ? `'${group.name}' 그룹으로 바꿨습니다.`
     : `'${group.name}' 그룹을 ${mode === 'merge' ? '합쳤습니다' : '불러왔습니다'}.`
+  flash.value = leftOut ? `${done} 그룹은 최대 ${AFM_GROUP_MAX}건이라 ${leftOut}건은 담지 않았습니다.` : done
 }
 </script>

@@ -30,6 +30,7 @@
         <AfmGroupCheck
           :checked="cart.isInGroup(item.filename)"
           label="그룹에 담기"
+          :disabled="!groupRoom && !cart.isInGroup(item.filename)"
           @toggle="cart.toggleGroup(item)"
         />
         <AfmMeasurementLine :item="item">
@@ -70,4 +71,5 @@ defineEmits<{
 
 const cart = useAfmCart(props.toolId)
 const items = cart.viewHistory
+const groupRoom = cart.groupRoom
 </script>

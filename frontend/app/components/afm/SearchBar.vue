@@ -176,10 +176,11 @@
           <AfmGroupCheck
             :checked="allInGroup ? true : someInGroup ? 'indeterminate' : false"
             label="보이는 결과 모두 담기"
+            :disabled="!groupRoom && !someInGroup"
             @toggle="toggleAll"
           />
           <span class="sk-meta">
-            보이는 {{ filteredResults.length }}건 모두 {{ allInGroup ? '담김' : '담기' }}
+            {{ allLabel }}
           </span>
           <span class="ml-auto sk-meta">
             체크하면 오른쪽 <b class="font-semibold text-(--sk-ink)">그룹</b>에 담깁니다
@@ -200,6 +201,7 @@
             <AfmGroupCheck
               :checked="cart.isInGroup(result.filename)"
               label="그룹에 담기"
+              :disabled="!groupRoom && !cart.isInGroup(result.filename)"
               @toggle="cart.toggleGroup(result)"
             />
 
@@ -330,10 +332,20 @@ const viewed = computed(() => new Set(cart.viewHistory.value.map(item => item.fi
 
 const someInGroup = computed(() => filteredResults.value.some(row => cart.isInGroup(row.filename)))
 const allInGroup = computed(() => filteredResults.value.every(row => cart.isInGroup(row.filename)))
+const groupRoom = cart.groupRoom
+// A full group takes no more, so the box then empties the visible rows instead.
 const toggleAll = () => {
-  if (allInGroup.value) cart.removeFromGroup(...filteredResults.value.map(row => row.filename))
+  if (allInGroup.value || !groupRoom.value) cart.removeFromGroup(...filteredResults.value.map(row => row.filename))
   else cart.addToGroup(...filteredResults.value)
 }
+const allLabel = computed(() => {
+  const count = filteredResults.value.length
+  const missing = filteredResults.value.filter(row => !cart.isInGroup(row.filename)).length
+  if (!missing) return `보이는 ${count}건 모두 담김`
+  if (!groupRoom.value) return `그룹이 가득 찼습니다 · 최대 ${AFM_GROUP_MAX}건`
+  if (missing > groupRoom.value) return `보이는 ${count}건 중 위에서부터 ${groupRoom.value}건만 담깁니다 · 그룹 최대 ${AFM_GROUP_MAX}건`
+  return `보이는 ${count}건 모두 담기`
+})
 
 const DATA_TYPES = [
   { key: 'hasProfile', icon: 'i-lucide-line-chart', tooltip: '프로파일 데이터' },

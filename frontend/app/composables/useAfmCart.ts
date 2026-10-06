@@ -35,6 +35,9 @@ export interface AfmSavedGroup {
   createdAt: string
 }
 
+// 함께 보기 sends one detail request per grouped measurement, and /api/* allows
+// 50 per 5 s per user: past that the page charts a partial group as if whole.
+export const AFM_GROUP_MAX = 20
 const MAX_HISTORY = 10
 const MAX_SAVED_GROUPS = 10
 const MAX_RECENT_SEARCHES = 5
@@ -54,6 +57,10 @@ export const useAfmCart = (toolId: string) => {
   const savedGroups = persistedSlice<AfmSavedGroup>('savedGroups', toolId)
   const recentSearches = persistedSlice<string>('recentSearches', toolId)
 
+  // A group stored before the cap existed can be longer.
+  if (groupedData.value.length > AFM_GROUP_MAX) groupedData.value = groupedData.value.slice(0, AFM_GROUP_MAX)
+  const groupRoom = computed(() => AFM_GROUP_MAX - groupedData.value.length)
+
   const groupedFilenames = computed(() => new Set(groupedData.value.map(item => item.filename)))
   const isInGroup = (filename: string) => groupedFilenames.value.has(filename)
 
@@ -69,8 +76,11 @@ export const useAfmCart = (toolId: string) => {
 
   // Both take any number of rows and assign once: every assignment rewrites the
   // whole group to localStorage, so "모두 담기" row by row is quadratic.
+  // Rows past the room left in the group are dropped, first come first kept.
   const addToGroup = (...measurements: AfmMeasurement[]) => {
-    const fresh = measurements.filter(measurement => !isInGroup(measurement.filename))
+    const fresh = measurements
+      .filter(measurement => !isInGroup(measurement.filename))
+      .slice(0, groupRoom.value)
     if (!fresh.length) return
     const addedAt = new Date().toISOString()
     groupedData.value = [
@@ -106,12 +116,15 @@ export const useAfmCart = (toolId: string) => {
   }
 
   // `merge` keeps what is already in the group and appends only the new files.
+  // Returns how many files the cap left out.
   const loadSavedGroup = (groupId: string, merge = false) => {
     const found = savedGroups.value.find(group => group.id === groupId)
-    if (!found) return
-    groupedData.value = merge
+    if (!found) return 0
+    const next = merge
       ? [...groupedData.value, ...found.items.filter(item => !isInGroup(item.filename))]
       : [...found.items]
+    groupedData.value = next.slice(0, AFM_GROUP_MAX)
+    return next.length - groupedData.value.length
   }
 
   const removeSavedGroup = (groupId: string) => {
@@ -134,6 +147,7 @@ export const useAfmCart = (toolId: string) => {
     groupedData,
     savedGroups,
     recentSearches,
+    groupRoom,
     isInGroup,
     addToHistory,
     clearHistory,
