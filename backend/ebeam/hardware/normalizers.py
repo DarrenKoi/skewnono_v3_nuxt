@@ -104,10 +104,19 @@ def bm_pm_history_payload(
 ) -> HardwarePayload:
     """Build the BM/PM payload from generated past/future work records.
 
-    Rows arrive pre-sorted from the provider — past newest-first, future
-    soonest-first; this only maps them onto the canonical two-section table
-    shape plus data-driven cards.
+    Rows arrive sorted from the provider — past newest Down first, future
+    soonest-first. Future is shown as-is; past is re-ordered here by its
+    Uploaded stamp, newest first, because the 이력 list is read as "what was
+    reported last" and a note written late would otherwise sit far down the
+    list. The sort lives here rather than in the adapters so the mock and the
+    office copy cannot disagree on it. `cards` were derived by the provider
+    from the Down order and are untouched: "Last BM" is the last tool-down.
     """
+    # TS_FMT strings sort chronologically as text. Stable, so equal stamps keep
+    # the provider's Down order, and a row with no stamp ("") lands last.
+    past_rows = sorted(
+        past_rows, key=lambda row: str(row.get("timestamp") or ""), reverse=True
+    )
     metric_cards: list[HardwareMetricCard] = [
         {
             "key": "last_bm",

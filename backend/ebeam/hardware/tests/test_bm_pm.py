@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 from backend.ebeam.hardware import data as hardware_data
+from backend.ebeam.hardware.normalizers import bm_pm_history_payload
 from backend.ebeam.hardware.providers.bm_pm._shared import (
     classify_category,
     derive_cards,
@@ -176,3 +177,25 @@ def test_engr_note_rides_along_without_being_a_column():
     past = next(s for s in payload["tables"] if s["key"] == "past_work")
     assert "engr_note" not in {c["key"] for c in past["columns"]}
     assert all("engr_note" in row for row in past["rows"])
+
+
+def test_past_table_is_ordered_by_uploaded_newest_first():
+    # The 이력 list reads top-down as "what was reported last", so it follows
+    # the Uploaded stamp, not the Down time the providers sort on. The two
+    # disagree whenever a note is written late; a row with no stamp goes last.
+    rows = [
+        {"job_starts": "2026-05-20 09:00", "timestamp": "2026-05-20 13:00"},
+        {"job_starts": "2026-05-10 09:00", "timestamp": "2026-05-25 08:00"},
+        {"job_starts": "2026-05-05 09:00", "timestamp": ""},
+        {"job_starts": "2026-05-01 09:00", "timestamp": "2026-05-22 10:00"},
+    ]
+    payload = bm_pm_history_payload(
+        "cdsem", "CDX001", "R3", past_rows=rows, future_rows=[], cards={}
+    )
+    past = next(s for s in payload["tables"] if s["key"] == "past_work")
+    assert [row["job_starts"] for row in past["rows"]] == [
+        "2026-05-10 09:00",
+        "2026-05-01 09:00",
+        "2026-05-20 09:00",
+        "2026-05-05 09:00",
+    ]
