@@ -62,7 +62,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 38.7,
+      "tip_width": 44.8,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261006#063000#ROUGHNESS_SCAN#11"
@@ -129,7 +129,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 39.0,
+      "tip_width": 45.1,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261006#090700#ROUGHNESS_SCAN#11"
@@ -196,7 +196,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 38.7,
+      "tip_width": 44.9,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261006#114400#ROUGHNESS_SCAN#11"
@@ -274,7 +274,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 39.7,
+      "tip_width": 45.9,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261005#053000#RX1A_M0A_COT_X_PDG#12"
@@ -430,7 +430,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 38.7,
+      "tip_width": 44.9,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261005#104400#RX1A_M0A_COT_X_PDG#12"
@@ -515,7 +515,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 38.7,
+      "tip_width": 44.9,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261004#043000#CMP_POST#13"
@@ -600,7 +600,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 38.7,
+      "tip_width": 44.9,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261004#070700#CMP_POST#13"
@@ -685,7 +685,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 37.3,
+      "tip_width": 43.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261004#094400#CMP_POST#13"
@@ -749,7 +749,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 38.5,
+      "tip_width": 44.6,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261003#093000#RQQA_PFH_MONF (1)#14"
@@ -813,7 +813,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 39.4,
+      "tip_width": 45.6,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261003#120700#RQQA_PFH_MONF (1)#14"
@@ -877,7 +877,7 @@
       "tip_id": "MCNT-500",
       "tip_port_no": "2",
       "tip_slot_no": "1",
-      "tip_width": 38.6,
+      "tip_width": 44.8,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261003#144400#RQQA_PFH_MONF (1)#14"
@@ -988,7 +988,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261002#083000#RL1A_LPCCMP_CMPWEAK2#15"
@@ -1099,7 +1099,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261002#110700#RL1A_LPCCMP_CMPWEAK2#15"
@@ -1210,7 +1210,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261002#134400#RL1A_LPCCMP_CMPWEAK2#15"
@@ -1262,7 +1262,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261001#073000#RL1C_L1_XDEC_5MM_LINE#16"
@@ -1366,7 +1366,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261001#124400#RL1C_L1_XDEC_5MM_LINE#16"
@@ -1433,7 +1433,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260930#063000#ROUGHNESS_SCAN#17"
@@ -1500,7 +1500,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260930#090700#ROUGHNESS_SCAN#17"
@@ -1567,7 +1567,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260930#114400#ROUGHNESS_SCAN#17"
@@ -1645,7 +1645,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260929#053000#RX1A_M0A_COT_X_PDG#18"
@@ -1723,7 +1723,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260929#080700#RX1A_M0A_COT_X_PDG#18"
@@ -1801,7 +1801,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "7",
-      "tip_width": 54.2,
+      "tip_width": 71.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260929#104400#RX1A_M0A_COT_X_PDG#18"
@@ -1886,7 +1886,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "3",
-      "tip_width": 28.1,
+      "tip_width": 29.5,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260928#043000#CMP_POST#19"
@@ -1971,7 +1971,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "3",
-      "tip_width": 28.0,
+      "tip_width": 29.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260928#070700#CMP_POST#19"
@@ -2056,7 +2056,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "3",
-      "tip_width": 26.2,
+      "tip_width": 27.7,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260928#094400#CMP_POST#19"
@@ -2120,7 +2120,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "3",
-      "tip_width": 26.0,
+      "tip_width": 27.5,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260927#093000#RQQA_PFH_MONF (1)#20"

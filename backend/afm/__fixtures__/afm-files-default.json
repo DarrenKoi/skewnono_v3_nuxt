@@ -50,7 +50,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 42.9,
+      "tip_width": 31.3,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261006#063000#PAD_HEIGHT_3PAD#T3HQRNF.06#T3HQRNF#063400"
@@ -115,7 +115,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 41.7,
+      "tip_width": 30.0,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500"
@@ -188,7 +188,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 43.3,
+      "tip_width": 31.6,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261006#063000#ETCH_TRIM#CRAP1NH.08#CRAP1NH#065600"
@@ -327,7 +327,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 41.4,
+      "tip_width": 29.8,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261005#053000#BSOXCMP_CORRELATION_36PT#T7HQRNI.09#T7HQRNI#053400"
@@ -413,7 +413,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 40.7,
+      "tip_width": 29.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261005#053000#VED_BS_TOP01#T3HQRNJ.10#T3HQRNJ#054500"
@@ -462,7 +462,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 41.5,
+      "tip_width": 29.8,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261005#053000#Fi-Tapping TEST#TT032NK.11#TT032NK#055600"
@@ -517,7 +517,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 42.6,
+      "tip_width": 30.9,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261004#043000#PAD_HEIGHT_3PAD#CRAP1NL.12#CRAP1NL#043400"
@@ -582,7 +582,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 43.2,
+      "tip_width": 31.5,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500"
@@ -655,7 +655,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 41.1,
+      "tip_width": 29.4,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261004#043000#ETCH_TRIM#T3HQRNN.14#T3HQRNN#045600"
@@ -794,7 +794,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 42.9,
+      "tip_width": 31.3,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261003#093000#BSOXCMP_CORRELATION_36PT#TT032NO.15#TT032NO#093400"
@@ -880,7 +880,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 43.2,
+      "tip_width": 31.5,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261003#093000#VED_BS_TOP01#CRAP1NP.16#CRAP1NP#094500"
@@ -929,7 +929,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "8",
-      "tip_width": 42.9,
+      "tip_width": 31.2,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261003#093000#Fi-Tapping TEST#T7HQRNQ.17#T7HQRNQ#095600"
@@ -984,7 +984,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.3,
+      "tip_width": 28.3,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261002#083000#PAD_HEIGHT_3PAD#T3HQRNR.18#T3HQRNR#083400"
@@ -1049,7 +1049,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 33.0,
+      "tip_width": 29.0,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500"
@@ -1122,7 +1122,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 34.3,
+      "tip_width": 30.4,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261002#083000#ETCH_TRIM#CRAP1NT.20#CRAP1NT#085600"
@@ -1261,7 +1261,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.8,
+      "tip_width": 28.9,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261001#073000#BSOXCMP_CORRELATION_36PT#T7HQRNU.21#T7HQRNU#NA"
@@ -1347,7 +1347,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.1,
+      "tip_width": 28.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261001#073000#VED_BS_TOP01#T3HQRNV.22#T3HQRNV#NA"
@@ -1396,7 +1396,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.5,
+      "tip_width": 28.6,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "261001#073000#Fi-Tapping TEST#TT032NW.23#TT032NW#NA"
@@ -1451,7 +1451,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 33.7,
+      "tip_width": 29.8,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260930#063000#PAD_HEIGHT_3PAD#CRAP1NX.24#CRAP1NX#NA"
@@ -1516,7 +1516,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 33.5,
+      "tip_width": 29.5,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA"
@@ -1589,7 +1589,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.4,
+      "tip_width": 28.4,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260930#063000#ETCH_TRIM#T3HQRNZ.01#T3HQRNZ#NA"
@@ -1728,7 +1728,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.8,
+      "tip_width": 28.8,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260929#053000#BSOXCMP_CORRELATION_36PT#TT032O0.02#TT032O0#NA"
@@ -1814,7 +1814,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.9,
+      "tip_width": 28.9,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260929#053000#VED_BS_TOP01#CRAP1O1.03#CRAP1O1#NA"
@@ -1863,7 +1863,7 @@
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
       "tip_slot_no": "10",
-      "tip_width": 32.8,
+      "tip_width": 28.8,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260929#053000#Fi-Tapping TEST#T7HQRO2.04#T7HQRO2#NA"
@@ -1918,7 +1918,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "12",
-      "tip_width": 51.1,
+      "tip_width": 71.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260928#043000#PAD_HEIGHT_3PAD#T3HQRO3.05#T3HQRO3#NA"
@@ -1983,7 +1983,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "12",
-      "tip_width": 51.1,
+      "tip_width": 71.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA"
@@ -2056,7 +2056,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "12",
-      "tip_width": 51.1,
+      "tip_width": 71.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260928#043000#ETCH_TRIM#CRAP1O5.07#CRAP1O5#NA"
@@ -2195,7 +2195,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "12",
-      "tip_width": 51.1,
+      "tip_width": 71.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260927#093000#BSOXCMP_CORRELATION_36PT#T7HQRO6.08#T7HQRO6#093400"
@@ -2281,7 +2281,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "12",
-      "tip_width": 51.1,
+      "tip_width": 71.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260927#093000#VED_BS_TOP01#T3HQRO7.09#T3HQRO7#094500"
@@ -2330,7 +2330,7 @@
       "tip_id": "CDR-70",
       "tip_port_no": "2",
       "tip_slot_no": "12",
-      "tip_width": 51.1,
+      "tip_width": 71.1,
       "tool_id": "map608",
       "tool_name": "MAP608",
       "unique_key": "260927#093000#Fi-Tapping TEST#TT032O8.10#TT032O8#095600"

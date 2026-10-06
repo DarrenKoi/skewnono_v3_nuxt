@@ -140,7 +140,7 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   Tip Port No, Tip Slot No) 로 식별하며, `Tip Width` 는 측정 시점의 기록값이라 MCNT 계열은
   같은 자리에서도 측정마다 달라지고, 기록이 없으면 문자열 `NaN` 입니다(mock 은 20건 중 1건).
   지어낸 것(OFFICE-VERIFY): Tip ID 의 이름(`MCNT-150` 등)과 종류 수, 한 팁이 4일 유지된다는
-  것, 폭의 범위(20~60)와 MCNT 의 흔들림 크기(±1.5), 단위, `NaN` 의 비율.
+  것, 종류별 폭(30·45·70 근처, 같은 종류의 팁끼리 ±2)과 MCNT 의 흔들림 크기(±1.5), 단위, `NaN` 의 비율.
   `Data Save Location` 은 공백 없는 긴 경로라는 것만 user-confirmed(2026-10-06)이고,
   폴더 구성(드라이브·장비·날짜·recipe·lot 순서)은 지어냈습니다.
 - 목록의 팁 열 9종(`tip_id`·`tip_cassette_id`·`tip_port_no`·`tip_slot_no`·`tip_width`·
@@ -1086,7 +1086,9 @@ _TIP_LIFE_DAYS = 4
 # An MCNT tip's Tip Width is re-recorded by every measurement; a fixed tip's is
 # not (office 확인 2026-10-06). The names themselves and how many types a tool
 # carries are made up (OFFICE-VERIFY) — few, so one ID recurs in another slot.
-_TIP_TYPES = (("MCNT-150", True), ("MCNT-500", True), ("CDR-70", False))
+# So is the last field, the width a tip of that type starts near: tips of one
+# type are taken to be alike (±2), or a type-wide limit would mean nothing.
+_TIP_TYPES = (("MCNT-150", True, 30.0), ("MCNT-500", True, 45.0), ("CDR-70", False, 70.0))
 
 
 def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | None]:
@@ -1100,11 +1102,11 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
     # per (tool, period) and consecutive measurements share a tip.
     period = started.toordinal() // _TIP_LIFE_DAYS
     mounted = random.Random(_seed_for("tip-mounted", row["tool_name"], str(period)))
-    tip_id, remeasured = mounted.choice(_TIP_TYPES)
+    tip_id, remeasured, nominal_width = mounted.choice(_TIP_TYPES)
     tip_cassette = f"TC{mounted.randint(10, 99)}"
     tip_port = str(mounted.randint(1, 2))
     tip_slot = str(mounted.randint(1, 16))
-    width = mounted.uniform(20, 60) + (tip.uniform(-1.5, 1.5) if remeasured else 0)
+    width = nominal_width + mounted.uniform(-2, 2) + (tip.uniform(-1.5, 1.5) if remeasured else 0)
     # A width the measurement did not record is the literal text 'NaN'.
     no_width = _seed_for("tip-nan", row["tool_name"], row["filename"]) % 20 == 0
     tip_width = "NaN" if no_width else f"{width:.1f}"

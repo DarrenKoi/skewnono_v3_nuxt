@@ -4,7 +4,8 @@
 // own TYPE (`Tip ID`) — there is no spec yet, so the limits are statistical.
 import type { AfmFileRow } from '~/composables/useAfmDetailApi'
 import { measuredAt } from './afmSearch.ts'
-import { controlLimits, isOutside, type ControlLimits, type HealthPoint } from './afmTrend.ts'
+import { isOutside, robustSd, type ControlLimits, type HealthPoint } from './afmTrend.ts'
+import { median } from './stats.ts'
 
 export const TIP_PARAMS = ['tipWidth', 'approach', 'mileage', 'notCompleted', 'invalid'] as const
 export type TipParam = typeof TIP_PARAMS[number]
@@ -59,14 +60,26 @@ export interface TipParamStat {
   outliers: number
 }
 
+export type TipState = 'bad' | 'warn' | 'ok' | 'hold'
+
+// A tip's state speaks for now, so it reads this many of its latest
+// measurements: two or more outside a limit is 이상, one is 주의.
+export const TIP_RECENT = 5
+
 export interface TipUnit {
   tip: string
-  count: number
-  first: number
-  last: number
-  lastWidth: number | null
+  type: string
+  // Its measurements, oldest first.
+  points: TipPoint[]
+  // The recipes it measured, most used first.
+  recipes: { recipe: string, count: number }[]
   // Measurements of this tip with a value outside its type's limits.
   flagged: number
+  // The same, among its last TIP_RECENT — and which values those were.
+  recentOut: number
+  recentParams: TipParam[]
+  // 'hold' where the type has too few measurements to draw any limit.
+  state: TipState
 }
 
 export interface TipFlag {
@@ -78,11 +91,34 @@ export interface TipCategory {
   type: string
   points: TipPoint[]
   stats: TipParamStat[]
-  // Newest tip first.
+  // Worst state first, then the tip used last.
   tips: TipUnit[]
   // Newest measurement first.
   flags: TipFlag[]
 }
+
+// Median ± 3σ, σ from the MAD. Not 시계열 비교's controlLimits, whose centre is
+// the mean: a tip going bad drags a mean towards itself and puts the healthy
+// measurements outside instead. Here the excursions are what is being looked for.
+const tipLimits = (values: number[]): ControlLimits => {
+  const mu = median(values)
+  const sigma = robustSd(values)
+  return { mu, sigma, ucl: mu + 3 * sigma, lcl: mu - 3 * sigma }
+}
+
+const STATE_RANK: Record<TipState, number> = { bad: 0, warn: 1, ok: 2, hold: 3 }
+
+// The recipes a set of measurements ran, most used first.
+export const tipRecipes = (points: TipPoint[]): { recipe: string, count: number }[] => {
+  const counts = new Map<string, number>()
+  for (const point of points) counts.set(point.recipe, (counts.get(point.recipe) ?? 0) + 1)
+  return [...counts.entries()]
+    .map(([recipe, count]) => ({ recipe, count }))
+    .sort((a, b) => b.count - a.count || a.recipe.localeCompare(b.recipe))
+}
+
+// The tip on the tool now: the one that made its latest measurement.
+export const mountedTip = (points: TipPoint[]): string | null => points.at(-1)?.tip ?? null
 
 export const tipCategories = (points: TipPoint[]): TipCategory[] => {
   const byType = new Map<string, TipPoint[]>()
@@ -94,29 +130,39 @@ export const tipCategories = (points: TipPoint[]): TipCategory[] => {
   return [...byType.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([type, group]) => {
     const limits = TIP_PARAMS.map((param) => {
       const values = group.flatMap(p => p[param] ?? [])
-      return { param, n: values.length, limits: values.length < TIP_MIN_SAMPLES ? null : controlLimits(values) }
+      return { param, n: values.length, limits: values.length < TIP_MIN_SAMPLES ? null : tipLimits(values) }
     })
     const flags = group.flatMap((point) => {
       const params = limits.flatMap(({ param, limits }) =>
         point[param] !== null && isOutside(point[param], limits) ? [param] : [])
       return params.length ? [{ point, params }] : []
     })
-    const flagged = new Set(flags.map(f => f.point.key))
-    const tips = new Map<string, TipUnit>()
+    const outside = new Map(flags.map(f => [f.point.key, f.params]))
+    const judged = limits.some(stat => stat.limits !== null)
+    const byTip = new Map<string, TipPoint[]>()
     for (const point of group) {
-      const unit = tips.get(point.tip)
-        ?? { tip: point.tip, count: 0, first: point.time, last: point.time, lastWidth: null, flagged: 0 }
-      unit.count += 1
-      unit.last = point.time
-      unit.lastWidth = point.tipWidth ?? unit.lastWidth
-      unit.flagged += flagged.has(point.key) ? 1 : 0
-      tips.set(point.tip, unit)
+      const own = byTip.get(point.tip)
+      if (own) own.push(point)
+      else byTip.set(point.tip, [point])
     }
+    const tips = [...byTip.entries()].map(([tip, own]): TipUnit => {
+      const recent = own.slice(-TIP_RECENT).flatMap(p => outside.get(p.key) ? [outside.get(p.key)!] : [])
+      return {
+        tip,
+        type,
+        points: own,
+        recipes: tipRecipes(own),
+        flagged: own.filter(p => outside.has(p.key)).length,
+        recentOut: recent.length,
+        recentParams: TIP_PARAMS.filter(param => recent.some(params => params.includes(param))),
+        state: !judged ? 'hold' : recent.length >= 2 ? 'bad' : recent.length === 1 ? 'warn' : 'ok'
+      }
+    })
     return {
       type,
       points: group,
       stats: limits.map(stat => ({ ...stat, outliers: flags.filter(f => f.params.includes(stat.param)).length })),
-      tips: [...tips.values()].sort((a, b) => b.last - a.last),
+      tips: tips.sort((a, b) => STATE_RANK[a.state] - STATE_RANK[b.state] || b.points.at(-1)!.time - a.points.at(-1)!.time),
       flags: flags.reverse()
     }
   })

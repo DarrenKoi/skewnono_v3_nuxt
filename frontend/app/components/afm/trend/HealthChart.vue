@@ -26,12 +26,18 @@ const props = defineProps<{
   points: { key: string, time: number, value: number | null }[]
   // Times to rule a vertical line at (a tip change).
   marks?: number[]
+  // Limits to shade between, [lower, upper] (팁 모니터링). The axis grows to hold them.
+  band?: [number, number]
   selected: string | null
   exportName: string
 }>()
 const emit = defineEmits<{ select: [key: string] }>()
 
 const sk = useChartPalette()
+
+// A count cannot go below zero, whatever the arithmetic of a limit says.
+const band = computed(() =>
+  props.band && [props.kind === 'bar' ? Math.max(props.band[0], 0) : props.band[0], props.band[1]] as const)
 
 const chartOption = computed<EChartsOption>(() => ({
   grid: { left: 36, right: 8, top: 8, bottom: 24 },
@@ -43,7 +49,18 @@ const chartOption = computed<EChartsOption>(() => ({
     }
   },
   xAxis: { type: 'time', axisLabel: { ...CHART_AXIS_LABEL, formatter: '{MM}/{dd}', hideOverlap: true }, splitLine: { show: false } },
-  yAxis: { type: 'value', scale: props.kind === 'line', splitNumber: 3, minInterval: props.kind === 'bar' ? 1 : undefined, axisLabel: CHART_AXIS_LABEL },
+  yAxis: {
+    type: 'value',
+    scale: props.kind === 'line',
+    splitNumber: 3,
+    minInterval: props.kind === 'bar' ? 1 : undefined,
+    axisLabel: CHART_AXIS_LABEL,
+    ...(band.value && {
+      // Whole numbers, or the limit's own decimals become an axis label.
+      min: ({ min }: { min: number }) => Math.floor(Math.min(min, band.value![0])),
+      max: ({ max }: { max: number }) => Math.ceil(Math.max(max, band.value![1]))
+    })
+  },
   series: [{
     type: props.kind,
     symbolSize: 6,
@@ -55,6 +72,11 @@ const chartOption = computed<EChartsOption>(() => ({
       label: { show: false },
       lineStyle: { type: 'solid', color: sk.value.ink, width: 1, opacity: 0.45 },
       data: (props.marks ?? []).map(time => ({ xAxis: time }))
+    },
+    markArea: band.value && {
+      silent: true,
+      itemStyle: { color: props.color, opacity: 0.1 },
+      data: [[{ yAxis: band.value[0] }, { yAxis: band.value[1] }]]
     },
     data: props.points.map(p => ({
       value: [p.time, p.value],

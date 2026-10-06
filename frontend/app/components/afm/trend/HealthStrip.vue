@@ -29,6 +29,8 @@ const props = defineProps<{
   exportName: string
   // What the strip was built from, where that is not 시계열 비교's group.
   hint?: string
+  // Limits to shade on a chart, by the HealthPoint field it draws.
+  bands?: Partial<Record<'notCompleted' | 'invalid' | 'approach' | 'mileage' | 'tipWidth', [number, number]>>
 }>()
 const emit = defineEmits<{ select: [key: string] }>()
 
@@ -53,7 +55,8 @@ const charts = computed(() => {
       note: '0이 정상. 한 측정에 몰리면 그 측정만, 꾸준히 늘면 팁.',
       kind: 'bar' as const,
       color: SK_STATE.bad,
-      points: series(h => h.notCompleted)
+      points: series(h => h.notCompleted),
+      band: props.bands?.notCompleted
     },
     {
       slug: 'invalid',
@@ -62,7 +65,8 @@ const charts = computed(() => {
       note: '완료됐지만 recipe 기준을 못 넘긴 포인트.',
       kind: 'bar' as const,
       color: SK_STATE.warn,
-      points: series(h => h.invalid)
+      points: series(h => h.invalid),
+      band: props.bands?.invalid
     },
     {
       slug: 'approach',
@@ -71,7 +75,8 @@ const charts = computed(() => {
       note: '재접근이 늘면 표면·팁 상태 의심.',
       kind: 'line' as const,
       color: SK_SCALE[0],
-      points: series(h => h.approach)
+      points: series(h => h.approach),
+      band: props.bands?.approach
     },
     {
       slug: 'mileage',
@@ -81,6 +86,7 @@ const charts = computed(() => {
       kind: 'line' as const,
       color: SK_STATE.ok,
       points: series(h => h.mileage),
+      band: props.bands?.mileage,
       marks
     },
     {
@@ -93,6 +99,7 @@ const charts = computed(() => {
       kind: 'line' as const,
       color: SK_SCALE[1],
       points: series(h => h.tipWidth),
+      band: props.bands?.tipWidth,
       marks
     }
   ]

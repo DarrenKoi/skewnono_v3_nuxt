@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmFileRow } from '~/composables/useAfmDetailApi'
-import { tipCategories, tipPoints } from './afmTips.ts'
+import { mountedTip, tipCategories, tipPoints, tipRecipes } from './afmTips.ts'
 
 const row = (n: number, extra: Partial<AfmFileRow> = {}): AfmFileRow => ({
   filename: `f${n}`,
@@ -54,12 +54,35 @@ test('tipCategories judges a tip against its own type, whatever slot it sits in'
   assert.equal(mcnt!.stats.find(s => s.param === 'notCompleted')!.n, 8)
   assert.deepEqual(mcnt!.flags.map(f => [f.point.key, f.params]), [['f8', ['tipWidth']]])
   // Newest tip first; the flag is counted on the tip that measured it.
-  assert.deepEqual(mcnt!.tips.map(t => [t.tip, t.count, t.flagged]), [
-    ['MCNT-150 · TC10/1/9', 5, 1],
-    ['MCNT-150 · TC10/1/3', 4, 0]
+  // Worst tip first; one of its last five outside is 주의, none is 정상.
+  assert.deepEqual(mcnt!.tips.map(t => [t.tip, t.points.length, t.flagged, t.recentOut, t.state]), [
+    ['MCNT-150 · TC10/1/9', 5, 1, 1, 'warn'],
+    ['MCNT-150 · TC10/1/3', 4, 0, 0, 'ok']
   ])
+  assert.deepEqual(mcnt!.tips[0]!.recentParams, ['tipWidth'])
 
   // Too few measurements to call anything an outlier.
   assert.deepEqual(cdr!.stats.map(s => s.limits), [null, null, null, null, null])
   assert.deepEqual(cdr!.flags, [])
+  assert.equal(cdr!.tips[0]!.state, 'hold')
+})
+
+test('a tip is judged on its last five measurements only', () => {
+  const widths = [60, 40, 41, 39, 40, 41, 39, 40, 41, 39, 61, 40, 62]
+  const points = tipPoints(widths.map((tip_width, i) => row(i + 1, {
+    tip_width,
+    tip_slot_no: i < 6 ? '3' : '9',
+    recipe_name: i % 3 ? 'A' : 'B'
+  })))
+  const [mcnt] = tipCategories(points)
+  // The newer tip went out twice in its last five; the older one's excursion
+  // is six measurements back, so it no longer speaks for the tip.
+  assert.deepEqual(mcnt!.tips.map(t => [t.tip, t.flagged, t.recentOut, t.state]), [
+    ['MCNT-150 · TC10/1/9', 2, 2, 'bad'],
+    ['MCNT-150 · TC10/1/3', 1, 0, 'ok']
+  ])
+  assert.deepEqual(mcnt!.tips[0]!.recipes, [{ recipe: 'A', count: 4 }, { recipe: 'B', count: 3 }])
+  assert.equal(mountedTip(points), 'MCNT-150 · TC10/1/9')
+  assert.equal(mountedTip([]), null)
+  assert.deepEqual(tipRecipes(points), [{ recipe: 'A', count: 8 }, { recipe: 'B', count: 5 }])
 })
