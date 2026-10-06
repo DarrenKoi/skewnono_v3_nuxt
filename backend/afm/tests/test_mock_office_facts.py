@@ -79,9 +79,11 @@ def test_map608_measurements_of_one_session_share_the_leading_time():
         start_time = mock.get_afm_file_detail(row["filename"], "MAP608")["information"].get("Start Time")
         if start_time is None:  # the 13-key Info has no Start Time
             continue
-        # The trailing field is the measurement start; an old file has NA there and
-        # its Info Start Time then equals the leading (session) time.
-        clock = start if start.isdigit() else row["time"]
+        # The trailing field is the measurement start. Where it is NA the start
+        # is still the measurement's own, not the session's (seen: time 014148,
+        # Start Time 02:29:14), and the list takes it from here.
+        clock = row["measured_time"]
+        assert start in ("NA", clock)
         assert start_time == f"{row['formatted_date']} {clock[:2]}:{clock[2:4]}:{clock[4:]}"
     starts = [row["filename"].split("#")[6] for row in rows]
     assert "NA" in starts
@@ -291,10 +293,20 @@ def test_a_repeat_recipe_holds_a_point_several_times_in_one_block():
             detail["available_points"], 2
         )
         # office 확인 2026-10-07: every Site once, then every Site again, and
-        # only `Sample Count` (4, then 5) says which lap a row belongs to.
+        # only `Sample Count` (one more on the second lap) says which lap a row is.
         assert [record["measurement_point"] for record in detail["data"]] == detail["available_points"] * 2
-        assert [record["Sample Count"] for record in detail["data"]] == [4] * 4 + [5] * 4
+        first = detail["data"][0]["Sample Count"]
+        assert [record["Sample Count"] for record in detail["data"]] == [first] * 4 + [first + 1] * 4
     assert repeats
+    # 8차: without a repeat it is one value for the whole measurement, whether
+    # or not the recipe records a Site ID, and differs between measurements.
+    firsts = set()
+    for _, row, detail in _all_details():
+        if row["recipe_name"] != "RQQA_REPEAT_4SITE" and detail["data"]:
+            counts = {record["Sample Count"] for record in detail["data"]}
+            assert len(counts) == 1
+            firsts |= counts
+    assert len(firsts) > 5 and min(firsts) >= 1 and max(firsts) <= 47
 
 
 def test_blocks_cannot_be_told_apart_by_method_id():
@@ -462,13 +474,23 @@ def test_tip_is_one_id_in_several_seats_and_width_is_per_measurement():
 
 def test_measured_time_is_the_measurements_own_start():
     # office 확인 2026-10-07: about half of MAP608's recent names carry NA where
-    # the start goes, not only old ones. The column is the start either way.
+    # the start goes, not only old ones. There the loader reads Info's Start
+    # Time, which a 13-key Info does not have — the only null.
     rows = _rows("MAP608")
     starts = [row["filename"].split("#")[6] for row in rows]
     assert 0.4 < starts.count("NA") / len(starts) < 0.8
+    nulls = 0
     for row, start in zip(rows, starts, strict=True):
-        assert row["measured_time"] == (row["time"] if start == "NA" else start)
-    assert any(row["measured_time"] != row["time"] for row in rows)
+        info = mock.get_afm_file_detail(row["filename"], "MAP608")["information"]
+        if start != "NA":
+            assert row["measured_time"] == start
+        elif "Start Time" in info:
+            assert row["measured_time"] == info["Start Time"][11:].replace(":", "")
+            assert row["measured_time"] != row["time"]
+        else:
+            assert row["measured_time"] is None
+            nulls += 1
+    assert nulls
     for tool in ("MAPC01", "5EAP1501"):
         assert all(row["measured_time"] == row["time"] for row in _rows(tool))
 
@@ -478,15 +500,14 @@ def test_mileage_counts_up_on_one_tip_and_starts_over_on_the_next():
     for tool in TOOLS:
         rows = sorted(
             (r for r in _rows(tool) if r["mileage_mean"] is not None),
-            key=lambda r: (r["date"], r["measured_time"]),
+            key=lambda r: (r["date"], r["measured_time"] or r["time"]),
         )
         tip = lambda r: (r["tip_id"], r["tip_cassette_id"], r["tip_port_no"], r["tip_slot_no"])  # noqa: E731
         resets = 0
         for before, after in zip(rows, rows[1:], strict=False):
             if tip(before) == tip(after):
-                # Two starts the list cannot order (one MAP608 session, NA in
-                # both names) may come either way round.
-                same_start = before["measured_time"] == after["measured_time"]
+                # A start the list does not have cannot be ordered.
+                same_start = None in (before["measured_time"], after["measured_time"])
                 assert same_start or after["mileage_mean"] >= before["mileage_mean"]
             else:
                 resets += after["mileage_mean"] < before["mileage_mean"]
@@ -517,6 +538,37 @@ def test_tip_images_are_one_per_point_and_one_for_the_measurement():
         names = row["tip_dir_list"]
         assert sum(name.endswith("_C_PR.webp") for name in names) == row["point_count"]
         assert sum(name.endswith("_C_Result.webp") for name in names) == 1
+
+
+def test_pick_up_and_put_back_belong_to_the_tip():
+    # 8차: every measurement one tip makes carries the same pair.
+    seen: dict[tuple, set] = {}
+    for _tool, row, detail in _all_details():
+        info = detail["information"]
+        tip = (row["tool_name"], info["Tip ID"], info["Tip Cassette ID"], info["Tip Port No"], info["Tip Slot No"])
+        for key in ("Last Pick Up Time", "Last Put Back Time"):
+            if info[key] is not None:
+                seen.setdefault((*tip, key), set()).add(info[key])
+    assert seen and all(len(values) == 1 for values in seen.values())
+
+
+def test_each_image_list_holds_its_originals_in_the_tools_own_format():
+    # 8차: align .bmp, tip and capture .png, Result .tiff — beside the webps.
+    formats = {"align": ".bmp", "tip": ".png", "capture": ".png"}
+    for tool in TOOLS:
+        for row in _rows(tool):
+            for kind, extension in formats.items():
+                names = row[f"{kind}_dir_list"]
+                webps = [name for name in names if name.endswith(".webp")]
+                assert len(names) == 2 * len(webps)
+                assert all(name.endswith((".webp", extension)) for name in names)
+                assert [image["name"] for image in mock.list_analysis_images(row["filename"], kind, tool)] == webps
+
+
+def test_5eap1501_has_a_tip_type_that_records_almost_no_width():
+    # 8차: OMCL-AC160TS — the limits must cope with a type that is mostly NaN.
+    rows = [row for row in _rows("5EAP1501") if row["tip_id"] == "OMCL-AC160TS"]
+    assert rows and sum(row["tip_width"] is None for row in rows) > len(rows) / 2
 
 
 def test_list_tip_columns_are_the_details_own_info_and_rows():

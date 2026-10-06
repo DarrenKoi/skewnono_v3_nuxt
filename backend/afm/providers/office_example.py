@@ -48,11 +48,8 @@ What the contract gets is not what the stores hold, in three places:
 Still assumptions (OFFICE-VERIFY) — run this file once and compare:
   - how a FALSE ``Valid`` is spelled (none has been seen); ``true`` / ``false``
     in any case are read, anything else is ``None``;
-  - that an original carries its webp's name with the ``.tiff`` extension (the
-    extension is confirmed, the pairing is not), and which list holds the align
-    / tip / capture originals;
-  - the shape of ``measured_time`` and what it is on a MAP608 name whose sixth
-    field is NA;
+  - that an original carries its webp's name with its own extension (the
+    extensions are confirmed, the pairing is not);
   - that ``alias`` is the tool's fab;
   - that the Summary's values are text like the points'.
 
@@ -88,7 +85,6 @@ _INFORMATION, _SUMMARY, _POINTS = (
     "detail_summary.parquet",
     "detail_points.parquet",
 )
-_TIFF_SUFFIXES = (".tif", ".tiff")
 _GONE_CODES = {"NoSuchKey", "NoSuchObject", "NotFound"}
 _INTEGER_COLUMNS = ("Point No", "Site X", "Site Y")
 # `Left_H (nm)`, `X (um)`: a column that names its unit holds a number.
@@ -240,7 +236,7 @@ def _key_named(record: dict[str, Any], kind: str, name: str) -> str | None:
 
 def _key_at(record: dict[str, Any], kind: str, point: str) -> str | None:
     """The file of one position: its name ends `_<position>_Height.<ext>`."""
-    keys = [key for key in _keys(record, kind) if not _is_original(_basename(key))]
+    keys = [key for key in _keys(record, kind) if kind == "profile" or not _is_original(_basename(key))]
     return next(
         (key for key in keys if f"_{point}_Height" in _basename(key)),
         _key_named(record, kind, point),
@@ -248,7 +244,10 @@ def _key_at(record: dict[str, Any], kind: str, point: str) -> str | None:
 
 
 def _is_original(name: str) -> bool:
-    return name.lower().endswith(_TIFF_SUFFIXES)
+    # Each image list holds its originals beside the webp conversions the page
+    # draws: .tiff for Result, .bmp for align, .png for tip and capture
+    # (office 확인 2026-10-07).
+    return not name.lower().endswith(".webp")
 
 
 def _original_key(record: dict[str, Any], name: str) -> str | None:
@@ -309,9 +308,8 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         "slot_number": _text(record.get("slot_number")),
         # The loader writes a missing time as null, and the raw name spells it NA.
         "time": None if time_code in ("", "NA") else time_code,
-        # Added by the loader 2026-10-07. OFFICE-VERIFY its shape (asked for as
-        # HHMMSS) and whether a MAP608 name with NA there falls back to Info's
-        # Start Time or stays null.
+        # HHMMSS (office 확인 2026-10-07). Null on a MAP608 measurement whose
+        # name has NA there and whose 13-key Info has no Start Time to fall back on.
         "measured_time": None if measured_code in ("", "NA") else measured_code,
         # The column exists and is always null; `tool_id` does not exist.
         "measured_info": _text(record.get("measured_info")),
@@ -330,8 +328,6 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         # nothing: a measurement has data when its points object is listed.
         "has_data": _POINTS in names["data"],
         "has_image": any(not _is_original(name) for name in names["tiff"]),
-        # The align / tip / capture originals are loaded too (office 확인
-        # 2026-10-07; OFFICE-VERIFY that they sit in these same lists).
         "has_align": any(not _is_original(name) for name in names["align"]),
         "has_tip": any(not _is_original(name) for name in names["tip"]),
         "point_count": None if point_count is None else int(point_count),

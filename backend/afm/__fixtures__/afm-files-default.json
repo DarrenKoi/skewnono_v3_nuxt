@@ -2,11 +2,13 @@
   "data": [
     {
       "align_dir_list": [
-        "#261007#073000#BSOXCMP_CORRELATION_36PT#TT032NC.03#TT032NC#NA#_0001_X000_Y000_0001_alignment.webp"
+        "#261007#073000#BSOXCMP_CORRELATION_36PT#TT032NC.03#TT032NC#NA#_0001_X000_Y000_0001_alignment.webp",
+        "#261007#073000#BSOXCMP_CORRELATION_36PT#TT032NC.03#TT032NC#NA#_0001_X000_Y000_0001_alignment.bmp"
       ],
       "approach_count_mean": 1.94,
       "capture_dir_list": [
-        "#261007#073000#BSOXCMP_CORRELATION_36PT#TT032NC.03#TT032NC#NA#_0001_X000_Y000_0001_capture.webp"
+        "#261007#073000#BSOXCMP_CORRELATION_36PT#TT032NC.03#TT032NC#NA#_0001_X000_Y000_0001_capture.webp",
+        "#261007#073000#BSOXCMP_CORRELATION_36PT#TT032NC.03#TT032NC#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -25,7 +27,7 @@
       "invalid_count": 3,
       "lot_id": "TT032NC",
       "measured_info": "",
-      "measured_time": "073000",
+      "measured_time": null,
       "mileage_mean": 110471.27,
       "not_completed_count": 2,
       "point_count": 36,
@@ -173,7 +175,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.15,
       "capture_dir_list": [
-        "#261007#073000#VED_BS_TOP01#CRAP1ND.04#CRAP1ND#NA#_0001_X000_Y000_0001_capture.webp"
+        "#261007#073000#VED_BS_TOP01#CRAP1ND.04#CRAP1ND#NA#_0001_X000_Y000_0001_capture.webp",
+        "#261007#073000#VED_BS_TOP01#CRAP1ND.04#CRAP1ND#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -192,7 +195,7 @@
       "invalid_count": 1,
       "lot_id": "CRAP1ND",
       "measured_info": "",
-      "measured_time": "073000",
+      "measured_time": null,
       "mileage_mean": 110467.9,
       "not_completed_count": 0,
       "point_count": 10,
@@ -258,11 +261,13 @@
     },
     {
       "align_dir_list": [
-        "#261007#073000#Fi-Tapping TEST#T7HQRNE.05#T7HQRNE#NA#_0001_alignment.webp"
+        "#261007#073000#Fi-Tapping TEST#T7HQRNE.05#T7HQRNE#NA#_0001_alignment.webp",
+        "#261007#073000#Fi-Tapping TEST#T7HQRNE.05#T7HQRNE#NA#_0001_alignment.bmp"
       ],
       "approach_count_mean": 3.0,
       "capture_dir_list": [
-        "#261007#073000#Fi-Tapping TEST#T7HQRNE.05#T7HQRNE#NA#_0001_capture.webp"
+        "#261007#073000#Fi-Tapping TEST#T7HQRNE.05#T7HQRNE#NA#_0001_capture.webp",
+        "#261007#073000#Fi-Tapping TEST#T7HQRNE.05#T7HQRNE#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -281,8 +286,8 @@
       "invalid_count": 0,
       "lot_id": "T7HQRNE",
       "measured_info": "",
-      "measured_time": "073000",
-      "mileage_mean": 110463.19,
+      "measured_time": "075600",
+      "mileage_mean": 116703.19,
       "not_completed_count": 0,
       "point_count": 1,
       "profile_dir_list": [
@@ -310,7 +315,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.2,
       "capture_dir_list": [
-        "#261006#063000#PAD_HEIGHT_3PAD#T3HQRNF.06#T3HQRNF#063400#_0001_capture.webp"
+        "#261006#063000#PAD_HEIGHT_3PAD#T3HQRNF.06#T3HQRNF#063400#_0001_capture.webp",
+        "#261006#063000#PAD_HEIGHT_3PAD#T3HQRNF.06#T3HQRNF#063400#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -366,7 +372,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.0,
       "capture_dir_list": [
-        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0001_X000_Y000_0001_capture.webp"
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0001_X000_Y000_0001_capture.webp",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -427,7 +434,17 @@
         "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0007_X-001_Y001_0001_C_PR.webp",
         "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0008_X001_Y-001_0001_C_PR.webp",
         "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0009_X001_Y001_0001_C_PR.webp",
-        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_C_Result.webp"
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_C_Result.webp",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0001_X000_Y000_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0002_X-001_Y000_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0003_X000_Y-001_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0004_X000_Y001_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0005_X001_Y000_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0006_X-001_Y-001_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0007_X-001_Y001_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0008_X001_Y-001_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_0009_X001_Y001_0001_C_PR.png",
+        "#261006#063000#FSOXCMP_DISHING_9PT#TT032NG.07#TT032NG#064500#_C_Result.png"
       ],
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
@@ -439,11 +456,13 @@
     },
     {
       "align_dir_list": [
-        "#261006#063000#ETCH_TRIM#CRAP1NH.08#CRAP1NH#065600#_0001_alignment.webp"
+        "#261006#063000#ETCH_TRIM#CRAP1NH.08#CRAP1NH#065600#_0001_alignment.webp",
+        "#261006#063000#ETCH_TRIM#CRAP1NH.08#CRAP1NH#065600#_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.15,
       "capture_dir_list": [
-        "#261006#063000#ETCH_TRIM#CRAP1NH.08#CRAP1NH#065600#_0001_capture.webp"
+        "#261006#063000#ETCH_TRIM#CRAP1NH.08#CRAP1NH#065600#_0001_capture.webp",
+        "#261006#063000#ETCH_TRIM#CRAP1NH.08#CRAP1NH#065600#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -513,11 +532,13 @@
     },
     {
       "align_dir_list": [
-        "#261005#053000#BSOXCMP_CORRELATION_36PT#T7HQRNI.09#T7HQRNI#NA#_0001_X000_Y000_0001_alignment.webp"
+        "#261005#053000#BSOXCMP_CORRELATION_36PT#T7HQRNI.09#T7HQRNI#NA#_0001_X000_Y000_0001_alignment.webp",
+        "#261005#053000#BSOXCMP_CORRELATION_36PT#T7HQRNI.09#T7HQRNI#NA#_0001_X000_Y000_0001_alignment.bmp"
       ],
       "approach_count_mean": 1.97,
       "capture_dir_list": [
-        "#261005#053000#BSOXCMP_CORRELATION_36PT#T7HQRNI.09#T7HQRNI#NA#_0001_X000_Y000_0001_capture.webp"
+        "#261005#053000#BSOXCMP_CORRELATION_36PT#T7HQRNI.09#T7HQRNI#NA#_0001_X000_Y000_0001_capture.webp",
+        "#261005#053000#BSOXCMP_CORRELATION_36PT#T7HQRNI.09#T7HQRNI#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -536,7 +557,7 @@
       "invalid_count": 7,
       "lot_id": "T7HQRNI",
       "measured_info": "",
-      "measured_time": "053000",
+      "measured_time": null,
       "mileage_mean": 770722.78,
       "not_completed_count": 2,
       "point_count": 36,
@@ -684,7 +705,8 @@
       "align_dir_list": [],
       "approach_count_mean": 3.5,
       "capture_dir_list": [
-        "#261005#053000#VED_BS_TOP01#T3HQRNJ.10#T3HQRNJ#NA#_0001_X000_Y000_0001_capture.webp"
+        "#261005#053000#VED_BS_TOP01#T3HQRNJ.10#T3HQRNJ#NA#_0001_X000_Y000_0001_capture.webp",
+        "#261005#053000#VED_BS_TOP01#T3HQRNJ.10#T3HQRNJ#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -703,8 +725,8 @@
       "invalid_count": 5,
       "lot_id": "T3HQRNJ",
       "measured_info": "",
-      "measured_time": "053000",
-      "mileage_mean": 770718.75,
+      "measured_time": "054500",
+      "mileage_mean": 774318.75,
       "not_completed_count": 9,
       "point_count": 10,
       "profile_dir_list": [
@@ -769,11 +791,13 @@
     },
     {
       "align_dir_list": [
-        "#261005#053000#Fi-Tapping TEST#TT032NK.11#TT032NK#NA#_0001_alignment.webp"
+        "#261005#053000#Fi-Tapping TEST#TT032NK.11#TT032NK#NA#_0001_alignment.webp",
+        "#261005#053000#Fi-Tapping TEST#TT032NK.11#TT032NK#NA#_0001_alignment.bmp"
       ],
       "approach_count_mean": 1.0,
       "capture_dir_list": [
-        "#261005#053000#Fi-Tapping TEST#TT032NK.11#TT032NK#NA#_0001_capture.webp"
+        "#261005#053000#Fi-Tapping TEST#TT032NK.11#TT032NK#NA#_0001_capture.webp",
+        "#261005#053000#Fi-Tapping TEST#TT032NK.11#TT032NK#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -792,7 +816,7 @@
       "invalid_count": 0,
       "lot_id": "TT032NK",
       "measured_info": "",
-      "measured_time": "053000",
+      "measured_time": null,
       "mileage_mean": 770714.92,
       "not_completed_count": 0,
       "point_count": 1,
@@ -821,7 +845,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.4,
       "capture_dir_list": [
-        "#261004#043000#PAD_HEIGHT_3PAD#CRAP1NL.12#CRAP1NL#NA#_0001_capture.webp"
+        "#261004#043000#PAD_HEIGHT_3PAD#CRAP1NL.12#CRAP1NL#NA#_0001_capture.webp",
+        "#261004#043000#PAD_HEIGHT_3PAD#CRAP1NL.12#CRAP1NL#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -840,7 +865,7 @@
       "invalid_count": 1,
       "lot_id": "CRAP1NL",
       "measured_info": "",
-      "measured_time": "043000",
+      "measured_time": null,
       "mileage_mean": 410715.58,
       "not_completed_count": 0,
       "point_count": 5,
@@ -877,7 +902,8 @@
       "align_dir_list": [],
       "approach_count_mean": 1.67,
       "capture_dir_list": [
-        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0001_X000_Y000_0001_capture.webp"
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0001_X000_Y000_0001_capture.webp",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -938,7 +964,17 @@
         "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0007_X-001_Y001_0001_C_PR.webp",
         "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0008_X001_Y-001_0001_C_PR.webp",
         "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0009_X001_Y001_0001_C_PR.webp",
-        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_C_Result.webp"
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_C_Result.webp",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0001_X000_Y000_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0002_X-001_Y000_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0003_X000_Y-001_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0004_X000_Y001_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0005_X001_Y000_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0006_X-001_Y-001_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0007_X-001_Y001_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0008_X001_Y-001_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_0009_X001_Y001_0001_C_PR.png",
+        "#261004#043000#FSOXCMP_DISHING_9PT#T7HQRNM.13#T7HQRNM#044500#_C_Result.png"
       ],
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
@@ -950,11 +986,13 @@
     },
     {
       "align_dir_list": [
-        "#261004#043000#ETCH_TRIM#T3HQRNN.14#T3HQRNN#045600#_0001_alignment.webp"
+        "#261004#043000#ETCH_TRIM#T3HQRNN.14#T3HQRNN#045600#_0001_alignment.webp",
+        "#261004#043000#ETCH_TRIM#T3HQRNN.14#T3HQRNN#045600#_0001_alignment.bmp"
       ],
       "approach_count_mean": 1.92,
       "capture_dir_list": [
-        "#261004#043000#ETCH_TRIM#T3HQRNN.14#T3HQRNN#045600#_0001_capture.webp"
+        "#261004#043000#ETCH_TRIM#T3HQRNN.14#T3HQRNN#045600#_0001_capture.webp",
+        "#261004#043000#ETCH_TRIM#T3HQRNN.14#T3HQRNN#045600#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1024,11 +1062,13 @@
     },
     {
       "align_dir_list": [
-        "#261003#093000#BSOXCMP_CORRELATION_36PT#TT032NO.15#TT032NO#NA#_0001_X000_Y000_0001_alignment.webp"
+        "#261003#093000#BSOXCMP_CORRELATION_36PT#TT032NO.15#TT032NO#NA#_0001_X000_Y000_0001_alignment.webp",
+        "#261003#093000#BSOXCMP_CORRELATION_36PT#TT032NO.15#TT032NO#NA#_0001_X000_Y000_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.06,
       "capture_dir_list": [
-        "#261003#093000#BSOXCMP_CORRELATION_36PT#TT032NO.15#TT032NO#NA#_0001_X000_Y000_0001_capture.webp"
+        "#261003#093000#BSOXCMP_CORRELATION_36PT#TT032NO.15#TT032NO#NA#_0001_X000_Y000_0001_capture.webp",
+        "#261003#093000#BSOXCMP_CORRELATION_36PT#TT032NO.15#TT032NO#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1047,7 +1087,7 @@
       "invalid_count": 2,
       "lot_id": "TT032NO",
       "measured_info": "",
-      "measured_time": "093000",
+      "measured_time": null,
       "mileage_mean": 137123.44,
       "not_completed_count": 2,
       "point_count": 36,
@@ -1195,7 +1235,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.27,
       "capture_dir_list": [
-        "#261003#093000#VED_BS_TOP01#CRAP1NP.16#CRAP1NP#NA#_0001_X000_Y000_0001_capture.webp"
+        "#261003#093000#VED_BS_TOP01#CRAP1NP.16#CRAP1NP#NA#_0001_X000_Y000_0001_capture.webp",
+        "#261003#093000#VED_BS_TOP01#CRAP1NP.16#CRAP1NP#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1214,8 +1255,8 @@
       "invalid_count": 0,
       "lot_id": "CRAP1NP",
       "measured_info": "",
-      "measured_time": "093000",
-      "mileage_mean": 137116.45,
+      "measured_time": "094500",
+      "mileage_mean": 140716.45,
       "not_completed_count": 1,
       "point_count": 10,
       "profile_dir_list": [
@@ -1280,11 +1321,13 @@
     },
     {
       "align_dir_list": [
-        "#261003#093000#Fi-Tapping TEST#T7HQRNQ.17#T7HQRNQ#NA#_0001_alignment.webp"
+        "#261003#093000#Fi-Tapping TEST#T7HQRNQ.17#T7HQRNQ#NA#_0001_alignment.webp",
+        "#261003#093000#Fi-Tapping TEST#T7HQRNQ.17#T7HQRNQ#NA#_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.0,
       "capture_dir_list": [
-        "#261003#093000#Fi-Tapping TEST#T7HQRNQ.17#T7HQRNQ#NA#_0001_capture.webp"
+        "#261003#093000#Fi-Tapping TEST#T7HQRNQ.17#T7HQRNQ#NA#_0001_capture.webp",
+        "#261003#093000#Fi-Tapping TEST#T7HQRNQ.17#T7HQRNQ#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1303,7 +1346,7 @@
       "invalid_count": 0,
       "lot_id": "T7HQRNQ",
       "measured_info": "",
-      "measured_time": "093000",
+      "measured_time": null,
       "mileage_mean": 137114.8,
       "not_completed_count": 0,
       "point_count": 1,
@@ -1332,7 +1375,8 @@
       "align_dir_list": [],
       "approach_count_mean": 1.8,
       "capture_dir_list": [
-        "#261002#083000#PAD_HEIGHT_3PAD#T3HQRNR.18#T3HQRNR#NA#_0001_capture.webp"
+        "#261002#083000#PAD_HEIGHT_3PAD#T3HQRNR.18#T3HQRNR#NA#_0001_capture.webp",
+        "#261002#083000#PAD_HEIGHT_3PAD#T3HQRNR.18#T3HQRNR#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1351,8 +1395,8 @@
       "invalid_count": 2,
       "lot_id": "T3HQRNR",
       "measured_info": "",
-      "measured_time": "083000",
-      "mileage_mean": 1162040.73,
+      "measured_time": "083400",
+      "mileage_mean": 1163000.73,
       "not_completed_count": 0,
       "point_count": 5,
       "profile_dir_list": [
@@ -1388,7 +1432,8 @@
       "align_dir_list": [],
       "approach_count_mean": 1.78,
       "capture_dir_list": [
-        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0001_X000_Y000_0001_capture.webp"
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0001_X000_Y000_0001_capture.webp",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1449,7 +1494,17 @@
         "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0007_X-001_Y001_0001_C_PR.webp",
         "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0008_X001_Y-001_0001_C_PR.webp",
         "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0009_X001_Y001_0001_C_PR.webp",
-        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_C_Result.webp"
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_C_Result.webp",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0001_X000_Y000_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0002_X-001_Y000_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0003_X000_Y-001_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0004_X000_Y001_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0005_X001_Y000_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0006_X-001_Y-001_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0007_X-001_Y001_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0008_X001_Y-001_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_0009_X001_Y001_0001_C_PR.png",
+        "#261002#083000#FSOXCMP_DISHING_9PT#TT032NS.19#TT032NS#084500#_C_Result.png"
       ],
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
@@ -1461,11 +1516,13 @@
     },
     {
       "align_dir_list": [
-        "#261002#083000#ETCH_TRIM#CRAP1NT.20#CRAP1NT#085600#_0001_alignment.webp"
+        "#261002#083000#ETCH_TRIM#CRAP1NT.20#CRAP1NT#085600#_0001_alignment.webp",
+        "#261002#083000#ETCH_TRIM#CRAP1NT.20#CRAP1NT#085600#_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.08,
       "capture_dir_list": [
-        "#261002#083000#ETCH_TRIM#CRAP1NT.20#CRAP1NT#085600#_0001_capture.webp"
+        "#261002#083000#ETCH_TRIM#CRAP1NT.20#CRAP1NT#085600#_0001_capture.webp",
+        "#261002#083000#ETCH_TRIM#CRAP1NT.20#CRAP1NT#085600#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1535,11 +1592,13 @@
     },
     {
       "align_dir_list": [
-        "#261001#073000#BSOXCMP_CORRELATION_36PT#T7HQRNU.21#T7HQRNU#073400#_0001_X000_Y000_0001_alignment.webp"
+        "#261001#073000#BSOXCMP_CORRELATION_36PT#T7HQRNU.21#T7HQRNU#073400#_0001_X000_Y000_0001_alignment.webp",
+        "#261001#073000#BSOXCMP_CORRELATION_36PT#T7HQRNU.21#T7HQRNU#073400#_0001_X000_Y000_0001_alignment.bmp"
       ],
       "approach_count_mean": null,
       "capture_dir_list": [
-        "#261001#073000#BSOXCMP_CORRELATION_36PT#T7HQRNU.21#T7HQRNU#073400#_0001_X000_Y000_0001_capture.webp"
+        "#261001#073000#BSOXCMP_CORRELATION_36PT#T7HQRNU.21#T7HQRNU#073400#_0001_X000_Y000_0001_capture.webp",
+        "#261001#073000#BSOXCMP_CORRELATION_36PT#T7HQRNU.21#T7HQRNU#073400#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1706,7 +1765,8 @@
       "align_dir_list": [],
       "approach_count_mean": 3.55,
       "capture_dir_list": [
-        "#261001#073000#VED_BS_TOP01#T3HQRNV.22#T3HQRNV#NA#_0001_X000_Y000_0001_capture.webp"
+        "#261001#073000#VED_BS_TOP01#T3HQRNV.22#T3HQRNV#NA#_0001_X000_Y000_0001_capture.webp",
+        "#261001#073000#VED_BS_TOP01#T3HQRNV.22#T3HQRNV#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1725,7 +1785,7 @@
       "invalid_count": 6,
       "lot_id": "T3HQRNV",
       "measured_info": "",
-      "measured_time": "073000",
+      "measured_time": null,
       "mileage_mean": 802043.11,
       "not_completed_count": 4,
       "point_count": 10,
@@ -1791,11 +1851,13 @@
     },
     {
       "align_dir_list": [
-        "#261001#073000#Fi-Tapping TEST#TT032NW.23#TT032NW#NA#_0001_alignment.webp"
+        "#261001#073000#Fi-Tapping TEST#TT032NW.23#TT032NW#NA#_0001_alignment.webp",
+        "#261001#073000#Fi-Tapping TEST#TT032NW.23#TT032NW#NA#_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.0,
       "capture_dir_list": [
-        "#261001#073000#Fi-Tapping TEST#TT032NW.23#TT032NW#NA#_0001_capture.webp"
+        "#261001#073000#Fi-Tapping TEST#TT032NW.23#TT032NW#NA#_0001_capture.webp",
+        "#261001#073000#Fi-Tapping TEST#TT032NW.23#TT032NW#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1814,7 +1876,7 @@
       "invalid_count": 0,
       "lot_id": "TT032NW",
       "measured_info": "",
-      "measured_time": "073000",
+      "measured_time": null,
       "mileage_mean": 802039.07,
       "not_completed_count": 0,
       "point_count": 1,
@@ -1843,7 +1905,8 @@
       "align_dir_list": [],
       "approach_count_mean": 1.8,
       "capture_dir_list": [
-        "#260930#063000#PAD_HEIGHT_3PAD#CRAP1NX.24#CRAP1NX#NA#_0001_capture.webp"
+        "#260930#063000#PAD_HEIGHT_3PAD#CRAP1NX.24#CRAP1NX#NA#_0001_capture.webp",
+        "#260930#063000#PAD_HEIGHT_3PAD#CRAP1NX.24#CRAP1NX#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1862,8 +1925,8 @@
       "invalid_count": 1,
       "lot_id": "CRAP1NX",
       "measured_info": "",
-      "measured_time": "063000",
-      "mileage_mean": 442041.45,
+      "measured_time": "063400",
+      "mileage_mean": 443001.45,
       "not_completed_count": 0,
       "point_count": 5,
       "profile_dir_list": [
@@ -1899,7 +1962,8 @@
       "align_dir_list": [],
       "approach_count_mean": 1.67,
       "capture_dir_list": [
-        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0001_X000_Y000_0001_capture.webp"
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0001_X000_Y000_0001_capture.webp",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -1918,8 +1982,8 @@
       "invalid_count": 0,
       "lot_id": "T7HQRNY",
       "measured_info": "",
-      "measured_time": "063000",
-      "mileage_mean": 442042.19,
+      "measured_time": "064500",
+      "mileage_mean": 445642.19,
       "not_completed_count": 0,
       "point_count": 9,
       "profile_dir_list": [],
@@ -1960,7 +2024,17 @@
         "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0007_X-001_Y001_0001_C_PR.webp",
         "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0008_X001_Y-001_0001_C_PR.webp",
         "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0009_X001_Y001_0001_C_PR.webp",
-        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_C_Result.webp"
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_C_Result.webp",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0001_X000_Y000_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0002_X-001_Y000_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0003_X000_Y-001_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0004_X000_Y001_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0005_X001_Y000_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0006_X-001_Y-001_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0007_X-001_Y001_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0008_X001_Y-001_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_0009_X001_Y001_0001_C_PR.png",
+        "#260930#063000#FSOXCMP_DISHING_9PT#T7HQRNY.25#T7HQRNY#NA#_C_Result.png"
       ],
       "tip_id": "MCNT-150",
       "tip_port_no": "2",
@@ -1972,11 +2046,13 @@
     },
     {
       "align_dir_list": [
-        "#260930#063000#ETCH_TRIM#T3HQRNZ.01#T3HQRNZ#065600#_0001_alignment.webp"
+        "#260930#063000#ETCH_TRIM#T3HQRNZ.01#T3HQRNZ#065600#_0001_alignment.webp",
+        "#260930#063000#ETCH_TRIM#T3HQRNZ.01#T3HQRNZ#065600#_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.0,
       "capture_dir_list": [
-        "#260930#063000#ETCH_TRIM#T3HQRNZ.01#T3HQRNZ#065600#_0001_capture.webp"
+        "#260930#063000#ETCH_TRIM#T3HQRNZ.01#T3HQRNZ#065600#_0001_capture.webp",
+        "#260930#063000#ETCH_TRIM#T3HQRNZ.01#T3HQRNZ#065600#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -2046,11 +2122,13 @@
     },
     {
       "align_dir_list": [
-        "#260929#053000#BSOXCMP_CORRELATION_36PT#TT032O0.02#TT032O0#053400#_0001_X000_Y000_0001_alignment.webp"
+        "#260929#053000#BSOXCMP_CORRELATION_36PT#TT032O0.02#TT032O0#053400#_0001_X000_Y000_0001_alignment.webp",
+        "#260929#053000#BSOXCMP_CORRELATION_36PT#TT032O0.02#TT032O0#053400#_0001_X000_Y000_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.03,
       "capture_dir_list": [
-        "#260929#053000#BSOXCMP_CORRELATION_36PT#TT032O0.02#TT032O0#053400#_0001_X000_Y000_0001_capture.webp"
+        "#260929#053000#BSOXCMP_CORRELATION_36PT#TT032O0.02#TT032O0#053400#_0001_X000_Y000_0001_capture.webp",
+        "#260929#053000#BSOXCMP_CORRELATION_36PT#TT032O0.02#TT032O0#053400#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -2217,7 +2295,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.1,
       "capture_dir_list": [
-        "#260929#053000#VED_BS_TOP01#CRAP1O1.03#CRAP1O1#NA#_0001_X000_Y000_0001_capture.webp"
+        "#260929#053000#VED_BS_TOP01#CRAP1O1.03#CRAP1O1#NA#_0001_X000_Y000_0001_capture.webp",
+        "#260929#053000#VED_BS_TOP01#CRAP1O1.03#CRAP1O1#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -2236,8 +2315,8 @@
       "invalid_count": 1,
       "lot_id": "CRAP1O1",
       "measured_info": "",
-      "measured_time": "053000",
-      "mileage_mean": 82042.11,
+      "measured_time": "054500",
+      "mileage_mean": 85642.11,
       "not_completed_count": 0,
       "point_count": 10,
       "profile_dir_list": [
@@ -2302,11 +2381,13 @@
     },
     {
       "align_dir_list": [
-        "#260929#053000#Fi-Tapping TEST#T7HQRO2.04#T7HQRO2#NA#_0001_alignment.webp"
+        "#260929#053000#Fi-Tapping TEST#T7HQRO2.04#T7HQRO2#NA#_0001_alignment.webp",
+        "#260929#053000#Fi-Tapping TEST#T7HQRO2.04#T7HQRO2#NA#_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.0,
       "capture_dir_list": [
-        "#260929#053000#Fi-Tapping TEST#T7HQRO2.04#T7HQRO2#NA#_0001_capture.webp"
+        "#260929#053000#Fi-Tapping TEST#T7HQRO2.04#T7HQRO2#NA#_0001_capture.webp",
+        "#260929#053000#Fi-Tapping TEST#T7HQRO2.04#T7HQRO2#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -2325,8 +2406,8 @@
       "invalid_count": 0,
       "lot_id": "T7HQRO2",
       "measured_info": "",
-      "measured_time": "053000",
-      "mileage_mean": 82039.47,
+      "measured_time": "055600",
+      "mileage_mean": 88279.47,
       "not_completed_count": 0,
       "point_count": 1,
       "profile_dir_list": [
@@ -2354,7 +2435,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.0,
       "capture_dir_list": [
-        "#260928#043000#PAD_HEIGHT_3PAD#T3HQRO3.05#T3HQRO3#NA#_0001_capture.webp"
+        "#260928#043000#PAD_HEIGHT_3PAD#T3HQRO3.05#T3HQRO3#NA#_0001_capture.webp",
+        "#260928#043000#PAD_HEIGHT_3PAD#T3HQRO3.05#T3HQRO3#NA#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -2373,8 +2455,8 @@
       "invalid_count": 0,
       "lot_id": "T3HQRO3",
       "measured_info": "",
-      "measured_time": "043000",
-      "mileage_mean": 1104225.86,
+      "measured_time": "043400",
+      "mileage_mean": 1105185.86,
       "not_completed_count": 0,
       "point_count": 5,
       "profile_dir_list": [
@@ -2410,7 +2492,8 @@
       "align_dir_list": [],
       "approach_count_mean": 2.0,
       "capture_dir_list": [
-        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0001_X000_Y000_0001_capture.webp"
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0001_X000_Y000_0001_capture.webp",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0001_X000_Y000_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",
@@ -2429,8 +2512,8 @@
       "invalid_count": 1,
       "lot_id": "TT032O4",
       "measured_info": "",
-      "measured_time": "043000",
-      "mileage_mean": 1104226.34,
+      "measured_time": "044500",
+      "mileage_mean": 1107826.34,
       "not_completed_count": 1,
       "point_count": 9,
       "profile_dir_list": [],
@@ -2471,7 +2554,17 @@
         "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0007_X-001_Y001_0001_C_PR.webp",
         "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0008_X001_Y-001_0001_C_PR.webp",
         "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0009_X001_Y001_0001_C_PR.webp",
-        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_C_Result.webp"
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_C_Result.webp",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0001_X000_Y000_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0002_X-001_Y000_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0003_X000_Y-001_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0004_X000_Y001_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0005_X001_Y000_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0006_X-001_Y-001_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0007_X-001_Y001_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0008_X001_Y-001_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_0009_X001_Y001_0001_C_PR.png",
+        "#260928#043000#FSOXCMP_DISHING_9PT#TT032O4.06#TT032O4#NA#_C_Result.png"
       ],
       "tip_id": "DT-NCHR_CM",
       "tip_port_no": "2",
@@ -2483,11 +2576,13 @@
     },
     {
       "align_dir_list": [
-        "#260928#043000#ETCH_TRIM#CRAP1O5.07#CRAP1O5#045600#_0001_alignment.webp"
+        "#260928#043000#ETCH_TRIM#CRAP1O5.07#CRAP1O5#045600#_0001_alignment.webp",
+        "#260928#043000#ETCH_TRIM#CRAP1O5.07#CRAP1O5#045600#_0001_alignment.bmp"
       ],
       "approach_count_mean": 2.92,
       "capture_dir_list": [
-        "#260928#043000#ETCH_TRIM#CRAP1O5.07#CRAP1O5#045600#_0001_capture.webp"
+        "#260928#043000#ETCH_TRIM#CRAP1O5.07#CRAP1O5#045600#_0001_capture.webp",
+        "#260928#043000#ETCH_TRIM#CRAP1O5.07#CRAP1O5#045600#_0001_capture.png"
       ],
       "data_dir_list": [
         "detail_information.parquet",

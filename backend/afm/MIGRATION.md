@@ -64,7 +64,8 @@ runs the same code at home against a fake hash and a fake object store.
   tip, capture, raw — hold file **names**, and `[]` when there are none; there
   is no `["no files"]` sentinel. `formatted_date`, `time`, `measured_time` and
   `point_count` can be `null`. `measured_time` is the measurement's own start
-  (`time` is the session's on `MAP608`). The nine tip columns — `tip_id`, `tip_cassette_id`, `tip_port_no`,
+  (`time` is the session's on `MAP608`); it is null only on a `MAP608`
+  measurement whose name has `NA` there and whose Info has no `Start Time`. The nine tip columns — `tip_id`, `tip_cassette_id`, `tip_port_no`,
   `tip_slot_no`, `tip_width`, `approach_count_mean`, `mileage_mean`,
   `not_completed_count`, `invalid_count` — feed `/afm/<tool>/tips`. The loader
   added them, and `measured_time`, on 2026-10-07 under these names (office 확인);
@@ -91,8 +92,9 @@ runs the same code at home against a fake hash and a fake object store.
   MinIO keys; the adapter returns their basenames, turns a `NA` time into
   `null`, and sorts newest first. `has_data` is true only when
   `detail_points.parquet` is listed (an info-only measurement still lists its
-  information object), and `has_image` only when a webp is (`tiff_dir_list`
-  holds the original TIFFs too). `measured_info` is always null at the office
+  information object), and `has_image` only when a webp is — every image list
+  holds its originals too (`.tiff` Result, `.bmp` align, `.png` tip and
+  capture), and whatever is not a `.webp` is kept off the page. `measured_info` is always null at the office
   and `tool_id` does not exist; the adapter returns `""` and the lower-cased
   tool name.
 - Notes: route wraps the list in

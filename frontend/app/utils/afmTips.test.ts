@@ -105,3 +105,14 @@ test('an MCNT tip width is held against that tip, not its type', () => {
   assert.deepEqual([warned!.tip, warned!.state, fine!.state], ['MCNT-150 · TC10/1/3', 'warn', 'ok'])
   assert.ok(warned!.widthLimits!.ucl < 36 && fine!.widthLimits!.lcl > 36)
 })
+
+test('a type that records almost no width gets no width limits and no flags', () => {
+  // 5EAP1501's OMCL-AC160TS: Tip Width is NaN on most measurements.
+  const [omcl] = tipCategories(tipPoints(
+    [null, null, 7, null, null, null, 7.1, null].map((tip_width, i) => row(i + 1, { tip_id: 'OMCL-AC160TS', tip_width }))
+  ))
+  const width = omcl!.stats.find(s => s.param === 'tipWidth')!
+  assert.deepEqual([width.n, width.limits, width.outliers], [2, null, 0])
+  assert.equal(omcl!.tips[0]!.widthLimits, null)
+  assert.equal(omcl!.tips[0]!.state, 'ok')
+})

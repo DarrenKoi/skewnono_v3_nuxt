@@ -20,7 +20,7 @@ def client():
 def _capture_row():
     field = mock.IMAGE_TYPE_FIELDS["capture"]
     for row in data.list_afm_files(None):
-        names = row.get(field, [])
+        names = [name for name in row.get(field, []) if name.endswith(".webp")]
         if names:
             return row, names
     raise AssertionError("no capture row")

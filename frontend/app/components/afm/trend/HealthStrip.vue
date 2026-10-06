@@ -82,7 +82,7 @@ const charts = computed(() => {
       slug: 'mileage',
       label: 'Mileage 평균',
       summary: lastMileage === null ? '–' : `${lastMileage.toFixed(1)} 마지막`,
-      note: '팁 하나의 누적값이라 단조 증가가 정상. 세로선 = 팁이 바뀐 지점(Tip 값 변화 또는 Mileage 리셋).',
+      note: '팁 하나의 누적값이라 단조 증가가 정상. 세로선 = 팁이 바뀐 지점(Tip 값 변화, 또는 Mileage 감소 + Pick Up 갱신).',
       kind: 'line' as const,
       color: SK_STATE.ok,
       points: series(h => h.mileage),

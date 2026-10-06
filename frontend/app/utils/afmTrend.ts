@@ -345,6 +345,10 @@ export interface HealthPoint {
   // measurement recorded, not a spec of the tip; null where it recorded none.
   tip: string | null
   tipWidth: number | null
+  // Info's `Last Pick Up Time`: a value of the tip, the same on every
+  // measurement it makes, so a new one is a re-pick. Absent where the source
+  // has no Info (the measurement list).
+  pickUp?: string | null
 }
 
 const meanOf = (rows: AfmDetailRow[], column: string): number | null => {
@@ -367,22 +371,26 @@ export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
       approach: meanOf(data, 'Approach Count'),
       mileage: meanOf(data, 'Mileage'),
       tip: id ? `${id} · ${seat.map(v => v || '?').join('/')}` : null,
-      tipWidth: tipWidthOf(information)
+      tipWidth: tipWidthOf(information),
+      pickUp: String(information['Last Pick Up Time'] ?? '').trim() || null
     }
   })
 
 // The times at which the tip is a different one from the last measurement that
-// named its tip: its ID or seat differs, or its Mileage fell — the counter
-// belongs to the tip and only ever starts over with a new one (office 확인
-// 2026-10-07; nothing records the change itself). A measurement with no Tip ID
-// neither is nor hides a change.
+// named its tip: its ID or seat differs, or — a new tip in the same seat — its
+// Mileage fell AND it was picked up anew. The counter belongs to the tip and
+// was never seen to fall on one, but a restart or a manual reset is unobserved,
+// so a fall alone is not taken as a change (office 확인 2026-10-07; nothing
+// records the change itself). A measurement with no Tip ID neither is nor
+// hides a change.
 export const tipChanges = (health: HealthPoint[]): number[] => {
   const named = [...health].filter(h => h.tip !== null).sort((a, b) => a.time - b.time)
   return named.flatMap((h, i) => {
     const last = named[i - 1]
     if (!last) return []
-    const reset = h.mileage !== null && last.mileage !== null && h.mileage < last.mileage
-    return h.tip !== last.tip || reset ? [h.time] : []
+    const fell = h.mileage !== null && last.mileage !== null && h.mileage < last.mileage
+    const repicked = !!h.pickUp && !!last.pickUp && h.pickUp !== last.pickUp
+    return h.tip !== last.tip || (fell && repicked) ? [h.time] : []
   })
 }
 

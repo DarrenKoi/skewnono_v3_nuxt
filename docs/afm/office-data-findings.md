@@ -331,3 +331,65 @@ Implementation (done, tested)
 | `Valid` FALSE는 여전히 미실측, 열 이름 `Method ID` (Q32) | raw D3, redis 3.1 | mock | 완료 |
 | 원본은 `.tiff`, 5EAP1501 재적재 예정, align·tip·capture 원본 적재됨 (Q35) | raw D5, redis 2 | adapter | **부분** — align·tip·capture 원본의 다운로드는 없습니다(Q35 (마)). |
 | tip 이미지 두 계열 (Q53) | raw D5, redis 2·3.2 | mock, 화면 `imagePoint` | 완료. 이름의 나머지는 Q33·Q53입니다. |
+
+## 8차 회신 (2026-10-07) — 7차 후속 질문의 답
+
+[`to-questionnaire-afm-261007.md`](to-questionnaire-afm-261007.md)(Q55·Q56·Q46·Q54·Q35·Q53)에
+대한 답입니다. 전부 실측 기반이라고 하셨으므로 `office 확인`으로 기록했습니다.
+
+```text
+답변. (전부 실측 기반)
+Q55 (나) = Start ime - 6번째 필드 NA인 MAP608은 Info Start Time에서 HHMMSS 생성 (실측: time='014148' -> measured_time = '022914'). (다) 13키 짧은폼 = null (6건). (가) 6자리 선행 0 전수 확인, (라) MAPC01, 5EAP는 time과 전수 일치.
+Q56 (나) = 없음. 같은 팁에서 감소 0 건, 리셋은 슬롯 변화와 동반. 단 재시작, 수동 초기화는 미실측이라 "감소 + Tip 값 변화 / Pick Up 갱신" 묶음을 권고. (가) 단위 미정(um 추정). (다) 리셋 후 첫 값 3520 (0아님).
+
+핵심 새 실측
+Q46: Pick Up/Put Back은 팁 단위 값입니다. 같은 팁의 연속 4개 측정 (02:50~06:31)에서 네 건 모두 Pick Up 01:33:39 동일. 값이 갱신되면 재픽업 -> Home이 쓰려는 같은 슬롯 새팁 + Mileage 리셋 확인 용도에 유효.
+Q54: Sample Count는 반복 없는 Recipe에서 측정 내 안 바뀜 (4종 전수: 39/1/2/18), 첫 바퀴 값은 측정마다 다름 (1~47). 주의 실측: WID_11KEY는 Site ID가 있어도 반복이 없으면 안 바뀜 - Site ID 유뮤 != 반복 여부.
+Q35 (마) 원본은 각자의 목록 (align .bmp -> align_dir_list, tip .png-> tip_dir_list, capture .png -> capture_dir_list) 실측 key 쌍 제공.
+Q53: _C_PR=2440x1832 grayscale (~2.5MB) vs C_Result=448x336 RGB(440KB) - 전혀 다른 종류 (다) site 없는 recipe도 앞 4자리=point (0001_C_PR.webp)
+
+Mileage 판정 제외 판단에 동의 (꽌측 전수에서 모든 reipce가 팁 단위 누적, "리셋 없는 종류" 관측 0건)
+MCNT 판별 : 관측 8종 중 MCNT 포함은 2종뿐, 그외는 미정 + 5EAP OMCL-AC160TS는 Tip Width 대부분 NaN이므로 관리선 계산 방어 필요.
+팁열 미수령 5개 항목은 이미 답이 됬던거라 요약 재전달 (소급 완료, 보존 3개월, 종류 수와 단위 없음. State 3종)
+```
+
+옮기면서 이렇게 읽었습니다.
+
+- `Start ime`은 `Start Time`, `꽌측`은 `관측`, `reipce`는 `recipe`, `유뮤`는 `유무`의 오타로
+  보았습니다.
+- Q55 (나)의 실측(`time='014148'` → `measured_time='022914'`)은 **6번째 필드가 `NA`여도
+  `Start Time`이 세션 시각과 다르다**는 뜻으로 읽었습니다. 4차 회신의 "뒤 시각이 NA인
+  실측에서 Start Time이 첫 시각과 일치"와 어긋나므로 뒤의 답을 따랐습니다.
+- Q56의 권고는 "Mileage 감소만으로는 팁이 바뀌었다고 보지 말고, 팁 값이 달라졌거나 Pick
+  Up이 갱신된 것과 함께일 때만 보라"로 읽었습니다.
+- Q54의 "39/1/2/18"은 반복 없는 recipe 네 종의 `Sample Count` 값으로 읽었습니다.
+- Q35의 "실측 key 쌍 제공"은 key 쌍이 전달된 내용에 없어, webp와 원본의 짝(이름이 같고
+  확장자만 다른지)은 여전히 가정으로 두고 질문서에 남겼습니다.
+- Q53의 "전혀 다른 종류"는 두 계열이 크기·색이 다른 별개의 이미지라는 뜻으로 읽었습니다.
+  무엇을 찍은 것인지와 마모가 보이는지는 답이 없어 남겼습니다.
+- "종류 수와 단위 없음"은 "`Tip ID`는 관측 8종, `Tip Width`에는 단위가 붙지 않음"으로
+  읽었습니다. 8종의 이름은 `DT-NCHR_CM`·`OMCL-AC160TS` 둘만 알아 Q57로 물었습니다.
+
+### 가정이 틀렸던 곳
+
+| 번호 | Home의 가정 | 실제 | 고친 곳 |
+| --- | --- | --- | --- |
+| Q55 | 6번째 필드가 `NA`이면 측정 시각은 세션 시각과 같습니다. | Info `Start Time`이 따로 있고 세션 시각과 다릅니다. 13키 Info는 null입니다. | mock의 `measured_time`·`Start Time` |
+| Q56 | Mileage가 작아지면 팁이 바뀐 것입니다. | 관측상 맞지만 재시작·수동 초기화는 미실측이라 Pick Up 갱신과 묶어야 합니다. | 화면 `tipChanges`(`utils/afmTrend.ts`) |
+| Q46 | `Last Pick Up Time`은 측정마다의 값일 수 있습니다. | 팁 단위 값이고 갱신은 재픽업입니다. | mock의 Info, 화면 `tipChanges` |
+| Q54 | 반복이 없는 recipe의 `Sample Count`는 행마다 다를 수 있습니다(mock). | 한 측정 안에서 같은 값입니다(1~47). | mock |
+| Q35 (마) | align·tip·capture의 원본도 TIFF입니다. | align은 `.bmp`, tip·capture는 `.png`입니다. | adapter `_is_original`(webp가 아닌 것), mock |
+
+### 반영 현황 (2026-10-07, 8차)
+
+| 받은 답 | 문서 | 구현 | 비고 |
+| --- | --- | --- | --- |
+| `measured_time`은 `HHMMSS`, `NA`이면 `Start Time`, 13키는 null (Q55) | redis 2, raw D2 | adapter, mock | 완료 |
+| Mileage는 같은 팁에서 감소 0건, 감소는 Pick Up 갱신과 묶음 (Q56) | redis 2, raw D3 | 화면 `tipChanges` | 완료. 팁 모니터링은 목록에 Pick Up이 없어 팁 값 변화만 봅니다. |
+| Pick Up·Put Back은 팁 단위 값 (Q46) | raw D3 | mock, 화면 `healthSeries` | 완료 |
+| `Sample Count`는 측정 안에서 같고 반복 바퀴마다 1 증가 (Q54) | raw D3, redis 3.1 | mock | **부분** — 화면의 "1회차 / 2회차" 구분은 아직 없습니다. |
+| 원본은 각자의 목록에 `.bmp`·`.png` (Q35) | raw D5, redis 2 | adapter, mock | **부분** — align·tip·capture 원본의 다운로드는 없습니다(짝은 Q35). |
+| `_C_PR` 2440×1832, `C_Result` 448×336, 이름은 `…_0001_C_PR.webp` (Q53) | raw D5, redis 3.2 | 화면 `imagePoint`, mock | 완료 |
+| Mileage 판정 제외에 동의 | redis 2 | 화면 `utils/afmTips.ts` | 완료 |
+| OMCL-AC160TS는 폭이 대부분 NaN | redis 2, raw D3 | 화면 `utils/afmTips.ts`(5건 미만이면 관리선 없음), mock | 완료 |
+| 팁 열: 소급 완료, 보존 3개월, `Tip ID` 8종, 폭에 단위 없음, `State` 3종 | redis 2 | 없음 | 기록만 |

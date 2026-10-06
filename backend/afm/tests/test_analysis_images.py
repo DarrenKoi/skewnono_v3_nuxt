@@ -7,7 +7,8 @@ from backend.afm.providers import mock
 def _row_with(image_type):
     field = mock.IMAGE_TYPE_FIELDS[image_type]
     for row in data.list_afm_files(None):
-        names = row.get(field, [])
+        # The list holds each webp's original too; only the webps are offered.
+        names = [name for name in row.get(field, []) if name.endswith(".webp")]
         if names:
             return row, names
     raise AssertionError(f"no mock measurement has {image_type} images")

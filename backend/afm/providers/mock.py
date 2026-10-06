@@ -28,9 +28,10 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - `measured_info` 열은 있으나 **항상 null** 입니다(계약에서는 빈 문자열). `tool_id` 열은 없습니다.
 - `measured_time` 은 그 측정의 시작 시각입니다(office 확인 2026-10-07 에 추가된 열).
   MAP608 의 `time` 은 세션 시각이고, 이름의 6번째 필드(측정 시작)는 최근 파일의 절반쯤
-  (29/46)에서 `NA` 입니다. mock 은 그 자리가 `NA` 이면 `time` 을 냅니다 — 그때 Info 의
-  `Start Time` 이 첫 시각과 같기 때문입니다. 값의 모양(`HHMMSS`)과 `NA` 일 때의 실제 값은
-  OFFICE-VERIFY 입니다.
+  (29/46)에서 `NA` 입니다. 8차 회신(office 확인 2026-10-07): 값은 `HHMMSS` 6자리이고, 그
+  자리가 `NA` 이면 Info 의 `Start Time` 에서 오며(세션 시각과 다릅니다 — 실측 014148 →
+  022914), `Start Time` 이 없는 13키 Info 의 측정은 null 입니다. MAPC01·5EAP1501 은 `time`
+  과 같습니다. mock 도 그대로 냅니다.
 - `point_count` 는 **실제로 스캔한 위치 수**입니다(profile·tiff 파일 수, office 확인
   2026-10-07). 행 수도 recipe 의 수도 아니어서 repeat recipe 는 위치 수만 셉니다.
 - MAPC01 의 `lot_id` 는 Info 의 `Lot ID` 로 채워져 있습니다.
@@ -69,23 +70,25 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   null 경로는 backend/afm/tests/test_office_template.py 가 adapter 에서 직접 확인합니다.
   그래서 첫 point 에서 중단되어 파일이 없는 측정(`point_count` null)과 도중에 중단되어
   `point_count` 가 recipe 보다 작은 측정(실측 2·3·5·8·14·43·55)도 mock 에는 없습니다.
-- align·tip·capture 의 원본 TIFF 도 적재되어 있지만(office 확인 2026-10-07) 어느 목록에
-  있는지 몰라 mock 은 내지 않습니다(OFFICE-VERIFY).
+- align·tip·capture 의 원본은 각자의 목록에 있고 TIFF 가 아닙니다 — align 은 `.bmp`, tip
+  과 capture 는 `.png` (office 확인 2026-10-07, 8차). mock 도 webp 옆에 냅니다. 원본의
+  이름이 webp 와 같고 확장자만 다르다는 것은 OFFICE-VERIFY 입니다.
 - Redis `afm_d1_tools` 는 `fab` 이 빈 문자열이고 `alias` 가 MAP608=null·MAPC01=R3·
   5EAP1501=M15 입니다. mock 은 MAP608 에 `PKG`(추정)를 냅니다.
 - 이름·값을 지어낸 곳 (OFFICE-VERIFY): repeat recipe 의 이름(`RQQA_REPEAT_4SITE`)과 크기
   (4 Site × 1 point — 실측은 4 × 14), MAPC01 의 profile·이미지 이름에서 5번째 필드에
-  들어가는 값(mock 은 lot), 원본 TIFF 와 webp 의 짝(mock 은 같은 이름), tip 이미지 이름의
-  나머지(mock 은 모든 recipe 에서 `_<위치 키>_C_PR`), 반복이 없는 recipe 의 `Sample Count`
-  (1~5 무작위), `Sample Location` 값의 나머지 모양(mock 은 `Slot N` 만).
+  들어가는 값(mock 은 lot), 원본과 webp 의 짝(mock 은 같은 이름), `Sample Location` 값의
+  나머지 모양(mock 은 `Slot N` 만).
+- `Sample Count` 는 한 측정 안에서 같은 값이고(1~47) repeat recipe 만 바퀴마다 1 커집니다.
+  Site ID 유무와는 무관합니다(office 확인 2026-10-07, 8차).
 
 확인되어 그대로 재현하는 것 (office 확인 2026-10-02, 회신 4회):
 - 장비는 MAP608 · MAPC01 · 5EAP1501 이고 MAPC01=R3, 5EAP1501=M15 입니다.
 - 파일명은 `#` 구분이며 장비마다 필드 순서가 다르고, 빈자리는 `NA` 입니다.
   - MAP608 의 첫 시각은 **세션(폴더) 시작 시각**이라 같은 세션의 측정들이 공유합니다.
     뒤 시각이 측정 시작이고, 그 자리가 `NA` 인 파일이 많습니다(오래된 파일만이 아니라
-    최근 파일의 절반쯤 — office 확인 2026-10-07). 그때 Info 의 `Start Time` 은 첫 시각과
-    같습니다.
+    최근 파일의 절반쯤 — office 확인 2026-10-07). 그때도 Info 의 `Start Time` 은 그 측정의
+    시작이며 첫 시각과 다를 수 있습니다(8차 정정).
   - MAPC01 은 `_Info.csv` 가 모든 측정에 있고 data CSV 는 같은 이름에서 `_Info` 를 뺀
     것입니다(목록의 `filename` 은 data CSV 가 있으면 그쪽입니다). 측정 한 건은 앞 4필드(date#time#recipe#slot)이며, 같은 sample 이 하루에
     여러 번 다시 측정되어 시각만 다릅니다. lot 은 파일명에 없고(NA) Info 의 `Lot ID` 에 있습니다.
@@ -166,8 +169,14 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   data 행의 `Mileage` 는 **팁 단위 누적값**이라 한 팁을 쓰는 동안 커지기만 하고 팁이 바뀌면
   리셋됩니다(실측 `DT-NCHR_CM` slot 9 → slot 1, 1430483 → 3520). 교체를 적은 기록은 없어
   이것이 팁이 바뀐 것을 아는 근거입니다. `DT-NCHR_CM` 은 실제 Tip ID 입니다.
+  8차 회신(office 확인 2026-10-07): 같은 팁에서 Mileage 가 줄어든 일은 0건이지만 재시작·
+  수동 초기화는 미실측입니다. `Last Pick Up Time`·`Last Put Back Time` 은 팁 단위 값이라
+  한 팁의 모든 측정이 같은 값을 갖고, 갱신은 재픽업입니다. 관측된 Tip ID 는 8종(MCNT 포함
+  2종)이고 5EAP1501 의 `OMCL-AC160TS` 는 폭이 대부분 NaN 입니다 — mock 은 5EAP1501 에서
+  `DT-NCHR_CM` 자리에 그 종류를 내고 20건 중 16건을 `NaN` 으로 둡니다.
   지어낸 것(OFFICE-VERIFY): MCNT 계열의 이름(`MCNT-150`·`MCNT-500`)과 종류 수, 한 팁이 4일
-  유지된다는 것, `DT-NCHR_CM` 의 폭(70), Mileage 의 증가 속도(분당 240)와 단위, `NaN` 의 비율.
+  유지된다는 것, `DT-NCHR_CM` 의 폭(70)과 `OMCL-AC160TS` 의 폭(7), Mileage 의 증가 속도
+  (분당 240), `NaN` 의 비율, Put Back 이 Pick Up 7분 전이라는 것.
   `Data Save Location` 은 공백 없는 긴 경로라는 것만 user-confirmed(2026-10-06)이고,
   폴더 구성(드라이브·장비·날짜·recipe·lot 순서)은 지어냈습니다.
 - 목록의 팁 열 9종(`tip_id`·`tip_cassette_id`·`tip_port_no`·`tip_slot_no`·`tip_width`·
@@ -533,6 +542,7 @@ def get_afm_file_detail(
     summary: list[dict[str, Any]] = []
     detail: list[dict[str, Any]] = []
     mileage = _tip_mileage(row)
+    sample_count = _seed_for("sample-count", row["tool_name"], row["filename"]) % 47 + 1
 
     for method_index, method in enumerate(recipe["methods"]):
         stopped = stopped_early and method_index > 0
@@ -569,18 +579,17 @@ def get_afm_file_detail(
                 record[f"{column.removesuffix(' (nm)')}_Valid"] = (
                     None if stopped else rng.random() > 0.06
                 )
-            sample_count = rng.randint(1, 5)
+            rng.randint(1, 5)  # a draw the stream once spent on Sample Count
             approach_count = rng.randint(1, 3) + (rng.randint(1, 2) if excursion else 0)
             # Mileage counts up for as long as one tip is in use and starts
             # over with the next tip (office 확인 2026-10-07).
             mileage = round(mileage + rng.uniform(2, 98) / 100, 2)
             record.update({
                 "Pick Up Count": rng.randint(1, 10),
-                # No column numbers a repeat; this one tells the laps apart
-                # (seen: 4 on the first lap, 5 on the second).
-                "Sample Count": (
-                    4 + row_no // len(positions) if recipe.get("repeat", 1) > 1 else sample_count
-                ),
+                # One value for the whole measurement (seen 1–47), except that a
+                # repeat recipe's goes up by one each lap — the only thing that
+                # tells the laps apart (office 확인 2026-10-07).
+                "Sample Count": sample_count + row_no // len(positions),
                 "Approach Count": approach_count,
                 "Mileage": mileage
             })
@@ -880,10 +889,8 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
         time_code = timestamp.strftime("%H%M%S")
         # NA where the start time goes is not an old-file thing: 29 of 46 recent
         # files carry it (office 확인 2026-10-07), scattered among the others.
-        start_code = (
-            "NA" if (index * 7) % 46 < 29
-            else (timestamp + timedelta(minutes=4 + 11 * member)).strftime("%H%M%S")
-        )
+        true_start = (timestamp + timedelta(minutes=4 + 11 * member)).strftime("%H%M%S")
+        start_code = "NA" if (index * 7) % 46 < 29 else true_start
         recipe_name = config["recipes"][sample_no % len(config["recipes"])]
         recipe = RECIPES[recipe_name]
         lot_prefixes = config["lot_prefixes"]
@@ -930,12 +937,14 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             "lot_id": lot_id,
             "slot_number": slot_number,
             "time": time_code,
-            # When this measurement started: MAP608's trailing time, and where
-            # that is NA (or on the other tools) the leading one — which is what
-            # Info's Start Time says there.
+            # When this measurement started (office 확인 2026-10-07, 8차): equal
+            # to `time` on MAPC01 / 5EAP1501. On MAP608 it is the name's trailing
+            # time, and where that is NA the loader takes Info's Start Time —
+            # which the 13-key Info does not have, so there it is null.
             "measured_time": (
-                start_code if start_code != "NA" and "{start}" in config["filename"]
-                else time_code
+                time_code if "{start}" not in config["filename"]
+                else None if start_code == "NA" and _info_is_short(tool_name, filename)
+                else true_start
             ),
             # The column exists at the office and is always null.
             "measured_info": "",
@@ -960,18 +969,23 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
                 has_image,
                 webps + ([] if tool_name == "5EAP1501" else [_original_name(n) for n in webps])
             ),
+            # Each kind's originals sit in its own list, in the tool's own
+            # format: align .bmp, tip and capture .png (office 확인 2026-10-07, 8차).
             "align_dir_list": _file_list(
                 has_align,
-                [f"{file_stem}_{keys[0]}_alignment.webp"]
+                _with_original([f"{file_stem}_{keys[0]}_alignment.webp"], "bmp")
             ),
             # Two series: a `_C_PR` per point, and one `C_Result` for the
-            # measurement (office 확인 2026-10-07). OFFICE-VERIFY the rest of
-            # each name — only a Site ID recipe is known to carry the position key.
+            # measurement (office 확인 2026-10-07). The position key sits right
+            # before `_C_PR` on every recipe, with or without a Site ID.
             "tip_dir_list": _file_list(
                 has_tip,
-                [f"{file_stem}_{key}_C_PR.webp" for key in keys] + [f"{file_stem}_C_Result.webp"]
+                _with_original(
+                    [f"{file_stem}_{key}_C_PR.webp" for key in keys] + [f"{file_stem}_C_Result.webp"],
+                    "png",
+                )
             ),
-            "capture_dir_list": [f"{file_stem}_{keys[0]}_capture.webp"],
+            "capture_dir_list": _with_original([f"{file_stem}_{keys[0]}_capture.webp"], "png"),
             "has_profile": has_profile,
             "has_data": has_data,
             "has_image": has_image,
@@ -1165,6 +1179,11 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
     period, _ = _tip_period(row)
     mounted = random.Random(_seed_for("tip-mounted", row["tool_name"], str(period)))
     tip_id, remeasured, nominal_width = mounted.choice(_TIP_TYPES)
+    picked_up = datetime.fromordinal(period * _TIP_LIFE_DAYS) + timedelta(minutes=93)
+    # 5EAP1501's OMCL-AC160TS records almost no width (office 확인 2026-10-07, 8차).
+    unrecorded = tip_id == "DT-NCHR_CM" and row["tool_name"] == "5EAP1501"
+    if unrecorded:
+        tip_id, nominal_width = "OMCL-AC160TS", 7.0
     tip_cassette = f"TC{mounted.randint(10, 99)}"
     tip_port = str(mounted.randint(1, 2))
     tip_slot = str(mounted.randint(1, 16))
@@ -1175,7 +1194,7 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
     seat_offset = mounted.uniform(-1.5, 1.5)
     width = nominal_width + (seat_offset + tip.uniform(-1.05, 1.05) if remeasured else 0)
     # A width the measurement did not record is the literal text 'NaN'.
-    no_width = _seed_for("tip-nan", row["tool_name"], row["filename"]) % 20 == 0
+    no_width = _seed_for("tip-nan", row["tool_name"], row["filename"]) % 20 < (16 if unrecorded else 1)
     tip_width = "NaN" if no_width else f"{width:.1f}"
     values = {
         "Lot ID": row["lot_id"],
@@ -1186,8 +1205,14 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
         # The wafer's real slot; the list's slot_number is read from here.
         "Sample Location": f"Slot {slot}",
         "Start Time": start_time,
-        "Last Pick Up Time": None if rng.random() < 0.3 else start_time,
-        "Last Put Back Time": None if rng.random() < 0.3 else start_time,
+        # Both belong to the tip, not the measurement: every measurement a tip
+        # makes carries the same pair, and a new pick-up time is a re-pick
+        # (office 확인 2026-10-07, 8차).
+        "Last Pick Up Time": None if rng.random() < 0.3 else picked_up.strftime("%Y-%m-%d %H:%M:%S"),
+        "Last Put Back Time": (
+            None if rng.random() < 0.3
+            else (picked_up - timedelta(minutes=7)).strftime("%Y-%m-%d %H:%M:%S")
+        ),
         # Everything below is a made-up value shape (OFFICE-VERIFY).
         "End Time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
         # A long path with no spaces (user-confirmed 2026-10-06: it does not fit
@@ -1206,18 +1231,17 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
         "Tip Slot No": tip_slot,
         "Tip Width": tip_width,
     }
-    short = (
-        _seed_for("info-keys", row["tool_name"], row["filename"]) % 8
-        < _INFO_13_IN_8[row["tool_name"]]
-    )
+    short = _info_is_short(row["tool_name"], row["filename"])
     return {key: values[key] for key in (_INFO_KEYS_13 if short else _INFO_KEYS_15)}
 
 
+def _info_is_short(tool_name: str, filename: str) -> bool:
+    return _seed_for("info-keys", tool_name, filename) % 8 < _INFO_13_IN_8[tool_name]
+
+
 def _display_start_time(row: AfmMeasurementRow) -> str:
-    # MAP608 alone carries the measurement start, as its file name's trailing time.
-    # Where that is NA, and on the other tools, the leading time is the start.
-    start = row["filename"].split("#")[6]
-    raw_time = (start if start.isdigit() else row["time"]).ljust(6, "0")
+    # The measurement's own start; the leading time only where the list has none.
+    raw_time = (row["measured_time"] or row["time"]).ljust(6, "0")
     return (
         f"{row['formatted_date']} "
         f"{raw_time[:2]}:{raw_time[2:4]}:{raw_time[4:6]}"
@@ -1242,7 +1266,13 @@ def _original_name(webp_name: str) -> str:
 
 
 def _is_original(name: str) -> bool:
-    return name.lower().endswith((".tif", ".tiff"))
+    # Whatever is not the webp conversion: .tiff for Result, .bmp / .png elsewhere.
+    return not name.lower().endswith(".webp")
+
+
+def _with_original(webps: list[str], extension: str) -> list[str]:
+    # OFFICE-VERIFY the pairing: the webp's own name with the original's extension.
+    return webps + [f"{name.rsplit('.', 1)[0]}.{extension}" for name in webps]
 
 
 def _point_files(clean_filename: str, keys: list[str], extension: str) -> list[str]:

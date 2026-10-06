@@ -7,6 +7,7 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
 표기: [명세] = user-confirmed 2026-10-06 (사무실 적재 명세 전달, 5차),
       [확인] = office 확인 2026-10-06 (실제 적재물을 보고 답한 6차 회신),
       [확인 7차] = office 확인 2026-10-07 (7차 회신),
+      [확인 8차] = office 확인 2026-10-07 (8차 회신, 전부 실측 기반),
       [가정] = OFFICE-VERIFY.
 회신 원문은 docs/afm/office-data-findings.md, 남은 질문은 docs/afm/to-questionnaire-afm.md 에
 있습니다. adapter 자체는 아직 사무실에서 실행해 보지 않았습니다.
@@ -93,9 +94,14 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
                     [확인 7차]. MAP608 의 6번째 필드는 오래된 파일만이 아니라 최근
                     파일의 절반쯤(29/46)에서 `NA` 이므로, `time` 만으로는 MAP608 측정의
                     절반 이상이 세션 시각에 모입니다.
-                    [가정: 값은 요청한 대로 `HHMMSS` 이고, 6번째 필드가 `NA` 이면 Info 의
-                    `Start Time`, MAPC01·5EAP1501 은 `time` 과 같은 값. adapter 는 빈 값과
-                    `NA` 를 null 로 내고 화면은 null 이면 `time` 을 씁니다.]
+                    값 [확인 8차]:
+                      - **`HHMMSS` 6자리**, 선행 0 포함(전수 확인).
+                      - MAP608 의 6번째 필드가 `NA` 이면 **Info 의 `Start Time`** 에서
+                        만듭니다. 그 값은 세션 시각과 다릅니다(실측 `time`='014148' →
+                        `measured_time`='022914').
+                      - `Start Time` 이 없는 **13키 Info 의 측정은 null** 입니다(6건).
+                      - MAPC01·5EAP1501 은 `time` 과 전수 일치합니다.
+                    adapter 는 빈 값을 null 로 내고 화면은 null 이면 `time` 을 씁니다.
     measured_info   열은 있으나 **항상 null** 입니다 [확인].
     tool_name       대문자 그대로 [확인].
     fab
@@ -126,14 +132,21 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
     mileage_mean         data 전체 행의 `Mileage` 평균 (float). `Mileage` 는 **팁 단위
                          누적값**이라 한 팁을 쓰는 동안 커지기만 하고, 다른 슬롯의
                          팁으로 바뀌면 리셋됩니다 [확인 7차: DT-NCHR_CM slot 9 → slot 1
-                         에서 1430483 → 3520]. 단위는 모릅니다 [가정].
+                         에서 1430483 → 3520]. 같은 팁에서 값이 줄어든 일은 0건이고
+                         리셋은 늘 슬롯 변화와 함께였습니다. 리셋 뒤 첫 값은 0 이
+                         아닙니다(3520). 단위는 미정입니다(um 추정) [확인 8차].
+                         장비 재시작·수동 초기화 때의 동작은 **미실측**입니다.
     not_completed_count  `State` 가 COMPLETED 가 아닌 행 수 (int)
     invalid_count        `State` 가 COMPLETED 이고 `Valid` 가 FALSE 인 행 수 (int)
 
   뒤의 넷은 data 행이 없는 측정(info 만 있는 측정)에서 null 입니다. 블록(`Site`)을
   가리지 않고 한 측정의 모든 행을 셉니다 — 시계열 비교의 장비 건강과 같은 정의입니다.
   mock 도 각 측정의 상세(Info·data 행)에서 같은 정의로 계산해 채웁니다.
-  과거 측정을 소급해 채웠는지는 회신에 없습니다 [가정: 채웠습니다].
+  과거 측정도 **소급해 채워져 있습니다.** 목록의 보존은 3개월이라 팁 이력도 3개월까지
+  입니다. `Tip Width` 에는 단위가 붙지 않고, `State` 는 3종뿐입니다 [확인 8차].
+  관측된 `Tip ID` 는 **8종**이고 이름에 `MCNT` 가 든 것은 2종입니다. 나머지 6종의 폭이
+  팁마다 다른지는 미정입니다. **5EAP1501 의 `OMCL-AC160TS` 는 `Tip Width` 가 대부분 NaN**
+  이라, 폭이 있는 측정이 5건 미만이면 화면은 폭 관리선을 내지 않습니다 [확인 8차].
   판정 기준 [user-confirmed 2026-10-06]: 팁 종류(`Tip ID`)별로 묶고, spec 은 아직 정하지
   않아 같은 종류 측정의 중앙값 ± 3σ(σ는 MAD 기반) 밖을 이상치로 봅니다. 팁의 상태는
   그 팁의 최근 5건으로 정합니다(2건 이상 밖 = 이상, 1건 = 주의) [웹이 정한 규칙].
@@ -142,11 +155,18 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
       **MCNT 계열만 33.96~39.11 로 퍼지고 같은 슬롯에서도 오르내리므로**(마모가 아니라
       측정 오차로 추정) 관리선을 **팁(카세트·포트·슬롯) 단위**로 긋습니다. 화면은
       `Tip ID` 에 `MCNT` 가 들어 있으면 MCNT 계열로 봅니다 [가정: 이름으로 가립니다].
-    - `Mileage` — 누적값이므로 관리선을 긋지 않고 판정에서 뺍니다.
+    - `Mileage` — 누적값이므로 관리선을 긋지 않고 판정에서 뺍니다. 사무실도 동의했습니다
+      (관측 전수에서 모든 recipe 가 팁 단위 누적, "리셋 없는 종류" 0건) [확인 8차].
   팁이 바뀐 지점 [확인 7차]: 교체를 적은 기록은 없습니다. `Tip ID`·`Tip Cassette ID`·
   `Tip Port No`·`Tip Slot No` 가운데 하나가 달라졌거나 **Mileage 가 리셋된** 자리가
-  팁이 바뀐 지점입니다. 화면(시계열 비교의 세로선)은 Mileage 평균이 앞 측정보다
-  작아지면 리셋으로 봅니다.
+  팁이 바뀐 지점입니다.
+  [확인 8차] Info 의 `Last Pick Up Time`·`Last Put Back Time` 은 **팁 단위 값**입니다 —
+  같은 팁의 연속 측정 4건(02:50~06:31)이 모두 Pick Up 01:33:39 였습니다. 값이 갱신되면
+  팁을 다시 집은 것입니다. 재시작·수동 초기화가 미실측이므로 Mileage 감소는 그것만으로
+  보지 말고 **팁 값 변화나 Pick Up 갱신과 묶어** 보라는 권고를 받았습니다. 화면
+  (시계열 비교의 세로선)은 팁 값이 달라진 자리, 또는 팁 값은 같은데 Mileage 평균이
+  줄고 Pick Up 이 바뀐 자리에 긋습니다. 목록에는 Pick Up 열이 없어 팁 모니터링은 팁 값
+  변화만 봅니다.
 
   파일 목록 7종 — 모두 list[str] 이고, 원소는 **MinIO 객체 key 전체**입니다
   (prefix `2067928/` 포함). **빈 리스트 = 파일 없음**입니다 [명세].
@@ -154,11 +174,12 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
     data_dir_list     상세 parquet
     profile_dir_list  profile parquet
     tiff_dir_list     Result 이미지(webp) **와 원본 TIFF** [확인]
-    align_dir_list    align 이미지 (webp)
-    tip_dir_list      tip 이미지 (webp). **두 계열**입니다 [확인 7차, 6차 답 정정]:
-                      point 마다 `_C_PR` 한 장(Site ID recipe 는 이름에 위치 키 포함)과
-                      측정마다 `C_Result` 한 장.
-    capture_dir_list  capture 이미지 (webp)
+    align_dir_list    align 이미지 (webp) **와 원본 `.bmp`** [확인 8차]
+    tip_dir_list      tip 이미지 (webp) **와 원본 `.png`** [확인 8차]. **두 계열**입니다
+                      [확인 7차, 6차 답 정정]: point 마다 `_C_PR` 한 장(2440×1832
+                      grayscale, 약 2.5MB)과 측정마다 `C_Result` 한 장(448×336 RGB, 약
+                      440KB). 크기는 [확인 8차].
+    capture_dir_list  capture 이미지 (webp) **와 원본 `.png`** [확인 8차]
     raw_dir_list      원본 csv / txt
 
   ⚠ `data_dir_list` 가 비어 있지 않다고 "측정 데이터 있음"이 아닙니다 [확인]. data CSV 가
@@ -169,10 +190,10 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
     빠진 것이고(mirror 에 원본 206개), 다시 적재될 예정입니다 [확인 7차]. 화면의 이미지
     목록에는 webp 만 올리고, TIFF 는 다운로드로만 제공합니다. 어느 webp 의 원본인지
     가리는 규칙은 회신에 없습니다 [가정: webp 와 이름이 같고 확장자만 다름].
-  ⚠ **align·tip·capture 의 원본도 이미 적재되어 있습니다** [확인 7차]. 어느 목록에 들어
-    있는지는 회신에 없습니다 [가정: 각자의 목록]. adapter 는 어느 목록이든 `.tif`·`.tiff`
-    를 이미지 목록과 `has_align`·`has_tip` 판단에서 빼고, 원본 다운로드는 아직 Result
-    이미지에만 둡니다.
+  ⚠ **align·tip·capture 의 원본도 각자의 목록에 들어 있고, TIFF 가 아닙니다** — align 은
+    `.bmp`, tip 과 capture 는 `.png` 입니다 [확인 8차]. 그래서 adapter 는 확장자를 나열하지
+    않고 **`.webp` 가 아닌 것을 모두 원본**으로 보아 이미지 목록과 `has_image`·`has_align`·
+    `has_tip` 판단에서 뺍니다. 원본 다운로드는 아직 Result 이미지(`.tiff`)에만 둡니다.
   ⚠ 예전 요구사항(docs/afm/개발요구.txt)의 `["no files"]` 표지는 **쓰지 않습니다.**
   ⚠ parquet 의 list 열은 `pd.read_parquet` 에서 list 가 아니라 numpy 배열로 돌아옵니다.
   ⚠ 추출에 실패한 측정은 목록에 **들어오지 않습니다** [확인]. "파일이 원래 없음"과
@@ -243,7 +264,10 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
         - repeat recipe 는 **한 block 안에서 같은 point 가 되풀이**됩니다
           (실측: 4 Site × 2 반복 = 8행). 반복 번호를 담은 열은 **없고**, 행은 모든
           Site 를 **한 바퀴 돈 뒤 다시 돕니다** [확인 7차]. 바퀴는 `Sample Count` 로
-          구분할 수 있습니다(실측 4 → 5). profile·이미지는 반복마다 따로 있지 않고
+          구분할 수 있습니다(실측 4 → 5). 반복이 없는 recipe 에서는 `Sample Count` 가
+          **한 측정 안에서 바뀌지 않고**(4종 전수), 첫 값은 측정마다 다릅니다(1~47).
+          Site ID 가 있어도 반복이 없으면 바뀌지 않습니다(WID_11KEY) — **Site ID 유무는
+          반복 여부가 아닙니다** [확인 8차]. profile·이미지는 반복마다 따로 있지 않고
           같은 이름 하나입니다.
         - 측정이 중단되면 **측정하지 못한 point 의 행은 아예 없습니다**(STOPPED 행으로
           채우지 않습니다). `State` 가 STOPPED 인 행은 **중단된 그 point 하나**입니다
@@ -256,7 +280,7 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
       열 이름은 **`Method ID`**(공백)입니다 [확인 7차].
       `Valid` 가 FALSE 인 실물은 **여전히 없습니다**(CSV 263개 전수 0건) [확인 7차].
       그래서 FALSE 의 표기는 모릅니다 [가정: adapter 는 대소문자 무관 `true`/`false`
-      만 읽고 나머지는 null]. `Sample Count` 가 무엇을 세는 값인지도 모릅니다 [가정].
+      만 읽고 나머지는 null]. `Sample Count` 가 무엇을 세는 값인지는 모릅니다.
 
   3.2 위치 키와 파일명 [확인]
 
@@ -274,10 +298,10 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
       그 두 필드에 무엇이 들어가는지는 회신에 없습니다 [가정: mock 은 lot 을 넣습니다].
 
     tip 이미지는 `_C_PR`(point 마다)과 `C_Result`(측정마다 한 장)로 끝납니다
-    [확인 7차]. Site ID recipe 의 `_C_PR` 은 위치 키를 포함합니다. 화면은
-    `_<위치 키>_C_PR` 에서 point 를 읽고 `C_Result` 는 point 없는 이미지로 둡니다.
-    회신에 없는 것 [가정]: Site ID 가 없는 recipe 의 `_C_PR` 이름에 point 번호가 있는지
-    (mock 은 4자리 번호를 넣습니다), align·capture 이미지의 이름 규칙과 장수.
+    [확인 7차]. `_C_PR` 앞이 위치 키입니다 — Site ID 가 없는 recipe 도 4자리 point
+    번호가 들어갑니다(`…_0001_C_PR.webp`) [확인 8차]. 화면은 `_<위치 키>_C_PR` 에서
+    point 를 읽고 `C_Result` 는 point 없는 이미지로 둡니다.
+    회신에 없는 것 [가정]: align·capture 이미지의 이름 규칙과 장수.
 
   3.3 Profile [확인]
 
@@ -360,6 +384,10 @@ mock 반영 (backend/afm/providers/mock.py)
   `Method ID` 철자, repeat 의 한 바퀴 순서와 `Sample Count` 4 → 5, 스캔 위치 수인
   `point_count`, 팁 단위로 쌓이다 팁이 바뀌면 리셋되는 `Mileage`, 상수인 비 MCNT 폭과
   34~39 에서 오르내리는 MCNT 폭, 실제 Tip ID `DT-NCHR_CM`, tip 이미지 두 계열.
+  [확인 8차] 가운데 재현하는 것: `NA` 일 때 `Start Time` 에서 오는 `measured_time` 과
+  13키 Info 의 null, 팁 단위인 `Last Pick Up Time`·`Last Put Back Time`, 한 측정 안에서
+  같은 `Sample Count`(1~47), 각 목록의 원본(`.bmp`·`.png`), 폭이 대부분 NaN 인 5EAP1501 의
+  `OMCL-AC160TS`.
   backend/afm/tests/test_mock_office_facts.py 가 고정합니다.
 
   mock 이 일부러 다르게 둔 곳:
@@ -373,9 +401,10 @@ mock 반영 (backend/afm/providers/mock.py)
     - repeat recipe 는 4 Site × 1 point × 2 바퀴(8행, point_count 4)입니다. 실측
       (4 × 14 × 2 = 112행, 56)보다 작습니다.
     - `Mileage` 의 증가 속도(분당 240)와 팁 하나가 4일 유지된다는 것, MCNT 가 아닌
-      종류의 폭(70)은 지어냈습니다. align·tip·capture 의 원본 TIFF 는 내지 않습니다.
+      종류의 폭(70, OMCL-AC160TS 는 7)은 지어냈습니다. `Last Put Back Time` 이 Pick Up
+      7분 전이라는 것도 지어냈습니다.
     - 장비 목록의 MAP608 에 `PKG`(추정)를 냅니다. 실제는 fab 도 alias 도 비어 있습니다.
     - 이미지는 webp 가 아니라 자리 표시 SVG 입니다.
     - 지어낸 것: repeat recipe 의 이름(`RQQA_REPEAT_4SITE`), MAPC01 이미지 이름의 5번째
-      필드(lot), 원본 TIFF 의 이름(webp 와 같은 이름), `Sample Location` 값(`Slot N` 만),
-      반복이 없는 recipe 의 `Sample Count`(1~5 무작위).
+      필드(lot), 원본의 이름(webp 와 같은 이름에 확장자만 다름), `Sample Location` 값
+      (`Slot N` 만).
