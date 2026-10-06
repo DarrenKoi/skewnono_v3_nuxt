@@ -6,25 +6,23 @@
   >
     <template #actions>
       <div class="flex flex-wrap items-center gap-2.5">
-        <span class="sk-value-num">{{ filteredRows.length }} / {{ scopeTotal }}</span>
+        <span class="sk-value-num text-sm">{{ filteredRows.length }} / {{ scopeTotal }}</span>
         <div class="flex gap-1">
           <SkChip
-            size="sm"
             tone="ink"
             label="전체"
             :active="scope === 'all'"
             @click="scope = 'all'"
           />
           <SkChip
-            size="sm"
             tone="ink"
             label="선택 포인트"
             :active="scope === 'point'"
             @click="scope = 'point'"
           />
         </div>
-        <p class="sk-meta">
-          유효 <b class="sk-value-num">{{ validCount }}</b>
+        <p class="sk-meta text-sm">
+          유효 <b class="sk-value-num text-sm">{{ validCount }}</b>
         </p>
       </div>
     </template>
@@ -34,19 +32,18 @@
         v-model="search"
         type="search"
         icon="i-lucide-search"
-        size="xs"
+        size="md"
         placeholder="행 검색 (보이는 컬럼)"
         aria-label="행 검색"
-        class="w-52"
+        class="w-64"
       />
       <div
         v-for="facet in facets"
         :key="facet.key"
         class="flex items-center gap-1"
       >
-        <span class="mr-0.5 sk-eyebrow">{{ facet.key }}</span>
+        <span class="mr-0.5 sk-meta">{{ facet.key }}</span>
         <SkChip
-          size="sm"
           label="전체"
           :active="!equals[facet.key]"
           @click="equals[facet.key] = ''"
@@ -54,7 +51,6 @@
         <SkChip
           v-for="option in facet.options"
           :key="option.value"
-          size="sm"
           :label="option.label"
           :count="option.count"
           :active="equals[facet.key] === option.value"
@@ -63,7 +59,7 @@
       </div>
       <UButton
         v-if="hasFilters"
-        size="xs"
+        size="sm"
         color="neutral"
         variant="ghost"
         icon="i-lucide-rotate-ccw"
@@ -72,21 +68,21 @@
       />
       <!-- Labelled and counted rather than listing the picked names, which
            truncate to an unreadable "Point, X, Y, …" that hides what it is. -->
-      <div class="ml-auto flex items-center gap-1.5">
-        <span class="sk-eyebrow">표시 컬럼</span>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="sk-meta">표시 컬럼</span>
         <USelectMenu
           v-model="visibleKeys"
           :items="columnItems"
           value-key="value"
           multiple
-          size="xs"
+          size="md"
           icon="i-lucide-columns-3"
           aria-label="표시 컬럼 선택"
-          class="w-36"
+          class="w-48"
           :search-input="{ placeholder: '컬럼 검색' }"
         >
           <span class="truncate">
-            컬럼 <b class="sk-value-num">{{ visibleKeys.length }}</b> / {{ columnItems.length }}
+            컬럼 <b class="sk-value-num text-sm">{{ visibleKeys.length }}</b> / {{ columnItems.length }}
           </span>
         </USelectMenu>
       </div>
@@ -106,7 +102,7 @@
               <th
                 v-for="col in visibleColumns"
                 :key="col.key"
-                class="whitespace-nowrap px-2.5 py-1.5 text-right sk-label first:text-left"
+                class="whitespace-nowrap px-3 py-2 text-right sk-label text-xs first:text-left"
               >
                 {{ col.label }}
               </th>
@@ -127,7 +123,7 @@
               <td
                 v-for="col in visibleColumns"
                 :key="col.key"
-                class="whitespace-nowrap px-2.5 py-1 text-right sk-value-num first:text-left"
+                class="whitespace-nowrap px-3 py-1.5 text-right sk-value-num text-sm first:text-left"
                 :class="[
                   row.measurement_point === selectedPoint ? 'font-semibold' : '',
                   row[col.key] === false ? 'text-(--sk-bad)' : ''
@@ -148,7 +144,7 @@
           :total="filteredRows.length"
           :items-per-page="PAGE_SIZE"
           :sibling-count="1"
-          size="xs"
+          size="sm"
         />
       </div>
     </template>

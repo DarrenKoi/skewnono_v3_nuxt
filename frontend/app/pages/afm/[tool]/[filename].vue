@@ -92,6 +92,10 @@
           :filename="filename"
           :points="payload.available_points"
         />
+        <AfmDetailMeasurementPointsTable
+          v-model:selected-point="selectedPoint"
+          :data="tableRows"
+        />
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
           <AfmDetailHeatmapChart
             class="xl:col-span-7"
@@ -114,10 +118,6 @@
           :meta="profileMeta"
           :loading="profilePending"
           :export-name="`${filename}-histogram`"
-        />
-        <AfmDetailMeasurementPointsTable
-          v-model:selected-point="selectedPoint"
-          :data="tableRows"
         />
       </div>
     </div>
