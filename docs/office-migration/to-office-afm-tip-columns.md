@@ -1,8 +1,9 @@
 # AFM 팁 열 추가 요청 — Home → Office
 
 - 작성일: 2026-10-06입니다.
-- 수신자: 1~5절은 AFM 측정 데이터를 Redis·MinIO에 적재하는 담당자, 6~7절은 사무실에서
-  SKEWNONO를 실행·확인하는 Office agent입니다.
+- 수신자: Office agent입니다. AFM 측정 데이터를 Redis·MinIO에 적재하는 작업과 사무실에서
+  SKEWNONO를 실행·확인하는 작업을 모두 맡고 있으므로, 1~5절은 적재 작업에 대한 요청이고
+  6~7절은 적재 후 SKEWNONO에서 확인할 것입니다.
 - 목적: AFM 담당 엔지니어가 팁 불량 모니터링 현황을 보고 싶다고 요청했습니다. 이를 위한
   화면(`/afm/<장비>/tips`)은 이미 만들어져 있고, **측정 목록 `afm_d2_measurements`에 열
   9개가 추가되면** 사무실에서도 동작합니다. 그 열의 추가를 요청합니다.
@@ -78,7 +79,7 @@ Mileage, 완료되지 않은 포인트 수, Valid=FALSE 포인트 수입니다.
 6. `State`에 `COMPLETED`·`FAILED`·`STOPPED` 외의 값이 있는지입니다.
 7. `Mileage`의 단위와, 팁을 교체하면 값이 초기화되는지입니다.
 
-## 6. Office agent가 확인할 것
+## 6. 적재 후 SKEWNONO에서 확인할 것
 
 열이 적재된 뒤, 사무실 PC에서 아래 순서로 확인해 주십시오.
 
@@ -121,7 +122,7 @@ for tool in ("MAP608", "MAPC01", "5EAP1501"):
 1. `main`을 `6d625a80` 이후로 받습니다.
 2. Flask를 띄우고 boot log에 `STALE office.py: afm`이 나오는지 봅니다.
 3. 나오면 `python -m scripts.adapters.sync_office_adapters afm`으로 다시 복사합니다.
-4. 열 이름이 2절과 다르게 정해졌다면 복사 전에 알려 주십시오.
+4. 열 이름을 2절과 다르게 정했다면 복사 전에 알려 주십시오.
    `backend/afm/providers/office_example.py`의 `_row`를 home에서 먼저 고쳐야 합니다.
 
 ### 6.4 테스트와 화면
@@ -141,7 +142,7 @@ for tool in ("MAP608", "MAPC01", "5EAP1501"):
 
 ## 7. 회신에 담을 것
 
-- 5절의 일곱 항목에 대한 적재 담당자의 답입니다.
+- 5절의 일곱 항목에 대한 답입니다.
 - 6.1의 출력 전체입니다.
 - 6.2에서 어긋난 측정이 있었다면 그 `unique_key`와 양쪽 값입니다.
 - 6.4의 pytest 건수와 화면에서 본 것입니다.
