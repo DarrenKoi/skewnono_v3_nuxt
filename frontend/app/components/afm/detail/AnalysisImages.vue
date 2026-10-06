@@ -120,7 +120,7 @@
             <SkNavPillGroup
               v-model="density"
               :items="DENSITIES"
-              label="썸네일 크기"
+              label="이미지 크기"
             />
             <UButton
               color="neutral"
@@ -162,13 +162,14 @@
                   </template>
                 </p>
                 <span class="ml-auto whitespace-nowrap sk-value-num">{{ pickedIndex + 1 }} / {{ shown.length }}</span>
-                <span class="whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }}</span>
+                <span class="whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }} · {{ ZOOM[density] * 100 }}%</span>
               </div>
               <div class="flex min-h-0 flex-1 overflow-auto px-20 py-4">
                 <img
                   :src="picked.url"
                   :alt="picked.name"
                   class="m-auto max-w-none shrink-0"
+                  :style="{ zoom: ZOOM[density] }"
                   @load="onPickedLoad"
                 >
               </div>
@@ -429,6 +430,8 @@ const DENSITIES = [
   { value: 'l', label: '크게' }
 ] as const
 const TILE_PX = { s: 130, m: 190, l: 280 }
+// The same control sizes an open image: 보통 is its own pixel size.
+const ZOOM = { s: 0.5, m: 1, l: 2 }
 const density = ref<'s' | 'm' | 'l'>('m')
 
 const openBrowser = (name = '') => {
