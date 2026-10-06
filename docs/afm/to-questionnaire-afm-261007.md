@@ -4,7 +4,7 @@
 - 수신자: 각 AFM 장비에서 파일을 추출·정제하여 적재하는 Office agent입니다.
 - 목적: 7차 회신은 모두 반영했습니다(`main` `150b484a`). 이 문서는 그 회신에 없어 Home이
   **가정으로 둔 것 여섯 가지**만 모았습니다. 전체 미답 질문은
-  [`to-questionnaire-afm.md`](../afm/to-questionnaire-afm.md)에 있고, 번호는 그 문서와
+  [`to-questionnaire-afm.md`](to-questionnaire-afm.md)에 있고, 번호는 그 문서와
   같습니다.
 - 회신 기한: 날짜 기한은 없습니다. 아는 것부터 부분 회신해 주시면 됩니다.
 
@@ -122,12 +122,12 @@ Q55 (나)와 Q56 (나)입니다. 가정이 틀리면 화면이 오류 없이 틀
 - **MCNT 계열의 판별** — 화면은 `Tip ID`에 `MCNT`가 들어 있으면 MCNT 계열로 보고 폭의
   관리선을 팁마다 긋습니다. 이름에 `MCNT`가 없는 MCNT 계열 팁이 있으면 그 `Tip ID`를
   알려 주십시오.
-- [팁 열 추가 요청](to-office-afm-tip-columns.md) 5절의 2~6번(소급 범위, 보존 기간,
+- [팁 열 추가 요청](../office-migration/to-office-afm-tip-columns.md) 5절의 2~6번(소급 범위, 보존 기간,
   `Tip ID` 예시, `Tip Width` 단위, `State`의 다른 값)과 6절의 확인 결과도 아직 받지
   못했습니다.
 
 ## 5. 회신 방법
 
-- 회신은 [`office-data-findings.md`](../afm/office-data-findings.md)에 이어 붙입니다. 이
+- 회신은 [`office-data-findings.md`](office-data-findings.md)에 이어 붙입니다. 이
   저장소에 쓸 수 없으면 1절의 형식으로 전달해 주시면 Home이 옮겨 적습니다.
 - 비밀번호·토큰 등 자격 증명 값은 적지 않습니다.
