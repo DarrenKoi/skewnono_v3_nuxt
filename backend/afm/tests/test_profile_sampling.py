@@ -55,3 +55,22 @@ def test_the_route_thins_a_dense_scan_and_reports_the_file_size():
     assert body["count"] == len(body["data"]) == 683 * 86
     # The file still declares its own size; only the samples sent are fewer.
     assert body["meta"]["data_size"] == "2048 x 256"
+
+
+def test_the_route_thins_for_the_page_and_sends_the_whole_file_for_an_export(monkeypatch):
+    from flask import Flask
+
+    from backend.afm import routes
+
+    points = [{"x": float(x), "y": float(y), "z": 1.0} for y in range(300) for x in range(300)]
+    monkeypatch.setattr(routes, "get_profile_points", lambda *args: points)
+    monkeypatch.setattr(routes, "get_profile_meta", lambda *args: None)
+    app = Flask(__name__)
+    app.register_blueprint(routes.bp, url_prefix="/api")
+    client = app.test_client()
+
+    shown = client.get("/api/afm/files/f/profile/0001?tool=MAP608").get_json()
+    whole = client.get("/api/afm/files/f/profile/0001?tool=MAP608&full=1").get_json()
+    assert shown["total"] == whole["total"] == 90_000
+    assert shown["count"] < 90_000
+    assert whole["count"] == len(whole["data"]) == 90_000

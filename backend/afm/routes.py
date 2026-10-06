@@ -86,8 +86,11 @@ def afm_profile(filename: str, point: str):
             "tool": tool_name
         }), 404
 
-    # A dense scan is thinned to what the page can draw; `total` is what the file holds.
-    shown = thin_profile(profile_points)
+    # A dense scan is thinned to what the page can draw; `total` is what the file
+    # holds. `?full=1` is the export asking for the file itself: a sheet outlives
+    # the screen, and nothing in it would say it was a decimated scan.
+    full = request.args.get("full") == "1"
+    shown = profile_points if full else thin_profile(profile_points)
     return jsonify({
         "success": True,
         "data": shown,

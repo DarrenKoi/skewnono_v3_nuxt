@@ -14,6 +14,21 @@ import type {
 export const safeFilePart = (value: string): string =>
   value.replace(/[^a-zA-Z0-9]+/g, '_') || 'point'
 
+// What a served image is called on disk. The profile image is SVG from the
+// mock and webp at the office, so the name follows the bytes, never the route.
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/svg+xml': 'svg',
+  'image/webp': 'webp',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/tiff': 'tif'
+}
+export const imageExtension = (mime: string): string =>
+  IMAGE_EXTENSIONS[mime.split(';')[0]!.trim().toLowerCase()] ?? 'img'
+
+// One sheet holds 1,048,576 rows, the first of them the header.
+export const EXCEL_MAX_DATA_ROWS = 1_048_575
+
 export interface ExportTable {
   headers: string[]
   rows: unknown[][]

@@ -156,6 +156,10 @@ runs the same code at home against a fake hash and a fake object store.
   site_info)` (`filename`/`point` URL-decoded; `tool_name` from `?tool=`;
   `site_info` built from `?site_id=`/`?site_x=`/`?site_y=`/`?point_no=` query
   args — `point_no` parsed to `int` or `None`)
+- The route thins a dense scan to `PROFILE_POINT_BUDGET` samples for the page
+  (`profile_sampling.py`); `?full=1` skips that and sends every sample, which
+  is what the Excel export asks for. Both run after the provider, so an adapter
+  always returns the whole file.
 - Contract: `list[AfmProfilePoint]`, plus `AfmProfileMeta | None` from
   `data.get_profile_meta(filename, point, tool_name)`, which the route sends
   as `meta` —

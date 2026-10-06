@@ -35,6 +35,7 @@
             icon="i-lucide-download"
             trailing-icon="i-lucide-chevron-down"
             label="Excel 다운로드"
+            :loading="exportingProfile"
           />
         </UDropdownMenu>
       </template>
@@ -230,6 +231,39 @@ const copyLink = async () => {
 const downloadSection = (suffix: string, table: ExportTable) =>
   downloadTable(`${filename}-${suffix}.xlsx`, table.headers, table.rows)
 
+// The page draws a thinned scan, but a sheet carries the file's every sample:
+// nothing in a workbook would say it was decimated. Fetched only when the
+// screen's copy is short, and only for the point being exported.
+const exportingProfile = ref(false)
+const profileForExport = async (): Promise<AfmProfilePoint[]> => {
+  const { points, total } = pointProfile.value
+  if (total <= points.length) return points
+  // ponytail: a scan past one sheet's rows keeps the thinned samples and says
+  // so; split it across sheets if such scans turn out to be exported.
+  if (total > EXCEL_MAX_DATA_ROWS) {
+    toast.add({
+      title: '프로파일이 Excel 한 시트 한도를 넘습니다',
+      description: `${total.toLocaleString()}개 중 화면에 그린 ${points.length.toLocaleString()}개만 담았습니다.`,
+      icon: 'i-lucide-triangle-alert',
+      color: 'warning'
+    })
+    return points
+  }
+  exportingProfile.value = true
+  try {
+    return (await fetchProfile(toolName, filename, selectedPoint.value, true)).data ?? points
+  } finally {
+    exportingProfile.value = false
+  }
+}
+const downloadProfile = async () => {
+  try {
+    await downloadSection(`profile-point${safeFilePart(selectedPoint.value)}`, buildProfileTable(await profileForExport(), profileMeta.value))
+  } catch {
+    toast.add({ ...EXCEL_DOWNLOAD_FAILED })
+  }
+}
+
 // 섹션 넷을 시트 넷으로. CSV 시절에는 한 파일에 붙여 쌓았습니다.
 // 여러 장짜리라 useTableDownload 를 못 타므로 실패 처리는 여기서 하되,
 // 문구는 같은 상수를 씁니다.
@@ -239,7 +273,7 @@ const downloadCombined = async () => {
       { label: '측정 정보', table: buildInfoTable(information.value) },
       { label: '사이트별 요약', table: buildSummaryTable(summaryRows.value) },
       { label: '측정 포인트', table: buildDetailedTable(tableRows.value) },
-      { label: `프로파일 (포인트 ${selectedPoint.value || '없음'})`, table: buildProfileTable(profile.value, profileMeta.value) }
+      { label: `프로파일 (포인트 ${selectedPoint.value || '없음'})`, table: buildProfileTable(await profileForExport(), profileMeta.value) }
     ]))
   } catch {
     toast.add({ ...EXCEL_DOWNLOAD_FAILED })
@@ -276,10 +310,10 @@ const exportItems = computed<DropdownMenuItem[][]>(() => [
       onSelect: () => downloadSection('detailed', buildDetailedTable(tableRows.value))
     },
     {
-      label: `프로파일 — 포인트 ${selectedPoint.value || '없음'} (${profile.value.length})`,
+      label: `프로파일 — 포인트 ${selectedPoint.value || '없음'} (${Math.max(pointProfile.value.total, profile.value.length).toLocaleString()})`,
       icon: 'i-lucide-line-chart',
       disabled: profilePending.value || profile.value.length === 0,
-      onSelect: () => downloadSection(`profile-point${safeFilePart(selectedPoint.value)}`, buildProfileTable(profile.value, profileMeta.value))
+      onSelect: () => downloadProfile()
     }
   ]
 ])

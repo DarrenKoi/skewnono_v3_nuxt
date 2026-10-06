@@ -139,8 +139,8 @@ export const useAfmDetailApi = () => {
   const filePath = (filename = '', rest = '') =>
     joinApiPath(base, `/afm/files${filename && `/${encodeURIComponent(filename)}`}${rest}`)
 
-  const get = <T>(tool: string, filename = '', rest = '') =>
-    $fetch<T>(filePath(filename, rest), { query: { tool } })
+  const get = <T>(tool: string, filename = '', rest = '', query: Record<string, string> = {}) =>
+    $fetch<T>(filePath(filename, rest), { query: { tool, ...query } })
 
   const useAfmFiles = (tool: string) =>
     useAsyncData(`afm-files:${tool}`, async () => {
@@ -154,8 +154,9 @@ export const useAfmDetailApi = () => {
   const useAfmDetail = (tool: string, filename: string) =>
     useAsyncData(`afm-detail:${tool}:${filename}`, () => fetchDetail(tool, filename))
 
-  const fetchProfile = (tool: string, filename: string, point: string) =>
-    get<AfmProfileResponse>(tool, filename, `/profile/${encodeURIComponent(point)}`)
+  // The page draws a thinned scan; `full` is every sample, for an export.
+  const fetchProfile = (tool: string, filename: string, point: string, full = false) =>
+    get<AfmProfileResponse>(tool, filename, `/profile/${encodeURIComponent(point)}`, full ? { full: '1' } : {})
 
   const fetchImage = (tool: string, filename: string, point: string) =>
     get<AfmImageResponse>(tool, filename, `/image/${encodeURIComponent(point)}`)
