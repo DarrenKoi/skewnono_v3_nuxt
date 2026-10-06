@@ -173,3 +173,21 @@ def test_mdc_mock_history_is_daily_snapshots_like_the_office_archive():
     narrow = mdc_mock.build_mdc_history("MCD018", end - timedelta(days=10), end)
     wide = {(r["timestamp"], r["beam_condition"]): r["mdc_value"] for r in records}
     assert all(wide[(r["timestamp"], r["beam_condition"])] == r["mdc_value"] for r in narrow)
+
+
+def test_mock_cohort_is_the_roster_family_with_models_left_mixed():
+    # The office cohort is cut to the family, not the model; the page narrows
+    # it by model. A mock cohort of fabricated ids could never be matched to a
+    # model, and a pre-narrowed one would hide that the page has to do it.
+    from backend.ebeam._tool_specs import model_to_tool_type
+    from backend.ebeam.hardware.providers._siblings import sibling_eqp_ids
+    from backend.sem_list.providers.mock import get_sem_list
+
+    r3 = {row["eqp_id"]: row["eqp_model_cd"] for row in get_sem_list() if row["fab_name"] == "R3"}
+    tool = next(eqp for eqp, model in sorted(r3.items()) if model_to_tool_type(model) == "cd-sem")
+    cohort = sibling_eqp_ids(tool, "R3")
+
+    assert cohort[0] == tool
+    assert set(cohort) <= set(r3)
+    assert {model_to_tool_type(r3[eqp]) for eqp in cohort} == {"cd-sem"}
+    assert len({r3[eqp] for eqp in cohort}) > 1

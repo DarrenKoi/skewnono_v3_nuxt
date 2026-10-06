@@ -1,7 +1,7 @@
 // Pure-logic tests — run with: npm --prefix frontend test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assignCompareColors, assignSeriesColors, compareBoxPoints, conditionBoxRows, conditionSummary, conditionToolRows, filterByTerm } from './hardwareCompare.ts'
+import { assignCompareColors, assignSeriesColors, compareBoxPoints, conditionBoxRows, conditionSummary, conditionToolRows, filterByTerm, scopeSettings } from './hardwareCompare.ts'
 
 // The tool picker's items are their own label, so it filters on identity.
 const filterToolIds = (ids: readonly string[], term: string) => filterByTerm(ids, term, id => id)
@@ -131,4 +131,15 @@ test('conditionSummary: ranks by my |ppm| gap, tools-lacking-mode last, spread i
   assert.equal(Math.round(b.spreadPpm), 20000) // (1.010 - 0.990) / 1.000
   assert.equal(rows[1]!.minePpm, 0) // ME is the median of a
   assert.equal(rows[2]!.minePpm, null) // ME lacks c
+})
+
+test('scopeSettings: keeps only the allowed tools, and always the selected one', () => {
+  const settings = { SEL: { a: 1 }, SAME: { a: 2 }, OTHER: { a: 3 }, UNLISTED: { a: 4 } }
+  // OTHER is a different model; UNLISTED is not in the roster at all, so its
+  // model cannot be shown to match. SEL stays even if the roster lacks it —
+  // dropping the primary tool would blank the panel.
+  assert.deepEqual(Object.keys(scopeSettings(settings, new Set(['SAME']), 'SEL')), ['SEL', 'SAME'])
+  assert.deepEqual(scopeSettings({}, new Set(['SAME']), 'SEL'), {})
+  // The map's spelling may drift from the roster's.
+  assert.deepEqual(Object.keys(scopeSettings({ ' same ': 1 }, new Set(['SAME']), 'SEL')), [' same '])
 })

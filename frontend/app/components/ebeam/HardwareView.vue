@@ -385,6 +385,15 @@ const { data: compareMdcDocs } = await useAsyncData<Record<string, Record<string
   }
 )
 
+// MDC/SCE cohort = the payload's fab-wide `settings` narrowed to the picked
+// models, the same client-side gate `fdcFleet` applies. A tool the roster does
+// not list has no known model, so it is left out rather than assumed to match.
+const cohortSettings = computed(() => scopeSettings(
+  servicePayload.value?.settings ?? {},
+  new Set(rows.value.filter(matchesModel).map(row => toolIdKey(row.eqp_id))),
+  selectedTool.value?.eqp_id ?? ''
+))
+
 // The backend "동일 fab 장비 · N대" card is redundant on MDC/SCE now that the
 // comparison picker carries that count, so drop it from the metric-card row.
 const visibleCards = computed(() => {
@@ -799,7 +808,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
               <!-- MDC: 시계열 (trajectory + per-axis trends) / 비교 sub-tabs -->
               <EbeamHardwareMdcPanel
                 v-else-if="activeService === 'mdc'"
-                :settings="servicePayload.settings ?? {}"
+                :settings="cohortSettings"
                 :docs="servicePayload.docs ?? []"
                 :compare-docs="compareMdcDocs ?? {}"
                 :selected-eqp="selectedTool?.eqp_id ?? ''"
@@ -809,7 +818,7 @@ const metricToneClass = (tone: HardwareMetricTone = 'neutral') => ({
               <!-- SCE: 비교 (settings + coefficient curve) / 시계열 (bidaily archive) sub-tabs -->
               <EbeamHardwareScePanel
                 v-else-if="activeService === 'sce'"
-                :settings="servicePayload.settings ?? {}"
+                :settings="cohortSettings"
                 :docs="servicePayload.docs ?? []"
                 :selected-eqp="selectedTool?.eqp_id ?? ''"
                 :maintenance-events="overlayEvents"

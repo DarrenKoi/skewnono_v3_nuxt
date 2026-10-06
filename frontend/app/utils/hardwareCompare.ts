@@ -20,6 +20,23 @@ const cycle = (keys: readonly string[], ramp: readonly string[]): Record<string,
   return out
 }
 
+// The service payload's `settings` map is the whole fab, every model in it.
+// Narrow it to the tools the page's model gate admits — the comparison picker
+// and the 비교 distribution both read their cohort off these keys, and a value
+// compared across models says nothing. The selected tool always stays: it is
+// the subject, and the gate already vouches for it. `allowedIds` holds
+// toolIdKey() values: the settings map and the roster are written by different
+// collectors, so ids are matched ignoring case and stray whitespace, as the
+// office adapter matches them.
+export const toolIdKey = (id: string) => id.trim().toUpperCase()
+
+export const scopeSettings = <T>(
+  settings: Record<string, T>,
+  allowedIds: ReadonlySet<string>,
+  selectedEqp: string
+): Record<string, T> =>
+  Object.fromEntries(Object.entries(settings).filter(([id]) => id === selectedEqp || allowedIds.has(toolIdKey(id))))
+
 // palette[0] is reserved for the selected (primary) tool everywhere, so picked
 // tools cycle palette[1..]; if the theme has < 2 entries, fall back to the ramp.
 export const assignCompareColors = (

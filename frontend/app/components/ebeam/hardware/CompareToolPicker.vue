@@ -134,7 +134,7 @@
       </USelectMenu>
 
       <span class="ml-auto font-mono text-xs whitespace-nowrap text-(--sk-ink-muted) tabular-nums">
-        동일 fab 장비 {{ siblingIds.length }}대 · 비교 {{ modelValue.length }}대
+        선택 모델 장비 {{ siblingIds.length }}대 · 비교 {{ modelValue.length }}대
       </span>
     </div>
 
@@ -147,7 +147,7 @@
         v-if="siblingIds.length === 0"
         class="sk-meta"
       >
-        같은 fab에 비교할 장비가 없습니다.
+        선택한 모델에 비교할 장비가 없습니다.
       </p>
       <template v-else>
         <!-- Same cap as the 장비 선택 strip above: a picker taller than about
@@ -213,14 +213,14 @@
 // input: it reads `modelValue` and emits changes, never mutating anything.
 //
 // ONE component, TWO modes, chosen by the cohort size rather than by a prop
-// (design 2a, 2026-08-28). The fab cohort is whatever the service payload
-// returns — the home mock builds 3–5 siblings, the office adapters hand back
-// the whole fab map (30–60 tools) — so neither shape can be the only one the
-// picker handles:
+// (design 2a, 2026-08-28). The cohort is the service payload's same-family
+// tools narrowed by HardwareView to the models picked in 장비 선택 — a handful
+// for one model, 30–60 when several are picked in a big fab — so neither shape
+// can be the only one the picker handles:
 //
 //   < 40대  inline chip grid, always open. No search: every tool is on screen
 //           and one click toggles it, which is the grammar the 장비 선택 strip
-//           above already taught. The only mode home development ever sees.
+//           above already taught.
 //   ≥ 40대  the grid would run 4–6 rows and push the table under the fold, so
 //           it folds into the (widened, 3-column) menu and the bar keeps a
 //           trigger. Search earns its place only here.

@@ -56,6 +56,37 @@ def _prefix_of(eqp_id: str) -> str:
     return m.group(1) if m else "ECXDX"
 
 
+def _roster_cohort(eqp_id: str, fab_name: str | None) -> list[str] | None:
+    """The tool's real cohort from the mock roster, or None if it is not listed.
+
+    Same cut the office adapters make (`mdc/office_example.py::_same_family`):
+    every tool of the selected tool's fab and FAMILY, whatever its model. The
+    models are deliberately left mixed — narrowing to the models picked on the
+    page is the frontend's job (`scopeSettings`), and a mock cohort that came
+    pre-narrowed would hide that step at home.
+    """
+    # Imported here, not at module top: sem_list's mock is heavier than the
+    # seed helpers every hardware tab imports this module for.
+    from backend.ebeam._tool_specs import model_to_tool_type
+    from backend.sem_list.providers.mock import get_sem_list
+    from backend.sem_list.roster import fleet_rows
+
+    rows = get_sem_list()
+    wanted_fab = (fab_name or "").strip().upper()
+    # The mock roster repeats a few ids across fabs; prefer the row in the fab
+    # the page asked for, else the first.
+    mine = [row for row in rows if row["eqp_id"] == eqp_id]
+    if not mine:
+        return None
+    me = next((r for r in mine if r["fab_name"].strip().upper() == wanted_fab), mine[0])
+    fleet = fleet_rows(
+        rows,
+        fab_name=me["fab_name"],
+        tool_type=model_to_tool_type(me["eqp_model_cd"]),
+    )
+    return [eqp_id] + [row["eqp_id"] for row in fleet if row["eqp_id"] != eqp_id]
+
+
 def sibling_eqp_ids(
     eqp_id: str,
     fab_name: str | None,
@@ -63,11 +94,17 @@ def sibling_eqp_ids(
     count_low: int = 3,
     count_high: int = 5,
 ) -> list[str]:
-    """`eqp_id` first, then 3-5 stable same-prefix in-fab siblings.
+    """`eqp_id` first, then its in-fab cohort.
 
-    Siblings share the requested tool's id prefix (the in-fab cohort) and are
-    seeded from (eqp_id, fab_name) so the set is stable per scope.
+    A tool the mock roster lists gets its real same-fab, same-family roster
+    tools — mixed models, as the office hands back. An id the roster does not
+    know (the `CDX001`-style ids tests and old links use) falls back to 3-5
+    fabricated same-prefix siblings, seeded from (eqp_id, fab_name) so the set
+    is stable per scope; the office would return such a tool alone.
     """
+    cohort = _roster_cohort(eqp_id, fab_name)
+    if cohort is not None:
+        return cohort
     rng = random.Random(_seed_for_pair(eqp_id, fab_name))
     prefix = _prefix_of(eqp_id)
     n = rng.randint(count_low, count_high)

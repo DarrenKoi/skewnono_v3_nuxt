@@ -14,9 +14,12 @@ shape as SCE, different names.
 
 FAMILY: the office fab map mixes the fab's CD-SEM and HV-SEM tools
 (user-confirmed 2026-09-30), and the office adapter cuts it to the selected
-tool's family via the sem_list roster. This mock's siblings are fabricated
-same-prefix ids, already one family, so it hands back the post-filter cohort
-directly — it does not model the mixed map.
+tool's family via the sem_list roster. This mock hands back that post-filter
+cohort directly — the selected tool's same-fab, same-family tools from the mock
+roster (`_siblings.sibling_eqp_ids`) — without modelling the mixed map. The
+cohort still MIXES MODELS inside the family, as the office one does
+(user-confirmed 2026-10-06: 비교 장비 listed other models); the page narrows it
+to the models picked in 장비 선택, client-side.
 
 COVERAGE: MDC applies to EVERY fab, R3/R4 included. Do NOT copy the R3/R4
 exclusion from `sce/mock.py` by analogy — the two differ exactly here, and the

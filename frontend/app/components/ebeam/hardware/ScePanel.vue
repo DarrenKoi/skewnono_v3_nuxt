@@ -280,7 +280,7 @@
 
         <div class="overflow-x-auto rounded-xl bg-(--sk-surface) p-3 ring-1 ring-(--sk-border-soft)">
           <div class="sk-title">
-            values[0] 고조파 요약 · fab 전체
+            values[0] 고조파 요약 · 선택 모델
           </div>
           <p class="my-2 sk-meta">
             office 확인 2026-09-28: v0는 1–4차 고조파가 분산의 82–97%를 설명해 수치로 비교합니다. v1은 64–91%라 곡선으로 봅니다.
