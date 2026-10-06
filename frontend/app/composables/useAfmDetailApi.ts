@@ -134,12 +134,13 @@ export interface AfmAnalysisImagesResponse {
 export const useAfmDetailApi = () => {
   const base = useRuntimeConfig().public.apiBase
 
-  // Every AFM read is GET /afm/files[/<filename>/<rest>]?tool=<TOOL>.
+  // Every AFM path is /afm/files[/<filename>/<rest>], and every read a GET of
+  // it with ?tool=<TOOL>.
+  const filePath = (filename = '', rest = '') =>
+    joinApiPath(base, `/afm/files${filename && `/${encodeURIComponent(filename)}`}${rest}`)
+
   const get = <T>(tool: string, filename = '', rest = '') =>
-    $fetch<T>(
-      joinApiPath(base, `/afm/files${filename && `/${encodeURIComponent(filename)}`}${rest}`),
-      { query: { tool } }
-    )
+    $fetch<T>(filePath(filename, rest), { query: { tool } })
 
   const useAfmFiles = (tool: string) =>
     useAsyncData(`afm-files:${tool}`, async () => {
@@ -165,10 +166,10 @@ export const useAfmDetailApi = () => {
   // A plain link, not a fetch: the browser streams the zip to disk and names
   // it from Content-Disposition.
   const tiffZipUrl = (tool: string, filename: string) =>
-    `${joinApiPath(base, `/afm/files/${encodeURIComponent(filename)}/tiff.zip`)}?tool=${encodeURIComponent(tool)}`
+    `${filePath(filename, '/tiff.zip')}?tool=${encodeURIComponent(tool)}`
 
   const imagesZipUrl = (tool: string, filename: string, imageType: AfmImageType) =>
-    `${joinApiPath(base, `/afm/files/${encodeURIComponent(filename)}/images.zip`)}?type=${imageType}&tool=${encodeURIComponent(tool)}`
+    `${filePath(filename, '/images.zip')}?type=${imageType}&tool=${encodeURIComponent(tool)}`
 
   return { useAfmFiles, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, tiffZipUrl, imagesZipUrl }
 }

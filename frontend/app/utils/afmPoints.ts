@@ -15,7 +15,8 @@ export const blockNames = (summary: AfmSummaryRow[]): string[] =>
 export const blockOf = (row: AfmDetailRow, fallback: string): string =>
   typeof row.Site === 'string' && row.Site !== '' ? row.Site : fallback
 
-const fallbackBlock = (summary: AfmSummaryRow[]) => blockNames(summary)[0] ?? 'Block 1'
+// The block of a row that names none.
+export const fallbackBlock = (summary: AfmSummaryRow[]) => blockNames(summary)[0] ?? 'Block 1'
 
 export interface PointBlock {
   name: string

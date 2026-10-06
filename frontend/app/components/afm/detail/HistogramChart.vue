@@ -98,9 +98,10 @@ const displayModeItems: { label: string, value: HistogramMode }[] = [
 
 const zs = computed(() => measuredPoints(props.profile).map(p => p.z))
 const stats = computed(() => histogramStats(zs.value))
-const hist = computed(() =>
-  computeHistogram(zs.value, resolveBinCount(zs.value, binMethod.value, customBins.value), displayMode.value)
-)
+// Its own computed: the auto count sorts every sample, and 빈도 / 밀도 / 누적
+// does not change it.
+const binCount = computed(() => resolveBinCount(zs.value, binMethod.value, customBins.value))
+const hist = computed(() => computeHistogram(zs.value, binCount.value, displayMode.value))
 
 const statItems = computed(() => {
   const s = stats.value

@@ -1,6 +1,5 @@
-// Pure helpers for the AFM measurement-points table (column derivation, filtering,
-// summary, paging). No DOM/Nuxt imports so they run under `node --test`.
-import { collectColumns } from './afmExport.ts'
+// Pure helpers for the AFM measurement-points table (column derivation, filtering). No DOM/Nuxt imports so they run under `node --test`.
+import { collectColumns, isMeasurementKey } from './afmExport.ts'
 import type { AfmDetailRow } from '~/composables/useAfmDetailApi'
 
 export interface PointColumn {
@@ -10,10 +9,6 @@ export interface PointColumn {
 
 // `Block` exists only on files with more than one block (utils/afmPoints tagBlocks).
 const ID_COLUMN_KEYS: string[] = ['Block', 'measurement_point', 'Point No', 'X (um)', 'Y (um)']
-
-// Measurement columns are named by the recipe (`Pad_1_H (nm)`, `1_Minimum (nm)`, …),
-// so they are recognised by their unit, never by name.
-export const isMeasurementKey = (key: string) => key.includes('(nm)')
 
 // A recipe can carry 51 measurement columns; the default view shows the first few.
 const DEFAULT_MEASUREMENT_COLUMNS = 6
@@ -90,26 +85,4 @@ export const formatPointCell = (value: unknown): string => {
   if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
   if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(2)
   return String(value)
-}
-
-export interface PointsSummary {
-  total: number
-  valid: number
-}
-
-export const pointsSummary = (rows: AfmDetailRow[]): PointsSummary => ({
-  total: rows.length,
-  valid: rows.reduce((n, r) => n + (r.Valid === true ? 1 : 0), 0)
-})
-
-export const pagePointRows = (
-  rows: AfmDetailRow[],
-  page: number,
-  pageSize: number
-): AfmDetailRow[] => {
-  if (rows.length === 0 || pageSize <= 0) return []
-  const maxPage = Math.max(1, Math.ceil(rows.length / pageSize))
-  const p = Math.min(Math.max(1, Math.floor(page) || 1), maxPage)
-  const start = (p - 1) * pageSize
-  return rows.slice(start, start + pageSize)
 }

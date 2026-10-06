@@ -64,10 +64,10 @@ const copy = async (key: string, value: unknown) => {
     : { title: '복사하지 못했습니다', icon: 'i-lucide-triangle-alert', color: 'warning' })
 }
 
-// A Tip Width the measurement did not record arrives as the literal text 'NaN'
-// (office 확인 2026-10-06).
+// A Tip Width that is stated but is not a number (the office's 'NaN') reads
+// 측정 없음, by the same rule the trend page counts it with.
 const shown = (key: string, value: unknown) =>
-  key === 'Tip Width' && text(value).trim().toLowerCase() === 'nan' ? '측정 없음' : text(value)
+  key === 'Tip Width' && text(value) !== '–' && tipWidthOf(props.information) === null ? '측정 없음' : text(value)
 
 const text = (value: unknown) => value === null || value === undefined || value === '' ? '–' : String(value)
 </script>

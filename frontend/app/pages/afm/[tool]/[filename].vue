@@ -46,7 +46,7 @@
     />
     <p
       v-else-if="!payload"
-      class="dashboard-surface rounded-(--sk-r-card) px-4 py-12 text-center text-sm text-rose-600 dark:text-rose-400"
+      class="dashboard-surface rounded-(--sk-r-card) px-4 py-12 text-center text-sm text-(--sk-bad)"
     >
       측정 상세 정보를 불러오지 못했습니다.
     </p>
@@ -152,16 +152,9 @@ const detailRows = computed(() => payload.value?.data ?? [])
 const tableRows = computed(() => tagBlocks(detailRows.value, summaryRows.value))
 
 // A measurement opened from the list is in this tool's 조회 기록, which has the
-// slot. One opened by a copied link is not, so the slot is read from Info: the
-// 15-key layout's `Sample Location` (`Slot N`, the wafer's real slot — office
-// 확인 2026-10-06) or the 13-key layout's `Slot No` (value shape OFFICE-VERIFY).
-// The file name's `.nn` tail is NOT a slot.
+// slot. One opened by a copied link is not, so the slot is read from Info.
 const listedSlot = useAfmCart(toolId).viewHistory.value.find(item => item.filename === filename)?.slotNumber
-const slotNumber = computed(() =>
-  listedSlot
-  ?? /Slot\s*(\d+)/i.exec(String(information.value['Sample Location'] ?? ''))?.[1]
-  ?? /\d+/.exec(String(information.value['Slot No'] ?? ''))?.[0]
-)
+const slotNumber = computed(() => listedSlot ?? infoSlot(information.value))
 
 const selectedPoint = ref('')
 
@@ -179,7 +172,7 @@ function usePointData<T>(kind: string, load: (point: string) => Promise<T>, empt
       try {
         return await load(selectedPoint.value)
       } catch (err) {
-        if ((err as { statusCode?: number }).statusCode === 404) return empty
+        if (httpStatus(err) === 404) return empty
         throw err
       }
     },

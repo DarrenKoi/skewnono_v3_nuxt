@@ -19,6 +19,10 @@ export interface ExportTable {
   rows: unknown[][]
 }
 
+// Measurement columns are named by the recipe (`Pad_1_H (nm)`, `1_Minimum (nm)`, …),
+// so they are recognised by their unit, never by name.
+export const isMeasurementKey = (key: string) => key.includes('(nm)')
+
 const naturalOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
 // Column order = the given leading columns, then every other key in the order
@@ -40,9 +44,9 @@ export const collectColumns = (
       }
     }
   }
-  const measured = cols.filter(col => col.includes('(nm)')).sort(naturalOrder.compare)
+  const measured = cols.filter(isMeasurementKey).sort(naturalOrder.compare)
   let next = 0
-  return cols.map(col => col.includes('(nm)') ? measured[next++]! : col)
+  return cols.map(col => isMeasurementKey(col) ? measured[next++]! : col)
 }
 
 const tableFromRows = (
@@ -59,28 +63,16 @@ export const buildInfoTable = (info: AfmInformation): ExportTable => ({
   rows: Object.entries(info).map(([k, v]) => [k, v])
 })
 
-export const buildSummaryTable = (summary: AfmSummaryRow[]): ExportTable => {
-  if (summary.length === 0) return { headers: ['Site', 'ITEM'], rows: [] }
-  return tableFromRows(summary as unknown as Record<string, unknown>[], ['Site', 'ITEM'])
-}
+export const buildSummaryTable = (summary: AfmSummaryRow[]): ExportTable =>
+  tableFromRows(summary as unknown as Record<string, unknown>[], ['Site', 'ITEM'])
 
-// Takes any record rows, not AfmDetailRow[]: this is a shape-agnostic
-// serializer whose whole job is unioning keys across RAGGED rows, and the
-// backend contract for the AFM detail payload is `list[dict[str, Any]]`
-// (backend/afm/contracts.py) — the per-recipe column set genuinely
-// varies, so two rows of the same response need not carry the same keys.
-// AfmDetailRow's required fields describe only what the mock happens to
-// emit; the office adapter is still an unimplemented stub, so pinning this
-// signature to them would assert a guarantee no backend has ever made.
-// Nothing is lost by widening: the backend-shape claim lives on
-// AfmDetailPayload.data, the sole caller still passes an AfmDetailRow[]
-// through here, and afmPointsTable.test.ts pins the full row shape.
+// Takes any record rows, not AfmDetailRow[]: the job is unioning keys across
+// RAGGED rows, and the backend contract is `list[dict[str, Any]]`
+// (backend/afm/contracts.py) — the column set varies per recipe.
 // `Block` (utils/afmPoints tagBlocks) leads when present: in a multi-block file
 // the same point appears once per block, and without it the rows are twins.
-export const buildDetailedTable = (data: Record<string, unknown>[]): ExportTable => {
-  if (data.length === 0) return { headers: [], rows: [] }
-  return tableFromRows(data, data.some(row => 'Block' in row) ? ['Block'] : [])
-}
+export const buildDetailedTable = (data: Record<string, unknown>[]): ExportTable =>
+  tableFromRows(data, data.some(row => 'Block' in row) ? ['Block'] : [])
 
 // The headers carry the file's own units: the same numbers mean um in one file and
 // Pixel in the next, and a sheet outlives the screen that said which.

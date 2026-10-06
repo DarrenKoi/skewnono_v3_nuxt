@@ -231,8 +231,8 @@ const resetFilters = () => {
   for (const key of FACET_KEYS) equals[key] = ''
 }
 
-const pagedRows = computed(() => pagePointRows(filteredRows.value, page.value, PAGE_SIZE))
-const validCount = computed(() => pointsSummary(filteredRows.value).valid)
+const { pagedRows } = usePagedRows(filteredRows, PAGE_SIZE, page)
+const validCount = computed(() => filteredRows.value.filter(row => row.Valid === true).length)
 
 // Back to page 1 whenever the row set changes.
 watch(filteredRows, () => {

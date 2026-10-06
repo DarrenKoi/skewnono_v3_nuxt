@@ -5,8 +5,6 @@ import type { AfmDetailRow } from '~/composables/useAfmDetailApi'
 import {
   derivePointColumns,
   filterPointRows,
-  pointsSummary,
-  pagePointRows,
   defaultPointColumnKeys,
   facetCounts,
   formatPointCell
@@ -109,17 +107,4 @@ test('formatPointCell: an unknown cell is a dash, never FALSE or 0', () => {
     [undefined, null, '', true, false, 3, 79.236, 'COMPLETED'].map(formatPointCell),
     ['–', '–', '–', 'TRUE', 'FALSE', '3', '79.24', 'COMPLETED']
   )
-})
-
-test('pointsSummary: total and valid', () => {
-  assert.deepEqual(pointsSummary(rows), { total: 3, valid: 2 })
-  assert.deepEqual(pointsSummary([]), { total: 0, valid: 0 })
-})
-
-test('pagePointRows: slices and clamps', () => {
-  const many: AfmDetailRow[] = Array.from({ length: 60 }, (_, i) => row({ 'Point No': i }))
-  assert.equal(pagePointRows(many, 1, 25).length, 25)
-  assert.equal(pagePointRows(many, 3, 25).length, 10) // last partial page
-  assert.equal(pagePointRows(many, 99, 25).length, 10) // clamped to last page
-  assert.equal(pagePointRows([], 1, 25).length, 0)
 })

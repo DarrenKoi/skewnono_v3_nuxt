@@ -4,7 +4,8 @@
 // Design proposal 3a (`AFM Trend.dc.html`) defines; the data is the detail
 // payload the page already fetches, one request per measurement.
 import type { AfmDetailPayload, AfmDetailRow, AfmSummaryItem } from '~/composables/useAfmDetailApi'
-import { blockNames, blockOf, pointState } from './afmPoints.ts'
+import { tipWidthOf } from './afmInfo.ts'
+import { blockNames, blockOf, fallbackBlock, pointState } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { boxStats, type BoxStats } from './boxplotStats.ts'
 import { formatDateTimeLocal } from './dateTime.ts'
@@ -50,7 +51,7 @@ const startTime = (source: TrendSource, payload: AfmDetailPayload): number => {
 export const prepareEntries = (items: { source: TrendSource, payload: AfmDetailPayload }[]): TrendEntry[] => {
   return items.map(({ source, payload }) => {
     const names = blockNames(payload.summary)
-    const fallback = names[0] ?? 'Block 1'
+    const fallback = fallbackBlock(payload.summary)
     const rowsByBlock = new Map<string, AfmDetailRow[]>()
     for (const row of payload.data) {
       const name = blockOf(row, fallback)
@@ -357,9 +358,6 @@ const TIP_KEYS = ['Tip ID', 'Tip Cassette ID', 'Tip Port No', 'Tip Slot No']
 // Every data row of every block — health does not depend on the block pick.
 export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
   entries.map(({ key, time, payload: { data, information } }) => {
-    // parseFloat, not Number: a value may carry its unit ("40.9 nm"). The office
-    // also stores the literal text 'NaN', which parses to NaN and so to null.
-    const width = Number.parseFloat(String(information['Tip Width'] ?? ''))
     const [id, ...seat] = TIP_KEYS.map(k => String(information[k] ?? '').trim())
     return {
       key,
@@ -369,7 +367,7 @@ export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
       approach: meanOf(data, 'Approach Count'),
       mileage: meanOf(data, 'Mileage'),
       tip: id ? `${id} · ${seat.map(v => v || '?').join('/')}` : null,
-      tipWidth: Number.isFinite(width) ? width : null
+      tipWidth: tipWidthOf(information)
     }
   })
 

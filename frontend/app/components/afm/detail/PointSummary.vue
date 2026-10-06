@@ -146,7 +146,7 @@ const cards = computed(() =>
         )
         return {
           block: block.name,
-          value: value?.toFixed(2) ?? '–',
+          value: fmt2(value),
           delta: value !== null && mean !== null ? formatSignedNm(value - mean, 2) : ''
         }
       })
