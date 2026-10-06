@@ -96,6 +96,10 @@ test('imagePoint: read at the end of the name, longest key wins', () => {
     '0002_X-001_Y000_0001'
   )
   assert.equal(imagePoint(`${stem}_0003_tip.webp`, ['0003']), '0003')
+  // A tip image's kind is two tokens; the one per measurement shows no point.
+  assert.equal(imagePoint(`${stem}_0003_C_PR.webp`, ['0001', '0003']), '0003')
+  assert.equal(imagePoint(`${stem}_0002_X-001_Y000_0001_C_PR.webp`, ['0001', '0002_X-001_Y000_0001']), '0002_X-001_Y000_0001')
+  assert.equal(imagePoint(`${stem}_C_Result.webp`, ['0001', '0003']), '')
   assert.equal(imagePoint(`${stem}_overview.webp`, ['0001']), '')
   // A lookalike token earlier in the name (here in the recipe) claims nothing.
   assert.equal(imagePoint('#x#ETCH_0001_TRIM#_overview.webp', ['0001']), '')

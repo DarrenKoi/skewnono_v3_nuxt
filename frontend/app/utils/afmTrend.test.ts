@@ -232,6 +232,10 @@ test('healthSeries reads the tip from Info; tipChanges marks where ID or seat di
   assert.deepEqual([by.get('d')!.tip, by.get('d')!.tipWidth], ['T1 · TC1/1/7', null])
   // The unnamed measurement between two identical tips is not a change.
   assert.deepEqual(tipChanges(health), [by.get('d')!.time, by.get('e')!.time])
+  // Mileage belongs to the tip: where it falls, the tip is a new one even if
+  // every Tip value reads the same.
+  const worn = health.map((h, i) => ({ ...h, tip: 'T1 · TC1/1/3', mileage: [900, 950, 1000, 12, 40][i]! }))
+  assert.deepEqual(tipChanges(worn), [worn[3]!.time])
 })
 
 test('trendRows keeps μ, limits and Δ inside each recipe, and lists what is missing', () => {

@@ -128,7 +128,7 @@
               @click="onlyIssues = true"
             />
           </div>
-          <span class="ml-auto sk-meta">관리선 = 같은 팁 종류의 중앙값 ± 3σ (σ는 MAD 기반) · recipe를 고르면 그 측정만으로 다시 계산합니다</span>
+          <span class="ml-auto sk-meta">관리선 = 같은 팁 종류의 중앙값 ± 3σ (σ는 MAD 기반, MCNT의 Tip Width는 팁마다) · Mileage는 누적값이라 판정하지 않습니다 · recipe를 고르면 그 측정만으로 다시 계산합니다</span>
         </div>
       </section>
 
@@ -193,7 +193,7 @@
               </span>
               <AfmTipsSpark
                 :values="unit.points.map(p => p.tipWidth)"
-                :limits="limitsOf(category, 'tipWidth')"
+                :limits="unit.widthLimits"
               />
             </button>
           </template>
@@ -338,6 +338,7 @@ import {
   tipHealth,
   tipPoints,
   tipRecipes,
+  widthIsPerTip,
   type TipCategory,
   type TipParam,
   type TipState,
@@ -409,10 +410,9 @@ const verdict = (unit: TipUnit) =>
     ? `종류의 측정 ${TIP_MIN_SAMPLES}건 미만`
     : unit.recentOut ? `최근 ${recentOf(unit)}건 중 ${unit.recentOut}건 밖` : `최근 ${recentOf(unit)}건 모두 안`
 
-const limitsOf = (category: TipCategory, param: TipParam) =>
-  category.stats.find(stat => stat.param === param)?.limits ?? null
 const widthLimits = (category: TipCategory) => {
-  const limits = limitsOf(category, 'tipWidth')
+  if (widthIsPerTip(category.type)) return 'Tip Width 관리선은 팁마다'
+  const limits = category.stats.find(stat => stat.param === 'tipWidth')?.limits
   return limits ? `Tip Width ${fmt2(limits.lcl)} – ${fmt2(limits.ucl)}` : '관리선 없음'
 }
 
@@ -427,8 +427,10 @@ const pickedCategory = computed(() => categories.value.find(category => category
 // Measurement → the values it has outside the limits, for the picked tip's type.
 const outside = computed(() => new Map((pickedCategory.value?.flags ?? []).map(f => [f.point.key, f.params])))
 const bands = computed(() => Object.fromEntries(
-  (pickedCategory.value?.stats ?? []).flatMap(({ param, limits }) =>
-    limits ? [[param, [limits.lcl, limits.ucl]]] : [])
+  (pickedCategory.value?.stats ?? []).flatMap(({ param, limits: typeLimits }) => {
+    const limits = param === 'tipWidth' ? picked.value?.widthLimits : typeLimits
+    return limits ? [[param, [limits.lcl, limits.ucl]]] : []
+  })
 ) as Partial<Record<TipParam, [number, number]>>)
 
 const reason = computed(() => {

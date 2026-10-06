@@ -290,13 +290,17 @@ def test_a_repeat_recipe_holds_a_point_several_times_in_one_block():
         assert Counter(record["measurement_point"] for record in detail["data"]) == dict.fromkeys(
             detail["available_points"], 2
         )
+        # office 확인 2026-10-07: every Site once, then every Site again, and
+        # only `Sample Count` (4, then 5) says which lap a row belongs to.
+        assert [record["measurement_point"] for record in detail["data"]] == detail["available_points"] * 2
+        assert [record["Sample Count"] for record in detail["data"]] == [4] * 4 + [5] * 4
     assert repeats
 
 
 def test_blocks_cannot_be_told_apart_by_method_id():
     method_ids = set()
     for _, row, detail in _all_details():
-        ids = {record["Method_ID"] for record in detail["data"]}
+        ids = {record["Method ID"] for record in detail["data"]}
         # One value across every block of a file: blocks match by position only.
         assert len(ids) <= 1
         method_ids |= ids
@@ -456,9 +460,68 @@ def test_tip_is_one_id_in_several_seats_and_width_is_per_measurement():
     assert any(info["Tip Width"] == "NaN" for info in infos)
 
 
+def test_measured_time_is_the_measurements_own_start():
+    # office 확인 2026-10-07: about half of MAP608's recent names carry NA where
+    # the start goes, not only old ones. The column is the start either way.
+    rows = _rows("MAP608")
+    starts = [row["filename"].split("#")[6] for row in rows]
+    assert 0.4 < starts.count("NA") / len(starts) < 0.8
+    for row, start in zip(rows, starts, strict=True):
+        assert row["measured_time"] == (row["time"] if start == "NA" else start)
+    assert any(row["measured_time"] != row["time"] for row in rows)
+    for tool in ("MAPC01", "5EAP1501"):
+        assert all(row["measured_time"] == row["time"] for row in _rows(tool))
+
+
+def test_mileage_counts_up_on_one_tip_and_starts_over_on_the_next():
+    # office 확인 2026-10-07: the counter belongs to the tip.
+    for tool in TOOLS:
+        rows = sorted(
+            (r for r in _rows(tool) if r["mileage_mean"] is not None),
+            key=lambda r: (r["date"], r["measured_time"]),
+        )
+        tip = lambda r: (r["tip_id"], r["tip_cassette_id"], r["tip_port_no"], r["tip_slot_no"])  # noqa: E731
+        resets = 0
+        for before, after in zip(rows, rows[1:], strict=False):
+            if tip(before) == tip(after):
+                # Two starts the list cannot order (one MAP608 session, NA in
+                # both names) may come either way round.
+                same_start = before["measured_time"] == after["measured_time"]
+                assert same_start or after["mileage_mean"] >= before["mileage_mean"]
+            else:
+                resets += after["mileage_mean"] < before["mileage_mean"]
+        assert resets
+
+
+def test_only_an_mcnt_tips_width_moves():
+    # office 확인 2026-10-07: a fixed type's width is in effect a constant; MCNT
+    # spans 33.96–39.11 and goes both ways within one slot.
+    widths: dict[str, set[float]] = {}
+    for tool in TOOLS:
+        for row in _rows(tool):
+            if row["tip_width"] is not None:
+                widths.setdefault(row["tip_id"], set()).add(row["tip_width"])
+    assert any(not name.startswith("MCNT") for name in widths)
+    for name, seen in widths.items():
+        if name.startswith("MCNT"):
+            assert len(seen) > 1 and 33.9 <= min(seen) and max(seen) <= 39.2
+        else:
+            assert len(seen) == 1
+
+
+def test_tip_images_are_one_per_point_and_one_for_the_measurement():
+    # office 확인 2026-10-07.
+    listed = [row for tool in TOOLS for row in _rows(tool) if row["tip_dir_list"]]
+    assert listed
+    for row in listed:
+        names = row["tip_dir_list"]
+        assert sum(name.endswith("_C_PR.webp") for name in names) == row["point_count"]
+        assert sum(name.endswith("_C_Result.webp") for name in names) == 1
+
+
 def test_list_tip_columns_are_the_details_own_info_and_rows():
-    # The list's tip columns stand in for what the loader is asked to add: a
-    # summary of each measurement's Info and data rows, so they must agree.
+    # The loader reads the list's tip columns off the same first data CSV as
+    # the detail (office 확인 2026-10-07), so the two must agree.
     seen_none = set()
     for _tool, row, detail in _all_details():
         info, rows = detail["information"], detail["data"]

@@ -10,7 +10,9 @@ import type { AfmFileRow } from '~/composables/useAfmDetailApi'
 // "YYYY-MM-DD HH:MM:SS". A row with no date stays '' rather than a bare time.
 export const measuredAt = (row: AfmFileRow): string => {
   const day = row.formatted_date ?? ''
-  const code = row.time ?? ''
+  // The measurement's own start where the list has it: `time` is the session's
+  // on MAP608, shared by every measurement of the session.
+  const code = row.measured_time ?? row.time ?? ''
   if (!day || !/^\d{4,6}$/.test(code)) return day
   const padded = code.padEnd(6, '0')
   return `${day} ${padded.slice(0, 2)}:${padded.slice(2, 4)}:${padded.slice(4, 6)}`

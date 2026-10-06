@@ -6,6 +6,7 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
 
 표기: [명세] = user-confirmed 2026-10-06 (사무실 적재 명세 전달, 5차),
       [확인] = office 확인 2026-10-06 (실제 적재물을 보고 답한 6차 회신),
+      [확인 7차] = office 확인 2026-10-07 (7차 회신),
       [가정] = OFFICE-VERIFY.
 회신 원문은 docs/afm/office-data-findings.md, 남은 질문은 docs/afm/to-questionnaire-afm.md 에
 있습니다. adapter 자체는 아직 사무실에서 실행해 보지 않았습니다.
@@ -88,39 +89,64 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
                     파일명의 **첫 시각**이므로 MAP608 에서는 **세션 시작 시각**이고,
                     같은 세션의 측정들이 같은 `time` 을 갖습니다. 측정마다의 시각은
                     측정키의 6번째 필드입니다 [확인].
+    measured_time   **그 측정의 시작 시각**입니다. 2026-10-07 에 추가되었습니다
+                    [확인 7차]. MAP608 의 6번째 필드는 오래된 파일만이 아니라 최근
+                    파일의 절반쯤(29/46)에서 `NA` 이므로, `time` 만으로는 MAP608 측정의
+                    절반 이상이 세션 시각에 모입니다.
+                    [가정: 값은 요청한 대로 `HHMMSS` 이고, 6번째 필드가 `NA` 이면 Info 의
+                    `Start Time`, MAPC01·5EAP1501 은 `time` 과 같은 값. adapter 는 빈 값과
+                    `NA` 를 null 로 내고 화면은 null 이면 `time` 을 씁니다.]
     measured_info   열은 있으나 **항상 null** 입니다 [확인].
     tool_name       대문자 그대로 [확인].
     fab
-    point_count     int **또는 null**
+    point_count     int **또는 null**. **실제로 스캔한 위치 수**(profile·tiff 파일 수)
+                    입니다 [확인 7차]. recipe 가 정한 수도, points 의 행 수도 아닙니다.
+                      - repeat recipe: 4 Site × 14 point = **56** (행은 112, recipe 의
+                        point 는 14).
+                      - 중단된 측정은 작아집니다. 실측 분포 2, 3, 5, 8, 14, 43, 55, 56.
+                      - 첫 point 에서 중단되어 tiff·profile·capture 가 0건인 측정은 null.
+                    [가정: profile 도 Result 이미지도 남기지 않는 recipe 는 측정이
+                    끝났어도 null.]
 
   `tool_id` 열은 **없습니다** [확인]. 계약의 `tool_id` 는 adapter 가 장비명을 소문자로
   바꿔 채웁니다.
 
-  팁 열 9종 — **아직 없습니다. 2026-10-06 적재 쪽에 추가를 요청할 열입니다**
-  [OFFICE-VERIFY: 열 이름·값 생김새 모두 웹이 제안한 것]. 팁 모니터링 화면
-  (`/afm/<장비>/tips`)이 장비의 모든 측정을 한 번에 읽으려면 목록에 있어야 합니다.
-  측정마다 `detail_information.parquet`·`detail_points.parquet` 을 여는 방법은 측정
-  수만큼 MinIO 를 읽게 되어 쓰지 않습니다.
+  팁 열 9종 — **2026-10-07 에 적재되었습니다** [확인 7차: 아래 이름 그대로, 구현·테스트
+  완료]. 팁 모니터링 화면(`/afm/<장비>/tips`)이 장비의 모든 측정을 한 번에 읽는 열입니다.
+  값은 상세(`detail_points`)와 **같은 첫 data CSV** 에서 계산하므로 목록과 상세가
+  어긋나지 않습니다.
 
     tip_id               Info `Tip ID` 그대로 (text, 없으면 null)
     tip_cassette_id      Info `Tip Cassette ID` 그대로
     tip_port_no          Info `Tip Port No` 그대로
     tip_slot_no          Info `Tip Slot No` 그대로
-    tip_width            Info `Tip Width`. text 그대로(`NaN`·단위 포함)여도, 숫자여도
-                         됩니다 — adapter 가 앞의 숫자만 읽고 `NaN` 은 null 로 둡니다.
+    tip_width            Info `Tip Width`. **float64** 이고 기록이 없는 측정(`NaN`)은
+                         NaN 입니다 [확인 7차]. adapter 는 NaN 을 null 로 냅니다.
     approach_count_mean  data 전체 행의 `Approach Count` 평균 (float)
-    mileage_mean         data 전체 행의 `Mileage` 평균 (float)
+    mileage_mean         data 전체 행의 `Mileage` 평균 (float). `Mileage` 는 **팁 단위
+                         누적값**이라 한 팁을 쓰는 동안 커지기만 하고, 다른 슬롯의
+                         팁으로 바뀌면 리셋됩니다 [확인 7차: DT-NCHR_CM slot 9 → slot 1
+                         에서 1430483 → 3520]. 단위는 모릅니다 [가정].
     not_completed_count  `State` 가 COMPLETED 가 아닌 행 수 (int)
     invalid_count        `State` 가 COMPLETED 이고 `Valid` 가 FALSE 인 행 수 (int)
 
   뒤의 넷은 data 행이 없는 측정(info 만 있는 측정)에서 null 입니다. 블록(`Site`)을
   가리지 않고 한 측정의 모든 행을 셉니다 — 시계열 비교의 장비 건강과 같은 정의입니다.
-  열이 없는 동안 adapter 는 아홉 값을 모두 null 로 내고, 화면은 "팁 값이 있는 측정이
-  없습니다"를 보여 줍니다. mock 은 각 측정의 상세(Info·data 행)에서 같은 정의로 계산해
-  채우므로 목록과 상세가 어긋나지 않습니다.
+  mock 도 각 측정의 상세(Info·data 행)에서 같은 정의로 계산해 채웁니다.
+  과거 측정을 소급해 채웠는지는 회신에 없습니다 [가정: 채웠습니다].
   판정 기준 [user-confirmed 2026-10-06]: 팁 종류(`Tip ID`)별로 묶고, spec 은 아직 정하지
   않아 같은 종류 측정의 중앙값 ± 3σ(σ는 MAD 기반) 밖을 이상치로 봅니다. 팁의 상태는
   그 팁의 최근 5건으로 정합니다(2건 이상 밖 = 이상, 1건 = 주의) [웹이 정한 규칙].
+  7차 회신으로 바뀐 두 곳 [확인 7차]:
+    - `Tip Width` — MCNT 가 아닌 종류는 폭이 사실상 상수라 종류 단위 관리선이 맞습니다.
+      **MCNT 계열만 33.96~39.11 로 퍼지고 같은 슬롯에서도 오르내리므로**(마모가 아니라
+      측정 오차로 추정) 관리선을 **팁(카세트·포트·슬롯) 단위**로 긋습니다. 화면은
+      `Tip ID` 에 `MCNT` 가 들어 있으면 MCNT 계열로 봅니다 [가정: 이름으로 가립니다].
+    - `Mileage` — 누적값이므로 관리선을 긋지 않고 판정에서 뺍니다.
+  팁이 바뀐 지점 [확인 7차]: 교체를 적은 기록은 없습니다. `Tip ID`·`Tip Cassette ID`·
+  `Tip Port No`·`Tip Slot No` 가운데 하나가 달라졌거나 **Mileage 가 리셋된** 자리가
+  팁이 바뀐 지점입니다. 화면(시계열 비교의 세로선)은 Mileage 평균이 앞 측정보다
+  작아지면 리셋으로 봅니다.
 
   파일 목록 7종 — 모두 list[str] 이고, 원소는 **MinIO 객체 key 전체**입니다
   (prefix `2067928/` 포함). **빈 리스트 = 파일 없음**입니다 [명세].
@@ -129,24 +155,31 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
     profile_dir_list  profile parquet
     tiff_dir_list     Result 이미지(webp) **와 원본 TIFF** [확인]
     align_dir_list    align 이미지 (webp)
-    tip_dir_list      tip 이미지 (webp)
+    tip_dir_list      tip 이미지 (webp). **두 계열**입니다 [확인 7차, 6차 답 정정]:
+                      point 마다 `_C_PR` 한 장(Site ID recipe 는 이름에 위치 키 포함)과
+                      측정마다 `C_Result` 한 장.
     capture_dir_list  capture 이미지 (webp)
     raw_dir_list      원본 csv / txt
 
   ⚠ `data_dir_list` 가 비어 있지 않다고 "측정 데이터 있음"이 아닙니다 [확인]. data CSV 가
     없는 측정(MAPC01 의 info 만 있는 측정)도 `detail_information.parquet` **하나**를
     갖습니다. adapter 는 `detail_points.parquet` 이 목록에 있을 때만 `has_data` 를 켭니다.
-  ⚠ 원본 TIFF 는 `tiff_dir_list` 에 webp 와 함께 들어 있습니다 [확인]. **5EAP1501 은 현재
-    원본이 0개**입니다. 화면의 이미지 목록에는 webp 만 올리고, TIFF 는 다운로드로만
-    제공합니다. 원본의 확장자와, 어느 webp 의 원본인지 가리는 규칙은 회신에 없습니다
-    [가정: webp 와 이름이 같고 확장자만 `.tif`/`.tiff`].
+  ⚠ 원본 TIFF 는 `tiff_dir_list` 에 webp 와 함께 들어 있습니다 [확인]. 확장자는
+    **`.tiff`** 입니다 [확인 7차]. **5EAP1501 은 현재 원본이 0개**이지만 초기 적재에서
+    빠진 것이고(mirror 에 원본 206개), 다시 적재될 예정입니다 [확인 7차]. 화면의 이미지
+    목록에는 webp 만 올리고, TIFF 는 다운로드로만 제공합니다. 어느 webp 의 원본인지
+    가리는 규칙은 회신에 없습니다 [가정: webp 와 이름이 같고 확장자만 다름].
+  ⚠ **align·tip·capture 의 원본도 이미 적재되어 있습니다** [확인 7차]. 어느 목록에 들어
+    있는지는 회신에 없습니다 [가정: 각자의 목록]. adapter 는 어느 목록이든 `.tif`·`.tiff`
+    를 이미지 목록과 `has_align`·`has_tip` 판단에서 빼고, 원본 다운로드는 아직 Result
+    이미지에만 둡니다.
   ⚠ 예전 요구사항(docs/afm/개발요구.txt)의 `["no files"]` 표지는 **쓰지 않습니다.**
   ⚠ parquet 의 list 열은 `pd.read_parquet` 에서 list 가 아니라 numpy 배열로 돌아옵니다.
   ⚠ 추출에 실패한 측정은 목록에 **들어오지 않습니다** [확인]. "파일이 원래 없음"과
     "추출 실패"는 목록에서 구분할 수 없습니다.
 
-  `formatted_date`·`time`·`point_count` 가 null 이 되는 조건, `slot_number` 값의 꼴
-  (`05` 인지 `5` 인지)은 회신에 없습니다 [가정].
+  `formatted_date`·`time` 이 null 이 되는 조건, `slot_number` 값의 꼴(`05` 인지 `5`
+  인지)은 회신에 없습니다 [가정].
 
   측정키 (unique_key) [명세]
 
@@ -194,7 +227,8 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
 
     detail_summary.parquet
       `Site`(method 명) · `ITEM`(MEAN/STDEV/MIN/MAX/RANGE) + 측정 컬럼입니다.
-      Summary 가 없는 측정은 **0행짜리 객체가 있습니다(열도 없습니다).**
+      Summary 가 없는 측정은 **0행짜리 객체가 있습니다(열도 없습니다).** 중단된 측정도
+      Summary 가 "없는" 것이 아니라 **빈 block(0행 parquet)** 입니다 [확인 7차].
       data CSV 가 없는 측정(MAPC01 info-only)은 **객체 자체가 없습니다.**
       값이 points 처럼 문자열인지는 회신에 없습니다 [가정: 문자열로 보고 같은 변환을
       적용합니다. 숫자여도 그대로 통과합니다].
@@ -207,18 +241,22 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
       이름이므로 block 은 이 열로 가립니다. 행의 순서나 "같은 point 가 다시 나오면 다음
       block" 같은 추측은 **쓰면 안 됩니다**:
         - repeat recipe 는 **한 block 안에서 같은 point 가 되풀이**됩니다
-          (실측: 4 Site × 2 반복 = 8행).
+          (실측: 4 Site × 2 반복 = 8행). 반복 번호를 담은 열은 **없고**, 행은 모든
+          Site 를 **한 바퀴 돈 뒤 다시 돕니다** [확인 7차]. 바퀴는 `Sample Count` 로
+          구분할 수 있습니다(실측 4 → 5). profile·이미지는 반복마다 따로 있지 않고
+          같은 이름 하나입니다.
         - 측정이 중단되면 **측정하지 못한 point 의 행은 아예 없습니다**(STOPPED 행으로
-          채우지 않습니다).
+          채우지 않습니다). `State` 가 STOPPED 인 행은 **중단된 그 point 하나**입니다
+          [확인 7차].
 
       측정하지 못한 칸은 **공백 한 칸 `' '`**, 그때 `<측정명>_Valid` 는 **`''`** 입니다.
       `NaN` 이나 `-` 는 없습니다. adapter 는 둘 다 null 로 내보냅니다(0 이나 False 가
       아닙니다).
 
-      회신에 없는 것 [가정]: `Method ID` / `Method_ID` 의 철자, `Valid` 가 FALSE 일 때의
-      표기(adapter 는 대소문자 무관 `true`/`false` 만 읽고 나머지는 null), repeat 의 반복
-      행을 가리는 열과 행의 순서, repeat recipe 의 `point_count` 가 point 수인지 행
-      수인지, 중단된 block 에 남는 행의 수.
+      열 이름은 **`Method ID`**(공백)입니다 [확인 7차].
+      `Valid` 가 FALSE 인 실물은 **여전히 없습니다**(CSV 263개 전수 0건) [확인 7차].
+      그래서 FALSE 의 표기는 모릅니다 [가정: adapter 는 대소문자 무관 `true`/`false`
+      만 읽고 나머지는 null]. `Sample Count` 가 무엇을 세는 값인지도 모릅니다 [가정].
 
   3.2 위치 키와 파일명 [확인]
 
@@ -235,7 +273,11 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
       규칙은 MAPC01 에서 깨지므로, 어느 point 의 파일인지는 **이름의 끝**으로만 찾습니다.
       그 두 필드에 무엇이 들어가는지는 회신에 없습니다 [가정: mock 은 lot 을 넣습니다].
 
-    회신에 없는 것 [가정]: align·tip·capture 이미지의 이름 규칙과 장수.
+    tip 이미지는 `_C_PR`(point 마다)과 `C_Result`(측정마다 한 장)로 끝납니다
+    [확인 7차]. Site ID recipe 의 `_C_PR` 은 위치 키를 포함합니다. 화면은
+    `_<위치 키>_C_PR` 에서 point 를 읽고 `C_Result` 는 point 없는 이미지로 둡니다.
+    회신에 없는 것 [가정]: Site ID 가 없는 recipe 의 `_C_PR` 이름에 point 번호가 있는지
+    (mock 은 4자리 번호를 넣습니다), align·capture 이미지의 이름 규칙과 장수.
 
   3.3 Profile [확인]
 
@@ -286,8 +328,8 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
 
 웹 계약에 반영된 것 (backend/afm)
 
-  - `AfmMeasurementRow` 의 `formatted_date`·`time` 은 `str | None`, `point_count` 는
-    `int | None` 입니다. `raw_dir_list` 가 있습니다. `measured_info` 는 빈 문자열입니다.
+  - `AfmMeasurementRow` 의 `formatted_date`·`time`·`measured_time` 은 `str | None`,
+    `point_count` 는 `int | None` 입니다. `raw_dir_list` 가 있습니다. `measured_info` 는 빈 문자열입니다.
   - 계약의 `*_dir_list` 는 객체 key 가 아니라 그 **basename** 입니다. 화면이 저장
     구조를 알 필요가 없고, 한 측정의 폴더 안에서 이름은 겹치지 않기 때문입니다.
     이름을 key 로 되돌리는 일은 adapter 가 그 측정의 Redis 행에서 합니다.
@@ -314,6 +356,10 @@ mock 반영 (backend/afm/providers/mock.py)
   이름, data 행의 `Site`, 한 block 안에서 point 가 되풀이되는 repeat recipe, 중단된
   block 에 없는 행과 비어 있는 칸, Info 의 `Sample Location`, Info 의 13키·15키 두 구성과
   null 인 빈 값.
+  [확인 7차] 가운데 재현하는 것: `measured_time`(MAP608 이름의 절반 남짓이 `NA`),
+  `Method ID` 철자, repeat 의 한 바퀴 순서와 `Sample Count` 4 → 5, 스캔 위치 수인
+  `point_count`, 팁 단위로 쌓이다 팁이 바뀌면 리셋되는 `Mileage`, 상수인 비 MCNT 폭과
+  34~39 에서 오르내리는 MCNT 폭, 실제 Tip ID `DT-NCHR_CM`, tip 이미지 두 계열.
   backend/afm/tests/test_mock_office_facts.py 가 고정합니다.
 
   mock 이 일부러 다르게 둔 곳:
@@ -321,9 +367,15 @@ mock 반영 (backend/afm/providers/mock.py)
       목록은 basename 입니다. "모든 값이 문자열"인 원래 형태는
       backend/afm/tests/test_office_template.py 가 adapter 에 직접 넣어 확인합니다.
     - `formatted_date`·`time`·`point_count` 의 null 을 내지 않습니다. mock 은 파일명과
-      상세를 그 값에서 만들기 때문입니다. 같은 테스트가 확인합니다.
+      상세를 그 값에서 만들기 때문입니다. 같은 테스트가 확인합니다. 그래서 첫 point 에서
+      중단되어 파일이 없는 측정(point_count=null)과, 도중에 중단되어 `point_count` 가
+      recipe 보다 작은 측정도 mock 에는 없습니다 — mock 의 중단은 뒤쪽 block 뿐입니다.
+    - repeat recipe 는 4 Site × 1 point × 2 바퀴(8행, point_count 4)입니다. 실측
+      (4 × 14 × 2 = 112행, 56)보다 작습니다.
+    - `Mileage` 의 증가 속도(분당 240)와 팁 하나가 4일 유지된다는 것, MCNT 가 아닌
+      종류의 폭(70)은 지어냈습니다. align·tip·capture 의 원본 TIFF 는 내지 않습니다.
     - 장비 목록의 MAP608 에 `PKG`(추정)를 냅니다. 실제는 fab 도 alias 도 비어 있습니다.
     - 이미지는 webp 가 아니라 자리 표시 SVG 입니다.
-    - 지어낸 것: repeat recipe 의 이름(`RQQA_REPEAT_4SITE`)과 반복 행의 순서, 중단된
-      block 에 남는 행의 수(한 행), MAPC01 이미지 이름의 5번째 필드(lot), 원본 TIFF 의
-      이름(webp 와 같은 이름의 `.tiff`), `Sample Location` 값(`Slot N` 만).
+    - 지어낸 것: repeat recipe 의 이름(`RQQA_REPEAT_4SITE`), MAPC01 이미지 이름의 5번째
+      필드(lot), 원본 TIFF 의 이름(webp 와 같은 이름), `Sample Location` 값(`Slot N` 만),
+      반복이 없는 recipe 의 `Sample Count`(1~5 무작위).

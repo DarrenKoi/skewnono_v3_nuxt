@@ -28,6 +28,9 @@ class AfmMeasurementRow(TypedDict):
     lot_id: str
     slot_number: str
     time: str | None
+    # When this one measurement started, HHMMSS. `time` is the file name's first
+    # time, which on MAP608 is the session's and shared by its measurements.
+    measured_time: str | None
     measured_info: str
     tool_name: str
     tool_id: str
@@ -51,7 +54,8 @@ class AfmMeasurementRow(TypedDict):
     # four tip_* texts are Info's `Tip ID` / `Tip Cassette ID` / `Tip Port No` /
     # `Tip Slot No`; `tip_width` is Info's `Tip Width` as a number (None for the
     # office's 'NaN'). The last four summarise the data rows — the mean
-    # `Approach Count` and `Mileage`, the rows not COMPLETED, the COMPLETED rows
+    # `Approach Count` and `Mileage` (a counter that runs for as long as one tip
+    # is in use and starts over with the next), the rows not COMPLETED, the COMPLETED rows
     # stated Valid=FALSE — and are None where there are no rows.
     tip_id: str | None
     tip_cassette_id: str | None

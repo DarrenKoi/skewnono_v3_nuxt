@@ -2,6 +2,9 @@
 // measurement says about the tip that made it. No DOM/Nuxt imports so it runs
 // under `node --test`. A tip is judged against the other measurements of its
 // own TYPE (`Tip ID`) — there is no spec yet, so the limits are statistical.
+// Two values are not judged that way (office 확인 2026-10-07): Mileage is a
+// counter that only runs up until the tip is changed, so it has no limits at
+// all, and an MCNT tip's Tip Width is held against that one tip's own readings.
 import type { AfmFileRow } from '~/composables/useAfmDetailApi'
 import { measuredAt } from './afmSearch.ts'
 import { isOutside, robustSd, type ControlLimits, type HealthPoint } from './afmTrend.ts'
@@ -73,7 +76,9 @@ export interface TipUnit {
   points: TipPoint[]
   // The recipes it measured, most used first.
   recipes: { recipe: string, count: number }[]
-  // Measurements of this tip with a value outside its type's limits.
+  // What its Tip Width is held against: the type's limits, or its own on MCNT.
+  widthLimits: ControlLimits | null
+  // Measurements of this tip with a value outside its limits.
   flagged: number
   // The same, among its last TIP_RECENT — and which values those were.
   recentOut: number
@@ -106,6 +111,14 @@ const tipLimits = (values: number[]): ControlLimits => {
   return { mu, sigma, ucl: mu + 3 * sigma, lcl: mu - 3 * sigma }
 }
 
+// MCNT widths run 33.96–39.11 across slots and move both ways within one, so a
+// type-wide band would flag healthy tips. Every other type's width is in effect
+// one value. ponytail: told by the name — a list per tool if an ID proves otherwise.
+export const widthIsPerTip = (type: string): boolean => /MCNT/i.test(type)
+
+const limitsOf = (values: number[]): ControlLimits | null =>
+  values.length < TIP_MIN_SAMPLES ? null : tipLimits(values)
+
 const STATE_RANK: Record<TipState, number> = { bad: 0, warn: 1, ok: 2, hold: 3 }
 
 // The recipes a set of measurements ran, most used first.
@@ -128,23 +141,28 @@ export const tipCategories = (points: TipPoint[]): TipCategory[] => {
     else byType.set(point.type, [point])
   }
   return [...byType.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([type, group]) => {
-    const limits = TIP_PARAMS.map((param) => {
-      const values = group.flatMap(p => p[param] ?? [])
-      return { param, n: values.length, limits: values.length < TIP_MIN_SAMPLES ? null : tipLimits(values) }
-    })
-    const flags = group.flatMap((point) => {
-      const params = limits.flatMap(({ param, limits }) =>
-        point[param] !== null && isOutside(point[param], limits) ? [param] : [])
-      return params.length ? [{ point, params }] : []
-    })
-    const outside = new Map(flags.map(f => [f.point.key, f.params]))
-    const judged = limits.some(stat => stat.limits !== null)
     const byTip = new Map<string, TipPoint[]>()
     for (const point of group) {
       const own = byTip.get(point.tip)
       if (own) own.push(point)
       else byTip.set(point.tip, [point])
     }
+    const perTip = widthIsPerTip(type)
+    const limits = TIP_PARAMS.map((param) => {
+      const values = group.flatMap(p => p[param] ?? [])
+      const unjudged = param === 'mileage' || (param === 'tipWidth' && perTip)
+      return { param, n: values.length, limits: unjudged ? null : limitsOf(values) }
+    })
+    const typeWidth = limits.find(stat => stat.param === 'tipWidth')!.limits
+    const widthOf = new Map([...byTip].map(([tip, own]) =>
+      [tip, perTip ? limitsOf(own.flatMap(p => p.tipWidth ?? [])) : typeWidth]))
+    const flags = group.flatMap((point) => {
+      const params = limits.flatMap(({ param, limits }) =>
+        point[param] !== null && isOutside(point[param], param === 'tipWidth' ? widthOf.get(point.tip)! : limits) ? [param] : [])
+      return params.length ? [{ point, params }] : []
+    })
+    const outside = new Map(flags.map(f => [f.point.key, f.params]))
+    const judged = limits.some(stat => stat.limits !== null) || [...widthOf.values()].some(Boolean)
     const tips = [...byTip.entries()].map(([tip, own]): TipUnit => {
       const recent = own.slice(-TIP_RECENT).flatMap(p => outside.get(p.key) ? [outside.get(p.key)!] : [])
       return {
@@ -152,6 +170,7 @@ export const tipCategories = (points: TipPoint[]): TipCategory[] => {
         type,
         points: own,
         recipes: tipRecipes(own),
+        widthLimits: widthOf.get(tip)!,
         flagged: own.filter(p => outside.has(p.key)).length,
         recentOut: recent.length,
         recentParams: TIP_PARAMS.filter(param => recent.some(params => params.includes(param))),

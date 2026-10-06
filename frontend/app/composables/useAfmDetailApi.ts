@@ -9,16 +9,18 @@ export interface AfmFileRow {
   // The office stores an empty cell as null (docs/datatables/afm/afm_redis.txt).
   formatted_date: string | null
   time?: string | null
+  // When this one measurement started (HHMMSS); `time` is the session's on MAP608.
+  measured_time?: string | null
   has_profile?: boolean
   has_data?: boolean
   has_image?: boolean
   has_align?: boolean
   has_tip?: boolean
-  // Points the measurement's recipe measures; null where the office has no count.
+  // Positions actually scanned (its profile / tiff files), so a stopped
+  // measurement has fewer than its recipe; null where there are none.
   point_count?: number | null
   // The tip that measured and what the measurement says about its health — a
-  // summary of its Info and data rows (contracts.py). All null until the
-  // office loader writes the columns.
+  // summary of its Info and data rows (contracts.py).
   tip_id?: string | null
   tip_cassette_id?: string | null
   tip_port_no?: string | null

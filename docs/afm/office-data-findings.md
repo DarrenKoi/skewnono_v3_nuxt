@@ -264,3 +264,70 @@ adapter는 `backend/afm/providers/office_example.py`, 화면 경로는 `frontend
 2. **보존 기간이 지난 측정** — 조회 이력·그룹·복사한 링크가 삭제된 측정을 가리키면 측정
    상세는 일반적인 "없음"을 보여 줍니다. 3개월 보존이 확정되었으므로 "보존 기간 경과"
    안내를 만들 수 있습니다. 3개월을 세는 기준 시각(Q42 (나))만 남았습니다.
+
+## 7차 회신 (2026-10-07) — 팁·측정 시각·repeat recipe
+
+질문서의 Q32·Q35·Q43~Q46·Q48·Q49·Q51·Q53에 대한 답과, 팁 열 추가 요청의 구현 결과입니다.
+실제 적재물을 보고 답한 것이므로 `office 확인`으로 기록했습니다.
+
+```text
+Q43 repeat recipe : 반복 번호 열 없음 (Sample Count 4->5로 구분 가능). Site 한 바퀴 돈 뒤 다시 돎 - 맞음.
+point_count=56(site 4xpoint 14; 행 112도 recipe 14도 아님). profile, 이미지는 반복마다 따로 없음 (같은 이름 1개)
+Q44 STOPPED : STOPPED 행 하나 - 맞음. 단 summary는 없는게 아니라 빈 block (0행 parquet). tiff, profile, capture 0 건, point_count=null
+Q45/Q48 : 6 번째 필드 NA는 오래된 파일만이 아니라 최근 파일 절반가량 (29/46) .measured_time 열 추가 가능 - 구현 완료.
+Q49: point_count = 실제 스캔한 위치 수 (profile/tiff 파일 수). 중단 측정은 작아짐 (실측 분포 2,3,5,8,14,43,55,56)
+Q46 팁교체: 교체 기록은 없지만 결정적 실축: Mileage는 팁 단위 누적계이고 다른 슬롯으로 바뀌면 리셋(DT-NCHR_CM slot9 -> slot1, 1430483->3520). 세로선은 "Tip ID, Cassette, Port, Slot 변화 or Mileage 리셋" 지점에.
+Q51 : 비 MCNT 종류는 폭이 사실상 상수 (종류 단위 관리선 OK). MCNT 계열만 33.96~39.11로 퍼짐 + 같은 슬롯에서도 오르내림 -> 마무가 아닌 측정 오차로 추정. MCNT는 슬롯 단위 필요.
+Q32: FALSE 여전히 미슬측(263 CSV 전수 0 건), Method ID (공백)
+Q35: .tiff; 5EAP도 mirror에 원본 206개 있음(초기 적재 누락 -> 재적재 예정); align/tip/capture 원본 이미 적재됨
+Q53: tip 이미지 2계열. point마다 _C_PR(site recipe는 위치 키 포함) + 측정당 1장 C_Result(6차 답 정정)
+
+Implementation (done, tested)
+- afm_d2_measurements에 팁 열 9개(tip_width=float64, NaN->NaN) + measured_time 추가. 계산은 상세(detail_points)와 같은 첫 data csv에서 - 목록 상세 불일치 없음.
+```
+
+옮기면서 이렇게 읽었습니다.
+
+- `결정적 실축`은 `결정적 실측`, `마무`는 `마모`, `미슬측`은 `미실측`의 오타로 보았습니다.
+- Q43의 `point_count=56`은 4 Site × 14 point인 repeat recipe 한 건의 값으로 읽었습니다.
+  6차 회신의 "4 Site × 2 반복 = 8행"과는 다른 측정입니다.
+- Q44의 "tiff, profile, capture 0건, point_count=null"은 첫 point에서 중단된 측정 한 건의
+  모습으로 읽었습니다. Q49의 분포(2, 3, 5, …)는 도중에 중단된 측정입니다.
+- Q46의 "다른 슬롯으로 바뀌면 리셋"은 "같은 `Tip ID`라도 다른 슬롯의 팁은 다른 팁"이라는
+  뜻으로 읽어 Q46 (다)의 답(`교체`)으로 보았습니다. (나)(`Last Pick Up Time`의 뜻)는 답이
+  없어 질문서에 남겼습니다.
+- Q35의 `.tiff`는 (가)의 답으로, 뒤의 둘은 (다)·(라)의 답으로 읽었습니다. (나)(webp와의
+  짝)는 답이 없어 남겼습니다.
+- Q53의 "6차 답 정정"이 6차의 어느 답을 고친 것인지는 알 수 없습니다. 6차 회신에는 tip
+  이미지에 대한 답이 없습니다.
+- `measured_time`의 값 모양과 6번째 필드가 `NA`일 때의 값은 회신에 없습니다. 요청한
+  대로(`HHMMSS`, 없으면 Info `Start Time`)라고 가정하고 Q55로 물었습니다.
+
+### 가정이 틀렸던 곳
+
+| 번호 | Home의 가정 | 실제 | 고친 곳 |
+| --- | --- | --- | --- |
+| Q49 | `point_count`는 points의 행 수입니다. | 실제로 스캔한 위치 수입니다(profile·tiff 파일 수). | 계약·화면의 주석, 문서. 화면의 합과 범위 표시는 그대로 맞습니다. |
+| Q45 | 6번째 필드의 `NA`는 오래된 파일입니다. | 최근 파일의 절반쯤(29/46)입니다. | mock의 `NA` 비율, 화면이 `measured_time`을 먼저 읽음 |
+| Q51 | 같은 종류의 팁은 폭이 비슷합니다. | MCNT 계열만 33.96~39.11로 퍼지고 슬롯마다 다릅니다. | 화면 `utils/afmTips.ts`(MCNT는 팁 단위 관리선), mock의 폭 |
+| Q46 | 팁이 바뀐 것은 Tip 값 네 개로만 알 수 있습니다. | Mileage가 팁 단위 누적값이라 리셋도 근거입니다. | 화면 `tipChanges`(`utils/afmTrend.ts`), mock의 Mileage |
+| (팁 모니터링) | Mileage를 종류의 관리선과 비교합니다. | 누적값이라 수준을 비교할 수 없습니다. | 화면 `utils/afmTips.ts`(Mileage는 판정에서 뺌) |
+| Q32 | 열 이름은 `Method_ID`일 수 있습니다. | `Method ID`입니다. | mock |
+| Q44 | 중단된 block은 Summary 객체가 없습니다. | 0행짜리 빈 block이 있습니다. | 문서. 계약에서는 둘 다 빈 목록입니다. |
+| Q53 | tip 이미지는 측정마다 한 장입니다. | point마다 `_C_PR`, 측정마다 `C_Result` 한 장입니다. | mock, 화면 `imagePoint`(`utils/afmPoints.ts`) |
+| Q35 (라) | align·tip·capture에는 원본 TIFF가 없습니다. | 있고 이미 적재되어 있습니다. | adapter(`has_align`·`has_tip`에서 원본을 뺌). 다운로드는 아직 없습니다. |
+
+### 반영 현황 (2026-10-07)
+
+| 받은 답 | 문서 | 구현 | 비고 |
+| --- | --- | --- | --- |
+| 팁 열 9개 적재, `tip_width`는 float64 (NaN) | redis 2 | adapter `_row`, 화면 `/afm/<장비>/tips` | 완료(사무실 미실행). 소급 범위는 모릅니다. |
+| `measured_time` 열 (Q45, Q48) | redis 2 | 계약, adapter, mock, 화면 `measuredAt`(`utils/afmSearch.ts`)·`utils/afmUsage.ts` | 완료. 값의 모양은 Q55입니다. |
+| `point_count`는 스캔한 위치 수 (Q43, Q49) | redis 2 | 주석만 | 완료. mock은 중단으로 작아진 값을 내지 않습니다. |
+| repeat는 한 바퀴씩, `Sample Count`로 구분 (Q43) | raw D3, redis 3.1 | mock | **부분** — 화면은 아직 회차를 나누어 보여 주지 않습니다(Q54). |
+| STOPPED 행은 하나, Summary는 빈 block (Q44) | raw D3, redis 3.1 | mock | 완료 |
+| Mileage는 팁 단위 누적, 팁이 바뀌면 리셋 (Q46) | raw D3, redis 2 | 화면 `tipChanges`, mock | 완료. 단위와 예외는 Q56입니다. |
+| MCNT만 폭이 퍼짐, 슬롯 단위 관리선 (Q51) | raw D3, redis 2 | 화면 `utils/afmTips.ts`, mock | 완료. MCNT는 `Tip ID`의 이름으로 가립니다. |
+| `Valid` FALSE는 여전히 미실측, 열 이름 `Method ID` (Q32) | raw D3, redis 3.1 | mock | 완료 |
+| 원본은 `.tiff`, 5EAP1501 재적재 예정, align·tip·capture 원본 적재됨 (Q35) | raw D5, redis 2 | adapter | **부분** — align·tip·capture 원본의 다운로드는 없습니다(Q35 (마)). |
+| tip 이미지 두 계열 (Q53) | raw D5, redis 2·3.2 | mock, 화면 `imagePoint` | 완료. 이름의 나머지는 Q33·Q53입니다. |

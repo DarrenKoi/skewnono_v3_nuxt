@@ -45,6 +45,9 @@ types:
     time:
       type: [string, "null"]
       format: "HHMMSS, or null (NA is null). On MAP608 it is the session start, shared by the session's measurements."
+    measured_time:
+      type: [string, "null"]
+      format: "HHMMSS, or null. When this one measurement started — on MAP608 `time` is the session's."
     measured_info:
       type: string
       examples: ["1", "standard", "repeat2", "profile", "roughness"]
@@ -93,7 +96,7 @@ types:
       type: boolean
     point_count:
       type: [integer, "null"]
-      description: Number of measurement points (1..36 seen); null when the loader has none.
+      description: Positions actually scanned (profile / tiff files; up to 56 seen, fewer when a measurement stopped); null when there are none.
 
   AfmFileDetail:
     filename:

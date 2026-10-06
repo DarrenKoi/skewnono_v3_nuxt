@@ -188,3 +188,13 @@ test('the selected day lists newest first, timeless measurements last', () => {
   assert.equal(latestDay(rows), '2026-10-03')
   assert.equal(latestDay(usageRows([row(null)])), null)
 })
+
+test('the hour is the measurement\'s own start where the list has one', () => {
+  // On MAP608 `time` is the session's: three measurements, one `time`.
+  const rows = usageRows([
+    row('2026-10-07', { time: '070000', measured_time: '093000' }),
+    row('2026-10-07', { time: '070000', measured_time: null }),
+    row('2026-10-07', { time: '070000' })
+  ])
+  assert.deepEqual(rows.map(r => [r.hour, r.clock]), [[9, '09:30:00'], [7, '07:00:00'], [7, '07:00:00']])
+})

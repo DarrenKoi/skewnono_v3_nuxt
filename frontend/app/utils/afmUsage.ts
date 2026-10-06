@@ -40,8 +40,8 @@ export const usageRows = (rows: AfmFileRow[]): UsageRow[] =>
   rows.map(row => ({
     row,
     day: (row.formatted_date ?? '').slice(0, 10) || null,
-    hour: hourOf(row.time),
-    clock: clockOf(row.time),
+    hour: hourOf(row.measured_time ?? row.time),
+    clock: clockOf(row.measured_time ?? row.time),
     recipe: row.recipe_name ?? '',
     lot: row.lot_id ?? '',
     points: row.point_count ?? null,

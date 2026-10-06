@@ -372,10 +372,18 @@ export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
   })
 
 // The times at which the tip is a different one from the last measurement that
-// named its tip. A measurement with no Tip ID neither is nor hides a change.
+// named its tip: its ID or seat differs, or its Mileage fell — the counter
+// belongs to the tip and only ever starts over with a new one (office 확인
+// 2026-10-07; nothing records the change itself). A measurement with no Tip ID
+// neither is nor hides a change.
 export const tipChanges = (health: HealthPoint[]): number[] => {
   const named = [...health].filter(h => h.tip !== null).sort((a, b) => a.time - b.time)
-  return named.flatMap((h, i) => i > 0 && h.tip !== named[i - 1]!.tip ? [h.time] : [])
+  return named.flatMap((h, i) => {
+    const last = named[i - 1]
+    if (!last) return []
+    const reset = h.mileage !== null && last.mileage !== null && h.mileage < last.mileage
+    return h.tip !== last.tip || reset ? [h.time] : []
+  })
 }
 
 // `MM/DD HH:mm`, local — the trend's tick and row format.

@@ -3,7 +3,8 @@
 """Phase 2/3 AFM adapter: a Redis index over MinIO objects. Read-only.
 
 Schema of record: docs/datatables/afm/afm_redis.txt (spec user-confirmed
-2026-10-06; column layouts and value conventions office 확인 2026-10-06).
+2026-10-06; column layouts and value conventions office 확인 2026-10-06, the
+tip columns, ``measured_time`` and ``point_count`` office 확인 2026-10-07).
 
 Redis — two hashes, every value a ``DataFrame.to_parquet()`` blob:
 
@@ -47,8 +48,11 @@ What the contract gets is not what the stores hold, in three places:
 Still assumptions (OFFICE-VERIFY) — run this file once and compare:
   - how a FALSE ``Valid`` is spelled (none has been seen); ``true`` / ``false``
     in any case are read, anything else is ``None``;
-  - that an original TIFF carries its webp's name with a ``.tif`` / ``.tiff``
-    extension;
+  - that an original carries its webp's name with the ``.tiff`` extension (the
+    extension is confirmed, the pairing is not), and which list holds the align
+    / tip / capture originals;
+  - the shape of ``measured_time`` and what it is on a MAP608 name whose sixth
+    field is NA;
   - that ``alias`` is the tool's fab;
   - that the Summary's values are text like the points'.
 
@@ -293,6 +297,7 @@ def get_tools() -> list[dict[str, str]]:
 def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
     names = {kind: [_basename(key) for key in _keys(record, kind)] for kind in _LIST_KINDS}
     time_code = _text(record.get("time"))
+    measured_code = _text(record.get("measured_time"))
     point_count = record.get("point_count")
     return {
         "unique_key": _text(record.get("unique_key")),
@@ -304,6 +309,10 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         "slot_number": _text(record.get("slot_number")),
         # The loader writes a missing time as null, and the raw name spells it NA.
         "time": None if time_code in ("", "NA") else time_code,
+        # Added by the loader 2026-10-07. OFFICE-VERIFY its shape (asked for as
+        # HHMMSS) and whether a MAP608 name with NA there falls back to Info's
+        # Start Time or stays null.
+        "measured_time": None if measured_code in ("", "NA") else measured_code,
         # The column exists and is always null; `tool_id` does not exist.
         "measured_info": _text(record.get("measured_info")),
         "tool_name": _text(record.get("tool_name")) or tool,
@@ -321,12 +330,14 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         # nothing: a measurement has data when its points object is listed.
         "has_data": _POINTS in names["data"],
         "has_image": any(not _is_original(name) for name in names["tiff"]),
-        "has_align": bool(names["align"]),
-        "has_tip": bool(names["tip"]),
+        # The align / tip / capture originals are loaded too (office 확인
+        # 2026-10-07; OFFICE-VERIFY that they sit in these same lists).
+        "has_align": any(not _is_original(name) for name in names["align"]),
+        "has_tip": any(not _is_original(name) for name in names["tip"]),
         "point_count": None if point_count is None else int(point_count),
-        # Asked of the loader 2026-10-06 and not in the frame yet (OFFICE-VERIFY
-        # the names and value shapes): until they are, every one is None and
-        # /afm/<tool>/tips says it has nothing to show.
+        # In the frame since 2026-10-07 under these names (office 확인), read
+        # off the same first data CSV as detail_points. `tip_width` is float64
+        # with NaN for an unrecorded width; `_number` turns that into None.
         "tip_id": _text(record.get("tip_id")) or None,
         "tip_cassette_id": _text(record.get("tip_cassette_id")) or None,
         "tip_port_no": _text(record.get("tip_port_no")) or None,

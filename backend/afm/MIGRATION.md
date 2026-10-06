@@ -62,13 +62,14 @@ runs the same code at home against a fake hash and a fake object store.
 - Contract: `list[AfmMeasurementRow]` (see
   `contracts.py`. The seven `*_dir_list` keys — data, profile, tiff, align,
   tip, capture, raw — hold file **names**, and `[]` when there are none; there
-  is no `["no files"]` sentinel. `formatted_date`, `time` and `point_count` can
-  be `null`. The nine tip columns — `tip_id`, `tip_cassette_id`, `tip_port_no`,
+  is no `["no files"]` sentinel. `formatted_date`, `time`, `measured_time` and
+  `point_count` can be `null`. `measured_time` is the measurement's own start
+  (`time` is the session's on `MAP608`). The nine tip columns — `tip_id`, `tip_cassette_id`, `tip_port_no`,
   `tip_slot_no`, `tip_width`, `approach_count_mean`, `mileage_mean`,
-  `not_completed_count`, `invalid_count` — feed `/afm/<tool>/tips` and are
-  **not in the office frame yet**: they were asked of the loader on 2026-10-06
-  (OFFICE-VERIFY the names), and the adapter answers `null` for each until they
-  exist. Definitions: `docs/datatables/afm/afm_redis.txt`.)
+  `not_completed_count`, `invalid_count` — feed `/afm/<tool>/tips`. The loader
+  added them, and `measured_time`, on 2026-10-07 under these names (office 확인);
+  `tip_width` is float64 with NaN for an unrecorded width, which the adapter
+  returns as `null`. Definitions: `docs/datatables/afm/afm_redis.txt`.)
 - Mock behavior: deterministically generates rows per tool from a static
   `TOOL_CONFIGS` table (fixed row count per tool). `filename` follows each
   tool's own raw file-name field order (`#`-separated, `NA` for an empty
@@ -82,7 +83,9 @@ runs the same code at home against a fake hash and a fake object store.
   (the `RECIPES` table), never by the tool or the row: a recipe with no data
   CSV has `has_data == False` and `data_dir_list == []`, and the
   same goes for profile and images. Absence is a normal state, not an error.
-  `point_count` is recipe configuration too, and ranges from 1 to 36.
+  `point_count` is the number of positions actually scanned (office 확인
+  2026-10-07) — a stopped measurement has fewer than its recipe, up to 56 was
+  seen. The mock's always equals the recipe's, 1 to 36.
 - Office data source: Redis hash `afm_d2_measurements`, field = tool name — one
   parquet DataFrame holding that tool's whole history. The lists there are full
   MinIO keys; the adapter returns their basenames, turns a `NA` time into
@@ -134,9 +137,9 @@ runs the same code at home against a fake hash and a fake object store.
   `Site ID` the Site ID followed by the point number
   (`0004_X000_Y-002_0002`) — the same text the point's profile and image
   files are named after. `State` is one of `COMPLETED` / `FAILED` /
-  `STOPPED`. `Method_ID` is a number on some recipes and a string on others
+  `STOPPED`. `Method ID` is a number on some recipes and a string on others
   and is the same in every block of a file, so **blocks are matched by
-  position, never by `Method_ID`**; a stopped measurement leaves its later
+  position, never by `Method ID`**; a stopped measurement leaves its later
   block with rows that have no measurement columns and no summary. Either table can be empty on its
   own: a recipe with no data CSV empties both, and real files were also seen
   with no Summary, or with a Data section that has no table.

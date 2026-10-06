@@ -96,7 +96,9 @@ export const siteDots = (data: AfmDetailRow[]): SiteDot[] => {
 // contain `_0001_` from claiming the image. A site-form key ends in the plain
 // point number, so the longest match wins.
 export const imagePoint = (name: string, points: string[]): string => {
-  const stem = name.replace(/\.\w+$/, '')
+  // A tip image's kind is the one that holds an underscore: `_<point>_C_PR`
+  // (office 확인 2026-10-07).
+  const stem = name.replace(/\.\w+$/, '').replace(/_C_PR$/, '_PR')
   const end = stem.lastIndexOf('_')
   if (end < 0) return ''
   const head = stem.slice(0, end)

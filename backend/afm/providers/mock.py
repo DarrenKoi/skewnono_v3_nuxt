@@ -26,19 +26,32 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - `filename` 은 **data CSV 의 원본 파일명 전체**이고, data CSV 가 없는 측정만 info CSV
   (`_Info.csv`)입니다. 한 장비 안에서 `filename`·`unique_key` 모두 유일합니다.
 - `measured_info` 열은 있으나 **항상 null** 입니다(계약에서는 빈 문자열). `tool_id` 열은 없습니다.
+- `measured_time` 은 그 측정의 시작 시각입니다(office 확인 2026-10-07 에 추가된 열).
+  MAP608 의 `time` 은 세션 시각이고, 이름의 6번째 필드(측정 시작)는 최근 파일의 절반쯤
+  (29/46)에서 `NA` 입니다. mock 은 그 자리가 `NA` 이면 `time` 을 냅니다 — 그때 Info 의
+  `Start Time` 이 첫 시각과 같기 때문입니다. 값의 모양(`HHMMSS`)과 `NA` 일 때의 실제 값은
+  OFFICE-VERIFY 입니다.
+- `point_count` 는 **실제로 스캔한 위치 수**입니다(profile·tiff 파일 수, office 확인
+  2026-10-07). 행 수도 recipe 의 수도 아니어서 repeat recipe 는 위치 수만 셉니다.
 - MAPC01 의 `lot_id` 는 Info 의 `Lot ID` 로 채워져 있습니다.
 - `slot_number` 는 Info `Sample Location` 의 `Slot N` 에서 옵니다(실제 웨이퍼 슬롯).
 - 객체 이름: 상세는 `detail_information.parquet`·`detail_summary.parquet`·
   `detail_points.parquet`, profile 은 `profile_<원본이름>.parquet`, 이미지는
   `<파일명>.webp` 입니다. **data CSV 가 없는 측정은 `data_dir_list` 에 information 하나만**
   들어 있으므로, `has_data` 는 목록이 비었는지가 아니라 points 객체가 있는지입니다.
-- **원본 TIFF 는 `tiff_dir_list` 에 webp 와 함께** 들어 있습니다. 5EAP1501 은 현재 0개입니다.
+- **원본 TIFF 는 `tiff_dir_list` 에 webp 와 함께** 들어 있고 확장자는 `.tiff` 입니다.
+  5EAP1501 은 현재 0개입니다(초기 적재 누락, 재적재 예정 — office 확인 2026-10-07).
+- tip 이미지는 두 계열입니다 — point 마다 `_C_PR`, 측정마다 `C_Result` 한 장(office 확인
+  2026-10-07).
 - MAPC01 의 profile·이미지 이름은 `filename` 으로 **시작하지 않습니다**(5·6번째 필드가
   다릅니다). 어느 point 의 파일인지는 이름의 **끝**(`_<위치 키>_Height`)으로만 알 수 있습니다.
 - points 의 각 행은 `Site` 열에 **자기 block 의 method 명**을 갖습니다. block 을 행의
   순서나 "같은 point 가 다시 나옴"으로 추측하면 안 됩니다 — repeat recipe 는 한 block 안에서
-  같은 point 가 되풀이됩니다(실측 4 Site × 2 반복 = 8행).
-- 측정이 중단되면 **측정하지 못한 point 의 행은 아예 없습니다.** 측정하지 못한 칸은 값이
+  같은 point 가 되풀이됩니다(실측 4 Site × 2 반복 = 8행). 반복 번호 열은 없고, 모든 Site 를
+  한 바퀴 돈 뒤 다시 돌며, 바퀴는 `Sample Count`(실측 4 → 5)로 구분됩니다(office 확인
+  2026-10-07).
+- 측정이 중단되면 **측정하지 못한 point 의 행은 아예 없습니다.** STOPPED 행은 중단된 그
+  point 하나입니다(office 확인 2026-10-07). 측정하지 못한 칸은 값이
   없습니다(적재물은 공백 한 칸 `' '`, `_Valid` 는 `''` — 계약에서는 null).
 - Summary 가 없으면 열도 없는 0행짜리 객체가 있습니다(계약에서는 빈 목록).
 - profile 은 X/Y/Z parquet 이고 단위(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)는 MinIO 객체의
@@ -50,23 +63,29 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   mock 도 이름만 냅니다.
 - 적재물의 상세는 **모든 값이 문자열**입니다(`"79.24"`, Point No 도 `"1"`). office adapter 가
   단위가 붙은 열·`Point No`·`Site X/Y` 를 숫자로, `Valid` 류를 bool 로 바꾸므로 mock 은 바꾼
-  뒤의 형태를 냅니다. `Method_ID` 는 바꾸지 않으므로 숫자처럼 보여도 문자열(`"2"`)입니다.
+  뒤의 형태를 냅니다. `Method ID` 는 바꾸지 않으므로 숫자처럼 보여도 문자열(`"2"`)입니다.
 - Redis 의 `formatted_date`·`time`·`point_count` 는 null 일 수 있습니다(`time` 의 `NA` 도
   null). mock 은 null 을 내지 않습니다 — 파일명과 상세를 그 값에서 만들기 때문입니다.
   null 경로는 backend/afm/tests/test_office_template.py 가 adapter 에서 직접 확인합니다.
+  그래서 첫 point 에서 중단되어 파일이 없는 측정(`point_count` null)과 도중에 중단되어
+  `point_count` 가 recipe 보다 작은 측정(실측 2·3·5·8·14·43·55)도 mock 에는 없습니다.
+- align·tip·capture 의 원본 TIFF 도 적재되어 있지만(office 확인 2026-10-07) 어느 목록에
+  있는지 몰라 mock 은 내지 않습니다(OFFICE-VERIFY).
 - Redis `afm_d1_tools` 는 `fab` 이 빈 문자열이고 `alias` 가 MAP608=null·MAPC01=R3·
   5EAP1501=M15 입니다. mock 은 MAP608 에 `PKG`(추정)를 냅니다.
-- 이름·값을 지어낸 곳 (OFFICE-VERIFY): repeat recipe 의 이름(`RQQA_REPEAT_4SITE`)과 반복
-  행의 순서, 중단된 block 에 남는 행의 수(mock 은 STOPPED 한 행), MAPC01 의 profile·이미지
-  이름에서 5번째 필드에 들어가는 값(mock 은 lot), 원본 TIFF 의 확장자와 webp 와의 짝
-  (mock 은 같은 이름의 `.tiff`), `Sample Location` 값의 나머지 모양(mock 은 `Slot N` 만).
+- 이름·값을 지어낸 곳 (OFFICE-VERIFY): repeat recipe 의 이름(`RQQA_REPEAT_4SITE`)과 크기
+  (4 Site × 1 point — 실측은 4 × 14), MAPC01 의 profile·이미지 이름에서 5번째 필드에
+  들어가는 값(mock 은 lot), 원본 TIFF 와 webp 의 짝(mock 은 같은 이름), tip 이미지 이름의
+  나머지(mock 은 모든 recipe 에서 `_<위치 키>_C_PR`), 반복이 없는 recipe 의 `Sample Count`
+  (1~5 무작위), `Sample Location` 값의 나머지 모양(mock 은 `Slot N` 만).
 
 확인되어 그대로 재현하는 것 (office 확인 2026-10-02, 회신 4회):
 - 장비는 MAP608 · MAPC01 · 5EAP1501 이고 MAPC01=R3, 5EAP1501=M15 입니다.
 - 파일명은 `#` 구분이며 장비마다 필드 순서가 다르고, 빈자리는 `NA` 입니다.
   - MAP608 의 첫 시각은 **세션(폴더) 시작 시각**이라 같은 세션의 측정들이 공유합니다.
-    뒤 시각이 측정 시작이고, 오래된 파일은 그 자리가 `NA` 입니다. 그때 Info 의
-    `Start Time` 은 첫 시각과 같습니다.
+    뒤 시각이 측정 시작이고, 그 자리가 `NA` 인 파일이 많습니다(오래된 파일만이 아니라
+    최근 파일의 절반쯤 — office 확인 2026-10-07). 그때 Info 의 `Start Time` 은 첫 시각과
+    같습니다.
   - MAPC01 은 `_Info.csv` 가 모든 측정에 있고 data CSV 는 같은 이름에서 `_Info` 를 뺀
     것입니다(목록의 `filename` 은 data CSV 가 있으면 그쪽입니다). 측정 한 건은 앞 4필드(date#time#recipe#slot)이며, 같은 sample 이 하루에
     여러 번 다시 측정되어 시각만 다릅니다. lot 은 파일명에 없고(NA) Info 의 `Lot ID` 에 있습니다.
@@ -77,7 +96,8 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - 어떤 파일(data CSV·profile txt·이미지)이 있는지는 **recipe 설정**이 정합니다. 없는 것이
   정상 상태이므로 `has_*` 와 `*_dir_list` 는 행 번호가 아니라 recipe 에서 나옵니다.
   5EAP1501 은 profile txt 가 없습니다.
-- point 수도 recipe 가 정하며 1~36 까지 실측되었습니다.
+- point 수도 recipe 가 정하며 1~36 까지 실측되었습니다(2026-10-07 회신의 최대는 56 =
+  4 Site × 14 point; mock 은 36 까지만 냅니다).
 - 측정 컬럼은 recipe 마다 다르고 모두 `(nm)` 를 포함합니다 — `Left_H`/`Right_H`/`Ref_H`,
   `Dishing_H`, `Bottom_H`/`Top_H`, `Ref_Range`/`Left_TRIM_H`, `ROUGHNESS_RANGE`/`Ra`/`Rq`,
   `Pad_1_H`…, `1_Minimum`…`51_Minimum`, `RZ1_Minimum`…, `Line1_Residue_H`, `SITE19_21_H`.
@@ -85,7 +105,7 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   (`Profile_LEFT_UL` + `Profile_RIGHT_UL`). Data 도 block 마다 나뉘고 block 은 point 마다
   한 행을 냅니다. block 마다 컬럼이 다를 수 있습니다 — 실측된 것은 중단된 뒤쪽 block 이
   측정 컬럼 없이 STOPPED 행만 남기는 경우이고, 그 block 은 Summary 가 비어 있습니다.
-- `Method_ID` 는 한 파일의 모든 block 에서 같은 값이라(`2`, 또는 `L1_XDEC_5MM_LINE`)
+- `Method ID`(공백 — office 확인 2026-10-07)는 한 파일의 모든 block 에서 같은 값이라(`2`, 또는 `L1_XDEC_5MM_LINE`)
   block 을 가리는 키가 아닙니다. block 은 행의 `Site` 열로 가립니다(위 적재 형태).
 - Summary 가 없는 파일(Info 뒤에 바로 Data), 표가 없는 Data 도 있습니다.
 - 위치 키는 4자리 point 번호입니다 (`Point No`=1 ↔ 파일명 `_0001`). Site ID 를 기록하는
@@ -126,10 +146,11 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   `2048x256` 이 각각 MAP608, MAPC01 의 것이라는 대응(회신은 크기만 나열했습니다).
 - Site ID recipe 에서 한 Site 에 point 가 몇 개인지 — 파일명 예(`0004…_0002`)로 여럿일 수
   있다는 것만 알고, mock 은 한 recipe 에만 Site 당 2개를 둡니다.
-- 숫자가 아닌 `Method_ID` 는 recipe 명에서 첫 토막을 뺀 것으로 만들었습니다(실측 한 건이
-  그 모양입니다). 컬럼 이름이 `Method_ID` 인지 `Method ID` 인지도 회신마다 달랐습니다.
-- `Valid` 는 FALSE 가 아직 실측되지 않았습니다. mock 은 일부를 False 로 냅니다.
-- data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Mileage` …).
+- 숫자가 아닌 `Method ID` 는 recipe 명에서 첫 토막을 뺀 것으로 만들었습니다(실측 한 건이
+  그 모양입니다).
+- `Valid` 는 FALSE 가 아직 실측되지 않았습니다(CSV 263개 전수 0건, office 확인
+  2026-10-07). mock 은 일부를 False 로 냅니다.
+- data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Pick Up Count` …).
 - 5EAP1501 은 15키 위주, MAPC01 은 13키 위주, MAP608 은 혼재라는 것까지가
   user-confirmed(2026-10-06)입니다. 비율(mock 은 13키를 8건 중 1·7·4건)과 한 파일의
   구성을 정하는 것(recipe·시기·파일 종류)은 지어냈습니다.
@@ -139,16 +160,22 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   오고, 같은 `Tip ID` 가 카세트의 여러 슬롯에 있어 팁은 (Tip ID, Tip Cassette ID,
   Tip Port No, Tip Slot No) 로 식별하며, `Tip Width` 는 측정 시점의 기록값이라 MCNT 계열은
   같은 자리에서도 측정마다 달라지고, 기록이 없으면 문자열 `NaN` 입니다(mock 은 20건 중 1건).
-  지어낸 것(OFFICE-VERIFY): Tip ID 의 이름(`MCNT-150` 등)과 종류 수, 한 팁이 4일 유지된다는
-  것, 종류별 폭(30·45·70 근처, 같은 종류의 팁끼리 ±2)과 MCNT 의 흔들림 크기(±1.5), 단위, `NaN` 의 비율.
+  office 확인(2026-10-07): MCNT 가 아닌 종류는 폭이 사실상 상수이고, MCNT 계열만
+  33.96~39.11 로 퍼지며 같은 슬롯에서도 오르내립니다(마모가 아닌 측정 오차로 추정). mock 은
+  MCNT 를 36.5 중심에 팁마다 ±1.5, 측정마다 ±1.05 로, 나머지 종류는 한 값으로 냅니다.
+  data 행의 `Mileage` 는 **팁 단위 누적값**이라 한 팁을 쓰는 동안 커지기만 하고 팁이 바뀌면
+  리셋됩니다(실측 `DT-NCHR_CM` slot 9 → slot 1, 1430483 → 3520). 교체를 적은 기록은 없어
+  이것이 팁이 바뀐 것을 아는 근거입니다. `DT-NCHR_CM` 은 실제 Tip ID 입니다.
+  지어낸 것(OFFICE-VERIFY): MCNT 계열의 이름(`MCNT-150`·`MCNT-500`)과 종류 수, 한 팁이 4일
+  유지된다는 것, `DT-NCHR_CM` 의 폭(70), Mileage 의 증가 속도(분당 240)와 단위, `NaN` 의 비율.
   `Data Save Location` 은 공백 없는 긴 경로라는 것만 user-confirmed(2026-10-06)이고,
   폴더 구성(드라이브·장비·날짜·recipe·lot 순서)은 지어냈습니다.
 - 목록의 팁 열 9종(`tip_id`·`tip_cassette_id`·`tip_port_no`·`tip_slot_no`·`tip_width`·
-  `approach_count_mean`·`mileage_mean`·`not_completed_count`·`invalid_count`)은 office 의
-  `afm_d2_measurements` 에 **아직 없는 열**입니다(2026-10-06 적재 쪽에 요청할 열,
-  OFFICE-VERIFY: 이름·값 생김새). mock 은 각 측정의 상세에서 같은 정의로 계산해 채우므로
-  목록과 상세가 어긋나지 않습니다. `tip_width` 는 `NaN` 기록에서, 뒤의 넷은 data 행이
-  없는 측정에서 null 입니다. office 는 열이 생기기 전까지 아홉 값이 모두 null 입니다.
+  `approach_count_mean`·`mileage_mean`·`not_completed_count`·`invalid_count`)은 2026-10-07 에
+  office 의 `afm_d2_measurements` 에 이 이름으로 적재되었습니다(office 확인). 상세와 같은 첫
+  data CSV 에서 계산하므로 목록과 상세가 어긋나지 않고, mock 도 각 측정의 상세에서 같은
+  정의로 채웁니다. `tip_width` 는 office 에서 float64(기록이 없으면 NaN)이고 계약에서는
+  null 이며, 뒤의 넷은 data 행이 없는 측정에서 null 입니다.
 - 측정값의 수준·추세·퍼짐은 전부 지어낸 것입니다. recipe·컬럼마다 고정된 수준(55~120 nm)에
   측정 시각에 비례하는 완만한 드리프트(하루 ±0.4 nm 이내), sample(lot+slot) 공통 오프셋
   (σ 0.8 nm, 재측정끼리 같음), 중심에서 바깥으로 커지는 site 패턴(반지름²당 0.25 nm),
@@ -163,8 +190,6 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - 목록은 **오늘 날짜에서 끝납니다**(KST 기준). 하루가 지나면 하루치가 새로 생기고
   가장 오래된 하루치가 빠지며, 이미 있던 파일의 이름·lot·내용은 바뀌지 않습니다. 오늘
   측정의 시각은 고정이라 조회 시각보다 뒤일 수 있습니다.
-- 시작 시각이 `NA` 인 "오래된 파일"은 실제로는 어느 시점 이전의 파일이지만, mock 은 며칠
-  간격으로 되풀이되는 구간으로 냅니다(오늘 기준 목록에도 항상 섞이도록).
 - profile metadata 의 `SurfaceSize` 값 형식, Pixel 축의 길이 환산(근거 없음).
 - 이미지는 자리 표시 SVG 입니다. 실제는 webp 변환본이며 office adapter 는 그 bytes 를
   그대로 돌려줍니다(route 가 str 은 SVG, bytes 는 webp 로 내보냅니다).
@@ -507,6 +532,7 @@ def get_afm_file_detail(
     excursion = _is_excursion(row)
     summary: list[dict[str, Any]] = []
     detail: list[dict[str, Any]] = []
+    mileage = _tip_mileage(row)
 
     for method_index, method in enumerate(recipe["methods"]):
         stopped = stopped_early and method_index > 0
@@ -516,7 +542,7 @@ def get_afm_file_detail(
         # have no row at all. A repeat recipe goes round its points again.
         measured = positions[:1] if stopped else positions * recipe.get("repeat", 1)
 
-        for key, site_id, (site_x, site_y), point_no in measured:
+        for row_no, (key, site_id, (site_x, site_y), point_no) in enumerate(measured):
             # `Site` is the row's own block: the method name of its section.
             record: dict[str, Any] = {"Site": method, "measurement_point": key}
             if site_id:
@@ -525,7 +551,7 @@ def get_afm_file_detail(
                 "Point No": point_no,
                 "X (um)": round(site_x * 8000 + rng.uniform(-100, 100), 1),
                 "Y (um)": round(site_y * 8000 + rng.uniform(-100, 100), 1),
-                "Method_ID": method_id,
+                "Method ID": method_id,
                 "State": (
                     "STOPPED" if stopped
                     else "FAILED" if excursion and rng.random() < 0.3
@@ -543,11 +569,20 @@ def get_afm_file_detail(
                 record[f"{column.removesuffix(' (nm)')}_Valid"] = (
                     None if stopped else rng.random() > 0.06
                 )
+            sample_count = rng.randint(1, 5)
+            approach_count = rng.randint(1, 3) + (rng.randint(1, 2) if excursion else 0)
+            # Mileage counts up for as long as one tip is in use and starts
+            # over with the next tip (office 확인 2026-10-07).
+            mileage = round(mileage + rng.uniform(2, 98) / 100, 2)
             record.update({
                 "Pick Up Count": rng.randint(1, 10),
-                "Sample Count": rng.randint(1, 5),
-                "Approach Count": rng.randint(1, 3) + (rng.randint(1, 2) if excursion else 0),
-                "Mileage": round(rng.uniform(2, 98), 1)
+                # No column numbers a repeat; this one tells the laps apart
+                # (seen: 4 on the first lap, 5 on the second).
+                "Sample Count": (
+                    4 + row_no // len(positions) if recipe.get("repeat", 1) > 1 else sample_count
+                ),
+                "Approach Count": approach_count,
+                "Mileage": mileage
             })
             block_rows.append(record)
 
@@ -843,10 +878,10 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
         )
         date_code = timestamp.strftime("%y%m%d")
         time_code = timestamp.strftime("%H%M%S")
-        # Old files carry NA where the start time goes. Here it is a stretch of
-        # days that comes round again, so the list always holds some.
+        # NA where the start time goes is not an old-file thing: 29 of 46 recent
+        # files carry it (office 확인 2026-10-07), scattered among the others.
         start_code = (
-            "NA" if index % config["row_count"] >= 24
+            "NA" if (index * 7) % 46 < 29
             else (timestamp + timedelta(minutes=4 + 11 * member)).strftime("%H%M%S")
         )
         recipe_name = config["recipes"][sample_no % len(config["recipes"])]
@@ -895,6 +930,13 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             "lot_id": lot_id,
             "slot_number": slot_number,
             "time": time_code,
+            # When this measurement started: MAP608's trailing time, and where
+            # that is NA (or on the other tools) the leading one — which is what
+            # Info's Start Time says there.
+            "measured_time": (
+                start_code if start_code != "NA" and "{start}" in config["filename"]
+                else time_code
+            ),
             # The column exists at the office and is always null.
             "measured_info": "",
             "tool_name": tool_name,
@@ -922,9 +964,12 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
                 has_align,
                 [f"{file_stem}_{keys[0]}_alignment.webp"]
             ),
+            # Two series: a `_C_PR` per point, and one `C_Result` for the
+            # measurement (office 확인 2026-10-07). OFFICE-VERIFY the rest of
+            # each name — only a Site ID recipe is known to carry the position key.
             "tip_dir_list": _file_list(
                 has_tip,
-                [f"{file_stem}_{keys[0]}_tip.webp"]
+                [f"{file_stem}_{key}_C_PR.webp" for key in keys] + [f"{file_stem}_C_Result.webp"]
             ),
             "capture_dir_list": [f"{file_stem}_{keys[0]}_capture.webp"],
             "has_profile": has_profile,
@@ -1084,11 +1129,28 @@ _TIP_LIFE_DAYS = 4
 # Tip ID names a tip TYPE, so the same ID sits in several cassette slots and a
 # tip is told apart by (Tip ID, Tip Cassette ID, Tip Port No, Tip Slot No).
 # An MCNT tip's Tip Width is re-recorded by every measurement; a fixed tip's is
-# not (office 확인 2026-10-06). The names themselves and how many types a tool
-# carries are made up (OFFICE-VERIFY) — few, so one ID recurs in another slot.
-# So is the last field, the width a tip of that type starts near: tips of one
-# type are taken to be alike (±2), or a type-wide limit would mean nothing.
-_TIP_TYPES = (("MCNT-150", True, 30.0), ("MCNT-500", True, 45.0), ("CDR-70", False, 70.0))
+# not (office 확인 2026-10-06). `DT-NCHR_CM` is a real ID (office 확인
+# 2026-10-07); the MCNT names and how many types a tool carries are made up
+# (OFFICE-VERIFY) — few, so one ID recurs in another slot. The last field is
+# the type's width: the MCNT one centres the observed 33.96–39.11, the fixed
+# one's 70 is made up.
+_TIP_TYPES = (("MCNT-150", True, 36.5), ("MCNT-500", True, 36.5), ("DT-NCHR_CM", False, 70.0))
+
+
+def _tip_period(row: AfmMeasurementRow) -> tuple[int, float]:
+    """Which tip was mounted when `row` started, and for how many minutes."""
+    started = datetime.strptime(_display_start_time(row), "%Y-%m-%d %H:%M:%S")
+    period = started.toordinal() // _TIP_LIFE_DAYS
+    since = started - datetime.fromordinal(period * _TIP_LIFE_DAYS)
+    return period, since.total_seconds() / 60
+
+
+def _tip_mileage(row: AfmMeasurementRow) -> float:
+    # What the tip's counter read before this measurement. It grows with the
+    # time the tip has been on (seen: 1430483 on a used tip, 3520 on the next),
+    # so a new tip starts far below the last. The rate is made up.
+    period, minutes = _tip_period(row)
+    return _seed_for("tip-mileage", row["tool_name"], str(period)) % 4000 + round(minutes * 240, 1)
 
 
 def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | None]:
@@ -1100,13 +1162,18 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
     end_time = started + timedelta(seconds=tip.randint(60, 1800))
     # One tip stays on a tool for _TIP_LIFE_DAYS, so the Tip * values are drawn
     # per (tool, period) and consecutive measurements share a tip.
-    period = started.toordinal() // _TIP_LIFE_DAYS
+    period, _ = _tip_period(row)
     mounted = random.Random(_seed_for("tip-mounted", row["tool_name"], str(period)))
     tip_id, remeasured, nominal_width = mounted.choice(_TIP_TYPES)
     tip_cassette = f"TC{mounted.randint(10, 99)}"
     tip_port = str(mounted.randint(1, 2))
     tip_slot = str(mounted.randint(1, 16))
-    width = nominal_width + mounted.uniform(-2, 2) + (tip.uniform(-1.5, 1.5) if remeasured else 0)
+    # A fixed type's width is one value for every tip of it. An MCNT tip sits at
+    # its own level and each measurement reads it a little differently, which
+    # is taken to be measurement error, not wear (office 확인 2026-10-07: MCNT
+    # spans 33.96–39.11 and moves both ways within one slot).
+    seat_offset = mounted.uniform(-1.5, 1.5)
+    width = nominal_width + (seat_offset + tip.uniform(-1.05, 1.05) if remeasured else 0)
     # A width the measurement did not record is the literal text 'NaN'.
     no_width = _seed_for("tip-nan", row["tool_name"], row["filename"]) % 20 == 0
     tip_width = "NaN" if no_width else f"{width:.1f}"
