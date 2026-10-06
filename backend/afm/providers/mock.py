@@ -143,6 +143,12 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   것, 폭의 범위(20~60)와 MCNT 의 흔들림 크기(±1.5), 단위, `NaN` 의 비율.
   `Data Save Location` 은 공백 없는 긴 경로라는 것만 user-confirmed(2026-10-06)이고,
   폴더 구성(드라이브·장비·날짜·recipe·lot 순서)은 지어냈습니다.
+- 목록의 팁 열 9종(`tip_id`·`tip_cassette_id`·`tip_port_no`·`tip_slot_no`·`tip_width`·
+  `approach_count_mean`·`mileage_mean`·`not_completed_count`·`invalid_count`)은 office 의
+  `afm_d2_measurements` 에 **아직 없는 열**입니다(2026-10-06 적재 쪽에 요청할 열,
+  OFFICE-VERIFY: 이름·값 생김새). mock 은 각 측정의 상세에서 같은 정의로 계산해 채우므로
+  목록과 상세가 어긋나지 않습니다. `tip_width` 는 `NaN` 기록에서, 뒤의 넷은 data 행이
+  없는 측정에서 null 입니다. office 는 열이 생기기 전까지 아홉 값이 모두 null 입니다.
 - 측정값의 수준·추세·퍼짐은 전부 지어낸 것입니다. recipe·컬럼마다 고정된 수준(55~120 nm)에
   측정 시각에 비례하는 완만한 드리프트(하루 ±0.4 nm 이내), sample(lot+slot) 공통 오프셋
   (σ 0.8 nm, 재측정끼리 같음), 중심에서 바깥으로 커지는 site 패턴(반지름²당 0.25 nm),
@@ -439,7 +445,43 @@ def get_tools() -> list[dict[str, str]]:
 
 def list_afm_files(tool_name: str | None = None) -> list[AfmMeasurementRow]:
     tool = normalize_tool(tool_name)
-    return list(_generate_measurements(tool, _today()))
+    return list(_listed(tool, _today()))
+
+
+@lru_cache(maxsize=8)
+def _listed(tool_name: str, today: date) -> tuple[AfmMeasurementRow, ...]:
+    return tuple(
+        {**row, **_tip_columns(row)} for row in _generate_measurements(tool_name, today)
+    )
+
+
+def _tip_columns(row: AfmMeasurementRow) -> dict[str, Any]:
+    # The list's tip columns are the measurement's own Info and data rows,
+    # summarised — read off the detail so the two can never disagree. The
+    # uncached call: a whole tool's details would flush the detail cache.
+    detail = get_afm_file_detail.__wrapped__(row["filename"], row["tool_name"])
+    info, rows = detail["information"], detail["data"]
+    width = float(info["Tip Width"])
+
+    def mean(column: str) -> float | None:
+        return round(statistics.fmean(r[column] for r in rows), 2) if rows else None
+
+    return {
+        "tip_id": info["Tip ID"],
+        "tip_cassette_id": info["Tip Cassette ID"],
+        "tip_port_no": info["Tip Port No"],
+        "tip_slot_no": info["Tip Slot No"],
+        "tip_width": None if math.isnan(width) else width,
+        "approach_count_mean": mean("Approach Count"),
+        "mileage_mean": mean("Mileage"),
+        "not_completed_count": (
+            sum(r["State"] != "COMPLETED" for r in rows) if rows else None
+        ),
+        "invalid_count": (
+            sum(r["State"] == "COMPLETED" and r["Valid"] is False for r in rows)
+            if rows else None
+        ),
+    }
 
 
 @lru_cache(maxsize=256)
@@ -903,7 +945,8 @@ def _find_measurement(
     clean_filename = _strip_known_extension(filename)
     tool = normalize_tool(tool_name)
 
-    for row in list_afm_files(tool):
+    # Not list_afm_files: its tip columns are read off the detail this serves.
+    for row in _generate_measurements(tool, _today()):
         if _strip_known_extension(row["filename"]) == clean_filename:
             return row
 

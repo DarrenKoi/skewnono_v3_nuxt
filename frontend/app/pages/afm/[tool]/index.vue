@@ -19,6 +19,16 @@
           />
         </nav>
       </template>
+      <template #actions>
+        <UButton
+          size="sm"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-pen-tool"
+          label="팁 모니터링"
+          :to="`/afm/${toolId}/tips`"
+        />
+      </template>
     </EbeamMetaBar>
 
     <div class="grid gap-6 lg:grid-cols-12">

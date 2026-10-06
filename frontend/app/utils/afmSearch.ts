@@ -8,7 +8,7 @@ import type { AfmFileRow } from '~/composables/useAfmDetailApi'
 // Backend rows carry the measurement time as a raw HHMMSS code separate from
 // formatted_date; fold it into the display date so lists show
 // "YYYY-MM-DD HH:MM:SS". A row with no date stays '' rather than a bare time.
-const measuredAt = (row: AfmFileRow): string => {
+export const measuredAt = (row: AfmFileRow): string => {
   const day = row.formatted_date ?? ''
   const code = row.time ?? ''
   if (!day || !/^\d{4,6}$/.test(code)) return day

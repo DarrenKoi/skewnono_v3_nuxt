@@ -2,6 +2,7 @@
   "data": [
     {
       "align_dir_list": [],
+      "approach_count_mean": 1.6,
       "capture_dir_list": [
         "#261006#063000#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0001_capture.webp"
       ],
@@ -19,8 +20,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 0,
       "lot_id": "MON69WL",
       "measured_info": "",
+      "mileage_mean": 52.94,
+      "not_completed_count": 0,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#261006#063000#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0001_Height.parquet",
@@ -53,13 +57,19 @@
         "#261006#063000#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0005_Height.tiff"
       ],
       "time": "063000",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 38.7,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261006#063000#ROUGHNESS_SCAN#11"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 1.8,
       "capture_dir_list": [
         "#261006#090700#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0001_capture.webp"
       ],
@@ -77,8 +87,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 0,
       "lot_id": "MON69WL",
       "measured_info": "",
+      "mileage_mean": 42.66,
+      "not_completed_count": 0,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#261006#090700#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0001_Height.parquet",
@@ -111,13 +124,19 @@
         "#261006#090700#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0005_Height.tiff"
       ],
       "time": "090700",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 39.0,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261006#090700#ROUGHNESS_SCAN#11"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.0,
       "capture_dir_list": [
         "#261006#114400#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0001_capture.webp"
       ],
@@ -135,8 +154,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 1,
       "lot_id": "MON69WL",
       "measured_info": "",
+      "mileage_mean": 69.0,
+      "not_completed_count": 0,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#261006#114400#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0001_Height.parquet",
@@ -169,7 +191,12 @@
         "#261006#114400#ROUGHNESS_SCAN#11#MON69WL#NA#MON69WL.11_0005_Height.tiff"
       ],
       "time": "114400",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 38.7,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261006#114400#ROUGHNESS_SCAN#11"
@@ -178,6 +205,7 @@
       "align_dir_list": [
         "#261005#053000#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0001_X000_Y000_0001_alignment.webp"
       ],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#261005#053000#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0001_X000_Y000_0001_capture.webp"
       ],
@@ -195,8 +223,11 @@
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON70WM",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 21,
       "profile_dir_list": [],
       "raw_dir_list": [
@@ -238,7 +269,12 @@
         "#261005#053000#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "053000",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 39.7,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261005#053000#RX1A_M0A_COT_X_PDG#12"
@@ -247,6 +283,7 @@
       "align_dir_list": [
         "#261005#080700#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0001_X000_Y000_0001_alignment.webp"
       ],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#261005#080700#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0001_X000_Y000_0001_capture.webp"
       ],
@@ -264,8 +301,11 @@
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON70WM",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 21,
       "profile_dir_list": [],
       "raw_dir_list": [
@@ -307,7 +347,12 @@
         "#261005#080700#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "080700",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": null,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261005#080700#RX1A_M0A_COT_X_PDG#12"
@@ -316,6 +361,7 @@
       "align_dir_list": [
         "#261005#104400#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0001_X000_Y000_0001_alignment.webp"
       ],
+      "approach_count_mean": 1.81,
       "capture_dir_list": [
         "#261005#104400#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0001_X000_Y000_0001_capture.webp"
       ],
@@ -333,8 +379,11 @@
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
+      "invalid_count": 2,
       "lot_id": "MON70WM",
       "measured_info": "",
+      "mileage_mean": 44.79,
+      "not_completed_count": 0,
       "point_count": 21,
       "profile_dir_list": [],
       "raw_dir_list": [
@@ -376,13 +425,19 @@
         "#261005#104400#RX1A_M0A_COT_X_PDG#12#MON70WM#NA#MON70WM.12_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "104400",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 38.7,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261005#104400#RX1A_M0A_COT_X_PDG#12"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.4,
       "capture_dir_list": [
         "#261004#043000#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_capture.webp"
       ],
@@ -400,8 +455,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
+      "invalid_count": 0,
       "lot_id": "RL1C0WN",
       "measured_info": "",
+      "mileage_mean": 54.84,
+      "not_completed_count": 3,
       "point_count": 9,
       "profile_dir_list": [
         "profile_#261004#043000#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.parquet",
@@ -450,15 +508,21 @@
         "#261004#043000#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "043000",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [
         "#261004#043000#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_tip.webp"
       ],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 38.7,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261004#043000#CMP_POST#13"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 1.7,
       "capture_dir_list": [
         "#261004#070700#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_capture.webp"
       ],
@@ -476,8 +540,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
+      "invalid_count": 0,
       "lot_id": "RL1C0WN",
       "measured_info": "",
+      "mileage_mean": 54.96,
+      "not_completed_count": 4,
       "point_count": 9,
       "profile_dir_list": [
         "profile_#261004#070700#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.parquet",
@@ -526,15 +593,21 @@
         "#261004#070700#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "070700",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [
         "#261004#070700#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_tip.webp"
       ],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 38.7,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261004#070700#CMP_POST#13"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.11,
       "capture_dir_list": [
         "#261004#094400#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_capture.webp"
       ],
@@ -552,8 +625,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
+      "invalid_count": 0,
       "lot_id": "RL1C0WN",
       "measured_info": "",
+      "mileage_mean": 56.28,
+      "not_completed_count": 0,
       "point_count": 9,
       "profile_dir_list": [
         "profile_#261004#094400#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.parquet",
@@ -602,15 +678,21 @@
         "#261004#094400#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "094400",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [
         "#261004#094400#CMP_POST#13#RL1C0WN#NA#RL1C0WN.13_0001_X000_Y000_0001_tip.webp"
       ],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 37.3,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261004#094400#CMP_POST#13"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#261003#093000#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0001_X000_Y000_0001_capture.webp"
       ],
@@ -626,8 +708,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON69WO",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#261003#093000#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0001_X000_Y000_0001_Height.parquet",
@@ -659,13 +744,19 @@
         "#261003#093000#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0005_X001_Y000_0001_Height.tiff"
       ],
       "time": "093000",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 38.5,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261003#093000#RQQA_PFH_MONF (1)#14"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#261003#120700#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0001_X000_Y000_0001_capture.webp"
       ],
@@ -681,8 +772,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON69WO",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#261003#120700#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0001_X000_Y000_0001_Height.parquet",
@@ -714,13 +808,19 @@
         "#261003#120700#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0005_X001_Y000_0001_Height.tiff"
       ],
       "time": "120700",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 39.4,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261003#120700#RQQA_PFH_MONF (1)#14"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#261003#144400#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0001_X000_Y000_0001_capture.webp"
       ],
@@ -736,8 +836,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON69WO",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#261003#144400#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0001_X000_Y000_0001_Height.parquet",
@@ -769,13 +872,19 @@
         "#261003#144400#RQQA_PFH_MONF (1)#14#MON69WO#NA#MON69WO.14_0005_X001_Y000_0001_Height.tiff"
       ],
       "time": "144400",
+      "tip_cassette_id": "TC17",
       "tip_dir_list": [],
+      "tip_id": "MCNT-500",
+      "tip_port_no": "2",
+      "tip_slot_no": "1",
+      "tip_width": 38.6,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261003#144400#RQQA_PFH_MONF (1)#14"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0001_X000_Y000_0001_capture.webp"
       ],
@@ -793,8 +902,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON70WP",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 17,
       "profile_dir_list": [
         "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0001_X000_Y000_0001_Height.parquet",
@@ -871,13 +983,19 @@
         "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0013_X002_Y000_0001_Height.tiff"
       ],
       "time": "083000",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261002#083000#RL1A_LPCCMP_CMPWEAK2#15"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 1.82,
       "capture_dir_list": [
         "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0001_X000_Y000_0001_capture.webp"
       ],
@@ -895,8 +1013,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 0,
       "lot_id": "MON70WP",
       "measured_info": "",
+      "mileage_mean": 53.26,
+      "not_completed_count": 0,
       "point_count": 17,
       "profile_dir_list": [
         "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0001_X000_Y000_0001_Height.parquet",
@@ -973,13 +1094,19 @@
         "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0013_X002_Y000_0001_Height.tiff"
       ],
       "time": "110700",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261002#110700#RL1A_LPCCMP_CMPWEAK2#15"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 1.88,
       "capture_dir_list": [
         "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0001_X000_Y000_0001_capture.webp"
       ],
@@ -997,8 +1124,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 1,
       "lot_id": "MON70WP",
       "measured_info": "",
+      "mileage_mean": 60.21,
+      "not_completed_count": 2,
       "point_count": 17,
       "profile_dir_list": [
         "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0001_X000_Y000_0001_Height.parquet",
@@ -1075,13 +1205,19 @@
         "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#MON70WP#NA#MON70WP.15_0013_X002_Y000_0001_Height.tiff"
       ],
       "time": "134400",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261002#134400#RL1A_LPCCMP_CMPWEAK2#15"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.0,
       "capture_dir_list": [
         "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#RL1C0WQ#NA#RL1C0WQ.16_0001_capture.webp"
       ],
@@ -1099,8 +1235,11 @@
       "has_image": false,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 0,
       "lot_id": "RL1C0WQ",
       "measured_info": "",
+      "mileage_mean": 46.1,
+      "not_completed_count": 0,
       "point_count": 3,
       "profile_dir_list": [
         "profile_#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#RL1C0WQ#NA#RL1C0WQ.16_0001_Height.parquet",
@@ -1118,13 +1257,19 @@
       "slot_number": "16",
       "tiff_dir_list": [],
       "time": "073000",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261001#073000#RL1C_L1_XDEC_5MM_LINE#16"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 3.33,
       "capture_dir_list": [
         "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#RL1C0WQ#NA#RL1C0WQ.16_0001_capture.webp"
       ],
@@ -1142,8 +1287,11 @@
       "has_image": false,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 2,
       "lot_id": "RL1C0WQ",
       "measured_info": "",
+      "mileage_mean": 62.87,
+      "not_completed_count": 0,
       "point_count": 3,
       "profile_dir_list": [
         "profile_#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#RL1C0WQ#NA#RL1C0WQ.16_0001_Height.parquet",
@@ -1161,13 +1309,19 @@
       "slot_number": "16",
       "tiff_dir_list": [],
       "time": "100700",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": null,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261001#100700#RL1C_L1_XDEC_5MM_LINE#16"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.0,
       "capture_dir_list": [
         "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#RL1C0WQ#NA#RL1C0WQ.16_0001_capture.webp"
       ],
@@ -1185,8 +1339,11 @@
       "has_image": false,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 0,
       "lot_id": "RL1C0WQ",
       "measured_info": "",
+      "mileage_mean": 46.4,
+      "not_completed_count": 0,
       "point_count": 3,
       "profile_dir_list": [
         "profile_#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#RL1C0WQ#NA#RL1C0WQ.16_0001_Height.parquet",
@@ -1204,13 +1361,19 @@
       "slot_number": "16",
       "tiff_dir_list": [],
       "time": "124400",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "261001#124400#RL1C_L1_XDEC_5MM_LINE#16"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#260930#063000#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0001_capture.webp"
       ],
@@ -1228,8 +1391,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON69WR",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#260930#063000#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0001_Height.parquet",
@@ -1262,13 +1428,19 @@
         "#260930#063000#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0005_Height.tiff"
       ],
       "time": "063000",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260930#063000#ROUGHNESS_SCAN#17"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 1.8,
       "capture_dir_list": [
         "#260930#090700#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0001_capture.webp"
       ],
@@ -1286,8 +1458,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": 0,
       "lot_id": "MON69WR",
       "measured_info": "",
+      "mileage_mean": 23.1,
+      "not_completed_count": 0,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#260930#090700#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0001_Height.parquet",
@@ -1320,13 +1495,19 @@
         "#260930#090700#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0005_Height.tiff"
       ],
       "time": "090700",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260930#090700#ROUGHNESS_SCAN#17"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#260930#114400#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0001_capture.webp"
       ],
@@ -1344,8 +1525,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON69WR",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#260930#114400#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0001_Height.parquet",
@@ -1378,7 +1562,12 @@
         "#260930#114400#ROUGHNESS_SCAN#17#MON69WR#NA#MON69WR.17_0005_Height.tiff"
       ],
       "time": "114400",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260930#114400#ROUGHNESS_SCAN#17"
@@ -1387,6 +1576,7 @@
       "align_dir_list": [
         "#260929#053000#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0001_X000_Y000_0001_alignment.webp"
       ],
+      "approach_count_mean": 1.71,
       "capture_dir_list": [
         "#260929#053000#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0001_X000_Y000_0001_capture.webp"
       ],
@@ -1404,8 +1594,11 @@
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
+      "invalid_count": 2,
       "lot_id": "MON70WS",
       "measured_info": "",
+      "mileage_mean": 59.06,
+      "not_completed_count": 1,
       "point_count": 21,
       "profile_dir_list": [],
       "raw_dir_list": [
@@ -1447,7 +1640,12 @@
         "#260929#053000#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "053000",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260929#053000#RX1A_M0A_COT_X_PDG#18"
@@ -1456,6 +1654,7 @@
       "align_dir_list": [
         "#260929#080700#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0001_X000_Y000_0001_alignment.webp"
       ],
+      "approach_count_mean": 2.0,
       "capture_dir_list": [
         "#260929#080700#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0001_X000_Y000_0001_capture.webp"
       ],
@@ -1473,8 +1672,11 @@
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
+      "invalid_count": 0,
       "lot_id": "MON70WS",
       "measured_info": "",
+      "mileage_mean": 50.2,
+      "not_completed_count": 1,
       "point_count": 21,
       "profile_dir_list": [],
       "raw_dir_list": [
@@ -1516,7 +1718,12 @@
         "#260929#080700#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "080700",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260929#080700#RX1A_M0A_COT_X_PDG#18"
@@ -1525,6 +1732,7 @@
       "align_dir_list": [
         "#260929#104400#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0001_X000_Y000_0001_alignment.webp"
       ],
+      "approach_count_mean": 1.67,
       "capture_dir_list": [
         "#260929#104400#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0001_X000_Y000_0001_capture.webp"
       ],
@@ -1542,8 +1750,11 @@
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
+      "invalid_count": 2,
       "lot_id": "MON70WS",
       "measured_info": "",
+      "mileage_mean": 47.69,
+      "not_completed_count": 0,
       "point_count": 21,
       "profile_dir_list": [],
       "raw_dir_list": [
@@ -1585,13 +1796,19 @@
         "#260929#104400#RX1A_M0A_COT_X_PDG#18#MON70WS#NA#MON70WS.18_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "104400",
+      "tip_cassette_id": "TC33",
       "tip_dir_list": [],
+      "tip_id": "CDR-70",
+      "tip_port_no": "2",
+      "tip_slot_no": "7",
+      "tip_width": 54.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260929#104400#RX1A_M0A_COT_X_PDG#18"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.5,
       "capture_dir_list": [
         "#260928#043000#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_capture.webp"
       ],
@@ -1609,8 +1826,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
+      "invalid_count": 1,
       "lot_id": "RL1C0WT",
       "measured_info": "",
+      "mileage_mean": 42.27,
+      "not_completed_count": 1,
       "point_count": 9,
       "profile_dir_list": [
         "profile_#260928#043000#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.parquet",
@@ -1659,15 +1879,21 @@
         "#260928#043000#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "043000",
+      "tip_cassette_id": "TC22",
       "tip_dir_list": [
         "#260928#043000#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_tip.webp"
       ],
+      "tip_id": "MCNT-150",
+      "tip_port_no": "2",
+      "tip_slot_no": "3",
+      "tip_width": 28.1,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260928#043000#CMP_POST#19"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.0,
       "capture_dir_list": [
         "#260928#070700#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_capture.webp"
       ],
@@ -1685,8 +1911,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
+      "invalid_count": 0,
       "lot_id": "RL1C0WT",
       "measured_info": "",
+      "mileage_mean": 43.92,
+      "not_completed_count": 0,
       "point_count": 9,
       "profile_dir_list": [
         "profile_#260928#070700#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.parquet",
@@ -1735,15 +1964,21 @@
         "#260928#070700#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "070700",
+      "tip_cassette_id": "TC22",
       "tip_dir_list": [
         "#260928#070700#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_tip.webp"
       ],
+      "tip_id": "MCNT-150",
+      "tip_port_no": "2",
+      "tip_slot_no": "3",
+      "tip_width": 28.0,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260928#070700#CMP_POST#19"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": 2.0,
       "capture_dir_list": [
         "#260928#094400#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_capture.webp"
       ],
@@ -1761,8 +1996,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
+      "invalid_count": 2,
       "lot_id": "RL1C0WT",
       "measured_info": "",
+      "mileage_mean": 44.58,
+      "not_completed_count": 1,
       "point_count": 9,
       "profile_dir_list": [
         "profile_#260928#094400#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.parquet",
@@ -1811,15 +2049,21 @@
         "#260928#094400#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.tiff"
       ],
       "time": "094400",
+      "tip_cassette_id": "TC22",
       "tip_dir_list": [
         "#260928#094400#CMP_POST#19#RL1C0WT#NA#RL1C0WT.19_0001_X000_Y000_0001_tip.webp"
       ],
+      "tip_id": "MCNT-150",
+      "tip_port_no": "2",
+      "tip_slot_no": "3",
+      "tip_width": 26.2,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260928#094400#CMP_POST#19"
     },
     {
       "align_dir_list": [],
+      "approach_count_mean": null,
       "capture_dir_list": [
         "#260927#093000#RQQA_PFH_MONF (1)#20#MON69WU#NA#MON69WU.20_0001_X000_Y000_0001_capture.webp"
       ],
@@ -1835,8 +2079,11 @@
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
+      "invalid_count": null,
       "lot_id": "MON69WU",
       "measured_info": "",
+      "mileage_mean": null,
+      "not_completed_count": null,
       "point_count": 5,
       "profile_dir_list": [
         "profile_#260927#093000#RQQA_PFH_MONF (1)#20#MON69WU#NA#MON69WU.20_0001_X000_Y000_0001_Height.parquet",
@@ -1868,7 +2115,12 @@
         "#260927#093000#RQQA_PFH_MONF (1)#20#MON69WU#NA#MON69WU.20_0005_X001_Y000_0001_Height.tiff"
       ],
       "time": "093000",
+      "tip_cassette_id": "TC22",
       "tip_dir_list": [],
+      "tip_id": "MCNT-150",
+      "tip_port_no": "2",
+      "tip_slot_no": "3",
+      "tip_width": 26.0,
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
       "unique_key": "260927#093000#RQQA_PFH_MONF (1)#20"

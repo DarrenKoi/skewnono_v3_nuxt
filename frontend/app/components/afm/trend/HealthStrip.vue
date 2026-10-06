@@ -4,7 +4,7 @@
     title="측정별 상태 지표"
   >
     <template #actions>
-      <span class="sk-meta">포인트별 data 행과 측정 정보의 Tip 값에서 집계 · 블록·항목 선택과 무관 · x축은 01 추세와 같은 시각 · 세로선은 팁(ID·카세트·포트·슬롯)이 바뀐 시점</span>
+      <span class="sk-meta">{{ hint ?? '포인트별 data 행과 측정 정보의 Tip 값에서 집계 · 블록·항목 선택과 무관 · x축은 01 추세와 같은 시각 · 세로선은 팁(ID·카세트·포트·슬롯)이 바뀐 시점' }}</span>
     </template>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-5">
       <AfmTrendHealthChart
@@ -27,6 +27,8 @@ const props = defineProps<{
   health: HealthPoint[]
   selected: string | null
   exportName: string
+  // What the strip was built from, where that is not 시계열 비교's group.
+  hint?: string
 }>()
 const emit = defineEmits<{ select: [key: string] }>()
 

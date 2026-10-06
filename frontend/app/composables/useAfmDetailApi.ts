@@ -14,6 +14,18 @@ export interface AfmFileRow {
   has_image?: boolean
   has_align?: boolean
   has_tip?: boolean
+  // The tip that measured and what the measurement says about its health — a
+  // summary of its Info and data rows (contracts.py). All null until the
+  // office loader writes the columns.
+  tip_id?: string | null
+  tip_cassette_id?: string | null
+  tip_port_no?: string | null
+  tip_slot_no?: string | null
+  tip_width?: number | null
+  approach_count_mean?: number | null
+  mileage_mean?: number | null
+  not_completed_count?: number | null
+  invalid_count?: number | null
 }
 
 export interface AfmFilesResponse {
@@ -148,6 +160,11 @@ export const useAfmDetailApi = () => {
       return res.data.map(toMeasurement)
     })
 
+  // The same list, kept as the backend's rows: the tip columns are read by
+  // 팁 모니터링 alone, so they stay out of the measurement the cart persists.
+  const useAfmTipRows = (tool: string) =>
+    useAsyncData(`afm-tip-rows:${tool}`, async () => (await get<AfmFilesResponse>(tool)).data)
+
   const fetchDetail = (tool: string, filename: string) =>
     get<AfmDetailResponse>(tool, filename)
 
@@ -172,5 +189,5 @@ export const useAfmDetailApi = () => {
   const imagesZipUrl = (tool: string, filename: string, imageType: AfmImageType) =>
     `${filePath(filename, '/images.zip')}?type=${imageType}&tool=${encodeURIComponent(tool)}`
 
-  return { useAfmFiles, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, tiffZipUrl, imagesZipUrl }
+  return { useAfmFiles, useAfmTipRows, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, tiffZipUrl, imagesZipUrl }
 }

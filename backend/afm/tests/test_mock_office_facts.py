@@ -454,3 +454,22 @@ def test_tip_is_one_id_in_several_seats_and_width_is_per_measurement():
     # An MCNT tip is re-recorded per measurement; an unrecorded width is 'NaN'.
     assert any(len(w - {"NaN"}) > 1 for tip, w in widths_of_tip.items() if tip[0].startswith("MCNT"))
     assert any(info["Tip Width"] == "NaN" for info in infos)
+
+
+def test_list_tip_columns_are_the_details_own_info_and_rows():
+    # The list's tip columns stand in for what the loader is asked to add: a
+    # summary of each measurement's Info and data rows, so they must agree.
+    seen_none = set()
+    for _tool, row, detail in _all_details():
+        info, rows = detail["information"], detail["data"]
+        assert (row["tip_id"], row["tip_cassette_id"], row["tip_port_no"], row["tip_slot_no"]) == (
+            info["Tip ID"], info["Tip Cassette ID"], info["Tip Port No"], info["Tip Slot No"]
+        )
+        assert (row["tip_width"] is None) == (info["Tip Width"] == "NaN")
+        assert (row["not_completed_count"] is None) == (not rows)
+        if rows:
+            assert row["not_completed_count"] == sum(r["State"] != "COMPLETED" for r in rows)
+            assert 1 <= row["approach_count_mean"] <= 5
+        seen_none |= {name for name in ("tip_width", "mileage_mean") if row[name] is None}
+    # Both null paths appear, so the page meets them at home.
+    assert seen_none == {"tip_width", "mileage_mean"}

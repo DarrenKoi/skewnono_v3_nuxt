@@ -46,6 +46,22 @@ class AfmMeasurementRow(TypedDict):
     has_align: bool
     has_tip: bool
     point_count: int | None
+    # The tip that measured, and what the measurement says about its health —
+    # what /afm/<tool>/tips reads for every measurement of a tool at once. The
+    # four tip_* texts are Info's `Tip ID` / `Tip Cassette ID` / `Tip Port No` /
+    # `Tip Slot No`; `tip_width` is Info's `Tip Width` as a number (None for the
+    # office's 'NaN'). The last four summarise the data rows — the mean
+    # `Approach Count` and `Mileage`, the rows not COMPLETED, the COMPLETED rows
+    # stated Valid=FALSE — and are None where there are no rows.
+    tip_id: str | None
+    tip_cassette_id: str | None
+    tip_port_no: str | None
+    tip_slot_no: str | None
+    tip_width: float | None
+    approach_count_mean: float | None
+    mileage_mean: float | None
+    not_completed_count: int | None
+    invalid_count: int | None
 
 
 class AfmToolRow(TypedDict):

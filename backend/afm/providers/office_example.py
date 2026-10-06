@@ -90,6 +90,7 @@ _INTEGER_COLUMNS = ("Point No", "Site X", "Site Y")
 # `Left_H (nm)`, `X (um)`: a column that names its unit holds a number.
 _HAS_UNIT = re.compile(r"\(.+\)\s*$")
 _BOOLEANS = {"true": True, "false": False}
+_LEADING_NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
 # `_0001_Height`, or `_0004_X000_Y-002_0002_Height` on a recipe that records Site ID.
 _POSITION_IN_NAME = re.compile(r"_((?:\d{4}_X-?\d+_Y-?\d+_)?\d{4})_Height")
 
@@ -205,6 +206,18 @@ def _text(value: Any) -> str:
     return "" if value is None else str(value).strip()
 
 
+def _number(value: Any) -> float | None:
+    # A number, or the number a text starts with ('40.9 nm'); None for an empty
+    # cell and for the 'NaN' a Tip Width that was not recorded is stored as.
+    found = _LEADING_NUMBER.match(_text(value))
+    return float(found.group()) if found else None
+
+
+def _count(value: Any) -> int | None:
+    number = _number(value)
+    return None if number is None else int(number)
+
+
 def _basename(key: str) -> str:
     return key.rsplit("/", 1)[-1]
 
@@ -311,6 +324,18 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         "has_align": bool(names["align"]),
         "has_tip": bool(names["tip"]),
         "point_count": None if point_count is None else int(point_count),
+        # Asked of the loader 2026-10-06 and not in the frame yet (OFFICE-VERIFY
+        # the names and value shapes): until they are, every one is None and
+        # /afm/<tool>/tips says it has nothing to show.
+        "tip_id": _text(record.get("tip_id")) or None,
+        "tip_cassette_id": _text(record.get("tip_cassette_id")) or None,
+        "tip_port_no": _text(record.get("tip_port_no")) or None,
+        "tip_slot_no": _text(record.get("tip_slot_no")) or None,
+        "tip_width": _number(record.get("tip_width")),
+        "approach_count_mean": _number(record.get("approach_count_mean")),
+        "mileage_mean": _number(record.get("mileage_mean")),
+        "not_completed_count": _count(record.get("not_completed_count")),
+        "invalid_count": _count(record.get("invalid_count")),
     }
 
 

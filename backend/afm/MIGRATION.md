@@ -59,11 +59,16 @@ runs the same code at home against a fake hash and a fake object store.
 - Handler: `routes.py` → `data.list_afm_files(tool_name)` (`tool_name` from
   `?tool=` query arg, normalized via `data.normalize_tool`, default
   `"MAP608"` when absent/blank)
-- Contract: `list[AfmMeasurementRow]` (existing TypedDict, unchanged — see
+- Contract: `list[AfmMeasurementRow]` (see
   `contracts.py`. The seven `*_dir_list` keys — data, profile, tiff, align,
   tip, capture, raw — hold file **names**, and `[]` when there are none; there
   is no `["no files"]` sentinel. `formatted_date`, `time` and `point_count` can
-  be `null`.)
+  be `null`. The nine tip columns — `tip_id`, `tip_cassette_id`, `tip_port_no`,
+  `tip_slot_no`, `tip_width`, `approach_count_mean`, `mileage_mean`,
+  `not_completed_count`, `invalid_count` — feed `/afm/<tool>/tips` and are
+  **not in the office frame yet**: they were asked of the loader on 2026-10-06
+  (OFFICE-VERIFY the names), and the adapter answers `null` for each until they
+  exist. Definitions: `docs/datatables/afm/afm_redis.txt`.)
 - Mock behavior: deterministically generates rows per tool from a static
   `TOOL_CONFIGS` table (fixed row count per tool). `filename` follows each
   tool's own raw file-name field order (`#`-separated, `NA` for an empty

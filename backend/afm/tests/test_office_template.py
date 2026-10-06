@@ -49,6 +49,10 @@ FULL = _measurement(
         f"{FOLDER}/{NAME}_0001_Height.tiff",
     ],
     raw_dir_list=[f"{FOLDER}/{NAME}.csv"],
+    # The tip columns asked of the loader: Info text as it is, counts as floats.
+    tip_id="MCNT-150", tip_cassette_id="TC12", tip_port_no="1", tip_slot_no="7",
+    tip_width="41.2 nm", approach_count_mean=1.5, mileage_mean=40.25,
+    not_completed_count=2.0, invalid_count=0.0,
 )
 # What the loader writes for a measurement it could not date or count, and one
 # that has an info CSV only: its data list still holds the information object.
@@ -164,6 +168,22 @@ def test_rows_match_the_contract_with_nulls_and_basenames():
     # An info-only measurement lists its information object and still has no data.
     assert bare["data_dir_list"] == ["detail_information.parquet"] and bare["has_data"] is False
     assert office.list_afm_files("MAP608") == []
+
+
+def test_tip_columns_are_typed_and_none_until_the_loader_writes_them():
+    full, bare = _row(KEY), _row(BARE["unique_key"])
+    assert (full["tip_id"], full["tip_cassette_id"], full["tip_port_no"], full["tip_slot_no"]) == (
+        "MCNT-150", "TC12", "1", "7"
+    )
+    assert (full["tip_width"], full["approach_count_mean"], full["mileage_mean"]) == (41.2, 1.5, 40.25)
+    assert (full["not_completed_count"], full["invalid_count"]) == (2, 0)
+    tip_columns = (
+        "tip_id", "tip_cassette_id", "tip_port_no", "tip_slot_no", "tip_width",
+        "approach_count_mean", "mileage_mean", "not_completed_count", "invalid_count",
+    )
+    assert all(bare[name] is None for name in tip_columns)
+    # A width that was not recorded is stored as the text 'NaN'.
+    assert office._number("NaN") is None and office._number(float("nan")) is None
 
 
 def test_detail_turns_the_loaded_text_into_typed_cells():
