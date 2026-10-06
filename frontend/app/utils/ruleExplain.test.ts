@@ -221,7 +221,7 @@ test('selectorSummary 는 selector 에 있는 축만 적습니다', () => {
 })
 
 // 회귀: cap 없는 mother 를 물려받아 null 이 된 son 은 면제가 아닙니다.
-test('cap 없는 mother 를 상속한 son 은 "면제" 가 아니라 "cap 없음" 으로 셉니다', () => {
+test('cap 없는 mother 를 상속한 son 은 "면제" 가 아니라 행과 같은 "mother 상속" 으로 적습니다', () => {
   const noLevel: RuleCell = {
     ...coreEarlyDram,
     caps: { WAFER: 13, EDGE: 10, EDGE_EX: 0, _other: 9 },
@@ -237,5 +237,5 @@ test('cap 없는 mother 를 상속한 son 은 "면제" 가 아니라 "cap 없음
   ])
   assert.equal(result.pass, true)
   assert.doesNotMatch(ex.sentence, /면제/)
-  assert.match(ex.sentence, /cap 이 있는 파라미터가 없습니다\(2개 cap 없음\)\.$/)
+  assert.match(ex.sentence, /cap 이 있는 파라미터가 없습니다\(2개 cap 없음·mother 상속\)\.$/)
 })

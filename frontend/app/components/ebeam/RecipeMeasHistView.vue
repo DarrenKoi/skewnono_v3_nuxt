@@ -19,7 +19,8 @@ const props = defineProps<{
 
 // Loop-invariant: the table can hold up to 10,000 rows, so the per-row test is
 // just the row's own MSR identity.
-const skewvoirLinkable = hasSkewvoir(props.toolType)
+const skewvoirLinkable = computed(() => hasSkewvoir(props.toolType))
+const linkable = (row: MeasHistRow) => skewvoirLinkable.value && hasMsrIdentity(row)
 
 const route = useRoute()
 const { fetchMeasHist } = useMeasHistApi()
@@ -118,7 +119,7 @@ const columns: TableColumn<MeasHistRow>[] = [
   { accessorKey: 'eqp_id', header: 'eqp_id', size: 112 },
   { accessorKey: 'class_name', header: 'class', size: 74 },
   { accessorKey: 'recipe_name', header: 'recipe', size: 240 },
-  { accessorKey: 'msr_check', header: 'msr', size: 82, meta: { class: { td: BLOCK_START, th: BLOCK_START } } },
+  { accessorKey: 'msr_check', header: 'msr', size: 96, meta: { class: { td: BLOCK_START, th: BLOCK_START } } },
   { accessorKey: 'align_fail', header: 'align', size: 96, sortDescFirst: true, sortingFn: sortAlignBySeverity },
   { accessorKey: 'total_images', header: 'images', size: 96, sortDescFirst: true },
   { accessorKey: 'fail_images', header: 'fail', size: 88, sortDescFirst: true },
@@ -304,27 +305,33 @@ const tableUi = {
           </span>
         </template>
 
+        <!-- msr_check and msr are independent at the office (a failed check can
+             still carry an id), so the badge and the link coexist: the red No
+             always shows, the link shows whenever the row can open, and a Yes
+             without an id falls back to the green badge. -->
         <template #msr_check-cell="{ row }">
-          <NuxtLink
-            v-if="skewvoirLinkable && hasMsrIdentity(row.original)"
-            :to="skewvoirAnalysisRouteForRow(props.toolType, row.original) ?? undefined"
-            :title="`스큐보아에서 열기 · ${row.original.msr}`"
-            :aria-label="`${row.original.msr} 스큐보아에서 열기`"
-            class="inline-flex items-center gap-1 text-xs text-(--sk-ink) hover:underline"
-          >
-            <UIcon
-              name="i-lucide-telescope"
-              class="size-3.5 shrink-0"
+          <span class="inline-flex items-center gap-1.5">
+            <UBadge
+              v-if="row.original.msr_check !== 'Yes' || !linkable(row.original)"
+              :label="row.original.msr_check"
+              :color="row.original.msr_check === 'Yes' ? 'success' : 'error'"
+              size="sm"
+              variant="subtle"
             />
-            열기
-          </NuxtLink>
-          <UBadge
-            v-else
-            :label="row.original.msr_check"
-            :color="row.original.msr_check === 'Yes' ? 'success' : 'error'"
-            size="sm"
-            variant="subtle"
-          />
+            <NuxtLink
+              v-if="linkable(row.original)"
+              :to="skewvoirAnalysisRouteForRow(props.toolType, row.original) ?? undefined"
+              :title="`스큐보아에서 열기 · ${row.original.msr}`"
+              :aria-label="`${row.original.msr} 스큐보아에서 열기`"
+              class="inline-flex items-center gap-1 text-xs text-(--sk-ink) hover:underline"
+            >
+              <UIcon
+                name="i-lucide-telescope"
+                class="size-3.5 shrink-0"
+              />
+              열기
+            </NuxtLink>
+          </span>
         </template>
 
         <template #align_fail-cell="{ row }">

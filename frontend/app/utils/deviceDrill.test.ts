@@ -116,7 +116,7 @@ test('violation drill flags recipes whose param exceeds its cap, with cap note',
 })
 
 test('violation drill: judgeSons=false 인 son 은 tint 없이 사유만 답니다', () => {
-  // 준수(표시 없음) · 위반(tint + cap) · 판정 제외(cap + 제외, tint 없음)가 서로
+  // 준수(표시 없음) · 위반(tint + cap) · 판정 제외(cap, 출처에 제외, tint 없음)가 서로
   // 다른 모습이어야 합니다. 셋 중 뒤의 둘이 같아지면 토글을 껐다는 사실이 화면에서
   // 사라지고, 상한을 넘긴 son 이 준수한 파라미터처럼 읽힙니다.
   const recipes = [{
@@ -133,7 +133,8 @@ test('violation drill: judgeSons=false 인 son 은 tint 없이 사유만 답니�
 
   const son = params.find(p => p.name === 'EDGE_L')!
   assert.equal(son.flagged, false, 'tint 는 위반에만')
-  assert.equal(son.note, 'cap 10 · 제외')
+  assert.equal(son.note, 'cap 10')
+  assert.match(son.source ?? '', / · 제외$/, '뺐다는 표시는 출처 열 한 곳에만')
   assert.equal(params.find(p => p.name === 'WAFER_CD')!.note, undefined, '준수한 파라미터는 꼬리표가 없습니다')
 })
 

@@ -90,7 +90,7 @@ const rateDelta = (cur: number, prev: number) => {
   }
 }
 
-interface WindowedSummary {
+export interface WindowedSummary {
   start_date: string | null
   end_date: string | null
   total_executions: number

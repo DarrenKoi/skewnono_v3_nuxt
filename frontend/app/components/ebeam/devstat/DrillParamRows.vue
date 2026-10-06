@@ -69,7 +69,12 @@ const props = defineProps<{
    * 슬라이드오버의 15/16px 를 씁니다.
    */
   dense?: boolean
+  /**
+   * 출처 열을 그릴지. 한 슬라이드오버 안의 recipe 목록들이 같은 열 수를 쓰도록
+   * 호스트가 한 번 정해 내려줍니다. 비우면 이 목록의 행만 보고 정합니다.
+   */
+  showSource?: boolean
 }>()
 
-const hasSource = computed(() => props.parameters.some(p => p.source != null))
+const hasSource = computed(() => props.showSource ?? props.parameters.some(p => p.source != null))
 </script>

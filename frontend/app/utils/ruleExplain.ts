@@ -121,15 +121,10 @@ const verdictClause = (result: RecipeResult): string => {
     if (uncapped.length === 0) {
       return allJudged ? '모든 파라미터가 cap 이내입니다.' : '판정한 파라미터는 모두 cap 이내입니다.'
     }
-    // "면제" 는 name_override 가 null 을 준 파라미터(`exempt`)에만 씁니다. 그 밖의
-    // null — 셀에 그 타입의 cap 이 없거나(`unset`), cap 없는 mother 를 물려받은
-    // son(`inherited`) — 은 누가 면제해 준 것이 아니라 cap 이 없는 것입니다.
-    const exempt = uncapped.filter(p => p.cap_source === 'exempt').length
-    const why = exempt === uncapped.length
-      ? CAP_SOURCE_LABEL.exempt
-      : exempt === 0
-        ? CAP_SOURCE_LABEL.unset
-        : `${CAP_SOURCE_LABEL.unset}·${CAP_SOURCE_LABEL.exempt}`
+    // 이유는 파라미터 행의 출처 열과 같은 말로 적습니다 — 면제(`exempt`), cap 없음
+    // (`unset`), cap 없는 mother 를 물려받은 son(`inherited`). 행과 문장이 한
+    // 파라미터를 두 이름으로 부르지 않게 하려는 것입니다.
+    const why = [...new Set(uncapped.map(p => CAP_SOURCE_LABEL[p.cap_source]))].join('·')
     const scope = allJudged ? '' : '판정한 파라미터 중 '
     return capped === 0
       ? `${scope}cap 이 있는 파라미터가 없습니다(${uncapped.length}개 ${why}).`

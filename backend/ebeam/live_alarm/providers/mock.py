@@ -313,10 +313,12 @@ def get_board(tool_type: ToolType, fab_names: Sequence[str]) -> LiveAlarmPayload
                 )
                 for n in range(_HOT_BURST if count else 0)
             ]
-        if offset == 0 and len(fab_events) >= 2:
+        if offset == 0 and len(fab_events) >= 2 and len(eqp_ids) >= 2:
             # One lot on two tools: events 0 and 1 sit on eqp_ids[0] and
             # eqp_ids[1], 137 s apart. FABRICATED, OFFICE-VERIFY — see the
-            # module docstring. First fab only, like the burst.
+            # module docstring. First fab only, like the burst. With a single
+            # rostered tool both events would share it, so the copy is skipped
+            # rather than fabricating a one-tool "lot on two tools".
             fab_events[1]["lot_id"] = fab_events[0]["lot_id"]
         for event in fab_events:
             event["fab_name"] = roster.norm(fab)

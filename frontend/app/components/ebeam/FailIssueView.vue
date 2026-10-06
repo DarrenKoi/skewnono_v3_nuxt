@@ -286,7 +286,7 @@ import {
   buildFailSummaryItems,
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
-import { failDeltaItems, isAnchorIncluded } from '~/utils/recipeStatusDelta'
+import { failDeltaItems } from '~/utils/recipeStatusDelta'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
@@ -426,23 +426,21 @@ const dateRange = computed({
 
 // 이전 동일 기간 대비 -------------------------------------------------------
 // Align and Meas share this instance, so one answer serves both tabs.
-const prev = usePreviousWindowSummary<FailIssueSummary>({
+const { state: prevState, anchorIncluded } = usePreviousWindowSummary<FailIssueSummary>({
   keyPrefix: 'fail-issue',
   dateRange,
-  scope: () => `${queryParams.value.toolType}:${queryParams.value.fabNames?.join(',') ?? 'ALL'}:${queryParams.value.lotCd ?? '*'}`,
+  queryParams,
   mainStatus: status,
   mainReady: () => summary.value != null,
+  anchorDate: () => summary.value?.anchor_date,
   fetch: win => fetchSummary({ ...queryParams.value, startDate: win.start, endDate: win.end })
 })
 
 const failDelta = (section: 'align' | 'meas') => {
-  const p = prev.state.value
+  const p = prevState.value
   if (p === 'pending' || p === undefined) return p
   return summary.value ? failDeltaItems(summary.value, p, section) : undefined
 }
-
-const anchorIncluded = computed(() =>
-  isAnchorIncluded(dateRange.value.end, summary.value?.anchor_date ?? ''))
 
 const alignSummaryItems = computed(() => buildFailSummaryItems({
   failLabel: 'Align fails',

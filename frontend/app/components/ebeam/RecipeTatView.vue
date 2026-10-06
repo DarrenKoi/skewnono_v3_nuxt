@@ -212,7 +212,7 @@ import {
   buildTatSummaryItems,
   resolveRecipeStatusSummaryValue
 } from '~/utils/recipeStatusSummary'
-import { isAnchorIncluded, tatDeltaItems, type RecipeStatusDeltaItem, type TatDeltaKey } from '~/utils/recipeStatusDelta'
+import { tatDeltaItems, type RecipeStatusDeltaItem, type TatDeltaKey } from '~/utils/recipeStatusDelta'
 import { filterRecipeStatusTrendPoints } from '~/utils/recipeStatusTrend'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
@@ -348,23 +348,21 @@ const dateRange = computed({
 })
 
 // 이전 동일 기간 대비 -------------------------------------------------------
-const prev = usePreviousWindowSummary<RecipeTatSummary>({
+const { state: prevState, anchorIncluded } = usePreviousWindowSummary<RecipeTatSummary>({
   keyPrefix: 'recipe-tat',
   dateRange,
-  scope: () => `${queryParams.value.toolType}:${queryParams.value.fabNames?.join(',') ?? 'ALL'}:${queryParams.value.lotCd ?? '*'}`,
+  queryParams,
   mainStatus: status,
   mainReady: () => summary.value != null,
+  anchorDate: () => summary.value?.anchor_date,
   fetch: win => fetchRecipeTatSummary({ ...queryParams.value, startDate: win.start, endDate: win.end })
 })
 
 const tatDelta = computed<'pending' | RecipeStatusDeltaItem<TatDeltaKey>[] | undefined>(() => {
-  const p = prev.state.value
+  const p = prevState.value
   if (p === 'pending' || p === undefined) return p
   return summary.value ? tatDeltaItems(summary.value, p, formatSecondsAsDuration) : undefined
 })
-
-const anchorIncluded = computed(() =>
-  isAnchorIncluded(dateRange.value.end, summary.value?.anchor_date ?? ''))
 
 const tatSummaryItems = computed(() => buildTatSummaryItems({
   totalTat: resolveRecipeStatusSummaryValue(

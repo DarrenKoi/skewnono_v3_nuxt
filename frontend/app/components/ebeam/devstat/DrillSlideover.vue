@@ -71,7 +71,10 @@
                 v-if="recipe.explanation"
                 :explanation="recipe.explanation"
               />
-              <EbeamDevstatDrillParamRows :parameters="recipe.parameters" />
+              <EbeamDevstatDrillParamRows
+                :parameters="recipe.parameters"
+                :show-source="showSource"
+              />
             </template>
           </div>
         </div>
@@ -94,6 +97,10 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:open': [boolean] }>()
 
 const highlightLabel = computed(() => props.highlightLabel ?? '초과')
+// One column layout for every recipe in the panel: a gray recipe has no cap
+// source, but its rows must not lose the column its judged neighbours have.
+const showSource = computed(() =>
+  (props.device?.recipes ?? []).some(r => r.parameters.some(p => p.source != null)))
 const expanded = ref<Set<string>>(new Set())
 
 const toggle = (recipeId: string) => {
