@@ -30,8 +30,9 @@ const emit = defineEmits<{ select: [day: string] }>()
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
 
-// The plot's margins, in px. The frame below is laid out from the same numbers.
-const GRID = { left: 36, right: 76, top: 8, bottom: 28 }
+// The plot's margins, in px; the frame below is laid out from the same numbers.
+// Pinned, so ECharts cannot move the plot out from under the frame.
+const GRID = { left: 36, right: 76, top: 8, bottom: 28, outerBoundsMode: 'none' as const }
 
 // Drawn in the DOM, not in the option: a rebuilt option resets the colour
 // range the reader narrowed, so picking a day must leave the option alone.

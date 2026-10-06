@@ -28,8 +28,11 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ select: [day: string] }>()
 
-// The plot's margins, in px. The band below is laid out from the same numbers.
-const GRID = { left: 40, right: 12, top: 36, bottom: 28 }
+// The plot's margins, in px; the band below is laid out from the same numbers.
+// Pinned: left to itself ECharts moves the plot inwards when a tick label is
+// wider than its margin, and the band would no longer sit on the column. The
+// left margin holds a count of four digits (`1,200`).
+const GRID = { left: 56, right: 12, top: 36, bottom: 28, outerBoundsMode: 'none' as const }
 
 // Drawn in the DOM, not in the option: useEchart rebuilds the option it is
 // handed, and a rebuild resets what the reader set on the chart (a recipe
