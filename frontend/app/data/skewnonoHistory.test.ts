@@ -8,23 +8,24 @@ import { skewnonoHistory as rawHistory } from './skewnonoHistory.ts'
 // public contract instead, where `description` is an optional field.
 const skewnonoHistory: SkewnonoHistoryVersion[] = rawHistory
 
-test('lists SKEWNONO releases from v1 through the current v3', () => {
+test('lists SKEWNONO releases from v1 through the current v3.1', () => {
   assert.deepEqual(
     skewnonoHistory.map(({ version, releasedAt }) => ({ version, releasedAt })),
     [
       { version: 'v1', releasedAt: '2024' },
       { version: 'v2', releasedAt: '2025' },
-      { version: 'v3', releasedAt: '2026.07' }
+      { version: 'v3.0', releasedAt: '2026.07' },
+      { version: 'v3.1', releasedAt: '2026.10' }
     ]
   )
   assert.deepEqual(
     skewnonoHistory.filter(version => version.current).map(version => version.version),
-    ['v3']
+    ['v3.1']
   )
 })
 
-test('keeps legacy releases concise and gives v3 four detailed feature areas', () => {
-  const [v1, v2, v3] = skewnonoHistory
+test('keeps legacy releases concise and gives v3.0 and v3.1 four detailed feature areas', () => {
+  const [v1, v2, v3, v31] = skewnonoHistory
 
   assert.deepEqual(v1?.features.map(feature => feature.title), [
     '장비 상태',
@@ -39,11 +40,13 @@ test('keeps legacy releases concise and gives v3 four detailed feature areas', (
     'Skewvoir 분석'
   ])
   assert.ok(v3?.features.every(feature => feature.description))
+  assert.equal(v31?.features.length, 4)
+  assert.ok(v31?.features.every(feature => feature.title.startsWith('AFM') && feature.description))
 })
 
 test('names every supported memory category in Device Statistics', () => {
   const deviceStatistics = skewnonoHistory
-    .find(release => release.current)
+    .find(release => release.version === 'v3.0')
     ?.features.find(feature => feature.title === 'Device Statistics 강화')
 
   assert.ok(deviceStatistics?.description)

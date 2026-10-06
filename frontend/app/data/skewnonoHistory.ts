@@ -34,10 +34,9 @@ export const skewnonoHistory = [
     ]
   },
   {
-    version: 'v3',
+    version: 'v3.0',
     releasedAt: '2026.07',
-    current: true,
-    summary: 'E-Beam 장비 운영과 측정 데이터를 통합하고 분석 기능을 강화한 현재 버전입니다.',
+    summary: 'E-Beam 장비 운영과 측정 데이터를 통합하고 분석 기능을 강화했습니다.',
     features: [
       {
         title: 'CD-SEM · HV-SEM 통합 관리',
@@ -58,6 +57,34 @@ export const skewnonoHistory = [
         title: 'Skewvoir 분석',
         description: '측정 결과, Wafer 분포, 시간 변화, 상관관계, 측정 이미지를 연결해 이상 징후와 원인을 분석합니다.',
         icon: 'i-lucide-scan-search'
+      }
+    ]
+  },
+  {
+    version: 'v3.1',
+    releasedAt: '2026.10',
+    current: true,
+    summary: 'E-Beam에 이어 AFM 측정 데이터를 SKEWNONO에서 조회하고 분석할 수 있게 된 현재 버전입니다.',
+    features: [
+      {
+        title: 'AFM 측정 조회',
+        description: 'AFM 장비별 측정 이력을 Recipe와 Lot으로 검색하고, 측정마다 어떤 데이터와 이미지가 있는지 한눈에 확인합니다.',
+        icon: 'i-lucide-search'
+      },
+      {
+        title: 'AFM 측정 상세 분석',
+        description: '포인트별 측정값과 Summary, Height Profile을 표와 차트로 확인하고 포인트 간 분포를 비교합니다.',
+        icon: 'i-lucide-chart-spline'
+      },
+      {
+        title: 'AFM 분석 이미지',
+        description: 'Align · Tip · Capture · Result 이미지를 원본 크기로 넘겨 보고, 이미지와 원본 TIFF를 한 번에 내려받습니다.',
+        icon: 'i-lucide-images'
+      },
+      {
+        title: 'AFM 시계열 비교',
+        description: '여러 측정을 그룹으로 묶어 추이와 반복성을 비교하고 결과를 Excel로 내려받습니다.',
+        icon: 'i-lucide-chart-line'
       }
     ]
   }
