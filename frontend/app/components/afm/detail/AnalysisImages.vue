@@ -103,9 +103,10 @@
             </h3>
             <span class="whitespace-nowrap sk-value-num">{{ shown.length }} / {{ images.length }}장</span>
             <SkNavPillGroup
-              v-model="activeType"
+              :model-value="activeType"
               :items="tabItems"
               label="분석 이미지 종류"
+              @update:model-value="switchType"
             />
             <UInput
               v-model="imageQuery"
@@ -136,20 +137,25 @@
                  pane scrolls when the image is larger. -->
             <div
               v-if="picked"
-              class="flex min-h-0 flex-col bg-(--sk-muted-surface)"
+              class="relative flex min-h-0 flex-col bg-(--sk-muted-surface)"
             >
-              <div class="flex items-center gap-3 border-b border-(--sk-border) px-4 py-2">
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-(--sk-border) px-4 py-2.5">
                 <UButton
-                  size="xs"
                   color="neutral"
                   variant="outline"
                   icon="i-lucide-layout-grid"
-                  label="목록으로"
-                  @click="pickedName = ''"
+                  label="목록으로 돌아가기"
+                  @click="pick('')"
                 />
-                <span class="ml-auto whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }}</span>
+                <p class="sk-meta">
+                  <b class="font-semibold text-(--sk-ink)">← →</b> 이전 · 다음 이미지
+                  <span class="mx-1.5">·</span>
+                  <b class="font-semibold text-(--sk-ink)">Tab</b> Align · Tip · Capture · Result 전환
+                </p>
+                <span class="ml-auto whitespace-nowrap sk-value-num">{{ pickedIndex + 1 }} / {{ shown.length }}</span>
+                <span class="whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }}</span>
               </div>
-              <div class="flex min-h-0 flex-1 overflow-auto p-4">
+              <div class="flex min-h-0 flex-1 overflow-auto px-20 py-4">
                 <img
                   :src="picked.url"
                   :alt="picked.name"
@@ -157,6 +163,20 @@
                   @load="onPickedLoad"
                 >
               </div>
+              <!-- Over the pane, not inside the scroller, so they stay put
+                   while a large image scrolls. -->
+              <UButton
+                v-for="arrow in ARROWS"
+                :key="arrow.by"
+                size="xl"
+                color="neutral"
+                variant="outline"
+                :icon="arrow.icon"
+                :aria-label="arrow.label"
+                class="absolute top-1/2 -translate-y-1/2 rounded-full"
+                :class="arrow.side"
+                @click="stepPicked(arrow.by)"
+              />
             </div>
             <div
               v-else
@@ -199,7 +219,7 @@
                         : 'border-(--sk-border) hover:border-(--sk-ink-muted)'"
                     :aria-pressed="image.name === pickedName"
                     :title="image.name"
-                    @click="pickedName = image.name"
+                    @click="pick(image.name)"
                   >
                     <img
                       :src="image.url"
@@ -388,6 +408,11 @@ watch([selectedPoint, images], async () => {
 const browserOpen = ref(false)
 const imageQuery = ref('')
 const pickedName = ref('')
+let carriedPoint: string | undefined
+const pick = (name: string) => {
+  carriedPoint = undefined
+  pickedName.value = name
+}
 
 const DENSITIES = [
   { value: 's', label: '작게' },
@@ -399,7 +424,7 @@ const density = ref<'s' | 'm' | 'l'>('m')
 
 const openBrowser = (name = '') => {
   imageQuery.value = ''
-  pickedName.value = name
+  pick(name)
   browserOpen.value = true
 }
 
@@ -432,11 +457,54 @@ const onPickedLoad = (event: Event) => {
   pickedSize.value = `${naturalWidth} × ${naturalHeight}px`
 }
 
+const ARROWS = [
+  { by: -1, icon: 'i-lucide-chevron-left', label: '이전 이미지', side: 'left-4' },
+  { by: 1, icon: 'i-lucide-chevron-right', label: '다음 이미지', side: 'right-4' }
+]
+
+const pickedIndex = computed(() => shown.value.findIndex(image => image.name === pickedName.value))
+
+// Wraps around; with nothing picked, → opens the first image and ← the last.
 const stepPicked = (by: number) => {
   const list = shown.value
-  const index = list.findIndex(image => image.name === pickedName.value)
-  pickedName.value = list[(index + by + list.length) % list.length]?.name ?? ''
+  const from = pickedIndex.value < 0 && by < 0 ? 0 : pickedIndex.value
+  pick(list[(from + by + list.length) % list.length]?.name ?? '')
 }
+
+// Switching type while an image is open keeps the viewer open, on the same
+// point's image where the new type has one. The point the user last chose is
+// carried across types that lack it (or have no images at all), so cycling
+// back lands on it again; choosing an image by hand (`pick`) resets it.
+const switchType = async (type: AfmImageType) => {
+  const point = carriedPoint ?? picked.value?.point
+  activeType.value = type
+  if (point === undefined) return
+  await loadType(type)
+  if (activeType.value !== type) return
+  carriedPoint = point
+  pickedName.value = (images.value.find(image => image.point === point) ?? images.value[0])?.name ?? ''
+}
+
+// While the popup is open: ← → step through the images, Tab cycles the type.
+// Tab is taken from focus movement on purpose (user request 2026-10-06).
+const onPopupKey = (event: KeyboardEvent) => {
+  if (event.key === 'Tab') {
+    event.preventDefault()
+    const index = TYPES.findIndex(t => t.value === activeType.value)
+    const next = TYPES[(index + (event.shiftKey ? -1 : 1) + TYPES.length) % TYPES.length]
+    if (next) switchType(next.value)
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    // The arrows move the caret in the search box.
+    if (event.target instanceof HTMLInputElement) return
+    event.preventDefault()
+    stepPicked(event.key === 'ArrowLeft' ? -1 : 1)
+  }
+}
+watch(browserOpen, (open) => {
+  if (open) window.addEventListener('keydown', onPopupKey, true)
+  else window.removeEventListener('keydown', onPopupKey, true)
+})
+onBeforeUnmount(() => window.removeEventListener('keydown', onPopupKey, true))
 
 const usePickedPoint = () => {
   if (!picked.value?.point) return
