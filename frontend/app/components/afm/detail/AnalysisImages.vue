@@ -118,8 +118,8 @@
               class="ml-auto w-60"
             />
             <SkNavPillGroup
-              v-model="density"
-              :items="DENSITIES"
+              v-model="size"
+              :items="sizeItems"
               label="이미지 크기"
             />
             <UButton
@@ -162,14 +162,15 @@
                   </template>
                 </p>
                 <span class="ml-auto whitespace-nowrap sk-value-num">{{ pickedIndex + 1 }} / {{ shown.length }}</span>
-                <span class="whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }} · {{ ZOOM[density] * 100 }}%</span>
+                <span class="whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }} · {{ fit ? '화면 맞춤' : `${ZOOM[density] * 100}%` }}</span>
               </div>
               <div class="flex min-h-0 flex-1 overflow-auto px-20 py-4">
                 <img
                   :src="picked.url"
                   :alt="picked.name"
-                  class="m-auto max-w-none shrink-0"
-                  :style="{ zoom: ZOOM[density] }"
+                  data-viewer-image
+                  :class="fit ? 'h-full min-h-0 w-full min-w-0 object-contain' : 'm-auto max-w-none shrink-0'"
+                  :style="fit ? undefined : { zoom: ZOOM[density] }"
                   @load="onPickedLoad"
                 >
               </div>
@@ -433,6 +434,18 @@ const TILE_PX = { s: 130, m: 190, l: 280 }
 // The same control sizes an open image: 보통 is its own pixel size.
 const ZOOM = { s: 0.5, m: 1, l: 2 }
 const density = ref<'s' | 'm' | 'l'>('m')
+// 맞춤 fills the pane with the open image, up or down; it means nothing for a
+// thumbnail grid, so it is offered only while an image is open and the grid
+// keeps the tile size it had.
+const fit = ref(false)
+const sizeItems = computed(() => picked.value ? [{ value: 'fit', label: '맞춤' } as const, ...DENSITIES] : DENSITIES)
+const size = computed({
+  get: () => picked.value && fit.value ? 'fit' : density.value,
+  set: (value) => {
+    fit.value = value === 'fit'
+    if (value !== 'fit') density.value = value
+  }
+})
 
 const openBrowser = (name = '') => {
   imageQuery.value = ''
