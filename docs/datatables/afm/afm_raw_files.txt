@@ -7,9 +7,9 @@ skewnono-pjt-shared/AFM/ 의 raw 데이터를 보고 확인한 내용이며(offi
 웹이 실제로 읽는 것은 이 raw 파일이 아니라 ETL 이후의 적재물입니다 — Redis 색인
 (측정 목록 + MinIO 객체 key)과 MinIO 객체(상세·Profile·이미지). 그 key 이름·형식·열은
 **afm_redis.txt** 에 있습니다(user-confirmed 2026-10-06). 이 문서는 그 값들이 어디서
-왔는지 — 파일명의 필드, CSV 의 섹션, profile 의 격자 — 를 설명합니다. 질문서는
-docs/afm/to-questionnaire-afm.md(적재 명세)와 docs/afm/to-questionnaire-afm-2.md
-(raw 파일 후속 질문, 답변 완료)입니다.
+왔는지 — 파일명의 필드, CSV 의 섹션, profile 의 격자 — 를 설명합니다. 아직 답을 받지
+못한 질문은 docs/afm/to-questionnaire-afm.md 하나에 모여 있고, 받은 답의 반영 현황은
+docs/afm/office-data-findings.md 끝에 있습니다.
 
 표기: [확인] = office 확인 2026-10-02, [가정] = OFFICE-VERIFY.
       [정정] = 앞선 회신의 내용을 뒤의 회신이 바꾼 곳.

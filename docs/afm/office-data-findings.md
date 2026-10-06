@@ -1,8 +1,11 @@
 # AFM 적재 데이터 명세 — Office 회신
 
-- 질문서는 [`to-questionnaire-afm.md`](to-questionnaire-afm.md)입니다.
+- 아직 답을 받지 못한 질문은 [`to-questionnaire-afm.md`](to-questionnaire-afm.md) 하나에
+  모여 있습니다. 2026-10-06에 질문서 다섯 개를 그 문서로 합쳤고, 합치기 전의 질문 원문은
+  git 이력(`cc09fa24`)에 있습니다.
 - 정리된 스키마는 `docs/datatables/afm/`에 있습니다. 이 문서는 **회신 원문을 보존**하는
   용도이며, 오탈자도 받은 그대로 둡니다.
+- 받은 답이 문서와 코드에 반영되었는지는 끝의 "반영 현황"에 있습니다.
 
 ## 1차 회신 (2026-10-02) — raw 파일에서 확인한 사실
 
@@ -67,7 +70,7 @@ Recipe명 공백 사례 확장 : 5EAP에서도 xy scanner opm, zeroscan 5point p
 
 ## 4차 회신 (2026-10-02) — 후속 질문 15문항의 답
 
-[`to-questionnaire-afm-2.md`](to-questionnaire-afm-2.md)에 대한 답입니다. 끝에 MAPC01에
+2차 질문서(Q1~Q15, P1·P2)에 대한 답입니다. 끝에 MAPC01에
 대한 정정이 붙어 있고, ETL이 적재를 시작했다는 소식도 함께 왔습니다.
 
 ```text
@@ -120,18 +123,83 @@ ETL 적재 시작 중. 추후에 redis MinIO 정보 물어보길 바래.
 | P1 | 미실측 | - | FALSE `Valid`의 표기는 여전히 모릅니다. |
 | P2 | 미정. 장비 현지 시각이며 KST로 추정합니다. | - | 시간대는 여전히 가정입니다. |
 
-## 남은 질문
+## 5차 전달 (2026-10-06) — Redis·MinIO 적재 명세
 
-적재 명세(첫 질문서 5절)는 사무실이 "추후에 물어 달라"고 했습니다. ETL 적재가 진행되면
-Redis key·형식·스키마와 MinIO 객체 key 규칙을 그때 묻습니다. 그 전에 4차 회신에서 새로
-생긴 작은 질문은 아래와 같습니다.
+ETL 적재 후의 형태입니다. 사용자가 전달했으며(user-confirmed), 사무실 실행으로 검증한
+것은 아닙니다. 정리본은 `docs/datatables/afm/afm_redis.txt`입니다.
 
-| 번호 | 질문 | 근거 |
-| --- | --- | --- |
-| R1 | 컬럼 이름이 `Method_ID`입니까, `Method ID`입니까. | 2차 회신은 `Method_ID`, 4차 회신은 `Method ID`로 적혀 있습니다. |
-| R2 | Q4의 예에서 `5PNN1768.05$5PNN1768`의 `$`는 `#`입니까. 끝의 `5PNN178.05`는 `5PNN1768.05`입니까. | 형식 설명과 예가 그 두 글자에서 어긋납니다. |
-| R3 | `_0004_X000_Y-002_0002_Height.txt`의 마지막 `0002`는 그 Site 안의 point 번호입니까. 한 Site에 point가 몇 개입니까. | Site 번호(`0004`)와 값이 다릅니다. |
-| R4 | info CSV의 `FileName` 열은 어떤 구조입니까. Info는 key,value 표가 아닙니까. | Q9의 답에 `FileName 열`이 나옵니다. |
-| R5 | profile의 metadata는 MinIO 객체의 user metadata입니까, parquet 파일의 metadata입니까. `SurfaceSize`의 값은 어떻게 생겼습니까. | 웹이 읽는 방법이 달라집니다. |
-| R6 | ETL 이후 Data 행에는 그 행이 속한 block을 가리는 값(순번이나 이름)이 실립니까. | block은 위치로만 맞출 수 있는데, 행 목록이 되면 위치가 사라집니다. |
-| R7 | fab은 적재 데이터의 어디에 실립니까. | raw에 fab 필드가 없고 MAP608의 fab은 미정입니다. |
+```text
+common rule
+값 직렬화 : pandas DataFrame.to_parquet() -> bytes (예외: afm_tool_recipes만 JSON 문자열).
+
+hash field = 장비명 문자열: MAP608, MAPC01, 5EAP1501 (afm_d1_tools만 field가 "all").
+갱신 단위 : 장비 (field) 하나 = DataFrame 전체 통짜 재기록. 행 단위 key 없음. TTL 없음.
+읽기 : hget -> pd.read_parquet(io.BytesIO(raw)). 웹 응답시 NaN은 null로 변환 필요.
+
+사용 key 4개
+
+1. afm_d1_tools -> 장비 목록
+Redis hash, field all 하나뿐
+schema: id, name, fab, alias (fab은 미정이라 빈 값)
+
+2. afm_d2_measurements - 측정 이력
+hash, field = 장비명 (<TOOL>: MAP608, MAPC01, 5EAP1501)
+parquet bytes (측정 전체 목록을 장비별 DataFrame 하나로 통짜 저장. 행 단위 개별 key 아님)
+주요 열: unique_key(측정키, 파일명 # 필드), filename, date -> (YYMMDD), formatted_date --> (YYYY-MM-DD) 또는 null.  recipe_name, lot_id, slot_number, time --> HHMM 또는 null, tool_name, fab,
+파일리스트 7종: MinIO 객체 Key들 전체 (prefix 2067928/ 포함). 빈 리스트 = 파일 없음
+data_dir_list --> list[str]
+profile_dir_list, tiff_dir_list, align_dir_list, tip_dir_list, capture_dir_list, raw_dir_list -> 원본 csv/txt 객체 key, point_count -> int 또는 null.
+객체 key 패턴 : 2067928/afm/<TOOL>/<측정키>/<파일명> - data는 detail_information.parquet, detail_summary.parquet, detail_points.parquet 3종. profile은 profile_<원본이름>.parquet, 이미지는 <파일명>.webp
+측정키 (unique_key) = 앵커(CSV) 그룹의 전체 6필드 키
+date#time#recipe#slot#lot_measured (MAPC01은 앞 4필드)
+예: 261001#070028#NA_NECKING_SLIM#5NNN0336.01#5NNN0336#NA
+
+주의
+쓰기 금지 to minIO
+빈 값은 null. time의 'NA'는 null취급
+redis 유실 시 MinIO 객체 key만으로 D2 재생성 가능
+```
+
+이 전달로 닫힌 질문은 셋입니다 — 첫 질문서 5절의 D1~D5 위치·형식, Q26 (가)(목록의 값은
+MinIO key 전체), Q29 (다)(행 단위 key가 없어 목록 전체를 읽어야 함). 3차 질문서(Q16~Q28)와
+4차 질문서(Q29)의 나머지는 답을 받지 못했습니다.
+
+## 반영 현황 (2026-10-06 점검)
+
+받은 답마다 **스키마 문서에 기록되었는지**와 **AFM 화면·코드에 구현되었는지**를
+확인했습니다. 문서의 `raw`는 `docs/datatables/afm/afm_raw_files.txt`, `redis`는
+`docs/datatables/afm/afm_redis.txt`입니다. mock은 `backend/afm/providers/mock.py`,
+adapter는 `backend/afm/providers/office_example.py`, 화면 경로는 `frontend/app/` 기준입니다.
+
+| 받은 답 | 문서 | 구현 | 비고 |
+| --- | --- | --- | --- |
+| 장비는 MAP608·MAPC01·5EAP1501, MAPC01=R3, 5EAP1501=M15 | raw D1 | mock `TOOL_CONFIGS`, 화면 `composables/useAfmToolData.ts` | **부분** — 아래 ①입니다. |
+| 파일명의 `#` 필드 순서, MAPC01은 `_Info.csv`와 앞 4필드 (Q4, Q6) | raw D2 | mock 파일명, 화면 `measurementStem` (`utils/afmPoints.ts`) | 완료 |
+| MAPC01의 lot은 Info의 `Lot ID` (Q2) | raw D2 | mock, 측정 상세의 LOT | 완료. 적재된 `lot_id` 열이 채워져 있는지는 Q37입니다. |
+| MAP608의 첫 시각은 세션 시작, 측정 시작은 Info의 `Start Time` (Q3) | raw D2 | mock의 세션, 시계열 `utils/afmTrend.ts` | 완료 |
+| recipe 명에 공백·괄호 가능 | raw D2 | `encodeURIComponent` (`composables/useAfmDetailApi.ts`) | 완료 |
+| 파일 유무·point 수(1~36)는 recipe 설정, 부재는 정상 상태 | raw 머리 | mock `RECIPES`, `has_*`, 측정 상세의 빈 상태(404를 "없음"으로) | 완료 |
+| 측정 컬럼은 recipe마다 다르고 `(nm)`를 포함 (Q5, Q14) | raw D3 | mock, `collectColumns` (`utils/afmExport.ts`) | 완료 |
+| Summary block이 여럿, block은 위치로 맞춤, 중단된 block은 측정 컬럼 없음 (Q11, Q13) | raw D3 | mock, `blocksOfPoint` (`utils/afmPoints.ts`) | 완료. "같은 point가 다시 나오면 다음 block"은 추측입니다(Q21). |
+| `State`는 COMPLETED·FAILED·STOPPED | raw D3 | mock, `utils/afmPoints.ts` | 완료 |
+| 위치 키는 4자리 point 번호, Site ID recipe는 Site ID + point 번호 (Q9, Q10, Q12) | raw D3·D4 | mock, 화면 `detail/PointRail.vue`·`imagePoint`, adapter `_position` | 완료 |
+| point 하나면 STDEV·RANGE는 0 (Q15) | raw D3 | mock (`test_mock_office_facts.py`가 고정) | 완료 |
+| Profile은 X/Y/Z parquet, 단위는 파일별 metadata, 1D는 `DataSize`로 구분 (Q7, Q8) | raw D4 | 계약 `AfmProfileMeta`, 화면 `detail/HeatmapChart.vue`·`HistogramChart.vue` | 완료. metadata가 실린 곳은 Q34입니다. |
+| 이미지는 webp 변환본, 원본 TIFF는 내려받을 수 있어야 함 | raw D5 | route `tiff`·`tiff.zip`, adapter는 webp를 그대로 전달 | **부분** — 아래 ②입니다. |
+| Redis hash 둘, 값은 parquet, field는 장비명 | redis 공통·1·2 | adapter `_hash_rows` | 완료(사무실 미실행) |
+| 빈 리스트 = 파일 없음, 빈 값은 null, `time`의 `NA`는 null | redis 2 | 계약의 null 허용, mock의 빈 리스트, adapter `_row`, 화면 `utils/afmSearch.ts` | 완료(사무실 미실행) |
+| `unique_key`는 6필드, MAPC01은 4필드 | redis 2 | mock, adapter `_find` | 완료 |
+| MinIO key는 `2067928/afm/<TOOL>/<측정키>/<파일명>`, 상세는 parquet 3종 | redis 3 | adapter `MinioObject(prefix="")`, `get_afm_file_detail` | 완료(사무실 미실행). 열 구성은 Q30~Q32입니다. |
+| MinIO에 쓰지 않음 | redis 공통 | adapter는 읽기만 합니다. | 완료 |
+| 보존 기간은 최근 3개월(방향, 미확정) | redis 3 | 없음 | **미구현** — 아래 ③입니다. |
+
+기록만 되고 화면에는 닿지 않은 곳이 셋입니다.
+
+1. **장비 목록** — 화면은 `useAfmToolData.ts`에 고정된 표를 쓰고 `/api/afm/tools`를 부르지
+   않습니다. `afm_d1_tools`의 `alias`와, 나중에 채워질 `fab`은 화면에 나타나지 않습니다.
+   `fab`이 비어 있는 동안은 고정 표가 필요하므로, Q40의 답을 받은 뒤 바꿉니다.
+2. **원본 TIFF** — 다운로드 route와 버튼은 있으나 사무실에서 원본의 위치를 모릅니다(Q35).
+   답을 받기 전까지 사무실 화면에는 버튼이 나오지 않습니다.
+3. **보존 기간이 지난 측정** — 조회 이력·그룹·복사한 링크가 삭제된 측정을 가리키면 측정
+   상세는 일반적인 "없음"을 보여 줍니다. "보존 기간 경과" 안내는 삭제 계획(Q42 (다))이
+   정해지면 만듭니다.
