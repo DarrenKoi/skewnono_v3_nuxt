@@ -24,6 +24,8 @@ const props = defineProps<{
   kind: 'bar' | 'line'
   color: string
   points: { key: string, time: number, value: number | null }[]
+  // Times to rule a vertical line at (a tip change).
+  marks?: number[]
   selected: string | null
   exportName: string
 }>()
@@ -47,6 +49,13 @@ const chartOption = computed<EChartsOption>(() => ({
     symbolSize: 6,
     barMaxWidth: 10,
     lineStyle: { color: props.color, width: 1.6 },
+    markLine: {
+      silent: true,
+      symbol: 'none',
+      label: { show: false },
+      lineStyle: { type: 'solid', color: sk.value.ink, width: 1, opacity: 0.45 },
+      data: (props.marks ?? []).map(time => ({ xAxis: time }))
+    },
     data: props.points.map(p => ({
       value: [p.time, p.value],
       itemStyle: { color: p.key === props.selected ? sk.value.ink : props.color }

@@ -338,6 +338,9 @@ export interface HealthPoint {
   invalid: number
   approach: number | null
   mileage: number | null
+  // From the measurement's Info, not its rows: which tip, and how wide it was stated.
+  tipId: string | null
+  tipWidth: number | null
 }
 
 const meanOf = (rows: AfmDetailRow[], column: string): number | null => {
@@ -347,14 +350,27 @@ const meanOf = (rows: AfmDetailRow[], column: string): number | null => {
 
 // Every data row of every block — health does not depend on the block pick.
 export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
-  entries.map(({ key, time, payload: { data } }) => ({
-    key,
-    time,
-    notCompleted: data.filter(row => row.State !== 'COMPLETED').length,
-    invalid: data.filter(row => row.State === 'COMPLETED' && row.Valid === false).length,
-    approach: meanOf(data, 'Approach Count'),
-    mileage: meanOf(data, 'Mileage')
-  }))
+  entries.map(({ key, time, payload: { data, information } }) => {
+    // parseFloat, not Number: an office value may carry its unit ("40.9 nm").
+    const width = Number.parseFloat(String(information['Tip Width'] ?? ''))
+    return {
+      key,
+      time,
+      notCompleted: data.filter(row => row.State !== 'COMPLETED').length,
+      invalid: data.filter(row => row.State === 'COMPLETED' && row.Valid === false).length,
+      approach: meanOf(data, 'Approach Count'),
+      mileage: meanOf(data, 'Mileage'),
+      tipId: text(information['Tip ID']) || null,
+      tipWidth: Number.isFinite(width) ? width : null
+    }
+  })
+
+// The times at which the tip is a different one from the last measurement that
+// named its tip. A measurement with no Tip ID neither is nor hides a change.
+export const tipChanges = (health: HealthPoint[]): number[] => {
+  const named = [...health].filter(h => h.tipId !== null).sort((a, b) => a.time - b.time)
+  return named.flatMap((h, i) => i > 0 && h.tipId !== named[i - 1]!.tipId ? [h.time] : [])
+}
 
 // `MM/DD HH:mm`, local — the trend's tick and row format.
 export const shortTime = (time: number): string => {

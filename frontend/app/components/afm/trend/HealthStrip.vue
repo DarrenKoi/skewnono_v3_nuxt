@@ -4,9 +4,9 @@
     title="측정별 상태 지표"
   >
     <template #actions>
-      <span class="sk-meta">포인트별 data 행에서 집계 · 블록·항목 선택과 무관 · x축은 01 추세와 같은 시각</span>
+      <span class="sk-meta">포인트별 data 행과 측정 정보의 Tip 값에서 집계 · 블록·항목 선택과 무관 · x축은 01 추세와 같은 시각 · 세로선은 Tip ID 가 바뀐 시점</span>
     </template>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-5">
       <AfmTrendHealthChart
         v-for="c in charts"
         :key="c.label"
@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import type { HealthPoint } from '~/utils/afmTrend'
+import { tipChanges, type HealthPoint } from '~/utils/afmTrend'
 import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
 
 const props = defineProps<{
@@ -38,6 +38,9 @@ const sum = (values: (number | null)[]) => values.reduce<number>((a, v) => a + (
 const charts = computed(() => {
   const approaches = props.health.flatMap(h => h.approach ?? [])
   const lastMileage = props.health.findLast(h => h.mileage !== null)?.mileage ?? null
+  const marks = tipChanges(props.health)
+  const tipCount = new Set(props.health.flatMap(h => h.tipId ?? [])).size
+  const lastTip = props.health.findLast(h => h.tipId !== null)?.tipId ?? null
   return [
     {
       slug: 'not-completed',
@@ -70,10 +73,21 @@ const charts = computed(() => {
       slug: 'mileage',
       label: 'Mileage 평균',
       summary: lastMileage === null ? '–' : `${lastMileage.toFixed(1)} 마지막`,
-      note: '단조 증가가 정상. 뚝 떨어지면 팁 교체 시점.',
+      note: '단조 증가가 정상. 세로선(팁 교체)에서 떨어지는지 확인.',
       kind: 'line' as const,
       color: SK_STATE.ok,
-      points: series(h => h.mileage)
+      points: series(h => h.mileage),
+      marks
+    },
+    {
+      slug: 'tip-width',
+      label: 'Tip Width',
+      summary: lastTip === null ? '–' : `팁 ${tipCount}개 · 지금 ${lastTip}`,
+      note: '측정 정보의 Tip ID · Tip Width. 세로선마다 다른 팁.',
+      kind: 'line' as const,
+      color: SK_SCALE[1],
+      points: series(h => h.tipWidth),
+      marks
     }
   ]
 })

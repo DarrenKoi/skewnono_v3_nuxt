@@ -127,6 +127,11 @@ D3 측정 상세 — CSV
   - 한 장비 안에서 구성을 가르는 것(recipe·시기·파일 종류)과 비율, `Port No`·
     `Slot No`·`End Time`·`Data Save Location`·`Tip *` 의 값 생김새는 모릅니다
     [OFFICE-VERIFY].
+  - 웹의 시계열 비교(장비 건강)는 `Tip ID` 가 바뀐 시점을 팁 교체로 긋고 `Tip Width`
+    를 선으로 그립니다. 그래서 다음을 모르는 채입니다 [OFFICE-VERIFY]: 한 팁이 여러
+    측정에 걸쳐 같은 `Tip ID` 로 오는지, `Tip Width` 가 측정마다 갱신되는지 팁당
+    고정인지, 값에 단위가 붙는지(웹은 앞의 숫자만 읽습니다). mock 은 팁 하나가 4일
+    유지되고 폭이 하루 0.4 씩 넓어지게 지어냈습니다.
   - `Data Save Location` 은 공백 없는 긴 경로입니다 — 상세 화면의 300px 열에 한
     줄로 담기지 않습니다 [user-confirmed 2026-10-06]. 폴더 구성은 모릅니다
     [OFFICE-VERIFY]; mock 은 드라이브·장비·날짜·recipe·lot 순서로 지어냈습니다.

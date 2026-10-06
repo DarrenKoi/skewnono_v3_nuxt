@@ -135,6 +135,10 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   구성을 정하는 것(recipe·시기·파일 종류)은 지어냈습니다.
 - Info 값의 생김새 가운데 `Port No`·`Slot No`·`End Time`·`Data Save Location`·`Tip *` 는
   전부 지어냈습니다(`Slot No` 는 숫자만, `Tip Width` 는 단위 없는 소수로 두었습니다).
+  `Tip *` 는 장비마다 4일 단위로 한 팁이 유지되고 `Tip Width` 가 하루 0.4 씩 넓어지게
+  했습니다 — 시계열 비교의 장비 건강이 Tip ID 변화와 Tip Width 추세를 그리므로, 측정마다
+  새 팁이 나오면 집에서 그 차트가 전부 "교체"가 됩니다. 팁 수명, 폭이 측정마다 갱신되는지
+  팁당 고정인지, 단위는 모두 모릅니다(OFFICE-VERIFY).
   `Data Save Location` 은 공백 없는 긴 경로라는 것만 user-confirmed(2026-10-06)이고,
   폴더 구성(드라이브·장비·날짜·recipe·lot 순서)은 지어냈습니다.
 - 측정값의 수준·추세·퍼짐은 전부 지어낸 것입니다. recipe·컬럼마다 고정된 수준(55~120 nm)에
@@ -1029,14 +1033,27 @@ _INFO_KEYS_13 = (
 _INFO_13_IN_8 = {"5EAP1501": 1, "MAPC01": 7, "MAP608": 4}
 
 
+# How long one tip stays mounted. Made up (OFFICE-VERIFY).
+_TIP_LIFE_DAYS = 4
+
+
 def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | None]:
     start_time = _display_start_time(row)
     slot = int(row["slot_number"])
     # Its own stream, so the tip values do not re-roll the measurement values.
     tip = random.Random(_seed_for("tip", row["tool_name"], row["filename"]))
-    end_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S") + timedelta(
-        seconds=tip.randint(60, 1800)
-    )
+    started = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+    end_time = started + timedelta(seconds=tip.randint(60, 1800))
+    # One tip stays on a tool for _TIP_LIFE_DAYS, so the Tip * values are drawn
+    # per (tool, period) and consecutive measurements share a tip.
+    period, day_in_period = divmod(started.toordinal(), _TIP_LIFE_DAYS)
+    mounted = random.Random(_seed_for("tip-mounted", row["tool_name"], str(period)))
+    tip_id = f"TIP{mounted.randint(10000, 99999)}"
+    tip_cassette = f"TC{mounted.randint(10, 99)}"
+    tip_port = str(mounted.randint(1, 2))
+    tip_slot = str(mounted.randint(1, 16))
+    # Wears wider by the day; the same tip never reads narrower later.
+    tip_width = mounted.uniform(20, 60) + 0.4 * day_in_period + tip.uniform(0, 0.1)
     values = {
         "Lot ID": row["lot_id"],
         "Recipe ID": row["recipe_name"],
@@ -1060,11 +1077,11 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
         ),
         "Port No": str(tip.randint(1, 4)),
         "Slot No": str(slot),
-        "Tip ID": f"TIP{tip.randint(10000, 99999)}",
-        "Tip Cassette ID": f"TC{tip.randint(10, 99)}",
-        "Tip Port No": str(tip.randint(1, 2)),
-        "Tip Slot No": str(tip.randint(1, 16)),
-        "Tip Width": f"{tip.uniform(20, 60):.1f}",
+        "Tip ID": tip_id,
+        "Tip Cassette ID": tip_cassette,
+        "Tip Port No": tip_port,
+        "Tip Slot No": tip_slot,
+        "Tip Width": f"{tip_width:.1f}",
     }
     short = (
         _seed_for("info-keys", row["tool_name"], row["filename"]) % 8
