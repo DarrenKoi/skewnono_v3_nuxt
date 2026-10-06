@@ -135,6 +135,8 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   구성을 정하는 것(recipe·시기·파일 종류)은 지어냈습니다.
 - Info 값의 생김새 가운데 `Port No`·`Slot No`·`End Time`·`Data Save Location`·`Tip *` 는
   전부 지어냈습니다(`Slot No` 는 숫자만, `Tip Width` 는 단위 없는 소수로 두었습니다).
+  `Data Save Location` 은 공백 없는 긴 경로라는 것만 user-confirmed(2026-10-06)이고,
+  폴더 구성(드라이브·장비·날짜·recipe·lot 순서)은 지어냈습니다.
 - 측정값의 수준·추세·퍼짐은 전부 지어낸 것입니다. recipe·컬럼마다 고정된 수준(55~120 nm)에
   측정 시각에 비례하는 완만한 드리프트(하루 ±0.4 nm 이내), sample(lot+slot) 공통 오프셋
   (σ 0.8 nm, 재측정끼리 같음), 중심에서 바깥으로 커지는 site 패턴(반지름²당 0.25 nm),
@@ -1048,7 +1050,14 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
         "Last Put Back Time": None if rng.random() < 0.3 else start_time,
         # Everything below is a made-up value shape (OFFICE-VERIFY).
         "End Time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "Data Save Location": f"D:\\Data\\{row['recipe_name']}\\{row['lot_id']}",
+        # A long path with no spaces (user-confirmed 2026-10-06: it does not fit
+        # a 300px column on one line). The folder layout itself is made up.
+        "Data Save Location": (
+            f"D:\\AFM_DATA\\{row['tool_name']}\\Automation\\Result"
+            f"\\{start_time[:4]}\\{start_time[5:7]}\\{start_time[8:10]}"
+            f"\\{row['recipe_name']}\\{row['lot_id']}"
+            f"\\{row['lot_id']}.{row['slot_number']}_{start_time[11:].replace(':', '')}"
+        ),
         "Port No": str(tip.randint(1, 4)),
         "Slot No": str(slot),
         "Tip ID": f"TIP{tip.randint(10000, 99999)}",

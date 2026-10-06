@@ -127,6 +127,9 @@ D3 측정 상세 — CSV
   - 한 장비 안에서 구성을 가르는 것(recipe·시기·파일 종류)과 비율, `Port No`·
     `Slot No`·`End Time`·`Data Save Location`·`Tip *` 의 값 생김새는 모릅니다
     [OFFICE-VERIFY].
+  - `Data Save Location` 은 공백 없는 긴 경로입니다 — 상세 화면의 300px 열에 한
+    줄로 담기지 않습니다 [user-confirmed 2026-10-06]. 폴더 구성은 모릅니다
+    [OFFICE-VERIFY]; mock 은 드라이브·장비·날짜·recipe·lot 순서로 지어냈습니다.
   - ⚠ 웹은 key 를 정해 두지 않습니다. 상세 화면은 **있는 key 만** 보여 주고, 빈 값은
     null 로 받습니다(JSON 응답이 key 를 정렬하므로 화면 순서는 파일 순서가 아니라 A–Z). key 를 이름으로 읽는 곳은 13키에 없는 key 가
     빠져도 동작해야 합니다(시계열의 `Start Time` 은 목록의 날짜로 대신합니다).
