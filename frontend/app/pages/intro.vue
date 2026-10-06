@@ -754,7 +754,29 @@ const pageGuides: PageGuide[] = [
     purpose: '장비의 팁마다 지금 상태가 어떤지 판정합니다.',
     description: '측정 목록의 팁 값(Tip Width, Approach Count, Mileage, FAILED·Valid=FALSE 포인트)을 팁 종류(Tip ID)의 관리선과 비교해 팁마다 이상·주의·정상을 매기고, 고른 팁의 근거(차트·측정)를 보여 줍니다. recipe로 범위를 좁힐 수 있습니다.',
     users: 'AFM 담당 엔지니어',
-    notes: ['장비를 고른 뒤 상단 탭(측정 결과 · 팁 모니터링)에서 이동합니다.', 'spec은 아직 없고 중앙값 ± 3σ 로 판정합니다.']
+    notes: ['장비를 고른 뒤 상단 탭(측정 결과 · 팁 모니터링 · 가동 현황 · Recipe 현황)에서 이동합니다.', 'spec은 아직 없고 중앙값 ± 3σ 로 판정합니다.']
+  },
+  {
+    id: 'afm-usage',
+    title: 'AFM 가동 현황',
+    path: '/afm/{tool}/usage',
+    icon: 'i-lucide-activity',
+    section: 'afm',
+    purpose: '장비가 언제 얼마나 측정했고 어디서 측정이 끊겼는지 봅니다.',
+    description: '고른 기간(7일 · 30일 · 전체)의 측정 목록을 날짜와 시간대로 나눠, 일별 측정 건수(recipe별), 시간대별 측정, 미완료·무효 측정을 보여 줍니다. 차트에서 날짜를 누르면 그날의 측정을 표로 보고 측정 상세로 들어갑니다.',
+    users: 'AFM 담당 엔지니어',
+    notes: ['측정일이 없는 측정은 어느 날에도 넣지 않고 제목 아래에 건수로 알립니다.', '값이 없는(null) 열은 0으로 세지 않고 제외한 건수를 함께 적습니다.', 'MAP608은 목록의 시각이 세션 시작 시각이라 한 세션의 측정이 같은 시간대에 모입니다.']
+  },
+  {
+    id: 'afm-recipes',
+    title: 'AFM Recipe 현황',
+    path: '/afm/{tool}/recipes',
+    icon: 'i-lucide-list-tree',
+    section: 'afm',
+    purpose: '장비에서 쓰는 recipe마다 얼마나, 언제까지 측정됐는지 봅니다.',
+    description: '측정 목록을 recipe별로 묶어 측정 건수, 처음·마지막 측정일, Lot 수, point 수, 남긴 파일 종류, 최근 14일 추이, 미완료 측정을 표로 보여 줍니다. recipe를 고르면 일별 측정 건수, 사용한 팁, 그 recipe의 측정 목록을 함께 봅니다.',
+    users: 'AFM 담당 엔지니어',
+    notes: ['recipe 이름이 없는 측정은 어느 recipe에도 넣지 않고 제목 아래에 건수로 알립니다.', '요약 타일(최근 7일 측정 · 30일 넘게 측정 없음 · 1회만 측정)을 누르면 목록을 그 recipe로 좁힙니다.']
   },
   {
     id: 'coming-soon',

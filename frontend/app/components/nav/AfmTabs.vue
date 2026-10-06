@@ -1,19 +1,28 @@
 <script setup lang="ts">
 // The AFM counterpart of NavFeatureTabs: once a tool is chosen (/afm/<tool>/…),
-// its two worlds sit side by side. 측정 결과 owns the search, the detail and
-// 시계열 비교; 팁 모니터링 is the one page under /tips.
+// its four views sit side by side. 측정 결과 owns the search, the detail and
+// 시계열 비교; 팁 모니터링, 가동 현황 and Recipe 현황 are one page each, under
+// /tips, /usage and /recipes.
 const route = useRoute()
 
 const tool = computed(() => {
   const [, section, tool] = route.path.split('/')
   return section === 'afm' && tool ? tool : null
 })
-const onTips = computed(() => route.path.split('/')[3] === 'tips')
 
-const tabs = computed(() => [
-  { label: '측정 결과', icon: 'i-lucide-search', to: `/afm/${tool.value}`, active: !onTips.value },
-  { label: '팁 모니터링', icon: 'i-lucide-pen-tool', to: `/afm/${tool.value}/tips`, active: onTips.value }
-])
+const PAGES = [
+  { label: '팁 모니터링', icon: 'i-lucide-pen-tool', segment: 'tips' },
+  { label: '가동 현황', icon: 'i-lucide-activity', segment: 'usage' },
+  { label: 'Recipe 현황', icon: 'i-lucide-list-tree', segment: 'recipes' }
+]
+
+const tabs = computed(() => {
+  const segment = route.path.split('/')[3]
+  return [
+    { label: '측정 결과', icon: 'i-lucide-search', to: `/afm/${tool.value}`, active: !PAGES.some(page => page.segment === segment) },
+    ...PAGES.map(page => ({ label: page.label, icon: page.icon, to: `/afm/${tool.value}/${page.segment}`, active: page.segment === segment }))
+  ]
+})
 </script>
 
 <template>

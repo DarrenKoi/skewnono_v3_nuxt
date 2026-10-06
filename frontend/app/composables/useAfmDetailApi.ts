@@ -14,6 +14,8 @@ export interface AfmFileRow {
   has_image?: boolean
   has_align?: boolean
   has_tip?: boolean
+  // Points the measurement's recipe measures; null where the office has no count.
+  point_count?: number | null
   // The tip that measured and what the measurement says about its health — a
   // summary of its Info and data rows (contracts.py). All null until the
   // office loader writes the columns.
