@@ -176,21 +176,17 @@ const page = ref(1)
 const allColumns = computed(() => derivePointColumns(props.data))
 const columnItems = computed(() => allColumns.value.map(c => ({ label: c.label, value: c.key })))
 
-// The column pick is shared by every measurement. Keys this file lacks are
-// ignored, and an empty pick falls back to the defaults.
+// The column pick is shared by every measurement; resolvePointColumnKeys says
+// what it means for a file whose columns differ.
 const storedKeys = usePersistedState<string[]>(
   'afm-point-columns',
   'skewnono:afm.pointColumns',
   { default: () => [], normalize: normalizeStringArray }
 )
 const visibleKeys = computed({
-  get: () => {
-    const present = allColumns.value.map(c => c.key)
-    const picked = storedKeys.value.filter(k => present.includes(k))
-    return picked.length ? picked : defaultPointColumnKeys(allColumns.value)
-  },
+  get: () => resolvePointColumnKeys(storedKeys.value, allColumns.value),
   set: (keys: string[]) => {
-    storedKeys.value = keys
+    storedKeys.value = mergePointColumnKeys(storedKeys.value, keys, allColumns.value)
   }
 })
 const visibleColumns = computed(() => allColumns.value.filter(c => visibleKeys.value.includes(c.key)))

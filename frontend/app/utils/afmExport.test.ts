@@ -2,6 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  collectColumns,
   buildInfoTable,
   buildSummaryTable,
   buildDetailedTable,
@@ -89,4 +90,12 @@ test('buildCombinedSheets 는 헤더조차 없는 섹션도 (no data) 한 줄로
     { label: 'Detailed Points', table: buildDetailedTable([]) }
   ])
   assert.deepEqual(sheets, [{ name: 'Detailed Points', rows: [['(no data)']] }])
+})
+
+test('collectColumns keeps each _Valid column beside its own measurement', () => {
+  const keys = ['10_Min (nm)', '10_Min_Valid', '1_Min (nm)', '1_Min_Valid', '2_Min (nm)', '2_Min_Valid']
+  assert.deepEqual(
+    collectColumns([Object.fromEntries(keys.map(k => [k, 1]))], []),
+    ['1_Min (nm)', '1_Min_Valid', '2_Min (nm)', '2_Min_Valid', '10_Min (nm)', '10_Min_Valid']
+  )
 })

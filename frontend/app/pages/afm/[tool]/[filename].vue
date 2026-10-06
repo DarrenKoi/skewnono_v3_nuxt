@@ -154,7 +154,8 @@ const tableRows = computed(() => tagBlocks(detailRows.value, summaryRows.value))
 // A measurement opened from the list is in this tool's 조회 기록, which has the
 // slot. One opened by a copied link is not, so the slot is read from Info.
 const listedSlot = useAfmCart(toolId).viewHistory.value.find(item => item.filename === filename)?.slotNumber
-const slotNumber = computed(() => listedSlot ?? infoSlot(information.value))
+// The list stores a missing slot as '' (a 13-key measurement has none there).
+const slotNumber = computed(() => listedSlot === undefined || listedSlot === '' ? infoSlot(information.value) : listedSlot)
 
 const selectedPoint = ref('')
 

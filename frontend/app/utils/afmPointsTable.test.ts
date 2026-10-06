@@ -7,7 +7,9 @@ import {
   filterPointRows,
   defaultPointColumnKeys,
   facetCounts,
-  formatPointCell
+  formatPointCell,
+  mergePointColumnKeys,
+  resolvePointColumnKeys
 } from './afmPointsTable.ts'
 
 // Full AfmDetailRow rows, not partials: this fixture is the one place that
@@ -107,4 +109,23 @@ test('formatPointCell: an unknown cell is a dash, never FALSE or 0', () => {
     [undefined, null, '', true, false, 3, 79.236, 'COMPLETED'].map(formatPointCell),
     ['–', '–', '–', 'TRUE', 'FALSE', '3', '79.24', 'COMPLETED']
   )
+})
+
+test('a column pick made on one recipe still shows another recipe its measurements', () => {
+  const cols = (nm: string) => ['measurement_point', 'Point No', nm, 'State'].map(key => ({ key, label: key }))
+  const left = cols('Left_H (nm)')
+  const bottom = cols('Bottom_H (nm)')
+  const stored = ['measurement_point', 'Left_H (nm)', 'State']
+  assert.deepEqual(resolvePointColumnKeys(stored, left), stored)
+  // None of the pick's measurement columns exist here: the defaults join it.
+  assert.deepEqual(resolvePointColumnKeys(stored, bottom), ['measurement_point', 'State', 'Bottom_H (nm)'])
+  assert.deepEqual(resolvePointColumnKeys([], bottom), defaultPointColumnKeys(bottom))
+  // Picking on the other recipe keeps the first recipe's column.
+  assert.deepEqual(mergePointColumnKeys(stored, ['Point No', 'Bottom_H (nm)'], bottom), ['Left_H (nm)', 'Point No', 'Bottom_H (nm)'])
+})
+
+test('search matches a cell by the text the table prints', () => {
+  const data = [row({ 'measurement_point': 'A', 'Left_H (nm)': 12.3456 })]
+  const hit = (search: string) => filterPointRows(data, { search, visibleKeys: ['Left_H (nm)'] }).length
+  assert.deepEqual([hit('12.35'), hit('12.345'), hit('99')], [1, 1, 0])
 })

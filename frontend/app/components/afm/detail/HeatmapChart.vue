@@ -9,9 +9,9 @@
     >
       <p class="flex flex-wrap items-center gap-x-2 sk-meta">
         <span><b class="sk-value-num">{{ stats.count.toLocaleString() }}</b> pts</span>
-        <span>min <b class="sk-value-num">{{ stats.min.toFixed(2) }}</b></span>
-        <span>max <b class="sk-value-num">{{ stats.max.toFixed(2) }}</b></span>
-        <span>μ <b class="sk-value-num">{{ stats.mean.toFixed(2) }}</b></span>
+        <span>min <b class="sk-value-num">{{ formatZ(stats.min, meta?.z_unit) }}</b></span>
+        <span>max <b class="sk-value-num">{{ formatZ(stats.max, meta?.z_unit) }}</b></span>
+        <span>μ <b class="sk-value-num">{{ formatZ(stats.mean, meta?.z_unit) }}</b></span>
         <span v-if="meta">{{ axisTitle('Z', meta.z_unit) }}</span>
         <UBadge
           v-if="total && total > profile.length"
@@ -123,7 +123,8 @@ const formatTooltip = (params: unknown) => {
   const value = ((Array.isArray(params) ? params[0] : params) as { value?: unknown } | undefined)?.value
   if (!Array.isArray(value) || !value.every(v => typeof v === 'number')) return ''
   const names = value.length === 2 ? [xName.value, zName.value] : [xName.value, yName.value, zName.value]
-  return value.map((v, i) => `${names[i]}: ${v.toFixed(2)}`).join('<br/>')
+  // Z is the last entry; X and Y are positions and keep two decimals.
+  return value.map((v, i) => `${names[i]}: ${i === value.length - 1 ? formatZ(v, props.meta?.z_unit) : v.toFixed(2)}`).join('<br/>')
 }
 
 const lineOption = computed<EChartsOption>(() => ({
@@ -173,8 +174,8 @@ const cellOption = (xs: number[], ys: number[]): EChartsOption => {
         const value = (params as { value?: number[] }).value
         if (!value) return ''
         const [ix, iy, z] = value as [number, number, number]
-        return [[xName.value, xs[ix]!], [yName.value, ys[iy]!], [zName.value, z]]
-          .map(([name, v]) => `${name}: ${(v as number).toFixed(2)}`).join('<br/>')
+        return [`${xName.value}: ${xs[ix]!.toFixed(2)}`, `${yName.value}: ${ys[iy]!.toFixed(2)}`, `${zName.value}: ${formatZ(z, props.meta?.z_unit)}`]
+          .join('<br/>')
       }
     },
     xAxis: { type: 'category', data: xs.map(String), axisLabel: cellLabel, ...axisName(xName.value, 30) },

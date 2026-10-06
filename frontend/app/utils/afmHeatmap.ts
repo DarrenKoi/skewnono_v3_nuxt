@@ -4,6 +4,12 @@ import { meanOf, populationStd } from './afmHistogram.ts'
 import { quantileSorted } from './stats.ts'
 import type { AfmMeasuredPoint, AfmProfilePoint } from '~/composables/useAfmDetailApi'
 
+// How many decimals a Z value needs to be read in its file's unit: a height that
+// is 110.51 in nm is 0.11051 in um, and two decimals would print it as 0.11.
+const Z_DECIMALS: Record<string, number> = { um: 5, nm: 2, pm: 0 }
+export const formatZ = (value: number, unit?: string | null): string =>
+  value.toFixed(Z_DECIMALS[unit ?? ''] ?? 2)
+
 export type OutlierMethod = 'none' | 'iqr' | 'zscore'
 
 export const OUTLIER_DEFAULT_THRESHOLD: Record<OutlierMethod, number> = {

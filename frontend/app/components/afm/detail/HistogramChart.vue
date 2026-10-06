@@ -105,12 +105,13 @@ const hist = computed(() => computeHistogram(zs.value, binCount.value, displayMo
 
 const statItems = computed(() => {
   const s = stats.value
+  const unit = props.meta?.z_unit
   return [
-    { label: 'μ', value: s.mean.toFixed(2) },
-    { label: 'σ', value: s.stdev.toFixed(2) },
-    { label: 'Q1', value: s.q1.toFixed(2) },
-    { label: 'Md', value: s.median.toFixed(2) },
-    { label: 'Q3', value: s.q3.toFixed(2) },
+    { label: 'μ', value: formatZ(s.mean, unit) },
+    { label: 'σ', value: formatZ(s.stdev, unit) },
+    { label: 'Q1', value: formatZ(s.q1, unit) },
+    { label: 'Md', value: formatZ(s.median, unit) },
+    { label: 'Q3', value: formatZ(s.q3, unit) },
     { label: 'skew', value: s.skewness.toFixed(2) },
     { label: 'kurt', value: s.kurtosis.toFixed(2) },
     { label: 'CV', value: `${s.cv.toFixed(1)}%` }
@@ -156,7 +157,7 @@ const chartOption = computed<EChartsOption>(() => {
       nameLocation: 'middle',
       nameGap: 30,
       nameTextStyle: CHART_LEGEND_LABEL,
-      data: centers.map(c => c.toFixed(2)),
+      data: centers.map(c => formatZ(c, props.meta?.z_unit)),
       axisLabel: { ...CHART_AXIS_LABEL, interval: Math.max(0, Math.ceil(centers.length / 6) - 1), hideOverlap: true }
     },
     yAxis: {

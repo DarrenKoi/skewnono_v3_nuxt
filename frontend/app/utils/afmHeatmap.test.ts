@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   axisTitle,
   filterProfileByOutlier,
+  formatZ,
   heatmapStats,
   isLineProfile,
   measuredPoints,
@@ -125,4 +126,11 @@ test('axisTitle: the metadata\'s long unit names read as symbols', () => {
   assert.equal(axisTitle('X', 'MicroMeter'), 'X (μm)')
   assert.equal(axisTitle('Z', 'NanoMeter'), 'Z (nm)')
   assert.equal(axisTitle('X', 'Pixel'), 'X (Pixel)')
+})
+
+test('formatZ keeps a height readable in the unit its file declares', () => {
+  assert.deepEqual(
+    [formatZ(110.514, 'nm'), formatZ(0.110514, 'um'), formatZ(110514.2, 'pm'), formatZ(1.234, 'Pixel'), formatZ(1.234)],
+    ['110.51', '0.11051', '110514', '1.23', '1.23']
+  )
 })

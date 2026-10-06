@@ -29,7 +29,8 @@ const naturalOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 
 // it first appears across rows. Ragged rows never drop a column.
 // The API delivers keys in codepoint order, which puts `10_Minimum (nm)` ahead of
 // `1_Minimum (nm)`, so the measurement columns are re-placed in natural order
-// among themselves; every other column keeps its slot.
+// among themselves — and so are their `<name>_Valid` columns, or each would sit
+// beside another measurement's value. Every other column keeps its slot.
 export const collectColumns = (
   rows: Record<string, unknown>[],
   leading: string[]
@@ -44,9 +45,13 @@ export const collectColumns = (
       }
     }
   }
-  const measured = cols.filter(isMeasurementKey).sort(naturalOrder.compare)
-  let next = 0
-  return cols.map(col => isMeasurementKey(col) ? measured[next++]! : col)
+  const isValidKey = (col: string) => col.endsWith('_Valid')
+  const renatural = (list: string[], member: (col: string) => boolean) => {
+    const sorted = list.filter(member).sort(naturalOrder.compare)
+    let next = 0
+    return list.map(col => member(col) ? sorted[next++]! : col)
+  }
+  return renatural(renatural(cols, isMeasurementKey), isValidKey)
 }
 
 const tableFromRows = (

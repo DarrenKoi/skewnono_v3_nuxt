@@ -44,10 +44,31 @@ export const defaultPointColumnKeys = (columns: PointColumn[]): string[] => {
   ]
 }
 
+// The columns to show for this file out of a pick that is shared by every
+// measurement. Measurement columns are named by the recipe, so a pick made on
+// one recipe can name none of this file's: it then gets the default ones rather
+// than a table of identifiers only. An empty pick is the defaults.
+export const resolvePointColumnKeys = (stored: string[], columns: PointColumn[]): string[] => {
+  const present = new Set(columns.map(c => c.key))
+  const picked = stored.filter(k => present.has(k))
+  if (!picked.length) return defaultPointColumnKeys(columns)
+  return picked.some(isMeasurementKey)
+    ? picked
+    : [...picked, ...defaultPointColumnKeys(columns).filter(isMeasurementKey)]
+}
+
+// A new pick for this file, keeping what was picked for columns it does not
+// have — so choosing on one recipe does not erase another recipe's choice.
+export const mergePointColumnKeys = (stored: string[], picked: string[], columns: PointColumn[]): string[] => {
+  const present = new Set(columns.map(c => c.key))
+  return [...stored.filter(k => !present.has(k)), ...picked]
+}
+
 export interface PointFilters {
   // '' = every point.
   point?: string
-  // Case-insensitive, over the visible columns only.
+  // Case-insensitive, over the visible columns only; a cell matches by its raw
+  // value or by the text the table prints for it (79.236 is shown as 79.24).
   search?: string
   visibleKeys?: string[]
   // Exact cell text per column (`{ State: 'FAILED', Valid: 'false' }`); an
@@ -64,7 +85,8 @@ export const filterPointRows = (
   return rows.filter(r =>
     (!point || r.measurement_point === point)
     && wanted.every(([key, value]) => String(r[key]) === value)
-    && (!q || visibleKeys.some(k => String(r[k] ?? '').toLowerCase().includes(q)))
+    && (!q || visibleKeys.some(k =>
+      String(r[k] ?? '').toLowerCase().includes(q) || formatPointCell(r[k]).toLowerCase().includes(q)))
   )
 }
 
