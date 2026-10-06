@@ -124,9 +124,18 @@ def test_a_measurement_without_a_profile_has_neither_samples_nor_metadata():
     pytest.skip("active provider listed no AFM file without a profile")
 
 
-def test_get_profile_image_svg_returns_string():
-    row = _first_file()
+def _first_imaged_file() -> AfmMeasurementRow:
+    for row in data.list_afm_files(None):
+        if row["has_image"]:
+            return row
+    pytest.skip("active provider listed no AFM file with a Result image")
+
+
+def test_get_profile_image_svg_returns_an_image_body():
+    # The mock draws every point; the office only has the images a recipe wrote.
+    row = _first_file() if get_data_provider("afm") == "mock" else _first_imaged_file()
     point = _first_point(_detail_of(row))
-    svg = data.get_profile_image_svg(row["filename"], point, row["tool_name"])
-    assert isinstance(svg, str)
-    assert svg
+    body = data.get_profile_image_svg(row["filename"], point, row["tool_name"])
+    # An SVG document (str) or the stored webp (bytes) — routes.py serves both.
+    assert isinstance(body, (str, bytes))
+    assert body

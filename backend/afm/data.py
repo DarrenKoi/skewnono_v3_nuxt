@@ -69,7 +69,8 @@ def get_profile_image_svg(
     filename: str,
     point: str,
     tool_name: str | None = None,
-) -> str | None:
+) -> str | bytes | None:
+    # str is an SVG document (the mock's placeholder), bytes the stored webp.
     return _provider().get_profile_image_svg(filename, point, tool_name)
 
 
@@ -86,7 +87,7 @@ def get_analysis_image_svg(
     image_type: str,
     name: str,
     tool_name: str | None = None,
-) -> str | None:
+) -> str | bytes | None:
     return _provider().get_analysis_image_svg(filename, image_type, name, tool_name)
 
 

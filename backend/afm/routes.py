@@ -141,7 +141,7 @@ def afm_image_file(filename: str, point: str):
     if svg is None:
         return "Image file not found", 404
 
-    return Response(svg, mimetype="image/svg+xml")
+    return _image(svg)
 
 
 @bp.get("/afm/files/<path:filename>/images/<image_type>")
@@ -179,7 +179,7 @@ def afm_analysis_image_file(filename: str, image_type: str, name: str):
     if svg is None:
         return "Image file not found", 404
 
-    return Response(svg, mimetype="image/svg+xml")
+    return _image(svg)
 
 
 @bp.get("/afm/files/<path:filename>/tiff/<path:name>")
@@ -232,6 +232,12 @@ def afm_tiff_zip(filename: str):
 
     stem = decoded_filename.removesuffix(".csv").removesuffix(".pkl")
     return _attachment(buffer.getvalue(), "application/zip", f"{stem}_TIFF.zip")
+
+
+def _image(body: str | bytes) -> Response:
+    # The mock draws a placeholder SVG (str); the office hands over the stored
+    # webp conversion as it is (bytes).
+    return Response(body, mimetype="image/svg+xml" if isinstance(body, str) else "image/webp")
 
 
 def _attachment(data: bytes, content_type: str, name: str) -> Response:

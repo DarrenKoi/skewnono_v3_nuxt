@@ -6,8 +6,9 @@ export interface AfmFileRow {
   lot_id: string
   slot_number: string | number
   measured_info: string
-  formatted_date: string
-  time?: string
+  // The office stores an empty cell as null (docs/datatables/afm/afm_redis.txt).
+  formatted_date: string | null
+  time?: string | null
   has_profile?: boolean
   has_data?: boolean
   has_image?: boolean

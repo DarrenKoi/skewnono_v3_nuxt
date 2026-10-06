@@ -7,7 +7,7 @@ from backend.afm.providers import mock
 def _row_with(image_type):
     field = mock.IMAGE_TYPE_FIELDS[image_type]
     for row in data.list_afm_files(None):
-        names = [n for n in row.get(field, []) if n != "no files"]
+        names = row.get(field, [])
         if names:
             return row, names
     raise AssertionError(f"no mock measurement has {image_type} images")
@@ -16,7 +16,6 @@ def _row_with(image_type):
 def test_capture_dir_list_populated_for_every_row():
     for row in data.list_afm_files(None):
         assert row["capture_dir_list"]
-        assert row["capture_dir_list"][0] != "no files"
 
 
 def test_list_analysis_images_returns_entries_for_capture():
@@ -32,9 +31,9 @@ def test_list_analysis_images_unknown_type_is_empty():
     assert data.list_analysis_images(row["filename"], "bogus", row["tool_name"]) == []
 
 
-def test_list_analysis_images_skips_sentinel():
+def test_list_analysis_images_is_empty_where_the_recipe_wrote_none():
     for row in data.list_afm_files(None):
-        if row["align_dir_list"] == ["no files"]:
+        if row["align_dir_list"] == []:
             assert data.list_analysis_images(row["filename"], "align", row["tool_name"]) == []
             return
 

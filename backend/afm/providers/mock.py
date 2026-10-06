@@ -1,6 +1,7 @@
 """SWAP SURFACE — 사무실에서 동일 시그니처/TypedDict 로 재구현 대상.
 
-원본 데이터: AFM 장비 raw 파일 — docs/datatables/afm/afm_raw_files.txt
+원본 데이터: Redis 색인 + MinIO 객체 — docs/datatables/afm/afm_redis.txt (적재 형태)
+            AFM 장비 raw 파일 — docs/datatables/afm/afm_raw_files.txt (그 원천)
             (회신 원문 docs/afm/office-data-findings.md, 이관 이력 docs/afm-migration-plan.md)
 계약:        docs/api-contracts/afm.yaml
 픽스처:      backend/afm/__fixtures__/
@@ -9,11 +10,37 @@ AFM 은 단일 측정 행(`AfmMeasurementRow`) 보다 풍부한 디테일·프�
 구조를 가집니다. 함수별 반환 형태가 다르므로 픽스처에 엔드포인트별 샘플을 모두
 캡처해 사무실 LLM이 형태를 한눈에 볼 수 있도록 합니다.
 
-이 mock 이 대신하는 것은 각 장비에서 추출한 **raw 파일**(ETL 이전)입니다. ETL 이후
-Redis 색인·MinIO 객체의 형태는 아직 회신되지 않았으므로, 목록 행의 키와
-`*_dir_list` 값의 뜻(파일명인지 MinIO 경로인지)은 2025-08 요구사항의 가정
-그대로입니다 (OFFICE-VERIFY). 적재 형태 가운데 먼저 확인된 것은 profile 하나입니다 —
-X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가 붙습니다.
+이 mock 이 대신하는 것은 ETL 이후의 적재물입니다 — Redis hash `afm_d1_tools`(장비
+목록)·`afm_d2_measurements`(장비별 측정 이력)와, 그 행이 가리키는 MinIO 객체(상세·
+profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에서 온 것이라 아래 raw 사실이
+그대로 적용됩니다.
+
+적재 형태로 확인되어 그대로 재현하는 것 (user-confirmed 2026-10-06, afm_redis.txt):
+- 목록 행의 열은 unique_key·filename·date(YYMMDD)·formatted_date·recipe_name·lot_id·
+  slot_number·time·tool_name·fab·point_count 와 파일 목록 7종(`data`·`profile`·`tiff`·
+  `align`·`tip`·`capture`·`raw` + `_dir_list`)입니다.
+- **파일이 없으면 빈 리스트**입니다. 예전 mock 의 `["no files"]` 표지는 실제에 없습니다.
+- `unique_key` 는 파일명의 앞 6필드(date#time#recipe#slot#lot#measured)이고 MAPC01 은
+  앞 4필드입니다.
+- 객체 이름: 상세는 `detail_information.parquet`·`detail_summary.parquet`·
+  `detail_points.parquet` 3종, profile 은 `profile_<원본이름>.parquet`, 이미지는
+  `<파일명>.webp`, `raw_dir_list` 는 원본 csv/txt 입니다.
+- profile 은 X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가 붙습니다.
+
+적재 형태와 일부러 다른 것:
+- Redis 의 파일 목록은 MinIO 객체 key 전체(`2067928/afm/<TOOL>/<측정키>/<파일명>`)이고,
+  계약(`AfmMeasurementRow`)의 목록은 그 **basename** 입니다. office adapter 가 잘라 내므로
+  mock 도 이름만 냅니다.
+- Redis 의 `formatted_date`·`time`·`point_count` 는 null 일 수 있습니다(`time` 의 `NA` 도
+  null). mock 은 null 을 내지 않습니다 — 파일명과 상세를 그 값에서 만들기 때문입니다.
+  null 경로는 backend/afm/tests/test_office_template.py 가 adapter 에서 직접 확인합니다.
+- Redis `afm_d1_tools` 의 `fab` 은 아직 빈 값입니다("미정"). mock 은 아래의 장비→fab
+  대응을 그대로 냅니다. `alias` 는 계약의 `label` 로 가며 mock 은 장비명을 씁니다.
+- `time` 은 회신에 `HHMM` 으로 적혀 있으나 측정키 예는 6자리(`070028`)입니다. mock 은
+  HHMMSS 를 냅니다 (OFFICE-VERIFY). 화면은 4~6자리를 모두 읽습니다.
+- `measured_info`·`tool_id` 는 회신의 "주요 열"에 없습니다 (OFFICE-VERIFY).
+- 상세 parquet 3종의 열 구성, 측정마다 어떤 객체가 실제로 있는지(Info 만 있는 MAPC01
+  측정의 `data_dir_list` 등)는 회신에 없습니다 (OFFICE-VERIFY).
 
 확인되어 그대로 재현하는 것 (office 확인 2026-10-02, 회신 4회):
 - 장비는 MAP608 · MAPC01 · 5EAP1501 이고 MAPC01=R3, 5EAP1501=M15 입니다.
@@ -85,7 +112,8 @@ X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가
 - 시작 시각이 `NA` 인 "오래된 파일"은 실제로는 어느 시점 이전의 파일이지만, mock 은 며칠
   간격으로 되풀이되는 구간으로 냅니다(오늘 기준 목록에도 항상 섞이도록).
 - profile metadata 의 `SurfaceSize` 값 형식, Pixel 축의 길이 환산(근거 없음).
-- 이미지는 자리 표시 SVG 입니다. 실제는 webp 변환본이 있습니다.
+- 이미지는 자리 표시 SVG 입니다. 실제는 webp 변환본이며 office adapter 는 그 bytes 를
+  그대로 돌려줍니다(route 가 str 은 SVG, bytes 는 webp 로 내보냅니다).
 - 원본 TIFF 는 MinIO 에 있고 내려받을 수 있어야 합니다(user-confirmed 2026-10-03). mock 은
   Result 이미지마다 256x256 8bit 회색조 TIFF 를 지어냅니다. 원본의 파일명(변환본 이름에서
   확장자만 `.tiff` 로 바꾼 것으로 가정), 크기·bit 수·장비 전용 태그, MinIO 경로, 보존
@@ -148,6 +176,12 @@ SITE_LAYOUT = tuple(sorted(
     key=lambda position: (position[0] ** 2 + position[1] ** 2, position)
 ))
 SUMMARY_ITEMS = ("MEAN", "STDEV", "MIN", "MAX", "RANGE")
+# One measurement's detail is three parquet objects in MinIO.
+DETAIL_OBJECTS = (
+    "detail_information.parquet",
+    "detail_summary.parquet",
+    "detail_points.parquet",
+)
 # A point fails now and then; STOPPED rows come only from a block that stopped
 # (OFFICE-VERIFY: the real failure rate is unknown).
 STATE_CODES = ("COMPLETED",) * 24 + ("FAILED",)
@@ -588,8 +622,6 @@ def list_analysis_images(
 
     images: list[dict[str, str]] = []
     for name in row.get(field, []):
-        if not name or name == "no files":
-            continue
         encoded_name = quote(name, safe="")
         image = {
             "name": name,
@@ -614,7 +646,7 @@ def get_tiff_original(
     tool_name: str | None = None,
 ) -> AfmOriginalFile | None:
     row = _find_measurement(filename, tool_name)
-    if row is None or name not in row["tiff_dir_list"] or name == "no files":
+    if row is None or name not in row["tiff_dir_list"]:
         return None
 
     # Lazy: Pillow is only needed for this one download.
@@ -651,8 +683,7 @@ def get_analysis_image_svg(
     if row is None:
         return None
 
-    names = [n for n in row.get(field, []) if n and n != "no files"]
-    if name not in names:
+    if name not in row.get(field, []):
         return None
 
     rng = random.Random(
@@ -732,14 +763,13 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             start=start_code,
             suffix="_SOP_LEFT_UR" if index % 4 == 3 else ""
         )
-        unique_key = (
-            f"{date_code}#{time_code}#{recipe_name}#{slot_number}_{measured_info}"
-            f"#{lot_id}#{measured_info}"
-        )
+        # date#time#recipe#slot#lot#measured; a MAPC01 measurement is the first four.
+        unique_key = "#".join(filename.split("#")[1:5 if tool_name == "MAPC01" else 7])
         # Every other file of the measurement is named after the data CSV.
         data_filename = filename.replace("_Info.csv", ".csv")
         clean_filename = _strip_known_extension(data_filename)
         keys = [key for key, *_ in _positions(recipe)]
+        profile_txts = _point_files(clean_filename, keys, "txt")
         has_profile = recipe["profile"] and bool(config["profile_grids"])
         has_data = recipe["columns"] is not None
         has_image = "tiff" in recipe["images"]
@@ -761,9 +791,15 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             "fab": config["fab"],
             "profile_dir_list": _file_list(
                 has_profile,
-                _point_files(clean_filename, keys, "txt")
+                [f"profile_{name[:-4]}.parquet" for name in profile_txts]
             ),
-            "data_dir_list": _file_list(has_data, [data_filename]),
+            "data_dir_list": _file_list(has_data, list(DETAIL_OBJECTS)),
+            # The untouched csv/txt the objects above were loaded from.
+            "raw_dir_list": (
+                ([filename] if has_data or filename != data_filename else [])
+                + ([data_filename] if has_data and filename != data_filename else [])
+                + (profile_txts if has_profile else [])
+            ),
             "tiff_dir_list": _file_list(
                 has_image,
                 _point_files(clean_filename, keys, "webp")
@@ -928,7 +964,8 @@ def _strip_known_extension(filename: str) -> str:
 
 
 def _file_list(has_files: bool, files: list[str]) -> list[str]:
-    return files if has_files else ["no files"]
+    # An empty list is how the office says "no files" — there is no sentinel.
+    return files if has_files else []
 
 
 def _point_files(clean_filename: str, keys: list[str], extension: str) -> list[str]:

@@ -1,1460 +1,1672 @@
 {
   "data": [
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_capture.webp"
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_capture.webp"
       ],
       "data_dir_list": [
-        "no files"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260424",
+      "date": "261006",
       "fab": "R3",
-      "filename": "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_Info.csv",
-      "formatted_date": "2026-04-24",
+      "filename": "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_Info.csv",
+      "formatted_date": "2026-10-06",
       "has_align": false,
-      "has_data": false,
+      "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
-      "lot_id": "MON6916",
+      "lot_id": "MON69WL",
       "measured_info": "1",
       "point_count": 5,
       "profile_dir_list": [
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_Height.txt",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0002_X-001_Y000_0001_Height.txt",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0003_X000_Y-001_0001_Height.txt",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0004_X000_Y001_0001_Height.txt",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0005_X001_Y000_0001_Height.txt"
+        "profile_#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.parquet",
+        "profile_#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.parquet",
+        "profile_#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.parquet",
+        "profile_#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.parquet",
+        "profile_#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.parquet"
       ],
-      "recipe_name": "RQQA_PFH_MONF (1)",
-      "slot_number": "01",
-      "tiff_dir_list": [
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_Height.webp",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0002_X-001_Y000_0001_Height.webp",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0003_X000_Y-001_0001_Height.webp",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0004_X000_Y001_0001_Height.webp",
-        "#260424#093000#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0005_X001_Y000_0001_Height.webp"
-      ],
-      "time": "093000",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260424#093000#RQQA_PFH_MONF (1)#01_1#MON6916#1"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "no files"
-      ],
-      "date": "260424",
-      "fab": "R3",
-      "filename": "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_Info.csv",
-      "formatted_date": "2026-04-24",
-      "has_align": false,
-      "has_data": false,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON6916",
-      "measured_info": "standard",
-      "point_count": 5,
-      "profile_dir_list": [
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_Height.txt",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0002_X-001_Y000_0001_Height.txt",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0003_X000_Y-001_0001_Height.txt",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0004_X000_Y001_0001_Height.txt",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0005_X001_Y000_0001_Height.txt"
-      ],
-      "recipe_name": "RQQA_PFH_MONF (1)",
-      "slot_number": "01",
-      "tiff_dir_list": [
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_Height.webp",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0002_X-001_Y000_0001_Height.webp",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0003_X000_Y-001_0001_Height.webp",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0004_X000_Y001_0001_Height.webp",
-        "#260424#120700#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0005_X001_Y000_0001_Height.webp"
-      ],
-      "time": "120700",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260424#120700#RQQA_PFH_MONF (1)#01_standard#MON6916#standard"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "no files"
-      ],
-      "date": "260424",
-      "fab": "R3",
-      "filename": "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_Info.csv",
-      "formatted_date": "2026-04-24",
-      "has_align": false,
-      "has_data": false,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON6916",
-      "measured_info": "repeat2",
-      "point_count": 5,
-      "profile_dir_list": [
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_Height.txt",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0002_X-001_Y000_0001_Height.txt",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0003_X000_Y-001_0001_Height.txt",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0004_X000_Y001_0001_Height.txt",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0005_X001_Y000_0001_Height.txt"
-      ],
-      "recipe_name": "RQQA_PFH_MONF (1)",
-      "slot_number": "01",
-      "tiff_dir_list": [
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0001_X000_Y000_0001_Height.webp",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0002_X-001_Y000_0001_Height.webp",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0003_X000_Y-001_0001_Height.webp",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0004_X000_Y001_0001_Height.webp",
-        "#260424#144400#RQQA_PFH_MONF (1)#01#NA#NA#MON6916.01_0005_X001_Y000_0001_Height.webp"
-      ],
-      "time": "144400",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260424#144400#RQQA_PFH_MONF (1)#01_repeat2#MON6916#repeat2"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02.csv"
-      ],
-      "date": "260423",
-      "fab": "R3",
-      "filename": "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_Info.csv",
-      "formatted_date": "2026-04-23",
-      "has_align": false,
-      "has_data": true,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON7017",
-      "measured_info": "profile",
-      "point_count": 17,
-      "profile_dir_list": [
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0002_X-001_Y000_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0003_X000_Y-001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0004_X000_Y001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0005_X001_Y000_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0006_X-001_Y-001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0007_X-001_Y001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0008_X001_Y-001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0009_X001_Y001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0010_X-002_Y000_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0011_X000_Y-002_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0012_X000_Y002_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0013_X002_Y000_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0014_X-002_Y-001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0015_X-002_Y001_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0016_X-001_Y-002_0001_Height.txt",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0017_X-001_Y002_0001_Height.txt"
-      ],
-      "recipe_name": "RL1A_LPCCMP_CMPWEAK2",
-      "slot_number": "02",
-      "tiff_dir_list": [
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0002_X-001_Y000_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0003_X000_Y-001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0004_X000_Y001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0005_X001_Y000_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0006_X-001_Y-001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0007_X-001_Y001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0008_X001_Y-001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0009_X001_Y001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0010_X-002_Y000_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0011_X000_Y-002_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0012_X000_Y002_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0013_X002_Y000_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0014_X-002_Y-001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0015_X-002_Y001_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0016_X-001_Y-002_0001_Height.webp",
-        "#260423#083000#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0017_X-001_Y002_0001_Height.webp"
-      ],
-      "time": "083000",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260423#083000#RL1A_LPCCMP_CMPWEAK2#02_profile#MON7017#profile"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02.csv"
-      ],
-      "date": "260423",
-      "fab": "R3",
-      "filename": "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_Info.csv",
-      "formatted_date": "2026-04-23",
-      "has_align": false,
-      "has_data": true,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON7017",
-      "measured_info": "roughness",
-      "point_count": 17,
-      "profile_dir_list": [
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0002_X-001_Y000_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0003_X000_Y-001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0004_X000_Y001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0005_X001_Y000_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0006_X-001_Y-001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0007_X-001_Y001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0008_X001_Y-001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0009_X001_Y001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0010_X-002_Y000_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0011_X000_Y-002_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0012_X000_Y002_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0013_X002_Y000_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0014_X-002_Y-001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0015_X-002_Y001_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0016_X-001_Y-002_0001_Height.txt",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0017_X-001_Y002_0001_Height.txt"
-      ],
-      "recipe_name": "RL1A_LPCCMP_CMPWEAK2",
-      "slot_number": "02",
-      "tiff_dir_list": [
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0002_X-001_Y000_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0003_X000_Y-001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0004_X000_Y001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0005_X001_Y000_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0006_X-001_Y-001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0007_X-001_Y001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0008_X001_Y-001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0009_X001_Y001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0010_X-002_Y000_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0011_X000_Y-002_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0012_X000_Y002_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0013_X002_Y000_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0014_X-002_Y-001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0015_X-002_Y001_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0016_X-001_Y-002_0001_Height.webp",
-        "#260423#110700#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0017_X-001_Y002_0001_Height.webp"
-      ],
-      "time": "110700",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260423#110700#RL1A_LPCCMP_CMPWEAK2#02_roughness#MON7017#roughness"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02.csv"
-      ],
-      "date": "260423",
-      "fab": "R3",
-      "filename": "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_Info.csv",
-      "formatted_date": "2026-04-23",
-      "has_align": false,
-      "has_data": true,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON7017",
-      "measured_info": "1",
-      "point_count": 17,
-      "profile_dir_list": [
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0002_X-001_Y000_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0003_X000_Y-001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0004_X000_Y001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0005_X001_Y000_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0006_X-001_Y-001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0007_X-001_Y001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0008_X001_Y-001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0009_X001_Y001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0010_X-002_Y000_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0011_X000_Y-002_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0012_X000_Y002_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0013_X002_Y000_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0014_X-002_Y-001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0015_X-002_Y001_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0016_X-001_Y-002_0001_Height.txt",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0017_X-001_Y002_0001_Height.txt"
-      ],
-      "recipe_name": "RL1A_LPCCMP_CMPWEAK2",
-      "slot_number": "02",
-      "tiff_dir_list": [
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0001_X000_Y000_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0002_X-001_Y000_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0003_X000_Y-001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0004_X000_Y001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0005_X001_Y000_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0006_X-001_Y-001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0007_X-001_Y001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0008_X001_Y-001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0009_X001_Y001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0010_X-002_Y000_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0011_X000_Y-002_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0012_X000_Y002_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0013_X002_Y000_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0014_X-002_Y-001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0015_X-002_Y001_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0016_X-001_Y-002_0001_Height.webp",
-        "#260423#134400#RL1A_LPCCMP_CMPWEAK2#02#NA#NA#MON7017.02_0017_X-001_Y002_0001_Height.webp"
-      ],
-      "time": "134400",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260423#134400#RL1A_LPCCMP_CMPWEAK2#02_1#MON7017#1"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260422#073000#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260422#073000#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03.csv"
-      ],
-      "date": "260422",
-      "fab": "R3",
-      "filename": "#260422#073000#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_Info.csv",
-      "formatted_date": "2026-04-22",
-      "has_align": false,
-      "has_data": true,
-      "has_image": false,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "RL1C018",
-      "measured_info": "standard",
-      "point_count": 3,
-      "profile_dir_list": [
-        "#260422#073000#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0001_Height.txt",
-        "#260422#073000#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0002_Height.txt",
-        "#260422#073000#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0003_Height.txt"
-      ],
-      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
-      "slot_number": "03",
-      "tiff_dir_list": [
-        "no files"
-      ],
-      "time": "073000",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260422#073000#RL1C_L1_XDEC_5MM_LINE#03_standard#RL1C018#standard"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260422#100700#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260422#100700#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03.csv"
-      ],
-      "date": "260422",
-      "fab": "R3",
-      "filename": "#260422#100700#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_Info.csv",
-      "formatted_date": "2026-04-22",
-      "has_align": false,
-      "has_data": true,
-      "has_image": false,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "RL1C018",
-      "measured_info": "repeat2",
-      "point_count": 3,
-      "profile_dir_list": [
-        "#260422#100700#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0001_Height.txt",
-        "#260422#100700#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0002_Height.txt",
-        "#260422#100700#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0003_Height.txt"
-      ],
-      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
-      "slot_number": "03",
-      "tiff_dir_list": [
-        "no files"
-      ],
-      "time": "100700",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260422#100700#RL1C_L1_XDEC_5MM_LINE#03_repeat2#RL1C018#repeat2"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260422#124400#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260422#124400#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03.csv"
-      ],
-      "date": "260422",
-      "fab": "R3",
-      "filename": "#260422#124400#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_Info.csv",
-      "formatted_date": "2026-04-22",
-      "has_align": false,
-      "has_data": true,
-      "has_image": false,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "RL1C018",
-      "measured_info": "profile",
-      "point_count": 3,
-      "profile_dir_list": [
-        "#260422#124400#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0001_Height.txt",
-        "#260422#124400#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0002_Height.txt",
-        "#260422#124400#RL1C_L1_XDEC_5MM_LINE#03#NA#NA#RL1C018.03_0003_Height.txt"
-      ],
-      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
-      "slot_number": "03",
-      "tiff_dir_list": [
-        "no files"
-      ],
-      "time": "124400",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260422#124400#RL1C_L1_XDEC_5MM_LINE#03_profile#RL1C018#profile"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04.csv"
-      ],
-      "date": "260421",
-      "fab": "R3",
-      "filename": "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_Info.csv",
-      "formatted_date": "2026-04-21",
-      "has_align": false,
-      "has_data": true,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON6919",
-      "measured_info": "roughness",
-      "point_count": 5,
-      "profile_dir_list": [
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_Height.txt",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0002_Height.txt",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0003_Height.txt",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0004_Height.txt",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0005_Height.txt"
+      "raw_dir_list": [
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_Info.csv",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11.csv",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.txt",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.txt",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.txt",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.txt",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.txt"
       ],
       "recipe_name": "ROUGHNESS_SCAN",
-      "slot_number": "04",
+      "slot_number": "11",
       "tiff_dir_list": [
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_Height.webp",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0002_Height.webp",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0003_Height.webp",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0004_Height.webp",
-        "#260421#063000#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0005_Height.webp"
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.webp",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.webp",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.webp",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.webp",
+        "#261006#063000#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.webp"
       ],
       "time": "063000",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260421#063000#ROUGHNESS_SCAN#04_roughness#MON6919#roughness"
+      "unique_key": "261006#063000#ROUGHNESS_SCAN#11"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_capture.webp"
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260421",
+      "date": "261006",
       "fab": "R3",
-      "filename": "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_Info.csv",
-      "formatted_date": "2026-04-21",
+      "filename": "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_Info.csv",
+      "formatted_date": "2026-10-06",
       "has_align": false,
       "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
-      "lot_id": "MON6919",
-      "measured_info": "1",
-      "point_count": 5,
-      "profile_dir_list": [
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_Height.txt",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0002_Height.txt",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0003_Height.txt",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0004_Height.txt",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0005_Height.txt"
-      ],
-      "recipe_name": "ROUGHNESS_SCAN",
-      "slot_number": "04",
-      "tiff_dir_list": [
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_Height.webp",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0002_Height.webp",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0003_Height.webp",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0004_Height.webp",
-        "#260421#090700#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0005_Height.webp"
-      ],
-      "time": "090700",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260421#090700#ROUGHNESS_SCAN#04_1#MON6919#1"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04.csv"
-      ],
-      "date": "260421",
-      "fab": "R3",
-      "filename": "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_Info.csv",
-      "formatted_date": "2026-04-21",
-      "has_align": false,
-      "has_data": true,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON6919",
+      "lot_id": "MON69WL",
       "measured_info": "standard",
       "point_count": 5,
       "profile_dir_list": [
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_Height.txt",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0002_Height.txt",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0003_Height.txt",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0004_Height.txt",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0005_Height.txt"
+        "profile_#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.parquet",
+        "profile_#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.parquet",
+        "profile_#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.parquet",
+        "profile_#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.parquet",
+        "profile_#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_Info.csv",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11.csv",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.txt",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.txt",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.txt",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.txt",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.txt"
       ],
       "recipe_name": "ROUGHNESS_SCAN",
-      "slot_number": "04",
+      "slot_number": "11",
       "tiff_dir_list": [
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0001_Height.webp",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0002_Height.webp",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0003_Height.webp",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0004_Height.webp",
-        "#260421#114400#ROUGHNESS_SCAN#04#NA#NA#MON6919.04_0005_Height.webp"
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.webp",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.webp",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.webp",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.webp",
+        "#261006#090700#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.webp"
+      ],
+      "time": "090700",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "261006#090700#ROUGHNESS_SCAN#11"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "261006",
+      "fab": "R3",
+      "filename": "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_Info.csv",
+      "formatted_date": "2026-10-06",
+      "has_align": false,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "MON69WL",
+      "measured_info": "repeat2",
+      "point_count": 5,
+      "profile_dir_list": [
+        "profile_#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.parquet",
+        "profile_#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.parquet",
+        "profile_#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.parquet",
+        "profile_#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.parquet",
+        "profile_#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_Info.csv",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11.csv",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.txt",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.txt",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.txt",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.txt",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.txt"
+      ],
+      "recipe_name": "ROUGHNESS_SCAN",
+      "slot_number": "11",
+      "tiff_dir_list": [
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0001_Height.webp",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0002_Height.webp",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0003_Height.webp",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0004_Height.webp",
+        "#261006#114400#ROUGHNESS_SCAN#11#NA#NA#MON69WL.11_0005_Height.webp"
       ],
       "time": "114400",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260421#114400#ROUGHNESS_SCAN#04_standard#MON6919#standard"
+      "unique_key": "261006#114400#ROUGHNESS_SCAN#11"
     },
     {
       "align_dir_list": [
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_alignment.webp"
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_alignment.webp"
       ],
       "capture_dir_list": [
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_capture.webp"
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260420",
+      "date": "261005",
       "fab": "R3",
-      "filename": "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_Info.csv",
-      "formatted_date": "2026-04-20",
+      "filename": "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_Info.csv",
+      "formatted_date": "2026-10-05",
       "has_align": true,
       "has_data": true,
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
-      "lot_id": "MON701A",
-      "measured_info": "repeat2",
-      "point_count": 21,
-      "profile_dir_list": [
-        "no files"
-      ],
-      "recipe_name": "RX1A_M0A_COT_X_PDG",
-      "slot_number": "05",
-      "tiff_dir_list": [
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0002_X-001_Y000_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0003_X000_Y-001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0004_X000_Y001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0005_X001_Y000_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0006_X-001_Y-001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0007_X-001_Y001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0008_X001_Y-001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0009_X001_Y001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0010_X-002_Y000_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0011_X000_Y-002_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0012_X000_Y002_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0013_X002_Y000_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0014_X-002_Y-001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0015_X-002_Y001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0016_X-001_Y-002_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0017_X-001_Y002_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0018_X001_Y-002_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0019_X001_Y002_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0020_X002_Y-001_0001_Height.webp",
-        "#260420#053000#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0021_X002_Y001_0001_Height.webp"
-      ],
-      "time": "053000",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260420#053000#RX1A_M0A_COT_X_PDG#05_repeat2#MON701A#repeat2"
-    },
-    {
-      "align_dir_list": [
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_alignment.webp"
-      ],
-      "capture_dir_list": [
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05.csv"
-      ],
-      "date": "260420",
-      "fab": "R3",
-      "filename": "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_Info.csv",
-      "formatted_date": "2026-04-20",
-      "has_align": true,
-      "has_data": true,
-      "has_image": true,
-      "has_profile": false,
-      "has_tip": false,
-      "lot_id": "MON701A",
+      "lot_id": "MON70WM",
       "measured_info": "profile",
       "point_count": 21,
-      "profile_dir_list": [
-        "no files"
+      "profile_dir_list": [],
+      "raw_dir_list": [
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_Info.csv",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12.csv"
       ],
       "recipe_name": "RX1A_M0A_COT_X_PDG",
-      "slot_number": "05",
+      "slot_number": "12",
       "tiff_dir_list": [
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0002_X-001_Y000_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0003_X000_Y-001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0004_X000_Y001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0005_X001_Y000_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0006_X-001_Y-001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0007_X-001_Y001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0008_X001_Y-001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0009_X001_Y001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0010_X-002_Y000_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0011_X000_Y-002_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0012_X000_Y002_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0013_X002_Y000_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0014_X-002_Y-001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0015_X-002_Y001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0016_X-001_Y-002_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0017_X-001_Y002_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0018_X001_Y-002_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0019_X001_Y002_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0020_X002_Y-001_0001_Height.webp",
-        "#260420#080700#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0021_X002_Y001_0001_Height.webp"
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0002_X-001_Y000_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0003_X000_Y-001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0004_X000_Y001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0005_X001_Y000_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0006_X-001_Y-001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0007_X-001_Y001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0008_X001_Y-001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0009_X001_Y001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0010_X-002_Y000_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0011_X000_Y-002_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0012_X000_Y002_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0013_X002_Y000_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0014_X-002_Y-001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0015_X-002_Y001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0016_X-001_Y-002_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0017_X-001_Y002_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0018_X001_Y-002_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0019_X001_Y002_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0020_X002_Y-001_0001_Height.webp",
+        "#261005#053000#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0021_X002_Y001_0001_Height.webp"
       ],
-      "time": "080700",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "time": "053000",
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260420#080700#RX1A_M0A_COT_X_PDG#05_profile#MON701A#profile"
+      "unique_key": "261005#053000#RX1A_M0A_COT_X_PDG#12"
     },
     {
       "align_dir_list": [
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_alignment.webp"
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_alignment.webp"
       ],
       "capture_dir_list": [
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_capture.webp"
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260420",
+      "date": "261005",
       "fab": "R3",
-      "filename": "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_Info.csv",
-      "formatted_date": "2026-04-20",
+      "filename": "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_Info.csv",
+      "formatted_date": "2026-10-05",
       "has_align": true,
       "has_data": true,
       "has_image": true,
       "has_profile": false,
       "has_tip": false,
-      "lot_id": "MON701A",
+      "lot_id": "MON70WM",
       "measured_info": "roughness",
       "point_count": 21,
-      "profile_dir_list": [
-        "no files"
+      "profile_dir_list": [],
+      "raw_dir_list": [
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_Info.csv",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12.csv"
       ],
       "recipe_name": "RX1A_M0A_COT_X_PDG",
-      "slot_number": "05",
+      "slot_number": "12",
       "tiff_dir_list": [
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0001_X000_Y000_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0002_X-001_Y000_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0003_X000_Y-001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0004_X000_Y001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0005_X001_Y000_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0006_X-001_Y-001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0007_X-001_Y001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0008_X001_Y-001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0009_X001_Y001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0010_X-002_Y000_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0011_X000_Y-002_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0012_X000_Y002_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0013_X002_Y000_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0014_X-002_Y-001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0015_X-002_Y001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0016_X-001_Y-002_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0017_X-001_Y002_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0018_X001_Y-002_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0019_X001_Y002_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0020_X002_Y-001_0001_Height.webp",
-        "#260420#104400#RX1A_M0A_COT_X_PDG#05#NA#NA#MON701A.05_0021_X002_Y001_0001_Height.webp"
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0002_X-001_Y000_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0003_X000_Y-001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0004_X000_Y001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0005_X001_Y000_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0006_X-001_Y-001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0007_X-001_Y001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0008_X001_Y-001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0009_X001_Y001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0010_X-002_Y000_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0011_X000_Y-002_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0012_X000_Y002_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0013_X002_Y000_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0014_X-002_Y-001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0015_X-002_Y001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0016_X-001_Y-002_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0017_X-001_Y002_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0018_X001_Y-002_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0019_X001_Y002_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0020_X002_Y-001_0001_Height.webp",
+        "#261005#080700#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0021_X002_Y001_0001_Height.webp"
       ],
-      "time": "104400",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "time": "080700",
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260420#104400#RX1A_M0A_COT_X_PDG#05_roughness#MON701A#roughness"
+      "unique_key": "261005#080700#RX1A_M0A_COT_X_PDG#12"
     },
     {
       "align_dir_list": [
-        "no files"
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_alignment.webp"
       ],
       "capture_dir_list": [
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_capture.webp"
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260419",
+      "date": "261005",
       "fab": "R3",
-      "filename": "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_Info.csv",
-      "formatted_date": "2026-04-19",
+      "filename": "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_Info.csv",
+      "formatted_date": "2026-10-05",
+      "has_align": true,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": false,
+      "has_tip": false,
+      "lot_id": "MON70WM",
+      "measured_info": "1",
+      "point_count": 21,
+      "profile_dir_list": [],
+      "raw_dir_list": [
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_Info.csv",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12.csv"
+      ],
+      "recipe_name": "RX1A_M0A_COT_X_PDG",
+      "slot_number": "12",
+      "tiff_dir_list": [
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0001_X000_Y000_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0002_X-001_Y000_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0003_X000_Y-001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0004_X000_Y001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0005_X001_Y000_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0006_X-001_Y-001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0007_X-001_Y001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0008_X001_Y-001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0009_X001_Y001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0010_X-002_Y000_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0011_X000_Y-002_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0012_X000_Y002_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0013_X002_Y000_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0014_X-002_Y-001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0015_X-002_Y001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0016_X-001_Y-002_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0017_X-001_Y002_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0018_X001_Y-002_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0019_X001_Y002_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0020_X002_Y-001_0001_Height.webp",
+        "#261005#104400#RX1A_M0A_COT_X_PDG#12#NA#NA#MON70WM.12_0021_X002_Y001_0001_Height.webp"
+      ],
+      "time": "104400",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "261005#104400#RX1A_M0A_COT_X_PDG#12"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "261004",
+      "fab": "R3",
+      "filename": "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_Info.csv",
+      "formatted_date": "2026-10-04",
       "has_align": false,
       "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
-      "lot_id": "RL1C01B",
-      "measured_info": "1",
+      "lot_id": "RL1C0WN",
+      "measured_info": "standard",
       "point_count": 9,
       "profile_dir_list": [
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0002_X-001_Y000_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0003_X000_Y-001_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0004_X000_Y001_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0005_X001_Y000_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0006_X-001_Y-001_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0007_X-001_Y001_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0008_X001_Y-001_0001_Height.txt",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0009_X001_Y001_0001_Height.txt"
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_Info.csv",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13.csv",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.txt",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.txt"
       ],
       "recipe_name": "CMP_POST",
-      "slot_number": "06",
+      "slot_number": "13",
       "tiff_dir_list": [
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0002_X-001_Y000_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0003_X000_Y-001_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0004_X000_Y001_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0005_X001_Y000_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0006_X-001_Y-001_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0007_X-001_Y001_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0008_X001_Y-001_0001_Height.webp",
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0009_X001_Y001_0001_Height.webp"
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.webp",
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.webp"
       ],
       "time": "043000",
       "tip_dir_list": [
-        "#260419#043000#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_tip.webp"
+        "#261004#043000#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_tip.webp"
       ],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260419#043000#CMP_POST#06_1#RL1C01B#1"
+      "unique_key": "261004#043000#CMP_POST#13"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_capture.webp"
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260419",
+      "date": "261004",
       "fab": "R3",
-      "filename": "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_Info.csv",
-      "formatted_date": "2026-04-19",
+      "filename": "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_Info.csv",
+      "formatted_date": "2026-10-04",
       "has_align": false,
       "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
-      "lot_id": "RL1C01B",
-      "measured_info": "standard",
+      "lot_id": "RL1C0WN",
+      "measured_info": "repeat2",
       "point_count": 9,
       "profile_dir_list": [
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0002_X-001_Y000_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0003_X000_Y-001_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0004_X000_Y001_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0005_X001_Y000_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0006_X-001_Y-001_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0007_X-001_Y001_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0008_X001_Y-001_0001_Height.txt",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0009_X001_Y001_0001_Height.txt"
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_Info.csv",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13.csv",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.txt",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.txt"
       ],
       "recipe_name": "CMP_POST",
-      "slot_number": "06",
+      "slot_number": "13",
       "tiff_dir_list": [
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0002_X-001_Y000_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0003_X000_Y-001_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0004_X000_Y001_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0005_X001_Y000_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0006_X-001_Y-001_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0007_X-001_Y001_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0008_X001_Y-001_0001_Height.webp",
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0009_X001_Y001_0001_Height.webp"
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.webp",
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.webp"
       ],
       "time": "070700",
       "tip_dir_list": [
-        "#260419#070700#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_tip.webp"
+        "#261004#070700#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_tip.webp"
       ],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260419#070700#CMP_POST#06_standard#RL1C01B#standard"
+      "unique_key": "261004#070700#CMP_POST#13"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_capture.webp"
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260419",
+      "date": "261004",
       "fab": "R3",
-      "filename": "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_Info.csv",
-      "formatted_date": "2026-04-19",
+      "filename": "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_Info.csv",
+      "formatted_date": "2026-10-04",
       "has_align": false,
       "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": true,
-      "lot_id": "RL1C01B",
-      "measured_info": "repeat2",
+      "lot_id": "RL1C0WN",
+      "measured_info": "profile",
       "point_count": 9,
       "profile_dir_list": [
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0002_X-001_Y000_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0003_X000_Y-001_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0004_X000_Y001_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0005_X001_Y000_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0006_X-001_Y-001_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0007_X-001_Y001_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0008_X001_Y-001_0001_Height.txt",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0009_X001_Y001_0001_Height.txt"
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_Info.csv",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13.csv",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.txt",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.txt"
       ],
       "recipe_name": "CMP_POST",
-      "slot_number": "06",
+      "slot_number": "13",
       "tiff_dir_list": [
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0002_X-001_Y000_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0003_X000_Y-001_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0004_X000_Y001_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0005_X001_Y000_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0006_X-001_Y-001_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0007_X-001_Y001_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0008_X001_Y-001_0001_Height.webp",
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0009_X001_Y001_0001_Height.webp"
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0002_X-001_Y000_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0003_X000_Y-001_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0004_X000_Y001_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0005_X001_Y000_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0006_X-001_Y-001_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0007_X-001_Y001_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0008_X001_Y-001_0001_Height.webp",
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0009_X001_Y001_0001_Height.webp"
       ],
       "time": "094400",
       "tip_dir_list": [
-        "#260419#094400#CMP_POST#06#NA#NA#RL1C01B.06_0001_X000_Y000_0001_tip.webp"
+        "#261004#094400#CMP_POST#13#NA#NA#RL1C0WN.13_0001_X000_Y000_0001_tip.webp"
       ],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260419#094400#CMP_POST#06_repeat2#RL1C01B#repeat2"
+      "unique_key": "261004#094400#CMP_POST#13"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_capture.webp"
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_capture.webp"
       ],
-      "data_dir_list": [
-        "no files"
-      ],
-      "date": "260418",
+      "data_dir_list": [],
+      "date": "261003",
       "fab": "R3",
-      "filename": "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_Info.csv",
-      "formatted_date": "2026-04-18",
+      "filename": "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_Info.csv",
+      "formatted_date": "2026-10-03",
       "has_align": false,
       "has_data": false,
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
-      "lot_id": "MON691C",
-      "measured_info": "profile",
+      "lot_id": "MON69WO",
+      "measured_info": "roughness",
       "point_count": 5,
       "profile_dir_list": [
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_Height.txt",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0002_X-001_Y000_0001_Height.txt",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0003_X000_Y-001_0001_Height.txt",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0004_X000_Y001_0001_Height.txt",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0005_X001_Y000_0001_Height.txt"
+        "profile_#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_Info.csv",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.txt",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.txt",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.txt",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.txt",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.txt"
       ],
       "recipe_name": "RQQA_PFH_MONF (1)",
-      "slot_number": "07",
+      "slot_number": "14",
       "tiff_dir_list": [
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_Height.webp",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0002_X-001_Y000_0001_Height.webp",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0003_X000_Y-001_0001_Height.webp",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0004_X000_Y001_0001_Height.webp",
-        "#260418#093000#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0005_X001_Y000_0001_Height.webp"
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.webp",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.webp",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.webp",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.webp",
+        "#261003#093000#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.webp"
       ],
       "time": "093000",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260418#093000#RQQA_PFH_MONF (1)#07_profile#MON691C#profile"
+      "unique_key": "261003#093000#RQQA_PFH_MONF (1)#14"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_capture.webp"
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_capture.webp"
       ],
-      "data_dir_list": [
-        "no files"
-      ],
-      "date": "260418",
+      "data_dir_list": [],
+      "date": "261003",
       "fab": "R3",
-      "filename": "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_Info.csv",
-      "formatted_date": "2026-04-18",
+      "filename": "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_Info.csv",
+      "formatted_date": "2026-10-03",
       "has_align": false,
       "has_data": false,
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
-      "lot_id": "MON691C",
-      "measured_info": "roughness",
-      "point_count": 5,
-      "profile_dir_list": [
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_Height.txt",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0002_X-001_Y000_0001_Height.txt",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0003_X000_Y-001_0001_Height.txt",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0004_X000_Y001_0001_Height.txt",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0005_X001_Y000_0001_Height.txt"
-      ],
-      "recipe_name": "RQQA_PFH_MONF (1)",
-      "slot_number": "07",
-      "tiff_dir_list": [
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_Height.webp",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0002_X-001_Y000_0001_Height.webp",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0003_X000_Y-001_0001_Height.webp",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0004_X000_Y001_0001_Height.webp",
-        "#260418#120700#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0005_X001_Y000_0001_Height.webp"
-      ],
-      "time": "120700",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260418#120700#RQQA_PFH_MONF (1)#07_roughness#MON691C#roughness"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "no files"
-      ],
-      "date": "260418",
-      "fab": "R3",
-      "filename": "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_Info.csv",
-      "formatted_date": "2026-04-18",
-      "has_align": false,
-      "has_data": false,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON691C",
+      "lot_id": "MON69WO",
       "measured_info": "1",
       "point_count": 5,
       "profile_dir_list": [
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_Height.txt",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0002_X-001_Y000_0001_Height.txt",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0003_X000_Y-001_0001_Height.txt",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0004_X000_Y001_0001_Height.txt",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0005_X001_Y000_0001_Height.txt"
+        "profile_#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_Info.csv",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.txt",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.txt",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.txt",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.txt",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.txt"
       ],
       "recipe_name": "RQQA_PFH_MONF (1)",
-      "slot_number": "07",
+      "slot_number": "14",
       "tiff_dir_list": [
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0001_X000_Y000_0001_Height.webp",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0002_X-001_Y000_0001_Height.webp",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0003_X000_Y-001_0001_Height.webp",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0004_X000_Y001_0001_Height.webp",
-        "#260418#144400#RQQA_PFH_MONF (1)#07#NA#NA#MON691C.07_0005_X001_Y000_0001_Height.webp"
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.webp",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.webp",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.webp",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.webp",
+        "#261003#120700#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.webp"
+      ],
+      "time": "120700",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "261003#120700#RQQA_PFH_MONF (1)#14"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [],
+      "date": "261003",
+      "fab": "R3",
+      "filename": "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_Info.csv",
+      "formatted_date": "2026-10-03",
+      "has_align": false,
+      "has_data": false,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "MON69WO",
+      "measured_info": "standard",
+      "point_count": 5,
+      "profile_dir_list": [
+        "profile_#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_Info.csv",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.txt",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.txt",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.txt",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.txt",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.txt"
+      ],
+      "recipe_name": "RQQA_PFH_MONF (1)",
+      "slot_number": "14",
+      "tiff_dir_list": [
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0001_X000_Y000_0001_Height.webp",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0002_X-001_Y000_0001_Height.webp",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0003_X000_Y-001_0001_Height.webp",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0004_X000_Y001_0001_Height.webp",
+        "#261003#144400#RQQA_PFH_MONF (1)#14#NA#NA#MON69WO.14_0005_X001_Y000_0001_Height.webp"
       ],
       "time": "144400",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260418#144400#RQQA_PFH_MONF (1)#07_1#MON691C#1"
+      "unique_key": "261003#144400#RQQA_PFH_MONF (1)#14"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_capture.webp"
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260417",
+      "date": "261002",
       "fab": "R3",
-      "filename": "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_Info.csv",
-      "formatted_date": "2026-04-17",
+      "filename": "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_Info.csv",
+      "formatted_date": "2026-10-02",
       "has_align": false,
       "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
-      "lot_id": "MON701D",
-      "measured_info": "standard",
-      "point_count": 17,
-      "profile_dir_list": [
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0002_X-001_Y000_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0003_X000_Y-001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0004_X000_Y001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0005_X001_Y000_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0006_X-001_Y-001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0007_X-001_Y001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0008_X001_Y-001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0009_X001_Y001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0010_X-002_Y000_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0011_X000_Y-002_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0012_X000_Y002_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0013_X002_Y000_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0014_X-002_Y-001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0015_X-002_Y001_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0016_X-001_Y-002_0001_Height.txt",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0017_X-001_Y002_0001_Height.txt"
-      ],
-      "recipe_name": "RL1A_LPCCMP_CMPWEAK2",
-      "slot_number": "08",
-      "tiff_dir_list": [
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0002_X-001_Y000_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0003_X000_Y-001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0004_X000_Y001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0005_X001_Y000_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0006_X-001_Y-001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0007_X-001_Y001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0008_X001_Y-001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0009_X001_Y001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0010_X-002_Y000_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0011_X000_Y-002_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0012_X000_Y002_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0013_X002_Y000_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0014_X-002_Y-001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0015_X-002_Y001_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0016_X-001_Y-002_0001_Height.webp",
-        "#260417#083000#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0017_X-001_Y002_0001_Height.webp"
-      ],
-      "time": "083000",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260417#083000#RL1A_LPCCMP_CMPWEAK2#08_standard#MON701D#standard"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08.csv"
-      ],
-      "date": "260417",
-      "fab": "R3",
-      "filename": "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_Info.csv",
-      "formatted_date": "2026-04-17",
-      "has_align": false,
-      "has_data": true,
-      "has_image": true,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "MON701D",
+      "lot_id": "MON70WP",
       "measured_info": "repeat2",
       "point_count": 17,
       "profile_dir_list": [
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0002_X-001_Y000_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0003_X000_Y-001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0004_X000_Y001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0005_X001_Y000_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0006_X-001_Y-001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0007_X-001_Y001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0008_X001_Y-001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0009_X001_Y001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0010_X-002_Y000_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0011_X000_Y-002_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0012_X000_Y002_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0013_X002_Y000_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0014_X-002_Y-001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0015_X-002_Y001_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0016_X-001_Y-002_0001_Height.txt",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0017_X-001_Y002_0001_Height.txt"
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.parquet",
+        "profile_#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_Info.csv",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15.csv",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.txt",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.txt"
       ],
       "recipe_name": "RL1A_LPCCMP_CMPWEAK2",
-      "slot_number": "08",
+      "slot_number": "15",
       "tiff_dir_list": [
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0002_X-001_Y000_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0003_X000_Y-001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0004_X000_Y001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0005_X001_Y000_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0006_X-001_Y-001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0007_X-001_Y001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0008_X001_Y-001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0009_X001_Y001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0010_X-002_Y000_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0011_X000_Y-002_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0012_X000_Y002_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0013_X002_Y000_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0014_X-002_Y-001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0015_X-002_Y001_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0016_X-001_Y-002_0001_Height.webp",
-        "#260417#110700#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0017_X-001_Y002_0001_Height.webp"
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.webp",
+        "#261002#083000#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.webp"
       ],
-      "time": "110700",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "time": "083000",
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260417#110700#RL1A_LPCCMP_CMPWEAK2#08_repeat2#MON701D#repeat2"
+      "unique_key": "261002#083000#RL1A_LPCCMP_CMPWEAK2#15"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_capture.webp"
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260417",
+      "date": "261002",
       "fab": "R3",
-      "filename": "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_Info.csv",
-      "formatted_date": "2026-04-17",
+      "filename": "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_Info.csv",
+      "formatted_date": "2026-10-02",
       "has_align": false,
       "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
-      "lot_id": "MON701D",
+      "lot_id": "MON70WP",
       "measured_info": "profile",
       "point_count": 17,
       "profile_dir_list": [
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0002_X-001_Y000_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0003_X000_Y-001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0004_X000_Y001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0005_X001_Y000_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0006_X-001_Y-001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0007_X-001_Y001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0008_X001_Y-001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0009_X001_Y001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0010_X-002_Y000_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0011_X000_Y-002_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0012_X000_Y002_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0013_X002_Y000_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0014_X-002_Y-001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0015_X-002_Y001_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0016_X-001_Y-002_0001_Height.txt",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0017_X-001_Y002_0001_Height.txt"
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.parquet",
+        "profile_#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_Info.csv",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15.csv",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.txt",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.txt"
       ],
       "recipe_name": "RL1A_LPCCMP_CMPWEAK2",
-      "slot_number": "08",
+      "slot_number": "15",
       "tiff_dir_list": [
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0001_X000_Y000_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0002_X-001_Y000_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0003_X000_Y-001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0004_X000_Y001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0005_X001_Y000_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0006_X-001_Y-001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0007_X-001_Y001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0008_X001_Y-001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0009_X001_Y001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0010_X-002_Y000_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0011_X000_Y-002_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0012_X000_Y002_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0013_X002_Y000_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0014_X-002_Y-001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0015_X-002_Y001_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0016_X-001_Y-002_0001_Height.webp",
-        "#260417#134400#RL1A_LPCCMP_CMPWEAK2#08#NA#NA#MON701D.08_0017_X-001_Y002_0001_Height.webp"
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.webp",
+        "#261002#110700#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.webp"
       ],
-      "time": "134400",
-      "tip_dir_list": [
-        "no files"
-      ],
+      "time": "110700",
+      "tip_dir_list": [],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260417#134400#RL1A_LPCCMP_CMPWEAK2#08_profile#MON701D#profile"
+      "unique_key": "261002#110700#RL1A_LPCCMP_CMPWEAK2#15"
     },
     {
-      "align_dir_list": [
-        "no files"
-      ],
+      "align_dir_list": [],
       "capture_dir_list": [
-        "#260416#073000#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0001_capture.webp"
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_capture.webp"
       ],
       "data_dir_list": [
-        "#260416#073000#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09.csv"
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
       ],
-      "date": "260416",
+      "date": "261002",
       "fab": "R3",
-      "filename": "#260416#073000#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_Info.csv",
-      "formatted_date": "2026-04-16",
-      "has_align": false,
-      "has_data": true,
-      "has_image": false,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "RL1C01E",
-      "measured_info": "roughness",
-      "point_count": 3,
-      "profile_dir_list": [
-        "#260416#073000#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0001_Height.txt",
-        "#260416#073000#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0002_Height.txt",
-        "#260416#073000#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0003_Height.txt"
-      ],
-      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
-      "slot_number": "09",
-      "tiff_dir_list": [
-        "no files"
-      ],
-      "time": "073000",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260416#073000#RL1C_L1_XDEC_5MM_LINE#09_roughness#RL1C01E#roughness"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260416#100700#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260416#100700#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09.csv"
-      ],
-      "date": "260416",
-      "fab": "R3",
-      "filename": "#260416#100700#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_Info.csv",
-      "formatted_date": "2026-04-16",
-      "has_align": false,
-      "has_data": true,
-      "has_image": false,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "RL1C01E",
-      "measured_info": "1",
-      "point_count": 3,
-      "profile_dir_list": [
-        "#260416#100700#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0001_Height.txt",
-        "#260416#100700#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0002_Height.txt",
-        "#260416#100700#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0003_Height.txt"
-      ],
-      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
-      "slot_number": "09",
-      "tiff_dir_list": [
-        "no files"
-      ],
-      "time": "100700",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260416#100700#RL1C_L1_XDEC_5MM_LINE#09_1#RL1C01E#1"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260416#124400#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260416#124400#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09.csv"
-      ],
-      "date": "260416",
-      "fab": "R3",
-      "filename": "#260416#124400#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_Info.csv",
-      "formatted_date": "2026-04-16",
-      "has_align": false,
-      "has_data": true,
-      "has_image": false,
-      "has_profile": true,
-      "has_tip": false,
-      "lot_id": "RL1C01E",
-      "measured_info": "standard",
-      "point_count": 3,
-      "profile_dir_list": [
-        "#260416#124400#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0001_Height.txt",
-        "#260416#124400#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0002_Height.txt",
-        "#260416#124400#RL1C_L1_XDEC_5MM_LINE#09#NA#NA#RL1C01E.09_0003_Height.txt"
-      ],
-      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
-      "slot_number": "09",
-      "tiff_dir_list": [
-        "no files"
-      ],
-      "time": "124400",
-      "tip_dir_list": [
-        "no files"
-      ],
-      "tool_id": "mapc01",
-      "tool_name": "MAPC01",
-      "unique_key": "260416#124400#RL1C_L1_XDEC_5MM_LINE#09_standard#RL1C01E#standard"
-    },
-    {
-      "align_dir_list": [
-        "no files"
-      ],
-      "capture_dir_list": [
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0001_capture.webp"
-      ],
-      "data_dir_list": [
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10.csv"
-      ],
-      "date": "260415",
-      "fab": "R3",
-      "filename": "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_Info.csv",
-      "formatted_date": "2026-04-15",
+      "filename": "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_Info.csv",
+      "formatted_date": "2026-10-02",
       "has_align": false,
       "has_data": true,
       "has_image": true,
       "has_profile": true,
       "has_tip": false,
-      "lot_id": "MON691F",
+      "lot_id": "MON70WP",
+      "measured_info": "roughness",
+      "point_count": 17,
+      "profile_dir_list": [
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.parquet",
+        "profile_#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_Info.csv",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15.csv",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.txt",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.txt"
+      ],
+      "recipe_name": "RL1A_LPCCMP_CMPWEAK2",
+      "slot_number": "15",
+      "tiff_dir_list": [
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0001_X000_Y000_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0002_X-001_Y000_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0003_X000_Y-001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0004_X000_Y001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0005_X001_Y000_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0006_X-001_Y-001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0007_X-001_Y001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0008_X001_Y-001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0009_X001_Y001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0010_X-002_Y000_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0011_X000_Y-002_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0012_X000_Y002_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0013_X002_Y000_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0014_X-002_Y-001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0015_X-002_Y001_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0016_X-001_Y-002_0001_Height.webp",
+        "#261002#134400#RL1A_LPCCMP_CMPWEAK2#15#NA#NA#MON70WP.15_0017_X-001_Y002_0001_Height.webp"
+      ],
+      "time": "134400",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "261002#134400#RL1A_LPCCMP_CMPWEAK2#15"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "261001",
+      "fab": "R3",
+      "filename": "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_Info.csv",
+      "formatted_date": "2026-10-01",
+      "has_align": false,
+      "has_data": true,
+      "has_image": false,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "RL1C0WQ",
+      "measured_info": "1",
+      "point_count": 3,
+      "profile_dir_list": [
+        "profile_#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_Height.parquet",
+        "profile_#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0002_Height.parquet",
+        "profile_#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0003_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_Info.csv",
+        "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16.csv",
+        "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_Height.txt",
+        "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0002_Height.txt",
+        "#261001#073000#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0003_Height.txt"
+      ],
+      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
+      "slot_number": "16",
+      "tiff_dir_list": [],
+      "time": "073000",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "261001#073000#RL1C_L1_XDEC_5MM_LINE#16"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "261001",
+      "fab": "R3",
+      "filename": "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_Info.csv",
+      "formatted_date": "2026-10-01",
+      "has_align": false,
+      "has_data": true,
+      "has_image": false,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "RL1C0WQ",
+      "measured_info": "standard",
+      "point_count": 3,
+      "profile_dir_list": [
+        "profile_#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_Height.parquet",
+        "profile_#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0002_Height.parquet",
+        "profile_#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0003_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_Info.csv",
+        "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16.csv",
+        "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_Height.txt",
+        "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0002_Height.txt",
+        "#261001#100700#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0003_Height.txt"
+      ],
+      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
+      "slot_number": "16",
+      "tiff_dir_list": [],
+      "time": "100700",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "261001#100700#RL1C_L1_XDEC_5MM_LINE#16"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "261001",
+      "fab": "R3",
+      "filename": "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_Info.csv",
+      "formatted_date": "2026-10-01",
+      "has_align": false,
+      "has_data": true,
+      "has_image": false,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "RL1C0WQ",
       "measured_info": "repeat2",
+      "point_count": 3,
+      "profile_dir_list": [
+        "profile_#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_Height.parquet",
+        "profile_#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0002_Height.parquet",
+        "profile_#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0003_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_Info.csv",
+        "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16.csv",
+        "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0001_Height.txt",
+        "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0002_Height.txt",
+        "#261001#124400#RL1C_L1_XDEC_5MM_LINE#16#NA#NA#RL1C0WQ.16_0003_Height.txt"
+      ],
+      "recipe_name": "RL1C_L1_XDEC_5MM_LINE",
+      "slot_number": "16",
+      "tiff_dir_list": [],
+      "time": "124400",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "261001#124400#RL1C_L1_XDEC_5MM_LINE#16"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260930",
+      "fab": "R3",
+      "filename": "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_Info.csv",
+      "formatted_date": "2026-09-30",
+      "has_align": false,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "MON69WR",
+      "measured_info": "profile",
       "point_count": 5,
       "profile_dir_list": [
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0001_Height.txt",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0002_Height.txt",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0003_Height.txt",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0004_Height.txt",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0005_Height.txt"
+        "profile_#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.parquet",
+        "profile_#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.parquet",
+        "profile_#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.parquet",
+        "profile_#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.parquet",
+        "profile_#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_Info.csv",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17.csv",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.txt",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.txt",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.txt",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.txt",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.txt"
       ],
       "recipe_name": "ROUGHNESS_SCAN",
-      "slot_number": "10",
+      "slot_number": "17",
       "tiff_dir_list": [
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0001_Height.webp",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0002_Height.webp",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0003_Height.webp",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0004_Height.webp",
-        "#260415#063000#ROUGHNESS_SCAN#10#NA#NA#MON691F.10_0005_Height.webp"
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.webp",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.webp",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.webp",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.webp",
+        "#260930#063000#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.webp"
       ],
       "time": "063000",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260930#063000#ROUGHNESS_SCAN#17"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260930",
+      "fab": "R3",
+      "filename": "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_Info.csv",
+      "formatted_date": "2026-09-30",
+      "has_align": false,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "MON69WR",
+      "measured_info": "roughness",
+      "point_count": 5,
+      "profile_dir_list": [
+        "profile_#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.parquet",
+        "profile_#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.parquet",
+        "profile_#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.parquet",
+        "profile_#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.parquet",
+        "profile_#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_Info.csv",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17.csv",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.txt",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.txt",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.txt",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.txt",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.txt"
+      ],
+      "recipe_name": "ROUGHNESS_SCAN",
+      "slot_number": "17",
+      "tiff_dir_list": [
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.webp",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.webp",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.webp",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.webp",
+        "#260930#090700#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.webp"
+      ],
+      "time": "090700",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260930#090700#ROUGHNESS_SCAN#17"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260930",
+      "fab": "R3",
+      "filename": "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_Info.csv",
+      "formatted_date": "2026-09-30",
+      "has_align": false,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "MON69WR",
+      "measured_info": "1",
+      "point_count": 5,
+      "profile_dir_list": [
+        "profile_#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.parquet",
+        "profile_#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.parquet",
+        "profile_#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.parquet",
+        "profile_#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.parquet",
+        "profile_#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_Info.csv",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17.csv",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.txt",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.txt",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.txt",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.txt",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.txt"
+      ],
+      "recipe_name": "ROUGHNESS_SCAN",
+      "slot_number": "17",
+      "tiff_dir_list": [
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0001_Height.webp",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0002_Height.webp",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0003_Height.webp",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0004_Height.webp",
+        "#260930#114400#ROUGHNESS_SCAN#17#NA#NA#MON69WR.17_0005_Height.webp"
+      ],
+      "time": "114400",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260930#114400#ROUGHNESS_SCAN#17"
+    },
+    {
+      "align_dir_list": [
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_alignment.webp"
+      ],
+      "capture_dir_list": [
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260929",
+      "fab": "R3",
+      "filename": "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_Info.csv",
+      "formatted_date": "2026-09-29",
+      "has_align": true,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": false,
+      "has_tip": false,
+      "lot_id": "MON70WS",
+      "measured_info": "standard",
+      "point_count": 21,
+      "profile_dir_list": [],
+      "raw_dir_list": [
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_Info.csv",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18.csv"
+      ],
+      "recipe_name": "RX1A_M0A_COT_X_PDG",
+      "slot_number": "18",
+      "tiff_dir_list": [
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0002_X-001_Y000_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0003_X000_Y-001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0004_X000_Y001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0005_X001_Y000_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0006_X-001_Y-001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0007_X-001_Y001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0008_X001_Y-001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0009_X001_Y001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0010_X-002_Y000_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0011_X000_Y-002_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0012_X000_Y002_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0013_X002_Y000_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0014_X-002_Y-001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0015_X-002_Y001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0016_X-001_Y-002_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0017_X-001_Y002_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0018_X001_Y-002_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0019_X001_Y002_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0020_X002_Y-001_0001_Height.webp",
+        "#260929#053000#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0021_X002_Y001_0001_Height.webp"
+      ],
+      "time": "053000",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260929#053000#RX1A_M0A_COT_X_PDG#18"
+    },
+    {
+      "align_dir_list": [
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_alignment.webp"
+      ],
+      "capture_dir_list": [
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260929",
+      "fab": "R3",
+      "filename": "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_Info.csv",
+      "formatted_date": "2026-09-29",
+      "has_align": true,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": false,
+      "has_tip": false,
+      "lot_id": "MON70WS",
+      "measured_info": "repeat2",
+      "point_count": 21,
+      "profile_dir_list": [],
+      "raw_dir_list": [
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_Info.csv",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18.csv"
+      ],
+      "recipe_name": "RX1A_M0A_COT_X_PDG",
+      "slot_number": "18",
+      "tiff_dir_list": [
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0002_X-001_Y000_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0003_X000_Y-001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0004_X000_Y001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0005_X001_Y000_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0006_X-001_Y-001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0007_X-001_Y001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0008_X001_Y-001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0009_X001_Y001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0010_X-002_Y000_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0011_X000_Y-002_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0012_X000_Y002_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0013_X002_Y000_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0014_X-002_Y-001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0015_X-002_Y001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0016_X-001_Y-002_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0017_X-001_Y002_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0018_X001_Y-002_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0019_X001_Y002_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0020_X002_Y-001_0001_Height.webp",
+        "#260929#080700#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0021_X002_Y001_0001_Height.webp"
+      ],
+      "time": "080700",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260929#080700#RX1A_M0A_COT_X_PDG#18"
+    },
+    {
+      "align_dir_list": [
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_alignment.webp"
+      ],
+      "capture_dir_list": [
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260929",
+      "fab": "R3",
+      "filename": "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_Info.csv",
+      "formatted_date": "2026-09-29",
+      "has_align": true,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": false,
+      "has_tip": false,
+      "lot_id": "MON70WS",
+      "measured_info": "profile",
+      "point_count": 21,
+      "profile_dir_list": [],
+      "raw_dir_list": [
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_Info.csv",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18.csv"
+      ],
+      "recipe_name": "RX1A_M0A_COT_X_PDG",
+      "slot_number": "18",
+      "tiff_dir_list": [
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0001_X000_Y000_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0002_X-001_Y000_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0003_X000_Y-001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0004_X000_Y001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0005_X001_Y000_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0006_X-001_Y-001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0007_X-001_Y001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0008_X001_Y-001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0009_X001_Y001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0010_X-002_Y000_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0011_X000_Y-002_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0012_X000_Y002_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0013_X002_Y000_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0014_X-002_Y-001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0015_X-002_Y001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0016_X-001_Y-002_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0017_X-001_Y002_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0018_X001_Y-002_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0019_X001_Y002_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0020_X002_Y-001_0001_Height.webp",
+        "#260929#104400#RX1A_M0A_COT_X_PDG#18#NA#NA#MON70WS.18_0021_X002_Y001_0001_Height.webp"
+      ],
+      "time": "104400",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260929#104400#RX1A_M0A_COT_X_PDG#18"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260928",
+      "fab": "R3",
+      "filename": "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_Info.csv",
+      "formatted_date": "2026-09-28",
+      "has_align": false,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": true,
+      "lot_id": "RL1C0WT",
+      "measured_info": "roughness",
+      "point_count": 9,
+      "profile_dir_list": [
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_Info.csv",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19.csv",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.txt",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.txt"
+      ],
+      "recipe_name": "CMP_POST",
+      "slot_number": "19",
+      "tiff_dir_list": [
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.webp",
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.webp"
+      ],
+      "time": "043000",
       "tip_dir_list": [
-        "no files"
+        "#260928#043000#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_tip.webp"
       ],
       "tool_id": "mapc01",
       "tool_name": "MAPC01",
-      "unique_key": "260415#063000#ROUGHNESS_SCAN#10_repeat2#MON691F#repeat2"
+      "unique_key": "260928#043000#CMP_POST#19"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260928",
+      "fab": "R3",
+      "filename": "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_Info.csv",
+      "formatted_date": "2026-09-28",
+      "has_align": false,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": true,
+      "lot_id": "RL1C0WT",
+      "measured_info": "1",
+      "point_count": 9,
+      "profile_dir_list": [
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_Info.csv",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19.csv",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.txt",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.txt"
+      ],
+      "recipe_name": "CMP_POST",
+      "slot_number": "19",
+      "tiff_dir_list": [
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.webp",
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.webp"
+      ],
+      "time": "070700",
+      "tip_dir_list": [
+        "#260928#070700#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_tip.webp"
+      ],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260928#070700#CMP_POST#19"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [
+        "detail_information.parquet",
+        "detail_summary.parquet",
+        "detail_points.parquet"
+      ],
+      "date": "260928",
+      "fab": "R3",
+      "filename": "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_Info.csv",
+      "formatted_date": "2026-09-28",
+      "has_align": false,
+      "has_data": true,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": true,
+      "lot_id": "RL1C0WT",
+      "measured_info": "standard",
+      "point_count": 9,
+      "profile_dir_list": [
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.parquet",
+        "profile_#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_Info.csv",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19.csv",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.txt",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.txt"
+      ],
+      "recipe_name": "CMP_POST",
+      "slot_number": "19",
+      "tiff_dir_list": [
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0002_X-001_Y000_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0003_X000_Y-001_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0004_X000_Y001_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0005_X001_Y000_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0006_X-001_Y-001_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0007_X-001_Y001_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0008_X001_Y-001_0001_Height.webp",
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0009_X001_Y001_0001_Height.webp"
+      ],
+      "time": "094400",
+      "tip_dir_list": [
+        "#260928#094400#CMP_POST#19#NA#NA#RL1C0WT.19_0001_X000_Y000_0001_tip.webp"
+      ],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260928#094400#CMP_POST#19"
+    },
+    {
+      "align_dir_list": [],
+      "capture_dir_list": [
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0001_X000_Y000_0001_capture.webp"
+      ],
+      "data_dir_list": [],
+      "date": "260927",
+      "fab": "R3",
+      "filename": "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_Info.csv",
+      "formatted_date": "2026-09-27",
+      "has_align": false,
+      "has_data": false,
+      "has_image": true,
+      "has_profile": true,
+      "has_tip": false,
+      "lot_id": "MON69WU",
+      "measured_info": "repeat2",
+      "point_count": 5,
+      "profile_dir_list": [
+        "profile_#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0001_X000_Y000_0001_Height.parquet",
+        "profile_#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0002_X-001_Y000_0001_Height.parquet",
+        "profile_#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0003_X000_Y-001_0001_Height.parquet",
+        "profile_#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0004_X000_Y001_0001_Height.parquet",
+        "profile_#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0005_X001_Y000_0001_Height.parquet"
+      ],
+      "raw_dir_list": [
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_Info.csv",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0001_X000_Y000_0001_Height.txt",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0002_X-001_Y000_0001_Height.txt",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0003_X000_Y-001_0001_Height.txt",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0004_X000_Y001_0001_Height.txt",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0005_X001_Y000_0001_Height.txt"
+      ],
+      "recipe_name": "RQQA_PFH_MONF (1)",
+      "slot_number": "20",
+      "tiff_dir_list": [
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0001_X000_Y000_0001_Height.webp",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0002_X-001_Y000_0001_Height.webp",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0003_X000_Y-001_0001_Height.webp",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0004_X000_Y001_0001_Height.webp",
+        "#260927#093000#RQQA_PFH_MONF (1)#20#NA#NA#MON69WU.20_0005_X001_Y000_0001_Height.webp"
+      ],
+      "time": "093000",
+      "tip_dir_list": [],
+      "tool_id": "mapc01",
+      "tool_name": "MAPC01",
+      "unique_key": "260927#093000#RQQA_PFH_MONF (1)#20"
     }
   ],
   "message": "Successfully loaded 28 AFM measurements for MAPC01",

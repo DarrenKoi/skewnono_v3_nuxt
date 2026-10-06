@@ -20,7 +20,7 @@ def client():
 def _capture_row():
     field = mock.IMAGE_TYPE_FIELDS["capture"]
     for row in data.list_afm_files(None):
-        names = [n for n in row.get(field, []) if n != "no files"]
+        names = row.get(field, [])
         if names:
             return row, names
     raise AssertionError("no capture row")
@@ -73,7 +73,7 @@ def test_serve_route_unknown_type_404(client):
 def _tiff_row():
     field = mock.IMAGE_TYPE_FIELDS["tiff"]
     for row in data.list_afm_files(None):
-        names = [n for n in row.get(field, []) if n != "no files"]
+        names = row.get(field, [])
         if names:
             return row, names
     raise AssertionError("no tiff row")

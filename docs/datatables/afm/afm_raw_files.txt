@@ -1,15 +1,15 @@
-AFM 장비 raw 파일 — ETL 이전 원본 (Redis/MinIO 적재 형태는 일부만 확인됨)
+AFM 장비 raw 파일 — ETL 이전 원본 (적재 형태는 afm_redis.txt)
 
 이 문서는 각 AFM 장비에서 추출한 **raw 파일**의 구조입니다. 사무실 agent 가
 skewnono-pjt-shared/AFM/ 의 raw 데이터를 보고 확인한 내용이며(office 확인
 2026-10-02, 회신 4회), 회신 원문은 docs/afm/office-data-findings.md 에 그대로 있습니다.
 
-웹이 실제로 읽을 것은 이 raw 파일이 아니라 ETL 이후의 적재물입니다 — Redis 색인
-(측정 목록 + MinIO 경로)과 MinIO 객체(상세·Profile·이미지). ETL 은 적재를 시작한
-단계이고, 적재 형태는 **profile 하나만** 먼저 확인되었습니다(D4). 나머지 key 이름·
-형식·dtype 은 사무실이 "추후에 물어 달라"고 한 상태이며, 정해지면 이 폴더에 적재
-형태 문서를 따로 추가합니다. 질문서는 docs/afm/to-questionnaire-afm.md(적재 명세)와
-docs/afm/to-questionnaire-afm-2.md(raw 파일 후속 질문, 답변 완료)입니다.
+웹이 실제로 읽는 것은 이 raw 파일이 아니라 ETL 이후의 적재물입니다 — Redis 색인
+(측정 목록 + MinIO 객체 key)과 MinIO 객체(상세·Profile·이미지). 그 key 이름·형식·열은
+**afm_redis.txt** 에 있습니다(user-confirmed 2026-10-06). 이 문서는 그 값들이 어디서
+왔는지 — 파일명의 필드, CSV 의 섹션, profile 의 격자 — 를 설명합니다. 질문서는
+docs/afm/to-questionnaire-afm.md(적재 명세)와 docs/afm/to-questionnaire-afm-2.md
+(raw 파일 후속 질문, 답변 완료)입니다.
 
 표기: [확인] = office 확인 2026-10-02, [가정] = OFFICE-VERIFY.
       [정정] = 앞선 회신의 내용을 뒤의 회신이 바꾼 곳.
@@ -241,9 +241,10 @@ D5 이미지
     각 항목은 이 주소를 `original_url` 로 싣습니다. 측정 하나의 원본 전체는
     `GET /api/afm/files/<filename>/tiff.zip` 으로 한 번에 받습니다(route 가 위 두 함수로
     조립하므로 office 함수가 따로 없습니다).
-  - 그 밖의 계약(`AfmMeasurementRow`, 상세의 summary·data)은 Redis·MinIO 명세를
-    받을 때까지 그대로 둡니다. 특히 **Data 행이 어느 block 에 속하는지**를 담을 자리가
-    아직 없습니다 — Method ID 로는 가릴 수 없으므로 적재 형태가 정해지면 정합니다.
+  - `AfmMeasurementRow` 는 Redis 명세에 맞추었습니다(afm_redis.txt). 상세의
+    summary·data 는 detail parquet 의 열 구성을 받을 때까지 그대로 둡니다. 특히
+    **Data 행이 어느 block 에 속하는지**를 담을 자리가 아직 없습니다 — Method ID 로는
+    가릴 수 없으므로 그 열 구성이 확인되면 정합니다.
 
 
 mock 반영 (backend/afm/providers/mock.py)

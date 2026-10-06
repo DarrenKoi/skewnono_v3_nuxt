@@ -10,6 +10,24 @@
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
+## Status — template written, not yet run at the office (2026-10-06)
+
+`providers/office_example.py` is a full adapter over the loaded shape in
+[`docs/datatables/afm/afm_redis.txt`](../../docs/datatables/afm/afm_redis.txt):
+Redis hashes `afm_d1_tools` (field `all`) and `afm_d2_measurements` (field =
+tool name), plus the MinIO objects under `2067928/afm/<TOOL>/<측정키>/`. It only
+reads; nothing here writes to MinIO or Redis.
+
+First run at the office, before the `cp`:
+
+    python -m backend.afm.providers.office_example
+
+It prints one measurement per tool — the row, its file lists, and the columns
+of the three detail parquets. Compare that output with the `OFFICE-VERIFY` list
+at the top of the file; those are the parts written from the raw-file facts
+rather than from a loaded-shape reply. `backend/afm/tests/test_office_template.py`
+runs the same code at home against a fake hash and a fake object store.
+
 ## Endpoint family: GET /api/afm/tools
 
 - Handler: `routes.py` → `data.get_tools()`
@@ -29,7 +47,9 @@
   `5EAP1501`=M15 are office-confirmed (2026-10-02); `MAP608`=PKG is still
   `OFFICE-VERIFY`. The raw files carry no fab field, so the mapping has to
   come from a table keyed on the tool id.
-- Office data source: <!-- OFFICE: AFM tool/asset registry query -->
+- Office data source: Redis hash `afm_d1_tools`, field `all` — columns
+  `id, name, fab, alias`. `alias` becomes `label` (falling back to `name`);
+  `fab` is empty until the office decides where it comes from.
 - Notes: the route wraps this directly in a bare JSON array (no envelope).
 
 ## Endpoint family: GET /api/afm/files, GET /api/afm-files
@@ -38,11 +58,10 @@
   `?tool=` query arg, normalized via `data.normalize_tool`, default
   `"MAP608"` when absent/blank)
 - Contract: `list[AfmMeasurementRow]` (existing TypedDict, unchanged — see
-  `contracts.py`; notably has many keys including duplicate snake_case /
-  camelCase `has_*`/`has*` boolean pairs kept for frontend compatibility, and
-  `profile_dir_list`/`data_dir_list`/`tiff_dir_list`/`align_dir_list`/
-  `tip_dir_list` each holding either real file names or the literal
-  `["no files"]` sentinel when that dir has no files for the row.)
+  `contracts.py`. The seven `*_dir_list` keys — data, profile, tiff, align,
+  tip, capture, raw — hold file **names**, and `[]` when there are none; there
+  is no `["no files"]` sentinel. `formatted_date`, `time` and `point_count` can
+  be `null`.)
 - Mock behavior: deterministically generates rows per tool from a static
   `TOOL_CONFIGS` table (fixed row count per tool). `filename` follows each
   tool's own raw file-name field order (`#`-separated, `NA` for an empty
@@ -54,10 +73,15 @@
   `time` tells those rows apart (a measurement is `date#time#recipe#slot`);
   `5EAP1501`'s name ends with the tool's original file name. **Which files exist is decided by the recipe**
   (the `RECIPES` table), never by the tool or the row: a recipe with no data
-  CSV has `has_data == False` and `data_dir_list == ["no files"]`, and the
+  CSV has `has_data == False` and `data_dir_list == []`, and the
   same goes for profile and images. Absence is a normal state, not an error.
   `point_count` is recipe configuration too, and ranges from 1 to 36.
-- Office data source: <!-- OFFICE: AFM measurement file index / listing API -->
+- Office data source: Redis hash `afm_d2_measurements`, field = tool name — one
+  parquet DataFrame holding that tool's whole history. The lists there are full
+  MinIO keys; the adapter returns their basenames, derives every `has_*` from
+  whether its list is empty, turns a `NA` time into `null`, and sorts newest
+  first. `measured_info` and `tool_id` are not documented columns
+  (`OFFICE-VERIFY`).
 - Notes: route wraps the list in
   `{success, data, total, tool, message}`. `total` and `message` are derived
   from `len(rows)` at the route layer — office only needs to return the
@@ -106,7 +130,11 @@
   block with rows that have no measurement columns and no summary. Either table can be empty on its
   own: a recipe with no data CSV empties both, and real files were also seen
   with no Summary, or with a Data section that has no table.
-- Office data source: <!-- OFFICE: AFM measurement detail / summary export API -->
+- Office data source: the measurement's `data_dir_list` —
+  `detail_information.parquet`, `detail_summary.parquet`,
+  `detail_points.parquet`. Their columns are `OFFICE-VERIFY`; the adapter adds
+  `measurement_point` to each data row (Site ID + 4-digit `Point No`) and, when
+  there are no points, reads `available_points` off the profile and image names.
 - Notes: `get_afm_file_detail` is `@lru_cache`d in mock — pure function of
   `(filename, tool_name)`; office does not need to replicate caching but
   should keep the same argument shape.
@@ -146,7 +174,9 @@
   that the page shows as an empty state. Any `point`
   string is otherwise accepted — the mock does not validate it against
   `available_points`.
-- Office data source: <!-- OFFICE: AFM profile/height-map export API -->
+- Office data source: the `profile_<raw name>.parquet` in `profile_dir_list`
+  whose name carries `_<point>_Height`. Units are read from the parquet
+  metadata, else from the MinIO object's user metadata (`OFFICE-VERIFY` which).
 - Notes: route wraps the list in `{success, data, meta, count, tool, message}`.
   The loaded profile is an X/Y/Z parquet whose object metadata carries
   `XUnit`, `YUnit`, `ZUnit`, `DataSize` and `SurfaceSize`; map those five onto
@@ -163,13 +193,17 @@
   metadata + a URL pointing at the `/image-file/...` variant) and
   `/image-file/...` (returns the raw SVG body with
   `mimetype="image/svg+xml"`)
-- Contract: plain `str` (assert with `isinstance`, not a TypedDict) — a
-  self-contained inline SVG document.
+- Contract: `str | bytes` — a `str` is a self-contained SVG document and is
+  served as `image/svg+xml`; `bytes` are a stored webp and are served as
+  `image/webp`. The mock returns the first, the office the second.
 - Mock behavior: renders a synthetic gradient/scatter SVG seeded from
   `(tool_name, filename, point)`; returns `None` if the file isn't found.
   `/image` 404s as `{success: false, error, message, tool}`; `/image-file`
   404s as the plain text `"Image file not found"`.
-- Office data source: <!-- OFFICE: AFM rendered image / thumbnail export API -->
+- Office data source: the webp in `tiff_dir_list` whose name carries
+  `_<point>_Height` (naming is `OFFICE-VERIFY`). The gallery routes
+  (`.../images/<type>` and `.../images/<type>/<name>`) read `align` / `tip` /
+  `capture` / `tiff` lists the same way, by name.
 - Notes: the `/image` JSON response's `url` field is built by the route
   layer from the request's own filename/point/tool (not from the provider
   return value) — office only needs to return the SVG string; the route
@@ -198,10 +232,10 @@
   pointing at this route to every entry; the other three image types carry no
   such key, and the page shows the 원본 TIFF 다운로드 button only where the key
   is present.
-- Office data source: <!-- OFFICE: MinIO bucket / key of the original TIFF -->
-  — `OFFICE-VERIFY`: the bucket, the key layout, whether the original's
-  basename equals the webp's with another extension, `.tif` vs `.tiff`, and
-  the retention period.
+- Office data source: `OFFICE-VERIFY`. The adapter looks in the measurement's
+  `raw_dir_list` for the webp's own name with a `.tif` / `.tiff` extension. The
+  spec describes `raw_dir_list` as csv/txt, so until an original is listed there
+  no image carries `original_url` and the download button stays hidden.
 - Notes: read the object with `minio_handler.MinioObject().get(key)` (lazy
   import, raw bytes) and return its **key basename** as `filename` — the route
   sends it as the download name, so do not compose one. Return `None` for an
@@ -216,4 +250,4 @@
 
 ## Verify
 
-    SKEWNONO_AFM_PROVIDER=office .venv/bin/pytest backend/afm
+    SKEWNONO_AFM_PROVIDER=office .venv/bin/python -m pytest backend/afm

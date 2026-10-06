@@ -32,7 +32,7 @@ types:
       type: string
       format: "YYMMDD"
     formatted_date:
-      type: string
+      type: [string, "null"]
       format: "YYYY-MM-DD"
     recipe_name:
       type: string
@@ -43,8 +43,8 @@ types:
       type: string
       format: "01..25"
     time:
-      type: string
-      format: "HHMMSS"
+      type: [string, "null"]
+      format: "HHMMSS (office: HHMM or null; NA is null)"
     measured_info:
       type: string
       examples: ["1", "standard", "repeat2", "profile", "roughness"]
@@ -56,7 +56,7 @@ types:
       type: string
     profile_dir_list:
       type: array
-      description: List of profile-pickle filenames or ["no files"]
+      description: File names (basenames of the stored MinIO keys). Every *_dir_list is [] when there are no files.
     data_dir_list:
       type: array
     tiff_dir_list:
@@ -67,6 +67,9 @@ types:
       type: array
     capture_dir_list:
       type: array
+    raw_dir_list:
+      type: array
+      description: The untouched csv/txt the loaded objects came from.
     has_profile:
       type: boolean
     has_data:
@@ -89,8 +92,8 @@ types:
     hasTip:
       type: boolean
     point_count:
-      type: integer
-      description: Number of measurement sites (5..9)
+      type: [integer, "null"]
+      description: Number of measurement points (1..36 seen); null when the loader has none.
 
   AfmFileDetail:
     filename:

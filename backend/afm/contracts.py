@@ -16,30 +16,36 @@ __all__ = [
 
 
 class AfmMeasurementRow(TypedDict):
+    # One row of Redis `afm_d2_measurements` (docs/datatables/afm/afm_redis.txt).
+    # The office stores an empty value as null, so the three cells it documents
+    # as nullable are typed that way; every other text cell is "" when missing.
+    # `unique_key` is the name's first six `#` fields (four on MAPC01).
     unique_key: str
     filename: str
     date: str
-    formatted_date: str
+    formatted_date: str | None
     recipe_name: str
     lot_id: str
     slot_number: str
-    time: str
+    time: str | None
     measured_info: str
     tool_name: str
     tool_id: str
     fab: str
+    # File names (the basename of each stored MinIO key), [] when there are none.
     profile_dir_list: list[str]
     data_dir_list: list[str]
     tiff_dir_list: list[str]
     align_dir_list: list[str]
     tip_dir_list: list[str]
     capture_dir_list: list[str]
+    raw_dir_list: list[str]
     has_profile: bool
     has_data: bool
     has_image: bool
     has_align: bool
     has_tip: bool
-    point_count: int
+    point_count: int | None
 
 
 class AfmToolRow(TypedDict):

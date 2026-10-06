@@ -1,0 +1,169 @@
+AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 읽는 것)
+
+각 AFM 장비의 raw 파일(afm_raw_files.txt)을 ETL 이 적재한 결과입니다. Redis 가 측정
+목록과 MinIO 객체 key 를 갖고, 본문(상세·profile·이미지)은 MinIO 에 있습니다.
+소비 feature 는 `afm` 이고 adapter 는 backend/afm/providers/office_example.py 입니다.
+
+표기: [확인] = user-confirmed 2026-10-06 (사무실 적재 명세 전달),
+      [가정] = OFFICE-VERIFY. 사무실 실행으로 검증된 항목은 아직 없습니다.
+
+
+공통 규칙 [확인]
+
+  값 직렬화 : pandas `DataFrame.to_parquet()` → bytes.
+              예외는 `afm_tool_recipes` 하나이며 JSON 문자열입니다.
+  자료형    : 모두 Redis **hash** 입니다.
+  hash field: 장비명 문자열입니다 — `MAP608`, `MAPC01`, `5EAP1501`.
+              `afm_d1_tools` 만 field 가 `all` 하나입니다.
+  갱신 단위 : 장비(field) 하나 = DataFrame 전체를 **통째로 다시 씁니다.**
+              행 단위 key 는 없습니다. TTL 도 없습니다.
+  읽기      : `hget` → `pd.read_parquet(io.BytesIO(raw))`.
+  결측      : **빈 값은 null** 입니다. 웹 응답으로 내보낼 때 NaN 을 null 로 바꿔야
+              합니다(그대로 두면 JSON 이 깨집니다).
+  쓰기 금지 : 웹은 MinIO 에 **쓰지 않습니다.** 적재는 ETL 만 합니다.
+  복구      : Redis 가 유실되어도 MinIO 객체 key 만으로 D2 를 다시 만들 수 있습니다.
+
+  사용 key 는 4개라고 전달받았습니다. 이 가운데 아래 둘의 명세만 받았습니다.
+  `afm_tool_recipes`(JSON 문자열)는 이름과 직렬화 방식만 알고, 나머지 하나는 이름도
+  모릅니다 [가정: 둘 다 웹의 현재 화면은 읽지 않습니다].
+
+
+1. afm_d1_tools — 장비 목록 [확인]
+
+  hash, field 는 `all` 하나뿐입니다.
+
+  열      내용
+  id      장비 id
+  name    장비명 (D2 의 hash field 와 같은 문자열)
+  fab     **아직 빈 값입니다** — fab 대응이 미정이기 때문입니다.
+  alias   표시용 별칭
+
+  웹 계약 `AfmToolRow` 로는 id→id, name→name, alias→label(비어 있으면 name), fab→fab
+  으로 옮깁니다. `id` 의 표기(소문자인지 등)와 alias 가 실제로 채워져 있는지는
+  회신에 없습니다 [가정].
+
+  ⚠ fab 이 비어 있는 동안 `/api/afm/tools` 의 fab 은 빈 문자열입니다. 화면의 장비
+    목록은 frontend 에 고정된 표(useAfmToolData.ts)를 쓰므로 당장 영향은 없습니다.
+    장비→fab 대응(MAPC01=R3, 5EAP1501=M15 확인, MAP608 미정)은 afm_raw_files.txt D1 에
+    있습니다.
+
+
+2. afm_d2_measurements — 측정 이력 [확인]
+
+  hash, field = 장비명(`MAP608`, `MAPC01`, `5EAP1501`).
+  값은 그 장비의 **측정 전체 목록을 DataFrame 하나로** 담은 parquet bytes 입니다.
+
+  주요 열:
+
+    unique_key      측정키. 파일명의 `#` 필드입니다(아래 "측정키").
+    filename        파일명
+    date            YYMMDD
+    formatted_date  YYYY-MM-DD **또는 null**
+    recipe_name
+    lot_id
+    slot_number
+    time            HHMM **또는 null**. 값 `NA` 도 null 로 취급합니다.
+    tool_name
+    fab
+    point_count     int **또는 null**
+
+  파일 목록 7종 — 모두 list[str] 이고, 원소는 **MinIO 객체 key 전체**입니다
+  (prefix `2067928/` 포함). **빈 리스트 = 파일 없음**입니다.
+
+    data_dir_list     상세 parquet
+    profile_dir_list  profile parquet
+    tiff_dir_list     Result 이미지 (webp)
+    align_dir_list    align 이미지 (webp)
+    tip_dir_list      tip 이미지 (webp)
+    capture_dir_list  capture 이미지 (webp)
+    raw_dir_list      원본 csv / txt
+
+  ⚠ 예전 요구사항(docs/afm/개발요구.txt)의 `["no files"]` 표지는 **쓰지 않습니다.**
+    없으면 빈 리스트입니다.
+  ⚠ parquet 의 list 열은 `pd.read_parquet` 에서 list 가 아니라 numpy 배열로 돌아옵니다.
+  ⚠ `time` 은 `HHMM` 으로 전달받았으나 측정키의 예는 6자리(`070028`)입니다. 4자리인지
+    6자리인지 [가정]. 화면(utils/afmSearch.ts)은 4~6자리를 모두 읽습니다.
+  ⚠ MAP608 의 `time` 이 세션 시작 시각(파일명 첫 시각)인지 측정 시작 시각(끝 시각)인지
+    회신에 없습니다 [가정].
+
+  "주요 열"이라고 전달받았으므로 다른 열이 더 있을 수 있습니다. 웹 계약의
+  `measured_info`·`tool_id` 는 위 목록에 없습니다 [가정: adapter 는 열이 있으면 쓰고,
+  없으면 measured_info 는 빈 문자열, tool_id 는 장비명의 소문자를 냅니다].
+  `has_profile`·`has_data`·`has_image`·`has_align`·`has_tip` 은 열이 아니라 adapter 가
+  해당 목록이 비었는지로 계산합니다.
+
+  측정키 (unique_key) [확인]
+
+    앵커(CSV) 그룹의 전체 6필드 키입니다.
+
+      date#time#recipe#slot#lot#measured          (MAPC01 은 **앞 4필드**)
+
+    예: 261001#070028#NA_NECKING_SLIM#5NNN0336.01#5NNN0336#NA
+
+    파일명(afm_raw_files.txt D2)에서 맨 앞의 `#` 과 7번째 필드(원본 파일명)를 뺀
+    것입니다. MAPC01 이 4필드인 까닭은 그 장비의 측정 한 건이 date#time#recipe#slot
+    이기 때문입니다(같은 문서 D2).
+
+
+3. MinIO 객체 [확인]
+
+  key 패턴 : 2067928/afm/<TOOL>/<측정키>/<파일명>
+
+    상세    : detail_information.parquet
+              detail_summary.parquet
+              detail_points.parquet          (3종)
+    profile : profile_<원본이름>.parquet
+    이미지  : <파일명>.webp
+
+  bucket 은 `user`, `2067928/` 는 minio_handler 의 기본 prefix 와 같은 값입니다. Redis 의
+  key 가 이미 그 prefix 를 포함하므로, 읽을 때는 **client 의 prefix 를 비워야** 합니다
+  (`MinioObject(prefix="")`). 기본 prefix 를 그대로 두면 `2067928/2067928/...` 가 되어
+  전부 404 입니다. 측정키에는 recipe 명이 들어가므로 key 에 공백·괄호가 있을 수 있습니다.
+
+  회신에 없는 것 [가정]:
+    - 상세 parquet 3종의 **열 구성**. adapter 는 raw CSV 의 섹션을 그대로 옮긴 것으로
+      봅니다 — information 은 key/value 두 열(또는 한 행짜리 넓은 표), summary 는
+      `Site`·`ITEM` + 측정 컬럼, points 는 point 하나가 한 행이고 `Point No`·`Site ID`
+      열을 갖습니다. 위치 키(`0001`, `0004_X000_Y-002_0002`)는 points 의 그 두 열로
+      만들고, points 가 없으면 profile·이미지 파일명에서 읽습니다.
+    - points 의 행이 어느 Summary block 에 속하는지를 담은 열이 있는지.
+    - profile 의 단위(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가 parquet 파일의
+      metadata 인지 MinIO 객체의 user metadata 인지. adapter 는 앞의 것을 먼저 보고
+      없으면 뒤의 것을 읽습니다.
+    - 이미지 파일명의 규칙. adapter 는 point 의 Result 이미지를 이름에 든
+      `_<위치 키>_Height` 로 찾습니다.
+    - **원본 TIFF 의 위치.** `raw_dir_list` 는 csv/txt 라고 전달받았습니다. adapter 는
+      그 목록에 webp 와 이름이 같은 `.tif`/`.tiff` 가 있을 때만 원본 다운로드를
+      제공하므로, 지금 명세대로면 다운로드 버튼이 나오지 않습니다.
+    - Info 만 있는 측정(MAPC01 의 data CSV 없는 recipe)에 `data_dir_list` 가
+      information 하나만 담는지, 비어 있는지.
+    - 보존 기간과 삭제 순서(3개월 안이 검토 중이었습니다).
+
+
+웹 계약에 반영된 것 (backend/afm)
+
+  - `AfmMeasurementRow` 의 `formatted_date`·`time` 은 `str | None`, `point_count` 는
+    `int | None` 입니다. `raw_dir_list` 가 추가되었습니다.
+  - 계약의 `*_dir_list` 는 객체 key 가 아니라 그 **basename** 입니다. 화면이 저장
+    구조를 알 필요가 없고, 한 측정의 폴더 안에서 이름은 겹치지 않기 때문입니다.
+    이름을 key 로 되돌리는 일은 adapter 가 그 측정의 Redis 행에서 합니다.
+  - 이미지 route 는 provider 가 str 을 주면 SVG 로, bytes 를 주면 webp 로 내보냅니다.
+    mock 은 자리 표시 SVG 를, office adapter 는 저장된 webp 를 그대로 줍니다.
+  - adapter 는 장비 하나의 DataFrame 을 60초 동안 프로세스 안에 둡니다. 상세 화면 한
+    번이 같은 hash field 를 여러 번 읽기 때문입니다. 적재 직후 최대 1분은 이전 목록이
+    보일 수 있습니다.
+
+
+mock 반영 (backend/afm/providers/mock.py)
+
+  [확인] 항목 가운데 mock 이 재현하는 것: 빈 리스트로 표현하는 "파일 없음",
+  `unique_key` 의 필드 구성(MAPC01 4필드), 상세 3종·profile·webp 의 객체 이름,
+  `raw_dir_list`. backend/afm/tests/test_mock_office_facts.py 가 고정합니다.
+
+  mock 이 일부러 다르게 둔 곳:
+    - `formatted_date`·`time`·`point_count` 의 null 을 내지 않습니다. mock 은 파일명과
+      상세를 그 값에서 만들기 때문입니다. null·NaN·numpy 배열 경로는
+      backend/afm/tests/test_office_template.py 가 adapter 에 직접 넣어 확인합니다.
+    - 장비 목록의 fab 을 비우지 않고 장비→fab 대응을 냅니다.
+    - `time` 은 HHMMSS 6자리입니다.
+    - 이미지는 webp 가 아니라 자리 표시 SVG 입니다.

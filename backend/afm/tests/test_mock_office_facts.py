@@ -117,8 +117,8 @@ def test_mapc01_lot_comes_from_info_and_a_sample_is_remeasured_within_a_day():
         assert info["Lot ID"] == row["lot_id"]
         # Every MAPC01 measurement has an Info CSV; the data CSV is the same name without _Info.
         assert row["filename"].endswith("_Info.csv")
-        if row["has_data"]:
-            assert row["data_dir_list"] == [row["filename"].replace("_Info.csv", ".csv")]
+        assert row["filename"] in row["raw_dir_list"]
+        assert (row["filename"].replace("_Info.csv", ".csv") in row["raw_dir_list"]) == row["has_data"]
     # A measurement is its first four fields: date#time#recipe#slot.
     groups = [tuple(row["filename"].split("#")[1:5]) for row in rows]
     assert len(set(groups)) == len(groups)
@@ -169,7 +169,7 @@ def test_which_files_exist_is_decided_by_the_recipe():
     assert {row["has_data"] for row in _rows("MAPC01")} == {True, False}
     for row in _rows("MAPC01"):
         if not row["has_data"]:
-            assert row["data_dir_list"] == ["no files"]
+            assert row["data_dir_list"] == []
             detail = mock.get_afm_file_detail(row["filename"], "MAPC01")
             assert detail["summary"] == [] and detail["data"] == []
             assert detail["information"]
@@ -178,7 +178,7 @@ def test_which_files_exist_is_decided_by_the_recipe():
 def test_5eap1501_has_no_profile():
     for row in _rows("5EAP1501"):
         assert row["has_profile"] is False
-        assert row["profile_dir_list"] == ["no files"]
+        assert row["profile_dir_list"] == []
     row = _rows("5EAP1501")[0]
     point = mock.get_afm_file_detail(row["filename"], "5EAP1501")["available_points"][0]
     assert mock.get_profile_points(row["filename"], point, "5EAP1501") is None
@@ -203,8 +203,10 @@ def test_a_position_is_keyed_by_its_point_number_and_by_site_id_where_recorded()
         keys = detail["available_points"]
         assert len(keys) == len(set(keys)) == row["point_count"]
         for name in row["profile_dir_list"]:
-            # _0001_Height.txt, or _0004_X000_Y-002_0002_Height.txt on a Site ID recipe.
-            assert name == "no files" or any(name.endswith(f"_{key}_Height.txt") for key in keys), name
+            # profile_<raw name>.parquet, the raw name ending _0001_Height or, on a
+            # Site ID recipe, _0004_X000_Y-002_0002_Height.
+            assert name.startswith("profile_")
+            assert any(name.endswith(f"_{key}_Height.parquet") for key in keys), name
         site_points = Counter()
         for record in detail["data"][:row["point_count"]]:
             with_site_id[tool].add("Site ID" in record)
@@ -347,3 +349,19 @@ def test_profile_grid_shape_and_units_follow_the_file():
     assert len({grid for grid, _ in seen}) > 1
     # Every unit the office listed turns up, Pixel included.
     assert {unit for _, units in seen for unit in units} == PROFILE_UNITS
+
+
+def test_list_rows_follow_the_loaded_redis_shape():
+    # docs/datatables/afm/afm_redis.txt (user-confirmed 2026-10-06).
+    lists = ("data", "profile", "tiff", "align", "tip", "capture", "raw")
+    for tool in TOOLS:
+        for row in _rows(tool):
+            # The measurement key is the name's first six fields, four on MAPC01.
+            fields = row["filename"].split("#")[1:]
+            assert row["unique_key"] == "#".join(fields[:4 if tool == "MAPC01" else 6])
+            for kind in lists:
+                # No files is an empty list, never a sentinel.
+                assert "no files" not in row[f"{kind}_dir_list"]
+            assert row["data_dir_list"] == (list(mock.DETAIL_OBJECTS) if row["has_data"] else [])
+            assert all(name.endswith(".webp") for name in row["tiff_dir_list"])
+            assert bool(row["profile_dir_list"]) == row["has_profile"]
