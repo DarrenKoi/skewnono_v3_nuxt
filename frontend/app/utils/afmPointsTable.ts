@@ -31,7 +31,9 @@ const humanizeKey = (key: string): string =>
     : key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
 
 export const derivePointColumns = (rows: AfmDetailRow[]): PointColumn[] => {
-  const keys = collectColumns(rows, [])
+  // `Site` is the row's block name; the table shows it as `Block`, and only
+  // where a file has more than one.
+  const keys = collectColumns(rows, []).filter(key => key !== 'Site')
   const ids = ID_COLUMN_KEYS.filter(k => keys.includes(k))
   const nm = keys.filter(isMeasurementKey)
   const others = keys.filter(k => !ids.includes(k) && !isMeasurementKey(k))

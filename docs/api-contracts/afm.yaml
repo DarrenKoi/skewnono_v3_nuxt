@@ -44,7 +44,7 @@ types:
       format: "01..25"
     time:
       type: [string, "null"]
-      format: "HHMMSS (office: HHMM or null; NA is null)"
+      format: "HHMMSS, or null (NA is null). On MAP608 it is the session start, shared by the session's measurements."
     measured_info:
       type: string
       examples: ["1", "standard", "repeat2", "profile", "roughness"]

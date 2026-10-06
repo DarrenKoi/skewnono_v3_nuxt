@@ -7,48 +7,35 @@ import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
 export const blockNames = (summary: AfmSummaryRow[]): string[] =>
   [...new Set(summary.map(row => row.Site))]
 
-// A block has no key of its own — `Method_ID` repeats across every block of a
-// file. Rows arrive block by block and a block holds a point at most once, so a
-// point coming round again is where the next block starts. (Counting a point's
-// own rows instead would misfile a point that an earlier block never measured.)
-const blockOrdinals = (data: AfmDetailRow[]): number[] => {
-  let block = 0
-  let seen = new Set<string>()
-  return data.map((row) => {
-    if (seen.has(row.measurement_point)) {
-      block += 1
-      seen = new Set()
-    }
-    seen.add(row.measurement_point)
-    return block
-  })
-}
+// Every data row names its own block: `Site` holds the method name of the
+// section the row came from — the name the Summary rows carry too (office 확인
+// 2026-10-06). A block is never inferred from row order: a repeat recipe
+// measures a point several times inside one block, and a stopped block has no
+// row for the points it never reached. Rows with no `Site` are one block.
+export const blockOf = (row: AfmDetailRow, fallback: string): string =>
+  typeof row.Site === 'string' && row.Site !== '' ? row.Site : fallback
 
-// The name is the Summary block at the same ordinal. A block the measurement
-// stopped in has rows but no Summary, and some files have no Summary at all:
-// those get a numbered name.
-const blockName = (names: string[], index: number) => names[index] ?? `Block ${index + 1}`
+const fallbackBlock = (summary: AfmSummaryRow[]) => blockNames(summary)[0] ?? 'Block 1'
 
 export interface PointBlock {
   name: string
   row: AfmDetailRow
 }
 
+// One entry per row of the point, so a point a repeat recipe measured twice in
+// a block shows both readings.
 export const blocksOfPoint = (data: AfmDetailRow[], summary: AfmSummaryRow[], point: string): PointBlock[] => {
-  const names = blockNames(summary)
-  const ordinals = blockOrdinals(data)
-  return data.flatMap((row, i) =>
-    row.measurement_point === point ? [{ name: blockName(names, ordinals[i]!), row }] : []
-  )
+  const fallback = fallbackBlock(summary)
+  return data.flatMap(row => row.measurement_point === point ? [{ name: blockOf(row, fallback), row }] : [])
 }
 
 // Rows with a `Block` column, added only where a file has more than one block:
 // on a single-block file the column would repeat one name down the table.
 export const tagBlocks = (data: AfmDetailRow[], summary: AfmSummaryRow[]): AfmDetailRow[] => {
-  const names = blockNames(summary)
-  const ordinals = blockOrdinals(data)
-  if (!ordinals.some(index => index > 0)) return data
-  return data.map((row, i) => ({ ...row, Block: blockName(names, ordinals[i]!) }))
+  const fallback = fallbackBlock(summary)
+  const names = data.map(row => blockOf(row, fallback))
+  if (new Set(names).size < 2) return data
+  return data.map((row, i) => ({ ...row, Block: names[i]! }))
 }
 
 // One state for a point that has a row per block: the worst one wins.
@@ -101,19 +88,18 @@ export const siteDots = (data: AfmDetailRow[]): SiteDot[] => {
   }))
 }
 
-// The name every other file of a measurement starts with: its list file name
-// without `.csv`, and without the `_Info` a MAPC01 list name carries.
-export const measurementStem = (filename: string): string => filename.replace(/(_Info)?\.csv$/i, '')
-
-// Which point an image file shows. An image is named `<stem>_<point>_<kind>`,
-// and the point is read only after the stem: a recipe or lot that happens to
-// contain `_0001_` must not claim the image, so a name that does not start with
-// the stem has no point rather than a guessed one. A site-form key contains
-// the plain point number, so the longest match wins.
-export const imagePoint = (name: string, stem: string, points: string[]): string => {
-  if (!name.startsWith(stem)) return ''
-  const tail = name.slice(stem.length)
+// Which point an image file shows. A name ends `_<point>_<kind>.<ext>`, and the
+// END is the only part that can be trusted: a MAPC01 image does not start with
+// the measurement's list name (its fifth and sixth fields differ — office 확인
+// 2026-10-06). Anchoring there also keeps a recipe or lot that happens to
+// contain `_0001_` from claiming the image. A site-form key ends in the plain
+// point number, so the longest match wins.
+export const imagePoint = (name: string, points: string[]): string => {
+  const stem = name.replace(/\.\w+$/, '')
+  const end = stem.lastIndexOf('_')
+  if (end < 0) return ''
+  const head = stem.slice(0, end)
   return points
-    .filter(point => tail.includes(`_${point}_`))
+    .filter(point => head.endsWith(`_${point}`))
     .sort((a, b) => b.length - a.length)[0] ?? ''
 }

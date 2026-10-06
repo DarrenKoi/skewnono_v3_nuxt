@@ -124,7 +124,10 @@ def test_tiff_zip_holds_every_original_of_the_measurement(client):
     assert r.mimetype == "application/zip"
     assert r.headers["Content-Disposition"].startswith("attachment;")
     archive = zipfile.ZipFile(io.BytesIO(r.data))
-    assert archive.namelist() == [n.rsplit(".", 1)[0] + ".tiff" for n in names]
+    # The Result list holds each webp and, beside it, the original it came from.
+    originals = [n for n in names if n.endswith(".tiff")]
+    assert originals and len(originals) * 2 == len(names)
+    assert archive.namelist() == originals
     first = archive.read(archive.namelist()[0])
     nm = quote(names[0], safe="")
     assert first == client.get(f"/api/afm/files/{fn}/tiff/{nm}?tool={row['tool_name']}").data

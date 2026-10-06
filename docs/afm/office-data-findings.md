@@ -164,6 +164,60 @@ redis 유실 시 MinIO 객체 key만으로 D2 재생성 가능
 MinIO key 전체), Q29 (다)(행 단위 key가 없어 목록 전체를 읽어야 함). 3차 질문서(Q16~Q28)와
 4차 질문서(Q29)의 나머지는 답을 받지 못했습니다.
 
+## 6차 회신 (2026-10-06) — 적재물을 보고 답한 내용
+
+통합 질문서(Q21~Q42, P2)에 대한 답입니다. 실제 적재물을 보고 확인한 것이므로 5차의 명세와
+달리 `office 확인`으로 기록했습니다. 답이 없는 번호(Q22, Q24, Q27, S2, S4, S8)와 일부만
+답한 번호는 질문서에 남겼습니다.
+
+```text
+Q32 Point No, Site ID 철자 그대로 (공백, 밑줄 아님). lbock을 담은 열이 있다. Site 열이 method명을 갖고 있어 Q21 추측이 필요 없음. 단 모든 값이 문자열로 적재됨("79.24", Point No도 "1")
+Q33 맞음: 위치 키 = Site ID 있으면 <Site ID>_<Point No 4자리>(0001_X-001_Y-001_0014), 없으면 0001. 마지막 4자리는 Site안의 point 번호가 맞음. 단 MAPC01은 "filename에서 _Info 뺀 것으로 시작" 매치가 깨짐(5, 6번째 필드 불일치) - 끝 세그먼트로 찾아야 함.
+Q39 filename = data CSV 원본 파일명 전체 (없으면 info CSV). 둘 다 유일 실측(전수 0건 중복). $/5PNN178 오타 확인.
+Q34 (가) MinIO 객체 user metadata(x-amz-meta-datasize 등 소문자 저장), parquet 파일 metadata 아님. (나) 맞음.
+Q35 원본 TIFF는 tiff_dir_list에 포함. 단 5EAP1501은 현재 0개.
+Q21 다름 - repeat recipe는 block=point에 8행 (4 Sitex2반복). "같은 point 재등장 = 다음 block" 규칙 쓰지 말걸. 측정 중단 시 못한 point 행은 아예 없음 (STOPPED 행으로 채우지 않음).
+P2 미정 - 원본에 시간대 정보 없음 (KST 추정 유지)
+
+그외 주요
+Q30 열 이름이 name, value(key 아님). 빈 값 = 빈 문자열 ''. MAPC01 info CSV의 Data 섹션 FileName 열이 위치 키 매핑이지만 현재 적재에서 제외됨.
+Q32 Site/ITEM 맞음. Summary 없으면 0행짜리 객체 존재(열도 없음), MAPC01(info-only)은 객체 자체 없음.
+Q28 측정 못한 칸 = 공백 한칸 ' ', _Valid = ''. NaN/- 없음.
+Q36 time 6자리, 첫 시각=세션 시작(같은 세션 측정들이 time 공유 - 개별 시각은 측정키 6번째 필드).
+Q37 measured_info 열은 있으나 항상 null, tool_id 없음, tool_name은 대문자 그대로. MAPC01 lot_id는 Info로 채워짐.
+Q29 다름 - 우선 Info Sample Location의 Slot N(실제 웨이퍼 슬롯), 실패시만 .nn 꼬리(5EAP은 .05<-> Slot 5 불일치 실측 -> fallback은 추정)
+Q38 (가) information 하나 - "데이터 있음' 표시가 켜지므로 주의. (나) 없음. (다) 실패 측정은 목록에 안들어옴(구분 불가).
+Q40 id 대문자 그대로, fab 빈 문자열, alias MAP608=null/R3/M15.
+Q42 30분 주기 (종료 후 통산 30분 내 반영), 3개월 보존 확정, MinIO 먼저 -> Redis 행 나중 삭제.
+Q41 afm_tool_recipes = recipe명 JSON배열 (Recipe 필터용으로 읽어도 됨), afm_download_history = 다운로드 이력 parquet (웹 불필요).
+```
+
+옮기면서 이렇게 읽었습니다.
+
+- "그외 주요"의 두 번째 `Q32 Site/ITEM 맞음…`은 Summary에 대한 답이므로 Q31로 보았습니다.
+- `lbock`은 `block`, `통산`은 `통상`의 오타로 보았습니다.
+- Q21의 "block=point에 8행"은 "한 block 안에 같은 point가 되풀이되어 8행"으로 읽었습니다.
+- Q29의 "`.05` ↔ Slot 5 불일치"는 `.nn` 꼬리가 실제 슬롯과 다를 수 있다는 뜻으로 읽었습니다.
+- Q38 (나)는 "없음"이지만 Q42의 삭제 순서(MinIO 먼저)에 따르면 삭제 도중에는 목록에만 있는
+  측정이 생깁니다. 웹은 그 경우를 "없음"으로 다룹니다.
+
+### 가정이 틀렸던 곳
+
+| 번호 | Home의 가정 | 실제 | 고친 곳 |
+| --- | --- | --- | --- |
+| Q21 | 같은 point가 다시 나오면 다음 block입니다. | repeat recipe는 한 block 안에서 point가 되풀이됩니다. block은 `Site` 열입니다. | 화면 `utils/afmPoints.ts`·`utils/afmTrend.ts`, mock의 data 행 |
+| Q21 | 중단된 block도 모든 point의 행을 STOPPED로 남깁니다. | 측정하지 못한 point의 행은 없습니다. | mock |
+| Q32 | 값은 숫자로 적재됩니다. | 모든 값이 문자열입니다. | adapter `_cell` |
+| Q33 | 이미지 이름은 `filename`(에서 `_Info`·`.csv`를 뺀 것)으로 시작합니다. | MAPC01은 5·6번째 필드가 달라 시작이 맞지 않습니다. | 화면 `imagePoint`, mock의 MAPC01 파일명 |
+| Q34 | parquet 파일의 metadata를 먼저 봅니다. | MinIO 객체의 user metadata입니다. | adapter `get_profile_meta` |
+| Q35 | 원본 TIFF는 `raw_dir_list`에 있을 것입니다. | `tiff_dir_list`에 webp와 함께 있습니다. | adapter `_original_key`, mock |
+| Q29 | Slot은 파일명의 네 번째 필드에서 읽습니다. | Info `Sample Location`의 `Slot N`입니다. `.nn` 꼬리는 슬롯이 아닐 수 있습니다. | 화면 측정 상세, mock의 Info |
+| Q30 | 열 이름은 `key`, `value`입니다. | `name`, `value`입니다. | adapter `_information` |
+| Q37 | `measured_info`가 비어 있을 때만 빈 값입니다. | 항상 null입니다. | mock, 화면의 빈 badge 감춤 |
+| Q38 (가) | `data_dir_list`가 비어 있지 않으면 측정 데이터가 있습니다. | info만 있는 측정도 information 하나를 갖습니다. | adapter `has_data`, mock |
+| Q39 | MAPC01의 `filename`은 `_Info.csv`입니다. | data CSV가 있으면 data CSV입니다. | mock |
+| Q40 | `alias`는 표시용 이름입니다. | `R3`·`M15`가 들어 있습니다(fab으로 해석). | adapter `get_tools` |
+
 ## 반영 현황 (2026-10-06 점검)
 
 받은 답마다 **스키마 문서에 기록되었는지**와 **AFM 화면·코드에 구현되었는지**를
@@ -180,26 +234,33 @@ adapter는 `backend/afm/providers/office_example.py`, 화면 경로는 `frontend
 | recipe 명에 공백·괄호 가능 | raw D2 | `encodeURIComponent` (`composables/useAfmDetailApi.ts`) | 완료 |
 | 파일 유무·point 수(1~36)는 recipe 설정, 부재는 정상 상태 | raw 머리 | mock `RECIPES`, `has_*`, 측정 상세의 빈 상태(404를 "없음"으로) | 완료 |
 | 측정 컬럼은 recipe마다 다르고 `(nm)`를 포함 (Q5, Q14) | raw D3 | mock, `collectColumns` (`utils/afmExport.ts`) | 완료 |
-| Summary block이 여럿, block은 위치로 맞춤, 중단된 block은 측정 컬럼 없음 (Q11, Q13) | raw D3 | mock, `blocksOfPoint` (`utils/afmPoints.ts`) | 완료. "같은 point가 다시 나오면 다음 block"은 추측입니다(Q21). |
+| Summary block이 여럿이고 data 행의 `Site`가 그 행의 block, repeat recipe는 block 안에서 point가 되풀이됨 (Q11, Q13, Q21, Q32) | raw D3, redis 3.1 | mock, `blockOf` (`utils/afmPoints.ts`), `utils/afmTrend.ts` | 완료 |
+| 중단된 block은 측정하지 못한 point의 행이 없고 칸이 비어 있음 (Q21, Q28) | redis 3.1 | mock, adapter `_cell`(null로) | 완료. 남는 행의 수는 Q44입니다. |
+| 상세의 모든 값이 문자열 (Q32) | redis 3.1 | adapter `_cell` | 완료(사무실 미실행). FALSE의 표기는 Q32입니다. |
 | `State`는 COMPLETED·FAILED·STOPPED | raw D3 | mock, `utils/afmPoints.ts` | 완료 |
-| 위치 키는 4자리 point 번호, Site ID recipe는 Site ID + point 번호 (Q9, Q10, Q12) | raw D3·D4 | mock, 화면 `detail/PointRail.vue`·`imagePoint`, adapter `_position` | 완료 |
+| 위치 키는 4자리 point 번호, Site ID recipe는 Site ID + point 번호 (Q9, Q10, Q12, Q33) | raw D3·D4, redis 3.2 | mock, 화면 `detail/PointRail.vue`, adapter `_position` | 완료 |
+| MAPC01의 profile·이미지 이름은 `filename`으로 시작하지 않음 (Q33) | redis 3.2 | mock, 화면 `imagePoint`(이름의 끝에서 읽음) | 완료 |
 | point 하나면 STDEV·RANGE는 0 (Q15) | raw D3 | mock (`test_mock_office_facts.py`가 고정) | 완료 |
-| Profile은 X/Y/Z parquet, 단위는 파일별 metadata, 1D는 `DataSize`로 구분 (Q7, Q8) | raw D4 | 계약 `AfmProfileMeta`, 화면 `detail/HeatmapChart.vue`·`HistogramChart.vue` | 완료. metadata가 실린 곳은 Q34입니다. |
-| 이미지는 webp 변환본, 원본 TIFF는 내려받을 수 있어야 함 | raw D5 | route `tiff`·`tiff.zip`, adapter는 webp를 그대로 전달 | **부분** — 아래 ②입니다. |
+| Profile은 X/Y/Z parquet, 단위는 MinIO 객체의 user metadata, 1D는 `DataSize`로 구분 (Q7, Q8, Q34) | raw D4, redis 3.3 | 계약 `AfmProfileMeta`, adapter `get_profile_meta`, 화면 `detail/HeatmapChart.vue`·`HistogramChart.vue` | 완료(사무실 미실행) |
+| 이미지는 webp 변환본, 원본 TIFF는 `tiff_dir_list`에 함께 있음 (Q35) | raw D5, redis 2 | route `tiff`·`tiff.zip`, adapter `_original_key`, mock | 완료(사무실 미실행). webp와의 짝은 가정입니다(Q35). |
 | Redis hash 둘, 값은 parquet, field는 장비명 | redis 공통·1·2 | adapter `_hash_rows` | 완료(사무실 미실행) |
 | 빈 리스트 = 파일 없음, 빈 값은 null, `time`의 `NA`는 null | redis 2 | 계약의 null 허용, mock의 빈 리스트, adapter `_row`, 화면 `utils/afmSearch.ts` | 완료(사무실 미실행) |
 | `unique_key`는 6필드, MAPC01은 4필드 | redis 2 | mock, adapter `_find` | 완료 |
-| MinIO key는 `2067928/afm/<TOOL>/<측정키>/<파일명>`, 상세는 parquet 3종 | redis 3 | adapter `MinioObject(prefix="")`, `get_afm_file_detail` | 완료(사무실 미실행). 열 구성은 Q30~Q32입니다. |
+| MinIO key는 `2067928/afm/<TOOL>/<측정키>/<파일명>`, 상세는 parquet 3종(information은 `name`·`value`) | redis 3 | adapter `MinioObject(prefix="")`, `get_afm_file_detail` | 완료(사무실 미실행) |
+| `filename`은 data CSV(없으면 info CSV), `measured_info`는 항상 null, MAPC01의 `lot_id`는 Info에서 (Q37, Q39) | redis 2 | mock, 화면의 빈 badge 감춤 | 완료 |
+| info만 있는 측정도 `data_dir_list`에 information 하나 (Q38) | redis 2 | adapter `has_data`, mock | 완료 |
+| Slot은 Info `Sample Location`의 `Slot N` (Q29) | redis 2 | 목록은 `slot_number` 열, 측정 상세(`pages/afm/[tool]/[filename].vue`)는 Info | 완료. 값의 모양은 Q29입니다. |
+| `afm_d1_tools`의 `alias`가 R3·M15, `fab`은 빈 문자열 (Q40) | redis 1 | adapter `get_tools`(alias를 fab으로) | **부분** — 아래 ①입니다. |
+| `afm_tool_recipes`는 recipe 명 JSON 배열, `afm_download_history`는 웹 불필요 (Q41) | redis 공통 | 없음 | 읽지 않습니다. Recipe 필터는 목록에서 모읍니다. |
+| 갱신은 30분 주기 (Q42) | redis 공통 | adapter의 60초 캐시 | 완료 |
 | MinIO에 쓰지 않음 | redis 공통 | adapter는 읽기만 합니다. | 완료 |
-| 보존 기간은 최근 3개월(방향, 미확정) | redis 3 | 없음 | **미구현** — 아래 ③입니다. |
+| 보존은 3개월로 확정, MinIO를 먼저 지우고 Redis 행을 나중에 지움 (Q42) | redis 공통 | adapter는 없는 객체를 "없음"으로 돌려줍니다. | **부분** — 아래 ②입니다. |
 
-기록만 되고 화면에는 닿지 않은 곳이 셋입니다.
+기록만 되고 화면에는 닿지 않은 곳이 둘입니다(6차 회신 반영 후).
 
 1. **장비 목록** — 화면은 `useAfmToolData.ts`에 고정된 표를 쓰고 `/api/afm/tools`를 부르지
-   않습니다. `afm_d1_tools`의 `alias`와, 나중에 채워질 `fab`은 화면에 나타나지 않습니다.
-   `fab`이 비어 있는 동안은 고정 표가 필요하므로, Q40의 답을 받은 뒤 바꿉니다.
-2. **원본 TIFF** — 다운로드 route와 버튼은 있으나 사무실에서 원본의 위치를 모릅니다(Q35).
-   답을 받기 전까지 사무실 화면에는 버튼이 나오지 않습니다.
-3. **보존 기간이 지난 측정** — 조회 이력·그룹·복사한 링크가 삭제된 측정을 가리키면 측정
-   상세는 일반적인 "없음"을 보여 줍니다. "보존 기간 경과" 안내는 삭제 계획(Q42 (다))이
-   정해지면 만듭니다.
+   않습니다. MAP608의 fab이 여전히 비어 있어 고정 표가 필요하므로, `alias`가 fab이
+   맞는지(Q40)를 확인한 뒤 바꿉니다.
+2. **보존 기간이 지난 측정** — 조회 이력·그룹·복사한 링크가 삭제된 측정을 가리키면 측정
+   상세는 일반적인 "없음"을 보여 줍니다. 3개월 보존이 확정되었으므로 "보존 기간 경과"
+   안내를 만들 수 있습니다. 3개월을 세는 기준 시각(Q42 (나))만 남았습니다.

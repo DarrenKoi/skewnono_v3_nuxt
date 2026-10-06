@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
-import { blocksOfPoint, imagePoint, measurementStem, pointState, siteDots, tagBlocks } from './afmPoints.ts'
+import { blocksOfPoint, imagePoint, pointState, siteDots, tagBlocks } from './afmPoints.ts'
 
 const row = (point: string, state: string, extra: Record<string, string | number> = {}): AfmDetailRow => ({
   'measurement_point': point,
@@ -25,24 +25,36 @@ const summary: AfmSummaryRow[] = [
   { Site: 'Profile_RIGHT_UL', ITEM: 'MEAN' }
 ]
 
-// Two blocks, written block by block — the order a data CSV has them in.
+const L = { Site: 'Profile_LEFT_UL' }
+const R = { Site: 'Profile_RIGHT_UL' }
+
+// Two blocks; every row names its own.
 const twoBlocks = [
-  row('0001', 'COMPLETED'), row('0002', 'COMPLETED'),
-  row('0001', 'STOPPED'), row('0002', 'FAILED')
+  row('0001', 'COMPLETED', L), row('0002', 'COMPLETED', L),
+  row('0001', 'STOPPED', R), row('0002', 'FAILED', R)
 ]
 
-test('blocksOfPoint: a block starts where a point comes round again', () => {
+test('blocksOfPoint: a row belongs to the block its Site names', () => {
   assert.deepEqual(blocksOfPoint(twoBlocks, summary, '0002').map(b => [b.name, b.row.State]), [
     ['Profile_LEFT_UL', 'COMPLETED'],
     ['Profile_RIGHT_UL', 'FAILED']
   ])
-  // A block without a Summary (stopped early, or a file with none) is numbered.
-  assert.deepEqual(blocksOfPoint(twoBlocks, summary.slice(0, 1), '0001').map(b => b.name), ['Profile_LEFT_UL', 'Block 2'])
   assert.deepEqual(blocksOfPoint(twoBlocks, [], '9999'), [])
-  // A point the first block never measured still belongs to the second.
-  const uneven = [row('0001', 'COMPLETED'), row('0001', 'COMPLETED'), row('0002', 'COMPLETED')]
-  assert.deepEqual(blocksOfPoint(uneven, summary, '0002').map(b => b.name), ['Profile_RIGHT_UL'])
-  assert.deepEqual(tagBlocks(uneven, summary).map(r => r.Block), ['Profile_LEFT_UL', 'Profile_RIGHT_UL', 'Profile_RIGHT_UL'])
+  // A repeat recipe goes round its points again inside ONE block: a point
+  // coming back is not a new block, and both readings are kept.
+  const repeat = [row('0001', 'COMPLETED', L), row('0002', 'COMPLETED', L), row('0001', 'COMPLETED', L), row('0002', 'FAILED', L)]
+  assert.deepEqual(blocksOfPoint(repeat, summary, '0002').map(b => [b.name, b.row.State]), [
+    ['Profile_LEFT_UL', 'COMPLETED'],
+    ['Profile_LEFT_UL', 'FAILED']
+  ])
+  assert.equal(tagBlocks(repeat, summary), repeat)
+  // A stopped block has no row for the points it never reached.
+  const stopped = [row('0001', 'COMPLETED', L), row('0002', 'COMPLETED', L), row('0001', 'STOPPED', R)]
+  assert.deepEqual(blocksOfPoint(stopped, summary, '0002').map(b => b.name), ['Profile_LEFT_UL'])
+  // Rows that name no block are one block: the Summary's first, else numbered.
+  const bare = [row('0001', 'COMPLETED'), row('0001', 'COMPLETED')]
+  assert.deepEqual(blocksOfPoint(bare, summary, '0001').map(b => b.name), ['Profile_LEFT_UL', 'Profile_LEFT_UL'])
+  assert.deepEqual(blocksOfPoint(bare, [], '0001').map(b => b.name), ['Block 1', 'Block 1'])
 })
 
 test('tagBlocks: adds Block only where a file has more than one', () => {
@@ -76,19 +88,17 @@ test('siteDots: one dot per site, centre at 50/50, Y upwards', () => {
   assert.deepEqual(siteDots([row('0001', 'COMPLETED')]), [])
 })
 
-test('imagePoint: read after the measurement stem, longest key wins', () => {
+test('imagePoint: read at the end of the name, longest key wins', () => {
   const stem = '#260424#000100#ETCH_0001_TRIM#T3HQR1B.06#T3HQR1B#085600#'
-  assert.equal(imagePoint(`${stem}_0003_Height.webp`, stem, ['0001', '0003']), '0003')
+  assert.equal(imagePoint(`${stem}_0003_Height.webp`, ['0001', '0003']), '0003')
   assert.equal(
-    imagePoint(`${stem}_0002_X-001_Y000_0001_Height.webp`, stem, ['0001', '0002_X-001_Y000_0001']),
+    imagePoint(`${stem}_0002_X-001_Y000_0001_Height.webp`, ['0001', '0002_X-001_Y000_0001']),
     '0002_X-001_Y000_0001'
   )
-  assert.equal(imagePoint(`${stem}_overview.webp`, stem, ['0001']), '')
-  // A name that is not this measurement's is not searched for a lookalike token.
-  assert.equal(imagePoint('#other#ETCH_0001_TRIM#_0003_Height.webp', stem, ['0001', '0003']), '')
-})
-
-test('measurementStem: drops .csv, and the _Info of a MAPC01 list name', () => {
-  assert.equal(measurementStem('#260424#093000#R#01#NA#NA#MON69683.01_Info.csv'), '#260424#093000#R#01#NA#NA#MON69683.01')
-  assert.equal(measurementStem('#260424#093000#R#L.01#L#093400#.csv'), '#260424#093000#R#L.01#L#093400#')
+  assert.equal(imagePoint(`${stem}_0003_tip.webp`, ['0003']), '0003')
+  assert.equal(imagePoint(`${stem}_overview.webp`, ['0001']), '')
+  // A lookalike token earlier in the name (here in the recipe) claims nothing.
+  assert.equal(imagePoint('#x#ETCH_0001_TRIM#_overview.webp', ['0001']), '')
+  // A MAPC01 image does not start with the list name; the end still reads.
+  assert.equal(imagePoint('#260709#033958#R#01#MON69683#NA#RL1C078.01_0002_Height.webp', ['0001', '0002']), '0002')
 })

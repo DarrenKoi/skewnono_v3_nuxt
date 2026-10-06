@@ -50,13 +50,16 @@ export interface AfmDetailRow {
   'Method_ID': string | number
   'State': string
   'Valid': boolean
+  // The row's block: the method name of its section, as on the Summary rows.
+  'Site'?: string
   // Measurement columns (`<name> (nm)` + `<name>_Valid`) are named by the recipe,
-  // so they arrive through the index signature below.
+  // so they arrive through the index signature below. A cell that was never
+  // measured (a stopped block) is null.
   'Pick Up Count': number
   'Sample Count': number
   'Approach Count': number
   'Mileage': number
-  [extra: string]: string | number | boolean
+  [extra: string]: string | number | boolean | null | undefined
 }
 
 export interface AfmDetailPayload {

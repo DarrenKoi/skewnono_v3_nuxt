@@ -35,7 +35,7 @@ def _all_details():
 
 
 def _has_measurement(record):
-    return any(key.endswith("(nm)") for key in record)
+    return any(key.endswith("(nm)") and value is not None for key, value in record.items())
 
 
 def test_tools_and_fabs_follow_the_office_mapping():
@@ -49,7 +49,7 @@ def test_filename_field_order_differs_per_tool():
     # '#'-separated, empty slots spelled NA; every tool orders its fields differently.
     patterns = {
         "MAP608": DATE_TIME + r"[^#]+#[^#]+#[^#]+#(\d{6}|NA)#\.csv",
-        "MAPC01": DATE_TIME + r"[^#]+#\d{2}#NA#NA#[^#]+_Info\.csv",
+        "MAPC01": DATE_TIME + r"[^#]+#\d{2}#NA#NA#[^#]+\.csv",
         "5EAP1501": DATE_TIME + r"[^#]+#[^#]+#[^#]+#NA#[^#]+\.csv",
     }
     for tool, pattern in patterns.items():
@@ -115,10 +115,13 @@ def test_mapc01_lot_comes_from_info_and_a_sample_is_remeasured_within_a_day():
         assert row["lot_id"] != "NA"
         info = mock.get_afm_file_detail(row["filename"], "MAPC01")["information"]
         assert info["Lot ID"] == row["lot_id"]
-        # Every MAPC01 measurement has an Info CSV; the data CSV is the same name without _Info.
-        assert row["filename"].endswith("_Info.csv")
+        # Every MAPC01 measurement has an Info CSV; the data CSV is the same name
+        # without _Info, and the list names the measurement by it when it exists.
+        assert row["filename"].endswith("_Info.csv") == (not row["has_data"])
+        info_csvs = [name for name in row["raw_dir_list"] if name.endswith("_Info.csv")]
+        assert len(info_csvs) == 1
+        assert (info_csvs[0].replace("_Info.csv", ".csv") in row["raw_dir_list"]) == row["has_data"]
         assert row["filename"] in row["raw_dir_list"]
-        assert (row["filename"].replace("_Info.csv", ".csv") in row["raw_dir_list"]) == row["has_data"]
     # A measurement is its first four fields: date#time#recipe#slot.
     groups = [tuple(row["filename"].split("#")[1:5]) for row in rows]
     assert len(set(groups)) == len(groups)
@@ -169,7 +172,8 @@ def test_which_files_exist_is_decided_by_the_recipe():
     assert {row["has_data"] for row in _rows("MAPC01")} == {True, False}
     for row in _rows("MAPC01"):
         if not row["has_data"]:
-            assert row["data_dir_list"] == []
+            # Info is loaded all the same, so the list alone is not "has data".
+            assert row["data_dir_list"] == ["detail_information.parquet"]
             detail = mock.get_afm_file_detail(row["filename"], "MAPC01")
             assert detail["summary"] == [] and detail["data"] == []
             assert detail["information"]
@@ -245,7 +249,7 @@ def test_summary_blocks_are_named_by_method_and_a_file_can_hold_several():
     assert not any(re.fullmatch(SITE_ID, block) for block in blocks)
 
 
-def test_a_block_can_stop_and_then_has_no_measurement_columns():
+def test_a_stopped_block_keeps_no_row_for_the_points_it_never_reached():
     stopped_files = 0
     for _, row, detail in _all_details():
         bare = [record for record in detail["data"] if not _has_measurement(record)]
@@ -253,11 +257,38 @@ def test_a_block_can_stop_and_then_has_no_measurement_columns():
             continue
         stopped_files += 1
         assert all(record["State"] == "STOPPED" for record in bare)
-        # The stopped block is the later one, still one row per point, with no Summary.
+        # The stopped block is the later one. Its unmeasured cells are empty
+        # (the columns are still there), and it has no Summary.
         assert bare == detail["data"][row["point_count"]:]
-        assert len(bare) == row["point_count"]
-        assert len({record["Site"] for record in detail["summary"]}) <= 1
+        assert len(bare) < row["point_count"] or row["point_count"] == 1
+        assert all(value is None for record in bare for key, value in record.items() if key.endswith("(nm)"))
+        assert {record["Site"] for record in bare}.isdisjoint(r["Site"] for r in detail["summary"])
     assert stopped_files
+
+
+def test_every_data_row_names_its_own_block():
+    for _, _, detail in _all_details():
+        summary_blocks = {record["Site"] for record in detail["summary"]}
+        row_blocks = {record["Site"] for record in detail["data"]}
+        assert all(isinstance(block, str) and block for block in row_blocks)
+        # Whatever the Summary names, some row carries (unless the file has no table).
+        assert not detail["data"] or summary_blocks <= row_blocks
+
+
+def test_a_repeat_recipe_holds_a_point_several_times_in_one_block():
+    repeats = 0
+    for _, row, detail in _all_details():
+        if row["recipe_name"] != "RQQA_REPEAT_4SITE" or not detail["data"]:
+            continue
+        repeats += 1
+        # 4 sites x 2 rounds = 8 rows, all one block: a point coming round again
+        # is NOT where a block starts.
+        assert len(detail["data"]) == 8 and row["point_count"] == 4
+        assert len({record["Site"] for record in detail["data"]}) == 1
+        assert Counter(record["measurement_point"] for record in detail["data"]) == dict.fromkeys(
+            detail["available_points"], 2
+        )
+    assert repeats
 
 
 def test_blocks_cannot_be_told_apart_by_method_id():
@@ -269,7 +300,9 @@ def test_blocks_cannot_be_told_apart_by_method_id():
         method_ids |= ids
         if row["recipe_name"] == "RL1C_L1_XDEC_5MM_LINE" and ids:
             assert ids == {"L1_XDEC_5MM_LINE"}
-    assert {type(value) for value in method_ids} == {str, int}
+    # Loaded as text even where it is a number.
+    assert {type(value) for value in method_ids} == {str}
+    assert "2" in method_ids
 
 
 def test_a_file_can_lack_its_summary_or_its_data_table():
@@ -281,18 +314,18 @@ def test_a_file_can_lack_its_summary_or_its_data_table():
     assert {(True, True), (False, True), (True, False)} <= shapes
 
 
-def test_each_summary_block_is_the_statistics_of_the_data_block_at_its_position():
+def test_each_summary_block_is_the_statistics_of_the_data_rows_naming_it():
     checked = 0
     for _, row, detail in _all_details():
         blocks = list(dict.fromkeys(record["Site"] for record in detail["summary"]))
         points = row["point_count"]
-        # Two populated blocks: with one, position could not be told from identity.
         if len(blocks) != 2 or len(detail["data"]) != 2 * points:
             continue
         checked += 1
         column = next(key for key in detail["summary"][0] if key.endswith("(nm)"))
-        for position, block in enumerate(blocks):
-            values = [r[column] for r in detail["data"][position * points:(position + 1) * points]]
+        for block in blocks:
+            values = [r[column] for r in detail["data"] if r["Site"] == block]
+            assert len(values) == points
             stats = {r["ITEM"]: r[column] for r in detail["summary"] if r["Site"] == block}
             assert stats["MIN"] == min(values)
             assert stats["MAX"] == max(values)
@@ -362,6 +395,22 @@ def test_list_rows_follow_the_loaded_redis_shape():
             for kind in lists:
                 # No files is an empty list, never a sentinel.
                 assert "no files" not in row[f"{kind}_dir_list"]
-            assert row["data_dir_list"] == (list(mock.DETAIL_OBJECTS) if row["has_data"] else [])
-            assert all(name.endswith(".webp") for name in row["tiff_dir_list"])
+            assert row["data_dir_list"] == list(mock.DETAIL_OBJECTS[:3 if row["has_data"] else 1])
             assert bool(row["profile_dir_list"]) == row["has_profile"]
+
+
+def test_originals_sit_in_the_result_list_and_derived_names_end_with_the_position():
+    for tool in TOOLS:
+        for row in _rows(tool):
+            names = row["tiff_dir_list"]
+            webps = [name for name in names if name.endswith(".webp")]
+            originals = [name for name in names if name.endswith(".tiff")]
+            assert len(webps) + len(originals) == len(names)
+            # 5EAP1501 has no originals so far; elsewhere each webp has one.
+            assert len(originals) == (0 if tool == "5EAP1501" else len(webps))
+            stem = row["filename"].removesuffix(".csv").removesuffix("_Info")
+            # A MAPC01 profile or image does not start with the list name.
+            assert all(name.startswith(stem) for name in webps) == (tool != "MAPC01" or not webps)
+    for _, row, detail in _all_details():
+        assert row["measured_info"] == ""
+        assert detail["information"]["Sample Location"] == f"Slot {int(row['slot_number'])}"

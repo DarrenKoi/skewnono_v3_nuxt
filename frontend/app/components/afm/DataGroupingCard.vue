@@ -55,6 +55,7 @@
           >
             <AfmMeasurementLine :item="item">
               <UBadge
+                v-if="item.measuredInfo"
                 :label="item.measuredInfo"
                 color="neutral"
                 variant="outline"

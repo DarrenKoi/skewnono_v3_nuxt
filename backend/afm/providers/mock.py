@@ -15,32 +15,51 @@ AFM 은 단일 측정 행(`AfmMeasurementRow`) 보다 풍부한 디테일·프�
 profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에서 온 것이라 아래 raw 사실이
 그대로 적용됩니다.
 
-적재 형태로 확인되어 그대로 재현하는 것 (user-confirmed 2026-10-06, afm_redis.txt):
+적재 형태로 확인되어 그대로 재현하는 것 (afm_redis.txt — 명세 user-confirmed 2026-10-06,
+열 구성과 값은 office 확인 2026-10-06 의 6차 회신):
 - 목록 행의 열은 unique_key·filename·date(YYMMDD)·formatted_date·recipe_name·lot_id·
-  slot_number·time·tool_name·fab·point_count 와 파일 목록 7종(`data`·`profile`·`tiff`·
-  `align`·`tip`·`capture`·`raw` + `_dir_list`)입니다.
+  slot_number·time(HHMMSS 6자리)·tool_name·fab·point_count 와 파일 목록 7종(`data`·
+  `profile`·`tiff`·`align`·`tip`·`capture`·`raw` + `_dir_list`)입니다.
 - **파일이 없으면 빈 리스트**입니다. 예전 mock 의 `["no files"]` 표지는 실제에 없습니다.
 - `unique_key` 는 파일명의 앞 6필드(date#time#recipe#slot#lot#measured)이고 MAPC01 은
   앞 4필드입니다.
+- `filename` 은 **data CSV 의 원본 파일명 전체**이고, data CSV 가 없는 측정만 info CSV
+  (`_Info.csv`)입니다. 한 장비 안에서 `filename`·`unique_key` 모두 유일합니다.
+- `measured_info` 열은 있으나 **항상 null** 입니다(계약에서는 빈 문자열). `tool_id` 열은 없습니다.
+- MAPC01 의 `lot_id` 는 Info 의 `Lot ID` 로 채워져 있습니다.
+- `slot_number` 는 Info `Sample Location` 의 `Slot N` 에서 옵니다(실제 웨이퍼 슬롯).
 - 객체 이름: 상세는 `detail_information.parquet`·`detail_summary.parquet`·
-  `detail_points.parquet` 3종, profile 은 `profile_<원본이름>.parquet`, 이미지는
-  `<파일명>.webp`, `raw_dir_list` 는 원본 csv/txt 입니다.
-- profile 은 X/Y/Z parquet 에 객체 metadata(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)가 붙습니다.
+  `detail_points.parquet`, profile 은 `profile_<원본이름>.parquet`, 이미지는
+  `<파일명>.webp` 입니다. **data CSV 가 없는 측정은 `data_dir_list` 에 information 하나만**
+  들어 있으므로, `has_data` 는 목록이 비었는지가 아니라 points 객체가 있는지입니다.
+- **원본 TIFF 는 `tiff_dir_list` 에 webp 와 함께** 들어 있습니다. 5EAP1501 은 현재 0개입니다.
+- MAPC01 의 profile·이미지 이름은 `filename` 으로 **시작하지 않습니다**(5·6번째 필드가
+  다릅니다). 어느 point 의 파일인지는 이름의 **끝**(`_<위치 키>_Height`)으로만 알 수 있습니다.
+- points 의 각 행은 `Site` 열에 **자기 block 의 method 명**을 갖습니다. block 을 행의
+  순서나 "같은 point 가 다시 나옴"으로 추측하면 안 됩니다 — repeat recipe 는 한 block 안에서
+  같은 point 가 되풀이됩니다(실측 4 Site × 2 반복 = 8행).
+- 측정이 중단되면 **측정하지 못한 point 의 행은 아예 없습니다.** 측정하지 못한 칸은 값이
+  없습니다(적재물은 공백 한 칸 `' '`, `_Valid` 는 `''` — 계약에서는 null).
+- Summary 가 없으면 열도 없는 0행짜리 객체가 있습니다(계약에서는 빈 목록).
+- profile 은 X/Y/Z parquet 이고 단위(XUnit·YUnit·ZUnit·DataSize·SurfaceSize)는 MinIO 객체의
+  user metadata 입니다.
 
 적재 형태와 일부러 다른 것:
 - Redis 의 파일 목록은 MinIO 객체 key 전체(`2067928/afm/<TOOL>/<측정키>/<파일명>`)이고,
   계약(`AfmMeasurementRow`)의 목록은 그 **basename** 입니다. office adapter 가 잘라 내므로
   mock 도 이름만 냅니다.
+- 적재물의 상세는 **모든 값이 문자열**입니다(`"79.24"`, Point No 도 `"1"`). office adapter 가
+  단위가 붙은 열·`Point No`·`Site X/Y` 를 숫자로, `Valid` 류를 bool 로 바꾸므로 mock 은 바꾼
+  뒤의 형태를 냅니다. `Method_ID` 는 바꾸지 않으므로 숫자처럼 보여도 문자열(`"2"`)입니다.
 - Redis 의 `formatted_date`·`time`·`point_count` 는 null 일 수 있습니다(`time` 의 `NA` 도
   null). mock 은 null 을 내지 않습니다 — 파일명과 상세를 그 값에서 만들기 때문입니다.
   null 경로는 backend/afm/tests/test_office_template.py 가 adapter 에서 직접 확인합니다.
-- Redis `afm_d1_tools` 의 `fab` 은 아직 빈 값입니다("미정"). mock 은 아래의 장비→fab
-  대응을 그대로 냅니다. `alias` 는 계약의 `label` 로 가며 mock 은 장비명을 씁니다.
-- `time` 은 회신에 `HHMM` 으로 적혀 있으나 측정키 예는 6자리(`070028`)입니다. mock 은
-  HHMMSS 를 냅니다 (OFFICE-VERIFY). 화면은 4~6자리를 모두 읽습니다.
-- `measured_info`·`tool_id` 는 회신의 "주요 열"에 없습니다 (OFFICE-VERIFY).
-- 상세 parquet 3종의 열 구성, 측정마다 어떤 객체가 실제로 있는지(Info 만 있는 MAPC01
-  측정의 `data_dir_list` 등)는 회신에 없습니다 (OFFICE-VERIFY).
+- Redis `afm_d1_tools` 는 `fab` 이 빈 문자열이고 `alias` 가 MAP608=null·MAPC01=R3·
+  5EAP1501=M15 입니다. mock 은 MAP608 에 `PKG`(추정)를 냅니다.
+- 이름·값을 지어낸 곳 (OFFICE-VERIFY): repeat recipe 의 이름(`RQQA_REPEAT_4SITE`)과 반복
+  행의 순서, 중단된 block 에 남는 행의 수(mock 은 STOPPED 한 행), MAPC01 의 profile·이미지
+  이름에서 5번째 필드에 들어가는 값(mock 은 lot), 원본 TIFF 의 확장자와 webp 와의 짝
+  (mock 은 같은 이름의 `.tiff`), `Sample Location` 값의 나머지 모양(mock 은 `Slot N` 만).
 
 확인되어 그대로 재현하는 것 (office 확인 2026-10-02, 회신 4회):
 - 장비는 MAP608 · MAPC01 · 5EAP1501 이고 MAPC01=R3, 5EAP1501=M15 입니다.
@@ -49,7 +68,7 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
     뒤 시각이 측정 시작이고, 오래된 파일은 그 자리가 `NA` 입니다. 그때 Info 의
     `Start Time` 은 첫 시각과 같습니다.
   - MAPC01 은 `_Info.csv` 가 모든 측정에 있고 data CSV 는 같은 이름에서 `_Info` 를 뺀
-    것입니다. 측정 한 건은 앞 4필드(date#time#recipe#slot)이며, 같은 sample 이 하루에
+    것입니다(목록의 `filename` 은 data CSV 가 있으면 그쪽입니다). 측정 한 건은 앞 4필드(date#time#recipe#slot)이며, 같은 sample 이 하루에
     여러 번 다시 측정되어 시각만 다릅니다. lot 은 파일명에 없고(NA) Info 의 `Lot ID` 에 있습니다.
   - 5EAP1501 의 끝은 RECIPE+LOT+SAMPLE 을 구분자 없이 이은 원본 파일명이고 접미
     (`_SOP_LEFT_UR` 등)가 붙기도 합니다. SAMPLE_ID 는 `<lot>.<nn>` 입니다.
@@ -66,8 +85,8 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   (`Profile_LEFT_UL` + `Profile_RIGHT_UL`). Data 도 block 마다 나뉘고 block 은 point 마다
   한 행을 냅니다. block 마다 컬럼이 다를 수 있습니다 — 실측된 것은 중단된 뒤쪽 block 이
   측정 컬럼 없이 STOPPED 행만 남기는 경우이고, 그 block 은 Summary 가 비어 있습니다.
-- **block 은 순서로만 맞춥니다.** `Method_ID` 는 한 파일의 모든 block 에서 같은 값이라
-  (숫자 `2`, 또는 `L1_XDEC_5MM_LINE` 같은 문자열) block 을 가리는 키가 아닙니다.
+- `Method_ID` 는 한 파일의 모든 block 에서 같은 값이라(`2`, 또는 `L1_XDEC_5MM_LINE`)
+  block 을 가리는 키가 아닙니다. block 은 행의 `Site` 열로 가립니다(위 적재 형태).
 - Summary 가 없는 파일(Info 뒤에 바로 Data), 표가 없는 Data 도 있습니다.
 - 위치 키는 4자리 point 번호입니다 (`Point No`=1 ↔ 파일명 `_0001`). Site ID 를 기록하는
   recipe 만 `Site ID`·`Site X`·`Site Y` 컬럼을 갖고, 그때 파일명은
@@ -220,7 +239,8 @@ _ROUGHNESS = ("ROUGHNESS_RANGE (nm)", "Ra (nm)", "Rq (nm)")
 # its Summary/Data blocks, how many `points`, whether rows carry a `site_id`
 # (and then how many points `per_site`), `profile` txt or not, and which
 # `images`. `method_id` is the Method_ID every block of the recipe reports;
-# left out, it is the recipe name without its first token.
+# left out, it is the recipe name without its first token. `repeat` measures
+# every point that many times inside one block.
 RECIPES: dict[str, dict[str, Any]] = {
     "BSOXCMP_CORRELATION_36PT": {
         "columns": ("Bottom_H (nm)", "Top_H (nm)"), "methods": ("Correlation",),
@@ -270,13 +290,18 @@ RECIPES: dict[str, dict[str, Any]] = {
         "columns": ("Line1_Residue_H (nm)",), "methods": ("Line Residue",),
         "points": 3, "site_id": False, "profile": True, "images": ()
     },
+    # Fabricated name; the property is real: one block holds every point twice.
+    "RQQA_REPEAT_4SITE": {
+        "columns": ("Bottom_H (nm)",), "methods": ("Correlation",),
+        "points": 4, "site_id": True, "repeat": 2, "profile": False, "images": ("tiff",)
+    },
     "VM_GTFILLOX_5PT_R1": {
         "columns": ("Bottom_H (nm)", "Top_H (nm)"), "methods": ("Correlation",),
         "points": 5, "site_id": True, "profile": False, "images": ("tiff", "align")
     },
     "xy scanner opm": {
         "columns": _numbered("RZ{}_Minimum (nm)", 12), "methods": ("Trench Depth",),
-        "points": 1, "site_id": False, "profile": False, "images": (), "method_id": 2
+        "points": 1, "site_id": False, "profile": False, "images": (), "method_id": "2"
     },
     "zeroscan 5point pm": {
         "columns": _numbered("{}_Minimum (nm)", 9), "methods": ("Trench Depth",),
@@ -285,7 +310,7 @@ RECIPES: dict[str, dict[str, Any]] = {
     "TRENCH_MIN_51LINE": {
         "columns": _numbered("{}_Minimum (nm)", 51), "methods": ("Trench Depth",),
         "points": 13, "site_id": True, "profile": False, "images": ("tiff",),
-        "method_id": 2
+        "method_id": "2"
     }
 }
 
@@ -346,6 +371,7 @@ TOOL_CONFIGS: dict[str, ToolConfig] = {
         "lot_prefixes": ("5PNN17", "5PNN18", "5PMM20"),
         "recipes": (
             "xy scanner opm",
+            "RQQA_REPEAT_4SITE",
             "TRENCH_MIN_51LINE",
             "zeroscan 5point pm",
             "VM_GTFILLOX_5PT_R1"
@@ -415,9 +441,13 @@ def get_afm_file_detail(
         stopped = stopped_early and method_index > 0
         bases = [_baseline(row, column, method_index) for column in columns]
         block_rows: list[dict[str, Any]] = []
+        # A stopped block keeps the row it stopped on; the points it never reached
+        # have no row at all. A repeat recipe goes round its points again.
+        measured = positions[:1] if stopped else positions * recipe.get("repeat", 1)
 
-        for key, site_id, (site_x, site_y), point_no in positions:
-            record: dict[str, Any] = {"measurement_point": key}
+        for key, site_id, (site_x, site_y), point_no in measured:
+            # `Site` is the row's own block: the method name of its section.
+            record: dict[str, Any] = {"Site": method, "measurement_point": key}
             if site_id:
                 record.update({"Site ID": site_id, "Site X": site_x, "Site Y": site_y})
             record.update({
@@ -432,11 +462,16 @@ def get_afm_file_detail(
                 ),
                 "Valid": rng.random() > (0.3 if excursion else 0.08)
             })
-            if not stopped:
-                bowl = _BOWL_NM * (site_x ** 2 + site_y ** 2)
-                for column, base in zip(columns, bases, strict=True):
-                    record[column] = round(base + bowl + rng.gauss(0, _POINT_NOISE_NM), 2)
-                    record[f"{column.removesuffix(' (nm)')}_Valid"] = rng.random() > 0.06
+            bowl = _BOWL_NM * (site_x ** 2 + site_y ** 2)
+            for column, base in zip(columns, bases, strict=True):
+                # A cell that was never measured is empty, not missing: one frame
+                # holds every block, so the column is there for every row.
+                record[column] = (
+                    None if stopped else round(base + bowl + rng.gauss(0, _POINT_NOISE_NM), 2)
+                )
+                record[f"{column.removesuffix(' (nm)')}_Valid"] = (
+                    None if stopped else rng.random() > 0.06
+                )
             record.update({
                 "Pick Up Count": rng.randint(1, 10),
                 "Sample Count": rng.randint(1, 5),
@@ -468,13 +503,14 @@ def get_afm_file_detail(
             "Recipe ID": row["recipe_name"],
             "Carrier ID": "" if rng.random() < 0.2 else f"CAR{rng.randint(100, 999)}",
             "Sample ID": f"{row['lot_id']}.{row['slot_number']}",
+            # The wafer's real slot; the list's slot_number is read from here.
+            "Sample Location": f"Slot {int(row['slot_number'])}",
             "Start Time": start_time,
             "Last Pick Up Time": "" if rng.random() < 0.3 else start_time,
             "Last Put Back Time": "" if rng.random() < 0.3 else start_time,
             "Tool": row["tool_name"],
             "Fab": row["fab"],
-            "Operator": f"OP{rng.randint(1000, 9999)}",
-            "Measurement": row["measured_info"]
+            "Operator": f"OP{rng.randint(1000, 9999)}"
         },
         "summary": summary,
         "data": detail,
@@ -621,7 +657,10 @@ def list_analysis_images(
     encoded_tool = quote(tool, safe="")
 
     images: list[dict[str, str]] = []
-    for name in row.get(field, []):
+    names = row.get(field, [])
+    for name in names:
+        if _is_original(name):
+            continue
         encoded_name = quote(name, safe="")
         image = {
             "name": name,
@@ -630,9 +669,9 @@ def list_analysis_images(
                 f"?tool={encoded_tool}"
             ),
         }
-        # Only a Result image is a conversion of a stored TIFF; align / tip /
-        # capture have no original behind them.
-        if image_type == "tiff":
+        # Only a Result image is a conversion of a stored TIFF, and only where
+        # that TIFF is listed beside it.
+        if image_type == "tiff" and _original_name(name) in names:
             image["original_url"] = (
                 f"/api/afm/files/{encoded_filename}/tiff/{encoded_name}?tool={encoded_tool}"
             )
@@ -646,7 +685,7 @@ def get_tiff_original(
     tool_name: str | None = None,
 ) -> AfmOriginalFile | None:
     row = _find_measurement(filename, tool_name)
-    if row is None or name not in row["tiff_dir_list"]:
+    if row is None or _is_original(name) or _original_name(name) not in row["tiff_dir_list"]:
         return None
 
     # Lazy: Pillow is only needed for this one download.
@@ -663,7 +702,7 @@ def get_tiff_original(
     buffer = io.BytesIO()
     Image.frombytes("L", (size, size), pixels).save(buffer, format="TIFF")
     return {
-        "filename": f"{name.rsplit('.', 1)[0]}.tiff",
+        "filename": _original_name(name),
         "content_type": "image/tiff",
         "data": buffer.getvalue(),
     }
@@ -683,7 +722,7 @@ def get_analysis_image_svg(
     if row is None:
         return None
 
-    if name not in row.get(field, []):
+    if name not in row.get(field, []) or _is_original(name):
         return None
 
     rng = random.Random(
@@ -719,8 +758,6 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
         return tuple()
 
     rows: list[AfmMeasurementRow] = []
-    measured_values = ("1", "standard", "repeat2", "profile", "roughness")
-
     session_size = config.get("session_size", 1)
     repeats = config.get("repeats", 1)
 
@@ -752,8 +789,8 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
         lot_prefixes = config["lot_prefixes"]
         lot_id = f"{lot_prefixes[sample_no % len(lot_prefixes)]}{_base36(sample_no + 42, 2)}"
         slot_number = f"{(sample_no % 25) + 1:02d}"
-        measured_info = measured_values[index % len(measured_values)]
-        filename = config["filename"].format(
+        has_data = recipe["columns"] is not None
+        anchor = config["filename"].format(
             date=date_code,
             time=time_code,
             recipe=recipe_name,
@@ -763,15 +800,23 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             start=start_code,
             suffix="_SOP_LEFT_UR" if index % 4 == 3 else ""
         )
+        # The list names a measurement by its data CSV; only one that has none is
+        # named by its info CSV. (On MAP608 / 5EAP1501 the two are one file.)
+        data_filename = anchor.replace("_Info.csv", ".csv")
+        filename = data_filename if has_data else anchor
         # date#time#recipe#slot#lot#measured; a MAPC01 measurement is the first four.
         unique_key = "#".join(filename.split("#")[1:5 if tool_name == "MAPC01" else 7])
-        # Every other file of the measurement is named after the data CSV.
-        data_filename = filename.replace("_Info.csv", ".csv")
         clean_filename = _strip_known_extension(data_filename)
+        # A MAPC01 profile or image does not start with the list name: its fifth
+        # and sixth fields differ (OFFICE-VERIFY what they hold; here, the lot).
+        file_stem = (
+            clean_filename.replace("#NA#NA#", f"#{lot_id}#NA#") if tool_name == "MAPC01"
+            else clean_filename
+        )
         keys = [key for key, *_ in _positions(recipe)]
-        profile_txts = _point_files(clean_filename, keys, "txt")
+        profile_txts = _point_files(file_stem, keys, "txt")
+        webps = _point_files(file_stem, keys, "webp")
         has_profile = recipe["profile"] and bool(config["profile_grids"])
-        has_data = recipe["columns"] is not None
         has_image = "tiff" in recipe["images"]
         has_align = "align" in recipe["images"]
         has_tip = "tip" in recipe["images"]
@@ -785,7 +830,8 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             "lot_id": lot_id,
             "slot_number": slot_number,
             "time": time_code,
-            "measured_info": measured_info,
+            # The column exists at the office and is always null.
+            "measured_info": "",
             "tool_name": tool_name,
             "tool_id": config["tool_id"],
             "fab": config["fab"],
@@ -793,26 +839,29 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
                 has_profile,
                 [f"profile_{name[:-4]}.parquet" for name in profile_txts]
             ),
-            "data_dir_list": _file_list(has_data, list(DETAIL_OBJECTS)),
+            # Info is loaded for every measurement, so this list is never a
+            # "has data" flag: without a data CSV it holds information alone.
+            "data_dir_list": list(DETAIL_OBJECTS if has_data else DETAIL_OBJECTS[:1]),
             # The untouched csv/txt the objects above were loaded from.
             "raw_dir_list": (
-                ([filename] if has_data or filename != data_filename else [])
-                + ([data_filename] if has_data and filename != data_filename else [])
+                list(dict.fromkeys([anchor, *([data_filename] if has_data else [])]))
                 + (profile_txts if has_profile else [])
             ),
+            # Each Result webp, then the original TIFFs it was converted from —
+            # the same list holds both. 5EAP1501 has no originals so far.
             "tiff_dir_list": _file_list(
                 has_image,
-                _point_files(clean_filename, keys, "webp")
+                webps + ([] if tool_name == "5EAP1501" else [_original_name(n) for n in webps])
             ),
             "align_dir_list": _file_list(
                 has_align,
-                [f"{clean_filename}_{keys[0]}_alignment.webp"]
+                [f"{file_stem}_{keys[0]}_alignment.webp"]
             ),
             "tip_dir_list": _file_list(
                 has_tip,
-                [f"{clean_filename}_{keys[0]}_tip.webp"]
+                [f"{file_stem}_{keys[0]}_tip.webp"]
             ),
-            "capture_dir_list": [f"{clean_filename}_{keys[0]}_capture.webp"],
+            "capture_dir_list": [f"{file_stem}_{keys[0]}_capture.webp"],
             "has_profile": has_profile,
             "has_data": has_data,
             "has_image": has_image,
@@ -966,6 +1015,16 @@ def _strip_known_extension(filename: str) -> str:
 def _file_list(has_files: bool, files: list[str]) -> list[str]:
     # An empty list is how the office says "no files" — there is no sentinel.
     return files if has_files else []
+
+
+def _original_name(webp_name: str) -> str:
+    # OFFICE-VERIFY: the original is assumed to carry the webp's name with a
+    # TIFF extension.
+    return f"{webp_name.rsplit('.', 1)[0]}.tiff"
+
+
+def _is_original(name: str) -> bool:
+    return name.lower().endswith((".tif", ".tiff"))
 
 
 def _point_files(clean_filename: str, keys: list[str], extension: str) -> list[str]:

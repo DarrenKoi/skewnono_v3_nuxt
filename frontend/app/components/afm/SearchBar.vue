@@ -212,6 +212,7 @@
                 {{ result.recipeName }}
               </span>
               <UBadge
+                v-if="result.measuredInfo"
                 :label="result.measuredInfo"
                 color="neutral"
                 variant="outline"

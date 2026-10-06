@@ -335,10 +335,9 @@ const loadType = async (type: AfmImageType) => {
 watch(activeType, loadType, { immediate: true })
 
 // Each image with the point it shows and the kind its name ends in (`Height`, `tip`).
-const stem = measurementStem(props.filename)
 const images = computed(() => state.value.images.map(image => ({
   ...image,
-  point: imagePoint(image.name, stem, props.points),
+  point: imagePoint(image.name, props.points),
   kind: image.name.replace(/\.\w+$/, '').split('_').pop() ?? image.name
 })))
 

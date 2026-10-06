@@ -150,9 +150,14 @@ const detailRows = computed(() => payload.value?.data ?? [])
 // The table's rows, with a Block column where the file has more than one block.
 const tableRows = computed(() => tagBlocks(detailRows.value, summaryRows.value))
 
-// The payload carries the lot but not the slot; a measurement opened from the
-// list is in this tool's 조회 기록, which has it.
-const slotNumber = useAfmCart(toolId).viewHistory.value.find(item => item.filename === filename)?.slotNumber
+// A measurement opened from the list is in this tool's 조회 기록, which has the
+// slot. One opened by a copied link is not, so the slot is read where the list
+// itself gets it: Info's `Sample Location` (`Slot N`, the wafer's real slot —
+// office 확인 2026-10-06). The file name's `.nn` tail is NOT a slot.
+const listedSlot = useAfmCart(toolId).viewHistory.value.find(item => item.filename === filename)?.slotNumber
+const slotNumber = computed(() =>
+  listedSlot ?? /Slot\s*(\d+)/i.exec(String(payload.value?.information['Sample Location'] ?? ''))?.[1]
+)
 
 const selectedPoint = ref('')
 

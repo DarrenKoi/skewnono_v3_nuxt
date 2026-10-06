@@ -4,7 +4,7 @@
 // Design proposal 3a (`AFM Trend.dc.html`) defines; the data is the detail
 // payload the page already fetches, one request per measurement.
 import type { AfmDetailPayload, AfmDetailRow, AfmSummaryItem } from '~/composables/useAfmDetailApi'
-import { blockNames, pointState, tagBlocks } from './afmPoints.ts'
+import { blockNames, blockOf, pointState } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { boxStats, type BoxStats } from './boxplotStats.ts'
 import { formatDateTimeLocal } from './dateTime.ts'
@@ -44,26 +44,16 @@ const startTime = (source: TrendSource, payload: AfmDetailPayload): number => {
   return Number.isFinite(parsed) ? parsed : Date.parse(source.formattedDate)
 }
 
-// A block has no key of its own, so names are matched by ORDER (tagBlocks).
-// A file whose Summary is empty — or lost its later blocks to a stop — has no
-// name for some ordinals; it borrows them from the longest Summary its recipe
-// has in the group, so its data still lines up with its siblings' blocks.
-// What no sibling names either stays `Block N`, as on 측정 상세.
+// Every data row names its own block (`Site`), with the name its Summary rows
+// carry — so a file whose Summary is empty, or that stopped part-way, still
+// lines up with its siblings by name. Rows that name none are one block.
 export const prepareEntries = (items: { source: TrendSource, payload: AfmDetailPayload }[]): TrendEntry[] => {
-  const known = new Map<string, string[]>()
-  for (const { source, payload } of items) {
-    const names = blockNames(payload.summary)
-    if (names.length > (known.get(source.recipeName)?.length ?? 0)) known.set(source.recipeName, names)
-  }
   return items.map(({ source, payload }) => {
-    const own = blockNames(payload.summary)
-    const sibling = known.get(source.recipeName) ?? []
-    const names = Array.from({ length: Math.max(own.length, sibling.length) }, (_, i) => own[i] ?? sibling[i]!)
-    const tagged = tagBlocks(payload.data, names.map(Site => ({ Site, ITEM: 'MEAN' })))
+    const names = blockNames(payload.summary)
+    const fallback = names[0] ?? 'Block 1'
     const rowsByBlock = new Map<string, AfmDetailRow[]>()
-    for (const row of tagged) {
-      // tagBlocks leaves a single-block file untagged: every row is block 0.
-      const name = typeof row.Block === 'string' ? row.Block : names[0] ?? 'Block 1'
+    for (const row of payload.data) {
+      const name = blockOf(row, fallback)
       const list = rowsByBlock.get(name)
       if (list) list.push(row)
       else rowsByBlock.set(name, [row])

@@ -2,15 +2,18 @@
 # office.py is gitignored; this file (office_example.py) is the tracked skeleton.
 """Phase 2/3 AFM adapter: a Redis index over MinIO objects. Read-only.
 
-Schema of record: docs/datatables/afm/afm_redis.txt (user-confirmed 2026-10-06).
+Schema of record: docs/datatables/afm/afm_redis.txt (spec user-confirmed
+2026-10-06; column layouts and value conventions office 확인 2026-10-06).
 
 Redis — two hashes, every value a ``DataFrame.to_parquet()`` blob:
 
-* ``afm_d1_tools``, field ``all`` — the tool list: ``id, name, fab, alias``
-  (``fab`` is still empty).
+* ``afm_d1_tools``, field ``all`` — the tool list: ``id, name, fab, alias``.
+  ``fab`` is an empty string for now and ``alias`` carries the fab name
+  (``R3``, ``M15``; null for MAP608).
 * ``afm_d2_measurements``, field = tool name (``MAP608``, ``MAPC01``,
   ``5EAP1501``) — that tool's whole measurement history as ONE DataFrame. There
-  is no per-row key and no TTL; the loader rewrites a tool's field wholesale.
+  is no per-row key and no TTL; the loader rewrites a tool's field wholesale,
+  every 30 minutes.
 
 A measurement row carries seven ``*_dir_list`` columns (data, profile, tiff,
 align, tip, capture, raw) holding full MinIO object keys,
@@ -18,27 +21,36 @@ align, tip, capture, raw) holding full MinIO object keys,
 
 MinIO — the bodies those keys name:
 
-* detail: ``detail_information.parquet``, ``detail_summary.parquet``,
-  ``detail_points.parquet``
-* profile: ``profile_<raw name>.parquet`` — X/Y/Z, units in the metadata
-* images: ``<file name>.webp``
+* detail: ``detail_information.parquet`` (columns ``name``, ``value``),
+  ``detail_summary.parquet`` (``Site``, ``ITEM``, measurement columns; a
+  measurement with no Summary has a 0-row, 0-column object) and
+  ``detail_points.parquet`` (one row per reading; ``Site`` is the row's block).
+  A measurement with no data CSV has ``detail_information.parquet`` alone.
+* profile: ``profile_<raw name>.parquet`` — X/Y/Z; the units are the object's
+  user metadata (``x-amz-meta-xunit`` …), not parquet metadata.
+* images: ``<file name>.webp``; ``tiff_dir_list`` also holds the original TIFFs.
 
-**This adapter never writes to MinIO or Redis.** The loader owns both.
+**This adapter never writes to MinIO or Redis.** The loader owns both. Objects
+past the 3-month retention are deleted from MinIO first and from Redis after, so
+a listed key can be gone: that is a miss (``None``), never an error.
 
-What the contract gets is not what Redis holds, in two places: the lists are cut
-down to **basenames** (the page never learns the storage layout, and a name is
-unique inside one measurement's folder), and an empty cell — NaN in the frame,
-``NA`` in ``time`` — becomes ``None`` / ``""``.
+What the contract gets is not what the stores hold, in three places:
+
+* the lists are cut down to **basenames** (the page never learns the storage
+  layout, and a name is unique inside one measurement's folder);
+* an empty cell — NaN in the frame, ``NA`` in ``time`` — becomes ``None`` / ``""``;
+* **every detail value is loaded as text** (``"79.24"``, ``Point No`` ``"1"``,
+  an unmeasured cell ``" "``, an unset ``_Valid`` ``""``). ``_cell`` turns
+  unit-bearing columns, ``Point No`` and ``Site X`` / ``Site Y`` into numbers and
+  the ``Valid`` columns into booleans; everything else stays text.
 
 Still assumptions (OFFICE-VERIFY) — run this file once and compare:
-  - the columns of the three detail parquets (see ``_information`` and
-    ``_position``); ``Point No`` / ``Site ID`` are the raw CSV's names;
-  - whether a profile's units sit in the parquet metadata or in the MinIO
-    object's user metadata (both are read);
-  - how a point's image is named — matched here on ``_<position>_Height``;
-  - where the original TIFF lives. ``raw_dir_list`` is documented as csv/txt, so
-    no image offers a TIFF download until a ``.tif``/``.tiff`` shows up there;
-  - ``measured_info`` and ``tool_id`` are not among the documented columns.
+  - how a FALSE ``Valid`` is spelled (none has been seen); ``true`` / ``false``
+    in any case are read, anything else is ``None``;
+  - that an original TIFF carries its webp's name with a ``.tif`` / ``.tiff``
+    extension;
+  - that ``alias`` is the tool's fab;
+  - that the Summary's values are text like the points'.
 
 Standalone check, from the repo root (reads only):
 
@@ -74,6 +86,10 @@ _INFORMATION, _SUMMARY, _POINTS = (
 )
 _TIFF_SUFFIXES = (".tif", ".tiff")
 _GONE_CODES = {"NoSuchKey", "NoSuchObject", "NotFound"}
+_INTEGER_COLUMNS = ("Point No", "Site X", "Site Y")
+# `Left_H (nm)`, `X (um)`: a column that names its unit holds a number.
+_HAS_UNIT = re.compile(r"\(.+\)\s*$")
+_BOOLEANS = {"true": True, "false": False}
 # `_0001_Height`, or `_0004_X000_Y-002_0002_Height` on a recipe that records Site ID.
 _POSITION_IN_NAME = re.compile(r"_((?:\d{4}_X-?\d+_Y-?\d+_)?\d{4})_Height")
 
@@ -140,6 +156,48 @@ def _frame(key: str | None):
     return pd.read_parquet(io.BytesIO(raw))
 
 
+def _user_metadata(key: str | None) -> dict[str, str] | None:
+    """An object's user metadata with the `x-amz-meta-` prefix dropped, or None."""
+    if not key:
+        return None
+    try:
+        headers = _store().stat(key).metadata or {}
+    except Exception as exc:  # noqa: BLE001 — re-raised unless it is a plain miss
+        if getattr(exc, "code", None) in _GONE_CODES:
+            return None
+        raise
+    return {name.lower().removeprefix("x-amz-meta-"): value for name, value in headers.items()}
+
+
+def _cell(column: str, value: Any) -> Any:
+    """One detail cell as the value it stands for.
+
+    The loader writes every cell as text. An unmeasured cell is a single space
+    and an unset `_Valid` is empty; both are None here, never 0 or False.
+    """
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    if column == "Valid" or column.endswith("_Valid"):
+        return _BOOLEANS.get(text.lower())
+    if column in _INTEGER_COLUMNS or _HAS_UNIT.search(column):
+        if not text:
+            return None
+        try:
+            number = float(text)
+        except ValueError:
+            return value
+        return int(number) if column in _INTEGER_COLUMNS else number
+    return value
+
+
+def _table(df) -> list[dict[str, Any]]:
+    """A detail frame (summary or points) as typed rows; [] when it is absent or empty."""
+    if df is None:
+        return []
+    return [{column: _cell(column, value) for column, value in row.items()} for row in _records(df)]
+
+
 # -- cells and names ---------------------------------------------------------
 
 
@@ -165,20 +223,26 @@ def _key_named(record: dict[str, Any], kind: str, name: str) -> str | None:
 
 def _key_at(record: dict[str, Any], kind: str, point: str) -> str | None:
     """The file of one position: its name ends `_<position>_Height.<ext>`."""
-    keys = _keys(record, kind)
+    keys = [key for key in _keys(record, kind) if not _is_original(_basename(key))]
     return next(
         (key for key in keys if f"_{point}_Height" in _basename(key)),
         _key_named(record, kind, point),
     )
 
 
+def _is_original(name: str) -> bool:
+    return name.lower().endswith(_TIFF_SUFFIXES)
+
+
 def _original_key(record: dict[str, Any], name: str) -> str | None:
-    # OFFICE-VERIFY: an original is looked for beside the raw files, under the
-    # webp's own name with a TIFF extension.
+    # The Result list holds the originals beside their webp conversions.
+    # OFFICE-VERIFY: paired by name — the webp's own, with a TIFF extension.
+    if _is_original(name):
+        return None
     stem = name.rsplit(".", 1)[0]
-    for key in _keys(record, "raw"):
+    for key in _keys(record, "tiff"):
         base = _basename(key)
-        if base.lower().endswith(_TIFF_SUFFIXES) and base.rsplit(".", 1)[0] == stem:
+        if _is_original(base) and base.rsplit(".", 1)[0] == stem:
             return key
     return None
 
@@ -201,11 +265,13 @@ def normalize_tool(tool_name: str | None) -> str:
 def get_tools() -> list[dict[str, str]]:
     return [
         {
-            "id": _text(record.get("id")),
+            # Stored upper-case; the page's tool slug is lower-case.
+            "id": _text(record.get("id")).lower(),
             "name": _text(record.get("name")),
-            "label": _text(record.get("alias")) or _text(record.get("name")),
-            # Empty for now: the office has not decided where fab comes from.
-            "fab": _text(record.get("fab")),
+            "label": _text(record.get("name")),
+            # `fab` is an empty string for now and `alias` holds R3 / M15 (null
+            # for MAP608). OFFICE-VERIFY that alias is meant as the fab.
+            "fab": _text(record.get("fab")) or _text(record.get("alias")),
         }
         for record in _rows_of(_TOOLS_KEY, _TOOLS_FIELD)
     ]
@@ -225,7 +291,7 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         "slot_number": _text(record.get("slot_number")),
         # The loader writes a missing time as null, and the raw name spells it NA.
         "time": None if time_code in ("", "NA") else time_code,
-        # OFFICE-VERIFY: neither column is in the documented schema.
+        # The column exists and is always null; `tool_id` does not exist.
         "measured_info": _text(record.get("measured_info")),
         "tool_name": _text(record.get("tool_name")) or tool,
         "tool_id": _text(record.get("tool_id")) or tool.lower(),
@@ -238,8 +304,10 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         "capture_dir_list": names["capture"],
         "raw_dir_list": names["raw"],
         "has_profile": bool(names["profile"]),
-        "has_data": bool(names["data"]),
-        "has_image": bool(names["tiff"]),
+        # Info is loaded for every measurement, so the list being non-empty says
+        # nothing: a measurement has data when its points object is listed.
+        "has_data": _POINTS in names["data"],
+        "has_image": any(not _is_original(name) for name in names["tiff"]),
         "has_align": bool(names["align"]),
         "has_tip": bool(names["tip"]),
         "point_count": None if point_count is None else int(point_count),
@@ -257,14 +325,10 @@ def list_afm_files(tool_name: str | None = None) -> list[AfmMeasurementRow]:
 
 
 def _information(df) -> dict[str, str]:
-    # OFFICE-VERIFY: read as key/value rows when the frame has two columns (the
-    # raw Info section's shape), otherwise as one wide row.
-    if df is None or df.empty:
+    # One Info line per row, in columns `name` and `value`; an empty value is "".
+    if df is None:
         return {}
-    records = _records(df)
-    if df.shape[1] == 2:
-        return {_text(key): _text(value) for key, value in (r.values() for r in records)}
-    return {_text(key): _text(value) for key, value in records[0].items()}
+    return {_text(row.get("name")): _text(row.get("value")) for row in _records(df)}
 
 
 def _position(record: dict[str, Any]) -> str:
@@ -287,12 +351,12 @@ def get_afm_file_detail(
     if record is None:
         return None
 
-    summary = _frame(_key_named(record, "data", _SUMMARY))
-    points = _frame(_key_named(record, "data", _POINTS))
-    # The page's point picker filters on `measurement_point`; a frame that
-    # already carries the column keeps its own.
-    data = [] if points is None else [
-        {"measurement_point": _position(row), **row} for row in _records(points)
+    # The page's point picker filters on `measurement_point`. Each row keeps
+    # its `Site` — the method name of its block, which is how the page tells
+    # blocks apart (never by row order: a repeat recipe revisits its points).
+    data = [
+        {"measurement_point": _position(row), **row}
+        for row in _table(_frame(_key_named(record, "data", _POINTS)))
     ]
     positions = [row["measurement_point"] for row in data if row["measurement_point"]]
     if not positions:
@@ -311,7 +375,7 @@ def get_afm_file_detail(
         "tool": normalize_tool(tool_name),
         "pickle_filename": f"{_stem(stored_name)}.pkl",
         "information": _information(_frame(_key_named(record, "data", _INFORMATION))),
-        "summary": [] if summary is None else _records(summary),
+        "summary": _table(_frame(_key_named(record, "data", _SUMMARY))),
         "data": data,
         "available_points": list(dict.fromkeys(positions)),
     }
@@ -319,34 +383,10 @@ def get_afm_file_detail(
 
 # -- profile -----------------------------------------------------------------
 
-# ponytail: the profile route asks for the points and then the metadata, so one
-# view downloads the same object twice. Cache `_profile` by key (hits only — a
-# cached miss would hide an object loaded a moment later) if that ever shows.
 
-
-def _profile(filename: str, point: str, tool_name: str | None):
-    """(X/Y/Z table, declared metadata) of one position's profile, or None."""
+def _profile_key(filename: str, point: str, tool_name: str | None) -> str | None:
     record = _find(filename, tool_name)
-    key = None if record is None else _key_at(record, "profile", point)
-    raw = _object(key)
-    if raw is None:
-        return None
-
-    import pyarrow.parquet as pq
-
-    table = pq.read_table(io.BytesIO(raw))
-    declared = {
-        name.decode(errors="replace").lower(): value.decode(errors="replace")
-        for name, value in (table.schema.metadata or {}).items()
-    }
-    if "xunit" not in declared:
-        # OFFICE-VERIFY: "객체 metadata" may mean the MinIO object's user
-        # metadata rather than the parquet file's.
-        declared = {
-            name.lower().removeprefix("x-amz-meta-"): value
-            for name, value in (_store().stat(key).metadata or {}).items()
-        }
-    return table, declared
+    return None if record is None else _key_at(record, "profile", point)
 
 
 def get_profile_points(
@@ -355,10 +395,9 @@ def get_profile_points(
     tool_name: str | None = None,
     site_info: dict[str, str | int | None] | None = None,
 ) -> list[dict[str, float]] | None:
-    profile = _profile(filename, point, tool_name)
-    if profile is None:
+    df = _frame(_profile_key(filename, point, tool_name))
+    if df is None:
         return None
-    df = profile[0].to_pandas()
     df.columns = [str(column).lower() for column in df.columns]
     return _records(df[["x", "y", "z"]])
 
@@ -368,10 +407,10 @@ def get_profile_meta(
     point: str,
     tool_name: str | None = None,
 ) -> AfmProfileMeta | None:
-    profile = _profile(filename, point, tool_name)
-    if profile is None:
+    # The units are the object's user metadata, so this is a stat, not a download.
+    declared = _user_metadata(_profile_key(filename, point, tool_name))
+    if declared is None:
         return None
-    declared = profile[1]
     # Units travel as declared: never converted, never defaulted per tool.
     return {
         "x_unit": declared.get("xunit", ""),
@@ -410,6 +449,9 @@ def list_analysis_images(
     images: list[dict[str, str]] = []
     for key in _keys(record, image_type):
         name = _basename(key)
+        if _is_original(name):
+            # A browser cannot draw a TIFF; it is offered as a download instead.
+            continue
         encoded = quote(name, safe="")
         image = {"name": name, "url": f"{base}/images/{image_type}/{encoded}{tool}"}
         # The page shows 원본 TIFF 다운로드 only where this key is present.
@@ -426,7 +468,9 @@ def get_analysis_image_svg(
     tool_name: str | None = None,
 ) -> bytes | None:
     record = _find(filename, tool_name) if image_type in _IMAGE_KINDS else None
-    return None if record is None else _object(_key_named(record, image_type, name))
+    if record is None or _is_original(name):
+        return None
+    return _object(_key_named(record, image_type, name))
 
 
 def get_tiff_original(

@@ -110,27 +110,33 @@ test('measurementStats keeps Summary-only stats when there is no data table', ()
 })
 
 test('measurementStats is null for a missing block or column, and says why', () => {
-  const stopped = [row('1', 1), row('2', 2), row('1', null, { State: 'STOPPED' }), row('2', null, { State: 'STOPPED' })]
+  const stopped = [row('1', 1, { Site: 'L' }), row('2', 2, { Site: 'L' }), row('1', null, { State: 'STOPPED', Site: 'R' })]
   const [entry] = prepareEntries([{ source: source('a'), payload: payload(summaryOf('L', { MEAN: 1.5 }), stopped) }])
   assert.equal(measurementStats(entry!, 'L', 'Other (nm)'), null)
-  // The stopped second block has rows but no Summary and no values.
-  assert.deepEqual(entry!.blocks, ['L', 'Block 2'])
-  assert.equal(measurementStats(entry!, 'Block 2', COL), null)
-  assert.equal(missingReason(entry!, 'Block 2'), '블록 STOPPED')
+  // The stopped second block has the row it stopped on, no Summary, no values.
+  assert.deepEqual(entry!.blocks, ['L', 'R'])
+  assert.equal(measurementStats(entry!, 'R', COL), null)
+  assert.equal(missingReason(entry!, 'R'), '블록 STOPPED')
   assert.equal(missingReason(entry!, 'Nope'), '블록 없음')
 })
 
-test('a Summary-less file borrows its recipe siblings\' block names by order', () => {
-  const twoBlocks = [row('1', 1), row('2', 2), row('1', 7), row('2', 9)]
+test('a Summary-less file lines up with its siblings by the rows\' own block', () => {
+  const twoBlocks = [row('1', 1, { Site: 'L' }), row('2', 2, { Site: 'L' }), row('1', 7, { Site: 'R' }), row('2', 9, { Site: 'R' })]
+  // A repeat recipe: the points come round again inside one block.
+  const repeat = [row('1', 1, { Site: 'L' }), row('2', 3, { Site: 'L' }), row('1', 5, { Site: 'L' }), row('2', 7, { Site: 'L' })]
   const entries = prepareEntries([
     { source: source('named'), payload: payload([...summaryOf('L', { MEAN: 1 }), ...summaryOf('R', { MEAN: 8 })], twoBlocks) },
     { source: source('bare'), payload: payload([], twoBlocks) },
-    { source: source('other', { recipeName: 'X' }), payload: payload([], twoBlocks) }
+    { source: source('repeat'), payload: payload([], repeat) },
+    { source: source('unnamed'), payload: payload([], [row('1', 1), row('1', 3)]) }
   ])
   const bare = entries.find(e => e.key === 'bare')!
   assert.deepEqual(bare.blocks, ['L', 'R'])
   assert.equal(measurementStats(bare, 'R', COL)!.MEAN, 8)
-  assert.deepEqual(entries.find(e => e.key === 'other')!.blocks, ['Block 1', 'Block 2'])
+  const repeated = entries.find(e => e.key === 'repeat')!
+  assert.deepEqual(repeated.blocks, ['L'])
+  assert.equal(measurementStats(repeated, 'L', COL)!.n, 4)
+  assert.deepEqual(entries.find(e => e.key === 'unnamed')!.blocks, ['Block 1'])
 })
 
 test('prepareEntries sorts by Start Time and reads Sample ID, else lot.slot', () => {

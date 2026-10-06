@@ -10,7 +10,7 @@
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
-## Status — template written, not yet run at the office (2026-10-06)
+## Status — template follows the office's own answers, not yet run there (2026-10-06)
 
 `providers/office_example.py` is a full adapter over the loaded shape in
 [`docs/datatables/afm/afm_redis.txt`](../../docs/datatables/afm/afm_redis.txt):
@@ -22,10 +22,10 @@ First run at the office, before the `cp`:
 
     python -m backend.afm.providers.office_example
 
-It prints one measurement per tool — the row, its file lists, and the columns
-of the three detail parquets. Compare that output with the `OFFICE-VERIFY` list
-at the top of the file; those are the parts written from the raw-file facts
-rather than from a loaded-shape reply. `backend/afm/tests/test_office_template.py`
+It prints one measurement per tool — the row, its file lists, and the typed
+detail rows. The column layouts and value conventions come from the office's
+sixth reply (`docs/afm/office-data-findings.md`); what is still an assumption is
+the short `OFFICE-VERIFY` list at the top of the file. `backend/afm/tests/test_office_template.py`
 runs the same code at home against a fake hash and a fake object store.
 
 ## Endpoint family: GET /api/afm/tools
@@ -48,8 +48,10 @@ runs the same code at home against a fake hash and a fake object store.
   `OFFICE-VERIFY`. The raw files carry no fab field, so the mapping has to
   come from a table keyed on the tool id.
 - Office data source: Redis hash `afm_d1_tools`, field `all` — columns
-  `id, name, fab, alias`. `alias` becomes `label` (falling back to `name`);
-  `fab` is empty until the office decides where it comes from.
+  `id, name, fab, alias`. `id` is stored upper-case and returned lower-case (the
+  page's tool slug). `fab` is an empty string for now and `alias` holds `R3` /
+  `M15` (null for `MAP608`), so the adapter returns `fab or alias`
+  (`OFFICE-VERIFY` that alias means the fab).
 - Notes: the route wraps this directly in a bare JSON array (no envelope).
 
 ## Endpoint family: GET /api/afm/files, GET /api/afm-files
@@ -78,10 +80,13 @@ runs the same code at home against a fake hash and a fake object store.
   `point_count` is recipe configuration too, and ranges from 1 to 36.
 - Office data source: Redis hash `afm_d2_measurements`, field = tool name — one
   parquet DataFrame holding that tool's whole history. The lists there are full
-  MinIO keys; the adapter returns their basenames, derives every `has_*` from
-  whether its list is empty, turns a `NA` time into `null`, and sorts newest
-  first. `measured_info` and `tool_id` are not documented columns
-  (`OFFICE-VERIFY`).
+  MinIO keys; the adapter returns their basenames, turns a `NA` time into
+  `null`, and sorts newest first. `has_data` is true only when
+  `detail_points.parquet` is listed (an info-only measurement still lists its
+  information object), and `has_image` only when a webp is (`tiff_dir_list`
+  holds the original TIFFs too). `measured_info` is always null at the office
+  and `tool_id` does not exist; the adapter returns `""` and the lower-cased
+  tool name.
 - Notes: route wraps the list in
   `{success, data, total, tool, message}`. `total` and `message` are derived
   from `len(rows)` at the route layer — office only needs to return the
@@ -131,10 +136,16 @@ runs the same code at home against a fake hash and a fake object store.
   own: a recipe with no data CSV empties both, and real files were also seen
   with no Summary, or with a Data section that has no table.
 - Office data source: the measurement's `data_dir_list` —
-  `detail_information.parquet`, `detail_summary.parquet`,
-  `detail_points.parquet`. Their columns are `OFFICE-VERIFY`; the adapter adds
-  `measurement_point` to each data row (Site ID + 4-digit `Point No`) and, when
-  there are no points, reads `available_points` off the profile and image names.
+  `detail_information.parquet` (columns `name`, `value`),
+  `detail_summary.parquet` (0 rows and no columns when there is no Summary) and
+  `detail_points.parquet`. **Every value is loaded as text**; the adapter's
+  `_cell` turns unit-bearing columns, `Point No` and `Site X` / `Site Y` into
+  numbers and the `Valid` columns into booleans, and an unmeasured cell (`" "`)
+  or unset `_Valid` (`""`) into `null`. Each data row keeps `Site`, the method
+  name of its block — the page splits blocks on it and must never infer them
+  from row order. The adapter adds `measurement_point` (Site ID + 4-digit
+  `Point No`) and, when there are no points, reads `available_points` off the
+  profile and image names.
 - Notes: `get_afm_file_detail` is `@lru_cache`d in mock — pure function of
   `(filename, tool_name)`; office does not need to replicate caching but
   should keep the same argument shape.
@@ -175,8 +186,8 @@ runs the same code at home against a fake hash and a fake object store.
   string is otherwise accepted — the mock does not validate it against
   `available_points`.
 - Office data source: the `profile_<raw name>.parquet` in `profile_dir_list`
-  whose name carries `_<point>_Height`. Units are read from the parquet
-  metadata, else from the MinIO object's user metadata (`OFFICE-VERIFY` which).
+  whose name carries `_<point>_Height`. Units are the MinIO object's user
+  metadata (`x-amz-meta-xunit` …, stored lower-case), read with a stat.
 - Notes: route wraps the list in `{success, data, meta, count, tool, message}`.
   The loaded profile is an X/Y/Z parquet whose object metadata carries
   `XUnit`, `YUnit`, `ZUnit`, `DataSize` and `SurfaceSize`; map those five onto
@@ -228,14 +239,15 @@ runs the same code at home against a fake hash and a fake object store.
   from `(tool_name, filename, name)`, named after the listed image with its
   extension swapped to `.tiff`. Returns `None` when the measurement is unknown
   or `name` is not in its `tiff_dir_list`, which the route turns into a plain
-  `404`. `list_analysis_images(..., "tiff", ...)` adds an `original_url` key
-  pointing at this route to every entry; the other three image types carry no
+  `404`. `list_analysis_images(..., "tiff", ...)` lists the webps only and adds an
+  `original_url` key pointing at this route to each one whose TIFF sits beside it
+  in `tiff_dir_list` (none on `5EAP1501`); the other three image types carry no
   such key, and the page shows the 원본 TIFF 다운로드 button only where the key
   is present.
-- Office data source: `OFFICE-VERIFY`. The adapter looks in the measurement's
-  `raw_dir_list` for the webp's own name with a `.tif` / `.tiff` extension. The
-  spec describes `raw_dir_list` as csv/txt, so until an original is listed there
-  no image carries `original_url` and the download button stays hidden.
+- Office data source: the measurement's `tiff_dir_list`, which holds the
+  originals beside their webp conversions (none on `5EAP1501` so far). The
+  adapter pairs them by name — the webp's own with a `.tif` / `.tiff` extension
+  (`OFFICE-VERIFY`) — and an image without a pair carries no `original_url`.
 - Notes: read the object with `minio_handler.MinioObject().get(key)` (lazy
   import, raw bytes) and return its **key basename** as `filename` — the route
   sends it as the download name, so do not compose one. Return `None` for an

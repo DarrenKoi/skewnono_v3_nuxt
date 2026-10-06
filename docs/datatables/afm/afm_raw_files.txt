@@ -57,7 +57,7 @@ D2 측정 식별자 — 파일명
     MAPC01   #260709#033958#RL1C_L1_XDEC_5MM_LINE#01#NA#NA#RL1C078.01.csv
     5EAP1501 #261001#023441#VM_GTFILLOX_5PT_R1#5PNN1768.05$5PNN1768#NA#VM_GTFILLOX_5PT_R15PNN17685PNN178.05.csv
              (회신 그대로입니다. `$` 는 `#` 의, 끝의 `5PNN178.05` 는 `5PNN1768.05` 의
-              오타로 보았습니다 [가정]. 그렇게 읽으면 SAMPLE_ID=5PNN1768.05, LOT_ID=5PNN1768 입니다.)
+              오타입니다 [확인 2026-10-06]. SAMPLE_ID=5PNN1768.05, LOT_ID=5PNN1768 입니다.)
 
   MAP608 [확인]:
     - 첫 번째 시각은 **세션(폴더) 시작 시각**입니다. 같은 세션의 여러 측정이
@@ -82,6 +82,8 @@ D2 측정 식별자 — 파일명
     - 끝부분은 RECIPE+LOT+SAMPLE 을 **구분자 없이 이어 붙인** 원본 파일명입니다.
       `_SOP_LEFT_UR` 같은 접미가 붙기도 합니다(선택).
     - SAMPLE_ID 는 `<lot>.<nn>` 형태입니다(예 `5PNN1768.05`).
+    - ⚠ `.nn` 은 **웨이퍼 슬롯이 아닐 수 있습니다** — `.05` 와 Slot 5 가 맞지 않는 실측이
+      있습니다 [확인 2026-10-06]. 슬롯은 Info 의 `Sample Location` (`Slot N`)에 있습니다.
 
   공통:
     - **recipe 명에 공백·괄호·소문자가 들어갈 수 있고, 세 장비 공통입니다** [확인].
@@ -110,8 +112,9 @@ D3 측정 상세 — CSV
     Data    : 측정 point 하나가 한 행
 
   Info 에서 확인된 key [확인]: Lot ID, Start Time, Carrier ID, Last Pick Up Time,
-  Last Put Back Time. info CSV 에는 `FileName` 열도 있어 point 번호(`_0001`)와
-  이어집니다 — 그 열이 key,value 구조 안에서 어떻게 놓이는지는 회신에 없습니다 [가정].
+  Last Put Back Time, Sample Location(값 안에 `Slot N` — 실제 웨이퍼 슬롯).
+  MAPC01 의 info CSV 는 **Data 섹션에 `FileName` 열**이 있어 point 번호(`_0001`)와
+  파일을 잇지만, 현재 적재에서는 제외됩니다 [확인 2026-10-06].
 
   측정 컬럼 — recipe 마다 다릅니다 [확인]. 실측된 것:
 
@@ -175,6 +178,18 @@ D3 측정 상세 — CSV
   의 존재, Summary 가 장비 값인지 계산값인지와 STDEV 의 ddof, 유효값 제외 규칙.
 
 
+  block 과 행 [확인 2026-10-06, 정정]:
+    - 적재된 Data 행은 **`Site` 열에 자기 block 의 method 명**을 갖습니다. block 은 그
+      열로 가립니다 — 행의 순서로 추측하지 않습니다.
+    - **repeat recipe** 는 한 block 안에서 같은 point 를 되풀이해 측정합니다
+      (실측 4 Site × 2 반복 = 8행). "같은 point 가 다시 나오면 다음 block" 이라는 규칙은
+      틀립니다.
+    - 측정이 중단되면 **측정하지 못한 point 의 행은 없습니다.** STOPPED 행으로 채우지
+      않습니다.
+    - 측정하지 못한 칸은 공백 한 칸이고 `NaN`·`-` 는 없습니다.
+    적재 형태의 나머지는 afm_redis.txt 3.1 에 있습니다.
+
+
 D4 Profile
 
   raw 는 2D 격자 txt 입니다 [확인].
@@ -186,8 +201,9 @@ D4 Profile
     Site ID 없는 recipe : ..._0001_Height.txt                      (`_<Point No>`)
     Site ID 있는 recipe : ..._0004_X000_Y-002_0002_Height.txt      (`_<Site ID>_<4자리>`)
     세 장비 공통이 아니라 **recipe 의존**입니다 — Site ID 를 기록하는 recipe 만 파일명에
-    site 가 들어갑니다. 뒤의 4자리(`0002`)가 그 Site 안의 point 번호라고 보았습니다
-    [가정]. 그렇다면 한 Site 에 point 가 여럿일 수 있습니다.
+    site 가 들어갑니다. 뒤의 4자리(`0002`)는 **그 Site 안의 point 번호**입니다
+    [확인 2026-10-06]. 한 Site 에 point 가 여럿일 수 있습니다(실측 예
+    `0001_X-001_Y-001_0014`).
 
   장비별 격자 [확인]:
     MAP608 : 512 × 64, 단위 um / um / nm
