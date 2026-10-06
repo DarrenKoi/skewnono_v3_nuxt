@@ -150,7 +150,16 @@
                 <p class="sk-meta">
                   <b class="font-semibold text-(--sk-ink)">← →</b> 이전 · 다음 이미지
                   <span class="mx-1.5">·</span>
-                  <b class="font-semibold text-(--sk-ink)">Tab</b> Align · Tip · Capture · Result 전환
+                  <template
+                    v-for="(type, index) in TYPES"
+                    :key="type.value"
+                  >
+                    <b class="font-semibold text-(--sk-ink)">{{ index + 1 }}</b> {{ type.label }}
+                    <span
+                      v-if="index < TYPES.length - 1"
+                      class="mx-1"
+                    >·</span>
+                  </template>
                 </p>
                 <span class="ml-auto whitespace-nowrap sk-value-num">{{ pickedIndex + 1 }} / {{ shown.length }}</span>
                 <span class="whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }}</span>
@@ -485,17 +494,15 @@ const switchType = async (type: AfmImageType) => {
   pickedName.value = (images.value.find(image => image.point === point) ?? images.value[0])?.name ?? ''
 }
 
-// While the popup is open: ← → step through the images, Tab cycles the type.
-// Tab is taken from focus movement on purpose (user request 2026-10-06).
+// While the popup is open: ← → step through the images, 1–4 pick the type in
+// tab order. Not while typing in the search box, where both are text input.
 const onPopupKey = (event: KeyboardEvent) => {
-  if (event.key === 'Tab') {
+  if (event.target instanceof HTMLInputElement || event.ctrlKey || event.metaKey || event.altKey) return
+  const type = TYPES[Number(event.key) - 1]
+  if (type) {
     event.preventDefault()
-    const index = TYPES.findIndex(t => t.value === activeType.value)
-    const next = TYPES[(index + (event.shiftKey ? -1 : 1) + TYPES.length) % TYPES.length]
-    if (next) switchType(next.value)
+    switchType(type.value)
   } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-    // The arrows move the caret in the search box.
-    if (event.target instanceof HTMLInputElement) return
     event.preventDefault()
     stepPicked(event.key === 'ArrowLeft' ? -1 : 1)
   }
