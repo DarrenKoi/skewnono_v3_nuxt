@@ -59,7 +59,8 @@ class AfmFileDetail(TypedDict):
     filename: str
     tool: str
     pickle_filename: str
-    information: dict[str, str]
+    # Keys are whatever the file's Info section holds; an empty value is None.
+    information: dict[str, str | None]
     summary: list[dict[str, Any]]
     # Frontend-required: available_points feeds the point picker; data carries
     # the per-site measurement rows the profile view reads.

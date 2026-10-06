@@ -169,7 +169,7 @@ def test_rows_match_the_contract_with_nulls_and_basenames():
 def test_detail_turns_the_loaded_text_into_typed_cells():
     detail = office.get_afm_file_detail(FULL["filename"], "5EAP1501")
     assert_matches(detail, AfmFileDetail)
-    assert detail["information"] == {"Lot ID": "5NNN0336", "Carrier ID": ""}
+    assert detail["information"] == {"Lot ID": "5NNN0336", "Carrier ID": None}
     assert detail["summary"] == [{"Site": "M1", "ITEM": "MEAN", "H (nm)": 79.62}]
     first, second, stopped = detail["data"]
     assert first == {

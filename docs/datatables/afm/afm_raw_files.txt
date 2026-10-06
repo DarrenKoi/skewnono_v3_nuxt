@@ -111,8 +111,25 @@ D3 측정 상세 — CSV
     Summary : MEAN / STDEV / MIN / MAX / RANGE
     Data    : 측정 point 하나가 한 행
 
-  Info 에서 확인된 key [확인]: Lot ID, Start Time, Carrier ID, Last Pick Up Time,
-  Last Put Back Time, Sample Location(값 안에 `Slot N` — 실제 웨이퍼 슬롯).
+  Info 의 key 는 측정에 따라 **두 가지 구성**입니다 [user-confirmed 2026-10-06].
+  아래는 파일에 적힌 순서입니다.
+    15키: Lot ID, Recipe ID, Carrier ID, Sample Location, Sample ID,
+          Data Save Location, Start Time, End Time, Tip ID, Tip Cassette ID,
+          Tip Port No, Tip Slot No, Last Pick Up Time, Last Put Back Time, Tip Width
+    13키: Port No, Carrier ID, Slot No, Lot ID, Sample ID, Recipe ID, Tip ID,
+          Tip Cassette ID, Tip Port No, Tip Slot No, Last Pick Up Time,
+          Last Put Back Time, Tip Width
+  - 13키에는 `Sample Location`·`Start Time`·`End Time`·`Data Save Location` 이 없고,
+    대신 `Port No`·`Slot No` 가 있습니다.
+  - `Sample Location` 의 값 안에 `Slot N` 이 있습니다(실제 웨이퍼 슬롯) [확인].
+  - 장비별 분포 [user-confirmed 2026-10-06]: 5EAP1501 은 15키 위주, MAPC01 은 13키
+    위주, MAP608 은 혼재입니다. 어느 장비도 한 구성만 갖는다고 볼 수 없습니다.
+  - 한 장비 안에서 구성을 가르는 것(recipe·시기·파일 종류)과 비율, `Port No`·
+    `Slot No`·`End Time`·`Data Save Location`·`Tip *` 의 값 생김새는 모릅니다
+    [OFFICE-VERIFY].
+  - ⚠ 웹은 key 를 정해 두지 않습니다. 상세 화면은 **있는 key 만** 보여 주고, 빈 값은
+    null 로 받습니다(JSON 응답이 key 를 정렬하므로 화면 순서는 파일 순서가 아니라 A–Z). key 를 이름으로 읽는 곳은 13키에 없는 key 가
+    빠져도 동작해야 합니다(시계열의 `Start Time` 은 목록의 날짜로 대신합니다).
   MAPC01 의 info CSV 는 **Data 섹션에 `FileName` 열**이 있어 point 번호(`_0001`)와
   파일을 잇지만, 현재 적재에서는 제외됩니다 [확인 2026-10-06].
 
@@ -174,7 +191,7 @@ D3 측정 상세 — CSV
   ⚠ Site 가 두 축입니다. Summary 의 `Site` 는 method 명이고 Data 의 `Site ID` 는
     위치입니다 [정정: 1차 회신만으로는 같은 값으로 보았습니다].
 
-  회신에 없는 것 [가정]: Info 의 나머지 key, Data 행의 나머지 컬럼, `<측정명>_Valid`
+  회신에 없는 것 [가정]: Data 행의 나머지 컬럼, `<측정명>_Valid`
   의 존재, Summary 가 장비 값인지 계산값인지와 STDEV 의 ddof, 유효값 제외 규칙.
 
 

@@ -324,11 +324,12 @@ def list_afm_files(tool_name: str | None = None) -> list[AfmMeasurementRow]:
 # -- detail ------------------------------------------------------------------
 
 
-def _information(df) -> dict[str, str]:
-    # One Info line per row, in columns `name` and `value`; an empty value is "".
+def _information(df) -> dict[str, str | None]:
+    # One Info line per row, in columns `name` and `value`. The keys are passed
+    # through as loaded (two layouts exist); an empty value ("") becomes None.
     if df is None:
         return {}
-    return {_text(row.get("name")): _text(row.get("value")) for row in _records(df)}
+    return {_text(row.get("name")): _text(row.get("value")) or None for row in _records(df)}
 
 
 def _position(record: dict[str, Any]) -> str:

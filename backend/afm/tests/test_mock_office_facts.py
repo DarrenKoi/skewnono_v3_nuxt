@@ -76,7 +76,9 @@ def test_map608_measurements_of_one_session_share_the_leading_time():
     assert max(sessions.values()) > 1
     for row in rows:
         start = row["filename"].split("#")[6]
-        start_time = mock.get_afm_file_detail(row["filename"], "MAP608")["information"]["Start Time"]
+        start_time = mock.get_afm_file_detail(row["filename"], "MAP608")["information"].get("Start Time")
+        if start_time is None:  # the 13-key Info has no Start Time
+            continue
         # The trailing field is the measurement start; an old file has NA there and
         # its Info Start Time then equals the leading (session) time.
         clock = start if start.isdigit() else row["time"]
@@ -350,10 +352,20 @@ def test_states_are_the_three_observed():
     assert states == {"COMPLETED", "FAILED", "STOPPED"}
 
 
-def test_info_values_can_be_empty_strings():
+def test_info_values_can_be_empty_and_empty_is_null():
     for key in ("Carrier ID", "Last Pick Up Time", "Last Put Back Time"):
         values = {detail["information"][key] for _, _, detail in _all_details()}
-        assert "" in values and len(values) > 1
+        assert None in values and "" not in values and len(values) > 1
+
+
+def test_info_has_one_of_the_two_key_layouts():
+    layouts = {tuple(detail["information"]) for _, _, detail in _all_details()}
+    assert layouts == {mock._INFO_KEYS_13, mock._INFO_KEYS_15}
+    # 5EAP1501 is mostly 15-key, MAPC01 mostly 13-key, MAP608 a mix.
+    sizes = Counter((tool, len(detail["information"])) for tool, _, detail in _all_details())
+    assert sizes["5EAP1501", 15] > sizes["5EAP1501", 13]
+    assert sizes["MAPC01", 13] > sizes["MAPC01", 15]
+    assert sizes["MAP608", 13] and sizes["MAP608", 15]
 
 
 def test_profile_grid_shape_and_units_follow_the_file():
@@ -415,7 +427,9 @@ def test_originals_sit_in_the_result_list_and_derived_names_end_with_the_positio
             assert all(name.startswith(stem) for name in webps) == (tool != "MAPC01" or not webps)
     for _, row, detail in _all_details():
         assert row["measured_info"] == ""
-        assert detail["information"]["Sample Location"] == f"Slot {int(row['slot_number'])}"
+        info = detail["information"]
+        slot = int(row["slot_number"])
+        assert info.get("Sample Location", f"Slot {info.get('Slot No')}") == f"Slot {slot}"
 
 
 def test_profile_z_is_missing_for_some_samples():

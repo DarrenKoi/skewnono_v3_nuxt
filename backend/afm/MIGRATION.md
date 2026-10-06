@@ -103,7 +103,7 @@ runs the same code at home against a fake hash and a fake object store.
       filename: str
       tool: str
       pickle_filename: str
-      information: dict[str, str]
+      information: dict[str, str | None]
       summary: list[dict[str, Any]]
   ```
 

@@ -93,7 +93,16 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   `_0004_X000_Y-002_0002_Height.txt` 처럼 Site ID 뒤에 point 번호가 붙습니다.
   `Site X`·`Site Y` 는 Site ID 안의 숫자와 같고 단위가 없습니다.
 - `State` 는 COMPLETED · FAILED · STOPPED 셋입니다. point 가 하나면 STDEV·RANGE 는 0.0 입니다.
-- Info 의 값은 빈 문자열일 수 있습니다 (`Carrier ID`, `Last Pick Up Time`, `Last Put Back Time`).
+- Info 의 key 는 측정에 따라 두 가지 구성입니다 (user-confirmed 2026-10-06).
+  15키: Lot ID, Recipe ID, Carrier ID, Sample Location, Sample ID, Data Save Location,
+  Start Time, End Time, Tip ID, Tip Cassette ID, Tip Port No, Tip Slot No,
+  Last Pick Up Time, Last Put Back Time, Tip Width.
+  13키: Port No, Carrier ID, Slot No, Lot ID, Sample ID, Recipe ID, Tip ID,
+  Tip Cassette ID, Tip Port No, Tip Slot No, Last Pick Up Time, Last Put Back Time,
+  Tip Width. 13키에는 `Sample Location`·`Start Time` 이 없습니다. 화면은 key 를 정해 두지
+  않고 있는 key 만 보여 줍니다(JSON 응답이 key 를 정렬하므로 화면 순서는 A–Z 입니다).
+- Info 의 값은 비어 있을 수 있습니다 (`Carrier ID`, `Last Pick Up Time`,
+  `Last Put Back Time`). 적재본은 빈 문자열이고 계약에서는 null 입니다.
 - Profile 격자는 MAP608 512×64, MAPC01 은 1D(N×1, 1024~16384)와 2D 혼재이고 2D 는
   2048×256 입니다(user-confirmed 2026-10-06 — 524,288 점). 1D 는 Y 가 0 으로 고정되고
   DataSize(`1024 x 1`)로 구분합니다. 단위는 통일하지 않고 파일마다 um/nm/pm/Pixel 로
@@ -120,7 +129,12 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - 숫자가 아닌 `Method_ID` 는 recipe 명에서 첫 토막을 뺀 것으로 만들었습니다(실측 한 건이
   그 모양입니다). 컬럼 이름이 `Method_ID` 인지 `Method ID` 인지도 회신마다 달랐습니다.
 - `Valid` 는 FALSE 가 아직 실측되지 않았습니다. mock 은 일부를 False 로 냅니다.
-- data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Mileage` …)와 Information 의 다른 키.
+- data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Mileage` …).
+- 5EAP1501 은 15키 위주, MAPC01 은 13키 위주, MAP608 은 혼재라는 것까지가
+  user-confirmed(2026-10-06)입니다. 비율(mock 은 13키를 8건 중 1·7·4건)과 한 파일의
+  구성을 정하는 것(recipe·시기·파일 종류)은 지어냈습니다.
+- Info 값의 생김새 가운데 `Port No`·`Slot No`·`End Time`·`Data Save Location`·`Tip *` 는
+  전부 지어냈습니다(`Slot No` 는 숫자만, `Tip Width` 는 단위 없는 소수로 두었습니다).
 - 측정값의 수준·추세·퍼짐은 전부 지어낸 것입니다. recipe·컬럼마다 고정된 수준(55~120 nm)에
   측정 시각에 비례하는 완만한 드리프트(하루 ±0.4 nm 이내), sample(lot+slot) 공통 오프셋
   (σ 0.8 nm, 재측정끼리 같음), 중심에서 바깥으로 커지는 site 패턴(반지름²당 0.25 nm),
@@ -499,26 +513,12 @@ def get_afm_file_detail(
         detail = []
 
     clean_filename = _strip_known_extension(row["filename"])
-    start_time = _display_start_time(row)
 
     return {
         "filename": row["filename"],
         "tool": row["tool_name"],
         "pickle_filename": f"{clean_filename}.pkl",
-        "information": {
-            "Lot ID": row["lot_id"],
-            "Recipe ID": row["recipe_name"],
-            "Carrier ID": "" if rng.random() < 0.2 else f"CAR{rng.randint(100, 999)}",
-            "Sample ID": f"{row['lot_id']}.{row['slot_number']}",
-            # The wafer's real slot; the list's slot_number is read from here.
-            "Sample Location": f"Slot {int(row['slot_number'])}",
-            "Start Time": start_time,
-            "Last Pick Up Time": "" if rng.random() < 0.3 else start_time,
-            "Last Put Back Time": "" if rng.random() < 0.3 else start_time,
-            "Tool": row["tool_name"],
-            "Fab": row["fab"],
-            "Operator": f"OP{rng.randint(1000, 9999)}"
-        },
+        "information": _information(row, rng),
         "summary": summary,
         "data": detail,
         "available_points": [key for key, *_ in positions]
@@ -1008,6 +1008,60 @@ def _lateral(value_um: float, index: int, unit: str) -> float:
         return float(index)
     # Four decimals in um: a 16384-point line steps 0.003 um, which two would merge.
     return round(value_um * _LATERAL_PER_UM[unit], 4)
+
+
+# The two Info layouts, keys in file order (user-confirmed 2026-10-06).
+_INFO_KEYS_15 = (
+    "Lot ID", "Recipe ID", "Carrier ID", "Sample Location", "Sample ID",
+    "Data Save Location", "Start Time", "End Time", "Tip ID", "Tip Cassette ID",
+    "Tip Port No", "Tip Slot No", "Last Pick Up Time", "Last Put Back Time", "Tip Width",
+)
+_INFO_KEYS_13 = (
+    "Port No", "Carrier ID", "Slot No", "Lot ID", "Sample ID", "Recipe ID",
+    "Tip ID", "Tip Cassette ID", "Tip Port No", "Tip Slot No",
+    "Last Pick Up Time", "Last Put Back Time", "Tip Width",
+)
+# How many measurements in 8 carry the 13-key layout: 5EAP1501 is mostly 15-key,
+# MAPC01 mostly 13-key, MAP608 mixed (user-confirmed 2026-10-06). The ratios
+# themselves, and what decides a single file's layout, are OFFICE-VERIFY.
+_INFO_13_IN_8 = {"5EAP1501": 1, "MAPC01": 7, "MAP608": 4}
+
+
+def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | None]:
+    start_time = _display_start_time(row)
+    slot = int(row["slot_number"])
+    # Its own stream, so the tip values do not re-roll the measurement values.
+    tip = random.Random(_seed_for("tip", row["tool_name"], row["filename"]))
+    end_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S") + timedelta(
+        seconds=tip.randint(60, 1800)
+    )
+    values = {
+        "Lot ID": row["lot_id"],
+        "Recipe ID": row["recipe_name"],
+        # An empty Info value is null in the contract.
+        "Carrier ID": None if rng.random() < 0.2 else f"CAR{rng.randint(100, 999)}",
+        "Sample ID": f"{row['lot_id']}.{row['slot_number']}",
+        # The wafer's real slot; the list's slot_number is read from here.
+        "Sample Location": f"Slot {slot}",
+        "Start Time": start_time,
+        "Last Pick Up Time": None if rng.random() < 0.3 else start_time,
+        "Last Put Back Time": None if rng.random() < 0.3 else start_time,
+        # Everything below is a made-up value shape (OFFICE-VERIFY).
+        "End Time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "Data Save Location": f"D:\\Data\\{row['recipe_name']}\\{row['lot_id']}",
+        "Port No": str(tip.randint(1, 4)),
+        "Slot No": str(slot),
+        "Tip ID": f"TIP{tip.randint(10000, 99999)}",
+        "Tip Cassette ID": f"TC{tip.randint(10, 99)}",
+        "Tip Port No": str(tip.randint(1, 2)),
+        "Tip Slot No": str(tip.randint(1, 16)),
+        "Tip Width": f"{tip.uniform(20, 60):.1f}",
+    }
+    short = (
+        _seed_for("info-keys", row["tool_name"], row["filename"]) % 8
+        < _INFO_13_IN_8[row["tool_name"]]
+    )
+    return {key: values[key] for key in (_INFO_KEYS_13 if short else _INFO_KEYS_15)}
 
 
 def _display_start_time(row: AfmMeasurementRow) -> str:
