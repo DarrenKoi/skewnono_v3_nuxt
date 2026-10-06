@@ -65,7 +65,7 @@
             <span class="sk-label">{{ tile.label }}</span>
             <span
               class="font-mono text-xl font-semibold tracking-tight tabular-nums"
-              :class="tile.warn ? 'text-(--sk-brand)' : 'text-(--sk-ink)'"
+              :class="tile.warn ? 'text-(--sk-warn)' : 'text-(--sk-ink)'"
             >{{ tile.value }}</span>
             <span class="truncate sk-meta">{{ tile.meta }}</span>
           </div>
@@ -201,27 +201,27 @@
                   @click="open(item)"
                   @keydown.enter="open(item)"
                 >
-                  <td class="px-3 py-1.5 whitespace-nowrap sk-value-num text-(--sk-ink-muted)">
+                  <td class="px-3 py-1.5 whitespace-nowrap sk-value-num">
                     {{ item.clock || '–' }}
                   </td>
                   <td class="px-3 py-1.5 sk-value-num">
                     {{ item.recipe || '–' }}
                   </td>
                   <td class="px-3 py-1.5 whitespace-nowrap sk-value-num">
-                    {{ item.lot || '–' }} <span class="text-(--sk-ink-muted)">/ {{ item.row.slot_number ?? '–' }}</span>
+                    {{ item.lot || '–' }} / {{ item.row.slot_number ?? '–' }}
                   </td>
                   <td class="px-3 py-1.5 text-right sk-value-num">
                     {{ item.points ?? '–' }}
                   </td>
                   <td
                     class="px-3 py-1.5 text-right sk-value-num"
-                    :class="item.notCompleted ? 'font-semibold text-(--sk-brand)' : ''"
+                    :class="item.notCompleted ? 'font-semibold text-(--sk-warn)' : ''"
                   >
                     {{ item.notCompleted ?? '–' }}
                   </td>
                   <td
                     class="px-3 py-1.5 text-right sk-value-num"
-                    :class="item.invalid ? 'font-semibold text-(--sk-brand)' : ''"
+                    :class="item.invalid ? 'font-semibold text-(--sk-bad)' : ''"
                   >
                     {{ item.invalid ?? '–' }}
                   </td>
@@ -272,9 +272,11 @@ const all = computed(() => usageRows(data.value ?? []))
 const undated = computed(() => all.value.filter(r => r.day === null).length)
 // The tool's whole dated span, whatever 기간 says.
 const span = computed(() => usageWindow(data.value ?? [], null, today))
-const subtitle = computed(() => span.value
-  ? `측정 ${(all.value.length - undated.value).toLocaleString()}건 · ${span.value[0]} ~ ${span.value[1]}${undated.value ? ` · 날짜 없는 측정 ${undated.value.toLocaleString()}건 제외` : ''}`
-  : undefined)
+const subtitle = computed(() => [
+  `측정 ${(all.value.length - undated.value).toLocaleString()}건`,
+  ...(span.value ? [`${span.value[0]} ~ ${span.value[1]}`] : []),
+  ...(undated.value ? [`날짜 없는 측정 ${undated.value.toLocaleString()}건 제외`] : [])
+].join(' · '))
 
 const PERIODS = [
   { value: '7', label: '7일' },

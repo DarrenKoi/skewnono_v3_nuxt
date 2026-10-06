@@ -1,8 +1,16 @@
 <template>
-  <div
-    ref="chartEl"
-    class="h-72 w-full"
-  />
+  <div class="relative h-72 w-full">
+    <div
+      ref="chartEl"
+      class="size-full"
+    />
+    <!-- The selected day, as a band over its column. -->
+    <div
+      v-if="band"
+      class="pointer-events-none absolute bg-(--sk-ink) opacity-[0.08]"
+      :style="band"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -20,35 +28,33 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ select: [day: string] }>()
 
-const sk = useChartPalette()
+// The plot's margins, in px. The band below is laid out from the same numbers.
+const GRID = { left: 40, right: 12, top: 36, bottom: 28 }
+
+// Drawn in the DOM, not in the option: useEchart rebuilds the option it is
+// handed, and a rebuild resets what the reader set on the chart (a recipe
+// hidden in the legend), so picking a day must leave the option alone.
+const band = computed(() => dayBand(props.days, props.selected, GRID))
 
 const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 40, right: 12, top: 36, bottom: 28 },
+  grid: GRID,
   legend: { type: 'scroll', top: 0, left: 0, textStyle: CHART_LEGEND_LABEL },
   tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
   xAxis: {
     type: 'category',
     data: props.days,
-    axisLabel: { ...CHART_AXIS_LABEL, formatter: (day: string) => day.slice(5), hideOverlap: true },
+    axisLabel: { ...CHART_AXIS_LABEL, formatter: (day: string) => day.slice(5).replace('-', '/'), hideOverlap: true },
     axisTick: { show: false }
   },
   yAxis: { type: 'value', minInterval: 1, splitNumber: 4, axisLabel: CHART_AXIS_LABEL },
-  series: props.series.map((s, i) => ({
+  series: props.series.map(s => ({
     type: 'bar' as const,
     name: s.name,
     stack: props.stacked ? 'day' : undefined,
     barMaxWidth: 28,
     itemStyle: s.color ? { color: s.color } : undefined,
     emphasis: { focus: 'none' as const },
-    data: s.values,
-    // The selected day, as a band behind its column.
-    markArea: i === 0 && props.selected && props.days.includes(props.selected)
-      ? {
-          silent: true,
-          itemStyle: { color: sk.value.ink, opacity: 0.08 },
-          data: [[{ xAxis: props.selected }, { xAxis: props.selected }]]
-        }
-      : undefined
+    data: s.values
   }))
 }))
 

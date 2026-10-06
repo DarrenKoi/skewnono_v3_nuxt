@@ -5,6 +5,7 @@ import type { AfmFileRow } from '~/composables/useAfmDetailApi'
 import {
   OTHER_RECIPES,
   dailyByRecipe,
+  dayBand,
   dayRows,
   failureDaily,
   hourGrid,
@@ -73,6 +74,10 @@ test('the stack is the five most-measured recipes + 기타, ties broken by name'
   assert.deepEqual(stack([...made].reverse()), expected)
   // A measurement with no recipe name is never a recipe of its own.
   assert.deepEqual(stack([row(day, { recipe_name: '' }), row(day, { recipe_name: '' }), row(day)]), [['R', 1], [OTHER_RECIPES, 2]])
+  // A recipe that is itself named 기타 is a series apart from the bucket.
+  const named = dailyByRecipe(usageRows([row(day, { recipe_name: '기타' }), row(day, { recipe_name: '' })]), [day])
+  assert.deepEqual(named.map(s => s.values), [[1], [1]])
+  assert.equal(new Set(named.map(s => s.name)).size, 2)
 })
 
 test('the hour is the head of a 4- or 6-digit code; null and NA have none', () => {
@@ -146,6 +151,28 @@ test('a mixed set judges only the measurements that have the value', () => {
   const summary = usageSummary(inWindow(rows, ['2026-10-01', '2026-10-02']))
   assert.deepEqual(summary.notCompleted, { hit: 1, known: 2 })
   assert.equal(summary.count, 4)
+})
+
+test('each failure column counts its own missing measurements', () => {
+  const rows = usageRows([row('2026-10-01', { not_completed_count: 1, invalid_count: null })])
+  assert.deepEqual(failureDaily(rows, ['2026-10-01']), {
+    series: { notCompleted: [1], invalid: [0] },
+    notCompletedMissing: 0,
+    invalidMissing: 1
+  })
+})
+
+test('the day band is the day\'s share of the plot, and nothing for a day not drawn', () => {
+  const grid = { left: 40, right: 12, top: 36, bottom: 28 }
+  const days = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04']
+  assert.deepEqual(dayBand(days, '2026-10-03', grid), {
+    left: 'calc(40px + (100% - 52px) * 2 / 4)',
+    width: 'calc((100% - 52px) / 4)',
+    top: '36px',
+    bottom: '28px'
+  })
+  assert.equal(dayBand(days, '2026-09-30', grid), null)
+  assert.equal(dayBand(days, null, grid), null)
 })
 
 test('the selected day lists newest first, timeless measurements last', () => {

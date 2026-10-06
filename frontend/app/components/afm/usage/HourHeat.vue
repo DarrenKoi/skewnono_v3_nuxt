@@ -1,8 +1,16 @@
 <template>
-  <div
-    ref="chartEl"
-    class="h-72 w-full"
-  />
+  <div class="relative h-72 w-full">
+    <div
+      ref="chartEl"
+      class="size-full"
+    />
+    <!-- The selected day, as a frame around its column. -->
+    <div
+      v-if="band"
+      class="pointer-events-none absolute border-x border-(--sk-ink) opacity-50"
+      :style="band"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -20,12 +28,17 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ select: [day: string] }>()
 
-const sk = useChartPalette()
-
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
 
+// The plot's margins, in px. The frame below is laid out from the same numbers.
+const GRID = { left: 36, right: 76, top: 8, bottom: 28 }
+
+// Drawn in the DOM, not in the option: a rebuilt option resets the colour
+// range the reader narrowed, so picking a day must leave the option alone.
+const band = computed(() => dayBand(props.days, props.selected, GRID))
+
 const chartOption = computed<EChartsOption>(() => ({
-  grid: { left: 36, right: 76, top: 8, bottom: 28 },
+  grid: GRID,
   tooltip: {
     formatter: (params: unknown) => {
       const [day, hour, count] = (params as { value: [number, number, number] }).value
@@ -35,7 +48,7 @@ const chartOption = computed<EChartsOption>(() => ({
   xAxis: {
     type: 'category',
     data: props.days,
-    axisLabel: { ...CHART_AXIS_LABEL, formatter: (day: string) => day.slice(5), hideOverlap: true },
+    axisLabel: { ...CHART_AXIS_LABEL, formatter: (day: string) => day.slice(5).replace('-', '/'), hideOverlap: true },
     axisTick: { show: false },
     splitArea: { show: false }
   },
@@ -54,18 +67,7 @@ const chartOption = computed<EChartsOption>(() => ({
   series: [{
     type: 'heatmap',
     animation: false,
-    data: props.cells,
-    // The selected day. A line, not a band: a heat map's markArea has no
-    // width on a category axis.
-    markLine: props.selected && props.days.includes(props.selected)
-      ? {
-          silent: true,
-          symbol: 'none',
-          label: { show: false },
-          lineStyle: { type: 'solid', color: sk.value.ink, width: 1, opacity: 0.45 },
-          data: [{ xAxis: props.selected }]
-        }
-      : undefined
+    data: props.cells
   }]
 }))
 

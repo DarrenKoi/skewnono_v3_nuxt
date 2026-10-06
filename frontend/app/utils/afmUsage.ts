@@ -100,7 +100,9 @@ export interface DaySeries {
   values: number[]
 }
 
-export const OTHER_RECIPES = '기타'
+// Reads 기타. The zero-width space keeps the bucket a series of its own beside
+// a recipe that is itself named 기타: ECharts keys a legend entry by series name.
+export const OTHER_RECIPES = '기타\u200B'
 export const TOP_RECIPES = 5
 
 // Daily counts, stacked by the window's most-measured recipes; everything else
@@ -171,6 +173,25 @@ export const failureDaily = (rows: UsageRow[], days: string[]): FailureDaily => 
   }
   const known = rows.some(r => index.has(r.day ?? '') && (r.notCompleted !== null || r.invalid !== null))
   return { series: known ? { notCompleted, invalid } : null, notCompletedMissing, invalidMissing }
+}
+
+// Where a day's column sits in a chart whose plot is inset by `grid` px, as
+// CSS for an absolutely positioned box over the chart: a category axis gives
+// every day an equal share of the plot's width. null when the day is not drawn.
+export const dayBand = (
+  days: string[],
+  day: string | null,
+  grid: { left: number, right: number, top: number, bottom: number }
+): Record<string, string> | null => {
+  const at = day === null ? -1 : days.indexOf(day)
+  if (at < 0) return null
+  const plot = `(100% - ${grid.left + grid.right}px)`
+  return {
+    left: `calc(${grid.left}px + ${plot} * ${at} / ${days.length})`,
+    width: `calc(${plot} / ${days.length})`,
+    top: `${grid.top}px`,
+    bottom: `${grid.bottom}px`
+  }
 }
 
 // The latest day with a measurement; null with none.
