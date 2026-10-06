@@ -167,5 +167,8 @@ export const useAfmDetailApi = () => {
   const tiffZipUrl = (tool: string, filename: string) =>
     `${joinApiPath(base, `/afm/files/${encodeURIComponent(filename)}/tiff.zip`)}?tool=${encodeURIComponent(tool)}`
 
-  return { useAfmFiles, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, tiffZipUrl }
+  const imagesZipUrl = (tool: string, filename: string, imageType: AfmImageType) =>
+    `${joinApiPath(base, `/afm/files/${encodeURIComponent(filename)}/images.zip`)}?type=${imageType}&tool=${encodeURIComponent(tool)}`
+
+  return { useAfmFiles, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, tiffZipUrl, imagesZipUrl }
 }

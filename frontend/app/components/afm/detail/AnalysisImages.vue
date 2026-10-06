@@ -66,9 +66,8 @@
             ? 'border-(--sk-ink) outline-1 outline-(--sk-ink)'
             : 'border-(--sk-border) hover:border-(--sk-ink-muted)'"
           :data-selected="isSelected(image.point) ? '' : undefined"
-          :aria-pressed="image.point ? isSelected(image.point) : undefined"
           :title="image.name"
-          @click="image.point ? selectedPoint = image.point : openBrowser(image.name)"
+          @click="openBrowser(image.name)"
         >
           <img
             :src="image.url"
@@ -82,7 +81,7 @@
         </button>
       </div>
       <p class="mt-2 sk-meta">
-        이미지를 누르면 그 포인트를 선택합니다. 크게 보거나 내려받으려면 <b class="font-semibold text-(--sk-ink)">팝업에서 보기</b>를 누릅니다.
+        이미지를 누르면 팝업에서 원본 크기로 봅니다. 테두리가 진한 이미지가 선택 포인트입니다.
       </p>
     </template>
 
@@ -90,7 +89,7 @@
       v-model:open="browserOpen"
       title="분석 이미지"
       description="포인트별로 묶은 분석 이미지 목록입니다."
-      :ui="{ content: 'h-[86vh] max-h-[800px] w-[94vw] sm:max-w-[1280px]' }"
+      :ui="{ content: 'h-[90vh] max-h-[1000px] w-[94vw] sm:max-w-[1720px]' }"
     >
       <template #content>
         <div class="flex h-full min-h-0 flex-col">
@@ -133,7 +132,36 @@
 
           <!-- Side by side from lg; stacked below it, where 380px would not fit. -->
           <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-1">
-            <div class="overflow-y-auto bg-(--sk-muted-surface) p-4">
+            <!-- A picked image takes the whole pane at its own pixel size; the
+                 pane scrolls when the image is larger. -->
+            <div
+              v-if="picked"
+              class="flex min-h-0 flex-col bg-(--sk-muted-surface)"
+            >
+              <div class="flex items-center gap-3 border-b border-(--sk-border) px-4 py-2">
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-layout-grid"
+                  label="목록으로"
+                  @click="pickedName = ''"
+                />
+                <span class="ml-auto whitespace-nowrap sk-meta">원본 크기 {{ pickedSize }}</span>
+              </div>
+              <div class="flex min-h-0 flex-1 overflow-auto p-4">
+                <img
+                  :src="picked.url"
+                  :alt="picked.name"
+                  class="m-auto max-w-none shrink-0"
+                  @load="onPickedLoad"
+                >
+              </div>
+            </div>
+            <div
+              v-else
+              class="overflow-y-auto bg-(--sk-muted-surface) p-4"
+            >
               <p
                 v-if="!shown.length"
                 class="py-16 text-center sk-body"
@@ -192,13 +220,6 @@
                 v-if="picked"
                 class="space-y-3 p-4"
               >
-                <div class="overflow-hidden rounded-(--sk-r-chip) bg-(--sk-muted-surface)">
-                  <img
-                    :src="picked.url"
-                    :alt="picked.name"
-                    class="aspect-video w-full object-contain"
-                  >
-                </div>
                 <div>
                   <p class="sk-label">
                     포인트
@@ -251,6 +272,15 @@
                   label="이미지 다운로드"
                 />
                 <UButton
+                  block
+                  :to="imagesZipUrl(tool, filename, activeType)"
+                  external
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-file-archive"
+                  :label="`전체 다운로드 · ${images.length}장`"
+                />
+                <UButton
                   v-if="picked.original_url"
                   block
                   :to="picked.original_url"
@@ -270,7 +300,7 @@
                   class="size-5"
                 />
                 <p class="text-[13px] leading-relaxed">
-                  이미지를 누르면 여기서 크게 봅니다.<br>선택 포인트의 이미지는 테두리가 진하게 표시됩니다.
+                  이미지를 누르면 원본 크기로 봅니다.<br>선택 포인트의 이미지는 테두리가 진하게 표시됩니다.
                 </p>
               </div>
             </div>
@@ -290,11 +320,11 @@ const props = defineProps<{
   points: string[]
 }>()
 
-// Shared with the rail: a thumbnail of the selected point is outlined, and
-// clicking a thumbnail selects its point.
+// Shared with the rail: a thumbnail of the selected point is outlined. The
+// popup's 이 포인트로 보기 is what changes it from here.
 const selectedPoint = defineModel<string>('selectedPoint', { required: true })
 
-const { fetchAnalysisImages, tiffZipUrl } = useAfmDetailApi()
+const { fetchAnalysisImages, tiffZipUrl, imagesZipUrl } = useAfmDetailApi()
 
 const TYPES: { value: AfmImageType, label: string }[] = [
   { value: 'align', label: 'Align' },
@@ -395,6 +425,12 @@ const groups = computed(() => {
 
 // A pick that the search or a tab change filtered away is no longer picked.
 const picked = computed(() => shown.value.find(image => image.name === pickedName.value))
+
+const pickedSize = ref('')
+const onPickedLoad = (event: Event) => {
+  const { naturalWidth, naturalHeight } = event.target as HTMLImageElement
+  pickedSize.value = `${naturalWidth} × ${naturalHeight}px`
+}
 
 const stepPicked = (by: number) => {
   const list = shown.value

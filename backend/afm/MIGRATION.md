@@ -259,6 +259,10 @@ runs the same code at home against a fake hash and a fake object store.
   object that is not there. Emit `original_url` from `list_analysis_images`
   only for images whose original actually exists; that key is the page's only
   signal. The route sends `content_type` verbatim (`image/tiff`).
+- `GET /api/afm/files/<filename>/images.zip?type=<align|tip|capture|tiff>` (every
+  displayed image of one type in one zip) is composed in `routes.py` from
+  `list_analysis_images` and `get_analysis_image_svg`, so it needs **no extra
+  office function** either.
 - `GET /api/afm/files/<filename>/tiff.zip` (all originals of one measurement
   in one zip) is composed in `routes.py` from `list_analysis_images` and
   `get_tiff_original`, so it needs **no extra office function**. An image whose

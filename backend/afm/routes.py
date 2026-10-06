@@ -239,6 +239,36 @@ def afm_tiff_zip(filename: str):
     return _attachment(buffer.getvalue(), "application/zip", f"{stem}_TIFF.zip")
 
 
+@bp.get("/afm/files/<path:filename>/images.zip")
+def afm_images_zip(filename: str):
+    """Every displayed image of one type (`?type=`) in a single zip.
+
+    Composed from the list and the single-image seams, like `tiff.zip`, so the
+    office adapter needs nothing new. An image past retention is left out.
+    """
+    image_type = request.args.get("type", "")
+    if image_type not in _VALID_IMAGE_TYPES:
+        return "Invalid image type", 404
+
+    tool_name = _tool_name()
+    decoded_filename = unquote(filename)
+    buffer = io.BytesIO()
+    count = 0
+    # Stored, not deflated: a webp is already compressed.
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for image in list_analysis_images(decoded_filename, image_type, tool_name):
+            body = get_analysis_image_svg(decoded_filename, image_type, image["name"], tool_name)
+            if body is not None:
+                archive.writestr(image["name"], body)
+                count += 1
+
+    if count == 0:
+        return "Image file not found", 404
+
+    stem = decoded_filename.removesuffix(".csv").removesuffix(".pkl")
+    return _attachment(buffer.getvalue(), "application/zip", f"{stem}_{image_type}.zip")
+
+
 def _image(body: str | bytes) -> Response:
     # The mock draws a placeholder SVG (str); the office hands over the stored
     # webp conversion as it is (bytes).

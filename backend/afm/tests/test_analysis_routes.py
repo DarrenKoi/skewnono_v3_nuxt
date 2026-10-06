@@ -113,6 +113,29 @@ def test_original_route_404s_for_an_unknown_image_or_measurement(client):
     assert client.get(f"/api/afm/files/no-such-file/tiff/{nm}?tool={tool}").status_code == 404
 
 
+def test_images_zip_holds_every_listed_image_of_the_type(client):
+    import io
+    import zipfile
+
+    row, _ = _capture_row()
+    fn = quote(row["filename"], safe="")
+    tool = row["tool_name"]
+    listed = client.get(f"/api/afm/files/{fn}/images/capture?tool={tool}").get_json()["data"]
+    r = client.get(f"/api/afm/files/{fn}/images.zip?type=capture&tool={tool}")
+    assert r.status_code == 200
+    assert r.mimetype == "application/zip"
+    archive = zipfile.ZipFile(io.BytesIO(r.data))
+    assert archive.namelist() == [image["name"] for image in listed]
+    assert archive.read(listed[0]["name"]) == client.get(listed[0]["url"]).data
+
+
+def test_images_zip_404s_for_an_unknown_type_or_measurement(client):
+    row, _ = _capture_row()
+    fn = quote(row["filename"], safe="")
+    assert client.get(f"/api/afm/files/{fn}/images.zip?type=nope").status_code == 404
+    assert client.get("/api/afm/files/no-such-file/images.zip?type=capture").status_code == 404
+
+
 def test_tiff_zip_holds_every_original_of_the_measurement(client):
     import io
     import zipfile
