@@ -97,6 +97,7 @@
             class="xl:col-span-7"
             :profile="profile"
             :meta="profileMeta"
+            :total="pointProfile.total"
             :loading="profilePending"
             :export-name="`${filename}-heatmap`"
           />
@@ -188,15 +189,16 @@ function usePointData<T>(kind: string, load: (point: string) => Promise<T>, empt
 interface PointProfile {
   points: AfmProfilePoint[]
   meta: AfmProfileMeta | null
+  total: number
 }
 
 const { data: pointProfile, pending: profilePending, error: profileError } = usePointData<PointProfile>(
   'profile',
   async (point) => {
     const res = await fetchProfile(toolName, filename, point)
-    return { points: res.data ?? [], meta: res.meta ?? null }
+    return { points: res.data ?? [], meta: res.meta ?? null, total: res.total ?? 0 }
   },
-  { points: [], meta: null }
+  { points: [], meta: null, total: 0 }
 )
 const profile = computed(() => pointProfile.value.points)
 const profileMeta = computed(() => pointProfile.value.meta)

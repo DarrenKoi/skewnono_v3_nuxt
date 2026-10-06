@@ -78,11 +78,13 @@ export interface AfmDetailResponse {
   message: string
 }
 
+// Z is the file's own height, not levelled; null where the scan has no value.
 export interface AfmProfilePoint {
   x: number
   y: number
-  z: number
+  z: number | null
 }
+export type AfmMeasuredPoint = AfmProfilePoint & { z: number }
 
 // What one profile file declares about itself. Units are one of um / nm / pm / Pixel,
 // differ from file to file and are never unified; data_size reads like "1024 x 1".
@@ -98,7 +100,10 @@ export interface AfmProfileResponse {
   success: boolean
   data: AfmProfilePoint[]
   meta?: AfmProfileMeta | null
+  // `count` samples were sent out of the `total` the file holds: a dense scan
+  // (2048 x 256) is thinned by the server to what a chart can draw.
   count: number
+  total?: number
   tool: string
 }
 

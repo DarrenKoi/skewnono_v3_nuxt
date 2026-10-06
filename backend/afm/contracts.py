@@ -68,9 +68,11 @@ class AfmFileDetail(TypedDict):
 
 
 class AfmProfilePoint(TypedDict):
+    # Z is the file's own height: not levelled, and None where the scan has no
+    # value (NaN in the parquet).
     x: float
     y: float
-    z: float
+    z: float | None
 
 
 class AfmProfileMeta(TypedDict):

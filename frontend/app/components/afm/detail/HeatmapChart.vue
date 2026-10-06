@@ -14,6 +14,13 @@
         <span>μ <b class="sk-value-num">{{ stats.mean.toFixed(2) }}</b></span>
         <span v-if="meta">{{ axisTitle('Z', meta.z_unit) }}</span>
         <UBadge
+          v-if="total && total > profile.length"
+          :label="`${total.toLocaleString()}개 중 ${profile.length.toLocaleString()}개 표시`"
+          color="neutral"
+          size="xs"
+          variant="subtle"
+        />
+        <UBadge
           v-if="filtered.removed > 0"
           :label="`${filtered.removed}개 제외`"
           color="warning"
@@ -70,6 +77,8 @@ import type { OutlierMethod } from '~/utils/afmHeatmap'
 const props = defineProps<{
   profile: AfmProfilePoint[]
   meta?: AfmProfileMeta | null
+  // Samples in the file, when the server sent fewer than that.
+  total?: number
   loading?: boolean
   exportName?: string
 }>()
@@ -90,7 +99,7 @@ watch(outlierMethod, (method) => {
 })
 
 const filtered = computed(() =>
-  filterProfileByOutlier(props.profile, outlierMethod.value, threshold.value)
+  filterProfileByOutlier(measuredPoints(props.profile), outlierMethod.value, threshold.value)
 )
 const stats = computed(() => heatmapStats(filtered.value.kept))
 

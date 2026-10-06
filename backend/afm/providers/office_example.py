@@ -394,7 +394,9 @@ def get_profile_points(
     point: str,
     tool_name: str | None = None,
     site_info: dict[str, str | int | None] | None = None,
-) -> list[dict[str, float]] | None:
+) -> list[dict[str, float | None]] | None:
+    # The whole file, Z as stored (no levelling; `_records` turns NaN into None).
+    # A 2048 x 256 scan is thinned for the page by the route, not here.
     df = _frame(_profile_key(filename, point, tool_name))
     if df is None:
         return None

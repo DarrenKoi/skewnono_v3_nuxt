@@ -4,6 +4,8 @@ from urllib.parse import quote, unquote
 
 from flask import Blueprint, Response, jsonify, request
 
+from backend.afm.profile_sampling import thin_profile
+
 from backend.afm.data import (
     get_afm_file_detail,
     get_analysis_image_svg,
@@ -84,12 +86,15 @@ def afm_profile(filename: str, point: str):
             "tool": tool_name
         }), 404
 
+    # A dense scan is thinned to what the page can draw; `total` is what the file holds.
+    shown = thin_profile(profile_points)
     return jsonify({
         "success": True,
-        "data": profile_points,
+        "data": shown,
         # The file's own X/Y/Z units; they differ per file and are never unified.
         "meta": get_profile_meta(decoded_filename, decoded_point, tool_name),
-        "count": len(profile_points),
+        "count": len(shown),
+        "total": len(profile_points),
         "tool": tool_name,
         "message": f"Successfully loaded profile data for {decoded_filename}, point {decoded_point}"
     })

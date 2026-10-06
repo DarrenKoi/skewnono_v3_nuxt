@@ -380,6 +380,8 @@ def test_profile_grid_shape_and_units_follow_the_file():
     seen = [profile("MAPC01", r) for r in _rows("MAPC01") if r["has_profile"]]
     assert any(ny == 1 for (_, ny), _ in seen)
     assert len({grid for grid, _ in seen}) > 1
+    # The 2D grid is the dense one the route has to thin for the page.
+    assert (2048, 256) in {grid for grid, _ in seen}
     # Every unit the office listed turns up, Pixel included.
     assert {unit for _, units in seen for unit in units} == PROFILE_UNITS
 
@@ -414,3 +416,10 @@ def test_originals_sit_in_the_result_list_and_derived_names_end_with_the_positio
     for _, row, detail in _all_details():
         assert row["measured_info"] == ""
         assert detail["information"]["Sample Location"] == f"Slot {int(row['slot_number'])}"
+
+
+def test_profile_z_is_missing_for_some_samples():
+    # A sample the scan has no value for is NaN in the file and None here.
+    row = next(r for r in _rows("MAP608") if r["has_profile"])
+    zs = [p["z"] for p in mock.get_profile_points(row["filename"], "any", "MAP608")]
+    assert None in zs and sum(z is None for z in zs) < len(zs) // 100

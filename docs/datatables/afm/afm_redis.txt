@@ -216,6 +216,42 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
     저장됩니다 — `x-amz-meta-xunit`, `x-amz-meta-datasize` 등. 그래서 단위는 객체를
     내려받지 않고 stat 한 번으로 읽습니다.
 
+    아래는 2026-10-06 회신입니다 [user-confirmed].
+
+    - 웹의 히트맵이 읽는 것은 **고른 point 하나의 Profile 스캔(D4)** 이고, 원본 txt 를
+      적재한 `profile_<원본이름>.parquet` 객체 **하나**입니다. 상세 화면의 Site 지도
+      (디바이스 배치)는 이것과 별개로 `detail_points` 의 `Site ID`·`Site X`·`Site Y` 를
+      씁니다.
+    - 열은 `X` float64 · `Y` float64 · `Z` float64 입니다. Z 는 Height 이고 1D 에서는
+      Y 가 0 으로 고정됩니다.
+    - Z 는 **원본 그대로**입니다. leveling 을 하지 않고, 값이 없는 표본은 NaN 입니다.
+    - 단위는 객체 metadata 에 있고 **파일마다 다르며 통일하지 않습니다.** 예:
+      `xunit=MicroMeter`, `yunit=MicroMeter`, `zunit=NanoMeter`. um / nm / pm / Pixel 이
+      섞여 있으므로 축 라벨과 값의 해석은 반드시 metadata 에서 읽습니다.
+    - 1D / 2D 는 `datasize` 의 `<폭> x <높이>` 로 가릅니다. 높이가 1 이면 웹은 라인
+      프로파일로 그립니다.
+    - 2D 격자 크기는 `512x64`, `2048x256` 입니다. 5EAP1501 은 profile 자체가 없습니다.
+      [가정: 회신은 크기만 나열했습니다. 512x64 가 MAP608, 2048x256 이 MAPC01 이라고
+      읽었습니다.]
+    - 웹은 표본이 (x, y) 격자를 정확히 채우고 축이 균등 간격일 때 셀로 그리고, 아니면
+      실제 좌표에 점으로 그립니다. 이상치 필터를 거친 뒤 count / min / max / mean 을
+      보여 줍니다.
+
+    남은 [가정] (OFFICE-VERIFY):
+    - metadata 의 단위 **철자**. 위 예는 `MicroMeter`·`NanoMeter` 인데 웹은 받은 글자를
+      그대로 축 이름에 씁니다(`um` 만 `μm` 로 바꿉니다). 실제 값이 긴 이름이면 라벨이
+      `X (MicroMeter)` 로 나옵니다. 값의 전체 목록이 필요합니다.
+    - NaN 이 얼마나 자주, 어떤 모양(흩어진 점인지 줄 단위인지)으로 나오는지.
+
+    ⚠ **2048x256 은 524,288 점**입니다. 표본 하나가 JSON 객체 하나, 차트 요소 하나라서
+    그대로 보내면 응답이 수십 MB 가 되고 히트맵을 그리다 탭이 멈춥니다. 그래서 route 가
+    `backend/afm/profile_sampling.py` 의 `thin_profile` 로 65,536 점 이하가 되게 행·열을
+    같은 간격으로 솎아서 보냅니다(2048x256 → 683x86). 평균을 내지 않고 **골라내기만**
+    하므로 Z 는 여전히 원본 값이고 NaN 도 그대로 NaN 입니다. 응답의 `total` 이 파일의
+    점 수, `count` 가 보낸 점 수이고, 화면은 둘이 다르면 그 사실을 표시합니다. 통계
+    (count / min / max / mean)와 xlsx 내보내기는 **솎은 표본** 기준이므로 한 점짜리
+    spike 는 빠질 수 있습니다. 전체 값이 필요하면 원본 파일을 받습니다.
+
   남은 [가정]: 보존 3개월을 세는 기준 시각(측정 시각인지 적재 시각인지), 장비 하나의
   DataFrame 크기.
 

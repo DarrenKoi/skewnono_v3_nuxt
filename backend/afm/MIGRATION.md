@@ -164,7 +164,7 @@ runs the same code at home against a fake hash and a fake object store.
   class AfmProfilePoint(TypedDict):
       x: float
       y: float
-      z: float
+      z: float | None
 
 
   class AfmProfileMeta(TypedDict):
@@ -177,7 +177,7 @@ runs the same code at home against a fake hash and a fake object store.
 
 - Mock behavior: generates synthetic height samples per
   `(filename, point, site_info)` on the tool's real grid shape — 512×64 on
-  `MAP608`, a mix of 1D lines (1024×1 … 16384×1) and 2D grids on `MAPC01`,
+  `MAP608`, a mix of 1D lines (1024×1 … 16384×1) and 2048×256 grids on `MAPC01`,
   in the units that file declares (`um`/`nm`/`pm`/`Pixel`, varying per file
   on `MAPC01`). A 1D line has `y == 0` throughout.
   Returns `None` if the file isn't found or the measurement's recipe writes
@@ -188,7 +188,12 @@ runs the same code at home against a fake hash and a fake object store.
 - Office data source: the `profile_<raw name>.parquet` in `profile_dir_list`
   whose name carries `_<point>_Height`. Units are the MinIO object's user
   metadata (`x-amz-meta-xunit` …, stored lower-case), read with a stat.
-- Notes: route wraps the list in `{success, data, meta, count, tool, message}`.
+- Notes: route wraps the list in `{success, data, meta, count, total, tool, message}`.
+  The provider returns the **whole file**; the route thins it with
+  `profile_sampling.thin_profile` to at most 65,536 samples (a 2048×256 scan
+  is 524,288, which hangs the page) and reports the file's own size as
+  `total`. Do not thin, level or fill in the adapter: `z` is the stored value,
+  and a NaN travels as `None`.
   The loaded profile is an X/Y/Z parquet whose object metadata carries
   `XUnit`, `YUnit`, `ZUnit`, `DataSize` and `SurfaceSize`; map those five onto
   `AfmProfileMeta` and lower-case the columns to `x`/`y`/`z`. Units are kept

@@ -2,7 +2,7 @@
 // so they run under `node --test`; HeatmapChart.vue wires them into useEchart.
 import { meanOf, populationStd } from './afmHistogram.ts'
 import { quantileSorted } from './stats.ts'
-import type { AfmProfilePoint } from '~/composables/useAfmDetailApi'
+import type { AfmMeasuredPoint, AfmProfilePoint } from '~/composables/useAfmDetailApi'
 
 export type OutlierMethod = 'none' | 'iqr' | 'zscore'
 
@@ -12,8 +12,14 @@ export const OUTLIER_DEFAULT_THRESHOLD: Record<OutlierMethod, number> = {
   zscore: 3
 }
 
+// The samples that carry a height. Statistics and marks are built from these; the
+// lattice test (profileGrid) still reads every sample, so a missing one is a hole
+// in the map rather than a reason to stop drawing cells.
+export const measuredPoints = (points: AfmProfilePoint[]): AfmMeasuredPoint[] =>
+  points.filter((p): p is AfmMeasuredPoint => typeof p.z === 'number' && Number.isFinite(p.z))
+
 export interface HeatmapFilterResult {
-  kept: AfmProfilePoint[]
+  kept: AfmMeasuredPoint[]
   removed: number
 }
 
@@ -25,7 +31,7 @@ export interface HeatmapStats {
 }
 
 export const filterProfileByOutlier = (
-  points: AfmProfilePoint[],
+  points: AfmMeasuredPoint[],
   method: OutlierMethod,
   threshold: number
 ): HeatmapFilterResult => {
@@ -57,7 +63,7 @@ export const filterProfileByOutlier = (
   return { kept, removed: points.length - kept.length }
 }
 
-export const heatmapStats = (points: AfmProfilePoint[]): HeatmapStats => {
+export const heatmapStats = (points: AfmMeasuredPoint[]): HeatmapStats => {
   if (points.length === 0) return { count: 0, min: 0, max: 0, mean: 0 }
   let min = Infinity
   let max = -Infinity
@@ -107,5 +113,9 @@ export const profileGrid = (points: AfmProfilePoint[]): ProfileGrid | null => {
 
 // An axis name with the unit its file declared ("X (μm)"). Units differ from file to
 // file (um / nm / pm / Pixel) and are never unified, so none is ever assumed.
+// The long spellings are the ones the object metadata was quoted with (MicroMeter).
+const UNIT_SYMBOL: Record<string, string> = {
+  um: 'μm', micrometer: 'μm', nanometer: 'nm', picometer: 'pm'
+}
 export const axisTitle = (axis: string, unit?: string | null): string =>
-  unit ? `${axis} (${unit === 'um' ? 'μm' : unit})` : axis
+  unit ? `${axis} (${UNIT_SYMBOL[unit.toLowerCase()] ?? unit})` : axis

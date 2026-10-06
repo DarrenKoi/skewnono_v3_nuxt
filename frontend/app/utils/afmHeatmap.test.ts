@@ -6,6 +6,7 @@ import {
   filterProfileByOutlier,
   heatmapStats,
   isLineProfile,
+  measuredPoints,
   OUTLIER_DEFAULT_THRESHOLD,
   profileGrid
 } from './afmHeatmap.ts'
@@ -111,4 +112,17 @@ test('profileGrid: uneven steps are no grid, but rounded even ones are', () => {
   // 50 um over 512 samples, printed to four decimals, as the profile txt does.
   const xs = Array.from({ length: 512 }, (_, i) => Number((i * 50 / 511).toFixed(4)))
   assert.deepEqual(profileGrid(lattice(xs))?.xs, xs)
+})
+
+test('measuredPoints: a sample with no height is dropped, the rest untouched', () => {
+  const points = [{ x: 0, y: 0, z: 1 }, { x: 1, y: 0, z: null }, { x: 2, y: 0, z: 3 }]
+  assert.deepEqual(measuredPoints(points).map(p => p.z), [1, 3])
+  // The hole does not stop the lattice from being recognised.
+  assert.deepEqual(profileGrid(points), { xs: [0, 1, 2], ys: [0] })
+})
+
+test('axisTitle: the metadata\'s long unit names read as symbols', () => {
+  assert.equal(axisTitle('X', 'MicroMeter'), 'X (μm)')
+  assert.equal(axisTitle('Z', 'NanoMeter'), 'Z (nm)')
+  assert.equal(axisTitle('X', 'Pixel'), 'X (Pixel)')
 })

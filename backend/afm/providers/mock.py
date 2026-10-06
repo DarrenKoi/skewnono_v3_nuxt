@@ -94,9 +94,15 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   `Site X`·`Site Y` 는 Site ID 안의 숫자와 같고 단위가 없습니다.
 - `State` 는 COMPLETED · FAILED · STOPPED 셋입니다. point 가 하나면 STDEV·RANGE 는 0.0 입니다.
 - Info 의 값은 빈 문자열일 수 있습니다 (`Carrier ID`, `Last Pick Up Time`, `Last Put Back Time`).
-- Profile 격자는 MAP608 512×64, MAPC01 은 1D(N×1, 1024~16384)와 2D 혼재입니다. 1D 는 Y 가
-  0 으로 고정되고 DataSize(`1024 x 1`)로 구분합니다. 단위는 통일하지 않고 파일마다
-  um/nm/pm/Pixel 로 다릅니다.
+- Profile 격자는 MAP608 512×64, MAPC01 은 1D(N×1, 1024~16384)와 2D 혼재이고 2D 는
+  2048×256 입니다(user-confirmed 2026-10-06 — 524,288 점). 1D 는 Y 가 0 으로 고정되고
+  DataSize(`1024 x 1`)로 구분합니다. 단위는 통일하지 않고 파일마다 um/nm/pm/Pixel 로
+  다릅니다.
+- Profile 의 Z 는 원본 그대로입니다(leveling 없음). 값이 없는 표본은 NaN 이고 응답에서는
+  null 입니다(user-confirmed 2026-10-06). mock 도 null 을 섞습니다 — 얼마나 자주, 어떤
+  모양으로 빠지는지는 모릅니다(OFFICE-VERIFY: mock 은 2000 점에 하나꼴로 흩어 놓습니다).
+- 2048×256 은 화면이 그릴 수 없는 크기라 route 가 `profile_sampling.thin_profile` 로
+  솎아서 보냅니다. provider 는 파일 전체를 돌려줍니다.
 
 지어냈거나 일부러 다른 것 (OFFICE-VERIFY):
 - MAP608 의 fab `PKG` — 사무실 답은 "미정"입니다(raw 에 fab 필드가 없음).
@@ -107,7 +113,8 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   확인된 대응입니다.
 - lot ID 는 실측 예(`MON69683`, `5PNN1768`)의 생김새만 따랐습니다. MAP608 의 SAMPLE_ID 와
   MAPC01 의 원본 파일명도 `<lot>.<nn>` 이라고 보았습니다.
-- MAPC01·5EAP1501 의 profile·이미지 파일명에서 위치 키 앞부분, MAPC01 의 2D 격자 크기.
+- MAPC01·5EAP1501 의 profile·이미지 파일명에서 위치 키 앞부분. 격자 크기 `512x64`,
+  `2048x256` 이 각각 MAP608, MAPC01 의 것이라는 대응(회신은 크기만 나열했습니다).
 - Site ID recipe 에서 한 Site 에 point 가 몇 개인지 — 파일명 예(`0004…_0002`)로 여럿일 수
   있다는 것만 알고, mock 은 한 recipe 에만 Site 당 2개를 둡니다.
 - 숫자가 아닌 `Method_ID` 는 recipe 명에서 첫 토막을 뺀 것으로 만들었습니다(실측 한 건이
@@ -356,7 +363,7 @@ TOOL_CONFIGS: dict[str, ToolConfig] = {
         "filename": "#{date}#{time}#{recipe}#{slot}#NA#NA#{sample}_Info.csv",
         # The same sample is measured again later the same day; only the time differs.
         "repeats": 3,
-        "profile_grids": ((1024, 1), (512, 64), (4096, 1), (16384, 1)),
+        "profile_grids": ((1024, 1), (2048, 256), (4096, 1), (16384, 1)),
         "profile_units": (
             _UM_UM_NM,
             ("nm", "nm", "nm"),
@@ -523,7 +530,7 @@ def get_profile_points(
     point: str,
     tool_name: str | None = None,
     site_info: dict[str, str | int | None] | None = None
-) -> list[dict[str, float]] | None:
+) -> list[dict[str, float | None]] | None:
     row = _find_measurement(filename, tool_name)
     if row is None or not row["has_profile"]:
         return None
@@ -543,7 +550,12 @@ def get_profile_points(
     peak1_y = rng.uniform(0, 5)
     peak2_x = rng.uniform(0, 25)
     peak2_y = rng.uniform(0, 5)
-    points: list[dict[str, float]] = []
+    points: list[dict[str, float | None]] = []
+    # Samples the scan has no value for: NaN in the file, null here. Drawn from their
+    # own stream so they do not shift the heights. OFFICE-VERIFY: rate and pattern.
+    missing = set(
+        random.Random(_seed_for(*seed_parts, "missing")).sample(range(nx * ny), nx * ny // 2000)
+    )
 
     # A 1D profile (ny == 1) sits on y = 0.
     for row_index in range(ny):
@@ -559,7 +571,10 @@ def get_profile_points(
             points.append({
                 "x": _lateral(x, col_index, x_unit),
                 "y": _lateral(y, row_index, y_unit),
-                "z": round(z * _HEIGHT_PER_NM[z_unit], 5)
+                "z": (
+                    None if row_index * nx + col_index in missing
+                    else round(z * _HEIGHT_PER_NM[z_unit], 5)
+                )
             })
 
     return points

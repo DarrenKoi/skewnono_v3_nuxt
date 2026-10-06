@@ -96,7 +96,7 @@ const displayModeItems: { label: string, value: HistogramMode }[] = [
   { label: '누적', value: 'cumulative' }
 ]
 
-const zs = computed(() => props.profile.map(p => p.z))
+const zs = computed(() => measuredPoints(props.profile).map(p => p.z))
 const stats = computed(() => histogramStats(zs.value))
 const hist = computed(() =>
   computeHistogram(zs.value, resolveBinCount(zs.value, binMethod.value, customBins.value), displayMode.value)
