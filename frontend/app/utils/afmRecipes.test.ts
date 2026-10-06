@@ -11,6 +11,8 @@ import {
   pointLabel,
   recipeBoard,
   sortRecipes,
+  sparkHeight,
+  sparkPeak,
   tileCounts,
   tipUsage,
   type RecipeSummary
@@ -216,4 +218,59 @@ test('tip usage: most used first, rows naming no tip in no count', () => {
   ])
   assert.deepEqual(tipUsage(r), [{ tip: 'MCNT-500', count: 2 }, { tip: 'MCNT-150', count: 1 }])
   assert.deepEqual(tipUsage(one([row('A', TODAY, OFFICE_NULLS)])), [])
+})
+
+test('a last measurement after today is neither recent nor stale', () => {
+  const board = recipeBoard([row('FUTURE', '2026-10-08'), row('NOW', '2026-10-07')], TODAY)
+  const future = board.recipes.find(r => r.recipe === 'FUTURE')!
+  assert.equal(future.daysAgo, -1)
+  assert.equal(daysAgoLabel(future.daysAgo), '1일 뒤')
+  assert.deepEqual(filterRecipes(board.recipes, '', 'recent').map(r => r.recipe), ['NOW'])
+  assert.deepEqual(filterRecipes(board.recipes, '', 'stale'), [])
+  assert.deepEqual(tileCounts(board.recipes), { recent: 1, stale: 0, once: 2 })
+})
+
+test('partial nulls are counted as left out: undated, no point count, no tip', () => {
+  const some = one([
+    row('A', TODAY, { point_count: 5, tip_id: 'MCNT-500' }),
+    row('A', null, { point_count: null, tip_id: null }),
+    row('A', TODAY, { tip_id: '  ' })
+  ])
+  assert.deepEqual([some.undated, some.noPoint, some.noTip], [1, 2, 2])
+  const full = one([row('A', TODAY, { point_count: 5, tip_id: 'T' })])
+  assert.deepEqual([full.undated, full.noPoint, full.noTip], [0, 0, 0])
+  const office = one([row('A', null, OFFICE_NULLS), row('A', null, OFFICE_NULLS)])
+  assert.deepEqual([office.undated, office.noPoint, office.noTip], [2, 2, 2])
+})
+
+test('sparkline bar heights: share of the peak, a floor for a measured day, a stub for none', () => {
+  assert.equal(sparkHeight(10, 10), '100%')
+  assert.equal(sparkHeight(5, 10), '50%')
+  assert.equal(sparkHeight(1, 10), '15%')
+  assert.equal(sparkHeight(0, 10), '2px')
+  const board = recipeBoard([row('A', TODAY), row('A', TODAY), row('A', TODAY), row('B', '2026-10-06')], TODAY)
+  assert.equal(sparkPeak(board.recipes), 3)
+  assert.equal(sparkPeak(recipeBoard([row('A', null)], TODAY).recipes), 1)
+})
+
+test('sort keys are told apart: first vs last date, lot counts, both directions', () => {
+  const board = recipeBoard([
+    row('A', '2026-09-01', { lot_id: 'L1' }),
+    row('A', '2026-10-07', { lot_id: 'L1' }),
+    row('B', '2026-10-01', { lot_id: 'L1' }),
+    row('B', '2026-10-02', { lot_id: 'L2' }),
+    row('C', '2026-09-15', { lot_id: 'L1' }),
+    row('C', '2026-09-20', { lot_id: 'L2' }),
+    row('C', '2026-09-20', { lot_id: 'L3' })
+  ], TODAY)
+  const order = (key: Parameters<typeof sortRecipes>[1]['key'], desc: boolean) =>
+    sortRecipes(board.recipes, { key, desc }).map(r => r.recipe).join('')
+  assert.equal(order('first', false), 'ACB')
+  assert.equal(order('first', true), 'BCA')
+  assert.equal(order('last', false), 'CBA')
+  assert.equal(order('last', true), 'ABC')
+  assert.equal(order('lots', false), 'ABC')
+  assert.equal(order('lots', true), 'CBA')
+  assert.equal(order('count', true), 'CAB')
+  assert.equal(order('count', false), 'ABC')
 })

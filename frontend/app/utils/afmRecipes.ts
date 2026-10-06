@@ -28,9 +28,16 @@ export interface RecipeSummary {
   count: number
   // Rows with a `formatted_date`: what first / last / the day counts are read from.
   dated: number
+  // Rows left out of every day figure: no `formatted_date`.
+  undated: number
+  // Rows with no point count (out of pointMin / pointMax) and rows that name
+  // no tip (out of tipUsage).
+  noPoint: number
+  noTip: number
   first: string | null
   last: string | null
-  // Calendar days from `last` to today; null when no row has a date.
+  // Calendar days from `last` to today, negative for a date after today;
+  // null when no row has a date.
   daysAgo: number | null
   lots: number
   // Over the rows that carry a point count; null when none does.
@@ -68,6 +75,9 @@ const summarize = (recipe: string, group: AfmFileRow[], today: string): RecipeSu
     rows,
     count: group.length,
     dated: days.length,
+    undated: group.length - days.length,
+    noPoint: group.length - points.length,
+    noTip: group.filter(row => !(row.tip_id ?? '').trim()).length,
     first,
     last,
     daysAgo: last === null ? null : daysBetween(last, today),
@@ -113,15 +123,16 @@ export const recipeBoard = (rows: AfmFileRow[], today: string): RecipeBoard => {
     recipes,
     measured: rows.length - unnamed,
     unnamed,
-    undated: recipes.reduce((sum, r) => sum + r.count - r.dated, 0)
+    undated: recipes.reduce((sum, r) => sum + r.undated, 0)
   }
 }
 
 export type RecipeTile = 'recent' | 'stale' | 'once'
 
 // A recipe with no dated measurement is neither recent nor stale: unknown.
+// Nor is one whose last date is after today — the recent window ends today.
 const TILE_TEST: Record<RecipeTile, (recipe: RecipeSummary) => boolean> = {
-  recent: r => r.daysAgo !== null && r.daysAgo < RECENT_DAYS,
+  recent: r => r.daysAgo !== null && r.daysAgo >= 0 && r.daysAgo < RECENT_DAYS,
   stale: r => r.daysAgo !== null && r.daysAgo > STALE_DAYS,
   once: r => r.count === 1
 }
@@ -209,6 +220,11 @@ export const tipUsage = (recipe: RecipeSummary): { tip: string, count: number }[
 // the bars compare between recipes. Never below 1 (a bar needs a scale).
 export const sparkPeak = (recipes: RecipeSummary[]): number =>
   Math.max(1, ...recipes.flatMap(r => r.spark))
+
+// A sparkline bar's CSS height: its share of the peak, never so short that a
+// measured day disappears; a day with none is a stub that marks the slot.
+export const sparkHeight = (count: number, peak: number): string =>
+  count > 0 ? `${Math.max(Math.round(count / peak * 100), 15)}%` : '2px'
 
 export const sparkTotal = (recipe: RecipeSummary): number => recipe.spark.reduce((a, b) => a + b, 0)
 

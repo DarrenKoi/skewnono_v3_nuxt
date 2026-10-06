@@ -66,7 +66,7 @@
             >{{ item.label }}</span>
             <span
               class="font-mono text-xl font-semibold tracking-tight tabular-nums"
-              :class="tile === item.key ? 'text-(--sk-brand-ink)' : counts[item.key] ? 'text-(--sk-ink)' : 'text-(--sk-ink-muted)'"
+              :class="tile === item.key ? 'text-(--sk-brand-ink)' : 'text-(--sk-ink)'"
             >{{ counts[item.key] }}</span>
             <span
               class="truncate sk-meta"
@@ -185,7 +185,7 @@
                         :key="i"
                         class="flex-1"
                         :class="n ? 'bg-(--sk-ink)' : 'bg-(--sk-border)'"
-                        :style="{ height: n ? `${Math.max(n / peak * 100, 15)}%` : '2px' }"
+                        :style="{ height: sparkHeight(n, peak) }"
                       />
                     </span>
                   </td>
@@ -221,15 +221,15 @@
             >
               <div class="space-y-4">
                 <p class="sk-body text-(--sk-ink)">
-                  측정 {{ picked.count }}건 · Lot {{ picked.lots }}개 · {{ picked.first ? `${picked.first} ~ ${picked.last}` : '날짜가 있는 측정 없음' }}
+                  측정 {{ picked.count }}건 · Lot {{ picked.lots }}개 · {{ picked.first ? `${picked.first} ~ ${picked.last}` : '날짜가 있는 측정 없음' }}{{ picked.noPoint ? ` · point 수 없는 측정 ${picked.noPoint}건` : '' }}
                 </p>
                 <div class="space-y-1.5">
                   <p class="flex items-baseline justify-between gap-2">
                     <span class="sk-label">일별 측정 건수</span>
                     <span
-                      v-if="picked.dated < picked.count"
+                      v-if="picked.undated"
                       class="sk-meta"
-                    >날짜 없는 측정 {{ picked.count - picked.dated }}건 제외</span>
+                    >날짜 없는 측정 {{ picked.undated }}건 제외</span>
                   </p>
                   <AfmRecipesDailyChart
                     v-if="days.length"
@@ -256,8 +256,12 @@
                     variant="subtle"
                     class="font-mono"
                   >
-                    {{ tip.tip }} <span class="text-(--sk-ink-muted)">{{ tip.count }}</span>
+                    {{ tip.tip }} <span class="font-semibold text-(--sk-ink)">{{ tip.count }}</span>
                   </UBadge>
+                  <span
+                    v-if="picked.noTip"
+                    class="sk-meta"
+                  >팁 값 없는 측정 {{ picked.noTip }}건 제외</span>
                 </div>
               </div>
             </AfmCard>
@@ -304,12 +308,16 @@
                         {{ row.point_count ?? '–' }}
                       </td>
                       <td
-                        v-for="(value, i) in [row.not_completed_count, row.invalid_count]"
-                        :key="i"
                         class="px-2.5 py-1.5 text-right sk-value-num"
-                        :class="value ? 'font-semibold text-(--sk-warn)' : ''"
+                        :class="row.not_completed_count ? 'font-semibold text-(--sk-warn)' : ''"
                       >
-                        {{ value ?? '–' }}
+                        {{ row.not_completed_count ?? '–' }}
+                      </td>
+                      <td
+                        class="px-2.5 py-1.5 text-right sk-value-num"
+                        :class="row.invalid_count ? 'font-semibold text-(--sk-bad)' : ''"
+                      >
+                        {{ row.invalid_count ?? '–' }}
                       </td>
                     </tr>
                   </tbody>
@@ -338,6 +346,7 @@ import {
   pointLabel,
   recipeBoard,
   sortRecipes,
+  sparkHeight,
   sparkPeak,
   sparkTotal,
   tileCounts,
