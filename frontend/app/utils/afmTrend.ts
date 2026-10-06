@@ -338,8 +338,11 @@ export interface HealthPoint {
   invalid: number
   approach: number | null
   mileage: number | null
-  // From the measurement's Info, not its rows: which tip, and how wide it was stated.
-  tipId: string | null
+  // From the measurement's Info, not its rows. `tip` is both the tip's identity
+  // and its label: one Tip ID sits in several cassette slots, so the ID alone
+  // does not say which tip (office 확인 2026-10-06). `tipWidth` is what that
+  // measurement recorded, not a spec of the tip; null where it recorded none.
+  tip: string | null
   tipWidth: number | null
 }
 
@@ -348,11 +351,16 @@ const meanOf = (rows: AfmDetailRow[], column: string): number | null => {
   return values.length ? mean(values) : null
 }
 
+// What identifies one physical tip, in label order: the ID, then where it sits.
+const TIP_KEYS = ['Tip ID', 'Tip Cassette ID', 'Tip Port No', 'Tip Slot No']
+
 // Every data row of every block — health does not depend on the block pick.
 export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
   entries.map(({ key, time, payload: { data, information } }) => {
-    // parseFloat, not Number: an office value may carry its unit ("40.9 nm").
+    // parseFloat, not Number: a value may carry its unit ("40.9 nm"). The office
+    // also stores the literal text 'NaN', which parses to NaN and so to null.
     const width = Number.parseFloat(String(information['Tip Width'] ?? ''))
+    const [id, ...seat] = TIP_KEYS.map(k => String(information[k] ?? '').trim())
     return {
       key,
       time,
@@ -360,7 +368,7 @@ export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
       invalid: data.filter(row => row.State === 'COMPLETED' && row.Valid === false).length,
       approach: meanOf(data, 'Approach Count'),
       mileage: meanOf(data, 'Mileage'),
-      tipId: text(information['Tip ID']) || null,
+      tip: id ? `${id} · ${seat.map(v => v || '?').join('/')}` : null,
       tipWidth: Number.isFinite(width) ? width : null
     }
   })
@@ -368,8 +376,8 @@ export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
 // The times at which the tip is a different one from the last measurement that
 // named its tip. A measurement with no Tip ID neither is nor hides a change.
 export const tipChanges = (health: HealthPoint[]): number[] => {
-  const named = [...health].filter(h => h.tipId !== null).sort((a, b) => a.time - b.time)
-  return named.flatMap((h, i) => i > 0 && h.tipId !== named[i - 1]!.tipId ? [h.time] : [])
+  const named = [...health].filter(h => h.tip !== null).sort((a, b) => a.time - b.time)
+  return named.flatMap((h, i) => i > 0 && h.tip !== named[i - 1]!.tip ? [h.time] : [])
 }
 
 // `MM/DD HH:mm`, local — the trend's tick and row format.

@@ -206,29 +206,32 @@ test('healthSeries counts every block\'s rows; only a stated FALSE is invalid', 
       row('2', 1, { Valid: '' as unknown as boolean })
     ])
   }])
-  assert.deepEqual(healthSeries([entry!])[0], { key: 'a', time: entry!.time, notCompleted: 1, invalid: 1, approach: 1.5, mileage: 8, tipId: null, tipWidth: null })
+  assert.deepEqual(healthSeries([entry!])[0], { key: 'a', time: entry!.time, notCompleted: 1, invalid: 1, approach: 1.5, mileage: 8, tip: null, tipWidth: null })
   const [empty] = prepareEntries([{ source: source('b'), payload: payload([], []) }])
   assert.equal(healthSeries([empty!])[0]!.approach, null)
 })
 
-test('healthSeries reads the tip from Info; tipChanges marks where its ID differs', () => {
+test('healthSeries reads the tip from Info; tipChanges marks where ID or seat differs', () => {
   const at = (name: string, minute: number, info: Record<string, string | null>) => {
     const p = payload([], [row('1', 1)])
     return { source: source(name), payload: { ...p, information: { ...p.information, 'Start Time': `2026-10-06 06:${String(minute).padStart(2, '0')}:00`, ...info } } }
   }
+  const seat = { 'Tip Cassette ID': 'TC1', 'Tip Port No': '1', 'Tip Slot No': '3' }
   const health = healthSeries(prepareEntries([
-    at('a', 0, { 'Tip ID': 'T1', 'Tip Width': '40.9' }),
+    at('a', 0, { ...seat, 'Tip ID': 'T1', 'Tip Width': '40.9' }),
     at('b', 1, { 'Tip ID': null, 'Tip Width': null }),
-    at('c', 2, { 'Tip ID': 'T1', 'Tip Width': '41.2 nm' }),
-    at('d', 3, { 'Tip ID': 'T2', 'Tip Width': 'n/a' })
+    at('c', 2, { ...seat, 'Tip ID': 'T1', 'Tip Width': '41.2 nm' }),
+    // Same Tip ID in another slot is another tip; its width is the office's 'NaN'.
+    at('d', 3, { ...seat, 'Tip ID': 'T1', 'Tip Slot No': '7', 'Tip Width': 'NaN' }),
+    at('e', 4, { ...seat, 'Tip ID': 'T2', 'Tip Slot No': '7', 'Tip Width': '39' })
   ]))
   const by = new Map(health.map(h => [h.key, h]))
-  assert.deepEqual([by.get('a')!.tipId, by.get('a')!.tipWidth], ['T1', 40.9])
-  assert.deepEqual([by.get('b')!.tipId, by.get('b')!.tipWidth], [null, null])
+  assert.deepEqual([by.get('a')!.tip, by.get('a')!.tipWidth], ['T1 · TC1/1/3', 40.9])
+  assert.deepEqual([by.get('b')!.tip, by.get('b')!.tipWidth], [null, null])
   assert.equal(by.get('c')!.tipWidth, 41.2)
-  assert.equal(by.get('d')!.tipWidth, null)
-  // The unnamed measurement between two T1s is not a change; T1 -> T2 is.
-  assert.deepEqual(tipChanges(health), [by.get('d')!.time])
+  assert.deepEqual([by.get('d')!.tip, by.get('d')!.tipWidth], ['T1 · TC1/1/7', null])
+  // The unnamed measurement between two identical tips is not a change.
+  assert.deepEqual(tipChanges(health), [by.get('d')!.time, by.get('e')!.time])
 })
 
 test('trendRows keeps μ, limits and Δ inside each recipe, and lists what is missing', () => {

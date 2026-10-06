@@ -437,3 +437,20 @@ def test_profile_z_is_missing_for_some_samples():
     row = next(r for r in _rows("MAP608") if r["has_profile"])
     zs = [p["z"] for p in mock.get_profile_points(row["filename"], "any", "MAP608")]
     assert None in zs and sum(z is None for z in zs) < len(zs) // 100
+
+
+def test_tip_is_one_id_in_several_seats_and_width_is_per_measurement():
+    # office 확인 2026-10-06.
+    infos = [detail["information"] for tool in TOOLS for _, detail in _details(tool)]
+    seats_of_id: dict[str, set[tuple]] = {}
+    widths_of_tip: dict[tuple, set[str]] = {}
+    for info in infos:
+        seat = (info["Tip Cassette ID"], info["Tip Port No"], info["Tip Slot No"])
+        seats_of_id.setdefault(info["Tip ID"], set()).add(seat)
+        widths_of_tip.setdefault((info["Tip ID"], *seat), set()).add(info["Tip Width"])
+    # One tip serves several measurements, and one Tip ID sits in several seats.
+    assert len(widths_of_tip) < len(infos)
+    assert any(len(seats) > 1 for seats in seats_of_id.values())
+    # An MCNT tip is re-recorded per measurement; an unrecorded width is 'NaN'.
+    assert any(len(w - {"NaN"}) > 1 for tip, w in widths_of_tip.items() if tip[0].startswith("MCNT"))
+    assert any(info["Tip Width"] == "NaN" for info in infos)

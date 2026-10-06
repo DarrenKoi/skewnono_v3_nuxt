@@ -134,11 +134,13 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   user-confirmed(2026-10-06)입니다. 비율(mock 은 13키를 8건 중 1·7·4건)과 한 파일의
   구성을 정하는 것(recipe·시기·파일 종류)은 지어냈습니다.
 - Info 값의 생김새 가운데 `Port No`·`Slot No`·`End Time`·`Data Save Location`·`Tip *` 는
-  전부 지어냈습니다(`Slot No` 는 숫자만, `Tip Width` 는 단위 없는 소수로 두었습니다).
-  `Tip *` 는 장비마다 4일 단위로 한 팁이 유지되고 `Tip Width` 가 하루 0.4 씩 넓어지게
-  했습니다 — 시계열 비교의 장비 건강이 Tip ID 변화와 Tip Width 추세를 그리므로, 측정마다
-  새 팁이 나오면 집에서 그 차트가 전부 "교체"가 됩니다. 팁 수명, 폭이 측정마다 갱신되는지
-  팁당 고정인지, 단위는 모두 모릅니다(OFFICE-VERIFY).
+  생김새를 지어냈습니다(`Slot No` 는 숫자만, `Tip Width` 는 단위 없는 소수로 두었습니다).
+  `Tip *` 는 office 확인(2026-10-06)을 따릅니다: 한 팁이 여러 측정에 같은 `Tip ID` 로
+  오고, 같은 `Tip ID` 가 카세트의 여러 슬롯에 있어 팁은 (Tip ID, Tip Cassette ID,
+  Tip Port No, Tip Slot No) 로 식별하며, `Tip Width` 는 측정 시점의 기록값이라 MCNT 계열은
+  같은 자리에서도 측정마다 달라지고, 기록이 없으면 문자열 `NaN` 입니다(mock 은 20건 중 1건).
+  지어낸 것(OFFICE-VERIFY): Tip ID 의 이름(`MCNT-150` 등)과 종류 수, 한 팁이 4일 유지된다는
+  것, 폭의 범위(20~60)와 MCNT 의 흔들림 크기(±1.5), 단위, `NaN` 의 비율.
   `Data Save Location` 은 공백 없는 긴 경로라는 것만 user-confirmed(2026-10-06)이고,
   폴더 구성(드라이브·장비·날짜·recipe·lot 순서)은 지어냈습니다.
 - 측정값의 수준·추세·퍼짐은 전부 지어낸 것입니다. recipe·컬럼마다 고정된 수준(55~120 nm)에
@@ -1036,6 +1038,13 @@ _INFO_13_IN_8 = {"5EAP1501": 1, "MAPC01": 7, "MAP608": 4}
 # How long one tip stays mounted. Made up (OFFICE-VERIFY).
 _TIP_LIFE_DAYS = 4
 
+# Tip ID names a tip TYPE, so the same ID sits in several cassette slots and a
+# tip is told apart by (Tip ID, Tip Cassette ID, Tip Port No, Tip Slot No).
+# An MCNT tip's Tip Width is re-recorded by every measurement; a fixed tip's is
+# not (office 확인 2026-10-06). The names themselves and how many types a tool
+# carries are made up (OFFICE-VERIFY) — few, so one ID recurs in another slot.
+_TIP_TYPES = (("MCNT-150", True), ("MCNT-500", True), ("CDR-70", False))
+
 
 def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | None]:
     start_time = _display_start_time(row)
@@ -1046,14 +1055,16 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
     end_time = started + timedelta(seconds=tip.randint(60, 1800))
     # One tip stays on a tool for _TIP_LIFE_DAYS, so the Tip * values are drawn
     # per (tool, period) and consecutive measurements share a tip.
-    period, day_in_period = divmod(started.toordinal(), _TIP_LIFE_DAYS)
+    period = started.toordinal() // _TIP_LIFE_DAYS
     mounted = random.Random(_seed_for("tip-mounted", row["tool_name"], str(period)))
-    tip_id = f"TIP{mounted.randint(10000, 99999)}"
+    tip_id, remeasured = mounted.choice(_TIP_TYPES)
     tip_cassette = f"TC{mounted.randint(10, 99)}"
     tip_port = str(mounted.randint(1, 2))
     tip_slot = str(mounted.randint(1, 16))
-    # Wears wider by the day; the same tip never reads narrower later.
-    tip_width = mounted.uniform(20, 60) + 0.4 * day_in_period + tip.uniform(0, 0.1)
+    width = mounted.uniform(20, 60) + (tip.uniform(-1.5, 1.5) if remeasured else 0)
+    # A width the measurement did not record is the literal text 'NaN'.
+    no_width = _seed_for("tip-nan", row["tool_name"], row["filename"]) % 20 == 0
+    tip_width = "NaN" if no_width else f"{width:.1f}"
     values = {
         "Lot ID": row["lot_id"],
         "Recipe ID": row["recipe_name"],
@@ -1081,7 +1092,7 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
         "Tip Cassette ID": tip_cassette,
         "Tip Port No": tip_port,
         "Tip Slot No": tip_slot,
-        "Tip Width": f"{tip_width:.1f}",
+        "Tip Width": tip_width,
     }
     short = (
         _seed_for("info-keys", row["tool_name"], row["filename"]) % 8

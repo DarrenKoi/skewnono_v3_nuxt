@@ -34,7 +34,7 @@
               :title="`${key} 복사`"
               @click="copy(key, value)"
             >
-              {{ text(value) }}
+              {{ shown(key, value) }}
             </button>
           </dd>
         </div>
@@ -58,11 +58,16 @@ const rest = computed(() => Object.entries(props.information).filter(([key]) => 
 
 const toast = useToast()
 const copy = async (key: string, value: unknown) => {
-  const copied = await copyTextToClipboard(text(value))
+  const copied = await copyTextToClipboard(shown(key, value))
   toast.add(copied
     ? { title: `${key} 값을 복사했습니다`, icon: 'i-lucide-clipboard-check', color: 'success' }
     : { title: '복사하지 못했습니다', icon: 'i-lucide-triangle-alert', color: 'warning' })
 }
+
+// A Tip Width the measurement did not record arrives as the literal text 'NaN'
+// (office 확인 2026-10-06).
+const shown = (key: string, value: unknown) =>
+  key === 'Tip Width' && text(value).trim().toLowerCase() === 'nan' ? '측정 없음' : text(value)
 
 const text = (value: unknown) => value === null || value === undefined || value === '' ? '–' : String(value)
 </script>

@@ -4,7 +4,7 @@
     title="측정별 상태 지표"
   >
     <template #actions>
-      <span class="sk-meta">포인트별 data 행과 측정 정보의 Tip 값에서 집계 · 블록·항목 선택과 무관 · x축은 01 추세와 같은 시각 · 세로선은 Tip ID 가 바뀐 시점</span>
+      <span class="sk-meta">포인트별 data 행과 측정 정보의 Tip 값에서 집계 · 블록·항목 선택과 무관 · x축은 01 추세와 같은 시각 · 세로선은 팁(ID·카세트·포트·슬롯)이 바뀐 시점</span>
     </template>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-5">
       <AfmTrendHealthChart
@@ -39,8 +39,10 @@ const charts = computed(() => {
   const approaches = props.health.flatMap(h => h.approach ?? [])
   const lastMileage = props.health.findLast(h => h.mileage !== null)?.mileage ?? null
   const marks = tipChanges(props.health)
-  const tipCount = new Set(props.health.flatMap(h => h.tipId ?? [])).size
-  const lastTip = props.health.findLast(h => h.tipId !== null)?.tipId ?? null
+  const tipCount = new Set(props.health.flatMap(h => h.tip ?? [])).size
+  const lastTip = props.health.findLast(h => h.tip !== null)?.tip ?? null
+  // The office stores 'NaN' for a width the measurement did not record.
+  const noWidth = props.health.filter(h => h.tip !== null && h.tipWidth === null).length
   return [
     {
       slug: 'not-completed',
@@ -82,8 +84,10 @@ const charts = computed(() => {
     {
       slug: 'tip-width',
       label: 'Tip Width',
-      summary: lastTip === null ? '–' : `팁 ${tipCount}개 · 지금 ${lastTip}`,
-      note: '측정 정보의 Tip ID · Tip Width. 세로선마다 다른 팁.',
+      summary: lastTip === null ? '–' : `팁 ${tipCount}개${noWidth ? ` · 측정 없음 ${noWidth}건` : ''}`,
+      note: lastTip === null
+        ? '측정 정보에 Tip 값이 없습니다.'
+        : `지금 ${lastTip} (ID · 카세트/포트/슬롯). 폭은 측정 시점의 기록값.`,
       kind: 'line' as const,
       color: SK_SCALE[1],
       points: series(h => h.tipWidth),
