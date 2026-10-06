@@ -25,11 +25,17 @@
           <dt class="whitespace-nowrap sk-label">
             {{ key }}
           </dt>
-          <dd
-            class="truncate text-right sk-value-num"
-            :title="text(value)"
-          >
-            {{ text(value) }}
+          <!-- A value wraps instead of clipping (Data Save Location is a long
+               path), and a click copies it whole. -->
+          <dd class="min-w-0">
+            <button
+              type="button"
+              class="cursor-pointer break-all rounded-sm text-right sk-value-num transition-colors duration-200 hover:bg-(--sk-muted-surface)"
+              :title="`${key} 복사`"
+              @click="copy(key, value)"
+            >
+              {{ text(value) }}
+            </button>
           </dd>
         </div>
       </dl>
@@ -49,6 +55,14 @@ const props = defineProps<{
 // are named here, for the headline; everything else is listed as it arrives.
 const HEADLINE = ['Recipe ID', 'Lot ID']
 const rest = computed(() => Object.entries(props.information).filter(([key]) => !HEADLINE.includes(key)))
+
+const toast = useToast()
+const copy = async (key: string, value: unknown) => {
+  const copied = await copyTextToClipboard(text(value))
+  toast.add(copied
+    ? { title: `${key} 값을 복사했습니다`, icon: 'i-lucide-clipboard-check', color: 'success' }
+    : { title: '복사하지 못했습니다', icon: 'i-lucide-triangle-alert', color: 'warning' })
+}
 
 const text = (value: unknown) => value === null || value === undefined || value === '' ? '–' : String(value)
 </script>
