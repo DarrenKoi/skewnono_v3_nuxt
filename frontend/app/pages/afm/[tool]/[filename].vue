@@ -58,7 +58,10 @@
       class="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)]"
     >
       <div class="space-y-6">
-        <AfmDetailInfoPanel :information="payload.information" />
+        <AfmDetailInfoPanel
+          :information="payload.information"
+          :slot-number="slotNumber"
+        />
         <AfmDetailPointRail
           v-model:selected-point="selectedPoint"
           class="lg:sticky lg:top-0"
@@ -147,6 +150,18 @@ const detailRows = computed(() => payload.value?.data ?? [])
 
 // The table's rows, with a Block column where the file has more than one block.
 const tableRows = computed(() => tagBlocks(detailRows.value, summaryRows.value))
+
+// A measurement opened from the list is in this tool's 조회 기록, which has the
+// slot. One opened by a copied link is not, so the slot is read from Info: the
+// 15-key layout's `Sample Location` (`Slot N`, the wafer's real slot — office
+// 확인 2026-10-06) or the 13-key layout's `Slot No` (value shape OFFICE-VERIFY).
+// The file name's `.nn` tail is NOT a slot.
+const listedSlot = useAfmCart(toolId).viewHistory.value.find(item => item.filename === filename)?.slotNumber
+const slotNumber = computed(() =>
+  listedSlot
+  ?? /Slot\s*(\d+)/i.exec(String(information.value['Sample Location'] ?? ''))?.[1]
+  ?? /\d+/.exec(String(information.value['Slot No'] ?? ''))?.[0]
+)
 
 const selectedPoint = ref('')
 
