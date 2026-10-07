@@ -86,7 +86,8 @@ def test_map608_measurements_of_one_session_share_the_leading_time():
         # Start Time 02:29:14), and the list takes it from here.
         clock = row["measured_time"]
         assert start in ("NA", clock)
-        assert start_time == f"{row['formatted_date']} {clock[:2]}:{clock[2:4]}:{clock[4:]}"
+        # The tool writes the date with dots (user-confirmed 2026-10-08).
+        assert start_time == f"{row['formatted_date'].replace('-', '.')} {clock[:2]}:{clock[2:4]}:{clock[4:]}"
     starts = [row["filename"].split("#")[6] for row in rows]
     assert "NA" in starts
     # Within a session the starts differ, which is what tells its measurements apart.

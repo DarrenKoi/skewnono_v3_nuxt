@@ -24,6 +24,7 @@
 | 9차 | 2026-10-07 | 남은 질문 31개(글자로 답하는 양식) | [`to-questionnaire-afm-261007-2.md`](to-questionnaire-afm-261007-2.md) |
 | 10차 | 2026-10-07 | 사무실 확인 목록 31개(변경이 실제 데이터에서 동작하는지) | [사무실 확인 목록](../office-migration/to-office-afm-verify-261007.md) |
 | 11차 | 2026-10-07 | 10차에서 B였던 항목의 세부(스크립트 네 줄) | [사무실 확인 후속](../office-migration/to-office-afm-verify-261007-2.md) |
+| 12차 | 2026-10-08 | Info의 `Start Time`·`End Time`(측정 소요시간 분석의 선행 확인) | 보낸 질문서 없음. [추가 서비스 추천 보고서](service-recommendations.md) 4절의 미확인 항목에 대한 답입니다. |
 
 ## 1차 회신 (2026-10-02) — raw 파일에서 확인한 사실
 
@@ -766,3 +767,53 @@ pytest 최종 상태 (office): 3failed, 81passed - 실패 3건은 test_contract 
 | adapter 호출은 콜드에서도 1초 미만 | redis | 없음 | 상세 5~8초의 원인은 **미해결**(adapter 아님). |
 | `test_contract` profile 3건 실패 | 이 문서 | `test_contract.py` | 완료(사무실 미실행) |
 | 회차가 어떻게 달랐는지 (A) | — | — | **답을 받지 못함** |
+
+## 12차 전달 (2026-10-08) — Start Time·End Time
+
+측정 소요시간 분석을 논의하던 중 사용자가 전한 내용입니다. 질문서를 보내고 받은 회신이
+아니며, 실측 수치가 들어 있으나 누가 언제 돌린 결과인지는 받지 못했으므로
+`user-confirmed`로 기록했습니다.
+
+```text
+For the Duration anaylsis, Start/End Time format is like 2026.10.01 00:13:58. MAP608의 경우 몇몇 건에서 파일명 시각자리가 NA -> 이 경우 Start Time이 그 측정의 유일한 시각 소스, End Time 없음.
+NA 슬롯 세션 (예:#261002#105957# 4건)에서 Start Time이 11:29:56 -> 11:56:00 -> 12:22:06 -> 12:48:12로 측정 마다 순차 증가 - 세션 시각 (파일명 앞 시각)이 아니라 개별 측정 시작 시각이맞음. 자정 넘김 케이스 있음 1건 실측 (22:32:28) -> (00:11:13) 종료.
+주의. data CSV에만 존재 - MAPC01은 현재 data CSV가 없어 Start/End Time 쓸 수 없음 (대안: info CSV Date, 밀리초 포함). _Info.csv에도 없음(두 스키마 모두)
+End Time은 측정 완료 후에만 기록 - 진행 중에는 파일에는 없어서 완료 판정 마커로 쓰는 현재 설계가 맞음.
+KST 추정으로 진행.
+정렬 시 D2 time(세션 시작 시각)으로 정렬하면 세션 측정들이 묶임 - 개별 측정 시각 정렬에는 Start Time 기반 measured_time을 써야함.
+MAP608 측정키 6번째 필드가 NA면 Info Start Time에서 HHMMSS 추출, 나머지 장비는 파일명 time과 통일.
+```
+
+### 어떻게 읽었는지
+
+- `anaylsis`는 `analysis`의 오타로 읽었습니다.
+- "NA 슬롯"은 웨이퍼 슬롯이 아니라 **파일명의 측정 시각 자리가 `NA`**라는 뜻으로 읽었습니다.
+- "End Time 없음"은 두 가지로 읽힙니다. (가) 그 자리가 `NA`인 측정의 Info에 `End Time`이
+  없습니다. (나) 시작 시각을 알려 주는 원천이 `Start Time` 하나뿐이고 `End Time`은 그
+  역할을 하지 못합니다. **어느 쪽인지 정하지 않았고** 스키마 문서에 `OFFICE-VERIFY`로
+  남겼습니다. (가)라면 그 측정들은 소요시간을 계산할 수 없습니다.
+- "data CSV에만 존재"는 `Start Time`·`End Time`이 data CSV의 Info 섹션에만 있다는 뜻으로
+  읽었습니다.
+- "MAPC01은 현재 data CSV가 없어"가 MAPC01에 point 데이터도 없다는 뜻인지는 알 수
+  없습니다. 10차 확인에서 그런 보고가 없었으므로 mock의 MAPC01 point 행은 그대로 두었습니다.
+- 22:32:28 → 00:11:13은 날짜가 함께 기록되므로 98분 45초로 계산했습니다.
+- 마지막 두 줄은 8차 회신(Q55)과 같은 내용이며 바뀌는 것이 없습니다.
+
+### 가정이 틀렸던 곳
+
+| 무엇 | Home의 가정 | 받은 답 | 고친 곳 |
+| --- | --- | --- | --- |
+| `Start Time`·`End Time`의 표기 | `2026-10-01 00:13:58` (`-`) | `2026.10.01 00:13:58` (`.`) | mock |
+| MAPC01의 Info | 8건 중 1건은 15키 | 지금은 `Start Time`·`End Time`을 쓸 수 없습니다. | mock(8건 모두 13키) |
+| 추천 보고서 4.2의 "End Time 형식 미확인" | 여러 형식 후보를 지원 | 한 형식이며 날짜가 함께 있습니다. | 추천 보고서 4절 |
+
+### 반영 현황 (2026-10-08, 12차)
+
+| 받은 답 | 문서 | 구현 | 비고 |
+| --- | --- | --- | --- |
+| 표기 `2026.10.01 00:13:58`, KST | raw D3 Info, redis 2 | mock `_INFO_TIME_FORMAT` | 완료. 화면의 `Date.parse`는 Chrome(V8)에서 이 표기를 같은 시각으로 읽습니다(Node로 확인). 표준이 보장하는 표기는 아니므로 소요시간 파서는 형식을 직접 읽어야 합니다. |
+| data CSV의 Info에만 있음, MAPC01은 현재 없음 | raw D3 Info | mock(MAPC01 13키만) | 완료. info CSV `Date`의 표기는 **받지 못했습니다.** |
+| `End Time`은 완료 후에만 기록 | raw D3 Info | 없음 | ETL의 완료 판정과 같습니다. |
+| 자정 넘김 1건, 세션 내 순차 증가 | raw D2, raw D3 Info | mock(날짜가 붙어 자연히 재현) | 완료. mock의 소요시간 분포(1~30분)는 지어낸 값입니다. |
+| 정렬은 `measured_time` | redis 2 | 없음(화면은 이미 그렇게 정렬) | 8차와 같습니다. |
+| `NA`인 측정의 `End Time` 유무 | raw D3 Info | — | **미확인** |

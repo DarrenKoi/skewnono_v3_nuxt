@@ -134,8 +134,13 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   Last Pick Up Time, Last Put Back Time, Tip Width.
   13키: Port No, Carrier ID, Slot No, Lot ID, Sample ID, Recipe ID, Tip ID,
   Tip Cassette ID, Tip Port No, Tip Slot No, Last Pick Up Time, Last Put Back Time,
-  Tip Width. 13키에는 `Sample Location`·`Start Time` 이 없습니다. 화면은 key 를 정해 두지
+  Tip Width. 13키에는 `Sample Location`·`Start Time`·`End Time` 이 없습니다. 화면은 key 를 정해 두지
   않고 있는 key 만 보여 줍니다(JSON 응답이 key 를 정렬하므로 화면 순서는 A–Z 입니다).
+- `Start Time`·`End Time` 은 `2026.10.01 00:13:58` 꼴입니다(user-confirmed 2026-10-08, KST 로
+  읽습니다). 둘은 **data CSV 의 Info 에만** 있고 `_Info.csv` 에는 두 구성 모두 없습니다.
+  `End Time` 은 측정이 끝난 뒤에만 기록됩니다. 날짜가 함께 있어 자정을 넘긴 측정도 그대로
+  읽습니다(실측 22:32:28 → 00:11:13). MAPC01 은 지금 data CSV 가 없어 둘 다 쓸 수 없으므로
+  mock 의 MAPC01 Info 는 전부 13키입니다.
 - Info 의 값은 비어 있을 수 있습니다 (`Carrier ID`, `Last Pick Up Time`,
   `Last Put Back Time`). 적재본은 빈 문자열이고 계약에서는 null 입니다.
 - Profile 격자는 MAP608 512×64, MAPC01 은 1D(N×1, 1024~16384)와 2D 혼재이고 2D 는
@@ -166,9 +171,14 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   2026-10-07). mock 은 일부를 False 로 냅니다.
 - data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Pick Up Count` …).
 - 5EAP1501 은 15키 위주, MAPC01 은 13키 위주, MAP608 은 혼재라는 것까지가
-  user-confirmed(2026-10-06)입니다. 비율(mock 은 13키를 8건 중 1·7·4건)과 한 파일의
+  user-confirmed(2026-10-06)입니다. 비율(mock 은 13키를 8건 중 1·8·4건)과 한 파일의
   구성을 정하는 것(recipe·시기·파일 종류)은 지어냈습니다.
-- Info 값의 생김새 가운데 `Port No`·`Slot No`·`End Time`·`Data Save Location`·`Tip *` 는
+- 측정에 걸린 시간(`End Time` − `Start Time`)은 지어냈습니다 — mock 은 1~30분이고, 실측은
+  한 세션의 측정 간격 약 26분과 98분 45초 한 건뿐입니다. `Last Pick Up Time`·
+  `Last Put Back Time` 의 표기가 `Start Time` 과 같은 꼴인지도 모릅니다(mock 은 `-` 로 씁니다).
+  MAPC01 에 data CSV 가 없다는 말이 point 데이터도 없다는 뜻인지는 확인하지 못했고, mock 은
+  MAPC01 에 point 행을 그대로 냅니다.
+- Info 값의 생김새 가운데 `Port No`·`Slot No`·`Data Save Location`·`Tip *` 는
   생김새를 지어냈습니다(`Slot No` 는 숫자만, `Tip Width` 는 단위 없는 소수로 두었습니다).
   `Tip *` 는 office 확인(2026-10-06)을 따릅니다: 한 팁이 여러 측정에 같은 `Tip ID` 로
   오고, 같은 `Tip ID` 가 카세트의 여러 슬롯에 있어 팁은 (Tip ID, Tip Cassette ID,
@@ -1167,7 +1177,10 @@ _INFO_KEYS_13 = (
 # How many measurements in 8 carry the 13-key layout: 5EAP1501 is mostly 15-key,
 # MAPC01 mostly 13-key, MAP608 mixed (user-confirmed 2026-10-06). The ratios
 # themselves, and what decides a single file's layout, are OFFICE-VERIFY.
-_INFO_13_IN_8 = {"5EAP1501": 1, "MAPC01": 7, "MAP608": 4}
+_INFO_13_IN_8 = {"5EAP1501": 1, "MAPC01": 8, "MAP608": 4}
+# Info's Start Time / End Time as the tool writes them: `2026.10.01 00:13:58`
+# (user-confirmed 2026-10-08), read as KST.
+_INFO_TIME_FORMAT = "%Y.%m.%d %H:%M:%S"
 
 
 # How long one tip stays mounted. Made up (OFFICE-VERIFY).
@@ -1186,7 +1199,7 @@ _TIP_TYPES = (("MCNT-150", True, 36.5), ("MCNT-500", True, 36.5), ("DT-NCHR_CM",
 
 def _tip_period(row: AfmMeasurementRow) -> tuple[int, float]:
     """Which tip was mounted when `row` started, and for how many minutes."""
-    started = datetime.strptime(_display_start_time(row), "%Y-%m-%d %H:%M:%S")
+    started = datetime.strptime(_display_start_time(row), _INFO_TIME_FORMAT)
     period = started.toordinal() // _TIP_LIFE_DAYS
     since = started - datetime.fromordinal(period * _TIP_LIFE_DAYS)
     return period, since.total_seconds() / 60
@@ -1205,7 +1218,7 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
     slot = int(row["slot_number"])
     # Its own stream, so the tip values do not re-roll the measurement values.
     tip = random.Random(_seed_for("tip", row["tool_name"], row["filename"]))
-    started = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+    started = datetime.strptime(start_time, _INFO_TIME_FORMAT)
     end_time = started + timedelta(seconds=tip.randint(60, 1800))
     # One tip stays on a tool for _TIP_LIFE_DAYS, so the Tip * values are drawn
     # per (tool, period) and consecutive measurements share a tip.
@@ -1246,8 +1259,10 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
             None if rng.random() < 0.3
             else (picked_up - timedelta(minutes=7)).strftime("%Y-%m-%d %H:%M:%S")
         ),
+        # Written only once the measurement has finished, with its own date, so
+        # a run past midnight needs no guessing (seen: 22:32:28 → 00:11:13).
+        "End Time": end_time.strftime(_INFO_TIME_FORMAT),
         # Everything below is a made-up value shape (OFFICE-VERIFY).
-        "End Time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
         # A long path with no spaces (user-confirmed 2026-10-06: it does not fit
         # a 300px column on one line). The folder layout itself is made up.
         "Data Save Location": (
@@ -1276,7 +1291,7 @@ def _display_start_time(row: AfmMeasurementRow) -> str:
     # The measurement's own start; the leading time only where the list has none.
     raw_time = (row["measured_time"] or row["time"]).ljust(6, "0")
     return (
-        f"{row['formatted_date']} "
+        f"{row['formatted_date'].replace('-', '.')} "
         f"{raw_time[:2]}:{raw_time[2:4]}:{raw_time[4:6]}"
     )
 
