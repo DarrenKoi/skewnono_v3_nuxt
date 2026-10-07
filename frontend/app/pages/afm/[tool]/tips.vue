@@ -86,13 +86,12 @@
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-(--sk-border) px-4 py-3">
-          <!-- 전체 칩은 스크롤 밖: recipe가 많아도 범위를 푸는 길은 늘 보인다. -->
           <div
-            class="flex min-w-0 items-start gap-1.5"
+            class="flex items-center gap-1.5"
             role="group"
             aria-label="Recipe"
           >
-            <span class="py-1.5 sk-label">Recipe</span>
+            <span class="sk-label">Recipe</span>
             <SkChip
               size="sm"
               label="전체"
@@ -100,20 +99,24 @@
               :active="recipe === null"
               @click="recipe = null"
             />
-            <div
-              ref="recipeBox"
-              :class="RECIPE_ROWS"
+            <USelectMenu
+              :model-value="recipe ?? undefined"
+              :items="recipeOptions"
+              value-key="value"
+              :search-input="{ placeholder: 'recipe 검색…' }"
+              :placeholder="`recipe 선택 · ${recipeItems.length}종`"
+              :ui="{ content: 'w-auto min-w-(--reka-combobox-trigger-width) max-w-[min(32rem,calc(100vw-2rem))]' }"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-search"
+              class="w-72"
+              @update:model-value="recipe = $event"
             >
-              <SkChip
-                v-for="r in recipeItems"
-                :key="r.recipe"
-                size="sm"
-                :label="r.recipe"
-                :count="r.count"
-                :active="recipe === r.recipe"
-                @click="recipe = r.recipe"
-              />
-            </div>
+              <template #item-trailing="{ item }">
+                <span class="ml-auto pl-3 font-mono text-xs tabular-nums text-(--sk-ink-muted)">{{ item.count }}</span>
+              </template>
+            </USelectMenu>
           </div>
           <div
             class="flex items-center gap-1.5"
@@ -367,23 +370,14 @@ const { data: rows, pending, error } = useAfmDetailApi().useAfmTipRows(toolName)
 const allPoints = computed(() => tipPoints(rows.value ?? []))
 const missing = computed(() => (rows.value?.length ?? 0) - allPoints.value.length)
 const recipeItems = computed(() => tipRecipes(allPoints.value))
+const recipeOptions = computed(() => recipeItems.value.map(r => ({ label: r.recipe, value: r.recipe, count: r.count })))
 
 // The scope everything below is judged in: one recipe's measurements, or all.
 const recipe = ref<string | null>(null)
 const onlyIssues = ref(false)
 
-// Recipe chips show three rows and scroll past that; a tool can carry dozens.
-const RECIPE_ROWS = 'relative flex max-h-[6.75rem] min-w-0 flex-wrap gap-1.5 overflow-y-auto'
-const recipeBox = ref<HTMLElement | null>(null)
-// A recipe picked from the tip card below must not stay hidden above the fold
-// of its own list: the whole page is judged in that scope.
-watch(recipe, async () => {
-  await nextTick()
-  const box = recipeBox.value
-  const chip = box?.querySelector<HTMLElement>('[aria-pressed="true"]')
-  if (!box || !chip) return
-  if (chip.offsetTop < box.scrollTop || chip.offsetTop + chip.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = chip.offsetTop
-})
+// A tip's own recipe chips show three rows and scroll past that.
+const RECIPE_ROWS = 'flex max-h-[6.75rem] min-w-0 flex-wrap gap-1.5 overflow-y-auto'
 
 const points = computed(() =>
   recipe.value === null ? allPoints.value : allPoints.value.filter(p => p.recipe === recipe.value))
