@@ -86,12 +86,13 @@
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-(--sk-border) px-4 py-3">
+          <!-- 전체 칩은 스크롤 밖: recipe가 많아도 범위를 푸는 길은 늘 보인다. -->
           <div
-            class="flex flex-wrap items-center gap-1.5"
+            class="flex min-w-0 items-start gap-1.5"
             role="group"
             aria-label="Recipe"
           >
-            <span class="sk-label">Recipe</span>
+            <span class="py-1.5 sk-label">Recipe</span>
             <SkChip
               size="sm"
               label="전체"
@@ -99,15 +100,20 @@
               :active="recipe === null"
               @click="recipe = null"
             />
-            <SkChip
-              v-for="r in recipeItems"
-              :key="r.recipe"
-              size="sm"
-              :label="r.recipe"
-              :count="r.count"
-              :active="recipe === r.recipe"
-              @click="recipe = r.recipe"
-            />
+            <div
+              ref="recipeBox"
+              :class="RECIPE_ROWS"
+            >
+              <SkChip
+                v-for="r in recipeItems"
+                :key="r.recipe"
+                size="sm"
+                :label="r.recipe"
+                :count="r.count"
+                :active="recipe === r.recipe"
+                @click="recipe = r.recipe"
+              />
+            </div>
           </div>
           <div
             class="flex items-center gap-1.5"
@@ -229,18 +235,20 @@
               >
                 <b>{{ reason.head }}</b> {{ reason.rest }}
               </p>
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="sk-label">이 팁으로 잰 recipe</span>
-                <SkChip
-                  v-for="r in picked.recipes"
-                  :key="r.recipe"
-                  size="sm"
-                  :label="r.recipe"
-                  :count="r.count"
-                  :active="recipe === r.recipe"
-                  @click="recipe = recipe === r.recipe ? null : r.recipe"
-                />
-                <span class="sk-meta">누르면 그 recipe의 측정만으로 다시 판정합니다</span>
+              <div class="flex items-start gap-1.5">
+                <span class="shrink-0 py-1.5 sk-label">이 팁으로 잰 recipe</span>
+                <div :class="RECIPE_ROWS">
+                  <SkChip
+                    v-for="r in picked.recipes"
+                    :key="r.recipe"
+                    size="sm"
+                    :label="r.recipe"
+                    :count="r.count"
+                    :active="recipe === r.recipe"
+                    @click="recipe = recipe === r.recipe ? null : r.recipe"
+                  />
+                  <span class="self-center sk-meta">누르면 그 recipe의 측정만으로 다시 판정합니다</span>
+                </div>
               </div>
             </div>
           </AfmCard>
@@ -363,6 +371,20 @@ const recipeItems = computed(() => tipRecipes(allPoints.value))
 // The scope everything below is judged in: one recipe's measurements, or all.
 const recipe = ref<string | null>(null)
 const onlyIssues = ref(false)
+
+// Recipe chips show three rows and scroll past that; a tool can carry dozens.
+const RECIPE_ROWS = 'relative flex max-h-[6.75rem] min-w-0 flex-wrap gap-1.5 overflow-y-auto'
+const recipeBox = ref<HTMLElement | null>(null)
+// A recipe picked from the tip card below must not stay hidden above the fold
+// of its own list: the whole page is judged in that scope.
+watch(recipe, async () => {
+  await nextTick()
+  const box = recipeBox.value
+  const chip = box?.querySelector<HTMLElement>('[aria-pressed="true"]')
+  if (!box || !chip) return
+  if (chip.offsetTop < box.scrollTop || chip.offsetTop + chip.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = chip.offsetTop
+})
+
 const points = computed(() =>
   recipe.value === null ? allPoints.value : allPoints.value.filter(p => p.recipe === recipe.value))
 
