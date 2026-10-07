@@ -28,6 +28,8 @@ const props = defineProps<{
   marks?: number[]
   // Limits to shade between, [lower, upper] (팁 모니터링). The axis grows to hold them.
   band?: [number, number]
+  // The zoomed x window, [from, to]. Absent = the data's own extent.
+  range?: [number, number]
   selected: string | null
   exportName: string
 }>()
@@ -48,7 +50,14 @@ const chartOption = computed<EChartsOption>(() => ({
       return `${shortTime(value[0])}<br/>${props.label}: ${value[1] === null ? '–' : props.kind === 'bar' ? value[1] : fmt2(value[1])}`
     }
   },
-  xAxis: { type: 'time', axisLabel: { ...CHART_AXIS_LABEL, formatter: '{MM}/{dd}', hideOverlap: true }, splitLine: { show: false } },
+  xAxis: {
+    type: 'time',
+    min: props.range?.[0],
+    max: props.range?.[1],
+    // Zoomed inside two days, a date alone repeats on every tick.
+    axisLabel: { ...CHART_AXIS_LABEL, formatter: props.range && props.range[1] - props.range[0] < 2 * 86_400_000 ? '{MM}/{dd} {HH}:{mm}' : '{MM}/{dd}', hideOverlap: true },
+    splitLine: { show: false }
+  },
   yAxis: {
     type: 'value',
     scale: props.kind === 'line',

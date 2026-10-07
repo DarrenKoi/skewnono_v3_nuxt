@@ -11,16 +11,45 @@
         v-for="c in charts"
         :key="c.label"
         v-bind="c"
+        :range="range"
         :selected="selected"
         :export-name="`${exportName}-${c.slug}`"
         @select="emit('select', $event)"
+      />
+    </div>
+    <div
+      v-if="extent"
+      class="mt-4 flex items-center gap-3 border-t border-(--sk-border-soft) pt-3"
+    >
+      <span class="sk-label whitespace-nowrap">구간</span>
+      <span class="sk-value-num whitespace-nowrap text-(--sk-ink-muted)">{{ shortTime(shown[0]) }}</span>
+      <USlider
+        v-model="zoom"
+        :min="0"
+        :max="100"
+        :step="1"
+        :min-steps-between-thumbs="1"
+        size="sm"
+        color="neutral"
+        aria-label="차트 4개의 시간 구간"
+        class="flex-1"
+      />
+      <span class="sk-value-num whitespace-nowrap text-(--sk-ink-muted)">{{ shortTime(shown[1]) }}</span>
+      <UButton
+        size="xs"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-rotate-ccw"
+        label="전체"
+        :disabled="!range"
+        @click="zoom = [0, 100]"
       />
     </div>
   </AfmCard>
 </template>
 
 <script setup lang="ts">
-import { tipChanges, type HealthPoint } from '~/utils/afmTrend'
+import { shortTime, tipChanges, type HealthPoint } from '~/utils/afmTrend'
 import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
 
 const props = defineProps<{
@@ -34,8 +63,31 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ select: [key: string] }>()
 
+// One window for all four charts, as % of the strip's own time span.
+const zoom = ref([0, 100])
+// Null when there is no span to zoom into (no measurement, or a single time).
+const extent = computed(() => {
+  const times = props.health.map(h => h.time)
+  const [from, to] = [Math.min(...times), Math.max(...times)]
+  return to > from ? [from, to] as const : null
+})
+// Keyed on the span, not on `health`: 팁 모니터링 hands in a fresh array on every
+// render, and a click on a point must not throw the window away.
+watch(() => extent.value?.join(), () => {
+  zoom.value = [0, 100]
+})
+const shown = computed<[number, number]>(() => {
+  const [from, to] = extent.value ?? [0, 0]
+  return [from + (to - from) * zoom.value[0]! / 100, from + (to - from) * zoom.value[1]! / 100]
+})
+const range = computed(() => zoom.value[0]! > 0 || zoom.value[1]! < 100 ? shown.value : undefined)
+// Only the window's points reach a chart, so its y axis fits what is on screen.
+const visible = computed(() => range.value
+  ? props.health.filter(h => h.time >= range.value![0] && h.time <= range.value![1])
+  : props.health)
+
 const series = (pick: (h: HealthPoint) => number | null) =>
-  props.health.map(h => ({ key: h.key, time: h.time, value: pick(h) }))
+  visible.value.map(h => ({ key: h.key, time: h.time, value: pick(h) }))
 
 const charts = computed(() => {
   const approaches = props.health.flatMap(h => h.approach ?? [])
