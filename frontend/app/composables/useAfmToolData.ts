@@ -10,8 +10,8 @@ export interface AfmFabConfig {
 
 export const useAfmToolData = () => {
   const fabs: AfmFabConfig[] = [
-    // Mirrors backend/afm/providers/mock.py TOOL_CONFIGS. MAPC01=R3 and 5EAP1501=M15
-    // are office-confirmed (2026-10-02); MAP608's fab is still OFFICE-VERIFY.
+    // Mirrors backend/afm/providers/mock.py TOOL_CONFIGS. MAP608=PKG, MAPC01=R3 and
+    // 5EAP1501=M15 are user-confirmed (2026-10-07); nothing the office loads names a fab.
     {
       fab: 'PKG',
       tools: [

@@ -55,15 +55,16 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
   - `id` 는 **대문자 그대로**입니다(장비명과 같습니다).
   - `fab` 은 **빈 문자열**입니다. 언제 채워질지는 회신에 없습니다.
   - `alias` 는 **fab 이 아니라 추출 파이프라인이 장비에 붙인 코드명**입니다. fab 인지는
-    원본에 근거가 없습니다 [확인 9차]. MAP608 의 fab 도 미정입니다.
-    adapter 는 `fab` 이 비어 있으면 여전히 `alias` 를 fab 자리에 내지만, 화면은 그 값을
-    쓰지 않습니다(아래 ⚠). **세 장비의 fab 은 AFM 담당자에게 확인해야 합니다.**
+    원본에 근거가 없습니다 [확인 9차].
+  - **fab 은 적재물 어디에도 없으므로 고정 표로 붙입니다** [user-confirmed 2026-10-07]:
+    MAP608 = PKG, MAPC01 = R3, 5EAP1501 = M15. adapter 는 `fab` 이 비어 있으면 이 표에서
+    채우고 `alias` 는 읽지 않습니다.
 
   웹 계약 `AfmToolRow` 로는 id→id(소문자로 — 화면의 장비 주소가 소문자입니다),
-  name→name·label, fab(없으면 alias)→fab 으로 옮깁니다.
+  name→name·label, fab(없으면 위의 표)→fab 으로 옮깁니다.
 
   ⚠ 화면의 장비 목록은 frontend 에 고정된 표(useAfmToolData.ts)를 쓰고
-    `/api/afm/tools` 를 부르지 않습니다. 그 표는 MAP608 을 `PKG`(추정)로 묶습니다.
+    `/api/afm/tools` 를 부르지 않습니다. 그 표도 같은 대응입니다.
 
 
 2. afm_d2_measurements — 측정 이력
@@ -432,7 +433,8 @@ mock 반영 (backend/afm/providers/mock.py)
     - `Mileage` 의 증가 속도(분당 240)와 팁 하나가 4일 유지된다는 것, MCNT 가 아닌
       종류의 폭(70, OMCL-AC160TS 는 7)은 지어냈습니다. `Last Put Back Time` 이 Pick Up
       7분 전이라는 것도 지어냈습니다.
-    - 장비 목록의 MAP608 에 `PKG`(추정)를 냅니다. 실제는 fab 도 alias 도 비어 있습니다.
+    - 장비 목록에 fab 을 채워 냅니다(MAP608 = PKG 등). 적재물의 `fab` 은 빈 문자열이고
+      adapter 가 같은 표로 채웁니다.
     - 이미지는 webp 가 아니라 자리 표시 SVG 입니다.
     - null 인 `slot_number` 와 `Sample Location` 의 `Stage` 를 내지 않습니다. Site 의
       범위는 -3~2 입니다(실측 X -11~5, Y -7~4). 측정 한 건의 이미지는 수십 장까지입니다

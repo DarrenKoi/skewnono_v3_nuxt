@@ -9,8 +9,9 @@ tip columns, ``measured_time`` and ``point_count`` office 확인 2026-10-07).
 Redis — two hashes, every value a ``DataFrame.to_parquet()`` blob:
 
 * ``afm_d1_tools``, field ``all`` — the tool list: ``id, name, fab, alias``.
-  ``fab`` is an empty string for now and ``alias`` carries the fab name
-  (``R3``, ``M15``; null for MAP608).
+  ``fab`` is an empty string and ``alias`` is the pipeline's code name for the
+  tool (``R3``, ``M15``; null for MAP608), so the fab is a fixed table here:
+  MAP608=PKG, MAPC01=R3, 5EAP1501=M15 (user-confirmed 2026-10-07).
 * ``afm_d2_measurements``, field = tool name (``MAP608``, ``MAPC01``,
   ``5EAP1501``) — that tool's whole measurement history as ONE DataFrame. There
   is no per-row key and no TTL; the loader rewrites a tool's field wholesale,
@@ -48,8 +49,6 @@ What the contract gets is not what the stores hold, in three places:
 Still assumptions (OFFICE-VERIFY) — run this file once and compare:
   - how a FALSE ``Valid`` is spelled (none has been seen); ``true`` / ``false``
     in any case are read, anything else is ``None``;
-  - that ``alias`` stands in for the fab: it is the pipeline's code name for
-    the tool, and nothing at the office says it is a fab (office 확인 2026-10-07);
 
 Standalone check, from the repo root (reads only):
 
@@ -83,6 +82,8 @@ _INFORMATION, _SUMMARY, _POINTS = (
     "detail_summary.parquet",
     "detail_points.parquet",
 )
+# user-confirmed 2026-10-07. Nothing the office loads says which fab a tool is in.
+_FAB_OF = {"MAP608": "PKG", "MAPC01": "R3", "5EAP1501": "M15"}
 _GONE_CODES = {"NoSuchKey", "NoSuchObject", "NotFound"}
 _INTEGER_COLUMNS = ("Point No", "Site X", "Site Y")
 # `Left_H (nm)`, `X (um)`: a column that names its unit holds a number.
@@ -283,9 +284,9 @@ def get_tools() -> list[dict[str, str]]:
             "id": _text(record.get("id")).lower(),
             "name": _text(record.get("name")),
             "label": _text(record.get("name")),
-            # `fab` is an empty string for now and `alias` holds R3 / M15 (null
-            # for MAP608). OFFICE-VERIFY that alias is meant as the fab.
-            "fab": _text(record.get("fab")) or _text(record.get("alias")),
+            # The frame's `fab` is an empty string and `alias` is the pipeline's
+            # code name for the tool, so the fab comes from the table above.
+            "fab": _text(record.get("fab")) or _FAB_OF.get(_text(record.get("id")).upper(), ""),
         }
         for record in _rows_of(_TOOLS_KEY, _TOOLS_FIELD)
     ]

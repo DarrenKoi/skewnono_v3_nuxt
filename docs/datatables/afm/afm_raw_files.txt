@@ -37,13 +37,13 @@ docs/afm/office-data-findings.md 끝에 있습니다.
 D1 장비 목록
 
   장비 ID   fab    근거
-  MAP608    PKG    [가정] 사무실 답은 "미정"입니다. docs/afm/tool_info.txt 의 추정일 뿐입니다.
-  MAPC01    R3     [확인] 코드로 확인
-  5EAP1501  M15    [확인] 코드로 확인
+  MAP608    PKG    [user-confirmed 2026-10-07]
+  MAPC01    R3     [user-confirmed 2026-10-07]
+  5EAP1501  M15    [user-confirmed 2026-10-07]
 
-  ⚠ [정정, 확인 9차] `R3`·`M15` 는 **추출 파이프라인이 장비에 붙인 코드명**이고, fab
-    이라는 근거는 원본에 없습니다. 위의 "코드로 확인"은 그 코드명을 본 것입니다. 세 장비의
-    fab 은 AFM 담당자에게 확인해야 합니다. 화면은 지금 이 표대로 묶습니다.
+  ⚠ 사무실 쪽 근거는 없습니다. 4차 회신의 "코드로 확인 MAPC01=R3, 5EAP1501=M15"는 추출
+    파이프라인이 장비에 붙인 코드명을 본 것이고, 그것이 fab 이라는 근거는 원본에 없다고
+    9차 회신이 정정했습니다. 위 대응은 사용자가 직접 확인해 준 것입니다.
 
   ⚠ raw 데이터 어디에도 fab 필드가 없습니다 [확인]. fab 은 장비 ID 에서 대응표로
     붙여야 하고, 그 대응표가 어디에 실릴지는 미정입니다.
@@ -106,7 +106,8 @@ D2 측정 식별자 — 파일명
     - 그 밖에 실측된 recipe 명: BSOXCMP_CORRELATION_36PT, RL1A_LPCCMP_CMPWEAK2,
       RX1A_M0A_COT_X_PDG, VED_BS_TOP01, RL1C_L1_XDEC_5MM_LINE(MAPC01),
       VM_GTFILLOX_5PT_R1(5EAP1501).
-    - **시간대는 미정**입니다. 장비 현지 시각이며 KST 로 추정합니다 [가정].
+    - **시간대는 KST 로 보고 진행합니다** [user-confirmed 2026-10-07: 추정으로 진행].
+      원본에는 시간대 정보가 없어 사무실에서는 확인할 수 없습니다(9차 회신).
     - MAP608 의 SAMPLE_ID 형태, 재측정 시 MAP608·5EAP1501 의 파일명이 겹치는지는
       회신에 없습니다 [가정].
 

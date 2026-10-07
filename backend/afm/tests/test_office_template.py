@@ -144,10 +144,10 @@ def _row(key):
     return next(row for row in office.list_afm_files("5eap1501") if row["unique_key"] == key)
 
 
-def test_tools_take_the_fab_from_alias_and_a_lower_case_slug():
+def test_tools_take_the_fab_from_the_confirmed_table_and_a_lower_case_slug():
     tools = office.get_tools()
     assert tools == [
-        {"id": "map608", "name": "MAP608", "label": "MAP608", "fab": ""},
+        {"id": "map608", "name": "MAP608", "label": "MAP608", "fab": "PKG"},
         {"id": "5eap1501", "name": "5EAP1501", "label": "5EAP1501", "fab": "M15"},
     ]
     for tool in tools:

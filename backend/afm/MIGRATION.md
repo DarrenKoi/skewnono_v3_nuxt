@@ -43,10 +43,10 @@ runs the same code at home against a fake hash and a fake object store.
 
 - Mock behavior: returns one row per configured tool
   (`MAP608`, `MAPC01`, `5EAP1501`), each with a lowercase `id`, the tool name
-  as both `name` and `label`, and the tool's fab. `MAPC01`=R3 and
-  `5EAP1501`=M15 are office-confirmed (2026-10-02); `MAP608`=PKG is still
-  `OFFICE-VERIFY`. The raw files carry no fab field, so the mapping has to
-  come from a table keyed on the tool id.
+  as both `name` and `label`, and the tool's fab. `MAP608`=PKG, `MAPC01`=R3 and
+  `5EAP1501`=M15 are user-confirmed (2026-10-07). Neither the raw files nor
+  the loaded frames carry a fab (`alias` is only the pipeline's code name), so
+  the mapping is a table keyed on the tool id in both adapters.
 - Office data source: Redis hash `afm_d1_tools`, field `all` — columns
   `id, name, fab, alias`. `id` is stored upper-case and returned lower-case (the
   page's tool slug). `fab` is an empty string for now and `alias` holds `R3` /

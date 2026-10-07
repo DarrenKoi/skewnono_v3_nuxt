@@ -80,7 +80,9 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - align·tip·capture 의 원본은 각자의 목록에 있고 TIFF 가 아닙니다 — align 은 `.bmp`, tip
   과 capture 는 `.png` (office 확인 2026-10-07, 8차). mock 도 webp 옆에 냅니다.
 - Redis `afm_d1_tools` 는 `fab` 이 빈 문자열이고 `alias` 가 MAP608=null·MAPC01=R3·
-  5EAP1501=M15 입니다. mock 은 MAP608 에 `PKG`(추정)를 냅니다.
+  5EAP1501=M15 입니다(`alias` 는 파이프라인의 장비 코드명이고 fab 이라는 근거는 없습니다 —
+  office 확인 2026-10-07). fab 은 MAP608=PKG, MAPC01=R3, 5EAP1501=M15 입니다
+  (user-confirmed 2026-10-07). mock 은 그 fab 을 채워 냅니다.
 - 이름·값을 지어낸 곳 (OFFICE-VERIFY): repeat recipe 의 이름(`RQQA_REPEAT_4SITE`)과 크기
   (4 Site × 1 point — 실측은 4 × 14), MAPC01 의 profile·이미지 이름에서 5번째 필드에
   들어가는 값(mock 은 lot), align·capture 이름에서 번호·위치 키 앞부분.
@@ -142,7 +144,6 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   솎아서 보냅니다. provider 는 파일 전체를 돌려줍니다.
 
 지어냈거나 일부러 다른 것 (OFFICE-VERIFY):
-- MAP608 의 fab `PKG` — 사무실 답은 "미정"입니다(raw 에 fab 필드가 없음).
 - recipe 명 가운데 실측된 것은 `BSOXCMP_CORRELATION_36PT`·`RL1A_LPCCMP_CMPWEAK2`·
   `RX1A_M0A_COT_X_PDG`·`VED_BS_TOP01`·`RL1C_L1_XDEC_5MM_LINE`·`VM_GTFILLOX_5PT_R1`·
   `Fi-Tapping TEST`·`RQQA_PFH_MONF (1)`·`xy scanner opm`·`zeroscan 5point pm` 이고 나머지는
@@ -200,7 +201,8 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - Summary 는 그 block 의 행에서 계산합니다. STDEV 는 표본 표준편차(ddof=1)이고 Valid 는
   거르지 않습니다.
 - "method 명 줄만 있는 빈 Summary" 는 행 목록으로는 "Summary 없음"과 구분되지 않아 같은 모양으로 냅니다.
-- 시각의 시간대는 미정입니다(장비 현지 시각, KST 로 추정).
+- 시각의 시간대는 KST 로 보고 진행합니다(user-confirmed 2026-10-07; 원본에는 시간대
+  정보가 없습니다).
 - 목록은 **오늘 날짜에서 끝납니다**(KST 기준). 하루가 지나면 하루치가 새로 생기고
   가장 오래된 하루치가 빠지며, 이미 있던 파일의 이름·lot·내용은 바뀌지 않습니다. 오늘
   측정의 시각은 고정이라 조회 시각보다 뒤일 수 있습니다.
