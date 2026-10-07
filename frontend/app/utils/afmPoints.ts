@@ -101,8 +101,13 @@ export const imagePoint = (name: string, points: string[]): string => {
   const stem = name.replace(/\.\w+$/, '').replace(/_C_PR$/, '_PR')
   const end = stem.lastIndexOf('_')
   if (end < 0) return ''
-  const head = stem.slice(0, end)
-  return points
-    .filter(point => head.endsWith(`_${point}`))
-    .sort((a, b) => b.length - a.length)[0] ?? ''
+  // A capture image has no kind: its name ends with the position key itself
+  // (office 확인 2026-10-07, 9차), so the whole stem is tried after the head.
+  for (const head of [stem.slice(0, end), stem]) {
+    const hit = points
+      .filter(point => head.endsWith(`_${point}`))
+      .sort((a, b) => b.length - a.length)[0]
+    if (hit) return hit
+  }
+  return ''
 }

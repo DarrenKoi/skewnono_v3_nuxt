@@ -48,10 +48,8 @@ What the contract gets is not what the stores hold, in three places:
 Still assumptions (OFFICE-VERIFY) — run this file once and compare:
   - how a FALSE ``Valid`` is spelled (none has been seen); ``true`` / ``false``
     in any case are read, anything else is ``None``;
-  - that an original carries its webp's name with its own extension (the
-    extensions are confirmed, the pairing is not);
-  - that ``alias`` is the tool's fab;
-  - that the Summary's values are text like the points'.
+  - that ``alias`` stands in for the fab: it is the pipeline's code name for
+    the tool, and nothing at the office says it is a fab (office 확인 2026-10-07);
 
 Standalone check, from the repo root (reads only):
 
@@ -252,7 +250,7 @@ def _is_original(name: str) -> bool:
 
 def _original_key(record: dict[str, Any], name: str) -> str | None:
     # The Result list holds the originals beside their webp conversions.
-    # OFFICE-VERIFY: paired by name — the webp's own, with a TIFF extension.
+    # Paired by name: the webp's own, with the original's extension (office 확인 2026-10-07).
     if _is_original(name):
         return None
     stem = name.rsplit(".", 1)[0]
@@ -339,6 +337,7 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         "tip_port_no": _text(record.get("tip_port_no")) or None,
         "tip_slot_no": _text(record.get("tip_slot_no")) or None,
         "tip_width": _number(record.get("tip_width")),
+        "last_pick_up_time": _text(record.get("last_pick_up_time")) or None,
         "approach_count_mean": _number(record.get("approach_count_mean")),
         "mileage_mean": _number(record.get("mileage_mean")),
         "not_completed_count": _count(record.get("not_completed_count")),

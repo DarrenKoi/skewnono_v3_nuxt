@@ -62,7 +62,9 @@ def test_5eap1501_name_ends_with_the_original_file_name():
     suffixes = set()
     for row in _rows("5EAP1501"):
         _, _, _, recipe, sample, lot, _, tail = row["filename"].split("#")
-        assert sample == f"{row['lot_id']}.{row['slot_number']}"
+        # The name keeps two digits; the column has no leading zero (9차).
+        assert sample == f"{row['lot_id']}.{int(row['slot_number']):02d}"
+        assert row["slot_number"] == str(int(row["slot_number"]))
         original = recipe + lot + sample
         assert tail.startswith(original) and tail.endswith(".csv"), tail
         suffixes.add(tail[len(original):-len(".csv")])
@@ -445,7 +447,8 @@ def test_originals_sit_in_the_result_list_and_derived_names_end_with_the_positio
         assert row["measured_info"] == ""
         info = detail["information"]
         slot = int(row["slot_number"])
-        assert info.get("Sample Location", f"Slot {info.get('Slot No')}") == f"Slot {slot}"
+        # 9차: `Port 1 Slot 10` on the 15-key Info; the 13-key one has `Slot No`.
+        assert info.get("Sample Location", f"Port 1 Slot {info.get('Slot No')}") == f"Port 1 Slot {slot}"
 
 
 def test_profile_z_is_missing_for_some_samples():
@@ -553,16 +556,45 @@ def test_pick_up_and_put_back_belong_to_the_tip():
 
 
 def test_each_image_list_holds_its_originals_in_the_tools_own_format():
-    # 8차: align .bmp, tip and capture .png, Result .tiff — beside the webps.
-    formats = {"align": ".bmp", "tip": ".png", "capture": ".png"}
+    # 8차·9차: align .bmp, capture .png, tip .png (_C_PR) and .bmp (C_Result),
+    # Result .tiff — each the webp's own name with another extension.
+    formats = {"align": (".bmp",), "tip": (".png", ".bmp"), "capture": (".png",)}
     for tool in TOOLS:
         for row in _rows(tool):
-            for kind, extension in formats.items():
+            for kind, extensions in formats.items():
                 names = row[f"{kind}_dir_list"]
                 webps = [name for name in names if name.endswith(".webp")]
-                assert len(names) == 2 * len(webps)
-                assert all(name.endswith((".webp", extension)) for name in names)
+                originals = [name for name in names if not name.endswith(".webp")]
+                assert all(name.endswith(extensions) for name in originals)
+                assert sorted(n.rsplit(".", 1)[0] for n in originals) == sorted(n.rsplit(".", 1)[0] for n in webps)
                 assert [image["name"] for image in mock.list_analysis_images(row["filename"], kind, tool)] == webps
+            if row["tip_dir_list"]:
+                assert any(name.endswith("_C_Result.bmp") for name in row["tip_dir_list"])
+
+
+def test_capture_is_per_point_and_align_is_a_few_per_measurement():
+    # 9차: a capture name ends with the position key itself; an align name is
+    # numbered (1_Result … 4_Result) and carries no position.
+    counts = set()
+    for tool in TOOLS:
+        for row in _rows(tool):
+            points = mock.get_afm_file_detail(row["filename"], tool)["available_points"]
+            captures = [n for n in row["capture_dir_list"] if n.endswith(".webp")]
+            assert all(
+                name.removesuffix(".webp").endswith(f"_{point}")
+                for name, point in zip(captures, points, strict=True)
+            )
+            aligns = [n for n in row["align_dir_list"] if n.endswith(".webp")]
+            if aligns:
+                counts.add(len(aligns))
+                assert all(n.endswith(f"_{i}_Result.webp") for i, n in enumerate(aligns, 1))
+    assert counts == {1, 2, 3, 4}
+
+
+def test_the_list_carries_the_tips_pick_up_time():
+    # 9차: `last_pick_up_time` is in the frame — Info's value as it is.
+    for _tool, row, detail in _all_details():
+        assert row["last_pick_up_time"] == detail["information"]["Last Pick Up Time"]
 
 
 def test_5eap1501_has_a_tip_type_that_records_almost_no_width():

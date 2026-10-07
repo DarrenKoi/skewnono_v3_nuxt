@@ -100,6 +100,10 @@ test('imagePoint: read at the end of the name, longest key wins', () => {
   assert.equal(imagePoint(`${stem}_0003_C_PR.webp`, ['0001', '0003']), '0003')
   assert.equal(imagePoint(`${stem}_0002_X-001_Y000_0001_C_PR.webp`, ['0001', '0002_X-001_Y000_0001']), '0002_X-001_Y000_0001')
   assert.equal(imagePoint(`${stem}_C_Result.webp`, ['0001', '0003']), '')
+  // A capture image ends with the position key; an align image has none.
+  assert.equal(imagePoint(`${stem}_0003.webp`, ['0001', '0003']), '0003')
+  assert.equal(imagePoint(`${stem}_0002_X-001_Y000_0001.webp`, ['0001', '0002_X-001_Y000_0001']), '0002_X-001_Y000_0001')
+  assert.equal(imagePoint(`${stem}_1_Result.webp`, ['0001', '0003']), '')
   assert.equal(imagePoint(`${stem}_overview.webp`, ['0001']), '')
   // A lookalike token earlier in the name (here in the recipe) claims nothing.
   assert.equal(imagePoint('#x#ETCH_0001_TRIM#_overview.webp', ['0001']), '')

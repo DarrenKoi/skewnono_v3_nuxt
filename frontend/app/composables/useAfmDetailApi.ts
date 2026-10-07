@@ -26,6 +26,8 @@ export interface AfmFileRow {
   tip_port_no?: string | null
   tip_slot_no?: string | null
   tip_width?: number | null
+  // Info's `Last Pick Up Time`: the same on every measurement one tip makes.
+  last_pick_up_time?: string | null
   approach_count_mean?: number | null
   mileage_mean?: number | null
   not_completed_count?: number | null

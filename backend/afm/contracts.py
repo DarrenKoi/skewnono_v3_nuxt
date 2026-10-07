@@ -62,6 +62,9 @@ class AfmMeasurementRow(TypedDict):
     tip_port_no: str | None
     tip_slot_no: str | None
     tip_width: float | None
+    # Info's `Last Pick Up Time` as it is: a value of the tip, the same on
+    # every measurement it makes, so a new one means the tip was picked anew.
+    last_pick_up_time: str | None
     approach_count_mean: float | None
     mileage_mean: float | None
     not_completed_count: int | None

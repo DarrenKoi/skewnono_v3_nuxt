@@ -51,6 +51,7 @@ FULL = _measurement(
     raw_dir_list=[f"{FOLDER}/{NAME}.csv"],
     # The tip columns the loader writes: Info text as it is, the width float64.
     tip_id="MCNT-150", tip_cassette_id="TC12", tip_port_no="1", tip_slot_no="7",
+    last_pick_up_time="2026-10-01 01:33:39",
     tip_width=41.2, approach_count_mean=1.5, mileage_mean=40.25, measured_time="070432",
     not_completed_count=2.0, invalid_count=0.0,
 )
@@ -183,6 +184,7 @@ def test_tip_columns_are_typed_and_none_until_the_loader_writes_them():
     )
     assert all(bare[name] is None for name in tip_columns)
     assert (full["measured_time"], bare["measured_time"]) == ("070432", None)
+    assert (full["last_pick_up_time"], bare["last_pick_up_time"]) == ("2026-10-01 01:33:39", None)
     # A width that was not recorded is stored as the text 'NaN'.
     assert office._number("NaN") is None and office._number(float("nan")) is None
 

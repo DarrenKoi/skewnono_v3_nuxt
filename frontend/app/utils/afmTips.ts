@@ -23,6 +23,8 @@ export interface TipPoint extends Record<TipParam, number | null> {
   type: string
   // The one physical tip: the ID and where it sits (cassette/port/slot).
   tip: string
+  // When that tip was last picked up; a new value in the same seat is a new tip.
+  pickUp: string | null
 }
 
 // The measurements that name their tip, oldest first.
@@ -38,6 +40,7 @@ export const tipPoints = (rows: AfmFileRow[]): TipPoint[] =>
       lot: row.lot_id ?? '',
       type,
       tip: `${type} · ${seat.join('/')}`,
+      pickUp: (row.last_pick_up_time ?? '').trim() || null,
       tipWidth: row.tip_width ?? null,
       approach: row.approach_count_mean ?? null,
       mileage: row.mileage_mean ?? null,

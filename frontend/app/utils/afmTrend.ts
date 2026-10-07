@@ -347,7 +347,7 @@ export interface HealthPoint {
   tipWidth: number | null
   // Info's `Last Pick Up Time`: a value of the tip, the same on every
   // measurement it makes, so a new one is a re-pick. Absent where the source
-  // has no Info (the measurement list).
+  // does not carry it.
   pickUp?: string | null
 }
 

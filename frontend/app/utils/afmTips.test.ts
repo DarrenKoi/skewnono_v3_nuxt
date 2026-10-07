@@ -2,7 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmFileRow } from '~/composables/useAfmDetailApi'
-import { mountedTip, tipCategories, tipPoints, tipRecipes, widthIsPerTip } from './afmTips.ts'
+import { mountedTip, tipCategories, tipHealth, tipPoints, tipRecipes, widthIsPerTip } from './afmTips.ts'
+import { tipChanges } from './afmTrend.ts'
 
 const row = (n: number, extra: Partial<AfmFileRow> = {}): AfmFileRow => ({
   filename: `f${n}`,
@@ -115,4 +116,13 @@ test('a type that records almost no width gets no width limits and no flags', ()
   assert.deepEqual([width.n, width.limits, width.outliers], [2, null, 0])
   assert.equal(omcl!.tips[0]!.widthLimits, null)
   assert.equal(omcl!.tips[0]!.state, 'ok')
+})
+
+test('the list alone shows a new tip in the same seat: Mileage falls and the pick-up is new', () => {
+  const pick = ['2026-10-01 01:33:39', '2026-10-01 01:33:39', '2026-10-03 09:10:00', '2026-10-03 09:10:00']
+  const health = tipHealth(tipPoints([900, 950, 12, 40].map((mileage_mean, i) =>
+    row(i + 1, { mileage_mean, last_pick_up_time: pick[i]! }))))
+  assert.deepEqual(tipChanges(health), [health[2]!.time])
+  // Where the list has no pick-up time, a fall alone marks nothing.
+  assert.deepEqual(tipChanges(health.map(h => ({ ...h, pickUp: null }))), [])
 })

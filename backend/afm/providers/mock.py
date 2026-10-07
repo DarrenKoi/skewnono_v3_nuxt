@@ -36,6 +36,13 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   2026-10-07). 행 수도 recipe 의 수도 아니어서 repeat recipe 는 위치 수만 셉니다.
 - MAPC01 의 `lot_id` 는 Info 의 `Lot ID` 로 채워져 있습니다.
 - `slot_number` 는 Info `Sample Location` 의 `Slot N` 에서 옵니다(실제 웨이퍼 슬롯).
+  앞에 0 이 없는 숫자 문자열입니다(`5`, `10`, `21` — office 확인 2026-10-07, 9차).
+  office 에는 null 인 행도 있지만 mock 은 내지 않습니다.
+- `last_pick_up_time` 은 Info 의 `Last Pick Up Time` 그대로입니다(9차에 추가된 열).
+- 9차 회신(office 확인 2026-10-07)으로 맞춘 이미지 이름: align 은 측정마다 1~4장이고
+  `N_Result.webp`(위치 키 없음), capture 는 point 마다 한 장이고 위치 키로 끝나며
+  (`…_0001.webp`), 원본은 webp 와 이름이 같고 확장자만 다릅니다(`C_Result` 는 `.bmp`).
+  `Sample Location` 은 `Port 1 Slot N` 꼴입니다(MAP608 의 `Stage` 는 내지 않습니다).
 - 객체 이름: 상세는 `detail_information.parquet`·`detail_summary.parquet`·
   `detail_points.parquet`, profile 은 `profile_<원본이름>.parquet`, 이미지는
   `<파일명>.webp` 입니다. **data CSV 가 없는 측정은 `data_dir_list` 에 information 하나만**
@@ -71,14 +78,12 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   그래서 첫 point 에서 중단되어 파일이 없는 측정(`point_count` null)과 도중에 중단되어
   `point_count` 가 recipe 보다 작은 측정(실측 2·3·5·8·14·43·55)도 mock 에는 없습니다.
 - align·tip·capture 의 원본은 각자의 목록에 있고 TIFF 가 아닙니다 — align 은 `.bmp`, tip
-  과 capture 는 `.png` (office 확인 2026-10-07, 8차). mock 도 webp 옆에 냅니다. 원본의
-  이름이 webp 와 같고 확장자만 다르다는 것은 OFFICE-VERIFY 입니다.
+  과 capture 는 `.png` (office 확인 2026-10-07, 8차). mock 도 webp 옆에 냅니다.
 - Redis `afm_d1_tools` 는 `fab` 이 빈 문자열이고 `alias` 가 MAP608=null·MAPC01=R3·
   5EAP1501=M15 입니다. mock 은 MAP608 에 `PKG`(추정)를 냅니다.
 - 이름·값을 지어낸 곳 (OFFICE-VERIFY): repeat recipe 의 이름(`RQQA_REPEAT_4SITE`)과 크기
   (4 Site × 1 point — 실측은 4 × 14), MAPC01 의 profile·이미지 이름에서 5번째 필드에
-  들어가는 값(mock 은 lot), 원본과 webp 의 짝(mock 은 같은 이름), `Sample Location` 값의
-  나머지 모양(mock 은 `Slot N` 만).
+  들어가는 값(mock 은 lot), align·capture 이름에서 번호·위치 키 앞부분.
 - `Sample Count` 는 한 측정 안에서 같은 값이고(1~47) repeat recipe 만 바퀴마다 1 커집니다.
   Site ID 유무와는 무관합니다(office 확인 2026-10-07, 8차).
 
@@ -506,6 +511,7 @@ def _tip_columns(row: AfmMeasurementRow) -> dict[str, Any]:
         "tip_port_no": info["Tip Port No"],
         "tip_slot_no": info["Tip Slot No"],
         "tip_width": None if math.isnan(width) else width,
+        "last_pick_up_time": info["Last Pick Up Time"],
         "approach_count_mean": mean("Approach Count"),
         "mileage_mean": mean("Mileage"),
         "not_completed_count": (
@@ -935,7 +941,9 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             "formatted_date": timestamp.strftime("%Y-%m-%d"),
             "recipe_name": recipe_name,
             "lot_id": lot_id,
-            "slot_number": slot_number,
+            # No leading zero in the column ('5', '10', '21'); the file name
+            # keeps its two digits.
+            "slot_number": str(int(slot_number)),
             "time": time_code,
             # When this measurement started (office 확인 2026-10-07, 8차): equal
             # to `time` on MAPC01 / 5EAP1501. On MAP608 it is the name's trailing
@@ -973,19 +981,21 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
             # format: align .bmp, tip and capture .png (office 확인 2026-10-07, 8차).
             "align_dir_list": _file_list(
                 has_align,
-                _with_original([f"{file_stem}_{keys[0]}_alignment.webp"], "bmp")
+                # One to four per measurement, numbered, with no position key.
+                _with_original(
+                    [f"{file_stem}_{n}_Result.webp" for n in range(1, index % 4 + 2)], "bmp"
+                )
             ),
             # Two series: a `_C_PR` per point, and one `C_Result` for the
             # measurement (office 확인 2026-10-07). The position key sits right
             # before `_C_PR` on every recipe, with or without a Site ID.
             "tip_dir_list": _file_list(
                 has_tip,
-                _with_original(
-                    [f"{file_stem}_{key}_C_PR.webp" for key in keys] + [f"{file_stem}_C_Result.webp"],
-                    "png",
-                )
+                _with_original([f"{file_stem}_{key}_C_PR.webp" for key in keys], "png")
+                + _with_original([f"{file_stem}_C_Result.webp"], "bmp")
             ),
-            "capture_dir_list": _with_original([f"{file_stem}_{keys[0]}_capture.webp"], "png"),
+            # One per point, and the name ends with the position key itself.
+            "capture_dir_list": _with_original([f"{file_stem}_{key}.webp" for key in keys], "png"),
             "has_profile": has_profile,
             "has_data": has_data,
             "has_image": has_image,
@@ -1041,7 +1051,7 @@ def _baseline(row: AfmMeasurementRow, column: str, method_index: int) -> float:
     measured_at = datetime.strptime(row["date"] + row["time"], "%y%m%d%H%M%S")
     days = (measured_at.replace(tzinfo=timezone.utc) - BASE_TIME).total_seconds() / 86400
     sample_rng = random.Random(
-        _seed_for("sample", row["tool_name"], row["lot_id"], row["slot_number"])
+        _seed_for("sample", row["tool_name"], row["lot_id"], f"{int(row['slot_number']):02d}")
     )
     return (
         level + method_offset + drift_per_day * days
@@ -1201,9 +1211,9 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
         "Recipe ID": row["recipe_name"],
         # An empty Info value is null in the contract.
         "Carrier ID": None if rng.random() < 0.2 else f"CAR{rng.randint(100, 999)}",
-        "Sample ID": f"{row['lot_id']}.{row['slot_number']}",
+        "Sample ID": f"{row['lot_id']}.{slot:02d}",
         # The wafer's real slot; the list's slot_number is read from here.
-        "Sample Location": f"Slot {slot}",
+        "Sample Location": f"Port 1 Slot {slot}",
         "Start Time": start_time,
         # Both belong to the tip, not the measurement: every measurement a tip
         # makes carries the same pair, and a new pick-up time is a re-pick
@@ -1221,7 +1231,7 @@ def _information(row: AfmMeasurementRow, rng: random.Random) -> dict[str, str | 
             f"D:\\AFM_DATA\\{row['tool_name']}\\Automation\\Result"
             f"\\{start_time[:4]}\\{start_time[5:7]}\\{start_time[8:10]}"
             f"\\{row['recipe_name']}\\{row['lot_id']}"
-            f"\\{row['lot_id']}.{row['slot_number']}_{start_time[11:].replace(':', '')}"
+            f"\\{row['lot_id']}.{slot:02d}_{start_time[11:].replace(':', '')}"
         ),
         "Port No": str(tip.randint(1, 4)),
         "Slot No": str(slot),
@@ -1271,7 +1281,7 @@ def _is_original(name: str) -> bool:
 
 
 def _with_original(webps: list[str], extension: str) -> list[str]:
-    # OFFICE-VERIFY the pairing: the webp's own name with the original's extension.
+    # An original is its webp's name with its own extension (office 확인 2026-10-07, 9차).
     return webps + [f"{name.rsplit('.', 1)[0]}.{extension}" for name in webps]
 
 
