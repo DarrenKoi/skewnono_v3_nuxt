@@ -282,7 +282,11 @@ def afm_images_zip(filename: str):
 def _image(body: str | bytes) -> Response:
     # The mock draws a placeholder SVG (str); the office hands over the stored
     # webp conversion as it is (bytes).
-    return Response(body, mimetype="image/svg+xml" if isinstance(body, str) else "image/webp")
+    if isinstance(body, str):
+        return Response(body, mimetype="image/svg+xml")
+    # A stored webp never changes, and fetching one costs a MinIO read: let the
+    # browser keep it, so reopening a tab or the popup does not fetch 133 again.
+    return Response(body, mimetype="image/webp", headers={"Cache-Control": "private, max-age=3600"})
 
 
 def _attachment(data: bytes, content_type: str, name: str) -> Response:

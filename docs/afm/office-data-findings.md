@@ -22,6 +22,7 @@
 | 7차 | 2026-10-07 | Q32·Q35·Q43~Q46·Q48·Q49·Q51·Q53, 팁 열 추가 구현 | 같은 문서, [팁 열 추가 요청](../office-migration/to-office-afm-tip-columns.md) |
 | 8차 | 2026-10-07 | Q55·Q56·Q46·Q54·Q35·Q53, Mileage 판단, 팁 열의 나머지 | [`to-questionnaire-afm-261007.md`](to-questionnaire-afm-261007.md) |
 | 9차 | 2026-10-07 | 남은 질문 31개(글자로 답하는 양식) | [`to-questionnaire-afm-261007-2.md`](to-questionnaire-afm-261007-2.md) |
+| 10차 | 2026-10-07 | 사무실 확인 목록 31개(변경이 실제 데이터에서 동작하는지) | [사무실 확인 목록](../office-migration/to-office-afm-verify-261007.md) |
 
 ## 1차 회신 (2026-10-02) — raw 파일에서 확인한 사실
 
@@ -556,3 +557,146 @@ msr_image 처럼 afm도 이미지 다수에 대한 제한을 없애야함.  원�
 | AFM 화면의 요청을 5초 50회 제한에서 뺍니다. | 측정 한 건의 webp 최대 133장(9차 30번) | `backend/__init__.py`의 `_EXEMPT_BLUEPRINTS`에 `afm` |
 | align·tip·capture에도 원본 다운로드를 둡니다. | 원본은 webp와 이름이 같고 확장자만 다름(9차 7번), 각자의 목록에 있음(8차 Q35) | provider `get_tiff_original`이 모든 이미지 목록에서 원본을 찾고, 목록의 모든 이미지가 `original_url`을 가집니다. `tiff.zip?type=`으로 종류별 전체도 받습니다. |
 | 반복 측정을 회차로 나누어 표에 보입니다. | 한 바퀴 돈 뒤 다시 돎(7차 Q43), `Sample Count`가 바퀴마다 1 증가(8차 Q54) | 화면 `tagLaps`(`utils/afmPoints.ts`) — 측정 포인트 표의 `회차` 열·필터·Excel |
+
+## 10차 회신 (2026-10-07) — 사무실 확인 결과
+
+[사무실 확인 목록](../office-migration/to-office-afm-verify-261007.md)에 대한 답입니다. 그
+양식은 A가 "적힌 기대 결과 그대로", B가 "다름", `?`가 "확인하지 못함"입니다. 사무실에서
+adapter를 다시 복사하고 실제 Redis·MinIO로 본 결과이므로 `office 확인`으로 기록했습니다.
+회신은 "간추린 답"이라 B의 세부는 7번에만 있습니다.
+
+```text
+0 A
+1 A
+2 A
+3 A
+4 A
+5 B
+6 A
+7 B
+8 A
+9 A
+10 A
+11 B
+12 B
+13 A
+14 A
+15 A
+16 A
+17 B
+18 A
+19 A
+20 A
+21 A
+22 A
+23 A
+24 A
+25 A
+26 A
+27 A
+28 A
+29 -
+30 A
+
+7번 실패 목록:
+office provider 기준
+test_capture_dir_list_populated_for_every_row (capture 없는 측정 존재)
+test_get_anlysis_image_svg_valid_for_all_types ( svg 아니라 webp)
+test_serve_route_returns_svg (동일)
+test_profile_sampling...file_size (total key 없음)
+
+느린 곳 : 상세 본문 5~8초, Result 탭 lazy 로드 느림.
+이상 값 : MAP608 NT-DT50-NCHR Tip Width -105.21(음수) - tips 화면에서 발견.
+```
+
+### 번호별로 풀어 쓴 답
+
+| 번호 | 확인한 것 | 받은 답 |
+| --- | --- | --- |
+| 0 | `main` 받기, `office.py` 다시 복사, 재빌드, `STALE` 경고 없음 | 그대로 |
+| 1 | 데이터 스크립트가 오류 없이 끝까지 실행됨 | 그대로 |
+| 2 | `measured_time`은 값이 있으면 6자리 숫자 | 그대로 |
+| 3 | MAP608만 `measured_time`이 `time`과 다른 행이 있음 | 그대로 |
+| 4 | `last_pick_up_time`에 날짜·시각 값이 나옴 | 그대로 |
+| 5 | `slot_number`가 0으로 시작하는 행이 없음 | **다름** — 0으로 시작하는 값이 있습니다(장비와 값은 받지 못함). |
+| 6 | fab이 MAP608 = PKG, MAPC01 = R3, 5EAP1501 = M15 | 그대로 |
+| 7 | `pytest backend/afm`이 실패 없이 끝남 | **다름** — 4건 실패(아래). |
+| 8 | provider가 `office` | 그대로 |
+| 9 | 목록 응답에 `measured_time`·`last_pick_up_time` key가 있음 | 그대로 |
+| 10 | 목록에서 한 세션의 측정들이 서로 다른 시각으로 보임 | 그대로 |
+| 11 | 목록의 SLOT이 앞에 0 없이 보이고 없는 행은 빈 칸 | **다름** — 세부는 받지 못했습니다(5번과 같은 원인으로 보입니다). |
+| 12 | 반복 측정의 표에 `회차` 열이 있고 1회차 다음에 2회차가 나옴 | **다름** — 세부는 받지 못했습니다. |
+| 13 | `회차` 필터로 2회차만 남길 수 있음 | 그대로 |
+| 14 | 반복이 없는 측정에는 `회차` 열이 없음 | 그대로 |
+| 15 | 상세의 SLOT이 세 장비 모두 채워짐 | 그대로 |
+| 16 | 네 이미지 탭이 모두 그려짐 | 그대로 |
+| 17 | Capture 타일에 포인트 이름이 보이고 누르면 그 포인트가 선택됨 | **다름** — 파일명이 그대로 보입니다. |
+| 18 | Tip 탭이 포인트마다 한 장과 `C_Result` 한 장 | 그대로 |
+| 19 | 탭마다 "원본 전체" zip에 맞는 확장자가 들어 있음 | 그대로 |
+| 20 | 팝업의 "원본 다운로드"로 받은 `.bmp`·`.png`가 열림 | 그대로 |
+| 21 | 이미지가 많은 측정을 스크롤해도 429가 없음 | 그대로 |
+| 22 | 5EAP1501의 Result 탭에 "원본 전체"가 나옴 | 나옵니다 — **5EAP1501 원본 재적재가 끝났습니다.** |
+| 23 | 세 장비의 팁 모니터링이 종류별 목록으로 나옴 | 그대로 |
+| 24 | MCNT는 "관리선은 팁마다", 그 밖은 범위 표시 | 그대로 |
+| 25 | `OMCL-AC160TS`가 오류 없이 나옴 | 그대로 |
+| 26 | 한 팁 안에서 Mileage가 커지기만 함 | 그대로 |
+| 27 | 가동 현황의 시간대가 측정 시각대로 퍼짐 | 그대로 |
+| 28 | Mileage가 톱니 모양이고 떨어지는 자리에 세로선이 있음 | 그대로 |
+| 29 | (28이 다를 때만) | 해당 없음 |
+| 30 | console 오류 없음 | 그대로 |
+
+옮기면서 이렇게 읽었습니다.
+
+- 13번이 A이므로 12번의 B는 "`회차` 열이 없다"가 아니라 값이나 순서가 기대와 다르다는
+  뜻으로 보입니다(추정). 세부를 다시 물었습니다.
+- 5번은 9차 회신의 "`5`, `10`, `21` — 앞에 0이 없음"과 어긋납니다. 장비마다 다른 것으로
+  보이지만(추정) 어느 쪽인지 받지 못해 다시 물었습니다. 화면은 받은 값을 그대로 보여 주므로
+  틀린 값이 나가지는 않습니다.
+- 17번은 9차 회신의 "capture는 `…_0001.webp`"대로라면 포인트를 읽어야 합니다. 실제 이름과
+  포인트 이름이 어긋나는 것이므로 둘을 한 쌍 받아야 고칠 수 있습니다.
+- `test_get_anlysis…`는 `test_get_analysis…`의 오타로 보았습니다.
+
+### 실패한 테스트 4건
+
+네 건 모두 **코드가 아니라 테스트의 결함**입니다. `data.py`와 routes를 거치는 테스트가 mock의
+사실을 단정하고 있어, 사무실에서 dispatcher가 office adapter로 바뀌면 실패합니다.
+
+| 테스트 | 단정하던 것 | 사무실에서 |
+| --- | --- | --- |
+| `test_capture_dir_list_populated_for_every_row` | 모든 측정에 capture가 있음 | capture가 없는 측정이 있습니다. |
+| `test_get_analysis_image_svg_valid_for_all_types` | 이미지가 SVG 문자열임 | 저장된 webp(bytes)입니다. |
+| `test_serve_route_returns_svg` | 응답이 `image/svg+xml`임 | `image/webp`입니다. |
+| `test_the_route_thins_a_dense_scan_and_reports_the_file_size` | mock의 파일 이름으로 profile을 찾음 | 그 이름의 측정이 없어 404이고 `total`이 없습니다. |
+
+고친 방법: 세 테스트 파일을 mock으로 고정했습니다(`backend/afm/tests/conftest.py`의
+`mock_provider`). 사무실 adapter의 동작은 `test_contract.py`와 `test_office_template.py`가
+따로 봅니다.
+
+새로 알게 된 사실도 하나 있습니다 — **capture 이미지가 없는 측정이 있습니다.** mock은 모든
+측정에 capture를 냅니다(OFFICE-VERIFY였던 것).
+
+### 덧붙여 받은 것
+
+| 받은 것 | 조치 |
+| --- | --- |
+| 측정 상세 본문이 5~8초 걸림 | 원인을 모릅니다(adapter는 측정 한 건에 MinIO 객체 셋을 차례로 읽습니다). 구간별 시간을 재는 스크립트를 보냈습니다. |
+| Result 탭의 이미지가 느리게 뜸 | 이미지 한 장마다 MinIO를 읽기 때문입니다. 저장된 webp에 `Cache-Control: private, max-age=3600`을 붙여 다시 열 때는 받지 않게 했습니다. 처음 여는 속도는 그대로입니다. |
+| MAP608 `NT-DT50-NCHR`의 `Tip Width`가 -105.21 | 새 `Tip ID` 이름을 기록했습니다. 음수가 실패 표지인지 실제 값인지 물었습니다. 화면은 지금 값 그대로 보여 주고, 종류의 관리선 밖이므로 "밖"으로 짚습니다. |
+
+### 반영 현황 (2026-10-07, 10차)
+
+| 받은 답 | 문서 | 구현 | 비고 |
+| --- | --- | --- | --- |
+| 26개 항목이 기대대로 동작 | 이 문서 | 없음 | adapter가 사무실에서 실제로 실행되었습니다. |
+| 5EAP1501 Result 원본 재적재 완료 (22번) | redis 2 | 없음 | 기록만 |
+| 테스트 4건이 사무실에서 실패 (7번) | 이 문서 | `backend/afm/tests/conftest.py`, 세 테스트 파일 | 완료 |
+| capture가 없는 측정이 있음 (7번) | redis 2 | 없음 | 기록만. mock은 모든 측정에 capture를 냅니다. |
+| Result 탭이 느림 | 이 문서 | `routes.py`의 `_image` 캐시 header | **부분** — 처음 여는 속도는 그대로입니다. |
+| 상세 본문 5~8초 | 이 문서 | 없음 | **미해결** — 측정값을 기다립니다. |
+| `slot_number`에 0으로 시작하는 값 (5·11번) | redis 2 | 없음 | **미해결** — 9차와 어긋납니다. |
+| 반복 측정의 회차가 기대와 다름 (12번) | 이 문서 | 없음 | **미해결** — 세부를 기다립니다. |
+| Capture 타일에 포인트 이름이 안 붙음 (17번) | 이 문서 | 없음 | **미해결** — 실제 이름을 기다립니다. |
+| `Tip Width` 음수, 새 Tip ID `NT-DT50-NCHR` | redis 2, raw D3 | 없음 | 기록만. 뜻을 물었습니다. |
+
+후속 질문은 [사무실 확인 후속](../office-migration/to-office-afm-verify-261007-2.md)에
+있습니다.

@@ -9,9 +9,11 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
       [확인 7차] = office 확인 2026-10-07 (7차 회신),
       [확인 8차] = office 확인 2026-10-07 (8차 회신, 전부 실측 기반),
       [확인 9차] = office 확인 2026-10-07 (9차 회신),
+      [확인 10차] = office 확인 2026-10-07 (10차 — 사무실에서 adapter 를 실제로 돌려 본 결과),
       [가정] = OFFICE-VERIFY.
 회신 원문은 docs/afm/office-data-findings.md, 남은 질문은 docs/afm/to-questionnaire-afm.md 에
-있습니다. adapter 자체는 아직 사무실에서 실행해 보지 않았습니다.
+있습니다. adapter 는 2026-10-07 에 사무실에서 실제 Redis·MinIO 로 실행되었고, 확인 목록
+31개 가운데 26개가 기대대로였습니다(10차 회신). 남은 것은 아래 "10차에서 어긋난 곳"입니다.
 
 
 공통 규칙 [명세]
@@ -174,6 +176,9 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
   (시계열 비교의 세로선)은 팁 값이 달라진 자리, 또는 팁 값은 같은데 Mileage 평균이
   줄고 Pick Up 이 바뀐 자리에 긋습니다. 목록에 `last_pick_up_time` 이 생겨 팁 모니터링도
   같은 규칙을 씁니다 [확인 9차].
+  ⚠ `tip_width` 에 **음수**가 있습니다 — MAP608 `NT-DT50-NCHR` 에서 -105.21 [확인 10차].
+  측정 실패의 표지인지 실제 기록값인지는 모릅니다 [가정: 값 그대로 보여 주고, 종류의
+  관리선 밖이므로 "밖"으로 짚습니다]. `NT-DT50-NCHR` 은 새로 알게 된 Tip ID 입니다.
   현장에서 팁을 바꾸는 기준 숫자(Mileage·Approach Count 한계 등)는 **없습니다**
   [확인 9차]. 통계 관리선이 유일한 기준입니다.
 
@@ -205,8 +210,8 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
     없는 측정(MAPC01 의 info 만 있는 측정)도 `detail_information.parquet` **하나**를
     갖습니다. adapter 는 `detail_points.parquet` 이 목록에 있을 때만 `has_data` 를 켭니다.
   ⚠ 원본 TIFF 는 `tiff_dir_list` 에 webp 와 함께 들어 있습니다 [확인]. 확장자는
-    **`.tiff`** 입니다 [확인 7차]. **5EAP1501 은 현재 원본이 0개**이지만 초기 적재에서
-    빠진 것이고(mirror 에 원본 206개), 다시 적재될 예정입니다 [확인 7차]. 화면의 이미지
+    **`.tiff`** 입니다 [확인 7차]. 5EAP1501 은 초기 적재에서 원본이 빠져 있었으나
+    (mirror 에 206개) **재적재가 끝나 원본이 있습니다** [확인 10차]. 화면의 이미지
     목록에는 webp 만 올리고, TIFF 는 다운로드로만 제공합니다. 원본은 webp 와 이름이
     같고 확장자만 다릅니다 [확인 9차].
   ⚠ **align·tip·capture 의 원본도 각자의 목록에 들어 있고, TIFF 가 아닙니다** — align 은
@@ -379,6 +384,19 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
   남은 [가정]: 3개월치가 쌓였을 때 장비 하나의 DataFrame 크기.
 
 
+10차에서 어긋난 곳 [확인 10차] — 세부를 다시 물은 상태입니다
+
+  - `slot_number` 에 **0 으로 시작하는 값이 있습니다.** 9차 회신("앞에 0 이 없음")과
+    어긋납니다. 어느 장비의 어떤 값인지는 받지 못했습니다. 화면은 받은 값을 그대로 냅니다.
+  - **capture 이미지가 없는 측정이 있습니다.** mock 은 모든 측정에 capture 를 냅니다.
+  - capture 타일에 포인트 이름이 붙지 않습니다 — 실제 capture 이름이 "위치 키로 끝난다"
+    (9차)와 다른 모양이거나, 위치 키가 points 의 그것과 다릅니다. 실제 이름을 받아야
+    고칩니다.
+  - 반복 측정의 `회차` 가 기대(1회차 행들 다음 2회차 행들)와 다르게 보였습니다. 세부를
+    받지 못했습니다.
+  - 측정 상세 본문이 5~8초 걸립니다. 원인은 모릅니다.
+
+
 웹 계약에 반영된 것 (backend/afm)
 
   - `AfmMeasurementRow` 의 `formatted_date`·`time`·`measured_time` 은 `str | None`,
@@ -405,7 +423,7 @@ mock 반영 (backend/afm/providers/mock.py)
   [명세]·[확인] 가운데 mock 이 재현하는 것: 빈 리스트로 표현하는 "파일 없음",
   `unique_key` 의 필드 구성, `filename` 이 data CSV 라는 것(없으면 info CSV), 항상 빈
   `measured_info`, info 만 있는 측정의 `data_dir_list`(information 하나), `tiff_dir_list`
-  안의 원본 TIFF(5EAP1501 은 0개), `filename` 으로 시작하지 않는 MAPC01 의 profile·이미지
+  안의 원본 TIFF, `filename` 으로 시작하지 않는 MAPC01 의 profile·이미지
   이름, data 행의 `Site`, 한 block 안에서 point 가 되풀이되는 repeat recipe, 중단된
   block 에 없는 행과 비어 있는 칸, Info 의 `Sample Location`, Info 의 13키·15키 두 구성과
   null 인 빈 값.

@@ -39,6 +39,9 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   앞에 0 이 없는 숫자 문자열입니다(`5`, `10`, `21` — office 확인 2026-10-07, 9차).
   office 에는 null 인 행도 있지만 mock 은 내지 않습니다.
 - `last_pick_up_time` 은 Info 의 `Last Pick Up Time` 그대로입니다(9차에 추가된 열).
+- 10차(office 확인 2026-10-07, 사무실 실행)에서 알게 되었지만 mock 이 아직 내지 않는 것:
+  capture 이미지가 없는 측정, 음수 `Tip Width`(MAP608 `NT-DT50-NCHR` -105.21), 0 으로
+  시작하는 `slot_number`. 뒤의 둘은 어느 경우인지 다시 물은 상태입니다.
 - 9차 회신(office 확인 2026-10-07)으로 맞춘 이미지 이름: align 은 측정마다 1~4장이고
   `N_Result.webp`(위치 키 없음), capture 는 point 마다 한 장이고 위치 키로 끝나며
   (`…_0001.webp`), 원본은 webp 와 이름이 같고 확장자만 다릅니다(`C_Result` 는 `.bmp`).
@@ -48,7 +51,7 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   `<파일명>.webp` 입니다. **data CSV 가 없는 측정은 `data_dir_list` 에 information 하나만**
   들어 있으므로, `has_data` 는 목록이 비었는지가 아니라 points 객체가 있는지입니다.
 - **원본 TIFF 는 `tiff_dir_list` 에 webp 와 함께** 들어 있고 확장자는 `.tiff` 입니다.
-  5EAP1501 은 현재 0개입니다(초기 적재 누락, 재적재 예정 — office 확인 2026-10-07).
+  5EAP1501 은 초기 적재에서 빠져 있다가 재적재되었습니다(office 확인 2026-10-07, 10차).
 - tip 이미지는 두 계열입니다 — point 마다 `_C_PR`, 측정마다 `C_Result` 한 장(office 확인
   2026-10-07).
 - MAPC01 의 profile·이미지 이름은 `filename` 으로 **시작하지 않습니다**(5·6번째 필드가
@@ -980,10 +983,10 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
                 + (profile_txts if has_profile else [])
             ),
             # Each Result webp, then the original TIFFs it was converted from —
-            # the same list holds both. 5EAP1501 has no originals so far.
+            # the same list holds both (5EAP1501's were reloaded 2026-10-07).
             "tiff_dir_list": _file_list(
                 has_image,
-                webps + ([] if tool_name == "5EAP1501" else [_original_name(n) for n in webps])
+                webps + [_original_name(n) for n in webps]
             ),
             # Each kind's originals sit in its own list, in the tool's own
             # format: align .bmp, tip and capture .png (office 확인 2026-10-07, 8차).

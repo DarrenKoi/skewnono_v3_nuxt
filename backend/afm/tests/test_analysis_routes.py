@@ -9,6 +9,8 @@ from backend.afm import data
 from backend.afm.providers import mock
 from backend.afm.routes import bp
 
+pytestmark = pytest.mark.usefixtures("mock_provider")
+
 
 @pytest.fixture
 def client():
@@ -183,3 +185,14 @@ def test_tiff_zip_holds_every_original_of_the_measurement(client):
 
 def test_tiff_zip_404s_for_an_unknown_measurement(client):
     assert client.get("/api/afm/files/no-such-file/tiff.zip").status_code == 404
+
+
+def test_a_stored_webp_is_cacheable_and_a_mock_svg_is_not(client, monkeypatch):
+    from backend.afm import routes
+
+    row, names = _capture_row()
+    url = f"/api/afm/files/{quote(row['filename'], safe='')}/images/capture/{quote(names[0], safe='')}?tool={row['tool_name']}"
+    assert "Cache-Control" not in client.get(url).headers
+    monkeypatch.setattr(routes, "get_analysis_image_svg", lambda *args: b"RIFF....WEBP")
+    stored = client.get(url)
+    assert stored.mimetype == "image/webp" and stored.headers["Cache-Control"] == "private, max-age=3600"

@@ -10,7 +10,7 @@
 - Normalize every result to the shapes in `contracts.py` before returning.
 - Definition of done: the Verify command at the bottom is green.
 
-## Status — template follows the office's own answers, not yet run there (2026-10-06)
+## Status — run at the office 2026-10-07; 26 of 31 checks as expected
 
 `providers/office_example.py` is a full adapter over the loaded shape in
 [`docs/datatables/afm/afm_redis.txt`](../../docs/datatables/afm/afm_redis.txt):

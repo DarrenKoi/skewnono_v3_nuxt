@@ -1,4 +1,8 @@
+import pytest
+
 from backend.afm.profile_sampling import thin_profile
+
+pytestmark = pytest.mark.usefixtures("mock_provider")
 
 
 def _grid(nx, ny):

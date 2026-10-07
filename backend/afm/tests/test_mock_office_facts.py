@@ -438,8 +438,8 @@ def test_originals_sit_in_the_result_list_and_derived_names_end_with_the_positio
             webps = [name for name in names if name.endswith(".webp")]
             originals = [name for name in names if name.endswith(".tiff")]
             assert len(webps) + len(originals) == len(names)
-            # 5EAP1501 has no originals so far; elsewhere each webp has one.
-            assert len(originals) == (0 if tool == "5EAP1501" else len(webps))
+            # Each webp has one — 5EAP1501's too, since its reload (10차).
+            assert len(originals) == len(webps)
             stem = row["filename"].removesuffix(".csv").removesuffix("_Info")
             # A MAPC01 profile or image does not start with the list name.
             assert all(name.startswith(stem) for name in webps) == (tool != "MAPC01" or not webps)

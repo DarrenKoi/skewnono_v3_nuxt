@@ -1,7 +1,11 @@
-"""Analysis-image gallery data-layer tests (active provider via data.py)."""
+"""Analysis-image gallery data-layer tests, through data.py pinned to the mock."""
+
+import pytest
 
 from backend.afm import data
 from backend.afm.providers import mock
+
+pytestmark = pytest.mark.usefixtures("mock_provider")
 
 
 def _row_with(image_type):
