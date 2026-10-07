@@ -379,7 +379,10 @@ def test_info_values_can_be_empty_and_empty_is_null():
 
 def test_info_has_one_of_the_two_key_layouts():
     layouts = {tuple(detail["information"]) for _, _, detail in _all_details()}
-    assert layouts == {mock._INFO_KEYS_13, mock._INFO_KEYS_15}
+    # A MAP608 measurement can lack End Time altogether (user-confirmed 2026-10-08).
+    no_end = tuple(key for key in mock._INFO_KEYS_15 if key != "End Time")
+    assert layouts == {mock._INFO_KEYS_13, mock._INFO_KEYS_15, no_end}
+    assert {tool for tool, _, detail in _all_details() if tuple(detail["information"]) == no_end} == {"MAP608"}
     # 5EAP1501 is mostly 15-key, MAPC01 mostly 13-key, MAP608 a mix.
     sizes = Counter((tool, len(detail["information"])) for tool, _, detail in _all_details())
     assert sizes["5EAP1501", 15] > sizes["5EAP1501", 13]

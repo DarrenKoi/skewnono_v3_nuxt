@@ -788,10 +788,22 @@ MAP608 측정키 6번째 필드가 NA면 Info Start Time에서 HHMMSS 추출, �
 
 - `anaylsis`는 `analysis`의 오타로 읽었습니다.
 - "NA 슬롯"은 웨이퍼 슬롯이 아니라 **파일명의 측정 시각 자리가 `NA`**라는 뜻으로 읽었습니다.
-- "End Time 없음"은 두 가지로 읽힙니다. (가) 그 자리가 `NA`인 측정의 Info에 `End Time`이
-  없습니다. (나) 시작 시각을 알려 주는 원천이 `Start Time` 하나뿐이고 `End Time`은 그
-  역할을 하지 못합니다. **어느 쪽인지 정하지 않았고** 스키마 문서에 `OFFICE-VERIFY`로
-  남겼습니다. (가)라면 그 측정들은 소요시간을 계산할 수 없습니다.
+- "End Time 없음"은 두 가지로 읽혀 사용자에게 되물었고, 같은 날 답을 받았습니다.
+
+  ```text
+  1. no End Time at all for some cases for MAP608. In that case, we do not analyze. (note that the End Time is mssing in the front-end)
+  ```
+
+  MAP608의 일부 측정에는 `End Time`이 아예 없습니다. 그런 측정은 소요시간을 분석하지
+  않고, 화면에 `End Time`이 없다는 것을 표시합니다. `mssing`은 `missing`의 오타로
+  읽었습니다. 어느 측정이 해당하는지는 받지 못했습니다.
+- MAPC01의 대안(info CSV `Date`)을 쓸지에 대해서도 같은 날 답을 받았습니다.
+
+  ```text
+  MAPC01 -> skip analysis too
+  ```
+
+  MAPC01은 소요시간을 분석하지 않습니다. `Date`로 대신 계산하는 길은 만들지 않습니다.
 - "data CSV에만 존재"는 `Start Time`·`End Time`이 data CSV의 Info 섹션에만 있다는 뜻으로
   읽었습니다.
 - "MAPC01은 현재 data CSV가 없어"가 MAPC01에 point 데이터도 없다는 뜻인지는 알 수
@@ -812,8 +824,8 @@ MAP608 측정키 6번째 필드가 NA면 Info Start Time에서 HHMMSS 추출, �
 | 받은 답 | 문서 | 구현 | 비고 |
 | --- | --- | --- | --- |
 | 표기 `2026.10.01 00:13:58`, KST | raw D3 Info, redis 2 | mock `_INFO_TIME_FORMAT` | 완료. 화면의 `Date.parse`는 Chrome(V8)에서 이 표기를 같은 시각으로 읽습니다(Node로 확인). 표준이 보장하는 표기는 아니므로 소요시간 파서는 형식을 직접 읽어야 합니다. |
-| data CSV의 Info에만 있음, MAPC01은 현재 없음 | raw D3 Info | mock(MAPC01 13키만) | 완료. info CSV `Date`의 표기는 **받지 못했습니다.** |
+| data CSV의 Info에만 있음, MAPC01은 현재 없음 | raw D3 Info | mock(MAPC01 13키만) | 완료. MAPC01은 분석하지 않기로 했으므로 info CSV `Date`는 쓰지 않습니다. |
 | `End Time`은 완료 후에만 기록 | raw D3 Info | 없음 | ETL의 완료 판정과 같습니다. |
 | 자정 넘김 1건, 세션 내 순차 증가 | raw D2, raw D3 Info | mock(날짜가 붙어 자연히 재현) | 완료. mock의 소요시간 분포(1~30분)는 지어낸 값입니다. |
 | 정렬은 `measured_time` | redis 2 | 없음(화면은 이미 그렇게 정렬) | 8차와 같습니다. |
-| `NA`인 측정의 `End Time` 유무 | raw D3 Info | — | **미확인** |
+| MAP608 일부 측정에 `End Time` 없음, 분석하지 않고 화면에 밝힘 | raw D3 Info | mock(시각 자리가 `NA`인 측정에서 key를 뺌) | 완료. 어느 측정인지와 key가 빠지는 방식은 **가정**입니다. 화면 표시는 소요시간 분석을 만들 때 함께 넣습니다. |
