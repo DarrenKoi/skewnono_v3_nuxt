@@ -139,3 +139,11 @@ test('an MCNT tip with too few widths and nothing else to judge is held, not cal
   assert.deepEqual([by.get('MCNT-150 · TC10/1/3')!.state, by.get('MCNT-150 · TC10/1/9')!.state], ['ok', 'hold'])
   assert.equal(by.get('MCNT-150 · TC10/1/9')!.widthLimits, null)
 })
+
+test('a limit never goes below zero: nothing these values measure can', () => {
+  // A type whose widths are spread wide enough that median - 3σ is negative.
+  const [type] = tipCategories(tipPoints([5, 60, 120, 30, 90, 150, 10].map((tip_width, i) => row(i + 1, { tip_width }))))
+  const width = type!.stats.find(s => s.param === 'tipWidth')!.limits!
+  assert.equal(width.lcl, 0)
+  assert.ok(width.ucl > 150)
+})

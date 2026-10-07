@@ -110,7 +110,9 @@ export interface TipCategory {
 const tipLimits = (values: number[]): ControlLimits => {
   const mu = median(values)
   const sigma = robustSd(values)
-  return { mu, sigma, ucl: mu + 3 * sigma, lcl: mu - 3 * sigma }
+  // A width, a count and a mean of counts cannot go below zero, so neither
+  // does the band: a wide spread would otherwise print "-105.21 – 190".
+  return { mu, sigma, ucl: mu + 3 * sigma, lcl: Math.max(0, mu - 3 * sigma) }
 }
 
 // MCNT widths run 33.96–39.11 across slots and move both ways within one, so a

@@ -116,6 +116,9 @@ test('imagePoint: read at the end of the name, longest key wins', () => {
   assert.equal(imagePoint(`${stem}_0003.webp`, ['0001', '0003']), '0003')
   assert.equal(imagePoint(`${stem}_0002_X-001_Y000_0001.webp`, ['0001', '0002_X-001_Y000_0001']), '0002_X-001_Y000_0001')
   assert.equal(imagePoint(`${stem}_1_Result.webp`, ['0001', '0003']), '')
+  // 5EAP1501's capture carries a 3-digit number; a site-form key is never guessed at.
+  assert.equal(imagePoint('#x#R#L.16#L#NA#R7685PNMP768.16_003.webp', ['0001', '0003']), '0003')
+  assert.equal(imagePoint('#x#R#L.16#L#NA#R7685PNMP768.16_003.webp', ['0003_X000_Y000_0001']), '')
   // The tool's own file stem can end like a point number; the capture's key is the last one.
   assert.equal(imagePoint('#260709#033958#R#01#MON69683#NA#RL1C078_0001_0003.webp', ['0001', '0003']), '0003')
   assert.equal(imagePoint(`${stem}_overview.webp`, ['0001']), '')

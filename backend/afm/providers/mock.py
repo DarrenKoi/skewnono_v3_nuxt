@@ -39,9 +39,11 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   앞에 0 이 없는 숫자 문자열입니다(`5`, `10`, `21` — office 확인 2026-10-07, 9차).
   office 에는 null 인 행도 있지만 mock 은 내지 않습니다.
 - `last_pick_up_time` 은 Info 의 `Last Pick Up Time` 그대로입니다(9차에 추가된 열).
-- 10차(office 확인 2026-10-07, 사무실 실행)에서 알게 되었지만 mock 이 아직 내지 않는 것:
-  capture 이미지가 없는 측정, 음수 `Tip Width`(MAP608 `NT-DT50-NCHR` -105.21), 0 으로
-  시작하는 `slot_number`. 뒤의 둘은 어느 경우인지 다시 물은 상태입니다.
+- 10차·11차(office 확인 2026-10-07, 사무실 실행): capture 는 일부 point 에만 있고 아예
+  없는 측정도 있습니다. 5EAP1501 의 capture 이름은 3자리 번호로 끝납니다(`…_003.webp`) —
+  mock 도 그렇게 냅니다(그 번호가 point 번호라는 것은 OFFICE-VERIFY). office 의
+  `slot_number` 는 Info 에서 온 값(`5`)과 파일명에서 온 값(`07`)이 섞여 있고 adapter 가 앞의
+  0 을 떼므로, mock 은 뗀 뒤의 모양만 냅니다.
 - 9차 회신(office 확인 2026-10-07)으로 맞춘 이미지 이름: align 은 측정마다 1~4장이고
   `N_Result.webp`(위치 키 없음), capture 는 point 마다 한 장이고 위치 키로 끝나며
   (`…_0001.webp`), 원본은 webp 와 이름이 같고 확장자만 다릅니다(`C_Result` 는 `.bmp`).
@@ -1005,8 +1007,18 @@ def _generate_measurements(tool_name: str, today: date) -> tuple[AfmMeasurementR
                 _with_original([f"{file_stem}_{key}_C_PR.webp" for key in keys], "png")
                 + _with_original([f"{file_stem}_C_Result.webp"], "bmp")
             ),
-            # One per point, and the name ends with the position key itself.
-            "capture_dir_list": _with_original([f"{file_stem}_{key}.webp" for key in keys], "png"),
+            # The name ends with the position key itself. Not every point has
+            # one, and some measurements have none at all (office 확인
+            # 2026-10-07): here every other measurement lacks its first point's,
+            # and one in seven has none. 5EAP1501 writes a plain point number
+            # with three digits (`_003`), not the four its points carry.
+            "capture_dir_list": _with_original(
+                [
+                    f"{file_stem}_{key[1:] if tool_name == '5EAP1501' and key.isdigit() else key}.webp"
+                    for key in ([] if index % 7 == 6 else keys[index % 2:])
+                ],
+                "png",
+            ),
             "has_profile": has_profile,
             "has_data": has_data,
             "has_image": has_image,

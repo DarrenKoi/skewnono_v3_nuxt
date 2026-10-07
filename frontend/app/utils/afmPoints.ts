@@ -127,5 +127,9 @@ export const imagePoint = (name: string, points: string[]): string => {
       .sort((a, b) => b.length - a.length)[0]
     if (hit) return hit
   }
-  return ''
+  // 5EAP1501 numbers a capture with three digits (`…_003.webp`) where its
+  // points are four (`0003`). Taken to be the same number — the office has
+  // not confirmed it, so only a plain numeric point is matched this way.
+  const short = /_(\d{3})$/.exec(stem)?.[1]
+  return (short && points.find(point => point === short.padStart(4, '0'))) || ''
 }

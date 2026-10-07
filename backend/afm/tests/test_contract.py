@@ -49,6 +49,22 @@ def _first_point(detail: AfmFileDetail) -> str:
     return points[0]
 
 
+def _point_with(row: AfmMeasurementRow, kind: str) -> str:
+    """A point of `row` that has a file of `kind` (`profile` / `tiff`), or a skip.
+
+    A measurement that has profiles or images does not have one for every
+    point: at the office they exist for only some (office 확인 2026-10-07), so
+    the first point of the picker is not one to look a file up by.
+    """
+    names = row[f"{kind}_dir_list"]
+    for point in _detail_of(row)["available_points"]:
+        if any(f"_{point}_Height" in name for name in names):
+            return point
+    if get_data_provider("afm") == "mock":
+        raise AssertionError(f"mock measurement lists {kind} files that name none of its points")
+    pytest.skip(f"no point of {row['filename']} names one of its {kind} files")
+
+
 def _detail_of(row: AfmMeasurementRow) -> AfmFileDetail:
     detail = data.get_afm_file_detail(row["filename"], row["tool_name"])
     # The filename came out of the listing, so the lookup MUST resolve it under
@@ -93,7 +109,7 @@ def _first_profiled_file() -> AfmMeasurementRow:
 
 def test_get_profile_points_returns_xyz_points():
     row = _first_profiled_file()
-    point = _first_point(_detail_of(row))
+    point = _point_with(row, "profile")
     points = data.get_profile_points(row["filename"], point, row["tool_name"])
     assert isinstance(points, list)
     # A measurement that claims a profile must have samples behind its points —
@@ -106,7 +122,7 @@ def test_get_profile_points_returns_xyz_points():
 
 def test_get_profile_meta_matches_contract():
     row = _first_profiled_file()
-    point = _first_point(_detail_of(row))
+    point = _point_with(row, "profile")
     meta = data.get_profile_meta(row["filename"], point, row["tool_name"])
     # A profile file always declares its units, so samples never travel without them.
     assert meta is not None, f"point {point!r} must resolve to profile metadata"
@@ -133,8 +149,12 @@ def _first_imaged_file() -> AfmMeasurementRow:
 
 def test_get_profile_image_svg_returns_an_image_body():
     # The mock draws every point; the office only has the images a recipe wrote.
-    row = _first_file() if get_data_provider("afm") == "mock" else _first_imaged_file()
-    point = _first_point(_detail_of(row))
+    if get_data_provider("afm") == "mock":
+        row = _first_file()
+        point = _first_point(_detail_of(row))
+    else:
+        row = _first_imaged_file()
+        point = _point_with(row, "tiff")
     body = data.get_profile_image_svg(row["filename"], point, row["tool_name"])
     # An SVG document (str) or the stored webp (bytes) — routes.py serves both.
     assert isinstance(body, (str, bytes))

@@ -18,9 +18,10 @@ def _row_with(image_type):
     raise AssertionError(f"no mock measurement has {image_type} images")
 
 
-def test_capture_dir_list_populated_for_every_row():
-    for row in data.list_afm_files(None):
-        assert row["capture_dir_list"]
+def test_capture_is_listed_for_most_rows_but_not_all():
+    # Some measurements have no capture at all (office 확인 2026-10-07).
+    listed = [bool(row["capture_dir_list"]) for row in data.list_afm_files(None)]
+    assert any(listed) and not all(listed)
 
 
 def test_list_analysis_images_returns_entries_for_capture():

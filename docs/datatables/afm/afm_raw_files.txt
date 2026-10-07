@@ -171,8 +171,8 @@ D3 측정 상세 — CSV
       근거가 됩니다.
     · 관측된 `Tip ID` 는 8종이고 이름에 `MCNT` 가 든 것은 2종입니다. 아는 이름은
       `DT-NCHR_CM`, `OMCL-AC160TS`(5EAP1501 — `Tip Width` 가 대부분 NaN),
-      `NT-DT50-NCHR`(MAP608 — `Tip Width` 가 -105.21 인 측정이 있음, office 확인
-      2026-10-07 10차)입니다. 음수 폭의 뜻은 모릅니다.
+      `NT-DT50-NCHR`(MAP608, office 확인 2026-10-07 10차)입니다. 음수인 `Tip Width` 는
+      없습니다(11차 — 세 장비 0건).
       `Tip Width` 에는 단위가 붙지 않습니다 [확인 8차].
     · 모르는 것 [OFFICE-VERIFY]: 나머지 `Tip ID` 의 이름(MCNT 계열 포함)과 그 폭이
       팁마다 다른지, 팁 교체 주기, `Mileage` 의 단위(um 추정).

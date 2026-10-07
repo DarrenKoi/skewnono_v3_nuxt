@@ -179,6 +179,8 @@ def test_rows_match_the_contract_with_nulls_and_basenames():
     assert (bare["formatted_date"], bare["time"], bare["point_count"], bare["lot_id"]) == (None, None, None, "")
     # An info-only measurement lists its information object and still has no data.
     assert bare["data_dir_list"] == ["detail_information.parquet"] and bare["has_data"] is False
+    # The loader pads a slot it took from the file name and not one from Info.
+    assert (full["slot_number"], office._slot("7"), office._slot("10"), office._slot(None)) == ("1", "7", "10", "")
     assert office.list_afm_files("MAP608") == []
 
 

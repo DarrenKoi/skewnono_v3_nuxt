@@ -576,19 +576,23 @@ def test_capture_is_per_point_and_align_is_a_few_per_measurement():
     # 9차: a capture name ends with the position key itself; an align name is
     # numbered (1_Result … 4_Result) and carries no position.
     counts = set()
+    missing = set()
     for tool in TOOLS:
         for row in _rows(tool):
             points = mock.get_afm_file_detail(row["filename"], tool)["available_points"]
             captures = [n for n in row["capture_dir_list"] if n.endswith(".webp")]
-            assert all(
-                name.removesuffix(".webp").endswith(f"_{point}")
-                for name, point in zip(captures, points, strict=True)
-            )
+            # 10차·11차: only some points have one, some measurements none; and
+            # 5EAP1501 ends a plain point number with three digits.
+            missing.add(len(points) - len(captures))
+            for name, point in zip(captures, points[len(points) - len(captures):], strict=True):
+                tail = point[1:] if tool == "5EAP1501" and point.isdigit() else point
+                assert name.removesuffix(".webp").endswith(f"_{tail}")
             aligns = [n for n in row["align_dir_list"] if n.endswith(".webp")]
             if aligns:
                 counts.add(len(aligns))
                 assert all(n.endswith(f"_{i}_Result.webp") for i, n in enumerate(aligns, 1))
     assert counts == {1, 2, 3, 4}
+    assert {0, 1} <= missing and any(not row["capture_dir_list"] for tool in TOOLS for row in _rows(tool))
 
 
 def test_the_list_carries_the_tips_pick_up_time():

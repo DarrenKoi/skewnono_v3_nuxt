@@ -213,6 +213,14 @@ def _number(value: Any) -> float | None:
     return float(found.group()) if found else None
 
 
+def _slot(value: Any) -> str:
+    # '5' where the loader read Info's `Slot N`, '07' where it fell back to the
+    # file name's `.nn` tail (office 확인 2026-10-07: MAP608 and MAPC01 hold
+    # both). One slot must not read as two, so the padding goes.
+    text = _text(value)
+    return str(int(text)) if text.isdigit() else text
+
+
 def _count(value: Any) -> int | None:
     number = _number(value)
     return None if number is None else int(number)
@@ -306,7 +314,7 @@ def _row(record: dict[str, Any], tool: str) -> AfmMeasurementRow:
         "formatted_date": _text(record.get("formatted_date")) or None,
         "recipe_name": _text(record.get("recipe_name")),
         "lot_id": _text(record.get("lot_id")),
-        "slot_number": _text(record.get("slot_number")),
+        "slot_number": _slot(record.get("slot_number")),
         # The loader writes a missing time as null, and the raw name spells it NA.
         "time": None if time_code in ("", "NA") else time_code,
         # HHMMSS (office 확인 2026-10-07). Null on a MAP608 measurement whose
