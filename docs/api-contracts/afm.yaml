@@ -41,7 +41,10 @@ types:
       type: string
     slot_number:
       type: string
-      format: "01..25"
+      format: "No leading zero ('5', '10', '21'); '' where the office has none."
+    last_pick_up_time:
+      type: [string, "null"]
+      description: Info's `Last Pick Up Time` as it is — a value of the tip, the same on every measurement it makes.
     time:
       type: [string, "null"]
       format: "HHMMSS, or null (NA is null). On MAP608 it is the session start, shared by the session's measurements."

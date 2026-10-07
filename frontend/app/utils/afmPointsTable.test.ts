@@ -28,7 +28,7 @@ const row = (overrides: Partial<AfmDetailRow>): AfmDetailRow => ({
   'Point No': 1,
   'X (um)': 10,
   'Y (um)': 12,
-  'Method_ID': 'Profile_LEFT_UL',
+  'Method ID': 'Profile_LEFT_UL',
   'State': 'COMPLETED',
   'Valid': true,
   'Pad_1_H (nm)': 88.4,
@@ -130,11 +130,13 @@ test('search matches a cell by the text the table prints', () => {
   assert.deepEqual([hit('12.35'), hit('12.345'), hit('99')], [1, 1, 0])
 })
 
-test('a repeat measurement shows 회차 even to a column pick saved before it existed', () => {
+test('회차 is always shown on a repeat measurement: an old pick gets it, a new pick cannot drop it', () => {
   const columns = derivePointColumns(rows.map((r, i) => ({ ...r, Lap: i + 1 })))
   assert.deepEqual(columns.slice(0, 2).map(c => [c.key, c.label]), [['Lap', '회차'], ['measurement_point', 'Site']])
   assert.ok(defaultPointColumnKeys(columns).includes('Lap'))
   assert.deepEqual(resolvePointColumnKeys(['State', 'Pad_1_H (nm)'], columns), ['Lap', 'State', 'Pad_1_H (nm)'])
+  // The picker does not offer it, so a pick never names it — and never loses it.
+  assert.deepEqual(resolvePointColumnKeys(mergePointColumnKeys(['Lap', 'State'], ['State', 'Pad_1_H (nm)'], columns), columns).slice(0, 1), ['Lap'])
   // No repeat, no column to add.
   assert.deepEqual(resolvePointColumnKeys(['State', 'Pad_1_H (nm)'], derivePointColumns(rows)), ['State', 'Pad_1_H (nm)'])
 })

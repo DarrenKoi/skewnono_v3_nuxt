@@ -49,6 +49,13 @@ FULL = _measurement(
         f"{FOLDER}/{NAME}_0001_Height.tiff",
     ],
     raw_dir_list=[f"{FOLDER}/{NAME}.csv"],
+    # Each of these lists holds its originals too, and none of them is a TIFF.
+    align_dir_list=[f"{FOLDER}/{NAME}_1_Result.webp", f"{FOLDER}/{NAME}_1_Result.bmp"],
+    tip_dir_list=[
+        f"{FOLDER}/{NAME}_0001_C_PR.webp", f"{FOLDER}/{NAME}_0001_C_PR.png",
+        f"{FOLDER}/{NAME}_C_Result.webp", f"{FOLDER}/{NAME}_C_Result.bmp",
+    ],
+    capture_dir_list=[f"{FOLDER}/{NAME} (1)_0001.webp", f"{FOLDER}/{NAME} (1)_0001.png"],
     # The tip columns the loader writes: Info text as it is, the width float64.
     tip_id="MCNT-150", tip_cassette_id="TC12", tip_port_no="1", tip_slot_no="7",
     last_pick_up_time="2026-10-01 01:33:39",
@@ -91,6 +98,10 @@ OBJECTS = {
     FULL["profile_dir_list"][0]: _parquet(pd.DataFrame({"X": [0.0, 1.0], "Y": [0.0, 0.0], "Z": [3.25, float("nan")]})),
     FULL["tiff_dir_list"][0]: b"RIFF....WEBP",
     FULL["tiff_dir_list"][2]: b"II*\x00tiff",
+    FULL["align_dir_list"][1]: b"BM-bmp",
+    FULL["tip_dir_list"][1]: b"\x89PNG-pr",
+    FULL["tip_dir_list"][3]: b"BM-result",
+    FULL["capture_dir_list"][1]: b"\x89PNG-capture",
     BARE["data_dir_list"][0]: _parquet(pd.DataFrame({"name": ["Lot ID"], "value": ["OLD1"]})),
     NO_SUMMARY["data_dir_list"][0]: _parquet(pd.DataFrame()),
     NO_SUMMARY["data_dir_list"][1]: _parquet(POINTS.drop(columns=["Site ID", "Site X", "Site Y"]).head(1)),
@@ -162,7 +173,7 @@ def test_rows_match_the_contract_with_nulls_and_basenames():
     full, bare = _row(KEY), _row(BARE["unique_key"])
     # Keys are cut to names; a float count is an int; the always-null column is "".
     assert full["data_dir_list"] == ["detail_information.parquet", "detail_summary.parquet", "detail_points.parquet"]
-    assert (full["has_data"], full["has_profile"], full["has_image"], full["has_align"]) == (True, True, True, False)
+    assert (full["has_data"], full["has_profile"], full["has_image"], full["has_align"]) == (True, True, True, True)
     assert (full["point_count"], full["fab"], full["measured_info"], full["time"]) == (2, "", "", "070028")
     # Empty cells: null where the contract allows it, "" elsewhere — never "nan"/"None".
     assert (bare["formatted_date"], bare["time"], bare["point_count"], bare["lot_id"]) == (None, None, None, "")
@@ -245,3 +256,26 @@ def test_the_result_list_shows_webps_and_offers_the_tiff_beside_one():
     assert original["filename"] == tiff_name and original["data"].startswith(b"II*")
     assert office.get_tiff_original(FULL["filename"], second["name"], name) is None
     assert office.list_analysis_images(FULL["filename"], "bogus", name) == []
+
+
+def test_align_tip_and_capture_show_webps_only_and_offer_their_own_originals():
+    name = "5EAP1501"
+    expected = {
+        "align": [("_1_Result.webp", "_1_Result.bmp", "image/bmp", b"BM-bmp")],
+        "tip": [
+            ("_0001_C_PR.webp", "_0001_C_PR.png", "image/png", b"\x89PNG-pr"),
+            ("_C_Result.webp", "_C_Result.bmp", "image/bmp", b"BM-result"),
+        ],
+        # A stored name with a space and parentheses.
+        "capture": [(" (1)_0001.webp", " (1)_0001.png", "image/png", b"\x89PNG-capture")],
+    }
+    for kind, pairs in expected.items():
+        listed = office.list_analysis_images(FULL["filename"], kind, name)
+        # An original is never a gallery image, whatever its extension.
+        assert [image["name"].removeprefix(NAME) for image in listed] == [webp for webp, *_ in pairs]
+        for image, (_, stored, content_type, data) in zip(listed, pairs, strict=True):
+            assert "original_url" in image
+            original = office.get_tiff_original(FULL["filename"], image["name"], name)
+            assert original == {"filename": NAME + stored, "content_type": content_type, "data": data}
+    row = _row(KEY)
+    assert (row["has_align"], row["has_tip"]) == (True, True)

@@ -28,7 +28,7 @@ const row = (point: string, value: number | string | null, extra: Partial<AfmDet
   'Point No': Number(point),
   'X (um)': 0,
   'Y (um)': 0,
-  'Method_ID': 2,
+  'Method ID': 2,
   'State': 'COMPLETED',
   'Valid': true,
   'Pick Up Count': 1,

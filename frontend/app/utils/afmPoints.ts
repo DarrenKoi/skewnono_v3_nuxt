@@ -119,8 +119,9 @@ export const imagePoint = (name: string, points: string[]): string => {
   const end = stem.lastIndexOf('_')
   if (end < 0) return ''
   // A capture image has no kind: its name ends with the position key itself
-  // (office 확인 2026-10-07, 9차), so the whole stem is tried after the head.
-  for (const head of [stem.slice(0, end), stem]) {
+  // (office 확인 2026-10-07, 9차). The whole stem is tried first, or a file
+  // stem that happens to end `_0001` would claim the capture of `0003`.
+  for (const head of [stem, stem.slice(0, end)]) {
     const hit = points
       .filter(point => head.endsWith(`_${point}`))
       .sort((a, b) => b.length - a.length)[0]

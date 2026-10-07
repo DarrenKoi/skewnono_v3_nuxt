@@ -27,6 +27,11 @@ const humanizeKey = (key: string): string =>
     ? key.replace(' (nm)', '')
     : key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
 
+// Shown whenever the file has them and never offered in the column picker:
+// without 회차 a repeat measurement's rows are twins, and a pick saved before
+// the column existed would hide it.
+export const STRUCTURAL_KEYS: string[] = ['Lap']
+
 export const derivePointColumns = (rows: AfmDetailRow[]): PointColumn[] => {
   // `Site` is the row's block name; the table shows it as `Block`, and only
   // where a file has more than one.
@@ -54,12 +59,10 @@ export const resolvePointColumnKeys = (stored: string[], columns: PointColumn[])
   const present = new Set(columns.map(c => c.key))
   const picked = stored.filter(k => present.has(k))
   if (!picked.length) return defaultPointColumnKeys(columns)
-  // 회차 arrived after picks were already saved, and without it a repeat
-  // measurement's rows are twins — so a pick that predates it still gets it.
-  const lap = present.has('Lap') && !picked.includes('Lap') ? ['Lap'] : []
-  return picked.some(isMeasurementKey)
-    ? [...lap, ...picked]
-    : [...lap, ...picked, ...defaultPointColumnKeys(columns).filter(isMeasurementKey)]
+  const kept = [...STRUCTURAL_KEYS.filter(k => present.has(k)), ...picked.filter(k => !STRUCTURAL_KEYS.includes(k))]
+  return kept.some(isMeasurementKey)
+    ? kept
+    : [...kept, ...defaultPointColumnKeys(columns).filter(isMeasurementKey)]
 }
 
 // A new pick for this file, keeping what was picked for columns it does not

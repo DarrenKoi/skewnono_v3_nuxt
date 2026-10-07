@@ -165,7 +165,9 @@ export const tipCategories = (points: TipPoint[]): TipCategory[] => {
       return params.length ? [{ point, params }] : []
     })
     const outside = new Map(flags.map(f => [f.point.key, f.params]))
-    const judged = limits.some(stat => stat.limits !== null) || [...widthOf.values()].some(Boolean)
+    // A tip is judged where some limit applies to IT: a type-wide one, or its
+    // own width band. Another tip's private band says nothing about this one.
+    const typeJudged = limits.some(stat => stat.limits !== null)
     const tips = [...byTip.entries()].map(([tip, own]): TipUnit => {
       const recent = own.slice(-TIP_RECENT).flatMap(p => outside.get(p.key) ? [outside.get(p.key)!] : [])
       return {
@@ -177,7 +179,7 @@ export const tipCategories = (points: TipPoint[]): TipCategory[] => {
         flagged: own.filter(p => outside.has(p.key)).length,
         recentOut: recent.length,
         recentParams: TIP_PARAMS.filter(param => recent.some(params => params.includes(param))),
-        state: !judged ? 'hold' : recent.length >= 2 ? 'bad' : recent.length === 1 ? 'warn' : 'ok'
+        state: !typeJudged && !widthOf.get(tip) ? 'hold' : recent.length >= 2 ? 'bad' : recent.length === 1 ? 'warn' : 'ok'
       }
     })
     return {

@@ -9,7 +9,7 @@ const row = (point: string, state: string, extra: Record<string, string | number
   'Point No': 1,
   'X (um)': 0,
   'Y (um)': 0,
-  'Method_ID': 'BS_TOP01',
+  'Method ID': 'BS_TOP01',
   'State': state,
   'Valid': true,
   'Pick Up Count': 1,
@@ -116,6 +116,8 @@ test('imagePoint: read at the end of the name, longest key wins', () => {
   assert.equal(imagePoint(`${stem}_0003.webp`, ['0001', '0003']), '0003')
   assert.equal(imagePoint(`${stem}_0002_X-001_Y000_0001.webp`, ['0001', '0002_X-001_Y000_0001']), '0002_X-001_Y000_0001')
   assert.equal(imagePoint(`${stem}_1_Result.webp`, ['0001', '0003']), '')
+  // The tool's own file stem can end like a point number; the capture's key is the last one.
+  assert.equal(imagePoint('#260709#033958#R#01#MON69683#NA#RL1C078_0001_0003.webp', ['0001', '0003']), '0003')
   assert.equal(imagePoint(`${stem}_overview.webp`, ['0001']), '')
   // A lookalike token earlier in the name (here in the recipe) claims nothing.
   assert.equal(imagePoint('#x#ETCH_0001_TRIM#_overview.webp', ['0001']), '')

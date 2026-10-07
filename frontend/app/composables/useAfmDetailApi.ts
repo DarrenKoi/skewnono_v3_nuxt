@@ -65,7 +65,7 @@ export interface AfmDetailRow {
   'X (um)': number
   'Y (um)': number
   // The method's name, or a number on recipes that number their methods.
-  'Method_ID': string | number
+  'Method ID': string | number
   'State': string
   'Valid': boolean
   // The row's block: the method name of its section, as on the Summary rows.

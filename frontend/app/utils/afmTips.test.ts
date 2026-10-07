@@ -126,3 +126,16 @@ test('the list alone shows a new tip in the same seat: Mileage falls and the pic
   // Where the list has no pick-up time, a fall alone marks nothing.
   assert.deepEqual(tipChanges(health.map(h => ({ ...h, pickUp: null }))), [])
 })
+
+test('an MCNT tip with too few widths and nothing else to judge is held, not called normal', () => {
+  // Info-only measurements: no rows, so every aggregate is null and the only
+  // limit there can be is the tip's own width band. Slot 9 has one reading.
+  const bare = { approach_count_mean: null, mileage_mean: null, not_completed_count: null, invalid_count: null }
+  const [mcnt] = tipCategories(tipPoints([
+    ...[1, 2, 3, 4, 5].map(n => row(n, { ...bare, tip_id: 'MCNT-150', tip_width: 35 })),
+    row(6, { ...bare, tip_id: 'MCNT-150', tip_width: 35, tip_slot_no: '9' })
+  ]))
+  const by = new Map(mcnt!.tips.map(t => [t.tip, t]))
+  assert.deepEqual([by.get('MCNT-150 · TC10/1/3')!.state, by.get('MCNT-150 · TC10/1/9')!.state], ['ok', 'hold'])
+  assert.equal(by.get('MCNT-150 · TC10/1/9')!.widthLimits, null)
+})

@@ -82,7 +82,7 @@
           :search-input="{ placeholder: '컬럼 검색' }"
         >
           <span class="truncate">
-            컬럼 <b class="sk-value-num text-sm">{{ visibleKeys.length }}</b> / {{ columnItems.length }}
+            컬럼 <b class="sk-value-num text-sm">{{ visibleKeys.filter(k => !STRUCTURAL_KEYS.includes(k)).length }}</b> / {{ columnItems.length }}
           </span>
         </USelectMenu>
       </div>
@@ -174,7 +174,9 @@ const search = ref('')
 const page = ref(1)
 
 const allColumns = computed(() => derivePointColumns(props.data))
-const columnItems = computed(() => allColumns.value.map(c => ({ label: c.label, value: c.key })))
+const columnItems = computed(() => allColumns.value
+  .filter(c => !STRUCTURAL_KEYS.includes(c.key))
+  .map(c => ({ label: c.label, value: c.key })))
 
 // The column pick is shared by every measurement; resolvePointColumnKeys says
 // what it means for a file whose columns differ.
