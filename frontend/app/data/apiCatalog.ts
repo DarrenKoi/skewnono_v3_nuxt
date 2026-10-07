@@ -119,6 +119,25 @@ const TOOL_SLUG_ARG: ApiArg = {
   note: 'cdsem 또는 hvsem'
 }
 
+const AFM_TOOL_ARG: ApiArg = {
+  name: 'tool',
+  kind: 'query',
+  required: false,
+  note: '/api/afm/tools의 name (MAP608, MAPC01, 5EAP1501). 대소문자 무관. 생략하면 MAP608이므로 다른 장비는 항상 지정하십시오'
+}
+
+// Percent-encoded: a raw `#` would be cut off as a URL fragment.
+const AFM_EXAMPLE_FILE = '%23261007%23073000%23BSOXCMP_CORRELATION_36PT%23TT032NC.03%23TT032NC%23NA%23.csv'
+
+const AFM_FILENAME_ARG: ApiArg = {
+  name: 'filename',
+  kind: 'path',
+  required: true,
+  note: '/api/afm/files 응답 row의 filename. #가 들어 있으므로 반드시 퍼센트 인코딩 (urllib.parse.quote(filename, safe=""))'
+}
+
+const AFM_IMAGE_TYPE_NOTE = 'align, tip, capture, tiff 중 하나. 그 외 값은 404'
+
 const FAB_NAME_ARG: ApiArg = {
   name: 'fab_name',
   kind: 'query',
@@ -564,6 +583,164 @@ with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
           read: `from pathlib import Path
 
 Path("S04_M0004-01MP.jpeg").write_bytes(resp.content)`
+        }
+      }
+    ]
+  },
+  {
+    name: 'AFM',
+    description: 'AFM 측정 결과 파일, point별 profile, 이미지와 원본입니다. 파일명(filename)에 #가 들어 있어 URL 경로에 그대로 쓰면 HTTP 클라이언트가 # 뒤를 fragment로 잘라 버립니다. 경로에 넣기 전에 항상 퍼센트 인코딩하십시오 (Python: urllib.parse.quote(filename, safe="")). 아래 예시의 경로는 인코딩된 형태입니다. 팁 모니터링, 가동 현황, Recipe 현황 화면은 /api/afm/files의 row만으로 브라우저에서 계산하므로 스크립트도 이 호출 하나로 같은 입력을 얻습니다. afm endpoint는 rate limit 대상에서 제외되어 있습니다. 응답은 대부분 { success, data, tool, message } 형태이고, 없는 파일은 404와 { success: false, error, message, tool }로 답합니다.',
+    icon: 'i-lucide-ruler',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/afm/tools',
+        summary: 'AFM 장비 목록을 반환합니다. 다른 endpoint의 tool 값에는 name을 씁니다.',
+        args: [],
+        response: 'AfmToolRow[] — { id, name, label, fab }. 응답 자체가 배열이며 success 봉투가 없습니다',
+        auth: '토큰 가능',
+        example: { path: '/afm/tools' }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files',
+        summary: '장비 하나의 AFM 측정 목록을 반환합니다. filename, recipe, lot, 측정 시각, 이미지 종류별 파일 목록, 팁 정보가 row 하나에 담깁니다.',
+        args: [AFM_TOOL_ARG],
+        response: '{ success, data: AfmMeasurementRow[], total, tool, message }',
+        auth: '토큰 가능',
+        example: { path: '/afm/files', query: { tool: 'MAP608' } }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}',
+        summary: '측정 파일 하나의 상세를 반환합니다 — Info, summary, 측정 row, 그리고 profile 조회에 쓰는 available_points.',
+        args: [AFM_FILENAME_ARG, AFM_TOOL_ARG],
+        response: '{ success, data: AfmFileDetail, message } — data는 filename, tool, pickle_filename, information, summary, available_points, data. 없으면 404',
+        auth: '토큰 가능',
+        example: { path: `/afm/files/${AFM_EXAMPLE_FILE}`, query: { tool: 'MAP608' } }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/profile/{point}',
+        summary: 'point 하나의 profile을 반환합니다. full=1이 없으면 촘촘한 scan은 화면용으로 솎아내어 count가 total보다 작아지므로, 분석 스크립트는 full=1을 붙여 파일의 전체 샘플을 받으십시오.',
+        args: [
+          AFM_FILENAME_ARG,
+          { name: 'point', kind: 'path', required: true, note: '상세 응답 available_points 중 하나 (예: 0001_X000_Y000_0001)' },
+          AFM_TOOL_ARG,
+          { name: 'full', kind: 'query', required: false, note: '1이면 솎아내지 않은 전체 샘플. 그 외 값은 솎아낸 결과' }
+        ],
+        response: '{ success, data: AfmProfilePoint[] ({ x, y, z }, z는 값이 없는 곳에서 null), meta: AfmProfileMeta ({ x_unit, y_unit, z_unit, data_size, surface_size }), count, total, tool, message }. 단위는 파일마다 다릅니다. 없으면 404',
+        auth: '토큰 가능',
+        example: {
+          path: `/afm/files/${AFM_EXAMPLE_FILE}/profile/0001_X000_Y000_0001`,
+          query: { tool: 'MAP608', full: '1' },
+          read: `body = resp.json()
+profile = body["data"]  # [{"x": ..., "y": ..., "z": ...}]
+units = body["meta"]    # x_unit, y_unit, z_unit — 파일마다 다름
+assert body["count"] == body["total"]  # full=1이면 같습니다`
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/images/{image_type}',
+        summary: '이미지 종류 하나의 목록을 반환합니다. 각 항목의 url은 변환본, original_url은 원본(있을 때만)을 가리키는 /api/... 경로이므로 그대로 이어 붙여 호출하십시오.',
+        args: [
+          AFM_FILENAME_ARG,
+          { name: 'image_type', kind: 'path', required: true, note: AFM_IMAGE_TYPE_NOTE },
+          AFM_TOOL_ARG
+        ],
+        response: '{ success, data: { name, url, original_url? }[], count, tool, message }. 이미지가 없으면 404가 아니라 빈 목록',
+        auth: '토큰 가능',
+        example: { path: `/afm/files/${AFM_EXAMPLE_FILE}/images/tiff`, query: { tool: 'MAP608' } }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/images/{image_type}/{name}',
+        summary: '화면에 표시하는 이미지 1장(변환본)을 바이트로 반환합니다. 분석에는 원본이 필요하므로 /tiff/{name}을 쓰십시오.',
+        args: [
+          AFM_FILENAME_ARG,
+          { name: 'image_type', kind: 'path', required: true, note: AFM_IMAGE_TYPE_NOTE },
+          { name: 'name', kind: 'path', required: true, note: '목록 응답 항목의 name. 퍼센트 인코딩 필요' },
+          AFM_TOOL_ARG
+        ],
+        response: '이미지 바이트 (image/webp 또는 image/svg+xml). 없으면 404',
+        auth: '토큰 가능',
+        example: {
+          path: `/afm/files/${AFM_EXAMPLE_FILE}/images/tiff/${AFM_EXAMPLE_FILE.replace('.csv', '')}_0001_X000_Y000_0001_Height.webp`,
+          query: { tool: 'MAP608' },
+          timeout: 60,
+          read: `from pathlib import Path
+
+Path("point_0001_Height.webp").write_bytes(resp.content)`
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/tiff/{name}',
+        summary: '표시 이미지 하나에 대응하는 손대지 않은 원본을 내려받습니다. 경로는 tiff지만 align 원본은 .bmp, tip과 capture 원본은 .png일 수 있습니다. 목록 항목에 original_url이 있는 이미지만 받을 수 있습니다.',
+        args: [
+          AFM_FILENAME_ARG,
+          { name: 'name', kind: 'path', required: true, note: '이미지 목록 항목의 name (표시 이미지 이름이며 원본 파일명이 아님). 퍼센트 인코딩 필요' },
+          AFM_TOOL_ARG
+        ],
+        response: '원본 파일 바이트 (Content-Disposition: attachment, 파일명은 저장소의 원본 이름). 없으면 404',
+        auth: '토큰 가능',
+        example: {
+          path: `/afm/files/${AFM_EXAMPLE_FILE}/tiff/${AFM_EXAMPLE_FILE.replace('.csv', '')}_0001_X000_Y000_0001_Height.webp`,
+          query: { tool: 'MAP608' },
+          timeout: 60,
+          read: `import re
+from pathlib import Path
+
+# 저장할 이름은 서버가 정해 줍니다
+name = re.search(r'filename="([^"]+)"', resp.headers["Content-Disposition"]).group(1)
+Path(name.replace("#", "_")).write_bytes(resp.content)`
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/tiff.zip',
+        summary: '이미지 종류 하나의 원본 전부를 zip 하나로 내려받습니다. 보존 기간이 지나 사라진 원본은 빼고 담고, 하나도 없으면 404입니다.',
+        args: [
+          AFM_FILENAME_ARG,
+          { name: 'type', kind: 'query', required: false, note: `${AFM_IMAGE_TYPE_NOTE}. 생략하면 tiff` },
+          AFM_TOOL_ARG
+        ],
+        response: 'application/zip (원본 파일들, 이름은 저장소의 원본 이름)',
+        auth: '토큰 가능',
+        example: {
+          path: `/afm/files/${AFM_EXAMPLE_FILE}/tiff.zip`,
+          query: { tool: 'MAP608', type: 'tiff' },
+          timeout: 120,
+          read: `import io
+import zipfile
+
+with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+    names = archive.namelist()
+    archive.extractall("afm_originals")`
+        }
+      },
+      {
+        method: 'GET',
+        path: '/api/afm/files/{filename}/images.zip',
+        summary: '이미지 종류 하나의 표시 이미지(변환본) 전부를 zip 하나로 내려받습니다. 사라진 이미지는 빼고 담고, 하나도 없으면 404입니다.',
+        args: [
+          AFM_FILENAME_ARG,
+          { name: 'type', kind: 'query', required: true, note: `${AFM_IMAGE_TYPE_NOTE}. 생략하면 404` },
+          AFM_TOOL_ARG
+        ],
+        response: 'application/zip (표시 이미지들)',
+        auth: '토큰 가능',
+        example: {
+          path: `/afm/files/${AFM_EXAMPLE_FILE}/images.zip`,
+          query: { tool: 'MAP608', type: 'tip' },
+          timeout: 120,
+          read: `import io
+import zipfile
+
+with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+    names = archive.namelist()
+    archive.extractall("afm_images")`
         }
       }
     ]
