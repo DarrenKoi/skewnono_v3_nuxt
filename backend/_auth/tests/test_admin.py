@@ -55,7 +55,7 @@ def as_caller(app):
     return _run
 
 
-@pytest.mark.parametrize("source", [SOURCE_COOKIE, SOURCE_TOKEN, SOURCE_LOCAL])
+@pytest.mark.parametrize("source", [SOURCE_COOKIE, SOURCE_LOCAL])
 def test_trusted_sources_can_hold_admin(as_caller, source):
     assert as_caller("2067928", source) is True
 
@@ -78,6 +78,14 @@ def test_untrusted_sources_can_never_hold_admin(as_caller, source):
     assert is_admin("2067928") is True
 
     assert as_caller("2067928", source) is False
+
+
+def test_a_token_never_holds_admin(as_caller):
+    """A token is only as trustworthy as the session that minted it, and the
+    row does not record which that was. A declared session may mint one, so a
+    token that held admin was a way to launder a typed-in admin employee number
+    into `is_admin: True` — reproduced end to end on 2026-10-07."""
+    assert as_caller("2067928", SOURCE_TOKEN) is False
 
 
 def test_an_unrecognized_source_is_not_trusted(as_caller):

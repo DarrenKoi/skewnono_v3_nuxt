@@ -19,7 +19,7 @@ from flask import g
 
 from .._runtime.env import is_cloud
 from .errors import error_json
-from .provider import SOURCE_COOKIE, SOURCE_LOCAL, SOURCE_TOKEN
+from .provider import SOURCE_COOKIE, SOURCE_LOCAL
 
 _CLOUD_DEFAULT_ADMINS = frozenset({"2067928"})
 _HOME_DEFAULT_ADMINS = frozenset({"LOCAL-DEV"})
@@ -56,7 +56,13 @@ def is_admin(user_id: str | None) -> bool:
 # server-side security boundary of the self-identification feature: the gate
 # that routes anonymous callers to the form is client-side and bypassable, so
 # this is the one rule an attacker cannot skip past.
-_TRUSTED_SOURCES = frozenset({SOURCE_TOKEN, SOURCE_COOKIE, SOURCE_LOCAL})
+#
+# `token` is out as well. A token carries its owner's id but not the trust of
+# the session that minted it, and a declared session may mint one — so a
+# trusted token turned "type an admin's employee number" into admin with one
+# extra request. Admin work is done in a browser session; to give tokens admin
+# back, record the minting source on the token row first.
+_TRUSTED_SOURCES = frozenset({SOURCE_COOKIE, SOURCE_LOCAL})
 
 
 def is_admin_request() -> bool:
