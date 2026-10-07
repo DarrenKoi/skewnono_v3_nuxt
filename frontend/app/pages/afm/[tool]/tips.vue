@@ -406,18 +406,16 @@ const PARAM_LABEL: Record<TipParam, string> = {
   tipWidth: 'Tip Width',
   approach: 'Approach Count 평균',
   mileage: 'Mileage 평균',
-  notCompleted: 'FAILED + STOPPED 포인트',
-  invalid: 'Valid = FALSE 포인트'
+  notCompleted: 'FAILED + STOPPED 포인트'
 }
 const HEADERS = [
   { label: '시각' }, { label: 'Recipe · Lot' },
-  { label: 'Tip Width', num: true }, { label: 'Approach', num: true }, { label: 'Mileage', num: true },
-  { label: 'FAILED', num: true }, { label: 'Valid=F', num: true },
+  { label: 'Tip Width', num: true }, { label: 'Mileage', num: true }, { label: 'Approach', num: true },
+  { label: 'FAILED', num: true },
   { label: '판정' }, { label: '' }
 ]
-const COUNTS: TipParam[] = ['notCompleted', 'invalid']
 const show = (param: TipParam, value: number | null) =>
-  value === null ? '–' : COUNTS.includes(param) ? String(value) : fmt2(value)
+  value === null ? '–' : param === 'notCompleted' ? String(value) : fmt2(value)
 
 const recentOf = (unit: TipUnit) => Math.min(TIP_RECENT, unit.points.length)
 // The one-line verdict a list row and the mounted tile carry.

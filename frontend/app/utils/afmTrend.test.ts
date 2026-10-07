@@ -196,7 +196,7 @@ test('repeatPairs groups one sample under one recipe and rates the spread', () =
   assert.equal(repeatPairs([{ key: 'a', sample: 'S', recipe: 'R', time: 0, mean: 1 }, { key: 'b', sample: 'S', recipe: 'R', time: 0, mean: 3 }], () => null)[0]!.ratio, null)
 })
 
-test('healthSeries counts every block\'s rows; only a stated FALSE is invalid', () => {
+test('healthSeries counts every block\'s rows', () => {
   const [entry] = prepareEntries([{
     source: source('a'),
     payload: payload([], [
@@ -206,7 +206,7 @@ test('healthSeries counts every block\'s rows; only a stated FALSE is invalid', 
       row('2', 1, { Valid: '' as unknown as boolean })
     ])
   }])
-  assert.deepEqual(healthSeries([entry!])[0], { key: 'a', time: entry!.time, notCompleted: 1, invalid: 1, approach: 1.5, mileage: 8, tip: null, tipWidth: null, pickUp: null })
+  assert.deepEqual(healthSeries([entry!])[0], { key: 'a', time: entry!.time, notCompleted: 1, approach: 1.5, mileage: 8, tip: null, tipWidth: null, pickUp: null })
   const [empty] = prepareEntries([{ source: source('b'), payload: payload([], []) }])
   assert.equal(healthSeries([empty!])[0]!.approach, null)
 })

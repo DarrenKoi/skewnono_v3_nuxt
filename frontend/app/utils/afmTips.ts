@@ -10,7 +10,7 @@ import { measuredAt } from './afmSearch.ts'
 import { isOutside, robustSd, type ControlLimits, type HealthPoint } from './afmTrend.ts'
 import { median } from './stats.ts'
 
-export const TIP_PARAMS = ['tipWidth', 'approach', 'mileage', 'notCompleted', 'invalid'] as const
+export const TIP_PARAMS = ['tipWidth', 'mileage', 'approach', 'notCompleted'] as const
 export type TipParam = typeof TIP_PARAMS[number]
 
 export interface TipPoint extends Record<TipParam, number | null> {
@@ -44,15 +44,14 @@ export const tipPoints = (rows: AfmFileRow[]): TipPoint[] =>
       tipWidth: row.tip_width ?? null,
       approach: row.approach_count_mean ?? null,
       mileage: row.mileage_mean ?? null,
-      notCompleted: row.not_completed_count ?? null,
-      invalid: row.invalid_count ?? null
+      notCompleted: row.not_completed_count ?? null
     }]
   }).sort((a, b) => a.time - b.time)
 
 // What 시계열 비교's health strip draws. A count the measurement has no rows
 // for is drawn as 0 there: a bar chart has no way to say "none".
 export const tipHealth = (points: TipPoint[]): HealthPoint[] =>
-  points.map(p => ({ ...p, notCompleted: p.notCompleted ?? 0, invalid: p.invalid ?? 0 }))
+  points.map(p => ({ ...p, notCompleted: p.notCompleted ?? 0 }))
 
 // Fewer measurements than this say too little about a type's spread to call
 // one of them an outlier.

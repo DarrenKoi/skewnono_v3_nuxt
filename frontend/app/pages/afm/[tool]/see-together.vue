@@ -194,7 +194,7 @@
       <AfmTrendSection
         num="04"
         title="장비 건강"
-        hint="값이 흔들린 측정에 FAILED·Valid=FALSE·approach 증가가 같이 보이면 공정이 아니라 팁·장비를 먼저 의심합니다."
+        hint="값이 흔들린 측정에 FAILED·approach 증가가 같이 보이면 공정이 아니라 팁·장비를 먼저 의심합니다."
       />
       <AfmTrendHealthStrip
         :health="health"

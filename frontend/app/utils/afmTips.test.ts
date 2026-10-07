@@ -63,7 +63,7 @@ test('tipCategories judges a tip against its own type, whatever slot it sits in'
   assert.deepEqual(fixed!.tips[0]!.recentParams, ['tipWidth'])
 
   // Too few measurements to call anything an outlier.
-  assert.deepEqual(cdr!.stats.map(s => s.limits), [null, null, null, null, null])
+  assert.deepEqual(cdr!.stats.map(s => s.limits), [null, null, null, null])
   // Mileage is a counter, not a level: no limits however many values there are.
   assert.deepEqual([fixed!.stats.find(s => s.param === 'mileage')!.n, fixed!.stats.find(s => s.param === 'mileage')!.limits], [9, null])
   assert.deepEqual(cdr!.flags, [])

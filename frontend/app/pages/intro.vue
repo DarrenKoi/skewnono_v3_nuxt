@@ -752,7 +752,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-pen-tool',
     section: 'afm',
     purpose: '장비의 팁마다 지금 상태가 어떤지 판정합니다.',
-    description: '측정 목록의 팁 값(Tip Width, Approach Count, Mileage, FAILED·Valid=FALSE 포인트)을 팁 종류(Tip ID)의 관리선과 비교해 팁마다 이상·주의·정상을 매기고, 고른 팁의 근거(차트·측정)를 보여 줍니다. recipe로 범위를 좁힐 수 있습니다.',
+    description: '측정 목록의 팁 값(Tip Width, Approach Count, Mileage, FAILED·STOPPED 포인트)을 팁 종류(Tip ID)의 관리선과 비교해 팁마다 이상·주의·정상을 매기고, 고른 팁의 근거(차트·측정)를 보여 줍니다. recipe로 범위를 좁힐 수 있습니다.',
     users: 'AFM 담당 엔지니어',
     notes: ['장비를 고른 뒤 상단 탭(측정 결과 · 팁 모니터링 · 가동 현황 · Recipe 현황)에서 이동합니다.', 'spec은 아직 없고 중앙값 ± 3σ 로 판정합니다.']
   },

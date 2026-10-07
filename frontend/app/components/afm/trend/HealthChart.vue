@@ -6,7 +6,7 @@
     </p>
     <div
       ref="chartEl"
-      class="h-28 w-full"
+      class="h-44 w-full"
     />
     <p class="sk-meta">
       {{ note }}

@@ -334,9 +334,8 @@ export const repeatPairs = (
 export interface HealthPoint {
   key: string
   time: number
-  // Points not COMPLETED, and COMPLETED points stated Valid=FALSE.
+  // Points not COMPLETED.
   notCompleted: number
-  invalid: number
   approach: number | null
   mileage: number | null
   // From the measurement's Info, not its rows. `tip` is both the tip's identity
@@ -367,7 +366,6 @@ export const healthSeries = (entries: TrendEntry[]): HealthPoint[] =>
       key,
       time,
       notCompleted: data.filter(row => row.State !== 'COMPLETED').length,
-      invalid: data.filter(row => row.State === 'COMPLETED' && row.Valid === false).length,
       approach: meanOf(data, 'Approach Count'),
       mileage: meanOf(data, 'Mileage'),
       tip: id ? `${id} · ${seat.map(v => v || '?').join('/')}` : null,
