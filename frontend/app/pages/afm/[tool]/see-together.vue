@@ -202,6 +202,18 @@
         :export-name="`${toolId}-health`"
         @select="select"
       />
+
+      <AfmTrendSection
+        num="05"
+        title="측정 소요시간"
+        hint="Info의 Start Time과 End Time이 모두 있는 측정만 계산합니다. 값이 없는 측정은 이유를 표시합니다."
+      />
+      <AfmTrendDuration
+        :rows="durations"
+        :recipes="durationSummary"
+        :selected="selected"
+        @select="select"
+      />
     </template>
   </div>
 </template>
@@ -301,6 +313,8 @@ const pointRecipe = computed(() => mixed.value ? rows.value.find(row => row.entr
 const pointRows = computed(() => pointRecipe.value ? rows.value.filter(row => row.entry.recipe === pointRecipe.value) : rows.value)
 const repeatKeys = computed(() => new Set(pairs.value.flatMap(pair => pair.keys)))
 const health = computed(() => healthSeries(entries.value))
+const durations = computed(() => durationRows(entries.value))
+const durationSummary = computed(() => durationByRecipe(durations.value))
 
 const kpis = computed<TrendKpi[]>(() => {
   const only = mixed.value ? null : centres.value.get(recipes.value[0] ?? '') ?? null
