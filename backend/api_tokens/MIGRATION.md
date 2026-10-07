@@ -17,6 +17,11 @@ cp providers/office_example.py providers/office.py
 - Requires `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` in
   `backend/.env` — resolved through `_runtime/office_redis.py`, the same
   client `sem_list` and `storage` already read through.
+- **Writes reach the office Redis** (user-confirmed 2026-10-07): keys exist under
+  all three prefixes — `skewnono:api_tokens:token:`, `:owner:` and `:hash:` —
+  so `create_token` has run through this adapter with the `backend/.env`
+  credentials. The office-mode contract run under "Verify" is still what
+  promotes the `STATUS.md` row.
 - Only edit the copy if the in-house connection needs adjusting. Never touch
   `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
 
