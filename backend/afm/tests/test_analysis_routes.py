@@ -1,6 +1,6 @@
 """Route tests for the analysis-image gallery (Flask test_client)."""
 
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import pytest
 from flask import Flask
@@ -79,13 +79,38 @@ def _tiff_row():
     raise AssertionError("no tiff row")
 
 
-def test_only_result_images_offer_an_original(client):
-    row, _ = _tiff_row()
-    fn = quote(row["filename"], safe="")
-    tiff = client.get(f"/api/afm/files/{fn}/images/tiff?tool={row['tool_name']}").get_json()["data"]
-    capture = client.get(f"/api/afm/files/{fn}/images/capture?tool={row['tool_name']}").get_json()["data"]
-    assert all("/tiff/" in img["original_url"] for img in tiff)
-    assert all("original_url" not in img for img in capture)
+def test_every_image_type_offers_its_original_in_its_own_format(client):
+    # Result .tiff, align .bmp, capture .png, tip .png (_C_PR) / .bmp (C_Result).
+    formats = {"tiff": {"image/tiff"}, "align": {"image/bmp"}, "capture": {"image/png"},
+               "tip": {"image/png", "image/bmp"}}
+    for image_type, expected in formats.items():
+        field = mock.IMAGE_TYPE_FIELDS[image_type]
+        row = next(r for r in data.list_afm_files(None) if any(not n.endswith(".webp") for n in r[field]))
+        fn, tool = quote(row["filename"], safe=""), row["tool_name"]
+        listed = client.get(f"/api/afm/files/{fn}/images/{image_type}?tool={tool}").get_json()["data"]
+        assert listed and all("/tiff/" in image["original_url"] for image in listed)
+        seen = set()
+        for image in listed:
+            r = client.get(image["original_url"])
+            assert r.status_code == 200
+            stored = image["name"].rsplit(".", 1)[0]
+            # Downloaded under the original's own stored name.
+            assert stored in unquote(r.headers["Content-Disposition"])
+            seen.add(r.mimetype)
+        assert seen == expected
+
+
+def test_originals_zip_holds_the_open_types_originals(client):
+    import io
+    import zipfile
+
+    row = next(r for r in data.list_afm_files(None) if r["align_dir_list"])
+    fn, tool = quote(row["filename"], safe=""), row["tool_name"]
+    r = client.get(f"/api/afm/files/{fn}/tiff.zip?type=align&tool={tool}")
+    assert r.status_code == 200 and r.mimetype == "application/zip"
+    names = zipfile.ZipFile(io.BytesIO(r.data)).namelist()
+    assert sorted(names) == sorted(n for n in row["align_dir_list"] if n.endswith(".bmp"))
+    assert client.get(f"/api/afm/files/{fn}/tiff.zip?type=nope&tool={tool}").status_code == 404
 
 
 def test_original_url_downloads_a_real_tiff_under_its_stored_name(client):

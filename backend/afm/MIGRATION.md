@@ -242,9 +242,12 @@ runs the same code at home against a fake hash and a fake object store.
 ## Endpoint family: GET /api/afm/files/&lt;filename&gt;/tiff/&lt;name&gt;
 
 - Handler: `routes.py` → `data.get_tiff_original(filename, name, tool_name)`
-  (`filename`/`name` URL-decoded; `tool_name` from `?tool=`). `name` is an
-  entry of the measurement's `tiff_dir_list` — the **display** image name, not
-  the stored key.
+  (`filename`/`name` URL-decoded; `tool_name` from `?tool=`). `name` is the
+  **display** (webp) name of any listed image, not the stored key. Despite
+  the function's name it serves every image type's original — a Result
+  `.tiff`, an align `.bmp`, a tip or capture `.png` — found by the webp's
+  own name with another extension (office 확인 2026-10-07). Names are unique
+  inside one measurement, so the image type is not passed.
 - Contract: `AfmOriginalFile | None` —
 
   ```python
@@ -277,8 +280,8 @@ runs the same code at home against a fake hash and a fake object store.
   displayed image of one type in one zip) is composed in `routes.py` from
   `list_analysis_images` and `get_analysis_image_svg`, so it needs **no extra
   office function** either.
-- `GET /api/afm/files/<filename>/tiff.zip` (all originals of one measurement
-  in one zip) is composed in `routes.py` from `list_analysis_images` and
+- `GET /api/afm/files/<filename>/tiff.zip?type=<image type>` (all originals of
+  one image type in one zip; Result by default) is composed in `routes.py` from `list_analysis_images` and
   `get_tiff_original`, so it needs **no extra office function**. An image whose
   original returns `None` is left out of the archive; none at all is a `404`.
   The zip is built in memory, so tell us if office TIFFs are tens of MB each.

@@ -61,9 +61,11 @@ def _rate_limit_storage() -> dict:
 # by the `<blueprint>.` prefix Flask puts on every endpoint name.
 #
 # The shared 50/5s budget assumes a page costs a handful of requests. These
-# three break that assumption by construction, not by misuse:
+# four break that assumption by construction, not by misuse:
 #
 # - msr_image: a gallery view fans out dozens of <img>/list requests at once.
+# - afm: the same gallery — one measurement holds up to 133 webps (office 확인
+#   2026-10-07), all on one page.
 # - fail_issue, recipe_tat: the two blueprints behind /recipe-status (its
 #   align/meas tabs are fail_issue, its tat tab is recipe_tat — see
 #   frontend/app/utils/features.ts). One view fires 5 analytics calls,
@@ -74,7 +76,7 @@ def _rate_limit_storage() -> dict:
 # Exempting trades runaway-loop protection on these routes for a page that
 # works. The office cost of that is bounded elsewhere: these endpoints are
 # read-only aggregations and the analytics scope caps their row counts.
-_EXEMPT_BLUEPRINTS = ("msr_image.", "fail_issue.", "recipe_tat.")
+_EXEMPT_BLUEPRINTS = ("msr_image.", "afm.", "fail_issue.", "recipe_tat.")
 
 # Teammate-owned feature packages live here and load fail-soft (see the
 # discovery loop in create_app).

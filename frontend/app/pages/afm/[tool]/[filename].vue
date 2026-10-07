@@ -149,8 +149,9 @@ const information = computed(() => payload.value?.information ?? {})
 const summaryRows = computed(() => payload.value?.summary ?? [])
 const detailRows = computed(() => payload.value?.data ?? [])
 
-// The table's rows, with a Block column where the file has more than one block.
-const tableRows = computed(() => tagBlocks(detailRows.value, summaryRows.value))
+// The table's rows, with a Block column where the file has more than one block
+// and a 회차 column where a repeat recipe measured its points more than once.
+const tableRows = computed(() => tagLaps(tagBlocks(detailRows.value, summaryRows.value), summaryRows.value))
 
 // A measurement opened from the list is in this tool's 조회 기록, which has the
 // slot. One opened by a copied link is not, so the slot is read from Info.

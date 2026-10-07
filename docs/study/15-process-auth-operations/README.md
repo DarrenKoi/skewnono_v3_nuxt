@@ -73,7 +73,7 @@ Nuxt의 `/identify` 유도는 사용자 안내입니다. API를 직접 호출하
 
 ### 3.4 속도 제한과 비동기 대화
 
-Factory는 `/api/` 전체에 사용자당 5초 50회 공유 제한을 설정합니다. 현재 `msr_image`, `fail_issue`, `recipe_tat` Blueprint는 예외입니다. 집에서는 메모리 카운터, office mode에서 `REDIS_HOST`가 있으면 공유 Redis 카운터를 사용합니다. Redis 장애 시 메모리 fallback은 응답을 유지하지만 worker별 카운터가 되어 전체 제한 강도가 달라집니다.
+Factory는 `/api/` 전체에 사용자당 5초 50회 공유 제한을 설정합니다. 현재 `msr_image`, `afm`, `fail_issue`, `recipe_tat` Blueprint는 예외입니다. 집에서는 메모리 카운터, office mode에서 `REDIS_HOST`가 있으면 공유 Redis 카운터를 사용합니다. Redis 장애 시 메모리 fallback은 응답을 유지하지만 worker별 카운터가 되어 전체 제한 강도가 달라집니다.
 
 [chat/orchestration.py](../../../backend/chat/orchestration.py)는 대화 턴을 daemon thread로 넘깁니다. POST의 202는 ‘접수됨’이지 ‘답변 완료’가 아닙니다. SQLite에 pending 상태를 남기고 클라이언트가 결과를 확인합니다. 프로세스가 종료되면 thread도 사라지므로 영속 작업 큐와 같지 않습니다. [chat/store.py](../../../backend/chat/store.py)의 stale pending 처리가 이러한 중단을 사용자에게 남깁니다.
 

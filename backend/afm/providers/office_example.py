@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import io
 import json
+import mimetypes
 import re
 import time
 from functools import lru_cache
@@ -250,15 +251,16 @@ def _is_original(name: str) -> bool:
 
 
 def _original_key(record: dict[str, Any], name: str) -> str | None:
-    # The Result list holds the originals beside their webp conversions.
+    # Every image list holds its originals beside their webp conversions.
     # Paired by name: the webp's own, with the original's extension (office 확인 2026-10-07).
     if _is_original(name):
         return None
     stem = name.rsplit(".", 1)[0]
-    for key in _keys(record, "tiff"):
-        base = _basename(key)
-        if _is_original(base) and base.rsplit(".", 1)[0] == stem:
-            return key
+    for kind in _IMAGE_KINDS:
+        for key in _keys(record, kind):
+            base = _basename(key)
+            if _is_original(base) and base.rsplit(".", 1)[0] == stem:
+                return key
     return None
 
 
@@ -489,8 +491,8 @@ def list_analysis_images(
             continue
         encoded = quote(name, safe="")
         image = {"name": name, "url": f"{base}/images/{image_type}/{encoded}{tool}"}
-        # The page shows 원본 TIFF 다운로드 only where this key is present.
-        if image_type == "tiff" and _original_key(record, name):
+        # The page shows 원본 다운로드 only where this key is present.
+        if _original_key(record, name):
             image["original_url"] = f"{base}/tiff/{encoded}{tool}"
         images.append(image)
     return images
@@ -519,7 +521,8 @@ def get_tiff_original(
     if data is None:
         return None
     # The stored name, not one composed here: a download keeps its identity.
-    return {"filename": _basename(key), "content_type": "image/tiff", "data": data}
+    content_type = mimetypes.guess_type(key)[0] or "application/octet-stream"
+    return {"filename": _basename(key), "content_type": content_type, "data": data}
 
 
 if __name__ == "__main__":

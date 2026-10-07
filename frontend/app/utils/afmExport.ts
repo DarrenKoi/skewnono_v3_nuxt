@@ -91,8 +91,9 @@ export const buildSummaryTable = (summary: AfmSummaryRow[]): ExportTable =>
 // (backend/afm/contracts.py) — the column set varies per recipe.
 // `Block` (utils/afmPoints tagBlocks) leads when present: in a multi-block file
 // the same point appears once per block, and without it the rows are twins.
+// `Lap` (tagLaps) follows for the same reason on a repeat measurement.
 export const buildDetailedTable = (data: Record<string, unknown>[]): ExportTable =>
-  tableFromRows(data, data.some(row => 'Block' in row) ? ['Block'] : [])
+  tableFromRows(data, ['Block', 'Lap'].filter(key => data.some(row => key in row)))
 
 // The headers carry the file's own units: the same numbers mean um in one file and
 // Pixel in the next, and a sheet outlives the screen that said which.

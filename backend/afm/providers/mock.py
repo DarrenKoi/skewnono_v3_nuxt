@@ -786,9 +786,8 @@ def list_analysis_images(
                 f"?tool={encoded_tool}"
             ),
         }
-        # Only a Result image is a conversion of a stored TIFF, and only where
-        # that TIFF is listed beside it.
-        if image_type == "tiff" and _original_name(name) in names:
+        # Offered only where the original is listed beside its conversion.
+        if _original_of(name, names):
             image["original_url"] = (
                 f"/api/afm/files/{encoded_filename}/tiff/{encoded_name}?tool={encoded_tool}"
             )
@@ -801,9 +800,16 @@ def get_tiff_original(
     name: str,
     tool_name: str | None = None,
 ) -> AfmOriginalFile | None:
+    # Despite the name, the original of ANY displayed image: names are unique
+    # inside one measurement, so the list it sits in does not need saying.
     row = _find_measurement(filename, tool_name)
-    if row is None or _is_original(name) or _original_name(name) not in row["tiff_dir_list"]:
+    stored = None if row is None or _is_original(name) else next(
+        (found for field in IMAGE_TYPE_FIELDS.values() if (found := _original_of(name, row[field]))),
+        None,
+    )
+    if stored is None:
         return None
+    image_format = _ORIGINAL_FORMATS[stored.rsplit(".", 1)[-1]]
 
     # Lazy: Pillow is only needed for this one download.
     from PIL import Image
@@ -817,10 +823,10 @@ def get_tiff_original(
         for x in range(size)
     )
     buffer = io.BytesIO()
-    Image.frombytes("L", (size, size), pixels).save(buffer, format="TIFF")
+    Image.frombytes("L", (size, size), pixels).save(buffer, format=image_format)
     return {
-        "filename": _original_name(name),
-        "content_type": "image/tiff",
+        "filename": stored,
+        "content_type": f"image/{image_format.lower()}",
         "data": buffer.getvalue(),
     }
 
@@ -1275,6 +1281,18 @@ def _original_name(webp_name: str) -> str:
     # OFFICE-VERIFY: the original is assumed to carry the webp's name with a
     # TIFF extension.
     return f"{webp_name.rsplit('.', 1)[0]}.tiff"
+
+
+# Extension of a stored original → the Pillow format the mock fabricates it in.
+_ORIGINAL_FORMATS = {"tiff": "TIFF", "bmp": "BMP", "png": "PNG"}
+
+
+def _original_of(webp_name: str, names: list[str]) -> str | None:
+    # The webp's own name with another extension (office 확인 2026-10-07).
+    stem = webp_name.rsplit(".", 1)[0]
+    return next(
+        (name for name in names if _is_original(name) and name.rsplit(".", 1)[0] == stem), None
+    )
 
 
 def _is_original(name: str) -> bool:

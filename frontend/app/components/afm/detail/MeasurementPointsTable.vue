@@ -42,7 +42,7 @@
         :key="facet.key"
         class="flex items-center gap-1"
       >
-        <span class="mr-0.5 sk-meta">{{ facet.key }}</span>
+        <span class="mr-0.5 sk-meta">{{ facet.key === 'Lap' ? '회차' : facet.key }}</span>
         <SkChip
           label="전체"
           :active="!equals[facet.key]"
@@ -194,7 +194,7 @@ const visibleColumns = computed(() => allColumns.value.filter(c => visibleKeys.v
 // Exact-match filters per column; '' = not filtered. Block is offered only on a
 // file that has more than one.
 const equals = reactive<Record<string, string>>({})
-const FACET_KEYS = ['State', 'Valid', 'Block']
+const FACET_KEYS = ['State', 'Valid', 'Block', 'Lap']
 
 const filters = computed(() => ({
   point: scopedPoint.value,

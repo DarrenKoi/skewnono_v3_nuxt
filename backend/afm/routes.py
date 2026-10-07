@@ -192,10 +192,12 @@ def afm_analysis_image_file(filename: str, image_type: str, name: str):
 
 @bp.get("/afm/files/<path:filename>/tiff/<path:name>")
 def afm_tiff_original(filename: str, name: str):
-    """The untouched TIFF behind one Result image, as a download.
+    """The untouched original behind one displayed image, as a download.
 
     `name` is the listed (display) image name; the provider maps it to the
-    stored original, so the page never has to know the storage layout.
+    stored original, so the page never has to know the storage layout. The
+    path says `tiff` because Result images came first: an align original is a
+    .bmp, a tip or capture one a .png.
     """
     original = get_tiff_original(unquote(filename), unquote(name), _tool_name())
 
@@ -207,18 +209,22 @@ def afm_tiff_original(filename: str, name: str):
 
 @bp.get("/afm/files/<path:filename>/tiff.zip")
 def afm_tiff_zip(filename: str):
-    """Every original TIFF of one measurement in a single zip.
+    """Every original of one image type (`?type=`, Result by default) in one zip.
 
     Built from the same two seams as the single download, so the office adapter
     needs nothing new: the Result list says which images have an original, and
     `get_tiff_original` fetches each. One that vanished between the two (past
     retention) is left out rather than failing the whole archive.
     """
+    image_type = request.args.get("type", "tiff")
+    if image_type not in _VALID_IMAGE_TYPES:
+        return "Invalid image type", 404
+
     tool_name = _tool_name()
     decoded_filename = unquote(filename)
     names = [
         image["name"]
-        for image in list_analysis_images(decoded_filename, "tiff", tool_name)
+        for image in list_analysis_images(decoded_filename, image_type, tool_name)
         if image.get("original_url")
     ]
 
@@ -239,7 +245,8 @@ def afm_tiff_zip(filename: str):
         return "TIFF file not found", 404
 
     stem = decoded_filename.removesuffix(".csv").removesuffix(".pkl")
-    return _attachment(buffer.getvalue(), "application/zip", f"{stem}_TIFF.zip")
+    suffix = "TIFF" if image_type == "tiff" else f"{image_type}_original"
+    return _attachment(buffer.getvalue(), "application/zip", f"{stem}_{suffix}.zip")
 
 
 @bp.get("/afm/files/<path:filename>/images.zip")

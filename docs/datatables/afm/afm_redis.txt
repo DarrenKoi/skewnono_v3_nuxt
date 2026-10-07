@@ -197,8 +197,8 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
   원본은 **webp 와 이름이 같고 확장자만 다릅니다** — 네 종류 모두 [확인 9차].
   Result 이미지는 위치마다 한 장이고 repeat recipe 도 Site × point 마다 한 장입니다.
   측정 한 건의 webp 는 실측 최대 **133장**(MAP608 `WID_REAL`), 원본까지 189 객체입니다
-  [확인 9차]. ⚠ 웹은 사용자 한 명이 5초에 50번까지만 요청할 수 있고 `afm` 은 그 제한의
-  예외가 아니므로, 이런 측정의 이미지를 한꺼번에 스크롤하면 일부가 거절될 수 있습니다.
+  [확인 9차]. 그래서 `afm` 은 `msr_image` 처럼 사용자당 5초 50회 요청 제한의 예외입니다
+  (backend/__init__.py 의 `_EXEMPT_BLUEPRINTS`, user-confirmed 2026-10-07).
     raw_dir_list      원본 csv / txt
 
   ⚠ `data_dir_list` 가 비어 있지 않다고 "측정 데이터 있음"이 아닙니다 [확인]. data CSV 가
@@ -212,7 +212,9 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
   ⚠ **align·tip·capture 의 원본도 각자의 목록에 들어 있고, TIFF 가 아닙니다** — align 은
     `.bmp`, tip 과 capture 는 `.png` 입니다 [확인 8차]. 그래서 adapter 는 확장자를 나열하지
     않고 **`.webp` 가 아닌 것을 모두 원본**으로 보아 이미지 목록과 `has_image`·`has_align`·
-    `has_tip` 판단에서 뺍니다. 원본 다운로드는 아직 Result 이미지(`.tiff`)에만 둡니다.
+    `has_tip` 판단에서 뺍니다. 원본 다운로드는 네 종류 모두에 있습니다 — 이미지 하나의
+    원본, 그리고 열린 탭의 원본 전체를 묶은 zip. 원본은 webp 의 이름에서 확장자만 바꿔
+    찾습니다.
   ⚠ 예전 요구사항(docs/afm/개발요구.txt)의 `["no files"]` 표지는 **쓰지 않습니다.**
   ⚠ parquet 의 list 열은 `pd.read_parquet` 에서 list 가 아니라 numpy 배열로 돌아옵니다.
   ⚠ 추출에 실패한 측정은 목록에 **들어오지 않습니다** [확인]. "파일이 원래 없음"과

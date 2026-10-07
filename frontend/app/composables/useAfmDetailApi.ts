@@ -189,11 +189,12 @@ export const useAfmDetailApi = () => {
 
   // A plain link, not a fetch: the browser streams the zip to disk and names
   // it from Content-Disposition.
-  const tiffZipUrl = (tool: string, filename: string) =>
-    `${filePath(filename, '/tiff.zip')}?tool=${encodeURIComponent(tool)}`
+  // The route is named for Result's TIFFs; `type` picks any image type's originals.
+  const originalsZipUrl = (tool: string, filename: string, imageType: AfmImageType) =>
+    `${filePath(filename, '/tiff.zip')}?type=${imageType}&tool=${encodeURIComponent(tool)}`
 
   const imagesZipUrl = (tool: string, filename: string, imageType: AfmImageType) =>
     `${filePath(filename, '/images.zip')}?type=${imageType}&tool=${encodeURIComponent(tool)}`
 
-  return { useAfmFiles, useAfmTipRows, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, tiffZipUrl, imagesZipUrl }
+  return { useAfmFiles, useAfmTipRows, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, originalsZipUrl, imagesZipUrl }
 }

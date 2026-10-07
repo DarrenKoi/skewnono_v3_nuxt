@@ -7,13 +7,15 @@ export interface PointColumn {
   label: string
 }
 
-// `Block` exists only on files with more than one block (utils/afmPoints tagBlocks).
-const ID_COLUMN_KEYS: string[] = ['Block', 'measurement_point', 'Point No', 'X (um)', 'Y (um)']
+// `Block` exists only on files with more than one block, `Lap` only on a repeat
+// measurement (utils/afmPoints tagBlocks / tagLaps).
+const ID_COLUMN_KEYS: string[] = ['Block', 'Lap', 'measurement_point', 'Point No', 'X (um)', 'Y (um)']
 
 // A recipe can carry 51 measurement columns; the default view shows the first few.
 const DEFAULT_MEASUREMENT_COLUMNS = 6
 
 const LABEL_OVERRIDES: Record<string, string> = {
+  'Lap': '회차',
   'measurement_point': 'Site',
   'Point No': '#',
   'X (um)': 'X (μm)',
@@ -52,9 +54,12 @@ export const resolvePointColumnKeys = (stored: string[], columns: PointColumn[])
   const present = new Set(columns.map(c => c.key))
   const picked = stored.filter(k => present.has(k))
   if (!picked.length) return defaultPointColumnKeys(columns)
+  // 회차 arrived after picks were already saved, and without it a repeat
+  // measurement's rows are twins — so a pick that predates it still gets it.
+  const lap = present.has('Lap') && !picked.includes('Lap') ? ['Lap'] : []
   return picked.some(isMeasurementKey)
-    ? picked
-    : [...picked, ...defaultPointColumnKeys(columns).filter(isMeasurementKey)]
+    ? [...lap, ...picked]
+    : [...lap, ...picked, ...defaultPointColumnKeys(columns).filter(isMeasurementKey)]
 }
 
 // A new pick for this file, keeping what was picked for columns it does not

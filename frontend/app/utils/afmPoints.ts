@@ -39,6 +39,23 @@ export const tagBlocks = (data: AfmDetailRow[], summary: AfmSummaryRow[]): AfmDe
   return data.map((row, i) => ({ ...row, Block: names[i]! }))
 }
 
+// Rows with a `Lap` column (회차), added only where a repeat recipe measured a
+// point more than once in a block. Nothing in a row numbers its lap: the tool
+// goes round every Site and then round again, so a point's n-th row in its
+// block is its n-th lap (office 확인 2026-10-07; `Sample Count` goes up by one
+// with it).
+export const tagLaps = (data: AfmDetailRow[], summary: AfmSummaryRow[]): AfmDetailRow[] => {
+  const fallback = fallbackBlock(summary)
+  const seen = new Map<string, number>()
+  const laps = data.map((row) => {
+    const key = `${blockOf(row, fallback)}\u0000${row.measurement_point}`
+    const lap = (seen.get(key) ?? 0) + 1
+    seen.set(key, lap)
+    return lap
+  })
+  return laps.some(lap => lap > 1) ? data.map((row, i) => ({ ...row, Lap: laps[i]! })) : data
+}
+
 // One state for a point that has a row per block: the worst one wins.
 export const pointState = (rows: AfmDetailRow[]): string | null => {
   const states = rows.map(row => row.State)

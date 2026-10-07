@@ -25,9 +25,9 @@
           color="neutral"
           variant="outline"
           icon="i-lucide-file-archive"
-          :to="tiffZipUrl(tool, filename)"
+          :to="originalsZipUrl(tool, filename, activeType)"
           external
-          :label="`원본 TIFF 전체 · ${originalCount}장`"
+          :label="`원본 전체 · ${originalCount}장`"
         />
       </div>
     </template>
@@ -319,7 +319,7 @@
                   color="neutral"
                   variant="outline"
                   icon="i-lucide-file-down"
-                  label="원본 TIFF 다운로드"
+                  label="원본 다운로드"
                 />
               </div>
               <div
@@ -355,7 +355,7 @@ const props = defineProps<{
 // popup's 이 포인트로 보기 is what changes it from here.
 const selectedPoint = defineModel<string>('selectedPoint', { required: true })
 
-const { fetchAnalysisImages, tiffZipUrl, imagesZipUrl } = useAfmDetailApi()
+const { fetchAnalysisImages, originalsZipUrl, imagesZipUrl } = useAfmDetailApi()
 
 const TYPES: { value: AfmImageType, label: string }[] = [
   { value: 'align', label: 'Align' },
@@ -372,7 +372,7 @@ const states = reactive({ align: newState(), tip: newState(), capture: newState(
 // Result opens first: it is the one type with an image per point.
 const activeType = ref<AfmImageType>('tiff')
 const state = computed(() => states[activeType.value])
-// How many originals the zip will hold — only Result images have one.
+// How many originals the open tab's zip will hold (.tiff, .bmp or .png by type).
 const originalCount = computed(() => state.value.images.filter(image => image.original_url).length)
 const tabItems = computed(() =>
   TYPES.map(t => ({ ...t, count: states[t.value].images.length || undefined }))

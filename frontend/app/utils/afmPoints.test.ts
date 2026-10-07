@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
-import { blocksOfPoint, imagePoint, pointState, siteDots, tagBlocks } from './afmPoints.ts'
+import { blocksOfPoint, imagePoint, pointState, siteDots, tagBlocks, tagLaps } from './afmPoints.ts'
 
 const row = (point: string, state: string, extra: Record<string, string | number> = {}): AfmDetailRow => ({
   'measurement_point': point,
@@ -55,6 +55,18 @@ test('blocksOfPoint: a row belongs to the block its Site names', () => {
   const bare = [row('0001', 'COMPLETED'), row('0001', 'COMPLETED')]
   assert.deepEqual(blocksOfPoint(bare, summary, '0001').map(b => b.name), ['Profile_LEFT_UL', 'Profile_LEFT_UL'])
   assert.deepEqual(blocksOfPoint(bare, [], '0001').map(b => b.name), ['Block 1', 'Block 1'])
+})
+
+test('tagLaps: the n-th row of a point in its block is its n-th lap; no column without a repeat', () => {
+  // Round every site, then round again — and a second block starts over at 1.
+  const repeat = [
+    row('0001', 'COMPLETED', L), row('0002', 'COMPLETED', L),
+    row('0001', 'COMPLETED', L), row('0002', 'FAILED', L),
+    row('0001', 'COMPLETED', R)
+  ]
+  assert.deepEqual(tagLaps(repeat, summary).map(r => r.Lap), [1, 1, 2, 2, 1])
+  // The same point in two blocks is not a repeat.
+  assert.equal(tagLaps(twoBlocks, summary), twoBlocks)
 })
 
 test('tagBlocks: adds Block only where a file has more than one', () => {

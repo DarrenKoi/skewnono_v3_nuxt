@@ -129,3 +129,12 @@ test('search matches a cell by the text the table prints', () => {
   const hit = (search: string) => filterPointRows(data, { search, visibleKeys: ['Left_H (nm)'] }).length
   assert.deepEqual([hit('12.35'), hit('12.345'), hit('99')], [1, 1, 0])
 })
+
+test('a repeat measurement shows 회차 even to a column pick saved before it existed', () => {
+  const columns = derivePointColumns(rows.map((r, i) => ({ ...r, Lap: i + 1 })))
+  assert.deepEqual(columns.slice(0, 2).map(c => [c.key, c.label]), [['Lap', '회차'], ['measurement_point', 'Site']])
+  assert.ok(defaultPointColumnKeys(columns).includes('Lap'))
+  assert.deepEqual(resolvePointColumnKeys(['State', 'Pad_1_H (nm)'], columns), ['Lap', 'State', 'Pad_1_H (nm)'])
+  // No repeat, no column to add.
+  assert.deepEqual(resolvePointColumnKeys(['State', 'Pad_1_H (nm)'], derivePointColumns(rows)), ['State', 'Pad_1_H (nm)'])
+})

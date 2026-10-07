@@ -145,7 +145,7 @@ browser by hand — load the `browser-verify` skill first (it picks the tool;
 `agent-browser` is the default).
 
 ### Runtime gotchas
-- `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Three blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` (gallery fan-out) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `backend/__init__.py`.
+- `/api/*` is rate-limited to 50 req / 5 s per user — space out curl loops or vary the identity. Four blueprints are exempt because one page view legitimately exceeds the budget: `msr_image` and `afm` (gallery fan-out — one AFM measurement holds up to 133 images) and `fail_issue` + `recipe_tat` (the two behind `/recipe-status`). The list is `_EXEMPT_BLUEPRINTS` in `backend/__init__.py`.
 - Identity at home is the `LASTUSER` cookie: `local-dev` = admin, digits = normal user, `X`-prefix = blocked by access control.
 - `index.py` sets `ARROW_DEFAULT_MEMORY_POOL=system` before any import — **do not remove**. PyArrow 25's bundled mimalloc segfaulted on macOS (seen under Python 3.14) when a fresh thread first allocates, and the dev server runs every request on a fresh thread.
 - Periodic jobs live in `backend/_scheduler/`, not in feature folders.
