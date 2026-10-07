@@ -804,6 +804,16 @@ MAP608 측정키 6번째 필드가 NA면 Info Start Time에서 HHMMSS 추출, �
   ```
 
   MAPC01은 소요시간을 분석하지 않습니다. `Date`로 대신 계산하는 길은 만들지 않습니다.
+- 이어서 범위에 대한 방침을 받았습니다.
+
+  ```text
+  Since this result data is based on the setting in the afm tool. I think the engineers will work on it if it is worth of doing that. We just prepare for that case and focuse on the currently available tools.
+  ```
+
+  `Start Time`·`End Time`이 남는지는 장비의 설정에 달려 있고, 분석이 쓸모 있으면
+  엔지니어가 설정을 바꿀 것으로 읽었습니다. 따라서 지금 값이 있는 장비·측정만 분석하되,
+  값이 생기면 코드 변경 없이 분석되도록 **장비 이름이 아니라 값의 유무로** 판단합니다.
+  `focuse`는 `focus`의 오타로 읽었습니다.
 - "data CSV에만 존재"는 `Start Time`·`End Time`이 data CSV의 Info 섹션에만 있다는 뜻으로
   읽었습니다.
 - "MAPC01은 현재 data CSV가 없어"가 MAPC01에 point 데이터도 없다는 뜻인지는 알 수

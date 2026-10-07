@@ -142,6 +142,8 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   읽습니다(실측 22:32:28 → 00:11:13). MAPC01 은 지금 data CSV 가 없어 둘 다 쓸 수 없으므로
   mock 의 MAPC01 Info 는 전부 13키입니다. MAP608 에는 `Start Time` 만 있고 `End Time` 이
   없는 측정이 있습니다(user-confirmed 2026-10-08) — 그런 측정은 소요시간을 분석하지 않습니다.
+  두 값이 남는지는 장비의 설정에 달려 있어(user-confirmed 2026-10-08) 나중에 생길 수 있으므로,
+  화면은 장비 이름이 아니라 값이 있는지로 판단해야 합니다.
 - Info 의 값은 비어 있을 수 있습니다 (`Carrier ID`, `Last Pick Up Time`,
   `Last Put Back Time`). 적재본은 빈 문자열이고 계약에서는 null 입니다.
 - Profile 격자는 MAP608 512×64, MAPC01 은 1D(N×1, 1024~16384)와 2D 혼재이고 2D 는
