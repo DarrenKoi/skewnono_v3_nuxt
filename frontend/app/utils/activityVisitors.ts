@@ -1,7 +1,7 @@
 import type { EChartsOption } from 'echarts'
 import { byActiveDays, userDisplayName, userTeamLabel } from './activity.ts'
 import { DAY_NAMES } from './activityCalendar.ts'
-import { CHART_AXIS_LABEL, CHART_LEGEND_LABEL } from './chartType.ts'
+import { CHART_AXIS_LABEL } from './chartType.ts'
 import type { DailyVisitors, UserListRow } from '~/composables/useActivityApi'
 
 /**
@@ -42,17 +42,32 @@ export const visitorTooltip = (day: DailyVisitors): string => {
     + `<br>DAU ${people(day.visitors)} · WAU ${people(day.wau)} · MAU ${people(day.mau)}`
 }
 
+export type VisitorMetricKey = 'dau' | 'wau' | 'mau'
+
+export const VISITOR_METRIC_TABS: { label: string, value: VisitorMetricKey }[] = [
+  { label: 'DAU', value: 'dau' },
+  { label: 'WAU', value: 'wau' },
+  { label: 'MAU', value: 'mau' }
+]
+
+const METRIC_VALUE: Record<VisitorMetricKey, (day: DailyVisitors) => number> = {
+  dau: day => day.visitors,
+  wau: day => day.wau,
+  mau: day => day.mau
+}
+
 /**
- * DAU as bars, rolling WAU and MAU as lines, on one axis.
+ * One metric per chart: DAU as bars, rolling WAU or MAU as a line.
  *
- * One axis on purpose: all three count the same thing, people, so the gap
- * between a bar and the MAU line IS the answer to "how many of our monthly
- * users came today". A second axis would let the two be scaled apart and
- * erase that.
+ * One at a time on purpose. Drawn together on a shared axis, DAU was a row of
+ * slivers under the MAU line and its day-to-day movement could not be read.
+ * The tooltip still names all three for the hovered day.
  */
-export const buildVisitorsOption = (series: readonly DailyVisitors[]): EChartsOption => ({
-  grid: { left: 44, right: 12, top: 36, bottom: 28 },
-  legend: { top: 0, right: 0, textStyle: CHART_LEGEND_LABEL },
+export const buildVisitorsOption = (
+  series: readonly DailyVisitors[],
+  metric: VisitorMetricKey = 'dau'
+): EChartsOption => ({
+  grid: { left: 44, right: 12, top: 12, bottom: 28 },
   tooltip: {
     // 'axis' so the whole column is the hit target — a one-visitor day is a
     // sliver of a bar next to a busy one.
@@ -72,22 +87,30 @@ export const buildVisitorsOption = (series: readonly DailyVisitors[]): EChartsOp
   },
   yAxis: {
     type: 'value',
-    min: 0,
+    // Bars are read by length, so they start at zero. A rolling count moves a
+    // few people on a base of hundreds: from zero that line is flat, so its
+    // axis fits the data instead.
+    ...(metric === 'dau' ? { min: 0 } : { scale: true }),
     minInterval: 1,
     axisLabel: CHART_AXIS_LABEL
   },
   series: [
-    {
-      name: 'DAU',
-      type: 'bar',
-      data: series.map(day => day.visitors),
-      barCategoryGap: '30%',
-      itemStyle: { borderRadius: [2, 2, 0, 0] }
-    },
-    // No point symbols: sixty dots per line is noise, and the axis tooltip
-    // already reads every series at the hovered column.
-    { name: 'WAU', type: 'line', data: series.map(day => day.wau), showSymbol: false },
-    { name: 'MAU', type: 'line', data: series.map(day => day.mau), showSymbol: false }
+    metric === 'dau'
+      ? {
+          name: 'DAU',
+          type: 'bar',
+          data: series.map(METRIC_VALUE.dau),
+          barCategoryGap: '30%',
+          itemStyle: { borderRadius: [2, 2, 0, 0] }
+        }
+      // No point symbols: sixty dots on the line is noise, and the axis
+      // tooltip already reads the hovered column.
+      : {
+          name: metric.toUpperCase(),
+          type: 'line',
+          data: series.map(METRIC_VALUE[metric]),
+          showSymbol: false
+        }
   ]
 })
 

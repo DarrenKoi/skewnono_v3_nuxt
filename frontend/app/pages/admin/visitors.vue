@@ -85,15 +85,26 @@
                    card above it. -->
               <span class="sk-meta font-normal">· WAU·MAU는 그날까지의 7일·30일 누적 사용자</span>
             </span>
-            <UTabs
-              v-model="windowKey"
-              :items="VISITOR_WINDOW_TABS"
-              variant="pill"
-              size="xs"
-            />
+            <div class="flex items-center gap-2">
+              <UTabs
+                v-model="metricKey"
+                :items="VISITOR_METRIC_TABS"
+                variant="pill"
+                size="xs"
+              />
+              <UTabs
+                v-model="windowKey"
+                :items="VISITOR_WINDOW_TABS"
+                variant="pill"
+                size="xs"
+              />
+            </div>
           </div>
         </template>
-        <ActivityVisitorsChart :series="windowDays" />
+        <ActivityVisitorsChart
+          :series="windowDays"
+          :metric="metricKey"
+        />
       </UCard>
 
       <!-- All three read the same 30-day users list the table below shows. -->
@@ -157,12 +168,14 @@ import {
 } from '~/composables/useActivityApi'
 import { activeUserKpis } from '~/utils/activity'
 import {
+  VISITOR_METRIC_TABS,
   VISITOR_WINDOW_TABS,
   frequentVisitors,
   stickinessPercent,
   visitFrequencyBuckets,
   visitorWindow,
   visitorsByTeam,
+  type VisitorMetricKey,
   type VisitorWindowKey
 } from '~/utils/activityVisitors'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
@@ -227,7 +240,8 @@ const kpiCards = computed(() => {
   ]
 })
 
-// --- trend window toggle ---
+// --- trend metric and window toggles ---
+const metricKey = ref<VisitorMetricKey>('dau')
 const windowKey = ref<VisitorWindowKey>('2w')
 const windowDays = computed(() => visitorWindow(days.value, windowKey.value))
 

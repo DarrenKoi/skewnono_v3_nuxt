@@ -51,21 +51,22 @@ test('labels a day as MM.DD and names the weekday and all three counts in the to
   )
 })
 
-test('draws DAU as bars with WAU and MAU as lines over the same days', () => {
-  const option = buildVisitorsOption(SIXTY.slice(-3))
+test('draws one metric at a time: DAU as bars from zero, WAU and MAU as fitted lines', () => {
+  const days = SIXTY.slice(-3)
+  type Drawn = { xAxis: { data: string[] }, yAxis: { min?: number, scale?: boolean, minInterval: number }, series: Array<{ name: string, type: string, data: number[] }> }
+  const draw = (metric?: 'dau' | 'wau' | 'mau') => buildVisitorsOption(days, metric) as Drawn
 
-  assert.deepEqual((option.xAxis as { data: string[] }).data, ['2026-09-30', '2026-10-01', '2026-10-02'])
-  const series = option.series as Array<{ name: string, type: string, data: number[] }>
-  assert.deepEqual(
-    series.map(s => [s.name, s.type, s.data]),
-    [
-      ['DAU', 'bar', [57, 58, 59]],
-      ['WAU', 'line', [67, 68, 69]],
-      ['MAU', 'line', [157, 158, 159]]
-    ]
-  )
+  assert.deepEqual(draw().xAxis.data, ['2026-09-30', '2026-10-01', '2026-10-02'])
+  assert.deepEqual(draw().series.map(s => [s.name, s.type, s.data]), [['DAU', 'bar', [57, 58, 59]]])
+  assert.deepEqual(draw('wau').series.map(s => [s.name, s.type, s.data]), [['WAU', 'line', [67, 68, 69]]])
+  assert.deepEqual(draw('mau').series.map(s => [s.name, s.type, s.data]), [['MAU', 'line', [157, 158, 159]]])
+
+  // A bar's length is its value; a rolling count's movement is what is read.
+  assert.equal(draw('dau').yAxis.min, 0)
+  assert.equal(draw('mau').yAxis.min, undefined)
+  assert.equal(draw('mau').yAxis.scale, true)
   // Half a visitor is not a thing: a quiet week must not tick 0, 0.5, 1.
-  assert.equal((option.yAxis as { minInterval: number }).minInterval, 1)
+  assert.equal(draw('wau').yAxis.minInterval, 1)
 })
 
 test('stickiness is DAU over MAU, and absent when nobody came all month', () => {

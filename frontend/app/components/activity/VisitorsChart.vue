@@ -14,21 +14,22 @@
 
 <script setup lang="ts">
 import type { DailyVisitors } from '~/composables/useActivityApi'
-import { buildVisitorsOption } from '~/utils/activityVisitors'
+import { buildVisitorsOption, type VisitorMetricKey } from '~/utils/activityVisitors'
 
 const props = defineProps<{
   // Already cut to the chosen window — the tabs live in the card header, on
   // the page, like every other window toggle here.
   series: DailyVisitors[]
+  metric: VisitorMetricKey
 }>()
 
 const chartEl = ref<HTMLDivElement | null>(null)
 
-// MAU, not DAU: a window whose days were all quiet can still sit inside
-// someone's month, and those lines are worth drawing.
+// MAU, not the shown metric: a window whose days were all quiet can still sit
+// inside someone's month, and an all-zero DAU tab is an answer, not an absence.
 const hasData = computed(() => props.series.some(day => day.mau > 0))
-// No colors set: the active ECharts theme hands out its series colors in order.
-const option = computed(() => buildVisitorsOption(props.series))
+// No color set: the active ECharts theme supplies it.
+const option = computed(() => buildVisitorsOption(props.series, props.metric))
 
 useEchart(chartEl, option, { exportName: '방문자 추이' })
 </script>
