@@ -31,7 +31,7 @@ export const parseInfoTime = (raw: unknown): number | null => {
 }
 
 // Info values are not all text (AfmInformation allows numbers); a non-string is present but unparseable.
-const present = (raw: unknown): unknown => typeof raw === 'string' ? (raw.trim() ? raw : null) : raw ?? null
+const present = (raw: unknown): unknown => raw == null || (typeof raw === 'string' && !raw.trim()) ? null : raw
 
 export const durationOf = (information: Record<string, unknown>): Duration => {
   const start = present(information['Start Time'])
@@ -58,26 +58,25 @@ const MIN_FOR_RATIO = 3
 const okSeconds = (rows: DurationRow[]): number[] =>
   rows.flatMap(row => row.duration.kind === 'ok' ? [row.duration.seconds] : [])
 
-export const durationRows = (entries: TrendEntry[]): DurationRow[] => {
-  const durations = entries.map(entry => durationOf(entry.payload.information))
-  const byRecipe = new Map<string, number[]>()
-  entries.forEach((entry, i) => {
-    const d = durations[i]!
-    if (d.kind === 'ok') byRecipe.set(entry.recipe, [...(byRecipe.get(entry.recipe) ?? []), d.seconds])
-  })
-  const medians = new Map<string, number>()
-  for (const [recipe, seconds] of byRecipe) {
-    if (seconds.length >= MIN_FOR_RATIO) medians.set(recipe, median(seconds))
+// Recipes in first-appearance order.
+const byRecipe = (rows: DurationRow[]): Map<string, DurationRow[]> => {
+  const groups = new Map<string, DurationRow[]>()
+  for (const row of rows) {
+    const list = groups.get(row.entry.recipe)
+    if (list) list.push(row)
+    else groups.set(row.entry.recipe, [row])
   }
-  return entries.map((entry, i) => {
-    const duration = durations[i]!
-    const mid = medians.get(entry.recipe)
-    return {
-      entry,
-      duration,
-      ratio: duration.kind === 'ok' && mid !== undefined && mid > 0 ? duration.seconds / mid : null
-    }
-  })
+  return groups
+}
+
+export const durationRows = (entries: TrendEntry[]): DurationRow[] => {
+  const rows: DurationRow[] = entries.map(entry => ({ entry, duration: durationOf(entry.payload.information), ratio: null }))
+  for (const list of byRecipe(rows).values()) {
+    const seconds = okSeconds(list)
+    const mid = seconds.length >= MIN_FOR_RATIO ? median(seconds) : 0
+    if (mid > 0) for (const row of list) if (row.duration.kind === 'ok') row.ratio = row.duration.seconds / mid
+  }
+  return rows
 }
 
 export interface RecipeDuration {
@@ -89,26 +88,19 @@ export interface RecipeDuration {
   max: number | null
 }
 
-export const durationByRecipe = (rows: DurationRow[]): RecipeDuration[] => {
-  const groups = new Map<string, DurationRow[]>()
-  for (const row of rows) {
-    const list = groups.get(row.entry.recipe)
-    if (list) list.push(row)
-    else groups.set(row.entry.recipe, [row])
-  }
-  return [...groups].map(([recipe, list]) => {
+export const durationByRecipe = (rows: DurationRow[]): RecipeDuration[] =>
+  [...byRecipe(rows)].map(([recipe, list]) => {
     const seconds = okSeconds(list)
-    const any = seconds.length > 0
+    const counted = seconds.length
     return {
       recipe,
       total: list.length,
-      counted: seconds.length,
-      median: any ? median(seconds) : null,
-      min: any ? Math.min(...seconds) : null,
-      max: any ? Math.max(...seconds) : null
+      counted,
+      median: counted ? median(seconds) : null,
+      min: counted ? Math.min(...seconds) : null,
+      max: counted ? Math.max(...seconds) : null
     }
   })
-}
 
 // 5925 → '1시간 38분 45초'; zero units are dropped, 0 stays '0초'.
 export const formatDuration = (seconds: number): string => {

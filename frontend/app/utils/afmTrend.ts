@@ -4,6 +4,7 @@
 // Design proposal 3a (`AFM Trend.dc.html`) defines; the data is the detail
 // payload the page already fetches, one request per measurement.
 import type { AfmDetailPayload, AfmDetailRow, AfmSummaryItem } from '~/composables/useAfmDetailApi'
+import { parseInfoTime } from './afmDuration.ts'
 import { tipWidthOf } from './afmInfo.ts'
 import { blockNames, blockOf, fallbackBlock, pointState } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
@@ -40,8 +41,11 @@ const naturalCompare = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 
 // Info's Start Time is the measurement start; the list's date is the fallback.
+// The tool's own text (`2026.10.01 00:13:58`) is not a format Date.parse must
+// accept, so it is read explicitly first.
 const startTime = (source: TrendSource, payload: AfmDetailPayload): number => {
-  const parsed = Date.parse(text(payload.information['Start Time']))
+  const raw = text(payload.information['Start Time'])
+  const parsed = parseInfoTime(raw) ?? Date.parse(raw)
   return Number.isFinite(parsed) ? parsed : Date.parse(source.formattedDate)
 }
 

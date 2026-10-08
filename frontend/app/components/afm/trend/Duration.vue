@@ -14,7 +14,7 @@
         <span class="truncate font-mono text-xs font-semibold text-(--sk-ink)">{{ item.recipe }}</span>
         <span class="sk-meta">계산 {{ item.counted }}/{{ item.total }}건</span>
         <span class="sk-meta">중앙값 <span class="font-mono tabular-nums text-(--sk-ink)">{{ span(item.median) }}</span></span>
-        <span class="sk-meta">최소–최대 <span class="font-mono tabular-nums text-(--sk-ink)">{{ item.min === null || item.max === null ? '—' : `${formatDuration(item.min)} – ${formatDuration(item.max)}` }}</span></span>
+        <span class="sk-meta">최소–최대 <span class="font-mono tabular-nums text-(--sk-ink)">{{ item.counted ? `${span(item.min)} – ${span(item.max)}` : '—' }}</span></span>
       </li>
     </ul>
     <ul class="max-h-[22rem] divide-y divide-(--sk-border-soft) overflow-y-auto">

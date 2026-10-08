@@ -149,6 +149,13 @@ test('prepareEntries sorts by Start Time and reads Sample ID, else lot.slot', ()
   assert.deepEqual(entries.map(e => e.sample), ['LOT1.3', 'S.01'])
 })
 
+test('prepareEntries reads the tool\'s dotted Start Time as KST', () => {
+  const [entry] = prepareEntries([
+    { source: source('dotted'), payload: payload([], [], { 'Start Time': '2026.10.01 00:13:58' }) }
+  ])
+  assert.equal(entry!.time, Date.UTC(2026, 8, 30, 15, 13, 58))
+})
+
 test('pointMatrix unions points in natural order and picks the baseline', () => {
   const series = [
     { key: 'a', points: new Map([['2', 2], ['10', 10]]) },
