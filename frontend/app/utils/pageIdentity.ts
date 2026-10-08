@@ -116,6 +116,11 @@ const IDENTITY_ALIASES: Record<string, string> = {
   '/pm-tune': '/pm-planning'
 }
 
+// /afm/<tool>/<page>: AFM's tabs the backend ranks apart (_AFM_PAGE_RULES).
+// The tool is not part of the identity, so switching tools on one tab is not a
+// new page open. Everything else under /afm stays the one '/afm' identity.
+const AFM_PAGES = new Set(['tips', 'usage', 'recipes'])
+
 const firstValue = (raw: unknown): string | null => {
   const value = Array.isArray(raw) ? raw[0] : raw
   return typeof value === 'string' && value ? value : null
@@ -206,6 +211,9 @@ const resolvePage = (
     if (!tab || !VALID_TABS.has(tab)) return null
     return `${canonical}?tab=${tab}`
   }
+
+  const [, section, , afmPage] = canonical.split('/')
+  if (section === 'afm' && afmPage && AFM_PAGES.has(afmPage)) return `/afm/${afmPage}`
 
   const matched = matchRule(canonical)
   if (matched) return matched

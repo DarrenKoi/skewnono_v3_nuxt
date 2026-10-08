@@ -273,6 +273,36 @@
     "family": "afm"
   },
   {
+    "path": "/afm/HVM1/tips",
+    "query": {},
+    "slug": "afm_tips",
+    "family": "afm"
+  },
+  {
+    "path": "/afm/map608/tips",
+    "query": {},
+    "slug": "afm_tips",
+    "family": "afm"
+  },
+  {
+    "path": "/afm/HVM1/usage",
+    "query": {},
+    "slug": "afm_usage",
+    "family": "afm"
+  },
+  {
+    "path": "/afm/HVM1/recipes",
+    "query": {},
+    "slug": "afm_recipes",
+    "family": "afm"
+  },
+  {
+    "path": "/afm/HVM1/see-together",
+    "query": {},
+    "slug": "afm",
+    "family": "afm"
+  },
+  {
     "path": "/msr-file",
     "query": {},
     "slug": "msr_file",

@@ -619,7 +619,7 @@ _DEMO_USERS: list[_DemoUser] = [
         "jung.hari",
         "M15",
         {"skewvoir": 90, "sem_list": 30, "afm": 25, "meas_hist": 15},
-        {"skewvoir": 19, "afm": 6, "meas_hist": 5, "mag_pixel": 3},
+        {"skewvoir": 19, "afm": 6, "afm_tips": 4, "meas_hist": 5, "mag_pixel": 3},
         4,
     ),
     _DemoUser(
@@ -667,6 +667,9 @@ _DEMO_USERS: list[_DemoUser] = [
 # device_statistics exists under CD-SEM only.
 _PAGE_FAMILY: dict[str, str | None] = {
     "afm": "afm",
+    "afm_tips": "afm",
+    "afm_usage": "afm",
+    "afm_recipes": "afm",
     "chat": None,
     "mag_pixel": None,
     "device_statistics": "cdsem",

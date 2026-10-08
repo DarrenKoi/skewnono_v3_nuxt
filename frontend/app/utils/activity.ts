@@ -112,7 +112,10 @@ export const rankableFabRows = <T extends { fab: string }>(
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',
-  afm: 'AFM',
+  afm: 'AFM 측정 결과',
+  afm_recipes: 'AFM Recipe 현황',
+  afm_tips: 'AFM 팁 모니터링',
+  afm_usage: 'AFM 가동 현황',
   announcements: '공지사항',
   api_tokens: 'API 토큰',
   cdsem: 'CD-SEM',

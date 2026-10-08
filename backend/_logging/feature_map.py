@@ -171,6 +171,17 @@ _STANDALONE_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("/afm",         "afm"),
 )
 
+# /afm/<tool>/<this segment> → slug. The tool sits between /afm and the page,
+# so a prefix rule cannot express it. Split out 2026-10-08 so the ranking can
+# tell AFM's tabs apart; everything else under /afm (측정 결과, a measurement's
+# detail, 시계열 비교) keeps the original `afm` slug, whose series therefore
+# covers ALL AFM pages before that date and 측정 결과 alone after it.
+_AFM_PAGE_RULES = {
+    "tips":    "afm_tips",
+    "usage":   "afm_usage",
+    "recipes": "afm_recipes",
+}
+
 # Fab segments are [fab] route params. Same shape the frontend uses in
 # plugins/persist-fab.client.ts, so the two stay in agreement about what a fab
 # looks like.
@@ -233,6 +244,11 @@ def page_to_feature(path: str) -> str | None:
         # Not in _OPS_PAGE_PREFIXES because it is product surface, not an ops
         # screen — the exclusion is for a different reason and says so here.
         return None
+    afm_parts = clean.split("/")  # ["", "afm", <tool>, <page>, ...]
+    if len(afm_parts) >= 4 and afm_parts[1] == AFM_FAMILY:
+        afm_slug = _AFM_PAGE_RULES.get(afm_parts[3])
+        if afm_slug:
+            return afm_slug
     for prefix, slug in _STANDALONE_PAGE_RULES:
         if clean == prefix or clean.startswith(prefix + "/"):
             return slug

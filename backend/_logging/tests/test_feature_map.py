@@ -191,6 +191,12 @@ def test_no_registered_route_still_needs_the_fallback():
         # Standalone pages.
         ("/tool-roster", "sem_list"),
         ("/afm/HVM1", "afm"),
+        # AFM's tabs rank separately; the tool segment sits before the page.
+        ("/afm/HVM1/tips", "afm_tips"),
+        ("/afm/HVM1/usage", "afm_usage"),
+        ("/afm/HVM1/recipes", "afm_recipes"),
+        ("/afm/HVM1/see-together", "afm"),
+        ("/afm/tips", "afm"),   # a tool that happens to be named like a tab
         # Legacy routes that redirect; mapped defensively so a beacon that
         # beats the redirect is not misfiled.
         ("/ebeam/cd-sem/M14/recipe-tat", "recipe_tat"),
