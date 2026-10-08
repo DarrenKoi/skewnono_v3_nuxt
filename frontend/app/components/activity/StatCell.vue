@@ -5,7 +5,13 @@
       :class="['text-xl mt-0.5 shrink-0', color]"
     />
     <div class="min-w-0">
-      <div class="text-xl font-semibold tabular-nums truncate">
+      <!-- A count stays big on one line; a text value (a feature label, a
+           timestamp) is longer than half a card, so it wraps instead of
+           ending in "…". leading-7 keeps its first line level with a count's. -->
+      <div
+        class="font-semibold tabular-nums"
+        :class="typeof value === 'number' ? 'text-xl truncate' : 'text-base leading-7 break-keep'"
+      >
         {{ value }}<span
           v-if="unit"
           class="text-sm font-normal text-(--sk-ink-muted) ml-0.5"
