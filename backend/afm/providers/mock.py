@@ -172,6 +172,10 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   그 모양입니다).
 - `Valid` 는 FALSE 가 아직 실측되지 않았습니다(CSV 263개 전수 0건, office 확인
   2026-10-07). mock 은 일부를 False 로 냅니다.
+- data 행과 이미지 목록의 **순서**. office 는 point 순서가 아닙니다(0003 부터 나옵니다 —
+  user-confirmed 2026-10-08; 어떤 순서인지는 OFFICE-VERIFY). mock 은 point 순서로 내므로
+  이 차이는 집에서 보이지 않습니다 — 화면이 정렬하고, afmPoints.test.ts 가 뒤섞인 입력으로
+  지킵니다.
 - data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Pick Up Count` …).
 - 5EAP1501 은 15키 위주, MAPC01 은 13키 위주, MAP608 은 혼재라는 것까지가
   user-confirmed(2026-10-06)입니다. 비율(mock 은 13키를 8건 중 1·8·4건)과 한 파일의

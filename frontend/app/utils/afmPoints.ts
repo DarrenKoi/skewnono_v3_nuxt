@@ -106,6 +106,14 @@ export const siteDots = (data: AfmDetailRow[]): SiteDot[] => {
   }))
 }
 
+// Point-number order. The office hands rows and image names over in the order
+// they were stored, not the order they were measured (a measurement could open
+// on 0003 — user-confirmed 2026-10-08), so the page sorts once where the
+// payload comes in. `numeric` so a key that is ever written unpadded still
+// counts 2 before 10.
+export const comparePoints = (a: string, b: string): number =>
+  a.localeCompare(b, undefined, { numeric: true })
+
 // Which point an image file shows. A name ends `_<point>_<kind>.<ext>`, and the
 // END is the only part that can be trusted: a MAPC01 image does not start with
 // the measurement's list name (its fifth and sixth fields differ — office 확인

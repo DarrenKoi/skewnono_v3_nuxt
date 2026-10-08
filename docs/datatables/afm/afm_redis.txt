@@ -193,6 +193,9 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
 
   파일 목록 7종 — 모두 list[str] 이고, 원소는 **MinIO 객체 key 전체**입니다
   (prefix `2067928/` 포함). **빈 리스트 = 파일 없음**입니다 [명세].
+  **목록의 순서는 point 순서가 아닙니다** — 상세 화면의 분석 이미지가 0003 부터
+  나왔습니다 [user-confirmed 2026-10-08]. 어떤 순서인지는 모릅니다 [OFFICE-VERIFY].
+  화면이 point 번호로 정렬합니다(frontend/app/utils/afmPoints.ts 의 comparePoints).
 
     data_dir_list     상세 parquet
     profile_dir_list  profile parquet
@@ -299,6 +302,10 @@ AFM 적재 형태 — Redis 색인 + MinIO 객체 (ETL 이후, 웹이 실제로 
     detail_points.parquet
       측정 한 번이 한 행입니다. 열 이름은 raw CSV 그대로이며 **`Point No`, `Site ID`**
       는 이 철자입니다(공백, 밑줄 아님).
+
+      **행의 순서는 point 순서가 아닙니다** — 상세 화면의 측정 포인트가 0003 부터
+      나왔습니다 [user-confirmed 2026-10-08]. 어떤 순서인지는 모릅니다 [OFFICE-VERIFY].
+      화면이 point 번호로 안정 정렬하므로 한 point 안의 행 순서(바퀴)는 그대로입니다.
 
       **`Site` 열이 그 행의 block(method 명)입니다.** Summary 의 `Site` 와 같은
       이름이므로 block 은 이 열로 가립니다. 행의 순서나 "같은 point 가 다시 나오면 다음

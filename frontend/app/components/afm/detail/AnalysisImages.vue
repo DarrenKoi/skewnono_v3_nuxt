@@ -395,12 +395,16 @@ const loadType = async (type: AfmImageType) => {
 
 watch(activeType, loadType, { immediate: true })
 
-// Each image with the point it shows and the kind its name ends in (`Height`, `tip`).
-const images = computed(() => state.value.images.map(image => ({
-  ...image,
-  point: imagePoint(image.name, props.points),
-  kind: image.name.replace(/\.\w+$/, '').split('_').pop() ?? image.name
-})))
+// Each image with the point it shows and the kind its name ends in (`Height`,
+// `tip`), in point order and by name within a point: the list arrives in
+// stored order.
+const images = computed(() => state.value.images
+  .map(image => ({
+    ...image,
+    point: imagePoint(image.name, props.points),
+    kind: image.name.replace(/\.\w+$/, '').split('_').pop() ?? image.name
+  }))
+  .sort((a, b) => comparePoints(a.point, b.point) || comparePoints(a.name, b.name)))
 
 // '' is "no point", on an image and before the payload lands alike, so it never
 // counts as the selected one.

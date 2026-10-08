@@ -144,7 +144,16 @@ const { useAfmDetail, fetchProfile, fetchImage } = useAfmDetailApi()
 
 const { data: detailResponse, pending } = useAfmDetail(toolName, filename)
 
-const payload = computed(() => detailResponse.value?.data)
+// Everything below reads the payload top-down as point order, so it is sorted
+// here once. The sort is stable: a repeat recipe's laps keep their order.
+const payload = computed(() => {
+  const detail = detailResponse.value?.data
+  return detail && {
+    ...detail,
+    available_points: [...detail.available_points].sort(comparePoints),
+    data: [...detail.data].sort((a, b) => comparePoints(a.measurement_point, b.measurement_point))
+  }
+})
 const information = computed(() => payload.value?.information ?? {})
 const summaryRows = computed(() => payload.value?.summary ?? [])
 const detailRows = computed(() => payload.value?.data ?? [])
