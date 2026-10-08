@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
-import { blocksOfPoint, imagePoint, pointState, siteDots, tagBlocks, tagLaps } from './afmPoints.ts'
+import { blocksOfPoint, comparePoints, imagePoint, pointState, siteDots, tagBlocks, tagLaps } from './afmPoints.ts'
 
 const row = (point: string, state: string, extra: Record<string, string | number> = {}): AfmDetailRow => ({
   'measurement_point': point,
@@ -126,4 +126,16 @@ test('imagePoint: read at the end of the name, longest key wins', () => {
   assert.equal(imagePoint('#x#ETCH_0001_TRIM#_overview.webp', ['0001']), '')
   // A MAPC01 image does not start with the list name; the end still reads.
   assert.equal(imagePoint('#260709#033958#R#01#MON69683#NA#RL1C078.01_0002_Height.webp', ['0001', '0002']), '0002')
+})
+
+test('comparePoints: point-number order, and a repeat recipe keeps its laps', () => {
+  assert.deepEqual(['0003', '0001', '0010', '0002'].sort(comparePoints), ['0001', '0002', '0003', '0010'])
+  assert.deepEqual(
+    ['0003_X000_Y-001_0001', '0001_X000_Y000_0001', '0002_X-001_Y000_0001'].sort(comparePoints),
+    ['0001_X000_Y000_0001', '0002_X-001_Y000_0001', '0003_X000_Y-001_0001']
+  )
+  // The office hands rows over in stored order; a lap is still a point's n-th row.
+  const stored = [row('0003', 'COMPLETED', { v: 1 }), row('0001', 'COMPLETED', { v: 2 }), row('0003', 'COMPLETED', { v: 3 }), row('0001', 'COMPLETED', { v: 4 })]
+  const sorted = tagLaps([...stored].sort((a, b) => comparePoints(a.measurement_point, b.measurement_point)), [])
+  assert.deepEqual(sorted.map(r => [r.measurement_point, r.v, r.Lap]), [['0001', 2, 1], ['0001', 4, 2], ['0003', 1, 1], ['0003', 3, 2]])
 })
