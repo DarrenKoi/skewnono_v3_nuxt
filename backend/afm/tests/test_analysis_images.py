@@ -27,7 +27,8 @@ def test_capture_is_listed_for_most_rows_but_not_all():
 def test_list_analysis_images_returns_entries_for_capture():
     row, names = _row_with("capture")
     images = data.list_analysis_images(row["filename"], "capture", row["tool_name"])
-    assert [img["name"] for img in images] == names
+    # Stored order, not point order: the mock shuffles it as the office does.
+    assert sorted(img["name"] for img in images) == sorted(names)
     assert all("/images/capture/" in img["url"] for img in images)
     assert all(img["url"].startswith("/api/afm/files/") for img in images)
 

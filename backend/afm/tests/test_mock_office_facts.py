@@ -571,7 +571,8 @@ def test_each_image_list_holds_its_originals_in_the_tools_own_format():
                 originals = [name for name in names if not name.endswith(".webp")]
                 assert all(name.endswith(extensions) for name in originals)
                 assert sorted(n.rsplit(".", 1)[0] for n in originals) == sorted(n.rsplit(".", 1)[0] for n in webps)
-                assert [image["name"] for image in mock.list_analysis_images(row["filename"], kind, tool)] == webps
+                listed = [image["name"] for image in mock.list_analysis_images(row["filename"], kind, tool)]
+                assert sorted(listed) == sorted(webps)
             if row["tip_dir_list"]:
                 assert any(name.endswith("_C_Result.bmp") for name in row["tip_dir_list"])
 
@@ -583,7 +584,7 @@ def test_capture_is_per_point_and_align_is_a_few_per_measurement():
     missing = set()
     for tool in TOOLS:
         for row in _rows(tool):
-            points = mock.get_afm_file_detail(row["filename"], tool)["available_points"]
+            points = sorted(mock.get_afm_file_detail(row["filename"], tool)["available_points"])
             captures = [n for n in row["capture_dir_list"] if n.endswith(".webp")]
             # 10차·11차: only some points have one, some measurements none; and
             # 5EAP1501 ends a plain point number with three digits.

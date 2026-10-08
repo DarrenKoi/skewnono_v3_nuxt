@@ -36,7 +36,7 @@ def test_list_route_returns_images(client):
     body = r.get_json()
     assert body["success"] is True
     assert body["count"] == len(names)
-    assert [img["name"] for img in body["data"]] == names
+    assert sorted(img["name"] for img in body["data"]) == sorted(names)
     assert body["tool"] == row["tool_name"]
 
 
@@ -124,7 +124,8 @@ def test_original_url_downloads_a_real_tiff_under_its_stored_name(client):
     assert r.mimetype == "image/tiff"
     # TIFF magic: little- or big-endian byte-order mark + 42.
     assert r.data[:4] in (b"II*\x00", b"MM\x00*")
-    stored_name = names[0].rsplit(".", 1)[0] + ".tiff"
+    stored_name = listed[0]["name"].rsplit(".", 1)[0] + ".tiff"
+    assert stored_name in names
     disposition = r.headers["Content-Disposition"]
     assert disposition.startswith("attachment;")
     assert f"filename*=UTF-8''{quote(stored_name)}" in disposition
@@ -177,9 +178,10 @@ def test_tiff_zip_holds_every_original_of_the_measurement(client):
     # The Result list holds each webp and, beside it, the original it came from.
     originals = [n for n in names if n.endswith(".tiff")]
     assert originals and len(originals) * 2 == len(names)
-    assert archive.namelist() == originals
-    first = archive.read(archive.namelist()[0])
-    nm = quote(names[0], safe="")
+    assert sorted(archive.namelist()) == sorted(originals)
+    member = archive.namelist()[0]
+    first = archive.read(member)
+    nm = quote(member.rsplit(".", 1)[0] + ".webp", safe="")
     assert first == client.get(f"/api/afm/files/{fn}/tiff/{nm}?tool={row['tool_name']}").data
 
 

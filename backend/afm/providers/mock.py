@@ -173,9 +173,10 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - `Valid` 는 FALSE 가 아직 실측되지 않았습니다(CSV 263개 전수 0건, office 확인
   2026-10-07). mock 은 일부를 False 로 냅니다.
 - data 행과 이미지 목록의 **순서**. office 는 point 순서가 아닙니다(0003 부터 나옵니다 —
-  user-confirmed 2026-10-08; 어떤 순서인지는 OFFICE-VERIFY). mock 은 point 순서로 내므로
-  이 차이는 집에서 보이지 않습니다 — 화면이 정렬하고, afmPoints.test.ts 가 뒤섞인 입력으로
-  지킵니다.
+  user-confirmed 2026-10-08). 어떤 순서인지는 모르므로(OFFICE-VERIFY) mock 은 측정마다
+  고정된 seed 로 뒤섞어 냅니다: data 는 한 바퀴 안의 point 순서만 뒤섞고(block 과 바퀴의
+  순서는 그대로 — 그쪽은 확인된 사실입니다), `available_points` 는 그 순서를 따르며,
+  이미지 목록은 종류마다 따로 뒤섞습니다. 화면이 point 번호로 정렬합니다.
 - data 행의 나머지 키(`X (um)`, `<측정명>_Valid`, `Pick Up Count` …).
 - 5EAP1501 은 15키 위주, MAPC01 은 13키 위주, MAP608 은 혼재라는 것까지가
   user-confirmed(2026-10-06)입니다. 비율(mock 은 13키를 8건 중 1·8·4건)과 한 파일의
@@ -563,6 +564,11 @@ def get_afm_file_detail(
     rng = random.Random(_seed_for("detail", row["tool_name"], row["filename"]))
     recipe = RECIPES[row["recipe_name"]]
     positions = _positions(recipe)
+    # Stored order is not point order at the office (user-confirmed 2026-10-08;
+    # which order it is: OFFICE-VERIFY). Its own Random, and applied after the
+    # rows are drawn, so the detail stream below is left as it was.
+    stored = [key for key, *_ in positions]
+    random.Random(_seed_for("stored-order", row["tool_name"], row["filename"])).shuffle(stored)
     # A recipe with no data CSV has no blocks, so both tables stay empty.
     columns = recipe["columns"] or ()
     method_id = recipe.get("method_id", row["recipe_name"].split("_", 1)[-1])
@@ -628,6 +634,9 @@ def get_afm_file_detail(
             })
             block_rows.append(record)
 
+        # Still one lap after another (office 확인 2026-10-07); only the order
+        # of the points inside a lap is the stored one.
+        block_rows.sort(key=lambda r: (r["Sample Count"], stored.index(r["measurement_point"])))
         detail.extend(block_rows)
         if not stopped:
             summary.extend(_summary_records(method, block_rows, columns))
@@ -648,7 +657,7 @@ def get_afm_file_detail(
         "information": _information(row, rng),
         "summary": summary,
         "data": detail,
-        "available_points": [key for key, *_ in positions]
+        "available_points": stored
     }
 
 
@@ -817,6 +826,8 @@ def list_analysis_images(
                 f"/api/afm/files/{encoded_filename}/tiff/{encoded_name}?tool={encoded_tool}"
             )
         images.append(image)
+    # Not in point order at the office either (user-confirmed 2026-10-08).
+    random.Random(_seed_for("stored-order", tool, row["filename"], image_type)).shuffle(images)
     return images
 
 

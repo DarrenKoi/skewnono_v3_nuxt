@@ -25,7 +25,9 @@ def _series(tool, recipe_name):
         column = next(k for k in detail["summary"][0] if k.endswith("(nm)"))
         block = detail["summary"][0]["Site"]
         mean = next(r[column] for r in detail["summary"] if r["Site"] == block and r["ITEM"] == "MEAN")
-        values = [r[column] for r in detail["data"][:row["point_count"]]]
+        # By point, not by row: stored order differs from one measurement to the next.
+        first_lap = sorted(detail["data"][:row["point_count"]], key=lambda r: r["measurement_point"])
+        values = [r[column] for r in first_lap]
         out.append((row, mean, values))
     return out
 

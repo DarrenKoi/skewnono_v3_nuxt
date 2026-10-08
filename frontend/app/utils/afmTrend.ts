@@ -6,7 +6,7 @@
 import type { AfmDetailPayload, AfmDetailRow, AfmSummaryItem } from '~/composables/useAfmDetailApi'
 import { parseInfoTime } from './afmDuration.ts'
 import { tipWidthOf } from './afmInfo.ts'
-import { blockNames, blockOf, fallbackBlock, pointState } from './afmPoints.ts'
+import { blockNames, blockOf, comparePoints, fallbackBlock, pointState } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { boxStats, type BoxStats } from './boxplotStats.ts'
 import { formatDateTimeLocal } from './dateTime.ts'
@@ -36,9 +36,6 @@ export interface TrendEntry {
 }
 
 const text = (raw: unknown): string => typeof raw === 'string' ? raw.trim() : ''
-
-const naturalCompare = (a: string, b: string) =>
-  a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 
 // Info's Start Time is the measurement start; the list's date is the fallback.
 // The tool's own text (`2026.10.01 00:13:58`) is not a format Date.parse must
@@ -243,7 +240,7 @@ export const pointMatrix = (
   baseline: PointBaseline,
   selectedKey: string | null
 ): PointMatrix => {
-  const points = [...new Set(series.flatMap(s => [...s.points.keys()]))].sort(naturalCompare)
+  const points = [...new Set(series.flatMap(s => [...s.points.keys()]))].sort(comparePoints)
   const rows = series.map(s => ({ key: s.key, values: points.map(p => s.points.get(p) ?? null) }))
   const groupMean = points.map((_, i) => {
     const column = rows.flatMap(row => row.values[i] ?? [])
