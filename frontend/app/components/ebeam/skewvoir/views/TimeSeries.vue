@@ -54,6 +54,13 @@
       @update:model-value="ws.setParam($event)"
     />
 
+    <!-- S7 — only once the rail has a 기준 picked; without one this view is
+         exactly what it was. -->
+    <EbeamSkewvoirTimeseriesBaselineBlock
+      v-if="analysis.baseline.value.length"
+      :analysis="analysis"
+    />
+
     <!-- Lens switch — the primary control on this page: it decides which of the
          three questions (추이 / 분포 / 장비 skew) the whole panel below answers.
 

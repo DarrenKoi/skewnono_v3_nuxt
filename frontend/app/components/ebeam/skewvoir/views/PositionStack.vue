@@ -23,7 +23,10 @@
     />
 
     <template v-else-if="meanPoints.length">
-      <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div
+        class="grid grid-cols-1 gap-3"
+        :class="hasBaseline ? 'xl:grid-cols-3' : 'xl:grid-cols-2'"
+      >
         <EbeamSkewvoirPanelFrame
           title="Composite Mean"
           :meta="`${waferCount} wafers · ${analysis.activeParam.value}`"
@@ -46,6 +49,29 @@
             :unit="analysis.activeUnit.value"
             label="σ"
           />
+        </EbeamSkewvoirPanelFrame>
+
+        <!-- S7 — target group minus the rail's 기준 group, site by site. A site
+             only one group measured is left off the map, never drawn as 0. -->
+        <EbeamSkewvoirPanelFrame
+          v-if="hasBaseline"
+          title="기준 대비 Δ"
+          :meta="`대상 − 기준 · ${delta.points.length} sites${delta.unpaired ? ` · 한쪽만 측정 ${delta.unpaired}` : ''}`"
+          icon="i-lucide-diff"
+        >
+          <EbeamSkewvoirWaferHeatChart
+            v-if="delta.points.length"
+            :points="delta.points"
+            :unit="analysis.activeUnit.value"
+            label="Δ"
+            symmetric
+          />
+          <div
+            v-else
+            class="flex h-72 items-center justify-center px-4 text-center sk-body"
+          >
+            기준과 대상이 함께 측정한 site 가 없습니다.
+          </div>
         </EbeamSkewvoirPanelFrame>
       </div>
 
@@ -92,6 +118,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
 import { mean as meanOf, sampleStd } from '~/utils/stats'
+import { baselineDeltaMap } from '~/utils/skewvoirAnalysis/baselineCompare'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -128,5 +155,11 @@ const composite = computed(() => {
 })
 
 const meanPoints = computed(() => composite.value.mean)
+
+const hasBaseline = computed(() => props.analysis.baseline.value.length > 0)
+const delta = computed(() => {
+  const { base, target } = props.analysis.baselineGroups.value
+  return baselineDeltaMap(props.analysis.setFiles.value, base, target, props.analysis.activeParam.value)
+})
 const sigmaPoints = computed(() => composite.value.sigma)
 </script>

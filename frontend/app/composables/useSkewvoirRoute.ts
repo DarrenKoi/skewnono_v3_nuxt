@@ -7,6 +7,7 @@ import {
   DEFAULT_VIEW,
   applyQueryPatch,
   encodeAnomalyCfg,
+  encodeBaseline,
   encodeFdcAxis,
   encodeRadialModel,
   decodeParam,
@@ -15,6 +16,7 @@ import {
   encodeTsBaseline,
   encodeTsView,
   parseAnomalyCfg,
+  parseBaseline,
   parseFdcAxis,
   parseMsrList,
   parseRadialModel,
@@ -86,6 +88,8 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const anomalyCfg = computed<MethodConfig>(() => parseAnomalyCfg(route.query.anom))
   // Radial trend degree, shared by 측정 개요 and 위치 비교 (see parseRadialModel).
   const radialModel = computed<SharedRadialModel>(() => parseRadialModel(route.query.rfit))
+  // The hand-picked baseline group inside the curated set (see parseBaseline).
+  const baseline = computed<string[]>(() => parseBaseline(route.query))
   const xParam = computed<string | undefined>(() => qstr(route.query.x))
   const yParam = computed<string | undefined>(() => qstr(route.query.y))
   // Gallery review-queue filter preset (e.g. 'priority' — the 이상·실패 우선
@@ -149,6 +153,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const setTsBaseline = (v: TsBaseline) => patchQuery({ tsb: encodeTsBaseline(v) })
   const setAnomalyCfg = (cfg: MethodConfig) => patchQuery({ anom: encodeAnomalyCfg(cfg) })
   const setRadialModel = (m: SharedRadialModel) => patchQuery({ rfit: encodeRadialModel(m) })
+  const setBaseline = (ids: string[]) => patchQuery({ base: encodeBaseline(ids) })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
   const setFilter = (filter: string | null) => patchQuery({ filter })
 
@@ -175,6 +180,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     tsBaseline,
     anomalyCfg,
     radialModel,
+    baseline,
     xParam,
     yParam,
     filterParam,
@@ -195,6 +201,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     setTsBaseline,
     setAnomalyCfg,
     setRadialModel,
+    setBaseline,
     setXY,
     setFilter,
     goSearch,

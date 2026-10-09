@@ -86,6 +86,8 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     setAnomalyCfg: skRoute.setAnomalyCfg,
     radialModel: skRoute.radialModel,
     setRadialModel: skRoute.setRadialModel,
+    baseline: skRoute.baseline,
+    setBaseline: skRoute.setBaseline,
     xParam: skRoute.xParam,
     yParam: skRoute.yParam,
     filterParam: skRoute.filterParam,

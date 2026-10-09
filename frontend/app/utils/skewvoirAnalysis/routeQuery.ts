@@ -115,6 +115,21 @@ export const parseMsrList = (query: LocationQuery): string[] => {
   return [...new Set(parts)]
 }
 
+/** The hand-picked BASELINE group (`base=id,id`): the members of the curated
+ *  set the rest are compared against. Read as an intersection with `msrs`, so
+ *  an id edited out of the set drops off the baseline without a second write.
+ *  Not `ref` (reference parameter) and not `tsb` (the Time-Series residual
+ *  baseline) — both names were taken. */
+export const parseBaseline = (query: LocationQuery): string[] => {
+  const set = new Set(parseMsrList(query))
+  const ids = (qstr(query.base) ?? '').split(',').map(s => s.trim())
+  return [...new Set(ids)].filter(id => set.has(id))
+}
+
+/** Write-side mirror: no baseline maps to `null` (same rule as encodeFdcAxis). */
+export const encodeBaseline = (ids: readonly string[]): string | null =>
+  ids.length ? ids.join(',') : null
+
 /** Analysis scope — held in the URL SEPARATELY from the selection count so a
  *  single-focus screen can still be an explicit `set` (comparison-ready) and a
  *  multi-msr link can be forced back to `single`. Normalisation: an explicit

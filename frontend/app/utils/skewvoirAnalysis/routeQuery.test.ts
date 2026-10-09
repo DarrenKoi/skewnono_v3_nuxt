@@ -13,7 +13,9 @@ import {
   encodeTsBaseline,
   encodeTsView,
   focusIdentityFromRow,
+  encodeBaseline,
   parseAnomalyCfg,
+  parseBaseline,
   parseFdcAxis,
   parseMsrList,
   parseRadialModel,
@@ -395,4 +397,21 @@ test('rfit defaults to linear and accepts only the two higher degrees', () => {
 test('encodeRadialModel keeps the linear default out of the URL', () => {
   assert.equal(encodeRadialModel('linear'), null)
   assert.equal(encodeRadialModel('cubic'), 'cubic')
+})
+
+// ── base: the hand-picked baseline group inside the curated set (S7) ─────────
+test('an absent base reads as no baseline, and no baseline leaves the URL clean', () => {
+  assert.deepEqual(parseBaseline({ msrs: 'a,b,c' }), [])
+  assert.equal(encodeBaseline([]), null)
+})
+
+test('base round-trips through the URL in authored order', () => {
+  assert.equal(encodeBaseline(['b', 'a']), 'b,a')
+  assert.deepEqual(parseBaseline({ msrs: 'a,b,c', base: 'b,a' }), ['b', 'a'])
+})
+
+test('base is intersected with msrs — an id edited out of the set drops off the baseline', () => {
+  assert.deepEqual(parseBaseline({ msrs: 'a,c', base: 'a,b, c ,a,,zzz' }), ['a', 'c'])
+  // A lone focus is a set of one (parseMsrList's fallback), so it can be baseline.
+  assert.deepEqual(parseBaseline({ msr: 'a', base: 'a,b' }), ['a'])
 })

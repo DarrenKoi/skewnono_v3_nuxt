@@ -173,6 +173,7 @@
         <li
           v-for="member in members"
           :key="member.msr"
+          class="relative"
         >
           <component
             :is="rowTag"
@@ -185,7 +186,10 @@
                  time), so both sit at the 12px floor DESIGN.md sets for a
                  value; the 11px tier is for chrome that names things. Weight
                  and colour carry the hierarchy between them instead. -->
-            <span class="flex min-w-0 items-center gap-1.5">
+            <span
+              class="flex min-w-0 items-center gap-1.5"
+              :class="isSet ? 'pr-11' : ''"
+            >
               <span
                 class="min-w-0 truncate font-mono text-[12px] font-semibold"
                 :class="member.pressed ? '' : 'text-(--sk-ink)'"
@@ -211,8 +215,27 @@
               :class="member.pressed ? 'opacity-80' : 'text-(--sk-ink-muted)'"
             >{{ member.sub }}</span>
           </component>
+          <!-- S7 — role assignment, so terracotta `sk-chip`. A sibling of the
+               row, not a child: the row is itself a button on focus-only views.
+               Pinned over the lot line (which pads to make room) so the
+               `eqp · time` line keeps its full 240px-rail width. -->
+          <SkChip
+            v-if="isSet"
+            size="sm"
+            class="absolute top-1 right-1 px-1.5! py-0!"
+            label="기준"
+            :active="member.base"
+            :title="member.base ? '기준에서 빼기' : '기준으로 지정 — 나머지 측정이 대상이 됩니다'"
+            @click="toggleBaseline(member.msr)"
+          />
         </li>
       </ul>
+      <p
+        v-if="isSet && ws.baseline.value.length"
+        class="px-1 sk-meta"
+      >
+        기준 {{ ws.baseline.value.length }} · 대상 {{ members.length - ws.baseline.value.length }} — 이 세트 안에서 손으로 나눈 기준입니다. Time-Series 와 위치 비교에 반영됩니다.
+      </p>
 
       <!-- Readiness modal opener -->
       <UButton
@@ -320,6 +343,8 @@ interface RailMember {
    *  `active` flag because every consumer wants it AND-ed with canSwitchFocus:
    *  an inert list highlights nothing, so there is no second reading. */
   pressed: boolean
+  /** In the hand-picked baseline group (URL `base`). */
+  base: boolean
 }
 
 // One shape for every measurement in the rail: `lot` over `eqp · time`.
@@ -354,6 +379,7 @@ const members = computed<RailMember[]>(() => {
   // its minutes, and a single-fab set has nothing to disambiguate.
   const fabs = new Set(msrs.map(msr => rows.get(msr)?.fab_name).filter(Boolean))
   const namesFab = fabs.size > 1
+  const base = new Set(props.ws.baseline.value)
 
   return msrs.map((msr) => {
     const row = rows.get(msr)
@@ -368,7 +394,8 @@ const members = computed<RailMember[]>(() => {
       // fills that line, and a fab prefix there truncates away the very
       // timestamp a Time-Series comparison is read by. The lot line has room.
       fab: namesFab && row ? row.fab_name : '',
-      pressed: clickable && msr === focus
+      pressed: clickable && msr === focus,
+      base: base.has(msr)
     }
   })
 })
@@ -394,6 +421,11 @@ const rowAttrs = (member: RailMember): Record<string, unknown> =>
 const rowClass = (member: RailMember): string => {
   if (member.pressed) return 'bg-(--sk-brand) text-(--sk-brand-fg)'
   return canSwitchFocus.value ? 'hover:bg-(--sk-chip-bg)' : ''
+}
+
+const toggleBaseline = (msr: string) => {
+  const base = props.ws.baseline.value
+  props.ws.setBaseline(base.includes(msr) ? base.filter(id => id !== msr) : [...base, msr])
 }
 
 // 선택 해제 — empty the set down to the focused MSR. Offered only where the

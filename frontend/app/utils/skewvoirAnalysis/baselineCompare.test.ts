@@ -1,0 +1,138 @@
+// Pure-logic tests for the hand-split baseline ↔ target comparison (S7).
+// Run: cd frontend && node --test app/utils/skewvoirAnalysis/baselineCompare.test.ts
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { baselineComparison, baselineDeltaMap, baselineSentence, splitBaseline } from './baselineCompare.ts'
+import type { MsrFileResponse, MsrFileRow } from '~/composables/useMsrFileApi'
+
+const close = (a: number | null | undefined, b: number, eps = 1e-6) =>
+  assert.ok(a != null && Math.abs(a - b) < eps, `${a} !== ${b}`)
+
+const row = (over: Partial<MsrFileRow>): MsrFileRow => ({
+  msr: 'M', sequence: 1, chip_number: '0, 0', chip_coordinate: '', stage_coordinate: '',
+  dnum_group: '0, -1', mp_number: 1, parameter: 'CD_TOP', cd_value: 100,
+  no_of_mp_image: 1, mp_image_name_01: '', meas_condition_mag: 250030,
+  meas_condition_vac: 500, meas_condition_pixel: '512,512', addressing1_score: 868,
+  addressing2_score: 646, measurement_score: 165, meas_method: 'Score',
+  object_type: 'MP', meas_kind: 'Multi Point',
+  ...over
+})
+
+// Only `rows` is read; the rest of MsrFileResponse is irrelevant to the maths.
+const files = (spec: Record<string, MsrFileRow[]>) =>
+  new Map(Object.entries(spec).map(([msr, rows]) => [msr, { msr, rows } as MsrFileResponse]))
+
+const values = (...vs: number[]) => vs.map((cd_value, i) => row({ sequence: i + 1, cd_value }))
+
+const SET = files({
+  B1: values(10, 12),
+  B2: [...values(14, 16, 18), row({ cd_value: null, mp_number: -1 }), row({ parameter: 'CD_BOTTOM', cd_value: 999 })],
+  T1: values(15, 17, 19, 21)
+})
+
+test('splitBaseline: baseline and the rest, each narrowed to the manifest-included MSRs', () => {
+  assert.deepEqual(
+    splitBaseline(['a', 'b', 'c', 'd'], ['b'], ['a', 'b', 'c']),
+    { base: ['b'], target: ['a', 'c'] }
+  )
+})
+
+test('baselineComparison: pooled level and spread per side, and how far the target moved', () => {
+  const r = baselineComparison(SET, ['B1', 'B2'], ['T1'], 'CD_TOP', 'nm')
+  // base pool 10,12,14,16,18 → mean 14, median 14, s = √10, range 8
+  assert.equal(r.base.msrs.length, 2)
+  assert.equal(r.base.pooled.n, 5)
+  close(r.base.pooled.level?.mean, 14)
+  close(r.base.pooled.level?.median, 14)
+  close(r.base.pooled.spread?.threeSigma, 9.486833)
+  close(r.base.pooled.spread?.range, 8)
+  // target pool 15,17,19,21 → mean 18, s = √(20/3), range 6
+  assert.equal(r.target.pooled.n, 4)
+  close(r.target.pooled.level?.mean, 18)
+  close(r.target.pooled.spread?.threeSigma, 7.745967)
+  assert.equal(r.reason, null)
+  close(r.comparison?.shift, 4)
+  close(r.comparison?.shiftInBaseSigma, 0.421637)
+  close(r.comparison?.threeSigmaRatio, 0.816497)
+  close(r.comparison?.rangeDelta, -2)
+})
+
+test('baselineComparison: a unit mismatch never arrives — the manifest excluded it before the split', () => {
+  // The function pools whatever ids it is handed; it is splitBaseline's
+  // `included` argument that keeps an incompatible MSR out of both sides.
+  const { base, target } = splitBaseline(['B1', 'B2', 'T1'], ['B1', 'B2'], ['B1', 'T1'])
+  const r = baselineComparison(SET, base, target, 'CD_TOP', 'nm')
+  assert.deepEqual(r.base.msrs.map(m => m.msr), ['B1'])
+  assert.equal(r.base.pooled.n, 2)
+})
+
+test('baselineComparison: an id with no loaded file or no points of the parameter is not a contributing MSR', () => {
+  const r = baselineComparison(SET, ['B1', 'GONE'], ['T1'], 'CD_TOP', 'nm')
+  assert.equal(r.base.requested, 2)
+  assert.deepEqual(r.base.msrs.map(m => m.msr), ['B1'])
+})
+
+test('baselineComparison: fewer than two points on a side is 평가 불가, not a zero shift', () => {
+  const thin = files({ B1: values(10), T1: values(15, 17) })
+  const r = baselineComparison(thin, ['B1'], ['T1'], 'CD_TOP', 'nm')
+  assert.equal(r.comparison, null)
+  assert.match(r.reason ?? '', /기준/)
+
+  const noTarget = baselineComparison(SET, ['B1', 'B2', 'T1'], [], 'CD_TOP', 'nm')
+  assert.equal(noTarget.comparison, null)
+  assert.match(noTarget.reason ?? '', /대상/)
+})
+
+test('baselineComparison: a flat baseline has no σ to scale by — the ratios are null, the shift stands', () => {
+  const flat = files({ B1: values(10, 10), T1: values(11, 13) })
+  const r = baselineComparison(flat, ['B1'], ['T1'], 'CD_TOP', 'nm')
+  close(r.comparison?.shift, 2)
+  assert.equal(r.comparison?.shiftInBaseSigma, null)
+  assert.equal(r.comparison?.threeSigmaRatio, null)
+})
+
+test('baselineComparison: dominance is the largest MSR\'s share of the pooled points', () => {
+  // 3 of 5 points = 0.6 exactly: not OVER the line.
+  const even = baselineComparison(SET, ['B1', 'B2'], ['T1'], 'CD_TOP', 'nm')
+  close(even.base.dominance, 0.6)
+  assert.equal(even.base.dominated, false)
+  // A single-MSR side is 1.0 by construction — nothing is being drowned out.
+  close(even.target.dominance, 1)
+  assert.equal(even.target.dominated, false)
+
+  // 7 of 9 points come from one MSR.
+  const skewed = files({ B1: values(10, 12), B2: values(1, 2, 3, 4, 5, 6, 7), T1: values(15, 17) })
+  const r = baselineComparison(skewed, ['B1', 'B2'], ['T1'], 'CD_TOP', 'nm')
+  close(r.base.dominance, 0.777778)
+  assert.equal(r.base.dominated, true)
+})
+
+test('baselineDeltaMap: per chip site, target mean minus baseline mean; a one-sided site is no-data', () => {
+  const at = (chip_number: string, cd_value: number | null) =>
+    row({ chip_number, cd_value, mp_number: cd_value == null ? -1 : 1 })
+  const set = files({
+    B1: [at('1,1', 10), at('2,2', 20), at('4,4', null)],
+    B2: [at('1, 1', 12)],
+    T1: [at('1,1', 15), at('3,3', 30), at('4,4', 40)]
+  })
+  const map = baselineDeltaMap(set, ['B1', 'B2'], ['T1'], 'CD_TOP')
+  // (1,1): 15 − mean(10, 12) = +4. (2,2) is baseline-only, (3,3) target-only,
+  // (4,4) unmeasured in the baseline: three sites with no pair, none drawn as 0.
+  assert.deepEqual(map.points, [[1, 1, 4]])
+  assert.equal(map.unpaired, 3)
+})
+
+test('baselineSentence: one sentence, the difference and its sample sizes — no verdict word', () => {
+  const r = baselineComparison(SET, ['B1', 'B2'], ['T1'], 'CD_TOP', 'nm')
+  assert.equal(
+    baselineSentence(r),
+    '기준 2건보다 대상 1건의 평균이 +4.00 nm(기준 3σ 의 0.4배) 이동했고 3σ 는 0.8배입니다.'
+  )
+  const flat = baselineComparison(files({ B1: values(10, 10), T1: values(9, 7) }), ['B1'], ['T1'], 'CD_TOP', 'nm')
+  assert.equal(
+    baselineSentence(flat),
+    '기준 1건보다 대상 1건의 평균이 -2.00 nm 이동했습니다. 기준 3σ 가 0 이라 배율은 계산하지 않습니다.'
+  )
+  const none = baselineComparison(SET, ['B1', 'B2', 'T1'], [], 'CD_TOP', 'nm')
+  assert.equal(baselineSentence(none), '평가 불가 — 대상으로 남은 측정이 없습니다. 세트의 일부만 기준으로 지정하세요.')
+})

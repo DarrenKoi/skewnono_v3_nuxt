@@ -26,6 +26,7 @@ import {
   setParamOptions,
   type TrendPoint
 } from '~/utils/skewvoirAnalysis/timeSeries'
+import { splitBaseline } from '~/utils/skewvoirAnalysis/baselineCompare'
 import { isSetColdLoading, isSetPoolComplete, resolveSetRows, setOverflow, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
@@ -717,6 +718,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     })
   })
 
+  // S7 — the hand-split baseline (URL `base`) and the rest of the set as the
+  // target, both narrowed to the MSRs the manifest found compatible.
+  const baselineGroups = computed(() =>
+    splitBaseline(ws.msrList.value, ws.baseline.value, manifest.value.included)
+  )
+
   // The focus MSR described as the reference every candidate is compared against
   // (consumed by the spatial / sequence / hand-off tasks). Null until a focus
   // file has loaded.
@@ -818,6 +825,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     msrList: ws.msrList,
     scope: ws.scope,
     manifest,
+    baseline: ws.baseline,
+    baselineGroups,
     reference,
     activeOverview,
     overviewFor,

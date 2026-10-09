@@ -16,6 +16,8 @@ const props = withDefaults(defineProps<{
   points: [number, number, number][]
   unit?: string
   label?: string
+  /** Signed values (a delta map): centre the colour scale on zero. */
+  symmetric?: boolean
 }>(), {
   unit: '',
   label: 'value'
@@ -32,6 +34,10 @@ const axisMax = computed(() => {
 const valueRange = computed(() => {
   const vals = props.points.map(p => p[2])
   if (vals.length === 0) return { min: 0, max: 1 }
+  if (props.symmetric) {
+    const m = Math.max(...vals.map(Math.abs)) || 0.5
+    return { min: -m, max: m }
+  }
   const min = Math.min(...vals)
   const max = Math.max(...vals)
   // All sites equal (e.g. a single-wafer σ map is all zeros) → min===max makes
