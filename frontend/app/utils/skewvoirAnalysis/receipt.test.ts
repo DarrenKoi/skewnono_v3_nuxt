@@ -530,6 +530,8 @@ const RELATION: Partial<ReceiptInput> = {
     ['M1', hist('L1', 'EQ1', '')], ['M2', hist('L2', 'EQ1', '')], ['M3', hist('L3', 'EQ1', '')],
     ['M4', hist('L4', 'EQ2', '')], ['M5', hist('L5', 'EQ2', '')]
   ]),
+  // Every member's file is loaded: the relation is taken over compared members only.
+  setFiles: files({ M1: values(2, 2), M2: values(4, 4), M3: values(5, 5), M4: values(9, 9), M5: values(7, 7) }),
   featureRegistry: [def('level', 'CD 평균', 'nm'), def('spatial', '반경 기울기', 'nm/mm')],
   featureRows: [feature('M1', 2, 1), feature('M2', 4, 2), feature('M3', 5, 3), feature('M4', 9, 4), feature('M5', 7, null)]
 }
@@ -545,6 +547,19 @@ test('세트 상관: pooled and per-tool r with the n behind each, for the axes 
     ['축 값이 없어 빠진 MSR', 1],
     ['읽는 법', 'MSR 한 건이 점 하나입니다. 계수와 표본 수만 적으며 관계의 유무를 판정하지 않습니다.']
   ])
+})
+
+// Codex review 3 of 2026-10-09: a measurement the manifest excluded (another
+// unit, another recipe) is listed as 제외 in 세트 and absent from MSR별 지표 —
+// it must not sit in the coefficient either.
+test('세트 상관: a 제외 measurement is not in the relation', () => {
+  const rows = named(sheetsOf({ ...RELATION, excluded: [{ msr: 'M4', reasons: ['unit-mismatch'] }] }), '세트 상관')
+  // M4 out → only EQ1's M1–M3 remain: 전체 equals the EQ1 row, and EQ2 has no member left.
+  assert.deepEqual(rows.slice(1, 3), [
+    ['전체', '', 3, 0.982, 1, ''],
+    ['장비별', 'EQ1', 3, 0.982, 1, '']
+  ])
+  assert.equal(rows.some(r => r[1] === 'EQ2'), false)
 })
 
 test('세트 상관: the axes are the URL pick (ax / ay), not the defaults', () => {

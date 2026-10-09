@@ -206,7 +206,7 @@ const msrIdentity = computed(() => {
 })
 
 const acrossMsr = computed(() => acrossMsrOutcomeFor(
-  props.analysis.featureRows.value,
+  props.analysis.comparedFeatureRows.value,
   axes.value,
   { x: props.analysis.acrossX.value, y: props.analysis.acrossY.value },
   msrIdentity.value

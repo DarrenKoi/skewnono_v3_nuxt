@@ -271,7 +271,9 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
     },
     acrossMsr: input.scope === 'set'
       ? acrossMsrOutcomeFor(
-          input.featureRows, axes, input.acrossAxes,
+          // Compared members only — a 제외 measurement (another unit, another
+          // recipe) must not sit in a coefficient it is excluded from elsewhere.
+          input.featureRows.filter(row => compared.has(row.msr)), axes, input.acrossAxes,
           new Map([...input.rowByMsr].map(([msr, row]) => [msr, { eqpId: row.eqp_id, label: msr }]))
         )
       : null,

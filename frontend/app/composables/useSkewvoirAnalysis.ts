@@ -771,6 +771,13 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     // rowByMsr supplies meastime for the display-only 측정점당 소요 시간 axis.
     computeFeatureRows(featureSources.value, activeParam.value, anomalyCfg.value, rowByMsr.value)
   )
+  // The rows a set-scope RELATION may use: members the manifest found
+  // compatible. A measurement excluded for its unit or recipe is on screen as
+  // 제외, and a coefficient that still counted it would mix units.
+  const comparedFeatureRows = computed<MsrFeatureRow[]>(() => {
+    const included = new Set(manifest.value.included)
+    return featureRows.value.filter(row => included.has(row.msr))
+  })
   const featureRegistry = computed<FeatureDefinition[]>(() =>
     computeFeatureRegistry(featureSources.value, activeParam.value)
   )
@@ -860,6 +867,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     trendSummary,
     focusVerdict,
     featureRows,
+    comparedFeatureRows,
     featureRegistry
   }
 }
