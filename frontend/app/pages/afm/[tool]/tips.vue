@@ -137,7 +137,7 @@
               @click="onlyIssues = true"
             />
           </div>
-          <span class="ml-auto sk-meta">관리선 = 같은 팁 종류의 중앙값 ± 3σ (σ는 MAD 기반, MCNT의 Tip Width는 팁마다) · Mileage는 누적값이라 판정하지 않습니다 · recipe를 고르면 그 측정만으로 다시 계산합니다</span>
+          <span class="ml-auto sk-meta">기준 범위 = 같은 팁 종류의 중앙값 ± 3σ (σ는 MAD 기반, MCNT의 Tip Width는 팁마다) · 관리 한계나 규격이 아닌 참고 범위입니다 · Mileage는 누적값이라 판정하지 않습니다 · recipe를 고르면 그 측정만으로 다시 계산합니다</span>
         </div>
       </section>
 
@@ -150,7 +150,7 @@
           flush
         >
           <template #actions>
-            <span class="sk-meta">선 = Tip Width · 띠 = 관리선 · 점 = 밖</span>
+            <span class="sk-meta">선 = Tip Width · 띠 = 기준 범위 · 점 = 밖</span>
           </template>
           <p
             v-if="!listed.length"
@@ -261,7 +261,7 @@
             :selected="selected"
             :export-name="`${toolId}-tip-${picked.tip}`"
             :bands="bands"
-            :hint="`이 팁의 측정 ${picked.points.length}건 · 띠는 ${picked.type}의 관리선`"
+            :hint="`이 팁의 측정 ${picked.points.length}건 · 띠는 ${picked.type}의 기준 범위`"
             @select="selected = $event"
           />
 
@@ -272,7 +272,7 @@
             flush
           >
             <template #actions>
-              <span class="sk-meta">최근 측정부터 · 관리선 밖 값은 색으로 · 행을 누르면 위 차트에서 표시합니다</span>
+              <span class="sk-meta">최근 측정부터 · 기준 범위 밖 값은 색으로 · 행을 누르면 위 차트에서 표시합니다</span>
             </template>
             <div class="max-h-96 overflow-auto">
               <table class="w-full border-collapse">
@@ -396,7 +396,7 @@ const STATE_ORDER: TipState[] = ['bad', 'warn', 'ok', 'hold']
 const STATE: Record<TipState, { label: string, rule: string, color: 'error' | 'warning' | 'success' | 'neutral', text: string, surface: string }> = {
   bad: { label: '이상', rule: `최근 ${TIP_RECENT}건 중 2건 이상 밖`, color: 'error', text: 'text-(--sk-bad)', surface: 'bg-(--sk-bad-soft)' },
   warn: { label: '주의', rule: `최근 ${TIP_RECENT}건 중 1건 밖`, color: 'warning', text: 'text-(--sk-warn)', surface: 'bg-(--sk-warn-soft)' },
-  ok: { label: '정상', rule: `최근 ${TIP_RECENT}건 모두 관리선 안`, color: 'success', text: 'text-(--sk-ok)', surface: 'bg-(--sk-ok-soft)' },
+  ok: { label: '정상', rule: `최근 ${TIP_RECENT}건 모두 기준 범위 안`, color: 'success', text: 'text-(--sk-ok)', surface: 'bg-(--sk-ok-soft)' },
   hold: { label: '보류', rule: `종류의 측정 ${TIP_MIN_SAMPLES}건 미만`, color: 'neutral', text: 'text-(--sk-ink-muted)', surface: 'bg-(--sk-muted-surface)' }
 }
 const counts = computed(() =>
@@ -425,9 +425,9 @@ const verdict = (unit: TipUnit) =>
     : unit.recentOut ? `최근 ${recentOf(unit)}건 중 ${unit.recentOut}건 밖` : `최근 ${recentOf(unit)}건 모두 안`
 
 const widthLimits = (category: TipCategory) => {
-  if (widthIsPerTip(category.type)) return 'Tip Width 관리선은 팁마다'
+  if (widthIsPerTip(category.type)) return 'Tip Width 기준 범위는 팁마다'
   const limits = category.stats.find(stat => stat.param === 'tipWidth')?.limits
-  return limits ? `Tip Width ${fmt2(limits.lcl)} – ${fmt2(limits.ucl)}` : '관리선 없음'
+  return limits ? `Tip Width ${fmt2(limits.lcl)} – ${fmt2(limits.ucl)}` : '기준 범위 없음'
 }
 
 // The tip on show: the one picked, else the mounted one, else the worst.
@@ -450,13 +450,13 @@ const bands = computed(() => Object.fromEntries(
 const reason = computed(() => {
   const unit = picked.value!
   if (unit.state === 'hold') {
-    return { head: '판단을 보류합니다.', rest: `${unit.type} 팁의 측정이 ${TIP_MIN_SAMPLES}건 미만이라 관리선을 내지 않았습니다.` }
+    return { head: '판단을 보류합니다.', rest: `${unit.type} 팁의 측정이 ${TIP_MIN_SAMPLES}건 미만이라 기준 범위를 내지 않았습니다.` }
   }
   const earlier = unit.flagged - unit.recentOut
   const before = earlier ? ` 그 이전 측정에도 ${earlier}건이 밖에 있었습니다.` : ''
-  if (!unit.recentOut) return { head: `최근 ${recentOf(unit)}건이 모두 관리선 안입니다.`, rest: before.trim() }
+  if (!unit.recentOut) return { head: `최근 ${recentOf(unit)}건이 모두 기준 범위 안입니다.`, rest: before.trim() }
   return {
-    head: `최근 ${recentOf(unit)}건 중 ${unit.recentOut}건이 관리선 밖입니다.`,
+    head: `최근 ${recentOf(unit)}건 중 ${unit.recentOut}건이 기준 범위 밖입니다.`,
     rest: `벗어난 항목: ${unit.recentParams.map(param => PARAM_LABEL[param]).join(', ')}.${before}`
   }
 })
