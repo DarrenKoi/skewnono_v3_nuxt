@@ -129,9 +129,11 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
   `Site X`·`Site Y` 는 Site ID 안의 숫자와 같고 단위가 없습니다. mock 의 값은
   `SITE_LAYOUT` 의 정수 인덱스로, 실제 Site 인덱스를 대신합니다(실측 범위는 X -11~5,
   Y -7~4 로 더 넓습니다). 인덱스 배치를 그릴 때 `Site Y` 가 큰 쪽이 위입니다
-  (user-confirmed 2026-10-09). 확인된 것은 Y 인덱스를 그리는 방향뿐이고, 단위,
-  `Site X` 의 방향, notch 위치, 웨이퍼 mm·반경으로의 대응은 미확인입니다
-  (OFFICE-VERIFY) — mock 의 `X (um)`·`Y (um)`(인덱스 × 8000)도 지어낸 값입니다.
+  (user-confirmed 2026-10-09). 확인된 것은 Y 인덱스를 그리는 방향뿐입니다.
+  notch 의 위치는 알 수 없습니다 (user-confirmed 2026-10-09: 원본에 웨이퍼 방향
+  정보가 없고 확인할 방법도 없어 질문 대상이 아닙니다). `Site X` 의 방향과
+  웨이퍼 mm·반경으로의 대응은 미확인입니다 (OFFICE-VERIFY) — mock 의
+  `X (um)`·`Y (um)`(인덱스 × 8000)도 지어낸 값입니다.
 - `State` 는 COMPLETED · FAILED · STOPPED 셋입니다. point 가 하나면 STDEV·RANGE 는 0.0 입니다.
 - Info 의 key 는 측정에 따라 두 가지 구성입니다 (user-confirmed 2026-10-06).
   15키: Lot ID, Recipe ID, Carrier ID, Sample Location, Sample ID, Data Save Location,
