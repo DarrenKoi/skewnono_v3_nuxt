@@ -1,7 +1,7 @@
 // Run: cd frontend && node --test app/utils/scaleLabel.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatScaleLabel, scaleDecimals } from './scaleLabel.ts'
+import { formatScaleLabel, scaleFormatter } from './scaleLabel.ts'
 
 test('formatScaleLabel: decimals follow the magnitude — about three significant digits, never more than three decimals', () => {
   assert.equal(formatScaleLabel(0.3), '0.3')
@@ -30,19 +30,37 @@ test('formatScaleLabel: no number, no label', () => {
   assert.equal(formatScaleLabel(Number.POSITIVE_INFINITY), '—')
 })
 
-// Codex review 3 of 2026-10-09: decimals chosen from one value's magnitude print
-// both ends of a narrow range as the same number — a scale that reads as zero-width.
-test('scaleDecimals: enough decimals that the two ends of a range read differently', () => {
-  const d = scaleDecimals(0.2231, 0.2234)
-  assert.deepEqual([formatScaleLabel(0.2231, d), formatScaleLabel(0.2234, d)], ['0.2231', '0.2234'])
-  const tiny = scaleDecimals(-0.0004, 0.0004)
-  assert.deepEqual([formatScaleLabel(-0.0004, tiny), formatScaleLabel(0, tiny), formatScaleLabel(0.0004, tiny)], ['-0.0004', '0', '0.0004'])
+// Codex review 3 of 2026-10-09 (both passes): one formatter for a whole scale.
+// Chosen per value, 0.2231 and 0.2234 both print "0.223" and a scale with width
+// reads as flat; chosen from the larger end alone, 0.25 … 100 prints "0 … 100".
+test('scaleFormatter: the two ends of a narrow range read differently', () => {
+  const f = scaleFormatter(0.2231, 0.2234)
+  assert.deepEqual([f(0.2231), f(0.2234)], ['0.2231', '0.2234'])
+  const tiny = scaleFormatter(-0.0004, 0.0004)
+  assert.deepEqual([tiny(-0.0004), tiny(0), tiny(0.0004)], ['-0.0004', '0', '0.0004'])
 })
 
-test('scaleDecimals: an ordinary range keeps the magnitude rule, and a flat one does not loop', () => {
-  assert.equal(scaleDecimals(-0.3, 0.3), 3)
-  assert.equal(scaleDecimals(12.3, 45.1), 1)
-  assert.equal(scaleDecimals(100, 250), 0)
-  assert.equal(scaleDecimals(5, 5), 2)
-  assert.equal(scaleDecimals(Number.NaN, 1), 2)
+test('scaleFormatter: the smaller end keeps the decimals its own magnitude needs', () => {
+  const f = scaleFormatter(0.25, 100)
+  assert.deepEqual([f(0.25), f(100)], ['0.25', '100'])
+  // An exact zero end asks for no decimals of its own.
+  const z = scaleFormatter(0, 45.126)
+  assert.deepEqual([z(0), z(45.126)], ['0', '45.1'])
+})
+
+test('scaleFormatter: past eight decimals it switches to exponent form rather than collide', () => {
+  const f = scaleFormatter(0.2231000001, 0.2231000004)
+  assert.deepEqual([f(0.2231000001), f(0.2231000004)], ['2.231000001e-1', '2.231000004e-1'])
+  const nano = scaleFormatter(1e-9, 4e-9)
+  assert.deepEqual([nano(1e-9), nano(4e-9)], ['1e-9', '4e-9'])
+})
+
+test('scaleFormatter: an ordinary range keeps the magnitude rule; flat and non-finite ranges do not loop', () => {
+  const f = scaleFormatter(-0.3, 0.3)
+  assert.deepEqual([f(-0.3), f(0), f(0.3)], ['-0.3', '0', '0.3'])
+  assert.equal(scaleFormatter(12.3, 45.1)(22.56), '22.6')
+  assert.equal(scaleFormatter(100, 250)(175.4), '175')
+  assert.equal(scaleFormatter(5, 5)(5), '5')
+  assert.equal(scaleFormatter(Number.NaN, 1)(0.5), '0.5')
+  assert.equal(scaleFormatter(0, 1)(Number.NaN), '—')
 })

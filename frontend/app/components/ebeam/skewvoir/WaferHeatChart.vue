@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import { SK_SCALE } from '~/utils/chartPalette'
-import { formatScaleLabel, scaleDecimals } from '~/utils/scaleLabel'
+import { scaleFormatter } from '~/utils/scaleLabel'
 
 // A wafer heat map from PRE-COMPUTED points [chipX, chipY, value]. Unlike
 // WaferMap (which aggregates raw MsrFileRows), this renders whatever the caller
@@ -84,8 +84,8 @@ const option = computed<EChartsOption>(() => ({
     itemHeight: 120,
     textStyle: { fontSize: 11 },
     // ECharts' own label is an integer (precision 0): ±0.3 nm printed "-0" / "0".
-    // One precision for the whole scale, so its two ends never print alike.
-    formatter: (v: unknown) => formatScaleLabel(Number(v), scaleDecimals(valueRange.value.min, valueRange.value.max)),
+    // One formatter for the whole scale, so its two ends never print alike.
+    formatter: (v: unknown) => scaleFormatter(valueRange.value.min, valueRange.value.max)(Number(v)),
     // Diverging navy → tan → red (the sample's signature wafer colormap).
     inRange: { color: [...SK_SCALE] }
   },

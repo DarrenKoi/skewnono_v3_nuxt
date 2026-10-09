@@ -11,13 +11,22 @@ export const formatScaleLabel = (value: number, decimals?: number): string => {
   return String(Number(value.toFixed(decimals ?? magnitudeDecimals(Math.abs(value)))) + 0) // + 0 turns −0 into 0
 }
 
-// Decimals for a whole scale: the magnitude rule, widened until the two ends
-// read differently. Chosen per value, 0.2231 and 0.2234 both print "0.223" and
-// a scale with width reads as flat.
+// One formatter for a whole scale (min · mid · max, or a visualMap's labels).
+//   1. Each non-zero end keeps the decimals its own magnitude needs — the
+//      smaller end governs, so 0.25 … 100 does not print "0 … 100".
+//   2. If the two ends still print alike, decimals widen until they differ.
+//   3. Past MAX_DECIMALS that cannot work (1e-9 … 4e-9); exponent form takes
+//      over, with as many digits as it takes to tell the ends apart.
+// A flat or non-finite range has nothing to tell apart: the per-value rule.
 const MAX_DECIMALS = 8
-export const scaleDecimals = (min: number, max: number): number => {
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return 2
-  let decimals = magnitudeDecimals(Math.max(Math.abs(min), Math.abs(max)))
-  while (min !== max && decimals < MAX_DECIMALS && formatScaleLabel(min, decimals) === formatScaleLabel(max, decimals)) decimals++
-  return decimals
+const MAX_EXP_DIGITS = 15
+export const scaleFormatter = (min: number, max: number): (value: number) => string => {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return value => formatScaleLabel(value)
+  const ends = [min, max].filter(v => v !== 0).map(v => magnitudeDecimals(Math.abs(v)))
+  let decimals = Math.max(...ends)
+  while (decimals < MAX_DECIMALS && formatScaleLabel(min, decimals) === formatScaleLabel(max, decimals)) decimals++
+  if (formatScaleLabel(min, decimals) !== formatScaleLabel(max, decimals)) return value => formatScaleLabel(value, decimals)
+  let digits = 0
+  while (digits < MAX_EXP_DIGITS && min.toExponential(digits) === max.toExponential(digits)) digits++
+  return value => Number.isFinite(value) ? (value === 0 ? '0' : value.toExponential(digits)) : '—'
 }

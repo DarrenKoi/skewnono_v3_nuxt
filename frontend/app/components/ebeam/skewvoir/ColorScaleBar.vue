@@ -8,16 +8,16 @@
       :style="gradientStyle"
     />
     <div class="flex w-full max-w-[16rem] items-center justify-between font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-      <span class="text-(--sk-ink)">{{ formatScaleLabel(min, decimals) }}</span>
-      <span>{{ formatScaleLabel((min + max) / 2, decimals) }}</span>
-      <span class="text-(--sk-ink)">{{ formatScaleLabel(max, decimals) }} {{ unit }}</span>
+      <span class="text-(--sk-ink)">{{ label(min) }}</span>
+      <span>{{ label((min + max) / 2) }}</span>
+      <span class="text-(--sk-ink)">{{ label(max) }} {{ unit }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { SK_SCALE } from '~/utils/chartPalette'
-import { formatScaleLabel, scaleDecimals } from '~/utils/scaleLabel'
+import { scaleFormatter } from '~/utils/scaleLabel'
 
 const props = withDefaults(defineProps<{
   min: number
@@ -28,8 +28,8 @@ const props = withDefaults(defineProps<{
   colors: () => [...SK_SCALE]
 })
 
-// One precision for min · mid · max, so the two ends never print alike.
-const decimals = computed(() => scaleDecimals(props.min, props.max))
+// One formatter for min · mid · max, so the two ends never print alike.
+const label = computed(() => scaleFormatter(props.min, props.max))
 
 const gradientStyle = computed(() => ({
   background: `linear-gradient(to right, ${props.colors.join(', ')})`
