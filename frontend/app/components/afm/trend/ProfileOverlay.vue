@@ -85,8 +85,13 @@
       <p class="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 sk-meta">
         <span>포인트 {{ point }}{{ recipe ? ` · ${recipe}만` : '' }} · 겹친 측정 {{ overlay.drawn.length }}건</span>
         <span class="text-(--sk-ink)">레벨링: {{ LEVEL_NOTE[level] }}</span>
-        <span>— 다른 측정</span>
-        <span class="text-(--sk-ink)">— 선택한 측정</span>
+        <!-- The legend names only the lines on the chart: with no selected
+             measurement among them, nothing is drawn in ink. -->
+        <span v-if="overlay.drawn.some(l => l.key !== selected)">— 다른 측정</span>
+        <span
+          v-if="overlay.drawn.some(l => l.key === selected)"
+          class="text-(--sk-ink)"
+        >— 선택한 측정</span>
         <span>X 위치는 파일 그대로이며 맞추거나 보간하지 않습니다</span>
         <span v-if="thinned">서버가 솎은 표본이 섞여 있습니다</span>
         <span v-if="pendingCount">{{ pendingCount }}건 불러오는 중</span>
