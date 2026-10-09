@@ -6,7 +6,7 @@
 import type { AfmDetailPayload, AfmDetailRow, AfmSummaryItem } from '~/composables/useAfmDetailApi'
 import { parseInfoTime } from './afmDuration.ts'
 import { tipWidthOf } from './afmInfo.ts'
-import { blockNames, blockOf, comparePoints, fallbackBlock, pointState } from './afmPoints.ts'
+import { blockNames, blockRows, comparePoints, pointState } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { boxStats, type BoxStats } from './boxplotStats.ts'
 import { formatDateTimeLocal } from './dateTime.ts'
@@ -52,14 +52,7 @@ const startTime = (source: TrendSource, payload: AfmDetailPayload): number => {
 export const prepareEntries = (items: { source: TrendSource, payload: AfmDetailPayload }[]): TrendEntry[] => {
   return items.map(({ source, payload }) => {
     const names = blockNames(payload.summary)
-    const fallback = fallbackBlock(payload.summary)
-    const rowsByBlock = new Map<string, AfmDetailRow[]>()
-    for (const row of payload.data) {
-      const name = blockOf(row, fallback)
-      const list = rowsByBlock.get(name)
-      if (list) list.push(row)
-      else rowsByBlock.set(name, [row])
-    }
+    const rowsByBlock = blockRows(payload.data, payload.summary)
     const lot = text(payload.information['Lot ID']) || source.lotId
     const slot = String(source.slotNumber)
     return {
@@ -173,6 +166,8 @@ export interface RecipeCentre {
   // Mean of the recipe's values, and its μ ± 3σ (null under two values) — of
   // its pinned baseline alone when the group has one.
   mu: number | null
+  // How many values μ and the limits were taken from.
+  n: number
   limits: ControlLimits | null
   // Why a pinned baseline gives this recipe no band; empty otherwise.
   reason: string
@@ -225,7 +220,7 @@ export const trendRows = (
     const values = base.flatMap(row =>
       row.entry.recipe === recipe && (!pinned || row.role === 'baseline') ? row.value ?? [] : [])
     const limits = controlLimits(values)
-    centres.set(recipe, { mu: values.length ? mean(values) : null, limits, reason: pinned && !limits ? '기준 표본 부족' : '' })
+    centres.set(recipe, { mu: values.length ? mean(values) : null, n: values.length, limits, reason: pinned && !limits ? '기준 표본 부족' : '' })
   }
   const rows = base.map((row) => {
     const centre = centres.get(row.entry.recipe)!
@@ -244,10 +239,13 @@ export const trendRows = (
 // split so each cell holds one number Excel can sort. The time keeps its year,
 // which the screen's `shortTime` drops: a sheet outlives the screen. A time that
 // never parsed stays blank — `toISOString` on NaN would throw out of the export.
+export const entryTimeText = (entry: Pick<TrendEntry, 'time'>): string =>
+  Number.isFinite(entry.time) ? formatDateTimeLocal(new Date(entry.time).toISOString()) : ''
+
 export const trendTable = (rows: TrendRow[]): { headers: string[], rows: unknown[][] } => ({
   headers: ['시각', 'Recipe', 'Lot', 'Slot', 'n', 'n (유효)', 'MEAN', 'STDEV', 'MIN', 'MAX', 'RANGE', 'Δ μ', '상태', '파일'],
   rows: rows.map(({ entry, stats, delta, state, reason }) => [
-    Number.isFinite(entry.time) ? formatDateTimeLocal(new Date(entry.time).toISOString()) : '',
+    entryTimeText(entry),
     entry.recipe, entry.lot, entry.slot,
     stats?.n ?? null, stats?.nValid ?? null,
     stats?.MEAN ?? null, stats?.STDEV ?? null, stats?.MIN ?? null, stats?.MAX ?? null, stats?.RANGE ?? null,

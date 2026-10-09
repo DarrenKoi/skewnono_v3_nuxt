@@ -337,7 +337,7 @@ const columnItems = computed(() =>
     ...payload.data.flatMap(row => Object.keys(row))
   ]))]
     .filter(isMeasurementKey)
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+    .sort(naturalOrder.compare)
 )
 
 // Keep each pick valid as the loaded set changes; default to the first option.
@@ -386,7 +386,7 @@ const pointsValidOnly = usePersistedState<boolean>(
 )
 const pointScoped = computed(() => pointScope(pointRows.value, block.value, column.value, pointsValidOnly.value))
 // 측정 항목 간 관계 follows 02: one recipe's rows, never a pooled relation.
-const relationEntries = computed(() => pointRows.value.map(row => row.entry))
+const relationEntries = computed(() => pointRecipe.value ? entries.value.filter(entry => entry.recipe === pointRecipe.value) : entries.value)
 // 1D 프로파일 겹쳐 보기 never asks for a profile the list says does not exist.
 const noProfile = computed(() => new Set(groupedItems.value.filter(item => item.hasProfile === false).map(item => item.filename)))
 const repeatKeys = computed(() => new Set(pairs.value.flatMap(pair => pair.keys)))
@@ -443,6 +443,6 @@ const exportItems = computed<DropdownMenuItem[][]>(() => [[{
 
 // 이상 측정 조사 묶음: the suspects are what the cards above already mark.
 const bundleOpen = ref(false)
-const suspectCount = computed(() => bundleSuspects(rows.value).length)
+const suspectCount = computed(() => bundleSuspects(rows.value, health.value).length)
 const bundleReady = computed(() => !pending.value && suspectCount.value > 0)
 </script>

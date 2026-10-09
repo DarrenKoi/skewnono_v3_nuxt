@@ -342,10 +342,10 @@ test('a recipe with under two baseline values gets no band and says why', () => 
   ])
   const { rows, centres } = trendRows(entries, 'B', COL, 'MEAN', true, new Set(['a']))
   // One pinned value is a centre without a spread.
-  assert.deepEqual(centres.get('R'), { mu: 10, limits: null, reason: '기준 표본 부족' })
+  assert.deepEqual(centres.get('R'), { mu: 10, n: 1, limits: null, reason: '기준 표본 부족' })
   assert.deepEqual([rows[1]!.delta, rows[1]!.out], [40, false])
   // Baselines are per recipe: Q pinned none, so it has no reference at all.
-  assert.deepEqual(centres.get('Q'), { mu: null, limits: null, reason: '기준 표본 부족' })
+  assert.deepEqual(centres.get('Q'), { mu: null, n: 0, limits: null, reason: '기준 표본 부족' })
   assert.equal(rows.find(r => r.entry.key === 'q3')!.delta, null)
 })
 

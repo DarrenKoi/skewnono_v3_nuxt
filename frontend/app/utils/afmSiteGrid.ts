@@ -6,8 +6,8 @@
 // confirmed — so this is an index layout only: no notch, no radius, no
 // centre/edge, no mm.
 // No DOM/Nuxt imports so it runs under `node --test`.
-import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
-import { blockOf, fallbackBlock, pointState } from './afmPoints.ts'
+import type { AfmDetailRow } from '~/composables/useAfmDetailApi'
+import { pointState } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { isValidRow } from './afmTrend.ts'
 import { mean } from './stats.ts'
@@ -48,19 +48,6 @@ const span = (values: number[]): number[] => {
 const siteIndex = (raw: unknown): number | null => {
   const n = summaryNumber(raw)
   return n !== null && Number.isInteger(n) ? n : null
-}
-
-// Rows by the block they name (`Site`), in first-appearance order.
-export const blockRows = (data: AfmDetailRow[], summary: AfmSummaryRow[]): Map<string, AfmDetailRow[]> => {
-  const fallback = fallbackBlock(summary)
-  const blocks = new Map<string, AfmDetailRow[]>()
-  for (const row of data) {
-    const name = blockOf(row, fallback)
-    const list = blocks.get(name)
-    if (list) list.push(row)
-    else blocks.set(name, [row])
-  }
-  return blocks
 }
 
 // One block's rows as cells. A point's reading is its LAST row — the rule

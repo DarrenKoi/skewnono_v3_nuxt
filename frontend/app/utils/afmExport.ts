@@ -38,7 +38,7 @@ export interface ExportTable {
 // so they are recognised by their unit, never by name.
 export const isMeasurementKey = (key: string) => key.includes('(nm)')
 
-const naturalOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+export const naturalOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 
 // Column order = the given leading columns, then every other key in the order
 // it first appears across rows. Ragged rows never drop a column.

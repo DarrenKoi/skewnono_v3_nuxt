@@ -1,7 +1,7 @@
 // Pure helpers for 시계열 비교's 측정 항목 간 관계: two columns of one point row
 // as an (x, y) sample, over the measurements of a group. No DOM/Nuxt imports so
 // they run under `node --test`.
-import { isMeasurementKey } from './afmExport.ts'
+import { isMeasurementKey, naturalOrder } from './afmExport.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { isValidRow, type TrendEntry } from './afmTrend.ts'
 import { pearson } from './stats.ts'
@@ -20,7 +20,7 @@ export const relationColumns = (entries: Pick<TrendEntry, 'rowsByBlock'>[], bloc
     }
   }
   return {
-    measured: [...numeric].filter(isMeasurementKey).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })),
+    measured: [...numeric].filter(isMeasurementKey).sort(naturalOrder.compare),
     usage: USAGE_COLUMNS.filter(key => numeric.has(key))
   }
 }

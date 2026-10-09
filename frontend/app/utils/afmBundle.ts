@@ -15,7 +15,7 @@ import { durationRows } from './afmDuration.ts'
 import { tipWidthOf } from './afmInfo.ts'
 import { comparePoints } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
-import { healthSeries, isValidRow, pointMatrix, pointScope, trendBandName, type RecipeCentre, type TrendRow, type TrendStat } from './afmTrend.ts'
+import { entryTimeText, healthSeries, isValidRow, pointMatrix, pointScope, trendBandName, type RecipeCentre, type TrendRow, type TrendStat } from './afmTrend.ts'
 import { formatDateTimeLocal } from './dateTime.ts'
 import { toSheetRows } from './tableExport.ts'
 import type { WorkbookSheet } from './xlsx.ts'
@@ -29,8 +29,7 @@ export interface BundleSuspect {
 }
 
 // Exactly what the screen marks: the trend's red dot, or the KPI's count.
-export const bundleSuspects = (rows: TrendRow[]): BundleSuspect[] => {
-  const health = healthSeries(rows.map(row => row.entry))
+export const bundleSuspects = (rows: TrendRow[], health = healthSeries(rows.map(row => row.entry))): BundleSuspect[] => {
   return rows.flatMap((row, i) => {
     const notCompleted = health[i]!.notCompleted
     return row.out || notCompleted > 0 ? [{ row, out: row.out, notCompleted }] : []
@@ -145,8 +144,8 @@ export const buildBundle = (input: BundleInput): AfmBundle => {
   const pinnedCount = rows.filter(row => row.role === 'baseline').length
   const pinned = pinnedCount > 0
   const bandName = trendBandName(pinned)
-  const suspects = new Map(bundleSuspects(rows).map(s => [s.row.entry.key, s]))
   const health = healthSeries(rows.map(row => row.entry))
+  const suspects = new Map(bundleSuspects(rows, health).map(s => [s.row.entry.key, s]))
   const durations = durationRows(rows.map(row => row.entry))
   const info = (row: TrendRow, key: string) => String(row.entry.payload.information[key] ?? '').trim()
   const measurements = rows.map((row, i): BundleMeasurement => {
@@ -159,7 +158,7 @@ export const buildBundle = (input: BundleInput): AfmBundle => {
       lot: entry.lot,
       slot: entry.slot,
       recipe: entry.recipe,
-      time: Number.isFinite(entry.time) ? formatDateTimeLocal(new Date(entry.time).toISOString()) : '',
+      time: entryTimeText(entry),
       role: !pinned ? '' : row.role === 'baseline' ? '기준' : '대상',
       value: row.value,
       delta: row.delta,
@@ -224,7 +223,7 @@ export const buildBundle = (input: BundleInput): AfmBundle => {
     showLimits: input.showLimits,
     recipes: [...centres].map(([recipe, centre]) => ({
       recipe,
-      n: rows.filter(row => row.entry.recipe === recipe && row.value !== null && (!pinned || row.role === 'baseline')).length,
+      n: centre.n,
       mu: centre.mu,
       low: centre.limits?.lcl ?? null,
       high: centre.limits?.ucl ?? null,

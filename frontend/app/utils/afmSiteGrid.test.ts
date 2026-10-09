@@ -2,7 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
-import { blockRows, siteGrid } from './afmSiteGrid.ts'
+import { blockRows } from './afmPoints.ts'
+import { siteGrid } from './afmSiteGrid.ts'
 
 const H = 'H (nm)'
 const row = (point: string, x: unknown, y: unknown, h: unknown, extra: Record<string, unknown> = {}) =>

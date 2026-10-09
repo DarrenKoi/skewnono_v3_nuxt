@@ -18,6 +18,19 @@ export const blockOf = (row: AfmDetailRow, fallback: string): string =>
 // The block of a row that names none.
 export const fallbackBlock = (summary: AfmSummaryRow[]) => blockNames(summary)[0] ?? 'Block 1'
 
+// Rows by the block they name (`Site`), in first-appearance order.
+export const blockRows = (data: AfmDetailRow[], summary: AfmSummaryRow[]): Map<string, AfmDetailRow[]> => {
+  const fallback = fallbackBlock(summary)
+  const blocks = new Map<string, AfmDetailRow[]>()
+  for (const row of data) {
+    const name = blockOf(row, fallback)
+    const list = blocks.get(name)
+    if (list) list.push(row)
+    else blocks.set(name, [row])
+  }
+  return blocks
+}
+
 export interface PointBlock {
   name: string
   row: AfmDetailRow
