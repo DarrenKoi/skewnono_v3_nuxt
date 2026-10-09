@@ -67,6 +67,14 @@ export const relationSamples = (entries: TrendEntry[], block: string, xColumn: s
 // itself has: two points are always collinear).
 export const RELATION_MIN_SAMPLES = 3
 
+// What the card shows. `empty`: the block leaves a picker with nothing to hold
+// (no measured column, or a single column and no usage one) — one sentence,
+// no pickers, no caption. `few`: a pair is picked but there are too few samples
+// to draw — the counts stay, they say why. `chart`: the scatter.
+export type RelationState = 'empty' | 'few' | 'chart'
+export const relationState = (xColumn: string, yColumn: string, n: number): RelationState =>
+  !xColumn || !yColumn ? 'empty' : n < RELATION_MIN_SAMPLES ? 'few' : 'chart'
+
 export interface RelationSummary {
   n: number
   // Pearson r; null under the floor or when one axis does not vary.

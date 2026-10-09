@@ -3,7 +3,10 @@
     icon="i-lucide-scatter-chart"
     title="항목 × 항목"
   >
-    <template #actions>
+    <template
+      v-if="state !== 'empty'"
+      #actions
+    >
       <div class="flex flex-wrap items-center gap-2.5">
         <label class="flex items-center gap-1.5">
           <span class="sk-label">X</span>
@@ -29,23 +32,31 @@
     </template>
 
     <p
-      v-if="summary.n < RELATION_MIN_SAMPLES"
+      v-if="state !== 'chart'"
       class="flex h-80 items-center justify-center sk-body"
     >
-      {{ x && y ? `두 값이 모두 있는 행이 ${summary.n}개입니다. ${RELATION_MIN_SAMPLES}개부터 그립니다.` : '이 블록에는 짝지을 숫자 항목이 없습니다.' }}
+      {{ state === 'few' ? `두 값이 모두 있는 행이 ${summary.n}개입니다. ${RELATION_MIN_SAMPLES}개부터 그립니다.` : '이 블록에는 짝지을 숫자 항목이 없습니다.' }}
     </p>
     <div
       v-else
       ref="chartEl"
       class="h-80 w-full"
     />
-    <p class="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 sk-meta">
-      <span>{{ block }}{{ recipe ? ` · ${recipe}만` : '' }} · n {{ summary.n }}</span>
-      <template v-if="summary.n >= RELATION_MIN_SAMPLES">
+    <p
+      v-if="state !== 'empty'"
+      class="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 sk-meta"
+    >
+      <span>{{ [block, recipe && `${recipe}만`, `n ${summary.n}`].filter(Boolean).join(' · ') }}</span>
+      <!-- The legend names only what is drawn: no chart, or no selected
+           measurement among the samples, and its entry is left out. -->
+      <template v-if="state === 'chart'">
         <span>{{ summary.r === null ? 'r 계산 불가 (한 축의 값이 모두 같습니다)' : `r ${summary.r.toFixed(2)}` }}</span>
+        <span v-if="relation.samples.some(s => s.key !== selected)">● 다른 측정</span>
+        <span
+          v-if="relation.samples.some(s => s.key === selected)"
+          class="text-(--sk-ink)"
+        >● 선택한 측정</span>
       </template>
-      <span>● 다른 측정</span>
-      <span class="text-(--sk-ink)">● 선택한 측정</span>
       <span>제외 {{ relation.excluded }}행 (COMPLETED가 아니거나 Valid FALSE)</span>
       <span v-if="relation.unpaired">값 없음 {{ relation.unpaired }}행</span>
       <span v-if="relation.unknownValid">Valid 미상 {{ relation.unknownValid }}행 포함</span>
@@ -98,6 +109,7 @@ watch([xItems, y], () => {
 
 const relation = computed(() => relationSamples(props.entries, props.block, x.value, y.value))
 const summary = computed(() => relationSummary(relation.value.samples))
+const state = computed(() => relationState(x.value, y.value, summary.value.n))
 // The selected measurement's samples last, so they are drawn over the rest.
 const drawn = computed(() => {
   const { samples } = relation.value

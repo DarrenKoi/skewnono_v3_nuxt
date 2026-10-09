@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { AfmDetailPayload, AfmDetailRow } from '~/composables/useAfmDetailApi'
-import { relationColumns, relationSamples, relationSummary } from './afmRelation.ts'
+import { relationColumns, relationSamples, relationState, relationSummary } from './afmRelation.ts'
 import { prepareEntries } from './afmTrend.ts'
 
 const L = 'Left_H (nm)'
@@ -90,4 +90,13 @@ test('relationColumns offers the block\'s numeric measured columns, and the tip-
   })
   assert.deepEqual(relationColumns(entries, 'A'), { measured: ['2_Min (nm)', '10_Min (nm)'], usage: ['Mileage'] })
   assert.deepEqual(relationColumns(entries, 'B'), { measured: ['Other (nm)'], usage: ['Approach Count'] })
+})
+
+test('relationState: nothing to pair, too few pairs, or a chart', () => {
+  // No measured column leaves Y empty; a single column leaves X empty.
+  assert.equal(relationState('Mileage', '', 0), 'empty')
+  assert.equal(relationState('', L, 0), 'empty')
+  assert.equal(relationState(L, R, 0), 'few')
+  assert.equal(relationState(L, R, 2), 'few')
+  assert.equal(relationState(L, R, 3), 'chart')
 })
