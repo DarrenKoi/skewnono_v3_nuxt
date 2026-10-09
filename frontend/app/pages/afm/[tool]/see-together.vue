@@ -146,10 +146,30 @@
         title="포인트별 비교"
         hint="x축이 시간 대신 포인트입니다. 센터·에지 패턴이 lot마다 되풀이되는지, 한 포인트만 흘러가는지가 보입니다."
       />
+      <div
+        class="flex flex-wrap items-center gap-1.5 px-1"
+        role="group"
+        aria-label="FAILED · Valid FALSE 행"
+      >
+        <span class="sk-label">FAILED · Valid FALSE 행</span>
+        <SkChip
+          size="sm"
+          label="포함"
+          :active="!pointsValidOnly"
+          @click="pointsValidOnly = false"
+        />
+        <SkChip
+          size="sm"
+          label="제외"
+          :active="pointsValidOnly"
+          @click="pointsValidOnly = true"
+        />
+        <span class="sk-meta">{{ pointScoped.invalid ? `값이 있는 해당 행 ${pointScoped.invalid}개를 ${pointsValidOnly ? '뺐습니다' : '포함하고 있습니다'}` : '해당하는 행이 없습니다' }} · 제외 기준은 06과 같고, 반복 측정 포인트는 마지막 유효 값을 씁니다</span>
+      </div>
       <div class="grid grid-cols-1 gap-6 2xl:grid-cols-12">
         <AfmTrendPointsChart
           class="min-w-0 2xl:col-span-8"
-          :rows="pointRows"
+          :rows="pointScoped.rows"
           :recipe="pointRecipe"
           :block="block"
           :column="column"
@@ -159,7 +179,7 @@
         />
         <AfmTrendStabilityChart
           class="min-w-0 2xl:col-span-4"
-          :rows="pointRows"
+          :rows="pointScoped.rows"
           :export-name="`${toolId}-point-stability`"
         />
       </div>
@@ -345,6 +365,13 @@ const pairs = computed(() => repeatPairs(
 // selected measurement's recipe only.
 const pointRecipe = computed(() => mixed.value ? rows.value.find(row => row.entry.key === selected.value)?.entry.recipe ?? recipes.value[0] ?? '' : '')
 const pointRows = computed(() => pointRecipe.value ? rows.value.filter(row => row.entry.recipe === pointRecipe.value) : rows.value)
+// 02's FAILED · Valid FALSE toggle: a per-viewer preference, off (rows kept) by default.
+const pointsValidOnly = usePersistedState<boolean>(
+  'afm-trend-points-valid-only',
+  'skewnono:afm.trendPointsValidOnly',
+  { default: () => false, normalize: parsed => parsed === true, isEmpty: value => !value }
+)
+const pointScoped = computed(() => pointScope(pointRows.value, block.value, column.value, pointsValidOnly.value))
 // 측정 항목 간 관계 follows 02: one recipe's rows, never a pooled relation.
 const relationEntries = computed(() => pointRows.value.map(row => row.entry))
 // 1D 프로파일 겹쳐 보기 never asks for a profile the list says does not exist.

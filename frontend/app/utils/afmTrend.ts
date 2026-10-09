@@ -123,15 +123,24 @@ const ITEMS: TrendStat[] = ['MEAN', 'STDEV', 'MIN', 'MAX', 'RANGE']
 // not stated FALSE. `nValid` counts by it and 측정 항목 간 관계 pairs by it.
 export const isValidRow = (row: AfmDetailRow): boolean => row.State === 'COMPLETED' && row.Valid !== false
 
+// Point → value for one block × column. A repeat recipe's later lap replaces
+// the earlier one. `validOnly` drops rows failing `isValidRow` BEFORE that
+// rule: a point whose last lap FAILED shows its last valid lap, and a point
+// with no valid row is absent.
+export const pointValues = (entry: TrendEntry, block: string, column: string, validOnly = false): Map<string, number> => {
+  const points = new Map<string, number>()
+  for (const row of entry.rowsByBlock.get(block) ?? []) {
+    const value = summaryNumber(row[column])
+    if (value !== null && (!validOnly || isValidRow(row))) points.set(row.measurement_point, value)
+  }
+  return points
+}
+
 // One measurement's statistics for a block × column: the Summary's when it has
 // them, else computed from the data rows. Null when neither carries a value.
 export const measurementStats = (entry: TrendEntry, block: string, column: string): MeasurementStats | null => {
   const rows = entry.rowsByBlock.get(block) ?? []
-  const points = new Map<string, number>()
-  for (const row of rows) {
-    const value = summaryNumber(row[column])
-    if (value !== null) points.set(row.measurement_point, value)
-  }
+  const points = pointValues(entry, block, column)
   const values = [...points.values()]
   const counts = {
     n: entry.payload.data.length ? rows.length : null,
@@ -244,6 +253,17 @@ export const trendTable = (rows: TrendRow[]): { headers: string[], rows: unknown
     stats?.MEAN ?? null, stats?.STDEV ?? null, stats?.MIN ?? null, stats?.MAX ?? null, stats?.RANGE ?? null,
     delta, stats ? state : reason, entry.key
   ])
+})
+
+// 포인트별 비교's rows. `validOnly` swaps each measurement's point values for
+// those of its valid rows; the statistics 01 reads stay as they are. `invalid`
+// counts the rows the choice is about: a number in the column, not `isValidRow`.
+export const pointScope = (rows: TrendRow[], block: string, column: string, validOnly: boolean): { rows: TrendRow[], invalid: number } => ({
+  rows: validOnly
+    ? rows.map(row => row.stats ? { ...row, stats: { ...row.stats, points: pointValues(row.entry, block, column, true) } } : row)
+    : rows,
+  invalid: rows.reduce((sum, { entry }) => sum + (entry.rowsByBlock.get(block) ?? [])
+    .filter(row => !isValidRow(row) && summaryNumber(row[column]) !== null).length, 0)
 })
 
 export type PointBaseline = 'mean' | 'first' | 'selected'

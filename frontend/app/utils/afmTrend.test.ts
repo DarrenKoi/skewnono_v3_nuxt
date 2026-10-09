@@ -9,7 +9,9 @@ import {
   measurementStats,
   missingReason,
   pointMatrix,
+  pointScope,
   pointStability,
+  pointValues,
   prepareEntries,
   quartiles,
   repeatPairs,
@@ -353,4 +355,45 @@ test('a baseline that names nothing in the group leaves the group band as it was
     trendRows(entries, 'B', COL, 'MEAN', true, new Set(['gone'])),
     trendRows(entries, 'B', COL, 'MEAN', true)
   )
+})
+
+// 포인트별 비교's FAILED · Valid FALSE toggle. Point 4 is a repeat-lap point whose
+// last lap FAILED after a valid one; point 2's only row is FAILED.
+const lapData = [
+  row('1', 10),
+  row('2', 20, { State: 'FAILED' }),
+  row('3', 30, { Valid: false }),
+  row('4', 40),
+  row('4', 44, { State: 'FAILED' })
+]
+
+test('pointValues keeps every row by default, and the last VALID lap when asked', () => {
+  const [entry] = prepareEntries([{ source: source('a'), payload: payload([], lapData) }])
+  // Included (default): unchanged — the last lap wins, valid or not.
+  assert.deepEqual([...pointValues(entry!, 'Block 1', COL)], [['1', 10], ['2', 20], ['3', 30], ['4', 44]])
+  assert.deepEqual([...measurementStats(entry!, 'Block 1', COL)!.points], [['1', 10], ['2', 20], ['3', 30], ['4', 44]])
+  // Excluded: a point with no valid row is gone; point 4 falls back to its valid lap.
+  assert.deepEqual([...pointValues(entry!, 'Block 1', COL, true)], [['1', 10], ['4', 40]])
+})
+
+test('pointScope swaps only the point values, and counts the rows the toggle decides', () => {
+  const entries = prepareEntries([
+    { source: source('a'), payload: payload([], lapData) },
+    { source: source('b'), payload: payload([], [row('1', 11), row('2', 21)]) }
+  ])
+  const { rows } = trendRows(entries, 'Block 1', COL, 'MEAN', true)
+  const included = pointScope(rows, 'Block 1', COL, false)
+  assert.equal(included.rows, rows)
+  assert.equal(included.invalid, 3)
+  const excluded = pointScope(rows, 'Block 1', COL, true)
+  assert.equal(excluded.invalid, 3)
+  assert.deepEqual(excluded.rows.map(r => [...r.stats!.points]), [[['1', 10], ['4', 40]], [['1', 11], ['2', 21]]])
+  // Section 01's statistics ride along untouched.
+  assert.deepEqual(excluded.rows.map(r => r.stats!.MEAN), rows.map(r => r.stats!.MEAN))
+  // Point stability follows: point 2 is left with one value, so no σ.
+  const sd = (scope: typeof included) => pointStability(pointMatrix(
+    scope.rows.map(r => ({ key: r.entry.key, points: r.stats!.points })), 'mean', null
+  )).find(s => s.point === '2')!.sd
+  assert.notEqual(sd(included), null)
+  assert.equal(sd(excluded), null)
 })
