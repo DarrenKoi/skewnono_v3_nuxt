@@ -464,8 +464,8 @@ DYNAMIC_FDC_SPECS: dict[str, FdcSpec] = {
     "Contrast": FdcSpec(64.0, 2.0, "DN", "image", 10.4),
     "StigmaX": FdcSpec(0.0, 0.40, "%", "astigmatism", 2.5),
     "StigmaY": FdcSpec(0.0, 0.40, "%", "astigmatism", 2.5),
-    "ObjectSem": FdcSpec(2400.0, 1.5, "V", "defocus", 7.1),  # OBJECT_SEM defocus
-    "Vrd": FdcSpec(300.0, 1.0, "V", "defocus", 4.4),  # VRD defocus
+    "ObjectSEM": FdcSpec(2400.0, 1.5, "V", "defocus", 7.1),  # OBJECT_SEM defocus
+    "VRD": FdcSpec(300.0, 1.0, "V", "defocus", 4.4),  # VRD defocus
     "ImageShiftX": FdcSpec(0.0, 1.2, "nm", "stage_drift", 8.0),  # LFB imageshift X
     "ImageShiftY": FdcSpec(0.0, 1.2, "nm", "stage_drift", 8.0),  # LFB imageshift Y
     "Alignment2X": FdcSpec(0.0, 0.8, "nm", "stage_drift", 4.5),  # LFB alignment 2X

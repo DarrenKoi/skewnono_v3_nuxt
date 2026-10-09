@@ -342,3 +342,19 @@ def test_parameters_measured_at_one_point_share_its_die():
         seqs = [row["sequence"] for row in rows]
         assert len(seqs) == len(set(seqs)), \
             "rows sharing a die must not share a sequence number"
+
+
+def test_mock_fdc_keys_are_spelled_as_the_pickle_schema_spells_them():
+    """The office adapter summarises a channel by looking its name up in the
+    mock's spec catalog, so a key the mock spells differently (it once said
+    ObjectSem / Vrd for the tool's ObjectSEM / VRD) gets no summary at the
+    office while looking fine at home."""
+    import re
+    from pathlib import Path
+
+    from backend.msr_file.providers.mock import DYNAMIC_FDC_SPECS, FIXED_FDC_SPECS
+
+    doc = Path(__file__).resolve().parents[3] / "docs/datatables/hitachi/msr_file_pickle.txt"
+    documented = set(re.findall(r'"([A-Za-z0-9_]+)"', doc.read_text(encoding="utf-8")))
+    unknown = [k for k in (*DYNAMIC_FDC_SPECS, *FIXED_FDC_SPECS) if k not in documented]
+    assert unknown == []
