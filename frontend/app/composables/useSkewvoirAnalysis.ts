@@ -718,10 +718,14 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     })
   })
 
+  // The members every set-scope number is taken over: compatible AND loaded.
+  const comparedMembers = computed(() => setComparedMembers(manifest.value.included, setFiles.value, ws.scope.value))
   // S7 — the hand-split baseline (URL `base`) and the rest of the set as the
-  // target, both narrowed to the MSRs the manifest found compatible.
+  // target, both narrowed to those members. A focus the 30-member cap left out
+  // of the set files is not a target: it has values, just not in this pool,
+  // and counting it made the block say its parameter was missing.
   const baselineGroups = computed(() =>
-    splitBaseline(ws.msrList.value, ws.baseline.value, manifest.value.included)
+    splitBaseline(ws.msrList.value, ws.baseline.value, comparedMembers.value)
   )
   // A chip index names one physical site across the set only when the included
   // measurements share a layout. `included` does not guarantee that (a pitch
@@ -774,7 +778,6 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // The rows a set-scope RELATION may use: members the manifest found
   // compatible. A measurement excluded for its unit or recipe is on screen as
   // 제외, and a coefficient that still counted it would mix units.
-  const comparedMembers = computed(() => setComparedMembers(manifest.value.included, setFiles.value, ws.scope.value))
   const comparedFeatureRows = computed<MsrFeatureRow[]>(() => {
     const compared = new Set(comparedMembers.value)
     return featureRows.value.filter(row => compared.has(row.msr))

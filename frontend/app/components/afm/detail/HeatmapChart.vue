@@ -149,16 +149,23 @@ const lineOption = computed<EChartsOption>(() => ({
 // reshaping the map.
 const grid = computed(() => profileGrid(props.profile))
 
-const visualMap = computed(() => ({
-  min: stats.value.count ? stats.value.min : 0,
-  max: stats.value.count ? stats.value.max : 1,
-  calculable: true,
-  orient: 'vertical' as const,
-  right: 4,
-  top: 'center',
-  inRange: { color: [...SK_SCALE] },
-  textStyle: CHART_LEGEND_LABEL
-}))
+const visualMap = computed(() => {
+  const min = stats.value.count ? stats.value.min : 0
+  const max = stats.value.count ? stats.value.max : 1
+  const label = scaleFormatter(min, max)
+  return {
+    min,
+    max,
+    calculable: true,
+    // ECharts' own handle label is an integer: a ±0.3 range printed "-0" / "0".
+    formatter: (v: unknown) => label(Number(v)),
+    orient: 'vertical' as const,
+    right: 4,
+    top: 'center',
+    inRange: { color: [...SK_SCALE] },
+    textStyle: CHART_LEGEND_LABEL
+  }
+})
 // The right margin holds the colour bar and its handle labels, which sit beside it.
 const mapGrid = { left: 72, right: 96, top: 16, bottom: 48 }
 // A category tick is a sample's own position, not a round number, so it is trimmed to read.

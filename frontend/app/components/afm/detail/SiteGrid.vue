@@ -42,7 +42,7 @@
         class="h-72 w-full"
       />
       <p class="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 sk-meta">
-        <span>{{ grid.min === null ? '유효한 값이 없습니다' : `색 범위 ${fmt2(grid.min)} – ${fmt2(grid.max)} · ${column}` }}</span>
+        <span>{{ grid.min === null ? '유효한 값이 없습니다' : `색 범위 ${scaleLabel(grid.min)} – ${scaleLabel(grid.max ?? grid.min)} · ${column}` }}</span>
         <span
           v-for="mark in MARKS"
           :key="mark.label"
@@ -94,6 +94,8 @@ watch(columns, (names) => {
 }, { immediate: true })
 
 const grid = computed(() => siteGrid(blocks.value.get(block.value) ?? [], column.value))
+// One formatter for both ends, so a narrow range never prints the same text twice.
+const scaleLabel = computed(() => scaleFormatter(grid.value.min ?? 0, grid.value.max ?? 1))
 const shared = computed(() => grid.value.cells.some(cell => cell.points.length > 1))
 const laps = computed(() => Math.max(0, ...grid.value.cells.map(cell => cell.laps)))
 
@@ -157,7 +159,7 @@ const chartOption = computed<EChartsOption>(() => {
       min: min ?? 0,
       max: max ?? 1,
       // The two ends of the scale, printed: the bar alone carries no number.
-      text: [fmt2(max), fmt2(min)],
+      text: [scaleLabel.value(max ?? 1), scaleLabel.value(min ?? 0)],
       orient: 'vertical',
       right: 4,
       top: 'center',
