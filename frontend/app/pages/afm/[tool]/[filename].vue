@@ -73,6 +73,10 @@
       <!-- grid-cols-1, not a bare grid: an implicit auto track grows to the 분석 이미지
            strip's full width and pushes the page sideways. -->
       <div class="grid grid-cols-1 content-start gap-6">
+        <AfmDetailLotHistory
+          :tool-id="toolId"
+          :filename="filename"
+        />
         <AfmDetailPointSummary
           v-model:selected-point="selectedPoint"
           :data="payload.data"
