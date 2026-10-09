@@ -143,12 +143,12 @@ def _stores(monkeypatch):
         })),
         ("afm_d2_measurements", "5EAP1501"): _parquet(pd.DataFrame([FULL, BARE, NO_SUMMARY])),
     }
-    office._hash_rows.cache_clear()
+    office._snapshots.clear()
     monkeypatch.setattr(office, "_redis_client", lambda: _Redis(hashes))
     monkeypatch.setattr(office, "_object", lambda key: OBJECTS.get(key))
     monkeypatch.setattr(office, "_store", lambda: _Store())
     yield
-    office._hash_rows.cache_clear()
+    office._snapshots.clear()
 
 
 def _row(key):
@@ -281,3 +281,50 @@ def test_align_tip_and_capture_show_webps_only_and_offer_their_own_originals():
             assert original == {"filename": NAME + stored, "content_type": content_type, "data": data}
     row = _row(KEY)
     assert (row["has_align"], row["has_tip"]) == (True, True)
+
+
+class _CountingRedis(_Redis):
+    def __init__(self, hashes):
+        super().__init__(hashes)
+        self.reads = []
+
+    def hget(self, key, field):
+        self.reads.append(field)
+        return super().hget(key, field)
+
+
+@pytest.fixture
+def many_tools(monkeypatch):
+    """Ten tools in Redis and a clock the test moves."""
+    tools = [f"TOOL{n:02d}" for n in range(10)]
+    frame = _parquet(pd.DataFrame([FULL]))
+    redis = _CountingRedis({("afm_d2_measurements", tool): frame for tool in tools})
+    clock = {"now": 6000.0}
+    monkeypatch.setattr(office, "_redis_client", lambda: redis)
+    monkeypatch.setattr(office.time, "time", lambda: clock["now"])
+    return tools, redis, clock
+
+
+def test_ten_tools_in_turn_are_each_read_from_redis_once_a_minute(many_tools):
+    tools, redis, _ = many_tools
+    for _ in range(3):
+        for tool in tools:
+            assert len(office.list_afm_files(tool)) == 1
+    assert sorted(redis.reads) == tools
+
+
+def test_a_new_minute_replaces_a_tools_history_instead_of_keeping_both(many_tools):
+    tools, redis, clock = many_tools
+    for _ in range(3):
+        for tool in tools:
+            office.list_afm_files(tool)
+        clock["now"] += 60
+    assert len(redis.reads) == 30
+    assert len(office._snapshots) == len(tools)
+
+
+def test_a_tool_name_redis_does_not_hold_leaves_nothing_cached(many_tools):
+    # `?tool=` is the caller's text: an entry per spelling would never stop growing.
+    for n in range(50):
+        assert office.list_afm_files(f"nope{n}") == []
+    assert office._snapshots == {}

@@ -61,6 +61,7 @@ import io
 import json
 import mimetypes
 import re
+import threading
 import time
 from functools import lru_cache
 from typing import Any
@@ -112,17 +113,35 @@ def _records(df) -> list[dict[str, Any]]:
     return json.loads(df.to_json(orient="records", date_format="iso", double_precision=15))
 
 
-@lru_cache(maxsize=8)
-def _hash_rows(key: str, field: str, _tick: int) -> tuple[dict[str, Any], ...]:
-    raw = _redis_client().hget(key, field)
-    if raw is None:
-        return ()
-    return tuple(_records(_deserialize_dataframe(raw, f"{key}[{field}]")))
+# One snapshot per (hash, field), replaced in place when its minute is over —
+# so a worker holds one history per tool however many tools or minutes pass.
+_snapshots: dict[tuple[str, str], tuple[int, tuple[dict[str, Any], ...]]] = {}
+# ponytail: one lock for every tool, so a refresh of one waits behind another's
+# decode (once a minute each). Per-key locks if that wait ever shows.
+_refresh = threading.Lock()
 
 
 def _rows_of(key: str, field: str) -> tuple[dict[str, Any], ...]:
     # Shared between requests for a minute: read these dicts, never change them.
-    return _hash_rows(key, field, int(time.time() // _CACHE_SECONDS))
+    tick = int(time.time() // _CACHE_SECONDS)
+    held = _snapshots.get((key, field))
+    if held is not None and held[0] == tick:
+        return held[1]
+    # A gallery's 133 requests cross the minute together: one of them decodes
+    # the blob, the rest wait here and find it done.
+    with _refresh:
+        held = _snapshots.get((key, field))
+        if held is not None and held[0] == tick:
+            return held[1]
+        raw = _redis_client().hget(key, field)
+        if raw is None:
+            # Never kept: the field is `?tool=`, the caller's own text, and an
+            # entry per spelling would grow without end.
+            _snapshots.pop((key, field), None)
+            return ()
+        rows = tuple(_records(_deserialize_dataframe(raw, f"{key}[{field}]")))
+        _snapshots[(key, field)] = (tick, rows)
+        return rows
 
 
 @lru_cache(maxsize=1)
