@@ -2,7 +2,7 @@
 // Run: cd frontend && node --test app/utils/skewvoirAnalysis/baselineCompare.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { baselineComparison, baselineDeltaMap, baselineSentence, splitBaseline } from './baselineCompare.ts'
+import { baselineComparison, baselineDeltaMap, baselineSentence, compositeSiteMap, splitBaseline } from './baselineCompare.ts'
 import type { MsrFileResponse, MsrFileRow } from '~/composables/useMsrFileApi'
 
 const close = (a: number | null | undefined, b: number, eps = 1e-6) =>
@@ -158,4 +158,66 @@ test('baselineSentence: one sentence, the difference and its sample sizes — no
   )
   const none = baselineComparison(SET, ['B1', 'B2', 'T1'], [], 'CD_TOP', 'nm')
   assert.equal(baselineSentence(none), '평가 불가 — 대상으로 남은 측정이 없습니다. 세트의 일부만 기준으로 지정하세요.')
+})
+
+// ── Set-scope composite maps: a site is (chip, MP) ───────────────────────
+const mpAt = (chip_number: string, mp_number: number, cd_value: number | null) =>
+  row({ chip_number, mp_number, cd_value })
+
+test('compositeSiteMap: per chip, the mean over its MPs of each MP\'s wafer mean and wafer-to-wafer σ', () => {
+  const set = files({
+    W1: [mpAt('0,0', 1, 10), mpAt('0,0', 2, 20)],
+    W2: [mpAt('0,0', 1, 14), mpAt('0,0', 2, 24)],
+    W3: [mpAt('0, 0', 1, 12)]
+  })
+  // MP1: 10, 14, 12 → mean 12, s = √((4+4+0)/2) = 2.
+  // MP2: 20, 24     → mean 22, s = √((4+4)/1)   = 2.828427.
+  // chip (0,0): mean (12 + 22)/2 = 17, σ (2 + 2.828427)/2 = 2.414214.
+  // Pooling the five rows instead would give mean 16 and s 5.83.
+  const [site, ...rest] = compositeSiteMap(set, ['W1', 'W2', 'W3'], 'CD_TOP')
+  assert.equal(rest.length, 0)
+  assert.deepEqual([site!.x, site!.y, site!.mps, site!.wafers], [0, 0, 2, 3])
+  close(site!.mean, 17)
+  close(site!.sigma, 2.414214)
+})
+
+test('compositeSiteMap: an MP only one wafer measured has a mean and no σ — it is left out of the chip σ, never a 0', () => {
+  const set = files({
+    W1: [mpAt('1,1', 1, 10), mpAt('1,1', 2, 100), mpAt('2,2', 1, 30)],
+    W2: [mpAt('1,1', 1, 14)]
+  })
+  const sites = compositeSiteMap(set, ['W1', 'W2'], 'CD_TOP')
+  // (1,1): MP1 10,14 → mean 12, s = √8 = 2.828427; MP2 100 alone → mean 100, no s.
+  //        chip mean (12 + 100)/2 = 56; chip σ = 2.828427 (MP1 only).
+  // (2,2): one wafer → mean 30, σ absent.
+  assert.deepEqual(sites.map(s => [s.x, s.y, s.mps, s.wafers]), [[1, 1, 2, 2], [2, 2, 1, 1]])
+  close(sites[0]!.mean, 56)
+  close(sites[0]!.sigma, 2.828427)
+  close(sites[1]!.mean, 30)
+  assert.equal(sites[1]!.sigma, null)
+})
+
+test('compositeSiteMap: one wafer measuring a site twice is still one wafer at that site', () => {
+  const set = files({
+    W1: [mpAt('3,3', 1, 10), row({ sequence: 2, chip_number: '3,3', mp_number: 1, cd_value: 12 })],
+    W2: [mpAt('3,3', 1, 15)]
+  })
+  // W1's site value is mean(10, 12) = 11; with W2's 15 → mean 13, s = √((4+4)/1) = 2.828427.
+  // Treating the three rows as three wafers would give mean 12.33, s 2.52.
+  const [site] = compositeSiteMap(set, ['W1', 'W2'], 'CD_TOP')
+  close(site!.mean, 13)
+  close(site!.sigma, 2.828427)
+  assert.equal(site!.wafers, 2)
+})
+
+test('compositeSiteMap: only the ids handed in, only measured rows of the parameter', () => {
+  const set = files({
+    W1: [mpAt('1,1', 1, 10), mpAt('1,1', -1, null), row({ chip_number: '1,1', parameter: 'CD_BOTTOM', cd_value: 999 }), mpAt('??', 1, 5)],
+    W2: [mpAt('1,1', 1, 14)],
+    OUT: [mpAt('1,1', 1, 500)]
+  })
+  const sites = compositeSiteMap(set, ['W1', 'W2', 'GONE'], 'CD_TOP')
+  assert.equal(sites.length, 1)
+  close(sites[0]!.mean, 12)
+  assert.equal(sites[0]!.wafers, 2)
 })

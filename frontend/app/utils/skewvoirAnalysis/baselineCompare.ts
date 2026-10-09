@@ -10,14 +10,14 @@
 // baseline is "이 세트 안에서 손으로 나눈 기준", not an official reference.
 //
 // REUSE, do not re-derive: cdu.ts's cduMetrics owns level/spread (and the
-// measured↔missing gate behind it); waferChip.ts's parseChipXY is the site key
-// 위치 비교's set-scope composite map already pairs sites by.
+// measured↔missing gate behind it); waferChip.ts's parseChipXY reads the chip
+// index, and a site is that chip plus its measurement point (mp_number).
 //
 // Runs under raw `node --test` — sibling imports carry an explicit `.ts`.
 import type { MsrFileResponse } from '~/composables/useMsrFileApi'
 import { cduMetrics, type CduMetrics } from './cdu.ts'
 import { isMeasuredRow } from '../msrRows.ts'
-import { mean } from '../stats.ts'
+import { mean, sampleStd } from '../stats.ts'
 import { parseChipXY } from '../waferChip.ts'
 
 type SetFiles = ReadonlyMap<string, MsrFileResponse>
@@ -119,6 +119,26 @@ export const baselineComparison = (
   }
 }
 
+/** One chip's measured values of `parameter`, kept apart by measurement point
+ *  (MP): a site is (chip, MP), and a chip holds several. */
+type Chip = { xy: [number, number], byMp: Map<number, number[]> }
+
+const collectChips = (files: SetFiles, ids: readonly string[], parameter: string): Map<string, Chip> => {
+  const acc = new Map<string, Chip>()
+  for (const id of ids) {
+    for (const r of files.get(id)?.rows ?? []) {
+      if (r.parameter !== parameter || !isMeasuredRow(r)) continue
+      const xy = parseChipXY(r.chip_number)
+      if (!xy) continue
+      const key = `${xy[0]},${xy[1]}`
+      const chip = acc.get(key) ?? { xy, byMp: new Map() }
+      chip.byMp.set(r.mp_number, [...(chip.byMp.get(r.mp_number) ?? []), r.cd_value])
+      acc.set(key, chip)
+    }
+  }
+  return acc
+}
+
 /** 위치 비교's baseline-versus-target layer: per chip, the target group's mean
  *  minus the baseline group's — over the measurement points (MP) BOTH groups
  *  measured on that chip. A chip holds several MPs, and averaging every row of
@@ -131,24 +151,8 @@ export const baselineDeltaMap = (
   targetIds: readonly string[],
   parameter: string
 ): { points: [number, number, number][], unpaired: number } => {
-  type Chip = { xy: [number, number], byMp: Map<number, number[]> }
-  const collect = (ids: readonly string[]) => {
-    const acc = new Map<string, Chip>()
-    for (const id of ids) {
-      for (const r of files.get(id)?.rows ?? []) {
-        if (r.parameter !== parameter || !isMeasuredRow(r)) continue
-        const xy = parseChipXY(r.chip_number)
-        if (!xy) continue
-        const key = `${xy[0]},${xy[1]}`
-        const chip = acc.get(key) ?? { xy, byMp: new Map() }
-        chip.byMp.set(r.mp_number, [...(chip.byMp.get(r.mp_number) ?? []), r.cd_value])
-        acc.set(key, chip)
-      }
-    }
-    return acc
-  }
-  const base = collect(baseIds)
-  const target = collect(targetIds)
+  const base = collectChips(files, baseIds, parameter)
+  const target = collectChips(files, targetIds, parameter)
 
   const points: [number, number, number][] = []
   for (const [key, t] of target) {
@@ -160,6 +164,69 @@ export const baselineDeltaMap = (
   }
   const chips = new Set([...base.keys(), ...target.keys()])
   return { points, unpaired: chips.size - points.length }
+}
+
+export interface CompositeSite {
+  x: number
+  y: number
+  /** Mean over the chip's MPs of each MP's wafer mean. */
+  mean: number
+  /** Mean over the chip's MPs of each MP's wafer-to-wafer sample σ; null when
+   *  no MP of the chip was measured on two wafers. */
+  sigma: number | null
+  /** MPs of this chip that any wafer measured. */
+  mps: number
+  /** Wafers that measured anything on this chip. */
+  wafers: number
+}
+
+/** 위치 비교's set-scope Composite Mean / Site Variability maps, one row per chip.
+ *
+ *  A SITE IS (chip, MP). Each wafer contributes ONE value per site (the mean of
+ *  its rows there, should it have measured the site twice). Per site: the mean
+ *  of those wafer values, and — with two or more wafers — their sample σ, which
+ *  is the wafer-to-wafer spread of the same physical point.
+ *
+ *  The chip's drawn value is the plain mean of its sites' statistics, every MP
+ *  weighing the same. Pooling the chip's rows instead would let the number of
+ *  wafers behind each MP set the weights — a wafer that skipped one MP would
+ *  move the chip mean — and would count the difference BETWEEN two MPs of a
+ *  chip as wafer-to-wafer spread.
+ *
+ *  A site only one wafer measured has no σ: it is left out of the chip's σ, and
+ *  a chip with no such site has `sigma: null` — never 0, which would read as
+ *  perfect repeatability.
+ *
+ *  The caller hands in the ids to combine (the manifest's `included`) and must
+ *  not call this at all when `siteDeltaReady` is false: a chip index is one
+ *  site across wafers only when they share a layout. */
+export const compositeSiteMap = (
+  files: SetFiles,
+  ids: readonly string[],
+  parameter: string
+): CompositeSite[] => {
+  type Acc = { xy: [number, number], wafers: number, byMp: Map<number, number[]> }
+  const acc = new Map<string, Acc>()
+  for (const id of new Set(ids)) {
+    for (const [key, chip] of collectChips(files, [id], parameter)) {
+      const e = acc.get(key) ?? { xy: chip.xy, wafers: 0, byMp: new Map() }
+      e.wafers += 1
+      for (const [mp, values] of chip.byMp) e.byMp.set(mp, [...(e.byMp.get(mp) ?? []), mean(values)])
+      acc.set(key, e)
+    }
+  }
+  return [...acc.values()].map((e) => {
+    const perMp = [...e.byMp.values()]
+    const sigmas = perMp.filter(v => v.length > 1).map(sampleStd)
+    return {
+      x: e.xy[0],
+      y: e.xy[1],
+      mean: mean(perMp.map(mean)),
+      sigma: sigmas.length ? mean(sigmas) : null,
+      mps: perMp.length,
+      wafers: e.wafers
+    }
+  })
 }
 
 /** The block's one sentence. States the movement; judges nothing. */

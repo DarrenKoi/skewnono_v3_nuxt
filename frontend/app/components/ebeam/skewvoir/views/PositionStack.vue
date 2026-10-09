@@ -22,7 +22,7 @@
       title="세트를 불러오는 중입니다."
     />
 
-    <template v-else-if="meanPoints.length">
+    <template v-else-if="sites.length || (!ready && waferCount > 0)">
       <div
         class="grid grid-cols-1 gap-3"
         :class="hasBaseline ? 'xl:grid-cols-3' : 'xl:grid-cols-2'"
@@ -32,7 +32,14 @@
           :meta="`${waferCount} wafers · ${analysis.activeParam.value}`"
           icon="i-lucide-layers"
         >
+          <div
+            v-if="!ready"
+            class="flex h-72 items-center justify-center px-4 text-center sk-body"
+          >
+            {{ NOT_SAME_SITE }} 합성 맵은 그리지 않습니다. {{ SEE_READINESS }}
+          </div>
           <EbeamSkewvoirWaferHeatChart
+            v-else
             :points="meanPoints"
             :unit="analysis.activeUnit.value"
             label="mean"
@@ -41,14 +48,27 @@
 
         <EbeamSkewvoirPanelFrame
           title="Site Variability (σ)"
-          meta="wafer-to-wafer spread"
+          meta="같은 측정점의 wafer 간 산포"
           icon="i-lucide-git-compare"
         >
+          <div
+            v-if="!ready"
+            class="flex h-72 items-center justify-center px-4 text-center sk-body"
+          >
+            {{ NOT_SAME_SITE }} site 별 σ 는 그리지 않습니다. {{ SEE_READINESS }}
+          </div>
           <EbeamSkewvoirWaferHeatChart
+            v-else-if="sigmaPoints.length"
             :points="sigmaPoints"
             :unit="analysis.activeUnit.value"
             label="σ"
           />
+          <div
+            v-else
+            class="flex h-72 items-center justify-center px-4 text-center sk-body"
+          >
+            같은 측정점을 두 wafer 이상이 측정한 site 가 없어 σ 를 계산하지 않습니다.
+          </div>
         </EbeamSkewvoirPanelFrame>
 
         <!-- S7 — target group minus the rail's 기준 group, site by site. A site
@@ -56,14 +76,14 @@
         <EbeamSkewvoirPanelFrame
           v-if="hasBaseline"
           title="기준 대비 Δ"
-          :meta="analysis.siteDeltaReady.value ? `대상 − 기준 · ${delta.points.length} sites${delta.unpaired ? ` · 공통 측정점 없음 ${delta.unpaired}` : ''}` : '대상 − 기준 · 비교 불가'"
+          :meta="ready ? `대상 − 기준 · ${delta.points.length} sites${delta.unpaired ? ` · 공통 측정점 없음 ${delta.unpaired}` : ''}` : '대상 − 기준 · 비교 불가'"
           icon="i-lucide-diff"
         >
           <div
-            v-if="!analysis.siteDeltaReady.value"
+            v-if="!ready"
             class="flex h-72 items-center justify-center px-4 text-center sk-body"
           >
-            세트의 측정들이 같은 위치를 쟀는지 확인할 수 없어 site 단위 Δ 는 그리지 않습니다. 사유는 분석 준비 상태에서 볼 수 있습니다.
+            {{ NOT_SAME_SITE }} site 단위 Δ 는 그리지 않습니다. {{ SEE_READINESS }}
           </div>
           <EbeamSkewvoirWaferHeatChart
             v-else-if="delta.points.length"
@@ -122,50 +142,35 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { isMeasuredRow } from '~/utils/msrRows'
-import { mean as meanOf, sampleStd } from '~/utils/stats'
-import { baselineDeltaMap } from '~/utils/skewvoirAnalysis/baselineCompare'
+import { baselineDeltaMap, compositeSiteMap } from '~/utils/skewvoirAnalysis/baselineCompare'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const waferCount = computed(() => props.analysis.setFiles.value.size)
+// One wording for all three maps: none of them is drawn unless the set's
+// measurements are known to share sites (the readiness the Δ map already asks).
+const NOT_SAME_SITE = '세트의 측정들이 같은 위치를 쟀는지 확인할 수 없어'
+const SEE_READINESS = '사유는 분석 준비 상태에서 볼 수 있습니다.'
+const ready = computed(() => props.analysis.siteDeltaReady.value)
 
-// Aggregate CD across every wafer in the set, per chip position, for the active
-// parameter: composite mean + wafer-to-wafer sigma at each site.
-//
-// Values are collected first and reduced in two passes. The old one-pass
-// sumsq/n - m^2 shortcut needed a Math.max(0, ...) clamp because it can return a
-// NEGATIVE variance when the mean dominates the spread — which is exactly the CD
-// regime (mean ~1e2 nm, spread ~1 nm).
-const composite = computed(() => {
-  const param = props.analysis.activeParam.value
-  const acc = new Map<string, { x: number, y: number, values: number[] }>()
-  for (const file of props.analysis.setFiles.value.values()) {
-    for (const r of file.rows) {
-      if (r.parameter !== param || !isMeasuredRow(r)) continue
-      const xy = parseChipXY(r.chip_number)
-      if (!xy) continue
-      const key = `${xy[0]},${xy[1]}`
-      const e = acc.get(key) ?? { x: xy[0], y: xy[1], values: [] }
-      e.values.push(r.cd_value)
-      acc.set(key, e)
-    }
-  }
-  const mean: [number, number, number][] = []
-  const sigma: [number, number, number][] = []
-  for (const e of acc.values()) {
-    mean.push([e.x, e.y, Number(meanOf(e.values).toFixed(3))])
-    sigma.push([e.x, e.y, Number(sampleStd(e.values).toFixed(3))])
-  }
-  return { mean, sigma }
-})
+// The compatible members whose files are on hand — what the maps combine.
+const includedIds = computed(() =>
+  props.analysis.manifest.value.included.filter(id => props.analysis.setFiles.value.has(id))
+)
+const waferCount = computed(() => includedIds.value.length)
 
-const meanPoints = computed(() => composite.value.mean)
+// Composite mean + wafer-to-wafer σ per chip, a site being (chip, MP) — the
+// rule lives in compositeSiteMap, which the review receipt calls too.
+const sites = computed(() => ready.value
+  ? compositeSiteMap(props.analysis.setFiles.value, includedIds.value, props.analysis.activeParam.value)
+  : [])
+const meanPoints = computed(() =>
+  sites.value.map((s): [number, number, number] => [s.x, s.y, Number(s.mean.toFixed(3))]))
+const sigmaPoints = computed(() =>
+  sites.value.flatMap((s): [number, number, number][] => s.sigma == null ? [] : [[s.x, s.y, Number(s.sigma.toFixed(3))]]))
 
 const hasBaseline = computed(() => props.analysis.baseline.value.length > 0)
 const delta = computed(() => {
   const { base, target } = props.analysis.baselineGroups.value
   return baselineDeltaMap(props.analysis.setFiles.value, base, target, props.analysis.activeParam.value)
 })
-const sigmaPoints = computed(() => composite.value.sigma)
 </script>
