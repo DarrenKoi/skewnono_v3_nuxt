@@ -25,11 +25,12 @@ import type { SkewvoirSelection } from '~/composables/useSkewvoirWorkspace'
 import type { WaferGeometry } from '../waferGeometry.ts'
 import type { WorkbookSheet } from '../xlsx.ts'
 import type { MethodConfig, ScoringMethod } from '../anomaly/types.ts'
-import type { SharedRadialModel } from './routeQuery.ts'
+import { thresholdPair, type SharedRadialModel } from './routeQuery.ts'
 import type { AnalysisScope, ExclusionEntry, TsBaseline } from './types.ts'
 import type { FeatureDefinition, MsrFeatureRow } from './features.ts'
 import type { ToolSkewResult } from './timeSeries.ts'
 import { overviewSites, type SiteKind } from '../overview.ts'
+import { formatDateTimeLocal } from '../dateTime.ts'
 import { MODEL_LABEL, analyzeRadialProfile } from '../radialAnalysis.ts'
 import { formatRecipeTimestamp } from '../recipeView.ts'
 import { safeFileNamePart } from '../tableExport.ts'
@@ -157,11 +158,8 @@ export interface ReviewReceipt {
 
 const KIND_LABEL: Record<SiteKind, string> = { abnormal: '이상', watch: '주의', failed: '측정 실패' }
 
-const pad = (n: number) => String(n).padStart(2, '0')
-
 export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
   const { parameter, unit, anomalyCfg: cfg } = input
-  const d = input.generatedAt
 
   // The focus file stands in where there is no set batch — single scope ONLY.
   // In set scope the screen computes over the set files alone (a focus the
@@ -228,10 +226,11 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
   // Only the measurements that took part: a 제외 member's features must not
   // stand beside the others as if they were comparable.
   const compared = new Set(members.filter(m => m.role !== '제외').map(m => m.msr))
+  const comparedRows = input.featureRows.filter(row => compared.has(row.msr))
   const axes = acrossMsrAxes(input.featureRegistry)
 
   return {
-    generatedAt: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    generatedAt: formatDateTimeLocal(input.generatedAt.toISOString()),
     selection: {
       toolType: input.toolLabel,
       recipe: input.selection.recipe,
@@ -242,8 +241,7 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
     },
     settings: {
       anomalyMethod: cfg.method,
-      watch: cfg.method === 'range' ? cfg.range.watchPct : cfg.stddev.watchK,
-      abnormal: cfg.method === 'range' ? cfg.range.abnormalPct : cfg.stddev.abnormalK,
+      ...thresholdPair(cfg),
       radialModel: input.radialModel,
       tsBaseline: input.tsBaseline
     },
@@ -265,15 +263,13 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
     toolSkew: input.toolSkew,
     features: {
       axes,
-      rows: input.featureRows
-        .filter(row => compared.has(row.msr))
-        .map(row => ({ msr: row.msr, values: axes.map(a => acrossMsrAxisValue(row, a.id)?.value ?? null) }))
+      rows: comparedRows.map(row => ({ msr: row.msr, values: axes.map(a => acrossMsrAxisValue(row, a.id)?.value ?? null) }))
     },
     acrossMsr: input.scope === 'set'
       ? acrossMsrOutcomeFor(
           // Compared members only — a 제외 measurement (another unit, another
           // recipe) must not sit in a coefficient it is excluded from elsewhere.
-          input.featureRows.filter(row => compared.has(row.msr)), axes, input.acrossAxes,
+          comparedRows, axes, input.acrossAxes,
           new Map([...input.rowByMsr].map(([msr, row]) => [msr, { eqpId: row.eqp_id, label: msr }]))
         )
       : null,
@@ -292,6 +288,8 @@ type Cell = string | number
  *  absent number is an empty cell, never a 0. */
 const num = (v: number | null | undefined): Cell =>
   v == null || !Number.isFinite(v) ? '' : Number(v.toFixed(4)) + 0 // + 0: a rounded −0 is 0
+
+const axisLabel = (a: AcrossMsrAxis) => (a.unit ? `${a.label} (${a.unit})` : a.label)
 
 const TS_BASELINE_LABEL: Record<TsBaseline, string> = { raw: '측정값', resid: '잔차' }
 
@@ -421,7 +419,7 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
     sheets.push({
       name: 'MSR별 지표',
       rows: [
-        ['MSR', 'Lot', '장비', ...r.features.axes.map(a => (a.unit ? `${a.label} (${a.unit})` : a.label))],
+        ['MSR', 'Lot', '장비', ...r.features.axes.map(axisLabel)],
         ...r.features.rows.map(f => [f.msr, identity.get(f.msr)?.lot ?? '', identity.get(f.msr)?.eqp ?? '', ...f.values.map(num)])
       ]
     })
@@ -430,15 +428,14 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
   // One point is not a relation; the coefficient itself needs three (correlate).
   const rel = r.acrossMsr
   if (rel && rel.x && rel.y && rel.points.length > 1) {
-    const axis = (a: AcrossMsrAxis) => (a.unit ? `${a.label} (${a.unit})` : a.label)
     sheets.push({
       name: '세트 상관',
       rows: [
         ['구분', '장비', 'MSR n', 'Pearson r', 'Spearman ρ', '계수를 내지 않은 사유'],
         ['전체', '', rel.pooled.n, num(rel.pooled.pearson), num(rel.pooled.spearman), rel.pooled.reason ?? ''],
         ...rel.strata.map((t): Cell[] => ['장비별', t.eqpId, t.n, num(t.pearson), num(t.spearman), t.reason ?? '']),
-        ['X 축', axis(rel.x)],
-        ['Y 축', axis(rel.y)],
+        ['X 축', axisLabel(rel.x)],
+        ['Y 축', axisLabel(rel.y)],
         ['축 값이 없어 빠진 MSR', rel.droppedN],
         ['읽는 법', 'MSR 한 건이 점 하나입니다. 계수와 표본 수만 적으며 관계의 유무를 판정하지 않습니다.'],
         ...(r.demoData ? [['데모 데이터', RECEIPT_DEMO_CAUTION]] : [])

@@ -85,11 +85,18 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const tsBaseline = computed<TsBaseline>(() => parseTsBaseline(route.query.tsb))
   // The anomaly thresholds every verdict is judged by — in the URL so a shared
   // link reproduces the verdict, not just the data (see parseAnomalyCfg).
-  const anomalyCfg = computed<MethodConfig>(() => parseAnomalyCfg(route.query.anom))
+  // Parsed from the raw string, not from `route.query`: the query object is
+  // replaced on every URL patch, and a fresh config would re-run every verdict.
+  const anomRaw = computed(() => qstr(route.query.anom))
+  const anomalyCfg = computed<MethodConfig>(() => parseAnomalyCfg(anomRaw.value))
   // Radial trend degree, shared by 측정 개요 and 위치 비교 (see parseRadialModel).
   const radialModel = computed<SharedRadialModel>(() => parseRadialModel(route.query.rfit))
   // The hand-picked baseline group inside the curated set (see parseBaseline).
-  const baseline = computed<string[]>(() => parseBaseline(route.query))
+  // Same reason: an unchanged list keeps its identity across URL patches.
+  const baseline = computed<string[]>((old) => {
+    const next = parseBaseline(route.query)
+    return old?.join() === next.join() ? old : next
+  })
   const xParam = computed<string | undefined>(() => qstr(route.query.x))
   const yParam = computed<string | undefined>(() => qstr(route.query.y))
   // The set-scope Correlation (Across-MSR) axis pick: feature-axis ids, not the

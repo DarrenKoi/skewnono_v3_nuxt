@@ -41,8 +41,9 @@
 </template>
 
 <script setup lang="ts">
-import type { MethodConfig, ScoringMethod } from '~/utils/anomaly/types'
+import type { MethodConfig } from '~/utils/anomaly/types'
 import { DEFAULT_RANGE, DEFAULT_STDDEV } from '~/utils/anomaly/types'
+import { thresholdPair } from '~/utils/skewvoirAnalysis/routeQuery'
 
 // Edits a DRAFT and emits only a valid config: the URL codec reads an invalid
 // pair as the defaults, so writing a half-typed value would flip every verdict
@@ -55,23 +56,19 @@ const methodItems = [
   { label: '표준편차(σ) · 진단', value: 'stddev' }
 ]
 
-const pair = (cfg: MethodConfig, method: ScoringMethod) => method === 'range'
-  ? { watch: cfg.range.watchPct, abnormal: cfg.range.abnormalPct }
-  : { watch: cfg.stddev.watchK, abnormal: cfg.stddev.abnormalK }
-
-const draft = reactive({ method: props.modelValue.method, ...pair(props.modelValue, props.modelValue.method) })
+const draft = reactive({ method: props.modelValue.method, ...thresholdPair(props.modelValue) })
 const unit = computed(() => draft.method === 'range' ? '%' : 'σ')
 const valid = computed(() => draft.watch > 0 && draft.abnormal >= draft.watch)
 
 // A link or Back/Forward changed the URL under us: follow it.
 watch(() => props.modelValue, (cfg) => {
-  Object.assign(draft, { method: cfg.method, ...pair(cfg, cfg.method) })
+  Object.assign(draft, { method: cfg.method, ...thresholdPair(cfg) })
 })
 
 // Switching method shows that method's own thresholds, not the other's numbers
 // reinterpreted in a different unit.
 watch(() => draft.method, (method) => {
-  if (method !== props.modelValue.method) Object.assign(draft, pair(props.modelValue, method))
+  if (method !== props.modelValue.method) Object.assign(draft, thresholdPair(props.modelValue, method))
 })
 
 watch(draft, () => {
@@ -79,7 +76,7 @@ watch(draft, () => {
   const next: MethodConfig = draft.method === 'range'
     ? { method: 'range', range: { ...DEFAULT_RANGE, watchPct: draft.watch, abnormalPct: draft.abnormal }, stddev: { ...DEFAULT_STDDEV } }
     : { method: 'stddev', range: { ...DEFAULT_RANGE }, stddev: { watchK: draft.watch, abnormalK: draft.abnormal } }
-  const cur = pair(props.modelValue, props.modelValue.method)
+  const cur = thresholdPair(props.modelValue)
   if (next.method === props.modelValue.method && cur.watch === draft.watch && cur.abnormal === draft.abnormal) return
   emit('update:modelValue', next)
 })

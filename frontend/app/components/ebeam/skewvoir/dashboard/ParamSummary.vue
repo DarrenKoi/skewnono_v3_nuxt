@@ -13,9 +13,6 @@
       class="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-(--sk-brand)/40"
       @keydown="onKeydown"
     >
-      <!-- Count / Mean / Min / Max are the backend summary (MsrParamSummary).
-           Std is NOT: it is cduMetrics over the same rows, so the σ in this
-           table is the one the verdict block and Distribution print. -->
       <table class="w-full border-collapse text-xs">
         <thead class="sticky top-0 z-10 bg-(--sk-surface)">
           <tr class="border-b border-(--sk-border) font-mono text-[11px] text-(--sk-ink-muted)">
@@ -43,7 +40,7 @@
         </thead>
         <tbody>
           <tr
-            v-for="s in summaries"
+            v-for="s in rows"
             :key="s.parameter"
             :data-row-key="s.parameter"
             :aria-selected="selectedSet.has(s.parameter)"
@@ -62,19 +59,19 @@
               {{ paramLabel(s.parameter) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink)">
-              {{ statsOf.get(s.parameter)?.count ?? 0 }}
+              {{ s.count }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink)">
-              {{ fmt(statsOf.get(s.parameter)?.mean ?? Number.NaN) }}
+              {{ fmt(s.mean) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
-              {{ fmt(statsOf.get(s.parameter)?.std ?? Number.NaN) }}
+              {{ fmt(s.std) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
-              {{ fmt(statsOf.get(s.parameter)?.min ?? Number.NaN) }}
+              {{ fmt(s.min) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
-              {{ fmt(statsOf.get(s.parameter)?.max ?? Number.NaN) }}
+              {{ fmt(s.max) }}
             </td>
             <td class="px-1.5 py-1 text-left text-(--sk-ink-muted)">
               {{ s.unit }}
@@ -105,14 +102,14 @@ const statColumns = ['Count', 'Mean', 'Std', 'Min', 'Max']
 const summaries = computed(() => props.analysis.paramSummaries.value)
 // Every statistic from the measured rows the verdicts read (paramTableStats) —
 // the server summary only supplies the parameter list and unit. Absent is —.
-const statsOf = computed(() => new Map(summaries.value.map(s =>
-  [s.parameter, paramTableStats(props.analysis.siteRows.value, s.parameter)]
-)))
+const rows = computed(() => summaries.value.map(s =>
+  ({ ...s, ...paramTableStats(props.analysis.siteRows.value, s.parameter) })
+))
 const activeParam = computed(() => props.analysis.activeParam.value)
 const selectedSet = computed(() => new Set(props.analysis.selectedParams.value))
 
 // CD values are a few tens of nm — 2 decimals matches StatBar/Distribution.
-const fmt = (v: number): string => (Number.isFinite(v) ? v.toFixed(2) : '—')
+const fmt = (v: number | null): string => (v !== null && Number.isFinite(v) ? v.toFixed(2) : '—')
 
 const scrollEl = ref<HTMLElement | null>(null)
 

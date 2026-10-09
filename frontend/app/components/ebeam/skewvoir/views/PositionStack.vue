@@ -153,9 +153,7 @@ const SEE_READINESS = '사유는 분석 준비 상태에서 볼 수 있습니다
 const ready = computed(() => props.analysis.siteDeltaReady.value)
 
 // The compatible members whose files are on hand — what the maps combine.
-const includedIds = computed(() =>
-  props.analysis.manifest.value.included.filter(id => props.analysis.setFiles.value.has(id))
-)
+const includedIds = computed(() => props.analysis.comparedMembers.value)
 const waferCount = computed(() => includedIds.value.length)
 
 // Composite mean + wafer-to-wafer σ per chip, a site being (chip, MP) — the

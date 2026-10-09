@@ -774,8 +774,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // The rows a set-scope RELATION may use: members the manifest found
   // compatible. A measurement excluded for its unit or recipe is on screen as
   // 제외, and a coefficient that still counted it would mix units.
+  const comparedMembers = computed(() => setComparedMembers(manifest.value.included, setFiles.value, ws.scope.value))
   const comparedFeatureRows = computed<MsrFeatureRow[]>(() => {
-    const compared = new Set(setComparedMembers(manifest.value.included, setFiles.value, ws.scope.value))
+    const compared = new Set(comparedMembers.value)
     return featureRows.value.filter(row => compared.has(row.msr))
   })
   const featureRegistry = computed<FeatureDefinition[]>(() =>
@@ -867,6 +868,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     trendSummary,
     focusVerdict,
     featureRows,
+    comparedMembers,
     comparedFeatureRows,
     featureRegistry
   }

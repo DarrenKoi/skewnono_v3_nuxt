@@ -230,11 +230,15 @@ export const parseAnomalyCfg = (raw: unknown): MethodConfig => {
   return cfg
 }
 
+/** A method's (watch, abnormal) pair — the active method's unless one is named. */
+export const thresholdPair = (cfg: MethodConfig, method = cfg.method): { watch: number, abnormal: number } =>
+  method === 'range'
+    ? { watch: cfg.range.watchPct, abnormal: cfg.range.abnormalPct }
+    : { watch: cfg.stddev.watchK, abnormal: cfg.stddev.abnormalK }
+
 /** Write-side mirror: the default maps to `null` (same rule as encodeFdcAxis). */
 export const encodeAnomalyCfg = (cfg: MethodConfig): string | null => {
-  const [watch, abnormal] = cfg.method === 'range'
-    ? [cfg.range.watchPct, cfg.range.abnormalPct]
-    : [cfg.stddev.watchK, cfg.stddev.abnormalK]
+  const { watch, abnormal } = thresholdPair(cfg)
   const isDefault = cfg.method === 'range'
     && watch === DEFAULT_RANGE.watchPct && abnormal === DEFAULT_RANGE.abnormalPct
   return isDefault ? null : `${cfg.method}:${watch}:${abnormal}`

@@ -47,6 +47,7 @@ const valueRange = computed(() => {
   if (min === max) return { min: min - 0.5, max: max + 0.5 }
   return { min, max }
 })
+const scaleLabel = computed(() => scaleFormatter(valueRange.value.min, valueRange.value.max))
 
 const option = computed<EChartsOption>(() => ({
   tooltip: {
@@ -85,7 +86,7 @@ const option = computed<EChartsOption>(() => ({
     textStyle: { fontSize: 11 },
     // ECharts' own label is an integer (precision 0): ±0.3 nm printed "-0" / "0".
     // One formatter for the whole scale, so its two ends never print alike.
-    formatter: (v: unknown) => scaleFormatter(valueRange.value.min, valueRange.value.max)(Number(v)),
+    formatter: (v: unknown) => scaleLabel.value(Number(v)),
     // Diverging navy → tan → red (the sample's signature wafer colormap).
     inRange: { color: [...SK_SCALE] }
   },

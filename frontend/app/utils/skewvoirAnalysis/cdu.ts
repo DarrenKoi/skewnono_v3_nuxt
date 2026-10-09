@@ -25,7 +25,7 @@
 // explicit `.ts` extension.
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
-import { isMeasuredRow } from '../msrRows.ts'
+import { isMeasuredRow, paramValues } from '../msrRows.ts'
 import { mean, median, sampleStd, medianAbsoluteDeviation, MAD_TO_SIGMA } from '../stats.ts'
 import { SECTOR_LABEL } from './spatial.ts'
 
@@ -67,7 +67,7 @@ export interface CduMetrics {
  *  server's rounded summary. null where there is nothing to state. */
 export const paramTableStats = (rows: MsrFileRow[], parameter: string) => {
   const m = cduMetrics(rows, parameter)
-  const values = rows.filter(r => r.parameter === parameter).filter(isMeasuredRow).map(r => r.cd_value)
+  const values = paramValues(rows, parameter)
   return {
     count: m.n,
     mean: m.level?.mean ?? null,

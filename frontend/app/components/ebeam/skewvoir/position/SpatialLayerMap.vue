@@ -17,7 +17,7 @@
             ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
             : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
           :disabled="opt.disabled"
-          :title="opt.disabled ? opt.why : opt.hint"
+          :title="opt.disabled ? opt.why ?? SHORT : opt.hint ?? opt.label"
           @click="layer = opt.key"
         >
           {{ opt.label }}
@@ -112,11 +112,11 @@ const layer = ref<Layer>('raw')
 const scanPath = ref(false)
 
 const SHORT = '좌표/추세 부족'
-const layerOptions = computed<{ key: Layer, label: string, hint: string, why: string, disabled: boolean }[]>(() => [
-  { key: 'raw', label: 'Raw', hint: 'Raw', why: SHORT, disabled: false },
-  { key: 'centered', label: 'Centered', hint: 'Centered', why: SHORT, disabled: false },
-  { key: 'residual', label: 'Residual', hint: 'Residual', why: SHORT, disabled: props.spatial.readiness.radialTrend !== 'ok' },
-  { key: 'failure', label: 'Failure', hint: 'Failure', why: SHORT, disabled: props.spatial.failures.length === 0 },
+const layerOptions = computed<{ key: Layer, label: string, hint?: string, why?: string, disabled: boolean }[]>(() => [
+  { key: 'raw', label: 'Raw', disabled: false },
+  { key: 'centered', label: 'Centered', disabled: false },
+  { key: 'residual', label: 'Residual', disabled: props.spatial.readiness.radialTrend !== 'ok' },
+  { key: 'failure', label: 'Failure', disabled: props.spatial.failures.length === 0 },
   { key: 'score', label: 'Score', hint: 'measurement_score (표시 전용)', why: 'measurement_score 값이 없습니다', disabled: props.scorePoints.length === 0 }
 ])
 
