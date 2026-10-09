@@ -72,27 +72,17 @@ const near = (actual: number | null | undefined, expected: number) =>
 
 // x = 1 2 3 4, y = 2 4 5 9. Means 2.5 and 5; Sxy = 4.5 + 0.5 + 0 + 6 = 11,
 // Sxx = 5, Syy = 9 + 1 + 0 + 16 = 26, so r = 11 / sqrt(130) = 0.9648.
-// y - x = 1 2 2 5: mean 2.5, squared deviations 2.25 + 0.25 + 0.25 + 6.25 = 9,
-// over n - 1 = 3 is 3, so SD = sqrt(3) = 1.7321.
-test('relationSummary gives n, Pearson r and the mean and SD of y - x for two measured columns', () => {
-  const summary = relationSummary(pairs([1, 2, 3, 4], [2, 4, 5, 9]), L, R)
+test('relationSummary gives n and Pearson r', () => {
+  const summary = relationSummary(pairs([1, 2, 3, 4], [2, 4, 5, 9]))
   assert.equal(summary.n, 4)
   near(summary.r, 0.9648)
-  near(summary.diff?.mean, 2.5)
-  near(summary.diff?.sd, 1.7321)
-})
-
-test('relationSummary gives no difference when an axis is not a measured column', () => {
-  const summary = relationSummary(pairs([1, 2, 3, 4], [2, 4, 5, 9]), 'Mileage', R)
-  near(summary.r, 0.9648)
-  assert.equal(summary.diff, null)
 })
 
 test('relationSummary gives no statistic under three samples, and no r on a constant axis', () => {
-  assert.deepEqual(relationSummary(pairs([1, 2], [2, 4]), L, R), { n: 2, r: null, diff: null })
-  // y - x = 4 3 2: mean 3, SD 1.
-  assert.deepEqual(relationSummary(pairs([1, 2, 3], [5, 5, 5]), L, R), { n: 3, r: null, diff: { mean: 3, sd: 1 } })
+  assert.deepEqual(relationSummary(pairs([1, 2], [2, 4])), { n: 2, r: null })
+  assert.deepEqual(relationSummary(pairs([1, 2, 3], [5, 5, 5])), { n: 3, r: null })
 })
+
 
 test('relationColumns offers the block\'s numeric measured columns, and the tip-usage columns it has', () => {
   const entries = entriesOf({

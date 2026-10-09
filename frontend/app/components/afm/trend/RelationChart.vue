@@ -43,7 +43,6 @@
       <span>{{ block }}{{ recipe ? ` · ${recipe}만` : '' }} · n {{ summary.n }}</span>
       <template v-if="summary.n >= RELATION_MIN_SAMPLES">
         <span>{{ summary.r === null ? 'r 계산 불가 (한 축의 값이 모두 같습니다)' : `r ${summary.r.toFixed(2)}` }}</span>
-        <span v-if="summary.diff">Y − X 평균 ± SD {{ fmt2(summary.diff.mean) }} ± {{ fmt2(summary.diff.sd) }} nm · 단위가 같은 두 항목의 단순 차이</span>
       </template>
       <span>● 다른 측정</span>
       <span class="text-(--sk-ink)">● 선택한 측정</span>
@@ -88,7 +87,7 @@ watch([xItems, y], () => {
 }, { immediate: true })
 
 const relation = computed(() => relationSamples(props.entries, props.block, x.value, y.value))
-const summary = computed(() => relationSummary(relation.value.samples, x.value, y.value))
+const summary = computed(() => relationSummary(relation.value.samples))
 // The selected measurement's samples last, so they are drawn over the rest.
 const drawn = computed(() => {
   const { samples } = relation.value

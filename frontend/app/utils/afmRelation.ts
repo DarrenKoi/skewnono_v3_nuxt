@@ -4,7 +4,7 @@
 import { isMeasurementKey } from './afmExport.ts'
 import { summaryNumber } from './afmSummary.ts'
 import { isValidRow, type TrendEntry } from './afmTrend.ts'
-import { mean, pearson, sampleStd } from './stats.ts'
+import { pearson } from './stats.ts'
 
 // Per-row tip usage, offered on X only. Shown under the raw column name:
 // Mileage's unit is not confirmed.
@@ -71,19 +71,12 @@ export interface RelationSummary {
   n: number
   // Pearson r; null under the floor or when one axis does not vary.
   r: number | null
-  // Mean and sample SD of y − x. Only for two measured columns, which share
-  // their unit (`(nm)` is what makes a column a measured one); null under the
-  // floor. Whether the two are the same quantity is the reader's call.
-  diff: { mean: number, sd: number } | null
 }
 
-export const relationSummary = (samples: RelationSample[], xColumn: string, yColumn: string): RelationSummary => {
+// No y − x statistic on purpose: two columns in the same unit are not known to
+// be the same quantity, so a difference is not offered as a metric
+// (docs/afm/service-recommendations.md 7.3).
+export const relationSummary = (samples: RelationSample[]): RelationSummary => {
   const n = samples.length
-  if (n < RELATION_MIN_SAMPLES) return { n, r: null, diff: null }
-  const gaps = samples.map(s => s.y - s.x)
-  return {
-    n,
-    r: pearson(samples.map(s => [s.x, s.y])),
-    diff: isMeasurementKey(xColumn) && isMeasurementKey(yColumn) ? { mean: mean(gaps), sd: sampleStd(gaps) } : null
-  }
+  return { n, r: n < RELATION_MIN_SAMPLES ? null : pearson(samples.map(s => [s.x, s.y])) }
 }
