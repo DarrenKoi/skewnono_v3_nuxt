@@ -176,6 +176,11 @@ export const useAfmDetailApi = () => {
   const useAfmTipRows = (tool: string) =>
     useAsyncData(`afm-tip-rows:${tool}`, async () => (await fetchFiles(tool)).data)
 
+  // The tools the server can read right now (a bare array, no envelope) — the
+  // landing page's System Status counts the catalog's tools against it.
+  const useAfmTools = () =>
+    useAsyncData('afm-tools', () => $fetch<{ id: string }[]>(joinApiPath(base, '/afm/tools')))
+
   const fetchDetail = (tool: string, filename: string) =>
     get<AfmDetailResponse>(tool, filename)
 
@@ -201,5 +206,5 @@ export const useAfmDetailApi = () => {
   const imagesZipUrl = (tool: string, filename: string, imageType: AfmImageType) =>
     `${filePath(filename, '/images.zip')}?type=${imageType}&tool=${encodeURIComponent(tool)}`
 
-  return { useAfmFiles, useAfmTipRows, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, originalsZipUrl, imagesZipUrl }
+  return { useAfmFiles, useAfmTipRows, useAfmTools, useAfmDetail, fetchDetail, fetchProfile, fetchImage, fetchAnalysisImages, originalsZipUrl, imagesZipUrl }
 }

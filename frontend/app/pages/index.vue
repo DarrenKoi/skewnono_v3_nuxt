@@ -44,18 +44,38 @@ const ebeamTools = computed(() => {
   }))
 })
 
+// Not awaited: the landing page must not wait on AFM. A catalog tool counts
+// when the server lists it, so a failed read shows 0 of them.
+const { fabs: afmFabs } = useAfmToolData()
+const { data: afmTools, status: afmToolsStatus } = useAfmDetailApi().useAfmTools()
+
 const systemStatus = computed(() => {
-  return ebeamTools.value
+  const statuses = ebeamTools.value
     .filter(tool => tool.enabled)
     .map((tool) => {
       const rows = rowsByToolType.value.get(tool.id) ?? []
 
       return {
-        ...tool,
+        id: tool.id as string,
+        label: tool.label,
         online: rows.filter(row => row.available === 'On').length,
         total: rows.length
       }
     })
+
+  // Left out while the answer is on its way, so it never flashes 0/3.
+  if (afmEnabled && afmToolsStatus.value !== 'pending' && afmToolsStatus.value !== 'idle') {
+    const readable = new Set((afmTools.value ?? []).map(tool => tool.id.toLowerCase()))
+    const catalog = afmFabs.flatMap(fab => fab.tools)
+    statuses.push({
+      id: 'afm',
+      label: 'AFM',
+      online: catalog.filter(tool => readable.has(tool.id)).length,
+      total: catalog.length
+    })
+  }
+
+  return statuses
 })
 </script>
 
