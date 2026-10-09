@@ -198,3 +198,17 @@ def test_a_stored_webp_is_cacheable_and_a_mock_svg_is_not(client, monkeypatch):
     monkeypatch.setattr(routes, "get_analysis_image_svg", lambda *args: b"RIFF....WEBP")
     stored = client.get(url)
     assert stored.mimetype == "image/webp" and stored.headers["Cache-Control"] == "private, max-age=3600"
+
+
+def test_compact_list_drops_the_file_lists_and_nothing_else(client):
+    full = client.get("/api/afm/files?tool=MAP608").get_json()
+    compact = client.get("/api/afm/files?tool=MAP608&compact=1").get_json()
+
+    # The default is the documented token API: every row keeps its seven lists.
+    assert any(row["tiff_dir_list"] for row in full["data"])
+    assert compact["total"] == full["total"] > 0
+    for slim, row in zip(compact["data"], full["data"], strict=True):
+        assert not [key for key in slim if key.endswith("_dir_list")]
+        assert slim == {key: value for key, value in row.items() if not key.endswith("_dir_list")}
+    # The provider's rows are cached and shared; a compact read must not strip them.
+    assert client.get("/api/afm/files?tool=MAP608").get_json() == full

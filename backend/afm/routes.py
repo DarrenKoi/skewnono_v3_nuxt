@@ -34,6 +34,15 @@ def afm_tools():
 def afm_files():
     tool_name = _tool_name()
     rows = list_afm_files(tool_name)
+    # `?compact=1` leaves the seven `*_dir_list` arrays out. They are 80-91% of
+    # the response and the pages read none of them; the default keeps them
+    # because the full row is the documented token API. New dicts, never a
+    # `del`: the provider's rows are cached and shared between requests.
+    if request.args.get("compact") == "1":
+        rows = [
+            {key: value for key, value in row.items() if not key.endswith("_dir_list")}
+            for row in rows
+        ]
     return jsonify({
         "success": True,
         "data": rows,

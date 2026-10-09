@@ -605,7 +605,10 @@ Path("S04_M0004-01MP.jpeg").write_bytes(resp.content)`
         method: 'GET',
         path: '/api/afm/files',
         summary: '장비 하나의 AFM 측정 목록을 반환합니다. filename, recipe, lot, 측정 시각, 이미지 종류별 파일 목록, 팁 정보가 row 하나에 담깁니다.',
-        args: [AFM_TOOL_ARG],
+        args: [
+          AFM_TOOL_ARG,
+          { name: 'compact', kind: 'query', required: false, note: '1이면 row에서 파일 목록(*_dir_list 7개)을 뺍니다. 응답이 80~91% 작아지므로 파일 목록이 필요 없으면 지정하십시오' }
+        ],
         response: '{ success, data: AfmMeasurementRow[], total, tool, message }',
         auth: '토큰 가능',
         example: { path: '/afm/files', query: { tool: 'MAP608' } }

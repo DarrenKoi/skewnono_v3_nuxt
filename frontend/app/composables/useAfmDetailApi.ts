@@ -160,16 +160,21 @@ export const useAfmDetailApi = () => {
   const get = <T>(tool: string, filename = '', rest = '', query: Record<string, string> = {}) =>
     $fetch<T>(filePath(filename, rest), { query: { tool, ...query } })
 
+  // Both list reads go through here, so no page can forget `compact`: the
+  // rows' seven `*_dir_list` arrays are most of the response and AfmFileRow
+  // has none of them.
+  const fetchFiles = (tool: string) => get<AfmFilesResponse>(tool, '', '', { compact: '1' })
+
   const useAfmFiles = (tool: string) =>
     useAsyncData(`afm-files:${tool}`, async () => {
-      const res = await get<AfmFilesResponse>(tool)
+      const res = await fetchFiles(tool)
       return res.data.map(toMeasurement)
     })
 
   // The same list, kept as the backend's rows: the tip columns are read by
   // 팁 모니터링 alone, so they stay out of the measurement the cart persists.
   const useAfmTipRows = (tool: string) =>
-    useAsyncData(`afm-tip-rows:${tool}`, async () => (await get<AfmFilesResponse>(tool)).data)
+    useAsyncData(`afm-tip-rows:${tool}`, async () => (await fetchFiles(tool)).data)
 
   const fetchDetail = (tool: string, filename: string) =>
     get<AfmDetailResponse>(tool, filename)

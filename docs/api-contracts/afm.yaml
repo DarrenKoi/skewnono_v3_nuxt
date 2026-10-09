@@ -185,6 +185,10 @@ endpoints:
         type: string
         required: false
         description: Tool name (e.g. "MAP608", "MAPC01"). Case-insensitive; falls back to MAP608 if missing.
+      compact:
+        type: string
+        required: false
+        description: '"1" leaves the seven *_dir_list arrays out of every row (80-91% of the bytes). The pages send it; omit it for the full row.'
     response:
       status: 200
       body:

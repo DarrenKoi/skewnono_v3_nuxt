@@ -59,6 +59,10 @@ runs the same code at home against a fake hash and a fake object store.
 - Handler: `routes.py` → `data.list_afm_files(tool_name)` (`tool_name` from
   `?tool=` query arg, normalized via `data.normalize_tool`, default
   `"MAP608"` when absent/blank)
+- `?compact=1` drops the seven `*_dir_list` keys from every row. The route
+  does this after the adapter returns, so an office adapter needs nothing for
+  it and what the loader stores is unchanged. The pages always send it; a
+  token caller that omits it gets the full row below.
 - Contract: `list[AfmMeasurementRow]` (see
   `contracts.py`. The seven `*_dir_list` keys — data, profile, tiff, align,
   tip, capture, raw — hold file **names**, and `[]` when there are none; there
