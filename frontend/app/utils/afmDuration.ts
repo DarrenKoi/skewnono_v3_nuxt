@@ -51,12 +51,26 @@ export interface DurationRow {
   duration: Duration
   // seconds ÷ the recipe's median; null until the recipe has 3 durations.
   ratio: number | null
+  // What the duration is divided by: the data rows of the measurement's largest
+  // block, so a repeat recipe's laps count (the list's `point_count` does not
+  // have them) and a second block analysing the same readings does not. FAILED
+  // and STOPPED rows are readings the tool spent time on, so they count too.
+  // 0 when the file has no data table.
+  points: number
+  // seconds ÷ points; null without a duration or without rows.
+  perPoint: number | null
 }
 
 const MIN_FOR_RATIO = 3
 
 const okSeconds = (rows: DurationRow[]): number[] =>
   rows.flatMap(row => row.duration.kind === 'ok' ? [row.duration.seconds] : [])
+
+const rowOf = (entry: TrendEntry): DurationRow => {
+  const duration = durationOf(entry.payload.information)
+  const points = Math.max(0, ...[...entry.rowsByBlock.values()].map(rows => rows.length))
+  return { entry, duration, ratio: null, points, perPoint: duration.kind === 'ok' && points ? duration.seconds / points : null }
+}
 
 // Recipes in first-appearance order.
 const byRecipe = (rows: DurationRow[]): Map<string, DurationRow[]> => {
@@ -70,7 +84,7 @@ const byRecipe = (rows: DurationRow[]): Map<string, DurationRow[]> => {
 }
 
 export const durationRows = (entries: TrendEntry[]): DurationRow[] => {
-  const rows: DurationRow[] = entries.map(entry => ({ entry, duration: durationOf(entry.payload.information), ratio: null }))
+  const rows = entries.map(rowOf)
   for (const list of byRecipe(rows).values()) {
     const seconds = okSeconds(list)
     const mid = seconds.length >= MIN_FOR_RATIO ? median(seconds) : 0
@@ -86,19 +100,23 @@ export interface RecipeDuration {
   median: number | null
   min: number | null
   max: number | null
+  // Median of the measurements' seconds per point, over those that have one.
+  medianPerPoint: number | null
 }
 
 export const durationByRecipe = (rows: DurationRow[]): RecipeDuration[] =>
   [...byRecipe(rows)].map(([recipe, list]) => {
     const seconds = okSeconds(list)
     const counted = seconds.length
+    const perPoint = list.flatMap(row => row.perPoint === null ? [] : [row.perPoint])
     return {
       recipe,
       total: list.length,
       counted,
       median: counted ? median(seconds) : null,
       min: counted ? Math.min(...seconds) : null,
-      max: counted ? Math.max(...seconds) : null
+      max: counted ? Math.max(...seconds) : null,
+      medianPerPoint: perPoint.length ? median(perPoint) : null
     }
   })
 
@@ -111,3 +129,7 @@ export const formatDuration = (seconds: number): string => {
   const parts = [h && `${h}시간`, m && `${m}분`, (s || !total) && `${s}초`].filter(Boolean)
   return parts.join(' ')
 }
+
+// Seconds per point: one decimal under a minute, the duration's own text above.
+export const formatPerPoint = (seconds: number): string =>
+  seconds < 60 ? `${seconds.toFixed(1)}초` : formatDuration(seconds)

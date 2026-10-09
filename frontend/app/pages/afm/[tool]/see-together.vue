@@ -207,7 +207,7 @@
       <AfmTrendSection
         num="05"
         title="측정 소요시간"
-        hint="Info의 Start Time과 End Time이 모두 있는 측정만 계산합니다. 값이 없는 측정은 이유를 표시합니다."
+        hint="Info의 Start Time과 End Time이 모두 있는 측정만 계산합니다. 값이 없는 측정은 이유를 표시합니다. 포인트당 시간은 소요시간을 측정 포인트 표의 행 수(반복 회차 포함, 블록이 여럿이면 행이 가장 많은 블록)로 나눈 값입니다."
       />
       <AfmTrendDuration
         :rows="durations"

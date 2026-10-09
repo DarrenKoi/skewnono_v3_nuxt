@@ -8,6 +8,7 @@ import {
   durationOf,
   durationRows,
   formatDuration,
+  formatPerPoint,
   parseInfoTime
 } from './afmDuration.ts'
 
@@ -83,8 +84,8 @@ test('durationByRecipe counts per recipe in first-appearance order', () => {
     ran('A', 100), { recipe: 'B', information: {} }, ran('A', 300), ran('A', 200), { recipe: 'A', information: { 'Start Time': START } }
   ]))
   assert.deepEqual(durationByRecipe(rows), [
-    { recipe: 'A', total: 4, counted: 3, median: 200, min: 100, max: 300 },
-    { recipe: 'B', total: 1, counted: 0, median: null, min: null, max: null }
+    { recipe: 'A', total: 4, counted: 3, median: 200, min: 100, max: 300, medianPerPoint: null },
+    { recipe: 'B', total: 1, counted: 0, median: null, min: null, max: null, medianPerPoint: null }
   ])
 })
 
@@ -94,4 +95,55 @@ test('formatDuration drops zero units', () => {
   assert.equal(formatDuration(45), '45초')
   assert.equal(formatDuration(0), '0초')
   assert.equal(formatDuration(3600), '1시간')
+})
+
+const row = (point: string, site = 'B1') => ({ measurement_point: point, Site: site, State: 'COMPLETED' })
+const measured = (recipe: string, seconds: number, data: object[]) => {
+  const [entry] = entriesOf([ran(recipe, seconds)])
+  return prepareEntries([{
+    source: { filename: entry!.key, recipeName: recipe, lotId: 'LOT1', slotNumber: 1, formattedDate: '2026-10-01' },
+    payload: { ...entry!.payload, data } as AfmDetailPayload
+  }])[0]!
+}
+
+test('seconds per point divide the duration by the data rows of one block', () => {
+  const [single] = durationRows([measured('A', 90, [row('0001'), row('0002'), row('0003')])])
+  assert.equal(single!.points, 3)
+  assert.equal(single!.perPoint, 30)
+})
+
+test('a repeat lap is a point measured again, and a second block is not', () => {
+  // 2 points x 2 laps in B1; B2 analysed the same 4 readings and stopped after 1.
+  const data = [row('0001'), row('0002'), row('0001'), row('0002'), row('0001', 'B2')]
+  const [repeat] = durationRows([measured('A', 100, data)])
+  assert.equal(repeat!.points, 4)
+  assert.equal(repeat!.perPoint, 25)
+})
+
+test('no data rows or no duration gives no per-point figure', () => {
+  const [noRows] = durationRows([measured('A', 90, [])])
+  assert.equal(noRows!.points, 0)
+  assert.equal(noRows!.perPoint, null)
+
+  const [entry] = entriesOf([{ recipe: 'A', information: {} }])
+  const [noTime] = durationRows([{ ...entry!, rowsByBlock: new Map([['B1', [row('0001')]]]) } as never])
+  assert.equal(noTime!.points, 1)
+  assert.equal(noTime!.perPoint, null)
+})
+
+test('durationByRecipe takes the median of the per-point figures it has', () => {
+  const rows = durationRows([
+    measured('A', 90, [row('0001'), row('0002'), row('0003')]),
+    measured('A', 100, [row('0001'), row('0002')]),
+    measured('A', 400, [row('0001')]),
+    measured('A', 500, [])
+  ])
+  assert.equal(durationByRecipe(rows)[0]!.medianPerPoint, 50)
+  assert.equal(durationByRecipe(durationRows([measured('B', 500, [])]))[0]!.medianPerPoint, null)
+})
+
+test('formatPerPoint keeps a decimal under a minute', () => {
+  assert.equal(formatPerPoint(12.34), '12.3초')
+  assert.equal(formatPerPoint(0), '0.0초')
+  assert.equal(formatPerPoint(164), '2분 44초')
 })
