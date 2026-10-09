@@ -14,7 +14,7 @@
 //
 // REUSE, do not re-derive: every number below comes from the function that
 // already owns it on screen (cduMetrics, overviewSites, baselineComparison,
-// baselineDeltaMap, acrossMsrAxes). A statistic that exists only inside a
+// baselineDeltaMap, compositeSiteMap, acrossMsrAxes). A statistic that exists only inside a
 // component is NOT copied here — it is left out of the receipt.
 //
 // Runs under raw `node --test` — sibling imports carry an explicit `.ts`.
@@ -32,7 +32,10 @@ import { MODEL_LABEL } from '../radialAnalysis.ts'
 import { formatRecipeTimestamp } from '../recipeView.ts'
 import { safeFileNamePart } from '../tableExport.ts'
 import { acrossMsrAxes, acrossMsrAxisValue, type AcrossMsrAxis } from './acrossMsr.ts'
-import { baselineComparison, baselineDeltaMap, baselineSentence, type BaselineComparison } from './baselineCompare.ts'
+import {
+  baselineComparison, baselineDeltaMap, baselineSentence, compositeSiteMap,
+  type BaselineComparison, type CompositeSite
+} from './baselineCompare.ts'
 import { cduMetrics, type CduMetrics } from './cdu.ts'
 import { EXCLUSION_REASON_LABEL } from './compatibility.ts'
 import { isSetPoolComplete } from './curatedSet.ts'
@@ -115,6 +118,9 @@ export interface ReviewReceipt {
     /** False when the layouts disagree: no per-site delta is recorded. */
     siteDeltaReady: boolean
   }) | null
+  /** 위치 비교's set-scope composite maps, one row per chip. null in single
+   *  scope; `ready: false` (and no sites) when the layouts are not known to agree. */
+  position: { ready: boolean, sites: CompositeSite[] } | null
   flaggedSites: ReceiptFlaggedSite[]
   toolSkew: ToolSkewResult
   /** One row per loaded measurement, one value per across-MSR axis. */
@@ -178,11 +184,11 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
     }
   })
 
+  const siteDeltaReady = input.siteDeltaReady ?? true
   let baseline: ReviewReceipt['baseline'] = null
   if (hasBaseline) {
     const { base: baseIds, target } = input.baselineGroups
     const result = baselineComparison(files, baseIds, target, parameter, unit)
-    const siteDeltaReady = input.siteDeltaReady ?? true
     const delta = siteDeltaReady
       ? baselineDeltaMap(files, baseIds, target, parameter)
       : { points: [], unpaired: 0 }
@@ -213,6 +219,9 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
     },
     members,
     baseline,
+    position: input.scope === 'set'
+      ? { ready: siteDeltaReady, sites: siteDeltaReady ? compositeSiteMap(files, [...compared], parameter) : [] }
+      : null,
     flaggedSites,
     toolSkew: input.toolSkew,
     features: {
@@ -264,6 +273,9 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
         ...(r.baseline
           ? [['기준 대비', r.baseline.sentence], ['기준 성격', '이 세트 안에서 손으로 나눈 기준이며 공식 기준선이 아닙니다.']]
           : [['기준 대비', '기준을 지정하지 않았습니다.']]),
+        ...(r.position && !r.position.ready
+          ? [['위치 합성', '같은 위치임을 확인할 수 없어 site 단위로 합치지 않았습니다']]
+          : []),
         ['메모', r.memo],
         ['주의', r.caution],
         ['분석 URL', r.url]
@@ -317,6 +329,16 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
     if (b.deltaSites.length) {
       sheets.push({ name: '기준 대비 site', rows: [['chip X', 'chip Y', `대상 − 기준${u}`], ...b.deltaSites] })
     }
+  }
+
+  if (r.position?.sites.length) {
+    sheets.push({
+      name: '위치 합성 site',
+      rows: [
+        ['chip X', 'chip Y', '측정점', 'wafer', `mean${u}`, `σ${u}`],
+        ...r.position.sites.map(s => [s.x, s.y, s.mps, s.wafers, num(s.mean), num(s.sigma)])
+      ]
+    })
   }
 
   if (r.toolSkew.rows.length) {

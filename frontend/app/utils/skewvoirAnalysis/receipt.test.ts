@@ -235,7 +235,7 @@ const named = (sheets: ReturnType<typeof receiptSheets>, name: string) => sheets
 
 test('sheets without a baseline: 요약 states the selection, settings, time and the URL caveat; 세트 one row per measurement', () => {
   const sheets = sheetsOf({ memo: '  EQ2 가 높다  ' })
-  assert.deepEqual(sheets.map(s => s.name), ['요약', '세트', '주의·이상·실패 site'])
+  assert.deepEqual(sheets.map(s => s.name), ['요약', '세트', '위치 합성 site', '주의·이상·실패 site'])
 
   assert.deepEqual(named(sheets, '요약'), [
     ['항목', '값'],
@@ -301,7 +301,7 @@ test('the stddev method prints its thresholds in σ, and a parameter without a u
 
 test('sheets with a baseline: the comparison table, its per-site differences, and the note that the baseline is hand-picked', () => {
   const sheets = receiptSheets(buildReviewReceipt(splitInput()))
-  assert.deepEqual(sheets.map(s => s.name), ['요약', '세트', '기준 대비', '기준 대비 site', '주의·이상·실패 site'])
+  assert.deepEqual(sheets.map(s => s.name), ['요약', '세트', '기준 대비', '기준 대비 site', '위치 합성 site', '주의·이상·실패 site'])
 
   assert.deepEqual(named(sheets, '요약').slice(13, 15), [
     ['기준 대비', '기준 2건보다 대상 1건의 평균이 +4.00 nm(기준 3σ 의 0.4배) 이동했고 3σ 는 0.8배입니다.'],
@@ -422,4 +422,44 @@ test('the per-site delta is left out when the set cannot be compared site by sit
   assert.deepEqual(r.baseline?.deltaSites, [])
   assert.equal(r.baseline?.siteDeltaReady, false)
   assert.ok(r.baseline?.comparison, 'the level comparison does not need a shared layout')
+})
+
+// ── The set-scope position table (위치 비교's Composite Mean / σ maps) ─────
+
+test('위치 합성 site: one row per chip — the mean and wafer-to-wafer σ the set-scope maps draw, with the sizes behind them', () => {
+  // M1 100, 102, 104 on chips (0,0) (1,0) (2,0); M2 120, 122 on the first two.
+  // (0,0): mean 110, s = √((100+100)/1) = 14.1421. (1,0): mean 112, same s.
+  // (2,0): M1 alone → mean 104 and no σ (an empty cell, not 0).
+  assert.deepEqual(named(sheetsOf(), '위치 합성 site'), [
+    ['chip X', 'chip Y', '측정점', 'wafer', 'mean (nm)', 'σ (nm)'],
+    [0, 0, 1, 2, 110, 14.1421],
+    [1, 0, 1, 2, 112, 14.1421],
+    [2, 0, 1, 1, 104, '']
+  ])
+})
+
+test('위치 합성 site: a 제외 measurement is not combined', () => {
+  const sheets = sheetsOf({ excluded: [{ msr: 'M2', reasons: ['unit-mismatch'] }] })
+  assert.deepEqual(named(sheets, '위치 합성 site').slice(1), [
+    [0, 0, 1, 1, 100, ''],
+    [1, 0, 1, 1, 102, ''],
+    [2, 0, 1, 1, 104, '']
+  ])
+})
+
+test('위치 합성 site: left out, with the reason in 요약, when the set cannot be compared site by site', () => {
+  const sheets = sheetsOf({ siteDeltaReady: false })
+  assert.equal(sheets.some(s => s.name === '위치 합성 site'), false)
+  assert.deepEqual(
+    named(sheets, '요약').find(r => r[0] === '위치 합성'),
+    ['위치 합성', '같은 위치임을 확인할 수 없어 site 단위로 합치지 않았습니다']
+  )
+})
+
+test('위치 합성 site: a single-scope receipt has no set to combine', () => {
+  const sheets = sheetsOf({
+    scope: 'single', msrList: ['M1'], setFiles: new Map(), baselineGroups: { base: [], target: ['M1'] }
+  })
+  assert.equal(sheets.some(s => s.name === '위치 합성 site'), false)
+  assert.equal(named(sheets, '요약').some(r => r[0] === '위치 합성'), false)
 })
