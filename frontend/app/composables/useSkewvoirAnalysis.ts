@@ -27,7 +27,7 @@ import {
   type TrendPoint
 } from '~/utils/skewvoirAnalysis/timeSeries'
 import { splitBaseline } from '~/utils/skewvoirAnalysis/baselineCompare'
-import { isSetColdLoading, isSetPoolComplete, resolveSetRows, setOverflow, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
+import { isSetColdLoading, isSetPoolComplete, resolveSetRows, setComparedMembers, setOverflow, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
 import { toggleKey, siteKey } from '~/utils/mpSelection'
@@ -775,8 +775,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   // compatible. A measurement excluded for its unit or recipe is on screen as
   // 제외, and a coefficient that still counted it would mix units.
   const comparedFeatureRows = computed<MsrFeatureRow[]>(() => {
-    const included = new Set(manifest.value.included)
-    return featureRows.value.filter(row => included.has(row.msr))
+    const compared = new Set(setComparedMembers(manifest.value.included, setFiles.value, ws.scope.value))
+    return featureRows.value.filter(row => compared.has(row.msr))
   })
   const featureRegistry = computed<FeatureDefinition[]>(() =>
     computeFeatureRegistry(featureSources.value, activeParam.value)

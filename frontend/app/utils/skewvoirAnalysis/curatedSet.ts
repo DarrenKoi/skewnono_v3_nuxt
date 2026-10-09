@@ -115,6 +115,20 @@ export const setOverflow = <T>(
 ): number =>
   Math.max(0, msrList.filter(id => rowByMsr.has(id)).length - TREND_LIMIT)
 
+/** The measurements a set-scope statistic may be taken over: members the
+ *  manifest found compatible AND whose file is among the set files. The manifest
+ *  always includes the focus, even one the TREND_LIMIT cap left out of the set
+ *  files; every set-scope number (S7 comparison, position maps, the receipt) is
+ *  computed over the set files, so the relation must use the same members or the
+ *  screen and the receipt disagree. Single scope has no set files — `included`
+ *  (the focus) stands as it is. */
+export const setComparedMembers = (
+  included: readonly string[],
+  loaded: ReadonlySet<string> | ReadonlyMap<string, unknown>,
+  scope: AnalysisScope
+): string[] =>
+  scope === 'set' ? included.filter(msr => loaded.has(msr)) : [...included]
+
 /** Whether a `set`-scope view has NOTHING of the current selection to draw yet
  *  and is still waiting on a fetch — the "show the block loading state" rule.
  *

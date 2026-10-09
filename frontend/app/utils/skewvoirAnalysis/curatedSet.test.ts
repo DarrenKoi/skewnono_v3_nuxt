@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TREND_LIMIT, isSetColdLoading, isSetCompatibilityKnown, isSetPoolComplete, rendersFocusAlone, resolveSetRows, setOverflow, shouldLoadSet } from './curatedSet.ts'
+import { TREND_LIMIT, isSetColdLoading, isSetCompatibilityKnown, isSetPoolComplete, rendersFocusAlone, resolveSetRows, setComparedMembers, setOverflow, shouldLoadSet } from './curatedSet.ts'
 
 interface MeasHistRowFixture { msr: string, msr_check: 'Yes' | 'No' }
 
@@ -161,4 +161,17 @@ test('setOverflow counts the resolvable picks the cap dropped, not the unknown i
   // 40 listed, 35 resolve, 30 kept → 5 real measurements silently left out.
   assert.equal(setOverflow(ids, rowByMsr), 5)
   assert.equal(setOverflow(ids.slice(0, 30), rowByMsr), 0)
+})
+
+// Codex review 3 of 2026-10-09, second pass: the manifest always includes the
+// focus, even when the 30-member cap left it out of the set files. In set scope
+// every statistic is taken over the set files, so a relation that counted that
+// focus disagreed with the receipt (n 31 against n 30).
+test('setComparedMembers: in set scope, included members that are in the set files — not a focus the cap dropped', () => {
+  const loaded = new Set(['M1', 'M2', 'M3'])
+  assert.deepEqual(setComparedMembers(['M1', 'M2', 'M3', 'FOCUS'], loaded, 'set'), ['M1', 'M2', 'M3'])
+  // An excluded member is simply not in `included`.
+  assert.deepEqual(setComparedMembers(['M1', 'M3'], loaded, 'set'), ['M1', 'M3'])
+  // Single scope has no set files: the focus is all there is.
+  assert.deepEqual(setComparedMembers(['FOCUS'], new Set(), 'single'), ['FOCUS'])
 })
