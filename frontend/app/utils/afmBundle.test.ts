@@ -183,3 +183,17 @@ test('요약 says a mixed group is not pooled, and that a switched-off band judg
   assert.match(text(bundleSheets(buildBundle({ ...MIXED(), notLoaded: 2 }))), /불러오지 못한 측정 \| 2건/)
   assert.doesNotMatch(text(bundleSheets(buildBundle(MIXED()))), /불러오지 못한/)
 })
+
+// A file read by people: 10.333333333333334 is noise, and the cells are not
+// re-used as inputs anywhere.
+test('bundleSheets rounds every number to 4 decimals', () => {
+  const sheets = bundleSheets(buildBundle(group([item('a', 'R', 10), item('b', 'R', 10), item('c', 'R', 11)])))
+  const summary = new Map(sheets[0]!.rows.map(r => [r[0], r.slice(1)]))
+  // μ = 31 / 3 = 10.3333…
+  assert.equal(summary.get('R')![1], 10.3333)
+  for (const sheet of sheets) {
+    for (const cell of sheet.rows.flat()) {
+      if (typeof cell === 'number') assert.equal(cell, Number(cell.toFixed(4)), `${sheet.name}: ${cell}`)
+    }
+  }
+})

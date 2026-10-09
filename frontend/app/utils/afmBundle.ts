@@ -290,5 +290,7 @@ export const bundleSheets = (bundle: AfmBundle): WorkbookSheet[] => {
       )
     })
   }
-  return sheets
+  // For reading, not for re-use as input: 4 decimals, as the skewvoir receipt does.
+  const round = (cell: string | number) => typeof cell === 'number' && !Number.isInteger(cell) ? Number(cell.toFixed(4)) : cell
+  return sheets.map(sheet => ({ ...sheet, rows: sheet.rows.map(row => row.map(round)) }))
 }
