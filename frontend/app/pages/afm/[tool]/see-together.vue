@@ -59,7 +59,7 @@
         variant="soft"
         icon="i-lucide-triangle-alert"
         :title="`recipe ${recipes.length}종이 섞인 그룹입니다.`"
-        :description="`${recipes.join(', ')} — 같은 이름의 측정 항목이 recipe마다 같은 측정량이라는 보장이 없습니다. 추세는 recipe별 시리즈와 관리선으로 나누고, 포인트 비교는 선택한 측정의 recipe만 보이며, 변동 분해와 그룹 행은 내지 않습니다.`"
+        :description="`${recipes.join(', ')} — 같은 이름의 측정 항목이 recipe마다 같은 측정량이라는 보장이 없습니다. 추세는 recipe별 시리즈와 기준 범위로 나누고, 포인트 비교는 선택한 측정의 recipe만 보이며, 변동 분해와 그룹 행은 내지 않습니다.`"
       />
 
       <!-- 분석 조건: block × column × statistic, read by every card below. -->
@@ -113,7 +113,7 @@
       <AfmTrendSection
         num="01"
         title="추세"
-        hint="측정마다 분포를 입히고, 그룹의 평균 ± 3σ 관리선을 긋습니다. 관리선 밖의 측정은 붉은 점으로 표시합니다."
+        :hint="`측정마다 분포를 입히고, ${pinned ? '기준으로 고정한 측정' : '그룹'}의 평균 ± 3σ를 ${bandName}로 긋습니다. 범위 밖의 측정은 붉은 점으로 표시합니다. 관리 한계나 규격이 아닌 참고 범위입니다.`"
       />
       <div class="grid grid-cols-1 gap-6 2xl:grid-cols-12">
         <AfmTrendChart
@@ -137,6 +137,7 @@
           :repeat-keys="repeatKeys"
           :mixed="mixed"
           @select="select"
+          @toggle-baseline="toggleBaseline"
         />
       </div>
 
@@ -232,7 +233,7 @@ definePageMeta({
 
 const toolId = String(useRoute().params.tool ?? '')
 const toolName = toolId.toUpperCase()
-const { groupedData: groupedItems } = useAfmCart(toolId)
+const { groupedData: groupedItems, baselineKeys, toggleBaseline } = useAfmCart(toolId)
 const { fetchDetail } = useAfmDetailApi()
 
 const groupKey = computed(() => groupedItems.value.map(item => item.filename).sort().join('|'))
@@ -285,10 +286,14 @@ watch(columnItems, (next) => {
   if (!next.includes(column.value)) column.value = next[0] ?? ''
 }, { immediate: true })
 
-const trend = computed(() => trendRows(entries.value, block.value, column.value, stat.value, showLimits.value))
+const trend = computed(() => trendRows(entries.value, block.value, column.value, stat.value, showLimits.value, baselineKeys.value))
 const rows = computed(() => trend.value.rows)
 const centres = computed(() => trend.value.centres)
 const valued = computed(() => rows.value.filter(row => row.value !== null))
+// 고정 기준선: some loaded measurement is pinned, so μ and the band are its.
+const pinnedCount = computed(() => rows.value.filter(row => row.role === 'baseline').length)
+const pinned = computed(() => pinnedCount.value > 0)
+const bandName = computed(() => trendBandName(pinned.value))
 
 // Start on the newest measurement that has a value; keep a pick that still exists.
 watch(rows, (next) => {
@@ -323,16 +328,20 @@ const kpis = computed<TrendKpi[]>(() => {
   const limits = only?.limits
   return [
     {
-      label: '그룹 평균 μ',
+      label: pinned.value ? '기준 평균 μ' : '그룹 평균 μ',
       value: fmt2(only?.mu),
       sub: mixed.value ? 'recipe별로 따로 냅니다' : `${column.value} · ${stat.value}`
     },
     { label: 'lot 간 σ', value: fmt2(split.value?.lotSd), sub: 'MEAN들의 표본 표준편차' },
     { label: 'wafer 내 σ̄', value: fmt2(split.value?.waferSd), sub: '측정별 STDEV 평균' },
     {
-      label: '관리선 밖',
+      label: `${bandName.value} 밖`,
       value: `${outCount}건`,
-      sub: !showLimits.value ? '관리선 꺼짐' : limits ? `μ ± 3σ · ${fmt2(limits.lcl)} ~ ${fmt2(limits.ucl)}` : mixed.value ? 'recipe별 μ ± 3σ' : '값 2건 이상부터',
+      sub: !showLimits.value
+        ? '기준 범위 꺼짐'
+        : limits
+          ? `${pinned.value ? `기준 ${pinnedCount.value}건의 ` : ''}μ ± 3σ · ${fmt2(limits.lcl)} ~ ${fmt2(limits.ucl)}`
+          : mixed.value ? 'recipe별 μ ± 3σ' : only?.reason ? `${only.reason} · 기준 값 2건 이상부터` : '값 2건 이상부터',
       alert: outCount > 0
     },
     { label: 'FAILED · STOPPED', value: `${troubled}건`, sub: `측정 ${entries.value.length}건 중`, alert: troubled > 0 },

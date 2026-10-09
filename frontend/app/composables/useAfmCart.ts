@@ -1,5 +1,6 @@
-// Per-tool AFM working set: viewed measurements, the current grouping cart, saved group
-// snapshots, and recent search terms. Keyed by toolId so each AFM tool keeps its own state.
+// Per-tool AFM working set: viewed measurements, the current grouping cart, the
+// measurements of it pinned as the 고정 기준선, saved group snapshots, and recent
+// search terms. Keyed by toolId so each AFM tool keeps its own state.
 // Each slice is a usePersistedState ref: shared across client-side navigation, persisted
 // to localStorage across full reloads (one watcher per tool×slice for the SPA lifetime).
 
@@ -42,7 +43,7 @@ const MAX_HISTORY = 10
 const MAX_SAVED_GROUPS = 10
 const MAX_RECENT_SEARCHES = 5
 
-type StorageKind = 'viewHistory' | 'groupedData' | 'savedGroups' | 'recentSearches'
+type StorageKind = 'viewHistory' | 'groupedData' | 'savedGroups' | 'recentSearches' | 'baseline'
 
 const persistedSlice = <T>(kind: StorageKind, toolId: string) =>
   usePersistedState<T[]>(
@@ -56,6 +57,8 @@ export const useAfmCart = (toolId: string) => {
   const groupedData = persistedSlice<AfmGroupedEntry>('groupedData', toolId)
   const savedGroups = persistedSlice<AfmSavedGroup>('savedGroups', toolId)
   const recentSearches = persistedSlice<string>('recentSearches', toolId)
+  // Filenames of the group's measurements that form 시계열 비교's fixed baseline.
+  const baseline = persistedSlice<string>('baseline', toolId)
 
   // A group stored before the cap existed can be longer.
   if (groupedData.value.length > AFM_GROUP_MAX) groupedData.value = groupedData.value.slice(0, AFM_GROUP_MAX)
@@ -63,6 +66,19 @@ export const useAfmCart = (toolId: string) => {
 
   const groupedFilenames = computed(() => new Set(groupedData.value.map(item => item.filename)))
   const isInGroup = (filename: string) => groupedFilenames.value.has(filename)
+
+  // A measurement that leaves the group leaves the baseline with it, so it does
+  // not come back pinned when it is added again. The read side intersects too:
+  // another tab, or a stored baseline older than the group, can name a stranger.
+  const baselineKeys = computed(() => new Set(baseline.value.filter(isInGroup)))
+  const setGroup = (next: AfmGroupedEntry[]) => {
+    groupedData.value = next
+    if (baselineKeys.value.size !== baseline.value.length) baseline.value = [...baselineKeys.value]
+  }
+  const toggleBaseline = (filename: string) => {
+    const kept = [...baselineKeys.value].filter(name => name !== filename)
+    baseline.value = baselineKeys.value.has(filename) || !isInGroup(filename) ? kept : [...kept, filename]
+  }
 
   const addToHistory = (measurement: AfmMeasurement) => {
     const next = viewHistory.value.filter(item => item.filename !== measurement.filename)
@@ -91,15 +107,13 @@ export const useAfmCart = (toolId: string) => {
 
   const removeFromGroup = (...filenames: string[]) => {
     const dropped = new Set(filenames)
-    groupedData.value = groupedData.value.filter(item => !dropped.has(item.filename))
+    setGroup(groupedData.value.filter(item => !dropped.has(item.filename)))
   }
 
   const toggleGroup = (measurement: AfmMeasurement) =>
     isInGroup(measurement.filename) ? removeFromGroup(measurement.filename) : addToGroup(measurement)
 
-  const clearGroup = () => {
-    groupedData.value = []
-  }
+  const clearGroup = () => setGroup([])
 
   // The save form is the only caller: it trims both fields and refuses an empty name.
   const saveCurrentGroup = (name: string, description: string) => {
@@ -123,7 +137,7 @@ export const useAfmCart = (toolId: string) => {
     const next = merge
       ? [...groupedData.value, ...found.items.filter(item => !isInGroup(item.filename))]
       : [...found.items]
-    groupedData.value = next.slice(0, AFM_GROUP_MAX)
+    setGroup(next.slice(0, AFM_GROUP_MAX))
     return next.length - groupedData.value.length
   }
 
@@ -148,6 +162,8 @@ export const useAfmCart = (toolId: string) => {
     savedGroups,
     recentSearches,
     groupRoom,
+    baselineKeys,
+    toggleBaseline,
     isInGroup,
     addToHistory,
     clearHistory,

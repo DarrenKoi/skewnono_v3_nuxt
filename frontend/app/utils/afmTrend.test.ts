@@ -15,6 +15,7 @@ import {
   repeatPairs,
   robustSd,
   tipChanges,
+  trendBandName,
   trendRows,
   trendTable,
   varianceSplit,
@@ -294,4 +295,62 @@ test('trendTable writes the full start time, year included', () => {
     payload: payload(summaryOf('B', { MEAN: 2 }), [], { 'Start Time': '2025-12-31 23:45:00' })
   }])
   assert.equal(trendTable(trendRows([entry!], 'B', COL, 'MEAN', true).rows).rows[0]![0], '2025-12-31 23:45')
+})
+
+// 고정 기준선 (S6): the centre and band come from the pinned measurements alone.
+const meanEntry = (name: string, recipe: string, mean: number) =>
+  ({ source: source(name, { recipeName: recipe }), payload: payload(summaryOf('B', { MEAN: mean }), [row('1', mean)]) })
+
+test('a pinned baseline fixes μ and the band: later measurements do not move them', () => {
+  const group = [meanEntry('a', 'R', 10), meanEntry('b', 'R', 12), meanEntry('c', 'R', 16)]
+  // Unpinned, c widens its own band: μ 38/3, MAD 2 → σ 2.9652, +3σ ≈ 21.56.
+  const loose = trendRows(prepareEntries(group), 'B', COL, 'MEAN', true)
+  assert.deepEqual(loose.rows.map(r => [r.role, r.out]), [['target', false], ['target', false], ['target', false]])
+  assert.equal(loose.centres.get('R')!.reason, '')
+  // Neither name is a control limit: the band is the user's own measurements.
+  assert.deepEqual([trendBandName(false), trendBandName(true)], ['그룹 기준 범위', '고정 기준 범위'])
+
+  // Pinned on a, b: μ 11, MAD 1 → σ 1.4826, band 6.5522 – 15.4478.
+  const pin = new Set(['a', 'b'])
+  for (const extra of [[], [meanEntry('d', 'R', 100)]]) {
+    const { rows, centres } = trendRows(prepareEntries([...group, ...extra]), 'B', COL, 'MEAN', true, pin)
+    const { mu, limits } = centres.get('R')!
+    assert.equal(mu, 11)
+    assert.ok(Math.abs(limits!.ucl - 15.4478) < 1e-9)
+    assert.ok(Math.abs(limits!.lcl - 6.5522) < 1e-9)
+    const c = rows.find(r => r.entry.key === 'c')!
+    assert.deepEqual([c.role, c.out, c.delta], ['target', true, 5])
+    assert.deepEqual(rows.filter(r => r.role === 'baseline').map(r => r.entry.key), ['a', 'b'])
+  }
+})
+
+test('a baseline measurement is never judged against the band it forms', () => {
+  // μ 12.5, median 10.5, MAD 1 → σ 1.4826, +3σ 16.9478: 20 is past it.
+  const entries = prepareEntries([9, 10, 11, 20].map((v, i) => meanEntry(`b${i}`, 'R', v)))
+  const { rows, centres } = trendRows(entries, 'B', COL, 'MEAN', true, new Set(['b0', 'b1', 'b2', 'b3']))
+  assert.ok(Math.abs(centres.get('R')!.limits!.ucl - 16.9478) < 1e-9)
+  assert.deepEqual(rows.map(r => r.out), [false, false, false, false])
+  assert.equal(rows[3]!.delta, 7.5)
+})
+
+test('a recipe with under two baseline values gets no band and says why', () => {
+  const entries = prepareEntries([
+    meanEntry('a', 'R', 10), meanEntry('b', 'R', 50),
+    meanEntry('q1', 'Q', 1), meanEntry('q2', 'Q', 2), meanEntry('q3', 'Q', 3)
+  ])
+  const { rows, centres } = trendRows(entries, 'B', COL, 'MEAN', true, new Set(['a']))
+  // One pinned value is a centre without a spread.
+  assert.deepEqual(centres.get('R'), { mu: 10, limits: null, reason: '기준 표본 부족' })
+  assert.deepEqual([rows[1]!.delta, rows[1]!.out], [40, false])
+  // Baselines are per recipe: Q pinned none, so it has no reference at all.
+  assert.deepEqual(centres.get('Q'), { mu: null, limits: null, reason: '기준 표본 부족' })
+  assert.equal(rows.find(r => r.entry.key === 'q3')!.delta, null)
+})
+
+test('a baseline that names nothing in the group leaves the group band as it was', () => {
+  const entries = prepareEntries([meanEntry('a', 'R', 10), meanEntry('b', 'R', 12)])
+  assert.deepEqual(
+    trendRows(entries, 'B', COL, 'MEAN', true, new Set(['gone'])),
+    trendRows(entries, 'B', COL, 'MEAN', true)
+  )
 })

@@ -157,16 +157,22 @@ export const missingReason = (entry: TrendEntry, block: string): string => {
 }
 
 export interface RecipeCentre {
-  // Mean of the recipe's values, and its μ ± 3σ (null under two values).
+  // Mean of the recipe's values, and its μ ± 3σ (null under two values) — of
+  // its pinned baseline alone when the group has one.
   mu: number | null
   limits: ControlLimits | null
+  // Why a pinned baseline gives this recipe no band; empty otherwise.
+  reason: string
 }
 
 export interface TrendRow {
   entry: TrendEntry
   stats: MeasurementStats | null
+  // 'baseline' when the measurement is pinned as part of the fixed reference.
+  role: 'baseline' | 'target'
   // The picked statistic, its distance from the recipe's μ, and whether it
-  // sits outside the recipe's limits (never, while the limits are off).
+  // sits outside the recipe's limits (never, while the limits are off, and
+  // never for a baseline measurement: it is not judged against itself).
   value: number | null
   delta: number | null
   out: boolean
@@ -176,31 +182,44 @@ export interface TrendRow {
   reason: string
 }
 
+// What the μ ± 3σ band is called. It is computed from measurements the user
+// chose — the group, or the pinned baseline — so it is a reference range, never
+// a control or spec limit (the data cannot support that claim).
+export const trendBandName = (pinned: boolean): string => pinned ? '고정 기준 범위' : '그룹 기준 범위'
+
 // One row per measurement for the picked block × column × statistic. μ and the
 // limits are per recipe: a group that mixes recipes gets one series each, and
 // a column of the same name may not be the same quantity across them.
+// `baselineKeys` (고정 기준선) pins the measurements μ and the limits are taken
+// from, so the reference stays put as the group grows; keys that name nothing
+// in the group pin nothing.
 export const trendRows = (
   entries: TrendEntry[],
   block: string,
   column: string,
   stat: TrendStat,
-  showLimits: boolean
+  showLimits: boolean,
+  baselineKeys?: ReadonlySet<string>
 ): { rows: TrendRow[], centres: Map<string, RecipeCentre> } => {
+  const pinned = entries.some(entry => baselineKeys?.has(entry.key))
   const base = entries.map((entry) => {
     const stats = measurementStats(entry, block, column)
-    return { entry, stats, value: stats?.[stat] ?? null }
+    const role: TrendRow['role'] = baselineKeys?.has(entry.key) ? 'baseline' : 'target'
+    return { entry, stats, role, value: stats?.[stat] ?? null }
   })
   const centres = new Map<string, RecipeCentre>()
   for (const recipe of new Set(entries.map(entry => entry.recipe))) {
-    const values = base.flatMap(row => row.entry.recipe === recipe ? row.value ?? [] : [])
-    centres.set(recipe, { mu: values.length ? mean(values) : null, limits: controlLimits(values) })
+    const values = base.flatMap(row =>
+      row.entry.recipe === recipe && (!pinned || row.role === 'baseline') ? row.value ?? [] : [])
+    const limits = controlLimits(values)
+    centres.set(recipe, { mu: values.length ? mean(values) : null, limits, reason: pinned && !limits ? '기준 표본 부족' : '' })
   }
   const rows = base.map((row) => {
     const centre = centres.get(row.entry.recipe)!
     return {
       ...row,
       delta: row.value !== null && centre.mu !== null ? row.value - centre.mu : null,
-      out: showLimits && row.value !== null && isOutside(row.value, centre.limits),
+      out: showLimits && row.role === 'target' && row.value !== null && isOutside(row.value, centre.limits),
       state: pointState(row.entry.payload.data),
       reason: row.stats ? '' : missingReason(row.entry, block)
     }

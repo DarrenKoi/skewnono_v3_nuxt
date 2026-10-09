@@ -34,7 +34,7 @@
         </label>
         <UCheckbox
           v-model="showLimits"
-          label="관리선"
+          label="기준 범위"
           size="sm"
         />
       </div>
@@ -53,9 +53,15 @@
     />
     <p class="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 sk-meta">
       <span>{{ block }} · {{ column }} · {{ mode === 'box' ? '분포' : stat }}</span>
-      <span class="text-(--sk-brand)">● 관리선 밖</span>
+      <span class="text-(--sk-brand)">● {{ bandName }} 밖</span>
       <span>▬ μ</span>
-      <span>┄ UCL / LCL = μ ± 3σ (σ = {{ limitStat }}들의 MAD 기반 강건 표준편차 · 이상치가 관리선을 넓히지 않음)</span>
+      <span>┄ {{ bandName }} = μ ± 3σ (σ = {{ limitStat }}들의 MAD 기반 강건 표준편차 · 이상치가 범위를 넓히지 않음)</span>
+      <span v-if="pinnedCount">기준 {{ pinnedCount }}건 고정 · 기준 측정은 판정하지 않음</span>
+      <span
+        v-for="r in shortRecipes"
+        :key="r"
+        class="text-(--sk-warn)"
+      >{{ recipes.length > 1 ? `${r} · ` : '' }}기준 표본 부족 (기준 값 2건 이상부터)</span>
       <span v-if="note">{{ note }}</span>
     </p>
   </AfmCard>
@@ -96,10 +102,14 @@ const recipeColor = (i: number) => i === 0 ? sk.value.series : palette.value[(i 
 const boxLimits = computed(() => props.stat === 'MEAN')
 const limitStat = computed(() => mode.value === 'box' ? 'MEAN' : props.stat)
 
+const pinnedCount = computed(() => props.rows.filter(row => row.role === 'baseline').length)
+const bandName = computed(() => trendBandName(pinnedCount.value > 0))
+const shortRecipes = computed(() => props.recipes.filter(r => props.centres.get(r)?.reason))
+
 const note = computed(() => {
   if (mode.value === 'box') {
     const lacking = props.rows.filter(row => row.value !== null && !row.stats?.box).length
-    return `상자 = Q1–Q3 · 수염 = MIN–MAX · ◆ = MEAN (포인트별 data 행에서 계산)${lacking ? ` · data 행이 없는 ${lacking}건 제외` : ''}${boxLimits.value ? '' : ' · 관리선은 통계 = MEAN에서만'}`
+    return `상자 = Q1–Q3 · 수염 = MIN–MAX · ◆ = MEAN (포인트별 data 행에서 계산)${lacking ? ` · data 행이 없는 ${lacking}건 제외` : ''}${boxLimits.value ? '' : ' · 기준 범위는 통계 = MEAN에서만'}`
   }
   if (props.stat !== 'MEAN') return '띠는 MEAN에서만 그립니다'
   return band.value === 'none' ? '' : `띠 = ${band.value === 'minmax' ? 'MIN – MAX' : 'MEAN ± 1 STDEV'}`
@@ -114,14 +124,14 @@ const markLine = (recipe: string): MarkLineComponentOption | undefined => {
     label: { ...CHART_LEGEND_LABEL, position: 'insideEndTop', formatter: p => `${p.name} ${Number(p.value).toFixed(2)}` },
     data: [
       { name: 'μ', yAxis: limits.mu, lineStyle: { color: sk.value.muted, width: 1.5, type: 'solid' } },
-      { name: 'UCL', yAxis: limits.ucl, lineStyle: { color: OUT, type: 'dashed' } },
-      { name: 'LCL', yAxis: limits.lcl, lineStyle: { color: OUT, type: 'dashed' } }
+      { name: 'μ+3σ', yAxis: limits.ucl, lineStyle: { color: OUT, type: 'dashed' } },
+      { name: 'μ−3σ', yAxis: limits.lcl, lineStyle: { color: OUT, type: 'dashed' } }
     ]
   }
 }
 
 // The value axis stretches to the drawn limits: ECharts sizes it from the
-// series alone, so an LCL below every value would sit off the chart. A fixed
+// series alone, so a μ−3σ below every value would sit off the chart. A fixed
 // bound is printed as its first tick, so it is rounded to half a decade.
 const limitAxis = (recipes: string[]) => {
   const drawn = showLimits.value ? recipes.flatMap(r => props.centres.get(r)?.limits ?? []) : []

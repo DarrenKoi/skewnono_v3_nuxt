@@ -6,17 +6,18 @@
     flush
   >
     <template #actions>
-      <span class="sk-meta">시각순 · 행을 누르면 강조</span>
+      <span class="sk-meta">행을 누르면 강조 · 기준 = 고정 기준에 포함</span>
     </template>
     <ul class="max-h-[22rem] divide-y divide-(--sk-border-soft) overflow-y-auto">
       <li
         v-for="row in rows"
         :key="row.entry.key"
+        class="flex items-center hover:bg-(--sk-muted-surface)"
+        :class="row.entry.key === selected ? 'bg-(--sk-muted-surface)' : ''"
       >
         <button
           type="button"
-          class="grid w-full grid-cols-[6.5rem_minmax(0,1fr)_auto_3.5rem] items-center gap-2.5 px-4 py-2 text-left hover:bg-(--sk-muted-surface)"
-          :class="row.entry.key === selected ? 'bg-(--sk-muted-surface)' : ''"
+          class="grid min-w-0 flex-1 grid-cols-[6.5rem_minmax(0,1fr)_auto_3.5rem] items-center gap-2.5 py-2 pr-2.5 pl-4 text-left"
           :aria-pressed="row.entry.key === selected"
           @click="emit('select', row.entry.key)"
         >
@@ -53,12 +54,21 @@
             :class="row.out ? 'text-(--sk-brand)' : 'text-(--sk-ink-muted)'"
           >{{ row.delta === null ? '' : formatSignedNm(row.delta, 2) }}</span>
         </button>
+        <SkChip
+          class="mr-4 shrink-0"
+          size="sm"
+          tone="ink"
+          label="기준"
+          :active="row.role === 'baseline'"
+          :aria-label="`${row.entry.lot} ·${row.entry.slot} 고정 기준`"
+          @click="emit('toggleBaseline', row.entry.key)"
+        />
       </li>
     </ul>
     <template #footer>
       <p class="flex justify-between gap-3 sk-meta">
         <span>값 = 선택한 블록·항목의 {{ stat }}</span>
-        <span>Δ = {{ mixed ? 'recipe' : '그룹' }} 평균 대비</span>
+        <span>Δ = {{ rows.some(row => row.role === 'baseline') ? '고정 기준' : mixed ? 'recipe' : '그룹' }} 평균 대비</span>
       </p>
     </template>
   </AfmCard>
@@ -74,5 +84,5 @@ defineProps<{
   repeatKeys: Set<string>
   mixed: boolean
 }>()
-const emit = defineEmits<{ select: [key: string] }>()
+const emit = defineEmits<{ select: [key: string], toggleBaseline: [key: string] }>()
 </script>

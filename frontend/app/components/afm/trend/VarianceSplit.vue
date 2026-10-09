@@ -49,6 +49,6 @@ const verdict = computed(() => {
   const pct = props.split?.lotPct ?? 50
   if (pct >= 60) return 'lot 간 변동이 큽니다. 공정(앞 단계) 쪽을 먼저 봅니다.'
   if (pct <= 40) return 'wafer 안 변동이 큽니다. 포인트 패턴(02)과 recipe 위치를 먼저 봅니다.'
-  return '두 변동이 비슷합니다. 01의 관리선 밖 측정부터 봅니다.'
+  return '두 변동이 비슷합니다. 01의 기준 범위 밖 측정부터 봅니다.'
 })
 </script>
