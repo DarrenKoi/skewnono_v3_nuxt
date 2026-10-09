@@ -243,52 +243,6 @@
 
         <template v-else-if="ws.tsView.value === 'trend' && analysis.trendPoints.value.length">
           <div class="mb-2 flex flex-wrap items-center gap-2">
-            <USelect
-              v-model="anomalyCfg.method"
-              size="sm"
-              :items="methodItems"
-              class="min-w-[12rem]"
-            />
-            <template v-if="anomalyCfg.method === 'range'">
-              <label class="flex items-center gap-1.5 sk-field-label">
-                주의 ±<UInput
-                  v-model.number="anomalyCfg.range.watchPct"
-                  type="number"
-                  min="0"
-                  size="sm"
-                  class="w-16"
-                />%
-              </label>
-              <label class="flex items-center gap-1.5 sk-field-label">
-                이상 ±<UInput
-                  v-model.number="anomalyCfg.range.abnormalPct"
-                  type="number"
-                  min="0"
-                  size="sm"
-                  class="w-16"
-                />%
-              </label>
-            </template>
-            <template v-else>
-              <label class="flex items-center gap-1.5 sk-field-label">
-                주의 ±<UInput
-                  v-model.number="anomalyCfg.stddev.watchK"
-                  type="number"
-                  min="0"
-                  size="sm"
-                  class="w-16"
-                />σ
-              </label>
-              <label class="flex items-center gap-1.5 sk-field-label">
-                이상 ±<UInput
-                  v-model.number="anomalyCfg.stddev.abnormalK"
-                  type="number"
-                  min="0"
-                  size="sm"
-                  class="w-16"
-                />σ
-              </label>
-            </template>
             <span class="sk-meta tabular-nums">
               주의 {{ analysis.trendSummary.value.watch }} · 이상 {{ analysis.trendSummary.value.abnormal }} / {{ analysis.trendPoints.value.length }} MSR
             </span>
@@ -305,6 +259,7 @@
             :unit="analysis.activeUnit.value"
             :axis-mode="ws.tsAxis.value"
             :baseline="ws.tsBaseline.value"
+            :baseline-label="baselineLabel"
             @select="analysis.setFocusedMsr($event)"
           />
         </template>
@@ -401,15 +356,9 @@ const props = defineProps<{
   ws: SkewvoirWorkspace
 }>()
 
-// Destructure the mutable shared state ref into a local so v-model bindings do
-// not trigger vue/no-mutating-props (anomalyCfg is useState-backed reactive state,
-// not a plain prop value — accessing it through a local ref is safe).
+// The thresholds are edited in the left rail (they also judge 측정 개요); this
+// lens only shows the roll-up and the legend.
 const anomalyCfg = props.analysis.anomalyCfg
-
-const methodItems = [
-  { label: '범위(%)', value: 'range' },
-  { label: '표준편차(σ) · 진단', value: 'stddev' }
-]
 
 // The icon is part of the lens definition, not a separate lookup — the tab strip
 // and the active panel header both read it here, so they cannot disagree.

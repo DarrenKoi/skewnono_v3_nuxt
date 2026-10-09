@@ -1,18 +1,23 @@
 import { skewvoirBasePath } from '~/utils/skewvoirLinks'
 import type { MeasHistToolType } from '~/composables/useMeasHistApi'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
+import type { MethodConfig } from '~/utils/anomaly/types'
 import type { AnalysisScope, SequenceAxisMode, TsAxisMode, TsBaseline, TsView } from '~/utils/skewvoirAnalysis/types'
 import {
   DEFAULT_VIEW,
   applyQueryPatch,
+  encodeAnomalyCfg,
   encodeFdcAxis,
+  encodeRadialModel,
   decodeParam,
   encodeParam,
   encodeTsAxis,
   encodeTsBaseline,
   encodeTsView,
+  parseAnomalyCfg,
   parseFdcAxis,
   parseMsrList,
+  parseRadialModel,
   parseScope,
   parseSelection,
   parseTsAxis,
@@ -22,7 +27,8 @@ import {
   qstr,
   toAnalysisQuery,
   type FocusIdentity,
-  type QueryPatch
+  type QueryPatch,
+  type SharedRadialModel
 } from '~/utils/skewvoirAnalysis/routeQuery'
 
 // URL <-> analysis-state bridge. The analysis workspace keeps no private copy
@@ -75,6 +81,11 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const tsView = computed<TsView>(() => parseTsView(route.query.tsview))
   const tsAxis = computed<TsAxisMode>(() => parseTsAxis(route.query.tsx))
   const tsBaseline = computed<TsBaseline>(() => parseTsBaseline(route.query.tsb))
+  // The anomaly thresholds every verdict is judged by — in the URL so a shared
+  // link reproduces the verdict, not just the data (see parseAnomalyCfg).
+  const anomalyCfg = computed<MethodConfig>(() => parseAnomalyCfg(route.query.anom))
+  // Radial trend degree, shared by 측정 개요 and 위치 비교 (see parseRadialModel).
+  const radialModel = computed<SharedRadialModel>(() => parseRadialModel(route.query.rfit))
   const xParam = computed<string | undefined>(() => qstr(route.query.x))
   const yParam = computed<string | undefined>(() => qstr(route.query.y))
   // Gallery review-queue filter preset (e.g. 'priority' — the 이상·실패 우선
@@ -136,6 +147,8 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const setTsView = (v: TsView) => patchQuery({ tsview: encodeTsView(v) })
   const setTsAxis = (v: TsAxisMode) => patchQuery({ tsx: encodeTsAxis(v) })
   const setTsBaseline = (v: TsBaseline) => patchQuery({ tsb: encodeTsBaseline(v) })
+  const setAnomalyCfg = (cfg: MethodConfig) => patchQuery({ anom: encodeAnomalyCfg(cfg) })
+  const setRadialModel = (m: SharedRadialModel) => patchQuery({ rfit: encodeRadialModel(m) })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
   const setFilter = (filter: string | null) => patchQuery({ filter })
 
@@ -160,6 +173,8 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     tsView,
     tsAxis,
     tsBaseline,
+    anomalyCfg,
+    radialModel,
     xParam,
     yParam,
     filterParam,
@@ -178,6 +193,8 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     setTsView,
     setTsAxis,
     setTsBaseline,
+    setAnomalyCfg,
+    setRadialModel,
     setXY,
     setFilter,
     goSearch,

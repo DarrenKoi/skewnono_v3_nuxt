@@ -5,14 +5,18 @@ import {
   UNNAMED_PARAM_TOKEN,
   applyQueryPatch,
   decodeParam,
+  encodeAnomalyCfg,
   encodeFdcAxis,
+  encodeRadialModel,
   encodeParam,
   encodeTsAxis,
   encodeTsBaseline,
   encodeTsView,
   focusIdentityFromRow,
+  parseAnomalyCfg,
   parseFdcAxis,
   parseMsrList,
+  parseRadialModel,
   parseScope,
   parseSelection,
   parseTsAxis,
@@ -344,4 +348,51 @@ test('parseMsrList removes duplicate msr ids, keeping first occurrence order', (
     parseMsrList({ msrs: 'a,b,a,c,b' }),
     ['a', 'b', 'c']
   )
+})
+
+// ── anom: the anomaly thresholds every verdict on the screen is judged by ────
+test('an absent anom reads as the default range thresholds', () => {
+  const cfg = parseAnomalyCfg(undefined)
+  assert.equal(cfg.method, 'range')
+  assert.deepEqual([cfg.range.watchPct, cfg.range.abnormalPct], [10, 20])
+  assert.deepEqual([cfg.stddev.watchK, cfg.stddev.abnormalK], [2, 3])
+})
+
+test('anom carries the method and its two thresholds', () => {
+  const r = parseAnomalyCfg('range:5:12.5')
+  assert.equal(r.method, 'range')
+  assert.deepEqual([r.range.watchPct, r.range.abnormalPct], [5, 12.5])
+  const s = parseAnomalyCfg('stddev:1.5:4')
+  assert.equal(s.method, 'stddev')
+  assert.deepEqual([s.stddev.watchK, s.stddev.abnormalK], [1.5, 4])
+  // The method not named keeps its defaults.
+  assert.deepEqual([s.range.watchPct, s.range.abnormalPct], [10, 20])
+})
+
+test('a malformed anom falls back to the defaults instead of judging by garbage', () => {
+  for (const raw of ['bogus:1:2', 'range:abc:20', 'range:-1:20', 'range:20:10', 'range:5', 'stddev:0:0']) {
+    const cfg = parseAnomalyCfg(raw)
+    assert.equal(cfg.method, 'range', raw)
+    assert.deepEqual([cfg.range.watchPct, cfg.range.abnormalPct], [10, 20], raw)
+  }
+})
+
+test('encodeAnomalyCfg leaves the default out of the URL and round-trips the rest', () => {
+  assert.equal(encodeAnomalyCfg(parseAnomalyCfg(undefined)), null)
+  assert.equal(encodeAnomalyCfg(parseAnomalyCfg('range:5:12.5')), 'range:5:12.5')
+  assert.equal(encodeAnomalyCfg(parseAnomalyCfg('stddev:2:3')), 'stddev:2:3')
+})
+
+// ── rfit: the radial trend degree 측정 개요 and 위치 비교 both fit with ──────
+test('rfit defaults to linear and accepts only the two higher degrees', () => {
+  assert.equal(parseRadialModel(undefined), 'linear')
+  assert.equal(parseRadialModel('quadratic'), 'quadratic')
+  assert.equal(parseRadialModel('cubic'), 'cubic')
+  assert.equal(parseRadialModel('none'), 'linear')
+  assert.equal(parseRadialModel('quartic'), 'linear')
+})
+
+test('encodeRadialModel keeps the linear default out of the URL', () => {
+  assert.equal(encodeRadialModel('linear'), null)
+  assert.equal(encodeRadialModel('cubic'), 'cubic')
 })

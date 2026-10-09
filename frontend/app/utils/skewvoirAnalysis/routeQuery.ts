@@ -15,6 +15,7 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import type { SkewvoirSelection, SkewvoirViewKind } from '~/composables/useSkewvoirWorkspace'
 import type { AnalysisScope, SequenceAxisMode, TsAxisMode, TsBaseline, TsView } from './types.ts'
+import { DEFAULT_RANGE, DEFAULT_STDDEV, type MethodConfig } from '../anomaly/types.ts'
 
 export const DEFAULT_VIEW: SkewvoirViewKind = 'dashboard'
 
@@ -178,6 +179,51 @@ export const encodeTsAxis = (v: TsAxisMode): string | null =>
 
 export const encodeTsBaseline = (v: TsBaseline): string | null =>
   v === DEFAULT_TS_BASELINE ? null : v
+
+/** The radial trend degree (`rfit`). 측정 개요's Radius Plot and 위치 비교's
+ *  residual layer fit the SAME wafer, so they read one value — held per panel,
+ *  the two views disagreed about which sites sit off the trend. Only the
+ *  degrees the Radius Plot toggle offers travel; anything else is linear. */
+export type SharedRadialModel = 'linear' | 'quadratic' | 'cubic'
+
+export const parseRadialModel = (raw: unknown): SharedRadialModel => {
+  const v = qstr(raw)
+  return v === 'quadratic' || v === 'cubic' ? v : 'linear'
+}
+
+export const encodeRadialModel = (model: SharedRadialModel): string | null =>
+  model === 'linear' ? null : model
+
+/** The anomaly thresholds, URL-carried as `anom=<method>:<watch>:<abnormal>`.
+ *  They decide every verdict on the screen (site judgements on 측정 개요, the
+ *  Time-Series trend, the across-MSR feature rows), so two people opening the
+ *  same link must be judging by the same numbers — held anywhere else, the link
+ *  reproduces the data and silently not the verdict.
+ *
+ *  Only the ACTIVE method's pair travels: the other method's thresholds judge
+ *  nothing, so it keeps its defaults. Anything malformed (unknown method, a
+ *  non-positive threshold, watch above abnormal) reads as the defaults — a
+ *  hand-edited link must never judge by garbage. */
+export const parseAnomalyCfg = (raw: unknown): MethodConfig => {
+  const cfg: MethodConfig = { method: 'range', range: { ...DEFAULT_RANGE }, stddev: { ...DEFAULT_STDDEV } }
+  const [method, w, a, ...rest] = (qstr(raw) ?? '').split(':')
+  const watch = Number(w)
+  const abnormal = Number(a)
+  if (rest.length || !w || !a || !(watch > 0) || !(abnormal >= watch) || !Number.isFinite(abnormal)) return cfg
+  if (method === 'range') return { ...cfg, range: { ...cfg.range, watchPct: watch, abnormalPct: abnormal } }
+  if (method === 'stddev') return { ...cfg, method, stddev: { watchK: watch, abnormalK: abnormal } }
+  return cfg
+}
+
+/** Write-side mirror: the default maps to `null` (same rule as encodeFdcAxis). */
+export const encodeAnomalyCfg = (cfg: MethodConfig): string | null => {
+  const [watch, abnormal] = cfg.method === 'range'
+    ? [cfg.range.watchPct, cfg.range.abnormalPct]
+    : [cfg.stddev.watchK, cfg.stddev.abnormalK]
+  const isDefault = cfg.method === 'range'
+    && watch === DEFAULT_RANGE.watchPct && abnormal === DEFAULT_RANGE.abnormalPct
+  return isDefault ? null : `${cfg.method}:${watch}:${abnormal}`
+}
 
 /** Serialize a selection (+ view + explicit set + scope) into an analysis-link
  *  query. `msrs` defaults to the focus alone; pass a curated list for the

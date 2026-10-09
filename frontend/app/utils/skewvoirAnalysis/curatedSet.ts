@@ -106,6 +106,15 @@ export const resolveSetRows = <T>(
     .filter((r): r is T => r != null)
     .slice(0, TREND_LIMIT)
 
+/** How many RESOLVABLE picks the TREND_LIMIT cap left out of the set. Unknown
+ *  ids are not counted — those are a different fact (not in the search window),
+ *  and the cap is the one that drops real measurements without saying so. */
+export const setOverflow = <T>(
+  msrList: readonly string[],
+  rowByMsr: ReadonlyMap<string, T>
+): number =>
+  Math.max(0, msrList.filter(id => rowByMsr.has(id)).length - TREND_LIMIT)
+
 /** Whether a `set`-scope view has NOTHING of the current selection to draw yet
  *  and is still waiting on a fetch — the "show the block loading state" rule.
  *

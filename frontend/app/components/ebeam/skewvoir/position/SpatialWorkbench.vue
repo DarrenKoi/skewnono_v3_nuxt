@@ -205,7 +205,7 @@ const spatial = computed(() =>
     props.analysis.siteRows.value,
     props.analysis.activeParam.value,
     props.analysis.waferGeo.value,
-    { unit: props.analysis.activeUnit.value }
+    { unit: props.analysis.activeUnit.value, model: props.analysis.radialModel.value }
   )
 )
 

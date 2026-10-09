@@ -62,18 +62,19 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { measuredRows } from '~/utils/msrRows'
-import { analyzeRadialProfile, type RadialModel, type RadialSample } from '~/utils/radialAnalysis'
+import { analyzeRadialProfile, type RadialSample } from '~/utils/radialAnalysis'
 import { stagePosMm } from '~/utils/waferGeometry'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
-const degreeToggle = ref('1°')
-const open = ref(false)
-const model = computed<RadialModel>(() => {
-  if (degreeToggle.value === '2°') return 'quadratic'
-  if (degreeToggle.value === '3°') return 'cubic'
-  return 'linear'
+// URL-carried (`rfit`): 위치 비교's residual layer fits with the same degree.
+const DEGREES = { '1°': 'linear', '2°': 'quadratic', '3°': 'cubic' } as const
+const model = props.analysis.radialModel
+const degreeToggle = computed({
+  get: () => model.value === 'cubic' ? '3°' : model.value === 'quadratic' ? '2°' : '1°',
+  set: (v: string) => props.analysis.setRadialModel(DEGREES[v as keyof typeof DEGREES] ?? 'linear')
 })
+const open = ref(false)
 
 const sectorOf = (x: number, y: number): string => {
   const angle = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360

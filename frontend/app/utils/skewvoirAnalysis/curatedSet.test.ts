@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TREND_LIMIT, isSetColdLoading, isSetCompatibilityKnown, isSetPoolComplete, rendersFocusAlone, resolveSetRows, shouldLoadSet } from './curatedSet.ts'
+import { TREND_LIMIT, isSetColdLoading, isSetCompatibilityKnown, isSetPoolComplete, rendersFocusAlone, resolveSetRows, setOverflow, shouldLoadSet } from './curatedSet.ts'
 
 interface MeasHistRowFixture { msr: string, msr_check: 'Yes' | 'No' }
 
@@ -153,4 +153,12 @@ test('isSetCompatibilityKnown: a single measurement is always known', () => {
   // 호환 1 is the whole truth for a set of one, not a floor, so the Dashboard
   // under single scope keeps its number.
   assert.equal(isSetCompatibilityKnown({ members: 1, loaded: 0 }), true)
+})
+
+test('setOverflow counts the resolvable picks the cap dropped, not the unknown ids', () => {
+  const ids = Array.from({ length: 40 }, (_, i) => `m${i}`)
+  const rowByMsr = new Map(ids.slice(0, 35).map(id => [id, { id }]))
+  // 40 listed, 35 resolve, 30 kept → 5 real measurements silently left out.
+  assert.equal(setOverflow(ids, rowByMsr), 5)
+  assert.equal(setOverflow(ids.slice(0, 30), rowByMsr), 0)
 })

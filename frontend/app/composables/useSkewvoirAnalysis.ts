@@ -2,7 +2,7 @@ import type { MeasHistResponse, MeasHistRow } from '~/composables/useMeasHistApi
 import type { MsrFileResponse, MsrParamSummary, MsrFileRow } from '~/composables/useMsrFileApi'
 import type { SkewvoirViewKind, SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import { formatRecipeTimestamp } from '~/utils/recipeView'
-import { DEFAULT_RANGE, DEFAULT_STDDEV, type CombinedVerdict, type MethodConfig } from '~/utils/anomaly'
+import type { CombinedVerdict } from '~/utils/anomaly'
 import { overviewSites, type OverviewSites } from '~/utils/overview'
 import { parseWaferGeometry, type WaferGeometry } from '~/utils/waferGeometry'
 import { buildAnalysisManifest, extractSignature, siteKeysFromRows, type SignatureSource } from '~/utils/skewvoirAnalysis/compatibility'
@@ -26,7 +26,7 @@ import {
   setParamOptions,
   type TrendPoint
 } from '~/utils/skewvoirAnalysis/timeSeries'
-import { isSetColdLoading, isSetPoolComplete, resolveSetRows, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
+import { isSetColdLoading, isSetPoolComplete, resolveSetRows, setOverflow, shouldLoadSet } from '~/utils/skewvoirAnalysis/curatedSet'
 import { cacheFocusFile, isFocusStillCurrent, lookupFocusFile } from '~/utils/skewvoirAnalysis/focusCache'
 import { focusIdentityFromRow } from '~/utils/skewvoirAnalysis/routeQuery'
 import { toggleKey, siteKey } from '~/utils/mpSelection'
@@ -43,14 +43,10 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const { fetchMeasHist } = useMeasHistApi()
   const { fetchMsrFile, fetchMsrFiles } = useMsrFileApi()
 
-  // Active scoring method + thresholds for trend anomaly verdicts. Range is the
-  // authoritative default; stddev is a diagnostic lens. Shared view-state so the
-  // Time-Series controls and this computation stay in sync (survives remounts).
-  const anomalyCfg = useState<MethodConfig>('skewvoir-anomaly-cfg', () => ({
-    method: 'range',
-    range: { ...DEFAULT_RANGE },
-    stddev: { ...DEFAULT_STDDEV }
-  }))
+  // Active scoring method + thresholds for every anomaly verdict. Range is the
+  // authoritative default; stddev is a diagnostic lens. URL-carried (`anom`),
+  // edited in the left rail.
+  const anomalyCfg = ws.anomalyCfg
 
   const histKey = `skewvoir-meas-hist:${ws.toolType}`
 
@@ -474,7 +470,13 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     wantSet.value ? setRows.value.map(r => r.msr).sort().join('|') : ''
   )
 
-  watch(setKey, async (key) => {
+  // The last set batch failed. The previous map is kept on screen (see the
+  // catch below), so without this flag a failed batch is indistinguishable from
+  // a set that simply has fewer loadable members.
+  const setError = ref(false)
+
+  const loadSet = async (key: string) => {
+    setError.value = false
     if (!key) {
       // scope flipped away from 'set' (or the set key is otherwise empty): drop
       // the prior set's files so manifest.counts stops reflecting a stale set
@@ -527,7 +529,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       setFiles.value = next
       setFilesKey.value = key
     } catch {
-      // Leave the previous map in place on failure rather than blanking the chart.
+      // Leave the previous map in place on failure rather than blanking the
+      // chart — but say so: setError drives the rail's retry notice.
+      if (key === setKey.value) setError.value = true
     } finally {
       // Only the CURRENT batch owns the flag — the same rule loadFocus applies
       // via isFocusStillCurrent. A superseded run clearing it would report "not
@@ -539,7 +543,12 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
       // holds when it settles, so it does clear it.
       if (key === setKey.value) setPending.value = false
     }
-  }, { immediate: true })
+  }
+  watch(setKey, loadSet, { immediate: true })
+  const retrySet = () => loadSet(setKey.value)
+
+  // Picks the 30-member cap dropped (see setOverflow).
+  const setOverflowCount = computed(() => setOverflow(ws.msrList.value, rowByMsr.value))
 
   // The whole-view waiting state for the set-scope views (Time-Series, Position
   // Stack, FDC): nothing of the current selection is on screen yet AND a fetch
@@ -760,6 +769,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     focusPending,
     focusError,
     retryFocus,
+    setError,
+    retrySet,
+    setOverflowCount,
     activeParam,
     activeParamLabel,
     availableParams,
@@ -822,6 +834,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     paramOptions,
     integrity,
     anomalyCfg,
+    radialModel: ws.radialModel,
+    setRadialModel: ws.setRadialModel,
     trendSummary,
     focusVerdict,
     featureRows,

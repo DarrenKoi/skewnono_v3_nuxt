@@ -46,6 +46,9 @@ const props = defineProps<{
   unit: string
   axisMode: TsAxisMode
   baseline: TsBaseline
+  /** What the residual is a distance FROM — 'recipe별 기준' on a mixed-recipe
+   *  set, where the baseline is per recipe and '세트 기준' would misname it. */
+  baselineLabel: string
 }>()
 
 const emit = defineEmits<{ select: [msr: string] }>()
@@ -198,7 +201,7 @@ const AXIS_POINTER = { show: true, type: 'line' as const, snap: true, label: { s
 const yName = computed(() => {
   const base = props.unit ? `${props.parameter} (${props.unit})` : props.parameter
   return props.baseline === 'resid'
-    ? `Δ vs 세트 기준${props.unit ? ` (${props.unit})` : ''}`
+    ? `Δ vs ${props.baselineLabel}${props.unit ? ` (${props.unit})` : ''}`
     : base
 })
 
@@ -230,7 +233,7 @@ const option = computed<EChartsOption>(() => ({
       // In residual mode the plotted y is NOT the mean, so name the shift
       // rather than letting the reader assume the dot sits at `mean`.
       if (props.baseline === 'resid') {
-        lines.push(`Δ vs 세트 기준: <b>${Number(p.value.toFixed(3))}</b> ${props.unit}`)
+        lines.push(`Δ vs ${props.baselineLabel}: <b>${Number(p.value.toFixed(3))}</b> ${props.unit}`)
       }
       lines.push(`min/max: ${p.min} / ${p.max}`, `std: ${p.std}`)
       const v = p.verdict

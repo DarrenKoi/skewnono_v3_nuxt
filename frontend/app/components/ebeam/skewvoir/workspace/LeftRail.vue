@@ -127,6 +127,29 @@
           v-if="counts.excluded > 0"
           class="rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-1.5 py-0.5 font-mono text-xs text-(--sk-bad)"
         >제외 {{ counts.excluded }}</span>
+        <span
+          v-if="analysis.setOverflowCount.value > 0"
+          class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-1.5 py-0.5 font-mono text-xs text-(--sk-warn)"
+          :title="`세트는 최대 ${TREND_LIMIT}건입니다. 고른 순서의 뒤쪽 ${analysis.setOverflowCount.value}건은 분석에 들어가지 않았습니다.`"
+        >상한 초과 {{ analysis.setOverflowCount.value }}</span>
+      </div>
+
+      <!-- Load failures, here rather than per view: the rail is on screen in
+           every view, and most views fall to an empty state on a failed fetch
+           with no way to ask again. -->
+      <div
+        v-if="analysis.focusError.value || analysis.setError.value"
+        class="flex items-center justify-between gap-2 rounded-(--sk-r-chip) bg-(--sk-bad-soft) px-2 py-1.5 text-xs text-(--sk-bad)"
+      >
+        <span>{{ analysis.focusError.value ? '측정을 불러오지 못했습니다.' : '세트 일부를 불러오지 못했습니다.' }}</span>
+        <UButton
+          color="neutral"
+          variant="soft"
+          size="xs"
+          icon="i-lucide-rotate-cw"
+          label="다시 시도"
+          @click="analysis.focusError.value ? analysis.retryFocus() : analysis.retrySet()"
+        />
       </div>
 
       <!-- Member list. One markup shape, two behaviours: `rowTag` swaps the row
@@ -212,6 +235,15 @@
       :analysis="analysis"
     />
 
+    <!-- Thresholds — the rail rule: they change what every verdict means, on
+         측정 개요 as much as on Time-Series, so they live here, not in a lens. -->
+    <EbeamSkewvoirWorkspaceAnomalyThresholds
+      v-if="ws.selection.value"
+      :model-value="ws.anomalyCfg.value"
+      class="border-t border-(--sk-border) pt-4"
+      @update:model-value="ws.setAnomalyCfg($event)"
+    />
+
     <!-- Actions — separated from the selection above by its own bordered section -->
     <section
       v-if="ws.selection.value"
@@ -244,7 +276,7 @@ import type { SkewvoirWorkspace } from '~/composables/useSkewvoirWorkspace'
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { copyTextToClipboard, downloadBlob, filenameFromDisposition } from '~/utils/tableExport'
 import { formatRecipeTimestamp, recipeDetailId, recipeDetailRoute } from '~/utils/recipeView'
-import { isSetCompatibilityKnown, rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
+import { TREND_LIMIT, isSetCompatibilityKnown, rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
 
 const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis }>()
