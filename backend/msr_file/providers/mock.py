@@ -28,6 +28,16 @@ A single per-MSR ``health`` scalar (0 = nominal, 1 = strongly abnormal) biases
 BOTH the CD drift and the FDC drift, so an unhealthy tool shows correlated CD ↔
 FDC excursions — that correlation is exactly what the skewvoir analysis surfaces.
 
+The quality scores (measurement_score, addressing1/2_score) ride the same
+``health`` scalar, so any score ↔ CD relation seen at home is manufactured
+here. What the real fields mean is not settled — OFFICE-VERIFY (2026-10-09),
+mirrored in docs/datatables/hitachi/msr_file_pickle.txt:
+  - the scores' scale and direction (the doc carries example values only), and
+    whether a failed row keeps a score: this mock nulls them, the office may not;
+  - the alignment ``offset`` unit, and whether its 2nd/3rd elements are x/y.
+스큐보아 shows these as display-only axes for that reason: no threshold, no
+verdict, no unit on screen.
+
 THREE SEED IDENTITIES, NOT ONE. Determinism per-MSR is necessary but not
 sufficient: some facts belong to the recipe, not to the run. Which identity a
 property is seeded from IS the domain model here, so it is stated once:
