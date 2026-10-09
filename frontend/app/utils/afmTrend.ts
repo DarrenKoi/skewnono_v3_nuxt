@@ -119,6 +119,10 @@ export interface MeasurementStats extends Record<TrendStat, number | null> {
 
 const ITEMS: TrendStat[] = ['MEAN', 'STDEV', 'MIN', 'MAX', 'RANGE']
 
+// The one rule for a row that counts as a good reading: COMPLETED, with Valid
+// not stated FALSE. `nValid` counts by it and 측정 항목 간 관계 pairs by it.
+export const isValidRow = (row: AfmDetailRow): boolean => row.State === 'COMPLETED' && row.Valid !== false
+
 // One measurement's statistics for a block × column: the Summary's when it has
 // them, else computed from the data rows. Null when neither carries a value.
 export const measurementStats = (entry: TrendEntry, block: string, column: string): MeasurementStats | null => {
@@ -132,7 +136,7 @@ export const measurementStats = (entry: TrendEntry, block: string, column: strin
   const counts = {
     n: entry.payload.data.length ? rows.length : null,
     nValid: entry.payload.data.length
-      ? rows.filter(row => row.State === 'COMPLETED' && row.Valid !== false).length
+      ? rows.filter(isValidRow).length
       : null,
     points,
     box: quartiles(values)

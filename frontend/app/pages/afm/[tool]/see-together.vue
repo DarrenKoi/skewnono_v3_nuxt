@@ -59,7 +59,7 @@
         variant="soft"
         icon="i-lucide-triangle-alert"
         :title="`recipe ${recipes.length}종이 섞인 그룹입니다.`"
-        :description="`${recipes.join(', ')} — 같은 이름의 측정 항목이 recipe마다 같은 측정량이라는 보장이 없습니다. 추세는 recipe별 시리즈와 기준 범위로 나누고, 포인트 비교는 선택한 측정의 recipe만 보이며, 변동 분해와 그룹 행은 내지 않습니다.`"
+        :description="`${recipes.join(', ')} — 같은 이름의 측정 항목이 recipe마다 같은 측정량이라는 보장이 없습니다. 추세는 recipe별 시리즈와 기준 범위로 나누고, 포인트 비교와 항목 간 관계는 선택한 측정의 recipe만 보이며, 변동 분해와 그룹 행은 내지 않습니다.`"
       />
 
       <!-- 분석 조건: block × column × statistic, read by every card below. -->
@@ -215,6 +215,21 @@
         :selected="selected"
         @select="select"
       />
+
+      <AfmTrendSection
+        num="06"
+        title="측정 항목 간 관계"
+        hint="같은 측정, 같은 포인트 행의 두 값을 한 점으로 찍습니다. 직접 고른 그룹에서 관측된 관계이며 원인을 뜻하지 않습니다. recipe가 섞인 그룹은 선택한 측정의 recipe만 봅니다."
+      />
+      <AfmTrendRelationChart
+        :entries="relationEntries"
+        :block="block"
+        :column="column"
+        :recipe="pointRecipe"
+        :selected="selected"
+        :export-name="`${toolId}-relation`"
+        @select="select"
+      />
     </template>
   </div>
 </template>
@@ -316,6 +331,8 @@ const pairs = computed(() => repeatPairs(
 // selected measurement's recipe only.
 const pointRecipe = computed(() => mixed.value ? rows.value.find(row => row.entry.key === selected.value)?.entry.recipe ?? recipes.value[0] ?? '' : '')
 const pointRows = computed(() => pointRecipe.value ? rows.value.filter(row => row.entry.recipe === pointRecipe.value) : rows.value)
+// 측정 항목 간 관계 follows 02: one recipe's rows, never a pooled relation.
+const relationEntries = computed(() => pointRows.value.map(row => row.entry))
 const repeatKeys = computed(() => new Set(pairs.value.flatMap(pair => pair.keys)))
 const health = computed(() => healthSeries(entries.value))
 const durations = computed(() => durationRows(entries.value))
