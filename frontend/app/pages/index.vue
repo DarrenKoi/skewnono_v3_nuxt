@@ -69,7 +69,8 @@ const systemStatus = computed(() => {
     const catalog = afmFabs.flatMap(fab => fab.tools)
     statuses.push({
       id: 'afm',
-      label: 'AFM',
+      // Not the e-beam rows' 가동 대수: this counts tools whose data can be read.
+      label: 'AFM 조회 가능',
       online: catalog.filter(tool => readable.has(tool.id)).length,
       total: catalog.length
     })
