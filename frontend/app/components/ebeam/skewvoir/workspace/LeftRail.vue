@@ -639,6 +639,7 @@ const downloadReceipt = async () => {
     siteDeltaReady: a.siteDeltaReady.value,
     anomalyCfg: a.anomalyCfg.value,
     radialModel: a.radialModel.value,
+    waferGeo: a.waferGeo.value,
     tsBaseline: props.ws.tsBaseline.value,
     toolSkew: a.toolSkew.value,
     featureRows: a.featureRows.value,

@@ -14,13 +14,15 @@
 //
 // REUSE, do not re-derive: every number below comes from the function that
 // already owns it on screen (cduMetrics, overviewSites, baselineComparison,
-// baselineDeltaMap, compositeSiteMap, acrossMsrAxes). A statistic that exists only inside a
+// baselineDeltaMap, compositeSiteMap, radialSamples + analyzeRadialProfile,
+// acrossMsrAxes). A statistic that exists only inside a
 // component is NOT copied here — it is left out of the receipt.
 //
 // Runs under raw `node --test` — sibling imports carry an explicit `.ts`.
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
 import type { MsrFileResponse } from '~/composables/useMsrFileApi'
 import type { SkewvoirSelection } from '~/composables/useSkewvoirWorkspace'
+import type { WaferGeometry } from '../waferGeometry.ts'
 import type { WorkbookSheet } from '../xlsx.ts'
 import type { MethodConfig, ScoringMethod } from '../anomaly/types.ts'
 import type { SharedRadialModel } from './routeQuery.ts'
@@ -28,7 +30,7 @@ import type { AnalysisScope, ExclusionEntry, TsBaseline } from './types.ts'
 import type { FeatureDefinition, MsrFeatureRow } from './features.ts'
 import type { ToolSkewResult } from './timeSeries.ts'
 import { overviewSites, type SiteKind } from '../overview.ts'
-import { MODEL_LABEL } from '../radialAnalysis.ts'
+import { MODEL_LABEL, analyzeRadialProfile } from '../radialAnalysis.ts'
 import { formatRecipeTimestamp } from '../recipeView.ts'
 import { safeFileNamePart } from '../tableExport.ts'
 import { acrossMsrAxes, acrossMsrAxisValue, type AcrossMsrAxis } from './acrossMsr.ts'
@@ -39,6 +41,7 @@ import {
 import { cduMetrics, type CduMetrics } from './cdu.ts'
 import { EXCLUSION_REASON_LABEL } from './compatibility.ts'
 import { isSetPoolComplete } from './curatedSet.ts'
+import { radialSamples } from './spatial.ts'
 
 export const RECEIPT_CAUTION
   = '원본 파일은 61일 뒤 삭제됩니다. URL 은 다시 계산하는 주소이며 수치는 생성 시각 기준입니다.'
@@ -66,6 +69,8 @@ export interface ReceiptInput {
   siteDeltaReady?: boolean
   anomalyCfg: MethodConfig
   radialModel: SharedRadialModel
+  /** `analysis.waferGeo` — the focus file's geometry, which places its sites. */
+  waferGeo: WaferGeometry
   tsBaseline: TsBaseline
   toolSkew: ToolSkewResult
   featureRows: readonly MsrFeatureRow[]
@@ -121,6 +126,10 @@ export interface ReviewReceipt {
   /** 위치 비교's set-scope composite maps, one row per chip. null in single
    *  scope; `ready: false` (and no sites) when the layouts are not known to agree. */
   position: { ready: boolean, sites: CompositeSite[] } | null
+  /** 측정 개요's Radius Plot fit of the FOCUS measurement at `settings.radialModel`.
+   *  null when there is no fit to record (too few placeable sites). Coefficients
+   *  are in normalised radius t = (r − mid) / halfSpan, low order first. */
+  radial: { n: number, rmse: number | null, radiusMin: number, radiusMax: number, coefficients: number[] } | null
   flaggedSites: ReceiptFlaggedSite[]
   toolSkew: ToolSkewResult
   /** One row per loaded measurement, one value per across-MSR axis. */
@@ -195,6 +204,11 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
     baseline = { ...result, sentence: baselineSentence(result), deltaSites: delta.points, unpaired: delta.unpaired, siteDeltaReady }
   }
 
+  const profile = analyzeRadialProfile(
+    radialSamples(input.focusFile?.rows ?? [], parameter, input.waferGeo),
+    { model: input.radialModel }
+  )
+
   // Only the measurements that took part: a 제외 member's features must not
   // stand beside the others as if they were comparable.
   const compared = new Set(members.filter(m => m.role !== '제외').map(m => m.msr))
@@ -222,6 +236,15 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
     position: input.scope === 'set'
       ? { ready: siteDeltaReady, sites: siteDeltaReady ? compositeSiteMap(files, [...compared], parameter) : [] }
       : null,
+    radial: profile.coefficients
+      ? {
+          n: profile.metrics.n,
+          rmse: profile.metrics.rmse,
+          radiusMin: profile.metrics.radiusMin,
+          radiusMax: profile.metrics.radiusMax,
+          coefficients: profile.coefficients
+        }
+      : null,
     flaggedSites,
     toolSkew: input.toolSkew,
     features: {
@@ -243,7 +266,7 @@ type Cell = string | number
 /** Four decimals — one more than the screen shows, and no float residue. An
  *  absent number is an empty cell, never a 0. */
 const num = (v: number | null | undefined): Cell =>
-  v == null || !Number.isFinite(v) ? '' : Number(v.toFixed(4))
+  v == null || !Number.isFinite(v) ? '' : Number(v.toFixed(4)) + 0 // + 0: a rounded −0 is 0
 
 const TS_BASELINE_LABEL: Record<TsBaseline, string> = { raw: '측정값', resid: '잔차' }
 
@@ -337,6 +360,23 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
       rows: [
         ['chip X', 'chip Y', '측정점', 'wafer', `mean${u}`, `σ${u}`],
         ...r.position.sites.map(s => [s.x, s.y, s.mps, s.wafers, num(s.mean), num(s.sigma)])
+      ]
+    })
+  }
+
+  if (r.radial) {
+    sheets.push({
+      name: '반경 fit',
+      rows: [
+        ['항목', '값'],
+        ['MSR', r.selection.focusMsr],
+        ['모델', MODEL_LABEL[r.settings.radialModel]],
+        ['n', r.radial.n],
+        [`RMSE${u}`, num(r.radial.rmse)],
+        ['반경 최소 (mm)', num(r.radial.radiusMin)],
+        ['반경 최대 (mm)', num(r.radial.radiusMax)],
+        ...r.radial.coefficients.map((c, i): Cell[] => [`계수 c${i}`, num(c)]),
+        ['계수 기준', 't = (반경 − 중간 반경) / 반폭 의 다항식이며 낮은 차수부터 적습니다.']
       ]
     })
   }

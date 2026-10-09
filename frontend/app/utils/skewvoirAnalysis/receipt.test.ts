@@ -6,6 +6,7 @@ import { buildReviewReceipt, receiptFilename, receiptReady, receiptSheets, type 
 import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 import type { MsrFileResponse, MsrFileRow } from '~/composables/useMsrFileApi'
 import type { MsrFeatureRow } from './features.ts'
+import { parseWaferGeometry } from '../waferGeometry.ts'
 
 const close = (a: unknown, b: number, eps = 1e-6) =>
   assert.ok(typeof a === 'number' && Math.abs(a - b) < eps, `${a} !== ${b}`)
@@ -56,6 +57,8 @@ const input = (over: Partial<ReceiptInput> = {}): ReceiptInput => ({
   baselineGroups: { base: [], target: ['M1', 'M2'] },
   anomalyCfg: DEFAULT_METHOD_CONFIG,
   radialModel: 'linear',
+  // No exe_detail_info: a 300 mm wafer, centre at (150e6, 150e6) nm.
+  waferGeo: parseWaferGeometry(null),
   tsBaseline: 'raw',
   toolSkew: { rows: [], recipes: 1, contrastRecipes: 0 },
   featureRows: [],
@@ -462,4 +465,53 @@ test('위치 합성 site: a single-scope receipt has no set to combine', () => {
   })
   assert.equal(sheets.some(s => s.name === '위치 합성 site'), false)
   assert.equal(named(sheets, '요약').some(r => r[0] === '위치 합성'), false)
+})
+
+// ── The radial fit (측정 개요's Radius Plot), focus measurement ────────────
+
+// Radii 20 / 40 / 60 / 80 mm along +x. Normalised t = (r − 50) / 30 = −1, −⅓, ⅓, 1.
+const onRadius = (...vs: number[]) => vs.map((cd_value, i) =>
+  row({ sequence: i + 1, chip_number: `${i}, 0`, stage_coordinate: `${170000000 + i * 20000000},150000000`, cd_value }))
+
+test('반경 fit: model, n, RMSE and coefficients of the focus measurement at the URL-carried degree', () => {
+  // y = 5, 9, 13, 18. Least squares on t: ȳ = 11.25, Σt² = 20/9, Σt·y = 43/3
+  // → c1 = 6.45, c0 = 11.25. Fitted 4.8, 9.1, 13.4, 17.7; residuals 0.2, −0.1,
+  // −0.4, 0.3; SSE 0.30; RMSE = √(0.30/4) = 0.2739.
+  const F = file('M1', [
+    ...onRadius(5, 9, 13, 18),
+    row({ sequence: 9, stage_coordinate: '', cd_value: 500 }),
+    row({ sequence: 10, stage_coordinate: '200000000,150000000', cd_value: null, mp_number: -1 })
+  ])
+  const sheets = sheetsOf({ scope: 'single', msrList: ['M1'], setFiles: new Map(), focusFile: F })
+  assert.deepEqual(named(sheets, '반경 fit'), [
+    ['항목', '값'],
+    ['MSR', 'M1'],
+    ['모델', '1차'],
+    ['n', 4],
+    ['RMSE (nm)', 0.2739],
+    ['반경 최소 (mm)', 20],
+    ['반경 최대 (mm)', 80],
+    ['계수 c0', 11.25],
+    ['계수 c1', 6.45],
+    ['계수 기준', 't = (반경 − 중간 반경) / 반폭 의 다항식이며 낮은 차수부터 적습니다.']
+  ])
+})
+
+test('반경 fit: the degree is the one in the URL', () => {
+  // y = 3 + 2t² exactly at t = −1, −⅓, ⅓, 1 and one more point at t = 0 (r = 50):
+  // 5, 3.2222, 3, 3.2222, 5 → a quadratic fits with no residual.
+  const F = file('M1', [
+    ...onRadius(5, 29 / 9, 29 / 9, 5),
+    row({ sequence: 5, chip_number: '4, 0', stage_coordinate: '200000000,150000000', cd_value: 3 })
+  ])
+  const rows = named(sheetsOf({ scope: 'single', msrList: ['M1'], setFiles: new Map(), focusFile: F, radialModel: 'quadratic' }), '반경 fit')
+  assert.deepEqual(rows.slice(2, 5), [['모델', '2차'], ['n', 5], ['RMSE (nm)', 0]])
+  assert.deepEqual(rows.slice(7, 10), [['계수 c0', 3], ['계수 c1', 0], ['계수 c2', 2]])
+})
+
+test('반경 fit: no sheet when the focus has too few placeable sites for a fit', () => {
+  // Two sites: a line needs three. The default fixtures carry no coordinates at all.
+  const F = file('M1', onRadius(5, 9))
+  assert.equal(sheetsOf({ scope: 'single', msrList: ['M1'], setFiles: new Map(), focusFile: F }).some(s => s.name === '반경 fit'), false)
+  assert.equal(sheetsOf().some(s => s.name === '반경 fit'), false)
 })

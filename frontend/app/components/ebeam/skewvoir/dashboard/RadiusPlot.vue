@@ -61,9 +61,8 @@
 
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
-import { measuredRows } from '~/utils/msrRows'
 import { analyzeRadialProfile, type RadialSample } from '~/utils/radialAnalysis'
-import { stagePosMm } from '~/utils/waferGeometry'
+import { radialSamples } from '~/utils/skewvoirAnalysis/spatial'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -76,32 +75,10 @@ const degreeToggle = computed({
 })
 const open = ref(false)
 
-const sectorOf = (x: number, y: number): string => {
-  const angle = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
-  if (angle < 45 || angle >= 315) return 'E'
-  if (angle < 135) return 'N'
-  if (angle < 225) return 'W'
-  return 'S'
-}
-
-const samples = computed<RadialSample[]>(() => {
-  const parameter = props.analysis.activeParam.value
-  const geo = props.analysis.waferGeo.value
-  return measuredRows(props.analysis.siteRows.value).flatMap((row) => {
-    if (row.parameter !== parameter) return []
-    const position = stagePosMm(row.stage_coordinate, geo)
-    if (!position) return []
-    const [x, y] = position
-    return [{
-      sequence: row.sequence,
-      radius: Math.hypot(x, y),
-      value: row.cd_value,
-      x,
-      y,
-      sector: sectorOf(x, y)
-    }]
-  })
-})
+// Built by the shared radialSamples so the review receipt's 반경 fit sheet fits
+// exactly these points.
+const samples = computed<RadialSample[]>(() =>
+  radialSamples(props.analysis.siteRows.value, props.analysis.activeParam.value, props.analysis.waferGeo.value))
 
 const profile = computed(() => analyzeRadialProfile(samples.value, { model: model.value }))
 

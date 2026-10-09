@@ -173,6 +173,23 @@ const sectorOf = (x: number, y: number, notch: NotchOrientation): string => {
   return 'S'
 }
 
+/** The radial samples of one parameter: every MEASURED site that can be placed
+ *  on the wafer, at its distance (mm) from the wafer centre. The one builder
+ *  behind the Radius Plot, 위치 비교's residual layer and the review receipt's
+ *  반경 fit sheet — so the three fit the same points. */
+export const radialSamples = (
+  rows: MsrFileRow[],
+  parameter: string,
+  geo: WaferGeometry,
+  notch: NotchOrientation = 'bottom'
+): RadialSample[] => rows.flatMap((r) => {
+  if (r.parameter !== parameter || !isMeasuredRow(r)) return []
+  const pos = stagePosMm(r.stage_coordinate, geo)
+  if (!pos) return []
+  const [x, y] = pos
+  return [{ sequence: r.sequence, radius: Math.hypot(x, y), value: r.cd_value, x, y, sector: sectorOf(x, y, notch) }]
+})
+
 const median = (values: number[]): number => {
   if (values.length === 0) return Number.NaN
   return quantileSorted([...values].sort((a, b) => a - b), 0.5)
@@ -231,20 +248,7 @@ export const analyzeSpatial = (
   // Radial samples — only the measured sites we can physically place. Sites with
   // an unparseable stage coordinate contribute to raw/centered layers and to
   // coverage, but not to any radius/sector/residual computation.
-  const samples: RadialSample[] = []
-  for (const r of measured) {
-    const pos = stagePosMm(r.stage_coordinate, geo)
-    if (!pos) continue
-    const [x, y] = pos
-    samples.push({
-      sequence: r.sequence,
-      radius: Math.hypot(x, y),
-      value: r.cd_value,
-      x,
-      y,
-      sector: sectorOf(x, y, notch)
-    })
-  }
+  const samples = radialSamples(measured, parameter, geo, notch)
 
   const coordinatesReady: SpatialReadiness = samples.length > 0 ? 'ok' : 'unavailable'
 

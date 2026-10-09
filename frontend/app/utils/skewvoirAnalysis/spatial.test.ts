@@ -3,7 +3,7 @@
 // Run: cd frontend && node --test app/utils/skewvoirAnalysis/spatial.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { analyzeSpatial, spatialScorePoints } from './spatial.ts'
+import { analyzeSpatial, radialSamples, spatialScorePoints } from './spatial.ts'
 import { parseWaferGeometry } from '../waferGeometry.ts'
 import type { MsrFileRow, ExeDetailInfo } from '~/composables/useMsrFileApi'
 
@@ -209,4 +209,22 @@ test('the spatial diagnosis is identical whatever the scores say', () => {
     analyzeSpatial(scoreRows([1, 1, 1, 1]), 'CD_TOP', geo()),
     analyzeSpatial(scoreRows([999999, null, 5, null]), 'CD_TOP', geo())
   )
+})
+
+// ── radialSamples — the Radius Plot's points, shared with the review receipt ──
+
+test('radialSamples: one sample per measured, placeable site of the parameter — radius in mm from the wafer centre', () => {
+  const samples = radialSamples([
+    // 30 mm right and 40 mm up of the centre (150e6, 150e6) nm → radius 50 mm, sector N (53°).
+    row({ sequence: 1, stage_coordinate: '180000000,190000000', cd_value: 101 }),
+    // 20 mm left → radius 20 mm, sector W.
+    row({ sequence: 2, stage_coordinate: '130000000,150000000', cd_value: 102 }),
+    row({ sequence: 3, stage_coordinate: 'not-a-coordinate', cd_value: 103 }),
+    row({ sequence: 4, stage_coordinate: '160000000,150000000', cd_value: null, mp_number: -1 }),
+    row({ sequence: 5, stage_coordinate: '160000000,150000000', parameter: 'CD_BOTTOM', cd_value: 55 })
+  ], 'CD_TOP', geo())
+  assert.deepEqual(samples, [
+    { sequence: 1, radius: 50, value: 101, x: 30, y: 40, sector: 'N' },
+    { sequence: 2, radius: 20, value: 102, x: -20, y: 0, sector: 'W' }
+  ])
 })
