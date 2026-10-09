@@ -84,7 +84,7 @@ test('pointState: the worst block wins', () => {
   assert.equal(pointState([]), null)
 })
 
-test('siteDots: one dot per site, centre at 50/50, Y upwards', () => {
+test('siteDots: one dot per site, index 0 at 50/50, larger Site Y at the top', () => {
   const site = (id: string, x: number, y: number, point: string) =>
     row(point, 'COMPLETED', { 'Site ID': id, 'Site X': x, 'Site Y': y })
   const dots = siteDots([
@@ -96,6 +96,9 @@ test('siteDots: one dot per site, centre at 50/50, Y upwards', () => {
     { siteId: '0001_X000_Y000', point: '0001_X000_Y000_0001', left: 50, top: 50 },
     { siteId: '0002_X-002_Y001', point: '0002_X-002_Y001_0001', left: 10, top: 14 }
   ])
+  // Index 0 stays at 50/50 when no site sits on it and every index is on one
+  // side: that is where the rail draws its two index-0 lines.
+  assert.deepEqual(siteDots([site('A', 4, 2, 'a'), site('B', 2, -4, 'b')]).map(d => [d.left, d.top]), [[90, 32], [70, 86]])
   // A recipe that records no Site ID has no map.
   assert.deepEqual(siteDots([row('0001', 'COMPLETED')]), [])
 })

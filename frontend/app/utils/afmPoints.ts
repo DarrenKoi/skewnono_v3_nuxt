@@ -80,7 +80,9 @@ interface SiteDot {
   // The first point measured at the site — what clicking the dot selects.
   point: string
   // Position inside the map, in percent. The larger Site Y is at the top
-  // (user-confirmed 2026-10-09); an index layout, not a wafer outline.
+  // (user-confirmed 2026-10-09); an index layout, not a wafer outline. Each
+  // axis is scaled about index 0, so 50 / 50 is index (0, 0) — where the rail
+  // draws its two lines — and never a wafer centre.
   left: number
   top: number
 }

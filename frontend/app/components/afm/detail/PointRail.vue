@@ -12,14 +12,22 @@
       <span class="sk-meta">Site {{ dots.length }}{{ perSite > 1 ? ` × ${perSite}` : '' }}</span>
     </template>
 
-    <!-- Site map: only a recipe that records Site ID has coordinates to draw. -->
+    <!-- Site index layout: only a recipe that records Site ID has Site X / Site Y
+         to draw. Not a wafer outline — the two lines are index 0 on each axis
+         (`siteDots` keeps index 0 at 50%), not a wafer centre. -->
     <div
       v-if="dots.length"
       class="px-4 pt-3"
     >
       <div class="relative h-[200px] overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border-soft) bg-(--sk-muted-surface)">
-        <span class="absolute inset-y-2 left-1/2 w-px bg-(--sk-border)" />
-        <span class="absolute inset-x-2 top-1/2 h-px bg-(--sk-border)" />
+        <span
+          aria-hidden="true"
+          class="absolute inset-y-2 left-1/2 w-px bg-(--sk-border)"
+        />
+        <span
+          aria-hidden="true"
+          class="absolute inset-x-2 top-1/2 h-px bg-(--sk-border)"
+        />
         <span class="absolute right-2 top-1.5 sk-eyebrow">Site X · Y</span>
         <button
           v-for="(dot, i) in dots"
@@ -38,6 +46,9 @@
           {{ i + 1 }}
         </button>
       </div>
+      <p class="mt-1.5 sk-hint">
+        Site X · Site Y 인덱스의 배치이며 웨이퍼 형상이 아닙니다. 인덱스는 단위가 없고 Site Y 가 큰 쪽이 위이며, 두 선은 인덱스 0 입니다.
+      </p>
     </div>
 
     <p
@@ -112,8 +123,8 @@ const selectedSite = computed(() => {
   return id == null ? '' : String(id)
 })
 
-// Each row previews the first measurement column, so the list reads as a
-// profile down the wafer rather than as a list of names.
+// Each row previews the first measurement column, so the list reads as values
+// down the points rather than as a list of names.
 const firstColumn = computed(() => derivePointColumns(props.data).find(c => isMeasurementKey(c.key))?.key ?? '')
 
 const points = computed(() => props.availablePoints.map((key) => {
