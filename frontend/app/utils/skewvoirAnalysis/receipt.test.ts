@@ -2,7 +2,7 @@
 // Run: cd frontend && node --test app/utils/skewvoirAnalysis/receipt.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildReviewReceipt, receiptFilename, receiptReady, receiptSheets, type ReceiptInput } from './receipt.ts'
+import { RECEIPT_DEMO_CAUTION, buildReviewReceipt, receiptFilename, receiptReady, receiptSheets, type ReceiptInput } from './receipt.ts'
 import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 import type { MsrFileResponse, MsrFileRow } from '~/composables/useMsrFileApi'
 import type { MsrFeatureRow } from './features.ts'
@@ -63,6 +63,8 @@ const input = (over: Partial<ReceiptInput> = {}): ReceiptInput => ({
   toolSkew: { rows: [], recipes: 1, contrastRecipes: 0 },
   featureRows: [],
   featureRegistry: [],
+  acrossAxes: {},
+  demoData: false,
   shareUrl: 'http://sknn/skewvoir?msr=M1',
   memo: '',
   ...over
@@ -514,4 +516,62 @@ test('반경 fit: no sheet when the focus has too few placeable sites for a fit'
   const F = file('M1', onRadius(5, 9))
   assert.equal(sheetsOf({ scope: 'single', msrList: ['M1'], setFiles: new Map(), focusFile: F }).some(s => s.name === '반경 fit'), false)
   assert.equal(sheetsOf().some(s => s.name === '반경 fit'), false)
+})
+
+// ── The set-scope relation table (Correlation's Across-MSR Outcome) ────────
+
+// X = 반경 기울기 1, 2, 3, 4 · Y = CD 평균 2, 4, 5, 9 (M5 has no X and drops out).
+//   전체: x̄ 2.5, ȳ 5 → Sxy 11, Sxx 5, Syy 26 → r = 11/√130 = 0.9648; the ranks agree → ρ = 1.
+//   EQ1 (M1–M3): x̄ 2, ȳ 11/3 → Sxy 3, Sxx 2, Syy 14/3 → r = 3/√(28/3) = 0.982; ρ = 1.
+//   EQ2 (M4): one MSR — no coefficient.
+const RELATION: Partial<ReceiptInput> = {
+  msrList: ['M1', 'M2', 'M3', 'M4', 'M5'],
+  rowByMsr: new Map([
+    ['M1', hist('L1', 'EQ1', '')], ['M2', hist('L2', 'EQ1', '')], ['M3', hist('L3', 'EQ1', '')],
+    ['M4', hist('L4', 'EQ2', '')], ['M5', hist('L5', 'EQ2', '')]
+  ]),
+  featureRegistry: [def('level', 'CD 평균', 'nm'), def('spatial', '반경 기울기', 'nm/mm')],
+  featureRows: [feature('M1', 2, 1), feature('M2', 4, 2), feature('M3', 5, 3), feature('M4', 9, 4), feature('M5', 7, null)]
+}
+
+test('세트 상관: pooled and per-tool r with the n behind each, for the axes the view is on', () => {
+  assert.deepEqual(named(sheetsOf(RELATION), '세트 상관'), [
+    ['구분', '장비', 'MSR n', 'Pearson r', 'Spearman ρ', '계수를 내지 않은 사유'],
+    ['전체', '', 4, 0.9648, 1, ''],
+    ['장비별', 'EQ1', 3, 0.982, 1, ''],
+    ['장비별', 'EQ2', 1, '', '', 'MSR 1개 — 3개 미만이라 계수를 내지 않습니다'],
+    ['X 축', '반경 기울기 (nm/mm)'],
+    ['Y 축', 'CD 평균 (nm)'],
+    ['축 값이 없어 빠진 MSR', 1],
+    ['읽는 법', 'MSR 한 건이 점 하나입니다. 계수와 표본 수만 적으며 관계의 유무를 판정하지 않습니다.']
+  ])
+})
+
+test('세트 상관: the axes are the URL pick (ax / ay), not the defaults', () => {
+  const rows = named(sheetsOf({ ...RELATION, acrossAxes: { x: 'level', y: 'spatial' } }), '세트 상관')
+  assert.deepEqual(rows.slice(4, 6), [['X 축', 'CD 평균 (nm)'], ['Y 축', '반경 기울기 (nm/mm)']])
+  // Pearson r is symmetric in X and Y.
+  assert.deepEqual(rows[1], ['전체', '', 4, 0.9648, 1, ''])
+})
+
+test('세트 상관: at home the mock manufactures the relation — the sheet and 요약 both say so; office data is not marked', () => {
+  const demo = sheetsOf({ ...RELATION, demoData: true })
+  assert.deepEqual(named(demo, '세트 상관').at(-1), ['데모 데이터', RECEIPT_DEMO_CAUTION])
+  assert.deepEqual(named(demo, '요약').find(r => r[0] === '주의'), [
+    '주의',
+    `원본 파일은 61일 뒤 삭제됩니다. URL 은 다시 계산하는 주소이며 수치는 생성 시각 기준입니다. 데모 데이터 — ${RECEIPT_DEMO_CAUTION}`
+  ])
+  assert.equal(named(sheetsOf(RELATION), '세트 상관').some(r => r[0] === '데모 데이터'), false)
+})
+
+test('세트 상관: no sheet for a single measurement, nor when fewer than two measurements carry both axes', () => {
+  const single = sheetsOf({ ...RELATION, scope: 'single', msrList: ['M1'], setFiles: new Map() })
+  assert.equal(single.some(s => s.name === '세트 상관'), false)
+  const thin = sheetsOf({ ...RELATION, featureRows: [feature('M1', 2, 1), feature('M5', 7, null)] })
+  assert.equal(thin.some(s => s.name === '세트 상관'), false)
+})
+
+test('세트 상관: nothing in the sheet words a finding', () => {
+  const text = JSON.stringify(named(sheetsOf({ ...RELATION, demoData: true }), '세트 상관'))
+  assert.doesNotMatch(text, /유의|상관이 있|상관관계가|correlated|significant/i)
 })

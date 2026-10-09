@@ -161,7 +161,7 @@ import { analyzeSpatial } from '~/utils/skewvoirAnalysis/spatial'
 import { isNamedParam } from '~/utils/skewvoirAnalysis/paramOrder'
 import { buildCdCdRelationship, buildCdFdcRelationship } from '~/utils/skewvoirAnalysis/relationships'
 import type { AcrossMsrIdentity } from '~/utils/skewvoirAnalysis/acrossMsr'
-import { acrossMsrAxes, acrossMsrAxisItems, buildAcrossMsrOutcome, hasFdcAxis, hasQualityAxis } from '~/utils/skewvoirAnalysis/acrossMsr'
+import { acrossMsrAxes, acrossMsrAxisItems, acrossMsrOutcomeFor, encodeAcrossMsrAxes, hasFdcAxis, hasQualityAxis, resolveAcrossMsrAxes } from '~/utils/skewvoirAnalysis/acrossMsr'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -185,22 +185,14 @@ const fdcUnitOf = (name: string) =>
 const axes = computed(() => acrossMsrAxes(props.analysis.featureRegistry.value))
 const axisItems = computed(() => acrossMsrAxisItems(axes.value))
 
-const axisXId = ref('')
-const axisYId = ref('')
-
-// Defaults name the question this mode exists to ask: does the CD outcome move
-// with a tool-side predictor? So Y is the CD level (the outcome) and X is the
-// first FDC channel when the set carries one, falling back to CD spread.
-watch(axes, (list) => {
-  const ids = list.map(a => a.id)
-  if (!ids.includes(axisYId.value)) axisYId.value = ids.includes('level') ? 'level' : (ids[0] ?? '')
-  if (!ids.includes(axisXId.value)) {
-    const fdc = list.find(a => a.family === 'fixed_fdc' || a.family === 'dynamic_fdc')
-    axisXId.value = fdc?.id ?? (ids.find(id => id !== axisYId.value) ?? ids[0] ?? '')
-  }
-}, { immediate: true })
-
-const axisById = (id: string) => axes.value.find(a => a.id === id) ?? null
+// The pick is URL state (`ax` / `ay`), so the link and the rail's review receipt
+// carry the pair on screen. Defaults (Y = CD level, X = first FDC channel) and
+// the default-stays-out-of-the-URL rule live in acrossMsr.ts.
+const picked = computed(() =>
+  resolveAcrossMsrAxes(axes.value, props.analysis.acrossX.value, props.analysis.acrossY.value))
+const pick = (x: string, y: string) => props.analysis.setAcrossAxes(encodeAcrossMsrAxes(axes.value, x, y))
+const axisXId = computed({ get: () => picked.value.x, set: (x: string) => pick(x, picked.value.y) })
+const axisYId = computed({ get: () => picked.value.y, set: (y: string) => pick(picked.value.x, y) })
 
 // Tool + label per MSR come from the already-loaded meas_hist rows — the same
 // eqp_id the Time-Series tool colors are ranked over, so one tool wears one
@@ -213,10 +205,10 @@ const msrIdentity = computed(() => {
   return map
 })
 
-const acrossMsr = computed(() => buildAcrossMsrOutcome(
+const acrossMsr = computed(() => acrossMsrOutcomeFor(
   props.analysis.featureRows.value,
-  axisById(axisXId.value),
-  axisById(axisYId.value),
+  axes.value,
+  { x: props.analysis.acrossX.value, y: props.analysis.acrossY.value },
   msrIdentity.value
 ))
 

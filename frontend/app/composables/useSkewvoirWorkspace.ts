@@ -90,6 +90,8 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     setBaseline: skRoute.setBaseline,
     xParam: skRoute.xParam,
     yParam: skRoute.yParam,
+    acrossX: skRoute.acrossX,
+    acrossY: skRoute.acrossY,
     filterParam: skRoute.filterParam,
     openView,
     goSearch,
@@ -103,6 +105,7 @@ export const useSkewvoirWorkspace = (toolType: MeasHistToolType, toolLabel: stri
     setMetric: skRoute.setMetric,
     setGrain: skRoute.setGrain,
     setXY: skRoute.setXY,
+    setAcrossAxes: skRoute.setAcrossAxes,
     setFilter: skRoute.setFilter,
     // Low-level atomic multi-key query patch — re-exported so a single hand-off
     // action (e.g. the overview's evidence hand-offs) can set `view` PLUS the

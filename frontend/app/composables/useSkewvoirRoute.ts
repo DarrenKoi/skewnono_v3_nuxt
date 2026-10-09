@@ -92,6 +92,11 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const baseline = computed<string[]>(() => parseBaseline(route.query))
   const xParam = computed<string | undefined>(() => qstr(route.query.x))
   const yParam = computed<string | undefined>(() => qstr(route.query.y))
+  // The set-scope Correlation (Across-MSR) axis pick: feature-axis ids, not the
+  // parameter names `x`/`y` carry. Resolved against the loaded axes — and its
+  // default kept out of the URL — by acrossMsr.ts (resolve/encodeAcrossMsrAxes).
+  const acrossX = computed<string | undefined>(() => qstr(route.query.ax))
+  const acrossY = computed<string | undefined>(() => qstr(route.query.ay))
   // Gallery review-queue filter preset (e.g. 'priority' — the 이상·실패 우선
   // hand-off from the overview). Same opaque-passthrough treatment as
   // site/ref/metric/grain above.
@@ -155,6 +160,8 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
   const setRadialModel = (m: SharedRadialModel) => patchQuery({ rfit: encodeRadialModel(m) })
   const setBaseline = (ids: string[]) => patchQuery({ base: encodeBaseline(ids) })
   const setXY = (x: string | null, y: string | null) => patchQuery({ x, y })
+  // Both keys in ONE replace: an axis pick is one user action.
+  const setAcrossAxes = (axes: { ax: string | null, ay: string | null }) => patchQuery(axes)
   const setFilter = (filter: string | null) => patchQuery({ filter })
 
   const goSearch = () => navigateTo(basePath)
@@ -183,6 +190,8 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     baseline,
     xParam,
     yParam,
+    acrossX,
+    acrossY,
     filterParam,
     openAnalysis,
     openAnalysisSet,
@@ -203,6 +212,7 @@ export const useSkewvoirRoute = (toolType: MeasHistToolType) => {
     setRadialModel,
     setBaseline,
     setXY,
+    setAcrossAxes,
     setFilter,
     goSearch,
     shareUrl

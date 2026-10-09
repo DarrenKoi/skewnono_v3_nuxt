@@ -818,6 +818,9 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     xParam: ws.xParam,
     yParam: ws.yParam,
     setXY: ws.setXY,
+    acrossX: ws.acrossX,
+    acrossY: ws.acrossY,
+    setAcrossAxes: ws.setAcrossAxes,
     // FDC 분석 axis mode — same opaque URL-passthrough treatment as xParam/setXY
     // above; SequenceWorkbench reads it and writes back on toggle.
     fdcAxis: ws.fdcAxis,

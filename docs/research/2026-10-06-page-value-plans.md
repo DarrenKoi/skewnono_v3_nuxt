@@ -505,6 +505,34 @@ fail→pass, gray 불변, son 상속 영향), 적용 전후 `judgeSons` 가 같�
 >   컴포저블이나 export 된 순수 함수에 있는 것만 데이터가 있을 때 시트가
 >   됩니다. `장비 skew`(`analysis.toolSkew`), `MSR별 지표`(`featureRows` 를
 >   `acrossMsrAxes` 축으로 펼친 것), `기준 대비 site`(`baselineDeltaMap`)입니다.
+>
+> 같은 날 계산이 컴포넌트 안에 있어 빠졌던 표 셋을 더했습니다. 각 계산을
+> export 된 순수 함수로 옮겨 화면과 영수증이 같은 함수를 부릅니다. 현재 시트는
+> 다음과 같고, `요약` 과 `세트` 외에는 데이터가 있을 때만 씁니다.
+>
+> | 시트 | 내용 | 계산 |
+> | --- | --- | --- |
+> | `요약` | 선택, 설정, 메모, 주의, 분석 URL | 입력 그대로 |
+> | `세트` | 측정별 역할과 수준 · 산포 | `cduMetrics`, `overviewSites` |
+> | `기준 대비` | 기준 · 대상의 pooled 통계와 차이 | `baselineComparison` |
+> | `기준 대비 site` | chip 별 대상 − 기준 | `baselineDeltaMap` |
+> | `위치 합성 site` | chip 별 측정점 수, wafer 수, mean, σ | `compositeSiteMap` |
+> | `반경 fit` | focus 측정의 모델, n, RMSE, 반경 범위, 계수 | `radialSamples`, `analyzeRadialProfile` |
+> | `장비 skew` | 장비별 n, 평균, 기준 대비, σ | `analysis.toolSkew` |
+> | `MSR별 지표` | 측정별 축 값 | `acrossMsrAxes` |
+> | `세트 상관` | 전체 · 장비별 Pearson r, Spearman ρ, MSR n | `acrossMsrOutcomeFor` |
+> | `주의·이상·실패 site` | 설정한 기준으로 센 site 목록 | `overviewSites` |
+>
+> - `위치 합성 site` 는 세트 범위에서만 씁니다. 같은 위치임을 확인할 수 없으면
+>   쓰지 않고 `요약` 에 그 사실을 적습니다.
+> - `반경 fit` 의 차수는 URL `rfit` 값이며, 계수는 정규화 반경
+>   t = (반경 − 중간 반경) / 반폭 기준으로 낮은 차수부터 적습니다.
+> - `세트 상관` 의 축은 화면에서 고른 축입니다. 세트 범위 상관 화면의 X · Y
+>   선택을 URL `ax` · `ay` 로 옮겼고, 기본 축이면 키를 쓰지 않습니다. 계수와
+>   표본 수만 적으며 관계가 있다는 판정은 적지 않습니다.
+> - 집에서는 mock 이 CD · FDC · 품질 score 를 같은 값 하나에서 만들기 때문에
+>   `요약` 의 주의와 `세트 상관` 시트에 데모 데이터 문구가 붙습니다. 사내
+>   데이터에는 붙지 않습니다.
 >   세 가지는 뺐습니다. 세트 간 상관계수는 X·Y 축 선택이 `Correlation.vue`
 >   안에만 있고, 위치 비교의 site 별 합성 평균·σ 는 `PositionStack.vue` 안에서
 >   계산하며, 반경 fit 지표(RMSE 등)는 표본을 `RadiusPlot.vue` 가 만듭니다.

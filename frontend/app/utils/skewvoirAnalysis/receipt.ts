@@ -15,7 +15,7 @@
 // REUSE, do not re-derive: every number below comes from the function that
 // already owns it on screen (cduMetrics, overviewSites, baselineComparison,
 // baselineDeltaMap, compositeSiteMap, radialSamples + analyzeRadialProfile,
-// acrossMsrAxes). A statistic that exists only inside a
+// acrossMsrAxes, acrossMsrOutcomeFor). A statistic that exists only inside a
 // component is NOT copied here — it is left out of the receipt.
 //
 // Runs under raw `node --test` — sibling imports carry an explicit `.ts`.
@@ -33,7 +33,7 @@ import { overviewSites, type SiteKind } from '../overview.ts'
 import { MODEL_LABEL, analyzeRadialProfile } from '../radialAnalysis.ts'
 import { formatRecipeTimestamp } from '../recipeView.ts'
 import { safeFileNamePart } from '../tableExport.ts'
-import { acrossMsrAxes, acrossMsrAxisValue, type AcrossMsrAxis } from './acrossMsr.ts'
+import { acrossMsrAxes, acrossMsrAxisValue, acrossMsrOutcomeFor, type AcrossMsrAxis, type AcrossMsrResult } from './acrossMsr.ts'
 import {
   baselineComparison, baselineDeltaMap, baselineSentence, compositeSiteMap,
   type BaselineComparison, type CompositeSite
@@ -45,6 +45,13 @@ import { radialSamples } from './spatial.ts'
 
 export const RECEIPT_CAUTION
   = '원본 파일은 61일 뒤 삭제됩니다. URL 은 다시 계산하는 주소이며 수치는 생성 시각 기준입니다.'
+
+/** Appended to the caution at home. The mock derives CD, FDC and the quality
+ *  scores from one per-MSR `health` value, so any relation between two axes in
+ *  a home receipt was put there by the generator (DemoDataNote.vue says the
+ *  same on screen). Never written for office data. */
+export const RECEIPT_DEMO_CAUTION
+  = 'mock 생성기는 CD · FDC · 품질 score 를 측정마다 같은 값 하나에서 만듭니다. 지표 사이의 관계는 장비에서 관찰된 신호가 아니라 생성기가 만든 것이며 판정 근거로 쓸 수 없습니다.'
 
 export interface ReceiptInput {
   generatedAt: Date
@@ -75,6 +82,10 @@ export interface ReceiptInput {
   toolSkew: ToolSkewResult
   featureRows: readonly MsrFeatureRow[]
   featureRegistry: readonly FeatureDefinition[]
+  /** The Across-MSR view's X/Y pick as the URL carries it (`ax` / `ay`). */
+  acrossAxes: { x?: string, y?: string }
+  /** `useDataMode('msr_file').isMock` — the numbers come from the home mock. */
+  demoData: boolean
   shareUrl: string
   memo: string
 }
@@ -134,6 +145,11 @@ export interface ReviewReceipt {
   toolSkew: ToolSkewResult
   /** One row per loaded measurement, one value per across-MSR axis. */
   features: { axes: AcrossMsrAxis[], rows: { msr: string, values: (number | null)[] }[] }
+  /** Correlation's Across-MSR Outcome for the URL-carried axes: pooled and
+   *  per-tool r with the n behind each — no verdict. Computed over the same
+   *  feature rows the view draws. null in single scope. */
+  acrossMsr: AcrossMsrResult | null
+  demoData: boolean
   memo: string
   url: string
   caution: string
@@ -253,9 +269,16 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
         .filter(row => compared.has(row.msr))
         .map(row => ({ msr: row.msr, values: axes.map(a => acrossMsrAxisValue(row, a.id)?.value ?? null) }))
     },
+    acrossMsr: input.scope === 'set'
+      ? acrossMsrOutcomeFor(
+          input.featureRows, axes, input.acrossAxes,
+          new Map([...input.rowByMsr].map(([msr, row]) => [msr, { eqpId: row.eqp_id, label: msr }]))
+        )
+      : null,
+    demoData: input.demoData,
     memo: input.memo.trim(),
     url: input.shareUrl,
-    caution: RECEIPT_CAUTION
+    caution: input.demoData ? `${RECEIPT_CAUTION} 데모 데이터 — ${RECEIPT_DEMO_CAUTION}` : RECEIPT_CAUTION
   }
 }
 
@@ -398,6 +421,25 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
       rows: [
         ['MSR', 'Lot', '장비', ...r.features.axes.map(a => (a.unit ? `${a.label} (${a.unit})` : a.label))],
         ...r.features.rows.map(f => [f.msr, identity.get(f.msr)?.lot ?? '', identity.get(f.msr)?.eqp ?? '', ...f.values.map(num)])
+      ]
+    })
+  }
+
+  // One point is not a relation; the coefficient itself needs three (correlate).
+  const rel = r.acrossMsr
+  if (rel && rel.x && rel.y && rel.points.length > 1) {
+    const axis = (a: AcrossMsrAxis) => (a.unit ? `${a.label} (${a.unit})` : a.label)
+    sheets.push({
+      name: '세트 상관',
+      rows: [
+        ['구분', '장비', 'MSR n', 'Pearson r', 'Spearman ρ', '계수를 내지 않은 사유'],
+        ['전체', '', rel.pooled.n, num(rel.pooled.pearson), num(rel.pooled.spearman), rel.pooled.reason ?? ''],
+        ...rel.strata.map((t): Cell[] => ['장비별', t.eqpId, t.n, num(t.pearson), num(t.spearman), t.reason ?? '']),
+        ['X 축', axis(rel.x)],
+        ['Y 축', axis(rel.y)],
+        ['축 값이 없어 빠진 MSR', rel.droppedN],
+        ['읽는 법', 'MSR 한 건이 점 하나입니다. 계수와 표본 수만 적으며 관계의 유무를 판정하지 않습니다.'],
+        ...(r.demoData ? [['데모 데이터', RECEIPT_DEMO_CAUTION]] : [])
       ]
     })
   }

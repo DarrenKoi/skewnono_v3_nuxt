@@ -231,6 +231,48 @@ export const buildAcrossMsrOutcome = (
   return { x, y, points, pooled, strata, droppedN }
 }
 
+/** The X/Y pair the Across-MSR view is on. The pick is URL state (`ax` / `ay`),
+ *  so a shared link and the rail's review receipt read the pair the user sees.
+ *  An absent id — or one this set does not carry — reads as the default, which
+ *  names the question the view exists to ask: Y is the CD level (the outcome)
+ *  and X the first FDC channel, falling back to the first axis that is not Y. */
+export const resolveAcrossMsrAxes = (
+  axes: readonly AcrossMsrAxis[],
+  wantX?: string,
+  wantY?: string
+): { x: string, y: string } => {
+  const ids = axes.map(a => a.id)
+  const y = wantY && ids.includes(wantY) ? wantY : (ids.includes('level') ? 'level' : (ids[0] ?? ''))
+  const fdc = axes.find(a => a.family === 'fixed_fdc' || a.family === 'dynamic_fdc')
+  const x = wantX && ids.includes(wantX) ? wantX : (fdc?.id ?? ids.find(id => id !== y) ?? ids[0] ?? '')
+  return { x, y }
+}
+
+/** Write-side mirror: a default maps to `null` so the key leaves the URL (same
+ *  rule as routeQuery's encoders). X is compared against its default UNDER THE
+ *  Y BEING WRITTEN, because without an FDC channel that default depends on Y. */
+export const encodeAcrossMsrAxes = (
+  axes: readonly AcrossMsrAxis[],
+  x: string,
+  y: string
+): { ax: string | null, ay: string | null } => ({
+  ax: x === resolveAcrossMsrAxes(axes, undefined, y).x ? null : x,
+  ay: y === resolveAcrossMsrAxes(axes).y ? null : y
+})
+
+/** buildAcrossMsrOutcome for the URL pair — the ONE call behind the view's
+ *  numbers and the receipt's 세트 상관 sheet. */
+export const acrossMsrOutcomeFor = (
+  rows: readonly MsrFeatureRow[],
+  axes: readonly AcrossMsrAxis[],
+  want: { x?: string, y?: string },
+  identity: ReadonlyMap<string, AcrossMsrIdentity>
+): AcrossMsrResult => {
+  const { x, y } = resolveAcrossMsrAxes(axes, want.x, want.y)
+  const byId = (id: string) => axes.find(a => a.id === id) ?? null
+  return buildAcrossMsrOutcome(rows, byId(x), byId(y), identity)
+}
+
 /** The pooled trend line, as the two endpoints of a segment spanning the drawn
  *  x-range. Empty when there is no line to honestly draw.
  *

@@ -605,6 +605,8 @@ const downloadArtifact = async (kind: 'raw' | 'pkl') => {
 const receiptOpen = ref(false)
 const receiptMemo = ref('')
 const receiptBusy = ref(false)
+// Home data: the receipt says the relations in it are the generator's.
+const { isMock } = useDataMode('msr_file')
 
 const receiptOk = computed(() => receiptReady({
   scope: props.analysis.scope.value,
@@ -644,6 +646,8 @@ const downloadReceipt = async () => {
     toolSkew: a.toolSkew.value,
     featureRows: a.featureRows.value,
     featureRegistry: a.featureRegistry.value,
+    acrossAxes: { x: a.acrossX.value, y: a.acrossY.value },
+    demoData: isMock.value,
     shareUrl: props.ws.shareUrl(),
     memo: receiptMemo.value
   })

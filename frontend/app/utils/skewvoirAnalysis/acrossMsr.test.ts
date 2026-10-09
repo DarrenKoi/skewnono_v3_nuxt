@@ -2,7 +2,7 @@
 // Pure-logic tests — run: cd frontend && node --test app/utils/skewvoirAnalysis/acrossMsr.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { acrossMsrAxes, acrossMsrAxisItems, acrossMsrAxisValue, buildAcrossMsrOutcome, hasFdcAxis, hasQualityAxis, pooledFitLine, QUALITY_GROUP_LABEL } from './acrossMsr.ts'
+import { acrossMsrAxes, acrossMsrAxisItems, acrossMsrAxisValue, acrossMsrOutcomeFor, buildAcrossMsrOutcome, encodeAcrossMsrAxes, hasFdcAxis, hasQualityAxis, pooledFitLine, QUALITY_GROUP_LABEL, resolveAcrossMsrAxes } from './acrossMsr.ts'
 import type { FeatureDefinition, MsrFeatureRow, DerivedValue, DynamicFdcSummary } from './features.ts'
 
 // ---------------------------------------------------------------------------
@@ -339,4 +339,54 @@ test('the axis menu puts quality axes under their own group label, after everyth
   ])
   // No quality axis, no orphan heading.
   assert.deepEqual(acrossMsrAxisItems([AX_LEVEL]), [{ label: 'CD_TOP 평균', value: 'level' }])
+})
+
+// ---------------------------------------------------------------------------
+// The X/Y pick is URL state (`ax` / `ay`) — the rail's receipt reads the same pair
+// ---------------------------------------------------------------------------
+
+test('resolveAcrossMsrAxes: with nothing in the URL, Y is the CD level and X the first FDC channel', () => {
+  assert.deepEqual(resolveAcrossMsrAxes(acrossMsrAxes(registry())), { x: 'fixed_fdc.Vacc', y: 'level' })
+})
+
+test('resolveAcrossMsrAxes: without an FDC channel X is the first axis that is not Y; without `level` Y is the first axis', () => {
+  const noFdc = acrossMsrAxes(registry().slice(0, 2))
+  assert.deepEqual(resolveAcrossMsrAxes(noFdc), { x: 'coverage', y: 'level' })
+  assert.deepEqual(resolveAcrossMsrAxes(noFdc, undefined, 'coverage'), { x: 'level', y: 'coverage' })
+  assert.deepEqual(resolveAcrossMsrAxes(acrossMsrAxes(registry().slice(1, 2))), { x: 'coverage', y: 'coverage' })
+  assert.deepEqual(resolveAcrossMsrAxes([]), { x: '', y: '' })
+})
+
+test('resolveAcrossMsrAxes: a URL pick wins; an id this set does not carry falls back to the default', () => {
+  const axes = acrossMsrAxes(registry())
+  assert.deepEqual(
+    resolveAcrossMsrAxes(axes, 'dynamic_fdc.StigmaX#std', 'coverage'),
+    { x: 'dynamic_fdc.StigmaX#std', y: 'coverage' }
+  )
+  assert.deepEqual(resolveAcrossMsrAxes(axes, 'fixed_fdc.Gone', 'nope'), { x: 'fixed_fdc.Vacc', y: 'level' })
+})
+
+test('encodeAcrossMsrAxes: the default pair leaves the URL clean, and every pick reads back as itself', () => {
+  const axes = acrossMsrAxes(registry())
+  assert.deepEqual(encodeAcrossMsrAxes(axes, 'fixed_fdc.Vacc', 'level'), { ax: null, ay: null })
+  assert.deepEqual(encodeAcrossMsrAxes(axes, 'coverage', 'level'), { ax: 'coverage', ay: null })
+  assert.deepEqual(encodeAcrossMsrAxes(axes, 'fixed_fdc.Vacc', 'coverage'), { ax: null, ay: 'coverage' })
+
+  // No FDC channel: X's default depends on Y, so it is encoded against the Y being written.
+  const noFdc = acrossMsrAxes(registry().slice(0, 2))
+  for (const [x, y] of [['coverage', 'level'], ['level', 'coverage'], ['level', 'level'], ['coverage', 'coverage']] as const) {
+    const { ax, ay } = encodeAcrossMsrAxes(noFdc, x, y)
+    assert.deepEqual(resolveAcrossMsrAxes(noFdc, ax ?? undefined, ay ?? undefined), { x, y })
+  }
+})
+
+test('acrossMsrOutcomeFor: the outcome for the URL pair — what the view draws and the receipt writes', () => {
+  const axes = acrossMsrAxes(registry())
+  const rows = [
+    featureRow({ msr: 'M1', level: derived(10), coverage: derived(1) }),
+    featureRow({ msr: 'M2', level: derived(20), coverage: derived(2) })
+  ]
+  const r = acrossMsrOutcomeFor(rows, axes, { x: 'coverage' }, new Map())
+  assert.deepEqual([r.x?.id, r.y?.id], ['coverage', 'level'])
+  assert.deepEqual(r.points.map(p => [p.msr, p.x, p.y]), [['M1', 1, 10], ['M2', 2, 20]])
 })
