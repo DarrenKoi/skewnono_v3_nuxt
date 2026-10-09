@@ -39,6 +39,7 @@
           :centres="centres"
           :show-limits="showLimits"
           :not-loaded="failedCount"
+          :points-valid-only="pointsValidOnly"
           :ready="bundleReady"
         />
       </template>

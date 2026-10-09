@@ -197,3 +197,35 @@ test('bundleSheets rounds every number to 4 decimals', () => {
     }
   }
 })
+
+// Codex review 2 of 2026-10-09: the file's per-point reference must be the one
+// the screen is showing. With 02 on 제외, a FAILED row stays in the file as
+// evidence but must not sit in the average the others are compared against.
+test('the per-point reference follows 02\'s 포함 / 제외 choice, and 요약 says which', () => {
+  const g = () => group([
+    item('a', 'R', 10),
+    item('b', 'R', 100, [row('1', 100, { State: 'FAILED' })]),
+    item('c', 'R', 20)
+  ])
+  const refOfB = (pointsValidOnly: boolean) => {
+    const bundle = buildBundle({ ...g(), pointsValidOnly })
+    const point = bundle.points.find(p => p.key === 'b')!
+    const mode = new Map(bundleSheets(bundle)[0]!.rows.map(r => [r[0], r[1]])).get('포인트 기준')
+    return { value: point.value, reference: point.reference, mode: String(mode) }
+  }
+  // 포함: (10 + 100 + 20) / 3 = 43.3333…; 제외: (10 + 20) / 2 = 15.
+  const kept = refOfB(false)
+  assert.equal(Number(kept.reference!.toFixed(4)), 43.3333)
+  assert.match(kept.mode, /FAILED · Valid FALSE 행 포함/)
+  const dropped = refOfB(true)
+  assert.equal(dropped.value, 100)
+  assert.equal(dropped.reference, 15)
+  assert.match(dropped.mode, /FAILED · Valid FALSE 행 제외/)
+})
+
+// Codex review 2: 밖 is judged on unrounded numbers; the sheet shows 4 decimals,
+// so at the boundary the printed numbers alone cannot explain the flag.
+test('요약 says the band was judged before rounding', () => {
+  const summary = new Map(bundleSheets(buildBundle(PINNED()))[0]!.rows.map(r => [r[0], r[1]]))
+  assert.match(String(summary.get('범위 밖 판정')), /반올림 전/)
+})

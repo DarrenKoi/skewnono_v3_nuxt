@@ -50,6 +50,8 @@ const props = defineProps<{
   centres: Map<string, RecipeCentre>
   showLimits: boolean
   notLoaded: number
+  // 02 포인트별 비교's 제외 choice, so the file's per-point reference is the screen's.
+  pointsValidOnly: boolean
   // Details loaded and at least one suspect — the group can change while open.
   ready: boolean
 }>()
@@ -71,6 +73,7 @@ const download = async () => {
     centres: props.centres,
     showLimits: props.showLimits,
     notLoaded: props.notLoaded,
+    pointsValidOnly: props.pointsValidOnly,
     memo: memo.value
   })
   busy.value = true

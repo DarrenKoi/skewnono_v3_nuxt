@@ -15,7 +15,7 @@ import { durationRows } from './afmDuration.ts'
 import { tipWidthOf } from './afmInfo.ts'
 import { comparePoints } from './afmPoints.ts'
 import { summaryNumber } from './afmSummary.ts'
-import { healthSeries, isValidRow, pointMatrix, trendBandName, type RecipeCentre, type TrendRow, type TrendStat } from './afmTrend.ts'
+import { healthSeries, isValidRow, pointMatrix, pointScope, trendBandName, type RecipeCentre, type TrendRow, type TrendStat } from './afmTrend.ts'
 import { formatDateTimeLocal } from './dateTime.ts'
 import { toSheetRows } from './tableExport.ts'
 import type { WorkbookSheet } from './xlsx.ts'
@@ -52,6 +52,9 @@ export interface BundleInput {
   showLimits: boolean
   // Grouped measurements whose detail did not load: they are in no sheet.
   notLoaded?: number
+  // 02 포인트별 비교's 제외 choice: the per-point reference is then the mean of
+  // valid rows only, as on screen. The suspect's own rows are listed either way.
+  pointsValidOnly?: boolean
   memo: string
 }
 
@@ -117,6 +120,8 @@ export interface BundlePoint {
 }
 
 export interface AfmBundle {
+  // Whether the per-point reference left out FAILED · Valid FALSE rows.
+  pointsValidOnly: boolean
   // `YYYY-MM-DD HH:mm`, the viewer's clock — the page's own time format.
   generatedAt: string
   tool: string
@@ -175,9 +180,10 @@ export const buildBundle = (input: BundleInput): AfmBundle => {
     }
   })
   // 02 포인트별 비교's own matrix, one per recipe: point keys belong to a recipe.
+  const scoped = pointScope(rows, input.block, input.column, input.pointsValidOnly === true).rows
   const references = new Map([...centres.keys()].map((recipe) => {
     const matrix = pointMatrix(
-      rows.flatMap(row => row.entry.recipe === recipe && row.stats?.points.size ? [{ key: row.entry.key, points: row.stats.points }] : []),
+      scoped.flatMap(row => row.entry.recipe === recipe && row.stats?.points.size ? [{ key: row.entry.key, points: row.stats.points }] : []),
       'mean',
       null
     )
@@ -229,6 +235,7 @@ export const buildBundle = (input: BundleInput): AfmBundle => {
     notLoaded: input.notLoaded ?? 0,
     suspectCount: suspects.size,
     memo: input.memo.trim(),
+    pointsValidOnly: input.pointsValidOnly === true,
     measurements,
     points
   }
@@ -251,7 +258,8 @@ export const bundleSheets = (bundle: AfmBundle): WorkbookSheet[] => {
     ['조사 대상 측정', bundle.suspectCount],
     ['조사 대상 기준', `화면의 표시 그대로입니다: ${bundle.bandName} 밖의 대상 측정, 또는 FAILED·STOPPED 포인트가 있는 측정`],
     ...(mixed ? [['Recipe 혼합', `recipe ${bundle.recipes.length}종 — μ와 기준 범위는 recipe별로 따로 계산하며 하나로 합치지 않습니다`]] : []),
-    ['포인트 기준', '포인트별 비교의 그룹 평균입니다: 같은 recipe의 측정들에서 그 포인트 값의 평균'],
+    ['포인트 기준', `포인트별 비교의 그룹 평균입니다: 같은 recipe의 측정들에서 그 포인트 값의 평균 · ${bundle.pointsValidOnly ? 'FAILED · Valid FALSE 행 제외 (화면의 02 선택과 같음, 반복 포인트는 마지막 유효 값)' : 'FAILED · Valid FALSE 행 포함 (화면의 02 선택과 같음)'}`],
+    ['범위 밖 판정', '반올림 전 값으로 판정했습니다. 이 파일의 수치는 소수 4자리로 반올림해 적었으므로, 경계에 있는 값은 적힌 숫자만으로는 범위 안처럼 보일 수 있습니다.'],
     ['유의', BUNDLE_CAUTION],
     ...(bundle.memo ? [['메모', bundle.memo]] : []),
     [],
