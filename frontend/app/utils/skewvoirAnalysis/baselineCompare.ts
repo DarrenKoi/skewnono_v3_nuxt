@@ -119,26 +119,30 @@ export const baselineComparison = (
   }
 }
 
-/** 위치 비교's baseline-versus-target layer: per chip site, the target group's
- *  mean minus the baseline group's. A site only one group measured is NOT a
- *  point (and never a 0) — it is counted in `unpaired`. */
+/** 위치 비교's baseline-versus-target layer: per chip, the target group's mean
+ *  minus the baseline group's — over the measurement points (MP) BOTH groups
+ *  measured on that chip. A chip holds several MPs, and averaging every row of
+ *  it would turn "the groups measured different MPs" into a movement of the
+ *  value. A chip with no MP in common is NOT a point (and never a 0): it is
+ *  counted in `unpaired`. */
 export const baselineDeltaMap = (
   files: SetFiles,
   baseIds: readonly string[],
   targetIds: readonly string[],
   parameter: string
 ): { points: [number, number, number][], unpaired: number } => {
+  type Chip = { xy: [number, number], byMp: Map<number, number[]> }
   const collect = (ids: readonly string[]) => {
-    const acc = new Map<string, { xy: [number, number], values: number[] }>()
+    const acc = new Map<string, Chip>()
     for (const id of ids) {
       for (const r of files.get(id)?.rows ?? []) {
         if (r.parameter !== parameter || !isMeasuredRow(r)) continue
         const xy = parseChipXY(r.chip_number)
         if (!xy) continue
         const key = `${xy[0]},${xy[1]}`
-        const e = acc.get(key) ?? { xy, values: [] }
-        e.values.push(r.cd_value)
-        acc.set(key, e)
+        const chip = acc.get(key) ?? { xy, byMp: new Map() }
+        chip.byMp.set(r.mp_number, [...(chip.byMp.get(r.mp_number) ?? []), r.cd_value])
+        acc.set(key, chip)
       }
     }
     return acc
@@ -149,9 +153,13 @@ export const baselineDeltaMap = (
   const points: [number, number, number][] = []
   for (const [key, t] of target) {
     const b = base.get(key)
-    if (b) points.push([t.xy[0], t.xy[1], Number((mean(t.values) - mean(b.values)).toFixed(3))])
+    const deltas = b
+      ? [...t.byMp].flatMap(([mp, values]) => b.byMp.has(mp) ? [mean(values) - mean(b.byMp.get(mp)!)] : [])
+      : []
+    if (deltas.length) points.push([t.xy[0], t.xy[1], Number(mean(deltas).toFixed(3))])
   }
-  return { points, unpaired: base.size + target.size - 2 * points.length }
+  const chips = new Set([...base.keys(), ...target.keys()])
+  return { points, unpaired: chips.size - points.length }
 }
 
 /** The block's one sentence. States the movement; judges nothing. */

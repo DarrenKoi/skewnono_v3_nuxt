@@ -316,7 +316,7 @@ test('sheets with a baseline: the comparison table, its per-site differences, an
     ['대상 − 기준', '', '', 4, '', '', -2, ''],
     ['기준 3σ 대비 평균 이동(배)', 0.4216],
     ['3σ 배율(대상/기준)', 0.8165],
-    ['한쪽 그룹만 측정한 site', 1]
+    ['공통 측정점이 없는 chip', 1]
   ])
   assert.deepEqual(named(sheets, '기준 대비 site'), [
     ['chip X', 'chip Y', '대상 − 기준 (nm)'],

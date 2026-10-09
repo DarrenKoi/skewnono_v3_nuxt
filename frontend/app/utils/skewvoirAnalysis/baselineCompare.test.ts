@@ -122,6 +122,29 @@ test('baselineDeltaMap: per chip site, target mean minus baseline mean; a one-si
   assert.equal(map.unpaired, 3)
 })
 
+// Codex review 2026-10-09, second pass: a chip can hold several measurement
+// points (MP). Averaging every row of the chip turns a difference in WHICH MPs
+// each group measured into a movement of the value.
+test('baselineDeltaMap pairs the same MP of a chip, not everything measured on it', () => {
+  const at = (chip_number: string, mp_number: number, cd_value: number) => row({ chip_number, mp_number, cd_value })
+  const set = files({
+    B: [at('1,1', 1, 10), at('1,1', 2, 100)],
+    T: [at('1,1', 1, 20), at('2,2', 3, 30)]
+  })
+  const map = baselineDeltaMap(set, ['B'], ['T'], 'CD_TOP')
+  // Chip (1,1): only MP1 is in both groups → 20 − 10 = +10, never
+  // 20 − mean(10, 100) = −35. Chip (2,2) is target-only.
+  assert.deepEqual(map.points, [[1, 1, 10]])
+  assert.equal(map.unpaired, 1)
+})
+
+test('baselineDeltaMap: a chip both groups measured, but at different MPs, has no pair', () => {
+  const at = (mp_number: number, cd_value: number) => row({ chip_number: '1,1', mp_number, cd_value })
+  const map = baselineDeltaMap(files({ B: [at(1, 10)], T: [at(2, 20)] }), ['B'], ['T'], 'CD_TOP')
+  assert.deepEqual(map.points, [])
+  assert.equal(map.unpaired, 1)
+})
+
 test('baselineSentence: one sentence, the difference and its sample sizes — no verdict word', () => {
   const r = baselineComparison(SET, ['B1', 'B2'], ['T1'], 'CD_TOP', 'nm')
   assert.equal(

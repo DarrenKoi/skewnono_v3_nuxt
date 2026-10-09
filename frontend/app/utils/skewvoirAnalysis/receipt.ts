@@ -308,8 +308,8 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
               ['기준 3σ 대비 평균 이동(배)', num(c.shiftInBaseSigma)],
               ['3σ 배율(대상/기준)', num(c.threeSigmaRatio)],
               b.siteDeltaReady
-                ? ['한쪽 그룹만 측정한 site', b.unpaired]
-                : ['site별 비교', '세트의 wafer 배치가 서로 달라 site 단위로 비교하지 않았습니다']
+                ? ['공통 측정점이 없는 chip', b.unpaired]
+                : ['site별 비교', '같은 위치임을 확인할 수 없어 site 단위로 비교하지 않았습니다']
             ]
           : [['평가 불가', b.reason ?? '']])
       ]
