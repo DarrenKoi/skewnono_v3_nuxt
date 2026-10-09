@@ -16,7 +16,8 @@ export const formatScaleLabel = (value: number, decimals?: number): string => {
 //      smaller end governs, so 0.25 … 100 does not print "0 … 100".
 //   2. If the two ends still print alike, decimals widen until they differ.
 //   3. Past MAX_DECIMALS that cannot work (1e-9 … 4e-9); exponent form takes
-//      over, with as many digits as it takes to tell the ends apart.
+//      over, with as many digits as it takes to tell the ends apart — and for
+//      adjacent doubles, the number's own round-trip string.
 // A flat or non-finite range has nothing to tell apart: the per-value rule.
 const MAX_DECIMALS = 8
 const MAX_EXP_DIGITS = 15
@@ -28,5 +29,8 @@ export const scaleFormatter = (min: number, max: number): (value: number) => str
   if (formatScaleLabel(min, decimals) !== formatScaleLabel(max, decimals)) return value => formatScaleLabel(value, decimals)
   let digits = 0
   while (digits < MAX_EXP_DIGITS && min.toExponential(digits) === max.toExponential(digits)) digits++
+  // Adjacent doubles collide even at MAX_EXP_DIGITS; String() round-trips a
+  // double exactly, so it always tells two different numbers apart.
+  if (min.toExponential(digits) === max.toExponential(digits)) return value => Number.isFinite(value) ? String(value + 0) : '—'
   return value => Number.isFinite(value) ? (value === 0 ? '0' : value.toExponential(digits)) : '—'
 }

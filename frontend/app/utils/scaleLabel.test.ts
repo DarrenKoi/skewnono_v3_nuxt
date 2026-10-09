@@ -64,3 +64,11 @@ test('scaleFormatter: an ordinary range keeps the magnitude rule; flat and non-f
   assert.equal(scaleFormatter(Number.NaN, 1)(0.5), '0.5')
   assert.equal(scaleFormatter(0, 1)(Number.NaN), '—')
 })
+
+// Codex review 3, third pass: fifteen exponent digits still cannot tell two
+// adjacent doubles apart. Past that, the number's own round-trip string does.
+test('scaleFormatter: adjacent doubles still read differently', () => {
+  const max = 1 + Number.EPSILON
+  const f = scaleFormatter(1, max)
+  assert.deepEqual([f(1), f(max)], ['1', '1.0000000000000002'])
+})
