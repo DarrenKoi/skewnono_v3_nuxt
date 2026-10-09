@@ -3,7 +3,7 @@
 // Run: cd frontend && node --test app/utils/skewvoirAnalysis/cdu.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { cduMetrics, distributionHeadline, failureBreakdown, sectorClustering } from './cdu.ts'
+import { cduMetrics, distributionHeadline, failureBreakdown, paramTableStats, sectorClustering } from './cdu.ts'
 import type { SpatialFailureSite } from './spatial.ts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
@@ -244,4 +244,26 @@ test('distributionHeadline: a row with no measurement point stays out even when 
 test('distributionHeadline: one site has a level and no spread; none has neither', () => {
   assert.equal(distributionHeadline(cduMetrics([row({ cd_value: 7 })], 'CD_TOP')), 'μ 7.00')
   assert.equal(distributionHeadline(cduMetrics([], 'CD_TOP')), null)
+})
+
+// Codex review 3 of 2026-10-09: 파라미터 요약 mixed the server's rounded summary
+// (Count / Mean / Min / Max) with the client σ in one row, so its Mean could
+// differ from the Distribution header's by a last digit — or by a whole
+// population where a row with mp_number < 0 carries a number.
+test('paramTableStats: every column of a 파라미터 요약 row comes from the same measured rows', () => {
+  // 98 99 100 101 102, plus one unmeasured row: n 5, mean 100, sample σ √2.5 = 1.5811.
+  const s = paramTableStats(rows(), 'CD_TOP')
+  assert.equal(s.count, 5)
+  assert.equal(s.mean, 100)
+  assert.equal(Number(s.std!.toFixed(4)), 1.5811)
+  assert.deepEqual([s.min, s.max], [98, 102])
+  // A numbered row that is not a measurement (mp_number −1) stays out of all of them.
+  const withStray = paramTableStats([...rows(), row({ sequence: 9, cd_value: 500, mp_number: -1 })], 'CD_TOP')
+  assert.deepEqual([withStray.count, withStray.mean, withStray.max], [5, 100, 102])
+})
+
+test('paramTableStats: nothing measured gives no numbers; one site gives no σ', () => {
+  assert.deepEqual(paramTableStats([], 'CD_TOP'), { count: 0, mean: null, std: null, min: null, max: null })
+  const one = paramTableStats([row({ cd_value: 7 })], 'CD_TOP')
+  assert.deepEqual(one, { count: 1, mean: 7, std: null, min: 7, max: 7 })
 })

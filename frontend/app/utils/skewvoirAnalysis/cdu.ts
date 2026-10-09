@@ -61,6 +61,22 @@ export interface CduMetrics {
   spread: CduSpread | null
 }
 
+/** 파라미터 요약's row, every column from the SAME measured rows `cduMetrics`
+ *  reads — so its Mean and Std cannot disagree with the Distribution header or
+ *  the verdict block, as they did while Count / Mean / Min / Max came from the
+ *  server's rounded summary. null where there is nothing to state. */
+export const paramTableStats = (rows: MsrFileRow[], parameter: string) => {
+  const m = cduMetrics(rows, parameter)
+  const values = rows.filter(r => r.parameter === parameter).filter(isMeasuredRow).map(r => r.cd_value)
+  return {
+    count: m.n,
+    mean: m.level?.mean ?? null,
+    std: m.spread?.std ?? null,
+    min: values.length ? Math.min(...values) : null,
+    max: values.length ? Math.max(...values) : null
+  }
+}
+
 export const cduMetrics = (rows: MsrFileRow[], parameter: string, unit = ''): CduMetrics => {
   const forParam = rows.filter(r => r.parameter === parameter)
   const values = forParam.filter(isMeasuredRow).map(r => r.cd_value)

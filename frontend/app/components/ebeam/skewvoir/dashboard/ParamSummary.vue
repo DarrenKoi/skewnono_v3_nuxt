@@ -62,19 +62,19 @@
               {{ paramLabel(s.parameter) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink)">
-              {{ s.count }}
+              {{ statsOf.get(s.parameter)?.count ?? 0 }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink)">
-              {{ fmt(s.mean) }}
+              {{ fmt(statsOf.get(s.parameter)?.mean ?? Number.NaN) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
-              {{ fmt(stdOf.get(s.parameter) ?? Number.NaN) }}
+              {{ fmt(statsOf.get(s.parameter)?.std ?? Number.NaN) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
-              {{ fmt(s.min) }}
+              {{ fmt(statsOf.get(s.parameter)?.min ?? Number.NaN) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
-              {{ fmt(s.max) }}
+              {{ fmt(statsOf.get(s.parameter)?.max ?? Number.NaN) }}
             </td>
             <td class="px-1.5 py-1 text-left text-(--sk-ink-muted)">
               {{ s.unit }}
@@ -95,7 +95,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
-import { cduMetrics } from '~/utils/skewvoirAnalysis/cdu'
+import { paramTableStats } from '~/utils/skewvoirAnalysis/cdu'
 import { paramLabel } from '~/utils/skewvoirAnalysis/paramOrder'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
@@ -103,9 +103,10 @@ const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 const statColumns = ['Count', 'Mean', 'Std', 'Min', 'Max']
 
 const summaries = computed(() => props.analysis.paramSummaries.value)
-// Sample σ over measured sites; absent (—) below two sites, never 0.
-const stdOf = computed(() => new Map(summaries.value.map(s =>
-  [s.parameter, cduMetrics(props.analysis.siteRows.value, s.parameter).spread?.std]
+// Every statistic from the measured rows the verdicts read (paramTableStats) —
+// the server summary only supplies the parameter list and unit. Absent is —.
+const statsOf = computed(() => new Map(summaries.value.map(s =>
+  [s.parameter, paramTableStats(props.analysis.siteRows.value, s.parameter)]
 )))
 const activeParam = computed(() => props.analysis.activeParam.value)
 const selectedSet = computed(() => new Set(props.analysis.selectedParams.value))
