@@ -29,6 +29,18 @@
             label="Excel 다운로드"
           />
         </UDropdownMenu>
+        <AfmTrendBundleModal
+          v-model:open="bundleOpen"
+          :tool="toolName"
+          :block="block"
+          :column="column"
+          :stat="stat"
+          :rows="rows"
+          :centres="centres"
+          :show-limits="showLimits"
+          :not-loaded="failedCount"
+          :ready="bundleReady"
+        />
       </template>
     </EbeamMetaBar>
 
@@ -418,5 +430,18 @@ const exportItems = computed<DropdownMenuItem[][]>(() => [[{
     const table = trendTable(rows.value)
     downloadTable(`${toolId}-trend-${safeFilePart(block.value)}-${safeFilePart(column.value)}.xlsx`, table.headers, table.rows)
   }
+}, {
+  label: `이상 측정 조사 묶음 (${suspectCount.value}건)`,
+  description: pending.value ? '측정 상세를 불러오는 중입니다' : suspectCount.value ? undefined : '범위 밖·FAILED·STOPPED 측정이 없습니다',
+  icon: 'i-lucide-file-search',
+  disabled: !bundleReady.value,
+  onSelect: () => {
+    bundleOpen.value = true
+  }
 }]])
+
+// 이상 측정 조사 묶음: the suspects are what the cards above already mark.
+const bundleOpen = ref(false)
+const suspectCount = computed(() => bundleSuspects(rows.value).length)
+const bundleReady = computed(() => !pending.value && suspectCount.value > 0)
 </script>
