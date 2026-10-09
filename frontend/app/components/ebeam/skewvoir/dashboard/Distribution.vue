@@ -35,6 +35,7 @@
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { DistributionHighlight } from '~/components/ebeam/skewvoir/DistributionChart.vue'
 import { isMeasuredRow } from '~/utils/msrRows'
+import { cduMetrics, distributionHeadline } from '~/utils/skewvoirAnalysis/cdu'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -59,8 +60,10 @@ const highlights = computed<DistributionHighlight[]>(() => {
   return out
 })
 
-const meta = computed(() => {
-  const s = props.analysis.activeSummary.value
-  return s ? `μ ${s.mean.toFixed(2)} · 3σ ${(s.std * 3).toFixed(2)}` : props.analysis.activeParamLabel.value
-})
+// Client-computed from the rows the chart draws (cduMetrics), not the backend
+// summary: one σ definition per screen, the one the verdict block uses.
+const meta = computed(() =>
+  distributionHeadline(cduMetrics(props.analysis.siteRows.value, props.analysis.activeParam.value))
+  ?? props.analysis.activeParamLabel.value
+)
 </script>

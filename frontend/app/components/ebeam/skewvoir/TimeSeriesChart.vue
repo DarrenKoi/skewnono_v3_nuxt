@@ -235,7 +235,9 @@ const option = computed<EChartsOption>(() => ({
       if (props.baseline === 'resid') {
         lines.push(`Δ vs ${props.baselineLabel}: <b>${Number(p.value.toFixed(3))}</b> ${props.unit}`)
       }
-      lines.push(`min/max: ${p.min} / ${p.max}`, `std: ${p.std}`)
+      // The trend point is the backend's per-parameter summary, 3-decimal rounded —
+      // named so it is not read as the client σ of 측정 개요.
+      lines.push(`min/max: ${p.min} / ${p.max}`, `std (서버 요약): ${p.std}`)
       const v = p.verdict
       if (v && (v.status === 'insufficient' || v.severity !== 'normal')) {
         // Same table and same precedence as the dot itself, so the warning text

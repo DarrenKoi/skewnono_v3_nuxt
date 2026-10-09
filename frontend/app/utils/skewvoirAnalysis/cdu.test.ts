@@ -3,7 +3,7 @@
 // Run: cd frontend && node --test app/utils/skewvoirAnalysis/cdu.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { cduMetrics, failureBreakdown, sectorClustering } from './cdu.ts'
+import { cduMetrics, distributionHeadline, failureBreakdown, sectorClustering } from './cdu.ts'
 import type { SpatialFailureSite } from './spatial.ts'
 import type { MsrFileRow } from '~/composables/useMsrFileApi'
 import type { MeasHistRow } from '~/composables/useMeasHistApi'
@@ -217,4 +217,31 @@ test('sectorClustering pools outlier sites with failed ones', () => {
   assert.equal(c.placed, 4)
   assert.equal(c.verdict, 'clustered', '3 of 4 in E is over the 60% share')
   assert.equal(c.sectors[0]!.key, 'E')
+})
+
+// ── One σ per screen ─────────────────────────────────────────────────────
+// 2,4,4,4,5,5,7,9: mean 5, Σ(x−5)² = 32. Population σ = √(32/8) = 2 (3σ 6.00);
+// sample σ = √(32/7) = 2.138 (3σ 6.414). The screen's σ is the sample one.
+const eight = (): MsrFileRow[] =>
+  [2, 4, 4, 4, 5, 5, 7, 9].map((cd_value, i) => row({ sequence: i + 1, cd_value }))
+
+test('cduMetrics: σ is the sample (n−1) standard deviation, not the population one', () => {
+  const m = cduMetrics(eight(), 'CD_TOP', 'nm')
+  close(m.spread!.std, 2.138089935299395)
+  close(m.spread!.threeSigma, 6.414269805898185)
+})
+
+test('distributionHeadline: the Distribution panel prints the same μ and 3σ the verdict block computes', () => {
+  assert.equal(distributionHeadline(cduMetrics(eight(), 'CD_TOP')), 'μ 5.00 · 3σ 6.41')
+})
+
+test('distributionHeadline: a row with no measurement point stays out even when it carries a number', () => {
+  // The backend summary gates on cd_value alone; the screen gates on mp_number too.
+  const withGhost = [...eight(), row({ sequence: 9, mp_number: -1, cd_value: 50 })]
+  assert.equal(distributionHeadline(cduMetrics(withGhost, 'CD_TOP')), 'μ 5.00 · 3σ 6.41')
+})
+
+test('distributionHeadline: one site has a level and no spread; none has neither', () => {
+  assert.equal(distributionHeadline(cduMetrics([row({ cd_value: 7 })], 'CD_TOP')), 'μ 7.00')
+  assert.equal(distributionHeadline(cduMetrics([], 'CD_TOP')), null)
 })

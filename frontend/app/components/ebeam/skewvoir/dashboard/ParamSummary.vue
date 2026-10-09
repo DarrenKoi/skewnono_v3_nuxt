@@ -13,9 +13,9 @@
       class="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-(--sk-brand)/40"
       @keydown="onKeydown"
     >
-      <!-- Backend-computed stats (MsrParamSummary): the numbers come from the
-           office pickle's full per-parameter population, not the rows the
-           browser happens to hold — never recompute them client-side. -->
+      <!-- Count / Mean / Min / Max are the backend summary (MsrParamSummary).
+           Std is NOT: it is cduMetrics over the same rows, so the σ in this
+           table is the one the verdict block and Distribution print. -->
       <table class="w-full border-collapse text-xs">
         <thead class="sticky top-0 z-10 bg-(--sk-surface)">
           <tr class="border-b border-(--sk-border) font-mono text-[11px] text-(--sk-ink-muted)">
@@ -68,7 +68,7 @@
               {{ fmt(s.mean) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
-              {{ fmt(s.std) }}
+              {{ fmt(stdOf.get(s.parameter) ?? Number.NaN) }}
             </td>
             <td class="px-1.5 py-1 text-right font-mono tabular-nums text-(--sk-ink-muted)">
               {{ fmt(s.min) }}
@@ -95,6 +95,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { nextCursorIndex, type CursorKey } from '~/utils/tableCursor'
+import { cduMetrics } from '~/utils/skewvoirAnalysis/cdu'
 import { paramLabel } from '~/utils/skewvoirAnalysis/paramOrder'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
@@ -102,6 +103,10 @@ const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 const statColumns = ['Count', 'Mean', 'Std', 'Min', 'Max']
 
 const summaries = computed(() => props.analysis.paramSummaries.value)
+// Sample σ over measured sites; absent (—) below two sites, never 0.
+const stdOf = computed(() => new Map(summaries.value.map(s =>
+  [s.parameter, cduMetrics(props.analysis.siteRows.value, s.parameter).spread?.std]
+)))
 const activeParam = computed(() => props.analysis.activeParam.value)
 const selectedSet = computed(() => new Set(props.analysis.selectedParams.value))
 

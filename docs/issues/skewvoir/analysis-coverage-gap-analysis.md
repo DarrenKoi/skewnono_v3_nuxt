@@ -334,3 +334,33 @@ Time-Series lane은 만들지 않았습니다. 추이 차트는 판정이 붙은
 - alignment offset의 단위와, 배열의 둘째·셋째 요소가 x·y인지 여부입니다.
 - failed row에 score가 실제로 남는지 여부입니다. mock은 failed row의
   `measurement_score` 를 비워 둡니다.
+
+## 10. 잔여 결함 정리 (2026-10-09)
+
+### 10.1 한 화면의 σ 는 한 가지 정의입니다
+
+확인한 사실은 다음과 같습니다.
+
+- msr_file 응답의 파라미터 요약 `std` 는 표본 표준편차(n−1)이고 소수 셋째
+  자리로 반올림한 값입니다. `cd_value` 가 숫자인 모든 row(모든 sequence)를
+  쓰며 `mp_number` 는 보지 않습니다. mock 과 사내 어댑터가 같은
+  `mock._summaries` 를 씁니다.
+- 화면의 판정과 측정 개요 블록은 `cduMetrics` 를 씁니다. 표본 표준편차(n−1)를
+  반올림 없이 계산하고, `isMeasuredRow`(`mp_number >= 0` 이고 `cd_value` 가
+  숫자)를 통과한 row 만 씁니다.
+- 따라서 두 값은 정의는 같지만 반올림과 row 조건이 다릅니다. Distribution
+  패널은 반올림된 `std` 에 3 을 곱해 3σ 를 적었으므로 측정 개요의 3σ 와 끝
+  자리가 어긋날 수 있었습니다.
+
+바꾼 내용은 다음과 같습니다.
+
+| 위치 | 이전 | 지금 |
+| --- | --- | --- |
+| Distribution 패널 머리말 μ · 3σ | 서버 요약 `mean`, `std × 3` | `cduMetrics` (`distributionHeadline`) |
+| 파라미터 요약 표 Std 열 | 서버 요약 `std` | `cduMetrics` 의 `spread.std`, site 가 2개 미만이면 `—` |
+| 파라미터 요약 표 Count · Mean · Min · Max | 서버 요약 | 그대로 서버 요약 |
+| Time-Series 추이 툴팁 std | 서버 요약 `std` | 값은 그대로이며 이름을 `std (서버 요약)` 으로 적습니다 |
+
+Time-Series 추이의 점은 mean · min · max · std 를 모두 서버 요약에서 읽고, 산포
+판정도 그 `std` 로 냅니다. 판정 입력을 바꾸지 않으려고 값은 두고 이름만
+구분했습니다.

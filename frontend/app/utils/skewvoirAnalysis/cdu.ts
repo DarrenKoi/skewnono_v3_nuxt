@@ -85,6 +85,16 @@ export const cduMetrics = (rows: MsrFileRow[], parameter: string, unit = ''): Cd
   }
 }
 
+/** The Distribution panel's header line. It reads `cduMetrics` — the same call
+ *  the 측정 개요 verdict block makes — so the panel's 3σ is the sample (n−1)
+ *  3σ over measured sites, not three times the backend summary's rounded `std`.
+ *  No spread below two sites, and null when nothing was measured. */
+export const distributionHeadline = (m: CduMetrics): string | null => {
+  if (!m.level) return null
+  const mu = `μ ${m.level.mean.toFixed(2)}`
+  return m.spread ? `${mu} · 3σ ${m.spread.threeSigma.toFixed(2)}` : mu
+}
+
 // ── Failure decomposition ────────────────────────────────────────────────
 
 export type FailureReasonKey = 'msr_check' | 'align_fail' | 'image' | 'cd_missing'
