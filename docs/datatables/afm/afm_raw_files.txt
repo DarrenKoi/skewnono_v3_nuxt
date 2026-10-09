@@ -257,6 +257,11 @@ D3 측정 상세 — CSV
                  recipe: BSOXCMP_CORRELATION_36PT, RL1A_LPCCMP_CMPWEAK2, RX1A_M0A_COT_X_PDG.
     Site X     : Site ID 안의 X 숫자와 같습니다(`0002_X002_Y-001` → 2). **단위 없음.**
     Site Y     : 위와 같습니다(→ -1).
+                 **인덱스 배치를 그릴 때 `Site Y` 가 큰 쪽이 위입니다**
+                 (user-confirmed 2026-10-09, Q24 의 그리는 방향). 확인된 것은 Y
+                 인덱스를 그리는 방향 하나입니다. 아래는 여전히 미확인입니다
+                 (OFFICE-VERIFY): 단위(인덱스는 단위가 없습니다), `Site X` 의 방향,
+                 notch 의 위치, 웨이퍼 mm 좌표·반경으로의 대응.
     State      : **COMPLETED, FAILED, STOPPED 3종으로 확정.** STOPPED 는 여러 recipe 에서
                  나옵니다(VED_BS_TOP01, Fi-Tapping TEST 등).
                  [정정] 2차 회신의 `COMPLITED` 는 오타였습니다.
@@ -282,6 +287,9 @@ D3 측정 상세 — CSV
   묶어 보는 방식을 유지합니다 [확인 9차].
   Site 의 실측 범위는 `Site X` -11~5, `Site Y` -7~4 이고 한 Site 의 point 는 최대 14
   입니다(MAP608 `WID_REAL`). 웨이퍼의 위아래 방향은 원본에 정보가 없습니다 [확인 9차].
+  그 뒤 `Site Y` 가 큰 쪽을 위에 그린다는 것만 사용자가 확인했습니다
+  (user-confirmed 2026-10-09, 위 Data 행의 `Site Y`). 원본에 방향 정보가 없다는
+  9차 확인은 그대로이고, notch·`Site X` 방향·mm 대응은 미확인입니다 (OFFICE-VERIFY).
   recipe 이름은 시기가 달라도 같은 recipe 이고 이력 기록은 없습니다. ` (1)` 꼬리가 붙은
   이름은 원본과 별개입니다. 대소문자·공백만 다른 이름은 없습니다(관측 36종) [확인 9차].
 

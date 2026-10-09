@@ -79,7 +79,8 @@ interface SiteDot {
   siteId: string
   // The first point measured at the site — what clicking the dot selects.
   point: string
-  // Position inside the map, in percent. Y grows upwards on a wafer map.
+  // Position inside the map, in percent. The larger Site Y is at the top
+  // (user-confirmed 2026-10-09); an index layout, not a wafer outline.
   left: number
   top: number
 }

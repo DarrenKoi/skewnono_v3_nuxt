@@ -53,7 +53,7 @@
         <span class="text-(--sk-ink)">□ 선택한 포인트의 Site</span>
       </p>
       <p class="mt-1 sk-meta">
-        Site X · Site Y 인덱스의 배치이며 웨이퍼 형상이 아닙니다. 인덱스는 단위가 없고, Site Y 가 웨이퍼의 어느 쪽인지는 확인되지 않았습니다.
+        Site X · Site Y 인덱스의 배치이며 웨이퍼 형상이 아닙니다. 인덱스는 단위가 없고, Site Y 가 큰 쪽이 위입니다.
         ▲ 는 값으로 칠하지 않은 포인트(색이 없는 칸은 유효한 값이 없는 Site)입니다.
         <template v-if="shared">
           한 Site 에 포인트가 여럿이면 유효한 값의 평균으로 칠하고 칸에 포인트 수를 적습니다.

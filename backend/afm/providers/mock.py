@@ -126,7 +126,12 @@ profile·이미지)입니다. 값의 내용은 각 장비의 **raw 파일**에�
 - 위치 키는 4자리 point 번호입니다 (`Point No`=1 ↔ 파일명 `_0001`). Site ID 를 기록하는
   recipe 만 `Site ID`·`Site X`·`Site Y` 컬럼을 갖고, 그때 파일명은
   `_0004_X000_Y-002_0002_Height.txt` 처럼 Site ID 뒤에 point 번호가 붙습니다.
-  `Site X`·`Site Y` 는 Site ID 안의 숫자와 같고 단위가 없습니다.
+  `Site X`·`Site Y` 는 Site ID 안의 숫자와 같고 단위가 없습니다. mock 의 값은
+  `SITE_LAYOUT` 의 정수 인덱스로, 실제 Site 인덱스를 대신합니다(실측 범위는 X -11~5,
+  Y -7~4 로 더 넓습니다). 인덱스 배치를 그릴 때 `Site Y` 가 큰 쪽이 위입니다
+  (user-confirmed 2026-10-09). 확인된 것은 Y 인덱스를 그리는 방향뿐이고, 단위,
+  `Site X` 의 방향, notch 위치, 웨이퍼 mm·반경으로의 대응은 미확인입니다
+  (OFFICE-VERIFY) — mock 의 `X (um)`·`Y (um)`(인덱스 × 8000)도 지어낸 값입니다.
 - `State` 는 COMPLETED · FAILED · STOPPED 셋입니다. point 가 하나면 STDEV·RANGE 는 0.0 입니다.
 - Info 의 key 는 측정에 따라 두 가지 구성입니다 (user-confirmed 2026-10-06).
   15키: Lot ID, Recipe ID, Carrier ID, Sample Location, Sample ID, Data Save Location,

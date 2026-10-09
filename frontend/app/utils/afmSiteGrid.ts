@@ -1,7 +1,8 @@
 // Pure helpers for 측정 상세's Site 격자: one measured column laid out on the
-// rows' `Site X` / `Site Y`. Those are unitless integer indices, and which way
-// Y runs on the wafer is not confirmed (docs/afm/office-data-findings.md, Q24)
-// — so this is an index layout only: no radius, no centre/edge, no mm.
+// rows' `Site X` / `Site Y`. Those are unitless integer indices. The larger
+// Site Y is drawn at the top (user-confirmed 2026-10-09, Q24); the X direction,
+// the notch and any mapping to wafer mm are not confirmed — so this is an
+// index layout only: no radius, no centre/edge, no mm.
 // No DOM/Nuxt imports so it runs under `node --test`.
 import type { AfmDetailRow, AfmSummaryRow } from '~/composables/useAfmDetailApi'
 import { blockOf, fallbackBlock, pointState } from './afmPoints.ts'
