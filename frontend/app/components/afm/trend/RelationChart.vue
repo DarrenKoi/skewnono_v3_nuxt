@@ -51,7 +51,7 @@
            measurement among the samples, and its entry is left out. -->
       <template v-if="state === 'chart'">
         <span>{{ summary.r === null ? 'r 계산 불가 (한 축의 값이 모두 같습니다)' : `r ${summary.r.toFixed(2)}` }}</span>
-        <span v-if="relation.samples.some(s => s.key !== selected)">● 다른 측정</span>
+        <span v-if="relation.samples.some(s => s.key !== selected)">● {{ relation.samples.some(s => s.key === selected) ? '다른 측정' : '측정' }}</span>
         <span
           v-if="relation.samples.some(s => s.key === selected)"
           class="text-(--sk-ink)"

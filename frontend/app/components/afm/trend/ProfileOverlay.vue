@@ -87,7 +87,7 @@
         <span class="text-(--sk-ink)">레벨링: {{ LEVEL_NOTE[level] }}</span>
         <!-- The legend names only the lines on the chart: with no selected
              measurement among them, nothing is drawn in ink. -->
-        <span v-if="overlay.drawn.some(l => l.key !== selected)">— 다른 측정</span>
+        <span v-if="overlay.drawn.some(l => l.key !== selected)">— {{ overlay.drawn.some(l => l.key === selected) ? '다른 측정' : '측정' }}</span>
         <span
           v-if="overlay.drawn.some(l => l.key === selected)"
           class="text-(--sk-ink)"
