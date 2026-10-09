@@ -8,15 +8,16 @@
       :style="gradientStyle"
     />
     <div class="flex w-full max-w-[16rem] items-center justify-between font-mono text-xs tabular-nums text-(--sk-ink-muted)">
-      <span class="text-(--sk-ink)">{{ fmt(min) }}</span>
-      <span>{{ fmt((min + max) / 2) }}</span>
-      <span class="text-(--sk-ink)">{{ fmt(max) }} {{ unit }}</span>
+      <span class="text-(--sk-ink)">{{ formatScaleLabel(min) }}</span>
+      <span>{{ formatScaleLabel((min + max) / 2) }}</span>
+      <span class="text-(--sk-ink)">{{ formatScaleLabel(max) }} {{ unit }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { SK_SCALE } from '~/utils/chartPalette'
+import { formatScaleLabel } from '~/utils/scaleLabel'
 
 const props = withDefaults(defineProps<{
   min: number
@@ -30,5 +31,4 @@ const props = withDefaults(defineProps<{
 const gradientStyle = computed(() => ({
   background: `linear-gradient(to right, ${props.colors.join(', ')})`
 }))
-const fmt = (n: number) => (Number.isFinite(n) ? n.toFixed(1) : '—')
 </script>
