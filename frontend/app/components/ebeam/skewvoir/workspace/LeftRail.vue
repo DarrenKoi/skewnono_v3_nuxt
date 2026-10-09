@@ -319,6 +319,7 @@
               icon="i-lucide-download"
               label="내려받기"
               :loading="receiptBusy"
+              :disabled="!receiptOk"
               @click="downloadReceipt"
             />
           </div>
@@ -610,12 +611,16 @@ const receiptOk = computed(() => receiptReady({
   focusLoaded: !!props.analysis.focusFile.value,
   setResolved: props.analysis.setRows.value.length,
   setLoaded: props.analysis.setFiles.value.size,
-  setPending: props.analysis.setPending.value
+  setPending: props.analysis.setPending.value,
+  setError: props.analysis.setError.value,
+  loadedKey: props.analysis.setFilesKey.value,
+  wantedKey: props.analysis.setKey.value
 }))
 
 const downloadReceipt = async () => {
   const sel = props.ws.selection.value
-  if (!sel || receiptBusy.value) return
+  // Re-checked here: the set can change or fail while the modal is open.
+  if (!sel || receiptBusy.value || !receiptOk.value) return
   const a = props.analysis
   const receipt = buildReviewReceipt({
     generatedAt: new Date(),
@@ -631,6 +636,7 @@ const downloadReceipt = async () => {
     setFiles: a.setFiles.value,
     excluded: a.manifest.value.excluded,
     baselineGroups: a.baselineGroups.value,
+    siteDeltaReady: a.siteDeltaReady.value,
     anomalyCfg: a.anomalyCfg.value,
     radialModel: a.radialModel.value,
     tsBaseline: props.ws.tsBaseline.value,

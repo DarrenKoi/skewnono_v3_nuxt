@@ -723,6 +723,11 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   const baselineGroups = computed(() =>
     splitBaseline(ws.msrList.value, ws.baseline.value, manifest.value.included)
   )
+  // A chip index names one physical site across the set only when the included
+  // measurements share a layout. `included` does not guarantee that (a pitch
+  // mismatch still includes), so the per-site Δ map and the receipt's site
+  // sheet both ask this before pairing sites.
+  const siteDeltaReady = computed(() => manifest.value.readiness.multiMsrDelta.status !== 'unavailable')
 
   // The focus MSR described as the reference every candidate is compared against
   // (consumed by the spatial / sequence / hand-off tasks). Null until a focus
@@ -828,6 +833,7 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     manifest,
     baseline: ws.baseline,
     baselineGroups,
+    siteDeltaReady,
     reference,
     activeOverview,
     overviewFor,
@@ -835,6 +841,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
     setRows,
     setFiles,
     setPending,
+    setKey,
+    setFilesKey,
     setColdLoading,
     trendPoints,
     distributionGroups,

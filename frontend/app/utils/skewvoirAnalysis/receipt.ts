@@ -35,6 +35,7 @@ import { acrossMsrAxes, acrossMsrAxisValue, type AcrossMsrAxis } from './acrossM
 import { baselineComparison, baselineDeltaMap, baselineSentence, type BaselineComparison } from './baselineCompare.ts'
 import { cduMetrics, type CduMetrics } from './cdu.ts'
 import { EXCLUSION_REASON_LABEL } from './compatibility.ts'
+import { isSetPoolComplete } from './curatedSet.ts'
 
 export const RECEIPT_CAUTION
   = '원본 파일은 61일 뒤 삭제됩니다. URL 은 다시 계산하는 주소이며 수치는 생성 시각 기준입니다.'
@@ -56,6 +57,10 @@ export interface ReceiptInput {
   excluded: readonly ExclusionEntry[]
   /** `analysis.baselineGroups` — an empty `base` means no baseline was set. */
   baselineGroups: { base: readonly string[], target: readonly string[] }
+  /** `analysis.siteDeltaReady` — false when the included measurements do not
+   *  share a physical layout, so a chip index is not one site across them.
+   *  Absent means comparable (a single measurement has nothing to pair). */
+  siteDeltaReady?: boolean
   anomalyCfg: MethodConfig
   radialModel: SharedRadialModel
   tsBaseline: TsBaseline
@@ -107,6 +112,8 @@ export interface ReviewReceipt {
     deltaSites: [number, number, number][]
     /** Sites only one of the two groups measured. */
     unpaired: number
+    /** False when the layouts disagree: no per-site delta is recorded. */
+    siteDeltaReady: boolean
   }) | null
   flaggedSites: ReceiptFlaggedSite[]
   toolSkew: ToolSkewResult
@@ -125,9 +132,12 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
   const { parameter, unit, anomalyCfg: cfg } = input
   const d = input.generatedAt
 
-  // The focus file stands in where the set batch is not loaded (single scope).
+  // The focus file stands in where there is no set batch — single scope ONLY.
+  // In set scope the screen computes over the set files alone (a focus the
+  // 30-member cap dropped is not among them), and the receipt must not record a
+  // comparison the screen could not show.
   const files = new Map(input.setFiles)
-  if (input.focusFile && !files.has(input.focusFile.msr)) files.set(input.focusFile.msr, input.focusFile)
+  if (input.scope === 'single' && input.focusFile) files.set(input.focusFile.msr, input.focusFile)
 
   const excluded = new Map(input.excluded.map(e => [e.msr, e.reasons]))
   const base = new Set(input.baselineGroups.base)
@@ -172,8 +182,11 @@ export const buildReviewReceipt = (input: ReceiptInput): ReviewReceipt => {
   if (hasBaseline) {
     const { base: baseIds, target } = input.baselineGroups
     const result = baselineComparison(files, baseIds, target, parameter, unit)
-    const delta = baselineDeltaMap(files, baseIds, target, parameter)
-    baseline = { ...result, sentence: baselineSentence(result), deltaSites: delta.points, unpaired: delta.unpaired }
+    const siteDeltaReady = input.siteDeltaReady ?? true
+    const delta = siteDeltaReady
+      ? baselineDeltaMap(files, baseIds, target, parameter)
+      : { points: [], unpaired: 0 }
+    baseline = { ...result, sentence: baselineSentence(result), deltaSites: delta.points, unpaired: delta.unpaired, siteDeltaReady }
   }
 
   // Only the measurements that took part: a 제외 member's features must not
@@ -294,7 +307,9 @@ export const receiptSheets = (r: ReviewReceipt): WorkbookSheet[] => {
               ['대상 − 기준', '', '', num(c.shift), '', '', num(c.rangeDelta), ''],
               ['기준 3σ 대비 평균 이동(배)', num(c.shiftInBaseSigma)],
               ['3σ 배율(대상/기준)', num(c.threeSigmaRatio)],
-              ['한쪽 그룹만 측정한 site', b.unpaired]
+              b.siteDeltaReady
+                ? ['한쪽 그룹만 측정한 site', b.unpaired]
+                : ['site별 비교', '세트의 wafer 배치가 서로 달라 site 단위로 비교하지 않았습니다']
             ]
           : [['평가 불가', b.reason ?? '']])
       ]
@@ -353,5 +368,13 @@ export const receiptReady = (s: {
   setResolved: number
   setLoaded: number
   setPending: boolean
+  /** The last set batch failed — the files on hand are the previous set's. */
+  setError: boolean
+  /** The set key the loaded files were fetched for / the screen is asking about. */
+  loadedKey: string
+  wantedKey: string
 }): boolean =>
-  s.focusLoaded && (s.scope === 'single' || (!s.setPending && s.setResolved > 0 && s.setLoaded >= s.setResolved))
+  s.focusLoaded && (s.scope === 'single' || (
+    !s.setError && s.setResolved > 0
+    && isSetPoolComplete({ pending: s.setPending, loadedKey: s.loadedKey, wantedKey: s.wantedKey, loaded: s.setLoaded, expected: s.setResolved })
+  ))

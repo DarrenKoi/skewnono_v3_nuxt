@@ -368,11 +368,58 @@ test('receiptFilename: focus msr and the generation date, safe for a file system
 })
 
 test('receiptReady: a set receipt waits for the whole set, which the 측정 개요 view never loads', () => {
-  const set = { scope: 'set' as const, focusLoaded: true, setResolved: 3, setLoaded: 3, setPending: false }
+  const set = {
+    scope: 'set' as const, focusLoaded: true, setResolved: 3, setLoaded: 3, setPending: false,
+    setError: false, loadedKey: 'A|B|C', wantedKey: 'A|B|C'
+  }
   assert.equal(receiptReady(set), true)
   assert.equal(receiptReady({ ...set, setLoaded: 0 }), false)
   assert.equal(receiptReady({ ...set, setPending: true }), false)
   assert.equal(receiptReady({ ...set, focusLoaded: false }), false)
-  assert.equal(receiptReady({ ...set, scope: 'single', setResolved: 0, setLoaded: 0 }), true)
+  assert.equal(receiptReady({ ...set, scope: 'single', setResolved: 0, setLoaded: 0, loadedKey: '', wantedKey: '' }), true)
   assert.equal(receiptReady({ ...set, scope: 'single', focusLoaded: false }), false)
+})
+
+// Codex review 2026-10-09 #2: a failed batch keeps the PREVIOUS set's files, so
+// the count alone matches while the files belong to another set.
+test('receiptReady: files left over from the previous set do not make the new one ready', () => {
+  const stale = {
+    scope: 'set' as const, focusLoaded: true, setResolved: 2, setLoaded: 2, setPending: false,
+    setError: true, loadedKey: 'A|B', wantedKey: 'C|D'
+  }
+  assert.equal(receiptReady(stale), false)
+  assert.equal(receiptReady({ ...stale, setError: false }), false)
+  assert.equal(receiptReady({ ...stale, loadedKey: 'C|D' }), false)
+})
+
+// Codex review 2026-10-09 #3: the screen compares over the set files only, so a
+// focus the 30-member cap left out of them must not enter the receipt's baseline.
+test('a set receipt does not add the focus file to a baseline the screen could not compute', () => {
+  const r = buildReviewReceipt(input({
+    selection: { msr: 'F', lot: 'LOTF', recipe: 'RCP_A', eq: 'EQF', capturedAt: '2026-10-03 09:00' },
+    msrList: ['F', 'T'],
+    focusFile: file('F', values(10, 12)),
+    setFiles: files({ T: values(20, 22) }),
+    baselineGroups: { base: ['F'], target: ['T'] }
+  }))
+  assert.equal(r.baseline?.comparison, null)
+  assert.equal(r.members.find(m => m.msr === 'F')?.role, '제외')
+})
+
+test('a single-scope receipt still reads the focus file, which is all it has', () => {
+  const r = buildReviewReceipt(input({
+    scope: 'single', msrList: ['M1'], setFiles: new Map(), baselineGroups: { base: [], target: ['M1'] }
+  }))
+  assert.equal(r.members[0]?.role, '포함')
+})
+
+// Codex review 2026-10-09 #1: chip indices only name the same physical site when
+// the layouts agree; without that the per-site delta pairs unrelated sites.
+test('the per-site delta is left out when the set cannot be compared site by site', () => {
+  const split = { base: ['M1'], target: ['M2'] }
+  assert.equal(buildReviewReceipt(input({ baselineGroups: split })).baseline?.deltaSites.length, 2)
+  const r = buildReviewReceipt(input({ baselineGroups: split, siteDeltaReady: false }))
+  assert.deepEqual(r.baseline?.deltaSites, [])
+  assert.equal(r.baseline?.siteDeltaReady, false)
+  assert.ok(r.baseline?.comparison, 'the level comparison does not need a shared layout')
 })

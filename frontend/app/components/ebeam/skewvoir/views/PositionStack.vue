@@ -56,11 +56,17 @@
         <EbeamSkewvoirPanelFrame
           v-if="hasBaseline"
           title="기준 대비 Δ"
-          :meta="`대상 − 기준 · ${delta.points.length} sites${delta.unpaired ? ` · 한쪽만 측정 ${delta.unpaired}` : ''}`"
+          :meta="analysis.siteDeltaReady.value ? `대상 − 기준 · ${delta.points.length} sites${delta.unpaired ? ` · 한쪽만 측정 ${delta.unpaired}` : ''}` : '대상 − 기준 · 비교 불가'"
           icon="i-lucide-diff"
         >
+          <div
+            v-if="!analysis.siteDeltaReady.value"
+            class="flex h-72 items-center justify-center px-4 text-center sk-body"
+          >
+            세트의 wafer 배치가 서로 달라 같은 chip 번호가 같은 위치를 뜻하지 않습니다. site 단위 Δ 는 그리지 않습니다.
+          </div>
           <EbeamSkewvoirWaferHeatChart
-            v-if="delta.points.length"
+            v-else-if="delta.points.length"
             :points="delta.points"
             :unit="analysis.activeUnit.value"
             label="Δ"
