@@ -131,6 +131,12 @@
         <EbeamSkewvoirFactorAcrossMsrSummary :result="acrossMsr" />
 
         <EbeamSkewvoirDemoDataNote v-if="hasFdcAxis(acrossMsr)" />
+        <!-- The quality scores share the same mock scalar as CD, so the same
+             warning applies whenever one of those axes is on the chart. -->
+        <EbeamSkewvoirDemoDataNote
+          v-if="hasQualityAxis(acrossMsr)"
+          quality
+        />
 
         <EbeamSkewvoirPanelFrame
           title="Across-MSR Outcome"
@@ -155,7 +161,7 @@ import { analyzeSpatial } from '~/utils/skewvoirAnalysis/spatial'
 import { isNamedParam } from '~/utils/skewvoirAnalysis/paramOrder'
 import { buildCdCdRelationship, buildCdFdcRelationship } from '~/utils/skewvoirAnalysis/relationships'
 import type { AcrossMsrIdentity } from '~/utils/skewvoirAnalysis/acrossMsr'
-import { acrossMsrAxes, buildAcrossMsrOutcome, hasFdcAxis } from '~/utils/skewvoirAnalysis/acrossMsr'
+import { acrossMsrAxes, acrossMsrAxisItems, buildAcrossMsrOutcome, hasFdcAxis, hasQualityAxis } from '~/utils/skewvoirAnalysis/acrossMsr'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -177,7 +183,7 @@ const fdcUnitOf = (name: string) =>
 // shared feature table rather than recomputed. `analysis.featureRegistry` is the
 // column dictionary; acrossMsrAxes flattens it into plottable columns.
 const axes = computed(() => acrossMsrAxes(props.analysis.featureRegistry.value))
-const axisItems = computed(() => axes.value.map(a => ({ label: a.label, value: a.id })))
+const axisItems = computed(() => acrossMsrAxisItems(axes.value))
 
 const axisXId = ref('')
 const axisYId = ref('')

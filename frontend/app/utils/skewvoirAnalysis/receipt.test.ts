@@ -200,7 +200,7 @@ test('a baseline that leaves nothing comparable still reports why, instead of dr
 const derived = (value: number) => ({ value, unit: 'nm', n: 3, missing: 0, transform: '', reference: '', version: '' })
 const feature = (msr: string, level: number, spatial: number | null): MsrFeatureRow => ({
   msr, parameter: 'CD_TOP', level: derived(level), spread: derived(1), coverage: derived(1), failure: derived(0),
-  spatial: spatial == null ? null : derived(spatial), fixedFdc: {}, dynamicFdc: {}
+  spatial: spatial == null ? null : derived(spatial), fixedFdc: {}, dynamicFdc: {}, quality: {}
 })
 const def = (id: 'level' | 'spatial', label: string, unit: string): ReceiptInput['featureRegistry'][number] =>
   ({ id, label, unit, grain: 'msr', source: '', aggregation: '', family: id })

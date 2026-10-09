@@ -27,11 +27,21 @@
 // `source.health` or `source.spm_dict`, and features.test.ts asserts neither
 // name ever appears in a FeatureDefinition or on a feature row.
 //
+// DISPLAY-ONLY family `quality` (2026-10-09): the tool's own quality scores, the
+// alignment offset and the time one point took. They are here so an engineer can
+// LOOK at them beside CD; they are never judged. The research note excluded
+// vendor scores from the judgement path
+// (docs/issues/skewvoir/wafer-analysis-method-research.md §2, P0) because their
+// meaning and calibration are unconfirmed, so nothing here thresholds them, and
+// `qualityFeatures` takes neither the coverage counts nor the anomaly config —
+// it cannot see a verdict. features.test.ts ("quality axes are display-only")
+// pins both halves.
+//
 // Runs under raw `node --test` (no Nuxt, no bundler) — every sibling import
 // carries an explicit `.ts` extension.
-import type { MsrFileRow, MsrParamSummary, FdcParamSummary, ExeDetailInfo } from '~/composables/useMsrFileApi'
+import type { MsrFileRow, MsrParamSummary, FdcParamSummary, ExeDetailInfo, AlignmentInfo } from '~/composables/useMsrFileApi'
 import { measuredRows, paramValues } from '../msrRows.ts'
-import { mean, sampleStd, linearFit } from '../stats.ts'
+import { mean, median, sampleStd, linearFit } from '../stats.ts'
 import { overviewSites, type ParamCoverage } from '../overview.ts'
 import { DEFAULT_METHOD_CONFIG, type MethodConfig } from '../anomaly/types.ts'
 import { parseWaferGeometry, siteRadiusMm } from '../waferGeometry.ts'
@@ -51,6 +61,7 @@ export type FeatureFamily
     | 'spatial'
     | 'fixed_fdc'
     | 'dynamic_fdc'
+    | 'quality'
 
 // This table is exclusively MSR-grain: dynamic FDC's sequence grain is
 // reduced away before a value ever reaches a feature (see module doc above).
@@ -105,6 +116,15 @@ export interface MsrFeatureRow {
   spatial: DerivedValue<number> | null
   fixedFdc: Record<string, DerivedValue<number>>
   dynamicFdc: Record<string, DerivedValue<DynamicFdcSummary>>
+  /** Display-only measurement-quality / execution signals, keyed by the axis id
+   *  minus its `quality.` prefix. A key is ABSENT when this MSR has no figure. */
+  quality: Record<string, DerivedValue<number>>
+}
+
+/** The one meas_hist fact a feature row needs — structural, so a
+ *  `Map<msr, MeasHistRow>` passes as-is. */
+export interface FeatureHistInput {
+  meastime: number
 }
 
 // ── Input shape ──────────────────────────────────────────────────────────
@@ -120,6 +140,9 @@ export interface FeatureSource {
   dynamic_fdc: Record<string, Record<string, number>>
   fdc_params: FdcParamSummary[]
   exe_detail_info: ExeDetailInfo
+  // Optional: a response can predate the field, and then there is simply no
+  // alignment-offset figure.
+  alignment?: Pick<AlignmentInfo, 'offset'>
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -268,6 +291,86 @@ const dynamicFdcFeatures = (source: FeatureSource): Record<string, DerivedValue<
   return out
 }
 
+// ── Display-only: measurement quality / execution ───────────────────────
+
+const SCORE_FIELDS = ['measurement_score', 'addressing1_score', 'addressing2_score'] as const
+
+// '' and ' ' parse to 0 under Number(), which would draw a blank offset as a
+// perfect one.
+const strictNumber = (text: string | undefined): number | null => {
+  if (text == null || text.trim() === '') return null
+  const n = Number(text)
+  return Number.isFinite(n) ? n : null
+}
+
+const alignmentKeys = (source: FeatureSource): string[] => Object.keys(source.alignment?.offset ?? {})
+
+const qualityFeatures = (
+  source: FeatureSource,
+  parameter: string,
+  hist: FeatureHistInput | undefined
+): Record<string, DerivedValue<number>> => {
+  const out: Record<string, DerivedValue<number>> = {}
+  const rows = source.rows.filter(r => r.parameter === parameter)
+
+  // Median over EVERY row of the active parameter that carries a score —
+  // deliberately not `measuredRows`: a failed measurement's score is the one an
+  // engineer most wants to see, so the cd_value gate must not drop it. Rows with
+  // no score are counted in `missing`.
+  // OFFICE-VERIFY: the score scale and direction are not stated in
+  // docs/datatables/hitachi/msr_file_pickle.txt (examples only: "165", "868",
+  // "None"), so the unit stays '' and nothing ranks a score as good or bad.
+  for (const field of SCORE_FIELDS) {
+    const values = rows.map(r => r[field]).filter(isFinite)
+    if (!values.length) continue
+    out[field] = {
+      value: median(values),
+      unit: '',
+      n: values.length,
+      missing: rows.length - values.length,
+      transform: `median of ${field} over the active parameter's rows that carry a score (failed rows included)`,
+      reference: field,
+      version: FEATURE_VERSION
+    }
+  }
+
+  // One figure PER alignment point: points differ in method (OM / SEM), so
+  // folding them into one number would mix stages nobody said are comparable.
+  // OFFICE-VERIFY: the offset unit is not stated in the schema of record, and
+  // whether elements 1 and 2 are x and y is taken from the example
+  // `["OM", "365", "3525", ..]` alone.
+  for (const [key, entry] of Object.entries(source.alignment?.offset ?? {})) {
+    const x = strictNumber(entry[1])
+    const y = strictNumber(entry[2])
+    if (x == null || y == null) continue
+    out[`alignment_offset.${key}`] = {
+      value: Math.hypot(x, y),
+      unit: '',
+      n: 1,
+      missing: 0,
+      transform: 'hypot of the two offset components (elements 1 and 2 of the entry)',
+      reference: `alignment.offset.${key}`,
+      version: FEATURE_VERSION
+    }
+  }
+
+  // meastime is seconds and is 0 when the document carries none
+  // (docs/datatables/hitachi/meas_hist.txt), so 0 means "no figure", not "instant".
+  const sequences = new Set(source.rows.map(r => r.sequence)).size
+  if (hist && hist.meastime > 0 && sequences > 0) {
+    out.sec_per_point = {
+      value: hist.meastime / sequences,
+      unit: 's',
+      n: sequences,
+      missing: 0,
+      transform: 'meas_hist meastime / distinct sequences in the MSR',
+      reference: 'meastime, sequence',
+      version: FEATURE_VERSION
+    }
+  }
+  return out
+}
+
 // ── Public API ───────────────────────────────────────────────────────────
 
 /** One MsrFeatureRow per source, for the active parameter. Sources are
@@ -276,7 +379,8 @@ const dynamicFdcFeatures = (source: FeatureSource): Record<string, DerivedValue<
 export const featureRows = (
   sources: FeatureSource[],
   parameter: string,
-  config: MethodConfig = DEFAULT_METHOD_CONFIG
+  config: MethodConfig = DEFAULT_METHOD_CONFIG,
+  hist: ReadonlyMap<string, FeatureHistInput> = new Map()
 ): MsrFeatureRow[] => {
   const seen = new Set<string>()
   const out: MsrFeatureRow[] = []
@@ -294,7 +398,8 @@ export const featureRows = (
       failure: failureFeature(ov.coverage),
       spatial: spatialFeature(source, parameter),
       fixedFdc: fixedFdcFeatures(source),
-      dynamicFdc: dynamicFdcFeatures(source)
+      dynamicFdc: dynamicFdcFeatures(source),
+      quality: qualityFeatures(source, parameter, hist.get(source.msr))
     })
   }
   return out
@@ -345,6 +450,16 @@ export const featureRegistry = (
       aggregation: 'sequence-grain mean/std/range/OLS-slope reduced to one MSR-level entry',
       family: 'dynamic_fdc'
     })
+  }
+
+  // Display-only quality / execution axes — last, so they never become a
+  // default axis. Units: only `s` is stated by the schema of record.
+  for (const field of SCORE_FIELDS) {
+    defs.push({ id: `quality.${field}`, label: `${field} 중앙값`, unit: '', grain: 'msr', source: field, aggregation: 'median over the active parameter rows that carry a score (failed rows included)', family: 'quality' })
+  }
+  defs.push({ id: 'quality.sec_per_point', label: '측정점당 소요 시간', unit: 's', grain: 'msr', source: 'meastime,sequence', aggregation: 'meastime / distinct sequences', family: 'quality' })
+  for (const key of new Set(sources.flatMap(alignmentKeys))) {
+    defs.push({ id: `quality.alignment_offset.${key}`, label: `alignment offset ${key} 크기`, unit: '', grain: 'msr', source: `alignment.offset.${key}`, aggregation: 'hypot of the two offset components', family: 'quality' })
   }
 
   return defs

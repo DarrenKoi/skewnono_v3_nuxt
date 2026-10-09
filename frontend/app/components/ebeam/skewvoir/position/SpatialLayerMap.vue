@@ -6,7 +6,7 @@
     body-class="flex flex-col gap-2"
   >
     <template #actions>
-      <!-- Layer switcher: raw / median-centered / residual / failure. -->
+      <!-- Layer switcher: raw / median-centered / residual / failure / score. -->
       <div class="inline-flex items-center gap-0.5 rounded-(--sk-r-chip) bg-(--sk-chip-bg) p-0.5">
         <button
           v-for="opt in layerOptions"
@@ -17,7 +17,7 @@
             ? 'bg-(--sk-surface) text-(--sk-ink) shadow-sm'
             : 'text-(--sk-ink-muted) hover:text-(--sk-ink)'"
           :disabled="opt.disabled"
-          :title="opt.disabled ? '좌표/추세 부족' : opt.label"
+          :title="opt.disabled ? opt.why : opt.hint"
           @click="layer = opt.key"
         >
           {{ opt.label }}
@@ -65,7 +65,16 @@
           :min="range.min"
           :max="range.max"
           :unit="activeLayerUnit"
+          :colors="layerColors"
         />
+        <!-- The score is shown as stored: its scale and direction are not
+             confirmed, so the layer says so instead of implying good/bad. -->
+        <p
+          v-if="layer === 'score'"
+          class="text-center text-xs text-(--sk-ink-muted)"
+        >
+          measurement_score 원본 값입니다. 척도와 방향이 확인되지 않아 판정에 쓰지 않습니다.
+        </p>
         <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-xs text-(--sk-ink-muted)">
           <span class="inline-flex items-center gap-1"><span class="text-(--sk-bad)">✕</span>측정 실패</span>
           <span
@@ -80,9 +89,9 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import type { SpatialResult, SpatialLayerKey } from '~/utils/skewvoirAnalysis/spatial'
+import type { SpatialResult, SpatialLayerKey, SpatialScorePoint } from '~/utils/skewvoirAnalysis/spatial'
 import type { WaferGeometry } from '~/utils/waferGeometry'
-import { SK_SCALE, SK_STATE } from '~/utils/chartPalette'
+import { SK_SCALE, SK_SEQ, SK_STATE } from '~/utils/chartPalette'
 import { nearestPoint } from '~/utils/chartNearest'
 
 const props = defineProps<{
@@ -90,6 +99,9 @@ const props = defineProps<{
   geo: WaferGeometry
   focusedSite: string | null
   unit: string
+  /** Display-only measurement_score sites (spatialScorePoints) — kept apart
+   *  from `spatial` so no score can reach the diagnosis. */
+  scorePoints: SpatialScorePoint[]
 }>()
 const emit = defineEmits<{ focus: [chip: string] }>()
 
@@ -99,25 +111,38 @@ type Layer = SpatialLayerKey
 const layer = ref<Layer>('raw')
 const scanPath = ref(false)
 
-const layerOptions = computed<{ key: Layer, label: string, disabled: boolean }[]>(() => [
-  { key: 'raw', label: 'Raw', disabled: false },
-  { key: 'centered', label: 'Centered', disabled: false },
-  { key: 'residual', label: 'Residual', disabled: props.spatial.readiness.radialTrend !== 'ok' },
-  { key: 'failure', label: 'Failure', disabled: props.spatial.failures.length === 0 }
+const SHORT = '좌표/추세 부족'
+const layerOptions = computed<{ key: Layer, label: string, hint: string, why: string, disabled: boolean }[]>(() => [
+  { key: 'raw', label: 'Raw', hint: 'Raw', why: SHORT, disabled: false },
+  { key: 'centered', label: 'Centered', hint: 'Centered', why: SHORT, disabled: false },
+  { key: 'residual', label: 'Residual', hint: 'Residual', why: SHORT, disabled: props.spatial.readiness.radialTrend !== 'ok' },
+  { key: 'failure', label: 'Failure', hint: 'Failure', why: SHORT, disabled: props.spatial.failures.length === 0 },
+  { key: 'score', label: 'Score', hint: 'measurement_score (표시 전용)', why: 'measurement_score 값이 없습니다', disabled: props.scorePoints.length === 0 }
 ])
+
+// `score` is a quantity with no centre and no known direction: sequential ramp,
+// data range, no unit. Everything else keeps the heat ramp.
+const isScore = computed(() => layer.value === 'score')
+const layerColors = computed(() => (isScore.value ? [...SK_SEQ] : [...SK_SCALE]))
+const LAYER_LABEL: Record<Layer, string> = {
+  raw: 'raw', centered: '중앙값 대비', residual: '추세 잔차', failure: '측정 실패', score: 'measurement_score'
+}
 
 // Reset to raw if the active layer becomes unavailable (e.g. parameter change
 // drops the radial trend).
-watch(() => props.spatial, () => {
+watch([() => props.spatial, () => props.scorePoints], () => {
   const active = layerOptions.value.find(o => o.key === layer.value)
   if (active?.disabled) layer.value = 'raw'
 })
 
-const activeLayerUnit = computed(() => (layer.value === 'raw' ? props.unit : props.unit))
+const activeLayerUnit = computed(() => (isScore.value ? '' : props.unit))
 
 // Placed measured sites (posMm present) carrying the active layer's value.
 interface LayerPoint { chip: string, seq: number, x: number, y: number, value: number, sector: string | null }
 const points = computed<LayerPoint[]>(() => {
+  if (isScore.value) {
+    return props.scorePoints.map(p => ({ chip: p.chip, seq: p.sequence, x: p.x, y: p.y, value: p.value, sector: p.sector }))
+  }
   const out: LayerPoint[] = []
   for (const s of props.spatial.sites) {
     if (!s.posMm) continue
@@ -137,11 +162,12 @@ const failurePoints = computed(() =>
   props.spatial.failures.flatMap(f => (f.posMm ? [{ name: f.chip, value: [f.posMm[0], f.posMm[1]] }] : []))
 )
 
-// Symmetric range for diverging layers (centered / residual); data range for raw.
+// Symmetric range for diverging layers (centered / residual); data range for
+// raw and score.
 const range = computed(() => {
   const vals = points.value.map(p => p.value)
   if (vals.length === 0) return { min: -1, max: 1 }
-  if (layer.value === 'raw') {
+  if (layer.value === 'raw' || isScore.value) {
     const min = Math.min(...vals)
     const max = Math.max(...vals)
     return min === max ? { min: min - 0.5, max: max + 0.5 } : { min, max }
@@ -171,15 +197,14 @@ const waferOutline = computed<[number, number][]>(() => {
 })
 
 const meta = computed(() => {
-  const label = layer.value === 'centered' ? '중앙값 대비' : layer.value === 'residual' ? '추세 잔차' : layer.value === 'failure' ? '측정 실패' : 'raw'
-  return `${label} · ${points.value.length} sites`
+  return `${LAYER_LABEL[layer.value]} · ${points.value.length} sites`
 })
 
 // Screen-reader text alternative for the wafer scatter canvas: active layer,
 // site count, and the value range the color scale is currently mapped to —
 // the same numbers the color bar next to the chart shows.
 const ariaLabel = computed(() => {
-  const layerLabel = layer.value === 'centered' ? '중앙값 대비' : layer.value === 'residual' ? '추세 잔차' : layer.value === 'failure' ? '측정 실패' : 'raw'
+  const layerLabel = LAYER_LABEL[layer.value]
   const u = activeLayerUnit.value
   const r = range.value
   return `공간 레이어 맵: ${layerLabel} 레이어, ${points.value.length}개 측정 지점, 범위 ${r.min.toFixed(2)} ~ ${r.max.toFixed(2)}${u ? ` ${u}` : ''}`
@@ -194,7 +219,9 @@ const option = computed<EChartsOption>(() => ({
       if (!hit) return `chip ${p.name}`
       return [
         `chip ${hit.chip}${hit.sector ? ` · ${hit.sector}` : ''} · seq ${hit.seq}`,
-        `${layer.value}: <b>${hit.value.toFixed(3)}</b> ${activeLayerUnit.value}`
+        isScore.value
+          ? `measurement_score: <b>${hit.value}</b>`
+          : `${layer.value}: <b>${hit.value.toFixed(3)}</b> ${activeLayerUnit.value}`
       ].join('<br/>')
     }
   },
@@ -207,7 +234,7 @@ const option = computed<EChartsOption>(() => ({
     max: range.value.max,
     dimension: 2,
     seriesIndex: 0,
-    inRange: { color: [...SK_SCALE] }
+    inRange: { color: layerColors.value }
   },
   series: [
     {
@@ -229,6 +256,7 @@ const option = computed<EChartsOption>(() => ({
             formatter: (params) => {
               const v = (params.value as number[])[2]
               if (v == null) return ''
+              if (isScore.value) return String(v)
               return layer.value === 'raw' ? v.toFixed(1) : `${v > 0 ? '+' : ''}${v.toFixed(2)}`
             }
           },

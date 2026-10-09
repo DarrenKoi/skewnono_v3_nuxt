@@ -9,6 +9,11 @@ import {
   type DerivedValue
 } from './features.ts'
 import type { MsrFileRow, MsrParamSummary, FdcParamSummary, ExeDetailInfo } from '~/composables/useMsrFileApi'
+import { readFileSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { overviewSites } from '../overview.ts'
+import { DEFAULT_METHOD_CONFIG } from '../anomaly/types.ts'
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -246,4 +251,136 @@ test('health and spm_dict never appear as fields on a feature row', () => {
   const keys = Object.keys(row1!)
   assert.ok(!keys.includes('health'))
   assert.ok(!keys.includes('spm_dict'))
+})
+
+// ---------------------------------------------------------------------------
+// Measurement-quality / execution signals — DISPLAY-ONLY axes (2026-10-09)
+// ---------------------------------------------------------------------------
+
+// Scores chosen so every median is readable by hand. The FAILED row (seq 4)
+// carries a measurement_score on purpose: a failed measurement's score is the
+// interesting one, so it must be counted, not dropped with the cd_value gate.
+const qualitySource = (): FeatureSource => ({
+  ...sourceM1(),
+  rows: [
+    row({ sequence: 1, cd_value: 100, measurement_score: 100, addressing1_score: 868, addressing2_score: null }),
+    row({ sequence: 2, cd_value: 105, measurement_score: 200, addressing1_score: null, addressing2_score: null }),
+    row({ sequence: 3, cd_value: 110, measurement_score: 400, addressing1_score: 870, addressing2_score: null }),
+    row({ sequence: 4, cd_value: null, mp_number: -1, measurement_score: 900, addressing1_score: null, addressing2_score: null }),
+    // Another parameter's row never enters the active parameter's median.
+    row({ sequence: 1, parameter: 'CD_BOT', measurement_score: 5, addressing1_score: 5 })
+  ],
+  alignment: {
+    offset: {
+      1: ['OM', '3', '4'],
+      2: ['SEM', 'abc', '5'],
+      3: ['SEM', '', '7']
+    }
+  }
+})
+
+test('score axes are the median over the active parameter rows that carry a score, failed rows included', () => {
+  const [r] = featureRows([qualitySource()], 'CD_TOP')
+  const ms = r!.quality.measurement_score!
+  assert.equal(ms.value, 300) // median of 100, 200, 400, 900 (the 900 is the failed row)
+  assert.equal(ms.n, 4)
+  assert.equal(ms.missing, 0)
+  assert.equal(ms.unit, '')
+
+  const a1 = r!.quality.addressing1_score!
+  assert.equal(a1.value, 869) // median of 868, 870
+  assert.equal(a1.n, 2)
+  assert.equal(a1.missing, 2)
+})
+
+test('a score nobody recorded yields no figure, never a zero', () => {
+  const [r] = featureRows([qualitySource()], 'CD_TOP')
+  assert.equal(r!.quality.addressing2_score, undefined)
+})
+
+test('alignment offset magnitude exists only where both components are numeric', () => {
+  const [r] = featureRows([qualitySource()], 'CD_TOP')
+  assert.equal(r!.quality['alignment_offset.1']!.value, 5) // hypot(3, 4)
+  assert.equal(r!.quality['alignment_offset.1']!.unit, '')
+  assert.equal(r!.quality['alignment_offset.2'], undefined) // 'abc'
+  assert.equal(r!.quality['alignment_offset.3'], undefined) // '' must not parse as 0
+})
+
+test('seconds per point is meastime over the distinct sequences, and absent when either is missing or zero', () => {
+  const hist = (meastime: number) => new Map([['M1', { meastime }]])
+  const [r] = featureRows([qualitySource()], 'CD_TOP', undefined, hist(120))
+  assert.equal(r!.quality.sec_per_point!.value, 30) // 120 s / 4 sequences
+  assert.equal(r!.quality.sec_per_point!.unit, 's')
+
+  assert.equal(featureRows([qualitySource()], 'CD_TOP', undefined, hist(0))[0]!.quality.sec_per_point, undefined)
+  assert.equal(featureRows([qualitySource()], 'CD_TOP')[0]!.quality.sec_per_point, undefined)
+  const noRows = { ...qualitySource(), rows: [] }
+  assert.equal(featureRows([noRows], 'CD_TOP', undefined, hist(120))[0]!.quality.sec_per_point, undefined)
+})
+
+test('featureRegistry lists the quality axes last, unitless where the schema states no unit', () => {
+  const defs = featureRegistry([qualitySource()], 'CD_TOP')
+  const quality = defs.filter(d => d.family === 'quality')
+  assert.deepEqual(quality.map(d => [d.id, d.label, d.unit]), [
+    ['quality.measurement_score', 'measurement_score 중앙값', ''],
+    ['quality.addressing1_score', 'addressing1_score 중앙값', ''],
+    ['quality.addressing2_score', 'addressing2_score 중앙값', ''],
+    ['quality.sec_per_point', '측정점당 소요 시간', 's'],
+    ['quality.alignment_offset.1', 'alignment offset 1 크기', ''],
+    ['quality.alignment_offset.2', 'alignment offset 2 크기', ''],
+    ['quality.alignment_offset.3', 'alignment offset 3 크기', '']
+  ])
+  assert.deepEqual(defs.slice(-7), quality)
+  for (const d of Object.values(featureRows([qualitySource()], 'CD_TOP')[0]!.quality)) assertDerivedValue(d)
+})
+
+// The research note excluded vendor scores from the JUDGEMENT path
+// (docs/issues/skewvoir/wafer-analysis-method-research.md §2, P0). Two proofs:
+// the judgement functions return the same answer whatever the scores say, and
+// no judgement module so much as names one of these fields.
+test('quality axes are display-only: no verdict moves with a score, and no judgement module reads one', () => {
+  const rescored = (score: number | null): FeatureSource => ({
+    ...qualitySource(),
+    rows: qualitySource().rows.map(r => ({
+      ...r, measurement_score: score, addressing1_score: score, addressing2_score: score
+    }))
+  })
+  for (const score of [1, 999999, null]) {
+    assert.deepEqual(
+      overviewSites(rescored(score).rows, 'CD_TOP'),
+      overviewSites(qualitySource().rows, 'CD_TOP')
+    )
+    const { quality: _q, ...judged } = featureRows([rescored(score)], 'CD_TOP')[0]!
+    const { quality: _q0, ...baseline } = featureRows([qualitySource()], 'CD_TOP')[0]!
+    assert.deepEqual(judged, baseline)
+  }
+
+  // The anomaly thresholds reach featureRows only for the coverage counts;
+  // tightening them to the floor must leave every quality figure untouched.
+  const strict = {
+    ...DEFAULT_METHOD_CONFIG,
+    range: { watchPct: 0.0001, abnormalPct: 0.0002, minAbsCenter: 1e-6 },
+    stddev: { watchK: 0.0001, abnormalK: 0.0002 }
+  }
+  assert.deepEqual(
+    featureRows([qualitySource()], 'CD_TOP', strict)[0]!.quality,
+    featureRows([qualitySource()], 'CD_TOP')[0]!.quality
+  )
+
+  const here = dirname(fileURLToPath(import.meta.url))
+  const judgement = [
+    ...readdirSync(join(here, '../anomaly')).filter(f => f.endsWith('.ts') && !f.endsWith('.test.ts')).map(f => join(here, '../anomaly', f)),
+    join(here, 'verdict.ts'),
+    join(here, 'timeSeries.ts'),
+    join(here, 'baselineCompare.ts'),
+    join(here, '../overview.ts')
+  ]
+  assert.ok(judgement.length > 4)
+  for (const file of judgement) {
+    assert.doesNotMatch(
+      readFileSync(file, 'utf8'),
+      /measurement_score|addressing[12]_score|meastime|sec_per_point|alignment_offset|\.quality\b|features\.ts/,
+      file
+    )
+  }
 })

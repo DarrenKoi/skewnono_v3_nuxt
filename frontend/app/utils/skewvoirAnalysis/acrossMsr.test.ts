@@ -2,7 +2,7 @@
 // Pure-logic tests — run: cd frontend && node --test app/utils/skewvoirAnalysis/acrossMsr.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { acrossMsrAxes, acrossMsrAxisValue, buildAcrossMsrOutcome, hasFdcAxis, pooledFitLine } from './acrossMsr.ts'
+import { acrossMsrAxes, acrossMsrAxisItems, acrossMsrAxisValue, buildAcrossMsrOutcome, hasFdcAxis, hasQualityAxis, pooledFitLine, QUALITY_GROUP_LABEL } from './acrossMsr.ts'
 import type { FeatureDefinition, MsrFeatureRow, DerivedValue, DynamicFdcSummary } from './features.ts'
 
 // ---------------------------------------------------------------------------
@@ -81,6 +81,7 @@ const featureRow = (over: Partial<MsrFeatureRow> = {}): MsrFeatureRow => ({
   spatial: derived(10),
   fixedFdc: { Vacc: derived(500, { unit: 'V' }) },
   dynamicFdc: { StigmaX: dynDerived({ mean: 0.12, std: 0.02, range: 0.04, slope: 0.01 }) },
+  quality: { 'measurement_score': derived(300, { unit: '' }), 'alignment_offset.1': derived(5, { unit: '' }) },
   ...over
 })
 
@@ -306,4 +307,36 @@ test('either axis being FDC makes it an FDC pairing', () => {
 test('an unset axis cannot make a pairing an FDC one', () => {
   assert.equal(hasFdcAxis({ x: null, y: null }), false)
   assert.equal(hasFdcAxis({ x: AX_FIXED, y: null }), true)
+})
+
+// ---------------------------------------------------------------------------
+// Display-only quality / execution axes
+// ---------------------------------------------------------------------------
+
+const AX_SCORE = { id: 'quality.measurement_score', label: 'measurement_score 중앙값', unit: '', family: 'quality' as const }
+
+test('a quality axis reads the row figure by id, and is null when this MSR has none', () => {
+  assert.equal(acrossMsrAxisValue(featureRow(), 'quality.measurement_score')?.value, 300)
+  assert.equal(acrossMsrAxisValue(featureRow(), 'quality.alignment_offset.1')?.value, 5)
+  assert.equal(acrossMsrAxisValue(featureRow(), 'quality.sec_per_point'), null)
+})
+
+test('either axis being a quality signal marks the pairing, and FDC stays a separate question', () => {
+  assert.equal(hasQualityAxis({ x: AX_SCORE, y: AX_LEVEL }), true)
+  assert.equal(hasQualityAxis({ x: AX_LEVEL, y: AX_SCORE }), true)
+  assert.equal(hasQualityAxis({ x: AX_LEVEL, y: AX_FIXED }), false)
+  assert.equal(hasQualityAxis({ x: null, y: null }), false)
+  assert.equal(hasFdcAxis({ x: AX_SCORE, y: AX_LEVEL }), false)
+})
+
+test('the axis menu puts quality axes under their own group label, after everything else', () => {
+  assert.equal(QUALITY_GROUP_LABEL, '측정 품질·실행 신호 (표시 전용)')
+  assert.deepEqual(acrossMsrAxisItems([AX_SCORE, AX_LEVEL, AX_FIXED]), [
+    { label: 'CD_TOP 평균', value: 'level' },
+    { label: 'Vacc', value: 'fixed_fdc.Vacc' },
+    { type: 'label', label: '측정 품질·실행 신호 (표시 전용)' },
+    { label: 'measurement_score 중앙값', value: 'quality.measurement_score' }
+  ])
+  // No quality axis, no orphan heading.
+  assert.deepEqual(acrossMsrAxisItems([AX_LEVEL]), [{ label: 'CD_TOP 평균', value: 'level' }])
 })

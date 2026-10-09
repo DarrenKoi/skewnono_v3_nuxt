@@ -4,7 +4,7 @@
 // Run: cd frontend && node --test app/utils/chartPalette.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SK_SCALE, SK_STATE, buildChartPalette } from './chartPalette.ts'
+import { SK_SCALE, SK_SEQ, SK_STATE, buildChartPalette } from './chartPalette.ts'
 
 const MATLAB = ['#0072BD', '#D95319', '#EDB120'] as const
 const LIGHT = { ink: '#262626', surface: '#ffffff' }
@@ -80,4 +80,10 @@ test('an empty palette still yields usable color rather than undefined', () => {
 test('scale and state are fixed and carry no theme input', () => {
   assert.deepEqual([...SK_SCALE], ['#5C86AE', '#9BB6CD', '#E4D9C4', '#DB9A6B', '#C75A3C'])
   assert.deepEqual(SK_STATE, { ok: '#3E8E5E', warn: '#C98A2E', bad: '#C4453B' })
+})
+
+test('the sequential ramp is the cool half of the heat ramp: no warm stop, no status tone', () => {
+  assert.deepEqual([...SK_SEQ], ['#E4D9C4', '#9BB6CD', '#5C86AE'])
+  const loaded: string[] = [SK_SCALE[3], SK_SCALE[4], ...Object.values(SK_STATE)]
+  assert.ok(!SK_SEQ.some(c => loaded.includes(c)))
 })

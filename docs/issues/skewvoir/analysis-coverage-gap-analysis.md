@@ -284,3 +284,53 @@ I-MR/EWMA·Cp/Cpk·tool matching은 승인·동결된 baseline과 spec 계약이
 - capability와 tool matching을 게이트로 닫아둔 것.
 - correlation의 `연관이며 원인 증명이 아님` 고정 표시와 exact pair 원칙.
 - 사용되지 않는 `FdcAnalysis.vue` 계열 레거시 컴포넌트는 향후 정리 대상입니다.
+
+## 9. 측정 품질·실행 신호를 표시 전용 축으로 추가 (2026-10-09)
+
+API 응답에 이미 들어 있었지만 화면이 버리던 신호를 CD 옆에서 볼 수 있게 했습니다.
+CD가 움직였을 때 측정 자체가 나빠진 것인지 웨이퍼가 바뀐 것인지를 엔지니어가 직접
+보도록 돕는 것이 목적이며, 화면이 대신 판정하지 않습니다.
+
+### 9.1 표시 전용 규칙
+
+- 이 축들은 판정 경로에 들어가지 않습니다. `utils/anomaly/*`, `verdict.ts`,
+  `overview.ts`, `timeSeries.ts`, `baselineCompare.ts` 는 이 필드를 읽지 않으며,
+  임계값과 주의·이상 색도 없습니다. `features.test.ts` 의
+  `quality axes are display-only` 테스트가 이를 고정합니다.
+- 위치 레이어의 score는 `analyzeSpatial` 결과에 들어가지 않고
+  `spatialScorePoints` 가 따로 만듭니다. 따라서 근거 칩과 readiness는 score를 볼
+  수 없습니다.
+- 집의 mock은 score와 CD를 같은 `health` 값에서 만듭니다. 그래서 상관 화면에서
+  이 축을 고르면 `데모 데이터` 안내가 함께 나옵니다.
+
+### 9.2 추가한 축 (set scope · 상관 · 검토 영수증 `MSR별 지표`)
+
+축 선택 목록에서 `측정 품질·실행 신호 (표시 전용)` 묶음 아래에 나옵니다.
+
+| 축 | 정의 | 값이 없는 경우 | 표시 단위 |
+| --- | --- | --- | --- |
+| `measurement_score 중앙값` | 활성 파라미터의 row 중 score가 있는 row의 중앙값입니다. 측정 실패 row도 포함합니다. | score가 있는 row가 없으면 값을 내지 않습니다. | 없음 |
+| `addressing1_score 중앙값` | 위와 같습니다. | 위와 같습니다. | 없음 |
+| `addressing2_score 중앙값` | 위와 같습니다. | 위와 같습니다. | 없음 |
+| `alignment offset N 크기` | alignment 지점 N의 offset 두 성분으로 구한 크기입니다. 지점마다 축이 하나입니다. | 두 성분 중 하나라도 숫자가 아니면 값을 내지 않습니다. | 없음 |
+| `측정점당 소요 시간` | meas_hist `meastime` 을 MSR의 서로 다른 sequence 수로 나눈 값입니다. | `meastime` 이 0이거나 없을 때, sequence가 없을 때 값을 내지 않습니다. | s |
+
+### 9.3 위치 레이어 (single scope)
+
+Spatial Layer Map에 `Score` 레이어를 추가했습니다. 각 site를 `measurement_score`
+원본 값으로 칠하며, 색은 `SK_SCALE` 의 차가운 절반인 순차 램프 `SK_SEQ` 입니다.
+범위는 데이터의 최솟값과 최댓값이고, 측정 실패 site는 score가 있으면 색을 칠한 위에
+✕ 표시를 그대로 둡니다.
+
+### 9.4 만들지 않은 것
+
+Time-Series lane은 만들지 않았습니다. 추이 차트는 판정이 붙은 `TrendPoint` 한
+계열만 받으며, 판정 집계를 거치지 않는 보조 계열이나 lane을 받는 구조가 없습니다.
+
+### 9.5 OFFICE-VERIFY
+
+- score의 척도와 방향입니다. 스키마 문서에는 예시 값만 있어서 화면은 원본 필드
+  이름만 쓰고 단위와 좋고 나쁨을 표시하지 않습니다.
+- alignment offset의 단위와, 배열의 둘째·셋째 요소가 x·y인지 여부입니다.
+- failed row에 score가 실제로 남는지 여부입니다. mock은 failed row의
+  `measurement_score` 를 비워 둡니다.

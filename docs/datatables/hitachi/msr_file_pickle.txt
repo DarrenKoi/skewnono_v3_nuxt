@@ -192,6 +192,11 @@ columns : value (examples)
 "addressing1_score": "None", "868"
 "addressing2_score": "None", "646"
 "measurement_score": "165", "None"
+                    OFFICE-VERIFY (2026-10-09): 위 세 score 의 척도(상한)와 방향
+                    (클수록 좋은지)은 확인되지 않았습니다. 예시 값만 있습니다.
+                    failed row(cd_value 없음)에 score 가 남는지도 미확인입니다.
+                    스큐보아는 이 값을 표시 전용 축으로만 쓰고(판정·임계값 없음),
+                    화면에는 필드 이름만 쓰며 단위를 붙이지 않습니다.
 "meas_method": "Score", "Width", "Edge"
 "object": "MP", "Space", "Line"
 "meas_kind": "None, "Multi Point",..
@@ -241,6 +246,10 @@ columns : value (examples)
 "image_file" : dict ("1":image file name, "2": image file name 2,..)
 "offset" : dict ("1": ["OM", "365", "3525",..], "2": ["SEM", "3535", "3535"])
 "score" : dict ("1": "896", "2": "899",.., )
+OFFICE-VERIFY (2026-10-09): offset 의 단위와, 배열의 둘째·셋째 요소가 x·y 인지는
+확인되지 않았습니다 (예시에서 추정). 넷째 이후 요소("..")의 의미도 미확인입니다.
+스큐보아는 둘째·셋째 요소가 모두 숫자일 때만 크기(hypot)를 표시 전용 축으로
+보여 주며 단위를 붙이지 않습니다. alignment score 의 척도도 미확인입니다.
 =====
 
 "fixed_fdc": dict (unlike dynamic_fdc below, this tell the fdc for the tool condition before starting

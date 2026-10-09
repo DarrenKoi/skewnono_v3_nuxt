@@ -763,7 +763,8 @@ export const useSkewvoirAnalysis = (ws: SkewvoirWorkspace) => {
   })
 
   const featureRows = computed<MsrFeatureRow[]>(() =>
-    computeFeatureRows(featureSources.value, activeParam.value, anomalyCfg.value)
+    // rowByMsr supplies meastime for the display-only 측정점당 소요 시간 axis.
+    computeFeatureRows(featureSources.value, activeParam.value, anomalyCfg.value, rowByMsr.value)
   )
   const featureRegistry = computed<FeatureDefinition[]>(() =>
     computeFeatureRegistry(featureSources.value, activeParam.value)

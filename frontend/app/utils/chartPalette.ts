@@ -21,6 +21,11 @@
 /** 5-stop diverging ramp, cool → paper → warm. Wafer heat, histograms, any low→high scale. */
 export const SK_SCALE = ['#5C86AE', '#9BB6CD', '#E4D9C4', '#DB9A6B', '#C75A3C'] as const
 
+/** 3-stop SEQUENTIAL ramp, paper → cool: the cool half of SK_SCALE. For a
+ *  quantity with no known centre and no good/bad direction — it has no warm
+ *  stop, so no end of it can read as 주의/이상. */
+export const SK_SEQ = [SK_SCALE[2], SK_SCALE[1], SK_SCALE[0]] as const
+
 /** Semantic states — outliers, spec limits, severity. Never theme-driven. */
 export const SK_STATE = {
   ok: '#3E8E5E',

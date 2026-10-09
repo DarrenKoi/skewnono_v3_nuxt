@@ -33,7 +33,7 @@ export type SpatialReadiness = 'ok' | 'unavailable'
 
 /** The four map layers a caller can colour by. `failure` is a separate site list,
  * not a numeric layer, but shares the switcher. */
-export type SpatialLayerKey = 'raw' | 'centered' | 'residual' | 'failure'
+export type SpatialLayerKey = 'raw' | 'centered' | 'residual' | 'failure' | 'score'
 
 /** Wafer notch orientation. Phase-1 MsrFile metadata does NOT carry a notch
  * field, so the module falls back to a validated default (bottom) that matches
@@ -449,4 +449,54 @@ const buildEvidence = (input: EvidenceInput): SpatialEvidenceStrip => {
     largestLocalResidual: largestResidual,
     coverage: coverageEvidence
   }
+}
+
+// ── measurement_score layer (display-only) ──────────────────────────────────
+
+export interface SpatialScorePoint {
+  chip: string
+  sequence: number
+  x: number // mm from wafer centre
+  y: number
+  sector: string | null
+  value: number // measurement_score, verbatim
+  failed: boolean
+}
+
+/**
+ * The sites of the `score` layer: every row of the active parameter that can be
+ * placed and carries a `measurement_score` — FAILED rows too, flagged, since a
+ * failed measurement's score is the one worth seeing.
+ *
+ * Deliberately NOT part of `analyzeSpatial`: the vendor score is excluded from
+ * the judgement path (docs/issues/skewvoir/wafer-analysis-method-research.md),
+ * and a value that never enters SpatialResult cannot reach the evidence chips,
+ * the readiness flags or cdu.ts.
+ * OFFICE-VERIFY: the score's scale and direction are unconfirmed — the layer
+ * shows the number as stored, with no unit and no good/bad reading.
+ */
+export const spatialScorePoints = (
+  rows: MsrFileRow[],
+  parameter: string,
+  geo: WaferGeometry,
+  notch: NotchOrientation = 'bottom'
+): SpatialScorePoint[] => {
+  const out: SpatialScorePoint[] = []
+  for (const r of rows) {
+    if (r.parameter !== parameter) continue
+    const value = r.measurement_score
+    if (value == null || !Number.isFinite(value)) continue
+    const pos = stagePosMm(r.stage_coordinate, geo)
+    if (!pos) continue
+    out.push({
+      chip: r.chip_number,
+      sequence: r.sequence,
+      x: pos[0],
+      y: pos[1],
+      sector: sectorOf(pos[0], pos[1], notch),
+      value,
+      failed: !isMeasuredRow(r)
+    })
+  }
+  return out
 }

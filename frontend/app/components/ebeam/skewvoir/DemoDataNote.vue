@@ -3,10 +3,18 @@
     v-if="isMock"
     class="rounded-(--sk-r-chip) bg-(--sk-warn-soft) px-3 py-2 text-(--sk-warn) sk-meta"
   >
-    <span class="font-semibold">데모 데이터</span> — 이 화면의 CD와 FDC는 mock
-    생성기에서 같은 값 하나를 바탕으로 만들어집니다. 그래서 여기 보이는 CD↔FDC
-    상관은 장비에서 관찰된 신호가 아니라 생성기가 만든 것입니다. 방법을
-    확인하는 데는 쓸 수 있어도, 판정 근거로는 쓸 수 없습니다.
+    <span class="font-semibold">데모 데이터</span> —
+    <template v-if="quality">
+      측정 품질·실행 신호(score, alignment offset, 소요 시간)는 mock 생성기가 만든
+      값이고, 그중 score는 CD와 같은 값 하나를 바탕으로 만들어집니다. 그래서 여기
+      보이는 CD와의 관계는 장비에서 관찰된 신호가 아니라 생성기가 만든 것입니다.
+    </template>
+    <template v-else>
+      이 화면의 CD와 FDC는 mock 생성기에서 같은 값 하나를 바탕으로 만들어집니다.
+      그래서 여기 보이는 CD↔FDC 상관은 장비에서 관찰된 신호가 아니라 생성기가 만든
+      것입니다.
+    </template>
+    방법을 확인하는 데는 쓸 수 있어도, 판정 근거로는 쓸 수 없습니다.
   </p>
 </template>
 
@@ -26,5 +34,12 @@
 // Silent when the data is real: useDataMode defaults to not-mock while the
 // answer is unknown, so a slow or missing answer leaves the screen unmarked
 // rather than libelling an office measurement as a demo.
+//
+// `quality` swaps in the wording for the display-only quality / execution axes:
+// the vendor scores are drawn from that same `health` scalar
+// (backend/msr_file/providers/mock.py), while the alignment offset and meastime
+// are independent draws — fabricated all the same, hence one note for the family.
+defineProps<{ quality?: boolean }>()
+
 const { isMock } = useDataMode('msr_file')
 </script>

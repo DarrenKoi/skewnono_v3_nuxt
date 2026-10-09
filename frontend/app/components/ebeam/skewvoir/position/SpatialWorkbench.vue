@@ -67,6 +67,7 @@
           :geo="analysis.waferGeo.value"
           :focused-site="analysis.focusedSite.value"
           :unit="analysis.activeUnit.value"
+          :score-points="scorePoints"
           @focus="onFocus"
         />
         <div class="grid grid-cols-1 gap-3">
@@ -187,7 +188,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isMeasuredRow } from '~/utils/msrRows'
-import { analyzeSpatial, type SpatialEvidence } from '~/utils/skewvoirAnalysis/spatial'
+import { analyzeSpatial, spatialScorePoints, type SpatialEvidence } from '~/utils/skewvoirAnalysis/spatial'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -206,6 +207,16 @@ const spatial = computed(() =>
     props.analysis.activeParam.value,
     props.analysis.waferGeo.value,
     { unit: props.analysis.activeUnit.value, model: props.analysis.radialModel.value }
+  )
+)
+
+// Display-only measurement_score layer. Built beside the diagnosis, never inside
+// it, so the evidence chips below cannot read a score.
+const scorePoints = computed(() =>
+  spatialScorePoints(
+    props.analysis.siteRows.value,
+    props.analysis.activeParam.value,
+    props.analysis.waferGeo.value
   )
 )
 

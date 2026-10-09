@@ -3,7 +3,7 @@
 // Run: cd frontend && node --test app/utils/skewvoirAnalysis/spatial.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { analyzeSpatial } from './spatial.ts'
+import { analyzeSpatial, spatialScorePoints } from './spatial.ts'
 import { parseWaferGeometry } from '../waferGeometry.ts'
 import type { MsrFileRow, ExeDetailInfo } from '~/composables/useMsrFileApi'
 
@@ -168,4 +168,45 @@ test('failure sites carry the same notch-anchored sector the measured sites do',
   const r = analyzeSpatial(rows, 'CD_TOP', geo())
   assert.equal(r.failures.find(f => f.sequence === 2)!.sector, 'S')
   assert.equal(r.failures.find(f => f.sequence === 3)!.sector, null, 'an unplaceable failure has no sector')
+})
+
+// ---------------------------------------------------------------------------
+// measurement_score layer — display-only (2026-10-09)
+// ---------------------------------------------------------------------------
+
+// Three measured sites on the x axis plus one failed site that still carries a
+// score; site 2 has no score at all.
+const scoreRows = (scores: (number | null)[]): MsrFileRow[] => [
+  row({ sequence: 1, chip_number: '0, 0', stage_coordinate: '150000000,150000000', cd_value: 100, measurement_score: scores[0]! }),
+  row({ sequence: 2, chip_number: '1, 0', stage_coordinate: '160000000,150000000', cd_value: 105, measurement_score: scores[1]! }),
+  row({ sequence: 3, chip_number: '2, 0', stage_coordinate: '170000000,150000000', cd_value: 110, measurement_score: scores[2]! }),
+  row({ sequence: 4, chip_number: '3, 0', stage_coordinate: '180000000,150000000', cd_value: null, mp_number: -1, measurement_score: scores[3]! })
+]
+
+test('score layer points carry measurement_score for placed sites, failed ones included and flagged', () => {
+  assert.deepEqual(
+    spatialScorePoints(scoreRows([165, null, 900, 40]), 'CD_TOP', geo()).map(p => [p.chip, p.sequence, p.value, p.failed, p.x, p.y]),
+    [
+      ['0, 0', 1, 165, false, 0, 0],
+      ['2, 0', 3, 900, false, 20, 0],
+      ['3, 0', 4, 40, true, 30, 0]
+    ]
+  )
+})
+
+test('an unplaceable site and another parameter have no score point', () => {
+  const rows = [
+    row({ sequence: 1, stage_coordinate: 'garbage', measurement_score: 165 }),
+    row({ sequence: 2, parameter: 'CD_BOT', measurement_score: 165 })
+  ]
+  assert.deepEqual(spatialScorePoints(rows, 'CD_TOP', geo()), [])
+})
+
+// The layer is built from the rows by its own function, so the diagnosis the
+// evidence chips and readiness come from cannot see a score at all.
+test('the spatial diagnosis is identical whatever the scores say', () => {
+  assert.deepEqual(
+    analyzeSpatial(scoreRows([1, 1, 1, 1]), 'CD_TOP', geo()),
+    analyzeSpatial(scoreRows([999999, null, 5, null]), 'CD_TOP', geo())
+  )
 })

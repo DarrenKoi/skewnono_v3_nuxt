@@ -101,6 +101,8 @@ export const acrossMsrAxisValue = (
     return finite({ ...summary, value: summary.value[stat] })
   }
 
+  if (axisId.startsWith('quality.')) return finite(row.quality[axisId.slice('quality.'.length)])
+
   return null
 }
 
@@ -256,3 +258,31 @@ export const hasFdcAxis = (pair: {
   y: Pick<AcrossMsrAxis, 'family'> | null
 }): boolean =>
   [pair.x, pair.y].some(a => a?.family === 'fixed_fdc' || a?.family === 'dynamic_fdc')
+
+/** Does this pairing involve a display-only quality / execution axis?
+ *
+ *  The mock draws the vendor scores from the same per-MSR `health` scalar that
+ *  moves CD, so a score↔CD relation seen at home is the generator's; the
+ *  `데모 데이터` marker hangs off this the way it hangs off `hasFdcAxis`. */
+export const hasQualityAxis = (pair: {
+  x: Pick<AcrossMsrAxis, 'family'> | null
+  y: Pick<AcrossMsrAxis, 'family'> | null
+}): boolean => [pair.x, pair.y].some(a => a?.family === 'quality')
+
+export const QUALITY_GROUP_LABEL = '측정 품질·실행 신호 (표시 전용)'
+
+export type AcrossMsrAxisItem
+  = | { label: string, value: string }
+    | { type: 'label', label: string }
+
+/** The X/Y menu: quality axes last, under a heading that says what they are —
+ *  signals to look at, not figures the workspace judges. */
+export const acrossMsrAxisItems = (axes: readonly AcrossMsrAxis[]): AcrossMsrAxisItem[] => {
+  const item = (a: AcrossMsrAxis) => ({ label: a.label, value: a.id })
+  const quality = axes.filter(a => a.family === 'quality')
+  return [
+    ...axes.filter(a => a.family !== 'quality').map(item),
+    ...(quality.length ? [{ type: 'label' as const, label: QUALITY_GROUP_LABEL }] : []),
+    ...quality.map(item)
+  ]
+}
