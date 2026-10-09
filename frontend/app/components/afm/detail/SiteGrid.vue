@@ -4,8 +4,10 @@
     title="Site 인덱스 격자"
     :count="grid.cells.length || undefined"
   >
+    <!-- Shown whenever there is a block to switch to: a first block without
+         Site X/Y must not hide the way to one that has them. -->
     <template
-      v-if="grid.cells.length"
+      v-if="grid.cells.length || blockItems.length > 1"
       #actions
     >
       <div class="flex flex-wrap items-center gap-2.5">
@@ -18,6 +20,7 @@
           aria-label="블록"
         />
         <USelect
+          v-if="grid.cells.length"
           v-model="column"
           :items="columns"
           size="xs"
@@ -31,7 +34,7 @@
       v-if="!grid.cells.length"
       class="flex h-24 items-center justify-center sk-body"
     >
-      이 측정의 행에는 Site X · Site Y 가 없어 격자를 그릴 수 없습니다.
+      {{ blockItems.length > 1 ? '이 블록' : '이 측정' }}의 행에는 Site X · Site Y 가 없어 격자를 그릴 수 없습니다.
     </p>
     <template v-else>
       <div

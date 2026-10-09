@@ -77,10 +77,20 @@ const columns = computed(() => relationColumns(props.entries, props.block))
 const xItems = computed(() => [...columns.value.measured, ...columns.value.usage])
 const x = ref('')
 const y = ref('')
-watch([columns, () => props.column], () => {
+// Y follows the page's 측정 항목 only when THAT changes. The column list is
+// rebuilt on every group or baseline change, and resetting Y then would throw
+// away a pick that is still valid — so a list change replaces Y only when the
+// pick is gone.
+const pageY = () => {
   const { measured } = columns.value
-  y.value = measured.includes(props.column) ? props.column : measured[0] ?? ''
+  return measured.includes(props.column) ? props.column : measured[0] ?? ''
+}
+watch(() => props.column, () => {
+  y.value = pageY()
 }, { immediate: true })
+watch(columns, ({ measured }) => {
+  if (!measured.includes(y.value)) y.value = pageY()
+})
 // X starts on another column than Y; a pick that still exists is kept.
 watch([xItems, y], () => {
   if (!xItems.value.includes(x.value)) x.value = xItems.value.find(c => c !== y.value) ?? ''
