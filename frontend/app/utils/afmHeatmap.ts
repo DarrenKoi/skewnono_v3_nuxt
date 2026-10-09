@@ -123,5 +123,7 @@ export const profileGrid = (points: AfmProfilePoint[]): ProfileGrid | null => {
 const UNIT_SYMBOL: Record<string, string> = {
   um: 'μm', micrometer: 'μm', nanometer: 'nm', picometer: 'pm'
 }
+// One unit under either spelling; not a conversion.
+export const unitSymbol = (unit: string): string => UNIT_SYMBOL[unit.toLowerCase()] ?? unit
 export const axisTitle = (axis: string, unit?: string | null): string =>
-  unit ? `${axis} (${UNIT_SYMBOL[unit.toLowerCase()] ?? unit})` : axis
+  unit ? `${axis} (${unitSymbol(unit)})` : axis

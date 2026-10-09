@@ -59,7 +59,7 @@
         variant="soft"
         icon="i-lucide-triangle-alert"
         :title="`recipe ${recipes.length}종이 섞인 그룹입니다.`"
-        :description="`${recipes.join(', ')} — 같은 이름의 측정 항목이 recipe마다 같은 측정량이라는 보장이 없습니다. 추세는 recipe별 시리즈와 기준 범위로 나누고, 포인트 비교와 항목 간 관계는 선택한 측정의 recipe만 보이며, 변동 분해와 그룹 행은 내지 않습니다.`"
+        :description="`${recipes.join(', ')} — 같은 이름의 측정 항목이 recipe마다 같은 측정량이라는 보장이 없습니다. 추세는 recipe별 시리즈와 기준 범위로 나누고, 포인트 비교와 항목 간 관계, 프로파일 겹쳐 보기는 선택한 측정의 recipe만 보이며, 변동 분해와 그룹 행은 내지 않습니다.`"
       />
 
       <!-- 분석 조건: block × column × statistic, read by every card below. -->
@@ -230,6 +230,20 @@
         :export-name="`${toolId}-relation`"
         @select="select"
       />
+
+      <AfmTrendSection
+        num="07"
+        title="1D 프로파일 겹쳐 보기"
+        hint="한 포인트의 라인 프로파일을 그룹의 측정끼리 실제 축척으로 겹칩니다. 같은 recipe, 같은 포인트, 1D, 같은 단위인 것만 함께 그리고 나머지는 이유와 함께 적습니다. 단위 변환, X 정렬, 보간은 하지 않으며, step height나 거칠기를 다시 계산하지 않습니다."
+      />
+      <AfmTrendProfileOverlay
+        :tool="toolName"
+        :entries="relationEntries"
+        :recipe="pointRecipe"
+        :selected="selected"
+        :no-profile="noProfile"
+        :export-name="`${toolId}-profile-overlay`"
+      />
     </template>
   </div>
 </template>
@@ -333,6 +347,8 @@ const pointRecipe = computed(() => mixed.value ? rows.value.find(row => row.entr
 const pointRows = computed(() => pointRecipe.value ? rows.value.filter(row => row.entry.recipe === pointRecipe.value) : rows.value)
 // 측정 항목 간 관계 follows 02: one recipe's rows, never a pooled relation.
 const relationEntries = computed(() => pointRows.value.map(row => row.entry))
+// 1D 프로파일 겹쳐 보기 never asks for a profile the list says does not exist.
+const noProfile = computed(() => new Set(groupedItems.value.filter(item => item.hasProfile === false).map(item => item.filename)))
 const repeatKeys = computed(() => new Set(pairs.value.flatMap(pair => pair.keys)))
 const health = computed(() => healthSeries(entries.value))
 const durations = computed(() => durationRows(entries.value))
