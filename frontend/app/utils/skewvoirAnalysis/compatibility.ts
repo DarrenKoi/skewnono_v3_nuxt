@@ -144,6 +144,16 @@ const knownConflict = <T>(a: Maybe<T>, b: Maybe<T>): boolean =>
 const fieldSetConflict = <T>(a: FieldSet<T>, b: FieldSet<T>): boolean =>
   a.state === 'single' && b.state === 'single' && a.value !== b.value
 
+/** What each exclusion code reads as on screen (분석 준비 상태) and in the
+ * 검토 영수증 — one table so the two cannot name the same reason differently. */
+export const EXCLUSION_REASON_LABEL: Record<ExclusionReason, string> = {
+  'recipe-mismatch': '레시피 불일치',
+  'layout-mismatch': '레이아웃 불일치',
+  'unit-mismatch': '단위 불일치',
+  'method-mismatch': '측정 방식 불일치',
+  'metadata-missing': '메타데이터 없음'
+}
+
 /**
  * Reasons a candidate is incompatible with the reference (empty = compatible).
  * The focus/reference is assumed extractable; a candidate that lost its recipe

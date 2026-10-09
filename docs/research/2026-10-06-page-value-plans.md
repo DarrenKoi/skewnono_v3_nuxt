@@ -474,6 +474,39 @@ fail→pass, gray 불변, son 상속 영향), 적용 전후 `judgeSons` 가 같�
 
 ### S8. 스큐보아 검토 영수증 (S/M, S7 뒤)
 
+> 2026-10-09 구현했습니다. 아래는 당시 계획 그대로이며, 달라진 점은 다음
+> 여섯 가지입니다.
+>
+> - 판정 문장과 `outlierShare` 는 넣지 않았습니다. `measurementVerdict` 는
+>   "정상 / 확인 필요" 배지를 함께 내는 판정이고 입력을 `VerdictBlock.vue` 가
+>   조립합니다. 영수증은 차이와 표본 수만 적으므로, 설정한 기준으로 센
+>   주의·이상 site 수와 그 목록(`overviewSites`)만 담습니다. 목록은 focus 만이
+>   아니라 포함된 측정 전부를 적습니다.
+> - `afmExport.ts` 의 `buildCombinedSheets` 는 쓰지 않았습니다.
+>   `receiptSheets` 가 `WorkbookSheet[]` 를 직접 만들고 `downloadWorkbook` 에
+>   넘깁니다. 내보내기 유틸은 고치지 않았습니다.
+> - 세트 범위에서는 세트 파일을 모두 불러온 화면에서만 버튼이 켜집니다
+>   (`receiptReady`). 측정 개요는 세트 파일을 불러오지 않으므로
+>   (`shouldLoadSet`) 거기서 받으면 focus 외의 측정이 모두 "불러오지 못함"으로
+>   적히기 때문입니다. 단일 측정 범위에서는 모든 화면에서 켜집니다.
+> - 분석 URL 은 단축 링크가 아니라 전체 주소를 적습니다. 전체 주소는 무엇을
+>   보고 있었는지를 스스로 담고 있고, 단축 링크는 서버 저장소가 살아 있어야
+>   풀립니다.
+> - 제외 사유의 한글 이름은 `compatibility.ts` 의 `EXCLUSION_REASON_LABEL`
+>   로 옮겨 분석 준비 상태 모달과 영수증이 같은 표를 읽습니다.
+> - 계획에 없던 시트를 더했습니다. 내보낼 방법이 없던 표 가운데 계산이 이미
+>   컴포저블이나 export 된 순수 함수에 있는 것만 데이터가 있을 때 시트가
+>   됩니다. `장비 skew`(`analysis.toolSkew`), `MSR별 지표`(`featureRows` 를
+>   `acrossMsrAxes` 축으로 펼친 것), `기준 대비 site`(`baselineDeltaMap`)입니다.
+>   세 가지는 뺐습니다. 세트 간 상관계수는 X·Y 축 선택이 `Correlation.vue`
+>   안에만 있고, 위치 비교의 site 별 합성 평균·σ 는 `PositionStack.vue` 안에서
+>   계산하며, 반경 fit 지표(RMSE 등)는 표본을 `RadiusPlot.vue` 가 만듭니다.
+>   컴포넌트의 계산을 복사해 오지 않는다는 규칙에 따라 그 수치들은 순수
+>   함수로 옮긴 뒤에 더합니다.
+>
+> 시트는 `요약`, `세트`, 기준을 지정했을 때 `기준 대비` 와 `기준 대비 site`,
+> 데이터가 있을 때 `장비 skew`, `MSR별 지표`, `주의·이상·실패 site` 입니다.
+
 **질문.** 이 결론과 근거를 어떻게 남기는가.
 
 **지금 코드.**

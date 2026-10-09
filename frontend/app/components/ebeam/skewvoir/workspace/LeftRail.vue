@@ -287,10 +287,44 @@
           :icon="action.icon"
           :label="action.label"
           :disabled="action.disabled"
+          :title="action.title"
           @click="action.onClick()"
         />
       </div>
     </section>
+
+    <!-- S8 검토 영수증. The memo is session-only: it rides into the file and is
+         stored nowhere. -->
+    <UModal
+      v-model:open="receiptOpen"
+      title="검토 영수증"
+      description="지금 화면의 비교 대상·설정·수치를 Excel 파일로 남깁니다."
+    >
+      <template #body>
+        <div class="flex flex-col gap-3">
+          <UFormField label="메모">
+            <UTextarea
+              v-model="receiptMemo"
+              placeholder="이 검토에서 본 것을 적어 두세요 (선택 · 저장되지 않고 파일에만 들어갑니다)"
+              :rows="4"
+              class="w-full"
+            />
+          </UFormField>
+          <p class="sk-meta">
+            {{ RECEIPT_CAUTION }}
+          </p>
+          <div class="flex justify-end">
+            <UButton
+              color="primary"
+              icon="i-lucide-download"
+              label="내려받기"
+              :loading="receiptBusy"
+              @click="downloadReceipt"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </aside>
 </template>
 
@@ -301,6 +335,8 @@ import { copyTextToClipboard, downloadBlob, filenameFromDisposition } from '~/ut
 import { formatRecipeTimestamp, recipeDetailId, recipeDetailRoute } from '~/utils/recipeView'
 import { TREND_LIMIT, isSetCompatibilityKnown, rendersFocusAlone } from '~/utils/skewvoirAnalysis/curatedSet'
 import { formatSelectionSummary } from '~/utils/skewvoirAnalysis/summary'
+import { RECEIPT_CAUTION, buildReviewReceipt, receiptFilename, receiptReady, receiptSheets } from '~/utils/skewvoirAnalysis/receipt'
+import { downloadWorkbook } from '~/utils/xlsx'
 
 const props = defineProps<{ ws: SkewvoirWorkspace, analysis: SkewvoirAnalysis }>()
 
@@ -562,10 +598,75 @@ const downloadArtifact = async (kind: 'raw' | 'pkl') => {
   }
 }
 
-// Excel export lives on the data table, not here. Annotation (per-MSR triage
-// notes) is tracked in .scratch/skewvoir-annotation/ — no UI until it works.
-const actions = computed(() => [
+// S8 검토 영수증 — the numbers on screen as a file, because the link stops
+// reproducing once the pickles age out. receipt.ts owns what goes in it; this
+// only hands over the state and reports a failed write.
+const receiptOpen = ref(false)
+const receiptMemo = ref('')
+const receiptBusy = ref(false)
+
+const receiptOk = computed(() => receiptReady({
+  scope: props.analysis.scope.value,
+  focusLoaded: !!props.analysis.focusFile.value,
+  setResolved: props.analysis.setRows.value.length,
+  setLoaded: props.analysis.setFiles.value.size,
+  setPending: props.analysis.setPending.value
+}))
+
+const downloadReceipt = async () => {
+  const sel = props.ws.selection.value
+  if (!sel || receiptBusy.value) return
+  const a = props.analysis
+  const receipt = buildReviewReceipt({
+    generatedAt: new Date(),
+    toolLabel: props.ws.toolLabel,
+    scope: a.scope.value,
+    selection: sel,
+    parameter: a.activeParam.value,
+    parameterLabel: a.activeParamLabel.value,
+    unit: a.activeUnit.value,
+    msrList: a.msrList.value,
+    rowByMsr: a.rowByMsr.value,
+    focusFile: a.focusFile.value,
+    setFiles: a.setFiles.value,
+    excluded: a.manifest.value.excluded,
+    baselineGroups: a.baselineGroups.value,
+    anomalyCfg: a.anomalyCfg.value,
+    radialModel: a.radialModel.value,
+    tsBaseline: props.ws.tsBaseline.value,
+    toolSkew: a.toolSkew.value,
+    featureRows: a.featureRows.value,
+    featureRegistry: a.featureRegistry.value,
+    shareUrl: props.ws.shareUrl(),
+    memo: receiptMemo.value
+  })
+  receiptBusy.value = true
+  try {
+    await downloadWorkbook(receiptFilename(receipt), receiptSheets(receipt))
+    receiptOpen.value = false
+  } catch {
+    // exceljs is a dynamic import: a redeploy under an open tab 404s the chunk.
+    toast.add({ ...EXCEL_DOWNLOAD_FAILED })
+  } finally {
+    receiptBusy.value = false
+  }
+}
+
+// Per-table Excel export lives on the data table, not here. Annotation (per-MSR
+// triage notes) is tracked in .scratch/skewvoir-annotation/ — no UI until it works.
+const actions = computed<{ label: string, icon: string, disabled: boolean, title?: string, onClick: () => void }[]>(() => [
   { label: '요약 복사', icon: 'i-lucide-clipboard-list', disabled: false, onClick: copySummary },
+  {
+    label: '검토 영수증',
+    icon: 'i-lucide-receipt-text',
+    disabled: !receiptOk.value,
+    title: receiptOk.value
+      ? undefined
+      : (props.analysis.scope.value === 'set'
+          ? '세트 전체를 불러온 화면에서 받을 수 있습니다. 측정 개요는 focus 측정만 불러옵니다.'
+          : '측정을 불러온 뒤 받을 수 있습니다.'),
+    onClick: () => { receiptOpen.value = true }
+  },
   {
     label: focusFab.value ? `Recipe 열어보기 · ${focusFab.value}` : 'Recipe 열어보기',
     icon: 'i-lucide-file-search',

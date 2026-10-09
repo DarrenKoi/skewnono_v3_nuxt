@@ -102,6 +102,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import type { CompatibilityGroup, Readiness } from '~/utils/skewvoirAnalysis/types'
+import { EXCLUSION_REASON_LABEL } from '~/utils/skewvoirAnalysis/compatibility'
 
 const props = defineProps<{
   analysis: SkewvoirAnalysis
@@ -134,11 +135,7 @@ const statusClass = (status: Readiness['status']): string =>
 
 // Human-readable labels for reason codes (exclusion + readiness reasons).
 const REASON_LABELS: Record<string, string> = {
-  'recipe-mismatch': '레시피 불일치',
-  'layout-mismatch': '레이아웃 불일치',
-  'unit-mismatch': '단위 불일치',
-  'method-mismatch': '측정 방식 불일치',
-  'metadata-missing': '메타데이터 없음',
+  ...EXCLUSION_REASON_LABEL,
   'needs-multiple-msrs': '측정 2개 이상 필요',
   'layout-unknown': '레이아웃 정보 없음'
 }
