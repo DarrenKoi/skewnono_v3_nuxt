@@ -84,6 +84,12 @@
           :points="payload.available_points"
           :export-name="`${filename}-summary-scatter`"
         />
+        <AfmDetailSiteGrid
+          v-model:selected-point="selectedPoint"
+          :data="payload.data"
+          :summary="payload.summary"
+          :export-name="`${filename}-site-grid`"
+        />
         <UAlert
           v-if="profileError || imageError"
           color="error"

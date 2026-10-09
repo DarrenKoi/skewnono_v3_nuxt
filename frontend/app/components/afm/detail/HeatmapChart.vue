@@ -1,7 +1,7 @@
 <template>
   <AfmCard
     icon="i-lucide-grid-3x3"
-    :title="isLine ? '라인 프로파일' : '웨이퍼 히트맵'"
+    :title="isLine ? '라인 프로파일' : '포인트 스캔 높이 맵'"
   >
     <template
       v-if="stats.count"
@@ -34,13 +34,13 @@
       v-if="loading"
       variant="inline"
       class="h-72"
-      title="히트맵을 불러오는 중입니다."
+      title="프로파일을 불러오는 중입니다."
     />
     <p
       v-else-if="profile.length === 0"
       class="flex h-72 items-center justify-center sk-body"
     >
-      히트맵 데이터가 없습니다.
+      프로파일 데이터가 없습니다.
     </p>
     <template v-else>
       <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -70,6 +70,8 @@
 </template>
 
 <script setup lang="ts">
+// The scan of ONE point: the height the tip read over that point's own X/Y
+// window. Not a map of the wafer — that layout is detail/SiteGrid.vue.
 import type { EChartsOption } from 'echarts'
 import type { AfmProfileMeta, AfmProfilePoint } from '~/composables/useAfmDetailApi'
 import type { OutlierMethod } from '~/utils/afmHeatmap'

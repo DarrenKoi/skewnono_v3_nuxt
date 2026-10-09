@@ -12,7 +12,7 @@ const USAGE_COLUMNS = ['Mileage', 'Approach Count']
 
 // What the pickers offer for a block: the columns that hold a number in some
 // row of it. Measured columns are the recipe's own, in natural order.
-export const relationColumns = (entries: TrendEntry[], block: string): { measured: string[], usage: string[] } => {
+export const relationColumns = (entries: Pick<TrendEntry, 'rowsByBlock'>[], block: string): { measured: string[], usage: string[] } => {
   const numeric = new Set<string>()
   for (const entry of entries) {
     for (const row of entry.rowsByBlock.get(block) ?? []) {

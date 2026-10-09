@@ -1,4 +1,4 @@
-// Pure heatmap analysis helpers for the AFM wafer heat map. No DOM/Nuxt imports
+// Pure heatmap analysis helpers for one AFM point's scan height map. No DOM/Nuxt imports
 // so they run under `node --test`; HeatmapChart.vue wires them into useEchart.
 import { meanOf, populationStd } from './afmHistogram.ts'
 import { quantileSorted } from './stats.ts'

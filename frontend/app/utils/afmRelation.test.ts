@@ -83,7 +83,6 @@ test('relationSummary gives no statistic under three samples, and no r on a cons
   assert.deepEqual(relationSummary(pairs([1, 2, 3], [5, 5, 5])), { n: 3, r: null })
 })
 
-
 test('relationColumns offers the block\'s numeric measured columns, and the tip-usage columns it has', () => {
   const entries = entriesOf({
     f1: [row('0001', { '10_Min (nm)': 1, '2_Min (nm)': '3', 'Empty (nm)': ' ', 'Mileage': 120, 'Site X': 2 })],
