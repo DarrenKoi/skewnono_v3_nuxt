@@ -19,12 +19,10 @@ DEFAULT_LIMIT = 0
 # equipment-compare 가 한 번에 받는 장비 수 상한.
 #
 # 정의가 여기 있는 이유: 요청 형태에 관한 값이지 응답 계약이 아니고, 이 파서를
-# recipe_tat 과 fail_issue 가 함께 씁니다. recipe-tat spec §4.2 는 홈을
-# `recipe_tat/contracts.py` 로 적었지만 — 소비자가 recipe_tat 하나뿐이던
+# recipe_tat 과 fail_issue 가 함께 씁니다. 처음 설계는 홈을
+# `recipe_tat/contracts.py` 로 잡았지만 — 소비자가 recipe_tat 하나뿐이던
 # 때입니다 — 그대로 하면 공유 plumbing 이 기능 하나의 계약을 임포트하고
-# fail_issue 까지 끌려옵니다. 이 이탈은 구현 계획에 근거와 함께 기록돼
-# 있고(docs/superpowers/plans/2026-08-07-recipe-tat-by-equipment.md 의
-# 이탈 목록), spec §4.2 도 그 결정을 가리킵니다.
+# fail_issue 까지 끌려옵니다.
 #
 # 이름은 프론트엔드 `utils/analyticsLimits.ts` 의 MAX_COMPARE_EQPS 와
 # 맞춥니다. 2026-08-09 이전에는 여기가 `MAX_EQP_IDS` 였습니다: 같은 숫자가 두

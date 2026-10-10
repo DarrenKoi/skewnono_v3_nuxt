@@ -1,8 +1,7 @@
 import { createPageViewTracker, buildPageViewPath, pageViewEndpoint } from '~/utils/pageIdentity'
 import { joinApiPath } from '~/utils/apiPath'
 
-/** Reports page opens for 사용 통계. See
- *  docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md
+/** Reports page opens for 사용 통계.
  *
  *  Fire-and-forget by design: usage telemetry must never block navigation or
  *  surface an error. A dropped beacon costs one row. */

@@ -8,8 +8,6 @@
  *
  * The build is PURE and returns image PLACEMENTS rather than bytes, so the
  * layout is `node --test`-able while the fetching stays in the browser half.
- *
- * Spec: `docs/superpowers/specs/2026-08-02-recipe-param-export-and-api-design.md`
  */
 
 import type { IdpImageInfoRow, IdpLocator, WaferMpInfoRow } from '../composables/useRecipeSearchApi.ts'

@@ -5,7 +5,6 @@ Status: open (드리프트 수정 완료 — 티켓 04 조사만 남음)
 브라우저 확인: 2026-08-15 (device-statistics + measurement-rules, 라이트·다크,
 hover 실측, 콘솔 오류·경고 0건)
 발단: `.scratch/lot-outlier-merge/spec.md` 의 후속 작업 1·3순위
-토론 기록: `docs/opencode/2026-08-15-lot-outlier-merge-duplication-discuss.md`
 
 ## 확인된 것 (2026-08-15)
 

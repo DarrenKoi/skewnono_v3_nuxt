@@ -5,8 +5,7 @@
   실험실 TTTM 페이지를 시작할 수 있는가. 같은 recipe·parameter 를 기준으로 장비가
   얼마나 스큐되어 있는지, 그리고 그 스큐가 **일관된 것인지 랜덤한 것인지**를 말할 수
   있는가.
-- 외부 검토: `docs/opencode/2026-08-16-skew-ml-feasibility-discuss.md`
-  (glm-5.3, 2라운드 반론)
+- 외부 검토: glm-5.3, 2라운드 반론
 
 ## 요약
 

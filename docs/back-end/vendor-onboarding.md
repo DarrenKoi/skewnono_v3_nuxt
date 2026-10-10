@@ -273,4 +273,3 @@ row 를 만들려고 지어낸 코드 모음입니다 — 목록에 없던 **실
 | [`provider-selection.md`](provider-selection.md) | mode × readiness, site 감지, 환경 변수 우선순위 |
 | [`office-data-adapters.md`](office-data-adapters.md) | 어댑터 구현 규칙과 피처별 연결 명세 |
 | [`../datatables/README.md`](../datatables/README.md) | 스키마 문서의 방향 규칙과 출처 표기 |
-| [`2026-08-09-ebeam-vendor-onboarding-design.md`](../superpowers/specs/2026-08-09-ebeam-vendor-onboarding-design.md) | 이 규약의 설계 근거 전문 |

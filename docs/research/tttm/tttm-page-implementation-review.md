@@ -167,8 +167,6 @@ Monitoring)이 페이지 섹션 재편의 뼈대로 자연스럽게 맞습니다
 ## 참고
 
 - 선행 검토(순서·통계 설계): [`docs/research/2026-08-16-skew-tttm-feasibility.md`](../2026-08-16-skew-tttm-feasibility.md)
-- 이 문서의 A-1·A-2 권고를 두고 벌인 외부 모델 논쟁 기록:
-  [`docs/opencode/2026-08-16-tttm-page-start-order-discuss.md`](../../opencode/2026-08-16-tttm-page-start-order-discuss.md)
 - 기법 원본 정리: `cdsem-tttm-evolution-2009-2026.md` (동일 폴더)
 - 2009 원 논문: `docs/research/Methodologies_for_evaluating_CD-matching_of_CD-SEM.pdf`
   (git 에 넣지 않습니다 — SPIE 유료 논문이고 이 저장소는 공개입니다)

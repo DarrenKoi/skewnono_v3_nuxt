@@ -9,8 +9,6 @@ The tiers exist because two very different costs hide behind "parameter info":
 hand, while ``amp``/``af_pr``/``cond`` cost up to five FTP reads per occurrence
 off the measuring tool itself. Serving both from one endpoint would make every
 list-browsing script pay the deep tier's price against a production tool.
-
-Spec: ``docs/superpowers/specs/2026-08-02-recipe-param-export-and-api-design.md``
 """
 
 from __future__ import annotations

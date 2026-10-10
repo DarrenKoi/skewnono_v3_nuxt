@@ -262,8 +262,7 @@ def record_request(
     the only thing it is read for, exactly as the office reader groups on the
     log row's ``path``. A page view on the plain beacon URL has no family.
 
-    Mixing them would silently redefine this_month.requests. See
-    docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md.
+    Mixing them would silently redefine this_month.requests.
     """
 
     if user_id == ANONYMOUS or activity_kind not in {"entry", "feature", "page_view"}:

@@ -8,6 +8,6 @@
 
 **Status:** done (2026-08-09) — ba99784b — 억제 유지, spec §3.2 개정
 
-- [ ] Decision recorded in `docs/superpowers/specs/2026-08-07-recipe-tat-by-equipment-design.md`
+- [ ] Decision recorded in the recipe-tat by-equipment spec
 - [ ] Code and spec agree on what happens to badges when the query scope mixes fabs
 - [ ] If suppression stays: the spec names the mixed-fab rule; if reverted: `isPeerGroupComparable` gating and the tooltip wording come out

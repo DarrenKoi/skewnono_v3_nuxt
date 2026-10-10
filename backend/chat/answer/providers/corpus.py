@@ -7,7 +7,7 @@ delivered package — faiss vectors plus a bm25 store — not a cluster (RAG 측
 its access filter is a Python pass rather than a query clause. The office path is a 2-leg hybrid search —
 Nori BM25 ⊕ BGE-M3 dense k-NN — over-fetching 20-30 candidates and reranking
 them with the ``bge-reranker-v2-m3`` cross-encoder before truncating to five
-rows (see ``docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md``).
+rows.
 This mock has none of that: retrieval here is whole-token set overlap against
 the fixture files, so there is no embedding similarity and no cross-encoder
 rerank — only literal shared tokens. Consequently ``score`` here is a small

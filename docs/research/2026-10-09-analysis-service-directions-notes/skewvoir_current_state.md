@@ -79,7 +79,7 @@ Skewvoir is a two-route tool: a cross-fab measurement search landing, and a six-
 
 ### Gaps
 
-- No usage evidence exists. The planning doc says so directly: "사용 로그도, 엔지니어 인터뷰도 근거에 없습니다" — `docs/research/2026-10-06-page-value-plans.md:27-29`. A per-view beacon was designed (`docs/superpowers/specs/2026-08-04-skewvoir-view-usage-design.md`) but no code for it exists (grep for `skewvoir/view` and `ViewBeacon` in `FE/` and `BE/` is empty). Page-level logging treats all of skewvoir as one identity — `FE/utils/pageIdentity.ts:96`.
+- No usage evidence exists. The planning doc says so directly: "사용 로그도, 엔지니어 인터뷰도 근거에 없습니다" — `docs/research/2026-10-06-page-value-plans.md:27-29`. A per-view beacon was designed in August but no code for it exists (grep for `skewvoir/view` and `ViewBeacon` in `FE/` and `BE/` is empty). Page-level logging treats all of skewvoir as one identity — `FE/utils/pageIdentity.ts:96`.
 - I did not load the pages in a browser, so actual click counts, render times and layout at 1920×1080 are unverified.
 
 ## 2. Which backend features feed it, and what do they expose?
@@ -457,7 +457,7 @@ The intended end state is a workspace that finds spatial evidence in one measure
 
 **Contradictions in the docs**
 
-- The October plan says a per-view beacon "인덱스 변경이 필요하므로 만들지 않습니다" (plans `:53-54`), while the August view-usage spec was designed to need none (`docs/superpowers/specs/2026-08-04-skewvoir-view-usage-design.md:228-233`).
+- The October plan says a per-view beacon "인덱스 변경이 필요하므로 만들지 않습니다" (plans `:53-54`), while the August view-usage spec was designed to need none.
 - The msr-review research retires fixed leave-one-out mean/σ for official use, yet that is the only detector in code (`FE/utils/anomaly/types.ts:41-50`).
 - Vocabulary differs: `CONTEXT.md` prescribes 검토 표시 없음 / 주의 / 검토 필요 / 미평가; code uses 정상 / 주의 / 이상 / 판정 불가.
 - `CONTEXT.md` has no entries for MSR, MP, sequence, focus, set scope or verdict.

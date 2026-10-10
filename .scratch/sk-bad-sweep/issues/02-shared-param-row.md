@@ -29,8 +29,7 @@ Blocked by: 01
 **규칙 (D2):**
 
 **양쪽이 import 해야 공유입니다.** 소비자가 하나뿐인 모듈은 드리프트를 줄이지
-못하는 간접층입니다 — `oc-discuss` 에서 이미 확인된 결론이므로
-(`docs/opencode/2026-08-15-lot-outlier-merge-duplication-discuss.md`),
+못하는 간접층입니다 — `oc-discuss` 에서 이미 확인된 결론이므로,
 `DrillSlideover` 를 건드리지 않고 끝내는 형태는 이 티켓의 답이 아닙니다.
 
 **갈라진 두 곳을 합칠 때 어느 쪽으로 맞추는가:**

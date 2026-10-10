@@ -241,9 +241,7 @@ figure 제공 (디스크 2026-08-19, MinIO 2026-08-27 구현 완료)
   OpenSearch ML Commons remote connector 로 클러스터가 하느냐(C1)를 두고
   C2 로 정했었습니다. RAG 가 OpenSearch 를 쓰지 않으므로(RAG 측 확인
   2026-09-01) C1 은 존재하지 않는 선택지가 되었고, C2 는 RAG 안으로
-  들어갔습니다. 설계 문서
-  `docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md` 의 C1/C2
-  절은 이 이유로 역사 기록입니다.
+  들어갔습니다.
 
 RAG answer entry point (합의 2026-08-31 — 원본은
 backend/chat/docs/2026-08-31-chat-to-rag-answer-contract-agreed.md)
@@ -346,9 +344,7 @@ backend/chat/docs/)
 - 축을 분리한 `block_type`(형태) / `intent`(기능, 다중 가능) /
   `safety_level`(원문 머리말 그대로, OFFICE-VERIFY) / `is_generated`(bool,
   우선순위 최상) / `alarm_codes`(추출 필드, 라벨이 아님) 로의 재구성을
-  권고합니다. 강제는 아닙니다 — 자세한 근거는
-  `docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md` 5.1절을
-  참고합니다.
+  권고합니다. 강제는 아닙니다.
 - `is_generated` 를 최우선으로 두는 이유는 나머지와 성격이 다르기 때문입니다.
   틀려도 검색 품질만 나빠지는 다른 축과 달리, 이것은 기계가 생성한 문장을
   사람이 쓴 근거로 인용하는 문제이며 나중에 소급 판별할 수 없습니다.
@@ -430,6 +426,3 @@ backend/chat/docs/)
   이 파일 중 코드로 검증할 수 없는 절반에 대한 질문 6건
 - backend/chat/MIGRATION.md — office 전환 순서, selector, 상한값
 - docs/datatables/hitachi/skewnono_chat_logging.txt — 대화 turn 기록 인덱스(별개)
-- docs/superpowers/specs/2026-08-07-chat-rag-manuals-design.md — 검색 방식과
-  `element_type` 축 분리 권고의 설계 확정 문서. 단 OpenSearch 를 전제한
-  부분(C1/C2, Nori)은 역사 기록입니다 — 위 "검색 방식" 절이 현재입니다

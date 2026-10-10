@@ -3,7 +3,6 @@
 // The parser lives client-side (not in Flask) so the backend has a single
 // structured input contract, and so detection can lean on the facets response
 // — a token that *is* a known eqp_id needs no prefix regex to guess at.
-// See docs/superpowers/specs/2026-07-14-skewvoir-search-design.md §4.
 
 export interface ParsedQuery {
   eq: string[]

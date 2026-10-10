@@ -1,7 +1,6 @@
 import { TOOL_TYPES, toolSlug, type ToolType } from './toolType.ts'
 
-/** Page identity for usage beaconing — see
- *  docs/superpowers/specs/2026-08-04-activity-page-view-beacon-design.md
+/** Page identity for usage beaconing.
  *
  *  THE GOVERNING RULE: two paths produce the same identity if and only if the
  *  backend (backend/_logging/feature_map.py) gives them the same slug
