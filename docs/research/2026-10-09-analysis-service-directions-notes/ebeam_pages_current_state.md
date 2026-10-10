@@ -290,7 +290,7 @@ The 2026-10-05 brainstorm and 2026-10-06 plans agreed nine page-value items plus
 - TTTM research conclusions: "machine learning" is the wrong tool (the question is variance decomposition/state-space estimation, no labels exist); the first thing to build is a nightly run-grain rollup because `dict_pkl` expires at 61 days and `meas_hist` at 60; the best home task is a generative mock with known true values; order is skewvoir lens → rollup → filter → fleet page. — [docs/research/2026-08-16-skew-tttm-feasibility.md](docs/research/2026-08-16-skew-tttm-feasibility.md) (요약, §9)
 - TTTM page review: MDS fleet map done 2026-08-16; tolerance ceiling stays 0.20 nm ("다시 제기하지 마십시오"); remaining frontend-only items are an ABBA uncertainty floor line and per-cell sample-count warning, a carryover footnote, and using unused data (epoch marker labels, `mdc_epoch`); distribution statistics in the contract (B-0) are a precondition for variance-ratio/Wasserstein metrics, DBSCAN consensus, mixed-effect RCA and continuous drift monitoring; contour matching and virtual metrology are long-term, office-dependent. — [docs/research/tttm/tttm-page-implementation-review.md](docs/research/tttm/tttm-page-implementation-review.md)
 - ADR 0005 defines a two-mode point-sampling recommendation engine, but point sampling was removed from the current scope by user decision on 2026-10-06. — [docs/adr/0005-metrology-sampling-two-mode-engine.md](docs/adr/0005-metrology-sampling-two-mode-engine.md), [docs/research/2026-10-05-page-value-brainstorm.md](docs/research/2026-10-05-page-value-brainstorm.md) (§4)
-- Open issue sets in `.scratch/`: `skewvoir-msr-review` (nine tickets on trustworthy MSR review detection, mostly open — skewvoir scope), `skewvoir-annotation` (per-MSR annotation, needs triage), `fdc-fleet-view`, `sk-bad-sweep`, `mock-office-drift` (nine tickets, done except one deferred), AFM review/scale sets. — [.scratch/](.scratch)
+- Open issue sets in `.scratch/`: `skewvoir-msr-review` (nine tickets on trustworthy MSR review detection, mostly open — skewvoir scope), `skewvoir-annotation` (per-MSR annotation, needs triage), `sk-bad-sweep`, `mock-office-drift` (nine tickets, done except one deferred), AFM review/scale sets. — [.scratch/](.scratch)
 - A pending office request exists for Recipe 현황: "ask the office scheduler for an hourly pre-aggregated cube" (2026-10-04). — commit `1ab073fb`
 
 ### Inferences
@@ -303,7 +303,7 @@ The 2026-10-05 brainstorm and 2026-10-06 plans agreed nine page-value items plus
 
 - Whether the nightly TTTM rollup job exists in `backend/_scheduler/` was not checked.
 - `docs/issues/ground_rules/` (grilling log D12/D17/D18/D22, rule editor structure), `docs/opencode/` debate records and `docs/afm/` were not read.
-- `.scratch/fdc-fleet-view` and `.scratch/sk-bad-sweep` ticket contents were only listed, not read.
+- `.scratch/sk-bad-sweep` ticket contents were only listed, not read.
 - DESIGN.md (701 lines) was not read beyond references to it; visual-language constraints (`--sk-*` tokens, tab count limit of 4–7 cited in ADR 0006) are taken second-hand.
 
 ## 6. Usage signal: what the activity/visitors feature records, and whether the repo shows which pages are used

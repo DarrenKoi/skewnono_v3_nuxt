@@ -113,7 +113,7 @@ TemperatureEChuck
     pos 1 이 두 번 반영되지만, 위치 간 offset 이 0.02 도 미만이라 영향은 무시할 만합니다.
   - drift 는 일평균이 담고 있습니다. BM/PM marker 는 유지할 가치가 있습니다.
   - 장비 간 편차가 장비 내 noise 의 15배입니다. fab 단위 ranking/heatmap 이 의미가
-    있습니다 (미구현 - .scratch/fdc-fleet-view/ 참고).
+    있습니다 (fleet 화면으로 구현됨 - build_fdc_fleet, fdc/fleet.py).
 
 SPMVoltages
   - profile 길이는 항상 107 입니다.

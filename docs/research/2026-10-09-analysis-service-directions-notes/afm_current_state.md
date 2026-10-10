@@ -28,7 +28,7 @@
 - 백엔드 구성: `routes.py`(336줄, blueprint `afm`), `contracts.py`(TypedDict 6종), `data.py`(dispatcher, 10개 함수), `providers/mock.py`(1390줄), `providers/office_example.py`(572줄), `profile_sampling.py`. `_scheduler/` 에 AFM job 은 없습니다(grep 0건) — [backend/afm/data.py:9-21](backend/afm/data.py), [backend/afm/routes.py](backend/afm/routes.py)
 - 사무실 어댑터 상태: 2026-10-07 에 실제 Redis·MinIO 로 실행, 확인 목록 31개 중 26개 기대대로(10차 회신) — [backend/afm/MIGRATION.md:12-27](backend/afm/MIGRATION.md), [docs/datatables/afm/afm_redis.txt:16-17](docs/datatables/afm/afm_redis.txt)
 - 어댑터는 장비 하나의 DataFrame 을 60초 동안 프로세스 안에 보관(2026-10-09 커밋 `43180818` 에서 (hash, field) 당 스냅샷 하나 + lock 으로 교체) — [docs/datatables/afm/afm_redis.txt:440-441](docs/datatables/afm/afm_redis.txt), `git log -1 43180818`
-- 테스트: backend `backend/afm/tests/` 에 test 함수 88개(7+7+15+4+11+6+38), frontend `utils/afm*.test.ts` 13개 파일. 2026-10-07 리뷰 시점 실행 결과는 pytest 82 passed / node 125 passed — [.scratch/afm-review-261007/REVIEW.md](.scratch/afm-review-261007/REVIEW.md)
+- 테스트: backend `backend/afm/tests/` 에 test 함수 88개(7+7+15+4+11+6+38), frontend `utils/afm*.test.ts` 13개 파일. 2026-10-07 리뷰 시점 실행 결과는 pytest 82 passed / node 125 passed(당시 리뷰 기록은 2026-10-11 정리 때 삭제)
 - 원래 요구사항(2025-08)은 `afm.skhynix.com` 의 dict 형태였고, 그 페이지는 종료하고 SKEWNONO 로 통합하는 방향 — [docs/afm/개발요구.txt](docs/afm/개발요구.txt), [docs/afm/feature-summary.md:7](docs/afm/feature-summary.md)
 
 ### Inferences
@@ -241,7 +241,7 @@
 - 사용자 방침(12차): Start/End Time 은 장비 설정에 달려 있으니 지금 값이 있는 장비·측정만 분석하고, 장비 이름이 아니라 값의 유무로 판단 — [docs/afm/office-data-findings.md:810-818](docs/afm/office-data-findings.md)
 - 공통 구현 원칙(추천 보고서 10절): 전체 목록으로 후보를 좁히고 고른 측정만 상세 조회, 모든 프로파일·이미지를 미리 읽지 않음, `data.py` 는 수정하지 않음, 목록에 분석 열을 추가하면 계약·office template·mock·데이터 명세를 함께 맞춤 — [docs/afm/service-recommendations.md:311-319](docs/afm/service-recommendations.md)
 - 프로젝트 제약: 새 OpenSearch 인덱스·매핑 변경 금지, 모바일·노트북 레이아웃 제외(1920×1080) — [docs/research/2026-10-05-page-value-brainstorm.md:517-519](docs/research/2026-10-05-page-value-brainstorm.md)
-- `CONTEXT.md` 에는 AFM 언급이 없습니다(grep 0건). `.scratch/` 의 AFM 관련은 `afm-scale-261009/`, `afm-review-261007/` 두 폴더이며 열린 이슈 티켓은 찾지 못했습니다.
+- `CONTEXT.md` 에는 AFM 언급이 없습니다(grep 0건). `.scratch/` 의 AFM 관련은 `afm-scale-261009/` 폴더이며(`afm-review-261007/` 은 2026-10-11 삭제) 열린 이슈 티켓은 찾지 못했습니다.
 
 ### Inferences
 - (추론) 추천 1번(Lot·Slot 후보 자동 연결)은 미구현입니다. 상세 페이지의 컴포넌트 구성(`InfoPanel, PointRail, PointSummary, AnalysisImages, MeasurementPointsTable, HeatmapChart, ProfileImage, HistogramChart`)에 이력 패널이 없습니다(`frontend/app/pages/afm/[tool]/[filename].vue:54-117`).

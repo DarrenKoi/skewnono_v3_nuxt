@@ -122,6 +122,6 @@ hover 실측, 콘솔 오류·경고 0건)
 
 ## 검증
 
-자동 E2E 가 없으므로 브라우저 확인은 손으로 합니다 (`verify` 스킬). 확인 항목은
-`issues/05-browser-verify.md` 에 있습니다. **두 화면**을 봐야 합니다 —
-device-statistics comparison 과 measurement-rules.
+자동 E2E 가 없으므로 브라우저 확인은 손으로 합니다 (`verify` 스킬). **두 화면**을
+봐야 합니다 — device-statistics comparison 과 measurement-rules. 결과는 위 `확인된 것`
+절에 있고, 완료된 티켓 01·02·03·05 파일은 2026-10-11 에 지웠습니다.
