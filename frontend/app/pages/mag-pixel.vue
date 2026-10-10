@@ -172,9 +172,9 @@ const calcInput = computed<CalcInput>(() => ({
 </script>
 
 <template>
-  <!-- 1440px 밀집 예외: 좌측 고정 입력·답 레일 + 우측 상세라는 리스트-플러스-상세
-       성격이라 H/W 관리와 같은 폭을 쓴다 (DESIGN.md §Layout). -->
   <div class="mx-auto w-full max-w-[1440px] space-y-6">
+    <!-- 1440px 밀집 예외: 좌측 고정 입력·답 레일 + 우측 상세라는 리스트-플러스-상세
+         성격이라 H/W 관리와 같은 폭을 쓴다 (DESIGN.md §Layout). -->
     <div>
       <EbeamMetaBar
         eyebrow="CD-SEM · MAG/PIXEL"

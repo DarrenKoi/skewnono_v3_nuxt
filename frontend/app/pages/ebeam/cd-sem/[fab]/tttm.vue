@@ -1,9 +1,9 @@
 <template>
-  <!-- 1440px 밀집 예외 (DESIGN.md §Layout): 조작 레일이 상단 비교 대상 바로 바뀐
-       뒤에도 폭은 그대로입니다 — 근거가 레일이 아니라 결과 쪽으로 옮겨갔을 뿐입니다.
-       2단 카드 쌍이 네 줄이라 1280px 로 좁히면 pairwise 행렬이 1080px 화면 밖으로
-       밀립니다. -->
   <div class="mx-auto w-full max-w-[1440px] space-y-3">
+    <!-- 1440px 밀집 예외 (DESIGN.md §Layout): 조작 레일이 상단 비교 대상 바로 바뀐
+         뒤에도 폭은 그대로입니다 — 근거가 레일이 아니라 결과 쪽으로 옮겨갔을 뿐입니다.
+         2단 카드 쌍이 네 줄이라 1280px 로 좁히면 pairwise 행렬이 1080px 화면 밖으로
+         밀립니다. -->
     <!-- The one 실험실 analysis page — see utils/labView. PM 플래닝 was a
          second route onto this same component until 2026-09-01; it is now the
          PM 튜닝 chip, and /pm-planning redirects here.
