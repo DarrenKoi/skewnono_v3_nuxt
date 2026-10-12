@@ -86,7 +86,10 @@ def _build_range_clause(
     if hours is not None:
         parts.append(f"{hours}h")
     gte = "now-" + "-".join(parts)
-    return {"range": {time_field: {"gte": gte, "lte": "now"}}}
+    # No upper bound on purpose: an index holding naive local timestamps (KST
+    # read back as UTC) puts its newest documents "in the future", and
+    # `lte: now` silently cut off the last 9 hours of them.
+    return {"range": {time_field: {"gte": gte}}}
 
 
 def _lookup_mapped_field(

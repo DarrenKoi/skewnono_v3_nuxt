@@ -52,7 +52,7 @@ df = search.range_dataframe(
 
 ```python
 body = {
-    "query": {"range": {"timestamp": {"gte": "now-30d", "lte": "now"}}},
+    "query": {"range": {"timestamp": {"gte": "now-30d"}}},
     "sort": [{"timestamp": {"order": "desc"}}],
 }
 
@@ -73,6 +73,17 @@ df = search.search_dataframe_all(
 - cluster에 context를 남기지 않으므로 정리할 것이 없습니다. 대신 snapshot이
   아니므로, 조회 도중 색인된 문서는 정렬 위치에 따라 포함될 수도 빠질 수도
   있습니다.
+
+## range 조회에는 상한(`lte`)이 없습니다
+
+`range_search` / `range_dataframe` / `range_dataframe_all`은 `gte`만 보내고
+`lte: "now"`는 붙이지 않습니다. KST 실제 시각을 offset 없이 색인한 index는
+OpenSearch가 그 값을 UTC로 해석하므로, 최신 문서가 `now`보다 최대 9시간
+"미래"에 놓입니다. `lte: "now"`가 있으면 그 9시간분이 조용히 빠집니다.
+
+같은 이유로 `gte`의 `now-Nd`도 9시간 어긋나 있습니다. 이쪽은 요청보다
+9시간 더 오래된 문서까지 포함되는 방향이라 누락은 생기지 않습니다. body를
+직접 작성할 때도 이런 index에는 `lte: "now"`를 넣지 않습니다.
 
 ## `max_rows`로 상한선 두기
 

@@ -217,8 +217,15 @@ def test_hits_are_extracted_defensively_from_a_partial_response():
 
 def test_the_range_clause_defaults_to_the_last_seven_days():
     assert _build_range_clause("timestamp", None, None) == {
-        "range": {"timestamp": {"gte": "now-7d", "lte": "now"}}
+        "range": {"timestamp": {"gte": "now-7d"}}
     }
+
+
+def test_the_range_clause_has_no_upper_bound():
+    """meas_hist stamps KST wall-clock time without an offset and OpenSearch
+    reads it as UTC, so its newest documents sit up to 9 hours "ahead" of
+    ``now``. An ``lte: now`` bound dropped exactly those, silently."""
+    assert "lte" not in _build_range_clause("ts", 7, 3)["range"]["ts"]
 
 
 def test_days_and_hours_compose_into_one_date_math_expression():
