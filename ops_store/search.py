@@ -141,26 +141,32 @@ class OSSearch(OSBase):
     ) -> list[dict[str, Any]]:
         name = self._resolve_index(index)
         request_body = dict(body)
-        request_body["size"] = batch_size
+        page_size = batch_size if max_rows is None else min(batch_size, max_rows)
+        request_body["size"] = page_size
+        request_body["track_total_hits"] = False
+        # search_after needs a total order: keep the caller's sort (max_rows
+        # relies on it to mean "the first N in that order") and break ties on _id.
+        sort = request_body.get("sort") or []
+        if not isinstance(sort, list):
+            sort = [sort]
+        request_body["sort"] = [*sort, {"_id": "asc"}]
 
-        response = self.client.search(index=name, body=request_body, scroll=scroll)
-        scroll_id = response.get("_scroll_id")
-        page_hits = _hits_from_result(response)
-        all_hits = list(page_hits)
+        # `scroll` is kept for signature compatibility only: scroll silently
+        # dropped documents on large results (OpenSearch 3.7), search_after does not.
+        all_hits: list[dict[str, Any]] = []
+        after = None
 
-        try:
-            while page_hits and scroll_id is not None:
-                if max_rows is not None and len(all_hits) >= max_rows:
-                    break
-                response = self.client.scroll(scroll_id=scroll_id, scroll=scroll)
-                next_scroll_id = response.get("_scroll_id")
-                if next_scroll_id is not None:
-                    scroll_id = next_scroll_id
-                page_hits = _hits_from_result(response)
-                all_hits.extend(page_hits)
-        finally:
-            if scroll_id is not None:
-                self.client.clear_scroll(scroll_id=scroll_id)
+        while True:
+            page_body = dict(request_body)
+            if after is not None:
+                page_body["search_after"] = after
+            page_hits = _hits_from_result(self.client.search(index=name, body=page_body))
+            all_hits.extend(page_hits)
+            if len(page_hits) < page_size:
+                break
+            if max_rows is not None and len(all_hits) >= max_rows:
+                break
+            after = page_hits[-1]["sort"]
 
         if max_rows is not None and len(all_hits) > max_rows:
             return all_hits[:max_rows]

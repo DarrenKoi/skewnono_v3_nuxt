@@ -10,18 +10,20 @@
 | --- | --- | --- |
 | row 수 ≤ 10,000, 단순 query | `search_dataframe(body)` | 한 번의 `search` 호출 |
 | 최근 N일 데이터를 빠르게 보고 싶음 | `range_dataframe(time_field=..., days=...)` | 기본값 `timestamp` / 7일, single-shot (`size` cap) |
-| 최근 N일이지만 10k를 넘을 수 있음 | `range_dataframe_all(time_field=..., days=..., max_rows=N)` | scroll 기반 |
-| match query 결과 전체가 필요 | `match_dataframe_all(field, query)` | scroll 기반 |
+| 최근 N일이지만 10k를 넘을 수 있음 | `range_dataframe_all(time_field=..., days=..., max_rows=N)` | search_after 기반 |
+| match query 결과 전체가 필요 | `match_dataframe_all(field, query)` | search_after 기반 |
 | 특정 field가 keyword와 매칭되는 **최신** row만 | `latest_match_dataframe(field, keyword)` | match + 시간 desc, 기본 `size=1` |
-| 임의 query 결과 전체가 필요 | `search_dataframe_all(body)` | scroll 기반, body 직접 작성 |
+| 임의 query 결과 전체가 필요 | `search_dataframe_all(body)` | search_after 기반, body 직접 작성 |
 | row가 수백만 쏟아질 수 있음 | `*_dataframe_all(..., max_rows=N)` | N개에서 잘림 |
 
 ## 10,000 한계가 어디서 오는가
 
 OpenSearch 단일 `search` request는 index setting
 `index.max_result_window`(기본 10,000)에서 막힙니다. 이 값을 키우는 대신
-scroll API를 쓰는 것이 cluster에 안전합니다. `*_dataframe_all` 메서드들은
-모두 scroll API를 wrapping합니다.
+`search_after`로 페이지를 나눠 받는 것이 cluster에 안전합니다.
+`*_dataframe_all` 메서드들은 모두 `search_after` 페이지네이션을 wrapping합니다.
+(이전에는 scroll API를 썼지만, OpenSearch 3.7 클러스터에서 결과가 클 때
+문서가 조용히 누락되어 교체했습니다.)
 
 ## 기본 사용
 
@@ -46,7 +48,7 @@ df = search.range_dataframe(
 )
 ```
 
-## scroll로 전부 가져오기
+## search_after로 전부 가져오기
 
 ```python
 body = {
@@ -56,16 +58,21 @@ body = {
 
 df = search.search_dataframe_all(
     body,
-    batch_size=2000,   # 한 scroll page에서 받는 hit 수
-    scroll="2m",       # scroll context 유지 시간
+    batch_size=2000,   # 한 page에서 받는 hit 수
 )
 ```
 
 - `batch_size`: 1,000~5,000 정도가 일반적입니다. 너무 작으면 round trip이
   늘고, 너무 크면 coordinator node 메모리를 더 씁니다.
-- `scroll`: page 간 처리 시간이 길어지는 경우 `"5m"` 등으로 늘립니다.
-- 함수가 return하기 직전 scroll context는 `clear_scroll`로 정리됩니다.
-  중간에 exception이 나도 `try/finally`로 정리됩니다.
+- `scroll`: 더 이상 쓰이지 않습니다. 기존 호출부가 깨지지 않도록 인자만
+  남아 있습니다.
+- body의 `sort`는 그대로 유지되고, 그 뒤에 `_id` 오름차순이 tiebreaker로
+  붙습니다. `sort`가 없으면 `_id` 오름차순만 적용됩니다.
+- `track_total_hits`는 `False`로 보냅니다. 전체 개수를 세는 비용이 필요
+  없기 때문입니다.
+- cluster에 context를 남기지 않으므로 정리할 것이 없습니다. 대신 snapshot이
+  아니므로, 조회 도중 색인된 문서는 정렬 위치에 따라 포함될 수도 빠질 수도
+  있습니다.
 
 ## `max_rows`로 상한선 두기
 
@@ -150,11 +157,11 @@ df = search.latest_match_dataframe(
 포함됩니다. 후속 작업에서 OpenSearch document를 다시 업데이트하거나
 참조해야 할 때 켭니다.
 
-## `range_dataframe_all` (range + scroll + max_rows)
+## `range_dataframe_all` (range + search_after + max_rows)
 
 10k를 넘길 가능성이 있는 시간 범위 조회는 이 메서드를 씁니다. 인자는
-`range_dataframe`과 거의 같지만 `size` 대신 scroll knobs(`batch_size`,
-`scroll`)와 `max_rows`가 있습니다.
+`range_dataframe`과 거의 같지만 `size` 대신 `batch_size`와 `max_rows`가
+있습니다.
 
 ```python
 df = search.range_dataframe_all(
@@ -166,15 +173,14 @@ df = search.range_dataframe_all(
 )
 ```
 
-- `size` 인자가 없는 이유: scroll이 페이지 단위로 받기 때문에 한 번에
+- `size` 인자가 없는 이유: 페이지 단위로 받기 때문에 한 번에
   몇 개를 받을지 결정하는 값은 `batch_size`, 전체 상한은 `max_rows`로
   분리되어 있습니다.
 - `range_search` / `range_dataframe`은 single-shot이라 `size`가 곧 cap입니다.
   `max_rows`를 따로 받지 않습니다.
 
-## scroll 메서드 사용 시 주의
+## `*_dataframe_all` 메서드 사용 시 주의
 
-- scroll은 search-after와 달리 cluster에 context를 남기므로, 같은 task에서
-  여러 query를 병렬로 scroll하면 메모리 압박이 생길 수 있습니다.
+- 실제 page 크기는 `batch_size`와 `max_rows` 중 작은 값입니다.
 - DAG task에서 호출할 때는 `pandas`가 worker virtualenv에 있는지 먼저
   확인합니다(`OSSearch._require_pandas`는 없으면 `ImportError`를 던집니다).

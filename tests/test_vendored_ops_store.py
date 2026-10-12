@@ -7,7 +7,7 @@ indices through ``OSIndex``. It shipped with no package-local tests, the same
 gap as ``minio_handler`` and ``ftp_handler``.
 
 These pin **current** behaviour of the pure logic: query-body assembly, hit
-extraction, scroll pagination, JSON normalization, and the bulk-conflict
+extraction, search_after pagination, JSON normalization, and the bulk-conflict
 accounting. ``ops_store/`` is a **vendored copy** of an upstream
 ``flask_modules`` package and nothing here edits it.
 
@@ -375,86 +375,106 @@ def test_count_sends_an_empty_body_when_no_query_is_supplied():
     assert client.bodies[-1] == {}
 
 
-# ── scroll pagination ────────────────────────────────────────────────────────
+# ── search_after pagination ──────────────────────────────────────────────────
 
 
-class ScrollClient:
-    """Serves a fixed number of scroll pages then an empty one.
+class PagingClient:
+    """An index of ``count`` documents that honours ``size`` and ``search_after``.
 
-    ``clear_scroll`` calls are recorded because a leaked scroll context holds
-    segment files open on every data node until it times out.
+    ``search`` takes no ``scroll`` keyword on purpose: scroll silently dropped
+    documents on large results (OpenSearch 3.7), so a regression to it is a
+    TypeError here rather than a quiet pass.
     """
 
-    def __init__(self, pages: list[list[dict]]) -> None:
-        self.pages = pages
-        self.page_index = 0
-        self.cleared: list[str] = []
-        self.search_body: dict | None = None
-        self.scroll_window: str | None = None
+    def __init__(self, count: int) -> None:
+        self.docs = [
+            {"_id": f"{i:04d}", "_source": {"i": i}, "sort": [f"{i:04d}"]}
+            for i in range(count)
+        ]
+        self.bodies: list[dict] = []
 
-    def search(self, index=None, body=None, scroll=None):
-        self.search_body = body
-        self.scroll_window = scroll
-        return {"_scroll_id": "scroll-1", "hits": {"hits": self.pages[0]}}
-
-    def scroll(self, scroll_id=None, scroll=None):
-        self.page_index += 1
-        page = self.pages[self.page_index] if self.page_index < len(self.pages) else []
-        return {"_scroll_id": f"scroll-{self.page_index + 1}", "hits": {"hits": page}}
-
-    def clear_scroll(self, scroll_id=None):
-        self.cleared.append(scroll_id)
+    def search(self, index=None, body=None):
+        self.bodies.append(body)
+        after = body.get("search_after")
+        rest = [doc for doc in self.docs if after is None or doc["sort"] > after]
+        return {"hits": {"hits": rest[: body["size"]]}}
 
 
-def _hits(*values: int) -> list[dict]:
-    return [{"_source": {"i": value}} for value in values]
+def _values(hits: list[dict]) -> list[int]:
+    return [hit["_source"]["i"] for hit in hits]
 
 
-def test_scrolling_concatenates_every_page_until_one_comes_back_empty():
-    client = ScrollClient([_hits(0, 1), _hits(2), []])
+def test_paging_concatenates_every_page_until_a_short_one():
+    client = PagingClient(5)
     hits = OSSearch(client=client, index="idx")._search_all_hits({}, batch_size=2)
-    assert [hit["_source"]["i"] for hit in hits] == [0, 1, 2]
+    assert _values(hits) == [0, 1, 2, 3, 4]
+    assert len(client.bodies) == 3
 
 
-def test_batch_size_is_injected_as_the_request_size():
-    """``size`` on a scrolling search is the PAGE size, not a total cap — the
-    caller's ``batch_size`` has to land here or every page is the default 10."""
-    client = ScrollClient([_hits(0), []])
-    OSSearch(client=client, index="idx")._search_all_hits({"query": {}}, batch_size=500)
-    assert client.search_body["size"] == 500
+def test_a_result_that_fills_its_last_page_exactly_is_still_complete():
+    """A full last page cannot be told from "more to come", so one extra
+    request comes back empty — that must end the loop, not raise."""
+    client = PagingClient(4)
+    hits = OSSearch(client=client, index="idx")._search_all_hits({}, batch_size=2)
+    assert _values(hits) == [0, 1, 2, 3]
+    assert len(client.bodies) == 3
 
 
-def test_the_caller_body_is_not_mutated_by_the_injected_size():
+def test_each_page_resumes_from_the_last_hit_of_the_previous_one():
+    client = PagingClient(5)
+    OSSearch(client=client, index="idx")._search_all_hits({}, batch_size=2)
+    assert [body.get("search_after") for body in client.bodies] == [
+        None, ["0001"], ["0003"],
+    ]
+
+
+def test_page_size_is_the_smaller_of_batch_size_and_max_rows():
+    client = PagingClient(1)
+    search = OSSearch(client=client, index="idx")
+    search._search_all_hits({"query": {}}, batch_size=500)
+    search._search_all_hits({"query": {}}, batch_size=500, max_rows=20)
+    assert [body["size"] for body in client.bodies] == [500, 20]
+
+
+def test_the_total_hit_count_is_not_tracked():
+    client = PagingClient(1)
+    OSSearch(client=client, index="idx")._search_all_hits({})
+    assert client.bodies[0]["track_total_hits"] is False
+
+
+def test_the_caller_sort_is_kept_and_id_is_appended_as_the_tiebreaker():
+    """``range_dataframe_all`` sorts newest-first and documents ``max_rows`` as
+    "the latest N"; replacing its sort with ``_id`` would return the N lowest
+    ids instead. ``_id`` only makes the order total for ``search_after``."""
+    client = PagingClient(1)
+    search = OSSearch(client=client, index="idx")
+    search._search_all_hits({"sort": [{"ts": {"order": "desc"}}]})
+    search._search_all_hits({"sort": {"ts": "desc"}})
+    search._search_all_hits({})
+    assert [body["sort"] for body in client.bodies] == [
+        [{"ts": {"order": "desc"}}, {"_id": "asc"}],
+        [{"ts": "desc"}, {"_id": "asc"}],
+        [{"_id": "asc"}],
+    ]
+
+
+def test_the_caller_body_is_not_mutated():
     """The same body dict is often reused across calls (``range_dataframe_all``
     builds one and passes it down); mutating it would leak a stale ``size``."""
-    body = {"query": {"match_all": {}}}
-    OSSearch(client=ScrollClient([[]]), index="idx")._search_all_hits(body, batch_size=7)
-    assert body == {"query": {"match_all": {}}}
+    body = {"query": {"match_all": {}}, "sort": [{"ts": "desc"}]}
+    OSSearch(client=PagingClient(3), index="idx")._search_all_hits(body, batch_size=2)
+    assert body == {"query": {"match_all": {}}, "sort": [{"ts": "desc"}]}
 
 
-def test_the_scroll_context_is_always_cleared_even_on_the_last_id():
-    """Clearing uses the MOST RECENT scroll id — OpenSearch invalidates the
-    whole context from it, and clearing a stale id leaks the live one."""
-    client = ScrollClient([_hits(0), _hits(1), []])
-    OSSearch(client=client, index="idx")._search_all_hits({}, batch_size=1)
-    assert client.cleared == ["scroll-3"]
-
-
-def test_max_rows_stops_scrolling_early_and_truncates_the_result():
+def test_max_rows_stops_paging_early_and_truncates_the_result():
     """The point of ``max_rows`` is to stop pulling pages, not merely to slice
-    at the end — an unbounded scroll over a log index is an OOM."""
-    client = ScrollClient([_hits(0, 1), _hits(2, 3), []])
+    at the end — an unbounded pull over a log index is an OOM."""
+    client = PagingClient(10)
     hits = OSSearch(client=client, index="idx")._search_all_hits(
         {}, batch_size=2, max_rows=3
     )
-    assert [hit["_source"]["i"] for hit in hits] == [0, 1, 2]
-    assert client.page_index == 1  # stopped after the second page, never asked for a third
-
-
-def test_the_scroll_window_is_forwarded_to_the_initial_search():
-    client = ScrollClient([[]])
-    OSSearch(client=client, index="idx")._search_all_hits({}, scroll="5m")
-    assert client.scroll_window == "5m"
+    assert _values(hits) == [0, 1, 2]
+    assert len(client.bodies) == 2  # never asked for a third page
 
 
 # ── document normalization ───────────────────────────────────────────────────
