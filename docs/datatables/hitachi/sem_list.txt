@@ -96,8 +96,8 @@ version -> string: 장비 SW version. 숫자와 문자가 섞인 자유 형식 �
    일부에 AMAT 으로 적힌 곳이 있는데 그것은 잘못된 값입니다. 실데이터를 기준으로
    판단합니다.
 4. tool_type 은 이 명부에 컬럼으로 없습니다. eqp_model_cd 의 **계열 접두사**로
-   판별합니다 — CG/GT 는 cd-sem, TP 는 hv-sem, VERITYSEM/VERITY_SEM 은
-   veritysem, PROVISION 은 provision
+   판별합니다 — CG/GT 는 cd-sem, TP 는 hv-sem, VERITY* 는
+   veritysem, PROVISION* 은 provision (AMAT 두 접두사는 user-confirmed 2026-10-13)
    (backend/ebeam/_tool_specs.py 의 model_to_tool_type).
    모델 코드 목록이 아니라 접두사입니다. 목록으로 판별하던 시절, 목록에 없던
    실장비 8대가 "PPID 미접속 장비" 패널에서 조용히 사라졌습니다(2026-07-24).

@@ -45,7 +45,7 @@ export const classifyToolType = (eqpModelCd: string): ToolType | null => {
   const model = eqpModelCd.trim().toUpperCase()
   if (model.startsWith('CG') || model.startsWith('GT')) return 'cd-sem'
   if (model.startsWith('TP')) return 'hv-sem'
-  if (model.startsWith('VERITYSEM') || model.startsWith('VERITY_SEM')) return 'veritysem'
+  if (model.startsWith('VERITY')) return 'veritysem'
   if (model.startsWith('PROVISION')) return 'provision'
   return null
 }

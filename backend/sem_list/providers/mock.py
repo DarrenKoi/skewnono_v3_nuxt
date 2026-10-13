@@ -63,6 +63,13 @@ here:
   because that filter then happily matches the AMAT rows below and answers
   200 with fabricated data for a family that has no adapter.
 
+AMAT (user-confirmed 2026-10-13): the roster is the ONLY AMAT source that
+exists. Family is the `eqp_model_cd` prefix -- VERITY* / PROVISION*; the exact
+codes in `AMAT_MODELS` are still OFFICE-VERIFY. The tools are reachable over
+FTP, but there is no Redis key, no OpenSearch index and no measurement history
+for them yet -- those are built by us, not read. Their alarm ALIDs differ from
+Hitachi's and are unconfirmed.
+
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
 `hardware/mdc` all resolve eqp_id -> eqp_ip / fab_name through this roster, so

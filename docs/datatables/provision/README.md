@@ -9,3 +9,16 @@
 `backend/<feature>/providers/<family>/` 골격을 만들고 mock/office
 adapter 를 도입하며, 이 폴더에 스키마 문서를 추가하는 작업까지 한 흐름으로
 처리합니다.
+
+## 현재까지 확인된 사실 (user-confirmed 2026-10-13)
+
+| 항목 | 상태 |
+| --- | --- |
+| 장비 명부 | 있습니다. `sem_list` 소스에 포함되며 `eqp_model_cd` 접두사 `PROVISION*` 로 구분합니다 (`../hitachi/sem_list.txt`) |
+| FTP | 장비에서 FTP 로 파일을 가져올 수 있습니다. 디렉터리 구조와 파일 형식은 `OFFICE-VERIFY` 입니다 |
+| Redis · OpenSearch 소스 | **없습니다.** 읽을 대상이 아니라 적재(loader)부터 만들어 나가야 합니다 |
+| 측정 이력 | **없습니다.** `meas_hist` 에 이 계열 문서가 없으며 적재부터 만들어야 합니다 |
+| 알람 ALID | Hitachi(9006 / 9007 / 9035)와 다릅니다. 실제 코드는 `OFFICE-VERIFY` (추후 확인 예정) |
+
+따라서 이 계열의 feature 는 "기존 소스에 어댑터를 붙이는" 작업이 아니라
+"FTP 에서 소스를 만드는" 작업이 먼저입니다.

@@ -2,8 +2,8 @@
 
 CD-SEM and HV-SEM (Hitachi) share the same backend logic but differ in
 equipment pools. Tool family comes from the model code's SERIES PREFIX --
-CG/GT are CD-SEM, TP is HV-SEM (user-confirmed 2026-07-24), VERITYSEM/
-VERITY_SEM is AMAT VeritySEM, PROVISION is AMAT Provision -- which is what
+CG/GT are CD-SEM, TP is HV-SEM (user-confirmed 2026-07-24), VERITY* is AMAT
+VeritySEM, PROVISION* is AMAT Provision (user-confirmed 2026-10-13) -- which is what
 `model_to_tool_type()` below and `classifyToolType()` in
 `frontend/app/utils/toolType.ts` both apply.
 
@@ -137,8 +137,7 @@ _TOOL_TYPE_BY_PREFIX: tuple[tuple[str, ToolType], ...] = (
     ("CG", "cd-sem"),
     ("GT", "cd-sem"),
     ("TP", "hv-sem"),
-    ("VERITYSEM", "veritysem"),
-    ("VERITY_SEM", "veritysem"),
+    ("VERITY", "veritysem"),
     ("PROVISION", "provision"),
 )
 

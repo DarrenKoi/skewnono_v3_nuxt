@@ -11,6 +11,7 @@
     { "model": "VeritySEM_5", "expected": "veritysem" },
     { "model": "VERITY_SEM_5", "expected": "veritysem" },
     { "model": "verity_sem_4", "expected": "veritysem" },
+    { "model": "VERITY6", "expected": "veritysem" },
     { "model": "PROVISION_10", "expected": "provision" },
     { "model": "provision_20", "expected": "provision" },
     { "model": "  CG6300  ", "expected": "cd-sem" },

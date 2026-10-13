@@ -17,7 +17,7 @@ what `classifyToolType()` in `frontend/app/utils/toolType.ts`
 has always used:
 
     CG*, GT* -> cd-sem      TP* -> hv-sem
-    VERITYSEM*, VERITY_SEM* -> veritysem      PROVISION* -> provision
+    VERITY* -> veritysem      PROVISION* -> provision
     anything else -> None
 
 Home: .venv/bin/pytest backend/ebeam/tests

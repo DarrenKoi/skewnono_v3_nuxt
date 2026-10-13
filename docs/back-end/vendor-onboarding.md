@@ -220,8 +220,11 @@ beacon URL 에 실립니다. frontend 에서 고칠 곳은 둘입니다:
 의 `IDENTITY_RULES` 양쪽에 등록해야 page open 이 기록됩니다 — 등록되지 않은
 e-beam 화면은 beacon 을 보내지 않습니다.
 
-AMAT 계열의 오피스 키 이름과 스키마는 **아직 아무것도 알려지지 않았습니다.**
-2단계에서 추측한 이름을 사실처럼 적지 말고 `OFFICE-VERIFY` 로 표기합니다.
+AMAT 계열은 장비 명부와 FTP 접근만 있고, Redis · OpenSearch 소스와 측정 이력은
+**아직 존재하지 않습니다** (user-confirmed 2026-10-13,
+`docs/datatables/veritysem/README.md`). 읽을 소스가 없으므로 2단계의 키 이름과
+스키마는 적재를 설계하면서 **우리가 정합니다.** 정하기 전에 추측한 이름은
+`OFFICE-VERIFY` 로 표기합니다.
 
 ## 5. 불변식 세 가지
 
@@ -241,7 +244,7 @@ row 를 만들려고 지어낸 코드 모음입니다 — 목록에 없던 **실
 계열은 `sem_list` row 의 `eqp_model_cd` 를 `model_to_tool_type()` 에 넣어
 판정합니다. 이 함수 역시 접두사로 판정하지만, 그 접두사는 `eqp_id` 가 아니라
 **모델 코드의 시리즈 접두사**입니다(`_tool_specs.py` 의
-`_TOOL_TYPE_BY_PREFIX` — `CG`/`GT`/`TP`/`VERITYSEM`/`PROVISION`). 두 접두사는
+`_TOOL_TYPE_BY_PREFIX` — `CG`/`GT`/`TP`/`VERITY`/`PROVISION`). 두 접두사는
 이름만 같을 뿐 다른 것이며, 금지되는 것은 앞의 것입니다.
 
 ### 5.2 사무실 DB 사실은 두 곳에 기록합니다
