@@ -1,10 +1,11 @@
 """Which FTP account reaches which tool.
 
-One fleet is not one account. Hitachi tools share ``hitachi``/``hid``, and the
-AMAT tools arriving now do not (user-confirmed 2026-08-28) -- the account
-varies by fab and by tool, never by vendor family, so there is no family axis
-here. ``SKEWNONO_TOOL_FTP_ACCOUNTS`` names the exceptions and everything else
-keeps the fleet pair; the parse lives in ``config._accounts``.
+One fleet is not one account. Hitachi tools share ``hitachi``/``hid``; the AMAT
+families each have their own -- VeritySEM one account, Provision another
+(user-confirmed 2026-10-14, superseding the 2026-08-28 "by fab and by tool,
+never by family"). ``SKEWNONO_TOOL_FTP_ACCOUNTS`` names the exceptions by
+eqp_id, fab_name or family slug, and everything else keeps the fleet pair; the
+parse lives in ``config._accounts``.
 
 The resolved account rides on the ``HostSpec``, not on the downloader, because
 the credential is a property of the HOST: one run can span two accounts, which
@@ -24,6 +25,7 @@ import time
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
+from backend.ebeam._tool_specs import model_to_tool_type
 from backend.msr_image.config import ImageConfig
 
 
@@ -61,9 +63,13 @@ def account_for(
             "ftp account: %s is not in sem_list; using the fleet account", eqp_ip
         )
         return {}
-    # eqp_id beats fab_name: the tool-level entry is the exception that a
-    # fab-level entry is stated as the rule for.
-    for key in (row["eqp_id"], row["fab_name"]):
+    # Most specific first: a tool entry is the exception to its fab's, and a
+    # fab entry the exception to its family's. The family comes from the model
+    # code like everywhere else, never from the id.
+    family = model_to_tool_type(row.get("eqp_model_cd", "")) or ""
+    for key in (row["eqp_id"], row["fab_name"], family):
+        if not key:
+            continue
         found = accounts.get(key.strip().upper())
         if found is not None:
             return {"user": found[0], "password": found[1]}

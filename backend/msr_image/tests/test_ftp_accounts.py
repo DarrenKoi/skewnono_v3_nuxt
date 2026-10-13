@@ -41,6 +41,22 @@ def test_a_tool_entry_beats_its_fabs():
     assert account_for(_ROWS, accounts, "10.0.0.2") == {"user": "svc", "password": "pw"}
 
 
+def test_a_family_entry_covers_its_family_and_yields_to_fab_and_tool():
+    rows = [
+        {"eqp_ip": "10.1.0.1", "eqp_id": "VS01", "fab_name": "M16", "eqp_model_cd": "VERITYSEM_5"},
+        {"eqp_ip": "10.1.0.2", "eqp_id": "PV01", "fab_name": "M14", "eqp_model_cd": "PROVISION_10"},
+        {"eqp_ip": "10.1.0.3", "eqp_id": "CD01", "fab_name": "M14", "eqp_model_cd": "CG6300"},
+    ]
+    accounts = load_config(
+        {"SKEWNONO_TOOL_FTP_ACCOUNTS": "veritysem=rta:a,PROVISION=wf:b"}
+    ).ftp_accounts
+    assert account_for(rows, accounts, "10.1.0.1") == {"user": "rta", "password": "a"}
+    assert account_for(rows, accounts, "10.1.0.2") == {"user": "wf", "password": "b"}
+    # A Hitachi tool in the same fab keeps the fleet pair.
+    assert account_for(rows, accounts, "10.1.0.3") == {}
+    assert account_for(rows, {**accounts, "M16": ("fab", "f")}, "10.1.0.1") == {"user": "fab", "password": "f"}
+
+
 def test_the_key_match_ignores_case():
     # Tested through load_config because that is where normalisation happens:
     # _accounts() upper-cases the declared keys, account_for upper-cases the

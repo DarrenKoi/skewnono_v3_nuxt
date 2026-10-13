@@ -69,7 +69,11 @@ here:
 AMAT (user-confirmed 2026-10-13): the roster is the ONLY AMAT source that
 exists. Family is the `eqp_model_cd` prefix -- VERITY* / PROVISION*; the exact
 codes in `AMAT_MODELS` are still OFFICE-VERIFY. The tools are reachable over
-FTP, but there is no Redis key, no OpenSearch index and no measurement history
+FTP from inside the company, each family with its own account (VeritySEM
+`rtauser`, Provision a `wf…` one -- user-confirmed 2026-10-14; resolved by
+family in `msr_image/ftp_accounts.py`). Results land in `D:\\Output` on a
+VeritySEM and under `/I_Drive` + `/D_drive/` on a Provision, one file or
+folder per measurement (same date). But there is no Redis key, no OpenSearch index and no measurement history
 for them yet -- those are built by us, not read. Their alarm ALIDs differ from
 Hitachi's and are unconfirmed.
 

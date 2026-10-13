@@ -12,11 +12,11 @@ _LOG = logging.getLogger(__name__)
 def _accounts(env: Mapping[str, str], key: str) -> dict[str, tuple[str, str]]:
     """Parse ``KEY=user:password`` pairs into a per-tool credential map.
 
-    ``SKEWNONO_TOOL_FTP_ACCOUNTS=M16=svc:pw,MCD1234=other:pw2``
+    ``SKEWNONO_TOOL_FTP_ACCOUNTS=VERITYSEM=user:pw,PROVISION=other:pw2``
 
-    A KEY is a ``fab_name`` or an ``eqp_id`` -- the account varies by fab and by
-    tool, never by vendor family (user-confirmed 2026-08-28), so there is no
-    family axis here. Keys are upper-cased on both sides of the match: a case
+    A KEY is an ``eqp_id``, a ``fab_name`` or a family slug (``VERITYSEM``,
+    ``PROVISION``) -- the AMAT families each use their own account
+    (user-confirmed 2026-10-14). Keys are upper-cased on both sides of the match: a case
     slip would otherwise resolve to the fleet default silently, which is the
     same wrong-account-not-an-error failure this whole mechanism exists to stop.
 
