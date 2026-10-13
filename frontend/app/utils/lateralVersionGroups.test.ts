@@ -16,7 +16,8 @@ const tool = (
   available: 'On',
   recipe_ready,
   recipe_version,
-  recipe_generated_at
+  recipe_generated_at,
+  recipe_unverified: false
 })
 
 const version = (recipe_version: number, generated_at: string, ready_count: number): LateralRecipeVersion => ({

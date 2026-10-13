@@ -67,3 +67,18 @@ def test_ready_rows_always_carry_a_version():
         else:
             assert row["recipe_version"] is None
             assert row["recipe_generated_at"] is None
+
+
+def test_some_but_not_most_not_ready_tools_are_unverified():
+    """The 확인 불가 badge needs rows to render at home, and must stay the
+    exception — a mock where most 미보유 are unverified would misdescribe it."""
+    not_ready = [
+        row
+        for tool_type in ("cd-sem", "hv-sem")
+        for fab_name in _FABS
+        for recipe_name in _RECIPES
+        for row in get_lateral_recipe(tool_type, fab_name, recipe_name)["rows"]
+        if not row["recipe_ready"]
+    ]
+    unverified = sum(row["recipe_unverified"] for row in not_ready)
+    assert 0 < unverified < len(not_ready) / 4

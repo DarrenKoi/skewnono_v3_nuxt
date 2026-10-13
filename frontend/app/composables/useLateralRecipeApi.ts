@@ -13,6 +13,8 @@ export interface LateralRecipeRow {
   recipe_ready: boolean
   recipe_version: number | null
   recipe_generated_at: string | null
+  /** 마지막 점검이 이 장비에 닿지 못함 — 미보유가 아니라 "확인 불가". 미보유 행에서만 true. */
+  recipe_unverified: boolean
 }
 
 export interface LateralRecipeVersion {

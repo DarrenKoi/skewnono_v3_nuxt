@@ -259,3 +259,43 @@ def test_drifted_tool_keeps_its_own_fingerprint_timestamp(monkeypatch):
         "generated_at": "2026-10-01T09:00:00+09:00",
         "ready_count": 2,
     }]
+
+
+def test_unreachable_tool_is_unverified_unless_something_proves_it_ready(monkeypatch):
+    """unknown_eqp_id = 마지막 점검이 닿지 못한 장비. 미보유 행에만 표시가 붙습니다.
+
+    보유 증거(eqp_id 등재, 측정 이력)가 있으면 점검 실패는 아무것도 바꾸지 못합니다.
+    값이 1개면 bare string 으로 오는 것도 eqp_id 와 같습니다.
+    """
+    monkeypatch.setattr(
+        office_example,
+        "_version_docs",
+        lambda *_args: [
+            {
+                "version": 7,
+                "modified": "2026-10-01T09:00:00",
+                "eqp_id": ["ECXDX001"],
+                "unknown_eqp_id": ["ECXDX001", "ecxdx002", "ECXDX003"],
+            },
+            {"version": 6, "modified": "2026-09-01T09:00:00", "unknown_eqp_id": "ECXDX004"},
+        ],
+    )
+    monkeypatch.setattr(
+        office_example, "_roster", lambda *_args: [_sem_row(i) for i in range(1, 6)]
+    )
+    monkeypatch.setattr(
+        office_example, "_measured_eqp_ids", lambda *_args: {"ECXDX003"}, raising=False
+    )
+
+    response = office_example.get_lateral_recipe("cd-sem", "R3", "RWEAXXX/R")
+
+    assert [
+        (row["eqp_id"], row["recipe_ready"], row["recipe_unverified"])
+        for row in response["rows"]
+    ] == [
+        ("ECXDX001", True, False),   # 등재가 이깁니다
+        ("ECXDX002", False, True),
+        ("ECXDX003", True, False),   # 측정 이력이 이깁니다
+        ("ECXDX004", False, True),   # 다른 지문 문서의 목록도 합칩니다
+        ("ECXDX005", False, False),  # 어느 목록에도 없으면 그냥 미보유
+    ]

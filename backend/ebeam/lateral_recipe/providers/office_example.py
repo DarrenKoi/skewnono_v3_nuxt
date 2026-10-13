@@ -115,10 +115,9 @@ MEAS_HISTORY_DAYS = 30
 # negative list cannot override evidence that a tool executed the recipe.
 # (Since 2026-10-13 the list is accurate — tools really lacking this
 # fingerprint — where it used to be the whole fab; it is still redundant here.)
-# `unknown_eqp_id` (tools the last check could not reach — FTP/parse failure)
-# is not fetched either: the contract's `recipe_ready` is a bool with no
-# "unverified" state, so such a tool reads as 미보유 unless it measured.
-SOURCE_FIELDS = ["version", "modified", "eqp_id"]
+# `unknown_eqp_id` — tools the last check could not reach (FTP/parse failure),
+# neither found nor not-found — marks a 미보유 row as `recipe_unverified`.
+SOURCE_FIELDS = ["version", "modified", "eqp_id", "unknown_eqp_id"]
 
 
 def _as_list(value: Any) -> list[str]:
@@ -254,6 +253,11 @@ def get_lateral_recipe(
     # a version: a drifted tool's row must show its own timestamp, not the
     # origin's.
     held_by_eqp: dict[str, tuple[int, str]] = {}
+    # Union over every fingerprint document: an unreachable tool has no
+    # fingerprint to be filed under. OFFICE-VERIFY (idp_ver.txt): if only some
+    # of a recipe's documents are rewritten per check, a stale list on an old
+    # document keeps flagging a tool the newest check did reach.
+    unverified: set[str] = set()
     generated_at_by_version: dict[int, str | None] = {}
     for doc in docs:
         try:
@@ -268,6 +272,7 @@ def get_lateral_recipe(
             or (modified or "") > (generated_at_by_version[version] or "")
         ):
             generated_at_by_version[version] = modified
+        unverified.update(_eqp_key(e) for e in _as_list(doc.get("unknown_eqp_id")))
         fingerprint = (version, modified or "")
         for eqp_id in _as_list(doc.get("eqp_id")):
             eqp_key = _eqp_key(eqp_id)
@@ -311,9 +316,10 @@ def get_lateral_recipe(
         held = held_by_eqp.get(eqp_key)
         version = held[0] if held else None
         # Not listed under any version, and never seen measuring it, means not
-        # ready. A tool in `unknown_eqp_id` (unreachable at the last check) or
-        # in none of the three lists ("never evaluated") lands here too —
-        # recipe_ready is a bool, so there is nowhere else for it to go.
+        # ready. A tool in `unknown_eqp_id` (unreachable at the last check)
+        # lands here too, flagged `recipe_unverified` so the page can say the
+        # 미보유 is unproven; one in none of the three lists ("never
+        # evaluated") is plain 미보유.
         ready = version is not None or eqp_key in ready_without_version
         if ready:
             ready_count += 1
@@ -327,6 +333,7 @@ def get_lateral_recipe(
             recipe_ready=ready,
             recipe_version=version,
             recipe_generated_at=(held[1] or None) if held else None,
+            recipe_unverified=not ready and eqp_key in unverified,
         ))
 
     # Every version the recipe has ever had, newest first — including ones no

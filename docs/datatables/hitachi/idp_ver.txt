@@ -40,6 +40,8 @@ Index(alias)
   드리프트는 항상 version 차이로 나타나는지. (2) 한 장비가 예전 지문 문서의 eqp_id
   에 남은 채 새 지문 문서에도 실리는지 — 어댑터는 그 경우 가장 높은 지문을 택합니다.
   (3) unknown_eqp_id 가 그 recipe 의 모든 지문 문서에 실리는지, 한 문서에만 실리는지.
+      어댑터는 합집합을 내므로 어느 쪽이든 읽히지만, 검사 때 다시 쓰이지 않는 예전
+      지문 문서에 목록이 남으면 이미 확인된 장비에 "확인 불가" 가 계속 붙습니다.
 
 사용 field
 
@@ -81,9 +83,10 @@ Index(alias)
                       장비였습니다.
   unknown_eqp_id -> 다중값. 이번 검사에서 FTP/파싱 실패로 **확인하지 못한** 장비
                     (2026-10-13 신규). 보유도 미보유도 아니며 정상이면 빈 배열입니다.
-                    지금은 읽지 않습니다 — lateral 계약의 recipe_ready 가 bool 이라
-                    "확인 불가" 를 실을 자리가 없고, 그런 장비는 측정 이력이 없으면
-                    미보유로 표시됩니다.
+                    lateral check 가 읽습니다 — 보유로 판정되지 않은 장비가 여기
+                    있으면 응답 행에 recipe_unverified 가 서고, 화면은 미보유 탭에서
+                    "확인 불가" 배지를 답니다. 그 recipe 의 지문 문서 전체에서 합집합을
+                    냅니다(확인 못 한 장비는 실릴 지문이 없으므로).
   creator, created_tool -> string. 원본 스키마의 field 로, 한동안 누락되었다가
                     2026-10-13 에 복원되었습니다. 아직 소비자가 없습니다.
 
@@ -114,7 +117,8 @@ parameters 를 버리고 보유/버전만 보지만, device-statistics 는 param
   달리, 여기서는 recipe 당 최신 1건의 parameters 로 para_* 개수를 집계합니다.
   ★ 2026-10-13 부터 그 1건은 **드리프트된 장비 한 대의 지문**일 수 있습니다 — 장비
     한 대가 recipe 를 따로 고쳐 version 이 올라가면 그 문서가 "최신" 이 됩니다.
-    다수 장비가 가진 지문을 택해야 하는지는 미정입니다 (OFFICE-VERIFY).
+    **그것이 맞습니다** (user-confirmed 2026-10-13): 보유 장비 수와 무관하게 가장
+    높은 version 이 최신 1건입니다. 다수 장비의 지문을 고르지 않습니다.
 - 따라서 질의는 recipe 당 `full_name.keyword` term + `version` desc, `modified` desc 정렬 + `size: 1` 로
   좁히고, `_source` 도 필요한 field 로 제한합니다 — `parameters`,
   `parameters_list`, 그리고 `raw_data` 는 **통째로가 아니라** `raw_data.Parameter` /

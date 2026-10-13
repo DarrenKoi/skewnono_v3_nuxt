@@ -22,6 +22,11 @@ class LateralRecipeRow(TypedDict):
     recipe_ready: bool
     recipe_version: int | None
     recipe_generated_at: str | None
+    # The last IDP check could not reach this tool (FTP / parse failure), so
+    # "not ready" here means "not verified", not "verified absent". Only ever
+    # True on a row with recipe_ready False — evidence that a tool holds the
+    # recipe outranks a failed check.
+    recipe_unverified: bool
 
 
 class LateralRecipeVersion(TypedDict):

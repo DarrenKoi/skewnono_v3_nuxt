@@ -70,6 +70,10 @@ def test_rows_are_sorted_by_eqp_id_and_ready_rows_carry_a_version():
             # no version or timestamp to show for it.
             assert row["recipe_version"] is None
             assert row["recipe_generated_at"] is None
+        else:
+            # "확인 불가" qualifies a 미보유; a tool known to hold the recipe is
+            # never unverified, whatever the last check failed to reach.
+            assert row["recipe_unverified"] is False
 
 
 def test_versions_are_newest_first_and_agree_with_latest():

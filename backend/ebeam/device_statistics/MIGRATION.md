@@ -283,7 +283,8 @@ docstring.
   still has exactly one parameter set — the adapter takes one blob per
   `full_name` (highest `version`, then newest `modified`; since 2026-10-13
   the index holds one document per version fingerprint, so that one may be a
-  single drifted tool's copy — OFFICE-VERIFY in `idp_ver.txt`). `recipe_class` / `family` / `phase` / `memory_class_auto` are
+  single drifted tool's copy — which is intended: the highest version is the
+  newest regardless of how many tools hold it, user-confirmed 2026-10-13). `recipe_class` / `family` / `phase` / `memory_class_auto` are
   derived, not stored — the derivation table is in
   `docs/datatables/hitachi/recipe_params.txt` "사무실 파생 규칙".
 - Notes: **huge-payload endpoint**, same shape of concern as

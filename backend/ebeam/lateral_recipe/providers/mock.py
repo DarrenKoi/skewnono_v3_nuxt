@@ -22,9 +22,11 @@ tool IPs. Where this mock deliberately differs from that:
   version alone, so two tools on the same version never show different
   `recipe_generated_at`. The office can (same version, different `modified`);
   whether it really does is OFFICE-VERIFY in idp_ver.txt.
-* no unverified tools — the office index has `unknown_eqp_id` (tools the last
-  check could not reach over FTP). The contract has no such state, so neither
-  side emits it; at the office such a tool reads as 미보유.
+* unverified tools are far more common here than at the office. The index's
+  `unknown_eqp_id` (tools the last check could not reach over FTP; such a 미보유
+  row carries `recipe_unverified`) is an EMPTY array when ingestion is healthy.
+  This mock flags about one 미보유 tool in `UNVERIFIED_ONE_IN` so the badge is
+  visible at home at all — fabricated, the real rate is OFFICE-VERIFY.
 
 Two office rules this mock already mirrors structurally, which is why it is
 built the way it is:
@@ -81,6 +83,8 @@ __all__ = [
 # tab empty, which is a view worth keeping populated in the Phase 1 fixture.
 UNMEASURED_READY_RATIO = 0.35
 RECIPE_VERSION_RANGE = (1, 7)
+# Fabricated rate (see the header): the office's unknown_eqp_id is normally empty.
+UNVERIFIED_ONE_IN = 8
 
 # The office index stores KST wall clock with no offset, so the office adapter
 # emits an explicit +09:00 — see this module's header, which warns that tagging
@@ -190,7 +194,12 @@ def get_lateral_recipe(
             available=sem["available"],
             recipe_ready=is_ready,
             recipe_version=version,
-            recipe_generated_at=generated_at
+            recipe_generated_at=generated_at,
+            # Hashed, not drawn from `rng`: a third draw per tool would shift
+            # the stream and re-roll every readiness and version above.
+            recipe_unverified=not is_ready and _seed(
+                "unverified", tool_type, fab_name, recipe_name, sem["eqp_id"]
+            ) % UNVERIFIED_ONE_IN == 0,
         ))
 
     total = len(rows)

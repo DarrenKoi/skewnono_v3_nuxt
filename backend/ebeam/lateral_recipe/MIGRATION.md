@@ -97,8 +97,10 @@
   - `eqp_id` (보유) / `not_found_eqp_id` (미보유) / `unknown_eqp_id` (the
     last check could not reach the tool) are arrays. A tool's row version is
     the **highest** fingerprint doc listing it, i.e. what it runs now.
-    `unknown_eqp_id` is not read: `recipe_ready` is a bool, so an unverified
-    tool shows as 미보유 unless it measured.
+    A tool in any fingerprint doc's `unknown_eqp_id` that is not otherwise
+    ready gets `recipe_unverified: true` — the page badges it 확인 불가 in the
+    미보유 tab. The mock flags roughly one 미보유 tool in eight so the badge
+    shows at home; the office list is empty when ingestion is healthy.
   - Recent measurement history is a readiness floor. The adapter walks
     distinct `eqp_id.keyword` buckets for the exact `full_name.keyword` and
     `fab_name.keyword` in the same 30-day window used by 측정 이력. A measured
@@ -117,8 +119,8 @@
     zero-holder cards. `ready_count` is counted from the assembled rows, not
     from the documents' `no_of_eqp_id`, so a card's number always equals
     what is countable in the table below it.
-  - `_source` is trimmed to the three fields read (`version`, `modified`,
-    `eqp_id`). `parameters` and `raw_data` are object blobs this endpoint
+  - `_source` is trimmed to the four fields read (`version`, `modified`,
+    `eqp_id`, `unknown_eqp_id`). `parameters` and `raw_data` are object blobs this endpoint
     never touches. `not_found_eqp_id` is not fetched because it cannot
     override recent evidence that a tool executed the recipe.
   - More than `MAX_VERSION_DOCS` (200) version docs raises rather than

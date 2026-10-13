@@ -342,8 +342,18 @@ const tableUi = recipeTableUi
           :ui="tableUi"
         >
           <template #eqp_id-cell="{ row }">
-            <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-              {{ row.original.eqp_id }}
+            <span class="inline-flex items-center gap-2">
+              <span class="font-mono text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100">
+                {{ row.original.eqp_id }}
+              </span>
+              <!-- 미보유 is unproven for this tool: the last check never reached it. -->
+              <span
+                v-if="row.original.recipe_unverified"
+                class="sk-lateral-badge sk-lateral-badge--warn"
+                title="마지막 점검에서 장비 접속 또는 파일 읽기에 실패해 보유 여부를 확인하지 못했습니다."
+              >
+                확인 불가
+              </span>
             </span>
           </template>
 
@@ -388,6 +398,12 @@ const tableUi = recipeTableUi
   background: var(--sk-ok-soft);
   border-color: var(--sk-ok-border);
   color: var(--sk-ok);
+}
+
+.sk-lateral-badge--warn {
+  background: var(--sk-warn-soft);
+  border-color: var(--sk-warn-border);
+  color: var(--sk-warn);
 }
 
 .sk-lateral-badge--bad {
