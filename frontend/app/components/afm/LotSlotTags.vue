@@ -8,7 +8,7 @@
     class="inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-(--sk-r-sidebar) bg-(--sk-chip-bg) px-1.5"
   >
     <span class="sk-eyebrow">Slot</span>
-    <span class="sk-value-num font-semibold">{{ slotNumber }}</span>
+    <span class="sk-value-num font-semibold">{{ slotNumber === '' ? '–' : slotNumber }}</span>
   </span>
 </template>
 
@@ -18,6 +18,8 @@
 // vs. recessed) so they read apart without the label. Two roots on purpose —
 // the parent's own gap spaces them like its other children. 측정 상세 knows the
 // slot only for a measurement opened from the list, so the slot tag is optional.
+// A blank slot is different: the measurement is listed but the loader read no
+// slot for it, so the tag stays (it holds a table column) and shows a dash.
 defineProps<{
   lotId: string
   slotNumber?: number | string | null
