@@ -78,15 +78,27 @@
   ready). `total_tools_in_fab` is `len(rows)`; `ready_count` /
   `not_ready_count` partition that total.
 - Office data source: **WIRED.** OpenSearch aliases `cdsem_idp_ver` /
-  `hvsem_idp_ver`, one document per **(recipe, version)**. Searching a
-  `full_name` returns the recipe's whole version history; the highest
-  `version` is the current one.
+  `hvsem_idp_ver`, one document per **(recipe, version, modified)** — the
+  version fingerprint, also the doc_id. Searching a `full_name` returns every
+  fingerprint the recipe has had; the highest `version` is the current one.
+  - **Schema change 2026-10-13** (user-confirmed; full table in
+    `docs/datatables/hitachi/idp_ver.txt`): `eqp_id` now holds EQP IDs, not
+    tool IPs; a drifted tool gets its own fingerprint document instead of
+    being filed under the origin tool's; `not_found_eqp_id` is accurate;
+    `unknown_eqp_id` is new. Documents from the bug period coexist until
+    ingestion re-upserts them — their IPs match no roster tool, so they add
+    nothing rather than break anything. A row's version and timestamp come
+    from the fingerprint document listing that tool; a version card stays one
+    per version and shows the newest `modified` among its fingerprints.
   - Exact recipe match goes through `full_name.keyword`, and the fab filter
     through `fab_name.keyword` (uppercase). The base mappings are `text`, so
     a `term` on them matches nothing and a `match` matches on shared tokens
     — `"1/AC_M2_TAT"` analyzes to `[1, ac, m2, tat]`.
-  - `eqp_id` (보유) / `not_found_eqp_id` (미보유) are arrays. A tool's row
-    version is the **highest** version doc listing it, i.e. what it runs now.
+  - `eqp_id` (보유) / `not_found_eqp_id` (미보유) / `unknown_eqp_id` (the
+    last check could not reach the tool) are arrays. A tool's row version is
+    the **highest** fingerprint doc listing it, i.e. what it runs now.
+    `unknown_eqp_id` is not read: `recipe_ready` is a bool, so an unverified
+    tool shows as 미보유 unless it measured.
   - Recent measurement history is a readiness floor. The adapter walks
     distinct `eqp_id.keyword` buckets for the exact `full_name.keyword` and
     `fab_name.keyword` in the same 30-day window used by 측정 이력. A measured
@@ -113,7 +125,8 @@
     silently truncating — a partial history would misreport which tools are
     current.
 - Not yet used from the index: `parameters`, `para_loc`, `minio_path`,
-  `class_name`, `creator`, `created_tool`, `no_of_meas_point`. These are for
+  `class_name`, `creator`, `created_tool` (both restored 2026-10-13 after
+  being dropped for a while), `no_of_meas_point`. These are for
   the planned version-card detail view (click a version → `modified` plus
   `parameters` as a table), which needs a contract extension —
   `LateralRecipeVersion` has nowhere to put them today.

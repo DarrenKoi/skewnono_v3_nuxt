@@ -87,13 +87,15 @@ the RAW-RECIPE FOLDER beside the .idp (`data/{idw}/{idp}/`), read by a second
 `rawfiles.py`.
 
 ★ A SECOND SOURCE for two of the three tables (2026-09-02). OpenSearch
-  `{cdsem,hvsem}_idp_ver` — one document per (recipe, version) — stores the
+  `{cdsem,hvsem}_idp_ver` — one document per (recipe, version, modified); a
+  tool whose copy drifted has its own document since 2026-10-13 — stores the
   parsed `idp_image_info` as `raw_data` and the measurement locations as
   `wafer_para_loc_info` (`docs/datatables/hitachi/idp_ver.txt`). `get_recipe_locations`
   reads the highest version there and never dials a tool, which is why it
   exists as an API for scripts. This mock derives it from `get_recipe_open_data`
   so home data is self-consistent; at the office the two sources are written by
-  different jobs and CAN disagree (a tool holding an older copy than the index).
+  different jobs and CAN disagree (a tool holding an older copy than the index
+  — or, since 2026-10-13, the index's highest version being one drifted tool's).
   `version`/`modified` are fabricated here — the index's real values are the
   same fields lateral_recipe reads.
 

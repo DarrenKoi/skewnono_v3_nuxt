@@ -1038,7 +1038,10 @@ def _idp_parameters(
                     "latest": {
                         "top_hits": {
                             "size": 1,
-                            "sort": [{"version": "desc"}],
+                            # modified 는 동률 깨기입니다 — 2026-10-13 부터
+                            # 드리프트된 장비가 자기 문서를 따로 가지므로 한
+                            # version 에 문서가 여럿일 수 있습니다 (idp_ver.txt).
+                            "sort": [{"version": "desc"}, {"modified": "desc"}],
                             "_source": _IDP_SOURCE,
                         }
                     }

@@ -5,12 +5,26 @@ Office counterpart — schema of record: `docs/datatables/hitachi/idp_ver.txt`. 
 name as the deferred production source was never the source and is not used.
 What the office adapter actually reads:
 
-    cdsem_idp_ver / hvsem_idp_ver   OpenSearch, ONE DOC PER (recipe, version)
+    cdsem_idp_ver / hvsem_idp_ver   OpenSearch, ONE DOC PER (recipe, version,
+                                    modified) — the "version fingerprint"
 
-so searching a `full_name` returns that recipe's whole version history and the
+so searching a `full_name` returns every fingerprint that recipe has had and the
 highest `version` (a long) is current. Fields used: full_name, fab_name (stored
-uppercase), version, modified (date), eqp_id (multi-valued — the tools that
-explicitly hold that version).
+uppercase), version, modified (date), eqp_id (multi-valued — the EQP IDs of the
+tools holding that fingerprint).
+
+Schema change, user-confirmed 2026-10-13: a tool whose copy drifted from the
+origin tool's now sits in its OWN fingerprint's document (before, every tool
+was filed under the origin's), and `eqp_id` holds EQP IDs where it used to hold
+tool IPs. Where this mock deliberately differs from that:
+
+* one timestamp per version — `_version_generated_at` is a function of the
+  version alone, so two tools on the same version never show different
+  `recipe_generated_at`. The office can (same version, different `modified`);
+  whether it really does is OFFICE-VERIFY in idp_ver.txt.
+* no unverified tools — the office index has `unknown_eqp_id` (tools the last
+  check could not reach over FTP). The contract has no such state, so neither
+  side emits it; at the office such a tool reads as 미보유.
 
 Two office rules this mock already mirrors structurally, which is why it is
 built the way it is:
@@ -27,7 +41,8 @@ built the way it is:
 The office adapter deliberately does NOT read the index's `not_found_eqp_id`
 (미보유) list: readiness is the union of explicit membership and execution
 evidence, and a negative list must not override proof that a tool ran the
-recipe.
+recipe. (That list was the whole fab until the 2026-10-13 fix; it is accurate
+now and still not needed.)
 
 Timestamps: the office index stores KST wall clock with no offset, so
 `recipe_generated_at` is emitted with an explicit +09:00. Tagging it `Z` would

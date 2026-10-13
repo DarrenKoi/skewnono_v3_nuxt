@@ -400,7 +400,7 @@ def stage_idp_join(client: Any, recipes: list[str], limit: int) -> None:
         body = {
             "size": 1,
             "query": {"term": {name_field: recipe}},
-            "sort": [{"version": "desc"}],
+            "sort": [{"version": "desc"}, {"modified": "desc"}],
             "_source": [
                 "full_name", "version", "modified",
                 "parameters", "parameters_list", "raw_data",

@@ -2074,7 +2074,7 @@ def get_recipe_open_data(
 # ── measurement locations (IDP version index) ─────────────────────────────
 #
 # The same tables recipe-open parses off the tool, as OpenSearch stores them
-# per (recipe, version) — the index lateral_recipe and device_statistics
+# per (recipe, version, modified) — the index lateral_recipe and device_statistics
 # already read (docs/datatables/hitachi/idp_ver.txt §세 번째 소비자). Both
 # blobs are mapped ``enabled: false``, so they come back only through
 # ``_source`` and cannot be filtered server-side.
@@ -2151,6 +2151,8 @@ def get_recipe_locations(
     """Highest-version document for the recipe, or ``None`` when there is none.
 
     ``size=1`` sorted by ``version`` desc — the device_statistics query shape.
+    ``modified`` desc breaks the tie: since 2026-10-13 a drifted tool's copy
+    is its own document, so one version can have several (idp_ver.txt).
     """
     recipe = (recipe_name or "").strip()
     if not recipe:
@@ -2163,7 +2165,7 @@ def get_recipe_locations(
         _IDP_VER_INDEX[tool_type],
         query(clauses),
         size=1,
-        sort=[{"version": "desc"}],
+        sort=[{"version": "desc"}, {"modified": "desc"}],
         source=_IDP_VER_SOURCE,
     )
     if not docs:

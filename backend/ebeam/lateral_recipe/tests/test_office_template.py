@@ -215,3 +215,47 @@ def test_ready_count_never_disagrees_with_the_rows(monkeypatch):
     # 측정으로만 알려진 장비는 최신 버전으로 채워집니다 (버전이 존재할 때).
     by_id = {row["eqp_id"]: row for row in response["rows"]}
     assert by_id["ECXDX003"]["recipe_version"] == 12
+
+
+def test_drifted_tool_keeps_its_own_fingerprint_timestamp(monkeypatch):
+    """2026-10-13 스키마: 문서 1건 = (recipe, version, modified).
+
+    드리프트된 장비는 같은 version 이라도 자기 modified 의 문서에 따로 실립니다.
+    행의 시각은 그 장비 문서의 것이어야 하고, version 카드는 한 장으로 남습니다.
+    버그 기간 문서의 eqp_id(tool IP)는 명부와 맞지 않으므로 조용히 빠집니다.
+    """
+    monkeypatch.setattr(
+        office_example,
+        "_version_docs",
+        # 일부러 정렬을 뒤집어 넣습니다 — 결과가 질의의 sort 에 기대면 안 됩니다.
+        lambda *_args: [
+            {"version": 7, "modified": "2026-09-01T09:00:00", "eqp_id": "ECXDX002"},
+            {
+                "version": 7,
+                "modified": "2026-10-01T09:00:00",
+                "eqp_id": ["ECXDX001", "10.20.30.40"],
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        office_example, "_roster", lambda *_args: [_sem_row(i) for i in (1, 2, 3)]
+    )
+    monkeypatch.setattr(
+        office_example, "_measured_eqp_ids", lambda *_args: set(), raising=False
+    )
+
+    response = office_example.get_lateral_recipe("cd-sem", "R3", "RWEAXXX/R")
+
+    assert [
+        (row["eqp_id"], row["recipe_ready"], row["recipe_generated_at"])
+        for row in response["rows"]
+    ] == [
+        ("ECXDX001", True, "2026-10-01T09:00:00+09:00"),
+        ("ECXDX002", True, "2026-09-01T09:00:00+09:00"),
+        ("ECXDX003", False, None),
+    ]
+    assert response["versions"] == [{
+        "recipe_version": 7,
+        "generated_at": "2026-10-01T09:00:00+09:00",
+        "ready_count": 2,
+    }]

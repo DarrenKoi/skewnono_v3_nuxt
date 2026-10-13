@@ -6,9 +6,13 @@
 which IDP version, generated when.
 
 Source: OpenSearch aliases ``cdsem_idp_ver`` / ``hvsem_idp_ver``. One document
-per **(recipe, version)** — searching a ``full_name`` returns the recipe's
-whole version history, and the highest ``version`` is the current one. Fields
-used here:
+per **(recipe, version, modified)** — the "version fingerprint", which is also
+the doc_id (``fab_name|full_name|version|modified``). Searching a ``full_name``
+returns every fingerprint the recipe has had, and a tool whose copy drifted
+from the origin tool's sits in its OWN fingerprint's document (user-confirmed
+2026-10-13; before that every tool was filed under the origin's fingerprint).
+Two documents can therefore share a ``version`` and differ only in
+``modified``. Fields used here:
 
 * ``full_name``         — the recipe name the user searched (exact match goes
                           through ``full_name.keyword``; the ``text`` mapping
@@ -16,7 +20,13 @@ used here:
 * ``fab_name``          — fab filter, stored uppercase.
 * ``version`` (long)    — IDP version; higher is newer.
 * ``modified`` (date)   — when that version was generated.
-* ``eqp_id`` []         — tools explicitly holding this version (보유).
+* ``eqp_id`` []         — EQP IDs of the tools holding this fingerprint (보유).
+                          Until 2026-10-13 ingestion wrote tool **IPs** here,
+                          which never matched the sem_list roster — readiness
+                          then came from measurement history alone. Documents
+                          from that period still exist until ingestion
+                          re-upserts them; their IPs match no roster tool and
+                          fall through harmlessly.
 
 Recent measurement history supplies a second readiness signal. Distinct
 ``eqp_id.keyword`` values for the same fab/full_name in the latest 30-day
@@ -103,6 +113,11 @@ MEAS_HISTORY_DAYS = 30
 # `not_found_eqp_id` (미보유) is deliberately NOT fetched. Readiness is the
 # union of explicit `eqp_id` membership and recent meas_hist execution; the
 # negative list cannot override evidence that a tool executed the recipe.
+# (Since 2026-10-13 the list is accurate — tools really lacking this
+# fingerprint — where it used to be the whole fab; it is still redundant here.)
+# `unknown_eqp_id` (tools the last check could not reach — FTP/parse failure)
+# is not fetched either: the contract's `recipe_ready` is a bool with no
+# "unverified" state, so such a tool reads as 미보유 unless it measured.
 SOURCE_FIELDS = ["version", "modified", "eqp_id"]
 
 
@@ -159,13 +174,14 @@ def _version_docs(
         index,
         _query(clauses),
         size=MAX_VERSION_DOCS,
-        sort=[{"version": "desc"}],
+        sort=[{"version": "desc"}, {"modified": "desc"}],
         source=SOURCE_FIELDS,
     )
     if len(docs) == MAX_VERSION_DOCS:
         raise LookupError(
             f"Recipe {recipe_name!r} returned {MAX_VERSION_DOCS} version "
-            f"documents from {index!r} — the per-recipe cap. Showing a "
+            f"documents from {index!r} — the per-recipe cap (one document per "
+            "version fingerprint, so drifted tools add to the count). Showing a "
             "truncated version history would misreport which tools are "
             "current; raise MAX_VERSION_DOCS or check for duplicate ingestion."
         )
@@ -232,25 +248,36 @@ def get_lateral_recipe(
 ) -> LateralRecipeResponse:
     docs = _version_docs(tool_type, fab_name, recipe_name)
 
-    # eqp_id -> highest version holding it. A tool that appears under several
-    # versions is reported at its newest, which is the one it currently runs.
-    version_by_eqp: dict[str, int] = {}
+    # eqp_id -> the (version, modified) fingerprint it holds. A tool that
+    # appears under several is reported at its newest, which is the one it
+    # currently runs. `modified` rides along because two fingerprints can share
+    # a version: a drifted tool's row must show its own timestamp, not the
+    # origin's.
+    held_by_eqp: dict[str, tuple[int, str]] = {}
     generated_at_by_version: dict[int, str | None] = {}
     for doc in docs:
         try:
             version = int(doc["version"])
         except (KeyError, TypeError, ValueError):
             continue  # a doc without a usable version cannot place a tool
-        generated_at_by_version.setdefault(version, _kst_iso(doc.get("modified")))
+        modified = _kst_iso(doc.get("modified"))
+        # A version card carries one timestamp; when several fingerprints share
+        # the version it is the newest. `_kst_iso` output sorts as text.
+        if (
+            version not in generated_at_by_version
+            or (modified or "") > (generated_at_by_version[version] or "")
+        ):
+            generated_at_by_version[version] = modified
+        fingerprint = (version, modified or "")
         for eqp_id in _as_list(doc.get("eqp_id")):
             eqp_key = _eqp_key(eqp_id)
             # Explicit None check, not a 0 sentinel: version is a `long` and a
             # legitimate version 0 would lose to `0 > 0` and silently report the
             # tool as not holding the recipe. Order-independent, so this does
             # not quietly depend on the caller's `sort` staying descending.
-            current = version_by_eqp.get(eqp_key)
-            if current is None or version > current:
-                version_by_eqp[eqp_key] = version
+            current = held_by_eqp.get(eqp_key)
+            if current is None or fingerprint > current:
+                held_by_eqp[eqp_key] = fingerprint
 
     # A recent measurement proves that the tool could execute the recipe even
     # when the IDP version document's eqp_id list is empty or stale. Measurement
@@ -259,8 +286,12 @@ def get_lateral_recipe(
     measured = _measured_eqp_ids(tool_type, fab_name, recipe_name)
     if generated_at_by_version:
         latest_version = max(generated_at_by_version)
+        latest_fingerprint = (
+            latest_version,
+            generated_at_by_version[latest_version] or "",
+        )
         for eqp_id in measured:
-            version_by_eqp.setdefault(eqp_id, latest_version)
+            held_by_eqp.setdefault(eqp_id, latest_fingerprint)
 
     # ... and when there is no version document AT ALL, the measurement still
     # proves it. Gating the whole merge on `generated_at_by_version` dropped
@@ -270,18 +301,19 @@ def get_lateral_recipe(
     # with recipe_version=None; the page keeps a dedicated bucket for exactly
     # that (UNKNOWN_VERSION_KEY in utils/lateralVersionGroups.ts), which sorts
     # below the versioned groups.
-    ready_without_version = measured - set(version_by_eqp)
+    ready_without_version = measured - set(held_by_eqp)
 
     rows: list[LateralRecipeRow] = []
     ready_by_version: dict[int, int] = {}
     ready_count = 0
     for sem in _roster(tool_type, fab_name):
         eqp_key = _eqp_key(sem["eqp_id"])
-        version = version_by_eqp.get(eqp_key)
+        held = held_by_eqp.get(eqp_key)
+        version = held[0] if held else None
         # Not listed under any version, and never seen measuring it, means not
-        # ready. A tool absent from both eqp_id and not_found_eqp_id ("never
-        # evaluated") lands here too — recipe_ready is a bool, so there is
-        # nowhere else for it to go.
+        # ready. A tool in `unknown_eqp_id` (unreachable at the last check) or
+        # in none of the three lists ("never evaluated") lands here too —
+        # recipe_ready is a bool, so there is nowhere else for it to go.
         ready = version is not None or eqp_key in ready_without_version
         if ready:
             ready_count += 1
@@ -294,9 +326,7 @@ def get_lateral_recipe(
             available=sem["available"],
             recipe_ready=ready,
             recipe_version=version,
-            recipe_generated_at=(
-                generated_at_by_version.get(version) if version is not None else None
-            ),
+            recipe_generated_at=(held[1] or None) if held else None,
         ))
 
     # Every version the recipe has ever had, newest first — including ones no

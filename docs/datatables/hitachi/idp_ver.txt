@@ -7,8 +7,39 @@ Index(alias)
   cdsem_idp_ver -> tool_type "cd-sem"
   hvsem_idp_ver -> tool_type "hv-sem"
 
-문서 1건 = **(recipe, version) 한 쌍** 입니다. 한 recipe 의 full_name 을 검색하면 그
-recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 현재 버전입니다.
+문서 1건 = **(recipe, version, modified) — "버전 지문" 하나** 입니다
+(user-confirmed 2026-10-13). doc_id 가 곧 그 지문입니다:
+
+    fab_name|full_name('/' -> '_')|version|modified
+
+한 recipe 의 full_name 을 검색하면 그 recipe 가 가졌던 지문 전체가 나오고, version 이
+가장 높은 것이 현재 버전입니다. **같은 version 에 modified 만 다른 문서가 둘 이상
+있을 수 있으므로**, "최신 1건" 을 고르는 질의는 version desc 뒤에 modified desc 를
+동률 깨기로 붙입니다.
+
+2026-10-13 스키마 변경 (user-confirmed) — 적재 쪽 버그 수정입니다
+
+  | field | 변경 전 (버그 기간) | 변경 후 |
+  | eqp_id | tool **IP** | **EQP ID** |
+  | not_found_eqp_id | 사실상 항상 fab 전체 장비 | 이 지문을 실제로 갖지 않은 장비만 (unknown 제외) |
+  | version, modified | 모든 장비를 origin 장비의 지문 문서 하나에 통합 기록 | 지문별 개별 문서 — 드리프트된 장비는 자기 지문의 doc_id 로 별도 생성 |
+  | unknown_eqp_id | (없음) | 신규 |
+  | creator, created_tool | 누락 | 복원 |
+
+  바뀌지 않은 것: doc_id 형식, 쓰기 방식(doc_id 기반 upsert, 멱등). 그래서 mapping
+  migration 이 없고, **버그 기간 문서와 신규 문서가 한 index 에 공존**합니다. 적재가
+  같은 doc_id 를 다시 upsert 하면서 시간이 지나면 저절로 고쳐집니다.
+
+  ★ 공존 기간에 읽는 쪽이 알아야 할 것 — 버그 기간 문서의 eqp_id 는 IP 라서 sem_list
+    명부의 eqp_id 와 **하나도 맞지 않습니다.** 예외가 나는 것이 아니라 그 문서가
+    장비를 아무도 보유로 올리지 못할 뿐이고, 그동안 lateral check 의 보유 판정은
+    측정 이력(아래 조회 방법 2)만으로 서 있었습니다. IP 를 eqp_id 로 되돌려 매칭하는
+    코드는 두지 않습니다 — 자동 치유되는 데이터를 위한 영구 코드가 됩니다.
+
+  OFFICE-VERIFY: (1) version 은 같고 modified 만 다른 지문이 실제로 생기는지, 아니면
+  드리프트는 항상 version 차이로 나타나는지. (2) 한 장비가 예전 지문 문서의 eqp_id
+  에 남은 채 새 지문 문서에도 실리는지 — 어댑터는 그 경우 가장 높은 지문을 택합니다.
+  (3) unknown_eqp_id 가 그 recipe 의 모든 지문 문서에 실리는지, 한 문서에만 실리는지.
 
 사용 field
 
@@ -18,7 +49,8 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
   fab_name -> text: fab 필터. **대문자로 저장**되어 있습니다. fab_name.keyword 사용.
   version -> long: IDP 버전. 클수록 최신입니다.
   modified -> date: 해당 버전이 생성된 시각.
-  eqp_id -> text(다중값): 이 버전을 명시적으로 보유한 장비 목록(보유).
+  eqp_id -> text(다중값): 이 지문을 보유한 장비의 **EQP ID** 목록(보유).
+                          2026-10-13 이전 문서에는 tool IP 가 들어 있습니다(위).
                           값이 1개면 list 가 아니라 bare string 으로 돌아오므로
                           두 형태를 모두 받아야 합니다.
 
@@ -40,16 +72,28 @@ recipe 의 버전 이력 전체가 나오고, version 이 가장 높은 것이 �
                           버전 200건치를 함께 내리면 응답이 그것만으로 커집니다.
                           ※ device-statistics 는 반대로 이 셋이 필요합니다.
                             아래 "두 번째 소비자" 절을 보십시오.
-  not_found_eqp_id -> 미보유 목록. **의도적으로 읽지 않습니다.** 보유 판정은
+  not_found_eqp_id -> 미보유 목록(다중값). **의도적으로 읽지 않습니다.** 보유 판정은
                       "명시적 eqp_id 등재" 와 "최근 측정 실행 이력" 의 합집합인데,
                       recipe 를 실제로 실행한 장비를 미보유로 표시할 수는 없으므로
                       이 부정 목록이 실행 증거를 뒤집게 두지 않습니다.
+                      2026-10-13 부터는 값이 정확합니다(이 지문을 실제로 갖지 않은
+                      장비만, unknown 제외). 그 전에는 버그로 사실상 항상 fab 전체
+                      장비였습니다.
+  unknown_eqp_id -> 다중값. 이번 검사에서 FTP/파싱 실패로 **확인하지 못한** 장비
+                    (2026-10-13 신규). 보유도 미보유도 아니며 정상이면 빈 배열입니다.
+                    지금은 읽지 않습니다 — lateral 계약의 recipe_ready 가 bool 이라
+                    "확인 불가" 를 실을 자리가 없고, 그런 장비는 측정 이력이 없으면
+                    미보유로 표시됩니다.
+  creator, created_tool -> string. 원본 스키마의 field 로, 한동안 누락되었다가
+                    2026-10-13 에 복원되었습니다. 아직 소비자가 없습니다.
 
 조회 방법
 
 1. full_name.keyword + fab_name.keyword 로 버전 문서를 최대 200건(MAX_VERSION_DOCS)
-   가져옵니다. 한 recipe 가 이보다 많은 버전을 가지는 것은 예상 밖이므로, 상한에
-   걸리면 조용히 자르지 않고 truncation 을 감지합니다.
+   가져옵니다. 한 recipe 가 이보다 많은 지문을 가지는 것은 예상 밖이므로, 상한에
+   걸리면 조용히 자르지 않고 truncation 을 감지합니다. 장비 행의 version 과 시각은
+   그 장비가 실린 지문 문서의 것이고(여러 문서에 실리면 가장 높은 지문), version
+   카드는 version 당 한 장이며 시각은 그 version 의 지문 중 가장 최근 것입니다.
 2. 두 번째 신호로 meas_hist_* 의 최근 30일(MEAS_HISTORY_DAYS) 창에서 같은
    fab/full_name 의 eqp_id.keyword distinct 값을 구합니다. 이것이 하한선입니다 —
    recipe 를 실행한 장비는 미보유로 표시될 수 없습니다. IDP 이력에 없는 장비는
@@ -68,7 +112,10 @@ parameters 를 버리고 보유/버전만 보지만, device-statistics 는 param
   (docs/datatables/hitachi/planstep_r3.txt). 정확 일치는 full_name.keyword 로 겁니다.
 - **가장 높은 version 문서 1건만** 필요합니다. 버전 이력 전체를 받는 lateral check 와
   달리, 여기서는 recipe 당 최신 1건의 parameters 로 para_* 개수를 집계합니다.
-- 따라서 질의는 recipe 당 `full_name.keyword` term + `version` desc 정렬 + `size: 1` 로
+  ★ 2026-10-13 부터 그 1건은 **드리프트된 장비 한 대의 지문**일 수 있습니다 — 장비
+    한 대가 recipe 를 따로 고쳐 version 이 올라가면 그 문서가 "최신" 이 됩니다.
+    다수 장비가 가진 지문을 택해야 하는지는 미정입니다 (OFFICE-VERIFY).
+- 따라서 질의는 recipe 당 `full_name.keyword` term + `version` desc, `modified` desc 정렬 + `size: 1` 로
   좁히고, `_source` 도 필요한 field 로 제한합니다 — `parameters`,
   `parameters_list`, 그리고 `raw_data` 는 **통째로가 아니라** `raw_data.Parameter` /
   `raw_data.Mother_Para` / `raw_data.Region` 세 경로만.
@@ -90,7 +137,7 @@ index 에서 읽어 돌려줍니다. recipe-open 이 장비 FTP 의 ``.idp`` 를
 API 입니다.
 
 - 질의는 device-statistics 와 같습니다 — ``full_name.keyword`` term (+
-  ``fab_name.keyword``) + ``version`` desc + ``size: 1``. ``_source`` 는
+  ``fab_name.keyword``) + ``version`` desc, ``modified`` desc + ``size: 1``. ``_source`` 는
   ``version``, ``modified``, ``raw_data``, ``wafer_para_loc_info`` 네 field 로
   좁힙니다. 두 blob 이 응답의 본체이므로 그 아래로는 줄이지 않습니다.
 - 문서가 없으면 404 입니다. index 에 없는 recipe 는 recipe-open 이 열 수 있는
