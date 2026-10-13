@@ -105,6 +105,14 @@ bm_pm, reso_center, mdc — 8개 문서). 폴더 목록에서 흩어지지 않�
   `Z` 접미사가 붙어 저장되는 소스를 발견하면 9시간 어긋나므로 문서에 반드시 적습니다.
   예외가 하나 있습니다 — `skewnono_logging` 은 우리가 직접 쓰는 인덱스라 offset 을
   포함한 UTC 로 저장합니다. 사무실이 만든 데이터가 아니므로 규약 밖입니다.
+- 위 규약 때문에 OpenSearch 의 `now` 날짜 연산은 저장된 값보다 9시간 늦습니다.
+  OpenSearch 가 offset 없는 값을 UTC 로 읽기 때문입니다. `lte: "now"` 로 상한을
+  걸면 최근 9시간분이 조용히 빠집니다(`meas_hist` timestamp 에서 확인,
+  user-confirmed 2026-10-13). 기간의 경계는 KST 시각을 offset 없이 직접 계산해
+  보내고, `now` 로 상한을 걸지 않습니다.
+- 사무실 OpenSearch 3.7 클러스터에서 scroll 은 결과가 클 때 문서를 조용히
+  누락합니다(user-confirmed 2026-10-13). 전량 조회는 `search_after` 를 씁니다.
+  근거와 정렬 조건은 `hitachi/ebeam_tas_lot_hist.txt` 에 있습니다.
 - Redis 의 DataFrame 은 parquet 직렬화(`df.to_parquet()`, 값 선두 4바이트 `PAR1`)
   입니다. `_runtime/office_redis.py` 의 `read_dataframe` 이 역직렬화를 담당합니다.
 

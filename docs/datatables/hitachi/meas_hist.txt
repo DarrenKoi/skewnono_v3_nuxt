@@ -274,6 +274,11 @@ device 카탈로그(디바이스별 화면)용 lot_cd 해결
   - OpenSearch "ebeam_tas_lot_hist" index 의 최근 60일(event_tm) unique
     lot_cd -> "현재 생산 중" 판단(오래된 lot_cd 제거).
   자세한 스키마는 device_desc.txt, ebeam_tas_lot_hist.txt 참고.
+- timestamp 는 offset 없는 KST 값이라 클러스터의 now 보다 최대 9시간 앞섭니다.
+  lte: "now" 로 상한을 걸면 최근 9시간분이 빠집니다 (user-confirmed
+  2026-10-13). 이 문서의 range 조회가 경계를 KST 로 직접 계산해 보내는 이유
+  이며, lot_cd bridge 가 이 함정과 scroll 누락으로 lot 을 잃던 경위는
+  ebeam_tas_lot_hist.txt 의 "조용히 적게 돌아오던 원인" 절에 있습니다.
 
 
 ========================================================================

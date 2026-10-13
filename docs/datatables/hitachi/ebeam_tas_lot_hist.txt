@@ -8,6 +8,10 @@ Index -> ebeam_tas_lot_hist
 
 핵심 사용 field
   event_tm -> date: 이벤트 시각. 기간(range) 필터 기준 time_field
+              시간대는 사무실 인덱스 공통 규약(offset 없는 KST wall-clock,
+              README.md "표기 규칙")을 따른다고 봅니다. 이 field 자체에서
+              확인한 값은 아니므로 OFFICE-VERIFY 입니다 — 조회 결과의
+              event_tm 최댓값이 현재 KST 시각 근처면 규약대로입니다.
   lot_id   -> 개별 lot ID. meas_hist_* 문서의 lot_id 와 동일 체계 —
               meas_hist 에는 lot_cd 가 없으므로 이 index 가 유일한
               lot_id <-> lot_cd 변환 다리(bridge)입니다.
@@ -56,6 +60,31 @@ oper_seq / samp_seq 를 갖지만 여기에는 대응 field 가 없습니다. �
 4. 이 집합을 Redis "device_desc"(그리고 R3 는 r3_device_grp)와 join 해서
    화면에 표시할 device 메타데이터를 붙입니다.
 5. lot_cd 별 row 수는 최근 60일 활동량(activity count)으로 쓸 수 있습니다.
+
+주의 — 이 조회가 조용히 적게 돌아오던 원인 두 가지 (2026-10-13 수정)
+
+range_dataframe_all 은 에러 없이 일부만 돌려줄 수 있었고, 그 결과는 bridge 에
+없는 lot_id 가 되어 화면에서 device 가 통째로 사라지거나 건수가 작게 집계되는
+것으로만 드러났습니다(Recipe 현황의 TAT / Align / Meas 탭). 둘 다 ops_store
+쪽에서 고쳤으며, 이 index 를 다른 방법으로 직접 조회할 때도 같은 규칙을
+지켜야 합니다.
+
+  a. scroll 금지. 사무실 OpenSearch 3.7 클러스터에서 scroll 로 큰 결과를
+     받으면 문서가 조용히 누락됩니다 (user-confirmed 2026-10-13). 전량 조회는
+     search_after 로 페이지를 나눕니다. 정렬은 시간 내림차순 뒤에 _id
+     오름차순을 tiebreaker 로 붙이며, 이 조합으로 전량이 들어오는 것을
+     확인했습니다 (office 확인 2026-10-13). _id 단독 정렬로 바꾸면
+     max_rows 가 "최신 N건" 이 아니라 "_id 가 작은 N건" 을 돌려주게 됩니다.
+  b. 상한 lte: "now" 금지. offset 없는 KST 값을 OpenSearch 가 UTC 로 읽으므로
+     최신 문서는 클러스터의 now 보다 최대 9시간 "미래" 에 놓이고, lte: "now"
+     는 그 9시간분을 잘라냅니다 (meas_hist timestamp 에서 확인,
+     user-confirmed 2026-10-13). ops_store 의 range 계열은 이제 gte 만
+     보냅니다. 하한 "now-60d" 도 같은 이유로 9시간 어긋나지만, 요청보다 9시간
+     더 오래된 문서가 포함되는 방향이라 누락은 없습니다.
+
+수정 후 scroll 누락이 해소된 것을 사무실에서 확인했습니다 (office 확인
+2026-10-13). 다시 의심될 때의 검증법: 같은 60일 조건의 count() 와
+range_dataframe_all 의 행 수가 같아야 합니다.
 
 주의: 이 index 는 measurement 단위로 매우 클 수 있습니다. unique lot_cd 만
 필요하다면 lot_cd.keyword 에 대한 terms aggregation 이 전체 row 를 내려받는

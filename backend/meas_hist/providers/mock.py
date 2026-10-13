@@ -33,6 +33,14 @@ Other office properties this mock cannot demonstrate:
   the latest data date, not wall clock — and recipe_tat and fail_issue share one
   cached anchor so the recipe-status tabs always agree on 데이터 기준 날짜.
 * pagination is from/size with from+size <= 10000 (index.max_result_window).
+* the cluster's `now` runs 9 hours BEHIND these stored values (naive KST read
+  as UTC), so an `lte: "now"` bound drops the newest 9 hours (user-confirmed
+  2026-10-13). Bounds are computed in KST and sent offset-less; never `now`.
+* the `lot_cd` bridge is complete here. At the office it is a paged 60-day pull
+  of `ebeam_tas_lot_hist`, and it used to come back short without an error
+  (scroll dropping documents on OpenSearch 3.7, plus the `now` bound above). A
+  lot missing from it surfaces as `lot_cd: ""` on a row and as a device missing
+  from recipe_tat / fail_issue `/devices` — a path home never exercises.
 * every mock row carries a nonblank `fab_name`, so the office dirty-data path
   where documents LACK the field — surfacing in the `recipe_names` snapshot as
   `fab_name: ""` ("owner unknown", OFFICE-VERIFY) — never exercises at home.
