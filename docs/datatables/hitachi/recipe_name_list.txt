@@ -80,6 +80,19 @@ hash value -> rcp_loc      : [idw_name, idp_name]  (경로 문자열 2개, 순�
    아니라 "roster 에 그 장비가 없다"는 뜻입니다.
 4. value 직렬화 형식은 unique_rcp_list 와 같은 규칙으로 파싱합니다(JSON ->
    Python repr -> 콤마 분리).
+5. 두 hash 는 **서로 다른 job 이 적재하므로 같은 recipe 를 두고 어긋납니다**
+   (office 확인 2026-10-14). 2026-10-13 에 한 사용자의 자세히 보기 74 건이
+   502 로 실패했는데, 전부 RJ1A/* recipe 를 fab M16B 로 연 것이었습니다.
+   unique_rcp_list 의 m16b field 와 tools_in_rcp_m16b 에는 그 recipe 가 있고
+   (장비 6MCDB506), rcp_loc_m16b 에는 항목이 없었으며, meas_hist 에는 어느 fab
+   에도 측정 문서가 0 건이라 fallback 도 실패했습니다. 같은 recipe 가 r3 와
+   m16a 에서도 tools 만 있고, m16e 에서만 loc 와 tools 가 모두 있었습니다.
+   어댑터는 이 경우 **요청 fab 의 tools_in_rcp 가 장비를 대고 있을 때에 한해**
+   다른 fab 의 rcp_loc 항목에서 [idw, idp] 를 빌려 경로를 조립합니다(빌린
+   key 이름을 502 본문과 registry-check 의 reason 에 남깁니다). recipe 의
+   idw/idp 폴더 이름이 fab 과 무관하게 같다는 전제이며 아직 실제 열기로
+   확인되지 않았습니다(OFFICE-VERIFY). 전제가 틀리면 FTP 단계에서 "Could not
+   download" 502 가 나므로, 그 문구가 보이면 이 항목을 의심합니다.
 
 recipe 자세히 보기 / 비교
 

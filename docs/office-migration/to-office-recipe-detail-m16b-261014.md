@@ -241,3 +241,74 @@ latest 2026-10-11T09:12:44 CG6300_02 fields(ip,class,idw,idp)=YY--
 2절 출력 (전체 붙여넣기):
 3절 1~5 (있으면):
 ```
+
+## 6. 회신 (2026-10-14)
+
+### 원문
+
+```text
+1. B - recipe 목록 오류 0 건. 153 = recipe-detail 502 76(원 요청 74 + 재현 2) /
+   param-detail 503 65 / recipe-image 401 7 / 404 5. q= fab_name 콤마 행 0건.
+2. A - RJ1A/J1ISO_WF, RJ1A/J1SIO_WCDU,... 전부 fab_name=M16B 단일, user 2045227,
+   2026-10-13
+3. A - "No document in meas_hist" 시작, code=upstream_data_error
+4. B - r3 loc=- tools=["MCD427"], m16b loc=- tools=["6MCDB506"], m16a loc=-
+   tools=["6MCD2201, 6MCD3401, 6MCD3402], m16e만 loc tools 모두 있음.
+5. ? - 이 레시피의 meas_hist 표본이 0 건( 어느 fab에도 문서 없음)이라 확인 불가.
+6. B 재현에서 열기 직전 URL FAB 부분은 m16b 하나.
+7. A 처음 여는 주소창 URL에 &fab_name=M16B 있었음.
+8. B status 400 행 0건, 콤마 행 0건.
+9. B measurement-locations 오류 행 0건.
+10. A
+11. ? 원 요청의 화면 경로는 로그에 남지 않음. 재현 경로는 H->A
+12. C 현재 장비 위치 기준 적재.
+
+meas_hist fab 누락 0. timed_out False
+
+502 내용
+upstream_data_error. No document in meas_hist_cdsem has full_name='RJ1A/J1ISO_WF'
+for fab 'M16B'. A recipe that exists in the catalog but has never been measured
+has no .idp location to derive - recipe open needs on run. Redis recipe registry
+was tried first and declined. v3_cdsem_rcp_loc_m16b has no usable [idw, idp]
+entry for the recipe.
+
+핵심 결론
+- (가) 불성립 - 목록 오류 0건, 콤마 0건
+- M16B의 출처는 데이터 자체. 재현에서도 검색표 행 링크가 fab_name=M16B를 넣어
+  보냈습니다. (다의 부정 근거). 세 레시피 모두 m16 카탈로그, tools_in_rcp_m16b에
+  등재되어 있으나, rcp_loc_m16b에만 항목이 없고, meas_hist 어느 fab에도 0건이라
+  열지 못합니다.
+- 참고: 묻지 않은 유형으로 param-detail 503이 65건 있었습니다. (원 오류의 43%)
+```
+
+### 해석
+
+| 집의 가정 | 결과 |
+| --- | --- |
+| (가) 다중 fab 목록 조회가 콤마 분리로 M16B 처럼 보임 | 틀림. 목록 오류 0건, 콤마 행 0건 |
+| (나) 데이터가 M16B 로 태그한 행에서 열기 | 맞음. 검색표의 M16B 카탈로그 행이 `fab_name=M16B` 를 넣어 보냄 |
+| (다) 소유 fab 없는 링크의 사이드바 fallback | 틀림. 주소창 URL 에 `fab_name=M16B` 가 있었음 |
+| 레시피가 R3/R4 것일 것 | 틀림. 카탈로그와 `tools_in_rcp` 는 m16b, m16a, r3, m16e 에 모두 등재 |
+| meas_hist 의 fab_name 은 lot 기준일 수 있음 | 틀림. 현재 장비 위치 기준(12번 C) |
+
+실패 원인은 fab 선택이 아니라 **등록부 두 hash 의 어긋남**입니다. `rcp_loc_m16b`
+에만 항목이 없고 측정 이력도 없어 어느 소스로도 경로를 못 만들었습니다. 같은
+레시피의 경로가 `rcp_loc_m16e` 에는 있습니다.
+
+### 반영
+
+- 사무실 어댑터: 요청 fab 의 `tools_in_rcp` 가 장비를 대고 있는데 `rcp_loc` 에
+  항목이 없으면 다른 fab 의 `rcp_loc` 항목을 빌려 경로를 조립합니다. 빌린 key 를
+  502 본문과 registry-check 의 reason 에 남깁니다. 레시피의 idw/idp 폴더 이름이
+  fab 과 무관하다는 전제는 OFFICE-VERIFY 입니다. 틀리면 "Could not download"
+  502 가 납니다.
+- 스키마 문서(recipe_name_list)와 mock docstring 에 같은 사실을 적었습니다.
+- 미처리: param-detail 503 65건은 장비 FTP 접속 불가(SourceUnavailable)로,
+  별개 사안입니다. 다음 요청서에서 다룹니다.
+
+### 다음에 확인할 것
+
+1. `office_example.py` 를 다시 cp 하고 재시작한 뒤, RJ1A/J1ISO_WF 를 M16B 로 열어
+   성공하는지. 실패하면 502 본문에 `borrowed from v3_cdsem_rcp_loc_m16e` 가 있는지와
+   그 뒤 문장(`Could not download` 여부).
+2. param-detail 503 의 장비 IP 와 시각(같은 장비에 몰려 있는지).

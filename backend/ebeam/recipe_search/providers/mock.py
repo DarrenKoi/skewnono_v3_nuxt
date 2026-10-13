@@ -31,6 +31,18 @@ never commas).
   still, since recipe open just falls through to the meas_hist path and keeps
   answering 200 for any recipe that has been measured.
 
+★ THE NAME LIST, tools_in_rcp AND rcp_loc ARE WRITTEN BY DIFFERENT JOBS AND
+  DISAGREE (office 확인 2026-10-14). On 2026-10-13 one user's 74 opens of
+  RJ1A/* recipes under M16B all 502'd: the m16b name list and
+  tools_in_rcp_m16b carried the recipes, rcp_loc_m16b did not, and meas_hist
+  had no run in any fab, so neither source could build a path. m16e held both
+  hashes for the same names. The office adapter now borrows another fab's
+  [idw, idp] when the requested fab lists tools but no location (OFFICE-VERIFY:
+  assumes a recipe's folder names are fab-independent). This mock does NOT
+  reproduce the gap — every name it lists is openable — so the borrow path is
+  covered by `tests/test_idp_locate.py` against a fake Redis, not by running
+  the mock.
+
 Searching the name list rather than 측정 이력 is deliberate: a recipe that has
 never been measured still exists and must be findable.
 

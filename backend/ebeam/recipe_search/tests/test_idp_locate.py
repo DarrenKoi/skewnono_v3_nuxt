@@ -220,9 +220,38 @@ class TestLocateViaRedis:
         })
         assert oe._locate_via_redis("cd-sem", "AC_M2_TAT", "R3") is None
 
-    def test_missing_location_field_falls_back(self, wired):
+    def test_missing_location_field_falls_back(self, wired, monkeypatch):
+        monkeypatch.setattr(oe, "_registry_fabs", lambda: ["r3"])
         wired({TOOLS_KEY: {RECIPE: '["CG6300_01"]'}})
-        assert oe._locate_via_redis("cd-sem", RECIPE, "R3") is None
+        notes: list[str] = []
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3", notes) is None
+        assert "no other fab's rcp_loc hash holds one" in notes[-1]
+
+    def test_location_is_borrowed_from_another_fab(self, wired, monkeypatch):
+        # office 확인 2026-10-14: tools_in_rcp_m16b named the recipe's tools
+        # but rcp_loc_m16b had no entry, while m16e held both. The location
+        # names the recipe's own folders, so m16e's entry opens it on the
+        # M16B tools — and the borrow is written into the notes so a later
+        # FTP failure can say where the path came from.
+        monkeypatch.setattr(oe, "_registry_fabs", lambda: ["m16a", "m16b", "m16e"])
+        wired({
+            "v3_cdsem_tools_in_rcp_m16b": {RECIPE: '["CG6300_01"]'},
+            "v3_cdsem_rcp_loc_m16a": {RECIPE: '["/R/ADI/X.idw"]'},  # one-sided: skipped
+            "v3_cdsem_rcp_loc_m16e": {RECIPE: '["/R/ADI/A.idw", "/R/ADI/B.idp"]'},
+        })
+        notes: list[str] = []
+        located = oe._locate_via_redis("cd-sem", RECIPE, "M16B", notes)
+        assert located == [oe._IdpLocation("CG6300_01", "10.1.2.1", "ADI", "A", "B")]
+        assert notes == [f"[idw, idp] for {RECIPE!r} borrowed from v3_cdsem_rcp_loc_m16e"]
+
+    def test_no_tools_in_the_fab_means_nothing_to_borrow_for(self, wired, monkeypatch):
+        # Another fab's path is only useful on THIS fab's tools; with none
+        # listed the registry bails before touching other hashes.
+        consulted: list[int] = []
+        monkeypatch.setattr(oe, "_registry_fabs", lambda: consulted.append(1) or ["m16e"])
+        wired({"v3_cdsem_rcp_loc_m16e": {RECIPE: '["/R/ADI/A.idw", "/R/ADI/B.idp"]'}})
+        assert oe._locate_via_redis("cd-sem", RECIPE, "M16B") is None
+        assert consulted == []
 
     def test_one_sided_location_value_falls_back(self, wired):
         # Read positionally, so a 1-entry list is unusable rather than partial.
