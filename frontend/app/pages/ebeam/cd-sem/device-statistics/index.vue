@@ -56,6 +56,20 @@
           </span>
         </div>
         <div class="flex items-center gap-2">
+          <!-- "디바이스가 안 보인다" 가 데이터 문제인지 필터 문제인지 가르는
+               표시입니다. 바로 옆 건수 배지는 세션 한정 조건(측정 상위·검색·
+               정렬)에도 켜지므로, 접속을 넘어 남는 필터만 따로 말합니다. -->
+          <span
+            v-if="savedFilterLabels.length > 0"
+            class="inline-flex h-[30px] items-center gap-1.5 rounded-md border border-(--sk-warn-border) bg-(--sk-warn-soft) px-2.5 text-sm font-semibold text-(--sk-warn)"
+            :title="text.savedFilterHint"
+          >
+            <UIcon
+              name="i-lucide-filter"
+              class="h-3.5 w-3.5"
+            />
+            {{ text.savedFilter }} · {{ savedFilterLabels.join(' · ') }}
+          </span>
           <span
             v-if="hasActiveFilters"
             class="inline-flex h-[30px] items-center rounded-md bg-(--sk-accent-tint) px-2.5 font-mono text-sm font-semibold tabular-nums text-(--sk-accent)"
@@ -504,7 +518,9 @@ const text = {
   viewToggle: '디바이스 목록 보기 방식',
   selectAll: '이 페이지 전체 선택',
   measCaption: '90일 측정',
-  noMeasRank: '최근 90일 측정 순위에 없는 lot 입니다'
+  noMeasRank: '최근 90일 측정 순위에 없는 lot 입니다',
+  savedFilter: '저장된 필터 적용 중',
+  savedFilterHint: '이 필터는 브라우저에 저장되어 다음 접속에도 유지됩니다. 찾는 디바이스가 안 보이면 먼저 초기화해 보세요.'
 } as const
 
 const deviceFabOptions: { label: string, value: DeviceFab }[] = [
@@ -561,7 +577,10 @@ const chipsExpanded = ref(false)
 
 // 측정 상위 N 필터 — null 이면 전체. 세션 한정 상태라 preferences 에 넣지
 // 않습니다(순위 탐색용 토글이지, 남겨 둘 작업 조건이 아닙니다).
-const topNOptions = [10, 25, 50] as const
+//
+// 20 은 상위 10 경계에서 한두 칸 밀린 device 때문에 있습니다 — 11→12위로
+// 내려간 lot 을 찾으려고 25 까지 넓힐 필요가 없습니다.
+const topNOptions = [10, 20, 25, 50] as const
 const selectedTopN = ref<number | null>(null)
 
 // 표 헤더 클릭 정렬 — null 이면 기존 기본 정렬(lot_cd, 측정 상위 필터 시 순위순).
@@ -1147,6 +1166,18 @@ const hasActiveFilters = computed(() => {
     || lotSearch.value.length > 0
     || techSearch.value.length > 0
     || tableSearch.value.length > 0
+})
+
+// localStorage 에 남는 필터만 (useDeviceStatisticsPreferences). 현재 fab 에서
+// 실제로 행을 거르는 것만 셉니다 — R3 화면에서 저장된 Tech 선택은 적용되지
+// 않으므로 "적용 중" 이라고 말하면 거짓입니다.
+const savedFilterLabels = computed(() => {
+  const groups: [string, string[]][] = hasRSelection.value
+    ? [[text.categoryTitle, selectedProdCategories.value], ['Lot', selectedLots.value]]
+    : [['Tech', selectedTechs.value]]
+  return groups
+    .filter(([, selected]) => selected.length > 0)
+    .map(([label, selected]) => `${label} ${selected.length}`)
 })
 
 const activeDomainFilterCount = computed(() => {

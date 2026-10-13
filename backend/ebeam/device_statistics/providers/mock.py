@@ -29,6 +29,15 @@ office 어댑터가 두 이름을 모두 받아 줍니다.
   않고 생성된 rows 전부를 최근 활동이 있는 것처럼 돌려줍니다 — 어떤 lot 이
   실제로 최근에 측정됐는지는 mock 이 알 수 없는 사실이기 때문입니다.
 
+- 카탈로그 겹침: 실물 device_desc 는 R3/R4 행도 담고 있어 r3_device_grp 와
+  458 lot 이 겹칩니다 (office 확인 2026-10-13). 이 mock 의 두 생성기는 같은
+  lot_cd 를 함께 만들지 않으므로, 겹침에서만 나는 버그(R 계열 device_desc 행이
+  prod_catg_cd 를 ""로 덮는 것)는 집에서 재현되지 않습니다 — 그 경로는
+  tests/test_office_template.py 가 가짜 카탈로그로 봅니다.
+- 스텝 없는 device: 실물에는 카탈로그·측정 순위에는 있는데 planstep 원본이
+  없는 device 가 있습니다 (RX1R, office 확인 2026-10-13). 이 mock 은 R009 한
+  lot 으로 대역합니다 (recipe_population.NO_STEP_LOTS).
+
 실제 컬럼/행 수/결측 분포는 사무실에서 아래로 확인합니다:
 
     .venv/bin/python -m scripts.probes.inspect_device_info_keys

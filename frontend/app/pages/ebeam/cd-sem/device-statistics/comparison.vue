@@ -103,6 +103,28 @@
         </div>
       </div>
 
+      <!-- 조회는 성공했는데 스텝이 0건인 device. 빈 표로 두면 파이프라인
+           고장과 구분되지 않습니다 — 실패는 아래 loadError 로 가므로, 여기까지
+           온 0건은 원본에 자료가 없다는 뜻입니다. -->
+      <div
+        v-if="!pending && !error && noStepLots.length > 0"
+        class="flex items-start gap-2.5 rounded-2xl border border-(--sk-warn-border) bg-(--sk-warn-soft) px-4 py-3"
+      >
+        <UIcon
+          name="i-lucide-triangle-alert"
+          class="mt-0.5 h-4 w-4 flex-none text-(--sk-warn)"
+        />
+        <div>
+          <p class="text-sm font-bold text-(--sk-ink)">
+            {{ text.noStepTitle }}
+            <span class="font-mono font-semibold">{{ noStepLots.map(lot => `${lot.lot_cd} (${lot.source})`).join(', ') }}</span>
+          </p>
+          <p class="mt-0.5 sk-caption">
+            {{ text.noStepDesc }}
+          </p>
+        </div>
+      </div>
+
       <AppLoadingState
         v-if="pending"
         variant="inline"
@@ -259,6 +281,8 @@ const text = {
   loading: '로딩 중',
   loadError: '데이터를 불러오지 못했습니다.',
   noRows: '조건에 맞는 요약 데이터가 없습니다.',
+  noStepTitle: '스텝 원본 자료 없음 ·',
+  noStepDesc: '조회는 정상 완료됐고 원본에 이 디바이스의 스텝이 0건입니다. 파이프라인 오류가 아니라 원본 데이터 부재입니다 — R 계열은 planstep, M 계열은 최근 90일 lot_hist 를 확인하세요.',
   emptyTitle: '선택된 디바이스가 없습니다',
   emptyDesc: '디바이스 통계 페이지에서 1개 이상 선택해 주세요.',
   emptyCta: '디바이스 선택으로',
@@ -353,6 +377,25 @@ const rows = computed<SummaryRow[]>(() => {
   if (!buckets) return []
   const list = (buckets as Record<string, unknown>)[selectedBucket.value]
   return Array.isArray(list) ? (list as SummaryRow[]) : []
+})
+
+// 선택한 lot 중 스텝이 하나도 없는 것. bucket 과 무관하게 **all** 로 봅니다 —
+// only_sample 의 0건은 "Sample recipe 가 없다" 는 정상 상태이기 때문입니다.
+// 응답에 행 자체가 없는 lot(카탈로그 밖)도 같은 처지라 함께 셉니다.
+const noStepLots = computed(() => {
+  const all = (data.value?.buckets as Record<string, unknown> | undefined)?.all_summary
+  if (!Array.isArray(all)) return []
+  const byLot = new Map((all as SummaryRow[]).map(row => [row.lot_cd, row]))
+  return selectedLots.value
+    .filter(lot => !byLot.get(lot)?.total_recipe)
+    .map((lot) => {
+      const fab = byLot.get(lot)?.fac_id ?? ''
+      return {
+        lot_cd: lot,
+        // 백엔드 _is_r3 와 같은 갈래 — R 계열은 planstep, 나머지는 lot_hist.
+        source: !fab ? '카탈로그에 없음' : fab.toUpperCase().startsWith('R') ? 'planstep' : 'lot_hist'
+      }
+    })
 })
 
 const recipeRowsForBucket = computed<RecipeInfoRow[]>(() => {

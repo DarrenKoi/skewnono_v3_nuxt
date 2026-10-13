@@ -347,3 +347,18 @@ CD 모니터링 recipe (user-confirmed 2026-08-18)
   확인:
     .venv/bin/python -m backend.ebeam.pm_planning.providers.office R3
   2단계가 그 fab 이 실제로 돌린 recipe 이름과 매칭된 실행 수를 출력합니다.
+
+os_inserted — 정렬·필터에 쓰지 않습니다 (office 확인 2026-10-13)
+
+OpenSearch 적재 시각 필드 os_inserted 는 offset 없는 naive(KST wall clock)
+값과 "+09:00" 이 붙은 값이 **섞여** 있습니다. naive 값은 OpenSearch 가 UTC 로
+해석하므로 같은 순간이 9시간 차이 나는 두 값으로 저장돼 있는 셈이고, 이
+필드로 정렬하거나 range 필터를 걸면 두 표기가 뒤섞입니다. 적재 지연 진단용
+으로만 읽습니다 (hardware_sharpness_monitor_cdsem.txt 와 같은 방침).
+
+timestamp 계열도 같은 이유로 date-math "now" 를 쓰지 않습니다 — KST 실제
+시각이 naive 로 적재돼 UTC 로 해석되므로 "now" 는 저장된 값보다 9시간 뒤에
+있습니다. 창의 경계는 어댑터가 datetime.now(KST) 로 만든 offset 없는 문자열
+로 보냅니다. 2026-10-13 감사 기준 backend/ 에 date-math now 는 없고,
+scripts/probes/ 의 진단 스크립트 3개만 "now-{days}d" 를 씁니다 (창의 하한이
+9시간 넓어질 뿐 최신 데이터는 잃지 않습니다).

@@ -452,8 +452,26 @@ def _lot_index() -> dict[str, str]:
     for row in _r3_rows():
         index[row["lot_cd"]] = row["fac_id"]
     for row in _hvm_rows():
+        if _yields_to_r3(row, index):
+            continue
         index[row["lot_cd"]] = row["fac_id"]
     return index
+
+
+def _yields_to_r3(hvm_row: DeviceDescRow, r3_lots: Any) -> bool:
+    """이 device_desc 행이 r3_device_grp 행에 자리를 내줘야 하는가.
+
+    device_desc 는 "M 계열 카탈로그" 라고 부르지만 **R3/R4 행도 담고 있습니다**
+    (device_desc.txt 첫 문단 — R 계열은 r3_device_grp 가 최신). 두 카탈로그의
+    교집합은 458 lot 입니다 (office 확인 2026-10-13). 그 R 계열 사본이
+    r3_device_grp 행을 덮으면 원천에 있던 ``prod_catg_cd`` 가 ""로 지워져
+    ``memory_class_auto`` 가 "unknown" 으로 떨어지고 룰 셀이 미매칭됩니다.
+
+    "겹치면 M-fab 이 이긴다" (user-confirmed 2026-08-10) 는 그대로입니다 —
+    그 규칙은 device_desc 행의 fac_id 가 **실제 M fab** 일 때의 이야기이고,
+    여기서 물러나는 것은 fac_id 가 R 계열인 행뿐입니다.
+    """
+    return _is_r3(hvm_row["fac_id"]) and hvm_row["lot_cd"] in r3_lots
 
 
 @ttl_cache
@@ -465,7 +483,8 @@ def _lot_meta() -> dict[str, dict[str, str]]:
     떨어뜨립니다 — mock 처럼 임의로 고르면 실물이 모르는 값을 가르치게 됩니다.
 
     겹치는 ``lot_cd`` 는 **M-fab 이 이깁니다** (user-confirmed 2026-08-10) —
-    바로 위 ``_lot_index`` 와 같은 순서입니다. 예전에는 이 함수만 hvm 을 먼저
+    바로 위 ``_lot_index`` 와 같은 순서입니다. 단 device_desc 행의 fac_id 가
+    R 계열이면 r3_device_grp 행이 남습니다 (``_yields_to_r3``). 예전에는 이 함수만 hvm 을 먼저
     넣어 r3 이 이기는 바람에, 두 카탈로그에 모두 있는 lot 이 ``fac_id`` 는
     M-fab 행에서(그래서 ``_is_r3`` 가 M 으로 라우팅) ``ctn_desc`` /
     ``prod_catg_cd`` 는 R3 행에서 가져오는 잡종이 됐습니다. 한 파일 안의 두
@@ -479,6 +498,9 @@ def _lot_meta() -> dict[str, dict[str, str]]:
             "prod_catg_cd": row["prod_catg_cd"],
         }
     for row in _hvm_rows():
+        # _lot_index 와 같은 예외 — 두 함수가 다시 어긋나면 잡종 lot 이 됩니다.
+        if _yields_to_r3(row, meta):
+            continue
         meta[row["lot_cd"]] = {"ctn_desc": row["ctn_desc"], "prod_catg_cd": ""}
     return meta
 

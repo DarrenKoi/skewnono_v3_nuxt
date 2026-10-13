@@ -47,6 +47,29 @@ def test_m_fab_wins_an_overlapping_lot_cd():
     assert not office_example._is_r3(office_example._lot_index()["R001"])
 
 
+def test_r_family_device_desc_row_does_not_mask_the_r3_catalog(monkeypatch):
+    """device_desc 는 R3/R4 행도 담습니다 — 교집합 458 lot (office 확인 2026-10-13).
+
+    그 사본이 r3_device_grp 행을 덮으면 prod_catg_cd 가 ""로 지워져
+    memory_class_auto 가 "unknown" 으로 떨어집니다. 원본 값이 "Advanced" 인 lot
+    (RX1A) 에서는 결과가 같아 드러나지 않았습니다.
+    """
+    hvm = [{"lot_cd": "R001", "fac_id": "R3", "ctn_desc": "옛 설명", "tech_nm": "TP"}]
+    monkeypatch.setattr(office_example, "_hvm_rows", lambda: list(hvm))
+    meta = office_example._lot_meta()["R001"]
+    assert meta == {"ctn_desc": "R3 설명", "prod_catg_cd": "DRAM"}
+    assert office_example._memory_class_auto(meta["prod_catg_cd"]) == "DRAM"
+    assert office_example._lot_index()["R001"] == "R3"
+
+
+def test_r_family_device_desc_row_still_resolves_a_lot_r3_catalog_lacks(monkeypatch):
+    """물러나는 것은 겹칠 때뿐 — device_desc 에만 있는 R lot 은 그대로 해석됩니다."""
+    hvm = [{"lot_cd": "R999", "fac_id": "R4", "ctn_desc": "R4 설명", "tech_nm": "TP"}]
+    monkeypatch.setattr(office_example, "_hvm_rows", lambda: list(hvm))
+    assert office_example._lot_index()["R999"] == "R4"
+    assert office_example._lot_meta()["R999"] == {"ctn_desc": "R4 설명", "prod_catg_cd": ""}
+
+
 # ── family 파생 (D3) ────────────────────────────────────────────────────────
 # 파서가 여기 하나뿐입니다 — 프런트의 사본은 2026-08-25 에 지웠습니다. 그래서
 # family 우선순위의 회귀는 전적으로 이 테스트가 봅니다.

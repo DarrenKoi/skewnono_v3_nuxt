@@ -336,6 +336,14 @@ _EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
 # payload 크기)은 집에서 관찰되지 않습니다.
 POOL_RANGE = (175, 200)
 
+# 카탈로그에는 있는데 **스텝 원본이 아예 없는** device. 실물에 있습니다 — RX1R 은
+# 90일 측정 11위인데 sknn-planstep-r3 에 RX1R_BASE 문서가 없어, 목록에는 뜨지만
+# 스텝·recipe 가 전부 빈 device 입니다 (office 확인 2026-10-13,
+# docs/datatables/hitachi/planstep_r3.txt). 모든 lot 이 스텝을 가진 mock 은
+# 이 빈 상태 화면을 한 번도 그리지 못합니다. lot 하나만 두는 것은 OFFICE-VERIFY
+# — 실물에서 이런 device 가 몇 개인지는 모릅니다.
+NO_STEP_LOTS = frozenset({"R009"})
+
 # 같은 recipe 를 다른 스텝에서 다시 쓰는 비율.
 #
 # 실물에서 한 device 의 plan step 은 recipe 보다 많습니다 — 위 주석의 "재사용하는
@@ -700,6 +708,8 @@ def build_population(
     ``points == 1`` 이면 궤적을 적용하지 않은 만기 모집단(=최신 주차)입니다 —
     recipe-params 처럼 주차 축이 없는 표면이 그렇게 부릅니다.
     """
+    if lot_cd in NO_STEP_LOTS:
+        return []
     pool = _identity_pool(lot_cd)
     scale = week_scale(lot_trajectory(lot_cd), point_index, points)
 

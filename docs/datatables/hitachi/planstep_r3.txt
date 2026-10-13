@@ -240,3 +240,15 @@ OFFICE-VERIFY
 - 2000+ 문서가 정상 계획 크기인지, (oper_seq, samp_seq) 중복 적재인지.
 
     .venv/bin/python -m scripts.probes.probe_planstep_r3
+
+카탈로그에는 있는데 이 index 에 문서가 없는 device (office 확인 2026-10-13)
+
+RX1R 은 최근 90일 측정 11위(ebeam_tas_lot_hist)인데 이 index 에 prod_id
+"RX1R_BASE" 문서가 **원본부터 없습니다**. 그래서 device-statistics 목록에는
+뜨지만 스텝·recipe 가 전부 빈 device 가 됩니다. 조회 실패가 아니라 0건 성공
+응답이므로, 화면은 이를 오류와 구분해 "스텝 원본 자료 없음" 으로 표시합니다
+(comparison.vue). mock 은 R009 한 lot 으로 대역합니다
+(providers/recipe_population.py NO_STEP_LOTS).
+
+OFFICE-VERIFY: 이런 device 가 몇 개인지, "_BASE" 외 접미사로 실려 있는 것은
+아닌지.
