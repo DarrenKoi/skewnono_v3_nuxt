@@ -7,6 +7,9 @@ THREE Redis keys, each a pandas DataFrame serialized to parquet:
     v3_df_sem_avail     the subset skewnono can actually reach
     v3_df_sem_version   columns [eqp_ip, version]
 
+A similarly named `v3_df_sem_list_version` is NOT used and is not a roster
+source (user-confirmed 2026-10-13) -- do not read it.
+
 `v3_df_sem_avail` is a derived subset, not the roster (user-confirmed
 2026-07-30). Every tool is assigned an `eqp_ip` when it is installed in the
 fab and is FIREWALLED from that moment; it only enters `v3_df_sem_avail`

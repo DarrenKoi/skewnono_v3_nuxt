@@ -16,6 +16,9 @@ Key 2 -> "v3_df_sem_avail"   : 위 명부 중 접속이 확인된 부분집합�
                                version 컬럼이 **없습니다**.
 Key 3 -> "v3_df_sem_version" : 컬럼 [eqp_ip, version] 두 개짜리 보조 table.
 
+"v3_df_sem_list_version" 이라는 key 는 **사용하지 않습니다** (user-confirmed
+2026-10-13). 이름이 위 key 들과 비슷하지만 명부 소스가 아니므로 읽지 않습니다.
+
 장비 lifecycle (user-confirmed 2026-07-30)
 
 모든 장비는 fab 에 반입되는 시점에 eqp_ip 를 부여받고, 그 순간부터 네트워크
