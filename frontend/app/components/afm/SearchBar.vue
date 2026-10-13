@@ -190,12 +190,14 @@
              the date, lot, slot and data columns aligned down the list, and
              only the recipe column flexes (and truncates). Its 11rem floor
              is what makes a narrow card scroll sideways rather than squeeze
-             the recipe to nothing. -->
+             the recipe to nothing. The lot track grows for an unusually long
+             id (XED0504TZ_TE) — that row's recipe gives up the room, and the
+             columns to its right stay put. -->
         <ul class="max-h-[620px] divide-y divide-(--sk-border-soft) overflow-auto">
           <li
             v-for="result in filteredResults"
             :key="result.filename"
-            class="grid grid-cols-[auto_9.5rem_minmax(11rem,1fr)_6.5rem_4rem_5.5rem_3.5rem_auto] items-center gap-3 px-4 py-2.5 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
+            class="grid grid-cols-[auto_9.5rem_minmax(11rem,1fr)_minmax(6.5rem,max-content)_4rem_5.5rem_3.5rem_auto] items-center gap-3 px-4 py-2.5 transition-colors duration-200 hover:bg-(--sk-muted-surface)"
             :class="cart.isInGroup(result.filename) ? 'bg-(--sk-muted-surface)' : ''"
           >
             <AfmGroupCheck
