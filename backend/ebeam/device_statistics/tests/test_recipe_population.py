@@ -20,6 +20,7 @@ from backend.ebeam.device_statistics.providers.recipe_population import (
     SHARED_RECIPE_FIELDS,
     _JUDGE_EXEMPT_SUFFIXES,
     bucket_members,
+    NO_STEP_LOTS,
     build_population,
     ends_with_pure_cd,
     is_exempt_job,
@@ -295,6 +296,24 @@ def test_mother_para_never_exceeds_its_bin():
     for identity in population:
         for key in ("para_16", "para_13", "para_9", "para_5"):
             assert identity[f"mother_{key}"] <= identity[key], identity["recipe_id"]
+
+
+def test_no_step_lot_is_empty_on_every_surface():
+    """카탈로그에는 있는데 스텝 원본이 없는 device (실물의 RX1R) 의 대역입니다.
+
+    이 분기가 사라지면 mock 이 다시 "모든 lot 은 스텝이 있다" 를 가르치고,
+    화면의 '스텝 원본 자료 없음' 상태를 집에서 볼 방법이 없어집니다. 요약 행은
+    **빠지는 게 아니라 0 으로 남아야** 합니다 — 화면은 행이 없는 lot 을
+    '카탈로그에 없음' 으로 따로 읽습니다.
+    """
+    lot = next(iter(NO_STEP_LOTS))
+    assert build_population(lot, DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS) == []
+    assert build_population("R000", DEFAULT_TREND_POINTS - 1, DEFAULT_TREND_POINTS)
+    assert get_recipe_params([lot]) == []
+
+    trend = get_weekly_trend_data([lot])
+    rows = trend[list(trend)[-1]]["all_summary"]
+    assert [(r["lot_cd"], r["total_recipe"]) for r in rows] == [(lot, 0)]
 
 
 def test_mother_normal_summary_counts_only_mother_parameters(trend):
