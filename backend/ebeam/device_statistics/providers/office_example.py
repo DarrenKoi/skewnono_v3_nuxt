@@ -458,7 +458,7 @@ def _lot_index() -> dict[str, str]:
     return index
 
 
-def _yields_to_r3(hvm_row: DeviceDescRow, r3_lots: Any) -> bool:
+def _yields_to_r3(hvm_row: DeviceDescRow, resolved: Any) -> bool:
     """이 device_desc 행이 r3_device_grp 행에 자리를 내줘야 하는가.
 
     device_desc 는 "M 계열 카탈로그" 라고 부르지만 **R3/R4 행도 담고 있습니다**
@@ -470,8 +470,13 @@ def _yields_to_r3(hvm_row: DeviceDescRow, r3_lots: Any) -> bool:
     "겹치면 M-fab 이 이긴다" (user-confirmed 2026-08-10) 는 그대로입니다 —
     그 규칙은 device_desc 행의 fac_id 가 **실제 M fab** 일 때의 이야기이고,
     여기서 물러나는 것은 fac_id 가 R 계열인 행뿐입니다.
+
+    ``resolved`` 는 r3_device_grp 행만이 아니라 **지금까지 채운 dict 전체** 입니다.
+    그래서 정확한 규칙은 "R 계열 device_desc 행은 이미 해석된 lot 을 덮지 않는다"
+    입니다 — device_desc 안에 같은 lot 이 M fab 행과 R 행으로 둘 다 있어도 행
+    순서와 무관하게 M 이 남습니다.
     """
-    return _is_r3(hvm_row["fac_id"]) and hvm_row["lot_cd"] in r3_lots
+    return _is_r3(hvm_row["fac_id"]) and hvm_row["lot_cd"] in resolved
 
 
 @ttl_cache
