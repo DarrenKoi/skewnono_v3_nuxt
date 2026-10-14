@@ -268,7 +268,7 @@ SKEWNONO_SECRET_KEY=<임의의 비어 있지 않은 문자열>
 | 값 | alias | 보존 |
 | --- | --- | --- |
 | `local` | `skewnono_logging_local` | 30일 |
-| `production` | `skewnono_logging` | 365일 |
+| `production` | `skewnono_logging` | 540일 |
 
 **사무실 PC(Phase 2)도 `production` 을 씁니다** (2026-08-20 확인). 사무실
 localhost 로 접속한 것도 실제 사용이므로 활동 기록에 남아야 한다는 판단이며,

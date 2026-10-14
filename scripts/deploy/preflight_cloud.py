@@ -305,7 +305,7 @@ def _check_logging_target(
 
     `local` is only ever right on an office PC, and this script only ever runs
     on the cloud host, so here it is unambiguously wrong. The two aliases also
-    carry different ISM retention (office-local diagnostics vs. 365-day
+    carry different ISM retention (office-local diagnostics vs. 540-day
     production activity), so misfiled documents are deleted early too.
     """
     failures: list[str] = []

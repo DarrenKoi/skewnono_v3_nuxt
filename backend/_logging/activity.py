@@ -190,7 +190,7 @@ def install_activity_logging(app: Flask) -> None:
         # Static files off the Phase 3 SPA mount are not activity. A cold load
         # is 50-100+ bundle, font and icon requests that say nothing the API
         # calls beside them do not, and on the cloud host they would sit in the
-        # index for the full 365-day retention.
+        # index for the full 540-day retention.
         #
         # `_spa/serving.py` sets this ONLY when it served a real file, so the
         # index.html fallback still logs — that covers app boot, a deep-link

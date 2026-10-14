@@ -44,7 +44,7 @@ from ops_index_mgmt import skewnono_logging as logging_setup
     ("environment", "alias", "retention"),
     [
         ("local", "skewnono_logging_local", "30d"),
-        ("production", "skewnono_logging", "365d"),
+        ("production", "skewnono_logging", "540d"),
     ],
 )
 def test_logging_targets_are_isolated(environment, alias, retention):
@@ -179,16 +179,6 @@ def test_retention_starts_after_rollover(environment):
         "state_name": "delete",
         "conditions": {"min_rollover_age": target.retention_age},
     }
-
-
-@pytest.mark.parametrize("environment", ["local", "production"])
-def test_the_retention_age_is_longer_than_the_rollover_age(environment):
-    """Deleting sooner than the roll would delete the write index. Pinned as an
-    arithmetic sanity check on two constants that are edited independently."""
-    target = logging_setup.target_for(environment)
-    assert int(target.retention_age.rstrip("d")) > int(
-        logging_setup.ROLLOVER_AGE.rstrip("d")
-    )
 
 
 class FakeTransport:

@@ -9,8 +9,19 @@ cluster 반영은 office 확인 2026-07-28 — 회사에서 두 alias 를 실제
 
 환경과 alias
 - office PC localhost -> alias skewnono_logging_local, 보존 rollover 후 30일
-- production cloud    -> alias skewnono_logging,       보존 rollover 후 365일
-- 두 family 는 같은 mapping/shard/rollover(20GB 또는 7일)이며 보존 기간만 다릅니다.
+- production cloud    -> alias skewnono_logging,       보존 rollover 후 540일
+- 두 family 는 같은 mapping/shard/rollover(20GB 또는 60일)이며 보존 기간만 다릅니다.
+- 2026-10-14 변경(user-decided): rollover 주기 7일 -> 60일, production 보존 365일 ->
+  540일(18개월). 7일 주기에서는 production 에 번호 붙은 backing index 가 약 52개
+  쌓였고, 60일 주기에서는 18개월 동안 약 10개입니다.
+  - 보존은 rollover 시점부터 세므로 가장 오래된 이벤트는 최대 보존 기간 + 60일까지
+    남습니다.
+  - 이미 만들어진 index 는 붙을 때의 정책을 유지합니다(OFFICE-VERIFY). 그래서 정책
+    갱신 후에도 현재 write index 는 7일에 한 번 더 넘어가고, 기존 주간 index 들은
+    예전대로 rollover 후 365일에 삭제됩니다. 그다음에 만들어지는 index 부터 60일 /
+    540일이 적용됩니다.
+  - local family 는 보존(30일)이 rollover 주기(60일)보다 짧습니다. 삭제 조건이
+    min_rollover_age 라 rollover 전의 write index 는 삭제되지 않으므로 안전합니다.
 - 쓰기/읽기 alias 는 모두 SKEWNONO_LOG_ENV 를 backend/_logging/target.py 가
   해석해 결정합니다. 코드에 alias 문자열을 직접 쓰지 않습니다.
 
@@ -140,7 +151,7 @@ alias 판정 시 주의 (office 확인 2026-07-28)
 - 단, Phase 3 cloud 에서 Flask 가 빌드된 SPA 를 서빙할 때(_spa/serving.py,
   is_cloud() 로만 mount) build dir 에서 실제 파일을 찾아 응답한 요청은 로그를
   남기지 않습니다. cold load 1회가 _nuxt 번들·폰트·아이콘 요청 50~100건 이상을
-  만들지만 API 로그가 주는 정보 이상을 주지 않고, production 은 365일 보존이라
+  만들지만 API 로그가 주는 정보 이상을 주지 않고, production 은 540일 보존이라
   비용만 큽니다.
 - index.html fallback 은 계속 기록합니다. 앱 최초 로드, deep-link 새로고침,
   알 수 없는 경로가 모두 여기에 해당하고, 배포가 깨져 asset 이 없을 때도

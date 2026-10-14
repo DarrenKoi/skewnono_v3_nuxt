@@ -522,7 +522,7 @@ def test_a_static_file_from_the_spa_mount_is_not_logged_at_all(
     """Phase 3 only: on the cloud host Flask serves the built SPA, so one cold
     page load is 50-100+ bundle, font and icon requests on top of the API
     calls. They carry no information the API calls do not, and would occupy
-    the production index for its full 365-day retention.
+    the production index for its full 540-day retention.
 
     Nothing at all is emitted — not the OpenSearch document and not the
     stderr line — so the saving is index volume AND boot-log noise.

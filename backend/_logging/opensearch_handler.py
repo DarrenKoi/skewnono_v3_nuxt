@@ -74,7 +74,7 @@ _RETRY_BACKOFFS = (0.5, 1.0)
 # filling the bounded queue with client-error noise until *real* activity
 # documents are the ones dropped, and handing recovery a backlog of junk.
 # apscheduler's per-run INFO lines are operational noise that would sit in a
-# 365-day-retention index. ("opensearch" also covers "opensearchpy".)
+# 540-day-retention index. ("opensearch" also covers "opensearchpy".)
 _NOISY_LOGGER_PREFIXES = ("opensearch", "urllib3", "apscheduler")
 
 

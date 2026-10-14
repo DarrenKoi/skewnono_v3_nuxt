@@ -2,7 +2,7 @@
 
 Both aliases live on the same company OpenSearch cluster, use the connection
 settings loaded by :func:`ops_store.create_client`, and share one canonical
-mapping. Their retention policies differ (30d vs 365d) so a short-lived
+mapping. Their retention policies differ (30d vs 540d) so a short-lived
 diagnostic family can be kept apart from production activity.
 
 In practice the office also runs with ``SKEWNONO_LOG_ENV=production``
@@ -72,7 +72,7 @@ class LoggingIndexTarget:
 
 TARGETS: dict[Environment, LoggingIndexTarget] = {
     "local": LoggingIndexTarget("local", "skewnono_logging_local", "30d"),
-    "production": LoggingIndexTarget("production", "skewnono_logging", "365d"),
+    "production": LoggingIndexTarget("production", "skewnono_logging", "540d"),
 }
 
 
@@ -90,7 +90,15 @@ SHARDS = 2
 REPLICAS = 1
 REFRESH_INTERVAL = "30s"
 ROLLOVER_SIZE = "20gb"
-ROLLOVER_AGE = "7d"
+# 60d, was 7d until 2026-10-14 (user-decided, with production retention going
+# 365d -> 540d): at 7d the production family held ~52 numbered backing indices
+# (x4 shard copies each) that the 20gb cap never came near; 60d over 18 months
+# is ~10. Retention counts from rollover, so the oldest event lives up to
+# retention + 60d. An index already managed keeps the policy it was attached
+# with (ISM does not re-read it), so the current write index still rolls at 7d
+# once and the existing weekly indices still delete at 365d; every index
+# created after the policy update gets 60d / 540d.
+ROLLOVER_AGE = "60d"
 POLICY_PRIORITY = 100
 
 LOG_MAPPING_PROPERTIES: dict[str, Any] = {

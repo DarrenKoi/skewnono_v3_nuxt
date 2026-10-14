@@ -823,7 +823,7 @@ def test_the_transports_own_warnings_never_enter_the_queue(parked):
     WARNINGs would feed back into the queue during the exact outage they
     describe — filling the bounded queue with client noise until real activity
     documents are the ones dropped. apscheduler's per-run lines are the same
-    problem at 365-day retention. handle() is used because that is the path
+    problem at 540-day retention. handle() is used because that is the path
     Logger.callHandlers takes; handler-level filters do not run in emit()."""
     for name in (
         "opensearch",
