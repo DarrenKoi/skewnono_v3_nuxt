@@ -253,6 +253,25 @@ class TestLocateViaRedis:
         assert oe._locate_via_redis("cd-sem", RECIPE, "M16B") is None
         assert consulted == []
 
+    def test_an_own_fab_hit_never_reads_the_roster(self, wired, monkeypatch):
+        # The roster is a sem_list parquet load; the common path must not pay it.
+        monkeypatch.setattr(oe, "_registry_fabs", lambda: pytest.fail("roster read"))
+        wired({
+            LOC_KEY: {RECIPE: '["/R/ADI/A.idw", "/R/ADI/B.idp"]'},
+            TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
+        })
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3")
+
+    def test_the_no_donor_bail_still_shows_what_the_own_fab_held(self, wired, monkeypatch):
+        monkeypatch.setattr(oe, "_registry_fabs", lambda: ["r3", "m16e"])
+        wired({
+            LOC_KEY: {RECIPE: '["/Recipe/ADI/A.idw"]'},
+            TOOLS_KEY: {RECIPE: '["CG6300_01"]'},
+        })
+        notes: list[str] = []
+        assert oe._locate_via_redis("cd-sem", RECIPE, "R3", notes) is None
+        assert "(got ['/Recipe/ADI/A.idw'])" in notes[-1]
+
     def test_one_sided_location_value_falls_back(self, wired):
         # Read positionally, so a 1-entry list is unusable rather than partial.
         wired({

@@ -50,13 +50,19 @@ def _error_name(status: int, response) -> str | None:
     """
     if status < 400:
         return None
-    body = response.get_json(silent=True) if response.is_json else None
+    phrase = _STATUS_PHRASE.get(status, "HTTP error")
+    try:
+        # silent= only covers bad JSON; a streamed/passthrough body raises
+        # RuntimeError on read, and logging must never fail the request.
+        body = response.get_json(silent=True) if response.is_json else None
+    except Exception:
+        return phrase
     error = body.get("error") if isinstance(body, dict) else None
     if isinstance(error, dict):
-        error = f"{error.get('code') or ''}: {error.get('message') or ''}"
+        error = ": ".join(str(p) for p in (error.get("code"), error.get("message")) if p)
     elif isinstance(error, str) and body.get("message"):
         error = f"{error}: {body['message']}"
-    return error or _STATUS_PHRASE.get(status, "HTTP error")
+    return error if isinstance(error, str) and error else phrase
 
 
 def _request_id() -> str:

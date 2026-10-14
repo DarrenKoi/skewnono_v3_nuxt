@@ -113,6 +113,19 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
             # The routes' own shape (meas_hist, msr_file): a bare string.
             return {"error": "eqp_id is required"}, 400
 
+        @app.get("/api/two-key-error")
+        def _two_key_error():
+            # _auth/routes.py's 422 shape: a code string with a sibling message.
+            return {"error": "invalid_input", "message": "사번을 입력해 주세요"}, 422
+
+        @app.get("/api/empty-error")
+        def _empty_error():
+            return {"error": {"detail": "nothing useful"}}, 400
+
+        @app.get("/api/text-error")
+        def _text_error():
+            return "plain text", 500
+
         @app.get("/login")
         def _login():
             return "LOGIN"
@@ -305,6 +318,24 @@ def test_a_handled_error_puts_its_reason_on_the_request_row(make_app, records):
     record = _only(records, "request")
     assert record.error_code == "502"
     assert record.error_name == "upstream_data_error: No document in meas_hist"
+
+
+def test_a_code_with_a_sibling_message_is_joined(make_app, records):
+    client = make_app(user_id="2067928")
+    client.get("/api/two-key-error")
+    assert _only(records, "request").error_name == "invalid_input: 사번을 입력해 주세요"
+
+
+def test_an_error_object_with_neither_code_nor_message_keeps_the_phrase(make_app, records):
+    client = make_app(user_id="2067928")
+    client.get("/api/empty-error")
+    assert _only(records, "request").error_name == "Bad Request"
+
+
+def test_a_non_json_error_keeps_the_phrase(make_app, records):
+    client = make_app(user_id="2067928")
+    client.get("/api/text-error")
+    assert _only(records, "request").error_name == "Internal Server Error"
 
 
 def test_a_routes_own_string_error_body_is_the_reason_too(make_app, records):

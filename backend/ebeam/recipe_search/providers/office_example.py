@@ -578,17 +578,29 @@ def _locate_via_redis(
     # recipe's idw/idp folder names are taken to be fab-independent
     # (OFFICE-VERIFY), so another fab's entry opens it on THIS fab's tools.
     # ponytail: borrow until the rcp_loc job writes every fab tools_in_rcp
-    # names; drop the other fabs from `keys` then.
+    # names; drop the other fabs from `_loc_keys` then.
     own_key = _fab_hash("rcp_loc", tool_type, fab_name)
-    keys = [own_key, *(_fab_hash("rcp_loc", tool_type, f) for f in _registry_fabs())]
-    for loc_key in dict.fromkeys(keys):
+
+    def _loc_keys():
+        yield own_key
+        # The roster read (a sem_list parquet load) happens only after the
+        # own fab missed, never on the common path.
+        for fab in _registry_fabs():
+            key = _fab_hash("rcp_loc", tool_type, fab)
+            if key != own_key:
+                yield key
+
+    own_parts: list[str] = []
+    for loc_key in _loc_keys():
         parts = _parse_str_list(client.hget(loc_key, recipe_id) or "")
+        if loc_key == own_key:
+            own_parts = parts
         if len(parts) >= 2:
             break
     else:
         return _bail(
             f"{own_key} has no usable [idw, idp] entry for {recipe_id!r} "
-            "and no other fab's rcp_loc hash holds one"
+            f"(got {own_parts}) and no other fab's rcp_loc hash holds one"
         )
     if loc_key != own_key:
         note = f"[idw, idp] for {recipe_id!r} borrowed from {loc_key}"

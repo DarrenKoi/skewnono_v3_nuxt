@@ -90,7 +90,9 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "activity_weight": 0,
             "fab_name_list": [],
             "error_code": "404",
-            "error_name": "Not Found",
+            # Since 2026-10-14 the row carries the JSON body's reason, not the
+            # phrase (skewnono_logging.txt error_name).
+            "error_name": "not_found: The requested URL was not found on the server.",
         },
         {
             "@timestamp": iso_z(now - timedelta(minutes=12)),
@@ -174,7 +176,7 @@ def _demo_source(now: datetime) -> list[dict[str, Any]]:
             "activity_weight": 0,
             "fab_name_list": [],
             "error_code": "503",
-            "error_name": "Service Unavailable",
+            "error_name": "backend_unreachable: Redis unreachable",
         },
     ]
     # _record_to_doc puts these on EVERY document unconditionally, and
