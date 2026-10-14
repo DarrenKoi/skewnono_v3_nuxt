@@ -50,8 +50,14 @@ oper_seq / samp_seq 를 갖지만 여기에는 대응 field 가 없습니다. �
 
 조회 방법(recipe_tat office adapter 기준)
 
-1. ops_store 의 OSSearch.range_dataframe_all(time_field="event_tm", days=60)
-   로 최근 60일 구간을 DataFrame 으로 받습니다.
+1. 최근 60일(event_tm gte now-60d)에 대해 (lot_id.keyword, lot_cd.keyword)
+   composite aggregation 으로 unique 쌍만 받습니다 (2026-10-14 변경).
+   이전에는 range_dataframe_all 로 문서 전량을 받았는데, scroll 을
+   search_after(_id 정렬)로 바꾼 뒤 전량이 실제로 들어오기 시작하자 이
+   조회가 클라이언트 timeout 을 넘겨 uWSGI "Broken pipe" 와 빈 화면을
+   만들었습니다 (user-confirmed 2026-10-14). lot_id.keyword 매핑은
+   OFFICE-VERIFY 입니다 — 없으면 버킷이 0개이고, 빈 bridge 는 LookupError 로
+   실패시킵니다.
 2. lot_id -> lot_cd 매핑(dict)을 만듭니다. 이 bridge 가 /devices 집계
    (meas_hist 를 lot_id 로 집계 후 device 로 roll-up)와 lot_cd 드릴다운
    (선택한 lot_cd -> lot_id 집합 -> terms(lot_id.keyword) 필터)을 지탱합니다.

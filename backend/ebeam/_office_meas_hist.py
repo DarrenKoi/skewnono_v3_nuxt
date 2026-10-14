@@ -506,22 +506,39 @@ def _lot_bridge() -> tuple[dict[str, str], dict[str, list[str]]]:
 
     meas_hist_* documents carry ``lot_id``, not ``lot_cd``, and the two are not
     derivable from each other. The fab-system lot history carries BOTH, so it
-    is the join table (last-60-day slice via
-    ``range_dataframe_all(time_field="event_tm", days=60)``). Because only
-    lot_ids seen in this window get a lot_cd, the bridge also bounds the device
-    catalog to recently-active lots (older lot_ids resolve to no device and
-    drop out). Both directions are built from the same frame in one refresh so
-    they can never disagree with each other.
+    is the join table over the last 60 days. Because only lot_ids seen in this
+    window get a lot_cd, the bridge also bounds the device catalog to
+    recently-active lots (older lot_ids resolve to no device and drop out).
+    Both directions are built from the same pairs in one refresh so they can
+    never disagree with each other.
+
+    The pairs come from a composite aggregation, not a document download: the
+    index is measurement-grain, and paging the whole window out with
+    search_after (sorted on ``_id``) outran the client's timeout at the office
+    (2026-10-14 — uWSGI "Broken pipe" on recipe-tat/ranking, blank
+    recipe-status tabs). Neither scroll nor ``lte: now`` is involved, so the
+    two silent-shortfall traps in ebeam_tas_lot_hist.txt do not apply.
+    OFFICE-VERIFY: ``lot_id.keyword`` on this index (``lot_cd.keyword`` is what
+    device_statistics already aggregates on). A missing sub-field returns zero
+    buckets without an error, hence the empty-bridge check below.
     """
-    df = search(_LOT_HIST_INDEX).range_dataframe_all(
-        time_field=_LOT_HIST_TIME_F, days=CURRENT_WINDOW_DAYS
+    buckets = composite_buckets(
+        _LOT_HIST_INDEX,
+        [("lot_id", "lot_id.keyword"), ("lot_cd", "lot_cd.keyword")],
+        {},
+        {"range": {_LOT_HIST_TIME_F: {"gte": f"now-{CURRENT_WINDOW_DAYS}d"}}},
     )
     forward: dict[str, str] = {}
-    if not df.empty and "lot_id" in df.columns and "lot_cd" in df.columns:
-        for lot_id, lot_cd in zip(df["lot_id"].tolist(), df["lot_cd"].tolist(), strict=True):
-            lid, lcd = text(lot_id), text(lot_cd)
-            if lid and lcd:
-                forward[lid] = lcd
+    for bucket in buckets:
+        lid, lcd = text(bucket["key"]["lot_id"]), text(bucket["key"]["lot_cd"])
+        if lid and lcd:
+            forward[lid] = lcd
+    if not forward:
+        raise LookupError(
+            f"{_LOT_HIST_INDEX!r} gave no lot_id/lot_cd pairs in the last "
+            f"{CURRENT_WINDOW_DAYS} days — check that lot_id.keyword and "
+            "lot_cd.keyword are mapped on that index."
+        )
     reverse: dict[str, list[str]] = {}
     for lot_id, lot_cd in forward.items():
         reverse.setdefault(lot_cd, []).append(lot_id)

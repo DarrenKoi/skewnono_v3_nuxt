@@ -594,3 +594,43 @@ def test_histogram_bounds_returns_extended_bounds_for_a_real_range():
         "min": "2026-08-01",
         "max": "2026-08-10",
     }
+
+
+def test_lot_bridge_reads_distinct_pairs_not_every_document(monkeypatch):
+    """The bridge walks (lot_id, lot_cd) pairs as a composite aggregation.
+
+    Downloading the 60-day ebeam_tas_lot_hist window document by document
+    (search_after, 1000 per page, sorted on _id) outran the client's timeout
+    at the office (2026-10-14: uWSGI "Broken pipe" on recipe-tat/ranking and
+    blank recipe-status tabs), so a document fetch here is the regression.
+    """
+    calls = _stub_composite_pages(monkeypatch, [{"comp": {"buckets": [
+        {"key": {"lot_id": "L1", "lot_cd": "D1"}, "doc_count": 5},
+        {"key": {"lot_id": "L2", "lot_cd": "D1"}, "doc_count": 1},
+    ]}}])
+
+    def no_document_fetch(_index):
+        raise AssertionError("the bridge must not download documents")
+
+    monkeypatch.setattr(_office_meas_hist, "search", no_document_fetch)
+    _office_meas_hist._lot_bridge.cache_clear()
+
+    forward, reverse = _office_meas_hist._lot_bridge()
+
+    assert forward == {"L1": "D1", "L2": "D1"}
+    assert reverse == {"D1": ["L1", "L2"]}
+    index, _body, query_body = calls[0]
+    assert index == "ebeam_tas_lot_hist"
+    assert query_body == {"range": {"event_tm": {"gte": "now-60d"}}}
+    _office_meas_hist._lot_bridge.cache_clear()
+
+
+def test_an_empty_lot_bridge_fails_loudly(monkeypatch):
+    """An unmapped `.keyword` sub-field yields zero buckets without an error;
+    an empty bridge would then blank every device screen as "no data"."""
+    _stub_composite_pages(monkeypatch, [{"comp": {"buckets": []}}])
+    _office_meas_hist._lot_bridge.cache_clear()
+
+    with pytest.raises(LookupError, match="ebeam_tas_lot_hist"):
+        _office_meas_hist._lot_bridge()
+    _office_meas_hist._lot_bridge.cache_clear()
