@@ -518,9 +518,9 @@ def _lot_bridge() -> tuple[dict[str, str], dict[str, list[str]]]:
     (2026-10-14 — uWSGI "Broken pipe" on recipe-tat/ranking, blank
     recipe-status tabs). Neither scroll nor ``lte: now`` is involved, so the
     two silent-shortfall traps in ebeam_tas_lot_hist.txt do not apply.
-    OFFICE-VERIFY: ``lot_id.keyword`` on this index (``lot_cd.keyword`` is what
-    device_statistics already aggregates on). A missing sub-field returns zero
-    buckets without an error, hence the empty-bridge check below.
+    ``lot_id.keyword`` and ``lot_cd.keyword`` are both mapped on this index
+    (office 확인 2026-10-14). A missing sub-field would return zero buckets
+    without an error, hence the empty-bridge check below.
     """
     buckets = composite_buckets(
         _LOT_HIST_INDEX,

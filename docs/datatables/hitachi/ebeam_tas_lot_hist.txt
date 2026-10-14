@@ -55,8 +55,9 @@ oper_seq / samp_seq 를 갖지만 여기에는 대응 field 가 없습니다. �
    이전에는 range_dataframe_all 로 문서 전량을 받았는데, scroll 을
    search_after(_id 정렬)로 바꾼 뒤 전량이 실제로 들어오기 시작하자 이
    조회가 클라이언트 timeout 을 넘겨 uWSGI "Broken pipe" 와 빈 화면을
-   만들었습니다 (user-confirmed 2026-10-14). lot_id.keyword 매핑은
-   OFFICE-VERIFY 입니다 — 없으면 버킷이 0개이고, 빈 bridge 는 LookupError 로
+   만들었습니다 (user-confirmed 2026-10-14). 바꾼 뒤 배포에서 화면이 정상으로
+   돌아왔고, lot_id.keyword 매핑도 함께 확인되었습니다 (office 확인
+   2026-10-14). 매핑이 없으면 버킷이 0개가 되므로 빈 bridge 는 LookupError 로
    실패시킵니다.
 2. lot_id -> lot_cd 매핑(dict)을 만듭니다. 이 bridge 가 /devices 집계
    (meas_hist 를 lot_id 로 집계 후 device 로 roll-up)와 lot_cd 드릴다운
