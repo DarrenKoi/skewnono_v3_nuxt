@@ -446,7 +446,7 @@ class FakeFTP:
     the ``all_errors`` matching in the source is genuinely exercised.
     """
 
-    def __init__(self, timeout=None):
+    def __init__(self, timeout=None, encoding="utf-8"):
         self.timeout = timeout
 
     def close(self):  # _session closes, it never QUITs
@@ -679,7 +679,7 @@ class StrictFTP(FakeFTP):
 
     refuse_type_i = False
 
-    def __init__(self, timeout=None):
+    def __init__(self, timeout=None, encoding="utf-8"):
         super().__init__(timeout)
         self.mode = "A"
 

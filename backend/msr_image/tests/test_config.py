@@ -60,3 +60,16 @@ def test_a_malformed_entry_is_skipped_not_raised():
     # other tools' accounts are still correct and still worth serving.
     cfg = load_config({"SKEWNONO_TOOL_FTP_ACCOUNTS": "broken,M16=svc:pw,=x:y,A=nopass"})
     assert cfg.ftp_accounts == {"M16": ("svc", "pw")}
+
+
+def test_ftp_encoding_defaults_to_utf8_so_deploying_changes_nothing():
+    assert load_config({}).ftp_encoding == "utf-8"
+
+
+def test_ftp_encoding_reads_the_env_and_rejects_an_unknown_codec():
+    # An unknown codec would otherwise fail inside every fetch, reported per
+    # tool as if the tools were down.
+    assert load_config({"SKEWNONO_TOOL_FTP_ENCODING": " cp949 "}).ftp_encoding == "cp949"
+    assert load_config({"SKEWNONO_TOOL_FTP_ENCODING": "cp9499"}).ftp_encoding == "utf-8"
+    # A registered codec that is not a text encoding is just as unusable.
+    assert load_config({"SKEWNONO_TOOL_FTP_ENCODING": "base64_codec"}).ftp_encoding == "utf-8"

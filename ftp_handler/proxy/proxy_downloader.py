@@ -240,6 +240,7 @@ class FtpFleetDownloader:
         connect_timeout: float = 8.0,
         host_timeout: float = 45.0,
         passive: bool = True,
+        encoding: str = "utf-8",
         request_batch: int = 5,
         client_workers: int = 4,
         http_timeout: float | None = None,
@@ -251,6 +252,7 @@ class FtpFleetDownloader:
         self.connect_timeout = connect_timeout
         self.host_timeout = host_timeout
         self.passive = passive
+        self.encoding = encoding
         self.proxy_url = PROXY_URL.rstrip("/")
         self.token = PROXY_TOKEN
         self.request_batch = request_batch
@@ -370,6 +372,7 @@ class FtpFleetDownloader:
             "connect_timeout": self.connect_timeout,
             "host_timeout": self.host_timeout,
             "passive": self.passive,
+            "encoding": self.encoding,
         }
 
     def _payload(self, batch: list[HostSpec]) -> dict:

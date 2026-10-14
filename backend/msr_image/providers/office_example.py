@@ -137,6 +137,7 @@ def _downloader(cfg: ImageConfig, images_per_connection: int = 1) -> FtpFleetDow
         password=cfg.ftp_password,
         port=cfg.ftp_port,
         connect_timeout=cfg.ftp_timeout,
+        encoding=cfg.ftp_encoding,
         host_timeout=_host_timeout(cfg, images_per_connection),
     )
 

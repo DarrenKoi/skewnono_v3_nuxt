@@ -511,6 +511,7 @@ class FtpFleetDownloader:
         connect_timeout: float = 8.0,
         host_timeout: float = 60.0,
         passive: bool = True,
+        encoding: str = "utf-8",
     ) -> None:
         # connect_timeout is the connection-wait knob: it bounds each blocking
         # socket op (connect, login, RETR). 8s means an offline/black-holed tool
@@ -523,6 +524,12 @@ class FtpFleetDownloader:
         # is exposed because a worker on a different subnet than your laptop can
         # need the opposite — the classic second "works locally, not on the
         # server" gotcha after concurrency.
+        # encoding is the server's filename charset, used both ways: ftplib
+        # decodes NLST lines AND encodes RETR/SIZE/STOR paths with it, strictly.
+        # A Korean Windows server speaks cp949; under the utf-8 default one
+        # Korean name fails its whole listing (UnicodeDecodeError) and a known
+        # Korean path RETRs as a 550. Per downloader, not per host: a fleet
+        # mixing charsets is two downloaders.
         self.user = user
         self.password = password
         self.port = port
@@ -530,6 +537,7 @@ class FtpFleetDownloader:
         self.connect_timeout = connect_timeout
         self.host_timeout = host_timeout
         self.passive = passive
+        self.encoding = encoding
 
     # ── public sync API ─────────────────────────────────────────────────────
     def download(
@@ -642,7 +650,9 @@ class FtpFleetDownloader:
         # Not ``with FTP(...)``: its __exit__ sends QUIT and lets an error reply
         # to it propagate, turning a host that served every file into a
         # failure. close() never raises -- same choice as core/client.py.
-        ftp = FTP(timeout=self.connect_timeout)
+        # encoding goes to the constructor: connect() binds it into the control
+        # connection's reader, so setting it afterwards is too late.
+        ftp = FTP(timeout=self.connect_timeout, encoding=self.encoding)
         try:
             ftp.connect(host=spec.host, port=self.port, timeout=self.connect_timeout)
             ftp.login(

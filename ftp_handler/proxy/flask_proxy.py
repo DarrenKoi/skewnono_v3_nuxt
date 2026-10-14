@@ -19,7 +19,7 @@ Routes carry the ``_sknn_v3`` suffix so they don't collide with paths already
 used by the host app:
     POST /download_sknn_v3   request JSON:
         {"port","max_concurrency","connect_timeout",
-         "host_timeout","passive",
+         "host_timeout","passive","encoding",
          "specs":[{"host","files":[...],"listings":[{"remote_dir","pattern"}]}]}
     200 response JSON:
         {"files":[{"host","remote_path","data_b64"}],
@@ -167,6 +167,8 @@ def _downloader_from(body: dict) -> FtpFleetDownloader:
         connect_timeout=body.get("connect_timeout", 8.0),
         host_timeout=body.get("host_timeout", 45.0),
         passive=body.get("passive", True),
+        # Absent from an older client's body -> utf-8, ftplib's own default.
+        encoding=body.get("encoding", "utf-8"),
     )
 
 

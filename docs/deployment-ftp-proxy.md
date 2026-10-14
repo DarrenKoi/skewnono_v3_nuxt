@@ -99,6 +99,12 @@ env = FTP_PROXY_FTP_PASSWORD=hid
 `SKEWNONO_TOOL_FTP_ACCOUNTS` 입니다. 이미 설정되어 있다면 그대로 두어도
 무해하고, 정리하고 싶으면 지워도 됩니다.
 
+파일명 문자셋도 같은 방식으로 클라이언트가 요청마다 `encoding` 을 실어 보냅니다
+(skewnono 쪽 `SKEWNONO_TOOL_FTP_ENCODING`). 프록시 호스트에는 설정할 값이 없지만,
+**이 키를 읽는 `ftp_handler` 로 갱신된 뒤에야** 한글(cp949) 파일명이 풀립니다. 옛
+프록시는 이 키를 무시하고 utf-8 로 동작하므로 배포 순서와 무관하게 깨지지는
+않습니다.
+
 ### 4.5 재기동
 
 ```bash
@@ -163,6 +169,18 @@ python -c "import ftp_handler; from ftp_handler.direct_downloader import HostSpe
 | `True` | 2026-08-10 이후 코드 — 장비별 계정이 동작합니다 |
 | `False` | 복사가 닿지 않았거나 4.3 의 `__pycache__` 가 남아 있습니다 |
 | `ModuleNotFoundError` | 경로가 틀렸습니다 — 4.1 을 다시 확인하십시오 |
+
+파일명 문자셋(`encoding`, 2026-10-14) 반영 여부는 위 검사로 구별되지 않습니다.
+그 이전 코드도 `True` 를 출력하기 때문입니다. 블루프린트가 요청의 `encoding` 을
+실제로 읽는지 따로 확인하십시오.
+
+```bash
+python -c "from ftp_handler.proxy.flask_proxy import _downloader_from; print('filename encoding:', getattr(_downloader_from({'encoding': 'cp949'}), 'encoding', 'MISSING'))"
+```
+
+`cp949` 가 나오면 반영된 것이고, `MISSING` 이면 옛 코드입니다. 옛 프록시는
+클라이언트가 보낸 `cp949` 를 조용히 무시하고 utf-8 로 listing 하므로, 한글 파일명이
+있는 디렉터리는 HTTP 200 안의 `UnicodeDecodeError` 실패로만 드러납니다.
 
 `path:` 를 함께 찍는 이유가 있습니다. **어느 사본이 실제로 import 되는지**를
 알려주므로, 복사는 제대로 했는데 앱이 다른 디렉터리를 보고 있어 갱신이 반영되지

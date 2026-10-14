@@ -52,6 +52,20 @@ def _float(env: Mapping[str, str], key: str, default: float) -> float:
         return default
 
 
+def _encoding(env: Mapping[str, str], key: str) -> str:
+    # Rejected at load, not at first FTP call: an unknown codec would surface
+    # as a LookupError inside every fetch, reported per tool as if the tools
+    # were at fault. str.encode, not codecs.lookup: lookup also accepts
+    # bytes-to-bytes codecs (base64_codec, rot_13) ftplib cannot use.
+    name = env.get(key, "").strip() or "utf-8"
+    try:
+        "".encode(name)
+    except LookupError:
+        _LOG.warning("%s: unknown encoding %r, using utf-8", key, name)
+        return "utf-8"
+    return name
+
+
 @dataclass(frozen=True)
 class ImageConfig:
     ftp_user: str = "hitachi"
@@ -84,6 +98,12 @@ class ImageConfig:
     # fab_name or eqp_id -> (user, password). Empty means one account serves
     # the fleet, which is the state until AMAT tools land; see _accounts().
     ftp_accounts: dict[str, tuple[str, str]] = field(default_factory=dict)
+    # The tools' filename charset, for listing AND for the paths sent back in
+    # RETR. A Korean Windows tool speaks cp949 and, under utf-8, fails every
+    # listing that holds one Korean name (office-reported 2026-10-14). utf-8
+    # stays the default so deploying this changes nothing until the office
+    # sets SKEWNONO_TOOL_FTP_ENCODING=cp949.
+    ftp_encoding: str = "utf-8"
 
 
 def load_config(env: Mapping[str, str] | None = None) -> ImageConfig:
@@ -107,4 +127,5 @@ def load_config(env: Mapping[str, str] | None = None) -> ImageConfig:
         job_ttl=_int(env, "SKEWNONO_MSR_IMAGE_JOB_TTL", 3600),
         max_jobs=_int(env, "SKEWNONO_MSR_IMAGE_MAX_JOBS", 2),
         ftp_accounts=_accounts(env, "SKEWNONO_TOOL_FTP_ACCOUNTS"),
+        ftp_encoding=_encoding(env, "SKEWNONO_TOOL_FTP_ENCODING"),
     )

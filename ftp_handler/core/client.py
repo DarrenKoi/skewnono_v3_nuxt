@@ -168,6 +168,7 @@ class FtpClient:
         port: int = 21,
         timeout: float = 8.0,
         passive: bool = True,
+        encoding: str = "utf-8",
     ) -> None:
         self.host = host
         self.user = user
@@ -175,10 +176,13 @@ class FtpClient:
         self.port = port
         self.timeout = timeout
         self.passive = passive
+        # Server filename charset (e.g. "cp949" for a Korean Windows server);
+        # see FtpFleetDownloader for why it must reach the FTP constructor.
+        self.encoding = encoding
         self._ftp: FTP | None = None
 
     def __enter__(self) -> "FtpClient":
-        ftp = FTP(timeout=self.timeout)
+        ftp = FTP(timeout=self.timeout, encoding=self.encoding)
         ftp.connect(host=self.host, port=self.port, timeout=self.timeout)
         ftp.login(user=self.user, passwd=self.password)
         ftp.set_pasv(self.passive)

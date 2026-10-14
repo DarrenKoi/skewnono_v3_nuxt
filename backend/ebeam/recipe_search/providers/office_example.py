@@ -869,6 +869,7 @@ def _downloader(downloader_cls, config):
         password=config.ftp_password,
         port=config.ftp_port,
         connect_timeout=config.ftp_timeout,
+        encoding=config.ftp_encoding,
     )
 
 
