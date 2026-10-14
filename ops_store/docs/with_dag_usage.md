@@ -103,6 +103,42 @@ def write_with_variable_host() -> None:
     OSDoc(config=config, index="recipe-events").index({"status": "ok"})
 ```
 
+## 연결 확인 (ping / check_connection)
+
+환경 변수를 새로 붙인 worker에서 "붙기는 하는가"를 먼저 확인하고 싶을 때
+씁니다. 모든 service(`OSDoc`, `OSIndex`, `OSSearch`)가 공통으로 가집니다.
+두 메서드 모두 예외를 밖으로 던지지 않습니다.
+
+```python
+from ops_store import OSDoc
+
+
+def check_cluster() -> None:
+    doc = OSDoc(index="recipe-events")
+
+    if not doc.ping():                       # True / False, 예외 없음
+        raise RuntimeError("OpenSearch에 연결하지 못했습니다.")
+```
+
+실패 원인과 cluster 정보까지 필요하면 `check_connection()`을 씁니다.
+`ping()`은 `HEAD /`, `check_connection()`은 `info()`를 호출합니다.
+
+```python
+def check_cluster_verbose() -> None:
+    status = OSDoc(index="recipe-events").check_connection()
+
+    if not status:                           # ConnectionStatus 자체가 truthy/falsy
+        raise RuntimeError(f"OpenSearch 연결 실패: {status.error}")
+
+    print(status.detail["cluster_name"], status.detail["version"])
+    print(status.elapsed_ms)                 # 왕복 시간 (ms)
+```
+
+`ConnectionStatus`는 `ok`, `elapsed_ms`, `detail`, `error` 네 필드를 가집니다.
+연결 실패 시 `error`에 `"ConnectionError: connection refused"`처럼 예외
+type과 message가 문자열로 담기므로, 그대로 task log에 남기면 host / 인증 /
+TLS 중 무엇이 문제인지 바로 보입니다.
+
 ## 전체 예제: index 확인 후 bulk ingest
 
 이 예제는 하나의 DAG에서 index alias를 준비하고 record를 bulk indexing한 뒤

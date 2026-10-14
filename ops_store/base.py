@@ -1,8 +1,15 @@
 """Base OpenSearch config, client factory, and shared service class."""
 
 import os
+import time
 from dataclasses import dataclass, field, replace
 from typing import Any, Self
+
+
+def _elapsed_ms(started: float) -> float:
+    """Milliseconds since a ``time.perf_counter()`` mark, rounded for logging."""
+
+    return round((time.perf_counter() - started) * 1000, 2)
 
 
 def _parse_bool(value: str) -> bool:
@@ -12,6 +19,26 @@ def _parse_bool(value: str) -> bool:
     if normalized in {"0", "false", "f", "no", "n", "off"}:
         return False
     raise ValueError(f"Invalid boolean value: {value!r}")
+
+
+@dataclass(slots=True)
+class ConnectionStatus:
+    """Outcome of a connection check against the cluster.
+
+    ``ok`` answers the only question most callers have, so the object is
+    truthy/falsy directly. ``detail`` carries whatever the probe learned
+    (cluster name, version) and ``error`` holds the formatted exception when
+    the probe failed, so a startup gate can log something actionable instead
+    of a bare False.
+    """
+
+    ok: bool
+    elapsed_ms: float
+    detail: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+
+    def __bool__(self) -> bool:
+        return self.ok
 
 
 @dataclass(slots=True)
@@ -189,6 +216,47 @@ class OSBase:
         else:
             self.client = client
             self.config = config
+
+    def ping(self) -> bool:
+        """Return True when the cluster answers a lightweight ping.
+
+        Never raises: a dead host, wrong credentials, or a TLS failure all
+        come back as False, so this is safe to call from a startup gate or a
+        health endpoint. Use ``check_connection`` when you need the reason.
+        """
+
+        try:
+            return bool(self.client.ping())
+        except Exception:
+            return False
+
+    def check_connection(self) -> ConnectionStatus:
+        """Probe the cluster and report why it failed when it does.
+
+        Calls ``info()`` rather than ``ping()`` so a successful check also
+        reports the cluster name and version in ``detail``.
+        """
+
+        started = time.perf_counter()
+        try:
+            info = self.client.info()
+        except Exception as exc:
+            return ConnectionStatus(
+                ok=False,
+                elapsed_ms=_elapsed_ms(started),
+                error=f"{type(exc).__name__}: {exc}",
+            )
+
+        version = info.get("version") or {}
+        return ConnectionStatus(
+            ok=True,
+            elapsed_ms=_elapsed_ms(started),
+            detail={
+                "cluster_name": info.get("cluster_name"),
+                "distribution": version.get("distribution"),
+                "version": version.get("number"),
+            },
+        )
 
     def use_index(self, index: str) -> Self:
         """Set the default index and return the service for chaining."""
