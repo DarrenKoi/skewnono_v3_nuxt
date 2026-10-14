@@ -250,7 +250,7 @@ listing 에 숨김 폴더가 없었습니다. 지금은 들어 있습니다.
 | `SKEWNONO_TOOL_FTP_ACCOUNTS` | 위 계정이 닿지 않는 장비의 fab/tool 별 계정. `KEY=user:password` 를 쉼표로 나열하며 KEY 는 `fab_name` 또는 `eqp_id`(대소문자 무시, `eqp_id` 가 우선). 목록에 없는 장비는 위 계정을 씁니다 | 빈 값 |
 | `SKEWNONO_TOOL_FTP_PORT` | FTP 포트 | `21` |
 | `SKEWNONO_TOOL_FTP_CONCURRENCY` | `download_all`의 최대 동시 연결 수 | `6` |
-| `SKEWNONO_TOOL_FTP_ENCODING` | 장비 FTP 파일명 문자셋(listing 디코딩과 RETR 경로 인코딩 모두). 한글 Windows 장비는 `cp949` 이며, `utf-8` 이면 한글 파일 하나가 그 디렉터리 listing 전체를 실패시킵니다. recipe_search 도 같은 값을 씁니다. 알 수 없는 이름은 경고 후 `utf-8` | `utf-8` |
+| `SKEWNONO_TOOL_FTP_ENCODING` | 장비 FTP 파일명 문자셋(listing 디코딩과 RETR 경로 인코딩 모두). `utf-8` 이면 해석되지 않는 이름 하나가 그 디렉터리 listing 전체를 실패시킵니다. 장비에서 발견된 비ASCII 이름은 한글이 아니라 손상된 바이트였으므로(office 확인 2026-10-14) `latin-1` 을 씁니다. 모든 바이트를 그대로 통과시켜 실패하지 않습니다. recipe_search 도 같은 값을 씁니다. 알 수 없는 이름은 경고 후 `utf-8` | `utf-8` |
 | `SKEWNONO_TOOL_FTP_TIMEOUT` | 연결/응답 타임아웃(초); 소켓 작업 단위 상한이라 죽은 장비 탐지는 이 값이 담당 | `8.0` |
 | `SKEWNONO_TOOL_FTP_HOST_TIMEOUT` | 연결 1개가 통째로 포기되기까지의 하한(초). `download_all`은 그 연결에 실제로 걸린 이미지 수만큼 이 값을 키웁니다 | `60.0` |
 | `SKEWNONO_TOOL_FTP_HOST_TIMEOUT_MAX` | 위 확장의 상한(초). `0`은 무제한. 미설정 시 proxy(Windows) 경로만 `60.0`, direct(클라우드) 경로는 무제한 | `0.0` |

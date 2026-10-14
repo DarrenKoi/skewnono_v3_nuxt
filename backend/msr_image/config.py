@@ -99,10 +99,13 @@ class ImageConfig:
     # the fleet, which is the state until AMAT tools land; see _accounts().
     ftp_accounts: dict[str, tuple[str, str]] = field(default_factory=dict)
     # The tools' filename charset, for listing AND for the paths sent back in
-    # RETR. A Korean Windows tool speaks cp949 and, under utf-8, fails every
-    # listing that holds one Korean name (office-reported 2026-10-14). utf-8
-    # stays the default so deploying this changes nothing until the office
-    # sets SKEWNONO_TOOL_FTP_ENCODING=cp949.
+    # RETR. Under utf-8 one undecodable name fails its whole listing. The
+    # non-ASCII names the office found (office 확인 2026-10-14) are corrupted
+    # bytes, valid in neither cp949 nor utf-8 -- not Korean, as first assumed
+    # -- so the value to set is latin-1: byte-transparent, cannot fail, and a
+    # listed name RETRs as the exact bytes. utf-8 stays the default
+    # (user-decided) so deploying changes nothing until the office sets
+    # SKEWNONO_TOOL_FTP_ENCODING=latin-1.
     ftp_encoding: str = "utf-8"
 
 

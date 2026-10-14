@@ -130,13 +130,13 @@ def test_single_fetch_uses_the_configured_host_timeout_floor(monkeypatch):
 
 def test_the_configured_ftp_encoding_reaches_the_downloader(monkeypatch):
     # Listing and RETR both ride on it; a template that drops it silently
-    # serves utf-8 to a cp949 tool and every Korean-named listing fails.
-    cfg = replace(office._test_config(), ftp_encoding="cp949")
+    # falls back to utf-8 and one corrupted filename fails the whole listing.
+    cfg = replace(office._test_config(), ftp_encoding="latin-1")
     kw = _last_downloader_kwargs(
         monkeypatch,
         lambda: office.list_images("10.0.0.1", "ADI", "MSR_1", _config=cfg),
     )
-    assert kw["encoding"] == "cp949"
+    assert kw["encoding"] == "latin-1"
 
 
 def test_download_all_scales_host_timeout_with_files_per_connection(monkeypatch):

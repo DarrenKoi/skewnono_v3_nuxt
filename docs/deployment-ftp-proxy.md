@@ -101,7 +101,8 @@ env = FTP_PROXY_FTP_PASSWORD=hid
 
 파일명 문자셋도 같은 방식으로 클라이언트가 요청마다 `encoding` 을 실어 보냅니다
 (skewnono 쪽 `SKEWNONO_TOOL_FTP_ENCODING`). 프록시 호스트에는 설정할 값이 없지만,
-**이 키를 읽는 `ftp_handler` 로 갱신된 뒤에야** 한글(cp949) 파일명이 풀립니다. 옛
+**이 키를 읽는 `ftp_handler` 로 갱신된 뒤에야** 손상된 파일명이 있는 디렉터리가
+나열됩니다(`latin-1`). 옛
 프록시는 이 키를 무시하고 utf-8 로 동작하므로 배포 순서와 무관하게 깨지지는
 않습니다.
 
@@ -175,12 +176,12 @@ python -c "import ftp_handler; from ftp_handler.direct_downloader import HostSpe
 실제로 읽는지 따로 확인하십시오.
 
 ```bash
-python -c "from ftp_handler.proxy.flask_proxy import _downloader_from; print('filename encoding:', getattr(_downloader_from({'encoding': 'cp949'}), 'encoding', 'MISSING'))"
+python -c "from ftp_handler.proxy.flask_proxy import _downloader_from; print('filename encoding:', getattr(_downloader_from({'encoding': 'latin-1'}), 'encoding', 'MISSING'))"
 ```
 
-`cp949` 가 나오면 반영된 것이고, `MISSING` 이면 옛 코드입니다. 옛 프록시는
-클라이언트가 보낸 `cp949` 를 조용히 무시하고 utf-8 로 listing 하므로, 한글 파일명이
-있는 디렉터리는 HTTP 200 안의 `UnicodeDecodeError` 실패로만 드러납니다.
+`latin-1` 이 나오면 반영된 것이고, `MISSING` 이면 옛 코드입니다. 옛 프록시는
+클라이언트가 보낸 `latin-1` 을 조용히 무시하고 utf-8 로 listing 하므로, 손상된
+파일명이 있는 디렉터리는 HTTP 200 안의 `UnicodeDecodeError` 실패로만 드러납니다.
 
 `path:` 를 함께 찍는 이유가 있습니다. **어느 사본이 실제로 import 되는지**를
 알려주므로, 복사는 제대로 했는데 앱이 다른 디렉터리를 보고 있어 갱신이 반영되지

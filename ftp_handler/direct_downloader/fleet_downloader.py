@@ -526,10 +526,14 @@ class FtpFleetDownloader:
         # server" gotcha after concurrency.
         # encoding is the server's filename charset, used both ways: ftplib
         # decodes NLST lines AND encodes RETR/SIZE/STOR paths with it, strictly.
-        # A Korean Windows server speaks cp949; under the utf-8 default one
-        # Korean name fails its whole listing (UnicodeDecodeError) and a known
-        # Korean path RETRs as a 550. Per downloader, not per host: a fleet
-        # mixing charsets is two downloaders.
+        # One name the codec cannot decode fails its whole listing
+        # (UnicodeDecodeError), and a path it encodes differently RETRs as 550.
+        # "latin-1" is the byte-transparent choice: it maps every byte to one
+        # character and back, so a listing can never fail and a listed name
+        # RETRs as the exact bytes the server sent -- the answer for a server
+        # holding corrupted (non-text) filenames, at the price of real
+        # non-ASCII names reading as mojibake. Per downloader, not per host: a
+        # fleet mixing charsets is two downloaders.
         self.user = user
         self.password = password
         self.port = port

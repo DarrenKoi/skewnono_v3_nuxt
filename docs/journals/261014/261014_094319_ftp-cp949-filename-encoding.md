@@ -126,3 +126,36 @@ skewnono (`c2f60835`, 문서 `f35e216d`, push 완료):
 - 신규 `project_ftp_filename_encoding.md`: `encoding` 옵션의 구조, 기본값을 utf-8로
   둔 이유, 남은 사무실 작업, FakeFTP의 한계.
 - 두 항목 모두 `MEMORY.md` 색인에 추가했다.
+
+## 8. 정정 (같은 날 10:05 KST) — cp949가 아니라 latin-1
+
+위 기록은 "한글(cp949) 파일명"을 원인으로 전제했다. 이 전제가 틀렸다.
+
+- office agent가 수정본으로 확인한 결과, 비ASCII 이름 10개는 cp949로도 utf-8로도
+  해석되지 않는 난수형 바이트였다. 인코딩 문제가 아니라 손상된 파일명이다.
+- cp949로 설정해도 같은 `UnicodeDecodeError`로 listing이 실패한다. loopback 서버에
+  손상된 바이트 이름을 넣어 재현했다: utf-8 실패, cp949 실패, latin-1 성공.
+- 4절에서 latin-1을 "파일명이 깨져 보인다"는 이유로 기각했는데, 애초에 읽을 수 있는
+  이름이 아니었으므로 그 이유가 사라졌다. latin-1은 모든 바이트를 1:1로 통과시켜
+  실패하지 않고, 나열된 이름이 원래 바이트 그대로 RETR에 나간다.
+- `encoding` 옵션이라는 구조는 그대로 맞았다. 바뀐 것은 권장값과 설명뿐이다.
+  기본값 utf-8 유지는 사용자가 다시 확인했다("기본값은 utf-8 유지").
+- 호스트별 분기는 만들지 않았다. ASCII 이름은 어떤 코덱에서도 결과가 같고, 진짜
+  한글 이름을 쓰는 장비는 확인된 바 없다.
+
+수정 내용:
+
+- flask_modules: `fleet_downloader.py`와 `core/client.py` 주석 정정,
+  `tests/test_ftp_encoding.py`에 `CorruptedFilenameTests` 추가(481개 통과)
+- skewnono: `ftp_handler/` 동기화, `backend/msr_image/config.py` 주석,
+  `backend/.env.example`, `backend/msr_image/MIGRATION.md`,
+  `docs/deployment-ftp-proxy.md`, `docs/office-migration/to-office-ftp-cp949-261014.md`
+  (0절 정정 추가, 회신 항목 D 추가), `docs/datatables/hitachi/msr_image_ftp.txt`와
+  `backend/msr_image/providers/mock.py` docstring에 office 확인 사실 기록
+
+배운 것: "한글이 깨진다"는 보고를 인코딩 문제로 단정하고 실제 바이트를 보지 않은 채
+cp949를 확인된 사실처럼 주석과 문서에 썼다. 원인 가정은 `OFFICE-VERIFY`로 표시하고,
+첫 요청에 실제 바이트 덤프를 포함했어야 한다.
+
+남은 것: 손상된 이름이 어느 장비의 어느 디렉터리에 있는지, 우리가 쓰는 파일인지는
+아직 모른다(회신 항목 D).

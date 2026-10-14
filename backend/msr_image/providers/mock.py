@@ -13,6 +13,13 @@ server, and the backend opens a session to it per request.
     cond  {dir}/.{name}/cond.txt      ← hidden per-image sidecar, a DOT-PREFIXED
                                         FOLDER containing cond.txt, not a file
 
+Names here are ASCII only. The real tools also hold a few filenames made of
+corrupted bytes, valid in neither utf-8 nor cp949 (office 확인 2026-10-14);
+under the default utf-8 one of them fails the whole listing, which is what
+SKEWNONO_TOOL_FTP_ENCODING=latin-1 is for. That lives in ftplib's decoding, a
+layer this mock never reaches, so the loopback-FTP suite in flask_modules
+(tests/test_ftp_encoding.py) covers it instead.
+
 `class_name` and `msr` come from the parent meas_hist doc. Extensions are
 .jpeg/.jpg/.tif/.tiff — tools serve JPEG previews alongside TIFF originals and
 the pickle's mp_image_name columns reference BOTH, so a jpeg-only filter makes

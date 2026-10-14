@@ -50,6 +50,24 @@ FTP 목록(NLST)은 **전체 경로**를 돌려줍니다. 프론트로 내려보
 이고, 프론트가 그 basename 을 다시 보내면 백엔드가 전체 경로를 재조립합니다.
 목록 단계에서 basename 으로 잘라야 이 왕복이 성립합니다.
 
+파일명 문자셋 — 손상된 이름 (office 확인 2026-10-14)
+
+장비 FTP 에는 비ASCII 바이트가 들어간 파일명이 있습니다. 처음에는 한글(cp949)로
+가정했으나, office 에서 수정본으로 확인한 결과 비ASCII 이름 10개 모두 cp949 로도
+utf-8 로도 해석되지 않는 난수형 바이트였습니다. 인코딩 문제가 아니라 손상된
+파일명입니다. 어느 장비의 어느 디렉터리인지는 아직 기록되지 않았습니다
+(OFFICE-VERIFY).
+
+- utf-8(기본값)이나 cp949 로 읽으면 그런 이름 하나가 그 디렉터리의 NLST 전체를
+  실패시킵니다(UnicodeDecodeError -> listing 실패 1건, 파일 0개).
+- SKEWNONO_TOOL_FTP_ENCODING=latin-1 로 읽으면 실패하지 않습니다. latin-1 은 모든
+  바이트를 문자 하나에 1:1 로 대응시키므로, 나열된 이름을 다시 RETR 로 보내면
+  원래 바이트 그대로 나갑니다.
+- 손상된 이름은 latin-1 에서도 고쳐지지 않고 깨진 글자로 보입니다. msr_image 는
+  이미지 확장자로 끝나는 이름만 목록에 싣습니다.
+- mock 은 ASCII 이름만 만듭니다. 이 경로는 실제 ftplib 디코딩에서만 드러나므로
+  flask_modules 의 tests/test_ftp_encoding.py(loopback FTP 서버)가 대신 검증합니다.
+
 전송 경로 (플랫폼별)
 
   사무실 로컬 PC(Windows) : 장비로의 직접 FTP egress 가 막혀 있어 방화벽이 없는

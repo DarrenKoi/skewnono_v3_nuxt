@@ -176,7 +176,7 @@ class FtpClient:
         self.port = port
         self.timeout = timeout
         self.passive = passive
-        # Server filename charset (e.g. "cp949" for a Korean Windows server);
+        # Server filename charset ("latin-1" = byte-transparent, never fails);
         # see FtpFleetDownloader for why it must reach the FTP constructor.
         self.encoding = encoding
         self._ftp: FTP | None = None
