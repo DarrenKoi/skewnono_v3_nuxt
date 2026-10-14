@@ -3,7 +3,20 @@ from backend._logging.policy import (
     classify_activity,
     normalize_fab_name_list,
     sanitize_query_string,
+    sanitize_referer,
 )
+
+
+def test_referer_keeps_the_page_and_redacts_its_query_like_ours():
+    page = "http://skewnono/ebeam/cd-sem/r3,m16b/recipe-search/open"
+    sanitized = sanitize_referer(f"{page}?recipe_name=RJ1A/X&fab_name=M16B&token=t")
+    assert sanitized.startswith(page + "?")
+    assert "fab_name=M16B" in sanitized
+    assert "token=%5BREDACTED%5D" in sanitized
+    assert sanitize_referer(page) == page
+    assert sanitize_referer(None) is None
+    assert sanitize_referer("") is None
+    assert len(sanitize_referer(page + "/" + "x" * 3000)) == 2048
 
 
 def test_activity_precedence_is_operation_background_entry_feature():

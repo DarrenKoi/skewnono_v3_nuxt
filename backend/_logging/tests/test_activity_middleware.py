@@ -100,6 +100,14 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
         def _boom():
             raise RuntimeError("kaboom")
 
+        @app.get("/api/upstream")
+        def _handled_upstream():
+            # Stands in for the app factory's LookupError -> 502 handler: a
+            # handled failure that answers through error_json.
+            from backend._auth.errors import error_json
+
+            return error_json("upstream_data_error", "No document in meas_hist", 502)
+
         @app.get("/login")
         def _login():
             return "LOGIN"
@@ -279,6 +287,40 @@ def test_an_error_status_is_labelled_with_its_reason_phrase(make_app, records):
     record = _only(records, "request")
     assert record.error_code == "404"
     assert record.error_name == "Not Found"
+
+
+def test_a_handled_error_puts_its_reason_on_the_request_row(make_app, records):
+    """The 502 body's reason is the only diagnosis an outside reader gets; it
+    rides the request row (joinable by request_id, user, path) rather than a
+    separate exception row that carries no request_id."""
+    client = make_app(user_id="2067928")
+
+    client.get("/api/upstream")
+
+    record = _only(records, "request")
+    assert record.error_code == "502"
+    assert record.error_name == "upstream_data_error: No document in meas_hist"
+
+
+def test_the_referer_names_the_screen_a_call_came_from(make_app, records):
+    client = make_app(user_id="2067928")
+
+    client.get(
+        "/api/sem-list",
+        headers={"Referer": "http://skewnono/ebeam/cd-sem/m16b/recipe-search/open"
+                            "?recipe_name=RJ1A/X&fab_name=M16B&access_token=s"},
+    )
+
+    referer = _only(records, "request").referer
+    assert referer.startswith("http://skewnono/ebeam/cd-sem/m16b/recipe-search/open?")
+    assert "fab_name=M16B" in referer
+    assert "access_token=%5BREDACTED%5D" in referer
+
+
+def test_a_call_without_a_referer_omits_the_field(make_app, records):
+    client = make_app(user_id="2067928")
+    client.get("/api/sem-list")
+    assert _only(records, "request").referer is None
 
 
 def test_only_weighted_requests_become_usage_events(make_app, recorded):

@@ -15,6 +15,7 @@ from .policy import (
     classify_activity,
     normalize_fab_name_list,
     sanitize_query_string,
+    sanitize_referer,
 )
 
 logger = logging.getLogger("skewnono.activity")
@@ -126,6 +127,8 @@ def _build_extra(
         "fab_name_list": fab_name_list,
         "error_code": error_code,
         "error_name": error_name,
+        # The screen this call came from (the SPA URL, query redacted).
+        "referer": sanitize_referer(request.headers.get("Referer")),
     }
     # One row per request rather than one per query: the log handler ships to
     # the same cluster these queries hit, through a queue shared with the audit
@@ -185,6 +188,16 @@ def install_activity_logging(app: Flask) -> None:
         path = request.path
         feature = getattr(g, "_activity_page_slug", None) or route_to_feature(path)
         level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
+        # A handled error (anything answered through error_json) names its
+        # reason here, so the request row itself says WHY — "upstream_data_error:
+        # No document in meas_hist_cdsem has full_name=..." — rather than the
+        # bare reason phrase, whose detail used to live only in an unjoinable
+        # app.logger row. error_code stays the status so existing filters hold.
+        handled = getattr(g, "_activity_error", None)
+        if status >= 400 and handled:
+            error_name: str | None = f"{handled[0]}: {handled[1]}"
+        else:
+            error_name = _status_error_name(status)
         extra = _build_extra(
             event="request",
             status=status,
@@ -193,7 +206,7 @@ def install_activity_logging(app: Flask) -> None:
             remote=remote,
             feature=feature,
             error_code=str(status) if status >= 400 else None,
-            error_name=_status_error_name(status),
+            error_name=error_name,
         )
         logger.log(
             level,

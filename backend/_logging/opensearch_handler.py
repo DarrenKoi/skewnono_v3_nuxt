@@ -54,6 +54,10 @@ _KNOWN_EXTRA_KEYS = (
     "fab_name_list",
     "error_code",
     "error_name",
+    # The SPA page the call was made from (2026-10-14). Mapped additively in
+    # ops_index_mgmt; until that update runs at the office the field is in
+    # _source only (dynamic: false), readable per document but not searchable.
+    "referer",
     # OpenSearch round trips this request spent (see _logging/os_timing.py).
     # Absent entirely on a request that made none, rather than four zeroes.
     "opensearch_query_count",
@@ -297,7 +301,11 @@ class OpenSearchBulkHandler(logging.Handler):
             value = getattr(record, key, None)
             if value is None:
                 continue
-            doc[key] = _bounded(value, 1024) if key == "error_name" else value
+            if key == "error_name":
+                value = _bounded(value, 1024)
+            elif key == "referer":
+                value = _bounded(value, 2048)
+            doc[key] = value
         if record.exc_info:
             exc_type, exc, _tb = record.exc_info
             doc["exception"] = {

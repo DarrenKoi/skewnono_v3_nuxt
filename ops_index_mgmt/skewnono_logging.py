@@ -119,6 +119,10 @@ LOG_MAPPING_PROPERTIES: dict[str, Any] = {
     "fab_name_list": {"type": "keyword"},
     "error_code": {"type": "keyword"},
     "error_name": {"type": "keyword"},
+    # The SPA page URL the request was made from (Referer, query redacted).
+    # Added 2026-10-14; an additive mapping update at the office makes it
+    # searchable on the existing backing indices.
+    "referer": {"type": "keyword", "ignore_above": 2048},
     # OpenSearch round trips one request spent. `query_count` is the field the
     # fan-out question turns on; `slowest_ms` against `total_ms` says whether
     # the time is in the count or in a single dominant query.

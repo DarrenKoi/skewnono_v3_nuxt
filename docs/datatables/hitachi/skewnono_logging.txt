@@ -52,6 +52,14 @@ path -> keyword: query 제외 request path
   기록되지 않습니다 — 공용 API(msr-file, meas-hist, sem-list)는 경로에 계열이 없어
   path 만으로는 알 수 없고, 장비군 집계는 page_view 만 읽습니다.
 query_string -> keyword(ignore_above 2048): 민감 key 는 [REDACTED] 치환, 2,048자 제한
+referer -> keyword(ignore_above 2048): 요청을 보낸 **화면의 URL** (Referer header,
+  query 는 query_string 과 같은 규칙으로 치환). SPA 의 same-origin fetch 는 현재
+  페이지 URL 을 Referer 로 보내므로, `[fab]` 세그먼트·recipe_name·fab_name 까지
+  그대로 남습니다. 2026-10-14 추가 — 그날 recipe open 502 74 건이 어느 화면에서
+  눌렸는지 로그로 알 수 없었던 것이 계기입니다. header 가 없으면 필드를 생략합니다.
+  ★ 회사에서 additive mapping update(ops_index_mgmt/skewnono_logging.py 재실행)를
+  돌리기 전까지는 _source 에만 들어가고(dynamic: false) term 검색·집계는 되지
+  않습니다. 2026-10-14 이전 행에는 없습니다.
 status -> integer: HTTP status
 latency_ms -> integer: 요청 처리 시간
 remote_addr -> keyword: 내부 client/proxy 주소
@@ -69,7 +77,14 @@ activity_weight -> integer: 활동 집계 대상이면 1, 아니면 0
 fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M14"] 형태이며
   context 가 없으면 빈 list 입니다. scalar fab_name 과 혼동하지 않습니다.
 error_code -> keyword: HTTP status 또는 예외 타입 이름
-error_name -> keyword(최대 1,024자): bounded 오류 이름
+error_name -> keyword(최대 1,024자): bounded 오류 이름. 2026-10-14 부터 error_json
+  으로 응답한 모든 처리된 오류(HTTPException, 어댑터의 LookupError 502 /
+  RuntimeError 503, driver 접속 오류)는 "<code>: <message>" 형식으로 **응답 본문의
+  이유 문장 그대로** 들어갑니다(예: "upstream_data_error: No document in
+  meas_hist_cdsem has full_name=... Redis recipe registry was tried first and
+  declined: ..."). 그 전에는 reason phrase("Bad Gateway")만 있었고, 이유 문장은
+  request_id 가 없는 별도 application 예외 행에만 남아 요청과 잇지 못했습니다.
+  error_json 을 거치지 않은 4xx/5xx 는 지금도 reason phrase 입니다.
 opensearch_query_count -> integer: 이 요청이 쓴 OpenSearch 왕복 횟수
   (_logging/os_timing.py 가 세고 ebeam/_office_search.py 의 aggregate/fetch_hits
   가 기록합니다). 왕복을 한 번도 하지 않은 요청에는 아래 네 필드가 통째로
