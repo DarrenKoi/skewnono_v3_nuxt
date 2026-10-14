@@ -108,6 +108,11 @@ def make_app(monkeypatch, preserve_logger, records, recorded):
 
             return error_json("upstream_data_error", "No document in meas_hist", 502)
 
+        @app.get("/api/plain-error")
+        def _plain_error():
+            # The routes' own shape (meas_hist, msr_file): a bare string.
+            return {"error": "eqp_id is required"}, 400
+
         @app.get("/login")
         def _login():
             return "LOGIN"
@@ -300,6 +305,12 @@ def test_a_handled_error_puts_its_reason_on_the_request_row(make_app, records):
     record = _only(records, "request")
     assert record.error_code == "502"
     assert record.error_name == "upstream_data_error: No document in meas_hist"
+
+
+def test_a_routes_own_string_error_body_is_the_reason_too(make_app, records):
+    client = make_app(user_id="2067928")
+    client.get("/api/plain-error")
+    assert _only(records, "request").error_name == "eqp_id is required"
 
 
 def test_the_referer_names_the_screen_a_call_came_from(make_app, records):

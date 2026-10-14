@@ -573,40 +573,28 @@ def _locate_via_redis(
     if not eqp_ids:
         return _bail(f"{tools_key} names no tool for {recipe_id!r}")
 
-    loc_key = _fab_hash("rcp_loc", tool_type, fab_name)
-    parts = _parse_str_list(client.hget(loc_key, recipe_id) or "")
-    if len(parts) < 2:
-        # The two hashes are written by different upstream jobs, and on
-        # 2026-10-13 the office had 74 opens fail on recipes that
-        # tools_in_rcp_m16b named but rcp_loc_m16b did not (office 확인
-        # 2026-10-14: RJ1A/* — m16e held both hashes, m16b/m16a/r3 only the
-        # tool list, and no measurement run anywhere). The location names
-        # the recipe's own idw/idp folders, which a recipe copied between
-        # tools keeps (OFFICE-VERIFY: assumed, not yet seen on a real open),
-        # so another fab's entry is a usable path for THIS fab's tools. If
-        # the assumption is wrong the FTP read fails and the 502 says which
-        # entry was borrowed — a louder failure than today's, not a quieter
-        # one.
-        borrowed_from = None
-        for other in _registry_fabs():
-            if other == fab_name.strip().lower():
-                continue
-            other_key = _fab_hash("rcp_loc", tool_type, other)
-            other_parts = _parse_str_list(client.hget(other_key, recipe_id) or "")
-            if len(other_parts) >= 2:
-                parts, borrowed_from = other_parts, other_key
-                break
-        if borrowed_from is None:
-            return _bail(
-                f"{loc_key} has no usable [idw, idp] entry for {recipe_id!r} "
-                f"(got {parts}) and no other fab's rcp_loc hash holds one"
-            )
-        note = f"[idw, idp] for {recipe_id!r} borrowed from {borrowed_from}"
+    # Own fab first, then every other fab's hash: rcp_loc and tools_in_rcp are
+    # written by different jobs and drift (recipe_name_list.txt 주의 5), and a
+    # recipe's idw/idp folder names are taken to be fab-independent
+    # (OFFICE-VERIFY), so another fab's entry opens it on THIS fab's tools.
+    # ponytail: borrow until the rcp_loc job writes every fab tools_in_rcp
+    # names; drop the other fabs from `keys` then.
+    own_key = _fab_hash("rcp_loc", tool_type, fab_name)
+    keys = [own_key, *(_fab_hash("rcp_loc", tool_type, f) for f in _registry_fabs())]
+    for loc_key in dict.fromkeys(keys):
+        parts = _parse_str_list(client.hget(loc_key, recipe_id) or "")
+        if len(parts) >= 2:
+            break
+    else:
+        return _bail(
+            f"{own_key} has no usable [idw, idp] entry for {recipe_id!r} "
+            "and no other fab's rcp_loc hash holds one"
+        )
+    if loc_key != own_key:
+        note = f"[idw, idp] for {recipe_id!r} borrowed from {loc_key}"
         if notes is not None:
             notes.append(note)
-        _LOG.info("recipe_search: %s (%s has none).", note, loc_key)
-        # So the empty-component bail below names the entry actually read.
-        loc_key = borrowed_from
+        _LOG.info("recipe_search: %s.", note)
 
     idw_stem, idp_stem = _stem(parts[0]), _stem(parts[1])
     if not idw_stem or not idp_stem:
@@ -788,7 +776,8 @@ def check_recipe_registry(
     this to decide whether a recipe is fully Redis-backed, and `_locate_idp`
     would answer yes for a recipe only a measurement run can place. It is also
     what keeps the endpoint cheap enough to ask about a page of search results
-    at once — two `hget`s per recipe and no OpenSearch query.
+    at once — two `hget`s per recipe (plus one per other fab only when the
+    own fab's location is missing) and no OpenSearch query.
 
     The registry's own bail reason is returned rather than logged only. It is
     the same text `_locate_idp` folds into its 502, and it is the difference

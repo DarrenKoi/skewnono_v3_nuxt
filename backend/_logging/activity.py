@@ -38,10 +38,25 @@ def _note_record_request_failure() -> None:
 _STATUS_PHRASE = {status.value: status.phrase for status in HTTPStatus}
 
 
-def _status_error_name(status: int) -> str | None:
+def _error_name(status: int, response) -> str | None:
+    """What went wrong, as the response body says it — else the reason phrase.
+
+    Both JSON error shapes the app emits are read: ``{"error": {"code",
+    "message"}}`` (error_json, so every handled 502/503 and HTTPException)
+    and the routes' own ``{"error": "..."[, "message": "..."]}``. Reading the
+    body rather than having each handler stash a note covers every error
+    site at once, and keeps the row joinable: before 2026-10-14 the reason
+    lived only in an app.logger row with no request_id.
+    """
     if status < 400:
         return None
-    return _STATUS_PHRASE.get(status, "HTTP error")
+    body = response.get_json(silent=True) if response.is_json else None
+    error = body.get("error") if isinstance(body, dict) else None
+    if isinstance(error, dict):
+        error = f"{error.get('code') or ''}: {error.get('message') or ''}"
+    elif isinstance(error, str) and body.get("message"):
+        error = f"{error}: {body['message']}"
+    return error or _STATUS_PHRASE.get(status, "HTTP error")
 
 
 def _request_id() -> str:
@@ -188,16 +203,6 @@ def install_activity_logging(app: Flask) -> None:
         path = request.path
         feature = getattr(g, "_activity_page_slug", None) or route_to_feature(path)
         level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
-        # A handled error (anything answered through error_json) names its
-        # reason here, so the request row itself says WHY — "upstream_data_error:
-        # No document in meas_hist_cdsem has full_name=..." — rather than the
-        # bare reason phrase, whose detail used to live only in an unjoinable
-        # app.logger row. error_code stays the status so existing filters hold.
-        handled = getattr(g, "_activity_error", None)
-        if status >= 400 and handled:
-            error_name: str | None = f"{handled[0]}: {handled[1]}"
-        else:
-            error_name = _status_error_name(status)
         extra = _build_extra(
             event="request",
             status=status,
@@ -206,7 +211,7 @@ def install_activity_logging(app: Flask) -> None:
             remote=remote,
             feature=feature,
             error_code=str(status) if status >= 400 else None,
-            error_name=error_name,
+            error_name=_error_name(status, response),
         )
         logger.log(
             level,

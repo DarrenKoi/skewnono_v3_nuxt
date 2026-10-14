@@ -301,11 +301,7 @@ class OpenSearchBulkHandler(logging.Handler):
             value = getattr(record, key, None)
             if value is None:
                 continue
-            if key == "error_name":
-                value = _bounded(value, 1024)
-            elif key == "referer":
-                value = _bounded(value, 2048)
-            doc[key] = value
+            doc[key] = _bounded(value, 1024) if key == "error_name" else value
         if record.exc_info:
             exc_type, exc, _tb = record.exc_info
             doc["exception"] = {

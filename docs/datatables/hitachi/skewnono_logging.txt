@@ -77,14 +77,16 @@ activity_weight -> integer: 활동 집계 대상이면 1, 아니면 0
 fab_name_list -> keyword: 정규화된 FAB 이름 JSON list. 단일 FAB 도 ["M14"] 형태이며
   context 가 없으면 빈 list 입니다. scalar fab_name 과 혼동하지 않습니다.
 error_code -> keyword: HTTP status 또는 예외 타입 이름
-error_name -> keyword(최대 1,024자): bounded 오류 이름. 2026-10-14 부터 error_json
-  으로 응답한 모든 처리된 오류(HTTPException, 어댑터의 LookupError 502 /
-  RuntimeError 503, driver 접속 오류)는 "<code>: <message>" 형식으로 **응답 본문의
-  이유 문장 그대로** 들어갑니다(예: "upstream_data_error: No document in
-  meas_hist_cdsem has full_name=... Redis recipe registry was tried first and
-  declined: ..."). 그 전에는 reason phrase("Bad Gateway")만 있었고, 이유 문장은
-  request_id 가 없는 별도 application 예외 행에만 남아 요청과 잇지 못했습니다.
-  error_json 을 거치지 않은 4xx/5xx 는 지금도 reason phrase 입니다.
+error_name -> keyword(최대 1,024자): bounded 오류 이름. 2026-10-14 부터 JSON 오류
+  본문이 있는 모든 4xx/5xx 는 **응답 본문의 이유 문장 그대로** 들어갑니다 —
+  error_json 의 {"error": {"code", "message"}} 는 "<code>: <message>" 로(예:
+  "upstream_data_error: No document in meas_hist_cdsem has full_name=... Redis
+  recipe registry was tried first and declined: ..."), route 자체의
+  {"error": "..."} 는 그 문자열로(message 가 곁에 있으면 "<error>: <message>").
+  미들웨어가 응답 본문을 읽으므로 handler 쪽 수정 없이 모든 오류 자리에 적용됩니다.
+  그 전에는 reason phrase("Bad Gateway")만 있었고, 이유 문장은 request_id 가 없는
+  별도 application 예외 행에만 남아 요청과 잇지 못했습니다. JSON 본문이 없는
+  4xx/5xx 는 지금도 reason phrase 입니다.
 opensearch_query_count -> integer: 이 요청이 쓴 OpenSearch 왕복 횟수
   (_logging/os_timing.py 가 세고 ebeam/_office_search.py 의 aggregate/fetch_hits
   가 기록합니다). 왕복을 한 번도 하지 않은 요청에는 아래 네 필드가 통째로

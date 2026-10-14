@@ -153,15 +153,12 @@ def sanitize_query_string(raw: bytes) -> str:
 
 
 def sanitize_referer(raw: str | None) -> str | None:
-    """The page a request was made from, with its query redacted like ours.
+    """The Referer (the SPA page a call came from), query redacted like ours.
 
-    The SPA's URLs are the only record of WHICH SCREEN made an API call — the
-    `[fab]` segment, the recipe_name and the owner fab_name all ride in them —
-    and the browser sends that URL as the Referer of every same-origin fetch.
-    The page-view beacon stores only a feature slug, so without this the
-    screen behind a failed request cannot be recovered (2026-10-14: 74 recipe
-    opens failed and the logs could not say where they were clicked).
-    ``None`` when the header is absent, so the field is omitted, not blank.
+    The page URL carries the `[fab]` segment, recipe_name and owner fab_name —
+    the only record of WHICH SCREEN made an API call, since the page-view
+    beacon keeps just a feature slug. ``None`` when absent, so the field is
+    omitted rather than blank; capped at the mapping's 2048.
     """
     if not raw:
         return None
