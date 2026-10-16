@@ -158,6 +158,16 @@
               :aria-label="`${row.original.eqp_id} 스큐보아 검색 열기`"
               :to="skewvoirSearchRoute(props.toolType, { eq: row.original.eqp_id, fab: row.original.fab_name })"
             />
+            <UButton
+              v-if="hasToolFiles"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              trailing-icon="i-lucide-arrow-right"
+              label="파일 열기"
+              :aria-label="`${row.original.eqp_id} 파일 열기`"
+              :to="{ path: `/ebeam/${props.toolType}/${fabSegment(row.original.fab_name)}/tool-files`, query: { eqp: row.original.eqp_id } }"
+            />
           </div>
         </template>
 
@@ -202,9 +212,9 @@ import type { ToolType } from '~/stores/navigation'
 import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard } from '~/utils/tableExport'
-import { hasStorageView } from '~/utils/toolType'
+import { hasStorageView, SEM_TOOL_TYPES } from '~/utils/toolType'
 import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
-import { buildFabSegment } from '~/utils/fab'
+import { buildFabSegment, fabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
 
 const downloadTable = useTableDownload()
@@ -217,6 +227,10 @@ const props = defineProps<{
   title: string
   toolType: ToolType
 }>()
+
+// 탐색기 페이지는 pages/ebeam/{cd-sem,hv-sem}/[fab]/tool-files 에만 있습니다.
+// 권한은 보지 않습니다 — 판정은 탐색기 페이지가 합니다.
+const hasToolFiles = (SEM_TOOL_TYPES as readonly ToolType[]).includes(props.toolType)
 
 const { filterRows } = useSemListApi()
 const { setSelectedTool } = useNavigation()

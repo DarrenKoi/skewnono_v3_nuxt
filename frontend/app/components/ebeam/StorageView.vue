@@ -118,7 +118,20 @@
         </template>
 
         <template #eqp_id-cell="{ row }">
-          <span class="sk-value-num">{{ row.original.eqp_id }}</span>
+          <div class="flex items-center gap-3">
+            <span class="sk-value-num">{{ row.original.eqp_id }}</span>
+            <!-- 권한과 관계없이 보입니다. 판정은 탐색기 페이지가 하고, 행의 장비
+                 정보가 오래되어 해석이 실패하면(404·409) 그 이유도 거기서 보입니다. -->
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              trailing-icon="i-lucide-arrow-right"
+              label="파일 열기"
+              :aria-label="`${row.original.eqp_id} 파일 열기`"
+              :to="{ path: `/ebeam/${props.toolType}/${fabSegment(row.original.fab_name)}/tool-files`, query: { eqp: row.original.eqp_id } }"
+            />
+          </div>
         </template>
         <template #eqp_ip-cell="{ row }">
           <div class="flex items-center gap-1">
@@ -228,7 +241,7 @@ import type { StorageRow, StorageTool, PpidUnavailableSnapshot } from '~/composa
 import { isStorageUnavailable } from '~/composables/useStorageApi'
 import { copyTextToClipboard } from '~/utils/tableExport'
 import { storageUsageTier } from '~/utils/storageUsage'
-import { normalizeFab } from '~/utils/fab'
+import { fabSegment, normalizeFab } from '~/utils/fab'
 import type { MetaBarStat } from './MetaBar.vue'
 import { formatDateTimeLocal } from '~/utils/dateTime'
 
