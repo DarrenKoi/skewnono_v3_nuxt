@@ -2,8 +2,8 @@
 
 Status: ready-for-agent
 
-개정 r1 (2026-10-17): Codex 검토(`codex-r1.md`)를 반영했습니다. 항목별 처리는 맨 아래
-"검토 반영 기록"에 있습니다.
+개정 r2 (2026-10-17): Codex 1차·2차 검토(`codex-r1.md`, `codex-r2.md`)를 반영했습니다.
+항목별 처리는 맨 아래 "검토 반영 기록"에 있습니다.
 
 ## Problem Statement
 
@@ -53,7 +53,7 @@ v1의 기능은 두 가지입니다. 폴더 이동과 목록 보기(크기·수�
 8. 장비 관리자로서, 파일을 눌러 PC로 다운로드하기를 원합니다. 이것이 이 기능의 주 목적입니다.
 9. 장비 관리자로서, 상한을 넘는 파일은 왜 받을 수 없는지 화면에서 알기를 원합니다.
 10. 장비 관리자로서, 장비가 꺼져 있거나 FTP에 접속하지 못하면 "장비에 연결할 수 없음"이라는 안내를 보고 다시 시도할 수 있기를 원합니다. 권한 문제와 장비 문제를 구별하기 위해서입니다.
-11. 장비 관리자로서, 목록을 연 뒤 사라진 파일을 받으려 하면 "파일이 없음"이라는 안내를 보기를 원합니다.
+11. 장비 관리자로서, 목록을 연 뒤 사라졌거나 FTP 계정이 읽을 수 없는 파일을 받으려 하면 "파일이 없거나 접근할 수 없음"이라는 안내를 보기를 원합니다.
 12. 장비 관리자로서, 파일 이름이 깨져 보여도 그 파일을 정상적으로 받을 수 있기를 원합니다. 일부 장비는 파일명 바이트가 손상되어 있다는 것이 알려져 있기 때문입니다.
 13. 장비 관리자로서, 보고 있는 경로가 URL에 남아서 새로고침하거나 링크를 공유해도 그 폴더가 다시 열리기를 원합니다.
 14. 개발자로서, office Windows PC(Phase 2)에서도 proxy를 통해 탐색과 다운로드를 검증할 수 있기를 원합니다.
@@ -92,6 +92,7 @@ v1의 기능은 두 가지입니다. 폴더 이동과 목록 보기(크기·수�
 - **seam은 둘이지만 provider 선택은 하나입니다.** 파일 시스템(FTP ↔ 가짜 트리)과 권한 저장소(Redis ↔ JSON 파일)를 따로 고르지 않습니다. feature 하나의 provider 해석이 두 seam을 함께 결정하므로, "실제 FTP + mock 승인" 같은 혼합 상태는 만들어질 수 없습니다.
   - office tool_files는 office `sem_list`에 의존합니다. 그래서 `validate_env()`의 부팅 짝 검사에 등록합니다(`storage` ↔ `sem_list`와 같은 방식).
   - 실제 FTP에서 mock 데이터로 fallback하는 동작은 금지합니다.
+  - directory(`probe_member`)는 feature 설정이 아니라 전역 `get_mode()`를 따릅니다. 그래서 `SKEWNONO_TOOL_FILES_PROVIDER=office`로 이 feature만 강제하고 전역 mode가 mock이면, 실제 FTP에 붙은 상태에서 팀 판정이 전부 `directory_unavailable`이 됩니다. tool_files가 office로 해석될 때 `get_mode()`가 office가 아니면 `validate_env()`가 부팅을 거부합니다. Redis 설정(`REDIS_HOST` 등)이 없을 때도 마찬가지로 거부합니다.
 - **공용 부품 네 가지**는 라우트 밖의 함수로 둡니다. 이후 레시피 일괄 복사 job이 그대로 호출하게 하기 위해서입니다.
   1. 권한 판정
   2. 장비 해석
@@ -117,7 +118,13 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 6. 신청 상태에 따라                    → pending / rejected / none
 ```
 
-- **쓰기 판정은 `granted`와 별개입니다.** v1에서 쓰기는 앱 플래그가 켜져 있고 `is_admin_request()`가 참일 때만 허용합니다. 이를 위해 데이터를 추가하지 않습니다. 나중에 쓰기 등급이 필요해지면 grant 값에 `level` 필드를 더합니다. 필드가 없는 값은 읽기로 해석하므로, 기존 데이터를 바꾸지 않고 필드만 추가하면 됩니다.
+- **쓰기 판정은 `granted`와 별개입니다.** 서버가 판정해서 `access` 응답의 `can_write`로 내려 줍니다.
+
+  ```text
+  can_write = SKEWNONO_TOOL_FILES_WRITE ∧ is_admin_request() ∧ transport_supports_write
+  ```
+
+  `transport_supports_write`는 mock과 direct에서 참, proxy에서 거짓입니다. 쓰기 API를 직접 호출하면 다음 순서로 거부합니다. 플래그 off는 403 `write_disabled`, 관리자가 아니면 403 `forbidden`, proxy면 501 `write_not_supported`입니다. 모두 요청 body를 읽기 전, FTP·HTTP 호출 전에 판정합니다. 쓰기 판정을 위해 저장 데이터를 추가하지 않습니다.
 - `lookup_member`는 실패를 감추는 설계이므로 판정에 쓰지 않습니다.
 - directory 캐시는 600초입니다. 따라서 **팀을 옮긴 사람의 권한은 최대 10분 늦게 반영됩니다.** 이 지연은 감수합니다. 신청 때 저장한 팀 이름은 표시용일 뿐, 현재 소속의 근거로 쓰지 않습니다.
 - **Phase 2 예외.** 쿠키가 없는 office localhost는 `local-dev/local`이 되고, 기존 관리자 판정에서 관리자로 처리됩니다. 이는 개발 예외로 받아들입니다. 클라우드의 관리자는 기존 `SKEWNONO_ADMIN_USERS`를 따르며, 기본값은 2067928입니다.
@@ -129,7 +136,7 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 - 입력은 `tool_slug`, `fab`, `eqp_id`입니다. 서버는 sem_list에서 이 eqp_id의 행을 찾고, IP, fab, 모델, 계정을 **같은 행에서** 해석합니다.
 - 해석 결과에 따라 다음과 같이 응답합니다.
   - 행이 없으면 404 `tool_not_found`입니다.
-  - 같은 eqp_id의 행이 여러 개이고 IP가 서로 다르면 409 `tool_ambiguous`입니다. 첫 행을 임의로 고르지 않습니다. mock에도 이런 중복 eqp_id가 약 10건 있습니다.
+  - 같은 eqp_id의 행이 여러 개일 때는 IP, fab, 모델(계정 선택에 쓰는 필드)이 모두 같으면 하나로 합칩니다. 하나라도 다르면 409 `tool_ambiguous`입니다. 첫 행을 임의로 고르지 않습니다. mock에도 이런 중복 eqp_id가 약 10건 있습니다.
   - 행의 모델 계열이 `tool_slug`와 다르거나 fab이 요청과 다르면 400 `tool_mismatch`입니다.
   - IP가 비어 있거나 유효한 IPv4가 아니면 503 `tool_unreachable`입니다.
 - 클라이언트가 보낸 host, port, 계정은 받지 않습니다.
@@ -144,11 +151,13 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
   - `.`과 `..` 구성요소, 역슬래시, 드라이브 문자(`C:`), NUL·CR·LF·제어 문자는 거부합니다. URL decode는 한 번만 합니다.
   - strip, 재인코딩, Unicode 정규화는 하지 않습니다. 원래 바이트가 바뀌기 때문입니다.
 - 위반하면 400 `bad_path`를 돌려줍니다.
-- v1에서는 LIST에서 링크(`l`)로 나온 항목을 목록에서 빼고 다운로드도 거부합니다. FTP만으로는 링크가 가리키는 대상을 검증할 수 없기 때문입니다. 서버 측 chroot 여부는 office에서 확인할 사항입니다(`OFFICE-VERIFY`).
+- v1에서는 LIST에서 링크(`l`)로 나온 항목을 목록에서 빼고, 링크를 직접 가리키는 다운로드도 거부합니다.
+- **실제 보안 경계는 FTP 계정의 권한입니다.** 루트 검사는 실수와 조작된 URL을 막는 가드레일입니다. 이것만으로 "루트 밖 접근 불가"가 보장되지는 않습니다. 경로 중간의 폴더가 링크라면 문자열 검사로는 잡을 수 없고, FTP만으로는 링크가 가리키는 대상을 검증할 수도 없습니다. v1은 읽기 전용이고 사용자는 승인된 사람이므로, 이 한계는 감수합니다.
+- **쓰기 플래그를 켜기 전에 확인할 조건이 있습니다.** 장비 FTP 계정이 허용 루트 밖에 쓸 수 없도록 서버 쪽에서 제한(chroot 또는 계정 권한)되어 있는지 office에서 확인해야 합니다(`OFFICE-VERIFY`).
 
 ### ftp_handler 수정
 
-`ftp_handler`는 vendored copy입니다. 수정은 `flask_modules`에 먼저 하고 SKEWNONO로 복사합니다. 같은 저장소의 `test_vendored_ftp_handler.py`가 두 사본이 같은지 지킵니다.
+`ftp_handler`는 vendored copy입니다. 수정은 `flask_modules`에 먼저 하고 SKEWNONO로 복사합니다. `test_vendored_ftp_handler.py`는 사본의 동작을 테스트할 뿐, 두 사본이 같은지는 비교하지 않습니다. 그래서 머지 전에 `diff -rq --exclude=__pycache__ ~/Codes/flask_modules/ftp_handler ftp_handler`의 출력이 비어 있는지 따로 확인해야 합니다.
 
 **기존 소비자 조사 (2026-10-17, `~/Codes` 전체 grep).**
 
@@ -159,7 +168,9 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 | SKEWNONO scripts(probe, verify, deploy pack) | 같음, `proxy_downloader.PROXY_URL`·`PROXY_TOKEN` |
 | flask_modules Airflow `eqp_ftp_collector_dag` | `direct_downloader.build_host_specs`, `collect_fleet` |
 | scheduler1 webapp | `proxy.flask_proxy`의 blueprint(기존 5개 라우트) |
-| `core.FtpClient`, `FileInfo`, `list_details` | **테스트 외 소비자 없음** |
+| `core.FtpClient`, `FileInfo`, `list_details` | 테스트와 `core/examples.py`(실행 예제) 외에 배포된 소비자는 찾지 못했습니다 |
+
+scheduler1 webapp의 체크아웃은 로컬에 없어서, 그쪽의 blueprint 등록과 설정은 확인하지 못했습니다.
 
 `direct_downloader.fleet_downloader`는 `core.FtpClient`를 쓰지 않습니다. 자체적으로 `ftplib`를 다루고, core와 공유하는 것은 `_normalize_listing` 하나뿐입니다. 따라서 `core.FtpClient`를 바꿔도 위 서비스들의 실행 경로에는 닿지 않습니다.
 
@@ -167,7 +178,10 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 
 - 기존 함수, 메서드, 라우트의 시그니처, 기본값, 동작, wire 형식은 그대로 둡니다.
 - 새 매개변수는 keyword-only이고 기본값은 `None`입니다. `None`이면 지금과 똑같이 동작합니다.
-- `FileInfo`에 새 필드 `is_link: bool = False`를 맨 끝에 추가합니다. `list_details`는 지금처럼 링크도 계속 돌려주고, 표시만 덧붙입니다. 링크를 거르는 일은 tool_files가 합니다.
+- 기존 매개변수 이름도 유지합니다. 예를 들어 `download`의 첫 인자는 계속 `remote_path`입니다.
+- `FileInfo`에 새 필드 `is_link: bool = False`를 맨 끝에 추가합니다. 이것은 **호환 규칙의 명시적 예외**입니다. 기존 6개 인자의 위치 생성과 속성은 그대로이지만, `fields()`, `asdict()`, `repr`의 결과는 달라집니다. 이 결과에 기대는 소비자나 pickle로 저장하는 소비자는 찾지 못했습니다.
+- `is_link`는 `raw`의 첫 글자(`l`)로 판별합니다. `_parse_list_line()`의 4-tuple 반환 형식은 바꾸지 않습니다. 기존 테스트(`test_ftp_client.py`)가 이 형식을 검증하고 있기 때문입니다. `list_details`는 지금처럼 링크도 돌려주고, 링크를 거르는 일은 tool_files가 합니다.
+- `__enter__`에는 PWD를 추가하지 않습니다. `home()`을 호출할 때 조회합니다. 기존 테스트의 FakeFTP에는 PWD가 없기 때문입니다.
 - `_normalize_listing`과 `fleet_downloader`는 건드리지 않습니다.
 - `upload`는 그대로 두고, 안전한 쓰기는 새 메서드 `put`으로 추가합니다.
 - 새 예외는 새 클래스로 만듭니다. 기존 예외 계층은 바꾸지 않습니다.
@@ -177,9 +191,11 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 **`core.FtpClient`에 추가하는 것.**
 
 - `home()`: PWD 결과입니다.
-- `download(path, *, max_bytes=None, deadline=None)`: 수신 callback에서 누적 바이트가 상한을 넘으면 그 즉시 전송을 끊고, 부분 버퍼를 버린 뒤 `TransferTooLarge`를 냅니다. 전체 전송 시간이 deadline을 넘으면 `TransferTimeout`을 냅니다. socket timeout만으로는 조금씩 계속 들어오는 전송을 끊을 수 없습니다.
-- `list_details(..., max_entries=None)`: 항목 수가 상한을 넘으면 `ListingTooLarge`를 냅니다.
-- `put(path, data, *, overwrite=False)`: 같은 이름이 있으면 거부합니다. 임시 이름으로 STOR한 뒤 RNFR/RNTO로 이름을 바꾸고, 실패하면 임시 파일을 지웁니다. 장비 FTP의 rename 지원 여부는 `OFFICE-VERIFY`입니다.
+- `download(remote_path, *, max_bytes=None, deadline=None)`: 수신 callback에서 누적 바이트가 상한을 넘거나 경과 시간이 deadline(남은 초)을 넘으면 그 즉시 중단합니다. 중단하면 부분 버퍼를 버리고 **그 FTP 연결도 폐기**합니다. 예외는 각각 `TransferTooLarge`, `TransferTimeout`입니다. socket timeout만으로는 조금씩 계속 들어오는 전송을 끊을 수 없습니다.
+- `list_details(..., max_entries=None, max_raw_bytes=None, deadline=None)`: LIST 수신 callback 안에서 원문 줄 수(파싱에 실패한 줄 포함), 원문 바이트, 경과 시간을 검사합니다. 하나라도 넘으면 `ListingTooLarge` 또는 `TransferTimeout`입니다. 파싱된 항목 수만 세면, 파싱되지 않는 줄이 수만 개 들어올 때 상한을 그대로 빠져나갑니다.
+- `put(remote_path, data, *, deadline=None)`: 같은 폴더에 충돌하지 않는 임시 이름(대상 이름 + 무작위 접미사)으로 STOR한 뒤 RNFR/RNTO로 이름을 바꿉니다. 대상이 이미 있으면 거부합니다. 실패하면 **자기가 만든 임시 파일만** best-effort로 지우고, 지우지 못하면 그 경로를 예외에 담습니다. RNTO의 성공 응답만 유실된 경우는 `TransferUncertain`("성공 여부 불명, 새로고침")입니다.
+  - **보장 범위.** 존재 확인과 RNTO 사이에는 경쟁 구간이 남습니다. `ftplib`의 rename에는 no-clobber 옵션이 없습니다. 기존 대상이 있을 때 서버가 RNTO를 거절하는지, rename이 원자적인지는 서버마다 다릅니다(`OFFICE-VERIFY`). 따라서 "덮어쓰기 거부"는 동시에 쓰는 다른 writer가 없다는 운영 전제 위의 best-effort입니다. v1 writer는 관리자 한 명뿐입니다. 쓰기 플래그를 켜기 전에 계열별로 이 동작을 확인합니다.
+  - v1에는 `overwrite=True`가 없습니다.
 - 이 로직을 core에 두는 이유는 FTP 연결이 열린 쪽에서 실행되어야 하기 때문입니다.
 
 **`proxy.FtpClient` 신설 (읽기 전용).**
@@ -188,11 +204,22 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 - proxy는 개발자 한 명이 Phase 2에서 개발할 때만 씁니다(user-confirmed 2026-10-17). proxy에는 인증이 없으므로 쓰기 라우트를 아예 만들지 않습니다. 플래그로 꺼 두는 것보다 이 편이 단순하고 안전합니다.
 - tool_files는 msr_image와 같은 규칙으로 transport를 고릅니다. Windows면 proxy, 그 밖이면 direct입니다.
 
-**proxy 서버에 라우트 두 개를 추가합니다** (`_sknn_v3` 접미사 규칙을 따릅니다).
+**proxy 서버에 라우트 두 개를 추가합니다** (`_sknn_v3` 접미사 규칙을 따릅니다). "proxy는 읽기 전용"은 이번에 새로 추가하는 API에만 해당합니다. 기존 `upload_sknn_v3`는 호환성 때문에 그대로 둡니다.
 
-- `list_details`: 상세 목록을 JSON으로 줍니다.
-- `fetch`: 파일 하나를 `application/octet-stream` 원본 바이트로 줍니다. 기존 download 라우트는 base64 JSON 일괄 방식이라 RAM이 33% 더 듭니다. `max_bytes`와 `deadline`은 proxy가 FTP에서 받을 때부터 적용하고, 클라이언트도 HTTP 응답을 받을 때 같은 상한을 적용합니다.
-- 오류는 종류별 코드(`too_large`, `timeout`, `not_found`, `unreachable`)로 돌려주고, 클라이언트가 같은 예외로 되살립니다.
+- **HTTP 요청마다 FTP 연결을 새로 엽니다.** `proxy.FtpClient`의 context manager는 원격 연결 하나를 유지한다는 뜻이 아닙니다. 그래서 경로 키는 연결이 달라도 다시 쓸 수 있는 절대 경로 문자열입니다.
+- 요청 공통 envelope는 `{host, port, user, password, encoding, ...}`입니다. 기존 `_credentials_to_wire` 형식을 재사용합니다. deadline은 서로 다른 머신의 시각을 비교하지 않도록 **남은 초**(`deadline_s`)로 보냅니다.
+- `list_details`: `{remote_dir | null, max_entries, max_raw_bytes, deadline_s}`를 받아 `{home, entries: [{name, path, is_dir, size, modified: ISO | null, is_link, raw}]}`를 돌려줍니다. `remote_dir`가 null이면 PWD만 조회하고 그 목록을 돌려줍니다. 이렇게 하면 `home()`을 위한 세 번째 라우트나 원격 세션 저장소가 필요 없습니다.
+- `fetch`: `{remote_path, max_bytes, deadline_s}`를 받아 파일 하나를 `application/octet-stream` 원본 바이트로 돌려줍니다. 기존 download 라우트는 base64 JSON 일괄 방식이라 RAM이 33% 더 듭니다. 상한은 proxy가 FTP에서 받을 때부터 적용하고, 클라이언트도 HTTP 응답을 chunk 단위로 받으면서 같은 상한을 적용합니다. 전체를 버퍼에 받은 뒤 검사하지 않습니다.
+- 오류는 `{code, error}` JSON입니다. 코드와 예외의 대응은 다음과 같습니다.
+  - `too_large` → `TransferTooLarge`
+  - `listing_too_large` → `ListingTooLarge`
+  - `timeout` → `TransferTimeout`
+  - `unavailable`(FTP 550) → `FileUnavailable`
+  - `unreachable`(연결·로그인 실패) → `ToolUnreachable`
+  - `bad_request` → `ValueError`
+
+  원격의 401, 404, 5xx 응답이나 JSON이 아닌 응답은 `ProxyError`입니다.
+- `proxy.FtpClient`를 import해도 Flask 서버 모듈은 import되지 않습니다. 기존 `PROXY_URL`, `PROXY_TOKEN`과 선택적 Bearer 헤더 동작을 재사용합니다. 기존 테스트 `test_both_transports_expose_an_identical_method_signature`와 같은 방식으로, 두 `FtpClient`의 읽기 메서드 시그니처가 같은지 테스트합니다.
 - 기존 5개 라우트(`download`, `list_dirs`, `size_dirs`, `upload`, `healthz`)는 바꾸지 않습니다.
 
 ### 상한 (제안값, 모두 `OFFICE-VERIFY`)
@@ -200,8 +227,14 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 | 항목 | 기본값 | env |
 |:--|:--|:--|
 | 다운로드 최대 크기 | 100 MB | `SKEWNONO_TOOL_FILES_MAX_BYTES` |
-| 전송 전체 deadline | 120 s | `SKEWNONO_TOOL_FILES_DEADLINE` |
-| 목록 최대 항목 수 | 20000 | `SKEWNONO_TOOL_FILES_MAX_ENTRIES` |
+| 업로드 최대 크기 | 100 MB | `SKEWNONO_TOOL_FILES_MAX_UPLOAD_BYTES` |
+| 전송 deadline (direct) | 120 s | `SKEWNONO_TOOL_FILES_DEADLINE` |
+| 전송 deadline (proxy) | 45 s | `SKEWNONO_TOOL_FILES_PROXY_DEADLINE` |
+| 목록 최대 원문 줄 수 | 20000 | `SKEWNONO_TOOL_FILES_MAX_ENTRIES` |
+| 목록 최대 원문 바이트 | 4 MB | `SKEWNONO_TOOL_FILES_MAX_LIST_BYTES` |
+
+- direct deadline 120 s는 SKEWNONO `wsgi.ini`의 harakiri 720 s보다 짧습니다.
+- proxy deadline 45 s는 공유 webapp에서 HTTP 전송 여유를 남기기 위한 값입니다. flask_modules `api/wsgi.ini`의 harakiri가 60 s이기 때문입니다. 다만 scheduler1의 실제 설정은 확인하지 못했습니다(`OFFICE-VERIFY`). 공유 webapp의 harakiri를 올리는 변경은 하지 않습니다.
 
 0, 음수, 숫자가 아닌 값이 들어오면 부팅 로그를 남기고 기본값을 씁니다. LIST에 나온 크기는 화면에 보여 주는 용도입니다. 실제로 강제하는 상한은 수신 중에 검사하는 쪽입니다.
 
@@ -209,13 +242,16 @@ AccessVerdict = "granted" | "pending" | "rejected" | "none"
 
 ```text
 skewnono:tool_files:grants    HASH  "team:<dept_nm>" | "emp:<empno>" -> {granted_at, granted_by}
-skewnono:tool_files:requests  HASH  <empno> -> {reason, dept_nm, requested_at, status: pending|rejected}
+skewnono:tool_files:requests  HASH  <empno> -> {request_id, reason, dept_nm, requested_at, status: pending|rejected}
 ```
 
 - 사번은 대문자로 정규화합니다.
-- 신청은 사번당 하나입니다. 다시 신청하면 덮어쓰고 `pending`으로 돌아갑니다. 이미 `granted`인 사람의 신청은 아무것도 하지 않습니다.
-- 승인과 거절 요청에는 관리자가 보고 있던 신청의 `requested_at`을 함께 보냅니다. 저장된 값과 다르면 409 `request_changed`입니다.
-- 승인은 grant 추가와 신청 삭제를 `WATCH`/`MULTI` 하나로 묶습니다. 팀 전체 승인은 팀 grant 추가와, 그 `dept_nm`으로 들어온 대기 신청 삭제를 하나로 묶습니다. 재시도해도 결과가 같습니다.
+- 신청은 사번당 하나입니다. 다시 신청하면 덮어쓰고, 새 `request_id`(uuid4 hex)를 받아 `pending`으로 돌아갑니다. 이미 `granted`인 사람의 신청은 아무것도 하지 않습니다.
+- **변경 토큰은 `request_id`입니다.** `requested_at`은 초 단위라서 같은 초에 재신청하면 값이 겹칩니다. 그래서 표시용으로만 씁니다. 승인과 거절 요청에는 관리자가 보고 있던 신청의 `request_id`를 함께 보냅니다.
+- 승인과 거절은 둘 다 같은 순서로 처리합니다. `WATCH requests` → 신청 읽기와 `request_id` 비교 → `MULTI` → 변경 → `EXEC`입니다.
+  - `request_id`가 다르거나 신청이 없으면 409 `request_changed`입니다. 다만 승인 재시도에서 신청이 없고 해당 grant가 이미 있으면, 성공으로 보고 아무것도 하지 않습니다(no-op).
+  - `WatchError`는 **`STORE_ERRORS`보다 먼저** 잡습니다. `WatchError`가 `RedisError`의 하위형이라 그대로 두면 503으로 잘못 분류되기 때문입니다. 잡은 뒤에는 다시 읽어 판정합니다. 그 사번의 신청이 바뀌었으면 409, 무관한 필드만 바뀌었으면 최대 3회까지 재시도합니다.
+  - 팀 전체 승인은 transaction 안에서 읽은 pending 신청 가운데 저장된 `dept_nm`이 같은 것만 지웁니다. 저장된 `dept_nm`은 무엇을 정리할지 정하는 기준일 뿐, 현재 소속이나 권한의 근거가 아닙니다.
 - 장애 처리는 다음과 같습니다.
   - 읽기와 쓰기에 실패하면 503 `store_unavailable`입니다.
   - 응답이 끊겨 저장 여부를 알 수 없으면 "결과 확인 불가, 새로고침"으로 안내합니다. "저장되지 않음"이라고 단정하지 않습니다.
@@ -232,25 +268,31 @@ skewnono:tool_files:requests  HASH  <empno> -> {reason, dept_nm, requested_at, s
 | GET | `/<tool_slug>/tool-files/access` | 로그인 | `{verdict, can_write, request?}` |
 | GET | `/<tool_slug>/tool-files/list?fab=&eqp_id=&path=` | granted | `{root, path, parent, crumbs, entries: [{name, path, is_dir, size, modified}]}` |
 | GET | `/<tool_slug>/tool-files/download?fab=&eqp_id=&path=` | granted | 파일 바이트 |
-| POST | `/<tool_slug>/tool-files/upload` | 쓰기 | multipart, 대상 폴더 키, `overwrite`(기본 false) |
+| POST | `/<tool_slug>/tool-files/upload` | 쓰기 | multipart: `fab`, `eqp_id`, `dir`(폴더 키), `file` 하나 |
 | POST | `/<tool_slug>/tool-files/delete` | 쓰기 | `{fab, eqp_id, path}` |
 | POST | `/tool-files/requests` | 신뢰 출처 | `{reason}` |
 | GET | `/admin/tool-files` | admin | `{grants, requests}` |
 | GET | `/admin/tool-files/teams` | admin | `{teams: [{dept_nm, members}], complete}` |
 | POST | `/admin/tool-files/grants` | admin | `{kind: "team"\|"emp", value}` |
 | POST | `/admin/tool-files/grants/revoke` | admin | `{kind, value}` |
-| POST | `/admin/tool-files/requests/approve` | admin | `{empno, requested_at}` |
-| POST | `/admin/tool-files/requests/reject` | admin | `{empno, requested_at}` |
+| POST | `/admin/tool-files/requests/approve` | admin | `{empno, request_id}` |
+| POST | `/admin/tool-files/requests/reject` | admin | `{empno, request_id}` |
 | POST | `/admin/tool-files/teams/approve` | admin | `{dept_nm}` |
 
 - 대상 값은 URL 경로가 아니라 JSON body로 받습니다. 팀 이름에 `/`, `%`, 공백, 한글이 들어갈 수 있기 때문입니다.
 - body 검증 규칙입니다.
-  - body는 JSON object여야 하고, `kind`는 enum입니다.
-  - 사번, 팀, 사유는 타입과 빈 값을 검사합니다. 사유는 200자까지입니다.
-  - 본인 사번은 서버 identity에서 정합니다. 클라이언트가 보낸 `dept_nm`, `granted_by`, `status`는 받지 않습니다.
+  - upload 외의 POST body는 JSON object여야 합니다. `kind`는 enum이고, 사번·팀·사유는 타입과 빈 값을 검사합니다. 사유는 200자까지입니다.
+  - **신청(`/tool-files/requests`)** 은 `reason`만 받습니다. 본인 사번과 `dept_nm`은 서버의 identity와 directory에서 정합니다. 클라이언트가 보낸 `empno`, `dept_nm`, `status`는 받지 않습니다.
+  - **관리자 API**는 대상인 `empno`와 `dept_nm`을 body로 받습니다. 이것이 계약입니다. 다만 `granted_by`는 항상 서버 identity로 채웁니다.
+  - **upload**는 multipart입니다. multipart를 파싱하기 전에 `Content-Length`가 업로드 상한보다 크면 413을 돌려줍니다. 쓰기 거부 판정(403·403·501)도 body를 읽기 전에 합니다. 실제로 읽은 바이트 수도 다시 셉니다. 업로드의 최종 파일 이름은 `file`의 파일명에서 basename만 쓰고, 경로 검증 규칙을 똑같이 적용합니다.
   - 사유와 파일명은 HTML로 해석하지 않습니다.
 - **다운로드 응답.** 헤더는 `Content-Disposition: attachment`, `application/octet-stream`, `X-Content-Type-Options: nosniff`입니다. 파일 이름 escaping은 msr_image `_content_disposition`의 규칙(`filename` + RFC 6266 `filename*`)을 쓰되, `inline`을 `attachment`로 바꿉니다. 다운로드 키와 표시 이름은 따로 다룹니다.
-- **팀 목록.** `members` hash를 HSCAN으로 나눠 읽어 집계하고, 결과는 관리자 전용으로 캐시합니다. 디코딩하지 못한 행이 있으면 `complete: false`를 돌려줍니다. Redis 장애는 503으로 응답하고, 빈 목록이나 0명으로 바꾸지 않습니다. 인원수는 snapshot이 아닙니다.
+- **팀 목록.** `members` hash를 HSCAN으로 나눠 읽습니다.
+  - HSCAN은 같은 키를 두 번 돌려줄 수 있으므로 empno로 중복을 제거한 뒤 집계합니다.
+  - 결과는 관리자 전용으로 600초 캐시합니다(directory 캐시와 같은 값).
+  - 디코딩하지 못한 행이 있으면 `complete: false`를 돌려줍니다. 이때 화면은 0명인 팀을 "조직 개편 신호"로 표시하지 않습니다.
+  - Redis 장애는 503입니다. 빈 목록이나 0명으로 바꾸지 않습니다.
+  - 인원수는 snapshot이 아닙니다.
 
 오류 코드:
 
@@ -258,19 +300,21 @@ skewnono:tool_files:requests  HASH  <empno> -> {reason, dept_nm, requested_at, s
 |:--|:--|:--|
 | 400 | `bad_path` / `bad_request` / `tool_mismatch` | 경로 위반, body 검증 실패, 장비·slug·fab 불일치 |
 | 403 | `forbidden` / `untrusted_identity` / `write_disabled` | 권한 없음, 신뢰할 수 없는 출처, 쓰기 꺼짐(또는 관리자 아님) |
-| 404 | `tool_not_found` / `file_not_found` | 장비 없음, 파일 없음 |
-| 409 | `tool_ambiguous` / `request_changed` / `file_exists` | 중복 eqp_id 충돌, 신청 변경, 덮어쓰기 거부 |
+| 404 | `tool_not_found` / `file_unavailable` | 장비 없음, 파일이 없거나 접근할 수 없음 |
+| 409 | `tool_ambiguous` / `request_changed` / `file_exists` | 중복 eqp_id 충돌, 신청 변경, 같은 이름 파일 있음 |
 | 413 | `too_large` / `listing_too_large` | 상한 초과 |
 | 501 | `write_not_supported` | Phase 2(proxy)에서 쓰기 시도 |
-| 503 | `tool_unreachable` / `tool_timeout` / `directory_unavailable` / `store_unavailable` | 장비 연결·로그인 실패, deadline 초과, 디렉터리·저장소 장애 |
+| 503 | `tool_unreachable` / `tool_timeout` / `transfer_uncertain` / `directory_unavailable` / `store_unavailable` | 장비 연결·로그인 실패, deadline 초과, 쓰기 성공 여부 불명, 디렉터리·저장소 장애 |
 
-FTP 550은 파일이 없을 때도, 권한이 거부될 때도 나옵니다. 그래서 숫자만 보고 404로 단정하지 않습니다. 같은 폴더의 목록에 그 파일이 없을 때만 `file_not_found`로 응답합니다.
+FTP 550은 파일이 없을 때도, 권한이 거부될 때도 나옵니다. LIST 파서가 모르는 형식의 줄은 버리므로, 목록에 없다고 해서 부재를 확정할 수도 없습니다. 그래서 둘을 구별하지 않고 `file_unavailable` 하나로 응답합니다.
 
 ### 감사 기록
 
 - 새 로그 필드나 인덱스 변경은 만들지 않습니다(핵심 기능 외 인덱스 변경 금지 규칙). eqp_id, fab, 경로는 query string으로 기존 activity 로그에 남습니다.
 - **한계를 명시합니다.** 기존 로그는 best-effort라서 큐가 차거나 저장에 실패하면 유실될 수 있습니다. query는 2048자에서 잘립니다. HTTP 200은 "서버가 보냈다"는 뜻이지 "사용자 PC에 저장되었다"는 뜻이 아닙니다. 누락 없는 감사가 필요해지면 별도 기록 저장소를 설계합니다.
-- 업로드와 삭제는 경로가 POST body에 있어 query 로그에 남지 않습니다. 그래서 라우트가 대상을 `logger.info`로 기록합니다. 승인, 거절, 회수도 대상과 수행자를 `logger.info`로 기록합니다.
+- 업로드와 삭제는 경로가 POST body에 있어 query 로그에 남지 않습니다. 그래서 라우트가 `logger.info`로 직접 기록합니다. 승인, 거절, 회수도 같은 방식으로 기록합니다.
+  - 메시지에 담는 항목은 수행자, identity 출처, 작업, 대상(eqp_id, fab, 경로 또는 empno·팀), 결과(성공·실패 코드), request_id입니다.
+  - 기존 OpenSearch handler가 message를 저장하므로 인덱스는 바꾸지 않아도 됩니다.
 
 ### 프론트엔드
 
@@ -285,7 +329,10 @@ FTP 550은 파일이 없을 때도, 권한이 거부될 때도 나옵니다. 그
   - 신뢰 출처 안내
   - 장애 안내
 - 다운로드는 먼저 `fetch`로 상태를 확인합니다. 오류 JSON이 파일로 저장되지 않게 하기 위해서입니다. 상한을 넘는 파일은 목록 단계에서 버튼을 비활성화하고 이유를 보여 줍니다.
-- 업로드 드롭존과 삭제 버튼은 `can_write`가 참일 때만 그립니다. 삭제 확인 화면에는 파일 이름을 표시합니다. 서버가 `file_exists`를 돌려주면 덮어쓸지 묻습니다.
+- 업로드 드롭존과 삭제 버튼은 `can_write`가 참일 때만 그립니다.
+- 삭제 확인 화면에는 파일 이름을 표시합니다.
+- `file_exists`가 오면 "같은 이름의 파일이 있어 올리지 않았습니다"라고 안내합니다. 덮어쓰기는 v1에 없습니다.
+- `transfer_uncertain`이 오면 새로고침해서 실제 결과를 확인하라고 안내합니다.
 - 수정 시각은 서버 현지 시각(KST로 가정)이며 LIST에서 추정한 값입니다. 연도와 초는 정확하지 않을 수 있습니다. 시각이 없는 항목은 정렬하면 맨 뒤로 갑니다.
 - `/admin/access`에 섹션을 하나 추가합니다. 대기 신청, 팀 승인(인원수 포함), 개인 승인의 세 칸입니다.
 - 스토리지 표와 장비 리스트 표의 행에 "파일 열기" 액션을 추가합니다.
@@ -312,31 +359,41 @@ FTP 550은 파일이 없을 때도, 권한이 거부될 때도 나옵니다. 그
   - 거부된 요청에서는 FTP 대역이 호출되지 않아야 합니다. 승인 후 회수했다면 직접 URL로 접근해도 거부되어야 합니다. 개인 승인을 회수해도 팀 승인이 있으면 접근이 유지되어야 합니다.
   - 신청 → 승인 → 접근 흐름과 신청 → 거절 → 재신청 흐름을 확인합니다. 승인하는 사이에 재신청이 들어오면 409가 나와야 하고, 팀 전체 승인은 그 팀의 대기 신청을 정리해야 합니다.
   - 목록, 다운로드 바이트 일치, 깨진 파일명 왕복, 413, `bad_path` 각 규칙, 링크 거부, 404, 503을 확인합니다.
-  - 쓰기 플래그가 꺼져 있으면 업로드·삭제가 403이고 트리가 바뀌지 않아야 합니다. 플래그가 켜져 있어도 관리자가 아니면 403입니다. 관리자가 업로드하면 목록에 나타나고, 같은 이름이면 409이며, 삭제하면 사라져야 합니다. **꺼 둔 코드가 썩지 않도록 켜진 경로를 반드시 실행합니다.**
+  - 쓰기 플래그가 꺼져 있으면 업로드·삭제가 403이고 트리가 바뀌지 않아야 합니다. 플래그가 켜져 있어도 관리자가 아니면 403입니다. mock과 direct에서는 관리자가 업로드한 파일이 목록에 나타나고, 같은 이름이면 409이며, 삭제하면 사라져야 합니다. proxy transport에서는 501이고 `can_write`가 거짓이어야 합니다. 거부되는 모든 경우에 body를 읽지 않아야 합니다. **꺼 둔 코드가 썩지 않도록 켜진 경로를 반드시 실행합니다.**
+  - 업로드 `Content-Length`가 상한을 넘으면 multipart를 파싱하기 전에 413이어야 합니다.
 - **ftp_handler 테스트** (`flask_modules`에서 작성하고 복사합니다). 실제 transport를 통과하는 fake FTP 서버를 띄워 다음을 확인합니다.
   - 로그인 홈이 `/`가 아닌 경우, latin-1 원시 바이트 왕복, Unix·DOS·미지원 형식의 LIST 줄, 링크 항목.
   - 상한과 정확히 같은 크기, 1바이트 초과, LIST에 표시된 크기보다 실제로 더 큰 파일, 조금씩 계속 오는 전송의 deadline.
   - 중간 단절, 연결·로그인 실패 시 자원 정리.
-  - `put`의 덮어쓰기 거부와 rename 실패 시 임시 파일 정리.
+  - `put`: 덮어쓰기 거부, RNTO 거절, rename 실패 시 자기 임시 파일만 정리, RNTO 응답 유실 시 `TransferUncertain`.
+  - LIST에서 파싱되지 않는 줄만 대량으로 오는 경우 원문 상한에 걸리는지.
+  - 기존 테스트의 FakeFTP(PWD 없음)로 기존 메서드가 그대로 동작하는지.
   - proxy 쌍은 Flask test client로 서버 라우트를 띄우고, `proxy.FtpClient`가 direct와 같은 결과와 예외를 내는지 확인합니다. `put`/`remove`가 `WriteNotSupported`를 내는지도 확인합니다.
 - **기존 소비자 회귀 확인.** 머지 전에 다음이 모두 통과해야 합니다.
   - `flask_modules`의 기존 ftp 테스트 전부: `test_ftp_client`, `test_ftp_fleet_downloader`, `test_ftp_flask_proxy`, `test_ftp_encoding`, `test_ftp_fleet_jobs`.
-  - SKEWNONO의 `test_vendored_ftp_handler`(두 사본 일치)와 msr_image, recipe_search, scripts 테스트, 그리고 전체 suite.
+  - SKEWNONO의 `test_vendored_ftp_handler`, msr_image·recipe_search·scripts 테스트, 그리고 전체 suite.
+  - 두 사본의 `diff -rq --exclude=__pycache__` 결과가 비어 있는지. 테스트 통과와 사본 일치는 별개의 확인입니다.
   - 기존 테스트 파일은 수정하지 않습니다. 기존 테스트를 고쳐야만 통과한다면 호환 규칙을 어긴 것입니다.
   - 기존 공개 이름의 목록(`core`, `direct_downloader`, `proxy`의 `__all__`)이 줄어들지 않았는지 확인합니다.
-- **provider 계약 테스트.** 선례는 `access_control/tests/`입니다. office template은 `test_office_template.py`처럼 직접 import하고, bytes를 돌려주는 FakeRedis를 주입합니다. HTTP dispatcher로 template을 돌려야 할 때만 `office_example`을 `sys.modules`에 alias합니다. `WATCH`/`MULTI`의 의미는 FakeRedis로 입증할 수 없으므로, 경쟁 상황은 HTTP 테스트에서 상태 전이로 확인합니다.
-- **부팅 테스트.** office를 강제했는데 복사본이 없거나 sem_list와 짝이 맞지 않으면 부팅이 거부되어야 합니다.
+- **provider 계약 테스트.** 선례는 `access_control/tests/`입니다. office template은 `test_office_template.py`처럼 직접 import하고, bytes를 돌려주는 FakeRedis를 주입합니다. HTTP dispatcher로 template을 돌려야 할 때만 `office_example`을 `sys.modules`에 alias합니다. FakeRedis로는 `WATCH`/`MULTI`의 의미를 입증할 수 없습니다. 그래서 집에서는 다음 두 가지를 확인합니다. 하나는 fake가 `WatchError`를 던지게 해서 재시도와 409 분기를 보는 것이고, 다른 하나는 HTTP 테스트의 상태 전이입니다. 실제 의미는 office 확인 항목에 넣습니다.
+- **부팅 테스트.** 다음 경우에 부팅이 거부되어야 합니다.
+  - office를 강제했는데 복사본이 없을 때
+  - sem_list와 짝이 맞지 않을 때
+  - tool_files만 office이고 전역 mode가 mock일 때
 - msr_image의 설정·계정 테스트를 함께 실행합니다(`account_for()` 재사용 확인).
 - 프론트엔드는 `node --test`로 순수 함수만 테스트합니다. 정렬(시각 null 포함), 크기 표시, `access` 응답에서 화면을 고르는 함수가 대상입니다.
 - 브라우저 확인은 `browser-verify` 스킬로 합니다.
 - **office에서 확인할 것** (집에서는 할 수 없습니다). Phase 3 direct와 Phase 2 proxy 각각에서 실제 장비를 대상으로 읽기 전용으로 확인합니다. 항목은 LIST 형식, 숨김 파일, 인코딩, 다운로드, deadline, 파일명 저장입니다. Python 3.11에서 실행합니다. 확인이 끝난 뒤에는 기존 msr_image 이미지 조회와 recipe_search 원본 조회가 Phase 2 proxy에서 여전히 동작하는지도 봅니다.
+  - 실제 Redis에 연결 두 개를 열고 경쟁 상황을 재현합니다. 대상은 승인 ↔ 재신청, 거절 ↔ 재신청, 팀 승인 ↔ 개인 승인·재신청입니다. 집에서 반드시 돌릴 필요는 없습니다.
+  - **쓰기 플래그를 켜기 전**에는 계열별로 다음을 확인합니다. 기존 대상이 있을 때 RNTO가 거절되는지, 서버 쪽 쓰기 범위 제한(chroot 또는 계정 권한)이 있는지입니다.
 
 ## Out of Scope
 
 - **여러 장비에 걸친 레시피 복사와 디스크 일괄 정리.** 별도 세션에서 설계합니다. 출발점은 `.scratch/recipe-bulk-copy/handoff.md`입니다.
 - proxy를 통한 쓰기(`put`, `remove` 라우트)와 proxy 인증(`FTP_PROXY_TOKEN`) 도입.
 - 여러 파일 동시 다운로드, zip 묶음, 폴더 업로드·다운로드, 브라우저 스트리밍.
-- 쓰기 권한 등급(관리자 외 쓰기), fab·장비 단위 권한, 권한 만료.
+- 쓰기 권한 등급(관리자 외 쓰기), fab·장비 단위 권한, 권한 만료. 이 데이터 모델은 레시피 일괄 복사를 설계할 때 정합니다.
+- 덮어쓰기 업로드(`overwrite=True`)와 덮어쓰기 확인 UI.
 - 장비당 동시 FTP 연결 수 제한(여러 worker 공통). 장비 부하 문제가 보이면 추가합니다.
 - 파서가 모르는 LIST 줄을 화면에 경고하는 기능.
 - 쿠키 위조 방어와 새 인증 체계.
@@ -387,3 +444,22 @@ FTP 550은 파일이 없을 때도, 권한이 거부될 때도 나옵니다. 그
 | R22 | 기각 | 사용자 결정으로 구현 후 off 유지. 쓰기는 관리자 한정, 덮어쓰기 거부, 임시 이름 후 rename, proxy 쓰기 없음 |
 | R23 | 반영 | 설정 이동 없음 |
 | R24 | 반영 | 여러 파일 다운로드 삭제 |
+
+## 검토 반영 기록 (codex-r2)
+
+| 항목 | 처리 | 비고 |
+|:--|:--|:--|
+| N1 중간 경로 링크 | 반영 | 실제 경계는 FTP 계정 권한이라고 명시. 루트 검사는 가드레일. 쓰기를 켜기 전에 서버 측 제한 확인 |
+| N2 소비자·호환 범위 | 반영 | `examples.py` 명시, 원격 미검증, 사본 diff를 별도로 확인, `FileInfo`는 명시적 예외, `remote_path` 유지, 파서 반환은 그대로, PWD는 지연 조회 |
+| N3 LIST·deadline | 반영 | 수신 중 원문 줄·바이트·시간 검사, proxy deadline 45 s, 중단 시 연결 폐기 |
+| N4 proxy wire | 반영 | 요청마다 새 연결, envelope, `remote_dir=null`로 home 조회, 남은 초 deadline, 오류 코드 대응표 |
+| N5 `can_write`와 501 | 반영 | transport 조건 추가, 403→403→501 순서, body를 읽기 전 거부 |
+| N6 RNTO 덮어쓰기 | 반영 | best-effort와 단일 writer 전제 명시, `TransferUncertain`, 자기 임시 파일만 정리, 켜기 전 계열별 확인 |
+| N7 경쟁·재시도 | 반영 | `request_id` 토큰, 승인·거절 모두 WATCH, `WatchError`를 먼저 구별, 승인 재시도는 no-op, 실제 Redis 경쟁은 office에서 확인 |
+| N8 업로드 body | 반영 | multipart 계약, 파싱 전 413, 신청과 관리자 입력 규칙 분리 |
+| N9 404 확증 | 반영(단순화) | 부재와 거부를 `file_unavailable` 하나로 통합. 완전성 정보는 만들지 않음 |
+| R12 중복 행 | 반영 | IP·fab·모델이 모두 같을 때만 합치고, 나머지는 409 |
+| R13 directory mode | 반영 | tool_files가 office로 해석되는데 전역 mode가 office가 아니면 부팅 거부 |
+| R16·R18·R17 | 반영 | N7, HSCAN 중복 제거와 TTL, 로그 메시지 항목 |
+| 과잉 범위: `level` 필드 | 반영 | 스펙에서 삭제하고 레시피 복사 설계로 넘김 |
+| 과잉 범위: `overwrite=True` | 반영 | v1에서 제외 |
