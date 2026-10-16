@@ -11,8 +11,10 @@ from .client import (
     FileInfo,
     FtpClient,
     ListingTooLarge,
+    TargetExists,
     TransferTimeout,
     TransferTooLarge,
+    TransferUncertain,
 )
 from .listing import _normalize_listing
 
@@ -23,4 +25,6 @@ __all__ = [
     "TransferTooLarge",
     "TransferTimeout",
     "ListingTooLarge",
+    "TargetExists",
+    "TransferUncertain",
 ]

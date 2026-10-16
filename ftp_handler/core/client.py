@@ -4,7 +4,7 @@ The fleet downloader (``direct_downloader/fleet_downloader.py``) is built for
 fanning out across hundreds of hosts concurrently. This is its small sibling:
 one host, one blocking connection, the four operations you reach for from a
 notebook or an ad-hoc script — list a directory, download a file, upload a
-file, remove a file.
+file, remove a file — plus ``put``, a no-clobber write via temp file + rename.
 
 Use it as a context manager so the connection is opened once and always closed::
 
@@ -23,10 +23,11 @@ report to absorb them here, and a single-server caller wants the real exception.
 
 import fnmatch
 import re
+import secrets
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone, tzinfo
-from ftplib import FTP
+from ftplib import FTP, error_perm
 from io import BytesIO
 
 # Shared NLST normalization lives in core.listing so single-server and fan-out
@@ -55,6 +56,22 @@ class TransferTimeout(Exception):
 
 class ListingTooLarge(Exception):
     """A LIST reply outgrew its line or byte cap; nothing was returned."""
+
+
+class TargetExists(Exception):
+    """``put`` found something already at the target path and wrote nothing there."""
+
+
+class TransferUncertain(Exception):
+    """The connection dropped after ``put`` sent its rename, before the reply.
+
+    The server may or may not have renamed: the file is at the target or still
+    at ``temp_path``. List the folder before retrying.
+    """
+
+    def __init__(self, message: str, *, temp_path: str) -> None:
+        super().__init__(message)
+        self.temp_path = temp_path
 
 
 def _check_deadline(started: float, deadline: float | None, what: str) -> None:
@@ -379,6 +396,85 @@ class FtpClient:
     def upload(self, remote_path: str, data: bytes) -> None:
         """Store ``data`` at ``remote_path`` (STOR), overwriting if it exists."""
         self._ftp.storbinary(f"STOR {remote_path}", BytesIO(data))
+
+    def put(self, remote_path: str, data: bytes, *, deadline: float | None = None) -> None:
+        """Write ``data`` to a new file at ``remote_path``, never overwriting.
+
+        STORs to ``<remote_path>.<random>.part`` in the same folder, then
+        renames (RNFR/RNTO) onto the target, so an interrupted transfer never
+        leaves a half-written file under the real name. ``deadline`` (seconds,
+        whole call) is checked after each block sent; tripping it raises
+        ``TransferTimeout`` and discards the connection, as ``download`` does.
+
+        No-clobber is **best-effort** and assumes a single writer per target.
+        The target is checked (``SIZE``; only a 550 reply counts as absent)
+        before the STOR and again right before the rename, raising
+        ``TargetExists``. A writer landing between that last check and RNTO is
+        not caught: ftplib's ``rename`` has no no-clobber option, and whether a
+        server's RNTO replaces an existing file, refuses, or treats a directory
+        target specially is OFFICE-VERIFY per server (SIZE on a directory is
+        550 on many servers, so a same-named folder also reads as absent).
+
+        On failure this call deletes only the temp file it created. If that
+        delete fails too (or the connection was discarded), the original
+        exception propagates with a ``temp_path`` attribute naming the
+        leftover. A connection error during the rename raises
+        ``TransferUncertain``: the server may already have renamed.
+        """
+        if self._exists(remote_path):
+            raise TargetExists(remote_path)
+        temp = f"{remote_path}.{secrets.token_hex(6)}.part"
+        started = time.monotonic()
+
+        def sent(block: bytes) -> None:
+            _check_deadline(started, deadline, f"STOR {temp}")
+
+        try:
+            self._ftp.storbinary(f"STOR {temp}", BytesIO(data), callback=sent)
+            # Again: the STOR may have taken long enough for a writer to land.
+            if self._exists(remote_path):
+                raise TargetExists(remote_path)
+        except Exception as exc:
+            if isinstance(exc, TransferTimeout):
+                self._discard()  # mid-transfer: the control channel is out of step
+            self._drop_temp(temp, exc)
+            raise
+        try:
+            self._ftp.rename(temp, remote_path)
+        except (OSError, EOFError) as exc:
+            # The command may have reached the server and run; only the reply
+            # is missing, so neither "renamed" nor "not renamed" is knowable.
+            self._discard()
+            raise TransferUncertain(
+                f"rename {temp} -> {remote_path}: reply lost", temp_path=temp
+            ) from exc
+        except Exception as exc:
+            self._drop_temp(temp, exc)
+            raise
+
+    def _drop_temp(self, temp: str, exc: Exception) -> None:
+        """Best-effort DELE of this call's own temp; on failure, name it on ``exc``."""
+        try:
+            if self._ftp is None:
+                raise ConnectionError("connection discarded")
+            self._ftp.delete(temp)
+        except Exception:
+            exc.temp_path = temp
+            exc.add_note(f"temp file left on server: {temp}")
+
+    def _exists(self, remote_path: str) -> bool:
+        # SIZE: one control-channel round trip, no data connection. TYPE I
+        # first — some servers (vsftpd) refuse SIZE in ASCII mode with a 550,
+        # which would read as "absent". Only 550 means absent; any other
+        # refusal (502 unsupported) propagates rather than disabling the check.
+        self._ftp.voidcmd("TYPE I")
+        try:
+            self._ftp.size(remote_path)
+        except error_perm as exc:
+            if str(exc).startswith("550"):
+                return False
+            raise
+        return True
 
     def remove(self, remote_path: str) -> None:
         """Delete ``remote_path`` (DELE)."""
