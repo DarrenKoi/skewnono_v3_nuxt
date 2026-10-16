@@ -1,17 +1,38 @@
+import logging
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from ftplib import all_errors, error_perm
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, g, jsonify, request
 
 from ftp_handler.core import ListingTooLarge, TransferTimeout, TransferTooLarge
 
-from backend._auth.admin import is_admin_request
+from backend._auth.admin import require_admin
 from backend._auth.errors import error_json
 from backend.ebeam._tool_specs import VALID_TOOL_SLUGS
 from backend.ebeam.tool_files.config import load_limits
-from backend.ebeam.tool_files.contracts import Access, Entry, Listing
-from backend.ebeam.tool_files.data import open_client
-from backend.ebeam.tool_files.errors import ToolFilesError
+from backend.ebeam.tool_files.access import decide, emp_key, team_key
+from backend.ebeam.tool_files.contracts import (
+    Access,
+    Entry,
+    Grant,
+    GrantRow,
+    Listing,
+    Verdict,
+)
+from backend.ebeam.tool_files.data import (
+    delete_grant,
+    open_client,
+    probe,
+    put_grant,
+    read_grants,
+    teams,
+)
+from backend.ebeam.tool_files.errors import (
+    DirectoryUnavailable,
+    StoreUnavailable,
+    ToolFilesError,
+)
 from backend.ebeam.tool_files.paths import check_path, crumbs, parent_of
 from backend.ebeam.tool_files.resolve import Tool, resolve_tool
 from backend.msr_image.config import load_config
@@ -19,11 +40,22 @@ from backend.msr_image.routes import _content_disposition
 from backend.sem_list.data import get_sem_list
 
 bp = Blueprint("tool_files", __name__)
+logger = logging.getLogger("skewnono.tool_files")
 
 
 @bp.errorhandler(ToolFilesError)
 def _tool_files_error(err: ToolFilesError):
     return error_json(err.code, err.message, err.status)
+
+
+@bp.errorhandler(StoreUnavailable)
+def _store_unavailable(err: StoreUnavailable):
+    return error_json("store_unavailable", str(err), 503)
+
+
+@bp.errorhandler(DirectoryUnavailable)
+def _directory_unavailable(err: DirectoryUnavailable):
+    return error_json("directory_unavailable", str(err), 503)
 
 
 @bp.after_request
@@ -34,9 +66,36 @@ def _no_store(response: Response) -> Response:
     return response
 
 
+def _stored_grants() -> dict[str, Grant] | None:
+    try:
+        return read_grants()
+    except StoreUnavailable:
+        return None
+
+
+def _verdict() -> Verdict:
+    empno = getattr(g, "user_id", None)
+    return decide(
+        getattr(g, "identity_source", None),
+        empno,
+        _stored_grants,
+        lambda: probe(empno),
+    )
+
+
+_REFUSALS: dict[str, tuple[int, str]] = {
+    "none": (403, "forbidden"),
+    "untrusted_identity": (403, "untrusted_identity"),
+    "directory_unavailable": (503, "directory_unavailable"),
+    "store_unavailable": (503, "store_unavailable"),
+}
+
+
 def _require_access() -> None:
-    if not is_admin_request():
-        raise ToolFilesError(403, "forbidden", "tool file access has not been granted")
+    verdict = _verdict()
+    if verdict != "granted":
+        status, code = _REFUSALS[verdict]
+        raise ToolFilesError(status, code, f"tool file access refused: {verdict}")
 
 
 def _tool(tool_slug: str) -> Tool:
@@ -76,8 +135,7 @@ def _session(tool: Tool):
 
 @bp.get("/<tool_slug>/tool-files/access")
 def access(tool_slug: str):
-    granted = is_admin_request()
-    body: Access = {"verdict": "granted" if granted else "none", "can_write": False}
+    body: Access = {"verdict": _verdict(), "can_write": False}
     return jsonify(body)
 
 
@@ -133,3 +191,71 @@ def download(tool_slug: str):
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+def _grant_key() -> str:
+    body = request.get_json(silent=True) or {}
+    kind, value = body.get("kind"), body.get("value")
+    if kind not in ("team", "emp") or not isinstance(value, str) or not value.strip():
+        raise ToolFilesError(400, "bad_request", "need kind 'team' or 'emp' and a value")
+    return team_key(value) if kind == "team" else emp_key(value)
+
+
+def _audit(action: str, key: str, result: object) -> None:
+    logger.info(
+        "tool_files %s actor=%s target=%s result=%s request_id=%s",
+        action,
+        g.user_id,
+        key,
+        result,
+        getattr(g, "_activity_request_id", None),
+    )
+
+
+def _grant_row(key: str, grant: Grant) -> GrantRow:
+    kind, value = key.split(":", 1)
+    dept_nm = None
+    if kind == "emp":
+        found = probe(value)
+        dept_nm = found.member["dept_nm"] if found.member else None
+    return {"kind": kind, "value": value, "dept_nm": dept_nm, **grant}
+
+
+@bp.get("/admin/tool-files")
+@require_admin
+def admin_overview():
+    grants = read_grants()
+    return jsonify({"grants": [_grant_row(key, grants[key]) for key in sorted(grants)]})
+
+
+@bp.get("/admin/tool-files/teams")
+@require_admin
+def admin_teams():
+    return jsonify(teams())
+
+
+@bp.post("/admin/tool-files/grants")
+@require_admin
+def admin_grant():
+    key = _grant_key()
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    try:
+        grant = put_grant(key, {"granted_at": stamp, "granted_by": g.user_id})
+    except StoreUnavailable:
+        _audit("grant", key, "store_unavailable")
+        raise
+    _audit("grant", key, "ok")
+    return jsonify(_grant_row(key, grant)), 201
+
+
+@bp.post("/admin/tool-files/grants/revoke")
+@require_admin
+def admin_revoke():
+    key = _grant_key()
+    try:
+        revoked = delete_grant(key)
+    except StoreUnavailable:
+        _audit("revoke", key, "store_unavailable")
+        raise
+    _audit("revoke", key, "ok" if revoked else "absent")
+    return jsonify({"revoked": revoked})

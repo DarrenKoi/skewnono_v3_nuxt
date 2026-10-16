@@ -109,6 +109,7 @@ minio_handler/minio_config.py
 # Access-control exception lists (managed via /admin/access, per-deployment state)
 backend/storage/access_exceptions.json
 backend/access_control/state/access_exceptions.json
+backend/ebeam/tool_files/state/grants.json
 
 # Chat feature local store (home/Phase 1)
 backend/chat/chat.db

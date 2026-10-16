@@ -312,3 +312,51 @@ def test_both_on_office_is_the_supported_pairing(monkeypatch, wired):
     monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
 
     data_provider.validate_env()  # must not raise
+
+
+def _tool_files_tree(fake_tree, sem_list="office.py"):
+    return fake_tree(
+        {
+            "sem_list": ["mock.py", sem_list],
+            "ebeam/tool_files": ["mock.py", "office.py"],
+        }
+    )
+
+
+def test_office_tool_files_against_a_mock_sem_list_is_refused(monkeypatch, fake_tree):
+    _tool_files_tree(fake_tree, sem_list="office_example.py")
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+    monkeypatch.setenv("REDIS_HOST", "redis.example")
+
+    with pytest.raises(RuntimeError, match="tool_files resolves to 'office' but sem_list"):
+        data_provider.validate_env()
+
+
+def test_office_tool_files_forced_on_a_mock_mode_is_refused(monkeypatch, fake_tree):
+    """The directory follows get_mode(), so a forced office tool_files would
+    browse real tools while every team verdict says directory_unavailable."""
+    _tool_files_tree(fake_tree)
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "mock")
+    monkeypatch.setenv("SKEWNONO_SEM_LIST_PROVIDER", "office")
+    monkeypatch.setenv("SKEWNONO_TOOL_FILES_PROVIDER", "office")
+    monkeypatch.setenv("REDIS_HOST", "redis.example")
+
+    with pytest.raises(RuntimeError, match="tool_files.*mode is 'mock'"):
+        data_provider.validate_env()
+
+
+def test_office_tool_files_without_redis_is_refused(monkeypatch, fake_tree):
+    _tool_files_tree(fake_tree)
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+    monkeypatch.delenv("REDIS_HOST", raising=False)
+
+    with pytest.raises(RuntimeError, match="tool_files.*REDIS_HOST"):
+        data_provider.validate_env()
+
+
+def test_office_tool_files_with_office_mode_and_redis_boots(monkeypatch, fake_tree):
+    _tool_files_tree(fake_tree)
+    monkeypatch.setenv("SKEWNONO_DATA_PROVIDER", "office")
+    monkeypatch.setenv("REDIS_HOST", "redis.example")
+
+    data_provider.validate_env()  # must not raise

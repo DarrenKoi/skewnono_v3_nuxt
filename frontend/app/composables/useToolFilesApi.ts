@@ -1,7 +1,7 @@
 import type { ToolType } from '~/utils/toolType'
 import { toolSlug } from '~/utils/toolType'
 import { joinApiPath } from '~/utils/apiPath'
-import type { ToolFilesAccess, ToolFilesListing } from '~/utils/toolFiles'
+import type { ToolFilesAccess, ToolFilesGrantRow, ToolFilesListing, ToolFilesTeams } from '~/utils/toolFiles'
 
 export interface ToolFilesTarget {
   toolType: ToolType
@@ -58,4 +58,19 @@ export const downloadToolFile = async (target: ToolFilesTarget, path: string, na
   link.download = name
   link.click()
   URL.revokeObjectURL(href)
+}
+
+export type ToolFilesGrantKind = 'team' | 'emp'
+
+export const useToolFilesAdminApi = () => {
+  const base = useRuntimeConfig().public.apiBase
+  const url = (leaf: string) => joinApiPath(base, `/admin/tool-files${leaf}`)
+  return {
+    fetchGrants: () => $fetch<{ grants: ToolFilesGrantRow[] }>(url('')),
+    fetchTeams: () => $fetch<ToolFilesTeams>(url('/teams')),
+    grant: (kind: ToolFilesGrantKind, value: string) =>
+      $fetch<ToolFilesGrantRow>(url('/grants'), { method: 'POST', body: { kind, value } }),
+    revoke: (kind: ToolFilesGrantKind, value: string) =>
+      $fetch<{ revoked: boolean }>(url('/grants/revoke'), { method: 'POST', body: { kind, value } })
+  }
 }

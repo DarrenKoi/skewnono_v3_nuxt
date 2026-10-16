@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  describeToolFilesGrants,
   filterToolFileEntries,
   formatFileSize,
   sortToolFileEntries,
   toolFilesErrorMessage,
-  type ToolFileEntry
+  type ToolFileEntry,
+  type ToolFilesGrantRow
 } from './toolFiles.ts'
 
 const entry = (name: string, extra: Partial<ToolFileEntry> = {}): ToolFileEntry => ({
@@ -54,4 +56,51 @@ test('each server error code reads as its own Korean line, unknown codes fall ba
   assert.equal(toolFilesErrorMessage('file_unavailable'), '파일이 없거나 접근할 수 없습니다.')
   assert.equal(toolFilesErrorMessage('too_large'), '파일이 다운로드 상한보다 커서 받지 못했습니다.')
   assert.equal(toolFilesErrorMessage('something_new'), '요청을 처리하지 못했습니다.')
+})
+
+const grant = (kind: 'team' | 'emp', value: string, dept_nm: string | null = null): ToolFilesGrantRow => ({
+  kind,
+  value,
+  dept_nm,
+  granted_at: '2026-10-17T00:00:00Z',
+  granted_by: '2067928'
+})
+
+test('team grants carry their member count and warn only on a complete zero', () => {
+  const grants = [grant('team', '계측기술팀'), grant('team', '해체된팀')]
+  const teams = { teams: [{ dept_nm: '계측기술팀', members: 2 }], complete: true }
+
+  const { teams: rows } = describeToolFilesGrants(grants, teams)
+
+  assert.deepEqual(rows.map(r => [r.value, r.members, r.warnEmpty]), [
+    ['계측기술팀', 2, false],
+    ['해체된팀', 0, true]
+  ])
+})
+
+test('an incomplete or missing team list never claims a team is empty', () => {
+  const grants = [grant('team', '해체된팀')]
+
+  const partial = describeToolFilesGrants(grants, { teams: [], complete: false }).teams[0]
+  const unknown = describeToolFilesGrants(grants, null).teams[0]
+
+  assert.deepEqual([partial?.members, partial?.warnEmpty], [0, false])
+  assert.deepEqual([unknown?.members, unknown?.warnEmpty], [null, false])
+})
+
+test('an empno grant is marked as kept by a granted team of the same name', () => {
+  const grants = [
+    grant('team', '계측기술팀'),
+    grant('emp', '1000001', '계측기술팀'),
+    grant('emp', '1000003', '공정기술팀'),
+    grant('emp', '7777777')
+  ]
+
+  const { emps } = describeToolFilesGrants(grants, null)
+
+  assert.deepEqual(emps.map(r => [r.value, r.coveredByTeam]), [
+    ['1000001', true],
+    ['1000003', false],
+    ['7777777', false]
+  ])
 })

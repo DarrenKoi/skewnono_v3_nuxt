@@ -69,6 +69,18 @@ _OFFICE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
 }
 
 
+# Features whose office adapter leans on process-wide office state that its own
+# provider choice does not control, so forcing just the feature to office
+# cannot be honored.
+#
+# tool_files decides access with the member directory, which follows
+# get_mode() rather than the feature's provider: forced to office on a mock
+# mode it browses real tools while every team verdict reads
+# directory_unavailable. Its grant store is Redis, and with no REDIS_HOST every
+# request would 503 instead of the boot naming the missing line.
+_OFFICE_NEEDS_OFFICE_MODE_AND_REDIS = frozenset({"tool_files"})
+
+
 class FeatureResolution(NamedTuple):
     """One row of the boot log and of /api/health/providers."""
 
@@ -252,8 +264,24 @@ def validate_env() -> None:
         if slug not in ready:
             raise _unhonorable(slug, name)
 
-    mismatch = _mismatched_office_dependency(
-        {row.feature: row.provider for row in resolve_all()}
-    )
+    resolved = {row.feature: row.provider for row in resolve_all()}
+    mismatch = _mismatched_office_dependency(resolved)
     if mismatch is not None:
         raise mismatch
+
+    for feature in sorted(_OFFICE_NEEDS_OFFICE_MODE_AND_REDIS):
+        if resolved.get(feature) != "office":
+            continue
+        mode = get_mode()
+        if mode != "office":
+            raise RuntimeError(
+                f"{feature} resolves to 'office' but the mode is '{mode}'. Its "
+                f"office adapter reads the member directory, which follows the "
+                f"mode, so every team verdict would be directory_unavailable. "
+                f"Set SKEWNONO_DATA_PROVIDER=office or drop the override."
+            )
+        if not os.environ.get("REDIS_HOST"):
+            raise RuntimeError(
+                f"{feature} resolves to 'office' but REDIS_HOST is not set. Its "
+                f"grant store is Redis; add REDIS_HOST to backend/.env."
+            )

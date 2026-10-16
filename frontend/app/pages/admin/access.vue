@@ -10,7 +10,7 @@
           접근 권한 관리
         </h1>
         <p class="mt-1 sk-meta">
-          X-사번 차단 규칙과 예외 허용 목록을 관리합니다
+          X-사번 차단 규칙과 예외 허용 목록, 장비 파일 접근 승인을 관리합니다
         </p>
       </div>
       <UButton
@@ -179,6 +179,8 @@
           </li>
         </ul>
       </section>
+
+      <AdminToolFilesGrants />
     </template>
   </div>
 </template>
@@ -211,7 +213,7 @@ const newId = ref('')
 const mutating = ref(false)
 const formError = ref('')
 
-const reload = () => refresh()
+const reload = () => Promise.all([refresh(), refreshNuxtData(['admin-tool-files-grants', 'admin-tool-files-teams'])])
 
 const runMutation = async (action: () => Promise<unknown>) => {
   mutating.value = true

@@ -13,8 +13,8 @@
     <AppEmptyState
       v-else-if="access?.verdict !== 'granted'"
       icon="i-lucide-lock"
-      title="장비 파일에 접근할 권한이 없습니다."
-      description="장비 파일 탐색은 승인된 사용자만 쓸 수 있습니다."
+      :title="refusal.title"
+      :description="refusal.description"
     />
 
     <UCard
@@ -209,6 +209,7 @@ import {
   formatFileSize,
   sortToolFileEntries,
   toolFilesErrorMessage,
+  toolFilesVerdictMessage,
   type ToolFileEntry,
   type ToolFileSortKey
 } from '~/utils/toolFiles'
@@ -226,6 +227,10 @@ const toast = useToast()
 const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
 
 const { data: access, status: accessStatus } = useToolFilesAccess(props.toolType)
+const refusal = computed(() => {
+  const verdict = access.value?.verdict
+  return toolFilesVerdictMessage(!verdict || verdict === 'granted' ? 'none' : verdict)
+})
 
 const { data: semRows } = useSemList()
 const toolOptions = computed(() =>

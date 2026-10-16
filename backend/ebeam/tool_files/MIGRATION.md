@@ -2,8 +2,9 @@
 
 ## Status: WRITTEN — activate by copying
 
-The template opens a direct `ftp_handler.core.FtpClient` to the tool, so the
-copy is verbatim:
+The template opens a direct `ftp_handler.core.FtpClient` to the tool, keeps
+grants in Redis and reads the real member directory. It holds no in-house
+value, so the copy is verbatim:
 
 ```bash
 cp providers/office_example.py providers/office.py
@@ -14,15 +15,25 @@ cp providers/office_example.py providers/office.py
 - It pairs with `sem_list`: every tool's IP and FTP account come from the
   live roster, so `validate_env()` refuses tool_files=office with
   sem_list=mock rather than send real credentials to fabricated addresses.
+- `validate_env()` also refuses tool_files=office when the mode is not office
+  (the member directory follows the mode, so every team verdict would be
+  `directory_unavailable`) and when `REDIS_HOST` is unset (the grant store).
 - Never touch `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or
   `tests/`.
 
 ## What swaps
 
-Only the FTP connection. `data.open_client(tool)` returns a context manager
-with `FtpClient`'s surface (`home`, `list_details`, `download`); resolution,
-path checks and the error mapping are shared code, so the mock exercises them
-exactly as the office does.
+Three surfaces, chosen together by one provider resolution, so "real FTP +
+mock grants" cannot happen:
+
+| surface | mock | office |
+| :-- | :-- | :-- |
+| FTP (`open_client`) | fake tree | direct `FtpClient` |
+| grants (`read_grants`, `put_grant`, `delete_grant`) | `state/grants.json` (`SKEWNONO_TOOL_FILES_GRANTS_FILE`), unreadable = 503 | HASH `skewnono:tool_files:grants`, `"team:<dept_nm>"` / `"emp:<empno>"` -> JSON `{granted_at, granted_by}` |
+| directory (`probe`, `teams`) | `_MEMBERS` table | `probe_member` + HSCAN of `members`, 600 s cache |
+
+Resolution, path checks, the verdict (`access.decide`) and the error mapping
+are shared code, so the mock exercises them exactly as the office does.
 
 ## Configuration
 
@@ -34,7 +45,7 @@ fab_name / family) and `SKEWNONO_TOOL_FTP_ENCODING` (`latin-1` at the office).
 Transfer limits, all OFFICE-VERIFY proposals:
 
 | env | default |
-|:--|:--|
+| :-- | :-- |
 | `SKEWNONO_TOOL_FILES_MAX_BYTES` | 100 MB per download |
 | `SKEWNONO_TOOL_FILES_DEADLINE` | 120 s per transfer (cloud harakiri is 720 s) |
 | `SKEWNONO_TOOL_FILES_MAX_ENTRIES` | 20000 raw LIST lines |
@@ -45,7 +56,9 @@ Transfer limits, all OFFICE-VERIFY proposals:
 - **Phase 3 (Linux) only.** A Windows office PC cannot open FTP to tools; until
   the proxy transport lands (ticket 06) every request there answers
   `503 tool_unreachable`.
-- **Access is admin-only** until the grant store lands (ticket 04).
+- **Access** is the admin, an `emp:` grant, or a `team:` grant matching the
+  caller's directory `dept_nm`. A team move reaches the verdict up to 10
+  minutes late (the directory cache). Access requests arrive in ticket 05.
 - The root is the login directory (`PWD`). Per-family allowed roots are not
   configurable yet; add them when a real tree shows the need.
 - The root check is a guardrail. The FTP account's own permissions are the
@@ -60,3 +73,8 @@ Transfer limits, all OFFICE-VERIFY proposals:
 - [ ] Note each family's real login directory and folder layout, then update
       `providers/mock.py` to match.
 - [ ] A file over 100 MB answers 413 and the worker stays healthy.
+- [ ] `/admin/access` team list: counts look right, `complete` is true, and
+      the real `dept_nm` spellings match what grants will be keyed on. Update
+      the mock `_MEMBERS` names to the real shape.
+- [ ] Grant a team, open the browser as one of its members; revoke, and the
+      next request is 403.

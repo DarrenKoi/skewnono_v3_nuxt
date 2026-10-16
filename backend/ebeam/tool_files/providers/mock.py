@@ -15,14 +15,36 @@ listed from home). What it copies on purpose are the properties known to bite:
 - tools that never answer: every sem_list row with ``available == "Off"``.
 
 The mock never opens a socket.
+
+It also carries this feature's two other swap surfaces, so one provider choice
+decides all three:
+
+- **Grant store.** A JSON file (``SKEWNONO_TOOL_FILES_GRANTS_FILE``, default
+  ``state/grants.json``), read on every call so a grant made in one worker is
+  seen by the next request in any other, and written by atomic replace. Unlike
+  access_control's mock, an unreadable file is 503, never an empty store.
+- **Member directory.** ``_auth.directory.probe_member`` is ``unavailable`` at
+  home by design, so team grants would be untestable here. ``_MEMBERS`` stands
+  in: two teams, a profile with no dept_nm, and a directory outage; every
+  other empno is absent. The names are placeholders (OFFICE-VERIFY: real
+  dept_nm spellings are unknown from home).
 """
 
+import json
+import os
+import tempfile
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from ftplib import error_perm
+from pathlib import Path
+from threading import Lock
 
 from ftp_handler.core import FileInfo, ListingTooLarge, TransferTooLarge
 
+from backend._auth.directory import Probe
+from backend.ebeam.tool_files.contracts import Grant, Teams
+from backend.ebeam.tool_files.errors import StoreUnavailable
 from backend.ebeam.tool_files.resolve import Tool
 from backend.sem_list.providers.mock import get_sem_list
 
@@ -132,3 +154,95 @@ class MockFtpClient:
 
 def open_client(tool: Tool) -> MockFtpClient:
     return MockFtpClient(tool)
+
+
+def _profile(empno: str, emp_nm: str, dept_nm: str | None) -> Probe:
+    member = {
+        "empno": empno,
+        "emp_nm": emp_nm,
+        "dept_nm": dept_nm,
+        "organ_cd": None,
+        "upper_organ_nm": None,
+    }
+    return Probe(member, "found")
+
+
+_MEMBERS: dict[str, Probe] = {
+    "1000001": _profile("1000001", "김계측", "계측기술팀"),
+    "1000002": _profile("1000002", "이계측", "계측기술팀"),
+    "1000003": _profile("1000003", "박공정", "공정기술팀"),
+    "1000004": _profile("1000004", "최무소속", None),
+    "1000005": Probe(None, "unavailable"),
+}
+
+
+def probe(empno: str) -> Probe:
+    return _MEMBERS.get(empno, Probe(None, "absent"))
+
+
+def teams() -> Teams:
+    counts = Counter(
+        p.member["dept_nm"] for p in _MEMBERS.values() if p.member and p.member["dept_nm"]
+    )
+    return {
+        "teams": [{"dept_nm": d, "members": n} for d, n in sorted(counts.items())],
+        "complete": True,
+    }
+
+
+_lock = Lock()
+
+
+def _grants_path() -> Path:
+    override = os.environ.get("SKEWNONO_TOOL_FILES_GRANTS_FILE")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parent.parent / "state" / "grants.json"
+
+
+def _read(path: Path) -> dict[str, Grant]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        raise StoreUnavailable(f"grant file unreadable: {path}") from exc
+    if not isinstance(raw, dict):
+        raise StoreUnavailable(f"grant file is not a JSON object: {path}")
+    return raw
+
+
+def _write(path: Path, grants: dict[str, Grant]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".grants.")
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(grants, handle, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+    except OSError as exc:
+        raise StoreUnavailable(f"grant file not writable: {path}") from exc
+
+
+def read_grants() -> dict[str, Grant]:
+    return _read(_grants_path())
+
+
+def put_grant(key: str, grant: Grant) -> Grant:
+    """Idempotent: a repeat grant keeps the first one's stamp."""
+    path = _grants_path()
+    with _lock:
+        grants = _read(path)
+        if key not in grants:
+            grants[key] = grant
+            _write(path, grants)
+        return grants[key]
+
+
+def delete_grant(key: str) -> bool:
+    path = _grants_path()
+    with _lock:
+        grants = _read(path)
+        if grants.pop(key, None) is None:
+            return False
+        _write(path, grants)
+        return True

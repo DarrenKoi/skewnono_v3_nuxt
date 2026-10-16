@@ -22,9 +22,31 @@ export interface ToolFilesListing {
   max_bytes: number
 }
 
+export type ToolFilesVerdict
+  = | 'granted'
+    | 'none'
+    | 'untrusted_identity'
+    | 'directory_unavailable'
+    | 'store_unavailable'
+
 export interface ToolFilesAccess {
-  verdict: 'granted' | 'none'
+  verdict: ToolFilesVerdict
   can_write: boolean
+}
+
+export interface ToolFilesGrantRow {
+  kind: 'team' | 'emp'
+  value: string
+  granted_at: string
+  granted_by: string
+  // emp rows: the grantee's current team when the directory knows it.
+  dept_nm: string | null
+}
+
+export interface ToolFilesTeams {
+  teams: { dept_nm: string, members: number }[]
+  // False when some directory rows were unreadable, so a 0 is not proof.
+  complete: boolean
 }
 
 export type ToolFileSortKey = 'name' | 'size' | 'modified'
@@ -89,8 +111,63 @@ const ERROR_MESSAGES: Record<string, string> = {
   file_unavailable: '파일이 없거나 접근할 수 없습니다.',
   too_large: '파일이 다운로드 상한보다 커서 받지 못했습니다.',
   listing_too_large: '폴더의 항목이 너무 많아 목록을 불러오지 못했습니다.',
-  bad_path: '열 수 없는 경로입니다.'
+  bad_path: '열 수 없는 경로입니다.',
+  untrusted_identity: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다.',
+  directory_unavailable: '구성원 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+  store_unavailable: '권한 정보를 읽지 못했습니다. 잠시 후 다시 시도해 주세요.'
 }
 
 export const toolFilesErrorMessage = (code: string): string =>
   ERROR_MESSAGES[code] ?? '요청을 처리하지 못했습니다.'
+
+export interface ToolFilesTeamGrant extends ToolFilesGrantRow {
+  // null while the team list is unknown (failed or not loaded).
+  members: number | null
+  warnEmpty: boolean
+}
+
+export interface ToolFilesEmpGrant extends ToolFilesGrantRow {
+  // Revoking this row would not shut the person out.
+  coveredByTeam: boolean
+}
+
+export const describeToolFilesGrants = (
+  grants: readonly ToolFilesGrantRow[],
+  teams: ToolFilesTeams | null
+): { teams: ToolFilesTeamGrant[], emps: ToolFilesEmpGrant[] } => {
+  const sizes = new Map(teams?.teams.map(t => [t.dept_nm, t.members]))
+  const granted = new Set(grants.filter(g => g.kind === 'team').map(g => g.value))
+  return {
+    teams: grants
+      .filter(g => g.kind === 'team')
+      .map((g) => {
+        const members = teams ? (sizes.get(g.value) ?? 0) : null
+        return { ...g, members, warnEmpty: members === 0 && teams?.complete === true }
+      }),
+    emps: grants
+      .filter(g => g.kind === 'emp')
+      .map(g => ({ ...g, coveredByTeam: g.dept_nm !== null && granted.has(g.dept_nm) }))
+  }
+}
+
+const VERDICT_MESSAGES: Record<Exclude<ToolFilesVerdict, 'granted'>, { title: string, description: string }> = {
+  none: {
+    title: '장비 파일에 접근할 권한이 없습니다.',
+    description: '장비 파일 탐색은 승인된 팀이나 사번만 쓸 수 있습니다. 관리자에게 승인을 요청해 주세요.'
+  },
+  untrusted_identity: {
+    title: '로그인 정보를 확인할 수 없습니다.',
+    description: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다. 사내 로그인 상태로 다시 접속해 주세요.'
+  },
+  directory_unavailable: {
+    title: '구성원 정보를 확인하지 못했습니다.',
+    description: '소속 팀을 확인할 수 없어 권한을 판정하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+  },
+  store_unavailable: {
+    title: '권한 정보를 읽지 못했습니다.',
+    description: '승인 목록 저장소에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+  }
+}
+
+export const toolFilesVerdictMessage = (verdict: Exclude<ToolFilesVerdict, 'granted'>) =>
+  VERDICT_MESSAGES[verdict]

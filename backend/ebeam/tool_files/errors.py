@@ -7,3 +7,12 @@ class ToolFilesError(Exception):
         self.status = status
         self.code = code
         self.message = message
+
+
+class StoreUnavailable(RuntimeError):
+    """The grant store cannot be read or written. Never an empty store: an
+    admin shown no grants during an outage would start re-granting."""
+
+
+class DirectoryUnavailable(RuntimeError):
+    """The member directory cannot be listed, so team sizes are unknown."""

@@ -32,9 +32,35 @@ class Listing(TypedDict):
     max_bytes: int
 
 
-Verdict = Literal["granted", "none"]
+Verdict = Literal[
+    "granted", "none", "untrusted_identity", "directory_unavailable", "store_unavailable"
+]
 
 
 class Access(TypedDict):
     verdict: Verdict
     can_write: bool
+
+
+class Grant(TypedDict):
+    granted_at: str
+    granted_by: str
+
+
+class GrantRow(Grant):
+    kind: Literal["team", "emp"]
+    value: str
+    # emp rows only: the grantee's current team, when the directory knows it,
+    # so the admin page can say a team grant would keep them in after revoke.
+    dept_nm: str | None
+
+
+class Team(TypedDict):
+    dept_nm: str
+    members: int
+
+
+class Teams(TypedDict):
+    teams: list[Team]
+    # False when some directory rows could not be read, so a 0 is not proof.
+    complete: bool
