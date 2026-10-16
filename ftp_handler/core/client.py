@@ -23,6 +23,7 @@ report to absorb them here, and a single-server caller wants the real exception.
 
 import fnmatch
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone, tzinfo
 from ftplib import FTP
@@ -40,6 +41,27 @@ from ftp_handler.core.listing import _normalize_listing
 _DEFAULT_TZ = timezone(timedelta(hours=9), "KST")
 
 
+class TransferTooLarge(Exception):
+    """A download outgrew its ``max_bytes``; the partial payload was dropped."""
+
+
+class TransferTimeout(Exception):
+    """A transfer ran past its whole-operation ``deadline`` (seconds).
+
+    Distinct from the socket ``timeout``, which bounds one blocking read: a
+    server that trickles a byte every few seconds never trips that.
+    """
+
+
+class ListingTooLarge(Exception):
+    """A LIST reply outgrew its line or byte cap; nothing was returned."""
+
+
+def _check_deadline(started: float, deadline: float | None, what: str) -> None:
+    if deadline is not None and time.monotonic() - started > deadline:
+        raise TransferTimeout(f"{what} exceeded {deadline}s")
+
+
 @dataclass(slots=True)
 class FileInfo:
     """One entry from a ``LIST`` listing, parsed into typed fields.
@@ -47,7 +69,10 @@ class FileInfo:
     ``modified`` is timezone-aware (server-local, KST by default) or ``None`` if
     the line's date couldn't be parsed. ``size`` is ``None`` for directories.
     ``raw`` keeps the original LIST line so an unrecognized server format can be
-    diagnosed from the returned data.
+    diagnosed from the returned data. ``is_link`` marks a Unix symlink entry,
+    whose target the parser drops — a caller enforcing a root should not
+    follow it. It sits last with a default so positional construction of the
+    first six fields keeps working.
     """
 
     name: str
@@ -56,6 +81,7 @@ class FileInfo:
     size: int | None
     modified: datetime | None
     raw: str
+    is_link: bool = False
 
 
 _MONTHS = {
@@ -183,17 +209,30 @@ class FtpClient:
 
     def __enter__(self) -> "FtpClient":
         ftp = FTP(timeout=self.timeout, encoding=self.encoding)
-        ftp.connect(host=self.host, port=self.port, timeout=self.timeout)
-        ftp.login(user=self.user, passwd=self.password)
-        ftp.set_pasv(self.passive)
+        try:
+            ftp.connect(host=self.host, port=self.port, timeout=self.timeout)
+            ftp.login(user=self.user, passwd=self.password)
+            ftp.set_pasv(self.passive)
+        except BaseException:
+            # __exit__ never runs when __enter__ raises, so a refused login
+            # would otherwise leave the socket open.
+            ftp.close()
+            raise
         self._ftp = ftp
         return self
 
     def __exit__(self, *exc: object) -> None:
+        self._discard()
+
+    def _discard(self) -> None:
         if self._ftp is not None:
             # close() never raises; quit() can if the connection already dropped.
             self._ftp.close()
             self._ftp = None
+
+    def home(self) -> str:
+        """The login directory (PWD) — the root a relative path resolves from."""
+        return self._ftp.pwd()
 
     def list_dir(self, remote_dir: str, pattern: str | None = None) -> list[str]:
         """List ``remote_dir`` (NLST), returning normalized paths.
@@ -233,6 +272,9 @@ class FtpClient:
         pattern: str | None = None,
         *,
         tz: tzinfo = _DEFAULT_TZ,
+        max_entries: int | None = None,
+        max_raw_bytes: int | None = None,
+        deadline: float | None = None,
     ) -> list[FileInfo]:
         """List ``remote_dir`` with sizes and modified times (LIST).
 
@@ -247,9 +289,33 @@ class FtpClient:
         unrecognized format are skipped — inspect ``FileInfo.raw`` on the
         results, or capture raw lines yourself via ``self._ftp.retrlines``, if a
         server's format isn't covered.
+
+        ``max_entries`` and ``max_raw_bytes`` cap the raw LIST reply as it
+        arrives — unparseable lines included, since those are dropped later and
+        would otherwise slip past a cap on parsed entries. Tripping either
+        raises ``ListingTooLarge``; ``deadline`` raises ``TransferTimeout``.
+        Both discard the connection, as ``download`` does.
         """
         lines: list[str] = []
-        self._ftp.retrlines(f"LIST {remote_dir}", lines.append)
+        raw_bytes = 0
+        started = time.monotonic()
+
+        def collect(line: str) -> None:
+            nonlocal raw_bytes
+            if max_entries is not None and len(lines) >= max_entries:
+                raise ListingTooLarge(f"{remote_dir} has over {max_entries} LIST lines")
+            if max_raw_bytes is not None:
+                raw_bytes += len(line.encode(self.encoding, "replace"))
+                if raw_bytes > max_raw_bytes:
+                    raise ListingTooLarge(f"{remote_dir} LIST exceeds {max_raw_bytes} bytes")
+            _check_deadline(started, deadline, f"LIST {remote_dir}")
+            lines.append(line)
+
+        try:
+            self._ftp.retrlines(f"LIST {remote_dir}", collect)
+        except (ListingTooLarge, TransferTimeout):
+            self._discard()
+            raise
         now = datetime.now(tz)
         out: list[FileInfo] = []
         for line in lines:
@@ -273,14 +339,41 @@ class FtpClient:
                     size=size,
                     modified=modified,
                     raw=line,
+                    is_link=line.startswith("l"),
                 )
             )
         return out
 
-    def download(self, remote_path: str) -> bytes:
-        """Fetch ``remote_path`` (RETR) and return its bytes."""
+    def download(
+        self,
+        remote_path: str,
+        *,
+        max_bytes: int | None = None,
+        deadline: float | None = None,
+    ) -> bytes:
+        """Fetch ``remote_path`` (RETR) and return its bytes.
+
+        ``max_bytes`` and ``deadline`` (seconds for the whole transfer) are
+        checked as each chunk arrives, not after: a file that grows during
+        RETR, or a server that under-reports its size, would otherwise be
+        buffered whole before any check could run. Tripping either raises
+        ``TransferTooLarge`` / ``TransferTimeout`` and discards the connection —
+        the server is still mid-transfer, so the control channel is out of step.
+        """
         buf = BytesIO()
-        self._ftp.retrbinary(f"RETR {remote_path}", buf.write)
+        started = time.monotonic()
+
+        def write(chunk: bytes) -> None:
+            if max_bytes is not None and buf.tell() + len(chunk) > max_bytes:
+                raise TransferTooLarge(f"{remote_path} exceeds {max_bytes} bytes")
+            _check_deadline(started, deadline, remote_path)
+            buf.write(chunk)
+
+        try:
+            self._ftp.retrbinary(f"RETR {remote_path}", write)
+        except (TransferTooLarge, TransferTimeout):
+            self._discard()
+            raise
         return buf.getvalue()
 
     def upload(self, remote_path: str, data: bytes) -> None:

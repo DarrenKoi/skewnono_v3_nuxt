@@ -4,15 +4,24 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (2026-10-17)
 
-- [ ] 수정은 `flask_modules`에 먼저 하고 push한 뒤, 그 결과를 SKEWNONO의 vendored copy로 복사합니다
-- [ ] `home()`은 호출할 때 PWD를 조회합니다. `__enter__`에는 PWD 호출을 넣지 않습니다
-- [ ] `download(remote_path, *, max_bytes=None, deadline=None)`는 수신 callback 안에서 바이트 수와 경과 시간을 검사합니다. 넘으면 즉시 중단하고 부분 버퍼와 연결을 폐기한 뒤 `TransferTooLarge` 또는 `TransferTimeout`을 냅니다. 기본값으로 호출하면 지금과 똑같이 동작합니다
-- [ ] `list_details(..., max_entries=None, max_raw_bytes=None, deadline=None)`는 수신 중에 원문 줄 수(파싱에 실패한 줄 포함), 원문 바이트, 경과 시간을 검사합니다
-- [ ] `FileInfo` 맨 끝에 `is_link: bool = False`를 추가하고, 값은 `raw`의 첫 글자로 판별합니다. `_parse_list_line()`의 4-tuple 반환은 바꾸지 않습니다
-- [ ] fake FTP 서버 테스트로 다음을 확인합니다: 로그인 홈이 `/`가 아닌 경우, latin-1 원시 바이트 왕복, Unix·DOS·미지원 형식의 LIST 줄, 링크, 상한과 정확히 같은 크기와 1바이트 초과, LIST에 표시된 크기보다 실제로 큰 파일, 조금씩 계속 들어오는 전송, 파싱되지 않는 줄만 대량으로 오는 경우, 중간 단절과 로그인 실패 시 자원 정리
-- [ ] 기존 테스트 파일은 수정하지 않습니다. flask_modules의 ftp 테스트 5개(`test_ftp_client`, `test_ftp_fleet_downloader`, `test_ftp_flask_proxy`, `test_ftp_encoding`, `test_ftp_fleet_jobs`)와 SKEWNONO 전체 suite가 모두 통과해야 합니다
-- [ ] 기존 공개 이름(`core`, `direct_downloader`, `proxy`의 `__all__`)이 하나도 줄지 않아야 합니다
-- [ ] `diff -rq --exclude=__pycache__`로 비교한 두 사본에 차이가 없어야 합니다
-- [ ] 코드는 Python 3.11 문법만 씁니다
+- [x] 수정은 `flask_modules`에 먼저 하고 push한 뒤, 그 결과를 SKEWNONO의 vendored copy로 복사합니다
+- [x] `home()`은 호출할 때 PWD를 조회합니다. `__enter__`에는 PWD 호출을 넣지 않습니다
+- [x] `download(remote_path, *, max_bytes=None, deadline=None)`는 수신 callback 안에서 바이트 수와 경과 시간을 검사합니다. 넘으면 즉시 중단하고 부분 버퍼와 연결을 폐기한 뒤 `TransferTooLarge` 또는 `TransferTimeout`을 냅니다. 기본값으로 호출하면 지금과 똑같이 동작합니다
+- [x] `list_details(..., max_entries=None, max_raw_bytes=None, deadline=None)`는 수신 중에 원문 줄 수(파싱에 실패한 줄 포함), 원문 바이트, 경과 시간을 검사합니다
+- [x] `FileInfo` 맨 끝에 `is_link: bool = False`를 추가하고, 값은 `raw`의 첫 글자로 판별합니다. `_parse_list_line()`의 4-tuple 반환은 바꾸지 않습니다
+- [x] fake FTP 서버 테스트로 다음을 확인합니다: 로그인 홈이 `/`가 아닌 경우, latin-1 원시 바이트 왕복, Unix·DOS·미지원 형식의 LIST 줄, 링크, 상한과 정확히 같은 크기와 1바이트 초과, LIST에 표시된 크기보다 실제로 큰 파일, 조금씩 계속 들어오는 전송, 파싱되지 않는 줄만 대량으로 오는 경우, 중간 단절과 로그인 실패 시 자원 정리
+- [x] 기존 테스트 파일은 수정하지 않습니다. flask_modules의 ftp 테스트 5개(`test_ftp_client`, `test_ftp_fleet_downloader`, `test_ftp_flask_proxy`, `test_ftp_encoding`, `test_ftp_fleet_jobs`)와 SKEWNONO 전체 suite가 모두 통과해야 합니다
+- [x] 기존 공개 이름(`core`, `direct_downloader`, `proxy`의 `__all__`)이 하나도 줄지 않아야 합니다
+- [x] `diff -rq --exclude=__pycache__`로 비교한 두 사본에 차이가 없어야 합니다
+- [x] 코드는 Python 3.11 문법만 씁니다
+
+## Comments
+
+2026-10-17 완료. flask_modules `5b9b4fa` → SKEWNONO vendored copy.
+
+- 테스트 seam은 기존 컨벤션을 따랐습니다. `ftp_handler.core.client.FTP`를 chunk 단위로 데이터를 넘기는 대역으로 patch했습니다(user-confirmed). 실제 소켓 서버는 새 의존성이 필요해서 쓰지 않았습니다. 실제 ftplib가 callback 예외 뒤에 소켓을 어떻게 남기는지는 09에서 확인합니다.
+- 새 테스트는 `tests/test_ftp_client_limits.py`의 9개입니다. 기존 ftp 테스트 162개는 수정 없이 통과했고, SKEWNONO 전체는 3967 passed / 13 skipped로 변경 전과 같습니다.
+- 작업 중에 기존 누수 하나를 찾아 고쳤습니다. 로그인이 거부되면 `__enter__`가 연 소켓을 닫지 않았습니다.
+- latin-1 원시 바이트 왕복은 기존 `test_ftp_encoding`이 이미 다루고 있어서 새 테스트를 추가하지 않았습니다.

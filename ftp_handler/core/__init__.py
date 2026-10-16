@@ -6,11 +6,21 @@ else in ``ftp_handler``.
     from ftp_handler.core import FtpClient            # one server, ad-hoc ops
 """
 
-from .client import DirEntries, FileInfo, FtpClient
+from .client import (
+    DirEntries,
+    FileInfo,
+    FtpClient,
+    ListingTooLarge,
+    TransferTimeout,
+    TransferTooLarge,
+)
 from .listing import _normalize_listing
 
 __all__ = [
     "FtpClient",
     "FileInfo",
     "DirEntries",
+    "TransferTooLarge",
+    "TransferTimeout",
+    "ListingTooLarge",
 ]
