@@ -70,6 +70,7 @@ _TOOL_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("tttm",              "skew_check"),
     ("skew",              "skew_check"),   # pre-rename API path
     ("pm-planning",       "pm_planning"),
+    ("tool-files",        "tool_files"),
 )
 
 _FEATURE_RULES: tuple[tuple[str, str], ...] = tuple(
@@ -158,6 +159,7 @@ _PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("skew-check",              "skew_check"),   # pre-rename page path
     ("pm-planning",             "pm_planning"),
     ("pm-tune",                 "pm_planning"),  # interim page path 2026-08-17..27, kept as alias
+    ("tool-files",              "tool_files"),
     # Legacy routes; middleware redirects them to recipe-status, but a beacon
     # that beats the redirect must still land on the right slug.
     ("recipe-tat",              "recipe_tat"),

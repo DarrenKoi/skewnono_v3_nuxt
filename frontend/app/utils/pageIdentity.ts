@@ -91,6 +91,7 @@ const IDENTITY_RULES = [
   '/live-alarm',
   '/tttm',
   '/pm-planning',
+  '/tool-files',
   '/pm-tune',
   '/skewvoir',
   TOOL_INVENTORY_PATH,

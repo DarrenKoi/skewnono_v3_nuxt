@@ -87,10 +87,12 @@ def _served_name(name: str, converted_to: str | None) -> str:
     return f"{stem}{ext}"
 
 
-def _content_disposition(name: str) -> str:
+def _content_disposition(name: str, kind: str = "inline") -> str:
     """RFC 6266 disposition for a caller-supplied image filename.
 
-    ``inline``, not ``attachment``: the gallery reads these bytes through
+    tool_files reuses this with ``kind="attachment"`` for its downloads.
+
+    ``inline``, not ``attachment``, here: the gallery reads these bytes through
     ``<img :src>`` and ``fetch()`` + blob, and inline is neutral for both
     while ``curl -OJ`` still picks the filename up either way. The target
     audience is Python and curl, so attachment would add browser-behavior
@@ -104,7 +106,7 @@ def _content_disposition(name: str) -> str:
     """
     ascii_name = name.encode("ascii", "replace").decode("ascii")
     escaped = ascii_name.replace("\\", "\\\\").replace('"', '\\"')
-    return f"inline; filename=\"{escaped}\"; filename*=UTF-8''{quote(name, safe='')}"
+    return f"{kind}; filename=\"{escaped}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 @bp.get("/msr-images")

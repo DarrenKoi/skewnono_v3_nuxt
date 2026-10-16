@@ -62,6 +62,9 @@ _VALID_PROVIDERS = frozenset({"mock", "office"})
 _OFFICE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "pm_planning": ("sem_list",),
     "storage": ("sem_list",),
+    # tool_files resolves every tool's IP and FTP account from sem_list; a mock
+    # roster would send real credentials to fabricated addresses.
+    "tool_files": ("sem_list",),
     "tttm": ("sem_list",),
 }
 
