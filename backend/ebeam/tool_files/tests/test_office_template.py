@@ -9,8 +9,10 @@ import json
 import pytest
 import redis
 from ftp_handler.core import FtpClient
+from ftp_handler.proxy import FtpClient as ProxyFtpClient
 
 from backend.ebeam.tool_files.errors import DirectoryUnavailable, StoreUnavailable
+from backend.ebeam.tool_files.providers import mock
 from backend.ebeam.tool_files.providers import office_example as office
 from backend.ebeam.tool_files.resolve import Tool
 
@@ -39,6 +41,71 @@ def test_open_client_builds_a_direct_ftp_client_for_the_resolved_tool():
         8.0,
         "latin-1",
     )
+
+
+def test_windows_reaches_tools_through_the_read_only_proxy(monkeypatch):
+    # A Windows office PC (Phase 2) cannot open FTP to tools; msr_image's rule.
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+
+    client = office.open_client(_tool())
+
+    assert isinstance(client, ProxyFtpClient)
+    assert (client.host, client.user, client.port, client.encoding) == (
+        "10.0.0.7",
+        "verity",
+        2121,
+        "latin-1",
+    )
+    assert office.transport_supports_write() is False
+
+
+def test_anything_but_windows_opens_ftp_directly_and_may_write(monkeypatch):
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+
+    assert type(office.open_client(_tool())) is FtpClient
+    assert office.transport_supports_write() is True
+
+
+def test_the_proxy_holds_each_transfer_to_the_proxy_deadline(monkeypatch):
+    # The route asks for the direct deadline (120 s); the proxy host's
+    # harakiri would kill that request first.
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+    monkeypatch.setenv("SKEWNONO_TOOL_FILES_PROXY_DEADLINE", "30")
+    sent = []
+    monkeypatch.setattr(
+        "ftp_handler.proxy.proxy_client.FtpClient.download",
+        lambda self, path, *, max_bytes=None, deadline=None: sent.append(deadline),
+    )
+    monkeypatch.setattr(
+        "ftp_handler.proxy.proxy_client.FtpClient.list_details",
+        lambda self, d, pattern=None, *, deadline=None, **kw: sent.append(deadline),
+    )
+
+    with office.open_client(_tool()) as ftp:
+        ftp.download("/a", max_bytes=10, deadline=120.0)
+        ftp.download("/a", deadline=5.0)
+        ftp.list_details("/", max_entries=3, deadline=120.0)
+
+    assert sent == [30.0, 5.0, 30.0]
+
+
+def test_the_mock_transport_supports_write():
+    assert mock.transport_supports_write() is True
+
+
+def _tool() -> Tool:
+    return Tool(
+        eqp_id="HCDX303",
+        fab_name="M11A",
+        tool_type="cd-sem",
+        host="10.0.0.7",
+        user="verity",
+        password="pw",
+        port=2121,
+        timeout=8.0,
+        encoding="latin-1",
+    )
+
 
 GRANTS_KEY = "skewnono:tool_files:grants"
 _GRANT = {"granted_at": "2026-10-17T00:00:00Z", "granted_by": "2067928"}

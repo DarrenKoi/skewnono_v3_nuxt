@@ -2,8 +2,9 @@
 
 ## Status: WRITTEN — activate by copying
 
-The template opens a direct `ftp_handler.core.FtpClient` to the tool, keeps
-grants in Redis and reads the real member directory. It holds no in-house
+The template opens a direct `ftp_handler.core.FtpClient` to the tool on
+Linux (Phase 3) and the read-only `ftp_handler.proxy.FtpClient` on Windows
+(Phase 2), keeps grants in Redis and reads the real member directory. It holds no in-house
 value, so the copy is verbatim:
 
 ```bash
@@ -28,7 +29,7 @@ mock grants" cannot happen:
 
 | surface | mock | office |
 | :-- | :-- | :-- |
-| FTP (`open_client`) | fake tree | direct `FtpClient` |
+| FTP (`open_client`, `transport_supports_write`) | fake tree, writable | direct `FtpClient` (writable) on Linux; proxy `FtpClient` (read-only) on Windows |
 | grants (`read_grants`, `put_grant`, `delete_grant`) | `state/grants.json` (`SKEWNONO_TOOL_FILES_GRANTS_FILE`), unreadable = 503 | HASH `skewnono:tool_files:grants`, `"team:<dept_nm>"` / `"emp:<empno>"` -> JSON `{granted_at, granted_by}` |
 | directory (`probe`, `teams`) | `_MEMBERS` table | `probe_member` + HSCAN of `members`, 600 s cache |
 
@@ -48,14 +49,19 @@ Transfer limits, all OFFICE-VERIFY proposals:
 | :-- | :-- |
 | `SKEWNONO_TOOL_FILES_MAX_BYTES` | 100 MB per download |
 | `SKEWNONO_TOOL_FILES_DEADLINE` | 120 s per transfer (cloud harakiri is 720 s) |
+| `SKEWNONO_TOOL_FILES_PROXY_DEADLINE` | 45 s per transfer through the proxy (proxy host harakiri 60 s, OFFICE-VERIFY on scheduler1) |
 | `SKEWNONO_TOOL_FILES_MAX_ENTRIES` | 20000 raw LIST lines |
 | `SKEWNONO_TOOL_FILES_MAX_LIST_BYTES` | 4 MB of raw LIST |
 
 ## Known limits
 
-- **Phase 3 (Linux) only.** A Windows office PC cannot open FTP to tools; until
-  the proxy transport lands (ticket 06) every request there answers
-  `503 tool_unreachable`.
+- **Phase 2 (Windows) is read-only.** A Windows office PC cannot open FTP to
+  tools, so it lists and downloads through the shared FTP proxy
+  (`skewnono-scheduler1-webapp`) and `transport_supports_write()` is false.
+  The proxy has no auth and no write route by design. Each call is one HTTP
+  request and one fresh FTP connection, so a page view costs two (`home`,
+  then the listing). Proxy failures (unreachable, 401, missing route, 5xx)
+  answer `503 tool_unreachable`.
 - **Access** is the admin, an `emp:` grant, or a `team:` grant matching the
   caller's directory `dept_nm`. A team move reaches the verdict up to 10
   minutes late (the directory cache). Access requests arrive in ticket 05.
@@ -66,6 +72,21 @@ Transfer limits, all OFFICE-VERIFY proposals:
   cannot say where it points. Link entries are hidden from listings; a
   hand-written URL to a link is not separately refused.
 
+## Phase 2 rollout order
+
+The Windows PC needs proxy routes that only exist after the proxy host pulls,
+so the order is fixed:
+
+1. `flask_modules`: push (`ftp_handler/proxy`: `list_details_sknn_v3`,
+   `fetch_sknn_v3`).
+2. `skewnono-scheduler1-webapp`: `git pull` flask_modules, then restart the
+   webapp. Check `POST /list_details_sknn_v3` no longer answers 404.
+3. SKEWNONO on the Windows PC: `git pull`, then refresh the copy
+   (`cp providers/office_example.py providers/office.py`).
+
+Pulling SKEWNONO before step 2 is harmless but useless: every listing answers
+`503 tool_unreachable` (the proxy's 404 is a `ProxyError`).
+
 ## Verify at the office
 
 - [ ] One tool per family: list the login directory, open a subfolder,
@@ -73,6 +94,10 @@ Transfer limits, all OFFICE-VERIFY proposals:
 - [ ] Note each family's real login directory and folder layout, then update
       `providers/mock.py` to match.
 - [ ] A file over 100 MB answers 413 and the worker stays healthy.
+- [ ] Phase 2 (Windows PC, after the rollout above): list and download from
+      one tool per family through the proxy; a slow transfer stops at 45 s
+      with `503 tool_timeout`, not a proxy 502; msr_image images and
+      recipe_search raw files still load through the proxy.
 - [ ] `/admin/access` team list: counts look right, `complete` is true, and
       the real `dept_nm` spellings match what grants will be keyed on. Update
       the mock `_MEMBERS` names to the real shape.

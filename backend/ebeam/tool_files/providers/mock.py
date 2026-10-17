@@ -156,6 +156,11 @@ def open_client(tool: Tool) -> MockFtpClient:
     return MockFtpClient(tool)
 
 
+def transport_supports_write() -> bool:
+    # The fake tree stands in for a direct connection.
+    return True
+
+
 def _profile(empno: str, emp_nm: str, dept_nm: str | None) -> Probe:
     member = {
         "empno": empno,

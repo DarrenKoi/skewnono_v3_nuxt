@@ -3,8 +3,12 @@
 Copy to ``office.py`` to activate. It holds no in-house address or secret;
 Redis comes from ``backend/.env`` via ``_runtime/office_redis.py``.
 
-FTP is direct only. A Windows office PC cannot reach tool FTP and needs the
-proxy transport (ticket 06); until then it answers 503 tool_unreachable there.
+Transport follows msr_image's rule, decided per call: Linux (Phase 3 cloud)
+opens FTP directly; Windows (Phase 2 office PC, which cannot reach tool FTP)
+goes through the read-only ``ftp_handler.proxy.FtpClient``, which holds every
+transfer to ``SKEWNONO_TOOL_FILES_PROXY_DEADLINE`` (45 s) so the proxy host's
+harakiri never kills it first. ``transport_supports_write()`` is False there:
+the proxy has no write route.
 
 Layout:
 
@@ -26,14 +30,17 @@ cached.
 """
 
 import json
+import platform
 import time
 from collections import Counter
 from functools import lru_cache
 
 from ftp_handler.core import FtpClient
+from ftp_handler.proxy import FtpClient as ProxyFtpClient
 
 from backend._auth.directory import MEMBERS_KEY, probe_member
 from backend._runtime.office_redis import STORE_ERRORS, redis_client, redis_text
+from backend.ebeam.tool_files.config import load_limits
 from backend.ebeam.tool_files.contracts import Grant, Teams
 from backend.ebeam.tool_files.errors import DirectoryUnavailable, StoreUnavailable
 from backend.ebeam.tool_files.resolve import Tool
@@ -50,8 +57,35 @@ def _client():
     return redis_client()
 
 
-def open_client(tool: Tool) -> FtpClient:
-    return FtpClient(
+def _via_proxy() -> bool:
+    return platform.system() == "Windows"
+
+
+def transport_supports_write() -> bool:
+    return not _via_proxy()
+
+
+def _proxy_deadline(asked: float | None) -> float:
+    limit = load_limits().proxy_deadline
+    return limit if asked is None else min(asked, limit)
+
+
+class _ProxyClient(ProxyFtpClient):
+    """The proxy client, with each transfer held to the proxy deadline: the
+    routes ask for the direct one, which the proxy host would not survive."""
+
+    def list_details(self, remote_dir, pattern=None, *, deadline=None, **kwargs):
+        return super().list_details(
+            remote_dir, pattern, deadline=_proxy_deadline(deadline), **kwargs
+        )
+
+    def download(self, remote_path, *, deadline=None, **kwargs):
+        return super().download(remote_path, deadline=_proxy_deadline(deadline), **kwargs)
+
+
+def open_client(tool: Tool) -> FtpClient | ProxyFtpClient:
+    client = _ProxyClient if _via_proxy() else FtpClient
+    return client(
         host=tool.host,
         user=tool.user,
         password=tool.password,
