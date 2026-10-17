@@ -72,8 +72,11 @@ identity source, target, result and request_id.
   (`skewnono-scheduler1-webapp`) and `transport_supports_write()` is false.
   The proxy has no auth and no write route by design. Each call is one HTTP
   request and one fresh FTP connection, so a page view costs two (`home`,
-  then the listing). Proxy failures (unreachable, 401, missing route, 5xx)
-  answer `503 tool_unreachable`.
+  then the listing). `home` is a PWD only (`home_only`), never a LIST of the
+  home folder, and waits at most twice the tool timeout. Proxy failures
+  (unreachable, 401, missing route, 5xx, a request the proxy cannot parse)
+  answer `503 tool_unreachable`; names the tool encoding cannot decode answer
+  `502 tool_encoding`, as on the direct path.
 - **Access** is the admin, an `emp:` grant, or a `team:` grant matching the
   caller's directory `dept_nm`. A team move reaches the verdict up to 10
   minutes late (the directory cache).
@@ -82,9 +85,11 @@ identity source, target, result and request_id.
   stored `dept_nm` are the server's. Each (re)request gets a new uuid4
   `request_id`, the token approve and reject compare: a different or missing
   one is 409 `request_changed`, except an approval retry whose grant already
-  exists (no-op). A `WatchError` is caught before `STORE_ERRORS`; a change to
-  that empno's request is 409, any other is retried up to three times, then
-  503. Team approval clears only the pending requests whose *stored*
+  exists (no-op). A `WatchError` is caught before `STORE_ERRORS` and the
+  attempt is retried from its read up to three times, then 503, so a race
+  answers what mock answers: two admins approving one request leave the
+  second a no-op, and an approval after a rejection of the same request
+  still approves. Team approval clears only the pending requests whose *stored*
   `dept_nm` is the team. Request, approve, reject and team approve each log
   one `skewnono.tool_files` line carrying the access `request_id`.
 - The root is the login directory (`PWD`). Per-family allowed roots are not
@@ -100,14 +105,19 @@ The Windows PC needs proxy routes that only exist after the proxy host pulls,
 so the order is fixed:
 
 1. `flask_modules`: push (`ftp_handler/proxy`: `list_details_sknn_v3`,
-   `fetch_sknn_v3`).
+   `fetch_sknn_v3`, and since 2026-10-17 the `home_only` mode and the
+   `encoding` error code).
 2. `skewnono-scheduler1-webapp`: `git pull` flask_modules, then restart the
    webapp. Check `POST /list_details_sknn_v3` no longer answers 404.
 3. SKEWNONO on the Windows PC: `git pull`, then refresh the copy
    (`cp providers/office_example.py providers/office.py`).
 
 Pulling SKEWNONO before step 2 is harmless but useless: every listing answers
-`503 tool_unreachable` (the proxy's 404 is a `ProxyError`).
+`503 tool_unreachable` (the proxy's 404 is a `ProxyError`). A proxy host
+pulled before 2026-10-17 ignores `home_only` and still LISTs the home folder
+on every request, now cut off at twice the tool timeout (`503
+tool_unreachable`), and answers an encoding error as `503` rather than `502
+tool_encoding`: pull it again.
 
 ## 플래그를 켜기 전 확인할 조건
 

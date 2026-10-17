@@ -29,8 +29,10 @@ Approve, reject and team approve run ``WATCH requests`` -> read and compare
 request is ``RequestChanged`` (409), except an approval retry whose request
 is gone and whose grant exists, which is a no-op. ``WatchError`` subclasses
 ``RedisError``, so it is caught *before* ``STORE_ERRORS`` or it would read as
-an outage: the request is read again, a change to this empno's request is
-409, and any other change is retried up to three times. The fake in
+an outage, and the whole attempt is retried up to three times. The retry
+re-reads and re-compares, so it answers what mock answers: a second admin's
+approval of the same request is a no-op, an approval after a rejection of
+the same request still approves, and a replaced request is 409. The fake in
 ``tests/test_office_template.py`` can only stage a WatchError; real
 two-connection races are an office verification item (MIGRATION.md).
 
@@ -176,30 +178,27 @@ def put_request(empno: str, request: Request) -> None:
         raise StoreUnavailable("request store unreachable; request NOT confirmed") from exc
 
 
-def _watched(empno: str | None, attempt: Callable) -> object:
-    """Run ``attempt(pipe, seen)`` under WATCH requests. ``attempt`` appends
-    the raw request it read for ``empno`` to ``seen``, then queues its writes
-    after ``pipe.multi()`` and executes them."""
+def _watched(attempt: Callable) -> object:
+    """Run ``attempt(pipe)`` under WATCH requests. ``attempt`` reads and
+    judges, then queues its writes after ``pipe.multi()`` and executes them;
+    an aborted EXEC runs it again from the read."""
     try:
         client = _client()
         for _ in range(1 + _WATCH_RETRIES):
-            seen: list = []
             try:
                 with client.pipeline() as pipe:
                     pipe.watch(_REQUESTS_KEY)
-                    return attempt(pipe, seen)
+                    return attempt(pipe)
             # Before STORE_ERRORS: WatchError is a RedisError, not an outage.
             except WatchError:
-                if empno is not None and client.hget(_REQUESTS_KEY, empno) != seen[0]:
-                    raise RequestChanged(empno) from None
+                pass
     except STORE_ERRORS as exc:
         raise StoreUnavailable("request store unreachable; result unknown, reload") from exc
     raise StoreUnavailable("requests kept changing under WATCH; nothing saved")
 
 
-def _matching(pipe, empno: str, request_id: str, seen: list) -> dict | None:
+def _matching(pipe, empno: str, request_id: str) -> dict | None:
     raw = pipe.hget(_REQUESTS_KEY, empno)
-    seen.append(raw)
     if raw is None:
         return None
     current = _decode(raw, _REQUESTS_KEY)
@@ -211,8 +210,8 @@ def _matching(pipe, empno: str, request_id: str, seen: list) -> dict | None:
 def approve_request(empno: str, request_id: str, grant: Grant) -> None:
     key = emp_key(empno)
 
-    def attempt(pipe, seen):
-        if _matching(pipe, empno, request_id, seen) is None:
+    def attempt(pipe):
+        if _matching(pipe, empno, request_id) is None:
             if pipe.hexists(_GRANTS_KEY, key):
                 return None  # a retry of an approval that already landed
             raise RequestChanged(empno)
@@ -222,19 +221,19 @@ def approve_request(empno: str, request_id: str, grant: Grant) -> None:
         pipe.execute()
         return None
 
-    _watched(empno, attempt)
+    _watched(attempt)
 
 
 def reject_request(empno: str, request_id: str) -> None:
-    def attempt(pipe, seen):
-        current = _matching(pipe, empno, request_id, seen)
+    def attempt(pipe):
+        current = _matching(pipe, empno, request_id)
         if current is None:
             raise RequestChanged(empno)
         pipe.multi()
         pipe.hset(_REQUESTS_KEY, empno, _json({**current, "status": "rejected"}))
         pipe.execute()
 
-    _watched(empno, attempt)
+    _watched(attempt)
 
 
 def approve_team(dept_nm: str, grant: Grant) -> tuple[Grant, list[str]]:
@@ -242,7 +241,7 @@ def approve_team(dept_nm: str, grant: Grant) -> tuple[Grant, list[str]]:
     lands meanwhile aborts EXEC and is judged on the retry."""
     key = team_key(dept_nm)
 
-    def attempt(pipe, _seen):
+    def attempt(pipe):
         existing = pipe.hget(_GRANTS_KEY, key)
         cleared = sorted(
             redis_text(field)
@@ -257,7 +256,7 @@ def approve_team(dept_nm: str, grant: Grant) -> tuple[Grant, list[str]]:
         pipe.execute()
         return (grant if existing is None else _decode_grant(existing)), cleared
 
-    return _watched(None, attempt)
+    return _watched(attempt)
 
 
 def _dept_of(raw) -> tuple[str | None, bool]:

@@ -89,6 +89,54 @@ def test_the_proxy_holds_each_transfer_to_the_proxy_deadline(monkeypatch):
     assert sent == [30.0, 5.0, 30.0]
 
 
+class _Canned:
+    """``requests.post`` for the proxy client: records each call, answers one body."""
+
+    def __init__(self, status, body):
+        self.status_code, self._body, self.calls = status, body, []
+
+    def __call__(self, url, json=None, headers=None, timeout=None, stream=False):
+        self.calls.append({"url": url, "json": json, "timeout": timeout})
+        return self
+
+    def json(self):
+        return self._body
+
+    def close(self):
+        pass
+
+
+def test_the_proxy_home_is_a_capped_pwd_not_a_listing(monkeypatch):
+    # Every /list and /download calls home() first; it must not open an
+    # uncapped LIST of the home folder on the proxy host.
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+    post = _Canned(200, {"home": "/home/verity", "entries": []})
+    monkeypatch.setattr("ftp_handler.proxy.proxy_client.requests.post", post)
+
+    with office.open_client(_tool()) as ftp:
+        assert ftp.home() == "/home/verity"
+
+    (call,) = post.calls
+    assert call["json"]["home_only"] is True
+    _, read = call["timeout"]
+    assert read is not None and read <= 2 * _tool().timeout
+
+
+def test_a_proxy_encoding_error_answers_502_tool_encoding(monkeypatch):
+    from backend.ebeam.tool_files import routes
+    from backend.ebeam.tool_files.errors import ToolFilesError
+
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+    monkeypatch.setattr(routes, "open_client", office.open_client)
+    post = _Canned(422, {"code": "encoding", "error": "'utf-8' codec can't decode byte 0xb0"})
+    monkeypatch.setattr("ftp_handler.proxy.proxy_client.requests.post", post)
+
+    with pytest.raises(ToolFilesError) as caught, routes._session(_tool()) as ftp:
+        ftp.list_details("/", deadline=5.0)
+
+    assert (caught.value.status, caught.value.code) == (502, "tool_encoding")
+
+
 def test_the_mock_transport_supports_write():
     assert mock.transport_supports_write() is True
 
@@ -425,6 +473,53 @@ def test_a_re_request_racing_the_decision_is_request_changed(fake, decide):
         decide()
     assert office.read_requests() == {"1000003": _request("b" * 32)}
     assert _stored_grant(fake, "emp:1000003") is None
+
+
+def _approval_lands(empno):
+    def play(fake):
+        fake.hashes.setdefault(GRANTS_KEY, {})[f"emp:{empno}".encode()] = json.dumps(_GRANT).encode()
+        del fake.hashes[REQUESTS_KEY][empno.encode()]
+
+    return play
+
+
+def _rejection_lands(empno, request_id):
+    def play(fake):
+        fake.hashes[REQUESTS_KEY][empno.encode()] = json.dumps(_request(request_id, status="rejected")).encode()
+
+    return play
+
+
+def test_two_admins_approving_at_once_leave_the_loser_a_no_op(fake):
+    # Mock answers the second approval 200; the WATCH loser must too.
+    office.put_request("1000003", _request("a" * 32))
+    fake.races = [_approval_lands("1000003")]
+
+    office.approve_request("1000003", "a" * 32, {"granted_at": "later", "granted_by": "x"})
+
+    assert _stored_grant(fake, "emp:1000003") == _GRANT
+    assert office.read_requests() == {}
+
+
+def test_an_approval_racing_a_rejection_of_the_same_request_still_approves(fake):
+    # Same request_id, only the status moved: mock approves it, so does the retry.
+    office.put_request("1000003", _request("a" * 32))
+    fake.races = [_rejection_lands("1000003", "a" * 32)]
+
+    office.approve_request("1000003", "a" * 32, _GRANT)
+
+    assert _stored_grant(fake, "emp:1000003") == _GRANT
+    assert office.read_requests() == {}
+
+
+def test_a_rejection_racing_an_approval_that_landed_is_request_changed(fake):
+    # Mock's reject finds no request either: 409 on both.
+    office.put_request("1000003", _request("a" * 32))
+    fake.races = [_approval_lands("1000003")]
+
+    with pytest.raises(RequestChanged):
+        office.reject_request("1000003", "a" * 32)
+    assert _stored_grant(fake, "emp:1000003") == _GRANT
 
 
 def test_a_team_approval_grants_the_team_and_clears_its_pending_requests(fake):
