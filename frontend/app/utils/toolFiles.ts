@@ -112,6 +112,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   too_large: '파일이 다운로드 상한보다 커서 받지 못했습니다.',
   listing_too_large: '폴더의 항목이 너무 많아 목록을 불러오지 못했습니다.',
   bad_path: '열 수 없는 경로입니다.',
+  tool_encoding: '장비가 보낸 파일 이름을 읽지 못했습니다. 서버의 FTP 인코딩 설정(SKEWNONO_TOOL_FTP_ENCODING)을 확인해 주세요.',
   untrusted_identity: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다.',
   directory_unavailable: '구성원 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
   store_unavailable: '권한 정보를 읽지 못했습니다. 잠시 후 다시 시도해 주세요.'

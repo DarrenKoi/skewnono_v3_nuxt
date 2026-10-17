@@ -229,3 +229,20 @@ def test_a_tool_that_never_answers_is_503(client):
     off = next(row for row in _unique_rows() if row["available"] == "Off")
     slug = _SLUG_OF[model_to_tool_type(off["eqp_model_cd"])]
     assert _code(_list(client, off, slug=slug)) == (503, "tool_unreachable")
+
+
+def _undecodable(*_args, **_kwargs):
+    raise UnicodeDecodeError("utf-8", b"\xc3", 0, 1, "invalid continuation byte")
+
+
+@pytest.mark.parametrize("method", ["__enter__", "list_details"])
+def test_names_the_server_cannot_decode_are_502_tool_encoding(client, monkeypatch, method):
+    from backend.ebeam.tool_files.providers import mock
+
+    monkeypatch.setattr(mock.MockFtpClient, method, _undecodable)
+
+    response = _list(client, _tool("cd-sem"))
+
+    assert response.status_code == 502
+    assert response.get_json()["error"]["code"] == "tool_encoding"
+    assert "SKEWNONO_TOOL_FTP_ENCODING" in response.get_json()["error"]["message"]

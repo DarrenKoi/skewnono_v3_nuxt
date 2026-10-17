@@ -210,6 +210,18 @@ def _fetch(user_id: str) -> Probe:
         return Probe(None, "unavailable")
 
 
+# An outage is remembered this long, not for the whole TTL bucket: the
+# tool-files verdict reads probe_member on every request, so one cached Redis
+# blip would 503 every team-granted user for up to ten minutes. Short enough to
+# recover quickly, long enough that a dead Redis is not dialed per request.
+_UNAVAILABLE_RETRY_SECONDS = 30
+_outages: dict[str, float] = {}
+
+
+class _Unavailable(Exception):
+    """Raised through the lru_cache so the failure is not stored in it."""
+
+
 @lru_cache(maxsize=1024)
 def _cached(user_id: str, _bucket: int) -> Probe:
     """Cache keyed on (user, time bucket) so entries expire without a sweeper.
@@ -219,7 +231,10 @@ def _cached(user_id: str, _bucket: int) -> Probe:
     can never be served. lru_cache drops the superseded buckets once maxsize is
     reached.
     """
-    return _fetch(user_id)
+    probe = _fetch(user_id)
+    if probe.status == "unavailable":
+        raise _Unavailable
+    return probe
 
 
 def probe_member(user_id: str) -> Probe:
@@ -229,7 +244,14 @@ def probe_member(user_id: str) -> Probe:
     wants ``lookup_member``, which cannot leave a caller with a failure branch
     to forget.
     """
-    return _cached(user_id, int(time.time() // _TTL_SECONDS))
+    now = time.time()
+    if now - _outages.get(user_id, float("-inf")) < _UNAVAILABLE_RETRY_SECONDS:
+        return Probe(None, "unavailable")
+    try:
+        return _cached(user_id, int(now // _TTL_SECONDS))
+    except _Unavailable:
+        _outages[user_id] = now
+        return Probe(None, "unavailable")
 
 
 def lookup_member(user_id: Optional[str]) -> Optional[Member]:
@@ -331,3 +353,4 @@ def lookup_members(user_ids: Iterable[str]) -> dict[str, Member]:
 def reset_cache() -> None:
     """Drop cached profiles. For tests, and for an admin-triggered refresh."""
     _cached.cache_clear()
+    _outages.clear()

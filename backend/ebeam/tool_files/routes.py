@@ -106,11 +106,24 @@ def _tool(tool_slug: str) -> Tool:
     return resolve_tool(get_sem_list(), tool_slug, fab, eqp_id, load_config())
 
 
+def _encoding_error(tool: Tool, exc: UnicodeDecodeError) -> ToolFilesError:
+    # ftplib decodes replies and LIST strictly, and UnicodeDecodeError is not
+    # in all_errors: unmapped it is a 500 that names no cause.
+    return ToolFilesError(
+        502,
+        "tool_encoding",
+        f"{tool.eqp_id} sent names that are not {tool.encoding}; "
+        f"set SKEWNONO_TOOL_FTP_ENCODING (latin-1 at the office): {exc}",
+    )
+
+
 @contextmanager
 def _session(tool: Tool):
     client = open_client(tool)
     try:
         ftp = client.__enter__()
+    except UnicodeDecodeError as exc:
+        raise _encoding_error(tool, exc) from exc
     except all_errors as exc:
         raise ToolFilesError(
             503, "tool_unreachable", f"cannot log in to {tool.eqp_id}: {exc}"
@@ -123,6 +136,8 @@ def _session(tool: Tool):
         raise ToolFilesError(413, "listing_too_large", str(exc)) from exc
     except TransferTimeout as exc:
         raise ToolFilesError(503, "tool_timeout", str(exc)) from exc
+    except UnicodeDecodeError as exc:
+        raise _encoding_error(tool, exc) from exc
     except error_perm as exc:
         # 550 means "missing" and "denied" alike, and a LIST line the parser
         # skipped proves nothing absent, so the two are one answer.

@@ -251,8 +251,12 @@ const selectedEqp = computed({
 })
 const currentPath = computed(() => queryString('path'))
 
+// Null until access is granted, so a refused visitor never sends a /list that
+// can only come back 403 (a console network error nothing can suppress).
 const target = computed(() =>
-  selectedEqp.value ? { toolType: props.toolType, fab: props.fab, eqpId: selectedEqp.value } : null
+  access.value?.verdict === 'granted' && selectedEqp.value
+    ? { toolType: props.toolType, fab: props.fab, eqpId: selectedEqp.value }
+    : null
 )
 
 const {

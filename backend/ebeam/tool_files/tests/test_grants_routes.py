@@ -203,3 +203,21 @@ def test_the_team_list_counts_directory_members(admin):
 def test_the_admin_api_refuses_a_member(app, method, path):
     response = getattr(_member(app, "1000001"), method)(path, json={"kind": "emp", "value": "1000001"})
     assert _code(response) == (403, "forbidden")
+
+
+def test_a_grant_file_with_a_malformed_value_is_503_not_500(admin, tmp_path):
+    (tmp_path / "grants.json").write_text('{"emp:1000001": "yes"}', encoding="utf-8")
+
+    assert _code(admin.get("/api/admin/tool-files")) == (503, "store_unavailable")
+
+
+def test_a_failed_grant_write_leaves_no_temp_file(admin, tmp_path, monkeypatch):
+    from backend.ebeam.tool_files.providers import mock
+
+    def broken_replace(*_args):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(mock.os, "replace", broken_replace)
+
+    assert _code(_grant(admin, "emp", "1000001")) == (503, "store_unavailable")
+    assert sorted(p.name for p in tmp_path.iterdir()) == []

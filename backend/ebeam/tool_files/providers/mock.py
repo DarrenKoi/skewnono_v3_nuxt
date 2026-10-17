@@ -207,8 +207,8 @@ def _read(path: Path) -> dict[str, Grant]:
         return {}
     except (OSError, ValueError) as exc:
         raise StoreUnavailable(f"grant file unreadable: {path}") from exc
-    if not isinstance(raw, dict):
-        raise StoreUnavailable(f"grant file is not a JSON object: {path}")
+    if not isinstance(raw, dict) or not all(isinstance(v, dict) for v in raw.values()):
+        raise StoreUnavailable(f"grant file is not a JSON object of grants: {path}")
     return raw
 
 
@@ -216,10 +216,14 @@ def _write(path: Path, grants: dict[str, Grant]) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".grants.")
+    except OSError as exc:
+        raise StoreUnavailable(f"grant file not writable: {path}") from exc
+    try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(grants, handle, ensure_ascii=False, indent=2)
         os.replace(tmp, path)
     except OSError as exc:
+        Path(tmp).unlink(missing_ok=True)
         raise StoreUnavailable(f"grant file not writable: {path}") from exc
 
 

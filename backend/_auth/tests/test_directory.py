@@ -440,3 +440,25 @@ def test_bulk_lookup_fabricates_at_home(monkeypatch):
 
     assert members["2067928"]["emp_nm"] == "홍길동(2067928)"
     assert members["1234567"]["emp_nm"] == "홍길동(1234567)"
+
+
+def test_an_outage_is_retried_after_a_short_window_not_the_whole_ttl(
+    redis_returning, monkeypatch
+):
+    """An access verdict reads probe_member on every request; caching one Redis
+    blip for the full TTL bucket would 503 every team-granted user for up to
+    ten minutes. Within the retry window the outage is remembered, so a dead
+    Redis is not dialed once per request."""
+    clock = {"now": 1_000_000.0}
+    monkeypatch.setattr(directory_mod.time, "time", lambda: clock["now"])
+    down = redis_returning(raises=STORE_ERRORS[0]("redis is down"))
+    assert probe_member("2067928").status == "unavailable"
+
+    clock["now"] += 1
+    assert probe_member("2067928").status == "unavailable"
+    assert len(down.calls) == 1
+
+    up = redis_returning({"2067928": json.dumps(MEMBER_DOC)})
+    clock["now"] += directory_mod._UNAVAILABLE_RETRY_SECONDS
+    assert probe_member("2067928").status == "found"
+    assert len(up.calls) == 1
