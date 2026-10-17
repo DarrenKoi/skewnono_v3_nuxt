@@ -18,13 +18,7 @@
           : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
         @click="selectedKey = row.key"
       >
-        <span class="truncate">
-          <span
-            v-if="row.prefix"
-            class="text-xs font-normal opacity-70 mr-1"
-          >{{ row.prefix }}</span>
-          <span class="font-semibold tracking-wide">{{ row.label }}</span>
-        </span>
+        <span class="truncate font-semibold tracking-wide">{{ row.label }}</span>
         <span class="tabular-nums text-xs shrink-0 opacity-80">
           {{ countLabel }} {{ row.total.toLocaleString() }}명
         </span>

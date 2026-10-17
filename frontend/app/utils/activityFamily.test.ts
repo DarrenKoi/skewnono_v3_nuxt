@@ -5,7 +5,7 @@ import { TOOL_FAMILY_SINCE, familyRail, toolFamilyNotice } from './activityFamil
 const row = (family: string, total = 0, pages: { feature: string, count: number }[] = []) =>
   ({ family, total, pages })
 
-test('each family row gets its label, with Hitachi named on its two', () => {
+test('each family row gets its plain label', () => {
   // Order and zero rows are the backend's promise (every family, registry
   // order), so the rail keeps what it is given and only names it.
   const rail = familyRail([
@@ -17,13 +17,13 @@ test('each family row gets its label, with Hitachi named on its two', () => {
   ])
 
   assert.deepEqual(
-    rail.map(item => [item.key, item.prefix ?? null, item.label, item.total]),
+    rail.map(item => [item.key, item.label, item.total]),
     [
-      ['cdsem', 'Hitachi', 'CD-SEM', 6],
-      ['hvsem', 'Hitachi', 'HV-SEM', 2],
-      ['veritysem', null, 'VeritySEM', 0],
-      ['provision', null, 'Provision', 0],
-      ['afm', null, 'AFM', 1]
+      ['cdsem', 'CD-SEM', 6],
+      ['hvsem', 'HV-SEM', 2],
+      ['veritysem', 'VeritySEM', 0],
+      ['provision', 'Provision', 0],
+      ['afm', 'AFM', 1]
     ]
   )
   assert.deepEqual(rail[0]!.pages, [{ feature: 'storage', count: 39 }])

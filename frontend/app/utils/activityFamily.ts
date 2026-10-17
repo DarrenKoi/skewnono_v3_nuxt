@@ -13,21 +13,16 @@ import type { FamilyUsageRow, FeatureCount } from '~/composables/useActivityApi'
 export interface RailRow {
   key: string
   label: string
-  /** A quiet word in front of the label. */
-  prefix?: string
   total: number
   pages: FeatureCount[]
 }
 
-// `prefix` names the vendor on Hitachi's two only: CD-SEM and HV-SEM are one
-// vendor's families, and saying so on each is what tells a reader the other
-// three are not more of the same.
-const FAMILY_LABELS: Record<string, { label: string, prefix?: string }> = {
-  cdsem: { label: 'CD-SEM', prefix: 'Hitachi' },
-  hvsem: { label: 'HV-SEM', prefix: 'Hitachi' },
-  veritysem: { label: 'VeritySEM' },
-  provision: { label: 'Provision' },
-  afm: { label: 'AFM' }
+const FAMILY_LABELS: Record<string, string> = {
+  cdsem: 'CD-SEM',
+  hvsem: 'HV-SEM',
+  veritysem: 'VeritySEM',
+  provision: 'Provision',
+  afm: 'AFM'
 }
 
 /**
@@ -39,7 +34,7 @@ const FAMILY_LABELS: Record<string, { label: string, prefix?: string }> = {
 export const familyRail = (rows: readonly FamilyUsageRow[]): RailRow[] =>
   rows.map(row => ({
     key: row.family,
-    ...(FAMILY_LABELS[row.family] ?? { label: row.family }),
+    label: FAMILY_LABELS[row.family] ?? row.family,
     total: row.total,
     pages: row.pages
   }))
