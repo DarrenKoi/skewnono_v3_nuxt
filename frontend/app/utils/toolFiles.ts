@@ -151,11 +151,23 @@ export const sortToolFileEntries = (
   })
 }
 
-export const filterToolFileEntries = (entries: readonly ToolFileEntry[], query: string): ToolFileEntry[] => {
+export type ToolFileKind = 'all' | 'dir' | 'file'
+
+export const filterToolFileEntries = (
+  entries: readonly ToolFileEntry[],
+  query: string,
+  kind: ToolFileKind = 'all'
+): ToolFileEntry[] => {
   const needle = query.trim().toLowerCase()
-  if (!needle) return [...entries]
-  return entries.filter(entry => entry.name.toLowerCase().includes(needle))
+  return entries.filter(entry =>
+    (kind === 'all' || entry.is_dir === (kind === 'dir'))
+    && (!needle || entry.name.toLowerCase().includes(needle)))
 }
+
+// The server re-decodes latin-1-read names as UTF-8 or cp949; a name that
+// still holds U+0080–U+00FF matched neither, so its bytes are corrupted.
+// ponytail: a real Latin-1 accent would be flagged too; none is known on tools.
+export const looksUndecoded = (name: string): boolean => /[\u0080-\u00ff]/.test(name)
 
 const UNITS = ['KB', 'MB', 'GB', 'TB']
 

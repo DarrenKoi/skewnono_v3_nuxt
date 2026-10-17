@@ -3,8 +3,40 @@
     <EbeamMetaBar
       :eyebrow="eyebrow"
       title="장비 파일"
-      :subtitle="target ? target.eqpId : undefined"
-    />
+    >
+      <template #leading>
+        <AppBackButton
+          :to="inventoryPath"
+          label="장비 목록"
+        />
+      </template>
+      <template #actions>
+        <dl
+          v-if="selectedEqp"
+          class="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-1"
+        >
+          <div
+            v-for="fact in toolFacts"
+            :key="fact.label"
+          >
+            <dt class="sk-label">
+              {{ fact.label }}
+            </dt>
+            <dd class="sk-value-num">
+              {{ fact.value }}
+            </dd>
+          </div>
+          <UBadge
+            v-if="connection"
+            :color="connection.color"
+            variant="subtle"
+            :icon="connection.icon"
+          >
+            {{ connection.label }}
+          </UBadge>
+        </dl>
+      </template>
+    </EbeamMetaBar>
 
     <AppLoadingState
       v-if="accessStatus === 'pending'"
@@ -131,64 +163,92 @@
     >
       <template #header>
         <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-arrow-up"
+            aria-label="상위 폴더"
+            :disabled="!listing?.parent"
+            @click="listing?.parent && openPath(listing.parent)"
+          />
           <nav
-            v-if="listing"
-            class="flex flex-wrap items-center gap-1 sk-value-num text-sm"
+            class="flex h-8 min-w-0 flex-[1_1_22rem] items-center gap-0.5 rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-muted-surface) px-1.5"
             aria-label="경로"
           >
+            <UIcon
+              name="i-lucide-hard-drive"
+              class="mx-1 size-3.5 shrink-0 text-(--sk-ink-muted)"
+            />
             <template
-              v-for="(crumb, index) in listing.crumbs"
+              v-for="(crumb, index) in listing?.crumbs ?? []"
               :key="crumb.path"
             >
               <UIcon
                 v-if="index > 0"
                 name="i-lucide-chevron-right"
-                class="size-3.5 text-(--sk-ink-muted)"
+                class="size-3 shrink-0 text-(--sk-ink-subtle)"
               />
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :disabled="crumb.path === listing.path"
+              <button
+                type="button"
+                class="rounded-(--sk-r-sidebar) px-1.5 py-0.5 sk-value-num hover:bg-(--sk-chip-bg)"
+                :class="crumb.path === listing?.path ? 'font-semibold' : undefined"
                 @click="openPath(crumb.path)"
               >
                 {{ crumb.name }}
-              </UButton>
+              </button>
             </template>
+            <UButton
+              v-if="listing"
+              class="ml-auto"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-copy"
+              aria-label="경로 복사"
+              @click="copyPath"
+            />
           </nav>
-          <UBadge
-            v-if="listing"
-            class="ml-auto"
+          <UButton
+            size="sm"
             color="neutral"
-            variant="subtle"
+            variant="outline"
+            icon="i-lucide-refresh-cw"
+            :loading="listingStatus === 'pending'"
+            :disabled="!target"
+            @click="refreshListing()"
           >
-            {{ visibleEntries.length }} / {{ listing.entries.length }}
-          </UBadge>
+            새로고침
+          </UButton>
         </div>
       </template>
 
-      <div class="px-4 py-2.5 flex items-center gap-2 border-b border-(--sk-border)">
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-arrow-up"
-          :disabled="!listing?.parent"
-          @click="listing?.parent && openPath(listing.parent)"
-        >
-          상위 폴더
-        </UButton>
+      <div class="flex flex-wrap items-center gap-2 border-b border-(--sk-border-soft) px-4 py-2.5">
         <UInput
           v-model="nameFilter"
-          class="flex-1 min-w-[14rem]"
-          size="xs"
+          class="min-w-[14rem] flex-1"
+          size="sm"
           icon="i-lucide-search"
           color="neutral"
           variant="subtle"
-          placeholder="이 폴더에서 파일 이름 검색"
+          placeholder="이 폴더에서 이름 검색"
+          aria-label="이 폴더에서 이름 검색"
         />
+        <div
+          class="flex gap-1"
+          role="group"
+          aria-label="종류"
+        >
+          <SkChip
+            v-for="option in KIND_OPTIONS"
+            :key="option.id"
+            :label="option.label"
+            :count="kindCounts[option.id]"
+            :active="kindFilter === option.id"
+            @click="kindFilter = option.id"
+          />
+        </div>
       </div>
-
       <label
         v-if="canWrite && listing && listingStatus === 'success'"
         class="mx-4 my-2.5 flex cursor-pointer items-center justify-center gap-2 rounded-(--sk-r-nav) border border-dashed px-4 py-3 text-sm text-(--sk-ink-muted) transition-colors"
@@ -277,12 +337,32 @@
             <button
               v-if="row.original.is_dir"
               type="button"
-              class="text-left hover:underline"
+              class="text-left font-semibold hover:underline"
               @click="openPath(row.original.path)"
             >
               {{ row.original.name }}
             </button>
             <span v-else>{{ row.original.name }}</span>
+            <UBadge
+              v-if="tooLarge(row.original)"
+              size="sm"
+              color="warning"
+              variant="subtle"
+            >
+              상한 초과
+            </UBadge>
+            <UTooltip
+              v-else-if="looksUndecoded(row.original.name)"
+              text="장비에 저장된 파일명 바이트가 손상되어 원래 이름을 읽을 수 없습니다. 받기는 됩니다."
+            >
+              <UBadge
+                size="sm"
+                color="neutral"
+                variant="subtle"
+              >
+                이름 손상
+              </UBadge>
+            </UTooltip>
           </span>
         </template>
         <template #size-cell="{ row }">
@@ -320,6 +400,17 @@
           />
         </template>
       </UTable>
+      <footer
+        v-if="listing && listingStatus === 'success'"
+        class="flex flex-wrap items-center justify-between gap-2 rounded-b-(--sk-r-card) bg-(--sk-muted-surface) px-4 py-2.5 sk-meta"
+      >
+        <span>
+          폴더 <b class="sk-value-num">{{ kindCounts.dir }}</b>
+          · 파일 <b class="sk-value-num">{{ kindCounts.file }}</b>
+          · 합계 <b class="sk-value-num">{{ formatFileSize(totalBytes) }}</b>
+        </span>
+        <span>수정 시각은 장비 시계 기준 추정값입니다. 링크(바로가기)는 표시하지 않습니다.</span>
+      </footer>
     </UCard>
 
     <UModal
@@ -367,10 +458,13 @@ import type { SortingState } from '@tanstack/vue-table'
 import type { ToolType } from '~/utils/toolType'
 import { formatDateTimeLocal, formatKoreanDateTime } from '~/utils/dateTime'
 import { MANUAL_SORTING_OPTIONS, getSortIcon } from '~/utils/tableSorting'
+import { copyTextToClipboard } from '~/utils/tableExport'
+import { fabSegment } from '~/utils/fab'
 import {
   TOOL_FILES_REASON_MAX,
   filterToolFileEntries,
   formatFileSize,
+  looksUndecoded,
   sortToolFileEntries,
   toolFilesAccessView,
   toolFilesErrorCode,
@@ -378,6 +472,7 @@ import {
   toolFilesReasonValid,
   toolFilesVerdictMessage,
   type ToolFileEntry,
+  type ToolFileKind,
   type ToolFileSortKey
 } from '~/utils/toolFiles'
 
@@ -392,6 +487,7 @@ const router = useRouter()
 const toast = useToast()
 
 const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
+const inventoryPath = computed(() => `/ebeam/${props.toolType}/${fabSegment(props.fab)}`)
 
 const { data: access, status: accessStatus, error: accessError, refresh: refreshAccess } = useToolFilesAccess(props.toolType)
 
@@ -448,6 +544,10 @@ const target = computed(() =>
     : null
 )
 
+const { data: semRows } = useSemList()
+// Display only: a duplicated eqp_id resolves server-side (409 when rows differ).
+const semRow = computed(() => (semRows.value ?? []).find(row => row.eqp_id === selectedEqp.value))
+
 const {
   data: listing,
   status: listingStatus,
@@ -460,11 +560,45 @@ const openPath = (path: string) => {
   router.push({ query: { ...route.query, path } })
 }
 
+const toolFacts = computed(() => [
+  { label: '장비', value: selectedEqp.value ?? '' },
+  { label: '모델', value: semRow.value ? `${semRow.value.eqp_model_cd} · ${semRow.value.vendor_nm}` : '—' },
+  { label: '로그인 폴더', value: listing.value?.root ?? '—' },
+  { label: '다운로드 상한', value: listing.value ? formatFileSize(listing.value.max_bytes) : '—' }
+])
+
+// Read off the listing call itself: there is no separate health probe.
+const connection = computed(() => {
+  if (!target.value) return null
+  if (listingStatus.value === 'pending') return { label: '확인 중', color: 'neutral' as const, icon: 'i-lucide-loader-circle' }
+  if (listingError.value) return { label: '접속 실패', color: 'error' as const, icon: 'i-lucide-unplug' }
+  if (listing.value) return { label: '접속됨', color: 'success' as const, icon: 'i-lucide-check' }
+  return null
+})
+
+const copyPath = async () => {
+  if (!listing.value) return
+  const ok = await copyTextToClipboard(listing.value.path)
+  toast.add({ title: ok ? '경로를 복사했습니다.' : '경로를 복사하지 못했습니다.', color: ok ? 'success' : 'error' })
+}
+
 const nameFilter = ref('')
+const kindFilter = ref<ToolFileKind>('all')
+const KIND_OPTIONS: { id: ToolFileKind, label: string }[] = [
+  { id: 'all', label: '전체' },
+  { id: 'dir', label: '폴더' },
+  { id: 'file', label: '파일' }
+]
+const kindCounts = computed(() => {
+  const entries = listing.value?.entries ?? []
+  const dir = entries.filter(entry => entry.is_dir).length
+  return { all: entries.length, dir, file: entries.length - dir }
+})
+const totalBytes = computed(() => (listing.value?.entries ?? []).reduce((sum, entry) => sum + (entry.size ?? 0), 0))
 const sorting = ref<SortingState>([{ id: 'name', desc: false }])
 
 const visibleEntries = computed(() => {
-  const rows = filterToolFileEntries(listing.value?.entries ?? [], nameFilter.value)
+  const rows = filterToolFileEntries(listing.value?.entries ?? [], nameFilter.value, kindFilter.value)
   const sort = sorting.value[0]
   return sort ? sortToolFileEntries(rows, sort.id as ToolFileSortKey, sort.desc ? 'desc' : 'asc') : rows
 })

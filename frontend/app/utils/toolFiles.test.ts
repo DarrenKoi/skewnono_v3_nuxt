@@ -4,6 +4,7 @@ import {
   TOOL_FILES_REASON_MAX,
   describeToolFilesGrants,
   filterToolFileEntries,
+  looksUndecoded,
   formatFileSize,
   pendingToolFilesRequests,
   sortToolFileEntries,
@@ -47,6 +48,19 @@ test('the name filter is case-insensitive and keeps folders that match only', ()
   const rows = [entry('EVENT_01.log'), entry('RECIPE', { is_dir: true }), entry('event_02.LOG')]
   assert.deepEqual(filterToolFileEntries(rows, 'event').map(e => e.name), ['EVENT_01.log', 'event_02.LOG'])
   assert.deepEqual(filterToolFileEntries(rows, '  ').map(e => e.name), ['EVENT_01.log', 'RECIPE', 'event_02.LOG'])
+})
+
+test('the kind filter keeps folders, files or both, after the name filter', () => {
+  const rows = [entry('LOG', { is_dir: true }), entry('log.txt'), entry('RECIPE', { is_dir: true })]
+  assert.deepEqual(filterToolFileEntries(rows, '', 'dir').map(e => e.name), ['LOG', 'RECIPE'])
+  assert.deepEqual(filterToolFileEntries(rows, '', 'file').map(e => e.name), ['log.txt'])
+  assert.deepEqual(filterToolFileEntries(rows, 'log', 'all').map(e => e.name), ['LOG', 'log.txt'])
+})
+
+test('a name still holding latin-1 bytes reads as undecoded; Korean and ASCII do not', () => {
+  assert.equal(looksUndecoded('\u00ff\u00fe_scan.log'), true)
+  assert.equal(looksUndecoded('측정결과.csv'), false)
+  assert.equal(looksUndecoded('README.TXT'), false)
 })
 
 test('sizes read in binary units, folders read as nothing', () => {
