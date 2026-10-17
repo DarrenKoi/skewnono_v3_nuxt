@@ -35,6 +35,9 @@ used by the host app:
         {"results":[{"host","remote_path"}],
          "failures":[{"host","error","remote_path"}]}
     GET  /healthz_sknn_v3 -> {"status":"ok"}
+    POST /list_details_sknn_v3, POST /fetch_sknn_v3
+        single-server reads for ``proxy_client.FtpClient`` (wire documented
+        there): one fresh FTP connection per request, no write route.
 
 Auth: if env FTP_PROXY_TOKEN is set, requests must carry
 ``Authorization: Bearer <token>`` or get 401. Always serve behind HTTPS in
@@ -58,7 +61,7 @@ import hmac
 import os
 from pathlib import Path
 
-from flask import Blueprint, Flask, jsonify, request
+from flask import Blueprint, Flask, Response, jsonify, request
 
 # Import the real downloader, whether this module is run as a package member or
 # copied out flat beside fleet_downloader.py and run as a script.
@@ -89,6 +92,10 @@ URL_LIST = "/list_dirs_sknn_v3"
 URL_SIZE = "/size_dirs_sknn_v3"
 URL_UPLOAD = "/upload_sknn_v3"
 URL_HEALTH = "/healthz_sknn_v3"
+# Single-server reads for ``proxy_client.FtpClient``; wire documented there.
+URL_LIST_DETAILS = "/list_details_sknn_v3"
+URL_FETCH = "/fetch_sknn_v3"
+ERROR_STATUS = 422
 
 ftp_proxy_sknn_v3 = Blueprint("ftp_proxy_sknn_v3", __name__)
 
@@ -292,6 +299,143 @@ def upload():
             ],
         }
     )
+
+
+class _BadRequest(Exception):
+    pass
+
+
+def _read_body() -> dict:
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or not isinstance(body.get("host"), str):
+        raise _BadRequest("need a JSON object with a host")
+    return body
+
+
+def _single_client(body: dict):
+    """A ``core.FtpClient`` from the request envelope. Imported here, not at the
+    top, so the five fleet routes keep working from a flat copy-out bundle that
+    has no ``ftp_handler`` package beside it."""
+    from ftp_handler.core.client import FtpClient
+
+    return FtpClient(
+        host=body["host"],
+        # Same fallback as _downloader_from: the envelope names the account;
+        # the proxy host's pair covers a request that names none.
+        user=body.get("user", os.getenv("FTP_PROXY_FTP_USER", "")),
+        password=body.get("password", os.getenv("FTP_PROXY_FTP_PASSWORD", "")),
+        port=body.get("port", 21),
+        timeout=body.get("timeout", 8.0),
+        passive=body.get("passive", True),
+        encoding=body.get("encoding", "utf-8"),
+    )
+
+
+def _single_read(op):
+    """Run ``op(ftp, body)`` on a fresh connection; map failures to ``{code, error}``.
+
+    Connect/login failures are ``unreachable`` whatever ftplib raised (a 530 is
+    an ``error_perm`` too, and must not read as a missing file).
+    """
+    from ftplib import all_errors, error_perm
+
+    from ftp_handler.core.client import (
+        ListingTooLarge,
+        TransferTimeout,
+        TransferTooLarge,
+    )
+
+    def fail(code: str, exc: BaseException):
+        return jsonify({"code": code, "error": str(exc)}), ERROR_STATUS
+
+    try:
+        body = _read_body()
+        client = _single_client(body)
+    except (_BadRequest, TypeError, ValueError) as exc:
+        return fail("bad_request", exc)
+    try:
+        ftp = client.__enter__()
+    except all_errors as exc:
+        return fail("unreachable", exc)
+    try:
+        return op(ftp, body)
+    except (_BadRequest, TypeError, ValueError) as exc:
+        return fail("bad_request", exc)
+    except TransferTooLarge as exc:
+        return fail("too_large", exc)
+    except ListingTooLarge as exc:
+        return fail("listing_too_large", exc)
+    except TransferTimeout as exc:
+        return fail("timeout", exc)
+    except error_perm as exc:
+        return fail("unavailable", exc)
+    except all_errors as exc:
+        return fail("unreachable", exc)
+    finally:
+        client.__exit__(None, None, None)
+
+
+def _list_details(ftp, body: dict):
+    from datetime import timedelta, timezone
+
+    home = ftp.home()
+    remote_dir = body.get("remote_dir")
+    kwargs = {}
+    if body.get("tz_offset_s") is not None:
+        kwargs["tz"] = timezone(timedelta(seconds=body["tz_offset_s"]))
+    infos = ftp.list_details(
+        home if remote_dir is None else remote_dir,
+        body.get("pattern"),
+        max_entries=body.get("max_entries"),
+        max_raw_bytes=body.get("max_raw_bytes"),
+        deadline=body.get("deadline_s"),
+        **kwargs,
+    )
+    return jsonify(
+        {
+            "home": home,
+            "entries": [
+                {
+                    "name": i.name,
+                    "path": i.path,
+                    "is_dir": i.is_dir,
+                    "size": i.size,
+                    "modified": i.modified.isoformat() if i.modified else None,
+                    "is_link": i.is_link,
+                    "raw": i.raw,
+                }
+                for i in infos
+            ],
+        }
+    )
+
+
+@ftp_proxy_sknn_v3.post(URL_LIST_DETAILS)
+def list_details():
+    denied = _unauthorized()
+    if denied is not None:
+        return denied
+    return _single_read(_list_details)
+
+
+def _fetch(ftp, body: dict):
+    remote_path = body.get("remote_path")
+    if not isinstance(remote_path, str) or not remote_path:
+        raise _BadRequest("need a remote_path")
+    # core.download checks max_bytes and the deadline per FTP chunk; the bytes
+    # are only sent once the whole file is in, so a failure can still be JSON.
+    data = ftp.download(
+        remote_path, max_bytes=body.get("max_bytes"), deadline=body.get("deadline_s")
+    )
+    return Response(data, mimetype="application/octet-stream")
+
+
+@ftp_proxy_sknn_v3.post(URL_FETCH)
+def fetch():
+    denied = _unauthorized()
+    if denied is not None:
+        return denied
+    return _single_read(_fetch)
 
 
 def create_app() -> Flask:
