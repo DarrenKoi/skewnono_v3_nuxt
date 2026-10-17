@@ -335,7 +335,10 @@ def _single_read(op):
     """Run ``op(ftp, body)`` on a fresh connection; map failures to ``{code, error}``.
 
     Connect/login failures are ``unreachable`` whatever ftplib raised (a 530 is
-    an ``error_perm`` too, and must not read as a missing file).
+    an ``error_perm`` too, and must not read as a missing file). A name, banner
+    or PWD reply the server charset cannot decode is ``encoding`` wherever it
+    happens: ``UnicodeError`` is neither in ``ftplib.all_errors`` nor a bad
+    request, though it subclasses ``ValueError``, so it is caught first.
     """
     from ftplib import all_errors, error_perm
 
@@ -355,10 +358,14 @@ def _single_read(op):
         return fail("bad_request", exc)
     try:
         ftp = client.__enter__()
+    except UnicodeError as exc:
+        return fail("encoding", exc)
     except all_errors as exc:
         return fail("unreachable", exc)
     try:
         return op(ftp, body)
+    except UnicodeError as exc:
+        return fail("encoding", exc)
     except (_BadRequest, TypeError, ValueError) as exc:
         return fail("bad_request", exc)
     except TransferTooLarge as exc:
@@ -379,6 +386,9 @@ def _list_details(ftp, body: dict):
     from datetime import timedelta, timezone
 
     home = ftp.home()
+    if body.get("home_only"):
+        # PWD only: home() must not pay for an uncapped LIST of the home dir.
+        return jsonify({"home": home, "entries": []})
     remote_dir = body.get("remote_dir")
     kwargs = {}
     if body.get("tz_offset_s") is not None:

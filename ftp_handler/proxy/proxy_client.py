@@ -18,12 +18,14 @@ read when the client is built, the same constants ``FtpFleetDownloader`` uses.
 
 Wire (``POST``, JSON body = credentials envelope + operation fields):
     /list_details_sknn_v3  {remote_dir|null, pattern, tz_offset_s,
-                            max_entries, max_raw_bytes, deadline_s}
+                            max_entries, max_raw_bytes, deadline_s, home_only}
         200 {home, entries:[{name, path, is_dir, size, modified, is_link, raw}]}
-        ``remote_dir`` null lists the login directory (PWD).
+        ``remote_dir`` null lists the login directory (PWD); ``home_only`` true
+        answers ``{home, entries: []}`` after the PWD with no LIST at all.
     /fetch_sknn_v3         {remote_path, max_bytes, deadline_s}
         200 application/octet-stream, the raw file bytes
-    Either route: 422 {code, error}, mapped back to an exception by ``_ERRORS``.
+    Either route: 422 {code, error}, mapped back to an exception by ``_ERRORS``;
+    ``encoding`` (an undecodable name, banner or PWD) is ``UnicodeDecodeError``.
     Any other status, or a body that is not the expected JSON, is ``ProxyError``.
 
 ``deadline_s`` is the seconds remaining, never a clock reading: the two machines'
@@ -76,7 +78,10 @@ _ERRORS = {
     "timeout": TransferTimeout,
     "unavailable": FileUnavailable,
     "unreachable": ToolUnreachable,
-    "bad_request": ValueError,
+    # A request the proxy cannot parse is a version mismatch between the two
+    # halves, not a value the caller passed.
+    "bad_request": ProxyError,
+    "encoding": "encoding",
 }
 
 
@@ -155,6 +160,9 @@ class FtpClient:
             resp.close()
         if exc_type is None:
             raise ProxyError(f"proxy answered HTTP {resp.status_code} on {path}")
+        if exc_type == "encoding":
+            # The direct client raises this from ftplib's decode; same type here.
+            raise UnicodeDecodeError(self.encoding, b"", 0, 0, error)
         raise exc_type(error)
 
     def _json(self, resp) -> dict:
@@ -179,9 +187,12 @@ class FtpClient:
 
     def home(self) -> str:
         """The login directory (PWD) — the root a relative path resolves from."""
-        # ponytail: the proxy also LISTs the home dir here (no third route);
-        # cache it per client if a tool's home listing ever proves heavy.
-        body = self._list(None, None, _DEFAULT_TZ, None, None, None)
+        # home_only: PWD with no LIST. The read waits ``timeout`` on top of a
+        # ``timeout`` budget for the proxy's connect+login+PWD, never forever.
+        # An older proxy ignores home_only and LISTs; the read timeout still
+        # bounds that, as a ProxyError.
+        payload = {"remote_dir": None, "home_only": True}
+        body = self._json(self._post(URL_LIST_DETAILS, payload, self.timeout))
         return _field(lambda: str(body["home"]))
 
     def list_details(
