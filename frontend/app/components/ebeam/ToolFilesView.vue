@@ -93,6 +93,28 @@
         />
       </div>
 
+      <label
+        v-if="canWrite && listing && !listingError"
+        class="mx-4 my-2.5 flex cursor-pointer items-center justify-center gap-2 rounded-(--sk-r-nav) border border-dashed px-4 py-3 text-sm text-(--sk-ink-muted) transition-colors"
+        :class="dragging ? 'border-(--sk-accent) bg-(--sk-accent-tint) text-(--sk-ink)' : 'border-(--sk-border) hover:bg-(--sk-muted-surface)'"
+        @dragover.prevent="dragging = true"
+        @dragleave="dragging = false"
+        @drop.prevent="onDrop"
+      >
+        <UIcon
+          :name="uploading ? 'i-lucide-loader-circle' : 'i-lucide-upload'"
+          :class="['size-4', uploading && 'animate-spin']"
+        />
+        <span>{{ uploading ? `${uploading} 올리는 중…` : `파일을 끌어 놓거나 눌러서 ${listing.path} 에 올리기` }}</span>
+        <input
+          type="file"
+          class="sr-only"
+          multiple
+          :disabled="!!uploading"
+          @change="onPick"
+        >
+      </label>
+
       <AppEmptyState
         v-if="!target"
         icon="i-lucide-server"
@@ -190,9 +212,56 @@
               @click="download(row.original)"
             />
           </UTooltip>
+          <UButton
+            v-if="canWrite && !row.original.is_dir"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-trash-2"
+            class="text-rose-600"
+            :aria-label="`${row.original.name} 삭제`"
+            @click="pendingDelete = row.original"
+          />
         </template>
       </UTable>
     </UCard>
+
+    <UModal
+      :open="!!pendingDelete"
+      title="파일 삭제"
+      @update:open="(open: boolean) => { if (!open && !deleting) pendingDelete = null }"
+    >
+      <template #body>
+        <p class="text-sm text-(--sk-ink)">
+          장비에서 다음 파일을 삭제합니다. 되돌릴 수 없습니다.
+        </p>
+        <p class="mt-2 break-all rounded-(--sk-r-nav) bg-(--sk-muted-surface) px-3 py-2 sk-value-num text-sm">
+          {{ pendingDelete?.name }}
+        </p>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :disabled="deleting"
+            @click="pendingDelete = null"
+          >
+            취소
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-trash-2"
+            class="text-rose-600"
+            :loading="deleting"
+            @click="confirmDelete"
+          >
+            삭제
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -286,12 +355,19 @@ const SORTABLE_HEADERS = [
   { id: 'modified', label: '수정 시각' }
 ] as const
 
-const columns: TableColumn<ToolFileEntry>[] = [
+const canWrite = computed(() => access.value?.can_write === true)
+
+const columns = computed<TableColumn<ToolFileEntry>[]>(() => [
   { accessorKey: 'name', header: '이름' },
   { accessorKey: 'size', header: '크기', meta: { class: { th: 'text-right w-[8rem]', td: 'w-[8rem]' } } },
   { accessorKey: 'modified', header: '수정 시각', meta: { class: { th: 'w-[11rem]', td: 'w-[11rem]' } } },
-  { id: 'actions', header: '', enableSorting: false, meta: { class: { th: 'w-[3rem]', td: 'w-[3rem]' } } }
-]
+  {
+    id: 'actions',
+    header: '',
+    enableSorting: false,
+    meta: { class: canWrite.value ? { th: 'w-[5rem]', td: 'w-[5rem]' } : { th: 'w-[3rem]', td: 'w-[3rem]' } }
+  }
+])
 
 const ariaSort = (direction: false | 'asc' | 'desc') =>
   direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'
@@ -314,5 +390,62 @@ const download = async (entry: ToolFileEntry) => {
   } finally {
     downloading.value = null
   }
+}
+
+const dragging = ref(false)
+const uploading = ref<string | null>(null)
+
+// One request per file, in order: the server takes one file per upload.
+const uploadAll = async (files: File[]) => {
+  const current = target.value
+  const dir = listing.value?.path
+  if (!current || !dir || uploading.value) return
+  let uploaded = 0
+  for (const file of files) {
+    uploading.value = file.name
+    try {
+      await uploadToolFile(current, dir, file)
+      uploaded += 1
+    } catch (error) {
+      toast.add({
+        title: `${file.name}: ${toolFilesErrorMessage(toolFilesErrorCode(error), 'upload')}`,
+        color: 'error'
+      })
+    }
+  }
+  uploading.value = null
+  if (uploaded) toast.add({ title: `${uploaded}개 파일을 올렸습니다.`, color: 'success' })
+  await refreshListing()
+}
+
+const onDrop = (event: DragEvent) => {
+  dragging.value = false
+  uploadAll([...(event.dataTransfer?.files ?? [])])
+}
+
+const onPick = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const files = [...(input.files ?? [])]
+  input.value = ''
+  uploadAll(files)
+}
+
+const pendingDelete = ref<ToolFileEntry | null>(null)
+const deleting = ref(false)
+
+const confirmDelete = async () => {
+  const entry = pendingDelete.value
+  if (!entry || !target.value) return
+  deleting.value = true
+  try {
+    await deleteToolFile(target.value, entry.path)
+    toast.add({ title: `${entry.name}을(를) 삭제했습니다.`, color: 'success' })
+  } catch (error) {
+    toast.add({ title: toolFilesErrorMessage(toolFilesErrorCode(error)), color: 'error' })
+  } finally {
+    deleting.value = false
+    pendingDelete.value = null
+  }
+  await refreshListing()
 }
 </script>

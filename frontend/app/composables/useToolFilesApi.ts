@@ -60,6 +60,23 @@ export const downloadToolFile = async (target: ToolFilesTarget, path: string, na
   URL.revokeObjectURL(href)
 }
 
+// Writes answer only when the server's `access.can_write` is true; a page that
+// shows no write controls otherwise never sends these.
+export const uploadToolFile = (target: ToolFilesTarget, dir: string, file: File) => {
+  const form = new FormData()
+  form.append('fab', target.fab)
+  form.append('eqp_id', target.eqpId)
+  form.append('dir', dir)
+  form.append('file', file)
+  return $fetch<{ path: string }>(apiUrl(target, 'upload'), { method: 'POST', body: form })
+}
+
+export const deleteToolFile = (target: ToolFilesTarget, path: string) =>
+  $fetch<{ deleted: string }>(apiUrl(target, 'delete'), {
+    method: 'POST',
+    body: { fab: target.fab, eqp_id: target.eqpId, path }
+  })
+
 export type ToolFilesGrantKind = 'team' | 'emp'
 
 export const useToolFilesAdminApi = () => {

@@ -14,7 +14,11 @@ listed from home). What it copies on purpose are the properties known to bite:
 - a login directory that is not ``/`` (HV-SEM here, OFFICE-VERIFY);
 - tools that never answer: every sem_list row with ``available == "Off"``.
 
-The mock never opens a socket.
+The mock never opens a socket. ``put`` and ``remove`` really change the tree
+(module-level ``_TREE``, so a write is seen by the next request until the
+process restarts); ``put`` onto an existing name raises ``TargetExists`` as
+``core.FtpClient.put`` does. It never raises ``TransferUncertain``: that needs
+a lost RNTO reply, which only a real server can lose.
 
 It also carries this feature's two other swap surfaces, so one provider choice
 decides all three:
@@ -40,7 +44,7 @@ from ftplib import error_perm
 from pathlib import Path
 from threading import Lock
 
-from ftp_handler.core import FileInfo, ListingTooLarge, TransferTooLarge
+from ftp_handler.core import FileInfo, ListingTooLarge, TargetExists, TransferTooLarge
 
 from backend._auth.directory import Probe
 from backend.ebeam.tool_files.contracts import Grant, Teams
@@ -58,6 +62,8 @@ class _File:
     size: int
     age_hours: int
     link: bool = False
+    # Uploaded bytes; fabricated files have none and download as filler.
+    data: bytes | None = None
 
 
 def _korean_as_latin1(name: str) -> str:
@@ -148,8 +154,29 @@ class MockFtpClient:
             raise error_perm(f"550 {remote_path}: Is a directory")
         if max_bytes is not None and node.size > max_bytes:
             raise TransferTooLarge(f"{remote_path} exceeds {max_bytes} bytes")
+        if node.data is not None:
+            return node.data
         line = f"mock {remote_path}\n".encode("utf-8")
         return (line * (node.size // len(line) + 1))[: node.size]
+
+    def _folder_of(self, remote_path: str) -> tuple[dict, str]:
+        folder, name = remote_path.rsplit("/", 1)
+        node = self._node(folder or "/")
+        if not isinstance(node, dict):
+            raise error_perm(f"550 {folder}: Not a directory")
+        return node, name
+
+    def put(self, remote_path, data, *, deadline=None) -> None:
+        node, name = self._folder_of(remote_path)
+        if name in node:
+            raise TargetExists(remote_path)
+        node[name] = _File(len(data), 0, data=data)
+
+    def remove(self, remote_path) -> None:
+        node, name = self._folder_of(remote_path)
+        if not isinstance(node.get(name), _File):
+            raise error_perm(f"550 {remote_path}: No such file")
+        del node[name]
 
 
 def open_client(tool: Tool) -> MockFtpClient:

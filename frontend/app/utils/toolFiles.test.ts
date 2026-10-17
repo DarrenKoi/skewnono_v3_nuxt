@@ -58,6 +58,16 @@ test('each server error code reads as its own Korean line, unknown codes fall ba
   assert.equal(toolFilesErrorMessage('something_new'), '요청을 처리하지 못했습니다.')
 })
 
+test('write failures say what happened to the file', () => {
+  assert.equal(toolFilesErrorMessage('file_exists'), '같은 이름이 있어 올리지 않았습니다.')
+  assert.match(toolFilesErrorMessage('transfer_uncertain'), /새로고침/)
+  assert.equal(toolFilesErrorMessage('write_disabled'), '서버에서 파일 쓰기가 꺼져 있습니다.')
+  assert.equal(toolFilesErrorMessage('write_not_supported'), '이 연결 방식에서는 파일을 쓸 수 없습니다.')
+  // The download wording would be wrong for an upload over the cap.
+  assert.equal(toolFilesErrorMessage('too_large', 'upload'), '파일이 업로드 상한보다 커서 올리지 않았습니다.')
+  assert.equal(toolFilesErrorMessage('tool_unreachable', 'upload'), toolFilesErrorMessage('tool_unreachable'))
+})
+
 const grant = (kind: 'team' | 'emp', value: string, dept_nm: string | null = null): ToolFilesGrantRow => ({
   kind,
   value,

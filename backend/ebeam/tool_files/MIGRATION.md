@@ -52,6 +52,17 @@ Transfer limits, all OFFICE-VERIFY proposals:
 | `SKEWNONO_TOOL_FILES_PROXY_DEADLINE` | 45 s per transfer through the proxy (proxy host harakiri 60 s, OFFICE-VERIFY on scheduler1) |
 | `SKEWNONO_TOOL_FILES_MAX_ENTRIES` | 20000 raw LIST lines |
 | `SKEWNONO_TOOL_FILES_MAX_LIST_BYTES` | 4 MB of raw LIST |
+| `SKEWNONO_TOOL_FILES_MAX_UPLOAD_BYTES` | 100 MB per upload (Content-Length checked before parsing, bytes read counted again) |
+
+Writes: `SKEWNONO_TOOL_FILES_WRITE` (default off; `1`/`true`/`yes`/`on` turn
+it on). `can_write` in `GET .../tool-files/access` is
+`flag ∧ is_admin_request() ∧ transport_supports_write()`. A write request is
+refused in that order, before its body is read or FTP opens: 403
+`write_disabled`, 403 `forbidden`, 501 `write_not_supported`. Upload uses
+`FtpClient.put` (temp name, then RNFR/RNTO, never overwrites: 409
+`file_exists`; a lost RNTO reply is 503 `transfer_uncertain`), delete uses
+`FtpClient.remove`. Both log one `skewnono.tool_files` line with actor,
+identity source, target, result and request_id.
 
 ## Known limits
 
@@ -86,6 +97,29 @@ so the order is fixed:
 
 Pulling SKEWNONO before step 2 is harmless but useless: every listing answers
 `503 tool_unreachable` (the proxy's 404 is a `ProxyError`).
+
+## 플래그를 켜기 전 확인할 조건
+
+`SKEWNONO_TOOL_FILES_WRITE`는 아래 항목을 계열마다 office에서 확인한 뒤에 켭니다.
+모두 `OFFICE-VERIFY`입니다.
+
+- [ ] **RNTO 동작.** 대상 이름에 파일이 이미 있을 때 서버가 RNTO를 거절하는지,
+      덮어쓰는지 확인합니다. 같은 이름의 폴더가 있을 때의 동작도 봅니다. `put`의
+      덮어쓰기 거부는 SIZE 확인에 기대는 best-effort이고, writer가 한 명이라는
+      전제 위에서만 성립합니다.
+- [ ] **SIZE 응답.** 없는 파일에 SIZE를 보내면 550이 오는지 확인합니다. 다른 코드가
+      오면 `put`이 모든 업로드를 거절합니다.
+- [ ] **서버 측 쓰기 범위 제한.** 장비 FTP 계정이 로그인 루트 밖에 쓸 수 없도록
+      chroot나 계정 권한으로 제한되어 있는지 확인합니다. 경로 검사는 가드레일일
+      뿐이고, 링크로 된 중간 폴더는 잡지 못합니다.
+- [ ] **임시 파일.** 업로드가 끊기면 `<이름>.<난수>.part`가 남을 수 있습니다. 장비
+      소프트웨어가 이런 파일을 레시피나 로그로 잘못 읽지 않는지 확인합니다.
+- [ ] **파일 이름 인코딩.** `SKEWNONO_TOOL_FTP_ENCODING=latin-1`에서는 한글 이름을
+      보낼 수 없어 400 `bad_path`로 거절합니다. 한글 이름 업로드가 필요한지 정합니다.
+- [ ] **transport.** proxy(Windows office PC)에서는 `transport_supports_write()`가
+      거짓이어야 합니다(ticket 06). 화면에 업로드·삭제가 보이지 않는지 확인합니다.
+- [ ] **운영 확인.** 작은 파일 하나를 올리고, 목록에 보이는지, 같은 이름이 409인지,
+      삭제하면 사라지는지 봅니다. 감사 로그 한 줄이 OpenSearch에 남는지도 확인합니다.
 
 ## Verify at the office
 

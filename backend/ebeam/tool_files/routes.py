@@ -4,13 +4,20 @@ from datetime import datetime, timezone
 from ftplib import all_errors, error_perm
 
 from flask import Blueprint, Response, g, jsonify, request
+from werkzeug.exceptions import RequestEntityTooLarge
 
-from ftp_handler.core import ListingTooLarge, TransferTimeout, TransferTooLarge
+from ftp_handler.core import (
+    ListingTooLarge,
+    TargetExists,
+    TransferTimeout,
+    TransferTooLarge,
+    TransferUncertain,
+)
 
-from backend._auth.admin import require_admin
+from backend._auth.admin import is_admin_request, require_admin
 from backend._auth.errors import error_json
 from backend.ebeam._tool_specs import VALID_TOOL_SLUGS
-from backend.ebeam.tool_files.config import load_limits
+from backend.ebeam.tool_files.config import load_limits, write_enabled
 from backend.ebeam.tool_files.access import decide, emp_key, team_key
 from backend.ebeam.tool_files.contracts import (
     Access,
@@ -27,6 +34,7 @@ from backend.ebeam.tool_files.data import (
     put_grant,
     read_grants,
     teams,
+    transport_supports_write,
 )
 from backend.ebeam.tool_files.errors import (
     DirectoryUnavailable,
@@ -46,6 +54,11 @@ logger = logging.getLogger("skewnono.tool_files")
 @bp.errorhandler(ToolFilesError)
 def _tool_files_error(err: ToolFilesError):
     return error_json(err.code, err.message, err.status)
+
+
+@bp.errorhandler(RequestEntityTooLarge)
+def _upload_too_large(_err: RequestEntityTooLarge):
+    return error_json("too_large", "upload exceeds the size cap", 413)
 
 
 @bp.errorhandler(StoreUnavailable)
@@ -98,9 +111,11 @@ def _require_access() -> None:
         raise ToolFilesError(status, code, f"tool file access refused: {verdict}")
 
 
-def _tool(tool_slug: str) -> Tool:
-    fab = request.args.get("fab", "")
-    eqp_id = request.args.get("eqp_id", "")
+def _tool(tool_slug: str, source=None) -> Tool:
+    source = request.args if source is None else source
+    fab, eqp_id = source.get("fab", ""), source.get("eqp_id", "")
+    if not isinstance(fab, str) or not isinstance(eqp_id, str):
+        raise ToolFilesError(400, "bad_request", "fab and eqp_id must be strings")
     if tool_slug not in VALID_TOOL_SLUGS or not fab or not eqp_id:
         raise ToolFilesError(400, "bad_request", "need a valid tool_slug, fab and eqp_id")
     return resolve_tool(get_sem_list(), tool_slug, fab, eqp_id, load_config())
@@ -136,8 +151,19 @@ def _session(tool: Tool):
         raise ToolFilesError(413, "listing_too_large", str(exc)) from exc
     except TransferTimeout as exc:
         raise ToolFilesError(503, "tool_timeout", str(exc)) from exc
+    except TargetExists as exc:
+        raise ToolFilesError(409, "file_exists", f"{exc} already exists") from exc
+    except TransferUncertain as exc:
+        raise ToolFilesError(
+            503, "transfer_uncertain", "the tool may or may not have the file; list again"
+        ) from exc
     except UnicodeDecodeError as exc:
         raise _encoding_error(tool, exc) from exc
+    except UnicodeEncodeError as exc:
+        # An upload name the tool's encoding cannot carry (Korean under latin-1).
+        raise ToolFilesError(
+            400, "bad_path", f"name cannot be sent as {tool.encoding}: {exc}"
+        ) from exc
     except error_perm as exc:
         # 550 means "missing" and "denied" alike, and a LIST line the parser
         # skipped proves nothing absent, so the two are one answer.
@@ -150,7 +176,8 @@ def _session(tool: Tool):
 
 @bp.get("/<tool_slug>/tool-files/access")
 def access(tool_slug: str):
-    body: Access = {"verdict": _verdict(), "can_write": False}
+    can_write = write_enabled() and is_admin_request() and transport_supports_write()
+    body: Access = {"verdict": _verdict(), "can_write": can_write}
     return jsonify(body)
 
 
@@ -208,6 +235,66 @@ def download(tool_slug: str):
     return response
 
 
+def _require_write() -> None:
+    """Called before anything reads the body or opens FTP."""
+    if not write_enabled():
+        raise ToolFilesError(403, "write_disabled", "tool file writes are switched off")
+    if not is_admin_request():
+        raise ToolFilesError(403, "forbidden", "only an admin may write tool files")
+    if not transport_supports_write():
+        raise ToolFilesError(501, "write_not_supported", "this transport cannot write")
+    _require_access()
+
+
+@contextmanager
+def _audited(action: str, target: str):
+    try:
+        yield
+    except ToolFilesError as exc:
+        _audit(action, target, exc.code)
+        raise
+    _audit(action, target, "ok")
+
+
+@bp.post("/<tool_slug>/tool-files/upload")
+def upload(tool_slug: str):
+    _require_write()
+    limits = load_limits()
+    cap = limits.max_upload_bytes
+    if (request.content_length or 0) > cap:
+        raise ToolFilesError(413, "too_large", f"upload exceeds {cap} bytes")
+    # The bytes actually read are counted too: a body that names no
+    # Content-Length (chunked) is cut off at the cap while it is parsed.
+    request.max_content_length = cap
+    tool = _tool(tool_slug, request.form)
+    files, folder = request.files.getlist("file"), request.form.get("dir", "")
+    if len(files) != 1 or len(request.files) != 1:
+        raise ToolFilesError(400, "bad_request", "need exactly one file")
+    data = files[0].read()
+    name = (files[0].filename or "").replace("\\", "/").rsplit("/", 1)[-1]
+    with _audited("upload", f"{tool.eqp_id}@{tool.fab_name}:{folder}/{name}"):
+        with _session(tool) as ftp:
+            root = ftp.home()
+            folder = check_path(root, folder)
+            path = check_path(root, f"{folder.rstrip('/')}/{name}")
+            ftp.put(path, data, deadline=limits.deadline)
+    return jsonify({"path": path}), 201
+
+
+@bp.post("/<tool_slug>/tool-files/delete")
+def delete(tool_slug: str):
+    _require_write()
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict) or not isinstance(body.get("path"), str):
+        raise ToolFilesError(400, "bad_request", "need a JSON object with fab, eqp_id, path")
+    tool = _tool(tool_slug, body)
+    with _audited("delete", f"{tool.eqp_id}@{tool.fab_name}:{body['path']}"):
+        with _session(tool) as ftp:
+            path = check_path(ftp.home(), body["path"])
+            ftp.remove(path)
+    return jsonify({"deleted": path})
+
+
 def _grant_key() -> str:
     body = request.get_json(silent=True) or {}
     kind, value = body.get("kind"), body.get("value")
@@ -218,9 +305,10 @@ def _grant_key() -> str:
 
 def _audit(action: str, key: str, result: object) -> None:
     logger.info(
-        "tool_files %s actor=%s target=%s result=%s request_id=%s",
+        "tool_files %s actor=%s source=%s target=%s result=%s request_id=%s",
         action,
         g.user_id,
+        getattr(g, "identity_source", None),
         key,
         result,
         getattr(g, "_activity_request_id", None),

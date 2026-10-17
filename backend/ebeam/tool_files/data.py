@@ -3,7 +3,8 @@
 Three surfaces swap together, so "real FTP + mock grants" cannot exist:
 
 - the FTP connection: a context manager with ``core.FtpClient``'s surface
-  (``home``, ``list_details``, ``download``). Resolution, path checks and
+  (``home``, ``list_details``, ``download``, ``put``, ``remove``),
+  plus ``transport_supports_write()``. Resolution, path checks and
   error mapping stay in shared code, so the mock exercises them as the office
   does;
 - the grant store (``read_grants``, ``put_grant``, ``delete_grant``), keyed
@@ -27,6 +28,11 @@ def _provider():
 
 def open_client(tool: Tool):
     return _provider().open_client(tool)
+
+
+def transport_supports_write() -> bool:
+    """False for a read-only transport (the office proxy): writes answer 501."""
+    return _provider().transport_supports_write()
 
 
 def read_grants() -> dict[str, Grant]:

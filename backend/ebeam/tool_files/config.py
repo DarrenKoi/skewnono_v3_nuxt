@@ -22,6 +22,7 @@ class Limits:
     proxy_deadline: float = 45.0
     max_entries: int = 20000
     max_list_bytes: int = 4 * 1024 * 1024
+    max_upload_bytes: int = 100 * 1024 * 1024
 
 
 def _positive(env: Mapping[str, str], key: str, default, cast):
@@ -38,6 +39,12 @@ def _positive(env: Mapping[str, str], key: str, default, cast):
     return value
 
 
+def write_enabled(env: Mapping[str, str] | None = None) -> bool:
+    """``SKEWNONO_TOOL_FILES_WRITE``: upload and delete stay off unless set truthy."""
+    env = os.environ if env is None else env
+    return env.get("SKEWNONO_TOOL_FILES_WRITE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def load_limits(env: Mapping[str, str] | None = None) -> Limits:
     env = os.environ if env is None else env
     base = Limits()
@@ -50,5 +57,8 @@ def load_limits(env: Mapping[str, str] | None = None) -> Limits:
         max_entries=_positive(env, "SKEWNONO_TOOL_FILES_MAX_ENTRIES", base.max_entries, int),
         max_list_bytes=_positive(
             env, "SKEWNONO_TOOL_FILES_MAX_LIST_BYTES", base.max_list_bytes, int
+        ),
+        max_upload_bytes=_positive(
+            env, "SKEWNONO_TOOL_FILES_MAX_UPLOAD_BYTES", base.max_upload_bytes, int
         ),
     )

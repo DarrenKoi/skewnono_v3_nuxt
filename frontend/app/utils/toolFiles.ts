@@ -115,11 +115,21 @@ const ERROR_MESSAGES: Record<string, string> = {
   tool_encoding: '장비가 보낸 파일 이름을 읽지 못했습니다. 서버의 FTP 인코딩 설정(SKEWNONO_TOOL_FTP_ENCODING)을 확인해 주세요.',
   untrusted_identity: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다.',
   directory_unavailable: '구성원 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-  store_unavailable: '권한 정보를 읽지 못했습니다. 잠시 후 다시 시도해 주세요.'
+  store_unavailable: '권한 정보를 읽지 못했습니다. 잠시 후 다시 시도해 주세요.',
+  file_exists: '같은 이름이 있어 올리지 않았습니다.',
+  transfer_uncertain: '파일이 저장되었는지 확인하지 못했습니다. 새로고침해서 목록을 확인해 주세요.',
+  write_disabled: '서버에서 파일 쓰기가 꺼져 있습니다.',
+  write_not_supported: '이 연결 방식에서는 파일을 쓸 수 없습니다.'
 }
 
-export const toolFilesErrorMessage = (code: string): string =>
-  ERROR_MESSAGES[code] ?? '요청을 처리하지 못했습니다.'
+const UPLOAD_MESSAGES: Record<string, string> = {
+  too_large: '파일이 업로드 상한보다 커서 올리지 않았습니다.'
+}
+
+export const toolFilesErrorMessage = (code: string, action?: 'upload'): string =>
+  (action === 'upload' ? UPLOAD_MESSAGES[code] : undefined)
+  ?? ERROR_MESSAGES[code]
+  ?? '요청을 처리하지 못했습니다.'
 
 export interface ToolFilesTeamGrant extends ToolFilesGrantRow {
   // null while the team list is unknown (failed or not loaded).
