@@ -4,7 +4,7 @@
       <h2 class="flex items-center gap-2 sk-title">
         <UIcon
           name="i-lucide-folder-lock"
-          class="text-sky-500"
+          class="text-(--sk-ink-muted)"
         />
         장비 파일 접근
       </h2>
@@ -16,7 +16,7 @@
 
     <p
       v-if="grantsError"
-      class="sk-body text-red-500"
+      class="sk-body text-rose-600 dark:text-rose-400"
     >
       {{ grantsError }}
     </p>

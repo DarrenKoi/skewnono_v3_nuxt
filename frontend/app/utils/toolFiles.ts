@@ -79,10 +79,13 @@ export const toolFilesReasonValid = (reason: string): boolean => {
 // The server's `{ error: { code, message } }` body, read off a failed $fetch
 // or fetch. A failure that never got a response (network drop, server gone
 // mid-write) is 'no_response': whether a write landed is unknown then.
+// useAsyncData hands reads over wrapped in a NuxtError that claims 500 and
+// keeps the original under `cause`, so the cause is what decides.
 export const toolFilesErrorCode = (error: unknown): string => {
-  const failure = error as { data?: { error?: { code?: string } }, status?: number, statusCode?: number } | null
+  const failure = error as { data?: { error?: { code?: string } }, status?: number, statusCode?: number, cause?: unknown } | null
   const code = failure?.data?.error?.code
   if (code) return code
+  if (failure?.cause && typeof failure.cause === 'object') return toolFilesErrorCode(failure.cause)
   return failure?.status || failure?.statusCode ? 'unknown' : 'no_response'
 }
 
@@ -189,11 +192,15 @@ const ERROR_MESSAGES: Record<string, string> = {
   write_not_supported: '이 연결 방식에서는 파일을 쓸 수 없습니다.',
   request_changed: '신청이 바뀌었습니다. 새로고침 후 다시 확인해 주세요.',
   bad_request: '요청 내용이 올바르지 않습니다.',
+  too_many_requests: '요청이 많아 잠시 멈췄습니다. 잠시 후 다시 시도해 주세요.',
   no_response: '결과를 확인할 수 없습니다. 새로고침해 주세요.'
 }
 
 const UPLOAD_MESSAGES: Record<string, string> = {
-  too_large: '파일이 업로드 상한보다 커서 올리지 않았습니다.'
+  too_large: '파일이 업로드 상한보다 커서 올리지 않았습니다.',
+  // The server answers bad_path both for a bad folder and for a name the
+  // tool's FTP encoding cannot carry (Korean under latin-1).
+  bad_path: '이 이름으로는 올릴 수 없습니다. 파일 이름에 장비가 쓰지 못하는 글자(예: 한글)가 있는지 확인해 주세요.'
 }
 
 export const toolFilesErrorMessage = (code: string, action?: 'upload'): string =>

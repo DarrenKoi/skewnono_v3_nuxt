@@ -149,6 +149,32 @@ test('a failure with no response reads as unknown outcome, not as a refusal', ()
   assert.equal(toolFilesErrorMessage('request_changed'), '신청이 바뀌었습니다. 새로고침 후 다시 확인해 주세요.')
 })
 
+// Shapes probed 2026-10-17 against ofetch + Nuxt 4.5's createError: a network
+// drop is a FetchError with no response whose cause is the TypeError, and
+// useAsyncData's wrapper keeps `input.cause || input` and a default 500.
+test('a network drop reads as no_response whether raw or wrapped by useAsyncData', () => {
+  const dropped = Object.assign(new Error('[GET] "/api/x": <no response> fetch failed', { cause: new TypeError('fetch failed') }), { name: 'FetchError', response: undefined, status: undefined })
+  assert.equal(toolFilesErrorCode(dropped), 'no_response')
+  assert.equal(toolFilesErrorCode({ statusCode: 500, status: 500, cause: dropped.cause }), 'no_response')
+  assert.equal(toolFilesErrorCode({ statusCode: 500, status: 500, cause: dropped }), 'no_response')
+})
+
+test('a wrapped HTTP failure keeps its server code or reads as unknown, never no_response', () => {
+  const badGateway = Object.assign(new Error('502'), { name: 'FetchError', response: {}, status: 502 })
+  assert.equal(toolFilesErrorCode({ statusCode: 502, status: 502, cause: badGateway }), 'unknown')
+  const tooMany = Object.assign(new Error('429'), { name: 'FetchError', response: {}, status: 429, data: { error: { code: 'too_many_requests' } } })
+  assert.equal(toolFilesErrorCode({ statusCode: 429, status: 429, data: tooMany.data, cause: tooMany }), 'too_many_requests')
+})
+
+test('the rate limiter has its own line', () => {
+  assert.equal(toolFilesErrorMessage('too_many_requests'), '요청이 많아 잠시 멈췄습니다. 잠시 후 다시 시도해 주세요.')
+})
+
+test('an upload refused as bad_path points at the file name, a read does not', () => {
+  assert.match(toolFilesErrorMessage('bad_path', 'upload'), /한글/)
+  assert.equal(toolFilesErrorMessage('bad_path'), '열 수 없는 경로입니다.')
+})
+
 const request = (empno: string, dept_nm: string | null, requested_at: string, status: 'pending' | 'rejected' = 'pending'): ToolFilesRequestRow => ({
   empno,
   emp_nm: null,

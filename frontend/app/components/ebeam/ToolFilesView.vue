@@ -10,6 +10,24 @@
       v-if="accessStatus === 'pending'"
       title="권한을 확인하는 중입니다."
     />
+    <div
+      v-else-if="accessError"
+      class="space-y-2 p-4 text-center"
+    >
+      <AppEmptyState
+        icon="i-lucide-circle-alert"
+        :title="toolFilesErrorMessage(toolFilesErrorCode(accessError))"
+      />
+      <UButton
+        size="xs"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-refresh-cw"
+        @click="refreshAccess()"
+      >
+        다시 시도
+      </UButton>
+    </div>
     <AppEmptyState
       v-else-if="view === 'notice'"
       icon="i-lucide-lock"
@@ -171,7 +189,7 @@
       </div>
 
       <label
-        v-if="canWrite && listing && !listingError"
+        v-if="canWrite && listing && listingStatus === 'success'"
         class="mx-4 my-2.5 flex cursor-pointer items-center justify-center gap-2 rounded-(--sk-r-nav) border border-dashed px-4 py-3 text-sm text-(--sk-ink-muted) transition-colors"
         :class="dragging ? 'border-(--sk-accent) bg-(--sk-accent-tint) text-(--sk-ink)' : 'border-(--sk-border) hover:bg-(--sk-muted-surface)'"
         @dragover.prevent="dragging = true"
@@ -376,7 +394,7 @@ const toast = useToast()
 
 const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
 
-const { data: access, status: accessStatus, refresh: refreshAccess } = useToolFilesAccess(props.toolType)
+const { data: access, status: accessStatus, error: accessError, refresh: refreshAccess } = useToolFilesAccess(props.toolType)
 const view = computed(() => toolFilesAccessView(access.value))
 const refusal = computed(() => {
   const verdict = access.value?.verdict
@@ -498,10 +516,12 @@ const dragging = ref(false)
 const uploading = ref<string | null>(null)
 
 // One request per file, in order: the server takes one file per upload.
+// Only on a settled listing: while a new folder loads, `listing` still holds
+// the old one, and its path would go out with the new target.
 const uploadAll = async (files: File[]) => {
   const current = target.value
   const dir = listing.value?.path
-  if (!current || !dir || uploading.value) return
+  if (!current || !dir || listingStatus.value !== 'success' || uploading.value) return
   let uploaded = 0
   for (const file of files) {
     uploading.value = file.name
