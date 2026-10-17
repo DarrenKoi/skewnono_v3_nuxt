@@ -104,6 +104,9 @@ _FEATURE_RULES: tuple[tuple[str, str], ...] = tuple(
     # page adopts short links next. Required rather than optional — the fallback
     # would emit the dashed "short-links".
     ("/api/short-links",        "short_links"),
+    # The access request is not tool-scoped; without this line the fallback
+    # would emit the dashed "tool-files".
+    ("/api/tool-files",         "tool_files"),
 )
 
 

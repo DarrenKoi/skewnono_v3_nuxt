@@ -68,6 +68,7 @@ def test_a_rule_matches_its_own_subtree():
     assert route_to_feature("/api/sem-list") == "sem_list"
     assert route_to_feature("/api/sem-list/detail") == "sem_list"
     assert route_to_feature("/api/account/api-tokens/abc") == "api_tokens"
+    assert route_to_feature("/api/tool-files/requests") == "tool_files"
 
 
 def test_a_rule_does_not_match_a_merely_similar_path():

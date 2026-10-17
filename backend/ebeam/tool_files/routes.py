@@ -1,4 +1,5 @@
 import logging
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from ftplib import all_errors, error_perm
@@ -18,26 +19,34 @@ from backend._auth.admin import is_admin_request, require_admin
 from backend._auth.errors import error_json
 from backend.ebeam._tool_specs import VALID_TOOL_SLUGS
 from backend.ebeam.tool_files.config import load_limits, write_enabled
-from backend.ebeam.tool_files.access import decide, emp_key, team_key
+from backend.ebeam.tool_files.access import decide, emp_key, norm_empno, team_key
 from backend.ebeam.tool_files.contracts import (
     Access,
     Entry,
     Grant,
     GrantRow,
     Listing,
+    Request,
+    RequestRow,
     Verdict,
 )
 from backend.ebeam.tool_files.data import (
+    approve_request,
+    approve_team,
     delete_grant,
     open_client,
     probe,
     put_grant,
+    put_request,
     read_grants,
+    read_requests,
+    reject_request,
     teams,
     transport_supports_write,
 )
 from backend.ebeam.tool_files.errors import (
     DirectoryUnavailable,
+    RequestChanged,
     StoreUnavailable,
     ToolFilesError,
 )
@@ -71,6 +80,13 @@ def _directory_unavailable(err: DirectoryUnavailable):
     return error_json("directory_unavailable", str(err), 503)
 
 
+@bp.errorhandler(RequestChanged)
+def _request_changed(_err: RequestChanged):
+    return error_json(
+        "request_changed", "the request was replaced or withdrawn; reload and check again", 409
+    )
+
+
 @bp.after_request
 def _no_store(response: Response) -> Response:
     # Listings and file bytes are access-controlled; no cache may replay them
@@ -79,25 +95,44 @@ def _no_store(response: Response) -> Response:
     return response
 
 
-def _stored_grants() -> dict[str, Grant] | None:
+def _or_none(read):
     try:
-        return read_grants()
+        return read()
     except StoreUnavailable:
         return None
 
 
-def _verdict() -> Verdict:
+def _judge() -> tuple[Verdict, dict]:
+    """The verdict, plus whatever ``decide`` read on the way ("probe",
+    "requests"), so a caller reuses it instead of asking twice."""
     empno = getattr(g, "user_id", None)
-    return decide(
+    seen: dict = {}
+
+    def remember(name, read):
+        def call():
+            seen[name] = read()
+            return seen[name]
+
+        return call
+
+    verdict = decide(
         getattr(g, "identity_source", None),
         empno,
-        _stored_grants,
-        lambda: probe(empno),
+        lambda: _or_none(read_grants),
+        remember("probe", lambda: probe(empno)),
+        remember("requests", lambda: _or_none(read_requests)),
     )
+    return verdict, seen
+
+
+def _verdict() -> Verdict:
+    return _judge()[0]
 
 
 _REFUSALS: dict[str, tuple[int, str]] = {
     "none": (403, "forbidden"),
+    "pending": (403, "forbidden"),
+    "rejected": (403, "forbidden"),
     "untrusted_identity": (403, "untrusted_identity"),
     "directory_unavailable": (503, "directory_unavailable"),
     "store_unavailable": (503, "store_unavailable"),
@@ -177,8 +212,49 @@ def _session(tool: Tool):
 @bp.get("/<tool_slug>/tool-files/access")
 def access(tool_slug: str):
     can_write = write_enabled() and is_admin_request() and transport_supports_write()
-    body: Access = {"verdict": _verdict(), "can_write": can_write}
+    verdict, seen = _judge()
+    body: Access = {"verdict": verdict, "can_write": can_write}
+    if verdict in ("pending", "rejected"):
+        body["request"] = seen["requests"][norm_empno(g.user_id)]
     return jsonify(body)
+
+
+_MAX_REASON = 200
+
+
+@bp.post("/tool-files/requests")
+def request_access():
+    """Only ``reason`` is read from the body: the empno is the caller's own
+    identity and dept_nm comes from the directory, whatever the client sent."""
+    verdict, seen = _judge()
+    if verdict == "untrusted_identity":
+        raise ToolFilesError(403, "untrusted_identity", "this identity source cannot request access")
+    body = request.get_json(silent=True)
+    reason = body.get("reason") if isinstance(body, dict) else None
+    if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > _MAX_REASON:
+        raise ToolFilesError(400, "bad_request", f"need a reason of 1-{_MAX_REASON} characters")
+    if verdict == "granted":
+        return jsonify({"verdict": "granted"})
+    if verdict in ("directory_unavailable", "store_unavailable"):
+        status, code = _REFUSALS[verdict]
+        raise ToolFilesError(status, code, f"cannot take a request now: {verdict}")
+    empno = norm_empno(g.user_id)
+    member = seen["probe"].member
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    record: Request = {
+        "request_id": uuid.uuid4().hex,
+        "reason": reason.strip(),
+        "dept_nm": member["dept_nm"] if member else None,
+        "requested_at": stamp,
+        "status": "pending",
+    }
+    try:
+        put_request(empno, record)
+    except StoreUnavailable:
+        _audit("request", empno, "store_unavailable", record["request_id"])
+        raise
+    _audit("request", empno, "ok", record["request_id"])
+    return jsonify({"verdict": "pending", "request": record}), 201
 
 
 @bp.get("/<tool_slug>/tool-files/list")
@@ -303,15 +379,17 @@ def _grant_key() -> str:
     return team_key(value) if kind == "team" else emp_key(value)
 
 
-def _audit(action: str, key: str, result: object) -> None:
+def _audit(action: str, key: str, result: object, access_request_id: str | None = None) -> None:
     logger.info(
-        "tool_files %s actor=%s source=%s target=%s result=%s request_id=%s",
+        "tool_files %s actor=%s source=%s target=%s result=%s request_id=%s"
+        " access_request_id=%s",
         action,
         g.user_id,
         getattr(g, "identity_source", None),
         key,
         result,
         getattr(g, "_activity_request_id", None),
+        access_request_id,
     )
 
 
@@ -324,11 +402,25 @@ def _grant_row(key: str, grant: Grant) -> GrantRow:
     return {"kind": kind, "value": value, "dept_nm": dept_nm, **grant}
 
 
+def _request_row(empno: str, stored: Request) -> RequestRow:
+    found = probe(empno)
+    emp_nm = found.member["emp_nm"] if found.member else None
+    return {"empno": empno, "emp_nm": emp_nm, **stored}
+
+
 @bp.get("/admin/tool-files")
 @require_admin
 def admin_overview():
-    grants = read_grants()
-    return jsonify({"grants": [_grant_row(key, grants[key]) for key in sorted(grants)]})
+    grants, requests = read_grants(), read_requests()
+    return jsonify(
+        {
+            "grants": [_grant_row(key, grants[key]) for key in sorted(grants)],
+            "requests": [
+                _request_row(empno, requests[empno])
+                for empno in sorted(requests, key=lambda e: requests[e].get("requested_at", ""))
+            ],
+        }
+    )
 
 
 @bp.get("/admin/tool-files/teams")
@@ -337,13 +429,79 @@ def admin_teams():
     return jsonify(teams())
 
 
+def _new_grant() -> Grant:
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return {"granted_at": stamp, "granted_by": g.user_id}
+
+
+def _string(body: dict, name: str) -> str:
+    value = body.get(name)
+    if not isinstance(value, str) or not value.strip():
+        raise ToolFilesError(400, "bad_request", f"need a non-empty string {name}")
+    return value.strip()
+
+
+def _decision_body() -> tuple[str, str]:
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        raise ToolFilesError(400, "bad_request", "need a JSON object with empno and request_id")
+    return norm_empno(_string(body, "empno")), _string(body, "request_id")
+
+
+@contextmanager
+def _audited_decision(action: str, target: str, access_request_id: str | None):
+    try:
+        yield
+    except RequestChanged:
+        _audit(action, target, "request_changed", access_request_id)
+        raise
+    except StoreUnavailable:
+        _audit(action, target, "store_unavailable", access_request_id)
+        raise
+    _audit(action, target, "ok", access_request_id)
+
+
+@bp.post("/admin/tool-files/requests/approve")
+@require_admin
+def admin_approve():
+    empno, request_id = _decision_body()
+    with _audited_decision("approve", empno, request_id):
+        approve_request(empno, request_id, _new_grant())
+    return jsonify({"approved": empno})
+
+
+@bp.post("/admin/tool-files/requests/reject")
+@require_admin
+def admin_reject():
+    empno, request_id = _decision_body()
+    with _audited_decision("reject", empno, request_id):
+        reject_request(empno, request_id)
+    return jsonify({"rejected": empno})
+
+
+@bp.post("/admin/tool-files/teams/approve")
+@require_admin
+def admin_approve_team():
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        raise ToolFilesError(400, "bad_request", "need a JSON object with dept_nm")
+    dept_nm = _string(body, "dept_nm")
+    key = team_key(dept_nm)
+    try:
+        grant, cleared = approve_team(dept_nm, _new_grant())
+    except StoreUnavailable:
+        _audit("team_approve", key, "store_unavailable")
+        raise
+    _audit("team_approve", key, f"ok cleared={','.join(cleared) or '-'}")
+    return jsonify({**_grant_row(key, grant), "cleared": cleared}), 201
+
+
 @bp.post("/admin/tool-files/grants")
 @require_admin
 def admin_grant():
     key = _grant_key()
-    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     try:
-        grant = put_grant(key, {"granted_at": stamp, "granted_by": g.user_id})
+        grant = put_grant(key, _new_grant())
     except StoreUnavailable:
         _audit("grant", key, "store_unavailable")
         raise

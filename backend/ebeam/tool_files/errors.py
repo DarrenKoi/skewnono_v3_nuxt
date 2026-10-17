@@ -16,3 +16,8 @@ class StoreUnavailable(RuntimeError):
 
 class DirectoryUnavailable(RuntimeError):
     """The member directory cannot be listed, so team sizes are unknown."""
+
+
+class RequestChanged(Exception):
+    """The request an admin acted on is gone or was replaced by a re-request
+    (its request_id no longer matches). Nothing was written."""

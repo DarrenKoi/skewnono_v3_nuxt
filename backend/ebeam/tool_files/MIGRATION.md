@@ -31,6 +31,7 @@ mock grants" cannot happen:
 | :-- | :-- | :-- |
 | FTP (`open_client`, `transport_supports_write`) | fake tree, writable | direct `FtpClient` (writable) on Linux; proxy `FtpClient` (read-only) on Windows |
 | grants (`read_grants`, `put_grant`, `delete_grant`) | `state/grants.json` (`SKEWNONO_TOOL_FILES_GRANTS_FILE`), unreadable = 503 | HASH `skewnono:tool_files:grants`, `"team:<dept_nm>"` / `"emp:<empno>"` -> JSON `{granted_at, granted_by}` |
+| requests (`read_requests`, `put_request`, `approve_request`, `reject_request`, `approve_team`) | sibling `requests.json` beside the grants file, same lock, atomic replace and unreadable = 503 | HASH `skewnono:tool_files:requests`, `<empno>` -> JSON `{request_id, reason, dept_nm, requested_at, status}`; approve/reject/team approve under `WATCH` -> compare `request_id` -> `MULTI` -> `EXEC` |
 | directory (`probe`, `teams`) | `_MEMBERS` table | `probe_member` + HSCAN of `members`, 600 s cache |
 
 Resolution, path checks, the verdict (`access.decide`) and the error mapping
@@ -75,7 +76,17 @@ identity source, target, result and request_id.
   answer `503 tool_unreachable`.
 - **Access** is the admin, an `emp:` grant, or a `team:` grant matching the
   caller's directory `dept_nm`. A team move reaches the verdict up to 10
-  minutes late (the directory cache). Access requests arrive in ticket 05.
+  minutes late (the directory cache).
+- **Access requests.** Only a cookie or local identity may ask; the body
+  carries `reason` (1-200 characters) and nothing else, so the empno and the
+  stored `dept_nm` are the server's. Each (re)request gets a new uuid4
+  `request_id`, the token approve and reject compare: a different or missing
+  one is 409 `request_changed`, except an approval retry whose grant already
+  exists (no-op). A `WatchError` is caught before `STORE_ERRORS`; a change to
+  that empno's request is 409, any other is retried up to three times, then
+  503. Team approval clears only the pending requests whose *stored*
+  `dept_nm` is the team. Request, approve, reject and team approve each log
+  one `skewnono.tool_files` line carrying the access `request_id`.
 - The root is the login directory (`PWD`). Per-family allowed roots are not
   configurable yet; add them when a real tree shows the need.
 - The root check is a guardrail. The FTP account's own permissions are the
@@ -137,3 +148,11 @@ Pulling SKEWNONO before step 2 is harmless but useless: every listing answers
       the mock `_MEMBERS` names to the real shape.
 - [ ] Grant a team, open the browser as one of its members; revoke, and the
       next request is 403.
+- [ ] **Real WATCH/MULTI races** (not runnable at home: the fake can only
+      stage a `WatchError`). Open two Redis connections and replay each pair:
+      approve ↔ re-request, reject ↔ re-request, team approve ↔ an empno
+      approval or a re-request. Each must end in 409 or a clean retry, never a
+      grant for a request the admin did not see.
+- [ ] Request from a browser as a non-admin member, approve it on
+      `/admin/access`, and the next page load opens the explorer. Check the
+      request and approve lines reach OpenSearch.

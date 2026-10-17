@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  TOOL_FILES_REASON_MAX,
   describeToolFilesGrants,
   filterToolFileEntries,
   formatFileSize,
+  pendingToolFilesRequests,
   sortToolFileEntries,
+  toolFilesAccessView,
+  toolFilesErrorCode,
   toolFilesErrorMessage,
+  toolFilesReasonValid,
   type ToolFileEntry,
-  type ToolFilesGrantRow
+  type ToolFilesGrantRow,
+  type ToolFilesRequestRow
 } from './toolFiles.ts'
 
 const entry = (name: string, extra: Partial<ToolFileEntry> = {}): ToolFileEntry => ({
@@ -112,5 +118,60 @@ test('an empno grant is marked as kept by a granted team of the same name', () =
     ['1000001', true],
     ['1000003', false],
     ['7777777', false]
+  ])
+})
+
+test('the access verdict picks one screen', () => {
+  const view = (verdict: string) => toolFilesAccessView({ verdict, can_write: false } as never)
+  assert.equal(view('granted'), 'explorer')
+  assert.equal(view('none'), 'request')
+  assert.equal(view('rejected'), 'rejected')
+  assert.equal(view('pending'), 'pending')
+  assert.equal(view('untrusted_identity'), 'notice')
+  assert.equal(view('directory_unavailable'), 'notice')
+  assert.equal(view('store_unavailable'), 'notice')
+  assert.equal(toolFilesAccessView(null), 'notice')
+})
+
+test('a reason must hold something and fit in 200 characters', () => {
+  assert.equal(TOOL_FILES_REASON_MAX, 200)
+  assert.equal(toolFilesReasonValid('  '), false)
+  assert.equal(toolFilesReasonValid('레시피 백업'), true)
+  assert.equal(toolFilesReasonValid('가'.repeat(200)), true)
+  assert.equal(toolFilesReasonValid('가'.repeat(201)), false)
+})
+
+test('a failure with no response reads as unknown outcome, not as a refusal', () => {
+  assert.equal(toolFilesErrorCode({ data: { error: { code: 'request_changed' } }, status: 409 }), 'request_changed')
+  assert.equal(toolFilesErrorCode({ status: 502, data: '<html>' }), 'unknown')
+  assert.equal(toolFilesErrorCode(new TypeError('Failed to fetch')), 'no_response')
+  assert.equal(toolFilesErrorMessage('no_response'), '결과를 확인할 수 없습니다. 새로고침해 주세요.')
+  assert.equal(toolFilesErrorMessage('request_changed'), '신청이 바뀌었습니다. 새로고침 후 다시 확인해 주세요.')
+})
+
+const request = (empno: string, dept_nm: string | null, requested_at: string, status: 'pending' | 'rejected' = 'pending'): ToolFilesRequestRow => ({
+  empno,
+  emp_nm: null,
+  dept_nm,
+  requested_at,
+  status,
+  reason: '백업',
+  request_id: empno.repeat(4)
+})
+
+test('pending requests list oldest first and count their team\'s pending requests', () => {
+  const rows = [
+    request('1000002', '계측기술팀', '2026-10-17T02:00:00Z'),
+    request('1000003', '공정기술팀', '2026-10-17T01:00:00Z'),
+    request('1000009', '계측기술팀', '2026-10-17T00:30:00Z', 'rejected'),
+    request('1000001', '계측기술팀', '2026-10-17T00:00:00Z'),
+    request('7777777', null, '2026-10-17T03:00:00Z')
+  ]
+
+  assert.deepEqual(pendingToolFilesRequests(rows).map(r => [r.empno, r.teamPending]), [
+    ['1000001', 2],
+    ['1000003', 1],
+    ['1000002', 2],
+    ['7777777', 0]
   ])
 })

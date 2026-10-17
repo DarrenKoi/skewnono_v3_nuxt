@@ -1,6 +1,6 @@
 """Shapes the tool-files routes return, identical across providers."""
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 class Entry(TypedDict):
@@ -33,13 +33,41 @@ class Listing(TypedDict):
 
 
 Verdict = Literal[
-    "granted", "none", "untrusted_identity", "directory_unavailable", "store_unavailable"
+    "granted",
+    "pending",
+    "rejected",
+    "none",
+    "untrusted_identity",
+    "directory_unavailable",
+    "store_unavailable",
 ]
+
+
+class Request(TypedDict):
+    """One person's access request, stored under their normalised empno."""
+
+    # uuid4 hex, new on every (re)request: the token approve/reject compare,
+    # because requested_at has one-second grain and can repeat.
+    request_id: str
+    reason: str
+    # The team the directory gave at request time. Display, and which pending
+    # requests a team approval clears; never evidence of current membership.
+    dept_nm: str | None
+    requested_at: str
+    status: Literal["pending", "rejected"]
+
+
+class RequestRow(Request):
+    empno: str
+    # Current name from the directory, None when it cannot say.
+    emp_nm: str | None
 
 
 class Access(TypedDict):
     verdict: Verdict
     can_write: bool
+    # Present only for "pending" and "rejected": the caller's own request.
+    request: NotRequired[Request]
 
 
 class Grant(TypedDict):

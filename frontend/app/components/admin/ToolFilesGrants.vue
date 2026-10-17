@@ -21,6 +21,84 @@
       {{ grantsError }}
     </p>
 
+    <p
+      v-if="formError"
+      class="sk-meta text-rose-600 dark:text-rose-400"
+      role="alert"
+    >
+      {{ formError }}
+    </p>
+
+    <div class="space-y-2">
+      <h3 class="sk-label">
+        대기 신청
+        <span class="ml-1 sk-meta tabular-nums">{{ pending.length }}</span>
+      </h3>
+      <p
+        v-if="!pending.length && !grantsError"
+        class="sk-meta"
+      >
+        대기 중인 신청이 없습니다.
+      </p>
+      <ul
+        v-else
+        class="divide-y divide-(--sk-border)"
+      >
+        <li
+          v-for="row in pending"
+          :key="row.empno"
+          class="flex items-start justify-between gap-3 py-2"
+        >
+          <div class="min-w-0 space-y-0.5">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span class="sk-value-num">{{ row.empno }}</span>
+              <span
+                v-if="row.emp_nm"
+                class="sk-body"
+              >{{ row.emp_nm }}</span>
+              <span class="sk-meta">{{ row.dept_nm ?? '소속 정보 없음' }}</span>
+              <span class="sk-meta">{{ formatKoreanDateTime(row.requested_at) }}</span>
+            </div>
+            <p class="sk-body whitespace-pre-wrap break-words">
+              {{ row.reason }}
+            </p>
+          </div>
+          <div class="flex shrink-0 gap-1.5">
+            <UButton
+              size="xs"
+              color="primary"
+              :loading="mutating"
+              @click="onApprove(row)"
+            >
+              승인
+            </UButton>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="outline"
+              :loading="mutating"
+              @click="onReject(row)"
+            >
+              거절
+            </UButton>
+            <UButton
+              v-if="row.dept_nm"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              :loading="mutating"
+              @click="onApproveTeam(row.dept_nm)"
+            >
+              이 팀 전체 승인<span
+                v-if="row.teamPending > 1"
+                class="ml-1 tabular-nums"
+              >({{ row.teamPending }}건)</span>
+            </UButton>
+          </div>
+        </li>
+      </ul>
+    </div>
+
     <div class="grid gap-4 md:grid-cols-2">
       <div class="space-y-2">
         <h3 class="sk-label">
@@ -160,19 +238,18 @@
         </ul>
       </div>
     </div>
-
-    <p
-      v-if="formError"
-      class="sk-meta text-red-500"
-    >
-      {{ formError }}
-    </p>
   </section>
 </template>
 
 <script setup lang="ts">
-import { toolFilesErrorCode, useToolFilesAdminApi, type ToolFilesGrantKind } from '~/composables/useToolFilesApi'
-import { describeToolFilesGrants, toolFilesErrorMessage } from '~/utils/toolFiles'
+import { useToolFilesAdminApi, type ToolFilesGrantKind } from '~/composables/useToolFilesApi'
+import {
+  describeToolFilesGrants,
+  pendingToolFilesRequests,
+  toolFilesErrorCode,
+  toolFilesErrorMessage,
+  type ToolFilesPendingRow
+} from '~/utils/toolFiles'
 import { formatKoreanDateTime } from '~/utils/dateTime'
 
 const api = useToolFilesAdminApi()
@@ -184,6 +261,7 @@ const grantsError = computed(() =>
   overviewError.value ? toolFilesErrorMessage(toolFilesErrorCode(overviewError.value)) : ''
 )
 const rows = computed(() => describeToolFilesGrants(overview.value?.grants ?? [], teams.value ?? null))
+const pending = computed(() => pendingToolFilesRequests(overview.value?.requests ?? []))
 const teamOptions = computed(() =>
   (teams.value?.teams ?? []).map(t => ({ label: `${t.dept_nm} (${t.members}명)`, value: t.dept_nm }))
 )
@@ -202,6 +280,7 @@ const run = async (action: () => Promise<unknown>) => {
     return true
   } catch (err) {
     formError.value = toolFilesErrorMessage(toolFilesErrorCode(err))
+    if (toolFilesErrorCode(err) === 'request_changed') await refresh()
     return false
   } finally {
     mutating.value = false
@@ -217,4 +296,10 @@ const onGrant = async (kind: ToolFilesGrantKind, value: string | undefined) => {
 }
 
 const onRevoke = (kind: ToolFilesGrantKind, value: string) => run(() => api.revoke(kind, value))
+
+// A 409 (re-request since this list loaded) refreshes too, through run(), so
+// the new request is on screen beside the message.
+const onApprove = (row: ToolFilesPendingRow) => run(() => api.approve(row.empno, row.request_id))
+const onReject = (row: ToolFilesPendingRow) => run(() => api.reject(row.empno, row.request_id))
+const onApproveTeam = (deptNm: string) => run(() => api.approveTeam(deptNm))
 </script>

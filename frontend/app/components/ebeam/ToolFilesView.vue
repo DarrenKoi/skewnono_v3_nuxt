@@ -11,11 +11,88 @@
       title="권한을 확인하는 중입니다."
     />
     <AppEmptyState
-      v-else-if="access?.verdict !== 'granted'"
+      v-else-if="view === 'notice'"
       icon="i-lucide-lock"
       :title="refusal.title"
       :description="refusal.description"
     />
+
+    <UCard
+      v-else-if="view !== 'explorer'"
+      class="dashboard-surface max-w-2xl"
+    >
+      <div class="space-y-3">
+        <div class="flex items-start gap-3">
+          <UIcon
+            :name="view === 'pending' ? 'i-lucide-hourglass' : view === 'rejected' ? 'i-lucide-circle-x' : 'i-lucide-lock'"
+            class="mt-0.5 size-5 shrink-0 text-(--sk-ink-muted)"
+          />
+          <div>
+            <p class="sk-title">
+              {{ refusal.title }}
+            </p>
+            <p class="mt-1 sk-meta">
+              {{ refusal.description }}
+            </p>
+          </div>
+        </div>
+
+        <dl
+          v-if="ownRequest"
+          class="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1 rounded-(--sk-r-nav) bg-(--sk-muted-surface) px-3 py-2"
+        >
+          <dt class="sk-field-label">
+            신청 시각
+          </dt>
+          <dd class="sk-body">
+            {{ formatKoreanDateTime(ownRequest.requested_at) }}
+          </dd>
+          <dt class="sk-field-label">
+            사유
+          </dt>
+          <dd class="sk-body whitespace-pre-wrap break-words">
+            {{ ownRequest.reason }}
+          </dd>
+        </dl>
+
+        <form
+          v-if="view !== 'pending'"
+          class="space-y-2"
+          @submit.prevent="submitRequest"
+        >
+          <UTextarea
+            v-model="reason"
+            class="w-full"
+            color="neutral"
+            variant="subtle"
+            :rows="3"
+            :maxlength="TOOL_FILES_REASON_MAX"
+            placeholder="신청 사유 (예: 레시피 백업 전 로그 폴더 확인)"
+            aria-label="신청 사유"
+          />
+          <div class="flex items-center justify-between gap-3">
+            <span class="sk-meta tabular-nums">{{ reason.length }} / {{ TOOL_FILES_REASON_MAX }}</span>
+            <UButton
+              type="submit"
+              color="primary"
+              size="sm"
+              icon="i-lucide-send"
+              :loading="submitting"
+              :disabled="!toolFilesReasonValid(reason)"
+              :class="!toolFilesReasonValid(reason) ? 'cursor-not-allowed' : undefined"
+            >
+              {{ view === 'rejected' ? '다시 신청' : '권한 신청' }}
+            </UButton>
+          </div>
+          <p
+            v-if="submitError"
+            class="sk-meta text-rose-600 dark:text-rose-400"
+          >
+            {{ submitError }}
+          </p>
+        </form>
+      </div>
+    </UCard>
 
     <UCard
       v-else
@@ -270,14 +347,18 @@ import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { ToolType } from '~/utils/toolType'
 import { classifyToolType } from '~/utils/toolType'
-import { formatDateTimeLocal } from '~/utils/dateTime'
+import { formatDateTimeLocal, formatKoreanDateTime } from '~/utils/dateTime'
 import { MANUAL_SORTING_OPTIONS, getSortIcon } from '~/utils/tableSorting'
 import { normalizeFab } from '~/utils/fab'
 import {
+  TOOL_FILES_REASON_MAX,
   filterToolFileEntries,
   formatFileSize,
   sortToolFileEntries,
+  toolFilesAccessView,
+  toolFilesErrorCode,
   toolFilesErrorMessage,
+  toolFilesReasonValid,
   toolFilesVerdictMessage,
   type ToolFileEntry,
   type ToolFileSortKey
@@ -295,11 +376,32 @@ const toast = useToast()
 
 const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
 
-const { data: access, status: accessStatus } = useToolFilesAccess(props.toolType)
+const { data: access, status: accessStatus, refresh: refreshAccess } = useToolFilesAccess(props.toolType)
+const view = computed(() => toolFilesAccessView(access.value))
 const refusal = computed(() => {
   const verdict = access.value?.verdict
-  return toolFilesVerdictMessage(!verdict || verdict === 'granted' ? 'none' : verdict)
+  return toolFilesVerdictMessage(!verdict || verdict === 'granted' ? 'store_unavailable' : verdict)
 })
+const ownRequest = computed(() => access.value?.request ?? null)
+
+const reason = ref('')
+const submitting = ref(false)
+const submitError = ref('')
+
+const submitRequest = async () => {
+  if (!toolFilesReasonValid(reason.value) || submitting.value) return
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await requestToolFilesAccess(reason.value.trim())
+    reason.value = ''
+    await refreshAccess()
+  } catch (error) {
+    submitError.value = toolFilesErrorMessage(toolFilesErrorCode(error))
+  } finally {
+    submitting.value = false
+  }
+}
 
 const { data: semRows } = useSemList()
 const toolOptions = computed(() =>

@@ -9,13 +9,17 @@ from collections.abc import Callable, Mapping
 from backend._auth.admin import is_admin
 from backend._auth.directory import Probe
 from backend._auth.provider import SOURCE_COOKIE, SOURCE_LOCAL
-from backend.ebeam.tool_files.contracts import Grant, Verdict
+from backend.ebeam.tool_files.contracts import Grant, Request, Verdict
 
 _TRUSTED_SOURCES = frozenset({SOURCE_COOKIE, SOURCE_LOCAL})
 
 
+def norm_empno(empno: str) -> str:
+    return empno.strip().upper()
+
+
 def emp_key(empno: str) -> str:
-    return f"emp:{empno.strip().upper()}"
+    return f"emp:{norm_empno(empno)}"
 
 
 def team_key(dept_nm: str) -> str:
@@ -27,11 +31,13 @@ def decide(
     empno: str | None,
     grants: Callable[[], Mapping[str, Grant] | None],
     probe: Callable[[], Probe],
+    requests: Callable[[], Mapping[str, Request] | None],
 ) -> Verdict:
-    """Both lookups are lazy, called only when an earlier row has not decided:
-    an admin keeps access through a store outage, and an empno grant never
-    costs a directory round trip. ``grants()`` returns None when the store
-    cannot be read."""
+    """Every lookup is lazy, called only when an earlier row has not decided:
+    an admin keeps access through a store outage, an empno grant never costs a
+    directory round trip, and nobody granted reads the requests. ``grants()``
+    and ``requests()`` return None when the store cannot be read; requests are
+    keyed by the normalised empno."""
     if source not in _TRUSTED_SOURCES or not empno:
         return "untrusted_identity"
     if is_admin(empno):
@@ -47,4 +53,8 @@ def decide(
     dept_nm = found.member["dept_nm"] if found.member else None
     if dept_nm and team_key(dept_nm) in stored:
         return "granted"
-    return "none"
+    pending = requests()
+    if pending is None:
+        return "store_unavailable"
+    own = pending.get(norm_empno(empno))
+    return own["status"] if own else "none"

@@ -27,6 +27,12 @@ decides all three:
   ``state/grants.json``), read on every call so a grant made in one worker is
   seen by the next request in any other, and written by atomic replace. Unlike
   access_control's mock, an unreadable file is 503, never an empty store.
+  Access requests live in the sibling ``requests.json`` (empno -> request),
+  under the same lock and rules. The office checks a request_id under
+  WATCH/MULTI; here the process lock makes the check-then-write atomic, so
+  the mock never sees the office's WatchError retry. An approval writes two
+  files, grant first: a crash between them leaves the request behind, and
+  approving it again is harmless.
 - **Member directory.** ``_auth.directory.probe_member`` is ``unavailable`` at
   home by design, so team grants would be untestable here. ``_MEMBERS`` stands
   in: two teams, a profile with no dept_nm, and a directory outage; every
@@ -47,8 +53,9 @@ from threading import Lock
 from ftp_handler.core import FileInfo, ListingTooLarge, TargetExists, TransferTooLarge
 
 from backend._auth.directory import Probe
-from backend.ebeam.tool_files.contracts import Grant, Teams
-from backend.ebeam.tool_files.errors import StoreUnavailable
+from backend.ebeam.tool_files.access import emp_key, team_key
+from backend.ebeam.tool_files.contracts import Grant, Request, Teams
+from backend.ebeam.tool_files.errors import RequestChanged, StoreUnavailable
 from backend.ebeam.tool_files.resolve import Tool
 from backend.sem_list.providers.mock import get_sem_list
 
@@ -232,31 +239,35 @@ def _grants_path() -> Path:
     return Path(__file__).resolve().parent.parent / "state" / "grants.json"
 
 
-def _read(path: Path) -> dict[str, Grant]:
+def _requests_path() -> Path:
+    return _grants_path().with_name("requests.json")
+
+
+def _read(path: Path) -> dict:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {}
     except (OSError, ValueError) as exc:
-        raise StoreUnavailable(f"grant file unreadable: {path}") from exc
+        raise StoreUnavailable(f"store file unreadable: {path}") from exc
     if not isinstance(raw, dict) or not all(isinstance(v, dict) for v in raw.values()):
-        raise StoreUnavailable(f"grant file is not a JSON object of grants: {path}")
+        raise StoreUnavailable(f"store file is not a JSON object of objects: {path}")
     return raw
 
 
-def _write(path: Path, grants: dict[str, Grant]) -> None:
+def _write(path: Path, records: dict) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".grants.")
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}.")
     except OSError as exc:
-        raise StoreUnavailable(f"grant file not writable: {path}") from exc
+        raise StoreUnavailable(f"store file not writable: {path}") from exc
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(grants, handle, ensure_ascii=False, indent=2)
+            json.dump(records, handle, ensure_ascii=False, indent=2)
         os.replace(tmp, path)
     except OSError as exc:
         Path(tmp).unlink(missing_ok=True)
-        raise StoreUnavailable(f"grant file not writable: {path}") from exc
+        raise StoreUnavailable(f"store file not writable: {path}") from exc
 
 
 def read_grants() -> dict[str, Grant]:
@@ -282,3 +293,67 @@ def delete_grant(key: str) -> bool:
             return False
         _write(path, grants)
         return True
+
+
+def read_requests() -> dict[str, Request]:
+    return _read(_requests_path())
+
+
+def put_request(empno: str, request: Request) -> None:
+    """Overwrites: one request per empno, a re-request replaces the last."""
+    path = _requests_path()
+    with _lock:
+        requests = _read(path)
+        requests[empno] = request
+        _write(path, requests)
+
+
+def _matching(requests: dict[str, Request], empno: str, request_id: str) -> Request:
+    current = requests.get(empno)
+    if current is None or current.get("request_id") != request_id:
+        raise RequestChanged(empno)
+    return current
+
+
+def approve_request(empno: str, request_id: str, grant: Grant) -> None:
+    grants_path, requests_path = _grants_path(), _requests_path()
+    with _lock:
+        grants, requests = _read(grants_path), _read(requests_path)
+        key = emp_key(empno)
+        if empno not in requests and key in grants:
+            return  # a retry of an approval that already landed
+        _matching(requests, empno, request_id)
+        if key not in grants:
+            grants[key] = grant
+            _write(grants_path, grants)
+        del requests[empno]
+        _write(requests_path, requests)
+
+
+def reject_request(empno: str, request_id: str) -> None:
+    path = _requests_path()
+    with _lock:
+        requests = _read(path)
+        _matching(requests, empno, request_id)["status"] = "rejected"
+        _write(path, requests)
+
+
+def approve_team(dept_nm: str, grant: Grant) -> tuple[Grant, list[str]]:
+    """Grant the team (a repeat keeps the first stamp) and drop the pending
+    requests whose stored dept_nm is that team. Returns the grant and the
+    cleared empnos."""
+    grants_path, requests_path = _grants_path(), _requests_path()
+    with _lock:
+        grants, requests = _read(grants_path), _read(requests_path)
+        key = team_key(dept_nm)
+        if key not in grants:
+            grants[key] = grant
+            _write(grants_path, grants)
+        cleared = sorted(
+            e for e, r in requests.items() if r.get("status") == "pending" and r.get("dept_nm") == dept_nm
+        )
+        if cleared:
+            for empno in cleared:
+                del requests[empno]
+            _write(requests_path, requests)
+        return grants[key], cleared
