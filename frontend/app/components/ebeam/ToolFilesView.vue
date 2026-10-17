@@ -73,8 +73,20 @@
           </dd>
         </dl>
 
+        <UButton
+          v-if="view === 'pending'"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-refresh-cw"
+          :loading="checking"
+          @click="checkApproval"
+        >
+          승인 확인
+        </UButton>
+
         <form
-          v-if="view !== 'pending'"
+          v-else
           class="space-y-2"
           @submit.prevent="submitRequest"
         >
@@ -382,6 +394,17 @@ const toast = useToast()
 const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
 
 const { data: access, status: accessStatus, error: accessError, refresh: refreshAccess } = useToolFilesAccess(props.toolType)
+
+// A button, not polling: approval is rare and /api is rate-limited per user.
+const checking = ref(false)
+const checkApproval = async () => {
+  checking.value = true
+  try {
+    await refreshAccess()
+  } finally {
+    checking.value = false
+  }
+}
 const view = computed(() => toolFilesAccessView(access.value))
 const refusal = computed(() => {
   const verdict = access.value?.verdict

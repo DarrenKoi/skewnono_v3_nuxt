@@ -245,7 +245,7 @@ const VERDICT_MESSAGES: Record<Exclude<ToolFilesVerdict, 'granted'>, { title: st
   },
   pending: {
     title: '권한 신청을 검토하고 있습니다.',
-    description: '관리자가 승인하면 이 페이지에서 바로 장비 파일을 열 수 있습니다.'
+    description: '관리자가 승인한 뒤 "승인 확인"을 누르거나 페이지를 새로고침하면 장비 파일이 열립니다.'
   },
   rejected: {
     title: '권한 신청이 거절되었습니다.',
