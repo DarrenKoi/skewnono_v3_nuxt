@@ -1,6 +1,7 @@
 import type { ToolType } from '~/utils/toolType'
 import { toolSlug } from '~/utils/toolType'
 import { joinApiPath } from '~/utils/apiPath'
+import { downloadBlob } from '~/utils/tableExport'
 import type {
   ToolFilesAccess,
   ToolFilesGrantRow,
@@ -19,9 +20,10 @@ export interface ToolFilesTarget {
 const apiUrl = (target: ToolFilesTarget, leaf: string) =>
   joinApiPath(useRuntimeConfig().public.apiBase, `/${toolSlug(target.toolType)}/tool-files/${leaf}`)
 
-export const useToolFilesAccess = (toolType: ToolType) => {
-  const url = joinApiPath(useRuntimeConfig().public.apiBase, `/${toolSlug(toolType)}/tool-files/access`)
-  return useAsyncData(`tool-files-access:${toolType}`, () => $fetch<ToolFilesAccess>(url))
+// Per person, not per tool: one answer shared by every tool family's page.
+export const useToolFilesAccess = () => {
+  const url = joinApiPath(useRuntimeConfig().public.apiBase, '/tool-files/access')
+  return useAsyncData('tool-files-access', () => $fetch<ToolFilesAccess>(url))
 }
 
 // Keyed on tool + path, not cached across visits: a listing is a live view of
@@ -52,12 +54,7 @@ export const downloadToolFile = async (target: ToolFilesTarget, path: string, na
     const data = await response.json().catch(() => null)
     throw Object.assign(new Error(`download failed: ${response.status}`), { data, status: response.status })
   }
-  const href = URL.createObjectURL(await response.blob())
-  const link = document.createElement('a')
-  link.href = href
-  link.download = name
-  link.click()
-  URL.revokeObjectURL(href)
+  downloadBlob(name, await response.blob())
 }
 
 // Writes answer only when the server's `access.can_write` is true; a page that

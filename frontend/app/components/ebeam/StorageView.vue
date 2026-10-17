@@ -129,7 +129,7 @@
               trailing-icon="i-lucide-arrow-right"
               label="파일 열기"
               :aria-label="`${row.original.eqp_id} 파일 열기`"
-              :to="{ path: `/ebeam/${props.toolType}/${fabSegment(row.original.fab_name)}/tool-files`, query: { eqp: row.original.eqp_id } }"
+              :to="toolFilesRoute(props.toolType, row.original.fab_name, row.original.eqp_id)"
             />
           </div>
         </template>
@@ -241,7 +241,8 @@ import type { StorageRow, StorageTool, PpidUnavailableSnapshot } from '~/composa
 import { isStorageUnavailable } from '~/composables/useStorageApi'
 import { copyTextToClipboard } from '~/utils/tableExport'
 import { storageUsageTier } from '~/utils/storageUsage'
-import { fabSegment, normalizeFab } from '~/utils/fab'
+import { normalizeFab } from '~/utils/fab'
+import { toolFilesRoute } from '~/utils/toolFiles'
 import type { MetaBarStat } from './MetaBar.vue'
 import { formatDateTimeLocal } from '~/utils/dateTime'
 

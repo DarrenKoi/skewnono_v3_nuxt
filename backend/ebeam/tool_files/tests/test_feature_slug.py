@@ -10,7 +10,7 @@ from backend._logging.feature_map import page_to_feature, route_to_feature
     [
         "/api/cdsem/tool-files/list",
         "/api/hvsem/tool-files/download",
-        "/api/cdsem/tool-files/access",
+        "/api/tool-files/access",
     ],
 )
 def test_api_calls_are_filed_under_tool_files(path):

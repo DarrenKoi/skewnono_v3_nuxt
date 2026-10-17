@@ -52,7 +52,7 @@ def _list(client):
 
 
 def _verdict(client):
-    return client.get("/api/cdsem/tool-files/access").get_json()["verdict"]
+    return client.get("/api/tool-files/access").get_json()["verdict"]
 
 
 def _grant(admin, kind, value):

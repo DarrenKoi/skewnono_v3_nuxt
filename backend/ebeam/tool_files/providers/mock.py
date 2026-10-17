@@ -44,7 +44,6 @@ decides all three:
 import json
 import os
 import tempfile
-from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from ftplib import error_perm
@@ -53,8 +52,8 @@ from threading import Lock
 
 from ftp_handler.core import FileInfo, ListingTooLarge, TargetExists, TransferTooLarge
 
-from backend._auth.directory import Probe
-from backend.ebeam.tool_files.access import emp_key, team_key
+from backend._auth.directory import Probe, bare_member
+from backend.ebeam.tool_files.access import cleared_by_team, emp_key, team_counts, team_key
 from backend.ebeam.tool_files.contracts import Grant, Request, Teams
 from backend.ebeam.tool_files.errors import RequestChanged, StoreUnavailable
 from backend.ebeam.tool_files.resolve import Tool
@@ -199,14 +198,7 @@ def transport_supports_write() -> bool:
 
 
 def _profile(empno: str, emp_nm: str, dept_nm: str | None) -> Probe:
-    member = {
-        "empno": empno,
-        "emp_nm": emp_nm,
-        "dept_nm": dept_nm,
-        "organ_cd": None,
-        "upper_organ_nm": None,
-    }
-    return Probe(member, "found")
+    return Probe({**bare_member(empno), "emp_nm": emp_nm, "dept_nm": dept_nm}, "found")
 
 
 _MEMBERS: dict[str, Probe] = {
@@ -223,13 +215,7 @@ def probe(empno: str) -> Probe:
 
 
 def teams() -> Teams:
-    counts = Counter(
-        p.member["dept_nm"] for p in _MEMBERS.values() if p.member and p.member["dept_nm"]
-    )
-    return {
-        "teams": [{"dept_nm": d, "members": n} for d, n in sorted(counts.items())],
-        "complete": True,
-    }
+    return team_counts((p.member["dept_nm"] for p in _MEMBERS.values() if p.member), True)
 
 
 _lock = Lock()
@@ -352,9 +338,7 @@ def approve_team(dept_nm: str, grant: Grant) -> tuple[Grant, list[str]]:
         if key not in grants:
             grants[key] = grant
             _write(grants_path, grants)
-        cleared = sorted(
-            e for e, r in requests.items() if r.get("status") == "pending" and r.get("dept_nm") == dept_nm
-        )
+        cleared = sorted(e for e, r in requests.items() if cleared_by_team(r, dept_nm))
         if cleared:
             for empno in cleared:
                 del requests[empno]

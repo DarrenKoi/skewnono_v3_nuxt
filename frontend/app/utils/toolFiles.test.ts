@@ -184,9 +184,9 @@ test('the rate limiter has its own line', () => {
   assert.equal(toolFilesErrorMessage('too_many_requests'), '요청이 많아 잠시 멈췄습니다. 잠시 후 다시 시도해 주세요.')
 })
 
-test('an upload refused as bad_path points at the file name, a read does not', () => {
-  assert.match(toolFilesErrorMessage('bad_path', 'upload'), /한글/)
-  assert.equal(toolFilesErrorMessage('bad_path'), '열 수 없는 경로입니다.')
+test('a name the tool cannot carry points at the file name; a bad path does not', () => {
+  assert.match(toolFilesErrorMessage('name_unencodable', 'upload'), /한글/)
+  assert.equal(toolFilesErrorMessage('bad_path', 'upload'), '열 수 없는 경로입니다.')
 })
 
 const request = (empno: string, dept_nm: string | null, requested_at: string, status: 'pending' | 'rejected' = 'pending'): ToolFilesRequestRow => ({

@@ -82,12 +82,12 @@ def test_a_non_admin_is_refused_before_any_ftp_session(client, monkeypatch):
 
 
 def test_access_reports_granted_for_the_admin_and_none_for_a_member(client):
-    assert client.get("/api/cdsem/tool-files/access").get_json() == {
+    assert client.get("/api/tool-files/access").get_json() == {
         "verdict": "granted",
         "can_write": False,
     }
     _as_member(client)
-    assert client.get("/api/cdsem/tool-files/access").get_json() == {
+    assert client.get("/api/tool-files/access").get_json() == {
         "verdict": "none",
         "can_write": False,
     }

@@ -62,7 +62,7 @@ def is_admin(user_id: str | None) -> bool:
 # trusted token turned "type an admin's employee number" into admin with one
 # extra request. Admin work is done in a browser session; to give tokens admin
 # back, record the minting source on the token row first.
-_TRUSTED_SOURCES = frozenset({SOURCE_COOKIE, SOURCE_LOCAL})
+TRUSTED_SOURCES = frozenset({SOURCE_COOKIE, SOURCE_LOCAL})
 
 
 def is_admin_request() -> bool:
@@ -73,7 +73,7 @@ def is_admin_request() -> bool:
     without proving anything. Every admin gate uses this one; `is_admin` stays
     a pure id check for the callers that genuinely have only an id.
     """
-    if getattr(g, "identity_source", None) not in _TRUSTED_SOURCES:
+    if getattr(g, "identity_source", None) not in TRUSTED_SOURCES:
         return False
     return is_admin(getattr(g, "user_id", None))
 

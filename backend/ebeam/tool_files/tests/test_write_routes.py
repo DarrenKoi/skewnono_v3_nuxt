@@ -121,11 +121,11 @@ def test_a_transport_that_cannot_write_is_501_unread(client, write_on, untouchab
     monkeypatch.setattr(f"{_ROUTES}.transport_supports_write", lambda: False)
     assert _code(_upload(client, untouchable)) == (501, "write_not_supported")
     assert _code(_delete(client, "/README.TXT", untouchable)) == (501, "write_not_supported")
-    assert client.get("/api/cdsem/tool-files/access").get_json()["can_write"] is False
+    assert client.get("/api/tool-files/access").get_json()["can_write"] is False
 
 
 def _can_write(client):
-    return client.get("/api/cdsem/tool-files/access").get_json()["can_write"]
+    return client.get("/api/tool-files/access").get_json()["can_write"]
 
 
 def test_can_write_needs_the_flag_and_an_admin(client, monkeypatch):
@@ -268,4 +268,4 @@ def test_a_name_the_tool_encoding_cannot_carry_is_400(client, write_on, monkeypa
         remote_path.encode("latin-1")
 
     monkeypatch.setattr(mock.MockFtpClient, "put", latin1_only)
-    assert _code(_upload(client, name="측정.csv")) == (400, "bad_path")
+    assert _code(_upload(client, name="측정.csv")) == (400, "name_unencodable")

@@ -47,7 +47,7 @@ def _list(client):
 
 
 def _access(client):
-    return client.get("/api/cdsem/tool-files/access").get_json()
+    return client.get("/api/tool-files/access").get_json()
 
 
 def _ask(client, reason="레시피 백업 확인", **extra):

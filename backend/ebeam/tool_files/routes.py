@@ -2,6 +2,7 @@ import logging
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import cache
 from ftplib import all_errors, error_perm
 
 from flask import Blueprint, Response, g, jsonify, request
@@ -17,6 +18,7 @@ from ftp_handler.core import (
 
 from backend._auth.admin import is_admin_request, require_admin
 from backend._auth.errors import error_json
+from backend._core.timefmt import iso_z
 from backend.ebeam._tool_specs import VALID_TOOL_SLUGS
 from backend.ebeam.tool_files.config import load_limits, write_enabled
 from backend.ebeam.tool_files.access import decide, emp_key, norm_empno, team_key
@@ -44,12 +46,7 @@ from backend.ebeam.tool_files.data import (
     teams,
     transport_supports_write,
 )
-from backend.ebeam.tool_files.errors import (
-    DirectoryUnavailable,
-    RequestChanged,
-    StoreUnavailable,
-    ToolFilesError,
-)
+from backend.ebeam.tool_files.errors import StoreUnavailable, ToolFilesError
 from backend.ebeam.tool_files.paths import check_path, crumbs, parent_of, readable_name
 from backend.ebeam.tool_files.resolve import Tool, resolve_tool
 from backend.msr_image.config import load_config
@@ -70,23 +67,6 @@ def _upload_too_large(_err: RequestEntityTooLarge):
     return error_json("too_large", "upload exceeds the size cap", 413)
 
 
-@bp.errorhandler(StoreUnavailable)
-def _store_unavailable(err: StoreUnavailable):
-    return error_json("store_unavailable", str(err), 503)
-
-
-@bp.errorhandler(DirectoryUnavailable)
-def _directory_unavailable(err: DirectoryUnavailable):
-    return error_json("directory_unavailable", str(err), 503)
-
-
-@bp.errorhandler(RequestChanged)
-def _request_changed(_err: RequestChanged):
-    return error_json(
-        "request_changed", "the request was replaced or withdrawn; reload and check again", 409
-    )
-
-
 @bp.after_request
 def _no_store(response: Response) -> Response:
     # Listings and file bytes are access-controlled; no cache may replay them
@@ -102,31 +82,20 @@ def _or_none(read):
         return None
 
 
-def _judge() -> tuple[Verdict, dict]:
-    """The verdict, plus whatever ``decide`` read on the way ("probe",
-    "requests"), so a caller reuses it instead of asking twice."""
+def _judge():
+    """The verdict, plus the probe and requests reads ``decide`` was handed,
+    memoised so a caller reuses what it already read instead of asking twice."""
     empno = getattr(g, "user_id", None)
-    seen: dict = {}
-
-    def remember(name, read):
-        def call():
-            seen[name] = read()
-            return seen[name]
-
-        return call
-
-    verdict = decide(
+    probe_once = cache(lambda: probe(empno))
+    requests_once = cache(lambda: _or_none(read_requests))
+    verdict: Verdict = decide(
         getattr(g, "identity_source", None),
         empno,
         lambda: _or_none(read_grants),
-        remember("probe", lambda: probe(empno)),
-        remember("requests", lambda: _or_none(read_requests)),
+        probe_once,
+        requests_once,
     )
-    return verdict, seen
-
-
-def _verdict() -> Verdict:
-    return _judge()[0]
+    return verdict, probe_once, requests_once
 
 
 _REFUSALS: dict[str, tuple[int, str]] = {
@@ -140,7 +109,7 @@ _REFUSALS: dict[str, tuple[int, str]] = {
 
 
 def _require_access() -> None:
-    verdict = _verdict()
+    verdict = _judge()[0]
     if verdict != "granted":
         status, code = _REFUSALS[verdict]
         raise ToolFilesError(status, code, f"tool file access refused: {verdict}")
@@ -197,7 +166,7 @@ def _session(tool: Tool):
     except UnicodeEncodeError as exc:
         # An upload name the tool's encoding cannot carry (Korean under latin-1).
         raise ToolFilesError(
-            400, "bad_path", f"name cannot be sent as {tool.encoding}: {exc}"
+            400, "name_unencodable", f"name cannot be sent as {tool.encoding}: {exc}"
         ) from exc
     except error_perm as exc:
         # 550 means "missing" and "denied" alike, and a LIST line the parser
@@ -209,13 +178,14 @@ def _session(tool: Tool):
         client.__exit__(None, None, None)
 
 
-@bp.get("/<tool_slug>/tool-files/access")
-def access(tool_slug: str):
+@bp.get("/tool-files/access")
+def access():
+    """Per person, not per tool: the verdict never reads which tool is asked."""
     can_write = write_enabled() and is_admin_request() and transport_supports_write()
-    verdict, seen = _judge()
+    verdict, _probe, requests_once = _judge()
     body: Access = {"verdict": verdict, "can_write": can_write}
     if verdict in ("pending", "rejected"):
-        body["request"] = seen["requests"][norm_empno(g.user_id)]
+        body["request"] = requests_once()[norm_empno(g.user_id)]
     return jsonify(body)
 
 
@@ -226,11 +196,10 @@ _MAX_REASON = 200
 def request_access():
     """Only ``reason`` is read from the body: the empno is the caller's own
     identity and dept_nm comes from the directory, whatever the client sent."""
-    verdict, seen = _judge()
+    verdict, probe_once, _requests = _judge()
     if verdict == "untrusted_identity":
         raise ToolFilesError(403, "untrusted_identity", "this identity source cannot request access")
-    body = request.get_json(silent=True)
-    reason = body.get("reason") if isinstance(body, dict) else None
+    reason = _json_body("reason").get("reason")
     if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > _MAX_REASON:
         raise ToolFilesError(400, "bad_request", f"need a reason of 1-{_MAX_REASON} characters")
     if verdict == "granted":
@@ -239,21 +208,16 @@ def request_access():
         status, code = _REFUSALS[verdict]
         raise ToolFilesError(status, code, f"cannot take a request now: {verdict}")
     empno = norm_empno(g.user_id)
-    member = seen["probe"].member
-    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    member = probe_once().member
     record: Request = {
         "request_id": uuid.uuid4().hex,
         "reason": reason.strip(),
         "dept_nm": member["dept_nm"] if member else None,
-        "requested_at": stamp,
+        "requested_at": _now(),
         "status": "pending",
     }
-    try:
+    with _audited("request", empno, record["request_id"]):
         put_request(empno, record)
-    except StoreUnavailable:
-        _audit("request", empno, "store_unavailable", record["request_id"])
-        raise
-    _audit("request", empno, "ok", record["request_id"])
     return jsonify({"verdict": "pending", "request": record}), 201
 
 
@@ -323,13 +287,16 @@ def _require_write() -> None:
 
 
 @contextmanager
-def _audited(action: str, target: str):
+def _audited(action: str, target: str, access_request_id: str | None = None):
+    """Logs one audit line per mutation: the failure code, or ``outcome["result"]``
+    (``"ok"`` unless the body says otherwise)."""
+    outcome = {"result": "ok"}
     try:
-        yield
+        yield outcome
     except ToolFilesError as exc:
-        _audit(action, target, exc.code)
+        _audit(action, target, exc.code, access_request_id)
         raise
-    _audit(action, target, "ok")
+    _audit(action, target, outcome["result"], access_request_id)
 
 
 @bp.post("/<tool_slug>/tool-files/upload")
@@ -360,8 +327,8 @@ def upload(tool_slug: str):
 @bp.post("/<tool_slug>/tool-files/delete")
 def delete(tool_slug: str):
     _require_write()
-    body = request.get_json(silent=True)
-    if not isinstance(body, dict) or not isinstance(body.get("path"), str):
+    body = _json_body("fab, eqp_id, path")
+    if not isinstance(body.get("path"), str):
         raise ToolFilesError(400, "bad_request", "need a JSON object with fab, eqp_id, path")
     tool = _tool(tool_slug, body)
     with _audited("delete", f"{tool.eqp_id}@{tool.fab_name}:{body['path']}"):
@@ -371,10 +338,15 @@ def delete(tool_slug: str):
     return jsonify({"deleted": path})
 
 
-def _grant_key() -> str:
+def _json_body(fields: str) -> dict:
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
-        raise ToolFilesError(400, "bad_request", "need a JSON object with kind and value")
+        raise ToolFilesError(400, "bad_request", f"need a JSON object with {fields}")
+    return body
+
+
+def _grant_key() -> str:
+    body = _json_body("kind and value")
     kind, value = body.get("kind"), body.get("value")
     if kind not in ("team", "emp") or not isinstance(value, str) or not value.strip():
         raise ToolFilesError(400, "bad_request", "need kind 'team' or 'emp' and a value")
@@ -431,9 +403,12 @@ def admin_teams():
     return jsonify(teams())
 
 
+def _now() -> str:
+    return iso_z(datetime.now(timezone.utc))
+
+
 def _new_grant() -> Grant:
-    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-    return {"granted_at": stamp, "granted_by": g.user_id}
+    return {"granted_at": _now(), "granted_by": g.user_id}
 
 
 def _string(body: dict, name: str) -> str:
@@ -444,30 +419,15 @@ def _string(body: dict, name: str) -> str:
 
 
 def _decision_body() -> tuple[str, str]:
-    body = request.get_json(silent=True)
-    if not isinstance(body, dict):
-        raise ToolFilesError(400, "bad_request", "need a JSON object with empno and request_id")
+    body = _json_body("empno and request_id")
     return norm_empno(_string(body, "empno")), _string(body, "request_id")
-
-
-@contextmanager
-def _audited_decision(action: str, target: str, access_request_id: str | None):
-    try:
-        yield
-    except RequestChanged:
-        _audit(action, target, "request_changed", access_request_id)
-        raise
-    except StoreUnavailable:
-        _audit(action, target, "store_unavailable", access_request_id)
-        raise
-    _audit(action, target, "ok", access_request_id)
 
 
 @bp.post("/admin/tool-files/requests/approve")
 @require_admin
 def admin_approve():
     empno, request_id = _decision_body()
-    with _audited_decision("approve", empno, request_id):
+    with _audited("approve", empno, request_id):
         approve_request(empno, request_id, _new_grant())
     return jsonify({"approved": empno})
 
@@ -476,7 +436,7 @@ def admin_approve():
 @require_admin
 def admin_reject():
     empno, request_id = _decision_body()
-    with _audited_decision("reject", empno, request_id):
+    with _audited("reject", empno, request_id):
         reject_request(empno, request_id)
     return jsonify({"rejected": empno})
 
@@ -484,17 +444,11 @@ def admin_reject():
 @bp.post("/admin/tool-files/teams/approve")
 @require_admin
 def admin_approve_team():
-    body = request.get_json(silent=True)
-    if not isinstance(body, dict):
-        raise ToolFilesError(400, "bad_request", "need a JSON object with dept_nm")
-    dept_nm = _string(body, "dept_nm")
+    dept_nm = _string(_json_body("dept_nm"), "dept_nm")
     key = team_key(dept_nm)
-    try:
+    with _audited("team_approve", key) as outcome:
         grant, cleared = approve_team(dept_nm, _new_grant())
-    except StoreUnavailable:
-        _audit("team_approve", key, "store_unavailable")
-        raise
-    _audit("team_approve", key, f"ok cleared={','.join(cleared) or '-'}")
+        outcome["result"] = f"ok cleared={','.join(cleared) or '-'}"
     return jsonify({**_grant_row(key, grant), "cleared": cleared}), 201
 
 
@@ -502,12 +456,8 @@ def admin_approve_team():
 @require_admin
 def admin_grant():
     key = _grant_key()
-    try:
+    with _audited("grant", key):
         grant = put_grant(key, _new_grant())
-    except StoreUnavailable:
-        _audit("grant", key, "store_unavailable")
-        raise
-    _audit("grant", key, "ok")
     return jsonify(_grant_row(key, grant)), 201
 
 
@@ -515,10 +465,7 @@ def admin_grant():
 @require_admin
 def admin_revoke():
     key = _grant_key()
-    try:
+    with _audited("revoke", key) as outcome:
         revoked = delete_grant(key)
-    except StoreUnavailable:
-        _audit("revoke", key, "store_unavailable")
-        raise
-    _audit("revoke", key, "ok" if revoked else "absent")
+        outcome["result"] = "ok" if revoked else "absent"
     return jsonify({"revoked": revoked})

@@ -47,7 +47,6 @@ import json
 import platform
 import time
 from collections.abc import Callable
-from collections import Counter
 from functools import lru_cache
 
 from redis.exceptions import WatchError
@@ -58,7 +57,7 @@ from ftp_handler.proxy import FtpClient as ProxyFtpClient
 from backend._auth.directory import MEMBERS_KEY, probe_member
 from backend._runtime.office_redis import STORE_ERRORS, redis_client, redis_text
 from backend.ebeam.tool_files.config import load_limits
-from backend.ebeam.tool_files.access import emp_key, team_key
+from backend.ebeam.tool_files.access import cleared_by_team, emp_key, team_counts, team_key
 from backend.ebeam.tool_files.contracts import Grant, Request, Teams
 from backend.ebeam.tool_files.errors import (
     DirectoryUnavailable,
@@ -129,8 +128,8 @@ def _decode(raw, key: str = _GRANTS_KEY) -> dict:
     return record
 
 
-def _decode_grant(raw) -> Grant:
-    return _decode(raw)
+def _json(record) -> str:
+    return json.dumps(record, ensure_ascii=False)
 
 
 def read_grants() -> dict[str, Grant]:
@@ -138,18 +137,18 @@ def read_grants() -> dict[str, Grant]:
         raw = _client().hgetall(_GRANTS_KEY)
     except STORE_ERRORS as exc:
         raise StoreUnavailable("grant store unreachable") from exc
-    return {redis_text(field): _decode_grant(value) for field, value in raw.items()}
+    return {redis_text(field): _decode(value) for field, value in raw.items()}
 
 
 def put_grant(key: str, grant: Grant) -> Grant:
     try:
         client = _client()
-        if client.hsetnx(_GRANTS_KEY, key, json.dumps(grant, ensure_ascii=False)):
+        if client.hsetnx(_GRANTS_KEY, key, _json(grant)):
             return grant
         existing = client.hget(_GRANTS_KEY, key)
     except STORE_ERRORS as exc:
         raise StoreUnavailable("grant store unreachable; grant NOT saved") from exc
-    return grant if existing is None else _decode_grant(existing)
+    return grant if existing is None else _decode(existing)
 
 
 def delete_grant(key: str) -> bool:
@@ -157,10 +156,6 @@ def delete_grant(key: str) -> bool:
         return bool(_client().hdel(_GRANTS_KEY, key))
     except STORE_ERRORS as exc:
         raise StoreUnavailable("grant store unreachable; revoke NOT saved") from exc
-
-
-def _json(record) -> str:
-    return json.dumps(record, ensure_ascii=False)
 
 
 def read_requests() -> dict[str, Request]:
@@ -246,15 +241,14 @@ def approve_team(dept_nm: str, grant: Grant) -> tuple[Grant, list[str]]:
         cleared = sorted(
             redis_text(field)
             for field, raw in pipe.hgetall(_REQUESTS_KEY).items()
-            if (r := _decode(raw, _REQUESTS_KEY)).get("status") == "pending"
-            and r.get("dept_nm") == dept_nm
+            if cleared_by_team(_decode(raw, _REQUESTS_KEY), dept_nm)
         )
         pipe.multi()
         pipe.hsetnx(_GRANTS_KEY, key, _json(grant))
         if cleared:
             pipe.hdel(_REQUESTS_KEY, *cleared)
         pipe.execute()
-        return (grant if existing is None else _decode_grant(existing)), cleared
+        return (grant if existing is None else _decode(existing)), cleared
 
     return _watched(attempt)
 
@@ -262,10 +256,8 @@ def approve_team(dept_nm: str, grant: Grant) -> tuple[Grant, list[str]]:
 def _dept_of(raw) -> tuple[str | None, bool]:
     """(dept_nm, readable) for one member document."""
     try:
-        document = json.loads(redis_text(raw))
-    except (ValueError, UnicodeDecodeError):
-        return None, False
-    if not isinstance(document, dict):
+        document = _decode(raw, MEMBERS_KEY)
+    except StoreUnavailable:
         return None, False
     dept_nm = str(document.get("dept_nm") or "").strip()
     return dept_nm or None, True
@@ -288,11 +280,7 @@ def _team_counts(_bucket: int) -> Teams:
                 break
     except STORE_ERRORS as exc:
         raise DirectoryUnavailable("member directory unreachable") from exc
-    counts = Counter(d for d in depts.values() if d)
-    return {
-        "teams": [{"dept_nm": d, "members": n} for d, n in sorted(counts.items())],
-        "complete": complete,
-    }
+    return team_counts(depts.values(), complete)
 
 
 def teams() -> Teams:

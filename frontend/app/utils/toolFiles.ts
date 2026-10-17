@@ -1,3 +1,16 @@
+import { fabSegment } from './fab.ts'
+import { SEM_TOOL_TYPES, type ToolType } from './toolType.ts'
+
+// The explorer page exists only under pages/ebeam/{cd-sem,hv-sem}/[fab]/tool-files;
+// a link drawn for another family matches no route. Access is the page's call.
+export const hasToolFilesView = (toolType: ToolType): boolean =>
+  (SEM_TOOL_TYPES as readonly ToolType[]).includes(toolType)
+
+export const toolFilesRoute = (toolType: ToolType, fab: string, eqpId: string) => ({
+  path: `/ebeam/${toolType}/${fabSegment(fab)}/tool-files`,
+  query: { eqp: eqpId }
+})
+
 // Shapes mirror backend/ebeam/tool_files/contracts.py.
 export interface ToolFileEntry {
   name: string
@@ -128,6 +141,8 @@ const sortValue = (entry: ToolFileEntry, key: ToolFileSortKey): string | number 
   return entry.modified === null ? null : Date.parse(entry.modified)
 }
 
+const { compare: compareNames } = new Intl.Collator()
+
 // Folders first, then the column; a missing size or time sinks to the bottom
 // in both directions, so "unknown" never reads as "smallest" or "newest".
 export const sortToolFileEntries = (
@@ -136,19 +151,21 @@ export const sortToolFileEntries = (
   direction: SortDirection
 ): ToolFileEntry[] => {
   const sign = direction === 'asc' ? 1 : -1
-  return [...entries].sort((a, b) => {
-    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1
-    const left = sortValue(a, key)
-    const right = sortValue(b, key)
-    if (left === null || right === null) {
-      if (left === right) return a.name.localeCompare(b.name)
-      return left === null ? 1 : -1
-    }
-    if (typeof left === 'string' && typeof right === 'string') {
-      return sign * left.localeCompare(right)
-    }
-    return sign * ((left as number) - (right as number))
-  })
+  // Each key is computed once per entry, not once per comparison (Date.parse).
+  return entries
+    .map(entry => ({ entry, value: sortValue(entry, key) }))
+    .sort(({ entry: a, value: left }, { entry: b, value: right }) => {
+      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1
+      if (left === null || right === null) {
+        if (left === right) return compareNames(a.name, b.name)
+        return left === null ? 1 : -1
+      }
+      if (typeof left === 'string' && typeof right === 'string') {
+        return sign * compareNames(left, right)
+      }
+      return sign * ((left as number) - (right as number))
+    })
+    .map(({ entry }) => entry)
 }
 
 export type ToolFileKind = 'all' | 'dir' | 'file'
@@ -194,6 +211,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   too_large: '파일이 다운로드 상한보다 커서 받지 못했습니다.',
   listing_too_large: '폴더의 항목이 너무 많아 목록을 불러오지 못했습니다.',
   bad_path: '열 수 없는 경로입니다.',
+  name_unencodable: '이 이름으로는 올릴 수 없습니다. 파일 이름에 장비가 쓰지 못하는 글자(예: 한글)가 있는지 확인해 주세요.',
   tool_encoding: '장비가 보낸 파일 이름을 읽지 못했습니다. 서버의 FTP 인코딩 설정(SKEWNONO_TOOL_FTP_ENCODING)을 확인해 주세요.',
   untrusted_identity: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다.',
   directory_unavailable: '구성원 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
@@ -209,10 +227,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 const UPLOAD_MESSAGES: Record<string, string> = {
-  too_large: '파일이 업로드 상한보다 커서 올리지 않았습니다.',
-  // The server answers bad_path both for a bad folder and for a name the
-  // tool's FTP encoding cannot carry (Korean under latin-1).
-  bad_path: '이 이름으로는 올릴 수 없습니다. 파일 이름에 장비가 쓰지 못하는 글자(예: 한글)가 있는지 확인해 주세요.'
+  too_large: '파일이 업로드 상한보다 커서 올리지 않았습니다.'
 }
 
 export const toolFilesErrorMessage = (code: string, action?: 'upload'): string =>

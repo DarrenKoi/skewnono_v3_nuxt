@@ -111,8 +111,7 @@
           variant="outline"
           size="sm"
           icon="i-lucide-refresh-cw"
-          :loading="checking"
-          @click="checkApproval"
+          @click="refreshAccess()"
         >
           승인 확인
         </UButton>
@@ -489,18 +488,9 @@ const toast = useToast()
 const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
 const inventoryPath = computed(() => `/ebeam/${props.toolType}/${fabSegment(props.fab)}`)
 
-const { data: access, status: accessStatus, error: accessError, refresh: refreshAccess } = useToolFilesAccess(props.toolType)
-
-// A button, not polling: approval is rare and /api is rate-limited per user.
-const checking = ref(false)
-const checkApproval = async () => {
-  checking.value = true
-  try {
-    await refreshAccess()
-  } finally {
-    checking.value = false
-  }
-}
+const { data: access, status: accessStatus, error: accessError, refresh: refreshAccess } = useToolFilesAccess()
+// "승인 확인" is a button, not polling: approval is rare and /api is rate-limited
+// per user. No spinner of its own: a refresh swaps the card for the loading state.
 const view = computed(() => toolFilesAccessView(access.value))
 const refusal = computed(() => {
   const verdict = access.value?.verdict
@@ -597,11 +587,13 @@ const kindCounts = computed(() => {
 const totalBytes = computed(() => (listing.value?.entries ?? []).reduce((sum, entry) => sum + (entry.size ?? 0), 0))
 const sorting = ref<SortingState>([{ id: 'name', desc: false }])
 
-const visibleEntries = computed(() => {
-  const rows = filterToolFileEntries(listing.value?.entries ?? [], nameFilter.value, kindFilter.value)
+// Sorted apart from the filter, so typing in the search box never re-sorts.
+const sortedEntries = computed(() => {
+  const rows = listing.value?.entries ?? []
   const sort = sorting.value[0]
   return sort ? sortToolFileEntries(rows, sort.id as ToolFileSortKey, sort.desc ? 'desc' : 'asc') : rows
 })
+const visibleEntries = computed(() => filterToolFileEntries(sortedEntries.value, nameFilter.value, kindFilter.value))
 
 const SORTABLE_HEADERS = [
   { id: 'name', label: '이름' },
@@ -650,12 +642,12 @@ const dragging = ref(false)
 const uploading = ref<string | null>(null)
 
 // One request per file, in order: the server takes one file per upload.
-// Only on a settled listing: while a new folder loads, `listing` still holds
-// the old one, and its path would go out with the new target.
+// The folder comes from the route, not `listing`, which still holds the old
+// folder while a new one loads; the server reads '' as the login folder.
 const uploadAll = async (files: File[]) => {
   const current = target.value
-  const dir = listing.value?.path
-  if (!current || !dir || listingStatus.value !== 'success' || uploading.value) return
+  const dir = currentPath.value ?? ''
+  if (!current || uploading.value) return
   let uploaded = 0
   for (const file of files) {
     uploading.value = file.name

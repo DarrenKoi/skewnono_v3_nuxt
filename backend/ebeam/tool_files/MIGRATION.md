@@ -136,7 +136,7 @@ tool_encoding`: pull it again.
 - [ ] **임시 파일.** 업로드가 끊기면 `<이름>.<난수>.part`가 남을 수 있습니다. 장비
       소프트웨어가 이런 파일을 레시피나 로그로 잘못 읽지 않는지 확인합니다.
 - [ ] **파일 이름 인코딩.** `SKEWNONO_TOOL_FTP_ENCODING=latin-1`에서는 한글 이름을
-      보낼 수 없어 400 `bad_path`로 거절합니다. 한글 이름 업로드가 필요한지 정합니다.
+      보낼 수 없어 400 `name_unencodable`로 거절합니다. 한글 이름 업로드가 필요한지 정합니다.
 - [ ] **transport.** proxy(Windows office PC)에서는 `transport_supports_write()`가
       거짓이어야 합니다(ticket 06). 화면에 업로드·삭제가 보이지 않는지 확인합니다.
 - [ ] **운영 확인.** 작은 파일 하나를 올리고, 목록에 보이는지, 같은 이름이 409인지,
