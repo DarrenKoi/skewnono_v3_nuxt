@@ -157,13 +157,23 @@ CPU가 아니라 **프로세스 수명**입니다. SKEWNONO worker 1의 스레�
 
 ## OFFICE-VERIFY 답안지 (스펙을 막지 않음, 답이 다르면 해당 지점만 수정)
 
-1. 새 web app 슬롯: 장비 FTP 대역에 직접 닿는가? office Redis(읽기)에 닿는가?
-   `LASTUSER` 쿠키가 같은 게이트웨이를 거쳐 오는가? 야간 재기동 정책이 있는가
-   (있어도 복구 설계로 견딤, 알아만 둠)?
+1. ~~새 web app 슬롯의 도달성~~ — **user-confirmed 2026-10-18**: 장비 FTP, office
+   Redis, `LASTUSER` 쿠키 모두 닿습니다. `ftp_handler`를 그대로 씁니다.
 2. 레이아웃: `.idw` 파일의 정확한 경로. raw 폴더 `{idp}/`의 실제 내용과 확장자.
    복사에서 빼야 할 파일이 있는가?
 3. Hitachi FTP: `RNTO`가 기존 파일을 덮는가(아니면 `DELE` 뒤 `RNTO`)? `MKD`가
    되는가? 한 장비에 동시에 열 수 있는 세션 수(같은 장비를 `msr_image`도 1개 씀)?
+
+2·3번은 `docs/office-migration/to-office-recipe-copy-261018.md`로 사무실에
+요청했습니다. 회신이 오면 이 문서와 `docs/datatables/hitachi/recipe_idp.txt`에
+기록합니다.
+
+## 작업 장소
+
+구현은 **새 repo**에서 합니다. 집에서도 `skewnono_v3_nuxt`가 아니라 새 repo를 만들어
+진행합니다. 이 저장소에 남는 변경은 상단 메뉴의 외부 링크 하나뿐입니다. 이 handoff와
+검토 기록은 새 repo를 만들 때 그쪽 `docs/`로 복사하고, 여기 사본은 "이관됨" 표시만
+남깁니다.
 
 ## 이미 있는 재료 (다시 만들지 말 것)
 
