@@ -119,17 +119,6 @@
     >
       <template #header>
         <div class="flex flex-wrap items-center gap-2">
-          <USelectMenu
-            v-model="selectedEqp"
-            class="w-[14rem]"
-            size="xs"
-            color="neutral"
-            variant="subtle"
-            :items="toolOptions"
-            value-key="value"
-            placeholder="장비 선택"
-            aria-label="장비 선택"
-          />
           <nav
             v-if="listing"
             class="flex flex-wrap items-center gap-1 sk-value-num text-sm"
@@ -213,8 +202,8 @@
       <AppEmptyState
         v-if="!target"
         icon="i-lucide-server"
-        title="장비를 선택하세요."
-        description="위 장비 선택에서 장비를 고르면 그 장비의 로그인 폴더가 열립니다."
+        title="장비가 지정되지 않았습니다."
+        description="장비 목록이나 Storage 표에서 장비 행의 파일 링크로 들어오세요."
       />
       <AppLoadingState
         v-else-if="listingStatus === 'pending'"
@@ -364,10 +353,8 @@
 import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { ToolType } from '~/utils/toolType'
-import { classifyToolType } from '~/utils/toolType'
 import { formatDateTimeLocal, formatKoreanDateTime } from '~/utils/dateTime'
 import { MANUAL_SORTING_OPTIONS, getSortIcon } from '~/utils/tableSorting'
-import { normalizeFab } from '~/utils/fab'
 import {
   TOOL_FILES_REASON_MAX,
   filterToolFileEntries,
@@ -421,23 +408,13 @@ const submitRequest = async () => {
   }
 }
 
-const { data: semRows } = useSemList()
-const toolOptions = computed(() =>
-  (semRows.value ?? [])
-    .filter(row => classifyToolType(row.eqp_model_cd) === props.toolType && normalizeFab(row.fab_name) === normalizeFab(props.fab))
-    .map(row => ({ label: row.eqp_id, value: row.eqp_id }))
-    .sort((a, b) => a.label.localeCompare(b.label))
-)
-
 const queryString = (key: string) => {
   const value = route.query[key]
   return typeof value === 'string' && value ? value : undefined
 }
 
-const selectedEqp = computed({
-  get: () => queryString('eqp'),
-  set: (eqp) => { router.replace({ query: { eqp } }) }
-})
+// One page = one tool, fixed by the ?eqp= the inventory/storage row link carries.
+const selectedEqp = computed(() => queryString('eqp'))
 const currentPath = computed(() => queryString('path'))
 
 // Null until access is granted, so a refused visitor never sends a /list that
