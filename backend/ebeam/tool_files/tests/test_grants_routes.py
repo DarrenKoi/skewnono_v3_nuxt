@@ -221,3 +221,8 @@ def test_a_failed_grant_write_leaves_no_temp_file(admin, tmp_path, monkeypatch):
 
     assert _code(_grant(admin, "emp", "1000001")) == (503, "store_unavailable")
     assert sorted(p.name for p in tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("path", ["/api/admin/tool-files/grants", "/api/admin/tool-files/grants/revoke"])
+def test_a_grant_body_that_is_not_an_object_is_400(admin, path):
+    assert _code(admin.post(path, json=[1])) == (400, "bad_request")

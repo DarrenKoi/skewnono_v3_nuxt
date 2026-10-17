@@ -372,7 +372,9 @@ def delete(tool_slug: str):
 
 
 def _grant_key() -> str:
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        raise ToolFilesError(400, "bad_request", "need a JSON object with kind and value")
     kind, value = body.get("kind"), body.get("value")
     if kind not in ("team", "emp") or not isinstance(value, str) or not value.strip():
         raise ToolFilesError(400, "bad_request", "need kind 'team' or 'emp' and a value")
