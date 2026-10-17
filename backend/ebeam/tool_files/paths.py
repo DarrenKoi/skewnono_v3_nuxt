@@ -47,6 +47,26 @@ def check_path(root: str, path: str | None) -> str:
     return path
 
 
+def readable_name(name: str) -> str:
+    """What to show for a name read under latin-1: its bytes as UTF-8, else
+    cp949 (Korean Windows), else as read. Display only — a path key keeps the
+    latin-1 string, since that is what round-trips to the server's bytes.
+
+    A name a utf-8 session already decoded has characters past U+00FF, so it
+    cannot be latin-1 bytes and comes back unchanged.
+    """
+    try:
+        raw = name.encode("latin-1")
+    except UnicodeEncodeError:
+        return name
+    for codec in ("utf-8", "cp949"):
+        try:
+            return raw.decode(codec)
+        except UnicodeDecodeError:
+            pass
+    return name
+
+
 def parent_of(root: str, path: str) -> str | None:
     parts, root_parts = _parts(path), _parts(root)
     if len(parts) <= len(root_parts):
@@ -58,5 +78,5 @@ def crumbs(root: str, path: str) -> list[Crumb]:
     root_parts, parts = _parts(root), _parts(path)
     out: list[Crumb] = [{"name": root, "path": root}]
     for depth in range(len(root_parts) + 1, len(parts) + 1):
-        out.append({"name": parts[depth - 1], "path": "/" + "/".join(parts[:depth])})
+        out.append({"name": readable_name(parts[depth - 1]), "path": "/" + "/".join(parts[:depth])})
     return out

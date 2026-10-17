@@ -50,7 +50,7 @@ from backend.ebeam.tool_files.errors import (
     StoreUnavailable,
     ToolFilesError,
 )
-from backend.ebeam.tool_files.paths import check_path, crumbs, parent_of
+from backend.ebeam.tool_files.paths import check_path, crumbs, parent_of, readable_name
 from backend.ebeam.tool_files.resolve import Tool, resolve_tool
 from backend.msr_image.config import load_config
 from backend.msr_image.routes import _content_disposition
@@ -275,7 +275,7 @@ def list_files(tool_slug: str):
     # whether one leads outside the root.
     entries: list[Entry] = [
         {
-            "name": info.name,
+            "name": readable_name(info.name),
             "path": info.path,
             "is_dir": info.is_dir,
             "size": info.size,
@@ -305,7 +305,7 @@ def download(tool_slug: str):
         data = ftp.download(path, max_bytes=limits.max_bytes, deadline=limits.deadline)
     response = Response(data, mimetype="application/octet-stream")
     response.headers["Content-Disposition"] = _content_disposition(
-        path.rsplit("/", 1)[-1], kind="attachment"
+        readable_name(path.rsplit("/", 1)[-1]), kind="attachment"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response

@@ -8,7 +8,8 @@ listed from home). What it copies on purpose are the properties known to bite:
 
 - filenames whose bytes are not UTF-8, as they arrive under
   ``SKEWNONO_TOOL_FTP_ENCODING=latin-1`` (office 확인 2026-10-14: tool
-  filenames are corrupted bytes, not cp949);
+  filenames are corrupted bytes, not cp949) — one such name, plus a UTF-8
+  Korean name the routes re-decode for display (``paths.readable_name``);
 - an empty folder, a folder of thousands of files, a file over the download
   cap, a symlink entry;
 - a login directory that is not ``/`` (HV-SEM here, OFFICE-VERIFY);
@@ -93,6 +94,8 @@ def _tree() -> dict:
         "RECIPE": recipe,
         "README.TXT": _File(512, 2_000),
         _korean_as_latin1("측정결과.csv"): _File(1_234, 5),
+        # Valid in neither UTF-8 nor cp949: the office's corrupted kind, shown as read.
+        b"\xff\xfe_scan.log".decode("latin-1"): _File(321, 7),
     }
 
 

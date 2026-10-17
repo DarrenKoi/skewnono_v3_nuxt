@@ -10,6 +10,7 @@ import pytest
 
 from backend import create_app
 from backend.ebeam._tool_specs import SLUG_TO_TOOL_TYPE, model_to_tool_type
+from backend.ebeam.tool_files.paths import readable_name
 from backend.sem_list.providers.mock import get_sem_list
 
 _SLUG_OF = {tool_type: slug for slug, tool_type in SLUG_TO_TOOL_TYPE.items()}
@@ -58,7 +59,8 @@ def test_admin_lists_the_login_directory_of_a_cdsem_tool(client):
         ("LOG", True),
         ("RECIPE", True),
         ("README.TXT", False),
-        ("ì¸¡ì\xa0\x95ê²°ê³¼.csv", False),
+        ("측정결과.csv", False),
+        ("\xff\xfe_scan.log", False),
     ]
 
 
@@ -146,10 +148,31 @@ def test_a_filename_with_corrupted_bytes_round_trips_from_listing_to_download(cl
     entries = _list(client, row).get_json()["entries"]
     key = next(e["path"] for e in entries if e["name"].endswith(".csv"))
 
+    assert key == "/" + "측정결과.csv".encode("utf-8").decode("latin-1")
+
     response = _download(client, row, key)
 
     assert response.status_code == 200
     assert len(response.data) == 1234
+    assert response.headers["Content-Disposition"].endswith(
+        "filename*=UTF-8''%EC%B8%A1%EC%A0%95%EA%B2%B0%EA%B3%BC.csv"
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw", "shown"),
+    [
+        ("README.TXT", "README.TXT"),
+        ("측정결과.csv".encode("utf-8").decode("latin-1"), "측정결과.csv"),
+        ("측정결과.csv".encode("cp949").decode("latin-1"), "측정결과.csv"),
+        # Bytes valid in neither codec (the office's corrupted names) stay as read.
+        ("\xff\xfe.log", "\xff\xfe.log"),
+        # Already decoded by a utf-8 session: nothing to undo.
+        ("측정결과.csv", "측정결과.csv"),
+    ],
+)
+def test_readable_name_undoes_a_latin1_read(raw, shown):
+    assert readable_name(raw) == shown
 
 
 @pytest.mark.parametrize(
