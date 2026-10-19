@@ -197,6 +197,11 @@
   --sk-brand-soft: #F3DCD2;     /* tint background for filter rows */
   --sk-brand-ink: #8A3D27;      /* readable text on --sk-brand-soft */
 
+  /* SK CI colours (SK Red = Pantone 186C, SK Orange = Pantone 158C). Fixed by
+     the CI, so no .dark pair. Landing slogan (home/Slogan.vue) only. */
+  --sk-corp-red: #EA002C;
+  --sk-corp-orange: #FF7A00;
+
   /* Radius scale — soft rectangles only. Anything outside this set is a bug. */
   --sk-r-sidebar: 6px;
   --sk-r-chip: 8px;

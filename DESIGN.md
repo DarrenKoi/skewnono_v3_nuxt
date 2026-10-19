@@ -82,6 +82,8 @@ Every color, radius and the focus ring. Generated from `frontend/app/assets/css/
   --sk-brand-fg: #FFF7F1;
   --sk-brand-soft: #F3DCD2;
   --sk-brand-ink: #8A3D27;
+  --sk-corp-red: #EA002C;
+  --sk-corp-orange: #FF7A00;
   --sk-r-sidebar: 6px;
   --sk-r-chip: 8px;
   --sk-r-nav: 10px;
@@ -301,6 +303,9 @@ Every token's exact light and dark value is in the copy-paste block under [Build
 - **On Terracotta** (`--sk-brand-fg` — `#FFF7F1` / `#FFF7F1`): Text on terracotta fills.
 - **Terracotta Soft** (`--sk-brand-soft` — `#F3DCD2` / `oklch(0.30 0.05 38)`): Background tint for filter rows.
 - **Terracotta Ink** (`--sk-brand-ink` — `#8A3D27` / `#F3DCD2`): Readable text on the soft tint.
+
+### Corporate
+- **SK Red / SK Orange** (`--sk-corp-red` — `#EA002C`, Pantone 186C; `--sk-corp-orange` — `#FF7A00`, Pantone 158C): the SK CI colours, fixed by the CI and therefore the one pair with no `.dark` value. **One sanctioned use:** the red→orange gradient on `METROLOGY` in the landing slogan (`home/Slogan.vue`, `WE DO TECHNOLOGY` → `WE DO METROLOGY`). They are not a third selection family and not a substitute for `--sk-accent` — no fills, no body text, no chips, nowhere else.
 - **Crimson Accent** (`--sk-accent` — `oklch(0.58 0.13 35)` / `oklch(0.74 0.14 38)`): The favicon-slash identity, retoned to sit on cream. **Trim only** — sanctioned uses are exactly three: `.sk-nav-accent`, `.sk-fab-active`, `.dashboard-bg-layer`.
 - **Accent Soft** (`--sk-accent-soft` — `oklch(0.95 0.025 60)` / `oklch(0.34 0.05 38)`): Hover tint on interactive stat cells.
 - **Accent Border / Tint** (`--sk-accent-border`, `--sk-accent-tint`): Accent at 22–32% / 6–10% alpha. Reserved for future emphasized-card use.
@@ -399,6 +404,8 @@ The hierarchy above is implemented as a small set of **role-named classes** in `
 | `.sk-title` | Compact panel / card title (dense dashboards) | 13px · 600 · ink |
 | `.sk-heading` | Card / section heading | 18px · 600 · ink |
 | `.sk-page-title` | Page title (`<h1>`) | 30px · 700 · tracking-tight · ink |
+
+**The landing slogan is the one display tier above `.sk-page-title`.** The landing page's `<h1>` is the slogan `WE DO METROLOGY` (`home/Slogan.vue`) at `clamp(32px, 4vw, 44px)` · 700, under a 13px · 700 caps line `SK hynix · WE DO TECHNOLOGY` that names the company slogan it belongs to. SK hynix's slogan typeface is not publicly distributed, so the slogan is set in the system sans (Spoqa Han Sans Neo Bold); no slogan web font is bundled. Every other page keeps `.sk-page-title`.
 
 Rules that fall out of the table, enforced by which class you pick: **values are ink, labels are muted** (choosing `.sk-value` vs `.sk-label` *is* the litmus test); **a value is never `.sk-eyebrow`/`.sk-label`** (those are sub-12px, chrome-only); dark-mode colour follows for free because the classes reference `--sk-*` tokens. Spacing, alignment and layout stay as Tailwind utilities at the call site — these classes own type only. NuxtUI components keep inheriting type through the token bridge; use these on hand-written markup.
 
@@ -701,3 +708,4 @@ Rules:
 - 2026-10-03: **AFM 시계열 비교 follows the Claude Design proposal 3a.** One line became four numbered sections over a 분석 조건 card: 01 추세 (per-recipe series, MIN–MAX / ±1 STDEV band on MEAN, μ ± 3σ limits with a MAD-based σ, a box-plot mode) beside 선택한 측정; 02 포인트별 비교 (point × measurement lines, value or Δ against a baseline) beside 포인트 안정도; 03 그룹 통계 (측정별 요약 table, exported as Excel, beside 변동 분해 and 재현성); 04 장비 건강 (Tip Width, Mileage, Approach, FAILED·STOPPED over time, a 2 × 2 grid — Valid=FALSE was dropped 2026-10-07 as a count that says nothing). One selected measurement is shared by every card and is ink; 측정 항목 chips are terracotta; out-of-limits marks are terracotta (`SK_SCALE[4]`). A group that mixes recipes is warned about and keeps its limits, Δ and 02 inside one recipe; 변동 분해 and the table's group rows are withheld there. The formulas live in `utils/afmTrend.ts`.
 - 2026-10-09: **AFM 측정 상세 separates one point's scan from the layout of the points.** The card that draws the selected point's scan is `포인트 스캔 높이 맵` (it was `웨이퍼 히트맵`, which it never was). The new `Site 인덱스 격자` card lays the points on their `Site X` / `Site Y` indices and fills each cell from `SK_SCALE` by one measured column; a FAILED / STOPPED / invalid reading is a `SK_STATE` (bad / warn) or muted triangle and is never filled as a low value, and the selected point's cell carries an ink border. It is an index layout: no wafer outline, notch or mm axis until the orientation of `Site Y` is confirmed.
 - 2026-10-09: **AFM 시계열 비교 gained a 고정 기준선, and its μ ± 3σ band stopped being called a control limit.** A `기준` chip (`SkChip`, ink tone) on each 선택한 측정 row pins that measurement into the baseline; while any is pinned, μ and the band come from the pinned measurements alone, per recipe, and the pinned ones are not judged. The band reads `그룹 기준 범위` unpinned and `고정 기준 범위` pinned, and the mark lines read `μ+3σ` / `μ−3σ` — never `UCL` / `LCL` or 관리선 on this screen: the band is computed from measurements the user picked, which a control limit is not. Colours are unchanged (terracotta `SK_SCALE[4]` for outside the band). 팁 모니터링 keeps 관리선 for now.
+- 2026-10-19: **Landing slogan.** The landing `<h1>` `METROLOGY WORKSPACE` became the team slogan `WE DO METROLOGY` (`home/Slogan.vue`), set one step under the company slogan `SK hynix · WE DO TECHNOLOGY` with an elbow connector, so it reads as the metrology team's part of SK hynix's slogan rather than a replacement for it. Added the §Colors → Corporate pair `--sk-corp-red` / `--sk-corp-orange` (SK CI, Pantone 186C / 158C) for the gradient on `METROLOGY`, its only sanctioned use, and recorded the slogan as the one display tier above `.sk-page-title`.

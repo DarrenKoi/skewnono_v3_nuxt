@@ -85,12 +85,10 @@ const systemStatus = computed(() => {
     <section class="dashboard-surface rounded-3xl p-6 md:p-8">
       <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div>
-          <p class="text-xs uppercase tracking-[0.18em] text-(--sk-ink-muted) font-semibold mb-2">
+          <HomeSlogan />
+          <p class="sk-meta mt-3">
             측정 데이터 검색, 분석, 상태 확인을 한 곳에서
           </p>
-          <h1 class="sk-page-title">
-            METROLOGY WORKSPACE
-          </h1>
           <div class="mt-5 flex items-center gap-2.5">
             <label
               for="landing-fab-select"
