@@ -303,12 +303,19 @@ Every token's exact light and dark value is in the copy-paste block under [Build
 - **On Terracotta** (`--sk-brand-fg` — `#FFF7F1` / `#FFF7F1`): Text on terracotta fills.
 - **Terracotta Soft** (`--sk-brand-soft` — `#F3DCD2` / `oklch(0.30 0.05 38)`): Background tint for filter rows.
 - **Terracotta Ink** (`--sk-brand-ink` — `#8A3D27` / `#F3DCD2`): Readable text on the soft tint.
-
-### Corporate
-- **SK Red / SK Orange** (`--sk-corp-red` — `#EA002C`, Pantone 186C; `--sk-corp-orange` — `#FF7A00`, Pantone 158C): the SK CI colours, fixed by the CI and therefore the one pair with no `.dark` value; both values match the published `We Do Technology | SK hynix` lockup pixel for pixel. **One sanctioned use:** the landing slogan (`home/Slogan.vue`) — the orange `Do` link mark (`home/SloganDo.vue`) and the red `SK` / orange `hynix` of the wordmark beside the company slogan. They are not a third selection family and not a substitute for `--sk-accent` — no fills, no body text, no chips, nowhere else.
 - **Crimson Accent** (`--sk-accent` — `oklch(0.58 0.13 35)` / `oklch(0.74 0.14 38)`): The favicon-slash identity, retoned to sit on cream. **Trim only** — sanctioned uses are exactly three: `.sk-nav-accent`, `.sk-fab-active`, `.dashboard-bg-layer`.
 - **Accent Soft** (`--sk-accent-soft` — `oklch(0.95 0.025 60)` / `oklch(0.34 0.05 38)`): Hover tint on interactive stat cells.
 - **Accent Border / Tint** (`--sk-accent-border`, `--sk-accent-tint`): Accent at 22–32% / 6–10% alpha. Reserved for future emphasized-card use.
+
+### Corporate
+- **SK Red / SK Orange** (`--sk-corp-red` — `#EA002C`, Pantone 186C; `--sk-corp-orange` — `#FF7A00`, Pantone 158C): the SK CI colours, fixed by the CI and therefore the one pair with no `.dark` value; both values match the published `We Do Technology | SK hynix` lockup pixel for pixel. **One sanctioned use:** the landing slogan (`home/Slogan.vue`) — the orange `Do` link mark (`home/SloganDo.vue`) and the red `SK` / orange `hynix` of the wordmark beside the company slogan. They are not a third selection family and not a substitute for `--sk-accent` — no fills, no body text, no chips, nowhere else.
+
+The published lockup these follow, and what the landing renders from it (light / dark):
+
+![We Do Technology | SK hynix — published lockup](docs/design/slogan/we-do-technology-lockup.png)
+
+![Landing slogan, light](docs/design/slogan/landing-slogan-light.png)
+![Landing slogan, dark](docs/design/slogan/landing-slogan-dark.png)
 
 ### Surface
 - **Canvas** (`--sk-canvas` — `oklch(0.96 0.012 80)` / `oklch(0.21 0.008 70)`): The page floor. Warm paper; walnut at night.
