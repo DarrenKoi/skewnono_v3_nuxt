@@ -87,7 +87,7 @@ const systemStatus = computed(() => {
         <div>
           <HomeSlogan />
           <p class="sk-meta mt-3">
-            측정 데이터 검색, 분석, 상태 확인을 한 곳에서
+            측정 데이터 검색, 분석, 상태 확인을 한 곳에서 — <span class="font-medium text-(--sk-ink-muted)">Metrology Workspace</span>
           </p>
           <div class="mt-5 flex items-center gap-2.5">
             <label

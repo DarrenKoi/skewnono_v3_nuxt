@@ -1,18 +1,19 @@
-<!-- 슬로건의 'Do' 연결고리 마크. 공개된 We Do Technology 로고타입처럼 D 와 o 를 한 획으로
-     엮어 ∞ 처럼 교차시킵니다. 높이는 대문자 높이(0.72em)에 맞추고 기준선에 앉힙니다.
-     글자 'Do' 는 sr-only 로 남겨, 읽기와 복사에서 슬로건이 그대로 이어지게 합니다. -->
+<!-- 슬로건의 'Do' 연결고리 마크. 공개된 We Do Technology 로고타입처럼 D 의 둥근 몸통이 가파르게
+     교차해 정원(o)으로 이어지는 한 획입니다(∞ 의 왼쪽 고리가 D). 교차점에서 두 획이 원에 접선으로
+     붙어야 'D 옆의 o' 가 아니라 한 마크로 읽힙니다. 높이는 대문자 높이(0.72em)에 맞추고 획 바깥
+     가장자리를 기준선에 앉힙니다. 글자 'Do' 는 sr-only 로 남겨 읽기와 복사에서 슬로건이 이어지게 합니다. -->
 <template>
   <span class="mx-[0.06em] inline-block">
     <svg
       aria-hidden="true"
-      viewBox="0 0 100 72"
-      class="inline-block h-[0.72em] w-[1em] overflow-visible align-baseline"
+      viewBox="0 0 171 101"
+      class="inline-block h-[0.72em] w-[1.22em] overflow-visible align-baseline"
     >
       <path
-        d="M4 3.5 L22 3.5 C40 3.5 46 20 50 36 C54 56 58 68.5 72 68.5 C86 68.5 94 58 94 44.5 C94 30 86 20.5 72 20.5 C60 20.5 56 32 52 44 C48 58 40 68.5 24 68.5 L4 68.5 Z"
+        d="M8 6.5 H36 C62 6.5 78.3 39.4 90.8 61 L100.6 78 A34 34 0 1 0 100.6 44 L90.8 61 C78.3 82.6 62 94.5 36 94.5 H8 Z"
         fill="none"
         stroke="var(--sk-corp-orange)"
-        stroke-width="8"
+        stroke-width="12"
         stroke-linejoin="round"
       />
     </svg>
