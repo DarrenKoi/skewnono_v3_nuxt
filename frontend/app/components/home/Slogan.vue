@@ -10,7 +10,7 @@
     <div class="relative mt-1.5 pl-7">
       <span
         aria-hidden="true"
-        class="absolute left-2 top-0 h-[55%] w-3 rounded-bl-[var(--sk-r-sidebar)] border-b-2 border-l-2 border-(--sk-border)"
+        class="absolute left-2 top-0 h-[55%] w-3 rounded-bl-[var(--sk-r-sidebar)] border-b-2 border-l-2 border-(--sk-ink-subtle)"
       />
       <h1 class="text-[clamp(32px,4vw,44px)] font-bold leading-[1.1] tracking-[-0.01em] text-(--sk-ink)">
         WE DO
