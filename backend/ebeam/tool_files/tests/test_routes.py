@@ -363,3 +363,20 @@ def test_a_refused_member_cannot_zip(client):
 
 def test_a_folder_in_a_zip_is_404(client):
     assert _code(_zip(client, _tool("cd-sem"), ["/DUMP"])) == (404, "file_unavailable")
+
+
+def test_compressing_the_last_file_still_counts_against_the_deadline(client, monkeypatch):
+    monkeypatch.setenv("SKEWNONO_TOOL_FILES_DEADLINE", "5")
+    now = {"t": 0.0}
+    monkeypatch.setattr("backend.ebeam.tool_files.routes.time.monotonic", lambda: now["t"])
+    import zipfile
+
+    real = zipfile.ZipFile.writestr
+
+    def slow(self, *args, **kwargs):
+        now["t"] += 6
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(zipfile.ZipFile, "writestr", slow)
+    response = _zip(client, _tool("cd-sem"), ["/README.TXT"])
+    assert _code(response) == (503, "tool_timeout")

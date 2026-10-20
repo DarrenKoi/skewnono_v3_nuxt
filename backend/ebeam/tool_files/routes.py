@@ -229,18 +229,23 @@ def download_zip(tool_slug: str):
     # Each file goes into the zip as it arrives, so the peak is the zip plus
     # one file, never every file at once.
     with _session(tool) as ftp, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
-        for key, name in zip(keys, names, strict=True):
+        def time_left() -> float:
             left = limits.deadline - (time.monotonic() - started)
             if left <= 0:
                 raise TransferTimeout(f"zip of {len(keys)} files ran past {limits.deadline}s")
+            return left
+
+        for key, name in zip(keys, names, strict=True):
             try:
-                data = ftp.download(key, max_bytes=budget, deadline=left)
+                data = ftp.download(key, max_bytes=budget, deadline=time_left())
             except TransferTooLarge as exc:
                 raise ToolFilesError(
                     413, "batch_too_large", f"the files exceed {limits.max_bytes} bytes together"
                 ) from exc
             budget -= len(data)
             archive.writestr(name, data)
+            # Compressing counts too: the last file's has no next download to catch it.
+            time_left()
     response = Response(buf.getvalue(), mimetype="application/zip")
     response.headers["Content-Disposition"] = _content_disposition(
         f"{tool.eqp_id}.zip", kind="attachment"

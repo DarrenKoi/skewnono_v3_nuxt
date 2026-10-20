@@ -539,7 +539,7 @@ const queryString = (key: string) => {
 const selectedEqp = computed(() => queryString('eqp'))
 const currentPath = computed(() => queryString('path'))
 
-const { data: semRows } = useSemList()
+const { data: semRows, status: semStatus } = useSemList()
 const wantedFabs = computed(() => new Set(props.fabs.map(normalizeFab)))
 // The sem_list mock repeats a few eqp_ids; the first row stands for the tool
 // here, and a real conflict still answers 409 server-side.
@@ -561,8 +561,9 @@ const semRow = computed(() => tools.value.find(row => row.eqp_id === selectedEqp
 
 // The fab and family switches carry the query over (useFabRoute), so an
 // ?eqp= from the old fab or family names no tool here: drop it with its path.
-watch([semRows, tools], () => {
-  if (semRows.value && selectedEqp.value && !semRow.value) {
+// Only after the roster has loaded: it starts as [], which matches nothing.
+watch([semStatus, tools], () => {
+  if (semStatus.value === 'success' && selectedEqp.value && !semRow.value) {
     const { eqp: _eqp, path: _path, ...rest } = route.query
     router.replace({ query: rest })
   }
