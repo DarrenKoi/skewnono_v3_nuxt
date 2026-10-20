@@ -2,17 +2,14 @@
   <div class="space-y-3">
     <EbeamMetaBar
       :eyebrow="eyebrow"
-      title="장비 파일"
+      title="장비 상태"
     >
-      <template #leading>
-        <AppBackButton
-          :to="inventoryPath"
-          label="장비 목록"
-        />
+      <template #toggle>
+        <EbeamEquipmentStatusSubTabs :tool-type="toolType" />
       </template>
       <template #actions>
         <dl
-          v-if="selectedEqp"
+          v-if="target"
           class="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-1"
         >
           <div
@@ -60,98 +57,39 @@
         다시 시도
       </UButton>
     </div>
-    <AppEmptyState
-      v-else-if="view === 'notice'"
-      icon="i-lucide-lock"
-      :title="refusal.title"
-      :description="refusal.description"
-    />
-
     <UCard
-      v-else-if="view !== 'explorer'"
+      v-else-if="refusal"
       class="dashboard-surface max-w-2xl"
     >
-      <div class="space-y-3">
-        <div class="flex items-start gap-3">
-          <UIcon
-            :name="view === 'pending' ? 'i-lucide-hourglass' : view === 'rejected' ? 'i-lucide-circle-x' : 'i-lucide-lock'"
-            class="mt-0.5 size-5 shrink-0 text-(--sk-ink-muted)"
-          />
-          <div>
-            <p class="sk-title">
-              {{ refusal.title }}
-            </p>
-            <p class="mt-1 sk-meta">
-              {{ refusal.description }}
-            </p>
-          </div>
-        </div>
-
-        <dl
-          v-if="ownRequest"
-          class="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1 rounded-(--sk-r-nav) bg-(--sk-muted-surface) px-3 py-2"
-        >
-          <dt class="sk-field-label">
-            신청 시각
-          </dt>
-          <dd class="sk-body">
-            {{ formatKoreanDateTime(ownRequest.requested_at) }}
-          </dd>
-          <dt class="sk-field-label">
-            사유
-          </dt>
-          <dd class="sk-body whitespace-pre-wrap break-words">
-            {{ ownRequest.reason }}
-          </dd>
-        </dl>
-
-        <UButton
-          v-if="view === 'pending'"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          icon="i-lucide-refresh-cw"
-          @click="refreshAccess()"
-        >
-          승인 확인
-        </UButton>
-
-        <form
-          v-else
-          class="space-y-2"
-          @submit.prevent="submitRequest"
-        >
-          <UTextarea
-            v-model="reason"
-            class="w-full"
-            color="neutral"
-            variant="subtle"
-            :rows="3"
-            :maxlength="TOOL_FILES_REASON_MAX"
-            placeholder="신청 사유 (예: 레시피 백업 전 로그 폴더 확인)"
-            aria-label="신청 사유"
-          />
-          <div class="flex items-center justify-between gap-3">
-            <span class="sk-meta tabular-nums">{{ reason.length }} / {{ TOOL_FILES_REASON_MAX }}</span>
-            <UButton
-              type="submit"
-              color="primary"
-              size="sm"
-              icon="i-lucide-send"
-              :loading="submitting"
-              :disabled="!toolFilesReasonValid(reason)"
-              :class="!toolFilesReasonValid(reason) ? 'cursor-not-allowed' : undefined"
-            >
-              {{ view === 'rejected' ? '다시 신청' : '권한 신청' }}
-            </UButton>
-          </div>
-          <p
-            v-if="submitError"
-            class="sk-meta text-rose-600 dark:text-rose-400"
-          >
-            {{ submitError }}
+      <div class="flex items-start gap-3">
+        <UIcon
+          name="i-lucide-lock"
+          class="mt-0.5 size-5 shrink-0 text-(--sk-ink-muted)"
+        />
+        <div class="space-y-2">
+          <p class="sk-title">
+            {{ refusal.title }}
           </p>
-        </form>
+          <p class="sk-meta">
+            {{ refusal.description }}
+          </p>
+          <ul
+            v-if="access?.verdict === 'none'"
+            class="flex flex-wrap gap-1.5"
+          >
+            <li
+              v-for="team in access.teams"
+              :key="team"
+            >
+              <UBadge
+                color="neutral"
+                variant="subtle"
+              >
+                {{ team }}
+              </UBadge>
+            </li>
+          </ul>
+        </div>
       </div>
     </UCard>
 
@@ -162,6 +100,21 @@
     >
       <template #header>
         <div class="flex flex-wrap items-center gap-2">
+          <USelectMenu
+            :model-value="selectedEqp"
+            :items="toolItems"
+            value-key="value"
+            :filter-fields="['label', 'description']"
+            :search-input="{ placeholder: 'eqp_id·모델 검색…' }"
+            placeholder="장비 선택"
+            icon="i-lucide-server"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            class="w-56"
+            aria-label="장비 선택"
+            @update:model-value="pickTool"
+          />
           <UButton
             size="sm"
             color="neutral"
@@ -273,8 +226,8 @@
       <AppEmptyState
         v-if="!target"
         icon="i-lucide-server"
-        title="장비가 지정되지 않았습니다."
-        description="장비 목록이나 Storage 표에서 장비 행의 파일 링크로 들어오세요."
+        title="장비를 선택해 주세요."
+        description="왼쪽 위 목록에서 eqp_id나 모델명으로 찾을 수 있습니다."
       />
       <AppLoadingState
         v-else-if="listingStatus === 'pending'"
@@ -455,20 +408,19 @@
 import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { ToolType } from '~/utils/toolType'
-import { formatDateTimeLocal, formatKoreanDateTime } from '~/utils/dateTime'
+import type { SemListRow } from '~/composables/useSemListApi'
+import { formatDateTimeLocal } from '~/utils/dateTime'
 import { MANUAL_SORTING_OPTIONS, getSortIcon } from '~/utils/tableSorting'
 import { copyTextToClipboard } from '~/utils/tableExport'
-import { fabSegment } from '~/utils/fab'
+import { normalizeFab } from '~/utils/fab'
+import { classifyToolType } from '~/utils/toolType'
 import {
-  TOOL_FILES_REASON_MAX,
   filterToolFileEntries,
   formatFileSize,
   looksUndecoded,
   sortToolFileEntries,
-  toolFilesAccessView,
   toolFilesErrorCode,
   toolFilesErrorMessage,
-  toolFilesReasonValid,
   toolFilesVerdictMessage,
   type ToolFileEntry,
   type ToolFileKind,
@@ -478,65 +430,63 @@ import {
 const props = defineProps<{
   toolType: ToolType
   toolLabel: string
-  fab: string
+  fabs: string[]
 }>()
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const eyebrow = computed(() => `${props.toolLabel} · ${props.fab}`)
-const inventoryPath = computed(() => `/ebeam/${props.toolType}/${fabSegment(props.fab)}`)
+const eyebrow = computed(() => `${props.toolLabel} · ${props.fabs.join(' + ')}`)
 
 const { data: access, status: accessStatus, error: accessError, refresh: refreshAccess } = useToolFilesAccess()
-// "승인 확인" is a button, not polling: approval is rare and /api is rate-limited
-// per user. No spinner of its own: a refresh swaps the card for the loading state.
-const view = computed(() => toolFilesAccessView(access.value))
 const refusal = computed(() => {
   const verdict = access.value?.verdict
-  return toolFilesVerdictMessage(!verdict || verdict === 'granted' ? 'store_unavailable' : verdict)
+  return verdict && verdict !== 'granted' ? toolFilesVerdictMessage(verdict) : null
 })
-const ownRequest = computed(() => access.value?.request ?? null)
-
-const reason = ref('')
-const submitting = ref(false)
-const submitError = ref('')
-
-const submitRequest = async () => {
-  if (!toolFilesReasonValid(reason.value) || submitting.value) return
-  submitting.value = true
-  submitError.value = ''
-  try {
-    await requestToolFilesAccess(reason.value.trim())
-    reason.value = ''
-    await refreshAccess()
-  } catch (error) {
-    submitError.value = toolFilesErrorMessage(toolFilesErrorCode(error))
-  } finally {
-    submitting.value = false
-  }
-}
 
 const queryString = (key: string) => {
   const value = route.query[key]
   return typeof value === 'string' && value ? value : undefined
 }
 
-// One page = one tool, fixed by the ?eqp= the inventory/storage row link carries.
+// One tool at a time, named by ?eqp= (the picker, or a 장비 리스트 row link).
 const selectedEqp = computed(() => queryString('eqp'))
 const currentPath = computed(() => queryString('path'))
 
+const { data: semRows } = useSemList()
+const wantedFabs = computed(() => new Set(props.fabs.map(normalizeFab)))
+// The sem_list mock repeats a few eqp_ids; the first row stands for the tool
+// here, and a real conflict still answers 409 server-side.
+const tools = computed(() => {
+  const byId = new Map<string, SemListRow>()
+  for (const row of semRows.value ?? []) {
+    if (classifyToolType(row.eqp_model_cd) === props.toolType
+      && wantedFabs.value.has(normalizeFab(row.fab_name))
+      && !byId.has(row.eqp_id)) byId.set(row.eqp_id, row)
+  }
+  return [...byId.values()].sort((a, b) => a.eqp_id.localeCompare(b.eqp_id))
+})
+const toolItems = computed(() => tools.value.map(row => ({
+  label: row.eqp_id,
+  value: row.eqp_id,
+  description: props.fabs.length > 1 ? `${row.eqp_model_cd} · ${row.fab_name}` : row.eqp_model_cd
+})))
+const semRow = computed(() => tools.value.find(row => row.eqp_id === selectedEqp.value))
+
+const pickTool = (eqpId: string) => {
+  nameFilter.value = ''
+  router.push({ query: { eqp: eqpId } })
+}
+
 // Null until access is granted, so a refused visitor never sends a /list that
-// can only come back 403 (a console network error nothing can suppress).
+// can only come back 403 (a console network error nothing can suppress). The
+// fab is the tool's own row's, so a multi-fab URL still names one fab.
 const target = computed(() =>
-  access.value?.verdict === 'granted' && selectedEqp.value
-    ? { toolType: props.toolType, fab: props.fab, eqpId: selectedEqp.value }
+  access.value?.verdict === 'granted' && semRow.value
+    ? { toolType: props.toolType, fab: semRow.value.fab_name, eqpId: semRow.value.eqp_id }
     : null
 )
-
-const { data: semRows } = useSemList()
-// Display only: a duplicated eqp_id resolves server-side (409 when rows differ).
-const semRow = computed(() => (semRows.value ?? []).find(row => row.eqp_id === selectedEqp.value))
 
 const {
   data: listing,

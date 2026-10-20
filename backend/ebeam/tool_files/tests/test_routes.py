@@ -82,15 +82,24 @@ def test_a_non_admin_is_refused_before_any_ftp_session(client, monkeypatch):
 
 
 def test_access_reports_granted_for_the_admin_and_none_for_a_member(client):
+    teams = ["DRAM MI개발", "NAND MI개발", "DRAM Metrology기술", "NAND Metrology기술"]
     assert client.get("/api/tool-files/access").get_json() == {
         "verdict": "granted",
         "can_write": False,
+        "teams": teams,
     }
     _as_member(client)
     assert client.get("/api/tool-files/access").get_json() == {
         "verdict": "none",
         "can_write": False,
+        "teams": teams,
     }
+
+
+def test_a_member_of_an_allowed_team_lists_files(client):
+    # The mock directory puts 1000001 in DRAM Metrology기술.
+    _as_member(client, "1000001")
+    assert _list(client, _tool("cd-sem")).status_code == 200
 
 
 def test_a_subfolder_listing_hides_links_and_carries_its_breadcrumb(client):

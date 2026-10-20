@@ -23,6 +23,7 @@ const slugStrings: readonly string[] = FEATURE_SLUGS
 test('the slug list is the live set, with the merged legacy routes excluded', () => {
   assert.deepEqual([...FEATURE_SLUGS], [
     'storage',
+    'tool-files',
     'recipe-search',
     'recipe-status',
     'hardware',
@@ -174,11 +175,12 @@ test('each feature page highlights its own tab', () => {
   assert.equal(activeFeatureTab('/ebeam/cd-sem/skewvoir'), 'skewvoir')
 })
 
-test('장비 상태 and its storage sub-tab are the only pages that light 장비 상태', () => {
+test('장비 상태 and its storage and FTP 접속 sub-tabs are the only pages that light 장비 상태', () => {
   assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a'), 'index')
   // 스토리지 is a sub-tab OF 장비 상태 (EbeamEquipmentStatusSubTabs), so the
   // parent tab staying lit there is correct, not a second instance of the bug.
   assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a/storage'), 'index')
+  assert.equal(activeFeatureTab('/ebeam/cd-sem/m14a/tool-files'), 'index')
 })
 
 test('실험실 pages claim no feature tab', () => {
@@ -191,10 +193,10 @@ test('실험실 pages claim no feature tab', () => {
 
 test('every feature slug is recognised — the fallback is never reached by one', () => {
   // The class of the bug: a slug added to FEATURE_SLUGS but not to whatever
-  // decides the tab silently lights 장비 상태. Only 'storage' may map to it.
+  // decides the tab silently lights 장비 상태. Only its sub-tabs may map to it.
   for (const slug of FEATURE_SLUGS) {
     const tab = activeFeatureTab(`/ebeam/cd-sem/m14a/${slug}`)
-    if (slug === 'storage') continue
+    if (slug === 'storage' || slug === 'tool-files') continue
     assert.notEqual(tab, 'index', `${slug} falls through to 장비 상태`)
   }
 })

@@ -38,56 +38,16 @@ export interface ToolFilesListing {
 
 export type ToolFilesVerdict
   = | 'granted'
-    | 'pending'
-    | 'rejected'
+    // A trusted identity outside the allowed teams.
     | 'none'
     | 'untrusted_identity'
     | 'directory_unavailable'
-    | 'store_unavailable'
-
-export interface ToolFilesRequest {
-  // New on every (re)request; approve/reject send back the one on screen.
-  request_id: string
-  // Plain text from the requester: interpolate, never v-html.
-  reason: string
-  // The team at request time, display only.
-  dept_nm: string | null
-  requested_at: string
-  status: 'pending' | 'rejected'
-}
-
-export interface ToolFilesRequestRow extends ToolFilesRequest {
-  empno: string
-  emp_nm: string | null
-}
 
 export interface ToolFilesAccess {
   verdict: ToolFilesVerdict
   can_write: boolean
-  // Only for 'pending' and 'rejected': the caller's own request.
-  request?: ToolFilesRequest
-}
-
-export type ToolFilesAccessView = 'explorer' | 'request' | 'pending' | 'rejected' | 'notice'
-
-// Which screen the page draws; 'notice' is a refusal with nothing to do here
-// (untrusted identity, directory or store outage), worded by
-// toolFilesVerdictMessage.
-export const toolFilesAccessView = (access: ToolFilesAccess | null | undefined): ToolFilesAccessView => {
-  switch (access?.verdict) {
-    case 'granted': return 'explorer'
-    case 'none': return 'request'
-    case 'pending': return 'pending'
-    case 'rejected': return 'rejected'
-    default: return 'notice'
-  }
-}
-
-export const TOOL_FILES_REASON_MAX = 200
-
-export const toolFilesReasonValid = (reason: string): boolean => {
-  const length = reason.trim().length
-  return length > 0 && length <= TOOL_FILES_REASON_MAX
+  // The teams that get in (backend access.ALLOWED_TEAMS), for the refusal page.
+  teams: string[]
 }
 
 // The server's `{ error: { code, message } }` body, read off a failed $fetch
@@ -101,36 +61,6 @@ export const toolFilesErrorCode = (error: unknown): string => {
   if (code) return code
   if (failure?.cause && typeof failure.cause === 'object') return toolFilesErrorCode(failure.cause)
   return failure?.status || failure?.statusCode ? 'unknown' : 'no_response'
-}
-
-export interface ToolFilesPendingRow extends ToolFilesRequestRow {
-  // Pending requests sharing this row's stored team, what "이 팀 전체 승인"
-  // would clear; 0 when the row has no team.
-  teamPending: number
-}
-
-export const pendingToolFilesRequests = (rows: readonly ToolFilesRequestRow[]): ToolFilesPendingRow[] => {
-  const pending = rows.filter(r => r.status === 'pending')
-  const perTeam = new Map<string, number>()
-  for (const r of pending) if (r.dept_nm) perTeam.set(r.dept_nm, (perTeam.get(r.dept_nm) ?? 0) + 1)
-  return pending
-    .map(r => ({ ...r, teamPending: r.dept_nm ? perTeam.get(r.dept_nm) ?? 0 : 0 }))
-    .sort((a, b) => a.requested_at.localeCompare(b.requested_at))
-}
-
-export interface ToolFilesGrantRow {
-  kind: 'team' | 'emp'
-  value: string
-  granted_at: string
-  granted_by: string
-  // emp rows: the grantee's current team when the directory knows it.
-  dept_nm: string | null
-}
-
-export interface ToolFilesTeams {
-  teams: { dept_nm: string, members: number }[]
-  // False when some directory rows were unreadable, so a 0 is not proof.
-  complete: boolean
 }
 
 export type ToolFileSortKey = 'name' | 'size' | 'modified'
@@ -202,7 +132,7 @@ export const formatFileSize = (bytes: number | null): string => {
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-  forbidden: '장비 파일에 접근할 권한이 없습니다.',
+  forbidden: 'FTP 접속은 지정된 팀만 쓸 수 있습니다.',
   tool_not_found: '장비 목록에서 이 장비를 찾지 못했습니다.',
   tool_ambiguous: '같은 장비 ID가 장비 목록에 여러 번 있어 대상을 정하지 못했습니다.',
   tool_mismatch: '선택한 장비 종류나 FAB이 이 장비와 맞지 않습니다.',
@@ -216,12 +146,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   tool_encoding: '장비가 보낸 파일 이름을 읽지 못했습니다. 서버의 FTP 인코딩 설정(SKEWNONO_TOOL_FTP_ENCODING)을 확인해 주세요.',
   untrusted_identity: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다.',
   directory_unavailable: '구성원 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-  store_unavailable: '권한 정보를 읽지 못했습니다. 잠시 후 다시 시도해 주세요.',
   file_exists: '같은 이름이 있어 올리지 않았습니다.',
   transfer_uncertain: '파일이 저장되었는지 확인하지 못했습니다. 새로고침해서 목록을 확인해 주세요.',
   write_disabled: '서버에서 파일 쓰기가 꺼져 있습니다.',
   write_not_supported: '이 연결 방식에서는 파일을 쓸 수 없습니다.',
-  request_changed: '신청이 바뀌었습니다. 새로고침 후 다시 확인해 주세요.',
   bad_request: '요청 내용이 올바르지 않습니다.',
   too_many_requests: '요청이 많아 잠시 멈췄습니다. 잠시 후 다시 시도해 주세요.',
   no_response: '결과를 확인할 수 없습니다. 새로고침해 주세요.'
@@ -236,48 +164,10 @@ export const toolFilesErrorMessage = (code: string, action?: 'upload'): string =
   ?? ERROR_MESSAGES[code]
   ?? '요청을 처리하지 못했습니다.'
 
-export interface ToolFilesTeamGrant extends ToolFilesGrantRow {
-  // null while the team list is unknown (failed or not loaded).
-  members: number | null
-  warnEmpty: boolean
-}
-
-export interface ToolFilesEmpGrant extends ToolFilesGrantRow {
-  // Revoking this row would not shut the person out.
-  coveredByTeam: boolean
-}
-
-export const describeToolFilesGrants = (
-  grants: readonly ToolFilesGrantRow[],
-  teams: ToolFilesTeams | null
-): { teams: ToolFilesTeamGrant[], emps: ToolFilesEmpGrant[] } => {
-  const sizes = new Map(teams?.teams.map(t => [t.dept_nm, t.members]))
-  const granted = new Set(grants.filter(g => g.kind === 'team').map(g => g.value))
-  return {
-    teams: grants
-      .filter(g => g.kind === 'team')
-      .map((g) => {
-        const members = teams ? (sizes.get(g.value) ?? 0) : null
-        return { ...g, members, warnEmpty: members === 0 && teams?.complete === true }
-      }),
-    emps: grants
-      .filter(g => g.kind === 'emp')
-      .map(g => ({ ...g, coveredByTeam: g.dept_nm !== null && granted.has(g.dept_nm) }))
-  }
-}
-
 const VERDICT_MESSAGES: Record<Exclude<ToolFilesVerdict, 'granted'>, { title: string, description: string }> = {
   none: {
-    title: '장비 파일에 접근할 권한이 없습니다.',
-    description: '장비 파일 탐색은 승인된 팀이나 사번만 쓸 수 있습니다. 사유를 적어 권한을 신청해 주세요.'
-  },
-  pending: {
-    title: '권한 신청을 검토하고 있습니다.',
-    description: '관리자가 승인한 뒤 "승인 확인"을 누르거나 페이지를 새로고침하면 장비 파일이 열립니다.'
-  },
-  rejected: {
-    title: '권한 신청이 거절되었습니다.',
-    description: '사유를 고쳐 다시 신청할 수 있습니다.'
+    title: 'FTP 접속은 지정된 팀만 쓸 수 있습니다.',
+    description: '아래 팀 소속 구성원에게만 열려 있습니다.'
   },
   untrusted_identity: {
     title: '로그인 정보를 확인할 수 없습니다.',
@@ -286,10 +176,6 @@ const VERDICT_MESSAGES: Record<Exclude<ToolFilesVerdict, 'granted'>, { title: st
   directory_unavailable: {
     title: '구성원 정보를 확인하지 못했습니다.',
     description: '소속 팀을 확인할 수 없어 권한을 판정하지 못했습니다. 잠시 후 다시 시도해 주세요.'
-  },
-  store_unavailable: {
-    title: '권한 정보를 읽지 못했습니다.',
-    description: '승인 목록 저장소에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
   }
 }
 

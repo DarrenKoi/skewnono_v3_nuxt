@@ -4,8 +4,8 @@
 
 The template opens a direct `ftp_handler.core.FtpClient` to the tool on
 Linux (Phase 3) and the read-only `ftp_handler.proxy.FtpClient` on Windows
-(Phase 2), keeps grants in Redis and reads the real member directory. It holds no in-house
-value, so the copy is verbatim:
+(Phase 2) and reads the real member directory. It holds no in-house value, so
+the copy is verbatim:
 
 ```bash
 cp providers/office_example.py providers/office.py
@@ -13,26 +13,25 @@ cp providers/office_example.py providers/office.py
 
 - `office.py` is gitignored and a **copy**. Refresh it after a `git pull` that
   moves the template, or the boot log reports `STALE office.py: tool_files`.
+  A copy older than 2026-10-20 imports the removed grant/request types and
+  stops the app from booting: refresh it in the same pull.
 - It pairs with `sem_list`: every tool's IP and FTP account come from the
   live roster, so `validate_env()` refuses tool_files=office with
   sem_list=mock rather than send real credentials to fabricated addresses.
 - `validate_env()` also refuses tool_files=office when the mode is not office
   (the member directory follows the mode, so every team verdict would be
-  `directory_unavailable`) and when `REDIS_HOST` is unset (the grant store).
+  `directory_unavailable`) and when `REDIS_HOST` is unset (the directory).
 - Never touch `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or
   `tests/`.
 
 ## What swaps
 
-Three surfaces, chosen together by one provider resolution, so "real FTP +
-mock grants" cannot happen:
+Two surfaces, chosen together by one provider resolution:
 
 | surface | mock | office |
 | :-- | :-- | :-- |
 | FTP (`open_client`, `transport_supports_write`) | fake tree, writable | direct `FtpClient` (writable) on Linux; proxy `FtpClient` (read-only) on Windows |
-| grants (`read_grants`, `put_grant`, `delete_grant`) | `state/grants.json` (`SKEWNONO_TOOL_FILES_GRANTS_FILE`), unreadable = 503 | HASH `skewnono:tool_files:grants`, `"team:<dept_nm>"` / `"emp:<empno>"` -> JSON `{granted_at, granted_by}` |
-| requests (`read_requests`, `put_request`, `approve_request`, `reject_request`, `approve_team`) | sibling `requests.json` beside the grants file, same lock, atomic replace and unreadable = 503 | HASH `skewnono:tool_files:requests`, `<empno>` -> JSON `{request_id, reason, dept_nm, requested_at, status}`; approve/reject/team approve under `WATCH` -> compare `request_id` -> `MULTI` -> `EXEC` |
-| directory (`probe`, `teams`) | `_MEMBERS` table | `probe_member` + HSCAN of `members`, 600 s cache |
+| directory (`probe`) | `_MEMBERS` table | `probe_member`, 600 s cache |
 
 Resolution, path checks, the verdict (`access.decide`) and the error mapping
 are shared code, so the mock exercises them exactly as the office does.
@@ -77,21 +76,13 @@ identity source, target, result and request_id.
   (unreachable, 401, missing route, 5xx, a request the proxy cannot parse)
   answer `503 tool_unreachable`; names the tool encoding cannot decode answer
   `502 tool_encoding`, as on the direct path.
-- **Access** is the admin, an `emp:` grant, or a `team:` grant matching the
-  caller's directory `dept_nm`. A team move reaches the verdict up to 10
-  minutes late (the directory cache).
-- **Access requests.** Only a cookie or local identity may ask; the body
-  carries `reason` (1-200 characters) and nothing else, so the empno and the
-  stored `dept_nm` are the server's. Each (re)request gets a new uuid4
-  `request_id`, the token approve and reject compare: a different or missing
-  one is 409 `request_changed`, except an approval retry whose grant already
-  exists (no-op). A `WatchError` is caught before `STORE_ERRORS` and the
-  attempt is retried from its read up to three times, then 503, so a race
-  answers what mock answers: two admins approving one request leave the
-  second a no-op, and an approval after a rejection of the same request
-  still approves. Team approval clears only the pending requests whose *stored*
-  `dept_nm` is the team. Request, approve, reject and team approve each log
-  one `skewnono.tool_files` line carrying the access `request_id`.
+- **Access** is the admin, or a caller whose directory `dept_nm` is one of
+  `access.ALLOWED_TEAMS` (DRAM MI개발, NAND MI개발, DRAM Metrology기술, NAND
+  Metrology기술; user-confirmed 2026-10-20). There is no grant or request
+  flow: changing who gets in is a code change. A team move reaches the
+  verdict up to 10 minutes late (the directory cache). The Redis hashes
+  `skewnono:tool_files:grants` and `skewnono:tool_files:requests` the earlier
+  template wrote are no longer read; delete them once at the office.
 - Listing and download reach any path under `/`; a listing with no `path`
   opens at the login directory (`PWD`, returned as `home`). Upload and delete
   stay confined to the login directory. Per-family allowed roots are not
@@ -155,16 +146,8 @@ tool_encoding`: pull it again.
       one tool per family through the proxy; a slow transfer stops at 45 s
       with `503 tool_timeout`, not a proxy 502; msr_image images and
       recipe_search raw files still load through the proxy.
-- [ ] `/admin/access` team list: counts look right, `complete` is true, and
-      the real `dept_nm` spellings match what grants will be keyed on. Update
-      the mock `_MEMBERS` names to the real shape.
-- [ ] Grant a team, open the browser as one of its members; revoke, and the
-      next request is 403.
-- [ ] **Real WATCH/MULTI races** (not runnable at home: the fake can only
-      stage a `WatchError`). Open two Redis connections and replay each pair:
-      approve ↔ re-request, reject ↔ re-request, team approve ↔ an empno
-      approval or a re-request. Each must end in 409 or a clean retry, never a
-      grant for a request the admin did not see.
-- [ ] Request from a browser as a non-admin member, approve it on
-      `/admin/access`, and the next page load opens the explorer. Check the
-      request and approve lines reach OpenSearch.
+- [ ] The directory's `dept_nm` for each of the four teams is spelled exactly
+      as `access.ALLOWED_TEAMS` (no `팀` suffix, same spacing and case). Fix
+      the tuple and the mock `_MEMBERS` if not.
+- [ ] Open the page as a member of one team (explorer opens) and as someone
+      outside them (the team notice, and `list` answers 403).

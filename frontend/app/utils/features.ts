@@ -5,6 +5,7 @@ import type { ToolType } from './toolType'
 // strip / append feature segments when rewriting URLs.
 export const FEATURE_SLUGS = [
   'storage',
+  'tool-files',
   'recipe-search',
   // recipe-tat / fail-issue merged into recipe-status, and pm-planning into
   // tttm; their old routes redirect via route middleware before any layout
@@ -60,6 +61,7 @@ export const isSingleFabFeature = (feature: string): feature is FeatureSlug => {
 // with no page behind them. (pm-planning stopped being a route on 2026-09-01.)
 export const FEATURE_TOOL_TYPES: Record<FeatureSlug, readonly ToolType[]> = {
   'storage': ['cd-sem', 'hv-sem'],
+  'tool-files': ['cd-sem', 'hv-sem'],
   'recipe-search': ['cd-sem', 'hv-sem'],
   'recipe-status': ['cd-sem', 'hv-sem'],
   'hardware': ['cd-sem', 'hv-sem'],
@@ -90,11 +92,12 @@ export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {
  * being only the symptom.
  *
  * 장비 상태 is the fallback because the fab landing page has no slug of its
- * own; `storage` joins it because 스토리지 is a SUB-TAB of 장비 상태
- * (EbeamEquipmentStatusSubTabs), so the parent tab staying lit there is right.
+ * own; `storage` and `tool-files` join it because 스토리지 and FTP 접속 are
+ * SUB-TABS of 장비 상태 (EbeamEquipmentStatusSubTabs), so the parent tab
+ * staying lit there is right.
  */
 export const activeFeatureTab = (path: string): FeatureSlug | 'index' | null => {
   if (!(path === '/ebeam' || path.startsWith('/ebeam/'))) return null
   const feature = matchFeatureFromPath(path)
-  return feature === '' || feature === 'storage' ? 'index' : feature
+  return feature === '' || feature === 'storage' || feature === 'tool-files' ? 'index' : feature
 }

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-const { primaryFab } = useFabRoute('hv-sem')
+const { fabs } = useFabRoute('hv-sem')
 </script>
 
 <template>
   <EbeamToolFilesView
-    :fab="primaryFab"
+    :fabs="fabs"
     tool-label="HV-SEM"
     tool-type="hv-sem"
   />
