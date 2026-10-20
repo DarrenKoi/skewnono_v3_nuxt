@@ -51,11 +51,18 @@ Transfer limits, all OFFICE-VERIFY proposals:
 | `SKEWNONO_TOOL_FILES_DEADLINE` | 120 s per transfer, and for a whole zip download (cloud harakiri is 720 s) |
 | `SKEWNONO_TOOL_FILES_MAX_BATCH_FILES` | 200 files per zip download |
 | `SKEWNONO_TOOL_FILES_MAX_CONCURRENT_FTP` | 2 FTP sessions (list, download, upload, delete) at a time per process; the next gets 503 `ftp_busy` at once |
-| `SKEWNONO_TOOL_FILES_MAX_CONCURRENT_TRANSFERS` | 1 download at a time per process, held until the response is fully sent; the next gets 503 `transfers_busy` at once. With the FTP cap, at most 3 of a process's 4 uWSGI threads (12 of 16 on the cloud) are ever tool-files work |
+| `SKEWNONO_TOOL_FILES_MAX_CONCURRENT_TRANSFERS` | 1 download at a time per process, held until the response is fully sent; the next gets 503 `transfers_busy` at once. With the FTP cap, FTP work and download sends take at most 3 of a process's 4 uWSGI threads (12 of 16 on the cloud) |
 | `SKEWNONO_TOOL_FILES_PROXY_DEADLINE` | 45 s per transfer through the proxy (each file of a zip is one) (proxy host harakiri 60 s, OFFICE-VERIFY on scheduler1) |
 | `SKEWNONO_TOOL_FILES_MAX_ENTRIES` | 20000 raw LIST lines |
 | `SKEWNONO_TOOL_FILES_MAX_LIST_BYTES` | 4 MB of raw LIST |
 | `SKEWNONO_TOOL_FILES_MAX_UPLOAD_BYTES` | 100 MB per upload (Content-Length checked before parsing, bytes read counted again) |
+
+Not covered by these caps (`http-socket` lets a slow client hold a worker
+for the whole send): sending a listing's JSON, which is true of every JSON
+route and belongs to a buffering proxy, not this feature; and reading an
+upload body, which happens before the session permit is taken. Uploads are
+admin-only and off by default; take the permit before parsing if they are
+ever opened up.
 
 Writes: `SKEWNONO_TOOL_FILES_WRITE` (default off; `1`/`true`/`yes`/`on` turn
 it on). `can_write` in `GET .../tool-files/access` is
