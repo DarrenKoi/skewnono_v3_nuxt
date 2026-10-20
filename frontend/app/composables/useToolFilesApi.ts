@@ -2,7 +2,13 @@ import type { ToolType } from '~/utils/toolType'
 import { toolSlug } from '~/utils/toolType'
 import { joinApiPath } from '~/utils/apiPath'
 import { downloadBlob } from '~/utils/tableExport'
-import type { ToolFilesAccess, ToolFilesListing } from '~/utils/toolFiles'
+import type {
+  ToolFilesAccess,
+  ToolFilesGrantRow,
+  ToolFilesListing,
+  ToolFilesRequest,
+  ToolFilesRequestRow
+} from '~/utils/toolFiles'
 
 export interface ToolFilesTarget {
   toolType: ToolType
@@ -79,3 +85,34 @@ export const deleteToolFile = (target: ToolFilesTarget, path: string) =>
     method: 'POST',
     body: { fab: target.fab, eqp_id: target.eqpId, path }
   })
+
+// Only `reason` is sent: the server takes the empno from the identity and
+// the team from the directory.
+export const requestToolFilesAccess = (reason: string) =>
+  $fetch<{ verdict: 'granted' | 'pending', request?: ToolFilesRequest }>(
+    joinApiPath(useRuntimeConfig().public.apiBase, '/tool-files/requests'),
+    { method: 'POST', body: { reason } }
+  )
+
+export const useToolFilesAdminApi = () => {
+  const base = useRuntimeConfig().public.apiBase
+  const url = (leaf: string) => joinApiPath(base, `/admin/tool-files${leaf}`)
+  return {
+    fetchOverview: () => $fetch<{ grants: ToolFilesGrantRow[], requests: ToolFilesRequestRow[] }>(url('')),
+    grant: (empno: string) =>
+      $fetch<ToolFilesGrantRow>(url('/grants'), { method: 'POST', body: { empno } }),
+    revoke: (empno: string) =>
+      $fetch<{ revoked: boolean }>(url('/grants/revoke'), { method: 'POST', body: { empno } }),
+    // request_id is the one on screen: a re-request since then answers 409.
+    approve: (empno: string, requestId: string) =>
+      $fetch<{ approved: string }>(url('/requests/approve'), {
+        method: 'POST',
+        body: { empno, request_id: requestId }
+      }),
+    reject: (empno: string, requestId: string) =>
+      $fetch<{ rejected: string }>(url('/requests/reject'), {
+        method: 'POST',
+        body: { empno, request_id: requestId }
+      })
+  }
+}

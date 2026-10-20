@@ -7,8 +7,10 @@ import {
   formatFileSize,
   sortToolFileEntries,
   summarizeToolFileSelection,
+  toolFilesCanRequest,
   toolFilesErrorCode,
   toolFilesErrorMessage,
+  toolFilesReasonValid,
   type ToolFileEntry
 } from './toolFiles.ts'
 
@@ -139,4 +141,19 @@ test('a typed path is tidied into the absolute shape the server accepts', () => 
   assert.equal(normalizeTypedPath('\\RECIPE\\'), '/RECIPE')
   assert.equal(normalizeTypedPath(''), '/')
   assert.equal(normalizeTypedPath('/LOG/../RECIPE'), '/LOG/../RECIPE')
+})
+
+test('only someone outside the teams with no grant sees the request form or their request', () => {
+  assert.deepEqual(
+    (['granted', 'none', 'pending', 'rejected', 'untrusted_identity', 'directory_unavailable', 'store_unavailable'] as const)
+      .filter(toolFilesCanRequest),
+    ['none', 'pending', 'rejected']
+  )
+})
+
+test('a reason is 1-200 characters once trimmed', () => {
+  assert.equal(toolFilesReasonValid('   '), false)
+  assert.equal(toolFilesReasonValid(' 파견 중 '), true)
+  assert.equal(toolFilesReasonValid('가'.repeat(200)), true)
+  assert.equal(toolFilesReasonValid('가'.repeat(201)), false)
 })

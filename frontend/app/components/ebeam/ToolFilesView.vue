@@ -63,32 +63,101 @@
     >
       <div class="flex items-start gap-3">
         <UIcon
-          name="i-lucide-lock"
+          :name="access?.verdict === 'pending' ? 'i-lucide-hourglass' : access?.verdict === 'rejected' ? 'i-lucide-circle-x' : 'i-lucide-lock'"
           class="mt-0.5 size-5 shrink-0 text-(--sk-ink-muted)"
         />
-        <div class="space-y-2">
-          <p class="sk-title">
-            {{ refusal.title }}
-          </p>
-          <p class="sk-meta">
-            {{ refusal.description }}
-          </p>
-          <ul
-            v-if="access?.verdict === 'none'"
-            class="flex flex-wrap gap-1.5"
-          >
-            <li
-              v-for="team in access.teams"
-              :key="team"
+        <div class="min-w-0 flex-1 space-y-3">
+          <div class="space-y-2">
+            <p class="sk-title">
+              {{ refusal.title }}
+            </p>
+            <p class="sk-meta">
+              {{ refusal.description }}
+            </p>
+            <ul
+              v-if="access?.verdict === 'none'"
+              class="flex flex-wrap gap-1.5"
             >
-              <UBadge
-                color="neutral"
-                variant="subtle"
+              <li
+                v-for="team in access.teams"
+                :key="team"
               >
-                {{ team }}
-              </UBadge>
-            </li>
-          </ul>
+                <UBadge
+                  color="neutral"
+                  variant="subtle"
+                >
+                  {{ team }}
+                </UBadge>
+              </li>
+            </ul>
+          </div>
+
+          <dl
+            v-if="access?.request"
+            class="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1 rounded-(--sk-r-nav) bg-(--sk-muted-surface) px-3 py-2"
+          >
+            <dt class="sk-field-label">
+              신청 시각
+            </dt>
+            <dd class="sk-body">
+              {{ formatKoreanDateTime(access.request.requested_at) }}
+            </dd>
+            <dt class="sk-field-label">
+              사유
+            </dt>
+            <dd class="sk-body whitespace-pre-wrap break-words">
+              {{ access.request.reason }}
+            </dd>
+          </dl>
+
+          <!-- A button, not polling: approval is rare and /api is rate-limited per user. -->
+          <UButton
+            v-if="access?.verdict === 'pending'"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-refresh-cw"
+            @click="refreshAccess()"
+          >
+            승인 확인
+          </UButton>
+
+          <form
+            v-else-if="toolFilesCanRequest(access?.verdict)"
+            class="space-y-2"
+            @submit.prevent="submitRequest"
+          >
+            <UTextarea
+              v-model="reason"
+              class="w-full"
+              color="neutral"
+              variant="subtle"
+              :rows="3"
+              :maxlength="TOOL_FILES_REASON_MAX"
+              placeholder="신청 사유 (예: OO팀 파견 중, 장비 로그 확인 필요)"
+              aria-label="신청 사유"
+            />
+            <div class="flex items-center justify-between gap-3">
+              <span class="sk-meta tabular-nums">{{ reason.length }} / {{ TOOL_FILES_REASON_MAX }}</span>
+              <UButton
+                type="submit"
+                color="primary"
+                size="sm"
+                icon="i-lucide-send"
+                :loading="submitting"
+                :disabled="!toolFilesReasonValid(reason)"
+                :class="!toolFilesReasonValid(reason) ? 'cursor-not-allowed' : undefined"
+              >
+                {{ access?.verdict === 'rejected' ? '다시 신청' : '개인 권한 신청' }}
+              </UButton>
+            </div>
+            <p
+              v-if="submitError"
+              class="sk-meta text-rose-600 dark:text-rose-400"
+            >
+              {{ submitError }}
+            </p>
+          </form>
         </div>
       </div>
     </UCard>
@@ -493,21 +562,24 @@ import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { ToolType } from '~/utils/toolType'
 import type { SemListRow } from '~/composables/useSemListApi'
-import { formatDateTimeLocal, todayStamp } from '~/utils/dateTime'
+import { formatDateTimeLocal, formatKoreanDateTime, todayStamp } from '~/utils/dateTime'
 import { MANUAL_SORTING_OPTIONS, getSortIcon } from '~/utils/tableSorting'
 import { copyTextToClipboard } from '~/utils/tableExport'
 import { normalizeFab } from '~/utils/fab'
 import { classifyToolType } from '~/utils/toolType'
 import { headerState } from '~/utils/mpSelection'
 import {
+  TOOL_FILES_REASON_MAX,
   filterToolFileEntries,
   formatFileSize,
   looksUndecoded,
   normalizeTypedPath,
   sortToolFileEntries,
   summarizeToolFileSelection,
+  toolFilesCanRequest,
   toolFilesErrorCode,
   toolFilesErrorMessage,
+  toolFilesReasonValid,
   toolFilesVerdictMessage,
   type ToolFileEntry,
   type ToolFileKind,
@@ -531,6 +603,25 @@ const refusal = computed(() => {
   const verdict = access.value?.verdict
   return verdict && verdict !== 'granted' ? toolFilesVerdictMessage(verdict) : null
 })
+
+const reason = ref('')
+const submitting = ref(false)
+const submitError = ref('')
+
+const submitRequest = async () => {
+  if (!toolFilesReasonValid(reason.value) || submitting.value) return
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await requestToolFilesAccess(reason.value.trim())
+    reason.value = ''
+    await refreshAccess()
+  } catch (error) {
+    submitError.value = toolFilesErrorMessage(toolFilesErrorCode(error))
+  } finally {
+    submitting.value = false
+  }
+}
 
 const queryString = (key: string) => {
   const value = route.query[key]

@@ -76,8 +76,9 @@ _OFFICE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
 # tool_files decides access with the member directory, which follows
 # get_mode() rather than the feature's provider: forced to office on a mock
 # mode it browses real tools while every team verdict reads
-# directory_unavailable. The directory is Redis, and with no REDIS_HOST every
-# non-admin request would 503 instead of the boot naming the missing line.
+# directory_unavailable. The directory and the person-grant store are Redis,
+# and with no REDIS_HOST every non-admin request would 503 instead of the boot
+# naming the missing line.
 _OFFICE_NEEDS_OFFICE_MODE_AND_REDIS = frozenset({"tool_files"})
 
 

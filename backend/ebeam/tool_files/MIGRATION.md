@@ -4,8 +4,8 @@
 
 The template opens a direct `ftp_handler.core.FtpClient` to the tool on
 Linux (Phase 3) and the read-only `ftp_handler.proxy.FtpClient` on Windows
-(Phase 2) and reads the real member directory. It holds no in-house value, so
-the copy is verbatim:
+(Phase 2), reads the real member directory and keeps person grants in Redis.
+It holds no in-house value, so the copy is verbatim:
 
 ```bash
 cp providers/office_example.py providers/office.py
@@ -14,24 +14,30 @@ cp providers/office_example.py providers/office.py
 - `office.py` is gitignored and a **copy**. Refresh it after a `git pull` that
   moves the template, or the boot log reports `STALE office.py: tool_files`.
   A copy older than 2026-10-20 imports the removed grant/request types and
-  stops the app from booting: refresh it in the same pull.
+  stops the app from booting; a 2026-10-20 copy boots but has no
+  `read_grants`, so everyone outside the allowed teams gets a 500. Refresh it
+  in the same pull.
 - It pairs with `sem_list`: every tool's IP and FTP account come from the
   live roster, so `validate_env()` refuses tool_files=office with
   sem_list=mock rather than send real credentials to fabricated addresses.
 - `validate_env()` also refuses tool_files=office when the mode is not office
   (the member directory follows the mode, so every team verdict would be
-  `directory_unavailable`) and when `REDIS_HOST` is unset (the directory).
+  `directory_unavailable`) and when `REDIS_HOST` is unset (the directory and
+  the grant store).
 - Never touch `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or
   `tests/`.
 
 ## What swaps
 
-Two surfaces, chosen together by one provider resolution:
+Three surfaces, chosen together by one provider resolution, so "real FTP +
+mock grants" cannot happen:
 
 | surface | mock | office |
 | :-- | :-- | :-- |
 | FTP (`open_client`, `transport_supports_write`) | fake tree, writable | direct `FtpClient` (writable) on Linux; proxy `FtpClient` (read-only) on Windows |
 | directory (`probe`) | `_MEMBERS` table | `probe_member`, 600 s cache |
+| person grants (`read_grants`, `put_grant`, `delete_grant`) | `state/grants.json` (`SKEWNONO_TOOL_FILES_GRANTS_FILE`), unreadable = 503 | HASH `skewnono:tool_files:emp_grants`, `<empno>` -> JSON `{granted_at, granted_by}` |
+| requests (`read_requests`, `put_request`, `approve_request`, `reject_request`) | sibling `requests.json`, same lock, atomic replace, unreadable = 503 | HASH `skewnono:tool_files:emp_requests`, `<empno>` -> JSON `{request_id, reason, dept_nm, requested_at, status}`; approve/reject under `WATCH` -> compare `request_id` -> `MULTI` -> `EXEC` |
 
 Resolution, path checks, the verdict (`access.decide`) and the error mapping
 are shared code, so the mock exercises them exactly as the office does.
@@ -86,13 +92,28 @@ identity source, target, result and request_id.
   (unreachable, 401, missing route, 5xx, a request the proxy cannot parse)
   answer `503 tool_unreachable`; names the tool encoding cannot decode answer
   `502 tool_encoding`, as on the direct path.
-- **Access** is the admin, or a caller whose directory `dept_nm` is one of
+- **Access** is the admin, a caller whose directory `dept_nm` is one of
   `access.ALLOWED_TEAMS` (DRAM MI개발, NAND MI개발, DRAM Metrology기술, NAND
-  Metrology기술, 기반기술전략; user-confirmed 2026-10-20). There is no grant or request
-  flow: changing who gets in is a code change. A team move reaches the
-  verdict up to 10 minutes late (the directory cache). The Redis hashes
-  `skewnono:tool_files:grants` and `skewnono:tool_files:requests` the earlier
-  template wrote are no longer read; delete them once at the office.
+  Metrology기술, 기반기술전략; user-confirmed 2026-10-20), or an empno an
+  admin granted (2026-10-21: people dispatched to other teams lose the team
+  match). The teams are the default and a code change; person grants are
+  made on `/admin/access`, directly or by approving a request. A team move
+  reaches the verdict up to 10 minutes late (the directory cache). Team
+  members never read the grant store, so a Redis outage refuses only people
+  outside the teams (`503 store_unavailable`); a person grant still opens
+  through a directory outage.
+- **Access requests.** Only a cookie or local identity may ask; the body
+  carries `reason` (1-200 characters) and nothing else, so the empno and the
+  stored `dept_nm` are the server's. Each (re)request gets a new uuid4
+  `request_id`, the token approve and reject compare: a different or missing
+  one is 409 `request_changed`, except an approval retry whose grant already
+  exists (no-op). A `WatchError` is retried from its read up to three times,
+  then 503. Request, approve, reject, grant and revoke each log one
+  `skewnono.tool_files` line.
+- The Redis hashes `skewnono:tool_files:grants` and
+  `skewnono:tool_files:requests` the pre-2026-10-20 template wrote are never
+  read (new key names, so an old grant cannot come back by itself); delete
+  them once at the office.
 - Listing and download reach any path under `/`; a listing with no `path`
   opens at the login directory (`PWD`, returned as `home`). Upload and delete
   stay confined to the login directory. Per-family allowed roots are not
@@ -160,4 +181,13 @@ tool_encoding`: pull it again.
       as `access.ALLOWED_TEAMS` (no `팀` suffix, same spacing and case). Fix
       the tuple and the mock `_MEMBERS` if not.
 - [ ] Open the page as a member of one team (explorer opens) and as someone
-      outside them (the team notice, and `list` answers 403).
+      outside them (the team notice with the request form, and `list`
+      answers 403).
+- [ ] Request from a browser as someone outside the teams, approve it on
+      `/admin/access`, and the next page load opens the explorer. Revoke it,
+      and the next request is 403. Check the request/approve/revoke lines
+      reach OpenSearch.
+- [ ] **Real WATCH/MULTI races** (not runnable at home: the fake can only
+      stage a `WatchError`). With two Redis connections replay approve ↔
+      re-request and reject ↔ re-request; each must end in 409 or a clean
+      retry, never a grant for a request the admin did not see.

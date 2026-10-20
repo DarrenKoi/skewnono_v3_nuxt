@@ -10,3 +10,10 @@ def roomy_permits(monkeypatch):
 
     monkeypatch.setattr(routes, "_FTP_SESSIONS", routes._Permits(1000, "ftp_busy", ""))
     monkeypatch.setattr(routes, "_TRANSFERS", routes._Permits(1000, "transfers_busy", ""))
+
+
+@pytest.fixture(autouse=True)
+def isolated_grants(tmp_path, monkeypatch):
+    """The mock grant store in a per-test folder, never the developer's own
+    state/grants.json, so a local grant cannot turn a refusal test green."""
+    monkeypatch.setenv("SKEWNONO_TOOL_FILES_GRANTS_FILE", str(tmp_path / "grants.json"))

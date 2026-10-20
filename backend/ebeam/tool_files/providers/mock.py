@@ -21,22 +21,41 @@ process restarts); ``put`` onto an existing name raises ``TargetExists`` as
 ``core.FtpClient.put`` does. It never raises ``TransferUncertain``: that needs
 a lost RNTO reply, which only a real server can lose.
 
-It also carries the member directory, the other swap surface:
-``_auth.directory.probe_member`` is ``unavailable`` at home by design, so the
-team allowlist would be untestable here. ``_MEMBERS`` stands in: a member of
-an allowed team, two members of other teams, a profile with no dept_nm, and a
-directory outage; every other empno is absent. The allowed team's name is the
-user's spelling (OFFICE-VERIFY against the directory, see ``access.py``); the
-other two are placeholders.
+It also carries this feature's two other swap surfaces, so one provider choice
+decides all three:
+
+- **Member directory.** ``_auth.directory.probe_member`` is ``unavailable`` at
+  home by design, so the team allowlist would be untestable here.
+  ``_MEMBERS`` stands in: a member of an allowed team, two members of other
+  teams, a profile with no dept_nm, and a directory outage; every other empno
+  is absent. The allowed team's name is the user's spelling (OFFICE-VERIFY
+  against the directory, see ``access.py``); the other two are placeholders.
+- **Person grants and requests.** Two JSON files under ``state/``
+  (``SKEWNONO_TOOL_FILES_GRANTS_FILE`` names the grants one, ``requests.json``
+  sits beside it), empno -> record, read on every call so a write in one
+  worker is seen by the next request in any other, and written by atomic
+  replace. Unlike access_control's mock, an unreadable file is 503, never an
+  empty store. The office checks a request_id under WATCH/MULTI; here the
+  process lock makes the check-then-write atomic, so the mock never sees the
+  office's WatchError retry. An approval writes two files, grant first: a
+  crash between them leaves the request behind, and approving it again is
+  harmless.
 """
 
+import json
+import os
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from ftplib import error_perm
+from pathlib import Path
+from threading import Lock
 
 from ftp_handler.core import FileInfo, ListingTooLarge, TargetExists, TransferTooLarge
 
 from backend._auth.directory import Probe, bare_member
+from backend.ebeam.tool_files.contracts import Grant, Request
+from backend.ebeam.tool_files.errors import RequestChanged, StoreUnavailable
 from backend.ebeam.tool_files.resolve import Tool
 from backend.sem_list.providers.mock import get_sem_list
 
@@ -195,3 +214,111 @@ _MEMBERS: dict[str, Probe] = {
 
 def probe(empno: str) -> Probe:
     return _MEMBERS.get(empno, Probe(None, "absent"))
+
+
+_lock = Lock()
+
+
+def _grants_path() -> Path:
+    override = os.environ.get("SKEWNONO_TOOL_FILES_GRANTS_FILE")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parent.parent / "state" / "grants.json"
+
+
+def _requests_path() -> Path:
+    return _grants_path().with_name("requests.json")
+
+
+def _read(path: Path) -> dict:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        raise StoreUnavailable(f"store file unreadable: {path}") from exc
+    if not isinstance(raw, dict) or not all(isinstance(v, dict) for v in raw.values()):
+        raise StoreUnavailable(f"store file is not a JSON object of objects: {path}")
+    return raw
+
+
+def _write(path: Path, records: dict) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem}.")
+    except OSError as exc:
+        raise StoreUnavailable(f"store file not writable: {path}") from exc
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(records, handle, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+    except OSError as exc:
+        Path(tmp).unlink(missing_ok=True)
+        raise StoreUnavailable(f"store file not writable: {path}") from exc
+
+
+def read_grants() -> dict[str, Grant]:
+    return _read(_grants_path())
+
+
+def put_grant(empno: str, grant: Grant) -> Grant:
+    """Idempotent: a repeat grant keeps the first one's stamp."""
+    path = _grants_path()
+    with _lock:
+        grants = _read(path)
+        if empno not in grants:
+            grants[empno] = grant
+            _write(path, grants)
+        return grants[empno]
+
+
+def delete_grant(empno: str) -> bool:
+    path = _grants_path()
+    with _lock:
+        grants = _read(path)
+        if grants.pop(empno, None) is None:
+            return False
+        _write(path, grants)
+        return True
+
+
+def read_requests() -> dict[str, Request]:
+    return _read(_requests_path())
+
+
+def put_request(empno: str, request: Request) -> None:
+    """Overwrites: one request per empno, a re-request replaces the last."""
+    path = _requests_path()
+    with _lock:
+        requests = _read(path)
+        requests[empno] = request
+        _write(path, requests)
+
+
+def _matching(requests: dict[str, Request], empno: str, request_id: str) -> Request:
+    current = requests.get(empno)
+    if current is None or current.get("request_id") != request_id:
+        raise RequestChanged(empno)
+    return current
+
+
+def approve_request(empno: str, request_id: str, grant: Grant) -> None:
+    grants_path, requests_path = _grants_path(), _requests_path()
+    with _lock:
+        grants, requests = _read(grants_path), _read(requests_path)
+        if empno not in requests and empno in grants:
+            return  # a retry of an approval that already landed
+        _matching(requests, empno, request_id)
+        if empno not in grants:
+            grants[empno] = grant
+            _write(grants_path, grants)
+        del requests[empno]
+        _write(requests_path, requests)
+
+
+def reject_request(empno: str, request_id: str) -> None:
+    path = _requests_path()
+    with _lock:
+        requests = _read(path)
+        _matching(requests, empno, request_id)["status"] = "rejected"
+        _write(path, requests)

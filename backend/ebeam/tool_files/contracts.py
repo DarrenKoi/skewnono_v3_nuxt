@@ -1,6 +1,6 @@
 """Shapes the tool-files routes return, identical across providers."""
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 class Entry(TypedDict):
@@ -37,15 +37,52 @@ class Listing(TypedDict):
 
 Verdict = Literal[
     "granted",
-    # A trusted identity outside the allowed teams.
+    # A trusted identity outside the allowed teams, with no grant or request.
     "none",
+    "pending",
+    "rejected",
     "untrusted_identity",
     "directory_unavailable",
+    "store_unavailable",
 ]
+
+
+class Request(TypedDict):
+    """One person's access request, stored under their normalised empno."""
+
+    # uuid4 hex, new on every (re)request: the token approve/reject compare,
+    # because requested_at has one-second grain and can repeat.
+    request_id: str
+    reason: str
+    # The team the directory gave at request time. Display only.
+    dept_nm: str | None
+    requested_at: str
+    status: Literal["pending", "rejected"]
+
+
+class RequestRow(Request):
+    empno: str
+    # Current name from the directory, None when it cannot say.
+    emp_nm: str | None
 
 
 class Access(TypedDict):
     verdict: Verdict
     can_write: bool
-    # access.ALLOWED_TEAMS, so the refusal page names who does get in.
+    # access.ALLOWED_TEAMS, so the refusal page names who gets in by default.
     teams: list[str]
+    # Present only for "pending" and "rejected": the caller's own request.
+    request: NotRequired[Request]
+
+
+class Grant(TypedDict):
+    granted_at: str
+    granted_by: str
+
+
+class GrantRow(Grant):
+    empno: str
+    # The grantee's current name and team when the directory knows them, so
+    # the admin sees who it is and whether the team default already covers them.
+    emp_nm: str | None
+    dept_nm: str | None
