@@ -25,6 +25,10 @@ class Limits:
     max_upload_bytes: int = 100 * 1024 * 1024
     # One zip download: max_bytes is the budget for all of its files together.
     max_batch_files: int = 200
+    # Downloads (single or zip) running at once in one process. Cloud uWSGI
+    # has 4 processes x 4 threads = 16 slots for the whole app; each download
+    # can hold one for the full deadline, so 1 per process keeps 12 free.
+    max_concurrent_transfers: int = 1
 
 
 def _positive(env: Mapping[str, str], key: str, default, cast):
@@ -65,5 +69,11 @@ def load_limits(env: Mapping[str, str] | None = None) -> Limits:
         ),
         max_batch_files=_positive(
             env, "SKEWNONO_TOOL_FILES_MAX_BATCH_FILES", base.max_batch_files, int
+        ),
+        max_concurrent_transfers=_positive(
+            env,
+            "SKEWNONO_TOOL_FILES_MAX_CONCURRENT_TRANSFERS",
+            base.max_concurrent_transfers,
+            int,
         ),
     )

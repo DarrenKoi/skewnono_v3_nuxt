@@ -1,5 +1,6 @@
 import io
 import logging
+import threading
 import time
 import zipfile
 from contextlib import contextmanager
@@ -145,6 +146,22 @@ def access():
 
 _BROWSE_ROOT = "/"
 
+# ponytail: per process, not fleet-wide (4 uWSGI processes = 4x the knob);
+# a Redis semaphore if that is still too many at once.
+_TRANSFERS = threading.BoundedSemaphore(load_limits().max_concurrent_transfers)
+
+
+@contextmanager
+def _transfer_slot():
+    """Refuse at once rather than queue: a waiting download would hold the
+    very request slot the cap exists to keep free."""
+    if not _TRANSFERS.acquire(blocking=False):
+        raise ToolFilesError(503, "transfers_busy", "another tool-file download is running")
+    try:
+        yield
+    finally:
+        _TRANSFERS.release()
+
 
 @bp.get("/<tool_slug>/tool-files/list")
 def list_files(tool_slug: str):
@@ -192,7 +209,7 @@ def download(tool_slug: str):
     _require_access()
     tool = _tool(tool_slug)
     limits = load_limits()
-    with _session(tool) as ftp:
+    with _transfer_slot(), _session(tool) as ftp:
         path = check_path(_BROWSE_ROOT, request.args.get("path") or ftp.home())
         data = ftp.download(path, max_bytes=limits.max_bytes, deadline=limits.deadline)
     return _attachment(
@@ -234,7 +251,7 @@ def download_zip(tool_slug: str):
     # one file, never every file at once. Level 1: logs still shrink well, at a
     # fraction of the default level's CPU on the request thread.
     archive = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=1)
-    with _session(tool) as ftp, archive:
+    with _transfer_slot(), _session(tool) as ftp, archive:
         # The zip owns its budget, so it raises its own codes for both limits.
         def time_left() -> float:
             left = limits.deadline - (time.monotonic() - started)

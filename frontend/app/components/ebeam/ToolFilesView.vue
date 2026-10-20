@@ -255,7 +255,7 @@
               variant="solid"
               icon="i-lucide-download"
               :loading="bulkDownloading"
-              :disabled="!!selectionBlocked"
+              :disabled="!!selectionBlocked || !!downloading"
               @click="downloadChecked"
             >
               선택 다운로드
@@ -419,7 +419,7 @@
               icon="i-lucide-download"
               :aria-label="`${row.original.name} 다운로드`"
               :loading="downloading === row.original.path"
-              :disabled="tooLarge(row.original)"
+              :disabled="tooLarge(row.original) || transferring"
               :class="tooLarge(row.original) ? 'cursor-not-allowed' : undefined"
               @click="download(row.original)"
             />
@@ -746,6 +746,9 @@ const selectionBlocked = computed(() => {
 })
 
 const bulkDownloading = ref(false)
+// The server runs one download per process and refuses the next (transfers_busy),
+// so this page never starts a second while one is in flight.
+const transferring = computed(() => !!downloading.value || bulkDownloading.value)
 const downloadChecked = async () => {
   const current = target.value
   const files = selection.value.files

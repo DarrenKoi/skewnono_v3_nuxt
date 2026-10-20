@@ -379,3 +379,23 @@ def test_compressing_the_last_file_still_counts_against_the_deadline(client, mon
     monkeypatch.setattr(zipfile.ZipFile, "writestr", slow)
     response = _zip(client, _tool("cd-sem"), ["/README.TXT"])
     assert _code(response) == (503, "tool_timeout")
+
+
+def test_a_download_while_the_transfer_slots_are_full_is_refused_at_once(client, monkeypatch):
+    import threading
+
+    full = threading.BoundedSemaphore(1)
+    full.acquire()
+    monkeypatch.setattr("backend.ebeam.tool_files.routes._TRANSFERS", full)
+    row = _tool("cd-sem")
+    assert _code(_download(client, row, "/README.TXT")) == (503, "transfers_busy")
+    assert _code(_zip(client, row, ["/README.TXT"])) == (503, "transfers_busy")
+    # Browsing is not a transfer: the folder still lists.
+    assert _list(client, row).status_code == 200
+
+
+def test_a_finished_or_failed_download_frees_its_slot(client):
+    row = _tool("cd-sem")
+    assert _code(_download(client, row, "/DUMP/gone.bin")) == (404, "file_unavailable")
+    assert _download(client, row, "/README.TXT").status_code == 200
+    assert _download(client, row, "/README.TXT").status_code == 200
