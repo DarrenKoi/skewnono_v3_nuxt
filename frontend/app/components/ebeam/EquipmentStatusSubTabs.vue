@@ -29,16 +29,19 @@
 
 <script setup lang="ts">
 import type { ToolType } from '~/utils/toolType'
-import { hasStorageView } from '~/utils/toolType'
-import { hasToolFilesView } from '~/utils/toolFiles'
+import type { FeatureSlug } from '~/utils/features'
+import {
+  FEATURE_SLUG_SUFFIX_REGEX,
+  featureSupportsToolType,
+  matchFeatureFromPath
+} from '~/utils/features'
 
+// Values are the feature slugs; '' is 장비 리스트 (the fab landing page).
 const SUB_TABS = [
-  { value: 'list', label: '장비 리스트', icon: 'i-lucide-server' },
+  { value: '', label: '장비 리스트', icon: 'i-lucide-server' },
   { value: 'storage', label: '스토리지', icon: 'i-lucide-hard-drive' },
-  { value: 'files', label: 'FTP 접속', icon: 'i-lucide-folder-tree' }
-] as const
-
-type SubTabValue = typeof SUB_TABS[number]['value']
+  { value: 'tool-files', label: 'FTP 접속', icon: 'i-lucide-folder-tree' }
+] as const satisfies readonly { value: '' | FeatureSlug, label: string, icon: string }[]
 
 // 어느 계열인지는 경로에서 되짚지 않고 부모가 넘깁니다 — ToolInventoryView 와
 // StorageView 는 이미 toolType 을 들고 있고, 경로를 다시 파싱하면 라우트 구조가
@@ -47,24 +50,21 @@ const props = defineProps<{ toolType: ToolType }>()
 
 const route = useRoute()
 
-const SUB_PATHS: Record<SubTabValue, string> = { list: '', storage: '/storage', files: '/tool-files' }
-
-const subPath = computed(() => /\/(storage|tool-files)(\/.*)?$/.exec(route.path))
-const basePath = computed(() => subPath.value ? route.path.slice(0, subPath.value.index) : route.path)
-const active = computed<SubTabValue>(() =>
-  subPath.value?.[1] === 'storage' ? 'storage' : subPath.value ? 'files' : 'list')
+const basePath = computed(() => route.path.replace(FEATURE_SLUG_SUFFIX_REGEX, ''))
+const active = computed(() => {
+  const feature = matchFeatureFromPath(route.path)
+  return SUB_TABS.some(tab => tab.value === feature) ? feature : ''
+})
 
 // 링크를 그릴지 말지는 라우트가 있느냐로 정합니다. AMAT 계열에는 스토리지
 // 페이지가 없어서, 무조건 그리면 클릭이 아무 데도 가지 않고 라우터 경고만
 // 남습니다. 탭을 지우는 판단 자체는 이 컴포넌트가 집니다 — 링크의 주인이
 // 여기라서, 호출부가 무엇을 넘기든 없는 라우트로는 링크하지 않습니다.
 const availableTabs = computed(() =>
-  SUB_TABS.filter(tab =>
-    (tab.value !== 'storage' || hasStorageView(props.toolType))
-    && (tab.value !== 'files' || hasToolFilesView(props.toolType)))
+  SUB_TABS.filter(tab => tab.value === '' || featureSupportsToolType(tab.value, props.toolType))
 )
 
 const options = computed(() =>
-  availableTabs.value.map(tab => ({ ...tab, to: `${basePath.value}${SUB_PATHS[tab.value]}` }))
+  availableTabs.value.map(tab => ({ ...tab, to: tab.value ? `${basePath.value}/${tab.value}` : basePath.value }))
 )
 </script>

@@ -50,7 +50,6 @@ def test_admin_lists_the_login_directory_of_a_cdsem_tool(client):
 
     assert response.status_code == 200
     body = response.get_json()
-    assert body["root"] == "/"
     assert body["path"] == "/"
     assert body["parent"] is None
     assert body["max_bytes"] == 100 * 1024 * 1024
@@ -126,8 +125,8 @@ def test_an_empty_folder_lists_no_entries(client):
 def test_an_hvsem_listing_opens_at_its_login_directory_below_slash(client):
     row = _tool("hv-sem")
     body = _list(client, row, slug="hvsem").get_json()
-    assert (body["root"], body["home"], body["path"], body["parent"]) == (
-        "/", "/home/hitachi", "/home/hitachi", "/home"
+    assert (body["home"], body["path"], body["parent"]) == (
+        "/home/hitachi", "/home/hitachi", "/home"
     )
     assert body["crumbs"] == [
         {"name": "/", "path": "/"},

@@ -1,10 +1,3 @@
-import { SEM_TOOL_TYPES, type ToolType } from './toolType.ts'
-
-// The explorer page exists only under pages/ebeam/{cd-sem,hv-sem}/[fab]/tool-files.
-// Access is the page's call.
-export const hasToolFilesView = (toolType: ToolType): boolean =>
-  (SEM_TOOL_TYPES as readonly ToolType[]).includes(toolType)
-
 // Shapes mirror backend/ebeam/tool_files/contracts.py.
 export interface ToolFileEntry {
   name: string
@@ -21,7 +14,6 @@ export interface ToolFilesCrumb {
 }
 
 export interface ToolFilesListing {
-  root: string
   home: string
   path: string
   parent: string | null

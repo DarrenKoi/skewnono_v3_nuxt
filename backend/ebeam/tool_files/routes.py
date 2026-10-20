@@ -7,6 +7,7 @@ from ftplib import all_errors, error_perm
 
 from flask import Blueprint, Response, g, jsonify, request
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.wsgi import wrap_file
 
 from ftp_handler.core import (
     ListingTooLarge,
@@ -175,7 +176,6 @@ def list_files(tool_slug: str):
         if not info.is_link
     ]
     body: Listing = {
-        "root": _BROWSE_ROOT,
         "home": home,
         "path": path,
         "parent": parent_of(_BROWSE_ROOT, path),
@@ -195,10 +195,14 @@ def download(tool_slug: str):
     with _session(tool) as ftp:
         path = check_path(_BROWSE_ROOT, request.args.get("path") or ftp.home())
         data = ftp.download(path, max_bytes=limits.max_bytes, deadline=limits.deadline)
-    response = Response(data, mimetype="application/octet-stream")
-    response.headers["Content-Disposition"] = _content_disposition(
-        readable_name(path.rsplit("/", 1)[-1]), kind="attachment"
+    return _attachment(
+        Response(data, mimetype="application/octet-stream"),
+        readable_name(path.rsplit("/", 1)[-1]),
     )
+
+
+def _attachment(response: Response, name: str) -> Response:
+    response.headers["Content-Disposition"] = _content_disposition(name, kind="attachment")
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
@@ -227,12 +231,17 @@ def download_zip(tool_slug: str):
     started = time.monotonic()
     budget = limits.max_bytes
     # Each file goes into the zip as it arrives, so the peak is the zip plus
-    # one file, never every file at once.
-    with _session(tool) as ftp, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+    # one file, never every file at once. Level 1: logs still shrink well, at a
+    # fraction of the default level's CPU on the request thread.
+    archive = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=1)
+    with _session(tool) as ftp, archive:
+        # The zip owns its budget, so it raises its own codes for both limits.
         def time_left() -> float:
             left = limits.deadline - (time.monotonic() - started)
             if left <= 0:
-                raise TransferTimeout(f"zip of {len(keys)} files ran past {limits.deadline}s")
+                raise ToolFilesError(
+                    503, "tool_timeout", f"zip of {len(keys)} files ran past {limits.deadline}s"
+                )
             return left
 
         for key, name in zip(keys, names, strict=True):
@@ -246,12 +255,15 @@ def download_zip(tool_slug: str):
             archive.writestr(name, data)
             # Compressing counts too: the last file's has no next download to catch it.
             time_left()
-    response = Response(buf.getvalue(), mimetype="application/zip")
-    response.headers["Content-Disposition"] = _content_disposition(
-        f"{tool.eqp_id}.zip", kind="attachment"
+    # Streamed from the buffer, not getvalue(): no second copy of a zip that
+    # can near max_bytes.
+    size = buf.tell()
+    buf.seek(0)
+    response = Response(
+        wrap_file(request.environ, buf), mimetype="application/zip", direct_passthrough=True
     )
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    return response
+    response.content_length = size
+    return _attachment(response, f"{tool.eqp_id}.zip")
 
 
 def _require_write() -> None:
@@ -322,7 +334,7 @@ def _json_body(fields: str) -> dict:
     return body
 
 
-def _audit(action: str, key: str, result: object) -> None:
+def _audit(action: str, key: str, result: str) -> None:
     logger.info(
         "tool_files %s actor=%s source=%s target=%s result=%s request_id=%s",
         action,

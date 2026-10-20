@@ -71,6 +71,10 @@ export const FEATURE_TOOL_TYPES: Record<FeatureSlug, readonly ToolType[]> = {
   'tttm': ['cd-sem']
 }
 
+// 스토리지 and FTP 접속 are SUB-TABS of 장비 상태 (EbeamEquipmentStatusSubTabs),
+// so the parent tab stays lit on them.
+export const EQUIPMENT_STATUS_SUBTABS = ['storage', 'tool-files'] as const satisfies readonly FeatureSlug[]
+
 export const featureSupportsToolType = (feature: string, toolType: ToolType): boolean =>
   FEATURE_TOOL_TYPES[feature as FeatureSlug]?.includes(toolType) ?? false
 
@@ -92,12 +96,10 @@ export const matchFeatureFromPath = (path: string): FeatureSlug | '' => {
  * being only the symptom.
  *
  * 장비 상태 is the fallback because the fab landing page has no slug of its
- * own; `storage` and `tool-files` join it because 스토리지 and FTP 접속 are
- * SUB-TABS of 장비 상태 (EbeamEquipmentStatusSubTabs), so the parent tab
- * staying lit there is right.
+ * own; EQUIPMENT_STATUS_SUBTABS join it.
  */
 export const activeFeatureTab = (path: string): FeatureSlug | 'index' | null => {
   if (!(path === '/ebeam' || path.startsWith('/ebeam/'))) return null
   const feature = matchFeatureFromPath(path)
-  return feature === '' || feature === 'storage' || feature === 'tool-files' ? 'index' : feature
+  return feature === '' || (EQUIPMENT_STATUS_SUBTABS as readonly string[]).includes(feature) ? 'index' : feature
 }

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import {
   FEATURE_SLUGS,
   FEATURE_SLUG_REGEX,
+  EQUIPMENT_STATUS_SUBTABS,
   FEATURE_SLUG_SUFFIX_REGEX,
   FEATURE_TOOL_TYPES,
   FABLESS_FEATURES,
@@ -196,7 +197,7 @@ test('every feature slug is recognised — the fallback is never reached by one'
   // decides the tab silently lights 장비 상태. Only its sub-tabs may map to it.
   for (const slug of FEATURE_SLUGS) {
     const tab = activeFeatureTab(`/ebeam/cd-sem/m14a/${slug}`)
-    if (slug === 'storage' || slug === 'tool-files') continue
+    if ((EQUIPMENT_STATUS_SUBTABS as readonly string[]).includes(slug)) continue
     assert.notEqual(tab, 'index', `${slug} falls through to 장비 상태`)
   }
 })

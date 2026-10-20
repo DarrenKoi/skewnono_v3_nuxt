@@ -23,7 +23,6 @@ class Crumb(TypedDict):
 
 
 class Listing(TypedDict):
-    root: str
     # The login directory (PWD): where a listing opens and writes are confined.
     home: str
     path: str

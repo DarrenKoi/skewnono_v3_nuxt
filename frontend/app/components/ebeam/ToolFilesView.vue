@@ -320,6 +320,7 @@
         :columns="columns"
         :data="visibleEntries"
         :sorting-options="MANUAL_SORTING_OPTIONS"
+        :virtualize="{ estimateSize: 57 }"
         empty="이 폴더에 표시할 항목이 없습니다."
         sticky="header"
         @select="onRowSelect"
@@ -497,6 +498,7 @@ import { MANUAL_SORTING_OPTIONS, getSortIcon } from '~/utils/tableSorting'
 import { copyTextToClipboard } from '~/utils/tableExport'
 import { normalizeFab } from '~/utils/fab'
 import { classifyToolType } from '~/utils/toolType'
+import { headerState } from '~/utils/mpSelection'
 import {
   filterToolFileEntries,
   formatFileSize,
@@ -559,7 +561,7 @@ const toolItems = computed(() => tools.value.map(row => ({
 })))
 const semRow = computed(() => tools.value.find(row => row.eqp_id === selectedEqp.value))
 
-// The fab and family switches carry the query over (useFabRoute), so an
+// The fab and family switches carry the query over (useNavigation), so an
 // ?eqp= from the old fab or family names no tool here: drop it with its path.
 // Only after the roster has loaded: it starts as [], which matches nothing.
 watch([semStatus, tools], () => {
@@ -626,6 +628,9 @@ const submitTypedPath = () => {
   typedPath.value = null
   if (path !== listing.value?.path) openPath(path)
 }
+
+const toastError = (error: unknown) =>
+  toast.add({ title: toolFilesErrorMessage(toolFilesErrorCode(error)), color: 'error' })
 
 const copyPath = async () => {
   if (!listing.value) return
@@ -694,7 +699,7 @@ const download = async (entry: ToolFileEntry) => {
   try {
     await downloadToolFile(target.value, entry.path, entry.name)
   } catch (error) {
-    toast.add({ title: toolFilesErrorMessage(toolFilesErrorCode(error)), color: 'error' })
+    toastError(error)
   } finally {
     downloading.value = null
   }
@@ -715,10 +720,9 @@ const toggleChecked = (path: string) => {
 
 // The header box acts on what the filter shows, minus files over the cap.
 const checkable = computed(() => visibleEntries.value.filter(entry => !entry.is_dir && !tooLarge(entry)))
-const headerChecked = computed<boolean | 'indeterminate'>(() => {
-  const count = checkable.value.filter(entry => checked.value.has(entry.path)).length
-  return count === 0 ? false : count === checkable.value.length ? true : 'indeterminate'
-})
+const HEADER_CHECKBOX = { none: false, some: 'indeterminate', all: true } as const
+const headerChecked = computed(() =>
+  HEADER_CHECKBOX[headerState(checkable.value.map(entry => entry.path), checked.value)])
 const toggleAll = () => {
   const next = new Set(checked.value)
   const on = headerChecked.value !== true
@@ -755,7 +759,7 @@ const downloadChecked = async () => {
       await downloadToolFilesZip(current, files.map(entry => entry.path), `${current.eqpId}_${folder}_${todayStamp()}.zip`)
     }
   } catch (error) {
-    toast.add({ title: toolFilesErrorMessage(toolFilesErrorCode(error)), color: 'error' })
+    toastError(error)
   } finally {
     bulkDownloading.value = false
   }
@@ -812,7 +816,7 @@ const confirmDelete = async () => {
     await deleteToolFile(target.value, entry.path)
     toast.add({ title: `${entry.name}을(를) 삭제했습니다.`, color: 'success' })
   } catch (error) {
-    toast.add({ title: toolFilesErrorMessage(toolFilesErrorCode(error)), color: 'error' })
+    toastError(error)
   } finally {
     deleting.value = false
     pendingDelete.value = null
