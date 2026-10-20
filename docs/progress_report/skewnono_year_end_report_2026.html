@@ -255,7 +255,26 @@
 </section>
 
 <section>
-  <h2>9. 이후 과제</h2>
+  <h2>9. 개발 규모</h2>
+  <div class="metrics">
+    <div class="metric hero"><div class="n">248,830줄</div><div class="l">전체 코드 (원본 복사 모듈 13,300줄 포함)</div></div>
+    <div class="metric"><div class="n">+25%</div><div class="l">직접 작성한 코드, 2026-08-18 의 188,345줄 대비</div></div>
+    <div class="metric"><div class="n">33%</div><div class="l">테스트 코드 비중 (77,031줄)</div></div>
+  </div>
+  <div class="scroll"><table>
+    <tr><th>구분</th><th>줄 수</th><th>내용</th></tr>
+    <tr><td>프론트엔드</td><td>93,635</td><td>화면 63개, 컴포넌트 272개</td></tr>
+    <tr><td>백엔드</td><td>64,864</td><td>API 엔드포인트 113개, 운영 스크립트 9,599줄 포함</td></tr>
+    <tr><td>백엔드 테스트</td><td>51,681</td><td>기능별 provider 계약 테스트와 통합 테스트</td></tr>
+    <tr><td>프론트 테스트</td><td>25,350</td><td>순수 함수 단위 테스트</td></tr>
+    <tr><td>원본 복사 모듈</td><td>13,300</td><td>ftp_handler, minio_handler, ops_store, ops_index_mgmt</td></tr>
+    <tr><td><b>합계</b></td><td><b>248,830</b></td><td>직접 작성 235,530 + 원본 복사 13,300</td></tr>
+  </table></div>
+  <p>2026-10-21 기준입니다. 원본 복사 모듈은 flask_modules 에서 그대로 가져온 코드입니다.</p>
+</section>
+
+<section>
+  <h2>10. 이후 과제</h2>
   <div class="entry"><ul>
     <li>디바이스명 설명 스크립트 표준화를 마무리해 디바이스 통계의 룰 판정을 안정시킵니다.</li>
     <li>VeritySEM · Provision · Thickness 로 지원 장비를 넓혀 Metrology Workspace 통합을 이어 갑니다. VeritySEM · Provision 은 사내 데이터 사전 조사를 시작했습니다.</li>
