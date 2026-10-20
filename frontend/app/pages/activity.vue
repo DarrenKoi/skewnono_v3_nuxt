@@ -382,7 +382,7 @@ const adminLinks = [
     to: '/admin/access',
     icon: 'i-lucide-shield-check',
     title: '접근 권한 관리',
-    description: 'X-사번 차단 예외를 허용하고 최근 차단 시도를 확인합니다.'
+    description: 'X-사번 차단 예외와 FTP 접속 개인 승인(신청 승인·사번 추가·회수)을 관리합니다.'
   }
 ]
 
