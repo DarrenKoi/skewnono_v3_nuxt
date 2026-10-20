@@ -12,7 +12,13 @@ from backend.ebeam.tool_files.contracts import Verdict
 
 # user-confirmed 2026-10-20. Matched exactly against the directory's dept_nm;
 # OFFICE-VERIFY that these are its spellings (no "팀" suffix, spacing, case).
-ALLOWED_TEAMS = ("DRAM MI개발", "NAND MI개발", "DRAM Metrology기술", "NAND Metrology기술")
+ALLOWED_TEAMS = (
+    "DRAM MI개발",
+    "NAND MI개발",
+    "DRAM Metrology기술",
+    "NAND Metrology기술",
+    "기반기술전략",
+)
 
 
 def decide(source: str | None, empno: str | None, probe: Callable[[], Probe]) -> Verdict:

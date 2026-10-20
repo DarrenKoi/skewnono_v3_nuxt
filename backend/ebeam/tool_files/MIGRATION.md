@@ -78,7 +78,7 @@ identity source, target, result and request_id.
   `502 tool_encoding`, as on the direct path.
 - **Access** is the admin, or a caller whose directory `dept_nm` is one of
   `access.ALLOWED_TEAMS` (DRAM MI개발, NAND MI개발, DRAM Metrology기술, NAND
-  Metrology기술; user-confirmed 2026-10-20). There is no grant or request
+  Metrology기술, 기반기술전략; user-confirmed 2026-10-20). There is no grant or request
   flow: changing who gets in is a code change. A team move reaches the
   verdict up to 10 minutes late (the directory cache). The Redis hashes
   `skewnono:tool_files:grants` and `skewnono:tool_files:requests` the earlier
@@ -146,7 +146,7 @@ tool_encoding`: pull it again.
       one tool per family through the proxy; a slow transfer stops at 45 s
       with `503 tool_timeout`, not a proxy 502; msr_image images and
       recipe_search raw files still load through the proxy.
-- [ ] The directory's `dept_nm` for each of the four teams is spelled exactly
+- [ ] The directory's `dept_nm` for each allowed team is spelled exactly
       as `access.ALLOWED_TEAMS` (no `팀` suffix, same spacing and case). Fix
       the tuple and the mock `_MEMBERS` if not.
 - [ ] Open the page as a member of one team (explorer opens) and as someone
