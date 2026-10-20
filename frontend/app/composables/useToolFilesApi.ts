@@ -94,6 +94,9 @@ export const requestToolFilesAccess = (reason: string) =>
     { method: 'POST', body: { reason } }
   )
 
+// One key for the panel's overview, so /admin/access can refresh it too.
+export const TOOL_FILES_ADMIN_KEY = 'admin-tool-files-grants'
+
 export const useToolFilesAdminApi = () => {
   const base = useRuntimeConfig().public.apiBase
   const url = (leaf: string) => joinApiPath(base, `/admin/tool-files${leaf}`)

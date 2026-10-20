@@ -148,13 +148,13 @@
 </template>
 
 <script setup lang="ts">
-import { useToolFilesAdminApi } from '~/composables/useToolFilesApi'
+import { TOOL_FILES_ADMIN_KEY, useToolFilesAdminApi } from '~/composables/useToolFilesApi'
 import { toolFilesErrorCode, toolFilesErrorMessage } from '~/utils/toolFiles'
 import { formatKoreanDateTime } from '~/utils/dateTime'
 
 const api = useToolFilesAdminApi()
 
-const { data: overview, error, refresh } = useAsyncData('admin-tool-files-grants', api.fetchOverview)
+const { data: overview, error, refresh } = useAsyncData(TOOL_FILES_ADMIN_KEY, api.fetchOverview)
 
 const overviewError = computed(() =>
   error.value ? toolFilesErrorMessage(toolFilesErrorCode(error.value)) : ''

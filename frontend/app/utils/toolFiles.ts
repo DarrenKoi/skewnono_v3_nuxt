@@ -68,10 +68,6 @@ export interface ToolFilesAccess {
   request?: ToolFilesRequest
 }
 
-// Verdicts whose page offers the request form or shows the own request.
-export const toolFilesCanRequest = (verdict: ToolFilesVerdict | undefined): boolean =>
-  verdict === 'none' || verdict === 'pending' || verdict === 'rejected'
-
 export const TOOL_FILES_REASON_MAX = 200
 
 export const toolFilesReasonValid = (reason: string): boolean => {
@@ -219,30 +215,36 @@ export const toolFilesErrorMessage = (code: string, action?: 'upload'): string =
   ?? ERROR_MESSAGES[code]
   ?? '요청을 처리하지 못했습니다.'
 
-const VERDICT_MESSAGES: Record<Exclude<ToolFilesVerdict, 'granted'>, { title: string, description: string }> = {
+const VERDICT_MESSAGES: Record<Exclude<ToolFilesVerdict, 'granted'>, { title: string, description: string, icon: string }> = {
   none: {
     title: 'FTP 접속은 지정된 팀과 승인된 사번만 쓸 수 있습니다.',
-    description: '아래 팀 소속이 아니라면(타 팀 파견 등) 사유를 적어 개인 권한을 신청해 주세요.'
+    description: '아래 팀 소속이 아니라면(타 팀 파견 등) 사유를 적어 개인 권한을 신청해 주세요.',
+    icon: 'i-lucide-lock'
   },
   pending: {
     title: '권한 신청을 검토하고 있습니다.',
-    description: '관리자가 승인한 뒤 "승인 확인"을 누르거나 페이지를 새로고침하면 FTP 접속이 열립니다.'
+    description: '관리자가 승인한 뒤 "승인 확인"을 누르거나 페이지를 새로고침하면 FTP 접속이 열립니다.',
+    icon: 'i-lucide-hourglass'
   },
   rejected: {
     title: '권한 신청이 거절되었습니다.',
-    description: '사유를 고쳐 다시 신청할 수 있습니다.'
+    description: '사유를 고쳐 다시 신청할 수 있습니다.',
+    icon: 'i-lucide-circle-x'
   },
   untrusted_identity: {
     title: '로그인 정보를 확인할 수 없습니다.',
-    description: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다. 사내 로그인 상태로 다시 접속해 주세요.'
+    description: '직접 입력한 사번이나 API 토큰으로는 장비 파일을 열 수 없습니다. 사내 로그인 상태로 다시 접속해 주세요.',
+    icon: 'i-lucide-lock'
   },
   directory_unavailable: {
     title: '구성원 정보를 확인하지 못했습니다.',
-    description: '소속 팀을 확인할 수 없어 권한을 판정하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+    description: '소속 팀을 확인할 수 없어 권한을 판정하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    icon: 'i-lucide-lock'
   },
   store_unavailable: {
     title: '권한 정보를 읽지 못했습니다.',
-    description: '개인 승인 목록 저장소에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+    description: '개인 승인 목록 저장소에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    icon: 'i-lucide-lock'
   }
 }
 

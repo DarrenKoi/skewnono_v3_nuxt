@@ -23,6 +23,7 @@ from ftp_handler.core import (
 )
 
 from backend._auth.admin import is_admin_request, require_admin
+from backend._auth.directory import Member, lookup_members
 from backend._auth.errors import error_json
 from backend._core.timefmt import iso_z
 from backend.ebeam._tool_specs import VALID_TOOL_SLUGS
@@ -35,7 +36,6 @@ from backend.ebeam.tool_files.contracts import (
     GrantRow,
     Listing,
     Request,
-    RequestRow,
     Verdict,
 )
 from backend.ebeam.tool_files.data import (
@@ -246,18 +246,19 @@ def request_access():
     if verdict == "untrusted_identity":
         raise ToolFilesError(403, "untrusted_identity", "this identity source cannot request access")
     reason = _json_body("reason").get("reason")
-    if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > _MAX_REASON:
+    reason = reason.strip() if isinstance(reason, str) else ""
+    if not reason or len(reason) > _MAX_REASON:
         raise ToolFilesError(400, "bad_request", f"need a reason of 1-{_MAX_REASON} characters")
     if verdict == "granted":
         return jsonify({"verdict": "granted"})
-    if verdict in ("directory_unavailable", "store_unavailable"):
+    if verdict not in ("none", "pending", "rejected"):
         status, code = _REFUSALS[verdict]
         raise ToolFilesError(status, code, f"cannot take a request now: {verdict}")
     empno = norm_empno(g.user_id)
     member = probe_once().member
     record: Request = {
         "request_id": uuid.uuid4().hex,
-        "reason": reason.strip(),
+        "reason": reason,
         "dept_nm": member["dept_nm"] if member else None,
         "requested_at": _now(),
         "status": "pending",
@@ -503,29 +504,27 @@ def _new_grant() -> Grant:
     return {"granted_at": _now(), "granted_by": g.user_id}
 
 
-def _member_fields(empno: str) -> tuple[str | None, str | None]:
-    found = probe(empno)
-    return (found.member["emp_nm"], found.member["dept_nm"]) if found.member else (None, None)
-
-
-def _grant_row(empno: str, grant: Grant) -> GrantRow:
-    emp_nm, dept_nm = _member_fields(empno)
-    return {"empno": empno, "emp_nm": emp_nm, "dept_nm": dept_nm, **grant}
-
-
-def _request_row(empno: str, stored: Request) -> RequestRow:
-    return {"empno": empno, "emp_nm": _member_fields(empno)[0], **stored}
+def _grant_row(member: Member, grant: Grant) -> GrantRow:
+    return {
+        "empno": member["empno"],
+        "emp_nm": member["emp_nm"],
+        "dept_nm": member["dept_nm"],
+        **grant,
+    }
 
 
 @bp.get("/admin/tool-files")
 @require_admin
 def admin_overview():
+    """Names and current teams are display only, so they come from one
+    uncached ``lookup_members`` round trip, not a ``probe`` per row."""
     grants, requests = read_grants(), read_requests()
+    members = lookup_members([*grants, *requests])
     return jsonify(
         {
-            "grants": [_grant_row(empno, grants[empno]) for empno in sorted(grants)],
+            "grants": [_grant_row(members[empno], grants[empno]) for empno in sorted(grants)],
             "requests": [
-                _request_row(empno, requests[empno])
+                {"empno": empno, "emp_nm": members[empno]["emp_nm"], **requests[empno]}
                 for empno in sorted(requests, key=lambda e: requests[e].get("requested_at", ""))
             ],
         }
@@ -569,7 +568,7 @@ def admin_grant():
     empno = norm_empno(_string(_json_body("empno"), "empno"))
     with _audited("grant", empno):
         grant = put_grant(empno, _new_grant())
-    return jsonify(_grant_row(empno, grant)), 201
+    return jsonify(_grant_row(lookup_members([empno])[empno], grant)), 201
 
 
 @bp.post("/admin/tool-files/grants/revoke")

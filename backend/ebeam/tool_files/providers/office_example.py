@@ -182,7 +182,7 @@ def _matching(pipe, empno: str, request_id: str) -> dict | None:
         return None
     current = _decode(raw, _REQUESTS_KEY)
     if current.get("request_id") != request_id:
-        raise RequestChanged(empno)
+        raise RequestChanged()
     return current
 
 
@@ -191,7 +191,7 @@ def approve_request(empno: str, request_id: str, grant: Grant) -> None:
         if _matching(pipe, empno, request_id) is None:
             if pipe.hexists(_GRANTS_KEY, empno):
                 return  # a retry of an approval that already landed
-            raise RequestChanged(empno)
+            raise RequestChanged()
         pipe.multi()
         pipe.hsetnx(_GRANTS_KEY, empno, _json(grant))
         pipe.hdel(_REQUESTS_KEY, empno)
@@ -204,7 +204,7 @@ def reject_request(empno: str, request_id: str) -> None:
     def attempt(pipe):
         current = _matching(pipe, empno, request_id)
         if current is None:
-            raise RequestChanged(empno)
+            raise RequestChanged()
         pipe.multi()
         pipe.hset(_REQUESTS_KEY, empno, _json({**current, "status": "rejected"}))
         pipe.execute()

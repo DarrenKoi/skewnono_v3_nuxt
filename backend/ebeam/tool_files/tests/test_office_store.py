@@ -105,17 +105,6 @@ class FakeRedis:
         return sum(1 for f in fields if h.pop(self._b(f), None) is not None)
 
 
-
-
-
-
-
-
-
-
-
-
-
 @pytest.fixture
 def fake(monkeypatch):
     fake = FakeRedis()
@@ -254,10 +243,6 @@ def test_a_store_that_keeps_changing_gives_up_after_three_retries(fake):
     with pytest.raises(StoreUnavailable):
         office.approve_request("1000003", "a" * 32, _GRANT)
     assert _stored_grant(fake, "1000003") is None
-
-
-
-
 
 
 @pytest.mark.parametrize(

@@ -16,8 +16,8 @@ from backend.sem_list.providers.mock import get_sem_list
 
 
 @pytest.fixture
-def app(tmp_path, monkeypatch):
-    monkeypatch.setenv("SKEWNONO_TOOL_FILES_GRANTS_FILE", str(tmp_path / "grants.json"))
+def app():
+    # The autouse isolated_grants fixture points the store at tmp_path.
     app = create_app()
     app.config["TESTING"] = True
     return app
@@ -94,14 +94,16 @@ def test_a_request_waits_then_an_approval_opens_the_files(app, admin):
     assert _code(_list(member)) == (403, "forbidden")
 
     row = _pending(admin)["1000003"]
-    assert (row["emp_nm"], row["dept_nm"], row["status"]) == ("박공정", "공정기술팀", "pending")
+    # dept_nm is the request-time team from probe; emp_nm is a display lookup
+    # (lookup_members, home placeholders).
+    assert (row["emp_nm"], row["dept_nm"], row["status"]) == ("홍길동(1000003)", "공정기술팀", "pending")
     assert _approve(admin, "1000003", row["request_id"]).status_code == 200
 
     assert _access(member)["verdict"] == "granted"
     assert _list(member).status_code == 200
     assert _pending(admin) == {}
     grant = _grants(admin)["1000003"]
-    assert (grant["emp_nm"], grant["dept_nm"], grant["granted_by"]) == ("박공정", "공정기술팀", "local-dev")
+    assert (grant["emp_nm"], grant["granted_by"]) == ("홍길동(1000003)", "local-dev")
 
 
 def test_a_rejected_request_can_be_made_again_under_a_new_id(app, admin):
@@ -219,8 +221,7 @@ def test_the_server_decides_empno_team_and_status_whatever_the_client_sends(app,
 def test_an_absent_member_may_request_and_has_no_team(app, admin):
     _ask(_member(app, "7777777"))
 
-    row = _pending(admin)["7777777"]
-    assert (row["emp_nm"], row["dept_nm"]) == (None, None)
+    assert _pending(admin)["7777777"]["dept_nm"] is None
 
 
 def test_a_corrupt_store_file_is_503_for_outsiders_only_and_is_left_alone(app, admin, tmp_path):

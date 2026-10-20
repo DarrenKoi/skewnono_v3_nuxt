@@ -191,6 +191,7 @@ import {
   type AccessOverview
 } from '~/composables/useAccessControlApi'
 import { formatKoreanDateTime } from '~/utils/dateTime'
+import { TOOL_FILES_ADMIN_KEY } from '~/composables/useToolFilesApi'
 
 const { fetchOverview, addException, removeException } = useAccessControlApi()
 
@@ -213,7 +214,7 @@ const newId = ref('')
 const mutating = ref(false)
 const formError = ref('')
 
-const reload = () => Promise.all([refresh(), refreshNuxtData('admin-tool-files-grants')])
+const reload = () => Promise.all([refresh(), refreshNuxtData(TOOL_FILES_ADMIN_KEY)])
 
 const runMutation = async (action: () => Promise<unknown>) => {
   mutating.value = true

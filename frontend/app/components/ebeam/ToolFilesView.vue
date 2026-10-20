@@ -63,7 +63,7 @@
     >
       <div class="flex items-start gap-3">
         <UIcon
-          :name="access?.verdict === 'pending' ? 'i-lucide-hourglass' : access?.verdict === 'rejected' ? 'i-lucide-circle-x' : 'i-lucide-lock'"
+          :name="refusal.icon"
           class="mt-0.5 size-5 shrink-0 text-(--sk-ink-muted)"
         />
         <div class="min-w-0 flex-1 space-y-3">
@@ -123,7 +123,7 @@
           </UButton>
 
           <form
-            v-else-if="toolFilesCanRequest(access?.verdict)"
+            v-else-if="access?.verdict === 'none' || access?.verdict === 'rejected'"
             class="space-y-2"
             @submit.prevent="submitRequest"
           >
@@ -576,7 +576,6 @@ import {
   normalizeTypedPath,
   sortToolFileEntries,
   summarizeToolFileSelection,
-  toolFilesCanRequest,
   toolFilesErrorCode,
   toolFilesErrorMessage,
   toolFilesReasonValid,

@@ -298,7 +298,7 @@ def put_request(empno: str, request: Request) -> None:
 def _matching(requests: dict[str, Request], empno: str, request_id: str) -> Request:
     current = requests.get(empno)
     if current is None or current.get("request_id") != request_id:
-        raise RequestChanged(empno)
+        raise RequestChanged()
     return current
 
 

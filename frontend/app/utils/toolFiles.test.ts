@@ -7,7 +7,6 @@ import {
   formatFileSize,
   sortToolFileEntries,
   summarizeToolFileSelection,
-  toolFilesCanRequest,
   toolFilesErrorCode,
   toolFilesErrorMessage,
   toolFilesReasonValid,
@@ -141,14 +140,6 @@ test('a typed path is tidied into the absolute shape the server accepts', () => 
   assert.equal(normalizeTypedPath('\\RECIPE\\'), '/RECIPE')
   assert.equal(normalizeTypedPath(''), '/')
   assert.equal(normalizeTypedPath('/LOG/../RECIPE'), '/LOG/../RECIPE')
-})
-
-test('only someone outside the teams with no grant sees the request form or their request', () => {
-  assert.deepEqual(
-    (['granted', 'none', 'pending', 'rejected', 'untrusted_identity', 'directory_unavailable', 'store_unavailable'] as const)
-      .filter(toolFilesCanRequest),
-    ['none', 'pending', 'rejected']
-  )
 })
 
 test('a reason is 1-200 characters once trimmed', () => {
