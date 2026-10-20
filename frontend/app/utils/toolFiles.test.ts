@@ -3,8 +3,10 @@ import test from 'node:test'
 import {
   filterToolFileEntries,
   looksUndecoded,
+  normalizeTypedPath,
   formatFileSize,
   sortToolFileEntries,
+  summarizeToolFileSelection,
   toolFilesErrorCode,
   toolFilesErrorMessage,
   type ToolFileEntry
@@ -112,4 +114,29 @@ test('the rate limiter has its own line', () => {
 test('a name the tool cannot carry points at the file name; a bad path does not', () => {
   assert.match(toolFilesErrorMessage('name_unencodable', 'upload'), /한글/)
   assert.equal(toolFilesErrorMessage('bad_path', 'upload'), '열 수 없는 경로입니다.')
+})
+
+test('a selection is summed against the cap as one budget, folders never counted', () => {
+  const entries = [
+    entry('a.log', { size: 600 }),
+    entry('b.log', { size: 600 }),
+    entry('c.log', { size: null }),
+    entry('DIR', { is_dir: true, size: 4096 })
+  ]
+  const all = new Set(entries.map(e => e.path))
+  const summary = summarizeToolFileSelection(entries, all, 1000, 2)
+  assert.deepEqual(summary.files.map(e => e.name), ['a.log', 'b.log', 'c.log'])
+  assert.equal(summary.bytes, 1200)
+  assert.equal(summary.overBytes, true)
+  assert.equal(summary.overCount, true)
+  const one = summarizeToolFileSelection(entries, new Set(['/a.log']), 1000, 2)
+  assert.deepEqual([one.bytes, one.overBytes, one.overCount], [600, false, false])
+})
+
+test('a typed path is tidied into the absolute shape the server accepts', () => {
+  assert.equal(normalizeTypedPath(' /home/hitachi/ '), '/home/hitachi')
+  assert.equal(normalizeTypedPath('LOG//ARCHIVE'), '/LOG/ARCHIVE')
+  assert.equal(normalizeTypedPath('\\RECIPE\\'), '/RECIPE')
+  assert.equal(normalizeTypedPath(''), '/')
+  assert.equal(normalizeTypedPath('/LOG/../RECIPE'), '/LOG/../RECIPE')
 })

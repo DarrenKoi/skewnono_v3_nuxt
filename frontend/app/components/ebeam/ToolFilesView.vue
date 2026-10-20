@@ -101,7 +101,7 @@
       <template #header>
         <div class="flex flex-wrap items-center gap-2">
           <USelectMenu
-            :model-value="selectedEqp"
+            :model-value="semRow?.eqp_id"
             :items="toolItems"
             value-key="value"
             :filter-fields="['label', 'description']"
@@ -132,8 +132,20 @@
               name="i-lucide-hard-drive"
               class="mx-1 size-3.5 shrink-0 text-(--sk-ink-muted)"
             />
+            <input
+              v-if="typedPath !== null"
+              ref="pathInput"
+              v-model="typedPath"
+              class="h-full min-w-0 flex-1 bg-transparent px-1 sk-value-num outline-none"
+              aria-label="경로 입력"
+              placeholder="/home/hitachi/LOG"
+              spellcheck="false"
+              @keydown.enter.prevent="submitTypedPath"
+              @keydown.esc.prevent="typedPath = null"
+              @blur="typedPath = null"
+            >
             <template
-              v-for="(crumb, index) in listing?.crumbs ?? []"
+              v-for="(crumb, index) in typedPath === null ? listing?.crumbs ?? [] : []"
               :key="crumb.path"
             >
               <UIcon
@@ -150,9 +162,22 @@
                 {{ crumb.name }}
               </button>
             </template>
+            <UTooltip
+              v-if="target && typedPath === null"
+              text="경로 직접 입력"
+            >
+              <UButton
+                class="ml-auto"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-pencil"
+                aria-label="경로 직접 입력"
+                @click="editPath"
+              />
+            </UTooltip>
             <UButton
-              v-if="listing"
-              class="ml-auto"
+              v-if="listing && typedPath === null"
               size="xs"
               color="neutral"
               variant="ghost"
@@ -199,6 +224,43 @@
             :active="kindFilter === option.id"
             @click="kindFilter = option.id"
           />
+        </div>
+        <div
+          v-if="selection.files.length"
+          class="ml-auto flex flex-wrap items-center gap-2"
+        >
+          <span
+            class="sk-meta"
+            :class="selectionBlocked ? 'text-(--sk-bad)' : undefined"
+          >
+            <b class="sk-value-num">{{ selection.files.length }}</b>개 선택
+            · <b class="sk-value-num">{{ formatFileSize(selection.bytes) }}</b>
+            / 상한 {{ formatFileSize(listing?.max_bytes ?? 0) }}
+          </span>
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            :disabled="bulkDownloading"
+            @click="checked = new Set()"
+          >
+            선택 해제
+          </UButton>
+          <UTooltip
+            :text="selectionBlocked ?? '선택한 파일을 한 번에 받습니다 (2개 이상은 zip).'"
+          >
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="solid"
+              icon="i-lucide-download"
+              :loading="bulkDownloading"
+              :disabled="!!selectionBlocked"
+              @click="downloadChecked"
+            >
+              선택 다운로드
+            </UButton>
+          </UTooltip>
         </div>
       </div>
       <label
@@ -280,16 +342,37 @@
           </UButton>
         </template>
 
+        <template #select-header>
+          <UCheckbox
+            :model-value="headerChecked"
+            :disabled="!checkable.length"
+            aria-label="이 폴더의 파일 전체 선택"
+            @update:model-value="toggleAll"
+          />
+        </template>
+        <template #select-cell="{ row }">
+          <UCheckbox
+            v-if="!row.original.is_dir"
+            :model-value="checked.has(row.original.path)"
+            :disabled="tooLarge(row.original)"
+            :aria-label="`${row.original.name} 선택`"
+            @update:model-value="toggleChecked(row.original.path)"
+          />
+        </template>
+
+        <!-- Folders take the terracotta-ink tint and files stay neutral
+             (DESIGN.md category-tag: tint vs neutral, never a hue per kind). -->
         <template #name-cell="{ row }">
           <span class="flex items-center gap-2 sk-value-num">
             <UIcon
-              :name="row.original.is_dir ? 'i-lucide-folder' : 'i-lucide-file'"
-              class="size-4 shrink-0 text-(--sk-ink-muted)"
+              :name="row.original.is_dir ? 'i-lucide-folder' : 'i-lucide-file-text'"
+              class="size-4 shrink-0"
+              :class="row.original.is_dir ? 'text-(--sk-brand-ink)' : 'text-(--sk-ink-subtle)'"
             />
             <button
               v-if="row.original.is_dir"
               type="button"
-              class="text-left font-semibold hover:underline"
+              class="text-left font-semibold text-(--sk-brand-ink) hover:underline"
               @click="openPath(row.original.path)"
             >
               {{ row.original.name }}
@@ -409,7 +492,7 @@ import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { SortingState } from '@tanstack/vue-table'
 import type { ToolType } from '~/utils/toolType'
 import type { SemListRow } from '~/composables/useSemListApi'
-import { formatDateTimeLocal } from '~/utils/dateTime'
+import { formatDateTimeLocal, todayStamp } from '~/utils/dateTime'
 import { MANUAL_SORTING_OPTIONS, getSortIcon } from '~/utils/tableSorting'
 import { copyTextToClipboard } from '~/utils/tableExport'
 import { normalizeFab } from '~/utils/fab'
@@ -418,7 +501,9 @@ import {
   filterToolFileEntries,
   formatFileSize,
   looksUndecoded,
+  normalizeTypedPath,
   sortToolFileEntries,
+  summarizeToolFileSelection,
   toolFilesErrorCode,
   toolFilesErrorMessage,
   toolFilesVerdictMessage,
@@ -474,6 +559,15 @@ const toolItems = computed(() => tools.value.map(row => ({
 })))
 const semRow = computed(() => tools.value.find(row => row.eqp_id === selectedEqp.value))
 
+// The fab and family switches carry the query over (useFabRoute), so an
+// ?eqp= from the old fab or family names no tool here: drop it with its path.
+watch([semRows, tools], () => {
+  if (semRows.value && selectedEqp.value && !semRow.value) {
+    const { eqp: _eqp, path: _path, ...rest } = route.query
+    router.replace({ query: rest })
+  }
+}, { immediate: true })
+
 const pickTool = (eqpId: string) => {
   nameFilter.value = ''
   router.push({ query: { eqp: eqpId } })
@@ -516,6 +610,22 @@ const connection = computed(() => {
   return null
 })
 
+// null while the breadcrumbs show; a string while the path is being typed.
+const typedPath = ref<string | null>(null)
+const pathInput = useTemplateRef<HTMLInputElement>('pathInput')
+const editPath = async () => {
+  typedPath.value = listing.value?.path ?? currentPath.value ?? '/'
+  await nextTick()
+  pathInput.value?.select()
+}
+// A path the tool lacks comes back as the listing's own error, with 다시 시도.
+const submitTypedPath = () => {
+  if (typedPath.value === null) return
+  const path = normalizeTypedPath(typedPath.value)
+  typedPath.value = null
+  if (path !== listing.value?.path) openPath(path)
+}
+
 const copyPath = async () => {
   if (!listing.value) return
   const ok = await copyTextToClipboard(listing.value.path)
@@ -554,6 +664,7 @@ const SORTABLE_HEADERS = [
 const canWrite = computed(() => access.value?.can_write === true)
 
 const columns = computed<TableColumn<ToolFileEntry>[]>(() => [
+  { id: 'select', header: '', enableSorting: false, meta: { class: { th: 'w-[2.5rem]', td: 'w-[2.5rem]' } } },
   { accessorKey: 'name', header: '이름' },
   { accessorKey: 'size', header: '크기', meta: { class: { th: 'text-right w-[8rem]', td: 'w-[8rem]' } } },
   { accessorKey: 'modified', header: '수정 시각', meta: { class: { th: 'w-[11rem]', td: 'w-[11rem]' } } },
@@ -585,6 +696,67 @@ const download = async (entry: ToolFileEntry) => {
     toast.add({ title: toolFilesErrorMessage(toolFilesErrorCode(error)), color: 'error' })
   } finally {
     downloading.value = null
+  }
+}
+
+// Paths, not rows: the set survives re-sorting and filtering, and a new
+// listing (another folder or tool, or a refresh) starts it empty.
+const checked = ref(new Set<string>())
+watch(listing, () => {
+  checked.value = new Set()
+})
+
+const toggleChecked = (path: string) => {
+  const next = new Set(checked.value)
+  if (!next.delete(path)) next.add(path)
+  checked.value = next
+}
+
+// The header box acts on what the filter shows, minus files over the cap.
+const checkable = computed(() => visibleEntries.value.filter(entry => !entry.is_dir && !tooLarge(entry)))
+const headerChecked = computed<boolean | 'indeterminate'>(() => {
+  const count = checkable.value.filter(entry => checked.value.has(entry.path)).length
+  return count === 0 ? false : count === checkable.value.length ? true : 'indeterminate'
+})
+const toggleAll = () => {
+  const next = new Set(checked.value)
+  const on = headerChecked.value !== true
+  for (const entry of checkable.value) {
+    if (on) next.add(entry.path)
+    else next.delete(entry.path)
+  }
+  checked.value = next
+}
+
+const selection = computed(() => summarizeToolFileSelection(
+  listing.value?.entries ?? [],
+  checked.value,
+  listing.value?.max_bytes ?? 0,
+  listing.value?.max_batch_files ?? 0
+))
+const selectionBlocked = computed(() => {
+  if (selection.value.overBytes) return '선택한 파일의 합계가 다운로드 상한을 넘습니다. 일부만 선택해 주세요.'
+  if (selection.value.overCount) return `한 번에 ${listing.value?.max_batch_files}개까지 받을 수 있습니다.`
+  return null
+})
+
+const bulkDownloading = ref(false)
+const downloadChecked = async () => {
+  const current = target.value
+  const files = selection.value.files
+  if (!current || !files.length || selectionBlocked.value) return
+  bulkDownloading.value = true
+  try {
+    if (files.length === 1) {
+      await downloadToolFile(current, files[0]!.path, files[0]!.name)
+    } else {
+      const folder = listing.value?.crumbs.at(-1)?.name.replace(/^\/$/, 'root') ?? 'files'
+      await downloadToolFilesZip(current, files.map(entry => entry.path), `${current.eqpId}_${folder}_${todayStamp()}.zip`)
+    }
+  } catch (error) {
+    toast.add({ title: toolFilesErrorMessage(toolFilesErrorCode(error)), color: 'error' })
+  } finally {
+    bulkDownloading.value = false
   }
 }
 

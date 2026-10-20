@@ -31,7 +31,9 @@ class Listing(TypedDict):
     crumbs: list[Crumb]
     entries: list[Entry]
     # The download cap, so the page can disable a button it knows will 413.
+    # A zip download spends it on all of its files together.
     max_bytes: int
+    max_batch_files: int
 
 
 Verdict = Literal[

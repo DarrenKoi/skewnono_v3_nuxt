@@ -23,6 +23,8 @@ class Limits:
     max_entries: int = 20000
     max_list_bytes: int = 4 * 1024 * 1024
     max_upload_bytes: int = 100 * 1024 * 1024
+    # One zip download: max_bytes is the budget for all of its files together.
+    max_batch_files: int = 200
 
 
 def _positive(env: Mapping[str, str], key: str, default, cast):
@@ -60,5 +62,8 @@ def load_limits(env: Mapping[str, str] | None = None) -> Limits:
         ),
         max_upload_bytes=_positive(
             env, "SKEWNONO_TOOL_FILES_MAX_UPLOAD_BYTES", base.max_upload_bytes, int
+        ),
+        max_batch_files=_positive(
+            env, "SKEWNONO_TOOL_FILES_MAX_BATCH_FILES", base.max_batch_files, int
         ),
     )

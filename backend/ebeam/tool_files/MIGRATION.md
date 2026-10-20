@@ -47,9 +47,10 @@ Transfer limits, all OFFICE-VERIFY proposals:
 
 | env | default |
 | :-- | :-- |
-| `SKEWNONO_TOOL_FILES_MAX_BYTES` | 100 MB per download |
-| `SKEWNONO_TOOL_FILES_DEADLINE` | 120 s per transfer (cloud harakiri is 720 s) |
-| `SKEWNONO_TOOL_FILES_PROXY_DEADLINE` | 45 s per transfer through the proxy (proxy host harakiri 60 s, OFFICE-VERIFY on scheduler1) |
+| `SKEWNONO_TOOL_FILES_MAX_BYTES` | 100 MB per download; a zip download spends it on all its files together |
+| `SKEWNONO_TOOL_FILES_DEADLINE` | 120 s per transfer, and for a whole zip download (cloud harakiri is 720 s) |
+| `SKEWNONO_TOOL_FILES_MAX_BATCH_FILES` | 200 files per zip download |
+| `SKEWNONO_TOOL_FILES_PROXY_DEADLINE` | 45 s per transfer through the proxy (each file of a zip is one) (proxy host harakiri 60 s, OFFICE-VERIFY on scheduler1) |
 | `SKEWNONO_TOOL_FILES_MAX_ENTRIES` | 20000 raw LIST lines |
 | `SKEWNONO_TOOL_FILES_MAX_LIST_BYTES` | 4 MB of raw LIST |
 | `SKEWNONO_TOOL_FILES_MAX_UPLOAD_BYTES` | 100 MB per upload (Content-Length checked before parsing, bytes read counted again) |

@@ -1,4 +1,7 @@
+import io
 import logging
+import time
+import zipfile
 from contextlib import contextmanager
 from ftplib import all_errors, error_perm
 
@@ -179,6 +182,7 @@ def list_files(tool_slug: str):
         "crumbs": crumbs(_BROWSE_ROOT, path),
         "entries": entries,
         "max_bytes": limits.max_bytes,
+        "max_batch_files": limits.max_batch_files,
     }
     return jsonify(body)
 
@@ -194,6 +198,52 @@ def download(tool_slug: str):
     response = Response(data, mimetype="application/octet-stream")
     response.headers["Content-Disposition"] = _content_disposition(
         readable_name(path.rsplit("/", 1)[-1]), kind="attachment"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@bp.post("/<tool_slug>/tool-files/download-zip")
+def download_zip(tool_slug: str):
+    """Several files as one zip over one FTP session. ``max_bytes`` and the
+    deadline are one budget for the whole zip, not one per file: a selection
+    of files each under the cap must not add up to many times it."""
+    _require_access()
+    limits = load_limits()
+    body = _json_body("fab, eqp_id, paths")
+    paths = body.get("paths")
+    if not isinstance(paths, list) or not paths or not all(isinstance(p, str) for p in paths):
+        raise ToolFilesError(400, "bad_request", "need a non-empty list of path strings")
+    keys = [check_path(_BROWSE_ROOT, p) for p in dict.fromkeys(paths)]
+    if len(keys) > limits.max_batch_files:
+        raise ToolFilesError(
+            413, "too_many_files", f"at most {limits.max_batch_files} files per zip"
+        )
+    names = [readable_name(key.rsplit("/", 1)[-1]) for key in keys]
+    if len(set(names)) != len(names):
+        raise ToolFilesError(400, "bad_request", "two of the files share a name")
+    tool = _tool(tool_slug, body)
+    buf = io.BytesIO()
+    started = time.monotonic()
+    budget = limits.max_bytes
+    # Each file goes into the zip as it arrives, so the peak is the zip plus
+    # one file, never every file at once.
+    with _session(tool) as ftp, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+        for key, name in zip(keys, names, strict=True):
+            left = limits.deadline - (time.monotonic() - started)
+            if left <= 0:
+                raise TransferTimeout(f"zip of {len(keys)} files ran past {limits.deadline}s")
+            try:
+                data = ftp.download(key, max_bytes=budget, deadline=left)
+            except TransferTooLarge as exc:
+                raise ToolFilesError(
+                    413, "batch_too_large", f"the files exceed {limits.max_bytes} bytes together"
+                ) from exc
+            budget -= len(data)
+            archive.writestr(name, data)
+    response = Response(buf.getvalue(), mimetype="application/zip")
+    response.headers["Content-Disposition"] = _content_disposition(
+        f"{tool.eqp_id}.zip", kind="attachment"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response

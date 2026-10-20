@@ -40,15 +40,28 @@ export const useToolFilesListing = (target: Ref<ToolFilesTarget | null>, path: R
 
 // fetch, not an <a href>: a refused or failed download answers JSON, and a
 // plain link would save that JSON under the file's name.
-export const downloadToolFile = async (target: ToolFilesTarget, path: string, name: string) => {
-  const query = new URLSearchParams({ fab: target.fab, eqp_id: target.eqpId, path })
-  const response = await fetch(`${apiUrl(target, 'download')}?${query}`)
+const saveResponse = async (request: Promise<Response>, name: string) => {
+  const response = await request
   if (!response.ok) {
     const data = await response.json().catch(() => null)
     throw Object.assign(new Error(`download failed: ${response.status}`), { data, status: response.status })
   }
   downloadBlob(name, await response.blob())
 }
+
+export const downloadToolFile = (target: ToolFilesTarget, path: string, name: string) => {
+  const query = new URLSearchParams({ fab: target.fab, eqp_id: target.eqpId, path })
+  return saveResponse(fetch(`${apiUrl(target, 'download')}?${query}`), name)
+}
+
+// One request and one FTP session for all of them; the server spends the
+// download cap on the files together.
+export const downloadToolFilesZip = (target: ToolFilesTarget, paths: string[], name: string) =>
+  saveResponse(fetch(apiUrl(target, 'download-zip'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fab: target.fab, eqp_id: target.eqpId, paths })
+  }), name)
 
 // Writes answer only when the server's `access.can_write` is true; a page that
 // shows no write controls otherwise never sends these.

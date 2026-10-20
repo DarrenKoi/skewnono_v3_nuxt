@@ -158,16 +158,6 @@
               :aria-label="`${row.original.eqp_id} 스큐보아 검색 열기`"
               :to="skewvoirSearchRoute(props.toolType, { eq: row.original.eqp_id, fab: row.original.fab_name })"
             />
-            <UButton
-              v-if="hasToolFiles"
-              size="xs"
-              color="neutral"
-              variant="subtle"
-              trailing-icon="i-lucide-arrow-right"
-              label="파일 열기"
-              :aria-label="`${row.original.eqp_id} 파일 열기`"
-              :to="toolFilesRoute(props.toolType, row.original.fab_name, row.original.eqp_id)"
-            />
           </div>
         </template>
 
@@ -213,7 +203,6 @@ import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard } from '~/utils/tableExport'
 import { hasStorageView } from '~/utils/toolType'
-import { hasToolFilesView, toolFilesRoute } from '~/utils/toolFiles'
 import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 import { buildFabSegment } from '~/utils/fab'
 import { todayStamp } from '~/utils/dateTime'
@@ -228,8 +217,6 @@ const props = defineProps<{
   title: string
   toolType: ToolType
 }>()
-
-const hasToolFiles = hasToolFilesView(props.toolType)
 
 const { filterRows } = useSemListApi()
 const { setSelectedTool } = useNavigation()

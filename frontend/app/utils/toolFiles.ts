@@ -1,15 +1,9 @@
-import { fabSegment } from './fab.ts'
 import { SEM_TOOL_TYPES, type ToolType } from './toolType.ts'
 
-// The explorer page exists only under pages/ebeam/{cd-sem,hv-sem}/[fab]/tool-files;
-// a link drawn for another family matches no route. Access is the page's call.
+// The explorer page exists only under pages/ebeam/{cd-sem,hv-sem}/[fab]/tool-files.
+// Access is the page's call.
 export const hasToolFilesView = (toolType: ToolType): boolean =>
   (SEM_TOOL_TYPES as readonly ToolType[]).includes(toolType)
-
-export const toolFilesRoute = (toolType: ToolType, fab: string, eqpId: string) => ({
-  path: `/ebeam/${toolType}/${fabSegment(fab)}/tool-files`,
-  query: { eqp: eqpId }
-})
 
 // Shapes mirror backend/ebeam/tool_files/contracts.py.
 export interface ToolFileEntry {
@@ -33,7 +27,9 @@ export interface ToolFilesListing {
   parent: string | null
   crumbs: ToolFilesCrumb[]
   entries: ToolFileEntry[]
+  // One budget for a zip download's files together, not one per file.
   max_bytes: number
+  max_batch_files: number
 }
 
 export type ToolFilesVerdict
@@ -99,6 +95,26 @@ export const sortToolFileEntries = (
     .map(({ entry }) => entry)
 }
 
+// What the checked files would download, against the listing's caps. A size
+// the LIST did not give counts as 0 here; the server's byte budget still holds.
+export const summarizeToolFileSelection = (
+  entries: readonly ToolFileEntry[],
+  selected: ReadonlySet<string>,
+  maxBytes: number,
+  maxFiles: number
+) => {
+  const files = entries.filter(entry => !entry.is_dir && selected.has(entry.path))
+  const bytes = files.reduce((sum, entry) => sum + (entry.size ?? 0), 0)
+  return { files, bytes, overBytes: bytes > maxBytes, overCount: files.length > maxFiles }
+}
+
+// A path a person typed, tidied into the shape the server's check_path takes:
+// absolute, '/' separators, no doubled or trailing slash. '..' is left for the
+// server to refuse. A typed non-ASCII name will not match a tool that stores
+// it in other bytes (see looksUndecoded); clicking there still works.
+export const normalizeTypedPath = (raw: string): string =>
+  `/${raw.trim().replace(/\\/g, '/').split('/').filter(Boolean).join('/')}`
+
 export type ToolFileKind = 'all' | 'dir' | 'file'
 
 export const filterToolFileEntries = (
@@ -140,6 +156,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   tool_timeout: '장비 응답이 너무 느려 중단했습니다. 잠시 후 다시 시도해 주세요.',
   file_unavailable: '파일이 없거나 접근할 수 없습니다.',
   too_large: '파일이 다운로드 상한보다 커서 받지 못했습니다.',
+  batch_too_large: '선택한 파일의 합계가 다운로드 상한보다 커서 받지 못했습니다. 나눠서 받아 주세요.',
+  too_many_files: '한 번에 받을 수 있는 파일 수를 넘었습니다. 나눠서 받아 주세요.',
   listing_too_large: '폴더의 항목이 너무 많아 목록을 불러오지 못했습니다.',
   bad_path: '열 수 없는 경로입니다.',
   name_unencodable: '이 이름으로는 올릴 수 없습니다. 파일 이름에 장비가 쓰지 못하는 글자(예: 한글)가 있는지 확인해 주세요.',

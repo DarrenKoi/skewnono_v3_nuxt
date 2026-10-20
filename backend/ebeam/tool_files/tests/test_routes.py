@@ -283,3 +283,83 @@ def test_names_the_server_cannot_decode_are_502_tool_encoding(client, monkeypatc
     assert response.status_code == 502
     assert response.get_json()["error"]["code"] == "tool_encoding"
     assert "SKEWNONO_TOOL_FTP_ENCODING" in response.get_json()["error"]["message"]
+
+
+def _zip(client, row, paths, slug="cdsem"):
+    body = {"fab": row["fab_name"], "eqp_id": row["eqp_id"], "paths": paths}
+    return client.post(f"/api/{slug}/tool-files/download-zip", json=body)
+
+
+def test_several_files_come_back_as_one_zip_with_their_readable_names(client):
+    import io
+    import zipfile
+
+    korean = "/" + "측정결과.csv".encode("utf-8").decode("latin-1")
+    response = _zip(client, _tool("cd-sem"), ["/README.TXT", korean, "/README.TXT"])
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/zip"
+    archive = zipfile.ZipFile(io.BytesIO(response.data))
+    assert [(i.filename, i.file_size) for i in archive.infolist()] == [
+        ("README.TXT", 512),
+        ("측정결과.csv", 1234),
+    ]
+
+
+def test_the_download_cap_is_one_budget_for_the_whole_zip(client, monkeypatch):
+    # Each file fits under 3000 bytes; together (2048 + 512 + 1234) they do not.
+    monkeypatch.setenv("SKEWNONO_TOOL_FILES_MAX_BYTES", "3000")
+    row = _tool("cd-sem")
+    assert _zip(client, row, ["/DUMP/small.bin", "/README.TXT"]).status_code == 200
+    response = _zip(client, row, ["/DUMP/small.bin", "/README.TXT", "/" + "측정결과.csv"
+                                  .encode("utf-8").decode("latin-1")])
+    assert _code(response) == (413, "batch_too_large")
+
+
+def test_a_zip_over_the_file_count_cap_is_refused_before_ftp(client, monkeypatch):
+    monkeypatch.setenv("SKEWNONO_TOOL_FILES_MAX_BATCH_FILES", "2")
+
+    def no_ftp(_tool):
+        raise AssertionError("an over-count zip must not open FTP")
+
+    monkeypatch.setattr("backend.ebeam.tool_files.routes.open_client", no_ftp)
+    paths = ["/README.TXT", "/DUMP/small.bin", "/RECIPE/RCP_001.rcp"]
+    assert _code(_zip(client, _tool("cd-sem"), paths)) == (413, "too_many_files")
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [[], "/README.TXT", [1], ["/DUMP/small.bin", "/LOG/../DUMP/small.bin"]],
+)
+def test_a_zip_request_with_bad_paths_is_400(client, paths):
+    assert _zip(client, _tool("cd-sem"), paths).status_code == 400
+
+
+def test_two_files_with_one_name_are_refused(client, monkeypatch):
+    from backend.ebeam.tool_files.providers import mock
+
+    tree = mock._tree()
+    tree["RECIPE"]["README.TXT"] = tree["README.TXT"]
+    monkeypatch.setattr(mock, "_TREE", tree)
+    response = _zip(client, _tool("cd-sem"), ["/README.TXT", "/RECIPE/README.TXT"])
+    assert _code(response) == (400, "bad_request")
+
+
+def test_a_zip_runs_against_one_deadline_not_one_per_file(client, monkeypatch):
+    monkeypatch.setenv("SKEWNONO_TOOL_FILES_DEADLINE", "5")
+    import itertools
+
+    # Every clock read advances 3 s: no single file is slow, the sum is.
+    clock = itertools.count(0, 3)
+    monkeypatch.setattr("backend.ebeam.tool_files.routes.time.monotonic", lambda: next(clock))
+    paths = ["/README.TXT", "/DUMP/small.bin", "/RECIPE/RCP_001.rcp"]
+    assert _code(_zip(client, _tool("cd-sem"), paths)) == (503, "tool_timeout")
+
+
+def test_a_refused_member_cannot_zip(client):
+    _as_member(client)
+    assert _code(_zip(client, _tool("cd-sem"), ["/README.TXT"])) == (403, "forbidden")
+
+
+def test_a_folder_in_a_zip_is_404(client):
+    assert _code(_zip(client, _tool("cd-sem"), ["/DUMP"])) == (404, "file_unavailable")
