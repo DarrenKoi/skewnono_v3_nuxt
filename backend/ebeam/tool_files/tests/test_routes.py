@@ -381,12 +381,16 @@ def test_compressing_the_last_file_still_counts_against_the_deadline(client, mon
     assert _code(response) == (503, "tool_timeout")
 
 
-def test_a_download_while_the_transfer_slots_are_full_is_refused_at_once(client, monkeypatch):
-    import threading
+def _full(monkeypatch, name, code):
+    from backend.ebeam.tool_files import routes
 
-    full = threading.BoundedSemaphore(1)
-    full.acquire()
-    monkeypatch.setattr("backend.ebeam.tool_files.routes._TRANSFERS", full)
+    permits = routes._Permits(1, code, "full")
+    permits.take()
+    monkeypatch.setattr(routes, name, permits)
+
+
+def test_a_download_while_the_transfer_permits_are_full_is_refused_at_once(client, monkeypatch):
+    _full(monkeypatch, "_TRANSFERS", "transfers_busy")
     row = _tool("cd-sem")
     assert _code(_download(client, row, "/README.TXT")) == (503, "transfers_busy")
     assert _code(_zip(client, row, ["/README.TXT"])) == (503, "transfers_busy")
@@ -394,8 +398,47 @@ def test_a_download_while_the_transfer_slots_are_full_is_refused_at_once(client,
     assert _list(client, row).status_code == 200
 
 
-def test_a_finished_or_failed_download_frees_its_slot(client):
+def test_every_ftp_session_takes_a_session_permit(client, monkeypatch):
+    _full(monkeypatch, "_FTP_SESSIONS", "ftp_busy")
+
+    def no_ftp(_tool):
+        raise AssertionError("a refused session must not open FTP")
+
+    monkeypatch.setattr("backend.ebeam.tool_files.routes.open_client", no_ftp)
+    row = _tool("cd-sem")
+    assert _code(_list(client, row)) == (503, "ftp_busy")
+    assert _code(_download(client, row, "/README.TXT")) == (503, "ftp_busy")
+    assert _code(_zip(client, row, ["/README.TXT"])) == (503, "ftp_busy")
+
+
+def _cap(monkeypatch, name, code, size=1):
+    from backend.ebeam.tool_files import routes
+
+    monkeypatch.setattr(routes, name, routes._Permits(size, code, "full"))
+
+
+def test_a_download_holds_its_permit_until_the_response_is_closed(client, monkeypatch):
+    _cap(monkeypatch, "_TRANSFERS", "transfers_busy")
+    row = _tool("cd-sem")
+    query = {"fab": row["fab_name"], "eqp_id": row["eqp_id"], "path": "/README.TXT"}
+    sending = client.get("/api/cdsem/tool-files/download", query_string=query)
+    assert sending.status_code == 200
+    # Still sending: a second download is refused, while browsing goes on.
+    assert _code(_download(client, row, "/README.TXT")) == (503, "transfers_busy")
+    assert _list(client, row).status_code == 200
+    sending.close()
+    assert _download(client, row, "/README.TXT").status_code == 200
+
+
+def test_a_failed_download_frees_its_permits(client, monkeypatch):
+    _cap(monkeypatch, "_TRANSFERS", "transfers_busy")
+    _cap(monkeypatch, "_FTP_SESSIONS", "ftp_busy")
     row = _tool("cd-sem")
     assert _code(_download(client, row, "/DUMP/gone.bin")) == (404, "file_unavailable")
-    assert _download(client, row, "/README.TXT").status_code == 200
-    assert _download(client, row, "/README.TXT").status_code == 200
+    assert _code(_zip(client, row, ["/DUMP"])) == (404, "file_unavailable")
+    assert _list(client, row).status_code == 200
+    query = {"fab": row["fab_name"], "eqp_id": row["eqp_id"], "path": "/README.TXT"}
+    # buffered: the test client then closes the response, as uWSGI does.
+    for _ in range(2):
+        sent = client.get("/api/cdsem/tool-files/download", query_string=query, buffered=True)
+        assert sent.status_code == 200

@@ -25,9 +25,13 @@ class Limits:
     max_upload_bytes: int = 100 * 1024 * 1024
     # One zip download: max_bytes is the budget for all of its files together.
     max_batch_files: int = 200
-    # Downloads (single or zip) running at once in one process. Cloud uWSGI
-    # has 4 processes x 4 threads = 16 slots for the whole app; each download
-    # can hold one for the full deadline, so 1 per process keeps 12 free.
+    # Per process. Cloud uWSGI has 4 processes x 4 threads = 16 request slots
+    # for the whole app, and each FTP session (list, download, write) can hold
+    # one for its deadline. At most 2 sessions plus 1 download still sending
+    # (it no longer holds a session) is 3 of a process's 4 threads, so at
+    # least 4 of the 16 always stay free for the rest of SKEWNONO.
+    max_concurrent_ftp: int = 2
+    # Downloads (single or zip), counted until the response is fully sent.
     max_concurrent_transfers: int = 1
 
 
@@ -69,6 +73,9 @@ def load_limits(env: Mapping[str, str] | None = None) -> Limits:
         ),
         max_batch_files=_positive(
             env, "SKEWNONO_TOOL_FILES_MAX_BATCH_FILES", base.max_batch_files, int
+        ),
+        max_concurrent_ftp=_positive(
+            env, "SKEWNONO_TOOL_FILES_MAX_CONCURRENT_FTP", base.max_concurrent_ftp, int
         ),
         max_concurrent_transfers=_positive(
             env,

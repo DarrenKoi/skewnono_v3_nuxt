@@ -151,6 +151,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   batch_too_large: '선택한 파일의 합계가 다운로드 상한보다 커서 받지 못했습니다. 나눠서 받아 주세요.',
   too_many_files: '한 번에 받을 수 있는 파일 수를 넘었습니다. 나눠서 받아 주세요.',
   transfers_busy: '다른 다운로드가 진행 중입니다. 잠시 후 다시 시도해 주세요.',
+  ftp_busy: '장비 접속 요청이 몰려 잠시 멈췄습니다. 잠시 후 다시 시도해 주세요.',
   listing_too_large: '폴더의 항목이 너무 많아 목록을 불러오지 못했습니다.',
   bad_path: '열 수 없는 경로입니다.',
   name_unencodable: '이 이름으로는 올릴 수 없습니다. 파일 이름에 장비가 쓰지 못하는 글자(예: 한글)가 있는지 확인해 주세요.',

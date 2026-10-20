@@ -3,6 +3,7 @@ import logging
 import threading
 import time
 import zipfile
+from collections.abc import Callable
 from contextlib import contextmanager
 from ftplib import all_errors, error_perm
 
@@ -94,8 +95,50 @@ def _encoding_error(tool: Tool, exc: UnicodeDecodeError) -> ToolFilesError:
     )
 
 
+class _Permits:
+    """Per-process, non-blocking permits. A request that cannot get one is
+    refused at once rather than queued, since a queued request still holds the
+    worker thread the cap exists to keep free.
+
+    ponytail: per process, not fleet-wide (4 uWSGI processes = 4x each knob);
+    a Redis semaphore if that is still too many at once.
+    """
+
+    def __init__(self, size: int, code: str, message: str) -> None:
+        self._sem = threading.BoundedSemaphore(size)
+        self._code, self._message = code, message
+
+    def take(self) -> Callable[[], None]:
+        if not self._sem.acquire(blocking=False):
+            raise ToolFilesError(503, self._code, self._message)
+        return self._sem.release
+
+    @contextmanager
+    def held(self):
+        release = self.take()
+        try:
+            yield
+        finally:
+            release()
+
+
+_LIMITS = load_limits()
+_FTP_SESSIONS = _Permits(_LIMITS.max_concurrent_ftp, "ftp_busy", "too many tool FTP sessions")
+_TRANSFERS = _Permits(
+    _LIMITS.max_concurrent_transfers, "transfers_busy", "another tool-file download is running"
+)
+
+
 @contextmanager
 def _session(tool: Tool):
+    """Every FTP operation (list, download, upload, delete) goes through here,
+    so this is where the session cap sits."""
+    with _FTP_SESSIONS.held(), _ftp_session(tool) as ftp:
+        yield ftp
+
+
+@contextmanager
+def _ftp_session(tool: Tool):
     client = open_client(tool)
     try:
         ftp = client.__enter__()
@@ -146,21 +189,20 @@ def access():
 
 _BROWSE_ROOT = "/"
 
-# ponytail: per process, not fleet-wide (4 uWSGI processes = 4x the knob);
-# a Redis semaphore if that is still too many at once.
-_TRANSFERS = threading.BoundedSemaphore(load_limits().max_concurrent_transfers)
 
-
-@contextmanager
-def _transfer_slot():
-    """Refuse at once rather than queue: a waiting download would hold the
-    very request slot the cap exists to keep free."""
-    if not _TRANSFERS.acquire(blocking=False):
-        raise ToolFilesError(503, "transfers_busy", "another tool-file download is running")
+def _held_until_sent(build: Callable[[], Response]) -> Response:
+    """Builds a download under a transfer permit that is released only when
+    the server closes the response. Workers speak HTTP directly
+    (wsgi.ini http-socket), so a slow receiver holds the thread for the whole
+    send, and the send must count against the cap too."""
+    release = _TRANSFERS.take()
     try:
-        yield
-    finally:
-        _TRANSFERS.release()
+        response = build()
+    except BaseException:
+        release()
+        raise
+    response.call_on_close(release)
+    return response
 
 
 @bp.get("/<tool_slug>/tool-files/list")
@@ -208,8 +250,11 @@ def list_files(tool_slug: str):
 def download(tool_slug: str):
     _require_access()
     tool = _tool(tool_slug)
-    limits = load_limits()
-    with _transfer_slot(), _session(tool) as ftp:
+    return _held_until_sent(lambda: _file_response(tool, load_limits()))
+
+
+def _file_response(tool: Tool, limits) -> Response:
+    with _session(tool) as ftp:
         path = check_path(_BROWSE_ROOT, request.args.get("path") or ftp.home())
         data = ftp.download(path, max_bytes=limits.max_bytes, deadline=limits.deadline)
     return _attachment(
@@ -244,6 +289,10 @@ def download_zip(tool_slug: str):
     if len(set(names)) != len(names):
         raise ToolFilesError(400, "bad_request", "two of the files share a name")
     tool = _tool(tool_slug, body)
+    return _held_until_sent(lambda: _zip_response(tool, keys, names, limits))
+
+
+def _zip_response(tool: Tool, keys: list[str], names: list[str], limits) -> Response:
     buf = io.BytesIO()
     started = time.monotonic()
     budget = limits.max_bytes
@@ -251,7 +300,7 @@ def download_zip(tool_slug: str):
     # one file, never every file at once. Level 1: logs still shrink well, at a
     # fraction of the default level's CPU on the request thread.
     archive = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=1)
-    with _transfer_slot(), _session(tool) as ftp, archive:
+    with _session(tool) as ftp, archive:
         # The zip owns its budget, so it raises its own codes for both limits.
         def time_left() -> float:
             left = limits.deadline - (time.monotonic() - started)
@@ -273,12 +322,11 @@ def download_zip(tool_slug: str):
             # Compressing counts too: the last file's has no next download to catch it.
             time_left()
     # Streamed from the buffer, not getvalue(): no second copy of a zip that
-    # can near max_bytes.
+    # can near max_bytes. Not direct_passthrough: that skips Response.close,
+    # which is what releases the transfer permit.
     size = buf.tell()
     buf.seek(0)
-    response = Response(
-        wrap_file(request.environ, buf), mimetype="application/zip", direct_passthrough=True
-    )
+    response = Response(wrap_file(request.environ, buf), mimetype="application/zip")
     response.content_length = size
     return _attachment(response, f"{tool.eqp_id}.zip")
 
