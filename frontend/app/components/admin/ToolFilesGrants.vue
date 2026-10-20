@@ -110,7 +110,7 @@
           :loading="mutating"
           :disabled="!empInput.trim()"
         >
-          승인
+          추가
         </UButton>
       </form>
       <ul class="divide-y divide-(--sk-border)">
