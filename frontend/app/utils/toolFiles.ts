@@ -28,6 +28,7 @@ export interface ToolFilesCrumb {
 
 export interface ToolFilesListing {
   root: string
+  home: string
   path: string
   parent: string | null
   crumbs: ToolFilesCrumb[]

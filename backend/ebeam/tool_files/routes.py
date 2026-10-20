@@ -221,14 +221,19 @@ def request_access():
     return jsonify({"verdict": "pending", "request": record}), 201
 
 
+_BROWSE_ROOT = "/"
+
+
 @bp.get("/<tool_slug>/tool-files/list")
 def list_files(tool_slug: str):
     _require_access()
     tool = _tool(tool_slug)
     limits = load_limits()
+    # Browsing reaches "/" but opens at the login directory; writes stay
+    # confined to the login directory.
     with _session(tool) as ftp:
-        root = ftp.home()
-        path = check_path(root, request.args.get("path"))
+        home = ftp.home()
+        path = check_path(_BROWSE_ROOT, request.args.get("path") or home)
         infos = ftp.list_details(
             path,
             max_entries=limits.max_entries,
@@ -249,10 +254,11 @@ def list_files(tool_slug: str):
         if not info.is_link
     ]
     body: Listing = {
-        "root": root,
+        "root": _BROWSE_ROOT,
+        "home": home,
         "path": path,
-        "parent": parent_of(root, path),
-        "crumbs": crumbs(root, path),
+        "parent": parent_of(_BROWSE_ROOT, path),
+        "crumbs": crumbs(_BROWSE_ROOT, path),
         "entries": entries,
         "max_bytes": limits.max_bytes,
     }
@@ -265,7 +271,7 @@ def download(tool_slug: str):
     tool = _tool(tool_slug)
     limits = load_limits()
     with _session(tool) as ftp:
-        path = check_path(ftp.home(), request.args.get("path"))
+        path = check_path(_BROWSE_ROOT, request.args.get("path") or ftp.home())
         data = ftp.download(path, max_bytes=limits.max_bytes, deadline=limits.deadline)
     response = Response(data, mimetype="application/octet-stream")
     response.headers["Content-Disposition"] = _content_disposition(

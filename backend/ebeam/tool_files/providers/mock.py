@@ -109,6 +109,10 @@ class MockFtpClient:
     def __init__(self, tool: Tool) -> None:
         self._tool = tool
         self._home = _HOME.get(tool.tool_type, "/")
+        # The shared tree hangs at the login directory; its ancestors hold only it.
+        self._root = _TREE
+        for part in reversed([p for p in self._home.split("/") if p]):
+            self._root = {part: self._root}
 
     def __enter__(self) -> "MockFtpClient":
         if _unreachable(self._tool.eqp_id):
@@ -122,10 +126,8 @@ class MockFtpClient:
         return self._home
 
     def _node(self, path: str):
-        if path != self._home and not path.startswith(self._home.rstrip("/") + "/"):
-            raise error_perm(f"550 {path}: No such file or directory")
-        node = _TREE
-        for part in [p for p in path[len(self._home):].split("/") if p]:
+        node = self._root
+        for part in [p for p in path.split("/") if p]:
             if not isinstance(node, dict) or part not in node:
                 raise error_perm(f"550 {path}: No such file or directory")
             node = node[part]

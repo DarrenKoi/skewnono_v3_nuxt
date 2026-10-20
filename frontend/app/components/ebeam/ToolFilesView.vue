@@ -553,7 +553,7 @@ const openPath = (path: string) => {
 const toolFacts = computed(() => [
   { label: '장비', value: selectedEqp.value ?? '' },
   { label: '모델', value: semRow.value ? `${semRow.value.eqp_model_cd} · ${semRow.value.vendor_nm}` : '—' },
-  { label: '로그인 폴더', value: listing.value?.root ?? '—' },
+  { label: '로그인 폴더', value: listing.value?.home ?? '—' },
   { label: '다운로드 상한', value: listing.value ? formatFileSize(listing.value.max_bytes) : '—' }
 ])
 

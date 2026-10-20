@@ -114,11 +114,17 @@ def test_an_empty_folder_lists_no_entries(client):
     assert body["parent"] == "/LOG"
 
 
-def test_an_hvsem_login_directory_below_slash_is_the_root(client):
+def test_an_hvsem_listing_opens_at_its_login_directory_below_slash(client):
     row = _tool("hv-sem")
     body = _list(client, row, slug="hvsem").get_json()
-    assert (body["root"], body["path"], body["parent"]) == ("/home/hitachi", "/home/hitachi", None)
-    assert body["crumbs"] == [{"name": "/home/hitachi", "path": "/home/hitachi"}]
+    assert (body["root"], body["home"], body["path"], body["parent"]) == (
+        "/", "/home/hitachi", "/home/hitachi", "/home"
+    )
+    assert body["crumbs"] == [
+        {"name": "/", "path": "/"},
+        {"name": "home", "path": "/home"},
+        {"name": "hitachi", "path": "/home/hitachi"},
+    ]
     assert body["entries"][0]["path"] == "/home/hitachi/DUMP"
 
 
@@ -194,11 +200,10 @@ def test_path_keys_that_break_the_rules_are_refused(client, path):
     assert response.get_json()["error"]["code"] == "bad_path"
 
 
-@pytest.mark.parametrize("path", ["/", "/home", "/home/hitachi2"])
-def test_paths_outside_the_login_directory_are_refused(client, path):
-    response = _list(client, _tool("hv-sem"), slug="hvsem", path=path)
-    assert response.status_code == 400
-    assert response.get_json()["error"]["code"] == "bad_path"
+def test_folders_above_the_login_directory_are_browsable(client):
+    body = _list(client, _tool("hv-sem"), slug="hvsem", path="/").get_json()
+    assert (body["path"], body["parent"]) == ("/", None)
+    assert [(e["path"], e["is_dir"]) for e in body["entries"]] == [("/home", True)]
 
 
 def _code(response):

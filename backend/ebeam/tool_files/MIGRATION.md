@@ -92,9 +92,11 @@ identity source, target, result and request_id.
   still approves. Team approval clears only the pending requests whose *stored*
   `dept_nm` is the team. Request, approve, reject and team approve each log
   one `skewnono.tool_files` line carrying the access `request_id`.
-- The root is the login directory (`PWD`). Per-family allowed roots are not
+- Listing and download reach any path under `/`; a listing with no `path`
+  opens at the login directory (`PWD`, returned as `home`). Upload and delete
+  stay confined to the login directory. Per-family allowed roots are not
   configurable yet; add them when a real tree shows the need.
-- The root check is a guardrail. The FTP account's own permissions are the
+- The path check is a guardrail. The FTP account's own permissions are the
   boundary: a symlinked middle folder can lead outside the root, and LIST
   cannot say where it points. Link entries are hidden from listings; a
   hand-written URL to a link is not separately refused.
