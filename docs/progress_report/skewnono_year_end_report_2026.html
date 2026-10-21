@@ -114,7 +114,7 @@
 <body>
 <div class="page">
 <header>
-  <div class="eyebrow">Metrology Workspace · 2026-10-09 · 갱신 2026-10-20</div>
+  <div class="eyebrow">Metrology Workspace · 2026-10-09 · 갱신 2026-10-21</div>
   <h1>SKEWNONO 2026년 성과 보고</h1>
   <p class="lede">스큐노노는 2026년에 E-Beam 계측 장비 조회 도구에서 현업이 매일 쓰는 계측 업무 서비스로 자리를 잡았습니다.</p>
 </header>
@@ -124,15 +124,14 @@
   <div class="metrics">
     <div class="metric hero"><div class="n">60~70명</div><div class="l">일평균 접속자</div></div>
     <div class="metric"><div class="n">10초 이내</div><div class="l">Align Fail 발견 시간 (이전에는 늦으면 4~5분)</div></div>
-    <div class="metric"><div class="n">10%</div><div class="l">전체 계측 시간 단축 (계측 포인트 감축)</div></div>
+    <div class="metric"><div class="n">10%</div><div class="l">전체 계측 시간 단축, 완료 시 (계측 포인트 감축 · 9월부터 진행 중)</div></div>
   </div>
   <div class="scroll"><table class="org">
     <tr><th>성과</th><th>사용 조직</th><th>내용</th></tr>
-    <tr><td>디바이스 통계</td><td>검/계측 효율화 TF</td><td>계측 파라미터와 포인트를 추적 · 분석할 수 있는 유일한 수단입니다. 전체 계측 시간을 10% 줄였습니다.</td></tr>
+    <tr><td>디바이스 통계</td><td>검/계측 효율화 TF</td><td>계측 파라미터와 포인트를 추적 · 분석할 수 있는 유일한 수단입니다. 9월부터 계측 포인트 감축을 진행 중이며, 완료되면 전체 계측 시간이 10% 줄어듭니다.</td></tr>
     <tr><td>실시간 알람</td><td>인라인 교대 구성원</td><td>Align Fail 발견 시간이 최대 4~5분에서 10초 이내로 줄었습니다.</td></tr>
     <tr><td>Recipe · 통계 · 결과 통합 조회</td><td>공정 · 소자 엔지니어</td><td>Recipe 정보, 통계, 결과 데이터를 한 서비스에서 함께 봅니다.</td></tr>
     <tr><td>AFM 관리 툴</td><td>AFM 사용자</td><td>AFM 측정 조회와 관리를 스큐노노로 통합했습니다.</td></tr>
-    <tr><td>FTP 접속</td><td>Metrology 엔지니어</td><td>별도 FTP 프로그램 없이 장비 파일을 웹에서 열람 · 다운로드합니다.</td></tr>
   </table></div>
 </section>
 
@@ -153,17 +152,18 @@
     </div>
     <div class="entry">
       <h3>성과</h3>
-      <div><span class="callout">전체 계측 시간 10% 단축</span></div>
+      <div><span class="callout">완료 시 전체 계측 시간 10% 단축 · 9월부터 진행 중</span></div>
       <ul>
-        <li>수만 개의 Recipe 가운데 과도하게 측정하는 Recipe 가 전부 모니터링되면서 계측 포인트를 감축했습니다.</li>
-        <li>계측 포인트를 줄여 전체 계측 시간을 10% 단축했습니다. (계측 효율화 10% 달성)</li>
+        <li>수만 개의 Recipe 가운데 과도하게 측정하는 Recipe 가 전부 모니터링되면서 계측 포인트 감축을 9월부터 진행하고 있습니다.</li>
+        <li>감축이 완료되면 전체 계측 시간이 10% 단축됩니다. (계측 효율화 10% 달성)</li>
         <li>모든 디바이스가 표준에 맞게 계측을 진행할 수 있게 되었습니다.</li>
       </ul>
     </div>
   </div>
   <div class="entry">
-    <div class="head"><h3>디바이스명 설명 스크립트 표준화</h3><span class="chip lab">진행 중</span></div>
-    <p>디바이스 통계는 디바이스 description 에서 제품군(Pool제 여부)과 개발 단계(t-EV, PV 등)를 읽어 어떤 계측 룰을 적용할지 정합니다. 그런데 t-EV, PV, Pool제 같은 표기만으로는 확인이 어려운 디바이스 description 이 있어 판정이 흔들립니다. 이런 description 에 스큐노노의 로직에 맞는 표준화를 적용하고 있습니다.</p>
+    <div class="head"><h3>스큐노노 &amp; Agent 가 일하기 적합한 환경으로</h3><span class="chip lab">진행 중</span></div>
+    <p>디바이스 통계는 디바이스 description 에서 제품군(Pool제 여부)과 개발 단계(t-EV, PV 등)를 읽어 어떤 계측 룰을 적용할지 정합니다. 그런데 기존 legacy 시스템의 룰로 작성된 description 가운데 t-EV, PV, Pool제 같은 표기만으로는 확인이 어려운 것이 있어 판정이 흔들립니다.</p>
+    <p>디바이스명 설명 스크립트를 표준화해, 스큐노노와 Agent 가 일하기 적합한 환경으로 legacy 시스템의 룰을 바꾸고 있습니다. 표준화가 되면 이후에는 Agent 가 계측 포인트를 직접 삭제하는 방향으로 진행할 수 있습니다.</p>
   </div>
 </section>
 
@@ -193,6 +193,10 @@
       <li>알람에서 바로 Align 이미지를 열어 십자선 오버레이와 함께 확인합니다.</li>
     </ul>
   </div>
+  <div class="entry">
+    <div class="head"><h3>다음 단계: Align Fail 자동 대응 Agent</h3><span class="chip soon">예정</span></div>
+    <p>현재는 인라인 교대 구성원이 실시간 알람을 보고 대응합니다. 이 대응은 이후 Align Fail 자동 대응 Agent 가 대체할 예정입니다.</p>
+  </div>
 </section>
 
 <section>
@@ -203,7 +207,7 @@
     <tr><td>Recipe 정보</td><td>Recipe 검색</td><td>열어보기, 횡전개, 측정 이력, 비교</td></tr>
     <tr><td>통계 정보</td><td>Recipe 현황, 디바이스 통계</td><td>Recipe 별 TAT, Align · 측정 실패 추이, 디바이스별 계측 활동</td></tr>
     <tr><td>결과 데이터</td><td>스큐보아</td><td>측정 세트를 웨이퍼 맵, 시계열, 상관, 이미지로 분석</td></tr>
-    <tr><td>장비 상태</td><td>장비 상태, 스토리지 용량, H/W 관리, FTP 접속</td><td>가용 장비, 디스크 용량, 하드웨어 지표, 장비 파일</td></tr>
+    <tr><td>장비 상태</td><td>장비 상태, 스토리지 용량, H/W 관리</td><td>가용 장비, 디스크 용량, 하드웨어 지표</td></tr>
   </table></div>
 </section>
 
@@ -221,33 +225,7 @@
 </section>
 
 <section>
-  <h2>6. Metrology 엔지니어 지원: FTP 접속</h2>
-  <p>2026-10-20 에 장비 상태 아래 FTP 접속 탭을 열었습니다. 장비 파일을 보려면 그동안 별도 FTP 프로그램으로 장비마다 접속해야 했습니다. 이제 CD-SEM · HV-SEM 장비를 고르면 장비의 폴더와 파일을 스큐노노에서 바로 엽니다.</p>
-  <div class="scroll"><table>
-    <tr><th>구분</th><th>내용</th></tr>
-    <tr><td>대상</td><td>DRAM MI개발, NAND MI개발, DRAM Metrology기술, NAND Metrology기술, 기반기술전략</td></tr>
-    <tr><td>탐색</td><td>폴더를 눌러 이동하거나 경로를 직접 입력합니다. 폴더와 파일은 아이콘 색으로 구분합니다.</td></tr>
-    <tr><td>다운로드</td><td>파일을 하나씩 받거나, 여러 개를 골라 zip 한 개로 받습니다. 용량 상한은 화면에 표시됩니다.</td></tr>
-    <tr><td>공유</td><td>주소에 장비와 경로가 함께 담겨 링크로 같은 폴더를 공유합니다.</td></tr>
-    <tr><td>안정성</td><td>동시 다운로드와 FTP 세션 수를 제한해 장비 접속이 몰려도 서비스가 느려지지 않습니다.</td></tr>
-  </table></div>
-  <p>장비 리스트의 파일 열기 버튼은 이 탭으로 옮겼습니다. 업로드 · 삭제 기능은 구현을 마쳤지만 꺼 둔 상태입니다.</p>
-</section>
-
-<section>
-  <h2>7. 데이터 정확도 개선 (10월)</h2>
-  <p>보고 이후 현업 문의를 바탕으로 화면이 보여 주는 값의 정확도를 높였습니다.</p>
-  <div class="entry"><ul>
-    <li><b>디바이스 통계</b>: 저장된 필터가 목록을 좁히고 있으면 표시하고, 원본에 스텝이 없는 디바이스는 "스텝 원본 자료 없음" 으로 따로 알립니다. R 계열 디바이스 일부에서 DRAM / NAND 구분이 빠지던 문제를 고쳤습니다.</li>
-    <li><b>Recipe 횡전개</b>: 장비별 Recipe 보유 · 버전 원본(IDP 버전 이력)의 오류를 바로잡아, 최근에 측정하지 않은 장비도 보유로 표시되고 버전이 갈린 장비가 드러납니다. 점검에 실패한 장비는 "확인 불가" 로 구분합니다.</li>
-    <li><b>Recipe 현황</b>: 이력이 많은 조회에서 결과 일부가 빠지거나 응답이 끊기던 문제를 고쳤습니다.</li>
-    <li><b>AFM</b>: 측정 목록 응답에서 화면이 쓰지 않는 파일 목록을 빼, 이력이 쌓여도 화면이 느려지지 않습니다.</li>
-    <li><b>운영</b>: 요청 로그에 오류 원인과 호출 화면을 함께 남겨 문의 대응 시간을 줄였습니다.</li>
-  </ul></div>
-</section>
-
-<section>
-  <h2>8. 사용 현황</h2>
+  <h2>6. 사용 현황</h2>
   <div class="entry"><ul>
     <li>일평균 접속자는 60~70명입니다.</li>
     <li>주 사용자는 인라인 교대 구성원, 공정 · 소자 엔지니어, 검/계측 효율화 TF 의 CD 계측 담당 엔지니어입니다.</li>
@@ -255,7 +233,7 @@
 </section>
 
 <section>
-  <h2>9. 개발 규모</h2>
+  <h2>7. 개발 규모</h2>
   <div class="metrics">
     <div class="metric hero"><div class="n">248,830줄</div><div class="l">전체 코드 (원본 복사 모듈 13,300줄 포함)</div></div>
     <div class="metric"><div class="n">+25%</div><div class="l">직접 작성한 코드, 2026-08-18 의 188,345줄 대비</div></div>
@@ -274,9 +252,10 @@
 </section>
 
 <section>
-  <h2>10. 이후 과제</h2>
+  <h2>8. 이후 과제</h2>
   <div class="entry"><ul>
-    <li>디바이스명 설명 스크립트 표준화를 마무리해 디바이스 통계의 룰 판정을 안정시킵니다.</li>
+    <li>디바이스명 설명 스크립트 표준화를 마무리해 legacy 룰 전환을 끝내고, Agent 가 계측 포인트를 직접 삭제하는 방향으로 나아갑니다.</li>
+    <li>인라인 교대 구성원이 실시간 알람을 보고 하던 대응을 Align Fail 자동 대응 Agent 가 대체합니다.</li>
     <li>VeritySEM · Provision · Thickness 로 지원 장비를 넓혀 Metrology Workspace 통합을 이어 갑니다. VeritySEM · Provision 은 사내 데이터 사전 조사를 시작했습니다.</li>
     <li>여러 장비에 Recipe 를 한 번에 복사하는 Recipe 일괄 복사 도구를 별도 앱으로 설계하고 있습니다.</li>
   </ul></div>
