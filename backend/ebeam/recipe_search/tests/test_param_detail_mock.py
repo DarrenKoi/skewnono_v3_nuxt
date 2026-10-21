@@ -763,3 +763,30 @@ def test_a_formula_never_references_its_own_block():
         rows = mock.get_param_detail([item])[0]["af_pr"]["rows"]
         formula = next(r["value"] for r in rows if r["section"] == "formula")
         assert block not in {int(n) for n in re.findall(r"\$(\d+)", formula)}, (block, formula)
+
+
+def test_a_formula_parameter_is_never_a_region_mother():
+    """user-confirmed 2026-10-22. A formula row the generator made its region's
+    mother (the first row of the region) hands the flag on, and every region
+    with a measured row keeps exactly one mother."""
+    handoffs = 0
+    for i in range(1, 60):
+        name = f"EA/ERJERI_TEA_ABC123_STD_{i:05d}"
+        try:
+            detail = mock.get_recipe_open_data(name, "R3", "cd-sem")
+        except LookupError:
+            continue
+        idp = detail["locator"]["idp"]
+        rows = detail["idp_image_info"]
+        is_formula = [mock._is_formula_parameter(idp, r["Parameter"]) for r in rows]
+        assert not any(r["Mother_Para"] for r, f in zip(rows, is_formula, strict=True) if f), name
+
+        measured = {r["Region"] for r, f in zip(rows, is_formula, strict=True) if not f}
+        for region in measured:
+            assert sum(r["Mother_Para"] for r in rows if r["Region"] == region) == 1, (name, region)
+
+        first_in_region = {}
+        for r, f in zip(rows, is_formula, strict=True):
+            first_in_region.setdefault(r["Region"], f)
+        handoffs += sum(first_in_region[region] for region in measured)
+    assert handoffs, "no recipe exercised a formula row drawn as mother"

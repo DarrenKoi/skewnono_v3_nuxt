@@ -14,6 +14,7 @@
 | 2 | Home → Office | 질문 Q1–Q3 | - |
 | 3 | Office → Home | Q1–Q3 회신과 추가 발견 4건 | `54d1475b` |
 | - | 사용자 | key 철자는 `Formula` | `8a321975` |
+| - | 사용자 | formula parameter 는 Region mother 가 될 수 없음 | 이 문서와 같은 commit |
 
 ## 1. 사무실 통지 (원문)
 

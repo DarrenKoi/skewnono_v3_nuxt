@@ -976,9 +976,8 @@ def _unnamed_formula_row(seq: int, region: int) -> IdpImageInfoRow:
     could be a region no other row drew, leaving it motherless — breaking the
     one-mother-per-Region invariant generate_idp_image_info keeps.
 
-    OFFICE-VERIFY: whether a formula parameter can be a Region mother. The
-    NAMED mock formula parameter may draw Mother_Para True; nothing says it
-    cannot, so no rule is invented here.
+    Never a mother: a formula parameter cannot be a Region mother
+    (user-confirmed 2026-10-22) — it measures no image for sons to share.
     """
     return {
         "Parameter": "",
@@ -1552,10 +1551,21 @@ def get_recipe_open_data(
     # Formula parameters, applied after every rng draw so no other value moves.
     # Every one has a real ENMP slot (office 확인 2026-10-22) — the formula
     # lives there — so the 1-in-4 empty img_add2 _slot draws is undone for them.
+    # And none is a Region mother (user-confirmed 2026-10-22): a drawn one hands
+    # the flag to its region's first measured row, the next in SEQ order, which
+    # is where generate_idp_image_info would have put it. A region holding only
+    # the formula parameter is left with no mother — there is no one to own it.
     formula_name = _formula_parameter_name(str(locator["idp"]))
     for row in idp_rows:
-        if row["Parameter"] == formula_name:
-            row["img_add2"] = f"{rawfiles.SLOT_PREFIX['img_add2']}{row['SEQ']:04d}"
+        if row["Parameter"] != formula_name:
+            continue
+        row["img_add2"] = f"{rawfiles.SLOT_PREFIX['img_add2']}{row['SEQ']:04d}"
+        if row["Mother_Para"]:
+            row["Mother_Para"] = False
+            heir = next((r for r in idp_rows if r["Region"] == row["Region"]
+                         and r["Parameter"] != formula_name), None)
+            if heir is not None:
+                heir["Mother_Para"] = True
     idp_rows.append(_unnamed_formula_row(len(idp_rows) + 1, idp_rows[-1]["Region"]))
 
     return {
