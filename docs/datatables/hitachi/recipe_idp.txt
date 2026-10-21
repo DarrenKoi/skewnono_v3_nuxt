@@ -900,9 +900,9 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
   OFFICE-VERIFY: 삭제된(del) row 가 있는 recipe 에서 `$N` 이 파싱된
   `idp_image_info` 순서와 어긋날 수 있는지. 아직 그런 recipe 를 본 적이 없습니다.
 
-  OFFICE-VERIFY: key 철자. 사무실 쪽 전달문에 `Formula` 와 `Formular` 가 함께
-  나왔습니다. 화면은 key 가 아니라 section(`formula`) 으로 찾으므로 어느 쪽이든
-  동작하지만, 표에 찍히는 이름은 사무실 값을 따릅니다.
+  key 철자는 `Formula` 입니다 (user-confirmed 2026-10-22). 사무실 쪽 전달문에
+  `Formular` 도 섞여 나왔지만 전달 오타였습니다 — 위 "이상해 보이는 철자" 절의
+  네 번째 사례입니다.
 
 `sequence_*` 두 group 은 설정이 아니라 **sequence 의 단계 이름**을 나열합니다.
 그 아래 group 들이 각 단계의 실제 설정을 담습니다.
