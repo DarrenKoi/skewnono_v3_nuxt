@@ -118,7 +118,10 @@ export function buildOverlap(recipes: CompareRecipe[]): OverlapRow[] {
     const key = recipePairKey(recipe.fab_name, recipe.recipe_id)
     const seenInRecipe = new Set<string>()
     for (const p of recipe.parameters) {
-      if (seenInRecipe.has(p.Parameter)) continue
+      // An UNNAMED block (real: formula parameters, office 확인 2026-10-22) has
+      // no identity to match across recipes — "" in two recipes is two
+      // unrelated blocks, and two in one recipe would collapse into one.
+      if (!p.Parameter || seenInRecipe.has(p.Parameter)) continue
       seenInRecipe.add(p.Parameter)
       if (!present.has(p.Parameter)) {
         present.set(p.Parameter, new Set())

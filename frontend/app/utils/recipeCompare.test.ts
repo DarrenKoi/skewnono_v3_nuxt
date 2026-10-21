@@ -411,3 +411,8 @@ test('buildCompareWorkbook keys per-recipe settings by (fab, recipe_id), not bar
   const magRow = meas1.rows.find(r => r[1] === 'Mag')!
   assert.deepEqual(magRow, ['WAFER', 'Mag', '50.0K', '80.0K'])
 })
+
+test('buildOverlap leaves unnamed blocks out — "" is not a shared parameter', () => {
+  const rows = buildOverlap([recipe('A', ['P1', '', '']), recipe('B', ['P1', ''])])
+  assert.deepEqual(rows.map(r => r.parameter), ['P1'])
+})

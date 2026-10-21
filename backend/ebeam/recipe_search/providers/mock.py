@@ -737,7 +737,7 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
         for key, generate in _AMP_FIELDS
     ]
     if _is_formula_parameter(*scope):
-        rows[0]["value"] = "Formula"
+        next(row for row in rows if row["key"] == "Measurement")["value"] = "Formula"
     return {"source": source, "rows": rows}
 
 
