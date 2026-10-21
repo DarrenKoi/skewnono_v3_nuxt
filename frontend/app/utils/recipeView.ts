@@ -129,23 +129,42 @@ export interface ResolvedFormula {
 }
 
 /**
+ * What a formula's `$N` names: block number → Parameter, read from the number on
+ * each row's `img_meas2` (`PRMS0014` → 14).
+ *
+ * `$N` is the recipe's N-th .idp block, 1-based, and every block's file number
+ * IS its block number (office 확인 2026-10-22). Keying on that number rather
+ * than on row position is what keeps the names right on a recipe with deleted
+ * blocks — a missing block leaves a gap here instead of shifting every later
+ * reference onto its neighbour.
+ */
+export function formulaRefNames(rows: readonly IdpImageInfoRow[]): Map<number, string> {
+  const names = new Map<number, string>()
+  for (const row of rows) {
+    const n = /(\d+)$/.exec(row.img_meas2 ?? '')?.[1]
+    if (n) names.set(Number(n), row.Parameter)
+  }
+  return names
+}
+
+/**
  * A computed parameter's formula, with its `$N` references named.
  *
- * `$N` is the recipe's N-th parameter, 1-based, in .idp block order (office 확인
- * 2026-10-22) — `parameters` is that list, i.e. `idp_image_info`'s Parameter
- * column in row order. A reference past the end, or to an unnamed block, stays
- * `$N` rather than resolving to something wrong.
+ * A plain token replace anywhere in the string — the office writes `max(($13),
+ * ($14))`, `max($2,$3)` and `$17+$18` alike, so nothing may assume parens or a
+ * function around a ref. A ref to an unknown block, or to an UNNAMED one (real:
+ * office 확인 2026-10-22), stays `$N`: an empty name would erase the ref.
  *
  * Found by the `formula` SECTION, not the key, because the group's presence is
  * the office's flag; `null` means this parameter is not computed.
  */
 export function resolveFormula(
   rows: readonly SettingRow[] | null | undefined,
-  parameters: readonly string[]
+  names: ReadonlyMap<number, string>
 ): ResolvedFormula | null {
   const raw = rows?.find(row => row.section === 'formula')?.value
   if (!raw) return null
-  const resolved = raw.replace(/\$(\d+)/g, (ref, n: string) => parameters[Number(n) - 1] || ref)
+  const resolved = raw.replace(/\$(\d+)/g, (ref, n: string) => names.get(Number(n)) || ref)
   return { raw, resolved }
 }
 

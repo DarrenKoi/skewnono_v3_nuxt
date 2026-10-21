@@ -86,7 +86,7 @@
               class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 text-zinc-900 dark:border-zinc-800/60 dark:text-zinc-100"
               :class="item.sourceIndex === selectedIndex ? 'font-bold' : 'font-semibold'"
             >
-              {{ item.row.Parameter }}
+              {{ item.row.Parameter || '(이름 없음)' }}
             </td>
             <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">
               {{ item.row.SEQ }}/{{ item.row.Last_SEQ }}

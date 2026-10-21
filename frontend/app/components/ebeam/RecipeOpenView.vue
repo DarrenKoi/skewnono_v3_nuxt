@@ -85,7 +85,7 @@
                   SELECTED
                 </span>
                 <span class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-                  {{ selectedIdp.Parameter }}
+                  {{ selectedIdp.Parameter || '(이름 없음)' }}
                 </span>
                 <EbeamRecipeOpenBoolPill :value="selectedIdp.Addressing" />
                 <!-- Mother_Para 는 다른 parameter 이름이 아니라 이 parameter 자신이
@@ -192,7 +192,7 @@
               :detail="paramDetail"
               :pending="paramPending"
               :error="paramError"
-              :parameters="idpParameters"
+              :ref-names="formulaRefs"
             />
 
             <EbeamRecipeOpenSequenceSettings
@@ -247,6 +247,7 @@ import {
 } from '~/composables/useRecipeParamDetail'
 import {
   IMAGE_SLOTS,
+  formulaRefNames,
   isRecipeDetailScreenSupported,
   readRecipeNameQuery,
   readRecipeSourceQuery
@@ -303,8 +304,7 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeDetailRespons
 
 const waferMpRows = computed(() => data.value?.wafer_mp_info ?? [])
 const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
-// Row order IS .idp block order, which is what a formula's $N counts in.
-const idpParameters = computed(() => idpImageRows.value.map(row => row.Parameter))
+const formulaRefs = computed(() => formulaRefNames(idpImageRows.value))
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
 

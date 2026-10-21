@@ -30,7 +30,7 @@
  *
  * A computed parameter (AMP Measurement = `Formula`) gets its formula above the
  * AMP table — read from the ENMP file's `formula` group, its `$N` references
- * named from `parameters` (office 확인 2026-10-22).
+ * named by block number (office 확인 2026-10-22).
  */
 import type { ParamDetail, SettingBlock } from '~/composables/useRecipeParamDetail'
 import { resolveFormula } from '~/utils/recipeView'
@@ -39,8 +39,8 @@ const props = defineProps<{
   detail: ParamDetail | null
   pending: boolean
   error: boolean
-  /** The recipe's parameters in .idp block order — what `$N` indexes, 1-based. */
-  parameters: string[]
+  /** Block number → Parameter, what a formula's `$N` names (`formulaRefNames`). */
+  refNames: ReadonlyMap<number, string>
 }>()
 
 const formulaBlock = computed<SettingBlock | null>(() => {
@@ -48,7 +48,7 @@ const formulaBlock = computed<SettingBlock | null>(() => {
   const afPr = props.detail?.af_pr
   if (!amp || !afPr) return null
   if (amp.rows.find(row => row.key === 'Measurement')?.value !== 'Formula') return null
-  const formula = resolveFormula(afPr.rows, props.parameters)
+  const formula = resolveFormula(afPr.rows, props.refNames)
   if (!formula) return null
   return {
     source: afPr.source,

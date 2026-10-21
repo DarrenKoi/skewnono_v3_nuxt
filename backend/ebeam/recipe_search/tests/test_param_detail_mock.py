@@ -718,11 +718,32 @@ def test_only_the_formula_parameter_carries_the_formula_group():
         rows = [r for r in found["af_pr"]["rows"] if r["section"] == "formula"]
         measurement = {r["key"]: r["value"] for r in found["amp"]["rows"]}["Measurement"]
         if parameter in formula:
-            assert rows == [{"key": "Formula", "value": "max(($13), ($14), ($15))",
-                             "section": "formula"}]
+            assert len(rows) == 1
+            assert rows[0]["key"] == "Formula"
+            assert rows[0]["value"] in mock._FORMULA_SAMPLES
             # The ninth group comes last, after the eight it was added beside.
             assert found["af_pr"]["rows"][-1] == rows[0]
             assert measurement == "Formula"
         else:
             assert rows == []
             assert measurement == "Width"
+
+
+def test_recipe_open_carries_an_unnamed_formula_row_with_an_enmp_file():
+    """Unnamed formula blocks are real (office 확인 2026-10-22) and every
+    formula parameter has a real ENMP slot — the formula is read from it."""
+    detail = mock.get_recipe_open_data("EA/ERJERI_TEA_ABC123_STD_00002", "R3", "cd-sem")
+    idp = detail["locator"]["idp"]
+    rows = detail["idp_image_info"]
+
+    unnamed = [r for r in rows if r["Parameter"] == ""]
+    assert len(unnamed) == 1 and unnamed[0] is rows[-1]
+    assert unnamed[0]["SEQ"] == len(rows)
+
+    for row in rows:
+        if mock._is_formula_parameter(idp, row["Parameter"]):
+            assert row["img_add2"] != rawfiles.EMPTY_SLOT, row["SEQ"]
+            item = {"locator": detail["locator"], "parameter": row["Parameter"],
+                    "slots": {k: row[k] for k in ("img_meas2", "img_add2")}}
+            found = mock.get_param_detail([item])[0]
+            assert any(r["section"] == "formula" for r in found["af_pr"]["rows"])

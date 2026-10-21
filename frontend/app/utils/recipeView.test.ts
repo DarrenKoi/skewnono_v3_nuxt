@@ -6,7 +6,7 @@ import {
   formatSettingValue, recipeDetailRoute, recipeDetailId, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
   readRecipeNameQuery, readRecipeSourceQuery, readRecipeOwnerFabQuery, formatRecipeTimestamp,
   isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain, formatFixed,
-  resolveFormula
+  resolveFormula, formulaRefNames
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
@@ -512,24 +512,43 @@ test('formatFixed falls back rather than throwing on anything unparseable', () =
   assert.equal(formatFixed('n/a', 3, ''), '')
 })
 
-test('resolveFormula names each $N by its 1-based position in the parameter list', () => {
-  const parameters = Array.from({ length: 15 }, (_, i) => `P${i + 1}`)
-  const rows = [
-    { key: 'Mag', value: '0', section: 'measurement_focusing' },
-    { key: 'Formula', value: 'max(($13), ($14), ($15))', section: 'formula' }
-  ]
-  assert.deepEqual(resolveFormula(rows, parameters), {
+// Real formulas (office 확인 2026-10-22); blocks 1..18 named P1..P18, block 3 unnamed.
+const refRows = Array.from({ length: 18 }, (_, i) => ({
+  Parameter: i === 2 ? '' : `P${i + 1}`,
+  img_meas2: `PRMS${String(i + 1).padStart(4, '0')}`
+})) as IdpImageInfoRow[]
+const formulaRow = (value: string) => [
+  { key: 'Mag', value: '0', section: 'measurement_focusing' },
+  { key: 'Formula', value, section: 'formula' }
+]
+
+test('resolveFormula replaces every $N token, wrapped in parens or bare', () => {
+  const names = formulaRefNames(refRows)
+  assert.deepEqual(resolveFormula(formulaRow('max(($13), ($14), ($15))'), names), {
     raw: 'max(($13), ($14), ($15))',
     resolved: 'max((P13), (P14), (P15))'
   })
+  assert.equal(resolveFormula(formulaRow('max($2,$4,$5)'), names)?.resolved, 'max(P2,P4,P5)')
+  assert.equal(resolveFormula(formulaRow('$17+$18'), names)?.resolved, 'P17+P18')
+  assert.equal(resolveFormula(formulaRow('max($5,$6,$6,$7)'), names)?.resolved, 'max(P5,P6,P6,P7)')
 })
 
-test('resolveFormula keeps $N for a reference past the end or to an unnamed block', () => {
-  const rows = [{ key: 'Formula', value: '$1 + $2 + $9', section: 'formula' }]
-  assert.equal(resolveFormula(rows, ['A', ''])?.resolved, 'A + $2 + $9')
+test('resolveFormula keeps $N for an unnamed block and for one that does not exist', () => {
+  assert.equal(resolveFormula(formulaRow('abs($2-$3)+$99'), formulaRefNames(refRows))?.resolved, 'abs(P2-$3)+$99')
+})
+
+test('formulaRefNames keys on the file number, so a deleted block shifts nothing', () => {
+  // Block 2 deleted: row 2 is block 3. By position, $3 would name block 4.
+  const names = formulaRefNames([
+    { Parameter: 'A', img_meas2: 'PRMS0001' },
+    { Parameter: 'C', img_meas2: 'PRMS0003' },
+    { Parameter: 'D', img_meas2: 'PRMS0004' }
+  ] as IdpImageInfoRow[])
+  assert.equal(resolveFormula(formulaRow('$1+$2+$3'), names)?.resolved, 'A+$2+C')
 })
 
 test('resolveFormula is null without a formula group, the non-Formula case', () => {
-  assert.equal(resolveFormula([{ key: 'Mag', value: '0', section: 'measurement_focusing' }], ['A']), null)
-  assert.equal(resolveFormula(null, ['A']), null)
+  const names = formulaRefNames(refRows)
+  assert.equal(resolveFormula([{ key: 'Mag', value: '0', section: 'measurement_focusing' }], names), null)
+  assert.equal(resolveFormula(null, names), null)
 })

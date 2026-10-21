@@ -892,13 +892,41 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
   `_to_rows` 를 거치면 `{key: 'Formula', value: 'max(...)', section: 'formula'}`
   한 줄이 됩니다. office adapter 는 바꾸지 않았습니다.
 
-  `$N` 은 recipe 의 **N 번째 parameter** 입니다 — 1부터, .idp block 순서
+  `$N` 은 recipe 의 **N 번째 .idp block** 입니다 — 1부터 셉니다
   (office 확인 2026-10-22: `$13`–`$18` = CELL_BARY1…4, CELL_SPY, CELL_SPY1).
-  이름 없는 block 도 유효한 참조입니다. 화면은 이 순서를 `idp_image_info` 의 row
-  순서로 읽습니다(`resolveFormula`, frontend `utils/recipeView.ts`).
+  모든 block 의 파일 번호가 block 번호와 같습니다(PRMP·PRMS `00NN` = block NN,
+  office 확인 2026-10-22). 그래서 화면은 row 위치가 아니라 각 row 의
+  `img_meas2` 번호로 `$N` 을 찾습니다(`formulaRefNames`, frontend
+  `utils/recipeView.ts`). 삭제된 block 이 있어도 뒤의 참조가 밀리지 않고, 없는
+  block 을 가리키는 `$N` 은 그대로 남습니다. 살아 있는 formula 약 90개를 봤지만
+  삭제된 block 너머를 가리키는 경우는 아직 없었습니다.
 
-  OFFICE-VERIFY: 삭제된(del) row 가 있는 recipe 에서 `$N` 이 파싱된
-  `idp_image_info` 순서와 어긋날 수 있는지. 아직 그런 recipe 를 본 적이 없습니다.
+  수식 모양 (office 확인 2026-10-22):
+
+    * 함수는 `max` · `min` · `average` · `abs`, 연산자는 `+` · `-` 가 나왔습니다.
+    * 참조는 괄호로 감싸기도 하고(`max(($13), ($14))`) 안 감싸기도 합니다
+      (`max($2,$3,$4,$5)`, `$17+$18`). 그래서 치환은 문자열 어디서든
+      `\$(\d+)` 토큰을 바꾸는 것이고, 괄호나 함수 안이라고 가정하지 않습니다.
+    * 같은 참조가 두 번 나올 수 있습니다(`max($5,$6,$6,$7)`).
+    * `$N` 이 **다른 formula parameter** 를 가리킬 수 있습니다. `MAX_DEL =
+      max(($10)..($14))` 에서 `$11`–`$14` 가 모두 formula(MC_BS-SB1 등)이고,
+      `MF_WIG = $12+$13+$14` 도 셋 다 formula 입니다. 화면은 이름만 바꿔 보여
+      주므로 중첩을 풀지 않습니다.
+
+  formula parameter 의 특징 (office 확인 2026-10-22):
+
+    * 모두 실제 ENMP slot 이 있습니다(`img_add2` 가 `non` 이 아님) — 수식이
+      그 파일에 있으므로 화면이 항상 읽을 수 있습니다.
+    * AMP(PRMS) 의 `Measurement` 는 정확히 `Formula` 입니다. 이름 없는 것도
+      같습니다.
+    * **이름이 없을 수 있습니다** — `Parameter` 가 `""` 인 row 로
+      idp_image_info 에 있고(예: `abs($2-$3)`), Formula 표도 똑같이 나옵니다.
+      다른 수식이 이름 없는 block 을 가리키면 빈 문자열로 바꾸지 않고 `$N`
+      그대로 둡니다. 화면의 parameter 이름 칸은 `(이름 없음)` 으로 보입니다.
+      OFFICE-VERIFY: 이름 없는 block 이 formula 가 아닌 경우도 있는지.
+
+  CG5000(구형 장비)의 ENMP 에도 같은 형식의 formula 줄이 있습니다
+  (office 확인 2026-10-22).
 
   key 철자는 `Formula` 입니다 (user-confirmed 2026-10-22). 사무실 쪽 전달문에
   `Formular` 도 섞여 나왔지만 전달 오타였습니다 — 위 "이상해 보이는 철자" 절의

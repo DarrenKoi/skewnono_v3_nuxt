@@ -905,23 +905,67 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
     # ENMP carries the `formula` line, empty on non-Formula parameters — and
     # the reader sets nothing for an empty one, so the GROUP'S PRESENCE is the
     # flag. Hence present only for _is_formula_parameter, never as an empty row.
-    "formula": (("Formula", lambda _: _FORMULA_SAMPLE),),
+    # Drawn LAST, so choosing a sample shifts no earlier group's values.
+    "formula": (("Formula", lambda r: r.choice(_FORMULA_SAMPLES)),),
 }
 
-# The one formula seen, kept verbatim. $13-$15 resolve on any mock recipe,
-# since generate_idp_image_info emits 20 rows.
-_FORMULA_SAMPLE = "max(($13), ($14), ($15))"
+# Real formulas, verbatim (office 확인 2026-10-22). Together they carry every
+# shape the office reported: refs with AND without the ($N) wrapping, bare `+`,
+# min/max/average/abs, and a duplicate ref. All resolve on any mock recipe,
+# whose blocks run 1-20. Refs to another formula parameter are real too
+# (MAX_DEL = max over formulas) and happen here whenever a ref lands on one.
+_FORMULA_SAMPLES: tuple[str, ...] = (
+    "max(($13), ($14), ($15))",
+    "max($2,$3,$4,$5)",
+    "$17+$18",
+    "abs($2-$3)",
+    "max($5,$6,$6,$7)",
+    "min($8,$9)",
+    "average($10,$11,$12)",
+)
+
+
+def _formula_parameter_name(idp: str) -> str:
+    """The one NAMED parameter per recipe that is computed. Drawn from
+    Para_1..Para_20, the names generate_idp_image_info uses — so most mock
+    recipes show one, and a recipe that never drew that name shows none."""
+    return f"Para_{1 + _seed_for_values('formula', idp) % 20}"
 
 
 def _is_formula_parameter(idp: str, parameter: str) -> bool:
-    """One parameter name per recipe is the computed one.
+    """Whether AMP and ENMP treat this parameter as computed.
 
-    Keyed on (idp, parameter) because AMP and ENMP must agree on it and that is
-    the scope both blocks share. Drawn from Para_1..Para_20, the names
-    generate_idp_image_info uses — so most mock recipes show one, and a recipe
-    that never drew that name shows none, which the office also has.
+    Keyed on (idp, parameter) because that is the scope both blocks share. An
+    UNNAMED parameter is always a formula here: the office's unnamed sample was
+    one (abs($2-$3), office 확인 2026-10-22), and the only unnamed row the mock
+    emits is that one (_unnamed_formula_row). Whether an unnamed block can be
+    a measured one is OFFICE-VERIFY.
     """
-    return parameter == f"Para_{1 + _seed_for_values('formula', idp) % 20}"
+    return parameter == "" or parameter == _formula_parameter_name(idp)
+
+
+def _unnamed_formula_row(seq: int) -> IdpImageInfoRow:
+    """A computed parameter with an EMPTY name (office 확인 2026-10-22).
+
+    The office has them — `Parameter` "" in idp_image_info, formula and AMP
+    Measurement 'Formula' like any other. Every mock recipe gets one, as its
+    last block, because a row that rarely renders is a path nobody develops;
+    the RATE is fabricated. Its flags are fabricated too (all off, Region 1):
+    what a computed block carries there is unread.
+    """
+    return {
+        "Parameter": "",
+        **{slot: f"{rawfiles.SLOT_PREFIX[slot]}{seq:04d}"
+           for slot in ("img_add1", "img_add2", "img_meas1", "img_meas2", "image_add3")},
+        "SEQ": seq,
+        "Last_SEQ": seq,
+        "Region": 1,
+        "Addressing": False,
+        "Mother_Para": False,
+        "Double_Addressing": False,
+        "Meas_Counting": 1,
+        "dnumber_removed": False,
+    }
 
 # The groups an addressing pass contributes, in that same office order. Slicing
 # this by pass count is what "none / once / twice" means here.
@@ -1471,12 +1515,24 @@ def get_recipe_open_data(
     rng = random.Random(_seed_for_values(resolved_recipe_id, resolved_fab_name, resolved_tool_category))
 
     idp_rows = generate_idp_image_info(rng=rng)
+    wafer_mp_info = generate_wafer_mp_info(rng=rng, idp_rows=idp_rows)
+    wafer_align_info = generate_wafer_align_info(rng=rng)
+    locator = _fake_locator(resolved_recipe_id)
+
+    # Formula parameters, applied after every rng draw so no other value moves.
+    # Every one has a real ENMP slot (office 확인 2026-10-22) — the formula
+    # lives there — so the 1-in-4 empty img_add2 _slot draws is undone for them.
+    formula_name = _formula_parameter_name(str(locator["idp"]))
+    for row in idp_rows:
+        if row["Parameter"] == formula_name:
+            row["img_add2"] = f"{rawfiles.SLOT_PREFIX['img_add2']}{row['SEQ']:04d}"
+    idp_rows.append(_unnamed_formula_row(len(idp_rows) + 1))
 
     return {
-        "wafer_mp_info": generate_wafer_mp_info(rng=rng, idp_rows=idp_rows),
-        "wafer_align_info": generate_wafer_align_info(rng=rng),
+        "wafer_mp_info": wafer_mp_info,
+        "wafer_align_info": wafer_align_info,
         "idp_image_info": idp_rows,
-        "locator": _fake_locator(resolved_recipe_id),
+        "locator": locator,
         "recipe_id": resolved_recipe_id,
         "fab_name": resolved_fab_name,
         "tool_category": resolved_tool_category,
