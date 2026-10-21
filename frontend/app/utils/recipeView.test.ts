@@ -552,3 +552,15 @@ test('resolveFormula is null without a formula group, the non-Formula case', () 
   assert.equal(resolveFormula([{ key: 'Mag', value: '0', section: 'measurement_focusing' }], names), null)
   assert.equal(resolveFormula(null, names), null)
 })
+
+test('splitAfPrSectionsByDomain drops the formula group — the AMP tab shows it resolved', () => {
+  const grouped = splitAfPrSectionsByDomain({
+    source: 'ENMP0001',
+    rows: [
+      { key: 'Mag', value: '0', section: 'measurement_focusing' },
+      { key: 'Formula', value: '$1+$2', section: 'formula' }
+    ]
+  })
+  assert.equal(grouped.measurement?.rows.length, 1)
+  assert.deepEqual(grouped.other?.rows, [])
+})

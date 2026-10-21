@@ -191,6 +191,9 @@ export function splitAfPrSectionsByDomain(
 
   for (const row of block.rows) {
     const section = row.section?.trim().toLowerCase() ?? ''
+    // The formula is shown resolved on the AMP tab (resolveFormula); a raw copy
+    // here would read as a stray AF/PR setting.
+    if (section === 'formula') continue
     if (section.startsWith('addressing_')) {
       addressing.push(row)
     } else if (section.startsWith('measurement_')) {
