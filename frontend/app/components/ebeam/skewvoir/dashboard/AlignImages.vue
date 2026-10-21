@@ -7,7 +7,7 @@
       icon="i-lucide-images"
       label="Align 이미지"
       :disabled="!images.length"
-      @click="open = true"
+      @click="openPopup"
     />
 
     <Teleport to="body">
@@ -39,8 +39,21 @@
             </button>
           </div>
 
+          <!-- Held until the warm job has the files in the cache: a cold GET does
+               the tool-FTP fetch inside the request, which the cloud ingress
+               502s into a blank tile (utils/imageWarm.ts). -->
+          <p
+            v-if="warm.status === 'warming'"
+            class="flex items-center justify-center gap-2 py-8 sk-body"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="h-4 w-4 animate-spin"
+            />
+            {{ warmProgressLabel(warm.done, warm.total) }}
+          </p>
           <div
-            v-if="images.length"
+            v-else-if="images.length"
             class="grid grid-cols-2 gap-3 sm:grid-cols-3"
           >
             <figure
@@ -90,6 +103,7 @@
 <script setup lang="ts">
 import type { SkewvoirAnalysis } from '~/composables/useSkewvoirAnalysis'
 import { isTiffName } from '~/utils/imageKind'
+import { warmProgressLabel } from '~/utils/imageWarm'
 
 const props = defineProps<{ analysis: SkewvoirAnalysis }>()
 
@@ -117,6 +131,19 @@ const images = computed(() => {
     score: a.score[key] ?? '—'
   }))
 })
+
+// Warm lazily: the scope stays empty (the warmer's no-op) until the first
+// click, so a page view that never opens the popup never pulls these files
+// off the tool or takes a job slot from the gallery's own warm.
+const requested = ref(false)
+const warm = useMsrImageWarmer(focusCtx, computed(() => ({
+  id: 'align',
+  names: requested.value ? images.value.map(img => img.name) : []
+})))
+const openPopup = () => {
+  requested.value = true
+  open.value = true
+}
 
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') open.value = false
