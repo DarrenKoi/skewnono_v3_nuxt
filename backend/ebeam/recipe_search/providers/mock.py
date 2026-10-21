@@ -117,6 +117,7 @@ fabricated; only the shape imitates.
 
 import hashlib
 import random
+import re
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -905,8 +906,10 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
     # ENMP carries the `formula` line, empty on non-Formula parameters — and
     # the reader sets nothing for an empty one, so the GROUP'S PRESENCE is the
     # flag. Hence present only for _is_formula_parameter, never as an empty row.
-    # Drawn LAST, so choosing a sample shifts no earlier group's values.
-    "formula": (("Formula", lambda r: r.choice(_FORMULA_SAMPLES)),),
+    # Drawn LAST, so choosing a sample shifts no earlier group's values. The
+    # generator is _formula_sample, called from _afpr_block: it needs the
+    # block's own number, which a one-argument generator cannot see.
+    "formula": (("Formula", None),),
 }
 
 # Real formulas, verbatim (office 확인 2026-10-22). Together they carry every
@@ -932,6 +935,22 @@ def _formula_parameter_name(idp: str) -> str:
     return f"Para_{1 + _seed_for_values('formula', idp) % 20}"
 
 
+def _formula_sample(rng: random.Random, source: str) -> str:
+    """A real formula that does not reference its OWN block.
+
+    The block number is the file's (ENMP0014 -> 14, office 확인 2026-10-22). A
+    formula naming itself is a cycle no recipe can hold. Only the own block is
+    excluded: whether a mock name repeated at another block counts as "itself"
+    is a mock artefact, since the mock draws names with repeats.
+    """
+    match = re.search(r"(\d+)$", source)
+    own = int(match.group(1)) if match else -1
+    return rng.choice([
+        formula for formula in _FORMULA_SAMPLES
+        if own not in {int(n) for n in re.findall(r"\$(\d+)", formula)}
+    ])
+
+
 def _is_formula_parameter(idp: str, parameter: str) -> bool:
     """Whether AMP and ENMP treat this parameter as computed.
 
@@ -944,14 +963,22 @@ def _is_formula_parameter(idp: str, parameter: str) -> bool:
     return parameter == "" or parameter == _formula_parameter_name(idp)
 
 
-def _unnamed_formula_row(seq: int) -> IdpImageInfoRow:
+def _unnamed_formula_row(seq: int, region: int) -> IdpImageInfoRow:
     """A computed parameter with an EMPTY name (office 확인 2026-10-22).
 
     The office has them — `Parameter` "" in idp_image_info, formula and AMP
     Measurement 'Formula' like any other. Every mock recipe gets one, as its
     last block, because a row that rarely renders is a path nobody develops;
-    the RATE is fabricated. Its flags are fabricated too (all off, Region 1):
-    what a computed block carries there is unread.
+    the RATE is fabricated. Its flags are fabricated too (all off): what a
+    computed block carries there is unread.
+
+    ``region`` is passed in as one that already HAS a mother. A fixed Region 1
+    could be a region no other row drew, leaving it motherless — breaking the
+    one-mother-per-Region invariant generate_idp_image_info keeps.
+
+    OFFICE-VERIFY: whether a formula parameter can be a Region mother. The
+    NAMED mock formula parameter may draw Mother_Para True; nothing says it
+    cannot, so no rule is invented here.
     """
     return {
         "Parameter": "",
@@ -959,7 +986,7 @@ def _unnamed_formula_row(seq: int) -> IdpImageInfoRow:
            for slot in ("img_add1", "img_add2", "img_meas1", "img_meas2", "image_add3")},
         "SEQ": seq,
         "Last_SEQ": seq,
-        "Region": 1,
+        "Region": region,
         "Addressing": False,
         "Mother_Para": False,
         "Double_Addressing": False,
@@ -1034,7 +1061,10 @@ def _afpr_block(source: str | None, *scope: str) -> SettingBlock | None:
         "rows": [
             {
                 "key": key,
-                "value": generate(rng) if generate else _unknown_value(rng),
+                "value": (
+                    _formula_sample(rng, source) if section == "formula"
+                    else generate(rng) if generate else _unknown_value(rng)
+                ),
                 "section": section,
             }
             for section in _afpr_sections(rng, _is_formula_parameter(*scope))
@@ -1526,7 +1556,7 @@ def get_recipe_open_data(
     for row in idp_rows:
         if row["Parameter"] == formula_name:
             row["img_add2"] = f"{rawfiles.SLOT_PREFIX['img_add2']}{row['SEQ']:04d}"
-    idp_rows.append(_unnamed_formula_row(len(idp_rows) + 1))
+    idp_rows.append(_unnamed_formula_row(len(idp_rows) + 1, idp_rows[-1]["Region"]))
 
     return {
         "wafer_mp_info": wafer_mp_info,

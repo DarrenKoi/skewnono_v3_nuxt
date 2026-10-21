@@ -211,3 +211,19 @@ def test_measurement_locations_404s_on_a_recipe_the_index_lacks(client):
     # for "no document in the IDP version index".
     response = client.get("/api/cdsem/recipe-search/measurement-locations?recipe_name=RCP_001")
     assert response.status_code == 404
+
+
+# ── unnamed parameters ────────────────────────────────────────────────────
+
+
+def test_a_missing_parameter_is_400_but_an_empty_one_names_the_unnamed_blocks(client):
+    """Unnamed formula blocks are real (office 확인 2026-10-22) and /parameters
+    lists them with Parameter "". Refusing `parameter=` would make a row the
+    API itself listed unreachable — so only a MISSING parameter is the error."""
+    base = "/api/cdsem/recipe-search/measurement-points?recipe_name=RACE/DEAE_ABC123_PROD_00001"
+    assert "" in {row["Parameter"] for row in _listing(client)["rows"]}
+
+    assert client.get(base).status_code == 400
+    response = client.get(f"{base}&parameter=")
+    assert response.status_code == 200
+    assert response.get_json()["parameter"] == ""

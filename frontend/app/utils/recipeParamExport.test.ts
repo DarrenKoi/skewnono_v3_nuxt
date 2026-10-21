@@ -323,3 +323,14 @@ test('whole-recipe 측정 위치 carries every parameter\'s points', () => {
 test('whole-recipe filename is the recipe, sanitised', () => {
   assert.equal(recipeExportFilename('RCP/001'), 'RCP_001_all.xlsx')
 })
+
+test('an unnamed block exports as unnamed_SEQ<n>, so two of them do not collide', () => {
+  assert.equal(paramExportFilename('RCP/001', '', 21), 'RCP_001_unnamed_SEQ21.xlsx')
+  assert.equal(paramExportFilename('RCP/001', 'Para_13', 4), 'RCP_001_Para_13.xlsx')
+})
+
+test('a formula adds a Formula sheet after AMP with the raw and resolved forms', () => {
+  const wb = buildParamWorkbook({ ...input(MEASURE), formula: { raw: '$1+$2', resolved: 'A+B' } })
+  assert.deepEqual(wb.sheets.map(s => s.name), ['개요', 'AMP', 'Formula', 'AF_PR', '이미지', '측정 위치'])
+  assert.deepEqual(sheet(wb, 'Formula').rows, [['원본', '$1+$2'], ['해석', 'A+B']])
+})

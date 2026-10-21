@@ -28,9 +28,9 @@
  * Design_Value are the settings an engineer opens this screen to read, and they
  * were previously the smaller half of a two-column grid.
  *
- * A computed parameter (AMP Measurement = `Formula`) gets its formula above the
- * AMP table — read from the ENMP file's `formula` group, its `$N` references
- * named by block number (office 확인 2026-10-22).
+ * A computed parameter gets its formula above the AMP table — read from the
+ * ENMP file's `formula` group, its `$N` references named by block number
+ * (office 확인 2026-10-22).
  */
 import type { ParamDetail, SettingBlock } from '~/composables/useRecipeParamDetail'
 import { resolveFormula } from '~/utils/recipeView'
@@ -43,11 +43,12 @@ const props = defineProps<{
   refNames: ReadonlyMap<number, string>
 }>()
 
+// The formula GROUP is the flag (office 확인 2026-10-22), so it alone decides:
+// gating on AMP Measurement too would hide a real formula whenever the PRMS
+// file is missing or unreadable.
 const formulaBlock = computed<SettingBlock | null>(() => {
-  const amp = props.detail?.amp
   const afPr = props.detail?.af_pr
-  if (!amp || !afPr) return null
-  if (amp.rows.find(row => row.key === 'Measurement')?.value !== 'Formula') return null
+  if (!afPr) return null
   const formula = resolveFormula(afPr.rows, props.refNames)
   if (!formula) return null
   return {

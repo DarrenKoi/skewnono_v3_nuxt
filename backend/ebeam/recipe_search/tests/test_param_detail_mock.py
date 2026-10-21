@@ -739,6 +739,9 @@ def test_recipe_open_carries_an_unnamed_formula_row_with_an_enmp_file():
     unnamed = [r for r in rows if r["Parameter"] == ""]
     assert len(unnamed) == 1 and unnamed[0] is rows[-1]
     assert unnamed[0]["SEQ"] == len(rows)
+    # Joins a region that already has its mother, never founds a motherless one.
+    region = unnamed[0]["Region"]
+    assert sum(r["Mother_Para"] for r in rows if r["Region"] == region) == 1
 
     for row in rows:
         if mock._is_formula_parameter(idp, row["Parameter"]):
@@ -747,3 +750,16 @@ def test_recipe_open_carries_an_unnamed_formula_row_with_an_enmp_file():
                     "slots": {k: row[k] for k in ("img_meas2", "img_add2")}}
             found = mock.get_param_detail([item])[0]
             assert any(r["section"] == "formula" for r in found["af_pr"]["rows"])
+
+
+def test_a_formula_never_references_its_own_block():
+    """ENMP00NN is block NN (office 확인 2026-10-22); $NN inside it would be a
+    cycle no recipe can hold."""
+    idp = LOCATOR["idp"]
+    name = mock._formula_parameter_name(idp)
+    for block in range(1, 22):
+        item = {"locator": LOCATOR, "parameter": name,
+                "slots": {"img_add2": f"PRMP{block:04d}"}}
+        rows = mock.get_param_detail([item])[0]["af_pr"]["rows"]
+        formula = next(r["value"] for r in rows if r["section"] == "formula")
+        assert block not in {int(n) for n in re.findall(r"\$(\d+)", formula)}, (block, formula)

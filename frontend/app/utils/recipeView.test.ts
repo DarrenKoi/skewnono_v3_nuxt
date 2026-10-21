@@ -564,3 +564,12 @@ test('splitAfPrSectionsByDomain drops the formula group — the AMP tab shows it
   assert.equal(grouped.measurement?.rows.length, 1)
   assert.deepEqual(grouped.other?.rows, [])
 })
+
+test('formulaRefNames falls back to img_add2, and the first row keeps a duplicated number', () => {
+  const names = formulaRefNames([
+    { Parameter: 'A', img_meas2: 'non', img_add2: 'PRMP0001' },
+    { Parameter: 'B', img_meas2: 'PRMS0002', img_add2: 'non' },
+    { Parameter: 'C', img_meas2: 'PRMS0002', img_add2: 'PRMP0002' }
+  ] as IdpImageInfoRow[])
+  assert.deepEqual([...names], [[1, 'A'], [2, 'B']])
+})

@@ -12,7 +12,7 @@
 
 import type { IdpImageInfoRow, IdpLocator, WaferMpInfoRow } from '../composables/useRecipeSearchApi.ts'
 import type { ParamDetail, ParamImage, SettingBlock } from '../composables/useRecipeParamDetail.ts'
-import { IMAGE_SLOTS, MP_TABLE_COLUMNS } from './recipeView.ts'
+import { IMAGE_SLOTS, MP_TABLE_COLUMNS, type ResolvedFormula } from './recipeView.ts'
 import { createWorkbook, writeWorkbook } from './xlsx.ts'
 import { safeFileNamePart } from './tableExport.ts'
 
@@ -71,6 +71,9 @@ export interface ParamExportInput extends ExportMeta {
   mpRows: WaferMpInfoRow[]
   /** Which image slots to include. Order is normalised to SLOT_ORDER. */
   slots: string[]
+  /** A computed parameter's formula as the AMP tab shows it, `$N` named. The
+   *  AF_PR sheet keeps the raw row; this adds the resolved one beside it. */
+  formula?: ResolvedFormula | null
 }
 
 /** The whole recipe: every parameter row and every measurement location.
@@ -246,6 +249,9 @@ export function buildParamWorkbook(input: ParamExportInput): ParamWorkbook {
     sheets: [
       overviewSheet(input),
       blockSheet('AMP', input.detail?.amp),
+      ...(input.formula
+        ? [{ name: 'Formula', rows: [['원본', input.formula.raw], ['해석', input.formula.resolved]] }]
+        : []),
       blockSheet('AF_PR', input.detail?.af_pr, true),
       sheet,
       tableSheet(MP_SHEET, MP_FIELDS, input.mpRows, NO_POINTS)
@@ -275,8 +281,11 @@ export function buildRecipeWorkbook(input: RecipeExportInput): ParamWorkbook {
 /** `RCP_001_Para_13.xlsx`. Recipe and parameter names come from the office and
  *  can carry characters a filesystem rejects, so they go through the shared
  *  `safeFileNamePart` — the same one every other export filename uses. */
-export function paramExportFilename(recipeId: string, parameter: string): string {
-  return `${safeFileNamePart(recipeId)}_${safeFileNamePart(parameter)}.xlsx`
+export function paramExportFilename(recipeId: string, parameter: string, seq?: number): string {
+  // An UNNAMED block (real, office 확인 2026-10-22) is named by its SEQ, so the
+  // file is not `RCP_.xlsx` and two unnamed blocks do not overwrite each other.
+  const name = parameter || (seq == null ? '' : `unnamed_SEQ${seq}`)
+  return `${safeFileNamePart(recipeId)}_${safeFileNamePart(name)}.xlsx`
 }
 
 /** `RCP_001_all.xlsx` — the whole-recipe workbook. */

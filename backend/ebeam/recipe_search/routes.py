@@ -143,7 +143,10 @@ def _resolve_recipe_request(tool_slug: str, *, needs_parameter: bool):
     parameter = (request.args.get("parameter") or "").strip()
     if not recipe_name:
         return None, (jsonify({"error": "recipe_name is required"}), 400)
-    if needs_parameter and not parameter:
+    # MISSING is the error, not empty: `parameter=` names the UNNAMED blocks
+    # (real — formula parameters, office 확인 2026-10-22), which /parameters
+    # lists and the exact-match lookups below find like any other name.
+    if needs_parameter and "parameter" not in request.args:
         return None, (jsonify({"error": "parameter is required"}), 400)
 
     return (tool_type, recipe_name, parameter, resolve_fab_name()), None

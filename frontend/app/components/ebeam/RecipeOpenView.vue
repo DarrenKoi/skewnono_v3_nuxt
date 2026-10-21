@@ -248,6 +248,7 @@ import {
 import {
   IMAGE_SLOTS,
   formulaRefNames,
+  resolveFormula,
   isRecipeDetailScreenSupported,
   readRecipeNameQuery,
   readRecipeSourceQuery
@@ -488,11 +489,12 @@ const downloadExcel = async (withAddressing: boolean) => {
       idp: row,
       detail: paramDetail.value,
       mpRows: mpRowsForSelected.value,
-      slots
+      slots,
+      formula: resolveFormula(paramDetail.value?.af_pr?.rows, formulaRefs.value)
     })
     await downloadParamWorkbook(
       workbook,
-      paramExportFilename(titleRecipeName.value, row.Parameter),
+      paramExportFilename(titleRecipeName.value, row.Parameter, row.SEQ),
       imageUrlOf
     )
   } catch (err) {
