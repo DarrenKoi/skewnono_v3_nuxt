@@ -58,6 +58,20 @@ def test_a_flat_pair_beside_grouped_ones_keeps_its_own_row():
     assert rows[1]["section"] == "measurement_focusing"
 
 
+def test_the_formula_group_flows_through_as_one_tagged_row():
+    """The ninth ENMP group (office 확인 2026-10-22) needs no adapter change:
+    the reader sets it only when the formula line is non-empty, and the
+    dict-of-dicts branch tags it like any other group."""
+    rows = office._to_rows({
+        "measurement_focusing": {"Mag": "0"},
+        "formula": {"Formula": "max(($13), ($14), ($15))"},
+    })
+
+    assert rows[-1] == {
+        "key": "Formula", "value": "max(($13), ($14), ($15))", "section": "formula",
+    }
+
+
 def test_a_flat_dict_gains_no_section():
     """The four flat readers must be untouched — that is what keeps their
     tables rendering byte-identically to before."""

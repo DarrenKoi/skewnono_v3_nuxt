@@ -5,7 +5,8 @@ import {
   recipeTableUi, IMAGE_SLOTS, EMPTY_SLOT, isEmptySlot,
   formatSettingValue, recipeDetailRoute, recipeDetailId, RECIPE_ROW_ACTIONS, buildRecipeDetailNavItems,
   readRecipeNameQuery, readRecipeSourceQuery, readRecipeOwnerFabQuery, formatRecipeTimestamp,
-  isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain, formatFixed
+  isSequenceSection, splitSequenceSections, splitAfPrSectionsByDomain, formatFixed,
+  resolveFormula
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
@@ -509,4 +510,26 @@ test('formatFixed falls back rather than throwing on anything unparseable', () =
   assert.equal(formatFixed(Infinity, 3), '—')
   assert.equal(formatFixed({}, 3), '—')
   assert.equal(formatFixed('n/a', 3, ''), '')
+})
+
+test('resolveFormula names each $N by its 1-based position in the parameter list', () => {
+  const parameters = Array.from({ length: 15 }, (_, i) => `P${i + 1}`)
+  const rows = [
+    { key: 'Mag', value: '0', section: 'measurement_focusing' },
+    { key: 'Formula', value: 'max(($13), ($14), ($15))', section: 'formula' }
+  ]
+  assert.deepEqual(resolveFormula(rows, parameters), {
+    raw: 'max(($13), ($14), ($15))',
+    resolved: 'max((P13), (P14), (P15))'
+  })
+})
+
+test('resolveFormula keeps $N for a reference past the end or to an unnamed block', () => {
+  const rows = [{ key: 'Formula', value: '$1 + $2 + $9', section: 'formula' }]
+  assert.equal(resolveFormula(rows, ['A', ''])?.resolved, 'A + $2 + $9')
+})
+
+test('resolveFormula is null without a formula group, the non-Formula case', () => {
+  assert.equal(resolveFormula([{ key: 'Mag', value: '0', section: 'measurement_focusing' }], ['A']), null)
+  assert.equal(resolveFormula(null, ['A']), null)
 })

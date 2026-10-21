@@ -858,7 +858,8 @@ ENMP… — AF/PR 파일은 **중첩 dict** 입니다 (office 확인 2026-07-30)
 ==================================================================
 
 `read_af_pr_condition` 만 유일하게 **dict 안에 dict** 를 돌려줍니다. 나머지 넷은
-평평한 key/value 입니다. group 은 8개입니다.
+평평한 key/value 입니다. group 은 8개이고, Formula parameter 에는 9번째
+group `formula` 가 붙습니다 (아래 표 마지막 줄과 그 아래 절).
 
 group 과 그 안의 key 는 아래와 같습니다 (사무실 key 순서 그대로).
 
@@ -872,11 +873,36 @@ group 과 그 안의 key 는 아래와 같습니다 (사무실 key 순서 그대
   | addressing_pattern_recognition1 | addressing 1회 이상 | Acceptance · Wait(s) · ABC |
   | addressing_auto_focus2 | addressing 2회 | 1과 동일 |
   | addressing_pattern_recognition2 | addressing 2회 | 1과 동일 |
+  | formula | AMP `Measurement` 가 `Formula` 인 parameter | Formula |
 
 측정은 **기본 sequence(addressing → measurement)** 로 돌아가고, measurement
 직전의 addressing 은 parameter 에 따라 **none / once / twice** 로 선택됩니다.
 none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
 (user-confirmed 2026-07-30). `sequence_addressing` 도 마찬가지로 사라집니다.
+
+★ `formula` group — 계산으로 나오는 parameter (office 확인 2026-10-22)
+
+  일부 parameter 는 이미지를 재지 않고 같은 recipe 의 다른 parameter 값으로
+  **계산**합니다. ENMP 파일에는 `max(($13),...)` 같은 수식 줄이 **모든
+  parameter 에** 있고, Formula 가 아닌 parameter 에서는 빈 값입니다. reader 는
+  빈 값이면 아무것도 넣지 않으므로, **group 이 있느냐 자체가 표지**입니다.
+
+    {"formula": {"Formula": "max(($13), ($14), ($15))"}}
+
+  `_to_rows` 를 거치면 `{key: 'Formula', value: 'max(...)', section: 'formula'}`
+  한 줄이 됩니다. office adapter 는 바꾸지 않았습니다.
+
+  `$N` 은 recipe 의 **N 번째 parameter** 입니다 — 1부터, .idp block 순서
+  (office 확인 2026-10-22: `$13`–`$18` = CELL_BARY1…4, CELL_SPY, CELL_SPY1).
+  이름 없는 block 도 유효한 참조입니다. 화면은 이 순서를 `idp_image_info` 의 row
+  순서로 읽습니다(`resolveFormula`, frontend `utils/recipeView.ts`).
+
+  OFFICE-VERIFY: 삭제된(del) row 가 있는 recipe 에서 `$N` 이 파싱된
+  `idp_image_info` 순서와 어긋날 수 있는지. 아직 그런 recipe 를 본 적이 없습니다.
+
+  OFFICE-VERIFY: key 철자. 사무실 쪽 전달문에 `Formula` 와 `Formular` 가 함께
+  나왔습니다. 화면은 key 가 아니라 section(`formula`) 으로 찾으므로 어느 쪽이든
+  동작하지만, 표에 찍히는 이름은 사무실 값을 따릅니다.
 
 `sequence_*` 두 group 은 설정이 아니라 **sequence 의 단계 이름**을 나열합니다.
 그 아래 group 들이 각 단계의 실제 설정을 담습니다.

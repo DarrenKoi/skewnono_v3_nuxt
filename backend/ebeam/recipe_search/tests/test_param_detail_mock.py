@@ -403,7 +403,10 @@ def test_af_pr_rows_are_grouped_into_the_office_section_names():
         "measurement_pattern_recognition", "measurement_focusing",
         "addressing_auto_focus1", "addressing_pattern_recognition1",
         "addressing_auto_focus2", "addressing_pattern_recognition2",
+        "formula",
     }
+    # Para_1 is not IDP_B's formula parameter, so the ninth group stays away.
+    assert "formula" not in sections
     # The measurement half runs whatever the addressing choice is.
     assert {"sequence_measurement", "measurement_pattern_recognition",
             "measurement_focusing"} <= sections
@@ -694,3 +697,32 @@ def test_a_point_that_is_neither_om_nor_sem_has_no_image_condition():
     point = mock.get_align_detail(LOCATOR, [3])["points"][0]
     assert point["cond"] is None
     assert point["setting"] is not None
+
+
+def test_only_the_formula_parameter_carries_the_formula_group():
+    """The group's PRESENCE is the flag (office 확인 2026-10-22): the reader sets
+    nothing for an empty formula line, so a non-Formula parameter has no
+    `formula` section at all — never an empty row. AMP agrees on which
+    parameter it is, since the screen keys its formula table on Measurement."""
+    def detail(parameter):
+        item = {"locator": LOCATOR, "parameter": parameter,
+                "slots": {"img_meas2": "PRMS0001", "img_add2": "PRMP0001"}}
+        return mock.get_param_detail([item])[0]
+
+    names = [f"Para_{n}" for n in range(1, 21)]
+    formula = [p for p in names if mock._is_formula_parameter(LOCATOR["idp"], p)]
+    assert len(formula) == 1
+
+    for parameter in names:
+        found = detail(parameter)
+        rows = [r for r in found["af_pr"]["rows"] if r["section"] == "formula"]
+        measurement = {r["key"]: r["value"] for r in found["amp"]["rows"]}["Measurement"]
+        if parameter in formula:
+            assert rows == [{"key": "Formula", "value": "max(($13), ($14), ($15))",
+                             "section": "formula"}]
+            # The ninth group comes last, after the eight it was added beside.
+            assert found["af_pr"]["rows"][-1] == rows[0]
+            assert measurement == "Formula"
+        else:
+            assert rows == []
+            assert measurement == "Width"

@@ -192,6 +192,7 @@
               :detail="paramDetail"
               :pending="paramPending"
               :error="paramError"
+              :parameters="idpParameters"
             />
 
             <EbeamRecipeOpenSequenceSettings
@@ -302,6 +303,8 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeDetailRespons
 
 const waferMpRows = computed(() => data.value?.wafer_mp_info ?? [])
 const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
+// Row order IS .idp block order, which is what a formula's $N counts in.
+const idpParameters = computed(() => idpImageRows.value.map(row => row.Parameter))
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
 

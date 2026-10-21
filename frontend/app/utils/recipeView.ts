@@ -121,6 +121,34 @@ export function splitSequenceSections(block: SettingBlock | null): SplitSettingB
   }
 }
 
+export interface ResolvedFormula {
+  /** The formula as the ENMP file writes it, `max(($13), ($14))`. */
+  raw: string
+  /** The same with each `$N` replaced by the parameter it names. */
+  resolved: string
+}
+
+/**
+ * A computed parameter's formula, with its `$N` references named.
+ *
+ * `$N` is the recipe's N-th parameter, 1-based, in .idp block order (office 확인
+ * 2026-10-22) — `parameters` is that list, i.e. `idp_image_info`'s Parameter
+ * column in row order. A reference past the end, or to an unnamed block, stays
+ * `$N` rather than resolving to something wrong.
+ *
+ * Found by the `formula` SECTION, not the key, because the group's presence is
+ * the office's flag; `null` means this parameter is not computed.
+ */
+export function resolveFormula(
+  rows: readonly SettingRow[] | null | undefined,
+  parameters: readonly string[]
+): ResolvedFormula | null {
+  const raw = rows?.find(row => row.section === 'formula')?.value
+  if (!raw) return null
+  const resolved = raw.replace(/\$(\d+)/g, (ref, n: string) => parameters[Number(n) - 1] || ref)
+  return { raw, resolved }
+}
+
 export interface SplitAfPrSettingBlock {
   addressing: SettingBlock | null
   measurement: SettingBlock | null

@@ -722,23 +722,29 @@ def _unknown_value(rng: random.Random) -> str:
 
 
 def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
-    """The PRMS… AMP file, with its REAL field names (office 확인 2026-07-30)."""
+    """The PRMS… AMP file, with its REAL field names (office 확인 2026-07-30).
+
+    The formula parameter's Measurement reads 'Formula' — the value the screen
+    keys its formula table on (see _is_formula_parameter). Its other AMP fields
+    are kept as for any parameter: whether a computed parameter's AMP carries
+    them at all is OFFICE-VERIFY.
+    """
     if source is None:
         return None
     rng = _seeded_rng(source, *scope)
-    return {
-        "source": source,
-        "rows": [
-            {"key": key, "value": generate(rng) if generate else _unknown_value(rng)}
-            for key, generate in _AMP_FIELDS
-        ]
-    }
+    rows = [
+        {"key": key, "value": generate(rng) if generate else _unknown_value(rng)}
+        for key, generate in _AMP_FIELDS
+    ]
+    if _is_formula_parameter(*scope):
+        rows[0]["value"] = "Formula"
+    return {"source": source, "rows": rows}
 
 
 # ── ENMP…, the AF/PR file (office 확인 2026-07-30) ─────────────────────────
 #
 # read_af_pr_condition is the ONE reader that returns a dict OF DICTS rather
-# than a flat mapping. Eight groups, which is why SettingRow grew an optional
+# than a flat mapping. Eight groups (nine with `formula`), which is why SettingRow grew an optional
 # ``section``: flattening them would put two passes of the same settings under
 # one heading, and dotting the names together would leave the grouping
 # recoverable only by string-splitting.
@@ -894,7 +900,28 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
     "addressing_pattern_recognition1": _PR_FIELDS,
     "addressing_auto_focus2": _AF_FIELDS,
     "addressing_pattern_recognition2": _PR_FIELDS,
+    # The ninth group (office 확인 2026-10-22): a computed parameter's formula,
+    # $N = the recipe's N-th parameter, 1-based .idp block order. Every real
+    # ENMP carries the `formula` line, empty on non-Formula parameters — and
+    # the reader sets nothing for an empty one, so the GROUP'S PRESENCE is the
+    # flag. Hence present only for _is_formula_parameter, never as an empty row.
+    "formula": (("Formula", lambda _: _FORMULA_SAMPLE),),
 }
+
+# The one formula seen, kept verbatim. $13-$15 resolve on any mock recipe,
+# since generate_idp_image_info emits 20 rows.
+_FORMULA_SAMPLE = "max(($13), ($14), ($15))"
+
+
+def _is_formula_parameter(idp: str, parameter: str) -> bool:
+    """One parameter name per recipe is the computed one.
+
+    Keyed on (idp, parameter) because AMP and ENMP must agree on it and that is
+    the scope both blocks share. Drawn from Para_1..Para_20, the names
+    generate_idp_image_info uses — so most mock recipes show one, and a recipe
+    that never drew that name shows none, which the office also has.
+    """
+    return parameter == f"Para_{1 + _seed_for_values('formula', idp) % 20}"
 
 # The groups an addressing pass contributes, in that same office order. Slicing
 # this by pass count is what "none / once / twice" means here.
@@ -927,7 +954,7 @@ _AFPR_PASS_SECTIONS: tuple[tuple[str, ...], ...] = (
 # renders whatever arrives.
 
 
-def _afpr_sections(rng: random.Random) -> tuple[str, ...]:
+def _afpr_sections(rng: random.Random, formula: bool) -> tuple[str, ...]:
     """The groups this parameter's ENMP carries, for 0, 1 or 2 addressing passes.
 
     Office-side the passes are whatever the file itself contains. Here they are
@@ -947,8 +974,9 @@ def _afpr_sections(rng: random.Random) -> tuple[str, ...]:
     }
     return tuple(
         section for section in _AFPR_SECTION_FIELDS
-        if not section.startswith(("sequence_addressing", "addressing_"))
-        or section in present
+        if (section != "formula" or formula)
+        and (not section.startswith(("sequence_addressing", "addressing_"))
+             or section in present)
     )
 
 
@@ -965,7 +993,7 @@ def _afpr_block(source: str | None, *scope: str) -> SettingBlock | None:
                 "value": generate(rng) if generate else _unknown_value(rng),
                 "section": section,
             }
-            for section in _afpr_sections(rng)
+            for section in _afpr_sections(rng, _is_formula_parameter(*scope))
             for key, generate in _AFPR_SECTION_FIELDS[section]
         ]
     }
