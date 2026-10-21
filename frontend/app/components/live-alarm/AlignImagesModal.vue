@@ -160,13 +160,13 @@ watch(open, (isOpen) => {
             class="flex min-w-0 flex-col gap-1"
           >
             <div class="relative mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-md border border-zinc-300/70 bg-(--sk-field) dark:border-zinc-700">
-              <img
+              <RetryImg
                 :src="imageSrc(image.name)"
                 :alt="`${image.optic || `P.No ${image.p_no}`} 정렬 기준 이미지`"
                 loading="lazy"
                 decoding="async"
                 class="h-full w-full object-cover"
-              >
+              />
               <EbeamRecipeOpenCondMarks
                 v-if="showMarks"
                 :marks="image.marks"

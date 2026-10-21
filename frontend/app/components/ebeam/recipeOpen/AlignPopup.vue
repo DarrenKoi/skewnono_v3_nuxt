@@ -57,14 +57,14 @@
             @click="zoom = point"
           >
             <div class="relative mx-auto aspect-square w-full max-w-[220px] cursor-zoom-in overflow-hidden rounded-md border border-zinc-300/70 bg-(--sk-field) transition-colors group-hover:border-(--sk-brand) dark:border-zinc-700">
-              <img
+              <RetryImg
                 v-if="point.image"
                 :src="imageSrc(point.image)"
                 :alt="`P.No ${point.P_No} 정렬 이미지`"
                 loading="lazy"
                 decoding="async"
                 class="h-full w-full object-cover"
-              >
+              />
               <span class="absolute top-1 left-1 rounded-sm bg-(--sk-ink) px-1.5 py-px font-mono text-xs font-bold tracking-wider text-(--sk-ink-fg)">
                 P.No {{ point.P_No }}
               </span>
@@ -104,13 +104,13 @@
         class="grid h-full max-h-[88vh] grid-cols-1 gap-4 p-4 md:grid-cols-[1.4fr_320px]"
       >
         <div class="relative mx-auto flex aspect-square w-full max-w-[min(100%,78vh)] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-(--sk-field)">
-          <img
+          <RetryImg
             v-if="zoom.image"
             :src="imageSrc(zoom.image)"
             :alt="`P.No ${zoom.P_No} 정렬 이미지`"
             decoding="async"
             class="h-full w-full object-contain"
-          >
+          />
           <EbeamRecipeOpenCondMarks
             v-if="zoom.image && showMarks"
             :marks="zoom.marks"
