@@ -74,13 +74,19 @@
                 />
                 <span class="sk-meta">TIFF · 다운로드</span>
               </a>
-              <img
+              <!-- The tile auto-retries: the warm above is the main cure, and
+                   this covers a job that gave up before reaching a file. -->
+              <div
                 v-else
-                :src="resolveImageUrl(img.name) ?? undefined"
-                :alt="img.label"
-                class="w-full cursor-zoom-in rounded-(--sk-r-chip) border border-(--sk-border) transition hover:ring-2 hover:ring-(--sk-brand)"
-                @click="zoomSrc = resolveImageUrl(img.name)"
+                class="aspect-square w-full overflow-hidden rounded-(--sk-r-chip) border border-(--sk-border) transition hover:ring-2 hover:ring-(--sk-brand)"
               >
+                <EbeamSkewvoirDashboardSemImageTile
+                  :src="resolveImageUrl(img.name) ?? ''"
+                  :name="img.name"
+                  :label="img.label"
+                  @open="zoomSrc = resolveImageUrl(img.name)"
+                />
+              </div>
               <figcaption class="sk-meta">
                 {{ img.label }} · score {{ img.score }}
               </figcaption>
