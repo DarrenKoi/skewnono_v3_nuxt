@@ -244,6 +244,10 @@ columns : value (examples)
 
 "alignment": dict
 "image_file" : dict ("1":image file name, "2": image file name 2,..)
+user-confirmed (2026-10-21): alignment image 는 JPEG 이며 확장자는 `.jpg` 와
+`.jpeg` 두 가지가 모두 쓰입니다. TIFF 는 없으므로 브라우저에서 바로 표시됩니다.
+OFFICE-VERIFY: 한 MSR 안에서 두 표기가 섞이는지, 확장자 대소문자가 어떤지는
+확인되지 않았습니다.
 "offset" : dict ("1": ["OM", "365", "3525",..], "2": ["SEM", "3535", "3535"])
 "score" : dict ("1": "896", "2": "899",.., )
 OFFICE-VERIFY (2026-10-09): offset 의 단위와, 배열의 둘째·셋째 요소가 x·y 인지는

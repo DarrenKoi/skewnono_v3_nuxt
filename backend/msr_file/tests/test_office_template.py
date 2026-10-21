@@ -107,7 +107,7 @@ def _payload(result_rows: list[dict] | None = None) -> dict:
             "map_origin": "12,15",
         },
         "alignment": {
-            "image_file": {"1": "align_1.tif", "2": "align_2.tif"},
+            "image_file": {"1": "align_1.jpg", "2": "align_2.jpeg"},
             "offset": {"1": ["OM", "365", "3525"], "2": ["SEM", "3535", "3535"]},
             "score": {"1": "896", "2": "899"},
         },

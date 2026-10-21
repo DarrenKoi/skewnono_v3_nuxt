@@ -574,7 +574,14 @@ def _exe_detail_info(
 def _alignment(msr: str, health: float) -> AlignmentInfo:
     """Three alignment points. Scores are plain integers, seeded per MSR and
     trending lower as `health` rises. Nothing downstream thresholds on them yet,
-    so the exact scale is not load-bearing — keep it an int and keep it stable."""
+    so the exact scale is not load-bearing — keep it an int and keep it stable.
+
+    Image names end in `.jpg` OR `.jpeg`, mixed (user-confirmed 2026-10-21:
+    office alignment images are JPEG under both spellings — never TIFF, so the
+    popup renders real thumbnails). Whether one MSR mixes the two spellings or
+    one tool sticks to one is unknown, and so is case — OFFICE-VERIFY. The
+    spelling is read off the number already drawn, not a fresh draw, so the
+    seeded offsets and scores below stay what they were."""
     rng = random.Random(_seed(msr, 617))
     image_file: dict[str, str] = {}
     offset: dict[str, list[str]] = {}
@@ -583,7 +590,8 @@ def _alignment(msr: str, health: float) -> AlignmentInfo:
     for i in range(1, 4):
         key = str(i)
         method = "OM" if i == 1 else "SEM"
-        image_file[key] = f"{msr}_ALIGN{i}_{rng.randint(0, 9999):04d}.tif"
+        n = rng.randint(0, 9999)
+        image_file[key] = f"{msr}_ALIGN{i}_{n:04d}.{'jpeg' if n % 2 else 'jpg'}"
         offset[key] = [method, str(rng.randrange(-4000, 4000)), str(rng.randrange(-4000, 4000))]
         score[key] = str(max(0, int(round(rng.uniform(820, 960) - 400 * health))))
 
