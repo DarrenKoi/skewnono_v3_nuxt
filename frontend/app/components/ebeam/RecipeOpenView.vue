@@ -84,9 +84,16 @@
                 <span class="sk-eyebrow text-(--sk-brand)">
                   SELECTED
                 </span>
-                <span class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-                  {{ selectedIdp.Parameter || '(이름 없음)' }}
+                <span
+                  v-if="selectedIdp.Parameter"
+                  class="font-mono text-[20px] font-bold tracking-tight text-zinc-900 dark:text-zinc-100"
+                >
+                  {{ selectedIdp.Parameter }}
                 </span>
+                <span
+                  v-else
+                  class="text-sm text-(--sk-ink-subtle)"
+                >(이름 없음)</span>
                 <EbeamRecipeOpenBoolPill :value="selectedIdp.Addressing" />
                 <!-- Mother_Para 는 다른 parameter 이름이 아니라 이 parameter 자신이
                      mother 인지를 나타내는 flag 입니다. 참일 때만 표시합니다. -->
