@@ -189,7 +189,7 @@ const shownColumns = computed(() => [
 const sortKey = ref<RecipeOpenSortKey>(DEFAULT_RECIPE_OPEN_SORT.key)
 const sortDirection = ref<RecipeOpenSortDirection>(DEFAULT_RECIPE_OPEN_SORT.direction)
 // Hiding the sorted column would leave an order nothing on screen explains, so
-// it falls back to the default — SEQ asc, the table's own order even if hidden.
+// it falls back to the default — Region then SEQ, the recipe's own grouping.
 watch(shownColumns, (columns) => {
   if (columns.some(column => column.key === sortKey.value)) return
   sortKey.value = DEFAULT_RECIPE_OPEN_SORT.key

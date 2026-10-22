@@ -30,6 +30,25 @@ test('defaults to stable SEQ ascending order and preserves source indices', () =
   assert.deepEqual(sorted.map(item => item.sourceIndex), [1, 2, 3, 0])
 })
 
+test('defaults to Region then SEQ, both ascending', () => {
+  const sorted = sortRecipeOpenRows([
+    row({ Parameter: 'r2-s1', Region: 2, SEQ: 1 }),
+    row({ Parameter: 'r1-s5', Region: 1, SEQ: 5 }),
+    row({ Parameter: 'r1-s2', Region: 1, SEQ: 2 }),
+    row({ Parameter: 'r3-s0', Region: 3, SEQ: 0 })
+  ])
+  assert.deepEqual(sorted.map(item => item.row.Parameter), ['r1-s2', 'r1-s5', 'r2-s1', 'r3-s0'])
+})
+
+test('ties on any key fall back to Region then SEQ ascending, even when descending', () => {
+  const sorted = sortRecipeOpenRows([
+    row({ Parameter: 'b', Addressing: true, Region: 2, SEQ: 1 }),
+    row({ Parameter: 'a', Addressing: true, Region: 1, SEQ: 9 }),
+    row({ Parameter: 'c', Addressing: false, Region: 1, SEQ: 1 })
+  ], 'Addressing', 'desc')
+  assert.deepEqual(sorted.map(item => item.row.Parameter), ['a', 'b', 'c'])
+})
+
 test('compares text numerically and booleans as false then true', () => {
   const rows = [
     row({ Parameter: 'P10', Double_Addressing: true }),

@@ -6,8 +6,10 @@ export type RecipeOpenSortKey = Extract<keyof IdpImageInfoRow,
   | 'Double_Addressing' | 'Meas_Counting' | 'dnumber_removed'
 >
 export type RecipeOpenSortDirection = 'asc' | 'desc'
+// Region, then SEQ (user's call 2026-10-22): a Region's parameters measure one
+// image, so they read as a group, mother first.
 export const DEFAULT_RECIPE_OPEN_SORT = {
-  key: 'SEQ' as RecipeOpenSortKey,
+  key: 'Region' as RecipeOpenSortKey,
   direction: 'asc' as RecipeOpenSortDirection
 }
 
@@ -29,8 +31,13 @@ export const sortRecipeOpenRows = (
   direction: RecipeOpenSortDirection = DEFAULT_RECIPE_OPEN_SORT.direction
 ) => {
   const multiplier = direction === 'asc' ? 1 : -1
+  // Ties fall back to Region then SEQ, both ascending whatever the direction,
+  // and last to payload order so equal rows never swap between renders.
   return rows.map((row, sourceIndex) => ({ row, sourceIndex })).sort((a, b) => (
-    compare(a.row[key], b.row[key]) * multiplier || a.sourceIndex - b.sourceIndex
+    compare(a.row[key], b.row[key]) * multiplier
+    || compare(a.row.Region, b.row.Region)
+    || compare(a.row.SEQ, b.row.SEQ)
+    || a.sourceIndex - b.sourceIndex
   ))
 }
 
