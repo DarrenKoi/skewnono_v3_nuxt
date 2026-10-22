@@ -1005,18 +1005,23 @@ const openMeasHist = (row: RecipeSearchResult) => {
             </p>
           </header>
 
+          <!-- Sized by the term, not a fixed two-up grid: each chip is at least
+               half a row and grows to its content, so a long recipe name takes
+               the whole row and truncates only beyond that (full name in the
+               title). Chips in a row stretch to fill it. -->
           <div
             v-if="recentSearches.length"
-            class="grid flex-1 content-start gap-1.5 p-3 sm:grid-cols-2"
+            class="flex flex-1 flex-wrap content-start gap-1.5 p-3"
           >
             <div
               v-for="(entry, index) in recentSearches"
               :key="recipeRecentSearchKey(entry)"
-              class="group flex min-w-0 items-center gap-1 rounded-(--sk-r-chip) border border-(--sk-border-soft) bg-(--sk-muted-surface) px-2 py-1.5 transition-colors hover:border-(--sk-brand)/35 hover:bg-(--sk-brand)/5"
+              class="group flex min-w-[calc(50%-0.1875rem)] max-w-full grow basis-auto items-center gap-1 rounded-(--sk-r-chip) border border-(--sk-border-soft) bg-(--sk-muted-surface) px-2 py-1.5 transition-colors hover:border-(--sk-brand)/35 hover:bg-(--sk-brand)/5"
             >
               <button
                 type="button"
                 class="flex min-w-0 flex-1 items-center gap-2 text-left"
+                :title="entry.fabs.length ? `${entry.term} (${entry.fabs.join('+')})` : entry.term"
                 @click="applyRecentSearch(entry)"
               >
                 <span
