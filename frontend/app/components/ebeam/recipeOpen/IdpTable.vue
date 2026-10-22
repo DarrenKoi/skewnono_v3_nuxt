@@ -86,7 +86,13 @@
               class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 text-zinc-900 dark:border-zinc-800/60 dark:text-zinc-100"
               :class="item.sourceIndex === selectedIndex ? 'font-bold' : 'font-semibold'"
             >
-              {{ item.row.Parameter || '(이름 없음)' }}
+              <template v-if="item.row.Parameter">
+                {{ item.row.Parameter }}
+              </template>
+              <span
+                v-else
+                class="text-xs font-normal text-(--sk-ink-subtle)"
+              >(이름 없음)</span>
             </td>
             <td class="whitespace-nowrap border-b border-zinc-100 px-2.5 py-1.5 text-zinc-600 dark:border-zinc-800/60 dark:text-zinc-300">
               {{ item.row.SEQ }}/{{ item.row.Last_SEQ }}
