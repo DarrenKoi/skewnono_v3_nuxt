@@ -237,7 +237,7 @@ const selectedApiGroup = computed<ApiGroup>(() =>
                   Python 예시는 'API Token 사용법' 탭의 공통 준비 코드(BASE_URL, HEADERS)를 먼저 선언한 뒤 실행합니다.
                 </p>
               </div>
-              <div class="grid grid-cols-2 gap-3 sm:flex">
+              <div class="grid shrink-0 grid-cols-2 gap-3 whitespace-nowrap sm:flex">
                 <div class="rounded-lg border border-(--sk-border) bg-white px-4 py-3 dark:bg-zinc-950">
                   <div class="sk-meta">
                     선택 항목
