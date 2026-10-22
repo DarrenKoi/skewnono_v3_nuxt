@@ -1559,6 +1559,9 @@ def get_recipe_open_data(
     rng = random.Random(_seed_for_values(resolved_recipe_id, resolved_fab_name, resolved_tool_category))
 
     idp_rows = generate_idp_image_info(rng=rng)
+    # Before the points are drawn: a formula parameter has a P_No like any
+    # other (user-confirmed 2026-10-22), unnamed ones included.
+    idp_rows.append(_unnamed_formula_row(len(idp_rows) + 1, idp_rows[-1]["Region"]))
     wafer_mp_info = generate_wafer_mp_info(rng=rng, idp_rows=idp_rows)
     wafer_align_info = generate_wafer_align_info(rng=rng)
     locator = _fake_locator(resolved_recipe_id)
@@ -1577,11 +1580,11 @@ def get_recipe_open_data(
         row["img_add2"] = f"{rawfiles.SLOT_PREFIX['img_add2']}{row['SEQ']:04d}"
         if row["Mother_Para"]:
             row["Mother_Para"] = False
+            # Never the unnamed row either: it is a formula too.
             heir = next((r for r in idp_rows if r["Region"] == row["Region"]
-                         and r["Parameter"] != formula_name), None)
+                         and r["Parameter"] not in (formula_name, "")), None)
             if heir is not None:
                 heir["Mother_Para"] = True
-    idp_rows.append(_unnamed_formula_row(len(idp_rows) + 1, idp_rows[-1]["Region"]))
 
     return {
         "wafer_mp_info": wafer_mp_info,

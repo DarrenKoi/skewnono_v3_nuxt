@@ -742,6 +742,10 @@ def test_recipe_open_carries_an_unnamed_formula_row_with_an_enmp_file():
     # Joins a region that already has its mother, never founds a motherless one.
     region = unnamed[0]["Region"]
     assert sum(r["Mother_Para"] for r in rows if r["Region"] == region) == 1
+    # Formula parameters have a P_No like any other (user-confirmed 2026-10-22),
+    # so a `$N` naming one resolves.
+    mp_names = {(r["P_No"], r["Parameter"]) for r in detail["wafer_mp_info"]}
+    assert (len(rows), "") in mp_names
 
     for row in rows:
         if mock._is_formula_parameter(idp, row["Parameter"]):

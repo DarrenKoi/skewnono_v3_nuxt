@@ -1,4 +1,4 @@
-import type { IdpImageInfoRow, WaferMpInfoRow } from '~/composables/useRecipeSearchApi'
+import type { IdpImageInfoRow } from '~/composables/useRecipeSearchApi'
 import type { RecipeStatusSummaryItem } from '~/utils/recipeStatusSummary'
 
 export type RecipeOpenSortKey = Extract<keyof IdpImageInfoRow,
@@ -75,15 +75,9 @@ export const buildRecipeOpenSummaryItems = (
   { label: 'Align 포인트', value: alignPointCount.toLocaleString() }
 ]
 
-/**
- * The IDP table's optional columns. Parameter is always shown, so it is not
- * here. P_No and D_No are not idp_image_info columns: they come from
- * wafer_mp_info (`pointNumbersOf`), and are off by default.
- */
-export type IdpColumnKey = Exclude<RecipeOpenSortKey, 'Parameter'> | 'P_No' | 'D_No'
+/** The IDP table's optional columns. Parameter is always shown, so it is not here. */
+export type IdpColumnKey = Exclude<RecipeOpenSortKey, 'Parameter'>
 export const IDP_OPTIONAL_COLUMNS: readonly { key: IdpColumnKey, label: string }[] = [
-  { key: 'P_No', label: 'P_No' },
-  { key: 'D_No', label: 'D_No' },
   { key: 'SEQ', label: 'SEQ' },
   { key: 'Region', label: 'Region' },
   { key: 'Addressing', label: 'Addressing' },
@@ -92,33 +86,11 @@ export const IDP_OPTIONAL_COLUMNS: readonly { key: IdpColumnKey, label: string }
   { key: 'Meas_Counting', label: 'Cnt' },
   { key: 'dnumber_removed', label: 'd# 제거' }
 ]
-export const DEFAULT_IDP_COLUMNS: IdpColumnKey[] = IDP_OPTIONAL_COLUMNS
-  .map(column => column.key)
-  .filter(key => key !== 'P_No' && key !== 'D_No')
+export const DEFAULT_IDP_COLUMNS: IdpColumnKey[] = IDP_OPTIONAL_COLUMNS.map(column => column.key)
 
 /** Stored keys → known keys only, so a renamed column cannot break the table. */
 export const normalizeIdpColumns = (parsed: unknown): IdpColumnKey[] => {
   if (!Array.isArray(parsed)) throw new TypeError('not a column list')
   const known = new Set<unknown>(IDP_OPTIONAL_COLUMNS.map(column => column.key))
   return parsed.filter((key): key is IdpColumnKey => known.has(key))
-}
-
-/**
- * Parameter → the distinct, sorted P_No and D_No of its measurement points.
- *
- * idp_image_info carries no P_No, so the join is by Parameter name, the same
- * join the MP table uses. A name owning several P_Nos lists them all — which
- * includes every UNNAMED block, since they all share the name `""`.
- */
-export const pointNumbersOf = (mpRows: readonly WaferMpInfoRow[]) => {
-  const sets = new Map<string, { pNo: Set<number>, dNo: Set<number> }>()
-  for (const row of mpRows) {
-    const name = row.Parameter ?? ''
-    let entry = sets.get(name)
-    if (!entry) sets.set(name, entry = { pNo: new Set(), dNo: new Set() })
-    entry.pNo.add(row.P_No)
-    entry.dNo.add(row.D_No)
-  }
-  const sorted = (values: Set<number>) => [...values].sort((a, b) => a - b)
-  return new Map([...sets].map(([name, { pNo, dNo }]) => [name, { pNo: sorted(pNo), dNo: sorted(dNo) }]))
 }
