@@ -43,10 +43,21 @@ export type ApiEndpoint = {
   example: ApiExample
 }
 
+export type ApiGuideStep = {
+  title: string
+  detail: string
+}
+
 export type ApiGroup = {
   name: string
   description: string
   icon: string
+  // A walkthrough shown above the endpoint cards, for a group whose endpoints
+  // only make sense chained (find the ids first, then fetch by them).
+  guide?: {
+    steps: ApiGuideStep[]
+    code: string
+  }
   endpoints: ApiEndpoint[]
 }
 
@@ -461,17 +472,115 @@ Path("IMMP0004.jpeg").write_bytes(resp.content)`
   },
   {
     name: 'Skewvoir',
-    description: '스큐보아가 쓰는 MSR 측정 데이터입니다. MSR id는 Recipe Search의 /api/meas-hist에서 얻고, 파싱된 JSON, MinIO에 저장된 원본(raw .MSR / pickle), 장비 이미지를 가져갈 수 있습니다.',
+    description: '스큐보아가 쓰는 MSR 측정 데이터입니다. 측정 이력(meas_hist)을 검색해 MSR 파일 이름(msr)을 얻고, 그 이름으로 파싱된 JSON, MinIO에 저장된 원본(raw .MSR / pickle), 장비 이미지를 가져갈 수 있습니다.',
     icon: 'i-lucide-eye',
+    guide: {
+      steps: [
+        {
+          title: '측정 이력에서 MSR 찾기',
+          detail: '/api/meas-hist/search에 fab, 장비(eq), recipe, lot, 기간(from/to)을 넣어 측정 이력을 검색합니다. 응답 rows의 각 row가 측정 1건이고, row의 msr 값이 MSR 파일 이름입니다. 스큐보아 화면의 검색창과 같은 조건입니다.'
+        },
+        {
+          title: '페이지를 넘기며 MSR 목록 모으기',
+          detail: '한 번에 최대 500 row(limit)까지 옵니다. offset을 늘려 total만큼 모으십시오. 한 검색에서 꺼낼 수 있는 row는 최대 10,000건이며, 넘으면 capped가 true이므로 기간이나 조건을 좁혀 나눠 받으십시오. 측정 이력은 최근 60일만 보관됩니다.'
+        },
+        {
+          title: '필요한 형태로 받기',
+          detail: '숫자 값만 필요하면 /api/msr-files(파싱된 JSON, 최대 200건), 장비가 쓴 원본 파일이 필요하면 /api/msr-files/download(zip, 최대 100건)를 씁니다. 목록이 더 길면 그 크기로 나눠 호출합니다. row의 class_name, total_images를 함께 넘기면 조회가 정확해지지만 생략해도 됩니다.'
+        },
+        {
+          title: '받지 못한 MSR 확인하기',
+          detail: '원본은 보존 기간이 지나면 지워집니다. 측정 이력에 있어도 원본이 없을 수 있으므로, zip 안 _skipped.json에서 404(기록 없음)·410(보존 기간 만료)으로 빠진 MSR을 확인하십시오.'
+        }
+      ],
+      code: `import io
+import json
+import zipfile
+
+# 1) 측정 이력 검색 — 조건은 반복해서 여러 값을 줄 수 있습니다 (예: "fab": ["M11", "R3"])
+params = {
+    "tool_type": "cd-sem",
+    "fab": "M11",
+    "recipe": "RCP_001",
+    "from": "2026-10-01",
+    "to": "2026-10-22",
+    "limit": 500,
+}
+rows, offset = [], 0
+while True:
+    resp = requests.get(
+        f"{BASE_URL}/meas-hist/search",
+        headers=HEADERS,
+        params={**params, "offset": offset},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    page = resp.json()
+    rows += page["rows"]
+    offset += len(page["rows"])
+    if not page["rows"] or offset >= min(page["total"], 10000):
+        break
+if page["capped"]:
+    print(f"{page['total']}건 중 10,000건만 받았습니다 — 기간을 나눠 다시 검색하십시오")
+
+# 2) MSR 파일 이름 모으기 (msr 이 빈 row 는 원본이 없는 측정입니다)
+msrs = sorted({row["msr"] for row in rows if row["msr"]})
+print(f"측정 {len(rows)}건, MSR {len(msrs)}개")
+
+# 3) 원본을 100건씩 zip 으로 받아 풀기 (kind="pkl" 이면 후처리 pickle)
+skipped = []
+for i in range(0, len(msrs), 100):
+    resp = requests.post(
+        f"{BASE_URL}/msr-files/download",
+        headers=HEADERS,
+        json={"msrs": msrs[i:i + 100], "kind": "raw"},
+        timeout=120,
+    )
+    resp.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+        skipped += json.loads(archive.read("_skipped.json"))
+        archive.extractall("msr_raw")
+
+print(f"받지 못한 MSR {len(skipped)}개:", skipped[:5])`
+    },
     endpoints: [
+      {
+        method: 'GET',
+        path: '/api/meas-hist/search',
+        summary: '측정 이력을 검색해 MSR 목록을 찾습니다. 스큐보아 검색창이 쓰는 endpoint입니다. 같은 이름의 조건을 여러 번 주면 OR, 서로 다른 조건끼리는 AND로 묶입니다. 최신 측정이 먼저 옵니다.',
+        args: [
+          { name: 'tool_type', kind: 'query', required: false, note: 'cd-sem 또는 hv-sem. 생략하면 전체' },
+          { name: 'fab', kind: 'query', required: false, note: 'fab 이름 (예: M11). 반복 가능' },
+          { name: 'eq', kind: 'query', required: false, note: '장비 ID (sem-list의 eqp_id). 반복 가능' },
+          { name: 'model', kind: 'query', required: false, note: '장비 모델 (eqp_model_cd). 반복 가능' },
+          { name: 'recipe', kind: 'query', required: false, note: 'recipe 이름의 일부. 이름이 정확히 같은 측정이 먼저 옵니다. 반복 가능' },
+          { name: 'lot', kind: 'query', required: false, note: 'lot_id. 반복 가능' },
+          { name: 'msr', kind: 'query', required: false, note: 'MSR 파일 이름으로 정확히 찾기. 반복 가능' },
+          { name: 'q', kind: 'query', required: false, note: '어느 필드인지 모를 때 쓰는 자유 검색어 (부분 일치)' },
+          { name: 'from', kind: 'query', required: false, note: 'YYYY-MM-DD. 생략 시 보관 기간(60일)의 시작' },
+          { name: 'to', kind: 'query', required: false, note: 'YYYY-MM-DD, 그날 하루 전체 포함. 생략 시 오늘' },
+          { name: 'offset', kind: 'query', required: false, note: '건너뛸 row 수. 기본 0' },
+          { name: 'limit', kind: 'query', required: false, note: '페이지 크기. 기본 50, 최대 500' }
+        ],
+        response: '{ total, capped, offset, limit, range, out_of_retention, rows: MeasHistRow[] } — row에 msr, class_name, total_images, eqp_ip, eqp_id, lot_id, recipe_name, timestamp, msr_check 등이 담깁니다',
+        auth: '토큰 가능',
+        example: {
+          path: '/meas-hist/search',
+          query: { tool_type: 'cd-sem', fab: 'M11', recipe: 'RCP_001', from: '2026-10-01', to: '2026-10-22', limit: '500' },
+          timeout: 30,
+          read: `page = resp.json()
+msrs = [row["msr"] for row in page["rows"] if row["msr"]]
+print(page["total"], msrs[:5])`
+        }
+      },
       {
         method: 'GET',
         path: '/api/msr-file',
         summary: 'MSR 하나의 pickle을 파싱한 JSON을 반환합니다 — 측정 row, parameter 요약, FDC, exe_detail_info, 응답의 eqp_ip(이미지 조회에 필요)까지 담깁니다.',
         args: [
-          { name: 'msr', kind: 'query', required: true, note: 'MSR identifier' },
-          { name: 'class_name', kind: 'query', required: false, note: 'measurement class 이름' },
-          { name: 'total_images', kind: 'query', required: false, note: '이미지 수 힌트 (정수)' }
+          { name: 'msr', kind: 'query', required: true, note: 'MSR 파일 이름 — /api/meas-hist/search 응답 row의 msr' },
+          { name: 'class_name', kind: 'query', required: false, note: '같은 row의 class_name' },
+          { name: 'total_images', kind: 'query', required: false, note: '같은 row의 total_images (정수)' }
         ],
         response: 'MsrFilePayload',
         auth: '토큰 가능',
@@ -482,7 +591,7 @@ Path("IMMP0004.jpeg").write_bytes(resp.content)`
         path: '/api/msr-files',
         summary: '여러 MSR의 파싱된 JSON을 한 번에 조회합니다. 요청 1회로 처리되므로 MSR마다 /api/msr-file을 부르는 것보다 rate limit에 여유가 있습니다. 없는 MSR은 results에서 빠집니다.',
         args: [
-          { name: 'items', kind: 'body', required: true, note: '[{ msr, class_name?, total_images? }] — 최대 200건' }
+          { name: 'items', kind: 'body', required: true, note: '[{ msr, class_name?, total_images? }] — /api/meas-hist/search row의 값을 그대로 담습니다. 최대 200건' }
         ],
         response: '{ results: MsrFilePayload[] }',
         auth: '토큰 가능',
@@ -522,7 +631,7 @@ Path("MSR_001.pkl").write_bytes(resp.content)`
         path: '/api/msr-files/download',
         summary: '여러 MSR의 원본을 zip 하나로 내려받습니다. 요청 1회라 rate limit에 걸리지 않습니다. 404/410으로 받지 못한 MSR은 요청을 실패시키지 않고 zip 안의 _skipped.json에 { msr, status, error }로 남습니다.',
         args: [
-          { name: 'msrs', kind: 'body', required: true, note: 'MSR identifier 목록 — 최대 100건, 중복은 한 번만 담습니다' },
+          { name: 'msrs', kind: 'body', required: true, note: '/api/meas-hist/search row의 msr 목록 — 최대 100건, 중복은 한 번만 담습니다' },
           { name: 'kind', kind: 'body', required: true, note: 'raw 또는 pkl — 목록 전체에 같은 kind가 적용됩니다' }
         ],
         response: 'application/zip (원본 파일들 + _skipped.json)',

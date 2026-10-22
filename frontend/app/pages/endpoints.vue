@@ -258,6 +258,52 @@ const selectedApiGroup = computed<ApiGroup>(() =>
             </div>
           </header>
 
+          <section
+            v-if="selectedApiGroup.guide"
+            class="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]"
+          >
+            <div class="space-y-4">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-list-checks"
+                  class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
+                />
+                <h2 class="sk-heading">
+                  받는 순서
+                </h2>
+              </div>
+              <ol class="grid gap-3">
+                <li
+                  v-for="(step, index) in selectedApiGroup.guide.steps"
+                  :key="step.title"
+                  class="flex gap-3 rounded-lg border border-(--sk-border) bg-white p-4 dark:bg-zinc-950"
+                >
+                  <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950">
+                    {{ index + 1 }}
+                  </span>
+                  <span>
+                    <span class="block sk-title">{{ step.title }}</span>
+                    <span class="mt-1 block sk-body leading-6">{{ step.detail }}</span>
+                  </span>
+                </li>
+              </ol>
+            </div>
+            <div class="space-y-4">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-terminal"
+                  class="h-5 w-5 text-zinc-600 dark:text-zinc-300"
+                />
+                <h2 class="sk-heading">
+                  전체 예시 (Python)
+                </h2>
+              </div>
+              <div class="overflow-hidden rounded-lg border border-(--sk-border) bg-white dark:bg-zinc-950">
+                <pre class="whitespace-pre-wrap break-words p-4 text-xs leading-6"><code>{{ selectedApiGroup.guide.code }}</code></pre>
+              </div>
+            </div>
+          </section>
+
           <div class="grid gap-4">
             <article
               v-for="endpoint in selectedApiGroup.endpoints"
