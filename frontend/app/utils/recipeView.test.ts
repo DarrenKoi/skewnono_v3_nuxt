@@ -533,8 +533,23 @@ test('resolveFormula replaces every $N token, wrapped in parens or bare', () => 
   assert.equal(resolveFormula(formulaRow('max($5,$6,$6,$7)'), names)?.resolved, 'max(P5,P6,P6,P7)')
 })
 
-test('resolveFormula keeps $N for an unnamed block and for one that does not exist', () => {
-  assert.equal(resolveFormula(formulaRow('abs($2-$3)+$99'), formulaRefNames(refRows))?.resolved, 'abs(P2-$3)+$99')
+test('resolveFormula marks an unnamed block and keeps $N for one that does not exist', () => {
+  assert.equal(
+    resolveFormula(formulaRow('abs($2-$3)+$99'), formulaRefNames(refRows))?.resolved,
+    'abs(P2-(이름 없음 $3))+$99'
+  )
+})
+
+test('an unnamed block is never resolved to a neighbour\'s name', () => {
+  // Blocks 20..22 unnamed, as in the real max(($20),($21),($22)) case.
+  const rows = Array.from({ length: 23 }, (_, i) => ({
+    Parameter: i >= 19 && i <= 21 ? '' : `P${i + 1}`,
+    img_meas2: `PRMS${String(i + 1).padStart(4, '0')}`
+  })) as IdpImageInfoRow[]
+  assert.equal(
+    resolveFormula(formulaRow('max(($19),($20),($23))'), formulaRefNames(rows))?.resolved,
+    'max((P19),((이름 없음 $20)),(P23))'
+  )
 })
 
 test('formulaRefNames keys on the file number, so a deleted block shifts nothing', () => {

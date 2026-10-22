@@ -957,8 +957,9 @@ def _is_formula_parameter(idp: str, parameter: str) -> bool:
     Keyed on (idp, parameter) because that is the scope both blocks share. An
     UNNAMED parameter is always a formula here: the office's unnamed sample was
     one (abs($2-$3), office 확인 2026-10-22), and the only unnamed row the mock
-    emits is that one (_unnamed_formula_row). Whether an unnamed block can be
-    a measured one is OFFICE-VERIFY.
+    emits is that one (_unnamed_formula_row). Deliberate gap: an unnamed block
+    can also be a MEASURED one that other formulas reference (user-confirmed
+    2026-10-22), and the mock does not emit that case yet.
     """
     return parameter == "" or parameter == _formula_parameter_name(idp)
 

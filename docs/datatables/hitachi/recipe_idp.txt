@@ -925,9 +925,17 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
       입니다.
     * **이름이 없을 수 있습니다** — `Parameter` 가 `""` 인 row 로
       idp_image_info 에 있고(예: `abs($2-$3)`), Formula 표도 똑같이 나옵니다.
-      다른 수식이 이름 없는 block 을 가리키면 빈 문자열로 바꾸지 않고 `$N`
-      그대로 둡니다. 화면의 parameter 이름 칸은 `(이름 없음)` 으로 보입니다.
-      OFFICE-VERIFY: 이름 없는 block 이 formula 가 아닌 경우도 있는지.
+      화면의 parameter 이름 칸은 `(이름 없음)` 으로 보입니다.
+
+  이름 없는 block 은 formula 가 **아닐 수도** 있습니다 (user-confirmed
+  2026-10-22). 측정 데이터를 내는 이름 없는 block 이 있고, 다른 수식이 그것을
+  참조합니다(예: `max(($20),($21),($22))` 의 `$20` 이 이름 없는 block). 그래서
+  이름 없는 block 은 측정 block 일 수도, formula block 일 수도 있습니다.
+  해석은 이름 없는 block 을 가리키는 `$N` 을 빈 문자열로 바꾸지 않고
+  `(이름 없음 $N)` 으로 씁니다. 이웃 parameter 이름으로 바뀌면 안 됩니다.
+  OFFICE-VERIFY: 실제 화면에서 `$20` 이 다른 parameter 이름으로 해석된 사례가
+  있었습니다(2026-10-22). 이름 없는 row 의 `img_meas2`/`img_add2` 가 무엇인지가
+  원인 확인에 필요합니다.
 
   CG5000(구형 장비)의 ENMP 에도 같은 형식의 formula 줄이 있습니다
   (office 확인 2026-10-22).

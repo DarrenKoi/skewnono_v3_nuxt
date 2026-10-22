@@ -160,8 +160,10 @@ export function formulaRefNames(rows: readonly IdpImageInfoRow[]): Map<number, s
  *
  * A plain token replace anywhere in the string — the office writes `max(($13),
  * ($14))`, `max($2,$3)` and `$17+$18` alike, so nothing may assume parens or a
- * function around a ref. A ref to an unknown block, or to an UNNAMED one (real:
- * office 확인 2026-10-22), stays `$N`: an empty name would erase the ref.
+ * function around a ref. A ref to an UNNAMED block — measured, or itself a
+ * formula, both real (user-confirmed 2026-10-22) — reads `(이름 없음 $N)`: an
+ * empty name would erase the ref, and a bare `$N` would not say it names nothing.
+ * Only a ref to a block the table does not hold stays `$N`.
  *
  * Found by the `formula` SECTION, not the key, because the group's presence is
  * the office's flag; `null` means this parameter is not computed.
@@ -172,7 +174,11 @@ export function resolveFormula(
 ): ResolvedFormula | null {
   const raw = rows?.find(row => row.section === 'formula')?.value
   if (!raw) return null
-  const resolved = raw.replace(/\$(\d+)/g, (ref, n: string) => names.get(Number(n)) || ref)
+  const resolved = raw.replace(/\$(\d+)/g, (ref, n: string) => {
+    const name = names.get(Number(n))
+    if (name === undefined) return ref
+    return name || `(이름 없음 ${ref})`
+  })
   return { raw, resolved }
 }
 
