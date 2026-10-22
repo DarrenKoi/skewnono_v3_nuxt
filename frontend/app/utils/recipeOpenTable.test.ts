@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
 import {
+  DEFAULT_IDP_COLUMNS,
   buildRecipeOpenSummaryItems,
   normalizeIdpColumns,
   nextRecipeOpenSort,
@@ -86,4 +87,6 @@ test('gives content-identical rows distinct keys', () => {
 test('normalizeIdpColumns keeps known keys only and rejects a non-list', () => {
   assert.deepEqual(normalizeIdpColumns(['P_No', 'SEQ', 'Region']), ['SEQ', 'Region'])
   assert.throws(() => normalizeIdpColumns('SEQ'))
+  assert.deepEqual(normalizeIdpColumns(['P_No', 'D_No']), DEFAULT_IDP_COLUMNS)
+  assert.deepEqual(normalizeIdpColumns([]), [])
 })

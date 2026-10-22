@@ -934,7 +934,8 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
       같습니다.
     * **P_No 가 있습니다** (user-confirmed 2026-10-22) — 측정 parameter 처럼
       wafer_mp_info 에 point 가 있으므로, 다른 수식의 `$N` 이 formula
-      parameter 를 가리켜도 이름으로 해석됩니다.
+      parameter 를 가리켜도 해석됩니다. 이름 없는 formula 는 이름이 없으므로
+      `(이름 없음 $N)` 으로 씁니다. 그 P_No 는 측정 위치 탭에서 볼 수 있습니다.
     * **Region mother 가 될 수 없습니다** (user-confirmed 2026-10-22). mother 는
       son 들이 같이 쓰는 image 의 주인인데, formula parameter 는 image 를 재지
       않습니다. 그래서 region 의 mother 는 그 region 의 첫 **측정** parameter

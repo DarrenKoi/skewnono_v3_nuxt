@@ -88,9 +88,14 @@ export const IDP_OPTIONAL_COLUMNS: readonly { key: IdpColumnKey, label: string }
 ]
 export const DEFAULT_IDP_COLUMNS: IdpColumnKey[] = IDP_OPTIONAL_COLUMNS.map(column => column.key)
 
-/** Stored keys → known keys only, so a renamed column cannot break the table. */
+/**
+ * Stored keys → known keys only, so a renamed column cannot break the table.
+ * A pick that held ONLY retired keys (the dropped P_No / D_No) means the
+ * defaults, not "hide everything" — only a stored [] means that.
+ */
 export const normalizeIdpColumns = (parsed: unknown): IdpColumnKey[] => {
   if (!Array.isArray(parsed)) throw new TypeError('not a column list')
   const known = new Set<unknown>(IDP_OPTIONAL_COLUMNS.map(column => column.key))
-  return parsed.filter((key): key is IdpColumnKey => known.has(key))
+  const kept = parsed.filter((key): key is IdpColumnKey => known.has(key))
+  return kept.length === 0 && parsed.length > 0 ? [...DEFAULT_IDP_COLUMNS] : kept
 }

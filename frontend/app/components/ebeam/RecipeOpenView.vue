@@ -336,10 +336,13 @@ watch(cacheKey, () => {
 
 const selectedIdp = computed(() => idpImageRows.value[selectedIdpIndex.value] ?? null)
 
+// An unnamed row matches the points named "" — every unnamed block's, told
+// apart by their P_No column. Returning [] hid them, and this tab is where an
+// unnamed block's P_No (the `$N` a formula uses) is read.
 const mpRowsForSelected = computed(() => {
   const param = selectedIdp.value?.Parameter
-  if (!param) return []
-  return waferMpRows.value.filter(r => r.Parameter === param)
+  if (param == null) return []
+  return waferMpRows.value.filter(r => (r.Parameter ?? '') === param)
 })
 
 // Where this recipe's raw folder lives. An empty locator means the detail call

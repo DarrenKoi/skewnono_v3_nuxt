@@ -1560,13 +1560,16 @@ def get_recipe_open_data(
 
     idp_rows = generate_idp_image_info(rng=rng)
     # Before the points are drawn: a formula parameter has a P_No like any
-    # other (user-confirmed 2026-10-22), unnamed ones included.
+    # other (user-confirmed 2026-10-22), unnamed ones included. This one does
+    # move the stream — a 21-block pool re-rolls the points and align table —
+    # which is fine: nothing pins the mock's values, only its relations.
     idp_rows.append(_unnamed_formula_row(len(idp_rows) + 1, idp_rows[-1]["Region"]))
     wafer_mp_info = generate_wafer_mp_info(rng=rng, idp_rows=idp_rows)
     wafer_align_info = generate_wafer_align_info(rng=rng)
     locator = _fake_locator(resolved_recipe_id)
 
-    # Formula parameters, applied after every rng draw so no other value moves.
+    # Named formula parameters, applied after every rng draw so no other value
+    # moves.
     # Every one has a real ENMP slot (office 확인 2026-10-22) — the formula
     # lives there — so the 1-in-4 empty img_add2 _slot draws is undone for them.
     # And none is a Region mother (user-confirmed 2026-10-22): a drawn one hands
