@@ -921,8 +921,9 @@ def _param_regions(raw_data: Any) -> dict[str, int]:
     안전한 기본값이 있고, 판별 불가의 경고는 이미 mother 쪽이 냅니다. 두 값은 같은
     row 에서 오므로 한쪽이 안 읽히면 다른 쪽도 대개 안 읽힙니다.
 
-    ``Region`` 은 wafer_mp_info 의 ``P_No`` 와 같은 값이며 recipe 안에서만 뜻이
-    있습니다 (docs/datatables/hitachi/recipe_idp.txt) — recipe 를 가로질러 비교하지
+    ``Region`` 은 여러 ``P_No`` 를 묶는 번호이며(wafer_mp_info 의 ``P_No`` 와 같은
+    값이 아닙니다, user-confirmed 2026-10-22) recipe 안에서만 뜻이 있습니다
+    (docs/datatables/hitachi/recipe_idp.txt) — recipe 를 가로질러 비교하지
     마십시오.
     """
     rows = _raw_data_rows(raw_data)

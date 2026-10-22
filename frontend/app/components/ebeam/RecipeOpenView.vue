@@ -69,6 +69,7 @@
           <EbeamRecipeOpenIdpTable
             v-model:selected-index="selectedIdpIndex"
             :rows="idpImageRows"
+            :mp-rows="waferMpRows"
             :measurement-point-count="waferMpRows.length"
             :align-point-count="data.wafer_align_info.length"
             :exporting="exporting"
@@ -312,7 +313,7 @@ const { data, pending, error, refresh } = await useAsyncData<RecipeDetailRespons
 
 const waferMpRows = computed(() => data.value?.wafer_mp_info ?? [])
 const idpImageRows = computed(() => data.value?.idp_image_info ?? [])
-const formulaRefs = computed(() => formulaRefNames(idpImageRows.value))
+const formulaRefs = computed(() => formulaRefNames(waferMpRows.value))
 
 const titleRecipeName = computed(() => data.value?.recipe_id ?? recipeName.value)
 

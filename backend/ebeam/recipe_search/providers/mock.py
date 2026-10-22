@@ -254,10 +254,14 @@ def generate_wafer_mp_info(
     determined by the parameter the point measures, and both were previously
     drawn independently here, so home data contradicted the office on every row.
 
-      * ``P_No`` == that parameter's ``Region`` (office 확인 2026-07-28) — the
-        integer key that joins the two tables. Drawing it separately made the
-        documented join return another parameter's rows, which reads from here
-        as "the doc is wrong" rather than "the mock is".
+      * ``P_No`` is the measured BLOCK's own number, one Parameter name per
+        P_No (user-confirmed 2026-10-22), and it is what a formula's ``$N``
+        names. It is NOT ``Region``: a Region groups several P_Nos measuring
+        one image, its first-measured P_No being the mother. The 2026-07-28
+        "Region == P_No" reading predates that and made every parameter of a
+        Region share one P_No here. The mock takes the block's 1-based row
+        position; whether the office's P_No always equals that position (or
+        the block's file number) is OFFICE-VERIFY.
       * ``D_No == -1`` ⟺ that parameter's ``dnumber_removed`` (office 확인
         2026-07-28) — the same suppression fact, recorded per point on this
         side and per parameter on the other. ``randint(1, 100)`` never produced
@@ -266,20 +270,20 @@ def generate_wafer_mp_info(
     active_rng = rng or random.Random()
     data: list[WaferMpInfoRow] = []
 
-    # Keyed by PARAMETER: Region and dnumber_removed are parameter-level, so the
-    # several rows a parameter may own collapse to one entry here. (The img_*
-    # slots, which are what genuinely differ between those rows, are not read.)
-    pool = list({
-        row["Parameter"]: (row["Region"], row["dnumber_removed"])
-        for row in idp_rows
-    }.items())
+    # One entry per BLOCK: P_No identifies the block, so a parameter repeated at
+    # two blocks owns two P_Nos. dnumber_removed is parameter-level and agrees
+    # across them either way.
+    pool = [
+        (position, row["Parameter"], row["dnumber_removed"])
+        for position, row in enumerate(idp_rows, start=1)
+    ]
     if not pool:
         return data
 
     for _ in range(num_records):
         chip_x = active_rng.randint(1, 10)
         chip_y = active_rng.randint(1, 10)
-        parameter, (region, dnumber_removed) = active_rng.choice(pool)
+        p_no, parameter, dnumber_removed = active_rng.choice(pool)
         # Drawn unconditionally so the suppressed branch does not shift the
         # random stream and make the seeded output depend on the coin flip.
         d_no = active_rng.randint(1, 100)
@@ -289,7 +293,7 @@ def generate_wafer_mp_info(
             "ChipNo_Y": chip_y,
             "Coordinate_X": round(active_rng.uniform(-50.0, 50.0), 3),
             "Coordinate_Y": round(active_rng.uniform(-50.0, 50.0), 3),
-            "P_No": region,
+            "P_No": p_no,
             "D_No": -1 if dnumber_removed else d_no,
             "Diff": active_rng.choice([True, False]),
             "Rel": active_rng.choice([True, False]),
@@ -302,7 +306,7 @@ def generate_wafer_mp_info(
             # (user-confirmed 2026-07-27). This mock previously fabricated
             # "IMG_MEAS_0001.jpg", which taught the frontend to expect a
             # string that office data never produces.
-            "img_meas2": region
+            "img_meas2": p_no
         })
 
     return data

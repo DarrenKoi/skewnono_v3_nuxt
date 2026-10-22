@@ -128,29 +128,21 @@ export interface ResolvedFormula {
   resolved: string
 }
 
-const fileNumber = (name: string | null | undefined): number | null => {
-  const n = /(\d+)$/.exec(name ?? '')?.[1]
-  return n ? Number(n) : null
-}
-
 /**
- * What a formula's `$N` names: block number → Parameter, read from the number on
- * each row's `img_meas2` (`PRMS0014` → 14), or `img_add2`'s (`PRMP0014`) when
- * `img_meas2` holds no file — both carry the block number.
+ * What a formula's `$N` names: P_No → Parameter, read off wafer_mp_info.
  *
- * `$N` is the recipe's N-th .idp block, 1-based, and every block's file number
- * IS its block number (office 확인 2026-10-22). Keying on that number rather
- * than on row position is what keeps the names right on a recipe with deleted
- * blocks — a missing block leaves a gap here instead of shifting every later
- * reference onto its neighbour.
+ * `$N` IS a P_No, and one P_No carries one Parameter name (user-confirmed
+ * 2026-10-22). This used to key on each idp_image_info row's file number
+ * (`PRMS0014` → 14), which a real recipe proved wrong: an unnamed block's `$20`
+ * resolved to another parameter's name. A P_No whose Parameter is `""` is an
+ * unnamed block, measured or computed.
  */
-export function formulaRefNames(rows: readonly IdpImageInfoRow[]): Map<number, string> {
+export function formulaRefNames(rows: readonly WaferMpInfoRow[]): Map<number, string> {
   const names = new Map<number, string>()
   for (const row of rows) {
-    const n = fileNumber(row.img_meas2) ?? fileNumber(row.img_add2)
-    // First row wins: a block number is unique, so a second claim is bad data,
-    // and table order is the only stable tie-break.
-    if (n !== null && !names.has(n)) names.set(n, row.Parameter)
+    // First row wins: every point of one P_No carries the same name, so a
+    // disagreement is bad data and table order is the only stable tie-break.
+    if (!names.has(row.P_No)) names.set(row.P_No, row.Parameter ?? '')
   }
   return names
 }

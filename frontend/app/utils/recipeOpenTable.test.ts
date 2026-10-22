@@ -1,8 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
+import type { IdpImageInfoRow, WaferMpInfoRow } from '../composables/useRecipeSearchApi.ts'
 import {
+  DEFAULT_IDP_COLUMNS,
   buildRecipeOpenSummaryItems,
+  normalizeIdpColumns,
+  pointNumbersOf,
   nextRecipeOpenSort,
   recipeOpenRowKey,
   sortRecipeOpenRows
@@ -80,4 +83,21 @@ test('gives content-identical rows distinct keys', () => {
     'asc'
   ).map(recipeOpenRowKey)
   assert.equal(new Set(keys).size, keys.length)
+})
+
+test('pointNumbersOf groups distinct sorted P_No and D_No per Parameter', () => {
+  const byName = pointNumbersOf([
+    { Parameter: 'A', P_No: 3, D_No: 7 },
+    { Parameter: 'A', P_No: 1, D_No: 7 },
+    { Parameter: '', P_No: 20, D_No: -1 },
+    { Parameter: '', P_No: 21, D_No: 5 }
+  ] as WaferMpInfoRow[])
+  assert.deepEqual(byName.get('A'), { pNo: [1, 3], dNo: [7] })
+  assert.deepEqual(byName.get(''), { pNo: [20, 21], dNo: [-1, 5] })
+})
+
+test('normalizeIdpColumns keeps known keys only and rejects a non-list', () => {
+  assert.deepEqual(normalizeIdpColumns(['P_No', 'gone', 'Region']), ['P_No', 'Region'])
+  assert.throws(() => normalizeIdpColumns('P_No'))
+  assert.ok(!DEFAULT_IDP_COLUMNS.includes('P_No') && !DEFAULT_IDP_COLUMNS.includes('D_No'))
 })

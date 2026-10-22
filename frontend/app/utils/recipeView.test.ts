@@ -9,7 +9,7 @@ import {
   resolveFormula, formulaRefNames
 } from './recipeView.ts'
 import type { LocationQuery, RouteLocationNormalizedLoaded } from 'vue-router'
-import type { IdpImageInfoRow } from '../composables/useRecipeSearchApi.ts'
+import type { IdpImageInfoRow, WaferMpInfoRow } from '../composables/useRecipeSearchApi.ts'
 
 // Minimal loaded route — only `query` is read, the rest satisfies the type.
 const routeWith = (query: LocationQuery): RouteLocationNormalizedLoaded => ({
@@ -512,11 +512,11 @@ test('formatFixed falls back rather than throwing on anything unparseable', () =
   assert.equal(formatFixed('n/a', 3, ''), '')
 })
 
-// Real formulas (office 확인 2026-10-22); blocks 1..18 named P1..P18, block 3 unnamed.
+// Real formulas (office 확인 2026-10-22); P_No 1..18 named P1..P18, P_No 3 unnamed.
 const refRows = Array.from({ length: 18 }, (_, i) => ({
-  Parameter: i === 2 ? '' : `P${i + 1}`,
-  img_meas2: `PRMS${String(i + 1).padStart(4, '0')}`
-})) as IdpImageInfoRow[]
+  P_No: i + 1,
+  Parameter: i === 2 ? '' : `P${i + 1}`
+})) as WaferMpInfoRow[]
 const formulaRow = (value: string) => [
   { key: 'Mag', value: '0', section: 'measurement_focusing' },
   { key: 'Formula', value, section: 'formula' }
@@ -541,24 +541,25 @@ test('resolveFormula marks an unnamed block and keeps $N for one that does not e
 })
 
 test('an unnamed block is never resolved to a neighbour\'s name', () => {
-  // Blocks 20..22 unnamed, as in the real max(($20),($21),($22)) case.
+  // P_No 20..22 unnamed, as in the real max(($20),($21),($22)) case.
   const rows = Array.from({ length: 23 }, (_, i) => ({
-    Parameter: i >= 19 && i <= 21 ? '' : `P${i + 1}`,
-    img_meas2: `PRMS${String(i + 1).padStart(4, '0')}`
-  })) as IdpImageInfoRow[]
+    P_No: i + 1,
+    Parameter: i >= 19 && i <= 21 ? '' : `P${i + 1}`
+  })) as WaferMpInfoRow[]
   assert.equal(
     resolveFormula(formulaRow('max(($19),($20),($23))'), formulaRefNames(rows))?.resolved,
     'max((P19),((이름 없음 $20)),(P23))'
   )
 })
 
-test('formulaRefNames keys on the file number, so a deleted block shifts nothing', () => {
-  // Block 2 deleted: row 2 is block 3. By position, $3 would name block 4.
+test('formulaRefNames keys on P_No, not row position — points repeat and gaps stay gaps', () => {
+  // Many points per P_No, P_No 2 absent. By position, $3 would name the 3rd row.
   const names = formulaRefNames([
-    { Parameter: 'A', img_meas2: 'PRMS0001' },
-    { Parameter: 'C', img_meas2: 'PRMS0003' },
-    { Parameter: 'D', img_meas2: 'PRMS0004' }
-  ] as IdpImageInfoRow[])
+    { P_No: 1, Parameter: 'A' },
+    { P_No: 1, Parameter: 'A' },
+    { P_No: 3, Parameter: 'C' },
+    { P_No: 3, Parameter: 'C' }
+  ] as WaferMpInfoRow[])
   assert.equal(resolveFormula(formulaRow('$1+$2+$3'), names)?.resolved, 'A+$2+C')
 })
 
@@ -580,11 +581,10 @@ test('splitAfPrSectionsByDomain drops the formula group — the AMP tab shows it
   assert.deepEqual(grouped.other?.rows, [])
 })
 
-test('formulaRefNames falls back to img_add2, and the first row keeps a duplicated number', () => {
+test('formulaRefNames: the first row keeps a P_No that disagrees with itself', () => {
   const names = formulaRefNames([
-    { Parameter: 'A', img_meas2: 'non', img_add2: 'PRMP0001' },
-    { Parameter: 'B', img_meas2: 'PRMS0002', img_add2: 'non' },
-    { Parameter: 'C', img_meas2: 'PRMS0002', img_add2: 'PRMP0002' }
-  ] as IdpImageInfoRow[])
-  assert.deepEqual([...names], [[1, 'A'], [2, 'B']])
+    { P_No: 2, Parameter: 'B' },
+    { P_No: 2, Parameter: 'C' }
+  ] as WaferMpInfoRow[])
+  assert.deepEqual([...names], [[2, 'B']])
 })

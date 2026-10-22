@@ -2,8 +2,11 @@
 
 ``docs/datatables/hitachi/recipe_idp.txt`` and ``MIGRATION.md`` both record them:
 
-    Region == wafer_mp_info.P_No
+    Region == wafer_mp_info.P_No   (superseded 2026-10-22, see below)
     D_No == -1  ⟺  dnumber_removed == True
+
+The first was a misreading: P_No is one measured block with one Parameter
+name, and a Region groups several of them (user-confirmed 2026-10-22).
 
 They were written down and then not acted on, so the mock kept drawing
 ``Parameter`` and ``P_No`` from independent draws and ``D_No`` from
@@ -28,21 +31,28 @@ def _tables(seed: int = 11):
     return mp_rows, idp_rows
 
 
-def test_region_equals_p_no_for_the_parameter_the_point_measures():
-    """The documented integer join key must agree with the Parameter join.
+def test_p_no_names_the_block_the_point_measures():
+    """P_No is what a formula's `$N` names, so it must lead to the right name.
 
-    A developer following the doc joins on Region; at home that returned rows
-    belonging to a different parameter, which reads as "the doc is wrong".
+    One P_No carries one Parameter (user-confirmed 2026-10-22); the mock takes
+    the block's row position, so P_No N is row N's Parameter.
     """
     mp_rows, idp_rows = _tables()
-    region_of = {row["Parameter"]: row["Region"] for row in idp_rows}
     assert mp_rows, "the mock must emit measurement points"
     for row in mp_rows:
-        assert row["Parameter"] in region_of, f"unjoinable Parameter {row['Parameter']!r}"
-        assert region_of[row["Parameter"]] == row["P_No"], (
-            f"Region {region_of[row['Parameter']]} != P_No {row['P_No']} "
-            f"for {row['Parameter']!r}"
+        assert idp_rows[row["P_No"] - 1]["Parameter"] == row["Parameter"], (
+            f"P_No {row['P_No']} is {idp_rows[row['P_No'] - 1]['Parameter']!r}, "
+            f"not {row['Parameter']!r}"
         )
+
+
+def test_a_region_spans_several_p_nos():
+    """The superseded `Region == P_No` collapsed a Region to one P_No."""
+    mp_rows, idp_rows = _tables()
+    p_nos_by_region: dict[int, set[int]] = {}
+    for row in mp_rows:
+        p_nos_by_region.setdefault(idp_rows[row["P_No"] - 1]["Region"], set()).add(row["P_No"])
+    assert any(len(p_nos) > 1 for p_nos in p_nos_by_region.values())
 
 
 def test_d_no_minus_one_iff_the_parameter_is_dnumber_removed():

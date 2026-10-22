@@ -402,7 +402,10 @@ production equipment.
   needed **no logic change**: `_scalar` already converts `numpy.bool_` via
   `.item()`. Two cross-table invariants were confirmed at the same time:
   `Region == wafer_mp_info.P_No`, and `D_No == -1` ⟺
-  `dnumber_removed == True`.
+  `dnumber_removed == True`. **The first is superseded (2026-10-22):** P_No is
+  one measured parameter with one name — what a formula's `$N` names — and a
+  Region groups several P_Nos (user-confirmed). The mock now gives each block
+  its own P_No; see `docs/datatables/hitachi/recipe_idp.txt`.
 - **Those two invariants now hold in the home data (2026-07-31).** They had
   been written down and left unbuilt, so `providers/mock.py` and the
   `office_utils` stand-in drew `Parameter`, `P_No` and `dnumber_removed` from

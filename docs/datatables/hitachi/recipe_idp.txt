@@ -259,9 +259,15 @@ dnumber_removed -> bool: 데이터 전송 제외 여부 (office 확인 2026-07-2
        recipe open 화면은 계속 .idp 파일을 읽습니다. 그 화면은 recipe 1건만
        보므로 파일이 더 정확하고, 두 경로가 어긋나면 파일이 정본입니다.
 
-★ Region = wafer_mp_info.P_No (office 확인 2026-07-28) — 두 table 을 잇는 정수
-  key 가 이미 존재합니다. 현재 화면은 Parameter 문자열로 잇고 있습니다(아래
-  "wafer_mp_info ↔ idp_image_info 연결 key" 절 참고).
+★ P_No 는 측정 parameter 하나의 번호입니다 (user-confirmed 2026-10-22).
+  P_No 하나에는 Parameter 이름이 하나 붙고, formula 의 `$N` 은 이 P_No 입니다.
+  Region 은 같은 image 를 여러 방법으로 재는 P_No 들의 묶음이고, 그 Region 에서
+  맨 처음 측정하는 P_No 가 mother 입니다. 그래서 **Region ≠ P_No** 입니다.
+  2026-07-28 기록("Region = wafer_mp_info.P_No", office 확인)은 2026-08-18 의
+  "Region 은 여러 parameter 를 묶는다"와 함께 성립할 수 없으며, 이 기록으로
+  대체합니다. mock 은 그동안 Region 의 parameter 들에게 같은 P_No 를 주고
+  있었습니다. OFFICE-VERIFY: P_No 가 .idp block 순서(또는 block 의 파일 번호)와
+  항상 같은지. mock 은 block 순서를 씁니다.
 
 ★ D_No = -1 ⟺ dnumber_removed = True (office 확인 2026-07-28) — 같은 사실을
   wafer_mp_info 는 measurement point 단위로, idp_image_info 는 parameter 단위로
@@ -453,8 +459,9 @@ wafer_mp_info ↔ idp_image_info 연결 key
 idp_image_info 에서 고른 row 의 Parameter 와 같은 값을 가진 wafer_mp_info row 만
 걸러 MP table 에 보여줍니다.
 
-대안인 "wafer_mp_info.P_No ↔ idp_image_info.Region" 은 2026-07-28 에 **같은
-값임이 확인되었습니다**(office 확인). 2026-07-28 이전에는 "같은 의미로 보이지만
+대안이던 "wafer_mp_info.P_No ↔ idp_image_info.Region" 은 2026-10-22 에
+**성립하지 않는 것으로 정정되었습니다**(위 P_No 절). 아래는 그 전의 기록입니다.
+2026-07-28 에는 같은 값으로 보았습니다(office 확인). 2026-07-28 이전에는 "같은 의미로 보이지만
 Parameter 로 이미 연결되는 이상 숫자 key 를 추가로 신뢰할 이유가 없다"는 이유로
 쓰지 않기로 했었고, 그 판단의 전제(확인되지 않은 추측)가 사라진 셈입니다.
 
@@ -892,14 +899,16 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
   `_to_rows` 를 거치면 `{key: 'Formula', value: 'max(...)', section: 'formula'}`
   한 줄이 됩니다. office adapter 는 바꾸지 않았습니다.
 
-  `$N` 은 recipe 의 **N 번째 .idp block** 입니다 — 1부터 셉니다
-  (office 확인 2026-10-22: `$13`–`$18` = CELL_BARY1…4, CELL_SPY, CELL_SPY1).
-  모든 block 의 파일 번호가 block 번호와 같습니다(PRMP·PRMS `00NN` = block NN,
-  office 확인 2026-10-22). 그래서 화면은 row 위치가 아니라 각 row 의
-  `img_meas2` 번호로 `$N` 을 찾습니다(`formulaRefNames`, frontend
-  `utils/recipeView.ts`). 삭제된 block 이 있어도 뒤의 참조가 밀리지 않고, 없는
-  block 을 가리키는 `$N` 은 그대로 남습니다. 살아 있는 formula 약 90개를 봤지만
-  삭제된 block 너머를 가리키는 경우는 아직 없었습니다.
+  `$N` 은 **wafer_mp_info 의 P_No** 입니다 (user-confirmed 2026-10-22). 화면은
+  P_No → Parameter 표로 `$N` 을 찾습니다(`formulaRefNames`, frontend
+  `utils/recipeView.ts`). 없는 P_No 를 가리키는 `$N` 은 그대로 남습니다.
+
+  그 전에는 `$N` 을 N 번째 .idp block 으로 보고 idp_image_info 각 row 의
+  `img_meas2` 파일 번호로 찾았습니다(office 확인 2026-10-22: `$13`–`$18` =
+  CELL_BARY1…4, CELL_SPY, CELL_SPY1, 파일 번호 = block 번호). 실제 recipe 에서
+  이름 없는 block 의 `$20` 이 다른 parameter 이름으로 해석되어(2026-10-22) 이
+  방법이 틀린 것으로 확인되었습니다. 표본에서는 파일 번호와 P_No 가 우연히
+  같았던 것으로 보입니다.
 
   수식 모양 (office 확인 2026-10-22):
 
@@ -933,9 +942,8 @@ none 이면 addressing 관련 group 이 파싱 결과에 **아예 없습니다**
   이름 없는 block 은 측정 block 일 수도, formula block 일 수도 있습니다.
   해석은 이름 없는 block 을 가리키는 `$N` 을 빈 문자열로 바꾸지 않고
   `(이름 없음 $N)` 으로 씁니다. 이웃 parameter 이름으로 바뀌면 안 됩니다.
-  OFFICE-VERIFY: 실제 화면에서 `$20` 이 다른 parameter 이름으로 해석된 사례가
-  있었습니다(2026-10-22). 이름 없는 row 의 `img_meas2`/`img_add2` 가 무엇인지가
-  원인 확인에 필요합니다.
+  실제 화면에서 `$20` 이 다른 parameter 이름으로 해석된 사례(2026-10-22)는
+  `$N` 을 파일 번호로 찾았기 때문이었고, P_No 로 바꾸어 고쳤습니다(위 `$N` 절).
 
   CG5000(구형 장비)의 ENMP 에도 같은 형식의 formula 줄이 있습니다
   (office 확인 2026-10-22).
