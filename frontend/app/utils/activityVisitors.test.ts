@@ -8,7 +8,8 @@ import {
   visitorAxisLabel,
   visitorTooltip,
   visitorWindow,
-  visitorsByTeam
+  visitorsByTeam,
+  withoutTeams
 } from './activityVisitors.ts'
 
 // 60 consecutive days ending 2026-10-02, visitors = position in the series.
@@ -124,4 +125,10 @@ test('counts people per team, largest first, with the unknown team named', () =>
       { label: 'A팀', count: 1 }
     ]
   )
+})
+
+test('excluding a team drops exactly the people its team-card row counts', () => {
+  const users = [user('1', 3, 'B팀'), user('2', 3, ' A팀 '), user('3', 3, null), user('4', 3, '  ')]
+  assert.deepEqual(withoutTeams(users, ['A팀', '소속 미확인']).map(row => row.user_id), ['1'])
+  assert.deepEqual(withoutTeams(users, []).map(row => row.user_id), ['1', '2', '3', '4'])
 })

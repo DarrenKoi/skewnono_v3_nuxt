@@ -161,13 +161,22 @@ export const visitFrequencyBuckets = (users: readonly Visitor[]): CountRow[] => 
 
 const NO_TEAM = '소속 미확인'
 
+/** The team a person counts under — the key both the team card and the
+ *  팀 제외 filter use, so excluding a card's row removes exactly its people. */
+export const visitorTeam = (row: Visitor): string => row.dept_nm?.trim() || NO_TEAM
+
+/** Everyone outside the excluded teams. Used to look past a team whose
+ *  daily habit would otherwise fill every ranking on the page. */
+export const withoutTeams = <T extends Visitor>(users: readonly T[], excluded: readonly string[]): T[] =>
+  excluded.length === 0 ? [...users] : users.filter(row => !excluded.includes(visitorTeam(row)))
+
 /** People per team, largest first. A person the directory had no team for is
  *  counted under a named bucket rather than dropped — the totals must add up
  *  to the user count beside them. */
 export const visitorsByTeam = (users: readonly Visitor[]): CountRow[] => {
   const counts = new Map<string, number>()
   for (const row of users) {
-    const team = row.dept_nm?.trim() || NO_TEAM
+    const team = visitorTeam(row)
     counts.set(team, (counts.get(team) ?? 0) + 1)
   }
   return [...counts]

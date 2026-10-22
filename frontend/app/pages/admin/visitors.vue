@@ -107,6 +107,41 @@
         />
       </UCard>
 
+      <!-- Narrows everything below — the three cards and the table — so a
+           team that visits daily stops filling every ranking. The KPI row
+           and trend above stay whole-app numbers. -->
+      <div class="flex items-center justify-end gap-2">
+        <label
+          for="visitors-team-exclude"
+          class="sk-meta"
+        >
+          팀 제외
+        </label>
+        <USelectMenu
+          id="visitors-team-exclude"
+          v-model="excludedTeams"
+          multiple
+          class="w-64"
+          size="sm"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-users-round"
+          placeholder="제외할 팀 선택"
+          :items="teamOptions"
+          value-key="value"
+          :ui="{ itemTrailingIcon: 'hidden' }"
+        />
+        <UButton
+          v-if="excludedTeams.length"
+          size="sm"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-x"
+          aria-label="팀 제외 해제"
+          @click="excludedTeams = []"
+        />
+      </div>
+
       <!-- All three read the same 30-day users list the table below shows. -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <UCard class="dashboard-surface">
@@ -155,7 +190,7 @@
         </UCard>
       </section>
 
-      <ActivityUserTable :users="users" />
+      <ActivityUserTable :users="shownUsers" />
     </template>
   </div>
 </template>
@@ -166,6 +201,7 @@ import {
   useActivityUsers,
   useActivityVisitors
 } from '~/composables/useActivityApi'
+import { normalizeStringArray, usePersistedState } from '~/composables/usePersistedState'
 import { activeUserKpis } from '~/utils/activity'
 import {
   VISITOR_METRIC_TABS,
@@ -175,6 +211,7 @@ import {
   visitFrequencyBuckets,
   visitorWindow,
   visitorsByTeam,
+  withoutTeams,
   type VisitorMetricKey,
   type VisitorWindowKey
 } from '~/utils/activityVisitors'
@@ -245,8 +282,20 @@ const metricKey = ref<VisitorMetricKey>('dau')
 const windowKey = ref<VisitorWindowKey>('2w')
 const windowDays = computed(() => visitorWindow(days.value, windowKey.value))
 
+// --- 팀 제외: remembered per browser, since the team worth hiding rarely changes ---
+const excludedTeams = usePersistedState<string[]>('admin-visitors-excluded-teams', 'skewnono:adminVisitors.excludedTeams', {
+  default: () => [],
+  normalize: normalizeStringArray
+})
+// Offered from the unfiltered list, so an excluded team stays selectable.
+const teamOptions = computed(() => visitorsByTeam(users.value?.users ?? [])
+  .map(team => ({ label: `${team.label} (${team.count})`, value: team.label })))
+const shownUsers = computed(() => users.value
+  ? { ...users.value, users: withoutTeams(users.value.users, excludedTeams.value) }
+  : null)
+
 // --- who visits, how often, from where ---
-const userRows = computed(() => users.value?.users ?? [])
+const userRows = computed(() => shownUsers.value?.users ?? [])
 const topVisitors = computed(() => frequentVisitors(userRows.value))
 const frequencyBuckets = computed(() => visitFrequencyBuckets(userRows.value))
 const teams = computed(() => visitorsByTeam(userRows.value))
