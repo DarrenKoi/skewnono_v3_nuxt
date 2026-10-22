@@ -212,6 +212,13 @@ const shortList = (values: readonly number[]) => values.length > 3
 
 const sortKey = ref<RecipeOpenSortKey>(DEFAULT_RECIPE_OPEN_SORT.key)
 const sortDirection = ref<RecipeOpenSortDirection>(DEFAULT_RECIPE_OPEN_SORT.direction)
+// Hiding the sorted column would leave an order nothing on screen explains, so
+// it falls back to the default — SEQ asc, the table's own order even if hidden.
+watch(shownColumns, (columns) => {
+  if (columns.some(column => column.sortKey === sortKey.value)) return
+  sortKey.value = DEFAULT_RECIPE_OPEN_SORT.key
+  sortDirection.value = DEFAULT_RECIPE_OPEN_SORT.direction
+})
 const displayedRows = computed(() => sortRecipeOpenRows(
   props.rows,
   sortKey.value,

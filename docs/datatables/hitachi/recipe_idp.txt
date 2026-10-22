@@ -266,8 +266,10 @@ dnumber_removed -> bool: 데이터 전송 제외 여부 (office 확인 2026-07-2
   2026-07-28 기록("Region = wafer_mp_info.P_No", office 확인)은 2026-08-18 의
   "Region 은 여러 parameter 를 묶는다"와 함께 성립할 수 없으며, 이 기록으로
   대체합니다. mock 은 그동안 Region 의 parameter 들에게 같은 P_No 를 주고
-  있었습니다. OFFICE-VERIFY: P_No 가 .idp block 순서(또는 block 의 파일 번호)와
-  항상 같은지. mock 은 block 순서를 씁니다.
+  있었습니다. OFFICE-VERIFY: P_No 가 .idp block 순서와 항상 같은지. mock 은
+  block 순서를 씁니다. block 의 파일 번호와는 같지 않을 수 있다는 것이 이미
+  확인되었습니다(아래 `$N` 절) — 파일 번호로 `$N` 을 찾는 방식으로 되돌리면 안
+  됩니다.
 
 ★ D_No = -1 ⟺ dnumber_removed = True (office 확인 2026-07-28) — 같은 사실을
   wafer_mp_info 는 measurement point 단위로, idp_image_info 는 parameter 단위로
@@ -406,7 +408,9 @@ Mock 데이터 생성 규칙 (집/Phase 1)
    (2026-07-31 반영). wafer_mp_info 의 row 는 idp_image_info 의 parameter 중
    하나를 골라 만들며, 그 parameter 로부터 아래 두 컬럼이 결정됩니다.
 
-     P_No  = 고른 parameter 의 Region
+     P_No  = 고른 block 의 순서(1부터). 2026-10-22 전에는 "고른 parameter 의
+             Region" 이었으나 틀린 불변식이었습니다(위 ★ P_No 절).
+             모든 block 이 point 를 하나 이상 가집니다.
      D_No  = -1  (그 parameter 의 dnumber_removed 가 True 일 때)
              그 외에는 1~100 의 임의값
 

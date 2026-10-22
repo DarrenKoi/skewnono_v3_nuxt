@@ -120,3 +120,11 @@ def test_slots_stay_row_level_so_a_repeated_parameter_names_different_files():
     assert any(len(v) > 1 for v in by_parameter.values()), (
         "no parameter appears on two rows with different slots — the trap is gone"
     )
+
+
+def test_every_block_has_a_p_no():
+    """A block with no point has no P_No, so a formula `$N` naming it renders
+    unresolved — ~1.5 blocks per recipe when every point was drawn at random."""
+    for seed in range(5):
+        mp_rows, idp_rows = _tables(seed)
+        assert {row["P_No"] for row in mp_rows} == set(range(1, len(idp_rows) + 1))

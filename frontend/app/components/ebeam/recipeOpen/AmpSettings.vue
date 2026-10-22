@@ -39,7 +39,7 @@ const props = defineProps<{
   detail: ParamDetail | null
   pending: boolean
   error: boolean
-  /** Block number → Parameter, what a formula's `$N` names (`formulaRefNames`). */
+  /** P_No → Parameter from wafer_mp_info, what a formula's `$N` names (`formulaRefNames`). */
   refNames: ReadonlyMap<number, string>
 }>()
 

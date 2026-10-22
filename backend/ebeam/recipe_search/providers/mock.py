@@ -260,8 +260,11 @@ def generate_wafer_mp_info(
         one image, its first-measured P_No being the mother. The 2026-07-28
         "Region == P_No" reading predates that and made every parameter of a
         Region share one P_No here. The mock takes the block's 1-based row
-        position; whether the office's P_No always equals that position (or
-        the block's file number) is OFFICE-VERIFY.
+        position; whether the office's P_No always equals that position is
+        OFFICE-VERIFY. Deliberate gap: that position is also the block's file
+        number here (IMMP00NN), while the office has a recipe where the two
+        differ — so at home a resolver keyed on file numbers gives the same
+        answer as one keyed on P_No. recipeView.test.ts pins the P_No keying.
       * ``D_No == -1`` ⟺ that parameter's ``dnumber_removed`` (office 확인
         2026-07-28) — the same suppression fact, recorded per point on this
         side and per parameter on the other. ``randint(1, 100)`` never produced
@@ -280,10 +283,15 @@ def generate_wafer_mp_info(
     if not pool:
         return data
 
-    for _ in range(num_records):
+    for index in range(num_records):
         chip_x = active_rng.randint(1, 10)
         chip_y = active_rng.randint(1, 10)
-        p_no, parameter, dnumber_removed = active_rng.choice(pool)
+        # Every block first, then at random: a block with no point has no P_No,
+        # and a formula `$N` naming it would render unresolved (~1.5 blocks per
+        # recipe when all 50 were drawn at random).
+        p_no, parameter, dnumber_removed = (
+            pool[index] if index < len(pool) else active_rng.choice(pool)
+        )
         # Drawn unconditionally so the suppressed branch does not shift the
         # random stream and make the seeded output depend on the coin flip.
         d_no = active_rng.randint(1, 100)
@@ -906,7 +914,7 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
     "addressing_auto_focus2": _AF_FIELDS,
     "addressing_pattern_recognition2": _PR_FIELDS,
     # The ninth group (office 확인 2026-10-22): a computed parameter's formula,
-    # $N = the recipe's N-th parameter, 1-based .idp block order. Every real
+    # $N = wafer_mp_info's P_No (user-confirmed 2026-10-22). Every real
     # ENMP carries the `formula` line, empty on non-Formula parameters — and
     # the reader sets nothing for an empty one, so the GROUP'S PRESENCE is the
     # flag. Hence present only for _is_formula_parameter, never as an empty row.
@@ -918,8 +926,8 @@ _AFPR_SECTION_FIELDS: dict[str, tuple[tuple[str, object], ...]] = {
 
 # Real formulas, verbatim (office 확인 2026-10-22). Together they carry every
 # shape the office reported: refs with AND without the ($N) wrapping, bare `+`,
-# min/max/average/abs, and a duplicate ref. All resolve on any mock recipe,
-# whose blocks run 1-20. Refs to another formula parameter are real too
+# min/max/average/abs, and a duplicate ref. All resolve on any mock recipe:
+# its blocks run 1-20 and every block has a P_No (generate_wafer_mp_info). Refs to another formula parameter are real too
 # (MAX_DEL = max over formulas) and happen here whenever a ref lands on one.
 _FORMULA_SAMPLES: tuple[str, ...] = (
     "max(($13), ($14), ($15))",
@@ -942,8 +950,10 @@ def _formula_parameter_name(idp: str) -> str:
 def _formula_sample(rng: random.Random, source: str) -> str:
     """A real formula that does not reference its OWN block.
 
-    The block number is the file's (ENMP0014 -> 14, office 확인 2026-10-22). A
-    formula naming itself is a cycle no recipe can hold. Only the own block is
+    `$N` is a P_No, which the mock makes the block's position — equal here to
+    its file number (ENMP0014 -> 14), so the own P_No is read off ``source``.
+    That holds only in the mock (see generate_wafer_mp_info). A formula naming
+    itself is a cycle no recipe can hold. Only the own block is
     excluded: whether a mock name repeated at another block counts as "itself"
     is a mock artefact, since the mock draws names with repeats.
     """
