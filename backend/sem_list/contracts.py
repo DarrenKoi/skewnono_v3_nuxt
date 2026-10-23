@@ -3,21 +3,29 @@
 from typing import Literal, TypedDict
 
 
-__all__ = ["PendingToolRow", "ProvisionFields", "SemListRow"]
+__all__ = ["HostProbeFields", "PendingToolRow", "SemListRow"]
 
 
-class ProvisionFields(TypedDict, total=False):
-    """Present on PROVISION rows only, in both the fleet and the pending list.
+class HostProbeFields(TypedDict, total=False):
+    """Present on the AMAT families' rows only (PROVISION and VeritySEM), in
+    both the fleet and the pending list.
 
-    A Provision's data lives on a separate data host, not the tool, so it has
-    two reachabilities: the tool IP (``eqp_ip``, probed by downloading
-    ``/D_drive/Qrelease/current_version.ini`` -> ``v3_df_provision_version``)
-    and the data IP (``data_ip``, probed by listing the P-drive ->
-    ``v3_df_provision_hosts``). Both keys call their column ``available``; they
-    are renamed here so neither can be mistaken for the other.
+    Their reachability comes from per-family host keys, not v3_df_sem_avail,
+    and each tool has two probes. Every key calls its probe column
+    ``available``; they are renamed here so neither can be mistaken for the
+    other:
+
+    * ``tool_available`` -- the tool-side version ini downloaded
+      (``v3_df_provision_version`` / ``v3_df_verity_version``).
+    * ``data_available`` -- the data folder listing succeeded
+      (``v3_df_provision_hosts``: the P-drive on the separate data host;
+      ``v3_df_verity_hosts``: ``/D_Drive/Output`` on the tool itself).
+
+    Provision-only: ``data_ip`` and ``ip_note`` (its data host is a different
+    IP). VeritySEM-only: ``veridity`` (tool IP == data IP there).
 
     ``""`` in an availability means the tool is absent from that key, which
-    is "not probed", not "Off". See docs/datatables/provision/provision_hosts.txt.
+    is "not probed", not "Off". See docs/datatables/{provision,veritysem}/.
     """
 
     data_ip: str
@@ -26,11 +34,14 @@ class ProvisionFields(TypedDict, total=False):
     ip_note: str
     data_available: Literal["On", "Off", ""]
     tool_available: Literal["On", "Off", ""]
-    # UTC ISO stamp of the last v3_df_provision_hosts run; one for all rows.
+    # /C_Drive/Veridity/Reports listing; Off is expected where that folder
+    # does not exist (9 of 54 tools, user-confirmed 2026-10-23).
+    veridity: Literal["On", "Off", ""]
+    # UTC ISO stamp of the last host-key run; one for all rows of a family.
     checked_at: str
 
 
-class SemListRow(ProvisionFields):
+class SemListRow(HostProbeFields):
     fac_id: str
     eqp_id: str
     eqp_model_cd: str
@@ -49,7 +60,7 @@ class SemListRow(ProvisionFields):
     version: str
 
 
-class PendingToolRow(ProvisionFields):
+class PendingToolRow(HostProbeFields):
     """A tool in the company roster that skewnono cannot reach yet.
 
     Every tool is firewalled when it is first installed in the fab, so this

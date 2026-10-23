@@ -86,7 +86,7 @@ that rule -- not v3_df_sem_avail -- splits Provision between the fleet and the
 pending list. `v3_df_provision_version` (eqp_ip -> version, available; daily
 download of `/D_drive/Qrelease/current_version.ini` on the TOOL ip, version ""
 when the probe failed) supplies `version` and `tool_available`. This mock emits
-both as the `ProvisionFields` on Provision rows (`_with_provision_fields`):
+both as the `HostProbeFields` on Provision rows (`_with_provision_fields`):
 connected ones are all confirmed, and `available` there is the data host's.
 The pending ones copy the office's mix -- mostly tool-ip fallback, a few
 candidates. `ip_note` holds exactly the four office strings, and `version` uses
@@ -95,10 +95,12 @@ the office FORMAT -- raw ini text, dotted <major>.<minor>.<patch>.<build> like
 VeritySEM has the sibling key `v3_df_verity_hosts` (user-confirmed 2026-10-23;
 docs/datatables/veritysem/verity_hosts.txt), but there tool IP == data IP, so
 it carries no data_ip / ip_note -- just `available` for `/D_Drive/Output` and
-`veridity` for `/C_Drive/Veridity/Reports` ("" path on 9 of 54 tools). Nothing
-reads it yet, so VeritySEM rows here still follow v3_df_sem_avail.
-A VeritySEM's ini reads "Ver_<maj>_<min>_<pat>_<build>_Win7" instead; this mock
-does not emit VeritySEM versions from that key, whose name is OFFICE-VERIFY.
+`veridity` for `/C_Drive/Veridity/Reports` ("" path on 9 of 54 tools).
+Together with `v3_df_verity_version` (eqp_id -> version, available; the ini
+reads "Ver_<maj>_<min>_<pat>_<build>_Win7") it decides VeritySEM the same way:
+in the hosts key -> fleet, missing -> pending (user-confirmed 2026-10-23).
+`_with_verity_fields` mirrors that: connected VeritySEM rows get the probes,
+the pending ones carry blanks because the hosts key never saw them.
 Data-host IPs, the version digits and the On/Off mixes are fabricated
 (OFFICE-VERIFY).
 
@@ -115,7 +117,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from backend.ebeam._tool_specs import model_to_tool_type
-from backend.sem_list.contracts import PendingToolRow, ProvisionFields, SemListRow
+from backend.sem_list.contracts import HostProbeFields, PendingToolRow, SemListRow
 
 
 # The fabs actually in operation (user-confirmed 2026-08-03). M12 used to sit
@@ -196,7 +198,8 @@ _PENDING_PROVISION_NOTES = {
     ("M15B", "PROVISION_10"): "tool-ip fallback (no data share)",
 }
 
-# One stamp for every row: the hosts job checks the whole roster in one run.
+# One stamp for every row: a hosts job checks its whole family in one run.
+# Shared by both families here for brevity; at the office each key has its own.
 _PROVISION_CHECKED_AT = "2026-04-19T00:30:00+00:00"
 
 
@@ -364,7 +367,7 @@ def _with_provision_fields(rows: list, seed: int) -> list:
             # unreachable candidate is usually a tool that is down too.
             tool_available = "Off" if note.endswith("(unreach)") else "On"
             data_available = "Off"
-        row.update(ProvisionFields(
+        row.update(HostProbeFields(
             # The fallback probe target IS the tool ip.
             data_ip=row["eqp_ip"] if note.startswith("tool-ip fallback") else _ip(rng),
             ip_note=note,
@@ -375,11 +378,43 @@ def _with_provision_fields(rows: list, seed: int) -> list:
     return rows
 
 
+def _with_verity_fields(rows: list, seed: int) -> list:
+    """Add the VeritySEM probe fields, from their own rng stream.
+
+    Connected rows are in v3_df_verity_hosts: their drawn `available` is the
+    /D_Drive/Output listing, and 45 of 54 tools have a Veridity folder at all.
+    Pending rows are 미연결 BECAUSE that key does not hold them, so their
+    host fields are blank -- "not probed", not Off.
+    """
+    rng = random.Random(seed)
+    for row in rows:
+        if model_to_tool_type(row["eqp_model_cd"]) != "veritysem":
+            continue
+        if "available" not in row:  # pending
+            row.update(HostProbeFields(
+                data_available="", tool_available="", veridity="", checked_at=""
+            ))
+            continue
+        tool_available = "On" if rng.random() < 0.95 else "Off"
+        has_veridity = rng.random() < 45 / 54
+        row["version"] = (
+            f"Ver_{rng.randint(5, 7)}_{rng.randint(0, 9)}_{rng.randint(0, 9)}"
+            f"_{rng.randint(1000, 9999)}_Win7"
+            if tool_available == "On" else ""
+        )
+        row.update(HostProbeFields(
+            data_available=row["available"],
+            tool_available=tool_available,
+            veridity="On" if has_veridity and rng.random() < 0.95 else "Off",
+            checked_at=_PROVISION_CHECKED_AT,
+        ))
+    return rows
+
+
 def get_sem_list() -> list[SemListRow]:
-    return _with_provision_fields(_generate_rows(), seed=45)
+    return _with_verity_fields(_with_provision_fields(_generate_rows(), seed=45), seed=47)
 
 
 def get_pending_tools() -> list[PendingToolRow]:
-    return _with_provision_fields(
-        _generate_pending({row["eqp_id"] for row in _generate_rows()}), seed=46
-    )
+    pending = _generate_pending({row["eqp_id"] for row in _generate_rows()})
+    return _with_verity_fields(_with_provision_fields(pending, seed=46), seed=48)

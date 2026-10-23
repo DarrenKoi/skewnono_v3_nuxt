@@ -253,6 +253,9 @@
               <template #data_available-cell="{ row }">
                 <span class="sk-value">{{ row.original.data_available || '—' }}</span>
               </template>
+              <template #veridity-cell="{ row }">
+                <span class="sk-value">{{ row.original.veridity || '—' }}</span>
+              </template>
               <template #checked_at-cell="{ row }">
                 <span class="sk-value-num">{{ formatKstDateTime(row.original.checked_at) }}</span>
               </template>
@@ -378,9 +381,10 @@ const drilldownTableMeta = {
 
 type PendingColumn = { id: keyof PendingToolRow, header: string }
 
-// A Provision is 미연결 when its DATA host is not confirmed, so its rows carry
-// the data-host fields (ProvisionFields) and the IT-facing eqp_ip is the tool.
-const isProvisionRow = (row: PendingToolRow) => row.ip_note !== undefined
+// Provision and VeritySEM rows carry HostProbeFields, and which ones depends on
+// the family, so a probe column appears only when some row actually has it.
+const presentColumns = (rows: PendingToolRow[], columns: PendingColumn[]) =>
+  columns.filter(({ id }) => rows.some(row => row[id] !== undefined))
 
 const drilldownColumnConfigs: PendingColumn[] = [
   { id: 'eqp_id', header: 'Equipment ID' },
@@ -388,22 +392,22 @@ const drilldownColumnConfigs: PendingColumn[] = [
   { id: 'vendor_nm', header: 'Vendor' },
   { id: 'updt_dt', header: '반입일' }
 ]
-const provisionColumnConfigs: PendingColumn[] = [
+const hostProbeColumnConfigs: PendingColumn[] = [
   { id: 'data_ip', header: 'Data IP' },
   { id: 'ip_note', header: 'Data IP 상태' },
   { id: 'tool_available', header: 'Tool' },
   { id: 'data_available', header: 'Data' },
+  { id: 'veridity', header: 'Veridity' },
   { id: 'checked_at', header: 'Data 점검 (KST)' }
 ]
 const drilldownColumns = computed<TableColumn<PendingToolRow>[]>(() => {
-  const provision = drilldownRows.value.some(isProvisionRow)
-  return [...drilldownColumnConfigs, ...(provision ? provisionColumnConfigs : [])].map(
-    ({ id, header }) => ({
-      accessorKey: id,
-      // Next to Data IP, a bare "IP Address" no longer says which host it is.
-      header: provision && id === 'eqp_ip' ? 'Tool IP' : header
-    })
-  )
+  const probes = presentColumns(drilldownRows.value, hostProbeColumnConfigs)
+  const separateDataHost = probes.some(({ id }) => id === 'data_ip')
+  return [...drilldownColumnConfigs, ...probes].map(({ id, header }) => ({
+    accessorKey: id,
+    // Next to Data IP, a bare "IP Address" no longer says which host it is.
+    header: separateDataHost && id === 'eqp_ip' ? 'Tool IP' : header
+  }))
 })
 
 const copyIpList = async () => {
@@ -434,9 +438,7 @@ const EXPORT_COLUMNS: PendingColumn[] = [
 ]
 
 const downloadPendingExcel = async () => {
-  const columns = visibleRows.value.some(isProvisionRow)
-    ? [...EXPORT_COLUMNS, ...provisionColumnConfigs]
-    : EXPORT_COLUMNS
+  const columns = [...EXPORT_COLUMNS, ...presentColumns(visibleRows.value, hostProbeColumnConfigs)]
   await downloadTable(
     `pending-tools-${activeGroup.value}-${todayStamp()}.xlsx`,
     columns.map(column => column.header),

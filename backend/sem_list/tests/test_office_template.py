@@ -281,3 +281,66 @@ def test_missing_hosts_column_names_the_key():
         office._select_provision_fleet(
             _provision_roster(), _hosts().drop(columns=["ip_note"]), _provision_versions()
         )
+
+
+# --- VeritySEM: in v3_df_verity_hosts -> fleet, missing -> pending (user-confirmed 2026-10-23)
+
+
+def _verity_roster() -> pd.DataFrame:
+    return _roster([
+        {"eqp_id": "VS001", "eqp_model_cd": "VERITYSEM_4", "eqp_ip": "177.8.8.1", "vendor_nm": "AMAT"},
+        {"eqp_id": "VS002", "eqp_model_cd": "VERITYSEM_5", "eqp_ip": "177.8.8.2", "vendor_nm": "AMAT"},
+        {"eqp_id": "ECDX100"},
+    ])
+
+
+def _verity_hosts() -> pd.DataFrame:
+    # VS002 is absent: the hosts job never reached it.
+    return pd.DataFrame({
+        "eqp_id": ["VS001"],
+        "eqp_model_cd": ["VERITYSEM_4"],
+        "fab_name": ["M16A"],
+        "eqp_ip": ["177.8.8.1"],
+        "output_path": ["/D_Drive/Output"],
+        "veridity_path": [""],
+        "available": ["Off"],
+        "veridity": ["Off"],
+        "checked_at": [_CHECKED_AT],
+    })
+
+
+def _verity_versions() -> pd.DataFrame:
+    return pd.DataFrame({
+        "eqp_id": ["VS001", "VS002"],
+        "version": ["Ver_6_2_1_4410_Win7", ""],
+        "available": ["On", "Off"],
+    })
+
+
+def test_a_verity_in_the_hosts_key_is_in_the_fleet_even_when_off():
+    rows = office._select_verity_fleet(_verity_roster(), _verity_hosts(), _verity_versions())
+    assert [row["eqp_id"] for row in rows] == ["VS001"]
+    row = rows[0]
+    assert (row["available"], row["data_available"], row["tool_available"]) == ("Off", "Off", "On")
+    assert (row["veridity"], row["version"]) == ("Off", "Ver_6_2_1_4410_Win7")
+    # Tool IP == data IP: no Provision-only fields.
+    assert "data_ip" not in row and "ip_note" not in row
+
+
+def test_a_verity_missing_from_the_hosts_key_is_pending():
+    rows = office._select_verity_pending(_verity_roster(), _verity_hosts(), _verity_versions())
+    assert [row["eqp_id"] for row in rows] == ["VS002"]
+    # The version key joins on eqp_id independently of the hosts key.
+    assert (rows[0]["tool_available"], rows[0]["data_available"], rows[0]["veridity"]) == ("Off", "", "")
+
+
+def test_the_firewall_diff_no_longer_lists_veritysem():
+    rows = office._select_pending(_verity_roster(), _connected([]))
+    assert [row["eqp_id"] for row in rows] == ["ECDX100"]
+
+
+def test_missing_verity_hosts_column_names_the_key():
+    with pytest.raises(ValueError, match="v3_df_verity_hosts"):
+        office._select_verity_fleet(
+            _verity_roster(), _verity_hosts().drop(columns=["veridity"]), _verity_versions()
+        )

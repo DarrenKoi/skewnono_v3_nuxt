@@ -127,10 +127,28 @@ them from `v3_df_sem_list` with both keys LEFT-merged on
 (`_provision_frame`). `ip_note == "data-ip confirmed"` → `/api/sem-list`;
 anything else, or a tool missing from the hosts key → `/api/sem-list/pending`.
 Both `available` columns are renamed — `data_available` (hosts) and
-`tool_available` (version) — and ride along as the optional `ProvisionFields`
+`tool_available` (version) — and ride along as the optional `HostProbeFields`
 (`data_ip`, `ip_note`, `data_available`, `tool_available`, `checked_at`). On a
 Provision fleet row `available` is `data_available`. `""` in either
 availability means "not in that key", not Off.
+
+## VeritySEM: both endpoints (user-confirmed 2026-10-23)
+
+Same shape as Provision, two read-only keys instead of `v3_df_sem_avail`:
+
+- `v3_df_verity_hosts` — `[eqp_id, eqp_model_cd, fab_name, eqp_ip,
+  output_path, veridity_path, available, veridity, checked_at]`. Tool IP is
+  the data IP, so there is no `data_ip` / `ip_note`. `available` = the
+  `/D_Drive/Output` listing, `veridity` = the `/C_Drive/Veridity/Reports`
+  listing (that folder is absent on 9 of 54 tools).
+- `v3_df_verity_version` — `[eqp_id, version, available]`, joined on
+  **eqp_id** (Provision's version key joins on `eqp_ip`). Version reads
+  `Ver_<maj>_<min>_<pat>_<build>_Win7`, raw.
+
+Rule: a VeritySEM in the hosts key → `/api/sem-list` (even with `available`
+Off); missing from it → `/api/sem-list/pending` (`_verity_frame`'s
+`_in_hosts`). Rows carry `data_available`, `tool_available`, `veridity`,
+`checked_at` from `HostProbeFields`.
 
 ## Verify
 

@@ -2,7 +2,7 @@ import type { Fab, ToolType } from '~/stores/navigation'
 import { joinApiPath } from '~/utils/apiPath'
 import { NO_FAB, hasFab, normalizeFab } from '~/utils/fab'
 import { classifyToolType } from '~/utils/toolType'
-import type { ProvisionFields } from '~/utils/pendingToolMatrix'
+import type { HostProbeFields } from '~/utils/pendingToolMatrix'
 
 // One shared cache key for /api/sem-list. Every consumer (hub page, tool-type
 // tabs, fab sidebar, inventory view) calls useSemList() and derives its view
@@ -16,8 +16,8 @@ const SEM_LIST_CACHE_KEY = 'sem-list'
 // cover this layout-vs-page race in client-only rendering.
 const semListSlot = createInFlightSlot<SemListResponse>()
 
-// On a Provision, `available` is the DATA host's; the tool's is tool_available.
-export interface SemListRow extends ProvisionFields {
+// On a Provision / VeritySEM, `available` is the DATA probe's; the tool's is tool_available.
+export interface SemListRow extends HostProbeFields {
   fac_id: string
   eqp_id: string
   eqp_model_cd: string

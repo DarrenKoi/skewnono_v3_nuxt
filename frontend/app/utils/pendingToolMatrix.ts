@@ -4,16 +4,19 @@ import type { ToolType } from '~/stores/navigation'
 // this directory already uses (e.g. boxplotStats.ts -> './stats.ts').
 import { classifyToolType } from './toolType.ts'
 
-// Mirrors ProvisionFields in backend/sem_list/contracts.py: present on
-// PROVISION rows only, in both /api/sem-list and /api/sem-list/pending. A
-// Provision has two reachabilities — the tool (eqp_ip) and its separate data
-// host (data_ip) — and '' means "not probed", never Off.
-export interface ProvisionFields {
+// Mirrors HostProbeFields in backend/sem_list/contracts.py: present on
+// PROVISION and VeritySEM rows only, in both /api/sem-list and
+// /api/sem-list/pending. Each has a tool probe and a data probe; '' means
+// "not probed", never Off. data_ip/ip_note are Provision-only (separate data
+// host), veridity is VeritySEM-only.
+export interface HostProbeFields {
   data_ip?: string
   // Only 'data-ip confirmed' is usable; every other note is 미연결.
   ip_note?: string
   data_available?: 'On' | 'Off' | ''
   tool_available?: 'On' | 'Off' | ''
+  // /C_Drive/Veridity/Reports listing; Off is normal where that folder is absent.
+  veridity?: 'On' | 'Off' | ''
   // UTC ISO; show with formatKstDateTime.
   checked_at?: string
 }
@@ -21,7 +24,7 @@ export interface ProvisionFields {
 // Mirrors PendingToolRow in backend/sem_list/contracts.py. No
 // `available` or `version`: both come from Redis keys a pending tool is not
 // in yet, so there is no value the office could supply.
-export interface PendingToolRow extends ProvisionFields {
+export interface PendingToolRow extends HostProbeFields {
   fac_id: string
   eqp_id: string
   eqp_model_cd: string

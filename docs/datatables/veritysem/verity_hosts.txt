@@ -1,4 +1,4 @@
-사무실(Office) Redis — VeritySEM 장비 host 명부 (user-confirmed 2026-10-23)
+사무실(Office) Redis — VeritySEM 장비 host 명부 + tool version (user-confirmed 2026-10-23)
 
 Provision 의 v3_df_provision_hosts 와 같은 계열의 key 입니다(../provision/provision_hosts.txt).
 차이는 하나입니다. VeritySEM 은 **tool IP 가 곧 data IP** 이므로 data_ip 컬럼이 따로
@@ -7,7 +7,8 @@ Provision 의 v3_df_provision_hosts 와 같은 계열의 key 입니다(../provis
 
 저장 형태: Redis, pandas DataFrame 을 parquet 직렬화(sem_list 와 같은 방식).
 
-Key -> "v3_df_verity_hosts"
+Key 1 -> "v3_df_verity_hosts"   : host 명부 (아래 대부분이 이 key 의 설명)
+Key 2 -> "v3_df_verity_version" : 장비(tool) version 과 tool 쪽 접속 여부 (맨 아래 절)
 
 용도: **읽기 전용** 입니다. 갱신 주기는 OFFICE-VERIFY 입니다(provision_hosts 와 같은
 정기 작업이라면 한 시간에 두 번).
@@ -42,6 +43,28 @@ OFFICE-VERIFY
 - eqp_id 가 이 key 안에서 유일한지, v3_df_sem_list 의 VERITY* 행이 전부 들어 있는지.
 - veridity_path 가 "" 인 9 대의 veridity 값(항상 Off 인지).
 - Veridity 리포트의 내용·형식과 SKEWNONO 에서의 쓰임.
-- VeritySEM tool version key 의 이름(형식은 ../provision/provision_hosts.txt 참고).
+- Key 2 의 갱신 주기, 그리고 eqp_id 가 Key 2 안에서 유일한지.
 
-SKEWNONO 소비처: 아직 이 key 를 읽는 코드는 없습니다.
+Key 2 -> "v3_df_verity_version" (user-confirmed 2026-10-23)
+
+| 컬럼 | 뜻 |
+| --- | --- |
+| eqp_id | v3_df_sem_list 의 eqp_id. Provision 의 version key 와 달리 eqp_ip 가 아니라 eqp_id 로 join 합니다 |
+| version | 장비의 /D_drive/Qrelease/current_version.ini 원문. 형식 Ver_<maj>_<min>_<pat>_<build>_Win7, "" = probe 실패 |
+| available | "On" = 그 ini 다운로드 성공 (tool 쪽 접속 여부) |
+
+두 key 의 available 은 이름이 같지만 다른 것을 잽니다(Key 1 = /D_Drive/Output 목록, Key 2 =
+version ini). SKEWNONO 백엔드는 읽자마자 data_available / tool_available 로 이름을 바꿉니다.
+
+SKEWNONO 소비처 (sem_list, 2026-10-23 구현, 사무실 검증 대기)
+
+VeritySEM 은 v3_df_sem_avail 이 아니라 이 두 key 로 판정합니다 (user-confirmed 2026-10-23).
+Provision 과 같은 구조이며 규칙만 다릅니다 — VeritySEM 에는 ip_note 가 없으므로:
+
+1. GET /api/sem-list (장비 리스트) — v3_df_sem_list 의 VERITY* 행 중 Key 1 에 있는 행.
+   available 은 Key 1 의 available(Output 목록) 입니다. Off 여도 장비 리스트에 남습니다.
+2. GET /api/sem-list/pending (미연결 장비) — Key 1 에 없는 VERITY* 행.
+
+장비 리스트는 Data / Tool / Veridity 상태와 version 을, 미연결 화면은 같은 값을(없으면 —)
+보여 주며 checked_at 은 KST 로 표시합니다. 구현은 backend/sem_list/MIGRATION.md 의
+PROVISION / VeritySEM 절을 참고합니다.

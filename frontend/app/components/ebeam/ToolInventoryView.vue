@@ -143,14 +143,19 @@
           </span>
         </template>
 
-        <!-- Provision only: the tool-IP probe (current_version.ini download).
-             '' means the tool is not in v3_df_provision_version at all. -->
-        <template #tool_available-cell="{ row }">
+        <!-- Provision / VeritySEM only: the tool-side version-ini probe and
+             (VeritySEM) the Veridity/Reports listing. '' means the tool is not
+             in that key at all — not probed, so no pill. -->
+        <template
+          v-for="probe in PROBE_CELLS"
+          :key="probe"
+          #[`${probe}-cell`]="{ row }"
+        >
           <span
-            v-if="row.original.tool_available"
-            :class="row.original.tool_available === 'Off' ? 'sk-pill-off' : 'sk-pill-on'"
+            v-if="row.original[probe]"
+            :class="row.original[probe] === 'Off' ? 'sk-pill-off' : 'sk-pill-on'"
           >
-            {{ row.original.tool_available === 'Off' ? 'Offline' : 'Available' }}
+            {{ row.original[probe] === 'Off' ? 'Offline' : 'Available' }}
           </span>
           <span
             v-else
@@ -266,9 +271,14 @@ const { setSelectedTool } = useNavigation()
 const { data: allRows } = await useSemList()
 const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fabs))
 
-// A Provision's data lives on a separate host, so its rows carry two
-// reachabilities and two IPs; `available` on them is the data host's.
+// Provision and VeritySEM are judged by their own host keys, so their rows
+// carry a tool probe and a data probe; `available` on them is the data one.
+// Only a Provision has a separate data host (data_ip); only a VeritySEM has
+// a Veridity folder.
 const isProvision = props.toolType === 'provision'
+const isVeritySem = props.toolType === 'veritysem'
+const hasHostProbes = isProvision || isVeritySem
+const PROBE_CELLS = ['tool_available', 'veridity'] as const
 const dataCheckedAt = computed(() => rows.value.find(row => row.checked_at)?.checked_at)
 
 const globalFilter = ref('')
@@ -366,7 +376,7 @@ const segmentCounts = computed(() => {
 
 // Summary stats for the meta bar — these double as the availability filter
 // (click a segment to toggle the table filter, like the old overview cards did).
-const statLabelPrefix = isProvision ? 'Data ' : ''
+const statLabelPrefix = hasHostProbes ? 'Data ' : ''
 const metaStats = computed<MetaBarStat[]>(() => [
   { key: 'On', value: segmentCounts.value.On, label: `${statLabelPrefix}Available`, tone: 'ok', active: availabilityFilter.value === 'On' },
   { key: 'Off', value: segmentCounts.value.Off, label: `${statLabelPrefix}Offline`, tone: 'bad', active: availabilityFilter.value === 'Off' }
@@ -418,12 +428,22 @@ const columnConfigs: ColumnConfig[] = isProvision
       { id: 'data_ip', header: 'Data IP', size: 176 },
       { id: 'version', header: 'Version', size: 90 }
     ]
-  : [
-      { id: 'available', header: 'Status', size: 120 },
-      ...identityColumns,
-      { id: 'eqp_ip', header: 'IP Address', size: 176 },
-      { id: 'version', header: 'Version', size: 90 }
-    ]
+  : isVeritySem
+    ? [
+        { id: 'available', header: 'Data', size: 120 },
+        { id: 'tool_available', header: 'Tool', size: 120 },
+        { id: 'veridity', header: 'Veridity', size: 120 },
+        ...identityColumns,
+        { id: 'eqp_ip', header: 'IP Address', size: 176 },
+        // Ver_<maj>_<min>_<pat>_<build>_Win7 is longer than a Hitachi "1A".
+        { id: 'version', header: 'Version', size: 200 }
+      ]
+    : [
+        { id: 'available', header: 'Status', size: 120 },
+        ...identityColumns,
+        { id: 'eqp_ip', header: 'IP Address', size: 176 },
+        { id: 'version', header: 'Version', size: 90 }
+      ]
 
 const columns: TableColumn<SemListRow>[] = [
   { id: 'row_no', header: '#', size: 48 },
@@ -454,13 +474,10 @@ const exportColumns: ExportColumn[] = [
   { id: 'eqp_ip', header: 'IP Address' },
   { id: 'version', header: 'Version' },
   { id: 'available', header: 'Available' },
-  ...(isProvision
-    ? [
-      { id: 'tool_available', header: 'Tool Available' },
-      { id: 'data_ip', header: 'Data IP' },
-      { id: 'checked_at', header: 'Data 점검 (UTC)' }
-    ] satisfies ExportColumn[]
-    : [])
+  ...(hasHostProbes ? [{ id: 'tool_available', header: 'Tool Available' }] satisfies ExportColumn[] : []),
+  ...(isProvision ? [{ id: 'data_ip', header: 'Data IP' }] satisfies ExportColumn[] : []),
+  ...(isVeritySem ? [{ id: 'veridity', header: 'Veridity' }] satisfies ExportColumn[] : []),
+  ...(hasHostProbes ? [{ id: 'checked_at', header: 'Data 점검 (UTC)' }] satisfies ExportColumn[] : [])
 ]
 
 const toast = useToast()
