@@ -162,6 +162,7 @@
               {{ row.original.eqp_id }}
             </span>
             <UButton
+              v-if="featureSupportsToolType('hardware', props.toolType)"
               size="xs"
               color="neutral"
               variant="subtle"
@@ -233,6 +234,7 @@ import type { SemListRow } from '~/composables/useSemListApi'
 import type { MetaBarStat } from './MetaBar.vue'
 import { copyTableToClipboard, copyTextToClipboard } from '~/utils/tableExport'
 import { hasStorageView } from '~/utils/toolType'
+import { featureSupportsToolType } from '~/utils/features'
 import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 import { buildFabSegment } from '~/utils/fab'
 import { formatKstDateTime, todayStamp } from '~/utils/dateTime'
