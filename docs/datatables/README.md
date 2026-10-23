@@ -41,6 +41,7 @@
 | `hitachi/skewnono_chat_logging.txt` | OpenSearch `skewnono_chat_logging{,_local}` (자체 생성) | `chat` (대화 turn 기록) | 연결(alias 생성 user-confirmed 2026-08-04) |
 | `hitachi/chat_rag_contract.txt` | 사내 RAG 저장소(in-process, `chat/_rag/`) + MinIO figure 저장소 | `chat` (근거 검색·질의 rewrite·follow-ups) | 연결 — 사무실 검증 완료 2026-09-01: `agent_query` full-path(`check_answer_contract --live`)와 SPA·그림 경로 양쪽 |
 | `chat/chat_office_adapter_handoff.txt` | RAG 측 agent 의 handoff 편지(2026-08-27) — 공개 API 셋과 seam 채우기 지시 | `chat` | 참고 문서(원문 보존, 오탈자 포함) |
+| `provision/provision_hosts.txt` | Redis `v3_df_provision_hosts` (읽기 전용, 30분 주기 갱신) | Provision 데이터 추출·미연결 장비 (예정) | **미연결**(소비 코드 없음) |
 | `afm/afm_redis.txt` | Redis hash `afm_d1_tools` + `afm_d2_measurements`, MinIO `2067928/afm/<TOOL>/<측정키>/` | `afm` | 구현완료(명세 user-confirmed 2026-10-06, 사무실 검증 대기) |
 | `afm/afm_raw_files.txt` | AFM 장비 raw 파일(csv·profile txt·webp) — ETL 이전. 위 적재물의 원천 | `afm` | raw 사실 office 확인 2026-10-02 |
 | `hitachi/recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 연결 |

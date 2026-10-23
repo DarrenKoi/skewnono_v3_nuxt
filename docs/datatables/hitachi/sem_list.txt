@@ -110,6 +110,9 @@ version -> string: 장비 SW version. 숫자와 문자가 섞인 자유 형식 �
    해석합니다. 하이픈 표기('verity-sem')는 쓰지 않습니다 — 슬러그·tool_type·
    프론트 라우트가 모두 같은 한 문자열입니다. 미연결 장비 화면은 이 장비들도
    자기 필터 chip 아래에 표시합니다.
+   Provision 행의 eqp_ip 는 장비 IP 이며 **데이터 host 가 아닙니다**. Provision 의
+   데이터는 별도 data host 에 있고, 그 IP 는 Redis v3_df_provision_hosts 에서
+   eqp_id 로 찾습니다 (../provision/provision_hosts.txt, user-confirmed 2026-10-23).
 6. CD/HV 전용 화면(storage, lateral_recipe, recipe_tat, ...)은 AMAT 계열을
    담지 않습니다. `/api/<tool_slug>/...` 라우트가 SEM_TOOL_SLUGS
    (cdsem, hvsem) 밖의 슬러그를 400 으로 거절하므로, AMAT 어댑터가 생기기

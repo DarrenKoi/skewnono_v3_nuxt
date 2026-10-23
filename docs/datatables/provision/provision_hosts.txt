@@ -1,0 +1,73 @@
+사무실(Office) Redis — PROVISION 장비 data host 명부 (user-confirmed 2026-10-23)
+
+Provision 은 다른 계열과 달리 측정 데이터를 **장비 IP 가 아닌 별도의 data host IP**
+에서 꺼냅니다. v3_df_sem_list 의 eqp_ip 는 장비(tool) 자체의 IP 이므로 Provision
+의 데이터 추출에는 쓸 수 없습니다. 이 key 가 Provision 장비마다 data host IP 와
+측정 CSV export 위치를 짝지어 둔 명부입니다.
+
+저장 형태: Redis, pandas DataFrame 을 parquet 직렬화(sem_list 와 같은 방식).
+
+Key -> "v3_df_provision_hosts"
+
+용도: **읽기 전용** 입니다. 우리 쪽에서 쓰지 않습니다. 사무실의 정기 작업이 한 시간에
+두 번 갱신합니다 (예약 작업에 문제가 없을 때 기준, user-confirmed 2026-10-23).
+
+규모: 2026-10-23 기준 53 행 x 7 열입니다. 행 수는 장비 반입에 따라 바뀌므로 고정값으로
+가정하지 않습니다.
+
+컬럼 정보 (7개, 전부 문자열 타입)
+
+| 컬럼 | 뜻 |
+| --- | --- |
+| eqp_id | v3_df_sem_list 의 eqp_id. 명부와 join 하는 key 입니다 |
+| fab_name | v3_df_sem_list 의 fab_name |
+| data_ip | data host IP (장비 IP 아님). 단, 아래 "tool-ip fallback" 행에서는 probe 대상으로 장비 IP 를 대신 넣어 둔 값입니다 |
+| spreadsheet_path | 장비별 측정 CSV(wafer 단위) export 디렉터리의 FTP 절대 경로 |
+| ip_note | data_ip 의 출처 (아래 값 목록) |
+| available | "On" / "Off" |
+| checked_at | 마지막 점검 실행의 UTC ISO timestamp |
+
+ip_note 값 (2026-10-23 기준 분포)
+
+| 값 | 뜻 |
+| --- | --- |
+| data-ip confirmed | data IP 가 확인됨. 46 행 |
+| data-ip candidate (authfail) | 후보 IP 이나 로그인 실패 |
+| data-ip candidate (unreach) | 후보 IP 이나 접속 불가 |
+| tool-ip fallback (no data share) | data share 가 없어 장비 IP 로 대체. "pending" 5 행 |
+
+판정 규칙: ip_note != "data-ip confirmed" 인 행은 data_ip 를 추출용으로 아직 믿을 수
+없습니다. 추출 경로는 반드시 이 비교 하나로 거릅니다 — available 만으로 거르지
+않습니다. 괄호 안 사유까지 포함한 정확한 문자열 표기는 OFFICE-VERIFY 이므로, 코드는
+"data-ip confirmed" 와의 일치 여부만 보고 나머지 값의 철자에 기대지 않습니다.
+
+available 의 뜻: On 은 P-drive 목록 조회가 항목을 돌려준 경우입니다. 즉 로그인이 되었고
+**그리고** data share 가 존재합니다. FTP 는 응답하지만 data share 가 없는 장비는
+올바르게 Off 입니다. 따라서 Off 가 곧 "장비 고장" 을 뜻하지 않습니다.
+
+spreadsheet_path 예시 — 장비마다 대소문자와 깊이가 다릅니다:
+
+    /P_Drive/QA/EXPORT/Spreadsheet
+    /p_drive
+    /P_Drive/Export/Spreadsheet
+
+경로를 정규화하거나 하나의 기본값으로 가정하지 않고, 행의 값을 그대로 씁니다.
+(README.md 의 /I_Drive · /D_drive/ 결과 위치와 이 P-drive export 의 관계는
+OFFICE-VERIFY 입니다.)
+
+checked_at: 모든 행이 같은 stamp 하나를 공유합니다(한 번의 점검 실행). 화면에 보일 때는
+KST 로 변환합니다. 이 값으로 갱신이 멈췄는지 판단할 수 있습니다 — 정상이면 30분
+남짓보다 오래되지 않습니다.
+
+소비 예정 (아직 이 key 를 읽는 코드는 없습니다)
+
+1. Provision 데이터 추출의 진입점 — eqp_id 로 data_ip 와 spreadsheet_path 를 찾습니다.
+2. Provision 의 미연결 장비 목록 — Hitachi 의 "v3_df_sem_list - v3_df_sem_avail"
+   (방화벽) 대신, 이 계열은 ip_note / available 로 "데이터를 꺼낼 수 없는 장비" 를
+   판정합니다.
+
+OFFICE-VERIFY
+
+- eqp_id 가 이 key 안에서 유일한지.
+- v3_df_sem_list 의 PROVISION* 행이 전부 이 key 에 있는지(빠진 장비가 있는지).
+- ip_note 각 값의 정확한 문자열.

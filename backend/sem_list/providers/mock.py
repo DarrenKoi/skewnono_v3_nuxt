@@ -73,9 +73,17 @@ FTP from inside the company, each family with its own account (VeritySEM
 `rtauser`, Provision a `wf…` one -- user-confirmed 2026-10-14; resolved by
 family in `msr_image/ftp_accounts.py`). Results land in `D:\\Output` on a
 VeritySEM and under `/I_Drive` + `/D_drive/` on a Provision, one file or
-folder per measurement (same date). But there is no Redis key, no OpenSearch index and no measurement history
-for them yet -- those are built by us, not read. Their alarm ALIDs differ from
-Hitachi's and are unconfirmed.
+folder per measurement (same date). But there is no measurement source -- no
+OpenSearch index and no measurement history -- for them yet; those are built by
+us, not read. Their alarm ALIDs differ from Hitachi's and are unconfirmed.
+
+PROVISION eqp_ip is the TOOL, never the data host (user-confirmed 2026-10-23).
+A Provision's data lives on a separate host whose IP comes from the read-only
+Redis key `v3_df_provision_hosts` (eqp_id -> data_ip, spreadsheet_path,
+ip_note, available, checked_at; docs/datatables/provision/provision_hosts.txt).
+Only `ip_note == "data-ip confirmed"` rows are trustworthy for extraction. This
+mock does not emit that key: nothing reads it yet, so add its rows next to the
+first consumer rather than here.
 
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
