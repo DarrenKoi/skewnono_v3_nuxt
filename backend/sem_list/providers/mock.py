@@ -89,8 +89,13 @@ when the probe failed) supplies `version` and `tool_available`. This mock emits
 both as the `ProvisionFields` on Provision rows (`_with_provision_fields`):
 connected ones are all confirmed, and `available` there is the data host's.
 The pending ones copy the office's mix -- mostly tool-ip fallback, a few
-candidates. Data-host IPs, the version format and the On/Off mixes are
-fabricated (OFFICE-VERIFY).
+candidates. `ip_note` holds exactly the four office strings, and `version` uses
+the office FORMAT -- raw ini text, dotted <major>.<minor>.<patch>.<build> like
+"16.10.33.40755", never normalized across vendors (user-confirmed 2026-10-23).
+A VeritySEM's ini reads "Ver_<maj>_<min>_<pat>_<build>_Win7" instead; this mock
+does not emit VeritySEM versions from that key, whose name is OFFICE-VERIFY.
+Data-host IPs, the version digits and the On/Off mixes are fabricated
+(OFFICE-VERIFY).
 
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
@@ -345,7 +350,8 @@ def _with_provision_fields(rows: list, seed: int) -> list:
             tool_available = "On" if rng.random() < 0.95 else "Off"
             data_available = row["available"]
             row["version"] = (
-                f"{rng.randint(4, 6)}.{rng.randint(0, 9)}.{rng.randint(0, 9)}"
+                f"{rng.randint(14, 16)}.{rng.randint(0, 12)}.{rng.randint(0, 40)}"
+                f".{rng.randint(30000, 45000)}"
                 if tool_available == "On" else ""
             )
         else:

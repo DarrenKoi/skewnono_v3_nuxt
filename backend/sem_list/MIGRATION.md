@@ -117,7 +117,9 @@ do, both read-only:
   twice an hour. `available` = the P-drive listing returned entries.
 - `v3_df_provision_version` — `[eqp_ip, version, available]`, keyed on the
   **tool** ip, refreshed daily. `version` parsed from
-  `/D_drive/Qrelease/current_version.ini` (`""` = probe failed); `available` =
+  `/D_drive/Qrelease/current_version.ini`, stored raw (`""` = probe failed;
+  Provision format `16.10.33.40755`, never normalized); `eqp_ip` is unique
+  there, so it is a safe join key; `available` =
   the ini downloaded.
 
 The adapter drops Provision rows from the `v3_df_sem_avail` path and rebuilds

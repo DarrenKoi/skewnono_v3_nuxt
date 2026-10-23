@@ -28,7 +28,8 @@ Key 2 -> "v3_df_provision_version" : 장비(tool) 쪽 version 과 tool IP 접속
 | available | "On" / "Off" |
 | checked_at | 마지막 점검 실행의 UTC ISO timestamp |
 
-ip_note 값 (2026-10-23 기준 분포)
+ip_note 값 — 아래 네 문자열이 전부이며, 괄호까지 포함해 정확한 표기입니다
+(user-confirmed 2026-10-23). 행 수는 2026-10-23 기준 분포입니다.
 
 | 값 | 뜻 |
 | --- | --- |
@@ -39,8 +40,8 @@ ip_note 값 (2026-10-23 기준 분포)
 
 판정 규칙: ip_note != "data-ip confirmed" 인 행은 data_ip 를 추출용으로 아직 믿을 수
 없습니다. 추출 경로는 반드시 이 비교 하나로 거릅니다 — available 만으로 거르지
-않습니다. 괄호 안 사유까지 포함한 정확한 문자열 표기는 OFFICE-VERIFY 이므로, 코드는
-"data-ip confirmed" 와의 일치 여부만 보고 나머지 값의 철자에 기대지 않습니다.
+않습니다. 네 값의 표기는 확정되었지만, 코드는 여전히 "data-ip confirmed" 와의 일치
+여부만 봅니다 — 다섯 번째 값이 생겨도 그 행은 자동으로 미연결 쪽에 남습니다.
 
 available 의 뜻: On 은 P-drive 목록 조회가 항목을 돌려준 경우입니다. 즉 로그인이 되었고
 **그리고** data share 가 존재합니다. FTP 는 응답하지만 data share 가 없는 장비는
@@ -68,12 +69,23 @@ Key 2 -> "v3_df_provision_version" (user-confirmed 2026-10-23)
 | 컬럼 | 뜻 |
 | --- | --- |
 | eqp_ip | 장비(tool) IP — v3_df_sem_list.eqp_ip 와 같은 값. eqp_id 컬럼은 없습니다 |
-| version | 장비의 /D_drive/Qrelease/current_version.ini 에서 파싱한 값. "" = probe 실패 |
+| version | 장비의 /D_drive/Qrelease/current_version.ini 에서 읽은 **원문 그대로의** 문자열. "" = probe 실패 |
 | available | "On" = 그 ini 파일 다운로드에 성공. 즉 tool IP 로 FTP 접속이 됩니다 |
 
 eqp_id 가 없으므로 Key 1 과는 직접 join 되지 않습니다. v3_df_sem_list 의
 eqp_id -> eqp_ip 를 다리로 씁니다. data_ip 로 join 하면 안 됩니다 — "tool-ip fallback"
-행에서만 우연히 맞습니다. version 문자열의 형식은 OFFICE-VERIFY 입니다.
+행에서만 우연히 맞습니다. eqp_ip 는 이 key 안에서 유일하므로 안전한 join key 입니다
+(user-confirmed 2026-10-23).
+
+version 형식 (user-confirmed 2026-10-23) — 장비 vendor 별로 다르며, 계열 간 정규화를
+하지 않습니다. key 는 ini 의 원문 문자열을 그대로 저장합니다.
+
+    PROVISION : 점으로 구분한 숫자 <major>.<minor>.<patch>.<build>   예) 16.10.33.40755
+    VeritySEM : (같은 version key 계열) Ver_<maj>_<min>_<pat>_<build>_Win7
+
+따라서 version 을 숫자로 정렬하거나 계열을 섞어 비교하지 않습니다. 화면에는 받은 문자열을
+그대로 보여 줍니다. VeritySEM 쪽 key 이름은 OFFICE-VERIFY 입니다
+(../veritysem/README.md).
 
 두 key 의 available 은 이름이 같지만 다른 것을 잽니다(Key 1 = data host, Key 2 = tool).
 SKEWNONO 백엔드는 읽자마자 data_available / tool_available 로 이름을 바꿉니다.
@@ -96,5 +108,3 @@ PROVISION 절을 참고합니다.
 OFFICE-VERIFY
 
 - v3_df_sem_list 의 PROVISION* 행이 전부 Key 1 에 있는지(빠진 장비가 있는지).
-- ip_note 각 값의 정확한 문자열.
-- Key 2 의 version 형식, 그리고 eqp_ip 가 Key 2 안에서 유일한지.

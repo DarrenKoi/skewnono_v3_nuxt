@@ -239,7 +239,7 @@ def _hosts() -> pd.DataFrame:
 def _provision_versions() -> pd.DataFrame:
     return pd.DataFrame({
         "eqp_ip": ["177.9.9.1", "177.9.9.2"],
-        "version": ["5.3.2", ""],
+        "version": ["16.10.33.40755", ""],
         "available": ["On", "Off"],
     })
 
@@ -251,7 +251,7 @@ def test_only_a_confirmed_data_ip_reaches_the_fleet():
     # Tool ip stays the roster's; data ip comes from the hosts key.
     assert (row["eqp_ip"], row["data_ip"]) == ("177.9.9.1", "10.0.0.1")
     assert (row["tool_available"], row["data_available"], row["available"]) == ("On", "On", "On")
-    assert row["version"] == "5.3.2"
+    assert row["version"] == "16.10.33.40755"
     assert row["checked_at"] == _CHECKED_AT
 
 
