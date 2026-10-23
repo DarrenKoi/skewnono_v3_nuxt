@@ -8,7 +8,7 @@ const { fabs } = useFabRoute('provision')
       tool-type="provision"
       :fabs="fabs"
       :title="`Provision - ${fabs.join(' + ')}`"
-      subtitle="Mocked backend inventory filtered by fab."
+      subtitle="스큐노노가 현재 접근 가능한 장비 리스트입니다."
     />
   </AppAsyncBoundary>
 </template>
