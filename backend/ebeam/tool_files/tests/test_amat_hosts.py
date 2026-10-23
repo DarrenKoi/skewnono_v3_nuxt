@@ -100,3 +100,20 @@ def test_an_unknown_host_is_400(client):
     response = _list(client, "provision", _row("provision"), host="nas")
 
     assert response.status_code == 400
+
+
+def test_an_empty_host_is_400_not_the_tool(client):
+    response = _list(client, "provision", _row("provision"), host="")
+
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("host", [False, 0, None, [], {}])
+def test_a_non_string_host_in_a_json_body_is_400(client, host):
+    row = _row("provision")
+    response = client.post(
+        "/api/provision/tool-files/download-zip",
+        json={"fab": row["fab_name"], "eqp_id": row["eqp_id"], "host": host, "paths": ["/README.TXT"]},
+    )
+
+    assert response.status_code == 400

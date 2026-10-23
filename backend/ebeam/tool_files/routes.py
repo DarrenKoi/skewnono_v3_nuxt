@@ -122,7 +122,8 @@ def _require_access() -> None:
 def _tool(tool_slug: str, source=None) -> Tool:
     source = request.args if source is None else source
     fab, eqp_id = source.get("fab", ""), source.get("eqp_id", "")
-    role = source.get("host") or "tool"
+    # Defaulted only when absent: a supplied "" or false must not mean the tool.
+    role = source.get("host", "tool")
     if not all(isinstance(value, str) for value in (fab, eqp_id, role)):
         raise ToolFilesError(400, "bad_request", "fab, eqp_id and host must be strings")
     if tool_slug not in VALID_TOOL_SLUGS or not fab or not eqp_id:
@@ -453,7 +454,7 @@ def upload(tool_slug: str):
         raise ToolFilesError(400, "bad_request", "need exactly one file")
     data = files[0].read()
     name = (files[0].filename or "").replace("\\", "/").rsplit("/", 1)[-1]
-    with _audited("upload", f"{tool.eqp_id}@{tool.fab_name}:{folder}/{name}"):
+    with _audited("upload", _write_target(tool, f"{folder}/{name}")):
         with _session(tool) as ftp:
             root = ftp.home()
             folder = check_path(root, folder)
@@ -469,11 +470,16 @@ def delete(tool_slug: str):
     if not isinstance(body.get("path"), str):
         raise ToolFilesError(400, "bad_request", "need a JSON object with fab, eqp_id, path")
     tool = _tool(tool_slug, body)
-    with _audited("delete", f"{tool.eqp_id}@{tool.fab_name}:{body['path']}"):
+    with _audited("delete", _write_target(tool, body["path"])):
         with _session(tool) as ftp:
             path = check_path(ftp.home(), body["path"])
             ftp.remove(path)
     return jsonify({"deleted": path})
+
+
+def _write_target(tool: Tool, path: str) -> str:
+    # The host IP names the disk: Provision's tool and data hosts share an eqp_id.
+    return f"{tool.eqp_id}@{tool.fab_name}/{tool.host}:{path}"
 
 
 def _json_body(fields: str) -> dict:

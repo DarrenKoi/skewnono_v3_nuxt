@@ -937,6 +937,12 @@ const onPick = (event: Event) => {
 
 const pendingDelete = ref<ToolFileEntry | null>(null)
 const deleting = ref(false)
+// The entry was listed on one tool and host; Back/Forward or the host toggle
+// can change the target under an open confirmation, and confirming would then
+// delete the same path on the other disk.
+watch(() => target.value && `${target.value.eqpId}:${target.value.host ?? 'tool'}`, () => {
+  if (!deleting.value) pendingDelete.value = null
+})
 
 const confirmDelete = async () => {
   const entry = pendingDelete.value

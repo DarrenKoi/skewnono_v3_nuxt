@@ -237,7 +237,8 @@ def test_writes_are_logged_with_actor_source_target_and_result(client, write_on,
     _delete(client, "/LOG/ARCHIVE/hello.txt")
 
     lines = [r.getMessage() for r in caplog.records if r.name == "skewnono.tool_files"]
-    target = f"{row['eqp_id']}@{row['fab_name']}:/LOG/ARCHIVE"
+    # The host IP names the disk: Provision has two under one eqp_id.
+    target = f"{row['eqp_id']}@{row['fab_name']}/{row['eqp_ip']}:/LOG/ARCHIVE"
     assert [line.split(" request_id=")[0] for line in lines] == [
         f"tool_files upload actor=local-dev source=local target={target}/hello.txt result=ok",
         f"tool_files upload actor=local-dev source=local target={target}/hello.txt result=file_exists",
