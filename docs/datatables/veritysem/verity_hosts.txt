@@ -1,0 +1,47 @@
+사무실(Office) Redis — VeritySEM 장비 host 명부 (user-confirmed 2026-10-23)
+
+Provision 의 v3_df_provision_hosts 와 같은 계열의 key 입니다(../provision/provision_hosts.txt).
+차이는 하나입니다. VeritySEM 은 **tool IP 가 곧 data IP** 이므로 data_ip 컬럼이 따로
+없고, eqp_ip 하나로 장비와 데이터에 모두 접속합니다. 그래서 이 계열에는 Provision 처럼
+"data IP 가 확인되었는가" 를 나타내는 ip_note 도 없습니다.
+
+저장 형태: Redis, pandas DataFrame 을 parquet 직렬화(sem_list 와 같은 방식).
+
+Key -> "v3_df_verity_hosts"
+
+용도: **읽기 전용** 입니다. 갱신 주기는 OFFICE-VERIFY 입니다(provision_hosts 와 같은
+정기 작업이라면 한 시간에 두 번).
+
+규모: 2026-10-23 기준 54 대입니다(veridity_path 가 있는 45 대 + 빈 9 대). 행 수는
+장비 반입에 따라 바뀌므로 고정값으로 가정하지 않습니다.
+
+컬럼 정보 (8개, 문자열)
+
+| 컬럼 | 뜻 |
+| --- | --- |
+| eqp_id | v3_df_sem_list 의 eqp_id |
+| eqp_model_cd | v3_df_sem_list 의 eqp_model_cd |
+| fab_name | v3_df_sem_list 의 fab_name |
+| eqp_ip | 장비 IP 이자 data IP (Provision 과 달리 둘이 같습니다) |
+| output_path | 측정 결과 위치. 항상 "/D_Drive/Output" |
+| veridity_path | Veridity 리포트 위치. 45 대는 "/C_Drive/Veridity/Reports", 9 대는 "" |
+| available | "On" / "Off" — output_path 목록 조회 성공 여부 |
+| veridity | "On" / "Off" — Veridity/Reports 목록 조회 성공 여부 |
+| checked_at | 마지막 점검 실행의 UTC ISO timestamp. 화면에는 KST 로 표시합니다 |
+
+경로: 장비 화면에서 D:\Output 으로 보이는 결과 폴더가 FTP 에서는 /D_Drive/Output 입니다.
+경로는 행의 값을 그대로 씁니다 — 지금은 모든 행이 같지만 상수로 박아 두지 않습니다.
+
+available 과 veridity 는 서로 다른 폴더를 잽니다. 측정 결과를 꺼낼 수 있는지는
+available 이 말하고, veridity 는 별개의 리포트 폴더입니다. veridity_path 가 "" 인
+장비는 그 폴더가 없는 것이므로 veridity 가 Off 여도 장애가 아닙니다.
+
+OFFICE-VERIFY
+
+- 갱신 주기.
+- eqp_id 가 이 key 안에서 유일한지, v3_df_sem_list 의 VERITY* 행이 전부 들어 있는지.
+- veridity_path 가 "" 인 9 대의 veridity 값(항상 Off 인지).
+- Veridity 리포트의 내용·형식과 SKEWNONO 에서의 쓰임.
+- VeritySEM tool version key 의 이름(형식은 ../provision/provision_hosts.txt 참고).
+
+SKEWNONO 소비처: 아직 이 key 를 읽는 코드는 없습니다.

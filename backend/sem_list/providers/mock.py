@@ -71,7 +71,7 @@ exists. Family is the `eqp_model_cd` prefix -- VERITY* / PROVISION*; the exact
 codes in `AMAT_MODELS` are still OFFICE-VERIFY. The tools are reachable over
 FTP from inside the company, each family with its own account (VeritySEM
 `rtauser`, Provision a `wf…` one -- user-confirmed 2026-10-14; resolved by
-family in `msr_image/ftp_accounts.py`). Results land in `D:\\Output` on a
+family in `msr_image/ftp_accounts.py`). Results land in `D:\\Output` (FTP `/D_Drive/Output`) on a
 VeritySEM and under `/I_Drive` + `/D_drive/` on a Provision, one file or
 folder per measurement (same date). But there is no measurement source -- no
 OpenSearch index and no measurement history -- for them yet; those are built by
@@ -92,6 +92,11 @@ The pending ones copy the office's mix -- mostly tool-ip fallback, a few
 candidates. `ip_note` holds exactly the four office strings, and `version` uses
 the office FORMAT -- raw ini text, dotted <major>.<minor>.<patch>.<build> like
 "16.10.33.40755", never normalized across vendors (user-confirmed 2026-10-23).
+VeritySEM has the sibling key `v3_df_verity_hosts` (user-confirmed 2026-10-23;
+docs/datatables/veritysem/verity_hosts.txt), but there tool IP == data IP, so
+it carries no data_ip / ip_note -- just `available` for `/D_Drive/Output` and
+`veridity` for `/C_Drive/Veridity/Reports` ("" path on 9 of 54 tools). Nothing
+reads it yet, so VeritySEM rows here still follow v3_df_sem_avail.
 A VeritySEM's ini reads "Ver_<maj>_<min>_<pat>_<build>_Win7" instead; this mock
 does not emit VeritySEM versions from that key, whose name is OFFICE-VERIFY.
 Data-host IPs, the version digits and the On/Off mixes are fabricated
