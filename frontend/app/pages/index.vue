@@ -50,7 +50,7 @@ const { fabs: afmFabs } = useAfmToolData()
 const { data: afmTools, status: afmToolsStatus } = useAfmDetailApi().useAfmTools()
 
 const systemStatus = computed(() => {
-  const statuses = ebeamTools.value
+  const statuses: { id: string, label: string, online: number, total: number, hint?: string }[] = ebeamTools.value
     .filter(tool => tool.enabled)
     .map((tool) => {
       const rows = rowsByToolType.value.get(tool.id) ?? []
@@ -71,6 +71,7 @@ const systemStatus = computed(() => {
       id: 'afm',
       // Not the e-beam rows' 가동 대수: this counts tools whose data can be read.
       label: 'AFM',
+      hint: '가동 대수가 아니라 데이터를 조회할 수 있는 AFM 장비 수입니다.',
       online: catalog.filter(tool => readable.has(tool.id)).length,
       total: catalog.length
     })
@@ -264,6 +265,11 @@ const systemStatus = computed(() => {
             <span class="font-medium">{{ status.label }}:</span>
             <span class="text-zinc-600 dark:text-zinc-400"> {{ status.online }}/{{ status.total }}</span>
           </span>
+          <SkInfoTip
+            v-if="status.hint"
+            :label="status.label"
+            :text="status.hint"
+          />
         </div>
       </div>
     </UCard>
