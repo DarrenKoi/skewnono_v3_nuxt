@@ -27,6 +27,13 @@ class Tool:
     port: int
     timeout: float
     encoding: str
+    # "tool" (eqp_ip) or "data" (Provision's separate data_ip).
+    role: str = "tool"
+
+
+# Only Provision keeps its data on a host apart from the tool; every other
+# family's tool IP is its data IP.
+_DATA_HOST_FAMILIES = frozenset({"provision"})
 
 
 def resolve_tool(
@@ -35,7 +42,10 @@ def resolve_tool(
     fab_name: str,
     eqp_id: str,
     cfg: ImageConfig,
+    role: str = "tool",
 ) -> Tool:
+    if role not in ("tool", "data"):
+        raise ToolFilesError(400, "bad_request", f"host must be tool or data, not {role!r}")
     matches = [row for row in rows if row["eqp_id"] == eqp_id]
     if not matches:
         raise ToolFilesError(404, "tool_not_found", f"{eqp_id} is not in sem_list")
@@ -56,8 +66,11 @@ def resolve_tool(
             400, "tool_mismatch", f"{eqp_id} is not a {tool_slug} tool in {fab_name}"
         )
 
+    if role == "data" and tool_type not in _DATA_HOST_FAMILIES:
+        raise ToolFilesError(400, "bad_request", f"{tool_slug} has no separate data host")
+
     try:
-        host = str(ipaddress.IPv4Address(row["eqp_ip"].strip()))
+        host = str(ipaddress.IPv4Address(row["data_ip" if role == "data" else "eqp_ip"].strip()))
     except ValueError:
         raise ToolFilesError(
             503, "tool_unreachable", f"{eqp_id} has no usable IP in sem_list"
@@ -74,4 +87,5 @@ def resolve_tool(
         port=cfg.ftp_port,
         timeout=cfg.ftp_timeout,
         encoding=cfg.ftp_encoding,
+        role=role,
     )

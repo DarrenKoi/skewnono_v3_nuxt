@@ -61,7 +61,7 @@ export const isSingleFabFeature = (feature: string): feature is FeatureSlug => {
 // with no page behind them. (pm-planning stopped being a route on 2026-09-01.)
 export const FEATURE_TOOL_TYPES: Record<FeatureSlug, readonly ToolType[]> = {
   'storage': ['cd-sem', 'hv-sem'],
-  'tool-files': ['cd-sem', 'hv-sem'],
+  'tool-files': ['cd-sem', 'hv-sem', 'veritysem', 'provision'],
   'recipe-search': ['cd-sem', 'hv-sem'],
   'recipe-status': ['cd-sem', 'hv-sem'],
   'hardware': ['cd-sem', 'hv-sem'],

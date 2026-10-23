@@ -23,6 +23,13 @@
               {{ fact.value }}
             </dd>
           </div>
+          <SkSegmentedToggle
+            v-if="hostItems"
+            :model-value="selectedHost"
+            :items="hostItems"
+            label="접속 호스트"
+            @update:model-value="pickHost"
+          />
           <UBadge
             v-if="connection"
             :color="connection.color"
@@ -661,6 +668,31 @@ watch([semStatus, tools], () => {
   }
 }, { immediate: true })
 
+// Provision keeps its data on a separate host; the other families' tool IP is
+// their data IP, so they get no picker and never send ?host=.
+const selectedHost = computed(() =>
+  props.toolType === 'provision' && queryString('host') === 'data' ? 'data' : 'tool'
+)
+const hostItems = computed(() => {
+  if (props.toolType !== 'provision' || !semRow.value) return null
+  const dataIp = semRow.value.data_ip
+  return [
+    { label: `Tool ${semRow.value.eqp_ip}`, value: 'tool' },
+    {
+      label: dataIp ? `Data ${dataIp}` : 'Data',
+      value: 'data',
+      disabled: !dataIp,
+      disabledReason: 'Data IP 가 없습니다.'
+    }
+  ]
+})
+// A path belongs to one host's disk, so switching drops it.
+const pickHost = (host: string) => {
+  nameFilter.value = ''
+  const { path: _path, host: _host, ...rest } = route.query
+  router.push({ query: host === 'data' ? { ...rest, host } : rest })
+}
+
 const pickTool = (eqpId: string) => {
   nameFilter.value = ''
   router.push({ query: { eqp: eqpId } })
@@ -671,7 +703,12 @@ const pickTool = (eqpId: string) => {
 // fab is the tool's own row's, so a multi-fab URL still names one fab.
 const target = computed(() =>
   access.value?.verdict === 'granted' && semRow.value
-    ? { toolType: props.toolType, fab: semRow.value.fab_name, eqpId: semRow.value.eqp_id }
+    ? {
+        toolType: props.toolType,
+        fab: semRow.value.fab_name,
+        eqpId: semRow.value.eqp_id,
+        ...(selectedHost.value === 'data' ? { host: 'data' as const } : {})
+      }
     : null
 )
 

@@ -122,11 +122,12 @@ def _require_access() -> None:
 def _tool(tool_slug: str, source=None) -> Tool:
     source = request.args if source is None else source
     fab, eqp_id = source.get("fab", ""), source.get("eqp_id", "")
-    if not isinstance(fab, str) or not isinstance(eqp_id, str):
-        raise ToolFilesError(400, "bad_request", "fab and eqp_id must be strings")
+    role = source.get("host") or "tool"
+    if not all(isinstance(value, str) for value in (fab, eqp_id, role)):
+        raise ToolFilesError(400, "bad_request", "fab, eqp_id and host must be strings")
     if tool_slug not in VALID_TOOL_SLUGS or not fab or not eqp_id:
         raise ToolFilesError(400, "bad_request", "need a valid tool_slug, fab and eqp_id")
-    return resolve_tool(get_sem_list(), tool_slug, fab, eqp_id, load_config())
+    return resolve_tool(get_sem_list(), tool_slug, fab, eqp_id, load_config(), role)
 
 
 def _encoding_error(tool: Tool, exc: UnicodeDecodeError) -> ToolFilesError:

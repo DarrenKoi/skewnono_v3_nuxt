@@ -75,3 +75,10 @@ Provision 과 같은 구조이며 규칙만 다릅니다 — VeritySEM 에는 ip
 장비 리스트는 Data / Tool / Veridity 상태와 version 을, 미연결 화면은 같은 값을(없으면 —)
 보여 주며 checked_at 은 KST 로 표시합니다. 구현은 backend/sem_list/MIGRATION.md 의
 PROVISION / VeritySEM 절을 참고합니다.
+
+FTP 접속 (tool_files, 2026-10-23 구현)
+
+계정은 rtauser 입니다 (user-confirmed 2026-10-23, 비밀번호는 사무실 .env 에만 둡니다).
+파일 이름은 latin-1 로 읽습니다 — byte 그대로 통과시키며 UTF-8 로 decode 하지 않습니다
+(user-confirmed 2026-10-23). SKEWNONO_TOOL_FTP_ENCODING=latin-1 하나로 Hitachi 와 같이 덮입니다.
+로그인 폴더는 OFFICE-VERIFY 입니다.

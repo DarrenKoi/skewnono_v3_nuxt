@@ -262,7 +262,10 @@ def test_a_missing_file_is_404_file_unavailable(client):
 
 
 def test_a_tool_that_never_answers_is_503(client):
-    off = next(row for row in _unique_rows() if row["available"] == "Off")
+    # A Hitachi row: an AMAT host answers by its own probe (test_amat_hosts.py).
+    off = next(
+        row for row in _unique_rows() if row["available"] == "Off" and "tool_available" not in row
+    )
     slug = _SLUG_OF[model_to_tool_type(off["eqp_model_cd"])]
     assert _code(_list(client, off, slug=slug)) == (503, "tool_unreachable")
 

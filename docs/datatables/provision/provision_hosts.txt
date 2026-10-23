@@ -108,3 +108,9 @@ PROVISION 절을 참고합니다.
 OFFICE-VERIFY
 
 - v3_df_sem_list 의 PROVISION* 행이 전부 Key 1 에 있는지(빠진 장비가 있는지).
+
+FTP 접속 (tool_files, 2026-10-23 구현)
+
+계정은 wf 이며 tool IP(eqp_ip) 와 data IP(data_ip) 모두 같은 계정으로 접속합니다
+(user-confirmed 2026-10-23, 비밀번호는 사무실 .env 에만 둡니다). FTP 접속 화면에서 Tool / Data
+호스트를 골라 둘러봅니다. 각 호스트의 로그인 폴더는 OFFICE-VERIFY 입니다.

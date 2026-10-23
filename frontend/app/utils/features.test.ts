@@ -2,6 +2,7 @@
 // Feature slugs are the segment after the tool type in `/ebeam/{toolType}/…`.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import {
   FEATURE_SLUGS,
   FEATURE_SLUG_REGEX,
@@ -205,4 +206,18 @@ test('every feature slug is recognised — the fallback is never reached by one'
 test('non-ebeam paths have no tab', () => {
   assert.equal(activeFeatureTab('/chat'), null)
   assert.equal(activeFeatureTab('/settings'), null)
+})
+
+// A sub-tab the registry grants a family is a link the 장비 상태 bar draws, so
+// a missing page is a link to nowhere (VUE_ROUTER_R0004, no navigation).
+test('every equipment-status sub-tab a family is granted has a page', () => {
+  for (const tab of EQUIPMENT_STATUS_SUBTABS) {
+    for (const toolType of FEATURE_TOOL_TYPES[tab]) {
+      const dir = `app/pages/ebeam/${toolType}/[fab]`
+      assert.ok(
+        existsSync(`${dir}/${tab}.vue`) || existsSync(`${dir}/${tab}/index.vue`),
+        `${toolType} is granted ${tab} but has no page`
+      )
+    }
+  }
 })

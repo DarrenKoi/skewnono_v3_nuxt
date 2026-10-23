@@ -80,6 +80,24 @@ refused in that order, before its body is read or FTP opens: 403
 `FtpClient.remove`. Both log one `skewnono.tool_files` line with actor,
 identity source, target, result and request_id.
 
+## AMAT families (2026-10-23)
+
+VeritySEM and Provision open through the same routes. Nothing in the
+template changes; the office `.env` needs their accounts, keyed by family
+(user-confirmed 2026-10-23):
+
+```bash
+SKEWNONO_TOOL_FTP_ACCOUNTS=VERITYSEM=rtauser:<pw>,PROVISION=wf:<pw>
+SKEWNONO_TOOL_FTP_ENCODING=latin-1   # VeritySEM names are latin-1 too
+```
+
+Provision has two hosts. Every route takes an optional `host`: `tool`
+(default, the row's `eqp_ip`) or `data` (the row's `data_ip`, same `wf`
+account). `data` on any other family is `400 bad_request`: their tool IP is
+their data IP. Fleet Provision rows are `data-ip confirmed` by construction
+(sem_list), so a fleet row always has a usable `data_ip`. The page picks the
+host with a Tool/Data toggle and keeps it in `?host=data`.
+
 ## Known limits
 
 - **Phase 2 (Windows) is read-only.** A Windows office PC cannot open FTP to

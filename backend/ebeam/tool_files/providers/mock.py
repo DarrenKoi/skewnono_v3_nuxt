@@ -13,7 +13,12 @@ listed from home). What it copies on purpose are the properties known to bite:
 - an empty folder, a folder of thousands of files, a file over the download
   cap, a symlink entry;
 - a login directory that is not ``/`` (HV-SEM here, OFFICE-VERIFY);
-- tools that never answer: every sem_list row with ``available == "Off"``.
+- tools that never answer: every sem_list row with ``available == "Off"``;
+  an AMAT host answers by its own probe instead (``tool_available`` for the
+  tool IP, ``data_available`` for Provision's data IP). The AMAT trees are the
+  shared one at ``/`` (OFFICE-VERIFY: login directories unknown; VeritySEM
+  results sit in ``/D_Drive/Output``, Provision's ini in ``/D_drive/Qrelease``,
+  its spreadsheets under ``/P_Drive/.../Spreadsheet`` on the data host).
 
 The mock never opens a socket. ``put`` and ``remove`` really change the tree
 (module-level ``_TREE``, so a write is seen by the next request until the
@@ -101,8 +106,12 @@ def _tree() -> dict:
 _TREE = _tree()
 
 
-def _unreachable(eqp_id: str) -> bool:
-    return any(r["eqp_id"] == eqp_id and r["available"] == "Off" for r in get_sem_list())
+def _unreachable(tool: Tool) -> bool:
+    probe = "data_available" if tool.role == "data" else "tool_available"
+    return any(
+        r["eqp_id"] == tool.eqp_id and (r.get(probe) or r["available"]) == "Off"
+        for r in get_sem_list()
+    )
 
 
 class MockFtpClient:
@@ -115,7 +124,7 @@ class MockFtpClient:
             self._root = {part: self._root}
 
     def __enter__(self) -> "MockFtpClient":
-        if _unreachable(self._tool.eqp_id):
+        if _unreachable(self._tool):
             raise TimeoutError(f"{self._tool.host}:21 timed out")
         return self
 

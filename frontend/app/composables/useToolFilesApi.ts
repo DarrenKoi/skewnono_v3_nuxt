@@ -14,7 +14,16 @@ export interface ToolFilesTarget {
   toolType: ToolType
   fab: string
   eqpId: string
+  // Provision only: its data host (data_ip) instead of the tool (eqp_ip).
+  host?: 'data'
 }
+
+// Sent with every call so list, download and write all reach the same host.
+const targetFields = (target: ToolFilesTarget) => ({
+  fab: target.fab,
+  eqp_id: target.eqpId,
+  ...(target.host ? { host: target.host } : {})
+})
 
 const apiUrl = (target: ToolFilesTarget, leaf: string) =>
   joinApiPath(useRuntimeConfig().public.apiBase, `/${toolSlug(target.toolType)}/tool-files/${leaf}`)
@@ -29,7 +38,7 @@ export const useToolFilesAccess = () => {
 // a tool's disk, and access is re-checked on every request.
 export const useToolFilesListing = (target: Ref<ToolFilesTarget | null>, path: Ref<string | undefined>) => {
   const key = computed(() =>
-    target.value ? `tool-files:${target.value.toolType}:${target.value.eqpId}:${path.value ?? ''}` : 'tool-files:none'
+    target.value ? `tool-files:${target.value.toolType}:${target.value.eqpId}:${target.value.host ?? 'tool'}:${path.value ?? ''}` : 'tool-files:none'
   )
   return useAsyncData(
     key,
@@ -37,7 +46,7 @@ export const useToolFilesListing = (target: Ref<ToolFilesTarget | null>, path: R
       const current = target.value
       if (!current) return Promise.resolve(null)
       return $fetch<ToolFilesListing>(apiUrl(current, 'list'), {
-        query: { fab: current.fab, eqp_id: current.eqpId, path: path.value }
+        query: { ...targetFields(current), path: path.value }
       })
     },
     { watch: [key] }
@@ -56,7 +65,7 @@ const saveResponse = async (request: Promise<Response>, name: string) => {
 }
 
 export const downloadToolFile = (target: ToolFilesTarget, path: string, name: string) => {
-  const query = new URLSearchParams({ fab: target.fab, eqp_id: target.eqpId, path })
+  const query = new URLSearchParams({ ...targetFields(target), path })
   return saveResponse(fetch(`${apiUrl(target, 'download')}?${query}`), name)
 }
 
@@ -66,15 +75,14 @@ export const downloadToolFilesZip = (target: ToolFilesTarget, paths: string[], n
   saveResponse(fetch(apiUrl(target, 'download-zip'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fab: target.fab, eqp_id: target.eqpId, paths })
+    body: JSON.stringify({ ...targetFields(target), paths })
   }), name)
 
 // Writes answer only when the server's `access.can_write` is true; a page that
 // shows no write controls otherwise never sends these.
 export const uploadToolFile = (target: ToolFilesTarget, dir: string, file: File) => {
   const form = new FormData()
-  form.append('fab', target.fab)
-  form.append('eqp_id', target.eqpId)
+  for (const [key, value] of Object.entries(targetFields(target))) form.append(key, value)
   form.append('dir', dir)
   form.append('file', file)
   return $fetch<{ path: string }>(apiUrl(target, 'upload'), { method: 'POST', body: form })
@@ -83,7 +91,7 @@ export const uploadToolFile = (target: ToolFilesTarget, dir: string, file: File)
 export const deleteToolFile = (target: ToolFilesTarget, path: string) =>
   $fetch<{ deleted: string }>(apiUrl(target, 'delete'), {
     method: 'POST',
-    body: { fab: target.fab, eqp_id: target.eqpId, path }
+    body: { ...targetFields(target), path }
   })
 
 // Only `reason` is sent: the server takes the empno from the identity and
