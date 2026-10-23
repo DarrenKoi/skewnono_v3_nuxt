@@ -468,7 +468,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-house',
     section: 'common',
     purpose: 'SKEWNONO의 첫 진입 화면입니다.',
-    description: 'FAB을 고르면 그 선택이 다른 화면까지 따라갑니다. CD-SEM·HV-SEM 같은 작업 영역이 장비 대수와 함께 나열됩니다. 오른쪽 시스템 상태 카드에서 검색·저장소·캐시가 살아 있는지 한눈에 확인하고 펼치면 각 서비스의 응답 시간까지 봅니다. 장비군별 online/total 요약과 미연결 장비 목록으로 가는 입구도 여기 있습니다.',
+    description: 'FAB을 고르면 그 선택이 다른 화면까지 따라갑니다. CD-SEM·HV-SEM·VeritySEM·Provision 작업 영역이 장비 대수와 함께 나열됩니다. 오른쪽 시스템 상태 카드에서 검색·저장소·캐시가 살아 있는지 한눈에 확인하고 펼치면 각 서비스의 응답 시간까지 봅니다. 장비군별 online/total 요약과 미연결 장비 목록으로 가는 입구도 여기 있습니다.',
     users: '일반 엔지니어, 장비 담당자, 신규 사용자',
     notes: ['장비군 선택은 사용자의 의도가 강하므로 상단에서 과도한 교차 전환을 강요하지 않습니다.']
   },
