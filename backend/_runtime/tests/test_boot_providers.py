@@ -141,3 +141,29 @@ def test_importing_the_logger_does_not_configure_it():
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "0 0"
+
+
+@pytest.mark.parametrize(
+    "accounts,missing",
+    [
+        ("", "PROVISION, VERITYSEM"),
+        ("VERITYSEM=rtauser:pw", "PROVISION"),
+        ("veritysem=rtauser:pw,Provision=wf:pw", None),
+    ],
+)
+def test_an_office_ftp_feature_without_amat_accounts_is_warned(
+    monkeypatch, captured, accounts, missing
+):
+    monkeypatch.setenv("SKEWNONO_TOOL_FTP_ACCOUNTS", accounts)
+    boot._warn_about_missing_ftp_accounts({"tool_files"})
+    warned = [line for line in captured if "SKEWNONO_TOOL_FTP_ACCOUNTS" in line]
+    if missing is None:
+        assert warned == []
+    else:
+        assert len(warned) == 1 and missing in warned[0]
+
+
+def test_no_ftp_account_warning_when_no_ftp_feature_is_on_office(monkeypatch, captured):
+    monkeypatch.setenv("SKEWNONO_TOOL_FTP_ACCOUNTS", "")
+    boot._warn_about_missing_ftp_accounts({"sem_list", "storage"})
+    assert not [line for line in captured if "SKEWNONO_TOOL_FTP_ACCOUNTS" in line]

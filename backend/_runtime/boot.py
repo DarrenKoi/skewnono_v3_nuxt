@@ -30,6 +30,7 @@ def log_provider_table() -> None:
         )
     _log_chat_answer_source()
     _warn_about_stale_adapters(office)
+    _warn_about_missing_ftp_accounts({row.feature for row in rows if row.provider == "office"})
 
 
 def _log_chat_answer_source() -> None:
@@ -97,4 +98,38 @@ def _warn_about_stale_adapters(office: int) -> None:
             adapter.slug,
             note,
             adapter.name,
+        )
+
+
+# The office adapters that log in to tool FTP servers.
+_FTP_FEATURES = frozenset({"tool_files", "msr_image", "recipe_search"})
+# Families whose tools do not take the fleet (Hitachi) account.
+_OWN_ACCOUNT_FAMILIES = ("PROVISION", "VERITYSEM")
+
+
+def _warn_about_missing_ftp_accounts(office_features: set[str]) -> None:
+    """Name the AMAT families that would log in with the Hitachi account.
+
+    An unlisted family silently falls back to SKEWNONO_TOOL_FTP_USER (hitachi
+    by default): every FTP call to those tools is refused (530) and surfaces
+    as 503 tool_unreachable, while Hitachi tools keep working -- nothing says
+    the account is the cause. The passwords stay out of the public repo, so
+    backend/.env is the only place they come from.
+    """
+    if not office_features & _FTP_FEATURES:
+        return
+    try:
+        from backend.msr_image.config import load_config
+
+        accounts = load_config().ftp_accounts
+    except Exception:  # noqa: BLE001 — never let a warning break startup
+        logger.debug("ftp account check skipped", exc_info=True)
+        return
+    missing = [family for family in _OWN_ACCOUNT_FAMILIES if family not in accounts]
+    if missing:
+        logger.warning(
+            "  SKEWNONO_TOOL_FTP_ACCOUNTS has no %s entry — those tools log in "
+            "with the Hitachi account and every FTP call to them fails (503). "
+            "Add it to backend/.env, e.g. VERITYSEM=rtauser:<pw>,PROVISION=wf:<pw>",
+            ", ".join(missing),
         )
