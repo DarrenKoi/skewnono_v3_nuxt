@@ -23,13 +23,6 @@
               {{ fact.value }}
             </dd>
           </div>
-          <SkSegmentedToggle
-            v-if="hostItems"
-            :model-value="selectedHost"
-            :items="hostItems"
-            label="접속 호스트"
-            @update:model-value="pickHost"
-          />
           <UBadge
             v-if="connection"
             :color="connection.color"
@@ -191,6 +184,20 @@
             aria-label="장비 선택"
             @update:model-value="pickTool"
           />
+          <!-- Provision only: the tool and its data host are two disks, so the
+               host is chosen here, between the tool and the path it scopes. -->
+          <div
+            v-if="hostItems"
+            class="flex items-center gap-1.5"
+          >
+            <span class="sk-label">접속 호스트</span>
+            <SkSegmentedToggle
+              :model-value="selectedHost"
+              :items="hostItems"
+              label="접속 호스트"
+              @update:model-value="pickHost"
+            />
+          </div>
           <UButton
             size="sm"
             color="neutral"
@@ -208,6 +215,10 @@
               name="i-lucide-hard-drive"
               class="mx-1 size-3.5 shrink-0 text-(--sk-ink-muted)"
             />
+            <span
+              v-if="hostItems"
+              class="mr-1 shrink-0 rounded-(--sk-r-sidebar) bg-(--sk-chip-bg) px-1.5 py-0.5 sk-label"
+            >{{ selectedHost === 'data' ? 'Data' : 'Tool' }}</span>
             <input
               v-if="typedPath !== null"
               ref="pathInput"
@@ -274,6 +285,13 @@
             새로고침
           </UButton>
         </div>
+        <p
+          v-if="hostItems"
+          class="mt-2 sk-meta"
+        >
+          Provision 은 장비(Tool IP)와 데이터 서버(Data IP)의 디스크가 서로 다릅니다.
+          측정 CSV(spreadsheet export)는 Data 쪽에 있습니다.
+        </p>
       </template>
 
       <div class="flex flex-wrap items-center gap-2 border-b border-(--sk-border-soft) px-4 py-2.5">
@@ -695,7 +713,8 @@ const pickHost = (host: string) => {
 
 const pickTool = (eqpId: string) => {
   nameFilter.value = ''
-  router.push({ query: { eqp: eqpId } })
+  // The host is kept: someone reading data hosts tool after tool stays on Data.
+  router.push({ query: { eqp: eqpId, ...(selectedHost.value === 'data' ? { host: 'data' } : {}) } })
 }
 
 // Null until access is granted, so a refused visitor never sends a /list that
@@ -727,6 +746,7 @@ const openPath = (path: string) => {
 const toolFacts = computed(() => [
   { label: '장비', value: selectedEqp.value ?? '' },
   { label: '모델', value: semRow.value ? `${semRow.value.eqp_model_cd} · ${semRow.value.vendor_nm}` : '—' },
+  { label: '접속 IP', value: (selectedHost.value === 'data' ? semRow.value?.data_ip : semRow.value?.eqp_ip) || '—' },
   { label: '로그인 폴더', value: listing.value?.home ?? '—' },
   { label: '다운로드 상한', value: listing.value ? formatFileSize(listing.value.max_bytes) : '—' }
 ])
