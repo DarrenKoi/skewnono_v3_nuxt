@@ -45,3 +45,12 @@ def test_every_pending_tool_has_an_ip():
 def test_connected_fleet_size_is_unchanged():
     if get_data_provider("sem_list") == "mock":
         assert len(data.get_sem_list()) == 304  # 300 + 4 CG5000
+
+
+def test_every_connected_provision_has_a_confirmed_data_ip():
+    # The rule that splits Provision between the two lists (user-confirmed
+    # 2026-10-23). A connected row with any other note would be extracted
+    # from an untrusted data IP.
+    for row in data.get_sem_list():
+        if "ip_note" in row:
+            assert row["ip_note"] == "data-ip confirmed", row["eqp_id"]

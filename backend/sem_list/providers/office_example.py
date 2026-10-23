@@ -41,6 +41,8 @@ file's existence is the switch, no env var needed — and run the Verify
 command in MIGRATION.md.
 """
 
+import logging
+
 import pandas as pd
 import redis
 
@@ -50,6 +52,8 @@ from backend._runtime.office_redis import (
 )
 from backend.ebeam._tool_specs import model_to_tool_type
 from backend.sem_list.contracts import HostProbeFields, PendingToolRow, SemListRow
+
+logger = logging.getLogger("skewnono.sem_list")
 
 _REDIS_KEY = "v3_df_sem_avail"
 _VERSION_KEY = "v3_df_sem_version"
@@ -156,9 +160,20 @@ def _normalize(df: pd.DataFrame) -> list[SemListRow]:
 
 
 def _load_dataframes(client: redis.Redis, *keys: str) -> list[pd.DataFrame]:
-    """Every key in one MGET round trip; a missing key raises naming it."""
+    """Every key in one MGET round trip; a missing key raises naming it.
+
+    Except an AMAT host key: /api/sem-list is the fleet identity source for
+    every feature, so a missing Provision/VeritySEM key must not take the
+    Hitachi fleet down with it. It loads as an empty frame instead -- a missing
+    hosts key sends that family to 미연결, a missing version key blanks its
+    version and tool probe -- and is logged.
+    """
     frames = []
     for key, raw in zip(keys, client.mget(keys), strict=True):
+        if raw is None and key in _HOST_KEY_COLUMNS:
+            logger.warning("Redis key %r not found; serving that family without it", key)
+            frames.append(pd.DataFrame(columns=sorted(_HOST_KEY_COLUMNS[key])))
+            continue
         if raw is None:
             raise LookupError(
                 f"Redis key {key!r} not found — check REDIS_HOST/REDIS_PORT/"
@@ -204,6 +219,13 @@ _VERITY_VERSION_KEY = "v3_df_verity_version"
 _HOST_KEYS = (
     _PROVISION_HOSTS_KEY, _PROVISION_VERSION_KEY, _VERITY_HOSTS_KEY, _VERITY_VERSION_KEY
 )
+# Columns each host key must carry; also the shape of its empty stand-in.
+_HOST_KEY_COLUMNS = {
+    _PROVISION_HOSTS_KEY: {"eqp_id", "data_ip", "ip_note", "available", "checked_at"},
+    _PROVISION_VERSION_KEY: {"eqp_ip", "version", "available"},
+    _VERITY_HOSTS_KEY: {"eqp_id", "available", "veridity", "checked_at"},
+    _VERITY_VERSION_KEY: {"eqp_id", "version", "available"},
+}
 _DATA_IP_CONFIRMED = "data-ip confirmed"
 
 # Families whose reachability comes from their own host keys rather than
@@ -249,11 +271,8 @@ def _provision_frame(
     from the roster (unique there, user-confirmed) -- never on ``data_ip``.
     Usable = the data IP is confirmed.
     """
-    _require_columns(
-        hosts, {"eqp_id", "data_ip", "ip_note", "available", "checked_at"},
-        _PROVISION_HOSTS_KEY,
-    )
-    _require_columns(versions, {"eqp_ip", "version", "available"}, _PROVISION_VERSION_KEY)
+    _require_columns(hosts, _HOST_KEY_COLUMNS[_PROVISION_HOSTS_KEY], _PROVISION_HOSTS_KEY)
+    _require_columns(versions, _HOST_KEY_COLUMNS[_PROVISION_VERSION_KEY], _PROVISION_VERSION_KEY)
     hosts = hosts[["eqp_id", "data_ip", "ip_note", "available", "checked_at"]].rename(
         columns={"available": "data_available"}
     ).drop_duplicates(subset=["eqp_id"], keep="last")
@@ -274,10 +293,8 @@ def _verity_frame(
     Unlike Provision both keys carry eqp_id, and tool IP == data IP, so there
     is no data_ip / ip_note. Usable = the hosts key holds the tool at all.
     """
-    _require_columns(
-        hosts, {"eqp_id", "available", "veridity", "checked_at"}, _VERITY_HOSTS_KEY
-    )
-    _require_columns(versions, {"eqp_id", "version", "available"}, _VERITY_VERSION_KEY)
+    _require_columns(hosts, _HOST_KEY_COLUMNS[_VERITY_HOSTS_KEY], _VERITY_HOSTS_KEY)
+    _require_columns(versions, _HOST_KEY_COLUMNS[_VERITY_VERSION_KEY], _VERITY_VERSION_KEY)
     hosts = hosts[["eqp_id", "available", "veridity", "checked_at"]].rename(
         columns={"available": "data_available"}
     ).drop_duplicates(subset=["eqp_id"], keep="last")

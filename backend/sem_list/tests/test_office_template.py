@@ -360,3 +360,26 @@ def test_missing_verity_hosts_column_names_the_key():
         _verity_fleet(
             _verity_roster(), _verity_hosts().drop(columns=["veridity"]), _verity_versions()
         )
+
+
+def test_a_missing_amat_key_never_takes_the_hitachi_fleet_down(monkeypatch):
+    # /api/sem-list is every feature's fleet identity source: a missing
+    # Provision/VeritySEM key degrades that family, not the endpoint.
+    roster = pd.concat([_provision_roster(), _verity_roster()]).drop_duplicates("eqp_id")
+    present = {
+        "v3_df_provision_hosts": _hosts(),
+        "v3_df_verity_hosts": _verity_hosts(),
+    }
+
+    class _Redis:
+        def mget(self, keys):
+            return [b"" if key in present else None for key in keys]
+
+    monkeypatch.setattr(office, "_deserialize_dataframe", lambda raw, key: present[key])
+    keys = office._load_dataframes(_Redis(), *office._HOST_KEYS)
+    fleet = office._host_key_rows(roster, keys, fleet=True)
+    # Both version keys are missing: membership survives, the tool probe blanks.
+    assert {row["eqp_id"]: row["tool_available"] for row in fleet} == {"PV001": "", "VS001": ""}
+    # A non-AMAT key still fails loudly.
+    with pytest.raises(LookupError, match="v3_df_sem_avail"):
+        office._load_dataframes(_Redis(), "v3_df_sem_avail")

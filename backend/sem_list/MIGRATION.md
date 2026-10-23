@@ -150,6 +150,16 @@ Off); missing from it → `/api/sem-list/pending` (`_verity_frame`'s
 `_in_hosts`). Rows carry `data_available`, `tool_available`, `veridity`,
 `checked_at` from `HostProbeFields`.
 
+### A missing AMAT key degrades, never 502s
+
+`/api/sem-list` is every feature's fleet identity source, so the four
+Provision/VeritySEM keys are the one exception to "a missing key raises"
+(`_load_dataframes`). A missing **hosts** key sends that whole family to
+`/pending` with blank probes; a missing **version** key blanks `version` and
+`tool_available`. Hitachi rows are untouched, and the boot/app log carries
+`Redis key '<name>' not found; serving that family without it`. Every other
+key still raises.
+
 ## Verify
 
 Quick smoke test (prints row count + first row; loads `.env` itself):

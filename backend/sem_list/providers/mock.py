@@ -351,10 +351,8 @@ def _with_provision_fields(rows: list, seed: int) -> list:
     for row in rows:
         if model_to_tool_type(row["eqp_model_cd"]) != "provision":
             continue
-        note = _PENDING_PROVISION_NOTES.get(
-            (row["fab_name"], row["eqp_model_cd"]), "data-ip confirmed"
-        )
-        if "available" in row:  # connected
+        if "available" in row:  # connected -- by definition confirmed
+            note = "data-ip confirmed"
             tool_available = "On" if rng.random() < 0.95 else "Off"
             data_available = row["available"]
             row["version"] = (
@@ -363,6 +361,9 @@ def _with_provision_fields(rows: list, seed: int) -> list:
                 if tool_available == "On" else ""
             )
         else:
+            # Connected tools can share a cluster's (fab, model), so the
+            # pending note is looked up only here.
+            note = _PENDING_PROVISION_NOTES[(row["fab_name"], row["eqp_model_cd"])]
             # A fallback tool answers FTP but has no data share; an
             # unreachable candidate is usually a tool that is down too.
             tool_available = "Off" if note.endswith("(unreach)") else "On"
