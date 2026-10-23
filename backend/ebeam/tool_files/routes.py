@@ -337,9 +337,13 @@ def download(tool_slug: str):
 
 
 def _file_response(tool: Tool, limits) -> Response:
-    with _session(tool) as ftp:
-        path = check_path(_BROWSE_ROOT, request.args.get("path") or ftp.home())
-        data = ftp.download(path, max_bytes=limits.max_bytes, deadline=limits.deadline)
+    asked = request.args.get("path") or ""
+    # Refusals are audited too: an attempt on a file is what an audit is for.
+    with _audited("download", _target(tool, asked)) as outcome:
+        with _session(tool) as ftp:
+            path = check_path(_BROWSE_ROOT, asked or ftp.home())
+            data = ftp.download(path, max_bytes=limits.max_bytes, deadline=limits.deadline)
+        outcome["bytes"] = len(data)
     return _attachment(
         Response(data, mimetype="application/octet-stream"),
         readable_name(path.rsplit("/", 1)[-1]),
@@ -378,11 +382,34 @@ def download_zip(tool_slug: str):
 def _zip_response(tool: Tool, keys: list[str], names: list[str], limits) -> Response:
     buf = io.BytesIO()
     started = time.monotonic()
-    budget = limits.max_bytes
     # Each file goes into the zip as it arrives, so the peak is the zip plus
     # one file, never every file at once. Level 1: logs still shrink well, at a
     # fraction of the default level's CPU on the request thread.
     archive = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=1)
+    sizes: list[int] = []
+    try:
+        _fill_zip(tool, keys, names, limits, archive, started, sizes)
+    except ToolFilesError as exc:
+        # The zip never leaves, so no file in it was handed out: each is
+        # audited with the failure, including the ones already fetched.
+        for key in keys:
+            _audit("download", _target(tool, key), exc.code)
+        raise
+    # One line per file, under the request's one request_id.
+    for key, size in zip(keys, sizes, strict=True):
+        _audit("download", _target(tool, key), "ok", size=size)
+    # Streamed from the buffer, not getvalue(): no second copy of a zip that
+    # can near max_bytes. Not direct_passthrough: that skips Response.close,
+    # which is what releases the transfer permit.
+    size = buf.tell()
+    buf.seek(0)
+    response = Response(wrap_file(request.environ, buf), mimetype="application/zip")
+    response.content_length = size
+    return _attachment(response, f"{tool.eqp_id}.zip")
+
+
+def _fill_zip(tool: Tool, keys, names, limits, archive, started: float, sizes: list[int]) -> None:
+    budget = limits.max_bytes
     with _session(tool) as ftp, archive:
         # The zip owns its budget, so it raises its own codes for both limits.
         def time_left() -> float:
@@ -401,17 +428,10 @@ def _zip_response(tool: Tool, keys: list[str], names: list[str], limits) -> Resp
                     413, "batch_too_large", f"the files exceed {limits.max_bytes} bytes together"
                 ) from exc
             budget -= len(data)
+            sizes.append(len(data))
             archive.writestr(name, data)
             # Compressing counts too: the last file's has no next download to catch it.
             time_left()
-    # Streamed from the buffer, not getvalue(): no second copy of a zip that
-    # can near max_bytes. Not direct_passthrough: that skips Response.close,
-    # which is what releases the transfer permit.
-    size = buf.tell()
-    buf.seek(0)
-    response = Response(wrap_file(request.environ, buf), mimetype="application/zip")
-    response.content_length = size
-    return _attachment(response, f"{tool.eqp_id}.zip")
 
 
 def _require_write() -> None:
@@ -435,7 +455,7 @@ def _audited(action: str, target: str, access_request_id: str | None = None):
     except ToolFilesError as exc:
         _audit(action, target, exc.code, access_request_id)
         raise
-    _audit(action, target, outcome["result"], access_request_id)
+    _audit(action, target, outcome["result"], access_request_id, outcome.get("bytes"))
 
 
 @bp.post("/<tool_slug>/tool-files/upload")
@@ -454,7 +474,7 @@ def upload(tool_slug: str):
         raise ToolFilesError(400, "bad_request", "need exactly one file")
     data = files[0].read()
     name = (files[0].filename or "").replace("\\", "/").rsplit("/", 1)[-1]
-    with _audited("upload", _write_target(tool, f"{folder}/{name}")):
+    with _audited("upload", _target(tool, f"{folder}/{name}")):
         with _session(tool) as ftp:
             root = ftp.home()
             folder = check_path(root, folder)
@@ -470,15 +490,16 @@ def delete(tool_slug: str):
     if not isinstance(body.get("path"), str):
         raise ToolFilesError(400, "bad_request", "need a JSON object with fab, eqp_id, path")
     tool = _tool(tool_slug, body)
-    with _audited("delete", _write_target(tool, body["path"])):
+    with _audited("delete", _target(tool, body["path"])):
         with _session(tool) as ftp:
             path = check_path(ftp.home(), body["path"])
             ftp.remove(path)
     return jsonify({"deleted": path})
 
 
-def _write_target(tool: Tool, path: str) -> str:
-    # The host IP names the disk: Provision's tool and data hosts share an eqp_id.
+def _target(tool: Tool, path: str) -> str:
+    """The audit target of a download, upload or delete. The host IP names the
+    disk: Provision's tool and data hosts share an eqp_id."""
     return f"{tool.eqp_id}@{tool.fab_name}/{tool.host}:{path}"
 
 
@@ -489,15 +510,23 @@ def _json_body(fields: str) -> dict:
     return body
 
 
-def _audit(action: str, key: str, result: str, access_request_id: str | None = None) -> None:
+def _audit(
+    action: str,
+    key: str,
+    result: str,
+    access_request_id: str | None = None,
+    size: int | None = None,
+) -> None:
+    # bytes= only where a file was handed out, so a failed line never claims a size.
     logger.info(
-        "tool_files %s actor=%s source=%s target=%s result=%s request_id=%s"
+        "tool_files %s actor=%s source=%s target=%s result=%s%s request_id=%s"
         " access_request_id=%s",
         action,
         g.user_id,
         getattr(g, "identity_source", None),
         key,
         result,
+        "" if size is None else f" bytes={size}",
         getattr(g, "_activity_request_id", None),
         access_request_id,
     )

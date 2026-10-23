@@ -304,6 +304,15 @@
             @click="openSpreadsheets(semRow.spreadsheet_path)"
           />
         </div>
+        <!-- Every download is audited server-side (routes._audit), so say so
+             before anyone takes a file. -->
+        <p class="mt-2 flex items-center gap-1.5 sk-meta">
+          <UIcon
+            name="i-lucide-info"
+            class="size-3.5 shrink-0 text-(--sk-ink-muted)"
+          />
+          [참고] 어떤 파일을 받는지 로그에 기록되고 있습니다.
+        </p>
       </template>
 
       <div class="flex flex-wrap items-center gap-2 border-b border-(--sk-border-soft) px-4 py-2.5">

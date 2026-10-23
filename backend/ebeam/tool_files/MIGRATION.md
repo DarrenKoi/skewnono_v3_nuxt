@@ -80,6 +80,23 @@ refused in that order, before its body is read or FTP opens: 403
 `FtpClient.remove`. Both log one `skewnono.tool_files` line with actor,
 identity source, target, result and request_id.
 
+## Download audit (2026-10-23)
+
+Every download writes one `skewnono.tool_files` line per file, the same line
+uploads and deletes write, so it reaches OpenSearch through the root handler
+with no index change (user-confirmed 2026-10-23: 감사용):
+
+```text
+tool_files download actor=<empno> source=<cookie|local|token> target=<eqp>@<fab>/<host ip>:<path> result=ok bytes=<n> request_id=<id> access_request_id=None
+```
+
+A refused or failed download is audited with its error code and no `bytes=`.
+A zip writes one line per file under one `request_id`, only once the zip is
+built: if it fails, every file carries the failure code, including the ones
+already fetched, since none was handed out. `result=ok` means the server
+fetched the file and began sending it; whether the browser kept every byte is
+not knowable here. The page tells users downloads are recorded.
+
 ## AMAT families (2026-10-23)
 
 VeritySEM and Provision open through the same routes. Nothing in the
