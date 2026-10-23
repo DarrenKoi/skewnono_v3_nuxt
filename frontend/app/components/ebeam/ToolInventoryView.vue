@@ -258,7 +258,7 @@ const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.
 // Provision and VeritySEM are judged by their own host keys, so their rows
 // carry a tool probe and a data probe; `available` on them is the data one.
 // Only a Provision has a separate data host (data_ip). VeritySEM's Veridity
-// probe is left out of the table (not useful to users) but stays in the export.
+// probe is not shown or exported (not useful to users).
 const isProvision = props.toolType === 'provision'
 const isVeritySem = props.toolType === 'veritysem'
 const hasHostProbes = isProvision || isVeritySem
@@ -446,7 +446,6 @@ const exportColumns: ExportColumn[] = [
   ...([
     { id: 'tool_available', header: 'Tool Available', on: hasHostProbes },
     { id: 'data_ip', header: 'Data IP', on: isProvision },
-    { id: 'veridity', header: 'Veridity', on: isVeritySem },
     { id: 'checked_at', header: 'Data 점검 (UTC)', on: hasHostProbes }
   ] satisfies Array<ExportColumn & { on: boolean }>)
     .filter(column => column.on)
