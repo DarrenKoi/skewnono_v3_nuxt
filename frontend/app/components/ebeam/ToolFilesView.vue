@@ -285,13 +285,25 @@
             새로고침
           </UButton>
         </div>
-        <p
+        <div
           v-if="hostItems"
-          class="mt-2 sk-meta"
+          class="mt-2 flex flex-wrap items-center gap-2"
         >
-          Provision 은 장비(Tool IP)와 데이터 서버(Data IP)의 디스크가 서로 다릅니다.
-          측정 CSV(spreadsheet export)는 Data 쪽에 있습니다.
-        </p>
+          <p class="sk-meta">
+            Provision 은 장비(Tool IP)와 데이터 서버(Data IP)의 디스크가 서로 다릅니다.
+            측정 CSV(spreadsheet export)는 Data 쪽에 있습니다.
+          </p>
+          <UButton
+            v-if="semRow?.spreadsheet_path && semRow.data_ip"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-file-spreadsheet"
+            trailing-icon="i-lucide-arrow-right"
+            :label="`측정 CSV 폴더 · ${semRow.spreadsheet_path}`"
+            @click="openSpreadsheets(semRow.spreadsheet_path)"
+          />
+        </div>
       </template>
 
       <div class="flex flex-wrap items-center gap-2 border-b border-(--sk-border-soft) px-4 py-2.5">
@@ -709,6 +721,12 @@ const pickHost = (host: string) => {
   nameFilter.value = ''
   const { path: _path, host: _host, ...rest } = route.query
   router.push({ query: host === 'data' ? { ...rest, host } : rest })
+}
+
+// From either host: the folder is on the data host, so this switches to it.
+const openSpreadsheets = (path: string) => {
+  nameFilter.value = ''
+  router.push({ query: { ...route.query, host: 'data', path } })
 }
 
 const pickTool = (eqpId: string) => {

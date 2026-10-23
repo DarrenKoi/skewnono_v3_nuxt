@@ -221,7 +221,9 @@ _HOST_KEYS = (
 )
 # Columns each host key must carry; also the shape of its empty stand-in.
 _HOST_KEY_COLUMNS = {
-    _PROVISION_HOSTS_KEY: {"eqp_id", "data_ip", "ip_note", "available", "checked_at"},
+    _PROVISION_HOSTS_KEY: {
+        "eqp_id", "data_ip", "spreadsheet_path", "ip_note", "available", "checked_at"
+    },
     _PROVISION_VERSION_KEY: {"eqp_ip", "version", "available"},
     _VERITY_HOSTS_KEY: {"eqp_id", "available", "veridity", "checked_at"},
     _VERITY_VERSION_KEY: {"eqp_ip", "version", "available"},
@@ -273,7 +275,9 @@ def _provision_frame(
     """
     _require_columns(hosts, _HOST_KEY_COLUMNS[_PROVISION_HOSTS_KEY], _PROVISION_HOSTS_KEY)
     _require_columns(versions, _HOST_KEY_COLUMNS[_PROVISION_VERSION_KEY], _PROVISION_VERSION_KEY)
-    hosts = hosts[["eqp_id", "data_ip", "ip_note", "available", "checked_at"]].rename(
+    hosts = hosts[
+        ["eqp_id", "data_ip", "spreadsheet_path", "ip_note", "available", "checked_at"]
+    ].rename(
         columns={"available": "data_available"}
     ).drop_duplicates(subset=["eqp_id"], keep="last")
     versions = versions[["eqp_ip", "version", "available"]].rename(
@@ -319,6 +323,8 @@ def _host_fields(rec: dict) -> HostProbeFields:
     if "ip_note" in rec:  # Provision
         fields["data_ip"] = _text_or_blank(rec["data_ip"])
         fields["ip_note"] = _text_or_blank(rec["ip_note"])
+        # Verbatim (/P_Drive/Export/Spreadsheet, /p_drive, ...): never normalized.
+        fields["spreadsheet_path"] = _text_or_blank(rec["spreadsheet_path"])
     if "veridity" in rec:  # VeritySEM
         # "-" = the tool has no Veridity suite (empty veridity_path), by design
         # (office 확인 2026-10-23). Not Off: it gets no pill, like "not probed".

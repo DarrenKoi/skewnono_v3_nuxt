@@ -13,6 +13,8 @@ export interface HostProbeFields {
   data_ip?: string
   // Only 'data-ip confirmed' is usable; every other note is 미연결.
   ip_note?: string
+  // Provision: the measurement-CSV export folder on the data host, verbatim.
+  spreadsheet_path?: string
   data_available?: 'On' | 'Off' | ''
   tool_available?: 'On' | 'Off' | ''
   // /C_Drive/Veridity/Reports listing; '' also when the tool has no Veridity suite.

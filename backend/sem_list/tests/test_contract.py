@@ -47,6 +47,14 @@ def test_connected_fleet_size_is_unchanged():
         assert len(data.get_sem_list()) == 304  # 300 + 4 CG5000
 
 
+def test_every_provision_carries_an_absolute_spreadsheet_path():
+    rows = [*data.get_sem_list(), *data.get_pending_tools()]
+    provisions = [row for row in rows if "ip_note" in row]
+    assert provisions
+    for row in provisions:
+        assert row["spreadsheet_path"].startswith("/"), row["eqp_id"]
+
+
 def test_every_connected_provision_has_a_confirmed_data_ip():
     # The rule that splits Provision between the two lists (user-confirmed
     # 2026-10-23). A connected row with any other note would be extracted

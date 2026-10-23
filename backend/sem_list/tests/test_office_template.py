@@ -269,6 +269,8 @@ def test_only_a_confirmed_data_ip_reaches_the_fleet():
     assert (row["tool_available"], row["data_available"], row["available"]) == ("On", "On", "On")
     assert row["version"] == "16.10.33.40755"
     assert row["checked_at"] == _CHECKED_AT
+    # Verbatim: the doc says case and depth differ per tool, never normalize.
+    assert row["spreadsheet_path"] == "/P_Drive/Export/Spreadsheet"
 
 
 def test_unconfirmed_and_unlisted_provisions_are_pending():
@@ -279,6 +281,8 @@ def test_unconfirmed_and_unlisted_provisions_are_pending():
     assert (by_id["PV002"]["tool_available"], by_id["PV002"]["data_available"]) == ("Off", "Off")
     # Not in either key: not probed, which is "" and never "Off".
     assert by_id["PV003"]["data_ip"] == by_id["PV003"]["tool_available"] == ""
+    assert by_id["PV003"]["spreadsheet_path"] == ""
+    assert by_id["PV002"]["spreadsheet_path"] == "/p_drive"
 
 
 def test_fleet_available_follows_the_data_host_not_the_tool():

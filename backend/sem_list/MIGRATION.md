@@ -130,7 +130,9 @@ Both `available` columns are renamed — `data_available` (hosts) and
 `tool_available` (version) — and ride along as the optional `HostProbeFields`
 (`data_ip`, `ip_note`, `data_available`, `tool_available`, `checked_at`). On a
 Provision fleet row `available` is `data_available`. `""` in either
-availability means "not in that key", not Off.
+availability means "not in that key", not Off. `spreadsheet_path` (the
+measurement-CSV export folder on the data host) rides along verbatim, for the
+FTP 접속 page's 측정 CSV 폴더 shortcut; `""` when the tool is not in the key.
 
 ## VeritySEM: both endpoints (user-confirmed 2026-10-23)
 

@@ -117,3 +117,12 @@ def test_a_non_string_host_in_a_json_body_is_400(client, host):
     )
 
     assert response.status_code == 400
+
+
+def test_the_provision_data_host_holds_its_spreadsheet_folder(client):
+    row = _row("provision", data_available="On")
+
+    response = _list(client, "provision", row, host="data", path=row["spreadsheet_path"])
+
+    assert response.status_code == 200
+    assert any(entry["name"].endswith(".csv") for entry in response.get_json()["entries"])

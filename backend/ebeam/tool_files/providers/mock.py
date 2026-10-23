@@ -19,6 +19,8 @@ listed from home). What it copies on purpose are the properties known to bite:
   shared one at ``/`` (OFFICE-VERIFY: login directories unknown; VeritySEM
   results sit in ``/D_Drive/Output``, Provision's ini in ``/D_drive/Qrelease``,
   its spreadsheets under ``/P_Drive/.../Spreadsheet`` on the data host).
+  A Provision data host also holds its row's ``spreadsheet_path`` folder of
+  wafer CSVs, so the page's shortcut lands on a real folder at home.
 
 The mock never opens a socket. ``put`` and ``remove`` really change the tree
 (module-level ``_TREE``, so a write is seen by the next request until the
@@ -114,6 +116,27 @@ def _unreachable(tool: Tool) -> bool:
     )
 
 
+def _spreadsheet_path(eqp_id: str) -> str:
+    return next((r.get("spreadsheet_path", "") for r in get_sem_list() if r["eqp_id"] == eqp_id), "")
+
+
+def _with_spreadsheets(root: dict, path: str) -> dict:
+    """``root`` with ``path`` grafted on, holding a few wafer CSVs. Copies
+    along the path only, so the shared tree is never touched."""
+    parts = [p for p in path.split("/") if p]
+    if not parts:
+        return root
+    root = dict(root)
+    node = root
+    for part in parts:
+        child = node.get(part)
+        node[part] = dict(child) if isinstance(child, dict) else {}
+        node = node[part]
+    for n in range(1, 6):
+        node.setdefault(f"LOT{n:03d}_W{n:02d}.csv", _File(40_000 + n * 1_000, 6 * n))
+    return root
+
+
 class MockFtpClient:
     def __init__(self, tool: Tool) -> None:
         self._tool = tool
@@ -122,6 +145,8 @@ class MockFtpClient:
         self._root = _TREE
         for part in reversed([p for p in self._home.split("/") if p]):
             self._root = {part: self._root}
+        if tool.role == "data":
+            self._root = _with_spreadsheets(self._root, _spreadsheet_path(tool.eqp_id))
 
     def __enter__(self) -> "MockFtpClient":
         if _unreachable(self._tool):

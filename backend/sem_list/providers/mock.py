@@ -341,6 +341,11 @@ def _ip(rng: random.Random) -> str:
     return f"{rng.choice(['177', '197'])}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
 
 
+# The documented examples, case and depth as the office has them (user-confirmed
+# 2026-10-23); picked by eqp_id so the rng streams above stay as they were.
+_SPREADSHEET_PATHS = ("/P_Drive/QA/EXPORT/Spreadsheet", "/p_drive", "/P_Drive/Export/Spreadsheet")
+
+
 def _with_provision_fields(rows: list, seed: int) -> list:
     """Add the Provision-only fields, from their own rng stream.
 
@@ -373,6 +378,7 @@ def _with_provision_fields(rows: list, seed: int) -> list:
             # The fallback probe target IS the tool ip.
             data_ip=row["eqp_ip"] if note.startswith("tool-ip fallback") else _ip(rng),
             ip_note=note,
+            spreadsheet_path=_SPREADSHEET_PATHS[sum(map(ord, row["eqp_id"])) % len(_SPREADSHEET_PATHS)],
             data_available=data_available,
             tool_available=tool_available,
             checked_at=_HOSTS_CHECKED_AT,

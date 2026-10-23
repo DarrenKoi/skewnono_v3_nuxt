@@ -22,7 +22,9 @@ class HostProbeFields(TypedDict, total=False):
       ``v3_df_verity_hosts``: ``/D_Drive/Output`` on the tool itself).
 
     Provision-only: ``data_ip`` and ``ip_note`` (its data host is a different
-    IP). VeritySEM-only: ``veridity`` (tool IP == data IP there).
+    IP) and ``spreadsheet_path`` (the measurement-CSV export folder on that
+    data host, verbatim -- case and depth differ per tool). VeritySEM-only:
+    ``veridity`` (tool IP == data IP there).
 
     ``""`` in an availability means the tool is absent from that key, which
     is "not probed", not "Off". See docs/datatables/{provision,veritysem}/.
@@ -32,6 +34,7 @@ class HostProbeFields(TypedDict, total=False):
     # Only "data-ip confirmed" is trustworthy for extraction; every other value
     # (or "" when the tool is missing from v3_df_provision_hosts) is 미연결.
     ip_note: str
+    spreadsheet_path: str
     data_available: Literal["On", "Off", ""]
     tool_available: Literal["On", "Off", ""]
     # /C_Drive/Veridity/Reports listing. "" also when the tool has no Veridity
