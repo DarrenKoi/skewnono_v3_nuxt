@@ -31,7 +31,7 @@ a tool missing from the hosts key) to pending. ``v3_df_provision_version``
 
 VeritySEM follows the same shape with ``v3_df_verity_hosts`` (eqp_id ->
 available for /D_Drive/Output, veridity, checked_at; tool IP == data IP) and
-``v3_df_verity_version`` (eqp_id -> version, available). Its rule is simpler:
+``v3_df_verity_version`` (eqp_ip -> version, available). Its rule is simpler:
 in the hosts key -> fleet, missing -> pending (user-confirmed 2026-10-23).
 
 Connection settings come from ``REDIS_HOST`` / ``REDIS_PORT`` /
@@ -224,7 +224,7 @@ _HOST_KEY_COLUMNS = {
     _PROVISION_HOSTS_KEY: {"eqp_id", "data_ip", "ip_note", "available", "checked_at"},
     _PROVISION_VERSION_KEY: {"eqp_ip", "version", "available"},
     _VERITY_HOSTS_KEY: {"eqp_id", "available", "veridity", "checked_at"},
-    _VERITY_VERSION_KEY: {"eqp_id", "version", "available"},
+    _VERITY_VERSION_KEY: {"eqp_ip", "version", "available"},
 }
 _DATA_IP_CONFIRMED = "data-ip confirmed"
 
@@ -290,20 +290,22 @@ def _verity_frame(
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Roster VeritySEM rows with both VeritySEM keys merged on, and which are usable.
 
-    Unlike Provision both keys carry eqp_id, and tool IP == data IP, so there
-    is no data_ip / ip_note. Usable = the hosts key holds the tool at all.
+    Tool IP == data IP, so there is no data_ip / ip_note. Like Provision's,
+    the version key has no eqp_id and joins on the roster's tool ip (unique
+    there, user-confirmed 2026-10-23). Usable = the hosts key holds the tool
+    at all -- today all 54 roster VeritySEMs, so 미연결 is normally empty.
     """
     _require_columns(hosts, _HOST_KEY_COLUMNS[_VERITY_HOSTS_KEY], _VERITY_HOSTS_KEY)
     _require_columns(versions, _HOST_KEY_COLUMNS[_VERITY_VERSION_KEY], _VERITY_VERSION_KEY)
     hosts = hosts[["eqp_id", "available", "veridity", "checked_at"]].rename(
         columns={"available": "data_available"}
     ).drop_duplicates(subset=["eqp_id"], keep="last")
-    versions = versions[["eqp_id", "version", "available"]].rename(
+    versions = versions[["eqp_ip", "version", "available"]].rename(
         columns={"available": "tool_available"}
-    ).drop_duplicates(subset=["eqp_id"], keep="last")
+    ).drop_duplicates(subset=["eqp_ip"], keep="last")
     frame = _family_rows(roster, "veritysem").merge(
         hosts, on="eqp_id", how="left", indicator="_hosts"
-    ).merge(versions, on="eqp_id", how="left")
+    ).merge(versions, on="eqp_ip", how="left")
     return frame, frame["_hosts"].eq("both").astype(bool)
 
 
@@ -318,7 +320,13 @@ def _host_fields(rec: dict) -> HostProbeFields:
         fields["data_ip"] = _text_or_blank(rec["data_ip"])
         fields["ip_note"] = _text_or_blank(rec["ip_note"])
     if "veridity" in rec:  # VeritySEM
-        fields["veridity"] = _on_off_or_blank(rec["veridity"], "veridity", eqp_id)
+        # "-" = the tool has no Veridity suite (empty veridity_path), by design
+        # (office 확인 2026-10-23). Not Off: it gets no pill, like "not probed".
+        veridity = rec["veridity"]
+        fields["veridity"] = (
+            "" if _text_or_blank(veridity) == "-"
+            else _on_off_or_blank(veridity, "veridity", eqp_id)
+        )
     return fields
 
 

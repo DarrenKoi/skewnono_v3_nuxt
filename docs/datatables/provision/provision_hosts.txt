@@ -84,7 +84,7 @@ version 형식 (user-confirmed 2026-10-23) — 장비 vendor 별로 다르며, �
     VeritySEM : (같은 version key 계열) Ver_<maj>_<min>_<pat>_<build>_Win7
 
 따라서 version 을 숫자로 정렬하거나 계열을 섞어 비교하지 않습니다. 화면에는 받은 문자열을
-그대로 보여 줍니다. VeritySEM 쪽 key 는 v3_df_verity_version 이며 eqp_id 로 join 합니다
+그대로 보여 줍니다. VeritySEM 쪽 key 는 v3_df_verity_version 이며 이 key 와 같이 eqp_ip 로 join 합니다
 (../veritysem/verity_hosts.txt).
 
 두 key 의 available 은 이름이 같지만 다른 것을 잽니다(Key 1 = data host, Key 2 = tool).

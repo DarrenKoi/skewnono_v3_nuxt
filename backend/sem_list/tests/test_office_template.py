@@ -318,16 +318,18 @@ def _verity_hosts() -> pd.DataFrame:
         "fab_name": ["M16A"],
         "eqp_ip": ["177.8.8.1"],
         "output_path": ["/D_Drive/Output"],
+        # No Veridity suite: an empty path and veridity "-" (office 2026-10-23).
         "veridity_path": [""],
         "available": ["Off"],
-        "veridity": ["Off"],
+        "veridity": ["-"],
         "checked_at": [_CHECKED_AT],
     })
 
 
 def _verity_versions() -> pd.DataFrame:
+    # No eqp_id column: this key is keyed by the tool ip (user-confirmed 2026-10-23).
     return pd.DataFrame({
-        "eqp_id": ["VS001", "VS002"],
+        "eqp_ip": ["177.8.8.1", "177.8.8.2"],
         "version": ["Ver_6_2_1_4410_Win7", ""],
         "available": ["On", "Off"],
     })
@@ -338,7 +340,8 @@ def test_a_verity_in_the_hosts_key_is_in_the_fleet_even_when_off():
     assert [row["eqp_id"] for row in rows] == ["VS001"]
     row = rows[0]
     assert (row["available"], row["data_available"], row["tool_available"]) == ("Off", "Off", "On")
-    assert (row["veridity"], row["version"]) == ("Off", "Ver_6_2_1_4410_Win7")
+    # "-" (no Veridity suite) is not Off: it carries no pill, like "not probed".
+    assert (row["veridity"], row["version"]) == ("", "Ver_6_2_1_4410_Win7")
     # Tool IP == data IP: no Provision-only fields.
     assert "data_ip" not in row and "ip_note" not in row
 
@@ -346,7 +349,7 @@ def test_a_verity_in_the_hosts_key_is_in_the_fleet_even_when_off():
 def test_a_verity_missing_from_the_hosts_key_is_pending():
     rows = _verity_pending(_verity_roster(), _verity_hosts(), _verity_versions())
     assert [row["eqp_id"] for row in rows] == ["VS002"]
-    # The version key joins on eqp_id independently of the hosts key.
+    # The version key joins on the tool ip, independently of the hosts key.
     assert (rows[0]["tool_available"], rows[0]["data_available"], rows[0]["veridity"]) == ("Off", "", "")
 
 
@@ -383,3 +386,9 @@ def test_a_missing_amat_key_never_takes_the_hitachi_fleet_down(monkeypatch):
     # A non-AMAT key still fails loudly.
     with pytest.raises(LookupError, match="v3_df_sem_avail"):
         office._load_dataframes(_Redis(), "v3_df_sem_avail")
+
+
+def test_a_reachable_veridity_suite_reads_on():
+    hosts = _verity_hosts().assign(veridity_path=["/C_Drive/Veridity/Reports"], veridity=["On"])
+    rows = _verity_fleet(_verity_roster(), hosts, _verity_versions())
+    assert rows[0]["veridity"] == "On"

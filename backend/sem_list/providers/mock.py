@@ -95,7 +95,8 @@ the office FORMAT -- raw ini text, dotted <major>.<minor>.<patch>.<build> like
 VeritySEM has the sibling key `v3_df_verity_hosts` (user-confirmed 2026-10-23;
 docs/datatables/veritysem/verity_hosts.txt), but there tool IP == data IP, so
 it carries no data_ip / ip_note -- just `available` for `/D_Drive/Output` and
-`veridity` for `/C_Drive/Veridity/Reports` ("" path on 9 of 54 tools).
+`veridity` for `/C_Drive/Veridity/Reports` -- "-" where the path is "" (no
+Veridity suite, 9 of 54; normalized to ""), 44 On, 1 Off (office 확인 2026-10-23).
 Together with `v3_df_verity_version` (eqp_id -> version, available; the ini
 reads "Ver_<maj>_<min>_<pat>_<build>_Win7") it decides VeritySEM the same way:
 in the hosts key -> fleet, missing -> pending (user-confirmed 2026-10-23).
@@ -383,7 +384,8 @@ def _with_verity_fields(rows: list, seed: int) -> list:
     """Add the VeritySEM probe fields, from their own rng stream.
 
     Connected rows are in v3_df_verity_hosts: their drawn `available` is the
-    /D_Drive/Output listing, and 45 of 54 tools have a Veridity folder at all.
+    /D_Drive/Output listing; 45 of 54 tools have a Veridity suite, and of
+    those 44 listed On and 1 Off in the office's run of 2026-10-23.
     Pending rows are 미연결 BECAUSE that key does not hold them, so their
     host fields are blank -- "not probed", not Off.
     """
@@ -406,7 +408,7 @@ def _with_verity_fields(rows: list, seed: int) -> list:
         row.update(HostProbeFields(
             data_available=row["available"],
             tool_available=tool_available,
-            veridity="On" if has_veridity and rng.random() < 0.95 else "Off",
+            veridity=("On" if rng.random() < 44 / 45 else "Off") if has_veridity else "",
             checked_at=_HOSTS_CHECKED_AT,
         ))
     return rows

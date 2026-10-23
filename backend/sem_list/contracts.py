@@ -34,8 +34,8 @@ class HostProbeFields(TypedDict, total=False):
     ip_note: str
     data_available: Literal["On", "Off", ""]
     tool_available: Literal["On", "Off", ""]
-    # /C_Drive/Veridity/Reports listing; Off is expected where that folder
-    # does not exist (9 of 54 tools, user-confirmed 2026-10-23).
+    # /C_Drive/Veridity/Reports listing. "" also when the tool has no Veridity
+    # suite at all -- the key says "-" there (9 of 54, office 확인 2026-10-23).
     veridity: Literal["On", "Off", ""]
     # UTC ISO stamp of the last host-key run; one for all rows of a family.
     checked_at: str

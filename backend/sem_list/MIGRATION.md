@@ -140,9 +140,10 @@ Same shape as Provision, two read-only keys instead of `v3_df_sem_avail`:
   output_path, veridity_path, available, veridity, checked_at]`. Tool IP is
   the data IP, so there is no `data_ip` / `ip_note`. `available` = the
   `/D_Drive/Output` listing, `veridity` = the `/C_Drive/Veridity/Reports`
-  listing (that folder is absent on 9 of 54 tools).
-- `v3_df_verity_version` — `[eqp_id, version, available]`, joined on
-  **eqp_id** (Provision's version key joins on `eqp_ip`). Version reads
+  listing — `"-"` where that folder is absent (9 of 54 tools, by design),
+  which the adapter maps to `""`, never Off.
+- `v3_df_verity_version` — `[eqp_ip, version, available]`, **no eqp_id**:
+  joined on the roster's tool `eqp_ip`, like Provision's. Version reads
   `Ver_<maj>_<min>_<pat>_<build>_Win7`, raw.
 
 Rule: a VeritySEM in the hosts key → `/api/sem-list` (even with `available`

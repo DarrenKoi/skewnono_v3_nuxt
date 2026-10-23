@@ -15,7 +15,7 @@ export interface HostProbeFields {
   ip_note?: string
   data_available?: 'On' | 'Off' | ''
   tool_available?: 'On' | 'Off' | ''
-  // /C_Drive/Veridity/Reports listing; Off is normal where that folder is absent.
+  // /C_Drive/Veridity/Reports listing; '' also when the tool has no Veridity suite.
   veridity?: 'On' | 'Off' | ''
   // UTC ISO; show with formatKstDateTime.
   checked_at?: string
