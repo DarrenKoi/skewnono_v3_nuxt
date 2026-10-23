@@ -418,6 +418,17 @@
         >
           다시 시도
         </UButton>
+        <UButton
+          v-if="currentPath"
+          class="ml-2"
+          size="xs"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-house"
+          @click="openHome"
+        >
+          로그인 폴더로
+        </UButton>
       </div>
       <UTable
         v-else-if="listing"
@@ -611,15 +622,19 @@ import {
   formatFileSize,
   looksUndecoded,
   normalizeTypedPath,
+  normalizeVisitedPaths,
+  rememberVisitedPath,
   sortToolFileEntries,
   summarizeToolFileSelection,
   toolFilesErrorCode,
   toolFilesErrorMessage,
   toolFilesReasonValid,
   toolFilesVerdictMessage,
+  visitedPathKey,
   type ToolFileEntry,
   type ToolFileKind,
-  type ToolFileSortKey
+  type ToolFileSortKey,
+  type VisitedPaths
 } from '~/utils/toolFiles'
 
 const props = defineProps<{
@@ -698,6 +713,16 @@ watch([semStatus, tools], () => {
   }
 }, { immediate: true })
 
+// The last folder opened on each tool and host, kept across reloads, so
+// switching A → B → A lands back where A was.
+const visitedPaths = usePersistedState<VisitedPaths>('tool-files-visited-paths', 'skewnono:tool-files:visited-paths', {
+  default: () => ({}),
+  normalize: normalizeVisitedPaths,
+  isEmpty: paths => Object.keys(paths).length === 0
+})
+const rememberedPath = (eqpId: string, host: 'data' | undefined): string | undefined =>
+  visitedPaths.value[visitedPathKey(props.toolType, eqpId, host)]
+
 // Provision keeps its data on a separate host; the other families' tool IP is
 // their data IP, so they get no picker and never send ?host=.
 const selectedHost = computed(() =>
@@ -720,7 +745,8 @@ const hostItems = computed(() => {
 const pickHost = (host: string) => {
   nameFilter.value = ''
   const { path: _path, host: _host, ...rest } = route.query
-  router.push({ query: host === 'data' ? { ...rest, host } : rest })
+  const path = selectedEqp.value ? rememberedPath(selectedEqp.value, host === 'data' ? 'data' : undefined) : undefined
+  router.push({ query: { ...rest, ...(host === 'data' ? { host } : {}), ...(path ? { path } : {}) } })
 }
 
 // From either host: the folder is on the data host, so this switches to it.
@@ -732,7 +758,9 @@ const openSpreadsheets = (path: string) => {
 const pickTool = (eqpId: string) => {
   nameFilter.value = ''
   // The host is kept: someone reading data hosts tool after tool stays on Data.
-  router.push({ query: { eqp: eqpId, ...(selectedHost.value === 'data' ? { host: 'data' } : {}) } })
+  const host = selectedHost.value === 'data' ? 'data' as const : undefined
+  const path = rememberedPath(eqpId, host)
+  router.push({ query: { eqp: eqpId, ...(host ? { host } : {}), ...(path ? { path } : {}) } })
 }
 
 // Null until access is granted, so a refused visitor never sends a /list that
@@ -755,6 +783,24 @@ const {
   error: listingError,
   refresh: refreshListing
 } = useToolFilesListing(target, currentPath)
+
+// Only on 'success': while a switch is pending the previous tool's listing is
+// still in `listing`, and recording it then would file A's path under B.
+watch([listingStatus, listing], ([status, current]) => {
+  const at = target.value
+  if (status !== 'success' || !current || !at) return
+  visitedPaths.value = rememberVisitedPath(
+    visitedPaths.value,
+    visitedPathKey(at.toolType, at.eqpId, at.host),
+    current.path
+  )
+})
+
+// A remembered folder can be gone from the tool; this is the way back out.
+const openHome = () => {
+  const { path: _path, ...rest } = route.query
+  router.push({ query: rest })
+}
 
 const openPath = (path: string) => {
   nameFilter.value = ''

@@ -250,3 +250,34 @@ const VERDICT_MESSAGES: Record<Exclude<ToolFilesVerdict, 'granted'>, { title: st
 
 export const toolFilesVerdictMessage = (verdict: Exclude<ToolFilesVerdict, 'granted'>) =>
   VERDICT_MESSAGES[verdict]
+
+// Last folder opened per tool and host, so switching A → B → A returns to
+// where A was. Provision's two hosts are two disks, so the host is in the key.
+export type VisitedPaths = Record<string, string>
+
+export const VISITED_PATHS_CAP = 200
+
+export const visitedPathKey = (toolType: string, eqpId: string, host: 'data' | undefined): string =>
+  `${toolType}:${eqpId}:${host ?? 'tool'}`
+
+// Insertion order is recency: a revisit moves to the end, and past the cap the
+// oldest falls off, so the stored map stays small however many tools are seen.
+export const rememberVisitedPath = (
+  paths: VisitedPaths,
+  key: string,
+  path: string,
+  cap = VISITED_PATHS_CAP
+): VisitedPaths => {
+  if (paths[key] === path) return paths
+  const { [key]: _previous, ...rest } = paths
+  const entries = Object.entries({ ...rest, [key]: path })
+  return Object.fromEntries(entries.slice(Math.max(0, entries.length - cap)))
+}
+
+export const normalizeVisitedPaths = (parsed: unknown): VisitedPaths => {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+  return Object.fromEntries(
+    Object.entries(parsed).filter((entry): entry is [string, string] =>
+      typeof entry[1] === 'string' && entry[1].startsWith('/'))
+  )
+}

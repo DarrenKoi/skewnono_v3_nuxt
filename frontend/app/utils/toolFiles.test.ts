@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   filterToolFileEntries,
+  normalizeVisitedPaths,
+  rememberVisitedPath,
+  visitedPathKey,
   looksUndecoded,
   normalizeTypedPath,
   formatFileSize,
@@ -147,4 +150,29 @@ test('a reason is 1-200 characters once trimmed', () => {
   assert.equal(toolFilesReasonValid(' 파견 중 '), true)
   assert.equal(toolFilesReasonValid('가'.repeat(200)), true)
   assert.equal(toolFilesReasonValid('가'.repeat(201)), false)
+})
+
+test('visitedPathKey separates tools and Provision hosts', () => {
+  assert.equal(visitedPathKey('provision', 'MCD418', undefined), 'provision:MCD418:tool')
+  assert.equal(visitedPathKey('provision', 'MCD418', 'data'), 'provision:MCD418:data')
+})
+
+test('rememberVisitedPath keeps the newest last and drops the oldest past the cap', () => {
+  let paths = rememberVisitedPath({}, 'a', '/A', 2)
+  paths = rememberVisitedPath(paths, 'b', '/B', 2)
+  paths = rememberVisitedPath(paths, 'a', '/A2', 2)
+  assert.deepEqual(Object.entries(paths), [['b', '/B'], ['a', '/A2']])
+  paths = rememberVisitedPath(paths, 'c', '/C', 2)
+  assert.deepEqual(Object.keys(paths), ['a', 'c'])
+})
+
+test('rememberVisitedPath returns the same object when nothing changes', () => {
+  const paths = { a: '/A' }
+  assert.equal(rememberVisitedPath(paths, 'a', '/A'), paths)
+})
+
+test('normalizeVisitedPaths keeps only absolute string paths', () => {
+  assert.deepEqual(normalizeVisitedPaths({ a: '/A', b: 3, c: 'rel', d: null }), { a: '/A' })
+  assert.deepEqual(normalizeVisitedPaths(['/A']), {})
+  assert.deepEqual(normalizeVisitedPaths(null), {})
 })
