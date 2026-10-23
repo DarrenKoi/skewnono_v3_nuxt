@@ -3,10 +3,34 @@
 from typing import Literal, TypedDict
 
 
-__all__ = ["PendingToolRow", "SemListRow"]
+__all__ = ["PendingToolRow", "ProvisionFields", "SemListRow"]
 
 
-class SemListRow(TypedDict):
+class ProvisionFields(TypedDict, total=False):
+    """Present on PROVISION rows only, in both the fleet and the pending list.
+
+    A Provision's data lives on a separate data host, not the tool, so it has
+    two reachabilities: the tool IP (``eqp_ip``, probed by downloading
+    ``/D_drive/Qrelease/current_version.ini`` -> ``v3_df_provision_version``)
+    and the data IP (``data_ip``, probed by listing the P-drive ->
+    ``v3_df_provision_hosts``). Both keys call their column ``available``; they
+    are renamed here so neither can be mistaken for the other.
+
+    ``""`` in an availability means the tool is absent from that key, which
+    is "not probed", not "Off". See docs/datatables/provision/provision_hosts.txt.
+    """
+
+    data_ip: str
+    # Only "data-ip confirmed" is trustworthy for extraction; every other value
+    # (or "" when the tool is missing from v3_df_provision_hosts) is 미연결.
+    ip_note: str
+    data_available: Literal["On", "Off", ""]
+    tool_available: Literal["On", "Off", ""]
+    # UTC ISO stamp of the last v3_df_provision_hosts run; one for all rows.
+    checked_at: str
+
+
+class SemListRow(ProvisionFields):
     fac_id: str
     eqp_id: str
     eqp_model_cd: str
@@ -25,7 +49,7 @@ class SemListRow(TypedDict):
     version: str
 
 
-class PendingToolRow(TypedDict):
+class PendingToolRow(ProvisionFields):
     """A tool in the company roster that skewnono cannot reach yet.
 
     Every tool is firewalled when it is first installed in the fab, so this

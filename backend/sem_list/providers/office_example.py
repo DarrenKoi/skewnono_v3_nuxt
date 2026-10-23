@@ -19,6 +19,16 @@ exactly once — rows with no matching version get ``""``), and normalizes to
 reach yet, normalized to ``PendingToolRow``. Callers and routes must not need
 to know the source format.
 
+PROVISION is the exception to both (user-confirmed 2026-10-23). Its data sits
+on a separate data host, so whether skewnono can use a Provision is decided by
+``v3_df_provision_hosts`` (eqp_id -> data_ip, ip_note, available, checked_at),
+not by ``v3_df_sem_avail``. Provision rows are dropped from the
+``v3_df_sem_avail`` path and rebuilt from the roster:
+``ip_note == "data-ip confirmed"`` goes to the fleet, everything else (including
+a tool missing from the hosts key) to pending. ``v3_df_provision_version``
+(eqp_ip -> version, available; the tool-IP probe) supplies the version and
+``tool_available``. ``available`` on a Provision fleet row is the DATA host's.
+
 Connection settings come from ``REDIS_HOST`` / ``REDIS_PORT`` /
 ``REDIS_PASSWORD`` in ``backend/.env`` (same vars the health feature
 uses). At the office: fill in .env, then `cp office_example.py office.py` — that
@@ -33,7 +43,8 @@ from backend._runtime.office_redis import (
     read_dataframe as _deserialize_dataframe,
     redis_client as _redis_client,
 )
-from backend.sem_list.contracts import PendingToolRow, SemListRow
+from backend.ebeam._tool_specs import model_to_tool_type
+from backend.sem_list.contracts import PendingToolRow, ProvisionFields, SemListRow
 
 _REDIS_KEY = "v3_df_sem_avail"
 _VERSION_KEY = "v3_df_sem_version"
@@ -172,17 +183,128 @@ def _attach_version(fleet: pd.DataFrame, versions: pd.DataFrame) -> pd.DataFrame
     return fleet.merge(right, on=_MERGE_KEY, how="left")
 
 
+_ROSTER_KEY = "v3_df_sem_list"
+_PROVISION_HOSTS_KEY = "v3_df_provision_hosts"
+_PROVISION_VERSION_KEY = "v3_df_provision_version"
+_DATA_IP_CONFIRMED = "data-ip confirmed"
+
+
+def _require_columns(df: pd.DataFrame, columns: set[str], key: str) -> None:
+    missing = columns - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"Redis key {key!r} DataFrame is missing columns: "
+            f"{sorted(missing)} (got {sorted(df.columns)})"
+        )
+
+
+def _is_provision(df: pd.DataFrame) -> pd.Series:
+    return df["eqp_model_cd"].map(
+        lambda model: model_to_tool_type(_text_or_blank(model)) == "provision"
+    ).astype(bool)
+
+
+def _on_off_or_blank(value, field: str, eqp_id) -> str:
+    """"" for a tool the key does not hold (not probed is not Off)."""
+    if pd.isna(value):
+        return ""
+    mapped = _AVAILABLE_MAP.get(_to_text(value).strip().lower())
+    if mapped is None:
+        raise ValueError(f"Unexpected {field} {value!r} for eqp_id {eqp_id!r}")
+    return mapped
+
+
+def _provision_frame(
+    roster: pd.DataFrame, hosts: pd.DataFrame, versions: pd.DataFrame
+) -> pd.DataFrame:
+    """Roster PROVISION rows with the two Provision keys LEFT-merged on.
+
+    Both keys name their probe column ``available``; it is renamed here to
+    ``data_available`` / ``tool_available`` before anything else sees it.
+    ``v3_df_provision_version`` carries no eqp_id, so it joins on the TOOL ip
+    from the roster -- never on ``data_ip``.
+    """
+    _require_columns(roster, set(_PENDING_REQUIRED_COLUMNS), _ROSTER_KEY)
+    _require_columns(
+        hosts, {"eqp_id", "data_ip", "ip_note", "available", "checked_at"},
+        _PROVISION_HOSTS_KEY,
+    )
+    _require_columns(versions, {"eqp_ip", "version", "available"}, _PROVISION_VERSION_KEY)
+    provision = roster[_is_provision(roster)] if not roster.empty else roster
+    hosts = hosts[["eqp_id", "data_ip", "ip_note", "available", "checked_at"]].rename(
+        columns={"available": "data_available"}
+    ).drop_duplicates(subset=["eqp_id"], keep="last")
+    versions = versions[["eqp_ip", "version", "available"]].rename(
+        columns={"available": "tool_available"}
+    ).drop_duplicates(subset=["eqp_ip"], keep="last")
+    return provision.merge(hosts, on="eqp_id", how="left").merge(
+        versions, on="eqp_ip", how="left"
+    )
+
+
+def _is_confirmed(frame: pd.DataFrame) -> pd.Series:
+    return frame["ip_note"].map(_text_or_blank).eq(_DATA_IP_CONFIRMED).astype(bool)
+
+
+def _provision_fields(rec: dict) -> ProvisionFields:
+    return ProvisionFields(
+        data_ip=_text_or_blank(rec["data_ip"]),
+        ip_note=_text_or_blank(rec["ip_note"]),
+        data_available=_on_off_or_blank(rec["data_available"], "data available", rec["eqp_id"]),
+        tool_available=_on_off_or_blank(rec["tool_available"], "tool available", rec["eqp_id"]),
+        checked_at=_iso_or_blank(rec["checked_at"]),
+    )
+
+
+def _select_provision_fleet(
+    roster: pd.DataFrame, hosts: pd.DataFrame, versions: pd.DataFrame
+) -> list[SemListRow]:
+    frame = _provision_frame(roster, hosts, versions)
+    frame = frame[_is_confirmed(frame)] if not frame.empty else frame
+    if frame.empty:
+        return []
+    # The fleet's `available` is the data host's: a confirmed Provision whose
+    # P-drive listing failed is not usable, whatever its tool IP says.
+    frame = frame.assign(available=frame["data_available"])
+    records = frame.to_dict(orient="records")
+    return [
+        SemListRow(**row, **_provision_fields(rec))
+        for row, rec in zip(_normalize(frame), records, strict=True)
+    ]
+
+
+def _select_provision_pending(
+    roster: pd.DataFrame, hosts: pd.DataFrame, versions: pd.DataFrame
+) -> list[PendingToolRow]:
+    frame = _provision_frame(roster, hosts, versions)
+    frame = frame[~_is_confirmed(frame)] if not frame.empty else frame
+    if frame.empty:
+        return []
+    records = frame.to_dict(orient="records")
+    return [
+        PendingToolRow(**row, **_provision_fields(rec))
+        for row, rec in zip(_normalize_pending(frame), records, strict=True)
+    ]
+
+
+def _load_provision(client: redis.Redis) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    return (
+        _load_dataframe(client, _ROSTER_KEY),
+        _load_dataframe(client, _PROVISION_HOSTS_KEY),
+        _load_dataframe(client, _PROVISION_VERSION_KEY),
+    )
+
+
 def get_sem_list() -> list[SemListRow]:
     client = _redis_client()
     fleet = _load_dataframe(client, _REDIS_KEY)
     versions = _load_dataframe(client, _VERSION_KEY)
     fleet = _attach_version(fleet, versions)
-    if fleet.empty:
-        return []
-    return _normalize(fleet)
-
-
-_ROSTER_KEY = "v3_df_sem_list"
+    # Provision rows are rebuilt from the Provision keys below, not taken from
+    # v3_df_sem_avail, so the fleet and the pending list can never both hold one.
+    _require_columns(fleet, set(_REQUIRED_COLUMNS), _REDIS_KEY)
+    rows = [] if fleet.empty else _normalize(fleet[~_is_provision(fleet)])
+    return rows + _select_provision_fleet(*_load_provision(client))
 
 # No `available` and no `version`: both live in keys a pending tool is not in.
 _PENDING_REQUIRED_COLUMNS = frozenset(
@@ -264,7 +386,11 @@ def _select_pending(
 
     if roster.empty:
         return []
-    pending = roster[~roster["eqp_id"].isin(set(connected["eqp_id"]))]
+    # Provision's pending rule is the data host, not the firewall: see
+    # _select_provision_pending.
+    pending = roster[
+        ~roster["eqp_id"].isin(set(connected["eqp_id"])) & ~_is_provision(roster)
+    ]
     if pending.empty:
         return []
     return _normalize_pending(pending)
@@ -274,7 +400,10 @@ def get_pending_tools() -> list[PendingToolRow]:
     client = _redis_client()
     roster = _load_dataframe(client, _ROSTER_KEY)
     connected = _load_dataframe(client, _REDIS_KEY)
-    return _select_pending(roster, connected)
+    _, hosts, versions = _load_provision(client)
+    return _select_pending(roster, connected) + _select_provision_pending(
+        roster, hosts, versions
+    )
 
 
 if __name__ == "__main__":

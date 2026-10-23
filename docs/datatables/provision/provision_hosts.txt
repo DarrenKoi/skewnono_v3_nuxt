@@ -1,4 +1,4 @@
-사무실(Office) Redis — PROVISION 장비 data host 명부 (user-confirmed 2026-10-23)
+사무실(Office) Redis — PROVISION 장비 data host 명부 + tool version (user-confirmed 2026-10-23)
 
 Provision 은 다른 계열과 달리 측정 데이터를 **장비 IP 가 아닌 별도의 data host IP**
 에서 꺼냅니다. v3_df_sem_list 의 eqp_ip 는 장비(tool) 자체의 IP 이므로 Provision
@@ -7,7 +7,8 @@ Provision 은 다른 계열과 달리 측정 데이터를 **장비 IP 가 아닌
 
 저장 형태: Redis, pandas DataFrame 을 parquet 직렬화(sem_list 와 같은 방식).
 
-Key -> "v3_df_provision_hosts"
+Key 1 -> "v3_df_provision_hosts"   : data host 명부 (아래 대부분이 이 key 의 설명)
+Key 2 -> "v3_df_provision_version" : 장비(tool) 쪽 version 과 tool IP 접속 여부 (맨 아래 절)
 
 용도: **읽기 전용** 입니다. 우리 쪽에서 쓰지 않습니다. 사무실의 정기 작업이 한 시간에
 두 번 갱신합니다 (예약 작업에 문제가 없을 때 기준, user-confirmed 2026-10-23).
@@ -19,7 +20,7 @@ Key -> "v3_df_provision_hosts"
 
 | 컬럼 | 뜻 |
 | --- | --- |
-| eqp_id | v3_df_sem_list 의 eqp_id. 명부와 join 하는 key 입니다 |
+| eqp_id | v3_df_sem_list 의 eqp_id. 명부와 join 하는 key 이며 이 key 안에서 유일합니다 (user-confirmed 2026-10-23) |
 | fab_name | v3_df_sem_list 의 fab_name |
 | data_ip | data host IP (장비 IP 아님). 단, 아래 "tool-ip fallback" 행에서는 probe 대상으로 장비 IP 를 대신 넣어 둔 값입니다 |
 | spreadsheet_path | 장비별 측정 CSV(wafer 단위) export 디렉터리의 FTP 절대 경로 |
@@ -59,15 +60,41 @@ checked_at: 모든 행이 같은 stamp 하나를 공유합니다(한 번의 점�
 KST 로 변환합니다. 이 값으로 갱신이 멈췄는지 판단할 수 있습니다 — 정상이면 30분
 남짓보다 오래되지 않습니다.
 
-소비 예정 (아직 이 key 를 읽는 코드는 없습니다)
+Key 2 -> "v3_df_provision_version" (user-confirmed 2026-10-23)
 
-1. Provision 데이터 추출의 진입점 — eqp_id 로 data_ip 와 spreadsheet_path 를 찾습니다.
-2. Provision 의 미연결 장비 목록 — Hitachi 의 "v3_df_sem_list - v3_df_sem_avail"
-   (방화벽) 대신, 이 계열은 ip_note / available 로 "데이터를 꺼낼 수 없는 장비" 를
-   판정합니다.
+장비 쪽 version 을 알려 주는 key 입니다. 하루 한 번 갱신합니다. 저장 형태는 Key 1 과
+같습니다(parquet DataFrame).
+
+| 컬럼 | 뜻 |
+| --- | --- |
+| eqp_ip | 장비(tool) IP — v3_df_sem_list.eqp_ip 와 같은 값. eqp_id 컬럼은 없습니다 |
+| version | 장비의 /D_drive/Qrelease/current_version.ini 에서 파싱한 값. "" = probe 실패 |
+| available | "On" = 그 ini 파일 다운로드에 성공. 즉 tool IP 로 FTP 접속이 됩니다 |
+
+eqp_id 가 없으므로 Key 1 과는 직접 join 되지 않습니다. v3_df_sem_list 의
+eqp_id -> eqp_ip 를 다리로 씁니다. data_ip 로 join 하면 안 됩니다 — "tool-ip fallback"
+행에서만 우연히 맞습니다. version 문자열의 형식은 OFFICE-VERIFY 입니다.
+
+두 key 의 available 은 이름이 같지만 다른 것을 잽니다(Key 1 = data host, Key 2 = tool).
+SKEWNONO 백엔드는 읽자마자 data_available / tool_available 로 이름을 바꿉니다.
+
+SKEWNONO 소비처 (sem_list, 2026-10-23 구현, 사무실 검증 대기)
+
+Provision 은 v3_df_sem_avail 이 아니라 이 두 key 로 판정합니다. v3_df_sem_avail 에도
+Provision 행이 있지만 쓰지 않습니다.
+
+1. GET /api/sem-list (장비 리스트) — v3_df_sem_list 의 PROVISION* 행 중
+   ip_note == "data-ip confirmed" 인 행. available 은 data host 의 것입니다.
+2. GET /api/sem-list/pending (미연결 장비) — 나머지 PROVISION* 행 전부. Key 1 에 아예
+   없는 장비도 미연결입니다.
+
+두 화면 모두 Tool IP(eqp_ip) 와 Data IP(data_ip), tool / data 접속 여부를 함께 보여
+주며 checked_at 은 KST 로 표시합니다. Provision 에는 스토리지 탭이 없습니다
+(user-confirmed 2026-10-23). 구현과 컬럼 매핑은 backend/sem_list/MIGRATION.md 의
+PROVISION 절을 참고합니다.
 
 OFFICE-VERIFY
 
-- eqp_id 가 이 key 안에서 유일한지.
-- v3_df_sem_list 의 PROVISION* 행이 전부 이 key 에 있는지(빠진 장비가 있는지).
+- v3_df_sem_list 의 PROVISION* 행이 전부 Key 1 에 있는지(빠진 장비가 있는지).
 - ip_note 각 값의 정확한 문자열.
+- Key 2 의 version 형식, 그리고 eqp_ip 가 Key 2 안에서 유일한지.

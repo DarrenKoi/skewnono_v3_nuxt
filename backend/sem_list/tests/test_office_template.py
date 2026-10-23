@@ -207,3 +207,77 @@ def test_surrounding_whitespace_is_stripped_from_identity_fields():
     row = office._normalize(roster)[0]
     assert row["eqp_id"] == "ECDX100"
     assert row["fab_name"] == "M16A"
+
+
+# --- PROVISION: data host keys decide fleet vs pending (user-confirmed 2026-10-23)
+
+_CHECKED_AT = "2026-10-23T00:30:00+00:00"
+
+
+def _provision_roster() -> pd.DataFrame:
+    return _roster([
+        {"eqp_id": "PV001", "eqp_model_cd": "PROVISION_10", "eqp_ip": "177.9.9.1", "vendor_nm": "AMAT"},
+        {"eqp_id": "PV002", "eqp_model_cd": "PROVISION_20", "eqp_ip": "177.9.9.2", "vendor_nm": "AMAT"},
+        {"eqp_id": "PV003", "eqp_model_cd": "PROVISION_10", "eqp_ip": "177.9.9.3", "vendor_nm": "AMAT"},
+        {"eqp_id": "ECDX100"},
+    ])
+
+
+def _hosts() -> pd.DataFrame:
+    # PV003 is deliberately absent: a roster tool the hosts job never saw.
+    return pd.DataFrame({
+        "eqp_id": ["PV001", "PV002"],
+        "fab_name": ["M16A", "M16A"],
+        "data_ip": ["10.0.0.1", "177.9.9.2"],
+        "spreadsheet_path": ["/P_Drive/Export/Spreadsheet", "/p_drive"],
+        "ip_note": ["data-ip confirmed", "tool-ip fallback (no data share)"],
+        "available": ["On", "Off"],
+        "checked_at": [_CHECKED_AT, _CHECKED_AT],
+    })
+
+
+def _provision_versions() -> pd.DataFrame:
+    return pd.DataFrame({
+        "eqp_ip": ["177.9.9.1", "177.9.9.2"],
+        "version": ["5.3.2", ""],
+        "available": ["On", "Off"],
+    })
+
+
+def test_only_a_confirmed_data_ip_reaches_the_fleet():
+    rows = office._select_provision_fleet(_provision_roster(), _hosts(), _provision_versions())
+    assert [row["eqp_id"] for row in rows] == ["PV001"]
+    row = rows[0]
+    # Tool ip stays the roster's; data ip comes from the hosts key.
+    assert (row["eqp_ip"], row["data_ip"]) == ("177.9.9.1", "10.0.0.1")
+    assert (row["tool_available"], row["data_available"], row["available"]) == ("On", "On", "On")
+    assert row["version"] == "5.3.2"
+    assert row["checked_at"] == _CHECKED_AT
+
+
+def test_unconfirmed_and_unlisted_provisions_are_pending():
+    rows = office._select_provision_pending(_provision_roster(), _hosts(), _provision_versions())
+    by_id = {row["eqp_id"]: row for row in rows}
+    assert set(by_id) == {"PV002", "PV003"}
+    assert by_id["PV002"]["ip_note"] == "tool-ip fallback (no data share)"
+    assert (by_id["PV002"]["tool_available"], by_id["PV002"]["data_available"]) == ("Off", "Off")
+    # Not in either key: not probed, which is "" and never "Off".
+    assert by_id["PV003"]["data_ip"] == by_id["PV003"]["tool_available"] == ""
+
+
+def test_fleet_available_follows_the_data_host_not_the_tool():
+    hosts = _hosts().assign(available=["Off", "Off"])
+    rows = office._select_provision_fleet(_provision_roster(), hosts, _provision_versions())
+    assert (rows[0]["tool_available"], rows[0]["available"]) == ("On", "Off")
+
+
+def test_the_firewall_diff_no_longer_lists_provisions():
+    rows = office._select_pending(_provision_roster(), _connected([]))
+    assert [row["eqp_id"] for row in rows] == ["ECDX100"]
+
+
+def test_missing_hosts_column_names_the_key():
+    with pytest.raises(ValueError, match="v3_df_provision_hosts"):
+        office._select_provision_fleet(
+            _provision_roster(), _hosts().drop(columns=["ip_note"]), _provision_versions()
+        )

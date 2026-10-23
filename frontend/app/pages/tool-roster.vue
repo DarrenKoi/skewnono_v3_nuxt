@@ -241,6 +241,21 @@
                   {{ arrivalDate(row.original.updt_dt) }}
                 </span>
               </template>
+              <template #data_ip-cell="{ row }">
+                <span class="sk-value-num">{{ row.original.data_ip || '—' }}</span>
+              </template>
+              <template #ip_note-cell="{ row }">
+                <span class="sk-value">{{ row.original.ip_note || '명부에 없음' }}</span>
+              </template>
+              <template #tool_available-cell="{ row }">
+                <span class="sk-value">{{ row.original.tool_available || '—' }}</span>
+              </template>
+              <template #data_available-cell="{ row }">
+                <span class="sk-value">{{ row.original.data_available || '—' }}</span>
+              </template>
+              <template #checked_at-cell="{ row }">
+                <span class="sk-value-num">{{ formatKstDateTime(row.original.checked_at) }}</span>
+              </template>
             </UTable>
           </div>
         </div>
@@ -264,7 +279,7 @@ import {
   UNCLASSIFIED
 } from '~/utils/pendingToolMatrix'
 import { copyTextToClipboard } from '~/utils/tableExport'
-import { todayStamp } from '~/utils/dateTime'
+import { formatKstDateTime, todayStamp } from '~/utils/dateTime'
 
 const downloadTable = useTableDownload()
 
@@ -361,15 +376,35 @@ const drilldownTableMeta = {
   }
 }
 
-const drilldownColumnConfigs: Array<{ id: keyof PendingToolRow, header: string }> = [
+type PendingColumn = { id: keyof PendingToolRow, header: string }
+
+// A Provision is 미연결 when its DATA host is not confirmed, so its rows carry
+// the data-host fields (ProvisionFields) and the IT-facing eqp_ip is the tool.
+const isProvisionRow = (row: PendingToolRow) => row.ip_note !== undefined
+
+const drilldownColumnConfigs: PendingColumn[] = [
   { id: 'eqp_id', header: 'Equipment ID' },
   { id: 'eqp_ip', header: 'IP Address' },
   { id: 'vendor_nm', header: 'Vendor' },
   { id: 'updt_dt', header: '반입일' }
 ]
-const drilldownColumns: TableColumn<PendingToolRow>[] = drilldownColumnConfigs.map(
-  ({ id, header }) => ({ accessorKey: id, header })
-)
+const provisionColumnConfigs: PendingColumn[] = [
+  { id: 'data_ip', header: 'Data IP' },
+  { id: 'ip_note', header: 'Data IP 상태' },
+  { id: 'tool_available', header: 'Tool' },
+  { id: 'data_available', header: 'Data' },
+  { id: 'checked_at', header: 'Data 점검 (KST)' }
+]
+const drilldownColumns = computed<TableColumn<PendingToolRow>[]>(() => {
+  const provision = drilldownRows.value.some(isProvisionRow)
+  return [...drilldownColumnConfigs, ...(provision ? provisionColumnConfigs : [])].map(
+    ({ id, header }) => ({
+      accessorKey: id,
+      // Next to Data IP, a bare "IP Address" no longer says which host it is.
+      header: provision && id === 'eqp_ip' ? 'Tool IP' : header
+    })
+  )
+})
 
 const copyIpList = async () => {
   // Count from the array, never by re-splitting the joined text: that coupling
@@ -387,7 +422,7 @@ const copyIpList = async () => {
   )
 }
 
-const EXPORT_COLUMNS: Array<{ id: keyof PendingToolRow, header: string }> = [
+const EXPORT_COLUMNS: PendingColumn[] = [
   { id: 'fac_id', header: 'Fac' },
   { id: 'fab_name', header: 'Fab' },
   { id: 'eqp_id', header: 'Equipment ID' },
@@ -399,10 +434,15 @@ const EXPORT_COLUMNS: Array<{ id: keyof PendingToolRow, header: string }> = [
 ]
 
 const downloadPendingExcel = async () => {
+  const columns = visibleRows.value.some(isProvisionRow)
+    ? [...EXPORT_COLUMNS, ...provisionColumnConfigs]
+    : EXPORT_COLUMNS
   await downloadTable(
     `pending-tools-${activeGroup.value}-${todayStamp()}.xlsx`,
-    EXPORT_COLUMNS.map(column => column.header),
-    visibleRows.value.map(row => EXPORT_COLUMNS.map(column => row[column.id]))
+    columns.map(column => column.header),
+    visibleRows.value.map(row => columns.map(column =>
+      column.id === 'checked_at' ? formatKstDateTime(row.checked_at, '') : row[column.id] ?? ''
+    ))
   )
 }
 </script>

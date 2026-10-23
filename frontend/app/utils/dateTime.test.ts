@@ -4,6 +4,7 @@ import {
   formatDateTimeInput,
   formatDateTimeLocal,
   formatKoreanDateTime,
+  formatKstDateTime,
   shiftIsoDate,
   todayStamp
 } from './dateTime.ts'
@@ -64,4 +65,11 @@ test('formatKoreanDateTime falls back on empty input', () => {
 test('formatKoreanDateTime uses 24-hour time', () => {
   const iso = new Date(2026, 7, 8, 14, 38).toISOString()
   assert.ok(!/오후|PM/.test(formatKoreanDateTime(iso)))
+})
+
+test('formatKstDateTime shows a UTC stamp as KST, offset or not', () => {
+  assert.equal(formatKstDateTime('2026-10-23T00:30:00+00:00'), '2026-10-23 09:30:00')
+  // No offset still means UTC: v3_df_provision_hosts.checked_at is UTC.
+  assert.equal(formatKstDateTime('2026-10-23T00:30:00'), '2026-10-23 09:30:00')
+  assert.equal(formatKstDateTime(''), '—')
 })

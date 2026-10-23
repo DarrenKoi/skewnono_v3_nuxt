@@ -30,12 +30,21 @@
           <h2 class="sk-heading">
             장비 리스트
           </h2>
-          <UBadge
-            color="neutral"
-            variant="subtle"
-          >
-            {{ filteredRows.length }} / {{ rows.length }}
-          </UBadge>
+          <div class="flex items-center gap-2">
+            <!-- One stamp for the whole v3_df_provision_hosts run. -->
+            <span
+              v-if="dataCheckedAt"
+              class="sk-label"
+            >
+              Data 점검 {{ formatKstDateTime(dataCheckedAt) }} KST
+            </span>
+            <UBadge
+              color="neutral"
+              variant="subtle"
+            >
+              {{ filteredRows.length }} / {{ rows.length }}
+            </UBadge>
+          </div>
         </div>
       </template>
 
@@ -134,6 +143,21 @@
           </span>
         </template>
 
+        <!-- Provision only: the tool-IP probe (current_version.ini download).
+             '' means the tool is not in v3_df_provision_version at all. -->
+        <template #tool_available-cell="{ row }">
+          <span
+            v-if="row.original.tool_available"
+            :class="row.original.tool_available === 'Off' ? 'sk-pill-off' : 'sk-pill-on'"
+          >
+            {{ row.original.tool_available === 'Off' ? 'Offline' : 'Available' }}
+          </span>
+          <span
+            v-else
+            class="text-(--sk-ink-subtle)"
+          >—</span>
+        </template>
+
         <template #eqp_id-cell="{ row }">
           <div class="flex items-center gap-3">
             <span class="sk-value-num">
@@ -187,6 +211,24 @@
             </UTooltip>
           </div>
         </template>
+        <template #data_ip-cell="{ row }">
+          <div
+            v-if="row.original.data_ip"
+            class="flex items-center gap-1"
+          >
+            <span class="sk-value-num">{{ row.original.data_ip }}</span>
+            <UTooltip text="IP 복사">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-copy"
+                :aria-label="`${row.original.data_ip} 복사`"
+                @click="copyIp(row.original.data_ip)"
+              />
+            </UTooltip>
+          </div>
+        </template>
         <template #version-cell="{ row }">
           <span class="sk-value-num">{{ row.original.version }}</span>
         </template>
@@ -205,7 +247,7 @@ import { copyTableToClipboard, copyTextToClipboard } from '~/utils/tableExport'
 import { hasStorageView } from '~/utils/toolType'
 import { hasSkewvoir, skewvoirSearchRoute } from '~/utils/skewvoirLinks'
 import { buildFabSegment } from '~/utils/fab'
-import { todayStamp } from '~/utils/dateTime'
+import { formatKstDateTime, todayStamp } from '~/utils/dateTime'
 
 const downloadTable = useTableDownload()
 
@@ -223,6 +265,11 @@ const { setSelectedTool } = useNavigation()
 
 const { data: allRows } = await useSemList()
 const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.toolType, props.fabs))
+
+// A Provision's data lives on a separate host, so its rows carry two
+// reachabilities and two IPs; `available` on them is the data host's.
+const isProvision = props.toolType === 'provision'
+const dataCheckedAt = computed(() => rows.value.find(row => row.checked_at)?.checked_at)
 
 const globalFilter = ref('')
 const availabilityFilter = ref<'all' | 'On' | 'Off'>('all')
@@ -260,7 +307,7 @@ const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
 // meta-bar segment counts so the two can never drift apart.
 const searchableFields = (row: SemListRow) => [
   row.fac_id, row.fab_name, row.eqp_id, row.eqp_model_cd,
-  row.vendor_nm, row.eqp_ip, String(row.version), row.available
+  row.vendor_nm, row.eqp_ip, String(row.version), row.available, row.data_ip ?? ''
 ]
 
 const matchesSearch = (row: SemListRow) => {
@@ -319,9 +366,10 @@ const segmentCounts = computed(() => {
 
 // Summary stats for the meta bar — these double as the availability filter
 // (click a segment to toggle the table filter, like the old overview cards did).
+const statLabelPrefix = isProvision ? 'Data ' : ''
 const metaStats = computed<MetaBarStat[]>(() => [
-  { key: 'On', value: segmentCounts.value.On, label: 'Available', tone: 'ok', active: availabilityFilter.value === 'On' },
-  { key: 'Off', value: segmentCounts.value.Off, label: 'Offline', tone: 'bad', active: availabilityFilter.value === 'Off' }
+  { key: 'On', value: segmentCounts.value.On, label: `${statLabelPrefix}Available`, tone: 'ok', active: availabilityFilter.value === 'On' },
+  { key: 'Off', value: segmentCounts.value.Off, label: `${statLabelPrefix}Offline`, tone: 'bad', active: availabilityFilter.value === 'Off' }
 ])
 
 const onSelectStat = (key: string) => {
@@ -355,15 +403,27 @@ const tableMeta = {
 
 type ColumnConfig = { id: keyof SemListRow, header: string, size: number }
 
-const columnConfigs: ColumnConfig[] = [
-  { id: 'available', header: 'Status', size: 120 },
+const identityColumns: ColumnConfig[] = [
   { id: 'eqp_id', header: 'Equipment ID', size: 220 },
   { id: 'fab_name', header: 'Fab', size: 64 },
   { id: 'eqp_model_cd', header: 'Model', size: 140 },
-  { id: 'vendor_nm', header: 'Vendor', size: 110 },
-  { id: 'eqp_ip', header: 'IP Address', size: 176 },
-  { id: 'version', header: 'Version', size: 90 }
+  { id: 'vendor_nm', header: 'Vendor', size: 110 }
 ]
+const columnConfigs: ColumnConfig[] = isProvision
+  ? [
+      { id: 'available', header: 'Data', size: 120 },
+      { id: 'tool_available', header: 'Tool', size: 120 },
+      ...identityColumns,
+      { id: 'eqp_ip', header: 'Tool IP', size: 176 },
+      { id: 'data_ip', header: 'Data IP', size: 176 },
+      { id: 'version', header: 'Version', size: 90 }
+    ]
+  : [
+      { id: 'available', header: 'Status', size: 120 },
+      ...identityColumns,
+      { id: 'eqp_ip', header: 'IP Address', size: 176 },
+      { id: 'version', header: 'Version', size: 90 }
+    ]
 
 const columns: TableColumn<SemListRow>[] = [
   { id: 'row_no', header: '#', size: 48 },
@@ -393,14 +453,21 @@ const exportColumns: ExportColumn[] = [
   { id: 'vendor_nm', header: 'Vendor' },
   { id: 'eqp_ip', header: 'IP Address' },
   { id: 'version', header: 'Version' },
-  { id: 'available', header: 'Available' }
+  { id: 'available', header: 'Available' },
+  ...(isProvision
+    ? [
+      { id: 'tool_available', header: 'Tool Available' },
+      { id: 'data_ip', header: 'Data IP' },
+      { id: 'checked_at', header: 'Data 점검 (UTC)' }
+    ] satisfies ExportColumn[]
+    : [])
 ]
 
 const toast = useToast()
 
 const tableData = () => ({
   headers: exportColumns.map(column => column.header),
-  rows: filteredRows.value.map(row => exportColumns.map(column => row[column.id]))
+  rows: filteredRows.value.map(row => exportColumns.map(column => row[column.id] ?? ''))
 })
 
 const downloadTableExcel = async () => {

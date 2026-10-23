@@ -4,10 +4,24 @@ import type { ToolType } from '~/stores/navigation'
 // this directory already uses (e.g. boxplotStats.ts -> './stats.ts').
 import { classifyToolType } from './toolType.ts'
 
+// Mirrors ProvisionFields in backend/sem_list/contracts.py: present on
+// PROVISION rows only, in both /api/sem-list and /api/sem-list/pending. A
+// Provision has two reachabilities — the tool (eqp_ip) and its separate data
+// host (data_ip) — and '' means "not probed", never Off.
+export interface ProvisionFields {
+  data_ip?: string
+  // Only 'data-ip confirmed' is usable; every other note is 미연결.
+  ip_note?: string
+  data_available?: 'On' | 'Off' | ''
+  tool_available?: 'On' | 'Off' | ''
+  // UTC ISO; show with formatKstDateTime.
+  checked_at?: string
+}
+
 // Mirrors PendingToolRow in backend/sem_list/contracts.py. No
 // `available` or `version`: both come from Redis keys a pending tool is not
 // in yet, so there is no value the office could supply.
-export interface PendingToolRow {
+export interface PendingToolRow extends ProvisionFields {
   fac_id: string
   eqp_id: string
   eqp_model_cd: string

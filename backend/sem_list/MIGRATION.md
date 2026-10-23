@@ -106,6 +106,30 @@
   an old `updt_dt` still awaiting a firewall exception is exactly the case
   this screen exists to surface.
 
+## PROVISION: both endpoints (user-confirmed 2026-10-23)
+
+A Provision's data lives on a separate data host, so `v3_df_sem_avail` does
+**not** decide it, even though it lists Provision tools. Two more parquet keys
+do, both read-only:
+
+- `v3_df_provision_hosts` — `[eqp_id, fab_name, data_ip, spreadsheet_path,
+  ip_note, available, checked_at]`, all strings, `eqp_id` unique, refreshed
+  twice an hour. `available` = the P-drive listing returned entries.
+- `v3_df_provision_version` — `[eqp_ip, version, available]`, keyed on the
+  **tool** ip, refreshed daily. `version` parsed from
+  `/D_drive/Qrelease/current_version.ini` (`""` = probe failed); `available` =
+  the ini downloaded.
+
+The adapter drops Provision rows from the `v3_df_sem_avail` path and rebuilds
+them from `v3_df_sem_list` with both keys LEFT-merged on
+(`_provision_frame`). `ip_note == "data-ip confirmed"` → `/api/sem-list`;
+anything else, or a tool missing from the hosts key → `/api/sem-list/pending`.
+Both `available` columns are renamed — `data_available` (hosts) and
+`tool_available` (version) — and ride along as the optional `ProvisionFields`
+(`data_ip`, `ip_note`, `data_available`, `tool_available`, `checked_at`). On a
+Provision fleet row `available` is `data_available`. `""` in either
+availability means "not in that key", not Off.
+
 ## Verify
 
 Quick smoke test (prints row count + first row; loads `.env` itself):

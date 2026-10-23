@@ -104,3 +104,21 @@ export const formatKoreanDateTime = (
   if (Number.isNaN(date.getTime())) return iso
   return date.toLocaleString('ko-KR', { hour12: false })
 }
+
+/**
+ * A UTC ISO stamp shown as KST (`YYYY-MM-DD HH:MM:SS`), whatever the viewer's
+ * timezone. A stamp with no offset is read as UTC, not local: `Date` would
+ * otherwise shift it by the viewer's offset — 9 h on a company PC.
+ */
+export const formatKstDateTime = (
+  iso: string | null | undefined,
+  fallback = '—'
+): string => {
+  if (!iso) return fallback
+  const utc = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`
+  const date = new Date(utc)
+  if (Number.isNaN(date.getTime())) return iso
+  // sv-SE is the one locale that prints YYYY-MM-DD HH:MM:SS identically in
+  // every runtime; ko-KR with hour12:false reads "9시 30분 0초" under Node.
+  return date.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' })
+}

@@ -81,9 +81,16 @@ PROVISION eqp_ip is the TOOL, never the data host (user-confirmed 2026-10-23).
 A Provision's data lives on a separate host whose IP comes from the read-only
 Redis key `v3_df_provision_hosts` (eqp_id -> data_ip, spreadsheet_path,
 ip_note, available, checked_at; docs/datatables/provision/provision_hosts.txt).
-Only `ip_note == "data-ip confirmed"` rows are trustworthy for extraction. This
-mock does not emit that key: nothing reads it yet, so add its rows next to the
-first consumer rather than here.
+Only `ip_note == "data-ip confirmed"` rows are trustworthy for extraction, so
+that rule -- not v3_df_sem_avail -- splits Provision between the fleet and the
+pending list. `v3_df_provision_version` (eqp_ip -> version, available; daily
+download of `/D_drive/Qrelease/current_version.ini` on the TOOL ip, version ""
+when the probe failed) supplies `version` and `tool_available`. This mock emits
+both as the `ProvisionFields` on Provision rows (`_with_provision_fields`):
+connected ones are all confirmed, and `available` there is the data host's.
+The pending ones copy the office's mix -- mostly tool-ip fallback, a few
+candidates. Data-host IPs, the version format and the On/Off mixes are
+fabricated (OFFICE-VERIFY).
 
 THIS IS THE FLEET IDENTITY SOURCE, and that has a consequence for home runs.
 `storage`, `lateral_recipe`, `hardware/sharpness`, `hardware/reso_center` and
@@ -97,7 +104,8 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from backend.sem_list.contracts import PendingToolRow, SemListRow
+from backend.ebeam._tool_specs import model_to_tool_type
+from backend.sem_list.contracts import PendingToolRow, ProvisionFields, SemListRow
 
 
 # The fabs actually in operation (user-confirmed 2026-08-03). M12 used to sit
@@ -163,7 +171,23 @@ _PENDING_CLUSTERS = [
     # No fab assignment yet — exercises the 미배정 bucket. Kept on a different
     # row from the 400-day-old one so each edge case is reachable on its own.
     ("", "M11", "PROVISION_10", "ACD", 1, 30),
+    # Appended, never inserted: the shared rng means a cluster added above
+    # would re-roll every row after it. Together with the one above these are
+    # the office's 7 unconfirmed Provisions (2026-10-23): 5 tool-ip fallback, 2
+    # candidates.
+    ("M14A", "M14", "PROVISION_20", "PCD", 1, 45),
+    ("M15B", "M15", "PROVISION_10", "MCD", 5, 60),
 ]
+
+# ip_note per pending Provision cluster, keyed (fab_name, model).
+_PENDING_PROVISION_NOTES = {
+    ("", "PROVISION_10"): "data-ip candidate (unreach)",
+    ("M14A", "PROVISION_20"): "data-ip candidate (authfail)",
+    ("M15B", "PROVISION_10"): "tool-ip fallback (no data share)",
+}
+
+# One stamp for every row: the hosts job checks the whole roster in one run.
+_PROVISION_CHECKED_AT = "2026-04-19T00:30:00+00:00"
 
 
 def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
@@ -258,7 +282,7 @@ def _cg5000_rows(taken: set[str], now: datetime, seed: int = 44) -> list[SemList
 def _generate_pending(
     taken: set[str], seed: int = 43
 ) -> list[PendingToolRow]:
-    """The 14 roster tools skewnono cannot reach yet.
+    """The 20 roster tools skewnono cannot reach yet.
 
     ``taken`` is the connected fleet's eqp_id set. Ids are re-rolled on
     collision rather than drawn from a reserved numeric range, so the
@@ -299,9 +323,52 @@ def _generate_pending(
     return rows
 
 
+def _ip(rng: random.Random) -> str:
+    return f"{rng.choice(['177', '197'])}.{rng.randint(1, 254)}.{rng.randint(1, 254)}.{rng.randint(1, 254)}"
+
+
+def _with_provision_fields(rows: list, seed: int) -> list:
+    """Add the Provision-only fields, from their own rng stream.
+
+    A separate stream so no non-Provision value, and no identity field of a
+    Provision, changes. Connected rows keep their drawn `available` as the
+    data host's; pending rows derive both probes from their cluster's ip_note.
+    """
+    rng = random.Random(seed)
+    for row in rows:
+        if model_to_tool_type(row["eqp_model_cd"]) != "provision":
+            continue
+        note = _PENDING_PROVISION_NOTES.get(
+            (row["fab_name"], row["eqp_model_cd"]), "data-ip confirmed"
+        )
+        if "available" in row:  # connected
+            tool_available = "On" if rng.random() < 0.95 else "Off"
+            data_available = row["available"]
+            row["version"] = (
+                f"{rng.randint(4, 6)}.{rng.randint(0, 9)}.{rng.randint(0, 9)}"
+                if tool_available == "On" else ""
+            )
+        else:
+            # A fallback tool answers FTP but has no data share; an
+            # unreachable candidate is usually a tool that is down too.
+            tool_available = "Off" if note.endswith("(unreach)") else "On"
+            data_available = "Off"
+        row.update(ProvisionFields(
+            # The fallback probe target IS the tool ip.
+            data_ip=row["eqp_ip"] if note.startswith("tool-ip fallback") else _ip(rng),
+            ip_note=note,
+            data_available=data_available,
+            tool_available=tool_available,
+            checked_at=_PROVISION_CHECKED_AT,
+        ))
+    return rows
+
+
 def get_sem_list() -> list[SemListRow]:
-    return _generate_rows()
+    return _with_provision_fields(_generate_rows(), seed=45)
 
 
 def get_pending_tools() -> list[PendingToolRow]:
-    return _generate_pending({row["eqp_id"] for row in _generate_rows()})
+    return _with_provision_fields(
+        _generate_pending({row["eqp_id"] for row in _generate_rows()}), seed=46
+    )
