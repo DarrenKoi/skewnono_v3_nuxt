@@ -70,7 +70,7 @@ const systemStatus = computed(() => {
     statuses.push({
       id: 'afm',
       // Not the e-beam rows' 가동 대수: this counts tools whose data can be read.
-      label: 'AFM 조회 가능',
+      label: 'AFM',
       online: catalog.filter(tool => readable.has(tool.id)).length,
       total: catalog.length
     })
