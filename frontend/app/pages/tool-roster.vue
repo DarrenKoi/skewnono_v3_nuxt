@@ -247,14 +247,12 @@
               <template #ip_note-cell="{ row }">
                 <span class="sk-value">{{ row.original.ip_note || '명부에 없음' }}</span>
               </template>
-              <template #tool_available-cell="{ row }">
-                <span class="sk-value">{{ row.original.tool_available || '—' }}</span>
-              </template>
-              <template #data_available-cell="{ row }">
-                <span class="sk-value">{{ row.original.data_available || '—' }}</span>
-              </template>
-              <template #veridity-cell="{ row }">
-                <span class="sk-value">{{ row.original.veridity || '—' }}</span>
+              <template
+                v-for="probe in PROBE_CELLS"
+                :key="probe"
+                #[`${probe}-cell`]="{ row }"
+              >
+                <span class="sk-value">{{ row.original[probe] || '—' }}</span>
               </template>
               <template #checked_at-cell="{ row }">
                 <span class="sk-value-num">{{ formatKstDateTime(row.original.checked_at) }}</span>
@@ -392,6 +390,7 @@ const drilldownColumnConfigs: PendingColumn[] = [
   { id: 'vendor_nm', header: 'Vendor' },
   { id: 'updt_dt', header: '반입일' }
 ]
+const PROBE_CELLS = ['tool_available', 'data_available', 'veridity'] as const
 const hostProbeColumnConfigs: PendingColumn[] = [
   { id: 'data_ip', header: 'Data IP' },
   { id: 'ip_note', header: 'Data IP 상태' },

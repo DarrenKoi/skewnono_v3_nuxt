@@ -211,6 +211,22 @@ def test_surrounding_whitespace_is_stripped_from_identity_fields():
 
 # --- PROVISION: data host keys decide fleet vs pending (user-confirmed 2026-10-23)
 
+
+def _provision_fleet(*keys):
+    return office._fleet_rows(*office._provision_frame(*keys))
+
+
+def _provision_pending(*keys):
+    return office._pending_rows(*office._provision_frame(*keys))
+
+
+def _verity_fleet(*keys):
+    return office._fleet_rows(*office._verity_frame(*keys))
+
+
+def _verity_pending(*keys):
+    return office._pending_rows(*office._verity_frame(*keys))
+
 _CHECKED_AT = "2026-10-23T00:30:00+00:00"
 
 
@@ -245,7 +261,7 @@ def _provision_versions() -> pd.DataFrame:
 
 
 def test_only_a_confirmed_data_ip_reaches_the_fleet():
-    rows = office._select_provision_fleet(_provision_roster(), _hosts(), _provision_versions())
+    rows = _provision_fleet(_provision_roster(), _hosts(), _provision_versions())
     assert [row["eqp_id"] for row in rows] == ["PV001"]
     row = rows[0]
     # Tool ip stays the roster's; data ip comes from the hosts key.
@@ -256,7 +272,7 @@ def test_only_a_confirmed_data_ip_reaches_the_fleet():
 
 
 def test_unconfirmed_and_unlisted_provisions_are_pending():
-    rows = office._select_provision_pending(_provision_roster(), _hosts(), _provision_versions())
+    rows = _provision_pending(_provision_roster(), _hosts(), _provision_versions())
     by_id = {row["eqp_id"]: row for row in rows}
     assert set(by_id) == {"PV002", "PV003"}
     assert by_id["PV002"]["ip_note"] == "tool-ip fallback (no data share)"
@@ -267,7 +283,7 @@ def test_unconfirmed_and_unlisted_provisions_are_pending():
 
 def test_fleet_available_follows_the_data_host_not_the_tool():
     hosts = _hosts().assign(available=["Off", "Off"])
-    rows = office._select_provision_fleet(_provision_roster(), hosts, _provision_versions())
+    rows = _provision_fleet(_provision_roster(), hosts, _provision_versions())
     assert (rows[0]["tool_available"], rows[0]["available"]) == ("On", "Off")
 
 
@@ -278,7 +294,7 @@ def test_the_firewall_diff_no_longer_lists_provisions():
 
 def test_missing_hosts_column_names_the_key():
     with pytest.raises(ValueError, match="v3_df_provision_hosts"):
-        office._select_provision_fleet(
+        _provision_fleet(
             _provision_roster(), _hosts().drop(columns=["ip_note"]), _provision_versions()
         )
 
@@ -318,7 +334,7 @@ def _verity_versions() -> pd.DataFrame:
 
 
 def test_a_verity_in_the_hosts_key_is_in_the_fleet_even_when_off():
-    rows = office._select_verity_fleet(_verity_roster(), _verity_hosts(), _verity_versions())
+    rows = _verity_fleet(_verity_roster(), _verity_hosts(), _verity_versions())
     assert [row["eqp_id"] for row in rows] == ["VS001"]
     row = rows[0]
     assert (row["available"], row["data_available"], row["tool_available"]) == ("Off", "Off", "On")
@@ -328,7 +344,7 @@ def test_a_verity_in_the_hosts_key_is_in_the_fleet_even_when_off():
 
 
 def test_a_verity_missing_from_the_hosts_key_is_pending():
-    rows = office._select_verity_pending(_verity_roster(), _verity_hosts(), _verity_versions())
+    rows = _verity_pending(_verity_roster(), _verity_hosts(), _verity_versions())
     assert [row["eqp_id"] for row in rows] == ["VS002"]
     # The version key joins on eqp_id independently of the hosts key.
     assert (rows[0]["tool_available"], rows[0]["data_available"], rows[0]["veridity"]) == ("Off", "", "")
@@ -341,6 +357,6 @@ def test_the_firewall_diff_no_longer_lists_veritysem():
 
 def test_missing_verity_hosts_column_names_the_key():
     with pytest.raises(ValueError, match="v3_df_verity_hosts"):
-        office._select_verity_fleet(
+        _verity_fleet(
             _verity_roster(), _verity_hosts().drop(columns=["veridity"]), _verity_versions()
         )

@@ -106,13 +106,17 @@ def _text_or_blank(value) -> str:
     return _to_text(value).strip()
 
 
-def _normalize(df: pd.DataFrame) -> list[SemListRow]:
-    missing = _REQUIRED_COLUMNS - set(df.columns)
+def _require_columns(df: pd.DataFrame, columns: set[str], key: str) -> None:
+    missing = columns - set(df.columns)
     if missing:
         raise ValueError(
-            f"Redis key {_REDIS_KEY!r} DataFrame is missing columns: "
+            f"Redis key {key!r} DataFrame is missing columns: "
             f"{sorted(missing)} (got {sorted(df.columns)})"
         )
+
+
+def _normalize(df: pd.DataFrame) -> list[SemListRow]:
+    _require_columns(df, set(_REQUIRED_COLUMNS), _REDIS_KEY)
 
     rows: list[SemListRow] = []
     for rec in df.to_dict(orient="records"):
@@ -151,15 +155,18 @@ def _normalize(df: pd.DataFrame) -> list[SemListRow]:
     return rows
 
 
-def _load_dataframe(client: redis.Redis, key: str) -> pd.DataFrame:
-    raw = client.get(key)
-    if raw is None:
-        raise LookupError(
-            f"Redis key {key!r} not found — check REDIS_HOST/REDIS_PORT/"
-            "REDIS_PASSWORD in backend/.env and that the fleet job has "
-            "populated the key."
-        )
-    return _deserialize_dataframe(raw, key)
+def _load_dataframes(client: redis.Redis, *keys: str) -> list[pd.DataFrame]:
+    """Every key in one MGET round trip; a missing key raises naming it."""
+    frames = []
+    for key, raw in zip(keys, client.mget(keys), strict=True):
+        if raw is None:
+            raise LookupError(
+                f"Redis key {key!r} not found — check REDIS_HOST/REDIS_PORT/"
+                "REDIS_PASSWORD in backend/.env and that the fleet job has "
+                "populated the key."
+            )
+        frames.append(_deserialize_dataframe(raw, key))
+    return frames
 
 
 def _attach_version(fleet: pd.DataFrame, versions: pd.DataFrame) -> pd.DataFrame:
@@ -193,6 +200,10 @@ _PROVISION_HOSTS_KEY = "v3_df_provision_hosts"
 _PROVISION_VERSION_KEY = "v3_df_provision_version"
 _VERITY_HOSTS_KEY = "v3_df_verity_hosts"
 _VERITY_VERSION_KEY = "v3_df_verity_version"
+# The order _host_key_rows unpacks them in.
+_HOST_KEYS = (
+    _PROVISION_HOSTS_KEY, _PROVISION_VERSION_KEY, _VERITY_HOSTS_KEY, _VERITY_VERSION_KEY
+)
 _DATA_IP_CONFIRMED = "data-ip confirmed"
 
 # Families whose reachability comes from their own host keys rather than
@@ -200,17 +211,12 @@ _DATA_IP_CONFIRMED = "data-ip confirmed"
 _HOST_KEY_FAMILIES = frozenset({"provision", "veritysem"})
 
 
-def _require_columns(df: pd.DataFrame, columns: set[str], key: str) -> None:
-    missing = columns - set(df.columns)
-    if missing:
-        raise ValueError(
-            f"Redis key {key!r} DataFrame is missing columns: "
-            f"{sorted(missing)} (got {sorted(df.columns)})"
-        )
-
-
 def _family_of(df: pd.DataFrame) -> pd.Series:
-    return df["eqp_model_cd"].map(lambda model: model_to_tool_type(_text_or_blank(model)))
+    # Classify each distinct model once, not every row: the roster repeats a
+    # handful of models across the whole fleet.
+    models = df["eqp_model_cd"]
+    families = {model: model_to_tool_type(_text_or_blank(model)) for model in models.unique()}
+    return models.map(families)
 
 
 def _is_host_key_family(df: pd.DataFrame) -> pd.Series:
@@ -229,18 +235,19 @@ def _on_off_or_blank(value, field: str, eqp_id) -> str:
 
 def _family_rows(roster: pd.DataFrame, family: str) -> pd.DataFrame:
     _require_columns(roster, set(_PENDING_REQUIRED_COLUMNS), _ROSTER_KEY)
-    return roster[_family_of(roster).eq(family).astype(bool)] if not roster.empty else roster
+    return roster[_family_of(roster).eq(family).astype(bool)]
 
 
 def _provision_frame(
     roster: pd.DataFrame, hosts: pd.DataFrame, versions: pd.DataFrame
-) -> pd.DataFrame:
-    """Roster PROVISION rows with the two Provision keys LEFT-merged on.
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Roster PROVISION rows with both Provision keys merged on, and which are usable.
 
     Both keys name their probe column ``available``; it is renamed here to
     ``data_available`` / ``tool_available`` before anything else sees it.
     ``v3_df_provision_version`` carries no eqp_id, so it joins on the TOOL ip
     from the roster (unique there, user-confirmed) -- never on ``data_ip``.
+    Usable = the data IP is confirmed.
     """
     _require_columns(
         hosts, {"eqp_id", "data_ip", "ip_note", "available", "checked_at"},
@@ -253,19 +260,19 @@ def _provision_frame(
     versions = versions[["eqp_ip", "version", "available"]].rename(
         columns={"available": "tool_available"}
     ).drop_duplicates(subset=["eqp_ip"], keep="last")
-    return _family_rows(roster, "provision").merge(hosts, on="eqp_id", how="left").merge(
+    frame = _family_rows(roster, "provision").merge(hosts, on="eqp_id", how="left").merge(
         versions, on="eqp_ip", how="left"
     )
+    return frame, frame["ip_note"].map(_text_or_blank).eq(_DATA_IP_CONFIRMED).astype(bool)
 
 
 def _verity_frame(
     roster: pd.DataFrame, hosts: pd.DataFrame, versions: pd.DataFrame
-) -> pd.DataFrame:
-    """Roster VeritySEM rows with the two VeritySEM keys LEFT-merged on.
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Roster VeritySEM rows with both VeritySEM keys merged on, and which are usable.
 
     Unlike Provision both keys carry eqp_id, and tool IP == data IP, so there
-    is no data_ip / ip_note. ``_in_hosts`` records whether the hosts key holds
-    the tool at all -- the VeritySEM 연결 rule.
+    is no data_ip / ip_note. Usable = the hosts key holds the tool at all.
     """
     _require_columns(
         hosts, {"eqp_id", "available", "veridity", "checked_at"}, _VERITY_HOSTS_KEY
@@ -273,14 +280,14 @@ def _verity_frame(
     _require_columns(versions, {"eqp_id", "version", "available"}, _VERITY_VERSION_KEY)
     hosts = hosts[["eqp_id", "available", "veridity", "checked_at"]].rename(
         columns={"available": "data_available"}
-    ).drop_duplicates(subset=["eqp_id"], keep="last").assign(_in_hosts=True)
+    ).drop_duplicates(subset=["eqp_id"], keep="last")
     versions = versions[["eqp_id", "version", "available"]].rename(
         columns={"available": "tool_available"}
     ).drop_duplicates(subset=["eqp_id"], keep="last")
-    frame = _family_rows(roster, "veritysem").merge(hosts, on="eqp_id", how="left").merge(
-        versions, on="eqp_id", how="left"
-    )
-    return frame.assign(_in_hosts=frame["_in_hosts"].eq(True))
+    frame = _family_rows(roster, "veritysem").merge(
+        hosts, on="eqp_id", how="left", indicator="_hosts"
+    ).merge(versions, on="eqp_id", how="left")
+    return frame, frame["_hosts"].eq("both").astype(bool)
 
 
 def _host_fields(rec: dict) -> HostProbeFields:
@@ -299,7 +306,7 @@ def _host_fields(rec: dict) -> HostProbeFields:
 
 
 def _fleet_rows(frame: pd.DataFrame, usable: pd.Series) -> list[SemListRow]:
-    frame = frame[usable] if not frame.empty else frame
+    frame = frame[usable]
     if frame.empty:
         return []
     # The fleet's `available` is the DATA folder's: a tool whose data listing
@@ -313,7 +320,7 @@ def _fleet_rows(frame: pd.DataFrame, usable: pd.Series) -> list[SemListRow]:
 
 
 def _pending_rows(frame: pd.DataFrame, usable: pd.Series) -> list[PendingToolRow]:
-    frame = frame[~usable] if not frame.empty else frame
+    frame = frame[~usable]
     if frame.empty:
         return []
     records = frame.to_dict(orient="records")
@@ -323,57 +330,30 @@ def _pending_rows(frame: pd.DataFrame, usable: pd.Series) -> list[PendingToolRow
     ]
 
 
-def _is_confirmed(frame: pd.DataFrame) -> pd.Series:
-    return frame["ip_note"].map(_text_or_blank).eq(_DATA_IP_CONFIRMED).astype(bool)
+def _host_key_rows(roster: pd.DataFrame, host_keys: list[pd.DataFrame], fleet: bool) -> list:
+    """Provision and VeritySEM rows for the fleet (usable) or pending (the rest).
 
-
-# Provision is 연결 when its data IP is confirmed; VeritySEM when the hosts key
-# holds it at all (user-confirmed 2026-10-23).
-def _select_provision_fleet(roster, hosts, versions) -> list[SemListRow]:
-    frame = _provision_frame(roster, hosts, versions)
-    return _fleet_rows(frame, _is_confirmed(frame))
-
-
-def _select_provision_pending(roster, hosts, versions) -> list[PendingToolRow]:
-    frame = _provision_frame(roster, hosts, versions)
-    return _pending_rows(frame, _is_confirmed(frame))
-
-
-def _select_verity_fleet(roster, hosts, versions) -> list[SemListRow]:
-    frame = _verity_frame(roster, hosts, versions)
-    return _fleet_rows(frame, frame["_in_hosts"])
-
-
-def _select_verity_pending(roster, hosts, versions) -> list[PendingToolRow]:
-    frame = _verity_frame(roster, hosts, versions)
-    return _pending_rows(frame, frame["_in_hosts"])
-
-
-def _load_host_keys(client: redis.Redis) -> dict[str, pd.DataFrame]:
-    keys = (_PROVISION_HOSTS_KEY, _PROVISION_VERSION_KEY, _VERITY_HOSTS_KEY, _VERITY_VERSION_KEY)
-    return {key: _load_dataframe(client, key) for key in keys}
-
-
-def _host_key_rows(roster: pd.DataFrame, keys: dict[str, pd.DataFrame], fleet: bool) -> list:
-    provision = (roster, keys[_PROVISION_HOSTS_KEY], keys[_PROVISION_VERSION_KEY])
-    verity = (roster, keys[_VERITY_HOSTS_KEY], keys[_VERITY_VERSION_KEY])
-    if fleet:
-        return _select_provision_fleet(*provision) + _select_verity_fleet(*verity)
-    return _select_provision_pending(*provision) + _select_verity_pending(*verity)
+    ``host_keys`` arrive in ``_HOST_KEYS`` order.
+    """
+    provision_hosts, provision_versions, verity_hosts, verity_versions = host_keys
+    split = _fleet_rows if fleet else _pending_rows
+    return split(*_provision_frame(roster, provision_hosts, provision_versions)) + split(
+        *_verity_frame(roster, verity_hosts, verity_versions)
+    )
 
 
 def get_sem_list() -> list[SemListRow]:
     client = _redis_client()
-    fleet = _load_dataframe(client, _REDIS_KEY)
-    versions = _load_dataframe(client, _VERSION_KEY)
+    fleet, versions, roster, *host_keys = _load_dataframes(
+        client, _REDIS_KEY, _VERSION_KEY, _ROSTER_KEY, *_HOST_KEYS
+    )
     fleet = _attach_version(fleet, versions)
     # Provision and VeritySEM rows are rebuilt from their own host keys, not
     # taken from v3_df_sem_avail, so the fleet and the pending list can never
-    # both hold one.
+    # both hold one. Checked before the family filter, which reads a column.
     _require_columns(fleet, set(_REQUIRED_COLUMNS), _REDIS_KEY)
     rows = [] if fleet.empty else _normalize(fleet[~_is_host_key_family(fleet)])
-    roster = _load_dataframe(client, _ROSTER_KEY)
-    return rows + _host_key_rows(roster, _load_host_keys(client), fleet=True)
+    return rows + _host_key_rows(roster, host_keys, fleet=True)
 
 # No `available` and no `version`: both live in keys a pending tool is not in.
 _PENDING_REQUIRED_COLUMNS = frozenset(
@@ -439,12 +419,7 @@ def _select_pending(
     row has one, whereas an ip can be reassigned. Kept separate from
     :func:`get_pending_tools` so it is testable without a Redis.
     """
-    missing = _PENDING_REQUIRED_COLUMNS - set(roster.columns)
-    if missing:
-        raise ValueError(
-            f"Redis key {_ROSTER_KEY!r} DataFrame is missing columns: "
-            f"{sorted(missing)} (got {sorted(roster.columns)})"
-        )
+    _require_columns(roster, set(_PENDING_REQUIRED_COLUMNS), _ROSTER_KEY)
     # No separate eqp_id guard for the roster: _PENDING_REQUIRED_COLUMNS
     # already contains it, so the check above has covered it.
     if "eqp_id" not in connected.columns:
@@ -467,11 +442,10 @@ def _select_pending(
 
 def get_pending_tools() -> list[PendingToolRow]:
     client = _redis_client()
-    roster = _load_dataframe(client, _ROSTER_KEY)
-    connected = _load_dataframe(client, _REDIS_KEY)
-    return _select_pending(roster, connected) + _host_key_rows(
-        roster, _load_host_keys(client), fleet=False
+    roster, connected, *host_keys = _load_dataframes(
+        client, _ROSTER_KEY, _REDIS_KEY, *_HOST_KEYS
     )
+    return _select_pending(roster, connected) + _host_key_rows(roster, host_keys, fleet=False)
 
 
 if __name__ == "__main__":

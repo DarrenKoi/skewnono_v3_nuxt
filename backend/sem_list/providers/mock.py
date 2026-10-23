@@ -200,7 +200,7 @@ _PENDING_PROVISION_NOTES = {
 
 # One stamp for every row: a hosts job checks its whole family in one run.
 # Shared by both families here for brevity; at the office each key has its own.
-_PROVISION_CHECKED_AT = "2026-04-19T00:30:00+00:00"
+_HOSTS_CHECKED_AT = "2026-04-19T00:30:00+00:00"
 
 
 def _generate_rows(n_rows: int = 300, seed: int = 42) -> list[SemListRow]:
@@ -373,7 +373,7 @@ def _with_provision_fields(rows: list, seed: int) -> list:
             ip_note=note,
             data_available=data_available,
             tool_available=tool_available,
-            checked_at=_PROVISION_CHECKED_AT,
+            checked_at=_HOSTS_CHECKED_AT,
         ))
     return rows
 
@@ -406,7 +406,7 @@ def _with_verity_fields(rows: list, seed: int) -> list:
             data_available=row["available"],
             tool_available=tool_available,
             veridity="On" if has_veridity and rng.random() < 0.95 else "Off",
-            checked_at=_PROVISION_CHECKED_AT,
+            checked_at=_HOSTS_CHECKED_AT,
         ))
     return rows
 

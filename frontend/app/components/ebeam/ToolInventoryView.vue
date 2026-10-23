@@ -31,7 +31,7 @@
             장비 리스트
           </h2>
           <div class="flex items-center gap-2">
-            <!-- One stamp for the whole v3_df_provision_hosts run. -->
+            <!-- One stamp for the whole host-key run of this family. -->
             <span
               v-if="dataCheckedAt"
               class="sk-label"
@@ -135,17 +135,10 @@
           <span class="sk-value-num text-(--sk-ink-muted)">{{ row.index + 1 }}</span>
         </template>
 
-        <!-- Equipment running state renders as a status pill with a text label,
-             never color alone. -->
-        <template #available-cell="{ row }">
-          <span :class="row.original.available === 'Off' ? 'sk-pill-off' : 'sk-pill-on'">
-            {{ row.original.available === 'Off' ? 'Offline' : 'Available' }}
-          </span>
-        </template>
-
-        <!-- Provision / VeritySEM only: the tool-side version-ini probe and
-             (VeritySEM) the Veridity/Reports listing. '' means the tool is not
-             in that key at all — not probed, so no pill. -->
+        <!-- Running state renders as a status pill with a text label, never
+             color alone. Beyond `available`, Provision / VeritySEM add the
+             tool-side version-ini probe and (VeritySEM) the Veridity/Reports
+             listing; '' means the tool is not in that key — no pill. -->
         <template
           v-for="probe in PROBE_CELLS"
           :key="probe"
@@ -201,35 +194,25 @@
         <template #vendor_nm-cell="{ row }">
           <span class="sk-value capitalize">{{ row.original.vendor_nm.toLowerCase() }}</span>
         </template>
-        <template #eqp_ip-cell="{ row }">
-          <div class="flex items-center gap-1">
-            <span class="sk-value-num">{{ row.original.eqp_ip }}</span>
-            <UTooltip text="IP 복사">
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-copy"
-                :aria-label="`${row.original.eqp_ip} 복사`"
-                @click="copyIp(row.original.eqp_ip)"
-              />
-            </UTooltip>
-          </div>
-        </template>
-        <template #data_ip-cell="{ row }">
+        <!-- data_ip is Provision-only: its data host is a separate IP. -->
+        <template
+          v-for="ipField in IP_CELLS"
+          :key="ipField"
+          #[`${ipField}-cell`]="{ row }"
+        >
           <div
-            v-if="row.original.data_ip"
+            v-if="row.original[ipField]"
             class="flex items-center gap-1"
           >
-            <span class="sk-value-num">{{ row.original.data_ip }}</span>
+            <span class="sk-value-num">{{ row.original[ipField] }}</span>
             <UTooltip text="IP 복사">
               <UButton
                 size="xs"
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-copy"
-                :aria-label="`${row.original.data_ip} 복사`"
-                @click="copyIp(row.original.data_ip)"
+                :aria-label="`${row.original[ipField]} 복사`"
+                @click="copyIp(row.original[ipField] ?? '')"
               />
             </UTooltip>
           </div>
@@ -278,7 +261,8 @@ const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.
 const isProvision = props.toolType === 'provision'
 const isVeritySem = props.toolType === 'veritysem'
 const hasHostProbes = isProvision || isVeritySem
-const PROBE_CELLS = ['tool_available', 'veridity'] as const
+const PROBE_CELLS = ['available', 'tool_available', 'veridity'] as const
+const IP_CELLS = ['eqp_ip', 'data_ip'] as const
 const dataCheckedAt = computed(() => rows.value.find(row => row.checked_at)?.checked_at)
 
 const globalFilter = ref('')
@@ -419,31 +403,16 @@ const identityColumns: ColumnConfig[] = [
   { id: 'eqp_model_cd', header: 'Model', size: 140 },
   { id: 'vendor_nm', header: 'Vendor', size: 110 }
 ]
-const columnConfigs: ColumnConfig[] = isProvision
-  ? [
-      { id: 'available', header: 'Data', size: 120 },
-      { id: 'tool_available', header: 'Tool', size: 120 },
-      ...identityColumns,
-      { id: 'eqp_ip', header: 'Tool IP', size: 176 },
-      { id: 'data_ip', header: 'Data IP', size: 176 },
-      { id: 'version', header: 'Version', size: 90 }
-    ]
-  : isVeritySem
-    ? [
-        { id: 'available', header: 'Data', size: 120 },
-        { id: 'tool_available', header: 'Tool', size: 120 },
-        { id: 'veridity', header: 'Veridity', size: 120 },
-        ...identityColumns,
-        { id: 'eqp_ip', header: 'IP Address', size: 176 },
-        // Ver_<maj>_<min>_<pat>_<build>_Win7 is longer than a Hitachi "1A".
-        { id: 'version', header: 'Version', size: 200 }
-      ]
-    : [
-        { id: 'available', header: 'Status', size: 120 },
-        ...identityColumns,
-        { id: 'eqp_ip', header: 'IP Address', size: 176 },
-        { id: 'version', header: 'Version', size: 90 }
-      ]
+const columnConfigs: ColumnConfig[] = [
+  { id: 'available', header: hasHostProbes ? 'Data' : 'Status', size: 120 },
+  ...(hasHostProbes ? [{ id: 'tool_available', header: 'Tool', size: 120 }] satisfies ColumnConfig[] : []),
+  ...(isVeritySem ? [{ id: 'veridity', header: 'Veridity', size: 120 }] satisfies ColumnConfig[] : []),
+  ...identityColumns,
+  { id: 'eqp_ip', header: isProvision ? 'Tool IP' : 'IP Address', size: 176 },
+  ...(isProvision ? [{ id: 'data_ip', header: 'Data IP', size: 176 }] satisfies ColumnConfig[] : []),
+  // Ver_<maj>_<min>_<pat>_<build>_Win7 is longer than a Hitachi "1A".
+  { id: 'version', header: 'Version', size: isVeritySem ? 200 : 90 }
+]
 
 const columns: TableColumn<SemListRow>[] = [
   { id: 'row_no', header: '#', size: 48 },
@@ -474,10 +443,14 @@ const exportColumns: ExportColumn[] = [
   { id: 'eqp_ip', header: 'IP Address' },
   { id: 'version', header: 'Version' },
   { id: 'available', header: 'Available' },
-  ...(hasHostProbes ? [{ id: 'tool_available', header: 'Tool Available' }] satisfies ExportColumn[] : []),
-  ...(isProvision ? [{ id: 'data_ip', header: 'Data IP' }] satisfies ExportColumn[] : []),
-  ...(isVeritySem ? [{ id: 'veridity', header: 'Veridity' }] satisfies ExportColumn[] : []),
-  ...(hasHostProbes ? [{ id: 'checked_at', header: 'Data 점검 (UTC)' }] satisfies ExportColumn[] : [])
+  ...([
+    { id: 'tool_available', header: 'Tool Available', on: hasHostProbes },
+    { id: 'data_ip', header: 'Data IP', on: isProvision },
+    { id: 'veridity', header: 'Veridity', on: isVeritySem },
+    { id: 'checked_at', header: 'Data 점검 (UTC)', on: hasHostProbes }
+  ] satisfies Array<ExportColumn & { on: boolean }>)
+    .filter(column => column.on)
+    .map(({ id, header }) => ({ id, header }))
 ]
 
 const toast = useToast()
