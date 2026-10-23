@@ -137,8 +137,8 @@
 
         <!-- Running state renders as a status pill with a text label, never
              color alone. Beyond `available`, Provision / VeritySEM add the
-             tool-side version-ini probe and (VeritySEM) the Veridity/Reports
-             listing; '' means the tool is not in that key — no pill. -->
+             tool-side version-ini probe; '' means the tool is not in that
+             key — no pill. -->
         <template
           v-for="probe in PROBE_CELLS"
           :key="probe"
@@ -257,12 +257,12 @@ const rows = computed<SemListRow[]>(() => filterRows(allRows.value ?? [], props.
 
 // Provision and VeritySEM are judged by their own host keys, so their rows
 // carry a tool probe and a data probe; `available` on them is the data one.
-// Only a Provision has a separate data host (data_ip); only a VeritySEM has
-// a Veridity folder.
+// Only a Provision has a separate data host (data_ip). VeritySEM's Veridity
+// probe is left out of the table (not useful to users) but stays in the export.
 const isProvision = props.toolType === 'provision'
 const isVeritySem = props.toolType === 'veritysem'
 const hasHostProbes = isProvision || isVeritySem
-const PROBE_CELLS = ['available', 'tool_available', 'veridity'] as const
+const PROBE_CELLS = ['available', 'tool_available'] as const
 const IP_CELLS = ['eqp_ip', 'data_ip'] as const
 const dataCheckedAt = computed(() => rows.value.find(row => row.checked_at)?.checked_at)
 
@@ -407,7 +407,6 @@ const identityColumns: ColumnConfig[] = [
 const columnConfigs: ColumnConfig[] = [
   { id: 'available', header: hasHostProbes ? 'Data' : 'Status', size: 120 },
   ...(hasHostProbes ? [{ id: 'tool_available', header: 'Tool', size: 120 }] satisfies ColumnConfig[] : []),
-  ...(isVeritySem ? [{ id: 'veridity', header: 'Veridity', size: 120 }] satisfies ColumnConfig[] : []),
   ...identityColumns,
   { id: 'eqp_ip', header: isProvision ? 'Tool IP' : 'IP Address', size: 176 },
   ...(isProvision ? [{ id: 'data_ip', header: 'Data IP', size: 176 }] satisfies ColumnConfig[] : []),
