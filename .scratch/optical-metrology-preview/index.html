@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>광학 계측 미리보기</title>
+<style>
+/* ===== DESIGN.md §Building a Page — 1. Tokens (복사본, 재입력 아님) ===== */
+:root {
+  --sk-canvas: oklch(0.96 0.012 80);
+  --sk-surface: oklch(0.99 0.006 80);
+  --sk-muted-surface: oklch(0.97 0.01 80);
+  --sk-border: oklch(0.91 0.014 80);
+  --sk-border-soft: oklch(0.94 0.01 80);
+  --sk-nav-bg: oklch(0.97 0.01 80 / 0.82);
+  --sk-nav-border: oklch(0.90 0.014 80);
+  --sk-ink-muted: oklch(0.47 0.014 60);
+  --sk-ink-subtle: oklch(0.66 0.012 70);
+  --sk-chip-bg: oklch(0.95 0.014 80);
+  --sk-chip-text: oklch(0.45 0.014 60);
+  --sk-on-bg: #d9f5e8;
+  --sk-on-fg: #0f5132;
+  --sk-off-bg: oklch(0.95 0.014 80);
+  --sk-off-fg: oklch(0.45 0.014 60);
+  --sk-field: oklch(0.21 0.008 70);
+  --sk-field-ink: oklch(0.94 0.008 80);
+  --sk-field-core: oklch(0.40 0.014 60);
+  --sk-accent: oklch(0.58 0.13 35);
+  --sk-accent-soft: oklch(0.95 0.025 60);
+  --sk-accent-border: oklch(0.58 0.13 35 / 0.22);
+  --sk-accent-tint: oklch(0.58 0.13 35 / 0.06);
+  --sk-ok: oklch(0.62 0.13 145);
+  --sk-ok-soft: oklch(0.94 0.05 145);
+  --sk-ok-border: oklch(0.62 0.13 145 / 0.32);
+  --sk-bad: oklch(0.58 0.18 28);
+  --sk-bad-soft: oklch(0.94 0.04 30);
+  --sk-bad-border: oklch(0.58 0.18 28 / 0.32);
+  --sk-bad-soft-hover: oklch(0.89 0.07 30);
+  --sk-bad-tint: oklch(0.58 0.18 28 / 0.06);
+  --sk-warn: oklch(0.70 0.15 75);
+  --sk-warn-soft: oklch(0.94 0.06 85);
+  --sk-warn-border: oklch(0.70 0.15 75 / 0.32);
+  --sk-ink: #15110D;
+  --sk-ink-fg: #F8F4EC;
+  --sk-brand: #C75A3C;
+  --sk-brand-fg: #FFF7F1;
+  --sk-brand-soft: #F3DCD2;
+  --sk-brand-ink: #8A3D27;
+  --sk-corp-red: #EA002C;
+  --sk-corp-orange: #FF7A00;
+  --sk-r-sidebar: 6px;
+  --sk-r-chip: 8px;
+  --sk-r-nav: 10px;
+  --sk-r-card: 14px;
+  --sk-focus-ring: oklch(0.58 0.13 35 / 0.45);
+}
+
+.dark {
+  --sk-canvas: oklch(0.21 0.008 70);
+  --sk-surface: oklch(0.245 0.008 70);
+  --sk-muted-surface: oklch(0.225 0.008 70);
+  --sk-border: oklch(0.295 0.008 70);
+  --sk-border-soft: oklch(0.265 0.008 70);
+  --sk-nav-bg: oklch(0.225 0.008 70 / 0.78);
+  --sk-nav-border: oklch(0.30 0.008 70);
+  --sk-ink-muted: oklch(0.74 0.008 70);
+  --sk-ink-subtle: oklch(0.56 0.008 70);
+  --sk-chip-bg: oklch(0.285 0.008 70);
+  --sk-chip-text: oklch(0.74 0.008 70);
+  --sk-on-bg: #052e16;
+  --sk-on-fg: #bbf7d0;
+  --sk-off-bg: oklch(0.285 0.008 70);
+  --sk-off-fg: oklch(0.74 0.008 70);
+  --sk-accent: oklch(0.74 0.14 38);
+  --sk-accent-soft: oklch(0.34 0.05 38);
+  --sk-accent-border: oklch(0.74 0.14 38 / 0.32);
+  --sk-accent-tint: oklch(0.74 0.14 38 / 0.10);
+  --sk-ok: oklch(0.78 0.14 150);
+  --sk-ok-soft: oklch(0.32 0.06 150);
+  --sk-ok-border: oklch(0.78 0.14 150 / 0.32);
+  --sk-bad: oklch(0.72 0.17 28);
+  --sk-bad-soft: oklch(0.32 0.06 28);
+  --sk-bad-border: oklch(0.72 0.17 28 / 0.32);
+  --sk-bad-soft-hover: oklch(0.38 0.08 28);
+  --sk-bad-tint: oklch(0.72 0.17 28 / 0.10);
+  --sk-warn: oklch(0.80 0.15 78);
+  --sk-warn-soft: oklch(0.34 0.06 78);
+  --sk-warn-border: oklch(0.80 0.15 78 / 0.32);
+  --sk-ink: #F4EFE6;
+  --sk-ink-fg: #15110D;
+  --sk-brand: #E0553F;
+  --sk-brand-fg: #FFF7F1;
+  --sk-brand-soft: oklch(0.30 0.05 38);
+  --sk-brand-ink: #F3DCD2;
+  --sk-focus-ring: oklch(0.74 0.14 38 / 0.45);
+}
+
+:root {
+  --font-sans: 'Spoqa Han Sans Neo', 'Public Sans', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Segoe UI Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+/* ===== DESIGN.md §3 레시피 ===== */
+html { scrollbar-gutter: stable; }
+body { margin: 0; background: var(--sk-canvas); color: var(--sk-ink); font-family: var(--font-sans); font-size: 14px; }
+:focus-visible { outline: 2px solid var(--sk-focus-ring); outline-offset: 2px; }
+button:not(:disabled) { cursor: pointer; }
+.sk-page { max-width: 1280px; margin: 0 auto; padding: 32px; display: grid; gap: 24px; }
+.dashboard-surface {
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-card); background: var(--sk-surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 8px 22px -18px rgba(0, 0, 0, 0.18); padding: 16px; min-width: 0;
+}
+.dark .dashboard-surface { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 22px -18px rgba(0, 0, 0, 0.6); }
+.sk-nav-pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; font: 500 14px var(--font-sans); white-space: nowrap;
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-nav); background: transparent; color: var(--sk-ink-muted);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; text-decoration: none;
+}
+.sk-nav-pill:hover { background: var(--sk-muted-surface); color: var(--sk-ink); }
+.sk-nav-pill[aria-pressed='true'] { background: var(--sk-ink); color: var(--sk-ink-fg); border-color: var(--sk-ink); font-weight: 600; }
+.sk-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; font: 500 13px var(--font-sans); white-space: nowrap;
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-chip); background: var(--sk-surface); color: var(--sk-ink-muted);
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.sk-chip:hover { background: var(--sk-muted-surface); color: var(--sk-ink); }
+.sk-chip[aria-pressed='true'] { background: var(--sk-brand); color: var(--sk-brand-fg); border-color: var(--sk-brand); font-weight: 600; }
+.sk-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; font: 500 14px var(--font-sans);
+  border: 1px solid var(--sk-border); border-radius: var(--sk-r-nav); background: var(--sk-surface); color: var(--sk-ink);
+}
+.sk-btn:hover { background: var(--sk-muted-surface); }
+.sk-input { padding: 8px 12px; font: 400 14px var(--font-sans); border: 1px solid var(--sk-border); border-radius: var(--sk-r-nav); background: var(--sk-surface); color: var(--sk-ink); }
+.sk-page-title { font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; color: var(--sk-ink); margin: 0; }
+.sk-heading { font-size: 18px; font-weight: 600; line-height: 1.4; color: var(--sk-ink); margin: 0; }
+.sk-body { font-size: 14px; font-weight: 400; line-height: 1.5; color: var(--sk-ink); }
+.sk-meta { font-size: 12px; font-weight: 400; line-height: 1.4; color: var(--sk-ink-muted); }
+.sk-label { font-size: 11px; font-weight: 600; line-height: 1.35; color: var(--sk-ink-muted); }
+.sk-value { font-size: 12px; font-weight: 500; line-height: 1.35; color: var(--sk-ink); }
+.sk-value-num { font: 500 12px/1.35 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--sk-ink); }
+.sk-eyebrow { font: 600 10px/1.4 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--sk-ink-muted); }
+.sk-table { width: 100%; border-collapse: collapse; }
+.sk-table th { text-align: left; padding: 8px 12px; white-space: nowrap; border-bottom: 1px solid var(--sk-border); font-size: 11px; font-weight: 600; color: var(--sk-ink-muted); vertical-align: bottom; }
+.sk-table td { padding: 8px 12px; border-bottom: 1px solid var(--sk-border-soft); font-size: 12px; color: var(--sk-ink); vertical-align: top; line-height: 1.5; }
+.sk-table td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sk-table tbody tr:hover { background: var(--sk-muted-surface); }
+.sk-status { display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid; border-radius: var(--sk-r-sidebar); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.sk-status--ok { background: var(--sk-ok-soft); border-color: var(--sk-ok-border); color: var(--sk-ok); }
+.sk-status--warn { background: var(--sk-warn-soft); border-color: var(--sk-warn-border); color: var(--sk-warn); }
+.sk-status--bad { background: var(--sk-bad-soft); border-color: var(--sk-bad-border); color: var(--sk-bad); }
+
+/* ===== 이 페이지 전용 ===== */
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stack { display: grid; gap: 12px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; }
+@media (max-width: 1100px) { .grid-2, .grid-3, .grid-map { grid-template-columns: minmax(0, 1fr); } }
+.sec-head { display: grid; gap: 4px; }
+.sec-head p { margin: 0; }
+code { font-family: var(--font-mono); font-size: 12px; background: var(--sk-muted-surface); border: 1px solid var(--sk-border-soft); border-radius: var(--sk-r-sidebar); padding: 0 4px; }
+.mockbar { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border: 1px solid var(--sk-warn-border); background: var(--sk-warn-soft); border-radius: var(--sk-r-nav); }
+.mockbar strong { color: var(--sk-ink); }
+.mock-tag { display: inline-block; font: 600 10px/1.4 var(--font-mono); letter-spacing: 0.04em; color: var(--sk-warn); border: 1px solid var(--sk-warn-border); background: var(--sk-warn-soft); border-radius: var(--sk-r-sidebar); padding: 1px 6px; }
+.chart { width: 100%; min-height: 200px; }
+.chart-fallback { display: grid; place-items: center; height: 100%; min-height: 160px; border: 1px dashed var(--sk-border); border-radius: var(--sk-r-chip); background: var(--sk-muted-surface); color: var(--sk-ink-muted); font-size: 13px; text-align: center; padding: 16px; }
+details.layer { border: 1px solid var(--sk-border); border-radius: var(--sk-r-nav); background: var(--sk-surface); }
+details.layer > summary { list-style: none; cursor: pointer; padding: 14px 16px; display: flex; gap: 12px; align-items: baseline; }
+details.layer > summary::-webkit-details-marker { display: none; }
+details.layer > summary::before { content: '▸'; color: var(--sk-ink-muted); width: 12px; }
+details.layer[open] > summary::before { content: '▾'; }
+details.layer > summary:hover { background: var(--sk-muted-surface); border-radius: var(--sk-r-nav); }
+details.layer .body { padding: 0 16px 16px 40px; display: grid; gap: 10px; }
+.layer-name { font: 700 13px var(--font-mono); letter-spacing: 0.04em; min-width: 76px; }
+ul.tight { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.55; }
+.inset { background: var(--sk-muted-surface); border: 1px solid var(--sk-border-soft); border-radius: var(--sk-r-chip); padding: 12px 14px; }
+.order-card ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; line-height: 1.55; }
+.order-card .who { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.edge-ink { border-left: 3px solid var(--sk-ink); }
+.edge-brand { border-left: 3px solid var(--sk-brand); }
+th button.sort { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+th button.sort:hover { color: var(--sk-ink); }
+th button.sort:focus-visible { outline: 2px solid var(--sk-focus-ring); outline-offset: 2px; }
+.tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: var(--sk-r-sidebar); border: 1px solid var(--sk-border); color: var(--sk-ink-muted); background: var(--sk-muted-surface); white-space: nowrap; }
+.cand-id { font: 700 13px var(--font-mono); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
+.legend-dom { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--sk-ink-muted); }
+.legend-dom i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 1px; }
+.legend-dom i.dot { width: 7px; height: 7px; border-radius: 50%; }
+.verdict-line { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; align-items: center; }
+.case-card { display: grid; gap: 12px; align-content: start; }
+.mse-big { font: 700 28px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.trap.mse-only .diag { display: none; }
+.trap:not(.mse-only) .mse-only-note { display: none; }
+input[type=range] { accent-color: var(--sk-ink); width: 260px; }
+.note { margin: 0; line-height: 1.6; }
+footer { padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<main class="sk-page">
+
+  <header class="stack" style="gap: 14px;">
+    <div class="row" style="gap: 12px; justify-content: space-between;">
+      <div class="row" style="gap: 12px;">
+        <span class="sk-eyebrow">OPTICAL · 조사 미리보기 · 2026-10-24</span>
+        <h1 class="sk-page-title">광학 계측 표시 미리보기</h1>
+      </div>
+      <button class="sk-btn" id="theme-btn" type="button" aria-label="밝게/어둡게 전환">테마 전환</button>
+    </div>
+    <nav class="row" aria-label="섹션 이동" id="sec-nav" style="gap: 4px;">
+      <a class="sk-nav-pill" href="#layers" aria-pressed="false">데이터 세 층</a>
+      <a class="sk-nav-pill" href="#candidates" aria-pressed="false">후보 비교</a>
+      <a class="sk-nav-pill" href="#analyses" aria-pressed="false">분석 8종</a>
+      <a class="sk-nav-pill" href="#trap" aria-pressed="false">적합 품질 트랩</a>
+      <a class="sk-nav-pill" href="#wafer" aria-pressed="false">웨이퍼 맵 균일도</a>
+      <a class="sk-nav-pill" href="#drift" aria-pressed="false">장비 편차 감시</a>
+    </nav>
+    <div class="mockbar" role="note">
+      <span class="sk-status sk-status--warn">예시</span>
+      <span class="sk-body"><strong>이 페이지의 모든 그래프·숫자는 조작된 예시 데이터입니다(실제 장비 수출 아님).</strong>
+        스펙트럼은 Cauchy 단일막 간섭식으로 이 페이지에서 직접 계산하고, 사이트·장비·날짜는 시드 고정 난수로 만듭니다. 원문은
+        <code>docs/research/2026-10-24-optical-metrology-analysis-display.md</code> 입니다.</span>
+    </div>
+  </header>
+
+  <!-- ===================== 요약 ===================== -->
+  <section class="dashboard-surface stack">
+    <span class="sk-eyebrow">요약</span>
+    <p class="note sk-body">두께·엘립소미터 데이터는 스큐보아에 얹지 않고 <strong>AFM 이 걸었던 길</strong>(자기 도메인·feature 폴더·화면)을 갑니다.
+      스큐보아는 <code>cd-sem</code>·<code>hv-sem</code> 에만 열리도록 울타리가 쳐져 있고, <code>MsrParamSummary</code> 에는 파장 축이 없습니다.
+      권장 구성은 두 층입니다 — ① 시간·lot·eqp·recipe·site 축으로 <strong>파생값(두께·n·k)</strong> 비교, ② 모든 두께 숫자 옆에 <strong>적합 품질(MSE/χ², 잔차, 오차한계, 상관)</strong>.
+      가장 큰 위험은 UI 가 아니라 근거의 부재입니다 — <code>docs/datatables/</code> 에 두께·SE 소스가 하나도 없습니다.</p>
+  </section>
+
+  <!-- ===================== 1. 데이터 세 층 ===================== -->
+  <section id="layers" class="stack">
+    <div class="sec-head">
+      <span class="sk-eyebrow">§1 · 데이터 세 층</span>
+      <h2 class="sk-heading">이 데이터는 실제로 무엇인가</h2>
+      <p class="sk-meta">광학 계측은 한 종류가 아니라 서로 다른 세 층입니다. 섞으면 화면이 거짓말을 합니다. 각 층을 눌러 펼칩니다.</p>
+    </div>
+
+    <details class="layer" open>
+      <summary><span class="layer-name">RAW</span><span class="sk-value">스펙트럼 — 각 파장·입사각(AOI)에서의 Ψ 와 Δ</span></summary>
+      <div class="body">
+        <p class="note sk-body">측정되는 물리량은 ρ = r<sub>p</sub>/r<sub>s</sub> = tan(Ψ)·e<sup>iΔ</sup> 입니다. 일반화 엘립소메트리·뮬러 행렬 장비는 행렬 성분(m11..m33)과 탈편광이 더해집니다.</p>
+        <ul class="tight sk-body">
+          <li>Ψ(λ, AOI), Δ(λ, AOI) — 곡선 하나는 AFM 프로파일과 구조적으로 같은 물건입니다(x = 위치 ↔ 파장, y = 높이 ↔ Ψ/Δ).</li>
+          <li>취득 조건도 RAW 의 일부 — 파장 범위·분해능, 입사각, 방위각, 스팟/픽셀 크기·시야, 적분 시간, 평균 횟수.</li>
+          <li>반사율계가 오면 측정량은 R(λ) 이 되고 모델·잔차 구조는 그대로입니다 → 계약은 "스펙트럼 + 모델 + 잔차" 로 둡니다.</li>
+          <li>Δ 는 360° 주기 — 잔차는 위상 래핑을 고려해서 계산해야 합니다(이 페이지의 데모가 그렇게 합니다).</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="layer">
+      <summary><span class="layer-name">DERIVED</span><span class="sk-value">두께 · n · k · 적합 진단 — 측정값이 아니라 회귀 추정치</span></summary>
+      <div class="body">
+        <p class="note sk-body">Cauchy(투명막), Tauc-Lorentz(흡수 비정질), Drude(금속), B-spline(KK 일관) 같은 분산 모델에 최소자승 회귀를 돌려 얻습니다. 그래서 반드시 함께 오는 것들이 있습니다.</p>
+        <table class="sk-table">
+          <thead><tr><th>값</th><th>내용</th><th>왜 필요한가</th></tr></thead>
+          <tbody>
+            <tr><td>두께</td><td>층별 nm</td><td>층 ID 없는 두께는 의미가 없습니다</td></tr>
+            <tr><td>n · k (ε1 · ε2)</td><td>파장 함수</td><td>단일 숫자로 요약하려면 <strong>기준 파장</strong>이 필요합니다</td></tr>
+            <tr><td>MSE / χ²</td><td>Woollam 계열 MSE, Horiba 계열 χ²</td><td>관례·정의가 달라 임계값 교차 비교 불가 — 숫자를 코드에 박지 않습니다</td></tr>
+            <tr><td>잔차 배열</td><td>측정 − 모델</td><td>보기 좋은 오버레이가 Δ 의 편차를 숨길 수 있습니다(OptiLayer)</td></tr>
+            <tr><td>파라미터 오차한계</td><td>예: d ± σ</td><td>크면 모델 문제(Horiba)</td></tr>
+            <tr><td>상관 행렬</td><td>예: corr(d, n)</td><td>강하면 비유일 — 각도 추가, R/T 추가, 파라미터 고정으로 풉니다</td></tr>
+            <tr><td><code>fit_status</code></td><td>범주 플래그</td><td>장비·레시피별로 정해지게 — 이미징 SE 처럼 진단이 없으면 <code>not-applicable</code>, 부재를 정상으로 꾸미지 않습니다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="layer">
+      <summary><span class="layer-name">CONTEXT</span><span class="sk-value">lot · wafer · recipe · 모델 개정 — 그 숫자가 누구의 것인가</span></summary>
+      <div class="body">
+        <ul class="tight sk-body">
+          <li><code>lot_id</code>, <code>wafer_id</code>(+slot), recipe 이름 <strong>그리고 개정판</strong></li>
+          <li>광학 스택 모델의 식별자와 <strong>개정판</strong> — 모델이 결과의 일부이므로(NIST: 같은 데이터도 알고리즘이 다르면 두께가 다름)</li>
+          <li>장비 ID · 소프트웨어 버전 · 교정 상태 · 운영자 · 사용한 AOI · 측정 상태 플래그</li>
+          <li>site/pixel 좌표 — 원점·방향 규칙, edge exclusion 포함 · 타임스탬프 · 층 정의</li>
+          <li>원시 수출 파일은 컨텍스트를 싣지 않습니다 — <code>pynxtools-ellips</code> 도 별도 YAML 을 요구합니다</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="layer">
+      <summary><span class="layer-name">IMAGING</span><span class="sk-value">이미징 SE 는 다른 동물입니다 — 픽셀당 스펙트럼의 하이퍼스펙트럴 큐브</span></summary>
+      <div class="body">
+        <ul class="tight sk-body">
+          <li>삼성전자 Nature Communications 2025: 20×20 mm 시야, 3200×3200 픽셀(6.5 µm), 35 파장 → <strong>1회 취득당 스펙트럼 1,000만 개 이상</strong>.</li>
+          <li>스테핑 방식 — shot 단위 이동, shot 을 2×2 사분면으로 나눠 스테핑 → 표시 단위에도 shot / 사분면 계층이 있습니다.</li>
+          <li>그 논문은 픽셀별 물리 회귀 대신 SEM 기준으로 훈련한 ridge regression 을 씁니다 → 픽셀별 MSE 없음. 그러나 물리 모델을 쓰는 이미징 SE 도 있으므로 계약은 두 경우를 다 표현해야 합니다.</li>
+          <li><strong>전체 큐브 전송은 불가</strong>, 선택한 ROI·픽셀 스펙트럼의 지연 조회는 별개의 설계 문제입니다.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===================== 2. 후보 비교 ===================== -->
+  <section id="candidates" class="stack">
+    <div class="sec-head">
+      <span class="sk-eyebrow">§3 · 후보 여섯 개 + D′</span>
+      <h2 class="sk-heading">무엇을 답하고 얼마가 드나</h2>
+      <p class="sk-meta">두 순서는 일부러 합치지 않았습니다. 보고서는 순서를 바꾸지 않았고, 사용자의 결정이 필요한 지점으로 남겨 두었습니다.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="dashboard-surface order-card edge-ink stack">
+        <div class="who"><span class="sk-heading">권장 순서 — 이 보고서</span><span class="tag">[추론]</span></div>
+        <ol class="sk-body">
+          <li><strong>A + D 먼저.</strong> 분석 로직을 새로 발명하지 않습니다 — AFM 시계열 비교와 스큐보아 <code>tsx=eqp</code> · baseline · <code>tsb=resid</code>. 목록 응답에 측정당 요약을 싣는 계약을 먼저.</li>
+          <li><strong>B 를 A 가 보여주는 모든 숫자의 신용 층으로.</strong> A 만 하고 B 를 미루면 그 사이 두께 숫자는 출처 없는 진실이 됩니다.</li>
+          <li><strong>C 는 점 도구 사이트 밀도로.</strong> 수십~수백 site 는 기존 wafer-map 부품으로 충분합니다.</li>
+          <li><strong>C 고밀도 타일과 F 는 벤더 수출 포맷 이후.</strong> 전체 큐브 전송만 불가, ROI 지연 조회 설계는 남습니다.</li>
+          <li><strong>E 는 A·B 위에 얹는 것.</strong> 적합품질 플래그(믿을 수 있나)와 관리한계(합격인가)는 다른 질문 — 사용자 확인 필요.</li>
+        </ol>
+        <p class="sk-meta note">별도로 §7 "다음 수" 는 화면보다 <strong>벤더 질문지 한 장</strong>을 먼저 둡니다.</p>
+      </div>
+      <div class="dashboard-surface order-card edge-brand stack">
+        <div class="who"><span class="sk-heading">반대 의견 — codex 리뷰 (2026-10-24)</span><span class="tag">리뷰 의견 · 보고서 판단 아님</span></div>
+        <ol class="sk-body">
+          <li><strong>질문지</strong> 먼저.</li>
+          <li><strong>단일 측정 상세 + 최소 품질 표시.</strong> "B 전체를 먼저" 가 아니라 값의 출처·모델·진단 제공 여부를 A 와 함께, 스펙트럼은 확보되는 만큼.</li>
+          <li><strong>A</strong></li>
+          <li><strong>C.</strong> 장비가 한 대여도 사이트 분포는 쓸모가 있습니다. ROI 선택 → 스펙트럼 조회 흐름은 벤더 포맷까지 미루지 말고 <strong>종이 시안으로 먼저</strong>.</li>
+        </ol>
+        <p class="sk-body note"><span class="sk-status sk-status--bad">D 제외</span> 비교 가능한 장비·제품·층이 확보돼야 가치가 생기므로 기본 묶음에서 뺍니다.</p>
+        <p class="sk-meta note">목 프로토타입 경고: 낮은 MSE·강상관 사례는 <strong>경고의 전달력</strong>은 시험해도 <strong>실제 비유일성 탐지 능력</strong>은 검증하지 못하고, 완성도 높은 목은 가정을 굳힐 위험이 큽니다.</p>
+      </div>
+    </div>
+
+    <div class="dashboard-surface stack">
+      <span class="sk-label">두 의견이 갈리는 지점</span>
+      <table class="sk-table">
+        <thead><tr><th>쟁점</th><th>보고서</th><th>codex</th></tr></thead>
+        <tbody>
+          <tr><td>첫 화면 작업</td><td>A + D</td><td>단일 측정 상세 + 최소 품질 표시 (질문지 다음)</td></tr>
+          <tr><td>D (장비 편차)</td><td>1순위, A 와 함께</td><td>기본 묶음에서 제외</td></tr>
+          <tr><td>B 의 범위</td><td>A 의 모든 숫자에 대한 신용 층 (2순위)</td><td>출처·모델·진단 여부만 A 와 함께, 스펙트럼은 확보되는 만큼</td></tr>
+          <tr><td>ROI → 스펙트럼 흐름</td><td>고밀도 C·F 와 함께 벤더 포맷 이후</td><td>종이 시안으로 지금 먼저 확인</td></tr>
+          <tr><td>목 프로토타입</td><td>§7-2 에서 다음 수로 권장</td><td>전달력만 시험, 가정 고착 위험</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dashboard-surface stack">
+      <div class="row" style="justify-content: space-between;">
+        <div class="row" role="group" aria-label="비용 필터" id="cost-chips">
+          <span class="sk-label" style="margin-right: 4px;">비용</span>
+        </div>
+        <input class="sk-input" id="cand-search" type="search" placeholder="방식·질문·축 검색" aria-label="후보 검색" style="width: 240px;">
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="sk-table" id="cand-table">
+          <thead><tr id="cand-head"></tr></thead>
+          <tbody id="cand-body"></tbody>
+        </table>
+      </div>
+      <p class="sk-meta note" id="cand-count"></p>
+      <div class="inset sk-body"><strong>D 와 D′ 을 섞지 말 것.</strong> 장비별 중앙값 차이는 <strong>편차 탐지</strong>이지 매칭이 아닙니다. 동일 웨이퍼·동일 사이트 짝 측정과 반복성 확인 없이는 "바꿔 쓸 수 있는가" 를 말할 수 없습니다.</div>
+    </div>
+  </section>
+
+  <!-- ===================== 3. 분석 8종 ===================== -->
+  <section id="analyses" class="stack">
+    <div class="sec-head">
+      <span class="sk-eyebrow">§4 · 분석 8종</span>
+      <h2 class="sk-heading">팹 사용자가 실제로 돌리는 분석</h2>
+    </div>
+    <div class="dashboard-surface" style="overflow-x: auto;">
+      <table class="sk-table">
+        <thead><tr><th>분석</th><th>필요한 입력</th><th>답하는 질문</th><th>근거</th><th>저장소 관점</th></tr></thead>
+        <tbody>
+          <tr><td>SPC (I-MR, Xbar-R, Nelson/WE 런 규칙)</td><td>lot·wafer 요약값 + 규격한계 + subgroup 정의</td><td>공정이 관리 상태인가</td><td>[확인] NIST/SEMATECH ch.6, ASTM E2587-24</td><td><span class="sk-status sk-status--warn">사용자 확인 전 착수 금지</span></td></tr>
+          <tr><td>균일도 WIW / WTW / LTL</td><td>site x-y + 값 + wafer·lot 그룹</td><td>증착이 어디서 변하는가, WIW 규격 만족?</td><td>[확인] ASTM F1618</td><td><span class="sk-status sk-status--ok">잘 맞는 셋</span></td></tr>
+          <tr><td>웨이퍼 맵 공간 서명 (ring·edge·center·sector·scratch)</td><td>시간 따라 쌓인 wafer 맵 그리드</td><td>어떤 고장 서명이고 흐르는가</td><td>[요약만] VLSI J. 2026, IEEE 2021 — defect bin map 방법이라 연속 맵 적용은 [추론]</td><td></td></tr>
+          <tr><td>장비 / 챔버 매칭 (offset+scale, ANOVA, crossed GR&amp;R)</td><td><strong>동일 웨이퍼·동일 사이트 짝 측정</strong> + 반복성 + 기준값</td><td>바꿔 쓸 수 있는가, 보정은 얼마인가</td><td>[확인] MIT, NIST, 성균관대</td><td><span class="sk-status sk-status--ok">잘 맞는 셋</span> 짝 측정 없이는 편차 탐지까지</td></tr>
+          <tr><td>Run-to-run APC (EWMA, 지연, MIMO)</td><td>공정 후 두께 + recipe knob + 지연 모델</td><td>다음 run 에서 무엇을 얼마나 바꿀까</td><td>[확인] Susto 2022, ACS MIMO EWMA</td><td><span class="sk-status sk-status--warn">사용자 확인 전 착수 금지</span></td></tr>
+          <tr><td>적합 품질 트리아지 (MSE/χ² 추세, 오차한계, 상관, 잔차 구조)</td><td>건별 적합 진단</td><td>어떤 숫자가 SPC·APC 에 쓰일 수 있나</td><td>[벤더] Horiba·Woollam — 표준 임계값 없음 [확인]</td><td><span class="sk-status sk-status--ok">잘 맞는 셋</span> 없으면 나머지가 오염</td></tr>
+          <tr><td>기준 계측 상관 (SE vs TEM, XRR, AFM 단차)</td><td>동일·인접 영역 짝 측정</td><td>SE 모델이 교정·타당한가</td><td>[확인] ISO 16413:2020, NIST, Aalto — 합성 불확도와 함께 보고</td><td></td></tr>
+          <tr><td>방법 간 일치 (SE vs 분광 반사율계)</td><td>동일 웨이퍼 이중 방법</td><td>두께·재료별로 어느 방법이 나은가</td><td>[요약만] Aalto 2026 — 극박은 SE, 후막은 반사율계</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== 4. 적합 품질 트랩 ===================== -->
+  <section id="trap" class="stack trap">
+    <div class="sec-head">
+      <span class="sk-eyebrow">핵심 데모 · B 방식 · §7-2</span>
+      <h2 class="sk-heading">적합 품질 트랩 — MSE 숫자만으로는 (a) 와 (c) 를 구별하지 못합니다</h2>
+      <p class="sk-meta">Si 기판 위 단일 Cauchy 막, AOI 70°, 300–1000 nm(5 nm 간격). 측정 곡선은 "정답" 스택에 노이즈(σΨ 0.03°, σΔ 0.08°)를 더해 만들고, 모델 곡선은 이 페이지에서 Levenberg–Marquardt 로 직접 적합합니다. MSE = √(Σ((측정−모델)/σ)² / (2N−M)).</p>
+    </div>
+    <div class="row">
+      <span class="sk-label">보기</span>
+      <div class="row" role="group" aria-label="진단 보기 전환" style="gap: 4px;">
+        <button class="sk-nav-pill" type="button" data-trap-view="mse" aria-pressed="false">MSE 만 보기</button>
+        <button class="sk-nav-pill" type="button" data-trap-view="full" aria-pressed="true">전체 진단 보기</button>
+      </div>
+      <span class="mock-tag">조작된 예시 데이터</span>
+    </div>
+    <p class="sk-body mse-only-note inset note">지금은 대부분의 추세 화면이 보여주는 것만 보입니다 — 두께와 MSE. <strong>(a) 와 (c) 는 둘 다 MSE ≈ 1 이라 똑같이 "좋은 핏" 으로 보입니다.</strong> 전체 진단 보기로 바꿔 보십시오.</p>
+    <div class="grid-3" id="cases"></div>
+
+    <div class="dashboard-surface stack diag">
+      <div class="row" style="justify-content: space-between;">
+        <div class="stack" style="gap: 2px;">
+          <span class="sk-heading">MSE 프로파일 — n 을 고정하고 두께만 다시 적합</span>
+          <span class="sk-meta">Cauchy A(≈ n) 를 고정값으로 묶고 d 만 재적합한 최소 MSE 입니다. 뾰족한 V 는 유일한 해, 평평한 바닥은 비유일한 해입니다. 선형 근사 오차한계(공분산)는 이런 긴 계곡을 과소평가할 수 있어 프로파일을 같이 봅니다.</span>
+        </div>
+        <label class="row sk-label">A 고정값 <input type="range" id="a-slider" min="1.30" max="1.90" step="0.01" value="1.60"> <span class="sk-value-num" id="a-val">1.60</span></label>
+      </div>
+      <div class="chart" id="profile-chart" style="height: 300px;"></div>
+      <div style="overflow-x: auto;"><table class="sk-table" id="alt-table"></table></div>
+      <p class="sk-meta note">슬라이더의 A 로 고정한 대안 모델은 위 세 카드의 그래프에 호박색 선으로 겹쳐 그려집니다. (c) 에서는 정답과 다른 n 의 대안 모델이 측정 곡선과 거의 구별되지 않습니다.</p>
+    </div>
+    <p class="sk-meta note diag">판정 라벨의 기준(MSE &gt; 3 → 불량, |corr| &gt; 0.95 또는 프로파일 배율 &lt; 1.5 → 비유일)은 <strong>이 데모 전용 임의 기준</strong>입니다. 실제 임계값은 장비·레시피별로 정해야 하며 코드에 숫자를 박지 않는다는 것이 보고서 §1 의 설계 규칙입니다.
+      또 codex 경고대로, 이 데모는 경고의 <strong>전달력</strong>을 보여줄 뿐 실제 데이터에서의 비유일성 <strong>탐지 능력</strong>을 검증하지 않습니다.</p>
+  </section>
+
+  <!-- ===================== 5. 웨이퍼 맵 ===================== -->
+  <section id="wafer" class="stack">
+    <div class="sec-head">
+      <span class="sk-eyebrow">C 방식 · 점 도구 사이트 밀도 · 49-site</span>
+      <h2 class="sk-heading">웨이퍼 맵 균일도 — 결측·실패 마스크, 공통 색범위, 사이트 → 스펙트럼</h2>
+      <p class="sk-meta">같은 장비의 두 웨이퍼(center-edge 서명: 가운데 얇고 가장자리 두꺼움). 사이트를 누르면 그 사이트의 스펙트럼과 적합 결과가 오른쪽에 열립니다. 적합 실패 사이트는 정답 스택에 계면층이 숨어 있어 단일막 모델이 맞지 않는 경우입니다.</p>
+    </div>
+    <div class="row">
+      <span class="sk-label">층</span>
+      <div class="row" role="group" aria-label="맵 층" style="gap: 4px;">
+        <button class="sk-nav-pill" type="button" data-map-layer="thk" aria-pressed="true">두께</button>
+        <button class="sk-nav-pill" type="button" data-map-layer="mse" aria-pressed="false">MSE</button>
+      </div>
+      <span class="sk-label" style="margin-left: 12px;">색 범위</span>
+      <div class="row" role="group" aria-label="색 범위" style="gap: 4px;">
+        <button class="sk-nav-pill" type="button" data-map-range="common" aria-pressed="true">공통 범위</button>
+        <button class="sk-nav-pill" type="button" data-map-range="each" aria-pressed="false">웨이퍼별 범위</button>
+      </div>
+      <span class="mock-tag">조작된 예시 데이터 · OFFICE-VERIFY</span>
+    </div>
+    <div class="grid-map">
+      <div class="dashboard-surface stack" id="wafer-card-0"></div>
+      <div class="dashboard-surface stack" id="wafer-card-1"></div>
+      <div class="dashboard-surface stack" id="site-card" style="align-content: start;">
+        <span class="sk-heading">선택한 사이트</span>
+        <p class="sk-meta note">왼쪽 맵에서 사이트를 누르면 스펙트럼이 열립니다.</p>
+      </div>
+    </div>
+    <p class="sk-meta note">균일도 공식은 하나가 아닙니다(3σ% 와 range% 가 공존, ASTM F1618 은 관행만 정의). 그래서 사이트별 원값을 두고 공식은 표시 설정으로 둡니다 — 아래 두 공식을 함께 보입니다. 마스크된 사이트는 통계에서 제외합니다.
+      "웨이퍼별 범위" 로 바꾸면 두 맵이 거의 같은 색으로 보여 두 웨이퍼 사이의 오프셋이 사라집니다 — 비교에는 공통 범위가 필요한 이유입니다.</p>
+  </section>
+
+  <!-- ===================== 6. 장비 편차 ===================== -->
+  <section id="drift" class="stack">
+    <div class="sec-head">
+      <span class="sk-eyebrow">D 방식 · 장비 편차 감시 (D′ 매칭 아님)</span>
+      <h2 class="sk-heading">장비 편차 감시 — 4대 중 하나는 bias, 하나는 drift</h2>
+      <p class="sk-meta">같은 제품·같은 층을 4대가 30일간 측정했다고 가정합니다. 공정 자체의 일별 흔들림이 모든 장비에 같이 실리므로, 원값 추세보다 <strong>일별 장비 그룹 중앙값 대비 Δ</strong>(스큐보아 <code>tsb=resid</code> 렌즈)에서 장비 효과가 드러납니다.</p>
+    </div>
+    <div class="row"><span class="mock-tag">조작된 예시 데이터</span><span class="sk-meta">OPT02 에 +0.9 nm bias, OPT04 에 10-08 부터 +0.12 nm/일 drift 를 심었습니다.</span></div>
+    <div class="grid-2">
+      <div class="dashboard-surface stack">
+        <span class="sk-label">원값 — lot 별 두께 (nm)</span>
+        <div class="chart" id="drift-raw" style="height: 320px;"></div>
+      </div>
+      <div class="dashboard-surface stack">
+        <span class="sk-label">일별 장비 중앙값 − 장비 그룹 중앙값 (nm)</span>
+        <div class="chart" id="drift-delta" style="height: 320px;"></div>
+      </div>
+    </div>
+    <div class="dashboard-surface stack">
+      <table class="sk-table" id="drift-table"></table>
+      <p class="sk-meta note">기준은 "일별 4대 중앙값" 으로 잡았습니다 — 보고서가 D 의 신규 축으로 적은 <strong>골든/기준 지정</strong> 방식은 아직 정해지지 않았습니다. 기준에 이상 장비가 섞이면 중앙값이 끌려가 정상 장비(OPT01·OPT03)도 후반에 음(−)으로 흔들려 보입니다 — 기준 지정이 별도 축인 이유입니다. 판정 라벨(|평균 Δ| &gt; 0.5 nm → bias, |기울기| &gt; 0.03 nm/일 → drift)은 데모 전용 임의 기준입니다.
+        이 화면이 말하는 것은 "어느 장비가 언제부터 어긋나는 <strong>것처럼 보이는가</strong>" 까지이며, 바꿔 쓸 수 있는가(D′)는 동일 웨이퍼 짝 측정 없이는 답할 수 없습니다.</p>
+    </div>
+  </section>
+
+  <footer class="sk-meta">
+    근거: <code>docs/research/2026-10-24-optical-metrology-analysis-display.md</code> 및 노트 3개 · 표기 [확인]/[요약만]/[벤더]/[추론] 은 원문 그대로 · 이 미리보기는 <code>.scratch/optical-metrology-preview/</code> 의 일회용 시안입니다.
+    차트: ECharts 6.1.0 (<span id="echarts-src">불러오는 중입니다.</span>)
+  </footer>
+</main>
+
+<script>
+// ---- optics core: 박막 스택 Ψ/Δ, Cauchy, Levenberg–Marquardt (의존성 없음) ----
+const C = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1]],
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1]],
+  mul: (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]],
+  div: (a, b) => { const q = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / q, (a[1] * b[0] - a[0] * b[1]) / q] },
+  sqrt: (a) => { const r = Math.hypot(a[0], a[1]); const re = Math.sqrt((r + a[0]) / 2); const im = Math.sign(a[1] || 1) * Math.sqrt(Math.max(0, (r - a[0]) / 2)); return [re, im] },
+  exp: (a) => { const e = Math.exp(a[0]); return [e * Math.cos(a[1]), e * Math.sin(a[1])] }
+}
+const AOI = 70 * Math.PI / 180
+const SIG_PSI = 0.03, SIG_DEL = 0.08 // 도(°) 단위 측정 노이즈 1σ — 조작된 값
+const WL = Array.from({ length: 141 }, (_, i) => 300 + i * 5) // nm
+const cauchy = (A, B, k = 0) => (wl) => [A + B / ((wl / 1000) ** 2), k]
+// 조작된 Si 기판 근사(실측 nk 표 아님): UV 에서 흡수 증가
+const SI = (wl) => { const l = wl / 1000; return [3.45 + 0.20 / (l * l), 3.0 * Math.exp(-(l - 0.3) / 0.025) + 0.005] }
+
+// layers: [{ N: wl => [n,k], d: nm }] 위→아래, 기판 SI. N = n + ik 관례.
+function psiDelta(layers, wl) {
+  const s0 = Math.sin(AOI) // 주변 매질 n0=1
+  const Ns = [[1, 0], ...layers.map((L) => L.N(wl)), SI(wl)]
+  const cos = Ns.map((N) => C.sqrt(C.sub([1, 0], C.mul(C.div([s0, 0], N), C.div([s0, 0], N)))))
+  const fres = (i, j) => {
+    const a = C.mul(Ns[j], cos[i]), b = C.mul(Ns[i], cos[j])
+    const c = C.mul(Ns[i], cos[i]), d = C.mul(Ns[j], cos[j])
+    return { p: C.div(C.sub(a, b), C.add(a, b)), s: C.div(C.sub(c, d), C.add(c, d)) }
+  }
+  const last = Ns.length - 1
+  let { p: rp, s: rs } = fres(last - 1, last)
+  for (let j = last - 1; j >= 1; j--) {
+    const beta = C.mul([2 * Math.PI * layers[j - 1].d / wl, 0], C.mul(Ns[j], cos[j]))
+    const ph = C.exp(C.mul([0, 2], beta))
+    const f = fres(j - 1, j)
+    rp = C.div(C.add(f.p, C.mul(rp, ph)), C.add([1, 0], C.mul(C.mul(f.p, rp), ph)))
+    rs = C.div(C.add(f.s, C.mul(rs, ph)), C.add([1, 0], C.mul(C.mul(f.s, rs), ph)))
+  }
+  const rho = C.div(rp, rs)
+  const psi = Math.atan(Math.hypot(rho[0], rho[1])) * 180 / Math.PI
+  let del = Math.atan2(rho[1], rho[0]) * 180 / Math.PI
+  if (del < 0) del += 360
+  return [psi, del]
+}
+const wrap180 = (x) => ((x + 540) % 360) - 180 // Δ 는 360° 주기 — 잔차는 래핑해서 계산
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+function gauss(r) { return Math.sqrt(-2 * Math.log(r() || 1e-12)) * Math.cos(2 * Math.PI * r()) }
+function measure(layers, seed) {
+  const r = rng(seed)
+  return WL.map((wl) => { const [p, d] = psiDelta(layers, wl); return [p + SIG_PSI * gauss(r), (d + SIG_DEL * gauss(r) + 360) % 360] })
+}
+function residuals(meas, layers) {
+  const out = []
+  WL.forEach((wl, i) => { const [p, d] = psiDelta(layers, wl); out.push((meas[i][0] - p) / SIG_PSI, wrap180(meas[i][1] - d) / SIG_DEL) })
+  return out
+}
+// Woollam 식 MSE: sqrt(Σ((측정-모델)/σ)² / (2N - M))
+const mseOf = (res, M) => Math.sqrt(res.reduce((s, x) => s + x * x, 0) / (res.length - M))
+
+function solve(A, b) { // 작은 정방행렬 가우스 소거
+  const n = b.length, M = A.map((r, i) => [...r, b[i]])
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]]
+    for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k] }
+  }
+  return M.map((r, i) => r[n] / r[i])
+}
+const inv = (A) => A.map((_, j) => solve(A, A.map((__, i) => (i === j ? 1 : 0)))).reduce((acc, col, j) => { col.forEach((v, i) => { acc[i][j] = v }); return acc }, A.map(() => []))
+
+// build(p) → layers. p 는 적합 파라미터 배열.
+function fit(meas, build, p0, steps) {
+  let p = [...p0], lam = 1e-3, res = residuals(meas, build(p)), cost = res.reduce((s, x) => s + x * x, 0)
+  const jac = (p, res) => p.map((_, j) => { const q = [...p]; q[j] += steps[j]; const r2 = residuals(meas, build(q)); return r2.map((v, i) => (v - res[i]) / steps[j]) })
+  let J = jac(p, res), iter = 0
+  for (; iter < 60; iter++) {
+    const JTJ = J.map((a) => J.map((b) => a.reduce((s, v, i) => s + v * b[i], 0)))
+    const JTr = J.map((a) => a.reduce((s, v, i) => s + v * res[i], 0))
+    const Aug = JTJ.map((r, i) => r.map((v, j) => (i === j ? v * (1 + lam) : v)))
+    const dp = solve(Aug, JTr.map((v) => -v))
+    const q = p.map((v, i) => v + dp[i]), r2 = residuals(meas, build(q)), c2 = r2.reduce((s, x) => s + x * x, 0)
+    if (c2 < cost) { const done = (cost - c2) / cost < 1e-9; p = q; res = r2; cost = c2; lam /= 3; J = jac(p, res); if (done) break } else lam *= 4
+    if (lam > 1e8) break
+  }
+  const M = p.length, mse = mseOf(res, M)
+  const JTJ = J.map((a) => J.map((b) => a.reduce((s, v, i) => s + v * b[i], 0)))
+  const cov = inv(JTJ).map((r) => r.map((v) => v * mse * mse)) // MSE² 로 스케일한 공분산
+  const sd = cov.map((r, i) => Math.sqrt(Math.max(0, r[i])))
+  const corr = cov.map((r, i) => r.map((v, j) => v / (sd[i] * sd[j])))
+  return { p, mse, sd, corr, res, iter }
+}
+</script>
+<script>
+'use strict'
+// ======================= 공통 =======================
+const $ = (s, r = document) => r.querySelector(s)
+const $$ = (s, r = document) => [...r.querySelectorAll(s)]
+const f = (x, n = 2) => (x == null || !isFinite(x) ? '—' : x.toFixed(n))
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+// 차트 팔레트 — frontend/app/utils/chartPalette.ts 의 고정 상수 (DESIGN.md Iteration Guide 2: 차트 표식 예외)
+const SK_SCALE = ['#5C86AE', '#9BB6CD', '#E4D9C4', '#DB9A6B', '#C75A3C']
+const SK_STATE = { ok: '#3E8E5E', warn: '#C98A2E', bad: '#C4453B' }
+const SK_SITE = ['#2F6DB5', '#7A5EC4', '#0E7C86', '#B2568B'] // chartPalette.ts SK_SITE 중 구별이 쉬운 넷
+// 캔버스는 CSS 변수를 못 읽으므로 축·글자색만 테마별 상수로 둡니다
+const FURNITURE = {
+  light: { ink: '#15110D', muted: '#6F665C', grid: '#E6DED1', axis: '#CFC6B8', surface: '#FCFAF6', tip: '#FFFFFF' },
+  dark: { ink: '#F4EFE6', muted: '#B5ADA2', grid: '#3A342E', axis: '#4E473F', surface: '#2B2622', tip: '#2B2622' }
+}
+const fur = () => FURNITURE[document.documentElement.classList.contains('dark') ? 'dark' : 'light']
+
+// ---- 테마: DESIGN.md 규칙대로 <html class="dark">, 초기값만 OS 설정에서 ----
+;(function initTheme() {
+  let saved = null
+  try { saved = localStorage.getItem('optical-preview-theme') } catch (e) {}
+  const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
+  document.documentElement.classList.toggle('dark', dark)
+})()
+$('#theme-btn').addEventListener('click', () => {
+  const dark = !document.documentElement.classList.contains('dark')
+  document.documentElement.classList.toggle('dark', dark)
+  try { localStorage.setItem('optical-preview-theme', dark ? 'dark' : 'light') } catch (e) {}
+  renderAllCharts()
+})
+
+// ---- ECharts 로더: 로컬 assets → CDN → 대체 메시지 ----
+const charts = new Map() // id → { build, onClick }
+let echartsReady = false
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s) })
+}
+async function loadECharts() {
+  for (const [src, label] of [['assets/echarts.min.js', '로컬 assets'], ['https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js', 'CDN']]) {
+    try { await loadScript(src); if (window.echarts) { $('#echarts-src').textContent = label; return true } } catch (e) {}
+  }
+  $('#echarts-src').textContent = '불러오지 못했습니다'
+  return false
+}
+function chart(id, build, onClick) {
+  charts.set(id, { build, onClick })
+  renderChart(id)
+}
+function renderChart(id) {
+  const el = document.getElementById(id); const c = charts.get(id)
+  if (!el || !c) return
+  if (!echartsReady) {
+    el.innerHTML = '<div class="chart-fallback">차트 라이브러리(ECharts)를 불러오지 못했습니다. 오프라인이면 <code>assets/echarts.min.js</code> 가 같은 폴더에 있는지 확인하십시오. 표와 본문은 그대로 볼 수 있습니다.</div>'
+    return
+  }
+  let inst = echarts.getInstanceByDom(el)
+  if (!inst) {
+    el.innerHTML = ''
+    inst = echarts.init(el, null, { renderer: 'canvas' })
+    new ResizeObserver(() => { inst.resize(); if (c.squareGrid) inst.setOption(charts.get(id).build(), { notMerge: true }) }).observe(el)
+    if (c.onClick) inst.on('click', c.onClick)
+  }
+  inst.setOption(c.build(), { notMerge: true })
+}
+function renderAllCharts() { for (const id of charts.keys()) renderChart(id) }
+const baseAxis = (extra = {}) => {
+  const F = fur()
+  return {
+    axisLine: { lineStyle: { color: F.axis } }, axisTick: { lineStyle: { color: F.axis } },
+    axisLabel: { color: F.muted, fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 },
+    splitLine: { lineStyle: { color: F.grid } }, nameTextStyle: { color: F.muted, fontSize: 11 }, ...extra
+  }
+}
+const tooltip = (extra = {}) => { const F = fur(); return { backgroundColor: F.tip, borderColor: F.axis, textStyle: { color: F.ink, fontSize: 12 }, ...extra } }
+
+// ======================= 후보 비교 표 =======================
+const CANDS = [
+  { id: 'A', way: '파생값만 스큐보아식 비교 (두께·n·k 를 "파라미터" 로)', q: '이 장비·lot·recipe 가 시간 따라 흐르는가', axes: '기존 전부(시간·lot·eqp·recipe·site) + fit_status', cost: '최저', costN: 0, costNote: 'AFM 시계열 비교 복제', risk: '없음 (사이트당 스칼라)', mock: 'meas_hist 모양 행 + 사이트별 값', rep: [1, '1 · A+D 먼저'], cx: [3, '3 · A'] },
+  { id: 'B', way: '스펙트럼 우선 상세 (측정 Ψ/Δ + 모델 핏 + 잔차, site별, AOI 토글)', q: '이 두께 숫자를 믿어도 되는가', axes: '파장 · AOI · 스택모델 식별자 · 적합 메타(MSE, 파라미터, 오차한계, 상관)', cost: '중간', costN: 2, costNote: '다중 시리즈 line + 잔차 패널 [추론·미측정]', risk: '낮음 — 사이트별 지연 로딩이면 건당 수백 KB', mock: '목 스펙트럼 + 높은 MSE 핏과 낮은 MSE 비유일 핏 둘 다', rep: [2, '2 · A 의 신용 층'], cx: [2, '2 · 단일 측정 상세 + 최소 품질 표시 (B 전체 아님)'] },
+  { id: 'C', way: '웨이퍼 맵 우선 공간 뷰 (두께/MSE 균일도 히트맵, WTW 는 맵 나란히)', q: '웨이퍼 어디가 규격 밖이고 그 서명이 장비 모양인가', axes: 'site x-y(기존) + 이미징 SE 용 고밀도 픽셀 그리드', cost: '중간', costN: 2, costNote: 'heatmap + visualMap, ≤10⁴ 셀 [추론·미측정]', risk: '점 SE 낮음, 이미징 SE 는 서버 축소·바이닝 선행 필수', mock: '49-site + 바이닝 200×200 에 center-edge 서명, 전부 OFFICE-VERIFY', rep: [3, '3 · 점 도구 사이트 밀도 (고밀도 타일은 4)'], cx: [4, '4 · C (장비 1대여도 유용, ROI 흐름은 종이 시안 먼저)'] },
+  { id: 'D', way: '장비 편차 감시 (같은 제품·층, eqp 그룹, 골든 중앙값 대비 delta)', q: '어느 장비가 언제부터 어긋나는 것처럼 보이는가', axes: '기존 + 골든/기준 지정', cost: '낮음', costN: 1, costNote: 'A 에 기준선 하나 — baseline·tsb=resid·tsx=eqp 이미 있음', risk: '없음', mock: '4~6 장비 중 하나 bias, 하나 drift', rep: [1, '1 · A+D 먼저'], cx: [99, '제외 · 비교 가능한 장비·제품·층 확보 후'] },
+  { id: 'D′', way: '장비 매칭 (동일 웨이퍼·사이트 짝 측정, offset+scale, crossed GR&R)', q: '장비를 서로 바꿔 쓸 수 있는가, 보정계수는', axes: '짝 측정 계획 + 반복성 데이터 — 기존 데이터로는 안 나옴', cost: '높음', costN: 3, costNote: '측정 운영이 먼저, 화면이 나중', risk: '없음', mock: '짝을 조작할 수 있으나 그건 검증이 아니라 꾸며 낸 것', rep: [90, '— · 측정 운영 선행'], cx: [98, '언급 없음'] },
+  { id: 'E', way: 'SPC · 적합품질 패널 (히스토그램 + Cpk, 파생값에 MSE 색, 상관 경고)', q: '공정이 관리 상태이고 핏은 신뢰 가능한가', axes: '기존 + B 의 적합 메타', cost: '중간', costN: 2, costNote: '통계는 순수 함수라 node:test 가능', risk: '없음', mock: '알려진 Cpk 분포 + null/NaN 케이스', rep: [5, '5 · A·B 위에 얹음 (Cpk 경계는 사용자 확인)'], cx: [98, '언급 없음'] },
+  { id: 'F', way: '이미징 SE 하이퍼스펙트럴 탐색기 (픽셀×파장 브라우저)', q: '픽셀 단위로 스펙트럼을 봐야 하는 해석 질문', axes: '전부', cost: '매우 높음', costN: 4, costNote: 'SPA·레이트리밋·JSON 전송과 충돌', risk: '전체 큐브 전송 불가 (10⁷ 스펙트럼/취득)', mock: '전체 큐브 배제, ROI/픽셀 지연 조회는 별도 설계', rep: [4, '4 · 벤더 수출 포맷 이후'], cx: [98, '언급 없음'] }
+]
+const COLS = [
+  { key: 'id', label: '#', sort: (r) => r.id },
+  { key: 'way', label: '방식', sort: (r) => r.way },
+  { key: 'q', label: '답하는 질문', sort: (r) => r.q },
+  { key: 'axes', label: '필요한 축 (신규)', sort: (r) => r.axes },
+  { key: 'cost', label: '비용', sort: (r) => r.costN },
+  { key: 'risk', label: '데이터량 위험', sort: (r) => r.risk },
+  { key: 'rep', label: '보고서 순서', sort: (r) => r.rep[0] },
+  { key: 'cx', label: 'codex 순서', sort: (r) => r.cx[0] }
+]
+const COSTS = ['최저', '낮음', '중간', '높음', '매우 높음']
+const candState = { sortKey: 'rep', dir: 1, costs: new Set(), q: '' }
+function renderCandHead() {
+  $('#cand-head').innerHTML = COLS.map((c) => {
+    const s = candState.sortKey === c.key ? (candState.dir > 0 ? 'ascending' : 'descending') : 'none'
+    const arrow = s === 'ascending' ? '▲' : s === 'descending' ? '▼' : '↕'
+    return `<th aria-sort="${s}"><button class="sort" type="button" data-sort="${c.key}">${c.label} <span aria-hidden="true">${arrow}</span></button></th>`
+  }).join('')
+}
+function renderCandBody() {
+  const col = COLS.find((c) => c.key === candState.sortKey)
+  const q = candState.q.trim().toLowerCase()
+  const rows = CANDS
+    .filter((r) => !candState.costs.size || candState.costs.has(r.cost))
+    .filter((r) => !q || [r.id, r.way, r.q, r.axes, r.mock, r.risk].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => { const x = col.sort(a), y = col.sort(b); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'ko')) * candState.dir })
+  const ord = (o, codex) => {
+    if (o[0] >= 99) return `<span class="sk-status sk-status--bad">${esc(o[1])}</span>`
+    if (o[0] >= 90) return `<span class="sk-meta">${esc(o[1])}</span>`
+    return `<span class="sk-value">${esc(o[1])}</span>`
+  }
+  $('#cand-body').innerHTML = rows.map((r) => `<tr>
+    <td><span class="cand-id">${esc(r.id)}</span></td>
+    <td>${esc(r.way)}<div class="sk-meta">목 검증: ${esc(r.mock)}</div></td>
+    <td>${esc(r.q)}</td><td>${esc(r.axes)}</td>
+    <td style="white-space: nowrap;">${esc(r.cost)}<div class="sk-meta" style="white-space: normal;">${esc(r.costNote)}</div></td>
+    <td>${esc(r.risk)}</td><td>${ord(r.rep)}</td><td>${ord(r.cx, true)}</td></tr>`).join('') ||
+    '<tr><td colspan="8" class="sk-meta">조건에 맞는 후보가 없습니다.</td></tr>'
+  $('#cand-count').textContent = `${rows.length} / ${CANDS.length} 후보 · 열 제목을 누르면 정렬합니다.`
+}
+$('#cost-chips').insertAdjacentHTML('beforeend', COSTS.map((c) => `<button class="sk-chip" type="button" data-cost="${c}" aria-pressed="false">${c}</button>`).join(''))
+$('#cost-chips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-cost]'); if (!b) return
+  const c = b.dataset.cost; candState.costs.has(c) ? candState.costs.delete(c) : candState.costs.add(c)
+  b.setAttribute('aria-pressed', candState.costs.has(c)); renderCandBody()
+})
+$('#cand-head').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sort]'); if (!b) return
+  candState.dir = candState.sortKey === b.dataset.sort ? -candState.dir : 1
+  candState.sortKey = b.dataset.sort; renderCandHead(); renderCandBody()
+})
+$('#cand-search').addEventListener('input', (e) => { candState.q = e.target.value; renderCandBody() })
+renderCandHead(); renderCandBody()
+
+// ======================= 섹션 내비 (현재 섹션 = ink) =======================
+const navLinks = $$('#sec-nav a')
+;(() => {
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach((en) => { if (en.isIntersecting) navLinks.forEach((a) => a.setAttribute('aria-pressed', String(a.getAttribute('href') === '#' + en.target.id))) })
+  }, { rootMargin: '-30% 0px -60% 0px' })
+  ;['layers', 'candidates', 'analyses', 'trap', 'wafer', 'drift'].forEach((id) => io.observe(document.getElementById(id)))
+})()
+
+// ======================= 스펙트럼 차트 빌더 (측정 + 모델 + 잔차) =======================
+const one = (B) => (p) => [{ N: cauchy(p[1], p.length > 2 ? p[2] : B), d: p[0] }]
+function spectrumOption(meas, layers, alt) {
+  const F = fur()
+  const model = WL.map((wl) => psiDelta(layers, wl))
+  const res = residuals(meas, layers)
+  const pts = (k) => WL.map((wl, i) => [wl, meas[i][k]])
+  const line = (arr, k) => WL.map((wl, i) => [wl, arr[i][k]])
+  const altM = alt ? WL.map((wl) => psiDelta(alt, wl)) : null
+  const xa = (i, show) => ({ ...baseAxis(), type: 'value', gridIndex: i, min: 300, max: 1000, axisLabel: { ...baseAxis().axisLabel, show }, name: show ? 'λ (nm)' : '', nameLocation: 'middle', nameGap: 22 })
+  const ya = (i, name) => ({ ...baseAxis(), type: 'value', gridIndex: i, scale: true, name, nameLocation: 'middle', nameGap: 38, splitNumber: 3 })
+  const s = [
+    { name: 'Ψ 측정', type: 'scatter', xAxisIndex: 0, yAxisIndex: 0, data: pts(0), symbolSize: 3, itemStyle: { color: SK_SCALE[0] } },
+    { name: 'Ψ 모델', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: line(model, 0), showSymbol: false, lineStyle: { color: F.ink, width: 1.5 } },
+    { name: 'Δ 측정', type: 'scatter', xAxisIndex: 1, yAxisIndex: 1, data: pts(1), symbolSize: 3, itemStyle: { color: SK_SCALE[4] } },
+    { name: 'Δ 모델', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: line(model, 1), showSymbol: false, lineStyle: { color: F.ink, width: 1.5 } },
+    { name: 'Ψ 잔차/σ', type: 'line', xAxisIndex: 2, yAxisIndex: 2, data: WL.map((wl, i) => [wl, res[2 * i]]), showSymbol: false, lineStyle: { color: SK_SCALE[0], width: 1 } },
+    { name: 'Δ 잔차/σ', type: 'line', xAxisIndex: 2, yAxisIndex: 2, data: WL.map((wl, i) => [wl, res[2 * i + 1]]), showSymbol: false, lineStyle: { color: SK_SCALE[4], width: 1 } }
+  ]
+  if (altM) {
+    s.push({ name: 'Ψ 대안', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: line(altM, 0), showSymbol: false, lineStyle: { color: SK_STATE.warn, width: 1.2 }, z: 1 })
+    s.push({ name: 'Δ 대안', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: line(altM, 1), showSymbol: false, lineStyle: { color: SK_STATE.warn, width: 1.2 }, z: 1 })
+  }
+  return {
+    animation: false, textStyle: { fontFamily: 'inherit' },
+    grid: [{ left: 52, right: 12, top: 10, height: '30%' }, { left: 52, right: 12, top: '39%', height: '30%' }, { left: 52, right: 12, top: '76%', bottom: 34 }],
+    xAxis: [xa(0, false), xa(1, false), xa(2, true)],
+    yAxis: [ya(0, 'Ψ (°)'), ya(1, 'Δ (°)'), ya(2, '잔차/σ')],
+    tooltip: tooltip({ trigger: 'axis', axisPointer: { type: 'line' }, valueFormatter: (v) => f(v, 3) }),
+    axisPointer: { link: [{ xAxisIndex: 'all' }] },
+    series: s
+  }
+}
+const LEGEND_HTML = (alt) => `<div class="legend-dom">
+  <span><i class="dot" style="background:${SK_SCALE[0]}"></i>Ψ 측정</span><span><i class="dot" style="background:${SK_SCALE[4]}"></i>Δ 측정</span>
+  <span><i style="background:${fur().ink}"></i>모델</span>${alt ? `<span class="diag"><i style="background:${SK_STATE.warn}"></i>A 고정 대안 모델</span>` : ''}</div>`
+
+// ======================= 적합 품질 트랩 =======================
+const CASES = [
+  { key: 'a', title: '(a) 좋은 핏', truth: [{ N: cauchy(1.46, 0.0040), d: 102.3 }], truthTxt: '단일막 102.3 nm · A 1.460 · B 0.0040', seed: 11, p0: [95, 1.45, 0.003], steps: [1e-4, 1e-6, 1e-7], Bfixed: null },
+  { key: 'b', title: '(b) 높은 MSE — 나쁜 핏', truth: [{ N: cauchy(1.46, 0.0040), d: 95 }, { N: cauchy(1.98, 0.015), d: 10 }], truthTxt: '95 nm 막 + 숨은 계면층 10 nm (n≈2.0) — 모델은 단일막', seed: 12, p0: [100, 1.47, 0.004], steps: [1e-4, 1e-6, 1e-7], Bfixed: null },
+  { key: 'c', title: '(c) 낮은 MSE — 두께↔n 비유일', truth: [{ N: cauchy(1.46, 0.0040), d: 2.0 }], truthTxt: '극박막 2.00 nm · A 1.460 · B 0.0040 (B 는 고정 적합)', seed: 13, p0: [2.5, 1.5], steps: [1e-5, 1e-6], Bfixed: 0.004 }
+]
+const A_GRID = Array.from({ length: 61 }, (_, i) => +(1.30 + i * 0.01).toFixed(2))
+function refitFixedA(cs, A) {
+  const B = cs.Bfixed ?? cs.fit.p[2]
+  // 프로파일 곡선이 이어지도록 직전 해에서 출발
+  const r = fit(cs.meas, (p) => [{ N: cauchy(A, B), d: p[0] }], [cs._lastD ?? cs.fit.p[0]], [cs.steps[0]])
+  return { d: r.p[0], mse: r.mse, layers: [{ N: cauchy(A, B), d: r.p[0] }] }
+}
+for (const cs of CASES) {
+  cs.meas = measure(cs.truth, cs.seed)
+  cs.fit = fit(cs.meas, one(cs.Bfixed), cs.p0, cs.steps)
+  cs.layers = one(cs.Bfixed)(cs.fit.p)
+  // 적합값에서 위·아래로 쓸어 가며 프로파일 계산 (연속 출발점)
+  const A0 = cs.fit.p[1]
+  const up = A_GRID.filter((a) => a >= A0), dn = A_GRID.filter((a) => a < A0).reverse()
+  cs.profile = new Map()
+  for (const side of [up, dn]) { cs._lastD = cs.fit.p[0]; for (const a of side) { const r = refitFixedA(cs, a); cs._lastD = r.d; cs.profile.set(a, r) } }
+  const pAt = (a) => cs.profile.get(+Math.min(1.9, Math.max(1.3, Math.round(a * 100) / 100)).toFixed(2))
+  cs.flat = Math.min(pAt(A0 + 0.10).mse, pAt(A0 - 0.10).mse) / cs.fit.mse
+  const corr = Math.abs(cs.fit.corr[0][1])
+  cs.mseVerdict = cs.fit.mse > 3 ? ['bad', '나쁜 핏'] : ['ok', '좋은 핏으로 보임']
+  cs.fullVerdict = cs.fit.mse > 3 ? ['bad', '불량 — 모델이 스택을 못 담음'] : (corr > 0.95 || cs.flat < 1.5) ? ['warn', '비유일 — 두께 신뢰 불가'] : ['ok', '양호 — 유일한 해']
+}
+function caseCard(cs) {
+  const p = cs.fit.p, sd = cs.fit.sd, corr = cs.fit.corr[0][1]
+  const rows = [['d (nm)', p[0], sd[0], 3], ['A', p[1], sd[1], 4], ...(cs.Bfixed == null ? [['B (µm²)', p[2], sd[2], 5]] : [])]
+  return `<div class="dashboard-surface case-card" id="case-${cs.key}">
+    <div class="row" style="justify-content: space-between;"><span class="sk-heading">${cs.title}</span><span class="mock-tag">조작된 예시</span></div>
+    <div class="row" style="gap: 18px; align-items: flex-end;">
+      <div class="stack" style="gap: 4px;"><span class="sk-label">MSE</span><span class="mse-big">${f(cs.fit.mse, 2)}</span></div>
+      <div class="stack" style="gap: 4px;"><span class="sk-label">두께</span><span class="mse-big" style="font-size: 20px;">${f(p[0], 2)} nm</span></div>
+      <div class="stack" style="gap: 4px;"><span class="sk-label">MSE 만 보면</span><span class="sk-status sk-status--${cs.mseVerdict[0]}">${cs.mseVerdict[1]}</span></div>
+    </div>
+    <div class="chart diag" id="spec-${cs.key}" style="height: 380px;"></div>
+    <div class="diag">${LEGEND_HTML(true)}</div>
+    <table class="sk-table diag">
+      <thead><tr><th>파라미터</th><th style="text-align:right">적합값</th><th style="text-align:right">± 1σ</th><th style="text-align:right">상대 오차</th></tr></thead>
+      <tbody>${rows.map(([n, v, s, dg]) => `<tr><td>${n}</td><td class="num">${f(v, dg)}</td><td class="num">${f(s, dg)}</td><td class="num">${f(100 * s / Math.abs(v), 2)} %</td></tr>`).join('')}
+        ${cs.Bfixed != null ? `<tr><td>B (µm²)</td><td class="num">${f(cs.Bfixed, 5)}</td><td class="num" colspan="2">고정</td></tr>` : ''}</tbody>
+    </table>
+    <div class="verdict-line diag">
+      <span class="sk-label">corr(d, A)</span><span class="sk-value-num" style="color: ${Math.abs(corr) > 0.95 ? 'var(--sk-bad)' : 'var(--sk-ink)'}">${f(corr, 4)}</span>
+      <span class="sk-label">프로파일 배율</span><span class="sk-value-num">${f(cs.flat, 2)}× <span class="sk-meta">(A ±0.10 고정 시 최소 MSE / 적합 MSE)</span></span>
+      <span class="sk-label">반복 수렴</span><span class="sk-value-num">${cs.fit.iter} 회</span>
+      <span class="sk-label">전체 진단</span><span><span class="sk-status sk-status--${cs.fullVerdict[0]}">${cs.fullVerdict[1]}</span></span>
+    </div>
+    <div class="inset diag stack" style="gap: 4px;">
+      <span class="sk-label">정답 (목 생성값 — 실제 측정에서는 알 수 없음)</span>
+      <span class="sk-value">${cs.truthTxt}</span>
+      ${cs.key === 'c' ? `<span class="sk-body">적합값 ${f(p[0], 2)} nm 는 정답 2.00 nm 와 ${f(100 * (p[0] - 2) / 2, 0)} % 어긋나는데 MSE 는 (a) 보다 낮습니다. 1σ 오차한계(${f(sd[0], 2)} nm)도 실제 오차를 과소평가합니다.</span>` : ''}
+      ${cs.key === 'b' ? '<span class="sk-body">잔차가 노이즈가 아니라 파장에 따라 구조를 가집니다 — 모델이 스택을 못 담는 신호입니다.</span>' : ''}
+    </div>
+  </div>`
+}
+$('#cases').innerHTML = CASES.map(caseCard).join('')
+let altA = 1.60
+const altFor = (cs) => cs.profile.get(+altA.toFixed(2))
+for (const cs of CASES) chart('spec-' + cs.key, () => spectrumOption(cs.meas, cs.layers, altFor(cs).layers))
+function renderAltTable() {
+  $('#alt-table').innerHTML = `<thead><tr><th>케이스</th><th style="text-align:right">적합 A</th><th style="text-align:right">적합 MSE</th><th style="text-align:right">A=${altA.toFixed(2)} 고정 시 d</th><th style="text-align:right">A=${altA.toFixed(2)} 고정 시 MSE</th><th>읽는 법</th></tr></thead><tbody>` +
+    CASES.map((cs) => { const r = altFor(cs); const ratio = r.mse / cs.fit.mse
+      return `<tr><td>${cs.title}</td><td class="num">${f(cs.fit.p[1], 3)}</td><td class="num">${f(cs.fit.mse, 2)}</td><td class="num">${f(r.d, 2)} nm</td><td class="num">${f(r.mse, 2)}</td>
+        <td>${ratio < 1.5 ? '<span class="sk-status sk-status--warn">거의 같은 MSE — 이 n 도 데이터와 모순되지 않음</span>' : `<span class="sk-meta">MSE ${f(ratio, 1)}배 — 데이터가 이 n 을 거부</span>`}</td></tr>` }).join('') + '</tbody>'
+}
+chart('profile-chart', () => {
+  const colors = [SK_SITE[0], SK_STATE.bad, SK_STATE.warn]
+  return {
+    animation: false,
+    grid: { left: 56, right: 20, top: 30, bottom: 40 },
+    legend: { top: 0, textStyle: { color: fur().muted, fontSize: 12 } },
+    tooltip: tooltip({ trigger: 'axis', valueFormatter: (v) => f(v, 2) }),
+    xAxis: { ...baseAxis(), type: 'value', min: 1.3, max: 1.9, name: '고정한 Cauchy A (≈ n)', nameLocation: 'middle', nameGap: 26 },
+    yAxis: { ...baseAxis(), type: 'log', name: 'MSE (로그)', nameLocation: 'middle', nameGap: 40, min: 0.5 },
+    series: CASES.map((cs, i) => ({
+      name: cs.title, type: 'line', showSymbol: false, data: A_GRID.map((a) => [a, cs.profile.get(a).mse]),
+      lineStyle: { color: colors[i], width: 2 }, itemStyle: { color: colors[i] },
+      markLine: i === 0 ? { symbol: 'none', silent: true, label: { formatter: `A=${altA.toFixed(2)}`, color: fur().muted }, lineStyle: { color: SK_STATE.warn, type: 'solid', width: 1 }, data: [{ xAxis: altA }] } : undefined
+    }))
+  }
+})
+renderAltTable()
+let rafPending = false
+$('#a-slider').addEventListener('input', (e) => {
+  altA = +e.target.value; $('#a-val').textContent = altA.toFixed(2)
+  if (rafPending) return; rafPending = true
+  requestAnimationFrame(() => { rafPending = false; renderAltTable(); ['spec-a', 'spec-b', 'spec-c', 'profile-chart'].forEach(renderChart) })
+})
+$$('[data-trap-view]').forEach((b) => b.addEventListener('click', () => {
+  const mseOnly = b.dataset.trapView === 'mse'
+  $('#trap').classList.toggle('mse-only', mseOnly)
+  $$('[data-trap-view]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+  if (!mseOnly) requestAnimationFrame(() => charts.forEach((_, id) => { const el = document.getElementById(id); el && window.echarts && echarts.getInstanceByDom(el)?.resize() }))
+}))
+
+// ======================= 웨이퍼 맵 =======================
+const R_WAFER = 150
+const SITES = (() => { // 49-site: 중심 1 + 8 + 16 + 24 링 (edge exclusion 10 mm 가정 — OFFICE-VERIFY)
+  const out = [{ x: 0, y: 0 }]
+  ;[[50, 8], [95, 16], [140, 24]].forEach(([r, n]) => { for (let k = 0; k < n; k++) { const t = 2 * Math.PI * k / n + (n === 16 ? Math.PI / 16 : 0); out.push({ x: +(r * Math.cos(t)).toFixed(1), y: +(r * Math.sin(t)).toFixed(1) }) } })
+  return out.map((s, i) => ({ ...s, id: i + 1, r: Math.hypot(s.x, s.y) }))
+})()
+const WAFERS = [
+  { name: 'LOTA001 · W03', base: 100.0, bowl: 2.2, seed: 100, missing: [31, 38], hiddenIL: [20, 44, 47] },
+  { name: 'LOTA002 · W07', base: 101.4, bowl: 3.0, seed: 200, missing: [12], hiddenIL: [41, 46] }
+]
+for (const w of WAFERS) {
+  const r = rng(w.seed)
+  w.sites = SITES.map((s) => {
+    const truthD = w.base + w.bowl * (s.r / R_WAFER) ** 2 + 0.35 * s.x / R_WAFER + 0.12 * gauss(r)
+    if (w.missing.includes(s.id)) return { ...s, status: 'missing', truthD }
+    const il = w.hiddenIL.includes(s.id)
+    const truth = il ? [{ N: cauchy(1.46, 0.004), d: truthD - 8 }, { N: cauchy(1.98, 0.015), d: 8 }] : [{ N: cauchy(1.46, 0.004), d: truthD }]
+    return { ...s, truth, truthD, seed: w.seed + s.id, status: null }
+  })
+}
+function siteFit(s) {
+  if (s.fit || s.status === 'missing') return s
+  s.meas = measure(s.truth, s.seed)
+  s.fit = fit(s.meas, one(null), [s.truthD * 0.98, 1.45, 0.004], [1e-4, 1e-6, 1e-7])
+  s.status = s.fit.mse > 5 ? 'failed' : 'ok' // 데모 임의 기준
+  return s
+}
+WAFERS.forEach((w) => w.sites.forEach(siteFit))
+const mapState = { layer: 'thk', range: 'common', sel: null }
+function waferStats(w) {
+  const v = w.sites.filter((s) => s.status === 'ok').map((s) => s.fit.p[0])
+  const mean = v.reduce((a, b) => a + b, 0) / v.length
+  const sd = Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / (v.length - 1))
+  const mx = Math.max(...v), mn = Math.min(...v)
+  return { n: v.length, mean, s3: 300 * sd / mean, rng: 100 * (mx - mn) / mean, rng2: 100 * (mx - mn) / (mx + mn), mn, mx,
+    miss: w.sites.filter((s) => s.status === 'missing').length, fail: w.sites.filter((s) => s.status === 'failed').length }
+}
+function rangeFor(wi) {
+  const pick = (w) => w.sites.filter((s) => s.status === 'ok').map((s) => s.fit.p[0])
+  const v = mapState.range === 'common' ? WAFERS.flatMap(pick) : pick(WAFERS[wi])
+  return [Math.floor(Math.min(...v) * 10) / 10, Math.ceil(Math.max(...v) * 10) / 10]
+}
+function waferOption(wi) {
+  const F = fur(), w = WAFERS[wi]
+  const circle = Array.from({ length: 121 }, (_, k) => { const t = 2 * Math.PI * k / 120; return [R_WAFER * Math.cos(t), R_WAFER * Math.sin(t)] })
+  const valOf = (s) => (mapState.layer === 'thk' ? s.fit.p[0] : s.fit.mse)
+  const show = w.sites.filter((s) => s.status === 'ok' || (mapState.layer === 'mse' && s.status === 'failed'))
+  const masked = w.sites.filter((s) => s.status === 'failed' && mapState.layer === 'thk')
+  const missing = w.sites.filter((s) => s.status === 'missing')
+  const [mn, mx] = rangeFor(wi)
+  const selRing = mapState.sel && mapState.sel.wi === wi ? [[mapState.sel.s.x, mapState.sel.s.y]] : []
+  const visualMap = mapState.layer === 'thk'
+    ? { type: 'continuous', seriesIndex: 1, dimension: 2, min: mn, max: mx, inRange: { color: SK_SCALE }, calculable: false, orient: 'horizontal', left: 'center', bottom: 0, itemWidth: 10, itemHeight: 160, text: [f(mx, 1) + ' nm', f(mn, 1)], textStyle: { color: F.muted, fontSize: 11 } }
+    : { type: 'piecewise', seriesIndex: 1, dimension: 2, pieces: [{ lte: 2, label: 'MSE ≤ 2', color: SK_STATE.ok }, { gt: 2, lte: 5, label: '2–5', color: SK_STATE.warn }, { gt: 5, label: '> 5', color: SK_STATE.bad }], orient: 'horizontal', left: 'center', bottom: 0, itemWidth: 12, textStyle: { color: F.muted, fontSize: 11 } }
+  return {
+    animation: false,
+    grid: (() => { const el = document.getElementById('wafer-' + wi); const sz = Math.max(160, Math.min((el?.clientWidth || 300) - 16, (el?.clientHeight || 330) - 56)); return { left: 'center', top: 8, width: sz, height: sz } })(), // 원이 타원이 되지 않게 정사각
+    xAxis: { type: 'value', min: -155, max: 155, show: false }, yAxis: { type: 'value', min: -155, max: 155, show: false },
+    tooltip: tooltip({ trigger: 'item', formatter: (p) => { const s = p.data?.s; if (!s) return ''; const st = { ok: '정상', failed: '적합 실패', missing: '측정 결측' }[s.status]
+      return `사이트 ${s.id} · (${s.x}, ${s.y}) mm<br>상태: ${st}${s.fit ? `<br>두께 ${f(s.fit.p[0], 2)} nm<br>MSE ${f(s.fit.mse, 2)}` : ''}` } }),
+    visualMap,
+    series: [
+      { type: 'line', data: circle, showSymbol: false, silent: true, lineStyle: { color: F.axis, width: 1.5 }, z: 1 },
+      { name: 'site', type: 'scatter', symbol: 'circle', symbolSize: 17, data: show.map((s) => ({ value: [s.x, s.y, valOf(s)], s })), itemStyle: { borderColor: F.surface, borderWidth: 1 }, z: 3 },
+      { name: '적합 실패', type: 'scatter', symbol: 'diamond', symbolSize: 15, data: masked.map((s) => ({ value: [s.x, s.y], s })), itemStyle: { color: 'transparent', borderColor: SK_STATE.bad, borderWidth: 2 }, z: 3 },
+      { name: '결측', type: 'scatter', symbol: 'path://M2,2 L18,18 M18,2 L2,18', symbolSize: 11, data: missing.map((s) => ({ value: [s.x, s.y], s })), itemStyle: { color: 'transparent', borderColor: F.muted, borderWidth: 2 }, z: 3 },
+      { type: 'scatter', symbol: 'circle', symbolSize: 25, data: selRing, silent: true, itemStyle: { color: 'transparent', borderColor: F.ink, borderWidth: 2 }, z: 4 },
+      { type: 'scatter', symbol: 'triangle', symbolSize: 9, data: [[0, -R_WAFER + 2]], silent: true, itemStyle: { color: F.muted }, z: 2 } // notch
+    ]
+  }
+}
+function renderWaferCard(wi) {
+  const w = WAFERS[wi], st = waferStats(w)
+  $('#wafer-card-' + wi).innerHTML = `
+    <div class="row" style="justify-content: space-between;"><span class="sk-heading">${w.name}</span><span class="sk-meta">장비 OPT01</span></div>
+    <div class="chart" id="wafer-${wi}" style="height: 330px;"></div>
+    <div class="legend-dom"><span><span style="color:${SK_STATE.bad}">◇</span> 적합 실패 (마스크)</span><span>✕ 측정 결측</span><span>▲ notch (아래)</span></div>
+    <table class="sk-table"><tbody>
+      <tr><td>평균</td><td class="num">${f(st.mean, 2)} nm</td></tr>
+      <tr><td>3σ% = 300·s/mean</td><td class="num">${f(st.s3, 2)} %</td></tr>
+      <tr><td>range% = 100·(max−min)/mean</td><td class="num">${f(st.rng, 2)} %</td></tr>
+      <tr><td>range% = 100·(max−min)/(max+min)</td><td class="num">${f(st.rng2, 2)} %</td></tr>
+      <tr><td>사용 사이트</td><td class="num">${st.n} / 49 (결측 ${st.miss}, 실패 ${st.fail})</td></tr>
+    </tbody></table>`
+  chart('wafer-' + wi, () => waferOption(wi), (p) => { const s = p.data?.s; if (s) selectSite(wi, s) })
+  charts.get('wafer-' + wi).squareGrid = true
+}
+function selectSite(wi, s) {
+  mapState.sel = { wi, s }
+  renderChart('wafer-0'); renderChart('wafer-1')
+  const card = $('#site-card'), w = WAFERS[wi]
+  const head = `<div class="row" style="justify-content: space-between;"><span class="sk-heading">사이트 ${s.id} · ${w.name}</span><span class="mock-tag">조작된 예시</span></div>
+    <span class="sk-meta">좌표 (${s.x}, ${s.y}) mm · r = ${f(s.r, 0)} mm · AOI 70°</span>`
+  if (s.status === 'missing') {
+    card.innerHTML = head + '<div class="inset sk-body">측정 결측 사이트입니다. 스펙트럼이 없습니다. 맵은 이 자리를 보간하지 않고 ✕ 로 남깁니다.</div>'
+    charts.delete('site-spec'); return
+  }
+  const st = s.status === 'failed' ? '<span class="sk-status sk-status--bad">적합 실패 — 두께 맵에서 마스크</span>' : '<span class="sk-status sk-status--ok">정상</span>'
+  card.innerHTML = head + `<div class="row">${st}</div>
+    <div class="chart" id="site-spec" style="height: 360px;"></div>${LEGEND_HTML(false)}
+    <table class="sk-table"><tbody>
+      <tr><td>두께 d</td><td class="num">${f(s.fit.p[0], 2)} ± ${f(s.fit.sd[0], 2)} nm</td></tr>
+      <tr><td>Cauchy A / B</td><td class="num">${f(s.fit.p[1], 4)} / ${f(s.fit.p[2], 5)}</td></tr>
+      <tr><td>MSE</td><td class="num">${f(s.fit.mse, 2)}</td></tr>
+      <tr><td>corr(d, A)</td><td class="num">${f(s.fit.corr[0][1], 3)}</td></tr>
+    </tbody></table>
+    ${s.status === 'failed' ? '<div class="inset sk-body">정답 스택에 8 nm 계면층이 숨어 있습니다(목 생성값). 단일막 모델은 이것을 담지 못해 잔차에 구조가 남고 MSE 가 큽니다. 이 두께 숫자는 맵에 칠하지 않습니다.</div>' : ''}`
+  chart('site-spec', () => spectrumOption(s.meas, one(null)(s.fit.p), null))
+}
+$$('[data-map-layer]').forEach((b) => b.addEventListener('click', () => {
+  mapState.layer = b.dataset.mapLayer; $$('[data-map-layer]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); renderChart('wafer-0'); renderChart('wafer-1')
+}))
+$$('[data-map-range]').forEach((b) => b.addEventListener('click', () => {
+  mapState.range = b.dataset.mapRange; $$('[data-map-range]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); renderChart('wafer-0'); renderChart('wafer-1')
+}))
+
+// ======================= 장비 편차 =======================
+const TOOLS = ['OPT01', 'OPT02', 'OPT03', 'OPT04']
+const DAY0 = Date.UTC(2026, 8, 24) // 2026-09-24
+const DAYS = 30, DRIFT_START = 14 // 10-08
+const day = (i) => new Date(DAY0 + i * 864e5).toISOString().slice(5, 10)
+const median = (a) => { const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2 }
+const drift = (() => {
+  const r = rng(777), lots = [], perDay = []
+  for (let i = 0; i < DAYS; i++) {
+    const proc = 0.45 * Math.sin(i / 4.5) + 0.25 * gauss(r) // 모든 장비에 같이 실리는 공정 흔들림
+    const meds = TOOLS.map((t, ti) => {
+      const eff = (ti === 1 ? 0.9 : 0) + (ti === 3 && i >= DRIFT_START ? 0.12 * (i - DRIFT_START) : 0)
+      const v = [0, 1, 2].map(() => 100 + proc + eff + 0.22 * gauss(r))
+      v.forEach((x) => lots.push({ ti, i, v: x }))
+      return median(v)
+    })
+    const fleet = median(meds)
+    perDay.push(meds.map((m) => m - fleet))
+  }
+  const summary = TOOLS.map((t, ti) => {
+    const ys = perDay.map((d) => d[ti]), xs = ys.map((_, i) => i)
+    const mx = (DAYS - 1) / 2, my = ys.reduce((a, b) => a + b, 0) / DAYS
+    const slope = xs.reduce((a, x, k) => a + (x - mx) * (ys[k] - my), 0) / xs.reduce((a, x) => a + (x - mx) ** 2, 0)
+    const last7 = ys.slice(-7).reduce((a, b) => a + b, 0) / 7
+    const first = ys.findIndex((_, k) => k >= 2 && [0, 1, 2].every((j) => Math.abs(ys[k - j]) > 0.5))
+    const verdict = Math.abs(slope) > 0.03 ? ['warn', 'drift'] : Math.abs(my) > 0.5 ? ['bad', 'bias'] : ['ok', '정상 범위']
+    return { t, my, slope, last7, first: first < 0 ? null : first - 2, verdict }
+  })
+  return { lots, perDay, summary }
+})()
+chart('drift-raw', () => ({
+  animation: false,
+  grid: { left: 52, right: 16, top: 32, bottom: 36 },
+  legend: { top: 0, textStyle: { color: fur().muted, fontSize: 12 } },
+  tooltip: tooltip({ trigger: 'item', formatter: (p) => `${p.seriesName} · ${day(p.value[0])}<br>${f(p.value[1], 2)} nm` }),
+  xAxis: { ...baseAxis(), type: 'value', min: 0, max: DAYS - 1, interval: 7, axisLabel: { ...baseAxis().axisLabel, formatter: (v) => day(v) } },
+  yAxis: { ...baseAxis(), type: 'value', scale: true, name: '두께 (nm)', nameLocation: 'middle', nameGap: 38 },
+  series: TOOLS.map((t, ti) => ({ name: t, type: 'scatter', symbolSize: 5, itemStyle: { color: SK_SITE[ti] }, data: drift.lots.filter((l) => l.ti === ti).map((l) => [l.i + (ti - 1.5) * 0.12, l.v]) }))
+}))
+chart('drift-delta', () => ({
+  animation: false,
+  grid: { left: 52, right: 16, top: 32, bottom: 36 },
+  legend: { top: 0, textStyle: { color: fur().muted, fontSize: 12 } },
+  tooltip: tooltip({ trigger: 'axis', valueFormatter: (v) => f(v, 2) + ' nm', axisPointer: { type: 'line' } }),
+  xAxis: { ...baseAxis(), type: 'value', min: 0, max: DAYS - 1, interval: 7, axisLabel: { ...baseAxis().axisLabel, formatter: (v) => day(v) } },
+  yAxis: { ...baseAxis(), type: 'value', name: 'Δ (nm)', nameLocation: 'middle', nameGap: 38 },
+  series: TOOLS.map((t, ti) => ({
+    name: t, type: 'line', showSymbol: false, data: drift.perDay.map((d, i) => [i, d[ti]]), lineStyle: { color: SK_SITE[ti], width: 2 }, itemStyle: { color: SK_SITE[ti] },
+    markArea: ti === 0 ? { silent: true, itemStyle: { color: 'rgba(201,138,46,0.10)' }, data: [[{ yAxis: -0.5 }, { yAxis: 0.5 }]] } : undefined,
+    markLine: ti === 3 ? { symbol: 'none', silent: true, label: { formatter: 'drift 시작 (심은 값)', position: 'insideStartTop', color: fur().muted, fontSize: 11 }, lineStyle: { color: SK_SITE[3], type: 'solid', width: 1, opacity: 0.6 }, data: [{ xAxis: DRIFT_START }] } : undefined
+  }))
+}))
+$('#drift-table').innerHTML = `<thead><tr><th>장비</th><th style="text-align:right">평균 Δ</th><th style="text-align:right">기울기</th><th style="text-align:right">최근 7일 Δ</th><th>|Δ| &gt; 0.5 nm 3일 연속 시작</th><th>판정 (데모 규칙)</th></tr></thead><tbody>` +
+  drift.summary.map((s, ti) => `<tr><td><span style="color:${SK_SITE[ti]}">●</span> ${s.t}</td><td class="num">${f(s.my, 2)} nm</td><td class="num">${f(s.slope, 3)} nm/일</td><td class="num">${f(s.last7, 2)} nm</td><td class="num">${s.first == null ? '—' : day(s.first)}</td><td><span class="sk-status sk-status--${s.verdict[0]}">${s.verdict[1]}</span></td></tr>`).join('') + '</tbody>'
+
+// ======================= 부팅 =======================
+loadECharts().then((ok) => {
+  echartsReady = ok
+  renderWaferCard(0); renderWaferCard(1)
+  renderAllCharts()
+})
+</script>
+</body>
+</html>
