@@ -37,6 +37,23 @@ export interface Notice {
 
 export const NOTICES: Notice[] = [
   {
+    date: '2026-10-26',
+    category: '공지',
+    title: 'VeritySEM · Provision 장비 연결 1차 작업 완료',
+    sections: [
+      {
+        area: '전체',
+        items: [
+          '오늘부로 AMAT VeritySEM · Provision 장비 연결 1차 작업을 마무리했습니다. 이제 CD-SEM · HV-SEM 과 함께 VeritySEM · Provision 장비도 SKEWNONO 에서 확인할 수 있습니다.',
+          '홈 화면과 왼쪽 메뉴의 VeritySEM · Provision 버튼으로 장비 리스트에 들어갈 수 있습니다. 장비별 연결 상태와 버전, 장비 IP 를 보여 주며, Provision 은 데이터 서버 IP 도 함께 표시합니다.',
+          '장비 상태의 FTP 접속 탭에서 VeritySEM · Provision 장비의 파일도 열람 · 다운로드할 수 있습니다. Provision 은 장비와 데이터 서버 중 접속할 곳을 고를 수 있고, 측정 CSV 폴더로 바로 이동할 수 있습니다.',
+          'Recipe 관련 서비스와 통합 분석 대시보드(스큐보아)는 VeritySEM · Provision 용으로 구축을 진행하고 있으며, 준비되는 대로 순차적으로 확장할 예정입니다.',
+          '사용 중 오류나 개선 의견은 담당자(최대영TL)에게 DM 또는 유선으로 알려 주시기 바랍니다.'
+        ]
+      }
+    ]
+  },
+  {
     date: '2026-10-22',
     category: '기능추가',
     title: 'Recipe 검색 — 계산식(Formula) 파라미터 해석 · 파라미터 목록 컬럼 선택 · 최근 검색 표시 개선',
