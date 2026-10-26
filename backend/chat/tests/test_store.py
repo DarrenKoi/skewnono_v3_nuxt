@@ -890,10 +890,13 @@ def test_complete_turn_round_trips_attachments(monkeypatch, tmp_path):
 
 
 def test_cloud_default_db_lives_outside_the_deploy_tree(monkeypatch):
-    """The cloud refreshes /project/workSpace/ wholesale; threads must not be in it."""
+    """Deploy replaces each bundle root under /project/workSpace/; threads must sit beside them."""
+    from scripts.deploy.pack import INCLUDED_ROOTS
+
     monkeypatch.delenv("SKEWNONO_CHAT_DB")
     monkeypatch.setattr(store, "is_cloud", lambda: True)
     monkeypatch.setattr(store.Path, "mkdir", lambda *a, **k: None)
     path = store.Path(store._db_path())
     assert path == store.CLOUD_CHAT_DB
-    assert not path.is_relative_to(store.CLOUD_PREFIX)
+    for root in INCLUDED_ROOTS:
+        assert not path.is_relative_to(store.CLOUD_PREFIX / root)

@@ -39,10 +39,11 @@ _MESSAGE_COLUMNS = (
 _STALE_SLACK_SECONDS = 30
 
 
-# Beside the deploy tree, not in it: /project/workSpace/ is refreshed wholesale
-# (backend/.env included), so neither the old in-tree default nor an .env-only
-# override survived a refresh. OFFICE-VERIFY: /project/ writable by uWSGI.
-CLOUD_CHAT_DB = CLOUD_PREFIX.parent / "skewnono_data" / "chat.db"
+# Beside the refreshed folders, not in them: /project/workSpace/ is permanent,
+# but its backend/ (and backend/.env with it) is replaced on deploy, so neither
+# the old in-tree default nor an .env-only override survived. Must not collide
+# with a pack.py INCLUDED_ROOTS name (a test pins it).
+CLOUD_CHAT_DB = CLOUD_PREFIX / "chat_data" / "chat.db"
 
 
 def _db_path() -> str:

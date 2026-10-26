@@ -405,9 +405,10 @@ marker 없이 기본 허용으로 통과한 `no_marker_default_allow`, off-topic
 
 **2026-08-28 결정(RAG 측 확인): office thread storage 는 SQLite 입니다.**
 `providers/office.py` 를 만들지 않고 `SKEWNONO_CHAT_DB` 만 영속 경로로 둡니다.
-cloud 에서 이 값이 비어 있으면 `/project/skewnono_data/chat.db` 를 씁니다
-(2026-10-26). `/project/workSpace/` 는 `backend/.env` 까지 통째로 갱신되므로
-트리 안의 기본 경로도, `.env` 에만 적은 경로도 갱신 후 남지 않았습니다.
+cloud 에서 이 값이 비어 있으면 `/project/workSpace/chat_data/chat.db` 를
+씁니다(2026-10-26). `/project/workSpace/` 자체는 영구 보관되지만 그 안의
+`backend/` 는 `.env` 까지 통째로 갱신되므로, 트리 안의 기본 경로도 `.env` 에만
+적은 경로도 갱신 후 남지 않았습니다.
 단일 host 이므로 코드 변경이 없고, uWSGI worker 여럿이 한 파일을 여는 것은
 SQLite 의 파일 잠금이 처리합니다. deploy pack 은 `*.db` 를 prune 하므로 번들이
 cloud 의 thread 를 덮어쓰지 않습니다. 아래 절은 저장소를 multi-host 로 옮길
