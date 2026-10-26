@@ -82,3 +82,11 @@ FTP 접속 (tool_files, 2026-10-23 구현)
 파일 이름은 latin-1 로 읽습니다 — byte 그대로 통과시키며 UTF-8 로 decode 하지 않습니다
 (user-confirmed 2026-10-23). SKEWNONO_TOOL_FTP_ENCODING=latin-1 하나로 Hitachi 와 같이 덮입니다.
 로그인 폴더는 OFFICE-VERIFY 입니다.
+
+디스크 여유 공간 (storage, office 확인 2026-10-26)
+
+장비 FTP 서버는 디스크 여유 공간을 알려 주지 않습니다. scripts/probes/ftp_space_probe.py 로
+AVBL / SITE DF / SITE DISKFREE 를 경로 없이, 그리고 /D_Drive · /C_Drive 에 붙여 보냈고 모두
+응답이 없었습니다. 따라서 CD-SEM·HV-SEM 처럼 FTP 만으로 storage 를 수집할 수 없으며, 장비 쪽
+예약 작업(wmic 결과를 파일로 남기기)이 필요합니다. VeritySEM storage 는 보류 상태입니다
+(user-confirmed 2026-10-26). 출력 원문(FTP 서버 종류, SYST/FEAT 응답)은 받지 않았습니다.

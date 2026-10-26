@@ -9,6 +9,11 @@ FTP 로 읽을 수 없습니다. 장비에 무엇을 설치하기 전에, **장�
 `AVBL`, `SITE DF`, `SITE DISKFREE`)만 보냅니다. 장비의 파일을 만들거나 지우는 명령은
 보내지 않습니다.
 
+> **결과 (office 확인 2026-10-26):** VeritySEM·Provision 모두 `여유 공간 명령 응답 없음`
+> 으로 나왔습니다. 그래서 2 단계는 하지 않고 두 계열의 storage 는 보류합니다. 실행에는
+> 계정을 파일 안에 적는 단독 파일 `ftp_space_probe.py` 를 썼습니다. 기록은
+> `docs/datatables/veritysem/verity_hosts.txt`·`provision/provision_hosts.txt` 에 있습니다.
+
 절차는 두 단계입니다. **1 단계 결과가 나오기 전에는 2 단계를 하지 않습니다.**
 
 | 단계 | 어디서 | 무엇을 | 언제 |
