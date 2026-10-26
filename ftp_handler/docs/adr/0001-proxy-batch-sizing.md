@@ -5,7 +5,7 @@
 
 ## Context
 
-The Flask proxy (`ftp_handler/ftp_flask_proxy.py`) mounts as a blueprint on the
+The Flask proxy (`ftp_handler/proxy/flask_proxy.py`) mounts as a blueprint on the
 existing company API uWSGI app. That app's envelope (`api/wsgi.ini`):
 `processes=4`, `reload-on-rss=1500` (MB), `harakiri=60` (s), on an **8 GiB**
 host, and it already runs memory-heavy pandas/Arrow tasks (600–800 MB per
@@ -45,8 +45,8 @@ defaults against the shared 8 GiB envelope**:
 - `client_workers = 4` — match `processes=4`: one batch per worker process, no
   two batches stacking in a single worker's address space.
 
-These are baked in as defaults in `ftp_flask_downloader.py` (and the proxy's
-`host_timeout` fallback in `ftp_flask_proxy.py`), not left to the call site,
+These are baked in as defaults in `proxy/proxy_downloader.py` (and the proxy's
+`host_timeout` fallback in `proxy/flask_proxy.py`), not left to the call site,
 because the defaults exist to give a caller who hasn't done this math a safe
 result on the shared host.
 

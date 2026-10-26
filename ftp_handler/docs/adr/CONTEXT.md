@@ -28,12 +28,12 @@ does the real FTP and returns file bytes. Both paths are in use.
 ### Interchange seam (`FleetTransport`)
 The contract that lets a call site swap Direct path for Proxy path by changing
 one import line. Declared as the `FleetTransport` Protocol in
-`ftp_fleet_downloader.py`; both `FtpFleetDownloader` classes (direct and the
-`ftp_flask_downloader` HTTP client) satisfy it structurally, and a conformance
-test asserts neither drifts. Both phases of a fleet run are on the seam:
-`list_dirs` (the Listing pass) and `download`. The proxy pair carries each over
-HTTP (`/list_dirs_sknn_v3`, `/download_sknn_v3`), so a firewalled client gets the
-full look-before-you-download workflow.
+`direct_downloader/fleet_downloader.py`; both `FtpFleetDownloader` classes (direct
+and the `proxy/proxy_downloader.py` HTTP client) satisfy it structurally, and a
+conformance test asserts neither drifts. Every fleet operation is on the seam —
+`download`, `list_dirs` (the Listing pass), `size_dirs`, `upload`, and `mkdir`
+(the Ensure-dir pass) — and the proxy pair carries each over its own
+`/<op>_sknn_v3` route, so a firewalled client gets the full workflow.
 
 ### File-size class
 Whether a run's files are "small" (KB–few MB) or "large" (~10MB+). Drives the
@@ -41,7 +41,7 @@ memory and timeout safety analysis differently per path — the direct path
 tolerates large files easily; the proxy path is sensitive to them.
 
 ### Single-server client
-`FtpClient` (`ftp_client.py`): one host, one reused connection, ad-hoc
+`FtpClient` (`core/client.py`): one host, one reused connection, ad-hoc
 operations — `list_dir` (NLST, names only), `list_entries` (MLSD, subfolders
 and files split into `DirEntries`), `list_details` (LIST, `FileInfo` with size
 and tz-aware modified time), download / upload / remove. The opposite scale from
@@ -68,3 +68,10 @@ host's `listings` directories concurrently and returns a `ListingReport` of
 "look before you download": inspect what's out there, then feed the chosen
 paths back into `download` via `report.to_specs()`. Shares the Fleet's
 concurrency, host-timeout, and per-host failure isolation.
+
+### Ensure-dir pass
+`FtpFleetDownloader.mkdir` (or `mkdir_fleet`) with `MkdirSpec(host, dirs)`: makes
+each directory like `mkdir -p` — missing parents too, an existing directory
+counts as success — so it runs before an `upload` to a new path. A refused MKD
+is settled by CWD into that path, because FTP answers 550 both for "exists" and
+for "denied".

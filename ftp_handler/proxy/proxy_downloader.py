@@ -113,6 +113,7 @@ __all__ = [
     "list_fleet",
     "size_fleet",
     "upload_fleet",
+    "mkdir_fleet",
     "HostSpec",
     "ListDir",
     "DownloadReport",
@@ -667,3 +668,15 @@ def upload_fleet(
     """One-call wrapper, mirroring direct_downloader.upload_fleet."""
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.upload(specs)
+
+
+def mkdir_fleet(
+    specs: list[MkdirSpec],
+    *,
+    user: str,
+    password: str,
+    **kwargs: object,
+) -> MkdirReport:
+    """One-call wrapper, mirroring direct_downloader.mkdir_fleet."""
+    downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
+    return downloader.mkdir(specs)

@@ -193,6 +193,24 @@ print(report.ok, report.ng, report.grouped())   # {host: [remote_path, ...]}
 호스트마다 다른 파일을 올리려면 `UploadSpec`을 직접 만든다. `upload_fleet`은 한 번
 호출로 끝나는 함수 래퍼다.
 
+**디렉터리 생성(`mkdir`):** STOR는 없는 폴더에 쓰지 못하므로, 새 경로에 올리기 전에
+`mkdir`로 목적지를 보장한다. `MkdirSpec.dirs`의 각 경로는 `mkdir -p`처럼 동작한다 —
+없는 상위 폴더까지 만들고, 이미 있는 폴더는 성공으로 친다. 그래서 매 업로드 전에
+불러도 안전하다:
+
+```python
+from ftp_handler.direct_downloader import FtpFleetDownloader, MkdirSpec
+
+dl = FtpFleetDownloader(user="u", password="p")
+report = dl.mkdir([MkdirSpec(h, dirs=["/INBOX/2026/10"]) for h in hosts])
+ready = set(report.grouped())                 # {host: [remote_dir, ...]} — 성공한 호스트
+specs = [s for s in specs if s.host in ready]  # 폴더가 보장된 호스트에만 업로드
+```
+
+FTP는 "이미 있음"과 "권한 없음"에 똑같이 550을 답하므로, MKD가 거절되면 그 경로로
+`CWD`를 시도해 구분한다(들어가지면 이미 있는 폴더). 상대 경로는 로그인 직후의 PWD
+기준이다. `mkdir_fleet(specs, user=..., password=...)`은 한 번 호출 래퍼다.
+
 ---
 
 ## 케이스 3 — HTTP 프록시 경유의 방화벽 안 클라이언트 (`proxy`)
@@ -222,7 +240,7 @@ app.register_blueprint(ftp_proxy_sknn_v3)
 ```
 
 플릿 하나가 계정 하나인 것은 아니다. 계열이 섞여 계정이 갈리는 경우에는 그 호스트의
-spec 에만 계정을 실으면 되고, 나머지는 위 환경 변수를 그대로 쓴다:
+spec 에만 계정을 실으면 되고, 나머지는 클라이언트 생성자의 공용 계정을 쓴다:
 
 ```python
 specs = [
@@ -244,17 +262,18 @@ dl = FtpFleetDownloader(user="u", password="p")   # 프록시 위치는 PROXY_UR
 report = dl.download(specs, on_file=save_to_dir(r"C:\eqp"))  # on_file은 로컬에서 실행
 ```
 
-proxy adapter의 `user` / `password` 인자는 direct adapter와 같은 생성자
-시그니처를 유지하기 위해 받지만 HTTP body에는 넣지 않는다. 실제 FTP 로그인에는
-프록시 호스트 환경 변수의 계정을 사용한다.
+계정은 `user`와 `password` **각각 따로** spec 값 → 클라이언트 생성자 값 → 프록시
+호스트 환경 변수 순으로 정해진다. 그래서 한쪽만 비면 그 필드만 환경 변수에서 채워진다
+(예: spec이 `password`만 주면 `FTP_PROXY_FTP_USER`와 짝지어진다). 프록시 환경 계정을
+쓰려면 spec과 생성자 양쪽에서 그 필드를 빈 문자열로 둔다.
 
 데이터클래스(`HostSpec`, `DownloadReport`, …)는 direct 다운로더의 것과 동일한
 객체라서 `report.grouped()`, `to_specs()` 등이 똑같이 동작한다. copy-out: 이 쌍에
 `fleet_downloader.py`와 `listing.py`를 더하면 클라이언트 PC에 평평하게 떨궈 bare
 이름으로 import 할 수 있다.
 
-`download` / `list_dirs` / `size_dirs`와 마찬가지로 `upload`도 같은 표면으로 프록시
-너머에서 동작한다(케이스 2의 예제에서 import만 `ftp_handler.proxy`로 바꾸면 된다).
+`download` / `list_dirs` / `size_dirs`와 마찬가지로 `upload`와 `mkdir`도 같은 표면으로
+프록시 너머에서 동작한다(케이스 2의 예제에서 import만 `ftp_handler.proxy`로 바꾸면 된다).
 클라이언트가 바이트를 base64로 실어 보내면 프록시가 풀어서 STOR 한다. `size_dirs`는
 `list_dirs`처럼 바이트를 싣지 않으므로 가볍다.
 

@@ -1005,9 +1005,18 @@ class FtpFleetDownloader:
         try:
             with self._session(spec) as ftp:
                 home = ftp.pwd()
-                for remote_dir in spec.dirs:
+                for i, remote_dir in enumerate(spec.dirs):
                     try:
                         _makedirs(ftp, remote_dir, home)
+                    except _CwdLost as exc:
+                        # The session is stuck in some other directory, so any
+                        # further relative MKD would land there and still read
+                        # as success. Give up on this host's remaining dirs.
+                        failures.extend(
+                            HostFailure(host=spec.host, error=str(exc), remote_path=d)
+                            for d in spec.dirs[i:]
+                        )
+                        break
                     except _FTP_ERRORS as exc:
                         failures.append(
                             HostFailure(
@@ -1081,6 +1090,11 @@ class FtpFleetDownloader:
             )
 
 
+class _CwdLost(Exception):
+    """The CWD back to the login PWD failed, so the session's current directory
+    is no longer the one relative paths are meant to resolve against."""
+
+
 def _makedirs(ftp: FTP, remote_dir: str, home: str) -> None:
     """``mkdir -p remote_dir`` over FTP: MKD each path prefix in turn.
 
@@ -1088,7 +1102,8 @@ def _makedirs(ftp: FTP, remote_dir: str, home: str) -> None:
     "permission denied", so a refused MKD is settled by CWD-ing into that
     prefix: entering it means it is already a directory (then CWD back to
     ``home``); failing to enter it re-raises the MKD error. Relative paths
-    resolve against ``home``, which is why the session never stays elsewhere.
+    resolve against ``home``, which is why the session never stays elsewhere;
+    if the CWD back fails, ``_CwdLost`` tells the caller the session is unusable.
     """
     parts = remote_dir.rstrip("/").split("/")
     for i in range(1, len(parts) + 1):
@@ -1102,7 +1117,12 @@ def _makedirs(ftp: FTP, remote_dir: str, home: str) -> None:
                 ftp.cwd(prefix)
             except error_perm:
                 raise exc from None
-            ftp.cwd(home)
+            try:
+                ftp.cwd(home)
+            except _FTP_ERRORS as restore_exc:
+                raise _CwdLost(
+                    f"CWD back to {home} failed: {type(restore_exc).__name__}: {restore_exc}"
+                ) from restore_exc
 
 
 def specs_from_hosts(
@@ -1190,6 +1210,19 @@ def upload_fleet(
     """
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.upload(specs)
+
+
+def mkdir_fleet(
+    specs: list[MkdirSpec],
+    *,
+    user: str,
+    password: str,
+    **kwargs: object,
+) -> MkdirReport:
+    """One-call convenience wrapper around ``FtpFleetDownloader.mkdir``; extra
+    keyword args are forwarded to the constructor, as for ``upload_fleet``."""
+    downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
+    return downloader.mkdir(specs)
 
 
 def download_fleet(

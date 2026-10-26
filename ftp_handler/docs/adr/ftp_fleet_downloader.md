@@ -1,332 +1,106 @@
-# FTP Fleet Downloader
+# FTP Fleet Downloader — design rationale
 
-Concurrent, in-memory FTP downloader for pulling the same files from many
-equipment FTP servers (~200+) on a schedule. Lives in
-`ftp_handler/ftp_fleet_downloader.py`; the storage/processing glue is in
-`ftp_handler/eqp_ftp_collect.py`; the production DAG is
-`dags/eqp_ftp/eqp_ftp_collector_dag.py`.
+Why `direct_downloader.FtpFleetDownloader` and its proxy twin are shaped the way
+they are. How to call them is in `../guides/usage.md`; the module map and the
+per-operation table are in `../guides/summary.md`; terms are in `CONTEXT.md`.
 
-## Why this shape
+## Threads + `ftplib`, no event loop
 
-- **`asyncio.to_thread` + `ftplib`, not `aioftp`.** Each host is one short FTP
-  session that is almost all socket I/O, and Python releases the GIL during
-  socket I/O — so blocking `ftplib` in a bounded thread pool fans out hundreds
-  of hosts concurrently with **zero extra packages**. No `aioftp` to
-  `pip install` into an Airflow venv, no `PythonVirtualenvOperator`, no version
-  drift between your laptop and the worker. (Unpinned `aioftp` installed at
-  task runtime, drifting from your local version, is a classic
-  "works on my machine, breaks on the server" cause.)
-- **Bounded concurrency.** ~200 *simultaneous* connections blow past the
-  worker's open-file limit (`ulimit -n`) and the equipment's connection caps;
-  some downloads then silently fail. `max_concurrency` caps how many run at
-  once.
-- **Per-host isolation.** One dead/black-holed host can't abort or stall the
-  rest: tight timeouts bound each host, and failures are collected, not raised.
+Each host is one short FTP session that is almost all socket I/O, and Python
+releases the GIL during socket I/O — so blocking `ftplib` in a bounded
+`ThreadPoolExecutor` fans out hundreds of hosts concurrently with **zero extra
+packages**. No `aioftp` to install into an Airflow venv, no version drift
+between a laptop and the worker (unpinned `aioftp` installed at task runtime
+was the original "works locally, fails on the server" bug).
 
-## Quick start
+There is no asyncio anywhere: every fleet operation is a plain synchronous
+call, safe from a script, an Airflow task, a Flask handler, or code already
+running its own event loop.
 
-### Mode A — collect everything, then process
+## Bounded concurrency and the two timeouts
 
-Returns one `DownloadReport` holding every file's bytes. Peak RAM = **sum of
-all files**. Fine for small files / modest fleets.
+- `max_concurrency` (default 48) caps simultaneous connections. ~200 at once
+  blows past `ulimit -n` and the equipment's connection caps, and downloads
+  then fail silently. The threads are I/O-bound, so the cap is not tied to CPU
+  count; the real limits are file descriptors, peak RAM (streaming mode:
+  `concurrency × file size`), and the servers.
+- `connect_timeout` (default 8 s) is the dead-host detector: it bounds every
+  blocking socket op, so an offline tool is abandoned in seconds.
+- `host_timeout` (default 60 s; the proxy client defaults to 45 s) is the
+  whole-host backstop for a host that connects and then stalls. It is measured
+  from when that host's worker starts, not from submit. Keep it above
+  `connect_timeout × files-per-host`.
 
-```python
-from ftp_handler.ftp_fleet_downloader import FtpFleetDownloader, HostSpec, ListDir
+A timed-out host's thread cannot be killed; `_FileGate` makes sure its
+`on_file` callback stops reaching caller state once `download` has reported it
+failed.
 
-dl = FtpFleetDownloader(user="ftpuser", password="ftppass", max_concurrency=48)
+## Failure isolation is the normal case
 
-report = dl.download([
-    HostSpec("10.0.0.1", files=["/HITACHI/SYSFILE/LOG_RECIPE_EXE.log"]),
-    HostSpec("10.0.0.2", listings=[ListDir("/MEAS", "*.dat")]),
-    HostSpec("10.0.0.3",
-             files=["/SYS/fdc.log"],
-             listings=[ListDir("/MEAS", "*.dat")]),
-])
+One dead host never aborts its siblings, and inside a host one bad file (or
+directory, for `mkdir`) never aborts the rest. Failures are collected into the
+report, never raised. Callers gate on `failure_ratio` (e.g. `> 0.2`, or zero
+successes) — tools go offline routinely.
 
-print(f"ok={report.ok} ng={report.ng} fail_ratio={report.failure_ratio:.0%}")
-for f in report.files:
-    handle(f.host, f.remote_path, f.data)   # f.data is bytes
-```
+## In-memory, not disk
 
-**The "single nested-dict variable" you asked about** — `report.grouped()`:
+Cross-host contamination comes from **shared mutable state**, not from memory:
+each host gets its own connection used sequentially in its own thread, and each
+file lands in a fresh local `BytesIO`. Disk has the same risk (two hosts
+writing the same filename clobber each other); correctness comes from isolating
+the destination per host, not from the medium.
 
-```python
-data = report.grouped()
-# {
-#   "10.0.0.1": {"/HITACHI/SYSFILE/LOG_RECIPE_EXE.log": b"..."},
-#   "10.0.0.2": {"/MEAS/20260522_1430_x.dat": b"...", ...},
-# }
-for host, files in data.items():
-    for remote_path, raw in files.items():
-        records = parse(host, remote_path, raw)   # <-- your processing here
-        send_to_opensearch(records)
-```
+Disk wins only on memory pressure. Files here are KB–few MB, so the default is
+in-memory; at fleet scale use `on_file` streaming so peak RAM stays at
+`concurrency × file size`. Durability across retries comes from idempotency
+(deterministic OpenSearch `_id`, idempotent MinIO `put`).
 
-### Mode B — stream each file as it lands (memory-bounded)
+## Passive mode
 
-Pass an `on_file` callback. Each file is handed to you the moment it downloads,
-then dropped — peak RAM stays at **concurrency × file size**, regardless of
-fleet size. This is the recommended mode at fleet scale.
+`ftplib` defaults to PASV, which is right behind NAT. A worker on a different
+subnet than your laptop can have its data connection firewalled differently:
+if login works but every `RETR` hangs only from the server, try
+`passive=False`.
 
-```python
-def on_file(host: str, remote_path: str, data: bytes) -> None:
-    records = parse(host, remote_path, data)   # <-- your processing here
-    storage.put(f"{host}/{remote_path.lstrip('/')}", data)   # archive raw
-    OSDoc().bulk_index("eqp_meas", records)                  # index processed
+## `mkdir` is `mkdir -p` and idempotent
 
-report = dl.download(specs, on_file=on_file)   # report carries no bytes
-```
+`mkdir` exists so an `upload` to a new path has a destination — STOR cannot
+create folders. Each entry of `MkdirSpec.dirs` creates its missing parents, and
+an existing directory counts as success, so callers run it before an upload
+without looking first. FTP answers MKD with the same 550 for "already exists"
+and for "permission denied", so a refused MKD is settled by CWD into that path
+(enter it → it exists; then CWD back to the login PWD so relative paths keep
+resolving there). If that CWD back fails, the session sits in an unknown
+directory, so the host's remaining dirs are all reported failed rather than
+created in the wrong place.
 
-> Where does my processing go? — There are exactly two seams: the body of your
-> `on_file` callback (Mode B), or the loop over `report.grouped()` (Mode A).
-> Either way, *you* own `parse(...)`; the downloader only fetches bytes.
+## Proxy pair
 
-### One-call helper
+For a client that cannot reach the FTP servers but can reach a firewall-free
+host: `proxy/flask_proxy.py` does the real FTP there, `proxy/proxy_downloader.py`
+exposes the same `FtpFleetDownloader` surface over HTTP.
 
-```python
-from ftp_handler.ftp_fleet_downloader import download_fleet
+- **One seam.** `FleetTransport` lists every fleet operation; a conformance
+  test asserts both adapters match it method by method, so a call site swaps
+  one import line. Proxy location/auth are module constants (`PROXY_URL`,
+  `PROXY_TOKEN`), not constructor args, so the constructor stays identical.
+- **Credentials travel with the spec.** `user` and `password` resolve
+  **independently**, each as spec value → client constructor value → the proxy
+  host's `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD`; a field missing from
+  the wire falls back alone. That fallback also lets the two halves deploy in
+  either order. Bytes and
+  credentials both cross the HTTP hop: serve it behind HTTPS and set
+  `FTP_PROXY_TOKEN`.
+- **Small batches.** The proxy holds a whole batch in memory and
+  base64 + jsonify roughly triples it, on a host app sharing an 8 GiB /
+  `reload-on-rss=1500` envelope. Hence `request_batch=5`, `client_workers=4`,
+  and `host_timeout=45` under the host's `harakiri=60` — see
+  `0001-proxy-batch-sizing.md`. A whole-batch transport failure marks every
+  host in it failed.
+- **Wire format** is JSON + base64: simple, ~33% bloat, fine for small files.
 
-report = download_fleet(specs, user="ftpuser", password="ftppass",
-                        max_concurrency=48)
-```
+## Airflow
 
-## API
-
-### `HostSpec(host, files=[], listings=[])`
-One equipment host and everything to pull from it over **one reused
-connection**.
-- `files: list[str]` — fixed remote paths fetched directly (`RETR`). Use for
-  known append-only logs (FDC, recipe logs).
-- `listings: list[ListDir]` — directories listed (`NLST`) then filtered, one
-  `RETR` per match. Use for timestamped measurement files whose names you can't
-  predict.
-
-A host can mix both; they share the same connection.
-
-### `ListDir(remote_dir, pattern=None)`
-`pattern` is an fnmatch glob (`"*.dat"`); `None` fetches every entry. NLST
-results are normalized whether the server returns bare names or full paths.
-
-### `FtpFleetDownloader(*, user, password, port=21, max_concurrency=48, connect_timeout=15.0, host_timeout=120.0, passive=True)`
-- `max_concurrency` (default 48) — simultaneous connections / threads. These
-  are **I/O-bound** threads (blocked on sockets, GIL released), so this is
-  **not** bounded by CPU count — 48 is fine on a 2–4 core box. The real limits
-  are file descriptors (`ulimit -n`), peak RAM in Mode B (`concurrency × file
-  size`), and the FTP servers'/network capacity. Lower it only if files are
-  large or you hit those limits.
-- `connect_timeout` (default 8 s) — **the connection-wait knob.** Bounds each
-  blocking socket op (connect, login, `RETR`), so an offline/black-holed tool
-  is abandoned in 8 s instead of hanging a slot. This is what makes hundreds of
-  dead tools fail fast.
-- `host_timeout` (default 60 s) — wall-clock backstop for a *whole host*
-  (connect + listing + all its files). It does **not** govern dead-host
-  detection (`connect_timeout` does); it only fires for a host that connects
-  then stalls mid-transfer. Keep it above `connect_timeout × files-per-host`;
-  don't set it as low as `connect_timeout` or healthy multi-file hosts get
-  killed.
-- `passive` — PASV mode (default `True`). See the firewall note below.
-- `.download(specs, *, on_file=None) -> DownloadReport` — **synchronous**; runs
-  its own event loop. Do **not** call from already-async code (`asyncio.run`
-  can't nest).
-
-### `DownloadReport`
-- `.files: list[FileResult]` — `FileResult(host, remote_path, data)`. `data` is
-  `b""` when an `on_file` callback consumed the bytes.
-- `.failures: list[HostFailure]` — `HostFailure(host, error, remote_path)`.
-  `remote_path is None` ⇒ failed before any file (connect/login/listing).
-- `.ok` / `.ng` — success / failure counts.
-- `.failure_ratio` — `ng / (ok + ng)`, for threshold alerting (`0.0` if empty).
-- `.grouped() -> {host: {remote_path: bytes}}`.
-
-### `ftp_handler.eqp_ftp_collect`
-- `build_host_specs(fleet: list[dict]) -> list[HostSpec]` — turns the runtime
-  config (Airflow Variable JSON) into specs.
-- `collect_fleet(specs, *, user, password, archive, parse, index, **tuning)` —
-  runs the downloader in Mode B with `archive → parse → index` per file
-  (archive first, so you never index a record whose raw source wasn't stored).
-  `archive`, `parse`, `index` are callables you supply, so this layer needs no
-  `minio`/`opensearch` import and stays unit-testable.
-
-## In-memory vs. disk — is in-memory safe under concurrency?
-
-**Short answer: in-memory is safe here, and it is not inherently riskier than
-disk.** The fear that "async mixes one host's data into another host's buffer"
-comes from *shared mutable state*, not from memory itself.
-
-Cross-host contamination happens only if concurrent units share a destination
-or a stateful resource:
-- **One FTP connection shared across concurrent downloads.** FTP is stateful
-  (CWD, in-flight transfer); interleaving `RETR`s on one control connection
-  corrupts data. → This downloader opens **one connection per host**, used
-  sequentially inside that host's own thread (`_host_worker`).
-- **A shared global/buffer/dict written without keying.** → Each download
-  writes to a **local `BytesIO` created fresh per file** inside `_fetch_one`.
-  Local variables are per-thread stack frames — never shared. Results are
-  appended to a list (`list.append` is atomic under the GIL) and keyed by
-  `(host, remote_path)`.
-
-Note that **disk has the exact same risk**: if two hosts write to a path keyed
-by *filename only*, they clobber each other — that *is* cross-host mixing, just
-on disk. The repo's `recipe_log_collector` avoids it with a `uuid4` folder +
-per-IP subdir. Correctness comes from **isolating the destination per host**
-(unique buffer *or* unique path) and **not sharing a connection** — not from
-the storage medium. asyncio never moves data between coroutines on its own;
-each task has its own stack.
-
-**When disk genuinely wins:** memory pressure, not correctness. Large files ×
-high concurrency can exceed worker RAM; streaming to disk keeps RAM flat. That
-was the grilling decision: small files (KB–few MB) → in-memory; if files were
-large/variable → stream to scratch disk at low concurrency (the
-`recipe_log_collector` pattern). For durability across retries we rely on
-idempotency (deterministic `_id` + idempotent MinIO `put`), not on keeping
-files on disk.
-
-## Passive mode (the second "works locally, not on the server")
-
-`ftplib` defaults to PASV, which is right behind NAT. But an Airflow worker on
-a *different subnet* than your laptop can have its data connection firewalled
-differently. If downloads connect+login fine but every `RETR` hangs/fails from
-the worker only, try `passive=False`. Verify against one real host early.
-
-## Airflow usage
-
-The DAG `dags/eqp_ftp/eqp_ftp_collector_dag.py` wires it up:
-
-- **Fleet config** from Airflow **Variable** `eqp_ftp_fleet` (JSON), re-read
-  every run — edit the fleet without a code deploy:
-  ```json
-  [
-    {"host": "10.0.0.1",
-     "files": ["/HITACHI/SYSFILE/LOG_RECIPE_EXE.log"],
-     "listings": [{"remote_dir": "/MEAS", "pattern": "*.dat"}]},
-    {"host": "10.0.0.2", "files": ["/SYS/fdc.log"]}
-  ]
-  ```
-- **Credentials** from a single Airflow **Connection** `eqp_ftp` (shared login).
-- **Threshold failure**: the task is green on normal partial failures and only
-  fails (alerts) when `failure_ratio > EQP_FTP_FAILURE_THRESHOLD` (default 0.2)
-  or zero successes — distinguishing "one tool is off" from "the network/creds
-  broke."
-- **No overlap**: `schedule="*/30 * * * *"`, `max_active_runs=1`,
-  `catchup=False`, `dagrun_timeout=25m`.
-- Implement `parse_records(host, remote_path, data) -> list[dict]` in the DAG
-  (the stub raises `NotImplementedError`). Give each doc a deterministic `_id`
-  so 30-min re-runs are idempotent.
-
-> **ops_store caveat:** the index step imports `ops_store`, which is **not**
-> vendored under `airflow_mgmt/` (only `minio_handler` is). Vendor `ops_store`
-> the same way, or make the repo root importable on the worker, before the
-> index step runs. The DAG parses fine without it (the import is deferred into
-> the task body).
-
-Env overrides: `EQP_FTP_FLEET_VARIABLE`, `EQP_FTP_CONN_ID`, `EQP_FTP_BUCKET`,
-`EQP_FTP_INDEX`, `EQP_FTP_MAX_CONCURRENCY`, `EQP_FTP_CONNECT_TIMEOUT`,
-`EQP_FTP_HOST_TIMEOUT`, `EQP_FTP_FAILURE_THRESHOLD`.
-
-## Proxy variant — when the client is firewalled off the FTP servers
-
-If the machine that needs the data **cannot reach the equipment FTP servers**
-(firewalled) but a **firewall-free host can**, run the downloader behind an
-HTTP proxy:
-
-```
-local PC ──HTTP──> Flask proxy ──FTP──> equipment servers
-(firewalled)       (firewall-free)
-```
-
-Two files implement this, and the client is a **drop-in** for the direct
-downloader — swap one import, change nothing else:
-
-| File | Runs on | Role |
-|------|---------|------|
-| `ftp_handler/ftp_flask_proxy.py` | firewall-free host | Flask **Blueprint** (`ftp_proxy_sknn_v3`); does the real FTP via `FtpFleetDownloader`, returns base64'd bytes over HTTP |
-| `ftp_handler/ftp_flask_downloader.py` | firewalled client | same API (`FtpFleetDownloader`, `download_fleet`, `HostSpec`, …); POSTs batches to the proxy instead of doing FTP |
-
-Routes carry a `_sknn_v3` suffix (`/download_sknn_v3`, `/healthz_sknn_v3`) so
-they don't collide with paths already mounted on the host app.
-
-```python
-# direct (no firewall):
-from ftp_fleet_downloader import FtpFleetDownloader, HostSpec, ListDir
-# via proxy (firewalled client) — only this line changes:
-from ftp_flask_downloader import FtpFleetDownloader, HostSpec, ListDir
-```
-
-The client **re-exports the same dataclasses**, so `DownloadReport`,
-`grouped()`, `failure_ratio`, and your `on_file` handler are identical under
-either transport. `on_file` still runs **on the client**, so your
-parse/archive/index processing stays local — only the FTP bytes cross the
-proxy.
-
-**Mount the proxy** as a blueprint on your existing firewall-free Flask app:
-```python
-from ftp_flask_proxy import ftp_proxy_sknn_v3
-app.register_blueprint(ftp_proxy_sknn_v3)   # adds /download_sknn_v3, /healthz_sknn_v3
-```
-
-**Or run it standalone** (on the firewall-free host):
-```bash
-pip install flask
-# PowerShell:
-# $env:FTP_PROXY_FTP_USER="ftpuser"
-# $env:FTP_PROXY_FTP_PASSWORD="ftppass"
-# $env:FTP_PROXY_TOKEN="secret"
-python ftp_flask_proxy.py                  # serves 0.0.0.0:8080
-```
-
-**Use the client** (on the firewalled PC):
-```bash
-pip install requests
-```
-```python
-dl = FtpFleetDownloader(user="ftpuser", password="ftppass", max_concurrency=48)
-report = dl.download(specs)                 # same call as direct mode
-```
-
-Notes:
-- **Security:** the equipment FTP credentials the client was constructed with
-  travel in the POST body (2026-08-28 — between 2026-08-09 and that date they
-  did not, and the proxy silently logged in as its own environment account
-  instead of the caller's). `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD` on
-  the proxy host remain the fallback for a request that names no account. File
-  bytes and credentials both cross the HTTP hop, so run the proxy behind
-  **HTTPS** and set `FTP_PROXY_TOKEN` (the proxy enforces `Authorization:
-  Bearer <token>`).
-- **Per-host credentials:** one fleet is not always one account. `HostSpec` and
-  `UploadSpec` carry optional `user`/`password` overriding the downloader's for
-  that host alone, so a run spanning two vendors' tools spans two logins. Only
-  an override is serialized — a host on the shared account sends no credential
-  key at all, and an entry arriving without one falls back to the proxy's
-  environment. That fallback is what lets the two halves deploy in either
-  order.
-- **Seam-clean config:** proxy location/auth are module constants in
-  `proxy_downloader.py` (`PROXY_URL`, `PROXY_TOKEN`), **not** constructor args —
-  that keeps the client constructor signature identical to the direct
-  downloader, so a shared call site swaps the import line and passes nothing
-  transport-specific. Edit the constants once for the deployment.
-- **Batching:** the client splits hosts into `request_batch` (default 5) and
-  POSTs `client_workers` (default 4) batches concurrently, bounding response
-  size and mirroring the direct fan-out. A whole-batch transport failure marks
-  every host in it failed — per-host isolation one level up. The defaults are
-  small on purpose: the proxy collects a whole batch in memory (Mode A) and
-  base64+jsonify roughly triples it, on a host app sharing an 8GiB /
-  `reload-on-rss=1500` envelope with pandas tasks. `host_timeout` defaults to
-  45s to stay under the host app's `harakiri=60`. See `0001-proxy-batch-sizing.md`.
-- **Wire format:** JSON + base64. Simple and fine for small files; for very
-  large payloads a binary/streaming transport would beat base64's ~33% bloat.
-
-## Tests
-
-`tests/test_ftp_fleet_downloader.py` patches `ftplib.FTP` with a `FakeFTP` —
-no live server. Covers per-host error isolation, both discovery modes, NLST
-path normalization, `on_file` streaming, threshold math, and the
-`archive → parse → index` ordering.
-
-`tests/test_ftp_flask_proxy.py` wires the real client to the real proxy through
-Flask's test client (faking only FTP), proving the round trip, `on_file`
-running client-side, failure propagation, batch isolation, auth enforcement,
-and that the report types are literally shared between the two transports.
-
-```bash
-python -m pytest tests/test_ftp_fleet_downloader.py tests/test_ftp_flask_proxy.py -v
-```
+The scheduled collector is `airflow_mgmt/dags/eqp_ftp/eqp_ftp_collector_dag.py`;
+its module docstring is the source of truth for its Variable, Connection,
+schedule, venv and threshold settings.
