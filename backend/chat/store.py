@@ -21,6 +21,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from backend._runtime.env import CLOUD_PREFIX, is_cloud
+
 
 _MESSAGE_COLUMNS = (
     "id,thread_id,request_id,role,content,model,runtime,scope_status,"
@@ -37,10 +39,19 @@ _MESSAGE_COLUMNS = (
 _STALE_SLACK_SECONDS = 30
 
 
+# Beside the deploy tree, not in it: /project/workSpace/ is refreshed wholesale
+# (backend/.env included), so neither the old in-tree default nor an .env-only
+# override survived a refresh. OFFICE-VERIFY: /project/ writable by uWSGI.
+CLOUD_CHAT_DB = CLOUD_PREFIX.parent / "skewnono_data" / "chat.db"
+
+
 def _db_path() -> str:
     override = os.environ.get("SKEWNONO_CHAT_DB")
     if override:
         return override
+    if is_cloud():
+        CLOUD_CHAT_DB.parent.mkdir(parents=True, exist_ok=True)
+        return str(CLOUD_CHAT_DB)
     return str(Path(__file__).resolve().parent / "chat.db")
 
 
