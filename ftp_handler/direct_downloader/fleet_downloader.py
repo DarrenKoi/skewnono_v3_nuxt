@@ -190,6 +190,35 @@ class MkdirResult:
 
 
 @dataclass(slots=True)
+class DeleteSpec:
+    """One equipment host and what to remove from it in a run.
+
+    ``files`` are removed with DELE, then ``dirs`` with RMD, over one reused
+    connection — files first, so a directory this same spec empties can go
+    too. RMD only removes an EMPTY directory (no recursive delete); list
+    nested dirs deepest-first. A path that is already gone counts as success.
+
+    ``user``/``password`` are the per-host override, same contract as
+    ``UploadSpec``'s.
+    """
+
+    host: str
+    files: list[str] = field(default_factory=list)
+    dirs: list[str] = field(default_factory=list)
+    user: str | None = None
+    password: str | None = None
+
+
+@dataclass(slots=True)
+class DeleteResult:
+    """A path that is gone from the host after the run (removed now or already
+    absent — the report does not tell the two apart)."""
+
+    host: str
+    remote_path: str
+
+
+@dataclass(slots=True)
 class HostFailure:
     """A failed download. ``remote_path`` is ``None`` when the failure happened
     before any specific file (connect / login / directory listing)."""
@@ -292,6 +321,37 @@ class MkdirReport:
         out: dict[str, list[str]] = {}
         for r in self.results:
             out.setdefault(r.host, []).append(r.remote_dir)
+        return out
+
+
+@dataclass(slots=True)
+class DeleteReport:
+    """Outcome of a fleet delete run, same ``ok`` / ``ng`` / ``failure_ratio``
+    shape as ``UploadReport``."""
+
+    results: list[DeleteResult]
+    failures: list[HostFailure]
+
+    @property
+    def ok(self) -> int:
+        return len(self.results)
+
+    @property
+    def ng(self) -> int:
+        return len(self.failures)
+
+    @property
+    def failure_ratio(self) -> float:
+        """Fraction of attempted units that failed, for threshold-based
+        alerting. 0.0 when nothing was attempted."""
+        total = self.ok + self.ng
+        return self.ng / total if total else 0.0
+
+    def grouped(self) -> dict[str, list[str]]:
+        """Removed paths as ``{host: [remote_path, ...]}``, files before dirs."""
+        out: dict[str, list[str]] = {}
+        for r in self.results:
+            out.setdefault(r.host, []).append(r.remote_path)
         return out
 
 
@@ -473,10 +533,11 @@ class FleetTransport(Protocol):
     same surface over HTTP). A call site swaps one import line between them and
     nothing else changes — that swap is the whole point of the seam.
 
-    All five fleet operations are on the seam: ``list_dirs`` (the
+    All six fleet operations are on the seam: ``list_dirs`` (the
     look-before-you-download listing pass), ``size_dirs`` (the
     estimate-RAM-before-you-pull sizing pass), ``download``, ``upload`` (the
-    write direction), and ``mkdir`` (ensure an upload destination exists). The conformance test guards that both adapters keep
+    write direction), ``mkdir`` (ensure an upload destination exists), and
+    ``delete`` (DELE files, RMD empty dirs). The conformance test guards that both adapters keep
     matching every method, so neither path drifts.
     """
 
@@ -491,6 +552,8 @@ class FleetTransport(Protocol):
     def upload(self, specs: list[UploadSpec]) -> UploadReport: ...
 
     def mkdir(self, specs: list[MkdirSpec]) -> MkdirReport: ...
+
+    def delete(self, specs: list[DeleteSpec]) -> DeleteReport: ...
 
 
 class _FileGate:
@@ -712,9 +775,33 @@ class FtpFleetDownloader:
         )
         return MkdirReport(results=results, failures=failures)
 
+    def delete(self, specs: list[DeleteSpec]) -> DeleteReport:
+        """Remove every spec's files (DELE) then empty dirs (RMD), concurrently.
+
+        A path already gone is a success, so a retried run is harmless. A
+        non-empty directory is a failure — there is no recursive delete. Same
+        concurrency cap, ``host_timeout`` backstop and per-host AND per-path
+        failure isolation as ``upload``.
+        """
+        # A host abandoned at host_timeout keeps its thread; its stop flag makes
+        # it send no further DELE/RMD once the caller has been told it failed.
+        stops = [threading.Event() for _ in specs]
+        try:
+            results, failures = self._run_fleet(
+                specs,
+                lambda spec, idx: self._delete_worker(spec, stops[idx]),
+                on_abandon=lambda idx: stops[idx].set(),
+            )
+        finally:
+            for stop in stops:
+                stop.set()
+        return DeleteReport(results=results, failures=failures)
+
     # ── concurrent orchestration (private) ──────────────────────────────────
     @contextmanager
-    def _session(self, spec: "HostSpec | UploadSpec | MkdirSpec") -> Iterator[FTP]:
+    def _session(
+        self, spec: "HostSpec | UploadSpec | MkdirSpec | DeleteSpec"
+    ) -> Iterator[FTP]:
         """One connected, logged-in FTP session for ``spec.host``, closed on exit.
 
         Shared open/login/passive setup for both the download and listing
@@ -1034,6 +1121,48 @@ class FtpFleetDownloader:
             )
         return results, failures
 
+    def _delete_worker(
+        self,
+        spec: "DeleteSpec",
+        stop: threading.Event,
+    ) -> tuple[list[DeleteResult], list[HostFailure]]:
+        # Same isolation and lost-CWD handling as _mkdir_worker. ``stop`` is set
+        # once the host is abandoned; nothing it returns after that is used.
+        results: list[DeleteResult] = []
+        failures: list[HostFailure] = []
+        try:
+            with self._session(spec) as ftp:
+                home = ftp.pwd()
+                items = [(p, ftp.delete) for p in spec.files]
+                items += [(d, ftp.rmd) for d in spec.dirs]
+                for i, (path, remove) in enumerate(items):
+                    if stop.is_set():
+                        break
+                    try:
+                        _remove_or_absent(ftp, path, remove, home)
+                    except _CwdLost as exc:
+                        failures.extend(
+                            HostFailure(host=spec.host, error=str(exc), remote_path=p)
+                            for p, _ in items[i:]
+                        )
+                        break
+                    except _FTP_ERRORS as exc:
+                        failures.append(
+                            HostFailure(
+                                host=spec.host,
+                                error=f"{type(exc).__name__}: {exc}",
+                                remote_path=path,
+                            )
+                        )
+                    else:
+                        results.append(DeleteResult(host=spec.host, remote_path=path))
+        except _FTP_ERRORS as exc:
+            # connect / login failed — nothing got a chance.
+            failures.append(
+                HostFailure(host=spec.host, error=f"{type(exc).__name__}: {exc}")
+            )
+        return results, failures
+
     def _resolve_paths(
         self,
         ftp: FTP,
@@ -1117,12 +1246,62 @@ def _makedirs(ftp: FTP, remote_dir: str, home: str) -> None:
                 ftp.cwd(prefix)
             except error_perm:
                 raise exc from None
-            try:
-                ftp.cwd(home)
-            except _FTP_ERRORS as restore_exc:
-                raise _CwdLost(
-                    f"CWD back to {home} failed: {type(restore_exc).__name__}: {restore_exc}"
-                ) from restore_exc
+            _cwd_home(ftp, home)
+
+
+def _cwd_home(ftp: FTP, home: str) -> None:
+    """CWD back to the login PWD after an existence check, or raise ``_CwdLost``.
+
+    An empty ``home`` is ftplib's answer to a PWD reply it could not parse;
+    ``cwd("")`` would send ``CWD .`` and "succeed" without moving, so it counts
+    as lost too.
+    """
+    if not home:
+        raise _CwdLost("login PWD unknown (unparseable PWD reply), cannot CWD back")
+    try:
+        ftp.cwd(home)
+    except _FTP_ERRORS as exc:
+        raise _CwdLost(f"CWD back to {home} failed: {type(exc).__name__}: {exc}") from exc
+
+
+def _remove_or_absent(
+    ftp: FTP, path: str, remove: "Callable[[str], object]", home: str
+) -> None:
+    """Run ``remove(path)`` (DELE or RMD); a refusal is fine if ``path`` is gone.
+
+    A 550 means "no such path" and "not allowed" alike, so a refusal is settled
+    by looking: the path is gone only if it is neither a file (``SIZE``
+    answers) nor a directory (``CWD`` enters, then CWD back to ``home``).
+    Anything still there re-raises the original refusal — a non-empty
+    directory, a directory given as a file, a file given as a directory. Only
+    a 550 from a probe counts as "not there"; any other refusal (502 SIZE
+    unsupported, 530, …) says nothing about the path and keeps the failure.
+    Best-effort: a file whose SIZE is itself refused with 550 reads as gone.
+    """
+    try:
+        remove(path)
+    except error_perm as exc:
+        # TYPE I first: some servers (vsftpd) refuse SIZE in ASCII mode with 550.
+        ftp.voidcmd("TYPE I")
+        try:
+            ftp.size(path)
+        except error_perm as probe:
+            if not _is_550(probe):
+                raise exc from None
+        else:
+            raise exc from None
+        try:
+            ftp.cwd(path)
+        except error_perm as probe:
+            if not _is_550(probe):
+                raise exc from None
+            return
+        _cwd_home(ftp, home)
+        raise exc from None
+
+
+def _is_550(exc: error_perm) -> bool:
+    return str(exc).startswith("550")
 
 
 def specs_from_hosts(
@@ -1210,6 +1389,19 @@ def upload_fleet(
     """
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.upload(specs)
+
+
+def delete_fleet(
+    specs: list[DeleteSpec],
+    *,
+    user: str,
+    password: str,
+    **kwargs: object,
+) -> DeleteReport:
+    """One-call convenience wrapper around ``FtpFleetDownloader.delete``; extra
+    keyword args are forwarded to the constructor, as for ``upload_fleet``."""
+    downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
+    return downloader.delete(specs)
 
 
 def mkdir_fleet(

@@ -211,6 +211,31 @@ FTP는 "이미 있음"과 "권한 없음"에 똑같이 550을 답하므로, MKD�
 `CWD`를 시도해 구분한다(들어가지면 이미 있는 폴더). 상대 경로는 로그인 직후의 PWD
 기준이다. `mkdir_fleet(specs, user=..., password=...)`은 한 번 호출 래퍼다.
 
+**삭제(`delete`):** `DeleteSpec.files`는 `DELE`로, `dirs`는 `RMD`로 지운다. 한 spec 안에서
+파일을 먼저 지우므로, 그 spec이 비우는 폴더는 같이 지울 수 있다. `RMD`는 **빈 폴더만**
+지운다 — 재귀 삭제는 없으니 하위 폴더가 있으면 깊은 것부터 나열한다. 이미 없는 경로는
+성공으로 치므로 같은 요청을 다시 보내도 결과가 같다:
+
+```python
+from ftp_handler.direct_downloader import DeleteSpec, FtpFleetDownloader
+
+dl = FtpFleetDownloader(user="u", password="p")
+report = dl.delete([
+    DeleteSpec(h, files=["/INBOX/2026/10/r.csv"], dirs=["/INBOX/2026/10"]) for h in hosts
+])
+print(report.grouped())                       # {host: [지워진 경로, ...]} — 파일 다음 폴더
+for f in report.failures:                     # 비지 않은 폴더, 권한 거절 등
+    print(f.host, f.remote_path, f.error)
+```
+
+거절(550)이 "없음"인지 "권한 없음"인지는 그 경로를 다시 확인해 가른다 — `SIZE`가
+답하면 파일이 남아 있고, `CWD`로 들어가지면 폴더가 남아 있으니 실패다. 둘 다 아니면
+이미 없는 것이라 성공이다. 그래서 파일 자리에 폴더를 주거나(그 반대도) 비지 않은 폴더를
+주면 실패로 남는다. 확인 명령이 550이 아닌 이유로 거절되면(예: `SIZE` 미지원 502) 판단할
+근거가 없으므로 역시 실패로 남는다. `host_timeout`으로 포기된 호스트는 그 뒤로 삭제
+명령을 더 보내지 않는다. 한계: 파일이 있는데 그 파일의 `SIZE`까지 550으로 거절하는
+서버라면 "없음"으로 읽힌다. `delete_fleet(specs, user=..., password=...)`은 한 번 호출 래퍼다.
+
 ---
 
 ## 케이스 3 — HTTP 프록시 경유의 방화벽 안 클라이언트 (`proxy`)
@@ -272,7 +297,7 @@ report = dl.download(specs, on_file=save_to_dir(r"C:\eqp"))  # on_file은 로컬
 `fleet_downloader.py`와 `listing.py`를 더하면 클라이언트 PC에 평평하게 떨궈 bare
 이름으로 import 할 수 있다.
 
-`download` / `list_dirs` / `size_dirs`와 마찬가지로 `upload`와 `mkdir`도 같은 표면으로
+`download` / `list_dirs` / `size_dirs`와 마찬가지로 `upload`, `mkdir`, `delete`도 같은 표면으로
 프록시 너머에서 동작한다(케이스 2의 예제에서 import만 `ftp_handler.proxy`로 바꾸면 된다).
 클라이언트가 바이트를 base64로 실어 보내면 프록시가 풀어서 STOR 한다. `size_dirs`는
 `list_dirs`처럼 바이트를 싣지 않으므로 가볍다.

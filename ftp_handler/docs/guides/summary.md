@@ -14,7 +14,7 @@ ftp_handler/
     client.py           FtpClient — 단일 서버, 즉석 list/download/upload/remove
     listing.py          _normalize_listing — 두 규모 모두에서 쓰는 NLST 정규화기
   direct_downloader/    FTP 서버와 직접 통신
-    fleet_downloader.py FtpFleetDownloader — 동시 팬아웃 (download/list_dirs/size_dirs/upload/mkdir)
+    fleet_downloader.py FtpFleetDownloader — 동시 팬아웃 (download/list_dirs/size_dirs/upload/mkdir/delete)
     collect.py          collect_fleet — archive → parse → index 글루 (minio/opensearch import 없음)
   proxy/                방화벽 안 클라이언트용 HTTP 전송
     flask_proxy.py      서버 절반 (flask 필요) — 실제 FTP를 수행, base64 바이트 반환
@@ -26,7 +26,7 @@ ftp_handler/
 
 ## 플릿 연산 한눈에
 
-direct(`ftp_handler.direct_downloader`)와 proxy(`ftp_handler.proxy`)가 아래 다섯
+direct(`ftp_handler.direct_downloader`)와 proxy(`ftp_handler.proxy`)가 아래 여섯
 연산을 같은 이름·같은 시그니처로 노출한다(`FleetTransport` 심). 데이터클래스는 모두
 `fleet_downloader.py`의 것이고, 리포트는 공통으로 `ok` / `ng` / `failure_ratio` /
 `failures`를 가진다.
@@ -38,6 +38,7 @@ direct(`ftp_handler.direct_downloader`)와 proxy(`ftp_handler.proxy`)가 아래 
 | `size_dirs` | `HostSpec` | `SizingReport` | `size_fleet` | `/size_dirs_sknn_v3` |
 | `upload` | `UploadSpec`(`UploadFile`) | `UploadReport` | `upload_fleet` | `/upload_sknn_v3` |
 | `mkdir` | `MkdirSpec`(`dirs`) | `MkdirReport` | `mkdir_fleet` | `/mkdir_sknn_v3` |
+| `delete` | `DeleteSpec`(`files`, `dirs`) | `DeleteReport` | `delete_fleet` | `/delete_sknn_v3` |
 
 모든 spec은 선택적 `user`/`password`(호스트별 계정)를 가진다. 실패는 호스트 단위와
 항목(파일·디렉터리) 단위로 격리되며 예외로 올라오지 않고 `failures`에 쌓인다.
@@ -61,10 +62,11 @@ direct(`ftp_handler.direct_downloader`)와 proxy(`ftp_handler.proxy`)가 아래 
   `SizingReport.total_bytes`/`by_host()`/`to_specs()`), `upload`(쓰기 방향;
   `UploadSpec`/`UploadFile`이 메모리상 `bytes`를 `BytesIO`로 곧장 STOR — 디스크 파일
   불필요, 파일 단위 실패 격리), `mkdir`(`MkdirSpec.dirs`의 각 경로를 `mkdir -p`처럼
-  생성 — 상위 폴더도 만들고 이미 있으면 성공)가 하나의 엔진을 공유하며 `max_concurrency` 상한,
+  생성 — 상위 폴더도 만들고 이미 있으면 성공), `delete`(`DeleteSpec.files`는 DELE,
+  `dirs`는 빈 폴더만 RMD — 재귀 삭제 없음, 이미 없으면 성공)가 하나의 엔진을 공유하며 `max_concurrency` 상한,
   호스트별 타임아웃, 호스트별 실패 격리를 갖는다. 헬퍼: `specs_from_hosts`,
   `download_fleet`, `list_fleet`, `size_fleet`, `save_to_dir`,
-  `upload_specs_from_hosts`, `upload_fleet`, `mkdir_fleet`.
+  `upload_specs_from_hosts`, `upload_fleet`, `mkdir_fleet`, `delete_fleet`.
 - **`collect_fleet` / `build_host_specs`** (`collect.py`): 파일마다 archive → parse
   → index. 각 단계를 콜러블로 주입받으므로 minio/opensearch를 import 하지 않는다 —
   DAG은 얇게 유지되고 이 계층은 단위 테스트가 가능하다.
@@ -72,7 +74,7 @@ direct(`ftp_handler.direct_downloader`)와 proxy(`ftp_handler.proxy`)가 아래 
 ### `proxy` — 방화벽 안 클라이언트용 HTTP 전송
 - **`flask_proxy.py`** (서버): FTP egress가 허용된 곳에서 실행된다. Flask
   블루프린트(`/download_sknn_v3`, `/list_dirs_sknn_v3`, `/size_dirs_sknn_v3`,
-  `/upload_sknn_v3`, `/mkdir_sknn_v3`, `/healthz_sknn_v3`),
+  `/upload_sknn_v3`, `/mkdir_sknn_v3`, `/delete_sknn_v3`, `/healthz_sknn_v3`),
   선택적 `FTP_PROXY_TOKEN`. 실제 FTP 는 `FtpFleetDownloader`를 재사용한다.
   로그인 계정은 `user`/`password` 필드마다 따로 spec → 클라이언트 생성자 → 서버
   환경 변수 `FTP_PROXY_FTP_USER` / `FTP_PROXY_FTP_PASSWORD` 순으로 정해진다.

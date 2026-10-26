@@ -31,8 +31,8 @@ one import line. Declared as the `FleetTransport` Protocol in
 `direct_downloader/fleet_downloader.py`; both `FtpFleetDownloader` classes (direct
 and the `proxy/proxy_downloader.py` HTTP client) satisfy it structurally, and a
 conformance test asserts neither drifts. Every fleet operation is on the seam —
-`download`, `list_dirs` (the Listing pass), `size_dirs`, `upload`, and `mkdir`
-(the Ensure-dir pass) — and the proxy pair carries each over its own
+`download`, `list_dirs` (the Listing pass), `size_dirs`, `upload`, `mkdir`
+(the Ensure-dir pass), and `delete` (the Removal pass) — and the proxy pair carries each over its own
 `/<op>_sknn_v3` route, so a firewalled client gets the full workflow.
 
 ### File-size class
@@ -75,3 +75,10 @@ each directory like `mkdir -p` — missing parents too, an existing directory
 counts as success — so it runs before an `upload` to a new path. A refused MKD
 is settled by CWD into that path, because FTP answers 550 both for "exists" and
 for "denied".
+
+### Removal pass
+`FtpFleetDownloader.delete` (or `delete_fleet`) with `DeleteSpec(host, files,
+dirs)`: DELE each file, then RMD each directory — empty directories only, no
+recursive delete. A path already gone counts as success. A refusal is settled
+by looking again (SIZE for a file, CWD for a directory), because FTP answers 550
+both for "no such path" and for "denied".

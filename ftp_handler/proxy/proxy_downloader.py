@@ -51,6 +51,9 @@ import requests
 # Reuse the SAME dataclasses so reports are interchangeable with direct mode.
 try:
     from ..direct_downloader.fleet_downloader import (
+        DeleteReport,
+        DeleteResult,
+        DeleteSpec,
         DownloadReport,
         FileResult,
         FileSize,
@@ -81,6 +84,9 @@ except ImportError:  # copied beside fleet_downloader.py and imported bare
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from fleet_downloader import (
+        DeleteReport,
+        DeleteResult,
+        DeleteSpec,
         DownloadReport,
         FileResult,
         FileSize,
@@ -114,6 +120,7 @@ __all__ = [
     "size_fleet",
     "upload_fleet",
     "mkdir_fleet",
+    "delete_fleet",
     "HostSpec",
     "ListDir",
     "DownloadReport",
@@ -130,6 +137,9 @@ __all__ = [
     "MkdirSpec",
     "MkdirResult",
     "MkdirReport",
+    "DeleteSpec",
+    "DeleteResult",
+    "DeleteReport",
     "image_sidecar_target",
     "local_target",
     "save_image_with_sidecar",
@@ -161,7 +171,7 @@ def _parse_modified(raw: "str | None") -> "datetime | None":
 
 
 def _credentials_to_wire(
-    spec: "HostSpec | UploadSpec | MkdirSpec",
+    spec: "HostSpec | UploadSpec | MkdirSpec | DeleteSpec",
     user: str | None = None,
     password: str | None = None,
 ) -> dict:
@@ -222,6 +232,17 @@ def _mkdir_spec_to_wire(
 ) -> dict:
     return {
         "host": spec.host,
+        "dirs": list(spec.dirs),
+        **_credentials_to_wire(spec, user, password),
+    }
+
+
+def _delete_spec_to_wire(
+    spec: DeleteSpec, user: str | None = None, password: str | None = None
+) -> dict:
+    return {
+        "host": spec.host,
+        "files": list(spec.files),
         "dirs": list(spec.dirs),
         **_credentials_to_wire(spec, user, password),
     }
@@ -389,6 +410,25 @@ class FtpFleetDownloader:
             failures.extend(batch_failures)
         return MkdirReport(results=results, failures=failures)
 
+    def delete(self, specs: list[DeleteSpec]) -> DeleteReport:
+        """Remove files and empty dirs on the fleet through the proxy.
+
+        Same surface as the direct downloader's ``delete``; batched like
+        ``upload``. A whole-batch transport failure marks every host in that
+        batch failed; per-path failures come back from the proxy.
+        """
+        if not specs:
+            return DeleteReport(results=[], failures=[])
+
+        results: list[DeleteResult] = []
+        failures: list[HostFailure] = []
+        for batch_results, batch_failures in self._post_batches(
+            specs, self._post_delete_batch
+        ):
+            results.extend(batch_results)
+            failures.extend(batch_failures)
+        return DeleteReport(results=results, failures=failures)
+
     def _post_batches(self, specs, post):
         """Split specs into batches and run ``post`` over them concurrently.
 
@@ -432,6 +472,12 @@ class FtpFleetDownloader:
         return {
             **self._tuning(),
             "specs": [_mkdir_spec_to_wire(s, self.user, self.password) for s in batch],
+        }
+
+    def _delete_payload(self, batch: list[DeleteSpec]) -> dict:
+        return {
+            **self._tuning(),
+            "specs": [_delete_spec_to_wire(s, self.user, self.password) for s in batch],
         }
 
     def _headers(self) -> dict:
@@ -620,6 +666,35 @@ class FtpFleetDownloader:
         ]
         return results, failures
 
+    def _post_delete_batch(
+        self,
+        batch: list[DeleteSpec],
+    ) -> tuple[list[DeleteResult], list[HostFailure]]:
+        try:
+            data = self._post("/delete_sknn_v3", self._delete_payload(batch))
+        except Exception as exc:  # noqa: BLE001 - whole-batch transport failure
+            return [], [
+                HostFailure(
+                    host=s.host,
+                    error=f"proxy request failed: {type(exc).__name__}: {exc}",
+                )
+                for s in batch
+            ]
+
+        results = [
+            DeleteResult(host=item["host"], remote_path=item["remote_path"])
+            for item in data.get("results", [])
+        ]
+        failures = [
+            HostFailure(
+                host=item["host"],
+                error=item["error"],
+                remote_path=item.get("remote_path"),
+            )
+            for item in data.get("failures", [])
+        ]
+        return results, failures
+
 
 def download_fleet(
     specs: list[HostSpec],
@@ -668,6 +743,18 @@ def upload_fleet(
     """One-call wrapper, mirroring direct_downloader.upload_fleet."""
     downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
     return downloader.upload(specs)
+
+
+def delete_fleet(
+    specs: list[DeleteSpec],
+    *,
+    user: str,
+    password: str,
+    **kwargs: object,
+) -> DeleteReport:
+    """One-call wrapper, mirroring direct_downloader.delete_fleet."""
+    downloader = FtpFleetDownloader(user=user, password=password, **kwargs)  # type: ignore[arg-type]
+    return downloader.delete(specs)
 
 
 def mkdir_fleet(

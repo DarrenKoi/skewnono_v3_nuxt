@@ -39,6 +39,11 @@ used by the host app:
     200 response JSON:
         {"results":[{"host","remote_dir"}],
          "failures":[{"host","error","remote_path"}]}
+    POST /delete_sknn_v3     request JSON (same tuning keys; DELE files, RMD empty dirs):
+        {"specs":[{"host","files":[...],"dirs":[...]}]}
+    200 response JSON (already-absent paths are results):
+        {"results":[{"host","remote_path"}],
+         "failures":[{"host","error","remote_path"}]}
     GET  /healthz_sknn_v3 -> {"status":"ok"}
     POST /list_details_sknn_v3, POST /fetch_sknn_v3
         single-server reads for ``proxy_client.FtpClient`` (wire documented
@@ -72,6 +77,7 @@ from flask import Blueprint, Flask, Response, jsonify, request
 # copied out flat beside fleet_downloader.py and run as a script.
 try:
     from ..direct_downloader.fleet_downloader import (
+        DeleteSpec,
         FtpFleetDownloader,
         HostSpec,
         ListDir,
@@ -84,6 +90,7 @@ except ImportError:  # copied beside fleet_downloader.py and imported bare
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from fleet_downloader import (
+        DeleteSpec,
         FtpFleetDownloader,
         HostSpec,
         ListDir,
@@ -99,6 +106,7 @@ URL_LIST = "/list_dirs_sknn_v3"
 URL_SIZE = "/size_dirs_sknn_v3"
 URL_UPLOAD = "/upload_sknn_v3"
 URL_MKDIR = "/mkdir_sknn_v3"
+URL_DELETE = "/delete_sknn_v3"
 URL_HEALTH = "/healthz_sknn_v3"
 # Single-server reads for ``proxy_client.FtpClient``; wire documented there.
 URL_LIST_DETAILS = "/list_details_sknn_v3"
@@ -147,6 +155,16 @@ def _upload_spec_from_wire(entry: dict) -> UploadSpec:
 def _mkdir_spec_from_wire(entry: dict) -> MkdirSpec:
     return MkdirSpec(
         host=entry["host"],
+        dirs=list(entry.get("dirs", [])),
+        user=entry.get("user"),
+        password=entry.get("password"),
+    )
+
+
+def _delete_spec_from_wire(entry: dict) -> DeleteSpec:
+    return DeleteSpec(
+        host=entry["host"],
+        files=list(entry.get("files", [])),
         dirs=list(entry.get("dirs", [])),
         user=entry.get("user"),
         password=entry.get("password"),
@@ -332,6 +350,29 @@ def mkdir():
         {
             "results": [
                 {"host": r.host, "remote_dir": r.remote_dir} for r in report.results
+            ],
+            "failures": [
+                {"host": x.host, "error": x.error, "remote_path": x.remote_path}
+                for x in report.failures
+            ],
+        }
+    )
+
+
+@ftp_proxy_sknn_v3.post(URL_DELETE)
+def delete():
+    denied = _unauthorized()
+    if denied is not None:
+        return denied
+
+    body = request.get_json(force=True)
+    specs = [_delete_spec_from_wire(entry) for entry in body.get("specs", [])]
+    report = _downloader_from(body).delete(specs)
+
+    return jsonify(
+        {
+            "results": [
+                {"host": r.host, "remote_path": r.remote_path} for r in report.results
             ],
             "failures": [
                 {"host": x.host, "error": x.error, "remote_path": x.remote_path}

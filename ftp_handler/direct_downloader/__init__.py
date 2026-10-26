@@ -11,6 +11,9 @@ route through the HTTP proxy instead, nothing else changes::
 
 from .collect import build_host_specs, collect_fleet
 from .fleet_downloader import (
+    DeleteReport,
+    DeleteResult,
+    DeleteSpec,
     DownloadReport,
     FileResult,
     FileSize,
@@ -29,6 +32,7 @@ from .fleet_downloader import (
     UploadReport,
     UploadResult,
     UploadSpec,
+    delete_fleet,
     download_fleet,
     group_files_by_host,
     list_fleet,
@@ -53,6 +57,7 @@ __all__ = [
     "size_fleet",
     "upload_fleet",
     "mkdir_fleet",
+    "delete_fleet",
     "HostSpec",
     "ListDir",
     "DownloadReport",
@@ -70,6 +75,9 @@ __all__ = [
     "MkdirSpec",
     "MkdirResult",
     "MkdirReport",
+    "DeleteSpec",
+    "DeleteResult",
+    "DeleteReport",
     "image_sidecar_target",
     "local_target",
     "save_image_with_sidecar",
