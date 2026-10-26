@@ -822,7 +822,7 @@ class FakeRequests:
         return FakeResponse(self.payload)
 
 
-@pytest.mark.parametrize("method", ["download", "list_dirs", "size_dirs", "upload"])
+@pytest.mark.parametrize("method", ["download", "list_dirs", "size_dirs", "upload", "mkdir"])
 def test_both_transports_expose_an_identical_method_signature(method):
     """The whole seam is "swap one import line". A signature drift between the
     direct and proxy downloaders would break exactly the call sites that were

@@ -34,6 +34,11 @@ used by the host app:
     200 response JSON:
         {"results":[{"host","remote_path"}],
          "failures":[{"host","error","remote_path"}]}
+    POST /mkdir_sknn_v3      request JSON (same tuning keys; mkdir -p per dir):
+        {"specs":[{"host","dirs":[...]}]}
+    200 response JSON:
+        {"results":[{"host","remote_dir"}],
+         "failures":[{"host","error","remote_path"}]}
     GET  /healthz_sknn_v3 -> {"status":"ok"}
     POST /list_details_sknn_v3, POST /fetch_sknn_v3
         single-server reads for ``proxy_client.FtpClient`` (wire documented
@@ -70,6 +75,7 @@ try:
         FtpFleetDownloader,
         HostSpec,
         ListDir,
+        MkdirSpec,
         UploadFile,
         UploadSpec,
     )
@@ -81,6 +87,7 @@ except ImportError:  # copied beside fleet_downloader.py and imported bare
         FtpFleetDownloader,
         HostSpec,
         ListDir,
+        MkdirSpec,
         UploadFile,
         UploadSpec,
     )
@@ -91,6 +98,7 @@ URL_DOWNLOAD = "/download_sknn_v3"
 URL_LIST = "/list_dirs_sknn_v3"
 URL_SIZE = "/size_dirs_sknn_v3"
 URL_UPLOAD = "/upload_sknn_v3"
+URL_MKDIR = "/mkdir_sknn_v3"
 URL_HEALTH = "/healthz_sknn_v3"
 # Single-server reads for ``proxy_client.FtpClient``; wire documented there.
 URL_LIST_DETAILS = "/list_details_sknn_v3"
@@ -131,6 +139,15 @@ def _upload_spec_from_wire(entry: dict) -> UploadSpec:
     return UploadSpec(
         host=entry["host"],
         files=files,
+        user=entry.get("user"),
+        password=entry.get("password"),
+    )
+
+
+def _mkdir_spec_from_wire(entry: dict) -> MkdirSpec:
+    return MkdirSpec(
+        host=entry["host"],
+        dirs=list(entry.get("dirs", [])),
         user=entry.get("user"),
         password=entry.get("password"),
     )
@@ -292,6 +309,29 @@ def upload():
             "results": [
                 {"host": r.host, "remote_path": r.remote_path}
                 for r in report.results
+            ],
+            "failures": [
+                {"host": x.host, "error": x.error, "remote_path": x.remote_path}
+                for x in report.failures
+            ],
+        }
+    )
+
+
+@ftp_proxy_sknn_v3.post(URL_MKDIR)
+def mkdir():
+    denied = _unauthorized()
+    if denied is not None:
+        return denied
+
+    body = request.get_json(force=True)
+    specs = [_mkdir_spec_from_wire(entry) for entry in body.get("specs", [])]
+    report = _downloader_from(body).mkdir(specs)
+
+    return jsonify(
+        {
+            "results": [
+                {"host": r.host, "remote_dir": r.remote_dir} for r in report.results
             ],
             "failures": [
                 {"host": x.host, "error": x.error, "remote_path": x.remote_path}

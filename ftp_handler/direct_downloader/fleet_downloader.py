@@ -42,7 +42,7 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from ftplib import FTP, all_errors
+from ftplib import FTP, all_errors, error_perm
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Iterable, Iterator, Protocol, runtime_checkable
@@ -161,6 +161,35 @@ class UploadResult:
 
 
 @dataclass(slots=True)
+class MkdirSpec:
+    """One equipment host and the directories to create on it in a run.
+
+    The ``mkdir`` counterpart to ``UploadSpec``: ``dirs`` are created over a
+    single reused FTP connection. Each entry behaves like ``mkdir -p`` — missing
+    parents are created too, and a directory that already exists counts as
+    success — so a caller can ensure a destination before an ``upload`` without
+    first checking what is there.
+
+    ``user``/``password`` are the per-host override, same contract as
+    ``UploadSpec``'s.
+    """
+
+    host: str
+    dirs: list[str] = field(default_factory=list)
+    user: str | None = None
+    password: str | None = None
+
+
+@dataclass(slots=True)
+class MkdirResult:
+    """A directory that exists on the host after the run (created now or
+    already there — ``mkdir -p`` does not tell the two apart)."""
+
+    host: str
+    remote_dir: str
+
+
+@dataclass(slots=True)
 class HostFailure:
     """A failed download. ``remote_path`` is ``None`` when the failure happened
     before any specific file (connect / login / directory listing)."""
@@ -232,6 +261,37 @@ class UploadReport:
         out: dict[str, list[str]] = {}
         for r in self.results:
             out.setdefault(r.host, []).append(r.remote_path)
+        return out
+
+
+@dataclass(slots=True)
+class MkdirReport:
+    """Outcome of a fleet mkdir run, same ``ok`` / ``ng`` / ``failure_ratio``
+    shape as ``UploadReport``."""
+
+    results: list[MkdirResult]
+    failures: list[HostFailure]
+
+    @property
+    def ok(self) -> int:
+        return len(self.results)
+
+    @property
+    def ng(self) -> int:
+        return len(self.failures)
+
+    @property
+    def failure_ratio(self) -> float:
+        """Fraction of attempted units that failed, for threshold-based
+        alerting. 0.0 when nothing was attempted."""
+        total = self.ok + self.ng
+        return self.ng / total if total else 0.0
+
+    def grouped(self) -> dict[str, list[str]]:
+        """Ensured directories as ``{host: [remote_dir, ...]}``."""
+        out: dict[str, list[str]] = {}
+        for r in self.results:
+            out.setdefault(r.host, []).append(r.remote_dir)
         return out
 
 
@@ -413,10 +473,10 @@ class FleetTransport(Protocol):
     same surface over HTTP). A call site swaps one import line between them and
     nothing else changes — that swap is the whole point of the seam.
 
-    All four fleet operations are on the seam: ``list_dirs`` (the
+    All five fleet operations are on the seam: ``list_dirs`` (the
     look-before-you-download listing pass), ``size_dirs`` (the
-    estimate-RAM-before-you-pull sizing pass), ``download``, and ``upload`` (the
-    write direction). The conformance test guards that both adapters keep
+    estimate-RAM-before-you-pull sizing pass), ``download``, ``upload`` (the
+    write direction), and ``mkdir`` (ensure an upload destination exists). The conformance test guards that both adapters keep
     matching every method, so neither path drifts.
     """
 
@@ -429,6 +489,8 @@ class FleetTransport(Protocol):
     def size_dirs(self, specs: list[HostSpec]) -> SizingReport: ...
 
     def upload(self, specs: list[UploadSpec]) -> UploadReport: ...
+
+    def mkdir(self, specs: list[MkdirSpec]) -> MkdirReport: ...
 
 
 class _FileGate:
@@ -637,9 +699,22 @@ class FtpFleetDownloader:
         )
         return UploadReport(results=results, failures=failures)
 
+    def mkdir(self, specs: list[MkdirSpec]) -> MkdirReport:
+        """Create every spec's directories on its host concurrently (``mkdir -p``).
+
+        Missing parents are created too, and a directory that already exists is
+        a success, so this is safe to call before every ``upload``. Same
+        concurrency cap, ``host_timeout`` backstop and per-host AND per-dir
+        failure isolation as ``upload`` — they share the ``_run_fleet`` engine.
+        """
+        results, failures = self._run_fleet(
+            specs, lambda spec, _idx: self._mkdir_worker(spec)
+        )
+        return MkdirReport(results=results, failures=failures)
+
     # ── concurrent orchestration (private) ──────────────────────────────────
     @contextmanager
-    def _session(self, spec: "HostSpec | UploadSpec") -> Iterator[FTP]:
+    def _session(self, spec: "HostSpec | UploadSpec | MkdirSpec") -> Iterator[FTP]:
         """One connected, logged-in FTP session for ``spec.host``, closed on exit.
 
         Shared open/login/passive setup for both the download and listing
@@ -919,6 +994,37 @@ class FtpFleetDownloader:
             )
         return results, failures
 
+    def _mkdir_worker(
+        self,
+        spec: "MkdirSpec",
+    ) -> tuple[list[MkdirResult], list[HostFailure]]:
+        # Same isolation as _upload_worker: connect/login sinks the host, one
+        # directory that cannot be made never stops the host's other dirs.
+        results: list[MkdirResult] = []
+        failures: list[HostFailure] = []
+        try:
+            with self._session(spec) as ftp:
+                home = ftp.pwd()
+                for remote_dir in spec.dirs:
+                    try:
+                        _makedirs(ftp, remote_dir, home)
+                    except _FTP_ERRORS as exc:
+                        failures.append(
+                            HostFailure(
+                                host=spec.host,
+                                error=f"{type(exc).__name__}: {exc}",
+                                remote_path=remote_dir,
+                            )
+                        )
+                    else:
+                        results.append(MkdirResult(host=spec.host, remote_dir=remote_dir))
+        except _FTP_ERRORS as exc:
+            # connect / login failed — no directory got a chance.
+            failures.append(
+                HostFailure(host=spec.host, error=f"{type(exc).__name__}: {exc}")
+            )
+        return results, failures
+
     def _resolve_paths(
         self,
         ftp: FTP,
@@ -973,6 +1079,30 @@ class FtpFleetDownloader:
                     remote_path=remote_path,
                 )
             )
+
+
+def _makedirs(ftp: FTP, remote_dir: str, home: str) -> None:
+    """``mkdir -p remote_dir`` over FTP: MKD each path prefix in turn.
+
+    FTP answers MKD on an existing directory with the same 550 it uses for
+    "permission denied", so a refused MKD is settled by CWD-ing into that
+    prefix: entering it means it is already a directory (then CWD back to
+    ``home``); failing to enter it re-raises the MKD error. Relative paths
+    resolve against ``home``, which is why the session never stays elsewhere.
+    """
+    parts = remote_dir.rstrip("/").split("/")
+    for i in range(1, len(parts) + 1):
+        prefix = "/".join(parts[:i])
+        if not prefix:  # the leading "/" of an absolute path
+            continue
+        try:
+            ftp.mkd(prefix)
+        except error_perm as exc:
+            try:
+                ftp.cwd(prefix)
+            except error_perm:
+                raise exc from None
+            ftp.cwd(home)
 
 
 def specs_from_hosts(
