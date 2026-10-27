@@ -14,8 +14,9 @@ The two halves run on different machines:
 
         from ftp_handler.proxy.flask_proxy import create_app, ftp_proxy_sknn_v3
 
-  - ``proxy_client.FtpClient`` is the read-only single-server twin of
-    ``ftp_handler.core.FtpClient`` (``home``, ``list_details``, ``download``)::
+  - ``proxy_client.FtpClient`` is the single-server twin of
+    ``ftp_handler.core.FtpClient`` (``home``, ``list_details``, ``download``,
+    ``upload``, ``put``, ``remove``, ``mkdir``, ``rmdir``)::
 
         from ftp_handler.proxy import FtpClient
 """
@@ -25,7 +26,6 @@ from .proxy_client import (
     FtpClient,
     ProxyError,
     ToolUnreachable,
-    WriteNotSupported,
 )
 from .proxy_downloader import (
     DeleteReport,
@@ -100,7 +100,6 @@ __all__ = [
     "group_files_by_host",
     "upload_specs_from_hosts",
     "FtpClient",
-    "WriteNotSupported",
     "ProxyError",
     "FileUnavailable",
     "ToolUnreachable",

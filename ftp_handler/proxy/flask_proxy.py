@@ -45,9 +45,9 @@ used by the host app:
         {"results":[{"host","remote_path"}],
          "failures":[{"host","error","remote_path"}]}
     GET  /healthz_sknn_v3 -> {"status":"ok"}
-    POST /list_details_sknn_v3, POST /fetch_sknn_v3
-        single-server reads for ``proxy_client.FtpClient`` (wire documented
-        there): one fresh FTP connection per request, no write route.
+    POST /list_details_sknn_v3, POST /fetch_sknn_v3, POST /write_sknn_v3
+        single-server reads and writes for ``proxy_client.FtpClient`` (wire
+        documented there): one fresh FTP connection per request.
 
 Auth: if env FTP_PROXY_TOKEN is set, requests must carry
 ``Authorization: Bearer <token>`` or get 401. Always serve behind HTTPS in
@@ -111,6 +111,7 @@ URL_HEALTH = "/healthz_sknn_v3"
 # Single-server reads for ``proxy_client.FtpClient``; wire documented there.
 URL_LIST_DETAILS = "/list_details_sknn_v3"
 URL_FETCH = "/fetch_sknn_v3"
+URL_WRITE = "/write_sknn_v3"
 ERROR_STATUS = 422
 
 ftp_proxy_sknn_v3 = Blueprint("ftp_proxy_sknn_v3", __name__)
@@ -412,7 +413,7 @@ def _single_client(body: dict):
     )
 
 
-def _single_read(op):
+def _single_op(op):
     """Run ``op(ftp, body)`` on a fresh connection; map failures to ``{code, error}``.
 
     Connect/login failures are ``unreachable`` whatever ftplib raised (a 530 is
@@ -425,12 +426,19 @@ def _single_read(op):
 
     from ftp_handler.core.client import (
         ListingTooLarge,
+        TargetExists,
         TransferTimeout,
         TransferTooLarge,
+        TransferUncertain,
     )
 
     def fail(code: str, exc: BaseException):
-        return jsonify({"code": code, "error": str(exc)}), ERROR_STATUS
+        body = {"code": code, "error": str(exc)}
+        # A failed put names the temp it could not clean up; the caller needs
+        # it to tidy or retry, as it would from the direct client.
+        if getattr(exc, "temp_path", None):
+            body["temp_path"] = exc.temp_path
+        return jsonify(body), ERROR_STATUS
 
     try:
         body = _read_body()
@@ -455,6 +463,10 @@ def _single_read(op):
         return fail("listing_too_large", exc)
     except TransferTimeout as exc:
         return fail("timeout", exc)
+    except TargetExists as exc:
+        return fail("exists", exc)
+    except TransferUncertain as exc:
+        return fail("uncertain", exc)
     except error_perm as exc:
         return fail("unavailable", exc)
     except all_errors as exc:
@@ -506,7 +518,7 @@ def list_details():
     denied = _unauthorized()
     if denied is not None:
         return denied
-    return _single_read(_list_details)
+    return _single_op(_list_details)
 
 
 def _fetch(ftp, body: dict):
@@ -526,7 +538,35 @@ def fetch():
     denied = _unauthorized()
     if denied is not None:
         return denied
-    return _single_read(_fetch)
+    return _single_op(_fetch)
+
+
+def _write(ftp, body: dict):
+    remote_path = body.get("remote_path")
+    if not isinstance(remote_path, str) or not remote_path:
+        raise _BadRequest("need a remote_path")
+    op = body.get("op")
+    if op in ("upload", "put"):
+        # validate=True: a malformed payload is a bad request, never a file
+        # silently stored with the junk characters dropped.
+        data = base64.b64decode(body.get("data_b64"), validate=True)
+        if op == "upload":
+            ftp.upload(remote_path, data)
+        else:
+            ftp.put(remote_path, data, deadline=body.get("deadline_s"))
+    elif op in ("remove", "mkdir", "rmdir"):
+        getattr(ftp, op)(remote_path)
+    else:
+        raise _BadRequest(f"unknown write op {op!r}")
+    return jsonify({"ok": True})
+
+
+@ftp_proxy_sknn_v3.post(URL_WRITE)
+def write():
+    denied = _unauthorized()
+    if denied is not None:
+        return denied
+    return _single_op(_write)
 
 
 def create_app() -> Flask:

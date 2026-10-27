@@ -43,7 +43,13 @@ with FtpClient(host="10.0.0.1", user="u", password="p") as ftp:
 확인하지 않고 550을 그대로 올린다. 확인용 `CWD`가 거절(`error_perm`)이 아닌 이유로
 실패하거나(응답 디코딩 실패, 응답 유실 — 서버는 이미 이동했을 수 있다) 돌아오는 `CWD`가
 실패하면 연결을 버린다 — 다음 상대 경로가 엉뚱한 폴더에서 실행되지 않게 하기 위해서다. `rmdir`은 오류를 그대로 올린다.
-proxy의 `FtpClient`는 읽기 전용이라 둘 다 `WriteNotSupported`를 낸다.
+proxy의 `FtpClient`(`from ftp_handler.proxy import FtpClient`)도 `upload`·`put`·`remove`·
+`mkdir`·`rmdir`를 같은 시그니처로 제공한다(2026-10-28부터, 그 전에는 읽기 전용이라
+`WriteNotSupported`를 냈다). 호출마다 proxy가 `/write_sknn_v3`에서 새 연결로
+`core.FtpClient`의 같은 메서드를 실행하므로 동작과 예외(`TargetExists`,
+`TransferUncertain`과 그 `temp_path`, 550의 `error_perm`)가 직접 연결과 같다. 요청이
+proxy에 닿은 뒤 난 `ProxyError`(응답 유실, 5xx)는 쓰기가 됐는지 알 수 없으니 재시도 전에
+목록을 확인한다.
 
 목록 방식: `list_dir`는 어디서나 동작한다. `list_entries`는 MLSD(RFC 3659)가
 필요하며 구형 데몬에서는 `error_perm`을 던진다 — 그럴 땐 `list_details`로

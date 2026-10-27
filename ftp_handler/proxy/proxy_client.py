@@ -1,18 +1,24 @@
-"""Read-only single-server FTP client over the HTTP proxy — ``core.FtpClient``'s twin.
+"""Single-server FTP client over the HTTP proxy — ``core.FtpClient``'s twin.
 
 For a PC that cannot reach tool FTP (firewalled) but can reach the Flask proxy
-(``flask_proxy.py``). ``home``, ``list_details`` and ``download`` have
-``core.FtpClient``'s exact signatures and raise its exceptions, so a call site
-swaps the import line and nothing else::
+(``flask_proxy.py``). ``home``, ``list_details``, ``download``, ``upload``,
+``put``, ``remove``, ``mkdir`` and ``rmdir`` have ``core.FtpClient``'s exact
+signatures and raise its exceptions, so a call site swaps the import line and
+nothing else::
 
     from ftp_handler.core import FtpClient     # direct FTP
     from ftp_handler.proxy import FtpClient    # via the proxy
 
 Every call is one HTTP request and one fresh FTP connection on the proxy; the
 context manager holds no remote session, so paths are absolute strings that
-stay valid across calls. Writes are not offered: the proxy has no auth, so
-``put``, ``remove``, ``mkdir`` and ``rmdir`` raise ``WriteNotSupported`` and no
-write route exists.
+stay valid across calls. Writes run ``core.FtpClient``'s own method on the
+proxy, so ``put`` keeps its temp-then-rename no-clobber and ``mkdir`` its
+existing-directory check. (Until 2026-10-28 this client was read-only and
+raised ``WriteNotSupported``; the proxy's fleet routes already wrote, so the
+policy changed to let the single-server client write too.)
+
+A ``ProxyError`` from a write leaves its outcome unknown when the request
+reached the proxy (a lost answer, a 5xx after the work): list before retrying.
 
 Proxy location and auth are ``proxy_downloader.PROXY_URL`` / ``PROXY_TOKEN``,
 read when the client is built, the same constants ``FtpFleetDownloader`` uses.
@@ -25,7 +31,12 @@ Wire (``POST``, JSON body = credentials envelope + operation fields):
         answers ``{home, entries: []}`` after the PWD with no LIST at all.
     /fetch_sknn_v3         {remote_path, max_bytes, deadline_s}
         200 application/octet-stream, the raw file bytes
-    Either route: 422 {code, error}, mapped back to an exception by ``_ERRORS``;
+    /write_sknn_v3         {op: upload|put|remove|mkdir|rmdir, remote_path,
+                            data_b64 (upload, put), deadline_s (put)}
+        200 {ok: true}
+    Any route: 422 {code, error, temp_path?}, mapped back to an exception by
+    ``_ERRORS``; ``temp_path`` names a put's leftover temp, as on the direct
+    client;
     ``encoding`` (an undecodable name, banner or PWD) is ``UnicodeDecodeError``.
     Any other status, or a body that is not the expected JSON, is ``ProxyError``.
 
@@ -34,6 +45,7 @@ clocks are not compared. The proxy enforces every cap while it receives from
 FTP, and this side enforces ``max_bytes`` and ``deadline`` again per chunk.
 """
 
+import base64
 import time
 from datetime import datetime, tzinfo
 from ftplib import error_perm
@@ -44,8 +56,10 @@ from ..core.client import (
     _DEFAULT_TZ,
     FileInfo,
     ListingTooLarge,
+    TargetExists,
     TransferTimeout,
     TransferTooLarge,
+    TransferUncertain,
     _check_deadline,
 )
 from ..direct_downloader.fleet_downloader import HostSpec
@@ -53,12 +67,9 @@ from . import proxy_downloader as _dl
 
 URL_LIST_DETAILS = "/list_details_sknn_v3"
 URL_FETCH = "/fetch_sknn_v3"
+URL_WRITE = "/write_sknn_v3"
 ERROR_STATUS = 422
 _CHUNK = 64 * 1024
-
-
-class WriteNotSupported(NotImplementedError):
-    """The proxy transport is read-only; write directly or not at all."""
 
 
 class ProxyError(ConnectionError):
@@ -79,6 +90,8 @@ _ERRORS = {
     "timeout": TransferTimeout,
     "unavailable": FileUnavailable,
     "unreachable": ToolUnreachable,
+    "exists": TargetExists,
+    "uncertain": TransferUncertain,
     # A request the proxy cannot parse is a version mismatch between the two
     # halves, not a value the caller passed.
     "bad_request": ProxyError,
@@ -95,7 +108,7 @@ def _field(read):
 
 
 class FtpClient:
-    """``core.FtpClient``'s read surface, one proxy request per call."""
+    """``core.FtpClient``'s surface, one proxy request per call."""
 
     def __init__(
         self,
@@ -155,7 +168,8 @@ class FtpClient:
             body = resp.json()
             code, error = body["code"], body["error"]
             exc_type = _ERRORS[code] if resp.status_code == ERROR_STATUS else None
-        except (ValueError, KeyError, TypeError):
+            temp = body.get("temp_path")
+        except (ValueError, KeyError, TypeError, AttributeError):
             exc_type = None
         finally:
             resp.close()
@@ -164,7 +178,14 @@ class FtpClient:
         if exc_type == "encoding":
             # The direct client raises this from ftplib's decode; same type here.
             raise UnicodeDecodeError(self.encoding, b"", 0, 0, error)
-        raise exc_type(error)
+        if exc_type is TransferUncertain:
+            raise TransferUncertain(error, temp_path=temp)
+        exc = exc_type(error)
+        if temp:
+            # As core.FtpClient._drop_temp marks a temp it could not delete.
+            exc.temp_path = temp
+            exc.add_note(f"temp file left on server: {temp}")
+        raise exc
 
     def _json(self, resp) -> dict:
         try:
@@ -245,17 +266,36 @@ class FtpClient:
             resp.close()
         return bytes(buf)
 
+    def _write(self, op: str, remote_path: str, data: bytes | None = None,
+               deadline: float | None = None) -> None:
+        payload = {"op": op, "remote_path": remote_path, "deadline_s": deadline}
+        if data is not None:
+            payload["data_b64"] = base64.b64encode(data).decode("ascii")
+        body = self._json(self._post(URL_WRITE, payload, deadline))
+        # A 200 that is not this route's answer (a login page, an older proxy
+        # without the route behind a catch-all) must never read as success.
+        if _field(lambda: body["ok"]) is not True:
+            raise ProxyError(f"proxy did not confirm {op} {remote_path}")
+
+    def upload(self, remote_path: str, data: bytes) -> None:
+        """``core.FtpClient.upload`` (STOR, overwriting), run on the proxy."""
+        self._write("upload", remote_path, data)
+
     def put(self, remote_path: str, data: bytes, *, deadline: float | None = None) -> None:
-        raise WriteNotSupported("the FTP proxy is read-only")
+        """``core.FtpClient.put`` (no-clobber temp + rename), run on the proxy."""
+        self._write("put", remote_path, data, deadline)
 
     def remove(self, remote_path: str) -> None:
-        raise WriteNotSupported("the FTP proxy is read-only")
+        """``core.FtpClient.remove`` (DELE), run on the proxy."""
+        self._write("remove", remote_path)
 
     def mkdir(self, remote_dir: str) -> None:
-        raise WriteNotSupported("the FTP proxy is read-only")
+        """``core.FtpClient.mkdir`` (MKD; an existing directory is success)."""
+        self._write("mkdir", remote_dir)
 
     def rmdir(self, remote_dir: str) -> None:
-        raise WriteNotSupported("the FTP proxy is read-only")
+        """``core.FtpClient.rmdir`` (RMD, empty directories only)."""
+        self._write("rmdir", remote_dir)
 
 
 __all__ = [
@@ -263,5 +303,4 @@ __all__ = [
     "FtpClient",
     "ProxyError",
     "ToolUnreachable",
-    "WriteNotSupported",
 ]
