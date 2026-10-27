@@ -19,6 +19,10 @@ policy changed to let the single-server client write too.)
 
 A ``ProxyError`` from a write leaves its outcome unknown when the request
 reached the proxy (a lost answer, a 5xx after the work): list before retrying.
+``remove``, ``mkdir`` and ``rmdir`` wait a bounded time for the answer. ``upload``
+and ``put`` without a ``deadline`` wait as long as the proxy takes: it says
+nothing until the STOR is done, so no fixed wait fits every file size. Pass
+``put(deadline=...)`` to bound it.
 
 Proxy location and auth are ``proxy_downloader.PROXY_URL`` / ``PROXY_TOKEN``,
 read when the client is built, the same constants ``FtpFleetDownloader`` uses.
@@ -37,7 +41,8 @@ Wire (``POST``, JSON body = credentials envelope + operation fields):
     Any route: 422 {code, error, temp_path?}, mapped back to an exception by
     ``_ERRORS``; ``temp_path`` names a put's leftover temp, as on the direct
     client;
-    ``encoding`` (an undecodable name, banner or PWD) is ``UnicodeDecodeError``.
+    ``encoding`` (an undecodable name, banner or PWD) is ``UnicodeDecodeError``,
+    or ``UnicodeEncodeError`` with ``encode: true`` (a path the charset cannot hold).
     Any other status, or a body that is not the expected JSON, is ``ProxyError``.
 
 ``deadline_s`` is the seconds remaining, never a clock reading: the two machines'
@@ -70,6 +75,10 @@ URL_FETCH = "/fetch_sknn_v3"
 URL_WRITE = "/write_sknn_v3"
 ERROR_STATUS = 422
 _CHUNK = 64 * 1024
+# remove/mkdir/rmdir answer after at most this many FTP replies on the proxy
+# (banner, USER, PASS, MKD, PWD, CWD, CWD for mkdir), each bounded by
+# ``timeout`` there, so the HTTP wait for them can be finite.
+_SMALL_OP_REPLIES = 7
 
 
 class ProxyError(ConnectionError):
@@ -169,18 +178,22 @@ class FtpClient:
             code, error = body["code"], body["error"]
             exc_type = _ERRORS[code] if resp.status_code == ERROR_STATUS else None
             temp = body.get("temp_path")
-        except (ValueError, KeyError, TypeError, AttributeError):
+        except (ValueError, KeyError, TypeError, AttributeError, requests.RequestException):
             exc_type = None
         finally:
             resp.close()
         if exc_type is None:
             raise ProxyError(f"proxy answered HTTP {resp.status_code} on {path}")
-        if exc_type == "encoding":
-            # The direct client raises this from ftplib's decode; same type here.
-            raise UnicodeDecodeError(self.encoding, b"", 0, 0, error)
         if exc_type is TransferUncertain:
             raise TransferUncertain(error, temp_path=temp)
-        exc = exc_type(error)
+        if exc_type == "encoding":
+            # The direct client raises these from ftplib's encode/decode.
+            if body.get("encode"):
+                exc = UnicodeEncodeError(self.encoding, "", 0, 0, error)
+            else:
+                exc = UnicodeDecodeError(self.encoding, b"", 0, 0, error)
+        else:
+            exc = exc_type(error)
         if temp:
             # As core.FtpClient._drop_temp marks a temp it could not delete.
             exc.temp_path = temp
@@ -192,6 +205,8 @@ class FtpClient:
             return resp.json()
         except ValueError as exc:
             raise ProxyError("proxy answered 200 with a non-JSON body") from exc
+        except requests.RequestException as exc:
+            raise ProxyError(f"proxy answer broke off: {exc}") from exc
         finally:
             resp.close()
 
@@ -271,7 +286,10 @@ class FtpClient:
         payload = {"op": op, "remote_path": remote_path, "deadline_s": deadline}
         if data is not None:
             payload["data_b64"] = base64.b64encode(data).decode("ascii")
-        body = self._json(self._post(URL_WRITE, payload, deadline))
+            wait = deadline
+        else:
+            wait = _SMALL_OP_REPLIES * self.timeout
+        body = self._json(self._post(URL_WRITE, payload, wait))
         # A 200 that is not this route's answer (a login page, an older proxy
         # without the route behind a catch-all) must never read as success.
         if _field(lambda: body["ok"]) is not True:

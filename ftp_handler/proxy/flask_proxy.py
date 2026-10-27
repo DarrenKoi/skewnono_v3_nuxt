@@ -438,6 +438,8 @@ def _single_op(op):
         # it to tidy or retry, as it would from the direct client.
         if getattr(exc, "temp_path", None):
             body["temp_path"] = exc.temp_path
+        if isinstance(exc, UnicodeEncodeError):
+            body["encode"] = True  # a name the charset cannot hold, not a reply
         return jsonify(body), ERROR_STATUS
 
     try:
