@@ -4,9 +4,50 @@ device-statistics 의 recipe 관련 화면(recipe-statistics, recipe-trend)의 �
 답하려는 질문은 하나입니다 — **이 device 가 어떤 공정 스텝을, 몇 번째 순서로, 어떤
 recipe 로 측정하는가.**
 
-Index -> sknn-planstep-r3
+Index -> sknn-planstep-r3-cd   (2026-10-27 부터. 아래 "장비 계열별 index" 절)
 
 문서 1건 = **(prod_id, oper_seq, samp_seq) 한 스텝** 입니다.
+
+장비 계열별 index — 하나였던 index 가 넷으로 갈라졌습니다 (user-confirmed 2026-10-27)
+
+지금까지 device-statistics 는 CD-SEM 만 서비스했고 원천은 `sknn-planstep-r3`
+하나였습니다. 사무실이 장비 계열별 index 를 새로 구축했습니다. column 은 넷 모두
+기존 `sknn-planstep-r3` 와 **동일**합니다 — 이 문서의 field 설명이 그대로 적용됩니다.
+
+  index                        장비 계열    문서 수   제품 수(prod_id)  distinct oper_desc
+  sknn-planstep-r3-cd          CD-SEM      126,628       515              8,751
+  sknn-planstep-r3-hv          HV-SEM        3,569       233                425
+  sknn-planstep-r3-verify      VeritySEM     1,200        92                199
+  sknn-planstep-r3-provision   Provision     7,564       275                670
+
+  (숫자는 2026-10-27 사용자 전달값입니다. 적재가 계속되므로 늘어납니다.)
+
+**기존 `sknn-planstep-r3` 는 남아 있지만 더 이상 업데이트되지 않습니다.** CD-SEM
+경로는 `-cd` 를 읽어야 합니다. 옛 index 를 계속 읽어도 오류는 나지 않고 숫자만
+조용히 낡아 가므로, 실패로는 드러나지 않습니다.
+
+어느 index 에 속하는가 — 스텝의 suffix 와 그 스텝의 eqp_id 로 정해집니다
+(user-confirmed 2026-10-27). eqp_id 의 계열은 id 를 파싱해서가 아니라 sem_list
+행의 eqp_model_cd 로 판정합니다 — eqp_id 접두사 MCD 하나가 네 계열에 걸칩니다
+(backend/ebeam/_tool_specs.py). suffix 규칙의 정확한 목록은 OFFICE-VERIFY 입니다.
+
+AVIS / ICANS — 이 이름이 suffix 로 붙는 스텝이 있습니다. **이미지 처리 기반
+측정**입니다 (user-confirmed 2026-10-27). 어느 index 에 실리는지, 그리고
+only_normal 의 "마지막 토큰이 정확히 CD" 규칙(아래 "화면의 네 버킷")에서 어떻게
+다룰지는 아직 정해지지 않았습니다. 지금 규칙으로는 "... CD AVIS" 꼴이면 마지막
+토큰이 CD 가 아니므로 only_normal 에서 빠집니다. OFFICE-VERIFY.
+
+규모 — `-cd` 는 126,628 / 515 ≈ 제품당 평균 246 건으로, mock 의 device 당
+175~200 스텝과 같은 자릿수입니다. 아래 "한 device 의 문서 수" 절의 2000+(RJ1B)는
+**옛 index** 에서 본 값이므로, `-cd` 에서도 그 device 가 2000 을 넘는지는
+OFFICE-VERIFY 입니다.
+
+OFFICE-VERIFY (계열 index)
+- `-hv` / `-verify` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.
+- 네 index 모두 det_fac_id 가 "R3" 단일 값인지 (index 이름에 r3 가 들어 있음).
+- VeritySEM / Provision(AMAT) 스텝의 recipe_id 가 어느 파라미터 원천과 조인되는지
+  — cdsem_idp_ver 는 Hitachi recipe 의 index 입니다 (idp_ver.txt).
+- suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index.
 
 **이 index 는 R3 / 연구개발 전용입니다.** M 계열 양산 fab 의 공정 스텝은 이 index 에
 없고 OpenSearch `ebeam_tas_lot_hist` 에서 가져옵니다 —

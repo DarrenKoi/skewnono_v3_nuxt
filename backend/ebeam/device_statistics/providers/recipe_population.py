@@ -331,9 +331,10 @@ _EQP_FAMILIES = ("CDSEM", "CDS2", "MET", "VS", "INSP")
 # 작게 만듭니다. office 의 sknn-planstep-r3 은 문서 1건이 recipe 가 아니라 plan
 # step 이고, 한 device 가 2000건을 넘습니다 (office 확인 2026-08-10 — RJ1B 가
 # 어댑터 상한을 쳤습니다; docs/datatables/hitachi/planstep_r3.txt). 차이는 skip 되는 스텝과
-# 같은 recipe 를 여러 스텝에서 재사용하는 몫입니다. 재사용은 이제 재현하지만 **스텝
-# 수는 여전히 실물의 1/10** 이므로, 스텝 규모에 좌우되는 것(어댑터의 조회 상한,
-# payload 크기)은 집에서 관찰되지 않습니다.
+# 같은 recipe 를 여러 스텝에서 재사용하는 몫입니다. 재사용은 이제 재현합니다.
+# 평균으로는 mock 이 실물과 같은 자릿수입니다 — 2026-10-27 의 CD-SEM 전용 index
+# sknn-planstep-r3-cd 는 제품당 평균 ≈246 건입니다. 2000+ 는 **옛 index 의 최댓값**
+# 이라, 꼬리(어댑터의 조회 상한, payload 크기)는 여전히 집에서 관찰되지 않습니다.
 POOL_RANGE = (175, 200)
 
 # 카탈로그에는 있는데 **스텝 원본이 아예 없는** device. 실물에 있습니다 — RX1R 은

@@ -37,6 +37,12 @@ office 어댑터가 두 이름을 모두 받아 줍니다.
 - 스텝 없는 device: 실물에는 카탈로그·측정 순위에는 있는데 planstep 원본이
   없는 device 가 있습니다 (RX1R, office 확인 2026-10-13). 이 mock 은 R009 한
   lot 으로 대역합니다 (recipe_population.NO_STEP_LOTS).
+- 장비 계열: 실물의 R3 스텝 원천은 계열별 index 넷으로 갈라졌습니다 —
+  sknn-planstep-r3-{cd,hv,verify,provision}, column 동일, 옛 sknn-planstep-r3 는
+  업데이트 중단 (user-confirmed 2026-10-27, docs/datatables/hitachi/planstep_r3.txt).
+  이 mock 은 화면이 서비스하는 **CD-SEM(-cd) 하나만** 대역합니다. HV-SEM /
+  VeritySEM / Provision 스텝은 만들지 않고, AVIS/ICANS(이미지 처리 기반 측정)
+  suffix 스텝도 아직 없습니다 — 그 버킷 규칙이 정해지지 않았습니다(OFFICE-VERIFY).
 
 실제 컬럼/행 수/결측 분포는 사무실에서 아래로 확인합니다:
 

@@ -7,7 +7,7 @@
 
     Redis  r3_device_grp       -> R3/R&D device 카탈로그        (r3-device-grp)
     Redis  device_desc         -> M 계열 양산 device 카탈로그    (device-desc)
-    OS     sknn-planstep-r3    -> R3 공정 스텝 (oper_seq 순서)   ┐ recipe-params
+    OS     sknn-planstep-r3-cd -> R3 공정 스텝 (oper_seq 순서)   ┐ recipe-params
     OS     ebeam_tas_lot_hist  -> M-fab 공정 스텝 (순서 field X) ┘ recipe-statistics
     OS     cdsem_idp_ver       -> recipe 당 parameters blob     (para_* 집계)
     MinIO  weekly_trend/*.json -> 주차별 summary 스냅샷          (recipe-trend)
@@ -19,7 +19,7 @@ recipe 경로는 **fab 계열에 따라 갈라지는 3-hop 체인**입니다. �
     ─────────────────────────────      ─────────────────────────────
     r3_device_grp -> lot_cd            device_desc -> lot_cd
     lot_cd + "_BASE" -> prod_id        lot_cd 그대로 (접미사 없음)
-    sknn-planstep-r3                   ebeam_tas_lot_hist (최근 90일)
+    sknn-planstep-r3-cd                ebeam_tas_lot_hist (최근 90일)
       oper_seq/samp_seq 로 정렬          순서 field 없음 -> oper_order.py
       oper_desc, skip_yn 있음            oper_det_desc, skip_yn 없음
     ──────────────────── 공통 ────────────────────
@@ -182,7 +182,9 @@ __all__ = [
 RND_KEY = "r3_device_grp"   # R3/R&D 카탈로그 (parquet DataFrame)
 HVM_KEY = "device_desc"     # M 계열 양산 카탈로그 (parquet DataFrame)
 
-PLANSTEP_INDEX = "sknn-planstep-r3"
+# CD-SEM 전용 index. 옛 "sknn-planstep-r3" 는 업데이트가 끊겼습니다 — 계열별
+# index 넷(-cd/-hv/-verify/-provision)은 planstep_r3.txt (user-confirmed 2026-10-27).
+PLANSTEP_INDEX = "sknn-planstep-r3-cd"
 LOT_HIST_INDEX = "ebeam_tas_lot_hist"
 IDP_INDEX = "cdsem_idp_ver"
 

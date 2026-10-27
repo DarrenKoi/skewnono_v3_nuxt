@@ -24,7 +24,7 @@
 | `hitachi/ebeam_tas_lot_hist.txt` | OpenSearch `ebeam_tas_lot_hist` | `recipe_tat`, `fail_issue` (lot_id↔lot_cd 다리), `device_statistics`(M fab 공정 스텝) | 연결(device_statistics 제외) |
 | `hitachi/device_desc.txt` | Redis `device_desc` | `recipe_tat`, `fail_issue`, `device_statistics` | 연결 |
 | `hitachi/r3_device_grp.txt` | Redis `r3_device_grp` | 위와 동일 (R3/R&D) | 연결 |
-| `hitachi/planstep_r3.txt` | OpenSearch `sknn-planstep-r3` | `device_statistics` (R3 공정 스텝; M fab 은 `ebeam_tas_lot_hist`) | 구현완료(사무실 검증 대기) |
+| `hitachi/planstep_r3.txt` | OpenSearch `sknn-planstep-r3-{cd,hv,verify,provision}` (옛 `sknn-planstep-r3` 는 업데이트 중단) | `device_statistics` (R3 공정 스텝 — 현재 `-cd` 만 사용; M fab 은 `ebeam_tas_lot_hist`) | 구현완료(사무실 검증 대기) |
 | `hitachi/msr_file_pickle.txt` | MinIO — meas_hist 문서의 `minio_pkl` 경로 | `msr_file`, `ebeam/tttm`, `ebeam/pm_planning` | 연결 |
 | `hitachi/msr_image_ftp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/...` | `msr_image` | 연결 |
 | `hitachi/idp_ver.txt` | OpenSearch `cdsem_idp_ver` / `hvsem_idp_ver` | `lateral_recipe`, `device_statistics`(파라미터 개수 — `parameters` blob), `recipe_search`(measurement-locations — `raw_data` + `wafer_para_loc_info`) | 연결(lateral_recipe만) |
@@ -47,7 +47,7 @@
 | `afm/afm_raw_files.txt` | AFM 장비 raw 파일(csv·profile txt·webp) — ETL 이전. 위 적재물의 원천 | `afm` | raw 사실 office 확인 2026-10-02 |
 | `hitachi/recipe_idp.txt` | 장비 FTP `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` → `office_utils.read_idp_info` | `recipe_search` 자세히 보기 | 연결 |
 | `hitachi/parameter_info.txt` | 미정 — IDP 파서가 돌려주지 않음(`amp_info`) | `recipe_search` 자세히 보기 | **미연결**(mock) |
-| `hitachi/recipe_params.txt` | `sknn-planstep-r3`(recipe 목록) + `cdsem_idp_ver`(파라미터) — `planstep_r3.txt` 참고 | `device_statistics` | 구현완료(사무실 검증 대기) |
+| `hitachi/recipe_params.txt` | `sknn-planstep-r3-cd`(recipe 목록) + `cdsem_idp_ver`(파라미터) — `planstep_r3.txt` 참고 | `device_statistics` | 구현완료(사무실 검증 대기) |
 | `hitachi/device_statistics_weekly_trend.txt` | MinIO `device_statistics/weekly_trend/YYYY-MM-DD.json` (자체 생성) | `device_statistics` (recipe-trend) | 어댑터 구현완료, **적재 스케줄러 미구현** |
 | `hitachi/device_info.txt` | 파생 — `device_desc` / `r3_device_grp` 의 요약 view | `device_statistics` | 파생(원천 아님) |
 | `hitachi/hardware.txt` | 데이터 소스 아님 — FDC 파라미터 해설 | `msr_file` mock, 스큐보아 | 참고 |

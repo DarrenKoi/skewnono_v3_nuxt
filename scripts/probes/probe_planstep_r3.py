@@ -63,7 +63,7 @@ from backend._runtime.office_redis import (  # noqa: E402
 from ops_store import OSIndex, OSSearch, create_client  # noqa: E402
 
 
-INDEX = "sknn-planstep-r3"
+INDEX = "sknn-planstep-r3-cd"  # 옛 sknn-planstep-r3 는 업데이트 중단 (2026-10-27)
 IDP_INDEX = "cdsem_idp_ver"
 
 # The Redis key holding the R3 device catalog this index's prod_id must join to.
