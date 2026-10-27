@@ -47,7 +47,7 @@ recipe_id 로 남아 있습니다.
                  ("CD(E)", "CD(F)" 는 제외)
   mother_normal  only_normal 과 **같은 스텝 필터** + mother 파라미터를 1개 이상
                  가진 recipe 만. para_* 집계도 **mother 파라만** 셉니다.
-  only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
+  only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step (AVIS/ICANS 스텝 제외)
 
 only_normal 과 mother_normal 이 같은 스텝 필터를 공유하는 것이 핵심입니다 —
 mother_normal 은 스텝을 더 좁히는 것이 아니라 **한 단계 아래(파라미터)로**
@@ -164,6 +164,20 @@ def ends_with_pure_cd(oper_desc: str) -> bool:
     if not stripped:
         return False
     return stripped.split()[-1].upper() == "CD"
+
+
+# 이미지 처리 기반 측정 스텝의 oper_desc suffix (user-confirmed 2026-10-27).
+IMAGE_STEP_SUFFIXES = frozenset({"AVIS", "ICANS"})
+
+
+def is_image_step(oper_desc: str) -> bool:
+    """oper_desc 끝이 AVIS/ICANS(이미지 처리 기반 측정)인가 — all 에만 드는 스텝.
+
+    only_normal 은 마지막 토큰 == "CD" 규칙이 이미 걸러 주지만, only_sample 은
+    recipe 이름을 보므로 이 판정을 따로 걸어야 합니다 (user-confirmed 2026-10-27).
+    """
+    tokens = (oper_desc or "").split()
+    return bool(tokens) and tokens[-1].upper() in IMAGE_STEP_SUFFIXES
 
 
 def is_measuring(skip_yn: str) -> bool:
@@ -774,5 +788,8 @@ def bucket_members(
         "all": list(population),
         "only_normal": normal,
         "mother_normal": [r for r in normal if mother_para_all(r) > 0],
-        "only_sample": [r for r in population if is_sample_recipe(r["recipe_id"])],
+        "only_sample": [
+            r for r in population
+            if is_sample_recipe(r["recipe_id"]) and not is_image_step(r["oper_desc"])
+        ],
     }

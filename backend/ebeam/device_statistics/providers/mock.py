@@ -42,7 +42,8 @@ office 어댑터가 두 이름을 모두 받아 줍니다.
   업데이트 중단 (user-confirmed 2026-10-27, docs/datatables/hitachi/planstep_r3.txt).
   이 mock 은 화면이 서비스하는 **CD-SEM(-cd) 하나만** 대역합니다. HV-SEM /
   VeritySEM / Provision 스텝은 만들지 않습니다. AVIS/ICANS(이미지 처리 기반
-  측정, all 에만 들어가고 only_normal 에서는 빠짐 — user-confirmed 2026-10-27)
+  측정, all 에만 들어가고 only_normal·only_sample 에서는 빠짐 —
+  user-confirmed 2026-10-27)
   스텝명도 생성하지 않습니다. 실물에서 드물고, 어휘를 늘리면 rng 스트림이 밀려
   픽스처가 바뀌므로 그 규칙은 test_recipe_population.py 의 예시로만 확인합니다.
 

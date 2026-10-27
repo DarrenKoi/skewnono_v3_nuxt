@@ -24,6 +24,7 @@ from backend.ebeam.device_statistics.providers.recipe_population import (
     build_population,
     ends_with_pure_cd,
     is_exempt_job,
+    is_image_step,
     is_normal_bucket_step,
     is_sample_recipe,
     lot_trajectory,
@@ -391,6 +392,21 @@ def test_avis_icans_steps_stay_out_of_only_normal():
         assert office_example._ends_with_pure_cd(oper_desc) is False, oper_desc
 
 
+def test_avis_icans_steps_stay_out_of_only_sample_too():
+    """recipe 이름이 "_S" 로 끝나도 AVIS/ICANS 스텝은 all 에만 듭니다.
+
+    only_sample 의 축은 recipe 이름이라, 스텝명 규칙만으로는 이 스텝이 Sample 로
+    새어 들어갑니다 (user-confirmed 2026-10-27).
+    """
+    steps = [
+        {"oper_desc": d, "skip_yn": "N", "recipe_id": "QC/LINE_CD_R000_011_S"}
+        for d in ("CBL ETCH CD AVIS", "ISO PTN ICANS", "GT GATE POLY ETCH")
+    ]
+    for members in (bucket_members(steps), office_example._bucket_members(steps)):
+        assert len(members["all"]) == 3
+        assert [s["oper_desc"] for s in members["only_sample"]] == ["GT GATE POLY ETCH"]
+
+
 def test_paren_cd_steps_are_excluded_from_only_normal_whatever_the_tail():
     """"CD(...)" 꼬리는 길이와 무관하게 추가계측입니다.
 
@@ -411,6 +427,7 @@ def test_predicates_agree_with_the_office_adapter(oper_desc, skip_yn, recipe_id)
     복사본(office.py)이 되는 템플릿이라 한쪽만 고치기 쉬워, 예시 표로 함께 묶습니다.
     """
     assert ends_with_pure_cd(oper_desc) == office_example._ends_with_pure_cd(oper_desc)
+    assert is_image_step(oper_desc) == office_example._is_image_step(oper_desc)
     assert is_sample_recipe(recipe_id) == office_example._is_sample_recipe(recipe_id)
     assert (
         is_normal_bucket_step(oper_desc, skip_yn)

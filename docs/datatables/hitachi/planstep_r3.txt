@@ -33,11 +33,13 @@ Index -> sknn-planstep-r3-cd   (2026-10-27 부터. 아래 "장비 계열별 inde
 
 AVIS / ICANS — oper_desc 끝에 이 이름이 붙는 스텝이 있습니다. **이미지 처리
 기반 측정**이며, "... CD AVIS" 처럼 CD 뒤에 붙는 경우도 드물지만 있습니다.
-**이 스텝들은 all 에만 들어가고 only_normal(Main)에는 넣지 않습니다**
-(user-confirmed 2026-10-27). 아래 "화면의 네 버킷" 의 "마지막 토큰이 정확히 CD"
-규칙이 이미 그렇게 동작합니다 — 마지막 토큰이 AVIS/ICANS 라 CD 가 아니기
-때문입니다. suffix 를 벗겨 CD 로 끝나게 만드는 "개선"을 하면 이 결정이 뒤집히므로
-test_recipe_population.py 가 고정합니다. 어느 index 에 실리는지는 OFFICE-VERIFY.
+**이 스텝들은 all 에만 들어갑니다 — only_normal(Main)에도, only_sample 에도
+넣지 않습니다** (user-confirmed 2026-10-27). only_normal 은 아래 "화면의 네 버킷"
+의 "마지막 토큰이 정확히 CD" 규칙이 이미 걸러 줍니다(마지막 토큰이 AVIS/ICANS).
+only_sample 은 축이 recipe 이름이라 그 규칙이 닿지 않으므로, 어댑터와 mock 이
+각각 `_is_image_step` / `is_image_step` 으로 따로 뺍니다. suffix 를 벗겨 CD 로
+끝나게 만드는 "개선"이 이 결정을 뒤집지 못하도록 test_recipe_population.py 가
+두 버킷을 함께 고정합니다. 어느 index 에 실리는지는 OFFICE-VERIFY.
 
 규모 — `-cd` 는 126,628 / 515 ≈ 제품당 평균 246 건으로, mock 의 device 당
 175~200 스텝과 같은 자릿수입니다. 아래 "한 device 의 문서 수" 절의 2000+(RJ1B)는
@@ -198,6 +200,9 @@ recipe-statistics / recipe-trend 화면(comparison.vue)은 스텝을 네 버킷�
                  합니다 — 이름 어디든 "SE" 를 찾으면 PHASE/BASE/SET 같은 평범한
                  단어까지 Sample 로 잡힙니다. 스텝 코드(괄호 앞)로 판단하면
                  오검출이 생긴다는 담당자 확인이 있었습니다.
+                 단, 스텝명이 AVIS/ICANS 로 끝나는 이미지 처리 기반 측정
+                 스텝은 recipe 이름과 무관하게 제외합니다 (user-confirmed
+                 2026-10-27, 위 "장비 계열별 index" 절).
 
 only_normal / mother_normal 은 skip 을 **멤버십에서** 거르므로, 이 두 버킷의
 avail_recipe 는 항상 total_recipe 와 같습니다. all / only_sample 에서만 두 값이

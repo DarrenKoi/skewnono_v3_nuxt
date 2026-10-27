@@ -69,7 +69,7 @@ skip_yn 은 실물과 값 도메인·극성을 맞췄습니다 (user-confirmed 2
                  ("CD(E)", "CD(F)" 는 제외)
   mother_normal  only_normal 과 같은 스텝 필터 + mother 파라가 있는 recipe 만.
                  para_* 도 mother 파라만 셉니다 (한 단계 아래로 들어갑니다).
-  only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step
+  only_sample    **recipe 이름**이 "_S" 또는 "SE" 로 끝나는 Step (AVIS/ICANS 스텝 제외)
 
 only_normal / mother_normal 은 skip 을 **멤버십에서** 거르므로 두 버킷의
 ``avail_recipe`` 는 항상 ``total_recipe`` 와 같습니다 (user-confirmed

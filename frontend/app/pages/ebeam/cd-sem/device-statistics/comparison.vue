@@ -336,7 +336,7 @@ const bucketOptions: BucketOption[] = [
   {
     label: 'Only Sample',
     value: 'only_sample_summary',
-    description: 'Sample Recipe만 표시합니다. _S, SE Step을 선별합니다.'
+    description: 'Sample Recipe만 표시합니다. _S, SE Step을 선별하며, 스텝명이 AVIS·ICANS로 끝나는 이미지 처리 측정 Step은 제외합니다.'
   }
 ]
 
