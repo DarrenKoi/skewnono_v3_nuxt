@@ -54,7 +54,7 @@ const VALID_TABS = new Set(['tat', 'align', 'meas'])
 // /ebeam/<tool>/<fab> with no page segment after them, which is
 // [fab]/index.vue — EbeamToolInventoryView, 장비 상태.
 //
-// Unlike every other entry in IDENTITY_RULES this is NOT a route fragment.
+// Unlike every other entry in EBEAM_RULES this is NOT a route fragment.
 // The page has no path segment of its own, so its identity has to be
 // synthesized. Matches the backend's `tool_inventory` slug; the tool family is
 // prefixed onto it like any other e-beam identity (`cdsem#tool-inventory`).
@@ -76,11 +76,14 @@ const OPS_PREFIXES = ['/activity', '/admin', '/settings', '/endpoints', '/identi
 // the canonical path (fab and, under /ebeam, the tool already removed). A path
 // that equals a rule — or nests under it — takes that rule's identity, which is
 // exactly how the backend's prefix tables collapse sub-pages.
-const IDENTITY_RULES = [
+//
+// Split by section, as the backend's _PAGE_RULES / _STANDALONE_PAGE_RULES are:
+// a top-level /storage is a 404, not the e-beam storage page, and
+// /ebeam/<tool>/<fab>/chat is an unmapped e-beam page, not chat.
+const EBEAM_RULES = [
   // Nested children whose own backend rule is more specific than their parent's.
   '/recipe-search/meas-hist',
 
-  // E-beam pages.
   '/recipe-search',
   '/device-statistics',
   '/recipe-status',
@@ -94,25 +97,20 @@ const IDENTITY_RULES = [
   '/tool-files',
   '/pm-tune',
   '/skewvoir',
-  TOOL_INVENTORY_PATH,
+  TOOL_INVENTORY_PATH
+]
 
-  // Standalone pages.
+const STANDALONE_RULES = [
   '/afm',
-  '/msr-file',
-  '/msr-files',
-  '/msr-image',
-  '/sem-list',
   '/tool-roster',
   '/mag-pixel',
   '/chat'
 ]
 
 // Distinct routes the backend gives ONE slug, so they must share one identity.
-// /tool-roster is the page; /sem-list is its historical alias. /pm-tune is
-// pm-planning's path between 2026-08-17 and 2026-08-27: the backend kept the pm_planning
-// slug for both, so the two must collapse here too.
+// /pm-tune is pm-planning's path between 2026-08-17 and 2026-08-27: the
+// backend kept the pm_planning slug for both, so the two must collapse here too.
 const IDENTITY_ALIASES: Record<string, string> = {
-  '/sem-list': '/tool-roster',
   '/pm-tune': '/pm-planning'
 }
 
@@ -176,8 +174,8 @@ const canonicalize = (rawPath: string): Canonical => {
   return { path: '/' + segments.filter(segment => !FAB_SEGMENT.test(segment)).join('/'), ebeam: false }
 }
 
-const matchRule = (canonical: string): string | null => {
-  for (const rule of IDENTITY_RULES) {
+const matchRule = (canonical: string, rules: readonly string[]): string | null => {
+  for (const rule of rules) {
     if (canonical === rule || canonical.startsWith(rule + '/')) {
       return IDENTITY_ALIASES[rule] ?? rule
     }
@@ -194,7 +192,7 @@ const isOpsPath = (path: string): boolean => {
 /** The identity of the PAGE alone, family aside — what `page_to_feature`'s
  *  slug partitions. `resolvePageIdentity` adds the family half. */
 const resolvePage = (
-  { path: canonical }: Canonical,
+  { path: canonical, ebeam }: Canonical,
   query: Record<string, unknown>
 ): string | null => {
   // The hub at / is a waypoint everyone passes through, not a ranked feature.
@@ -204,7 +202,7 @@ const resolvePage = (
   if (canonical === '/') return null
 
   // recipe-status carries two features behind one route.
-  if (canonical === `/${TAB_ROUTE}` || canonical.endsWith(`/${TAB_ROUTE}`)) {
+  if (ebeam && (canonical === `/${TAB_ROUTE}` || canonical.endsWith(`/${TAB_ROUTE}`))) {
     // No tab yet — RecipeStatusView's mount-time router.replace supplies one
     // within a tick, and that navigation is the one worth counting.
     const tab = firstValue(query.tab)
@@ -215,14 +213,14 @@ const resolvePage = (
   const [, section, , afmPage] = canonical.split('/')
   if (section === 'afm' && afmPage && AFM_PAGES.has(afmPage)) return `/afm/${afmPage}`
 
-  const matched = matchRule(canonical)
+  const matched = matchRule(canonical, ebeam ? EBEAM_RULES : STANDALONE_RULES)
   if (matched) return matched
 
   // Unmapped page: no identity, no beacon — exactly as the backend returns
   // None. The old e-beam tool-segment fallback is how CD-SEM kept reappearing
   // in the ranking, and the standalone own-path fallback ranked 404s
-  // (/Endpoints에씜). A page ranks once it has an IDENTITY_RULES entry and a
-  // matching backend rule.
+  // (/Endpoints에씜). A page ranks once it has an EBEAM_RULES or
+  // STANDALONE_RULES entry and a matching backend rule.
   return null
 }
 

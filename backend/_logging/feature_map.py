@@ -174,12 +174,6 @@ _STANDALONE_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("/mag-pixel",   "mag_pixel"),
     ("/chat",        "chat"),
     ("/afm",         "afm"),
-    # Retired page paths the frontend still names (IDENTITY_RULES). They used
-    # to reach these slugs through the first-segment fallback, which is gone.
-    ("/sem-list",    "sem_list"),
-    ("/msr-file",    "msr_file"),
-    ("/msr-files",   "msr_files"),
-    ("/msr-image",   "msr_image"),
 )
 
 # /afm/<tool>/<this segment> → slug. The tool sits between /afm and the page,

@@ -335,18 +335,6 @@ test('switching family between two 장비 상태 landings is still a landing', (
   )
 })
 
-test('skewvoir does not share the msr-file identity', () => {
-  // /msr-file, /msr-files and /msr-image are API paths with their own slugs;
-  // fusing them onto /skewvoir would merge four distinct backend slugs.
-  const skewvoir = resolvePageIdentity('/ebeam/cd-sem/skewvoir', {})
-
-  assert.notEqual(skewvoir, resolvePageIdentity('/msr-file', {}))
-  assert.notEqual(
-    resolvePageIdentity('/msr-file', {}),
-    resolvePageIdentity('/msr-files', {})
-  )
-})
-
 test('contract: every page names the family the backend names', () => {
   // The frontend picks the beacon URL from this, and the backend rejects a
   // beacon whose URL disagrees with its page — so a drift here is not a

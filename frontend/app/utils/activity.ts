@@ -105,10 +105,9 @@ export const rankableFabRows = <T extends { fab: string }>(
 //     so nothing can write these slugs again. Like `home`, keep the labels
 //     until the office rows already written under them leave the 30-day
 //     window; then they can go.
-//   - `thickness` is a live fallback: a standalone page with no rule still
-//     falls back to its first path segment (pinned by
-//     test_unknown_standalone_pages_fall_back_to_a_derived_slug), so its
-//     label stays.
+//   - `thickness` is retired too, as of 2026-10-28: it was only ever reached
+//     through the standalone first-segment fallback, which both halves
+//     dropped (an unmapped page is null/None). Same schedule as `home`.
 const FEATURE_LABELS: Record<string, string> = {
   activity: '사용 통계',
   admin_logs: '운영 로그',

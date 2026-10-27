@@ -500,13 +500,20 @@ const identitySourceOptions = [
   { label: 'Anonymous', value: 'anonymous' }
 ]
 
-// /activity's Endpoint 로그 card links here as ?identity_source=token. Seeds
-// the first query only: makeDefaultFilters stays unseeded, so 초기화 clears it.
-const seededSource = useRoute().query.identity_source
-if (identitySourceOptions.some(option => option.value === seededSource)) {
-  draft.identity_source = seededSource as string
-  applied.value = { ...draft }
-}
+// /activity's Endpoint 로그 card links here as ?identity_source=token. Watched,
+// not read once: a query-only navigation (Back, a link) reuses this instance.
+// Only the route param is watched, so 초기화 clears the filter by dropping it.
+const route = useRoute()
+const router = useRouter()
+watch(() => route.query.identity_source, (source) => {
+  const value = identitySourceOptions.some(option => option.value === source)
+    ? source as string
+    : ALL_SENTINEL
+  draft.identity_source = value
+  applied.value = { ...applied.value, identity_source: value }
+  currentPage.value = 1
+  expandedId.value = null
+}, { immediate: true })
 
 const fromAll = (value: string) => (value === ALL_SENTINEL ? '' : value)
 
@@ -617,6 +624,8 @@ const applyFilters = () => {
 }
 
 const resetFilters = () => {
+  // Otherwise a reload or a copied link brings the card's preset back.
+  if (route.query.identity_source) void router.replace({ query: {} })
   const defaults = makeDefaultFilters()
   Object.assign(draft, defaults)
   applied.value = { ...defaults }

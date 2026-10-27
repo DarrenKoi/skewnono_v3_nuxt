@@ -305,27 +305,30 @@
   {
     "path": "/msr-file",
     "query": {},
-    "slug": "msr_file",
-    "family": null
+    "slug": null,
+    "family": null,
+    "comment": "Retired page path, now a 404: not ranked"
   },
   {
     "path": "/msr-files",
     "query": {},
-    "slug": "msr_files",
-    "family": null
+    "slug": null,
+    "family": null,
+    "comment": "Retired page path, now a 404: not ranked"
   },
   {
     "path": "/msr-image",
     "query": {},
-    "slug": "msr_image",
-    "family": null
+    "slug": null,
+    "family": null,
+    "comment": "Retired page path, now a 404: not ranked"
   },
   {
     "path": "/sem-list",
     "query": {},
-    "slug": "sem_list",
+    "slug": null,
     "family": null,
-    "comment": "Alias of /tool-roster — same slug, so it must share its identity"
+    "comment": "Retired page path, now a 404: not ranked"
   },
   {
     "path": "/tool-roster",
@@ -379,6 +382,20 @@
     "slug": null,
     "family": null,
     "comment": "Hidden coming-soon stub; ranks once it ships with an explicit rule"
+  },
+  {
+    "path": "/storage",
+    "query": {},
+    "slug": null,
+    "family": null,
+    "comment": "An e-beam page name at the top level is a 404, not that page"
+  },
+  {
+    "path": "/ebeam/cd-sem/M14/chat",
+    "query": {},
+    "slug": null,
+    "family": "cdsem",
+    "comment": "A standalone page name under /ebeam is an unmapped e-beam page, not that page"
   },
   {
     "path": "/ebeam/hv-sem/R3/pm-planning",
