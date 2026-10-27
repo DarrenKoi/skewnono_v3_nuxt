@@ -44,7 +44,8 @@ tolerates large files easily; the proxy path is sensitive to them.
 `FtpClient` (`core/client.py`): one host, one reused connection, ad-hoc
 operations — `list_dir` (NLST, names only), `list_entries` (MLSD, subfolders
 and files split into `DirEntries`), `list_details` (LIST, `FileInfo` with size
-and tz-aware modified time), download / upload / remove. The opposite scale from
+and tz-aware modified time), download / upload / remove / mkdir / rmdir. The
+opposite scale from
 the Fleet — no concurrency, no failure report; server errors propagate to the
 caller. For notebooks and one-off scripts, not scheduled fleet runs.
 

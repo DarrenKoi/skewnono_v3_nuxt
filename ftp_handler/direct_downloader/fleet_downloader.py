@@ -1246,6 +1246,8 @@ def _makedirs(ftp: FTP, remote_dir: str, home: str) -> None:
                 ftp.cwd(prefix)
             except error_perm:
                 raise exc from None
+            except _FTP_ERRORS as probe_exc:
+                raise _cwd_lost_in(prefix, probe_exc) from probe_exc
             _cwd_home(ftp, home)
 
 
@@ -1262,6 +1264,12 @@ def _cwd_home(ftp: FTP, home: str) -> None:
         ftp.cwd(home)
     except _FTP_ERRORS as exc:
         raise _CwdLost(f"CWD back to {home} failed: {type(exc).__name__}: {exc}") from exc
+
+
+def _cwd_lost_in(path: str, exc: BaseException) -> "_CwdLost":
+    """A CWD probe that failed with anything but a refusal: the server may
+    already have changed directory, so the session can no longer be trusted."""
+    return _CwdLost(f"CWD probe into {path} broke: {type(exc).__name__}: {exc}")
 
 
 def _remove_or_absent(
@@ -1296,6 +1304,8 @@ def _remove_or_absent(
             if not _is_550(probe):
                 raise exc from None
             return
+        except _FTP_ERRORS as probe_exc:
+            raise _cwd_lost_in(path, probe_exc) from probe_exc
         _cwd_home(ftp, home)
         raise exc from None
 

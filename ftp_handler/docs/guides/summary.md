@@ -11,7 +11,7 @@ re-export 허브라서 호출부는 리프 이름만 import 한다. direct 다�
 ```
 ftp_handler/
   core/                 공유 기본 요소 (stdlib만 사용; 다른 것에 의존하지 않음)
-    client.py           FtpClient — 단일 서버, 즉석 list/download/upload/remove
+    client.py           FtpClient — 단일 서버, 즉석 list/download/upload/remove/mkdir/rmdir
     listing.py          _normalize_listing — 두 규모 모두에서 쓰는 NLST 정규화기
   direct_downloader/    FTP 서버와 직접 통신
     fleet_downloader.py FtpFleetDownloader — 동시 팬아웃 (download/list_dirs/size_dirs/upload/mkdir/delete)
@@ -47,7 +47,7 @@ direct(`ftp_handler.direct_downloader`)와 proxy(`ftp_handler.proxy`)가 아래 
 
 ### `core` — 공유 기본 요소
 - **`FtpClient`** (`client.py`): 컨텍스트 매니저로 연결 하나를 재사용한다. 즉석 연산
-  네 가지(`download`/`upload`/`remove`)와 세 가지 목록 방식 — `list_dir`(NLST),
+  (`download`/`upload`/`remove`/`mkdir`/`rmdir`, 덮어쓰지 않는 `put`)과 세 가지 목록 방식 — `list_dir`(NLST),
   `list_entries`(MLSD, 디렉터리/파일 구분), `list_details`(LIST → 크기 + KST 기준
   mtime를 담은 타입드 `FileInfo`). 서버 오류는 그대로 전파된다.
 - **`_normalize_listing`** (`listing.py`): NLST 경로 정규화기. 단일 서버 다운로더와

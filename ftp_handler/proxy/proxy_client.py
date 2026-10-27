@@ -11,7 +11,8 @@ swaps the import line and nothing else::
 Every call is one HTTP request and one fresh FTP connection on the proxy; the
 context manager holds no remote session, so paths are absolute strings that
 stay valid across calls. Writes are not offered: the proxy has no auth, so
-``put`` and ``remove`` raise ``WriteNotSupported`` and no write route exists.
+``put``, ``remove``, ``mkdir`` and ``rmdir`` raise ``WriteNotSupported`` and no
+write route exists.
 
 Proxy location and auth are ``proxy_downloader.PROXY_URL`` / ``PROXY_TOKEN``,
 read when the client is built, the same constants ``FtpFleetDownloader`` uses.
@@ -248,6 +249,12 @@ class FtpClient:
         raise WriteNotSupported("the FTP proxy is read-only")
 
     def remove(self, remote_path: str) -> None:
+        raise WriteNotSupported("the FTP proxy is read-only")
+
+    def mkdir(self, remote_dir: str) -> None:
+        raise WriteNotSupported("the FTP proxy is read-only")
+
+    def rmdir(self, remote_dir: str) -> None:
         raise WriteNotSupported("the FTP proxy is read-only")
 
 

@@ -19,7 +19,7 @@ FTP 서버에 어떻게, 어느 규모로 접근하는지에 맞는 서브패키
 
 ## 케이스 1 — 단일 서버 (`core.FtpClient`)
 
-연결 하나를 재사용하며 컨텍스트 매니저로 쓴다. 즉석 연산 네 가지이며, 서버 오류는
+연결 하나를 재사용하며 컨텍스트 매니저로 쓴다. 서버 오류는
 그대로 전파된다(흡수해 줄 플릿 리포트가 없다).
 
 ```python
@@ -32,7 +32,18 @@ with FtpClient(host="10.0.0.1", user="u", password="p") as ftp:
     data = ftp.download(names[0])                      # RETR -> bytes
     ftp.upload("/INBOX/report.csv", b"a,b\n")          # STOR
     ftp.remove("/MEAS/stale.dat")                      # DELE
+    ftp.mkdir("/INBOX/2026")                           # MKD — 이미 있으면 성공
+    ftp.rmdir("/INBOX/old")                            # RMD — 빈 폴더만
 ```
+
+`mkdir`은 MKD 한 번이라 상위 폴더는 만들지 않는다(`mkdir -p`가 필요하면 플릿
+`mkdir`). 이미 있는 폴더에 대한 550은 그 경로로 `CWD`가 되는지 확인한 뒤에만 성공으로
+치고 원래 위치로 돌아온다. 550이라도 폴더가 아니면(권한 거절 등), 그리고 550이 아닌
+`error_perm`은 그대로 올라온다. 서버의 PWD 응답을 해석할 수 없으면 돌아올 위치를 몰라
+확인하지 않고 550을 그대로 올린다. 확인용 `CWD`가 거절(`error_perm`)이 아닌 이유로
+실패하거나(응답 디코딩 실패, 응답 유실 — 서버는 이미 이동했을 수 있다) 돌아오는 `CWD`가
+실패하면 연결을 버린다 — 다음 상대 경로가 엉뚱한 폴더에서 실행되지 않게 하기 위해서다. `rmdir`은 오류를 그대로 올린다.
+proxy의 `FtpClient`는 읽기 전용이라 둘 다 `WriteNotSupported`를 낸다.
 
 목록 방식: `list_dir`는 어디서나 동작한다. `list_entries`는 MLSD(RFC 3659)가
 필요하며 구형 데몬에서는 `error_perm`을 던진다 — 그럴 땐 `list_details`로

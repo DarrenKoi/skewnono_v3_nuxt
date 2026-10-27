@@ -94,7 +94,11 @@ file with 550 makes that file read as gone.
 Two rules keep a delete from landing on the wrong path or the wrong time:
 
 - **The CWD probe must be undoable.** It returns to the login PWD exactly as
-  `mkdir` does, and stops the host if that fails. An empty login PWD (ftplib's
+  `mkdir` does, and stops the host if that fails. Only a clean refusal
+  (`error_perm`) proves the probe did not move the session; any other error
+  from the probe itself (an undecodable or lost reply — the server may have
+  changed directory anyway) stops the host too, for `mkdir` and `delete`
+  alike. `core.FtpClient.mkdir` drops its connection in the same cases. An empty login PWD (ftplib's
   answer to a PWD reply it cannot parse) counts as a failed return, because
   `cwd("")` sends `CWD .` and would "succeed" in place — leaving the next
   relative DELE inside the probed directory.
