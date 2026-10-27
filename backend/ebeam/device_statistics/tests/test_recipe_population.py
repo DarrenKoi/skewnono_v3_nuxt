@@ -373,7 +373,22 @@ CLASSIFICATION_EXAMPLES = [
     ("", "", ""),
     ("ILD VIA ETCH CLN CD", "N", "EDGE/PROFILE_SCAN_R000_006_s"),
     ("M2 METAL1 CMP CD", "N", "ACI/DAILY_MATCH_R000_008_HALF"),
+    # 이미지 처리 기반 측정 (user-confirmed 2026-10-27) -> All 에만.
+    ("CBL ETCH CD AVIS", "N", "ADI/CD_BIAS_R000_009"),
+    ("ISO PTN CD ICANS", "N", "AEI/OVERLAY_R000_010"),
 ]
+
+
+def test_avis_icans_steps_stay_out_of_only_normal():
+    """"... CD AVIS" / "... CD ICANS" 는 이미지 처리 기반 측정이라 All 에만 듭니다.
+
+    지금 규칙(마지막 토큰 == "CD")이 이미 이렇게 동작합니다 — suffix 를 벗겨
+    "CD" 로 끝나게 만드는 "개선"이 이 결정을 조용히 뒤집지 않도록 고정합니다
+    (user-confirmed 2026-10-27).
+    """
+    for oper_desc in ("CBL ETCH CD AVIS", "ISO PTN CD ICANS", "ISO PTN CD(E) AVIS"):
+        assert ends_with_pure_cd(oper_desc) is False, oper_desc
+        assert office_example._ends_with_pure_cd(oper_desc) is False, oper_desc
 
 
 def test_paren_cd_steps_are_excluded_from_only_normal_whatever_the_tail():

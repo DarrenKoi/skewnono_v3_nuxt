@@ -26,16 +26,18 @@ Index -> sknn-planstep-r3-cd   (2026-10-27 부터. 아래 "장비 계열별 inde
 경로는 `-cd` 를 읽어야 합니다. 옛 index 를 계속 읽어도 오류는 나지 않고 숫자만
 조용히 낡아 가므로, 실패로는 드러나지 않습니다.
 
-어느 index 에 속하는가 — 스텝의 suffix 와 그 스텝의 eqp_id 로 정해집니다
-(user-confirmed 2026-10-27). eqp_id 의 계열은 id 를 파싱해서가 아니라 sem_list
+어느 index 에 속하는가 — 스텝명(oper_desc)의 suffix 와 그 스텝의 eqp_id 로
+정해집니다 (user-confirmed 2026-10-27). eqp_id 의 계열은 id 를 파싱해서가 아니라 sem_list
 행의 eqp_model_cd 로 판정합니다 — eqp_id 접두사 MCD 하나가 네 계열에 걸칩니다
 (backend/ebeam/_tool_specs.py). suffix 규칙의 정확한 목록은 OFFICE-VERIFY 입니다.
 
-AVIS / ICANS — 이 이름이 suffix 로 붙는 스텝이 있습니다. **이미지 처리 기반
-측정**입니다 (user-confirmed 2026-10-27). 어느 index 에 실리는지, 그리고
-only_normal 의 "마지막 토큰이 정확히 CD" 규칙(아래 "화면의 네 버킷")에서 어떻게
-다룰지는 아직 정해지지 않았습니다. 지금 규칙으로는 "... CD AVIS" 꼴이면 마지막
-토큰이 CD 가 아니므로 only_normal 에서 빠집니다. OFFICE-VERIFY.
+AVIS / ICANS — oper_desc 끝에 이 이름이 붙는 스텝이 있습니다. **이미지 처리
+기반 측정**이며, "... CD AVIS" 처럼 CD 뒤에 붙는 경우도 드물지만 있습니다.
+**이 스텝들은 all 에만 들어가고 only_normal(Main)에는 넣지 않습니다**
+(user-confirmed 2026-10-27). 아래 "화면의 네 버킷" 의 "마지막 토큰이 정확히 CD"
+규칙이 이미 그렇게 동작합니다 — 마지막 토큰이 AVIS/ICANS 라 CD 가 아니기
+때문입니다. suffix 를 벗겨 CD 로 끝나게 만드는 "개선"을 하면 이 결정이 뒤집히므로
+test_recipe_population.py 가 고정합니다. 어느 index 에 실리는지는 OFFICE-VERIFY.
 
 규모 — `-cd` 는 126,628 / 515 ≈ 제품당 평균 246 건으로, mock 의 device 당
 175~200 스텝과 같은 자릿수입니다. 아래 "한 device 의 문서 수" 절의 2000+(RJ1B)는
@@ -45,9 +47,14 @@ OFFICE-VERIFY 입니다.
 OFFICE-VERIFY (계열 index)
 - `-hv` / `-verify` / `-provision` 의 prod_id 도 lot_cd + "_BASE" 형태인지.
 - 네 index 모두 det_fac_id 가 "R3" 단일 값인지 (index 이름에 r3 가 들어 있음).
-- VeritySEM / Provision(AMAT) 스텝의 recipe_id 가 어느 파라미터 원천과 조인되는지
-  — cdsem_idp_ver 는 Hitachi recipe 의 index 입니다 (idp_ver.txt).
 - suffix 규칙의 정확한 목록과, AVIS/ICANS 스텝이 실리는 index.
+
+계열별 나머지 경로 (user-confirmed 2026-10-27)
+- 파라미터 개수: CD-SEM 은 cdsem_idp_ver, **HV-SEM 은 hvsem_idp_ver** 입니다
+  (같은 형태 — idp_ver.txt). **VeritySEM / Provision 은 idp index 가 아니라
+  측정 결과 data 에서 추출할 예정**입니다 (원천 미정).
+- M-fab 스텝: 계열과 무관하게 **계속 ebeam_tas_lot_hist** 를 씁니다. 네 planstep
+  index 는 R3 경로만 대체합니다.
 
 **이 index 는 R3 / 연구개발 전용입니다.** M 계열 양산 fab 의 공정 스텝은 이 index 에
 없고 OpenSearch `ebeam_tas_lot_hist` 에서 가져옵니다 —
