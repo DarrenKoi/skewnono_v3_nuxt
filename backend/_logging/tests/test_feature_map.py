@@ -245,10 +245,12 @@ def test_recipe_status_without_a_tab_is_unresolved():
     assert page_to_feature("/ebeam/cd-sem/M14/recipe-status") is None
 
 
-def test_unknown_standalone_pages_fall_back_to_a_derived_slug():
-    """Same policy as route_to_feature: a new top-level page groups sanely
-    until mapped, under its own first segment."""
-    assert page_to_feature("/thickness") == "thickness"
+def test_unknown_standalone_pages_are_not_ranked():
+    """Unlike route_to_feature, a page path is whatever the user typed: a
+    first-segment fallback put a 404 (/Endpoints에씜, the Korean IME left on)
+    in the ranking. A page ranks once it has a rule, as e-beam pages do."""
+    assert page_to_feature("/thickness") is None
+    assert page_to_feature("/Endpoints%EC%97%90%EC%94%9C") is None
 
 
 @pytest.mark.parametrize(

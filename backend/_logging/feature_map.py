@@ -174,6 +174,12 @@ _STANDALONE_PAGE_RULES: tuple[tuple[str, str], ...] = (
     ("/mag-pixel",   "mag_pixel"),
     ("/chat",        "chat"),
     ("/afm",         "afm"),
+    # Retired page paths the frontend still names (IDENTITY_RULES). They used
+    # to reach these slugs through the first-segment fallback, which is gone.
+    ("/sem-list",    "sem_list"),
+    ("/msr-file",    "msr_file"),
+    ("/msr-files",   "msr_files"),
+    ("/msr-image",   "msr_image"),
 )
 
 # /afm/<tool>/<this segment> → slug. The tool sits between /afm and the page,
@@ -299,7 +305,10 @@ def page_to_feature(path: str) -> str | None:
         # is treated like recipe-status without a tab — not yet resolvable.
         return None
 
-    return parts[0].replace("-", "_") if parts else None
+    # Unmapped top-level page: NOT ranked either, for the e-beam reason above.
+    # A page path is whatever reached the router, so the old first-segment
+    # fallback ranked 404s — /Endpoints에씜, typed with the Korean IME on.
+    return None
 
 
 def page_to_family(path: str) -> str | None:

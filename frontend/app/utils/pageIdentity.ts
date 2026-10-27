@@ -194,7 +194,7 @@ const isOpsPath = (path: string): boolean => {
 /** The identity of the PAGE alone, family aside — what `page_to_feature`'s
  *  slug partitions. `resolvePageIdentity` adds the family half. */
 const resolvePage = (
-  { path: canonical, ebeam }: Canonical,
+  { path: canonical }: Canonical,
   query: Record<string, unknown>
 ): string | null => {
   // The hub at / is a waypoint everyone passes through, not a ranked feature.
@@ -218,11 +218,12 @@ const resolvePage = (
   const matched = matchRule(canonical)
   if (matched) return matched
 
-  // Unmapped e-beam page: no identity, no beacon — exactly as the backend
-  // returns None. The old tool-segment fallback is how CD-SEM kept reappearing
-  // in the ranking. A page ranks once it has an IDENTITY_RULES entry (and a
-  // matching backend rule); a standalone page still falls back to its own path.
-  return ebeam ? null : canonical
+  // Unmapped page: no identity, no beacon — exactly as the backend returns
+  // None. The old e-beam tool-segment fallback is how CD-SEM kept reappearing
+  // in the ranking, and the standalone own-path fallback ranked 404s
+  // (/Endpoints에씜). A page ranks once it has an IDENTITY_RULES entry and a
+  // matching backend rule.
+  return null
 }
 
 export const resolvePageIdentity = (

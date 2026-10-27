@@ -362,9 +362,23 @@
   {
     "path": "/unknown-page",
     "query": {},
-    "slug": "unknown_page",
+    "slug": null,
     "family": null,
-    "comment": "Unmapped page falls back to its first segment"
+    "comment": "Unmapped page is not ranked: a 404 or a hand-typed URL is no feature"
+  },
+  {
+    "path": "/Endpoints%EC%97%90%EC%94%9C",
+    "query": {},
+    "slug": null,
+    "family": null,
+    "comment": "Seen at the office 2026-10-28: /endpoints mistyped with the Korean IME on ranked as a feature"
+  },
+  {
+    "path": "/thickness",
+    "query": {},
+    "slug": null,
+    "family": null,
+    "comment": "Hidden coming-soon stub; ranks once it ships with an explicit rule"
   },
   {
     "path": "/ebeam/hv-sem/R3/pm-planning",
