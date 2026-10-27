@@ -296,7 +296,7 @@
             </UBadge>
           </div>
         </template>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <NuxtLink
             v-for="link in adminLinks"
             :key="link.to"
@@ -383,6 +383,14 @@ const adminLinks = [
     icon: 'i-lucide-shield-check',
     title: '접근 권한 관리',
     description: 'X-사번 차단 예외와 FTP 접속 개인 승인(신청 승인·사번 추가·회수)을 관리합니다.'
+  },
+  {
+    // The 운영 로그 page with its Identity filter preset — token requests are
+    // the /endpoints API callers, which no other view separates out.
+    to: '/admin/logs?identity_source=token',
+    icon: 'i-lucide-key-round',
+    title: 'Endpoint 로그',
+    description: 'API token으로 호출된 요청만 모아 호출 경로·상태·지연을 봅니다.'
   }
 ]
 

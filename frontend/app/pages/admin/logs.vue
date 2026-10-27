@@ -500,6 +500,14 @@ const identitySourceOptions = [
   { label: 'Anonymous', value: 'anonymous' }
 ]
 
+// /activity's Endpoint 로그 card links here as ?identity_source=token. Seeds
+// the first query only: makeDefaultFilters stays unseeded, so 초기화 clears it.
+const seededSource = useRoute().query.identity_source
+if (identitySourceOptions.some(option => option.value === seededSource)) {
+  draft.identity_source = seededSource as string
+  applied.value = { ...draft }
+}
+
 const fromAll = (value: string) => (value === ALL_SENTINEL ? '' : value)
 
 const pageSizeOptions = [
