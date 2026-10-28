@@ -557,12 +557,12 @@ def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
                 "aggregations": {
                     "users": {
                         "buckets": [
-                            # Off the chart (88 days back) but inside the
+                            # Off the chart (208 days back) but inside the
                             # first day's MAU window. The empty bucket is what
                             # a date_histogram emits between two active days;
                             # it must not read as a visit.
                             _user_days(
-                                "u3", ("2026-04-30", 4), ("2026-07-27", 0)
+                                "u3", ("2025-12-31", 4), ("2026-07-27", 0)
                             ),
                         ]
                     }
@@ -575,9 +575,9 @@ def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
 
     assert payload["generated_at"] == "2026-07-27T03:00:00Z"
     days = payload["days"]
-    assert len(days) == 60
-    assert days[0] == {"date": "2026-05-29", "visitors": 0, "wau": 0, "mau": 1}
-    assert days[1] == {"date": "2026-05-30", "visitors": 0, "wau": 0, "mau": 0}
+    assert len(days) == 180
+    assert days[0] == {"date": "2026-01-29", "visitors": 0, "wau": 0, "mau": 1}
+    assert days[1] == {"date": "2026-01-30", "visitors": 0, "wau": 0, "mau": 0}
     assert days[-2:] == [
         {"date": "2026-07-26", "visitors": 2, "wau": 2, "mau": 2},
         # u2 did not come back today, but is still this week's and this
@@ -594,9 +594,9 @@ def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
         {"term": {"activity_weight": 1}},
         {"terms": {"activity_kind": ["entry", "feature"]}},
     ]
-    # 88 days back, not 59: the first charted day's MAU reaches that far.
+    # 208 days back, not 179: the first charted day's MAU reaches that far.
     assert filters[4]["range"]["@timestamp"]["gte"].startswith(
-        "2026-04-30T00:00:00+09:00"
+        "2025-12-31T00:00:00+09:00"
     )
     users = first["aggs"]["users"]
     assert users["composite"]["sources"] == [
@@ -610,7 +610,8 @@ def test_daily_visitors_roll_dau_wau_mau_from_each_persons_active_days():
     assert histogram["format"] == "yyyy-MM-dd"
     # Users per page x days per user must stay under search.max_buckets
     # (65,535 by default), or the cluster answers 503 instead of a page.
-    assert users["composite"]["size"] * 89 < 65_535
+    # Each user bucket counts once itself plus up to 209 day buckets.
+    assert users["composite"]["size"] * (1 + 209) <= 65_535
 
 
 def _family_bucket(family, people, *pages):

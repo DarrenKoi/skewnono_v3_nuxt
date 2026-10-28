@@ -73,7 +73,6 @@ from .shared import (
     SPARKLINE_DAYS,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
-    VISITOR_DAYS,
     VISITOR_LOOKBACK_DAYS,
     daily_visitor_rows,
     family_usage_rows,
@@ -222,8 +221,8 @@ def _prune_old_days(state: _UserState, today: date) -> None:
     """Drop day buckets no read window can reach, so state stays bounded.
 
     One retention for every bucket: the widest window any reader has. Today
-    that is the 90-day visit calendar, with the 방문자 추이 chart (60 days plus
-    the 30 its first MAU looks behind) a day short of it. Readers filter by
+    that is the 방문자 추이 chart: 180 days plus the 29 its first MAU looks
+    behind, well past the 90-day visit calendar. Readers filter by
     their own window, so a bucket kept a little longer than its reader needs
     is invisible.
     """
@@ -564,7 +563,9 @@ class _DemoUser(NamedTuple):
 # to draw. The peers' histories are staggered — 60, 40, 21, 6 and 4 days — so
 # the user table still shows a range AND the admin 방문자 추이 chart has more
 # than one person to count on its 1개월/2개월 tabs; with every peer inside two
-# weeks it drew a flat 1 for the six weeks before that.
+# weeks it drew a flat 1 for the six weeks before that. Nobody reaches back the
+# full 180 days of the 6개월 tab, as at the office: production logging began
+# 2026-07-28, so the real chart's left edge is empty too.
 #
 # The last three are occasional visitors (their ``skip_rate`` has them come
 # roughly weekly, fortnightly and monthly). Without them every
@@ -584,7 +585,7 @@ _DEMO_USERS: list[_DemoUser] = [
         "M14",
         {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},
         {"recipe_search": 34, "meas_hist": 12, "fail_issue": 9, "mag_pixel": 4},
-        VISITOR_DAYS,
+        60,
     ),
     _DemoUser(
         "park.jinho",
@@ -639,7 +640,7 @@ _DEMO_USERS: list[_DemoUser] = [
         "M14",
         {"sem_list": 26, "recipe_search": 18},
         {"recipe_search": 9, "meas_hist": 3},
-        VISITOR_DAYS,
+        60,
         skip_rate=0.8,
     ),
     _DemoUser(
@@ -647,7 +648,7 @@ _DEMO_USERS: list[_DemoUser] = [
         "M16B",
         {"sem_list": 15, "storage": 9},
         {"storage": 6},
-        VISITOR_DAYS,
+        60,
         family="hvsem",
         skip_rate=0.9,
     ),

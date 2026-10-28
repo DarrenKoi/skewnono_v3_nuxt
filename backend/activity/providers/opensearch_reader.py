@@ -38,11 +38,13 @@ from backend.activity.providers.shared import (
 
 COMPOSITE_PAGE_SIZE = 1000
 # Smaller than COMPOSITE_PAGE_SIZE on purpose. Every user bucket of the
-# visitors query carries up to VISITOR_LOOKBACK_DAYS (89) day buckets, and the
-# cluster refuses a response over search.max_buckets — 65,535 by default — with
-# a 503. 500 x 89 stays under it; 1000 x 89 would not. OFFICE-VERIFY: the
-# office cluster's actual max_buckets has not been read.
-VISITOR_PAGE_SIZE = 500
+# visitors query carries up to VISITOR_LOOKBACK_DAYS (209) day buckets plus
+# itself, and the cluster refuses a response over search.max_buckets — 65,535
+# by default — with a 503. Derived, so widening the chart shrinks the page
+# instead of tipping it over the limit. OFFICE-VERIFY: the office cluster's
+# actual max_buckets has not been read.
+SEARCH_MAX_BUCKETS = 65_535
+VISITOR_PAGE_SIZE = SEARCH_MAX_BUCKETS // (VISITOR_LOOKBACK_DAYS + 1)
 CARDINALITY_PRECISION = 40000
 
 # Two units share one index. Request rows answer "how much work happened";

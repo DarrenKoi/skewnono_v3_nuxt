@@ -252,13 +252,14 @@ active days come from.
 
 Two things to check on the first office run (both `OFFICE-VERIFY`):
 
-- The query reads 89 days, not 60: the first charted day's MAU looks 30 days
-  behind it. An alias holding less history under-reports the left edge of the
-  MAU line rather than failing.
-- The composite page is 500 users, not the 1000 the users list uses, because
-  each user bucket carries up to 89 day buckets and the cluster rejects a
+- The query reads 209 days, not 180: the first charted day's MAU looks 30
+  days behind it. An alias holding less history under-reports the left edge of
+  the chart rather than failing — production logging began 2026-07-28, so the
+  6개월 tab is partly empty until about 2027-02.
+- The composite page is 311 users, not the 1000 the users list uses, because
+  each user bucket carries up to 209 day buckets and the cluster rejects a
   response over `search.max_buckets` (65,535 by default) with a 503. If the
-  office cluster's limit is lower, lower `VISITOR_PAGE_SIZE` to match.
+  office cluster's limit is lower, lower `SEARCH_MAX_BUCKETS` to match.
 
 ### `GET /api/activity/users/<user_id>`
 
