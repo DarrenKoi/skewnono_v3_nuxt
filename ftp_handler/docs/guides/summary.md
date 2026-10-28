@@ -47,7 +47,8 @@ direct(`ftp_handler.direct_downloader`)와 proxy(`ftp_handler.proxy`)가 아래 
 
 ### `core` — 공유 기본 요소
 - **`FtpClient`** (`client.py`): 컨텍스트 매니저로 연결 하나를 재사용한다. 즉석 연산
-  (`download`/`upload`/`remove`/`mkdir`/`rmdir`, 덮어쓰지 않는 `put`)과 세 가지 목록 방식 — `list_dir`(NLST),
+  (`download`/`upload`/`remove`/`mkdir`(`mkdir -p`, `floor`)/`rmdir`, 기본은 덮어쓰지 않는
+  `put`(`overwrite=True`면 교체))과 세 가지 목록 방식 — `list_dir`(NLST),
   `list_entries`(MLSD, 디렉터리/파일 구분), `list_details`(LIST → 크기 + KST 기준
   mtime를 담은 타입드 `FileInfo`). 서버 오류는 그대로 전파된다.
 - **`_normalize_listing`** (`listing.py`): NLST 경로 정규화기. 단일 서버 다운로더와

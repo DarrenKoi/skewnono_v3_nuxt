@@ -555,8 +555,14 @@ def _write(ftp, body: dict):
         if op == "upload":
             ftp.upload(remote_path, data)
         else:
-            ftp.put(remote_path, data, deadline=body.get("deadline_s"))
-    elif op in ("remove", "mkdir", "rmdir"):
+            overwrite = body.get("overwrite") is True  # only an explicit true replaces
+            ftp.put(remote_path, data, deadline=body.get("deadline_s"), overwrite=overwrite)
+    elif op in ("makedirs", "mkdir"):  # the client sends makedirs; see proxy_client
+        floor = body.get("floor")
+        if floor is not None and not isinstance(floor, str):
+            raise _BadRequest("floor must be a string")
+        ftp.mkdir(remote_path, floor=floor)
+    elif op in ("remove", "rmdir"):
         getattr(ftp, op)(remote_path)
     else:
         raise _BadRequest(f"unknown write op {op!r}")

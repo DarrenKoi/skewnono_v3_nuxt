@@ -24,6 +24,13 @@ and ``put`` without a ``deadline`` wait as long as the proxy takes: it says
 nothing until the STOR is done, so no fixed wait fits every file size. Pass
 ``put(deadline=...)`` to bound it.
 
+Against a proxy older than 2026-10-29 both new options fail closed. Its ``put``
+ignores ``overwrite`` and refuses an existing target with ``TargetExists``.
+``mkdir`` goes out as op ``makedirs``, which that proxy rejects as a bad
+request (``ProxyError``): its ``mkdir`` op ignored ``floor`` and made one
+level, so ``mkdir("/CLS/data", floor="/CLS/data")`` would have recreated the
+very folder the floor protects.
+
 Proxy location and auth are ``proxy_downloader.PROXY_URL`` / ``PROXY_TOKEN``,
 read when the client is built, the same constants ``FtpFleetDownloader`` uses.
 
@@ -35,8 +42,9 @@ Wire (``POST``, JSON body = credentials envelope + operation fields):
         answers ``{home, entries: []}`` after the PWD with no LIST at all.
     /fetch_sknn_v3         {remote_path, max_bytes, deadline_s}
         200 application/octet-stream, the raw file bytes
-    /write_sknn_v3         {op: upload|put|remove|mkdir|rmdir, remote_path,
-                            data_b64 (upload, put), deadline_s (put)}
+    /write_sknn_v3         {op: upload|put|remove|makedirs|rmdir, remote_path,
+                            data_b64 (upload, put), deadline_s, overwrite (put),
+                            floor (mkdir)}
         200 {ok: true}
     Any route: 422 {code, error, temp_path?}, mapped back to an exception by
     ``_ERRORS``; ``temp_path`` names a put's leftover temp, as on the direct
@@ -66,6 +74,7 @@ from ..core.client import (
     TransferTooLarge,
     TransferUncertain,
     _check_deadline,
+    _mkdir_levels,
 )
 from ..direct_downloader.fleet_downloader import HostSpec
 from . import proxy_downloader as _dl
@@ -75,10 +84,13 @@ URL_FETCH = "/fetch_sknn_v3"
 URL_WRITE = "/write_sknn_v3"
 ERROR_STATUS = 422
 _CHUNK = 64 * 1024
-# remove/mkdir/rmdir answer after at most this many FTP replies on the proxy
-# (banner, USER, PASS, MKD, PWD, CWD, CWD for mkdir), each bounded by
-# ``timeout`` there, so the HTTP wait for them can be finite.
-_SMALL_OP_REPLIES = 7
+# remove/mkdir/rmdir answer after a known number of FTP replies on the proxy,
+# each bounded by ``timeout`` there, so the HTTP wait for them can be finite:
+# banner, USER, PASS, then the command -- for mkdir, MKD + PWD + CWD + CWD per
+# level in the worst case (every level already there), and at least the
+# PWD + CWD + CWD check when there is no level to create.
+_LOGIN_REPLIES = 3
+_MKDIR_REPLIES_PER_LEVEL = 4
 
 
 class ProxyError(ConnectionError):
@@ -282,13 +294,19 @@ class FtpClient:
         return bytes(buf)
 
     def _write(self, op: str, remote_path: str, data: bytes | None = None,
-               deadline: float | None = None) -> None:
-        payload = {"op": op, "remote_path": remote_path, "deadline_s": deadline}
+               deadline: float | None = None, **fields) -> None:
+        payload = {"op": op, "remote_path": remote_path, "deadline_s": deadline, **fields}
         if data is not None:
             payload["data_b64"] = base64.b64encode(data).decode("ascii")
             wait = deadline
         else:
-            wait = _SMALL_OP_REPLIES * self.timeout
+            if op == "makedirs":
+                levels = len(_mkdir_levels(remote_path, None)[0])
+                replies = _LOGIN_REPLIES + _MKDIR_REPLIES_PER_LEVEL * max(1, levels)
+            else:
+                replies = _LOGIN_REPLIES + 1
+            # _post adds one more timeout on top as slack.
+            wait = replies * self.timeout
         body = self._json(self._post(URL_WRITE, payload, wait))
         # A 200 that is not this route's answer (a login page, an older proxy
         # without the route behind a catch-all) must never read as success.
@@ -299,17 +317,25 @@ class FtpClient:
         """``core.FtpClient.upload`` (STOR, overwriting), run on the proxy."""
         self._write("upload", remote_path, data)
 
-    def put(self, remote_path: str, data: bytes, *, deadline: float | None = None) -> None:
-        """``core.FtpClient.put`` (no-clobber temp + rename), run on the proxy."""
-        self._write("put", remote_path, data, deadline)
+    def put(
+        self,
+        remote_path: str,
+        data: bytes,
+        *,
+        deadline: float | None = None,
+        overwrite: bool = False,
+    ) -> None:
+        """``core.FtpClient.put`` (temp + rename; no-clobber unless ``overwrite``)."""
+        self._write("put", remote_path, data, deadline, overwrite=overwrite)
 
     def remove(self, remote_path: str) -> None:
         """``core.FtpClient.remove`` (DELE), run on the proxy."""
         self._write("remove", remote_path)
 
-    def mkdir(self, remote_dir: str) -> None:
-        """``core.FtpClient.mkdir`` (MKD; an existing directory is success)."""
-        self._write("mkdir", remote_dir)
+    def mkdir(self, remote_dir: str, *, floor: str | None = None) -> None:
+        """``core.FtpClient.mkdir`` (``mkdir -p``, never creating ``floor``)."""
+        _mkdir_levels(remote_dir, floor)  # ValueError here, as direct, before any request
+        self._write("makedirs", remote_dir, floor=floor)
 
     def rmdir(self, remote_dir: str) -> None:
         """``core.FtpClient.rmdir`` (RMD, empty directories only)."""
