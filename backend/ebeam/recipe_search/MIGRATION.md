@@ -54,14 +54,35 @@ files-per-connection; do the same here if a real request is seen timing out.
 | Endpoint | Office source | State |
 | --- | --- | --- |
 | `/recipes` | Redis hash per tool family | wired |
-| `/recipe-detail` | Redis recipe registry (fallback: meas_hist) → tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
+| `/recipe-detail` | Redis recipe registry (fallback: meas_hist, then `office_utils.datarec.locate_recipe` on ≤10 fab tools) → tool FTP `.idp` → `office_utils.read_idp_info` | wired, unverified on real data |
 | `/param-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
 | `/align-detail` | tool FTP raw folder → `office_utils.idp_amp_reader` | wired, unverified on real data |
-| `/align-images` | Redis recipe registry (fallback: meas_hist) → tool FTP raw-folder listing | wired, unverified on real data |
+| `/align-images` | Redis recipe registry (fallback: meas_hist, then `datarec.locate_recipe`) → tool FTP raw-folder listing | wired, unverified on real data |
 | `/recipe-image` | tool FTP raw folder (bytes), MinIO write-through cache | wired, unverified on real data |
 | `/compare` | — | mock (re-exported) |
 | `/registry-check` | Redis recipe registry (2 `hget` per recipe) | wired, unverified on real data |
 | `/measurement-locations` | OpenSearch `{cdsem,hvsem}_idp_ver` (highest version's `raw_data` + `wafer_para_loc_info`) | wired, unverified on real data — `wafer_para_loc_info` shape is OFFICE-VERIFY |
+
+### Last-resort locate: ask the tools (2026-10-28)
+
+When neither the registry nor meas_hist can place a recipe, `_locate_via_tools`
+calls `office_utils.datarec.locate_recipe(eqp_ip, "CLASS/RECIPE")` on up to 10
+of the requested fab's tools of the same family — the `prefer` tool first,
+available tools ahead of offline ones, shuffled within that order — and stops
+at the first tool that knows the recipe. It returns one dict per (IDW, IDP)
+definition; more than one means re-measurement definitions, so every one
+becomes a download candidate and the extras are logged as an anomaly.
+
+- `datarec` ships with `office_utils`, which deploys separately from this repo
+  (cloud included). Until the host has it, this tier records "not importable"
+  in the 502 body and changes nothing else.
+- A tool that raises — `ValueError` for "not in the class index", anything for
+  an unreachable tool — is a miss, not a failure; the 502 lists every miss.
+- The `.idp` path is still rebuilt from `class`/`idw`/`idp`, because the raw
+  folder locator needs those three. OFFICE-VERIFY that `loc["idp_path"]` ends
+  with `/data/{idw}/{idp}.idp`; the adapter logs a WARNING when it does not.
+- Ten serial probes on dead tools cost ten connect timeouts. If this is seen
+  holding a worker, lower `_PROBE_TOOLS` or parallelize.
 
 ### `/align-images` — the caller names the tool
 

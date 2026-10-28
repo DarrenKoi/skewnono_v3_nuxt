@@ -11,6 +11,8 @@ Redis, OpenSearch, sem_list and FTP are all stubbed; nothing here does I/O.
 """
 
 import logging
+import sys
+import types
 
 import pytest
 
@@ -560,3 +562,102 @@ class TestDownloadFirst:
         assert excinfo.type is LookupError
         assert "IP blocked" in message  # the blocked candidate is named
         assert "no such file" in message  # the failed candidates are named
+
+
+def _loc(idw, idp, class_name="ADI"):
+    """One `locate_recipe` dict, shaped as the user described it 2026-10-28."""
+    return {
+        "idw": idw, "idp": idp, "class": class_name, "recipe": "ADI_CD_BIAS_001",
+        "idw_path": f"/HITACHI/DEVICE/HD/{class_name}/data/{idw}.idw",
+        "idp_path": f"/HITACHI/DEVICE/HD/{class_name}/data/{idw}/{idp}.idp",
+    }
+
+
+@pytest.fixture
+def probe(monkeypatch):
+    """A stub `office_utils.datarec` answering from {eqp_ip: result-or-exc}."""
+    calls: list[str] = []
+
+    def _wire(answers):
+        def locate_recipe(eqp_ip, full_name):
+            calls.append(eqp_ip)
+            answer = answers.get(eqp_ip, ValueError(f"{full_name!r} not in index"))
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+
+        package = types.ModuleType("office_utils")
+        datarec = types.ModuleType("office_utils.datarec")
+        datarec.locate_recipe = locate_recipe
+        package.datarec = datarec
+        monkeypatch.setitem(sys.modules, "office_utils", package)
+        monkeypatch.setitem(sys.modules, "office_utils.datarec", datarec)
+        return calls
+
+    monkeypatch.setattr(oe, "get_sem_list", lambda: [
+        {"eqp_id": "CG6300_01", "fab_name": "R3", "eqp_model_cd": "CG6300"},
+        {"eqp_id": "CG6300_07", "fab_name": "R3", "eqp_model_cd": "CG6300"},
+        {"eqp_id": "CG6380_02", "fab_name": "R3", "eqp_model_cd": "CG6380"},
+        {"eqp_id": "TP_01", "fab_name": "R3", "eqp_model_cd": "TP7000"},
+        {"eqp_id": "CG6300_99", "fab_name": "M16A", "eqp_model_cd": "CG6300"},
+    ])
+    monkeypatch.setattr(oe, "_eqp_ip_index", lambda: {
+        **ROSTER, "TP_01": ("10.1.3.1", "On"), "CG6300_99": ("10.1.9.9", "On"),
+    })
+    return _wire
+
+
+class TestLocateViaTools:
+    def test_only_the_fabs_tools_of_this_family_are_asked(self, probe):
+        calls = probe({})
+        assert oe._locate_via_tools("cd-sem", RECIPE, "R3", []) is None
+        assert sorted(calls) == ["10.1.2.1", "10.1.2.2", "10.1.2.7"]
+
+    def test_a_tool_that_errors_is_skipped_and_the_next_one_answers(self, probe):
+        probe({"10.1.2.2": [_loc("W", "P")]})
+        located = oe._locate_via_tools("cd-sem", RECIPE, "R3", [], prefer="CG6300_01")
+        assert located == [oe._IdpLocation("CG6380_02", "10.1.2.2", "ADI", "W", "P")]
+
+    def test_the_preferred_tool_is_asked_first(self, probe):
+        calls = probe({"10.1.2.2": [_loc("W", "P")]})
+        oe._locate_via_tools("cd-sem", RECIPE, "R3", [], prefer="CG6380_02")
+        assert calls == ["10.1.2.2"]
+
+    def test_every_definition_becomes_a_candidate_and_extras_warn(self, probe, caplog):
+        probe({ip: [_loc("W1", "P1"), _loc("W2", "P2")] for ip in ("10.1.2.1", "10.1.2.2", "10.1.2.7")})
+        with caplog.at_level(logging.WARNING, logger=oe.__name__):
+            located = oe._locate_via_tools("cd-sem", RECIPE, "R3", [])
+        assert [(loc.idw_stem, loc.idp_stem) for loc in located] == [("W1", "P1"), ("W2", "P2")]
+        assert "2 (IDW, IDP) definitions" in caplog.text
+
+    def test_at_most_ten_tools_are_asked(self, probe, monkeypatch):
+        calls = probe({})
+        rows = [{"eqp_id": f"CG_{n}", "fab_name": "R3", "eqp_model_cd": "CG6300"} for n in range(15)]
+        monkeypatch.setattr(oe, "get_sem_list", lambda: rows)
+        monkeypatch.setattr(oe, "_eqp_ip_index", lambda: {r["eqp_id"]: (f"10.0.0.{i}", "On") for i, r in enumerate(rows)})
+        notes: list[str] = []
+        assert oe._locate_via_tools("cd-sem", RECIPE, "R3", notes) is None
+        assert len(calls) == oe._PROBE_TOOLS == 10
+        assert "asked 10 R3 cd-sem tool(s)" in notes[0]
+
+    def test_no_datarec_is_a_note_not_an_error(self, monkeypatch):
+        monkeypatch.setitem(sys.modules, "office_utils.datarec", None)
+        notes: list[str] = []
+        assert oe._locate_via_tools("cd-sem", RECIPE, "R3", notes) is None
+        assert "not importable" in notes[0]
+
+    def test_locate_idp_falls_through_to_the_probe(self, probe, monkeypatch):
+        probe({"10.1.2.7": [_loc("W", "P")]})
+        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a, **k: None)
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", TestLocateFailureNamesBothSources._no_meas_hist)
+        assert [loc.eqp_id for loc in oe._locate_idp("cd-sem", RECIPE, "R3")] == ["CG6300_07"]
+
+    def test_a_failed_probe_rides_along_on_the_502(self, probe, monkeypatch):
+        probe({})
+        monkeypatch.setattr(oe, "_locate_via_redis", lambda *a, **k: None)
+        monkeypatch.setattr(oe, "_locate_via_meas_hist", TestLocateFailureNamesBothSources._no_meas_hist)
+        with pytest.raises(LookupError) as excinfo:
+            oe._locate_idp("cd-sem", RECIPE, "R3")
+        assert type(excinfo.value) is LookupError
+        assert "No document in meas_hist_cdsem" in str(excinfo.value)
+        assert "Tool probe asked 3 R3 cd-sem tool(s)" in str(excinfo.value)

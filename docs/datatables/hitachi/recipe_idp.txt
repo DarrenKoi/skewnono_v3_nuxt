@@ -518,6 +518,35 @@ Flask host 에 파일을 한 byte 도 쓰지 않고 동작합니다.
   화면에 보이는 증상이 없는 종류의 오해라 오래 남았습니다 — 잘못된 제약은
   기능을 깨뜨리지 않고 불필요한 disk write 만 남깁니다.
 
+recipe 위치 직접 조회: office_utils.datarec.locate_recipe
+--------------------------------------------------------
+
+Redis registry 와 meas_hist 가 모두 recipe 위치를 주지 못할 때 쓰는 마지막
+경로입니다(user-confirmed 2026-10-28). 장비에 직접 묻습니다.
+
+  locate_recipe(eqp_ip, "CLASS/RECIPE") -> list[dict]
+
+  | key | 예 | 뜻 |
+  | --- | --- | --- |
+  | idw | 18V_DIE_02_NEW | IDW 이름 |
+  | idp | 18V_GT_Y_800V | IDP 이름 |
+  | cond_path | .../recipe/CD_monitor.txt | recipe cond. parameter cond 가 아닙니다 |
+  | idw_path | .../data/....idw | .idw 경로 |
+  | idp_path | .../data/.../...idp | .idp 경로. 다운로드 대상입니다 |
+  | dir_path | .../data/.../.../ | raw folder(PRMS/IMMS/ENMP/IMMP/IMAP…) |
+  | eqp_ip, class, recipe | | 입력을 그대로 돌려줍니다 |
+
+- len == 1 이 정상입니다. 2개 이상이면 재측정 정의이며, 모두 서로 다른
+  (IDW, IDP) 이므로 [0] 만 쓰지 않고 전부 처리합니다. [0] 외의 항목은 이상
+  징후로 기록합니다.
+- 오류는 모두 ValueError 입니다.
+  - 미등록 eqp_id: `unknown eqp_id ".." pass its IP or extend EQP_IPS`
+    (recipe_search 는 항상 IP 를 넘기므로 나지 않습니다)
+  - "/" 없는 이름: `recipe full name must be class/recipe`
+  - 색인에 없는 recipe: `"X" not in "class" index (N rows)`
+- idp_path 의 root 가 `/HITACHI/DEVICE/HD/{class}/data/{idw}/{idp}.idp` 와
+  같은지는 OFFICE-VERIFY 입니다.
+
 align 전용 함수 2개 주의
 ------------------------
 

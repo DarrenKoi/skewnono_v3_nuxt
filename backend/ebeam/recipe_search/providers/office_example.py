@@ -45,6 +45,9 @@ and from measurement history when it cannot::
         office_utils.read_idp_info.combined_idp_info(path) ◄─┘
           -> {"wafer_mp_info": df, "wafer_align_info": df, "idp_image_info": df}
 
+    (last resort) office_utils.datarec.locate_recipe(eqp_ip, full_name)
+      asked on <=10 of the fab's tools -> [{idw, idp, class, idp_path, ...}]
+
 The two are all-or-nothing rather than blended: a location assembled half from
 each would be untraceable the day the path it produces turns out wrong. Both
 yield an ORDERED LIST of candidates and ``_download_first`` walks it, so one
@@ -158,6 +161,7 @@ import ast
 import json
 import logging
 import os
+import random
 import tempfile
 from collections.abc import Iterable, Sequence
 from datetime import datetime
@@ -170,6 +174,7 @@ import pandas as pd
 from backend._core.cond_cursor import CursorMarks, cursor_info_from_cond
 from backend._runtime.office_redis import redis_client as _redis_client
 from backend.ebeam._office_search import fetch_hits, query, ttl_cache
+from backend.ebeam._tool_specs import model_to_tool_type
 from backend.ebeam.recipe_search import rawfiles
 from backend.msr_image.errors import SourceUnavailable
 from backend.ebeam.recipe_search.contracts import (
@@ -741,7 +746,8 @@ def _locate_idp(
     """Where this recipe's .idp can be fetched from, best candidate first.
 
     The Redis registry knows this directly and answers without a query to
-    measurement history; meas_hist is the fallback. Both return an ordered
+    measurement history; meas_hist is the fallback, and asking the fab's tools
+    directly (``_locate_via_tools``) is the last resort. All return an ordered
     list rather than one answer so the download can walk it.
 
     When BOTH come up empty the error names both, because the meas_hist half
@@ -767,15 +773,121 @@ def _locate_idp(
     try:
         return _locate_via_meas_hist(tool_type, recipe_id, fab_name, prefer=prefer)
     except LookupError as exc:
-        if not notes:
-            raise
+        probe_notes: list[str] = []
+        located = _locate_via_tools(tool_type, recipe_id, fab_name, probe_notes, prefer=prefer)
+        if located:
+            return located
+        message = str(exc)
+        if notes:
+            message += (
+                " Redis recipe registry was tried first and declined: "
+                + "; ".join(notes) + "."
+            )
         # Bare LookupError, never a subclass: backend/__init__.py maps
         # only the exact type to a 502 and turns subclasses into opaque 500s.
-        raise LookupError(
-            f"{exc} Redis recipe registry was tried first and declined: "
-            + "; ".join(notes)
-            + "."
-        ) from exc
+        raise LookupError(f"{message} {'; '.join(probe_notes)}.") from exc
+
+
+# ponytail: fixed cap, serial calls — a dead tool costs one FTP connect timeout
+# each. Parallelize or shrink the cap if this tier is seen holding a worker.
+_PROBE_TOOLS = 10
+
+
+def _locate_via_tools(
+    tool_type: ToolType,
+    recipe_id: str,
+    fab_name: str | None,
+    notes: list[str],
+    prefer: str | None = None,
+) -> list[_IdpLocation] | None:
+    """Ask the tools themselves, via ``office_utils.datarec.locate_recipe``.
+
+    The last resort after the registry and meas_hist both declined: up to
+    ``_PROBE_TOOLS`` of the fab's tools of this family, ``prefer`` first and
+    available ones ahead of the rest, shuffled within that order so a recipe
+    held only by tools past the cap still has a chance on the next open. Stops
+    at the first tool that knows the recipe — a tool that answered the locate
+    is a tool whose FTP answers, so its copy is the one to download.
+
+    ``locate_recipe(eqp_ip, "CLASS/RECIPE")`` returns one dict per (IDW, IDP)
+    definition (user-confirmed 2026-10-28). One is the norm; more means the tool
+    carries re-measurement definitions, every one a different (IDW, IDP), so
+    all become candidates and the extra ones are logged as an anomaly.
+
+    ``None`` with a reason in ``notes`` means nothing found, never an error —
+    including an ``office_utils`` that predates ``datarec`` (it is deployed
+    separately from this repo, so the host can lag the template).
+    """
+    if not fab_name:
+        notes.append("Tool probe skipped: no fab_name to pick tools from")
+        return None
+    try:
+        from office_utils.datarec import locate_recipe
+    except ImportError:
+        notes.append("Tool probe skipped: office_utils.datarec is not importable")
+        return None
+
+    fab = fab_name.strip().upper()
+    eqp_ids = [
+        str(row.get("eqp_id") or "").strip()
+        for row in get_sem_list()
+        if str(row.get("fab_name") or "").strip().upper() == fab
+        and model_to_tool_type(str(row.get("eqp_model_cd") or "")) == tool_type
+    ]
+    random.shuffle(eqp_ids)
+    tools = _order_candidates(eqp_ids, _eqp_ip_index(), prefer=prefer)[:_PROBE_TOOLS]
+
+    misses: list[str] = []
+    for eqp_id, eqp_ip in tools:
+        try:
+            locs = locate_recipe(eqp_ip, recipe_id)
+        except Exception as exc:  # noqa: BLE001 — one tool's failure is a miss
+            # ValueError is "not in the class index" / "must be class/recipe";
+            # anything else is the tool not answering. Either way, next tool.
+            misses.append(f"{eqp_id}: {exc}")
+            continue
+        if len(locs or []) > 1:
+            _LOG.warning(
+                "recipe_search: locate_recipe found %d (IDW, IDP) definitions "
+                "for %r on %s — one is the norm; trying all: %s",
+                len(locs), recipe_id, eqp_id,
+                [(loc.get("idw"), loc.get("idp")) for loc in locs],
+            )
+        located = []
+        for loc in locs or []:
+            location = _IdpLocation(
+                eqp_id=eqp_id,
+                eqp_ip=eqp_ip,
+                class_name=str(loc.get("class") or "").strip() or _class_name(recipe_id),
+                idw_stem=_stem(loc.get("idw")),
+                idp_stem=_stem(loc.get("idp")),
+            )
+            if not (location.class_name and location.idw_stem and location.idp_stem):
+                continue
+            # The download rebuilds the path from class/idw/idp because the raw
+            # folder locator needs those three anyway. OFFICE-VERIFY that the
+            # tool's own idp_path agrees; this warning is the first clue if not.
+            if not str(loc.get("idp_path") or "").endswith(
+                f"/data/{location.idw_stem}/{location.idp_stem}.idp"
+            ):
+                _LOG.warning(
+                    "recipe_search: locate_recipe idp_path %r differs from the "
+                    "built path %s", loc.get("idp_path"), _idp_remote_path(location),
+                )
+            located.append(location)
+        if located:
+            _LOG.info(
+                "recipe_search: located %r by asking %s directly (probe %d of %d).",
+                recipe_id, eqp_id, len(misses) + 1, len(tools),
+            )
+            return list(dict.fromkeys(located))
+        misses.append(f"{eqp_id}: no usable location")
+
+    notes.append(
+        f"Tool probe asked {len(tools)} {fab} {tool_type} tool(s) and none located it"
+        + (f" — {' | '.join(misses)}" if misses else "")
+    )
+    return None
 
 
 def check_recipe_registry(
