@@ -810,9 +810,9 @@ def _locate_via_tools(
     is a tool whose FTP answers, so its copy is the one to download.
 
     ``locate_recipe(eqp_ip, "CLASS/RECIPE")`` returns one dict per (IDW, IDP)
-    definition (user-confirmed 2026-10-28). One is the norm; more means the tool
-    carries re-measurement definitions, every one a different (IDW, IDP), so
-    all become candidates and the extra ones are logged as an anomaly.
+    definition (user-confirmed 2026-10-28). One is the norm; only ``[0]`` is
+    used (user-confirmed 2026-10-28), and any extra entry is logged as an
+    anomaly.
 
     ``None`` with a reason in ``notes`` means nothing found, never an error —
     including an ``office_utils`` that predates ``datarec`` (it is deployed
@@ -846,24 +846,25 @@ def _locate_via_tools(
             # anything else is the tool not answering. Either way, next tool.
             misses.append(f"{eqp_id}: {exc}")
             continue
-        if len(locs or []) > 1:
+        if not locs:
+            misses.append(f"{eqp_id}: no location")
+            continue
+        if len(locs) > 1:
             _LOG.warning(
                 "recipe_search: locate_recipe found %d (IDW, IDP) definitions "
-                "for %r on %s — one is the norm; trying all: %s",
+                "for %r on %s — one is the norm; using [0]: %s",
                 len(locs), recipe_id, eqp_id,
                 [(loc.get("idw"), loc.get("idp")) for loc in locs],
             )
-        located = []
-        for loc in locs or []:
-            location = _IdpLocation(
-                eqp_id=eqp_id,
-                eqp_ip=eqp_ip,
-                class_name=str(loc.get("class") or "").strip() or _class_name(recipe_id),
-                idw_stem=_stem(loc.get("idw")),
-                idp_stem=_stem(loc.get("idp")),
-            )
-            if not (location.class_name and location.idw_stem and location.idp_stem):
-                continue
+        loc = locs[0]
+        location = _IdpLocation(
+            eqp_id=eqp_id,
+            eqp_ip=eqp_ip,
+            class_name=str(loc.get("class") or "").strip() or _class_name(recipe_id),
+            idw_stem=_stem(loc.get("idw")),
+            idp_stem=_stem(loc.get("idp")),
+        )
+        if location.class_name and location.idw_stem and location.idp_stem:
             # The download rebuilds the path from class/idw/idp because the raw
             # folder locator needs those three anyway. OFFICE-VERIFY that the
             # tool's own idp_path agrees; this warning is the first clue if not.
@@ -874,13 +875,11 @@ def _locate_via_tools(
                     "recipe_search: locate_recipe idp_path %r differs from the "
                     "built path %s", loc.get("idp_path"), _idp_remote_path(location),
                 )
-            located.append(location)
-        if located:
             _LOG.info(
                 "recipe_search: located %r by asking %s directly (probe %d of %d).",
                 recipe_id, eqp_id, len(misses) + 1, len(tools),
             )
-            return list(dict.fromkeys(located))
+            return [location]
         misses.append(f"{eqp_id}: no usable location")
 
     notes.append(

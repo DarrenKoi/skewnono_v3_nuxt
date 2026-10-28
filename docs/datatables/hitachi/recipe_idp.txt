@@ -536,9 +536,9 @@ Redis registry 와 meas_hist 가 모두 recipe 위치를 주지 못할 때 쓰�
   | dir_path | .../data/.../.../ | raw folder(PRMS/IMMS/ENMP/IMMP/IMAP…) |
   | eqp_ip, class, recipe | | 입력을 그대로 돌려줍니다 |
 
-- len == 1 이 정상입니다. 2개 이상이면 재측정 정의이며, 모두 서로 다른
-  (IDW, IDP) 이므로 [0] 만 쓰지 않고 전부 처리합니다. [0] 외의 항목은 이상
-  징후로 기록합니다.
+- len == 1 이 정상입니다. 2개 이상이면 재측정 정의(모두 서로 다른 (IDW, IDP))
+  이지만, recipe_search 는 [0] 만 씁니다(user-confirmed 2026-10-28). [0] 외의
+  항목은 이상 징후로 WARNING 을 남깁니다.
 - 오류는 모두 ValueError 입니다.
   - 미등록 eqp_id: `unknown eqp_id ".." pass its IP or extend EQP_IPS`
     (recipe_search 는 항상 IP 를 넘기므로 나지 않습니다)

@@ -623,11 +623,11 @@ class TestLocateViaTools:
         oe._locate_via_tools("cd-sem", RECIPE, "R3", [], prefer="CG6380_02")
         assert calls == ["10.1.2.2"]
 
-    def test_every_definition_becomes_a_candidate_and_extras_warn(self, probe, caplog):
+    def test_only_the_first_definition_is_used_and_extras_warn(self, probe, caplog):
         probe({ip: [_loc("W1", "P1"), _loc("W2", "P2")] for ip in ("10.1.2.1", "10.1.2.2", "10.1.2.7")})
         with caplog.at_level(logging.WARNING, logger=oe.__name__):
             located = oe._locate_via_tools("cd-sem", RECIPE, "R3", [])
-        assert [(loc.idw_stem, loc.idp_stem) for loc in located] == [("W1", "P1"), ("W2", "P2")]
+        assert [(loc.idw_stem, loc.idp_stem) for loc in located] == [("W1", "P1")]
         assert "2 (IDW, IDP) definitions" in caplog.text
 
     def test_at_most_ten_tools_are_asked(self, probe, monkeypatch):

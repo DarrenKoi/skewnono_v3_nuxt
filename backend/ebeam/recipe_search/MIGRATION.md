@@ -70,8 +70,7 @@ calls `office_utils.datarec.locate_recipe(eqp_ip, "CLASS/RECIPE")` on up to 10
 of the requested fab's tools of the same family — the `prefer` tool first,
 available tools ahead of offline ones, shuffled within that order — and stops
 at the first tool that knows the recipe. It returns one dict per (IDW, IDP)
-definition; more than one means re-measurement definitions, so every one
-becomes a download candidate and the extras are logged as an anomaly.
+definition; only `[0]` is used, and more than one is logged as an anomaly.
 
 - `datarec` ships with `office_utils`, which deploys separately from this repo
   (cloud included). Until the host has it, this tier records "not importable"
