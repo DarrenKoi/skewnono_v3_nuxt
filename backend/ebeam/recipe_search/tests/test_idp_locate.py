@@ -661,3 +661,24 @@ class TestLocateViaTools:
         assert type(excinfo.value) is LookupError
         assert "No document in meas_hist_cdsem" in str(excinfo.value)
         assert "Tool probe asked 3 R3 cd-sem tool(s)" in str(excinfo.value)
+
+    def test_a_blocked_ip_is_never_dialed(self, probe, monkeypatch):
+        # locate_recipe opens a connection, so the subnet guard must run first.
+        import backend.msr_image.config as msr_config
+
+        real = msr_config.load_config()
+        monkeypatch.setattr(msr_config, "load_config", lambda: type(real)(
+            **{**vars(real), "allowed_subnets": ["10.1.2.0/30"]}
+        ))
+        calls = probe({"10.1.2.2": [_loc("W", "P")]})
+        notes: list[str] = []
+        located = oe._locate_via_tools("cd-sem", RECIPE, "R3", notes)
+        assert "10.1.2.7" not in calls
+        assert [loc.eqp_id for loc in located] == ["CG6380_02"]
+
+    def test_a_preferred_tool_outside_the_fab_or_family_is_not_asked(self, probe):
+        calls = probe({"10.1.9.9": [_loc("W", "P")], "10.1.3.1": [_loc("W", "P")]})
+        for prefer in ("CG6300_99", "TP_01"):  # other fab; other family
+            calls.clear()
+            assert oe._locate_via_tools("cd-sem", RECIPE, "R3", [], prefer=prefer) is None
+            assert sorted(calls) == ["10.1.2.1", "10.1.2.2", "10.1.2.7"]

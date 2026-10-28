@@ -835,10 +835,26 @@ def _locate_via_tools(
         and model_to_tool_type(str(row.get("eqp_model_cd") or "")) == tool_type
     ]
     random.shuffle(eqp_ids)
+    # _order_candidates prepends `prefer` from the fleet-wide index; here it
+    # must not smuggle in a tool of another fab or family.
+    if prefer and prefer.strip() not in eqp_ids:
+        prefer = None
     tools = _order_candidates(eqp_ids, _eqp_ip_index(), prefer=prefer)[:_PROBE_TOOLS]
 
+    from backend.msr_image.config import load_config
+    from backend.msr_image.errors import InvalidToolIp
+    from backend.msr_image.paths import validate_tool_ip
+
+    allowed_subnets = load_config().allowed_subnets
     misses: list[str] = []
     for eqp_id, eqp_ip in tools:
+        try:
+            # locate_recipe dials the tool, so the SSRF guard goes BEFORE it,
+            # not only before the .idp download.
+            validate_tool_ip(eqp_ip, allowed_subnets)
+        except InvalidToolIp:
+            misses.append(f"{eqp_id} ({eqp_ip}): IP blocked")
+            continue
         try:
             locs = locate_recipe(eqp_ip, recipe_id)
         except Exception as exc:  # noqa: BLE001 — one tool's failure is a miss

@@ -75,6 +75,9 @@ definition; only `[0]` is used, and more than one is logged as an anomaly.
 - `datarec` ships with `office_utils`, which deploys separately from this repo
   (cloud included). Until the host has it, this tier records "not importable"
   in the 502 body and changes nothing else.
+- `locate_recipe` dials the tool, so `validate_tool_ip` runs before each
+  probe, not only before the download; a blocked IP is a miss. A `prefer` tool
+  outside the fab/family filter is ignored rather than prepended.
 - A tool that raises — `ValueError` for "not in the class index", anything for
   an unreachable tool — is a miss, not a failure; the 502 lists every miss.
 - The `.idp` path is still rebuilt from `class`/`idw`/`idp`, because the raw
