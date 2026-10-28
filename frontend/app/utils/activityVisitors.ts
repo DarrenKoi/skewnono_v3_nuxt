@@ -10,19 +10,19 @@ import type { DailyVisitors, UserListRow } from '~/composables/useActivityApi'
  * `npm test` runs this under `node --test`.
  */
 
-export type VisitorWindowKey = '2w' | '1m' | '2m' | '6m'
+export type VisitorWindowKey = '2w' | '1m' | '2m' | '3m'
 
-const WINDOW_DAYS: Record<VisitorWindowKey, number> = { '2w': 14, '1m': 30, '2m': 60, '6m': 180 }
+const WINDOW_DAYS: Record<VisitorWindowKey, number> = { '2w': 14, '1m': 30, '2m': 60, '3m': 90 }
 
 export const VISITOR_WINDOW_TABS: { label: string, value: VisitorWindowKey }[] = [
   { label: '2주', value: '2w' },
   { label: '1개월', value: '1m' },
   { label: '2개월', value: '2m' },
-  { label: '6개월', value: '6m' }
+  { label: '3개월', value: '3m' }
 ]
 
 /**
- * The most recent days of the series. The backend sends its whole 180-day
+ * The most recent days of the series. The backend sends its whole 90-day
  * window once and every tab is a slice of it, so switching costs no request.
  */
 export const visitorWindow = (
@@ -104,7 +104,7 @@ export const buildVisitorsOption = (
           barCategoryGap: '30%',
           itemStyle: { borderRadius: [2, 2, 0, 0] }
         }
-      // No point symbols: 180 dots on the line is noise, and the axis
+      // No point symbols: ninety dots on the line is noise, and the axis
       // tooltip already reads the hovered column.
       : {
           name: metric.toUpperCase(),

@@ -221,8 +221,8 @@ def _prune_old_days(state: _UserState, today: date) -> None:
     """Drop day buckets no read window can reach, so state stays bounded.
 
     One retention for every bucket: the widest window any reader has. Today
-    that is the 방문자 추이 chart: 180 days plus the 29 its first MAU looks
-    behind, well past the 90-day visit calendar. Readers filter by
+    that is the 방문자 추이 chart: 90 days plus the 29 its first MAU looks
+    behind, past the 90-day visit calendar. Readers filter by
     their own window, so a bucket kept a little longer than its reader needs
     is invisible.
     """
@@ -563,9 +563,9 @@ class _DemoUser(NamedTuple):
 # to draw. The peers' histories are staggered — 60, 40, 21, 6 and 4 days — so
 # the user table still shows a range AND the admin 방문자 추이 chart has more
 # than one person to count on its 1개월/2개월 tabs; with every peer inside two
-# weeks it drew a flat 1 for the six weeks before that. Nobody reaches back the
-# full 180 days of the 6개월 tab, as at the office: production logging began
-# 2026-07-28, so the real chart's left edge is empty too.
+# weeks it drew a flat 1 for the six weeks before that. The peers stay at 60
+# rather than following the 3개월 tab's 90 days, which would spread the same
+# totals thinner and change every number they feed.
 #
 # The last three are occasional visitors (their ``skip_rate`` has them come
 # roughly weekly, fortnightly and monthly). Without them every

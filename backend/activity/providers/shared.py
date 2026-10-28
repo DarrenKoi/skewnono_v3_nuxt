@@ -25,8 +25,8 @@ RECENT_FEATURES_CAP = 5
 SPARKLINE_DAYS = 30
 VISIT_DAYS = 90
 #: How far back the admin 방문자 추이 chart reads. The page offers 2주 /
-#: 1개월 / 2개월 / 6개월 and slices this one series for all four.
-VISITOR_DAYS = 180
+#: 1개월 / 2개월 / 3개월 and slices this one series for all four.
+VISITOR_DAYS = 90
 WAU_DAYS = 7
 MAU_DAYS = 30
 #: How much request history the chart needs behind it: its first day's MAU
