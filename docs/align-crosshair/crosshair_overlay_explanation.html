@@ -74,6 +74,11 @@
 <main>
 
 <h1>cond.txt crosshair 를 align 이미지 위에 겹쳐 그리는 방법</h1>
+<p style="border-left:4px solid #c75a3c;padding:8px 12px;background:#fff4ef">
+  <strong>정정 (office 확인 2026-10-29):</strong> cursor 프레임은 <code>Pixel × 10</code> 이 아니라
+  Pixel 과 무관한 <strong>5120 고정</strong>입니다. 512-px 이미지에서만 두 값이 같습니다.
+  아래 본문의 <code>/10</code> 변환은 당시 기록이며, 1024-px 이미지에서는 절반 크기로 어긋납니다.
+</p>
 <p class="subtitle">
   <code>docs/align-crosshair/crosshair_overlay_from_cond.md</code>,
   <code>draw_crosshair_from_numbers.py</code>,

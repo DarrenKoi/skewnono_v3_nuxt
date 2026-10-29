@@ -1,5 +1,10 @@
 """align 이미지에 딸린 ``cond.txt`` 조건 파일을 읽어 좌표를 뽑아내는 파서.
 
+★ 정정 (office 확인 2026-10-29): cursor 프레임은 ``Pixel × 10`` 이 아니라 Pixel 과
+  무관한 **5120 고정**이다. 512-px 에서만 둘이 같다. 아래 OVERSAMPLE / ``/10``
+  변환은 당시 기록이며 1024-px 이미지에서는 절반 크기로 어긋난다. 복사해 쓰지
+  말 것 — SKEWNONO 는 ``backend/_core/cond_cursor.py`` 의 ``FRAME`` 을 쓴다.
+
 오피스 다운로더가 각 이미지 옆에 숨김 폴더로 cond.txt 를 떨군다:
 ``<image>.jpeg`` → ``.<image>.jpeg/cond.txt`` (파일명 그대로, 앞에 점).
 

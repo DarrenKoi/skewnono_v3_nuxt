@@ -1,5 +1,10 @@
 """cond.txt 좌표로 white box 테두리 / crosshair 선을 inpaint 해 지운다.
 
+★ 정정 (office 확인 2026-10-29): cursor 프레임은 ``Pixel × 10`` 이 아니라 Pixel 과
+  무관한 **5120 고정**이다. 512-px 에서만 둘이 같다. 아래 OVERSAMPLE / ``/10``
+  변환은 당시 기록이며 1024-px 이미지에서는 절반 크기로 어긋난다. 복사해 쓰지
+  말 것 — SKEWNONO 는 ``backend/_core/cond_cursor.py`` 의 ``FRAME`` 을 쓴다.
+
 왜 지우나
 --------
 - rcp 의 **white box** 는 웨이퍼 위에 그려 넣은 주석(unique-area 표시)일 뿐

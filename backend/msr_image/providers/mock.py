@@ -41,7 +41,7 @@ and runs at home too.
 import hashlib
 from collections.abc import Callable
 
-from backend._core.cond_cursor import format_cursor_info
+from backend._core.cond_cursor import FRAME, format_cursor_info
 from backend._core.image_naming import HV_SEM_STEM_SUFFIXES
 from backend.msr_image.contracts import FetchedImage, ImageLocator
 
@@ -117,13 +117,17 @@ def _cond(locator: ImageLocator) -> str:
     carries, and in what order — the confirmed sample is a recipe align image.
     """
     s = _seed(locator.name)
-    crosshair = (2560 + s % 400 - 200, 2560 + (s // 7) % 400 - 200)
+    centre = FRAME // 2
+    crosshair = (centre + s % 400 - 200, centre + (s // 7) % 400 - 200)
+    # Both sizes: at 512 px the old Pixel x 10 divisor and the real 5120 frame
+    # agree, which is how the half-scale bug hid until 2026-10-29.
+    pixel = 1024 if s % 2 else 512
     return "\n".join((
         "# Observation condition",
         f"Accelerating_voltage\t{500 + (s % 5) * 100} V",
         f"Probe_current\t{8 + s % 5} pA",
         f"Magnification\t{30000 + s % 40000}",
-        "Pixel\t512,512",
+        f"Pixel\t{pixel},{pixel}",
         f"!Cursor_info\t{format_cursor_info(crosshair, None)}",
     ))
 

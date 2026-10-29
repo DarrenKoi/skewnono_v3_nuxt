@@ -104,11 +104,12 @@ def test_mock_boxes_only_img_meas1_and_never_a_formula():
                 continue
             if meas is None:
                 continue
-            seen.add("bars" if meas["bars"] else "circles")
+            seen.add(("bars", len(meas["bars"]) == 1) if meas["bars"] else "circles")
             assert meas["origin"] in {"msr", "vimms", "center"}
             for shape in meas["bars"] + meas["circles"]:
                 assert all(0 <= v <= 1 for v in shape)
-    assert seen == {"bars", "circles"}, "the mock must exercise both render paths"
+    # Circles, a lone box (Single on a Line) and several boxes all render at home.
+    assert seen == {("bars", True), ("bars", False), "circles"}
     formula = mock._formula_parameter_name("IDP_B")
     detail = mock.get_param_detail([{"locator": LOCATOR, "parameter": formula, "slots": SLOTS}])[0]
     assert all(image["meas"] is None for image in detail["images"])
@@ -118,6 +119,10 @@ def test_mock_amp_names_the_branch_in_its_own_field():
     # office 확인 2026-10-29: Kind / Object / Measurement each carry some branches.
     for n in range(40):
         param = f"Para_{n}"
+        if mock._is_formula_parameter("IDP_B", param):
+            continue   # Measurement=Formula, no branch overwrite
         kind = mock._meas_kind("IDP_B", param)
         rows = {r["key"]: r["value"] for r in mock._amp_block("PRMS0000", "IDP_B", param)["rows"]}
         assert rows[mock._MEAS_KIND_FIELD[kind]] == kind
+        line = kind == "Single" and mock._single_on_line("IDP_B", param)
+        assert rows["Object"] == ("Line" if line else "Dense Line" if kind == "Dense Line" else "Space")

@@ -123,7 +123,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 
 from backend.ebeam.lateral_recipe.providers.mock import RECIPE_VERSION_RANGE
-from backend._core.cond_cursor import format_cursor_info, marks_from_rows
+from backend._core.cond_cursor import FRAME, format_cursor_info, marks_from_rows
 from backend.ebeam.recipe_search import rawfiles
 from backend.ebeam.recipe_search.contracts import (
     AlignDetailResponse,
@@ -589,7 +589,7 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
     )
     side = _FOV_MAG_PRODUCT / magnification
     pixel = rng.choice((512, 1024))
-    frame = 5120   # fixed, whatever the Pixel (office 확인 2026-10-29)
+    frame = FRAME   # fixed, whatever the Pixel (office 확인 2026-10-29)
     # Crosshair near the middle (an align key sits close to the frame centre),
     # box a 20-40 %-wide square around it; one image in six has no crosshair.
     cx, cy = (rng.randrange(int(frame * 0.35), int(frame * 0.65)) for _ in range(2))
@@ -677,8 +677,13 @@ def _seeded_rng(source: str, *scope: str) -> random.Random:
 # the right contract without teaching a format nobody has seen. Fill one in the
 # moment a real value turns up.
 _AMP_FIELDS: tuple[tuple[str, object], ...] = (
-    # Enumerated strings: exactly one real value known each, so it is emitted
-    # verbatim on every file. One sample teaches a format, never a domain.
+    # Enumerated strings, emitted verbatim. Data and Method still have exactly
+    # one real value known each — one sample teaches a format, never a domain.
+    # Measurement, Object and Kind have more (office 확인 2026-10-29: Ellipse /
+    # Formula, Dense Line, Single / Radial; Object=Line is user-confirmed from the
+    # Single branch description, not seen in a file); the defaults below are the
+    # 2026-07-30 sample and _amp_block overwrites them per parameter — see
+    # _MEAS_KIND_FIELD.
     ("Measurement", lambda _: "Width"),
     ("Object", lambda _: "Space"),
     ("Kind", lambda _: "Multi_Point"),
@@ -757,6 +762,8 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
         # rolls every other AMP value is untouched (rng.choice length shifts it).
         kind = _meas_kind(*scope)
         next(row for row in rows if row["key"] == _MEAS_KIND_FIELD[kind])["value"] = kind
+        if kind == "Single" and _single_on_line(*scope):
+            next(row for row in rows if row["key"] == "Object")["value"] = "Line"
     return {"source": source, "rows": rows}
 
 
@@ -769,7 +776,7 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
 #   Formula     -> None (no overlay; handled by _is_formula_parameter)
 #   Ellipse     -> one circle per cursor (r_out 0)
 #   Radial      -> two concentric circles per cursor (inner, outer)
-#   Single      -> one box, or two when Object is Space — always Space here
+#   Single      -> two boxes when Object is Space, else one (Line here)
 #   Dense Line  -> measurement_number bars at a pitch
 #   Multi_Point -> two boxes per cursor
 _MEAS_KINDS = ("Multi_Point", "Multi_Point", "Single", "Dense Line", "Ellipse", "Radial")
@@ -777,6 +784,11 @@ _MEAS_KINDS = ("Multi_Point", "Multi_Point", "Single", "Dense Line", "Ellipse", 
 # The branch value does not live in one AMP field (office 확인 2026-10-29):
 # Single / Radial in Kind, Dense Line (and Space) in Object, Ellipse (and
 # Formula) in Measurement. Multi_Point is the Kind sample of 2026-07-30.
+#
+# Only the branch's own field is overwritten, so a Dense Line parameter still
+# reads Kind=Multi_Point and an Ellipse one Object=Space. Whether real AMP files
+# pair them that way, and which field marks_from_amp checks first when two
+# disagree, is OFFICE-VERIFY — the mock's overlay simply follows the branch.
 _MEAS_KIND_FIELD = {
     "Multi_Point": "Kind", "Single": "Kind", "Radial": "Kind",
     "Dense Line": "Object", "Ellipse": "Measurement",
@@ -786,6 +798,12 @@ _MEAS_KIND_FIELD = {
 def _meas_kind(*scope: str) -> str:
     """Per parameter, from its own stream so the AMP block's values stay put."""
     return _seeded_rng("meas-kind", *scope).choice(_MEAS_KINDS)
+
+
+def _single_on_line(*scope: str) -> bool:
+    """Half the Single parameters measure a Line (one box) rather than a Space
+    (two), so the one-box shape renders at home too."""
+    return _seeded_rng("meas-object", *scope).random() < 0.5
 
 
 def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
@@ -809,11 +827,13 @@ def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
     elif kind == "Radial":
         inner = rng.uniform(0.05, 0.12)
         circles.append([ox, oy, inner, inner + rng.uniform(0.08, 0.2)])
+    elif kind == "Single" and _single_on_line(*scope):
+        bars.append([ox, oy, rng.uniform(0.04, 0.1), rng.uniform(0.2, 0.4)])
     elif kind == "Dense Line":
         count, pitch = rng.choice((4, 8)), rng.uniform(0.05, 0.08)
         w, h = pitch * 0.4, rng.uniform(0.2, 0.4)
         bars += [[ox + (i - (count - 1) / 2) * pitch, oy, w, h] for i in range(count)]
-    else:  # Multi_Point, and Single on the mock's Object = Space (two-box)
+    else:  # Multi_Point, and Single on Object = Space (two-box)
         gap, w, h = rng.uniform(0.08, 0.2), rng.uniform(0.04, 0.08), rng.uniform(0.2, 0.4)
         bars += [[ox - gap / 2, oy, w, h], [ox + gap / 2, oy, w, h]]
     return {"pixel": [pw, ph], "bars": bars, "circles": circles, "origin": origin}

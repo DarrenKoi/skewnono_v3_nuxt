@@ -727,7 +727,8 @@ def test_only_the_formula_parameter_carries_the_formula_group():
         else:
             assert rows == []
             # Ellipse is a Measurement value too (office 확인 2026-10-29).
-            assert measurement in {"Width", "Ellipse"}
+            ellipse = mock._meas_kind(LOCATOR["idp"], parameter) == "Ellipse"
+            assert measurement == ("Ellipse" if ellipse else "Width")
 
 
 def test_recipe_open_carries_an_unnamed_formula_row_with_an_enmp_file():
