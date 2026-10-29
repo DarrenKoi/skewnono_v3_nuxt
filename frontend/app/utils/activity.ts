@@ -162,6 +162,13 @@ export const activityFeatureLabel = (feature: string | null | undefined): string
  *  otherwise the caption claims collection started weeks early and vanishes
  *  while the office ranking is still filling. See
  *  backend/activity/MIGRATION.md, "Deploy step: PAGE_VIEW_SINCE". */
+/** The 7-day / 30-day switch every ranking card shares. */
+export type RankingWindowKey = '7d' | '30d'
+export const RANKING_WINDOW_TABS: { label: string, value: RankingWindowKey }[] = [
+  { label: '최근 7일', value: '7d' },
+  { label: '최근 30일', value: '30d' }
+]
+
 export const PAGE_VIEW_SINCE = '2026-08-04'
 
 /** Whether a window of `windowDays` ending today starts before `since` (a KST

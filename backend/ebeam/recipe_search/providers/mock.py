@@ -759,20 +759,21 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
         {"key": key, "value": generate(rng) if generate else _unknown_value(rng)}
         for key, generate in _AMP_FIELDS
     ]
+    by_key = {row["key"]: row for row in rows}
     if _is_formula_parameter(*scope):
-        next(row for row in rows if row["key"] == "Measurement")["value"] = "Formula"
+        by_key["Measurement"]["value"] = "Formula"
     else:
         # Overwritten after generation, like Formula above, so the stream that
         # rolls every other AMP value is untouched (rng.choice length shifts it).
         kind = _meas_kind(*scope)
-        next(row for row in rows if row["key"] == _MEAS_KIND_FIELD[kind])["value"] = kind
+        by_key[_MEAS_KIND_FIELD[kind]]["value"] = kind
         if kind == "Single" and _single_on_line(*scope):
-            next(row for row in rows if row["key"] == "Object")["value"] = "Line"
+            by_key["Object"]["value"] = "Line"
         if kind == "Ellipse":
             # HV-SEM's spelling of a hole measurement (office 확인 2026-10-29).
             obj, count = _ellipse_shape(*scope)
             for key, value in (("Kind", "Single"), ("Object", obj), ("Target", str(count))):
-                next(row for row in rows if row["key"] == key)["value"] = value
+                by_key[key]["value"] = value
     return {"source": source, "rows": rows}
 
 
@@ -829,17 +830,25 @@ def _single_on_line(*scope: str) -> bool:
     return _seeded_rng("meas-object", *scope).random() < 0.5
 
 
-def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
-    """The img_meas1 overlay for one image, consistent with its cond Pixel."""
-    if block is None or _is_formula_parameter(*scope):
+def _meas_marks(
+    amp: SettingBlock | None, cond: SettingBlock | None, *scope: str
+) -> MeasMarks | None:
+    """The img_meas1 overlay for one image, consistent with its cond Pixel.
+
+    The branch is read off the AMP rows, as marks_from_amp does at the office,
+    so the overlay cannot contradict the AMP table beside it.
+    """
+    if amp is None or cond is None:
         return None
-    pixel = next(row["value"] for row in block["rows"] if row["key"] == "Pixel")
+    fields = {row["key"]: row["value"] for row in amp["rows"]}
+    if fields["Measurement"] == "Formula":
+        return None
+    pixel = next(row["value"] for row in cond["rows"] if row["key"] == "Pixel")
     pw, ph = (int(v) for v in pixel.split(","))
     # Seeded by the parameter, not the file: HV-SEM's -U/-T/-M/-L share one
     # AMP and one VIMMS blob, and the office saw identical marks on all four
     # (office 확인 2026-10-29).
     rng = _seeded_rng("meas", *scope)
-    kind = _meas_kind(*scope)
     # The measurement origin sits near, not at, the centre — the whole point
     # of msr_info / VIMMS is that it can be off. One image in six falls back.
     ox, oy = (0.5 + rng.uniform(-0.06, 0.06) for _ in range(2))
@@ -848,9 +857,9 @@ def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
         ox = oy = 0.5
     bars: list[list[float]] = []
     circles: list[list[float]] = []
-    if kind == "Ellipse":
+    if fields["Measurement"] == "Ellipse":   # wins over Kind (HV-SEM holes)
         # One circle per target, a hole array around the origin.
-        count = _ellipse_shape(*scope)[1]
+        count = int(fields["Target"])
         cols = min(count, 6)
         rows_n = -(-count // cols)
         r, pitch = rng.uniform(0.02, 0.04), 0.1
@@ -858,12 +867,12 @@ def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
             [ox + (i % cols - (cols - 1) / 2) * pitch, oy + (i // cols - (rows_n - 1) / 2) * pitch, r, 0.0]
             for i in range(count)
         ]
-    elif kind == "Radial":
+    elif fields["Kind"] == "Radial":
         inner = rng.uniform(0.05, 0.12)
         circles.append([ox, oy, inner, inner + rng.uniform(0.08, 0.2)])
-    elif kind == "Single" and _single_on_line(*scope):
+    elif fields["Kind"] == "Single" and fields["Object"] != "Space":
         bars.append([ox, oy, rng.uniform(0.04, 0.1), rng.uniform(0.2, 0.4)])
-    elif kind == "Dense Line":
+    elif fields["Object"] == "Dense Line":
         count, pitch = rng.choice((4, 8)), rng.uniform(0.05, 0.08)
         w, h = pitch * 0.4, rng.uniform(0.2, 0.4)
         bars += [[ox + (i - (count - 1) / 2) * pitch, oy, w, h] for i in range(count)]
@@ -1401,9 +1410,10 @@ def get_param_detail(
             slots, listing=_mock_raw_listing(locator, slots)
         )
         scope = (str(locator.get("idp", "")), item.get("parameter", ""))
+        amp_block = _amp_block(amp, *scope)
         out.append({
             "parameter": item.get("parameter", ""),
-            "amp": _amp_block(amp, *scope),
+            "amp": amp_block,
             "af_pr": _afpr_block(af_pr, *scope),
             "images": [
                 {
@@ -1412,10 +1422,10 @@ def get_param_detail(
                     "name": name,
                     # Always SEM: an optical microscope takes no measurement or
                     # addressing image. Only wafer align has an OM file.
-                    **_cond_fields(cond, "SEM", *scope),
+                    **(fields := _cond_fields(cond, "SEM", *scope)),
                     # Same gate as the office: no AMP file, no measurement box.
-                    "meas": _meas_marks(_cond_block(cond, "SEM", *scope), *scope)
-                    if slot == "img_meas1" and amp else None,
+                    "meas": _meas_marks(amp_block, fields["cond"], *scope)
+                    if slot == "img_meas1" else None,
                 }
                 for slot, name, cond in images
             ]

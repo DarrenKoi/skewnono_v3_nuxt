@@ -37,11 +37,14 @@ const people = (count: number): string => `${count.toLocaleString()}명`
 
 // The weekday is named because it is the first thing the shape raises: a dip
 // every seven bars is a weekend, not a problem.
-export const visitorTooltip = (day: DailyVisitors): string => {
-  const weekday = DAY_NAMES[new Date(`${day.date}T00:00:00Z`).getUTCDay()]
-  return `${day.date}${weekday ? ` (${weekday})` : ''}`
-    + `<br>DAU ${people(day.visitors)} · WAU ${people(day.wau)} · MAU ${people(day.mau)}`
+export const dayHeading = (date: string): string => {
+  const weekday = DAY_NAMES[new Date(`${date}T00:00:00Z`).getUTCDay()]
+  return `${date}${weekday ? ` (${weekday})` : ''}`
 }
+
+export const visitorTooltip = (day: DailyVisitors): string =>
+  dayHeading(day.date)
+  + `<br>DAU ${people(day.visitors)} · WAU ${people(day.wau)} · MAU ${people(day.mau)}`
 
 export type VisitorMetricKey = 'dau' | 'wau' | 'mau'
 

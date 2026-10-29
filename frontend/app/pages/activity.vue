@@ -190,7 +190,7 @@
             </span>
             <UTabs
               v-model="windowKey"
-              :items="windowTabs"
+              :items="RANKING_WINDOW_TABS"
               variant="pill"
               size="xs"
             />
@@ -224,7 +224,7 @@
             </span>
             <UTabs
               v-model="familyWindowKey"
-              :items="windowTabs"
+              :items="RANKING_WINDOW_TABS"
               variant="pill"
               size="xs"
             />
@@ -260,7 +260,7 @@
             </span>
             <UTabs
               v-model="fabWindowKey"
-              :items="windowTabs"
+              :items="RANKING_WINDOW_TABS"
               variant="pill"
               size="xs"
             />
@@ -296,7 +296,7 @@
             </UBadge>
           </div>
         </template>
-        <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
           <NuxtLink
             v-for="link in adminLinks"
             :key="link.to"
@@ -335,7 +335,7 @@ import {
   useActivitySummary,
   type FeatureCount
 } from '~/composables/useActivityApi'
-import { activeUserKpis, activityFeatureLabel, pageViewNotice, rankableFabRows } from '~/utils/activity'
+import { RANKING_WINDOW_TABS, activeUserKpis, activityFeatureLabel, pageViewNotice, rankableFabRows, type RankingWindowKey } from '~/utils/activity'
 import { familyRail, toolFamilyNotice, type RailRow } from '~/utils/activityFamily'
 import { displayName, isUnverifiedDeclaration } from '~/utils/identityDisplay'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
@@ -465,11 +465,7 @@ const kpiCards = computed(() => {
 })
 
 // --- shared usage: top features window toggle ---
-const windowKey = ref<'7d' | '30d'>('7d')
-const windowTabs = [
-  { label: '최근 7일', value: '7d' },
-  { label: '최근 30일', value: '30d' }
-]
+const windowKey = ref<RankingWindowKey>('7d')
 const topFeaturesForWindow = computed<FeatureCount[]>(() => {
   if (!summary.value) return []
   return windowKey.value === '7d'

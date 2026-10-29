@@ -82,8 +82,8 @@ from .shared import (
     SPARKLINE_DAYS,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
-    VISITOR_DAYS,
     VISITOR_LOOKBACK_DAYS,
+    chart_days,
     daily_visitor_rows,
     family_usage_rows,
 )
@@ -450,10 +450,7 @@ def _request_window(
 def get_request_stats() -> RequestsResponse:
     """Request volume per KST day, and where each window's requests went."""
     today = _today()
-    days = [
-        today - timedelta(days=offset)
-        for offset in range(VISITOR_DAYS - 1, -1, -1)
-    ]
+    days = chart_days(today)
     with _lock:
         states = list(_identified_users(_users))
         rows = [
@@ -627,6 +624,7 @@ class _DemoUser(NamedTuple):
 # weeks it drew a flat 1 for the six weeks before that. The peers stay at 60
 # rather than following the 3개월 tab's 90 days, which would spread the same
 # totals thinner and change every number they feed.
+_PEER_HISTORY_DAYS = 60
 #
 # The last three are occasional visitors (their ``skip_rate`` has them come
 # roughly weekly, fortnightly and monthly). Without them every
@@ -646,7 +644,7 @@ _DEMO_USERS: list[_DemoUser] = [
         "M14",
         {"sem_list": 220, "recipe_search": 160, "meas_hist": 45, "fail_issue": 30},
         {"recipe_search": 34, "meas_hist": 12, "fail_issue": 9, "mag_pixel": 4},
-        60,
+        _PEER_HISTORY_DAYS,
     ),
     _DemoUser(
         "park.jinho",
@@ -701,7 +699,7 @@ _DEMO_USERS: list[_DemoUser] = [
         "M14",
         {"sem_list": 26, "recipe_search": 18},
         {"recipe_search": 9, "meas_hist": 3},
-        60,
+        _PEER_HISTORY_DAYS,
         skip_rate=0.8,
     ),
     _DemoUser(
@@ -709,7 +707,7 @@ _DEMO_USERS: list[_DemoUser] = [
         "M16B",
         {"sem_list": 15, "storage": 9},
         {"storage": 6},
-        60,
+        _PEER_HISTORY_DAYS,
         family="hvsem",
         skip_rate=0.9,
     ),

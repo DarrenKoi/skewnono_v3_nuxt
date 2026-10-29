@@ -69,11 +69,13 @@ def daily_visitor_rows(
             "wau": counts["wau"][day.toordinal()],
             "mau": counts["mau"][day.toordinal()],
         }
-        for day in (
-            today - timedelta(days=offset)
-            for offset in range(VISITOR_DAYS - 1, -1, -1)
-        )
+        for day in chart_days(today)
     ]
+
+
+def chart_days(today: date) -> list[date]:
+    """The ``VISITOR_DAYS`` calendar every daily chart is drawn on, oldest first."""
+    return [today - timedelta(days=offset) for offset in range(VISITOR_DAYS - 1, -1, -1)]
 
 
 #: Beacon URL → tool family. A page open's family is the URL it was posted to

@@ -112,7 +112,7 @@
               </span>
               <UTabs
                 v-model="featureWindowKey"
-                :items="FEATURE_WINDOW_TABS"
+                :items="RANKING_WINDOW_TABS"
                 variant="pill"
                 size="xs"
               />
@@ -155,6 +155,7 @@ import {
   useActivityRequests,
   useActivityUsers
 } from '~/composables/useActivityApi'
+import { RANKING_WINDOW_TABS, type RankingWindowKey } from '~/utils/activity'
 import { requestKpis, requestRemainderNote, topRequesters } from '~/utils/activityRequests'
 import { VISITOR_WINDOW_TABS, visitorWindow, type VisitorWindowKey } from '~/utils/activityVisitors'
 import { operationalDataErrorMessage } from '~/utils/operationalDataError'
@@ -193,14 +194,8 @@ const kpiCards = computed(() => requestKpis(days.value))
 const windowKey = ref<VisitorWindowKey>('1m')
 const windowDays = computed(() => visitorWindow(days.value, windowKey.value))
 
-const FEATURE_WINDOW_TABS = [
-  { label: '최근 7일', value: '7d' },
-  { label: '최근 30일', value: '30d' }
-]
-const featureWindowKey = ref<'7d' | '30d'>('7d')
-const featureWindow = computed(() =>
-  featureWindowKey.value === '7d' ? stats.value?.window_7d : stats.value?.window_30d
-)
+const featureWindowKey = ref<RankingWindowKey>('7d')
+const featureWindow = computed(() => stats.value?.[`window_${featureWindowKey.value}`])
 const remainderNote = computed(() => requestRemainderNote(featureWindow.value))
 
 const requesters = computed(() => topRequesters(usersQuery?.data.value?.users ?? []))

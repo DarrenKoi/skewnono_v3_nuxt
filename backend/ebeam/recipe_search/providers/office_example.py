@@ -1963,7 +1963,7 @@ def get_param_detail(
     listings = _list_raw_dirs({_locator_key(item["locator"]) for item in items})
 
     wanted: dict[tuple[str, str, str, str], list[str]] = {}
-    plans: list[tuple[tuple[str, str, str, str], ParamDetailRequestItem, Any]] = []
+    plans: list[tuple[tuple[str, str, str, str], ParamDetailRequestItem, Any, str | None]] = []
     for item in items:
         key = _locator_key(item["locator"])
         plan = rawfiles.slot_sources(item.get("slots") or {}, listing=listings.get(key))
@@ -1982,14 +1982,13 @@ def get_param_detail(
         if vimms:
             names.append(vimms)
         wanted.setdefault(key, []).extend(names)
-        plans.append((key, item, plan))
+        plans.append((key, item, plan, vimms))
 
     fetched = _fetch_many(wanted)
 
     out: list[ParamDetailResponse] = []
-    for key, item, (amp, af_pr, images) in plans:
+    for key, item, (amp, af_pr, images), vimms in plans:
         blob = fetched.get(key, {})
-        vimms = rawfiles.image_stem((item.get("slots") or {}).get("img_meas1"))
         out.append({
             "parameter": item.get("parameter", ""),
             "amp": _read_block(amp, blob.get(amp or ""), read_amp_info),

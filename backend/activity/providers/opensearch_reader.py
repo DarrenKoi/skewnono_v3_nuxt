@@ -35,6 +35,7 @@ from backend.activity.providers.shared import (
     VISIT_DAYS,
     VISITOR_DAYS,
     VISITOR_LOOKBACK_DAYS,
+    chart_days,
     daily_visitor_rows,
     family_usage_rows,
 )
@@ -84,6 +85,21 @@ def _time_range(start: datetime, now: datetime) -> dict[str, Any]:
                 "lte": now.isoformat(),
             }
         }
+    }
+
+
+def _day_histogram(start: datetime, now: datetime) -> dict[str, Any]:
+    """One KST-day bucket from ``start`` through today, empty days included."""
+    return {
+        "field": "@timestamp",
+        "calendar_interval": "day",
+        "time_zone": "Asia/Seoul",
+        "format": "yyyy-MM-dd",
+        "min_doc_count": 0,
+        "extended_bounds": {
+            "min": start.date().isoformat(),
+            "max": now.astimezone(KST).date().isoformat(),
+        },
     }
 
 
@@ -275,20 +291,7 @@ class ActivityOpenSearchReader:
             tzinfo=KST,
         )
 
-        def day_histogram(start: datetime) -> dict[str, Any]:
-            return {
-                "field": "@timestamp",
-                "calendar_interval": "day",
-                "time_zone": "Asia/Seoul",
-                "format": "yyyy-MM-dd",
-                "min_doc_count": 0,
-                "extended_bounds": {
-                    "min": start.date().isoformat(),
-                    "max": local.date().isoformat(),
-                },
-            }
-
-        daily_histogram = day_histogram(day_30)
+        daily_histogram = _day_histogram(day_30, now)
         return {
             "size": 0,
             "track_total_hits": True,
@@ -296,7 +299,7 @@ class ActivityOpenSearchReader:
             "aggs": {
                 "visits": {
                     "filter": _kind_window(day_90, now, [RANKING_KIND]),
-                    "aggs": {"days": {"date_histogram": day_histogram(day_90)}},
+                    "aggs": {"days": {"date_histogram": _day_histogram(day_90, now)}},
                 },
                 # Deliberately NOT kind-filtered. "When did we first/last see
                 # this person" is a presence question, not a request-volume
@@ -611,17 +614,7 @@ class ActivityOpenSearchReader:
                 },
                 "aggs": {
                     "days": {
-                        "date_histogram": {
-                            "field": "@timestamp",
-                            "calendar_interval": "day",
-                            "time_zone": "Asia/Seoul",
-                            "format": "yyyy-MM-dd",
-                            "min_doc_count": 0,
-                            "extended_bounds": {
-                                "min": start.date().isoformat(),
-                                "max": now.astimezone(KST).date().isoformat(),
-                            },
-                        },
+                        "date_histogram": _day_histogram(start, now),
                         "aggs": {"users": _distinct_users_agg()},
                     },
                     "window_7d": window(7),
@@ -646,8 +639,8 @@ class ActivityOpenSearchReader:
         # left out is still a row, and the series is always VISITOR_DAYS long.
         today = now.astimezone(KST).date()
         days = []
-        for offset in range(VISITOR_DAYS - 1, -1, -1):
-            day = (today - timedelta(days=offset)).isoformat()
+        for calendar_day in chart_days(today):
+            day = calendar_day.isoformat()
             bucket = buckets.get(day, {})
             days.append(
                 {

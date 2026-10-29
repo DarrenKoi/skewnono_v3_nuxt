@@ -87,13 +87,12 @@ def parse_cursor_info(pixel: str | None, cursor: str | None) -> CursorMarks | No
     px = _ints(pixel.split(","))
     if not _present(px, (0, 1)) or px[0] <= 0 or px[1] <= 0:
         return None
-    w = h = FRAME
     values = _ints(cursor.split(","))
     crosshair = box = None
     if _present(values, _CROSSHAIR_IDX):
-        crosshair = [values[4] / w, values[5] / h]
+        crosshair = [values[4] / FRAME, values[5] / FRAME]
     if _present(values, _BOX_IDX):
-        box = [values[6] / w, values[7] / h, values[8] / w, values[9] / h]
+        box = [v / FRAME for v in values[6:10]]
     if crosshair is None and box is None:
         return None
     return CursorMarks(pixel=[px[0], px[1]], crosshair=crosshair, box=box)

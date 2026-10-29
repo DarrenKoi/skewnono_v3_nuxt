@@ -1,7 +1,6 @@
 import type { EChartsOption } from 'echarts'
 import { userDisplayName, userTeamLabel } from './activity.ts'
-import { DAY_NAMES } from './activityCalendar.ts'
-import { visitorAxisLabel, type CountRow } from './activityVisitors.ts'
+import { dayHeading, visitorAxisLabel, type CountRow } from './activityVisitors.ts'
 import { CHART_AXIS_LABEL } from './chartType.ts'
 import type { DailyRequests, RequestWindow, UserListRow } from '~/composables/useActivityApi'
 
@@ -60,11 +59,8 @@ export const requestKpis = (days: readonly DailyRequests[]) => {
 
 const count = (value: number, unit: string): string => `${value.toLocaleString()}${unit}`
 
-export const requestTooltip = (day: DailyRequests): string => {
-  const weekday = DAY_NAMES[new Date(`${day.date}T00:00:00Z`).getUTCDay()]
-  return `${day.date}${weekday ? ` (${weekday})` : ''}`
-    + `<br>요청 ${count(day.requests, '건')} · 요청자 ${count(day.users, '명')}`
-}
+export const requestTooltip = (day: DailyRequests): string =>
+  dayHeading(day.date) + `<br>요청 ${count(day.requests, '건')} · 요청자 ${count(day.users, '명')}`
 
 /** One bar per KST day. The requester count rides in the tooltip rather than
  *  as a second series: hundreds of requests over a handful of people on one

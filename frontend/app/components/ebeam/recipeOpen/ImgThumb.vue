@@ -13,20 +13,20 @@
         with three images should not cost three round trips before it is looked
         at.
       -->
-      <img
-        v-if="src && !failed"
-        :src="src"
-        :alt="`${stage} (${name})`"
-        loading="lazy"
-        decoding="async"
-        class="h-full w-full object-cover"
-        @error="failed = true"
-      >
-      <EbeamRecipeOpenMeasMarks
-        v-if="src && !failed"
-        :meas="meas"
-        fit="cover"
-      />
+      <template v-if="src && !failed">
+        <img
+          :src="src"
+          :alt="`${stage} (${name})`"
+          loading="lazy"
+          decoding="async"
+          class="h-full w-full object-cover"
+          @error="failed = true"
+        >
+        <EbeamRecipeOpenMeasMarks
+          :meas="meas"
+          fit="cover"
+        />
+      </template>
       <div
         v-else
         class="flex h-full w-full items-center justify-center px-2 text-center font-mono text-xs text-white/45"
