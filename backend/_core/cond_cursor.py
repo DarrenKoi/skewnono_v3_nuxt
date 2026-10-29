@@ -2,9 +2,9 @@
 
 Every tool image (recipe align key, measurement image) carries a hidden
 ``.<image>/cond.txt``. Besides the beam settings the screen already lists,
-one line records WHERE the tool's algorithm put its marks, in a coordinate
-frame ten times the image (user-confirmed 2026-09-03, from the
-auto_recipe_creator align work):
+one line records WHERE the tool's algorithm put its marks, in a fixed
+5120 x 5120 coordinate frame (user-confirmed 2026-09-03 on 512-px align
+images; office 확인 2026-10-29 that the frame is 5120 regardless of Pixel):
 
     Pixel         512,512
     !Cursor_info  a,b,c,d,cx,cy,left,top,right,bottom[,...]
@@ -13,24 +13,30 @@ auto_recipe_creator align work):
   means the tool drew none; on a failed align that absence is the signal.
 * ``[6..9]`` — the white box the recipe drew around its unique area.
   ``[8],[9]`` at ``-1`` means no box.
-* The numbers are in a ``Pixel × 10`` oversample frame: image px = value / 10.
-  So ``2097,2561`` on a ``512,512`` image is ``(209.7, 256.1)``.
+* The numbers are in a fixed 5120 frame: fraction = value / 5120. So
+  ``2097,2561`` on a ``512,512`` image is ``(209.7, 256.1)`` px and on a
+  ``1024,1024`` image ``(419.4, 512.2)`` px. Until 2026-10-29 this read
+  ``Pixel × 10``, which agrees at 512 px and drew 1024-px images at half
+  scale. Whether a NON-square image also uses 5120 on both axes is
+  OFFICE-VERIFY (the answer was given for square images).
 
 The key is spelled ``!Cursor_inf`` on some tools and ``!Cursor_info`` on
-others (user-confirmed), so it is matched by prefix. What ``[0..3]`` mean and
-whether the line appears on every image kind are OFFICE-VERIFY.
+others (user-confirmed), so it is matched by prefix. What ``[0..3]`` mean is
+OFFICE-VERIFY. The addressing box office_utils reads (``cond_address_box``,
+"positions 7-10" counted from 1) is this same ``[6..9]`` (office 확인
+2026-10-29), so it is read here rather than through that function.
 
 This is the ONE parser. Both providers of every image-bearing response attach
 the result as ``marks`` (fractions of the image, 0..1), so the browser draws
-and the cleaner erases from the same numbers and nothing downstream knows
-about Pixel, the ×10, or the token layout. When the office corrects any of
+from these numbers and nothing downstream knows about the 5120 frame or the
+token layout. When the office corrects any of
 those, this file is the only place that changes.
 """
 
 from collections.abc import Iterable, Mapping
 from typing import TypedDict
 
-OVERSAMPLE = 10
+FRAME = 5120
 
 _CROSSHAIR_IDX = (4, 5)
 _BOX_IDX = (6, 7, 8, 9)
@@ -81,7 +87,7 @@ def parse_cursor_info(pixel: str | None, cursor: str | None) -> CursorMarks | No
     px = _ints(pixel.split(","))
     if not _present(px, (0, 1)) or px[0] <= 0 or px[1] <= 0:
         return None
-    w, h = px[0] * OVERSAMPLE, px[1] * OVERSAMPLE
+    w = h = FRAME
     values = _ints(cursor.split(","))
     crosshair = box = None
     if _present(values, _CROSSHAIR_IDX):

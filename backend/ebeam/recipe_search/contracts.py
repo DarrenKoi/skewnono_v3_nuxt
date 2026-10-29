@@ -179,7 +179,7 @@ ParamImage = TypedDict("ParamImage", {
     "cond": SettingBlock | None,
     # The tool's crosshair / white box, parsed from the same cond.txt by
     # _core/cond_cursor.py (2026-09-03). Fractions of the image, so the screen
-    # overlays without knowing Pixel or the x10 frame. None when the sidecar
+    # overlays without knowing Pixel or the 5120 frame. None when the sidecar
     # names no mark.
     "marks": CursorMarks | None,
     # The measurement box(es), from office_utils.meas_marks (2026-10-29). Only

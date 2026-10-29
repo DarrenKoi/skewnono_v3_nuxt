@@ -726,7 +726,8 @@ def test_only_the_formula_parameter_carries_the_formula_group():
             assert measurement == "Formula"
         else:
             assert rows == []
-            assert measurement == "Width"
+            # Ellipse is a Measurement value too (office 확인 2026-10-29).
+            assert measurement in {"Width", "Ellipse"}
 
 
 def test_recipe_open_carries_an_unnamed_formula_row_with_an_enmp_file():

@@ -76,6 +76,11 @@ rcp 는 `Scope` 가 있으므로 `CondInfo.is_om` / `.is_sem` 을 쓴다.
 
 ## 3. 좌표 변환 — 여기가 유일한 함정
 
+> **정정 (office 확인 2026-10-29):** 프레임은 `Pixel × 10` 이 아니라 Pixel 과
+> 무관한 **5120 고정**이다. 512-px 에서는 둘이 같아서 아래 align 작업에서는 차이가
+> 없었다. SKEWNONO 의 파서(`backend/_core/cond_cursor.py`)는 고쳤다. 아래 본문은
+> 당시 기록으로 남긴다.
+
 `!Cursor_info` 의 좌표는 이미지 px 가 **아니다**. `Pixel` 의 **10배 oversample
 프레임**(`clean_align_image.OVERSAMPLE = 10`) 기준이다.
 

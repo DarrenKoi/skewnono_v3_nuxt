@@ -814,9 +814,12 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
     **[6..9] 가 white box (left, top, right, bottom)** 입니다. `-1` 은 "없음" —
     [4],[5] 가 -1 이면 장비가 십자선을 그리지 않은 것이고, 실패한 align 이미지는
     흔히 그렇습니다. [0..3] 의 뜻은 OFFICE-VERIFY 입니다.
-  - 좌표계는 이미지 px 가 **아닙니다**. `Pixel` 의 **10배 oversample 프레임**입니다.
-    `Pixel 512,512` 이면 프레임은 5120x5120 이고 `2097,2561` 은 512-px 이미지 위의
-    `(209.7, 256.1)` 입니다. 1024-px 이미지에서 배율이 그대로 10인지는 OFFICE-VERIFY.
+  - 좌표계는 이미지 px 가 **아닙니다**. Pixel 과 무관한 **5120 고정 프레임**입니다
+    (office 확인 2026-10-29). 분수 = 값 / 5120 이므로 `2097,2561` 은 512-px 이미지
+    위의 `(209.7, 256.1)`, 1024-px 이미지 위의 `(419.4, 512.2)` 입니다. 2026-10-29
+    전까지는 `Pixel × 10` 으로 나눴습니다. 512-px 에서는 값이 같아 align 표본으로는
+    드러나지 않았고, 1024-px 이미지는 절반 크기로 그려졌습니다. 정사각형이 아닌
+    이미지도 두 축 모두 5120 인지는 OFFICE-VERIFY 입니다.
   - key 이름이 장비마다 `!Cursor_inf` / `!Cursor_info` 로 흔들립니다. 파서는
     `cursor_inf` **접두 매칭**을 합니다 (`backend/_core/cond_cursor.py`).
   - 십자선은 msr(측정) 이미지에 장비가 실제로 **그려 넣은** 선이고, white box 는
@@ -829,7 +832,7 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
 
   파싱은 서버가 한 번만 합니다. 이미지가 들어가는 응답(ParamImage · AlignPoint ·
   AlignImage)마다 `marks` field 로 **이미지 대비 분수(0..1)** 를 실어 보내므로,
-  화면은 Pixel 도 x10 도 모른 채 덧그립니다. reader 가 `!` key 를 돌려주는지는
+  화면은 Pixel 도 5120 프레임도 모른 채 덧그립니다. reader 가 `!` key 를 돌려주는지는
   확인되지 않았으므로(OFFICE-VERIFY) office adapter 는 reader 의 row 가 아니라
   **원문 바이트**에서 `marks` 를 뽑습니다(`_image_marks`). mock 은 두 optic 모두
   마지막 row 로 내보내며, 실제 파일 안의 위치는 기록되지 않았습니다. 측정·addressing
@@ -846,26 +849,34 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
   | 입력 | 출처 |
   | --- | --- |
   | amp | `read_amp_info(PRMS bytes)` |
-  | pixel | cond `Pixel` (`read_meas_image_condition`), 원래 값 그대로 |
+  | pixel | cond `Pixel` (`read_meas_image_condition`), 문자열 `'1024,1024'` 그대로 (office 확인 2026-10-29) |
   | field_um | cond `Field_Size` 의 첫 숫자 |
-  | mp_offset | `msr_info_offset(ENMP text, pixel)` (5120 프레임) → 없으면 `vimms_mp_offset(blob, pixel)` (-(13,-6) 보정) → 없으면 None = 중앙 |
+  | mp_offset | `msr_info_offset(ENMP text, pixel)` (5120 프레임, utf-8 텍스트) → 없으면 `vimms_mp_offset(blob, pixel)` (-(13,-6) 보정) → 없으면 None = 중앙. 두 함수 모두 못 찾으면 None, 예외 없음 (office 확인 2026-10-29) |
 
   - VIMMS blob 파일 이름은 측정 이미지의 **stem(확장자 없음)** 입니다.
     `IMMS0002.jpeg` 이면 blob 은 `IMMS0002` 입니다. HV-SEM `-U` 등 suffix 파일의
     blob 이 `IMMS0001-U` 인지는 OFFICE-VERIFY.
-  - 결과 `{pixel, bars:[[cx,cy,w,h]], circles:[[cx,cy,r_in,r_out]]}` — 전부 이미지
-    대비 분수. `r_out` 0 이면 원 하나. AMP `Cursor_Positions` 는 512 프레임,
+  - 결과는 dict `{pixel, bars:[[cx,cy,w,h]], circles:[[cx,cy,r_in,r_out]]}` 입니다.
+    `pixel` 만 list `[1024, 1024]`(viewBox `0 0 pw ph`)이고 나머지는 전부 이미지
+    대비 분수입니다. `r_out` 0 이면 원 하나입니다 (office 확인 2026-10-29). AMP `Cursor_Positions` 는 512 프레임,
     `Search_Area` 는 cond-Pixel 프레임이며 **모듈이 환산**합니다. 호출부는 나누지
     않습니다.
   - 분기: Formula → None(덧그림 없음이 정상) · Ellipse → 커서마다 원 · Radial →
-    커서마다 동심원 두 개 · Single → 박스 하나(Space 는 two-box) · Dense Line →
-    pitch 간격 bar · 그 외 Multi_Point → 커서마다 박스 두 개. 이 값들이 AMP 의
-    어느 field(`Kind`?)에 실리는지는 OFFICE-VERIFY 입니다.
-  - 원 반지름의 분수 기준(폭)과 비정사각 이미지에서 bar `h` 의 기준(높이)은
-    OFFICE-VERIFY 입니다.
-  - addressing 박스(`cond_address_box`, `!Cursor_info` 7-10)는 위 `!Cursor_info`
-    절의 white box [6..9] 와 같은 값으로 보고, 집은 `_core/cond_cursor.py` 하나로
-    읽습니다 (같은 값인지 OFFICE-VERIFY).
+    커서마다 동심원 두 개 · Single → 박스 하나(Object 가 Space 면 two-box) ·
+    Dense Line → pitch 간격 bar · 그 외 Multi_Point → 커서마다 박스 두 개.
+  - 분기 값이 실리는 AMP field 는 하나가 아닙니다 (office 확인 2026-10-29).
+
+    | AMP field | 분기 값 |
+    | --- | --- |
+    | Kind | Single, Radial (그리고 Multi_Point) |
+    | Object | Dense Line, Space |
+    | Measurement | Ellipse, Formula |
+
+  - 반지름은 폭 기준, bar 의 `cx`·`w` 는 폭, `cy`·`h` 는 높이 기준입니다
+    (office 확인 2026-10-29).
+  - addressing 박스(`cond_address_box`, `!Cursor_info` 의 1부터 센 7-10)는 위
+    `!Cursor_info` 절의 0부터 센 [6..9] 와 같은 자리이고, 나누는 값은 5120
+    고정입니다 (office 확인 2026-10-29). 집은 `_core/cond_cursor.py` 하나로 읽습니다.
 
 PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
 =====================================================

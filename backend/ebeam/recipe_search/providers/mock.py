@@ -589,7 +589,7 @@ def _cond_values(rng: random.Random, optic: str) -> dict[str, str]:
     )
     side = _FOV_MAG_PRODUCT / magnification
     pixel = rng.choice((512, 1024))
-    frame = pixel * 10
+    frame = 5120   # fixed, whatever the Pixel (office 확인 2026-10-29)
     # Crosshair near the middle (an align key sits close to the frame centre),
     # box a 20-40 %-wide square around it; one image in six has no crosshair.
     cx, cy = (rng.randrange(int(frame * 0.35), int(frame * 0.65)) for _ in range(2))
@@ -755,7 +755,8 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
     else:
         # Overwritten after generation, like Formula above, so the stream that
         # rolls every other AMP value is untouched (rng.choice length shifts it).
-        next(row for row in rows if row["key"] == "Kind")["value"] = _meas_kind(*scope)
+        kind = _meas_kind(*scope)
+        next(row for row in rows if row["key"] == _MEAS_KIND_FIELD[kind])["value"] = kind
     return {"source": source, "rows": rows}
 
 
@@ -763,16 +764,23 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
 #
 # The office computes these from AMP + cond + origin; the branch list is the
 # user's description of marks_from_amp. The mock fabricates the SHAPE of each
-# branch, not its geometry: positions and sizes below are invented, and which
-# AMP field carries Ellipse / Radial (Kind is assumed) is OFFICE-VERIFY.
+# branch, not its geometry: positions and sizes below are invented.
 #
 #   Formula     -> None (no overlay; handled by _is_formula_parameter)
 #   Ellipse     -> one circle per cursor (r_out 0)
 #   Radial      -> two concentric circles per cursor (inner, outer)
-#   Single      -> one box (Space two-box is folded into Multi_Point here)
+#   Single      -> one box, or two when Object is Space — always Space here
 #   Dense Line  -> measurement_number bars at a pitch
 #   Multi_Point -> two boxes per cursor
 _MEAS_KINDS = ("Multi_Point", "Multi_Point", "Single", "Dense Line", "Ellipse", "Radial")
+
+# The branch value does not live in one AMP field (office 확인 2026-10-29):
+# Single / Radial in Kind, Dense Line (and Space) in Object, Ellipse (and
+# Formula) in Measurement. Multi_Point is the Kind sample of 2026-07-30.
+_MEAS_KIND_FIELD = {
+    "Multi_Point": "Kind", "Single": "Kind", "Radial": "Kind",
+    "Dense Line": "Object", "Ellipse": "Measurement",
+}
 
 
 def _meas_kind(*scope: str) -> str:
@@ -801,13 +809,11 @@ def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
     elif kind == "Radial":
         inner = rng.uniform(0.05, 0.12)
         circles.append([ox, oy, inner, inner + rng.uniform(0.08, 0.2)])
-    elif kind == "Single":
-        bars.append([ox, oy, rng.uniform(0.04, 0.1), rng.uniform(0.2, 0.4)])
     elif kind == "Dense Line":
         count, pitch = rng.choice((4, 8)), rng.uniform(0.05, 0.08)
         w, h = pitch * 0.4, rng.uniform(0.2, 0.4)
         bars += [[ox + (i - (count - 1) / 2) * pitch, oy, w, h] for i in range(count)]
-    else:
+    else:  # Multi_Point, and Single on the mock's Object = Space (two-box)
         gap, w, h = rng.uniform(0.08, 0.2), rng.uniform(0.04, 0.08), rng.uniform(0.2, 0.4)
         bars += [[ox - gap / 2, oy, w, h], [ox + gap / 2, oy, w, h]]
     return {"pixel": [pw, ph], "bars": bars, "circles": circles, "origin": origin}

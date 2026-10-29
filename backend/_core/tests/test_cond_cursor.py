@@ -15,7 +15,7 @@ from backend._core.cond_cursor import (
 _COND = "Pixel\t512,512\n!Cursor_info\t0,0,0,0,2097,2561,1600,1600,3520,3520\n"
 
 
-def test_fractions_divide_by_pixel_times_ten():
+def test_fractions_divide_by_the_5120_frame():
     assert cursor_info_from_cond(_COND) == {
         "pixel": [512, 512],
         "crosshair": [2097 / 5120, 2561 / 5120],
@@ -48,8 +48,18 @@ def test_unusable_input_is_none_not_an_error():
     assert cursor_info_from_cond("mag=30000\n") is None
 
 
-def test_rectangular_pixel_uses_each_axis():
-    assert parse_cursor_info("1024,512", "0,0,0,0,5120,2560,-1,-1,-1,-1")["crosshair"] == [0.5, 0.5]
+def test_the_frame_is_5120_whatever_the_pixel():
+    # office 확인 2026-10-29: the divisor is a fixed 5120, not Pixel x 10. The
+    # two agree only at 512 px — a 1024 image read as x10 drew at half scale.
+    marks = parse_cursor_info("1024,1024", "0,0,0,0,2560,2560,1280,1280,3840,3840")
+    assert marks["pixel"] == [1024, 1024]
+    assert marks["crosshair"] == [0.5, 0.5]
+    assert marks["box"] == [0.25, 0.25, 0.75, 0.75]
+
+
+def test_rectangular_pixel_still_uses_5120_on_each_axis():
+    # OFFICE-VERIFY: "5120 fixed" was answered for square images.
+    assert parse_cursor_info("1024,512", "0,0,0,0,2560,2560,-1,-1,-1,-1")["crosshair"] == [0.5, 0.5]
 
 
 def test_format_is_the_inverse_of_parse():

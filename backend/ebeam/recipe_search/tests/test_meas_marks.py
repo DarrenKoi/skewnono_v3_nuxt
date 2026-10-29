@@ -112,3 +112,12 @@ def test_mock_boxes_only_img_meas1_and_never_a_formula():
     formula = mock._formula_parameter_name("IDP_B")
     detail = mock.get_param_detail([{"locator": LOCATOR, "parameter": formula, "slots": SLOTS}])[0]
     assert all(image["meas"] is None for image in detail["images"])
+
+
+def test_mock_amp_names_the_branch_in_its_own_field():
+    # office 확인 2026-10-29: Kind / Object / Measurement each carry some branches.
+    for n in range(40):
+        param = f"Para_{n}"
+        kind = mock._meas_kind("IDP_B", param)
+        rows = {r["key"]: r["value"] for r in mock._amp_block("PRMS0000", "IDP_B", param)["rows"]}
+        assert rows[mock._MEAS_KIND_FIELD[kind]] == kind
