@@ -37,6 +37,22 @@ export interface Notice {
 
 export const NOTICES: Notice[] = [
   {
+    date: '2026-10-29',
+    category: '기능추가',
+    title: 'Recipe 검색 — 측정 이미지에 측정 박스 표시',
+    sections: [
+      {
+        area: 'Recipe 검색 · 열어 보기',
+        items: [
+          '파라미터의 이미지 + 설정 탭에서 측정 이미지 위에 측정 박스를 겹쳐 보여 줍니다. 박스는 레시피의 AMP 측정 조건으로 그려서, 그 파라미터가 이미지의 어디를 재는지 바로 확인할 수 있습니다.',
+          '측정 방식에 맞춰 모양이 달라집니다. Line · Space · Multi_Point · Dense Line 은 사각형 박스로, Hole(Ellipse · Radial)은 원으로 표시합니다. 계산식(Formula) 파라미터는 직접 재는 위치가 없어 표시하지 않습니다.',
+          '이미지 묶음 오른쪽 위의 측정 박스 버튼으로 켜고 끌 수 있고, 이미지를 눌러 크게 볼 때도 같은 버튼이 있습니다. 선택은 브라우저에 저장되어 다음 접속에도 유지됩니다.',
+          'HV-SEM 의 -U · -T · -M · -L 이미지에도 각각 표시됩니다.'
+        ]
+      }
+    ]
+  },
+  {
     date: '2026-10-26',
     category: '공지',
     title: 'VeritySEM · Provision 장비 연결 1차 작업 완료',
