@@ -704,7 +704,11 @@ _AMP_FIELDS: tuple[tuple[str, object], ...] = (
     ("Base_Line_Start_Point", lambda r: _pair(r.choice((2, 3, 4)))),
     ("Base_Line_Area", lambda r: _pair(r.choice((8, 10, 12)))),
     ("Sum_Line_Point", None),
-    ("Target", None),
+    # The number of targets as a plain integer string, e.g. '7' (office 확인
+    # 2026-10-29). Last in the tuple, so filling it shifts no other field's
+    # roll. Ellipse parameters overwrite it with their circle count; for the
+    # other branches the value domain is invented (OFFICE-VERIFY).
+    ("Target", lambda r: str(r.choice((1, 2, 3)))),
 )
 
 # 'Edge_Search_Direct.' really does end in a period — a truncated "Direction"
@@ -795,8 +799,8 @@ _MEAS_KINDS = ("Multi_Point", "Multi_Point", "Single", "Dense Line", "Ellipse", 
 # Outer_Diameter + Measurement=Ellipse, where CD-SEM writes Kind=Radial, and
 # marks_from_amp catches it on Measurement. It draws one circle per target —
 # 17 / 7 / 3 on the office samples, each count equal to the AMP Target. The
-# mock emits exactly that combination for its Ellipse parameters; that Target
-# holds the count as a plain integer string is OFFICE-VERIFY.
+# mock emits exactly that combination for its Ellipse parameters, with the
+# count in Target as a plain integer string (office 확인 2026-10-29).
 #
 # For the other branches only the branch's own field is overwritten, so a
 # Dense Line parameter still reads Kind=Multi_Point. Whether real AMP files

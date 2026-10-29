@@ -372,12 +372,14 @@ def test_amp_pair_fields_hold_one_setting_per_edge():
 def test_amp_keys_with_no_confirmed_value_are_visibly_synthetic():
     """Six keys arrived named but valueless. Emitting a plausible value there
     would repeat the AmpRow mistake one layer down — right key, invented data —
-    so they render as obvious placeholders until a real sample turns up."""
+    so they render as obvious placeholders until a real sample turns up.
+    Target's turned up 2026-10-29: an integer string, the number of targets."""
     rows = {row["key"]: row["value"] for row in _detail({"img_meas2": "PRMS0001"})["amp"]["rows"]}
 
     for key in ("Search_Area", "Inspect_Area", "Smoothing",
-                "Differential", "Sum_Line_Point", "Target"):
+                "Differential", "Sum_Line_Point"):
         assert re.fullmatch(r"[A-F][0-9A-F]{3}", rows[key]), (key, rows[key])
+    assert rows["Target"].isdigit(), rows["Target"]
 
 
 def test_amp_reproduces_the_office_key_spellings_including_their_typos():

@@ -10,6 +10,7 @@
 | 2차 | 2026-10-29 | `to-office-meas-marks.md` 5번 + HV-SEM 실행 결과 |
 | 3차 | 2026-10-29 | 2차의 HV-SEM 원 검증 결과 |
 | 4차 | 2026-10-29 | 3차의 남은 질문 (Inner/Outer_Diameter) |
+| 5차 | 2026-10-29 | 4차의 남은 질문 (`Target` 형식) |
 
 `to-office-measurement-box.md`(2026-10-26)에는 따로 회신이 오지 않았습니다. 그 대신
 사무실이 `office_utils` 에 `meas_marks` · `recipe_marks` 를 만들어 보냈고, 측정
@@ -195,5 +196,28 @@ Kind = Single + Object / Inner/Outer_Diameter는 HV-SEM이 Radial 계열을 표�
 
 ### 남은 것 (OFFICE-VERIFY)
 
-- `Target` 이 개수를 정수 문자열로 담는지 (mock 은 그렇게 가정합니다).
+- `Target` 이 개수를 정수 문자열로 담는지 (mock 은 그렇게 가정합니다). → 5차
+  회신에서 맞다고 확정했습니다.
+- 10–12번: 실제 배포 후 확인할 항목.
+
+## 5차 회신 (2026-10-29)
+
+### 원문
+
+```text
+Target는 정수 문자열 맞음
+```
+
+### 해석과 적용
+
+- AMP `Target` 은 target 개수를 담은 정수 문자열(`'7'` 등)입니다. 4차에서 mock 이
+  가정한 형식과 같습니다.
+- datatables 의 OFFICE-VERIFY 를 확인으로 바꿨습니다.
+- mock 은 지금까지 `Target` 을 형식을 모르는 값(가짜 hex)으로 채웠습니다. 이제
+  Ellipse 가 아닌 parameter 도 정수 문자열(1–3)을 냅니다. Ellipse 가 아닌 parameter
+  에서 값의 범위는 지어낸 것입니다(OFFICE-VERIFY). `Target` 은 AMP field 의 마지막
+  자리라서, 바꿔도 다른 field 의 난수는 달라지지 않습니다.
+
+### 남은 것 (OFFICE-VERIFY)
+
 - 10–12번: 실제 배포 후 확인할 항목.

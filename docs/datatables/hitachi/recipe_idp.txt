@@ -885,7 +885,7 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
     분기에서 이것을 잡습니다. 즉 **Measurement=Ellipse 가 Kind 보다 먼저**입니다.
   - Ellipse 분기는 target 마다 원 하나를 그립니다. 표본 세 개에서 원이 17 / 7 / 3
     개였고, 각각 AMP `Target` 과 개수가 정확히 같았습니다 (office 확인 2026-10-29).
-    `Target` 값이 그 개수를 정수 문자열로 담는지는 OFFICE-VERIFY 입니다.
+    `Target` 값은 그 개수를 담은 정수 문자열(`'7'` 등)입니다 (office 확인 2026-10-29).
   - 원(circle)의 중심도 원점을 더한 값입니다. 커서 + ENMP msr_info 원점이 홀
     중심입니다. 처음 만든 `marks_from_amp` 는 Ellipse 분기에서 `mp_offset` 을 빼먹어
     원이 msr offset 만큼 어긋났고, 사무실에서 고쳤습니다 (office 확인 2026-10-29).
