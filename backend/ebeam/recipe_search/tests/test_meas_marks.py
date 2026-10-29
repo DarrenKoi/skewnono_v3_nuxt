@@ -145,5 +145,14 @@ def test_mock_amp_names_the_branch_in_its_own_field():
         kind = mock._meas_kind("IDP_B", param)
         rows = {r["key"]: r["value"] for r in mock._amp_block("PRMS0000", "IDP_B", param)["rows"]}
         assert rows[mock._MEAS_KIND_FIELD[kind]] == kind
+        if kind == "Ellipse":
+            # HV-SEM's hole spelling: Kind=Single + a diameter Object, one
+            # circle per Target (office 확인 2026-10-29).
+            assert rows["Kind"] == "Single"
+            assert rows["Object"] in {"Inner_Diameter", "Outer_Diameter"}
+            detail = mock.get_param_detail([{"locator": LOCATOR, "parameter": param, "slots": SLOTS}])[0]
+            meas = next(i["meas"] for i in detail["images"] if i["slot"] == "img_meas1")
+            assert len(meas["circles"]) == int(rows["Target"])
+            continue
         line = kind == "Single" and mock._single_on_line("IDP_B", param)
         assert rows["Object"] == ("Line" if line else "Dense Line" if kind == "Dense Line" else "Space")

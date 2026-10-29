@@ -9,6 +9,7 @@
 | 1차 | 2026-10-29 | `to-office-meas-marks.md` |
 | 2차 | 2026-10-29 | `to-office-meas-marks.md` 5번 + HV-SEM 실행 결과 |
 | 3차 | 2026-10-29 | 2차의 HV-SEM 원 검증 결과 |
+| 4차 | 2026-10-29 | 3차의 남은 질문 (Inner/Outer_Diameter) |
 
 `to-office-measurement-box.md`(2026-10-26)에는 따로 회신이 오지 않았습니다. 그 대신
 사무실이 `office_utils` 에 `meas_marks` · `recipe_marks` 를 만들어 보냈고, 측정
@@ -151,6 +152,48 @@ HV-SEM 신유형 발견: Kind=Single + Object=Inner_Diameter/Outer_Diameter (원
 ### 남은 것 (OFFICE-VERIFY)
 
 - 2차의 `Kind=Single` + `Object=Inner_Diameter` / `Outer_Diameter` 가 이번 Radial
-  계열(`Measurement="Ellipse"`)과 같은 parameter 인지, 즉 이제 bar 17 / 7 / 3 개
-  대신 원으로 나오는지. 이번 회신만으로는 알 수 없습니다.
+  계열(`Measurement="Ellipse"`)과 같은 parameter 인지. → 4차 회신에서 같은 것으로
+  확정했습니다.
+- 10–12번: 실제 배포 후 확인할 항목.
+
+## 4차 회신 (2026-10-29)
+
+### 원문
+
+```text
+네 같은 것입니다. 전부 실측으로 확인.
+그 Bars 17/7/3은 bars 가 아니라 전부 Ellipse 분기가 그린 circles 였습니다. 갯수가 Target과 정확히 일치합니다.
+Kind = Single + Object / Inner/Outer_Diameter는 HV-SEM이 Radial 계열을 표기하는 방식입니다. CD-SEM은 Kind=Radial로 오지만 HV-SEM은 Kind 에 Single을 넣고 원 측정을 Measurement=Ellipse로만 표시합니다. 그래서 marks_from_amp은 Measurement=="Ellipse" 분기(어제 제가 고른 곳)에서 정확히 잡습니다.
+```
+
+### 해석
+
+- 3차의 남은 질문에 대한 답입니다. 2차의 `Kind=Single` + `Object=Inner_Diameter` /
+  `Outer_Diameter` parameter 와 3차의 Radial 계열(`Measurement="Ellipse"`)은 **같은
+  것**입니다. 실측으로 확인했습니다.
+- **2차의 "bar 17 / 7 / 3 개" 는 잘못 본 것이었습니다.** 처음부터 Ellipse 분기가
+  그린 원이었고, 원의 개수가 AMP `Target` 과 정확히 같습니다.
+- HV-SEM 은 홀 측정을 `Kind=Single` + 지름 Object + `Measurement=Ellipse` 로
+  적습니다. CD-SEM 은 `Kind=Radial` 입니다. 그래서 `marks_from_amp` 는 Kind 가
+  아니라 `Measurement=="Ellipse"` 로 분기하고, 그 분기가 Kind 보다 먼저입니다.
+
+### 틀렸던 가정
+
+- 2차 해석은 "지금 모듈이 two-box 로 bar 를 낸다" 였습니다. 실제로는 처음부터
+  원이었습니다. 어긋나 보였던 원인은 3차에서 고친 원점 누락이었습니다.
+- mock 의 Ellipse parameter 는 `Kind=Multi_Point`, `Object=Space` 로 남아 있었고
+  원도 하나만 그렸습니다. 실제 HV-SEM 의 조합이 아니었습니다.
+
+### 적용한 것
+
+- mock 의 Ellipse parameter 가 HV-SEM 조합을 그대로 갖도록 고쳤습니다:
+  `Kind=Single`, `Object=Inner_Diameter` 또는 `Outer_Diameter`,
+  `Measurement=Ellipse`. 원은 사무실 표본 개수(1 / 3 / 7 / 17)만큼 홀 배열로 그리고,
+  `Target` 에 그 개수를 넣습니다. 원 개수와 `Target` 이 같은지 테스트로 확인합니다.
+- datatables 에 HV-SEM 표기, Ellipse 우선순위, 원 개수 = `Target` 을 기록했습니다.
+- office adapter 와 화면은 바꿀 것이 없었습니다.
+
+### 남은 것 (OFFICE-VERIFY)
+
+- `Target` 이 개수를 정수 문자열로 담는지 (mock 은 그렇게 가정합니다).
 - 10–12번: 실제 배포 후 확인할 항목.

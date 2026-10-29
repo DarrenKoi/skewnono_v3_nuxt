@@ -764,6 +764,11 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
         next(row for row in rows if row["key"] == _MEAS_KIND_FIELD[kind])["value"] = kind
         if kind == "Single" and _single_on_line(*scope):
             next(row for row in rows if row["key"] == "Object")["value"] = "Line"
+        if kind == "Ellipse":
+            # HV-SEM's spelling of a hole measurement (office 확인 2026-10-29).
+            obj, count = _ellipse_shape(*scope)
+            for key, value in (("Kind", "Single"), ("Object", obj), ("Target", str(count))):
+                next(row for row in rows if row["key"] == key)["value"] = value
     return {"source": source, "rows": rows}
 
 
@@ -785,15 +790,17 @@ _MEAS_KINDS = ("Multi_Point", "Multi_Point", "Single", "Dense Line", "Ellipse", 
 # Single / Radial in Kind, Dense Line (and Space) in Object, Ellipse (and
 # Formula) in Measurement. Multi_Point is the Kind sample of 2026-07-30.
 #
-# HV-SEM also has Kind=Single with Object=Inner_Diameter / Outer_Diameter (a
-# hole's diameter; office 확인 2026-10-29, not seen on CD-SEM). marks_from_amp
-# currently sends it down the two-box path (bars); whether it should be a
-# circle is OFFICE-VERIFY, so the mock does not emit that combination yet.
+# Measurement=Ellipse wins over Kind (office 확인 2026-10-29, measured): HV-SEM
+# writes a hole measurement as Kind=Single + Object=Inner_Diameter /
+# Outer_Diameter + Measurement=Ellipse, where CD-SEM writes Kind=Radial, and
+# marks_from_amp catches it on Measurement. It draws one circle per target —
+# 17 / 7 / 3 on the office samples, each count equal to the AMP Target. The
+# mock emits exactly that combination for its Ellipse parameters; that Target
+# holds the count as a plain integer string is OFFICE-VERIFY.
 #
-# Only the branch's own field is overwritten, so a Dense Line parameter still
-# reads Kind=Multi_Point and an Ellipse one Object=Space. Whether real AMP files
-# pair them that way, and which field marks_from_amp checks first when two
-# disagree, is OFFICE-VERIFY — the mock's overlay simply follows the branch.
+# For the other branches only the branch's own field is overwritten, so a
+# Dense Line parameter still reads Kind=Multi_Point. Whether real AMP files
+# pair them that way is OFFICE-VERIFY — the overlay simply follows the branch.
 _MEAS_KIND_FIELD = {
     "Multi_Point": "Kind", "Single": "Kind", "Radial": "Kind",
     "Dense Line": "Object", "Ellipse": "Measurement",
@@ -803,6 +810,13 @@ _MEAS_KIND_FIELD = {
 def _meas_kind(*scope: str) -> str:
     """Per parameter, from its own stream so the AMP block's values stay put."""
     return _seeded_rng("meas-kind", *scope).choice(_MEAS_KINDS)
+
+
+def _ellipse_shape(*scope: str) -> tuple[str, int]:
+    """(Object, circle count) for an Ellipse parameter — the office's sample
+    counts, so a many-hole image renders at home."""
+    rng = _seeded_rng("meas-ellipse", *scope)
+    return rng.choice(("Inner_Diameter", "Outer_Diameter")), rng.choice((1, 3, 7, 17))
 
 
 def _single_on_line(*scope: str) -> bool:
@@ -831,7 +845,15 @@ def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
     bars: list[list[float]] = []
     circles: list[list[float]] = []
     if kind == "Ellipse":
-        circles.append([ox, oy, rng.uniform(0.08, 0.2), 0.0])
+        # One circle per target, a hole array around the origin.
+        count = _ellipse_shape(*scope)[1]
+        cols = min(count, 6)
+        rows_n = -(-count // cols)
+        r, pitch = rng.uniform(0.02, 0.04), 0.1
+        circles += [
+            [ox + (i % cols - (cols - 1) / 2) * pitch, oy + (i // cols - (rows_n - 1) / 2) * pitch, r, 0.0]
+            for i in range(count)
+        ]
     elif kind == "Radial":
         inner = rng.uniform(0.05, 0.12)
         circles.append([ox, oy, inner, inner + rng.uniform(0.08, 0.2)])
