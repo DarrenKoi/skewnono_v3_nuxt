@@ -5,6 +5,10 @@
   (`img_add1` · `image_add3` · `img_meas1`)입니다. wafer align 이미지(OM/SEM)는
   2026-09-03 에 이미 끝났고, 이 문서는 그 방식을 parameter 이미지로 넓히는 방법을
   다룹니다.
+- 갱신(2026-10-29): 측정 박스는 cond.txt 가 아니라 사무실 `office_utils/meas_marks.py`
+  가 AMP 로 계산하는 것으로 정해졌고, `ParamImage.meas` 로 구현했습니다. 규약은
+  `docs/datatables/hitachi/recipe_idp.txt` 의 "측정 박스" 절입니다. 아래는 그 전의
+  조사 기록입니다.
 - 상태: 집에서 할 수 있는 조사는 끝났습니다. **사무실 확인 전에는 코드를 바꾸지
   않습니다.** 질문지는 같은 폴더의 `to-office-measurement-box.md` 입니다.
 - 선행 문서: `docs/align-crosshair/crosshair_overlay_from_cond.md`(좌표 규약),

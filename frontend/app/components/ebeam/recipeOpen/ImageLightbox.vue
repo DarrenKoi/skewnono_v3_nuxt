@@ -27,7 +27,16 @@
           <EbeamRecipeOpenCondMarks
             v-if="!failed && showMarks"
             :marks="data.marks"
+            outline
           />
+          <EbeamRecipeOpenMeasMarks
+            v-if="!failed && showMeas"
+            :meas="data.meas"
+          />
+          <span
+            v-if="!failed && showMeas && data.meas"
+            class="absolute bottom-3 left-3.5 rounded bg-black/50 px-2 py-0.5 font-mono text-xs text-white/80"
+          >원점 {{ ORIGIN_LABEL[data.meas.origin] }}</span>
           <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
             <span
               class="rounded px-2 py-0.5 font-mono text-xs font-bold tracking-wider"
@@ -40,6 +49,13 @@
           <!-- Overriding #content drops UModal's own ✕, so carry one here.
                Over the image, not the dialog corner, which holds 빔 조건. -->
           <div class="absolute top-3 right-3 flex items-center gap-1.5">
+            <EbeamRecipeOpenCondMarksToggle
+              v-if="data.meas"
+              v-model="showMeas"
+              label="측정 박스 표시"
+              icon="i-lucide-square-dashed"
+              source="AMP"
+            />
             <EbeamRecipeOpenCondMarksToggle
               v-if="data.marks"
               v-model="showMarks"
@@ -101,7 +117,7 @@
  * One raw-recipe image at full size, beside the beam condition parsed from its
  * `.{name}/cond.txt` sidecar.
  */
-import type { CursorMarks, SettingBlock } from '~/composables/useRecipeParamDetail'
+import type { CursorMarks, MeasMarks, SettingBlock } from '~/composables/useRecipeParamDetail'
 import { formatSettingValue, type SlotRole } from '~/utils/recipeView'
 
 export interface LightboxData {
@@ -113,6 +129,7 @@ export interface LightboxData {
   role: SlotRole
   cond: SettingBlock | null
   marks?: CursorMarks | null
+  meas?: MeasMarks | null
 }
 
 const open = defineModel<boolean>('open', { required: true })
@@ -126,6 +143,11 @@ const isMeas = computed(() => props.data?.role === 'measure')
 // The tool's crosshair / white-box centre over the image; the toggle only
 // appears when the sidecar actually located a mark.
 const showMarks = useCondCrosshair()
+const showMeas = useMeasBox()
+
+// Where the measurement origin came from — `중앙` is the fallback, so an
+// engineer can tell a box placed on the real MP from one placed on a guess.
+const ORIGIN_LABEL: Record<MeasMarks['origin'], string> = { msr: 'ENMP', vimms: 'VIMMS', center: '중앙' }
 
 const failed = ref(false)
 watch(() => props.data?.src, () => {

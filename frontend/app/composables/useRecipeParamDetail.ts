@@ -43,6 +43,21 @@ export interface CursorMarks {
   box: [number, number, number, number] | null
 }
 
+/**
+ * Where a parameter MEASURES on its `img_meas1` image — office_utils.meas_marks
+ * via the server. Fractions of the image like `CursorMarks`; the server did
+ * every frame conversion, so multiply by the rendered size and nothing else.
+ */
+export interface MeasMarks {
+  pixel: [number, number]
+  /** `[cx, cy, w, h]` rectangles. */
+  bars: [number, number, number, number][]
+  /** `[cx, cy, r_in, r_out]`; `r_out` 0 means a single circle of `r_in`. */
+  circles: [number, number, number, number][]
+  /** Origin source: ENMP msr_info, the VIMMS blob, or the image centre. */
+  origin: 'msr' | 'vimms' | 'center'
+}
+
 export interface SettingBlock {
   /** The file these rows came from, e.g. `PRMS0000`. Shown so a surprising
    *  value can be traced back to a file without reading a server log. */
@@ -65,6 +80,9 @@ export interface ParamImage {
   /** Always sent by the server; optional only so fixtures built before
    *  2026-09-03 (recipeCompare, recipeParamExport tests) need not carry it. */
   marks?: CursorMarks | null
+  /** `img_meas1` only; `null` elsewhere and for a Formula parameter. Optional
+   *  for the same pre-2026-10-29 fixtures as `marks`. */
+  meas?: MeasMarks | null
 }
 
 export interface ParamDetail {

@@ -836,6 +836,37 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
   이미지(.IMMP / .IMMS)의 cond.txt 에도 이 줄이 있는지는 OFFICE-VERIFY — 없으면
   `marks` 가 null 이고 화면은 토글을 숨깁니다.
 
+측정 박스 — office_utils.meas_marks (user-confirmed 2026-10-29)
+===============================================================
+
+측정 이미지(img_meas1, IMMS…) 위의 측정 박스는 cond.txt 가 아니라 **AMP + cond +
+원점**에서 계산합니다. 계산은 사무실 `office_utils/meas_marks.py` 가 하고, 집은
+호출만 합니다.
+
+  | 입력 | 출처 |
+  | --- | --- |
+  | amp | `read_amp_info(PRMS bytes)` |
+  | pixel | cond `Pixel` (`read_meas_image_condition`), 원래 값 그대로 |
+  | field_um | cond `Field_Size` 의 첫 숫자 |
+  | mp_offset | `msr_info_offset(ENMP text, pixel)` (5120 프레임) → 없으면 `vimms_mp_offset(blob, pixel)` (-(13,-6) 보정) → 없으면 None = 중앙 |
+
+  - VIMMS blob 파일 이름은 측정 이미지의 **stem(확장자 없음)** 입니다.
+    `IMMS0002.jpeg` 이면 blob 은 `IMMS0002` 입니다. HV-SEM `-U` 등 suffix 파일의
+    blob 이 `IMMS0001-U` 인지는 OFFICE-VERIFY.
+  - 결과 `{pixel, bars:[[cx,cy,w,h]], circles:[[cx,cy,r_in,r_out]]}` — 전부 이미지
+    대비 분수. `r_out` 0 이면 원 하나. AMP `Cursor_Positions` 는 512 프레임,
+    `Search_Area` 는 cond-Pixel 프레임이며 **모듈이 환산**합니다. 호출부는 나누지
+    않습니다.
+  - 분기: Formula → None(덧그림 없음이 정상) · Ellipse → 커서마다 원 · Radial →
+    커서마다 동심원 두 개 · Single → 박스 하나(Space 는 two-box) · Dense Line →
+    pitch 간격 bar · 그 외 Multi_Point → 커서마다 박스 두 개. 이 값들이 AMP 의
+    어느 field(`Kind`?)에 실리는지는 OFFICE-VERIFY 입니다.
+  - 원 반지름의 분수 기준(폭)과 비정사각 이미지에서 bar `h` 의 기준(높이)은
+    OFFICE-VERIFY 입니다.
+  - addressing 박스(`cond_address_box`, `!Cursor_info` 7-10)는 위 `!Cursor_info`
+    절의 white box [6..9] 와 같은 값으로 보고, 집은 `_core/cond_cursor.py` 하나로
+    읽습니다 (같은 값인지 OFFICE-VERIFY).
+
 PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
 =====================================================
 

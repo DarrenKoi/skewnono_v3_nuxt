@@ -17,6 +17,7 @@ __all__ = [
     "CompareRequestItem",
     "IdpImageInfoRow",
     "IdpLocator",
+    "MeasMarks",
     "MeasurementPointsResponse",
     "ParamDetailRequestItem",
     "ParamDetailResponse",
@@ -146,6 +147,23 @@ SettingBlock = TypedDict("SettingBlock", {
     "rows": list[SettingRow]
 })
 
+class MeasMarks(TypedDict):
+    """Where a parameter MEASURES on its img_meas1 image, as fractions (0..1).
+
+    Computed by office_utils.meas_marks.marks_from_amp from the AMP file
+    (PRMS), the image's cond Pixel / Field_Size and an origin. The module does
+    every frame conversion (AMP Cursor_Positions are a 512 frame, Search_Area
+    the cond-Pixel frame), so nothing here or in the browser divides again.
+    """
+
+    pixel: list[int]            # [width, height] — the overlay's viewBox aspect
+    bars: list[list[float]]     # [cx, cy, w, h] rectangles
+    circles: list[list[float]]  # [cx, cy, r_in, r_out]; r_out 0 = one circle
+    # Where the measurement origin came from: ENMP msr_info first, then the
+    # image-stem VIMMS blob, else the image centre.
+    origin: Literal["msr", "vimms", "center"]
+
+
 # One image FILE of one parameter. ``name`` is the full filename, ready to hand
 # straight to the recipe-image endpoint.
 #
@@ -163,7 +181,11 @@ ParamImage = TypedDict("ParamImage", {
     # _core/cond_cursor.py (2026-09-03). Fractions of the image, so the screen
     # overlays without knowing Pixel or the x10 frame. None when the sidecar
     # names no mark.
-    "marks": CursorMarks | None
+    "marks": CursorMarks | None,
+    # The measurement box(es), from office_utils.meas_marks (2026-10-29). Only
+    # the img_meas1 image carries one; None elsewhere and for a parameter the
+    # module skips (Formula). See MeasMarks.
+    "meas": MeasMarks | None
 })
 
 # One element of the param-detail POST body. ``slots`` is normally the row's

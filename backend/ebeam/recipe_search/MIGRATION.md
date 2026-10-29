@@ -179,6 +179,15 @@ function are gone; three endpoints replace them.
   does not depend on the reader. `align-images` reads the discovered images'
   sidecars too (one `_fetch_raw` after the listing), because the live-alarm
   modal has no other call to get them from.
+- **`meas` (measurement box) needs `office_utils/meas_marks.py` on the host
+  (2026-10-29).** `get_param_detail` runs the direct chain on bytes it already
+  fetched — `read_amp_info(PRMS)` → `read_meas_image_condition(cond)` Pixel /
+  Field_Size → origin (`msr_info_offset(ENMP text)`, else
+  `vimms_mp_offset(blob)` where the blob is the measurement image's stem, e.g.
+  `IMMS0002`, else centre) → `marks_from_amp`. Only `img_meas1` gets one.
+  office_utils deploys separately: a host without `meas_marks` logs a warning
+  and serves `meas: null` rather than failing the panel. Recopy `office.py`
+  after pulling.
 - **Naming is not the adapter's business.** Every path comes from
   `recipe_search/rawfiles.py`, which is pure and fully tested at home. Do not
   re-derive `.jpeg`, the `PR`→`EN` swap, the four-digit padding, or the

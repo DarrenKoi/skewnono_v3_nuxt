@@ -29,7 +29,7 @@ def test_param_detail_carries_amp_af_pr_and_images():
 
 def test_param_image_names_the_file_the_image_endpoint_takes():
     assert set(contracts.ParamImage.__annotations__) == {
-        "slot", "stage", "name", "cond", "marks",
+        "slot", "stage", "name", "cond", "marks", "meas",
     }
 
 

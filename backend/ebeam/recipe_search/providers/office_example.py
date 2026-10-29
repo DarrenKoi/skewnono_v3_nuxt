@@ -185,6 +185,7 @@ from backend.ebeam.recipe_search.contracts import (
     CompareRequestItem,
     IdpImageInfoRow,
     IdpLocator,
+    MeasMarks,
     ParamDetailRequestItem,
     ParamDetailResponse,
     RecipeDetailResponse,
@@ -1705,6 +1706,65 @@ def _image_marks(payload: bytes | None) -> CursorMarks | None:
     return cursor_info_from_cond(payload.decode("utf-8", errors="replace")) if payload else None
 
 
+def _meas_marks(
+    amp: bytes | None,
+    cond: bytes | None,
+    enmp: bytes | None,
+    vimms: bytes | None,
+) -> MeasMarks | None:
+    """The img_meas1 measurement box(es), via office_utils.meas_marks.
+
+    The direct chain rather than recipe_marks.fetch_recipe_marks: every input
+    is already in the one fleet download get_param_detail makes, and the chain
+    runs per FILE, so each HV-SEM -U/-T/-M/-L image gets its own cond Pixel.
+    Origin: ENMP msr_info first, the image-stem VIMMS blob second, else the
+    centre (``mp_offset=None``). Raw frames go in as the readers return them —
+    the module converts, so nothing here divides.
+
+    Never fails the response. office_utils is deployed separately from this
+    bundle, so a host still on an older copy has no meas_marks: that, a parse
+    failure and the module's own None (Formula) all render "no overlay".
+    """
+    if not amp or not cond:
+        return None
+    try:
+        from office_utils.idp_amp_reader import read_amp_info, read_meas_image_condition
+        from office_utils.meas_marks import marks_from_amp, msr_info_offset, vimms_mp_offset
+    except ImportError:
+        _LOG.warning("recipe_search: office_utils.meas_marks missing — measurement box skipped")
+        return None
+    try:
+        condition = read_meas_image_condition(cond)
+        pixel = condition.get("Pixel")
+        field = str(condition.get("Field_Size") or "").split()
+        field_um = float(field[0]) if field else None   # '4.499 um, 4.499 um'
+        origin, offset = "center", None
+        if enmp:
+            offset = msr_info_offset(enmp.decode("utf-8", errors="replace"), pixel)
+            origin = "msr" if offset is not None else origin
+        if offset is None and vimms:
+            offset = vimms_mp_offset(vimms, pixel)
+            origin = "vimms" if offset is not None else origin
+        marks = marks_from_amp(read_amp_info(amp), pixel, field_um=field_um, mp_offset=offset)
+    except Exception:  # noqa: BLE001 — an overlay is never worth a failed panel
+        _LOG.warning("recipe_search: measurement box failed — served without it", exc_info=True)
+        return None
+    if not marks:
+        return None
+    return {
+        "pixel": list(marks["pixel"]),
+        "bars": [list(bar) for bar in marks.get("bars") or []],
+        "circles": [list(circle) for circle in marks.get("circles") or []],
+        "origin": origin,
+    }
+
+
+def _vimms_blob(name: str) -> str:
+    """The VIMMS origin blob beside a measurement image: its stem, no extension
+    (user-confirmed 2026-10-29). ``IMMS0002.jpeg`` -> ``IMMS0002``."""
+    return name.rsplit(".", 1)[0]
+
+
 def _align_image_cond(blob: dict[str, bytes], cond: str, optic: str | None) -> SettingBlock | None:
     """An align image's cond.txt block. The reader must be told which optic
     took the image, so a point with an unknown optic reads nothing."""
@@ -1920,6 +1980,10 @@ def get_param_detail(
         # double the tool round-trips for bytes this function then discards.
         names = [name for name in (amp, af_pr) if name]
         names += [cond for _, _, cond in images]
+        # The VIMMS fallback origin, in the same visit; a missing one is just
+        # absent from the result (see _fetch_many). No AMP, no box, no fetch.
+        if amp:
+            names += [_vimms_blob(name) for slot, name, _ in images if slot == "img_meas1"]
         wanted.setdefault(key, []).extend(names)
         plans.append((key, item, plan))
 
@@ -1941,6 +2005,10 @@ def get_param_detail(
                         cond, blob.get(cond), read_meas_image_condition
                     ),
                     "marks": _image_marks(blob.get(cond)),
+                    "meas": _meas_marks(
+                        blob.get(amp or ""), blob.get(cond),
+                        blob.get(af_pr or ""), blob.get(_vimms_blob(name)),
+                    ) if slot == "img_meas1" else None,
                 }
                 for slot, name, cond in images
             ],

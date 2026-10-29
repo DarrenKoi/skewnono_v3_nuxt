@@ -19,6 +19,17 @@
       style="filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.7))"
     >
       <template v-if="marks.box">
+        <!-- The addressing box itself (parameter images): its extent is the
+             information, not just its centre. -->
+        <rect
+          v-if="outline"
+          :x="marks.box[0] * w"
+          :y="marks.box[1] * h"
+          :width="(marks.box[2] - marks.box[0]) * w"
+          :height="(marks.box[3] - marks.box[1]) * h"
+          stroke="var(--sk-warn)"
+          vector-effect="non-scaling-stroke"
+        />
         <!-- The offset: white-box centre (warn) to the image centre (accent),
              which is the recipe's actual align point. -->
         <line
@@ -109,7 +120,10 @@ const props = withDefaults(defineProps<{
   marks: CursorMarks | null | undefined
   /** The `object-fit` of the <img> this overlays. */
   fit?: 'contain' | 'cover'
-}>(), { fit: 'contain' })
+  /** Draw the white box's outline too. Off for align images, whose box is
+   *  only a matching cue; on for parameter images (addressing box). */
+  outline?: boolean
+}>(), { fit: 'contain', outline: false })
 
 const w = computed(() => props.marks?.pixel[0] ?? 1)
 const h = computed(() => props.marks?.pixel[1] ?? 1)

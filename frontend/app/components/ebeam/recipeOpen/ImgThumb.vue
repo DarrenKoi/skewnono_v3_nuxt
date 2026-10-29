@@ -22,6 +22,11 @@
         class="h-full w-full object-cover"
         @error="failed = true"
       >
+      <EbeamRecipeOpenMeasMarks
+        v-if="src && !failed"
+        :meas="meas"
+        fit="cover"
+      />
       <div
         v-else
         class="flex h-full w-full items-center justify-center px-2 text-center font-mono text-xs text-white/45"
@@ -60,6 +65,8 @@
 </template>
 
 <script setup lang="ts">
+import type { MeasMarks } from '~/composables/useRecipeParamDetail'
+
 const props = defineProps<{
   /** Column name, e.g. `img_add1`. */
   label: string
@@ -75,6 +82,8 @@ const props = defineProps<{
   variant?: string
   /** How many files that slot holds, so the caller can say what is hidden. */
   variantTotal?: number
+  /** Measurement box over the thumbnail; the caller passes null to hide it. */
+  meas?: MeasMarks | null
 }>()
 
 const emit = defineEmits<{ (e: 'open'): void }>()

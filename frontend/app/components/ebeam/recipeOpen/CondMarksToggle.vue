@@ -12,11 +12,11 @@
          : 'border-(--sk-border) text-(--sk-ink-muted) hover:text-(--sk-ink)']"
     :aria-pressed="on"
     :aria-label="label"
-    :title="`${label} (cond.txt)`"
+    :title="`${label} (${source})`"
     @click="on = !on"
   >
     <UIcon
-      name="i-lucide-crosshair"
+      :name="icon"
       :class="variant === 'overlay' ? 'h-4 w-4' : 'h-3.5 w-3.5'"
     />
     <template v-if="variant === 'bar'">
@@ -32,5 +32,8 @@ const on = defineModel<boolean>({ required: true })
 withDefaults(defineProps<{
   label: string
   variant?: 'overlay' | 'bar'
-}>(), { variant: 'overlay' })
+  icon?: string
+  /** Where the marks come from, for the tooltip. */
+  source?: string
+}>(), { variant: 'overlay', icon: 'i-lucide-crosshair', source: 'cond.txt' })
 </script>

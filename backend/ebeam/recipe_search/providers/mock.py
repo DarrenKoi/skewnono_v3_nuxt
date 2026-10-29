@@ -135,6 +135,7 @@ from backend.ebeam.recipe_search.contracts import (
     CompareRequestItem,
     IdpImageInfoRow,
     IdpLocator,
+    MeasMarks,
     ParamDetailRequestItem,
     ParamDetailResponse,
     RecipeCompareResponse,
@@ -751,7 +752,65 @@ def _amp_block(source: str | None, *scope: str) -> SettingBlock | None:
     ]
     if _is_formula_parameter(*scope):
         next(row for row in rows if row["key"] == "Measurement")["value"] = "Formula"
+    else:
+        # Overwritten after generation, like Formula above, so the stream that
+        # rolls every other AMP value is untouched (rng.choice length shifts it).
+        next(row for row in rows if row["key"] == "Kind")["value"] = _meas_kind(*scope)
     return {"source": source, "rows": rows}
+
+
+# ── measurement box (office_utils.meas_marks, 2026-10-29) ─────────────────
+#
+# The office computes these from AMP + cond + origin; the branch list is the
+# user's description of marks_from_amp. The mock fabricates the SHAPE of each
+# branch, not its geometry: positions and sizes below are invented, and which
+# AMP field carries Ellipse / Radial (Kind is assumed) is OFFICE-VERIFY.
+#
+#   Formula     -> None (no overlay; handled by _is_formula_parameter)
+#   Ellipse     -> one circle per cursor (r_out 0)
+#   Radial      -> two concentric circles per cursor (inner, outer)
+#   Single      -> one box (Space two-box is folded into Multi_Point here)
+#   Dense Line  -> measurement_number bars at a pitch
+#   Multi_Point -> two boxes per cursor
+_MEAS_KINDS = ("Multi_Point", "Multi_Point", "Single", "Dense Line", "Ellipse", "Radial")
+
+
+def _meas_kind(*scope: str) -> str:
+    """Per parameter, from its own stream so the AMP block's values stay put."""
+    return _seeded_rng("meas-kind", *scope).choice(_MEAS_KINDS)
+
+
+def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
+    """The img_meas1 overlay for one image, consistent with its cond Pixel."""
+    if block is None or _is_formula_parameter(*scope):
+        return None
+    pixel = next(row["value"] for row in block["rows"] if row["key"] == "Pixel")
+    pw, ph = (int(v) for v in pixel.split(","))
+    rng = _seeded_rng("meas", block["source"], *scope)
+    kind = _meas_kind(*scope)
+    # The measurement origin sits near, not at, the centre — the whole point
+    # of msr_info / VIMMS is that it can be off. One image in six falls back.
+    ox, oy = (0.5 + rng.uniform(-0.06, 0.06) for _ in range(2))
+    origin = rng.choice(("msr", "msr", "msr", "msr", "vimms", "center"))
+    if origin == "center":
+        ox = oy = 0.5
+    bars: list[list[float]] = []
+    circles: list[list[float]] = []
+    if kind == "Ellipse":
+        circles.append([ox, oy, rng.uniform(0.08, 0.2), 0.0])
+    elif kind == "Radial":
+        inner = rng.uniform(0.05, 0.12)
+        circles.append([ox, oy, inner, inner + rng.uniform(0.08, 0.2)])
+    elif kind == "Single":
+        bars.append([ox, oy, rng.uniform(0.04, 0.1), rng.uniform(0.2, 0.4)])
+    elif kind == "Dense Line":
+        count, pitch = rng.choice((4, 8)), rng.uniform(0.05, 0.08)
+        w, h = pitch * 0.4, rng.uniform(0.2, 0.4)
+        bars += [[ox + (i - (count - 1) / 2) * pitch, oy, w, h] for i in range(count)]
+    else:
+        gap, w, h = rng.uniform(0.08, 0.2), rng.uniform(0.04, 0.08), rng.uniform(0.2, 0.4)
+        bars += [[ox - gap / 2, oy, w, h], [ox + gap / 2, oy, w, h]]
+    return {"pixel": [pw, ph], "bars": bars, "circles": circles, "origin": origin}
 
 
 # ── ENMP…, the AF/PR file (office 확인 2026-07-30) ─────────────────────────
@@ -1294,6 +1353,9 @@ def get_param_detail(
                     # Always SEM: an optical microscope takes no measurement or
                     # addressing image. Only wafer align has an OM file.
                     **_cond_fields(cond, "SEM", *scope),
+                    # Same gate as the office: no AMP file, no measurement box.
+                    "meas": _meas_marks(_cond_block(cond, "SEM", *scope), *scope)
+                    if slot == "img_meas1" and amp else None,
                 }
                 for slot, name, cond in images
             ]

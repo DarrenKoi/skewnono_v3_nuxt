@@ -173,6 +173,7 @@ const imageSrc = (recipeIndex: number) => {
 const openLightbox = (recipeIndex: number) => {
   const name = imageFileName(recipeIndex)
   const detail = props.details[recipeIndex] ?? null
+  const image = detail?.images.find(image => image.slot === props.slotKey && image.name === name)
   lightboxData.value = {
     slot: slotDescriptor.value.key,
     stage: slotDescriptor.value.stage,
@@ -180,7 +181,8 @@ const openLightbox = (recipeIndex: number) => {
     src: imageSrc(recipeIndex),
     role: slotDescriptor.value.role,
     cond: blockForSlot(detail, props.slotKey),
-    marks: detail?.images.find(image => image.slot === props.slotKey && image.name === name)?.marks ?? null
+    marks: image?.marks ?? null,
+    meas: image?.meas ?? null
   }
   lightboxOpen.value = true
 }

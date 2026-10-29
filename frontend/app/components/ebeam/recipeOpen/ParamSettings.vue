@@ -14,9 +14,19 @@
           <span class="text-xs font-bold tracking-wide text-zinc-900 dark:text-zinc-100">
             {{ lane.title }}
           </span>
-          <span class="font-mono text-xs text-(--sk-ink-muted)">
-            {{ lane.images.length }} image
-          </span>
+          <div class="flex items-center gap-2">
+            <EbeamRecipeOpenCondMarksToggle
+              v-if="lane.images.some(image => image.meas)"
+              v-model="showMeas"
+              label="측정 박스"
+              variant="bar"
+              icon="i-lucide-square-dashed"
+              source="AMP"
+            />
+            <span class="font-mono text-xs text-(--sk-ink-muted)">
+              {{ lane.images.length }} image
+            </span>
+          </div>
         </div>
 
         <div
@@ -35,6 +45,7 @@
             :name="image.name"
             :src="imageSrc(image.name)"
             :role="roleOf(image.slot)"
+            :meas="showMeas ? image.meas : null"
             @open="emit('openImage', image)"
           />
         </div>
@@ -101,6 +112,9 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'openImage', image: ParamImage): void }>()
 
 const base = recipeApiBase()
+
+// Shared with the lightbox, so turning the box off here keeps it off there.
+const showMeas = useMeasBox()
 
 const images = computed<ParamImage[]>(() => props.detail?.images ?? [])
 
