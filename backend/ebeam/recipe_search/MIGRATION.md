@@ -183,8 +183,8 @@ function are gone; three endpoints replace them.
   (2026-10-29).** `get_param_detail` runs the direct chain on bytes it already
   fetched — `read_amp_info(PRMS)` → `read_meas_image_condition(cond)` Pixel /
   Field_Size → origin (`msr_info_offset(ENMP text)`, else
-  `vimms_mp_offset(blob)` where the blob is the measurement image's stem, e.g.
-  `IMMS0002`, else centre) → `marks_from_amp`. Only `img_meas1` gets one.
+  `vimms_mp_offset(blob)` where the blob is the img_meas1 SLOT's stem, e.g.
+  `IMMS0002` — HV-SEM's `-U/-T/-M/-L` files share one — else centre) → `marks_from_amp`. Only `img_meas1` gets one.
   office_utils deploys separately: a host without `meas_marks` logs a warning
   and serves `meas: null` rather than failing the panel. Recopy `office.py`
   after pulling.

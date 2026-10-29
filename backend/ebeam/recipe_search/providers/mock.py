@@ -785,6 +785,11 @@ _MEAS_KINDS = ("Multi_Point", "Multi_Point", "Single", "Dense Line", "Ellipse", 
 # Single / Radial in Kind, Dense Line (and Space) in Object, Ellipse (and
 # Formula) in Measurement. Multi_Point is the Kind sample of 2026-07-30.
 #
+# HV-SEM also has Kind=Single with Object=Inner_Diameter / Outer_Diameter (a
+# hole's diameter; office 확인 2026-10-29, not seen on CD-SEM). marks_from_amp
+# currently sends it down the two-box path (bars); whether it should be a
+# circle is OFFICE-VERIFY, so the mock does not emit that combination yet.
+#
 # Only the branch's own field is overwritten, so a Dense Line parameter still
 # reads Kind=Multi_Point and an Ellipse one Object=Space. Whether real AMP files
 # pair them that way, and which field marks_from_amp checks first when two
@@ -812,7 +817,10 @@ def _meas_marks(block: SettingBlock | None, *scope: str) -> MeasMarks | None:
         return None
     pixel = next(row["value"] for row in block["rows"] if row["key"] == "Pixel")
     pw, ph = (int(v) for v in pixel.split(","))
-    rng = _seeded_rng("meas", block["source"], *scope)
+    # Seeded by the parameter, not the file: HV-SEM's -U/-T/-M/-L share one
+    # AMP and one VIMMS blob, and the office saw identical marks on all four
+    # (office 확인 2026-10-29).
+    rng = _seeded_rng("meas", *scope)
     kind = _meas_kind(*scope)
     # The measurement origin sits near, not at, the centre — the whole point
     # of msr_info / VIMMS is that it can be off. One image in six falls back.

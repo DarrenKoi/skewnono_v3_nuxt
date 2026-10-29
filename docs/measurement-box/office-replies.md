@@ -7,6 +7,7 @@
 | 회신 | 날짜 | 답한 질문지 |
 | --- | --- | --- |
 | 1차 | 2026-10-29 | `to-office-meas-marks.md` |
+| 2차 | 2026-10-29 | `to-office-meas-marks.md` 5번 + HV-SEM 실행 결과 |
 
 `to-office-measurement-box.md`(2026-10-26)에는 따로 회신이 오지 않았습니다. 그 대신
 사무실이 `office_utils` 에 `meas_marks` · `recipe_marks` 를 만들어 보냈고, 측정
@@ -71,6 +72,53 @@
 
 ### 남은 것 (OFFICE-VERIFY)
 
-- 5번: HV-SEM suffix 파일의 VIMMS blob 이름.
+- 5번: HV-SEM suffix 파일의 VIMMS blob 이름. → 2차 회신에서 B 로 확정했습니다.
 - 정사각형이 아닌 이미지에서도 두 축 모두 5120 으로 나누는지.
 - 10–12번: 실제 배포 후 덧그림이 장비 박스와 겹치는지, 원점 표시, 서버 로그.
+
+## 2차 회신 (2026-10-29)
+
+### 원문
+
+```text
+HV-SEM 확인 결과 CD-SEM 체인 그대로 동작.
+체인 무수정 동작 - msr_info_offset -> vimms_mp_offset -> marks_from_amp이 HV-SEm AMP/ENMP/cond 에서 그대로 돈다. blob type 87. blob-msr=(13,-6)까지 CD-SEM과 동일
+레터 질문 5 = B 확정: Slot stem (IMMS0001)이 blob 하나이고 -U/-T/-M/-L 4장이 공유. cond는 파일마다 (.IMMS0001-U.jpeg/cond.txt). 4장 모두 pixel 512, 512로 marks 도 동일
+HV-SEM 신유형 발견: Kind=Single + Object=Inner_Diameter/Outer_Diameter (원 지름 측정)이 CD-SEM에 없던 조합. 현재 코드는 일반 two-box 경로로 bar를 그려 17/7/3개 marks를 냈다. circle이 맞는지는 직접 검증 필요 -> 확인 중.
+버그 1건 (probe 위치) : .idp는 raw 폴더가 아니라 idw 폴더 (data/<idw>/<recipe>.idp)에 있다. raw 내 경로 RETR은 서버 기분에 따라 되다가 550으로 막히는 굴러가는 독장이라 home agent는 _list_raw_dirs 체인이 raw내 .idp를 내려받는다면 같은 내용이다.
+```
+
+### 해석
+
+| 항목 | 해석 |
+| --- | --- |
+| HV-SEM 체인 | 직접 체인이 HV-SEM 의 AMP · ENMP · cond 에서 고치지 않고 그대로 동작합니다. blob type 87, blob 과 msr 원점의 차이 (13, -6) 도 CD-SEM 과 같습니다 |
+| 질문 5 | **B** — blob 은 slot stem `IMMS0001` 하나이고 `-U/-T/-M/-L` 네 파일이 함께 씁니다. cond 는 파일마다 있고, 표본에서는 네 장 모두 `Pixel 512,512`, marks 도 같았습니다 |
+| 신유형 | `Kind=Single` + `Object=Inner_Diameter` / `Outer_Diameter`(구멍 지름 측정)는 HV-SEM 에만 있습니다. 지금 모듈은 two-box 로 bar 17 / 7 / 3 개를 냅니다. 원이 맞는지는 사무실에서 확인 중입니다 |
+| `.idp` 위치 | `.idp` 는 raw 폴더가 아니라 idw 폴더(`data/<idw>/<recipe>.idp`)에 있습니다. raw 폴더 안의 경로로 RETR 하면 되다가 550 으로 막히기도 합니다. 집 코드가 raw 폴더에서 `.idp` 를 받는다면 같은 문제가 있다는 경고입니다 |
+
+### 틀렸던 가정
+
+- **blob 이름.** 집은 파일마다 확장자만 떼어 `IMMS0001-U` 를 blob 으로 요청했습니다.
+  HV-SEM 에서는 그런 파일이 없어서, ENMP 원점을 찾지 못한 parameter 는 VIMMS 를
+  건너뛰고 바로 중앙 원점으로 떨어졌을 것입니다.
+
+### 적용한 것
+
+- office adapter 가 blob 이름을 slot 값(`img_meas1`)의 stem 으로 정하도록
+  고쳤습니다. parameter 하나에 blob 을 한 번만 요청하고 suffix 파일 네 장이 함께
+  씁니다. HV-SEM 형태의 listing 으로 테스트를 먼저 추가해 red 를 확인했습니다.
+- mock 이 측정 박스를 파일이 아니라 parameter 기준으로 만들도록 고쳤습니다. 이제
+  suffix 파일들이 같은 박스를 받습니다.
+- `Inner_Diameter` / `Outer_Diameter` 를 datatables 와 mock 주석에 기록했습니다.
+  어떻게 그려야 하는지 모르므로 mock 은 아직 이 조합을 만들지 않습니다.
+- `.idp` 위치는 **집 코드에 해당하지 않습니다.** office adapter 는 `.idp` 를
+  `data/<idw>/<idp>.idp`(idw 폴더)에서 받고, 저장소의 probe 도 같은 경로를 씁니다.
+  `_list_raw_dirs` 는 raw 폴더를 listing 만 하고, 그중 이미지 확장자 파일만 계획에
+  넣으므로 raw 폴더 안의 `.idp` 를 받지 않습니다.
+
+### 남은 것 (OFFICE-VERIFY)
+
+- `Inner_Diameter` / `Outer_Diameter` 를 원으로 그려야 하는지. 모듈이 바뀌면 집은
+  바꿀 것이 없습니다. 화면은 `circles` 를 이미 그립니다.
+- 10–12번: 실제 배포 후 확인할 항목.

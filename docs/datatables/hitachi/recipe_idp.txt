@@ -853,9 +853,15 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
   | field_um | cond `Field_Size` 의 첫 숫자 |
   | mp_offset | `msr_info_offset(ENMP text, pixel)` (5120 프레임, utf-8 텍스트) → 없으면 `vimms_mp_offset(blob, pixel)` (-(13,-6) 보정) → 없으면 None = 중앙. 두 함수 모두 못 찾으면 None, 예외 없음 (office 확인 2026-10-29) |
 
-  - VIMMS blob 파일 이름은 측정 이미지의 **stem(확장자 없음)** 입니다.
-    `IMMS0002.jpeg` 이면 blob 은 `IMMS0002` 입니다. HV-SEM `-U` 등 suffix 파일의
-    blob 이 `IMMS0001-U` 인지는 OFFICE-VERIFY.
+  - VIMMS blob 파일 이름은 측정 **slot** 의 stem(확장자 없음)입니다.
+    `IMMS0002.jpeg` 이면 blob 은 `IMMS0002` 입니다. HV-SEM 의 `IMMS0001-U` /
+    `-T` / `-M` / `-L` 네 파일은 blob `IMMS0001` **하나를 함께** 씁니다. cond 는
+    파일마다 따로(`.IMMS0001-U.jpeg/cond.txt`) 있지만, 확인한 표본에서는 네 장
+    모두 `Pixel 512,512` 였고 marks 도 같았습니다 (office 확인 2026-10-29).
+  - blob type 은 87 이고, blob 에서 읽은 원점과 msr 원점의 차이는 (13, -6) 입니다.
+    CD-SEM 과 HV-SEM 이 같습니다 (office 확인 2026-10-29).
+  - HV-SEM 에서도 체인을 고치지 않고 그대로 씁니다. AMP · ENMP · cond 의 형식이
+    CD-SEM 과 같습니다 (office 확인 2026-10-29).
   - 결과는 dict `{pixel, bars:[[cx,cy,w,h]], circles:[[cx,cy,r_in,r_out]]}` 입니다.
     `pixel` 만 list `[1024, 1024]`(viewBox `0 0 pw ph`)이고 나머지는 전부 이미지
     대비 분수입니다. `r_out` 0 이면 원 하나입니다 (office 확인 2026-10-29). AMP `Cursor_Positions` 는 512 프레임,
@@ -869,8 +875,13 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
     | AMP field | 분기 값 |
     | --- | --- |
     | Kind | Single, Radial (그리고 Multi_Point) |
-    | Object | Dense Line, Space |
+    | Object | Dense Line, Space, Inner_Diameter, Outer_Diameter |
     | Measurement | Ellipse, Formula |
+
+  - `Kind=Single` + `Object=Inner_Diameter` / `Outer_Diameter` 는 HV-SEM 에서만 본
+    조합입니다(구멍 지름 측정, office 확인 2026-10-29). 지금 `marks_from_amp` 는
+    이것을 two-box 경로로 보내 bar 를 17 / 7 / 3 개 냅니다. 원으로 그려야 하는지는
+    사무실에서 확인 중입니다 (OFFICE-VERIFY).
 
   - 반지름은 폭 기준, bar 의 `cx`·`w` 는 폭, `cy`·`h` 는 높이 기준입니다
     (office 확인 2026-10-29).

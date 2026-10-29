@@ -85,6 +85,20 @@ def test_only_the_measurement_image_gets_a_box_and_the_blob_rides_the_same_visit
     assert "IMMS0002" in calls["wanted"]
 
 
+def test_hv_sem_suffix_files_share_the_slot_stem_blob(monkeypatch):
+    # office 확인 2026-10-29: IMMS0001-U/-T/-M/-L share ONE blob, IMMS0001.
+    files = {"PRMS0000", "ENMP0000", "IMMS0002"} | {
+        f".IMMS0002-{s}.jpeg/cond.txt" for s in "UT"}
+    calls = _fake_office(monkeypatch, files, vimms=(13, -6))
+    monkeypatch.setattr(oe, "_list_raw_dirs", lambda keys: dict.fromkeys(
+        keys, ["IMMS0002-U.jpeg", "IMMS0002-T.jpeg", "IMMS0002"]))
+    detail = oe.get_param_detail([{"locator": LOCATOR, "parameter": "P", "slots": SLOTS}])[0]
+    meas = [img["meas"] for img in detail["images"] if img["slot"] == "img_meas1"]
+    assert [m["origin"] for m in meas] == ["vimms", "vimms"]
+    assert "IMMS0002" in calls["wanted"]
+    assert not any(n.startswith("IMMS0002-") and "/" not in n for n in calls["wanted"])
+
+
 def test_a_host_without_meas_marks_still_answers(monkeypatch):
     images, _ = _images(monkeypatch, ALL, with_module=False)
     assert images["img_meas1"]["meas"] is None
@@ -96,7 +110,13 @@ def test_mock_boxes_only_img_meas1_and_never_a_formula():
         {"locator": LOCATOR, "parameter": f"Para_{n}", "slots": SLOTS} for n in range(40)
     ]
     seen = set()
+    multi = 0
     for detail in mock.get_param_detail(items):
+        # One AMP + one blob per slot: every HV-SEM suffix file, one box.
+        boxes = {repr((m["bars"], m["circles"])) for i in detail["images"]
+                 if (m := i["meas"]) and i["slot"] == "img_meas1"}
+        assert len(boxes) <= 1
+        multi += sum(i["slot"] == "img_meas1" for i in detail["images"]) > 1
         for image in detail["images"]:
             meas = image["meas"]
             if image["slot"] != "img_meas1":
@@ -110,6 +130,7 @@ def test_mock_boxes_only_img_meas1_and_never_a_formula():
                 assert all(0 <= v <= 1 for v in shape)
     # Circles, a lone box (Single on a Line) and several boxes all render at home.
     assert seen == {("bars", True), ("bars", False), "circles"}
+    assert multi, "the mock must emit an HV-SEM-shaped multi-file slot"
     formula = mock._formula_parameter_name("IDP_B")
     detail = mock.get_param_detail([{"locator": LOCATOR, "parameter": formula, "slots": SLOTS}])[0]
     assert all(image["meas"] is None for image in detail["images"])

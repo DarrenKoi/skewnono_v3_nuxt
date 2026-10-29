@@ -1759,12 +1759,6 @@ def _meas_marks(
     }
 
 
-def _vimms_blob(name: str) -> str:
-    """The VIMMS origin blob beside a measurement image: its stem, no extension
-    (user-confirmed 2026-10-29). ``IMMS0002.jpeg`` -> ``IMMS0002``."""
-    return name.rsplit(".", 1)[0]
-
-
 def _align_image_cond(blob: dict[str, bytes], cond: str, optic: str | None) -> SettingBlock | None:
     """An align image's cond.txt block. The reader must be told which optic
     took the image, so a point with an unknown optic reads nothing."""
@@ -1982,8 +1976,11 @@ def get_param_detail(
         names += [cond for _, _, cond in images]
         # The VIMMS fallback origin, in the same visit; a missing one is just
         # absent from the result (see _fetch_many). No AMP, no box, no fetch.
-        if amp:
-            names += [_vimms_blob(name) for slot, name, _ in images if slot == "img_meas1"]
+        # It is the SLOT's stem, no extension: HV-SEM's -U/-T/-M/-L files all
+        # share IMMS0001 (office 확인 2026-10-29).
+        vimms = rawfiles.image_stem((item.get("slots") or {}).get("img_meas1")) if amp else None
+        if vimms:
+            names.append(vimms)
         wanted.setdefault(key, []).extend(names)
         plans.append((key, item, plan))
 
@@ -1992,6 +1989,7 @@ def get_param_detail(
     out: list[ParamDetailResponse] = []
     for key, item, (amp, af_pr, images) in plans:
         blob = fetched.get(key, {})
+        vimms = rawfiles.image_stem((item.get("slots") or {}).get("img_meas1"))
         out.append({
             "parameter": item.get("parameter", ""),
             "amp": _read_block(amp, blob.get(amp or ""), read_amp_info),
@@ -2007,7 +2005,7 @@ def get_param_detail(
                     "marks": _image_marks(blob.get(cond)),
                     "meas": _meas_marks(
                         blob.get(amp or ""), blob.get(cond),
-                        blob.get(af_pr or ""), blob.get(_vimms_blob(name)),
+                        blob.get(af_pr or ""), blob.get(vimms or ""),
                     ) if slot == "img_meas1" else None,
                 }
                 for slot, name, cond in images
