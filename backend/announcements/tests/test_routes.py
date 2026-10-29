@@ -135,3 +135,14 @@ def test_a_posted_announcement_is_served_to_everyone_then_deleted(monkeypatch, t
     assert admin.delete(f"/api/admin/announcements/{row['id']}").status_code == 200
     assert admin.delete(f"/api/admin/announcements/{row['id']}").status_code == 404
     assert [r["id"] for r in admin.get("/api/admin/announcements").get_json()] == [ROW["id"]]
+
+
+@mock_only
+def test_a_corrupt_file_reads_as_empty_and_an_admin_save_repairs_it(monkeypatch, tmp_path):
+    _serve_from_file(monkeypatch, tmp_path, [])
+    mock._PATH.write_text("broken json", encoding="utf-8")
+    admin = _as(ADMIN)
+
+    assert _client().get("/api/announcements").get_json() == []
+    assert admin.post("/api/admin/announcements", json={"title": "repair"}).status_code == 201
+    assert [r["title"] for r in admin.get("/api/admin/announcements").get_json()] == ["repair"]

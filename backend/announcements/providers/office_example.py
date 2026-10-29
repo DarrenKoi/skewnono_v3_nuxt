@@ -61,7 +61,12 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from backend._runtime.office_redis import STORE_ERRORS, redis_client, redis_client_or_none
+from backend._runtime.office_redis import (
+    STORE_ERRORS,
+    redis_client,
+    redis_client_or_none,
+    unreachable,
+)
 from backend.announcements.contracts import Announcement
 from backend.announcements.providers.mock import is_active
 
@@ -138,7 +143,7 @@ def get_announcements() -> list[Announcement]:
 # ── admin writes (/admin/announcements) ─────────────────────────────────
 #
 # These take the OPPOSITE stance from the read above: ``redis_client()``, and
-# store errors propagate (the app factory answers 503). An outage that read as
+# store errors become ``unreachable()`` (the app factory answers 503). An outage that read as
 # "no announcements" on the admin page would make the next save overwrite the
 # real array. A corrupt value still parses to ``[]``, so an admin save is also
 # how a bad hand paste gets repaired.
@@ -149,11 +154,18 @@ def get_announcements() -> list[Announcement]:
 
 def list_all() -> list[Announcement]:
     """Every stored row, active or not, in stored order."""
-    return _parse(redis_client().get(_KEY))
+    try:
+        raw = redis_client().get(_KEY)
+    except STORE_ERRORS as exc:
+        raise unreachable("announcement store unreachable", exc) from exc
+    return _parse(raw)
 
 
 def _save(rows: list[Announcement]) -> None:
-    redis_client().set(_KEY, json.dumps(rows, ensure_ascii=False).encode())
+    try:
+        redis_client().set(_KEY, json.dumps(rows, ensure_ascii=False).encode())
+    except STORE_ERRORS as exc:
+        raise unreachable("announcement store unreachable; NOT saved", exc) from exc
 
 
 def add_announcement(row: Announcement) -> None:

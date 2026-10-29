@@ -128,7 +128,13 @@
           </span>
         </h2>
         <p
-          v-if="!rows.length"
+          v-if="error"
+          class="mt-2 sk-body text-(--sk-bad)"
+        >
+          공지 목록을 불러오지 못했습니다. Refresh 로 다시 시도해 주세요.
+        </p>
+        <p
+          v-else-if="!rows.length"
           class="mt-2 sk-body"
         >
           등록된 공지가 없습니다.
@@ -194,7 +200,7 @@ const { fetchAll, add, remove } = useAnnouncementsAdminApi()
 const { data: me } = await useActivityMe()
 const isAdmin = computed(() => me.value?.is_admin === true)
 
-const { data, pending, refresh } = useAsyncData<Announcement[]>(
+const { data, pending, error, refresh } = useAsyncData<Announcement[]>(
   'admin-announcements',
   () => (isAdmin.value ? fetchAll() : Promise.resolve([]))
 )

@@ -46,7 +46,13 @@ def _load() -> list[Announcement]:
         return []
     mtime = _PATH.stat().st_mtime
     if mtime != _cache["mtime"]:
-        raw = json.loads(_PATH.read_text(encoding="utf-8"))
+        try:
+            raw = json.loads(_PATH.read_text(encoding="utf-8"))
+        except ValueError:
+            # Hand-edited file: a bad edit is "no banners", and an admin save
+            # overwrites it — same as the office adapter's corrupt value.
+            logger.warning("announcements.json is not valid JSON; serving no banners")
+            raw = []
         rows = raw if isinstance(raw, list) else []
         # The file is hand-edited, so a bare string (or any non-object row)
         # must degrade to "that row skipped" — is_active calling .get() on it

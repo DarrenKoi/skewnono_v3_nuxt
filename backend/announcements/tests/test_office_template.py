@@ -255,10 +255,24 @@ def test_an_admin_write_over_a_corrupt_value_repairs_it(store):
     assert office.get_announcements() == [ROW]
 
 
-def test_an_outage_on_the_admin_path_raises_instead_of_reading_as_empty(store):
-    """If an outage read as [] here, the next add would overwrite the array."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        redis.exceptions.ConnectionError("down"),
+        redis.exceptions.ResponseError("READONLY"),
+        OSError("socket"),
+    ],
+)
+def test_an_outage_on_the_admin_path_is_a_503_not_an_empty_read(store, monkeypatch, error):
+    """If an outage read as [] here, the next add would overwrite the array.
+    Exactly RuntimeError is what the app factory maps to a 503."""
     store.put_json(KEY, [ROW])
-    store.fail = True
 
-    with pytest.raises(redis.exceptions.ConnectionError):
+    def boom(*_):
+        raise error
+
+    monkeypatch.setattr(store, "get", boom)
+    with pytest.raises(RuntimeError) as caught:
         office.add_announcement(dict(ROW, id="new"))
+    assert type(caught.value) is RuntimeError
+    assert json.loads(store.strings[KEY]) == [ROW]
