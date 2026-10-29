@@ -296,7 +296,7 @@
             </UBadge>
           </div>
         </template>
-        <div class="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3">
           <NuxtLink
             v-for="link in adminLinks"
             :key="link.to"
