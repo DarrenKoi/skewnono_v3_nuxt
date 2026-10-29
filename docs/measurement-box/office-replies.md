@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | 1차 | 2026-10-29 | `to-office-meas-marks.md` |
 | 2차 | 2026-10-29 | `to-office-meas-marks.md` 5번 + HV-SEM 실행 결과 |
+| 3차 | 2026-10-29 | 2차의 HV-SEM 원 검증 결과 |
 
 `to-office-measurement-box.md`(2026-10-26)에는 따로 회신이 오지 않았습니다. 그 대신
 사무실이 `office_utils` 에 `meas_marks` · `recipe_marks` 를 만들어 보냈고, 측정
@@ -121,4 +122,35 @@ HV-SEM 신유형 발견: Kind=Single + Object=Inner_Diameter/Outer_Diameter (원
 
 - `Inner_Diameter` / `Outer_Diameter` 를 원으로 그려야 하는지. 모듈이 바뀌면 집은
   바꿀 것이 없습니다. 화면은 `circles` 를 이미 그립니다.
+- 10–12번: 실제 배포 후 확인할 항목.
+
+## 3차 회신 (2026-10-29)
+
+### 원문
+
+```text
+원인 : marks_from_amp의 Ellipse 서클 분기가 mp_offset(msr 원점)을 무시했습니다. HV-SEM Radial 계열 (Measurement="Ellipse")은 ENMP msr_info 원점이 커서에 더해져야 홀 중심이 되는데, 그것이 빠져 서클이 msr 오프셋 만큼 어긋나 있었습니다. -> meas_marks.py 코드 수정 완료.
+```
+
+### 해석
+
+- 2차에서 확인 중이던 HV-SEM 원 검증의 결과입니다. `marks_from_amp` 의 Ellipse
+  원 분기가 `mp_offset` 을 더하지 않아, 원이 msr 원점 offset 만큼 어긋나 있었습니다.
+  사무실이 `meas_marks.py` 를 고쳤습니다.
+- 원의 중심은 커서 + ENMP msr_info 원점입니다. bar 분기와 같은 규칙입니다.
+- HV-SEM 의 Radial 계열 측정은 `Measurement="Ellipse"` 로 들어옵니다.
+
+### 집에 미치는 영향
+
+- **코드 변경은 없습니다.** 원점은 집이 `mp_offset` 으로 넘기고, 더하는 일은 모듈이
+  합니다. 화면은 받은 `circles` 를 그대로 그립니다.
+- mock 은 처음부터 원 중심에 원점을 더해 그리고 있어서 고칠 것이 없었습니다.
+- **배포:** 고친 `meas_marks.py` 가 호스트의 office_utils 에 올라가야 합니다.
+  office_utils 는 SKEWNONO 번들과 따로 배포됩니다.
+
+### 남은 것 (OFFICE-VERIFY)
+
+- 2차의 `Kind=Single` + `Object=Inner_Diameter` / `Outer_Diameter` 가 이번 Radial
+  계열(`Measurement="Ellipse"`)과 같은 parameter 인지, 즉 이제 bar 17 / 7 / 3 개
+  대신 원으로 나오는지. 이번 회신만으로는 알 수 없습니다.
 - 10–12번: 실제 배포 후 확인할 항목.

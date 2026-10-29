@@ -882,6 +882,10 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
     조합입니다(구멍 지름 측정, office 확인 2026-10-29). 지금 `marks_from_amp` 는
     이것을 two-box 경로로 보내 bar 를 17 / 7 / 3 개 냅니다. 원으로 그려야 하는지는
     사무실에서 확인 중입니다 (OFFICE-VERIFY).
+  - 원(circle)의 중심도 원점을 더한 값입니다. 커서 + ENMP msr_info 원점이 홀
+    중심입니다. 처음 만든 `marks_from_amp` 는 Ellipse 분기에서 `mp_offset` 을 빼먹어
+    원이 msr offset 만큼 어긋났고, 사무실에서 고쳤습니다 (office 확인 2026-10-29).
+    HV-SEM 의 Radial 계열 측정은 `Measurement="Ellipse"` 로 들어옵니다.
 
   - 반지름은 폭 기준, bar 의 `cx`·`w` 는 폭, `cy`·`h` 는 높이 기준입니다
     (office 확인 2026-10-29).
