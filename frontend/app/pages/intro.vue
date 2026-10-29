@@ -490,7 +490,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-bar-chart-3',
     section: 'common',
     purpose: 'SKEWNONO가 어떻게 쓰이고 있는지 확인하는 화면입니다.',
-    description: '맨 위는 내 사용 패턴입니다. 이번 달 요청 수와 활동일, 최근 쓴 기능 5개, 30일 스파크라인이 놓입니다. 스파크라인의 막대를 누르면 그날 호출한 기능이 펼쳐집니다. 그 아래로 DAU·WAU·MAU 같은 전체 지표와 인기 기능 Top 10, 장비군별(CD-SEM·HV-SEM·VeritySEM·Provision·AFM) 페이지 사용량, FAB별 페이지 사용량이 7일·30일 기준으로 이어집니다. 관리자에게는 방문자 분석·운영 로그·접근 권한 관리·Endpoint 로그로 가는 관리자 도구 카드가 보입니다.',
+    description: '맨 위는 내 사용 패턴입니다. 이번 달 요청 수와 활동일, 최근 쓴 기능 5개, 30일 스파크라인이 놓입니다. 스파크라인의 막대를 누르면 그날 호출한 기능이 펼쳐집니다. 그 아래로 DAU·WAU·MAU 같은 전체 지표와 인기 기능 Top 10, 장비군별(CD-SEM·HV-SEM·VeritySEM·Provision·AFM) 페이지 사용량, FAB별 페이지 사용량이 7일·30일 기준으로 이어집니다. 관리자에게는 방문자 분석·요청 분석·운영 로그·접근 권한 관리·Endpoint 로그로 가는 관리자 도구 카드가 보입니다.',
     users: '전체 사용자',
     notes: ['개인 활동과 전체 집계를 나란히 두어 내 사용 패턴을 전체 흐름과 비교할 수 있습니다.']
   },
@@ -502,6 +502,17 @@ const pageGuides: PageGuide[] = [
     section: 'admin',
     purpose: '누가 얼마나 자주 방문하는지 관리자가 확인하는 URL-only 화면입니다.',
     description: 'DAU 막대와 WAU·MAU 선을 2주·1개월·2개월 범위로 겹쳐 보여주고, 최근 30일 기준으로 자주 방문하는 사용자 Top 10, 방문 빈도 분포, 팀별 방문자 수를 나란히 둡니다. 그 아래 사용자별 사용 현황 표는 검색·정렬하고 Excel로 내려받을 수 있으며, 행을 누르면 그 사용자의 30일 활동이 펼쳐집니다.',
+    users: '관리자',
+    notes: ['일반 내비게이션에는 노출하지 않고 사용 통계의 관리자 도구 카드나 URL 직접 입력으로 접근합니다.']
+  },
+  {
+    id: 'admin-requests',
+    title: '요청 분석',
+    path: '/admin/requests',
+    icon: 'i-lucide-activity',
+    section: 'admin',
+    purpose: '사용자 요청이 얼마나, 어디로 들어오는지 관리자가 확인하는 URL-only 화면입니다.',
+    description: '오늘·7일·30일 요청 수와 활동 사용자 1인·1일당 요청 수를 KPI로 두고, 일별 요청 막대를 2주·1개월·2개월·3개월 범위로 보여줍니다. 그 아래 기능별 요청 Top 10(7일·30일)과 요청이 많은 사용자 Top 10(30일)을 나란히 둡니다. 요청은 사용자가 화면에서 보낸 API 호출만 세며 페이지 열람·실패·API Token·백그라운드·익명 요청은 제외합니다.',
     users: '관리자',
     notes: ['일반 내비게이션에는 노출하지 않고 사용 통계의 관리자 도구 카드나 URL 직접 입력으로 접근합니다.']
   },

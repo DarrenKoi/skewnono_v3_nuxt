@@ -296,7 +296,7 @@
             </UBadge>
           </div>
         </template>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-5 gap-3">
           <NuxtLink
             v-for="link in adminLinks"
             :key="link.to"
@@ -371,6 +371,12 @@ const adminLinks = [
     icon: 'i-lucide-user-round-search',
     title: '방문자 분석',
     description: 'DAU·WAU·MAU 추이와 누가 얼마나 자주 방문하는지 봅니다.'
+  },
+  {
+    to: '/admin/requests',
+    icon: 'i-lucide-activity',
+    title: '요청 분석',
+    description: '일별 요청 추이와 어떤 기능·사용자에게 요청이 몰리는지 봅니다.'
   },
   {
     to: '/admin/logs',

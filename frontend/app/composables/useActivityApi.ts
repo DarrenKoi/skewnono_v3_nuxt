@@ -140,12 +140,40 @@ export interface UserHistoryResponse {
   last_seen: string | null
 }
 
+/** One KST day of the site's request volume (entry + feature rows). */
+export interface DailyRequests {
+  date: string
+  requests: number
+  /** People who made at least one request that day. */
+  users: number
+}
+
+/** Where a window's requests went. `entry + Σfeatures + other_count` is
+ *  exactly the window's requests: `features` is capped, so the rest is sent
+ *  rather than subtracted from the day series. */
+export interface RequestWindow {
+  /** 장비 목록 (sem_list) loads — the entry kind, no page of their own. */
+  entry: number
+  features: FeatureCount[]
+  /** Feature requests on pages past the cap. */
+  other_count: number
+}
+
+export interface RequestsResponse {
+  generated_at: string
+  /** 90 KST days, oldest first, today last. */
+  days: DailyRequests[]
+  window_7d: RequestWindow
+  window_30d: RequestWindow
+}
+
 const ME_KEY = 'activity-me'
 const SUMMARY_KEY = 'activity-summary'
 const USERS_KEY = 'activity-users'
 const FABS_KEY = 'activity-fabs'
 const FAMILIES_KEY = 'activity-families'
 const VISITORS_KEY = 'activity-visitors'
+const REQUESTS_KEY = 'activity-requests'
 
 const meSlot = createInFlightSlot<MeResponse>()
 const summarySlot = createInFlightSlot<SummaryResponse>()
@@ -153,6 +181,7 @@ const usersSlot = createInFlightSlot<UserListResponse>()
 const fabsSlot = createInFlightSlot<FabUsageResponse>()
 const familiesSlot = createInFlightSlot<FamilyUsageResponse>()
 const visitorsSlot = createInFlightSlot<VisitorsResponse>()
+const requestsSlot = createInFlightSlot<RequestsResponse>()
 
 const useActivityUrls = () => {
   const config = useRuntimeConfig()
@@ -164,6 +193,7 @@ const useActivityUrls = () => {
     fabsUrl: joinApiPath(base, '/activity/fabs'),
     familiesUrl: joinApiPath(base, '/activity/families'),
     visitorsUrl: joinApiPath(base, '/activity/visitors'),
+    requestsUrl: joinApiPath(base, '/activity/requests'),
     userDetailUrl: (userId: string) =>
       joinApiPath(base, `/activity/users/${encodeURIComponent(userId)}`)
   }
@@ -217,6 +247,14 @@ export const useActivityVisitors = () => {
   })
 }
 
+export const useActivityRequests = () => {
+  const { requestsUrl } = useActivityUrls()
+  const fetchOnce = () => requestsSlot.run(() => $fetch<RequestsResponse>(requestsUrl))
+  return useAsyncData(REQUESTS_KEY, fetchOnce, {
+    getCachedData: payloadCacheOnInitial
+  })
+}
+
 // User detail is fetched on-demand (not cached via useAsyncData) because the
 // admin clicks individual rows ad hoc; each click is a fresh read.
 export const fetchUserHistory = async (userId: string): Promise<UserHistoryResponse> => {
@@ -232,10 +270,11 @@ export const resetActivityCache = () => {
   fabsSlot.reset()
   familiesSlot.reset()
   visitorsSlot.reset()
+  requestsSlot.reset()
 }
 
 // Identity changes must also discard Nuxt's payload, not just the promises.
 export const clearActivityData = () => {
   resetActivityCache()
-  clearNuxtData([ME_KEY, SUMMARY_KEY, USERS_KEY, FABS_KEY, FAMILIES_KEY, VISITORS_KEY])
+  clearNuxtData([ME_KEY, SUMMARY_KEY, USERS_KEY, FABS_KEY, FAMILIES_KEY, VISITORS_KEY, REQUESTS_KEY])
 }

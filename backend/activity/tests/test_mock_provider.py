@@ -359,3 +359,64 @@ def test_seeded_demo_users_open_pages_in_more_than_one_family(fresh_store):
         page["feature"] for row in month.values() for page in row["pages"]
     }
     assert "mag_pixel" not in listed and "chat" not in listed
+
+
+def test_request_stats_split_each_window_into_entry_pages_and_rest(
+    fresh_store, monkeypatch
+):
+    # 2026-09-12 01:00 KST — still the 11th in UTC.
+    monkeypatch.setattr(
+        mock, "_now", lambda: datetime(2026, 9, 11, 16, tzinfo=timezone.utc)
+    )
+    # A two-FAB request is one request here, as it is one document at office.
+    mock.record_request("u1", "storage", "feature", ["M14", "M16B"])
+    mock.record_request("u1", "storage", "feature", ["M14"])
+    mock.record_request("u1", "sem_list", "entry", [])
+    mock.record_request("u2", "tttm", "feature", ["M15"])
+    # Opens are not requests: u3 is nobody's requester.
+    mock.record_request("u3", "mag_pixel", "page_view", [])
+    u1 = fresh_store["u1"]
+    # 7 days back: outside the 7-day window (09-06..09-12), inside the 30.
+    u1.daily[date(2026, 9, 5)] = 3
+    u1.daily_feature_requests[date(2026, 9, 5)] = {"storage": 3}
+
+    payload = mock.get_request_stats()
+
+    days = payload["days"]
+    assert len(days) == 90
+    assert days[0]["date"] == "2026-06-15"
+    assert days[-1] == {"date": "2026-09-12", "requests": 4, "users": 2}
+    assert days[-8] == {"date": "2026-09-05", "requests": 3, "users": 1}
+    assert payload["window_7d"] == {
+        "entry": 1,
+        "features": [
+            {"feature": "storage", "count": 2},
+            {"feature": "tttm", "count": 1},
+        ],
+        "other_count": 0,
+    }
+    assert payload["window_30d"]["features"][0] == {
+        "feature": "storage",
+        "count": 5,
+    }
+    # The same rows the other admin numbers read, so they agree.
+    users = mock.get_users_list()["users"]
+    assert sum(day["requests"] for day in days[-30:]) == sum(
+        row["requests_30d"] for row in users
+    )
+    assert days[-1]["users"] == mock.get_summary()["dau"]
+
+
+def test_request_stats_count_pages_past_the_cap_as_other(fresh_store):
+    # f00 is requested once, f10 eleven times: f00 falls off the top 10.
+    for index in range(11):
+        for _ in range(index + 1):
+            mock.record_request("u1", f"f{index:02d}", "feature", [])
+
+    window = mock.get_request_stats()["window_7d"]
+
+    assert [row["feature"] for row in window["features"]] == [
+        f"f{index:02d}" for index in range(10, 0, -1)
+    ]
+    assert window["other_count"] == 1
+    assert window["entry"] == 0

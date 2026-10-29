@@ -25,6 +25,9 @@ __all__ = [
     "FamilyUsageResponse",
     "DailyVisitors",
     "VisitorsResponse",
+    "DailyRequests",
+    "RequestWindow",
+    "RequestsResponse",
 ]
 
 
@@ -190,6 +193,48 @@ class VisitorsResponse(TypedDict):
 
     generated_at: str
     days: list[DailyVisitors]
+
+
+class DailyRequests(TypedDict):
+    """One KST day of the whole site's request volume.
+
+    A request is what every other 요청 number on these pages counts: an
+    ``entry`` or ``feature`` row with weight 1 — so no page opens, no failed
+    calls, no API-token automation, no background polling, no anonymous
+    callers. ``users`` is the people behind them, so ``requests / users`` is
+    that day's requests per active person.
+    """
+
+    date: str
+    requests: int
+    users: int
+
+
+class RequestWindow(TypedDict):
+    """Where one window's requests went.
+
+    The three parts add up to the window's requests exactly, which is why
+    ``other_count`` is sent rather than left to the reader: ``features`` is
+    capped, and a subtraction from the day series would fold the 장비 목록
+    entry requests into the remainder.
+    """
+
+    #: ``entry`` rows — the 장비 목록 load (feature ``sem_list``), which
+    #: belongs to no page in particular.
+    entry: int
+    #: ``feature`` rows by page slug, most requested first, capped.
+    features: list[FeatureCount]
+    #: ``feature`` rows whose page fell outside the cap.
+    other_count: int
+
+
+class RequestsResponse(TypedDict):
+    """``VISITOR_DAYS`` KST days oldest first, plus the 7- and 30-day split."""
+
+    generated_at: str
+    days: list[DailyRequests]
+    window_7d: RequestWindow
+    window_30d: RequestWindow
 
 
 class FamilyUsageRow(TypedDict):

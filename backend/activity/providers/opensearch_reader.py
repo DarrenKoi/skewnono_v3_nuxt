@@ -19,6 +19,8 @@ from backend.activity.contracts import (
     FeatureCount,
     FeatureUse,
     MeResponse,
+    RequestsResponse,
+    RequestWindow,
     SummaryResponse,
     UserHistoryResponse,
     UserListResponse,
@@ -31,6 +33,7 @@ from backend.activity.providers.shared import (
     RECENT_FEATURES_CAP,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
+    VISITOR_DAYS,
     VISITOR_LOOKBACK_DAYS,
     daily_visitor_rows,
     family_usage_rows,
@@ -562,6 +565,102 @@ class ActivityOpenSearchReader:
             "days": daily_visitor_rows(
                 active_days, now.astimezone(KST).date()
             ),
+        }
+
+    def get_request_stats(self) -> RequestsResponse:
+        """Request volume per KST day, and where each window's requests went.
+
+        One search, no composite: a day's requesters are a ``cardinality``
+        under that day's bucket, so the response is ``VISITOR_DAYS`` buckets
+        however many people there are. Cardinality is approximate in
+        general, but counts under ``CARDINALITY_PRECISION`` are expected to be
+        close to exact — far above any day's headcount here.
+        """
+        now = self._now()
+        start = _kst_day_start(now, VISITOR_DAYS - 1)
+
+        # Exact rather than nearly right, as in the recency lists: the slug
+        # vocabulary fits inside one shard's answer.
+        top = _top_features_agg()
+        top["terms"]["shard_size"] = FEATURE_SHARD_SIZE
+
+        def window(days: int) -> dict[str, Any]:
+            return {
+                "filter": _time_range(_kst_day_start(now, days - 1), now),
+                "aggs": {
+                    "entry": {"filter": {"term": {"activity_kind": "entry"}}},
+                    "features": {
+                        "filter": {"term": {"activity_kind": FEATURE_KIND}},
+                        "aggs": {"top": top},
+                    },
+                },
+            }
+
+        response = self._search(
+            {
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [
+                            # Request rows only, as everywhere a 요청 is
+                            # counted: page views are opens, not requests.
+                            *_activity_filters(kinds=REQUEST_KINDS),
+                            _time_range(start, now),
+                        ]
+                    }
+                },
+                "aggs": {
+                    "days": {
+                        "date_histogram": {
+                            "field": "@timestamp",
+                            "calendar_interval": "day",
+                            "time_zone": "Asia/Seoul",
+                            "format": "yyyy-MM-dd",
+                            "min_doc_count": 0,
+                            "extended_bounds": {
+                                "min": start.date().isoformat(),
+                                "max": now.astimezone(KST).date().isoformat(),
+                            },
+                        },
+                        "aggs": {"users": _distinct_users_agg()},
+                    },
+                    "window_7d": window(7),
+                    "window_30d": window(30),
+                },
+            }
+        )
+        aggs = response.get("aggregations", {})
+        buckets = _day_buckets(aggs)
+
+        def window_row(node: dict[str, Any]) -> RequestWindow:
+            features = node.get("features", {})
+            rows = _feature_rows(features.get("top", {}))
+            feature_total = int(features.get("doc_count", 0))
+            return {
+                "entry": int(node.get("entry", {}).get("doc_count", 0)),
+                "features": rows,
+                "other_count": feature_total - sum(row["count"] for row in rows),
+            }
+
+        # Built from the calendar, not from the buckets: a day the histogram
+        # left out is still a row, and the series is always VISITOR_DAYS long.
+        today = now.astimezone(KST).date()
+        days = []
+        for offset in range(VISITOR_DAYS - 1, -1, -1):
+            day = (today - timedelta(days=offset)).isoformat()
+            bucket = buckets.get(day, {})
+            days.append(
+                {
+                    "date": day,
+                    "requests": int(bucket.get("doc_count", 0)),
+                    "users": int(bucket.get("users", {}).get("value", 0)),
+                }
+            )
+        return {
+            "generated_at": _iso_utc(now),
+            "days": days,
+            "window_7d": window_row(aggs.get("window_7d", {})),
+            "window_30d": window_row(aggs.get("window_30d", {})),
         }
 
     def get_users_list(self) -> UserListResponse:

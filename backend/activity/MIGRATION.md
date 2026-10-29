@@ -261,6 +261,33 @@ Two things to check on the first office run (both `OFFICE-VERIFY`):
   response over `search.max_buckets` (65,535 by default) with a 503. If the
   office cluster's limit is lower, lower `SEARCH_MAX_BUCKETS` to match.
 
+### `GET /api/activity/requests`
+
+**Admin only** (`403 forbidden` otherwise). Feeds the `/admin/requests` page.
+Returns `days`: 90 consecutive KST days, oldest first and today last, each with
+`requests` (that day's `entry` + `feature` rows — the same population as
+`this_month.requests` and `requests_30d`) and `users` (distinct people behind
+them, so the last entry equals `/summary`'s `dau`). `window_7d` and
+`window_30d` split each window into `entry` (the 장비 목록 load), the top 10
+`features` by request count and `other_count` for the pages past the cap; the
+three add up to the window's requests exactly.
+
+One search, no composite: a `date_histogram` (`Asia/Seoul`, `min_doc_count:
+0`, `extended_bounds` over the 90 days) with a `cardinality` on `user_id` per
+bucket, plus two `filter` windows holding an `entry` filter and a
+`feature`-filtered `terms` on `feature` with `shard_size:
+FEATURE_SHARD_SIZE`. The response is about 90 buckets however many people
+there are, so `search.max_buckets` does not apply. The reader fills any day
+the histogram leaves out with zeros, so the series is always 90 long.
+
+The mock reads the same `daily` and `daily_feature_requests` buckets the other
+views read; its `entry` count is `daily` minus `daily_feature_requests`
+(a feature request lands in both, an entry request in `daily` alone).
+
+On the office PC (`OFFICE-VERIFY`): the `skewnono_logging_local` alias keeps
+only 30 days after rollover, so an empty early day there is missing history,
+not a quiet day. Production keeps 540 days and is unaffected.
+
 ### `GET /api/activity/users/<user_id>`
 
 **Admin only** (`403 forbidden` otherwise). Returns the personal history shape.
@@ -294,12 +321,14 @@ happen once, in the shared middleware, not in a provider adapter.
 
 `/me`, `/summary`, `/fabs` and `/families` are open to every identified user — they are
 aggregates, and a person's own history is theirs to see. The two `/users`
-routes enumerate activity per employee, and `/visitors` is the site's traffic
-over time, which is shown to the administrator only, so all three are
+routes enumerate activity per employee, and `/visitors` and `/requests` are
+the site's traffic over time, which is shown to the administrator only, so all
+four are
 gated with `_auth.admin.require_admin`, which requires both an admin id **and** a trusted
 identity source (a self-declared identity that types an admin's employee
 number does not pass). The frontend reads `is_admin` off `/api/activity/me`
-and `/admin/visitors` — the only page that fetches the three — skips them
+and `/admin/visitors` and `/admin/requests` — the only pages that fetch them
+— skip them
 entirely for non-admins, so the gate is never the
 first thing a normal user hits.
 

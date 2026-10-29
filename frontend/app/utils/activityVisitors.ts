@@ -25,10 +25,10 @@ export const VISITOR_WINDOW_TABS: { label: string, value: VisitorWindowKey }[] =
  * The most recent days of the series. The backend sends its whole 90-day
  * window once and every tab is a slice of it, so switching costs no request.
  */
-export const visitorWindow = (
-  series: readonly DailyVisitors[],
+export const visitorWindow = <T>(
+  series: readonly T[],
   key: VisitorWindowKey
-): DailyVisitors[] => series.slice(-WINDOW_DAYS[key])
+): T[] => series.slice(-WINDOW_DAYS[key])
 
 /** '2026-10-02' → '10.02'. The year is on the tooltip; the axis has no room for it. */
 export const visitorAxisLabel = (iso: string): string => iso.slice(5).replace('-', '.')

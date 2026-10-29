@@ -320,6 +320,59 @@ types:
         활동이 없는 날도 0으로 포함합니다. /admin/visitors 화면의 2주/1개월/2개월
         선택은 이 배열을 뒤에서 잘라 쓰며 요청을 다시 보내지 않습니다.
 
+  DailyRequests:
+    date:
+      type: string
+      format: YYYY-MM-DD (KST)
+    requests:
+      type: integer
+      description: >-
+        해당 KST 날짜의 request 행(entry, feature, activity_weight=1, 익명 제외)
+        건수입니다. 페이지 열람(page_view)·실패한 요청·API Token 호출·background
+        행은 처음부터 weight 0 이거나 다른 kind 라 들어가지 않습니다. 마지막 30개
+        항목의 합은 같은 시점의 UserListRow.requests_30d 합과 같습니다.
+    users:
+      type: integer
+      description: >-
+        해당 날짜에 request 행이 1건 이상 있는 distinct user_id 수입니다(DAU 와
+        같은 정의). office 는 cardinality 집계라 이론상 근사이지만
+        precision_threshold 40000 아래에서는 사실상 정확합니다.
+
+  RequestWindow:
+    entry:
+      type: integer
+      description: 기간 안의 entry 행(장비 목록 sem_list 로딩) 건수입니다.
+    features:
+      type: array
+      items: FeatureCount
+      description: >-
+        기간 안의 feature 행을 화면 slug 별로 센 순위이며 최대 10개입니다.
+        /api/activity/summary 의 top_features 는 page_view(열람) 순위라 이것과
+        다릅니다.
+    other_count:
+      type: integer
+      description: >-
+        순위 밖 화면의 feature 행 건수입니다. entry + features 합 + other_count 는
+        그 기간의 요청 수와 정확히 같습니다.
+
+  RequestsResponse:
+    generated_at:
+      type: string
+      format: ISO 8601 UTC
+    days:
+      type: array
+      items: DailyRequests
+      description: >-
+        오늘을 마지막으로 하는 연속 90 KST 날짜이며 오래된 날짜가 먼저 옵니다.
+        요청이 없는 날도 0으로 포함합니다. /admin/requests 화면의 2주/1개월/2개월/
+        3개월 선택과 KPI 카드는 모두 이 배열을 잘라 계산합니다.
+    window_7d:
+      type: RequestWindow
+      description: 오늘 포함 최근 7 KST 날짜입니다.
+    window_30d:
+      type: RequestWindow
+      description: 오늘 포함 최근 30 KST 날짜입니다.
+
 endpoints:
   - path: /api/activity/me
     method: GET
@@ -372,6 +425,18 @@ endpoints:
     response:
       status: 200
       body: VisitorsResponse
+    errors:
+      - status: 403
+        code: forbidden
+        when: 관리자가 아니거나 신뢰할 수 없는 identity source임
+
+  - path: /api/activity/requests
+    method: GET
+    auth: admin
+    description: trailing 90 KST 날짜의 일별 요청 수·요청자 수와 7일·30일 요청 분포입니다.
+    response:
+      status: 200
+      body: RequestsResponse
     errors:
       - status: 403
         code: forbidden

@@ -18,6 +18,7 @@ from backend.activity.contracts import (
     FabUsageResponse,
     FamilyUsageResponse,
     MeResponse,
+    RequestsResponse,
     SummaryResponse,
     UserHistoryResponse,
     UserListResponse,
@@ -39,6 +40,10 @@ def test_family_page_usage_matches_contract():
 
 def test_daily_visitors_matches_contract():
     assert_matches(data.get_daily_visitors(), VisitorsResponse)
+
+
+def test_request_stats_matches_contract():
+    assert_matches(data.get_request_stats(), RequestsResponse)
 
 
 def test_users_list_matches_contract():

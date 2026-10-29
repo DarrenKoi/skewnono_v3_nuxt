@@ -490,6 +490,7 @@ def test_fab_totals_use_distinct_users_and_normalize_missing_keys():
         ("/api/activity/users", "get_users_list"),
         ("/api/activity/users/u1", "get_user_history"),
         ("/api/activity/visitors", "get_daily_visitors"),
+        ("/api/activity/requests", "get_request_stats"),
     ],
 )
 def test_activity_query_failures_are_normalized_to_503(
@@ -804,3 +805,121 @@ def test_a_partial_page_stops_a_paged_query_instead_of_being_skipped():
         reader.get_daily_visitors()
 
     assert len(search.bodies) == 2
+
+
+def _request_window(entry, feature_total, *pages):
+    return {
+        "doc_count": entry + feature_total,
+        "entry": {"doc_count": entry},
+        "features": {
+            "doc_count": feature_total,
+            "top": {
+                "buckets": [
+                    {"key": feature, "doc_count": count}
+                    for feature, count in pages
+                ]
+            },
+        },
+    }
+
+
+def test_request_stats_count_requests_and_requesters_per_kst_day():
+    reader, search, _aliases = _reader(
+        [
+            {
+                "aggregations": {
+                    "days": {
+                        "buckets": [
+                            {
+                                "key_as_string": "2026-07-26",
+                                "doc_count": 5,
+                                "users": {"value": 2},
+                            },
+                            {
+                                "key_as_string": "2026-07-27",
+                                "doc_count": 3,
+                                "users": {"value": 1},
+                            },
+                        ]
+                    },
+                    # 6 feature requests, 5 of them on ranked pages: the one
+                    # left is other_count, never folded into entry.
+                    "window_7d": _request_window(
+                        2, 6, ("storage", 4), ("tttm", 1)
+                    ),
+                    "window_30d": _request_window(9, 20, ("storage", 20)),
+                }
+            }
+        ]
+    )
+
+    payload = reader.get_request_stats()
+
+    assert payload["generated_at"] == "2026-07-27T03:00:00Z"
+    days = payload["days"]
+    # Every day is a row, including the ones the histogram did not return.
+    assert len(days) == 90
+    assert days[0] == {"date": "2026-04-29", "requests": 0, "users": 0}
+    assert days[-2:] == [
+        {"date": "2026-07-26", "requests": 5, "users": 2},
+        {"date": "2026-07-27", "requests": 3, "users": 1},
+    ]
+    assert payload["window_7d"] == {
+        "entry": 2,
+        "features": [
+            {"feature": "storage", "count": 4},
+            {"feature": "tttm", "count": 1},
+        ],
+        "other_count": 1,
+    }
+    assert payload["window_30d"] == {
+        "entry": 9,
+        "features": [{"feature": "storage", "count": 20}],
+        "other_count": 0,
+    }
+
+    (body,) = search.bodies
+    filters = body["query"]["bool"]["filter"]
+    # The population every 요청 number counts: request rows, not page opens.
+    assert filters[:3] == [
+        {"term": {"event": "request"}},
+        {"term": {"activity_weight": 1}},
+        {"terms": {"activity_kind": ["entry", "feature"]}},
+    ]
+    # 89 days back, not 118: no rolling count looks behind the first day.
+    assert filters[4]["range"]["@timestamp"]["gte"].startswith(
+        "2026-04-29T00:00:00+09:00"
+    )
+    histogram = body["aggs"]["days"]["date_histogram"]
+    assert histogram["time_zone"] == "Asia/Seoul"
+    assert histogram["extended_bounds"] == {
+        "min": "2026-04-29",
+        "max": "2026-07-27",
+    }
+    assert body["aggs"]["days"]["aggs"]["users"]["cardinality"]["field"] == (
+        "user_id"
+    )
+    window_7d = body["aggs"]["window_7d"]
+    assert window_7d["filter"]["range"]["@timestamp"]["gte"].startswith(
+        "2026-07-21T00:00:00+09:00"
+    )
+    assert body["aggs"]["window_30d"]["filter"]["range"]["@timestamp"][
+        "gte"
+    ].startswith("2026-06-28T00:00:00+09:00")
+    assert window_7d["aggs"]["entry"] == {
+        "filter": {"term": {"activity_kind": "entry"}}
+    }
+    features = window_7d["aggs"]["features"]
+    assert features["filter"] == {"term": {"activity_kind": "feature"}}
+    # Exact top 10: every shard answers for the whole slug vocabulary.
+    assert features["aggs"]["top"]["terms"]["size"] == 10
+    assert features["aggs"]["top"]["terms"]["shard_size"] == 100
+
+
+def test_request_stats_refuse_a_partial_result():
+    reader, _search, _aliases = _reader(
+        [{"_shards": {"failed": 1}, "aggregations": {}}]
+    )
+
+    with pytest.raises(RuntimeError, match="partial"):
+        reader.get_request_stats()

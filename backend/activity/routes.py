@@ -12,6 +12,7 @@ from .data import (
     get_fab_page_usage,
     get_family_page_usage,
     get_me,
+    get_request_stats,
     get_summary,
     get_user_history,
     get_users_list,
@@ -103,6 +104,13 @@ def activity_users():
 @require_admin
 def activity_visitors():
     return _query(get_daily_visitors)
+
+
+# Admin-only for the same reason as /visitors: the site's volume over time.
+@bp.get("/activity/requests")
+@require_admin
+def activity_requests():
+    return _query(get_request_stats)
 
 
 @bp.get("/activity/users/<user_id>")

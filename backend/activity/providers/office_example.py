@@ -11,6 +11,7 @@ get_summary = _reader.get_summary
 get_fab_page_usage = _reader.get_fab_page_usage
 get_family_page_usage = _reader.get_family_page_usage
 get_daily_visitors = _reader.get_daily_visitors
+get_request_stats = _reader.get_request_stats
 get_users_list = _reader.get_users_list
 get_user_history = _reader.get_user_history
 

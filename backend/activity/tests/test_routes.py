@@ -2,7 +2,7 @@
 
 /activity/me, /activity/summary, /activity/fabs and /activity/families stay
 open to every identified user (aggregates), while /activity/users, /activity/users/<id> and
-/activity/visitors require a trusted admin identity.
+/activity/visitors and /activity/requests require a trusted admin identity.
 """
 
 import pytest
@@ -33,6 +33,7 @@ def make_client(monkeypatch):
         routes, "get_user_history", lambda user_id: {"user_id": user_id}
     )
     monkeypatch.setattr(routes, "get_daily_visitors", lambda: {"days": []})
+    monkeypatch.setattr(routes, "get_request_stats", lambda: {"days": []})
 
     def build(user_id, identity_source):
         app = Flask(__name__)
@@ -54,6 +55,7 @@ def make_client(monkeypatch):
         "/api/activity/users",
         "/api/activity/users/2067928",
         "/api/activity/visitors",
+        "/api/activity/requests",
     ],
 )
 def test_user_enumeration_is_forbidden_for_non_admins(make_client, path):
@@ -71,6 +73,7 @@ def test_user_enumeration_is_forbidden_for_non_admins(make_client, path):
         "/api/activity/users",
         "/api/activity/users/2067928",
         "/api/activity/visitors",
+        "/api/activity/requests",
     ],
 )
 def test_user_enumeration_is_allowed_for_the_home_admin(make_client, path):

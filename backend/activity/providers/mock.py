@@ -33,6 +33,13 @@ and MAU ending that day, so today's row always equals ``get_summary()``'s
 the office reader calls too — the two adapters differ only in where a
 person's active days come from.
 
+``get_request_stats`` reads the same request rows again, as volume rather
+than people: requests and requesters per day, and per window the split into
+entry requests, the top feature pages and the rest. Entry requests are not
+stored on their own — they are ``daily`` minus ``daily_feature_requests``,
+which is exact because a feature request lands in both and an entry request
+in ``daily`` alone. The office reader filters on ``activity_kind`` instead.
+
 Anonymous callers share one ID, so their events are never stored. Reads also
 exclude legacy anonymous state, matching the office reader's source/ID filter
 (user-confirmed 2026-10-02). Operational request logs are retained separately.
@@ -60,6 +67,8 @@ from ..contracts import (
     FeatureUse,
     MeResponse,
     MeThisMonth,
+    RequestsResponse,
+    RequestWindow,
     SummaryResponse,
     UserHistoryResponse,
     UserListResponse,
@@ -73,6 +82,7 @@ from .shared import (
     SPARKLINE_DAYS,
     TOP_FEATURES_CAP,
     VISIT_DAYS,
+    VISITOR_DAYS,
     VISITOR_LOOKBACK_DAYS,
     daily_visitor_rows,
     family_usage_rows,
@@ -410,6 +420,57 @@ def get_daily_visitors() -> VisitorsResponse:
     return {
         "generated_at": _iso(_now()),
         "days": daily_visitor_rows(active_days, today),
+    }
+
+
+def _request_window(
+    states: list[_UserState],
+    first: date,
+    today: date,
+) -> RequestWindow:
+    """Entry / top features / rest over ``first``..``today``. Lock held."""
+    requests = 0
+    features: dict[str, int] = {}
+    for state in states:
+        for day, count in state.daily.items():
+            if first <= day <= today:
+                requests += count
+        for day, counts in state.daily_feature_requests.items():
+            if first <= day <= today:
+                _merge_counts(features, counts)
+    top = _top_features(features)
+    feature_total = sum(features.values())
+    return {
+        "entry": requests - feature_total,
+        "features": top,
+        "other_count": feature_total - sum(row["count"] for row in top),
+    }
+
+
+def get_request_stats() -> RequestsResponse:
+    """Request volume per KST day, and where each window's requests went."""
+    today = _today()
+    days = [
+        today - timedelta(days=offset)
+        for offset in range(VISITOR_DAYS - 1, -1, -1)
+    ]
+    with _lock:
+        states = list(_identified_users(_users))
+        rows = [
+            {
+                "date": day.isoformat(),
+                "requests": sum(state.daily.get(day, 0) for state in states),
+                "users": sum(1 for state in states if state.daily.get(day, 0) > 0),
+            }
+            for day in days
+        ]
+        window_7d = _request_window(states, today - timedelta(days=6), today)
+        window_30d = _request_window(states, today - timedelta(days=29), today)
+    return {
+        "generated_at": _iso(_now()),
+        "days": rows,
+        "window_7d": window_7d,
+        "window_30d": window_30d,
     }
 
 
