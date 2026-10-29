@@ -21,7 +21,13 @@ from typing import Optional
 from backend.announcements.contracts import Announcement
 
 
-__all__ = ["get_announcements", "is_active"]
+__all__ = [
+    "add_announcement",
+    "get_announcements",
+    "is_active",
+    "list_all",
+    "remove_announcement",
+]
 
 logger = logging.getLogger("skewnono.announcements")
 
@@ -85,3 +91,30 @@ def is_active(a: Announcement, now: datetime) -> bool:
 def get_announcements() -> list[Announcement]:
     now = datetime.now(timezone.utc)
     return [a for a in _load() if is_active(a, now)]
+
+
+# ── admin writes (/admin/announcements) — same signatures as the office adapter
+
+
+def list_all() -> list[Announcement]:
+    return list(_load())
+
+
+def _save(rows: list[Announcement]) -> None:
+    tmp = _PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(_PATH)
+    _cache["mtime"] = 0.0  # two saves inside one mtime tick must still reload
+
+
+def add_announcement(row: Announcement) -> None:
+    _save([*list_all(), row])
+
+
+def remove_announcement(announcement_id: str) -> bool:
+    rows = list_all()
+    kept = [r for r in rows if r.get("id") != announcement_id]
+    if len(kept) == len(rows):
+        return False
+    _save(kept)
+    return True

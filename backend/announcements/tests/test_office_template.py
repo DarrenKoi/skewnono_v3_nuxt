@@ -203,3 +203,62 @@ def test_an_edit_takes_effect_on_the_next_call(fake):
 
     fake.put_json(KEY, [])
     assert office.get_announcements() == []
+
+
+# ── admin writes ────────────────────────────────────────────────────────
+
+
+class WritableFake(FakeRedis):
+    def set(self, key, value):
+        if self.fail:
+            raise redis.exceptions.ConnectionError("fake outage")
+        self.strings[key] = value
+
+
+@pytest.fixture
+def store(monkeypatch):
+    client = WritableFake()
+    monkeypatch.setattr(office, "redis_client", lambda: client)
+    monkeypatch.setattr(office, "_client", lambda: client)
+    return client
+
+
+def test_an_added_row_is_appended_and_served_as_a_banner(store):
+    store.put_json(KEY, [dict(ROW, id="old")])
+
+    office.add_announcement(ROW)
+
+    assert [r["id"] for r in office.list_all()] == ["old", ROW["id"]]
+    assert office.get_announcements()[-1] == ROW
+
+
+def test_list_all_includes_expired_rows(store):
+    store.put_json(KEY, [dict(ROW, ends_at=_aware(-timedelta(days=1)))])
+
+    assert len(office.list_all()) == 1
+    assert office.get_announcements() == []
+
+
+def test_remove_drops_only_that_id(store):
+    store.put_json(KEY, [dict(ROW, id="a"), dict(ROW, id="b")])
+
+    assert office.remove_announcement("a") is True
+    assert office.remove_announcement("missing") is False
+    assert [r["id"] for r in office.list_all()] == ["b"]
+
+
+def test_an_admin_write_over_a_corrupt_value_repairs_it(store):
+    store.strings[KEY] = b"not json"
+
+    office.add_announcement(ROW)
+
+    assert office.get_announcements() == [ROW]
+
+
+def test_an_outage_on_the_admin_path_raises_instead_of_reading_as_empty(store):
+    """If an outage read as [] here, the next add would overwrite the array."""
+    store.put_json(KEY, [ROW])
+    store.fail = True
+
+    with pytest.raises(redis.exceptions.ConnectionError):
+        office.add_announcement(dict(ROW, id="new"))

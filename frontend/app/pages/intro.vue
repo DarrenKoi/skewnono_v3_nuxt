@@ -539,6 +539,17 @@ const pageGuides: PageGuide[] = [
     notes: ['일반 내비게이션에는 노출하지 않고 URL 직접 입력으로 접근합니다.']
   },
   {
+    id: 'admin-announcements',
+    title: '배너 공지',
+    path: '/admin/announcements',
+    icon: 'i-lucide-megaphone',
+    section: 'admin',
+    purpose: '모든 화면 상단에 뜨는 배너 공지를 관리자가 올리고 내리는 화면입니다.',
+    description: '등급(안내·주의·긴급), 제목, 내용, 게시 기간, 닫기 허용 여부를 입력해 올리면 다음 화면 로드부터 모든 사용자에게 보입니다. 사용자가 닫은 배너는 그 브라우저에서 다시 뜨지 않으며, 수정은 삭제 후 다시 올리는 방식이라 닫았던 사용자에게도 다시 보입니다.',
+    users: '관리자',
+    notes: ['일반 내비게이션에는 노출하지 않고 사용 통계의 관리자 도구 카드나 URL 직접 입력으로 접근합니다.']
+  },
+  {
     id: 'ebeam-entry',
     title: 'E-Beam 진입',
     path: '/ebeam/cd-sem, /ebeam/hv-sem',

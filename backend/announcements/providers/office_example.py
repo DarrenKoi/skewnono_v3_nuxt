@@ -61,11 +61,11 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from backend._runtime.office_redis import STORE_ERRORS, redis_client_or_none
+from backend._runtime.office_redis import STORE_ERRORS, redis_client, redis_client_or_none
 from backend.announcements.contracts import Announcement
 from backend.announcements.providers.mock import is_active
 
-__all__ = ["get_announcements"]
+__all__ = ["add_announcement", "get_announcements", "list_all", "remove_announcement"]
 
 logger = logging.getLogger("skewnono.announcements")
 
@@ -103,6 +103,12 @@ def _load() -> list[Announcement]:
         return []
     if not raw:
         return []  # unset key or empty value — a normal "nothing posted" state
+    return _parse(raw)
+
+
+def _parse(raw) -> list[Announcement]:
+    if not raw:
+        return []
     try:
         parsed = json.loads(raw)
     except ValueError:
@@ -127,3 +133,37 @@ def get_announcements() -> list[Announcement]:
     """Currently-active announcements, in stored order."""
     now = datetime.now(timezone.utc)
     return [row for row in _load() if is_active(row, now)]
+
+
+# ── admin writes (/admin/announcements) ─────────────────────────────────
+#
+# These take the OPPOSITE stance from the read above: ``redis_client()``, and
+# store errors propagate (the app factory answers 503). An outage that read as
+# "no announcements" on the admin page would make the next save overwrite the
+# real array. A corrupt value still parses to ``[]``, so an admin save is also
+# how a bad hand paste gets repaired.
+#
+# ponytail: read-modify-write without WATCH — two admins saving in the same
+# millisecond can drop one row. Add WATCH/MULTI if concurrent admins appear.
+
+
+def list_all() -> list[Announcement]:
+    """Every stored row, active or not, in stored order."""
+    return _parse(redis_client().get(_KEY))
+
+
+def _save(rows: list[Announcement]) -> None:
+    redis_client().set(_KEY, json.dumps(rows, ensure_ascii=False).encode())
+
+
+def add_announcement(row: Announcement) -> None:
+    _save([*list_all(), row])
+
+
+def remove_announcement(announcement_id: str) -> bool:
+    rows = list_all()
+    kept = [r for r in rows if r.get("id") != announcement_id]
+    if len(kept) == len(rows):
+        return False
+    _save(kept)
+    return True

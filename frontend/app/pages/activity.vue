@@ -391,6 +391,12 @@ const adminLinks = [
     description: 'X-사번 차단 예외와 FTP 접속 개인 승인(신청 승인·사번 추가·회수)을 관리합니다.'
   },
   {
+    to: '/admin/announcements',
+    icon: 'i-lucide-megaphone',
+    title: '배너 공지',
+    description: '모든 화면 상단에 뜨는 배너 공지를 올리고 내립니다.'
+  },
+  {
     // The 운영 로그 page with its Identity filter preset — token requests are
     // the /endpoints API callers, which no other view separates out.
     to: '/admin/logs?identity_source=token',

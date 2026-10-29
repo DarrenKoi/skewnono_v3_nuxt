@@ -22,6 +22,28 @@ cp providers/office_example.py providers/office.py
 - Only edit the copy if the in-house connection needs adjusting. Never touch
   `routes.py`, `data.py`, `providers/mock.py`, `contracts.py`, or `tests/`.
 
+## Admin page: /admin/announcements (2026-10-30)
+
+관리자는 `/admin/announcements` 에서 배너를 올리고 내립니다. 이 화면은 같은 키에
+씁니다.
+
+| Route | 동작 |
+| --- | --- |
+| `GET /api/admin/announcements` | 저장된 전체 행 (만료·예약 포함) |
+| `POST /api/admin/announcements` | 검증 후 한 행 추가, `id` 는 서버가 생성 |
+| `DELETE /api/admin/announcements/<id>` | 그 행 삭제, 없으면 404 |
+
+- 세 route 모두 `require_admin` 입니다.
+- 쓰기 경로는 읽기와 반대로 **실패를 드러냅니다.** `list_all` / `add_announcement`
+  / `remove_announcement` 는 `redis_client()` 를 쓰고 store 오류를 그대로 올려
+  503 이 됩니다. 장애가 "공지 없음"으로 읽히면 다음 저장이 실제 배열을 덮어쓰기
+  때문입니다. 깨진 값은 `[]` 로 읽히므로 화면에서 한 번 저장하면 복구됩니다.
+- `id` 는 재사용하지 않습니다. 사용자가 닫은 배너는 브라우저 localStorage 에
+  `id` 로 기억되므로, 수정은 삭제 후 다시 올리는 방식이고 모두에게 다시 보입니다.
+- **사무실 조치:** 이 변경은 템플릿을 바꿨으므로 `office.py` 를 다시 복사합니다
+  (`cp providers/office_example.py providers/office.py`). 이전 복사본은
+  `list_all` 이 없어 관리 화면이 500 을 냅니다. 배너 읽기는 영향이 없습니다.
+
 ## Why Redis and not the JSON file
 
 The mock reads `announcements/announcements.json` from disk, and that is not

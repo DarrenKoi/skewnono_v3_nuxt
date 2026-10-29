@@ -74,3 +74,64 @@ def test_a_non_dict_row_in_the_file_is_skipped_not_a_500(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert response.get_json() == [ROW]
+
+
+# ── admin page: /api/admin/announcements ────────────────────────────────
+
+ADMIN = "local-dev"
+NORMAL = "1234567"
+
+
+def _as(user):
+    client = _client()
+    client.set_cookie("LASTUSER", user)
+    return client
+
+
+def test_admin_routes_refuse_a_normal_user():
+    client = _as(NORMAL)
+
+    assert client.get("/api/admin/announcements").status_code == 403
+    assert client.post("/api/admin/announcements", json={"title": "x"}).status_code == 403
+    assert client.delete("/api/admin/announcements/x").status_code == 403
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"title": ""},
+        {"title": "ok", "level": "loud"},
+        {"title": "ok", "ends_at": "next tuesday"},
+        {"title": "x" * 201},
+    ],
+)
+@mock_only
+def test_a_bad_form_is_a_400_and_stores_nothing(monkeypatch, tmp_path, body):
+    _serve_from_file(monkeypatch, tmp_path, [])
+    client = _as(ADMIN)
+
+    assert client.post("/api/admin/announcements", json=body).status_code == 400
+    assert client.get("/api/admin/announcements").get_json() == []
+
+
+@mock_only
+def test_a_posted_announcement_is_served_to_everyone_then_deleted(monkeypatch, tmp_path):
+    _serve_from_file(monkeypatch, tmp_path, [ROW])
+    admin = _as(ADMIN)
+
+    response = admin.post(
+        "/api/admin/announcements",
+        json={"level": "warning", "title": " 점검 ", "body": "곧 끝납니다", "ends_at": "2999-01-01T00:00"},
+    )
+    assert response.status_code == 201
+    row = response.get_json()
+    assert row["title"] == "점검" and row["dismissible"] is True
+    assert row["id"] != ROW["id"]
+
+    served = _as(NORMAL).get("/api/announcements").get_json()
+    assert [r["id"] for r in served] == [ROW["id"], row["id"]]
+    assert_matches(served, AnnouncementsResponse)
+
+    assert admin.delete(f"/api/admin/announcements/{row['id']}").status_code == 200
+    assert admin.delete(f"/api/admin/announcements/{row['id']}").status_code == 404
+    assert [r["id"] for r in admin.get("/api/admin/announcements").get_json()] == [ROW["id"]]
