@@ -23,11 +23,13 @@ const { identity, isAnonymous, signOut } = useIdentity()
 
 const open = ref(false)
 const releasing = ref(false)
-const links = headerLinksIn('account')
+const links = computed(() =>
+  headerLinksIn('account').filter(link => !link.adminOnly || identity.value?.is_admin === true)
+)
 
 const isActive = (link: HeaderLink) => isHeaderLinkActive(link, route.path)
 
-const hasActiveLink = computed(() => links.some(isActive))
+const hasActiveLink = computed(() => links.value.some(isActive))
 
 const triggerLabel = computed(() => identity.value ? `App 정보 — ${displayName(identity.value)}` : 'App 정보')
 
@@ -118,6 +120,7 @@ const releaseDeclaration = async () => {
             :icon="link.icon"
             :to="link.to ?? undefined"
             :active="isActive(link)"
+            :separated="link.separated"
             @select="open = false"
           />
           <!-- Only a *declared* identity can be released; a cookie one is authoritative

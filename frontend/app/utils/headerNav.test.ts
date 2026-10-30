@@ -125,3 +125,12 @@ test('isHeaderInfoPath excludes the hub index and the ebeam tree', () => {
   assert.equal(isHeaderInfoPath('/ebeam/cd-sem/r3'), false)
   assert.equal(isHeaderInfoPath('/afm'), false)
 })
+
+test('관리자 도구 is the one admin-only row, and it covers every /admin page', () => {
+  // The row hides for non-admins, but /admin is still a header path for everyone, so the
+  // pages under it keep their feature tabs and nobody is stranded inside one.
+  assert.deepEqual(HEADER_LINKS.filter(link => link.adminOnly).map(link => link.to), ['/admin'])
+  assert.equal(isHeaderInfoPath('/admin'), true)
+  assert.equal(isHeaderInfoPath('/admin/logs'), true)
+  assert.equal(isHeaderInfoPath('/administrator'), false)
+})

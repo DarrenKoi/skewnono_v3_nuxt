@@ -21,15 +21,13 @@
         </p>
       </div>
       <div class="flex items-center gap-1">
-        <!-- The way back: this page is not in the nav, and 사용 통계's 관리자
-             도구 card is the only link that leads here. -->
         <UButton
-          to="/activity"
+          to="/admin"
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
         >
-          사용 통계
+          관리자 도구
         </UButton>
         <UButton
           v-if="!blocked"

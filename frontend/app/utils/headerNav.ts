@@ -42,6 +42,9 @@ export interface HeaderLink {
   // look up or compute, and it is a conversation — same menu, different kind, so the eye is
   // given the seam rather than left to find it.
   separated?: boolean
+  // Drawn only for an admin caller. The page still guards itself — hiding the row is
+  // about not offering a door that opens onto "관리자만 접근할 수 있는 페이지입니다".
+  adminOnly?: boolean
 }
 
 export const HEADER_LINKS: HeaderLink[] = [
@@ -73,7 +76,10 @@ export const HEADER_LINKS: HeaderLink[] = [
   // activity, not bar-chart-3: 기능 탭의 '디바이스 통계'가 이미 bar-chart-3 입니다.
   // 같은 아이콘이 헤더 안에서 두 곳을 가리키면 아이콘이 식별자 역할을 못 합니다.
   { to: '/activity', icon: 'i-lucide-activity', label: '사용 통계', group: 'account' },
-  { to: '/settings', icon: 'i-lucide-settings', label: '세팅', group: 'account' }
+  { to: '/settings', icon: 'i-lucide-settings', label: '세팅', group: 'account' },
+  // The hub for every /admin/* page. Being a header path is also what gives those pages
+  // the feature tabs (prefix match), so an admin is never stranded inside one.
+  { to: '/admin', icon: 'i-lucide-shield-check', label: '관리자 도구', group: 'account', adminOnly: true, separated: true }
 ]
 
 /** One menu's rows, in declaration order. */

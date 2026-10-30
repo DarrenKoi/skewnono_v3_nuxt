@@ -490,7 +490,7 @@ const pageGuides: PageGuide[] = [
     icon: 'i-lucide-bar-chart-3',
     section: 'common',
     purpose: 'SKEWNONO가 어떻게 쓰이고 있는지 확인하는 화면입니다.',
-    description: '맨 위는 내 사용 패턴입니다. 이번 달 요청 수와 활동일, 최근 쓴 기능 5개, 30일 스파크라인이 놓입니다. 스파크라인의 막대를 누르면 그날 호출한 기능이 펼쳐집니다. 그 아래로 DAU·WAU·MAU 같은 전체 지표와 인기 기능 Top 10, 장비군별(CD-SEM·HV-SEM·VeritySEM·Provision·AFM) 페이지 사용량, FAB별 페이지 사용량이 7일·30일 기준으로 이어집니다. 관리자에게는 방문자 분석·요청 분석·운영 로그·접근 권한 관리·Endpoint 로그로 가는 관리자 도구 카드가 보입니다.',
+    description: '맨 위는 내 사용 패턴입니다. 이번 달 요청 수와 활동일, 최근 쓴 기능 5개, 30일 스파크라인이 놓입니다. 스파크라인의 막대를 누르면 그날 호출한 기능이 펼쳐집니다. 그 아래로 DAU·WAU·MAU 같은 전체 지표와 인기 기능 Top 10, 장비군별(CD-SEM·HV-SEM·VeritySEM·Provision·AFM) 페이지 사용량, FAB별 페이지 사용량이 7일·30일 기준으로 이어집니다.',
     users: '전체 사용자',
     notes: ['개인 활동과 전체 집계를 나란히 두어 내 사용 패턴을 전체 흐름과 비교할 수 있습니다.']
   },
@@ -500,10 +500,10 @@ const pageGuides: PageGuide[] = [
     path: '/admin/visitors',
     icon: 'i-lucide-user-round-search',
     section: 'admin',
-    purpose: '누가 얼마나 자주 방문하는지 관리자가 확인하는 URL-only 화면입니다.',
+    purpose: '누가 얼마나 자주 방문하는지 관리자가 확인하는 관리자 전용 화면입니다.',
     description: 'DAU 막대와 WAU·MAU 선을 2주·1개월·2개월·3개월 범위로 겹쳐 보여주고, 최근 30일 기준으로 자주 방문하는 사용자 Top 10, 방문 빈도 분포, 팀별 방문자 수를 나란히 둡니다. 그 아래 사용자별 사용 현황 표는 검색·정렬하고 Excel로 내려받을 수 있으며, 행을 누르면 그 사용자의 30일 활동이 펼쳐집니다.',
     users: '관리자',
-    notes: ['일반 내비게이션에는 노출하지 않고 사용 통계의 관리자 도구 카드나 URL 직접 입력으로 접근합니다.']
+    notes: ['App 정보 메뉴의 관리자 도구(관리자에게만 보임)에서 들어갑니다.']
   },
   {
     id: 'admin-requests',
@@ -511,10 +511,10 @@ const pageGuides: PageGuide[] = [
     path: '/admin/requests',
     icon: 'i-lucide-activity',
     section: 'admin',
-    purpose: '사용자 요청이 얼마나, 어디로 들어오는지 관리자가 확인하는 URL-only 화면입니다.',
+    purpose: '사용자 요청이 얼마나, 어디로 들어오는지 관리자가 확인하는 관리자 전용 화면입니다.',
     description: '오늘·7일·30일 요청 수와 활동 사용자 1인·1일당 요청 수를 KPI로 두고, 일별 요청 막대를 2주·1개월·2개월·3개월 범위로 보여줍니다. 그 아래 기능별 요청 Top 10(7일·30일)과 요청이 많은 사용자 Top 10(30일)을 나란히 둡니다. 요청은 사용자가 화면에서 보낸 API 호출만 세며 페이지 열람·실패·API Token·백그라운드·익명 요청은 제외합니다.',
     users: '관리자',
-    notes: ['일반 내비게이션에는 노출하지 않고 사용 통계의 관리자 도구 카드나 URL 직접 입력으로 접근합니다.']
+    notes: ['App 정보 메뉴의 관리자 도구(관리자에게만 보임)에서 들어갑니다.']
   },
   {
     id: 'admin-logs',
@@ -522,10 +522,10 @@ const pageGuides: PageGuide[] = [
     path: '/admin/logs',
     icon: 'i-lucide-file-search',
     section: 'admin',
-    purpose: '운영자가 요청 로그와 오류를 추적하는 URL-only 화면입니다.',
+    purpose: '운영자가 요청 로그와 오류를 추적하는 관리자 전용 화면입니다.',
     description: 'OpenSearch 기반 로그를 level, path, user_id 등으로 필터링해 장애나 사용자 요청 흐름을 확인합니다.',
     users: '관리자, 운영 담당자',
-    notes: ['일반 내비게이션에는 노출하지 않고 URL 직접 입력으로 접근합니다.']
+    notes: ['App 정보 메뉴의 관리자 도구(관리자에게만 보임)에서 들어갑니다.']
   },
   {
     id: 'admin-access',
@@ -536,7 +536,7 @@ const pageGuides: PageGuide[] = [
     purpose: 'X-사번 차단 규칙의 예외 허용 목록을 관리하는 관리자 전용 화면입니다.',
     description: 'X로 시작하는 사번은 기본 차단되며, 이 화면에서 예외로 허용하거나 최근 차단 시도를 확인해 원클릭으로 허용합니다.',
     users: '관리자',
-    notes: ['일반 내비게이션에는 노출하지 않고 URL 직접 입력으로 접근합니다.']
+    notes: ['App 정보 메뉴의 관리자 도구(관리자에게만 보임)에서 들어갑니다.']
   },
   {
     id: 'admin-announcements',
@@ -547,7 +547,7 @@ const pageGuides: PageGuide[] = [
     purpose: '모든 화면 상단에 뜨는 배너 공지를 관리자가 올리고 내리는 화면입니다.',
     description: '등급(안내·주의·긴급), 제목, 내용, 게시 기간, 닫기 허용 여부를 입력해 올리면 다음 화면 로드부터 모든 사용자에게 보입니다. 사용자가 닫은 배너는 그 브라우저에서 다시 뜨지 않으며, 수정은 삭제 후 다시 올리는 방식이라 닫았던 사용자에게도 다시 보입니다.',
     users: '관리자',
-    notes: ['일반 내비게이션에는 노출하지 않고 사용 통계의 관리자 도구 카드나 URL 직접 입력으로 접근합니다.']
+    notes: ['App 정보 메뉴의 관리자 도구(관리자에게만 보임)에서 들어갑니다.']
   },
   {
     id: 'ebeam-entry',
