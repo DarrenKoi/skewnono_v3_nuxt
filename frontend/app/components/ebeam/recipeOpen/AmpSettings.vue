@@ -12,7 +12,7 @@
       />
       <EbeamRecipeOpenSettingTable
         title="AMP (측정 알고리즘)"
-        :block="detail?.amp ?? null"
+        :block="ampBlock"
       />
     </div>
   </EbeamRecipeOpenParamPanel>
@@ -42,6 +42,16 @@ const props = defineProps<{
   /** P_No → Parameter from wafer_mp_info, what a formula's `$N` names (`formulaRefNames`). */
   refNames: ReadonlyMap<number, string>
 }>()
+
+// Cursor coordinate lists run to hundreds of entries and mean nothing read as
+// text — the server already turns them into measurement marks on the image.
+const HIDDEN_AMP_KEYS = new Set(['Cursor_Positions', 'MP_Cursor_Positions'])
+
+const ampBlock = computed<SettingBlock | null>(() => {
+  const amp = props.detail?.amp
+  if (!amp) return null
+  return { ...amp, rows: amp.rows.filter(row => !HIDDEN_AMP_KEYS.has(row.key)) }
+})
 
 // The formula GROUP is the flag (office 확인 2026-10-22), so it alone decides:
 // gating on AMP Measurement too would hide a real formula whenever the PRMS
