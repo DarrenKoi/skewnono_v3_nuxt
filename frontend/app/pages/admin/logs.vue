@@ -276,10 +276,10 @@
               :key="row.id"
             >
               <tr
-                class="cursor-pointer border-b border-(--sk-border) hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
+                class="cursor-pointer border-b border-(--sk-border) hover:bg-(--sk-accent-soft)"
                 @click="toggleRow(row.id)"
               >
-                <td class="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-(--sk-ink-muted)">
+                <td class="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-(--sk-ink)">
                   {{ formatTime(row.timestamp) }}
                 </td>
                 <td class="px-3 py-2">
@@ -291,7 +291,7 @@
                     {{ row.level || '-' }}
                   </UBadge>
                 </td>
-                <td class="whitespace-nowrap px-3 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-300">
+                <td class="whitespace-nowrap px-3 py-2 font-mono text-xs text-(--sk-ink)">
                   {{ row.event || '-' }}
                 </td>
                 <td class="whitespace-nowrap px-3 py-2">
@@ -321,7 +321,7 @@
                 <td class="px-3 py-2 font-mono text-xs">
                   {{ row.method || '-' }}
                 </td>
-                <td class="max-w-[22rem] truncate px-3 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-300">
+                <td class="max-w-[22rem] truncate px-3 py-2 font-mono text-xs text-(--sk-ink)">
                   {{ row.path || '-' }}
                 </td>
                 <td class="px-3 py-2 text-right font-mono tabular-nums">
@@ -333,13 +333,13 @@
                 <td class="whitespace-nowrap px-3 py-2 font-mono text-xs">
                   {{ row.feature || '-' }}
                 </td>
-                <td class="max-w-[28rem] truncate px-3 py-2 text-zinc-600 dark:text-zinc-300">
+                <td class="max-w-[28rem] truncate px-3 py-2 text-(--sk-ink)">
                   {{ row.message || '-' }}
                 </td>
               </tr>
               <tr
                 v-if="expandedId === row.id"
-                class="border-b border-(--sk-border) bg-zinc-50/80 dark:bg-zinc-950/60"
+                class="border-b border-(--sk-border) bg-(--sk-muted-surface)"
               >
                 <td
                   colspan="10"
@@ -347,16 +347,16 @@
                 >
                   <div class="grid gap-3 lg:grid-cols-2">
                     <div>
-                      <h3 class="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                      <h3 class="mb-1 text-xs font-semibold text-(--sk-ink-muted)">
                         Exception
                       </h3>
-                      <pre class="max-h-80 overflow-auto rounded bg-zinc-950 p-3 text-xs text-zinc-100">{{ exceptionText(row) }}</pre>
+                      <pre class="max-h-80 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-surface) p-3 text-xs text-(--sk-ink)">{{ exceptionText(row) }}</pre>
                     </div>
                     <div>
-                      <h3 class="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                      <h3 class="mb-1 text-xs font-semibold text-(--sk-ink-muted)">
                         Raw document
                       </h3>
-                      <pre class="max-h-80 overflow-auto rounded bg-zinc-950 p-3 text-xs text-zinc-100">{{ rawText(row) }}</pre>
+                      <pre class="max-h-80 overflow-auto rounded-(--sk-r-chip) border border-(--sk-border) bg-(--sk-surface) p-3 text-xs text-(--sk-ink)">{{ rawText(row) }}</pre>
                     </div>
                   </div>
                 </td>
