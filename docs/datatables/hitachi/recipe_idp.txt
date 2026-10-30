@@ -900,7 +900,7 @@ key 는 하나도 없었습니다. 그런데 같은 cond.txt 원문에는 한 �
 PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
 =====================================================
 
-`read_amp_info` 가 돌려주는 18개 field 입니다. cond.txt 가 **이미지를 어떻게
+`read_amp_info` 가 돌려주는 20개 field 입니다 (2026-07-30 에 18개, 2026-10-30 에 커서 list 2개 추가). cond.txt 가 **이미지를 어떻게
 찍었는지**를 적는다면, 이 파일은 **그 이미지에서 parameter 를 어떻게 재는지**를
 적습니다. 값은 전부 str 입니다 (ENMP 과 다른 점입니다).
 
@@ -924,6 +924,14 @@ PRMS… — AMP 파일의 field 이름 (office 확인 2026-07-30)
   | Base_Line_Area | `'8, 8'` |
   | Sum_Line_Point | (값 미확인) |
   | Target | (값 미확인) |
+  | Cursor_Positions | (형식 미확인, 매우 긴 좌표 list) |
+  | MP_Cursor_Positions | (형식 미확인, 매우 긴 좌표 list) |
+
+`Cursor_Positions` · `MP_Cursor_Positions` 두 key 가 더 있습니다 (user-confirmed
+2026-10-30). 둘 다 좌표 list 이고 길이가 매우 길어서 AMP 탭에서는 숨깁니다.
+측정 박스는 `marks_from_amp` 가 이 좌표(512 프레임)로 그립니다. 값의 정확한
+형식과 두 key 의 차이는 OFFICE-VERIFY 입니다. mock 은 `[[x, y], ...]` 문자열을
+64–256 쌍 만들어 넣습니다.
 
 cond.txt 와 다른 점 2가지
 -------------------------

@@ -658,7 +658,7 @@ def _seeded_rng(source: str, *scope: str) -> random.Random:
 
 # ── PRMS…, the AMP file (office 확인 2026-07-30) ───────────────────────────
 #
-# read_amp_info's eighteen fields — how one parameter is actually measured off
+# read_amp_info's eighteen fields (twenty with the two cursor lists) — how one parameter is actually measured off
 # the image, where cond.txt says how the image was taken. Every value is a str.
 #
 # Two things this file does that cond.txt does not:
@@ -709,6 +709,14 @@ _AMP_FIELDS: tuple[tuple[str, object], ...] = (
     # roll. Ellipse parameters overwrite it with their circle count; for the
     # other branches the value domain is invented (OFFICE-VERIFY).
     ("Target", lambda r: str(r.choice((1, 2, 3)))),
+    # Coordinate lists in the 512 frame that marks_from_amp turns into the
+    # measurement box (user-confirmed 2026-10-30: both keys exist and run long
+    # enough that the AMP tab hides them). The value FORMAT is OFFICE-VERIFY —
+    # a str()'d list of [x, y] pairs is a guess at what _to_rows makes of the
+    # reader's list; the length is what the mock must reproduce. Appended last
+    # so no earlier field's roll shifts.
+    ("Cursor_Positions", lambda r: _cursor_list(r)),
+    ("MP_Cursor_Positions", lambda r: _cursor_list(r)),
 )
 
 # 'Edge_Search_Direct.' really does end in a period — a truncated "Direction"
@@ -726,6 +734,12 @@ _AMP_FIELDS: tuple[tuple[str, object], ...] = (
 def _pair(value: object) -> str:
     """'50, 50' — one setting per edge, ', ' separated (office 확인 2026-07-30)."""
     return f"{value}, {value}"
+
+
+def _cursor_list(rng: random.Random) -> str:
+    """'[[x, y], ...]' in the 512 frame, long like the office's (OFFICE-VERIFY
+    format and length)."""
+    return str([[rng.randrange(512), rng.randrange(512)] for _ in range(rng.randrange(64, 257))])
 
 
 def _unknown_value(rng: random.Random) -> str:
