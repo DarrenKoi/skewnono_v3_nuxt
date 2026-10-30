@@ -5,7 +5,7 @@
         <h1 class="sk-page-title flex items-center gap-2">
           <UIcon
             name="i-lucide-bar-chart-3"
-            class="text-sky-500"
+            class="text-(--sk-accent)"
           />
           사용 통계
         </h1>
@@ -88,7 +88,7 @@
         <div class="grid grid-cols-2 gap-4">
           <ActivityStatCell
             icon="i-lucide-activity"
-            color="text-sky-500"
+            color="text-(--sk-accent)"
             :value="me.this_month.requests"
             label="요청 수"
           />
@@ -153,7 +153,7 @@
       <div class="flex items-center gap-2 pt-2">
         <UIcon
           name="i-lucide-users"
-          class="text-sky-500"
+          class="text-(--sk-accent)"
         />
         <h2 class="sk-heading">
           전체 사용 현황

@@ -5,7 +5,7 @@
         <h1 class="sk-page-title flex items-center gap-2">
           <UIcon
             name="i-lucide-user-round-search"
-            class="text-sky-500"
+            class="text-(--sk-accent)"
           />
           방문자 분석
           <UBadge

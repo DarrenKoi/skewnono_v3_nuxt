@@ -5,7 +5,7 @@
         <h1 class="flex items-center gap-2 sk-page-title">
           <UIcon
             name="i-lucide-shield-check"
-            class="text-sky-500"
+            class="text-(--sk-accent)"
           />
           접근 권한 관리
         </h1>
@@ -36,7 +36,7 @@
       <section class="dashboard-surface flex items-start gap-3 rounded-lg border border-(--sk-border) p-4">
         <UIcon
           name="i-lucide-info"
-          class="mt-0.5 shrink-0 text-sky-500"
+          class="mt-0.5 shrink-0 text-(--sk-accent)"
         />
         <p class="sk-body leading-6">
           사번이

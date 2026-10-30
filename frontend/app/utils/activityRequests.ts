@@ -31,7 +31,7 @@ export const requestKpis = (days: readonly DailyRequests[]) => {
       value: (days[days.length - 1]?.requests ?? 0).toLocaleString(),
       hint: '오늘 0시(KST)부터 지금까지',
       icon: 'i-lucide-activity',
-      color: 'text-sky-500'
+      color: 'text-(--sk-accent)'
     },
     {
       label: '7D 요청',
